@@ -71,6 +71,7 @@ var priorities = map[TokenType]int{
 	DECREMENT:    POSTFIX,
 	LPAREN:       CALL,
 	LBRACKET:     INDEX,
+	LBRACE:       CALL, // struct literal Person{...}
 	DOT:          MEMBER,
 }
 
@@ -172,6 +173,7 @@ func New(l *Lexer) *Parser {
 	p.setInfix(NOT_IN, p.parseInfixExpression)
 	p.setInfix(LPAREN, p.parseCallExpression)
 	p.setInfix(LBRACKET, p.parseIndexExpression)
+	p.setInfix(LBRACE, p.parseStructLiteral)
 	p.setInfix(DOT, p.parseMemberExpression)
 	p.setInfix(INCREMENT, p.parsePostfixExpression)
 	p.setInfix(DECREMENT, p.parsePostfixExpression)
@@ -228,6 +230,7 @@ func NewWithSource(l *Lexer, source, filename string) *Parser {
 	p.setInfix(NOT_IN, p.parseInfixExpression)
 	p.setInfix(LPAREN, p.parseCallExpression)
 	p.setInfix(LBRACKET, p.parseIndexExpression)
+	p.setInfix(LBRACE, p.parseStructLiteral)
 	p.setInfix(DOT, p.parseMemberExpression)
 	p.setInfix(INCREMENT, p.parsePostfixExpression)
 	p.setInfix(DECREMENT, p.parsePostfixExpression)
@@ -1090,6 +1093,46 @@ func (p *Parser) parseExpression(precedence int) Expression {
 
 func (p *Parser) parseIdentifier() Expression {
 	return &Label{Token: p.currentToken, Value: p.currentToken.Literal}
+}
+
+// parseStructLiteral is called as an infix parser when we see Identifier{
+func (p *Parser) parseStructLiteral(left Expression) Expression {
+	// left should be an identifier (the struct type name)
+	name, ok := left.(*Label)
+	if !ok {
+		msg := "struct literal must have type name"
+		p.addEZError(errors.E1003, msg, p.currentToken)
+		return nil
+	}
+
+	lit := &StructValue{Token: p.currentToken, Name: name}
+	lit.Fields = make(map[string]Expression)
+
+	// Already at {, move into struct
+	p.nextToken()
+
+	for !p.currentTokenMatches(RBRACE) && !p.currentTokenMatches(EOF) {
+		// Handle empty struct literal
+		if p.currentTokenMatches(RBRACE) {
+			break
+		}
+
+		fieldName := p.currentToken.Literal
+
+		if !p.expectPeek(COLON) {
+			return nil
+		}
+
+		p.nextToken() // move past :
+		lit.Fields[fieldName] = p.parseExpression(LOWEST)
+
+		if p.peekTokenMatches(COMMA) {
+			p.nextToken() // consume comma
+		}
+		p.nextToken()
+	}
+
+	return lit
 }
 
 func (p *Parser) parseStructValue(name *Label) Expression {

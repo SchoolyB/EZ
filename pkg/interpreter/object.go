@@ -142,7 +142,8 @@ func (a *Array) Inspect() string {
 
 // Struct represents a struct instance
 type Struct struct {
-	Fields map[string]Object
+	TypeName string           // e.g., "Person"
+	Fields   map[string]Object
 }
 
 func (s *Struct) Type() ObjectType { return STRUCT_OBJ }

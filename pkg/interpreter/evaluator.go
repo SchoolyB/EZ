@@ -175,6 +175,9 @@ func Eval(node ast.Node, env *Environment) Object {
 		}
 		return &Array{Elements: elements}
 
+	case *ast.StructValue:
+		return evalStructValue(node, env)
+
 	case *ast.Label:
 		return evalIdentifier(node, env)
 
@@ -955,7 +958,7 @@ func typeMatches(obj Object, ezType string) bool {
 
 // objectTypeToEZ converts Object type to EZ language type name
 func objectTypeToEZ(obj Object) string {
-	switch obj.(type) {
+	switch v := obj.(type) {
 	case *Integer:
 		return "int"
 	case *Float:
@@ -967,6 +970,10 @@ func objectTypeToEZ(obj Object) string {
 	case *Array:
 		return "array"
 	case *Struct:
+		// Return the specific struct type name (e.g., "Person")
+		if v.TypeName != "" {
+			return v.TypeName
+		}
 		return "struct"
 	case *Nil:
 		return "nil"
@@ -1032,6 +1039,25 @@ func evalStringIndexExpression(str, index Object) Object {
 	}
 
 	return &Char{Value: rune(stringObject.Value[idx])}
+}
+
+func evalStructValue(node *ast.StructValue, env *Environment) Object {
+	// Create a new struct with the given fields
+	fields := make(map[string]Object)
+
+	// Evaluate each field expression
+	for fieldName, fieldExpr := range node.Fields {
+		val := Eval(fieldExpr, env)
+		if isError(val) {
+			return val
+		}
+		fields[fieldName] = val
+	}
+
+	return &Struct{
+		TypeName: node.Name.Value,
+		Fields:   fields,
+	}
 }
 
 func evalMemberExpression(node *ast.MemberExpression, env *Environment) Object {
