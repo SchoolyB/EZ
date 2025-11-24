@@ -220,13 +220,13 @@ func evalVariableDeclaration(node *ast.VariableDeclaration, env *Environment) Ob
 			if name.Value == "@ignore" {
 				continue
 			}
-			env.Set(name.Value, returnVal.Values[i])
+			env.Set(name.Value, returnVal.Values[i], node.Mutable)
 		}
 		return NIL
 	}
 
 	// Single variable assignment
-	env.Set(node.Name.Value, val)
+	env.Set(node.Name.Value, val, node.Mutable)
 	return NIL
 }
 
@@ -250,8 +250,12 @@ func evalAssignment(node *ast.AssignmentStatement, env *Environment) Object {
 			}
 		}
 
-		if !env.Update(target.Value, val) {
+		found, isMutable := env.Update(target.Value, val)
+		if !found {
 			return newError("identifier not found: %s", target.Value)
+		}
+		if !isMutable {
+			return newError("cannot assign to immutable variable '%s' (declared as const)", target.Value)
 		}
 
 	case *ast.IndexExpression:
@@ -408,7 +412,7 @@ func evalForStatement(node *ast.ForStatement, env *Environment) Object {
 	loopEnv := NewEnclosedEnvironment(env)
 
 	for i := start.Value; i <= end.Value; i++ { // Inclusive range
-		loopEnv.Set(node.Variable.Value, &Integer{Value: i})
+		loopEnv.Set(node.Variable.Value, &Integer{Value: i}, true) // loop vars are mutable
 
 		result := Eval(node.Body, loopEnv)
 		if result != nil {
@@ -438,7 +442,7 @@ func evalForEachStatement(node *ast.ForEachStatement, env *Environment) Object {
 	loopEnv := NewEnclosedEnvironment(env)
 
 	for _, elem := range arr.Elements {
-		loopEnv.Set(node.Variable.Value, elem)
+		loopEnv.Set(node.Variable.Value, elem, true) // loop vars are mutable
 
 		result := Eval(node.Body, loopEnv)
 		if result != nil {
@@ -460,7 +464,7 @@ func evalFunctionDeclaration(node *ast.FunctionDeclaration, env *Environment) Ob
 		Body:       node.Body,
 		Env:        env,
 	}
-	env.Set(node.Name.Value, fn)
+	env.Set(node.Name.Value, fn, false) // functions are immutable
 	return NIL
 }
 
@@ -813,7 +817,7 @@ func extendFunctionEnv(fn *Function, args []Object) *Environment {
 
 	for i, param := range fn.Parameters {
 		if i < len(args) {
-			env.Set(param.Name.Value, args[i])
+			env.Set(param.Name.Value, args[i], false) // params are immutable (const)
 		}
 	}
 

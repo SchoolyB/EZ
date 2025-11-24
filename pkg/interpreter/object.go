@@ -168,6 +168,7 @@ func (c *Continue) Inspect() string  { return "continue" }
 // Environment holds variable bindings
 type Environment struct {
 	store   map[string]Object
+	mutable map[string]bool   // tracks if variable is mutable (temp) or immutable (const)
 	outer   *Environment
 	imports map[string]string // alias -> module mapping
 	using   []string          // modules brought into scope (by alias)
@@ -176,6 +177,7 @@ type Environment struct {
 func NewEnvironment() *Environment {
 	return &Environment{
 		store:   make(map[string]Object),
+		mutable: make(map[string]bool),
 		outer:   nil,
 		imports: make(map[string]string),
 		using:   []string{},
@@ -227,19 +229,36 @@ func (e *Environment) Get(name string) (Object, bool) {
 	return obj, ok
 }
 
-func (e *Environment) Set(name string, val Object) Object {
+func (e *Environment) Set(name string, val Object, isMutable bool) Object {
 	e.store[name] = val
+	e.mutable[name] = isMutable
 	return val
 }
 
 // Update updates an existing variable (for assignments)
-func (e *Environment) Update(name string, val Object) bool {
+// Returns: (success bool, isMutable bool)
+func (e *Environment) Update(name string, val Object) (bool, bool) {
 	if _, ok := e.store[name]; ok {
+		// Check if variable is mutable
+		if !e.mutable[name] {
+			return true, false // found but immutable
+		}
 		e.store[name] = val
-		return true
+		return true, true // found and updated
 	}
 	if e.outer != nil {
 		return e.outer.Update(name, val)
 	}
-	return false
+	return false, false // not found
+}
+
+// IsMutable checks if a variable is mutable
+func (e *Environment) IsMutable(name string) (bool, bool) {
+	if isMut, ok := e.mutable[name]; ok {
+		return isMut, true
+	}
+	if e.outer != nil {
+		return e.outer.IsMutable(name)
+	}
+	return false, false
 }
