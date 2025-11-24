@@ -368,7 +368,34 @@ func (p *Parser) parseStatement() Statement {
 	}
 
 	switch p.currentToken.Type {
-	case TEMP, CONST:
+	case CONST:
+		// Check if this is a struct or enum declaration
+		if p.peekTokenMatches(IDENT) {
+			// Save current position
+			savedCurrent := p.currentToken
+			savedPeek := p.peekToken
+
+			p.nextToken() // move to IDENT
+
+			if p.peekTokenMatches(STRUCT) {
+				// This is a struct declaration: const Name struct { ... }
+				return p.parseStructDeclaration()
+			} else if p.peekTokenMatches(ENUM) {
+				// This is an enum declaration: const Name enum { ... }
+				// TODO: Implement parseEnumDeclaration()
+				// return p.parseEnumDeclaration()
+			}
+
+			// Not a struct or enum, restore and parse as variable
+			p.currentToken = savedCurrent
+			p.peekToken = savedPeek
+		}
+		stmt := p.parseVarableDeclaration()
+		if stmt != nil && len(attrs) > 0 {
+			stmt.Attributes = attrs
+		}
+		return stmt
+	case TEMP:
 		stmt := p.parseVarableDeclaration()
 		if stmt != nil && len(attrs) > 0 {
 			stmt.Attributes = attrs
@@ -398,10 +425,6 @@ func (p *Parser) parseStatement() Statement {
 	case USING:
 		return p.parseUsingStatement()
 	case IDENT:
-		// Check if this is a struct declaration (Name struct { ... })
-		if p.peekTokenMatches(STRUCT) {
-			return p.parseStructDeclaration()
-		}
 		// Check if this is an assignment
 		if p.peekTokenMatches(ASSIGN) || p.peekTokenMatches(PLUS_ASSIGN) ||
 			p.peekTokenMatches(MINUS_ASSIGN) || p.peekTokenMatches(ASTERISK_ASSIGN) ||
