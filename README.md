@@ -444,6 +444,64 @@ do custom_operation() -> (bool, CustomError) {
 }
 ```
 
+## Compiler Warnings and Suppression
+
+### Philosophy
+EZ provides helpful warnings about potential issues in your code without stopping execution. Warnings are displayed in yellow and provide suggestions for improving code quality.
+
+### Warning Codes
+- **W2001** - `unreachable_code`: Code that can never be executed (after return/break/continue)
+- More warning codes coming soon (unused variables, shadowing, etc.)
+
+### Suppressing Warnings
+Use the `@suppress()` attribute before declarations to silence specific warnings. This is useful when you intentionally want behavior that would normally trigger a warning.
+
+**Syntax:**
+```
+@suppress(warning_code1, warning_code2, ...)
+do function_name() {
+    // warnings are suppressed in this function
+}
+```
+
+**Example - Suppress unreachable code warning:**
+```
+// This function will show a warning about unreachable code
+do example1() {
+    return 5
+    temp x int = 10  // WARNING: unreachable code
+}
+
+// Suppress the warning using W2001 code
+@suppress(W2001)
+do example2() {
+    return 5
+    temp x int = 10  // No warning
+}
+
+// Can also use descriptive name
+@suppress(unreachable_code)
+do example3() {
+    return 5
+    temp x int = 10  // No warning
+}
+
+// Suppress multiple warnings
+@suppress(W2001, W1001, unused_variable)
+do example4() {
+    return 5
+    temp x int = 10
+}
+```
+
+**Rules:**
+- Use `@suppress()` before function or variable declarations
+- Arguments can be warning codes (`W2001`) or descriptive names (`unreachable_code`)
+- Both identifier and string literal syntax supported: `@suppress(W2001)` or `@suppress("W2001")`
+- Multiple warnings can be suppressed in one attribute: `@suppress(W2001, W1002)`
+- Suppressions only apply to the specific declaration they precede
+- Warnings are informational only - they never stop execution
+
 ## Import and Module System
 
 ### Import Syntax
