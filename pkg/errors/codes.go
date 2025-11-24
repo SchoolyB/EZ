@@ -19,6 +19,8 @@ var (
 	E1006 = ErrorCode{"E1006", "invalid-number", "invalid number format"}
 	E1007 = ErrorCode{"E1007", "missing-type", "type annotation required"}
 	E1008 = ErrorCode{"E1008", "invalid-assignment", "cannot assign to this"}
+	E1009 = ErrorCode{"E1009", "reserved-name", "this name is reserved"}
+	E1010 = ErrorCode{"E1010", "duplicate-name", "name already declared"}
 
 	// Type Errors (E2xxx)
 	E2001 = ErrorCode{"E2001", "type-mismatch", "types do not match"}

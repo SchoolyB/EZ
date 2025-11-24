@@ -10,6 +10,28 @@ import (
 	. "github.com/marshallburns/ez/pkg/tokenizer"
 )
 
+// Reserved keywords that cannot be used as identifiers
+var reservedKeywords = map[string]bool{
+	"temp": true, "const": true, "do": true, "return": true,
+	"if": true, "or": true, "otherwise": true,
+	"for": true, "for_each": true, "as_long_as": true, "loop": true,
+	"break": true, "continue": true, "in": true, "not_in": true, "range": true,
+	"import": true, "using": true, "struct": true, "enum": true,
+	"nil": true, "new": true, "true": true, "false": true,
+}
+
+// Builtin function names that cannot be redefined
+var builtinNames = map[string]bool{
+	"len": true, "typeof": true, "input": true,
+	"int": true, "float": true, "string": true, "bool": true, "char": true,
+	"println": true, "print": true, "read_int": true,
+}
+
+// isReservedName checks if a name is a reserved keyword or builtin
+func isReservedName(name string) bool {
+	return reservedKeywords[name] || builtinNames[name]
+}
+
 // Operator precedence levels
 const (
 	_ int = iota
@@ -74,6 +96,34 @@ type Parser struct {
 	ezErrors *errors.EZErrorList
 	source   string
 	filename string
+
+	// Scope tracking for duplicate detection
+	scopes []map[string]Token // stack of scopes, each mapping name to declaration token
+}
+
+// Scope management methods
+func (p *Parser) pushScope() {
+	p.scopes = append(p.scopes, make(map[string]Token))
+}
+
+func (p *Parser) popScope() {
+	if len(p.scopes) > 1 {
+		p.scopes = p.scopes[:len(p.scopes)-1]
+	}
+}
+
+func (p *Parser) currentScope() map[string]Token {
+	return p.scopes[len(p.scopes)-1]
+}
+
+// declareInScope declares a name in current scope, returns error if duplicate
+func (p *Parser) declareInScope(name string, token Token) bool {
+	scope := p.currentScope()
+	if _, exists := scope[name]; exists {
+		return false // duplicate
+	}
+	scope[name] = token
+	return true
 }
 
 // Returns a pointer to Parser(p)
@@ -85,6 +135,7 @@ func New(l *Lexer) *Parser {
 		ezErrors: errors.NewErrorList(),
 		source:   "",
 		filename: "<unknown>",
+		scopes:   []map[string]Token{make(map[string]Token)}, // start with global scope
 	}
 
 	p.prefixParseFns = make(map[TokenType]prefixParseFn)
@@ -140,6 +191,7 @@ func NewWithSource(l *Lexer, source, filename string) *Parser {
 		ezErrors: errors.NewErrorList(),
 		source:   source,
 		filename: filename,
+		scopes:   []map[string]Token{make(map[string]Token)}, // start with global scope
 	}
 
 	p.prefixParseFns = make(map[TokenType]prefixParseFn)
@@ -362,7 +414,22 @@ func (p *Parser) parseVarableDeclaration() *VariableDeclaration {
 	} else if !p.expectPeek(IDENT) {
 		return nil
 	} else {
-		stmt.Names = append(stmt.Names, &Label{Token: p.currentToken, Value: p.currentToken.Literal})
+		name := p.currentToken.Literal
+		// Check for reserved names
+		if isReservedName(name) {
+			msg := fmt.Sprintf("'%s' is a reserved keyword and cannot be used as a variable name", name)
+			p.errors = append(p.errors, msg)
+			p.addEZError(errors.E1009, msg, p.currentToken)
+			return nil
+		}
+		// Check for duplicate declaration
+		if !p.declareInScope(name, p.currentToken) {
+			msg := fmt.Sprintf("'%s' is already declared in this scope", name)
+			p.errors = append(p.errors, msg)
+			p.addEZError(errors.E1010, msg, p.currentToken)
+			return nil
+		}
+		stmt.Names = append(stmt.Names, &Label{Token: p.currentToken, Value: name})
 	}
 
 	// Check for multiple assignment: temp result, err = ...
@@ -373,7 +440,22 @@ func (p *Parser) parseVarableDeclaration() *VariableDeclaration {
 		if p.currentTokenMatches(IGNORE) {
 			stmt.Names = append(stmt.Names, &Label{Token: p.currentToken, Value: "@ignore"})
 		} else if p.currentTokenMatches(IDENT) {
-			stmt.Names = append(stmt.Names, &Label{Token: p.currentToken, Value: p.currentToken.Literal})
+			name := p.currentToken.Literal
+			// Check for reserved names
+			if isReservedName(name) {
+				msg := fmt.Sprintf("'%s' is a reserved keyword and cannot be used as a variable name", name)
+				p.errors = append(p.errors, msg)
+				p.addEZError(errors.E1009, msg, p.currentToken)
+				return nil
+			}
+			// Check for duplicate declaration
+			if !p.declareInScope(name, p.currentToken) {
+				msg := fmt.Sprintf("'%s' is already declared in this scope", name)
+				p.errors = append(p.errors, msg)
+				p.addEZError(errors.E1010, msg, p.currentToken)
+				return nil
+			}
+			stmt.Names = append(stmt.Names, &Label{Token: p.currentToken, Value: name})
 		} else {
 			msg := fmt.Sprintf("expected identifier or @ignore, got %s", p.currentToken.Type)
 			p.errors = append(p.errors, msg)
@@ -665,7 +747,23 @@ func (p *Parser) parseFunctionDeclaration() *FunctionDeclaration {
 		return nil
 	}
 
-	stmt.Name = &Label{Token: p.currentToken, Value: p.currentToken.Literal}
+	name := p.currentToken.Literal
+	// Check for reserved names (except 'main' which is special)
+	if isReservedName(name) {
+		msg := fmt.Sprintf("'%s' is a reserved keyword and cannot be used as a function name", name)
+		p.errors = append(p.errors, msg)
+		p.addEZError(errors.E1009, msg, p.currentToken)
+		return nil
+	}
+	// Check for duplicate declaration
+	if !p.declareInScope(name, p.currentToken) {
+		msg := fmt.Sprintf("'%s' is already declared in this scope", name)
+		p.errors = append(p.errors, msg)
+		p.addEZError(errors.E1010, msg, p.currentToken)
+		return nil
+	}
+
+	stmt.Name = &Label{Token: p.currentToken, Value: name}
 
 	if !p.expectPeek(LPAREN) {
 		return nil
