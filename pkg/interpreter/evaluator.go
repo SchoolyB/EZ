@@ -70,9 +70,17 @@ func Eval(node ast.Node, env *Environment) Object {
 		return evalForEachStatement(node, env)
 
 	case *ast.BreakStatement:
+		if !env.InLoop() {
+			return newErrorWithLocation("E4003", node.Token.Line, node.Token.Column,
+				"break statement outside loop")
+		}
 		return &Break{}
 
 	case *ast.ContinueStatement:
+		if !env.InLoop() {
+			return newErrorWithLocation("E4003", node.Token.Line, node.Token.Column,
+				"continue statement outside loop")
+		}
 		return &Continue{}
 
 	case *ast.FunctionDeclaration:
@@ -365,6 +373,9 @@ func evalIfStatement(node *ast.IfStatement, env *Environment) Object {
 }
 
 func evalWhileStatement(node *ast.WhileStatement, env *Environment) Object {
+	env.EnterLoop()
+	defer env.ExitLoop()
+
 	for {
 		condition := Eval(node.Condition, env)
 		if isError(condition) {
@@ -391,6 +402,9 @@ func evalWhileStatement(node *ast.WhileStatement, env *Environment) Object {
 }
 
 func evalLoopStatement(node *ast.LoopStatement, env *Environment) Object {
+	env.EnterLoop()
+	defer env.ExitLoop()
+
 	for {
 		result := Eval(node.Body, env)
 		if result != nil {
@@ -407,6 +421,9 @@ func evalLoopStatement(node *ast.LoopStatement, env *Environment) Object {
 }
 
 func evalForStatement(node *ast.ForStatement, env *Environment) Object {
+	env.EnterLoop()
+	defer env.ExitLoop()
+
 	// Get range bounds
 	rangeExpr, ok := node.Iterable.(*ast.RangeExpression)
 	if !ok {
@@ -451,6 +468,9 @@ func evalForStatement(node *ast.ForStatement, env *Environment) Object {
 }
 
 func evalForEachStatement(node *ast.ForEachStatement, env *Environment) Object {
+	env.EnterLoop()
+	defer env.ExitLoop()
+
 	collection := Eval(node.Collection, env)
 	if isError(collection) {
 		return collection

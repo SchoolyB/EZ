@@ -168,26 +168,32 @@ func (c *Continue) Inspect() string  { return "continue" }
 
 // Environment holds variable bindings
 type Environment struct {
-	store   map[string]Object
-	mutable map[string]bool   // tracks if variable is mutable (temp) or immutable (const)
-	outer   *Environment
-	imports map[string]string // alias -> module mapping
-	using   []string          // modules brought into scope (by alias)
+	store     map[string]Object
+	mutable   map[string]bool   // tracks if variable is mutable (temp) or immutable (const)
+	outer     *Environment
+	imports   map[string]string // alias -> module mapping
+	using     []string          // modules brought into scope (by alias)
+	loopDepth int               // tracks nested loop depth for break/continue validation
 }
 
 func NewEnvironment() *Environment {
 	return &Environment{
-		store:   make(map[string]Object),
-		mutable: make(map[string]bool),
-		outer:   nil,
-		imports: make(map[string]string),
-		using:   []string{},
+		store:     make(map[string]Object),
+		mutable:   make(map[string]bool),
+		outer:     nil,
+		imports:   make(map[string]string),
+		using:     []string{},
+		loopDepth: 0,
 	}
 }
 
 func NewEnclosedEnvironment(outer *Environment) *Environment {
 	env := NewEnvironment()
 	env.outer = outer
+	// Inherit loop depth from parent
+	if outer != nil {
+		env.loopDepth = outer.loopDepth
+	}
 	return env
 }
 
@@ -262,4 +268,21 @@ func (e *Environment) IsMutable(name string) (bool, bool) {
 		return e.outer.IsMutable(name)
 	}
 	return false, false
+}
+
+// EnterLoop increments the loop depth
+func (e *Environment) EnterLoop() {
+	e.loopDepth++
+}
+
+// ExitLoop decrements the loop depth
+func (e *Environment) ExitLoop() {
+	if e.loopDepth > 0 {
+		e.loopDepth--
+	}
+}
+
+// InLoop returns true if currently inside a loop
+func (e *Environment) InLoop() bool {
+	return e.loopDepth > 0
 }

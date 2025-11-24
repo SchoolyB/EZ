@@ -544,6 +544,17 @@ func (p *Parser) parseAssignmentStatement() *AssignmentStatement {
 	// Parse the left-hand side (could be identifier, index, or member)
 	stmt.Name = p.parseExpression(LOWEST)
 
+	// Validate that the left-hand side is a valid assignment target
+	// Valid targets: Label (identifier), IndexExpression, MemberExpression
+	switch stmt.Name.(type) {
+	case *Label, *IndexExpression, *MemberExpression:
+		// Valid assignment targets
+	default:
+		// Invalid assignment target
+		msg := fmt.Sprintf("invalid assignment target: cannot assign to %T", stmt.Name)
+		p.addEZError(errors.E1008, msg, p.currentToken)
+	}
+
 	// Get the assignment operator
 	p.nextToken()
 	stmt.Operator = p.currentToken.Literal
@@ -796,6 +807,7 @@ func (p *Parser) parseFunctionDeclaration() *FunctionDeclaration {
 
 func (p *Parser) parseFunctionParameters() []*Parameter {
 	params := []*Parameter{}
+	paramNames := make(map[string]Token) // track parameter names for duplicate detection
 
 	if p.peekTokenMatches(RPAREN) {
 		p.nextToken()
@@ -822,6 +834,16 @@ func (p *Parser) parseFunctionParameters() []*Parameter {
 
 			// Create parameters for all collected names
 			for _, name := range names {
+				// Check for duplicate parameter names
+				if prevToken, exists := paramNames[name.Value]; exists {
+					msg := fmt.Sprintf("duplicate parameter name '%s'", name.Value)
+					p.addEZError(errors.E1003, msg, name.Token)
+					// Add help message pointing to first declaration
+					helpMsg := fmt.Sprintf("parameter '%s' first declared at line %d", name.Value, prevToken.Line)
+					p.errors = append(p.errors, helpMsg)
+				} else {
+					paramNames[name.Value] = name.Token
+				}
 				params = append(params, &Parameter{Name: name, TypeName: typeName})
 			}
 			names = []*Label{}
@@ -833,6 +855,16 @@ func (p *Parser) parseFunctionParameters() []*Parameter {
 		p.nextToken() // move to type
 		typeName := p.currentToken.Literal
 		for _, name := range names {
+			// Check for duplicate parameter names
+			if prevToken, exists := paramNames[name.Value]; exists {
+				msg := fmt.Sprintf("duplicate parameter name '%s'", name.Value)
+				p.addEZError(errors.E1003, msg, name.Token)
+				// Add help message pointing to first declaration
+				helpMsg := fmt.Sprintf("parameter '%s' first declared at line %d", name.Value, prevToken.Line)
+				p.errors = append(p.errors, helpMsg)
+			} else {
+				paramNames[name.Value] = name.Token
+			}
 			params = append(params, &Parameter{Name: name, TypeName: typeName})
 		}
 	}
@@ -913,12 +945,24 @@ func (p *Parser) parseStructDeclaration() *StructDeclaration {
 	}
 
 	stmt.Fields = []*StructField{}
+	fieldNames := make(map[string]Token) // track field names for duplicate detection
 
 	p.nextToken() // move into struct body
 
 	for !p.currentTokenMatches(RBRACE) && !p.currentTokenMatches(EOF) {
 		field := &StructField{}
 		field.Name = &Label{Token: p.currentToken, Value: p.currentToken.Literal}
+
+		// Check for duplicate field names
+		if prevToken, exists := fieldNames[field.Name.Value]; exists {
+			msg := fmt.Sprintf("duplicate field name '%s' in struct '%s'", field.Name.Value, stmt.Name.Value)
+			p.addEZError(errors.E1003, msg, field.Name.Token)
+			// Add help message pointing to first declaration
+			helpMsg := fmt.Sprintf("field '%s' first declared at line %d", field.Name.Value, prevToken.Line)
+			p.errors = append(p.errors, helpMsg)
+		} else {
+			fieldNames[field.Name.Value] = field.Name.Token
+		}
 
 		if !p.expectPeek(IDENT) {
 			return nil

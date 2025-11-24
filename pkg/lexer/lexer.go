@@ -164,6 +164,7 @@ func (l *Lexer) NextToken() tokenizer.Token {
 			l.readChar()
 			tok = tokenizer.Token{Type: tokenizer.AND, Literal: "&&", Line: l.line, Column: l.column}
 		} else {
+			l.addError("E1001", "unexpected character '&', did you mean '&&'?", l.line, l.column)
 			tok = newToken(tokenizer.ILLEGAL, l.ch, l.line, l.column)
 		}
 	case '|':
@@ -171,6 +172,7 @@ func (l *Lexer) NextToken() tokenizer.Token {
 			l.readChar()
 			tok = tokenizer.Token{Type: tokenizer.OR, Literal: "||", Line: l.line, Column: l.column}
 		} else {
+			l.addError("E1001", "unexpected character '|', did you mean '||'?", l.line, l.column)
 			tok = newToken(tokenizer.ILLEGAL, l.ch, l.line, l.column)
 		}
 	case ',':
@@ -275,10 +277,14 @@ func (l *Lexer) skipComment() {
 		}
 	} else if l.ch == '/' && l.peekChar() == '*' {
 		// Multi-line comment
+		startLine := l.line
+		startColumn := l.column
 		l.readChar() // consume '/'
 		l.readChar() // consume '*'
 		for {
 			if l.ch == 0 {
+				// Reached EOF without closing comment
+				l.addError("E1004", "unclosed multi-line comment", startLine, startColumn)
 				break
 			}
 			if l.ch == '*' && l.peekChar() == '/' {
@@ -301,6 +307,8 @@ func (l *Lexer) readIdentifier() string {
 
 func (l *Lexer) readNumber() (string, tokenizer.TokenType) {
 	position := l.position
+	startLine := l.line
+	startColumn := l.column
 	tokenType := tokenizer.INT
 
 	for isDigit(l.ch) {
@@ -313,6 +321,14 @@ func (l *Lexer) readNumber() (string, tokenizer.TokenType) {
 		for isDigit(l.ch) {
 			l.readChar()
 		}
+
+		// Check for invalid multiple decimal points
+		if l.ch == '.' {
+			l.addError("E1006", "invalid number format: multiple decimal points", startLine, startColumn)
+		}
+	} else if l.ch == '.' && !isDigit(l.peekChar()) {
+		// Number ends with a dot but no digits after (e.g., "1.")
+		l.addError("E1006", "invalid number format: decimal point must be followed by digits", startLine, startColumn)
 	}
 
 	return l.input[position:l.position], tokenType
@@ -333,19 +349,71 @@ func (l *Lexer) readString() (string, bool) {
 			return l.input[position:l.position], false
 		}
 		if l.ch == '\\' {
+			// Check for valid escape sequences
+			next := l.peekChar()
+			validEscapes := map[byte]bool{
+				'n': true, 't': true, 'r': true, '\\': true, '"': true, '\'': true, '0': true,
+			}
+			if !validEscapes[next] && next != 0 {
+				l.addError("E1006", "invalid escape sequence '\\"+string(next)+"' in string", l.line, l.column)
+			}
 			l.readChar() // skip escaped character
 		}
 	}
 }
 
 func (l *Lexer) readCharValue() string {
+	startLine := l.line
+	startColumn := l.column
 	l.readChar() // skip opening quote
+
+	// Check for empty char literal
+	if l.ch == '\'' {
+		l.addError("E1006", "empty character literal", startLine, startColumn)
+		l.readChar() // consume closing quote
+		return ""
+	}
+
+	// Check for EOF or newline
+	if l.ch == 0 || l.ch == '\n' {
+		l.addError("E1005", "unclosed character literal", startLine, startColumn)
+		return ""
+	}
+
 	ch := string(l.ch)
+
+	// Handle escape sequences
 	if l.ch == '\\' {
 		l.readChar()
+		// Validate escape sequence
+		validEscapes := map[byte]bool{
+			'n': true, 't': true, 'r': true, '\\': true, '"': true, '\'': true, '0': true,
+		}
+		if !validEscapes[l.ch] && l.ch != 0 {
+			l.addError("E1006", "invalid escape sequence '\\"+string(l.ch)+"' in character literal", startLine, startColumn)
+		}
 		ch = "\\" + string(l.ch)
 	}
-	l.readChar() // skip to closing quote
+
+	l.readChar() // move to what should be closing quote
+
+	// Check for multi-character literal
+	if l.ch != '\'' {
+		// This is a multi-character literal
+		l.addError("E1006", "character literal must contain exactly one character", startLine, startColumn)
+		// Consume until we find closing quote or newline/EOF
+		for l.ch != '\'' && l.ch != '\n' && l.ch != 0 {
+			l.readChar()
+		}
+	}
+
+	// Check for closing quote
+	if l.ch != '\'' {
+		l.addError("E1005", "unclosed character literal", startLine, startColumn)
+	} else {
+		l.readChar() // consume closing quote
+	}
+
 	return ch
 }
 
