@@ -1,0 +1,103 @@
+import @std
+import @strings
+import @math
+
+
+do main() {
+    //Comment inline like this
+
+    /*
+        Comment
+        Multiline
+        Like
+        This
+    */
+
+    //To bring an import namespace into scope use the`using` keyword!
+    using std
+
+    //the `std` library contains all your printing needs!
+    println("Welcome to the EZ programming language")
+
+    //Variables can be declared 2 different ways in EZ
+    //Variables MUST be given a valid type at declartion
+    //`temp` can is used to create `mutable` variables
+    //`const` can is used to create `immutable` variables
+    temp age int = 30
+    const name string = "Marshall"
+
+
+    //To reassign a `temp`variables value you can simply do this:
+    age = 31
+
+    //Although EZ is just a fun side project there are some good libraries ready to be used
+    //strings
+    //math
+    //time
+    //arrays
+
+    temp iLovePi float = math.pi
+    println(strings.upper("Hello, World!"))
+    println("Dont you just love: ")
+    println(iLovePi)
+
+    println("EZ is designed to be incredibly simple and read like english")
+    println("What your language calls `while` EZ calls `as_long_as`")
+
+    temp x int = 10
+    as_long_as x == 10 {
+        println("x is still 10, incrementing now...")
+        x += 1
+    }
+
+    println("x is no longer 10")
+
+    //EZ uses `if`, `or`, and `otherwise` for conditionals
+    temp a int = 3
+    if a == 5 {
+        println("a equals 5")
+    } or a < 5 {
+        println("a is less than 5")
+        print("a = ")
+        println(a)
+    } otherwise {
+        println("a is greater than 5")
+        print("a = ")
+        println(a)
+    }
+
+    //Arrays are declared with square brackets around the type
+    temp numbers [int] = {1, 2, 3, 4, 5}
+    println("Here's an array of numbers:")
+    println(numbers)
+
+    //Use `for_each` to iterate over collections
+    println("Looping through the array:")
+    for_each num in numbers {
+        println(num)
+    }
+
+    //Use `for` with `range` for numeric loops (ranges are INCLUSIVE!)
+    println("Counting from 1 to 5:")
+    for i in range(1, 5) {
+        println(i)
+    }
+
+    //Check membership with `in` and `not_in`
+    if 3 in numbers {
+        println("3 is in the array!")
+    }
+
+    if 10 not_in numbers {
+        println("10 is not in the array")
+    }
+    println("To learn more about EZ checkout the README")
+}
+
+
+//Functions can return values using the arrow syntax
+do add(x, y int) -> int {
+    return x + y
+}
+
+
