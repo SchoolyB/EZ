@@ -196,23 +196,25 @@ func (l *Lexer) NextToken() tokenizer.Token {
 	case '.':
 		tok = newToken(tokenizer.DOT, l.ch, l.line, l.column)
 	case '@':
-		// Check for @ignore or @suppress
-		if isLetter(l.peekChar()) {
-			start := l.position
-			l.readChar() // consume '@'
-			ident := l.readIdentifier()
-			if ident == "ignore" {
-				tok = tokenizer.Token{Type: tokenizer.IGNORE, Literal: "@ignore", Line: l.line, Column: l.column}
-				return tok
-			} else if ident == "suppress" {
-				tok = tokenizer.Token{Type: tokenizer.SUPPRESS, Literal: "@suppress", Line: l.line, Column: l.column}
-				return tok
+		// Peek ahead to check for @ignore or @suppress
+		if l.peekAheadString(7) == "@ignore" {
+			// Found @ignore
+			tok = tokenizer.Token{Type: tokenizer.IGNORE, Literal: "@ignore", Line: l.line, Column: l.column}
+			// Consume the entire @ignore token
+			for i := 0; i < 7; i++ {
+				l.readChar()
 			}
-			// Not a recognized @ keyword, backtrack (this is a simplification)
-			tok = tokenizer.Token{Type: tokenizer.AT, Literal: "@", Line: l.line, Column: l.column}
-			_ = start // silence unused variable
+			return tok
+		} else if l.peekAheadString(9) == "@suppress" {
+			// Found @suppress
+			tok = tokenizer.Token{Type: tokenizer.SUPPRESS, Literal: "@suppress", Line: l.line, Column: l.column}
+			// Consume the entire @suppress token
+			for i := 0; i < 9; i++ {
+				l.readChar()
+			}
 			return tok
 		}
+		// Just a regular @ symbol (e.g., for imports like @std)
 		tok = newToken(tokenizer.AT, l.ch, l.line, l.column)
 	case '"':
 		tok.Line = l.line
@@ -264,6 +266,15 @@ func (l *Lexer) peekAhead(n int) byte {
 		return 0
 	}
 	return l.input[pos]
+}
+
+// peekAheadString looks ahead n characters and returns the string (including current char)
+func (l *Lexer) peekAheadString(n int) string {
+	end := l.position + n
+	if end > len(l.input) {
+		end = len(l.input)
+	}
+	return l.input[l.position:end]
 }
 
 func (l *Lexer) skipWhitespace() {
