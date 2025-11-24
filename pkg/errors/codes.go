@@ -21,6 +21,7 @@ var (
 	E1008 = ErrorCode{"E1008", "invalid-assignment", "cannot assign to this"}
 	E1009 = ErrorCode{"E1009", "reserved-name", "this name is reserved"}
 	E1010 = ErrorCode{"E1010", "duplicate-name", "name already declared"}
+	E1011 = ErrorCode{"E1011", "nested-function", "functions cannot be declared inside functions"}
 
 	// Type Errors (E2xxx)
 	E2001 = ErrorCode{"E2001", "type-mismatch", "types do not match"}

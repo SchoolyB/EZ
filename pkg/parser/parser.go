@@ -99,6 +99,9 @@ type Parser struct {
 
 	// Scope tracking for duplicate detection
 	scopes []map[string]Token // stack of scopes, each mapping name to declaration token
+
+	// Function scope tracking
+	functionDepth int // depth of nested function scopes (0 = global, >0 = inside function)
 }
 
 // Scope management methods
@@ -841,6 +844,13 @@ func (p *Parser) parseFunctionDeclaration() *FunctionDeclaration {
 func (p *Parser) parseFunctionDeclarationWithAttrs(attrs []*Attribute) *FunctionDeclaration {
 	stmt := &FunctionDeclaration{Token: p.currentToken, Attributes: attrs}
 
+	// Check if we're inside a function - nested functions are not allowed
+	if p.functionDepth > 0 {
+		msg := "function declarations are not allowed inside functions"
+		p.addEZError(errors.E1011, msg, p.currentToken)
+		return nil
+	}
+
 	if !p.expectPeek(IDENT) {
 		return nil
 	}
@@ -887,8 +897,14 @@ func (p *Parser) parseFunctionDeclarationWithAttrs(attrs []*Attribute) *Function
 		return nil
 	}
 
+	// Enter function scope
+	p.functionDepth++
+
 	// Parse body with attributes for suppression
 	stmt.Body = p.parseBlockStatementWithSuppress(stmt.Attributes)
+
+	// Exit function scope
+	p.functionDepth--
 
 	return stmt
 }
