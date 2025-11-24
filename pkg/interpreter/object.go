@@ -167,25 +167,44 @@ type Continue struct{}
 func (c *Continue) Type() ObjectType { return CONTINUE_OBJ }
 func (c *Continue) Inspect() string  { return "continue" }
 
+// StructDef holds the definition of a struct type
+type StructDef struct {
+	Name   string
+	Fields map[string]string // field name -> type name
+}
+
 // Environment holds variable bindings
 type Environment struct {
-	store     map[string]Object
-	mutable   map[string]bool   // tracks if variable is mutable (temp) or immutable (const)
-	outer     *Environment
-	imports   map[string]string // alias -> module mapping
-	using     []string          // modules brought into scope (by alias)
-	loopDepth int               // tracks nested loop depth for break/continue validation
+	store       map[string]Object
+	mutable     map[string]bool      // tracks if variable is mutable (temp) or immutable (const)
+	structDefs  map[string]*StructDef // struct type definitions
+	outer       *Environment
+	imports     map[string]string // alias -> module mapping
+	using       []string          // modules brought into scope (by alias)
+	loopDepth   int               // tracks nested loop depth for break/continue validation
 }
 
 func NewEnvironment() *Environment {
-	return &Environment{
-		store:     make(map[string]Object),
-		mutable:   make(map[string]bool),
-		outer:     nil,
-		imports:   make(map[string]string),
-		using:     []string{},
-		loopDepth: 0,
+	env := &Environment{
+		store:      make(map[string]Object),
+		mutable:    make(map[string]bool),
+		structDefs: make(map[string]*StructDef),
+		outer:      nil,
+		imports:    make(map[string]string),
+		using:      []string{},
+		loopDepth:  0,
 	}
+
+	// Register built-in Error type
+	env.structDefs["Error"] = &StructDef{
+		Name: "Error",
+		Fields: map[string]string{
+			"message": "string",
+			"code":    "int",
+		},
+	}
+
+	return env
 }
 
 func NewEnclosedEnvironment(outer *Environment) *Environment {
@@ -286,4 +305,20 @@ func (e *Environment) ExitLoop() {
 // InLoop returns true if currently inside a loop
 func (e *Environment) InLoop() bool {
 	return e.loopDepth > 0
+}
+
+// RegisterStructDef registers a struct type definition
+func (e *Environment) RegisterStructDef(name string, def *StructDef) {
+	e.structDefs[name] = def
+}
+
+// GetStructDef retrieves a struct type definition (checks parent scopes too)
+func (e *Environment) GetStructDef(name string) (*StructDef, bool) {
+	if def, ok := e.structDefs[name]; ok {
+		return def, true
+	}
+	if e.outer != nil {
+		return e.outer.GetStructDef(name)
+	}
+	return nil, false
 }

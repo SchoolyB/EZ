@@ -110,7 +110,15 @@ func Eval(node ast.Node, env *Environment) Object {
 		return evalFunctionDeclaration(node, env)
 
 	case *ast.StructDeclaration:
-		// Struct declarations are just type definitions, no runtime effect
+		// Register the struct type definition
+		fields := make(map[string]string)
+		for _, field := range node.Fields {
+			fields[field.Name.Value] = field.TypeName
+		}
+		env.RegisterStructDef(node.Name.Value, &StructDef{
+			Name:   node.Name.Value,
+			Fields: fields,
+		})
 		return NIL
 
 	case *ast.EnumDeclaration:
@@ -953,6 +961,17 @@ func validateReturnType(result Object, expectedTypes []string, line, col int) *E
 // typeMatches checks if an object matches an EZ type name
 func typeMatches(obj Object, ezType string) bool {
 	actualType := objectTypeToEZ(obj)
+
+	// nil is compatible with any struct type (like Error)
+	if actualType == "nil" {
+		// nil matches nil, or any non-primitive type
+		// For now, we'll accept nil for any type except explicit primitives
+		// This allows: return nil as Error
+		return ezType == "nil" || ezType == "Error" || ezType == "array" ||
+		       (ezType != "int" && ezType != "float" && ezType != "string" &&
+			   ezType != "bool" && ezType != "char")
+	}
+
 	return actualType == ezType
 }
 

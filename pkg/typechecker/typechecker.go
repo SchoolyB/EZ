@@ -89,6 +89,16 @@ func (tc *TypeChecker) registerBuiltinTypes() {
 			Kind: PrimitiveType,
 		}
 	}
+
+	// Register built-in Error struct
+	tc.types["Error"] = &Type{
+		Name: "Error",
+		Kind: StructType,
+		Fields: map[string]*Type{
+			"message": {Name: "string", Kind: PrimitiveType},
+			"code":    {Name: "int", Kind: PrimitiveType},
+		},
+	}
 }
 
 // TypeExists checks if a type name is registered
