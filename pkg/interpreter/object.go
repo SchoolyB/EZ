@@ -94,6 +94,11 @@ func (rv *ReturnValue) Inspect() string {
 // Error represents an error
 type Error struct {
 	Message string
+	// Extended error info for formatted output
+	Code      string // Error code like "E3001"
+	Line      int
+	Column    int
+	Help      string // Optional help suggestion
 }
 
 func (e *Error) Type() ObjectType { return ERROR_OBJ }

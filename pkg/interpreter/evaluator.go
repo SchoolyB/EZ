@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/marshallburns/ez/pkg/ast"
+	"github.com/marshallburns/ez/pkg/errors"
 )
 
 var (
@@ -483,7 +484,18 @@ func evalIdentifier(node *ast.Label, env *Environment) Object {
 		return builtin
 	}
 
-	return newError("identifier not found: %s", node.Value)
+	// Create error with potential suggestion
+	err := newErrorWithLocation("E3001", node.Token.Line, node.Token.Column,
+		"identifier not found: '%s'", node.Value)
+
+	// Try to suggest a keyword or builtin
+	if suggestion := errors.SuggestKeyword(node.Value); suggestion != "" {
+		err.Help = fmt.Sprintf("did you mean '%s'?", suggestion)
+	} else if suggestion := errors.SuggestBuiltin(node.Value); suggestion != "" {
+		err.Help = fmt.Sprintf("did you mean '%s'?", suggestion)
+	}
+
+	return err
 }
 
 func evalExpressions(exps []ast.Expression, env *Environment) []Object {
@@ -732,6 +744,16 @@ func evalCallExpression(node *ast.CallExpression, env *Environment) Object {
 
 	function := Eval(node.Function, env)
 	if isError(function) {
+		// Check if this is an "identifier not found" error and make it more specific
+		if errObj, ok := function.(*Error); ok {
+			if errObj.Code == "E3001" {
+				// Change to "undefined function" error
+				if label, ok := node.Function.(*ast.Label); ok {
+					return newErrorWithLocation("E3002", label.Token.Line, label.Token.Column,
+						"undefined function: '%s'", label.Value)
+				}
+			}
+		}
 		return function
 	}
 
@@ -899,4 +921,14 @@ func isError(obj Object) bool {
 
 func newError(format string, a ...interface{}) *Error {
 	return &Error{Message: fmt.Sprintf(format, a...)}
+}
+
+// newErrorWithLocation creates an error with line/column info
+func newErrorWithLocation(code string, line, column int, format string, a ...interface{}) *Error {
+	return &Error{
+		Message: fmt.Sprintf(format, a...),
+		Code:    code,
+		Line:    line,
+		Column:  column,
+	}
 }

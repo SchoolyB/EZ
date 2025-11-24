@@ -11,12 +11,36 @@ type Lexer struct {
 	ch           byte // current char under examination
 	line         int
 	column       int
+	errors       []LexerError
+}
+
+// LexerError holds error information from lexing
+type LexerError struct {
+	Message string
+	Line    int
+	Column  int
+	Code    string // Error code like "E1005"
 }
 
 func NewLexer(input string) *Lexer {
-	l := &Lexer{input: input, line: 1, column: 0}
+	l := &Lexer{input: input, line: 1, column: 0, errors: []LexerError{}}
 	l.readChar()
 	return l
+}
+
+// Errors returns any lexer errors
+func (l *Lexer) Errors() []LexerError {
+	return l.errors
+}
+
+// addError adds an error to the lexer
+func (l *Lexer) addError(code, message string, line, column int) {
+	l.errors = append(l.errors, LexerError{
+		Code:    code,
+		Message: message,
+		Line:    line,
+		Column:  column,
+	})
 }
 
 func (l *Lexer) readChar() {
@@ -189,8 +213,11 @@ func (l *Lexer) NextToken() tokenizer.Token {
 		tok.Line = l.line
 		tok.Column = l.column
 		tok.Type = tokenizer.STRING
-		tok.Literal = l.readString()
-		l.readChar() // consume closing quote
+		var ok bool
+		tok.Literal, ok = l.readString()
+		if ok {
+			l.readChar() // consume closing quote
+		}
 		return tok
 	case '\'':
 		tok.Type = tokenizer.CHAR
@@ -203,15 +230,19 @@ func (l *Lexer) NextToken() tokenizer.Token {
 		tok.Type = tokenizer.EOF
 	default:
 		if isLetter(l.ch) {
+			startLine := l.line
+			startColumn := l.column
 			tok.Literal = l.readIdentifier()
 			tok.Type = tokenizer.LookupIdentifier(tok.Literal)
-			tok.Line = l.line
-			tok.Column = l.column
+			tok.Line = startLine
+			tok.Column = startColumn
 			return tok
 		} else if isDigit(l.ch) {
-			tok.Line = l.line
-			tok.Column = l.column
+			startLine := l.line
+			startColumn := l.column
 			tok.Literal, tok.Type = l.readNumber()
+			tok.Line = startLine
+			tok.Column = startColumn
 			return tok
 		} else {
 			tok = newToken(tokenizer.ILLEGAL, l.ch, l.line, l.column)
@@ -287,18 +318,24 @@ func (l *Lexer) readNumber() (string, tokenizer.TokenType) {
 	return l.input[position:l.position], tokenType
 }
 
-func (l *Lexer) readString() string {
+func (l *Lexer) readString() (string, bool) {
+	startLine := l.line
+	startColumn := l.column
 	position := l.position + 1
 	for {
 		l.readChar()
-		if l.ch == '"' || l.ch == 0 {
-			break
+		if l.ch == '"' {
+			return l.input[position:l.position], true
+		}
+		if l.ch == 0 || l.ch == '\n' {
+			// Unclosed string
+			l.addError("E1005", "unclosed string literal", startLine, startColumn)
+			return l.input[position:l.position], false
 		}
 		if l.ch == '\\' {
 			l.readChar() // skip escaped character
 		}
 	}
-	return l.input[position:l.position]
 }
 
 func (l *Lexer) readCharValue() string {

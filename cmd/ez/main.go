@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/marshallburns/ez/pkg/errors"
 	"github.com/marshallburns/ez/pkg/interpreter"
 	"github.com/marshallburns/ez/pkg/lexer"
 	"github.com/marshallburns/ez/pkg/parser"
@@ -96,31 +97,104 @@ func runFile(filename string) {
 		return
 	}
 
-	l := lexer.NewLexer(string(data))
-	p := parser.New(l)
+	source := string(data)
+	l := lexer.NewLexer(source)
+	p := parser.NewWithSource(l, source, filename)
 	program := p.ParseProgram()
 
-	if len(p.Errors()) > 0 {
-		fmt.Println("Parser errors:")
-		for _, e := range p.Errors() {
-			fmt.Printf("  %s\n", e)
+	// Check for lexer errors first
+	if len(l.Errors()) > 0 {
+		errList := errors.NewErrorList()
+		for _, lexErr := range l.Errors() {
+			var code errors.ErrorCode
+			switch lexErr.Code {
+			case "E1005":
+				code = errors.E1005
+			default:
+				code = errors.ErrorCode{Code: lexErr.Code, Name: "lexer-error", Description: "Lexer error"}
+			}
+			sourceLine := errors.GetSourceLine(source, lexErr.Line)
+			ezErr := errors.NewErrorWithSource(code, lexErr.Message, filename, lexErr.Line, lexErr.Column, sourceLine)
+			errList.AddError(ezErr)
 		}
+		fmt.Print(errors.FormatErrorList(errList))
+		return
+	}
+
+	// Check for parser errors using new error system
+	if p.EZErrors().HasErrors() {
+		fmt.Print(errors.FormatErrorList(p.EZErrors()))
 		return
 	}
 
 	env := interpreter.NewEnvironment()
 	result := interpreter.Eval(program, env)
 
+	// Check for evaluation errors
+	if errObj, ok := result.(*interpreter.Error); ok {
+		printRuntimeError(errObj, source, filename)
+		return
+	}
+
 	// Look for main function and call it
 	if mainFn, ok := env.Get("main"); ok {
 		if fn, ok := mainFn.(*interpreter.Function); ok {
 			fnEnv := interpreter.NewEnclosedEnvironment(env)
-			interpreter.Eval(fn.Body, fnEnv)
+			mainResult := interpreter.Eval(fn.Body, fnEnv)
+
+			// Check for errors from main
+			if errObj, ok := mainResult.(*interpreter.Error); ok {
+				printRuntimeError(errObj, source, filename)
+			}
 		}
 	}
+}
 
-	// Check for errors
-	if errObj, ok := result.(*interpreter.Error); ok {
+// printRuntimeError formats and prints a runtime error
+func printRuntimeError(errObj *interpreter.Error, source, filename string) {
+	// If we have location info, use formatted output
+	if errObj.Code != "" && errObj.Line > 0 {
+		// Find the error code
+		var code errors.ErrorCode
+		switch errObj.Code {
+		case "E3001":
+			code = errors.E3001
+		case "E3002":
+			code = errors.E3002
+		case "E3003":
+			code = errors.E3003
+		case "E3004":
+			code = errors.E3004
+		case "E3005":
+			code = errors.E3005
+		case "E4001":
+			code = errors.E4001
+		case "E4002":
+			code = errors.E4002
+		case "E4003":
+			code = errors.E4003
+		case "E4004":
+			code = errors.E4004
+		case "E4005":
+			code = errors.E4005
+		case "E4006":
+			code = errors.E4006
+		default:
+			// Unknown code, use generic
+			code = errors.ErrorCode{Code: errObj.Code, Name: "runtime-error", Description: "Runtime error"}
+		}
+
+		sourceLine := errors.GetSourceLine(source, errObj.Line)
+		ezErr := errors.NewErrorWithSource(code, errObj.Message, filename, errObj.Line, errObj.Column, sourceLine)
+		if errObj.Help != "" {
+			ezErr.Help = errObj.Help
+		}
+
+		errList := errors.NewErrorList()
+		errList.AddError(ezErr)
+		fmt.Print(errors.FormatErrorList(errList))
+	} else {
+		// Fall back to simple output
 		fmt.Println(errObj.Inspect())
 	}
 }

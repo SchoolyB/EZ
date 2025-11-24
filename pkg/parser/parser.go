@@ -3,11 +3,12 @@ package parser
 import (
 	"fmt"
 	"strconv"
-)
 
-import . "github.com/marshallburns/ez/pkg/ast"
-import . "github.com/marshallburns/ez/pkg/lexer"
-import . "github.com/marshallburns/ez/pkg/tokenizer"
+	. "github.com/marshallburns/ez/pkg/ast"
+	"github.com/marshallburns/ez/pkg/errors"
+	. "github.com/marshallburns/ez/pkg/lexer"
+	. "github.com/marshallburns/ez/pkg/tokenizer"
+)
 
 // Operator precedence levels
 const (
@@ -68,14 +69,77 @@ type Parser struct {
 
 	prefixParseFns map[TokenType]prefixParseFn
 	infixParseFns  map[TokenType]infixParseFn
+
+	// New error system
+	ezErrors *errors.EZErrorList
+	source   string
+	filename string
 }
 
 // Returns a pointer to Parser(p)
 // with initialized members
 func New(l *Lexer) *Parser {
 	p := &Parser{
-		l:      l,
-		errors: []string{},
+		l:        l,
+		errors:   []string{},
+		ezErrors: errors.NewErrorList(),
+		source:   "",
+		filename: "<unknown>",
+	}
+
+	p.prefixParseFns = make(map[TokenType]prefixParseFn)
+	p.setPrefix(IDENT, p.parseIdentifier)
+	p.setPrefix(INT, p.parseIntegerValue)
+	p.setPrefix(FLOAT, p.parseFloatValue)
+	p.setPrefix(STRING, p.parseStringValue)
+	p.setPrefix(CHAR, p.parseCharValue)
+	p.setPrefix(TRUE, p.parseBooleanValue)
+	p.setPrefix(FALSE, p.parseBooleanValue)
+	p.setPrefix(NIL, p.parseNilValue)
+	p.setPrefix(BANG, p.parsePrefixExpression)
+	p.setPrefix(MINUS, p.parsePrefixExpression)
+	p.setPrefix(LPAREN, p.parseGroupedExpression)
+	p.setPrefix(LBRACE, p.parseArrayValue)
+	p.setPrefix(NEW, p.parseNewExpression)
+	p.setPrefix(RANGE, p.parseRangeExpression)
+
+	p.infixParseFns = make(map[TokenType]infixParseFn)
+	p.setInfix(PLUS, p.parseInfixExpression)
+	p.setInfix(MINUS, p.parseInfixExpression)
+	p.setInfix(ASTERISK, p.parseInfixExpression)
+	p.setInfix(SLASH, p.parseInfixExpression)
+	p.setInfix(PERCENT, p.parseInfixExpression)
+	p.setInfix(EQ, p.parseInfixExpression)
+	p.setInfix(NOT_EQ, p.parseInfixExpression)
+	p.setInfix(LT, p.parseInfixExpression)
+	p.setInfix(GT, p.parseInfixExpression)
+	p.setInfix(LT_EQ, p.parseInfixExpression)
+	p.setInfix(GT_EQ, p.parseInfixExpression)
+	p.setInfix(AND, p.parseInfixExpression)
+	p.setInfix(OR, p.parseInfixExpression)
+	p.setInfix(IN, p.parseInfixExpression)
+	p.setInfix(NOT_IN, p.parseInfixExpression)
+	p.setInfix(LPAREN, p.parseCallExpression)
+	p.setInfix(LBRACKET, p.parseIndexExpression)
+	p.setInfix(DOT, p.parseMemberExpression)
+	p.setInfix(INCREMENT, p.parsePostfixExpression)
+	p.setInfix(DECREMENT, p.parsePostfixExpression)
+
+	// Read two tokens to initialize currentToken and peekToken
+	p.nextToken()
+	p.nextToken()
+
+	return p
+}
+
+// NewWithSource creates a parser with source context for better errors
+func NewWithSource(l *Lexer, source, filename string) *Parser {
+	p := &Parser{
+		l:        l,
+		errors:   []string{},
+		ezErrors: errors.NewErrorList(),
+		source:   source,
+		filename: filename,
 	}
 
 	p.prefixParseFns = make(map[TokenType]prefixParseFn)
@@ -135,6 +199,30 @@ func (p *Parser) Errors() []string {
 	return p.errors
 }
 
+// EZErrors returns the new error list
+func (p *Parser) EZErrors() *errors.EZErrorList {
+	return p.ezErrors
+}
+
+// addEZError adds a formatted error to the error list
+func (p *Parser) addEZError(code errors.ErrorCode, message string, tok Token) {
+	sourceLine := ""
+	if p.source != "" {
+		sourceLine = errors.GetSourceLine(p.source, tok.Line)
+	}
+
+	err := errors.NewErrorWithSource(
+		code,
+		message,
+		p.filename,
+		tok.Line,
+		tok.Column,
+		sourceLine,
+	)
+	err.EndColumn = tok.Column + len(tok.Literal)
+	p.ezErrors.AddError(err)
+}
+
 func (p *Parser) nextToken() {
 	p.currentToken = p.peekToken
 	p.peekToken = p.l.NextToken()
@@ -158,9 +246,32 @@ func (p *Parser) expectPeek(tType TokenType) bool {
 }
 
 func (p *Parser) peekError(tType TokenType) {
-	msg := fmt.Sprintf("line %d: expected next token to be %s, got %s instead",
-		p.peekToken.Line, tType, p.peekToken.Type)
+	var msg string
+	var code errors.ErrorCode
+
+	// Provide better error messages for unclosed delimiters
+	if p.peekToken.Type == EOF {
+		switch tType {
+		case RPAREN:
+			msg = "unclosed parenthesis - expected ')'"
+			code = errors.E1004
+		case RBRACE:
+			msg = "unclosed brace - expected '}'"
+			code = errors.E1004
+		case RBRACKET:
+			msg = "unclosed bracket - expected ']'"
+			code = errors.E1004
+		default:
+			msg = fmt.Sprintf("unexpected end of file, expected %s", tType)
+			code = errors.E1002
+		}
+	} else {
+		msg = fmt.Sprintf("expected %s, got %s instead", tType, p.peekToken.Type)
+		code = errors.E1002
+	}
+
 	p.errors = append(p.errors, msg)
+	p.addEZError(code, msg, p.peekToken)
 }
 
 func (p *Parser) peekPrecedence() int {
@@ -264,9 +375,9 @@ func (p *Parser) parseVarableDeclaration() *VariableDeclaration {
 		} else if p.currentTokenMatches(IDENT) {
 			stmt.Names = append(stmt.Names, &Label{Token: p.currentToken, Value: p.currentToken.Literal})
 		} else {
-			msg := fmt.Sprintf("line %d: expected identifier or @ignore, got %s",
-				p.currentToken.Line, p.currentToken.Type)
+			msg := fmt.Sprintf("expected identifier or @ignore, got %s", p.currentToken.Type)
 			p.errors = append(p.errors, msg)
+			p.addEZError(errors.E1001, msg, p.currentToken)
 			return nil
 		}
 	}
@@ -313,21 +424,32 @@ func (p *Parser) parseVarableDeclaration() *VariableDeclaration {
 	} else if p.currentTokenMatches(IDENT) {
 		stmt.TypeName = p.currentToken.Literal
 	} else {
-		msg := fmt.Sprintf("line %d: expected type, got %s", p.currentToken.Line, p.currentToken.Type)
+		msg := fmt.Sprintf("expected type, got %s", p.currentToken.Type)
 		p.errors = append(p.errors, msg)
+		p.addEZError(errors.E1007, msg, p.currentToken)
 		return nil
 	}
 
 	// Optional initialization
 	if p.peekTokenMatches(ASSIGN) {
+		assignToken := p.peekToken // save the = token for error reporting
 		p.nextToken() // consume =
 		p.nextToken() // move to value
+
+		// Check if we immediately hit end of block or EOF (incomplete statement)
+		if p.currentTokenMatches(RBRACE) || p.currentTokenMatches(EOF) {
+			msg := "expected expression after '='"
+			p.errors = append(p.errors, msg)
+			p.addEZError(errors.E1003, msg, assignToken)
+			return nil
+		}
+
 		stmt.Value = p.parseExpression(LOWEST)
 	} else if !stmt.Mutable {
 		// const must be initialized
-		msg := fmt.Sprintf("line %d: const '%s' must be initialized with a value",
-			p.currentToken.Line, stmt.Name.Value)
+		msg := fmt.Sprintf("const '%s' must be initialized with a value", stmt.Name.Value)
 		p.errors = append(p.errors, msg)
+		p.addEZError(errors.E1003, msg, p.currentToken)
 		return nil
 	}
 
@@ -382,6 +504,7 @@ func (p *Parser) parseExpressionStatement() *ExpressionStatement {
 
 func (p *Parser) parseBlockStatement() *BlockStatement {
 	block := &BlockStatement{Token: p.currentToken}
+	openBrace := p.currentToken // save the { token for error reporting
 	block.Statements = []Statement{}
 
 	p.nextToken() // move past {
@@ -392,6 +515,13 @@ func (p *Parser) parseBlockStatement() *BlockStatement {
 			block.Statements = append(block.Statements, stmt)
 		}
 		p.nextToken()
+	}
+
+	// Check if we exited due to EOF (unclosed brace)
+	if p.currentTokenMatches(EOF) {
+		msg := "unclosed brace - expected '}'"
+		p.errors = append(p.errors, msg)
+		p.addEZError(errors.E1004, msg, openBrace)
 	}
 
 	return block
@@ -711,9 +841,27 @@ func (p *Parser) parseStructDeclaration() *StructDeclaration {
 func (p *Parser) parseExpression(precedence int) Expression {
 	prefix := p.prefixParseFns[p.currentToken.Type]
 	if prefix == nil {
-		msg := fmt.Sprintf("line %d: no prefix parse function for %s found",
-			p.currentToken.Line, p.currentToken.Type)
+		var msg string
+		var code errors.ErrorCode
+
+		// Provide more specific error messages
+		switch p.currentToken.Type {
+		case RBRACE, EOF:
+			msg = "expected expression, found end of block"
+			code = errors.E1003
+		case RPAREN:
+			msg = "expected expression, found ')'"
+			code = errors.E1003
+		case RBRACKET:
+			msg = "expected expression, found ']'"
+			code = errors.E1003
+		default:
+			msg = fmt.Sprintf("unexpected token '%s'", p.currentToken.Literal)
+			code = errors.E1001
+		}
+
 		p.errors = append(p.errors, msg)
+		p.addEZError(code, msg, p.currentToken)
 		return nil
 	}
 	leftExp := prefix()
@@ -766,9 +914,9 @@ func (p *Parser) parseIntegerValue() Expression {
 
 	value, err := strconv.ParseInt(p.currentToken.Literal, 0, 64)
 	if err != nil {
-		msg := fmt.Sprintf("line %d: could not parse %q as integer",
-			p.currentToken.Line, p.currentToken.Literal)
+		msg := fmt.Sprintf("could not parse %q as integer", p.currentToken.Literal)
 		p.errors = append(p.errors, msg)
+		p.addEZError(errors.E1006, msg, p.currentToken)
 		return nil
 	}
 
@@ -781,9 +929,9 @@ func (p *Parser) parseFloatValue() Expression {
 
 	value, err := strconv.ParseFloat(p.currentToken.Literal, 64)
 	if err != nil {
-		msg := fmt.Sprintf("line %d: could not parse %q as float",
-			p.currentToken.Line, p.currentToken.Literal)
+		msg := fmt.Sprintf("could not parse %q as float", p.currentToken.Literal)
 		p.errors = append(p.errors, msg)
+		p.addEZError(errors.E1006, msg, p.currentToken)
 		return nil
 	}
 
