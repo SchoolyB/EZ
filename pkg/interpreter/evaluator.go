@@ -13,6 +13,29 @@ var (
 	FALSE = &Boolean{Value: false}
 )
 
+// validModules lists all available standard library modules
+var validModules = map[string]bool{
+	"std":     true, // Standard I/O functions (println, print, read_int)
+	"math":    true, // Math functions (upcoming)
+	"string":  true, // String manipulation (upcoming)
+	"strings": true, // String utilities (upcoming)
+	"arrays":  true, // Array utilities (upcoming)
+	"time":    true, // Time functions (upcoming)
+}
+
+// isValidModule checks if a module name is valid (either standard library or user-created)
+func isValidModule(moduleName string) bool {
+	// Check standard library modules
+	if validModules[moduleName] {
+		return true
+	}
+
+	// TODO: Check for user-created modules (e.g., local .ez files)
+	// For now, we only validate against standard library
+
+	return false
+}
+
 func Eval(node ast.Node, env *Environment) Object {
 	switch node := node.(type) {
 	// Program
@@ -98,6 +121,13 @@ func Eval(node ast.Node, env *Environment) Object {
 		// Register the imported module with its alias
 		// The alias is what's used in code (e.g., str.upper())
 		// The module is the actual library (e.g., strings)
+
+		// Validate that the module exists
+		if !isValidModule(node.Module) {
+			return newErrorWithLocation("E5002", node.Token.Line, node.Token.Column,
+				"module '%s' not found", node.Module)
+		}
+
 		alias := node.Alias
 		if alias == "" {
 			alias = node.Module
