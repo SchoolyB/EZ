@@ -602,10 +602,34 @@ func (p *Parser) parseBlockStatement() *BlockStatement {
 
 	p.nextToken() // move past {
 
+	unreachable := false // track if we've hit a terminating statement
+
 	for !p.currentTokenMatches(RBRACE) && !p.currentTokenMatches(EOF) {
 		stmt := p.parseStatement()
 		if stmt != nil {
+			// Check for unreachable code
+			if unreachable {
+				// Warn about unreachable code
+				msg := "unreachable code after return/break/continue"
+				warn := errors.NewErrorWithSource(
+					errors.W2001,
+					msg,
+					p.filename,
+					p.currentToken.Line,
+					p.currentToken.Column,
+					errors.GetSourceLine(p.source, p.currentToken.Line),
+				)
+				warn.Help = "remove this code or restructure your control flow"
+				p.ezErrors.AddWarning(warn)
+			}
+
 			block.Statements = append(block.Statements, stmt)
+
+			// Check if this statement terminates the block
+			switch stmt.(type) {
+			case *ReturnStatement, *BreakStatement, *ContinueStatement:
+				unreachable = true
+			}
 		}
 		p.nextToken()
 	}

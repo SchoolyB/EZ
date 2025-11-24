@@ -128,6 +128,11 @@ func runFile(filename string) {
 		return
 	}
 
+	// Display parser warnings (even if no errors)
+	if p.EZErrors().HasWarnings() {
+		fmt.Print(errors.FormatErrorList(p.EZErrors()))
+	}
+
 	// Type checking phase
 	tc := typechecker.NewTypeChecker(source, filename)
 	tc.CheckProgram(program)
@@ -136,6 +141,11 @@ func runFile(filename string) {
 	if tc.Errors().HasErrors() {
 		fmt.Print(errors.FormatErrorList(tc.Errors()))
 		return
+	}
+
+	// Display type checker warnings (even if no errors)
+	if tc.Errors().HasWarnings() {
+		fmt.Print(errors.FormatErrorList(tc.Errors()))
 	}
 
 	env := interpreter.NewEnvironment()
