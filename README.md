@@ -269,11 +269,15 @@ const PRECISION enum {
 
 ### Definition Syntax
 ```
-TypeName struct {
+const TypeName struct {
     fieldName type
     anotherField type
 }
 ```
+
+**Rules:**
+- **Must be declared as const** - `const TypeName struct { }`
+- Type names should use PascalCase convention
 
 ### Creating Instances
 
@@ -305,7 +309,7 @@ instance.field2 = value2
 ### Examples
 ```
 // Define a struct
-Person struct {
+const Person struct {
     name string
     age int
     email string
