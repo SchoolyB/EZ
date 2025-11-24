@@ -9,6 +9,7 @@ import (
 	"github.com/marshallburns/ez/pkg/lexer"
 	"github.com/marshallburns/ez/pkg/parser"
 	"github.com/marshallburns/ez/pkg/tokenizer"
+	"github.com/marshallburns/ez/pkg/typechecker"
 )
 
 func main() {
@@ -124,6 +125,16 @@ func runFile(filename string) {
 	// Check for parser errors using new error system
 	if p.EZErrors().HasErrors() {
 		fmt.Print(errors.FormatErrorList(p.EZErrors()))
+		return
+	}
+
+	// Type checking phase
+	tc := typechecker.NewTypeChecker(source, filename)
+	tc.CheckProgram(program)
+
+	// Check for type errors
+	if tc.Errors().HasErrors() {
+		fmt.Print(errors.FormatErrorList(tc.Errors()))
 		return
 	}
 

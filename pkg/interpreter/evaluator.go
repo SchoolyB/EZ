@@ -86,6 +86,14 @@ func Eval(node ast.Node, env *Environment) Object {
 	case *ast.FunctionDeclaration:
 		return evalFunctionDeclaration(node, env)
 
+	case *ast.StructDeclaration:
+		// Struct declarations are just type definitions, no runtime effect
+		return NIL
+
+	case *ast.EnumDeclaration:
+		// Enum declarations are just type definitions, no runtime effect
+		return NIL
+
 	case *ast.ImportStatement:
 		// Register the imported module with its alias
 		// The alias is what's used in code (e.g., str.upper())

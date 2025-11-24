@@ -28,6 +28,8 @@ var (
 	E2003 = ErrorCode{"E2003", "cannot-convert", "cannot convert types"}
 	E2004 = ErrorCode{"E2004", "wrong-arg-type", "wrong argument type"}
 	E2005 = ErrorCode{"E2005", "wrong-return-type", "wrong return type"}
+	E2006 = ErrorCode{"E2006", "undefined-type", "type not defined"}
+	E2007 = ErrorCode{"E2007", "type-mismatch-binary", "incompatible types for operator"}
 
 	// Reference Errors (E3xxx)
 	E3001 = ErrorCode{"E3001", "undefined-variable", "not found in this scope"}
