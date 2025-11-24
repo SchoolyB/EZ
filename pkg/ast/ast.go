@@ -218,12 +218,13 @@ func (r *RangeExpression) TokenLiteral() string { return r.Token.Literal }
 // VariableDeclaration represents temp x int = 5 or const y int = 10
 // Also supports multiple assignment: temp result, err = divide(10, 0)
 type VariableDeclaration struct {
-	Token    Token // temp or const
-	Name     *Label
-	Names    []*Label // for multiple assignment (result, err)
-	TypeName string
-	Value    Expression
-	Mutable  bool
+	Token      Token // temp or const
+	Name       *Label
+	Names      []*Label // for multiple assignment (result, err)
+	TypeName   string
+	Value      Expression
+	Mutable    bool
+	Attributes []*Attribute // @suppress(...) attributes
 }
 
 // IgnoreValue represents @ignore in multiple assignment
@@ -233,6 +234,16 @@ type IgnoreValue struct {
 
 func (i *IgnoreValue) expressionNode()      {}
 func (i *IgnoreValue) TokenLiteral() string { return i.Token.Literal }
+
+// Attribute represents @suppress(warning_name, ...)
+type Attribute struct {
+	Token Token
+	Name  string   // "suppress"
+	Args  []string // warning codes to suppress
+}
+
+func (a *Attribute) expressionNode()      {}
+func (a *Attribute) TokenLiteral() string { return a.Token.Literal }
 
 func (v *VariableDeclaration) statementNode(){}
 func (v *VariableDeclaration) TokenLiteral() string { return v.Token.Literal }
@@ -351,6 +362,7 @@ type FunctionDeclaration struct {
 	Parameters  []*Parameter
 	ReturnTypes []string // can be multiple for multi-return
 	Body        *BlockStatement
+	Attributes  []*Attribute // @suppress(...) attributes
 }
 
 func (f *FunctionDeclaration) statementNode(){}

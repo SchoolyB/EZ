@@ -357,11 +357,23 @@ func (p *Parser) ParseProgram() *Program {
 }
 
 func (p *Parser) parseStatement() Statement {
+	// Check for @suppress attribute
+	var attrs []*Attribute
+	if p.currentTokenMatches(SUPPRESS) {
+		attrs = p.parseAttributes()
+		// parseAttributes advances to the declaration token
+	}
+
 	switch p.currentToken.Type {
 	case TEMP, CONST:
-		return p.parseVarableDeclaration()
+		stmt := p.parseVarableDeclaration()
+		if stmt != nil && len(attrs) > 0 {
+			stmt.Attributes = attrs
+		}
+		return stmt
 	case DO:
-		return p.parseFunctionDeclaration()
+		stmt := p.parseFunctionDeclarationWithAttrs(attrs)
+		return stmt
 	case RETURN:
 		return p.parseReturnStatement()
 	case IF:
@@ -596,6 +608,10 @@ func (p *Parser) parseExpressionStatement() *ExpressionStatement {
 }
 
 func (p *Parser) parseBlockStatement() *BlockStatement {
+	return p.parseBlockStatementWithSuppress(nil)
+}
+
+func (p *Parser) parseBlockStatementWithSuppress(suppressions []*Attribute) *BlockStatement {
 	block := &BlockStatement{Token: p.currentToken}
 	openBrace := p.currentToken // save the { token for error reporting
 	block.Statements = []Statement{}
@@ -609,18 +625,21 @@ func (p *Parser) parseBlockStatement() *BlockStatement {
 		if stmt != nil {
 			// Check for unreachable code
 			if unreachable {
-				// Warn about unreachable code
-				msg := "unreachable code after return/break/continue"
-				warn := errors.NewErrorWithSource(
-					errors.W2001,
-					msg,
-					p.filename,
-					p.currentToken.Line,
-					p.currentToken.Column,
-					errors.GetSourceLine(p.source, p.currentToken.Line),
-				)
-				warn.Help = "remove this code or restructure your control flow"
-				p.ezErrors.AddWarning(warn)
+				// Check if W2001 is suppressed
+				if !p.isSuppressed("W2001", suppressions) && !p.isSuppressed("unreachable_code", suppressions) {
+					// Warn about unreachable code
+					msg := "unreachable code after return/break/continue"
+					warn := errors.NewErrorWithSource(
+						errors.W2001,
+						msg,
+						p.filename,
+						p.currentToken.Line,
+						p.currentToken.Column,
+						errors.GetSourceLine(p.source, p.currentToken.Line),
+					)
+					warn.Help = "remove this code or restructure your control flow"
+					p.ezErrors.AddWarning(warn)
+				}
 			}
 
 			block.Statements = append(block.Statements, stmt)
@@ -642,6 +661,23 @@ func (p *Parser) parseBlockStatement() *BlockStatement {
 	}
 
 	return block
+}
+
+// isSuppressed checks if a warning code is suppressed by the given attributes
+func (p *Parser) isSuppressed(warningCode string, attrs []*Attribute) bool {
+	if attrs == nil {
+		return false
+	}
+	for _, attr := range attrs {
+		if attr.Name == "suppress" {
+			for _, arg := range attr.Args {
+				if arg == warningCode {
+					return true
+				}
+			}
+		}
+	}
+	return false
 }
 
 func (p *Parser) parseIfStatement() *IfStatement {
@@ -776,7 +812,11 @@ func (p *Parser) parseContinueStatement() *ContinueStatement {
 }
 
 func (p *Parser) parseFunctionDeclaration() *FunctionDeclaration {
-	stmt := &FunctionDeclaration{Token: p.currentToken}
+	return p.parseFunctionDeclarationWithAttrs(nil)
+}
+
+func (p *Parser) parseFunctionDeclarationWithAttrs(attrs []*Attribute) *FunctionDeclaration {
+	stmt := &FunctionDeclaration{Token: p.currentToken, Attributes: attrs}
 
 	if !p.expectPeek(IDENT) {
 		return nil
@@ -824,7 +864,8 @@ func (p *Parser) parseFunctionDeclaration() *FunctionDeclaration {
 		return nil
 	}
 
-	stmt.Body = p.parseBlockStatement()
+	// Parse body with attributes for suppression
+	stmt.Body = p.parseBlockStatementWithSuppress(stmt.Attributes)
 
 	return stmt
 }
@@ -1271,4 +1312,58 @@ func (p *Parser) parseRangeExpression() Expression {
 	}
 
 	return exp
+}
+
+// ============================================================================
+// Attribute Parsing
+// ============================================================================
+
+// parseAttributes parses @suppress(...) attributes before declarations
+func (p *Parser) parseAttributes() []*Attribute {
+	attributes := []*Attribute{}
+
+	for p.currentTokenMatches(SUPPRESS) {
+		attr := &Attribute{
+			Token: p.currentToken,
+			Name:  "suppress",
+			Args:  []string{},
+		}
+
+		// Expect opening paren
+		if !p.expectPeek(LPAREN) {
+			return attributes
+		}
+
+		// Parse comma-separated warning codes
+		if !p.peekTokenMatches(RPAREN) {
+			p.nextToken() // move to first identifier
+
+			// First argument
+			if p.currentTokenMatches(IDENT) || p.currentTokenMatches(STRING) {
+				attr.Args = append(attr.Args, p.currentToken.Literal)
+			}
+
+			// Additional arguments
+			for p.peekTokenMatches(COMMA) {
+				p.nextToken() // consume comma
+				p.nextToken() // move to next argument
+
+				if p.currentTokenMatches(IDENT) || p.currentTokenMatches(STRING) {
+					attr.Args = append(attr.Args, p.currentToken.Literal)
+				}
+			}
+		}
+
+		// Expect closing paren
+		if !p.expectPeek(RPAREN) {
+			return attributes
+		}
+
+		attributes = append(attributes, attr)
+
+		// Move to next token (might be another @suppress or the declaration)
+		p.nextToken()
+	}
+
+	return attributes
 }

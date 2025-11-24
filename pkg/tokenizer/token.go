@@ -101,6 +101,7 @@ const (
 	TRUE      TokenType = "TRUE"
 	FALSE     TokenType = "FALSE"
 	IGNORE    TokenType = "IGNORE"
+	SUPPRESS  TokenType = "SUPPRESS"
 )
 
 var keywords = map[string]TokenType{

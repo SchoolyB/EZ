@@ -196,16 +196,19 @@ func (l *Lexer) NextToken() tokenizer.Token {
 	case '.':
 		tok = newToken(tokenizer.DOT, l.ch, l.line, l.column)
 	case '@':
-		if l.peekChar() == 'i' {
-			// Check for @ignore
+		// Check for @ignore or @suppress
+		if isLetter(l.peekChar()) {
 			start := l.position
 			l.readChar() // consume '@'
 			ident := l.readIdentifier()
 			if ident == "ignore" {
 				tok = tokenizer.Token{Type: tokenizer.IGNORE, Literal: "@ignore", Line: l.line, Column: l.column}
 				return tok
+			} else if ident == "suppress" {
+				tok = tokenizer.Token{Type: tokenizer.SUPPRESS, Literal: "@suppress", Line: l.line, Column: l.column}
+				return tok
 			}
-			// Not @ignore, backtrack (this is a simplification - may need better handling)
+			// Not a recognized @ keyword, backtrack (this is a simplification)
 			tok = tokenizer.Token{Type: tokenizer.AT, Literal: "@", Line: l.line, Column: l.column}
 			_ = start // silence unused variable
 			return tok
