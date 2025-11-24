@@ -881,61 +881,63 @@ func (p *Parser) parseFunctionParameters() []*Parameter {
 
 	p.nextToken()
 
-	// Collect parameter names until we hit a type
-	names := []*Label{{Token: p.currentToken, Value: p.currentToken.Literal}}
+	for {
+		// Read parameter name
+		if !p.currentTokenMatches(IDENT) {
+			msg := fmt.Sprintf("expected parameter name, got %s", p.currentToken.Type)
+			p.addEZError(errors.E1002, msg, p.currentToken)
+			return nil
+		}
 
-	for p.peekTokenMatches(COMMA) {
-		p.nextToken() // consume comma
-		p.nextToken() // move to next token
+		paramName := &Label{Token: p.currentToken, Value: p.currentToken.Literal}
 
-		if p.peekTokenMatches(COMMA) || p.peekTokenMatches(RPAREN) {
-			// This is another name
-			names = append(names, &Label{Token: p.currentToken, Value: p.currentToken.Literal})
+		// Check for duplicate parameter names
+		if prevToken, exists := paramNames[paramName.Value]; exists {
+			msg := fmt.Sprintf("duplicate parameter name '%s'", paramName.Value)
+			p.addEZError(errors.E1003, msg, paramName.Token)
+			helpMsg := fmt.Sprintf("parameter '%s' first declared at line %d", paramName.Value, prevToken.Line)
+			p.errors = append(p.errors, helpMsg)
 		} else {
-			// This is a name, next is the type
-			names = append(names, &Label{Token: p.currentToken, Value: p.currentToken.Literal})
-			p.nextToken() // move to type
-			typeName := p.currentToken.Literal
-
-			// Create parameters for all collected names
-			for _, name := range names {
-				// Check for duplicate parameter names
-				if prevToken, exists := paramNames[name.Value]; exists {
-					msg := fmt.Sprintf("duplicate parameter name '%s'", name.Value)
-					p.addEZError(errors.E1003, msg, name.Token)
-					// Add help message pointing to first declaration
-					helpMsg := fmt.Sprintf("parameter '%s' first declared at line %d", name.Value, prevToken.Line)
-					p.errors = append(p.errors, helpMsg)
-				} else {
-					paramNames[name.Value] = name.Token
-				}
-				params = append(params, &Parameter{Name: name, TypeName: typeName})
-			}
-			names = []*Label{}
+			paramNames[paramName.Value] = paramName.Token
 		}
-	}
 
-	// Handle remaining names with type
-	if len(names) > 0 {
-		p.nextToken() // move to type
-		typeName := p.currentToken.Literal
-		for _, name := range names {
-			// Check for duplicate parameter names
-			if prevToken, exists := paramNames[name.Value]; exists {
-				msg := fmt.Sprintf("duplicate parameter name '%s'", name.Value)
-				p.addEZError(errors.E1003, msg, name.Token)
-				// Add help message pointing to first declaration
-				helpMsg := fmt.Sprintf("parameter '%s' first declared at line %d", name.Value, prevToken.Line)
-				p.errors = append(p.errors, helpMsg)
-			} else {
-				paramNames[name.Value] = name.Token
-			}
-			params = append(params, &Parameter{Name: name, TypeName: typeName})
+		// Read parameter type
+		p.nextToken()
+		if !p.currentTokenMatches(IDENT) && !p.currentTokenMatches(LBRACKET) {
+			msg := fmt.Sprintf("expected parameter type, got %s", p.currentToken.Type)
+			p.addEZError(errors.E1002, msg, p.currentToken)
+			return nil
 		}
-	}
 
-	if !p.expectPeek(RPAREN) {
-		return nil
+		var typeName string
+		if p.currentTokenMatches(LBRACKET) {
+			// Array type [type]
+			typeName = "["
+			p.nextToken() // move past [
+			typeName += p.currentToken.Literal
+			if !p.expectPeek(RBRACKET) {
+				return nil
+			}
+			typeName += "]"
+		} else {
+			typeName = p.currentToken.Literal
+		}
+
+		params = append(params, &Parameter{Name: paramName, TypeName: typeName})
+
+		// Check for comma (more parameters) or closing paren
+		if p.peekTokenMatches(COMMA) {
+			p.nextToken() // consume comma
+			p.nextToken() // move to next parameter name
+			continue
+		} else if p.peekTokenMatches(RPAREN) {
+			p.nextToken() // consume )
+			break
+		} else {
+			msg := fmt.Sprintf("expected ',' or ')', got %s", p.peekToken.Type)
+			p.addEZError(errors.E1002, msg, p.peekToken)
+			return nil
+		}
 	}
 
 	return params
