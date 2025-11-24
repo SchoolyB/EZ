@@ -5,7 +5,7 @@ import (
 	"strconv"
 )
 
-import . 	"github.com/marshallburns/ez/pkg/ast"
+import . "github.com/marshallburns/ez/pkg/ast"
 import . "github.com/marshallburns/ez/pkg/lexer"
 import . "github.com/marshallburns/ez/pkg/tokenizer"
 
@@ -244,11 +244,54 @@ func (p *Parser) parseVarableDeclaration() *VariableDeclaration {
 	stmt := &VariableDeclaration{Token: p.currentToken}
 	stmt.Mutable = p.currentToken.Type == TEMP
 
-	if !p.expectPeek(IDENT) {
+	// Check for @ignore or IDENT
+	if p.peekTokenMatches(IGNORE) {
+		p.nextToken()
+		stmt.Names = append(stmt.Names, &Label{Token: p.currentToken, Value: "@ignore"})
+	} else if !p.expectPeek(IDENT) {
 		return nil
+	} else {
+		stmt.Names = append(stmt.Names, &Label{Token: p.currentToken, Value: p.currentToken.Literal})
 	}
 
-	stmt.Name = &Label{Token: p.currentToken, Value: p.currentToken.Literal}
+	// Check for multiple assignment: temp result, err = ...
+	for p.peekTokenMatches(COMMA) {
+		p.nextToken() // consume comma
+		p.nextToken() // move to next identifier or @ignore
+
+		if p.currentTokenMatches(IGNORE) {
+			stmt.Names = append(stmt.Names, &Label{Token: p.currentToken, Value: "@ignore"})
+		} else if p.currentTokenMatches(IDENT) {
+			stmt.Names = append(stmt.Names, &Label{Token: p.currentToken, Value: p.currentToken.Literal})
+		} else {
+			msg := fmt.Sprintf("line %d: expected identifier or @ignore, got %s",
+				p.currentToken.Line, p.currentToken.Type)
+			p.errors = append(p.errors, msg)
+			return nil
+		}
+	}
+
+	// If multiple names, expect = directly (type inferred from function return)
+	if len(stmt.Names) > 1 {
+		stmt.Name = stmt.Names[0] // keep first name for backward compat
+		if !p.expectPeek(ASSIGN) {
+			return nil
+		}
+		p.nextToken() // move to value
+		stmt.Value = p.parseExpression(LOWEST)
+		return stmt
+	}
+
+	// Single variable declaration - set Name for backward compatibility
+	stmt.Name = stmt.Names[0]
+
+	// Check if this is a type-inferred assignment (temp x = value)
+	if p.peekTokenMatches(ASSIGN) {
+		p.nextToken() // consume =
+		p.nextToken() // move to value
+		stmt.Value = p.parseExpression(LOWEST)
+		return stmt
+	}
 
 	// Parse type - can be IDENT or [type] for arrays
 	p.nextToken()

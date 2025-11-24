@@ -201,6 +201,30 @@ func evalVariableDeclaration(node *ast.VariableDeclaration, env *Environment) Ob
 		}
 	}
 
+	// Handle multiple assignment: temp result, err = function()
+	if len(node.Names) > 1 {
+		// Expect a ReturnValue with multiple values
+		returnVal, ok := val.(*ReturnValue)
+		if !ok {
+			// Single value assigned to multiple variables - error
+			return newError("expected %d values, got 1", len(node.Names))
+		}
+
+		if len(returnVal.Values) != len(node.Names) {
+			return newError("expected %d values, got %d", len(node.Names), len(returnVal.Values))
+		}
+
+		for i, name := range node.Names {
+			// Skip @ignore
+			if name.Value == "@ignore" {
+				continue
+			}
+			env.Set(name.Value, returnVal.Values[i])
+		}
+		return NIL
+	}
+
+	// Single variable assignment
 	env.Set(node.Name.Value, val)
 	return NIL
 }
@@ -779,8 +803,9 @@ func unwrapReturnValue(obj Object) Object {
 		if len(returnValue.Values) == 1 {
 			return returnValue.Values[0]
 		}
-		// For multiple returns, we'd need to handle differently
-		return returnValue.Values[0]
+		// For multiple returns, keep the ReturnValue intact
+		// so it can be unpacked by variable declaration
+		return returnValue
 	}
 	return obj
 }
