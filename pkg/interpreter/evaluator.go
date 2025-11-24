@@ -110,7 +110,8 @@ func Eval(node ast.Node, env *Environment) Object {
 		alias := node.Module.Value
 		// Verify the module was imported
 		if _, ok := env.GetImport(alias); !ok {
-			return newError("cannot use '%s': module not imported", alias)
+			return newErrorWithLocation("E3005", node.Token.Line, node.Token.Column,
+				"cannot use '%s': module not imported", alias)
 		}
 		env.Use(alias)
 		return NIL
@@ -603,6 +604,16 @@ func evalMinusPrefixOperator(right Object) Object {
 }
 
 func evalInfixExpression(operator string, left, right Object, line, col int) Object {
+	// Check for nil operands (except for == and != which can compare with nil)
+	if operator != "==" && operator != "!=" {
+		if left.Type() == NIL_OBJ {
+			return newErrorWithLocation("E4003", line, col, "nil reference: cannot use nil with operator '%s'", operator)
+		}
+		if right.Type() == NIL_OBJ {
+			return newErrorWithLocation("E4003", line, col, "nil reference: cannot use nil with operator '%s'", operator)
+		}
+	}
+
 	switch {
 	case left.Type() == INTEGER_OBJ && right.Type() == INTEGER_OBJ:
 		return evalIntegerInfixExpression(operator, left, right, line, col)
@@ -1003,7 +1014,8 @@ func evalMemberExpression(node *ast.MemberExpression, env *Environment) Object {
 				// For constants (zero-arg functions), call them immediately
 				return builtin.Fn()
 			}
-			return newError("'%s' not found in module '%s'", node.Member.Value, alias)
+			return newErrorWithLocation("E3002", node.Token.Line, node.Token.Column,
+				"'%s' not found in module '%s'", node.Member.Value, alias)
 		}
 	}
 
@@ -1012,14 +1024,22 @@ func evalMemberExpression(node *ast.MemberExpression, env *Environment) Object {
 		return obj
 	}
 
+	// Check for nil reference
+	if obj.Type() == NIL_OBJ {
+		return newErrorWithLocation("E3003", node.Token.Line, node.Token.Column,
+			"nil reference: cannot access member '%s' of nil", node.Member.Value)
+	}
+
 	if structObj, ok := obj.(*Struct); ok {
 		if val, ok := structObj.Fields[node.Member.Value]; ok {
 			return val
 		}
-		return newError("field not found: %s", node.Member.Value)
+		return newErrorWithLocation("E3003", node.Token.Line, node.Token.Column,
+			"field '%s' not found", node.Member.Value)
 	}
 
-	return newError("member access not supported: %s", obj.Type())
+	return newErrorWithLocation("E2002", node.Token.Line, node.Token.Column,
+		"member access not supported on type %s", obj.Type())
 }
 
 func nativeBoolToBooleanObject(input bool) *Boolean {
