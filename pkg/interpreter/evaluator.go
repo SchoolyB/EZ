@@ -21,7 +21,26 @@ func Eval(node ast.Node, env *Environment) Object {
 
 	// Statements
 	case *ast.ExpressionStatement:
-		return Eval(node.Expression, env)
+		result := Eval(node.Expression, env)
+		if isError(result) {
+			return result
+		}
+		// Check for uncaptured return values from function calls
+		if call, ok := node.Expression.(*ast.CallExpression); ok {
+			if fn, ok := result.(*ReturnValue); ok && len(fn.Values) > 0 {
+				return newErrorWithLocation("E4007", call.Token.Line, call.Token.Column,
+					"return value from function not used (use @ignore to discard)")
+			}
+			// Also check if the function has declared return types but result is not NIL
+			if result != NIL {
+				// Check if it's a user function with return types
+				if fnObj := getFunctionObject(call, env); fnObj != nil && len(fnObj.ReturnTypes) > 0 {
+					return newErrorWithLocation("E4007", call.Token.Line, call.Token.Column,
+						"return value from function not used (use @ignore to discard)")
+				}
+			}
+		}
+		return result
 
 	case *ast.VariableDeclaration:
 		return evalVariableDeclaration(node, env)
@@ -128,7 +147,7 @@ func Eval(node ast.Node, env *Environment) Object {
 		if isError(right) {
 			return right
 		}
-		return evalInfixExpression(node.Operator, left, right)
+		return evalInfixExpression(node.Operator, left, right, node.Token.Line, node.Token.Column)
 
 	case *ast.PostfixExpression:
 		return evalPostfixExpression(node, env)
@@ -242,9 +261,10 @@ func evalAssignment(node *ast.AssignmentStatement, env *Environment) Object {
 		if node.Operator != "=" {
 			oldVal, ok := env.Get(target.Value)
 			if !ok {
-				return newError("identifier not found: %s", target.Value)
+				return newErrorWithLocation("E3001", node.Token.Line, node.Token.Column,
+					"undefined variable '%s'", target.Value)
 			}
-			val = evalCompoundAssignment(node.Operator, oldVal, val)
+			val = evalCompoundAssignment(node.Operator, oldVal, val, node.Token.Line, node.Token.Column)
 			if isError(val) {
 				return val
 			}
@@ -252,10 +272,12 @@ func evalAssignment(node *ast.AssignmentStatement, env *Environment) Object {
 
 		found, isMutable := env.Update(target.Value, val)
 		if !found {
-			return newError("identifier not found: %s", target.Value)
+			return newErrorWithLocation("E3001", node.Token.Line, node.Token.Column,
+				"undefined variable '%s'", target.Value)
 		}
 		if !isMutable {
-			return newError("cannot assign to immutable variable '%s' (declared as const)", target.Value)
+			return newErrorWithLocation("E4005", node.Token.Line, node.Token.Column,
+				"cannot assign to immutable variable '%s' (declared as const)", target.Value)
 		}
 
 	case *ast.IndexExpression:
@@ -298,18 +320,18 @@ func evalAssignment(node *ast.AssignmentStatement, env *Environment) Object {
 	return NIL
 }
 
-func evalCompoundAssignment(op string, left, right Object) Object {
+func evalCompoundAssignment(op string, left, right Object, line, col int) Object {
 	switch op {
 	case "+=":
-		return evalInfixExpression("+", left, right)
+		return evalInfixExpression("+", left, right, line, col)
 	case "-=":
-		return evalInfixExpression("-", left, right)
+		return evalInfixExpression("-", left, right, line, col)
 	case "*=":
-		return evalInfixExpression("*", left, right)
+		return evalInfixExpression("*", left, right, line, col)
 	case "/=":
-		return evalInfixExpression("/", left, right)
+		return evalInfixExpression("/", left, right, line, col)
 	case "%=":
-		return evalInfixExpression("%", left, right)
+		return evalInfixExpression("%", left, right, line, col)
 	default:
 		return newError("unknown operator: %s", op)
 	}
@@ -460,9 +482,10 @@ func evalForEachStatement(node *ast.ForEachStatement, env *Environment) Object {
 
 func evalFunctionDeclaration(node *ast.FunctionDeclaration, env *Environment) Object {
 	fn := &Function{
-		Parameters: node.Parameters,
-		Body:       node.Body,
-		Env:        env,
+		Parameters:  node.Parameters,
+		ReturnTypes: node.ReturnTypes,
+		Body:        node.Body,
+		Env:         env,
 	}
 	env.Set(node.Name.Value, fn, false) // functions are immutable
 	return NIL
@@ -551,12 +574,12 @@ func evalMinusPrefixOperator(right Object) Object {
 	}
 }
 
-func evalInfixExpression(operator string, left, right Object) Object {
+func evalInfixExpression(operator string, left, right Object, line, col int) Object {
 	switch {
 	case left.Type() == INTEGER_OBJ && right.Type() == INTEGER_OBJ:
-		return evalIntegerInfixExpression(operator, left, right)
+		return evalIntegerInfixExpression(operator, left, right, line, col)
 	case left.Type() == FLOAT_OBJ || right.Type() == FLOAT_OBJ:
-		return evalFloatInfixExpression(operator, left, right)
+		return evalFloatInfixExpression(operator, left, right, line, col)
 	case left.Type() == STRING_OBJ && right.Type() == STRING_OBJ:
 		return evalStringInfixExpression(operator, left, right)
 	case operator == "==":
@@ -576,11 +599,11 @@ func evalInfixExpression(operator string, left, right Object) Object {
 		}
 		return TRUE
 	default:
-		return newError("unknown operator: %s %s %s", left.Type(), operator, right.Type())
+		return newErrorWithLocation("E2002", line, col, "unknown operator: %s %s %s", left.Type(), operator, right.Type())
 	}
 }
 
-func evalIntegerInfixExpression(operator string, left, right Object) Object {
+func evalIntegerInfixExpression(operator string, left, right Object, line, col int) Object {
 	leftVal := left.(*Integer).Value
 	rightVal := right.(*Integer).Value
 
@@ -593,12 +616,12 @@ func evalIntegerInfixExpression(operator string, left, right Object) Object {
 		return &Integer{Value: leftVal * rightVal}
 	case "/":
 		if rightVal == 0 {
-			return newError("division by zero")
+			return newErrorWithLocation("E4001", line, col, "division by zero")
 		}
 		return &Integer{Value: leftVal / rightVal}
 	case "%":
 		if rightVal == 0 {
-			return newError("modulo by zero")
+			return newErrorWithLocation("E4001", line, col, "modulo by zero")
 		}
 		return &Integer{Value: leftVal % rightVal}
 	case "<":
@@ -614,11 +637,11 @@ func evalIntegerInfixExpression(operator string, left, right Object) Object {
 	case "!=":
 		return nativeBoolToBooleanObject(leftVal != rightVal)
 	default:
-		return newError("unknown operator: %s %s %s", left.Type(), operator, right.Type())
+		return newErrorWithLocation("E2002", line, col, "unknown operator: %s %s %s", left.Type(), operator, right.Type())
 	}
 }
 
-func evalFloatInfixExpression(operator string, left, right Object) Object {
+func evalFloatInfixExpression(operator string, left, right Object, line, col int) Object {
 	var leftVal, rightVal float64
 
 	switch l := left.(type) {
@@ -644,7 +667,7 @@ func evalFloatInfixExpression(operator string, left, right Object) Object {
 		return &Float{Value: leftVal * rightVal}
 	case "/":
 		if rightVal == 0 {
-			return newError("division by zero")
+			return newErrorWithLocation("E4001", line, col, "division by zero")
 		}
 		return &Float{Value: leftVal / rightVal}
 	case "<":
@@ -660,7 +683,7 @@ func evalFloatInfixExpression(operator string, left, right Object) Object {
 	case "!=":
 		return nativeBoolToBooleanObject(leftVal != rightVal)
 	default:
-		return newError("unknown operator: %s %s %s", left.Type(), operator, right.Type())
+		return newErrorWithLocation("E2002", line, col, "unknown operator: %s %s %s", left.Type(), operator, right.Type())
 	}
 }
 
@@ -769,7 +792,7 @@ func evalCallExpression(node *ast.CallExpression, env *Environment) Object {
 		return args[0]
 	}
 
-	return applyFunction(function, args)
+	return applyFunction(function, args, node.Token.Line, node.Token.Column)
 }
 
 func evalMemberCall(member *ast.MemberExpression, args []ast.Expression, env *Environment) Object {
@@ -800,22 +823,88 @@ func evalMemberCall(member *ast.MemberExpression, args []ast.Expression, env *En
 	return newError("function not found: %s", fullName)
 }
 
-func applyFunction(fn Object, args []Object) Object {
+func applyFunction(fn Object, args []Object, line, col int) Object {
 	switch fn := fn.(type) {
 	case *Function:
 		// Validate argument count
 		if len(args) != len(fn.Parameters) {
-			return newError("wrong number of arguments: expected %d, got %d", len(fn.Parameters), len(args))
+			return newErrorWithLocation("E4004", line, col,
+				"wrong number of arguments: expected %d, got %d", len(fn.Parameters), len(args))
 		}
 		extendedEnv := extendFunctionEnv(fn, args)
 		evaluated := Eval(fn.Body, extendedEnv)
-		return unwrapReturnValue(evaluated)
+		result := unwrapReturnValue(evaluated)
+
+		// Validate return type if function declares one
+		if len(fn.ReturnTypes) > 0 && !isError(result) {
+			if err := validateReturnType(result, fn.ReturnTypes, line, col); err != nil {
+				return err
+			}
+		}
+		return result
 
 	case *Builtin:
 		return fn.Fn(args...)
 
 	default:
-		return newError("not a function: %s", fn.Type())
+		return newErrorWithLocation("E2002", line, col, "not a function: %s", fn.Type())
+	}
+}
+
+// validateReturnType checks if the returned value matches the declared return type
+func validateReturnType(result Object, expectedTypes []string, line, col int) *Error {
+	// Handle multiple return values
+	if retVal, ok := result.(*ReturnValue); ok {
+		if len(retVal.Values) != len(expectedTypes) {
+			return newErrorWithLocation("E4006", line, col,
+				"wrong number of return values: expected %d, got %d", len(expectedTypes), len(retVal.Values))
+		}
+		for i, val := range retVal.Values {
+			if !typeMatches(val, expectedTypes[i]) {
+				return newErrorWithLocation("E2005", line, col,
+					"return type mismatch: expected %s, got %s", expectedTypes[i], objectTypeToEZ(val))
+			}
+		}
+		return nil
+	}
+
+	// Single return value
+	if len(expectedTypes) == 1 {
+		if !typeMatches(result, expectedTypes[0]) {
+			return newErrorWithLocation("E2005", line, col,
+				"return type mismatch: expected %s, got %s", expectedTypes[0], objectTypeToEZ(result))
+		}
+	}
+	return nil
+}
+
+// typeMatches checks if an object matches an EZ type name
+func typeMatches(obj Object, ezType string) bool {
+	actualType := objectTypeToEZ(obj)
+	return actualType == ezType
+}
+
+// objectTypeToEZ converts Object type to EZ language type name
+func objectTypeToEZ(obj Object) string {
+	switch obj.(type) {
+	case *Integer:
+		return "int"
+	case *Float:
+		return "float"
+	case *String:
+		return "string"
+	case *Boolean:
+		return "bool"
+	case *Array:
+		return "array"
+	case *Struct:
+		return "struct"
+	case *Nil:
+		return "nil"
+	case *Function:
+		return "function"
+	default:
+		return string(obj.Type())
 	}
 }
 
@@ -928,6 +1017,18 @@ func isError(obj Object) bool {
 		return obj.Type() == ERROR_OBJ
 	}
 	return false
+}
+
+// getFunctionObject retrieves the Function object from a call expression
+func getFunctionObject(call *ast.CallExpression, env *Environment) *Function {
+	if label, ok := call.Function.(*ast.Label); ok {
+		if obj, ok := env.Get(label.Value); ok {
+			if fn, ok := obj.(*Function); ok {
+				return fn
+			}
+		}
+	}
+	return nil
 }
 
 func newError(format string, a ...interface{}) *Error {

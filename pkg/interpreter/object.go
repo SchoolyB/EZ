@@ -106,9 +106,10 @@ func (e *Error) Inspect() string  { return "ERROR: " + e.Message }
 
 // Function represents a user-defined function
 type Function struct {
-	Parameters []*ast.Parameter
-	Body       *ast.BlockStatement
-	Env        *Environment
+	Parameters  []*ast.Parameter
+	ReturnTypes []string // declared return types for validation
+	Body        *ast.BlockStatement
+	Env         *Environment
 }
 
 func (f *Function) Type() ObjectType { return FUNCTION_OBJ }

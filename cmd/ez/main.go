@@ -157,6 +157,16 @@ func printRuntimeError(errObj *interpreter.Error, source, filename string) {
 		// Find the error code
 		var code errors.ErrorCode
 		switch errObj.Code {
+		case "E2001":
+			code = errors.E2001
+		case "E2002":
+			code = errors.E2002
+		case "E2003":
+			code = errors.E2003
+		case "E2004":
+			code = errors.E2004
+		case "E2005":
+			code = errors.E2005
 		case "E3001":
 			code = errors.E3001
 		case "E3002":
@@ -179,9 +189,11 @@ func printRuntimeError(errObj *interpreter.Error, source, filename string) {
 			code = errors.E4005
 		case "E4006":
 			code = errors.E4006
+		case "E4007":
+			code = errors.E4007
 		default:
 			// Unknown code, use generic
-			code = errors.ErrorCode{Code: errObj.Code, Name: "runtime-error", Description: "Runtime error"}
+			code = errors.ErrorCode{Code: errObj.Code, Name: "error", Description: "error occurred here"}
 		}
 
 		sourceLine := errors.GetSourceLine(source, errObj.Line)

@@ -8,43 +8,45 @@ type ErrorCode struct {
 }
 
 // Error code definitions
+// Description field is used as caret text - keep it short and descriptive
 var (
 	// Parse Errors (E1xxx)
-	E1001 = ErrorCode{"E1001", "unexpected-token", "Unexpected token"}
-	E1002 = ErrorCode{"E1002", "missing-token", "Expected token not found"}
-	E1003 = ErrorCode{"E1003", "invalid-syntax", "Invalid syntax"}
-	E1004 = ErrorCode{"E1004", "unclosed-brace", "Unclosed brace"}
-	E1005 = ErrorCode{"E1005", "unclosed-string", "Unclosed string literal"}
-	E1006 = ErrorCode{"E1006", "invalid-number", "Invalid number format"}
-	E1007 = ErrorCode{"E1007", "missing-type", "Missing type annotation"}
-	E1008 = ErrorCode{"E1008", "invalid-assignment", "Invalid assignment target"}
+	E1001 = ErrorCode{"E1001", "unexpected-token", "unexpected token here"}
+	E1002 = ErrorCode{"E1002", "missing-token", "expected token not found"}
+	E1003 = ErrorCode{"E1003", "invalid-syntax", "invalid syntax"}
+	E1004 = ErrorCode{"E1004", "unclosed-brace", "unclosed brace"}
+	E1005 = ErrorCode{"E1005", "unclosed-string", "string literal not closed"}
+	E1006 = ErrorCode{"E1006", "invalid-number", "invalid number format"}
+	E1007 = ErrorCode{"E1007", "missing-type", "type annotation required"}
+	E1008 = ErrorCode{"E1008", "invalid-assignment", "cannot assign to this"}
 
 	// Type Errors (E2xxx)
-	E2001 = ErrorCode{"E2001", "type-mismatch", "Type mismatch"}
-	E2002 = ErrorCode{"E2002", "invalid-operation", "Invalid operation for type"}
-	E2003 = ErrorCode{"E2003", "cannot-convert", "Cannot convert between types"}
-	E2004 = ErrorCode{"E2004", "wrong-arg-type", "Wrong argument type"}
-	E2005 = ErrorCode{"E2005", "wrong-return-type", "Wrong return type"}
+	E2001 = ErrorCode{"E2001", "type-mismatch", "types do not match"}
+	E2002 = ErrorCode{"E2002", "invalid-operation", "invalid operation for this type"}
+	E2003 = ErrorCode{"E2003", "cannot-convert", "cannot convert types"}
+	E2004 = ErrorCode{"E2004", "wrong-arg-type", "wrong argument type"}
+	E2005 = ErrorCode{"E2005", "wrong-return-type", "wrong return type"}
 
 	// Reference Errors (E3xxx)
-	E3001 = ErrorCode{"E3001", "undefined-variable", "Undefined variable"}
-	E3002 = ErrorCode{"E3002", "undefined-function", "Undefined function"}
-	E3003 = ErrorCode{"E3003", "undefined-field", "Undefined struct field"}
-	E3004 = ErrorCode{"E3004", "undefined-module", "Module not found"}
-	E3005 = ErrorCode{"E3005", "not-imported", "Module not imported"}
+	E3001 = ErrorCode{"E3001", "undefined-variable", "not found in this scope"}
+	E3002 = ErrorCode{"E3002", "undefined-function", "function not defined"}
+	E3003 = ErrorCode{"E3003", "undefined-field", "field does not exist"}
+	E3004 = ErrorCode{"E3004", "undefined-module", "module not found"}
+	E3005 = ErrorCode{"E3005", "not-imported", "module not imported"}
 
 	// Runtime Errors (E4xxx)
-	E4001 = ErrorCode{"E4001", "division-by-zero", "Division by zero"}
-	E4002 = ErrorCode{"E4002", "index-out-of-bounds", "Index out of bounds"}
-	E4003 = ErrorCode{"E4003", "nil-reference", "Nil reference"}
-	E4004 = ErrorCode{"E4004", "wrong-arg-count", "Wrong number of arguments"}
-	E4005 = ErrorCode{"E4005", "immutable-assign", "Cannot assign to immutable variable"}
-	E4006 = ErrorCode{"E4006", "return-mismatch", "Return value count mismatch"}
+	E4001 = ErrorCode{"E4001", "division-by-zero", "cannot divide by zero"}
+	E4002 = ErrorCode{"E4002", "index-out-of-bounds", "index out of bounds"}
+	E4003 = ErrorCode{"E4003", "nil-reference", "nil reference"}
+	E4004 = ErrorCode{"E4004", "wrong-arg-count", "wrong number of arguments"}
+	E4005 = ErrorCode{"E4005", "immutable-assign", "cannot assign to const"}
+	E4006 = ErrorCode{"E4006", "return-mismatch", "wrong number of return values"}
+	E4007 = ErrorCode{"E4007", "uncaptured-return", "return value must be used"}
 
 	// Import Errors (E5xxx)
-	E5001 = ErrorCode{"E5001", "circular-import", "Circular import detected"}
-	E5002 = ErrorCode{"E5002", "file-not-found", "File not found"}
-	E5003 = ErrorCode{"E5003", "invalid-module", "Invalid module"}
+	E5001 = ErrorCode{"E5001", "circular-import", "circular import detected"}
+	E5002 = ErrorCode{"E5002", "file-not-found", "file not found"}
+	E5003 = ErrorCode{"E5003", "invalid-module", "invalid module"}
 )
 
 // Warning code definitions
