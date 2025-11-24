@@ -597,6 +597,9 @@ func evalIntegerInfixExpression(operator string, left, right Object) Object {
 		}
 		return &Integer{Value: leftVal / rightVal}
 	case "%":
+		if rightVal == 0 {
+			return newError("modulo by zero")
+		}
 		return &Integer{Value: leftVal % rightVal}
 	case "<":
 		return nativeBoolToBooleanObject(leftVal < rightVal)
@@ -800,6 +803,10 @@ func evalMemberCall(member *ast.MemberExpression, args []ast.Expression, env *En
 func applyFunction(fn Object, args []Object) Object {
 	switch fn := fn.(type) {
 	case *Function:
+		// Validate argument count
+		if len(args) != len(fn.Parameters) {
+			return newError("wrong number of arguments: expected %d, got %d", len(fn.Parameters), len(args))
+		}
 		extendedEnv := extendFunctionEnv(fn, args)
 		evaluated := Eval(fn.Body, extendedEnv)
 		return unwrapReturnValue(evaluated)
