@@ -776,6 +776,9 @@ func (p *Parser) parseBlockStatementWithSuppress(suppressions []*Attribute) *Blo
 	openBrace := p.currentToken // save the { token for error reporting
 	block.Statements = []Statement{}
 
+	// Push a new scope for this block
+	p.pushScope()
+
 	p.nextToken() // move past {
 
 	unreachable := false // track if we've hit a terminating statement
@@ -819,6 +822,9 @@ func (p *Parser) parseBlockStatementWithSuppress(suppressions []*Attribute) *Blo
 		p.errors = append(p.errors, msg)
 		p.addEZError(errors.E1004, msg, openBrace)
 	}
+
+	// Pop the scope when exiting the block
+	p.popScope()
 
 	return block
 }
