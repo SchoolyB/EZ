@@ -87,7 +87,7 @@ type Parser struct {
 	errors []string
 
 	currentToken  Token
-	peekToken Token
+	peekToken     Token
 
 	prefixParseFns map[TokenType]prefixParseFn
 	infixParseFns  map[TokenType]infixParseFn
@@ -360,39 +360,29 @@ func (p *Parser) ParseProgram() *Program {
 }
 
 func (p *Parser) parseStatement() Statement {
-	// Check for @suppress attribute
+	// Check for @suppress or @(...) attributes
 	var attrs []*Attribute
-	if p.currentTokenMatches(SUPPRESS) {
+	if p.currentTokenMatches(SUPPRESS) || p.currentTokenMatches(AT) {
 		attrs = p.parseAttributes()
 		// parseAttributes advances to the declaration token
 	}
 
 	switch p.currentToken.Type {
 	case CONST:
-		// Check if this is a struct or enum declaration
-		if p.peekTokenMatches(IDENT) {
-			// Save current position
-			savedCurrent := p.currentToken
-			savedPeek := p.peekToken
-
-			p.nextToken() // move to IDENT
-
-			if p.peekTokenMatches(STRUCT) {
-				// This is a struct declaration: const Name struct { ... }
-				return p.parseStructDeclaration()
-			} else if p.peekTokenMatches(ENUM) {
-				// This is an enum declaration: const Name enum { ... }
-				// TODO: Implement parseEnumDeclaration()
-				// return p.parseEnumDeclaration()
-			}
-
-			// Not a struct or enum, restore and parse as variable
-			p.currentToken = savedCurrent
-			p.peekToken = savedPeek
-		}
-		stmt := p.parseVarableDeclaration()
+		// For struct declarations like "const Name struct { ... }",
+		// we handle them in parseVarableDeclaration by detecting the STRUCT token
+		stmt := p.parseVarableDeclarationOrStruct()
 		if stmt != nil && len(attrs) > 0 {
-			stmt.Attributes = attrs
+			// Handle attributes for VariableDeclaration, StructDeclaration, and EnumDeclaration
+			switch s := stmt.(type) {
+			case *VariableDeclaration:
+				s.Attributes = attrs
+			case *StructDeclaration:
+				// Structs don't currently support attributes, but we could add it
+			case *EnumDeclaration:
+				// Parse enum-specific attributes from generic attribute list
+				s.Attributes = p.parseEnumAttributes(attrs)
+			}
 		}
 		return stmt
 	case TEMP:
@@ -425,13 +415,39 @@ func (p *Parser) parseStatement() Statement {
 	case USING:
 		return p.parseUsingStatement()
 	case IDENT:
-		// Check if this is an assignment
+		// Parse the expression first to handle identifiers, index expressions, and member access
+		expr := p.parseExpression(LOWEST)
+
+		// Check if an assignment operator follows
 		if p.peekTokenMatches(ASSIGN) || p.peekTokenMatches(PLUS_ASSIGN) ||
 			p.peekTokenMatches(MINUS_ASSIGN) || p.peekTokenMatches(ASTERISK_ASSIGN) ||
 			p.peekTokenMatches(SLASH_ASSIGN) || p.peekTokenMatches(PERCENT_ASSIGN) {
-			return p.parseAssignmentStatement()
+			// Convert to assignment statement
+			stmt := &AssignmentStatement{Token: p.currentToken}
+			stmt.Name = expr
+
+			// Validate assignment target
+			switch expr.(type) {
+			case *Label, *IndexExpression, *MemberExpression:
+				// Valid assignment targets
+			default:
+				msg := fmt.Sprintf("invalid assignment target: cannot assign to %T", expr)
+				p.addEZError(errors.E1008, msg, p.currentToken)
+			}
+
+			// Get the assignment operator
+			p.nextToken()
+			stmt.Operator = p.currentToken.Literal
+
+			// Parse the value expression
+			p.nextToken()
+			stmt.Value = p.parseExpression(LOWEST)
+
+			return stmt
 		}
-		return p.parseExpressionStatement()
+
+		// Not an assignment, treat as expression statement
+		return &ExpressionStatement{Token: p.currentToken, Expression: expr}
 	default:
 		return p.parseExpressionStatement()
 	}
@@ -440,6 +456,114 @@ func (p *Parser) parseStatement() Statement {
 // ============================================================================
 // Statement Parsers
 // ============================================================================
+
+// parseVarableDeclarationOrStruct handles variable declarations, struct declarations,
+// and enum declarations that start with "const Name struct/enum { ... }"
+func (p *Parser) parseVarableDeclarationOrStruct() Statement {
+	// Check if this is "const Name struct {...}" or "const Name enum {...}"
+	if p.currentTokenMatches(CONST) && p.peekTokenMatches(IDENT) {
+		// Peek ahead one more token to see if it's STRUCT or ENUM
+		savedCurrent := p.currentToken
+
+		p.nextToken() // move to Name
+		nameToken := p.currentToken
+
+		if p.peekTokenMatches(STRUCT) {
+			// This is a struct declaration
+			// currentToken is now the struct name, which is what parseStructDeclaration expects
+			return p.parseStructDeclaration()
+		}
+
+		if p.peekTokenMatches(ENUM) {
+			// This is an enum declaration
+			// currentToken is now the enum name, which is what parseEnumDeclaration expects
+			return p.parseEnumDeclaration()
+		}
+
+		// Not a struct, restore and parse as variable
+		// But we've already consumed one token, so we need to account for that
+		// The best approach is to just continue with variable parsing from here
+		// We're at the name token, so we can build the VariableDeclaration
+		stmt := &VariableDeclaration{Token: savedCurrent}
+		stmt.Mutable = false // it's a const
+		stmt.Names = append(stmt.Names, &Label{Token: nameToken, Value: nameToken.Literal})
+		stmt.Name = stmt.Names[0]
+
+		// Now continue with type parsing (the current position is at the name,
+		// peekToken should be the type or [)
+		// Parse type - can be IDENT or [type] for arrays
+		p.nextToken()
+		if p.currentTokenMatches(LBRACKET) {
+			// Array type - use the array type parsing logic
+			typeName := "["
+			p.nextToken() // move past [
+
+			// The element type should be an identifier
+			if !p.currentTokenMatches(IDENT) {
+				msg := fmt.Sprintf("expected type name, got %s", p.currentToken.Type)
+				p.errors = append(p.errors, msg)
+				p.addEZError(errors.E1007, msg, p.currentToken)
+				return nil
+			}
+			typeName += p.currentToken.Literal
+
+			// Check for fixed-size array syntax: [type, size]
+			if p.peekTokenMatches(COMMA) {
+				p.nextToken() // consume comma
+				p.nextToken() // get size
+
+				// Size should be an integer
+				if !p.currentTokenMatches(INT) {
+					msg := fmt.Sprintf("expected integer for array size, got %s", p.currentToken.Type)
+					p.errors = append(p.errors, msg)
+					p.addEZError(errors.E1007, msg, p.currentToken)
+					return nil
+				}
+				typeName += "," + p.currentToken.Literal
+			}
+
+			if !p.expectPeek(RBRACKET) {
+				return nil
+			}
+			typeName += "]"
+			stmt.TypeName = typeName
+		} else if p.currentTokenMatches(IDENT) {
+			stmt.TypeName = p.currentToken.Literal
+		} else {
+			msg := fmt.Sprintf("expected type, got %s", p.currentToken.Type)
+			p.errors = append(p.errors, msg)
+			p.addEZError(errors.E1007, msg, p.currentToken)
+			return nil
+		}
+
+		// Optional initialization
+		if p.peekTokenMatches(ASSIGN) {
+			assignToken := p.peekToken
+			p.nextToken() // consume =
+			p.nextToken() // move to value
+
+			if p.currentTokenMatches(RBRACE) || p.currentTokenMatches(EOF) {
+				msg := "expected expression after '='"
+				p.errors = append(p.errors, msg)
+				p.addEZError(errors.E1003, msg, assignToken)
+				return nil
+			}
+
+			stmt.Value = p.parseExpression(LOWEST)
+		} else if !stmt.Mutable {
+			// const must be initialized
+			msg := fmt.Sprintf("const '%s' must be initialized with a value", stmt.Name.Value)
+			p.errors = append(p.errors, msg)
+			p.addEZError(errors.E1003, msg, p.currentToken)
+			return nil
+		}
+
+		return stmt
+	}
+
+	// Not the special "const Name struct" case, use regular variable declaration
+	return p.parseVarableDeclaration()
+}
 
 func (p *Parser) parseVarableDeclaration() *VariableDeclaration {
 	stmt := &VariableDeclaration{Token: p.currentToken}
@@ -530,12 +654,31 @@ func (p *Parser) parseVarableDeclaration() *VariableDeclaration {
 		// Array type [type] or [type, size]
 		typeName := "["
 		p.nextToken() // move past [
+
+		// The element type should be an identifier
+		if !p.currentTokenMatches(IDENT) {
+			msg := fmt.Sprintf("expected type name, got %s", p.currentToken.Type)
+			p.errors = append(p.errors, msg)
+			p.addEZError(errors.E1007, msg, p.currentToken)
+			return nil
+		}
 		typeName += p.currentToken.Literal
+
+		// Check for fixed-size array syntax: [type, size]
 		if p.peekTokenMatches(COMMA) {
 			p.nextToken() // consume comma
 			p.nextToken() // get size
+
+			// Size should be an integer
+			if !p.currentTokenMatches(INT) {
+				msg := fmt.Sprintf("expected integer for array size, got %s", p.currentToken.Type)
+				p.errors = append(p.errors, msg)
+				p.addEZError(errors.E1007, msg, p.currentToken)
+				return nil
+			}
 			typeName += "," + p.currentToken.Literal
 		}
+
 		if !p.expectPeek(RBRACKET) {
 			return nil
 		}
@@ -642,6 +785,9 @@ func (p *Parser) parseBlockStatementWithSuppress(suppressions []*Attribute) *Blo
 	openBrace := p.currentToken // save the { token for error reporting
 	block.Statements = []Statement{}
 
+	// Push a new scope for this block
+	p.pushScope()
+
 	p.nextToken() // move past {
 
 	unreachable := false // track if we've hit a terminating statement
@@ -650,7 +796,9 @@ func (p *Parser) parseBlockStatementWithSuppress(suppressions []*Attribute) *Blo
 		stmt := p.parseStatement()
 		if stmt != nil {
 			// Check for unreachable code
-			if unreachable {
+			// Don't warn if the unreachable code is due to an if-statement alternative
+			// (otherwise/or) which will be handled by the if statement parser
+			if unreachable && !p.peekTokenMatches(OTHERWISE) && !p.peekTokenMatches(OR_KW) {
 				// Check if W2001 is suppressed
 				if !p.isSuppressed("W2001", suppressions) && !p.isSuppressed("unreachable_code", suppressions) {
 					// Warn about unreachable code
@@ -674,6 +822,11 @@ func (p *Parser) parseBlockStatementWithSuppress(suppressions []*Attribute) *Blo
 			switch stmt.(type) {
 			case *ReturnStatement, *BreakStatement, *ContinueStatement:
 				unreachable = true
+				// If we're at the closing brace after a terminating statement,
+				// don't advance - let the loop exit naturally
+				if p.currentTokenMatches(RBRACE) {
+					continue // Skip p.nextToken() and re-check loop condition
+				}
 			}
 		}
 		p.nextToken()
@@ -685,6 +838,9 @@ func (p *Parser) parseBlockStatementWithSuppress(suppressions []*Attribute) *Blo
 		p.errors = append(p.errors, msg)
 		p.addEZError(errors.E1004, msg, openBrace)
 	}
+
+	// Pop the scope when exiting the block
+	p.popScope()
 
 	return block
 }
@@ -921,27 +1077,72 @@ func (p *Parser) parseFunctionParameters() []*Parameter {
 	p.nextToken()
 
 	for {
-		// Read parameter name
+		// Collect parameter names that will share a type
+		// e.g., in "x, y int", collect ["x", "y"]
+		namesForType := []*Label{}
+
+		// Read first parameter name
 		if !p.currentTokenMatches(IDENT) {
 			msg := fmt.Sprintf("expected parameter name, got %s", p.currentToken.Type)
 			p.addEZError(errors.E1002, msg, p.currentToken)
 			return nil
 		}
 
-		paramName := &Label{Token: p.currentToken, Value: p.currentToken.Literal}
+		// Collect all names before the type
+		// Strategy: collect IDENT tokens while they're followed by COMMA
+		// The last IDENT (not followed by COMMA) is the type
+		for {
+			if !p.currentTokenMatches(IDENT) {
+				msg := fmt.Sprintf("expected parameter name, got %s", p.currentToken.Type)
+				p.addEZError(errors.E1002, msg, p.currentToken)
+				return nil
+			}
 
-		// Check for duplicate parameter names
-		if prevToken, exists := paramNames[paramName.Value]; exists {
-			msg := fmt.Sprintf("duplicate parameter name '%s'", paramName.Value)
-			p.addEZError(errors.E1003, msg, paramName.Token)
-			helpMsg := fmt.Sprintf("parameter '%s' first declared at line %d", paramName.Value, prevToken.Line)
-			p.errors = append(p.errors, helpMsg)
-		} else {
-			paramNames[paramName.Value] = paramName.Token
+			currentIdent := &Label{Token: p.currentToken, Value: p.currentToken.Literal}
+
+			// Look ahead to see what follows this IDENT
+			if p.peekTokenMatches(COMMA) {
+				// This IDENT is a parameter name (more names or params follow)
+				// Check for duplicate
+				if prevToken, exists := paramNames[currentIdent.Value]; exists {
+					msg := fmt.Sprintf("duplicate parameter name '%s'", currentIdent.Value)
+					p.addEZError(errors.E1003, msg, currentIdent.Token)
+					helpMsg := fmt.Sprintf("parameter '%s' first declared at line %d", currentIdent.Value, prevToken.Line)
+					p.errors = append(p.errors, helpMsg)
+				} else {
+					paramNames[currentIdent.Value] = currentIdent.Token
+				}
+				namesForType = append(namesForType, currentIdent)
+				p.nextToken() // consume IDENT
+				p.nextToken() // consume COMMA, move to next IDENT
+				continue
+			} else if p.peekTokenMatches(IDENT) || p.peekTokenMatches(LBRACKET) {
+				// This IDENT is a parameter name, and the next token is the type
+				// Check for duplicate
+				if prevToken, exists := paramNames[currentIdent.Value]; exists {
+					msg := fmt.Sprintf("duplicate parameter name '%s'", currentIdent.Value)
+					p.addEZError(errors.E1003, msg, currentIdent.Token)
+					helpMsg := fmt.Sprintf("parameter '%s' first declared at line %d", currentIdent.Value, prevToken.Line)
+					p.errors = append(p.errors, helpMsg)
+				} else {
+					paramNames[currentIdent.Value] = currentIdent.Token
+				}
+				namesForType = append(namesForType, currentIdent)
+				p.nextToken() // move to the type
+				break
+			} else if p.peekTokenMatches(RPAREN) {
+				// Incomplete parameter - name without type before closing paren
+				msg := fmt.Sprintf("parameter '%s' is missing a type", currentIdent.Value)
+				p.addEZError(errors.E1002, msg, currentIdent.Token)
+				return nil
+			} else {
+				msg := fmt.Sprintf("expected ',', type, or ')' after parameter name, got %s", p.peekToken.Type)
+				p.addEZError(errors.E1002, msg, p.peekToken)
+				return nil
+			}
 		}
 
-		// Read parameter type
-		p.nextToken()
+		// Now current token should be the type for all collected names
 		if !p.currentTokenMatches(IDENT) && !p.currentTokenMatches(LBRACKET) {
 			msg := fmt.Sprintf("expected parameter type, got %s", p.currentToken.Type)
 			p.addEZError(errors.E1002, msg, p.currentToken)
@@ -962,7 +1163,10 @@ func (p *Parser) parseFunctionParameters() []*Parameter {
 			typeName = p.currentToken.Literal
 		}
 
-		params = append(params, &Parameter{Name: paramName, TypeName: typeName})
+		// Apply the type to all collected names
+		for _, name := range namesForType {
+			params = append(params, &Parameter{Name: name, TypeName: typeName})
+		}
 
 		// Check for comma (more parameters) or closing paren
 		if p.peekTokenMatches(COMMA) {
@@ -1034,6 +1238,63 @@ func (p *Parser) parseUsingStatement() *UsingStatement {
 	}
 
 	stmt.Module = &Label{Token: p.currentToken, Value: p.currentToken.Literal}
+
+	return stmt
+}
+
+func (p *Parser) parseEnumDeclaration() *EnumDeclaration {
+	stmt := &EnumDeclaration{Token: p.currentToken}
+	stmt.Name = &Label{Token: p.currentToken, Value: p.currentToken.Literal}
+
+	p.nextToken() // move past name to 'enum'
+	p.nextToken() // move past 'enum' to '{'
+
+	if !p.currentTokenMatches(LBRACE) {
+		msg := "expected '{' after enum name"
+		p.addEZError(errors.E1002, msg, p.currentToken)
+		return nil
+	}
+
+	stmt.Values = []*EnumValue{}
+	valueNames := make(map[string]Token) // track value names for duplicate detection
+
+	p.nextToken() // move into enum body
+
+	for !p.currentTokenMatches(RBRACE) && !p.currentTokenMatches(EOF) {
+		if !p.currentTokenMatches(IDENT) {
+			msg := fmt.Sprintf("expected enum value name, got %s", p.currentToken.Type)
+			p.addEZError(errors.E1002, msg, p.currentToken)
+			return nil
+		}
+
+		enumValue := &EnumValue{}
+		enumValue.Name = &Label{Token: p.currentToken, Value: p.currentToken.Literal}
+
+		// Check for duplicate value names
+		if prevToken, exists := valueNames[enumValue.Name.Value]; exists {
+			msg := fmt.Sprintf("duplicate value name '%s' in enum '%s'", enumValue.Name.Value, stmt.Name.Value)
+			p.addEZError(errors.E1003, msg, enumValue.Name.Token)
+			helpMsg := fmt.Sprintf("value '%s' first declared at line %d", enumValue.Name.Value, prevToken.Line)
+			p.errors = append(p.errors, helpMsg)
+		} else {
+			valueNames[enumValue.Name.Value] = enumValue.Name.Token
+		}
+
+		// Check for explicit value assignment: VALUE = expression
+		if p.peekTokenMatches(ASSIGN) {
+			p.nextToken() // move to =
+			p.nextToken() // move to value expression
+			enumValue.Value = p.parseExpression(LOWEST)
+		}
+
+		stmt.Values = append(stmt.Values, enumValue)
+		p.nextToken() // move to next value or }
+	}
+
+	if len(stmt.Values) == 0 {
+		msg := fmt.Sprintf("enum '%s' must have at least one value", stmt.Name.Value)
+		p.addEZError(errors.E1003, msg, stmt.Token)
+	}
 
 	return stmt
 }
@@ -1130,8 +1391,9 @@ func (p *Parser) parseExpression(precedence int) Expression {
 func (p *Parser) parseIdentifier() Expression {
 	ident := &Label{Token: p.currentToken, Value: p.currentToken.Literal}
 
-	// Check if this is a struct literal: Identifier{...}
-	if p.peekTokenMatches(LBRACE) {
+	// Check if this is a struct literal: TypeName{...}
+	// Only treat it as struct literal if identifier starts with uppercase (type naming convention)
+	if p.peekTokenMatches(LBRACE) && len(ident.Value) > 0 && ident.Value[0] >= 'A' && ident.Value[0] <= 'Z' {
 		p.nextToken() // move to {
 		return p.parseStructLiteralFromIdent(ident)
 	}
@@ -1400,52 +1662,162 @@ func (p *Parser) parseRangeExpression() Expression {
 // Attribute Parsing
 // ============================================================================
 
-// parseAttributes parses @suppress(...) attributes before declarations
+// parseAttributes parses @suppress(...) and @(...) attributes before declarations
 func (p *Parser) parseAttributes() []*Attribute {
 	attributes := []*Attribute{}
 
-	for p.currentTokenMatches(SUPPRESS) {
-		attr := &Attribute{
-			Token: p.currentToken,
-			Name:  "suppress",
-			Args:  []string{},
+	// Handle both @suppress(...) and @(...)
+	for p.currentTokenMatches(SUPPRESS) || p.currentTokenMatches(AT) {
+		if p.currentTokenMatches(SUPPRESS) {
+			// Handle @suppress(...) - existing code
+			attributes = append(attributes, p.parseSuppressAttribute())
+			continue
 		}
 
-		// Expect opening paren
-		if !p.expectPeek(LPAREN) {
-			return attributes
+		// Handle @(...) for enum attributes
+		if p.currentTokenMatches(AT) {
+			attributes = append(attributes, p.parseGenericAttribute())
+			continue
 		}
-
-		// Parse comma-separated warning codes
-		if !p.peekTokenMatches(RPAREN) {
-			p.nextToken() // move to first identifier
-
-			// First argument
-			if p.currentTokenMatches(IDENT) || p.currentTokenMatches(STRING) {
-				attr.Args = append(attr.Args, p.currentToken.Literal)
-			}
-
-			// Additional arguments
-			for p.peekTokenMatches(COMMA) {
-				p.nextToken() // consume comma
-				p.nextToken() // move to next argument
-
-				if p.currentTokenMatches(IDENT) || p.currentTokenMatches(STRING) {
-					attr.Args = append(attr.Args, p.currentToken.Literal)
-				}
-			}
-		}
-
-		// Expect closing paren
-		if !p.expectPeek(RPAREN) {
-			return attributes
-		}
-
-		attributes = append(attributes, attr)
-
-		// Move to next token (might be another @suppress or the declaration)
-		p.nextToken()
 	}
 
 	return attributes
 }
+
+func (p *Parser) parseSuppressAttribute() *Attribute {
+	attr := &Attribute{
+		Token: p.currentToken,
+		Name:  "suppress",
+		Args:  []string{},
+	}
+
+	// Expect opening paren
+	if !p.expectPeek(LPAREN) {
+		return attr
+	}
+
+	// Parse comma-separated warning codes
+	if !p.peekTokenMatches(RPAREN) {
+		p.nextToken() // move to first identifier
+
+		// First argument
+		if p.currentTokenMatches(IDENT) || p.currentTokenMatches(STRING) {
+			attr.Args = append(attr.Args, p.currentToken.Literal)
+		}
+
+		// Additional arguments
+		for p.peekTokenMatches(COMMA) {
+			p.nextToken() // consume comma
+			p.nextToken() // move to next argument
+
+			if p.currentTokenMatches(IDENT) || p.currentTokenMatches(STRING) {
+				attr.Args = append(attr.Args, p.currentToken.Literal)
+			}
+		}
+	}
+
+	// Expect closing paren
+	if !p.expectPeek(RPAREN) {
+		return attr
+	}
+
+	// Move to next token (might be another attribute or the declaration)
+	p.nextToken()
+
+	return attr
+}
+
+func (p *Parser) parseGenericAttribute() *Attribute {
+	attr := &Attribute{
+		Token: p.currentToken,
+		Name:  "enum_config",
+		Args:  []string{},
+	}
+
+	// Expect opening paren
+	if !p.expectPeek(LPAREN) {
+		return attr
+	}
+
+	// Parse comma-separated arguments (type, "skip" keyword, increment value)
+	if !p.peekTokenMatches(RPAREN) {
+		p.nextToken() // move to first argument
+
+		// Collect all arguments
+		for {
+			if p.currentTokenMatches(IDENT) {
+				attr.Args = append(attr.Args, p.currentToken.Literal)
+			} else if p.currentTokenMatches(INT) {
+				attr.Args = append(attr.Args, p.currentToken.Literal)
+			} else if p.currentTokenMatches(FLOAT) {
+				attr.Args = append(attr.Args, p.currentToken.Literal)
+			} else if p.currentTokenMatches(STRING) {
+				attr.Args = append(attr.Args, p.currentToken.Literal)
+			}
+
+			if !p.peekTokenMatches(COMMA) {
+				break
+			}
+
+			p.nextToken() // consume comma
+			p.nextToken() // move to next argument
+		}
+	}
+
+	// Expect closing paren
+	if !p.expectPeek(RPAREN) {
+		return attr
+	}
+
+	// Move to next token
+	p.nextToken()
+
+	return attr
+}
+
+// parseEnumAttributes converts generic attributes to EnumAttributes
+func (p *Parser) parseEnumAttributes(attrs []*Attribute) *EnumAttributes {
+	enumAttrs := &EnumAttributes{
+		TypeName: "int", // default
+		Skip:     false,
+		Increment: nil,
+	}
+
+	for _, attr := range attrs {
+		if attr.Name == "enum_config" && len(attr.Args) > 0 {
+			// First arg is the type
+			enumAttrs.TypeName = attr.Args[0]
+
+			// Check for "skip" keyword
+			for i, arg := range attr.Args {
+				if arg == "skip" {
+					enumAttrs.Skip = true
+					// Next arg (if exists) is the increment value
+					if i+1 < len(attr.Args) {
+						// Parse the increment value
+						incrementStr := attr.Args[i+1]
+						// Try to parse as int64
+						if val, err := strconv.ParseInt(incrementStr, 10, 64); err == nil {
+							enumAttrs.Increment = &IntegerValue{
+								Token: Token{Type: INT, Literal: incrementStr},
+								Value: val,
+							}
+						} else {
+							// Try to parse as float64
+							if fval, err := strconv.ParseFloat(incrementStr, 64); err == nil {
+								enumAttrs.Increment = &FloatValue{
+									Token: Token{Type: FLOAT, Literal: incrementStr},
+									Value: fval,
+								}
+							}
+						}
+					}
+					break
+				}
+			}
+		}
+	}
+
+	return enumAttrs
+}
+

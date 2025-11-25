@@ -2,6 +2,7 @@ package interpreter
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/marshallburns/ez/pkg/ast"
 	"github.com/marshallburns/ez/pkg/errors"
@@ -122,8 +123,7 @@ func Eval(node ast.Node, env *Environment) Object {
 		return NIL
 
 	case *ast.EnumDeclaration:
-		// Enum declarations are just type definitions, no runtime effect
-		return NIL
+		return evalEnumDeclaration(node, env)
 
 	case *ast.ImportStatement:
 		// Register the imported module with its alias
@@ -277,6 +277,32 @@ func evalVariableDeclaration(node *ast.VariableDeclaration, env *Environment) Ob
 		if isError(val) {
 			return val
 		}
+	} else if node.TypeName != "" {
+		// Variable declared with type but no value - provide appropriate default
+		// Check if it's a dynamic array type (starts with '[' but doesn't contain ',')
+		// Dynamic arrays: [int], [string], etc. - can be declared without values
+		// Fixed-size arrays: [int,3], [string,5], etc. - MUST be initialized with values
+		if len(node.TypeName) > 0 && node.TypeName[0] == '[' && !strings.Contains(node.TypeName, ",") {
+			// Initialize dynamic array to empty array instead of NIL
+			val = &Array{Elements: []Object{}}
+		} else {
+			// Provide default values for primitive types
+			switch node.TypeName {
+			case "int":
+				val = &Integer{Value: 0}
+			case "float":
+				val = &Float{Value: 0.0}
+			case "string":
+				val = &String{Value: ""}
+			case "bool":
+				val = FALSE // Use existing FALSE constant
+			case "char":
+				val = &Char{Value: '\x00'} // null character as default
+			// For fixed-size arrays and other types, remain NIL
+			default:
+				val = NIL
+			}
+		}
 	}
 
 	// Handle multiple assignment: temp result, err = function()
@@ -339,28 +365,55 @@ func evalAssignment(node *ast.AssignmentStatement, env *Environment) Object {
 		}
 
 	case *ast.IndexExpression:
-		// Array index assignment
-		arr := Eval(target.Left, env)
-		if isError(arr) {
-			return arr
+		// Array or string index assignment
+		container := Eval(target.Left, env)
+		if isError(container) {
+			return container
 		}
 		idx := Eval(target.Index, env)
 		if isError(idx) {
 			return idx
 		}
 
-		arrayObj, ok := arr.(*Array)
-		if !ok {
-			return newError("index operator not supported: %s", arr.Type())
-		}
 		index, ok := idx.(*Integer)
 		if !ok {
 			return newError("index must be integer, got %s", idx.Type())
 		}
-		if index.Value < 0 || index.Value >= int64(len(arrayObj.Elements)) {
-			return newError("index out of bounds: %d", index.Value)
+
+		switch obj := container.(type) {
+		case *Array:
+			if index.Value < 0 || index.Value >= int64(len(obj.Elements)) {
+				return newError("index out of bounds: %d", index.Value)
+			}
+
+			// Handle compound assignment
+			if node.Operator != "=" {
+				oldVal := obj.Elements[index.Value]
+				val = evalCompoundAssignment(node.Operator, oldVal, val, node.Token.Line, node.Token.Column)
+				if isError(val) {
+					return val
+				}
+			}
+
+			obj.Elements[index.Value] = val
+
+		case *String:
+			// String mutation - verify the value is a character
+			charObj, ok := val.(*Char)
+			if !ok {
+				return newError("can only assign character to string index, got %s", val.Type())
+			}
+			if index.Value < 0 || index.Value >= int64(len(obj.Value)) {
+				return newError("index out of bounds: %d", index.Value)
+			}
+			// Convert string to rune slice, modify, convert back
+			runes := []rune(obj.Value)
+			runes[index.Value] = charObj.Value
+			obj.Value = string(runes)
+
+		default:
+			return newError("index operator not supported: %s", container.Type())
 		}
-		arrayObj.Elements[index.Value] = val
 
 	case *ast.MemberExpression:
 		// Struct field assignment
@@ -526,27 +579,114 @@ func evalForEachStatement(node *ast.ForEachStatement, env *Environment) Object {
 		return collection
 	}
 
-	arr, ok := collection.(*Array)
-	if !ok {
-		return newError("for_each requires array, got %s", collection.Type())
-	}
-
 	loopEnv := NewEnclosedEnvironment(env)
 
-	for _, elem := range arr.Elements {
-		loopEnv.Set(node.Variable.Value, elem, true) // loop vars are mutable
+	// Handle arrays
+	if arr, ok := collection.(*Array); ok {
+		for _, elem := range arr.Elements {
+			loopEnv.Set(node.Variable.Value, elem, true) // loop vars are mutable
 
-		result := Eval(node.Body, loopEnv)
-		if result != nil {
-			if result.Type() == RETURN_VALUE_OBJ || result.Type() == ERROR_OBJ {
-				return result
+			result := Eval(node.Body, loopEnv)
+			if result != nil {
+				if result.Type() == RETURN_VALUE_OBJ || result.Type() == ERROR_OBJ {
+					return result
+				}
+				if result.Type() == BREAK_OBJ {
+					break
+				}
 			}
-			if result.Type() == BREAK_OBJ {
-				break
+		}
+		return NIL
+	}
+
+	// Handle strings (iterate over characters)
+	if str, ok := collection.(*String); ok {
+		for _, ch := range str.Value {
+			charObj := &Char{Value: ch}
+			loopEnv.Set(node.Variable.Value, charObj, true) // loop vars are mutable
+
+			result := Eval(node.Body, loopEnv)
+			if result != nil {
+				if result.Type() == RETURN_VALUE_OBJ || result.Type() == ERROR_OBJ {
+					return result
+				}
+				if result.Type() == BREAK_OBJ {
+					break
+				}
+			}
+		}
+		return NIL
+	}
+
+	return newError("for_each requires array or string, got %s", collection.Type())
+}
+
+func evalEnumDeclaration(node *ast.EnumDeclaration, env *Environment) Object {
+	enum := &Enum{
+		Name:   node.Name.Value,
+		Values: make(map[string]Object),
+	}
+
+	// Get enum attributes (type, skip, increment)
+	typeName := "int" // default
+	increment := int64(1) // default increment
+	var floatIncrement float64 = 1.0
+
+	if node.Attributes != nil {
+		typeName = node.Attributes.TypeName
+		if node.Attributes.Skip && node.Attributes.Increment != nil {
+			// Evaluate the increment expression
+			incVal := Eval(node.Attributes.Increment, env)
+			if intVal, ok := incVal.(*Integer); ok {
+				increment = intVal.Value
+				floatIncrement = float64(intVal.Value)
+			} else if floatVal, ok := incVal.(*Float); ok {
+				floatIncrement = floatVal.Value
 			}
 		}
 	}
 
+	// Compute enum values
+	var currentInt int64 = 0
+	var currentFloat float64 = 0.0
+
+	for _, enumVal := range node.Values {
+		if enumVal.Value != nil {
+			// Explicit value assignment
+			val := Eval(enumVal.Value, env)
+			if isError(val) {
+				return val
+			}
+			enum.Values[enumVal.Name.Value] = val
+
+			// Update current value for next auto-increment
+			switch v := val.(type) {
+			case *Integer:
+				currentInt = v.Value + increment
+			case *Float:
+				currentFloat = v.Value + floatIncrement
+			case *String:
+				// Strings don't auto-increment
+			}
+		} else {
+			// Auto-assign value based on type
+			switch typeName {
+			case "int":
+				enum.Values[enumVal.Name.Value] = &Integer{Value: currentInt}
+				currentInt += increment
+			case "float":
+				enum.Values[enumVal.Name.Value] = &Float{Value: currentFloat}
+				currentFloat += floatIncrement
+			case "string":
+				return newError("string enums require explicit values for all members")
+			default:
+				return newError("unsupported enum type: %s", typeName)
+			}
+		}
+	}
+
+	// Store the enum in the environment
+	env.Set(node.Name.Value, enum, false) // enums are immutable
 	return NIL
 }
 
@@ -662,6 +802,8 @@ func evalInfixExpression(operator string, left, right Object, line, col int) Obj
 		return evalFloatInfixExpression(operator, left, right, line, col)
 	case left.Type() == STRING_OBJ && right.Type() == STRING_OBJ:
 		return evalStringInfixExpression(operator, left, right)
+	case left.Type() == CHAR_OBJ && right.Type() == CHAR_OBJ:
+		return evalCharInfixExpression(operator, left, right, line, col)
 	case operator == "==":
 		return nativeBoolToBooleanObject(left == right)
 	case operator == "!=":
@@ -780,6 +922,28 @@ func evalStringInfixExpression(operator string, left, right Object) Object {
 		return nativeBoolToBooleanObject(leftVal != rightVal)
 	default:
 		return newError("unknown operator: %s %s %s", left.Type(), operator, right.Type())
+	}
+}
+
+func evalCharInfixExpression(operator string, left, right Object, line, col int) Object {
+	leftVal := left.(*Char).Value
+	rightVal := right.(*Char).Value
+
+	switch operator {
+	case "==":
+		return nativeBoolToBooleanObject(leftVal == rightVal)
+	case "!=":
+		return nativeBoolToBooleanObject(leftVal != rightVal)
+	case "<":
+		return nativeBoolToBooleanObject(leftVal < rightVal)
+	case ">":
+		return nativeBoolToBooleanObject(leftVal > rightVal)
+	case "<=":
+		return nativeBoolToBooleanObject(leftVal <= rightVal)
+	case ">=":
+		return nativeBoolToBooleanObject(leftVal >= rightVal)
+	default:
+		return newErrorWithLocation("E2002", line, col, "unknown operator: %s %s %s", left.Type(), operator, right.Type())
 	}
 }
 
@@ -1111,6 +1275,15 @@ func evalMemberExpression(node *ast.MemberExpression, env *Environment) Object {
 		}
 		return newErrorWithLocation("E3003", node.Token.Line, node.Token.Column,
 			"field '%s' not found", node.Member.Value)
+	}
+
+	// Check for enum value access (e.g., STATUS.ACTIVE)
+	if enumObj, ok := obj.(*Enum); ok {
+		if val, ok := enumObj.Values[node.Member.Value]; ok {
+			return val
+		}
+		return newErrorWithLocation("E3003", node.Token.Line, node.Token.Column,
+			"enum value '%s' not found in enum '%s'", node.Member.Value, enumObj.Name)
 	}
 
 	return newErrorWithLocation("E2002", node.Token.Line, node.Token.Column,
