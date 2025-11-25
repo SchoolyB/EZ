@@ -24,6 +24,7 @@ const (
 	STRUCT_OBJ       ObjectType = "STRUCT"
 	BREAK_OBJ        ObjectType = "BREAK"
 	CONTINUE_OBJ     ObjectType = "CONTINUE"
+	ENUM_OBJ         ObjectType = "ENUM"
 )
 
 type Object interface {
@@ -171,6 +172,32 @@ func (c *Continue) Inspect() string  { return "continue" }
 type StructDef struct {
 	Name   string
 	Fields map[string]string // field name -> type name
+}
+
+// Enum represents an enum with computed values
+type Enum struct {
+	Name   string
+	Values map[string]Object // value name -> actual value (Integer, Float, or String)
+}
+
+func (e *Enum) Type() ObjectType { return ENUM_OBJ }
+func (e *Enum) Inspect() string {
+	var out strings.Builder
+	out.WriteString("enum ")
+	out.WriteString(e.Name)
+	out.WriteString(" { ")
+	first := true
+	for name, val := range e.Values {
+		if !first {
+			out.WriteString(", ")
+		}
+		first = false
+		out.WriteString(name)
+		out.WriteString(" = ")
+		out.WriteString(val.Inspect())
+	}
+	out.WriteString(" }")
+	return out.String()
 }
 
 // Environment holds variable bindings
