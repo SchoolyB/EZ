@@ -716,6 +716,8 @@ func evalInfixExpression(operator string, left, right Object, line, col int) Obj
 		return evalFloatInfixExpression(operator, left, right, line, col)
 	case left.Type() == STRING_OBJ && right.Type() == STRING_OBJ:
 		return evalStringInfixExpression(operator, left, right)
+	case left.Type() == CHAR_OBJ && right.Type() == CHAR_OBJ:
+		return evalCharInfixExpression(operator, left, right, line, col)
 	case operator == "==":
 		return nativeBoolToBooleanObject(left == right)
 	case operator == "!=":
@@ -834,6 +836,28 @@ func evalStringInfixExpression(operator string, left, right Object) Object {
 		return nativeBoolToBooleanObject(leftVal != rightVal)
 	default:
 		return newError("unknown operator: %s %s %s", left.Type(), operator, right.Type())
+	}
+}
+
+func evalCharInfixExpression(operator string, left, right Object, line, col int) Object {
+	leftVal := left.(*Char).Value
+	rightVal := right.(*Char).Value
+
+	switch operator {
+	case "==":
+		return nativeBoolToBooleanObject(leftVal == rightVal)
+	case "!=":
+		return nativeBoolToBooleanObject(leftVal != rightVal)
+	case "<":
+		return nativeBoolToBooleanObject(leftVal < rightVal)
+	case ">":
+		return nativeBoolToBooleanObject(leftVal > rightVal)
+	case "<=":
+		return nativeBoolToBooleanObject(leftVal <= rightVal)
+	case ">=":
+		return nativeBoolToBooleanObject(leftVal >= rightVal)
+	default:
+		return newErrorWithLocation("E2002", line, col, "unknown operator: %s %s %s", left.Type(), operator, right.Type())
 	}
 }
 
