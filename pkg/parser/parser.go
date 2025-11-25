@@ -787,7 +787,9 @@ func (p *Parser) parseBlockStatementWithSuppress(suppressions []*Attribute) *Blo
 		stmt := p.parseStatement()
 		if stmt != nil {
 			// Check for unreachable code
-			if unreachable {
+			// Don't warn if the unreachable code is due to an if-statement alternative
+			// (otherwise/or) which will be handled by the if statement parser
+			if unreachable && !p.peekTokenMatches(OTHERWISE) && !p.peekTokenMatches(OR_KW) {
 				// Check if W2001 is suppressed
 				if !p.isSuppressed("W2001", suppressions) && !p.isSuppressed("unreachable_code", suppressions) {
 					// Warn about unreachable code
@@ -811,6 +813,11 @@ func (p *Parser) parseBlockStatementWithSuppress(suppressions []*Attribute) *Blo
 			switch stmt.(type) {
 			case *ReturnStatement, *BreakStatement, *ContinueStatement:
 				unreachable = true
+				// If we're at the closing brace after a terminating statement,
+				// don't advance - let the loop exit naturally
+				if p.currentTokenMatches(RBRACE) {
+					continue // Skip p.nextToken() and re-check loop condition
+				}
 			}
 		}
 		p.nextToken()
