@@ -45,10 +45,9 @@ var arraysBuiltins = map[string]*Builtin{
 			if !ok {
 				return newError("arrays.push() requires an array as first argument")
 			}
-			newElements := make([]Object, len(arr.Elements), len(arr.Elements)+len(args)-1)
-			copy(newElements, arr.Elements)
-			newElements = append(newElements, args[1:]...)
-			return &Array{Elements: newElements}
+			// Modify the array in-place by appending to its Elements slice
+			arr.Elements = append(arr.Elements, args[1:]...)
+			return NIL
 		},
 	},
 	"arrays.unshift": {
@@ -104,7 +103,11 @@ var arraysBuiltins = map[string]*Builtin{
 			if len(arr.Elements) == 0 {
 				return newError("arrays.pop() cannot pop from empty array")
 			}
-			return arr.Elements[len(arr.Elements)-1]
+			// Get the last element
+			lastElement := arr.Elements[len(arr.Elements)-1]
+			// Remove it from the array in-place
+			arr.Elements = arr.Elements[:len(arr.Elements)-1]
+			return lastElement
 		},
 	},
 	"arrays.shift": {
