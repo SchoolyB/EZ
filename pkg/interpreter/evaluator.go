@@ -123,8 +123,7 @@ func Eval(node ast.Node, env *Environment) Object {
 		return NIL
 
 	case *ast.EnumDeclaration:
-		// Enum declarations are just type definitions, no runtime effect
-		return NIL
+		return evalEnumDeclaration(node, env)
 
 	case *ast.ImportStatement:
 		// Register the imported module with its alias
@@ -620,6 +619,75 @@ func evalForEachStatement(node *ast.ForEachStatement, env *Environment) Object {
 	}
 
 	return newError("for_each requires array or string, got %s", collection.Type())
+}
+
+func evalEnumDeclaration(node *ast.EnumDeclaration, env *Environment) Object {
+	enum := &Enum{
+		Name:   node.Name.Value,
+		Values: make(map[string]Object),
+	}
+
+	// Get enum attributes (type, skip, increment)
+	typeName := "int" // default
+	increment := int64(1) // default increment
+	var floatIncrement float64 = 1.0
+
+	if node.Attributes != nil {
+		typeName = node.Attributes.TypeName
+		if node.Attributes.Skip && node.Attributes.Increment != nil {
+			// Evaluate the increment expression
+			incVal := Eval(node.Attributes.Increment, env)
+			if intVal, ok := incVal.(*Integer); ok {
+				increment = intVal.Value
+				floatIncrement = float64(intVal.Value)
+			} else if floatVal, ok := incVal.(*Float); ok {
+				floatIncrement = floatVal.Value
+			}
+		}
+	}
+
+	// Compute enum values
+	var currentInt int64 = 0
+	var currentFloat float64 = 0.0
+
+	for _, enumVal := range node.Values {
+		if enumVal.Value != nil {
+			// Explicit value assignment
+			val := Eval(enumVal.Value, env)
+			if isError(val) {
+				return val
+			}
+			enum.Values[enumVal.Name.Value] = val
+
+			// Update current value for next auto-increment
+			switch v := val.(type) {
+			case *Integer:
+				currentInt = v.Value + increment
+			case *Float:
+				currentFloat = v.Value + floatIncrement
+			case *String:
+				// Strings don't auto-increment
+			}
+		} else {
+			// Auto-assign value based on type
+			switch typeName {
+			case "int":
+				enum.Values[enumVal.Name.Value] = &Integer{Value: currentInt}
+				currentInt += increment
+			case "float":
+				enum.Values[enumVal.Name.Value] = &Float{Value: currentFloat}
+				currentFloat += floatIncrement
+			case "string":
+				return newError("string enums require explicit values for all members")
+			default:
+				return newError("unsupported enum type: %s", typeName)
+			}
+		}
+	}
+
+	// Store the enum in the environment
+	env.Set(node.Name.Value, enum, false) // enums are immutable
+	return NIL
 }
 
 func evalFunctionDeclaration(node *ast.FunctionDeclaration, env *Environment) Object {
@@ -1207,6 +1275,15 @@ func evalMemberExpression(node *ast.MemberExpression, env *Environment) Object {
 		}
 		return newErrorWithLocation("E3003", node.Token.Line, node.Token.Column,
 			"field '%s' not found", node.Member.Value)
+	}
+
+	// Check for enum value access (e.g., STATUS.ACTIVE)
+	if enumObj, ok := obj.(*Enum); ok {
+		if val, ok := enumObj.Values[node.Member.Value]; ok {
+			return val
+		}
+		return newErrorWithLocation("E3003", node.Token.Line, node.Token.Column,
+			"enum value '%s' not found in enum '%s'", node.Member.Value, enumObj.Name)
 	}
 
 	return newErrorWithLocation("E2002", node.Token.Line, node.Token.Column,
