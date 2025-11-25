@@ -1,34 +1,34 @@
 import @std
 import @arrays
 
-const Person struct {
-    name string
-    age int
+@(int, skip, 5)
+const LANGUAGES enum {
+    GO = 0
+    ODIN
+    C
 }
-
 
 do main() {
     using std
 
-    temp arr [int] = {0,1,2,3,4,5,6,7,8,9}
-    temp result =  arrays.pop(arr)
-    println(result) //Todo this prints out 9. Not sure if that is accurate or not
+    println(LANGUAGES.ODIN) //Output: 5
+    println(typeof(LANGUAGES.ODIN)) //Output INTEGER
 
+    const arr [int, 3] = {1,2,3}
+    for_each a in arr {
+        println(a) //Output 1,2,3
+    }
 
-    temp oldArr [int]
+    temp x int = 4
+    if x !in arr {
+        println("4 was not found in the array") //This will print
+    }
 
-
-    println(oldArr)
-
-    println(typeof(oldArr))
-
-
-    //const newArr [string, 5] = {}
-
+    if x !in arr && len(arr) == 4 {
+        println("4 was not found in the array but it should have been...")
+    } or x !in arr && len(arr) != 4 {
+        println("Yup that checks out") //This will print
+    } otherwise {
+        println("You should not be here")
+    }
 }
-
-do create_new_person(n string, a int) -> Person {
-    return Person{name: n, age: a}
-}
-
-
