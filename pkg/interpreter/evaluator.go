@@ -2,6 +2,7 @@ package interpreter
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/marshallburns/ez/pkg/ast"
 	"github.com/marshallburns/ez/pkg/errors"
@@ -277,6 +278,18 @@ func evalVariableDeclaration(node *ast.VariableDeclaration, env *Environment) Ob
 		if isError(val) {
 			return val
 		}
+	} else if node.TypeName != "" {
+		// Variable declared with type but no value - provide appropriate default
+		// Check if it's a dynamic array type (starts with '[' but doesn't contain ',')
+		// Dynamic arrays: [int], [string], etc. - can be declared without values
+		// Fixed-size arrays: [int,3], [string,5], etc. - MUST be initialized with values
+		if len(node.TypeName) > 0 && node.TypeName[0] == '[' && !strings.Contains(node.TypeName, ",") {
+			// Initialize dynamic array to empty array instead of NIL
+			val = &Array{Elements: []Object{}}
+		}
+		// For other types (int, float, string, bool, etc.) and fixed-size arrays,
+		// they remain NIL for now. This matches the current behavior, but could be
+		// extended to provide defaults like 0 for int, 0.0 for float, "" for string, false for bool, etc.
 	}
 
 	// Handle multiple assignment: temp result, err = function()
