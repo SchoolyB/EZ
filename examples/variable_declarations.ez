@@ -1,0 +1,30 @@
+import @std
+
+// Variables can be declared in a files scope and be accessed globally OR within a functions scope.
+// There are two types of variables in EZ
+
+// Mutable a.k.a temporary- Declared with `temp`
+temp version float = 0.1
+
+// Immutable a.k.a constants - Declared With 'const'
+const name string = "EZ"
+
+// Mutable variables can safely be declared WITHOUT an explicit value like so:
+temp x float
+//By default `x` is given the value 0.0
+
+// Immutable varibales MUST be assigned a value, 
+// this would NOT work: `const y int` 
+// this WILL work:
+const someNumber int = 30
+
+
+do main(){
+  //Mutable variable value can be reassigned so long as
+  //the new value matches the type the varibale was declared as
+  x = 69
+  std.println(x)
+
+  //Immutable variable values CANNOT be reassigned
+  // this would cause an error: `someNumber = 40`
+}

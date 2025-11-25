@@ -1,0 +1,5 @@
+import @std
+
+do main(){
+  std.println("Hello, World")
+}
