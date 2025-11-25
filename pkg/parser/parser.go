@@ -1156,8 +1156,9 @@ func (p *Parser) parseExpression(precedence int) Expression {
 func (p *Parser) parseIdentifier() Expression {
 	ident := &Label{Token: p.currentToken, Value: p.currentToken.Literal}
 
-	// Check if this is a struct literal: Identifier{...}
-	if p.peekTokenMatches(LBRACE) {
+	// Check if this is a struct literal: TypeName{...}
+	// Only treat it as struct literal if identifier starts with uppercase (type naming convention)
+	if p.peekTokenMatches(LBRACE) && len(ident.Value) > 0 && ident.Value[0] >= 'A' && ident.Value[0] <= 'Z' {
 		p.nextToken() // move to {
 		return p.parseStructLiteralFromIdent(ident)
 	}
