@@ -580,28 +580,46 @@ func evalForEachStatement(node *ast.ForEachStatement, env *Environment) Object {
 		return collection
 	}
 
-	arr, ok := collection.(*Array)
-	if !ok {
-		return newError("for_each requires array, got %s", collection.Type())
-	}
-
 	loopEnv := NewEnclosedEnvironment(env)
 
-	for _, elem := range arr.Elements {
-		loopEnv.Set(node.Variable.Value, elem, true) // loop vars are mutable
+	// Handle arrays
+	if arr, ok := collection.(*Array); ok {
+		for _, elem := range arr.Elements {
+			loopEnv.Set(node.Variable.Value, elem, true) // loop vars are mutable
 
-		result := Eval(node.Body, loopEnv)
-		if result != nil {
-			if result.Type() == RETURN_VALUE_OBJ || result.Type() == ERROR_OBJ {
-				return result
-			}
-			if result.Type() == BREAK_OBJ {
-				break
+			result := Eval(node.Body, loopEnv)
+			if result != nil {
+				if result.Type() == RETURN_VALUE_OBJ || result.Type() == ERROR_OBJ {
+					return result
+				}
+				if result.Type() == BREAK_OBJ {
+					break
+				}
 			}
 		}
+		return NIL
 	}
 
-	return NIL
+	// Handle strings (iterate over characters)
+	if str, ok := collection.(*String); ok {
+		for _, ch := range str.Value {
+			charObj := &Char{Value: ch}
+			loopEnv.Set(node.Variable.Value, charObj, true) // loop vars are mutable
+
+			result := Eval(node.Body, loopEnv)
+			if result != nil {
+				if result.Type() == RETURN_VALUE_OBJ || result.Type() == ERROR_OBJ {
+					return result
+				}
+				if result.Type() == BREAK_OBJ {
+					break
+				}
+			}
+		}
+		return NIL
+	}
+
+	return newError("for_each requires array or string, got %s", collection.Type())
 }
 
 func evalFunctionDeclaration(node *ast.FunctionDeclaration, env *Environment) Object {
