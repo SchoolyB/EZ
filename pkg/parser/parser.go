@@ -1068,27 +1068,72 @@ func (p *Parser) parseFunctionParameters() []*Parameter {
 	p.nextToken()
 
 	for {
-		// Read parameter name
+		// Collect parameter names that will share a type
+		// e.g., in "x, y int", collect ["x", "y"]
+		namesForType := []*Label{}
+
+		// Read first parameter name
 		if !p.currentTokenMatches(IDENT) {
 			msg := fmt.Sprintf("expected parameter name, got %s", p.currentToken.Type)
 			p.addEZError(errors.E1002, msg, p.currentToken)
 			return nil
 		}
 
-		paramName := &Label{Token: p.currentToken, Value: p.currentToken.Literal}
+		// Collect all names before the type
+		// Strategy: collect IDENT tokens while they're followed by COMMA
+		// The last IDENT (not followed by COMMA) is the type
+		for {
+			if !p.currentTokenMatches(IDENT) {
+				msg := fmt.Sprintf("expected parameter name, got %s", p.currentToken.Type)
+				p.addEZError(errors.E1002, msg, p.currentToken)
+				return nil
+			}
 
-		// Check for duplicate parameter names
-		if prevToken, exists := paramNames[paramName.Value]; exists {
-			msg := fmt.Sprintf("duplicate parameter name '%s'", paramName.Value)
-			p.addEZError(errors.E1003, msg, paramName.Token)
-			helpMsg := fmt.Sprintf("parameter '%s' first declared at line %d", paramName.Value, prevToken.Line)
-			p.errors = append(p.errors, helpMsg)
-		} else {
-			paramNames[paramName.Value] = paramName.Token
+			currentIdent := &Label{Token: p.currentToken, Value: p.currentToken.Literal}
+
+			// Look ahead to see what follows this IDENT
+			if p.peekTokenMatches(COMMA) {
+				// This IDENT is a parameter name (more names or params follow)
+				// Check for duplicate
+				if prevToken, exists := paramNames[currentIdent.Value]; exists {
+					msg := fmt.Sprintf("duplicate parameter name '%s'", currentIdent.Value)
+					p.addEZError(errors.E1003, msg, currentIdent.Token)
+					helpMsg := fmt.Sprintf("parameter '%s' first declared at line %d", currentIdent.Value, prevToken.Line)
+					p.errors = append(p.errors, helpMsg)
+				} else {
+					paramNames[currentIdent.Value] = currentIdent.Token
+				}
+				namesForType = append(namesForType, currentIdent)
+				p.nextToken() // consume IDENT
+				p.nextToken() // consume COMMA, move to next IDENT
+				continue
+			} else if p.peekTokenMatches(IDENT) || p.peekTokenMatches(LBRACKET) {
+				// This IDENT is a parameter name, and the next token is the type
+				// Check for duplicate
+				if prevToken, exists := paramNames[currentIdent.Value]; exists {
+					msg := fmt.Sprintf("duplicate parameter name '%s'", currentIdent.Value)
+					p.addEZError(errors.E1003, msg, currentIdent.Token)
+					helpMsg := fmt.Sprintf("parameter '%s' first declared at line %d", currentIdent.Value, prevToken.Line)
+					p.errors = append(p.errors, helpMsg)
+				} else {
+					paramNames[currentIdent.Value] = currentIdent.Token
+				}
+				namesForType = append(namesForType, currentIdent)
+				p.nextToken() // move to the type
+				break
+			} else if p.peekTokenMatches(RPAREN) {
+				// Incomplete parameter - name without type before closing paren
+				msg := fmt.Sprintf("parameter '%s' is missing a type", currentIdent.Value)
+				p.addEZError(errors.E1002, msg, currentIdent.Token)
+				return nil
+			} else {
+				msg := fmt.Sprintf("expected ',', type, or ')' after parameter name, got %s", p.peekToken.Type)
+				p.addEZError(errors.E1002, msg, p.peekToken)
+				return nil
+			}
 		}
 
-		// Read parameter type
-		p.nextToken()
+		// Now current token should be the type for all collected names
 		if !p.currentTokenMatches(IDENT) && !p.currentTokenMatches(LBRACKET) {
 			msg := fmt.Sprintf("expected parameter type, got %s", p.currentToken.Type)
 			p.addEZError(errors.E1002, msg, p.currentToken)
@@ -1109,7 +1154,10 @@ func (p *Parser) parseFunctionParameters() []*Parameter {
 			typeName = p.currentToken.Literal
 		}
 
-		params = append(params, &Parameter{Name: paramName, TypeName: typeName})
+		// Apply the type to all collected names
+		for _, name := range namesForType {
+			params = append(params, &Parameter{Name: name, TypeName: typeName})
+		}
 
 		// Check for comma (more parameters) or closing paren
 		if p.peekTokenMatches(COMMA) {
