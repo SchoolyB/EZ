@@ -87,7 +87,7 @@ type Parser struct {
 	errors []string
 
 	currentToken  Token
-	peekToken Token
+	peekToken     Token
 
 	prefixParseFns map[TokenType]prefixParseFn
 	infixParseFns  map[TokenType]infixParseFn
@@ -369,30 +369,17 @@ func (p *Parser) parseStatement() Statement {
 
 	switch p.currentToken.Type {
 	case CONST:
-		// Check if this is a struct or enum declaration
-		if p.peekTokenMatches(IDENT) {
-			// Save current position
-			savedCurrent := p.currentToken
-			savedPeek := p.peekToken
-
-			p.nextToken() // move to IDENT
-
-			if p.peekTokenMatches(STRUCT) {
-				// This is a struct declaration: const Name struct { ... }
-				return p.parseStructDeclaration()
-			} else if p.peekTokenMatches(ENUM) {
-				// This is an enum declaration: const Name enum { ... }
-				// TODO: Implement parseEnumDeclaration()
-				// return p.parseEnumDeclaration()
-			}
-
-			// Not a struct or enum, restore and parse as variable
-			p.currentToken = savedCurrent
-			p.peekToken = savedPeek
-		}
-		stmt := p.parseVarableDeclaration()
+		// For struct declarations like "const Name struct { ... }",
+		// we handle them in parseVarableDeclaration by detecting the STRUCT token
+		stmt := p.parseVarableDeclarationOrStruct()
 		if stmt != nil && len(attrs) > 0 {
-			stmt.Attributes = attrs
+			// Handle attributes for both VariableDeclaration and StructDeclaration
+			switch s := stmt.(type) {
+			case *VariableDeclaration:
+				s.Attributes = attrs
+			case *StructDeclaration:
+				// Structs don't currently support attributes, but we could add it
+			}
 		}
 		return stmt
 	case TEMP:
@@ -440,6 +427,108 @@ func (p *Parser) parseStatement() Statement {
 // ============================================================================
 // Statement Parsers
 // ============================================================================
+
+// parseVarableDeclarationOrStruct handles both variable declarations and struct declarations
+// that start with "const Name struct { ... }"
+func (p *Parser) parseVarableDeclarationOrStruct() Statement {
+	// Check if this is "const Name struct {...}"
+	if p.currentTokenMatches(CONST) && p.peekTokenMatches(IDENT) {
+		// Peek ahead one more token to see if it's STRUCT
+		savedCurrent := p.currentToken
+
+		p.nextToken() // move to Name
+		nameToken := p.currentToken
+
+		if p.peekTokenMatches(STRUCT) {
+			// This is a struct declaration
+			// currentToken is now the struct name, which is what parseStructDeclaration expects
+			return p.parseStructDeclaration()
+		}
+
+		// Not a struct, restore and parse as variable
+		// But we've already consumed one token, so we need to account for that
+		// The best approach is to just continue with variable parsing from here
+		// We're at the name token, so we can build the VariableDeclaration
+		stmt := &VariableDeclaration{Token: savedCurrent}
+		stmt.Mutable = false // it's a const
+		stmt.Names = append(stmt.Names, &Label{Token: nameToken, Value: nameToken.Literal})
+		stmt.Name = stmt.Names[0]
+
+		// Now continue with type parsing (the current position is at the name,
+		// peekToken should be the type or [)
+		// Parse type - can be IDENT or [type] for arrays
+		p.nextToken()
+		if p.currentTokenMatches(LBRACKET) {
+			// Array type - use the array type parsing logic
+			typeName := "["
+			p.nextToken() // move past [
+
+			// The element type should be an identifier
+			if !p.currentTokenMatches(IDENT) {
+				msg := fmt.Sprintf("expected type name, got %s", p.currentToken.Type)
+				p.errors = append(p.errors, msg)
+				p.addEZError(errors.E1007, msg, p.currentToken)
+				return nil
+			}
+			typeName += p.currentToken.Literal
+
+			// Check for fixed-size array syntax: [type, size]
+			if p.peekTokenMatches(COMMA) {
+				p.nextToken() // consume comma
+				p.nextToken() // get size
+
+				// Size should be an integer
+				if !p.currentTokenMatches(INT) {
+					msg := fmt.Sprintf("expected integer for array size, got %s", p.currentToken.Type)
+					p.errors = append(p.errors, msg)
+					p.addEZError(errors.E1007, msg, p.currentToken)
+					return nil
+				}
+				typeName += "," + p.currentToken.Literal
+			}
+
+			if !p.expectPeek(RBRACKET) {
+				return nil
+			}
+			typeName += "]"
+			stmt.TypeName = typeName
+		} else if p.currentTokenMatches(IDENT) {
+			stmt.TypeName = p.currentToken.Literal
+		} else {
+			msg := fmt.Sprintf("expected type, got %s", p.currentToken.Type)
+			p.errors = append(p.errors, msg)
+			p.addEZError(errors.E1007, msg, p.currentToken)
+			return nil
+		}
+
+		// Optional initialization
+		if p.peekTokenMatches(ASSIGN) {
+			assignToken := p.peekToken
+			p.nextToken() // consume =
+			p.nextToken() // move to value
+
+			if p.currentTokenMatches(RBRACE) || p.currentTokenMatches(EOF) {
+				msg := "expected expression after '='"
+				p.errors = append(p.errors, msg)
+				p.addEZError(errors.E1003, msg, assignToken)
+				return nil
+			}
+
+			stmt.Value = p.parseExpression(LOWEST)
+		} else if !stmt.Mutable {
+			// const must be initialized
+			msg := fmt.Sprintf("const '%s' must be initialized with a value", stmt.Name.Value)
+			p.errors = append(p.errors, msg)
+			p.addEZError(errors.E1003, msg, p.currentToken)
+			return nil
+		}
+
+		return stmt
+	}
+
+	// Not the special "const Name struct" case, use regular variable declaration
+	return p.parseVarableDeclaration()
+}
 
 func (p *Parser) parseVarableDeclaration() *VariableDeclaration {
 	stmt := &VariableDeclaration{Token: p.currentToken}
@@ -530,12 +619,31 @@ func (p *Parser) parseVarableDeclaration() *VariableDeclaration {
 		// Array type [type] or [type, size]
 		typeName := "["
 		p.nextToken() // move past [
+
+		// The element type should be an identifier
+		if !p.currentTokenMatches(IDENT) {
+			msg := fmt.Sprintf("expected type name, got %s", p.currentToken.Type)
+			p.errors = append(p.errors, msg)
+			p.addEZError(errors.E1007, msg, p.currentToken)
+			return nil
+		}
 		typeName += p.currentToken.Literal
+
+		// Check for fixed-size array syntax: [type, size]
 		if p.peekTokenMatches(COMMA) {
 			p.nextToken() // consume comma
 			p.nextToken() // get size
+
+			// Size should be an integer
+			if !p.currentTokenMatches(INT) {
+				msg := fmt.Sprintf("expected integer for array size, got %s", p.currentToken.Type)
+				p.errors = append(p.errors, msg)
+				p.addEZError(errors.E1007, msg, p.currentToken)
+				return nil
+			}
 			typeName += "," + p.currentToken.Literal
 		}
+
 		if !p.expectPeek(RBRACKET) {
 			return nil
 		}
