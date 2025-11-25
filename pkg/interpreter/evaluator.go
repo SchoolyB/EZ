@@ -286,10 +286,24 @@ func evalVariableDeclaration(node *ast.VariableDeclaration, env *Environment) Ob
 		if len(node.TypeName) > 0 && node.TypeName[0] == '[' && !strings.Contains(node.TypeName, ",") {
 			// Initialize dynamic array to empty array instead of NIL
 			val = &Array{Elements: []Object{}}
+		} else {
+			// Provide default values for primitive types
+			switch node.TypeName {
+			case "int":
+				val = &Integer{Value: 0}
+			case "float":
+				val = &Float{Value: 0.0}
+			case "string":
+				val = &String{Value: ""}
+			case "bool":
+				val = FALSE // Use existing FALSE constant
+			case "char":
+				val = &Char{Value: '\x00'} // null character as default
+			// For fixed-size arrays and other types, remain NIL
+			default:
+				val = NIL
+			}
 		}
-		// For other types (int, float, string, bool, etc.) and fixed-size arrays,
-		// they remain NIL for now. This matches the current behavior, but could be
-		// extended to provide defaults like 0 for int, 0.0 for float, "" for string, false for bool, etc.
 	}
 
 	// Handle multiple assignment: temp result, err = function()
