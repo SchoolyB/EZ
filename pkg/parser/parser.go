@@ -425,13 +425,39 @@ func (p *Parser) parseStatement() Statement {
 	case USING:
 		return p.parseUsingStatement()
 	case IDENT:
-		// Check if this is an assignment
+		// Parse the expression first to handle identifiers, index expressions, and member access
+		expr := p.parseExpression(LOWEST)
+
+		// Check if an assignment operator follows
 		if p.peekTokenMatches(ASSIGN) || p.peekTokenMatches(PLUS_ASSIGN) ||
 			p.peekTokenMatches(MINUS_ASSIGN) || p.peekTokenMatches(ASTERISK_ASSIGN) ||
 			p.peekTokenMatches(SLASH_ASSIGN) || p.peekTokenMatches(PERCENT_ASSIGN) {
-			return p.parseAssignmentStatement()
+			// Convert to assignment statement
+			stmt := &AssignmentStatement{Token: p.currentToken}
+			stmt.Name = expr
+
+			// Validate assignment target
+			switch expr.(type) {
+			case *Label, *IndexExpression, *MemberExpression:
+				// Valid assignment targets
+			default:
+				msg := fmt.Sprintf("invalid assignment target: cannot assign to %T", expr)
+				p.addEZError(errors.E1008, msg, p.currentToken)
+			}
+
+			// Get the assignment operator
+			p.nextToken()
+			stmt.Operator = p.currentToken.Literal
+
+			// Parse the value expression
+			p.nextToken()
+			stmt.Value = p.parseExpression(LOWEST)
+
+			return stmt
 		}
-		return p.parseExpressionStatement()
+
+		// Not an assignment, treat as expression statement
+		return &ExpressionStatement{Token: p.currentToken, Expression: expr}
 	default:
 		return p.parseExpressionStatement()
 	}

@@ -339,28 +339,55 @@ func evalAssignment(node *ast.AssignmentStatement, env *Environment) Object {
 		}
 
 	case *ast.IndexExpression:
-		// Array index assignment
-		arr := Eval(target.Left, env)
-		if isError(arr) {
-			return arr
+		// Array or string index assignment
+		container := Eval(target.Left, env)
+		if isError(container) {
+			return container
 		}
 		idx := Eval(target.Index, env)
 		if isError(idx) {
 			return idx
 		}
 
-		arrayObj, ok := arr.(*Array)
-		if !ok {
-			return newError("index operator not supported: %s", arr.Type())
-		}
 		index, ok := idx.(*Integer)
 		if !ok {
 			return newError("index must be integer, got %s", idx.Type())
 		}
-		if index.Value < 0 || index.Value >= int64(len(arrayObj.Elements)) {
-			return newError("index out of bounds: %d", index.Value)
+
+		switch obj := container.(type) {
+		case *Array:
+			if index.Value < 0 || index.Value >= int64(len(obj.Elements)) {
+				return newError("index out of bounds: %d", index.Value)
+			}
+
+			// Handle compound assignment
+			if node.Operator != "=" {
+				oldVal := obj.Elements[index.Value]
+				val = evalCompoundAssignment(node.Operator, oldVal, val, node.Token.Line, node.Token.Column)
+				if isError(val) {
+					return val
+				}
+			}
+
+			obj.Elements[index.Value] = val
+
+		case *String:
+			// String mutation - verify the value is a character
+			charObj, ok := val.(*Char)
+			if !ok {
+				return newError("can only assign character to string index, got %s", val.Type())
+			}
+			if index.Value < 0 || index.Value >= int64(len(obj.Value)) {
+				return newError("index out of bounds: %d", index.Value)
+			}
+			// Convert string to rune slice, modify, convert back
+			runes := []rune(obj.Value)
+			runes[index.Value] = charObj.Value
+			obj.Value = string(runes)
+
+		default:
+			return newError("index operator not supported: %s", container.Type())
 		}
-		arrayObj.Elements[index.Value] = val
 
 	case *ast.MemberExpression:
 		// Struct field assignment
