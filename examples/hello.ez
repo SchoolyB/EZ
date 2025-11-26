@@ -1,5 +1,8 @@
 import @std
 
+
 do main(){
-  std.println("Hello, World")
+  using std  
+  println("Hello, World")
 }
+

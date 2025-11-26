@@ -1,0 +1,740 @@
+/*
+ * EZ Language - Comprehensive Error Handling & Display Test Suite
+ *
+ * This file tests every aspect of the EZ language to ensure errors
+ * are caught, displayed expressively, and provide helpful context.
+ *
+ * Categories tested:
+ * - E1xxx: Lexer/Parse errors
+ * - E2xxx: Type errors
+ * - E3xxx: Reference errors
+ * - E4xxx: Runtime errors
+ * - E5xxx: Import/Module errors
+ * - W1xxx: Code style warnings
+ * - W2xxx: Potential bug warnings
+ *
+ * NOTE: To test specific errors, uncomment the relevant test section.
+ * Many errors will prevent the program from running, so test them
+ * individually or in small groups.
+ */
+
+import @std
+import @arrays
+
+// ============================================================================
+// WORKING CODE BASELINE - Verify language features work correctly
+// ============================================================================
+
+const Person struct {
+    name string
+    age int
+    email string
+}
+
+const STATUS enum {
+    PENDING
+    ACTIVE
+    INACTIVE
+}
+
+@(int, skip, 10)
+const ERROR_CODES enum {
+    SUCCESS = 0
+    WARNING
+    ERROR
+}
+
+@(string)
+const COLORS enum {
+    RED = "red"
+    GREEN = "green"
+    BLUE = "blue"
+}
+
+do main() {
+    using std
+
+    println("=== EZ Language Test Suite ===")
+    println("")
+
+    // Test basic functionality
+    test_variables()
+    test_arrays()
+    test_structs()
+    test_enums()
+    test_control_flow()
+    test_functions()
+    test_operators()
+    test_strings()
+
+    println("")
+    println("=== Baseline Tests Complete ===")
+    println("")
+
+    // UNCOMMENT SECTIONS BELOW TO TEST SPECIFIC ERROR CATEGORIES
+
+    // test_lexer_errors()
+    // test_parser_errors()
+    // test_type_errors()
+    // test_reference_errors()
+    // test_runtime_errors()
+    // test_import_errors()
+    // test_warnings()
+}
+
+// ============================================================================
+// BASELINE FUNCTIONALITY TESTS
+// ============================================================================
+
+do test_variables() {
+    using std
+
+    println("Testing variables...")
+
+    // Mutable variables
+    temp x int = 10
+    temp y float = 3.14
+    temp name string = "EZ"
+    temp letter char = 'A'
+    temp flag bool = true
+
+    // Constants
+    const MAX int = 100
+    const PI float = 3.14159
+
+    // Default values
+    temp count int
+    temp message string
+    temp active bool
+
+    println("  ✓ Variables working")
+}
+
+do test_arrays() {
+    using std
+
+
+    println("Testing arrays...")
+
+    // Dynamic arrays
+    temp numbers [int] = {1, 2, 3, 4, 5}
+    temp names [string] = {"Alice", "Bob", "Charlie"}
+
+    // Fixed-size arrays
+    const days [string, 7] = {"Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"}
+
+    // Array operations
+    arrays.push(numbers, 6)
+    temp last int = arrays.pop(numbers)
+
+    // Array indexing
+    temp first int = numbers[0]
+    numbers[0] = 100
+
+    // Array iteration
+    temp sum int = 0
+    for_each num in numbers {
+        sum += num
+    }
+
+    println("  ✓ Arrays working")
+}
+
+do test_structs() {
+    using std
+    println("Testing structs...")
+
+    // Create struct instance
+    temp person Person = Person{name: "Alice", age: 30, email: "alice@example.com"}
+
+    // Access fields
+    temp personName string = person.name
+    temp personAge int = person.age
+
+    // Modify fields
+    person.age = 31
+    person.email = "alice@newmail.com"
+
+    println("  ✓ Structs working")
+}
+
+do test_enums() {
+    using std
+    println("Testing enums...")
+
+    // Integer enums
+    temp status int = STATUS.ACTIVE
+    temp errorCode int = ERROR_CODES.WARNING
+
+    // String enums
+    temp color string = COLORS.RED
+
+    println("  ✓ Enums working")
+}
+
+do test_control_flow() {
+    using std
+    println("Testing control flow...")
+
+    // If/or/otherwise
+    temp x int = 10
+    if x > 20 {
+        println("    big")
+    } or x > 5 {
+        println("    medium")
+    } or x == 10{
+        println("equals 10")
+    }
+    otherwise {
+        println("    small")
+    }
+
+    // For loop with range
+    temp sum int = 0
+    for i in range(0, 5) {
+        sum += i
+    }
+
+    // For each loop
+    temp numbers [int] = {1, 2, 3}
+    for_each num in numbers {
+        temp doubled int = num * 2
+    }
+
+    // Break and continue
+    for i in range(0, 10) {
+        if i == 3 {
+            continue
+        }
+        if i == 7 {
+            break
+        }
+    }
+
+    println("  ✓ Control flow working")
+}
+
+do test_functions() {
+    using std
+    println("Testing functions...")
+
+    // Simple function call
+    greet("World")
+
+    // Function with return value
+    temp sum int = add(5, 10)
+
+    // Function with multiple parameters of same type
+    temp result int = calculate(2, 3, 4)
+
+    println("  ✓ Functions working")
+}
+
+do test_operators() {
+    using std
+    println("Testing operators...")
+
+    // Arithmetic
+    temp sum int = 10 + 5
+    temp diff int = 20 - 3
+    temp product int = 4 * 2
+    temp quotient int = 100 / 10
+    temp remainder int = 10 % 3
+
+    // Comparison
+    temp isEqual bool = 5 == 5
+    temp notEqual bool = 5 != 10
+    temp lessThan bool = 3 < 7
+    temp greaterThan bool = 10 > 5
+
+    // Logical
+    temp andResult bool = true && false
+    temp orResult bool = true || false
+    temp notResult bool = !false
+
+    // Compound assignment
+    temp x int = 10
+    x += 5
+    x -= 2
+    x *= 2
+    x /= 3
+
+    // Increment/Decrement
+    temp i int = 0
+    i++
+    i--
+
+    // Membership
+    temp nums [int] = {1, 2, 3}
+    temp inArray bool = 2 in nums
+    temp notInArray bool = 5 !in nums
+
+    println("  ✓ Operators working")
+}
+
+do test_strings() {
+    using std
+    println("Testing strings...")
+
+    // String concatenation
+    temp greeting string = "Hello, " + "World"
+
+    // String indexing
+    temp text string = "EZ"
+    temp firstChar char = text[0]
+
+    // String mutation (temp only)
+    temp word string = "Bob"
+    word[0] = 'R'
+
+    // String iteration
+    for_each ch in text {
+        temp c char = ch
+    }
+
+    // String length
+    temp length int = len(text)
+
+    println("  ✓ Strings working")
+}
+
+// Helper functions for baseline tests
+do greet(name string) {
+    using std
+    println("    Hello,", name)
+}
+
+do add(x, y int) -> int {
+    return x + y
+}
+
+do calculate(a, b, c int) -> int {
+    return a + b + c
+}
+
+// ============================================================================
+// ERROR TESTS - E1xxx: LEXER/PARSE ERRORS
+// ============================================================================
+
+do test_lexer_errors() {
+    using std
+    println("=== Testing Lexer Errors ===")
+
+    // E1005: Unclosed string literal
+    // temp str string = "unclosed string
+
+    // E1005: Unclosed char literal
+    // temp ch char = 'a
+
+    // E1006: Invalid escape sequence
+    // temp escaped string = "invalid \x escape"
+
+    // E1006: Empty char literal
+    // temp empty char = ''
+
+    // E1006: Multi-character char literal
+    // temp multi char = 'abc'
+
+    // E1004: Unclosed multi-line comment
+    // UNCOMMENT TO TEST: /* This comment never closes...
+
+    // E1006: Invalid number format
+    // temp badNum float = 3.14.159
+    // temp trailingDot float = 42.
+
+    // E1001: Illegal character (single & or |)
+    // temp x bool = true & false
+    // temp y bool = true | false
+
+    println("  Lexer error tests complete")
+}
+
+// ============================================================================
+// ERROR TESTS - E1xxx: PARSER ERRORS
+// ============================================================================
+
+do test_parser_errors() {
+    using std
+    println("=== Testing Parser Errors ===")
+
+    // E1001: Unexpected token
+    // temp x int = 5 5
+
+    // E1002: Missing token (semicolon equivalent)
+    // temp y int = 10 temp z int = 20
+
+    // E1003: Invalid syntax
+    // if { println("no condition") }
+
+    // E1004: Unclosed brace
+    // do broken() {
+    //     println("missing close brace"
+
+    // E1007: Missing type annotation
+    // temp noType = 42
+
+    // E1008: Invalid assignment target
+    // 5 = x
+    // "string" = y
+
+    // E1003: Duplicate function parameter names
+    // do duplicate_params(x, x int) -> int {
+    //     return x + x
+    // }
+
+    // E1003: Duplicate struct field names
+    // const BadStruct struct {
+    //     name string
+    //     name int
+    // }
+
+    println("  Parser error tests complete")
+}
+
+// ============================================================================
+// ERROR TESTS - E2xxx: TYPE ERRORS
+// ============================================================================
+
+do test_type_errors() {
+    using std
+    println("=== Testing Type Errors ===")
+
+    // E2001: Type mismatch in assignment
+    // temp x int = "string"
+    // temp y string = 42
+
+    // E2001: Type mismatch in operation
+    // temp result int = 5 + "string"
+    // temp mixed float = 3.14 + true
+
+    // E2002: Invalid operation for type
+    // temp x string = "hello"
+    // temp y string = x * 2
+    // temp z bool = true + false
+
+    // E2003: Cannot convert between types (implicit)
+    // temp floatVal float = 3.14
+    // temp intVal int = floatVal
+
+    // E2004: Wrong argument type
+    // greet(123)  // expects string
+    // temp sum int = add("5", "10")  // expects ints
+
+    // E2005: Wrong return type
+    // do wrong_return() -> int {
+    //     return "string"
+    // }
+
+    // E2006: Invalid type name
+    // temp x InvalidType = 5
+    // do func(x UnknownType) -> int {
+    //     return 0
+    // }
+
+    // E2001: Array element type mismatch
+    // temp mixed [int] = {1, "string", 3}
+
+    // E2001: Struct field type mismatch
+    // temp person Person = Person{name: 123, age: "thirty"}
+
+    println("  Type error tests complete")
+}
+
+// ============================================================================
+// ERROR TESTS - E3xxx: REFERENCE ERRORS
+// ============================================================================
+
+do test_reference_errors() {
+    using std
+    println("=== Testing Reference Errors ===")
+
+    // E3001: Undefined variable
+    // temp y int = undefinedVar + 5
+    // println(nonExistent)
+
+    // E3002: Undefined function
+    // undefinedFunction()
+    // temp result int = nonExistentFunc(5)
+
+    // E3003: Undefined struct field
+    // temp person Person = Person{name: "Alice", age: 30}
+    // temp bad string = person.nonExistentField
+    // person.invalidField = 42
+
+    // E3004: Module not found
+    // import @nonexistent
+
+    // E3005: Module not imported
+    // println("Hello")  // std not imported, should fail
+
+    // E3002: Module function not found
+    // std.nonExistentFunction()
+
+    println("  Reference error tests complete")
+}
+
+// ============================================================================
+// ERROR TESTS - E4xxx: RUNTIME ERRORS
+// ============================================================================
+
+do test_runtime_errors() {
+    using std
+    println("=== Testing Runtime Errors ===")
+
+    // E4001: Division by zero
+    // temp x int = 10 / 0
+    // temp y float = 3.14 / 0.0
+
+    // E4001: Modulo by zero
+    // temp remainder int = 10 % 0
+
+    // E4002: Index out of bounds
+    // temp nums [int] = {1, 2, 3}
+    // temp invalid int = nums[10]
+    // nums[100] = 42
+
+    // E4003: Nil reference
+    // temp x int = nil
+    // temp result int = nil + 5
+
+    // E4003: Nil pointer dereference in member access
+    // temp person Person = nil
+    // temp name string = person.name
+
+    // E4004: Wrong number of arguments
+    // greet()  // expects 1 argument
+    // temp sum int = add(5)  // expects 2 arguments
+    // temp result int = add(1, 2, 3)  // expects 2 arguments
+
+    // E4005: Cannot assign to immutable (const)
+    // const PI float = 3.14159
+    // PI = 3.14
+
+    // E4005: Cannot assign to const array element
+    // const nums [int, 3] = {1, 2, 3}
+    // nums[0] = 100
+
+    // E4006: Return value count mismatch
+    // NOTE: This requires multiple return values feature
+    // do multiReturn() -> (int, int) {
+    //     return 42  // missing second return value
+    // }
+
+    // E4007: Uncaptured return values
+    // add(5, 10)  // returns int but value not captured
+
+    // E4003: Break/continue outside loops
+    // break
+    // continue
+
+    // E2002: Member access on non-struct
+    // temp x int = 42
+    // temp bad int = x.field
+
+    println("  Runtime error tests complete")
+}
+
+// ============================================================================
+// ERROR TESTS - E5xxx: IMPORT/MODULE ERRORS
+// ============================================================================
+
+do test_import_errors() {
+    // E5001: Circular import
+    // NOTE: Requires multiple files to test
+
+    // E5002: File not found
+    // import @"./nonexistent.ez"
+
+    // E5003: Invalid module
+    // import 123
+    // import @"invalid-module-name"
+
+    println("  Import error tests complete")
+}
+
+// ============================================================================
+// WARNING TESTS - W1xxx, W2xxx
+// ============================================================================
+
+@suppress(W2001)
+do test_warnings() {
+    using std
+    println("=== Testing Warnings ===")
+
+    // W1001: Unused variable
+    temp unused int = 42
+    temp alsoUnused string = "never used"
+
+    // W1002: Unused import
+    // NOTE: Requires analyzer to track module usage
+
+    // W1003: Unused function
+    // NOTE: Requires analyzer to track function calls
+
+    // W2001: Unreachable code after return
+    temp x int = unreachable_test()
+
+    // W2001: Unreachable code after break
+    for i in range(0, 10) {
+        if i == 5 {
+            break
+            println("This will never print")
+        }
+    }
+
+    // W2001: Unreachable code after continue
+    for i in range(0, 10) {
+        if i == 3 {
+            continue
+            temp unreachable int = 42
+        }
+    }
+
+    // W2002: Variable shadowing (outer scope)
+    temp shadow int = 10
+    if true {
+        temp shadow int = 20  // shadows outer variable
+    }
+
+    println("  Warning tests complete")
+}
+
+// Test function with unreachable code
+do unreachable_test() -> int {
+    return 42
+    temp x int = 100  // W2001: unreachable code
+    println("Never executes")
+    return x
+}
+
+// Test @suppress attribute for warnings
+@suppress(W2001)
+do suppressed_warning() -> int {
+    return 42
+    temp x int = 100  // Warning suppressed
+    return x
+}
+
+// ============================================================================
+// EDGE CASE TESTS
+// ============================================================================
+
+do test_edge_cases() {
+    using std
+    println("=== Testing Edge Cases ===")
+
+    // Empty strings
+    temp empty string = ""
+    temp length int = len(empty)
+
+    // Empty arrays
+    temp emptyArr [int] = {}
+    temp arrLen int = len(emptyArr)
+
+    // Nested control flow
+    for i in range(0, 5) {
+        for j in range(0, 5) {
+            if i == j {
+                if i > 2 {
+                    break  // should break inner loop only
+                }
+            }
+        }
+    }
+
+    // Deeply nested structs (if supported)
+    const Address struct {
+        street string
+        city string
+    }
+
+    const Employee struct {
+        name string
+        address Address
+    }
+
+    temp emp Employee = Employee{
+        name: "Bob",
+        address: Address{street: "123 Main St", city: "Austin"}
+    }
+
+    temp city string = emp.address.city
+
+    // Complex expressions
+    temp result int = ((10 + 5) * 2 - 3) / 4 + 1
+
+    // Chained comparisons
+    temp x int = 10
+    temp inRange bool = x > 5 && x < 15 && x != 10
+
+    // String concatenation chains
+    temp msg string = "Hello" + ", " + "World" + "!"
+
+    println("  Edge case tests complete")
+}
+
+// ============================================================================
+// EXPRESSION COMPLEXITY TESTS
+// ============================================================================
+
+do test_complex_expressions() {
+    using std
+    println("=== Testing Complex Expressions ===")
+
+    // Nested arithmetic
+    temp calc1 int = (((10 + 5) * 2) - 3) / 4
+    temp calc2 float = 3.14 * 2.0 + 1.5 / 0.5
+
+    // Mixed logical operations
+    temp logic1 bool = (true || false) && (false || true)
+    temp logic2 bool = !(false && true) || (true && !false)
+
+    // Combined comparisons
+    temp x int = 10
+    temp y int = 20
+    temp z int = 15
+    temp cmp bool = (x < y && y > z) || (x == 10 && z != 20)
+
+    // Array access in expressions
+    temp nums [int] = {1, 2, 3, 4, 5}
+    temp arrCalc int = nums[0] + nums[1] * nums[2]
+
+    // Struct field access in expressions
+    temp person Person = Person{name: "Alice", age: 30}
+    temp ageCheck bool = person.age >= 18 && person.age <= 65
+
+    println("  Complex expression tests complete")
+}
+
+// ============================================================================
+// BUILT-IN FUNCTION TESTS
+// ============================================================================
+
+do test_builtins() {
+    using std
+    println("=== Testing Built-in Functions ===")
+
+    // len() on arrays
+    temp nums [int] = {1, 2, 3, 4, 5}
+    temp arrLen int = len(nums)
+
+    // len() on strings
+    temp text string = "Hello"
+    temp strLen int = len(text)
+
+    // typeof() on various types
+    temp typeInt string = typeof(42)
+    temp typeFloat string = typeof(3.14)
+    temp typeString string = typeof("text")
+    temp typeBool string = typeof(true)
+    temp typeChar string = typeof('A')
+
+    // println() with multiple arguments
+    println("Multiple", "arguments", 123, 3.14, true)
+
+    // print() without newline
+    print("No newline ")
+    print("here\n")
+
+    println("  Built-in function tests complete")
+}
