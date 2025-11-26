@@ -37,14 +37,39 @@ var builtins = map[string]*Builtin{
 	"std.read_int": {
 		Fn: func(args ...Object) Object {
 			reader := bufio.NewReader(os.Stdin)
-			text, _ := reader.ReadString('\n')
+			text, readErr := reader.ReadString('\n')
 			// Trim newline
-			text = text[:len(text)-1]
-			val, err := strconv.ParseInt(text, 10, 64)
-			if err != nil {
-				return newError("invalid integer input")
+			if len(text) > 0 && text[len(text)-1] == '\n' {
+				text = text[:len(text)-1]
 			}
-			return &Integer{Value: val}
+
+			// Handle read error
+			if readErr != nil {
+				errObj := &Struct{
+					TypeName: "Error",
+					Fields: map[string]Object{
+						"message": &String{Value: "failed to read input"},
+						"code":    &Integer{Value: 1},
+					},
+				}
+				return &ReturnValue{Values: []Object{&Integer{Value: 0}, errObj}}
+			}
+
+			// Parse integer
+			val, parseErr := strconv.ParseInt(text, 10, 64)
+			if parseErr != nil {
+				errObj := &Struct{
+					TypeName: "Error",
+					Fields: map[string]Object{
+						"message": &String{Value: "invalid integer input"},
+						"code":    &Integer{Value: 2},
+					},
+				}
+				return &ReturnValue{Values: []Object{&Integer{Value: 0}, errObj}}
+			}
+
+			// Success - return value and nil error
+			return &ReturnValue{Values: []Object{&Integer{Value: val}, NIL}}
 		},
 	},
 
