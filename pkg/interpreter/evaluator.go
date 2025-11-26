@@ -146,14 +146,16 @@ func Eval(node ast.Node, env *Environment) Object {
 		return NIL
 
 	case *ast.UsingStatement:
-		// Bring the module's functions into scope
-		alias := node.Module.Value
-		// Verify the module was imported
-		if _, ok := env.GetImport(alias); !ok {
-			return newErrorWithLocation("E3005", node.Token.Line, node.Token.Column,
-				"cannot use '%s': module not imported", alias)
+		// Bring the module(s) functions into scope (function-scoped using)
+		for _, module := range node.Modules {
+			alias := module.Value
+			// Verify the module was imported
+			if _, ok := env.GetImport(alias); !ok {
+				return newErrorWithLocation("E3005", node.Token.Line, node.Token.Column,
+					"cannot use '%s': module not imported", alias)
+			}
+			env.Use(alias)
 		}
-		env.Use(alias)
 		return NIL
 
 	// Expressions
@@ -243,7 +245,36 @@ func Eval(node ast.Node, env *Environment) Object {
 func evalProgram(program *ast.Program, env *Environment) Object {
 	var result Object
 
+	// First, process import statements
 	for _, stmt := range program.Statements {
+		if importStmt, ok := stmt.(*ast.ImportStatement); ok {
+			result = Eval(importStmt, env)
+			if isError(result) {
+				return result
+			}
+		}
+	}
+
+	// Then, process file-scoped using declarations
+	for _, usingStmt := range program.FileUsing {
+		for _, module := range usingStmt.Modules {
+			alias := module.Value
+			// Verify the module was imported
+			if _, ok := env.GetImport(alias); !ok {
+				return newErrorWithLocation("E3005", usingStmt.Token.Line, usingStmt.Token.Column,
+					"cannot use '%s': module not imported", alias)
+			}
+			env.Use(alias)
+		}
+	}
+
+	// Finally, process all other statements
+	for _, stmt := range program.Statements {
+		// Skip imports (already processed)
+		if _, ok := stmt.(*ast.ImportStatement); ok {
+			continue
+		}
+
 		result = Eval(stmt, env)
 
 		switch result := result.(type) {
@@ -720,13 +751,34 @@ func evalIdentifier(node *ast.Label, env *Environment) Object {
 	}
 
 	// Check if the function is available via "using" modules
+	// Detect ambiguity: if multiple modules have the same function, error
+	var foundModules []string
+	var foundBuiltin *Builtin
+
 	for _, alias := range env.GetUsing() {
 		if module, ok := env.GetImport(alias); ok {
 			fullName := module + "." + node.Value
 			if builtin, ok := builtins[fullName]; ok {
-				return builtin
+				foundModules = append(foundModules, module)
+				foundBuiltin = builtin
 			}
 		}
+	}
+
+	// Ambiguity check
+	if len(foundModules) > 1 {
+		err := newErrorWithLocation("E3006", node.Token.Line, node.Token.Column,
+			"function '%s' found in multiple modules", node.Value)
+		// Build helpful error message
+		moduleList := strings.Join(foundModules, ", ")
+		err.Help = fmt.Sprintf("use explicit module prefix: %s.%s()", foundModules[0], node.Value)
+		err.Message = fmt.Sprintf("function '%s' found in multiple modules: %s", node.Value, moduleList)
+		return err
+	}
+
+	// Found in exactly one module
+	if len(foundModules) == 1 {
+		return foundBuiltin
 	}
 
 	// Check global builtins (like len, typeof, etc.)
