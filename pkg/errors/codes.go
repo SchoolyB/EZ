@@ -40,6 +40,7 @@ var (
 	E3003 = ErrorCode{"E3003", "undefined-field", "field does not exist"}
 	E3004 = ErrorCode{"E3004", "undefined-module", "module not found"}
 	E3005 = ErrorCode{"E3005", "not-imported", "module not imported"}
+	E3006 = ErrorCode{"E3006", "ambiguous-function", "function found in multiple modules"}
 
 	// Runtime Errors (E4xxx)
 	E4001 = ErrorCode{"E4001", "division-by-zero", "cannot divide by zero"}
@@ -54,6 +55,7 @@ var (
 	E5001 = ErrorCode{"E5001", "circular-import", "circular import detected"}
 	E5002 = ErrorCode{"E5002", "file-not-found", "file not found"}
 	E5003 = ErrorCode{"E5003", "invalid-module", "invalid module"}
+	E5004 = ErrorCode{"E5004", "module-not-imported-yet", "module not imported yet"}
 )
 
 // Warning code definitions

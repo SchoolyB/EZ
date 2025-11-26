@@ -23,6 +23,7 @@ type Expression interface {
 
 // Program is the root node of every AST
 type Program struct {
+	FileUsing  []*UsingStatement // File-scoped using declarations
 	Statements []Statement
 }
 
@@ -386,10 +387,11 @@ type ImportStatement struct {
 func (i *ImportStatement) statementNode(){}
 func (i *ImportStatement) TokenLiteral() string { return i.Token.Literal }
 
-// UsingStatement represents using module
+// UsingStatement represents using module(s)
+// Supports both single (using std) and comma-separated (using std, arrays)
 type UsingStatement struct {
-	Token  Token
-	Module *Label
+	Token   Token
+	Modules []*Label // List of modules to bring into scope
 }
 
 func (u *UsingStatement) statementNode(){}

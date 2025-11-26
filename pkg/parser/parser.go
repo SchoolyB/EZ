@@ -351,9 +351,32 @@ func (p *Parser) curPrecedence() int {
 // ParseProgram parses the entire program
 func (p *Parser) ParseProgram() *Program {
 	program := &Program{}
+	program.FileUsing = []*UsingStatement{}
 	program.Statements = []Statement{}
 
+	seenOtherDeclaration := false
+
 	for !p.currentTokenMatches(EOF) {
+		// Track what we've seen for placement validation
+		if p.currentTokenMatches(USING) {
+			// File-scoped using: must come before other declarations
+			if seenOtherDeclaration {
+				p.addEZError(errors.E1003, "file-scoped 'using' must come before all declarations", p.currentToken)
+				p.nextToken()
+				continue
+			}
+
+			// Parse and add to FileUsing
+			usingStmt := p.parseUsingStatement()
+			if usingStmt != nil {
+				program.FileUsing = append(program.FileUsing, usingStmt)
+			}
+			p.nextToken()
+			continue
+		} else if !p.currentTokenMatches(EOF) && !p.currentTokenMatches(IMPORT) {
+			seenOtherDeclaration = true
+		}
+
 		stmt := p.parseStatement()
 		if stmt != nil {
 			program.Statements = append(program.Statements, stmt)
@@ -1273,12 +1296,23 @@ func (p *Parser) parseImportStatement() *ImportStatement {
 
 func (p *Parser) parseUsingStatement() *UsingStatement {
 	stmt := &UsingStatement{Token: p.currentToken}
+	stmt.Modules = []*Label{}
 
+	// Parse first module
 	if !p.expectPeek(IDENT) {
 		return nil
 	}
 
-	stmt.Module = &Label{Token: p.currentToken, Value: p.currentToken.Literal}
+	stmt.Modules = append(stmt.Modules, &Label{Token: p.currentToken, Value: p.currentToken.Literal})
+
+	// Check for comma-separated modules
+	for p.peekTokenMatches(COMMA) {
+		p.nextToken() // move to comma
+		if !p.expectPeek(IDENT) {
+			return nil
+		}
+		stmt.Modules = append(stmt.Modules, &Label{Token: p.currentToken, Value: p.currentToken.Literal})
+	}
 
 	return stmt
 }
