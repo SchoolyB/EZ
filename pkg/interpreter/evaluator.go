@@ -469,9 +469,13 @@ func evalIfStatement(node *ast.IfStatement, env *Environment) Object {
 	}
 
 	if isTruthy(condition) {
-		return Eval(node.Consequence, env)
+		// Create a new enclosed environment for the if block to support proper variable shadowing
+		ifEnv := NewEnclosedEnvironment(env)
+		return Eval(node.Consequence, ifEnv)
 	} else if node.Alternative != nil {
-		return Eval(node.Alternative, env)
+		// Create a new enclosed environment for the else block to support proper variable shadowing
+		elseEnv := NewEnclosedEnvironment(env)
+		return Eval(node.Alternative, elseEnv)
 	}
 
 	return NIL
@@ -491,7 +495,9 @@ func evalWhileStatement(node *ast.WhileStatement, env *Environment) Object {
 			break
 		}
 
-		result := Eval(node.Body, env)
+		// Create a new enclosed environment for each iteration to support proper variable shadowing
+		whileEnv := NewEnclosedEnvironment(env)
+		result := Eval(node.Body, whileEnv)
 		if result != nil {
 			if result.Type() == RETURN_VALUE_OBJ || result.Type() == ERROR_OBJ {
 				return result
@@ -511,7 +517,9 @@ func evalLoopStatement(node *ast.LoopStatement, env *Environment) Object {
 	defer env.ExitLoop()
 
 	for {
-		result := Eval(node.Body, env)
+		// Create a new enclosed environment for each iteration to support proper variable shadowing
+		loopEnv := NewEnclosedEnvironment(env)
+		result := Eval(node.Body, loopEnv)
 		if result != nil {
 			if result.Type() == RETURN_VALUE_OBJ || result.Type() == ERROR_OBJ {
 				return result
