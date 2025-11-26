@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="images/EZ_LOGO.jpeg" alt="EZ Logo" width="400">
+</p>
+
 # EZ Language
 
 A brutally simple interpreted programming language written in Go. The core philosophy is radical simplicity - no magic, no surprises, just straightforward code that does exactly what it says.
