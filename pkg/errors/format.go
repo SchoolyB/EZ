@@ -53,8 +53,13 @@ func FormatError(err *EZError) string {
 			BoldBlue, lineNumStr, Reset, err.SourceLine))
 
 		// Line 5: pointer/underline
-		pointerPadding := strings.Repeat(" ", err.Column-1)
-		pointerLen := err.EndColumn - err.Column
+		// Guard against negative or zero column values to prevent panic
+		column := err.Column
+		if column < 1 {
+			column = 1
+		}
+		pointerPadding := strings.Repeat(" ", column-1)
+		pointerLen := err.EndColumn - column
 		if pointerLen < 1 {
 			pointerLen = 1
 		}
