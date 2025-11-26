@@ -10,7 +10,7 @@ temp version float = 0.1
 const name string = "EZ"
 
 // Mutable variables can safely be declared WITHOUT an explicit value like so:
-temp x float
+temp x int
 //By default `x` is given the value 0.0
 
 // Immutable varibales MUST be assigned a value, 

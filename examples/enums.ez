@@ -4,7 +4,7 @@ import @std
 //Enums in EZ CAN be handled a bit differently than other languages.
 //Lets take a look at a very basic enum:
 const MY_ENUM enum {
-  FIRST //Defaults to 0 unless specified
+  FIRST//Defaults to 0 unless specified
   SECOND //1
   THIRD //2
 }
@@ -20,7 +20,7 @@ const MY_ENUM enum {
 
 @(int, skip, 5)
 const ANOTHER_ENUM enum {
-  THIS_SHOULD_BE_ZERO = 0
+  THIS_SHOULD_BE_ZERO
   THIS_WILL_BE_FIVE
   THIS_WILL_BE_TEN
   THIS_WILL_BE_FIFTEEN
