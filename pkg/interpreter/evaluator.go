@@ -461,6 +461,19 @@ func evalAssignment(node *ast.AssignmentStatement, env *Environment) Object {
 		if !ok {
 			return newError("member access not supported: %s", obj.Type())
 		}
+
+		// Handle compound assignment
+		if node.Operator != "=" {
+			oldVal, exists := structObj.Fields[target.Member.Value]
+			if !exists {
+				return newError("field '%s' not found", target.Member.Value)
+			}
+			val = evalCompoundAssignment(node.Operator, oldVal, val, node.Token.Line, node.Token.Column)
+			if isError(val) {
+				return val
+			}
+		}
+
 		structObj.Fields[target.Member.Value] = val
 	}
 
