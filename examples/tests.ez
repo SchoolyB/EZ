@@ -221,6 +221,32 @@ do test_control_flow() {
         }
     }
 
+    // While loop (as_long_as)
+    temp count int = 0
+    as_long_as count < 5 {
+        count += 1
+    }
+
+    // While loop with break
+    temp breakTest int = 0
+    as_long_as breakTest < 100 {
+        breakTest += 1
+        if breakTest == 10 {
+            break
+        }
+    }
+
+    // While loop with continue
+    temp continueTest int = 0
+    temp oddSum int = 0
+    as_long_as continueTest < 10 {
+        continueTest += 1
+        if continueTest % 2 == 0 {
+            continue
+        }
+        oddSum += continueTest
+    }
+
     println("  ✓ Control flow working")
 }
 
