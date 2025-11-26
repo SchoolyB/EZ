@@ -158,6 +158,7 @@ do add(x, y int) -> int {
 
 - **Strings & Characters**
   - String concatenation with `+`
+  - String interpolation with dollar-brace syntax
   - String indexing and character access
   - String mutation for `temp` variables
   - Character type with single quotes: `'A'`
