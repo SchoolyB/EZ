@@ -229,6 +229,9 @@ func Eval(node ast.Node, env *Environment) Object {
 	case *ast.MemberExpression:
 		return evalMemberExpression(node, env)
 
+	case *ast.NewExpression:
+		return evalNewExpression(node, env)
+
 	case *ast.RangeExpression:
 		// Range is typically used in for loops, not standalone
 		return newError("range() can only be used in for loops")
@@ -1250,6 +1253,50 @@ func evalStructValue(node *ast.StructValue, env *Environment) Object {
 	return &Struct{
 		TypeName: node.Name.Value,
 		Fields:   fields,
+	}
+}
+
+func evalNewExpression(node *ast.NewExpression, env *Environment) Object {
+	// Look up the struct definition
+	structDef, ok := env.GetStructDef(node.TypeName.Value)
+	if !ok {
+		return newErrorWithLocation("E3004", node.Token.Line, node.Token.Column,
+			"undefined type: '%s'", node.TypeName.Value)
+	}
+
+	// Create a new struct with default values for all fields
+	fields := make(map[string]Object)
+	for fieldName, fieldType := range structDef.Fields {
+		fields[fieldName] = getDefaultValue(fieldType)
+	}
+
+	return &Struct{
+		TypeName: structDef.Name,
+		Fields:   fields,
+	}
+}
+
+// getDefaultValue returns the default zero value for a given type
+func getDefaultValue(typeName string) Object {
+	// Check if it's a dynamic array type (starts with '[' but doesn't contain ',')
+	if len(typeName) > 0 && typeName[0] == '[' && !strings.Contains(typeName, ",") {
+		return &Array{Elements: []Object{}}
+	}
+
+	switch typeName {
+	case "int":
+		return &Integer{Value: 0}
+	case "float":
+		return &Float{Value: 0.0}
+	case "string":
+		return &String{Value: ""}
+	case "bool":
+		return FALSE
+	case "char":
+		return &Char{Value: '\x00'}
+	default:
+		// For other types (structs, fixed-size arrays, etc.), default to nil
+		return NIL
 	}
 }
 

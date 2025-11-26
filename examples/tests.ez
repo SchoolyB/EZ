@@ -144,7 +144,7 @@ do test_structs() {
     using std
     println("Testing structs...")
 
-    // Create struct instance
+    // Create struct instance with literal initialization
     temp person Person = Person{name: "Alice", age: 30, email: "alice@example.com"}
 
     // Access fields
@@ -154,6 +154,16 @@ do test_structs() {
     // Modify fields
     person.age = 31
     person.email = "alice@newmail.com"
+
+    // Create struct instance with new() - default values
+    temp newPerson Person = new(Person)
+    temp defaultName string = newPerson.name  // Should be ""
+    temp defaultAge int = newPerson.age       // Should be 0
+
+    // Modify fields after new()
+    newPerson.name = "Bob"
+    newPerson.age = 25
+    newPerson.email = "bob@example.com"
 
     println("  ✓ Structs working")
 }
