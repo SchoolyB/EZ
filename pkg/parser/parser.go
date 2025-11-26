@@ -533,6 +533,23 @@ func (p *Parser) parseVarableDeclarationOrStruct() Statement {
 		// We're at the name token, so we can build the VariableDeclaration
 		stmt := &VariableDeclaration{Token: savedCurrent}
 		stmt.Mutable = false // it's a const
+
+		// Check for reserved names
+		if isReservedName(nameToken.Literal) {
+			msg := fmt.Sprintf("'%s' is a reserved keyword and cannot be used as a variable name", nameToken.Literal)
+			p.errors = append(p.errors, msg)
+			p.addEZError(errors.E1009, msg, nameToken)
+			return nil
+		}
+
+		// Check for duplicate declaration
+		if !p.declareInScope(nameToken.Literal, nameToken) {
+			msg := fmt.Sprintf("'%s' is already declared in this scope", nameToken.Literal)
+			p.errors = append(p.errors, msg)
+			p.addEZError(errors.E1010, msg, nameToken)
+			return nil
+		}
+
 		stmt.Names = append(stmt.Names, &Label{Token: nameToken, Value: nameToken.Literal})
 		stmt.Name = stmt.Names[0]
 
@@ -1300,6 +1317,15 @@ func (p *Parser) parseUsingStatement() *UsingStatement {
 
 func (p *Parser) parseEnumDeclaration() *EnumDeclaration {
 	stmt := &EnumDeclaration{Token: p.currentToken}
+
+	// Check for reserved names
+	if isReservedName(p.currentToken.Literal) {
+		msg := fmt.Sprintf("'%s' is a reserved keyword and cannot be used as an enum name", p.currentToken.Literal)
+		p.errors = append(p.errors, msg)
+		p.addEZError(errors.E1009, msg, p.currentToken)
+		return nil
+	}
+
 	stmt.Name = &Label{Token: p.currentToken, Value: p.currentToken.Literal}
 
 	p.nextToken() // move past name to 'enum'
@@ -1406,6 +1432,14 @@ func (p *Parser) parseTypeName() string {
 
 func (p *Parser) parseStructDeclaration() *StructDeclaration {
 	stmt := &StructDeclaration{Token: p.currentToken}
+
+	// Check for reserved names
+	if isReservedName(p.currentToken.Literal) {
+		msg := fmt.Sprintf("'%s' is a reserved keyword and cannot be used as a struct name", p.currentToken.Literal)
+		p.errors = append(p.errors, msg)
+		p.addEZError(errors.E1009, msg, p.currentToken)
+		return nil
+	}
 
 	stmt.Name = &Label{Token: p.currentToken, Value: p.currentToken.Literal}
 
