@@ -113,6 +113,7 @@ do add(x, y int) -> int {
 
 - **Data Types**
   - Primitives: `int`, `float`, `string`, `char`, `bool`
+  - Numeric separators: underscores for readability (`1_000_000`)
   - Arrays: dynamic `[type]` and fixed-size `[type, size]`
   - Structs: user-defined types with fields
   - Enums: integer, float, and string enums with attributes
@@ -219,6 +220,12 @@ temp price float = 19.99
 temp text string = "hello"
 temp letter char = 'A'
 temp isActive bool = true
+
+// Numeric separators for readability
+temp million int = 1_000_000
+temp billion int = 7_800_000_000
+temp pi float = 3.141_592_653
+temp money float = 1_234.56
 
 // Arrays
 temp numbers [int] = {1, 2, 3, 4, 5}

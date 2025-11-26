@@ -5,6 +5,7 @@ package parser
 import (
 	"fmt"
 	"strconv"
+	"strings"
 
 	. "github.com/marshallburns/ez/pkg/ast"
 	"github.com/marshallburns/ez/pkg/errors"
@@ -1553,7 +1554,10 @@ func (p *Parser) parseStructValue(name *Label) Expression {
 func (p *Parser) parseIntegerValue() Expression {
 	lit := &IntegerValue{Token: p.currentToken}
 
-	value, err := strconv.ParseInt(p.currentToken.Literal, 0, 64)
+	// Strip underscores for numeric conversion (they're only for readability)
+	cleanedLiteral := stripUnderscores(p.currentToken.Literal)
+
+	value, err := strconv.ParseInt(cleanedLiteral, 0, 64)
 	if err != nil {
 		msg := fmt.Sprintf("could not parse %q as integer", p.currentToken.Literal)
 		p.errors = append(p.errors, msg)
@@ -1565,10 +1569,27 @@ func (p *Parser) parseIntegerValue() Expression {
 	return lit
 }
 
+// stripUnderscores removes all underscores from a numeric literal
+func stripUnderscores(s string) string {
+	if !strings.Contains(s, "_") {
+		return s
+	}
+	var result strings.Builder
+	for _, ch := range s {
+		if ch != '_' {
+			result.WriteRune(ch)
+		}
+	}
+	return result.String()
+}
+
 func (p *Parser) parseFloatValue() Expression {
 	lit := &FloatValue{Token: p.currentToken}
 
-	value, err := strconv.ParseFloat(p.currentToken.Literal, 64)
+	// Strip underscores for numeric conversion (they're only for readability)
+	cleanedLiteral := stripUnderscores(p.currentToken.Literal)
+
+	value, err := strconv.ParseFloat(cleanedLiteral, 64)
 	if err != nil {
 		msg := fmt.Sprintf("could not parse %q as float", p.currentToken.Literal)
 		p.errors = append(p.errors, msg)
