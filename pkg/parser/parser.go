@@ -104,6 +104,9 @@ type Parser struct {
 
 	// Function scope tracking
 	functionDepth int // depth of nested function scopes (0 = global, >0 = inside function)
+
+	// Active suppressions from function/block attributes
+	activeSuppressions []*Attribute
 }
 
 // Scope management methods
@@ -847,20 +850,34 @@ func (p *Parser) parseBlockStatementWithSuppress(suppressions []*Attribute) *Blo
 	return block
 }
 
-// isSuppressed checks if a warning code is suppressed by the given attributes
+// isSuppressed checks if a warning code is suppressed by active suppressions
 func (p *Parser) isSuppressed(warningCode string, attrs []*Attribute) bool {
-	if attrs == nil {
-		return false
-	}
-	for _, attr := range attrs {
-		if attr.Name == "suppress" {
-			for _, arg := range attr.Args {
-				if arg == warningCode {
-					return true
+	// First check attrs parameter (for backwards compatibility)
+	if attrs != nil {
+		for _, attr := range attrs {
+			if attr.Name == "suppress" {
+				for _, arg := range attr.Args {
+					if arg == warningCode {
+						return true
+					}
 				}
 			}
 		}
 	}
+
+	// Then check active suppressions from parser state
+	if p.activeSuppressions != nil {
+		for _, attr := range p.activeSuppressions {
+			if attr.Name == "suppress" {
+				for _, arg := range attr.Args {
+					if arg == warningCode {
+						return true
+					}
+				}
+			}
+		}
+	}
+
 	return false
 }
 
@@ -1058,8 +1075,17 @@ func (p *Parser) parseFunctionDeclarationWithAttrs(attrs []*Attribute) *Function
 	// Enter function scope
 	p.functionDepth++
 
-	// Parse body with attributes for suppression
-	stmt.Body = p.parseBlockStatementWithSuppress(stmt.Attributes)
+	// Save parent suppressions and add this function's suppressions
+	parentSuppressions := p.activeSuppressions
+	if stmt.Attributes != nil {
+		p.activeSuppressions = append(p.activeSuppressions, stmt.Attributes...)
+	}
+
+	// Parse body - suppressions will be inherited from activeSuppressions
+	stmt.Body = p.parseBlockStatement()
+
+	// Restore parent suppressions
+	p.activeSuppressions = parentSuppressions
 
 	// Exit function scope
 	p.functionDepth--
