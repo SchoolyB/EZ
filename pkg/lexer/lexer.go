@@ -327,14 +327,62 @@ func (l *Lexer) readNumber() (string, tokenizer.TokenType) {
 	startColumn := l.column
 	tokenType := tokenizer.INT
 
-	for isDigit(l.ch) {
+	// Read integer part (digits and underscores)
+	for isDigit(l.ch) || l.ch == '_' {
+		if l.ch == '_' {
+			// Check for invalid underscore placement
+			next := l.peekChar()
+
+			// Cannot have consecutive underscores
+			if next == '_' {
+				l.addError("E1006", "consecutive underscores not allowed in numeric literals", startLine, startColumn)
+				l.readChar()
+				continue
+			}
+
+			// Cannot have underscore at end (followed by non-digit/non-underscore)
+			if !isDigit(next) && next != '.' {
+				// This might be the trailing underscore
+				l.addError("E1006", "numeric literal cannot end with underscore", startLine, startColumn)
+			}
+		}
 		l.readChar()
 	}
 
+	// Check for decimal point
 	if l.ch == '.' && isDigit(l.peekChar()) {
 		tokenType = tokenizer.FLOAT
+
+		// Check if there's an underscore before the decimal point
+		if position < l.position && l.input[l.position-1] == '_' {
+			l.addError("E1006", "underscore cannot appear immediately before decimal point", startLine, startColumn)
+		}
+
 		l.readChar() // consume '.'
-		for isDigit(l.ch) {
+
+		// Check if there's an underscore after the decimal point
+		if l.ch == '_' {
+			l.addError("E1006", "underscore cannot appear immediately after decimal point", startLine, startColumn)
+			l.readChar()
+		}
+
+		// Read fractional part (digits and underscores)
+		for isDigit(l.ch) || l.ch == '_' {
+			if l.ch == '_' {
+				next := l.peekChar()
+
+				// Cannot have consecutive underscores
+				if next == '_' {
+					l.addError("E1006", "consecutive underscores not allowed in numeric literals", startLine, startColumn)
+					l.readChar()
+					continue
+				}
+
+				// Cannot end with underscore
+				if !isDigit(next) {
+					l.addError("E1006", "numeric literal cannot end with underscore", startLine, startColumn)
+				}
+			}
 			l.readChar()
 		}
 
@@ -343,11 +391,26 @@ func (l *Lexer) readNumber() (string, tokenizer.TokenType) {
 			l.addError("E1006", "invalid number format: multiple decimal points", startLine, startColumn)
 		}
 	} else if l.ch == '.' && !isDigit(l.peekChar()) {
-		// Number ends with a dot but no digits after (e.g., "1.")
-		l.addError("E1006", "invalid number format: decimal point must be followed by digits", startLine, startColumn)
+		// Number ends with a dot but no digits after (e.g., "1." or "1._")
+		// But check if underscore before dot
+		if position < l.position && l.input[l.position-1] == '_' {
+			l.addError("E1006", "underscore cannot appear immediately before decimal point", startLine, startColumn)
+		}
+		// Check if underscore after dot
+		if l.peekChar() == '_' {
+			l.addError("E1006", "underscore cannot appear immediately after decimal point", startLine, startColumn)
+		} else {
+			l.addError("E1006", "invalid number format: decimal point must be followed by digits", startLine, startColumn)
+		}
 	}
 
-	return l.input[position:l.position], tokenType
+	// Check for leading underscore (number starts with underscore)
+	literal := l.input[position:l.position]
+	if len(literal) > 0 && literal[0] == '_' {
+		l.addError("E1006", "numeric literal cannot start with underscore", startLine, startColumn)
+	}
+
+	return literal, tokenType
 }
 
 func (l *Lexer) readString() (string, bool) {
