@@ -1,0 +1,148 @@
+import @std
+
+/*
+ * EZ Language - loop Keyword Examples
+ *
+ * The loop keyword provides clean syntax for infinite loops.
+ * Loops run forever until explicitly broken with the break statement.
+ * This is useful for event loops, game loops, server loops, etc.
+ */
+
+do main() {
+    using std
+
+    println("=== loop Keyword Examples ===")
+    println("")
+
+    example_basic()
+    example_with_continue()
+    example_counter()
+    example_nested()
+    example_event_pattern()
+}
+
+// Basic infinite loop with break
+do example_basic() {
+    using std
+
+    println("1. Basic loop with break:")
+    temp count int = 0
+    loop {
+        print("  ")
+        println(count)
+        count = count + 1
+
+        if count >= 5 {
+            break
+        }
+    }
+    println("")
+}
+
+// Infinite loop with continue
+do example_with_continue() {
+    using std
+
+    println("2. loop with continue (skip even numbers):")
+    temp num int = 0
+    temp printed int = 0
+    loop {
+        num = num + 1
+
+        if num % 2 == 0 {
+            continue
+        }
+
+        print("  ")
+        println(num)
+        printed = printed + 1
+
+        if printed == 5 {
+            break
+        }
+    }
+    println("")
+}
+
+// Counter that breaks at specific value
+do example_counter() {
+    using std
+
+    println("3. Counter with break condition:")
+    temp i int = 0
+    loop {
+        i = i + 1
+
+        if i % 10 == 0 {
+            print("  ")
+            print(i)
+            println("...")
+        }
+
+        if i == 50 {
+            println("  Reached 50, breaking!")
+            break
+        }
+    }
+    println("")
+}
+
+// Nested infinite loops
+do example_nested() {
+    using std
+
+    println("4. Nested loops:")
+    temp outer int = 0
+    loop {
+        temp inner int = 0
+        loop {
+            print("  (")
+            print(outer)
+            print(", ")
+            print(inner)
+            println(")")
+
+            inner = inner + 1
+            if inner >= 3 {
+                break
+            }
+        }
+
+        outer = outer + 1
+        if outer >= 3 {
+            break
+        }
+    }
+    println("")
+}
+
+// Simulated event loop pattern
+do example_event_pattern() {
+    using std
+
+    println("5. Event loop pattern:")
+    temp events int = 0
+    temp processed int = 0
+
+    loop {
+        events = events + 1
+
+        // Simulate checking for event
+        if events % 3 == 0 {
+            println("  Skipping empty event...")
+            continue
+        }
+
+        // Process event
+        print("  Processing event ")
+        println(events)
+        processed = processed + 1
+
+        // Exit condition
+        if processed >= 5 {
+            println("  Processed 5 events, shutting down...")
+            break
+        }
+    }
+    println("")
+}
