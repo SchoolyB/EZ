@@ -247,6 +247,32 @@ do test_control_flow() {
         oddSum += continueTest
     }
 
+    // Infinite loop with break
+    temp loopCount int = 0
+    loop {
+        loopCount += 1
+        if loopCount == 5 {
+            break
+        }
+    }
+
+    // Infinite loop with continue
+    temp loopTest int = 0
+    temp evenCount int = 0
+    loop {
+        loopTest += 1
+
+        if loopTest % 2 != 0 {
+            continue
+        }
+
+        evenCount += 1
+
+        if evenCount == 5 {
+            break
+        }
+    }
+
     println("  ✓ Control flow working")
 }
 
