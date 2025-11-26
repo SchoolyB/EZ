@@ -48,7 +48,16 @@ type Float struct {
 }
 
 func (f *Float) Type() ObjectType { return FLOAT_OBJ }
-func (f *Float) Inspect() string  { return fmt.Sprintf("%g", f.Value) }
+func (f *Float) Inspect() string {
+	// Format float, ensuring we always show at least .0 for whole numbers
+	s := fmt.Sprintf("%.10f", f.Value)
+	// Trim trailing zeros, but keep at least one digit after decimal point
+	s = strings.TrimRight(s, "0")
+	if strings.HasSuffix(s, ".") {
+		s += "0"
+	}
+	return s
+}
 
 // String wraps string
 type String struct {
