@@ -678,46 +678,8 @@ func (p *Parser) parseVarableDeclaration() *VariableDeclaration {
 
 	// Parse type - can be IDENT or [type] for arrays
 	p.nextToken()
-	if p.currentTokenMatches(LBRACKET) {
-		// Array type [type] or [type, size]
-		typeName := "["
-		p.nextToken() // move past [
-
-		// The element type should be an identifier
-		if !p.currentTokenMatches(IDENT) {
-			msg := fmt.Sprintf("expected type name, got %s", p.currentToken.Type)
-			p.errors = append(p.errors, msg)
-			p.addEZError(errors.E1007, msg, p.currentToken)
-			return nil
-		}
-		typeName += p.currentToken.Literal
-
-		// Check for fixed-size array syntax: [type, size]
-		if p.peekTokenMatches(COMMA) {
-			p.nextToken() // consume comma
-			p.nextToken() // get size
-
-			// Size should be an integer
-			if !p.currentTokenMatches(INT) {
-				msg := fmt.Sprintf("expected integer for array size, got %s", p.currentToken.Type)
-				p.errors = append(p.errors, msg)
-				p.addEZError(errors.E1007, msg, p.currentToken)
-				return nil
-			}
-			typeName += "," + p.currentToken.Literal
-		}
-
-		if !p.expectPeek(RBRACKET) {
-			return nil
-		}
-		typeName += "]"
-		stmt.TypeName = typeName
-	} else if p.currentTokenMatches(IDENT) {
-		stmt.TypeName = p.currentToken.Literal
-	} else {
-		msg := fmt.Sprintf("expected type, got %s", p.currentToken.Type)
-		p.errors = append(p.errors, msg)
-		p.addEZError(errors.E1007, msg, p.currentToken)
+	stmt.TypeName = p.parseTypeName()
+	if stmt.TypeName == "" {
 		return nil
 	}
 
@@ -1374,6 +1336,55 @@ func (p *Parser) parseEnumDeclaration() *EnumDeclaration {
 	return stmt
 }
 
+// parseTypeName parses a type name which can be:
+// - Simple type: int, string, StructName
+// - Array type: [int], [string], [StructName]
+// - Fixed-size array: [int,5], [string,10]
+func (p *Parser) parseTypeName() string {
+	if p.currentTokenMatches(LBRACKET) {
+		// Array type [type] or [type, size]
+		typeName := "["
+		p.nextToken() // move past [
+
+		// The element type should be an identifier
+		if !p.currentTokenMatches(IDENT) {
+			msg := fmt.Sprintf("expected type name, got %s", p.currentToken.Type)
+			p.errors = append(p.errors, msg)
+			p.addEZError(errors.E1007, msg, p.currentToken)
+			return ""
+		}
+		typeName += p.currentToken.Literal
+
+		// Check for fixed-size array syntax: [type, size]
+		if p.peekTokenMatches(COMMA) {
+			p.nextToken() // consume comma
+			p.nextToken() // get size
+
+			// Size should be an integer
+			if !p.currentTokenMatches(INT) {
+				msg := fmt.Sprintf("expected integer for array size, got %s", p.currentToken.Type)
+				p.errors = append(p.errors, msg)
+				p.addEZError(errors.E1007, msg, p.currentToken)
+				return ""
+			}
+			typeName += "," + p.currentToken.Literal
+		}
+
+		if !p.expectPeek(RBRACKET) {
+			return ""
+		}
+		typeName += "]"
+		return typeName
+	} else if p.currentTokenMatches(IDENT) {
+		return p.currentToken.Literal
+	} else {
+		msg := fmt.Sprintf("expected type, got %s", p.currentToken.Type)
+		p.errors = append(p.errors, msg)
+		p.addEZError(errors.E1007, msg, p.currentToken)
+		return ""
+	}
+}
+
 func (p *Parser) parseStructDeclaration() *StructDeclaration {
 	stmt := &StructDeclaration{Token: p.currentToken}
 
@@ -1406,10 +1417,14 @@ func (p *Parser) parseStructDeclaration() *StructDeclaration {
 			fieldNames[field.Name.Value] = field.Name.Token
 		}
 
-		if !p.expectPeek(IDENT) {
+		// Move to type token (can be IDENT or LBRACKET for arrays)
+		p.nextToken()
+
+		// Parse the type name (handles both simple types and array types)
+		field.TypeName = p.parseTypeName()
+		if field.TypeName == "" {
 			return nil
 		}
-		field.TypeName = p.currentToken.Literal
 
 		stmt.Fields = append(stmt.Fields, field)
 		p.nextToken()
