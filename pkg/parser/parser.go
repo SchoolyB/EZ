@@ -1056,15 +1056,28 @@ func (p *Parser) parseFunctionDeclarationWithAttrs(attrs []*Attribute) *Function
 
 	// Parse return type(s)
 	if p.peekTokenMatches(ARROW) {
+		arrowToken := p.peekToken // save for error reporting
 		p.nextToken() // consume ->
 		p.nextToken() // move to return type
+
+		// Check if return type is missing (e.g., "do func() -> {")
+		if p.currentTokenMatches(LBRACE) {
+			msg := "expected return type after '->'"
+			p.addEZError(errors.E1002, msg, arrowToken)
+			return nil
+		}
 
 		if p.currentTokenMatches(LPAREN) {
 			// Multiple return types
 			stmt.ReturnTypes = p.parseReturnTypes()
-		} else {
+		} else if p.currentTokenMatches(IDENT) {
 			// Single return type
 			stmt.ReturnTypes = []string{p.currentToken.Literal}
+		} else {
+			// Invalid token after arrow
+			msg := fmt.Sprintf("expected return type after '->', got %s instead", p.currentToken.Type)
+			p.addEZError(errors.E1002, msg, arrowToken)
+			return nil
 		}
 	}
 
