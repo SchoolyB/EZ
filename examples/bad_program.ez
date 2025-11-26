@@ -1,0 +1,57 @@
+import @std
+
+// Comprehensive bad program to test error handling
+// Contains intentional errors to verify compiler catches them
+
+const Person struct {
+    name string
+    age int
+}
+
+do main() {
+    using std
+
+    println("Testing various errors...")
+
+    // ERROR 1: Type mismatch - adding int and string
+    // temp x int = 5
+    // temp y string = "hello"
+    // temp result1 int = x + y
+
+    // ERROR 2: Undefined variable
+    // println(undefinedVar)
+
+    // ERROR 3: Division by zero
+    // temp zero int = 0
+    // temp result2 int = 10 / zero
+
+    // ERROR 4: Array out of bounds
+    // temp arr [int] = {1, 2, 3}
+    // temp val int = arr[100]
+
+    // ERROR 5: Undefined function
+    // nonExistent()
+
+    // ERROR 6: Wrong number of arguments
+    // testFunc(5)
+
+    // ERROR 7: Reassigning const
+    // const immutable int = 10
+    // immutable = 20
+
+    // ERROR 8: Accessing undefined struct field
+    // temp p Person = Person{name: "Alice", age: 30}
+    // println(p.undefinedField)
+
+    // ERROR 9: Calling non-function
+    // temp notFunc int = 42
+    // notFunc()
+
+    // ERROR 10: Indexing non-array
+    temp num int = 5
+    temp bad int = num[0]
+}
+
+do testFunc(x, y int) {
+    println(x, y)
+}

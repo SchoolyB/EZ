@@ -356,6 +356,7 @@ func (p *Parser) ParseProgram() *Program {
 	program.Statements = []Statement{}
 
 	seenOtherDeclaration := false
+	importedModules := make(map[string]bool) // Track imported modules
 
 	for !p.currentTokenMatches(EOF) {
 		// Track what we've seen for placement validation
@@ -370,6 +371,13 @@ func (p *Parser) ParseProgram() *Program {
 			// Parse and add to FileUsing
 			usingStmt := p.parseUsingStatement()
 			if usingStmt != nil {
+				// Validate that all modules in the using statement have been imported
+				for _, module := range usingStmt.Modules {
+					if !importedModules[module.Value] {
+						msg := fmt.Sprintf("cannot use module '%s' before importing it", module.Value)
+						p.addEZError(errors.E1003, msg, usingStmt.Token)
+					}
+				}
 				program.FileUsing = append(program.FileUsing, usingStmt)
 			}
 			p.nextToken()
@@ -381,6 +389,16 @@ func (p *Parser) ParseProgram() *Program {
 		stmt := p.parseStatement()
 		if stmt != nil {
 			program.Statements = append(program.Statements, stmt)
+
+			// Track imported modules
+			if importStmt, ok := stmt.(*ImportStatement); ok {
+				// Extract module name (handle both @std and alias@std)
+				moduleName := importStmt.Module
+				if strings.HasPrefix(moduleName, "@") {
+					moduleName = moduleName[1:] // Remove @ prefix
+				}
+				importedModules[moduleName] = true
+			}
 		}
 		p.nextToken()
 	}
