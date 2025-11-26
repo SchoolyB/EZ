@@ -80,6 +80,15 @@ type StringValue struct {
 func (v *StringValue) expressionNode(){}
 func (v *StringValue) TokenLiteral() string { return v.Token.Literal }
 
+// InterpolatedString represents a string with embedded expressions like "Hello, ${name}!"
+type InterpolatedString struct {
+	Token Token
+	Parts []Expression // alternating StringValue and Expression nodes
+}
+
+func (i *InterpolatedString) expressionNode(){}
+func (i *InterpolatedString) TokenLiteral() string { return i.Token.Literal }
+
 // CharValue represents a character value
 type CharValue struct {
 	Token Token

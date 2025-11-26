@@ -168,6 +168,9 @@ func Eval(node ast.Node, env *Environment) Object {
 	case *ast.StringValue:
 		return &String{Value: node.Value}
 
+	case *ast.InterpolatedString:
+		return evalInterpolatedString(node, env)
+
 	case *ast.CharValue:
 		return &Char{Value: node.Value}
 
@@ -1300,6 +1303,23 @@ func evalStringIndexExpression(str, index Object) Object {
 	}
 
 	return &Char{Value: rune(stringObject.Value[idx])}
+}
+
+func evalInterpolatedString(node *ast.InterpolatedString, env *Environment) Object {
+	var result strings.Builder
+
+	for _, part := range node.Parts {
+		// Evaluate the part
+		val := Eval(part, env)
+		if isError(val) {
+			return val
+		}
+
+		// Convert to string using Inspect()
+		result.WriteString(val.Inspect())
+	}
+
+	return &String{Value: result.String()}
 }
 
 func evalStructValue(node *ast.StructValue, env *Environment) Object {

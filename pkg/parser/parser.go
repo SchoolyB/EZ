@@ -1581,7 +1581,171 @@ func (p *Parser) parseFloatValue() Expression {
 }
 
 func (p *Parser) parseStringValue() Expression {
-	return &StringValue{Token: p.currentToken, Value: p.currentToken.Literal}
+	token := p.currentToken
+	literal := p.currentToken.Literal
+
+	// Check if string contains interpolation patterns ${...}
+	if !containsInterpolation(literal) {
+		return &StringValue{Token: token, Value: literal}
+	}
+
+	// Parse interpolated string
+	parts := make([]Expression, 0)
+	i := 0
+	currentLiteral := ""
+
+	for i < len(literal) {
+		// Look for ${
+		if i < len(literal)-1 && literal[i] == '$' && literal[i+1] == '{' {
+			// Add any accumulated literal before this interpolation
+			if currentLiteral != "" {
+				parts = append(parts, &StringValue{
+					Token: token,
+					Value: currentLiteral,
+				})
+				currentLiteral = ""
+			}
+
+			// Find matching closing brace
+			i += 2 // skip ${
+			braceCount := 1
+			exprStart := i
+
+			for i < len(literal) && braceCount > 0 {
+				if literal[i] == '{' {
+					braceCount++
+				} else if literal[i] == '}' {
+					braceCount--
+				}
+				if braceCount > 0 {
+					i++
+				}
+			}
+
+			if braceCount != 0 {
+				// Unclosed interpolation
+				p.addEZError(errors.E1005, "unclosed interpolation in string", token)
+				return &StringValue{Token: token, Value: literal}
+			}
+
+			// Parse the expression inside ${}
+			exprStr := literal[exprStart:i]
+			if exprStr == "" {
+				p.addEZError(errors.E1002, "empty interpolation in string", token)
+			} else {
+				// Create a mini-lexer and parser for the expression
+				expr := p.parseInterpolatedExpression(exprStr, token)
+				if expr != nil {
+					parts = append(parts, expr)
+				}
+			}
+
+			i++ // skip the closing }
+		} else {
+			currentLiteral += string(literal[i])
+			i++
+		}
+	}
+
+	// Add any remaining literal
+	if currentLiteral != "" {
+		parts = append(parts, &StringValue{
+			Token: token,
+			Value: currentLiteral,
+		})
+	}
+
+	return &InterpolatedString{
+		Token: token,
+		Parts: parts,
+	}
+}
+
+// containsInterpolation checks if a string contains ${} patterns
+func containsInterpolation(s string) bool {
+	for i := 0; i < len(s)-1; i++ {
+		if s[i] == '$' && s[i+1] == '{' {
+			return true
+		}
+	}
+	return false
+}
+
+// parseInterpolatedExpression parses an expression from within ${}
+func (p *Parser) parseInterpolatedExpression(exprStr string, origToken Token) Expression {
+	// Create a new lexer for the expression
+	lexer := NewLexer(exprStr)
+
+	// Create a temporary parser
+	tempParser := &Parser{
+		l:              lexer,
+		prefixParseFns: make(map[TokenType]prefixParseFn),
+		infixParseFns:  make(map[TokenType]infixParseFn),
+		ezErrors:       p.ezErrors,
+		source:         exprStr,
+		filename:       p.filename,
+	}
+
+	// Register the same parse functions
+	tempParser.registerParseFunctions()
+
+	// Initialize tokens
+	tempParser.nextToken()
+	tempParser.nextToken()
+
+	// Parse the expression
+	expr := tempParser.parseExpression(LOWEST)
+
+	// Check for errors
+	if len(tempParser.errors) > 0 {
+		for _, err := range tempParser.errors {
+			p.errors = append(p.errors, err)
+		}
+		return nil
+	}
+
+	return expr
+}
+
+// registerParseFunctions sets up all prefix and infix parse functions
+func (p *Parser) registerParseFunctions() {
+	// Prefix parse functions
+	p.setPrefix(IDENT, p.parseIdentifier)
+	p.setPrefix(INT, p.parseIntegerValue)
+	p.setPrefix(FLOAT, p.parseFloatValue)
+	p.setPrefix(STRING, p.parseStringValue)
+	p.setPrefix(CHAR, p.parseCharValue)
+	p.setPrefix(TRUE, p.parseBooleanValue)
+	p.setPrefix(FALSE, p.parseBooleanValue)
+	p.setPrefix(NIL, p.parseNilValue)
+	p.setPrefix(BANG, p.parsePrefixExpression)
+	p.setPrefix(MINUS, p.parsePrefixExpression)
+	p.setPrefix(LPAREN, p.parseGroupedExpression)
+	p.setPrefix(LBRACE, p.parseArrayValue)
+	p.setPrefix(NEW, p.parseNewExpression)
+	p.setPrefix(RANGE, p.parseRangeExpression)
+
+	// Infix parse functions
+	p.setInfix(PLUS, p.parseInfixExpression)
+	p.setInfix(MINUS, p.parseInfixExpression)
+	p.setInfix(ASTERISK, p.parseInfixExpression)
+	p.setInfix(SLASH, p.parseInfixExpression)
+	p.setInfix(PERCENT, p.parseInfixExpression)
+	p.setInfix(EQ, p.parseInfixExpression)
+	p.setInfix(NOT_EQ, p.parseInfixExpression)
+	p.setInfix(LT, p.parseInfixExpression)
+	p.setInfix(GT, p.parseInfixExpression)
+	p.setInfix(LT_EQ, p.parseInfixExpression)
+	p.setInfix(GT_EQ, p.parseInfixExpression)
+	p.setInfix(AND, p.parseInfixExpression)
+	p.setInfix(OR, p.parseInfixExpression)
+	p.setInfix(IN, p.parseInfixExpression)
+	p.setInfix(NOT_IN, p.parseInfixExpression)
+	p.setInfix(LPAREN, p.parseCallExpression)
+	p.setInfix(LBRACKET, p.parseIndexExpression)
+	p.setInfix(DOT, p.parseMemberExpression)
+	p.setInfix(INCREMENT, p.parsePostfixExpression)
+	p.setInfix(DECREMENT, p.parsePostfixExpression)
 }
 
 func (p *Parser) parseCharValue() Expression {
