@@ -1,4 +1,5 @@
 package interpreter
+
 // Copyright (c) 2025-Present Marshall A Burns
 // Licensed under the MIT License. See LICENSE for details.
 
@@ -8,7 +9,19 @@ import (
 )
 
 var arraysBuiltins = map[string]*Builtin{
-	// Basic operations
+
+	/*
+		Func: arrays.len()
+		Desc: Returns the length of an array as an integer.
+
+		Format: arrays.len(yourArray)
+
+		Usage:
+
+		temp arr [int] = {1,2,3}
+		temp arrLen = arrays.len(arr)
+		std.println(arrLen) # Output: 3
+	*/
 	"arrays.len": {
 		Fn: func(args ...Object) Object {
 			if len(args) != 1 {
@@ -21,6 +34,8 @@ var arraysBuiltins = map[string]*Builtin{
 			return &Integer{Value: int64(len(arr.Elements))}
 		},
 	},
+
+	//Returns a boolean indicating if the array is empty or not.
 	"arrays.is_empty": {
 		Fn: func(args ...Object) Object {
 			if len(args) != 1 {
@@ -36,8 +51,18 @@ var arraysBuiltins = map[string]*Builtin{
 			return FALSE
 		},
 	},
+	/*
+		Func: arrays.push()
+		Desc: Adds one or more elements to the end of an array, Modifies the original array(Meaning no new array is returned).
 
-	// Adding elements
+		Format: arrays.push(yourArray, valueToAdd1, valueToAdd2, moreValues)
+
+		Usage:
+
+		temp arr [int] = {1,2,3}
+		arrays.push(arr, 4, 5)
+		std.println(arr) # Output: {1, 2, 3, 4, 5}
+	*/
 	"arrays.push": {
 		Fn: func(args ...Object) Object {
 			if len(args) < 2 {
@@ -52,6 +77,19 @@ var arraysBuiltins = map[string]*Builtin{
 			return NIL
 		},
 	},
+
+	/*
+		Func: arrays.unshift()
+		Desc: Adds one or more elements to the beginning of an array, Returns a new array.
+
+		Format: arrays.unshift(yourArray, valueToAdd1, valueToAdd2, moreValues)
+
+		Usage:
+
+		temp oldArray [int] = {2, 3, 4}
+		temp newArr = arrays.unshift(oldArray, 0, 1)
+		std.println(newArr) # Output: {0, 1, 2, 3, 4}
+	*/
 	"arrays.unshift": {
 		Fn: func(args ...Object) Object {
 			if len(args) < 2 {
@@ -67,6 +105,18 @@ var arraysBuiltins = map[string]*Builtin{
 			return &Array{Elements: newElements}
 		},
 	},
+
+	/*
+		Func: arrays.insert()
+		Desc: Inserts an element at a specified index in an array, Returns a new array.
+
+		Format: arrays.insert(yourArray, indexToInsertAt, valueToInsert)
+		Usage:
+
+		temp oldArray [int] = {10, 30, 40}
+		temp newArr = arrays.insert(oldArray, 1, 20)
+		std.println(newArr) # Output: {10, 20, 30, 40}
+	*/
 	"arrays.insert": {
 		Fn: func(args ...Object) Object {
 			if len(args) != 3 {
@@ -91,8 +141,18 @@ var arraysBuiltins = map[string]*Builtin{
 			return &Array{Elements: newElements}
 		},
 	},
+	/*
+		Func: arrays.pop()
+		Desc: Removes and returns the last element from an array, Modifies the original array(Meaning no new array is returned).
 
-	// Removing elements
+		Format: arrays.pop(yourArray)
+		Usage:
+
+		temp arr [char] = {'A', 'B', 'C'}
+		temp lastElement = arrays.pop(arr)
+		std.println(arr) # Output: {'A', 'B'}
+		std.println(lastElement) # Output: 'C'
+	*/
 	"arrays.pop": {
 		Fn: func(args ...Object) Object {
 			if len(args) != 1 {
@@ -112,6 +172,17 @@ var arraysBuiltins = map[string]*Builtin{
 			return lastElement
 		},
 	},
+	/*
+		Func: arrays.shift()
+		Desc: Removes and returns the first element from an array, Returns the first element.
+
+		Format: arrays.shift(yourArray)
+		Usage:
+
+		temp arr [int] = {10, 20, 30, 40}
+		temp firstElement = arrays.shift(arr)
+		std.println(firstElement) # Output: 10
+	*/
 	"arrays.shift": {
 		Fn: func(args ...Object) Object {
 			if len(args) != 1 {
