@@ -4,8 +4,9 @@
 
 # EZ Language
 
-A brutally simple interpreted programming language written in Go. The core philosophy is radical simplicity - no magic, no surprises, just straightforward code that does exactly what it says.
+A simple interpreted programming language written in Go. The core philosophy is simplicity and lower barrier of entry.
 
+**Note: Currently under heavy active development so things may change**
 ---
 
 ## Table of Contents
@@ -18,25 +19,25 @@ A brutally simple interpreted programming language written in Go. The core philo
 
 ---
 
-## Introduction
 
-### Core Philosophy
-- **Simplicity above all else** - simpler than Python, C, or anything else
-- **Explicit over implicit** - you see exactly what's happening
-- **No object-oriented programming** - procedural/functional style only
-- **Small feature set that composes well**
-- **General-purpose language** - like C, Go, or Odin, suitable for building real programs
+  ## Introduction
 
-### Type System
-- **Static typing** - types are checked at runtime
-- **Strong typing** - no implicit type coercion
-- **No type inference** - explicit type declarations for clarity
+  EZ is a simple, statically-typed programming language designed to be easy to learn and
+  understand. No object-oriented programming or no implicit behaviors, just clear & explicit code
+  that does what it says.
 
-### Design Goals
-- **Radically simple** - anyone can understand any program at a glance
-- **No magic** - every feature must justify its existence
-- **Comprehensive standard library** - programmers shouldn't need custom helper libraries
-- **Clear error messages** - Rust-inspired error formatting with helpful context
+  ### Design Philosophy
+  - **Simplicity above all else** - easier than Python, clearer than Go
+  - **Explicit over implicit** - no magic, every feature justifies its existence
+  - **Procedural/functional only** - no OOP, classes, or inheritance
+  - **Comprehensive standard library** - batteries included, no need for helper libraries
+  - **Clear error messages** - Rust-inspired formatting with helpful context
+  - **Easy to learn, ready to use** - gentle learning curve with real-world utility
+
+  ### Type System
+  - **Static typing** - types are checked before execution
+  - **Strong typing** - no implicit type coercion
+  - **Explicit declarations** - no type inference, types are always visible
 
 ---
 
@@ -44,40 +45,36 @@ A brutally simple interpreted programming language written in Go. The core philo
 
 ### Installation
 
-```bash
-# Clone the repository
-git clone https://github.com/SchoolyB/EZ.git
-cd EZ
+  ```bash
+  # Clone the repository
+  git clone https://github.com/SchoolyB/EZ.git
+  cd EZ
 
-# Build the interpreter
-go build -o ez.bin ./cmd/ez
+  # Build the interpreter
+  go build -o ez.bin ./cmd/ez
 
-# Run your first program
-./ez.bin run examples/hello.ez
-```
+  # Run the hello world example
+  ./ez.bin run examples/hello.ez
+  ```
 
-### Hello World
+  # Hello World
+  ## Here's what's in examples/hello.ez:
+  ```ez
+  import @std
 
-Create a file called `hello.ez`:
+  do main() {
+    std.println("Hello, World!")
+  }
+  ```
 
-```ez
-import @std
-
-do main() {
-    using std
-    println("Hello, World!")
-}
-```
-
-Run it:
-```bash
-./ez.bin run hello.ez
-```
+To create your own programs, just create a `.ez` file in root of the project and run it:
+`./ez.bin run your_program.ez`
 
 ### Basic Example
 
 ```ez
 import @std
+import @math
 
 do main() {
     using std
@@ -86,20 +83,24 @@ do main() {
     temp name string = "EZ"
     const version float = 0.1
 
-    println("Welcome to", name, "version", version)
+    println("Welcome to ${name} version: ${version}!")
 
     // Arrays
     temp numbers [int] = {1, 2, 3, 4, 5}
     println("Numbers:", numbers)
 
-    // Functions
-    temp result int = add(10, 20)
-    println("10 + 20 =", result)
+    
+    //Functions
+    std.println("Hello, ${get_user_name()}")
+    
+}
+//Function that gets user input and returns its value
+do get_user_name() -> string{
+  temp username = input()
+  return username
 }
 
-do add(x, y int) -> int {
-    return x + y
-}
+
 ```
 
 ---
@@ -112,7 +113,7 @@ do add(x, y int) -> int {
 - **Variables & Constants**
   - `temp` for mutable variables
   - `const` for immutable constants
-  - Default values for uninitialized variables
+  - Default values for uninitialized `temp` variables
   - Variable shadowing in nested scopes
 
 - **Data Types**
@@ -128,7 +129,7 @@ do add(x, y int) -> int {
   - Logical: `&&`, `||`, `!`
   - Assignment: `=`, `+=`, `-=`, `*=`, `/=`, `%=`
   - Increment/Decrement: `++`, `--`
-  - Membership: `in`, `!in`, `not_in`
+  - Membership: `in`, `!in` or `not_in`
 
 - **Control Flow**
   - `if` / `or` / `otherwise` conditionals
@@ -187,11 +188,11 @@ do add(x, y int) -> int {
   - Error codes (E1xxx, E2xxx, E3xxx)
   - Line and column information
   - Helpful error context
-  - `@suppress(code)` attribute for warnings
+  - `@suppress(error_code)` attribute for warnings
 
 #### Partially Implemented
 - **Arrays** - Multi-dimensional arrays partially supported (issue #5)
-- **Standard Library** - Only `@std` and `@arrays` currently available
+- **Standard Library** - Currently Implemented: `@std`, `@arrays`, `m@ath`, `@time`
 
 ---
 
