@@ -11,9 +11,9 @@ import (
 )
 
 var builtins = map[string]*Builtin{
-	//BASIC STANDARD LIBRARY BUILTINS
+	// BASIC STANDARD LIBRARY BUILTINS
 
-	//Prints values to standard output followed by a newline. Any number of arguments can be provided.
+	// Prints values to standard output followed by a newline. Any number of arguments can be provided.
 	"std.println": {
 		Fn: func(args ...Object) Object {
 			for i, arg := range args {
@@ -26,7 +26,7 @@ var builtins = map[string]*Builtin{
 			return NIL
 		},
 	},
-	//Prints values to standard output WITHOUT a newline. Any number of arguments can be provided.
+	// Prints values to standard output WITHOUT a newline. Any number of arguments can be provided.
 	"std.print": {
 		Fn: func(args ...Object) Object {
 			for i, arg := range args {
@@ -39,10 +39,10 @@ var builtins = map[string]*Builtin{
 		},
 	},
 
-	//START OF FULL BUILTINS
+	// START OF FULL BUILTINS
 
-	//Reads an integer from standard input. Returns the integer and an error object (nil if no error).
-	//Recomended to just use input() and convert to type: `int` manually.
+	// Reads an integer from standard input. Returns the integer and an error object (nil if no error).
+	// Recomended to just use input() and convert to type: `int` manually.
 	"read_int": {
 		Fn: func(args ...Object) Object {
 			reader := bufio.NewReader(os.Stdin)
@@ -82,7 +82,7 @@ var builtins = map[string]*Builtin{
 		},
 	},
 
-	//Returns the length of a string or array as an integer.
+	// Returns the length of a string or array as an integer.
 	"len": {
 		Fn: func(args ...Object) Object {
 			if len(args) != 1 {
@@ -99,7 +99,7 @@ var builtins = map[string]*Builtin{
 			}
 		},
 	},
-	//Returns the type of the given object as a string.
+	// Returns the type of the given object as a string.
 	"typeof": {
 		Fn: func(args ...Object) Object {
 			if len(args) != 1 {
@@ -166,7 +166,7 @@ var builtins = map[string]*Builtin{
 		},
 	},
 
-	//Reads a line of input from standard input and returns it as a string.
+	// Reads a line of input from standard input and returns it as a string.
 	"input": {
 		Fn: func(args ...Object) Object {
 			reader := bufio.NewReader(os.Stdin)
@@ -178,67 +178,4 @@ var builtins = map[string]*Builtin{
 			return &String{Value: text}
 		},
 	},
-}
-
-// formatString is a simple printf-style formatter
-func formatString(format string, args []Object) string {
-	result := ""
-	argIdx := 0
-
-	for i := 0; i < len(format); i++ {
-		if format[i] == '%' && i+1 < len(format) {
-			if argIdx >= len(args) {
-				result += string(format[i])
-				continue
-			}
-
-			switch format[i+1] {
-			case 's':
-				result += args[argIdx].Inspect()
-				argIdx++
-				i++
-			case 'd':
-				if intObj, ok := args[argIdx].(*Integer); ok {
-					result += fmt.Sprintf("%d", intObj.Value)
-				} else {
-					result += args[argIdx].Inspect()
-				}
-				argIdx++
-				i++
-			case 'f':
-				if floatObj, ok := args[argIdx].(*Float); ok {
-					result += fmt.Sprintf("%f", floatObj.Value)
-				} else if intObj, ok := args[argIdx].(*Integer); ok {
-					result += fmt.Sprintf("%f", float64(intObj.Value))
-				} else {
-					result += args[argIdx].Inspect()
-				}
-				argIdx++
-				i++
-			case '%':
-				result += "%"
-				i++
-			default:
-				result += string(format[i])
-			}
-		} else if format[i] == '\\' && i+1 < len(format) {
-			switch format[i+1] {
-			case 'n':
-				result += "\n"
-				i++
-			case 't':
-				result += "\t"
-				i++
-			case '\\':
-				result += "\\"
-				i++
-			default:
-				result += string(format[i])
-			}
-		} else {
-			result += string(format[i])
-		}
-	}
-
-	return result
 }
