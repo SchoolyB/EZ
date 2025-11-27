@@ -111,7 +111,7 @@ func (v *BooleanValue) TokenLiteral() string { return v.Token.Literal }
 // NilValue represents nil
 type NilValue struct {
 	Token Token
-	//nil has no value...
+	// nil has no value...
 }
 
 // Takes in a pointer to an NilValue(v)
