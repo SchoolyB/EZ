@@ -1,0 +1,84 @@
+name: Nightly Builds
+
+on:
+  schedule:
+    # Run at midnight UTC every day
+    - cron: '0 0 * * *'
+  workflow_dispatch: # Allow manual trigger
+
+jobs:
+  build:
+    name: Build Nightly
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include:
+          # Linux builds
+          - os: linux
+            arch: amd64
+            output: ez-linux-amd64
+          - os: linux
+            arch: arm64
+            output: ez-linux-arm64
+
+          # macOS builds
+          - os: darwin
+            arch: amd64
+            output: ez-macos-amd64
+          - os: darwin
+            arch: arm64
+            output: ez-macos-arm64
+
+          # Windows builds
+          - os: windows
+            arch: amd64
+            output: ez-windows-amd64.exe
+          - os: windows
+            arch: arm64
+            output: ez-windows-arm64.exe
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.21'
+
+      - name: Build binary
+        env:
+          GOOS: ${{ matrix.os }}
+          GOARCH: ${{ matrix.arch }}
+        run: |
+          go build -o ${{ matrix.output }} -ldflags="-s -w" ./cmd/ez
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.output }}
+          path: ${{ matrix.output }}
+          retention-days: 30
+
+  create-summary:
+    name: Create Build Summary
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Generate summary
+        run: |
+          echo "# Nightly Build Complete" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Built on: $(date -u)" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "## Artifacts" >> $GITHUB_STEP_SUMMARY
+          echo "- ez-linux-amd64" >> $GITHUB_STEP_SUMMARY
+          echo "- ez-linux-arm64" >> $GITHUB_STEP_SUMMARY
+          echo "- ez-macos-amd64" >> $GITHUB_STEP_SUMMARY
+          echo "- ez-macos-arm64" >> $GITHUB_STEP_SUMMARY
+          echo "- ez-windows-amd64.exe" >> $GITHUB_STEP_SUMMARY
+          echo "- ez-windows-arm64.exe" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Artifacts are available for 30 days." >> $GITHUB_STEP_SUMMARY
