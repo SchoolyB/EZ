@@ -1,4 +1,5 @@
 package parser
+
 // Copyright (c) 2025-Present Marshall A Burns
 // Licensed under the MIT License. See LICENSE for details.
 
@@ -39,42 +40,42 @@ func isReservedName(name string) bool {
 const (
 	_ int = iota
 	LOWEST
-	OR_PREC      // ||
-	AND_PREC     // &&
-	EQUALS       // ==, !=
-	LESSGREATER  // <, >, <=, >=
-	MEMBERSHIP   // in, not_in, !in
-	SUM          // +, -
-	PRODUCT      // *, /, %
-	PREFIX       // -X, !X
-	POSTFIX      // x++, x--
-	CALL         // function(x)
-	INDEX        // array[index]
-	MEMBER       // object.member
+	OR_PREC     // ||
+	AND_PREC    // &&
+	EQUALS      // ==, !=
+	LESSGREATER // <, >, <=, >=
+	MEMBERSHIP  // in, not_in, !in
+	SUM         // +, -
+	PRODUCT     // *, /, %
+	PREFIX      // -X, !X
+	POSTFIX     // x++, x--
+	CALL        // function(x)
+	INDEX       // array[index]
+	MEMBER      // object.member
 )
 
 // Setting the order in which tokens should be evaluated
 var priorities = map[TokenType]int{
-	OR:           OR_PREC,
-	AND:          AND_PREC,
-	EQ:           EQUALS,
-	NOT_EQ:       EQUALS,
-	LT:           LESSGREATER,
-	GT:           LESSGREATER,
-	LT_EQ:        LESSGREATER,
-	GT_EQ:        LESSGREATER,
-	IN:           MEMBERSHIP,
-	NOT_IN:       MEMBERSHIP,
-	PLUS:         SUM,
-	MINUS:        SUM,
-	ASTERISK:     PRODUCT,
-	SLASH:        PRODUCT,
-	PERCENT:      PRODUCT,
-	INCREMENT:    POSTFIX,
-	DECREMENT:    POSTFIX,
-	LPAREN:       CALL,
-	LBRACKET:     INDEX,
-	DOT:          MEMBER,
+	OR:        OR_PREC,
+	AND:       AND_PREC,
+	EQ:        EQUALS,
+	NOT_EQ:    EQUALS,
+	LT:        LESSGREATER,
+	GT:        LESSGREATER,
+	LT_EQ:     LESSGREATER,
+	GT_EQ:     LESSGREATER,
+	IN:        MEMBERSHIP,
+	NOT_IN:    MEMBERSHIP,
+	PLUS:      SUM,
+	MINUS:     SUM,
+	ASTERISK:  PRODUCT,
+	SLASH:     PRODUCT,
+	PERCENT:   PRODUCT,
+	INCREMENT: POSTFIX,
+	DECREMENT: POSTFIX,
+	LPAREN:    CALL,
+	LBRACKET:  INDEX,
+	DOT:       MEMBER,
 }
 
 // Function types for parsing expressions based on token position.
@@ -89,8 +90,8 @@ type Parser struct {
 	l      *Lexer
 	errors []string
 
-	currentToken  Token
-	peekToken     Token
+	currentToken Token
+	peekToken    Token
 
 	prefixParseFns map[TokenType]prefixParseFn
 	infixParseFns  map[TokenType]infixParseFn
@@ -722,8 +723,8 @@ func (p *Parser) parseVarableDeclaration() *VariableDeclaration {
 	// Optional initialization
 	if p.peekTokenMatches(ASSIGN) {
 		assignToken := p.peekToken // save the = token for error reporting
-		p.nextToken() // consume =
-		p.nextToken() // move to value
+		p.nextToken()              // consume =
+		p.nextToken()              // move to value
 
 		// Check if we immediately hit end of block or EOF (incomplete statement)
 		if p.currentTokenMatches(RBRACE) || p.currentTokenMatches(EOF) {
@@ -1078,8 +1079,8 @@ func (p *Parser) parseFunctionDeclarationWithAttrs(attrs []*Attribute) *Function
 	// Parse return type(s)
 	if p.peekTokenMatches(ARROW) {
 		arrowToken := p.peekToken // save for error reporting
-		p.nextToken() // consume ->
-		p.nextToken() // move to return type
+		p.nextToken()             // consume ->
+		p.nextToken()             // move to return type
 
 		// Check if return type is missing (e.g., "do func() -> {")
 		if p.currentTokenMatches(LBRACE) {
@@ -1575,7 +1576,6 @@ func (p *Parser) parseStructLiteralFromIdent(name *Label) Expression {
 
 	return lit
 }
-
 
 func (p *Parser) parseStructValue(name *Label) Expression {
 	lit := &StructValue{Token: p.currentToken, Name: name}
@@ -2105,8 +2105,8 @@ func (p *Parser) parseGenericAttribute() *Attribute {
 // parseEnumAttributes converts generic attributes to EnumAttributes
 func (p *Parser) parseEnumAttributes(attrs []*Attribute) *EnumAttributes {
 	enumAttrs := &EnumAttributes{
-		TypeName: "int", // default
-		Skip:     false,
+		TypeName:  "int", // default
+		Skip:      false,
 		Increment: nil,
 	}
 
@@ -2147,4 +2147,3 @@ func (p *Parser) parseEnumAttributes(attrs []*Attribute) *EnumAttributes {
 
 	return enumAttrs
 }
-

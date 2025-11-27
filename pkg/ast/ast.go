@@ -1,8 +1,8 @@
 package ast
+
 // Copyright (c) 2025-Present Marshall A Burns
 // Licensed under the MIT License. See LICENSE for details.
-import ."github.com/marshallburns/ez/pkg/tokenizer"
-
+import . "github.com/marshallburns/ez/pkg/tokenizer"
 
 // Node is the base interface for all AST nodes
 type Node interface {
@@ -45,8 +45,8 @@ type Label struct {
 	Value string
 }
 
-//Takes in a pointer to a Lable(l)
-func (l *Label) expressionNode(){}
+// Takes in a pointer to a Lable(l)
+func (l *Label) expressionNode()      {}
 func (l *Label) TokenLiteral() string { return l.Token.Literal }
 
 // Represents an integer value
@@ -55,9 +55,8 @@ type IntegerValue struct {
 	Value int64
 }
 
-
-//Takes in a pointer to an IntegerValue(v)
-func (v *IntegerValue) expressionNode(){}
+// Takes in a pointer to an IntegerValue(v)
+func (v *IntegerValue) expressionNode()      {}
 func (v *IntegerValue) TokenLiteral() string { return v.Token.Literal }
 
 // Represents a float value
@@ -66,8 +65,8 @@ type FloatValue struct {
 	Value float64
 }
 
-//Takes in a pointer to an FloatValue(v)
-func (v *FloatValue) expressionNode(){}
+// Takes in a pointer to an FloatValue(v)
+func (v *FloatValue) expressionNode()      {}
 func (v *FloatValue) TokenLiteral() string { return v.Token.Literal }
 
 // Represents a string value
@@ -76,8 +75,8 @@ type StringValue struct {
 	Value string
 }
 
-//Takes in a pointer to an StringValue(v)
-func (v *StringValue) expressionNode(){}
+// Takes in a pointer to an StringValue(v)
+func (v *StringValue) expressionNode()      {}
 func (v *StringValue) TokenLiteral() string { return v.Token.Literal }
 
 // InterpolatedString represents a string with embedded expressions like "Hello, ${name}!"
@@ -86,7 +85,7 @@ type InterpolatedString struct {
 	Parts []Expression // alternating StringValue and Expression nodes
 }
 
-func (i *InterpolatedString) expressionNode(){}
+func (i *InterpolatedString) expressionNode()      {}
 func (i *InterpolatedString) TokenLiteral() string { return i.Token.Literal }
 
 // CharValue represents a character value
@@ -95,8 +94,8 @@ type CharValue struct {
 	Value rune
 }
 
-//Takes in a pointer to an CharValue(v)
-func (v *CharValue) expressionNode(){}
+// Takes in a pointer to an CharValue(v)
+func (v *CharValue) expressionNode()      {}
 func (v *CharValue) TokenLiteral() string { return v.Token.Literal }
 
 // BooleanValue represents true/false
@@ -105,10 +104,9 @@ type BooleanValue struct {
 	Value bool
 }
 
-//Takes in a pointer to an BooleanValue(v)
-func (v *BooleanValue) expressionNode(){}
+// Takes in a pointer to an BooleanValue(v)
+func (v *BooleanValue) expressionNode()      {}
 func (v *BooleanValue) TokenLiteral() string { return v.Token.Literal }
-
 
 // NilValue represents nil
 type NilValue struct {
@@ -116,8 +114,8 @@ type NilValue struct {
 	//nil has no value...
 }
 
-//Takes in a pointer to an NilValue(v)
-func (v *NilValue) expressionNode(){}
+// Takes in a pointer to an NilValue(v)
+func (v *NilValue) expressionNode()      {}
 func (v *NilValue) TokenLiteral() string { return v.Token.Literal }
 
 // Represents an array literal {1, 2, 3, etc....}
@@ -126,9 +124,8 @@ type ArrayValue struct {
 	Elements []Expression
 }
 
-func (v *ArrayValue) expressionNode(){}
+func (v *ArrayValue) expressionNode()      {}
 func (v *ArrayValue) TokenLiteral() string { return v.Token.Literal }
-
 
 // StructValue represents Person{name: "Bob", age: 25}
 type StructValue struct {
@@ -137,9 +134,8 @@ type StructValue struct {
 	Fields map[string]Expression
 }
 
-func (s *StructValue) expressionNode(){}
+func (s *StructValue) expressionNode()      {}
 func (s *StructValue) TokenLiteral() string { return s.Token.Literal }
-
 
 // PrefixExpression represents prefix operators like -5 or !true
 type PrefixExpression struct {
@@ -148,7 +144,7 @@ type PrefixExpression struct {
 	Right    Expression
 }
 
-func (p *PrefixExpression) expressionNode(){}
+func (p *PrefixExpression) expressionNode()      {}
 func (p *PrefixExpression) TokenLiteral() string { return p.Token.Literal }
 
 // represents binary operations like 5 + 5
@@ -159,7 +155,7 @@ type InfixExpression struct {
 	Right    Expression
 }
 
-func (i *InfixExpression) expressionNode(){}
+func (i *InfixExpression) expressionNode()      {}
 func (i *InfixExpression) TokenLiteral() string { return i.Token.Literal }
 
 // PostfixExpression represents i++ and i--
@@ -169,7 +165,7 @@ type PostfixExpression struct {
 	Left     Expression
 }
 
-func (s *PostfixExpression) expressionNode(){}
+func (s *PostfixExpression) expressionNode()      {}
 func (s *PostfixExpression) TokenLiteral() string { return s.Token.Literal }
 
 // CallExpression represents function calls like add(1, 2)
@@ -179,7 +175,7 @@ type CallExpression struct {
 	Arguments []Expression
 }
 
-func (c *CallExpression) expressionNode(){}
+func (c *CallExpression) expressionNode()      {}
 func (c *CallExpression) TokenLiteral() string { return c.Token.Literal }
 
 // IndexExpression represents array indexing like arr[0]
@@ -189,7 +185,7 @@ type IndexExpression struct {
 	Index Expression
 }
 
-func (i *IndexExpression) expressionNode(){}
+func (i *IndexExpression) expressionNode()      {}
 func (i *IndexExpression) TokenLiteral() string { return i.Token.Literal }
 
 // MemberExpression represents member access like std.println
@@ -199,9 +195,8 @@ type MemberExpression struct {
 	Member *Label
 }
 
-func (m *MemberExpression) expressionNode(){}
+func (m *MemberExpression) expressionNode()      {}
 func (m *MemberExpression) TokenLiteral() string { return m.Token.Literal }
-
 
 // NewExpression represents new(Type)
 type NewExpression struct {
@@ -209,8 +204,7 @@ type NewExpression struct {
 	TypeName *Label
 }
 
-
-func (n *NewExpression) expressionNode(){}
+func (n *NewExpression) expressionNode()      {}
 func (n *NewExpression) TokenLiteral() string { return n.Token.Literal }
 
 // RangeExpression represents range(start, end)
@@ -220,7 +214,7 @@ type RangeExpression struct {
 	End   Expression
 }
 
-func (r *RangeExpression) expressionNode(){}
+func (r *RangeExpression) expressionNode()      {}
 func (r *RangeExpression) TokenLiteral() string { return r.Token.Literal }
 
 // ============================================================================
@@ -257,7 +251,7 @@ type Attribute struct {
 func (a *Attribute) expressionNode()      {}
 func (a *Attribute) TokenLiteral() string { return a.Token.Literal }
 
-func (v *VariableDeclaration) statementNode(){}
+func (v *VariableDeclaration) statementNode()       {}
 func (v *VariableDeclaration) TokenLiteral() string { return v.Token.Literal }
 
 // AssignmentStatement represents x = 5 or x += 1
@@ -268,7 +262,7 @@ type AssignmentStatement struct {
 	Value    Expression
 }
 
-func (a *AssignmentStatement) statementNode(){}
+func (a *AssignmentStatement) statementNode()       {}
 func (a *AssignmentStatement) TokenLiteral() string { return a.Token.Literal }
 
 // ReturnStatement represents return value
@@ -277,7 +271,7 @@ type ReturnStatement struct {
 	Values []Expression // multiple return values
 }
 
-func (r *ReturnStatement) statementNode(){}
+func (r *ReturnStatement) statementNode()       {}
 func (r *ReturnStatement) TokenLiteral() string { return r.Token.Literal }
 
 // ExpressionStatement wraps an expression as a statement
@@ -286,7 +280,7 @@ type ExpressionStatement struct {
 	Expression Expression
 }
 
-func (es *ExpressionStatement) statementNode(){}
+func (es *ExpressionStatement) statementNode()       {}
 func (es *ExpressionStatement) TokenLiteral() string { return es.Token.Literal }
 
 // BlockStatement represents a block of statements { ... }
@@ -295,7 +289,7 @@ type BlockStatement struct {
 	Statements []Statement
 }
 
-func (b *BlockStatement) statementNode(){}
+func (b *BlockStatement) statementNode()       {}
 func (b *BlockStatement) TokenLiteral() string { return b.Token.Literal }
 
 // IfStatement represents if/or/otherwise
@@ -306,7 +300,7 @@ type IfStatement struct {
 	Alternative Statement // can be another IfStatement (for 'or') or BlockStatement (for 'otherwise')
 }
 
-func (is *IfStatement) statementNode(){}
+func (is *IfStatement) statementNode()       {}
 func (is *IfStatement) TokenLiteral() string { return is.Token.Literal }
 
 // ForStatement represents for i in range(0, 10) { }
@@ -318,7 +312,7 @@ type ForStatement struct {
 	Body     *BlockStatement
 }
 
-func (fs *ForStatement) statementNode(){}
+func (fs *ForStatement) statementNode()       {}
 func (fs *ForStatement) TokenLiteral() string { return fs.Token.Literal }
 
 // ForEachStatement represents for_each item in collection { }
@@ -329,7 +323,7 @@ type ForEachStatement struct {
 	Body       *BlockStatement
 }
 
-func (f *ForEachStatement) statementNode(){}
+func (f *ForEachStatement) statementNode()       {}
 func (f *ForEachStatement) TokenLiteral() string { return f.Token.Literal }
 
 // WhileStatement represents as_long_as condition { }
@@ -339,7 +333,7 @@ type WhileStatement struct {
 	Body      *BlockStatement
 }
 
-func (w *WhileStatement) statementNode(){}
+func (w *WhileStatement) statementNode()       {}
 func (w *WhileStatement) TokenLiteral() string { return w.Token.Literal }
 
 // LoopStatement represents loop { }
@@ -348,7 +342,7 @@ type LoopStatement struct {
 	Body  *BlockStatement
 }
 
-func (l *LoopStatement) statementNode(){}
+func (l *LoopStatement) statementNode()       {}
 func (l *LoopStatement) TokenLiteral() string { return l.Token.Literal }
 
 // BreakStatement represents break
@@ -356,7 +350,7 @@ type BreakStatement struct {
 	Token Token
 }
 
-func (b *BreakStatement) statementNode(){}
+func (b *BreakStatement) statementNode()       {}
 func (b *BreakStatement) TokenLiteral() string { return b.Token.Literal }
 
 // ContinueStatement represents continue
@@ -364,7 +358,7 @@ type ContinueStatement struct {
 	Token Token
 }
 
-func (c *ContinueStatement) statementNode(){}
+func (c *ContinueStatement) statementNode()       {}
 func (c *ContinueStatement) TokenLiteral() string { return c.Token.Literal }
 
 // FunctionDeclaration represents do func_name(params) -> return_type { }
@@ -377,7 +371,7 @@ type FunctionDeclaration struct {
 	Attributes  []*Attribute // @suppress(...) attributes
 }
 
-func (f *FunctionDeclaration) statementNode(){}
+func (f *FunctionDeclaration) statementNode()       {}
 func (f *FunctionDeclaration) TokenLiteral() string { return f.Token.Literal }
 
 // Parameter represents a function parameter
@@ -393,7 +387,7 @@ type ImportStatement struct {
 	Module string
 }
 
-func (i *ImportStatement) statementNode(){}
+func (i *ImportStatement) statementNode()       {}
 func (i *ImportStatement) TokenLiteral() string { return i.Token.Literal }
 
 // UsingStatement represents using module(s)
@@ -403,7 +397,7 @@ type UsingStatement struct {
 	Modules []*Label // List of modules to bring into scope
 }
 
-func (u *UsingStatement) statementNode(){}
+func (u *UsingStatement) statementNode()       {}
 func (u *UsingStatement) TokenLiteral() string { return u.Token.Literal }
 
 // StructDeclaration represents Person struct { name string; age int }
@@ -413,7 +407,7 @@ type StructDeclaration struct {
 	Fields []*StructField
 }
 
-func (sd *StructDeclaration) statementNode(){}
+func (sd *StructDeclaration) statementNode()       {}
 func (sd *StructDeclaration) TokenLiteral() string { return sd.Token.Literal }
 
 // StructField represents a field in a struct
@@ -430,7 +424,7 @@ type EnumDeclaration struct {
 	Attributes *EnumAttributes
 }
 
-func (ed *EnumDeclaration) statementNode(){}
+func (ed *EnumDeclaration) statementNode()       {}
 func (ed *EnumDeclaration) TokenLiteral() string { return ed.Token.Literal }
 
 // EnumValue represents a single enum value

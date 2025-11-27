@@ -1,4 +1,5 @@
 package interpreter
+
 // Copyright (c) 2025-Present Marshall A Burns
 // Licensed under the MIT License. See LICENSE for details.
 
@@ -688,7 +689,7 @@ func evalEnumDeclaration(node *ast.EnumDeclaration, env *Environment) Object {
 	}
 
 	// Get enum attributes (type, skip, increment)
-	typeName := "int" // default
+	typeName := "int"     // default
 	increment := int64(1) // default increment
 	var floatIncrement float64 = 1.0
 
@@ -1213,8 +1214,8 @@ func typeMatches(obj Object, ezType string) bool {
 		// For now, we'll accept nil for any type except explicit primitives
 		// This allows: return nil as Error
 		return ezType == "nil" || ezType == "Error" || ezType == "array" ||
-		       (ezType != "int" && ezType != "float" && ezType != "string" &&
-			   ezType != "bool" && ezType != "char")
+			(ezType != "int" && ezType != "float" && ezType != "string" &&
+				ezType != "bool" && ezType != "char")
 	}
 
 	return actualType == ezType
