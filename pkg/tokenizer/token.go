@@ -1,4 +1,5 @@
 package tokenizer
+
 // Copyright (c) 2025-Present Marshall A Burns
 // Licensed under the MIT License. See LICENSE for details.
 
@@ -78,32 +79,32 @@ const (
 	AT TokenType = "@"
 
 	// Keywords
-	TEMP      TokenType = "TEMP"
-	CONST     TokenType = "CONST"
-	DO        TokenType = "DO"
-	RETURN    TokenType = "RETURN"
-	IF        TokenType = "IF"
-	OR_KW     TokenType = "OR_KW"
-	OTHERWISE TokenType = "OTHERWISE"
-	FOR       TokenType = "FOR"
-	FOR_EACH  TokenType = "FOR_EACH"
+	TEMP       TokenType = "TEMP"
+	CONST      TokenType = "CONST"
+	DO         TokenType = "DO"
+	RETURN     TokenType = "RETURN"
+	IF         TokenType = "IF"
+	OR_KW      TokenType = "OR_KW"
+	OTHERWISE  TokenType = "OTHERWISE"
+	FOR        TokenType = "FOR"
+	FOR_EACH   TokenType = "FOR_EACH"
 	AS_LONG_AS TokenType = "AS_LONG_AS"
-	LOOP      TokenType = "LOOP"
-	BREAK     TokenType = "BREAK"
-	CONTINUE  TokenType = "CONTINUE"
-	IN        TokenType = "IN"
-	NOT_IN    TokenType = "NOT_IN"
-	RANGE     TokenType = "RANGE"
-	IMPORT    TokenType = "IMPORT"
-	USING     TokenType = "USING"
-	STRUCT    TokenType = "STRUCT"
-	ENUM      TokenType = "ENUM"
-	NIL       TokenType = "NIL"
-	NEW       TokenType = "NEW"
-	TRUE      TokenType = "TRUE"
-	FALSE     TokenType = "FALSE"
-	IGNORE    TokenType = "IGNORE"
-	SUPPRESS  TokenType = "SUPPRESS"
+	LOOP       TokenType = "LOOP"
+	BREAK      TokenType = "BREAK"
+	CONTINUE   TokenType = "CONTINUE"
+	IN         TokenType = "IN"
+	NOT_IN     TokenType = "NOT_IN"
+	RANGE      TokenType = "RANGE"
+	IMPORT     TokenType = "IMPORT"
+	USING      TokenType = "USING"
+	STRUCT     TokenType = "STRUCT"
+	ENUM       TokenType = "ENUM"
+	NIL        TokenType = "NIL"
+	NEW        TokenType = "NEW"
+	TRUE       TokenType = "TRUE"
+	FALSE      TokenType = "FALSE"
+	IGNORE     TokenType = "IGNORE"
+	SUPPRESS   TokenType = "SUPPRESS"
 )
 
 var keywords = map[string]TokenType{
@@ -131,13 +132,12 @@ var keywords = map[string]TokenType{
 	"new":        NEW,
 	"true":       TRUE,
 	"false":      FALSE,
-	"@ignore": 	  IGNORE,
+	"@ignore":    IGNORE,
 }
 
-
-//Looks up the passed in identifier(i)
-//if found, returns the TokenType
-//representation of said identifer.
+// Looks up the passed in identifier(i)
+// if found, returns the TokenType
+// representation of said identifer.
 func LookupIdentifier(ident string) TokenType {
 	if tok, ok := keywords[ident]; ok {
 		return tok

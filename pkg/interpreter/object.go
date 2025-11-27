@@ -1,4 +1,5 @@
 package interpreter
+
 // Copyright (c) 2025-Present Marshall A Burns
 // Licensed under the MIT License. See LICENSE for details.
 
@@ -107,10 +108,10 @@ func (rv *ReturnValue) Inspect() string {
 type Error struct {
 	Message string
 	// Extended error info for formatted output
-	Code      string // Error code like "E3001"
-	Line      int
-	Column    int
-	Help      string // Optional help suggestion
+	Code   string // Error code like "E3001"
+	Line   int
+	Column int
+	Help   string // Optional help suggestion
 }
 
 func (e *Error) Type() ObjectType { return ERROR_OBJ }
@@ -154,7 +155,7 @@ func (a *Array) Inspect() string {
 
 // Struct represents a struct instance
 type Struct struct {
-	TypeName string           // e.g., "Person"
+	TypeName string // e.g., "Person"
 	Fields   map[string]Object
 }
 
@@ -213,13 +214,13 @@ func (e *Enum) Inspect() string {
 
 // Environment holds variable bindings
 type Environment struct {
-	store       map[string]Object
-	mutable     map[string]bool      // tracks if variable is mutable (temp) or immutable (const)
-	structDefs  map[string]*StructDef // struct type definitions
-	outer       *Environment
-	imports     map[string]string // alias -> module mapping
-	using       []string          // modules brought into scope (by alias)
-	loopDepth   int               // tracks nested loop depth for break/continue validation
+	store      map[string]Object
+	mutable    map[string]bool       // tracks if variable is mutable (temp) or immutable (const)
+	structDefs map[string]*StructDef // struct type definitions
+	outer      *Environment
+	imports    map[string]string // alias -> module mapping
+	using      []string          // modules brought into scope (by alias)
+	loopDepth  int               // tracks nested loop depth for break/continue validation
 }
 
 func NewEnvironment() *Environment {
