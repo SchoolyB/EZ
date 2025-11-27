@@ -25,6 +25,14 @@ linters-settings:
   gofmt:
     simplify: true
 
+  gocritic:
+    disabled-checks:
+      - ifElseChain
+      - commentFormatting
+      - singleCaseSwitch
+      - whyNoLint
+      - unnamedResult
+
 issues:
   exclude-use-default: false
   max-issues-per-linter: 0
