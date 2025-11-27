@@ -746,34 +746,6 @@ func (p *Parser) parseVarableDeclaration() *VariableDeclaration {
 	return stmt
 }
 
-func (p *Parser) parseAssignmentStatement() *AssignmentStatement {
-	stmt := &AssignmentStatement{Token: p.currentToken}
-
-	// Parse the left-hand side (could be identifier, index, or member)
-	stmt.Name = p.parseExpression(LOWEST)
-
-	// Validate that the left-hand side is a valid assignment target
-	// Valid targets: Label (identifier), IndexExpression, MemberExpression
-	switch stmt.Name.(type) {
-	case *Label, *IndexExpression, *MemberExpression:
-		// Valid assignment targets
-	default:
-		// Invalid assignment target
-		msg := fmt.Sprintf("invalid assignment target: cannot assign to %T", stmt.Name)
-		p.addEZError(errors.E1008, msg, p.currentToken)
-	}
-
-	// Get the assignment operator
-	p.nextToken()
-	stmt.Operator = p.currentToken.Literal
-
-	// Parse the right-hand side
-	p.nextToken()
-	stmt.Value = p.parseExpression(LOWEST)
-
-	return stmt
-}
-
 func (p *Parser) parseReturnStatement() *ReturnStatement {
 	stmt := &ReturnStatement{Token: p.currentToken}
 	stmt.Values = []Expression{}
@@ -1032,10 +1004,6 @@ func (p *Parser) parseBreakStatement() *BreakStatement {
 
 func (p *Parser) parseContinueStatement() *ContinueStatement {
 	return &ContinueStatement{Token: p.currentToken}
-}
-
-func (p *Parser) parseFunctionDeclaration() *FunctionDeclaration {
-	return p.parseFunctionDeclarationWithAttrs(nil)
 }
 
 func (p *Parser) parseFunctionDeclarationWithAttrs(attrs []*Attribute) *FunctionDeclaration {
@@ -1559,32 +1527,6 @@ func (p *Parser) parseStructLiteralFromIdent(name *Label) Expression {
 			break
 		}
 
-		fieldName := p.currentToken.Literal
-
-		if !p.expectPeek(COLON) {
-			return nil
-		}
-
-		p.nextToken() // move past :
-		lit.Fields[fieldName] = p.parseExpression(LOWEST)
-
-		if p.peekTokenMatches(COMMA) {
-			p.nextToken() // consume comma
-		}
-		p.nextToken()
-	}
-
-	return lit
-}
-
-func (p *Parser) parseStructValue(name *Label) Expression {
-	lit := &StructValue{Token: p.currentToken, Name: name}
-	lit.Fields = make(map[string]Expression)
-
-	p.nextToken() // move to {
-	p.nextToken() // move into struct
-
-	for !p.currentTokenMatches(RBRACE) && !p.currentTokenMatches(EOF) {
 		fieldName := p.currentToken.Literal
 
 		if !p.expectPeek(COLON) {
