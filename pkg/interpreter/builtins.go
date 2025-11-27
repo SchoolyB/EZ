@@ -1,4 +1,5 @@
 package interpreter
+
 // Copyright (c) 2025-Present Marshall A Burns
 // Licensed under the MIT License. See LICENSE for details.
 
@@ -10,7 +11,9 @@ import (
 )
 
 var builtins = map[string]*Builtin{
-	// Standard library print functions (with std. prefix)
+	//BASIC STANDARD LIBRARY BUILTINS
+
+	//Prints values to standard output followed by a newline. Any number of arguments can be provided.
 	"std.println": {
 		Fn: func(args ...Object) Object {
 			for i, arg := range args {
@@ -23,6 +26,7 @@ var builtins = map[string]*Builtin{
 			return NIL
 		},
 	},
+	//Prints values to standard output WITHOUT a newline. Any number of arguments can be provided.
 	"std.print": {
 		Fn: func(args ...Object) Object {
 			for i, arg := range args {
@@ -34,7 +38,12 @@ var builtins = map[string]*Builtin{
 			return NIL
 		},
 	},
-	"std.read_int": {
+
+	//START OF FULL BUILTINS
+
+	//Reads an integer from standard input. Returns the integer and an error object (nil if no error).
+	//Recomended to just use input() and convert to type: `int` manually.
+	"read_int": {
 		Fn: func(args ...Object) Object {
 			reader := bufio.NewReader(os.Stdin)
 			text, readErr := reader.ReadString('\n')
@@ -73,7 +82,7 @@ var builtins = map[string]*Builtin{
 		},
 	},
 
-	// Global built-ins (no prefix required)
+	//Returns the length of a string or array as an integer.
 	"len": {
 		Fn: func(args ...Object) Object {
 			if len(args) != 1 {
@@ -90,6 +99,7 @@ var builtins = map[string]*Builtin{
 			}
 		},
 	},
+	//Returns the type of the given object as a string.
 	"typeof": {
 		Fn: func(args ...Object) Object {
 			if len(args) != 1 {
@@ -98,6 +108,8 @@ var builtins = map[string]*Builtin{
 			return &String{Value: string(args[0].Type())}
 		},
 	},
+
+	// Converts a value to an integer if possible.
 	"int": {
 		Fn: func(args ...Object) Object {
 			if len(args) != 1 {
@@ -121,6 +133,7 @@ var builtins = map[string]*Builtin{
 			}
 		},
 	},
+	// Converts a value to a float if possible.
 	"float": {
 		Fn: func(args ...Object) Object {
 			if len(args) != 1 {
@@ -142,6 +155,8 @@ var builtins = map[string]*Builtin{
 			}
 		},
 	},
+
+	// Converts a value to a string.
 	"string": {
 		Fn: func(args ...Object) Object {
 			if len(args) != 1 {
@@ -150,6 +165,8 @@ var builtins = map[string]*Builtin{
 			return &String{Value: args[0].Inspect()}
 		},
 	},
+
+	//Reads a line of input from standard input and returns it as a string.
 	"input": {
 		Fn: func(args ...Object) Object {
 			reader := bufio.NewReader(os.Stdin)
