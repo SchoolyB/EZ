@@ -35,7 +35,7 @@ var arraysBuiltins = map[string]*Builtin{
 		},
 	},
 
-	//Returns a boolean indicating if the array is empty or not.
+	// Returns a boolean indicating if the array is empty or not.
 	"arrays.is_empty": {
 		Fn: func(args ...Object) Object {
 			if len(args) != 1 {
