@@ -1,4 +1,5 @@
 package typechecker
+
 // Copyright (c) 2025-Present Marshall A Burns
 // Licensed under the MIT License. See LICENSE for details.
 
@@ -23,11 +24,11 @@ const (
 
 // Type represents a type in the EZ type system
 type Type struct {
-	Name       string
-	Kind       TypeKind
-	ElementType *Type              // For arrays
-	Fields     map[string]*Type   // For structs
-	Size       int                // For fixed-size arrays, -1 for dynamic
+	Name        string
+	Kind        TypeKind
+	ElementType *Type            // For arrays
+	Fields      map[string]*Type // For structs
+	Size        int              // For fixed-size arrays, -1 for dynamic
 }
 
 // FunctionSignature represents a function's type signature
@@ -45,12 +46,12 @@ type Parameter struct {
 
 // TypeChecker validates types in an EZ program
 type TypeChecker struct {
-	types      map[string]*Type              // All known types
-	functions  map[string]*FunctionSignature // All function signatures
-	variables  map[string]string             // Variable name -> type name (global scope)
-	errors     *errors.EZErrorList
-	source     string
-	filename   string
+	types     map[string]*Type              // All known types
+	functions map[string]*FunctionSignature // All function signatures
+	variables map[string]string             // Variable name -> type name (global scope)
+	errors    *errors.EZErrorList
+	source    string
+	filename  string
 }
 
 // NewTypeChecker creates a new type checker
