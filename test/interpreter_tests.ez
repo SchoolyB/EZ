@@ -1,0 +1,844 @@
+/*
+ * EZ Language - Comprehensive Interpreter Test Suite
+ *
+ * This file tests core language features to ensure the interpreter
+ * works correctly across all supported functionality.
+ *
+ * Test Categories:
+ * - Basic types and variables
+ * - Arrays and collections
+ * - Structs and nested structs
+ * - Enums (integer, string, skip values)
+ * - Control flow (if/or/otherwise, loops, break/continue)
+ * - Functions (single and multiple return values)
+ * - Operators (arithmetic, logical, comparison, membership)
+ * - Strings (interpolation, indexing, mutation)
+ * - Built-in functions
+ * - Module system (@std, @arrays, etc.)
+ */
+
+import @std
+import @arrays
+
+// ============================================================================
+// TYPE DEFINITIONS
+// ============================================================================
+
+const Person struct {
+    name string
+    age int
+    email string
+}
+
+const Address struct {
+    street string
+    city string
+    zipcode int
+}
+
+const Employee struct {
+    name string
+    id int
+    address Address
+}
+
+const STATUS enum {
+    PENDING
+    ACTIVE
+    INACTIVE
+    COMPLETED
+}
+
+@(int, skip, 10)
+const ERROR_CODES enum {
+    SUCCESS = 0
+    WARNING
+    ERROR
+    CRITICAL
+}
+
+@(string)
+const COLORS enum {
+    RED = "red"
+    GREEN = "green"
+    BLUE = "blue"
+    YELLOW = "yellow"
+}
+
+// ============================================================================
+// MAIN ENTRY POINT
+// ============================================================================
+
+do main() {
+    using std
+
+    println("╔════════════════════════════════════════╗")
+    println("║  EZ Language Interpreter Test Suite   ║")
+    println("╚════════════════════════════════════════╝")
+    println("")
+
+    // Run all test categories
+    test_variables()
+    test_arrays()
+    test_structs()
+    test_enums()
+    test_control_flow()
+    test_functions()
+    test_operators()
+    test_strings()
+    test_string_interpolation()
+    test_builtins()
+    test_multiple_returns()
+    test_nested_structs()
+    test_edge_cases()
+
+    println("")
+    println("╔════════════════════════════════════════╗")
+    println("║     All Tests Completed Successfully   ║")
+    println("╚════════════════════════════════════════╝")
+}
+
+// ============================================================================
+// TEST: VARIABLES AND BASIC TYPES
+// ============================================================================
+
+do test_variables() {
+    using std
+    println("→ Testing variables and basic types...")
+
+    // Integer variables
+    temp x int = 42
+    temp negativeNum int = -100
+    temp zero int = 0
+
+    // Float variables
+    temp pi float = 3.14159
+    temp negativeFloat float = -2.5
+    temp largeFloat float = 15000000000.0
+
+    // String variables
+    temp name string = "EZ Language"
+    temp emptyString string = ""
+    temp multiWord string = "Hello World"
+
+    // Character variables
+    temp letter char = 'A'
+    temp digit char = '5'
+    temp symbol char = '@'
+
+    // Boolean variables
+    temp isTrue bool = true
+    temp isFalse bool = false
+
+    // Constants
+    const MAX_SIZE int = 1000
+    const APP_NAME string = "EZ"
+    const DEFAULT_TIMEOUT float = 30.0
+
+    // Default values (uninitialized)
+    temp defaultInt int
+    temp defaultFloat float
+    temp defaultString string
+    temp defaultBool bool
+    temp defaultChar char
+
+    println("  ✓ Variables and basic types")
+}
+
+// ============================================================================
+// TEST: ARRAYS
+// ============================================================================
+
+do test_arrays() {
+    using std
+    println("→ Testing arrays...")
+
+    // Dynamic arrays
+    temp numbers [int] = {1, 2, 3, 4, 5}
+    temp names [string] = {"Alice", "Bob", "Charlie"}
+    temp flags [bool] = {true, false, true}
+    temp letters [char] = {'A', 'B', 'C'}
+
+    // Empty arrays
+    temp emptyInts [int] = {}
+    temp emptyStrings [string] = {}
+
+    // Fixed-size arrays
+    const daysOfWeek [string, 7] = {"Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"}
+    const primes [int, 5] = {2, 3, 5, 7, 11}
+
+    // Array operations with @arrays module
+    arrays.push(numbers, 6)
+    arrays.push(numbers, 7)
+    temp lastNum int = arrays.pop(numbers)
+
+    // Array indexing
+    temp firstNum int = numbers[0]
+    temp secondName string = names[1]
+    numbers[0] = 100
+    names[1] = "Robert"
+
+    // Array length
+    temp numCount int = len(numbers)
+    temp nameCount int = len(names)
+    temp emptyCount int = len(emptyInts)
+
+    // Array iteration
+    temp sum int = 0
+    for_each num in numbers {
+        sum += num
+    }
+
+    // Array of arrays
+    temp row1 [int] = {1, 2, 3}
+    temp row2 [int] = {4, 5, 6}
+    temp row3 [int] = {7, 8, 9}
+    temp element int = row2[2]
+
+    println("  ✓ Arrays and array operations")
+}
+
+// ============================================================================
+// TEST: STRUCTS
+// ============================================================================
+
+do test_structs() {
+    using std
+    println("→ Testing structs...")
+
+    // Struct literal initialization
+    temp person1 Person = Person{
+        name: "Alice Johnson",
+        age: 30,
+        email: "alice@example.com"
+    }
+
+    // Struct with new() - default values
+    temp person2 Person = new(Person)
+    person2.name = "Bob Smith"
+    person2.age = 25
+    person2.email = "bob@example.com"
+
+    // Field access
+    temp personName string = person1.name
+    temp personAge int = person1.age
+    temp personEmail string = person1.email
+
+    // Field modification
+    person1.age = 31
+    person1.email = "alice.johnson@example.com"
+    person2.age = 26
+
+    // Struct in array
+    temp people [Person] = {
+        Person{name: "Charlie", age: 35, email: "charlie@test.com"},
+        Person{name: "Diana", age: 28, email: "diana@test.com"}
+    }
+
+    temp firstPerson Person = people[0]
+    temp firstPersonName string = firstPerson.name
+
+    println("  ✓ Structs and field access")
+}
+
+// ============================================================================
+// TEST: ENUMS
+// ============================================================================
+
+do test_enums() {
+    using std
+    println("→ Testing enums...")
+
+    // Integer enums (sequential)
+    temp status1 int = STATUS.PENDING
+    temp status2 int = STATUS.ACTIVE
+    temp status3 int = STATUS.INACTIVE
+    temp status4 int = STATUS.COMPLETED
+
+    // Integer enums with skip
+    temp code1 int = ERROR_CODES.SUCCESS
+    temp code2 int = ERROR_CODES.WARNING
+    temp code3 int = ERROR_CODES.ERROR
+    temp code4 int = ERROR_CODES.CRITICAL
+
+    // String enums
+    temp color1 string = COLORS.RED
+    temp color2 string = COLORS.GREEN
+    temp color3 string = COLORS.BLUE
+    temp color4 string = COLORS.YELLOW
+
+    // Enum in conditionals
+    temp currentStatus int = STATUS.ACTIVE
+    if currentStatus == STATUS.ACTIVE {
+        temp x int = 1
+    }
+
+    // Enum in arrays
+    temp statusList [int] = {STATUS.PENDING, STATUS.ACTIVE, STATUS.COMPLETED}
+    temp colorList [string] = {COLORS.RED, COLORS.BLUE, COLORS.GREEN}
+
+    println("  ✓ Enums (integer, string, skip)")
+}
+
+// ============================================================================
+// TEST: CONTROL FLOW
+// ============================================================================
+
+do test_control_flow() {
+    using std
+    println("→ Testing control flow...")
+
+    // If/or/otherwise
+    temp x int = 15
+    if x > 20 {
+        temp y int = 1
+    } or x > 10 {
+        temp y int = 2
+    } or x > 5 {
+        temp y int = 3
+    } otherwise {
+        temp y int = 4
+    }
+
+    // Simple if
+    if x == 15 {
+        temp matched bool = true
+    }
+
+    // If with logical operators
+    temp a int = 10
+    temp b int = 20
+    if a < b && a > 0 {
+        temp valid bool = true
+    }
+
+    // For loop with range
+    temp sum int = 0
+    for i in range(0, 10) {
+        sum += i
+    }
+
+    // For loop with break
+    temp breakSum int = 0
+    for i in range(0, 100) {
+        if i == 10 {
+            break
+        }
+        breakSum += i
+    }
+
+    // For loop with continue
+    temp evenSum int = 0
+    for i in range(0, 20) {
+        if i % 2 != 0 {
+            continue
+        }
+        evenSum += i
+    }
+
+    // For_each loop
+    temp numbers [int] = {1, 2, 3, 4, 5}
+    temp product int = 1
+    for_each num in numbers {
+        product *= num
+    }
+
+    // For_each with strings
+    temp message string = "EZ"
+    temp charCount int = 0
+    for_each ch in message {
+        charCount += 1
+    }
+
+    // While loop (as_long_as)
+    temp count int = 0
+    as_long_as count < 5 {
+        count += 1
+    }
+
+    // While with break
+    temp whileBreak int = 0
+    as_long_as whileBreak < 100 {
+        whileBreak += 1
+        if whileBreak == 10 {
+            break
+        }
+    }
+
+    // While with continue
+    temp whileContinue int = 0
+    temp oddSum int = 0
+    as_long_as whileContinue < 10 {
+        whileContinue += 1
+        if whileContinue % 2 == 0 {
+            continue
+        }
+        oddSum += whileContinue
+    }
+
+    // Infinite loop with break
+    temp loopCount int = 0
+    loop {
+        loopCount += 1
+        if loopCount == 5 {
+            break
+        }
+    }
+
+    // Nested loops
+    temp nestedSum int = 0
+    for i in range(0, 3) {
+        for j in range(0, 3) {
+            nestedSum += i + j
+        }
+    }
+
+    println("  ✓ Control flow (if/or/otherwise, loops, break/continue)")
+}
+
+// ============================================================================
+// TEST: FUNCTIONS
+// ============================================================================
+
+do test_functions() {
+    using std
+    println("→ Testing functions...")
+
+    // Simple function call
+    greet("World")
+
+    // Function with single return
+    temp sum int = add(10, 20)
+    temp difference int = subtract(50, 15)
+
+    // Function with multiple parameters of same type
+    temp result int = calculateSum(1, 2, 3, 4, 5)
+
+    // Function with different parameter types
+    temp formatted string = formatPerson("Alice", 30)
+
+    // Function returning bool
+    temp isAdult bool = checkAge(25)
+    temp isMinor bool = checkAge(15)
+
+    // Function with array parameter
+    temp numbers [int] = {1, 2, 3, 4, 5}
+    temp arraySum int = sumArray(numbers)
+
+    // Function with struct parameter
+    temp person Person = Person{name: "Bob", age: 28, email: "bob@test.com"}
+    printPerson(person)
+
+    println("  ✓ Functions (single return, multiple params)")
+}
+
+// ============================================================================
+// TEST: OPERATORS
+// ============================================================================
+
+do test_operators() {
+    using std
+    println("→ Testing operators...")
+
+    // Arithmetic operators
+    temp add int = 10 + 5
+    temp sub int = 20 - 8
+    temp mul int = 6 * 7
+    temp div int = 100 / 5
+    temp mod int = 17 % 5
+    temp neg int = -42
+
+    // Float arithmetic
+    temp fadd float = 3.14 + 2.86
+    temp fsub float = 10.5 - 3.2
+    temp fmul float = 2.5 * 4.0
+    temp fdiv float = 15.0 / 3.0
+
+    // Comparison operators
+    temp eq bool = 5 == 5
+    temp neq bool = 5 != 10
+    temp lt bool = 3 < 7
+    temp lte bool = 5 <= 5
+    temp gt bool = 10 > 5
+    temp gte bool = 8 >= 8
+
+    // Logical operators
+    temp andOp bool = true && true
+    temp orOp bool = false || true
+    temp notOp bool = !false
+    temp complexLogic bool = (true && false) || (true && true)
+
+    // Compound assignment
+    temp x int = 10
+    x += 5
+    x -= 3
+    x *= 2
+    x /= 4
+
+    // Increment/Decrement
+    temp i int = 0
+    i++
+    i++
+    i--
+
+    // Membership operators
+    temp nums [int] = {1, 2, 3, 4, 5}
+    temp inArray bool = 3 in nums
+    temp notInArray bool = 10 !in nums
+
+    println("  ✓ Operators (arithmetic, logical, comparison, membership)")
+}
+
+// ============================================================================
+// TEST: STRINGS
+// ============================================================================
+
+do test_strings() {
+    using std
+    println("→ Testing strings...")
+
+    // String creation
+    temp str1 string = "Hello"
+    temp str2 string = "World"
+    temp empty string = ""
+
+    // String concatenation
+    temp combined string = str1 + ", " + str2 + "!"
+    temp repeated string = "Ha" + "Ha" + "Ha"
+
+    // String indexing
+    temp firstChar char = str1[0]
+    temp lastChar char = str1[4]
+
+    // String mutation (temp only)
+    temp mutable string = "Hello"
+    mutable[0] = 'h'
+
+    // String length
+    temp length1 int = len(str1)
+    temp length2 int = len(empty)
+
+    // String iteration
+    temp alphabet string = "ABC"
+    temp charCount int = 0
+    for_each ch in alphabet {
+        charCount += 1
+    }
+
+    // String comparison
+    temp same bool = "test" == "test"
+    temp different bool = "abc" != "xyz"
+
+    // String in conditionals
+    temp name string = "Alice"
+    if name == "Alice" {
+        temp matched bool = true
+    }
+
+    println("  ✓ Strings (concatenation, indexing, mutation)")
+}
+
+// ============================================================================
+// TEST: STRING INTERPOLATION
+// ============================================================================
+
+do test_string_interpolation() {
+    using std
+    println("→ Testing string interpolation...")
+
+    // Simple variable interpolation
+    temp name string = "Alice"
+    temp age int = 25
+    temp greeting string = "Hello, ${name}! You are ${age} years old."
+
+    // Multiple interpolations
+    temp x int = 10
+    temp y int = 20
+    temp mathMsg string = "x = ${x}, y = ${y}, sum = ${x + y}"
+
+    // Expression interpolation
+    temp score int = 85
+    temp scoreMsg string = "Score: ${score}, Passing: ${score >= 60}"
+
+    // Float interpolation
+    temp pi float = 3.14159
+    temp piMsg string = "Pi is approximately ${pi}"
+
+    // Character interpolation
+    temp letter char = 'A'
+    temp letterMsg string = "The letter is ${letter}"
+
+    // Boolean interpolation
+    temp isValid bool = true
+    temp validMsg string = "Valid: ${isValid}"
+
+    // Complex expressions
+    temp a int = 5
+    temp b int = 3
+    temp calcMsg string = "${a} + ${b} = ${a + b}, ${a} * ${b} = ${a * b}"
+
+    // Nested interpolation
+    temp value int = 42
+    temp answerMsg string = "The answer is ${value}, doubled is ${value * 2}"
+
+    // Multiple variables
+    temp city string = "Austin"
+    temp state string = "Texas"
+    temp population int = 961855
+    temp locationMsg string = "${city}, ${state} has a population of ${population}"
+
+    println("  ✓ String interpolation")
+}
+
+// ============================================================================
+// TEST: BUILT-IN FUNCTIONS
+// ============================================================================
+
+do test_builtins() {
+    using std
+    println("→ Testing built-in functions...")
+
+    // len() on arrays
+    temp numbers [int] = {1, 2, 3, 4, 5}
+    temp arrayLen int = len(numbers)
+    temp emptyArr [int] = {}
+    temp emptyLen int = len(emptyArr)
+
+    // len() on strings
+    temp text string = "Hello"
+    temp strLen int = len(text)
+    temp emptyStr string = ""
+    temp emptyStrLen int = len(emptyStr)
+
+    // typeof() on various types
+    temp typeInt string = typeof(42)
+    temp typeFloat string = typeof(3.14)
+    temp typeString string = typeof("text")
+    temp typeBool string = typeof(true)
+    temp typeChar string = typeof('A')
+
+    // range() for loops
+    temp rangeSum int = 0
+    for i in range(0, 10) {
+        rangeSum += i
+    }
+    for i in range(5, 15) {
+        rangeSum += i
+    }
+
+    // println() and print()
+    println("    Testing println with multiple args:", 123, 3.14, true, 'X')
+    print("    Testing print without newline")
+    print("\n")
+
+    // new() for structs
+    temp newPerson Person = new(Person)
+
+    println("  ✓ Built-in functions (len, typeof, range, println, print, new)")
+}
+
+// ============================================================================
+// TEST: MULTIPLE RETURN VALUES
+// ============================================================================
+
+do test_multiple_returns() {
+    using std
+    println("→ Testing multiple return values...")
+
+    // Function with two return values
+    temp quotient, remainder = divideWithRemainder(17, 5)
+
+    // Function with three return values
+    temp min, max, avg = calculateStats(10, 20, 30)
+
+    // Using multiple returns
+    temp q, r = divideWithRemainder(100, 7)
+    temp total int = q + r
+
+    println("  ✓ Multiple return values")
+}
+
+// ============================================================================
+// TEST: NESTED STRUCTS
+// ============================================================================
+
+do test_nested_structs() {
+    using std
+    println("→ Testing nested structs...")
+
+    // Create nested struct with literal
+    temp employee Employee = Employee{
+        name: "John Doe",
+        id: 12345,
+        address: Address{
+            street: "123 Main St",
+            city: "Austin",
+            zipcode: 78701
+        }
+    }
+
+    // Access nested fields
+    temp empName string = employee.name
+    temp empId int = employee.id
+    temp empStreet string = employee.address.street
+    temp empCity string = employee.address.city
+    temp empZip int = employee.address.zipcode
+
+    // Modify nested fields
+    employee.address.street = "456 Oak Ave"
+    employee.address.city = "Dallas"
+    employee.address.zipcode = 75201
+
+    // Create with new() and populate
+    temp emp2 Employee = new(Employee)
+    emp2.name = "Jane Smith"
+    emp2.id = 67890
+    emp2.address = Address{
+        street: "789 Pine Rd",
+        city: "Houston",
+        zipcode: 77001
+    }
+
+    // Nested struct in array
+    temp employees [Employee] = {
+        Employee{
+            name: "Alice",
+            id: 1,
+            address: Address{street: "1 First St", city: "Austin", zipcode: 78702}
+        },
+        Employee{
+            name: "Bob",
+            id: 2,
+            address: Address{street: "2 Second St", city: "Dallas", zipcode: 75202}
+        }
+    }
+
+    temp firstEmpCity string = employees[0].address.city
+
+    println("  ✓ Nested structs")
+}
+
+// ============================================================================
+// TEST: EDGE CASES
+// ============================================================================
+
+do test_edge_cases() {
+    using std
+    println("→ Testing edge cases...")
+
+    // Empty collections
+    temp emptyArr [int] = {}
+    temp emptyStr string = ""
+    temp emptyArrLen int = len(emptyArr)
+    temp emptyStrLen int = len(emptyStr)
+
+    // Zero values
+    temp zero int = 0
+    temp zeroFloat float = 0.0
+    temp falseVal bool = false
+
+    // Complex expressions
+    temp expr1 int = ((10 + 5) * 2 - 3) / 4 + 1
+    temp expr2 int = 2 * 3 + 4 * 5 - 6 / 2
+
+    // Chained comparisons
+    temp x int = 15
+    temp inRange bool = x > 10 && x < 20 && x != 15
+    temp valid bool = (x >= 10 && x <= 20) || x == 0
+
+    // String concatenation chains
+    temp longStr string = "The " + "quick " + "brown " + "fox"
+
+    // Deeply nested expressions
+    temp nested bool = ((true && false) || (true && true)) && !(false || false)
+
+    // Single-dimensional arrays with complex operations
+    temp flatArray [int] = {1, 2, 3, 4, 5, 6, 7, 8, 9}
+    temp fifthElement int = flatArray[4]
+
+    // Complex loop scenarios
+    temp nestedLoopSum int = 0
+    for i in range(0, 5) {
+        for j in range(0, 5) {
+            if i == j {
+                continue
+            }
+            if i + j > 6 {
+                break
+            }
+            nestedLoopSum += i + j
+        }
+    }
+
+    println("  ✓ Edge cases")
+}
+
+// ============================================================================
+// HELPER FUNCTIONS
+// ============================================================================
+
+do greet(name string) {
+    using std
+    print("")
+}
+
+do add(x, y int) -> int {
+    return x + y
+}
+
+do subtract(x, y int) -> int {
+    return x - y
+}
+
+do calculateSum(a, b, c, d, e int) -> int {
+    return a + b + c + d + e
+}
+
+do formatPerson(name string, age int) -> string {
+    return name
+}
+
+do checkAge(age int) -> bool {
+    return age >= 18
+}
+
+do sumArray(arr [int]) -> int {
+    temp sum int = 0
+    for_each num in arr {
+        sum += num
+    }
+    return sum
+}
+
+do printPerson(p Person) {
+    using std
+    print("")
+}
+
+do divideWithRemainder(dividend, divisor int) -> (int, int) {
+    temp quotient int = dividend / divisor
+    temp remainder int = dividend % divisor
+    return quotient, remainder
+}
+
+do calculateStats(a, b, c int) -> (int, int, int) {
+    temp min int = a
+    if b < min {
+        min = b
+    }
+    if c < min {
+        min = c
+    }
+
+    temp max int = a
+    if b > max {
+        max = b
+    }
+    if c > max {
+        max = c
+    }
+
+    temp avg int = (a + b + c) / 3
+    return min, max, avg
+}
+
