@@ -662,6 +662,12 @@ do test_warnings() {
         temp shadow int = 20  // shadows outer variable
     }
 
+    // W2003: Function missing return statement
+    // NOTE: To test this, uncomment the function below
+    // do missing_return() -> int {
+    //     println("No return statement")
+    // }
+
     println("  Warning tests complete")
 }
 
