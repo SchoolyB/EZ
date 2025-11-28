@@ -380,9 +380,18 @@ type Parameter struct {
 	TypeName string
 }
 
+// ImportItem represents a single module import with optional alias
+type ImportItem struct {
+	Alias  string
+	Module string
+}
+
 // ImportStatement represents import "module" or import alias "module"
+// Supports both single (import @std) and comma-separated (import @std, @arrays)
 type ImportStatement struct {
-	Token  Token
+	Token   Token
+	Imports []ImportItem // For multiple imports
+	// Deprecated: For backward compatibility with single imports
 	Alias  string
 	Module string
 }

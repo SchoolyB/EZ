@@ -209,7 +209,9 @@ do get_user_name() -> string{
 
 - **Modules & Imports**
   - `import @module` syntax
+  - Multiple inline imports: `import @std, @arrays`
   - Module aliasing: `import alias@module`
+  - Mixed syntax support: `import @std, arr@arrays`
   - `using` keyword for namespace convenience
   - Standard library: `@std`, `@arrays`
 
@@ -427,8 +429,17 @@ temp result int = add(5, 10)
 // Import standard library
 import @std
 
+// Import multiple modules on one line
+import @std, @arrays, @math
+
 // Import with alias
 import arr@arrays
+
+// Import multiple modules with aliases
+import s@std, arr@arrays
+
+// Mix both syntaxes
+import @std, arr@arrays
 
 do main() {
     // Use with prefix
