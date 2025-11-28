@@ -27,6 +27,8 @@ func main() {
 		printHelp()
 	case "version", "-v", "--version":
 		printVersion()
+	case "repl":
+		startREPL()
 	case "build":
 		if len(os.Args) < 3 {
 			fmt.Println("Usage: ez build <file>")
@@ -73,6 +75,7 @@ func printHelp() {
 	fmt.Println("Commands:")
 	fmt.Println("  run <file>     Run an EZ program")
 	fmt.Println("  build <file>   Check syntax and types without running")
+	fmt.Println("  repl           Start interactive REPL mode")
 	fmt.Println("  lex <file>     Tokenize a file (debug)")
 	fmt.Println("  parse <file>   Parse a file (debug)")
 	fmt.Println("  version        Show version information")
@@ -82,6 +85,7 @@ func printHelp() {
 	fmt.Println("  ez myProgram.ez")
 	fmt.Println("  ez run examples/hello.ez")
 	fmt.Println("  ez build myProgram.ez")
+	fmt.Println("  ez repl")
 }
 
 func printVersion() {
