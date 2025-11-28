@@ -393,10 +393,19 @@ func (p *Parser) ParseProgram() *Program {
 
 			// Track imported modules by both alias and module name
 			if importStmt, ok := stmt.(*ImportStatement); ok {
-				// Track the alias so "using arr" works with "import arr@arrays"
-				importedModules[importStmt.Alias] = true
-				// Also track the module name so "using arrays" still works
-				importedModules[importStmt.Module] = true
+				// Handle multiple imports (new comma-separated syntax)
+				if len(importStmt.Imports) > 0 {
+					for _, item := range importStmt.Imports {
+						// Track the alias so "using arr" works with "import arr@arrays"
+						importedModules[item.Alias] = true
+						// Also track the module name so "using arrays" still works
+						importedModules[item.Module] = true
+					}
+				} else {
+					// Backward compatibility: track single import
+					importedModules[importStmt.Alias] = true
+					importedModules[importStmt.Module] = true
+				}
 			}
 		}
 		p.nextToken()
@@ -1268,30 +1277,58 @@ func (p *Parser) parseReturnTypes() []string {
 
 func (p *Parser) parseImportStatement() *ImportStatement {
 	stmt := &ImportStatement{Token: p.currentToken}
+	stmt.Imports = []ImportItem{}
 
 	p.nextToken()
 
-	// New syntax: import @module or import alias@module
-	if p.currentTokenMatches(AT) {
-		// import @module - no alias, use module name
-		p.nextToken()
-		if p.currentTokenMatches(IDENT) {
-			stmt.Module = p.currentToken.Literal
-			stmt.Alias = stmt.Module // use module name as alias
-		}
-	} else if p.currentTokenMatches(IDENT) {
-		// import alias@module
-		stmt.Alias = p.currentToken.Literal
-		p.nextToken()
-		if p.currentTokenMatches(AT) {
-			p.nextToken()
-			if p.currentTokenMatches(IDENT) {
-				stmt.Module = p.currentToken.Literal
-			}
+	// Parse first import
+	item := p.parseSingleImport()
+	if item.Module != "" {
+		stmt.Imports = append(stmt.Imports, item)
+		// For backward compatibility, populate the old fields for single imports
+		stmt.Module = item.Module
+		stmt.Alias = item.Alias
+	}
+
+	// Check for comma-separated imports
+	for p.peekTokenMatches(COMMA) {
+		p.nextToken() // move to comma
+		p.nextToken() // move past comma
+
+		item := p.parseSingleImport()
+		if item.Module != "" {
+			stmt.Imports = append(stmt.Imports, item)
 		}
 	}
 
 	return stmt
+}
+
+// parseSingleImport parses a single import (either @module or alias@module)
+func (p *Parser) parseSingleImport() ImportItem {
+	item := ImportItem{}
+
+	// New syntax: import @module or import alias@module
+	if p.currentTokenMatches(AT) {
+		// @module - no alias, use module name
+		p.nextToken()
+		if p.currentTokenMatches(IDENT) {
+			item.Module = p.currentToken.Literal
+			item.Alias = item.Module // use module name as alias
+		}
+	} else if p.currentTokenMatches(IDENT) {
+		// alias@module
+		item.Alias = p.currentToken.Literal
+		p.nextToken()
+		if p.currentTokenMatches(AT) {
+			p.nextToken()
+			if p.currentTokenMatches(IDENT) {
+				item.Module = p.currentToken.Literal
+			}
+		}
+	}
+
+	return item
 }
 
 func (p *Parser) parseUsingStatement() *UsingStatement {

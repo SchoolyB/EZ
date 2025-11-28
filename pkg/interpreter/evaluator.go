@@ -129,21 +129,38 @@ func Eval(node ast.Node, env *Environment) Object {
 		return evalEnumDeclaration(node, env)
 
 	case *ast.ImportStatement:
-		// Register the imported module with its alias
+		// Register the imported module(s) with their aliases
 		// The alias is what's used in code (e.g., str.upper())
 		// The module is the actual library (e.g., strings)
 
-		// Validate that the module exists
-		if !isValidModule(node.Module) {
-			return newErrorWithLocation("E5002", node.Token.Line, node.Token.Column,
-				"module '%s' not found", node.Module)
-		}
+		// Handle multiple imports (new comma-separated syntax)
+		if len(node.Imports) > 0 {
+			for _, item := range node.Imports {
+				// Validate that the module exists
+				if !isValidModule(item.Module) {
+					return newErrorWithLocation("E5002", node.Token.Line, node.Token.Column,
+						"module '%s' not found", item.Module)
+				}
 
-		alias := node.Alias
-		if alias == "" {
-			alias = node.Module
+				alias := item.Alias
+				if alias == "" {
+					alias = item.Module
+				}
+				env.Import(alias, item.Module)
+			}
+		} else {
+			// Backward compatibility: handle single import using old fields
+			if !isValidModule(node.Module) {
+				return newErrorWithLocation("E5002", node.Token.Line, node.Token.Column,
+					"module '%s' not found", node.Module)
+			}
+
+			alias := node.Alias
+			if alias == "" {
+				alias = node.Module
+			}
+			env.Import(alias, node.Module)
 		}
-		env.Import(alias, node.Module)
 		return NIL
 
 	case *ast.UsingStatement:
