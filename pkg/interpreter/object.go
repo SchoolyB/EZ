@@ -28,6 +28,7 @@ const (
 	BREAK_OBJ        ObjectType = "BREAK"
 	CONTINUE_OBJ     ObjectType = "CONTINUE"
 	ENUM_OBJ         ObjectType = "ENUM"
+	ENUM_VALUE_OBJ   ObjectType = "ENUM_VALUE"
 )
 
 type Object interface {
@@ -210,6 +211,18 @@ func (e *Enum) Inspect() string {
 	}
 	out.WriteString(" }")
 	return out.String()
+}
+
+// EnumValue wraps an enum member value with its type information
+type EnumValue struct {
+	EnumType string // The enum type name (e.g., "COLOR")
+	Name     string // The value name (e.g., "RED")
+	Value    Object // The underlying value (Integer, Float, or String)
+}
+
+func (ev *EnumValue) Type() ObjectType { return ENUM_VALUE_OBJ }
+func (ev *EnumValue) Inspect() string {
+	return ev.Value.Inspect()
 }
 
 // Environment holds variable bindings
