@@ -405,6 +405,18 @@ func (p *Parser) ParseProgram() *Program {
 	return program
 }
 
+// ParseLine parses a single line for REPL mode
+// Returns a statement node or nil if the line is empty/comment-only
+func (p *Parser) ParseLine() Statement {
+	// Skip if we're at EOF
+	if p.currentTokenMatches(EOF) {
+		return nil
+	}
+
+	stmt := p.parseStatement()
+	return stmt
+}
+
 func (p *Parser) parseStatement() Statement {
 	// Check for @suppress or @(...) attributes
 	var attrs []*Attribute

@@ -98,9 +98,41 @@ Once installed, you can use EZ from anywhere:
 ez your_program.ez       # Direct execution
 ez run your_program.ez   # Explicit run command
 ez build your_program.ez # Check syntax without running
+ez repl                  # Start interactive REPL
 ez help                  # Show help
 ez version               # Show version
 ```
+
+### REPL Mode
+
+EZ includes an interactive REPL (Read-Eval-Print-Loop) for experimenting and learning:
+
+```bash
+$ ez repl
+EZ Language REPL v0.1.0
+Type 'help' for commands, 'exit' or 'quit' to exit
+
+>> temp x int = 5
+>> x + 10
+15
+>> import @std
+>> using std
+>> println("Hello, REPL!")
+Hello, REPL!
+>> exit
+Goodbye!
+```
+
+**REPL Commands:**
+- `exit`, `quit` - Exit the REPL
+- `clear` - Reset environment (clear all variables/functions)
+- `help` - Show help message
+
+**Features:**
+- Variables and functions persist across lines
+- Expressions are automatically printed
+- Multi-line input for functions and blocks
+- Full error reporting with helpful messages
 
 ### Basic Example
 
@@ -214,6 +246,13 @@ do get_user_name() -> string{
   - `typeof(value)` - get type as string
   - `println(...)` - print with newline (std module)
   - `print(...)` - print without newline (std module)
+
+- **REPL (Interactive Mode)**
+  - Interactive Read-Eval-Print-Loop with `ez repl`
+  - Persistent variables and functions across lines
+  - Auto-print expressions
+  - Multi-line input for functions and blocks
+  - Commands: `help`, `exit`/`quit`, `clear`
 
 - **Error System**
   - Color-coded error messages
@@ -598,10 +637,6 @@ The following features are planned but not yet implemented. See the [Issues](htt
   - `std.read_int()` for integer input
 
 ### Lower Priority
-- **REPL Mode** ([#45](https://github.com/SchoolyB/EZ/issues/45))
-  - Interactive interpreter
-  - Testing and learning tool
-
 - **Privacy System** ([#46](https://github.com/SchoolyB/EZ/issues/46))
   - `private` keyword for module-internal items
   - Public by default
