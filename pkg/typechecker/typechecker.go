@@ -189,6 +189,9 @@ func (tc *TypeChecker) CheckProgram(program *ast.Program) bool {
 		}
 	}
 
+	// Phase 4: Validate that a main() function exists
+	tc.checkMainFunction()
+
 	errCount, _ := tc.errors.Count()
 	return errCount == 0
 }
@@ -326,4 +329,16 @@ func (tc *TypeChecker) checkFunctionBody(node *ast.FunctionDeclaration) {
 	// - Expressions
 	// - Function calls
 	// - Return statements
+}
+
+// checkMainFunction validates that a main() function exists as the program entry point
+func (tc *TypeChecker) checkMainFunction() {
+	if _, exists := tc.functions["main"]; !exists {
+		tc.addError(
+			errors.E3007,
+			"Program must define a main() function",
+			1,
+			1,
+		)
+	}
 }

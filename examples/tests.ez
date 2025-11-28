@@ -532,6 +532,10 @@ do test_reference_errors() {
     // E3002: Module function not found
     // std.nonExistentFunction()
 
+    // E3007: No entry point (missing main function)
+    // NOTE: To test this, create a file without main() function
+    // The program should fail with "Program must define a main() function"
+
     println("  Reference error tests complete")
 }
 

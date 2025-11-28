@@ -42,6 +42,7 @@ var (
 	E3004 = ErrorCode{"E3004", "undefined-module", "module not found"}
 	E3005 = ErrorCode{"E3005", "not-imported", "module not imported"}
 	E3006 = ErrorCode{"E3006", "ambiguous-function", "function found in multiple modules"}
+	E3007 = ErrorCode{"E3007", "no-entry-point", "no entry point found"}
 
 	// Runtime Errors (E4xxx)
 	E4001 = ErrorCode{"E4001", "division-by-zero", "cannot divide by zero"}
