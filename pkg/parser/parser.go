@@ -391,14 +391,12 @@ func (p *Parser) ParseProgram() *Program {
 		if stmt != nil {
 			program.Statements = append(program.Statements, stmt)
 
-			// Track imported modules
+			// Track imported modules by both alias and module name
 			if importStmt, ok := stmt.(*ImportStatement); ok {
-				// Extract module name (handle both @std and alias@std)
-				moduleName := importStmt.Module
-				if strings.HasPrefix(moduleName, "@") {
-					moduleName = moduleName[1:] // Remove @ prefix
-				}
-				importedModules[moduleName] = true
+				// Track the alias so "using arr" works with "import arr@arrays"
+				importedModules[importStmt.Alias] = true
+				// Also track the module name so "using arrays" still works
+				importedModules[importStmt.Module] = true
 			}
 		}
 		p.nextToken()
