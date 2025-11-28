@@ -278,13 +278,25 @@ func (e *Environment) Use(alias string) {
 }
 
 // GetUsing returns all modules in scope (checks parent scopes too)
+// Deduplicates modules to avoid ambiguity when same module is used in multiple scopes
 func (e *Environment) GetUsing() []string {
 	result := make([]string, len(e.using))
 	copy(result, e.using)
 	if e.outer != nil {
 		result = append(result, e.outer.GetUsing()...)
 	}
-	return result
+
+	// Deduplicate the modules
+	seen := make(map[string]bool)
+	deduped := make([]string, 0, len(result))
+	for _, module := range result {
+		if !seen[module] {
+			seen[module] = true
+			deduped = append(deduped, module)
+		}
+	}
+
+	return deduped
 }
 
 func (e *Environment) Get(name string) (Object, bool) {
