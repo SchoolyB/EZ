@@ -1060,9 +1060,13 @@ func (p *Parser) parseFunctionDeclarationWithAttrs(attrs []*Attribute) *Function
 		if p.currentTokenMatches(LPAREN) {
 			// Multiple return types
 			stmt.ReturnTypes = p.parseReturnTypes()
-		} else if p.currentTokenMatches(IDENT) {
-			// Single return type
-			stmt.ReturnTypes = []string{p.currentToken.Literal}
+		} else if p.currentTokenMatches(IDENT) || p.currentTokenMatches(LBRACKET) {
+			// Single return type (identifier or array)
+			typeName := p.parseTypeName()
+			if typeName == "" {
+				return nil
+			}
+			stmt.ReturnTypes = []string{typeName}
 		} else {
 			// Invalid token after arrow
 			msg := fmt.Sprintf("expected return type after '->', got %s instead", p.currentToken.Type)
@@ -1223,11 +1227,30 @@ func (p *Parser) parseReturnTypes() []string {
 	p.nextToken() // move past (
 
 	for !p.currentTokenMatches(RPAREN) {
-		types = append(types, p.currentToken.Literal)
+		// Parse type name (can be IDENT or array type starting with LBRACKET)
+		if p.currentTokenMatches(IDENT) || p.currentTokenMatches(LBRACKET) {
+			typeName := p.parseTypeName()
+			if typeName == "" {
+				return nil
+			}
+			types = append(types, typeName)
+		} else {
+			msg := fmt.Sprintf("expected type name in return types, got %s", p.currentToken.Type)
+			p.addEZError(errors.E1002, msg, p.currentToken)
+			return nil
+		}
+
+		// Check for comma or end of list
 		if p.peekTokenMatches(COMMA) {
 			p.nextToken() // consume comma
+			p.nextToken() // move to next type
+		} else if p.peekTokenMatches(RPAREN) {
+			p.nextToken() // move to )
+		} else {
+			msg := fmt.Sprintf("expected ',' or ')' in return types, got %s", p.peekToken.Type)
+			p.addEZError(errors.E1002, msg, p.peekToken)
+			return nil
 		}
-		p.nextToken()
 	}
 
 	return types
