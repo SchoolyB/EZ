@@ -16,17 +16,23 @@ import (
 
 func main() {
 	if len(os.Args) < 2 {
-		fmt.Println("EZ Language Interpreter")
-		fmt.Println("Usage: ez <command> [file]")
-		fmt.Println("Commands:")
-		fmt.Println("  run <file>    Run an EZ program")
-		fmt.Println("  lex <file>    Tokenize a file (debug)")
+		printHelp()
 		return
 	}
 
 	command := os.Args[1]
 
 	switch command {
+	case "help", "-h", "--help":
+		printHelp()
+	case "version", "-v", "--version":
+		printVersion()
+	case "build":
+		if len(os.Args) < 3 {
+			fmt.Println("Usage: ez build <file>")
+			return
+		}
+		buildFile(os.Args[2])
 	case "lex":
 		if len(os.Args) < 3 {
 			fmt.Println("Usage: ez lex <file>")
@@ -46,8 +52,101 @@ func main() {
 		}
 		runFile(os.Args[2])
 	default:
-		fmt.Printf("Unknown command: %s\n", command)
+		// If it's not a known command, treat it as a file to run
+		// This allows: ez myProgram.ez
+		if len(command) > 3 && command[len(command)-3:] == ".ez" {
+			runFile(command)
+		} else {
+			fmt.Printf("Unknown command: %s\n", command)
+			fmt.Println("Run 'ez help' for usage information")
+		}
 	}
+}
+
+func printHelp() {
+	fmt.Println("EZ Language Interpreter")
+	fmt.Println()
+	fmt.Println("Usage:")
+	fmt.Println("  ez <file>           Run an EZ program")
+	fmt.Println("  ez <command> [args] Run a specific command")
+	fmt.Println()
+	fmt.Println("Commands:")
+	fmt.Println("  run <file>     Run an EZ program")
+	fmt.Println("  build <file>   Check syntax and types without running")
+	fmt.Println("  lex <file>     Tokenize a file (debug)")
+	fmt.Println("  parse <file>   Parse a file (debug)")
+	fmt.Println("  version        Show version information")
+	fmt.Println("  help           Show this help message")
+	fmt.Println()
+	fmt.Println("Examples:")
+	fmt.Println("  ez myProgram.ez")
+	fmt.Println("  ez run examples/hello.ez")
+	fmt.Println("  ez build myProgram.ez")
+}
+
+func printVersion() {
+	fmt.Println("EZ Language v0.1.0-dev")
+	fmt.Println("Copyright (c) 2025 Marshall A Burns")
+}
+
+func buildFile(filename string) {
+	data, err := os.ReadFile(filename)
+	if err != nil {
+		fmt.Printf("Error reading file: %v\n", err)
+		return
+	}
+
+	source := string(data)
+	l := lexer.NewLexer(source)
+	p := parser.NewWithSource(l, source, filename)
+	program := p.ParseProgram()
+
+	// Check for lexer errors
+	if len(l.Errors()) > 0 {
+		errList := errors.NewErrorList()
+		for _, lexErr := range l.Errors() {
+			var code errors.ErrorCode
+			switch lexErr.Code {
+			case "E1005":
+				code = errors.E1005
+			default:
+				code = errors.ErrorCode{Code: lexErr.Code, Name: "lexer-error", Description: "Lexer error"}
+			}
+			sourceLine := errors.GetSourceLine(source, lexErr.Line)
+			ezErr := errors.NewErrorWithSource(code, lexErr.Message, filename, lexErr.Line, lexErr.Column, sourceLine)
+			errList.AddError(ezErr)
+		}
+		fmt.Print(errors.FormatErrorList(errList))
+		return
+	}
+
+	// Check for parser errors
+	if p.EZErrors().HasErrors() {
+		fmt.Print(errors.FormatErrorList(p.EZErrors()))
+		return
+	}
+
+	// Display parser warnings
+	if p.EZErrors().HasWarnings() {
+		fmt.Print(errors.FormatErrorList(p.EZErrors()))
+	}
+
+	// Type checking
+	tc := typechecker.NewTypeChecker(source, filename)
+	tc.CheckProgram(program)
+
+	// Check for type errors
+	if tc.Errors().HasErrors() {
+		fmt.Print(errors.FormatErrorList(tc.Errors()))
+		return
+	}
+
+	// Display type checker warnings
+	if tc.Errors().HasWarnings() {
+		fmt.Print(errors.FormatErrorList(tc.Errors()))
+	}
+
+	fmt.Printf("Build successful: %s\n", filename)
 }
 
 func lexFile(filename string) {

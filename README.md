@@ -45,17 +45,40 @@ A simple interpreted programming language written in Go. The core philosophy is 
 
 ### Installation
 
-  ```bash
-  # Clone the repository
-  git clone https://github.com/SchoolyB/EZ.git
-  cd EZ
+**Option 1: Install Globally (Recommended)**
+```bash
+# Clone the repository
+git clone https://github.com/SchoolyB/EZ.git
+cd EZ
 
-  # Build the interpreter
-  go build -o ez.bin ./cmd/ez
+# Install EZ to your system (requires sudo password)
+make install
 
-  # Run the hello world example
-  ./ez.bin run examples/hello.ez
-  ```
+# Run from anywhere
+ez examples/hello.ez
+ez help
+```
+
+**Option 2: Build Locally**
+```bash
+# Clone the repository
+git clone https://github.com/SchoolyB/EZ.git
+cd EZ
+
+# Build the binary
+make build
+
+# Run with local binary
+./ez run examples/hello.ez
+```
+
+**Uninstall**
+```bash
+sudo make uninstall
+```
+
+**Requirements**
+- Go 1.23.1 or higher
 
   # Hello World
   ## Here's what's in examples/hello.ez:
@@ -67,8 +90,17 @@ A simple interpreted programming language written in Go. The core philosophy is 
   }
   ```
 
-To create your own programs, just create a `.ez` file in root of the project and run it:
-`./ez.bin run your_program.ez`
+### Usage
+
+Once installed, you can use EZ from anywhere:
+
+```bash
+ez your_program.ez       # Direct execution
+ez run your_program.ez   # Explicit run command
+ez build your_program.ez # Check syntax without running
+ez help                  # Show help
+ez version               # Show version
+```
 
 ### Basic Example
 
