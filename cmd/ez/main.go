@@ -200,6 +200,8 @@ func printRuntimeError(errObj *interpreter.Error, source, filename string) {
 			code = errors.E3004
 		case "E3005":
 			code = errors.E3005
+		case "E3007":
+			code = errors.E3007
 		case "E4001":
 			code = errors.E4001
 		case "E4002":
