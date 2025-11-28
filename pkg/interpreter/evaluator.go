@@ -1240,6 +1240,9 @@ func objectTypeToEZ(obj Object) string {
 			return v.TypeName
 		}
 		return "struct"
+	case *EnumValue:
+		// Return the enum type name (e.g., "COLOR")
+		return v.EnumType
 	case *Nil:
 		return "nil"
 	case *Function:
@@ -1423,7 +1426,12 @@ func evalMemberExpression(node *ast.MemberExpression, env *Environment) Object {
 	// Check for enum value access (e.g., STATUS.ACTIVE)
 	if enumObj, ok := obj.(*Enum); ok {
 		if val, ok := enumObj.Values[node.Member.Value]; ok {
-			return val
+			// Wrap the value in an EnumValue to preserve type information
+			return &EnumValue{
+				EnumType: enumObj.Name,
+				Name:     node.Member.Value,
+				Value:    val,
+			}
 		}
 		return newErrorWithLocation("E3003", node.Token.Line, node.Token.Column,
 			"enum value '%s' not found in enum '%s'", node.Member.Value, enumObj.Name)
