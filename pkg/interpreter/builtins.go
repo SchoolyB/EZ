@@ -8,7 +8,11 @@ import (
 	"fmt"
 	"os"
 	"strconv"
+	"strings"
 )
+
+// Global stdin reader to maintain buffering across multiple input() calls
+var stdinReader = bufio.NewReader(os.Stdin)
 
 var builtins = map[string]*Builtin{
 	// BASIC STANDARD LIBRARY BUILTINS
@@ -169,12 +173,10 @@ var builtins = map[string]*Builtin{
 	// Reads a line of input from standard input and returns it as a string.
 	"input": {
 		Fn: func(args ...Object) Object {
-			reader := bufio.NewReader(os.Stdin)
-			text, _ := reader.ReadString('\n')
-			// Trim newline
-			if len(text) > 0 && text[len(text)-1] == '\n' {
-				text = text[:len(text)-1]
-			}
+			// Use global reader to avoid buffering issues with multiple input() calls
+			text, _ := stdinReader.ReadString('\n')
+			// Trim newline characters (both \n and \r\n for cross-platform support)
+			text = strings.TrimRight(text, "\r\n")
 			return &String{Value: text}
 		},
 	},
