@@ -32,10 +32,41 @@ jobs:
         run: go build -o ez.exe ./cmd/ez
         if: runner.os == 'Windows'
 
-      - name: Run EZ tests
+      - name: Run interpreter tests
         if: runner.os != 'Windows'
-        run: ./ez.bin run examples/tests.ez
+        run: ./ez.bin run test/interpreter_tests.ez
 
-      - name: Run EZ tests (Windows)
+      - name: Run interpreter tests (Windows)
         if: runner.os == 'Windows'
-        run: .\ez.exe run examples\tests.ez
+        run: .\ez.exe run test\interpreter_tests.ez
+
+      - name: Validate example files
+        if: runner.os != 'Windows'
+        run: |
+          for file in examples/*.ez; do
+            echo "Validating $file..."
+            ./ez.bin build "$file" || exit 1
+          done
+
+      - name: Validate example files (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          Get-ChildItem examples\*.ez | ForEach-Object {
+            Write-Host "Validating $_..."
+            & .\ez.exe build $_.FullName
+            if ($LASTEXITCODE -ne 0) { exit 1 }
+          }
+
+      - name: Test REPL basic functionality
+        if: runner.os != 'Windows'
+        run: |
+          echo "Testing REPL..."
+          echo -e "temp x int = 5\nx + 10\nexit" | timeout 5 ./ez.bin repl | grep -q "15"
+
+      - name: Test REPL basic functionality (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          Write-Host "Testing REPL..."
+          "temp x int = 5", "x + 10", "exit" | & .\ez.exe repl
