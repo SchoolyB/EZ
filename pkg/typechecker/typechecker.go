@@ -156,6 +156,24 @@ func (tc *TypeChecker) addError(code errors.ErrorCode, message string, line, col
 	tc.errors.AddError(err)
 }
 
+// addWarning adds a type warning
+func (tc *TypeChecker) addWarning(code errors.ErrorCode, message string, line, column int) {
+	sourceLine := ""
+	if tc.source != "" {
+		sourceLine = errors.GetSourceLine(tc.source, line)
+	}
+
+	warn := errors.NewErrorWithSource(
+		code,
+		message,
+		tc.filename,
+		line,
+		column,
+		sourceLine,
+	)
+	tc.errors.AddWarning(warn)
+}
+
 // CheckProgram performs type checking on the entire program
 func (tc *TypeChecker) CheckProgram(program *ast.Program) bool {
 	// Phase 1: Register all user-defined types (structs, enums)
@@ -322,13 +340,32 @@ func (tc *TypeChecker) checkFunctionDeclaration(node *ast.FunctionDeclaration) {
 
 // checkFunctionBody validates the body of a function
 func (tc *TypeChecker) checkFunctionBody(node *ast.FunctionDeclaration) {
-	// TODO: Implement function body type checking
-	// This will check:
+	// Only check functions that declare return types
+	if len(node.ReturnTypes) == 0 {
+		return
+	}
+
+	// Check if W2003 warning is suppressed
+	if tc.isSuppressed("W2003", node.Attributes) {
+		return
+	}
+
+	// Check if function body contains at least one return statement
+	if !tc.hasReturnStatement(node.Body) {
+		tc.addWarning(
+			errors.W2003,
+			fmt.Sprintf("Function '%s' declares return type(s) but has no return statement", node.Name.Value),
+			node.Name.Token.Line,
+			node.Name.Token.Column,
+		)
+	}
+
+	// TODO: Implement additional function body type checking
 	// - Local variable declarations
 	// - Assignments
 	// - Expressions
 	// - Function calls
-	// - Return statements
+	// - Return type validation
 }
 
 // checkMainFunction validates that a main() function exists as the program entry point
@@ -341,4 +378,82 @@ func (tc *TypeChecker) checkMainFunction() {
 			1,
 		)
 	}
+}
+
+// isSuppressed checks if a warning code is suppressed by function attributes
+func (tc *TypeChecker) isSuppressed(warningCode string, attrs []*ast.Attribute) bool {
+	if attrs == nil {
+		return false
+	}
+
+	for _, attr := range attrs {
+		if attr.Name == "suppress" {
+			for _, arg := range attr.Args {
+				if arg == warningCode || arg == "missing_return" {
+					return true
+				}
+			}
+		}
+	}
+	return false
+}
+
+// hasReturnStatement recursively checks if a block contains a return statement
+func (tc *TypeChecker) hasReturnStatement(block *ast.BlockStatement) bool {
+	if block == nil {
+		return false
+	}
+
+	for _, stmt := range block.Statements {
+		// Check if this statement is a return statement
+		if _, ok := stmt.(*ast.ReturnStatement); ok {
+			return true
+		}
+
+		// Check nested blocks in control flow statements
+		switch s := stmt.(type) {
+		case *ast.IfStatement:
+			if tc.hasReturnInIfStatement(s) {
+				return true
+			}
+
+		case *ast.ForStatement:
+			if tc.hasReturnStatement(s.Body) {
+				return true
+			}
+
+		case *ast.ForEachStatement:
+			if tc.hasReturnStatement(s.Body) {
+				return true
+			}
+
+		case *ast.WhileStatement:
+			if tc.hasReturnStatement(s.Body) {
+				return true
+			}
+		}
+	}
+
+	return false
+}
+
+// hasReturnInIfStatement recursively checks if/or/otherwise chains for return statements
+func (tc *TypeChecker) hasReturnInIfStatement(ifStmt *ast.IfStatement) bool {
+	// Check the consequence block
+	if tc.hasReturnStatement(ifStmt.Consequence) {
+		return true
+	}
+
+	// Check the alternative (can be another IfStatement or BlockStatement)
+	if ifStmt.Alternative != nil {
+		if altIf, ok := ifStmt.Alternative.(*ast.IfStatement); ok {
+			// Recursively check the next if in the chain
+			return tc.hasReturnInIfStatement(altIf)
+		} else if altBlock, ok := ifStmt.Alternative.(*ast.BlockStatement); ok {
+			// Check the otherwise block
+			return tc.hasReturnStatement(altBlock)
+		}
+	}
+
+	return false
 }

@@ -70,4 +70,5 @@ var (
 	// Potential Bug Warnings (W2xxx)
 	W2001 = ErrorCode{"W2001", "unreachable-code", "Unreachable code"}
 	W2002 = ErrorCode{"W2002", "shadowed-variable", "Variable shadows outer scope"}
+	W2003 = ErrorCode{"W2003", "missing-return", "Function missing return statement"}
 )
