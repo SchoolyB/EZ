@@ -631,7 +631,7 @@ func evalForStatement(node *ast.ForStatement, env *Environment) Object {
 
 	loopEnv := NewEnclosedEnvironment(env)
 
-	for i := start.Value; i <= end.Value; i++ { // Inclusive range
+	for i := start.Value; i < end.Value; i++ { // Exclusive end
 		loopEnv.Set(node.Variable.Value, &Integer{Value: i}, true) // loop vars are mutable
 
 		result := Eval(node.Body, loopEnv)
