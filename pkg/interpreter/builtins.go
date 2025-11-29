@@ -129,12 +129,29 @@ var builtins = map[string]*Builtin{
 				cleanedValue := strings.ReplaceAll(arg.Value, "_", "")
 				val, err := strconv.ParseInt(cleanedValue, 10, 64)
 				if err != nil {
-					return newError("cannot convert %q to int", arg.Value)
+					return &Error{
+						Code: "E4003",
+						Message: fmt.Sprintf("cannot convert %q to int: invalid integer format\n\n"+
+							"The string must contain only digits (0-9), optionally with:\n"+
+							"  - A leading + or - sign\n"+
+							"  - Underscores for readability (e.g., \"100_000\")\n\n"+
+							"Examples of valid integers:\n"+
+							"  \"42\", \"-123\", \"1_000_000\"", arg.Value),
+					}
 				}
 				return &Integer{Value: val}
 			case *Char:
 				return &Integer{Value: int64(arg.Value)}
 			default:
+				if args[0].Type() == ARRAY_OBJ {
+					return &Error{
+						Code: "E2001",
+						Message: "cannot convert ARRAY to int\n\n" +
+							"Arrays cannot be directly converted to integers.\n" +
+							"Hint: If you want the array length, use len() instead:\n" +
+							"    len(myArray)  // returns the number of elements",
+					}
+				}
 				return newError("cannot convert %s to int", args[0].Type())
 			}
 		},
@@ -155,10 +172,29 @@ var builtins = map[string]*Builtin{
 				cleanedValue := strings.ReplaceAll(arg.Value, "_", "")
 				val, err := strconv.ParseFloat(cleanedValue, 64)
 				if err != nil {
-					return newError("cannot convert %q to float", arg.Value)
+					return &Error{
+						Code: "E4003",
+						Message: fmt.Sprintf("cannot convert %q to float: invalid float format\n\n"+
+							"The string must be a valid floating-point number with:\n"+
+							"  - Optional leading + or - sign\n"+
+							"  - Digits with optional decimal point\n"+
+							"  - Underscores for readability (e.g., \"3.14_159\")\n"+
+							"  - Optional scientific notation (e.g., \"1.5e10\")\n\n"+
+							"Examples of valid floats:\n"+
+							"  \"3.14\", \"-2.5\", \"1_000.50\", \"1.5e10\"", arg.Value),
+					}
 				}
 				return &Float{Value: val}
 			default:
+				if args[0].Type() == ARRAY_OBJ {
+					return &Error{
+						Code: "E2001",
+						Message: "cannot convert ARRAY to float\n\n" +
+							"Arrays cannot be directly converted to floating-point numbers.\n" +
+							"Hint: If you want the array length, use len() instead:\n" +
+							"    len(myArray)  // returns the number of elements",
+					}
+				}
 				return newError("cannot convert %s to float", args[0].Type())
 			}
 		},

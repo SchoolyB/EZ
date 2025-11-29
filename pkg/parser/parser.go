@@ -1868,6 +1868,26 @@ func (p *Parser) parseExpressionList(end TokenType) []Expression {
 
 	for p.peekTokenMatches(COMMA) {
 		p.nextToken() // consume comma
+		// Check for trailing comma
+		if p.peekTokenMatches(end) {
+			var endName string
+			switch end {
+			case RBRACE:
+				endName = "array literal"
+			case RPAREN:
+				endName = "function call"
+			default:
+				endName = "list"
+			}
+			p.addEZError(errors.E1003,
+				fmt.Sprintf("unexpected trailing comma in %s\n\n"+
+					"Trailing commas are not allowed. Remove the comma before the closing bracket.\n\n"+
+					"Help: Remove the trailing comma or add another element:\n"+
+					"  Valid: {1, 2, 3}\n"+
+					"  Invalid: {1, 2, 3,}", endName),
+				p.peekToken)
+			return nil
+		}
 		p.nextToken() // move to next expression
 		list = append(list, p.parseExpression(LOWEST))
 	}
