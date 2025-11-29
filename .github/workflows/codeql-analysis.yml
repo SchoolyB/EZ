@@ -1,0 +1,34 @@
+name: CodeQL Security Scan
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    types: [opened, synchronize, reopened]
+  schedule:
+    - cron: '0 3 * * 0'   # weekly on Sunday at 03:00 UTC
+jobs:
+  analyze:
+    name: Analyze (CodeQL)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v2
+        with:
+          languages: go
+          queries: security-and-quality
+
+      - name: Set up Go
+        uses: actions/setup-go@v4
+        with:
+          go-version: '1.21'
+
+      - name: Build and run tests
+        run: |
+          go env
+          go test ./... || true
+
+      - name: Perform CodeQL analysis
+        uses: github/codeql-action/analyze@v2
