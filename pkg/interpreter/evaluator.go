@@ -184,7 +184,7 @@ func Eval(node ast.Node, env *Environment) Object {
 		return &Float{Value: node.Value}
 
 	case *ast.StringValue:
-		return &String{Value: node.Value}
+		return &String{Value: node.Value, Mutable: true}
 
 	case *ast.InterpolatedString:
 		return evalInterpolatedString(node, env)
@@ -206,7 +206,7 @@ func Eval(node ast.Node, env *Environment) Object {
 		if len(elements) == 1 && isError(elements[0]) {
 			return elements[0]
 		}
-		return &Array{Elements: elements}
+		return &Array{Elements: elements, Mutable: true}
 
 	case *ast.StructValue:
 		return evalStructValue(node, env)
@@ -341,7 +341,7 @@ func evalVariableDeclaration(node *ast.VariableDeclaration, env *Environment) Ob
 		// Fixed-size arrays: [int,3], [string,5], etc. - MUST be initialized with values
 		if len(node.TypeName) > 0 && node.TypeName[0] == '[' && !strings.Contains(node.TypeName, ",") {
 			// Initialize dynamic array to empty array instead of NIL
-			val = &Array{Elements: []Object{}}
+			val = &Array{Elements: []Object{}, Mutable: true}
 		} else {
 			// Provide default values for primitive types
 			switch node.TypeName {
@@ -350,7 +350,7 @@ func evalVariableDeclaration(node *ast.VariableDeclaration, env *Environment) Ob
 			case "float":
 				val = &Float{Value: 0.0}
 			case "string":
-				val = &String{Value: ""}
+				val = &String{Value: "", Mutable: true}
 			case "bool":
 				val = FALSE // Use existing FALSE constant
 			case "char":
@@ -423,6 +423,15 @@ func evalAssignment(node *ast.AssignmentStatement, env *Environment) Object {
 
 	case *ast.IndexExpression:
 		// Array or string index assignment
+		// First check if the container variable is mutable
+		if ident, ok := target.Left.(*ast.Label); ok {
+			isMutable, exists := env.IsMutable(ident.Value)
+			if exists && !isMutable {
+				return newErrorWithLocation("E4005", node.Token.Line, node.Token.Column,
+					"cannot modify immutable variable '%s' (declared as const)", ident.Value)
+			}
+		}
+
 		container := Eval(target.Left, env)
 		if isError(container) {
 			return container
@@ -781,6 +790,14 @@ func evalFunctionDeclaration(node *ast.FunctionDeclaration, env *Environment) Ob
 
 func evalIdentifier(node *ast.Label, env *Environment) Object {
 	if val, ok := env.Get(node.Value); ok {
+		// Set mutability flag on arrays and strings based on variable declaration
+		isMutable, _ := env.IsMutable(node.Value)
+		switch obj := val.(type) {
+		case *Array:
+			obj.Mutable = isMutable
+		case *String:
+			obj.Mutable = isMutable
+		}
 		return val
 	}
 
@@ -1014,7 +1031,7 @@ func evalStringInfixExpression(operator string, left, right Object) Object {
 
 	switch operator {
 	case "+":
-		return &String{Value: leftVal + rightVal}
+		return &String{Value: leftVal + rightVal, Mutable: true}
 	case "==":
 		return nativeBoolToBooleanObject(leftVal == rightVal)
 	case "!=":
@@ -1160,7 +1177,15 @@ func evalMemberCall(member *ast.MemberExpression, args []ast.Expression, env *En
 		if len(evalArgs) == 1 && isError(evalArgs[0]) {
 			return evalArgs[0]
 		}
-		return builtin.Fn(evalArgs...)
+		result := builtin.Fn(evalArgs...)
+		// Add location info to errors from builtins
+		if errObj, ok := result.(*Error); ok {
+			if errObj.Line == 0 && errObj.Column == 0 {
+				errObj.Line = member.Token.Line
+				errObj.Column = member.Token.Column
+			}
+		}
+		return result
 	}
 
 	return newError("function not found: %s", fullName)
@@ -1187,7 +1212,15 @@ func applyFunction(fn Object, args []Object, line, col int) Object {
 		return result
 
 	case *Builtin:
-		return fn.Fn(args...)
+		result := fn.Fn(args...)
+		// Add location info to errors from builtins
+		if errObj, ok := result.(*Error); ok {
+			if errObj.Line == 0 && errObj.Column == 0 {
+				errObj.Line = line
+				errObj.Column = col
+			}
+		}
+		return result
 
 	default:
 		return newErrorWithLocation("E2002", line, col, "not a function: %s", fn.Type())
@@ -1340,7 +1373,7 @@ func evalInterpolatedString(node *ast.InterpolatedString, env *Environment) Obje
 		result.WriteString(val.Inspect())
 	}
 
-	return &String{Value: result.String()}
+	return &String{Value: result.String(), Mutable: true}
 }
 
 func evalStructValue(node *ast.StructValue, env *Environment) Object {
@@ -1395,7 +1428,7 @@ func getDefaultValue(typeName string) Object {
 	case "float":
 		return &Float{Value: 0.0}
 	case "string":
-		return &String{Value: ""}
+		return &String{Value: "", Mutable: true}
 	case "bool":
 		return FALSE
 	case "char":
