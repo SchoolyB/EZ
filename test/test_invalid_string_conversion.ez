@@ -1,0 +1,9 @@
+import @std
+using std
+
+do main(){
+    const badInt int = int("not a number")
+    const badFloat float = float("also not a number")
+    println(badInt)
+    println(badFloat)
+}

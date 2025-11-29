@@ -247,7 +247,48 @@ func Eval(node ast.Node, env *Environment) Object {
 		if isError(index) {
 			return index
 		}
-		return evalIndexExpression(left, index)
+
+		// Handle index access with improved error messages
+		idx, ok := index.(*Integer)
+		if !ok {
+			return newErrorWithLocation("E2001", node.Token.Line, node.Token.Column,
+				"index must be an integer, got %s", index.Type())
+		}
+
+		switch obj := left.(type) {
+		case *Array:
+			arrLen := int64(len(obj.Elements))
+			if idx.Value < 0 || idx.Value >= arrLen {
+				if arrLen == 0 {
+					return newErrorWithLocation("E4002", node.Token.Line, node.Token.Column,
+						"index out of bounds: array is empty (length 0)\n\n"+
+							"Attempted to access index %d, but array has no elements\n"+
+							"Hint: Use arrays.push() to add elements before accessing by index", idx.Value)
+				}
+				return newErrorWithLocation("E4002", node.Token.Line, node.Token.Column,
+					"index out of bounds: attempted to access index %d, but valid range is 0-%d",
+					idx.Value, arrLen-1)
+			}
+			return obj.Elements[idx.Value]
+
+		case *String:
+			strLen := int64(len(obj.Value))
+			if idx.Value < 0 || idx.Value >= strLen {
+				if strLen == 0 {
+					return newErrorWithLocation("E4002", node.Token.Line, node.Token.Column,
+						"index out of bounds: string is empty (length 0)\n\n"+
+							"Attempted to access index %d", idx.Value)
+				}
+				return newErrorWithLocation("E4002", node.Token.Line, node.Token.Column,
+					"index out of bounds: attempted to access index %d, but valid range is 0-%d",
+					idx.Value, strLen-1)
+			}
+			return &Char{Value: rune(obj.Value[idx.Value])}
+
+		default:
+			return newErrorWithLocation("E2002", node.Token.Line, node.Token.Column,
+				"index operator not supported for %s", left.Type())
+		}
 
 	case *ast.MemberExpression:
 		return evalMemberExpression(node, env)
@@ -448,8 +489,17 @@ func evalAssignment(node *ast.AssignmentStatement, env *Environment) Object {
 
 		switch obj := container.(type) {
 		case *Array:
-			if index.Value < 0 || index.Value >= int64(len(obj.Elements)) {
-				return newError("index out of bounds: %d", index.Value)
+			arrLen := int64(len(obj.Elements))
+			if index.Value < 0 || index.Value >= arrLen {
+				if arrLen == 0 {
+					return newErrorWithLocation("E4002", node.Token.Line, node.Token.Column,
+						"index out of bounds: array is empty (length 0)\n\n"+
+							"Attempted to assign to index %d, but array has no elements\n"+
+							"Hint: Use arrays.push() to add elements before accessing by index", index.Value)
+				}
+				return newErrorWithLocation("E4002", node.Token.Line, node.Token.Column,
+					"index out of bounds: attempted to assign to index %d, but valid range is 0-%d",
+					index.Value, arrLen-1)
 			}
 
 			// Handle compound assignment
@@ -467,10 +517,19 @@ func evalAssignment(node *ast.AssignmentStatement, env *Environment) Object {
 			// String mutation - verify the value is a character
 			charObj, ok := val.(*Char)
 			if !ok {
-				return newError("can only assign character to string index, got %s", val.Type())
+				return newErrorWithLocation("E2001", node.Token.Line, node.Token.Column,
+					"can only assign character to string index, got %s", val.Type())
 			}
-			if index.Value < 0 || index.Value >= int64(len(obj.Value)) {
-				return newError("index out of bounds: %d", index.Value)
+			strLen := int64(len(obj.Value))
+			if index.Value < 0 || index.Value >= strLen {
+				if strLen == 0 {
+					return newErrorWithLocation("E4002", node.Token.Line, node.Token.Column,
+						"index out of bounds: string is empty (length 0)\n\n"+
+							"Attempted to assign to index %d", index.Value)
+				}
+				return newErrorWithLocation("E4002", node.Token.Line, node.Token.Column,
+					"index out of bounds: attempted to assign to index %d, but valid range is 0-%d",
+					index.Value, strLen-1)
 			}
 			// Convert string to rune slice, modify, convert back
 			runes := []rune(obj.Value)
@@ -617,7 +676,13 @@ func evalForStatement(node *ast.ForStatement, env *Environment) Object {
 	// Get range bounds
 	rangeExpr, ok := node.Iterable.(*ast.RangeExpression)
 	if !ok {
-		return newError("for loop requires range() expression")
+		return newErrorWithLocation("E1003", node.Token.Line, node.Token.Column,
+			"for loop requires range() expression\n\n"+
+				"Did you mean to use 'for_each' to iterate over a collection?\n\n"+
+				"Use 'for' with range() for numeric iteration:\n"+
+				"    for i in range(0, 10) { ... }\n\n"+
+				"Use 'for_each' to iterate over arrays/strings:\n"+
+				"    for_each item in collection { ... }")
 	}
 
 	startObj := Eval(rangeExpr.Start, env)

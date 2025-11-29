@@ -1,0 +1,8 @@
+import @std
+using std
+
+do main(){
+    const arr [int] = {1, 2, 3}
+    const badInt int = int(arr)
+    println(badInt)
+}
