@@ -125,7 +125,9 @@ var builtins = map[string]*Builtin{
 			case *Float:
 				return &Integer{Value: int64(arg.Value)}
 			case *String:
-				val, err := strconv.ParseInt(arg.Value, 10, 64)
+				// Strip underscores to support underscore integer syntax (e.g., "100_000")
+				cleanedValue := strings.ReplaceAll(arg.Value, "_", "")
+				val, err := strconv.ParseInt(cleanedValue, 10, 64)
 				if err != nil {
 					return newError("cannot convert %q to int", arg.Value)
 				}
@@ -149,7 +151,9 @@ var builtins = map[string]*Builtin{
 			case *Integer:
 				return &Float{Value: float64(arg.Value)}
 			case *String:
-				val, err := strconv.ParseFloat(arg.Value, 64)
+				// Strip underscores to support underscore number syntax (e.g., "3.14_159")
+				cleanedValue := strings.ReplaceAll(arg.Value, "_", "")
+				val, err := strconv.ParseFloat(cleanedValue, 64)
 				if err != nil {
 					return newError("cannot convert %q to float", arg.Value)
 				}
