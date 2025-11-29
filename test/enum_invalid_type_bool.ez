@@ -1,0 +1,17 @@
+import @std
+
+/*
+ * This file should FAIL to parse with an error message:
+ * "enum type attributes must be primitive types (int, float, or string), got 'bool'"
+ */
+
+// This should be REJECTED - bool is not allowed as enum type attribute
+@(bool)
+const INVALID enum {
+    VALUE
+}
+
+do main() {
+    using std
+    println("This should never execute")
+}

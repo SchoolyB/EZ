@@ -1,0 +1,80 @@
+import @std
+
+/*
+ * EZ Language - Enum Type Attribute Validation Test
+ *
+ * This test file verifies that enum type attributes (@()) only accept
+ * primitive types: int, float, string.
+ *
+ * Non-primitive types (like structs, arrays, etc.) should be rejected
+ * with a clear error message during parsing.
+ */
+
+// Valid primitive types for enum attributes
+
+@(int)
+const IntEnum enum {
+    FIRST
+    SECOND
+    THIRD
+}
+
+@(float)
+const FloatEnum enum {
+    PI = 3.14
+    E = 2.71
+}
+
+@(string)
+const StringEnum enum {
+    RED = "red"
+    GREEN = "green"
+    BLUE = "blue"
+}
+
+// Valid with skip and increment
+@(int, skip, 10)
+const SkipEnum enum {
+    START = 0
+    MIDDLE
+    END
+}
+
+do main() {
+    using std
+
+    println("╔════════════════════════════════════════╗")
+    println("║  Enum Type Attribute Validation Test  ║")
+    println("╚════════════════════════════════════════╝")
+    println("")
+
+    test_valid_primitives()
+
+    println("")
+    println("╔════════════════════════════════════════╗")
+    println("║    Valid Enum Types Test Passed ✓     ║")
+    println("╚════════════════════════════════════════╝")
+}
+
+do test_valid_primitives() {
+    using std
+    println("→ Testing valid primitive type attributes...")
+
+    // Test int enum
+    temp intVal int = IntEnum.FIRST
+    println("  IntEnum.FIRST =", intVal)
+
+    // Test float enum
+    temp floatVal float = FloatEnum.PI
+    println("  FloatEnum.PI =", floatVal)
+
+    // Test string enum
+    temp strVal string = StringEnum.RED
+    println("  StringEnum.RED =", strVal)
+
+    // Test skip enum
+    temp skipVal int = SkipEnum.START
+    println("  SkipEnum.START =", skipVal)
+
+    println("  ✓ All valid primitive type attributes work correctly")
+}

@@ -1,0 +1,25 @@
+import @std
+
+/*
+ * EZ Language - Invalid Enum Type Attribute Test (Struct)
+ *
+ * This file should FAIL to parse with an error message:
+ * "enum type attributes must be primitive types (int, float, or string), got 'Person'"
+ *
+ * This test validates that non-primitive types are properly rejected.
+ */
+
+const Person struct {
+    name string
+}
+
+// This should be REJECTED - Person is a struct, not a primitive type
+@(Person)
+const SOMETHING enum {
+    SOMETHING_VALUE
+}
+
+do main() {
+    using std
+    println("This should never execute - parser should reject this file")
+}
