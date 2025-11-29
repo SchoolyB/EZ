@@ -63,7 +63,8 @@ func (f *Float) Inspect() string {
 
 // String wraps string
 type String struct {
-	Value string
+	Value   string
+	Mutable bool
 }
 
 func (s *String) Type() ObjectType { return STRING_OBJ }
@@ -143,6 +144,7 @@ func (b *Builtin) Inspect() string  { return "builtin function" }
 // Array represents an array
 type Array struct {
 	Elements []Object
+	Mutable  bool
 }
 
 func (a *Array) Type() ObjectType { return ARRAY_OBJ }

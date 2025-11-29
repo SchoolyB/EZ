@@ -72,6 +72,13 @@ var arraysBuiltins = map[string]*Builtin{
 			if !ok {
 				return newError("arrays.push() requires an array as first argument")
 			}
+			// Check if array is mutable
+			if !arr.Mutable {
+				return &Error{
+					Message: "cannot modify immutable array (declared as const)",
+					Code:    "E4005",
+				}
+			}
 			// Modify the array in-place by appending to its Elements slice
 			arr.Elements = append(arr.Elements, args[1:]...)
 			return NIL
@@ -161,6 +168,13 @@ var arraysBuiltins = map[string]*Builtin{
 			arr, ok := args[0].(*Array)
 			if !ok {
 				return newError("arrays.pop() requires an array")
+			}
+			// Check if array is mutable
+			if !arr.Mutable {
+				return &Error{
+					Message: "cannot modify immutable array (declared as const)",
+					Code:    "E4005",
+				}
 			}
 			if len(arr.Elements) == 0 {
 				return newError("arrays.pop() cannot pop from empty array")
