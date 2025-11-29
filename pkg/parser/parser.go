@@ -316,20 +316,20 @@ func (p *Parser) peekError(tType TokenType) {
 		switch tType {
 		case RPAREN:
 			msg = "unclosed parenthesis - expected ')'"
-			code = errors.E1004
+			code = errors.E2005
 		case RBRACE:
 			msg = "unclosed brace - expected '}'"
-			code = errors.E1004
+			code = errors.E2004
 		case RBRACKET:
 			msg = "unclosed bracket - expected ']'"
-			code = errors.E1004
+			code = errors.E2006
 		default:
 			msg = fmt.Sprintf("unexpected end of file, expected %s", tType)
-			code = errors.E1002
+			code = errors.E2002
 		}
 	} else {
 		msg = fmt.Sprintf("expected %s, got %s instead", tType, p.peekToken.Type)
-		code = errors.E1002
+		code = errors.E2002
 	}
 
 	p.errors = append(p.errors, msg)
@@ -364,7 +364,7 @@ func (p *Parser) ParseProgram() *Program {
 		if p.currentTokenMatches(USING) {
 			// File-scoped using: must come before other declarations
 			if seenOtherDeclaration {
-				p.addEZError(errors.E1003, "file-scoped 'using' must come before all declarations", p.currentToken)
+				p.addEZError(errors.E2009, "file-scoped 'using' must come before all declarations", p.currentToken)
 				p.nextToken()
 				continue
 			}
@@ -376,7 +376,7 @@ func (p *Parser) ParseProgram() *Program {
 				for _, module := range usingStmt.Modules {
 					if !importedModules[module.Value] {
 						msg := fmt.Sprintf("cannot use module '%s' before importing it", module.Value)
-						p.addEZError(errors.E1003, msg, usingStmt.Token)
+						p.addEZError(errors.E2010, msg, usingStmt.Token)
 					}
 				}
 				program.FileUsing = append(program.FileUsing, usingStmt)
@@ -499,7 +499,7 @@ func (p *Parser) parseStatement() Statement {
 				// Valid assignment targets
 			default:
 				msg := fmt.Sprintf("invalid assignment target: cannot assign to %T", expr)
-				p.addEZError(errors.E1008, msg, p.currentToken)
+				p.addEZError(errors.E2008, msg, p.currentToken)
 			}
 
 			// Get the assignment operator
@@ -558,7 +558,7 @@ func (p *Parser) parseVarableDeclarationOrStruct() Statement {
 		if isReservedName(nameToken.Literal) {
 			msg := fmt.Sprintf("'%s' is a reserved keyword and cannot be used as a variable name", nameToken.Literal)
 			p.errors = append(p.errors, msg)
-			p.addEZError(errors.E1009, msg, nameToken)
+			p.addEZError(errors.E2020, msg, nameToken)
 			return nil
 		}
 
@@ -566,7 +566,7 @@ func (p *Parser) parseVarableDeclarationOrStruct() Statement {
 		if !p.declareInScope(nameToken.Literal, nameToken) {
 			msg := fmt.Sprintf("'%s' is already declared in this scope", nameToken.Literal)
 			p.errors = append(p.errors, msg)
-			p.addEZError(errors.E1010, msg, nameToken)
+			p.addEZError(errors.E2023, msg, nameToken)
 			return nil
 		}
 
@@ -586,7 +586,7 @@ func (p *Parser) parseVarableDeclarationOrStruct() Statement {
 			if !p.currentTokenMatches(IDENT) {
 				msg := fmt.Sprintf("expected type name, got %s", p.currentToken.Type)
 				p.errors = append(p.errors, msg)
-				p.addEZError(errors.E1007, msg, p.currentToken)
+				p.addEZError(errors.E2024, msg, p.currentToken)
 				return nil
 			}
 			typeName += p.currentToken.Literal
@@ -600,7 +600,7 @@ func (p *Parser) parseVarableDeclarationOrStruct() Statement {
 				if !p.currentTokenMatches(INT) {
 					msg := fmt.Sprintf("expected integer for array size, got %s", p.currentToken.Type)
 					p.errors = append(p.errors, msg)
-					p.addEZError(errors.E1007, msg, p.currentToken)
+					p.addEZError(errors.E2025, msg, p.currentToken)
 					return nil
 				}
 				typeName += "," + p.currentToken.Literal
@@ -616,7 +616,7 @@ func (p *Parser) parseVarableDeclarationOrStruct() Statement {
 		} else {
 			msg := fmt.Sprintf("expected type, got %s", p.currentToken.Type)
 			p.errors = append(p.errors, msg)
-			p.addEZError(errors.E1007, msg, p.currentToken)
+			p.addEZError(errors.E2024, msg, p.currentToken)
 			return nil
 		}
 
@@ -629,7 +629,7 @@ func (p *Parser) parseVarableDeclarationOrStruct() Statement {
 			if p.currentTokenMatches(RBRACE) || p.currentTokenMatches(EOF) {
 				msg := "expected expression after '='"
 				p.errors = append(p.errors, msg)
-				p.addEZError(errors.E1003, msg, assignToken)
+				p.addEZError(errors.E2003, msg, assignToken)
 				return nil
 			}
 
@@ -638,7 +638,7 @@ func (p *Parser) parseVarableDeclarationOrStruct() Statement {
 			// const must be initialized
 			msg := fmt.Sprintf("const '%s' must be initialized with a value", stmt.Name.Value)
 			p.errors = append(p.errors, msg)
-			p.addEZError(errors.E1003, msg, p.currentToken)
+			p.addEZError(errors.E2011, msg, p.currentToken)
 			return nil
 		}
 
@@ -665,14 +665,14 @@ func (p *Parser) parseVarableDeclaration() *VariableDeclaration {
 		if isReservedName(name) {
 			msg := fmt.Sprintf("'%s' is a reserved keyword and cannot be used as a variable name", name)
 			p.errors = append(p.errors, msg)
-			p.addEZError(errors.E1009, msg, p.currentToken)
+			p.addEZError(errors.E2020, msg, p.currentToken)
 			return nil
 		}
 		// Check for duplicate declaration
 		if !p.declareInScope(name, p.currentToken) {
 			msg := fmt.Sprintf("'%s' is already declared in this scope", name)
 			p.errors = append(p.errors, msg)
-			p.addEZError(errors.E1010, msg, p.currentToken)
+			p.addEZError(errors.E2023, msg, p.currentToken)
 			return nil
 		}
 		stmt.Names = append(stmt.Names, &Label{Token: p.currentToken, Value: name})
@@ -691,21 +691,21 @@ func (p *Parser) parseVarableDeclaration() *VariableDeclaration {
 			if isReservedName(name) {
 				msg := fmt.Sprintf("'%s' is a reserved keyword and cannot be used as a variable name", name)
 				p.errors = append(p.errors, msg)
-				p.addEZError(errors.E1009, msg, p.currentToken)
+				p.addEZError(errors.E2020, msg, p.currentToken)
 				return nil
 			}
 			// Check for duplicate declaration
 			if !p.declareInScope(name, p.currentToken) {
 				msg := fmt.Sprintf("'%s' is already declared in this scope", name)
 				p.errors = append(p.errors, msg)
-				p.addEZError(errors.E1010, msg, p.currentToken)
+				p.addEZError(errors.E2023, msg, p.currentToken)
 				return nil
 			}
 			stmt.Names = append(stmt.Names, &Label{Token: p.currentToken, Value: name})
 		} else {
 			msg := fmt.Sprintf("expected identifier or @ignore, got %s", p.currentToken.Type)
 			p.errors = append(p.errors, msg)
-			p.addEZError(errors.E1001, msg, p.currentToken)
+			p.addEZError(errors.E2001, msg, p.currentToken)
 			return nil
 		}
 	}
@@ -749,7 +749,7 @@ func (p *Parser) parseVarableDeclaration() *VariableDeclaration {
 		if p.currentTokenMatches(RBRACE) || p.currentTokenMatches(EOF) {
 			msg := "expected expression after '='"
 			p.errors = append(p.errors, msg)
-			p.addEZError(errors.E1003, msg, assignToken)
+			p.addEZError(errors.E2003, msg, assignToken)
 			return nil
 		}
 
@@ -758,7 +758,7 @@ func (p *Parser) parseVarableDeclaration() *VariableDeclaration {
 		// const must be initialized
 		msg := fmt.Sprintf("const '%s' must be initialized with a value", stmt.Name.Value)
 		p.errors = append(p.errors, msg)
-		p.addEZError(errors.E1003, msg, p.currentToken)
+		p.addEZError(errors.E2011, msg, p.currentToken)
 		return nil
 	}
 
@@ -854,7 +854,7 @@ func (p *Parser) parseBlockStatementWithSuppress(suppressions []*Attribute) *Blo
 	if p.currentTokenMatches(EOF) {
 		msg := "unclosed brace - expected '}'"
 		p.errors = append(p.errors, msg)
-		p.addEZError(errors.E1004, msg, openBrace)
+		p.addEZError(errors.E2004, msg, openBrace)
 	}
 
 	// Pop the scope when exiting the block
@@ -1031,7 +1031,7 @@ func (p *Parser) parseFunctionDeclarationWithAttrs(attrs []*Attribute) *Function
 	// Check if we're inside a function - nested functions are not allowed
 	if p.functionDepth > 0 {
 		msg := "function declarations are not allowed inside functions"
-		p.addEZError(errors.E1011, msg, p.currentToken)
+		p.addEZError(errors.E2019, msg, p.currentToken)
 		return nil
 	}
 
@@ -1044,14 +1044,14 @@ func (p *Parser) parseFunctionDeclarationWithAttrs(attrs []*Attribute) *Function
 	if isReservedName(name) {
 		msg := fmt.Sprintf("'%s' is a reserved keyword and cannot be used as a function name", name)
 		p.errors = append(p.errors, msg)
-		p.addEZError(errors.E1009, msg, p.currentToken)
+		p.addEZError(errors.E2021, msg, p.currentToken)
 		return nil
 	}
 	// Check for duplicate declaration
 	if !p.declareInScope(name, p.currentToken) {
 		msg := fmt.Sprintf("'%s' is already declared in this scope", name)
 		p.errors = append(p.errors, msg)
-		p.addEZError(errors.E1010, msg, p.currentToken)
+		p.addEZError(errors.E2023, msg, p.currentToken)
 		return nil
 	}
 
@@ -1072,7 +1072,7 @@ func (p *Parser) parseFunctionDeclarationWithAttrs(attrs []*Attribute) *Function
 		// Check if return type is missing (e.g., "do func() -> {")
 		if p.currentTokenMatches(LBRACE) {
 			msg := "expected return type after '->'"
-			p.addEZError(errors.E1002, msg, arrowToken)
+			p.addEZError(errors.E2002, msg, arrowToken)
 			return nil
 		}
 
@@ -1089,7 +1089,7 @@ func (p *Parser) parseFunctionDeclarationWithAttrs(attrs []*Attribute) *Function
 		} else {
 			// Invalid token after arrow
 			msg := fmt.Sprintf("expected return type after '->', got %s instead", p.currentToken.Type)
-			p.addEZError(errors.E1002, msg, arrowToken)
+			p.addEZError(errors.E2002, msg, arrowToken)
 			return nil
 		}
 	}
@@ -1138,7 +1138,7 @@ func (p *Parser) parseFunctionParameters() []*Parameter {
 		// Read first parameter name
 		if !p.currentTokenMatches(IDENT) {
 			msg := fmt.Sprintf("expected parameter name, got %s", p.currentToken.Type)
-			p.addEZError(errors.E1002, msg, p.currentToken)
+			p.addEZError(errors.E2002, msg, p.currentToken)
 			return nil
 		}
 
@@ -1148,7 +1148,7 @@ func (p *Parser) parseFunctionParameters() []*Parameter {
 		for {
 			if !p.currentTokenMatches(IDENT) {
 				msg := fmt.Sprintf("expected parameter name, got %s", p.currentToken.Type)
-				p.addEZError(errors.E1002, msg, p.currentToken)
+				p.addEZError(errors.E2002, msg, p.currentToken)
 				return nil
 			}
 
@@ -1160,7 +1160,7 @@ func (p *Parser) parseFunctionParameters() []*Parameter {
 				// Check for duplicate
 				if prevToken, exists := paramNames[currentIdent.Value]; exists {
 					msg := fmt.Sprintf("duplicate parameter name '%s'", currentIdent.Value)
-					p.addEZError(errors.E1003, msg, currentIdent.Token)
+					p.addEZError(errors.E2012, msg, currentIdent.Token)
 					helpMsg := fmt.Sprintf("parameter '%s' first declared at line %d", currentIdent.Value, prevToken.Line)
 					p.errors = append(p.errors, helpMsg)
 				} else {
@@ -1175,7 +1175,7 @@ func (p *Parser) parseFunctionParameters() []*Parameter {
 				// Check for duplicate
 				if prevToken, exists := paramNames[currentIdent.Value]; exists {
 					msg := fmt.Sprintf("duplicate parameter name '%s'", currentIdent.Value)
-					p.addEZError(errors.E1003, msg, currentIdent.Token)
+					p.addEZError(errors.E2012, msg, currentIdent.Token)
 					helpMsg := fmt.Sprintf("parameter '%s' first declared at line %d", currentIdent.Value, prevToken.Line)
 					p.errors = append(p.errors, helpMsg)
 				} else {
@@ -1187,11 +1187,11 @@ func (p *Parser) parseFunctionParameters() []*Parameter {
 			} else if p.peekTokenMatches(RPAREN) {
 				// Incomplete parameter - name without type before closing paren
 				msg := fmt.Sprintf("parameter '%s' is missing a type", currentIdent.Value)
-				p.addEZError(errors.E1002, msg, currentIdent.Token)
+				p.addEZError(errors.E2002, msg, currentIdent.Token)
 				return nil
 			} else {
 				msg := fmt.Sprintf("expected ',', type, or ')' after parameter name, got %s", p.peekToken.Type)
-				p.addEZError(errors.E1002, msg, p.peekToken)
+				p.addEZError(errors.E2002, msg, p.peekToken)
 				return nil
 			}
 		}
@@ -1199,7 +1199,7 @@ func (p *Parser) parseFunctionParameters() []*Parameter {
 		// Now current token should be the type for all collected names
 		if !p.currentTokenMatches(IDENT) && !p.currentTokenMatches(LBRACKET) {
 			msg := fmt.Sprintf("expected parameter type, got %s", p.currentToken.Type)
-			p.addEZError(errors.E1002, msg, p.currentToken)
+			p.addEZError(errors.E2002, msg, p.currentToken)
 			return nil
 		}
 
@@ -1232,7 +1232,7 @@ func (p *Parser) parseFunctionParameters() []*Parameter {
 			break
 		} else {
 			msg := fmt.Sprintf("expected ',' or ')', got %s", p.peekToken.Type)
-			p.addEZError(errors.E1002, msg, p.peekToken)
+			p.addEZError(errors.E2002, msg, p.peekToken)
 			return nil
 		}
 	}
@@ -1255,7 +1255,7 @@ func (p *Parser) parseReturnTypes() []string {
 			types = append(types, typeName)
 		} else {
 			msg := fmt.Sprintf("expected type name in return types, got %s", p.currentToken.Type)
-			p.addEZError(errors.E1002, msg, p.currentToken)
+			p.addEZError(errors.E2002, msg, p.currentToken)
 			return nil
 		}
 
@@ -1267,7 +1267,7 @@ func (p *Parser) parseReturnTypes() []string {
 			p.nextToken() // move to )
 		} else {
 			msg := fmt.Sprintf("expected ',' or ')' in return types, got %s", p.peekToken.Type)
-			p.addEZError(errors.E1002, msg, p.peekToken)
+			p.addEZError(errors.E2002, msg, p.peekToken)
 			return nil
 		}
 	}
@@ -1361,7 +1361,7 @@ func (p *Parser) parseEnumDeclaration() *EnumDeclaration {
 	if isReservedName(p.currentToken.Literal) {
 		msg := fmt.Sprintf("'%s' is a reserved keyword and cannot be used as an enum name", p.currentToken.Literal)
 		p.errors = append(p.errors, msg)
-		p.addEZError(errors.E1009, msg, p.currentToken)
+		p.addEZError(errors.E2022, msg, p.currentToken)
 		return nil
 	}
 
@@ -1372,7 +1372,7 @@ func (p *Parser) parseEnumDeclaration() *EnumDeclaration {
 
 	if !p.currentTokenMatches(LBRACE) {
 		msg := "expected '{' after enum name"
-		p.addEZError(errors.E1002, msg, p.currentToken)
+		p.addEZError(errors.E2002, msg, p.currentToken)
 		return nil
 	}
 
@@ -1384,7 +1384,7 @@ func (p *Parser) parseEnumDeclaration() *EnumDeclaration {
 	for !p.currentTokenMatches(RBRACE) && !p.currentTokenMatches(EOF) {
 		if !p.currentTokenMatches(IDENT) {
 			msg := fmt.Sprintf("expected enum value name, got %s", p.currentToken.Type)
-			p.addEZError(errors.E1002, msg, p.currentToken)
+			p.addEZError(errors.E2002, msg, p.currentToken)
 			return nil
 		}
 
@@ -1394,7 +1394,7 @@ func (p *Parser) parseEnumDeclaration() *EnumDeclaration {
 		// Check for duplicate value names
 		if prevToken, exists := valueNames[enumValue.Name.Value]; exists {
 			msg := fmt.Sprintf("duplicate value name '%s' in enum '%s'", enumValue.Name.Value, stmt.Name.Value)
-			p.addEZError(errors.E1003, msg, enumValue.Name.Token)
+			p.addEZError(errors.E2023, msg, enumValue.Name.Token)
 			helpMsg := fmt.Sprintf("value '%s' first declared at line %d", enumValue.Name.Value, prevToken.Line)
 			p.errors = append(p.errors, helpMsg)
 		} else {
@@ -1414,7 +1414,7 @@ func (p *Parser) parseEnumDeclaration() *EnumDeclaration {
 
 	if len(stmt.Values) == 0 {
 		msg := fmt.Sprintf("enum '%s' must have at least one value", stmt.Name.Value)
-		p.addEZError(errors.E1003, msg, stmt.Token)
+		p.addEZError(errors.E2016, msg, stmt.Token)
 	}
 
 	return stmt
@@ -1434,7 +1434,7 @@ func (p *Parser) parseTypeName() string {
 		if !p.currentTokenMatches(IDENT) {
 			msg := fmt.Sprintf("expected type name, got %s", p.currentToken.Type)
 			p.errors = append(p.errors, msg)
-			p.addEZError(errors.E1007, msg, p.currentToken)
+			p.addEZError(errors.E2024, msg, p.currentToken)
 			return ""
 		}
 		typeName += p.currentToken.Literal
@@ -1448,7 +1448,7 @@ func (p *Parser) parseTypeName() string {
 			if !p.currentTokenMatches(INT) {
 				msg := fmt.Sprintf("expected integer for array size, got %s", p.currentToken.Type)
 				p.errors = append(p.errors, msg)
-				p.addEZError(errors.E1007, msg, p.currentToken)
+				p.addEZError(errors.E2024, msg, p.currentToken)
 				return ""
 			}
 			typeName += "," + p.currentToken.Literal
@@ -1464,7 +1464,7 @@ func (p *Parser) parseTypeName() string {
 	} else {
 		msg := fmt.Sprintf("expected type, got %s", p.currentToken.Type)
 		p.errors = append(p.errors, msg)
-		p.addEZError(errors.E1007, msg, p.currentToken)
+		p.addEZError(errors.E2024, msg, p.currentToken)
 		return ""
 	}
 }
@@ -1476,7 +1476,7 @@ func (p *Parser) parseStructDeclaration() *StructDeclaration {
 	if isReservedName(p.currentToken.Literal) {
 		msg := fmt.Sprintf("'%s' is a reserved keyword and cannot be used as a struct name", p.currentToken.Literal)
 		p.errors = append(p.errors, msg)
-		p.addEZError(errors.E1009, msg, p.currentToken)
+		p.addEZError(errors.E2022, msg, p.currentToken)
 		return nil
 	}
 
@@ -1501,7 +1501,7 @@ func (p *Parser) parseStructDeclaration() *StructDeclaration {
 		// Check for duplicate field names
 		if prevToken, exists := fieldNames[field.Name.Value]; exists {
 			msg := fmt.Sprintf("duplicate field name '%s' in struct '%s'", field.Name.Value, stmt.Name.Value)
-			p.addEZError(errors.E1003, msg, field.Name.Token)
+			p.addEZError(errors.E2013, msg, field.Name.Token)
 			// Add help message pointing to first declaration
 			helpMsg := fmt.Sprintf("field '%s' first declared at line %d", field.Name.Value, prevToken.Line)
 			p.errors = append(p.errors, helpMsg)
@@ -1539,16 +1539,16 @@ func (p *Parser) parseExpression(precedence int) Expression {
 		switch p.currentToken.Type {
 		case RBRACE, EOF:
 			msg = "expected expression, found end of block"
-			code = errors.E1003
+			code = errors.E2003
 		case RPAREN:
 			msg = "expected expression, found ')'"
-			code = errors.E1003
+			code = errors.E2003
 		case RBRACKET:
 			msg = "expected expression, found ']'"
-			code = errors.E1003
+			code = errors.E2003
 		default:
 			msg = fmt.Sprintf("unexpected token '%s'", p.currentToken.Literal)
-			code = errors.E1001
+			code = errors.E2001
 		}
 
 		p.errors = append(p.errors, msg)
@@ -1625,7 +1625,7 @@ func (p *Parser) parseIntegerValue() Expression {
 	if err != nil {
 		msg := fmt.Sprintf("could not parse %q as integer", p.currentToken.Literal)
 		p.errors = append(p.errors, msg)
-		p.addEZError(errors.E1006, msg, p.currentToken)
+		p.addEZError(errors.E2027, msg, p.currentToken)
 		return nil
 	}
 
@@ -1657,7 +1657,7 @@ func (p *Parser) parseFloatValue() Expression {
 	if err != nil {
 		msg := fmt.Sprintf("could not parse %q as float", p.currentToken.Literal)
 		p.errors = append(p.errors, msg)
-		p.addEZError(errors.E1006, msg, p.currentToken)
+		p.addEZError(errors.E2028, msg, p.currentToken)
 		return nil
 	}
 
@@ -1709,14 +1709,14 @@ func (p *Parser) parseStringValue() Expression {
 
 			if braceCount != 0 {
 				// Unclosed interpolation
-				p.addEZError(errors.E1005, "unclosed interpolation in string", token)
+				p.addEZError(errors.E2007, "unclosed interpolation in string", token)
 				return &StringValue{Token: token, Value: literal}
 			}
 
 			// Parse the expression inside ${}
 			exprStr := literal[exprStart:i]
 			if exprStr == "" {
-				p.addEZError(errors.E1002, "empty interpolation in string", token)
+				p.addEZError(errors.E2002, "empty interpolation in string", token)
 			} else {
 				// Create a mini-lexer and parser for the expression
 				expr := p.parseInterpolatedExpression(exprStr, token)
@@ -1879,7 +1879,7 @@ func (p *Parser) parseExpressionList(end TokenType) []Expression {
 			default:
 				endName = "list"
 			}
-			p.addEZError(errors.E1003,
+			p.addEZError(errors.E2017,
 				fmt.Sprintf("unexpected trailing comma in %s\n\n"+
 					"Trailing commas are not allowed. Remove the comma before the closing bracket.\n\n"+
 					"Help: Remove the trailing comma or add another element:\n"+
@@ -2150,7 +2150,7 @@ func (p *Parser) parseEnumAttributes(attrs []*Attribute) *EnumAttributes {
 			// Validate that type is a primitive (int, float, or string)
 			if enumAttrs.TypeName != "int" && enumAttrs.TypeName != "float" && enumAttrs.TypeName != "string" {
 				msg := fmt.Sprintf("enum type attributes must be primitive types (int, float, or string), got '%s'", enumAttrs.TypeName)
-				p.addEZError(errors.E2006, msg, attr.Token)
+				p.addEZError(errors.E2026, msg, attr.Token)
 			}
 
 			// Check for "skip" keyword

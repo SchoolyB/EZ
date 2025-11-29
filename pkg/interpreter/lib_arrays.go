@@ -29,7 +29,7 @@ var arraysBuiltins = map[string]*Builtin{
 			}
 			arr, ok := args[0].(*Array)
 			if !ok {
-				return newError("arrays.len() requires an array")
+				return &Error{Code: "E9005", Message: "arrays.len() requires an array"}
 			}
 			return &Integer{Value: int64(len(arr.Elements))}
 		},
@@ -43,7 +43,7 @@ var arraysBuiltins = map[string]*Builtin{
 			}
 			arr, ok := args[0].(*Array)
 			if !ok {
-				return newError("arrays.is_empty() requires an array")
+				return &Error{Code: "E9005", Message: "arrays.is_empty() requires an array"}
 			}
 			if len(arr.Elements) == 0 {
 				return TRUE
@@ -135,11 +135,11 @@ var arraysBuiltins = map[string]*Builtin{
 			}
 			idx, ok := args[1].(*Integer)
 			if !ok {
-				return newError("arrays.insert() requires an integer index")
+				return &Error{Code: "E9003", Message: "arrays.insert() requires an integer index"}
 			}
 			index := int(idx.Value)
 			if index < 0 || index > len(arr.Elements) {
-				return newError("arrays.insert() index out of bounds")
+				return &Error{Code: "E9001", Message: "arrays.insert() index out of bounds"}
 			}
 			newElements := make([]Object, len(arr.Elements)+1)
 			copy(newElements[:index], arr.Elements[:index])
@@ -167,7 +167,7 @@ var arraysBuiltins = map[string]*Builtin{
 			}
 			arr, ok := args[0].(*Array)
 			if !ok {
-				return newError("arrays.pop() requires an array")
+				return &Error{Code: "E9005", Message: "arrays.pop() requires an array"}
 			}
 			// Check if array is mutable
 			if !arr.Mutable {
@@ -177,7 +177,7 @@ var arraysBuiltins = map[string]*Builtin{
 				}
 			}
 			if len(arr.Elements) == 0 {
-				return newError("arrays.pop() cannot pop from empty array")
+				return &Error{Code: "E9008", Message: "arrays.pop() cannot pop from empty array"}
 			}
 			// Get the last element
 			lastElement := arr.Elements[len(arr.Elements)-1]
@@ -204,10 +204,10 @@ var arraysBuiltins = map[string]*Builtin{
 			}
 			arr, ok := args[0].(*Array)
 			if !ok {
-				return newError("arrays.shift() requires an array")
+				return &Error{Code: "E9005", Message: "arrays.shift() requires an array"}
 			}
 			if len(arr.Elements) == 0 {
-				return newError("arrays.shift() cannot shift from empty array")
+				return &Error{Code: "E9009", Message: "arrays.shift() cannot shift from empty array"}
 			}
 			return arr.Elements[0]
 		},
@@ -219,15 +219,15 @@ var arraysBuiltins = map[string]*Builtin{
 			}
 			arr, ok := args[0].(*Array)
 			if !ok {
-				return newError("arrays.remove_at() requires an array")
+				return &Error{Code: "E9005", Message: "arrays.remove_at() requires an array"}
 			}
 			idx, ok := args[1].(*Integer)
 			if !ok {
-				return newError("arrays.remove_at() requires an integer index")
+				return &Error{Code: "E9003", Message: "arrays.remove_at() requires an integer index"}
 			}
 			index := int(idx.Value)
 			if index < 0 || index >= len(arr.Elements) {
-				return newError("arrays.remove_at() index out of bounds")
+				return &Error{Code: "E9001", Message: "arrays.remove_at() index out of bounds"}
 			}
 			newElements := make([]Object, len(arr.Elements)-1)
 			copy(newElements[:index], arr.Elements[:index])
@@ -242,7 +242,7 @@ var arraysBuiltins = map[string]*Builtin{
 			}
 			arr, ok := args[0].(*Array)
 			if !ok {
-				return newError("arrays.remove() requires an array")
+				return &Error{Code: "E9005", Message: "arrays.remove() requires an array"}
 			}
 			// Find and remove first occurrence
 			for i, el := range arr.Elements {
@@ -264,7 +264,7 @@ var arraysBuiltins = map[string]*Builtin{
 			}
 			arr, ok := args[0].(*Array)
 			if !ok {
-				return newError("arrays.remove_all() requires an array")
+				return &Error{Code: "E9005", Message: "arrays.remove_all() requires an array"}
 			}
 			newElements := []Object{}
 			for _, el := range arr.Elements {
@@ -282,7 +282,7 @@ var arraysBuiltins = map[string]*Builtin{
 			}
 			_, ok := args[0].(*Array)
 			if !ok {
-				return newError("arrays.clear() requires an array")
+				return &Error{Code: "E9005", Message: "arrays.clear() requires an array"}
 			}
 			return &Array{Elements: []Object{}}
 		},
@@ -296,15 +296,15 @@ var arraysBuiltins = map[string]*Builtin{
 			}
 			arr, ok := args[0].(*Array)
 			if !ok {
-				return newError("arrays.get() requires an array")
+				return &Error{Code: "E9005", Message: "arrays.get() requires an array"}
 			}
 			idx, ok := args[1].(*Integer)
 			if !ok {
-				return newError("arrays.get() requires an integer index")
+				return &Error{Code: "E9003", Message: "arrays.get() requires an integer index"}
 			}
 			index := int(idx.Value)
 			if index < 0 || index >= len(arr.Elements) {
-				return newError("arrays.get() index out of bounds")
+				return &Error{Code: "E9001", Message: "arrays.get() index out of bounds"}
 			}
 			return arr.Elements[index]
 		},
@@ -316,7 +316,7 @@ var arraysBuiltins = map[string]*Builtin{
 			}
 			arr, ok := args[0].(*Array)
 			if !ok {
-				return newError("arrays.first() requires an array")
+				return &Error{Code: "E9005", Message: "arrays.first() requires an array"}
 			}
 			if len(arr.Elements) == 0 {
 				return NIL
@@ -331,7 +331,7 @@ var arraysBuiltins = map[string]*Builtin{
 			}
 			arr, ok := args[0].(*Array)
 			if !ok {
-				return newError("arrays.last() requires an array")
+				return &Error{Code: "E9005", Message: "arrays.last() requires an array"}
 			}
 			if len(arr.Elements) == 0 {
 				return NIL
@@ -346,15 +346,15 @@ var arraysBuiltins = map[string]*Builtin{
 			}
 			arr, ok := args[0].(*Array)
 			if !ok {
-				return newError("arrays.set() requires an array")
+				return &Error{Code: "E9005", Message: "arrays.set() requires an array"}
 			}
 			idx, ok := args[1].(*Integer)
 			if !ok {
-				return newError("arrays.set() requires an integer index")
+				return &Error{Code: "E9003", Message: "arrays.set() requires an integer index"}
 			}
 			index := int(idx.Value)
 			if index < 0 || index >= len(arr.Elements) {
-				return newError("arrays.set() index out of bounds")
+				return &Error{Code: "E9001", Message: "arrays.set() index out of bounds"}
 			}
 			newElements := make([]Object, len(arr.Elements))
 			copy(newElements, arr.Elements)
@@ -371,7 +371,7 @@ var arraysBuiltins = map[string]*Builtin{
 			}
 			arr, ok := args[0].(*Array)
 			if !ok {
-				return newError("arrays.slice() requires an array")
+				return &Error{Code: "E9005", Message: "arrays.slice() requires an array"}
 			}
 			start, ok := args[1].(*Integer)
 			if !ok {
@@ -419,11 +419,11 @@ var arraysBuiltins = map[string]*Builtin{
 			}
 			arr, ok := args[0].(*Array)
 			if !ok {
-				return newError("arrays.take() requires an array")
+				return &Error{Code: "E9005", Message: "arrays.take() requires an array"}
 			}
 			n, ok := args[1].(*Integer)
 			if !ok {
-				return newError("arrays.take() requires an integer")
+				return &Error{Code: "E9003", Message: "arrays.take() requires an integer"}
 			}
 			count := int(n.Value)
 			if count < 0 {
@@ -444,11 +444,11 @@ var arraysBuiltins = map[string]*Builtin{
 			}
 			arr, ok := args[0].(*Array)
 			if !ok {
-				return newError("arrays.drop() requires an array")
+				return &Error{Code: "E9005", Message: "arrays.drop() requires an array"}
 			}
 			n, ok := args[1].(*Integer)
 			if !ok {
-				return newError("arrays.drop() requires an integer")
+				return &Error{Code: "E9003", Message: "arrays.drop() requires an integer"}
 			}
 			count := int(n.Value)
 			if count < 0 {
@@ -471,7 +471,7 @@ var arraysBuiltins = map[string]*Builtin{
 			}
 			arr, ok := args[0].(*Array)
 			if !ok {
-				return newError("arrays.contains() requires an array")
+				return &Error{Code: "E9005", Message: "arrays.contains() requires an array"}
 			}
 			for _, el := range arr.Elements {
 				if objectsEqual(el, args[1]) {
@@ -488,7 +488,7 @@ var arraysBuiltins = map[string]*Builtin{
 			}
 			arr, ok := args[0].(*Array)
 			if !ok {
-				return newError("arrays.index_of() requires an array")
+				return &Error{Code: "E9005", Message: "arrays.index_of() requires an array"}
 			}
 			for i, el := range arr.Elements {
 				if objectsEqual(el, args[1]) {
@@ -505,7 +505,7 @@ var arraysBuiltins = map[string]*Builtin{
 			}
 			arr, ok := args[0].(*Array)
 			if !ok {
-				return newError("arrays.last_index_of() requires an array")
+				return &Error{Code: "E9005", Message: "arrays.last_index_of() requires an array"}
 			}
 			for i := len(arr.Elements) - 1; i >= 0; i-- {
 				if objectsEqual(arr.Elements[i], args[1]) {
@@ -522,7 +522,7 @@ var arraysBuiltins = map[string]*Builtin{
 			}
 			arr, ok := args[0].(*Array)
 			if !ok {
-				return newError("arrays.count() requires an array")
+				return &Error{Code: "E9005", Message: "arrays.count() requires an array"}
 			}
 			count := 0
 			for _, el := range arr.Elements {
@@ -542,7 +542,7 @@ var arraysBuiltins = map[string]*Builtin{
 			}
 			arr, ok := args[0].(*Array)
 			if !ok {
-				return newError("arrays.reverse() requires an array")
+				return &Error{Code: "E9005", Message: "arrays.reverse() requires an array"}
 			}
 			newElements := make([]Object, len(arr.Elements))
 			for i, el := range arr.Elements {
@@ -558,7 +558,7 @@ var arraysBuiltins = map[string]*Builtin{
 			}
 			arr, ok := args[0].(*Array)
 			if !ok {
-				return newError("arrays.sort() requires an array")
+				return &Error{Code: "E9005", Message: "arrays.sort() requires an array"}
 			}
 			if len(arr.Elements) == 0 {
 				return &Array{Elements: []Object{}}
@@ -581,7 +581,7 @@ var arraysBuiltins = map[string]*Builtin{
 			}
 			arr, ok := args[0].(*Array)
 			if !ok {
-				return newError("arrays.sort_desc() requires an array")
+				return &Error{Code: "E9005", Message: "arrays.sort_desc() requires an array"}
 			}
 			if len(arr.Elements) == 0 {
 				return &Array{Elements: []Object{}}
@@ -604,7 +604,7 @@ var arraysBuiltins = map[string]*Builtin{
 			}
 			arr, ok := args[0].(*Array)
 			if !ok {
-				return newError("arrays.shuffle() requires an array")
+				return &Error{Code: "E9005", Message: "arrays.shuffle() requires an array"}
 			}
 
 			newElements := make([]Object, len(arr.Elements))
@@ -670,7 +670,7 @@ var arraysBuiltins = map[string]*Builtin{
 			}
 			arr, ok := args[0].(*Array)
 			if !ok {
-				return newError("arrays.flatten() requires an array")
+				return &Error{Code: "E9005", Message: "arrays.flatten() requires an array"}
 			}
 
 			var newElements []Object
@@ -693,7 +693,7 @@ var arraysBuiltins = map[string]*Builtin{
 			}
 			arr, ok := args[0].(*Array)
 			if !ok {
-				return newError("arrays.unique() requires an array")
+				return &Error{Code: "E9005", Message: "arrays.unique() requires an array"}
 			}
 
 			var newElements []Object
@@ -715,7 +715,7 @@ var arraysBuiltins = map[string]*Builtin{
 			}
 			arr, ok := args[0].(*Array)
 			if !ok {
-				return newError("arrays.duplicates() requires an array")
+				return &Error{Code: "E9005", Message: "arrays.duplicates() requires an array"}
 			}
 
 			var newElements []Object
@@ -746,7 +746,7 @@ var arraysBuiltins = map[string]*Builtin{
 			}
 			arr, ok := args[0].(*Array)
 			if !ok {
-				return newError("arrays.sum() requires an array")
+				return &Error{Code: "E9005", Message: "arrays.sum() requires an array"}
 			}
 
 			var sum float64
@@ -759,7 +759,7 @@ var arraysBuiltins = map[string]*Builtin{
 					sum += v.Value
 					hasFloat = true
 				default:
-					return newError("arrays.sum() requires numeric array")
+					return &Error{Code: "E9012", Message: "arrays.sum() requires numeric array"}
 				}
 			}
 			if hasFloat {
@@ -775,7 +775,7 @@ var arraysBuiltins = map[string]*Builtin{
 			}
 			arr, ok := args[0].(*Array)
 			if !ok {
-				return newError("arrays.product() requires an array")
+				return &Error{Code: "E9005", Message: "arrays.product() requires an array"}
 			}
 			if len(arr.Elements) == 0 {
 				return &Integer{Value: 1}
@@ -791,7 +791,7 @@ var arraysBuiltins = map[string]*Builtin{
 					product *= v.Value
 					hasFloat = true
 				default:
-					return newError("arrays.product() requires numeric array")
+					return &Error{Code: "E9012", Message: "arrays.product() requires numeric array"}
 				}
 			}
 			if hasFloat {
@@ -807,10 +807,10 @@ var arraysBuiltins = map[string]*Builtin{
 			}
 			arr, ok := args[0].(*Array)
 			if !ok {
-				return newError("arrays.min() requires an array")
+				return &Error{Code: "E9005", Message: "arrays.min() requires an array"}
 			}
 			if len(arr.Elements) == 0 {
-				return newError("arrays.min() requires non-empty array")
+				return &Error{Code: "E9014", Message: "arrays.min() requires non-empty array"}
 			}
 
 			minVal := arr.Elements[0]
@@ -829,10 +829,10 @@ var arraysBuiltins = map[string]*Builtin{
 			}
 			arr, ok := args[0].(*Array)
 			if !ok {
-				return newError("arrays.max() requires an array")
+				return &Error{Code: "E9005", Message: "arrays.max() requires an array"}
 			}
 			if len(arr.Elements) == 0 {
-				return newError("arrays.max() requires non-empty array")
+				return &Error{Code: "E9014", Message: "arrays.max() requires non-empty array"}
 			}
 
 			maxVal := arr.Elements[0]
@@ -851,10 +851,10 @@ var arraysBuiltins = map[string]*Builtin{
 			}
 			arr, ok := args[0].(*Array)
 			if !ok {
-				return newError("arrays.avg() requires an array")
+				return &Error{Code: "E9005", Message: "arrays.avg() requires an array"}
 			}
 			if len(arr.Elements) == 0 {
-				return newError("arrays.avg() requires non-empty array")
+				return &Error{Code: "E9014", Message: "arrays.avg() requires non-empty array"}
 			}
 
 			var sum float64
@@ -865,7 +865,7 @@ var arraysBuiltins = map[string]*Builtin{
 				case *Float:
 					sum += v.Value
 				default:
-					return newError("arrays.avg() requires numeric array")
+					return &Error{Code: "E9012", Message: "arrays.avg() requires numeric array"}
 				}
 			}
 			return &Float{Value: sum / float64(len(arr.Elements))}
@@ -896,7 +896,7 @@ var arraysBuiltins = map[string]*Builtin{
 			}
 
 			if step == 0 {
-				return newError("arrays.range() step cannot be zero")
+				return &Error{Code: "E9018", Message: "arrays.range() step cannot be zero"}
 			}
 
 			var elements []Object
@@ -939,7 +939,7 @@ var arraysBuiltins = map[string]*Builtin{
 			}
 			arr, ok := args[0].(*Array)
 			if !ok {
-				return newError("arrays.fill() requires an array")
+				return &Error{Code: "E9005", Message: "arrays.fill() requires an array"}
 			}
 			elements := make([]Object, len(arr.Elements))
 			for i := range elements {
@@ -957,7 +957,7 @@ var arraysBuiltins = map[string]*Builtin{
 			}
 			arr, ok := args[0].(*Array)
 			if !ok {
-				return newError("arrays.copy() requires an array")
+				return &Error{Code: "E9005", Message: "arrays.copy() requires an array"}
 			}
 			newElements := make([]Object, len(arr.Elements))
 			copy(newElements, arr.Elements)
@@ -973,7 +973,7 @@ var arraysBuiltins = map[string]*Builtin{
 			}
 			arr, ok := args[0].(*Array)
 			if !ok {
-				return newError("arrays.join() requires an array")
+				return &Error{Code: "E9005", Message: "arrays.join() requires an array"}
 			}
 			sep, ok := args[1].(*String)
 			if !ok {
@@ -1000,7 +1000,7 @@ var arraysBuiltins = map[string]*Builtin{
 			}
 			arr, ok := args[0].(*Array)
 			if !ok {
-				return newError("arrays.all_equal() requires an array")
+				return &Error{Code: "E9005", Message: "arrays.all_equal() requires an array"}
 			}
 			if len(arr.Elements) <= 1 {
 				return TRUE

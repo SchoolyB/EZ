@@ -175,7 +175,7 @@ func (l *Lexer) NextToken() tokenizer.Token {
 			l.readChar()
 			tok = tokenizer.Token{Type: tokenizer.OR, Literal: "||", Line: l.line, Column: l.column}
 		} else {
-			l.addError("E1001", "unexpected character '|', did you mean '||'?", l.line, l.column)
+			l.addError("E1002", "unexpected character '|', did you mean '||'?", l.line, l.column)
 			tok = newToken(tokenizer.ILLEGAL, l.ch, l.line, l.column)
 		}
 	case ',':
@@ -301,7 +301,7 @@ func (l *Lexer) skipComment() {
 		for {
 			if l.ch == 0 {
 				// Reached EOF without closing comment
-				l.addError("E1004", "unclosed multi-line comment", startLine, startColumn)
+				l.addError("E1003", "unclosed multi-line comment", startLine, startColumn)
 				break
 			}
 			if l.ch == '*' && l.peekChar() == '/' {
@@ -336,7 +336,7 @@ func (l *Lexer) readNumber() (string, tokenizer.TokenType) {
 
 			// Cannot have consecutive underscores
 			if next == '_' {
-				l.addError("E1006", "consecutive underscores not allowed in numeric literals", startLine, startColumn)
+				l.addError("E1011", "consecutive underscores not allowed in numeric literals", startLine, startColumn)
 				l.readChar()
 				continue
 			}
@@ -344,7 +344,7 @@ func (l *Lexer) readNumber() (string, tokenizer.TokenType) {
 			// Cannot have underscore at end (followed by non-digit/non-underscore)
 			if !isDigit(next) && next != '.' {
 				// This might be the trailing underscore
-				l.addError("E1006", "numeric literal cannot end with underscore", startLine, startColumn)
+				l.addError("E1013", "numeric literal cannot end with underscore", startLine, startColumn)
 			}
 		}
 		l.readChar()
@@ -356,14 +356,14 @@ func (l *Lexer) readNumber() (string, tokenizer.TokenType) {
 
 		// Check if there's an underscore before the decimal point
 		if position < l.position && l.input[l.position-1] == '_' {
-			l.addError("E1006", "underscore cannot appear immediately before decimal point", startLine, startColumn)
+			l.addError("E1014", "underscore cannot appear immediately before decimal point", startLine, startColumn)
 		}
 
 		l.readChar() // consume '.'
 
 		// Check if there's an underscore after the decimal point
 		if l.ch == '_' {
-			l.addError("E1006", "underscore cannot appear immediately after decimal point", startLine, startColumn)
+			l.addError("E1015", "underscore cannot appear immediately after decimal point", startLine, startColumn)
 			l.readChar()
 		}
 
@@ -374,14 +374,14 @@ func (l *Lexer) readNumber() (string, tokenizer.TokenType) {
 
 				// Cannot have consecutive underscores
 				if next == '_' {
-					l.addError("E1006", "consecutive underscores not allowed in numeric literals", startLine, startColumn)
+					l.addError("E1011", "consecutive underscores not allowed in numeric literals", startLine, startColumn)
 					l.readChar()
 					continue
 				}
 
 				// Cannot end with underscore
 				if !isDigit(next) {
-					l.addError("E1006", "numeric literal cannot end with underscore", startLine, startColumn)
+					l.addError("E1013", "numeric literal cannot end with underscore", startLine, startColumn)
 				}
 			}
 			l.readChar()
@@ -389,26 +389,26 @@ func (l *Lexer) readNumber() (string, tokenizer.TokenType) {
 
 		// Check for invalid multiple decimal points
 		if l.ch == '.' {
-			l.addError("E1006", "invalid number format: multiple decimal points", startLine, startColumn)
+			l.addError("E1010", "invalid number format: multiple decimal points", startLine, startColumn)
 		}
 	} else if l.ch == '.' && !isDigit(l.peekChar()) {
 		// Number ends with a dot but no digits after (e.g., "1." or "1._")
 		// But check if underscore before dot
 		if position < l.position && l.input[l.position-1] == '_' {
-			l.addError("E1006", "underscore cannot appear immediately before decimal point", startLine, startColumn)
+			l.addError("E1014", "underscore cannot appear immediately before decimal point", startLine, startColumn)
 		}
 		// Check if underscore after dot
 		if l.peekChar() == '_' {
-			l.addError("E1006", "underscore cannot appear immediately after decimal point", startLine, startColumn)
+			l.addError("E1015", "underscore cannot appear immediately after decimal point", startLine, startColumn)
 		} else {
-			l.addError("E1006", "invalid number format: decimal point must be followed by digits", startLine, startColumn)
+			l.addError("E1016", "invalid number format: decimal point must be followed by digits", startLine, startColumn)
 		}
 	}
 
 	// Check for leading underscore (number starts with underscore)
 	literal := l.input[position:l.position]
 	if len(literal) > 0 && literal[0] == '_' {
-		l.addError("E1006", "numeric literal cannot start with underscore", startLine, startColumn)
+		l.addError("E1012", "numeric literal cannot start with underscore", startLine, startColumn)
 	}
 
 	return literal, tokenType
@@ -425,7 +425,7 @@ func (l *Lexer) readString() (string, bool) {
 		}
 		if l.ch == 0 || l.ch == '\n' {
 			// Unclosed string
-			l.addError("E1005", "unclosed string literal", startLine, startColumn)
+			l.addError("E1004", "unclosed string literal", startLine, startColumn)
 			return l.input[position:l.position], false
 		}
 		if l.ch == '\\' {
@@ -449,7 +449,7 @@ func (l *Lexer) readCharValue() string {
 
 	// Check for empty char literal
 	if l.ch == '\'' {
-		l.addError("E1006", "empty character literal", startLine, startColumn)
+		l.addError("E1008", "empty character literal", startLine, startColumn)
 		l.readChar() // consume closing quote
 		return ""
 	}
@@ -470,7 +470,7 @@ func (l *Lexer) readCharValue() string {
 			'n': true, 't': true, 'r': true, '\\': true, '"': true, '\'': true, '0': true,
 		}
 		if !validEscapes[l.ch] && l.ch != 0 {
-			l.addError("E1006", "invalid escape sequence '\\"+string(l.ch)+"' in character literal", startLine, startColumn)
+			l.addError("E1007", "invalid escape sequence '\\"+string(l.ch)+"' in character literal", startLine, startColumn)
 		}
 		ch = "\\" + string(l.ch)
 	}
@@ -480,7 +480,7 @@ func (l *Lexer) readCharValue() string {
 	// Check for multi-character literal
 	if l.ch != '\'' {
 		// This is a multi-character literal
-		l.addError("E1006", "character literal must contain exactly one character", startLine, startColumn)
+		l.addError("E1009", "character literal must contain exactly one character", startLine, startColumn)
 		// Consume until we find closing quote or newline/EOF
 		for l.ch != '\'' && l.ch != '\n' && l.ch != 0 {
 			l.readChar()
