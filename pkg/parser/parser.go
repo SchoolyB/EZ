@@ -2127,6 +2127,12 @@ func (p *Parser) parseEnumAttributes(attrs []*Attribute) *EnumAttributes {
 			// First arg is the type
 			enumAttrs.TypeName = attr.Args[0]
 
+			// Validate that type is a primitive (int, float, or string)
+			if enumAttrs.TypeName != "int" && enumAttrs.TypeName != "float" && enumAttrs.TypeName != "string" {
+				msg := fmt.Sprintf("enum type attributes must be primitive types (int, float, or string), got '%s'", enumAttrs.TypeName)
+				p.addEZError(errors.E2006, msg, attr.Token)
+			}
+
 			// Check for "skip" keyword
 			for i, arg := range attr.Args {
 				if arg == "skip" {
