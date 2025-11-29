@@ -1,0 +1,10 @@
+import @std
+using std
+
+const namesArr [string] = {"Joe", "John", "Kim"}
+
+do main(){
+    for name in namesArr {  // Should suggest for_each
+        println(name)
+    }
+}
