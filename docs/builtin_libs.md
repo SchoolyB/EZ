@@ -1,6 +1,6 @@
 # EZ Built-in Functions
 
-This document describes all built-in functions available in the EZ programming language. Built-in functions are organized into three categories: global built-ins (available everywhere), the `std` module (for standard I/O operations), and the `arrays` module (for array manipulation).
+This document describes all built-in functions available in the EZ programming language. Built-in functions are organized into categories: global built-ins (available everywhere), the `std` module (for standard I/O operations), the `arrays` module (for array manipulation), and the `maps` module (for map/dictionary operations).
 
 ## Table of Contents
 
@@ -21,6 +21,10 @@ This document describes all built-in functions available in the EZ programming l
   - [Copying](#copying)
   - [String Conversion](#string-conversion)
   - [Boolean Checks](#boolean-checks)
+- [Maps Module](#maps-module)
+  - [Map Basic Operations](#map-basic-operations)
+  - [Map Access and Modification](#map-access-and-modification)
+  - [Map Iteration Helpers](#map-iteration-helpers)
 
 ## Global Built-ins
 
@@ -1020,4 +1024,256 @@ const result1 bool = arrays.all_equal(same)  // true
 
 const different [int] = [1, 2, 3]
 const result2 bool = arrays.all_equal(different)  // false
+```
+
+## Maps Module
+
+The `maps` module provides functions for working with map/dictionary data structures. Maps store key-value pairs where keys can be strings, integers, booleans, or characters.
+
+To use these functions, import the module:
+
+```ez
+import @maps
+using maps
+```
+
+### Map Type Declaration
+
+Maps are declared using the syntax `map[keyType:valueType]`:
+
+```ez
+// String keys, integer values
+temp ages map[string:int] = {"alice": 25, "bob": 30}
+
+// Integer keys, string values
+temp rankings map[int:string] = {1: "first", 2: "second"}
+
+// Empty map declaration
+temp emptyMap map[string:string]
+```
+
+### Map Basic Operations
+
+#### `maps.len(map)`
+
+Returns the number of key-value pairs in a map.
+
+**Parameters:**
+- `map` - A map
+
+**Returns:** Integer representing the number of entries
+
+**Example:**
+```ez
+using maps
+
+temp users map[string:int] = {"alice": 25, "bob": 30}
+const count int = maps.len(users)  // 2
+```
+
+#### `maps.is_empty(map)`
+
+Checks if a map has no entries.
+
+**Parameters:**
+- `map` - A map
+
+**Returns:** Boolean - true if map has no entries, false otherwise
+
+**Example:**
+```ez
+using maps
+
+temp empty map[string:int]
+temp users map[string:int] = {"alice": 25}
+const e bool = maps.is_empty(empty)  // true
+const u bool = maps.is_empty(users)  // false
+```
+
+#### `maps.clear(map)`
+
+Removes all entries from a mutable map.
+
+**Parameters:**
+- `map` - A mutable map (declared with `temp`)
+
+**Returns:** nil
+
+**Example:**
+```ez
+using maps
+
+temp users map[string:int] = {"alice": 25, "bob": 30}
+maps.clear(users)
+const count int = maps.len(users)  // 0
+```
+
+#### `maps.copy(map)`
+
+Creates a shallow copy of a map.
+
+**Parameters:**
+- `map` - A map
+
+**Returns:** A new map with the same key-value pairs
+
+**Example:**
+```ez
+using maps
+
+temp original map[string:int] = {"a": 1, "b": 2}
+temp copy = maps.copy(original)
+copy["c"] = 3  // Doesn't affect original
+```
+
+### Map Access and Modification
+
+#### `maps.has(map, key)`
+
+Checks if a key exists in the map.
+
+**Parameters:**
+- `map` - A map
+- `key` - The key to check (must be hashable: string, int, bool, or char)
+
+**Returns:** Boolean - true if key exists, false otherwise
+
+**Example:**
+```ez
+using maps
+
+temp users map[string:int] = {"alice": 25, "bob": 30}
+const exists bool = maps.has(users, "alice")     // true
+const missing bool = maps.has(users, "charlie")  // false
+```
+
+#### `maps.get(map, key[, default])`
+
+Gets a value from the map, with an optional default value.
+
+**Parameters:**
+- `map` - A map
+- `key` - The key to look up
+- `default` (optional) - Value to return if key doesn't exist
+
+**Returns:** The value associated with the key, or the default value (or nil if no default)
+
+**Example:**
+```ez
+using maps
+
+temp users map[string:int] = {"alice": 25, "bob": 30}
+const age1 int = maps.get(users, "alice")           // 25
+const age2 int = maps.get(users, "charlie", -1)     // -1 (default)
+const age3 = maps.get(users, "unknown")             // nil
+```
+
+#### `maps.set(map, key, value)`
+
+Sets a key-value pair in a mutable map.
+
+**Parameters:**
+- `map` - A mutable map (declared with `temp`)
+- `key` - The key to set
+- `value` - The value to associate with the key
+
+**Returns:** nil
+
+**Example:**
+```ez
+using maps
+
+temp users map[string:int] = {"alice": 25}
+maps.set(users, "bob", 30)
+// users is now {"alice": 25, "bob": 30}
+```
+
+#### `maps.delete(map, key)`
+
+Removes a key-value pair from a mutable map.
+
+**Parameters:**
+- `map` - A mutable map (declared with `temp`)
+- `key` - The key to remove
+
+**Returns:** Boolean - true if the key was found and removed, false otherwise
+
+**Example:**
+```ez
+using maps
+
+temp users map[string:int] = {"alice": 25, "bob": 30}
+const deleted bool = maps.delete(users, "alice")  // true
+// users is now {"bob": 30}
+```
+
+#### `maps.merge(target, source, ...)`
+
+Merges one or more source maps into the target map. Existing keys are overwritten.
+
+**Parameters:**
+- `target` - A mutable map to merge into
+- `source` - One or more maps to merge from
+
+**Returns:** nil
+
+**Example:**
+```ez
+using maps
+
+temp base map[string:int] = {"a": 1, "b": 2}
+temp extra map[string:int] = {"b": 20, "c": 3}
+maps.merge(base, extra)
+// base is now {"a": 1, "b": 20, "c": 3}
+```
+
+### Map Iteration Helpers
+
+#### `maps.keys(map)`
+
+Returns an array of all keys in the map, in insertion order.
+
+**Parameters:**
+- `map` - A map
+
+**Returns:** An array containing all keys
+
+**Example:**
+```ez
+using maps
+
+temp users map[string:int] = {"alice": 25, "bob": 30}
+temp keys = maps.keys(users)  // {"alice", "bob"}
+```
+
+#### `maps.values(map)`
+
+Returns an array of all values in the map, in insertion order.
+
+**Parameters:**
+- `map` - A map
+
+**Returns:** An array containing all values
+
+**Example:**
+```ez
+using maps
+
+temp users map[string:int] = {"alice": 25, "bob": 30}
+temp values = maps.values(users)  // {25, 30}
+```
+
+### Direct Map Access
+
+Maps support direct index access using bracket notation:
+
+```ez
+// Reading values
+temp users map[string:int] = {"alice": 25, "bob": 30}
+const age int = users["alice"]  // 25
+const missing = users["unknown"]  // nil (key not found)
+
+// Writing values (for mutable maps)
+users["charlie"] = 35  // Add new entry
+users["alice"] = 26    // Update existing entry
 ```
