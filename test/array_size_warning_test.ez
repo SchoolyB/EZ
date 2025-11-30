@@ -1,0 +1,33 @@
+import @std
+
+do main() {
+    using std
+
+    println("=== Array Size Warning Tests ===")
+    println("")
+
+    // Test 1: Fully initialized array (no warning)
+    println("Test 1: Fully initialized array")
+    const full [int, 3] = {1, 2, 3}
+    println("  full array length: ${len(full)}")
+
+    // Test 2: Suppressed warning with code
+    println("Test 2: Suppressed warning with W3003")
+    @suppress(W3003)
+    const partial1 [int, 5] = {1, 2}
+    println("  partial1 length: ${len(partial1)}")
+
+    // Test 3: Suppressed warning with alternate name
+    println("Test 3: Suppressed warning with array_size_mismatch")
+    @suppress(array_size_mismatch)
+    const partial2 [int, 5] = {1, 2, 3}
+    println("  partial2 length: ${len(partial2)}")
+
+    // Test 4: Dynamic array (no warning)
+    println("Test 4: Dynamic array (no size specified)")
+    temp dynamic [int] = {1, 2}
+    println("  dynamic length: ${len(dynamic)}")
+
+    println("")
+    println("=== All Array Size Warning Tests Passed! ===")
+}

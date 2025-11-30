@@ -5,6 +5,7 @@ package typechecker
 
 import (
 	"fmt"
+	"strconv"
 	"strings"
 
 	"github.com/marshallburns/ez/pkg/ast"
@@ -552,10 +553,20 @@ func (tc *TypeChecker) isSuppressed(warningCode string, attrs []*ast.Attribute) 
 		return false
 	}
 
+	// Map warning codes to their alternate names
+	alternateNames := map[string]string{
+		"W2003": "missing_return",
+		"W3003": "array_size_mismatch",
+	}
+
 	for _, attr := range attrs {
 		if attr.Name == "suppress" {
 			for _, arg := range attr.Args {
-				if arg == warningCode || arg == "missing_return" {
+				if arg == warningCode {
+					return true
+				}
+				// Check if the alternate name matches
+				if altName, ok := alternateNames[warningCode]; ok && arg == altName {
 					return true
 				}
 			}
@@ -744,6 +755,28 @@ func (tc *TypeChecker) checkVariableDeclaration(decl *ast.VariableDeclaration) {
 					decl.Name.Token.Column,
 				)
 				return
+			}
+
+			// Check for fixed-size array size mismatch (W3003)
+			if tc.isArrayType(declaredType) {
+				declaredSize := tc.extractArraySize(declaredType)
+				if declaredSize > 0 {
+					// Check if the value is an array literal
+					if arrLit, ok := decl.Value.(*ast.ArrayValue); ok {
+						actualSize := len(arrLit.Elements)
+						if actualSize < declaredSize {
+							if !tc.isSuppressed("W3003", decl.Attributes) {
+								tc.addWarning(
+									errors.W3003,
+									fmt.Sprintf("fixed-size array not fully initialized: declared size %d but only %d element(s) provided",
+										declaredSize, actualSize),
+									decl.Name.Token.Line,
+									decl.Name.Token.Column,
+								)
+							}
+						}
+					}
+				}
 			}
 		}
 	}
@@ -1469,6 +1502,31 @@ func (tc *TypeChecker) extractArrayElementType(arrType string) string {
 	}
 
 	return inner
+}
+
+// extractArraySize extracts the size from a fixed-size array type string
+// Returns -1 for dynamic arrays (e.g., "[int]") or the size for fixed arrays (e.g., "[int, 10]")
+func (tc *TypeChecker) extractArraySize(arrType string) int {
+	if len(arrType) < 3 || arrType[0] != '[' {
+		return -1
+	}
+
+	// Remove the outer brackets
+	inner := arrType[1 : len(arrType)-1]
+
+	// Look for comma (fixed-size array like "int, 3")
+	for i, ch := range inner {
+		if ch == ',' {
+			sizeStr := strings.TrimSpace(inner[i+1:])
+			size, err := strconv.Atoi(sizeStr)
+			if err != nil {
+				return -1
+			}
+			return size
+		}
+	}
+
+	return -1 // Dynamic array
 }
 
 // getExpressionPosition returns the line and column of an expression
