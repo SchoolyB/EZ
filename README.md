@@ -242,7 +242,7 @@ do get_user_name() -> string{
   - Dynamic arrays: `temp arr [int] = {1, 2, 3}`
   - Fixed-size arrays: `const arr [int, 3] = {1, 2, 3}`
   - Array indexing and assignment
-  - `arrays.push()` and `arrays.pop()` functions
+  - `arrays.append()` and `arrays.pop()` functions
   - Array iteration with `for_each`
 
 - **Built-in Functions**
@@ -458,7 +458,7 @@ import @std, arr@arrays
 do main() {
     // Use with prefix
     std.println("Hello")
-    arr.push(numbers, 10)
+    arr.append(numbers, 10)
 
     // Or use 'using' for convenience
     using std
@@ -559,7 +559,7 @@ temp first int = numbers[0]
 // Array operations
 import @arrays
 
-arrays.push(numbers, 6)  // append element
+arrays.append(numbers, 6)  // append element
 temp last int = arrays.pop(numbers)
 
 // Iterate over arrays

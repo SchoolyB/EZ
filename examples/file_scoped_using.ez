@@ -34,9 +34,9 @@ do example_basic() {
     temp numbers [int] = {1, 2, 3}
     println("  Original array:", numbers)
 
-    push(numbers, 4)
-    push(numbers, 5)
-    println("  After pushes:", numbers)
+    append(numbers, 4)
+    append(numbers, 5)
+    println("  After appends:", numbers)
 
     temp last int = pop(numbers)
     println("  Popped:", last)

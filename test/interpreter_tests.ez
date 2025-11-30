@@ -168,8 +168,8 @@ do test_arrays() {
     const primes [int, 5] = {2, 3, 5, 7, 11}
 
     // Array operations with @arrays module
-    arrays.push(numbers, 6)
-    arrays.push(numbers, 7)
+    arrays.append(numbers, 6)
+    arrays.append(numbers, 7)
     temp lastNum int = arrays.pop(numbers)
 
     // Array indexing

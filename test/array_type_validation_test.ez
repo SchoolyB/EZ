@@ -116,9 +116,9 @@ do test_array_operations() {
 
     temp nums [int] = {1, 2, 3}
 
-    // Push
-    arrays.push(nums, 4)
-    println("  After push(4): length = ${len(nums)}")
+    // Append
+    arrays.append(nums, 4)
+    println("  After append(4): length = ${len(nums)}")
 
     // Pop
     temp popped int = arrays.pop(nums)

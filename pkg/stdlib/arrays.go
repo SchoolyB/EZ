@@ -42,14 +42,14 @@ var ArraysBuiltins = map[string]*object.Builtin{
 		},
 	},
 
-	"arrays.push": {
+	"arrays.append": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) < 2 {
-				return newError("arrays.push() takes at least 2 arguments")
+				return newError("arrays.append() takes at least 2 arguments")
 			}
 			arr, ok := args[0].(*object.Array)
 			if !ok {
-				return newError("arrays.push() requires an array as first argument")
+				return newError("arrays.append() requires an array as first argument")
 			}
 			if !arr.Mutable {
 				return &object.Error{
