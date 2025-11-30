@@ -67,6 +67,7 @@ var (
 	E2029 = ErrorCode{"E2029", "expected-identifier", "expected identifier"}
 	E2030 = ErrorCode{"E2030", "expected-block", "expected block statement"}
 	E2031 = ErrorCode{"E2031", "string-enum-requires-values", "string enum needs explicit values"}
+	E2032 = ErrorCode{"E2032", "const-array-requires-size", "const array must have fixed size"}
 )
 
 // =============================================================================
