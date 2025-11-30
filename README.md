@@ -97,11 +97,30 @@ Once installed, you can use EZ from anywhere:
 ```bash
 ez your_program.ez       # Direct execution
 ez run your_program.ez   # Explicit run command
-ez build your_program.ez # Check syntax without running
+ez build                 # Build project in current directory
+ez build ./myproject     # Build project in specified directory
+ez build file.ez         # Check syntax/types for a single file
 ez repl                  # Start interactive REPL
 ez help                  # Show help
 ez version               # Show version
 ```
+
+### Building Projects
+
+The `ez build` command type-checks your entire project without running it:
+
+```bash
+# Build project in current directory (requires main.ez)
+ez build
+
+# Build project in a specific directory
+ez build ./myproject
+
+# Check a single file only
+ez build utils.ez
+```
+
+Project builds start from `main.ez` and automatically discover and check all imported modules. This is useful for catching type errors across your entire codebase before running.
 
 ### REPL Mode
 

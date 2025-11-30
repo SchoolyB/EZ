@@ -98,14 +98,15 @@ type Parameter struct {
 
 // TypeChecker validates types in an EZ program
 type TypeChecker struct {
-	types        map[string]*Type              // All known types
-	functions    map[string]*FunctionSignature // All function signatures
-	variables    map[string]string             // Variable name -> type name (global scope)
-	modules      map[string]bool               // Imported module names
-	currentScope *Scope                        // Current scope for local variable tracking
-	errors       *errors.EZErrorList
-	source       string
-	filename     string
+	types            map[string]*Type              // All known types
+	functions        map[string]*FunctionSignature // All function signatures
+	variables        map[string]string             // Variable name -> type name (global scope)
+	modules          map[string]bool               // Imported module names
+	currentScope     *Scope                        // Current scope for local variable tracking
+	errors           *errors.EZErrorList
+	source           string
+	filename         string
+	skipMainCheck    bool                          // Skip main() function requirement (for module files)
 }
 
 // NewTypeChecker creates a new type checker
@@ -124,6 +125,12 @@ func NewTypeChecker(source, filename string) *TypeChecker {
 	tc.registerBuiltinTypes()
 
 	return tc
+}
+
+// SetSkipMainCheck sets whether to skip the main() function requirement
+// Use this for module files that don't need a main() function
+func (tc *TypeChecker) SetSkipMainCheck(skip bool) {
+	tc.skipMainCheck = skip
 }
 
 // registerBuiltinTypes adds all built-in types to the registry
@@ -276,8 +283,10 @@ func (tc *TypeChecker) CheckProgram(program *ast.Program) bool {
 		}
 	}
 
-	// Phase 4: Validate that a main() function exists
-	tc.checkMainFunction()
+	// Phase 4: Validate that a main() function exists (unless skipped for module files)
+	if !tc.skipMainCheck {
+		tc.checkMainFunction()
+	}
 
 	errCount, _ := tc.errors.Count()
 	return errCount == 0
