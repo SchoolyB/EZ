@@ -1,0 +1,48 @@
+import @std
+
+const Point struct {
+    x int
+    y int
+}
+
+const User struct {
+    id int
+    name string
+    active bool
+}
+
+do createPoint() -> Point {
+    return Point{x: 10, y: 20}
+}
+
+do createUser() -> User {
+    return User{id: 1, name: "Alice", active: true}
+}
+
+do createPointInline() -> Point {
+    return Point{x: 5, y: 15}
+}
+
+do main() {
+    using std
+
+    println("=== Return Struct Literal Tests ===")
+    println("")
+
+    println("Test 1: Return struct literal with named fields")
+    temp p Point = createPoint()
+    println("  Point: (${p.x}, ${p.y})")
+
+    println("Test 2: Return struct with multiple field types")
+    temp u User = createUser()
+    println("  User id: ${u.id}")
+    println("  User name: ${u.name}")
+    println("  User active: ${u.active}")
+
+    println("Test 3: Return struct literal inline")
+    temp p2 Point = createPointInline()
+    println("  Point2: (${p2.x}, ${p2.y})")
+
+    println("")
+    println("=== All Return Struct Literal Tests Passed! ===")
+}
