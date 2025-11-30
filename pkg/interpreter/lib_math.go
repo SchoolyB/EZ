@@ -4,6 +4,7 @@ package interpreter
 // Licensed under the MIT License. See LICENSE for details.
 
 import (
+	"fmt"
 	"math"
 	"math/rand"
 	"time"
@@ -18,7 +19,7 @@ var mathBuiltins = map[string]*Builtin{
 	"math.add": {
 		Fn: func(args ...Object) Object {
 			if len(args) != 2 {
-				return newError("math.add() takes exactly 2 arguments")
+				return &Error{Code: "E8001", Message: "math.add() takes exactly 2 arguments"}
 			}
 			a, b, err := getTwoNumbers(args)
 			if err != nil {
@@ -33,7 +34,7 @@ var mathBuiltins = map[string]*Builtin{
 	"math.sub": {
 		Fn: func(args ...Object) Object {
 			if len(args) != 2 {
-				return newError("math.sub() takes exactly 2 arguments")
+				return &Error{Code: "E8001", Message: "math.sub() takes exactly 2 arguments"}
 			}
 			a, b, err := getTwoNumbers(args)
 			if err != nil {
@@ -48,7 +49,7 @@ var mathBuiltins = map[string]*Builtin{
 	"math.mul": {
 		Fn: func(args ...Object) Object {
 			if len(args) != 2 {
-				return newError("math.mul() takes exactly 2 arguments")
+				return &Error{Code: "E8001", Message: "math.mul() takes exactly 2 arguments"}
 			}
 			a, b, err := getTwoNumbers(args)
 			if err != nil {
@@ -63,14 +64,14 @@ var mathBuiltins = map[string]*Builtin{
 	"math.div": {
 		Fn: func(args ...Object) Object {
 			if len(args) != 2 {
-				return newError("math.div() takes exactly 2 arguments")
+				return &Error{Code: "E8001", Message: "math.div() takes exactly 2 arguments"}
 			}
 			a, b, err := getTwoNumbers(args)
 			if err != nil {
 				return err
 			}
 			if b == 0 {
-				return newError("division by zero")
+				return &Error{Code: "E8003", Message: "division by zero"}
 			}
 			return &Float{Value: a / b}
 		},
@@ -78,14 +79,14 @@ var mathBuiltins = map[string]*Builtin{
 	"math.mod": {
 		Fn: func(args ...Object) Object {
 			if len(args) != 2 {
-				return newError("math.mod() takes exactly 2 arguments")
+				return &Error{Code: "E8001", Message: "math.mod() takes exactly 2 arguments"}
 			}
 			a, b, err := getTwoNumbers(args)
 			if err != nil {
 				return err
 			}
 			if b == 0 {
-				return newError("modulo by zero")
+				return &Error{Code: "E8004", Message: "modulo by zero"}
 			}
 			return &Float{Value: math.Mod(a, b)}
 		},
@@ -95,7 +96,7 @@ var mathBuiltins = map[string]*Builtin{
 	"math.abs": {
 		Fn: func(args ...Object) Object {
 			if len(args) != 1 {
-				return newError("math.abs() takes exactly 1 argument")
+				return &Error{Code: "E8001", Message: "math.abs() takes exactly 1 argument"}
 			}
 			val, err := getNumber(args[0])
 			if err != nil {
@@ -113,7 +114,7 @@ var mathBuiltins = map[string]*Builtin{
 	"math.sign": {
 		Fn: func(args ...Object) Object {
 			if len(args) != 1 {
-				return newError("math.sign() takes exactly 1 argument")
+				return &Error{Code: "E8001", Message: "math.sign() takes exactly 1 argument"}
 			}
 			val, err := getNumber(args[0])
 			if err != nil {
@@ -130,7 +131,7 @@ var mathBuiltins = map[string]*Builtin{
 	"math.neg": {
 		Fn: func(args ...Object) Object {
 			if len(args) != 1 {
-				return newError("math.neg() takes exactly 1 argument")
+				return &Error{Code: "E8001", Message: "math.neg() takes exactly 1 argument"}
 			}
 			val, err := getNumber(args[0])
 			if err != nil {
@@ -147,7 +148,7 @@ var mathBuiltins = map[string]*Builtin{
 	"math.min": {
 		Fn: func(args ...Object) Object {
 			if len(args) < 2 {
-				return newError("math.min() takes at least 2 arguments")
+				return &Error{Code: "E8001", Message: "math.min() takes at least 2 arguments"}
 			}
 			minVal, err := getNumber(args[0])
 			if err != nil {
@@ -175,7 +176,7 @@ var mathBuiltins = map[string]*Builtin{
 	"math.max": {
 		Fn: func(args ...Object) Object {
 			if len(args) < 2 {
-				return newError("math.max() takes at least 2 arguments")
+				return &Error{Code: "E8001", Message: "math.max() takes at least 2 arguments"}
 			}
 			maxVal, err := getNumber(args[0])
 			if err != nil {
@@ -203,7 +204,7 @@ var mathBuiltins = map[string]*Builtin{
 	"math.clamp": {
 		Fn: func(args ...Object) Object {
 			if len(args) != 3 {
-				return newError("math.clamp() takes exactly 3 arguments (value, min, max)")
+				return &Error{Code: "E8001", Message: "math.clamp() takes exactly 3 arguments (value, min, max)"}
 			}
 			val, err := getNumber(args[0])
 			if err != nil {
@@ -229,7 +230,7 @@ var mathBuiltins = map[string]*Builtin{
 	"math.floor": {
 		Fn: func(args ...Object) Object {
 			if len(args) != 1 {
-				return newError("math.floor() takes exactly 1 argument")
+				return &Error{Code: "E8001", Message: "math.floor() takes exactly 1 argument"}
 			}
 			val, err := getNumber(args[0])
 			if err != nil {
@@ -241,7 +242,7 @@ var mathBuiltins = map[string]*Builtin{
 	"math.ceil": {
 		Fn: func(args ...Object) Object {
 			if len(args) != 1 {
-				return newError("math.ceil() takes exactly 1 argument")
+				return &Error{Code: "E8001", Message: "math.ceil() takes exactly 1 argument"}
 			}
 			val, err := getNumber(args[0])
 			if err != nil {
@@ -253,7 +254,7 @@ var mathBuiltins = map[string]*Builtin{
 	"math.round": {
 		Fn: func(args ...Object) Object {
 			if len(args) != 1 {
-				return newError("math.round() takes exactly 1 argument")
+				return &Error{Code: "E8001", Message: "math.round() takes exactly 1 argument"}
 			}
 			val, err := getNumber(args[0])
 			if err != nil {
@@ -265,7 +266,7 @@ var mathBuiltins = map[string]*Builtin{
 	"math.trunc": {
 		Fn: func(args ...Object) Object {
 			if len(args) != 1 {
-				return newError("math.trunc() takes exactly 1 argument")
+				return &Error{Code: "E8001", Message: "math.trunc() takes exactly 1 argument"}
 			}
 			val, err := getNumber(args[0])
 			if err != nil {
@@ -279,7 +280,7 @@ var mathBuiltins = map[string]*Builtin{
 	"math.pow": {
 		Fn: func(args ...Object) Object {
 			if len(args) != 2 {
-				return newError("math.pow() takes exactly 2 arguments")
+				return &Error{Code: "E8001", Message: "math.pow() takes exactly 2 arguments"}
 			}
 			base, exp, err := getTwoNumbers(args)
 			if err != nil {
@@ -295,14 +296,14 @@ var mathBuiltins = map[string]*Builtin{
 	"math.sqrt": {
 		Fn: func(args ...Object) Object {
 			if len(args) != 1 {
-				return newError("math.sqrt() takes exactly 1 argument")
+				return &Error{Code: "E8001", Message: "math.sqrt() takes exactly 1 argument"}
 			}
 			val, err := getNumber(args[0])
 			if err != nil {
 				return err
 			}
 			if val < 0 {
-				return newError("math.sqrt() cannot take negative number")
+				return &Error{Code: "E8005", Message: "math.sqrt() cannot take negative number"}
 			}
 			return &Float{Value: math.Sqrt(val)}
 		},
@@ -310,7 +311,7 @@ var mathBuiltins = map[string]*Builtin{
 	"math.cbrt": {
 		Fn: func(args ...Object) Object {
 			if len(args) != 1 {
-				return newError("math.cbrt() takes exactly 1 argument")
+				return &Error{Code: "E8001", Message: "math.cbrt() takes exactly 1 argument"}
 			}
 			val, err := getNumber(args[0])
 			if err != nil {
@@ -322,7 +323,7 @@ var mathBuiltins = map[string]*Builtin{
 	"math.hypot": {
 		Fn: func(args ...Object) Object {
 			if len(args) != 2 {
-				return newError("math.hypot() takes exactly 2 arguments")
+				return &Error{Code: "E8001", Message: "math.hypot() takes exactly 2 arguments"}
 			}
 			a, b, err := getTwoNumbers(args)
 			if err != nil {
@@ -334,7 +335,7 @@ var mathBuiltins = map[string]*Builtin{
 	"math.exp": {
 		Fn: func(args ...Object) Object {
 			if len(args) != 1 {
-				return newError("math.exp() takes exactly 1 argument")
+				return &Error{Code: "E8001", Message: "math.exp() takes exactly 1 argument"}
 			}
 			val, err := getNumber(args[0])
 			if err != nil {
@@ -346,7 +347,7 @@ var mathBuiltins = map[string]*Builtin{
 	"math.exp2": {
 		Fn: func(args ...Object) Object {
 			if len(args) != 1 {
-				return newError("math.exp2() takes exactly 1 argument")
+				return &Error{Code: "E8001", Message: "math.exp2() takes exactly 1 argument"}
 			}
 			val, err := getNumber(args[0])
 			if err != nil {
@@ -360,14 +361,14 @@ var mathBuiltins = map[string]*Builtin{
 	"math.log": {
 		Fn: func(args ...Object) Object {
 			if len(args) != 1 {
-				return newError("math.log() takes exactly 1 argument")
+				return &Error{Code: "E8001", Message: "math.log() takes exactly 1 argument"}
 			}
 			val, err := getNumber(args[0])
 			if err != nil {
 				return err
 			}
 			if val <= 0 {
-				return newError("math.log() requires positive number")
+				return &Error{Code: "E8006", Message: "math.log() requires positive number"}
 			}
 			return &Float{Value: math.Log(val)}
 		},
@@ -375,14 +376,14 @@ var mathBuiltins = map[string]*Builtin{
 	"math.log2": {
 		Fn: func(args ...Object) Object {
 			if len(args) != 1 {
-				return newError("math.log2() takes exactly 1 argument")
+				return &Error{Code: "E8001", Message: "math.log2() takes exactly 1 argument"}
 			}
 			val, err := getNumber(args[0])
 			if err != nil {
 				return err
 			}
 			if val <= 0 {
-				return newError("math.log2() requires positive number")
+				return &Error{Code: "E8006", Message: "math.log2() requires positive number"}
 			}
 			return &Float{Value: math.Log2(val)}
 		},
@@ -390,14 +391,14 @@ var mathBuiltins = map[string]*Builtin{
 	"math.log10": {
 		Fn: func(args ...Object) Object {
 			if len(args) != 1 {
-				return newError("math.log10() takes exactly 1 argument")
+				return &Error{Code: "E8001", Message: "math.log10() takes exactly 1 argument"}
 			}
 			val, err := getNumber(args[0])
 			if err != nil {
 				return err
 			}
 			if val <= 0 {
-				return newError("math.log10() requires positive number")
+				return &Error{Code: "E8006", Message: "math.log10() requires positive number"}
 			}
 			return &Float{Value: math.Log10(val)}
 		},
@@ -407,7 +408,7 @@ var mathBuiltins = map[string]*Builtin{
 	"math.sin": {
 		Fn: func(args ...Object) Object {
 			if len(args) != 1 {
-				return newError("math.sin() takes exactly 1 argument")
+				return &Error{Code: "E8001", Message: "math.sin() takes exactly 1 argument"}
 			}
 			val, err := getNumber(args[0])
 			if err != nil {
@@ -419,7 +420,7 @@ var mathBuiltins = map[string]*Builtin{
 	"math.cos": {
 		Fn: func(args ...Object) Object {
 			if len(args) != 1 {
-				return newError("math.cos() takes exactly 1 argument")
+				return &Error{Code: "E8001", Message: "math.cos() takes exactly 1 argument"}
 			}
 			val, err := getNumber(args[0])
 			if err != nil {
@@ -431,7 +432,7 @@ var mathBuiltins = map[string]*Builtin{
 	"math.tan": {
 		Fn: func(args ...Object) Object {
 			if len(args) != 1 {
-				return newError("math.tan() takes exactly 1 argument")
+				return &Error{Code: "E8001", Message: "math.tan() takes exactly 1 argument"}
 			}
 			val, err := getNumber(args[0])
 			if err != nil {
@@ -443,14 +444,14 @@ var mathBuiltins = map[string]*Builtin{
 	"math.asin": {
 		Fn: func(args ...Object) Object {
 			if len(args) != 1 {
-				return newError("math.asin() takes exactly 1 argument")
+				return &Error{Code: "E8001", Message: "math.asin() takes exactly 1 argument"}
 			}
 			val, err := getNumber(args[0])
 			if err != nil {
 				return err
 			}
 			if val < -1 || val > 1 {
-				return newError("math.asin() requires value between -1 and 1")
+				return &Error{Code: "E8007", Message: "math.asin() requires value between -1 and 1"}
 			}
 			return &Float{Value: math.Asin(val)}
 		},
@@ -458,14 +459,14 @@ var mathBuiltins = map[string]*Builtin{
 	"math.acos": {
 		Fn: func(args ...Object) Object {
 			if len(args) != 1 {
-				return newError("math.acos() takes exactly 1 argument")
+				return &Error{Code: "E8001", Message: "math.acos() takes exactly 1 argument"}
 			}
 			val, err := getNumber(args[0])
 			if err != nil {
 				return err
 			}
 			if val < -1 || val > 1 {
-				return newError("math.acos() requires value between -1 and 1")
+				return &Error{Code: "E8007", Message: "math.acos() requires value between -1 and 1"}
 			}
 			return &Float{Value: math.Acos(val)}
 		},
@@ -473,7 +474,7 @@ var mathBuiltins = map[string]*Builtin{
 	"math.atan": {
 		Fn: func(args ...Object) Object {
 			if len(args) != 1 {
-				return newError("math.atan() takes exactly 1 argument")
+				return &Error{Code: "E8001", Message: "math.atan() takes exactly 1 argument"}
 			}
 			val, err := getNumber(args[0])
 			if err != nil {
@@ -485,7 +486,7 @@ var mathBuiltins = map[string]*Builtin{
 	"math.atan2": {
 		Fn: func(args ...Object) Object {
 			if len(args) != 2 {
-				return newError("math.atan2() takes exactly 2 arguments")
+				return &Error{Code: "E8001", Message: "math.atan2() takes exactly 2 arguments"}
 			}
 			y, x, err := getTwoNumbers(args)
 			if err != nil {
@@ -499,7 +500,7 @@ var mathBuiltins = map[string]*Builtin{
 	"math.sinh": {
 		Fn: func(args ...Object) Object {
 			if len(args) != 1 {
-				return newError("math.sinh() takes exactly 1 argument")
+				return &Error{Code: "E8001", Message: "math.sinh() takes exactly 1 argument"}
 			}
 			val, err := getNumber(args[0])
 			if err != nil {
@@ -511,7 +512,7 @@ var mathBuiltins = map[string]*Builtin{
 	"math.cosh": {
 		Fn: func(args ...Object) Object {
 			if len(args) != 1 {
-				return newError("math.cosh() takes exactly 1 argument")
+				return &Error{Code: "E8001", Message: "math.cosh() takes exactly 1 argument"}
 			}
 			val, err := getNumber(args[0])
 			if err != nil {
@@ -523,7 +524,7 @@ var mathBuiltins = map[string]*Builtin{
 	"math.tanh": {
 		Fn: func(args ...Object) Object {
 			if len(args) != 1 {
-				return newError("math.tanh() takes exactly 1 argument")
+				return &Error{Code: "E8001", Message: "math.tanh() takes exactly 1 argument"}
 			}
 			val, err := getNumber(args[0])
 			if err != nil {
@@ -537,7 +538,7 @@ var mathBuiltins = map[string]*Builtin{
 	"math.deg_to_rad": {
 		Fn: func(args ...Object) Object {
 			if len(args) != 1 {
-				return newError("math.deg_to_rad() takes exactly 1 argument")
+				return &Error{Code: "E8001", Message: "math.deg_to_rad() takes exactly 1 argument"}
 			}
 			val, err := getNumber(args[0])
 			if err != nil {
@@ -549,7 +550,7 @@ var mathBuiltins = map[string]*Builtin{
 	"math.rad_to_deg": {
 		Fn: func(args ...Object) Object {
 			if len(args) != 1 {
-				return newError("math.rad_to_deg() takes exactly 1 argument")
+				return &Error{Code: "E8001", Message: "math.rad_to_deg() takes exactly 1 argument"}
 			}
 			val, err := getNumber(args[0])
 			if err != nil {
@@ -572,7 +573,7 @@ var mathBuiltins = map[string]*Builtin{
 					return err
 				}
 				if max <= 0 {
-					return newError("math.random() max must be positive")
+					return &Error{Code: "E8010", Message: "math.random() max must be positive"}
 				}
 				return &Integer{Value: int64(rand.Intn(int(max)))}
 			} else if len(args) == 2 {
@@ -582,11 +583,11 @@ var mathBuiltins = map[string]*Builtin{
 					return err
 				}
 				if max <= min {
-					return newError("math.random() max must be greater than min")
+					return &Error{Code: "E8010", Message: "math.random() max must be greater than min"}
 				}
 				return &Integer{Value: int64(min) + int64(rand.Intn(int(max-min)))}
 			}
-			return newError("math.random() takes 0, 1, or 2 arguments")
+			return &Error{Code: "E8001", Message: "math.random() takes 0, 1, or 2 arguments"}
 		},
 	},
 	"math.random_float": {
@@ -600,7 +601,7 @@ var mathBuiltins = map[string]*Builtin{
 				}
 				return &Float{Value: min + rand.Float64()*(max-min)}
 			}
-			return newError("math.random_float() takes 0 or 2 arguments")
+			return &Error{Code: "E8001", Message: "math.random_float() takes 0 or 2 arguments"}
 		},
 	},
 
@@ -663,7 +664,7 @@ var mathBuiltins = map[string]*Builtin{
 	"math.avg": {
 		Fn: func(args ...Object) Object {
 			if len(args) == 0 {
-				return newError("math.avg() requires at least 1 argument")
+				return &Error{Code: "E8001", Message: "math.avg() requires at least 1 argument"}
 			}
 			var sum float64
 			for _, arg := range args {
@@ -679,7 +680,7 @@ var mathBuiltins = map[string]*Builtin{
 	"math.factorial": {
 		Fn: func(args ...Object) Object {
 			if len(args) != 1 {
-				return newError("math.factorial() takes exactly 1 argument")
+				return &Error{Code: "E8001", Message: "math.factorial() takes exactly 1 argument"}
 			}
 			val, err := getNumber(args[0])
 			if err != nil {
@@ -687,10 +688,10 @@ var mathBuiltins = map[string]*Builtin{
 			}
 			n := int64(val)
 			if n < 0 {
-				return newError("math.factorial() requires non-negative integer")
+				return &Error{Code: "E8009", Message: "math.factorial() requires non-negative integer"}
 			}
 			if n > 20 {
-				return newError("math.factorial() overflow for n > 20")
+				return &Error{Code: "E8008", Message: "math.factorial() overflow for n > 20"}
 			}
 			result := int64(1)
 			for i := int64(2); i <= n; i++ {
@@ -702,7 +703,7 @@ var mathBuiltins = map[string]*Builtin{
 	"math.gcd": {
 		Fn: func(args ...Object) Object {
 			if len(args) != 2 {
-				return newError("math.gcd() takes exactly 2 arguments")
+				return &Error{Code: "E8001", Message: "math.gcd() takes exactly 2 arguments"}
 			}
 			a, b, err := getTwoNumbers(args)
 			if err != nil {
@@ -718,7 +719,7 @@ var mathBuiltins = map[string]*Builtin{
 	"math.lcm": {
 		Fn: func(args ...Object) Object {
 			if len(args) != 2 {
-				return newError("math.lcm() takes exactly 2 arguments")
+				return &Error{Code: "E8001", Message: "math.lcm() takes exactly 2 arguments"}
 			}
 			a, b, err := getTwoNumbers(args)
 			if err != nil {
@@ -739,7 +740,7 @@ var mathBuiltins = map[string]*Builtin{
 	"math.is_prime": {
 		Fn: func(args ...Object) Object {
 			if len(args) != 1 {
-				return newError("math.is_prime() takes exactly 1 argument")
+				return &Error{Code: "E8001", Message: "math.is_prime() takes exactly 1 argument"}
 			}
 			val, err := getNumber(args[0])
 			if err != nil {
@@ -766,7 +767,7 @@ var mathBuiltins = map[string]*Builtin{
 	"math.is_even": {
 		Fn: func(args ...Object) Object {
 			if len(args) != 1 {
-				return newError("math.is_even() takes exactly 1 argument")
+				return &Error{Code: "E8001", Message: "math.is_even() takes exactly 1 argument"}
 			}
 			val, err := getNumber(args[0])
 			if err != nil {
@@ -781,7 +782,7 @@ var mathBuiltins = map[string]*Builtin{
 	"math.is_odd": {
 		Fn: func(args ...Object) Object {
 			if len(args) != 1 {
-				return newError("math.is_odd() takes exactly 1 argument")
+				return &Error{Code: "E8001", Message: "math.is_odd() takes exactly 1 argument"}
 			}
 			val, err := getNumber(args[0])
 			if err != nil {
@@ -796,7 +797,7 @@ var mathBuiltins = map[string]*Builtin{
 	"math.lerp": {
 		Fn: func(args ...Object) Object {
 			if len(args) != 3 {
-				return newError("math.lerp() takes exactly 3 arguments (a, b, t)")
+				return &Error{Code: "E8001", Message: "math.lerp() takes exactly 3 arguments (a, b, t)"}
 			}
 			a, err := getNumber(args[0])
 			if err != nil {
@@ -816,7 +817,7 @@ var mathBuiltins = map[string]*Builtin{
 	"math.map_range": {
 		Fn: func(args ...Object) Object {
 			if len(args) != 5 {
-				return newError("math.map_range() takes exactly 5 arguments (value, in_min, in_max, out_min, out_max)")
+				return &Error{Code: "E8001", Message: "math.map_range() takes exactly 5 arguments (value, in_min, in_max, out_min, out_max)"}
 			}
 			value, err := getNumber(args[0])
 			if err != nil {
@@ -845,7 +846,7 @@ var mathBuiltins = map[string]*Builtin{
 	"math.distance": {
 		Fn: func(args ...Object) Object {
 			if len(args) != 4 {
-				return newError("math.distance() takes exactly 4 arguments (x1, y1, x2, y2)")
+				return &Error{Code: "E8001", Message: "math.distance() takes exactly 4 arguments (x1, y1, x2, y2)"}
 			}
 			x1, err := getNumber(args[0])
 			if err != nil {
@@ -878,7 +879,7 @@ func getNumber(obj Object) (float64, *Error) {
 	case *Float:
 		return v.Value, nil
 	default:
-		return 0, newError("expected number, got %s", obj.Type())
+		return 0, &Error{Code: "E8012", Message: fmt.Sprintf("expected number, got %s", obj.Type())}
 	}
 }
 
