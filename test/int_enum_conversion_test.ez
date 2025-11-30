@@ -1,0 +1,41 @@
+import @std
+
+@(int, skip, 10)
+const Priority enum {
+    LOW
+    MEDIUM
+    HIGH
+    CRITICAL
+}
+
+@(int)
+const Status enum {
+    PENDING
+    ACTIVE
+    DONE
+}
+
+do main() {
+    using std
+
+    println("=== int() Enum Conversion Tests ===")
+    println("")
+
+    println("Test 1: int() on @(int, skip, 10) enum")
+    println("  int(Priority.LOW) = ${int(Priority.LOW)}")
+    println("  int(Priority.MEDIUM) = ${int(Priority.MEDIUM)}")
+    println("  int(Priority.HIGH) = ${int(Priority.HIGH)}")
+    println("  int(Priority.CRITICAL) = ${int(Priority.CRITICAL)}")
+
+    println("Test 2: int() on @(int) enum (0-indexed)")
+    println("  int(Status.PENDING) = ${int(Status.PENDING)}")
+    println("  int(Status.ACTIVE) = ${int(Status.ACTIVE)}")
+    println("  int(Status.DONE) = ${int(Status.DONE)}")
+
+    println("Test 3: Using converted enum in arithmetic")
+    temp val int = int(Priority.HIGH) + 5
+    println("  int(Priority.HIGH) + 5 = ${val}")
+
+    println("")
+    println("=== All int() Enum Conversion Tests Passed! ===")
+}
