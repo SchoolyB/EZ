@@ -271,6 +271,7 @@ var (
 	// Code Quality Warnings (W3xxx)
 	W3001 = ErrorCode{"W3001", "empty-block", "block statement is empty"}
 	W3002 = ErrorCode{"W3002", "redundant-condition", "condition is always true/false"}
+	W3003 = ErrorCode{"W3003", "array-size-mismatch", "fixed-size array not fully initialized"}
 
 	// Module Warnings (W6xxx)
 	W6001 = ErrorCode{"W6001", "module-name-mismatch", "module name does not match directory name"}
