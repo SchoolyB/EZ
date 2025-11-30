@@ -127,6 +127,21 @@ type ArrayValue struct {
 func (v *ArrayValue) expressionNode()      {}
 func (v *ArrayValue) TokenLiteral() string { return v.Token.Literal }
 
+// MapPair represents a key-value pair in a map literal
+type MapPair struct {
+	Key   Expression
+	Value Expression
+}
+
+// MapValue represents a map literal {"key": value, ...}
+type MapValue struct {
+	Token Token
+	Pairs []*MapPair
+}
+
+func (m *MapValue) expressionNode()      {}
+func (m *MapValue) TokenLiteral() string { return m.Token.Literal }
+
 // StructValue represents Person{name: "Bob", age: 25}
 type StructValue struct {
 	Token  Token

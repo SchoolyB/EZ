@@ -1,0 +1,19 @@
+import @std
+using std
+
+do main() {
+    // Test 1: println prints strings without quotes
+    println("Hello, World!")
+
+    // Test 2: string() conversion should show quotes
+    temp num int = 123
+    temp converted = string(num)
+    println("Converted:", converted)
+
+    // Test 3: string interpolation
+    temp name string = "Alice"
+    println("Hello, ${name}!")
+
+    // Test 4: Multiple args to println
+    println("Value:", 42, "Name:", "Bob")
+}

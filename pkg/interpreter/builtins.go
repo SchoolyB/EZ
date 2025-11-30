@@ -33,6 +33,8 @@ func getEZTypeName(obj Object) string {
 		return "char"
 	case *Array:
 		return "array"
+	case *Map:
+		return "map"
 	case *Struct:
 		if v.TypeName != "" {
 			return v.TypeName

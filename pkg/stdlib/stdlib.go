@@ -31,6 +31,9 @@ func GetAllBuiltins() map[string]*object.Builtin {
 	for name, builtin := range TimeBuiltins {
 		all[name] = builtin
 	}
+	for name, builtin := range MapsBuiltins {
+		all[name] = builtin
+	}
 
 	return all
 }

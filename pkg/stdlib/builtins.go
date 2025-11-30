@@ -52,7 +52,13 @@ var StdBuiltins = map[string]*object.Builtin{
 				if i > 0 {
 					fmt.Print(" ")
 				}
-				fmt.Print(arg.Inspect())
+				// For strings, print raw value without quotes
+				// Other types use Inspect() for proper representation
+				if str, ok := arg.(*object.String); ok {
+					fmt.Print(str.Value)
+				} else {
+					fmt.Print(arg.Inspect())
+				}
 			}
 			fmt.Println()
 			return object.NIL
@@ -66,7 +72,13 @@ var StdBuiltins = map[string]*object.Builtin{
 				if i > 0 {
 					fmt.Print(" ")
 				}
-				fmt.Print(arg.Inspect())
+				// For strings, print raw value without quotes
+				// Other types use Inspect() for proper representation
+				if str, ok := arg.(*object.String); ok {
+					fmt.Print(str.Value)
+				} else {
+					fmt.Print(arg.Inspect())
+				}
 			}
 			return object.NIL
 		},

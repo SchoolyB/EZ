@@ -1424,6 +1424,7 @@ func (p *Parser) parseEnumDeclaration() *EnumDeclaration {
 // - Simple type: int, string, StructName
 // - Array type: [int], [string], [StructName]
 // - Fixed-size array: [int,5], [string,10]
+// - Map type: map[keyType:valueType]
 func (p *Parser) parseTypeName() string {
 	if p.currentTokenMatches(LBRACKET) {
 		// Array type [type] or [type, size]
@@ -1460,6 +1461,10 @@ func (p *Parser) parseTypeName() string {
 		typeName += "]"
 		return typeName
 	} else if p.currentTokenMatches(IDENT) {
+		// Check for map type: map[keyType:valueType]
+		if p.currentToken.Literal == "map" && p.peekTokenMatches(LBRACKET) {
+			return p.parseMapTypeName()
+		}
 		return p.currentToken.Literal
 	} else {
 		msg := fmt.Sprintf("expected type, got %s", p.currentToken.Type)
@@ -1467,6 +1472,44 @@ func (p *Parser) parseTypeName() string {
 		p.addEZError(errors.E2024, msg, p.currentToken)
 		return ""
 	}
+}
+
+// parseMapTypeName parses map[keyType:valueType]
+func (p *Parser) parseMapTypeName() string {
+	typeName := "map["
+
+	if !p.expectPeek(LBRACKET) {
+		return ""
+	}
+
+	// Parse key type
+	if !p.expectPeek(IDENT) {
+		return ""
+	}
+	typeName += p.currentToken.Literal
+
+	// Expect colon separator
+	if !p.expectPeek(COLON) {
+		msg := "expected ':' in map type declaration (e.g., map[string:int])"
+		p.errors = append(p.errors, msg)
+		p.addEZError(errors.E2024, msg, p.currentToken)
+		return ""
+	}
+	typeName += ":"
+
+	// Parse value type
+	if !p.expectPeek(IDENT) {
+		return ""
+	}
+	typeName += p.currentToken.Literal
+
+	// Expect closing bracket
+	if !p.expectPeek(RBRACKET) {
+		return ""
+	}
+	typeName += "]"
+
+	return typeName
 }
 
 func (p *Parser) parseStructDeclaration() *StructDeclaration {
@@ -1850,9 +1893,108 @@ func (p *Parser) parseNilValue() Expression {
 }
 
 func (p *Parser) parseArrayValue() Expression {
-	lit := &ArrayValue{Token: p.currentToken}
-	lit.Elements = p.parseExpressionList(RBRACE)
-	return lit
+	startToken := p.currentToken
+
+	// Check if this is an empty literal {} - treat as empty array
+	if p.peekTokenMatches(RBRACE) {
+		p.nextToken()
+		return &ArrayValue{Token: startToken, Elements: []Expression{}}
+	}
+
+	// Look ahead to determine if this is a map literal or array literal
+	// Map literals have the form {key: value, ...}
+	// Array literals have the form {elem1, elem2, ...}
+	// We need to parse the first expression and check if a colon follows
+
+	p.nextToken() // move to first element
+
+	firstExpr := p.parseExpression(LOWEST)
+	if firstExpr == nil {
+		return nil
+	}
+
+	// Check if this is a map literal (colon after first expression)
+	if p.peekTokenMatches(COLON) {
+		return p.parseMapValueFromFirst(startToken, firstExpr)
+	}
+
+	// This is an array literal - continue parsing remaining elements
+	elements := []Expression{firstExpr}
+
+	for p.peekTokenMatches(COMMA) {
+		p.nextToken() // consume comma
+		// Check for trailing comma
+		if p.peekTokenMatches(RBRACE) {
+			p.addEZError(errors.E2017,
+				"unexpected trailing comma in array literal\n\n"+
+					"Trailing commas are not allowed. Remove the comma before the closing bracket.\n\n"+
+					"Help: Remove the trailing comma or add another element:\n"+
+					"  Valid: {1, 2, 3}\n"+
+					"  Invalid: {1, 2, 3,}",
+				p.peekToken)
+			return nil
+		}
+		p.nextToken() // move to next expression
+		elements = append(elements, p.parseExpression(LOWEST))
+	}
+
+	if !p.expectPeek(RBRACE) {
+		return nil
+	}
+
+	return &ArrayValue{Token: startToken, Elements: elements}
+}
+
+// parseMapValueFromFirst parses a map literal when we've already parsed the first key
+func (p *Parser) parseMapValueFromFirst(startToken Token, firstKey Expression) Expression {
+	mapLit := &MapValue{Token: startToken, Pairs: []*MapPair{}}
+
+	// We already have the first key, now parse the first value
+	if !p.expectPeek(COLON) {
+		return nil
+	}
+	p.nextToken() // move to value
+	firstValue := p.parseExpression(LOWEST)
+	if firstValue == nil {
+		return nil
+	}
+	mapLit.Pairs = append(mapLit.Pairs, &MapPair{Key: firstKey, Value: firstValue})
+
+	// Parse remaining key-value pairs
+	for p.peekTokenMatches(COMMA) {
+		p.nextToken() // consume comma
+		// Check for trailing comma
+		if p.peekTokenMatches(RBRACE) {
+			p.addEZError(errors.E2017,
+				"unexpected trailing comma in map literal\n\n"+
+					"Trailing commas are not allowed. Remove the comma before the closing bracket.\n\n"+
+					"Help: Remove the trailing comma or add another entry:\n"+
+					"  Valid: {\"a\": 1, \"b\": 2}\n"+
+					"  Invalid: {\"a\": 1, \"b\": 2,}",
+				p.peekToken)
+			return nil
+		}
+		p.nextToken() // move to next key
+		key := p.parseExpression(LOWEST)
+		if key == nil {
+			return nil
+		}
+		if !p.expectPeek(COLON) {
+			return nil
+		}
+		p.nextToken() // move to value
+		value := p.parseExpression(LOWEST)
+		if value == nil {
+			return nil
+		}
+		mapLit.Pairs = append(mapLit.Pairs, &MapPair{Key: key, Value: value})
+	}
+
+	if !p.expectPeek(RBRACE) {
+		return nil
+	}
+
+	return mapLit
 }
 
 func (p *Parser) parseExpressionList(end TokenType) []Expression {
