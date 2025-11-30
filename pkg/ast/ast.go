@@ -258,11 +258,13 @@ func (r *RangeExpression) TokenLiteral() string { return r.Token.Literal }
 
 // VariableDeclaration represents temp x int = 5 or const y int = 10
 // Also supports multiple assignment: temp result, err = divide(10, 0)
+// And typed tuple unpacking: temp a int, b string = getValues()
 type VariableDeclaration struct {
 	Token      Token // temp or const
 	Name       *Label
 	Names      []*Label // for multiple assignment (result, err)
 	TypeName   string
+	TypeNames  []string // for typed tuple unpacking (int, string)
 	Value      Expression
 	Mutable    bool
 	Attributes []*Attribute // @suppress(...) attributes
