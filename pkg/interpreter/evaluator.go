@@ -270,7 +270,7 @@ func Eval(node ast.Node, env *Environment) Object {
 				if len(availableKeys) > 0 {
 					keyList = fmt.Sprintf("\n\nAvailable keys: %v", availableKeys)
 				}
-				return newErrorWithLocation("E9021", node.Token.Line, node.Token.Column,
+				return newErrorWithLocation("E12006", node.Token.Line, node.Token.Column,
 					"key %s not found in map%s", index.Inspect(), keyList)
 			}
 			return value
@@ -651,7 +651,7 @@ func evalAssignment(node *ast.AssignmentStatement, env *Environment) Object {
 			if node.Operator != "=" {
 				oldVal, exists := obj.Get(idx)
 				if !exists {
-					return newErrorWithLocation("E9022", node.Token.Line, node.Token.Column,
+					return newErrorWithLocation("E12007", node.Token.Line, node.Token.Column,
 						"key not found in map for compound assignment")
 				}
 				val = evalCompoundAssignment(node.Operator, oldVal, val, node.Token.Line, node.Token.Column)
