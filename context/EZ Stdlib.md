@@ -49,8 +49,8 @@ If not, it doesn’t belong.
 | `@strings`  | Implemented    | Core/Data | String formatting and manipulation |
 | `@math`     | Implemented    | Core      | Math functions and constants |
 | `@arrays`   | Implemented    | Data      | Array operations (append, pop, etc.) |
+| `@maps`     | Implemented    | Data      | Map/dictionary operations (get, set, keys, values, etc.) |
 | `@time`     | Implemented    | System    | Time, dates, sleeping, timestamps |
-| `@maps`     | Issue Created  | Data      | Map helpers once map types exist |
 | `@sets`     | Issue Created  | Data      | Set helpers once set types exist |
 | `@io`       | Not Implemented | System   | Basic I/O streams (stdin/stdout/stderr) |
 | `@fs`       | Not Implemented | System   | Filesystem operations (files/dirs/paths) |

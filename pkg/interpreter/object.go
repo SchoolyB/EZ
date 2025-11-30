@@ -26,6 +26,8 @@ type (
 	BuiltinFunction = object.BuiltinFunction
 	Builtin         = object.Builtin
 	Array           = object.Array
+	Map             = object.Map
+	MapPair         = object.MapPair
 	Struct          = object.Struct
 	Break           = object.Break
 	Continue        = object.Continue
@@ -48,6 +50,7 @@ const (
 	FUNCTION_OBJ     = object.FUNCTION_OBJ
 	BUILTIN_OBJ      = object.BUILTIN_OBJ
 	ARRAY_OBJ        = object.ARRAY_OBJ
+	MAP_OBJ          = object.MAP_OBJ
 	STRUCT_OBJ       = object.STRUCT_OBJ
 	BREAK_OBJ        = object.BREAK_OBJ
 	CONTINUE_OBJ     = object.CONTINUE_OBJ
@@ -62,4 +65,6 @@ const (
 var (
 	NewEnvironment         = object.NewEnvironment
 	NewEnclosedEnvironment = object.NewEnclosedEnvironment
+	NewMap                 = object.NewMap
+	HashKey                = object.HashKey
 )

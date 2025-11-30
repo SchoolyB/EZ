@@ -17,6 +17,7 @@ type TypeKind int
 const (
 	PrimitiveType TypeKind = iota
 	ArrayType
+	MapType
 	StructType
 	EnumType
 	FunctionType
@@ -76,6 +77,8 @@ type Type struct {
 	Name        string
 	Kind        TypeKind
 	ElementType *Type            // For arrays
+	KeyType     *Type            // For maps
+	ValueType   *Type            // For maps
 	Fields      map[string]*Type // For structs
 	Size        int              // For fixed-size arrays, -1 for dynamic
 }
@@ -163,6 +166,20 @@ func (tc *TypeChecker) TypeExists(typeName string) bool {
 		// For now, just check if it's an array syntax
 		// Full validation will happen in CheckArrayType
 		return true
+	}
+
+	// Check for map types: map[keyType:valueType]
+	if strings.HasPrefix(typeName, "map[") && strings.HasSuffix(typeName, "]") {
+		// Validate the map type has proper format
+		inner := typeName[4 : len(typeName)-1] // Extract keyType:valueType
+		parts := strings.Split(inner, ":")
+		if len(parts) == 2 {
+			keyType := parts[0]
+			valueType := parts[1]
+			// Both key and value types must exist
+			return tc.TypeExists(keyType) && tc.TypeExists(valueType)
+		}
+		return false
 	}
 
 	_, exists := tc.types[typeName]
@@ -819,6 +836,12 @@ func (tc *TypeChecker) checkExpression(expr ast.Expression) {
 		for _, elem := range e.Elements {
 			tc.checkExpression(elem)
 		}
+
+	case *ast.MapValue:
+		for _, pair := range e.Pairs {
+			tc.checkExpression(pair.Key)
+			tc.checkExpression(pair.Value)
+		}
 	}
 }
 
@@ -954,11 +977,29 @@ func (tc *TypeChecker) checkPrefixExpression(prefix *ast.PrefixExpression) {
 	}
 }
 
-// checkIndexExpression validates array/string indexing
+// checkIndexExpression validates array/string/map indexing
 func (tc *TypeChecker) checkIndexExpression(index *ast.IndexExpression) {
-	// Check that the index is an integer
-	indexType, ok := tc.inferExpressionType(index.Index)
-	if ok && !tc.isIntegerType(indexType) {
+	// Get the left side type to determine what kind of index is valid
+	leftType, leftOk := tc.inferExpressionType(index.Left)
+	indexType, indexOk := tc.inferExpressionType(index.Index)
+
+	// Check if left side is a map type
+	if leftOk && tc.isMapType(leftType) {
+		// Maps can be indexed with string, int, bool, or char (hashable types)
+		if indexOk && !tc.isHashableType(indexType) {
+			line, column := tc.getExpressionPosition(index.Index)
+			tc.addError(
+				errors.E3003,
+				fmt.Sprintf("map key must be a hashable type (string, int, bool, char), got %s", indexType),
+				line,
+				column,
+			)
+		}
+		return
+	}
+
+	// For arrays and strings, index must be an integer
+	if indexOk && !tc.isIntegerType(indexType) {
 		line, column := tc.getExpressionPosition(index.Index)
 		tc.addError(
 			errors.E3003,
@@ -969,12 +1010,11 @@ func (tc *TypeChecker) checkIndexExpression(index *ast.IndexExpression) {
 	}
 
 	// Check that the left side is indexable
-	leftType, ok := tc.inferExpressionType(index.Left)
-	if ok && !tc.isArrayType(leftType) && leftType != "string" {
+	if leftOk && !tc.isArrayType(leftType) && leftType != "string" && !tc.isMapType(leftType) {
 		line, column := tc.getExpressionPosition(index.Left)
 		tc.addError(
 			errors.E3016,
-			fmt.Sprintf("cannot index into %s (expected array or string)", leftType),
+			fmt.Sprintf("cannot index into %s (expected array, string, or map)", leftType),
 			line,
 			column,
 		)
@@ -1299,6 +1339,21 @@ func (tc *TypeChecker) isArrayType(typeName string) bool {
 	return len(typeName) >= 2 && typeName[0] == '[' && typeName[len(typeName)-1] == ']'
 }
 
+// isMapType checks if a type string represents a map type
+func (tc *TypeChecker) isMapType(typeName string) bool {
+	return strings.HasPrefix(typeName, "map[") && strings.HasSuffix(typeName, "]")
+}
+
+// isHashableType checks if a type can be used as a map key
+func (tc *TypeChecker) isHashableType(typeName string) bool {
+	switch typeName {
+	case "string", "int", "bool", "char":
+		return true
+	}
+	// Also accept integer variants
+	return tc.isIntegerType(typeName)
+}
+
 // extractArrayElementType extracts the element type from an array type string
 // Handles both [int] and [int, 3] (fixed-size) formats
 func (tc *TypeChecker) extractArrayElementType(arrType string) string {
@@ -1422,6 +1477,9 @@ func (tc *TypeChecker) inferExpressionType(expr ast.Expression) (string, bool) {
 	case *ast.ArrayValue:
 		return tc.inferArrayType(e)
 
+	case *ast.MapValue:
+		return tc.inferMapType(e)
+
 	case *ast.StructValue:
 		// Struct literal - type is the struct name
 		if e.Name != nil {
@@ -1484,6 +1542,25 @@ func (tc *TypeChecker) inferArrayType(arr *ast.ArrayValue) (string, bool) {
 	}
 
 	return fmt.Sprintf("[%s]", firstType), true
+}
+
+// inferMapType infers the type of a map literal
+func (tc *TypeChecker) inferMapType(mapLit *ast.MapValue) (string, bool) {
+	if len(mapLit.Pairs) == 0 {
+		// Empty map - can't infer types
+		return "map[]", true
+	}
+
+	// Infer types from first key-value pair
+	firstPair := mapLit.Pairs[0]
+	keyType, keyOk := tc.inferExpressionType(firstPair.Key)
+	valueType, valueOk := tc.inferExpressionType(firstPair.Value)
+
+	if !keyOk || !valueOk {
+		return "", false
+	}
+
+	return fmt.Sprintf("map[%s:%s]", keyType, valueType), true
 }
 
 // inferPrefixType infers the type of a prefix expression
@@ -1738,7 +1815,7 @@ func (tc *TypeChecker) inferTimeCallType(funcName string, args []ast.Expression)
 	}
 }
 
-// inferIndexType infers the type when indexing into an array or string
+// inferIndexType infers the type when indexing into an array, string, or map
 func (tc *TypeChecker) inferIndexType(index *ast.IndexExpression) (string, bool) {
 	leftType, ok := tc.inferExpressionType(index.Left)
 	if !ok {
@@ -1754,6 +1831,16 @@ func (tc *TypeChecker) inferIndexType(index *ast.IndexExpression) (string, bool)
 	if len(leftType) > 2 && leftType[0] == '[' {
 		// Extract element type from [type]
 		return leftType[1 : len(leftType)-1], true
+	}
+
+	// Indexing into a map returns value type
+	if tc.isMapType(leftType) {
+		// Extract value type from map[keyType:valueType]
+		inner := leftType[4 : len(leftType)-1] // Remove "map[" and "]"
+		parts := strings.Split(inner, ":")
+		if len(parts) == 2 {
+			return parts[1], true
+		}
 	}
 
 	return "", false
@@ -1857,6 +1944,27 @@ func (tc *TypeChecker) typesCompatible(declared, actual string) bool {
 			declaredElem := tc.extractArrayElementType(declared)
 			actualElem := tc.extractArrayElementType(actual)
 			return tc.typesCompatible(declaredElem, actualElem)
+		}
+	}
+
+	// Handle map type compatibility
+	if tc.isMapType(declared) {
+		// Empty map map[] is compatible with any map type
+		if actual == "map[]" {
+			return true
+		}
+
+		if tc.isMapType(actual) {
+			// Extract key and value types
+			declaredInner := declared[4 : len(declared)-1]
+			actualInner := actual[4 : len(actual)-1]
+			declaredParts := strings.Split(declaredInner, ":")
+			actualParts := strings.Split(actualInner, ":")
+			if len(declaredParts) == 2 && len(actualParts) == 2 {
+				keyCompatible := tc.typesCompatible(declaredParts[0], actualParts[0])
+				valueCompatible := tc.typesCompatible(declaredParts[1], actualParts[1])
+				return keyCompatible && valueCompatible
+			}
 		}
 	}
 
@@ -2042,6 +2150,8 @@ func (tc *TypeChecker) checkStdlibCall(member *ast.MemberExpression, call *ast.C
 		tc.checkStringsModuleCall(funcName, call, line, column)
 	case "time":
 		tc.checkTimeModuleCall(funcName, call, line, column)
+	case "maps":
+		tc.checkMapsModuleCall(funcName, call, line, column)
 	}
 }
 
@@ -2222,6 +2332,39 @@ func (tc *TypeChecker) checkArraysModuleCall(funcName string, call *ast.CallExpr
 	tc.validateStdlibCall("arrays", funcName, call, sig, line, column)
 }
 
+// checkMapsModuleCall validates maps module function calls
+func (tc *TypeChecker) checkMapsModuleCall(funcName string, call *ast.CallExpression, line, column int) {
+	signatures := map[string]StdlibFuncSig{
+		// Single map arg
+		"len":      {1, 1, []string{"map"}, "int"},
+		"is_empty": {1, 1, []string{"map"}, "bool"},
+		"keys":     {1, 1, []string{"map"}, "array"},
+		"values":   {1, 1, []string{"map"}, "array"},
+		"clear":    {1, 1, []string{"map"}, "void"},
+		"copy":     {1, 1, []string{"map"}, "map"},
+
+		// Map + key
+		"has":    {2, 2, []string{"map", "any"}, "bool"},
+		"delete": {2, 2, []string{"map", "any"}, "bool"},
+
+		// Map + key + optional default
+		"get": {2, 3, []string{"map", "any", "any"}, "any"},
+
+		// Map + key + value
+		"set": {3, 3, []string{"map", "any", "any"}, "void"},
+
+		// Variadic map merge (map, map, ...)
+		"merge": {2, -1, []string{"map"}, "void"},
+	}
+
+	sig, exists := signatures[funcName]
+	if !exists {
+		return
+	}
+
+	tc.validateStdlibCall("maps", funcName, call, sig, line, column)
+}
+
 // checkStringsModuleCall validates strings module function calls
 func (tc *TypeChecker) checkStringsModuleCall(funcName string, call *ast.CallExpression, line, column int) {
 	signatures := map[string]StdlibFuncSig{
@@ -2390,6 +2533,8 @@ func (tc *TypeChecker) typeMatchesExpected(actual, expected string) bool {
 		return actual == "bool"
 	case "array":
 		return tc.isArrayType(actual)
+	case "map":
+		return tc.isMapType(actual)
 	default:
 		return tc.typesCompatible(expected, actual)
 	}
