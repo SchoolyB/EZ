@@ -160,6 +160,9 @@ func loadUserModule(importPath string, token ast.Node, env *Environment) (*Modul
 		mod.ModuleObj.Exports[name] = obj
 	}
 
+	// Export struct definitions from the module
+	mod.ModuleObj.StructDefs = moduleEnv.GetPublicStructDefs()
+
 	// Mark module as fully loaded
 	mod.State = ModuleLoaded
 
@@ -346,8 +349,10 @@ func Eval(node ast.Node, env *Environment) Object {
 		// Bring the module(s) functions into scope (function-scoped using)
 		for _, module := range node.Modules {
 			alias := module.Value
-			// Verify the module was imported
-			if _, ok := env.GetImport(alias); !ok {
+			// Verify the module was imported (check both stdlib and user modules)
+			_, isStdlib := env.GetImport(alias)
+			_, isUserModule := env.GetModule(alias)
+			if !isStdlib && !isUserModule {
 				return newErrorWithLocation("E6004", node.Token.Line, node.Token.Column,
 					"cannot use '%s': module not imported", alias)
 			}
@@ -527,8 +532,10 @@ func evalProgram(program *ast.Program, env *Environment) Object {
 	for _, usingStmt := range program.FileUsing {
 		for _, module := range usingStmt.Modules {
 			alias := module.Value
-			// Verify the module was imported
-			if _, ok := env.GetImport(alias); !ok {
+			// Verify the module was imported (check both stdlib and user modules)
+			_, isStdlib := env.GetImport(alias)
+			_, isUserModule := env.GetModule(alias)
+			if !isStdlib && !isUserModule {
 				return newErrorWithLocation("E6004", usingStmt.Token.Line, usingStmt.Token.Column,
 					"cannot use '%s': module not imported", alias)
 			}
@@ -605,13 +612,23 @@ func evalVariableDeclaration(node *ast.VariableDeclaration, env *Environment) Ob
 				}
 
 				// Array type declared - value must be an array
-				if _, ok := val.(*Array); !ok {
+				arr, ok := val.(*Array)
+				if !ok {
 					return newErrorWithLocation("E3018", node.Token.Line, node.Token.Column,
 						"type mismatch: expected array type '%s', got %s\n\n"+
 							"Array values must be enclosed in curly braces {}\n"+
 							"Example: const arr %s = {%s}",
 						node.TypeName, getEZTypeName(val), node.TypeName, val.Inspect())
 				}
+				// Set the element type on the array from the declared type
+				// Extract element type from type name (e.g., "[int]" -> "int", "[int,5]" -> "int")
+				elemType := node.TypeName[1:] // Remove leading '['
+				if commaIdx := strings.Index(elemType, ","); commaIdx != -1 {
+					elemType = elemType[:commaIdx] // Remove ",size]" part
+				} else {
+					elemType = elemType[:len(elemType)-1] // Remove trailing ']'
+				}
+				arr.ElementType = elemType
 			}
 
 			// Check if declared type is a map type
@@ -648,7 +665,9 @@ func evalVariableDeclaration(node *ast.VariableDeclaration, env *Environment) Ob
 		// Fixed-size arrays: [int,3], [string,5], etc. - MUST be initialized with values
 		if len(node.TypeName) > 0 && node.TypeName[0] == '[' && !strings.Contains(node.TypeName, ",") {
 			// Initialize dynamic array to empty array instead of NIL
-			val = &Array{Elements: []Object{}, Mutable: true}
+			// Extract element type from type name (e.g., "[int]" -> "int")
+			elementType := node.TypeName[1 : len(node.TypeName)-1]
+			val = &Array{Elements: []Object{}, Mutable: true, ElementType: elementType}
 		} else if strings.HasPrefix(node.TypeName, "map[") {
 			// Initialize map to empty map
 			m := NewMap()
@@ -1195,13 +1214,22 @@ func evalIdentifier(node *ast.Label, env *Environment) Object {
 	// Detect ambiguity: if multiple modules have the same function, error
 	var foundModules []string
 	var foundBuiltin *Builtin
+	var foundUserObj Object
 
 	for _, alias := range env.GetUsing() {
+		// Check stdlib modules
 		if module, ok := env.GetImport(alias); ok {
 			fullName := module + "." + node.Value
 			if builtin, ok := builtins[fullName]; ok {
 				foundModules = append(foundModules, module)
 				foundBuiltin = builtin
+			}
+		}
+		// Check user modules
+		if moduleObj, ok := env.GetModule(alias); ok {
+			if obj, ok := moduleObj.Get(node.Value); ok {
+				foundModules = append(foundModules, alias)
+				foundUserObj = obj
 			}
 		}
 	}
@@ -1219,7 +1247,10 @@ func evalIdentifier(node *ast.Label, env *Environment) Object {
 
 	// Found in exactly one module
 	if len(foundModules) == 1 {
-		return foundBuiltin
+		if foundBuiltin != nil {
+			return foundBuiltin
+		}
+		return foundUserObj
 	}
 
 	// Check global builtins (like len, typeof, etc.)
@@ -1787,6 +1818,10 @@ func objectTypeToEZ(obj Object) string {
 	case *Boolean:
 		return "bool"
 	case *Array:
+		// Return typed array format if element type is known
+		if v.ElementType != "" {
+			return "[" + v.ElementType + "]"
+		}
 		return "array"
 	case *Struct:
 		// Return the specific struct type name (e.g., "Person")
@@ -1938,6 +1973,36 @@ func evalInterpolatedString(node *ast.InterpolatedString, env *Environment) Obje
 }
 
 func evalStructValue(node *ast.StructValue, env *Environment) Object {
+	typeName := node.Name.Value
+	var structDef *StructDef
+	var ok bool
+
+	// Check for qualified type name (module.TypeName)
+	if strings.Contains(typeName, ".") {
+		parts := strings.SplitN(typeName, ".", 2)
+		moduleName := parts[0]
+		structName := parts[1]
+
+		// Look up the module
+		if moduleObj, modOk := env.GetModule(moduleName); modOk {
+			structDef, ok = moduleObj.GetStructDef(structName)
+			if !ok {
+				return newErrorWithLocation("E3002", node.Token.Line, node.Token.Column,
+					"undefined type '%s' in module '%s'", structName, moduleName)
+			}
+		} else {
+			return newErrorWithLocation("E4007", node.Token.Line, node.Token.Column,
+				"module '%s' not imported", moduleName)
+		}
+	} else {
+		// Look up the struct definition in the current environment
+		structDef, ok = env.GetStructDef(typeName)
+		if !ok {
+			return newErrorWithLocation("E3002", node.Token.Line, node.Token.Column,
+				"undefined type: '%s'", typeName)
+		}
+	}
+
 	// Create a new struct with the given fields
 	fields := make(map[string]Object)
 
@@ -1951,17 +2016,40 @@ func evalStructValue(node *ast.StructValue, env *Environment) Object {
 	}
 
 	return &Struct{
-		TypeName: node.Name.Value,
+		TypeName: structDef.Name,
 		Fields:   fields,
 	}
 }
 
 func evalNewExpression(node *ast.NewExpression, env *Environment) Object {
-	// Look up the struct definition
-	structDef, ok := env.GetStructDef(node.TypeName.Value)
-	if !ok {
-		return newErrorWithLocation("E3002", node.Token.Line, node.Token.Column,
-			"undefined type: '%s'", node.TypeName.Value)
+	typeName := node.TypeName.Value
+	var structDef *StructDef
+	var ok bool
+
+	// Check for qualified type name (module.TypeName)
+	if strings.Contains(typeName, ".") {
+		parts := strings.SplitN(typeName, ".", 2)
+		moduleName := parts[0]
+		structName := parts[1]
+
+		// Look up the module
+		if moduleObj, modOk := env.GetModule(moduleName); modOk {
+			structDef, ok = moduleObj.GetStructDef(structName)
+			if !ok {
+				return newErrorWithLocation("E3002", node.Token.Line, node.Token.Column,
+					"undefined type '%s' in module '%s'", structName, moduleName)
+			}
+		} else {
+			return newErrorWithLocation("E4007", node.Token.Line, node.Token.Column,
+				"module '%s' not imported", moduleName)
+		}
+	} else {
+		// Look up the struct definition in the current environment
+		structDef, ok = env.GetStructDef(typeName)
+		if !ok {
+			return newErrorWithLocation("E3002", node.Token.Line, node.Token.Column,
+				"undefined type: '%s'", typeName)
+		}
 	}
 
 	// Create a new struct with default values for all fields

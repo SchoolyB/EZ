@@ -1,0 +1,49 @@
+import @std
+import "./models"
+
+using std, models
+
+do main() {
+    println("=== Using Directive with Local Modules ===")
+    println("")
+
+    /* Test 1: Call function without module prefix */
+    println("Test 1: Call function without prefix")
+    temp priority_name string = get_priority_name(20)
+    println("  Priority: ${priority_name}")
+    println("  PASSED!")
+    println("")
+
+    /* Test 2: Call another function without prefix */
+    println("Test 2: Call another function without prefix")
+    temp status_name string = get_status_display("done")
+    println("  Status: ${status_name}")
+    println("  PASSED!")
+    println("")
+
+    /* Test 3: Still works with explicit prefix too */
+    println("Test 3: Still works with explicit prefix")
+    temp explicit string = models.get_priority_name(10)
+    println("  Explicit: ${explicit}")
+    println("  PASSED!")
+    println("")
+
+    /* Test 4: Use struct type with qualified name */
+    println("Test 4: Struct type still requires qualified name")
+    temp task models.Task = models.Task{
+        id: 1,
+        title: "Test Task",
+        description: "Testing",
+        priority: 20,
+        status: "todo",
+        category: "test",
+        created_at: 0,
+        due_date: 0,
+        completed_at: 0
+    }
+    println("  Created task: ${task.title}")
+    println("  PASSED!")
+    println("")
+
+    println("=== All Tests Passed! ===")
+}

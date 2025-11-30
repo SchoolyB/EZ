@@ -25,17 +25,17 @@ const (
 
 // Module represents a loaded EZ module
 type Module struct {
-	Name       string                 // Module name (from declaration or inferred from path)
-	FilePath   string                 // Absolute path to the module file/directory
-	AST        *ast.Program           // Parsed AST
-	Exports    map[string]Object      // Public symbols
-	Private    map[string]Object      // Private symbols (file-scoped)
-	ModPrivate map[string]Object      // Module-private symbols (directory-scoped)
-	State      ModuleState            // Loading state
-	Env        *Environment           // Module's environment
-	Files      []string               // List of files (for directory modules)
-	IsDir      bool                   // True if this is a directory module
-	ModuleObj  *ModuleObject          // Cached ModuleObject for circular import support
+	Name       string            // Module name (from declaration or inferred from path)
+	FilePath   string            // Absolute path to the module file/directory
+	AST        *ast.Program      // Parsed AST
+	Exports    map[string]Object // Public symbols
+	Private    map[string]Object // Private symbols (file-scoped)
+	ModPrivate map[string]Object // Module-private symbols (directory-scoped)
+	State      ModuleState       // Loading state
+	Env        *Environment      // Module's environment
+	Files      []string          // List of files (for directory modules)
+	IsDir      bool              // True if this is a directory module
+	ModuleObj  *ModuleObject     // Cached ModuleObject for circular import support
 }
 
 // ModuleLoader handles loading and caching of modules
