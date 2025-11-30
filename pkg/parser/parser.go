@@ -2411,19 +2411,51 @@ func (p *Parser) parseRangeExpression() Expression {
 	}
 
 	p.nextToken()
-	exp.Start = p.parseExpression(LOWEST)
+	firstArg := p.parseExpression(LOWEST)
 
+	// Check if this is the single-argument form: range(end)
+	if p.peekTokenMatches(RPAREN) {
+		p.nextToken() // consume RPAREN
+		// range(end) -> start=nil (defaults to 0), end=firstArg, step=nil (defaults to 1)
+		exp.Start = nil
+		exp.End = firstArg
+		exp.Step = nil
+		return exp
+	}
+
+	// Two or three argument form
 	if !p.expectPeek(COMMA) {
 		return nil
 	}
 
 	p.nextToken()
-	exp.End = p.parseExpression(LOWEST)
+	secondArg := p.parseExpression(LOWEST)
+
+	// Check if this is the two-argument form: range(start, end)
+	if p.peekTokenMatches(RPAREN) {
+		p.nextToken() // consume RPAREN
+		// range(start, end) -> start=firstArg, end=secondArg, step=nil (defaults to 1)
+		exp.Start = firstArg
+		exp.End = secondArg
+		exp.Step = nil
+		return exp
+	}
+
+	// Three argument form: range(start, end, step)
+	if !p.expectPeek(COMMA) {
+		return nil
+	}
+
+	p.nextToken()
+	thirdArg := p.parseExpression(LOWEST)
 
 	if !p.expectPeek(RPAREN) {
 		return nil
 	}
 
+	exp.Start = firstArg
+	exp.End = secondArg
+	exp.Step = thirdArg
 	return exp
 }
 
