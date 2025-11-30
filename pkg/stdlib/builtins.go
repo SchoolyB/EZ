@@ -132,6 +132,8 @@ var StdBuiltins = map[string]*object.Builtin{
 				return &object.Integer{Value: int64(len(arg.Value))}
 			case *object.Array:
 				return &object.Integer{Value: int64(len(arg.Elements))}
+			case *object.Map:
+				return &object.Integer{Value: int64(len(arg.Pairs))}
 			default:
 				return &object.Error{Code: "E7003", Message: fmt.Sprintf("len() not supported for %s", args[0].Type())}
 			}
@@ -176,6 +178,29 @@ var StdBuiltins = map[string]*object.Builtin{
 				return &object.Integer{Value: val}
 			case *object.Char:
 				return &object.Integer{Value: int64(arg.Value)}
+			case *object.EnumValue:
+				// Extract the underlying value from the enum
+				switch v := arg.Value.(type) {
+				case *object.Integer:
+					return v
+				case *object.Float:
+					return &object.Integer{Value: int64(v.Value)}
+				case *object.String:
+					cleanedValue := strings.ReplaceAll(v.Value, "_", "")
+					val, err := strconv.ParseInt(cleanedValue, 10, 64)
+					if err != nil {
+						return &object.Error{
+							Code:    "E7005",
+							Message: fmt.Sprintf("cannot convert enum value %q to int: underlying value is not numeric", v.Value),
+						}
+					}
+					return &object.Integer{Value: val}
+				default:
+					return &object.Error{
+						Code:    "E7005",
+						Message: fmt.Sprintf("cannot convert enum %s.%s to int: underlying type %s is not convertible", arg.EnumType, arg.Name, arg.Value.Type()),
+					}
+				}
 			default:
 				if args[0].Type() == object.ARRAY_OBJ {
 					return &object.Error{

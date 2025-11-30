@@ -13,19 +13,6 @@ import (
 
 // ArraysBuiltins contains the arrays module functions
 var ArraysBuiltins = map[string]*object.Builtin{
-	"arrays.len": {
-		Fn: func(args ...object.Object) object.Object {
-			if len(args) != 1 {
-				return newError("arrays.len() takes exactly 1 argument")
-			}
-			arr, ok := args[0].(*object.Array)
-			if !ok {
-				return &object.Error{Code: "E9005", Message: "arrays.len() requires an array"}
-			}
-			return &object.Integer{Value: int64(len(arr.Elements))}
-		},
-	},
-
 	"arrays.is_empty": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 1 {

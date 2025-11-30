@@ -633,50 +633,11 @@ func (p *Parser) parseVarableDeclarationOrStruct() Statement {
 		stmt.Names = append(stmt.Names, &Label{Token: nameToken, Value: nameToken.Literal})
 		stmt.Name = stmt.Names[0]
 
-		// Now continue with type parsing (the current position is at the name,
-		// peekToken should be the type or [)
-		// Parse type - can be IDENT or [type] for arrays
+		// Parse type using parseTypeName which handles qualified names (module.Type),
+		// arrays ([type], [type,size]), and maps (map[key:value])
 		p.nextToken()
-		if p.currentTokenMatches(LBRACKET) {
-			// Array type - use the array type parsing logic
-			typeName := "["
-			p.nextToken() // move past [
-
-			// The element type should be an identifier
-			if !p.currentTokenMatches(IDENT) {
-				msg := fmt.Sprintf("expected type name, got %s", p.currentToken.Type)
-				p.errors = append(p.errors, msg)
-				p.addEZError(errors.E2024, msg, p.currentToken)
-				return nil
-			}
-			typeName += p.currentToken.Literal
-
-			// Check for fixed-size array syntax: [type, size]
-			if p.peekTokenMatches(COMMA) {
-				p.nextToken() // consume comma
-				p.nextToken() // get size
-
-				// Size should be an integer
-				if !p.currentTokenMatches(INT) {
-					msg := fmt.Sprintf("expected integer for array size, got %s", p.currentToken.Type)
-					p.errors = append(p.errors, msg)
-					p.addEZError(errors.E2025, msg, p.currentToken)
-					return nil
-				}
-				typeName += "," + p.currentToken.Literal
-			}
-
-			if !p.expectPeek(RBRACKET) {
-				return nil
-			}
-			typeName += "]"
-			stmt.TypeName = typeName
-		} else if p.currentTokenMatches(IDENT) {
-			stmt.TypeName = p.currentToken.Literal
-		} else {
-			msg := fmt.Sprintf("expected type, got %s", p.currentToken.Type)
-			p.errors = append(p.errors, msg)
-			p.addEZError(errors.E2024, msg, p.currentToken)
+		stmt.TypeName = p.parseTypeName()
+		if stmt.TypeName == "" {
 			return nil
 		}
 
@@ -799,6 +760,58 @@ func (p *Parser) parseVarableDeclaration() *VariableDeclaration {
 		return nil
 	}
 
+	// Check for typed tuple unpacking: temp a int, b string = getValues()
+	if p.peekTokenMatches(COMMA) {
+		// Initialize TypeNames with the first type
+		stmt.TypeNames = append(stmt.TypeNames, stmt.TypeName)
+
+		// Parse additional (name type) pairs
+		for p.peekTokenMatches(COMMA) {
+			p.nextToken() // consume comma
+			p.nextToken() // move to next identifier
+
+			if !p.currentTokenMatches(IDENT) {
+				msg := fmt.Sprintf("expected identifier, got %s", p.currentToken.Type)
+				p.errors = append(p.errors, msg)
+				p.addEZError(errors.E2001, msg, p.currentToken)
+				return nil
+			}
+
+			name := p.currentToken.Literal
+			// Check for reserved names
+			if isReservedName(name) {
+				msg := fmt.Sprintf("'%s' is a reserved keyword and cannot be used as a variable name", name)
+				p.errors = append(p.errors, msg)
+				p.addEZError(errors.E2020, msg, p.currentToken)
+				return nil
+			}
+			// Check for duplicate declaration
+			if !p.declareInScope(name, p.currentToken) {
+				msg := fmt.Sprintf("'%s' is already declared in this scope", name)
+				p.errors = append(p.errors, msg)
+				p.addEZError(errors.E2023, msg, p.currentToken)
+				return nil
+			}
+			stmt.Names = append(stmt.Names, &Label{Token: p.currentToken, Value: name})
+
+			// Parse type for this variable
+			p.nextToken()
+			typeName := p.parseTypeName()
+			if typeName == "" {
+				return nil
+			}
+			stmt.TypeNames = append(stmt.TypeNames, typeName)
+		}
+
+		// Typed tuple unpacking requires initialization
+		if !p.expectPeek(ASSIGN) {
+			return nil
+		}
+		p.nextToken() // move to value
+		stmt.Value = p.parseExpression(LOWEST)
+		return stmt
+	}
+
 	// Optional initialization
 	if p.peekTokenMatches(ASSIGN) {
 		assignToken := p.peekToken // save the = token for error reporting
@@ -900,13 +913,10 @@ func (p *Parser) parseBlockStatementWithSuppress(suppressions []*Attribute) *Blo
 			switch stmt.(type) {
 			case *ReturnStatement, *BreakStatement, *ContinueStatement:
 				unreachable = true
-				// If we're at the closing brace after a terminating statement,
-				// don't advance - let the loop exit naturally
-				if p.currentTokenMatches(RBRACE) {
-					continue // Skip p.nextToken() and re-check loop condition
-				}
 			}
 		}
+		// Always advance to the next token after parsing a statement.
+		// The loop condition will exit when we reach the block's closing brace.
 		p.nextToken()
 	}
 
@@ -2453,19 +2463,51 @@ func (p *Parser) parseRangeExpression() Expression {
 	}
 
 	p.nextToken()
-	exp.Start = p.parseExpression(LOWEST)
+	firstArg := p.parseExpression(LOWEST)
 
+	// Check if this is the single-argument form: range(end)
+	if p.peekTokenMatches(RPAREN) {
+		p.nextToken() // consume RPAREN
+		// range(end) -> start=nil (defaults to 0), end=firstArg, step=nil (defaults to 1)
+		exp.Start = nil
+		exp.End = firstArg
+		exp.Step = nil
+		return exp
+	}
+
+	// Two or three argument form
 	if !p.expectPeek(COMMA) {
 		return nil
 	}
 
 	p.nextToken()
-	exp.End = p.parseExpression(LOWEST)
+	secondArg := p.parseExpression(LOWEST)
+
+	// Check if this is the two-argument form: range(start, end)
+	if p.peekTokenMatches(RPAREN) {
+		p.nextToken() // consume RPAREN
+		// range(start, end) -> start=firstArg, end=secondArg, step=nil (defaults to 1)
+		exp.Start = firstArg
+		exp.End = secondArg
+		exp.Step = nil
+		return exp
+	}
+
+	// Three argument form: range(start, end, step)
+	if !p.expectPeek(COMMA) {
+		return nil
+	}
+
+	p.nextToken()
+	thirdArg := p.parseExpression(LOWEST)
 
 	if !p.expectPeek(RPAREN) {
 		return nil
 	}
 
+	exp.Start = firstArg
+	exp.End = secondArg
+	exp.Step = thirdArg
 	return exp
 }
 
@@ -2473,11 +2515,14 @@ func (p *Parser) parseRangeExpression() Expression {
 // Attribute Parsing
 // ============================================================================
 
+// Known attribute names (without the @ prefix)
+var knownAttributeNames = []string{"suppress", "ignore"}
+
 // parseAttributes parses @suppress(...) and @(...) attributes before declarations
 func (p *Parser) parseAttributes() []*Attribute {
 	attributes := []*Attribute{}
 
-	// Handle both @suppress(...) and @(...)
+	// Handle @suppress(...), @(...), and detect unknown attributes like @supress
 	for p.currentTokenMatches(SUPPRESS) || p.currentTokenMatches(AT) {
 		if p.currentTokenMatches(SUPPRESS) {
 			// Handle @suppress(...) - existing code
@@ -2485,9 +2530,55 @@ func (p *Parser) parseAttributes() []*Attribute {
 			continue
 		}
 
-		// Handle @(...) for enum attributes
+		// Handle AT token - could be @(...) or @identifier (unknown/misspelled attribute)
 		if p.currentTokenMatches(AT) {
-			attributes = append(attributes, p.parseGenericAttribute())
+			// Check what follows the @
+			if p.peekTokenMatches(LPAREN) {
+				// @(...) - generic attribute for enums
+				attributes = append(attributes, p.parseGenericAttribute())
+				continue
+			}
+
+			if p.peekTokenMatches(IDENT) {
+				// @identifier - unknown or misspelled attribute name
+				atToken := p.currentToken
+				p.nextToken() // move to the identifier
+				attrName := p.currentToken.Literal
+
+				// Try to suggest a known attribute name
+				suggestion := errors.SuggestFromList(attrName, knownAttributeNames)
+				var msg string
+				if suggestion != "" {
+					msg = fmt.Sprintf("unknown attribute '@%s', did you mean '@%s'?", attrName, suggestion)
+				} else {
+					msg = fmt.Sprintf("unknown attribute '@%s'", attrName)
+				}
+				p.addEZError(errors.E2001, msg, atToken)
+
+				// Skip past the attribute arguments if present: @name(...)
+				if p.peekTokenMatches(LPAREN) {
+					p.nextToken() // consume LPAREN
+					// Skip until we find matching RPAREN or hit declaration tokens
+					depth := 1
+					for depth > 0 && !p.currentTokenMatches(EOF) {
+						p.nextToken()
+						if p.currentTokenMatches(LPAREN) {
+							depth++
+						} else if p.currentTokenMatches(RPAREN) {
+							depth--
+						}
+					}
+				}
+
+				// Move to next token
+				p.nextToken()
+				continue
+			}
+
+			// @ followed by something unexpected - skip it and emit error
+			msg := fmt.Sprintf("unexpected token after '@': %s", p.peekToken.Literal)
+			p.addEZError(errors.E2001, msg, p.currentToken)
+			p.nextToken() // skip the @
 			continue
 		}
 	}
