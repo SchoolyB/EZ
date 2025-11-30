@@ -590,13 +590,21 @@ func (p *Parser) parseVarableDeclarationOrStruct() Statement {
 		if p.peekTokenMatches(STRUCT) {
 			// This is a struct declaration
 			// currentToken is now the struct name, which is what parseStructDeclaration expects
-			return p.parseStructDeclaration()
+			result := p.parseStructDeclaration()
+			if result == nil {
+				return nil // Return untyped nil to avoid typed nil interface issue
+			}
+			return result
 		}
 
 		if p.peekTokenMatches(ENUM) {
 			// This is an enum declaration
 			// currentToken is now the enum name, which is what parseEnumDeclaration expects
-			return p.parseEnumDeclaration()
+			result := p.parseEnumDeclaration()
+			if result == nil {
+				return nil // Return untyped nil to avoid typed nil interface issue
+			}
+			return result
 		}
 
 		// Not a struct, restore and parse as variable
@@ -1540,10 +1548,39 @@ func (p *Parser) parseEnumDeclaration() *EnumDeclaration {
 	stmt.Name = &Label{Token: p.currentToken, Value: p.currentToken.Literal}
 
 	p.nextToken() // move past name to 'enum'
-	p.nextToken() // move past 'enum' to '{'
+	p.nextToken() // move past 'enum' to ':' or '{'
+
+	// Check for type annotation: enum : type { ... }
+	if p.currentTokenMatches(COLON) {
+		p.nextToken() // move past ':' to type name
+
+		if !p.currentTokenMatches(IDENT) {
+			msg := fmt.Sprintf("expected type name after ':', got %s", p.currentToken.Type)
+			p.addEZError(errors.E2024, msg, p.currentToken)
+			return nil
+		}
+
+		typeName := p.currentToken.Literal
+
+		// Validate that type is a primitive (int, float, or string)
+		if typeName != "int" && typeName != "float" && typeName != "string" {
+			msg := fmt.Sprintf("enum type must be a primitive type (int, float, or string), got '%s'", typeName)
+			p.addEZError(errors.E2026, msg, p.currentToken)
+			return nil
+		}
+
+		// Initialize attributes with the specified type
+		stmt.Attributes = &EnumAttributes{
+			TypeName:  typeName,
+			Skip:      false,
+			Increment: nil,
+		}
+
+		p.nextToken() // move past type name to '{'
+	}
 
 	if !p.currentTokenMatches(LBRACE) {
-		msg := "expected '{' after enum name"
+		msg := "expected '{' after enum declaration"
 		p.addEZError(errors.E2002, msg, p.currentToken)
 		return nil
 	}
