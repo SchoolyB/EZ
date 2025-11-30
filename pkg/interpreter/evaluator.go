@@ -1030,36 +1030,78 @@ func evalForStatement(node *ast.ForStatement, env *Environment) Object {
 				"    for_each item in collection { ... }")
 	}
 
-	startObj := Eval(rangeExpr.Start, env)
-	if isError(startObj) {
-		return startObj
+	// Handle start - defaults to 0 if nil (single-argument form)
+	var start int64 = 0
+	if rangeExpr.Start != nil {
+		startObj := Eval(rangeExpr.Start, env)
+		if isError(startObj) {
+			return startObj
+		}
+		startInt, ok := startObj.(*Integer)
+		if !ok {
+			return newError("range start must be integer")
+		}
+		start = startInt.Value
 	}
+
+	// Handle end
 	endObj := Eval(rangeExpr.End, env)
 	if isError(endObj) {
 		return endObj
 	}
-
-	start, ok := startObj.(*Integer)
-	if !ok {
-		return newError("range start must be integer")
-	}
-	end, ok := endObj.(*Integer)
+	endInt, ok := endObj.(*Integer)
 	if !ok {
 		return newError("range end must be integer")
+	}
+	end := endInt.Value
+
+	// Handle step - defaults to 1 if nil
+	var step int64 = 1
+	if rangeExpr.Step != nil {
+		stepObj := Eval(rangeExpr.Step, env)
+		if isError(stepObj) {
+			return stepObj
+		}
+		stepInt, ok := stepObj.(*Integer)
+		if !ok {
+			return newError("range step must be integer")
+		}
+		step = stepInt.Value
+		if step == 0 {
+			return newError("range step cannot be zero")
+		}
 	}
 
 	loopEnv := NewEnclosedEnvironment(env)
 
-	for i := start.Value; i < end.Value; i++ { // Exclusive end
-		loopEnv.Set(node.Variable.Value, &Integer{Value: i}, true) // loop vars are mutable
+	// Handle positive and negative steps
+	if step > 0 {
+		for i := start; i < end; i += step {
+			loopEnv.Set(node.Variable.Value, &Integer{Value: i}, true)
 
-		result := Eval(node.Body, loopEnv)
-		if result != nil {
-			if result.Type() == RETURN_VALUE_OBJ || result.Type() == ERROR_OBJ {
-				return result
+			result := Eval(node.Body, loopEnv)
+			if result != nil {
+				if result.Type() == RETURN_VALUE_OBJ || result.Type() == ERROR_OBJ {
+					return result
+				}
+				if result.Type() == BREAK_OBJ {
+					break
+				}
 			}
-			if result.Type() == BREAK_OBJ {
-				break
+		}
+	} else {
+		// Negative step: count down
+		for i := start; i > end; i += step {
+			loopEnv.Set(node.Variable.Value, &Integer{Value: i}, true)
+
+			result := Eval(node.Body, loopEnv)
+			if result != nil {
+				if result.Type() == RETURN_VALUE_OBJ || result.Type() == ERROR_OBJ {
+					return result
+				}
+				if result.Type() == BREAK_OBJ {
+					break
+				}
 			}
 		}
 	}
