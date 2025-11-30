@@ -24,6 +24,8 @@ This document describes all built-in functions available in the EZ programming l
 - [Maps Module](#maps-module)
   - [Map Basic Operations](#map-basic-operations)
   - [Map Access and Modification](#map-access-and-modification)
+  - [Map Bulk Operations](#map-bulk-operations)
+  - [Map Conversion](#map-conversion)
   - [Map Iteration Helpers](#map-iteration-helpers)
 
 ## Global Built-ins
@@ -1147,9 +1149,38 @@ const exists bool = maps.has(users, "alice")     // true
 const missing bool = maps.has(users, "charlie")  // false
 ```
 
+#### `maps.has_key(map, key)`
+
+Alias for `maps.has()`. Checks if a key exists in the map.
+
+**Parameters:**
+- `map` - A map
+- `key` - The key to check
+
+**Returns:** Boolean - true if key exists, false otherwise
+
+#### `maps.has_value(map, value)`
+
+Checks if a value exists anywhere in the map.
+
+**Parameters:**
+- `map` - A map
+- `value` - The value to search for
+
+**Returns:** Boolean - true if value exists, false otherwise
+
+**Example:**
+```ez
+using maps
+
+temp users map[string:int] = {"alice": 25, "bob": 30}
+const has25 bool = maps.has_value(users, 25)   // true
+const has100 bool = maps.has_value(users, 100) // false
+```
+
 #### `maps.get(map, key[, default])`
 
-Gets a value from the map, with an optional default value.
+Gets a value from the map, with an optional default value. Does not modify the map.
 
 **Parameters:**
 - `map` - A map
@@ -1166,6 +1197,27 @@ temp users map[string:int] = {"alice": 25, "bob": 30}
 const age1 int = maps.get(users, "alice")           // 25
 const age2 int = maps.get(users, "charlie", -1)     // -1 (default)
 const age3 = maps.get(users, "unknown")             // nil
+```
+
+#### `maps.get_or_set(map, key, default)`
+
+Gets a value from the map if the key exists, otherwise sets the key to the default value and returns it.
+
+**Parameters:**
+- `map` - A mutable map (declared with `temp`)
+- `key` - The key to look up or set
+- `default` - Value to set and return if key doesn't exist
+
+**Returns:** The existing value or the newly set default value
+
+**Example:**
+```ez
+using maps
+
+temp counters map[string:int] = {"a": 1}
+const val1 int = maps.get_or_set(counters, "a", 0)  // 1 (existing)
+const val2 int = maps.get_or_set(counters, "b", 0)  // 0 (newly set)
+// counters is now {"a": 1, "b": 0}
 ```
 
 #### `maps.set(map, key, value)`
@@ -1207,13 +1259,67 @@ const deleted bool = maps.delete(users, "alice")  // true
 // users is now {"bob": 30}
 ```
 
-#### `maps.merge(target, source, ...)`
+#### `maps.remove(map, key)`
 
-Merges one or more source maps into the target map. Existing keys are overwritten.
+Alias for `maps.delete()`. Removes a key-value pair from a mutable map.
+
+**Parameters:**
+- `map` - A mutable map (declared with `temp`)
+- `key` - The key to remove
+
+**Returns:** Boolean - true if the key was found and removed, false otherwise
+
+### Map Bulk Operations
+
+#### `maps.equals(map1, map2)`
+
+Compares two maps for equality. Maps are equal if they have the same keys with the same values.
+
+**Parameters:**
+- `map1` - First map to compare
+- `map2` - Second map to compare
+
+**Returns:** Boolean - true if maps are equal, false otherwise
+
+**Example:**
+```ez
+using maps
+
+temp m1 map[string:int] = {"a": 1, "b": 2}
+temp m2 map[string:int] = {"a": 1, "b": 2}
+temp m3 map[string:int] = {"a": 1}
+const same bool = maps.equals(m1, m2)  // true
+const diff bool = maps.equals(m1, m3)  // false
+```
+
+#### `maps.merge(map1, map2, ...)`
+
+Creates a new map by merging all input maps. Later maps overwrite earlier keys. Non-destructive.
+
+**Parameters:**
+- `map1, map2, ...` - Two or more maps to merge
+
+**Returns:** A new map containing all key-value pairs
+
+**Example:**
+```ez
+using maps
+
+temp m1 map[string:int] = {"a": 1}
+temp m2 map[string:int] = {"b": 2}
+temp m3 map[string:int] = {"c": 3}
+temp merged = maps.merge(m1, m2, m3)
+// merged is {"a": 1, "b": 2, "c": 3}
+// m1, m2, m3 are unchanged
+```
+
+#### `maps.update(target, source, ...)`
+
+Merges one or more source maps into the target map. Modifies the target map in-place.
 
 **Parameters:**
 - `target` - A mutable map to merge into
-- `source` - One or more maps to merge from
+- `source, ...` - One or more maps to merge from
 
 **Returns:** nil
 
@@ -1223,8 +1329,63 @@ using maps
 
 temp base map[string:int] = {"a": 1, "b": 2}
 temp extra map[string:int] = {"b": 20, "c": 3}
-maps.merge(base, extra)
+maps.update(base, extra)
 // base is now {"a": 1, "b": 20, "c": 3}
+```
+
+### Map Conversion
+
+#### `maps.to_array(map)`
+
+Converts a map to an array of [key, value] pairs.
+
+**Parameters:**
+- `map` - A map
+
+**Returns:** An array where each element is a [key, value] array
+
+**Example:**
+```ez
+using maps
+
+temp users map[string:int] = {"alice": 25, "bob": 30}
+temp pairs = maps.to_array(users)
+// pairs is {{"alice", 25}, {"bob", 30}}
+```
+
+#### `maps.from_array(array)`
+
+Creates a map from an array of [key, value] pairs.
+
+**Parameters:**
+- `array` - An array where each element is a [key, value] pair
+
+**Returns:** A new map with the key-value pairs
+
+**Example:**
+```ez
+using maps
+
+temp pairs = maps.to_array(existingMap)  // Get pairs from another map
+temp newMap = maps.from_array(pairs)     // Create map from pairs
+```
+
+#### `maps.invert(map)`
+
+Creates a new map with keys and values swapped. Values must be hashable types.
+
+**Parameters:**
+- `map` - A map whose values are hashable (string, int, bool, or char)
+
+**Returns:** A new map with keys and values swapped
+
+**Example:**
+```ez
+using maps
+
+temp rankings map[int:string] = {1: "first", 2: "second", 3: "third"}
+temp inverted = maps.invert(rankings)
+// inverted is {"first": 1, "second": 2, "third": 3}
 ```
 
 ### Map Iteration Helpers
@@ -1271,7 +1432,7 @@ Maps support direct index access using bracket notation:
 // Reading values
 temp users map[string:int] = {"alice": 25, "bob": 30}
 const age int = users["alice"]  // 25
-const missing = users["unknown"]  // nil (key not found)
+// users["unknown"] would error - use maps.get() for safe access
 
 // Writing values (for mutable maps)
 users["charlie"] = 35  // Add new entry
