@@ -375,6 +375,20 @@ func evalVariableDeclaration(node *ast.VariableDeclaration, env *Environment) Ob
 		if isError(val) {
 			return val
 		}
+
+		// If a type is declared and we have an integer value, set the declared type
+		// and validate signed/unsigned compatibility
+		if node.TypeName != "" {
+			if intVal, ok := val.(*Integer); ok {
+				// Check for negative value assigned to unsigned type
+				if isUnsignedIntegerType(node.TypeName) && intVal.Value < 0 {
+					return newErrorWithLocation("E3020", node.Token.Line, node.Token.Column,
+						"cannot assign negative value %d to unsigned type '%s'", intVal.Value, node.TypeName)
+				}
+				// Set the declared type on the integer
+				intVal.DeclaredType = node.TypeName
+			}
+		}
 	} else if node.TypeName != "" {
 		// Variable declared with type but no value - provide appropriate default
 		// Check if it's a dynamic array type (starts with '[' but doesn't contain ',')
@@ -383,12 +397,13 @@ func evalVariableDeclaration(node *ast.VariableDeclaration, env *Environment) Ob
 		if len(node.TypeName) > 0 && node.TypeName[0] == '[' && !strings.Contains(node.TypeName, ",") {
 			// Initialize dynamic array to empty array instead of NIL
 			val = &Array{Elements: []Object{}, Mutable: true}
+		} else if isIntegerType(node.TypeName) {
+			// Handle all integer types (signed and unsigned)
+			val = &Integer{Value: 0, DeclaredType: node.TypeName}
 		} else {
-			// Provide default values for primitive types
+			// Provide default values for other primitive types
 			switch node.TypeName {
-			case "int":
-				val = &Integer{Value: 0}
-			case "float":
+			case "float", "f32", "f64":
 				val = &Float{Value: 0.0}
 			case "string":
 				val = &String{Value: "", Mutable: true}
@@ -1301,9 +1316,12 @@ func validateReturnType(result Object, expectedTypes []string, line, col int) *E
 				"wrong number of return values: expected %d, got %d", len(expectedTypes), len(retVal.Values))
 		}
 		for i, val := range retVal.Values {
+			// Check for negative literal to unsigned type first
+			if err := checkNegativeToUnsigned(val, expectedTypes[i], line, col); err != nil {
+				return err
+			}
 			if !typeMatches(val, expectedTypes[i]) {
-				return newErrorWithLocation("E5012", line, col,
-					"return type mismatch: expected %s, got %s", expectedTypes[i], objectTypeToEZ(val))
+				return createTypeMismatchError(val, expectedTypes[i], line, col)
 			}
 		}
 		return nil
@@ -1311,15 +1329,76 @@ func validateReturnType(result Object, expectedTypes []string, line, col int) *E
 
 	// Single return value
 	if len(expectedTypes) == 1 {
+		// Check for negative literal to unsigned type first
+		if err := checkNegativeToUnsigned(result, expectedTypes[0], line, col); err != nil {
+			return err
+		}
 		if !typeMatches(result, expectedTypes[0]) {
-			return newErrorWithLocation("E5012", line, col,
-				"return type mismatch: expected %s, got %s", expectedTypes[0], objectTypeToEZ(result))
+			return createTypeMismatchError(result, expectedTypes[0], line, col)
 		}
 	}
 	return nil
 }
 
+// createTypeMismatchError creates an appropriate error for type mismatches
+// with special handling for signed/unsigned integer mismatches
+func createTypeMismatchError(val Object, expectedType string, line, col int) *Error {
+	actualType := objectTypeToEZ(val)
+
+	// Check for signed → unsigned mismatch
+	if isSignedIntegerType(actualType) && isUnsignedIntegerType(expectedType) {
+		return newErrorWithLocation("E3019", line, col,
+			"cannot return signed type '%s' where unsigned type '%s' is expected (signed values may be negative)",
+			actualType, expectedType)
+	}
+
+	// Generic type mismatch
+	return newErrorWithLocation("E5012", line, col,
+		"return type mismatch: expected %s, got %s", expectedType, actualType)
+}
+
+// checkNegativeToUnsigned checks if a negative value is being returned to an unsigned type
+// This catches cases like `return -1` where the function returns u8
+func checkNegativeToUnsigned(val Object, expectedType string, line, col int) *Error {
+	if intVal, ok := val.(*Integer); ok {
+		if isUnsignedIntegerType(expectedType) && intVal.Value < 0 {
+			return newErrorWithLocation("E3020", line, col,
+				"cannot return negative value %d to unsigned type '%s'", intVal.Value, expectedType)
+		}
+	}
+	return nil
+}
+
+// isSignedIntegerType checks if a type is in the signed integer family
+func isSignedIntegerType(typeName string) bool {
+	switch typeName {
+	case "i8", "i16", "i32", "i64", "i128", "i256", "int":
+		return true
+	}
+	return false
+}
+
+// isUnsignedIntegerType checks if a type is in the unsigned integer family
+func isUnsignedIntegerType(typeName string) bool {
+	switch typeName {
+	case "u8", "u16", "u32", "u64", "u128", "u256", "uint":
+		return true
+	}
+	return false
+}
+
+// isIntegerType checks if a type is any integer type (signed or unsigned)
+func isIntegerType(typeName string) bool {
+	return isSignedIntegerType(typeName) || isUnsignedIntegerType(typeName)
+}
+
 // typeMatches checks if an object matches an EZ type name
+// Implements signed/unsigned integer family compatibility rules:
+// - Signed family: i8, i16, i32, i64, i128, i256, int (all compatible with each other)
+// - Unsigned family: u8, u16, u32, u64, u128, u256, uint (all compatible with each other)
+// - Unsigned → Signed: OK (unsigned is never negative, always safe)
+// - Signed → Unsigned: ERROR (signed could be negative at runtime)
+// - Positive literal → Either: OK (non-negative literals work for both)
 func typeMatches(obj Object, ezType string) bool {
 	actualType := objectTypeToEZ(obj)
 
@@ -1330,17 +1409,51 @@ func typeMatches(obj Object, ezType string) bool {
 		// This allows: return nil as Error
 		return ezType == "nil" || ezType == "Error" || ezType == "array" ||
 			(ezType != "int" && ezType != "float" && ezType != "string" &&
-				ezType != "bool" && ezType != "char")
+				ezType != "bool" && ezType != "char" && !isIntegerType(ezType))
 	}
 
-	return actualType == ezType
+	// Exact match
+	if actualType == ezType {
+		return true
+	}
+
+	// Integer family compatibility rules
+	if isIntegerType(actualType) && isIntegerType(ezType) {
+		// Within same family: always OK
+		if isSignedIntegerType(actualType) && isSignedIntegerType(ezType) {
+			return true
+		}
+		if isUnsignedIntegerType(actualType) && isUnsignedIntegerType(ezType) {
+			return true
+		}
+
+		// Unsigned → Signed: OK (unsigned values are always valid for signed)
+		if isUnsignedIntegerType(actualType) && isSignedIntegerType(ezType) {
+			return true
+		}
+
+		// Signed → Unsigned: Check if value is non-negative
+		// Positive literals (or any non-negative value) can go to unsigned types
+		if isSignedIntegerType(actualType) && isUnsignedIntegerType(ezType) {
+			if intVal, ok := obj.(*Integer); ok {
+				// Non-negative signed value is safe for unsigned
+				if intVal.Value >= 0 {
+					return true
+				}
+			}
+			// Negative value or unknown - not allowed
+			return false
+		}
+	}
+
+	return false
 }
 
 // objectTypeToEZ converts Object type to EZ language type name
 func objectTypeToEZ(obj Object) string {
 	switch v := obj.(type) {
 	case *Integer:
-		return "int"
+		return v.GetDeclaredType()
 	case *Float:
 		return "float"
 	case *String:

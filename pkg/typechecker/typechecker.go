@@ -75,9 +75,9 @@ func NewTypeChecker(source, filename string) *TypeChecker {
 func (tc *TypeChecker) registerBuiltinTypes() {
 	primitives := []string{
 		// Signed integers
-		"i8", "i16", "i32", "i64", "int",
+		"i8", "i16", "i32", "i64", "i128", "i256", "int",
 		// Unsigned integers
-		"u8", "u16", "u32", "u64", "uint",
+		"u8", "u16", "u32", "u64", "u128", "u256", "uint",
 		// Floats
 		"f32", "f64", "float",
 		// Other primitives

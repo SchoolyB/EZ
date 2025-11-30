@@ -14,6 +14,38 @@ import (
 // Global stdin reader to maintain buffering across multiple input() calls
 var stdinReader = bufio.NewReader(os.Stdin)
 
+// getEZTypeName returns the EZ language type name for an object
+// For integers, returns the declared type (e.g., "u64", "i32") instead of generic "INTEGER"
+func getEZTypeName(obj Object) string {
+	switch v := obj.(type) {
+	case *Integer:
+		return v.GetDeclaredType()
+	case *Float:
+		return "float"
+	case *String:
+		return "string"
+	case *Boolean:
+		return "bool"
+	case *Char:
+		return "char"
+	case *Array:
+		return "array"
+	case *Struct:
+		if v.TypeName != "" {
+			return v.TypeName
+		}
+		return "struct"
+	case *EnumValue:
+		return v.EnumType
+	case *Nil:
+		return "nil"
+	case *Function:
+		return "function"
+	default:
+		return string(obj.Type())
+	}
+}
+
 var builtins = map[string]*Builtin{
 	// BASIC STANDARD LIBRARY BUILTINS
 
@@ -104,12 +136,14 @@ var builtins = map[string]*Builtin{
 		},
 	},
 	// Returns the type of the given object as a string.
+	// For integers, returns the declared type (e.g., "u64", "i32") instead of generic "int"
 	"typeof": {
 		Fn: func(args ...Object) Object {
 			if len(args) != 1 {
 				return &Error{Code: "E7001", Message: "typeof() takes exactly 1 argument"}
 			}
-			return &String{Value: string(args[0].Type())}
+			// Use the helper function to get the EZ type name
+			return &String{Value: getEZTypeName(args[0])}
 		},
 	},
 
