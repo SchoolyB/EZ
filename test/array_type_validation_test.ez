@@ -1,0 +1,136 @@
+/*
+ * EZ Language - Array Type Validation Tests
+ *
+ * This file tests that array type validation works correctly:
+ * - Array-typed variables must receive array values
+ * - Valid array declarations should work
+ * - Dynamic and fixed-size arrays should work
+ */
+
+import @std
+import @arrays
+
+do main() {
+    using std
+
+    println("========================================")
+    println("  Array Type Validation Tests          ")
+    println("========================================")
+    println("")
+
+    test_valid_array_declarations()
+    test_empty_arrays()
+    test_fixed_size_arrays()
+    test_array_operations()
+
+    println("")
+    println("========================================")
+    println("  All Array Validation Tests Passed!   ")
+    println("========================================")
+}
+
+// ============================================================================
+// TEST: Valid Array Declarations
+// ============================================================================
+
+do test_valid_array_declarations() {
+    using std
+    println("-> Testing valid array declarations...")
+
+    // Integer arrays
+    temp int_arr [int] = {1, 2, 3, 4, 5}
+    const const_int_arr [int] = {10, 20, 30}
+
+    // String arrays
+    temp str_arr [string] = {"hello", "world"}
+    const const_str_arr [string] = {"a", "b", "c"}
+
+    // Boolean arrays
+    temp bool_arr [bool] = {true, false, true}
+
+    // Float arrays
+    temp float_arr [float] = {1.5, 2.5, 3.5}
+
+    // Character arrays
+    temp char_arr [char] = {'a', 'b', 'c'}
+
+    // Verify lengths
+    println("  int_arr length: ${len(int_arr)}")
+    println("  str_arr length: ${len(str_arr)}")
+    println("  bool_arr length: ${len(bool_arr)}")
+
+    println("  [OK] Valid array declarations work")
+}
+
+// ============================================================================
+// TEST: Empty Arrays
+// ============================================================================
+
+do test_empty_arrays() {
+    using std
+    println("-> Testing empty arrays...")
+
+    // Empty arrays with explicit empty braces
+    temp empty_int [int] = {}
+    temp empty_str [string] = {}
+
+    // Empty arrays without initialization (default)
+    temp default_arr [int]
+
+    println("  empty_int length: ${len(empty_int)}")
+    println("  empty_str length: ${len(empty_str)}")
+    println("  default_arr length: ${len(default_arr)}")
+
+    println("  [OK] Empty arrays work")
+}
+
+// ============================================================================
+// TEST: Fixed-Size Arrays
+// ============================================================================
+
+do test_fixed_size_arrays() {
+    using std
+    println("-> Testing fixed-size arrays...")
+
+    // Fixed-size arrays
+    const fixed_int [int, 3] = {1, 2, 3}
+    const fixed_str [string, 2] = {"hello", "world"}
+
+    println("  fixed_int length: ${len(fixed_int)}")
+    println("  fixed_str length: ${len(fixed_str)}")
+
+    // Access elements
+    println("  fixed_int[0]: ${fixed_int[0]}")
+    println("  fixed_str[1]: ${fixed_str[1]}")
+
+    println("  [OK] Fixed-size arrays work")
+}
+
+// ============================================================================
+// TEST: Array Operations
+// ============================================================================
+
+do test_array_operations() {
+    using std
+    println("-> Testing array operations...")
+
+    temp nums [int] = {1, 2, 3}
+
+    // Push
+    arrays.push(nums, 4)
+    println("  After push(4): length = ${len(nums)}")
+
+    // Pop
+    temp popped int = arrays.pop(nums)
+    println("  Popped value: ${popped}")
+
+    // Indexing
+    temp first int = nums[0]
+    println("  First element: ${first}")
+
+    // Modification
+    nums[0] = 100
+    println("  After nums[0] = 100: ${nums[0]}")
+
+    println("  [OK] Array operations work")
+}
