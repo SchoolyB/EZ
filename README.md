@@ -182,6 +182,8 @@ do get_user_name() -> string{
 
 - **Data Types**
   - Primitives: `int`, `float`, `string`, `char`, `bool`
+  - Sized integers: `i8`, `i16`, `i32`, `i64`, `i128`, `i256` (signed)
+  - Sized integers: `u8`, `u16`, `u32`, `u64`, `u128`, `u256`, `uint` (unsigned)
   - Numeric separators: underscores for readability (`1_000_000`)
   - Arrays: dynamic `[type]` and fixed-size `[type, size]`
   - Structs: user-defined types with fields
@@ -298,6 +300,18 @@ temp price float = 19.99
 temp text string = "hello"
 temp letter char = 'A'
 temp isActive bool = true
+
+// Sized integers (signed)
+temp small_signed i8 = -128
+temp medium_signed i32 = -100000
+temp large_signed i64 = -9223372036854775808
+temp huge_signed i128 = 1000000000000
+
+// Sized integers (unsigned) - cannot hold negative values
+temp small_unsigned u8 = 255
+temp medium_unsigned u32 = 4294967295
+temp large_unsigned u64 = 18446744073709551615
+temp huge_unsigned u128 = 1000000000000
 
 // Numeric separators for readability
 temp million int = 1_000_000
