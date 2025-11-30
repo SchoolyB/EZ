@@ -24,6 +24,7 @@ const (
 	FUNCTION_OBJ     ObjectType = "FUNCTION"
 	BUILTIN_OBJ      ObjectType = "BUILTIN"
 	ARRAY_OBJ        ObjectType = "ARRAY"
+	MAP_OBJ          ObjectType = "MAP"
 	STRUCT_OBJ       ObjectType = "STRUCT"
 	BREAK_OBJ        ObjectType = "BREAK"
 	CONTINUE_OBJ     ObjectType = "CONTINUE"
@@ -159,6 +160,107 @@ func (a *Array) Inspect() string {
 		elements[i] = e.Inspect()
 	}
 	return "{" + strings.Join(elements, ", ") + "}"
+}
+
+// MapPair represents a key-value pair in a map
+type MapPair struct {
+	Key   Object
+	Value Object
+}
+
+// Map represents a map/dictionary with ordered key-value pairs
+type Map struct {
+	Pairs   []*MapPair        // Ordered pairs for iteration
+	Index   map[string]int    // Maps key hash to index in Pairs for O(1) lookup
+	Mutable bool
+}
+
+func (m *Map) Type() ObjectType { return MAP_OBJ }
+func (m *Map) Inspect() string {
+	pairs := make([]string, len(m.Pairs))
+	for i, pair := range m.Pairs {
+		pairs[i] = fmt.Sprintf("%s: %s", pair.Key.Inspect(), pair.Value.Inspect())
+	}
+	return "{" + strings.Join(pairs, ", ") + "}"
+}
+
+// HashKey returns a string hash for a key object (for map lookup)
+func HashKey(obj Object) (string, bool) {
+	switch o := obj.(type) {
+	case *String:
+		return "s:" + o.Value, true
+	case *Integer:
+		return fmt.Sprintf("i:%d", o.Value), true
+	case *Boolean:
+		if o.Value {
+			return "b:true", true
+		}
+		return "b:false", true
+	case *Char:
+		return fmt.Sprintf("c:%d", o.Value), true
+	default:
+		return "", false
+	}
+}
+
+// Get retrieves a value from the map by key
+func (m *Map) Get(key Object) (Object, bool) {
+	hash, ok := HashKey(key)
+	if !ok {
+		return nil, false
+	}
+	idx, exists := m.Index[hash]
+	if !exists {
+		return nil, false
+	}
+	return m.Pairs[idx].Value, true
+}
+
+// Set adds or updates a key-value pair in the map
+func (m *Map) Set(key, value Object) bool {
+	hash, ok := HashKey(key)
+	if !ok {
+		return false
+	}
+	if idx, exists := m.Index[hash]; exists {
+		// Update existing
+		m.Pairs[idx].Value = value
+	} else {
+		// Add new
+		m.Index[hash] = len(m.Pairs)
+		m.Pairs = append(m.Pairs, &MapPair{Key: key, Value: value})
+	}
+	return true
+}
+
+// Delete removes a key-value pair from the map
+func (m *Map) Delete(key Object) bool {
+	hash, ok := HashKey(key)
+	if !ok {
+		return false
+	}
+	idx, exists := m.Index[hash]
+	if !exists {
+		return false
+	}
+	// Remove from pairs slice
+	m.Pairs = append(m.Pairs[:idx], m.Pairs[idx+1:]...)
+	// Rebuild index
+	delete(m.Index, hash)
+	for i := idx; i < len(m.Pairs); i++ {
+		h, _ := HashKey(m.Pairs[i].Key)
+		m.Index[h] = i
+	}
+	return true
+}
+
+// NewMap creates a new empty map
+func NewMap() *Map {
+	return &Map{
+		Pairs:   []*MapPair{},
+		Index:   make(map[string]int),
+		Mutable: true,
+	}
 }
 
 // Struct represents a struct instance

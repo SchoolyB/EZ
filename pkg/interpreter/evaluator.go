@@ -24,6 +24,7 @@ var validModules = map[string]bool{
 	"string":  true, // String manipulation (upcoming)
 	"strings": true, // String utilities (upcoming)
 	"arrays":  true, // Array utilities (upcoming)
+	"maps":    true, // Map utilities
 	"time":    true, // Time functions (upcoming)
 }
 
@@ -208,6 +209,9 @@ func Eval(node ast.Node, env *Environment) Object {
 		}
 		return &Array{Elements: elements, Mutable: true}
 
+	case *ast.MapValue:
+		return evalMapLiteral(node, env)
+
 	case *ast.StructValue:
 		return evalStructValue(node, env)
 
@@ -248,7 +252,31 @@ func Eval(node ast.Node, env *Environment) Object {
 			return index
 		}
 
-		// Handle index access with improved error messages
+		// Handle map indexing first (maps can use non-integer keys)
+		if mapObj, ok := left.(*Map); ok {
+			// Validate that the key is hashable
+			if _, hashOk := HashKey(index); !hashOk {
+				return newErrorWithLocation("E9020", node.Token.Line, node.Token.Column,
+					"unusable as map key: %s", index.Type())
+			}
+			value, exists := mapObj.Get(index)
+			if !exists {
+				// Build helpful error message with available keys
+				availableKeys := make([]string, len(mapObj.Pairs))
+				for i, pair := range mapObj.Pairs {
+					availableKeys[i] = pair.Key.Inspect()
+				}
+				keyList := ""
+				if len(availableKeys) > 0 {
+					keyList = fmt.Sprintf("\n\nAvailable keys: %v", availableKeys)
+				}
+				return newErrorWithLocation("E9021", node.Token.Line, node.Token.Column,
+					"key %s not found in map%s", index.Inspect(), keyList)
+			}
+			return value
+		}
+
+		// For arrays and strings, index must be an integer
 		idx, ok := index.(*Integer)
 		if !ok {
 			return newErrorWithLocation("E9003", node.Token.Line, node.Token.Column,
@@ -408,6 +436,21 @@ func evalVariableDeclaration(node *ast.VariableDeclaration, env *Environment) Ob
 				}
 			}
 
+			// Check if declared type is a map type
+			if strings.HasPrefix(node.TypeName, "map[") {
+				// Map type declared - value must be a map
+				mapObj, ok := val.(*Map)
+				if !ok {
+					return newErrorWithLocation("E3019", node.Token.Line, node.Token.Column,
+						"type mismatch: expected map type '%s', got %s\n\n"+
+							"Map values must use key: value syntax\n"+
+							"Example: temp m %s = {\"key\": value}",
+						node.TypeName, getEZTypeName(val), node.TypeName)
+				}
+				// Set mutability based on temp vs const
+				mapObj.Mutable = node.Mutable
+			}
+
 			// If we have an integer value, set the declared type
 			// and validate signed/unsigned compatibility
 			if intVal, ok := val.(*Integer); ok {
@@ -428,6 +471,11 @@ func evalVariableDeclaration(node *ast.VariableDeclaration, env *Environment) Ob
 		if len(node.TypeName) > 0 && node.TypeName[0] == '[' && !strings.Contains(node.TypeName, ",") {
 			// Initialize dynamic array to empty array instead of NIL
 			val = &Array{Elements: []Object{}, Mutable: true}
+		} else if strings.HasPrefix(node.TypeName, "map[") {
+			// Initialize map to empty map
+			m := NewMap()
+			m.Mutable = node.Mutable
+			val = m
 		} else if isIntegerType(node.TypeName) {
 			// Handle all integer types (signed and unsigned)
 			val = &Integer{Value: 0, DeclaredType: node.TypeName}
@@ -509,7 +557,7 @@ func evalAssignment(node *ast.AssignmentStatement, env *Environment) Object {
 		}
 
 	case *ast.IndexExpression:
-		// Array or string index assignment
+		// Array, string, or map index assignment
 		// First check if the container variable is mutable
 		if ident, ok := target.Left.(*ast.Label); ok {
 			isMutable, exists := env.IsMutable(ident.Value)
@@ -528,13 +576,12 @@ func evalAssignment(node *ast.AssignmentStatement, env *Environment) Object {
 			return idx
 		}
 
-		index, ok := idx.(*Integer)
-		if !ok {
-			return newError("index must be integer, got %s", idx.Type())
-		}
-
 		switch obj := container.(type) {
 		case *Array:
+			index, ok := idx.(*Integer)
+			if !ok {
+				return newError("array index must be integer, got %s", idx.Type())
+			}
 			arrLen := int64(len(obj.Elements))
 			if index.Value < 0 || index.Value >= arrLen {
 				if arrLen == 0 {
@@ -560,6 +607,10 @@ func evalAssignment(node *ast.AssignmentStatement, env *Environment) Object {
 			obj.Elements[index.Value] = val
 
 		case *String:
+			index, ok := idx.(*Integer)
+			if !ok {
+				return newError("string index must be integer, got %s", idx.Type())
+			}
 			// String mutation - verify the value is a character
 			charObj, ok := val.(*Char)
 			if !ok {
@@ -581,6 +632,35 @@ func evalAssignment(node *ast.AssignmentStatement, env *Environment) Object {
 			runes := []rune(obj.Value)
 			runes[index.Value] = charObj.Value
 			obj.Value = string(runes)
+
+		case *Map:
+			// Map key assignment
+			// Validate that the key is hashable
+			if _, ok := HashKey(idx); !ok {
+				return newErrorWithLocation("E9020", node.Token.Line, node.Token.Column,
+					"unusable as map key: %s", idx.Type())
+			}
+
+			// Check if map is mutable
+			if !obj.Mutable {
+				return newErrorWithLocation("E5014", node.Token.Line, node.Token.Column,
+					"cannot modify immutable map (declared as const)")
+			}
+
+			// Handle compound assignment
+			if node.Operator != "=" {
+				oldVal, exists := obj.Get(idx)
+				if !exists {
+					return newErrorWithLocation("E9022", node.Token.Line, node.Token.Column,
+						"key not found in map for compound assignment")
+				}
+				val = evalCompoundAssignment(node.Operator, oldVal, val, node.Token.Line, node.Token.Column)
+				if isError(val) {
+					return val
+				}
+			}
+
+			obj.Set(idx, val)
 
 		default:
 			return newError("index operator not supported: %s", container.Type())
@@ -1541,6 +1621,8 @@ func evalIndexExpression(left, index Object) Object {
 		return evalArrayIndexExpression(left, index)
 	case left.Type() == STRING_OBJ && index.Type() == INTEGER_OBJ:
 		return evalStringIndexExpression(left, index)
+	case left.Type() == MAP_OBJ:
+		return evalMapIndexExpression(left, index)
 	default:
 		return newError("index operator not supported: %s", left.Type())
 	}
@@ -1566,6 +1648,55 @@ func evalStringIndexExpression(str, index Object) Object {
 	}
 
 	return &Char{Value: rune(stringObject.Value[idx])}
+}
+
+func evalMapLiteral(node *ast.MapValue, env *Environment) Object {
+	mapObj := NewMap()
+
+	for _, pair := range node.Pairs {
+		key := Eval(pair.Key, env)
+		if isError(key) {
+			return key
+		}
+
+		// Validate that the key is hashable
+		if _, ok := HashKey(key); !ok {
+			return newError("unusable as map key: %s", key.Type())
+		}
+
+		value := Eval(pair.Value, env)
+		if isError(value) {
+			return value
+		}
+
+		mapObj.Set(key, value)
+	}
+
+	return mapObj
+}
+
+func evalMapIndexExpression(mapObj, index Object) Object {
+	m := mapObj.(*Map)
+
+	// Validate that the key is hashable
+	if _, ok := HashKey(index); !ok {
+		return newError("unusable as map key: %s", index.Type())
+	}
+
+	value, ok := m.Get(index)
+	if !ok {
+		// Build helpful error message with available keys
+		availableKeys := make([]string, len(m.Pairs))
+		for i, pair := range m.Pairs {
+			availableKeys[i] = pair.Key.Inspect()
+		}
+		keyList := ""
+		if len(availableKeys) > 0 {
+			keyList = fmt.Sprintf("\n\nAvailable keys: %v", availableKeys)
+		}
+		return newError("key %s not found in map%s", index.Inspect(), keyList)
+	}
+	return value
 }
 
 func evalInterpolatedString(node *ast.InterpolatedString, env *Environment) Object {
