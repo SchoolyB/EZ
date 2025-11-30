@@ -27,7 +27,7 @@ do main() {
     /* Test 3: Process request through server module */
     println("Test 3: Processing request")
     temp resp server.Response = server.process_request("GET", "/")
-    println("  Response status: ${resp.status} (${server.get_status_text(resp.status)})")
+    println("  Response status: ${resp.status} (${get_status_text(resp.status)})")
     println("  Response body: ${resp.body}")
     println("  PASSED!")
     println("")
