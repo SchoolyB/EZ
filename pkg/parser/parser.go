@@ -861,13 +861,10 @@ func (p *Parser) parseBlockStatementWithSuppress(suppressions []*Attribute) *Blo
 			switch stmt.(type) {
 			case *ReturnStatement, *BreakStatement, *ContinueStatement:
 				unreachable = true
-				// If we're at the closing brace after a terminating statement,
-				// don't advance - let the loop exit naturally
-				if p.currentTokenMatches(RBRACE) {
-					continue // Skip p.nextToken() and re-check loop condition
-				}
 			}
 		}
+		// Always advance to the next token after parsing a statement.
+		// The loop condition will exit when we reach the block's closing brace.
 		p.nextToken()
 	}
 
