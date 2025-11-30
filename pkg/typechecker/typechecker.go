@@ -2342,19 +2342,34 @@ func (tc *TypeChecker) checkMapsModuleCall(funcName string, call *ast.CallExpres
 		"values":   {1, 1, []string{"map"}, "array"},
 		"clear":    {1, 1, []string{"map"}, "void"},
 		"copy":     {1, 1, []string{"map"}, "map"},
+		"to_array": {1, 1, []string{"map"}, "array"},
+		"invert":   {1, 1, []string{"map"}, "map"},
 
 		// Map + key
-		"has":    {2, 2, []string{"map", "any"}, "bool"},
-		"delete": {2, 2, []string{"map", "any"}, "bool"},
+		"has":     {2, 2, []string{"map", "any"}, "bool"},
+		"has_key": {2, 2, []string{"map", "any"}, "bool"},
+		"delete":  {2, 2, []string{"map", "any"}, "bool"},
+		"remove":  {2, 2, []string{"map", "any"}, "bool"},
+
+		// Map + value
+		"has_value": {2, 2, []string{"map", "any"}, "bool"},
 
 		// Map + key + optional default
 		"get": {2, 3, []string{"map", "any", "any"}, "any"},
 
 		// Map + key + value
-		"set": {3, 3, []string{"map", "any", "any"}, "void"},
+		"set":        {3, 3, []string{"map", "any", "any"}, "void"},
+		"get_or_set": {3, 3, []string{"map", "any", "any"}, "any"},
 
-		// Variadic map merge (map, map, ...)
-		"merge": {2, -1, []string{"map"}, "void"},
+		// Two maps
+		"equals": {2, 2, []string{"map", "map"}, "bool"},
+
+		// Variadic map operations (map, map, ...)
+		"merge":  {2, -1, []string{"map"}, "map"},
+		"update": {2, -1, []string{"map"}, "void"},
+
+		// Array to map
+		"from_array": {1, 1, []string{"array"}, "map"},
 	}
 
 	sig, exists := signatures[funcName]
