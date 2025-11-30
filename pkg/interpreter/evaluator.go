@@ -1709,8 +1709,14 @@ func evalInterpolatedString(node *ast.InterpolatedString, env *Environment) Obje
 			return val
 		}
 
-		// Convert to string using Inspect()
-		result.WriteString(val.Inspect())
+		// Convert to string representation
+		// For strings, use the raw value (not quoted Inspect())
+		switch v := val.(type) {
+		case *String:
+			result.WriteString(v.Value)
+		default:
+			result.WriteString(val.Inspect())
+		}
 	}
 
 	return &String{Value: result.String(), Mutable: true}
