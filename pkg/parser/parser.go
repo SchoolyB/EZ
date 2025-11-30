@@ -22,7 +22,7 @@ var reservedKeywords = map[string]bool{
 	"break": true, "continue": true, "in": true, "not_in": true, "range": true,
 	"import": true, "using": true, "struct": true, "enum": true,
 	"nil": true, "new": true, "true": true, "false": true,
-	"module": true, "private": true, "from": true,
+	"module": true, "private": true, "from": true, "use": true,
 }
 
 // Builtin function names that cannot be redefined
@@ -1336,7 +1336,7 @@ func (p *Parser) parseImportStatement() *ImportStatement {
 	// Check for "import & use" syntax
 	if p.currentTokenMatches(AMPERSAND) {
 		p.nextToken() // move past &
-		if p.currentTokenMatches(USING) {
+		if p.currentTokenMatches(USE) {
 			stmt.AutoUse = true
 			p.nextToken() // move past 'use' to the module
 		} else {

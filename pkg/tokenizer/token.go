@@ -110,6 +110,7 @@ const (
 	MODULE  TokenType = "MODULE"
 	PRIVATE TokenType = "PRIVATE"
 	FROM    TokenType = "FROM"
+	USE     TokenType = "USE"
 
 	// Ampersand (for import & use syntax)
 	AMPERSAND TokenType = "&"
@@ -144,6 +145,7 @@ var keywords = map[string]TokenType{
 	"module":     MODULE,
 	"private":    PRIVATE,
 	"from":       FROM,
+	"use":        USE,
 }
 
 // Looks up the passed in identifier(i)
