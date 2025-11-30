@@ -241,11 +241,12 @@ type NewExpression struct {
 func (n *NewExpression) expressionNode()      {}
 func (n *NewExpression) TokenLiteral() string { return n.Token.Literal }
 
-// RangeExpression represents range(start, end)
+// RangeExpression represents range(end), range(start, end), or range(start, end, step)
 type RangeExpression struct {
 	Token Token
-	Start Expression
+	Start Expression // nil for range(end) form, defaults to 0
 	End   Expression
+	Step  Expression // nil for default step of 1
 }
 
 func (r *RangeExpression) expressionNode()      {}
