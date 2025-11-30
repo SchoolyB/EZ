@@ -50,9 +50,9 @@ do main() {
     println("  Users map:", users)
     println("  Scores map:", scores)
 
-    // Test 9: maps.len()
-    println("Test 9: maps.len()")
-    temp userCount int = maps.len(users)
+    // Test 9: len() builtin on maps
+    println("Test 9: len() builtin on maps")
+    temp userCount int = len(users)
     println("  User count:", userCount)
 
     // Test 10: maps.has()

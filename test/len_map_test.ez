@@ -1,0 +1,33 @@
+import @std
+
+do main() {
+    using std
+
+    println("=== len() Map Support Tests ===")
+    println("")
+
+    println("Test 1: len() on string-keyed map")
+    temp users map[string:int] = {"alice": 25, "bob": 30, "charlie": 35}
+    println("  Map: ${users}")
+    println("  len(users): ${len(users)}")
+
+    println("Test 2: len() on int-keyed map")
+    temp scores map[int:string] = {1: "first", 2: "second", 3: "third"}
+    println("  Map: ${scores}")
+    println("  len(scores): ${len(scores)}")
+
+    println("Test 3: len() on single-element map")
+    temp single map[string:bool] = {"active": true}
+    println("  len(single): ${len(single)}")
+
+    println("Test 4: len() still works on arrays")
+    temp arr [int] = {1, 2, 3, 4, 5}
+    println("  len(arr): ${len(arr)}")
+
+    println("Test 5: len() still works on strings")
+    temp s string = "hello"
+    println("  len(s): ${len(s)}")
+
+    println("")
+    println("=== All len() Map Tests Passed! ===")
+}

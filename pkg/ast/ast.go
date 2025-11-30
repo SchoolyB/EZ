@@ -241,11 +241,12 @@ type NewExpression struct {
 func (n *NewExpression) expressionNode()      {}
 func (n *NewExpression) TokenLiteral() string { return n.Token.Literal }
 
-// RangeExpression represents range(start, end)
+// RangeExpression represents range(end), range(start, end), or range(start, end, step)
 type RangeExpression struct {
 	Token Token
-	Start Expression
+	Start Expression // nil for range(end) form, defaults to 0
 	End   Expression
+	Step  Expression // nil for default step of 1
 }
 
 func (r *RangeExpression) expressionNode()      {}
@@ -257,11 +258,13 @@ func (r *RangeExpression) TokenLiteral() string { return r.Token.Literal }
 
 // VariableDeclaration represents temp x int = 5 or const y int = 10
 // Also supports multiple assignment: temp result, err = divide(10, 0)
+// And typed tuple unpacking: temp a int, b string = getValues()
 type VariableDeclaration struct {
 	Token      Token // temp or const
 	Name       *Label
 	Names      []*Label // for multiple assignment (result, err)
 	TypeName   string
+	TypeNames  []string // for typed tuple unpacking (int, string)
 	Value      Expression
 	Mutable    bool
 	Attributes []*Attribute // @suppress(...) attributes
