@@ -39,11 +39,11 @@ do test_valid_array_declarations() {
 
     // Integer arrays
     temp int_arr [int] = {1, 2, 3, 4, 5}
-    const const_int_arr [int] = {10, 20, 30}
+    const const_int_arr [int, 3] = {10, 20, 30}
 
     // String arrays
     temp str_arr [string] = {"hello", "world"}
-    const const_str_arr [string] = {"a", "b", "c"}
+    const const_str_arr [string, 3] = {"a", "b", "c"}
 
     // Boolean arrays
     temp bool_arr [bool] = {true, false, true}

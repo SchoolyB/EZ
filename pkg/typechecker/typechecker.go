@@ -5,6 +5,7 @@ package typechecker
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/marshallburns/ez/pkg/ast"
 	"github.com/marshallburns/ez/pkg/errors"
@@ -21,6 +22,36 @@ const (
 	FunctionType
 	VoidType
 )
+
+// Scope represents a lexical scope for variable tracking
+type Scope struct {
+	parent    *Scope
+	variables map[string]string // variable name -> type name
+}
+
+// NewScope creates a new scope with an optional parent
+func NewScope(parent *Scope) *Scope {
+	return &Scope{
+		parent:    parent,
+		variables: make(map[string]string),
+	}
+}
+
+// Define adds a variable to the current scope
+func (s *Scope) Define(name, typeName string) {
+	s.variables[name] = typeName
+}
+
+// Lookup finds a variable in the current scope or any parent scope
+func (s *Scope) Lookup(name string) (string, bool) {
+	if typeName, ok := s.variables[name]; ok {
+		return typeName, true
+	}
+	if s.parent != nil {
+		return s.parent.Lookup(name)
+	}
+	return "", false
+}
 
 // Type represents a type in the EZ type system
 type Type struct {
@@ -46,12 +77,14 @@ type Parameter struct {
 
 // TypeChecker validates types in an EZ program
 type TypeChecker struct {
-	types     map[string]*Type              // All known types
-	functions map[string]*FunctionSignature // All function signatures
-	variables map[string]string             // Variable name -> type name (global scope)
-	errors    *errors.EZErrorList
-	source    string
-	filename  string
+	types        map[string]*Type              // All known types
+	functions    map[string]*FunctionSignature // All function signatures
+	variables    map[string]string             // Variable name -> type name (global scope)
+	modules      map[string]bool               // Imported module names
+	currentScope *Scope                        // Current scope for local variable tracking
+	errors       *errors.EZErrorList
+	source       string
+	filename     string
 }
 
 // NewTypeChecker creates a new type checker
@@ -60,6 +93,7 @@ func NewTypeChecker(source, filename string) *TypeChecker {
 		types:     make(map[string]*Type),
 		functions: make(map[string]*FunctionSignature),
 		variables: make(map[string]string),
+		modules:   make(map[string]bool),
 		errors:    errors.NewErrorList(),
 		source:    source,
 		filename:  filename,
@@ -340,32 +374,32 @@ func (tc *TypeChecker) checkFunctionDeclaration(node *ast.FunctionDeclaration) {
 
 // checkFunctionBody validates the body of a function
 func (tc *TypeChecker) checkFunctionBody(node *ast.FunctionDeclaration) {
-	// Only check functions that declare return types
-	if len(node.ReturnTypes) == 0 {
-		return
+	// Create a new scope for this function
+	tc.enterScope()
+	defer tc.exitScope()
+
+	// Add function parameters to scope
+	for _, param := range node.Parameters {
+		tc.defineVariable(param.Name.Value, param.TypeName)
 	}
 
-	// Check if W2003 warning is suppressed
-	if tc.isSuppressed("W2003", node.Attributes) {
-		return
+	// Check if function body contains at least one return statement (for functions with return types)
+	if len(node.ReturnTypes) > 0 {
+		// Check if W2003 warning is suppressed
+		if !tc.isSuppressed("W2003", node.Attributes) {
+			if !tc.hasReturnStatement(node.Body) {
+				tc.addWarning(
+					errors.W2003,
+					fmt.Sprintf("Function '%s' declares return type(s) but has no return statement", node.Name.Value),
+					node.Name.Token.Line,
+					node.Name.Token.Column,
+				)
+			}
+		}
 	}
 
-	// Check if function body contains at least one return statement
-	if !tc.hasReturnStatement(node.Body) {
-		tc.addWarning(
-			errors.W2003,
-			fmt.Sprintf("Function '%s' declares return type(s) but has no return statement", node.Name.Value),
-			node.Name.Token.Line,
-			node.Name.Token.Column,
-		)
-	}
-
-	// TODO: Implement additional function body type checking
-	// - Local variable declarations
-	// - Assignments
-	// - Expressions
-	// - Function calls
-	// - Return type validation
+	// Type check the function body
+	tc.checkBlock(node.Body, node.ReturnTypes)
 }
 
 // checkMainFunction validates that a main() function exists as the program entry point
@@ -453,6 +487,956 @@ func (tc *TypeChecker) hasReturnInIfStatement(ifStmt *ast.IfStatement) bool {
 			// Check the otherwise block
 			return tc.hasReturnStatement(altBlock)
 		}
+	}
+
+	return false
+}
+
+// ============================================================================
+// Phase 3, 4, 5: Statement Type Checking
+// ============================================================================
+
+// checkBlock validates all statements in a block
+func (tc *TypeChecker) checkBlock(block *ast.BlockStatement, expectedReturnTypes []string) {
+	if block == nil {
+		return
+	}
+
+	for _, stmt := range block.Statements {
+		tc.checkStatement(stmt, expectedReturnTypes)
+	}
+}
+
+// checkStatement validates a single statement
+func (tc *TypeChecker) checkStatement(stmt ast.Statement, expectedReturnTypes []string) {
+	switch s := stmt.(type) {
+	case *ast.VariableDeclaration:
+		tc.checkVariableDeclaration(s)
+
+	case *ast.AssignmentStatement:
+		tc.checkAssignment(s)
+
+	case *ast.ReturnStatement:
+		tc.checkReturnStatement(s, expectedReturnTypes)
+
+	case *ast.ExpressionStatement:
+		tc.checkExpressionStatement(s)
+
+	case *ast.IfStatement:
+		tc.checkIfStatement(s, expectedReturnTypes)
+
+	case *ast.ForStatement:
+		tc.checkForStatement(s, expectedReturnTypes)
+
+	case *ast.ForEachStatement:
+		tc.checkForEachStatement(s, expectedReturnTypes)
+
+	case *ast.WhileStatement:
+		tc.checkWhileStatement(s, expectedReturnTypes)
+
+	case *ast.LoopStatement:
+		tc.checkLoopStatement(s, expectedReturnTypes)
+
+	case *ast.BlockStatement:
+		tc.enterScope()
+		tc.checkBlock(s, expectedReturnTypes)
+		tc.exitScope()
+	}
+}
+
+// checkVariableDeclaration validates a variable declaration (Phase 3)
+func (tc *TypeChecker) checkVariableDeclaration(decl *ast.VariableDeclaration) {
+	// Handle multiple names (for multi-return assignment)
+	if len(decl.Names) > 1 {
+		// Multi-return assignment like: temp result, err = divide(10, 2)
+		// For now, we can't easily infer types for multi-return
+		// The runtime will handle this
+		return
+	}
+
+	// Single variable declaration
+	if decl.Name == nil {
+		return
+	}
+
+	varName := decl.Name.Value
+	declaredType := decl.TypeName
+
+	// Check if declared type exists
+	if declaredType != "" && !tc.TypeExists(declaredType) {
+		tc.addError(
+			errors.E3008,
+			fmt.Sprintf("undefined type '%s'", declaredType),
+			decl.Name.Token.Line,
+			decl.Name.Token.Column,
+		)
+		return
+	}
+
+	// If there's an initial value, check type compatibility
+	if decl.Value != nil && declaredType != "" {
+		actualType, ok := tc.inferExpressionType(decl.Value)
+		if ok {
+			// Check if it's an array type mismatch (assigning scalar to array)
+			if tc.isArrayType(declaredType) && !tc.isArrayType(actualType) && actualType != "nil" {
+				tc.addError(
+					errors.E3018,
+					fmt.Sprintf("cannot assign %s to array type %s - array type requires value in {} format", actualType, declaredType),
+					decl.Name.Token.Line,
+					decl.Name.Token.Column,
+				)
+				return
+			}
+
+			// Check for type mismatch
+			if !tc.typesCompatible(declaredType, actualType) {
+				tc.addError(
+					errors.E3001,
+					fmt.Sprintf("type mismatch: cannot assign %s to %s", actualType, declaredType),
+					decl.Name.Token.Line,
+					decl.Name.Token.Column,
+				)
+				return
+			}
+		}
+	}
+
+	// Register variable in current scope
+	if declaredType != "" {
+		tc.defineVariable(varName, declaredType)
+	}
+}
+
+// checkAssignment validates an assignment statement (Phase 3)
+func (tc *TypeChecker) checkAssignment(assign *ast.AssignmentStatement) {
+	// Get the target type
+	targetType, targetOk := tc.inferExpressionType(assign.Name)
+	if !targetOk {
+		return // Can't determine target type
+	}
+
+	// Get the value type
+	valueType, valueOk := tc.inferExpressionType(assign.Value)
+	if !valueOk {
+		return // Can't determine value type
+	}
+
+	// Check compatibility
+	if !tc.typesCompatible(targetType, valueType) {
+		line, column := tc.getExpressionPosition(assign.Name)
+		tc.addError(
+			errors.E3001,
+			fmt.Sprintf("type mismatch: cannot assign %s to %s", valueType, targetType),
+			line,
+			column,
+		)
+	}
+}
+
+// checkReturnStatement validates a return statement (Phase 4)
+func (tc *TypeChecker) checkReturnStatement(ret *ast.ReturnStatement, expectedTypes []string) {
+	// No return type expected
+	if len(expectedTypes) == 0 {
+		if len(ret.Values) > 0 {
+			tc.addError(
+				errors.E3012,
+				"unexpected return value in void function",
+				ret.Token.Line,
+				ret.Token.Column,
+			)
+		}
+		return
+	}
+
+	// Check return value count
+	if len(ret.Values) != len(expectedTypes) {
+		tc.addError(
+			errors.E3013,
+			fmt.Sprintf("wrong number of return values: expected %d, got %d", len(expectedTypes), len(ret.Values)),
+			ret.Token.Line,
+			ret.Token.Column,
+		)
+		return
+	}
+
+	// Check each return value type
+	for i, val := range ret.Values {
+		actualType, ok := tc.inferExpressionType(val)
+		if !ok {
+			continue // Can't determine type
+		}
+
+		expectedType := expectedTypes[i]
+		if !tc.typesCompatible(expectedType, actualType) {
+			tc.addError(
+				errors.E3012,
+				fmt.Sprintf("return type mismatch: expected %s, got %s", expectedType, actualType),
+				ret.Token.Line,
+				ret.Token.Column,
+			)
+		}
+	}
+}
+
+// checkExpressionStatement validates an expression statement (Phase 5 - function calls)
+func (tc *TypeChecker) checkExpressionStatement(exprStmt *ast.ExpressionStatement) {
+	if exprStmt.Expression == nil {
+		return
+	}
+
+	// If it's a function call, validate argument types
+	if call, ok := exprStmt.Expression.(*ast.CallExpression); ok {
+		tc.checkFunctionCall(call)
+	}
+}
+
+// checkFunctionCall validates function call argument types (Phase 5)
+func (tc *TypeChecker) checkFunctionCall(call *ast.CallExpression) {
+	// Get function name
+	var funcName string
+	switch fn := call.Function.(type) {
+	case *ast.Label:
+		funcName = fn.Value
+	case *ast.MemberExpression:
+		// Module function call - let runtime handle for now
+		return
+	default:
+		return
+	}
+
+	// Look up function signature
+	sig, ok := tc.functions[funcName]
+	if !ok {
+		// Could be a builtin - let runtime handle
+		return
+	}
+
+	// Check argument count
+	if len(call.Arguments) != len(sig.Parameters) {
+		line, column := tc.getExpressionPosition(call.Function)
+		tc.addError(
+			errors.E5008,
+			fmt.Sprintf("wrong number of arguments to '%s': expected %d, got %d",
+				funcName, len(sig.Parameters), len(call.Arguments)),
+			line,
+			column,
+		)
+		return
+	}
+
+	// Check argument types
+	for i, arg := range call.Arguments {
+		actualType, ok := tc.inferExpressionType(arg)
+		if !ok {
+			continue
+		}
+
+		expectedType := sig.Parameters[i].Type
+		if !tc.typesCompatible(expectedType, actualType) {
+			line, column := tc.getExpressionPosition(arg)
+			tc.addError(
+				errors.E3001,
+				fmt.Sprintf("argument type mismatch in call to '%s': parameter '%s' expects %s, got %s",
+					funcName, sig.Parameters[i].Name, expectedType, actualType),
+				line,
+				column,
+			)
+		}
+	}
+}
+
+// checkIfStatement validates an if statement
+func (tc *TypeChecker) checkIfStatement(ifStmt *ast.IfStatement, expectedReturnTypes []string) {
+	// Check that condition is boolean
+	condType, ok := tc.inferExpressionType(ifStmt.Condition)
+	if ok && condType != "bool" {
+		line, column := tc.getExpressionPosition(ifStmt.Condition)
+		tc.addError(
+			errors.E3001,
+			fmt.Sprintf("if condition must be bool, got %s", condType),
+			line,
+			column,
+		)
+	}
+
+	// Check consequence block
+	tc.enterScope()
+	tc.checkBlock(ifStmt.Consequence, expectedReturnTypes)
+	tc.exitScope()
+
+	// Check alternative (else/or/otherwise)
+	if ifStmt.Alternative != nil {
+		switch alt := ifStmt.Alternative.(type) {
+		case *ast.IfStatement:
+			tc.checkIfStatement(alt, expectedReturnTypes)
+		case *ast.BlockStatement:
+			tc.enterScope()
+			tc.checkBlock(alt, expectedReturnTypes)
+			tc.exitScope()
+		}
+	}
+}
+
+// checkForStatement validates a for loop
+func (tc *TypeChecker) checkForStatement(forStmt *ast.ForStatement, expectedReturnTypes []string) {
+	tc.enterScope()
+
+	// Add loop variable to scope
+	if forStmt.Variable != nil {
+		varType := forStmt.VarType
+		if varType == "" {
+			varType = "int" // Default for range iteration
+		}
+		tc.defineVariable(forStmt.Variable.Value, varType)
+	}
+
+	tc.checkBlock(forStmt.Body, expectedReturnTypes)
+	tc.exitScope()
+}
+
+// checkForEachStatement validates a for_each loop
+func (tc *TypeChecker) checkForEachStatement(forEach *ast.ForEachStatement, expectedReturnTypes []string) {
+	tc.enterScope()
+
+	// Infer element type from collection
+	if forEach.Variable != nil && forEach.Collection != nil {
+		collType, ok := tc.inferExpressionType(forEach.Collection)
+		if ok {
+			// For arrays, element type is inside []
+			if len(collType) > 2 && collType[0] == '[' {
+				elemType := collType[1 : len(collType)-1]
+				tc.defineVariable(forEach.Variable.Value, elemType)
+			} else if collType == "string" {
+				// Iterating over string gives char
+				tc.defineVariable(forEach.Variable.Value, "char")
+			}
+		}
+	}
+
+	tc.checkBlock(forEach.Body, expectedReturnTypes)
+	tc.exitScope()
+}
+
+// checkWhileStatement validates an as_long_as loop
+func (tc *TypeChecker) checkWhileStatement(whileStmt *ast.WhileStatement, expectedReturnTypes []string) {
+	// Check that condition is boolean
+	condType, ok := tc.inferExpressionType(whileStmt.Condition)
+	if ok && condType != "bool" {
+		line, column := tc.getExpressionPosition(whileStmt.Condition)
+		tc.addError(
+			errors.E3001,
+			fmt.Sprintf("while condition must be bool, got %s", condType),
+			line,
+			column,
+		)
+	}
+
+	tc.enterScope()
+	tc.checkBlock(whileStmt.Body, expectedReturnTypes)
+	tc.exitScope()
+}
+
+// checkLoopStatement validates a loop statement
+func (tc *TypeChecker) checkLoopStatement(loopStmt *ast.LoopStatement, expectedReturnTypes []string) {
+	tc.enterScope()
+	tc.checkBlock(loopStmt.Body, expectedReturnTypes)
+	tc.exitScope()
+}
+
+// isArrayType checks if a type string represents an array type
+func (tc *TypeChecker) isArrayType(typeName string) bool {
+	return len(typeName) >= 2 && typeName[0] == '[' && typeName[len(typeName)-1] == ']'
+}
+
+// extractArrayElementType extracts the element type from an array type string
+// Handles both [int] and [int, 3] (fixed-size) formats
+func (tc *TypeChecker) extractArrayElementType(arrType string) string {
+	if len(arrType) < 3 || arrType[0] != '[' {
+		return arrType
+	}
+
+	// Remove the outer brackets
+	inner := arrType[1 : len(arrType)-1]
+
+	// Check for comma (fixed-size array like "int, 3")
+	for i, ch := range inner {
+		if ch == ',' {
+			return strings.TrimSpace(inner[:i])
+		}
+	}
+
+	return inner
+}
+
+// getExpressionPosition returns the line and column of an expression
+func (tc *TypeChecker) getExpressionPosition(expr ast.Expression) (int, int) {
+	switch e := expr.(type) {
+	case *ast.Label:
+		return e.Token.Line, e.Token.Column
+	case *ast.IntegerValue:
+		return e.Token.Line, e.Token.Column
+	case *ast.FloatValue:
+		return e.Token.Line, e.Token.Column
+	case *ast.StringValue:
+		return e.Token.Line, e.Token.Column
+	case *ast.BooleanValue:
+		return e.Token.Line, e.Token.Column
+	case *ast.CharValue:
+		return e.Token.Line, e.Token.Column
+	case *ast.ArrayValue:
+		return e.Token.Line, e.Token.Column
+	case *ast.CallExpression:
+		return e.Token.Line, e.Token.Column
+	case *ast.InfixExpression:
+		return e.Token.Line, e.Token.Column
+	case *ast.PrefixExpression:
+		return e.Token.Line, e.Token.Column
+	case *ast.IndexExpression:
+		return e.Token.Line, e.Token.Column
+	case *ast.MemberExpression:
+		return e.Token.Line, e.Token.Column
+	default:
+		return 1, 1
+	}
+}
+
+// ============================================================================
+// Phase 1 & 2: Expression Type Inference with Scope Tracking
+// ============================================================================
+
+// enterScope creates a new child scope and makes it current
+func (tc *TypeChecker) enterScope() {
+	tc.currentScope = NewScope(tc.currentScope)
+}
+
+// exitScope returns to the parent scope
+func (tc *TypeChecker) exitScope() {
+	if tc.currentScope != nil && tc.currentScope.parent != nil {
+		tc.currentScope = tc.currentScope.parent
+	}
+}
+
+// defineVariable adds a variable to the current scope
+func (tc *TypeChecker) defineVariable(name, typeName string) {
+	if tc.currentScope != nil {
+		tc.currentScope.Define(name, typeName)
+	}
+}
+
+// lookupVariable finds a variable type in scope chain or global variables
+func (tc *TypeChecker) lookupVariable(name string) (string, bool) {
+	// First check local scopes
+	if tc.currentScope != nil {
+		if typeName, ok := tc.currentScope.Lookup(name); ok {
+			return typeName, true
+		}
+	}
+	// Then check global variables
+	if typeName, ok := tc.variables[name]; ok {
+		return typeName, true
+	}
+	return "", false
+}
+
+// inferExpressionType determines the type of an expression at build-time
+// Returns the type name and whether the type could be determined
+func (tc *TypeChecker) inferExpressionType(expr ast.Expression) (string, bool) {
+	if expr == nil {
+		return "", false
+	}
+
+	switch e := expr.(type) {
+	case *ast.IntegerValue:
+		return "int", true
+
+	case *ast.FloatValue:
+		return "float", true
+
+	case *ast.StringValue:
+		return "string", true
+
+	case *ast.CharValue:
+		return "char", true
+
+	case *ast.BooleanValue:
+		return "bool", true
+
+	case *ast.NilValue:
+		return "nil", true
+
+	case *ast.Label:
+		// Variable lookup
+		return tc.lookupVariable(e.Value)
+
+	case *ast.ArrayValue:
+		return tc.inferArrayType(e)
+
+	case *ast.StructValue:
+		// Struct literal - type is the struct name
+		if e.Name != nil {
+			return e.Name.Value, true
+		}
+		return "", false
+
+	case *ast.PrefixExpression:
+		return tc.inferPrefixType(e)
+
+	case *ast.InfixExpression:
+		return tc.inferInfixType(e)
+
+	case *ast.PostfixExpression:
+		// Postfix operators (++ and --) return the operand's type
+		return tc.inferExpressionType(e.Left)
+
+	case *ast.CallExpression:
+		return tc.inferCallType(e)
+
+	case *ast.IndexExpression:
+		return tc.inferIndexType(e)
+
+	case *ast.MemberExpression:
+		return tc.inferMemberType(e)
+
+	case *ast.NewExpression:
+		// new(Type) returns the type
+		if e.TypeName != nil {
+			return e.TypeName.Value, true
+		}
+		return "", false
+
+	case *ast.RangeExpression:
+		// range(start, end) returns [int]
+		return "[int]", true
+
+	case *ast.InterpolatedString:
+		return "string", true
+
+	case *ast.IgnoreValue:
+		return "void", true
+
+	default:
+		return "", false
+	}
+}
+
+// inferArrayType infers the type of an array literal
+func (tc *TypeChecker) inferArrayType(arr *ast.ArrayValue) (string, bool) {
+	if len(arr.Elements) == 0 {
+		// Empty array - can't infer element type
+		return "[]", true
+	}
+
+	// Infer type from first element
+	firstType, ok := tc.inferExpressionType(arr.Elements[0])
+	if !ok {
+		return "", false
+	}
+
+	return fmt.Sprintf("[%s]", firstType), true
+}
+
+// inferPrefixType infers the type of a prefix expression
+func (tc *TypeChecker) inferPrefixType(prefix *ast.PrefixExpression) (string, bool) {
+	operandType, ok := tc.inferExpressionType(prefix.Right)
+	if !ok {
+		return "", false
+	}
+
+	switch prefix.Operator {
+	case "!":
+		// Logical NOT always returns bool
+		return "bool", true
+	case "-":
+		// Unary minus returns the operand's numeric type
+		if tc.isNumericType(operandType) {
+			return operandType, true
+		}
+		return "", false
+	default:
+		return operandType, true
+	}
+}
+
+// inferInfixType infers the type of an infix/binary expression
+func (tc *TypeChecker) inferInfixType(infix *ast.InfixExpression) (string, bool) {
+	leftType, leftOk := tc.inferExpressionType(infix.Left)
+	rightType, rightOk := tc.inferExpressionType(infix.Right)
+
+	if !leftOk || !rightOk {
+		return "", false
+	}
+
+	switch infix.Operator {
+	// Comparison operators always return bool
+	case "==", "!=", "<", ">", "<=", ">=":
+		return "bool", true
+
+	// Logical operators always return bool
+	case "&&", "||":
+		return "bool", true
+
+	// Membership operators return bool
+	case "in", "!in":
+		return "bool", true
+
+	// Arithmetic operators
+	case "+":
+		// String concatenation
+		if leftType == "string" && rightType == "string" {
+			return "string", true
+		}
+		// Numeric addition
+		if tc.isNumericType(leftType) && tc.isNumericType(rightType) {
+			return tc.promoteNumericTypes(leftType, rightType), true
+		}
+		return "", false
+
+	case "-", "*", "/", "%":
+		// Numeric operations
+		if tc.isNumericType(leftType) && tc.isNumericType(rightType) {
+			return tc.promoteNumericTypes(leftType, rightType), true
+		}
+		return "", false
+
+	default:
+		return "", false
+	}
+}
+
+// inferCallType infers the return type of a function call
+func (tc *TypeChecker) inferCallType(call *ast.CallExpression) (string, bool) {
+	switch fn := call.Function.(type) {
+	case *ast.Label:
+		// Direct function call like foo()
+		if sig, ok := tc.functions[fn.Value]; ok {
+			if len(sig.ReturnTypes) == 1 {
+				return sig.ReturnTypes[0], true
+			} else if len(sig.ReturnTypes) > 1 {
+				// Multi-return - return first type for now
+				// Full multi-return handling requires special treatment
+				return sig.ReturnTypes[0], true
+			}
+			return "void", true
+		}
+		// Check built-in functions
+		return tc.inferBuiltinCallType(fn.Value, call.Arguments)
+
+	case *ast.MemberExpression:
+		// Module function call like std.println()
+		return tc.inferModuleCallType(fn, call.Arguments)
+
+	default:
+		return "", false
+	}
+}
+
+// inferBuiltinCallType infers the return type of built-in functions
+func (tc *TypeChecker) inferBuiltinCallType(name string, args []ast.Expression) (string, bool) {
+	switch name {
+	case "len":
+		return "int", true
+	case "typeof":
+		return "string", true
+	case "int":
+		return "int", true
+	case "float":
+		return "float", true
+	case "string":
+		return "string", true
+	case "bool":
+		return "bool", true
+	case "char":
+		return "char", true
+	default:
+		return "", false
+	}
+}
+
+// inferModuleCallType infers the return type of module function calls
+func (tc *TypeChecker) inferModuleCallType(member *ast.MemberExpression, args []ast.Expression) (string, bool) {
+	// Get module name
+	moduleName := ""
+	if label, ok := member.Object.(*ast.Label); ok {
+		moduleName = label.Value
+	} else {
+		return "", false
+	}
+
+	funcName := member.Member.Value
+
+	// Standard library function return types
+	switch moduleName {
+	case "std":
+		return tc.inferStdCallType(funcName, args)
+	case "math":
+		return tc.inferMathCallType(funcName, args)
+	case "arrays":
+		return tc.inferArraysCallType(funcName, args)
+	case "strings":
+		return tc.inferStringsCallType(funcName, args)
+	case "time":
+		return tc.inferTimeCallType(funcName, args)
+	default:
+		return "", false
+	}
+}
+
+// inferStdCallType infers return types for @std functions
+func (tc *TypeChecker) inferStdCallType(funcName string, args []ast.Expression) (string, bool) {
+	switch funcName {
+	case "println", "print", "printf":
+		return "void", true
+	case "input":
+		return "string", true
+	default:
+		return "", false
+	}
+}
+
+// inferMathCallType infers return types for @math functions
+func (tc *TypeChecker) inferMathCallType(funcName string, args []ast.Expression) (string, bool) {
+	switch funcName {
+	case "abs", "floor", "ceil", "round", "sqrt", "pow", "log", "log2", "log10",
+		"sin", "cos", "tan", "asin", "acos", "atan", "exp", "min", "max", "avg",
+		"random_float":
+		return "float", true
+	case "random", "factorial":
+		return "int", true
+	default:
+		return "", false
+	}
+}
+
+// inferArraysCallType infers return types for @arrays functions
+func (tc *TypeChecker) inferArraysCallType(funcName string, args []ast.Expression) (string, bool) {
+	switch funcName {
+	case "len", "index_of", "last_index_of":
+		return "int", true
+	case "contains", "is_empty":
+		return "bool", true
+	case "join":
+		return "string", true
+	case "push", "unshift", "clear", "remove_at", "set":
+		return "void", true
+	case "pop", "shift", "get", "first", "last":
+		// Returns element type - need array type to determine
+		if len(args) > 0 {
+			arrType, ok := tc.inferExpressionType(args[0])
+			if ok && len(arrType) > 2 && arrType[0] == '[' {
+				// Extract element type from [type]
+				return arrType[1 : len(arrType)-1], true
+			}
+		}
+		return "", false
+	case "sum", "product", "min", "max":
+		// Could be int or float depending on array type
+		return "float", true
+	case "avg":
+		return "float", true
+	case "reverse", "slice", "copy", "concat", "unique", "sorted", "filter", "map":
+		// Returns array of same/similar type
+		if len(args) > 0 {
+			return tc.inferExpressionType(args[0])
+		}
+		return "", false
+	case "repeat", "range":
+		return "[int]", true
+	case "zip":
+		return "[[]]", true // Array of arrays
+	default:
+		return "", false
+	}
+}
+
+// inferStringsCallType infers return types for @strings functions
+func (tc *TypeChecker) inferStringsCallType(funcName string, args []ast.Expression) (string, bool) {
+	switch funcName {
+	case "len", "index", "last_index", "count":
+		return "int", true
+	case "contains", "starts_with", "ends_with", "is_empty":
+		return "bool", true
+	case "upper", "lower", "trim", "trim_left", "trim_right", "reverse",
+		"replace", "substring", "repeat", "pad_left", "pad_right", "join":
+		return "string", true
+	case "split", "chars":
+		return "[string]", true
+	default:
+		return "", false
+	}
+}
+
+// inferTimeCallType infers return types for @time functions
+func (tc *TypeChecker) inferTimeCallType(funcName string, args []ast.Expression) (string, bool) {
+	switch funcName {
+	case "now", "now_ms", "tick", "make", "add_seconds", "add_minutes",
+		"add_hours", "add_days", "add_months", "add_years", "diff":
+		return "int", true
+	case "format", "format_date", "format_time":
+		return "string", true
+	case "year", "month", "day", "hour", "minute", "second", "weekday",
+		"day_of_year", "days_in_month":
+		return "int", true
+	case "is_leap_year":
+		return "bool", true
+	case "sleep", "sleep_ms":
+		return "void", true
+	case "elapsed_ms":
+		return "int", true
+	default:
+		return "", false
+	}
+}
+
+// inferIndexType infers the type when indexing into an array or string
+func (tc *TypeChecker) inferIndexType(index *ast.IndexExpression) (string, bool) {
+	leftType, ok := tc.inferExpressionType(index.Left)
+	if !ok {
+		return "", false
+	}
+
+	// Indexing into a string returns char
+	if leftType == "string" {
+		return "char", true
+	}
+
+	// Indexing into an array returns element type
+	if len(leftType) > 2 && leftType[0] == '[' {
+		// Extract element type from [type]
+		return leftType[1 : len(leftType)-1], true
+	}
+
+	return "", false
+}
+
+// inferMemberType infers the type of a member access expression
+func (tc *TypeChecker) inferMemberType(member *ast.MemberExpression) (string, bool) {
+	// Check if accessing struct field
+	objType, ok := tc.inferExpressionType(member.Object)
+	if !ok {
+		return "", false
+	}
+
+	// Look up struct type
+	if structType, exists := tc.types[objType]; exists && structType.Kind == StructType {
+		if fieldType, hasField := structType.Fields[member.Member.Value]; hasField {
+			return fieldType.Name, true
+		}
+	}
+
+	// Could be module access - return unknown for now
+	// Module function calls are handled in inferCallType
+	return "", false
+}
+
+// isNumericType checks if a type is numeric
+func (tc *TypeChecker) isNumericType(typeName string) bool {
+	switch typeName {
+	case "int", "i8", "i16", "i32", "i64", "i128", "i256",
+		"uint", "u8", "u16", "u32", "u64", "u128", "u256",
+		"float", "f32", "f64":
+		return true
+	default:
+		return false
+	}
+}
+
+// isIntegerType checks if a type is an integer type
+func (tc *TypeChecker) isIntegerType(typeName string) bool {
+	switch typeName {
+	case "int", "i8", "i16", "i32", "i64", "i128", "i256",
+		"uint", "u8", "u16", "u32", "u64", "u128", "u256":
+		return true
+	default:
+		return false
+	}
+}
+
+// isSignedIntegerType checks if a type is a signed integer
+func (tc *TypeChecker) isSignedIntegerType(typeName string) bool {
+	switch typeName {
+	case "int", "i8", "i16", "i32", "i64", "i128", "i256":
+		return true
+	default:
+		return false
+	}
+}
+
+// isUnsignedIntegerType checks if a type is an unsigned integer
+func (tc *TypeChecker) isUnsignedIntegerType(typeName string) bool {
+	switch typeName {
+	case "uint", "u8", "u16", "u32", "u64", "u128", "u256":
+		return true
+	default:
+		return false
+	}
+}
+
+// promoteNumericTypes returns the "wider" type for mixed numeric operations
+func (tc *TypeChecker) promoteNumericTypes(left, right string) string {
+	// Float always wins
+	if left == "float" || left == "f32" || left == "f64" ||
+		right == "float" || right == "f32" || right == "f64" {
+		return "float"
+	}
+	// Otherwise return the left type (could be more sophisticated)
+	return left
+}
+
+// typesCompatible checks if two types are compatible for assignment
+func (tc *TypeChecker) typesCompatible(declared, actual string) bool {
+	// Exact match
+	if declared == actual {
+		return true
+	}
+
+	// nil is compatible with any reference type
+	if actual == "nil" {
+		return true
+	}
+
+	// Handle array type compatibility
+	if len(declared) > 2 && declared[0] == '[' {
+		// Empty array [] is compatible with any array type
+		if actual == "[]" {
+			return true
+		}
+
+		if len(actual) > 2 && actual[0] == '[' {
+			// Extract element types, handling fixed-size arrays like [int, 3]
+			declaredElem := tc.extractArrayElementType(declared)
+			actualElem := tc.extractArrayElementType(actual)
+			return tc.typesCompatible(declaredElem, actualElem)
+		}
+	}
+
+	// Integer family compatibility rules
+	// Signed integers can be assigned to other signed integers (with potential truncation)
+	if tc.isSignedIntegerType(declared) && tc.isSignedIntegerType(actual) {
+		return true
+	}
+
+	// Unsigned integers can be assigned to other unsigned integers
+	if tc.isUnsignedIntegerType(declared) && tc.isUnsignedIntegerType(actual) {
+		return true
+	}
+
+	// Unsigned to signed is safe - the value will always fit
+	if tc.isSignedIntegerType(declared) && tc.isUnsignedIntegerType(actual) {
+		return true
+	}
+
+	// Float family compatibility
+	if (declared == "float" || declared == "f32" || declared == "f64") &&
+		(actual == "float" || actual == "f32" || actual == "f64") {
+		return true
+	}
+
+	// Integer literals (actual == "int") can be assigned to unsigned if value is non-negative
+	// This is handled at runtime since we can't know the value at build-time in all cases
+	// For now, we allow int to unsigned assignment and let runtime catch negative values
+	if tc.isUnsignedIntegerType(declared) && tc.isSignedIntegerType(actual) {
+		// We'll be permissive here - the runtime already catches negative values
+		return true
 	}
 
 	return false
