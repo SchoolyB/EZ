@@ -17,6 +17,15 @@ var (
 	FALSE = &Boolean{Value: false}
 )
 
+// EvalContext holds context for evaluation including the module loader
+type EvalContext struct {
+	Loader      *ModuleLoader
+	CurrentFile string // Current file being evaluated (for relative imports)
+}
+
+// Global eval context (set when running a program)
+var globalEvalContext *EvalContext
+
 // validModules lists all available standard library modules
 var validModules = map[string]bool{
 	"std":     true, // Standard I/O functions (println, print, read_int)
@@ -58,6 +67,74 @@ func extractModuleName(path string) string {
 		return parts[len(parts)-1]
 	}
 	return path
+}
+
+// SetEvalContext sets the global evaluation context
+func SetEvalContext(ctx *EvalContext) {
+	globalEvalContext = ctx
+}
+
+// GetEvalContext returns the global evaluation context
+func GetEvalContext() *EvalContext {
+	return globalEvalContext
+}
+
+// EvalWithContext evaluates a program with a given context
+func EvalWithContext(node ast.Node, env *Environment, ctx *EvalContext) Object {
+	oldCtx := globalEvalContext
+	globalEvalContext = ctx
+	result := Eval(node, env)
+	globalEvalContext = oldCtx
+	return result
+}
+
+// loadUserModule loads a user module from a file path and returns a ModuleObject
+func loadUserModule(importPath string, token ast.Node, env *Environment) (*ModuleObject, Object) {
+	if globalEvalContext == nil || globalEvalContext.Loader == nil {
+		return nil, newError("E6001", "module loader not initialized")
+	}
+
+	// Set the current file for relative path resolution
+	globalEvalContext.Loader.SetCurrentFile(globalEvalContext.CurrentFile)
+
+	// Load the module
+	mod, err := globalEvalContext.Loader.Load(importPath)
+	if err != nil {
+		return nil, newError("E6001", err.Error())
+	}
+
+	// Create a new environment for the module
+	moduleEnv := NewEnvironment()
+
+	// Save the current file and set the module file as current
+	oldFile := globalEvalContext.CurrentFile
+	if len(mod.Files) > 0 {
+		globalEvalContext.CurrentFile = mod.Files[0]
+	}
+
+	// Evaluate the module's AST
+	result := Eval(mod.AST, moduleEnv)
+
+	// Restore the current file
+	globalEvalContext.CurrentFile = oldFile
+
+	if isError(result) {
+		return nil, result
+	}
+
+	// Create the ModuleObject with exported symbols
+	moduleObj := &ModuleObject{
+		Name:    mod.Name,
+		Exports: make(map[string]Object),
+	}
+
+	// Export all public symbols from the module environment
+	// For now, export everything (visibility enforcement comes in Phase 2)
+	for name, obj := range moduleEnv.GetAllBindings() {
+		moduleObj.Exports[name] = obj
+	}
+
+	return moduleObj, nil
 }
 
 func Eval(node ast.Node, env *Environment) Object {
@@ -174,10 +251,17 @@ func Eval(node ast.Node, env *Environment) Object {
 					}
 					env.Import(alias, item.Module)
 				} else if item.Path != "" {
-					// User module import - use the module loader
-					// Note: Full module loading will be implemented when we have a loader context
-					// For now, register the path as a placeholder
-					env.Import(alias, item.Path)
+					// User module import - load the module
+					moduleObj, loadErr := loadUserModule(item.Path, node, env)
+					if loadErr != nil {
+						return loadErr
+					}
+					if moduleObj == nil {
+						return newErrorWithLocation("E6001", node.Token.Line, node.Token.Column,
+							"failed to load module '%s'", item.Path)
+					}
+					// Register the module object so it can be accessed via alias.function()
+					env.RegisterModule(alias, moduleObj)
 				}
 
 				// Handle auto-use (import & use syntax)
@@ -1410,7 +1494,23 @@ func evalMemberCall(member *ast.MemberExpression, args []ast.Expression, env *En
 
 	alias := objIdent.Value
 
-	// Get the actual module name from the alias
+	// First check if it's a user module
+	if moduleObj, ok := env.GetModule(alias); ok {
+		memberName := member.Member.Value
+		if fn, ok := moduleObj.Get(memberName); ok {
+			// Evaluate arguments
+			evalArgs := evalExpressions(args, env)
+			if len(evalArgs) == 1 && isError(evalArgs[0]) {
+				return evalArgs[0]
+			}
+			// Apply the function
+			return applyFunction(fn, evalArgs, member.Token.Line, member.Token.Column)
+		}
+		return newErrorWithLocation("E4006", member.Token.Line, member.Token.Column,
+			"'%s' not found in module '%s'", memberName, alias)
+	}
+
+	// Get the actual module name from the alias (stdlib)
 	moduleName, ok := env.GetImport(alias)
 	if !ok {
 		return newError("module '%s' not imported", alias)
@@ -1842,9 +1942,20 @@ func getDefaultValue(typeName string) Object {
 }
 
 func evalMemberExpression(node *ast.MemberExpression, env *Environment) Object {
-	// Check if this is a module constant access (like math.pi)
+	// Check if this is a module member access
 	if objIdent, ok := node.Object.(*ast.Label); ok {
 		alias := objIdent.Value
+
+		// First check if it's a user module
+		if moduleObj, ok := env.GetModule(alias); ok {
+			if member, ok := moduleObj.Get(node.Member.Value); ok {
+				return member
+			}
+			return newErrorWithLocation("E4006", node.Token.Line, node.Token.Column,
+				"'%s' not found in module '%s'", node.Member.Value, alias)
+		}
+
+		// Then check stdlib imports
 		if moduleName, ok := env.GetImport(alias); ok {
 			fullName := moduleName + "." + node.Member.Value
 			if builtin, ok := builtins[fullName]; ok {

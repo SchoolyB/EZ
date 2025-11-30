@@ -35,6 +35,7 @@ type (
 	Enum            = object.Enum
 	EnumValue       = object.EnumValue
 	Environment     = object.Environment
+	ModuleObject    = object.ModuleObject
 )
 
 // Re-export constants
@@ -56,6 +57,7 @@ const (
 	CONTINUE_OBJ     = object.CONTINUE_OBJ
 	ENUM_OBJ         = object.ENUM_OBJ
 	ENUM_VALUE_OBJ   = object.ENUM_VALUE_OBJ
+	MODULE_OBJ       = object.MODULE_OBJ
 )
 
 // Note: Singleton values (NIL, TRUE, FALSE) are defined in evaluator.go
