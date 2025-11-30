@@ -380,6 +380,24 @@ func evalVariableDeclaration(node *ast.VariableDeclaration, env *Environment) Ob
 		if node.TypeName != "" {
 			// Check if declared type is an array type
 			if len(node.TypeName) > 0 && node.TypeName[0] == '[' {
+				// Check if const array has dynamic size (no fixed size specified)
+				// const arrays must have a fixed size like [int, 3], not [int]
+				if !node.Mutable && !strings.Contains(node.TypeName, ",") {
+					// Extract element type from [type] -> type
+					elemType := node.TypeName[1 : len(node.TypeName)-1]
+					// Get the array length for the suggested fix
+					arrayLen := 0
+					if arr, ok := val.(*Array); ok {
+						arrayLen = len(arr.Elements)
+					}
+					return newErrorWithLocation("E2032", node.Token.Line, node.Token.Column,
+						"const array must have a fixed size\n\n"+
+							"Dynamic arrays [%s] can change size, but const prevents modification.\n"+
+							"Use 'temp' for dynamic arrays, or specify a fixed size for const.\n\n"+
+							"Example: const arr [%s, %d] = %s",
+						elemType, elemType, arrayLen, val.Inspect())
+				}
+
 				// Array type declared - value must be an array
 				if _, ok := val.(*Array); !ok {
 					return newErrorWithLocation("E3018", node.Token.Line, node.Token.Column,
