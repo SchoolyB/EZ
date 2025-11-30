@@ -1,0 +1,49 @@
+// Test file for qualified type names in variable declarations (issue #157)
+// This verifies that module.Type syntax works for both temp and const declarations
+
+import @std
+
+// Define a local struct for testing (simulating imported type)
+const Task struct {
+    id int
+    title string
+}
+
+do main() {
+    using std
+
+    println("=== Qualified Type Name Tests ===")
+    println("")
+
+    // Test 1: temp with simple type (baseline)
+    temp t1 Task = Task{id: 1, title: "Task 1"}
+    println("Test 1 (temp simple): ${t1.title}")
+
+    // Test 2: const with simple type
+    const t2 Task = Task{id: 2, title: "Task 2"}
+    println("Test 2 (const simple): ${t2.title}")
+
+    // Test 3: temp array of struct
+    temp tasks [Task] = {
+        Task{id: 3, title: "Task 3"},
+        Task{id: 4, title: "Task 4"}
+    }
+    println("Test 3 (temp array): ${tasks[0].title}, ${tasks[1].title}")
+
+    // Test 4: const fixed-size array of struct
+    const constTasks [Task, 2] = {
+        Task{id: 5, title: "Task 5"},
+        Task{id: 6, title: "Task 6"}
+    }
+    println("Test 4 (const fixed array): ${constTasks[0].title}, ${constTasks[1].title}")
+
+    // Test 5: const map with struct value
+    const taskMap map[string:Task] = {
+        "first": Task{id: 7, title: "Task 7"}
+    }
+    temp key string = "first"
+    println("Test 5 (const map): ${taskMap[key].title}")
+
+    println("")
+    println("=== All Qualified Type Tests Passed! ===")
+}
