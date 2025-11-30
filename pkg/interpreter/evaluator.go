@@ -629,6 +629,8 @@ func evalVariableDeclaration(node *ast.VariableDeclaration, env *Environment) Ob
 					elemType = elemType[:len(elemType)-1] // Remove trailing ']'
 				}
 				arr.ElementType = elemType
+				// Set mutability based on temp vs const
+				arr.Mutable = node.Mutable
 			}
 
 			// Check if declared type is a map type
@@ -667,7 +669,7 @@ func evalVariableDeclaration(node *ast.VariableDeclaration, env *Environment) Ob
 			// Initialize dynamic array to empty array instead of NIL
 			// Extract element type from type name (e.g., "[int]" -> "int")
 			elementType := node.TypeName[1 : len(node.TypeName)-1]
-			val = &Array{Elements: []Object{}, Mutable: true, ElementType: elementType}
+			val = &Array{Elements: []Object{}, Mutable: node.Mutable, ElementType: elementType}
 		} else if strings.HasPrefix(node.TypeName, "map[") {
 			// Initialize map to empty map
 			m := NewMap()
@@ -1199,14 +1201,8 @@ func evalFunctionDeclaration(node *ast.FunctionDeclaration, env *Environment) Ob
 
 func evalIdentifier(node *ast.Label, env *Environment) Object {
 	if val, ok := env.Get(node.Value); ok {
-		// Set mutability flag on arrays and strings based on variable declaration
-		isMutable, _ := env.IsMutable(node.Value)
-		switch obj := val.(type) {
-		case *Array:
-			obj.Mutable = isMutable
-		case *String:
-			obj.Mutable = isMutable
-		}
+		// Mutability is now set at declaration time, not at lookup time
+		// This preserves the original object's mutability when passed to functions
 		return val
 	}
 
