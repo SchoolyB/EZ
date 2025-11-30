@@ -1,0 +1,15 @@
+/*
+ * TEST: Return type mismatch should ERROR at build-time
+ * Expected: E3012 - return type mismatch
+ */
+
+import @std
+
+do get_number() -> int {
+    // This should produce error E3012
+    return "not a number"
+}
+
+do main() {
+    std.println(get_number())
+}

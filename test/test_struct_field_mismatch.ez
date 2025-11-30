@@ -1,0 +1,18 @@
+/*
+ * TEST: Struct field type mismatch should ERROR at build-time
+ * Expected: E3001 - type mismatch on field assignment
+ */
+
+import @std
+
+const Person struct {
+    name string
+    age int
+}
+
+do main() {
+    temp p Person = Person{name: "Bob", age: 25}
+    // This should produce error E3001
+    p.age = "old"
+    std.println(p.age)
+}

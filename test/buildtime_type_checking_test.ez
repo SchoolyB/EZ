@@ -1,0 +1,243 @@
+/*
+ * EZ Language - Build-time Type Checking Tests
+ *
+ * This file tests that type checking happens at build-time (before execution).
+ * These tests verify that:
+ * - Variable declarations check types
+ * - Return statements check types
+ * - Function arguments check types
+ * - Operators check types
+ * - Loop conditions check types
+ */
+
+import @std
+import @arrays
+
+do main() {
+    using std
+
+    println("========================================")
+    println("  Build-time Type Checking Tests       ")
+    println("========================================")
+    println("")
+
+    test_valid_assignments()
+    test_valid_returns()
+    test_valid_function_calls()
+    test_valid_operators()
+    test_valid_control_flow()
+    test_scoping()
+
+    println("")
+    println("========================================")
+    println("  All Type Checking Tests Passed!      ")
+    println("========================================")
+}
+
+// ============================================================================
+// TEST: Valid Assignments
+// ============================================================================
+
+do test_valid_assignments() {
+    using std
+    println("-> Testing valid assignments...")
+
+    // Primitive type assignments
+    temp x int = 42
+    temp y float = 3.14
+    temp z string = "hello"
+    temp w bool = true
+    temp c char = 'a'
+
+    // Array assignments
+    temp arr [int] = {1, 2, 3}
+    temp empty_arr [string] = {}
+
+    // Nil assignment
+    temp maybe_nil int = nil
+
+    // Same-family integer assignments
+    temp a i32 = 100
+    temp b i64 = a // i32 -> i64 is fine
+
+    temp c2 u16 = 500
+    temp d u32 = c2 // u16 -> u32 is fine
+
+    // Unsigned to signed (safe direction)
+    temp u u32 = 1000
+    temp s i64 = u // u32 -> i64 is safe
+
+    println("  [OK] Valid assignments work")
+}
+
+// ============================================================================
+// TEST: Valid Returns
+// ============================================================================
+
+do test_valid_returns() {
+    using std
+    println("-> Testing valid returns...")
+
+    temp a int = get_int()
+    temp b string = get_string()
+    temp d i64 = get_from_unsigned()
+
+    println("  int return: ${a}")
+    println("  string return: ${b}")
+    println("  unsigned to signed: ${d}")
+
+    println("  [OK] Valid returns work")
+}
+
+do get_int() -> int {
+    return 42
+}
+
+do get_string() -> string {
+    return "hello"
+}
+
+do get_from_unsigned() -> i64 {
+    temp x u32 = 5000
+    return x // u32 -> i64 is safe
+}
+
+// ============================================================================
+// TEST: Valid Function Calls
+// ============================================================================
+
+do test_valid_function_calls() {
+    using std
+    println("-> Testing valid function calls...")
+
+    temp result int = add(10, 20)
+    println("  add(10, 20) = ${result}")
+
+    greet("World")
+
+    process_array({1, 2, 3})
+
+    println("  [OK] Valid function calls work")
+}
+
+do add(a, b int) -> int {
+    return a + b
+}
+
+do greet(name string) {
+    std.println("  Hello, ${name}!")
+}
+
+do process_array(arr [int]) {
+    std.println("  Array has ${len(arr)} elements")
+}
+
+// ============================================================================
+// TEST: Valid Operators
+// ============================================================================
+
+do test_valid_operators() {
+    using std
+    println("-> Testing valid operators...")
+
+    // Arithmetic
+    temp a int = 10 + 5
+    temp b float = 3.14 * 2.0
+    temp c int = 20 - 8
+    temp d float = 10.0 / 4.0
+
+    // Comparison
+    temp eq bool = (10 == 10)
+    temp lt bool = (5 < 10)
+    temp gt bool = (10 > 5)
+
+    // Logical
+    temp and_result bool = true && false
+    temp or_result bool = true || false
+    temp not_result bool = !false
+
+    // String concatenation
+    temp greeting string = "Hello" + " " + "World"
+
+    println("  Arithmetic: a=${a}, b=${b}, c=${c}")
+    println("  Comparison: eq=${eq}, lt=${lt}")
+    println("  Logical: and=${and_result}, or=${or_result}, not=${not_result}")
+    println("  String concat: ${greeting}")
+
+    println("  [OK] Valid operators work")
+}
+
+// ============================================================================
+// TEST: Valid Control Flow
+// ============================================================================
+
+do test_valid_control_flow() {
+    using std
+    println("-> Testing valid control flow...")
+
+    // If with boolean condition
+    if true {
+        println("  if statement works")
+    }
+
+    // If with comparison
+    if 10 > 5 {
+        println("  comparison in if works")
+    }
+
+    // While with boolean
+    temp counter int = 0
+    as_long_as counter < 3 {
+        counter++
+    }
+    println("  while loop works: counter=${counter}")
+
+    // For loop
+    temp sum int = 0
+    for i in range(0, 3) {
+        sum = sum + i
+    }
+    println("  for loop works: sum=${sum}")
+
+    // For each
+    temp arr [int] = {10, 20, 30}
+    temp total int = 0
+    for_each item in arr {
+        total = total + item
+    }
+    println("  for_each works: total=${total}")
+
+    println("  [OK] Valid control flow works")
+}
+
+// ============================================================================
+// TEST: Scoping
+// ============================================================================
+
+do test_scoping() {
+    using std
+    println("-> Testing scoping...")
+
+    temp outer int = 10
+
+    if true {
+        temp inner int = 20
+        // Both outer and inner are accessible here
+        temp sum int = outer + inner
+        println("  inner scope: outer=${outer}, inner=${inner}, sum=${sum}")
+    }
+
+    // Only outer is accessible here
+    println("  outer scope: outer=${outer}")
+
+    // Parameters are in scope
+    test_param_scope(42)
+
+    println("  [OK] Scoping works")
+}
+
+do test_param_scope(x int) {
+    // x should be accessible and have type int
+    temp doubled int = x * 2
+    std.println("  param scope: x=${x}, doubled=${doubled}")
+}
