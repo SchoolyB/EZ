@@ -1939,6 +1939,21 @@ func (p *Parser) parseIntegerValue() Expression {
 	return lit
 }
 
+// isAllUpperCase returns true if the string contains only uppercase letters
+// and underscores (enum member naming convention like ACTIVE, PENDING, FOO_BAR).
+// Returns false for PascalCase type names like Person, MyType.
+func isAllUpperCase(s string) bool {
+	if len(s) == 0 {
+		return false
+	}
+	for _, ch := range s {
+		if ch >= 'a' && ch <= 'z' {
+			return false // has lowercase letter, so it's not all uppercase
+		}
+	}
+	return true
+}
+
 // stripUnderscores removes all underscores from a numeric literal
 func stripUnderscores(s string) string {
 	if !strings.Contains(s, "_") {
@@ -2376,9 +2391,11 @@ func (p *Parser) parseMemberExpression(left Expression) Expression {
 	exp.Member = &Label{Token: p.currentToken, Value: p.currentToken.Literal}
 
 	// Check if this is a qualified struct literal: module.TypeName{...}
-	// Only if member starts with uppercase (type naming convention)
+	// Only if member starts with uppercase (type naming convention) AND is not all uppercase.
+	// All-uppercase names like STATUS.ACTIVE are enum members, not struct types.
+	// Struct types use PascalCase (e.g., Person, MyType).
 	memberName := exp.Member.Value
-	if p.peekTokenMatches(LBRACE) && len(memberName) > 0 && memberName[0] >= 'A' && memberName[0] <= 'Z' {
+	if p.peekTokenMatches(LBRACE) && len(memberName) > 0 && memberName[0] >= 'A' && memberName[0] <= 'Z' && !isAllUpperCase(memberName) {
 		// Build the qualified name from the member expression
 		if ident, ok := left.(*Label); ok {
 			qualifiedName := &Label{
