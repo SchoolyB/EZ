@@ -537,3 +537,9 @@ func (e *Environment) GetStructDef(name string) (*StructDef, bool) {
 	}
 	return nil, false
 }
+
+// GetAllBindings returns all bindings in this environment (not including outer scopes)
+// Used for module exports
+func (e *Environment) GetAllBindings() map[string]Object {
+	return e.store
+}

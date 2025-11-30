@@ -5,6 +5,7 @@ package main
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 
 	"github.com/marshallburns/ez/pkg/errors"
 	"github.com/marshallburns/ez/pkg/interpreter"
@@ -203,6 +204,13 @@ func runFile(filename string) {
 		return
 	}
 
+	// Get absolute path for module loading
+	absPath, err := filepath.Abs(filename)
+	if err != nil {
+		fmt.Printf("Error resolving path: %v\n", err)
+		return
+	}
+
 	source := string(data)
 	l := lexer.NewLexer(source)
 	p := parser.NewWithSource(l, source, filename)
@@ -252,6 +260,17 @@ func runFile(filename string) {
 	if tc.Errors().HasWarnings() {
 		fmt.Print(errors.FormatErrorList(tc.Errors()))
 	}
+
+	// Initialize the module loader with the directory of the main file
+	rootDir := filepath.Dir(absPath)
+	loader := interpreter.NewModuleLoader(rootDir)
+
+	// Set up the evaluation context
+	ctx := &interpreter.EvalContext{
+		Loader:      loader,
+		CurrentFile: absPath,
+	}
+	interpreter.SetEvalContext(ctx)
 
 	env := interpreter.NewEnvironment()
 	result := interpreter.Eval(program, env)
