@@ -633,50 +633,11 @@ func (p *Parser) parseVarableDeclarationOrStruct() Statement {
 		stmt.Names = append(stmt.Names, &Label{Token: nameToken, Value: nameToken.Literal})
 		stmt.Name = stmt.Names[0]
 
-		// Now continue with type parsing (the current position is at the name,
-		// peekToken should be the type or [)
-		// Parse type - can be IDENT or [type] for arrays
+		// Parse type using parseTypeName which handles qualified names (module.Type),
+		// arrays ([type], [type,size]), and maps (map[key:value])
 		p.nextToken()
-		if p.currentTokenMatches(LBRACKET) {
-			// Array type - use the array type parsing logic
-			typeName := "["
-			p.nextToken() // move past [
-
-			// The element type should be an identifier
-			if !p.currentTokenMatches(IDENT) {
-				msg := fmt.Sprintf("expected type name, got %s", p.currentToken.Type)
-				p.errors = append(p.errors, msg)
-				p.addEZError(errors.E2024, msg, p.currentToken)
-				return nil
-			}
-			typeName += p.currentToken.Literal
-
-			// Check for fixed-size array syntax: [type, size]
-			if p.peekTokenMatches(COMMA) {
-				p.nextToken() // consume comma
-				p.nextToken() // get size
-
-				// Size should be an integer
-				if !p.currentTokenMatches(INT) {
-					msg := fmt.Sprintf("expected integer for array size, got %s", p.currentToken.Type)
-					p.errors = append(p.errors, msg)
-					p.addEZError(errors.E2025, msg, p.currentToken)
-					return nil
-				}
-				typeName += "," + p.currentToken.Literal
-			}
-
-			if !p.expectPeek(RBRACKET) {
-				return nil
-			}
-			typeName += "]"
-			stmt.TypeName = typeName
-		} else if p.currentTokenMatches(IDENT) {
-			stmt.TypeName = p.currentToken.Literal
-		} else {
-			msg := fmt.Sprintf("expected type, got %s", p.currentToken.Type)
-			p.errors = append(p.errors, msg)
-			p.addEZError(errors.E2024, msg, p.currentToken)
+		stmt.TypeName = p.parseTypeName()
+		if stmt.TypeName == "" {
 			return nil
 		}
 
