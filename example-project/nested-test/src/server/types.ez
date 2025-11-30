@@ -16,15 +16,21 @@ const Response struct {
     body string
 }
 
+temp StatusCodes map[int:string] = {
+    200: "OK",
+    404: "Not Found",
+    500: "Internal Server Error"
+  }
+
 do get_status_text(code int) -> string {
     if code == 200 {
-        return "OK"
+        return StatusCodes[code]
     }
     if code == 404 {
-        return "Not Found"
+        return StatusCodes[code]
     }
     if code == 500 {
-        return "Internal Server Error"
+        return StatusCodes[code]
     }
     return "Unknown"
 }
