@@ -1294,12 +1294,16 @@ func evalPrefixExpression(operator string, right Object) Object {
 }
 
 func evalBangOperator(right Object) Object {
-	switch right {
-	case TRUE:
-		return FALSE
-	case FALSE:
+	// Use type assertion to check actual boolean value, not pointer identity.
+	// This is necessary because stdlib functions may return object.TRUE/FALSE
+	// which are different pointers than the evaluator's TRUE/FALSE constants.
+	switch obj := right.(type) {
+	case *Boolean:
+		if obj.Value {
+			return FALSE
+		}
 		return TRUE
-	case NIL:
+	case *Nil:
 		return TRUE
 	default:
 		return FALSE
@@ -1345,6 +1349,14 @@ func evalInfixExpression(operator string, left, right Object, line, col int) Obj
 		return evalStringInfixExpression(operator, left, right)
 	case left.Type() == CHAR_OBJ && right.Type() == CHAR_OBJ:
 		return evalCharInfixExpression(operator, left, right, line, col)
+	case left.Type() == BOOLEAN_OBJ && right.Type() == BOOLEAN_OBJ && (operator == "==" || operator == "!="):
+		// Compare boolean values, not pointers (stdlib may return different Boolean objects)
+		leftVal := left.(*Boolean).Value
+		rightVal := right.(*Boolean).Value
+		if operator == "==" {
+			return nativeBoolToBooleanObject(leftVal == rightVal)
+		}
+		return nativeBoolToBooleanObject(leftVal != rightVal)
 	case operator == "==":
 		return nativeBoolToBooleanObject(left == right)
 	case operator == "!=":
