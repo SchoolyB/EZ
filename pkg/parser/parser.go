@@ -22,6 +22,7 @@ var reservedKeywords = map[string]bool{
 	"break": true, "continue": true, "in": true, "not_in": true, "range": true,
 	"import": true, "using": true, "struct": true, "enum": true,
 	"nil": true, "new": true, "true": true, "false": true,
+	"module": true, "private": true, "from": true,
 }
 
 // Builtin function names that cannot be redefined
@@ -357,9 +358,28 @@ func (p *Parser) ParseProgram() *Program {
 	program.Statements = []Statement{}
 
 	seenOtherDeclaration := false
+	seenModuleDecl := false
 	importedModules := make(map[string]bool) // Track imported modules
 
+	// Check for module declaration first (must be first non-comment token)
+	if p.currentTokenMatches(MODULE) {
+		program.Module = p.parseModuleDeclaration()
+		seenModuleDecl = true
+		p.nextToken()
+	}
+
 	for !p.currentTokenMatches(EOF) {
+		// Module declaration must come first if present
+		if p.currentTokenMatches(MODULE) {
+			if seenModuleDecl {
+				p.addEZError(errors.E2002, "duplicate module declaration", p.currentToken)
+			} else if seenOtherDeclaration {
+				p.addEZError(errors.E2002, "module declaration must be the first statement in the file", p.currentToken)
+			}
+			p.nextToken()
+			continue
+		}
+
 		// Track what we've seen for placement validation
 		if p.currentTokenMatches(USING) {
 			// File-scoped using: must come before other declarations
@@ -434,32 +454,64 @@ func (p *Parser) parseStatement() Statement {
 		// parseAttributes advances to the declaration token
 	}
 
+	// Check for private modifier
+	visibility := VisibilityPublic
+	if p.currentTokenMatches(PRIVATE) {
+		visibility = VisibilityPrivate
+		// Check for private:module syntax
+		if p.peekTokenMatches(COLON) {
+			p.nextToken() // consume PRIVATE
+			p.nextToken() // consume COLON
+			if p.currentTokenMatches(IDENT) && p.currentToken.Literal == "module" {
+				visibility = VisibilityPrivateModule
+				p.nextToken() // move past "module"
+			} else {
+				p.addEZError(errors.E2002, "expected 'module' after 'private:'", p.currentToken)
+			}
+		} else {
+			p.nextToken() // move past PRIVATE to the declaration
+		}
+	}
+
 	switch p.currentToken.Type {
+	case FROM:
+		return p.parseFromImportStatement()
 	case CONST:
 		// For struct declarations like "const Name struct { ... }",
 		// we handle them in parseVarableDeclaration by detecting the STRUCT token
 		stmt := p.parseVarableDeclarationOrStruct()
-		if stmt != nil && len(attrs) > 0 {
-			// Handle attributes for VariableDeclaration, StructDeclaration, and EnumDeclaration
+		if stmt != nil {
+			// Apply visibility and attributes
 			switch s := stmt.(type) {
 			case *VariableDeclaration:
-				s.Attributes = attrs
+				s.Visibility = visibility
+				if len(attrs) > 0 {
+					s.Attributes = attrs
+				}
 			case *StructDeclaration:
-				// Structs don't currently support attributes, but we could add it
+				s.Visibility = visibility
 			case *EnumDeclaration:
-				// Parse enum-specific attributes from generic attribute list
-				s.Attributes = p.parseEnumAttributes(attrs)
+				s.Visibility = visibility
+				if len(attrs) > 0 {
+					s.Attributes = p.parseEnumAttributes(attrs)
+				}
 			}
 		}
 		return stmt
 	case TEMP:
 		stmt := p.parseVarableDeclaration()
-		if stmt != nil && len(attrs) > 0 {
-			stmt.Attributes = attrs
+		if stmt != nil {
+			stmt.Visibility = visibility
+			if len(attrs) > 0 {
+				stmt.Attributes = attrs
+			}
 		}
 		return stmt
 	case DO:
 		stmt := p.parseFunctionDeclarationWithAttrs(attrs)
+		if stmt != nil {
+			stmt.Visibility = visibility
+		}
 		return stmt
 	case RETURN:
 		return p.parseReturnStatement()
@@ -1281,9 +1333,20 @@ func (p *Parser) parseImportStatement() *ImportStatement {
 
 	p.nextToken()
 
+	// Check for "import & use" syntax
+	if p.currentTokenMatches(AMPERSAND) {
+		p.nextToken() // move past &
+		if p.currentTokenMatches(USING) {
+			stmt.AutoUse = true
+			p.nextToken() // move past 'use' to the module
+		} else {
+			p.addEZError(errors.E2002, "expected 'use' after '&' in import statement", p.currentToken)
+		}
+	}
+
 	// Parse first import
 	item := p.parseSingleImport()
-	if item.Module != "" {
+	if item.Module != "" || item.Path != "" {
 		stmt.Imports = append(stmt.Imports, item)
 		// For backward compatibility, populate the old fields for single imports
 		stmt.Module = item.Module
@@ -1296,7 +1359,7 @@ func (p *Parser) parseImportStatement() *ImportStatement {
 		p.nextToken() // move past comma
 
 		item := p.parseSingleImport()
-		if item.Module != "" {
+		if item.Module != "" || item.Path != "" {
 			stmt.Imports = append(stmt.Imports, item)
 		}
 	}
@@ -1304,31 +1367,148 @@ func (p *Parser) parseImportStatement() *ImportStatement {
 	return stmt
 }
 
-// parseSingleImport parses a single import (either @module or alias@module)
+// parseSingleImport parses a single import
+// Supports:
+//   - @module (stdlib)
+//   - alias@module (stdlib with alias)
+//   - "./path" (user module)
+//   - alias"./path" (user module with alias)
 func (p *Parser) parseSingleImport() ImportItem {
 	item := ImportItem{}
 
-	// New syntax: import @module or import alias@module
+	// Check for path import: "./path" or alias"./path"
+	if p.currentTokenMatches(STRING) {
+		// Direct path import: "./utils"
+		item.Path = p.currentToken.Literal
+		item.IsStdlib = false
+		// Extract module name from path for default alias
+		item.Alias = extractModuleNameFromPath(item.Path)
+		return item
+	}
+
+	// Stdlib or aliased import
 	if p.currentTokenMatches(AT) {
 		// @module - no alias, use module name
 		p.nextToken()
 		if p.currentTokenMatches(IDENT) {
 			item.Module = p.currentToken.Literal
 			item.Alias = item.Module // use module name as alias
+			item.IsStdlib = true
 		}
 	} else if p.currentTokenMatches(IDENT) {
-		// alias@module
+		// Could be alias@module or alias"./path"
 		item.Alias = p.currentToken.Literal
 		p.nextToken()
+
 		if p.currentTokenMatches(AT) {
+			// alias@module (stdlib)
 			p.nextToken()
 			if p.currentTokenMatches(IDENT) {
 				item.Module = p.currentToken.Literal
+				item.IsStdlib = true
 			}
+		} else if p.currentTokenMatches(STRING) {
+			// alias"./path" (user module)
+			item.Path = p.currentToken.Literal
+			item.IsStdlib = false
 		}
 	}
 
 	return item
+}
+
+// extractModuleNameFromPath extracts the module name from a path
+// e.g., "./server" -> "server", "../utils" -> "utils", "./src/networking" -> "networking"
+func extractModuleNameFromPath(path string) string {
+	// Remove leading ./ or ../
+	for strings.HasPrefix(path, "./") || strings.HasPrefix(path, "../") {
+		if strings.HasPrefix(path, "./") {
+			path = path[2:]
+		} else if strings.HasPrefix(path, "../") {
+			path = path[3:]
+		}
+	}
+	// Get the last component
+	parts := strings.Split(path, "/")
+	if len(parts) > 0 {
+		return parts[len(parts)-1]
+	}
+	return path
+}
+
+// parseModuleDeclaration parses "module modulename"
+func (p *Parser) parseModuleDeclaration() *ModuleDeclaration {
+	stmt := &ModuleDeclaration{Token: p.currentToken}
+
+	if !p.expectPeek(IDENT) {
+		return nil
+	}
+
+	stmt.Name = &Label{Token: p.currentToken, Value: p.currentToken.Literal}
+	return stmt
+}
+
+// parseFromImportStatement parses "from @module import item1, item2"
+// or "from ./path import item1, item2"
+func (p *Parser) parseFromImportStatement() *FromImportStatement {
+	stmt := &FromImportStatement{Token: p.currentToken}
+	stmt.Items = []*ImportSpec{}
+
+	p.nextToken() // move past 'from'
+
+	// Parse module path
+	if p.currentTokenMatches(AT) {
+		// Stdlib: from @arrays import ...
+		stmt.IsStdlib = true
+		p.nextToken()
+		if p.currentTokenMatches(IDENT) {
+			stmt.Path = p.currentToken.Literal
+		}
+	} else if p.currentTokenMatches(STRING) {
+		// User module: from "./utils" import ...
+		stmt.IsStdlib = false
+		stmt.Path = p.currentToken.Literal
+	} else {
+		p.addEZError(errors.E2002, "expected module path after 'from'", p.currentToken)
+		return nil
+	}
+
+	// Expect 'import' keyword
+	if !p.expectPeek(IMPORT) {
+		return nil
+	}
+
+	// Parse imported items
+	p.nextToken() // move past 'import'
+
+	for {
+		if !p.currentTokenMatches(IDENT) {
+			p.addEZError(errors.E2002, "expected identifier in from-import", p.currentToken)
+			return nil
+		}
+
+		spec := &ImportSpec{Name: p.currentToken.Literal}
+
+		// Check for 'as' alias
+		if p.peekTokenMatches(IDENT) && p.peekToken.Literal == "as" {
+			p.nextToken() // consume current ident
+			p.nextToken() // consume 'as'
+			if p.currentTokenMatches(IDENT) {
+				spec.Alias = p.currentToken.Literal
+			}
+		}
+
+		stmt.Items = append(stmt.Items, spec)
+
+		// Check for more items
+		if !p.peekTokenMatches(COMMA) {
+			break
+		}
+		p.nextToken() // consume comma
+		p.nextToken() // move to next item
+	}
+
+	return stmt
 }
 
 func (p *Parser) parseUsingStatement() *UsingStatement {

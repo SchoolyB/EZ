@@ -30,6 +30,7 @@ const (
 	CONTINUE_OBJ     ObjectType = "CONTINUE"
 	ENUM_OBJ         ObjectType = "ENUM"
 	ENUM_VALUE_OBJ   ObjectType = "ENUM_VALUE"
+	MODULE_OBJ       ObjectType = "MODULE"
 )
 
 type Object interface {
@@ -334,6 +335,23 @@ func (ev *EnumValue) Inspect() string {
 	return ev.Value.Inspect()
 }
 
+// ModuleObject represents a loaded module at runtime
+type ModuleObject struct {
+	Name    string            // Module name
+	Exports map[string]Object // Exported (public) symbols
+}
+
+func (m *ModuleObject) Type() ObjectType { return MODULE_OBJ }
+func (m *ModuleObject) Inspect() string {
+	return fmt.Sprintf("<module %s>", m.Name)
+}
+
+// Get retrieves an exported symbol from the module
+func (m *ModuleObject) Get(name string) (Object, bool) {
+	obj, ok := m.Exports[name]
+	return obj, ok
+}
+
 // Singleton values
 var (
 	NIL   = &Nil{}
@@ -347,7 +365,8 @@ type Environment struct {
 	mutable    map[string]bool
 	structDefs map[string]*StructDef
 	outer      *Environment
-	imports    map[string]string
+	imports    map[string]string        // Legacy: alias -> stdlib module name
+	modules    map[string]*ModuleObject // User modules: alias -> module object
 	using      []string
 	loopDepth  int
 }
@@ -359,6 +378,7 @@ func NewEnvironment() *Environment {
 		structDefs: make(map[string]*StructDef),
 		outer:      nil,
 		imports:    make(map[string]string),
+		modules:    make(map[string]*ModuleObject),
 		using:      []string{},
 		loopDepth:  0,
 	}
@@ -395,6 +415,38 @@ func (e *Environment) GetImport(alias string) (string, bool) {
 		return e.outer.GetImport(alias)
 	}
 	return "", false
+}
+
+// RegisterModule registers a user module with the given alias
+func (e *Environment) RegisterModule(alias string, mod *ModuleObject) {
+	e.modules[alias] = mod
+}
+
+// GetModule retrieves a registered user module by alias
+func (e *Environment) GetModule(alias string) (*ModuleObject, bool) {
+	if mod, ok := e.modules[alias]; ok {
+		return mod, true
+	}
+	if e.outer != nil {
+		return e.outer.GetModule(alias)
+	}
+	return nil, false
+}
+
+// HasModule checks if a module is registered (either stdlib import or user module)
+func (e *Environment) HasModule(alias string) bool {
+	// Check user modules
+	if _, ok := e.modules[alias]; ok {
+		return true
+	}
+	// Check stdlib imports
+	if _, ok := e.imports[alias]; ok {
+		return true
+	}
+	if e.outer != nil {
+		return e.outer.HasModule(alias)
+	}
+	return false
 }
 
 func (e *Environment) Use(alias string) {
