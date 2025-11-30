@@ -269,7 +269,7 @@ const result2 bool = arrays.is_empty(nums)  // false
 
 ### Adding Elements
 
-#### `arrays.push(array, value, ...)`
+#### `arrays.append(array, value, ...)`
 
 Adds one or more elements to the end of an array. Modifies the array in-place.
 
@@ -284,8 +284,8 @@ Adds one or more elements to the end of an array. Modifies the array in-place.
 using arrays
 
 const nums [int] = [1, 2, 3]
-arrays.push(nums, 4)       // nums is now [1, 2, 3, 4]
-arrays.push(nums, 5, 6)    // nums is now [1, 2, 3, 4, 5, 6]
+arrays.append(nums, 4)       // nums is now [1, 2, 3, 4]
+arrays.append(nums, 5, 6)    // nums is now [1, 2, 3, 4, 5, 6]
 ```
 
 #### `arrays.unshift(array, value, ...)`

@@ -27,9 +27,9 @@ do test_temp_arrays_are_mutable() {
     println("→ Testing that temp arrays ARE mutable...")
 
     temp arr1 [int] = {1, 2, 3}
-    println("  Before push:", arr1)
-    push(arr1, 4)
-    println("  After push: ", arr1)
+    println("  Before append:", arr1)
+    append(arr1, 4)
+    println("  After append: ", arr1)
 
     temp arr2 [int] = {10, 20, 30}
     println("  Before pop: ", arr2)

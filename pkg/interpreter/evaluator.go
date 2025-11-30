@@ -263,7 +263,7 @@ func Eval(node ast.Node, env *Environment) Object {
 					return newErrorWithLocation("E9004", node.Token.Line, node.Token.Column,
 						"index out of bounds: array is empty (length 0)\n\n"+
 							"Attempted to access index %d, but array has no elements\n"+
-							"Hint: Use arrays.push() to add elements before accessing by index", idx.Value)
+							"Hint: Use arrays.append() to add elements before accessing by index", idx.Value)
 				}
 				return newErrorWithLocation("E9001", node.Token.Line, node.Token.Column,
 					"index out of bounds: attempted to access index %d, but valid range is 0-%d",
@@ -541,7 +541,7 @@ func evalAssignment(node *ast.AssignmentStatement, env *Environment) Object {
 					return newErrorWithLocation("E9004", node.Token.Line, node.Token.Column,
 						"index out of bounds: array is empty (length 0)\n\n"+
 							"Attempted to assign to index %d, but array has no elements\n"+
-							"Hint: Use arrays.push() to add elements before accessing by index", index.Value)
+							"Hint: Use arrays.append() to add elements before accessing by index", index.Value)
 				}
 				return newErrorWithLocation("E9001", node.Token.Line, node.Token.Column,
 					"index out of bounds: attempted to assign to index %d, but valid range is 0-%d",
