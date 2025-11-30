@@ -2473,11 +2473,14 @@ func (p *Parser) parseRangeExpression() Expression {
 // Attribute Parsing
 // ============================================================================
 
+// Known attribute names (without the @ prefix)
+var knownAttributeNames = []string{"suppress", "ignore"}
+
 // parseAttributes parses @suppress(...) and @(...) attributes before declarations
 func (p *Parser) parseAttributes() []*Attribute {
 	attributes := []*Attribute{}
 
-	// Handle both @suppress(...) and @(...)
+	// Handle @suppress(...), @(...), and detect unknown attributes like @supress
 	for p.currentTokenMatches(SUPPRESS) || p.currentTokenMatches(AT) {
 		if p.currentTokenMatches(SUPPRESS) {
 			// Handle @suppress(...) - existing code
@@ -2485,9 +2488,55 @@ func (p *Parser) parseAttributes() []*Attribute {
 			continue
 		}
 
-		// Handle @(...) for enum attributes
+		// Handle AT token - could be @(...) or @identifier (unknown/misspelled attribute)
 		if p.currentTokenMatches(AT) {
-			attributes = append(attributes, p.parseGenericAttribute())
+			// Check what follows the @
+			if p.peekTokenMatches(LPAREN) {
+				// @(...) - generic attribute for enums
+				attributes = append(attributes, p.parseGenericAttribute())
+				continue
+			}
+
+			if p.peekTokenMatches(IDENT) {
+				// @identifier - unknown or misspelled attribute name
+				atToken := p.currentToken
+				p.nextToken() // move to the identifier
+				attrName := p.currentToken.Literal
+
+				// Try to suggest a known attribute name
+				suggestion := errors.SuggestFromList(attrName, knownAttributeNames)
+				var msg string
+				if suggestion != "" {
+					msg = fmt.Sprintf("unknown attribute '@%s', did you mean '@%s'?", attrName, suggestion)
+				} else {
+					msg = fmt.Sprintf("unknown attribute '@%s'", attrName)
+				}
+				p.addEZError(errors.E2001, msg, atToken)
+
+				// Skip past the attribute arguments if present: @name(...)
+				if p.peekTokenMatches(LPAREN) {
+					p.nextToken() // consume LPAREN
+					// Skip until we find matching RPAREN or hit declaration tokens
+					depth := 1
+					for depth > 0 && !p.currentTokenMatches(EOF) {
+						p.nextToken()
+						if p.currentTokenMatches(LPAREN) {
+							depth++
+						} else if p.currentTokenMatches(RPAREN) {
+							depth--
+						}
+					}
+				}
+
+				// Move to next token
+				p.nextToken()
+				continue
+			}
+
+			// @ followed by something unexpected - skip it and emit error
+			msg := fmt.Sprintf("unexpected token after '@': %s", p.peekToken.Literal)
+			p.addEZError(errors.E2001, msg, p.currentToken)
+			p.nextToken() // skip the @
 			continue
 		}
 	}
