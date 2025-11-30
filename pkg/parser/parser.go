@@ -1255,18 +1255,10 @@ func (p *Parser) parseFunctionParameters() []*Parameter {
 			return nil
 		}
 
-		var typeName string
-		if p.currentTokenMatches(LBRACKET) {
-			// Array type [type]
-			typeName = "["
-			p.nextToken() // move past [
-			typeName += p.currentToken.Literal
-			if !p.expectPeek(RBRACKET) {
-				return nil
-			}
-			typeName += "]"
-		} else {
-			typeName = p.currentToken.Literal
+		// Use parseTypeName to handle qualified types (e.g., module.Type) and arrays
+		typeName := p.parseTypeName()
+		if typeName == "" {
+			return nil
 		}
 
 		// Apply the type to all collected names
