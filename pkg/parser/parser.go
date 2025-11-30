@@ -1538,30 +1538,51 @@ func (p *Parser) parseStructDeclaration() *StructDeclaration {
 	p.nextToken() // move into struct body
 
 	for !p.currentTokenMatches(RBRACE) && !p.currentTokenMatches(EOF) {
-		field := &StructField{}
-		field.Name = &Label{Token: p.currentToken, Value: p.currentToken.Literal}
+		// Collect all field names (supports "name, email string" syntax)
+		var names []*Label
+		names = append(names, &Label{Token: p.currentToken, Value: p.currentToken.Literal})
 
-		// Check for duplicate field names
-		if prevToken, exists := fieldNames[field.Name.Value]; exists {
-			msg := fmt.Sprintf("duplicate field name '%s' in struct '%s'", field.Name.Value, stmt.Name.Value)
-			p.addEZError(errors.E2013, msg, field.Name.Token)
-			// Add help message pointing to first declaration
-			helpMsg := fmt.Sprintf("field '%s' first declared at line %d", field.Name.Value, prevToken.Line)
-			p.errors = append(p.errors, helpMsg)
-		} else {
-			fieldNames[field.Name.Value] = field.Name.Token
+		// Check for comma-separated names
+		for p.peekTokenMatches(COMMA) {
+			p.nextToken() // move to comma
+			p.nextToken() // move to next name
+			if !p.currentTokenMatches(IDENT) {
+				msg := "expected field name after comma"
+				p.addEZError(errors.E2003, msg, p.currentToken)
+				return nil
+			}
+			names = append(names, &Label{Token: p.currentToken, Value: p.currentToken.Literal})
 		}
 
 		// Move to type token (can be IDENT or LBRACKET for arrays)
 		p.nextToken()
 
 		// Parse the type name (handles both simple types and array types)
-		field.TypeName = p.parseTypeName()
-		if field.TypeName == "" {
+		typeName := p.parseTypeName()
+		if typeName == "" {
 			return nil
 		}
 
-		stmt.Fields = append(stmt.Fields, field)
+		// Create a field for each name with the same type
+		for _, name := range names {
+			// Check for duplicate field names
+			if prevToken, exists := fieldNames[name.Value]; exists {
+				msg := fmt.Sprintf("duplicate field name '%s' in struct '%s'", name.Value, stmt.Name.Value)
+				p.addEZError(errors.E2013, msg, name.Token)
+				// Add help message pointing to first declaration
+				helpMsg := fmt.Sprintf("field '%s' first declared at line %d", name.Value, prevToken.Line)
+				p.errors = append(p.errors, helpMsg)
+			} else {
+				fieldNames[name.Value] = name.Token
+			}
+
+			field := &StructField{
+				Name:     name,
+				TypeName: typeName,
+			}
+			stmt.Fields = append(stmt.Fields, field)
+		}
+
 		p.nextToken()
 	}
 
