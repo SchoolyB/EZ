@@ -574,7 +574,14 @@ func (tc *TypeChecker) checkVariableDeclaration(decl *ast.VariableDeclaration) {
 	}
 
 	// If there's an initial value, check type compatibility
-	if decl.Value != nil && declaredType != "" {
+	if decl.Value != nil {
+		// Validate the expression itself
+		tc.checkExpression(decl.Value)
+
+		if declaredType == "" {
+			return // No type to check against
+		}
+
 		actualType, ok := tc.inferExpressionType(decl.Value)
 		if ok {
 			// Check if it's an array type mismatch (assigning scalar to array)
@@ -609,10 +616,17 @@ func (tc *TypeChecker) checkVariableDeclaration(decl *ast.VariableDeclaration) {
 
 // checkAssignment validates an assignment statement (Phase 3)
 func (tc *TypeChecker) checkAssignment(assign *ast.AssignmentStatement) {
+	// Also validate the value expression
+	tc.checkExpression(assign.Value)
+
 	// Get the target type
 	targetType, targetOk := tc.inferExpressionType(assign.Name)
 	if !targetOk {
-		return // Can't determine target type
+		// Try to get more specific type info for member expressions
+		if member, ok := assign.Name.(*ast.MemberExpression); ok {
+			tc.checkMemberAssignment(member, assign.Value)
+		}
+		return
 	}
 
 	// Get the value type
@@ -631,10 +645,66 @@ func (tc *TypeChecker) checkAssignment(assign *ast.AssignmentStatement) {
 			column,
 		)
 	}
+
+	// For index expressions, also validate the index
+	if indexExpr, ok := assign.Name.(*ast.IndexExpression); ok {
+		tc.checkIndexExpression(indexExpr)
+	}
+}
+
+// checkMemberAssignment validates struct field assignments
+func (tc *TypeChecker) checkMemberAssignment(member *ast.MemberExpression, value ast.Expression) {
+	// Get the object type
+	objType, ok := tc.inferExpressionType(member.Object)
+	if !ok {
+		return
+	}
+
+	// Look up struct type
+	structType, exists := tc.types[objType]
+	if !exists || structType.Kind != StructType {
+		return // Not a struct, can't check field types
+	}
+
+	// Get the field type
+	fieldType, hasField := structType.Fields[member.Member.Value]
+	if !hasField {
+		line, column := tc.getExpressionPosition(member.Member)
+		tc.addError(
+			errors.E4003,
+			fmt.Sprintf("struct '%s' has no field '%s'", objType, member.Member.Value),
+			line,
+			column,
+		)
+		return
+	}
+
+	// Get the value type
+	valueType, ok := tc.inferExpressionType(value)
+	if !ok {
+		return
+	}
+
+	// Check compatibility
+	if !tc.typesCompatible(fieldType.Name, valueType) {
+		line, column := tc.getExpressionPosition(member.Member)
+		tc.addError(
+			errors.E3001,
+			fmt.Sprintf("type mismatch: cannot assign %s to field '%s' of type %s",
+				valueType, member.Member.Value, fieldType.Name),
+			line,
+			column,
+		)
+	}
 }
 
 // checkReturnStatement validates a return statement (Phase 4)
 func (tc *TypeChecker) checkReturnStatement(ret *ast.ReturnStatement, expectedTypes []string) {
+	// Validate all return value expressions
+	for _, val := range ret.Values {
+		tc.checkExpression(val)
+	}
+
 	// No return type expected
 	if len(expectedTypes) == 0 {
 		if len(ret.Values) > 0 {
@@ -678,15 +748,210 @@ func (tc *TypeChecker) checkReturnStatement(ret *ast.ReturnStatement, expectedTy
 	}
 }
 
-// checkExpressionStatement validates an expression statement (Phase 5 - function calls)
+// checkExpressionStatement validates an expression statement
 func (tc *TypeChecker) checkExpressionStatement(exprStmt *ast.ExpressionStatement) {
 	if exprStmt.Expression == nil {
 		return
 	}
 
-	// If it's a function call, validate argument types
-	if call, ok := exprStmt.Expression.(*ast.CallExpression); ok {
-		tc.checkFunctionCall(call)
+	// Validate the entire expression tree
+	tc.checkExpression(exprStmt.Expression)
+}
+
+// checkExpression recursively validates an expression and its sub-expressions
+func (tc *TypeChecker) checkExpression(expr ast.Expression) {
+	if expr == nil {
+		return
+	}
+
+	switch e := expr.(type) {
+	case *ast.CallExpression:
+		tc.checkFunctionCall(e)
+		// Also check arguments
+		for _, arg := range e.Arguments {
+			tc.checkExpression(arg)
+		}
+
+	case *ast.InfixExpression:
+		tc.checkInfixExpression(e)
+		tc.checkExpression(e.Left)
+		tc.checkExpression(e.Right)
+
+	case *ast.PrefixExpression:
+		tc.checkPrefixExpression(e)
+		tc.checkExpression(e.Right)
+
+	case *ast.IndexExpression:
+		tc.checkIndexExpression(e)
+		tc.checkExpression(e.Left)
+		tc.checkExpression(e.Index)
+
+	case *ast.MemberExpression:
+		tc.checkExpression(e.Object)
+
+	case *ast.ArrayValue:
+		for _, elem := range e.Elements {
+			tc.checkExpression(elem)
+		}
+	}
+}
+
+// checkInfixExpression validates binary operator usage (Phase 6)
+func (tc *TypeChecker) checkInfixExpression(infix *ast.InfixExpression) {
+	leftType, leftOk := tc.inferExpressionType(infix.Left)
+	rightType, rightOk := tc.inferExpressionType(infix.Right)
+
+	if !leftOk || !rightOk {
+		return // Can't determine types
+	}
+
+	line, column := tc.getExpressionPosition(infix.Left)
+
+	switch infix.Operator {
+	case "+":
+		// Valid for numbers or strings
+		if tc.isNumericType(leftType) && tc.isNumericType(rightType) {
+			return // OK
+		}
+		if leftType == "string" && rightType == "string" {
+			return // OK - string concatenation
+		}
+		tc.addError(
+			errors.E3002,
+			fmt.Sprintf("invalid operands for '+': %s and %s (expected numeric or string)", leftType, rightType),
+			line,
+			column,
+		)
+
+	case "-", "*", "/", "%":
+		// Only valid for numbers
+		if !tc.isNumericType(leftType) || !tc.isNumericType(rightType) {
+			tc.addError(
+				errors.E3002,
+				fmt.Sprintf("invalid operands for '%s': %s and %s (expected numeric)", infix.Operator, leftType, rightType),
+				line,
+				column,
+			)
+		}
+
+	case "==", "!=":
+		// Valid for any matching types
+		if !tc.typesCompatible(leftType, rightType) && !tc.typesCompatible(rightType, leftType) {
+			tc.addError(
+				errors.E3002,
+				fmt.Sprintf("cannot compare %s with %s using '%s'", leftType, rightType, infix.Operator),
+				line,
+				column,
+			)
+		}
+
+	case "<", ">", "<=", ">=":
+		// Only valid for numbers or strings
+		if !tc.isNumericType(leftType) && leftType != "string" {
+			tc.addError(
+				errors.E3002,
+				fmt.Sprintf("invalid operand for '%s': %s (expected numeric or string)", infix.Operator, leftType),
+				line,
+				column,
+			)
+		}
+		if !tc.isNumericType(rightType) && rightType != "string" {
+			tc.addError(
+				errors.E3002,
+				fmt.Sprintf("invalid operand for '%s': %s (expected numeric or string)", infix.Operator, rightType),
+				line,
+				column,
+			)
+		}
+
+	case "&&", "||":
+		// Only valid for booleans
+		if leftType != "bool" {
+			tc.addError(
+				errors.E3002,
+				fmt.Sprintf("invalid operand for '%s': %s (expected bool)", infix.Operator, leftType),
+				line,
+				column,
+			)
+		}
+		if rightType != "bool" {
+			tc.addError(
+				errors.E3002,
+				fmt.Sprintf("invalid operand for '%s': %s (expected bool)", infix.Operator, rightType),
+				line,
+				column,
+			)
+		}
+
+	case "in", "!in":
+		// Right side must be array or string
+		if !tc.isArrayType(rightType) && rightType != "string" {
+			tc.addError(
+				errors.E3002,
+				fmt.Sprintf("invalid operand for '%s': %s (expected array or string)", infix.Operator, rightType),
+				line,
+				column,
+			)
+		}
+	}
+}
+
+// checkPrefixExpression validates unary operator usage
+func (tc *TypeChecker) checkPrefixExpression(prefix *ast.PrefixExpression) {
+	operandType, ok := tc.inferExpressionType(prefix.Right)
+	if !ok {
+		return
+	}
+
+	line, column := tc.getExpressionPosition(prefix.Right)
+
+	switch prefix.Operator {
+	case "!":
+		if operandType != "bool" {
+			tc.addError(
+				errors.E3002,
+				fmt.Sprintf("invalid operand for '!': %s (expected bool)", operandType),
+				line,
+				column,
+			)
+		}
+
+	case "-":
+		if !tc.isNumericType(operandType) {
+			tc.addError(
+				errors.E3002,
+				fmt.Sprintf("invalid operand for unary '-': %s (expected numeric)", operandType),
+				line,
+				column,
+			)
+		}
+	}
+}
+
+// checkIndexExpression validates array/string indexing
+func (tc *TypeChecker) checkIndexExpression(index *ast.IndexExpression) {
+	// Check that the index is an integer
+	indexType, ok := tc.inferExpressionType(index.Index)
+	if ok && !tc.isIntegerType(indexType) {
+		line, column := tc.getExpressionPosition(index.Index)
+		tc.addError(
+			errors.E3003,
+			fmt.Sprintf("index must be an integer, got %s", indexType),
+			line,
+			column,
+		)
+	}
+
+	// Check that the left side is indexable
+	leftType, ok := tc.inferExpressionType(index.Left)
+	if ok && !tc.isArrayType(leftType) && leftType != "string" {
+		line, column := tc.getExpressionPosition(index.Left)
+		tc.addError(
+			errors.E3016,
+			fmt.Sprintf("cannot index into %s (expected array or string)", leftType),
+			line,
+			column,
+		)
 	}
 }
 
