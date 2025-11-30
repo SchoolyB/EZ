@@ -1,0 +1,66 @@
+// Test file for stdlib boolean negation (issue #146)
+// This verifies that boolean values returned from stdlib functions
+// can be correctly negated with the ! operator.
+
+import @std
+import @maps
+import @strings
+
+do main() {
+    using std
+
+    println("=== Stdlib Boolean Negation Tests ===")
+    println("")
+
+    // Test 1: maps.has() negation
+    temp users map[string:int] = {"alice": 25, "bob": 30}
+    temp hasCharlie bool = maps.has(users, "charlie")
+    temp hasAlice bool = maps.has(users, "alice")
+
+    println("Test 1: maps.has() negation")
+    if !hasCharlie {
+        println("  PASS: !hasCharlie is true (charlie not in map)")
+    } otherwise {
+        println("  FAIL: !hasCharlie should be true")
+    }
+
+    if !hasAlice {
+        println("  FAIL: !hasAlice should be false (alice is in map)")
+    } otherwise {
+        println("  PASS: !hasAlice is false")
+    }
+
+    // Test 2: strings.contains() negation
+    temp str string = "hello world"
+    temp hasFoo bool = strings.contains(str, "foo")
+
+    println("")
+    println("Test 2: strings.contains() negation")
+    if !hasFoo {
+        println("  PASS: !hasFoo is true")
+    } otherwise {
+        println("  FAIL: !hasFoo should be true")
+    }
+
+    // Test 3: Direct negation in condition
+    println("")
+    println("Test 3: Direct negation in condition")
+    if !maps.has(users, "charlie") {
+        println("  PASS: !maps.has() works directly in condition")
+    } otherwise {
+        println("  FAIL: !maps.has() should work directly")
+    }
+
+    // Test 4: Double negation
+    println("")
+    println("Test 4: Double negation")
+    temp val bool = maps.has(users, "alice")
+    if !!val == val {
+        println("  PASS: !!val == val")
+    } otherwise {
+        println("  FAIL: !!val should equal val")
+    }
+
+    println("")
+    println("=== All Stdlib Negation Tests Passed! ===")
+}
