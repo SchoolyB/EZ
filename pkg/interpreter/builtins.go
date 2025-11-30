@@ -90,7 +90,7 @@ var builtins = map[string]*Builtin{
 	"len": {
 		Fn: func(args ...Object) Object {
 			if len(args) != 1 {
-				return newError("len() takes exactly 1 argument, got %d", len(args))
+				return &Error{Code: "E7001", Message: fmt.Sprintf("len() takes exactly 1 argument, got %d", len(args))}
 			}
 
 			switch arg := args[0].(type) {
@@ -99,7 +99,7 @@ var builtins = map[string]*Builtin{
 			case *Array:
 				return &Integer{Value: int64(len(arg.Elements))}
 			default:
-				return newError("len() not supported for %s", args[0].Type())
+				return &Error{Code: "E7003", Message: fmt.Sprintf("len() not supported for %s", args[0].Type())}
 			}
 		},
 	},
@@ -107,7 +107,7 @@ var builtins = map[string]*Builtin{
 	"typeof": {
 		Fn: func(args ...Object) Object {
 			if len(args) != 1 {
-				return newError("typeof() takes exactly 1 argument")
+				return &Error{Code: "E7001", Message: "typeof() takes exactly 1 argument"}
 			}
 			return &String{Value: string(args[0].Type())}
 		},
@@ -117,7 +117,7 @@ var builtins = map[string]*Builtin{
 	"int": {
 		Fn: func(args ...Object) Object {
 			if len(args) != 1 {
-				return newError("int() takes exactly 1 argument")
+				return &Error{Code: "E7001", Message: "int() takes exactly 1 argument"}
 			}
 			switch arg := args[0].(type) {
 			case *Integer:
@@ -130,7 +130,7 @@ var builtins = map[string]*Builtin{
 				val, err := strconv.ParseInt(cleanedValue, 10, 64)
 				if err != nil {
 					return &Error{
-						Code: "E4003",
+						Code: "E7005",
 						Message: fmt.Sprintf("cannot convert %q to int: invalid integer format\n\n"+
 							"The string must contain only digits (0-9), optionally with:\n"+
 							"  - A leading + or - sign\n"+
@@ -145,14 +145,14 @@ var builtins = map[string]*Builtin{
 			default:
 				if args[0].Type() == ARRAY_OBJ {
 					return &Error{
-						Code: "E2001",
+						Code: "E7005",
 						Message: "cannot convert ARRAY to int\n\n" +
 							"Arrays cannot be directly converted to integers.\n" +
 							"Hint: If you want the array length, use len() instead:\n" +
 							"    len(myArray)  // returns the number of elements",
 					}
 				}
-				return newError("cannot convert %s to int", args[0].Type())
+				return &Error{Code: "E7005", Message: fmt.Sprintf("cannot convert %s to int", args[0].Type())}
 			}
 		},
 	},
@@ -160,7 +160,7 @@ var builtins = map[string]*Builtin{
 	"float": {
 		Fn: func(args ...Object) Object {
 			if len(args) != 1 {
-				return newError("float() takes exactly 1 argument")
+				return &Error{Code: "E7001", Message: "float() takes exactly 1 argument"}
 			}
 			switch arg := args[0].(type) {
 			case *Float:
@@ -173,7 +173,7 @@ var builtins = map[string]*Builtin{
 				val, err := strconv.ParseFloat(cleanedValue, 64)
 				if err != nil {
 					return &Error{
-						Code: "E4003",
+						Code: "E7006",
 						Message: fmt.Sprintf("cannot convert %q to float: invalid float format\n\n"+
 							"The string must be a valid floating-point number with:\n"+
 							"  - Optional leading + or - sign\n"+
@@ -188,14 +188,14 @@ var builtins = map[string]*Builtin{
 			default:
 				if args[0].Type() == ARRAY_OBJ {
 					return &Error{
-						Code: "E2001",
+						Code: "E7006",
 						Message: "cannot convert ARRAY to float\n\n" +
 							"Arrays cannot be directly converted to floating-point numbers.\n" +
 							"Hint: If you want the array length, use len() instead:\n" +
 							"    len(myArray)  // returns the number of elements",
 					}
 				}
-				return newError("cannot convert %s to float", args[0].Type())
+				return &Error{Code: "E7006", Message: fmt.Sprintf("cannot convert %s to float", args[0].Type())}
 			}
 		},
 	},
@@ -204,7 +204,7 @@ var builtins = map[string]*Builtin{
 	"string": {
 		Fn: func(args ...Object) Object {
 			if len(args) != 1 {
-				return newError("string() takes exactly 1 argument")
+				return &Error{Code: "E7001", Message: "string() takes exactly 1 argument"}
 			}
 			return &String{Value: args[0].Inspect()}
 		},

@@ -89,8 +89,8 @@ func printHelp() {
 }
 
 func printVersion() {
-	fmt.Println("EZ Language v0.1.0-dev")
-	fmt.Println("Copyright (c) 2025 Marshall A Burns")
+	fmt.Println("EZ Language v0.1.0")
+	fmt.Println("Copyright (c) 2025-Present Marshall A Burns")
 }
 
 func buildFile(filename string) {

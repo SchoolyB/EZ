@@ -55,14 +55,14 @@ func Eval(node ast.Node, env *Environment) Object {
 		// Check for uncaptured return values from function calls
 		if call, ok := node.Expression.(*ast.CallExpression); ok {
 			if fn, ok := result.(*ReturnValue); ok && len(fn.Values) > 0 {
-				return newErrorWithLocation("E4007", call.Token.Line, call.Token.Column,
+				return newErrorWithLocation("E4009", call.Token.Line, call.Token.Column,
 					"return value from function not used (use @ignore to discard)")
 			}
 			// Also check if the function has declared return types but result is not NIL
 			if result != NIL {
 				// Check if it's a user function with return types
 				if fnObj := getFunctionObject(call, env); fnObj != nil && len(fnObj.ReturnTypes) > 0 {
-					return newErrorWithLocation("E4007", call.Token.Line, call.Token.Column,
+					return newErrorWithLocation("E4009", call.Token.Line, call.Token.Column,
 						"return value from function not used (use @ignore to discard)")
 				}
 			}
@@ -98,14 +98,14 @@ func Eval(node ast.Node, env *Environment) Object {
 
 	case *ast.BreakStatement:
 		if !env.InLoop() {
-			return newErrorWithLocation("E4003", node.Token.Line, node.Token.Column,
+			return newErrorWithLocation("E5009", node.Token.Line, node.Token.Column,
 				"break statement outside loop")
 		}
 		return &Break{}
 
 	case *ast.ContinueStatement:
 		if !env.InLoop() {
-			return newErrorWithLocation("E4003", node.Token.Line, node.Token.Column,
+			return newErrorWithLocation("E5010", node.Token.Line, node.Token.Column,
 				"continue statement outside loop")
 		}
 		return &Continue{}
@@ -138,7 +138,7 @@ func Eval(node ast.Node, env *Environment) Object {
 			for _, item := range node.Imports {
 				// Validate that the module exists
 				if !isValidModule(item.Module) {
-					return newErrorWithLocation("E5002", node.Token.Line, node.Token.Column,
+					return newErrorWithLocation("E6002", node.Token.Line, node.Token.Column,
 						"module '%s' not found", item.Module)
 				}
 
@@ -151,7 +151,7 @@ func Eval(node ast.Node, env *Environment) Object {
 		} else {
 			// Backward compatibility: handle single import using old fields
 			if !isValidModule(node.Module) {
-				return newErrorWithLocation("E5002", node.Token.Line, node.Token.Column,
+				return newErrorWithLocation("E6002", node.Token.Line, node.Token.Column,
 					"module '%s' not found", node.Module)
 			}
 
@@ -169,7 +169,7 @@ func Eval(node ast.Node, env *Environment) Object {
 			alias := module.Value
 			// Verify the module was imported
 			if _, ok := env.GetImport(alias); !ok {
-				return newErrorWithLocation("E3005", node.Token.Line, node.Token.Column,
+				return newErrorWithLocation("E6004", node.Token.Line, node.Token.Column,
 					"cannot use '%s': module not imported", alias)
 			}
 			env.Use(alias)
@@ -251,7 +251,7 @@ func Eval(node ast.Node, env *Environment) Object {
 		// Handle index access with improved error messages
 		idx, ok := index.(*Integer)
 		if !ok {
-			return newErrorWithLocation("E2001", node.Token.Line, node.Token.Column,
+			return newErrorWithLocation("E9003", node.Token.Line, node.Token.Column,
 				"index must be an integer, got %s", index.Type())
 		}
 
@@ -260,12 +260,12 @@ func Eval(node ast.Node, env *Environment) Object {
 			arrLen := int64(len(obj.Elements))
 			if idx.Value < 0 || idx.Value >= arrLen {
 				if arrLen == 0 {
-					return newErrorWithLocation("E4002", node.Token.Line, node.Token.Column,
+					return newErrorWithLocation("E9004", node.Token.Line, node.Token.Column,
 						"index out of bounds: array is empty (length 0)\n\n"+
 							"Attempted to access index %d, but array has no elements\n"+
 							"Hint: Use arrays.push() to add elements before accessing by index", idx.Value)
 				}
-				return newErrorWithLocation("E4002", node.Token.Line, node.Token.Column,
+				return newErrorWithLocation("E9001", node.Token.Line, node.Token.Column,
 					"index out of bounds: attempted to access index %d, but valid range is 0-%d",
 					idx.Value, arrLen-1)
 			}
@@ -275,18 +275,18 @@ func Eval(node ast.Node, env *Environment) Object {
 			strLen := int64(len(obj.Value))
 			if idx.Value < 0 || idx.Value >= strLen {
 				if strLen == 0 {
-					return newErrorWithLocation("E4002", node.Token.Line, node.Token.Column,
+					return newErrorWithLocation("E10004", node.Token.Line, node.Token.Column,
 						"index out of bounds: string is empty (length 0)\n\n"+
 							"Attempted to access index %d", idx.Value)
 				}
-				return newErrorWithLocation("E4002", node.Token.Line, node.Token.Column,
+				return newErrorWithLocation("E10003", node.Token.Line, node.Token.Column,
 					"index out of bounds: attempted to access index %d, but valid range is 0-%d",
 					idx.Value, strLen-1)
 			}
 			return &Char{Value: rune(obj.Value[idx.Value])}
 
 		default:
-			return newErrorWithLocation("E2002", node.Token.Line, node.Token.Column,
+			return newErrorWithLocation("E5015", node.Token.Line, node.Token.Column,
 				"index operator not supported for %s", left.Type())
 		}
 
@@ -323,7 +323,7 @@ func evalProgram(program *ast.Program, env *Environment) Object {
 			alias := module.Value
 			// Verify the module was imported
 			if _, ok := env.GetImport(alias); !ok {
-				return newErrorWithLocation("E3005", usingStmt.Token.Line, usingStmt.Token.Column,
+				return newErrorWithLocation("E6004", usingStmt.Token.Line, usingStmt.Token.Column,
 					"cannot use '%s': module not imported", alias)
 			}
 			env.Use(alias)
@@ -443,7 +443,7 @@ func evalAssignment(node *ast.AssignmentStatement, env *Environment) Object {
 		if node.Operator != "=" {
 			oldVal, ok := env.Get(target.Value)
 			if !ok {
-				return newErrorWithLocation("E3001", node.Token.Line, node.Token.Column,
+				return newErrorWithLocation("E4001", node.Token.Line, node.Token.Column,
 					"undefined variable '%s'", target.Value)
 			}
 			val = evalCompoundAssignment(node.Operator, oldVal, val, node.Token.Line, node.Token.Column)
@@ -454,11 +454,11 @@ func evalAssignment(node *ast.AssignmentStatement, env *Environment) Object {
 
 		found, isMutable := env.Update(target.Value, val)
 		if !found {
-			return newErrorWithLocation("E3001", node.Token.Line, node.Token.Column,
+			return newErrorWithLocation("E4001", node.Token.Line, node.Token.Column,
 				"undefined variable '%s'", target.Value)
 		}
 		if !isMutable {
-			return newErrorWithLocation("E4005", node.Token.Line, node.Token.Column,
+			return newErrorWithLocation("E5013", node.Token.Line, node.Token.Column,
 				"cannot assign to immutable variable '%s' (declared as const)", target.Value)
 		}
 
@@ -468,7 +468,7 @@ func evalAssignment(node *ast.AssignmentStatement, env *Environment) Object {
 		if ident, ok := target.Left.(*ast.Label); ok {
 			isMutable, exists := env.IsMutable(ident.Value)
 			if exists && !isMutable {
-				return newErrorWithLocation("E4005", node.Token.Line, node.Token.Column,
+				return newErrorWithLocation("E5014", node.Token.Line, node.Token.Column,
 					"cannot modify immutable variable '%s' (declared as const)", ident.Value)
 			}
 		}
@@ -492,12 +492,12 @@ func evalAssignment(node *ast.AssignmentStatement, env *Environment) Object {
 			arrLen := int64(len(obj.Elements))
 			if index.Value < 0 || index.Value >= arrLen {
 				if arrLen == 0 {
-					return newErrorWithLocation("E4002", node.Token.Line, node.Token.Column,
+					return newErrorWithLocation("E9004", node.Token.Line, node.Token.Column,
 						"index out of bounds: array is empty (length 0)\n\n"+
 							"Attempted to assign to index %d, but array has no elements\n"+
 							"Hint: Use arrays.push() to add elements before accessing by index", index.Value)
 				}
-				return newErrorWithLocation("E4002", node.Token.Line, node.Token.Column,
+				return newErrorWithLocation("E9001", node.Token.Line, node.Token.Column,
 					"index out of bounds: attempted to assign to index %d, but valid range is 0-%d",
 					index.Value, arrLen-1)
 			}
@@ -517,17 +517,17 @@ func evalAssignment(node *ast.AssignmentStatement, env *Environment) Object {
 			// String mutation - verify the value is a character
 			charObj, ok := val.(*Char)
 			if !ok {
-				return newErrorWithLocation("E2001", node.Token.Line, node.Token.Column,
+				return newErrorWithLocation("E3001", node.Token.Line, node.Token.Column,
 					"can only assign character to string index, got %s", val.Type())
 			}
 			strLen := int64(len(obj.Value))
 			if index.Value < 0 || index.Value >= strLen {
 				if strLen == 0 {
-					return newErrorWithLocation("E4002", node.Token.Line, node.Token.Column,
+					return newErrorWithLocation("E10004", node.Token.Line, node.Token.Column,
 						"index out of bounds: string is empty (length 0)\n\n"+
 							"Attempted to assign to index %d", index.Value)
 				}
-				return newErrorWithLocation("E4002", node.Token.Line, node.Token.Column,
+				return newErrorWithLocation("E10003", node.Token.Line, node.Token.Column,
 					"index out of bounds: attempted to assign to index %d, but valid range is 0-%d",
 					index.Value, strLen-1)
 			}
@@ -676,7 +676,7 @@ func evalForStatement(node *ast.ForStatement, env *Environment) Object {
 	// Get range bounds
 	rangeExpr, ok := node.Iterable.(*ast.RangeExpression)
 	if !ok {
-		return newErrorWithLocation("E1003", node.Token.Line, node.Token.Column,
+		return newErrorWithLocation("E5011", node.Token.Line, node.Token.Column,
 			"for loop requires range() expression\n\n"+
 				"Did you mean to use 'for_each' to iterate over a collection?\n\n"+
 				"Use 'for' with range() for numeric iteration:\n"+
@@ -883,7 +883,7 @@ func evalIdentifier(node *ast.Label, env *Environment) Object {
 
 	// Ambiguity check
 	if len(foundModules) > 1 {
-		err := newErrorWithLocation("E3006", node.Token.Line, node.Token.Column,
+		err := newErrorWithLocation("E4002", node.Token.Line, node.Token.Column,
 			"function '%s' found in multiple modules", node.Value)
 		// Build helpful error message
 		moduleList := strings.Join(foundModules, ", ")
@@ -903,7 +903,7 @@ func evalIdentifier(node *ast.Label, env *Environment) Object {
 	}
 
 	// Create error with potential suggestion
-	err := newErrorWithLocation("E3001", node.Token.Line, node.Token.Column,
+	err := newErrorWithLocation("E4001", node.Token.Line, node.Token.Column,
 		"identifier not found: '%s'", node.Value)
 
 	// Try to suggest a keyword or builtin
@@ -969,10 +969,10 @@ func evalInfixExpression(operator string, left, right Object, line, col int) Obj
 	// Check for nil operands (except for == and != which can compare with nil)
 	if operator != "==" && operator != "!=" {
 		if left.Type() == NIL_OBJ {
-			return newErrorWithLocation("E4003", line, col, "nil reference: cannot use nil with operator '%s'", operator)
+			return newErrorWithLocation("E5006", line, col, "nil reference: cannot use nil with operator '%s'", operator)
 		}
 		if right.Type() == NIL_OBJ {
-			return newErrorWithLocation("E4003", line, col, "nil reference: cannot use nil with operator '%s'", operator)
+			return newErrorWithLocation("E5006", line, col, "nil reference: cannot use nil with operator '%s'", operator)
 		}
 	}
 
@@ -1002,7 +1002,7 @@ func evalInfixExpression(operator string, left, right Object, line, col int) Obj
 		}
 		return TRUE
 	default:
-		return newErrorWithLocation("E2002", line, col, "unknown operator: %s %s %s", left.Type(), operator, right.Type())
+		return newErrorWithLocation("E5015", line, col, "unknown operator: %s %s %s", left.Type(), operator, right.Type())
 	}
 }
 
@@ -1019,12 +1019,12 @@ func evalIntegerInfixExpression(operator string, left, right Object, line, col i
 		return &Integer{Value: leftVal * rightVal}
 	case "/":
 		if rightVal == 0 {
-			return newErrorWithLocation("E4001", line, col, "division by zero")
+			return newErrorWithLocation("E5001", line, col, "division by zero")
 		}
 		return &Integer{Value: leftVal / rightVal}
 	case "%":
 		if rightVal == 0 {
-			return newErrorWithLocation("E4001", line, col, "modulo by zero")
+			return newErrorWithLocation("E5002", line, col, "modulo by zero")
 		}
 		return &Integer{Value: leftVal % rightVal}
 	case "<":
@@ -1040,7 +1040,7 @@ func evalIntegerInfixExpression(operator string, left, right Object, line, col i
 	case "!=":
 		return nativeBoolToBooleanObject(leftVal != rightVal)
 	default:
-		return newErrorWithLocation("E2002", line, col, "unknown operator: %s %s %s", left.Type(), operator, right.Type())
+		return newErrorWithLocation("E5015", line, col, "unknown operator: %s %s %s", left.Type(), operator, right.Type())
 	}
 }
 
@@ -1070,7 +1070,7 @@ func evalFloatInfixExpression(operator string, left, right Object, line, col int
 		return &Float{Value: leftVal * rightVal}
 	case "/":
 		if rightVal == 0 {
-			return newErrorWithLocation("E4001", line, col, "division by zero")
+			return newErrorWithLocation("E5001", line, col, "division by zero")
 		}
 		return &Float{Value: leftVal / rightVal}
 	case "<":
@@ -1086,7 +1086,7 @@ func evalFloatInfixExpression(operator string, left, right Object, line, col int
 	case "!=":
 		return nativeBoolToBooleanObject(leftVal != rightVal)
 	default:
-		return newErrorWithLocation("E2002", line, col, "unknown operator: %s %s %s", left.Type(), operator, right.Type())
+		return newErrorWithLocation("E5015", line, col, "unknown operator: %s %s %s", left.Type(), operator, right.Type())
 	}
 }
 
@@ -1124,7 +1124,7 @@ func evalCharInfixExpression(operator string, left, right Object, line, col int)
 	case ">=":
 		return nativeBoolToBooleanObject(leftVal >= rightVal)
 	default:
-		return newErrorWithLocation("E2002", line, col, "unknown operator: %s %s %s", left.Type(), operator, right.Type())
+		return newErrorWithLocation("E5015", line, col, "unknown operator: %s %s %s", left.Type(), operator, right.Type())
 	}
 }
 
@@ -1201,10 +1201,10 @@ func evalCallExpression(node *ast.CallExpression, env *Environment) Object {
 	if isError(function) {
 		// Check if this is an "identifier not found" error and make it more specific
 		if errObj, ok := function.(*Error); ok {
-			if errObj.Code == "E3001" {
+			if errObj.Code == "E4001" {
 				// Change to "undefined function" error
 				if label, ok := node.Function.(*ast.Label); ok {
-					return newErrorWithLocation("E3002", label.Token.Line, label.Token.Column,
+					return newErrorWithLocation("E4002", label.Token.Line, label.Token.Column,
 						"undefined function: '%s'", label.Value)
 				}
 			}
@@ -1261,7 +1261,7 @@ func applyFunction(fn Object, args []Object, line, col int) Object {
 	case *Function:
 		// Validate argument count
 		if len(args) != len(fn.Parameters) {
-			return newErrorWithLocation("E4004", line, col,
+			return newErrorWithLocation("E5004", line, col,
 				"wrong number of arguments: expected %d, got %d", len(fn.Parameters), len(args))
 		}
 		extendedEnv := extendFunctionEnv(fn, args)
@@ -1288,7 +1288,7 @@ func applyFunction(fn Object, args []Object, line, col int) Object {
 		return result
 
 	default:
-		return newErrorWithLocation("E2002", line, col, "not a function: %s", fn.Type())
+		return newErrorWithLocation("E5015", line, col, "not a function: %s", fn.Type())
 	}
 }
 
@@ -1297,12 +1297,12 @@ func validateReturnType(result Object, expectedTypes []string, line, col int) *E
 	// Handle multiple return values
 	if retVal, ok := result.(*ReturnValue); ok {
 		if len(retVal.Values) != len(expectedTypes) {
-			return newErrorWithLocation("E4006", line, col,
+			return newErrorWithLocation("E5008", line, col,
 				"wrong number of return values: expected %d, got %d", len(expectedTypes), len(retVal.Values))
 		}
 		for i, val := range retVal.Values {
 			if !typeMatches(val, expectedTypes[i]) {
-				return newErrorWithLocation("E2005", line, col,
+				return newErrorWithLocation("E5012", line, col,
 					"return type mismatch: expected %s, got %s", expectedTypes[i], objectTypeToEZ(val))
 			}
 		}
@@ -1312,7 +1312,7 @@ func validateReturnType(result Object, expectedTypes []string, line, col int) *E
 	// Single return value
 	if len(expectedTypes) == 1 {
 		if !typeMatches(result, expectedTypes[0]) {
-			return newErrorWithLocation("E2005", line, col,
+			return newErrorWithLocation("E5012", line, col,
 				"return type mismatch: expected %s, got %s", expectedTypes[0], objectTypeToEZ(result))
 		}
 	}
@@ -1464,7 +1464,7 @@ func evalNewExpression(node *ast.NewExpression, env *Environment) Object {
 	// Look up the struct definition
 	structDef, ok := env.GetStructDef(node.TypeName.Value)
 	if !ok {
-		return newErrorWithLocation("E3004", node.Token.Line, node.Token.Column,
+		return newErrorWithLocation("E3002", node.Token.Line, node.Token.Column,
 			"undefined type: '%s'", node.TypeName.Value)
 	}
 
@@ -1514,7 +1514,7 @@ func evalMemberExpression(node *ast.MemberExpression, env *Environment) Object {
 				// For constants (zero-arg functions), call them immediately
 				return builtin.Fn()
 			}
-			return newErrorWithLocation("E3002", node.Token.Line, node.Token.Column,
+			return newErrorWithLocation("E4006", node.Token.Line, node.Token.Column,
 				"'%s' not found in module '%s'", node.Member.Value, alias)
 		}
 	}
@@ -1526,7 +1526,7 @@ func evalMemberExpression(node *ast.MemberExpression, env *Environment) Object {
 
 	// Check for nil reference
 	if obj.Type() == NIL_OBJ {
-		return newErrorWithLocation("E3003", node.Token.Line, node.Token.Column,
+		return newErrorWithLocation("E5006", node.Token.Line, node.Token.Column,
 			"nil reference: cannot access member '%s' of nil", node.Member.Value)
 	}
 
@@ -1534,7 +1534,7 @@ func evalMemberExpression(node *ast.MemberExpression, env *Environment) Object {
 		if val, ok := structObj.Fields[node.Member.Value]; ok {
 			return val
 		}
-		return newErrorWithLocation("E3003", node.Token.Line, node.Token.Column,
+		return newErrorWithLocation("E4003", node.Token.Line, node.Token.Column,
 			"field '%s' not found", node.Member.Value)
 	}
 
@@ -1548,11 +1548,11 @@ func evalMemberExpression(node *ast.MemberExpression, env *Environment) Object {
 				Value:    val,
 			}
 		}
-		return newErrorWithLocation("E3003", node.Token.Line, node.Token.Column,
+		return newErrorWithLocation("E4004", node.Token.Line, node.Token.Column,
 			"enum value '%s' not found in enum '%s'", node.Member.Value, enumObj.Name)
 	}
 
-	return newErrorWithLocation("E2002", node.Token.Line, node.Token.Column,
+	return newErrorWithLocation("E5015", node.Token.Line, node.Token.Column,
 		"member access not supported on type %s", obj.Type())
 }
 

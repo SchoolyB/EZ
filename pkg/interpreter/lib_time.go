@@ -29,7 +29,7 @@ var timeBuiltins = map[string]*Builtin{
 	"time.sleep": {
 		Fn: func(args ...Object) Object {
 			if len(args) != 1 {
-				return newError("time.sleep() takes exactly 1 argument (seconds)")
+				return &Error{Code: "E11001", Message: "time.sleep() takes exactly 1 argument (seconds)"}
 			}
 			switch v := args[0].(type) {
 			case *Integer:
@@ -37,7 +37,7 @@ var timeBuiltins = map[string]*Builtin{
 			case *Float:
 				time.Sleep(time.Duration(v.Value * float64(time.Second)))
 			default:
-				return newError("time.sleep() requires a number")
+				return &Error{Code: "E11003", Message: "time.sleep() requires a number"}
 			}
 			return NIL
 		},
@@ -45,11 +45,11 @@ var timeBuiltins = map[string]*Builtin{
 	"time.sleep_ms": {
 		Fn: func(args ...Object) Object {
 			if len(args) != 1 {
-				return newError("time.sleep_ms() takes exactly 1 argument (milliseconds)")
+				return &Error{Code: "E11001", Message: "time.sleep_ms() takes exactly 1 argument (milliseconds)"}
 			}
 			ms, ok := args[0].(*Integer)
 			if !ok {
-				return newError("time.sleep_ms() requires an integer")
+				return &Error{Code: "E11003", Message: "time.sleep_ms() requires an integer"}
 			}
 			time.Sleep(time.Duration(ms.Value) * time.Millisecond)
 			return NIL
@@ -122,7 +122,7 @@ var timeBuiltins = map[string]*Builtin{
 	"time.format": {
 		Fn: func(args ...Object) Object {
 			if len(args) < 1 || len(args) > 2 {
-				return newError("time.format() takes 1 or 2 arguments")
+				return &Error{Code: "E11001", Message: "time.format() takes 1 or 2 arguments"}
 			}
 
 			var t time.Time
@@ -132,7 +132,7 @@ var timeBuiltins = map[string]*Builtin{
 				// format only, use current time
 				str, ok := args[0].(*String)
 				if !ok {
-					return newError("time.format() requires a string format")
+					return &Error{Code: "E11003", Message: "time.format() requires a string format"}
 				}
 				t = time.Now()
 				format = str.Value
@@ -140,11 +140,11 @@ var timeBuiltins = map[string]*Builtin{
 				// timestamp and format
 				ts, ok := args[0].(*Integer)
 				if !ok {
-					return newError("time.format() requires an integer timestamp")
+					return &Error{Code: "E11003", Message: "time.format() requires an integer timestamp"}
 				}
 				str, ok := args[1].(*String)
 				if !ok {
-					return newError("time.format() requires a string format")
+					return &Error{Code: "E11003", Message: "time.format() requires a string format"}
 				}
 				t = time.Unix(ts.Value, 0)
 				format = str.Value
@@ -178,21 +178,21 @@ var timeBuiltins = map[string]*Builtin{
 	"time.parse": {
 		Fn: func(args ...Object) Object {
 			if len(args) != 2 {
-				return newError("time.parse() takes exactly 2 arguments (string, format)")
+				return &Error{Code: "E11001", Message: "time.parse() takes exactly 2 arguments (string, format)"}
 			}
 			str, ok := args[0].(*String)
 			if !ok {
-				return newError("time.parse() requires a string")
+				return &Error{Code: "E11003", Message: "time.parse() requires a string"}
 			}
 			format, ok := args[1].(*String)
 			if !ok {
-				return newError("time.parse() requires a format string")
+				return &Error{Code: "E11003", Message: "time.parse() requires a format string"}
 			}
 
 			goFormat := convertFormat(format.Value)
 			t, err := time.Parse(goFormat, str.Value)
 			if err != nil {
-				return newError("time.parse() failed: %s", err.Error())
+				return &Error{Code: "E11005", Message: "time.parse() failed: " + err.Error()}
 			}
 			return &Integer{Value: t.Unix()}
 		},
@@ -202,41 +202,41 @@ var timeBuiltins = map[string]*Builtin{
 	"time.make": {
 		Fn: func(args ...Object) Object {
 			if len(args) < 3 || len(args) > 6 {
-				return newError("time.make() takes 3 to 6 arguments (year, month, day, [hour, minute, second])")
+				return &Error{Code: "E11001", Message: "time.make() takes 3 to 6 arguments (year, month, day, [hour, minute, second])"}
 			}
 
 			year, ok := args[0].(*Integer)
 			if !ok {
-				return newError("time.make() requires integer arguments")
+				return &Error{Code: "E11003", Message: "time.make() requires integer arguments"}
 			}
 			month, ok := args[1].(*Integer)
 			if !ok {
-				return newError("time.make() requires integer arguments")
+				return &Error{Code: "E11003", Message: "time.make() requires integer arguments"}
 			}
 			day, ok := args[2].(*Integer)
 			if !ok {
-				return newError("time.make() requires integer arguments")
+				return &Error{Code: "E11003", Message: "time.make() requires integer arguments"}
 			}
 
 			hour, minute, second := 0, 0, 0
 			if len(args) > 3 {
 				h, ok := args[3].(*Integer)
 				if !ok {
-					return newError("time.make() requires integer arguments")
+					return &Error{Code: "E11003", Message: "time.make() requires integer arguments"}
 				}
 				hour = int(h.Value)
 			}
 			if len(args) > 4 {
 				m, ok := args[4].(*Integer)
 				if !ok {
-					return newError("time.make() requires integer arguments")
+					return &Error{Code: "E11003", Message: "time.make() requires integer arguments"}
 				}
 				minute = int(m.Value)
 			}
 			if len(args) > 5 {
 				s, ok := args[5].(*Integer)
 				if !ok {
-					return newError("time.make() requires integer arguments")
+					return &Error{Code: "E11003", Message: "time.make() requires integer arguments"}
 				}
 				second = int(s.Value)
 			}
@@ -251,15 +251,15 @@ var timeBuiltins = map[string]*Builtin{
 	"time.add_seconds": {
 		Fn: func(args ...Object) Object {
 			if len(args) != 2 {
-				return newError("time.add_seconds() takes exactly 2 arguments")
+				return &Error{Code: "E11001", Message: "time.add_seconds() takes exactly 2 arguments"}
 			}
 			ts, ok := args[0].(*Integer)
 			if !ok {
-				return newError("time.add_seconds() requires integer timestamp")
+				return &Error{Code: "E11003", Message: "time.add_seconds() requires integer timestamp"}
 			}
 			secs, ok := args[1].(*Integer)
 			if !ok {
-				return newError("time.add_seconds() requires integer seconds")
+				return &Error{Code: "E11003", Message: "time.add_seconds() requires integer seconds"}
 			}
 			return &Integer{Value: ts.Value + secs.Value}
 		},
@@ -267,15 +267,15 @@ var timeBuiltins = map[string]*Builtin{
 	"time.add_minutes": {
 		Fn: func(args ...Object) Object {
 			if len(args) != 2 {
-				return newError("time.add_minutes() takes exactly 2 arguments")
+				return &Error{Code: "E11001", Message: "time.add_minutes() takes exactly 2 arguments"}
 			}
 			ts, ok := args[0].(*Integer)
 			if !ok {
-				return newError("time.add_minutes() requires integer timestamp")
+				return &Error{Code: "E11003", Message: "time.add_minutes() requires integer timestamp"}
 			}
 			mins, ok := args[1].(*Integer)
 			if !ok {
-				return newError("time.add_minutes() requires integer minutes")
+				return &Error{Code: "E11003", Message: "time.add_minutes() requires integer minutes"}
 			}
 			return &Integer{Value: ts.Value + mins.Value*60}
 		},
@@ -283,15 +283,15 @@ var timeBuiltins = map[string]*Builtin{
 	"time.add_hours": {
 		Fn: func(args ...Object) Object {
 			if len(args) != 2 {
-				return newError("time.add_hours() takes exactly 2 arguments")
+				return &Error{Code: "E11001", Message: "time.add_hours() takes exactly 2 arguments"}
 			}
 			ts, ok := args[0].(*Integer)
 			if !ok {
-				return newError("time.add_hours() requires integer timestamp")
+				return &Error{Code: "E11003", Message: "time.add_hours() requires integer timestamp"}
 			}
 			hours, ok := args[1].(*Integer)
 			if !ok {
-				return newError("time.add_hours() requires integer hours")
+				return &Error{Code: "E11003", Message: "time.add_hours() requires integer hours"}
 			}
 			return &Integer{Value: ts.Value + hours.Value*3600}
 		},
@@ -299,15 +299,15 @@ var timeBuiltins = map[string]*Builtin{
 	"time.add_days": {
 		Fn: func(args ...Object) Object {
 			if len(args) != 2 {
-				return newError("time.add_days() takes exactly 2 arguments")
+				return &Error{Code: "E11001", Message: "time.add_days() takes exactly 2 arguments"}
 			}
 			ts, ok := args[0].(*Integer)
 			if !ok {
-				return newError("time.add_days() requires integer timestamp")
+				return &Error{Code: "E11003", Message: "time.add_days() requires integer timestamp"}
 			}
 			days, ok := args[1].(*Integer)
 			if !ok {
-				return newError("time.add_days() requires integer days")
+				return &Error{Code: "E11003", Message: "time.add_days() requires integer days"}
 			}
 			return &Integer{Value: ts.Value + days.Value*86400}
 		},
@@ -317,15 +317,15 @@ var timeBuiltins = map[string]*Builtin{
 	"time.diff": {
 		Fn: func(args ...Object) Object {
 			if len(args) != 2 {
-				return newError("time.diff() takes exactly 2 arguments")
+				return &Error{Code: "E11001", Message: "time.diff() takes exactly 2 arguments"}
 			}
 			ts1, ok := args[0].(*Integer)
 			if !ok {
-				return newError("time.diff() requires integer timestamps")
+				return &Error{Code: "E11003", Message: "time.diff() requires integer timestamps"}
 			}
 			ts2, ok := args[1].(*Integer)
 			if !ok {
-				return newError("time.diff() requires integer timestamps")
+				return &Error{Code: "E11003", Message: "time.diff() requires integer timestamps"}
 			}
 			return &Integer{Value: ts1.Value - ts2.Value}
 		},
@@ -333,15 +333,15 @@ var timeBuiltins = map[string]*Builtin{
 	"time.diff_days": {
 		Fn: func(args ...Object) Object {
 			if len(args) != 2 {
-				return newError("time.diff_days() takes exactly 2 arguments")
+				return &Error{Code: "E11001", Message: "time.diff_days() takes exactly 2 arguments"}
 			}
 			ts1, ok := args[0].(*Integer)
 			if !ok {
-				return newError("time.diff_days() requires integer timestamps")
+				return &Error{Code: "E11003", Message: "time.diff_days() requires integer timestamps"}
 			}
 			ts2, ok := args[1].(*Integer)
 			if !ok {
-				return newError("time.diff_days() requires integer timestamps")
+				return &Error{Code: "E11003", Message: "time.diff_days() requires integer timestamps"}
 			}
 			return &Integer{Value: (ts1.Value - ts2.Value) / 86400}
 		},
@@ -351,15 +351,15 @@ var timeBuiltins = map[string]*Builtin{
 	"time.is_before": {
 		Fn: func(args ...Object) Object {
 			if len(args) != 2 {
-				return newError("time.is_before() takes exactly 2 arguments")
+				return &Error{Code: "E11001", Message: "time.is_before() takes exactly 2 arguments"}
 			}
 			ts1, ok := args[0].(*Integer)
 			if !ok {
-				return newError("time.is_before() requires integer timestamps")
+				return &Error{Code: "E11003", Message: "time.is_before() requires integer timestamps"}
 			}
 			ts2, ok := args[1].(*Integer)
 			if !ok {
-				return newError("time.is_before() requires integer timestamps")
+				return &Error{Code: "E11003", Message: "time.is_before() requires integer timestamps"}
 			}
 			if ts1.Value < ts2.Value {
 				return TRUE
@@ -370,15 +370,15 @@ var timeBuiltins = map[string]*Builtin{
 	"time.is_after": {
 		Fn: func(args ...Object) Object {
 			if len(args) != 2 {
-				return newError("time.is_after() takes exactly 2 arguments")
+				return &Error{Code: "E11001", Message: "time.is_after() takes exactly 2 arguments"}
 			}
 			ts1, ok := args[0].(*Integer)
 			if !ok {
-				return newError("time.is_after() requires integer timestamps")
+				return &Error{Code: "E11003", Message: "time.is_after() requires integer timestamps"}
 			}
 			ts2, ok := args[1].(*Integer)
 			if !ok {
-				return newError("time.is_after() requires integer timestamps")
+				return &Error{Code: "E11003", Message: "time.is_after() requires integer timestamps"}
 			}
 			if ts1.Value > ts2.Value {
 				return TRUE
@@ -410,7 +410,7 @@ var timeBuiltins = map[string]*Builtin{
 			} else {
 				y, ok := args[0].(*Integer)
 				if !ok {
-					return newError("time.is_leap_year() requires an integer year")
+					return &Error{Code: "E11003", Message: "time.is_leap_year() requires an integer year"}
 				}
 				year = int(y.Value)
 			}
@@ -430,16 +430,16 @@ var timeBuiltins = map[string]*Builtin{
 			} else if len(args) == 2 {
 				y, ok := args[0].(*Integer)
 				if !ok {
-					return newError("time.days_in_month() requires integer arguments")
+					return &Error{Code: "E11003", Message: "time.days_in_month() requires integer arguments"}
 				}
 				m, ok := args[1].(*Integer)
 				if !ok {
-					return newError("time.days_in_month() requires integer arguments")
+					return &Error{Code: "E11003", Message: "time.days_in_month() requires integer arguments"}
 				}
 				year = int(y.Value)
 				month = int(m.Value)
 			} else {
-				return newError("time.days_in_month() takes 0 or 2 arguments")
+				return &Error{Code: "E11001", Message: "time.days_in_month() takes 0 or 2 arguments"}
 			}
 
 			// Get first day of next month, then subtract one day
@@ -501,11 +501,11 @@ var timeBuiltins = map[string]*Builtin{
 	"time.elapsed_ms": {
 		Fn: func(args ...Object) Object {
 			if len(args) != 1 {
-				return newError("time.elapsed_ms() takes exactly 1 argument (start tick)")
+				return &Error{Code: "E11001", Message: "time.elapsed_ms() takes exactly 1 argument (start tick)"}
 			}
 			start, ok := args[0].(*Integer)
 			if !ok {
-				return newError("time.elapsed_ms() requires integer tick")
+				return &Error{Code: "E11003", Message: "time.elapsed_ms() requires integer tick"}
 			}
 			elapsed := time.Now().UnixNano() - start.Value
 			return &Float{Value: float64(elapsed) / 1e6}
