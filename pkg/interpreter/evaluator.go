@@ -1994,8 +1994,34 @@ func evalStructValue(node *ast.StructValue, env *Environment) Object {
 		// Look up the struct definition in the current environment
 		structDef, ok = env.GetStructDef(typeName)
 		if !ok {
-			return newErrorWithLocation("E3002", node.Token.Line, node.Token.Column,
-				"undefined type: '%s'", typeName)
+			// Not found locally, check modules from "using" directives
+			var foundModules []string
+			var foundStructDef *StructDef
+
+			for _, alias := range env.GetUsing() {
+				if moduleObj, modOk := env.GetModule(alias); modOk {
+					if sd, sdOk := moduleObj.GetStructDef(typeName); sdOk {
+						foundModules = append(foundModules, alias)
+						foundStructDef = sd
+					}
+				}
+			}
+
+			// Ambiguity check
+			if len(foundModules) > 1 {
+				moduleList := strings.Join(foundModules, ", ")
+				return newErrorWithLocation("E3002", node.Token.Line, node.Token.Column,
+					"type '%s' found in multiple modules: %s. Use explicit module prefix: %s.%s",
+					typeName, moduleList, foundModules[0], typeName)
+			}
+
+			// Found in exactly one module
+			if len(foundModules) == 1 {
+				structDef = foundStructDef
+			} else {
+				return newErrorWithLocation("E3002", node.Token.Line, node.Token.Column,
+					"undefined type: '%s'", typeName)
+			}
 		}
 	}
 
@@ -2043,8 +2069,34 @@ func evalNewExpression(node *ast.NewExpression, env *Environment) Object {
 		// Look up the struct definition in the current environment
 		structDef, ok = env.GetStructDef(typeName)
 		if !ok {
-			return newErrorWithLocation("E3002", node.Token.Line, node.Token.Column,
-				"undefined type: '%s'", typeName)
+			// Not found locally, check modules from "using" directives
+			var foundModules []string
+			var foundStructDef *StructDef
+
+			for _, alias := range env.GetUsing() {
+				if moduleObj, modOk := env.GetModule(alias); modOk {
+					if sd, sdOk := moduleObj.GetStructDef(typeName); sdOk {
+						foundModules = append(foundModules, alias)
+						foundStructDef = sd
+					}
+				}
+			}
+
+			// Ambiguity check
+			if len(foundModules) > 1 {
+				moduleList := strings.Join(foundModules, ", ")
+				return newErrorWithLocation("E3002", node.Token.Line, node.Token.Column,
+					"type '%s' found in multiple modules: %s. Use explicit module prefix: %s.%s",
+					typeName, moduleList, foundModules[0], typeName)
+			}
+
+			// Found in exactly one module
+			if len(foundModules) == 1 {
+				structDef = foundStructDef
+			} else {
+				return newErrorWithLocation("E3002", node.Token.Line, node.Token.Column,
+					"undefined type: '%s'", typeName)
+			}
 		}
 	}
 
