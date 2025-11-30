@@ -969,10 +969,15 @@ func (tc *TypeChecker) checkFunctionCall(call *ast.CallExpression) {
 		return
 	}
 
+	// Check builtin type conversion functions
+	if tc.checkBuiltinTypeConversion(funcName, call) {
+		return // Handled as builtin
+	}
+
 	// Look up function signature
 	sig, ok := tc.functions[funcName]
 	if !ok {
-		// Could be a builtin - let runtime handle
+		// Unknown function - let runtime handle
 		return
 	}
 
@@ -1008,6 +1013,109 @@ func (tc *TypeChecker) checkFunctionCall(call *ast.CallExpression) {
 			)
 		}
 	}
+}
+
+// checkBuiltinTypeConversion validates builtin type conversion functions
+// Returns true if this was a builtin conversion, false otherwise
+func (tc *TypeChecker) checkBuiltinTypeConversion(funcName string, call *ast.CallExpression) bool {
+	switch funcName {
+	case "int":
+		if len(call.Arguments) != 1 {
+			return false // Let runtime handle arg count
+		}
+		argType, ok := tc.inferExpressionType(call.Arguments[0])
+		if !ok {
+			return true
+		}
+		// int() accepts: numeric types, bool, but NOT string variables
+		if argType == "string" {
+			// Check if it's a string literal that looks numeric
+			if strVal, isLiteral := call.Arguments[0].(*ast.StringValue); isLiteral {
+				if tc.isNumericString(strVal.Value) {
+					return true // OK - numeric string literal
+				}
+			}
+			line, column := tc.getExpressionPosition(call.Arguments[0])
+			tc.addError(
+				errors.E3005,
+				fmt.Sprintf("cannot convert string to int at build-time (value may not be numeric)"),
+				line,
+				column,
+			)
+		}
+		return true
+
+	case "float":
+		if len(call.Arguments) != 1 {
+			return false
+		}
+		argType, ok := tc.inferExpressionType(call.Arguments[0])
+		if !ok {
+			return true
+		}
+		// float() accepts: numeric types, bool, but NOT string variables
+		if argType == "string" {
+			// Check if it's a string literal that looks numeric
+			if strVal, isLiteral := call.Arguments[0].(*ast.StringValue); isLiteral {
+				if tc.isNumericString(strVal.Value) {
+					return true // OK - numeric string literal
+				}
+			}
+			line, column := tc.getExpressionPosition(call.Arguments[0])
+			tc.addError(
+				errors.E3006,
+				fmt.Sprintf("cannot convert string to float at build-time (value may not be numeric)"),
+				line,
+				column,
+			)
+		}
+		return true
+
+	case "string", "bool", "char":
+		// These conversions are generally safe
+		return true
+
+	case "len", "typeof":
+		// Other builtins - let them through
+		return true
+
+	default:
+		return false // Not a builtin we handle
+	}
+}
+
+// isNumericString checks if a string looks like a valid number
+func (tc *TypeChecker) isNumericString(s string) bool {
+	if len(s) == 0 {
+		return false
+	}
+	hasDigit := false
+	hasDot := false
+	for i, ch := range s {
+		if ch == '-' || ch == '+' {
+			if i != 0 {
+				return false
+			}
+			continue
+		}
+		if ch == '.' {
+			if hasDot {
+				return false
+			}
+			hasDot = true
+			continue
+		}
+		if ch >= '0' && ch <= '9' {
+			hasDigit = true
+			continue
+		}
+		// Allow underscore separators
+		if ch == '_' {
+			continue
+		}
+		return false
+	}
+	return hasDigit
 }
 
 // checkIfStatement validates an if statement
