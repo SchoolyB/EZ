@@ -4,6 +4,7 @@ package interpreter
 // Licensed under the MIT License. See LICENSE for details.
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -42,6 +43,7 @@ type ModuleLoader struct {
 	cache       map[string]*Module // Cache of loaded modules (keyed by absolute path)
 	rootPath    string             // Project root directory
 	currentFile string             // Currently processing file (for relative imports)
+	warnings    []string           // Accumulated warnings during loading
 }
 
 // NewModuleLoader creates a new module loader
@@ -49,7 +51,23 @@ func NewModuleLoader(rootPath string) *ModuleLoader {
 	return &ModuleLoader{
 		cache:    make(map[string]*Module),
 		rootPath: rootPath,
+		warnings: []string{},
 	}
+}
+
+// AddWarning adds a warning message
+func (l *ModuleLoader) AddWarning(msg string) {
+	l.warnings = append(l.warnings, msg)
+}
+
+// GetWarnings returns all accumulated warnings
+func (l *ModuleLoader) GetWarnings() []string {
+	return l.warnings
+}
+
+// ClearWarnings clears all warnings
+func (l *ModuleLoader) ClearWarnings() {
+	l.warnings = []string{}
 }
 
 // SetCurrentFile sets the current file being processed (for relative import resolution)
@@ -65,6 +83,11 @@ func (l *ModuleLoader) Load(importPath string) (*Module, error) {
 	// Resolve the import path to an absolute path
 	absPath, err := l.ResolveImport(importPath)
 	if err != nil {
+		return nil, err
+	}
+
+	// Check for internal/ directory access restriction
+	if err := l.checkInternalAccess(absPath); err != nil {
 		return nil, err
 	}
 
@@ -179,11 +202,17 @@ func (l *ModuleLoader) loadFileModule(mod *Module, filePath string) error {
 	mod.AST = program
 
 	// Extract module name from declaration or infer from filename
+	fileName := strings.TrimSuffix(filepath.Base(filePath), ".ez")
 	if program.Module != nil {
 		mod.Name = program.Module.Name.Value
+		// Warn if declared name doesn't match filename
+		if mod.Name != fileName {
+			l.AddWarning(fmt.Sprintf("warning[W6001]: module declares name '%s' but file is named '%s.ez'\n  --> %s\n  = help: consider renaming the module or file to match",
+				mod.Name, fileName, filePath))
+		}
 	} else {
 		// Infer from filename
-		mod.Name = strings.TrimSuffix(filepath.Base(filePath), ".ez")
+		mod.Name = fileName
 	}
 
 	return nil
@@ -263,17 +292,67 @@ func (l *ModuleLoader) loadDirectoryModule(mod *Module) error {
 		combinedStatements = append(combinedStatements, program.Statements...)
 	}
 
-	// Set module name
+	// Set module name and check for mismatch
+	dirName := filepath.Base(mod.FilePath)
 	if declaredModuleName != "" {
 		mod.Name = declaredModuleName
+		// Warn if declared name doesn't match directory name
+		if declaredModuleName != dirName {
+			l.AddWarning(fmt.Sprintf("warning[W6001]: module declares name '%s' but directory is named '%s'\n  --> %s\n  = help: consider renaming the module or directory to match",
+				declaredModuleName, dirName, mod.FilePath))
+		}
 	} else {
 		// Infer from directory name
-		mod.Name = filepath.Base(mod.FilePath)
+		mod.Name = dirName
 	}
 
 	// Create combined AST
 	mod.AST = &ast.Program{
 		Statements: combinedStatements,
+	}
+
+	return nil
+}
+
+// checkInternalAccess validates that imports from internal/ directories are allowed.
+// internal/ directories can only be imported by modules in the same parent or its children.
+func (l *ModuleLoader) checkInternalAccess(targetPath string) error {
+	// Find if "internal" is in the target path
+	internalIdx := -1
+	parts := strings.Split(targetPath, string(filepath.Separator))
+	for i, part := range parts {
+		if part == "internal" {
+			internalIdx = i
+			break
+		}
+	}
+
+	// No internal/ in path, access is allowed
+	if internalIdx < 0 {
+		return nil
+	}
+
+	// Get the parent directory of internal/ (the "owner" of internal/)
+	internalParent := strings.Join(parts[:internalIdx], string(filepath.Separator))
+	if internalParent == "" {
+		internalParent = string(filepath.Separator)
+	}
+
+	// Get the directory of the importing file
+	importerDir := filepath.Dir(l.currentFile)
+
+	// The importer must be within the internal parent directory tree
+	// (i.e., the importer must be a sibling or child of internal/)
+	// We check that importerDir starts with internalParent followed by a separator (or is exactly internalParent)
+	isWithinParent := importerDir == internalParent ||
+		strings.HasPrefix(importerDir, internalParent+string(filepath.Separator))
+
+	if !isWithinParent {
+		return &ModuleError{
+			Code:    "E6007",
+			Message: fmt.Sprintf("cannot import from internal/ directory: %s is not accessible from %s", targetPath, l.currentFile),
+			Path:    targetPath,
+		}
 	}
 
 	return nil

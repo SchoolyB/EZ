@@ -2,6 +2,7 @@ package main
 
 // Copyright (c) 2025-Present Marshall A Burns
 // Licensed under the MIT License. See LICENSE for details.
+
 import (
 	"fmt"
 	"os"
@@ -13,6 +14,12 @@ import (
 	"github.com/marshallburns/ez/pkg/parser"
 	"github.com/marshallburns/ez/pkg/tokenizer"
 	"github.com/marshallburns/ez/pkg/typechecker"
+)
+
+// Version information - injected at build time via ldflags
+var (
+	Version   = "dev"
+	BuildTime = "unknown"
 )
 
 func main() {
@@ -90,7 +97,8 @@ func printHelp() {
 }
 
 func printVersion() {
-	fmt.Println("EZ Language v0.1.0")
+	fmt.Printf("EZ Language %s\n", Version)
+	fmt.Printf("Built: %s\n", BuildTime)
 	fmt.Println("Copyright (c) 2025-Present Marshall A Burns")
 }
 
@@ -274,6 +282,13 @@ func runFile(filename string) {
 
 	env := interpreter.NewEnvironment()
 	result := interpreter.Eval(program, env)
+
+	// Print any module loading warnings
+	if ctx := interpreter.GetEvalContext(); ctx != nil && ctx.Loader != nil {
+		for _, warning := range ctx.Loader.GetWarnings() {
+			fmt.Println(warning)
+		}
+	}
 
 	// Check for evaluation errors
 	if errObj, ok := result.(*interpreter.Error); ok {
