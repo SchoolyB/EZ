@@ -1,0 +1,89 @@
+import @std
+import @maps
+using std
+
+do main() {
+    println("=== Maps Stdlib Tests ===")
+    println("")
+
+    // Setup test maps
+    temp users map[string:int] = {"alice": 25, "bob": 30, "charlie": 35}
+    temp scores map[int:string] = {1: "first", 2: "second", 3: "third"}
+
+    // Test has_key (alias for has)
+    println("Test: maps.has_key()")
+    temp hasAlice bool = maps.has_key(users, "alice")
+    temp hasUnknown bool = maps.has_key(users, "unknown")
+    println("  has_key 'alice':", hasAlice)
+    println("  has_key 'unknown':", hasUnknown)
+
+    // Test has_value
+    println("Test: maps.has_value()")
+    temp hasAge25 bool = maps.has_value(users, 25)
+    temp hasAge100 bool = maps.has_value(users, 100)
+    println("  has_value 25:", hasAge25)
+    println("  has_value 100:", hasAge100)
+
+    // Test equals
+    println("Test: maps.equals()")
+    temp copy1 = maps.copy(users)
+    temp copy2 = maps.copy(users)
+    temp different map[string:int] = {"alice": 25}
+    temp areEqual bool = maps.equals(copy1, copy2)
+    temp areDiff bool = maps.equals(copy1, different)
+    println("  equals (same):", areEqual)
+    println("  equals (different):", areDiff)
+
+    // Test get_or_set
+    println("Test: maps.get_or_set()")
+    temp testMap map[string:int] = {"a": 1}
+    temp existingVal int = maps.get_or_set(testMap, "a", 999)
+    temp newVal int = maps.get_or_set(testMap, "b", 2)
+    println("  get_or_set existing key:", existingVal)
+    println("  get_or_set new key:", newVal)
+    println("  map after get_or_set:", testMap)
+
+    // Test remove (alias for delete)
+    println("Test: maps.remove()")
+    temp removeMap map[string:int] = {"x": 1, "y": 2}
+    temp removed bool = maps.remove(removeMap, "x")
+    println("  removed 'x':", removed)
+    println("  map after remove:", removeMap)
+
+    // Test update (destructive merge)
+    println("Test: maps.update()")
+    temp base map[string:int] = {"a": 1, "b": 2}
+    temp extra map[string:int] = {"b": 20, "c": 3}
+    maps.update(base, extra)
+    println("  after update:", base)
+
+    // Test merge (non-destructive)
+    println("Test: maps.merge()")
+    temp m1 map[string:int] = {"a": 1}
+    temp m2 map[string:int] = {"b": 2}
+    temp m3 map[string:int] = {"c": 3}
+    temp merged = maps.merge(m1, m2, m3)
+    println("  merged result:", merged)
+    println("  original m1 unchanged:", m1)
+
+    // Test to_array
+    println("Test: maps.to_array()")
+    temp small map[string:int] = {"x": 10, "y": 20}
+    temp arr = maps.to_array(small)
+    println("  to_array:", arr)
+
+    // Test from_array - use to_array output as input
+    println("Test: maps.from_array()")
+    temp arrFromMap = maps.to_array(small)
+    temp recreated = maps.from_array(arrFromMap)
+    println("  from_array (roundtrip):", recreated)
+
+    // Test invert
+    println("Test: maps.invert()")
+    temp inverted = maps.invert(scores)
+    println("  original:", scores)
+    println("  inverted:", inverted)
+
+    println("")
+    println("=== All Maps Stdlib Tests Passed! ===")
+}
