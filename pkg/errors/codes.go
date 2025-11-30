@@ -91,6 +91,8 @@ var (
 	E3016 = ErrorCode{"E3016", "not-indexable", "value is not indexable"}
 	E3017 = ErrorCode{"E3017", "not-iterable", "value is not iterable"}
 	E3018 = ErrorCode{"E3018", "array-literal-required", "array type requires array literal"}
+	E3019 = ErrorCode{"E3019", "signed-to-unsigned", "cannot assign signed type to unsigned"}
+	E3020 = ErrorCode{"E3020", "negative-to-unsigned", "cannot assign negative value to unsigned type"}
 )
 
 // =============================================================================

@@ -37,12 +37,22 @@ type Object interface {
 }
 
 // Integer wraps int64
+// DeclaredType tracks the specific integer type (u8, i32, etc.) for type checking
 type Integer struct {
-	Value int64
+	Value        int64
+	DeclaredType string // e.g., "int", "u8", "i32", etc. Empty defaults to "int"
 }
 
 func (i *Integer) Type() ObjectType { return INTEGER_OBJ }
 func (i *Integer) Inspect() string  { return fmt.Sprintf("%d", i.Value) }
+
+// GetDeclaredType returns the declared type, defaulting to "int" if not set
+func (i *Integer) GetDeclaredType() string {
+	if i.DeclaredType == "" {
+		return "int"
+	}
+	return i.DeclaredType
+}
 
 // Float wraps float64
 type Float struct {
