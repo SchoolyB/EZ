@@ -186,6 +186,7 @@ do get_user_name() -> string{
   - Sized integers: `u8`, `u16`, `u32`, `u64`, `u128`, `u256`, `uint` (unsigned)
   - Numeric separators: underscores for readability (`1_000_000`)
   - Arrays: dynamic `[type]` and fixed-size `[type, size]`
+  - Maps: key-value pairs with `map[keyType:valueType]` syntax
   - Structs: user-defined types with fields
   - Enums: integer, float, and string enums with attributes
 
@@ -214,8 +215,9 @@ do get_user_name() -> string{
   - Multiple inline imports: `import @std, @arrays`
   - Module aliasing: `import alias@module`
   - Mixed syntax support: `import @std, arr@arrays`
+  - `import & use @module` for combined import and using
   - `using` keyword for namespace convenience
-  - Standard library: `@std`, `@arrays`
+  - Standard library: `@std`, `@arrays`, `@maps`, `@math`, `@time`
 
 - **Enums**
   - Basic integer enums with auto-increment
@@ -267,7 +269,7 @@ do get_user_name() -> string{
 
 #### Partially Implemented
 - **Arrays** - Multi-dimensional arrays partially supported (issue #5)
-- **Standard Library** - Currently Implemented: `@std`, `@arrays`, `m@ath`, `@time`
+- **Standard Library** - Currently Implemented: `@std`, `@arrays`, `@maps`, `@math`, `@time`
 
 ---
 
@@ -455,6 +457,9 @@ import s@std, arr@arrays
 // Mix both syntaxes
 import @std, arr@arrays
 
+// Import and use in one statement (no prefix needed)
+import & use @std
+
 do main() {
     // Use with prefix
     std.println("Hello")
@@ -569,6 +574,36 @@ for_each num in numbers {
 
 // Fixed-size arrays (immutable)
 const days [string, 7] = {"Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"}
+```
+
+### Maps
+
+```ez
+import @maps
+
+// Map literal creation
+temp users map[string:int] = {"alice": 25, "bob": 30, "charlie": 35}
+
+// Map access
+temp age int = users["alice"]
+
+// Add or update entries
+users["dave"] = 40
+users["alice"] = 26
+
+// Integer keys
+temp scores map[int:string] = {1: "first", 2: "second", 3: "third"}
+
+// Empty map
+temp emptyMap map[string:string]
+
+// Map operations via @maps stdlib
+temp hasAlice bool = maps.has(users, "alice")
+temp keys = maps.keys(users)
+temp values = maps.values(users)
+temp userCount int = maps.len(users)
+maps.delete(users, "dave")
+temp usersCopy = maps.copy(users)
 ```
 
 ### Strings & Characters
@@ -700,7 +735,9 @@ Found a bug? Please [open an issue](https://github.com/SchoolyB/EZ/issues/new) w
 
 ## License
 
-[License information to be added]
+MIT License - Copyright (c) 2025-Present Marshall A Burns
+
+See [LICENSE](LICENSE) for details.
 
 ---
 
