@@ -261,6 +261,10 @@ func Eval(node ast.Node, env *Environment) Object {
 							"module '%s' not found", item.Module)
 					}
 					env.Import(alias, item.Module)
+					// Dual-name access: also register with original module name if alias differs
+					if alias != item.Module {
+						env.Import(item.Module, item.Module)
+					}
 				} else if item.Path != "" {
 					// User module import - load the module
 					moduleObj, loadErr := loadUserModule(item.Path, node, env)
@@ -273,6 +277,11 @@ func Eval(node ast.Node, env *Environment) Object {
 					}
 					// Register the module object so it can be accessed via alias.function()
 					env.RegisterModule(alias, moduleObj)
+					// Dual-name access: also register with original module name if alias differs
+					originalName := extractModuleName(item.Path)
+					if alias != originalName {
+						env.RegisterModule(originalName, moduleObj)
+					}
 				}
 
 				// Handle auto-use (import & use syntax)
