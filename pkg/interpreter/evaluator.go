@@ -50,6 +50,18 @@ func isValidModule(moduleName string) bool {
 	return false
 }
 
+// convertVisibility converts AST visibility to object visibility
+func convertVisibility(vis ast.Visibility) Visibility {
+	switch vis {
+	case ast.VisibilityPrivate:
+		return VisibilityPrivate
+	case ast.VisibilityPrivateModule:
+		return VisibilityPrivateModule
+	default:
+		return VisibilityPublic
+	}
+}
+
 // extractModuleName extracts the module name from a file path
 // e.g., "./server" -> "server", "../utils" -> "utils", "./src/networking" -> "networking"
 func extractModuleName(path string) string {
@@ -128,9 +140,8 @@ func loadUserModule(importPath string, token ast.Node, env *Environment) (*Modul
 		Exports: make(map[string]Object),
 	}
 
-	// Export all public symbols from the module environment
-	// For now, export everything (visibility enforcement comes in Phase 2)
-	for name, obj := range moduleEnv.GetAllBindings() {
+	// Export only public symbols from the module environment
+	for name, obj := range moduleEnv.GetPublicBindings() {
 		moduleObj.Exports[name] = obj
 	}
 
@@ -638,6 +649,7 @@ func evalVariableDeclaration(node *ast.VariableDeclaration, env *Environment) Ob
 	}
 
 	// Handle multiple assignment: temp result, err = function()
+	vis := convertVisibility(node.Visibility)
 	if len(node.Names) > 1 {
 		// Expect a ReturnValue with multiple values
 		returnVal, ok := val.(*ReturnValue)
@@ -655,13 +667,13 @@ func evalVariableDeclaration(node *ast.VariableDeclaration, env *Environment) Ob
 			if name.Value == "@ignore" {
 				continue
 			}
-			env.Set(name.Value, returnVal.Values[i], node.Mutable)
+			env.SetWithVisibility(name.Value, returnVal.Values[i], node.Mutable, vis)
 		}
 		return NIL
 	}
 
 	// Single variable assignment
-	env.Set(node.Name.Value, val, node.Mutable)
+	env.SetWithVisibility(node.Name.Value, val, node.Mutable, vis)
 	return NIL
 }
 
@@ -1115,7 +1127,8 @@ func evalFunctionDeclaration(node *ast.FunctionDeclaration, env *Environment) Ob
 		Body:        node.Body,
 		Env:         env,
 	}
-	env.Set(node.Name.Value, fn, false) // functions are immutable
+	vis := convertVisibility(node.Visibility)
+	env.SetWithVisibility(node.Name.Value, fn, false, vis) // functions are immutable
 	return NIL
 }
 

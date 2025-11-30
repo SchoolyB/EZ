@@ -359,10 +359,20 @@ var (
 	FALSE = &Boolean{Value: false}
 )
 
+// Visibility represents the access level of a symbol
+type Visibility int
+
+const (
+	VisibilityPublic       Visibility = iota // Public (default) - accessible from anywhere
+	VisibilityPrivate                        // Private to this file only
+	VisibilityPrivateModule                  // Private to this module (all files in directory)
+)
+
 // Environment holds variable bindings
 type Environment struct {
 	store      map[string]Object
 	mutable    map[string]bool
+	visibility map[string]Visibility    // Visibility of each binding
 	structDefs map[string]*StructDef
 	outer      *Environment
 	imports    map[string]string        // Legacy: alias -> stdlib module name
@@ -375,6 +385,7 @@ func NewEnvironment() *Environment {
 	env := &Environment{
 		store:      make(map[string]Object),
 		mutable:    make(map[string]bool),
+		visibility: make(map[string]Visibility),
 		structDefs: make(map[string]*StructDef),
 		outer:      nil,
 		imports:    make(map[string]string),
@@ -483,7 +494,27 @@ func (e *Environment) Get(name string) (Object, bool) {
 func (e *Environment) Set(name string, val Object, isMutable bool) Object {
 	e.store[name] = val
 	e.mutable[name] = isMutable
+	e.visibility[name] = VisibilityPublic // Default to public
 	return val
+}
+
+// SetWithVisibility sets a value with explicit visibility
+func (e *Environment) SetWithVisibility(name string, val Object, isMutable bool, vis Visibility) Object {
+	e.store[name] = val
+	e.mutable[name] = isMutable
+	e.visibility[name] = vis
+	return val
+}
+
+// GetVisibility returns the visibility of a binding
+func (e *Environment) GetVisibility(name string) (Visibility, bool) {
+	if vis, ok := e.visibility[name]; ok {
+		return vis, true
+	}
+	if e.outer != nil {
+		return e.outer.GetVisibility(name)
+	}
+	return VisibilityPublic, false
 }
 
 func (e *Environment) Update(name string, val Object) (bool, bool) {
@@ -539,7 +570,18 @@ func (e *Environment) GetStructDef(name string) (*StructDef, bool) {
 }
 
 // GetAllBindings returns all bindings in this environment (not including outer scopes)
-// Used for module exports
+// Used for debugging
 func (e *Environment) GetAllBindings() map[string]Object {
 	return e.store
+}
+
+// GetPublicBindings returns only public bindings (for module exports)
+func (e *Environment) GetPublicBindings() map[string]Object {
+	result := make(map[string]Object)
+	for name, obj := range e.store {
+		if vis, ok := e.visibility[name]; !ok || vis == VisibilityPublic {
+			result[name] = obj
+		}
+	}
+	return result
 }
