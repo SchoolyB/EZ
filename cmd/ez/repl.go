@@ -24,7 +24,7 @@ const (
 
 // startREPL starts the interactive REPL
 func startREPL() {
-	fmt.Println("EZ Language REPL v0.1.0")
+	fmt.Printf("EZ Language REPL %s\n", Version)
 	fmt.Println("Type 'help' for commands, 'exit' or 'quit' to exit")
 	fmt.Println()
 
@@ -85,7 +85,7 @@ func handleReplCommand(line string, env *interpreter.Environment) *interpreter.E
 	case "reset":
 		// Clear the terminal screen AND reset the environment
 		fmt.Print("\033[H\033[2J")
-		fmt.Println("EZ Language REPL v0.1.0")
+		fmt.Printf("EZ Language REPL %s\n", Version)
 		fmt.Println("Type 'help' for commands, 'exit' or 'quit' to exit")
 		fmt.Println()
 		return interpreter.NewEnvironment()
