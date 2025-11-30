@@ -1328,6 +1328,14 @@ func evalInfixExpression(operator string, left, right Object, line, col int) Obj
 		}
 	}
 
+	// Unwrap EnumValue to get the underlying value for comparisons
+	if ev, ok := left.(*EnumValue); ok {
+		left = ev.Value
+	}
+	if ev, ok := right.(*EnumValue); ok {
+		right = ev.Value
+	}
+
 	switch {
 	case left.Type() == INTEGER_OBJ && right.Type() == INTEGER_OBJ:
 		return evalIntegerInfixExpression(operator, left, right, line, col)
