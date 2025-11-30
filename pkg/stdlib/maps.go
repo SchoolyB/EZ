@@ -11,19 +11,6 @@ import (
 
 // MapsBuiltins contains the maps module functions
 var MapsBuiltins = map[string]*object.Builtin{
-	"maps.len": {
-		Fn: func(args ...object.Object) object.Object {
-			if len(args) != 1 {
-				return newError("maps.len() takes exactly 1 argument")
-			}
-			m, ok := args[0].(*object.Map)
-			if !ok {
-				return &object.Error{Code: "E12001", Message: "maps.len() requires a map"}
-			}
-			return &object.Integer{Value: int64(len(m.Pairs))}
-		},
-	},
-
 	"maps.is_empty": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 1 {
