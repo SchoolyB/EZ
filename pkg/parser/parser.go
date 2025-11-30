@@ -760,6 +760,58 @@ func (p *Parser) parseVarableDeclaration() *VariableDeclaration {
 		return nil
 	}
 
+	// Check for typed tuple unpacking: temp a int, b string = getValues()
+	if p.peekTokenMatches(COMMA) {
+		// Initialize TypeNames with the first type
+		stmt.TypeNames = append(stmt.TypeNames, stmt.TypeName)
+
+		// Parse additional (name type) pairs
+		for p.peekTokenMatches(COMMA) {
+			p.nextToken() // consume comma
+			p.nextToken() // move to next identifier
+
+			if !p.currentTokenMatches(IDENT) {
+				msg := fmt.Sprintf("expected identifier, got %s", p.currentToken.Type)
+				p.errors = append(p.errors, msg)
+				p.addEZError(errors.E2001, msg, p.currentToken)
+				return nil
+			}
+
+			name := p.currentToken.Literal
+			// Check for reserved names
+			if isReservedName(name) {
+				msg := fmt.Sprintf("'%s' is a reserved keyword and cannot be used as a variable name", name)
+				p.errors = append(p.errors, msg)
+				p.addEZError(errors.E2020, msg, p.currentToken)
+				return nil
+			}
+			// Check for duplicate declaration
+			if !p.declareInScope(name, p.currentToken) {
+				msg := fmt.Sprintf("'%s' is already declared in this scope", name)
+				p.errors = append(p.errors, msg)
+				p.addEZError(errors.E2023, msg, p.currentToken)
+				return nil
+			}
+			stmt.Names = append(stmt.Names, &Label{Token: p.currentToken, Value: name})
+
+			// Parse type for this variable
+			p.nextToken()
+			typeName := p.parseTypeName()
+			if typeName == "" {
+				return nil
+			}
+			stmt.TypeNames = append(stmt.TypeNames, typeName)
+		}
+
+		// Typed tuple unpacking requires initialization
+		if !p.expectPeek(ASSIGN) {
+			return nil
+		}
+		p.nextToken() // move to value
+		stmt.Value = p.parseExpression(LOWEST)
+		return stmt
+	}
+
 	// Optional initialization
 	if p.peekTokenMatches(ASSIGN) {
 		assignToken := p.peekToken // save the = token for error reporting
