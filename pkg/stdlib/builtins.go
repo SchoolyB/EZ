@@ -132,6 +132,8 @@ var StdBuiltins = map[string]*object.Builtin{
 				return &object.Integer{Value: int64(len(arg.Value))}
 			case *object.Array:
 				return &object.Integer{Value: int64(len(arg.Elements))}
+			case *object.Map:
+				return &object.Integer{Value: int64(len(arg.Pairs))}
 			default:
 				return &object.Error{Code: "E7003", Message: fmt.Sprintf("len() not supported for %s", args[0].Type())}
 			}

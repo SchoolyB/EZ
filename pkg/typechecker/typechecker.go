@@ -1256,10 +1256,10 @@ func (tc *TypeChecker) checkBuiltinTypeConversion(funcName string, call *ast.Cal
 			return true
 		}
 		argType, ok := tc.inferExpressionType(call.Arguments[0])
-		if ok && argType != "string" && !tc.isArrayType(argType) {
+		if ok && argType != "string" && !tc.isArrayType(argType) && !tc.isMapType(argType) {
 			line, column := tc.getExpressionPosition(call.Arguments[0])
 			tc.addError(errors.E3001,
-				fmt.Sprintf("len() argument must be string or array, got %s", argType),
+				fmt.Sprintf("len() argument must be string, array, or map, got %s", argType),
 				line, column)
 		}
 		return true
