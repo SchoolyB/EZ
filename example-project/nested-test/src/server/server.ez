@@ -1,0 +1,24 @@
+/*
+ * server.ez - Main server functionality
+ * Part of the 'server' module - no imports needed for sibling files
+ */
+
+module server
+
+import @std
+using std
+
+do start_server(port int) {
+    println("Server starting on port ${port}...")
+    println("Ready to handle requests!")
+}
+
+do process_request(method string, path string) -> Response {
+    temp req Request = Request{method: method, path: path, body: ""}
+
+    if path == "/" {
+        return handle_home(req)
+    }
+
+    return handle_not_found(req)
+}

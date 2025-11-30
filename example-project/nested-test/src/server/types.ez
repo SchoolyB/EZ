@@ -1,0 +1,30 @@
+/*
+ * types.ez - Server type definitions
+ * Part of the 'server' module
+ */
+
+module server
+
+const Request struct {
+    method string
+    path string
+    body string
+}
+
+const Response struct {
+    status int
+    body string
+}
+
+do get_status_text(code int) -> string {
+    if code == 200 {
+        return "OK"
+    }
+    if code == 404 {
+        return "Not Found"
+    }
+    if code == 500 {
+        return "Internal Server Error"
+    }
+    return "Unknown"
+}

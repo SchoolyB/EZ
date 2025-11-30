@@ -250,6 +250,7 @@ func (l *ModuleLoader) loadDirectoryModule(mod *Module) error {
 	// Parse all files and verify they declare the same module name
 	var declaredModuleName string
 	var combinedStatements []ast.Statement
+	var combinedFileUsing []*ast.UsingStatement
 
 	for _, filePath := range ezFiles {
 		content, err := os.ReadFile(filePath)
@@ -288,8 +289,9 @@ func (l *ModuleLoader) loadDirectoryModule(mod *Module) error {
 			}
 		}
 
-		// Combine statements
+		// Combine statements and file-level using directives
 		combinedStatements = append(combinedStatements, program.Statements...)
+		combinedFileUsing = append(combinedFileUsing, program.FileUsing...)
 	}
 
 	// Set module name and check for mismatch
@@ -309,6 +311,7 @@ func (l *ModuleLoader) loadDirectoryModule(mod *Module) error {
 	// Create combined AST
 	mod.AST = &ast.Program{
 		Statements: combinedStatements,
+		FileUsing:  combinedFileUsing,
 	}
 
 	return nil

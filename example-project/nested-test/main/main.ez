@@ -1,0 +1,44 @@
+/*
+ * main.ez - Entry point that imports a directory module
+ */
+
+import @std
+import "../src/server"
+
+using std
+
+do main() {
+    println("=== Directory Module Test ===")
+    println("")
+
+    /* Test 1: Call function from server module */
+    println("Test 1: Starting server")
+    server.start_server(8080)
+    println("  PASSED!")
+    println("")
+
+    /* Test 2: Use types from server module */
+    println("Test 2: Using types from server module")
+    temp req server.Request = server.Request{method: "GET", path: "/test", body: ""}
+    println("  Created request: ${req.method} ${req.path}")
+    println("  PASSED!")
+    println("")
+
+    /* Test 3: Process request through server module */
+    println("Test 3: Processing request")
+    temp resp server.Response = server.process_request("GET", "/")
+    println("  Response status: ${resp.status} (${server.get_status_text(resp.status)})")
+    println("  Response body: ${resp.body}")
+    println("  PASSED!")
+    println("")
+
+    /* Test 4: 404 response */
+    println("Test 4: Testing 404 response")
+    temp resp404 server.Response = server.process_request("GET", "/unknown")
+    println("  Response status: ${resp404.status} (${server.get_status_text(resp404.status)})")
+    println("  Response body: ${resp404.body}")
+    println("  PASSED!")
+    println("")
+
+    println("=== All Directory Module Tests Passed! ===")
+}
