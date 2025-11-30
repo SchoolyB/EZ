@@ -23,9 +23,28 @@ type Expression interface {
 
 // Program is the root node of every AST
 type Program struct {
-	FileUsing  []*UsingStatement // File-scoped using declarations
+	Module     *ModuleDeclaration // Optional module declaration (first statement if present)
+	FileUsing  []*UsingStatement  // File-scoped using declarations
 	Statements []Statement
 }
+
+// Visibility represents the access level of a declaration
+type Visibility int
+
+const (
+	VisibilityPublic       Visibility = iota // Public (default)
+	VisibilityPrivate                        // Private to this file
+	VisibilityPrivateModule                  // Private to this module (all files in directory)
+)
+
+// ModuleDeclaration represents "module mymodule" at the top of a file
+type ModuleDeclaration struct {
+	Token Token
+	Name  *Label // Module name (e.g., "server", "utils")
+}
+
+func (m *ModuleDeclaration) statementNode()       {}
+func (m *ModuleDeclaration) TokenLiteral() string { return m.Token.Literal }
 
 func (p *Program) TokenLiteral() string {
 	if len(p.Statements) > 0 {
@@ -246,6 +265,7 @@ type VariableDeclaration struct {
 	Value      Expression
 	Mutable    bool
 	Attributes []*Attribute // @suppress(...) attributes
+	Visibility Visibility   // Public (default), Private, or PrivateModule
 }
 
 // IgnoreValue represents @ignore in multiple assignment
@@ -384,6 +404,7 @@ type FunctionDeclaration struct {
 	ReturnTypes []string // can be multiple for multi-return
 	Body        *BlockStatement
 	Attributes  []*Attribute // @suppress(...) attributes
+	Visibility  Visibility   // Public (default), Private, or PrivateModule
 }
 
 func (f *FunctionDeclaration) statementNode()       {}
@@ -397,18 +418,41 @@ type Parameter struct {
 
 // ImportItem represents a single module import with optional alias
 type ImportItem struct {
-	Alias  string
-	Module string
+	Alias    string // Optional alias (e.g., "arr" in "import arr@arrays")
+	Module   string // Module name for stdlib (e.g., "std", "arrays")
+	Path     string // File path for user modules (e.g., "./utils", "../server")
+	IsStdlib bool   // True if this is a stdlib import (prefixed with @)
 }
 
 // ImportStatement represents import "module" or import alias "module"
 // Supports both single (import @std) and comma-separated (import @std, @arrays)
+// Also supports file path imports (import "./utils") and import & use syntax
 type ImportStatement struct {
 	Token   Token
 	Imports []ImportItem // For multiple imports
+	AutoUse bool         // True for "import & use" syntax - automatically brings into scope
 	// Deprecated: For backward compatibility with single imports
 	Alias  string
 	Module string
+}
+
+// FromImportStatement represents "from @arrays import append, pop"
+// or "from ./utils import helper, Config"
+type FromImportStatement struct {
+	Token    Token
+	Path     string        // Module path (e.g., "@arrays" or "./utils")
+	IsStdlib bool          // True if importing from stdlib
+	Items    []*ImportSpec // Specific items to import
+}
+
+func (f *FromImportStatement) statementNode()       {}
+func (f *FromImportStatement) TokenLiteral() string { return f.Token.Literal }
+
+// ImportSpec represents a single item in a from-import statement
+// e.g., "append" or "sqrt as square_root"
+type ImportSpec struct {
+	Name  string // Original name
+	Alias string // Optional alias (for "as" syntax)
 }
 
 func (i *ImportStatement) statementNode()       {}
@@ -426,9 +470,10 @@ func (u *UsingStatement) TokenLiteral() string { return u.Token.Literal }
 
 // StructDeclaration represents Person struct { name string; age int }
 type StructDeclaration struct {
-	Token  Token
-	Name   *Label
-	Fields []*StructField
+	Token      Token
+	Name       *Label
+	Fields     []*StructField
+	Visibility Visibility // Public (default), Private, or PrivateModule
 }
 
 func (sd *StructDeclaration) statementNode()       {}
@@ -436,8 +481,9 @@ func (sd *StructDeclaration) TokenLiteral() string { return sd.Token.Literal }
 
 // StructField represents a field in a struct
 type StructField struct {
-	Name     *Label
-	TypeName string
+	Name       *Label
+	TypeName   string
+	Visibility Visibility // Public (default), Private, or PrivateModule
 }
 
 // EnumDeclaration represents const STATUS enum { ... }
@@ -446,6 +492,7 @@ type EnumDeclaration struct {
 	Name       *Label
 	Values     []*EnumValue
 	Attributes *EnumAttributes
+	Visibility Visibility // Public (default), Private, or PrivateModule
 }
 
 func (ed *EnumDeclaration) statementNode()       {}

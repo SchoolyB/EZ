@@ -41,6 +41,25 @@ func isValidModule(moduleName string) bool {
 	return false
 }
 
+// extractModuleName extracts the module name from a file path
+// e.g., "./server" -> "server", "../utils" -> "utils", "./src/networking" -> "networking"
+func extractModuleName(path string) string {
+	// Remove leading ./ or ../
+	for strings.HasPrefix(path, "./") || strings.HasPrefix(path, "../") {
+		if strings.HasPrefix(path, "./") {
+			path = path[2:]
+		} else if strings.HasPrefix(path, "../") {
+			path = path[3:]
+		}
+	}
+	// Get the last component
+	parts := strings.Split(path, "/")
+	if len(parts) > 0 {
+		return parts[len(parts)-1]
+	}
+	return path
+}
+
 func Eval(node ast.Node, env *Environment) Object {
 	switch node := node.(type) {
 	// Program
@@ -137,17 +156,34 @@ func Eval(node ast.Node, env *Environment) Object {
 		// Handle multiple imports (new comma-separated syntax)
 		if len(node.Imports) > 0 {
 			for _, item := range node.Imports {
-				// Validate that the module exists
-				if !isValidModule(item.Module) {
-					return newErrorWithLocation("E6002", node.Token.Line, node.Token.Column,
-						"module '%s' not found", item.Module)
-				}
-
 				alias := item.Alias
 				if alias == "" {
-					alias = item.Module
+					if item.Module != "" {
+						alias = item.Module
+					} else {
+						// Extract from path
+						alias = extractModuleName(item.Path)
+					}
 				}
-				env.Import(alias, item.Module)
+
+				if item.IsStdlib {
+					// Standard library import
+					if !isValidModule(item.Module) {
+						return newErrorWithLocation("E6002", node.Token.Line, node.Token.Column,
+							"module '%s' not found", item.Module)
+					}
+					env.Import(alias, item.Module)
+				} else if item.Path != "" {
+					// User module import - use the module loader
+					// Note: Full module loading will be implemented when we have a loader context
+					// For now, register the path as a placeholder
+					env.Import(alias, item.Path)
+				}
+
+				// Handle auto-use (import & use syntax)
+				if node.AutoUse {
+					env.Use(alias)
+				}
 			}
 		} else {
 			// Backward compatibility: handle single import using old fields
@@ -161,7 +197,27 @@ func Eval(node ast.Node, env *Environment) Object {
 				alias = node.Module
 			}
 			env.Import(alias, node.Module)
+
+			// Handle auto-use
+			if node.AutoUse {
+				env.Use(alias)
+			}
 		}
+		return NIL
+
+	case *ast.FromImportStatement:
+		// Handle "from @module import item1, item2" syntax
+		// This imports specific items from a module directly into scope
+		if node.IsStdlib {
+			if !isValidModule(node.Path) {
+				return newErrorWithLocation("E6002", node.Token.Line, node.Token.Column,
+					"module '%s' not found", node.Path)
+			}
+		}
+		// Note: Selective imports will require additional infrastructure
+		// to resolve individual symbols from modules
+		// For now, import the full module and register the items
+		env.Import(node.Path, node.Path)
 		return NIL
 
 	case *ast.UsingStatement:
