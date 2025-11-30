@@ -109,14 +109,35 @@ func loadUserModule(importPath string, token ast.Node, env *Environment) (*Modul
 	// Set the current file for relative path resolution
 	globalEvalContext.Loader.SetCurrentFile(globalEvalContext.CurrentFile)
 
-	// Load the module
+	// Load the module (this handles parsing and caching)
 	mod, err := globalEvalContext.Loader.Load(importPath)
 	if err != nil {
 		return nil, newError("E6001", err.Error())
 	}
 
+	// If module is already fully loaded, return cached ModuleObject
+	if mod.State == ModuleLoaded && mod.ModuleObj != nil {
+		return mod.ModuleObj, nil
+	}
+
+	// Check for circular import - if module already has a ModuleObj and is loading,
+	// another call to loadUserModule is already evaluating this module.
+	// Return the existing ModuleObj which will be populated when that call completes.
+	if mod.State == ModuleLoading && mod.ModuleObj != nil {
+		return mod.ModuleObj, nil
+	}
+
+	// We are the first to evaluate this module.
 	// Create a new environment for the module
 	moduleEnv := NewEnvironment()
+	mod.Env = moduleEnv
+
+	// Create ModuleObject early so circular imports can reference it
+	// Since we're about to evaluate, we create the ModuleObj here
+	mod.ModuleObj = &ModuleObject{
+		Name:    mod.Name,
+		Exports: make(map[string]Object),
+	}
 
 	// Save the current file and set the module file as current
 	oldFile := globalEvalContext.CurrentFile
@@ -134,18 +155,15 @@ func loadUserModule(importPath string, token ast.Node, env *Environment) (*Modul
 		return nil, result
 	}
 
-	// Create the ModuleObject with exported symbols
-	moduleObj := &ModuleObject{
-		Name:    mod.Name,
-		Exports: make(map[string]Object),
-	}
-
 	// Export only public symbols from the module environment
 	for name, obj := range moduleEnv.GetPublicBindings() {
-		moduleObj.Exports[name] = obj
+		mod.ModuleObj.Exports[name] = obj
 	}
 
-	return moduleObj, nil
+	// Mark module as fully loaded
+	mod.State = ModuleLoaded
+
+	return mod.ModuleObj, nil
 }
 
 func Eval(node ast.Node, env *Environment) Object {

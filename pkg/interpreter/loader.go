@@ -34,6 +34,7 @@ type Module struct {
 	Env        *Environment           // Module's environment
 	Files      []string               // List of files (for directory modules)
 	IsDir      bool                   // True if this is a directory module
+	ModuleObj  *ModuleObject          // Cached ModuleObject for circular import support
 }
 
 // ModuleLoader handles loading and caching of modules
@@ -123,7 +124,8 @@ func (l *ModuleLoader) Load(importPath string) (*Module, error) {
 		}
 	}
 
-	mod.State = ModuleLoaded
+	// Note: State remains ModuleLoading until evaluation completes
+	// The state will be set to ModuleLoaded by loadUserModule after evaluating the AST
 	return mod, nil
 }
 
