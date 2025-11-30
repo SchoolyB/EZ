@@ -819,6 +819,25 @@ func evalAssignment(node *ast.AssignmentStatement, env *Environment) Object {
 		}
 
 	case *ast.MemberExpression:
+		// Check if this is a module member assignment (not allowed)
+		if objIdent, ok := target.Object.(*ast.Label); ok {
+			alias := objIdent.Value
+			// Check if it's a user module
+			if _, ok := env.GetModule(alias); ok {
+				return newErrorWithLocation("E6010", node.Token.Line, node.Token.Column,
+					"cannot assign to module member '%s.%s'\n\n"+
+						"Module exports are read-only and cannot be modified from outside the module.",
+					alias, target.Member.Value)
+			}
+			// Check if it's a stdlib import
+			if _, ok := env.GetImport(alias); ok {
+				return newErrorWithLocation("E6010", node.Token.Line, node.Token.Column,
+					"cannot assign to module member '%s.%s'\n\n"+
+						"Module exports are read-only and cannot be modified from outside the module.",
+					alias, target.Member.Value)
+			}
+		}
+
 		// Struct field assignment
 		obj := Eval(target.Object, env)
 		if isError(obj) {
