@@ -1667,7 +1667,7 @@ func (tc *TypeChecker) inferArraysCallType(funcName string, args []ast.Expressio
 		return "bool", true
 	case "join":
 		return "string", true
-	case "push", "unshift", "clear", "remove_at", "set":
+	case "append", "unshift", "clear", "remove_at", "set":
 		return "void", true
 	case "pop", "shift", "get", "first", "last":
 		// Returns element type - need array type to determine
@@ -1982,7 +1982,7 @@ func (tc *TypeChecker) isArraysFunction(name string) bool {
 		"shift": true, "clear": true, "copy": true, "reverse": true, "sort": true,
 		"sort_desc": true, "shuffle": true, "unique": true, "duplicates": true,
 		"flatten": true, "sum": true, "product": true, "min": true, "max": true,
-		"avg": true, "all_equal": true, "push": true, "unshift": true, "contains": true,
+		"avg": true, "all_equal": true, "append": true, "unshift": true, "contains": true,
 		"index_of": true, "last_index_of": true, "count": true, "remove": true,
 		"remove_all": true, "fill": true, "get": true, "remove_at": true, "take": true,
 		"drop": true, "set": true, "insert": true, "slice": true, "join": true,
@@ -2179,7 +2179,7 @@ func (tc *TypeChecker) checkArraysModuleCall(funcName string, call *ast.CallExpr
 		"all_equal":  {1, 1, []string{"array"}, "bool"},
 
 		// Array + value
-		"push":          {2, -1, []string{"array", "any"}, "void"},
+		"append":        {2, -1, []string{"array", "any"}, "void"},
 		"unshift":       {2, -1, []string{"array", "any"}, "array"},
 		"contains":      {2, 2, []string{"array", "any"}, "bool"},
 		"index_of":      {2, 2, []string{"array", "any"}, "int"},
