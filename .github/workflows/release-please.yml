@@ -1,0 +1,66 @@
+name: Release Please
+
+on:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  release-please:
+    runs-on: ubuntu-latest
+    outputs:
+      release_created: ${{ steps.release.outputs.release_created }}
+      tag_name: ${{ steps.release.outputs.tag_name }}
+    steps:
+      - uses: googleapis/release-please-action@v4
+        id: release
+        with:
+          release-type: go
+          config-file: .github/release-please-config.json
+          manifest-file: .github/.release-please-manifest.json
+          # Customize the changelog sections
+          changelog-types: >
+            [
+              {"type": "feat", "section": "Features", "hidden": false},
+              {"type": "fix", "section": "Bug Fixes", "hidden": false},
+              {"type": "perf", "section": "Performance Improvements", "hidden": false},
+              {"type": "revert", "section": "Reverts", "hidden": false},
+              {"type": "docs", "section": "Documentation", "hidden": false},
+              {"type": "chore", "section": "Miscellaneous", "hidden": true},
+              {"type": "style", "section": "Styles", "hidden": true},
+              {"type": "refactor", "section": "Code Refactoring", "hidden": true},
+              {"type": "test", "section": "Tests", "hidden": true},
+              {"type": "build", "section": "Build System", "hidden": true},
+              {"type": "ci", "section": "CI", "hidden": true}
+            ]
+
+  build-release:
+    needs: release-please
+    if: ${{ needs.release-please.outputs.release_created }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.21'
+
+      - name: Build release binaries
+        run: make release VERSION=${{ needs.release-please.outputs.tag_name }}
+
+      - name: Upload release assets
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release upload ${{ needs.release-please.outputs.tag_name }} \
+            dist/ez-darwin-amd64 \
+            dist/ez-darwin-arm64 \
+            dist/ez-linux-amd64 \
+            dist/ez-linux-arm64 \
+            dist/ez-windows-amd64.exe

@@ -105,6 +105,15 @@ const (
 	FALSE      TokenType = "FALSE"
 	IGNORE     TokenType = "IGNORE"
 	SUPPRESS   TokenType = "SUPPRESS"
+
+	// Module system keywords
+	MODULE  TokenType = "MODULE"
+	PRIVATE TokenType = "PRIVATE"
+	FROM    TokenType = "FROM"
+	USE     TokenType = "USE"
+
+	// Ampersand (for import & use syntax)
+	AMPERSAND TokenType = "&"
 )
 
 var keywords = map[string]TokenType{
@@ -133,6 +142,10 @@ var keywords = map[string]TokenType{
 	"true":       TRUE,
 	"false":      FALSE,
 	"@ignore":    IGNORE,
+	"module":     MODULE,
+	"private":    PRIVATE,
+	"from":       FROM,
+	"use":        USE,
 }
 
 // Looks up the passed in identifier(i)

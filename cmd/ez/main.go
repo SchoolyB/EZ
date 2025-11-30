@@ -2,16 +2,26 @@ package main
 
 // Copyright (c) 2025-Present Marshall A Burns
 // Licensed under the MIT License. See LICENSE for details.
+
 import (
 	"fmt"
 	"os"
+	"path/filepath"
+	"strings"
 
+	"github.com/marshallburns/ez/pkg/ast"
 	"github.com/marshallburns/ez/pkg/errors"
 	"github.com/marshallburns/ez/pkg/interpreter"
 	"github.com/marshallburns/ez/pkg/lexer"
 	"github.com/marshallburns/ez/pkg/parser"
 	"github.com/marshallburns/ez/pkg/tokenizer"
 	"github.com/marshallburns/ez/pkg/typechecker"
+)
+
+// Version information - injected at build time via ldflags
+var (
+	Version   = "dev"
+	BuildTime = "unknown"
 )
 
 func main() {
@@ -31,10 +41,17 @@ func main() {
 		startREPL()
 	case "build":
 		if len(os.Args) < 3 {
-			fmt.Println("Usage: ez build <file>")
-			return
+			// No argument: build project in current directory
+			buildProject(".")
+		} else {
+			arg := os.Args[2]
+			// Check if it's a .ez file or a directory
+			if strings.HasSuffix(arg, ".ez") {
+				buildFile(arg)
+			} else {
+				buildProject(arg)
+			}
 		}
-		buildFile(os.Args[2])
 	case "lex":
 		if len(os.Args) < 3 {
 			fmt.Println("Usage: ez lex <file>")
@@ -74,7 +91,9 @@ func printHelp() {
 	fmt.Println()
 	fmt.Println("Commands:")
 	fmt.Println("  run <file>     Run an EZ program")
-	fmt.Println("  build <file>   Check syntax and types without running")
+	fmt.Println("  build          Build project in current directory (requires main.ez)")
+	fmt.Println("  build <dir>    Build project in specified directory")
+	fmt.Println("  build <file>   Check syntax and types for a single file")
 	fmt.Println("  repl           Start interactive REPL mode")
 	fmt.Println("  lex <file>     Tokenize a file (debug)")
 	fmt.Println("  parse <file>   Parse a file (debug)")
@@ -84,12 +103,15 @@ func printHelp() {
 	fmt.Println("Examples:")
 	fmt.Println("  ez myProgram.ez")
 	fmt.Println("  ez run examples/hello.ez")
-	fmt.Println("  ez build myProgram.ez")
+	fmt.Println("  ez build                    # Build project in current directory")
+	fmt.Println("  ez build ./myproject        # Build project in myproject/")
+	fmt.Println("  ez build utils.ez           # Check single file")
 	fmt.Println("  ez repl")
 }
 
 func printVersion() {
-	fmt.Println("EZ Language v0.1.0")
+	fmt.Printf("EZ Language %s\n", Version)
+	fmt.Printf("Built: %s\n", BuildTime)
 	fmt.Println("Copyright (c) 2025-Present Marshall A Burns")
 }
 
@@ -153,6 +175,234 @@ func buildFile(filename string) {
 	fmt.Printf("Build successful: %s\n", filename)
 }
 
+// buildProject builds an entire EZ project starting from main.ez
+func buildProject(dir string) {
+	// Resolve to absolute path
+	absDir, err := filepath.Abs(dir)
+	if err != nil {
+		fmt.Printf("Error resolving path: %v\n", err)
+		return
+	}
+
+	// Check if directory exists
+	info, err := os.Stat(absDir)
+	if err != nil {
+		fmt.Printf("Error: directory not found: %s\n", dir)
+		return
+	}
+	if !info.IsDir() {
+		fmt.Printf("Error: not a directory: %s\n", dir)
+		return
+	}
+
+	// Look for main.ez in the directory
+	mainFile := filepath.Join(absDir, "main.ez")
+	if _, err := os.Stat(mainFile); os.IsNotExist(err) {
+		fmt.Printf("Error: no main.ez found in %s\n", dir)
+		fmt.Println("  = help: create a main.ez file with a main() function")
+		return
+	}
+
+	// Read main.ez
+	data, err := os.ReadFile(mainFile)
+	if err != nil {
+		fmt.Printf("Error reading main.ez: %v\n", err)
+		return
+	}
+
+	source := string(data)
+	l := lexer.NewLexer(source)
+	p := parser.NewWithSource(l, source, mainFile)
+	program := p.ParseProgram()
+
+	// Check for lexer errors
+	if len(l.Errors()) > 0 {
+		errList := errors.NewErrorList()
+		for _, lexErr := range l.Errors() {
+			var code errors.ErrorCode
+			switch lexErr.Code {
+			case "E1005":
+				code = errors.E1005
+			default:
+				code = errors.ErrorCode{Code: lexErr.Code, Name: "lexer-error", Description: "Lexer error"}
+			}
+			sourceLine := errors.GetSourceLine(source, lexErr.Line)
+			ezErr := errors.NewErrorWithSource(code, lexErr.Message, mainFile, lexErr.Line, lexErr.Column, sourceLine)
+			errList.AddError(ezErr)
+		}
+		fmt.Print(errors.FormatErrorList(errList))
+		return
+	}
+
+	// Check for parser errors
+	if p.EZErrors().HasErrors() {
+		fmt.Print(errors.FormatErrorList(p.EZErrors()))
+		return
+	}
+
+	// Display parser warnings
+	if p.EZErrors().HasWarnings() {
+		fmt.Print(errors.FormatErrorList(p.EZErrors()))
+	}
+
+	// Type checking for main.ez
+	tc := typechecker.NewTypeChecker(source, mainFile)
+	tc.CheckProgram(program)
+
+	if tc.Errors().HasErrors() {
+		fmt.Print(errors.FormatErrorList(tc.Errors()))
+		return
+	}
+
+	if tc.Errors().HasWarnings() {
+		fmt.Print(errors.FormatErrorList(tc.Errors()))
+	}
+
+	// Initialize the module loader
+	loader := interpreter.NewModuleLoader(absDir)
+
+	// Track all modules that need to be checked
+	var modulesChecked []string
+	modulesChecked = append(modulesChecked, mainFile)
+
+	// Find and check all imported modules
+	hasErrors := false
+	modulesToCheck := collectImports(program, absDir, mainFile)
+	checked := make(map[string]bool)
+	checked[mainFile] = true
+
+	for len(modulesToCheck) > 0 {
+		// Pop first module
+		modPath := modulesToCheck[0]
+		modulesToCheck = modulesToCheck[1:]
+
+		if checked[modPath] {
+			continue
+		}
+		checked[modPath] = true
+
+		// Load the module using the loader
+		loader.SetCurrentFile(mainFile) // Set context for relative imports
+		mod, err := loader.Load(modPath)
+		if err != nil {
+			fmt.Printf("Error loading module %s: %v\n", modPath, err)
+			hasErrors = true
+			continue
+		}
+
+		// Check each file in the module
+		for _, filePath := range mod.Files {
+			if checked[filePath] {
+				continue
+			}
+			checked[filePath] = true
+			modulesChecked = append(modulesChecked, filePath)
+
+			// Read and check the file
+			fileData, err := os.ReadFile(filePath)
+			if err != nil {
+				fmt.Printf("Error reading %s: %v\n", filePath, err)
+				hasErrors = true
+				continue
+			}
+
+			fileSource := string(fileData)
+			fileLex := lexer.NewLexer(fileSource)
+			fileParser := parser.NewWithSource(fileLex, fileSource, filePath)
+			fileProgram := fileParser.ParseProgram()
+
+			// Check for lexer errors
+			if len(fileLex.Errors()) > 0 {
+				errList := errors.NewErrorList()
+				for _, lexErr := range fileLex.Errors() {
+					var code errors.ErrorCode
+					switch lexErr.Code {
+					case "E1005":
+						code = errors.E1005
+					default:
+						code = errors.ErrorCode{Code: lexErr.Code, Name: "lexer-error", Description: "Lexer error"}
+					}
+					sourceLine := errors.GetSourceLine(fileSource, lexErr.Line)
+					ezErr := errors.NewErrorWithSource(code, lexErr.Message, filePath, lexErr.Line, lexErr.Column, sourceLine)
+					errList.AddError(ezErr)
+				}
+				fmt.Print(errors.FormatErrorList(errList))
+				hasErrors = true
+				continue
+			}
+
+			// Check for parser errors
+			if fileParser.EZErrors().HasErrors() {
+				fmt.Print(errors.FormatErrorList(fileParser.EZErrors()))
+				hasErrors = true
+				continue
+			}
+
+			if fileParser.EZErrors().HasWarnings() {
+				fmt.Print(errors.FormatErrorList(fileParser.EZErrors()))
+			}
+
+			// Type check (skip main() requirement for module files)
+			fileTc := typechecker.NewTypeChecker(fileSource, filePath)
+			fileTc.SetSkipMainCheck(true) // Module files don't need main()
+			fileTc.CheckProgram(fileProgram)
+
+			if fileTc.Errors().HasErrors() {
+				fmt.Print(errors.FormatErrorList(fileTc.Errors()))
+				hasErrors = true
+				continue
+			}
+
+			if fileTc.Errors().HasWarnings() {
+				fmt.Print(errors.FormatErrorList(fileTc.Errors()))
+			}
+
+			// Collect more imports from this file
+			newImports := collectImports(fileProgram, absDir, filePath)
+			modulesToCheck = append(modulesToCheck, newImports...)
+		}
+	}
+
+	// Print module loader warnings
+	for _, warning := range loader.GetWarnings() {
+		fmt.Println(warning)
+	}
+
+	if hasErrors {
+		fmt.Println("\nBuild failed.")
+		return
+	}
+
+	fmt.Printf("Build successful: %d file(s) checked\n", len(modulesChecked))
+}
+
+// collectImports extracts import paths from a program's AST
+func collectImports(program *ast.Program, rootDir string, currentFile string) []string {
+	var imports []string
+
+	for _, stmt := range program.Statements {
+		if importStmt, ok := stmt.(*ast.ImportStatement); ok {
+			for _, item := range importStmt.Imports {
+				// Skip stdlib imports (start with @)
+				if strings.HasPrefix(item.Module, "@") || item.Module != "" {
+					continue
+				}
+				// User module import (has a path)
+				if item.Path != "" {
+					// Resolve the path relative to current file
+					basePath := filepath.Dir(currentFile)
+					absPath, err := filepath.Abs(filepath.Join(basePath, item.Path))
+					if err == nil {
+						imports = append(imports, absPath)
+					}
+				}
+			}
+		}
+	}
+
+	return imports
+}
+
 func lexFile(filename string) {
 	data, err := os.ReadFile(filename)
 	if err != nil {
@@ -200,6 +450,13 @@ func runFile(filename string) {
 	data, err := os.ReadFile(filename)
 	if err != nil {
 		fmt.Printf("Error reading file: %v\n", err)
+		return
+	}
+
+	// Get absolute path for module loading
+	absPath, err := filepath.Abs(filename)
+	if err != nil {
+		fmt.Printf("Error resolving path: %v\n", err)
 		return
 	}
 
@@ -253,8 +510,26 @@ func runFile(filename string) {
 		fmt.Print(errors.FormatErrorList(tc.Errors()))
 	}
 
+	// Initialize the module loader with the directory of the main file
+	rootDir := filepath.Dir(absPath)
+	loader := interpreter.NewModuleLoader(rootDir)
+
+	// Set up the evaluation context
+	ctx := &interpreter.EvalContext{
+		Loader:      loader,
+		CurrentFile: absPath,
+	}
+	interpreter.SetEvalContext(ctx)
+
 	env := interpreter.NewEnvironment()
 	result := interpreter.Eval(program, env)
+
+	// Print any module loading warnings
+	if ctx := interpreter.GetEvalContext(); ctx != nil && ctx.Loader != nil {
+		for _, warning := range ctx.Loader.GetWarnings() {
+			fmt.Println(warning)
+		}
+	}
 
 	// Check for evaluation errors
 	if errObj, ok := result.(*interpreter.Error); ok {

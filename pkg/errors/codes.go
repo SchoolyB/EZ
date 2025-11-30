@@ -142,6 +142,11 @@ var (
 	E6002 = ErrorCode{"E6002", "module-not-found", "module file not found"}
 	E6003 = ErrorCode{"E6003", "invalid-module-format", "module has invalid format"}
 	E6004 = ErrorCode{"E6004", "module-load-error", "failed to load module"}
+	E6005 = ErrorCode{"E6005", "module-name-mismatch", "module name does not match directory"}
+	E6006 = ErrorCode{"E6006", "module-name-conflict", "files in directory declare different module names"}
+	E6007 = ErrorCode{"E6007", "internal-import-denied", "cannot import from internal/ directory outside package"}
+	E6010 = ErrorCode{"E6010", "module-member-readonly", "cannot assign to module member"}
+	E6011 = ErrorCode{"E6011", "private-access-denied", "cannot access private member from outside module"}
 )
 
 // =============================================================================
@@ -266,4 +271,7 @@ var (
 	// Code Quality Warnings (W3xxx)
 	W3001 = ErrorCode{"W3001", "empty-block", "block statement is empty"}
 	W3002 = ErrorCode{"W3002", "redundant-condition", "condition is always true/false"}
+
+	// Module Warnings (W6xxx)
+	W6001 = ErrorCode{"W6001", "module-name-mismatch", "module name does not match directory name"}
 )

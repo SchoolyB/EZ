@@ -35,6 +35,7 @@ type (
 	Enum            = object.Enum
 	EnumValue       = object.EnumValue
 	Environment     = object.Environment
+	ModuleObject    = object.ModuleObject
 )
 
 // Re-export constants
@@ -56,7 +57,16 @@ const (
 	CONTINUE_OBJ     = object.CONTINUE_OBJ
 	ENUM_OBJ         = object.ENUM_OBJ
 	ENUM_VALUE_OBJ   = object.ENUM_VALUE_OBJ
+	MODULE_OBJ       = object.MODULE_OBJ
+
+	// Visibility constants
+	VisibilityPublic        = object.VisibilityPublic
+	VisibilityPrivate       = object.VisibilityPrivate
+	VisibilityPrivateModule = object.VisibilityPrivateModule
 )
+
+// Re-export Visibility type
+type Visibility = object.Visibility
 
 // Note: Singleton values (NIL, TRUE, FALSE) are defined in evaluator.go
 // to maintain compatibility with existing code that uses them.

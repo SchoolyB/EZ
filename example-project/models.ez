@@ -1,0 +1,71 @@
+/*
+ * Task Manager - Models Module
+ *
+ * Defines core data structures for the task manager.
+ * NOTE: Enums removed due to bugs #2-7 - using string/int literals instead
+ */
+
+module models
+
+import @std
+
+/*
+ * Task Struct - Core data structure
+ */
+const Task struct {
+    id int
+    title string
+    description string
+    priority int
+    status string
+    category string
+    created_at int
+    due_date int
+    completed_at int
+}
+
+/*
+ * TaskStats Struct - Statistics
+ */
+const TaskStats struct {
+    total int
+    completed int
+    in_progress int
+    blocked int
+    todo int
+    completion_rate float
+}
+
+/*
+ * get_priority_name - Returns human-readable priority name
+ */
+do get_priority_name(priority int) -> string {
+    if priority == 0 {
+        return "Low"
+    } or priority == 10 {
+        return "Medium"
+    } or priority == 20 {
+        return "High"
+    } or priority == 30 {
+        return "Critical"
+    } otherwise {
+        return "Unknown"
+    }
+}
+
+/*
+ * get_status_display - Returns human-readable status name
+ */
+do get_status_display(status string) -> string {
+    if status == "todo" {
+        return "To Do"
+    } or status == "in_progress" {
+        return "In Progress"
+    } or status == "blocked" {
+        return "Blocked"
+    } or status == "done" {
+        return "Done"
+    } otherwise {
+        return "Unknown"
+    }
+}

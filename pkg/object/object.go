@@ -30,6 +30,7 @@ const (
 	CONTINUE_OBJ     ObjectType = "CONTINUE"
 	ENUM_OBJ         ObjectType = "ENUM"
 	ENUM_VALUE_OBJ   ObjectType = "ENUM_VALUE"
+	MODULE_OBJ       ObjectType = "MODULE"
 )
 
 type Object interface {
@@ -149,8 +150,9 @@ func (b *Builtin) Inspect() string  { return "builtin function" }
 
 // Array represents an array
 type Array struct {
-	Elements []Object
-	Mutable  bool
+	Elements    []Object
+	Mutable     bool
+	ElementType string // Type of array elements (e.g., "int", "Task")
 }
 
 func (a *Array) Type() ObjectType { return ARRAY_OBJ }
@@ -170,8 +172,8 @@ type MapPair struct {
 
 // Map represents a map/dictionary with ordered key-value pairs
 type Map struct {
-	Pairs   []*MapPair        // Ordered pairs for iteration
-	Index   map[string]int    // Maps key hash to index in Pairs for O(1) lookup
+	Pairs   []*MapPair     // Ordered pairs for iteration
+	Index   map[string]int // Maps key hash to index in Pairs for O(1) lookup
 	Mutable bool
 }
 
@@ -334,6 +336,33 @@ func (ev *EnumValue) Inspect() string {
 	return ev.Value.Inspect()
 }
 
+// ModuleObject represents a loaded module at runtime
+type ModuleObject struct {
+	Name       string                // Module name
+	Exports    map[string]Object     // Exported (public) symbols
+	StructDefs map[string]*StructDef // Exported struct definitions
+}
+
+func (m *ModuleObject) Type() ObjectType { return MODULE_OBJ }
+func (m *ModuleObject) Inspect() string {
+	return fmt.Sprintf("<module %s>", m.Name)
+}
+
+// Get retrieves an exported symbol from the module
+func (m *ModuleObject) Get(name string) (Object, bool) {
+	obj, ok := m.Exports[name]
+	return obj, ok
+}
+
+// GetStructDef retrieves an exported struct definition from the module
+func (m *ModuleObject) GetStructDef(name string) (*StructDef, bool) {
+	if m.StructDefs == nil {
+		return nil, false
+	}
+	def, ok := m.StructDefs[name]
+	return def, ok
+}
+
 // Singleton values
 var (
 	NIL   = &Nil{}
@@ -341,13 +370,24 @@ var (
 	FALSE = &Boolean{Value: false}
 )
 
+// Visibility represents the access level of a symbol
+type Visibility int
+
+const (
+	VisibilityPublic        Visibility = iota // Public (default) - accessible from anywhere
+	VisibilityPrivate                         // Private to this file only
+	VisibilityPrivateModule                   // Private to this module (all files in directory)
+)
+
 // Environment holds variable bindings
 type Environment struct {
 	store      map[string]Object
 	mutable    map[string]bool
+	visibility map[string]Visibility // Visibility of each binding
 	structDefs map[string]*StructDef
 	outer      *Environment
-	imports    map[string]string
+	imports    map[string]string        // Legacy: alias -> stdlib module name
+	modules    map[string]*ModuleObject // User modules: alias -> module object
 	using      []string
 	loopDepth  int
 }
@@ -356,9 +396,11 @@ func NewEnvironment() *Environment {
 	env := &Environment{
 		store:      make(map[string]Object),
 		mutable:    make(map[string]bool),
+		visibility: make(map[string]Visibility),
 		structDefs: make(map[string]*StructDef),
 		outer:      nil,
 		imports:    make(map[string]string),
+		modules:    make(map[string]*ModuleObject),
 		using:      []string{},
 		loopDepth:  0,
 	}
@@ -397,6 +439,38 @@ func (e *Environment) GetImport(alias string) (string, bool) {
 	return "", false
 }
 
+// RegisterModule registers a user module with the given alias
+func (e *Environment) RegisterModule(alias string, mod *ModuleObject) {
+	e.modules[alias] = mod
+}
+
+// GetModule retrieves a registered user module by alias
+func (e *Environment) GetModule(alias string) (*ModuleObject, bool) {
+	if mod, ok := e.modules[alias]; ok {
+		return mod, true
+	}
+	if e.outer != nil {
+		return e.outer.GetModule(alias)
+	}
+	return nil, false
+}
+
+// HasModule checks if a module is registered (either stdlib import or user module)
+func (e *Environment) HasModule(alias string) bool {
+	// Check user modules
+	if _, ok := e.modules[alias]; ok {
+		return true
+	}
+	// Check stdlib imports
+	if _, ok := e.imports[alias]; ok {
+		return true
+	}
+	if e.outer != nil {
+		return e.outer.HasModule(alias)
+	}
+	return false
+}
+
 func (e *Environment) Use(alias string) {
 	e.using = append(e.using, alias)
 }
@@ -431,7 +505,27 @@ func (e *Environment) Get(name string) (Object, bool) {
 func (e *Environment) Set(name string, val Object, isMutable bool) Object {
 	e.store[name] = val
 	e.mutable[name] = isMutable
+	e.visibility[name] = VisibilityPublic // Default to public
 	return val
+}
+
+// SetWithVisibility sets a value with explicit visibility
+func (e *Environment) SetWithVisibility(name string, val Object, isMutable bool, vis Visibility) Object {
+	e.store[name] = val
+	e.mutable[name] = isMutable
+	e.visibility[name] = vis
+	return val
+}
+
+// GetVisibility returns the visibility of a binding
+func (e *Environment) GetVisibility(name string) (Visibility, bool) {
+	if vis, ok := e.visibility[name]; ok {
+		return vis, true
+	}
+	if e.outer != nil {
+		return e.outer.GetVisibility(name)
+	}
+	return VisibilityPublic, false
 }
 
 func (e *Environment) Update(name string, val Object) (bool, bool) {
@@ -484,4 +578,37 @@ func (e *Environment) GetStructDef(name string) (*StructDef, bool) {
 		return e.outer.GetStructDef(name)
 	}
 	return nil, false
+}
+
+// GetAllBindings returns all bindings in this environment (not including outer scopes)
+// Used for debugging
+func (e *Environment) GetAllBindings() map[string]Object {
+	return e.store
+}
+
+// GetPublicBindings returns only public bindings (for module exports)
+func (e *Environment) GetPublicBindings() map[string]Object {
+	result := make(map[string]Object)
+	for name, obj := range e.store {
+		if vis, ok := e.visibility[name]; !ok || vis == VisibilityPublic {
+			result[name] = obj
+		}
+	}
+	return result
+}
+
+// GetPublicStructDefs returns all public struct definitions in this environment
+func (e *Environment) GetPublicStructDefs() map[string]*StructDef {
+	result := make(map[string]*StructDef)
+	for name, def := range e.structDefs {
+		// Skip the built-in Error struct
+		if name == "Error" {
+			continue
+		}
+		// Check visibility - if not explicitly set, treat as public
+		if vis, ok := e.visibility[name]; !ok || vis == VisibilityPublic {
+			result[name] = def
+		}
+	}
+	return result
 }

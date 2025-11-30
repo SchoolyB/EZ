@@ -1,0 +1,237 @@
+/*
+ * Task Manager - Utilities Module
+ *
+ * This module provides general utility functions.
+ * Demonstrates: math operations, validation, and helper functions.
+ */
+
+module utils
+
+import @std
+import @math
+import @strings
+import @time
+
+using std, strings, math
+
+/*
+ * clamp - Constrains a value to be within a range
+ */
+do clamp(value int, min_val int, max_val int) -> int {
+    if value < min_val {
+        return min_val
+    }
+    if value > max_val {
+        return max_val
+    }
+    return value
+}
+
+/*
+ * clamp_float - Float version of clamp
+ */
+do clamp_float(value float, min_val float, max_val float) -> float {
+    if value < min_val {
+        return min_val
+    }
+    if value > max_val {
+        return max_val
+    }
+    return value
+}
+
+/*
+ * is_valid_string - Checks if a string is non-empty after trimming
+ */
+do is_valid_string(s string) -> bool {
+    temp trimmed string = trim(s)
+    return len(trimmed) > 0
+}
+
+/*
+ * truncate - Truncates a string to max length, adding "..." if needed
+ */
+do truncate(s string, max_len int) -> string {
+    if len(s) <= max_len {
+        return s
+    }
+    if max_len <= 3 {
+        return "..."
+    }
+    temp cut int = max_len - 3
+    temp result string = slice(s, 0, cut)
+    return "${result}..."
+}
+
+/*
+ * pad_right - Pads a string on the right to reach target length
+ */
+do pad_right(s string, target_len int) -> string {
+    temp current_len int = len(s)
+    if current_len >= target_len {
+        return s
+    }
+    temp padding int = target_len - current_len
+    temp spaces string = repeat(" ", padding)
+    return "${s}${spaces}"
+}
+
+/*
+ * pad_left - Pads a string on the left to reach target length
+ */
+do pad_left(s string, target_len int) -> string {
+    temp current_len int = len(s)
+    if current_len >= target_len {
+        return s
+    }
+    temp padding int = target_len - current_len
+    temp spaces string = repeat(" ", padding)
+    return "${spaces}${s}"
+}
+
+/*
+ * format_number - Formats a number with thousand separators
+ * Example: 1000000 -> "1,000,000"
+ */
+do format_number(n int) -> string {
+    temp str string = string(n)
+    temp result string = ""
+    temp count int = 0
+
+    for i in range(len(str) - 1, -1) {
+        if count > 0 && count % 3 == 0 {
+            result = ",${result}"
+        }
+        result = "${str[i]}${result}"
+        count += 1
+    }
+
+    return result
+}
+
+/*
+ * calculate_percentage - Calculates percentage with rounding
+ */
+do calculate_percentage(part int, total int) -> float {
+    if total == 0 {
+        return 0.0
+    }
+    return float(part) / float(total) * 100.0
+}
+
+/*
+ * days_until - Calculates days until a timestamp
+ * Returns negative if timestamp is in the past
+ */
+do days_until(timestamp int) -> int {
+    temp now int = time.now()
+    temp diff int = timestamp - now
+    temp seconds_per_day int = 86400
+    return diff / seconds_per_day
+}
+
+/*
+ * days_from_now - Creates a timestamp for N days in the future
+ */
+do days_from_now(days int) -> int {
+    temp seconds_per_day int = 86400
+    return time.now() + (days * seconds_per_day)
+}
+
+/*
+ * hours_from_now - Creates a timestamp for N hours in the future
+ */
+do hours_from_now(hours int) -> int {
+    temp seconds_per_hour int = 3600
+    return time.now() + (hours * seconds_per_hour)
+}
+
+/*
+ * generate_simple_id - Generates a simple sequential ID
+ * Not for production use - just for demonstration
+ */
+const ID_COUNTER struct {
+    value int
+}
+
+priv const id_state ID_COUNTER = ID_COUNTER{value: 0}
+
+do generate_id() -> int {
+    id_state.value += 1
+    return id_state.value
+}
+
+/*
+ * reset_id_counter - Resets the ID counter (useful for testing)
+ */
+do reset_id_counter() {
+    id_state.value = 0
+}
+
+/*
+ * min_int - Returns the minimum of two integers
+ */
+do min_int(a int, b int) -> int {
+    if a < b {
+        return a
+    }
+    return b
+}
+
+/*
+ * max_int - Returns the maximum of two integers
+ */
+do max_int(a int, b int) -> int {
+    if a > b {
+        return a
+    }
+    return b
+}
+
+/*
+ * sum_array - Sums an array of integers
+ */
+do sum_array(arr [int]) -> int {
+    temp total int = 0
+    for_each n in arr {
+        total += n
+    }
+    return total
+}
+
+/*
+ * average_array - Calculates the average of an array of integers
+ */
+do average_array(arr [int]) -> float {
+    if len(arr) == 0 {
+        return 0.0
+    }
+    temp total int = sum_array(arr)
+    return float(total) / float(len(arr))
+}
+
+/*
+ * contains_string - Checks if an array contains a string
+ */
+do contains_string(arr [string], target string) -> bool {
+    for_each s in arr {
+        if s == target {
+            return true
+        }
+    }
+    return false
+}
+
+/*
+ * unique_strings - Returns array with duplicate strings removed
+ */
+do unique_strings(arr [string]) -> [string] {
+    temp result [string] = {}
+    for_each s in arr {
+        if !contains_string(result, s) {
+            import @arrays
+            arrays.append(result, s)
+        }
+    }
+    return result
+}

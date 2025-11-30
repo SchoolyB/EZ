@@ -17,6 +17,15 @@ var (
 	FALSE = &Boolean{Value: false}
 )
 
+// EvalContext holds context for evaluation including the module loader
+type EvalContext struct {
+	Loader      *ModuleLoader
+	CurrentFile string // Current file being evaluated (for relative imports)
+}
+
+// Global eval context (set when running a program)
+var globalEvalContext *EvalContext
+
 // validModules lists all available standard library modules
 var validModules = map[string]bool{
 	"std":     true, // Standard I/O functions (println, print, read_int)
@@ -39,6 +48,125 @@ func isValidModule(moduleName string) bool {
 	// For now, we only validate against standard library
 
 	return false
+}
+
+// convertVisibility converts AST visibility to object visibility
+func convertVisibility(vis ast.Visibility) Visibility {
+	switch vis {
+	case ast.VisibilityPrivate:
+		return VisibilityPrivate
+	case ast.VisibilityPrivateModule:
+		return VisibilityPrivateModule
+	default:
+		return VisibilityPublic
+	}
+}
+
+// extractModuleName extracts the module name from a file path
+// e.g., "./server" -> "server", "../utils" -> "utils", "./src/networking" -> "networking"
+func extractModuleName(path string) string {
+	// Remove leading ./ or ../
+	for strings.HasPrefix(path, "./") || strings.HasPrefix(path, "../") {
+		if strings.HasPrefix(path, "./") {
+			path = path[2:]
+		} else if strings.HasPrefix(path, "../") {
+			path = path[3:]
+		}
+	}
+	// Get the last component
+	parts := strings.Split(path, "/")
+	if len(parts) > 0 {
+		return parts[len(parts)-1]
+	}
+	return path
+}
+
+// SetEvalContext sets the global evaluation context
+func SetEvalContext(ctx *EvalContext) {
+	globalEvalContext = ctx
+}
+
+// GetEvalContext returns the global evaluation context
+func GetEvalContext() *EvalContext {
+	return globalEvalContext
+}
+
+// EvalWithContext evaluates a program with a given context
+func EvalWithContext(node ast.Node, env *Environment, ctx *EvalContext) Object {
+	oldCtx := globalEvalContext
+	globalEvalContext = ctx
+	result := Eval(node, env)
+	globalEvalContext = oldCtx
+	return result
+}
+
+// loadUserModule loads a user module from a file path and returns a ModuleObject
+func loadUserModule(importPath string, token ast.Node, env *Environment) (*ModuleObject, Object) {
+	if globalEvalContext == nil || globalEvalContext.Loader == nil {
+		return nil, newError("E6001: %s", "module loader not initialized")
+	}
+
+	// Set the current file for relative path resolution
+	globalEvalContext.Loader.SetCurrentFile(globalEvalContext.CurrentFile)
+
+	// Load the module (this handles parsing and caching)
+	mod, err := globalEvalContext.Loader.Load(importPath)
+	if err != nil {
+		return nil, newError("E6001: %s", err.Error())
+	}
+
+	// If module is already fully loaded, return cached ModuleObject
+	if mod.State == ModuleLoaded && mod.ModuleObj != nil {
+		return mod.ModuleObj, nil
+	}
+
+	// Check for circular import - if module already has a ModuleObj and is loading,
+	// another call to loadUserModule is already evaluating this module.
+	// Return the existing ModuleObj which will be populated when that call completes.
+	if mod.State == ModuleLoading && mod.ModuleObj != nil {
+		return mod.ModuleObj, nil
+	}
+
+	// We are the first to evaluate this module.
+	// Create a new environment for the module
+	moduleEnv := NewEnvironment()
+	mod.Env = moduleEnv
+
+	// Create ModuleObject early so circular imports can reference it
+	// Since we're about to evaluate, we create the ModuleObj here
+	mod.ModuleObj = &ModuleObject{
+		Name:    mod.Name,
+		Exports: make(map[string]Object),
+	}
+
+	// Save the current file and set the module file as current
+	oldFile := globalEvalContext.CurrentFile
+	if len(mod.Files) > 0 {
+		globalEvalContext.CurrentFile = mod.Files[0]
+	}
+
+	// Evaluate the module's AST
+	result := Eval(mod.AST, moduleEnv)
+
+	// Restore the current file
+	globalEvalContext.CurrentFile = oldFile
+
+	if isError(result) {
+		return nil, result
+	}
+
+	// Export only public symbols from the module environment
+	for name, obj := range moduleEnv.GetPublicBindings() {
+		mod.ModuleObj.Exports[name] = obj
+	}
+
+	// Export struct definitions from the module
+	mod.ModuleObj.StructDefs = moduleEnv.GetPublicStructDefs()
+
+	// Mark module as fully loaded
+	mod.State = ModuleLoaded
+
+	return mod.ModuleObj, nil
 }
 
 func Eval(node ast.Node, env *Environment) Object {
@@ -137,17 +265,50 @@ func Eval(node ast.Node, env *Environment) Object {
 		// Handle multiple imports (new comma-separated syntax)
 		if len(node.Imports) > 0 {
 			for _, item := range node.Imports {
-				// Validate that the module exists
-				if !isValidModule(item.Module) {
-					return newErrorWithLocation("E6002", node.Token.Line, node.Token.Column,
-						"module '%s' not found", item.Module)
-				}
-
 				alias := item.Alias
 				if alias == "" {
-					alias = item.Module
+					if item.Module != "" {
+						alias = item.Module
+					} else {
+						// Extract from path
+						alias = extractModuleName(item.Path)
+					}
 				}
-				env.Import(alias, item.Module)
+
+				if item.IsStdlib {
+					// Standard library import
+					if !isValidModule(item.Module) {
+						return newErrorWithLocation("E6002", node.Token.Line, node.Token.Column,
+							"module '%s' not found", item.Module)
+					}
+					env.Import(alias, item.Module)
+					// Dual-name access: also register with original module name if alias differs
+					if alias != item.Module {
+						env.Import(item.Module, item.Module)
+					}
+				} else if item.Path != "" {
+					// User module import - load the module
+					moduleObj, loadErr := loadUserModule(item.Path, node, env)
+					if loadErr != nil {
+						return loadErr
+					}
+					if moduleObj == nil {
+						return newErrorWithLocation("E6001", node.Token.Line, node.Token.Column,
+							"failed to load module '%s'", item.Path)
+					}
+					// Register the module object so it can be accessed via alias.function()
+					env.RegisterModule(alias, moduleObj)
+					// Dual-name access: also register with original module name if alias differs
+					originalName := extractModuleName(item.Path)
+					if alias != originalName {
+						env.RegisterModule(originalName, moduleObj)
+					}
+				}
+
+				// Handle auto-use (import & use syntax)
+				if node.AutoUse {
+					env.Use(alias)
+				}
 			}
 		} else {
 			// Backward compatibility: handle single import using old fields
@@ -161,15 +322,37 @@ func Eval(node ast.Node, env *Environment) Object {
 				alias = node.Module
 			}
 			env.Import(alias, node.Module)
+
+			// Handle auto-use
+			if node.AutoUse {
+				env.Use(alias)
+			}
 		}
+		return NIL
+
+	case *ast.FromImportStatement:
+		// Handle "from @module import item1, item2" syntax
+		// This imports specific items from a module directly into scope
+		if node.IsStdlib {
+			if !isValidModule(node.Path) {
+				return newErrorWithLocation("E6002", node.Token.Line, node.Token.Column,
+					"module '%s' not found", node.Path)
+			}
+		}
+		// Note: Selective imports will require additional infrastructure
+		// to resolve individual symbols from modules
+		// For now, import the full module and register the items
+		env.Import(node.Path, node.Path)
 		return NIL
 
 	case *ast.UsingStatement:
 		// Bring the module(s) functions into scope (function-scoped using)
 		for _, module := range node.Modules {
 			alias := module.Value
-			// Verify the module was imported
-			if _, ok := env.GetImport(alias); !ok {
+			// Verify the module was imported (check both stdlib and user modules)
+			_, isStdlib := env.GetImport(alias)
+			_, isUserModule := env.GetModule(alias)
+			if !isStdlib && !isUserModule {
 				return newErrorWithLocation("E6004", node.Token.Line, node.Token.Column,
 					"cannot use '%s': module not imported", alias)
 			}
@@ -349,8 +532,10 @@ func evalProgram(program *ast.Program, env *Environment) Object {
 	for _, usingStmt := range program.FileUsing {
 		for _, module := range usingStmt.Modules {
 			alias := module.Value
-			// Verify the module was imported
-			if _, ok := env.GetImport(alias); !ok {
+			// Verify the module was imported (check both stdlib and user modules)
+			_, isStdlib := env.GetImport(alias)
+			_, isUserModule := env.GetModule(alias)
+			if !isStdlib && !isUserModule {
 				return newErrorWithLocation("E6004", usingStmt.Token.Line, usingStmt.Token.Column,
 					"cannot use '%s': module not imported", alias)
 			}
@@ -427,13 +612,25 @@ func evalVariableDeclaration(node *ast.VariableDeclaration, env *Environment) Ob
 				}
 
 				// Array type declared - value must be an array
-				if _, ok := val.(*Array); !ok {
+				arr, ok := val.(*Array)
+				if !ok {
 					return newErrorWithLocation("E3018", node.Token.Line, node.Token.Column,
 						"type mismatch: expected array type '%s', got %s\n\n"+
 							"Array values must be enclosed in curly braces {}\n"+
 							"Example: const arr %s = {%s}",
 						node.TypeName, getEZTypeName(val), node.TypeName, val.Inspect())
 				}
+				// Set the element type on the array from the declared type
+				// Extract element type from type name (e.g., "[int]" -> "int", "[int,5]" -> "int")
+				elemType := node.TypeName[1:] // Remove leading '['
+				if commaIdx := strings.Index(elemType, ","); commaIdx != -1 {
+					elemType = elemType[:commaIdx] // Remove ",size]" part
+				} else {
+					elemType = elemType[:len(elemType)-1] // Remove trailing ']'
+				}
+				arr.ElementType = elemType
+				// Set mutability based on temp vs const
+				arr.Mutable = node.Mutable
 			}
 
 			// Check if declared type is a map type
@@ -470,7 +667,9 @@ func evalVariableDeclaration(node *ast.VariableDeclaration, env *Environment) Ob
 		// Fixed-size arrays: [int,3], [string,5], etc. - MUST be initialized with values
 		if len(node.TypeName) > 0 && node.TypeName[0] == '[' && !strings.Contains(node.TypeName, ",") {
 			// Initialize dynamic array to empty array instead of NIL
-			val = &Array{Elements: []Object{}, Mutable: true}
+			// Extract element type from type name (e.g., "[int]" -> "int")
+			elementType := node.TypeName[1 : len(node.TypeName)-1]
+			val = &Array{Elements: []Object{}, Mutable: node.Mutable, ElementType: elementType}
 		} else if strings.HasPrefix(node.TypeName, "map[") {
 			// Initialize map to empty map
 			m := NewMap()
@@ -498,6 +697,7 @@ func evalVariableDeclaration(node *ast.VariableDeclaration, env *Environment) Ob
 	}
 
 	// Handle multiple assignment: temp result, err = function()
+	vis := convertVisibility(node.Visibility)
 	if len(node.Names) > 1 {
 		// Expect a ReturnValue with multiple values
 		returnVal, ok := val.(*ReturnValue)
@@ -515,13 +715,13 @@ func evalVariableDeclaration(node *ast.VariableDeclaration, env *Environment) Ob
 			if name.Value == "@ignore" {
 				continue
 			}
-			env.Set(name.Value, returnVal.Values[i], node.Mutable)
+			env.SetWithVisibility(name.Value, returnVal.Values[i], node.Mutable, vis)
 		}
 		return NIL
 	}
 
 	// Single variable assignment
-	env.Set(node.Name.Value, val, node.Mutable)
+	env.SetWithVisibility(node.Name.Value, val, node.Mutable, vis)
 	return NIL
 }
 
@@ -667,6 +867,25 @@ func evalAssignment(node *ast.AssignmentStatement, env *Environment) Object {
 		}
 
 	case *ast.MemberExpression:
+		// Check if this is a module member assignment (not allowed)
+		if objIdent, ok := target.Object.(*ast.Label); ok {
+			alias := objIdent.Value
+			// Check if it's a user module
+			if _, ok := env.GetModule(alias); ok {
+				return newErrorWithLocation("E6010", node.Token.Line, node.Token.Column,
+					"cannot assign to module member '%s.%s'\n\n"+
+						"Module exports are read-only and cannot be modified from outside the module.",
+					alias, target.Member.Value)
+			}
+			// Check if it's a stdlib import
+			if _, ok := env.GetImport(alias); ok {
+				return newErrorWithLocation("E6010", node.Token.Line, node.Token.Column,
+					"cannot assign to module member '%s.%s'\n\n"+
+						"Module exports are read-only and cannot be modified from outside the module.",
+					alias, target.Member.Value)
+			}
+		}
+
 		// Struct field assignment
 		obj := Eval(target.Object, env)
 		if isError(obj) {
@@ -975,20 +1194,15 @@ func evalFunctionDeclaration(node *ast.FunctionDeclaration, env *Environment) Ob
 		Body:        node.Body,
 		Env:         env,
 	}
-	env.Set(node.Name.Value, fn, false) // functions are immutable
+	vis := convertVisibility(node.Visibility)
+	env.SetWithVisibility(node.Name.Value, fn, false, vis) // functions are immutable
 	return NIL
 }
 
 func evalIdentifier(node *ast.Label, env *Environment) Object {
 	if val, ok := env.Get(node.Value); ok {
-		// Set mutability flag on arrays and strings based on variable declaration
-		isMutable, _ := env.IsMutable(node.Value)
-		switch obj := val.(type) {
-		case *Array:
-			obj.Mutable = isMutable
-		case *String:
-			obj.Mutable = isMutable
-		}
+		// Mutability is now set at declaration time, not at lookup time
+		// This preserves the original object's mutability when passed to functions
 		return val
 	}
 
@@ -996,13 +1210,22 @@ func evalIdentifier(node *ast.Label, env *Environment) Object {
 	// Detect ambiguity: if multiple modules have the same function, error
 	var foundModules []string
 	var foundBuiltin *Builtin
+	var foundUserObj Object
 
 	for _, alias := range env.GetUsing() {
+		// Check stdlib modules
 		if module, ok := env.GetImport(alias); ok {
 			fullName := module + "." + node.Value
 			if builtin, ok := builtins[fullName]; ok {
 				foundModules = append(foundModules, module)
 				foundBuiltin = builtin
+			}
+		}
+		// Check user modules
+		if moduleObj, ok := env.GetModule(alias); ok {
+			if obj, ok := moduleObj.Get(node.Value); ok {
+				foundModules = append(foundModules, alias)
+				foundUserObj = obj
 			}
 		}
 	}
@@ -1020,7 +1243,10 @@ func evalIdentifier(node *ast.Label, env *Environment) Object {
 
 	// Found in exactly one module
 	if len(foundModules) == 1 {
-		return foundBuiltin
+		if foundBuiltin != nil {
+			return foundBuiltin
+		}
+		return foundUserObj
 	}
 
 	// Check global builtins (like len, typeof, etc.)
@@ -1100,6 +1326,14 @@ func evalInfixExpression(operator string, left, right Object, line, col int) Obj
 		if right.Type() == NIL_OBJ {
 			return newErrorWithLocation("E5006", line, col, "nil reference: cannot use nil with operator '%s'", operator)
 		}
+	}
+
+	// Unwrap EnumValue to get the underlying value for comparisons
+	if ev, ok := left.(*EnumValue); ok {
+		left = ev.Value
+	}
+	if ev, ok := right.(*EnumValue); ok {
+		right = ev.Value
 	}
 
 	switch {
@@ -1354,7 +1588,23 @@ func evalMemberCall(member *ast.MemberExpression, args []ast.Expression, env *En
 
 	alias := objIdent.Value
 
-	// Get the actual module name from the alias
+	// First check if it's a user module
+	if moduleObj, ok := env.GetModule(alias); ok {
+		memberName := member.Member.Value
+		if fn, ok := moduleObj.Get(memberName); ok {
+			// Evaluate arguments
+			evalArgs := evalExpressions(args, env)
+			if len(evalArgs) == 1 && isError(evalArgs[0]) {
+				return evalArgs[0]
+			}
+			// Apply the function
+			return applyFunction(fn, evalArgs, member.Token.Line, member.Token.Column)
+		}
+		return newErrorWithLocation("E4006", member.Token.Line, member.Token.Column,
+			"'%s' not found in module '%s'", memberName, alias)
+	}
+
+	// Get the actual module name from the alias (stdlib)
 	moduleName, ok := env.GetImport(alias)
 	if !ok {
 		return newError("module '%s' not imported", alias)
@@ -1572,6 +1822,10 @@ func objectTypeToEZ(obj Object) string {
 	case *Boolean:
 		return "bool"
 	case *Array:
+		// Return typed array format if element type is known
+		if v.ElementType != "" {
+			return "[" + v.ElementType + "]"
+		}
 		return "array"
 	case *Struct:
 		// Return the specific struct type name (e.g., "Person")
@@ -1723,6 +1977,62 @@ func evalInterpolatedString(node *ast.InterpolatedString, env *Environment) Obje
 }
 
 func evalStructValue(node *ast.StructValue, env *Environment) Object {
+	typeName := node.Name.Value
+	var structDef *StructDef
+	var ok bool
+
+	// Check for qualified type name (module.TypeName)
+	if strings.Contains(typeName, ".") {
+		parts := strings.SplitN(typeName, ".", 2)
+		moduleName := parts[0]
+		structName := parts[1]
+
+		// Look up the module
+		if moduleObj, modOk := env.GetModule(moduleName); modOk {
+			structDef, ok = moduleObj.GetStructDef(structName)
+			if !ok {
+				return newErrorWithLocation("E3002", node.Token.Line, node.Token.Column,
+					"undefined type '%s' in module '%s'", structName, moduleName)
+			}
+		} else {
+			return newErrorWithLocation("E4007", node.Token.Line, node.Token.Column,
+				"module '%s' not imported", moduleName)
+		}
+	} else {
+		// Look up the struct definition in the current environment
+		structDef, ok = env.GetStructDef(typeName)
+		if !ok {
+			// Not found locally, check modules from "using" directives
+			var foundModules []string
+			var foundStructDef *StructDef
+
+			for _, alias := range env.GetUsing() {
+				if moduleObj, modOk := env.GetModule(alias); modOk {
+					if sd, sdOk := moduleObj.GetStructDef(typeName); sdOk {
+						foundModules = append(foundModules, alias)
+						foundStructDef = sd
+					}
+				}
+			}
+
+			// Ambiguity check
+			if len(foundModules) > 1 {
+				moduleList := strings.Join(foundModules, ", ")
+				return newErrorWithLocation("E3002", node.Token.Line, node.Token.Column,
+					"type '%s' found in multiple modules: %s. Use explicit module prefix: %s.%s",
+					typeName, moduleList, foundModules[0], typeName)
+			}
+
+			// Found in exactly one module
+			if len(foundModules) == 1 {
+				structDef = foundStructDef
+			} else {
+				return newErrorWithLocation("E3002", node.Token.Line, node.Token.Column,
+					"undefined type: '%s'", typeName)
+			}
+		}
+	}
+
 	// Create a new struct with the given fields
 	fields := make(map[string]Object)
 
@@ -1736,17 +2046,66 @@ func evalStructValue(node *ast.StructValue, env *Environment) Object {
 	}
 
 	return &Struct{
-		TypeName: node.Name.Value,
+		TypeName: structDef.Name,
 		Fields:   fields,
 	}
 }
 
 func evalNewExpression(node *ast.NewExpression, env *Environment) Object {
-	// Look up the struct definition
-	structDef, ok := env.GetStructDef(node.TypeName.Value)
-	if !ok {
-		return newErrorWithLocation("E3002", node.Token.Line, node.Token.Column,
-			"undefined type: '%s'", node.TypeName.Value)
+	typeName := node.TypeName.Value
+	var structDef *StructDef
+	var ok bool
+
+	// Check for qualified type name (module.TypeName)
+	if strings.Contains(typeName, ".") {
+		parts := strings.SplitN(typeName, ".", 2)
+		moduleName := parts[0]
+		structName := parts[1]
+
+		// Look up the module
+		if moduleObj, modOk := env.GetModule(moduleName); modOk {
+			structDef, ok = moduleObj.GetStructDef(structName)
+			if !ok {
+				return newErrorWithLocation("E3002", node.Token.Line, node.Token.Column,
+					"undefined type '%s' in module '%s'", structName, moduleName)
+			}
+		} else {
+			return newErrorWithLocation("E4007", node.Token.Line, node.Token.Column,
+				"module '%s' not imported", moduleName)
+		}
+	} else {
+		// Look up the struct definition in the current environment
+		structDef, ok = env.GetStructDef(typeName)
+		if !ok {
+			// Not found locally, check modules from "using" directives
+			var foundModules []string
+			var foundStructDef *StructDef
+
+			for _, alias := range env.GetUsing() {
+				if moduleObj, modOk := env.GetModule(alias); modOk {
+					if sd, sdOk := moduleObj.GetStructDef(typeName); sdOk {
+						foundModules = append(foundModules, alias)
+						foundStructDef = sd
+					}
+				}
+			}
+
+			// Ambiguity check
+			if len(foundModules) > 1 {
+				moduleList := strings.Join(foundModules, ", ")
+				return newErrorWithLocation("E3002", node.Token.Line, node.Token.Column,
+					"type '%s' found in multiple modules: %s. Use explicit module prefix: %s.%s",
+					typeName, moduleList, foundModules[0], typeName)
+			}
+
+			// Found in exactly one module
+			if len(foundModules) == 1 {
+				structDef = foundStructDef
+			} else {
+				return newErrorWithLocation("E3002", node.Token.Line, node.Token.Column,
+					"undefined type: '%s'", typeName)
+			}
+		}
 	}
 
 	// Create a new struct with default values for all fields
@@ -1786,9 +2145,20 @@ func getDefaultValue(typeName string) Object {
 }
 
 func evalMemberExpression(node *ast.MemberExpression, env *Environment) Object {
-	// Check if this is a module constant access (like math.pi)
+	// Check if this is a module member access
 	if objIdent, ok := node.Object.(*ast.Label); ok {
 		alias := objIdent.Value
+
+		// First check if it's a user module
+		if moduleObj, ok := env.GetModule(alias); ok {
+			if member, ok := moduleObj.Get(node.Member.Value); ok {
+				return member
+			}
+			return newErrorWithLocation("E4006", node.Token.Line, node.Token.Column,
+				"'%s' not found in module '%s'", node.Member.Value, alias)
+		}
+
+		// Then check stdlib imports
 		if moduleName, ok := env.GetImport(alias); ok {
 			fullName := moduleName + "." + node.Member.Value
 			if builtin, ok := builtins[fullName]; ok {
