@@ -103,7 +103,7 @@ func EvalWithContext(node ast.Node, env *Environment, ctx *EvalContext) Object {
 // loadUserModule loads a user module from a file path and returns a ModuleObject
 func loadUserModule(importPath string, token ast.Node, env *Environment) (*ModuleObject, Object) {
 	if globalEvalContext == nil || globalEvalContext.Loader == nil {
-		return nil, newError("E6001", "module loader not initialized")
+		return nil, newError("E6001: %s", "module loader not initialized")
 	}
 
 	// Set the current file for relative path resolution
@@ -112,7 +112,7 @@ func loadUserModule(importPath string, token ast.Node, env *Environment) (*Modul
 	// Load the module (this handles parsing and caching)
 	mod, err := globalEvalContext.Loader.Load(importPath)
 	if err != nil {
-		return nil, newError("E6001", err.Error())
+		return nil, newError("E6001: %s", err.Error())
 	}
 
 	// If module is already fully loaded, return cached ModuleObject
