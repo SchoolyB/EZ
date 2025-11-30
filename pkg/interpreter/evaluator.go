@@ -376,9 +376,22 @@ func evalVariableDeclaration(node *ast.VariableDeclaration, env *Environment) Ob
 			return val
 		}
 
-		// If a type is declared and we have an integer value, set the declared type
-		// and validate signed/unsigned compatibility
+		// Validate type compatibility if a type is declared
 		if node.TypeName != "" {
+			// Check if declared type is an array type
+			if len(node.TypeName) > 0 && node.TypeName[0] == '[' {
+				// Array type declared - value must be an array
+				if _, ok := val.(*Array); !ok {
+					return newErrorWithLocation("E3018", node.Token.Line, node.Token.Column,
+						"type mismatch: expected array type '%s', got %s\n\n"+
+							"Array values must be enclosed in curly braces {}\n"+
+							"Example: const arr %s = {%s}",
+						node.TypeName, getEZTypeName(val), node.TypeName, val.Inspect())
+				}
+			}
+
+			// If we have an integer value, set the declared type
+			// and validate signed/unsigned compatibility
 			if intVal, ok := val.(*Integer); ok {
 				// Check for negative value assigned to unsigned type
 				if isUnsignedIntegerType(node.TypeName) && intVal.Value < 0 {
