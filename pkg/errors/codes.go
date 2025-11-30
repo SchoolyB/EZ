@@ -234,6 +234,19 @@ var (
 )
 
 // =============================================================================
+// MAP ERRORS (E12xxx) - Map-specific operation errors
+// =============================================================================
+var (
+	E12001 = ErrorCode{"E12001", "map-requires-map", "function requires a map argument"}
+	E12002 = ErrorCode{"E12002", "map-key-not-hashable", "map key must be a hashable type"}
+	E12003 = ErrorCode{"E12003", "map-immutable", "cannot modify immutable map"}
+	E12004 = ErrorCode{"E12004", "map-invalid-pair", "map element must be a [key, value] pair"}
+	E12005 = ErrorCode{"E12005", "map-value-not-hashable", "map value is not hashable and cannot become a key"}
+	E12006 = ErrorCode{"E12006", "map-key-not-found", "key not found in map"}
+	E12007 = ErrorCode{"E12007", "map-key-not-found-compound", "key not found in map for compound assignment"}
+)
+
+// =============================================================================
 // WARNINGS (W1xxx - W3xxx)
 // =============================================================================
 var (

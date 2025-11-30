@@ -19,6 +19,7 @@ This document is the **authoritative source** for all error codes, types, and me
 | Array Errors | E9xxx | Array-specific operation errors |
 | String Errors | E10xxx | String-specific operation errors |
 | Time Errors | E11xxx | Time-specific operation errors |
+| Map Errors | E12xxx | Map-specific operation errors |
 | Warnings | W1xxx-W3xxx | Warnings (non-fatal) |
 
 ---
@@ -1277,6 +1278,64 @@ This document is the **authoritative source** for all error codes, types, and me
 
 ---
 
+## Map Errors (E12xxx)
+
+### E12001 - map-requires-map
+**Type:** `map-requires-map`
+**Message:** `function requires a map argument`
+**Used for:** Passing non-map to map function
+**Example:** `"maps.len() requires a map"`
+
+---
+
+### E12002 - map-key-not-hashable
+**Type:** `map-key-not-hashable`
+**Message:** `map key must be a hashable type`
+**Used for:** Using non-hashable type as map key
+**Example:** `"maps.get() key must be a hashable type (string, int, bool, char)"`
+
+---
+
+### E12003 - map-immutable
+**Type:** `map-immutable`
+**Message:** `cannot modify immutable map`
+**Used for:** Attempting to modify a const map
+**Example:** `"cannot modify immutable map (declared as const)"`
+
+---
+
+### E12004 - map-invalid-pair
+**Type:** `map-invalid-pair`
+**Message:** `map element must be a [key, value] pair`
+**Used for:** `maps.from_array()` with invalid element format
+**Example:** `"maps.from_array() element 0 must be a [key, value] pair"`
+
+---
+
+### E12005 - map-value-not-hashable
+**Type:** `map-value-not-hashable`
+**Message:** `map value is not hashable and cannot become a key`
+**Used for:** `maps.invert()` when value cannot be used as key
+**Example:** `"maps.invert() value {1, 2, 3} is not hashable and cannot become a key"`
+
+---
+
+### E12006 - map-key-not-found
+**Type:** `map-key-not-found`
+**Message:** `key not found in map`
+**Used for:** Accessing a key that doesn't exist in a map
+**Example:** `"key \"foo\" not found in map"`
+
+---
+
+### E12007 - map-key-not-found-compound
+**Type:** `map-key-not-found-compound`
+**Message:** `key not found in map for compound assignment`
+**Used for:** Using compound assignment (`+=`, etc.) on non-existent key
+**Example:** `"key not found in map for compound assignment"`
+
+---
+
 ## Warnings (W1xxx - W3xxx)
 
 ### W1001 - unused-variable
@@ -1377,8 +1436,9 @@ This document is the **authoritative source** for all error codes, types, and me
 | Array Errors | 18 | E9001-E9018 |
 | String Errors | 7 | E10001-E10007 |
 | Time Errors | 13 | E11001-E11013 |
+| Map Errors | 7 | E12001-E12007 |
 | Warnings | 12 | W1001-W3002 |
-| **Total** | **166** | |
+| **Total** | **173** | |
 
 ---
 
@@ -1397,3 +1457,4 @@ When implementing these errors in code:
 9. [ ] Update `pkg/interpreter/lib_arrays.go` to use array error codes (E9xxx)
 10. [ ] Update `pkg/interpreter/lib_strings.go` to use string error codes (E10xxx)
 11. [ ] Update `pkg/interpreter/lib_time.go` to use time error codes (E11xxx)
+12. [x] Update `pkg/stdlib/maps.go` to use map error codes (E12xxx)
