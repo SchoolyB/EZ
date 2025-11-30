@@ -167,8 +167,8 @@ func (l *Lexer) NextToken() tokenizer.Token {
 			l.readChar()
 			tok = tokenizer.Token{Type: tokenizer.AND, Literal: "&&", Line: l.line, Column: l.column}
 		} else {
-			l.addError("E1001", "unexpected character '&', did you mean '&&'?", l.line, l.column)
-			tok = newToken(tokenizer.ILLEGAL, l.ch, l.line, l.column)
+			// Single & is valid for "import & use" syntax
+			tok = newToken(tokenizer.AMPERSAND, l.ch, l.line, l.column)
 		}
 	case '|':
 		if l.peekChar() == '|' {

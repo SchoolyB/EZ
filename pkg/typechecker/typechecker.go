@@ -72,6 +72,32 @@ func (s *Scope) HasUsingModule(moduleName string) bool {
 	return false
 }
 
+// GetAllUsingModules returns all modules imported via 'using' in the current scope and parent scopes
+func (s *Scope) GetAllUsingModules() []string {
+	result := make([]string, 0)
+	seen := make(map[string]bool)
+
+	// Collect from current scope
+	for moduleName := range s.usingModules {
+		if !seen[moduleName] {
+			result = append(result, moduleName)
+			seen[moduleName] = true
+		}
+	}
+
+	// Collect from parent scopes
+	if s.parent != nil {
+		for _, moduleName := range s.parent.GetAllUsingModules() {
+			if !seen[moduleName] {
+				result = append(result, moduleName)
+				seen[moduleName] = true
+			}
+		}
+	}
+
+	return result
+}
+
 // Type represents a type in the EZ type system
 type Type struct {
 	Name        string
@@ -98,32 +124,41 @@ type Parameter struct {
 
 // TypeChecker validates types in an EZ program
 type TypeChecker struct {
-	types        map[string]*Type              // All known types
-	functions    map[string]*FunctionSignature // All function signatures
-	variables    map[string]string             // Variable name -> type name (global scope)
-	modules      map[string]bool               // Imported module names
-	currentScope *Scope                        // Current scope for local variable tracking
-	errors       *errors.EZErrorList
-	source       string
-	filename     string
+	types            map[string]*Type              // All known types
+	functions        map[string]*FunctionSignature // All function signatures
+	variables        map[string]string             // Variable name -> type name (global scope)
+	modules          map[string]bool               // Imported module names
+	fileUsingModules map[string]bool               // File-level using modules
+	currentScope     *Scope                        // Current scope for local variable tracking
+	errors           *errors.EZErrorList
+	source           string
+	filename         string
+	skipMainCheck    bool // Skip main() function requirement (for module files)
 }
 
 // NewTypeChecker creates a new type checker
 func NewTypeChecker(source, filename string) *TypeChecker {
 	tc := &TypeChecker{
-		types:     make(map[string]*Type),
-		functions: make(map[string]*FunctionSignature),
-		variables: make(map[string]string),
-		modules:   make(map[string]bool),
-		errors:    errors.NewErrorList(),
-		source:    source,
-		filename:  filename,
+		types:            make(map[string]*Type),
+		functions:        make(map[string]*FunctionSignature),
+		variables:        make(map[string]string),
+		modules:          make(map[string]bool),
+		fileUsingModules: make(map[string]bool),
+		errors:           errors.NewErrorList(),
+		source:           source,
+		filename:         filename,
 	}
 
 	// Register built-in primitive types
 	tc.registerBuiltinTypes()
 
 	return tc
+}
+
+// SetSkipMainCheck sets whether to skip the main() function requirement
+// Use this for module files that don't need a main() function
+func (tc *TypeChecker) SetSkipMainCheck(skip bool) {
+	tc.skipMainCheck = skip
 }
 
 // registerBuiltinTypes adds all built-in types to the registry
@@ -182,8 +217,47 @@ func (tc *TypeChecker) TypeExists(typeName string) bool {
 		return false
 	}
 
-	_, exists := tc.types[typeName]
-	return exists
+	// Check for qualified type names (module.TypeName)
+	// These are validated at runtime when the module is loaded
+	if strings.Contains(typeName, ".") {
+		parts := strings.SplitN(typeName, ".", 2)
+		if len(parts) == 2 {
+			moduleName := parts[0]
+			// Check if the module has been imported
+			if tc.modules[moduleName] {
+				return true
+			}
+		}
+	}
+
+	// Check local types first
+	if _, exists := tc.types[typeName]; exists {
+		return true
+	}
+
+	// Check if the type might be available via file-level 'using' directive
+	// For unqualified type names, if a module is imported via 'using',
+	// the type will be validated at runtime when the module is loaded
+	for moduleName := range tc.fileUsingModules {
+		// If the module has been imported and is in file-level 'using', the type is considered valid
+		// Actual type existence is validated at runtime
+		if tc.modules[moduleName] {
+			return true
+		}
+	}
+
+	// Also check scope-level 'using' modules
+	if tc.currentScope != nil {
+		for _, moduleName := range tc.currentScope.GetAllUsingModules() {
+			// If the module has been imported and is in 'using', the type is considered valid
+			// Actual type existence is validated at runtime
+			if tc.modules[moduleName] {
+				return true
+			}
+		}
+	}
+
+	return false
 }
 
 // RegisterType adds a user-defined type to the registry
@@ -245,6 +319,27 @@ func (tc *TypeChecker) addWarning(code errors.ErrorCode, message string, line, c
 
 // CheckProgram performs type checking on the entire program
 func (tc *TypeChecker) CheckProgram(program *ast.Program) bool {
+	// Phase 0: Register all imported modules
+	for _, stmt := range program.Statements {
+		if importStmt, ok := stmt.(*ast.ImportStatement); ok {
+			for _, item := range importStmt.Imports {
+				// Register the module (use alias if provided, otherwise module name)
+				moduleName := item.Alias
+				if moduleName == "" {
+					moduleName = item.Module
+				}
+				tc.modules[moduleName] = true
+			}
+		}
+	}
+
+	// Phase 0.5: Register file-level using modules
+	for _, usingStmt := range program.FileUsing {
+		for _, mod := range usingStmt.Modules {
+			tc.fileUsingModules[mod.Value] = true
+		}
+	}
+
 	// Phase 1: Register all user-defined types (structs, enums)
 	for _, stmt := range program.Statements {
 		switch node := stmt.(type) {
@@ -276,8 +371,10 @@ func (tc *TypeChecker) CheckProgram(program *ast.Program) bool {
 		}
 	}
 
-	// Phase 4: Validate that a main() function exists
-	tc.checkMainFunction()
+	// Phase 4: Validate that a main() function exists (unless skipped for module files)
+	if !tc.skipMainCheck {
+		tc.checkMainFunction()
+	}
 
 	errCount, _ := tc.errors.Count()
 	return errCount == 0

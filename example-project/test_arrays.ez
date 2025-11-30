@@ -1,0 +1,14 @@
+import @std
+import @arrays
+
+using std, arrays
+
+do main() {
+    println("Testing arrays...")
+
+    temp nums [int] = {1, 2, 3}
+    println("Original:", nums)
+
+    append(nums, 4)
+    println("After append:", nums)
+}

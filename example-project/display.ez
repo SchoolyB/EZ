@@ -1,0 +1,281 @@
+/*
+ * Task Manager - Display Module
+ *
+ * This module provides formatting and display functions for tasks.
+ * Demonstrates: string operations, formatting, and presentation logic.
+ */
+
+module display
+
+import @std, @strings, @time
+import "./models"
+
+using std, strings
+
+/*
+ * print_header - Prints a formatted section header
+ */
+do print_header(title string) {
+    temp line string = repeat("=", 50)
+    println("")
+    println(line)
+    println("  ${title}")
+    println(line)
+}
+
+/*
+ * print_divider - Prints a simple divider line
+ */
+do print_divider() {
+    println(repeat("-", 50))
+}
+
+/*
+ * format_date - Formats a Unix timestamp as a readable date
+ * Returns "No date" if timestamp is 0
+ */
+do format_date(timestamp int) -> string {
+    if timestamp == 0 {
+        return "No date"
+    }
+    return time.format(timestamp, "YYYY-MM-DD")
+}
+
+/*
+ * format_datetime - Formats a Unix timestamp with time
+ */
+do format_datetime(timestamp int) -> string {
+    if timestamp == 0 {
+        return "N/A"
+    }
+    return time.format(timestamp, "YYYY-MM-DD HH:mm")
+}
+
+/*
+ * format_relative_time - Formats timestamp as relative time (e.g., "2 days ago")
+ */
+do format_relative_time(timestamp int) -> string {
+    temp now int = time.now()
+    temp diff int = now - timestamp
+
+    if diff < 0 {
+        diff = diff * -1
+        return format_future_time(diff)
+    }
+
+    return format_past_time(diff)
+}
+
+/*
+ * format_past_time - Helper for formatting past timestamps
+ */
+priv do format_past_time(seconds int) -> string {
+    if seconds < 60 {
+        return "just now"
+    }
+
+    temp minutes int = seconds / 60
+    if minutes < 60 {
+        if minutes == 1 {
+            return "1 minute ago"
+        }
+        return "${minutes} minutes ago"
+    }
+
+    temp hours int = minutes / 60
+    if hours < 24 {
+        if hours == 1 {
+            return "1 hour ago"
+        }
+        return "${hours} hours ago"
+    }
+
+    temp days int = hours / 24
+    if days == 1 {
+        return "yesterday"
+    }
+    if days < 7 {
+        return "${days} days ago"
+    }
+
+    temp weeks int = days / 7
+    if weeks == 1 {
+        return "1 week ago"
+    }
+    if weeks < 4 {
+        return "${weeks} weeks ago"
+    }
+
+    temp months int = days / 30
+    if months == 1 {
+        return "1 month ago"
+    }
+    return "${months} months ago"
+}
+
+/*
+ * format_future_time - Helper for formatting future timestamps
+ */
+priv do format_future_time(seconds int) -> string {
+    temp minutes int = seconds / 60
+    if minutes < 60 {
+        if minutes <= 1 {
+            return "in a minute"
+        }
+        return "in ${minutes} minutes"
+    }
+
+    temp hours int = minutes / 60
+    if hours < 24 {
+        if hours == 1 {
+            return "in 1 hour"
+        }
+        return "in ${hours} hours"
+    }
+
+    temp days int = hours / 24
+    if days == 1 {
+        return "tomorrow"
+    }
+    if days < 7 {
+        return "in ${days} days"
+    }
+
+    temp weeks int = days / 7
+    if weeks == 1 {
+        return "in 1 week"
+    }
+    return "in ${weeks} weeks"
+}
+
+/*
+ * get_priority_indicator - Returns a visual indicator for priority
+ */
+do get_priority_indicator(priority int) -> string {
+    if priority >= models.Priority.CRITICAL {
+        return "[!!!!]"
+    } or priority >= models.Priority.HIGH {
+        return "[!!!]"
+    } or priority >= models.Priority.MEDIUM {
+        return "[!!]"
+    } otherwise {
+        return "[!]"
+    }
+}
+
+/*
+ * get_status_indicator - Returns a visual indicator for status
+ */
+do get_status_indicator(status string) -> string {
+    if status == models.Status.DONE {
+        return "[x]"
+    } or status == models.Status.IN_PROGRESS {
+        return "[>]"
+    } or status == models.Status.BLOCKED {
+        return "[#]"
+    } otherwise {
+        return "[ ]"
+    }
+}
+
+/*
+ * print_task_summary - Prints a one-line task summary
+ */
+do print_task_summary(task Task) {
+    temp status_ind string = get_status_indicator(task.status)
+    temp priority_ind string = get_priority_indicator(task.priority)
+
+    println("${status_ind} ${priority_ind} #${task.id}: ${task.title}")
+}
+
+/*
+ * print_task_detail - Prints detailed task information
+ */
+do print_task_detail(task Task) {
+    print_divider()
+    println("Task #${task.id}: ${task.title}")
+    print_divider()
+    println("  Description: ${task.description}")
+    println("  Status:      ${models.get_status_display(task.status)}")
+    println("  Priority:    ${models.get_priority_name(task.priority)}")
+    println("  Category:    ${task.category}")
+    println("  Created:     ${format_datetime(task.created_at)}")
+
+    if task.due_date > 0 {
+        temp due_str string = format_date(task.due_date)
+        temp relative string = format_relative_time(task.due_date)
+        println("  Due Date:    ${due_str} (${relative})")
+
+        if models.is_overdue(task) {
+            println("  ** OVERDUE **")
+        }
+    } otherwise {
+        println("  Due Date:    Not set")
+    }
+
+    if task.completed_at > 0 {
+        println("  Completed:   ${format_datetime(task.completed_at)}")
+    }
+
+    if len(task.tags) > 0 {
+        temp tags_str string = join(task.tags, ", ")
+        println("  Tags:        ${tags_str}")
+    }
+}
+
+/*
+ * print_task_list - Prints a list of tasks with summaries
+ */
+do print_task_list(tasks [Task], title string) {
+    print_header(title)
+
+    if len(tasks) == 0 {
+        println("  No tasks found.")
+        return
+    }
+
+    println("  Total: ${len(tasks)} task(s)")
+    println("")
+
+    for_each task in tasks {
+        print("  ")
+        print_task_summary(task)
+    }
+}
+
+/*
+ * print_stats - Prints task statistics
+ */
+do print_stats(stats TaskStats) {
+    print_header("Task Statistics")
+
+    println("  Total Tasks:     ${stats.total}")
+    println("  Completed:       ${stats.completed}")
+    println("  In Progress:     ${stats.in_progress}")
+    println("  Blocked:         ${stats.blocked}")
+    println("  To Do:           ${stats.todo}")
+    println("")
+
+    temp rate_str string = string(int(stats.completion_rate))
+    println("  Completion Rate: ${rate_str}%")
+
+    temp priority_display string = models.get_priority_name(int(stats.avg_priority))
+    println("  Avg Priority:    ~${priority_display}")
+}
+
+/*
+ * print_welcome - Prints welcome message with current date/time
+ */
+do print_welcome() {
+    temp now int = time.now()
+    temp date_str string = time.format(now, "YYYY-MM-DD HH:mm:ss")
+
+    println("")
+    println(repeat("*", 50))
+    println("*                                                *")
+    println("*        EZ Task Manager - Demo Project          *")
+    println("*                                                *")
+    println(repeat("*", 50))
+    println("")
+    println("  Current Time: ${date_str}")
+}

@@ -1,0 +1,20 @@
+/*
+ * routes.ez - Server routes
+ * Part of the 'server' module - no imports needed for sibling files
+ */
+
+module server
+
+import @std
+using std
+
+do handle_home(req Request) -> Response {
+    println("Handling: ${req.method} ${req.path}")
+    temp resp Response = Response{status: 200, body: "Welcome home!"}
+    return resp
+}
+
+do handle_not_found(req Request) -> Response {
+    temp resp Response = Response{status: 404, body: "Page not found"}
+    return resp
+}
