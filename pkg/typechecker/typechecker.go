@@ -25,15 +25,17 @@ const (
 
 // Scope represents a lexical scope for variable tracking
 type Scope struct {
-	parent    *Scope
-	variables map[string]string // variable name -> type name
+	parent       *Scope
+	variables    map[string]string // variable name -> type name
+	usingModules map[string]bool   // modules imported via 'using'
 }
 
 // NewScope creates a new scope with an optional parent
 func NewScope(parent *Scope) *Scope {
 	return &Scope{
-		parent:    parent,
-		variables: make(map[string]string),
+		parent:       parent,
+		variables:    make(map[string]string),
+		usingModules: make(map[string]bool),
 	}
 }
 
@@ -51,6 +53,22 @@ func (s *Scope) Lookup(name string) (string, bool) {
 		return s.parent.Lookup(name)
 	}
 	return "", false
+}
+
+// AddUsingModule adds a module to the current scope's using list
+func (s *Scope) AddUsingModule(moduleName string) {
+	s.usingModules[moduleName] = true
+}
+
+// HasUsingModule checks if a module is in scope via 'using'
+func (s *Scope) HasUsingModule(moduleName string) bool {
+	if s.usingModules[moduleName] {
+		return true
+	}
+	if s.parent != nil {
+		return s.parent.HasUsingModule(moduleName)
+	}
+	return false
 }
 
 // Type represents a type in the EZ type system
@@ -541,6 +559,14 @@ func (tc *TypeChecker) checkStatement(stmt ast.Statement, expectedReturnTypes []
 		tc.enterScope()
 		tc.checkBlock(s, expectedReturnTypes)
 		tc.exitScope()
+
+	case *ast.UsingStatement:
+		// Track which modules are available via 'using'
+		for _, mod := range s.Modules {
+			if tc.currentScope != nil {
+				tc.currentScope.AddUsingModule(mod.Value)
+			}
+		}
 	}
 }
 
@@ -963,7 +989,8 @@ func (tc *TypeChecker) checkFunctionCall(call *ast.CallExpression) {
 	case *ast.Label:
 		funcName = fn.Value
 	case *ast.MemberExpression:
-		// Module function call - let runtime handle for now
+		// Module function call - validate stdlib calls
+		tc.checkStdlibCall(fn, call)
 		return
 	default:
 		return
@@ -977,7 +1004,8 @@ func (tc *TypeChecker) checkFunctionCall(call *ast.CallExpression) {
 	// Look up function signature
 	sig, ok := tc.functions[funcName]
 	if !ok {
-		// Unknown function - let runtime handle
+		// Check if this function might be from a 'using' imported module
+		tc.checkDirectStdlibCall(funcName, call)
 		return
 	}
 
@@ -1072,11 +1100,61 @@ func (tc *TypeChecker) checkBuiltinTypeConversion(funcName string, call *ast.Cal
 		return true
 
 	case "string", "bool", "char":
-		// These conversions are generally safe
+		// These conversions are generally safe - but validate arg count
+		if len(call.Arguments) != 1 {
+			line, column := tc.getExpressionPosition(call.Function)
+			tc.addError(errors.E5008,
+				fmt.Sprintf("%s() requires exactly 1 argument, got %d", funcName, len(call.Arguments)),
+				line, column)
+		}
 		return true
 
-	case "len", "typeof":
-		// Other builtins - let them through
+	case "len":
+		// len() requires exactly 1 argument that is a string or array
+		if len(call.Arguments) != 1 {
+			line, column := tc.getExpressionPosition(call.Function)
+			tc.addError(errors.E5008,
+				fmt.Sprintf("len() requires exactly 1 argument, got %d", len(call.Arguments)),
+				line, column)
+			return true
+		}
+		argType, ok := tc.inferExpressionType(call.Arguments[0])
+		if ok && argType != "string" && !tc.isArrayType(argType) {
+			line, column := tc.getExpressionPosition(call.Arguments[0])
+			tc.addError(errors.E3001,
+				fmt.Sprintf("len() argument must be string or array, got %s", argType),
+				line, column)
+		}
+		return true
+
+	case "typeof":
+		// typeof() requires exactly 1 argument (any type)
+		if len(call.Arguments) != 1 {
+			line, column := tc.getExpressionPosition(call.Function)
+			tc.addError(errors.E5008,
+				fmt.Sprintf("typeof() requires exactly 1 argument, got %d", len(call.Arguments)),
+				line, column)
+		}
+		return true
+
+	case "input":
+		// input() takes 0 arguments
+		if len(call.Arguments) != 0 {
+			line, column := tc.getExpressionPosition(call.Function)
+			tc.addError(errors.E5008,
+				fmt.Sprintf("input() takes 0 arguments, got %d", len(call.Arguments)),
+				line, column)
+		}
+		return true
+
+	case "read_int":
+		// read_int() takes 0 arguments
+		if len(call.Arguments) != 0 {
+			line, column := tc.getExpressionPosition(call.Function)
+			tc.addError(errors.E5008,
+				fmt.Sprintf("read_int() takes 0 arguments, got %d", len(call.Arguments)),
+				line, column)
+		}
 		return true
 
 	default:
@@ -1813,4 +1891,506 @@ func (tc *TypeChecker) typesCompatible(declared, actual string) bool {
 	}
 
 	return false
+}
+
+// ============================================================================
+// Standard Library Argument Validation
+// ============================================================================
+
+// StdlibFuncSig defines a standard library function signature for validation
+type StdlibFuncSig struct {
+	MinArgs    int      // Minimum number of arguments
+	MaxArgs    int      // Maximum number of arguments (-1 for variadic)
+	ArgTypes   []string // Expected argument types (use "any" for any type, "numeric" for numbers, "array" for arrays)
+	ReturnType string   // Return type
+}
+
+// checkDirectStdlibCall validates a direct function call that might be from an imported module
+// This handles cases like: using math; sqrt(4) instead of math.sqrt(4)
+func (tc *TypeChecker) checkDirectStdlibCall(funcName string, call *ast.CallExpression) {
+	line, column := tc.getExpressionPosition(call.Function)
+
+	// Check which modules are imported via 'using' and see if the function exists there
+	if tc.currentScope == nil {
+		return
+	}
+
+	// Check std module
+	if tc.currentScope.HasUsingModule("std") {
+		if funcName == "println" || funcName == "print" || funcName == "printf" {
+			tc.checkStdModuleCall(funcName, call, line, column)
+			return
+		}
+	}
+
+	// Check math module
+	if tc.currentScope.HasUsingModule("math") {
+		if tc.isMathFunction(funcName) {
+			tc.checkMathModuleCall(funcName, call, line, column)
+			return
+		}
+	}
+
+	// Check arrays module
+	if tc.currentScope.HasUsingModule("arrays") {
+		if tc.isArraysFunction(funcName) {
+			tc.checkArraysModuleCall(funcName, call, line, column)
+			return
+		}
+	}
+
+	// Check strings module
+	if tc.currentScope.HasUsingModule("strings") {
+		if tc.isStringsFunction(funcName) {
+			tc.checkStringsModuleCall(funcName, call, line, column)
+			return
+		}
+	}
+
+	// Check time module
+	if tc.currentScope.HasUsingModule("time") {
+		if tc.isTimeFunction(funcName) {
+			tc.checkTimeModuleCall(funcName, call, line, column)
+			return
+		}
+	}
+}
+
+// isMathFunction checks if a function name exists in the math module
+func (tc *TypeChecker) isMathFunction(name string) bool {
+	mathFuncs := map[string]bool{
+		"add": true, "sub": true, "mul": true, "div": true, "mod": true,
+		"abs": true, "sign": true, "neg": true, "floor": true, "ceil": true,
+		"round": true, "trunc": true, "sqrt": true, "cbrt": true, "exp": true,
+		"exp2": true, "log": true, "log2": true, "log10": true, "sin": true,
+		"cos": true, "tan": true, "asin": true, "acos": true, "atan": true,
+		"sinh": true, "cosh": true, "tanh": true, "pow": true, "hypot": true,
+		"atan2": true, "gcd": true, "lcm": true, "deg_to_rad": true, "rad_to_deg": true,
+		"min": true, "max": true, "sum": true, "avg": true, "clamp": true,
+		"lerp": true, "map_range": true, "distance": true, "factorial": true,
+		"is_prime": true, "is_even": true, "is_odd": true, "random": true,
+		"random_float": true, "pi": true, "e": true, "phi": true, "sqrt2": true,
+		"ln2": true, "ln10": true,
+	}
+	return mathFuncs[name]
+}
+
+// isArraysFunction checks if a function name exists in the arrays module
+func (tc *TypeChecker) isArraysFunction(name string) bool {
+	arraysFuncs := map[string]bool{
+		"len": true, "is_empty": true, "first": true, "last": true, "pop": true,
+		"shift": true, "clear": true, "copy": true, "reverse": true, "sort": true,
+		"sort_desc": true, "shuffle": true, "unique": true, "duplicates": true,
+		"flatten": true, "sum": true, "product": true, "min": true, "max": true,
+		"avg": true, "all_equal": true, "push": true, "unshift": true, "contains": true,
+		"index_of": true, "last_index_of": true, "count": true, "remove": true,
+		"remove_all": true, "fill": true, "get": true, "remove_at": true, "take": true,
+		"drop": true, "set": true, "insert": true, "slice": true, "join": true,
+		"zip": true, "concat": true, "range": true, "repeat": true,
+	}
+	return arraysFuncs[name]
+}
+
+// isStringsFunction checks if a function name exists in the strings module
+func (tc *TypeChecker) isStringsFunction(name string) bool {
+	stringsFuncs := map[string]bool{
+		"len": true, "upper": true, "lower": true, "trim": true, "contains": true,
+		"starts_with": true, "ends_with": true, "index": true, "split": true,
+		"join": true, "replace": true,
+	}
+	return stringsFuncs[name]
+}
+
+// isTimeFunction checks if a function name exists in the time module
+func (tc *TypeChecker) isTimeFunction(name string) bool {
+	timeFuncs := map[string]bool{
+		"now": true, "now_ms": true, "now_ns": true, "tick": true, "timezone": true,
+		"utc_offset": true, "year": true, "month": true, "day": true, "hour": true,
+		"minute": true, "second": true, "weekday": true, "weekday_name": true,
+		"month_name": true, "day_of_year": true, "is_leap_year": true, "start_of_day": true,
+		"end_of_day": true, "start_of_month": true, "end_of_month": true, "start_of_year": true,
+		"end_of_year": true, "iso": true, "date": true, "clock": true, "format": true,
+		"parse": true, "sleep": true, "sleep_ms": true, "add_seconds": true,
+		"add_minutes": true, "add_hours": true, "add_days": true, "diff": true,
+		"diff_days": true, "is_before": true, "is_after": true, "make": true,
+		"days_in_month": true, "elapsed_ms": true,
+	}
+	return timeFuncs[name]
+}
+
+// checkStdlibCall validates a standard library module function call
+func (tc *TypeChecker) checkStdlibCall(member *ast.MemberExpression, call *ast.CallExpression) {
+	// Get module name
+	moduleName := ""
+	if label, ok := member.Object.(*ast.Label); ok {
+		moduleName = label.Value
+	} else {
+		return
+	}
+
+	funcName := member.Member.Value
+	line, column := tc.getExpressionPosition(member.Member)
+
+	switch moduleName {
+	case "std":
+		tc.checkStdModuleCall(funcName, call, line, column)
+	case "math":
+		tc.checkMathModuleCall(funcName, call, line, column)
+	case "arrays":
+		tc.checkArraysModuleCall(funcName, call, line, column)
+	case "strings":
+		tc.checkStringsModuleCall(funcName, call, line, column)
+	case "time":
+		tc.checkTimeModuleCall(funcName, call, line, column)
+	}
+}
+
+// checkStdModuleCall validates std module function calls
+func (tc *TypeChecker) checkStdModuleCall(funcName string, call *ast.CallExpression, line, column int) {
+	switch funcName {
+	case "println", "print":
+		// Accept any arguments (variadic, any type)
+		return
+	case "printf":
+		// First argument must be a string (format string)
+		if len(call.Arguments) < 1 {
+			tc.addError(errors.E5008, fmt.Sprintf("std.%s requires at least 1 argument (format string)", funcName), line, column)
+			return
+		}
+		argType, ok := tc.inferExpressionType(call.Arguments[0])
+		if ok && argType != "string" {
+			tc.addError(errors.E3001, fmt.Sprintf("std.%s format argument must be string, got %s", funcName, argType), line, column)
+		}
+	}
+}
+
+// checkMathModuleCall validates math module function calls
+func (tc *TypeChecker) checkMathModuleCall(funcName string, call *ast.CallExpression, line, column int) {
+	// Define expected signatures
+	signatures := map[string]StdlibFuncSig{
+		// Basic arithmetic (2 numeric args)
+		"add": {2, 2, []string{"numeric", "numeric"}, "float"},
+		"sub": {2, 2, []string{"numeric", "numeric"}, "float"},
+		"mul": {2, 2, []string{"numeric", "numeric"}, "float"},
+		"div": {2, 2, []string{"numeric", "numeric"}, "float"},
+		"mod": {2, 2, []string{"numeric", "numeric"}, "float"},
+
+		// Single numeric arg
+		"abs":   {1, 1, []string{"numeric"}, "float"},
+		"sign":  {1, 1, []string{"numeric"}, "int"},
+		"neg":   {1, 1, []string{"numeric"}, "float"},
+		"floor": {1, 1, []string{"numeric"}, "int"},
+		"ceil":  {1, 1, []string{"numeric"}, "int"},
+		"round": {1, 1, []string{"numeric"}, "int"},
+		"trunc": {1, 1, []string{"numeric"}, "int"},
+		"sqrt":  {1, 1, []string{"numeric"}, "float"},
+		"cbrt":  {1, 1, []string{"numeric"}, "float"},
+		"exp":   {1, 1, []string{"numeric"}, "float"},
+		"exp2":  {1, 1, []string{"numeric"}, "float"},
+		"log":   {1, 1, []string{"numeric"}, "float"},
+		"log2":  {1, 1, []string{"numeric"}, "float"},
+		"log10": {1, 1, []string{"numeric"}, "float"},
+
+		// Trigonometry
+		"sin":  {1, 1, []string{"numeric"}, "float"},
+		"cos":  {1, 1, []string{"numeric"}, "float"},
+		"tan":  {1, 1, []string{"numeric"}, "float"},
+		"asin": {1, 1, []string{"numeric"}, "float"},
+		"acos": {1, 1, []string{"numeric"}, "float"},
+		"atan": {1, 1, []string{"numeric"}, "float"},
+		"sinh": {1, 1, []string{"numeric"}, "float"},
+		"cosh": {1, 1, []string{"numeric"}, "float"},
+		"tanh": {1, 1, []string{"numeric"}, "float"},
+
+		// Two numeric args
+		"pow":        {2, 2, []string{"numeric", "numeric"}, "float"},
+		"hypot":      {2, 2, []string{"numeric", "numeric"}, "float"},
+		"atan2":      {2, 2, []string{"numeric", "numeric"}, "float"},
+		"gcd":        {2, 2, []string{"int", "int"}, "int"},
+		"lcm":        {2, 2, []string{"int", "int"}, "int"},
+		"deg_to_rad": {1, 1, []string{"numeric"}, "float"},
+		"rad_to_deg": {1, 1, []string{"numeric"}, "float"},
+
+		// Variadic numeric
+		"min": {2, -1, []string{"numeric"}, "float"},
+		"max": {2, -1, []string{"numeric"}, "float"},
+		"sum": {1, -1, []string{"numeric"}, "float"},
+		"avg": {1, -1, []string{"numeric"}, "float"},
+
+		// Three args
+		"clamp": {3, 3, []string{"numeric", "numeric", "numeric"}, "float"},
+		"lerp":  {3, 3, []string{"numeric", "numeric", "numeric"}, "float"},
+
+		// Five args
+		"map_range": {5, 5, []string{"numeric", "numeric", "numeric", "numeric", "numeric"}, "float"},
+		"distance":  {4, 4, []string{"numeric", "numeric", "numeric", "numeric"}, "float"},
+
+		// Integer-only
+		"factorial": {1, 1, []string{"int"}, "int"},
+		"is_prime":  {1, 1, []string{"int"}, "bool"},
+		"is_even":   {1, 1, []string{"int"}, "bool"},
+		"is_odd":    {1, 1, []string{"int"}, "bool"},
+
+		// Random (variable args)
+		"random":       {0, 2, []string{"int", "int"}, "int"},
+		"random_float": {0, 2, []string{"numeric", "numeric"}, "float"},
+
+		// Constants (no args)
+		"pi":    {0, 0, []string{}, "float"},
+		"e":     {0, 0, []string{}, "float"},
+		"phi":   {0, 0, []string{}, "float"},
+		"sqrt2": {0, 0, []string{}, "float"},
+		"ln2":   {0, 0, []string{}, "float"},
+		"ln10":  {0, 0, []string{}, "float"},
+	}
+
+	sig, exists := signatures[funcName]
+	if !exists {
+		return // Unknown function, let runtime handle
+	}
+
+	tc.validateStdlibCall("math", funcName, call, sig, line, column)
+}
+
+// checkArraysModuleCall validates arrays module function calls
+func (tc *TypeChecker) checkArraysModuleCall(funcName string, call *ast.CallExpression, line, column int) {
+	signatures := map[string]StdlibFuncSig{
+		// Single array arg
+		"len":        {1, 1, []string{"array"}, "int"},
+		"is_empty":   {1, 1, []string{"array"}, "bool"},
+		"first":      {1, 1, []string{"array"}, "any"},
+		"last":       {1, 1, []string{"array"}, "any"},
+		"pop":        {1, 1, []string{"array"}, "any"},
+		"shift":      {1, 1, []string{"array"}, "any"},
+		"clear":      {1, 1, []string{"array"}, "array"},
+		"copy":       {1, 1, []string{"array"}, "array"},
+		"reverse":    {1, 1, []string{"array"}, "array"},
+		"sort":       {1, 1, []string{"array"}, "array"},
+		"sort_desc":  {1, 1, []string{"array"}, "array"},
+		"shuffle":    {1, 1, []string{"array"}, "array"},
+		"unique":     {1, 1, []string{"array"}, "array"},
+		"duplicates": {1, 1, []string{"array"}, "array"},
+		"flatten":    {1, 1, []string{"array"}, "array"},
+		"sum":        {1, 1, []string{"array"}, "float"},
+		"product":    {1, 1, []string{"array"}, "float"},
+		"min":        {1, 1, []string{"array"}, "any"},
+		"max":        {1, 1, []string{"array"}, "any"},
+		"avg":        {1, 1, []string{"array"}, "float"},
+		"all_equal":  {1, 1, []string{"array"}, "bool"},
+
+		// Array + value
+		"push":          {2, -1, []string{"array", "any"}, "void"},
+		"unshift":       {2, -1, []string{"array", "any"}, "array"},
+		"contains":      {2, 2, []string{"array", "any"}, "bool"},
+		"index_of":      {2, 2, []string{"array", "any"}, "int"},
+		"last_index_of": {2, 2, []string{"array", "any"}, "int"},
+		"count":         {2, 2, []string{"array", "any"}, "int"},
+		"remove":        {2, 2, []string{"array", "any"}, "array"},
+		"remove_all":    {2, 2, []string{"array", "any"}, "array"},
+		"fill":          {2, 2, []string{"array", "any"}, "array"},
+
+		// Array + int
+		"get":       {2, 2, []string{"array", "int"}, "any"},
+		"remove_at": {2, 2, []string{"array", "int"}, "array"},
+		"take":      {2, 2, []string{"array", "int"}, "array"},
+		"drop":      {2, 2, []string{"array", "int"}, "array"},
+
+		// Array + int + value
+		"set":    {3, 3, []string{"array", "int", "any"}, "array"},
+		"insert": {3, 3, []string{"array", "int", "any"}, "array"},
+
+		// Array + int + int (optional)
+		"slice": {2, 3, []string{"array", "int", "int"}, "array"},
+
+		// Array + string
+		"join": {2, 2, []string{"array", "string"}, "string"},
+
+		// Two arrays
+		"zip":    {2, 2, []string{"array", "array"}, "array"},
+		"concat": {1, -1, []string{"array"}, "array"},
+
+		// Creation functions
+		"range":  {1, 3, []string{"int", "int", "int"}, "array"},
+		"repeat": {2, 2, []string{"any", "int"}, "array"},
+	}
+
+	sig, exists := signatures[funcName]
+	if !exists {
+		return
+	}
+
+	tc.validateStdlibCall("arrays", funcName, call, sig, line, column)
+}
+
+// checkStringsModuleCall validates strings module function calls
+func (tc *TypeChecker) checkStringsModuleCall(funcName string, call *ast.CallExpression, line, column int) {
+	signatures := map[string]StdlibFuncSig{
+		// Single string arg
+		"len":   {1, 1, []string{"string"}, "int"},
+		"upper": {1, 1, []string{"string"}, "string"},
+		"lower": {1, 1, []string{"string"}, "string"},
+		"trim":  {1, 1, []string{"string"}, "string"},
+
+		// String + string
+		"contains":    {2, 2, []string{"string", "string"}, "bool"},
+		"starts_with": {2, 2, []string{"string", "string"}, "bool"},
+		"ends_with":   {2, 2, []string{"string", "string"}, "bool"},
+		"index":       {2, 2, []string{"string", "string"}, "int"},
+		"split":       {2, 2, []string{"string", "string"}, "array"},
+
+		// Array + string (for join)
+		"join": {2, 2, []string{"array", "string"}, "string"},
+
+		// String + string + string
+		"replace": {3, 3, []string{"string", "string", "string"}, "string"},
+	}
+
+	sig, exists := signatures[funcName]
+	if !exists {
+		return
+	}
+
+	tc.validateStdlibCall("strings", funcName, call, sig, line, column)
+}
+
+// checkTimeModuleCall validates time module function calls
+func (tc *TypeChecker) checkTimeModuleCall(funcName string, call *ast.CallExpression, line, column int) {
+	signatures := map[string]StdlibFuncSig{
+		// No args
+		"now":        {0, 0, []string{}, "int"},
+		"now_ms":     {0, 0, []string{}, "int"},
+		"now_ns":     {0, 0, []string{}, "int"},
+		"tick":       {0, 0, []string{}, "int"},
+		"timezone":   {0, 0, []string{}, "string"},
+		"utc_offset": {0, 0, []string{}, "int"},
+
+		// Optional timestamp (0 or 1 int arg)
+		"year":           {0, 1, []string{"int"}, "int"},
+		"month":          {0, 1, []string{"int"}, "int"},
+		"day":            {0, 1, []string{"int"}, "int"},
+		"hour":           {0, 1, []string{"int"}, "int"},
+		"minute":         {0, 1, []string{"int"}, "int"},
+		"second":         {0, 1, []string{"int"}, "int"},
+		"weekday":        {0, 1, []string{"int"}, "int"},
+		"weekday_name":   {0, 1, []string{"int"}, "string"},
+		"month_name":     {0, 1, []string{"int"}, "string"},
+		"day_of_year":    {0, 1, []string{"int"}, "int"},
+		"is_leap_year":   {0, 1, []string{"int"}, "bool"},
+		"start_of_day":   {0, 1, []string{"int"}, "int"},
+		"end_of_day":     {0, 1, []string{"int"}, "int"},
+		"start_of_month": {0, 1, []string{"int"}, "int"},
+		"end_of_month":   {0, 1, []string{"int"}, "int"},
+		"start_of_year":  {0, 1, []string{"int"}, "int"},
+		"end_of_year":    {0, 1, []string{"int"}, "int"},
+		"iso":            {0, 1, []string{"int"}, "string"},
+		"date":           {0, 1, []string{"int"}, "string"},
+		"clock":          {0, 1, []string{"int"}, "string"},
+
+		// Format functions
+		"format": {1, 2, []string{"string", "int"}, "string"},
+		"parse":  {2, 2, []string{"string", "string"}, "int"},
+
+		// Sleep (numeric arg - int or float)
+		"sleep":    {1, 1, []string{"numeric"}, "void"},
+		"sleep_ms": {1, 1, []string{"int"}, "void"},
+
+		// Arithmetic (timestamp + value)
+		"add_seconds": {2, 2, []string{"int", "int"}, "int"},
+		"add_minutes": {2, 2, []string{"int", "int"}, "int"},
+		"add_hours":   {2, 2, []string{"int", "int"}, "int"},
+		"add_days":    {2, 2, []string{"int", "int"}, "int"},
+
+		// Difference
+		"diff":      {2, 2, []string{"int", "int"}, "int"},
+		"diff_days": {2, 2, []string{"int", "int"}, "int"},
+
+		// Comparisons
+		"is_before": {2, 2, []string{"int", "int"}, "bool"},
+		"is_after":  {2, 2, []string{"int", "int"}, "bool"},
+
+		// Creation
+		"make": {3, 6, []string{"int", "int", "int", "int", "int", "int"}, "int"},
+
+		// days_in_month (0-2 args)
+		"days_in_month": {0, 2, []string{"int", "int"}, "int"},
+
+		// elapsed_ms
+		"elapsed_ms": {1, 1, []string{"int"}, "float"},
+	}
+
+	sig, exists := signatures[funcName]
+	if !exists {
+		return
+	}
+
+	tc.validateStdlibCall("time", funcName, call, sig, line, column)
+}
+
+// validateStdlibCall performs the actual validation of a stdlib call
+func (tc *TypeChecker) validateStdlibCall(moduleName, funcName string, call *ast.CallExpression, sig StdlibFuncSig, line, column int) {
+	argCount := len(call.Arguments)
+
+	// Check argument count
+	if argCount < sig.MinArgs {
+		tc.addError(errors.E5008,
+			fmt.Sprintf("%s.%s requires at least %d argument(s), got %d", moduleName, funcName, sig.MinArgs, argCount),
+			line, column)
+		return
+	}
+
+	if sig.MaxArgs >= 0 && argCount > sig.MaxArgs {
+		tc.addError(errors.E5008,
+			fmt.Sprintf("%s.%s accepts at most %d argument(s), got %d", moduleName, funcName, sig.MaxArgs, argCount),
+			line, column)
+		return
+	}
+
+	// Check argument types
+	for i, arg := range call.Arguments {
+		actualType, ok := tc.inferExpressionType(arg)
+		if !ok {
+			continue // Can't determine type
+		}
+
+		// Determine expected type for this argument
+		var expectedType string
+		if i < len(sig.ArgTypes) {
+			expectedType = sig.ArgTypes[i]
+		} else if len(sig.ArgTypes) > 0 {
+			// For variadic functions, use the last type pattern
+			expectedType = sig.ArgTypes[len(sig.ArgTypes)-1]
+		} else {
+			continue // No type constraints
+		}
+
+		// Validate the type
+		if !tc.typeMatchesExpected(actualType, expectedType) {
+			argLine, argColumn := tc.getExpressionPosition(arg)
+			tc.addError(errors.E3001,
+				fmt.Sprintf("%s.%s argument %d: expected %s, got %s", moduleName, funcName, i+1, expectedType, actualType),
+				argLine, argColumn)
+		}
+	}
+}
+
+// typeMatchesExpected checks if an actual type matches an expected type constraint
+func (tc *TypeChecker) typeMatchesExpected(actual, expected string) bool {
+	switch expected {
+	case "any":
+		return true
+	case "numeric":
+		return tc.isNumericType(actual)
+	case "int":
+		return tc.isIntegerType(actual)
+	case "float":
+		return actual == "float" || actual == "f32" || actual == "f64"
+	case "string":
+		return actual == "string"
+	case "bool":
+		return actual == "bool"
+	case "array":
+		return tc.isArrayType(actual)
+	default:
+		return tc.typesCompatible(expected, actual)
+	}
 }
