@@ -1590,6 +1590,11 @@ func (p *Parser) parseEnumDeclaration() *EnumDeclaration {
 
 		stmt.Values = append(stmt.Values, enumValue)
 		p.nextToken() // move to next value or }
+
+		// Skip optional comma separator between enum values
+		if p.currentTokenMatches(COMMA) {
+			p.nextToken()
+		}
 	}
 
 	if len(stmt.Values) == 0 {
@@ -1618,7 +1623,21 @@ func (p *Parser) parseTypeName() string {
 			p.addEZError(errors.E2024, msg, p.currentToken)
 			return ""
 		}
-		typeName += p.currentToken.Literal
+		elementType := p.currentToken.Literal
+
+		// Check for qualified type name inside array: [module.TypeName]
+		if p.peekTokenMatches(DOT) {
+			p.nextToken() // consume the DOT
+			p.nextToken() // get the type name
+			if !p.currentTokenMatches(IDENT) {
+				msg := fmt.Sprintf("expected type name after '.', got %s", p.currentToken.Type)
+				p.errors = append(p.errors, msg)
+				p.addEZError(errors.E2024, msg, p.currentToken)
+				return ""
+			}
+			elementType = elementType + "." + p.currentToken.Literal
+		}
+		typeName += elementType
 
 		// Check for fixed-size array syntax: [type, size]
 		if p.peekTokenMatches(COMMA) {
@@ -1645,7 +1664,21 @@ func (p *Parser) parseTypeName() string {
 		if p.currentToken.Literal == "map" && p.peekTokenMatches(LBRACKET) {
 			return p.parseMapTypeName()
 		}
-		return p.currentToken.Literal
+
+		// Check for qualified type name: module.TypeName
+		typeName := p.currentToken.Literal
+		if p.peekTokenMatches(DOT) {
+			p.nextToken() // consume the DOT
+			p.nextToken() // get the type name
+			if !p.currentTokenMatches(IDENT) {
+				msg := fmt.Sprintf("expected type name after '.', got %s", p.currentToken.Type)
+				p.errors = append(p.errors, msg)
+				p.addEZError(errors.E2024, msg, p.currentToken)
+				return ""
+			}
+			typeName = typeName + "." + p.currentToken.Literal
+		}
+		return typeName
 	} else {
 		msg := fmt.Sprintf("expected type, got %s", p.currentToken.Type)
 		p.errors = append(p.errors, msg)
@@ -2313,6 +2346,21 @@ func (p *Parser) parseMemberExpression(left Expression) Expression {
 	p.nextToken()
 	exp.Member = &Label{Token: p.currentToken, Value: p.currentToken.Literal}
 
+	// Check if this is a qualified struct literal: module.TypeName{...}
+	// Only if member starts with uppercase (type naming convention)
+	memberName := exp.Member.Value
+	if p.peekTokenMatches(LBRACE) && len(memberName) > 0 && memberName[0] >= 'A' && memberName[0] <= 'Z' {
+		// Build the qualified name from the member expression
+		if ident, ok := left.(*Label); ok {
+			qualifiedName := &Label{
+				Token: exp.Token,
+				Value: ident.Value + "." + memberName,
+			}
+			p.nextToken() // move to {
+			return p.parseStructLiteralFromIdent(qualifiedName)
+		}
+	}
+
 	return exp
 }
 
@@ -2327,7 +2375,22 @@ func (p *Parser) parseNewExpression() Expression {
 		return nil
 	}
 
-	exp.TypeName = &Label{Token: p.currentToken, Value: p.currentToken.Literal}
+	typeName := p.currentToken.Literal
+
+	// Check for qualified type name: new(module.TypeName)
+	if p.peekTokenMatches(DOT) {
+		p.nextToken() // consume the DOT
+		p.nextToken() // get the type name
+		if !p.currentTokenMatches(IDENT) {
+			msg := fmt.Sprintf("expected type name after '.', got %s", p.currentToken.Type)
+			p.errors = append(p.errors, msg)
+			p.addEZError(errors.E2024, msg, p.currentToken)
+			return nil
+		}
+		typeName = typeName + "." + p.currentToken.Literal
+	}
+
+	exp.TypeName = &Label{Token: p.currentToken, Value: typeName}
 
 	if !p.expectPeek(RPAREN) {
 		return nil

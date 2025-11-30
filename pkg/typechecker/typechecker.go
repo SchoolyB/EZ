@@ -98,15 +98,15 @@ type Parameter struct {
 
 // TypeChecker validates types in an EZ program
 type TypeChecker struct {
-	types            map[string]*Type              // All known types
-	functions        map[string]*FunctionSignature // All function signatures
-	variables        map[string]string             // Variable name -> type name (global scope)
-	modules          map[string]bool               // Imported module names
-	currentScope     *Scope                        // Current scope for local variable tracking
-	errors           *errors.EZErrorList
-	source           string
-	filename         string
-	skipMainCheck    bool                          // Skip main() function requirement (for module files)
+	types         map[string]*Type              // All known types
+	functions     map[string]*FunctionSignature // All function signatures
+	variables     map[string]string             // Variable name -> type name (global scope)
+	modules       map[string]bool               // Imported module names
+	currentScope  *Scope                        // Current scope for local variable tracking
+	errors        *errors.EZErrorList
+	source        string
+	filename      string
+	skipMainCheck bool // Skip main() function requirement (for module files)
 }
 
 // NewTypeChecker creates a new type checker
@@ -189,6 +189,19 @@ func (tc *TypeChecker) TypeExists(typeName string) bool {
 		return false
 	}
 
+	// Check for qualified type names (module.TypeName)
+	// These are validated at runtime when the module is loaded
+	if strings.Contains(typeName, ".") {
+		parts := strings.SplitN(typeName, ".", 2)
+		if len(parts) == 2 {
+			moduleName := parts[0]
+			// Check if the module has been imported
+			if tc.modules[moduleName] {
+				return true
+			}
+		}
+	}
+
 	_, exists := tc.types[typeName]
 	return exists
 }
@@ -252,6 +265,20 @@ func (tc *TypeChecker) addWarning(code errors.ErrorCode, message string, line, c
 
 // CheckProgram performs type checking on the entire program
 func (tc *TypeChecker) CheckProgram(program *ast.Program) bool {
+	// Phase 0: Register all imported modules
+	for _, stmt := range program.Statements {
+		if importStmt, ok := stmt.(*ast.ImportStatement); ok {
+			for _, item := range importStmt.Imports {
+				// Register the module (use alias if provided, otherwise module name)
+				moduleName := item.Alias
+				if moduleName == "" {
+					moduleName = item.Module
+				}
+				tc.modules[moduleName] = true
+			}
+		}
+	}
+
 	// Phase 1: Register all user-defined types (structs, enums)
 	for _, stmt := range program.Statements {
 		switch node := stmt.(type) {

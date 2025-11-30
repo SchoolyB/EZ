@@ -32,9 +32,9 @@ type Program struct {
 type Visibility int
 
 const (
-	VisibilityPublic       Visibility = iota // Public (default)
-	VisibilityPrivate                        // Private to this file
-	VisibilityPrivateModule                  // Private to this module (all files in directory)
+	VisibilityPublic        Visibility = iota // Public (default)
+	VisibilityPrivate                         // Private to this file
+	VisibilityPrivateModule                   // Private to this module (all files in directory)
 )
 
 // ModuleDeclaration represents "module mymodule" at the top of a file

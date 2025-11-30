@@ -150,8 +150,9 @@ func (b *Builtin) Inspect() string  { return "builtin function" }
 
 // Array represents an array
 type Array struct {
-	Elements []Object
-	Mutable  bool
+	Elements    []Object
+	Mutable     bool
+	ElementType string // Type of array elements (e.g., "int", "Task")
 }
 
 func (a *Array) Type() ObjectType { return ARRAY_OBJ }
@@ -171,8 +172,8 @@ type MapPair struct {
 
 // Map represents a map/dictionary with ordered key-value pairs
 type Map struct {
-	Pairs   []*MapPair        // Ordered pairs for iteration
-	Index   map[string]int    // Maps key hash to index in Pairs for O(1) lookup
+	Pairs   []*MapPair     // Ordered pairs for iteration
+	Index   map[string]int // Maps key hash to index in Pairs for O(1) lookup
 	Mutable bool
 }
 
@@ -337,8 +338,9 @@ func (ev *EnumValue) Inspect() string {
 
 // ModuleObject represents a loaded module at runtime
 type ModuleObject struct {
-	Name    string            // Module name
-	Exports map[string]Object // Exported (public) symbols
+	Name       string                // Module name
+	Exports    map[string]Object     // Exported (public) symbols
+	StructDefs map[string]*StructDef // Exported struct definitions
 }
 
 func (m *ModuleObject) Type() ObjectType { return MODULE_OBJ }
@@ -352,6 +354,15 @@ func (m *ModuleObject) Get(name string) (Object, bool) {
 	return obj, ok
 }
 
+// GetStructDef retrieves an exported struct definition from the module
+func (m *ModuleObject) GetStructDef(name string) (*StructDef, bool) {
+	if m.StructDefs == nil {
+		return nil, false
+	}
+	def, ok := m.StructDefs[name]
+	return def, ok
+}
+
 // Singleton values
 var (
 	NIL   = &Nil{}
@@ -363,16 +374,16 @@ var (
 type Visibility int
 
 const (
-	VisibilityPublic       Visibility = iota // Public (default) - accessible from anywhere
-	VisibilityPrivate                        // Private to this file only
-	VisibilityPrivateModule                  // Private to this module (all files in directory)
+	VisibilityPublic        Visibility = iota // Public (default) - accessible from anywhere
+	VisibilityPrivate                         // Private to this file only
+	VisibilityPrivateModule                   // Private to this module (all files in directory)
 )
 
 // Environment holds variable bindings
 type Environment struct {
 	store      map[string]Object
 	mutable    map[string]bool
-	visibility map[string]Visibility    // Visibility of each binding
+	visibility map[string]Visibility // Visibility of each binding
 	structDefs map[string]*StructDef
 	outer      *Environment
 	imports    map[string]string        // Legacy: alias -> stdlib module name
@@ -581,6 +592,22 @@ func (e *Environment) GetPublicBindings() map[string]Object {
 	for name, obj := range e.store {
 		if vis, ok := e.visibility[name]; !ok || vis == VisibilityPublic {
 			result[name] = obj
+		}
+	}
+	return result
+}
+
+// GetPublicStructDefs returns all public struct definitions in this environment
+func (e *Environment) GetPublicStructDefs() map[string]*StructDef {
+	result := make(map[string]*StructDef)
+	for name, def := range e.structDefs {
+		// Skip the built-in Error struct
+		if name == "Error" {
+			continue
+		}
+		// Check visibility - if not explicitly set, treat as public
+		if vis, ok := e.visibility[name]; !ok || vis == VisibilityPublic {
+			result[name] = def
 		}
 	}
 	return result
