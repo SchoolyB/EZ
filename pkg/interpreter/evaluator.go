@@ -1686,6 +1686,21 @@ func evalMemberCall(member *ast.MemberExpression, args []ast.Expression, env *En
 		return result
 	}
 
+	// Provide helpful suggestions for common function name mistakes
+	suggestions := map[string]string{
+		"arrays.push":       "use arrays.append() instead",
+		"strings.substring": "use strings.slice() instead",
+		"strings.substr":    "use strings.slice() instead",
+		"strings.length":    "use len() instead",
+		"strings.size":      "use len() instead",
+		"arrays.length":     "use len() instead",
+		"arrays.size":       "use len() instead",
+	}
+
+	if suggestion, ok := suggestions[fullName]; ok {
+		return newError("function not found: %s\n  help: %s", fullName, suggestion)
+	}
+
 	return newError("function not found: %s", fullName)
 }
 
