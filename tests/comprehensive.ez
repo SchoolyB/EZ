@@ -971,6 +971,26 @@ do test_stdlib_time() -> TestResult {
     println("  time.add_days(now, 7) - now = ${diff} days")
     passed += 1
 
+    // New time arithmetic
+    temp week_later int = time.add_weeks(now, 1)
+    temp month_later int = time.add_months(now, 1)
+    temp year_later int = time.add_years(now, 1)
+    println("  time.add_weeks(now, 1) adds 7 days: ${time.diff_days(week_later, now)}")
+    println("  time.add_months(now, 1) works: ${time.month(month_later)}")
+    println("  time.add_years(now, 1) works: ${time.year(year_later)}")
+    passed += 1
+
+    // New time differences
+    temp five_hours int = time.add_hours(now, 5)
+    println("  time.diff_hours(+5h, now) = ${time.diff_hours(five_hours, now)}")
+    println("  time.diff_minutes(+5h, now) = ${time.diff_minutes(five_hours, now)}")
+    passed += 1
+
+    // Calendar utilities
+    println("  time.quarter() = Q${time.quarter()}")
+    println("  time.week_of_year() = ${time.week_of_year()}")
+    passed += 1
+
     println("  PASSED: ${passed}, FAILED: ${failed}")
     return TestResult{passed: passed, failed: failed}
 }

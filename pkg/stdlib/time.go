@@ -313,6 +313,58 @@ var TimeBuiltins = map[string]*object.Builtin{
 			return &object.Integer{Value: ts.Value + days.Value*86400}
 		},
 	},
+	"time.add_weeks": {
+		Fn: func(args ...object.Object) object.Object {
+			if len(args) != 2 {
+				return &object.Error{Code: "E11001", Message: "time.add_weeks() takes exactly 2 arguments"}
+			}
+			ts, ok := args[0].(*object.Integer)
+			if !ok {
+				return &object.Error{Code: "E11003", Message: "time.add_weeks() requires integer timestamp"}
+			}
+			weeks, ok := args[1].(*object.Integer)
+			if !ok {
+				return &object.Error{Code: "E11003", Message: "time.add_weeks() requires integer weeks"}
+			}
+			return &object.Integer{Value: ts.Value + weeks.Value*604800}
+		},
+	},
+	"time.add_months": {
+		Fn: func(args ...object.Object) object.Object {
+			if len(args) != 2 {
+				return &object.Error{Code: "E11001", Message: "time.add_months() takes exactly 2 arguments"}
+			}
+			ts, ok := args[0].(*object.Integer)
+			if !ok {
+				return &object.Error{Code: "E11003", Message: "time.add_months() requires integer timestamp"}
+			}
+			months, ok := args[1].(*object.Integer)
+			if !ok {
+				return &object.Error{Code: "E11003", Message: "time.add_months() requires integer months"}
+			}
+			t := time.Unix(ts.Value, 0)
+			t = t.AddDate(0, int(months.Value), 0)
+			return &object.Integer{Value: t.Unix()}
+		},
+	},
+	"time.add_years": {
+		Fn: func(args ...object.Object) object.Object {
+			if len(args) != 2 {
+				return &object.Error{Code: "E11001", Message: "time.add_years() takes exactly 2 arguments"}
+			}
+			ts, ok := args[0].(*object.Integer)
+			if !ok {
+				return &object.Error{Code: "E11003", Message: "time.add_years() requires integer timestamp"}
+			}
+			years, ok := args[1].(*object.Integer)
+			if !ok {
+				return &object.Error{Code: "E11003", Message: "time.add_years() requires integer years"}
+			}
+			t := time.Unix(ts.Value, 0)
+			t = t.AddDate(int(years.Value), 0, 0)
+			return &object.Integer{Value: t.Unix()}
+		},
+	},
 
 	// Differences
 	"time.diff": {
@@ -345,6 +397,38 @@ var TimeBuiltins = map[string]*object.Builtin{
 				return &object.Error{Code: "E11003", Message: "time.diff_days() requires integer timestamps"}
 			}
 			return &object.Integer{Value: (ts1.Value - ts2.Value) / 86400}
+		},
+	},
+	"time.diff_hours": {
+		Fn: func(args ...object.Object) object.Object {
+			if len(args) != 2 {
+				return &object.Error{Code: "E11001", Message: "time.diff_hours() takes exactly 2 arguments"}
+			}
+			ts1, ok := args[0].(*object.Integer)
+			if !ok {
+				return &object.Error{Code: "E11003", Message: "time.diff_hours() requires integer timestamps"}
+			}
+			ts2, ok := args[1].(*object.Integer)
+			if !ok {
+				return &object.Error{Code: "E11003", Message: "time.diff_hours() requires integer timestamps"}
+			}
+			return &object.Integer{Value: (ts1.Value - ts2.Value) / 3600}
+		},
+	},
+	"time.diff_minutes": {
+		Fn: func(args ...object.Object) object.Object {
+			if len(args) != 2 {
+				return &object.Error{Code: "E11001", Message: "time.diff_minutes() takes exactly 2 arguments"}
+			}
+			ts1, ok := args[0].(*object.Integer)
+			if !ok {
+				return &object.Error{Code: "E11003", Message: "time.diff_minutes() requires integer timestamps"}
+			}
+			ts2, ok := args[1].(*object.Integer)
+			if !ok {
+				return &object.Error{Code: "E11003", Message: "time.diff_minutes() requires integer timestamps"}
+			}
+			return &object.Integer{Value: (ts1.Value - ts2.Value) / 60}
 		},
 	},
 
@@ -489,6 +573,23 @@ var TimeBuiltins = map[string]*object.Builtin{
 			t := getTime(args)
 			end := time.Date(t.Year(), 12, 31, 23, 59, 59, 0, t.Location())
 			return &object.Integer{Value: end.Unix()}
+		},
+	},
+
+	// Calendar utilities
+	"time.quarter": {
+		Fn: func(args ...object.Object) object.Object {
+			t := getTime(args)
+			month := int(t.Month())
+			quarter := (month-1)/3 + 1
+			return &object.Integer{Value: int64(quarter)}
+		},
+	},
+	"time.week_of_year": {
+		Fn: func(args ...object.Object) object.Object {
+			t := getTime(args)
+			_, week := t.ISOWeek()
+			return &object.Integer{Value: int64(week)}
 		},
 	},
 
