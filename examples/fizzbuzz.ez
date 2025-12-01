@@ -1,0 +1,28 @@
+/*
+ * fizzbuzz.ez - The classic FizzBuzz problem
+ *
+ * Print numbers 1 to 100, but:
+ *   - For multiples of 3, print "Fizz"
+ *   - For multiples of 5, print "Buzz"
+ *   - For multiples of both, print "FizzBuzz"
+ */
+
+import @std
+using std
+
+do main() {
+    println("=== FizzBuzz ===")
+    println("")
+
+    for i in range(1, 101) {
+        if i % 15 == 0 {
+            println("FizzBuzz")
+        } or i % 3 == 0 {
+            println("Fizz")
+        } or i % 5 == 0 {
+            println("Buzz")
+        } otherwise {
+            println("${i}")
+        }
+    }
+}

@@ -1,0 +1,102 @@
+/*
+ * calculator.ez - A simple calculator
+ *
+ * Demonstrates functions for basic math operations.
+ */
+
+import @std
+using std
+
+do main() {
+    println("=== Simple Calculator ===")
+    println("")
+
+    // Demo calculations
+    temp a float = 10.0
+    temp b float = 3.0
+
+    println("a = ${a}")
+    println("b = ${b}")
+    println("")
+
+    // Basic operations
+    println("-- Basic Operations --")
+    println("add(${a}, ${b}) = ${add(a, b)}")
+    println("subtract(${a}, ${b}) = ${subtract(a, b)}")
+    println("multiply(${a}, ${b}) = ${multiply(a, b)}")
+    println("divide(${a}, ${b}) = ${divide(a, b)}")
+
+    // More operations
+    println("")
+    println("-- More Operations --")
+    println("power(2, 8) = ${power(2, 8)}")
+    println("absolute(-42) = ${absolute(-42)}")
+    println("max(15, 23) = ${maximum(15, 23)}")
+    println("min(15, 23) = ${minimum(15, 23)}")
+
+    // Chained calculations
+    println("")
+    println("-- Chained Calculations --")
+    temp result float = add(multiply(2.0, 3.0), 4.0)
+    println("(2 * 3) + 4 = ${result}")
+
+    result = divide(subtract(20.0, 8.0), 3.0)
+    println("(20 - 8) / 3 = ${result}")
+}
+
+// Basic arithmetic functions
+do add(x float, y float) -> float {
+    return x + y
+}
+
+do subtract(x float, y float) -> float {
+    return x - y
+}
+
+do multiply(x float, y float) -> float {
+    return x * y
+}
+
+do divide(x float, y float) -> float {
+    if y == 0.0 {
+        println("Error: Division by zero!")
+        return 0.0
+    }
+    return x / y
+}
+
+// Power function (integer exponent)
+do power(base int, exp int) -> int {
+    if exp == 0 {
+        return 1
+    }
+    temp result int = 1
+    for i in range(0, exp) {
+        result = result * base
+    }
+    return result
+}
+
+// Absolute value
+do absolute(n int) -> int {
+    if n < 0 {
+        return -n
+    }
+    return n
+}
+
+// Maximum of two numbers
+do maximum(a int, b int) -> int {
+    if a > b {
+        return a
+    }
+    return b
+}
+
+// Minimum of two numbers
+do minimum(a int, b int) -> int {
+    if a < b {
+        return a
+    }
+    return b
+}

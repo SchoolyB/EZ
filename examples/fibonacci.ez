@@ -1,0 +1,39 @@
+/*
+ * fibonacci.ez - The Fibonacci sequence
+ *
+ * Each number is the sum of the two preceding ones.
+ * 0, 1, 1, 2, 3, 5, 8, 13, 21, 34, ...
+ */
+
+import @std
+using std
+
+do main() {
+    println("=== Fibonacci Sequence ===")
+    println("")
+
+    // Print first 20 Fibonacci numbers
+    println("First 20 Fibonacci numbers:")
+    for i in range(0, 20) {
+        println("  fib(${i}) = ${fibonacci(i)}")
+    }
+
+    // Sum of first 10
+    println("")
+    temp sum int = 0
+    for i in range(0, 10) {
+        sum = sum + fibonacci(i)
+    }
+    println("Sum of first 10: ${sum}")
+}
+
+// Recursive Fibonacci
+do fibonacci(n int) -> int {
+    if n <= 0 {
+        return 0
+    }
+    if n == 1 {
+        return 1
+    }
+    return fibonacci(n - 1) + fibonacci(n - 2)
+}

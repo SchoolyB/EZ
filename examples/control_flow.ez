@@ -1,0 +1,78 @@
+/*
+ * control_flow.ez - Conditionals and loops
+ *
+ * EZ uses:
+ *   - if / or / otherwise (not else if / else)
+ *   - for with range()
+ *   - for_each for collections
+ *   - as_long_as (like while)
+ */
+
+import @std
+using std
+
+do main() {
+    println("=== Control Flow in EZ ===")
+    println("")
+
+    // if / or / otherwise
+    println("-- Conditionals --")
+    temp score int = 85
+
+    if score >= 90 {
+        println("Grade: A")
+    } or score >= 80 {
+        println("Grade: B")
+    } or score >= 70 {
+        println("Grade: C")
+    } otherwise {
+        println("Grade: F")
+    }
+
+    // for loop with range
+    println("")
+    println("-- For loop with range --")
+    println("Counting 1 to 5:")
+    for i in range(1, 6) {
+        println("  ${i}")
+    }
+
+    // for_each loop
+    println("")
+    println("-- For_each loop --")
+    temp fruits [string] = {"apple", "banana", "cherry"}
+    println("Fruits:")
+    for_each fruit in fruits {
+        println("  - ${fruit}")
+    }
+
+    // for_each with string
+    println("")
+    println("Letters in 'EZ':")
+    for_each ch in "EZ" {
+        println("  ${ch}")
+    }
+
+    // as_long_as loop (while equivalent)
+    println("")
+    println("-- As_long_as loop --")
+    temp count int = 0
+    as_long_as count < 3 {
+        println("  count = ${count}")
+        count++
+    }
+
+    // break and continue
+    println("")
+    println("-- Break and Continue --")
+    println("Numbers 1-10, skip evens, stop at 7:")
+    for i in range(1, 11) {
+        if i == 7 {
+            break
+        }
+        if i % 2 == 0 {
+            continue
+        }
+        println("  ${i}")
+    }
+}

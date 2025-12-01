@@ -1,0 +1,76 @@
+/*
+ * maps.ez - Working with maps (key-value pairs)
+ *
+ * Maps store key-value pairs.
+ * Syntax: map[key_type:value_type]
+ */
+
+import @std, @maps
+using std
+
+do main() {
+    println("=== Maps in EZ ===")
+    println("")
+
+    // Declaring maps
+    println("-- Map basics --")
+    temp ages map[string:int] = {
+        "Alice": 30,
+        "Bob": 25,
+        "Charlie": 35
+    }
+
+    temp scores map[string:float] = {
+        "math": 95.5,
+        "science": 88.0,
+        "history": 92.3
+    }
+
+    println("ages: ${ages}")
+    println("scores: ${scores}")
+
+    // Accessing values
+    println("")
+    println("-- Accessing values --")
+    temp alice_key string = "Alice"
+    temp math_key string = "math"
+    println("Alice's age: ${ages[alice_key]}")
+    println("Math score: ${scores[math_key]}")
+
+    // Modifying values
+    println("")
+    println("-- Modifying values --")
+    ages[alice_key] = 31
+    println("After birthday: Alice is ${ages[alice_key]}")
+
+    // Adding new entries
+    println("")
+    println("-- Adding entries --")
+    temp diana_key string = "Diana"
+    ages[diana_key] = 28
+    println("Added Diana: ${ages}")
+
+    // Map length
+    println("")
+    println("-- Map length --")
+    println("Number of people: ${len(ages)}")
+
+    // Iterating over maps using keys
+    println("")
+    println("-- Iterating over maps --")
+    println("All ages:")
+    temp keys [string] = maps.keys(ages)
+    for_each key in keys {
+        println("  ${key} is ${ages[key]} years old")
+    }
+
+    // Integer keys
+    println("")
+    println("-- Integer keys --")
+    temp lookup map[int:string] = {
+        1: "one",
+        2: "two",
+        3: "three"
+    }
+    println("lookup[2] = ${lookup[2]}")
+}
