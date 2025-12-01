@@ -1,0 +1,11 @@
+/*
+ * Error Test: E12001 - map-requires-map
+ * Expected: "requires a map argument"
+ */
+
+import @maps
+
+do main() {
+    temp arr [int] = {1, 2, 3}
+    temp keys [int] = maps.keys(arr)  // Passing array to map function
+}

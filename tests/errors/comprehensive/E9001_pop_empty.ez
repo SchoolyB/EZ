@@ -1,0 +1,11 @@
+/*
+ * Error Test: E9001 - array-pop-empty
+ * Expected: "cannot pop from empty array"
+ */
+
+import @arrays
+
+do main() {
+    temp arr [int] = {}
+    temp x int = arrays.pop(arr)  // Pop from empty array
+}

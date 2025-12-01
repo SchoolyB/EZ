@@ -1,0 +1,8 @@
+/*
+ * Error Test: E5009 - break-outside-loop
+ * Expected: "break statement outside loop"
+ */
+
+do main() {
+    break  // break outside of any loop
+}

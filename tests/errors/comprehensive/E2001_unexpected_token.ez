@@ -1,0 +1,8 @@
+/*
+ * Error Test: E2001 - unexpected-token
+ * Expected: "unexpected token"
+ */
+
+do main() {
+    temp x int = = 5  // Double equals is unexpected
+}

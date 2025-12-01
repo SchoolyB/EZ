@@ -1,0 +1,10 @@
+/*
+ * Error Test: E2004 - unclosed-brace
+ * Expected: "unclosed brace" or "expected '}'"
+ */
+
+do main() {
+    if true {
+        println("hello")
+    // Missing closing brace
+}
