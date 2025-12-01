@@ -57,10 +57,12 @@ jobs:
       - name: Upload release assets
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG_NAME: ${{ needs.release-please.outputs.tag_name }}
         run: |
-          gh release upload ${{ needs.release-please.outputs.tag_name }} \
-            dist/ez-darwin-amd64 \
-            dist/ez-darwin-arm64 \
-            dist/ez-linux-amd64 \
-            dist/ez-linux-arm64 \
-            dist/ez-windows-amd64.exe
+          gh release upload $TAG_NAME \
+            dist/ez-darwin-amd64.tar.gz \
+            dist/ez-darwin-arm64.tar.gz \
+            dist/ez-linux-amd64.tar.gz \
+            dist/ez-linux-arm64.tar.gz \
+            dist/ez-windows-amd64.zip \
+            dist/checksums.txt
