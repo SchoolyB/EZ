@@ -1,7 +1,0 @@
-import @std
-using std
-
-do main(){
-    const emptyArr [int] = {}
-    println(emptyArr[0])
-}
