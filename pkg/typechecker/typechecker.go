@@ -2109,6 +2109,11 @@ func (tc *TypeChecker) typesCompatible(declared, actual string) bool {
 			return true
 		}
 
+		// Empty braces {} parsed as empty array [] should also be compatible with map types
+		if actual == "[]" {
+			return true
+		}
+
 		if tc.isMapType(actual) {
 			// Extract key and value types
 			declaredInner := declared[4 : len(declared)-1]
@@ -2599,8 +2604,8 @@ func (tc *TypeChecker) checkTimeModuleCall(funcName string, call *ast.CallExpres
 		"date":           {0, 1, []string{"int"}, "string"},
 		"clock":          {0, 1, []string{"int"}, "string"},
 
-		// Format functions
-		"format": {1, 2, []string{"string", "int"}, "string"},
+		// Format functions: format(format_string) or format(format_string, timestamp)
+		"format": {1, 2, []string{"string", "int"}, "string"}, // format first, optional timestamp second
 		"parse":  {2, 2, []string{"string", "string"}, "int"},
 
 		// Sleep (numeric arg - int or float)

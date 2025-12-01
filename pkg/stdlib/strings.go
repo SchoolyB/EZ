@@ -11,19 +11,6 @@ import (
 
 // StringsBuiltins contains the strings module functions
 var StringsBuiltins = map[string]*object.Builtin{
-	"strings.len": {
-		Fn: func(args ...object.Object) object.Object {
-			if len(args) != 1 {
-				return &object.Error{Code: "E10001", Message: "strings.len() takes exactly 1 argument"}
-			}
-			str, ok := args[0].(*object.String)
-			if !ok {
-				return &object.Error{Code: "E10003", Message: "strings.len() requires a string argument"}
-			}
-			return &object.Integer{Value: int64(len(str.Value))}
-		},
-	},
-
 	"strings.upper": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 1 {
@@ -206,6 +193,73 @@ var StringsBuiltins = map[string]*object.Builtin{
 				return object.TRUE
 			}
 			return object.FALSE
+		},
+	},
+
+	"strings.repeat": {
+		Fn: func(args ...object.Object) object.Object {
+			if len(args) != 2 {
+				return &object.Error{Code: "E10001", Message: "strings.repeat() takes exactly 2 arguments"}
+			}
+			str, ok := args[0].(*object.String)
+			if !ok {
+				return &object.Error{Code: "E10003", Message: "strings.repeat() requires a string as first argument"}
+			}
+			count, ok := args[1].(*object.Integer)
+			if !ok {
+				return &object.Error{Code: "E10006", Message: "strings.repeat() requires an integer as second argument"}
+			}
+			if count.Value < 0 {
+				return &object.Error{Code: "E10007", Message: "strings.repeat() count cannot be negative"}
+			}
+			return &object.String{Value: strings.Repeat(str.Value, int(count.Value))}
+		},
+	},
+
+	"strings.slice": {
+		Fn: func(args ...object.Object) object.Object {
+			if len(args) < 2 || len(args) > 3 {
+				return &object.Error{Code: "E10001", Message: "strings.slice() takes 2 or 3 arguments"}
+			}
+			str, ok := args[0].(*object.String)
+			if !ok {
+				return &object.Error{Code: "E10003", Message: "strings.slice() requires a string as first argument"}
+			}
+			start, ok := args[1].(*object.Integer)
+			if !ok {
+				return &object.Error{Code: "E10006", Message: "strings.slice() requires integer indices"}
+			}
+			startIdx := int(start.Value)
+			if startIdx < 0 {
+				startIdx = len(str.Value) + startIdx
+			}
+			if startIdx < 0 {
+				startIdx = 0
+			}
+
+			endIdx := len(str.Value)
+			if len(args) == 3 {
+				end, ok := args[2].(*object.Integer)
+				if !ok {
+					return &object.Error{Code: "E10006", Message: "strings.slice() requires integer indices"}
+				}
+				endIdx = int(end.Value)
+				if endIdx < 0 {
+					endIdx = len(str.Value) + endIdx
+				}
+			}
+
+			if startIdx > len(str.Value) {
+				startIdx = len(str.Value)
+			}
+			if endIdx > len(str.Value) {
+				endIdx = len(str.Value)
+			}
+			if startIdx > endIdx {
+				return &object.String{Value: ""}
+			}
+
+			return &object.String{Value: str.Value[startIdx:endIdx]}
 		},
 	},
 }

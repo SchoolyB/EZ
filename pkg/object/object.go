@@ -116,15 +116,21 @@ func (rv *ReturnValue) Inspect() string {
 
 // Error represents an error
 type Error struct {
-	Message string
-	Code    string
-	Line    int
-	Column  int
-	Help    string
+	Message      string
+	Code         string
+	Line         int
+	Column       int
+	Help         string
+	PreFormatted bool // If true, Message is already formatted and shouldn't be wrapped
 }
 
 func (e *Error) Type() ObjectType { return ERROR_OBJ }
-func (e *Error) Inspect() string  { return "ERROR: " + e.Message }
+func (e *Error) Inspect() string {
+	if e.PreFormatted {
+		return e.Message
+	}
+	return "ERROR: " + e.Message
+}
 
 // Function represents a user-defined function
 type Function struct {
