@@ -145,114 +145,93 @@ var (
 	E6005 = ErrorCode{"E6005", "module-name-mismatch", "module name does not match directory"}
 	E6006 = ErrorCode{"E6006", "module-name-conflict", "files in directory declare different module names"}
 	E6007 = ErrorCode{"E6007", "internal-import-denied", "cannot import from internal/ directory outside package"}
-	E6010 = ErrorCode{"E6010", "module-member-readonly", "cannot assign to module member"}
-	E6011 = ErrorCode{"E6011", "private-access-denied", "cannot access private member from outside module"}
+	E6008 = ErrorCode{"E6008", "module-member-readonly", "cannot assign to module member"}
+	E6009 = ErrorCode{"E6009", "private-access-denied", "cannot access private member from outside module"}
 )
 
 // =============================================================================
-// BUILTIN ARGUMENT ERRORS (E7xxx) - Standard library builtin function errors
+// STDLIB VALIDATION ERRORS (E7xxx) - Generic argument validation for all stdlib
+// These are shared across all stdlib modules for common validation patterns
 // =============================================================================
 var (
-	E7001 = ErrorCode{"E7001", "builtin-arg-count", "wrong argument count for builtin"}
-	E7002 = ErrorCode{"E7002", "builtin-arg-type", "wrong argument type for builtin"}
-	E7003 = ErrorCode{"E7003", "builtin-requires-array", "builtin requires array argument"}
-	E7004 = ErrorCode{"E7004", "builtin-requires-string", "builtin requires string argument"}
-	E7005 = ErrorCode{"E7005", "builtin-requires-number", "builtin requires numeric argument"}
-	E7006 = ErrorCode{"E7006", "builtin-requires-integer", "builtin requires integer argument"}
-	E7007 = ErrorCode{"E7007", "builtin-requires-function", "builtin requires function argument"}
-	E7008 = ErrorCode{"E7008", "len-unsupported-type", "len not supported for type"}
-	E7009 = ErrorCode{"E7009", "type-conversion-failed", "type conversion failed"}
+	// Argument count errors
+	E7001 = ErrorCode{"E7001", "wrong-argument-count", "wrong number of arguments"}
+
+	// Type requirement errors - used when function requires specific type
+	E7002 = ErrorCode{"E7002", "requires-array", "argument must be an array"}
+	E7003 = ErrorCode{"E7003", "requires-string", "argument must be a string"}
+	E7004 = ErrorCode{"E7004", "requires-integer", "argument must be an integer"}
+	E7005 = ErrorCode{"E7005", "requires-number", "argument must be a number"}
+	E7006 = ErrorCode{"E7006", "requires-function", "argument must be a function"}
+	E7007 = ErrorCode{"E7007", "requires-map", "argument must be a map"}
+	E7008 = ErrorCode{"E7008", "requires-boolean", "argument must be a boolean"}
+	E7009 = ErrorCode{"E7009", "requires-char", "argument must be a char"}
+
+	// Value validation errors
+	E7010 = ErrorCode{"E7010", "invalid-argument-value", "argument value is invalid"}
+	E7011 = ErrorCode{"E7011", "negative-not-allowed", "argument cannot be negative"}
+	E7012 = ErrorCode{"E7012", "zero-not-allowed", "argument cannot be zero"}
+	E7013 = ErrorCode{"E7013", "empty-not-allowed", "argument cannot be empty"}
+
+	// Conversion errors
+	E7014 = ErrorCode{"E7014", "type-conversion-failed", "type conversion failed"}
+
+	// Legacy codes for backward compatibility with builtins
+	E7015 = ErrorCode{"E7015", "len-unsupported-type", "len not supported for type"}
 )
 
 // =============================================================================
-// MATH ERRORS (E8xxx) - Mathematical operation errors
+// MATH ERRORS (E8xxx) - Math-specific domain errors
+// These are errors unique to mathematical operations
 // =============================================================================
 var (
-	E8001 = ErrorCode{"E8001", "sqrt-negative", "cannot take square root of negative"}
+	E8001 = ErrorCode{"E8001", "sqrt-negative", "cannot take square root of negative number"}
 	E8002 = ErrorCode{"E8002", "log-non-positive", "logarithm requires positive number"}
-	E8003 = ErrorCode{"E8003", "log2-non-positive", "log2 requires positive number"}
-	E8004 = ErrorCode{"E8004", "log10-non-positive", "log10 requires positive number"}
-	E8005 = ErrorCode{"E8005", "asin-out-of-range", "asin requires value in [-1, 1]"}
-	E8006 = ErrorCode{"E8006", "acos-out-of-range", "acos requires value in [-1, 1]"}
-	E8007 = ErrorCode{"E8007", "factorial-negative", "factorial requires non-negative"}
-	E8008 = ErrorCode{"E8008", "factorial-overflow", "factorial result too large"}
-	E8009 = ErrorCode{"E8009", "random-max-not-positive", "random max must be positive"}
-	E8010 = ErrorCode{"E8010", "random-max-less-than-min", "random max must exceed min"}
-	E8011 = ErrorCode{"E8011", "random-float-arg-count", "random_float wrong argument count"}
-	E8012 = ErrorCode{"E8012", "avg-no-arguments", "avg requires at least one value"}
+	E8003 = ErrorCode{"E8003", "trig-out-of-range", "trigonometric function input out of valid range"}
+	E8004 = ErrorCode{"E8004", "factorial-negative", "factorial requires non-negative integer"}
+	E8005 = ErrorCode{"E8005", "factorial-overflow", "factorial result exceeds maximum value"}
+	E8006 = ErrorCode{"E8006", "random-invalid-range", "random range is invalid"}
 )
 
 // =============================================================================
-// ARRAY ERRORS (E9xxx) - Array-specific operation errors
+// ARRAY ERRORS (E9xxx) - Array-specific domain errors
+// These are errors unique to array operations
 // =============================================================================
 var (
-	E9001 = ErrorCode{"E9001", "array-pop-empty", "cannot pop from empty array"}
-	E9002 = ErrorCode{"E9002", "array-shift-empty", "cannot shift from empty array"}
-	E9003 = ErrorCode{"E9003", "array-insert-out-of-bounds", "insert index out of bounds"}
-	E9004 = ErrorCode{"E9004", "array-get-out-of-bounds", "get index out of bounds"}
-	E9005 = ErrorCode{"E9005", "array-set-out-of-bounds", "set index out of bounds"}
-	E9006 = ErrorCode{"E9006", "array-remove-at-out-of-bounds", "remove_at index out of bounds"}
-	E9007 = ErrorCode{"E9007", "array-min-empty", "cannot get min of empty array"}
-	E9008 = ErrorCode{"E9008", "array-max-empty", "cannot get max of empty array"}
-	E9009 = ErrorCode{"E9009", "array-avg-empty", "cannot get avg of empty array"}
-	E9010 = ErrorCode{"E9010", "array-sum-non-numeric", "sum requires numeric array"}
-	E9011 = ErrorCode{"E9011", "array-product-non-numeric", "product requires numeric array"}
-	E9012 = ErrorCode{"E9012", "array-avg-non-numeric", "avg requires numeric array"}
-	E9013 = ErrorCode{"E9013", "array-range-step-zero", "range step cannot be zero"}
-	E9014 = ErrorCode{"E9014", "array-concat-requires-arrays", "concat requires array arguments"}
-	E9015 = ErrorCode{"E9015", "array-zip-requires-arrays", "zip requires array arguments"}
-	E9016 = ErrorCode{"E9016", "array-slice-invalid-indices", "slice requires integer indices"}
-	E9017 = ErrorCode{"E9017", "array-repeat-invalid-count", "repeat requires integer count"}
-	E9018 = ErrorCode{"E9018", "array-join-invalid-separator", "join requires string separator"}
+	E9001 = ErrorCode{"E9001", "array-is-empty", "operation requires non-empty array"}
+	E9002 = ErrorCode{"E9002", "array-non-numeric", "operation requires numeric array"}
+	E9003 = ErrorCode{"E9003", "range-step-zero", "range step cannot be zero"}
+	E9004 = ErrorCode{"E9004", "chunk-size-invalid", "chunk size must be greater than zero"}
 )
 
 // =============================================================================
-// STRING ERRORS (E10xxx) - String-specific operation errors
+// STRING ERRORS (E10xxx) - String-specific domain errors
+// These are errors unique to string operations
 // =============================================================================
 var (
-	E10001 = ErrorCode{"E10001", "string-split-invalid-separator", "split requires string separator"}
-	E10002 = ErrorCode{"E10002", "string-join-invalid-array", "join requires array first argument"}
-	E10003 = ErrorCode{"E10003", "string-replace-invalid-args", "replace requires string arguments"}
-	E10004 = ErrorCode{"E10004", "string-index-invalid-args", "index requires string arguments"}
-	E10005 = ErrorCode{"E10005", "string-contains-invalid-args", "contains requires string arguments"}
-	E10006 = ErrorCode{"E10006", "string-starts-with-invalid-args", "starts_with requires string arguments"}
-	E10007 = ErrorCode{"E10007", "string-ends-with-invalid-args", "ends_with requires string arguments"}
+	E10001 = ErrorCode{"E10001", "repeat-count-negative", "repeat count cannot be negative"}
 )
 
 // =============================================================================
-// TIME ERRORS (E11xxx) - Time-specific operation errors
+// TIME ERRORS (E11xxx) - Time-specific domain errors
+// These are errors unique to time operations
 // =============================================================================
 var (
-	E11001 = ErrorCode{"E11001", "time-sleep-invalid-arg", "sleep requires numeric argument"}
-	E11002 = ErrorCode{"E11002", "time-sleep-ms-invalid-arg", "sleep_ms requires integer argument"}
-	E11003 = ErrorCode{"E11003", "time-format-invalid-format", "format requires string format"}
-	E11004 = ErrorCode{"E11004", "time-format-invalid-timestamp", "format requires integer timestamp"}
-	E11005 = ErrorCode{"E11005", "time-parse-failed", "failed to parse time string"}
-	E11006 = ErrorCode{"E11006", "time-parse-invalid-args", "parse requires string arguments"}
-	E11007 = ErrorCode{"E11007", "time-make-invalid-args", "make requires integer arguments"}
-	E11008 = ErrorCode{"E11008", "time-add-invalid-timestamp", "time add requires integer timestamp"}
-	E11009 = ErrorCode{"E11009", "time-add-invalid-amount", "time add requires integer amount"}
-	E11010 = ErrorCode{"E11010", "time-diff-invalid-args", "diff requires integer timestamps"}
-	E11011 = ErrorCode{"E11011", "time-is-leap-year-invalid-arg", "is_leap_year requires integer year"}
-	E11012 = ErrorCode{"E11012", "time-days-in-month-invalid-args", "days_in_month requires integer arguments"}
-	E11013 = ErrorCode{"E11013", "time-elapsed-invalid-arg", "elapsed_ms requires integer tick"}
+	E11001 = ErrorCode{"E11001", "time-parse-failed", "failed to parse time string"}
 )
 
 // =============================================================================
-// MAP ERRORS (E12xxx) - Map-specific operation errors
+// MAP ERRORS (E12xxx) - Map-specific domain errors
+// These are errors unique to map operations
 // =============================================================================
 var (
-	E12001 = ErrorCode{"E12001", "map-requires-map", "function requires a map argument"}
-	E12002 = ErrorCode{"E12002", "map-key-not-hashable", "map key must be a hashable type"}
-	E12003 = ErrorCode{"E12003", "map-immutable", "cannot modify immutable map"}
-	E12004 = ErrorCode{"E12004", "map-invalid-pair", "map element must be a [key, value] pair"}
-	E12005 = ErrorCode{"E12005", "map-value-not-hashable", "map value is not hashable and cannot become a key"}
-	E12006 = ErrorCode{"E12006", "map-key-not-found", "key not found in map"}
-	E12007 = ErrorCode{"E12007", "map-key-not-found-compound", "key not found in map for compound assignment"}
+	E12001 = ErrorCode{"E12001", "map-key-not-hashable", "map key must be a hashable type"}
+	E12002 = ErrorCode{"E12002", "map-immutable", "cannot modify immutable map"}
+	E12003 = ErrorCode{"E12003", "map-key-not-found", "key not found in map"}
 )
 
 // =============================================================================
-// WARNINGS (W1xxx - W3xxx)
+// WARNINGS (W1xxx - W6xxx)
 // =============================================================================
 var (
 	// Code Style Warnings (W1xxx)
@@ -273,6 +252,6 @@ var (
 	W3002 = ErrorCode{"W3002", "redundant-condition", "condition is always true/false"}
 	W3003 = ErrorCode{"W3003", "array-size-mismatch", "fixed-size array not fully initialized"}
 
-	// Module Warnings (W6xxx)
-	W6001 = ErrorCode{"W6001", "module-name-mismatch", "module name does not match directory name"}
+	// Module Warnings (W4xxx)
+	W4001 = ErrorCode{"W4001", "module-name-mismatch", "module name does not match directory name"}
 )

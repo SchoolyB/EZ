@@ -1,0 +1,8 @@
+/*
+ * Error Test: E2025 - invalid-array-size
+ * Expected: "expected integer for array size"
+ */
+
+do main() {
+    temp arr [int, "ten"] = {1, 2, 3}  // String instead of int size
+}

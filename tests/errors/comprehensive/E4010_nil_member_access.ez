@@ -1,0 +1,17 @@
+/*
+ * Error Test: E4010 - nil-member-access
+ * Expected: "cannot access member of nil"
+ */
+
+def Person struct {
+    name string
+}
+
+do getNull() -> Person {
+    give nil
+}
+
+do main() {
+    temp p Person = getNull()
+    temp name string = p.name  // Accessing member on nil
+}

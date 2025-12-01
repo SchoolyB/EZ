@@ -726,7 +726,7 @@ func (p *Parser) parseVarableDeclaration() *VariableDeclaration {
 		} else {
 			msg := fmt.Sprintf("expected identifier or @ignore, got %s", p.currentToken.Type)
 			p.errors = append(p.errors, msg)
-			p.addEZError(errors.E2001, msg, p.currentToken)
+			p.addEZError(errors.E2029, msg, p.currentToken)
 			return nil
 		}
 	}
@@ -773,7 +773,7 @@ func (p *Parser) parseVarableDeclaration() *VariableDeclaration {
 			if !p.currentTokenMatches(IDENT) {
 				msg := fmt.Sprintf("expected identifier, got %s", p.currentToken.Type)
 				p.errors = append(p.errors, msg)
-				p.addEZError(errors.E2001, msg, p.currentToken)
+				p.addEZError(errors.E2029, msg, p.currentToken)
 				return nil
 			}
 
@@ -1142,7 +1142,7 @@ func (p *Parser) parseFunctionDeclarationWithAttrs(attrs []*Attribute) *Function
 		// Check if return type is missing (e.g., "do func() -> {")
 		if p.currentTokenMatches(LBRACE) {
 			msg := "expected return type after '->'"
-			p.addEZError(errors.E2002, msg, arrowToken)
+			p.addEZError(errors.E2015, msg, arrowToken)
 			return nil
 		}
 
@@ -1159,7 +1159,7 @@ func (p *Parser) parseFunctionDeclarationWithAttrs(attrs []*Attribute) *Function
 		} else {
 			// Invalid token after arrow
 			msg := fmt.Sprintf("expected return type after '->', got %s instead", p.currentToken.Type)
-			p.addEZError(errors.E2002, msg, arrowToken)
+			p.addEZError(errors.E2015, msg, arrowToken)
 			return nil
 		}
 	}
@@ -1257,7 +1257,7 @@ func (p *Parser) parseFunctionParameters() []*Parameter {
 			} else if p.peekTokenMatches(RPAREN) {
 				// Incomplete parameter - name without type before closing paren
 				msg := fmt.Sprintf("parameter '%s' is missing a type", currentIdent.Value)
-				p.addEZError(errors.E2002, msg, currentIdent.Token)
+				p.addEZError(errors.E2014, msg, currentIdent.Token)
 				return nil
 			} else {
 				msg := fmt.Sprintf("expected ',', type, or ')' after parameter name, got %s", p.peekToken.Type)
@@ -1269,7 +1269,7 @@ func (p *Parser) parseFunctionParameters() []*Parameter {
 		// Now current token should be the type for all collected names
 		if !p.currentTokenMatches(IDENT) && !p.currentTokenMatches(LBRACKET) {
 			msg := fmt.Sprintf("expected parameter type, got %s", p.currentToken.Type)
-			p.addEZError(errors.E2002, msg, p.currentToken)
+			p.addEZError(errors.E2014, msg, p.currentToken)
 			return nil
 		}
 
@@ -1493,7 +1493,7 @@ func (p *Parser) parseFromImportStatement() *FromImportStatement {
 
 	for {
 		if !p.currentTokenMatches(IDENT) {
-			p.addEZError(errors.E2002, "expected identifier in from-import", p.currentToken)
+			p.addEZError(errors.E2029, "expected identifier in from-import", p.currentToken)
 			return nil
 		}
 
@@ -1591,7 +1591,7 @@ func (p *Parser) parseEnumDeclaration() *EnumDeclaration {
 
 	if !p.currentTokenMatches(LBRACE) {
 		msg := "expected '{' after enum declaration"
-		p.addEZError(errors.E2002, msg, p.currentToken)
+		p.addEZError(errors.E2030, msg, p.currentToken)
 		return nil
 	}
 
@@ -1687,7 +1687,7 @@ func (p *Parser) parseTypeName() string {
 			if !p.currentTokenMatches(INT) {
 				msg := fmt.Sprintf("expected integer for array size, got %s", p.currentToken.Type)
 				p.errors = append(p.errors, msg)
-				p.addEZError(errors.E2024, msg, p.currentToken)
+				p.addEZError(errors.E2025, msg, p.currentToken)
 				return ""
 			}
 			typeName += "," + p.currentToken.Literal
@@ -1781,6 +1781,8 @@ func (p *Parser) parseStructDeclaration() *StructDeclaration {
 	p.nextToken() // move past 'struct' to '{'
 
 	if !p.currentTokenMatches(LBRACE) {
+		msg := "expected '{' after struct declaration"
+		p.addEZError(errors.E2030, msg, p.currentToken)
 		return nil
 	}
 
@@ -2301,15 +2303,19 @@ func (p *Parser) parseExpressionList(end TokenType) []Expression {
 		// Check for trailing comma
 		if p.peekTokenMatches(end) {
 			var endName string
+			var errorCode errors.ErrorCode
 			switch end {
 			case RBRACE:
 				endName = "array literal"
+				errorCode = errors.E2017
 			case RPAREN:
 				endName = "function call"
+				errorCode = errors.E2018
 			default:
 				endName = "list"
+				errorCode = errors.E2017
 			}
-			p.addEZError(errors.E2017,
+			p.addEZError(errorCode,
 				fmt.Sprintf("unexpected trailing comma in %s\n\n"+
 					"Trailing commas are not allowed. Remove the comma before the closing bracket.\n\n"+
 					"Help: Remove the trailing comma or add another element:\n"+
