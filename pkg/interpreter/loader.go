@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"github.com/marshallburns/ez/pkg/ast"
+	"github.com/marshallburns/ez/pkg/errors"
 	"github.com/marshallburns/ez/pkg/lexer"
 	"github.com/marshallburns/ez/pkg/parser"
 )
@@ -193,9 +194,10 @@ func (l *ModuleLoader) loadFileModule(mod *Module, filePath string) error {
 
 	if len(p.Errors()) > 0 {
 		return &ModuleError{
-			Code:    "E6002",
-			Message: "parse error in module: " + strings.Join(p.Errors(), "; "),
-			Path:    filePath,
+			Code:     "E6002",
+			Message:  "parse error in module",
+			Path:     filePath,
+			EZErrors: p.EZErrors(),
 		}
 	}
 
@@ -268,9 +270,10 @@ func (l *ModuleLoader) loadDirectoryModule(mod *Module) error {
 
 		if len(p.Errors()) > 0 {
 			return &ModuleError{
-				Code:    "E6002",
-				Message: "parse error in module file: " + strings.Join(p.Errors(), "; "),
-				Path:    filePath,
+				Code:     "E6002",
+				Message:  "parse error in module file",
+				Path:     filePath,
+				EZErrors: p.EZErrors(),
 			}
 		}
 
@@ -374,11 +377,16 @@ func (l *ModuleLoader) ClearCache() {
 
 // ModuleError represents a module loading error
 type ModuleError struct {
-	Code    string
-	Message string
-	Path    string
+	Code     string
+	Message  string
+	Path     string
+	EZErrors *errors.EZErrorList // Rich parse errors (if any)
 }
 
 func (e *ModuleError) Error() string {
+	// If we have rich parse errors, format them properly
+	if e.EZErrors != nil && e.EZErrors.HasErrors() {
+		return errors.FormatErrorList(e.EZErrors)
+	}
 	return e.Code + ": " + e.Message
 }

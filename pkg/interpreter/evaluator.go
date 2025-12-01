@@ -112,7 +112,13 @@ func loadUserModule(importPath string, token ast.Node, env *Environment) (*Modul
 	// Load the module (this handles parsing and caching)
 	mod, err := globalEvalContext.Loader.Load(importPath)
 	if err != nil {
-		return nil, newError("E6001: %s", err.Error())
+		// Check if this is a ModuleError with rich parse errors
+		if modErr, ok := err.(*ModuleError); ok && modErr.EZErrors != nil && modErr.EZErrors.HasErrors() {
+			// Return the formatted errors directly without wrapping
+			return nil, &Error{Message: modErr.Error(), PreFormatted: true}
+		}
+		// ModuleError.Error() already includes the error code, so pass it through directly
+		return nil, &Error{Message: err.Error()}
 	}
 
 	// If module is already fully loaded, return cached ModuleObject
