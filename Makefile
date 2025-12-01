@@ -58,11 +58,26 @@ test:
 
 # Build for multiple platforms
 release:
-	@echo "Building releases..."
+	@echo "Building releases for version $(VERSION)..."
 	@mkdir -p dist
-	GOOS=darwin GOARCH=amd64 $(GO) build $(LDFLAGS) -o dist/$(BINARY_NAME)-darwin-amd64 ./cmd/ez
-	GOOS=darwin GOARCH=arm64 $(GO) build $(LDFLAGS) -o dist/$(BINARY_NAME)-darwin-arm64 ./cmd/ez
-	GOOS=linux GOARCH=amd64 $(GO) build $(LDFLAGS) -o dist/$(BINARY_NAME)-linux-amd64 ./cmd/ez
-	GOOS=linux GOARCH=arm64 $(GO) build $(LDFLAGS) -o dist/$(BINARY_NAME)-linux-arm64 ./cmd/ez
-	GOOS=windows GOARCH=amd64 $(GO) build $(LDFLAGS) -o dist/$(BINARY_NAME)-windows-amd64.exe ./cmd/ez
+	@# Build binaries
+	GOOS=darwin GOARCH=amd64 $(GO) build $(LDFLAGS) -o dist/$(BINARY_NAME) ./cmd/ez && \
+		tar -czf dist/$(BINARY_NAME)-$(VERSION)-darwin-amd64.tar.gz -C dist $(BINARY_NAME) && \
+		rm dist/$(BINARY_NAME)
+	GOOS=darwin GOARCH=arm64 $(GO) build $(LDFLAGS) -o dist/$(BINARY_NAME) ./cmd/ez && \
+		tar -czf dist/$(BINARY_NAME)-$(VERSION)-darwin-arm64.tar.gz -C dist $(BINARY_NAME) && \
+		rm dist/$(BINARY_NAME)
+	GOOS=linux GOARCH=amd64 $(GO) build $(LDFLAGS) -o dist/$(BINARY_NAME) ./cmd/ez && \
+		tar -czf dist/$(BINARY_NAME)-$(VERSION)-linux-amd64.tar.gz -C dist $(BINARY_NAME) && \
+		rm dist/$(BINARY_NAME)
+	GOOS=linux GOARCH=arm64 $(GO) build $(LDFLAGS) -o dist/$(BINARY_NAME) ./cmd/ez && \
+		tar -czf dist/$(BINARY_NAME)-$(VERSION)-linux-arm64.tar.gz -C dist $(BINARY_NAME) && \
+		rm dist/$(BINARY_NAME)
+	GOOS=windows GOARCH=amd64 $(GO) build $(LDFLAGS) -o dist/$(BINARY_NAME).exe ./cmd/ez && \
+		zip -j dist/$(BINARY_NAME)-$(VERSION)-windows-amd64.zip dist/$(BINARY_NAME).exe && \
+		rm dist/$(BINARY_NAME).exe
+	@# Generate checksums
+	@echo "Generating checksums..."
+	@cd dist && shasum -a 256 *.tar.gz *.zip > checksums.txt
 	@echo "Release builds complete in dist/"
+	@cat dist/checksums.txt
