@@ -403,6 +403,24 @@ var ArraysBuiltins = map[string]*object.Builtin{
 		},
 	},
 
+	"arrays.index": {
+		Fn: func(args ...object.Object) object.Object {
+			if len(args) != 2 {
+				return newError("arrays.index() takes exactly 2 arguments")
+			}
+			arr, ok := args[0].(*object.Array)
+			if !ok {
+				return &object.Error{Code: "E9005", Message: "arrays.index() requires an array"}
+			}
+			for i, el := range arr.Elements {
+				if objectsEqual(el, args[1]) {
+					return &object.Integer{Value: int64(i)}
+				}
+			}
+			return &object.Integer{Value: -1}
+		},
+	},
+
 	"arrays.index_of": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 2 {

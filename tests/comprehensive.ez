@@ -719,7 +719,7 @@ do test_stdlib_strings() -> TestResult {
     println("  strings.trim(s) = '${strings.trim(s)}'")
     println("  strings.upper(s) = '${strings.upper(s)}'")
     println("  strings.lower(s) = '${strings.lower(s)}'")
-    println("  strings.len(s) = ${strings.len(s)}")
+    println("  len(s) = ${len(s)}")
     passed += 1
 
     temp csv string = "apple,banana,cherry"
@@ -896,7 +896,12 @@ do test_stdlib_time() -> TestResult {
     println("  time.second() = ${time.second()}")
     passed += 1
 
-    // NOTE: time.format() not yet available
+    // Time formatting
+    temp dateFmt string = "YYYY-MM-DD"
+    temp timeFmt string = "HH:mm:ss"
+    println("  time.format(dateFmt) = ${time.format(dateFmt)}")
+    println("  time.format(timeFmt, now) = ${time.format(timeFmt, now)}")
+    passed += 1
 
     // Time math
     temp future int = time.add_days(now, 7)

@@ -112,7 +112,13 @@ func loadUserModule(importPath string, token ast.Node, env *Environment) (*Modul
 	// Load the module (this handles parsing and caching)
 	mod, err := globalEvalContext.Loader.Load(importPath)
 	if err != nil {
-		return nil, newError("E6001: %s", err.Error())
+		// Check if this is a ModuleError with rich parse errors
+		if modErr, ok := err.(*ModuleError); ok && modErr.EZErrors != nil && modErr.EZErrors.HasErrors() {
+			// Return the formatted errors directly without wrapping
+			return nil, &Error{Message: modErr.Error(), PreFormatted: true}
+		}
+		// ModuleError.Error() already includes the error code, so pass it through directly
+		return nil, &Error{Message: err.Error()}
 	}
 
 	// If module is already fully loaded, return cached ModuleObject
@@ -638,14 +644,21 @@ func evalVariableDeclaration(node *ast.VariableDeclaration, env *Environment) Ob
 				// Map type declared - value must be a map
 				mapObj, ok := val.(*Map)
 				if !ok {
-					return newErrorWithLocation("E3019", node.Token.Line, node.Token.Column,
-						"type mismatch: expected map type '%s', got %s\n\n"+
-							"Map values must use key: value syntax\n"+
-							"Example: temp m %s = {\"key\": value}",
-						node.TypeName, getEZTypeName(val), node.TypeName)
+					// Special case: empty {} is parsed as empty Array, convert to empty Map
+					if arr, isArr := val.(*Array); isArr && len(arr.Elements) == 0 {
+						mapObj = &Map{Pairs: []*MapPair{}, Index: make(map[string]int), Mutable: node.Mutable}
+						val = mapObj
+					} else {
+						return newErrorWithLocation("E3019", node.Token.Line, node.Token.Column,
+							"type mismatch: expected map type '%s', got %s\n\n"+
+								"Map values must use key: value syntax\n"+
+								"Example: temp m %s = {\"key\": value}",
+							node.TypeName, getEZTypeName(val), node.TypeName)
+					}
+				} else {
+					// Set mutability based on temp vs const
+					mapObj.Mutable = node.Mutable
 				}
-				// Set mutability based on temp vs const
-				mapObj.Mutable = node.Mutable
 			}
 
 			// If we have an integer value, set the declared type
@@ -1055,7 +1068,7 @@ func evalForStatement(node *ast.ForStatement, env *Environment) Object {
 	}
 	end := endInt.Value
 
-	// Handle step - defaults to 1 if nil
+	// Handle step - defaults to 1 (or -1 for descending ranges)
 	var step int64 = 1
 	if rangeExpr.Step != nil {
 		stepObj := Eval(rangeExpr.Step, env)
@@ -1070,6 +1083,9 @@ func evalForStatement(node *ast.ForStatement, env *Environment) Object {
 		if step == 0 {
 			return newError("range step cannot be zero")
 		}
+	} else if start > end {
+		// Auto-detect descending range when no step is provided
+		step = -1
 	}
 
 	loopEnv := NewEnclosedEnvironment(env)
@@ -1681,6 +1697,21 @@ func evalMemberCall(member *ast.MemberExpression, args []ast.Expression, env *En
 			}
 		}
 		return result
+	}
+
+	// Provide helpful suggestions for common function name mistakes
+	suggestions := map[string]string{
+		"arrays.push":       "use arrays.append() instead",
+		"strings.substring": "use strings.slice() instead",
+		"strings.substr":    "use strings.slice() instead",
+		"strings.length":    "use len() instead",
+		"strings.size":      "use len() instead",
+		"arrays.length":     "use len() instead",
+		"arrays.size":       "use len() instead",
+	}
+
+	if suggestion, ok := suggestions[fullName]; ok {
+		return newError("function not found: %s\n  help: %s", fullName, suggestion)
 	}
 
 	return newError("function not found: %s", fullName)
