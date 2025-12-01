@@ -620,7 +620,7 @@ temp emptyMap map[string:string]
 temp hasAlice bool = maps.has(users, "alice")
 temp keys = maps.keys(users)
 temp values = maps.values(users)
-temp userCount int = maps.len(users)
+temp userCount int = len(users)
 maps.delete(users, "dave")
 temp usersCopy = maps.copy(users)
 ```
