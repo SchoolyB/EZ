@@ -418,8 +418,34 @@ func (l *Lexer) readString() (string, bool) {
 	startLine := l.line
 	startColumn := l.column
 	position := l.position + 1
+	braceDepth := 0 // Track nested ${...} interpolation blocks
+
 	for {
 		l.readChar()
+
+		// Handle interpolation start ${
+		if l.ch == '$' && l.peekChar() == '{' {
+			l.readChar() // consume '{'
+			braceDepth++
+			continue
+		}
+
+		// Handle nested braces inside interpolation
+		if braceDepth > 0 {
+			if l.ch == '{' {
+				braceDepth++
+			} else if l.ch == '}' {
+				braceDepth--
+			}
+			// Inside interpolation, ignore quotes
+			if l.ch == 0 || l.ch == '\n' {
+				l.addError("E1004", "unclosed string literal", startLine, startColumn)
+				return l.input[position:l.position], false
+			}
+			continue
+		}
+
+		// Outside interpolation - normal string handling
 		if l.ch == '"' {
 			return l.input[position:l.position], true
 		}
