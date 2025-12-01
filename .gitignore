@@ -1,10 +1,9 @@
 *.bin
 /ez
 dist/
-test-project
 context
-MODULE_SYSTEM_PLAN.md
 *.txt
+tmp/
 
 # Ignore all .ez files by default (for local scratch/testing)
 *.ez
