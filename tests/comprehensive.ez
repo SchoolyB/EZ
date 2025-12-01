@@ -688,7 +688,14 @@ do test_stdlib_math() -> TestResult {
     println("  math.min(5, 3) = ${math.min(5, 3)}")
     println("  math.max(5, 3) = ${math.max(5, 3)}")
     passed += 1
-    // NOTE: math.PI not yet available
+
+    // Constants
+    println("  math.PI = ${math.PI}")
+    println("  math.TAU = ${math.TAU}")
+    println("  math.E = ${math.E}")
+    println("  math.INF = ${math.INF}")
+    println("  math.NEG_INF = ${math.NEG_INF}")
+    passed += 1
 
     // Trigonometry
     println("  math.sin(0) = ${math.sin(0.0)}")
@@ -698,6 +705,11 @@ do test_stdlib_math() -> TestResult {
     // Random
     temp rand_int int = math.random(100)
     println("  math.random(100) = ${rand_int}")
+    passed += 1
+
+    // Special value checks
+    println("  math.is_inf(math.INF) = ${math.is_inf(math.INF)}")
+    println("  math.is_inf(3.14) = ${math.is_inf(3.14)}")
     passed += 1
 
     println("  PASSED: ${passed}, FAILED: ${failed}")
