@@ -959,6 +959,40 @@ var ArraysBuiltins = map[string]*object.Builtin{
 			return object.TRUE
 		},
 	},
+
+	"arrays.chunk": {
+		Fn: func(args ...object.Object) object.Object {
+			if len(args) != 2 {
+				return newError("arrays.chunk() takes exactly 2 arguments (array, size)")
+			}
+			arr, ok := args[0].(*object.Array)
+			if !ok {
+				return &object.Error{Code: "E9005", Message: "arrays.chunk() requires an array"}
+			}
+			size, ok := args[1].(*object.Integer)
+			if !ok {
+				return &object.Error{Code: "E9006", Message: "arrays.chunk() requires an integer size"}
+			}
+			if size.Value <= 0 {
+				return &object.Error{Code: "E9015", Message: "arrays.chunk() size must be greater than 0"}
+			}
+
+			chunkSize := int(size.Value)
+			var chunks []object.Object
+
+			for i := 0; i < len(arr.Elements); i += chunkSize {
+				end := i + chunkSize
+				if end > len(arr.Elements) {
+					end = len(arr.Elements)
+				}
+				chunk := make([]object.Object, end-i)
+				copy(chunk, arr.Elements[i:end])
+				chunks = append(chunks, &object.Array{Elements: chunk, Mutable: true})
+			}
+
+			return &object.Array{Elements: chunks, Mutable: true}
+		},
+	},
 }
 
 // Helper functions for arrays
