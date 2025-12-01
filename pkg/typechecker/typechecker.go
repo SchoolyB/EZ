@@ -408,7 +408,7 @@ func (tc *TypeChecker) checkStructDeclaration(node *ast.StructDeclaration) {
 		// Check if field type exists
 		if !tc.TypeExists(field.TypeName) {
 			tc.addError(
-				errors.E3002,
+				errors.E3009,
 				fmt.Sprintf("undefined type '%s' in struct '%s'", field.TypeName, node.Name.Value),
 				field.Name.Token.Line,
 				field.Name.Token.Column,
@@ -478,7 +478,7 @@ func (tc *TypeChecker) checkFunctionDeclaration(node *ast.FunctionDeclaration) {
 	for _, param := range node.Parameters {
 		if !tc.TypeExists(param.TypeName) {
 			tc.addError(
-				errors.E3002,
+				errors.E3010,
 				fmt.Sprintf("undefined type '%s' for parameter '%s'", param.TypeName, param.Name.Value),
 				param.Name.Token.Line,
 				param.Name.Token.Column,
@@ -494,7 +494,7 @@ func (tc *TypeChecker) checkFunctionDeclaration(node *ast.FunctionDeclaration) {
 	for _, returnType := range node.ReturnTypes {
 		if !tc.TypeExists(returnType) {
 			tc.addError(
-				errors.E3002,
+				errors.E3011,
 				fmt.Sprintf("undefined return type '%s' in function '%s'", returnType, node.Name.Value),
 				node.Name.Token.Line,
 				node.Name.Token.Column,

@@ -1,0 +1,15 @@
+/*
+ * Error Test: E4008 - ambiguous-function
+ * Expected: "function found in multiple modules"
+ * Note: This requires multiple modules with same function name
+ */
+
+import "mymodule"
+import "othermodule"
+using mymodule
+using othermodule
+
+do main() {
+    // If both modules have 'helper' function, this would be ambiguous
+    helper()
+}

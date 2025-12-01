@@ -1,0 +1,13 @@
+/*
+ * Error Test: E3009 - undefined-type-in-struct
+ * Expected: "undefined type"
+ */
+
+def Person struct {
+    name string
+    data UnknownType  // Unknown type in struct field
+}
+
+do main() {
+    temp p Person = new Person{}
+}

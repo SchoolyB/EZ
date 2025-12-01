@@ -1,0 +1,9 @@
+/*
+ * Error Test: E3015 - not-callable
+ * Expected: "not a function"
+ */
+
+do main() {
+    temp x int = 5
+    x()  // Trying to call an integer
+}
