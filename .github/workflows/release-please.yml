@@ -60,9 +60,9 @@ jobs:
           TAG_NAME: ${{ needs.release-please.outputs.tag_name }}
         run: |
           gh release upload $TAG_NAME \
-            dist/ez-${TAG_NAME}-darwin-amd64.tar.gz \
-            dist/ez-${TAG_NAME}-darwin-arm64.tar.gz \
-            dist/ez-${TAG_NAME}-linux-amd64.tar.gz \
-            dist/ez-${TAG_NAME}-linux-arm64.tar.gz \
-            dist/ez-${TAG_NAME}-windows-amd64.zip \
+            dist/ez-darwin-amd64.tar.gz \
+            dist/ez-darwin-arm64.tar.gz \
+            dist/ez-linux-amd64.tar.gz \
+            dist/ez-linux-arm64.tar.gz \
+            dist/ez-windows-amd64.zip \
             dist/checksums.txt
