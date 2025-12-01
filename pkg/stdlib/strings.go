@@ -228,4 +228,51 @@ var StringsBuiltins = map[string]*object.Builtin{
 			return &object.String{Value: strings.Repeat(str.Value, int(count.Value))}
 		},
 	},
+
+	"strings.slice": {
+		Fn: func(args ...object.Object) object.Object {
+			if len(args) < 2 || len(args) > 3 {
+				return &object.Error{Code: "E10001", Message: "strings.slice() takes 2 or 3 arguments"}
+			}
+			str, ok := args[0].(*object.String)
+			if !ok {
+				return &object.Error{Code: "E10003", Message: "strings.slice() requires a string as first argument"}
+			}
+			start, ok := args[1].(*object.Integer)
+			if !ok {
+				return &object.Error{Code: "E10006", Message: "strings.slice() requires integer indices"}
+			}
+			startIdx := int(start.Value)
+			if startIdx < 0 {
+				startIdx = len(str.Value) + startIdx
+			}
+			if startIdx < 0 {
+				startIdx = 0
+			}
+
+			endIdx := len(str.Value)
+			if len(args) == 3 {
+				end, ok := args[2].(*object.Integer)
+				if !ok {
+					return &object.Error{Code: "E10006", Message: "strings.slice() requires integer indices"}
+				}
+				endIdx = int(end.Value)
+				if endIdx < 0 {
+					endIdx = len(str.Value) + endIdx
+				}
+			}
+
+			if startIdx > len(str.Value) {
+				startIdx = len(str.Value)
+			}
+			if endIdx > len(str.Value) {
+				endIdx = len(str.Value)
+			}
+			if startIdx > endIdx {
+				return &object.String{Value: ""}
+			}
+
+			return &object.String{Value: str.Value[startIdx:endIdx]}
+		},
+	},
 }
