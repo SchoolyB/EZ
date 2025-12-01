@@ -1,0 +1,10 @@
+/*
+ * Error Test: E6002 - module-not-found (directory)
+ * Expected: "module not found" or "directory not found"
+ */
+
+import "../nonexistent_directory/module"
+
+do main() {
+    println("test")
+}

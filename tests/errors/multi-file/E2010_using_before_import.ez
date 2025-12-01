@@ -1,0 +1,12 @@
+/*
+ * Error Test: E2010 - using-before-import
+ * Expected: "cannot use module before importing"
+ */
+
+using math  // using before import
+
+import @math
+
+do main() {
+    println("test")
+}

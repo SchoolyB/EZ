@@ -1,0 +1,12 @@
+/*
+ * Error Test: E2016 - empty-enum
+ * Expected: "enum must have at least one value"
+ */
+
+const Status enum {
+    // Empty enum - no values
+}
+
+do main() {
+    println("test")
+}

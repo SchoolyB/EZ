@@ -1,0 +1,8 @@
+/*
+ * Error Test: E3002 - invalid-operator-for-type
+ * Expected: "unknown operator" or "operator not valid"
+ */
+
+do main() {
+    temp x string = "hello" * "world"  // Can't multiply strings
+}

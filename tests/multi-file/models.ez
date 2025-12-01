@@ -1,0 +1,100 @@
+/*
+ * models.ez - Data models module
+ *
+ * Defines core data structures and enums for the multi-file test.
+ */
+
+module models
+
+import @std
+
+// ==================================================
+// ENUMS
+// ==================================================
+
+/* Priority levels with skip attribute */
+@(int, skip, 10)
+const Priority enum {
+    LOW       // 0
+    MEDIUM    // 10
+    HIGH      // 20
+    CRITICAL  // 30
+}
+
+/* Task status as string enum */
+const Status enum {
+    TODO = "todo"
+    IN_PROGRESS = "in_progress"
+    BLOCKED = "blocked"
+    DONE = "done"
+}
+
+// ==================================================
+// STRUCTS
+// ==================================================
+
+/* Task - main data structure */
+const Task struct {
+    id int
+    title string
+    description string
+    priority int
+    status string
+    created_at int
+}
+
+/* TaskStats - statistics summary */
+const TaskStats struct {
+    total int
+    completed int
+    in_progress int
+    blocked int
+    todo int
+    completion_rate float
+}
+
+// ==================================================
+// HELPER FUNCTIONS
+// ==================================================
+
+/* get_priority_name - Returns human-readable priority name */
+/* NOTE: Using int comparison - enum comparison in if not yet supported */
+do get_priority_name(priority int) -> string {
+    if priority == 0 {
+        return "Low"
+    } or priority == 10 {
+        return "Medium"
+    } or priority == 20 {
+        return "High"
+    } or priority == 30 {
+        return "Critical"
+    } otherwise {
+        return "Unknown"
+    }
+}
+
+/* get_status_display - Returns human-readable status name */
+/* NOTE: Using string comparison - enum comparison in if not yet supported */
+do get_status_display(status string) -> string {
+    if status == "todo" {
+        return "To Do"
+    } or status == "in_progress" {
+        return "In Progress"
+    } or status == "blocked" {
+        return "Blocked"
+    } or status == "done" {
+        return "Done"
+    } otherwise {
+        return "Unknown"
+    }
+}
+
+/* is_complete - Check if task is done */
+do is_complete(task Task) -> bool {
+    return task.status == "done"
+}
+
+/* is_high_priority - Check if task is high priority or above */
+do is_high_priority(task Task) -> bool {
+    return task.priority >= 20
+}

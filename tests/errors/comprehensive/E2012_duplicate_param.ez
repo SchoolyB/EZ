@@ -1,0 +1,12 @@
+/*
+ * Error Test: E2012 - duplicate-parameter
+ * Expected: "duplicate parameter name"
+ */
+
+do foo(x int, x string) {  // Duplicate param name
+    println("test")
+}
+
+do main() {
+    foo(1, "test")
+}

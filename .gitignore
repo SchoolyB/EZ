@@ -1,9 +1,18 @@
 *.bin
-!examples/
-main.ez
 /ez
 dist/
 test-project
 context
 MODULE_SYSTEM_PLAN.md
 *.txt
+
+# Ignore all .ez files by default (for local scratch/testing)
+*.ez
+
+# Keep tests and examples tracked
+!tests/
+!tests/**
+!tests/**/*.ez
+!examples/
+!examples/**
+!examples/**/*.ez

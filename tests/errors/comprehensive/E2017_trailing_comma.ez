@@ -1,0 +1,8 @@
+/*
+ * Error Test: E2017 - trailing-comma-array
+ * Expected: "trailing comma"
+ */
+
+do main() {
+    temp arr [int] = {1, 2, 3,}  // Trailing comma
+}

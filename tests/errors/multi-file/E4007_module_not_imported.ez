@@ -1,0 +1,8 @@
+/*
+ * Error Test: E4007 - module-not-imported
+ * Expected: "module not imported"
+ */
+
+do main() {
+    temp x int = math.abs(-5)  // Using math without importing
+}

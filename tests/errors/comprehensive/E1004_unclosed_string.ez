@@ -1,0 +1,8 @@
+/*
+ * Error Test: E1004 - unclosed-string
+ * Expected: "unclosed string literal"
+ */
+
+do main() {
+    temp s string = "this string never ends
+}

@@ -1,0 +1,8 @@
+/*
+ * Error Test: E4002 - undefined-function
+ * Expected: "undefined function"
+ */
+
+do main() {
+    nonexistent_func()  // Function doesn't exist
+}

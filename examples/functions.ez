@@ -1,0 +1,70 @@
+/*
+ * functions.ez - Defining and calling functions
+ *
+ * Functions in EZ use the 'do' keyword.
+ * Return types are specified with '->'
+ */
+
+import @std
+using std
+
+do main() {
+    println("=== Functions in EZ ===")
+    println("")
+
+    // Calling a simple function
+    greet()
+
+    // Function with parameters
+    greet_person("Alice")
+    greet_person("Bob")
+
+    // Function with return value
+    temp sum int = add(5, 3)
+    println("add(5, 3) = ${sum}")
+
+    // Function with multiple parameters
+    temp result float = calculate(10.0, 5.0, 2.0)
+    println("calculate(10, 5, 2) = ${result}")
+
+    // Recursive function
+    temp fact int = factorial(5)
+    println("factorial(5) = ${fact}")
+
+    // Function returning a string
+    temp msg string = get_greeting("World")
+    println(msg)
+}
+
+// Simple function with no parameters or return
+do greet() {
+    println("Hello!")
+}
+
+// Function with a parameter
+do greet_person(name string) {
+    println("Hello, ${name}!")
+}
+
+// Function with return type
+do add(a int, b int) -> int {
+    return a + b
+}
+
+// Multiple parameters with shared types
+do calculate(x float, y float, z float) -> float {
+    return (x + y) * z
+}
+
+// Recursive function
+do factorial(n int) -> int {
+    if n <= 1 {
+        return 1
+    }
+    return n * factorial(n - 1)
+}
+
+// Function returning a string
+do get_greeting(name string) -> string {
+    return "Welcome, ${name}!"
+}

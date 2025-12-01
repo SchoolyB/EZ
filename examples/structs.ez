@@ -1,0 +1,91 @@
+/*
+ * structs.ez - Custom data structures
+ *
+ * Structs group related data together.
+ * Use 'const Name struct' to define, then create instances.
+ */
+
+import @std
+using std
+
+// Define a simple struct
+const Person struct {
+    name string
+    age int
+    active bool
+}
+
+// Struct with numeric fields
+const Point struct {
+    x float
+    y float
+}
+
+// Struct with an array field
+const Team struct {
+    name string
+    members [string]
+}
+
+do main() {
+    println("=== Structs in EZ ===")
+    println("")
+
+    // Creating struct instances
+    println("-- Creating structs --")
+    temp alice Person = Person{
+        name: "Alice",
+        age: 30,
+        active: true
+    }
+
+    temp bob Person = Person{
+        name: "Bob",
+        age: 25,
+        active: false
+    }
+
+    println("Created alice and bob")
+
+    // Accessing fields
+    println("")
+    println("-- Accessing fields --")
+    println("alice.name = ${alice.name}")
+    println("alice.age = ${alice.age}")
+    println("alice.active = ${alice.active}")
+
+    // Modifying fields
+    println("")
+    println("-- Modifying fields --")
+    alice.age = 31
+    println("After birthday: alice.age = ${alice.age}")
+
+    // Using Point struct
+    println("")
+    println("-- Point struct --")
+    temp origin Point = Point{x: 0.0, y: 0.0}
+    temp target Point = Point{x: 3.0, y: 4.0}
+    println("origin: (${origin.x}, ${origin.y})")
+    println("target: (${target.x}, ${target.y})")
+
+    // Struct with array
+    println("")
+    println("-- Struct with array --")
+    temp devTeam Team = Team{
+        name: "Developers",
+        members: {"Alice", "Bob", "Charlie"}
+    }
+    println("Team: ${devTeam.name}")
+    println("Members: ${devTeam.members}")
+
+    // Pass struct to function
+    println("")
+    println("-- Structs in functions --")
+    print_person(alice)
+    print_person(bob)
+}
+
+// Function that takes a struct parameter
+do print_person(p Person) {
+    println("${p.name} is ${p.age} years old")
+}
