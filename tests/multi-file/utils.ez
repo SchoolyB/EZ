@@ -17,7 +17,7 @@ using std
 // ==================================================
 
 /* truncate - Truncates string to max length with "..." */
-/* NOTE: strings.slice not available - see BUG 12 - using manual loop */
+/* NOTE: strings.slice not yet available - using manual loop */
 do truncate(s string, max_len int) -> string {
     if len(s) <= max_len {
         return s
@@ -34,7 +34,7 @@ do truncate(s string, max_len int) -> string {
 }
 
 /* pad_right - Pads string on the right to target length */
-/* NOTE: strings.repeat not available - see BUG 9 - using manual loop */
+/* NOTE: strings.repeat not yet available - using manual loop */
 do pad_right(s string, target_len int) -> string {
     temp current_len int = len(s)
     if current_len >= target_len {
@@ -49,7 +49,7 @@ do pad_right(s string, target_len int) -> string {
 }
 
 /* pad_left - Pads string on the left to target length */
-/* NOTE: strings.repeat not available - see BUG 9 - using manual loop */
+/* NOTE: strings.repeat not yet available - using manual loop */
 do pad_left(s string, target_len int) -> string {
     temp current_len int = len(s)
     if current_len >= target_len {

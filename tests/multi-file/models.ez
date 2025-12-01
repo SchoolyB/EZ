@@ -58,7 +58,7 @@ const TaskStats struct {
 // ==================================================
 
 /* get_priority_name - Returns human-readable priority name */
-/* NOTE: Using int comparison due to BUG 4 with enum comparison in if */
+/* NOTE: Using int comparison - enum comparison in if not yet supported */
 do get_priority_name(priority int) -> string {
     if priority == 0 {
         return "Low"
@@ -74,7 +74,7 @@ do get_priority_name(priority int) -> string {
 }
 
 /* get_status_display - Returns human-readable status name */
-/* NOTE: Using string comparison due to BUG 4 with enum comparison in if */
+/* NOTE: Using string comparison - enum comparison in if not yet supported */
 do get_status_display(status string) -> string {
     if status == "todo" {
         return "To Do"
