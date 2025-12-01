@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.2.0](https://github.com/SchoolyB/EZ/compare/v0.1.0...v0.2.0) (2025-12-01)
+
+
+### Features
+
+* add error tests and simplify README ([8fe0851](https://github.com/SchoolyB/EZ/commit/8fe0851f05f5ee967e3b925554312bd6aa9f093b))
+* restructure EZ tests with pass/fail counting ([665588a](https://github.com/SchoolyB/EZ/commit/665588a786cf301de40f13caa95d7988f5968045))
+* restructure EZ tests with pass/fail counting ([34893a0](https://github.com/SchoolyB/EZ/commit/34893a0da8e2b4a21bb6efb6a659e7f418446138))
+
 ## 0.1.0 (2025-12-01)
 
 
