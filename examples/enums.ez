@@ -1,54 +1,87 @@
+/*
+ * enums.ez - Enumerations
+ *
+ * Enums define a type with a fixed set of values.
+ * Values are accessed with EnumName.VALUE syntax.
+ */
+
 import @std
+using std
 
-
-//Enums in EZ CAN be handled a bit differently than other languages.
-//Lets take a look at a very basic enum:
-const MY_ENUM enum {
-  FIRST//Defaults to 0 unless specified
-  SECOND //1
-  THIRD //2
+// Simple enum
+const Color enum {
+    RED
+    GREEN
+    BLUE
 }
 
-//Enums in EZ are able to be given special attributes that affect thier behavior
-//Lets look at example attributes to learn more:
-// @(int, skip, 5)
-// `int` refers to the data type that the enum members hold
-// `skip` is an attribute that is REQUIRED when the for mentioned `int` attribute is passed.
-//        This tells EZ that you would like each enum memeber to uncrement its value by
-//        skipping the number that follows. In this case 5.           
-
-
-@(int, skip, 5)
-const ANOTHER_ENUM enum {
-  THIS_SHOULD_BE_ZERO
-  THIS_WILL_BE_FIVE
-  THIS_WILL_BE_TEN
-  THIS_WILL_BE_FIFTEEN
+// Enum for days
+const Day enum {
+    MONDAY
+    TUESDAY
+    WEDNESDAY
+    THURSDAY
+    FRIDAY
+    SATURDAY
+    SUNDAY
 }
 
-
-@(float, skip, 2.0)
-const SOME_DECIMALS enum {
-  THIS_IS_ZERO_DOT_ZERO = 0.0
-  THIS_IS_TWO_DOT_ZERO
+// Enum for status
+const Status enum {
+    PENDING
+    ACTIVE
+    COMPLETED
+    CANCELLED
 }
 
-//String enums dont have attributes :(
-const MY_STR_ENUM enum {
-  ERROR = "ERROR"
-  WARNING = "WARNING"
-  LOG = "LOG"
+do main() {
+    println("=== Enums in EZ ===")
+    println("")
+
+    // Using enum values
+    println("-- Using enums --")
+    temp myColor Color = Color.RED
+    temp today Day = Day.FRIDAY
+    temp taskStatus Status = Status.PENDING
+
+    println("myColor = ${myColor}")
+    println("today = ${today}")
+    println("taskStatus = ${taskStatus}")
+
+    // Comparing enum values
+    println("")
+    println("-- Comparing enums --")
+    if myColor == Color.RED {
+        println("The color is red!")
+    }
+
+    if today == Day.FRIDAY {
+        println("It's Friday!")
+    }
+
+    // Using enums in conditionals
+    println("")
+    println("-- Enums in conditionals --")
+    print_day_type(Day.MONDAY)
+    print_day_type(Day.SATURDAY)
+    print_day_type(Day.WEDNESDAY)
+
+    // Changing enum values
+    println("")
+    println("-- Updating enum values --")
+    taskStatus = Status.ACTIVE
+    println("Status changed to: ${taskStatus}")
+    taskStatus = Status.COMPLETED
+    println("Status changed to: ${taskStatus}")
 }
 
-
-
-
-do main (){
-  //You can access an enums members by using Dot notation like so:
-  std.println(ANOTHER_ENUM.THIS_WILL_BE_FIVE) //This prints 5
-  std.println(ANOTHER_ENUM.THIS_WILL_BE_TEN) //This prints 10
-
-  std.println(SOME_DECIMALS.THIS_IS_TWO_DOT_ZERO)
-  std.println(MY_STR_ENUM.WARNING)
-
+// Function using enum parameter
+do print_day_type(d Day) {
+    if d == Day.SATURDAY {
+        println("${d} is a weekend day")
+    } or d == Day.SUNDAY {
+        println("${d} is a weekend day")
+    } otherwise {
+        println("${d} is a weekday")
+    }
 }

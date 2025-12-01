@@ -1,0 +1,64 @@
+/*
+ * arrays.ez - Working with arrays
+ *
+ * Arrays hold multiple values of the same type.
+ * Syntax: [type] for the type, {values} for literals
+ */
+
+import @std
+using std
+
+do main() {
+    println("=== Arrays in EZ ===")
+    println("")
+
+    // Declaring arrays
+    println("-- Array basics --")
+    temp numbers [int] = {1, 2, 3, 4, 5}
+    temp names [string] = {"Alice", "Bob", "Charlie"}
+    temp flags [bool] = {true, false, true}
+
+    println("numbers: ${numbers}")
+    println("names: ${names}")
+    println("flags: ${flags}")
+
+    // Accessing elements (0-indexed)
+    println("")
+    println("-- Accessing elements --")
+    println("numbers[0] = ${numbers[0]}")
+    println("numbers[2] = ${numbers[2]}")
+    println("names[1] = ${names[1]}")
+
+    // Modifying elements
+    println("")
+    println("-- Modifying elements --")
+    numbers[0] = 100
+    println("After numbers[0] = 100: ${numbers}")
+
+    // Array length
+    println("")
+    println("-- Array length --")
+    println("Length of numbers: ${len(numbers)}")
+    println("Length of names: ${len(names)}")
+
+    // Iterating over arrays
+    println("")
+    println("-- Iterating with for_each --")
+    println("All names:")
+    for_each name in names {
+        println("  - ${name}")
+    }
+
+    // Iterating with index
+    println("")
+    println("-- Iterating with index --")
+    for i in range(0, len(numbers)) {
+        println("  numbers[${i}] = ${numbers[i]}")
+    }
+
+    // Empty array
+    println("")
+    println("-- Empty array --")
+    temp empty [int] = {}
+    println("Empty array length: ${len(empty)}")
+}

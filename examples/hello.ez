@@ -1,8 +1,12 @@
+/*
+ * hello.ez - Your first EZ program
+ *
+ * Run with: ez run examples/hello.ez
+ */
+
 import @std
+using std
 
-
-do main(){
-  using std  
-  println("Hello, World")
+do main() {
+    println("Hello, World!")
 }
-
