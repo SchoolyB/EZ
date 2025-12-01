@@ -1,5 +1,33 @@
 # Changelog
 
+## [0.3.0](https://github.com/SchoolyB/EZ/compare/v0.2.2...v0.3.0) (2025-12-01)
+
+
+### Features
+
+* **stdlib:** add strings.repeat() function ([e13972a](https://github.com/SchoolyB/EZ/commit/e13972ad8cc2ec02bba52e88bf0be781dd914c55))
+* **stdlib:** add strings.repeat() function ([c50253e](https://github.com/SchoolyB/EZ/commit/c50253e0a56af1c7da6e0349ba8f8d084327934b)), closes [#198](https://github.com/SchoolyB/EZ/issues/198)
+
+
+### Bug Fixes
+
+* **interpreter:** add helpful suggestions for common function mistakes ([3c56d14](https://github.com/SchoolyB/EZ/commit/3c56d142c59c052d87968740145c468223d1c8b3))
+* **interpreter:** add helpful suggestions for common function mistakes ([7a64a64](https://github.com/SchoolyB/EZ/commit/7a64a64aa7f3a207c0c1f9004fc5f03e1fa0eaf4)), closes [#199](https://github.com/SchoolyB/EZ/issues/199)
+* **interpreter:** allow empty {} literal for map types ([6f22b9f](https://github.com/SchoolyB/EZ/commit/6f22b9f27ba50e24fc679fa2314651880c7494eb))
+* **interpreter:** allow empty {} literal for map types ([f59819e](https://github.com/SchoolyB/EZ/commit/f59819e4ecb35e5640739c5e0394d5cb3449453e)), closes [#194](https://github.com/SchoolyB/EZ/issues/194)
+* **interpreter:** auto-detect descending range when start &gt; end ([e21d282](https://github.com/SchoolyB/EZ/commit/e21d2820cac91164fc2095102f3feee18a2de31b))
+* **interpreter:** auto-detect descending range when start &gt; end ([057df6d](https://github.com/SchoolyB/EZ/commit/057df6dd4f6ce083dfb617e0804f17e588ab3267)), closes [#197](https://github.com/SchoolyB/EZ/issues/197)
+* **lexer:** handle nested quotes in string interpolation ([8506973](https://github.com/SchoolyB/EZ/commit/8506973bb7c7e2ee14cd8b72ebb8071bf311f90a))
+* **lexer:** handle nested quotes in string interpolation ([adebd2c](https://github.com/SchoolyB/EZ/commit/adebd2cd25dd2868e88fcc458e5ee0b6d8c2a115)), closes [#193](https://github.com/SchoolyB/EZ/issues/193)
+* **loader:** properly format parse errors from imported modules ([30c13fd](https://github.com/SchoolyB/EZ/commit/30c13fd83890a89002a65b7b31f009ea6f239774))
+* **loader:** properly format parse errors from imported modules ([bd39c18](https://github.com/SchoolyB/EZ/commit/bd39c18f48c5536a653ed79ed20d407a743f3fcf)), closes [#203](https://github.com/SchoolyB/EZ/issues/203)
+* **stdlib:** add arrays.index() function ([868223e](https://github.com/SchoolyB/EZ/commit/868223e676d41b4bb1f884e4cd491a89172e7a35))
+* **stdlib:** add arrays.index() function ([da25e94](https://github.com/SchoolyB/EZ/commit/da25e9455e561bb848b149b6be757dcfeb480c52)), closes [#200](https://github.com/SchoolyB/EZ/issues/200)
+* **stdlib:** add strings.slice() function ([faeecaa](https://github.com/SchoolyB/EZ/commit/faeecaac9f9ae43bdacba65974dea3e2bb2689b8))
+* **stdlib:** add strings.slice() function ([5fd5d9e](https://github.com/SchoolyB/EZ/commit/5fd5d9ee0af2c4fa5339d7f698cb00cee3069225)), closes [#201](https://github.com/SchoolyB/EZ/issues/201)
+* **stdlib:** fix time.format() argument order and format conversion ([470c0c7](https://github.com/SchoolyB/EZ/commit/470c0c7cd900631d726a8e8685b8cd69c6ef89e8))
+* **stdlib:** fix time.format() argument order and format conversion ([a62b2cb](https://github.com/SchoolyB/EZ/commit/a62b2cb7f5bb03364f18e5d82b232d83e2af1875)), closes [#195](https://github.com/SchoolyB/EZ/issues/195)
+
 ## [0.2.2](https://github.com/SchoolyB/EZ/compare/v0.2.1...v0.2.2) (2025-12-01)
 
 
