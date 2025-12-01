@@ -1,0 +1,8 @@
+/*
+ * Error Test: E3014 - incompatible-binary-types
+ * Expected: "unknown operator"
+ */
+
+do main() {
+    temp result = "hello" - 5  // Cannot subtract int from string
+}

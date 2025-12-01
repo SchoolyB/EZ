@@ -209,7 +209,7 @@ func (l *ModuleLoader) loadFileModule(mod *Module, filePath string) error {
 		mod.Name = program.Module.Name.Value
 		// Warn if declared name doesn't match filename
 		if mod.Name != fileName {
-			l.AddWarning(fmt.Sprintf("warning[W6001]: module declares name '%s' but file is named '%s.ez'\n  --> %s\n  = help: consider renaming the module or file to match",
+			l.AddWarning(fmt.Sprintf("warning[W4001]: module declares name '%s' but file is named '%s.ez'\n  --> %s\n  = help: consider renaming the module or file to match",
 				mod.Name, fileName, filePath))
 		}
 	} else {
@@ -303,7 +303,7 @@ func (l *ModuleLoader) loadDirectoryModule(mod *Module) error {
 		mod.Name = declaredModuleName
 		// Warn if declared name doesn't match directory name
 		if declaredModuleName != dirName {
-			l.AddWarning(fmt.Sprintf("warning[W6001]: module declares name '%s' but directory is named '%s'\n  --> %s\n  = help: consider renaming the module or directory to match",
+			l.AddWarning(fmt.Sprintf("warning[W4001]: module declares name '%s' but directory is named '%s'\n  --> %s\n  = help: consider renaming the module or directory to match",
 				declaredModuleName, dirName, mod.FilePath))
 		}
 	} else {
