@@ -41,7 +41,7 @@ do main() {
     println("strings.trim() = '${strings.trim(text)}'")
     println("strings.upper() = '${strings.upper(text)}'")
     println("strings.lower() = '${strings.lower(text)}'")
-    println("strings.len() = ${strings.len(text)}")
+    println("len(text) = ${len(text)}")
     println("")
 
     temp csv string = "apple,banana,cherry"
