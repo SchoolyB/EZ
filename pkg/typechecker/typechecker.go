@@ -2599,8 +2599,8 @@ func (tc *TypeChecker) checkTimeModuleCall(funcName string, call *ast.CallExpres
 		"date":           {0, 1, []string{"int"}, "string"},
 		"clock":          {0, 1, []string{"int"}, "string"},
 
-		// Format functions
-		"format": {1, 2, []string{"string", "int"}, "string"},
+		// Format functions: format(format_string) or format(format_string, timestamp)
+		"format": {1, 2, []string{"string", "int"}, "string"}, // format first, optional timestamp second
 		"parse":  {2, 2, []string{"string", "string"}, "int"},
 
 		// Sleep (numeric arg - int or float)

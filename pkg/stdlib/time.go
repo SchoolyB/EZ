@@ -122,33 +122,34 @@ var TimeBuiltins = map[string]*object.Builtin{
 	},
 
 	// Formatting
+	// time.format(format) - formats current time
+	// time.format(format, timestamp) - formats given timestamp
 	"time.format": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) < 1 || len(args) > 2 {
-				return &object.Error{Code: "E11001", Message: "time.format() takes 1 or 2 arguments"}
+				return &object.Error{Code: "E11001", Message: "time.format() takes 1 or 2 arguments: format or format, timestamp"}
 			}
 
 			var t time.Time
 			var format string
 
+			// First argument is always the format string
+			str, ok := args[0].(*object.String)
+			if !ok {
+				return &object.Error{Code: "E11003", Message: "time.format() requires a string format as first argument"}
+			}
+			format = str.Value
+
 			if len(args) == 1 {
-				str, ok := args[0].(*object.String)
-				if !ok {
-					return &object.Error{Code: "E11003", Message: "time.format() requires a string format"}
-				}
+				// No timestamp provided, use current time
 				t = time.Now()
-				format = str.Value
 			} else {
-				ts, ok := args[0].(*object.Integer)
+				// Second argument is the timestamp
+				ts, ok := args[1].(*object.Integer)
 				if !ok {
-					return &object.Error{Code: "E11003", Message: "time.format() requires an integer timestamp"}
-				}
-				str, ok := args[1].(*object.String)
-				if !ok {
-					return &object.Error{Code: "E11003", Message: "time.format() requires a string format"}
+					return &object.Error{Code: "E11003", Message: "time.format() requires an integer timestamp as second argument"}
 				}
 				t = time.Unix(ts.Value, 0)
-				format = str.Value
 			}
 
 			goFormat := convertFormat(format)
@@ -524,26 +525,28 @@ func getTime(args []object.Object) time.Time {
 }
 
 // Convert common format patterns to Go format
+// Uses ordered slice to ensure longer patterns (YYYY) are replaced before shorter ones (YY)
 func convertFormat(format string) string {
-	replacements := map[string]string{
-		"YYYY": "2006",
-		"YY":   "06",
-		"MM":   "01",
-		"DD":   "02",
-		"HH":   "15",
-		"hh":   "03",
-		"mm":   "04",
-		"ss":   "05",
-		"SSS":  "000",
-		"A":    "PM",
-		"a":    "pm",
-		"Z":    "-0700",
-		"ZZ":   "-07:00",
+	// Order matters: longer patterns must come first to avoid partial replacements
+	replacements := []struct{ from, to string }{
+		{"YYYY", "2006"},
+		{"YY", "06"},
+		{"MM", "01"},
+		{"DD", "02"},
+		{"HH", "15"},
+		{"hh", "03"},
+		{"mm", "04"},
+		{"ss", "05"},
+		{"SSS", "000"},
+		{"ZZ", "-07:00"}, // ZZ before Z
+		{"Z", "-0700"},
+		{"A", "PM"},
+		{"a", "pm"},
 	}
 
 	result := format
-	for k, v := range replacements {
-		result = replaceAll(result, k, v)
+	for _, r := range replacements {
+		result = replaceAll(result, r.from, r.to)
 	}
 	return result
 }
