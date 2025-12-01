@@ -76,6 +76,12 @@ do main() {
 
     temp index_result int = strings.index(hello, lowercase_l)
     println("strings.index('hello', 'l') = ${index_result}")
+
+    temp repeat_result string = strings.repeat(hello, 3)
+    println("strings.repeat('hello', 3) = '${repeat_result}'")
+
+    temp slice_result string = strings.slice(hello_world, 0, 5)
+    println("strings.slice('hello world', 0, 5) = '${slice_result}'")
     println("")
 
     // ==================
@@ -89,6 +95,7 @@ do main() {
     println("arrays.reverse(nums) = ${arrays.reverse(nums)}")
     println("arrays.slice(nums, 1, 4) = ${arrays.slice(nums, 1, 4)}")
     println("arrays.contains(nums, 3) = ${arrays.contains(nums, 3)}")
+    println("arrays.index(nums, 3) = ${arrays.index(nums, 3)}")
     println("")
 
     temp grow [int] = {10, 20}

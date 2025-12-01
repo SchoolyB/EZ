@@ -2109,6 +2109,11 @@ func (tc *TypeChecker) typesCompatible(declared, actual string) bool {
 			return true
 		}
 
+		// Empty braces {} parsed as empty array [] should also be compatible with map types
+		if actual == "[]" {
+			return true
+		}
+
 		if tc.isMapType(actual) {
 			// Extract key and value types
 			declaredInner := declared[4 : len(declared)-1]
