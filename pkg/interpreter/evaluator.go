@@ -638,14 +638,21 @@ func evalVariableDeclaration(node *ast.VariableDeclaration, env *Environment) Ob
 				// Map type declared - value must be a map
 				mapObj, ok := val.(*Map)
 				if !ok {
-					return newErrorWithLocation("E3019", node.Token.Line, node.Token.Column,
-						"type mismatch: expected map type '%s', got %s\n\n"+
-							"Map values must use key: value syntax\n"+
-							"Example: temp m %s = {\"key\": value}",
-						node.TypeName, getEZTypeName(val), node.TypeName)
+					// Special case: empty {} is parsed as empty Array, convert to empty Map
+					if arr, isArr := val.(*Array); isArr && len(arr.Elements) == 0 {
+						mapObj = &Map{Pairs: []*MapPair{}, Index: make(map[string]int), Mutable: node.Mutable}
+						val = mapObj
+					} else {
+						return newErrorWithLocation("E3019", node.Token.Line, node.Token.Column,
+							"type mismatch: expected map type '%s', got %s\n\n"+
+								"Map values must use key: value syntax\n"+
+								"Example: temp m %s = {\"key\": value}",
+							node.TypeName, getEZTypeName(val), node.TypeName)
+					}
+				} else {
+					// Set mutability based on temp vs const
+					mapObj.Mutable = node.Mutable
 				}
-				// Set mutability based on temp vs const
-				mapObj.Mutable = node.Mutable
 			}
 
 			// If we have an integer value, set the declared type

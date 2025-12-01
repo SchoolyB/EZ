@@ -37,6 +37,14 @@ do main() {
         println("  ${i}")
     }
 
+    // Descending range (countdown)
+    println("")
+    println("-- Descending range --")
+    println("Countdown from 5:")
+    for i in range(5, 0) {
+        println("  ${i}")
+    }
+
     // for_each loop
     println("")
     println("-- For_each loop --")

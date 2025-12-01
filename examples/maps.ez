@@ -29,6 +29,16 @@ do main() {
     println("ages: ${ages}")
     println("scores: ${scores}")
 
+    // Empty maps
+    println("")
+    println("-- Empty maps --")
+    temp empty_map map[string:int] = {}
+    println("Empty map: ${empty_map}")
+    println("Empty map length: ${len(empty_map)}")
+    temp key string = "first"
+    empty_map[key] = 100
+    println("After adding entry: ${empty_map}")
+
     // Accessing values
     println("")
     println("-- Accessing values --")
