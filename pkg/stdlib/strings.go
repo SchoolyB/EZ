@@ -120,7 +120,12 @@ var StringsBuiltins = map[string]*object.Builtin{
 			}
 			parts := make([]string, len(arr.Elements))
 			for i, el := range arr.Elements {
-				parts[i] = el.Inspect()
+				// Extract raw string value without quotes
+				if str, ok := el.(*object.String); ok {
+					parts[i] = str.Value
+				} else {
+					parts[i] = el.Inspect()
+				}
 			}
 			return &object.String{Value: strings.Join(parts, sep.Value)}
 		},
