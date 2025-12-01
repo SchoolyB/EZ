@@ -1,0 +1,15 @@
+/*
+ * Error Test: E2031 - string-enum-requires-values
+ * Expected: "string enum requires explicit value"
+ */
+
+@type(string)
+def Status enum {
+    TODO         // Missing explicit string value
+    IN_PROGRESS
+    DONE
+}
+
+do main() {
+    temp s Status = Status.TODO
+}

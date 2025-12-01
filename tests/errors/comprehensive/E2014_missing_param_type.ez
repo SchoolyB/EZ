@@ -1,0 +1,12 @@
+/*
+ * Error Test: E2014 - missing-parameter-type
+ * Expected: "parameter is missing a type"
+ */
+
+do foo(x) {  // Parameter without type
+    std.println(x)
+}
+
+do main() {
+    foo(5)
+}

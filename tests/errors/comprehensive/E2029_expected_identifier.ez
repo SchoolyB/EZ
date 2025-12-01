@@ -1,0 +1,8 @@
+/*
+ * Error Test: E2029 - expected-identifier
+ * Expected: "expected identifier"
+ */
+
+do main() {
+    temp 123abc int = 5  // Invalid identifier starting with number
+}

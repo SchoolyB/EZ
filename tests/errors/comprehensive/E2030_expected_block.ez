@@ -1,0 +1,12 @@
+/*
+ * Error Test: E2030 - expected-block
+ * Expected: "expected '{'"
+ */
+
+def MyStruct struct
+    x int
+}
+
+do main() {
+    temp s MyStruct = new MyStruct{}
+}

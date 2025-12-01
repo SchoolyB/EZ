@@ -1,0 +1,12 @@
+/*
+ * Error Test: E2015 - missing-return-type
+ * Expected: "expected return type after '->'"
+ */
+
+do foo() -> {  // Arrow without return type
+    give 5
+}
+
+do main() {
+    temp x int = foo()
+}
