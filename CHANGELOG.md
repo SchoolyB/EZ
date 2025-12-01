@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.2.2](https://github.com/SchoolyB/EZ/compare/v0.2.1...v0.2.2) (2025-12-01)
+
+
+### Bug Fixes
+
+* **stdlib:** add uppercase math constants, deprecate lowercase ([f81bfcf](https://github.com/SchoolyB/EZ/commit/f81bfcfc34787337808dbc8e0553658cc2c9c5d0))
+* **stdlib:** add uppercase math constants, deprecate lowercase ([4fab99d](https://github.com/SchoolyB/EZ/commit/4fab99dde3e2c2254fea11411f76e08fdb2a6a1f)), closes [#196](https://github.com/SchoolyB/EZ/issues/196)
+
 ## [0.2.1](https://github.com/SchoolyB/EZ/compare/v0.2.0...v0.2.1) (2025-12-01)
 
 
