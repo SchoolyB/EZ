@@ -1,0 +1,8 @@
+/*
+ * Error Test: E2011 - const-requires-value
+ * Expected: "const must be initialized"
+ */
+
+do main() {
+    const x int  // const without value
+}

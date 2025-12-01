@@ -1,0 +1,9 @@
+/*
+ * Error Test: E3003 - invalid-index-type
+ * Expected: "index must be an integer"
+ */
+
+do main() {
+    temp arr [int] = {1, 2, 3}
+    temp x int = arr["foo"]  // String index on array
+}

@@ -1,0 +1,8 @@
+/*
+ * Error Test: E5010 - continue-outside-loop
+ * Expected: "continue statement outside loop"
+ */
+
+do main() {
+    continue  // continue outside of any loop
+}

@@ -1,0 +1,8 @@
+/*
+ * Error Test: E2005 - unclosed-paren
+ * Expected: "unclosed parenthesis" or "expected ')'"
+ */
+
+do main() {
+    println("hello"  // Missing closing paren
+}

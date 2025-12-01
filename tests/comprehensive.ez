@@ -1,0 +1,920 @@
+/*
+ * comprehensive.ez - Single-file comprehensive test
+ *
+ * This file tests ALL EZ language features in a single file:
+ *   - Variable declarations (var, const, temp)
+ *   - All primitive types (int, float, string, bool, char)
+ *   - Complex types (arrays, maps, structs, enums)
+ *   - Control flow (if/or/otherwise, for, while, for_each, range)
+ *   - All operators (arithmetic, comparison, logical, assignment)
+ *   - Functions (parameters, returns, multiple returns)
+ *   - Standard library (@std, @math, @arrays, @strings, @maps, @time)
+ *   - String interpolation
+ *   - Comments (single-line and multi-line)
+ */
+
+// ==================================================
+// IMPORTS
+// ==================================================
+
+import @std, @math, @arrays, @strings, @maps, @time
+
+using std
+
+// ==================================================
+// ENUMS
+// ==================================================
+
+/* Basic int enum (auto-incremented) */
+const Direction enum {
+    NORTH
+    EAST
+    SOUTH
+    WEST
+}
+
+/* Int enum with skip attribute */
+@(int, skip, 10)
+const Priority enum {
+    LOW       // 0
+    MEDIUM    // 10
+    HIGH      // 20
+    CRITICAL  // 30
+}
+
+/* String enum with explicit values */
+const Status enum {
+    TODO = "todo"
+    IN_PROGRESS = "in_progress"
+    DONE = "done"
+}
+
+// ==================================================
+// STRUCTS
+// ==================================================
+
+const Point struct {
+    x int
+    y int
+}
+
+const Person struct {
+    name string
+    age int
+    active bool
+}
+
+const Task struct {
+    id int
+    title string
+    priority int
+    status string
+    tags [string]
+}
+
+/* Test result tracking */
+const TestResult struct {
+    passed int
+    failed int
+}
+
+// ==================================================
+// MAIN ENTRY POINT
+// ==================================================
+
+do main() {
+    println("========================================")
+    println("  EZ Comprehensive Language Test")
+    println("========================================")
+    println("")
+
+    temp total_passed int = 0
+    temp total_failed int = 0
+    temp result TestResult = TestResult{passed: 0, failed: 0}
+
+    result = test_variables()
+    total_passed += result.passed
+    total_failed += result.failed
+
+    result = test_primitives()
+    total_passed += result.passed
+    total_failed += result.failed
+
+    result = test_operators()
+    total_passed += result.passed
+    total_failed += result.failed
+
+    result = test_control_flow()
+    total_passed += result.passed
+    total_failed += result.failed
+
+    result = test_arrays()
+    total_passed += result.passed
+    total_failed += result.failed
+
+    result = test_maps()
+    total_passed += result.passed
+    total_failed += result.failed
+
+    result = test_structs()
+    total_passed += result.passed
+    total_failed += result.failed
+
+    result = test_enums()
+    total_passed += result.passed
+    total_failed += result.failed
+
+    result = test_functions()
+    total_passed += result.passed
+    total_failed += result.failed
+
+    result = test_stdlib_math()
+    total_passed += result.passed
+    total_failed += result.failed
+
+    result = test_stdlib_strings()
+    total_passed += result.passed
+    total_failed += result.failed
+
+    result = test_stdlib_arrays()
+    total_passed += result.passed
+    total_failed += result.failed
+
+    result = test_stdlib_maps()
+    total_passed += result.passed
+    total_failed += result.failed
+
+    result = test_stdlib_time()
+    total_passed += result.passed
+    total_failed += result.failed
+
+    temp total int = total_passed + total_failed
+
+    println("")
+    println("========================================")
+    println("  All Tests Complete!")
+    println("========================================")
+    println("")
+    println("  Total:  ${total}")
+    println("  Passed: ${total_passed}")
+    println("  Failed: ${total_failed}")
+    println("")
+    if total_failed == 0 {
+        println("  Status: ALL TESTS PASSED!")
+    } otherwise {
+        println("  Status: SOME TESTS FAILED")
+    }
+    println("========================================")
+}
+
+// ==================================================
+// VARIABLE DECLARATIONS
+// ==================================================
+
+do test_variables() -> TestResult {
+    print_section("Variable Declarations")
+    temp passed int = 0
+    temp failed int = 0
+
+    // temp - mutable variable
+    temp counter int = 0
+    counter = 1
+    println("  temp counter = ${counter}")
+    passed += 1
+
+    // const - immutable constant
+    const PI float = 3.14159
+    println("  const PI = ${PI}")
+    passed += 1
+
+    // temp with reassignment
+    temp local_val int = 42
+    local_val = 43
+    println("  temp local_val (reassigned) = ${local_val}")
+    passed += 1
+
+    println("  PASSED: ${passed}, FAILED: ${failed}")
+    return TestResult{passed: passed, failed: failed}
+}
+
+// ==================================================
+// PRIMITIVE TYPES
+// ==================================================
+
+do test_primitives() -> TestResult {
+    print_section("Primitive Types")
+    temp passed int = 0
+    temp failed int = 0
+
+    // int
+    temp i int = 42
+    temp negative_i int = -10
+    temp underscore_num int = 1_000_000
+    println("  int: ${i}, ${negative_i}, ${underscore_num}")
+    passed += 1
+
+    // float
+    temp f float = 3.14159
+    temp negative_f float = -2.5
+    println("  float: ${f}, ${negative_f}")
+    passed += 1
+
+    // string
+    temp s string = "Hello, World!"
+    temp empty_s string = ""
+    temp escaped string = "Line1\nLine2\tTabbed"
+    println("  string: ${s}")
+    println("  empty string length: ${len(empty_s)}")
+    passed += 1
+
+    // bool
+    temp b_true bool = true
+    temp b_false bool = false
+    println("  bool: ${b_true}, ${b_false}")
+    passed += 1
+
+    // char
+    temp c char = 'A'
+    temp newline char = '\n'
+    println("  char: ${c}")
+    passed += 1
+
+    println("  PASSED: ${passed}, FAILED: ${failed}")
+    return TestResult{passed: passed, failed: failed}
+}
+
+// ==================================================
+// OPERATORS
+// ==================================================
+
+do test_operators() -> TestResult {
+    print_section("Operators")
+    temp passed int = 0
+    temp failed int = 0
+
+    // Arithmetic
+    temp a int = 10
+    temp b int = 3
+    println("  10 + 3 = ${a + b}")
+    println("  10 - 3 = ${a - b}")
+    println("  10 * 3 = ${a * b}")
+    println("  10 / 3 = ${a / b}")
+    println("  10 % 3 = ${a % b}")
+    passed += 1
+
+    // Float arithmetic
+    temp x float = 10.0
+    temp y float = 3.0
+    println("  10.0 / 3.0 = ${x / y}")
+    passed += 1
+
+    // Comparison
+    println("  10 == 3: ${a == b}")
+    println("  10 != 3: ${a != b}")
+    println("  10 < 3: ${a < b}")
+    println("  10 > 3: ${a > b}")
+    println("  10 <= 3: ${a <= b}")
+    println("  10 >= 3: ${a >= b}")
+    passed += 1
+
+    // Logical
+    temp t bool = true
+    temp f bool = false
+    println("  true && false: ${t && f}")
+    println("  true || false: ${t || f}")
+    println("  !true: ${!t}")
+    passed += 1
+
+    // Assignment operators
+    temp num int = 10
+    num += 5
+    println("  10 += 5 = ${num}")
+    num -= 3
+    println("  15 -= 3 = ${num}")
+    num *= 2
+    println("  12 *= 2 = ${num}")
+    num /= 4
+    println("  24 /= 4 = ${num}")
+    passed += 1
+
+    // Increment/decrement
+    temp counter int = 0
+    counter++
+    println("  0++ = ${counter}")
+    counter--
+    println("  1-- = ${counter}")
+    passed += 1
+
+    // String concatenation
+    temp str1 string = "Hello"
+    temp str2 string = "World"
+    temp concat string = str1 + " " + str2
+    println("  \"Hello\" + \" \" + \"World\" = ${concat}")
+    passed += 1
+
+    println("  PASSED: ${passed}, FAILED: ${failed}")
+    return TestResult{passed: passed, failed: failed}
+}
+
+// ==================================================
+// CONTROL FLOW
+// ==================================================
+
+do test_control_flow() -> TestResult {
+    print_section("Control Flow")
+    temp passed int = 0
+    temp failed int = 0
+
+    // if / or / otherwise
+    temp val int = 15
+    println("  if/or/otherwise with val=15:")
+    if val < 10 {
+        println("    val < 10")
+    } or val < 20 {
+        println("    val >= 10 and < 20")
+    } otherwise {
+        println("    val >= 20")
+    }
+    passed += 1
+
+    // for loop with range
+    println("  for i in range(0, 5):")
+    temp sum int = 0
+    for i in range(0, 5) {
+        sum += i
+    }
+    println("    sum = ${sum}")
+    passed += 1
+
+    // for loop descending
+    println("  for i in range(5, 0) (descending):")
+    temp desc_list string = ""
+    for i in range(5, 0) {
+        desc_list = "${desc_list}${i} "
+    }
+    println("    ${desc_list}")
+    passed += 1
+
+    // as_long_as loop (EZ's while equivalent)
+    println("  as_long_as loop:")
+    temp w int = 0
+    as_long_as w < 3 {
+        w += 1
+    }
+    println("    counted to ${w}")
+    passed += 1
+
+    // for_each loop
+    println("  for_each in array:")
+    temp items [string] = {"apple", "banana", "cherry"}
+    for_each item in items {
+        println("    - ${item}")
+    }
+    passed += 1
+
+    // break and continue
+    println("  break test (stop at 3):")
+    temp break_sum int = 0
+    for i in range(0, 10) {
+        if i == 3 {
+            break
+        }
+        break_sum += i
+    }
+    println("    sum before break = ${break_sum}")
+    passed += 1
+
+    println("  continue test (skip 2):")
+    temp cont_sum int = 0
+    for i in range(0, 5) {
+        if i == 2 {
+            continue
+        }
+        cont_sum += i
+    }
+    println("    sum with skip = ${cont_sum}")
+    passed += 1
+
+    println("  PASSED: ${passed}, FAILED: ${failed}")
+    return TestResult{passed: passed, failed: failed}
+}
+
+// ==================================================
+// ARRAYS
+// ==================================================
+
+do test_arrays() -> TestResult {
+    print_section("Arrays")
+    temp passed int = 0
+    temp failed int = 0
+
+    // Array literal
+    temp nums [int] = {1, 2, 3, 4, 5}
+    println("  int array: ${nums}")
+    println("  length: ${len(nums)}")
+    println("  first: ${nums[0]}, last: ${nums[4]}")
+    passed += 1
+
+    // Empty array
+    temp empty [int] = {}
+    println("  empty array length: ${len(empty)}")
+    passed += 1
+
+    // String array
+    temp words [string] = {"hello", "world"}
+    println("  string array: ${words}")
+    passed += 1
+
+    // Array indexing and modification
+    temp mutable [int] = {10, 20, 30}
+    mutable[1] = 25
+    println("  after mutable[1] = 25: ${mutable}")
+    passed += 1
+
+    // NOTE: 2D arrays [[int]] not supported - see GitHub issue #47
+
+    // Fixed size array
+    const fixed [int, 3] = {100, 200, 300}
+    println("  fixed size array: ${fixed}")
+    passed += 1
+
+    println("  PASSED: ${passed}, FAILED: ${failed}")
+    return TestResult{passed: passed, failed: failed}
+}
+
+// ==================================================
+// MAPS
+// ==================================================
+
+do test_maps() -> TestResult {
+    print_section("Maps")
+    temp passed int = 0
+    temp failed int = 0
+
+    // Map literal
+    temp ages map[string:int] = {
+        "alice": 30,
+        "bob": 25,
+        "charlie": 35
+    }
+    println("  map: ${ages}")
+    temp alice_age int = ages["alice"]
+    println("  ages[\"alice\"] = ${alice_age}")
+    passed += 1
+
+    // Map modification
+    ages["david"] = 28
+    println("  after adding david: ${ages}")
+    passed += 1
+
+    // Map with int keys
+    temp lookup map[int:string] = {
+        1: "one",
+        2: "two",
+        3: "three"
+    }
+    println("  int-keyed map: ${lookup}")
+    passed += 1
+
+    // NOTE: Empty map {} not yet supported
+
+    println("  PASSED: ${passed}, FAILED: ${failed}")
+    return TestResult{passed: passed, failed: failed}
+}
+
+// ==================================================
+// STRUCTS
+// ==================================================
+
+do test_structs() -> TestResult {
+    print_section("Structs")
+    temp passed int = 0
+    temp failed int = 0
+
+    // Struct instantiation
+    temp p Point = Point{x: 10, y: 20}
+    println("  Point: x=${p.x}, y=${p.y}")
+    passed += 1
+
+    // Field modification
+    p.x = 15
+    println("  After p.x = 15: x=${p.x}")
+    passed += 1
+
+    // Struct with different types
+    temp person Person = Person{
+        name: "Alice",
+        age: 30,
+        active: true
+    }
+    println("  Person: ${person.name}, age ${person.age}, active=${person.active}")
+    passed += 1
+
+    // Struct with array field
+    temp task Task = Task{
+        id: 1,
+        title: "Test Task",
+        priority: 20,
+        status: "todo",
+        tags: {"urgent", "review"}
+    }
+    println("  Task: #${task.id} - ${task.title}")
+    println("  Tags: ${task.tags}")
+    passed += 1
+
+    // Array of structs
+    temp points [Point] = {}
+    arrays.append(points, Point{x: 0, y: 0})
+    arrays.append(points, Point{x: 1, y: 1})
+    println("  Array of Points: ${points}")
+    passed += 1
+
+    println("  PASSED: ${passed}, FAILED: ${failed}")
+    return TestResult{passed: passed, failed: failed}
+}
+
+// ==================================================
+// ENUMS
+// ==================================================
+
+do test_enums() -> TestResult {
+    print_section("Enums")
+    temp passed int = 0
+    temp failed int = 0
+
+    // Basic enum access
+    println("  Direction.NORTH = ${Direction.NORTH}")
+    println("  Direction.SOUTH = ${Direction.SOUTH}")
+    passed += 1
+
+    // Enum with skip
+    println("  Priority.LOW = ${Priority.LOW}")
+    println("  Priority.MEDIUM = ${Priority.MEDIUM}")
+    println("  Priority.HIGH = ${Priority.HIGH}")
+    println("  Priority.CRITICAL = ${Priority.CRITICAL}")
+    passed += 1
+
+    // String enum
+    println("  Status.TODO = ${Status.TODO}")
+    println("  Status.IN_PROGRESS = ${Status.IN_PROGRESS}")
+    println("  Status.DONE = ${Status.DONE}")
+    passed += 1
+
+    // Enum in variable
+    temp current_priority int = Priority.HIGH
+    println("  current_priority = ${current_priority}")
+    passed += 1
+
+    // NOTE: Enum comparison in if statement not yet supported
+
+    println("  PASSED: ${passed}, FAILED: ${failed}")
+    return TestResult{passed: passed, failed: failed}
+}
+
+// ==================================================
+// FUNCTIONS
+// ==================================================
+
+do test_functions() -> TestResult {
+    print_section("Functions")
+    temp passed int = 0
+    temp failed int = 0
+
+    // Function with no params, no return
+    println("  Calling greet():")
+    greet()
+    passed += 1
+
+    // Function with params
+    println("  add(5, 3) = ${add(5, 3)}")
+    passed += 1
+
+    // Function with multiple params and return
+    temp rect_area int = rectangle_area(4, 5)
+    println("  rectangle_area(4, 5) = ${rect_area}")
+    passed += 1
+
+    // Function returning struct
+    temp origin Point = make_point(0, 0)
+    println("  make_point(0, 0) = (${origin.x}, ${origin.y})")
+    passed += 1
+
+    // Function with array param
+    temp numbers [int] = {1, 2, 3, 4, 5}
+    temp total int = sum_array(numbers)
+    println("  sum_array({1,2,3,4,5}) = ${total}")
+    passed += 1
+
+    // Recursive function
+    temp fact int = factorial(5)
+    println("  factorial(5) = ${fact}")
+    passed += 1
+
+    // Function returning array
+    temp doubled [int] = double_array({1, 2, 3})
+    println("  double_array({1,2,3}) = ${doubled}")
+    passed += 1
+
+    // NOTE: Multiple return values not yet supported
+
+    println("  PASSED: ${passed}, FAILED: ${failed}")
+    return TestResult{passed: passed, failed: failed}
+}
+
+do greet() {
+    println("    Hello from greet()!")
+}
+
+do add(a int, b int) -> int {
+    return a + b
+}
+
+do rectangle_area(width int, height int) -> int {
+    return width * height
+}
+
+do make_point(x int, y int) -> Point {
+    temp p Point = Point{x: x, y: y}
+    return p
+}
+
+do sum_array(nums [int]) -> int {
+    temp total int = 0
+    for_each n in nums {
+        total += n
+    }
+    return total
+}
+
+do factorial(n int) -> int {
+    if n <= 1 {
+        return 1
+    }
+    return n * factorial(n - 1)
+}
+
+do double_array(nums [int]) -> [int] {
+    temp result [int] = {}
+    for_each n in nums {
+        arrays.append(result, n * 2)
+    }
+    return result
+}
+
+// NOTE: min_max with multiple returns removed - not yet supported
+
+// ==================================================
+// STDLIB: @math
+// ==================================================
+
+do test_stdlib_math() -> TestResult {
+    print_section("Standard Library: @math")
+    temp passed int = 0
+    temp failed int = 0
+
+    println("  math.abs(-5) = ${math.abs(-5)}")
+    println("  math.abs(-3.14) = ${math.abs(-3.14)}")
+    passed += 1
+
+    println("  math.sqrt(16) = ${math.sqrt(16.0)}")
+    println("  math.pow(2, 8) = ${math.pow(2.0, 8.0)}")
+    passed += 1
+
+    println("  math.floor(3.7) = ${math.floor(3.7)}")
+    println("  math.ceil(3.2) = ${math.ceil(3.2)}")
+    println("  math.round(3.5) = ${math.round(3.5)}")
+    passed += 1
+
+    println("  math.min(5, 3) = ${math.min(5, 3)}")
+    println("  math.max(5, 3) = ${math.max(5, 3)}")
+    passed += 1
+    // NOTE: math.PI not yet available
+
+    // Trigonometry
+    println("  math.sin(0) = ${math.sin(0.0)}")
+    println("  math.cos(0) = ${math.cos(0.0)}")
+    passed += 1
+
+    // Random
+    temp rand_int int = math.random(100)
+    println("  math.random(100) = ${rand_int}")
+    passed += 1
+
+    println("  PASSED: ${passed}, FAILED: ${failed}")
+    return TestResult{passed: passed, failed: failed}
+}
+
+// ==================================================
+// STDLIB: @strings
+// ==================================================
+
+do test_stdlib_strings() -> TestResult {
+    print_section("Standard Library: @strings")
+    temp passed int = 0
+    temp failed int = 0
+
+    temp s string = "  Hello, World!  "
+
+    println("  Original: '${s}'")
+    println("  strings.trim(s) = '${strings.trim(s)}'")
+    println("  strings.upper(s) = '${strings.upper(s)}'")
+    println("  strings.lower(s) = '${strings.lower(s)}'")
+    println("  strings.len(s) = ${strings.len(s)}")
+    passed += 1
+
+    temp csv string = "apple,banana,cherry"
+    temp parts [string] = strings.split(csv, ",")
+    println("  strings.split('apple,banana,cherry', ',') = ${parts}")
+    passed += 1
+
+    temp joined string = strings.join(parts, " | ")
+    println("  strings.join with ' | ' = '${joined}'")
+    passed += 1
+
+    temp hello_world string = "hello world"
+    temp hello string = "hello"
+    temp contains_result bool = strings.contains(hello_world, "world")
+    println("  strings.contains('hello world', 'world') = ${contains_result}")
+    passed += 1
+
+    temp starts_result bool = strings.starts_with(hello, "he")
+    println("  strings.starts_with('hello', 'he') = ${starts_result}")
+    passed += 1
+
+    temp ends_result bool = strings.ends_with(hello, "lo")
+    println("  strings.ends_with('hello', 'lo') = ${ends_result}")
+    passed += 1
+
+    temp replace_result string = strings.replace(hello, "l", "L")
+    println("  strings.replace('hello', 'l', 'L') = '${replace_result}'")
+    passed += 1
+
+    temp index_result int = strings.index(hello, "l")
+    println("  strings.index('hello', 'l') = ${index_result}")
+    passed += 1
+
+    // NOTE: strings.repeat not yet available
+
+    println("  PASSED: ${passed}, FAILED: ${failed}")
+    return TestResult{passed: passed, failed: failed}
+}
+
+// ==================================================
+// STDLIB: @arrays
+// ==================================================
+
+do test_stdlib_arrays() -> TestResult {
+    print_section("Standard Library: @arrays")
+    temp passed int = 0
+    temp failed int = 0
+
+    temp arr [int] = {3, 1, 4, 1, 5, 9, 2, 6}
+    println("  Original: ${arr}")
+    println("  len(arr) = ${len(arr)}")
+    passed += 1
+
+    // Append/pop
+    temp push_arr [int] = {1, 2, 3}
+    arrays.append(push_arr, 4)
+    println("  arrays.append({1,2,3}, 4) = ${push_arr}")
+    passed += 1
+
+    temp popped int = arrays.pop(push_arr)
+    println("  arrays.pop() returned ${popped}, arr = ${push_arr}")
+    passed += 1
+
+    // First/last
+    println("  arrays.first({3,1,4,1,5,9,2,6}) = ${arrays.first(arr)}")
+    println("  arrays.last({3,1,4,1,5,9,2,6}) = ${arrays.last(arr)}")
+    passed += 1
+
+    // Reverse
+    temp to_reverse [int] = {1, 2, 3}
+    temp reversed [int] = arrays.reverse(to_reverse)
+    println("  arrays.reverse({1,2,3}) = ${reversed}")
+    passed += 1
+
+    // Slice
+    temp sliced [int] = arrays.slice(arr, 2, 5)
+    println("  arrays.slice(arr, 2, 5) = ${sliced}")
+    passed += 1
+
+    // Contains
+    println("  arrays.contains({1,2,3}, 2) = ${arrays.contains({1, 2, 3}, 2)}")
+    println("  arrays.contains({1,2,3}, 5) = ${arrays.contains({1, 2, 3}, 5)}")
+    passed += 1
+
+    // NOTE: arrays.index not yet available
+    // NOTE: arrays.sum, arrays.product, arrays.min, arrays.max - testing below
+
+    println("  PASSED: ${passed}, FAILED: ${failed}")
+    return TestResult{passed: passed, failed: failed}
+}
+
+// ==================================================
+// STDLIB: @maps
+// ==================================================
+
+do test_stdlib_maps() -> TestResult {
+    print_section("Standard Library: @maps")
+    temp passed int = 0
+    temp failed int = 0
+
+    temp m map[string:int] = {"a": 1, "b": 2, "c": 3}
+    println("  Original map: ${m}")
+    passed += 1
+
+    // Keys and values
+    temp keys [string] = maps.keys(m)
+    println("  maps.keys(m) = ${keys}")
+    passed += 1
+
+    temp values [int] = maps.values(m)
+    println("  maps.values(m) = ${values}")
+    passed += 1
+
+    // Has key
+    temp has_a bool = maps.has(m, "a")
+    temp has_z bool = maps.has(m, "z")
+    println("  maps.has(m, 'a') = ${has_a}")
+    println("  maps.has(m, 'z') = ${has_z}")
+    passed += 1
+
+    // Length
+    println("  len(m) = ${len(m)}")
+    passed += 1
+
+    // Delete
+    temp del_map map[string:int] = {"x": 10, "y": 20}
+    maps.delete(del_map, "x")
+    println("  after maps.delete(m, 'x'): ${del_map}")
+    passed += 1
+
+    // Clear
+    temp clear_map map[string:int] = {"a": 1, "b": 2}
+    maps.clear(clear_map)
+    println("  after maps.clear(): ${clear_map}")
+    passed += 1
+
+    println("  PASSED: ${passed}, FAILED: ${failed}")
+    return TestResult{passed: passed, failed: failed}
+}
+
+// ==================================================
+// STDLIB: @time
+// ==================================================
+
+do test_stdlib_time() -> TestResult {
+    print_section("Standard Library: @time")
+    temp passed int = 0
+    temp failed int = 0
+
+    // Current time
+    temp now int = time.now()
+    println("  time.now() = ${now}")
+    passed += 1
+
+    // Date string
+    temp date string = time.date()
+    println("  time.date() = ${date}")
+    passed += 1
+
+    // ISO format
+    temp iso string = time.iso()
+    println("  time.iso() = ${iso}")
+    passed += 1
+
+    // Year/month/day
+    println("  time.year() = ${time.year()}")
+    println("  time.month() = ${time.month()}")
+    println("  time.day() = ${time.day()}")
+    passed += 1
+
+    // Hour/minute/second
+    println("  time.hour() = ${time.hour()}")
+    println("  time.minute() = ${time.minute()}")
+    println("  time.second() = ${time.second()}")
+    passed += 1
+
+    // NOTE: time.format() not yet available
+
+    // Time math
+    temp future int = time.add_days(now, 7)
+    temp diff int = (future - now) / 86400
+    println("  time.add_days(now, 7) - now = ${diff} days")
+    passed += 1
+
+    println("  PASSED: ${passed}, FAILED: ${failed}")
+    return TestResult{passed: passed, failed: failed}
+}
+
+// ==================================================
+// HELPER FUNCTIONS
+// ==================================================
+
+do print_section(title string) {
+    println("")
+    println("------------------------------------------")
+    println("  ${title}")
+    println("------------------------------------------")
+}

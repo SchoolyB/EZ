@@ -1,0 +1,56 @@
+/*
+ * variables.ez - Variable declarations and types
+ *
+ * EZ has two variable keywords:
+ *   - temp: mutable (can be changed)
+ *   - const: immutable (cannot be changed)
+ */
+
+import @std
+using std
+
+do main() {
+    println("=== Variables in EZ ===")
+    println("")
+
+    // Mutable variables with 'temp'
+    temp age int = 25
+    temp name string = "Alice"
+    temp score float = 95.5
+    temp active bool = true
+    temp grade char = 'A'
+
+    println("Initial values:")
+    println("  age = ${age}")
+    println("  name = ${name}")
+    println("  score = ${score}")
+    println("  active = ${active}")
+    println("  grade = ${grade}")
+
+    // temp variables can be changed
+    age = 26
+    name = "Bob"
+    println("")
+    println("After modification:")
+    println("  age = ${age}")
+    println("  name = ${name}")
+
+    // Immutable constants with 'const'
+    const PI float = 3.14159
+    const MAX_USERS int = 100
+    const APP_NAME string = "MyApp"
+
+    println("")
+    println("Constants:")
+    println("  PI = ${PI}")
+    println("  MAX_USERS = ${MAX_USERS}")
+    println("  APP_NAME = ${APP_NAME}")
+
+    // Numeric separators for readability
+    temp billion int = 1_000_000_000
+    temp precise float = 3.141_592_653
+    println("")
+    println("Numeric separators:")
+    println("  billion = ${billion}")
+    println("  precise = ${precise}")
+}

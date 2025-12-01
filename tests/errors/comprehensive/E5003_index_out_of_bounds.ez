@@ -1,0 +1,9 @@
+/*
+ * Error Test: E5003 - index-out-of-bounds
+ * Expected: "index out of bounds"
+ */
+
+do main() {
+    temp arr [int] = {1, 2, 3}
+    temp x int = arr[100]  // Index way out of bounds
+}

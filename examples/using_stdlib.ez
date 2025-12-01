@@ -1,0 +1,129 @@
+/*
+ * using_stdlib.ez - Using the Standard Library
+ *
+ * EZ comes with built-in libraries:
+ *   @std     - Core functions (println, print, len)
+ *   @math    - Math operations
+ *   @strings - String manipulation
+ *   @arrays  - Array utilities
+ *   @maps    - Map utilities
+ *   @time    - Time functions
+ */
+
+import @std, @math, @strings, @arrays, @maps, @time
+using std
+
+do main() {
+    println("=== Using the Standard Library ===")
+    println("")
+
+    // ==================
+    // @math library
+    // ==================
+    println("-- @math --")
+    println("math.abs(-42) = ${math.abs(-42)}")
+    println("math.sqrt(16) = ${math.sqrt(16.0)}")
+    println("math.pow(2, 10) = ${math.pow(2.0, 10.0)}")
+    println("math.min(5, 3) = ${math.min(5, 3)}")
+    println("math.max(5, 3) = ${math.max(5, 3)}")
+    println("math.floor(3.7) = ${math.floor(3.7)}")
+    println("math.ceil(3.2) = ${math.ceil(3.2)}")
+    println("math.round(3.5) = ${math.round(3.5)}")
+    println("math.random(100) = ${math.random(100)}")
+    println("")
+
+    // ==================
+    // @strings library
+    // ==================
+    println("-- @strings --")
+    temp text string = "  Hello, World!  "
+    println("Original: '${text}'")
+    println("strings.trim() = '${strings.trim(text)}'")
+    println("strings.upper() = '${strings.upper(text)}'")
+    println("strings.lower() = '${strings.lower(text)}'")
+    println("strings.len() = ${strings.len(text)}")
+    println("")
+
+    temp csv string = "apple,banana,cherry"
+    temp parts [string] = strings.split(csv, ",")
+    println("strings.split(csv, ',') = ${parts}")
+
+    temp separator string = " | "
+    temp joined string = strings.join(parts, separator)
+    println("strings.join(parts, ' | ') = '${joined}'")
+    println("")
+
+    temp hello string = "hello"
+    temp world string = "world"
+    temp ell string = "ell"
+    temp he string = "he"
+    temp lo string = "lo"
+    temp lowercase_l string = "l"
+    temp uppercase_L string = "L"
+
+    temp hello_world string = "hello world"
+    temp contains_result bool = strings.contains(hello_world, world)
+    println("strings.contains('hello world', 'world') = ${contains_result}")
+
+    temp starts_result bool = strings.starts_with(hello, he)
+    println("strings.starts_with('hello', 'he') = ${starts_result}")
+
+    temp ends_result bool = strings.ends_with(hello, lo)
+    println("strings.ends_with('hello', 'lo') = ${ends_result}")
+
+    temp replace_result string = strings.replace(hello, lowercase_l, uppercase_L)
+    println("strings.replace('hello', 'l', 'L') = '${replace_result}'")
+
+    temp index_result int = strings.index(hello, lowercase_l)
+    println("strings.index('hello', 'l') = ${index_result}")
+    println("")
+
+    // ==================
+    // @arrays library
+    // ==================
+    println("-- @arrays --")
+    temp nums [int] = {1, 2, 3, 4, 5}
+    println("nums = ${nums}")
+    println("arrays.first(nums) = ${arrays.first(nums)}")
+    println("arrays.last(nums) = ${arrays.last(nums)}")
+    println("arrays.reverse(nums) = ${arrays.reverse(nums)}")
+    println("arrays.slice(nums, 1, 4) = ${arrays.slice(nums, 1, 4)}")
+    println("arrays.contains(nums, 3) = ${arrays.contains(nums, 3)}")
+    println("")
+
+    temp grow [int] = {10, 20}
+    arrays.append(grow, 30)
+    println("After arrays.append(grow, 30): ${grow}")
+    temp last int = arrays.pop(grow)
+    println("arrays.pop() returned ${last}, grow = ${grow}")
+    println("")
+
+    // ==================
+    // @maps library
+    // ==================
+    println("-- @maps --")
+    temp scores map[string:int] = {"alice": 95, "bob": 87, "charlie": 92}
+    println("scores = ${scores}")
+    println("maps.keys(scores) = ${maps.keys(scores)}")
+    println("maps.values(scores) = ${maps.values(scores)}")
+
+    temp alice_key string = "alice"
+    temp diana_key string = "diana"
+    temp has_alice bool = maps.has(scores, alice_key)
+    temp has_diana bool = maps.has(scores, diana_key)
+    println("maps.has(scores, 'alice') = ${has_alice}")
+    println("maps.has(scores, 'diana') = ${has_diana}")
+    println("")
+
+    // ==================
+    // @time library
+    // ==================
+    println("-- @time --")
+    println("time.now() = ${time.now()}")
+    println("time.year() = ${time.year()}")
+    println("time.month() = ${time.month()}")
+    println("time.day() = ${time.day()}")
+    println("time.hour() = ${time.hour()}")
+    println("time.minute() = ${time.minute()}")
+    println("time.second() = ${time.second()}")
+}
