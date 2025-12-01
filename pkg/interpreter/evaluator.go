@@ -1055,7 +1055,7 @@ func evalForStatement(node *ast.ForStatement, env *Environment) Object {
 	}
 	end := endInt.Value
 
-	// Handle step - defaults to 1 if nil
+	// Handle step - defaults to 1 (or -1 for descending ranges)
 	var step int64 = 1
 	if rangeExpr.Step != nil {
 		stepObj := Eval(rangeExpr.Step, env)
@@ -1070,6 +1070,9 @@ func evalForStatement(node *ast.ForStatement, env *Environment) Object {
 		if step == 0 {
 			return newError("range step cannot be zero")
 		}
+	} else if start > end {
+		// Auto-detect descending range when no step is provided
+		step = -1
 	}
 
 	loopEnv := NewEnclosedEnvironment(env)
