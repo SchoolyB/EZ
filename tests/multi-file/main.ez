@@ -1,0 +1,200 @@
+/*
+ * main.ez - Entry point for multi-file test
+ *
+ * Tests:
+ *   - Importing local modules from same directory
+ *   - Using module functions with qualified names
+ *   - Using module types (structs)
+ *   - 'using' directive for unqualified access
+ */
+
+import @std, @arrays, @time
+import "./models"
+import "./utils"
+
+using std, models
+
+/* Test result tracking */
+const TestResult struct {
+    passed int
+    failed int
+}
+
+do main() {
+    println("========================================")
+    println("  Multi-File Module Test")
+    println("========================================")
+    println("")
+
+    temp total_passed int = 0
+    temp total_failed int = 0
+    temp result TestResult = TestResult{passed: 0, failed: 0}
+
+    result = test_models_module()
+    total_passed += result.passed
+    total_failed += result.failed
+
+    result = test_utils_module()
+    total_passed += result.passed
+    total_failed += result.failed
+
+    result = test_cross_module()
+    total_passed += result.passed
+    total_failed += result.failed
+
+    temp total int = total_passed + total_failed
+
+    println("")
+    println("========================================")
+    println("  All Multi-File Tests Complete!")
+    println("========================================")
+    println("")
+    println("  Total:  ${total}")
+    println("  Passed: ${total_passed}")
+    println("  Failed: ${total_failed}")
+    println("")
+    if total_failed == 0 {
+        println("  Status: ALL TESTS PASSED!")
+    } otherwise {
+        println("  Status: SOME TESTS FAILED")
+    }
+    println("========================================")
+}
+
+do test_models_module() -> TestResult {
+    println("------------------------------------------")
+    println("  Test: models module")
+    println("------------------------------------------")
+    temp passed int = 0
+    temp failed int = 0
+
+    // Test 1: Create a Task using models.Task
+    println("  Creating Task struct...")
+    temp task models.Task = models.Task{
+        id: 1,
+        title: "Learn EZ",
+        description: "Complete the tutorial",
+        priority: Priority.HIGH,
+        status: Status.TODO,
+        created_at: time.now()
+    }
+    println("  Task created: #${task.id} - ${task.title}")
+    passed += 1
+    println("")
+
+    // Test 2: Use models functions
+    println("  Testing models functions...")
+    temp priority_name string = get_priority_name(task.priority)
+    temp status_display string = get_status_display(task.status)
+    println("  Priority: ${priority_name}")
+    println("  Status: ${status_display}")
+    passed += 1
+    println("")
+
+    // Test 3: Test with explicit module prefix
+    println("  Testing with explicit models. prefix...")
+    temp explicit_priority string = models.get_priority_name(Priority.CRITICAL)
+    println("  Critical priority: ${explicit_priority}")
+    passed += 1
+    println("")
+
+    println("  PASSED: ${passed}, FAILED: ${failed}")
+    return TestResult{passed: passed, failed: failed}
+}
+
+do test_utils_module() -> TestResult {
+    println("------------------------------------------")
+    println("  Test: utils module")
+    println("------------------------------------------")
+    temp passed int = 0
+    temp failed int = 0
+
+    // Test 1: String utilities
+    println("  Testing string utilities...")
+    temp truncated string = utils.truncate("This is a very long string", 15)
+    println("  truncate(26 chars, 15) = '${truncated}'")
+
+    temp padded string = utils.pad_right("Hi", 10)
+    println("  pad_right('Hi', 10) = '${padded}' (len=${len(padded)})")
+    passed += 1
+    println("")
+
+    // Test 2: Number utilities
+    println("  Testing number utilities...")
+    temp clamped int = utils.clamp(150, 0, 100)
+    println("  clamp(150, 0, 100) = ${clamped}")
+
+    temp percentage float = utils.calculate_percentage(75, 100)
+    println("  calculate_percentage(75, 100) = ${percentage}%")
+    passed += 1
+    println("")
+
+    // Test 3: Array utilities
+    println("  Testing array utilities...")
+    temp nums [int] = {10, 20, 30, 40, 50}
+    temp sum int = utils.sum_array(nums)
+    temp avg float = utils.average_array(nums)
+    println("  sum({10,20,30,40,50}) = ${sum}")
+    println("  average({10,20,30,40,50}) = ${avg}")
+    passed += 1
+    println("")
+
+    println("  PASSED: ${passed}, FAILED: ${failed}")
+    return TestResult{passed: passed, failed: failed}
+}
+
+do test_cross_module() -> TestResult {
+    println("------------------------------------------")
+    println("  Test: Cross-module interaction")
+    println("------------------------------------------")
+    temp passed int = 0
+    temp failed int = 0
+
+    // Create tasks and use utils to process them
+    println("  Creating multiple tasks...")
+    temp tasks [models.Task] = {}
+
+    arrays.append(tasks, models.Task{
+        id: 1,
+        title: "Task One",
+        description: "First task",
+        priority: Priority.LOW,
+        status: Status.DONE,
+        created_at: time.now()
+    })
+
+    arrays.append(tasks, models.Task{
+        id: 2,
+        title: "Task Two",
+        description: "Second task",
+        priority: Priority.HIGH,
+        status: Status.IN_PROGRESS,
+        created_at: time.now()
+    })
+
+    arrays.append(tasks, models.Task{
+        id: 3,
+        title: "Task Three",
+        description: "Third task",
+        priority: Priority.MEDIUM,
+        status: Status.TODO,
+        created_at: time.now()
+    })
+
+    println("  Created ${len(tasks)} tasks")
+    passed += 1
+
+    // Print each task using functions from both modules
+    println("")
+    println("  Task list:")
+    for_each task in tasks {
+        temp p_name string = get_priority_name(task.priority)
+        temp s_name string = get_status_display(task.status)
+        println("    #${task.id}: ${task.title} [${p_name}] (${s_name})")
+    }
+    passed += 1
+
+    println("")
+    println("  PASSED: ${passed}, FAILED: ${failed}")
+    return TestResult{passed: passed, failed: failed}
+}

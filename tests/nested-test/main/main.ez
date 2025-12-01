@@ -1,0 +1,120 @@
+/*
+ * main.ez - Entry point that imports a directory module
+ */
+
+import @std
+import "../src/server"
+
+using std
+
+/* Test result tracking */
+const TestResult struct {
+    passed int
+    failed int
+}
+
+do main() {
+    println("========================================")
+    println("  Directory Module Test (Nested)")
+    println("========================================")
+    println("")
+
+    temp total_passed int = 0
+    temp total_failed int = 0
+    temp result TestResult = TestResult{passed: 0, failed: 0}
+
+    result = test_server_start()
+    total_passed += result.passed
+    total_failed += result.failed
+
+    result = test_server_types()
+    total_passed += result.passed
+    total_failed += result.failed
+
+    result = test_request_processing()
+    total_passed += result.passed
+    total_failed += result.failed
+
+    result = test_404_response()
+    total_passed += result.passed
+    total_failed += result.failed
+
+    temp total int = total_passed + total_failed
+
+    println("")
+    println("========================================")
+    println("  All Directory Module Tests Complete!")
+    println("========================================")
+    println("")
+    println("  Total:  ${total}")
+    println("  Passed: ${total_passed}")
+    println("  Failed: ${total_failed}")
+    println("")
+    if total_failed == 0 {
+        println("  Status: ALL TESTS PASSED!")
+    } otherwise {
+        println("  Status: SOME TESTS FAILED")
+    }
+    println("========================================")
+}
+
+do test_server_start() -> TestResult {
+    println("------------------------------------------")
+    println("  Test: Starting server")
+    println("------------------------------------------")
+    temp passed int = 0
+    temp failed int = 0
+
+    server.start_server(8080)
+    passed += 1
+
+    println("  PASSED: ${passed}, FAILED: ${failed}")
+    return TestResult{passed: passed, failed: failed}
+}
+
+do test_server_types() -> TestResult {
+    println("------------------------------------------")
+    println("  Test: Using types from server module")
+    println("------------------------------------------")
+    temp passed int = 0
+    temp failed int = 0
+
+    temp req server.Request = server.Request{method: "GET", path: "/test", body: ""}
+    println("  Created request: ${req.method} ${req.path}")
+    passed += 1
+
+    println("  PASSED: ${passed}, FAILED: ${failed}")
+    return TestResult{passed: passed, failed: failed}
+}
+
+do test_request_processing() -> TestResult {
+    println("------------------------------------------")
+    println("  Test: Processing request")
+    println("------------------------------------------")
+    temp passed int = 0
+    temp failed int = 0
+
+    temp resp server.Response = server.process_request("GET", "/")
+    println("  Response status: ${resp.status} (${server.get_status_text(resp.status)})")
+    println("  Response body: ${resp.body}")
+    passed += 1
+
+    println("  PASSED: ${passed}, FAILED: ${failed}")
+    return TestResult{passed: passed, failed: failed}
+}
+
+do test_404_response() -> TestResult {
+    println("------------------------------------------")
+    println("  Test: Testing 404 response")
+    println("------------------------------------------")
+    temp passed int = 0
+    temp failed int = 0
+
+    temp resp404 server.Response = server.process_request("GET", "/unknown")
+    println("  Response status: ${resp404.status} (${server.get_status_text(resp404.status)})")
+    println("  Response body: ${resp404.body}")
+    passed += 1
+
+    println("  PASSED: ${passed}, FAILED: ${failed}")
+    return TestResult{passed: passed, failed: failed}
+}
