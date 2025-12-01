@@ -135,7 +135,7 @@ var StdBuiltins = map[string]*object.Builtin{
 			case *object.Map:
 				return &object.Integer{Value: int64(len(arg.Pairs))}
 			default:
-				return &object.Error{Code: "E7003", Message: fmt.Sprintf("len() not supported for %s", args[0].Type())}
+				return &object.Error{Code: "E7015", Message: fmt.Sprintf("len() not supported for %s", args[0].Type())}
 			}
 		},
 	},
@@ -166,7 +166,7 @@ var StdBuiltins = map[string]*object.Builtin{
 				val, err := strconv.ParseInt(cleanedValue, 10, 64)
 				if err != nil {
 					return &object.Error{
-						Code: "E7005",
+						Code: "E7014",
 						Message: fmt.Sprintf("cannot convert %q to int: invalid integer format\n\n"+
 							"The string must contain only digits (0-9), optionally with:\n"+
 							"  - A leading + or - sign\n"+
@@ -204,14 +204,14 @@ var StdBuiltins = map[string]*object.Builtin{
 			default:
 				if args[0].Type() == object.ARRAY_OBJ {
 					return &object.Error{
-						Code: "E7005",
+						Code: "E7014",
 						Message: "cannot convert ARRAY to int\n\n" +
 							"Arrays cannot be directly converted to integers.\n" +
 							"Hint: If you want the array length, use len() instead:\n" +
 							"    len(myArray)  // returns the number of elements",
 					}
 				}
-				return &object.Error{Code: "E7005", Message: fmt.Sprintf("cannot convert %s to int", args[0].Type())}
+				return &object.Error{Code: "E7014", Message: fmt.Sprintf("cannot convert %s to int", args[0].Type())}
 			}
 		},
 	},
@@ -232,7 +232,7 @@ var StdBuiltins = map[string]*object.Builtin{
 				val, err := strconv.ParseFloat(cleanedValue, 64)
 				if err != nil {
 					return &object.Error{
-						Code: "E7006",
+						Code: "E7014",
 						Message: fmt.Sprintf("cannot convert %q to float: invalid float format\n\n"+
 							"The string must be a valid floating-point number with:\n"+
 							"  - Optional leading + or - sign\n"+
@@ -247,14 +247,14 @@ var StdBuiltins = map[string]*object.Builtin{
 			default:
 				if args[0].Type() == object.ARRAY_OBJ {
 					return &object.Error{
-						Code: "E7006",
+						Code: "E7014",
 						Message: "cannot convert ARRAY to float\n\n" +
 							"Arrays cannot be directly converted to floating-point numbers.\n" +
 							"Hint: If you want the array length, use len() instead:\n" +
 							"    len(myArray)  // returns the number of elements",
 					}
 				}
-				return &object.Error{Code: "E7006", Message: fmt.Sprintf("cannot convert %s to float", args[0].Type())}
+				return &object.Error{Code: "E7014", Message: fmt.Sprintf("cannot convert %s to float", args[0].Type())}
 			}
 		},
 	},

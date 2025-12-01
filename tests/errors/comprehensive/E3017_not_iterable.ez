@@ -1,0 +1,11 @@
+/*
+ * Error Test: E3017 - not-iterable
+ * Expected: "for_each requires array or string"
+ */
+
+do main() {
+    temp x int = 5
+    for_each item in x {  // Cannot iterate over an integer
+        std.println(item)
+    }
+}

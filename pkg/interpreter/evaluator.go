@@ -791,9 +791,15 @@ func evalAssignment(node *ast.AssignmentStatement, env *Environment) Object {
 
 		switch obj := container.(type) {
 		case *Array:
+			// Check if array is mutable
+			if !obj.Mutable {
+				return newErrorWithLocation("E5007", node.Token.Line, node.Token.Column,
+					"cannot modify immutable array (declared as const)")
+			}
 			index, ok := idx.(*Integer)
 			if !ok {
-				return newError("array index must be integer, got %s", idx.Type())
+				return newErrorWithLocation("E3003", node.Token.Line, node.Token.Column,
+					"array index must be integer, got %s", idx.Type())
 			}
 			arrLen := int64(len(obj.Elements))
 			if index.Value < 0 || index.Value >= arrLen {
@@ -822,22 +828,23 @@ func evalAssignment(node *ast.AssignmentStatement, env *Environment) Object {
 		case *String:
 			index, ok := idx.(*Integer)
 			if !ok {
-				return newError("string index must be integer, got %s", idx.Type())
+				return newErrorWithLocation("E3003", node.Token.Line, node.Token.Column,
+					"string index must be integer, got %s", idx.Type())
 			}
 			// String mutation - verify the value is a character
 			charObj, ok := val.(*Char)
 			if !ok {
-				return newErrorWithLocation("E3001", node.Token.Line, node.Token.Column,
+				return newErrorWithLocation("E3004", node.Token.Line, node.Token.Column,
 					"can only assign character to string index, got %s", val.Type())
 			}
 			strLen := int64(len(obj.Value))
 			if index.Value < 0 || index.Value >= strLen {
 				if strLen == 0 {
-					return newErrorWithLocation("E10004", node.Token.Line, node.Token.Column,
+					return newErrorWithLocation("E5004", node.Token.Line, node.Token.Column,
 						"index out of bounds: string is empty (length 0)\n\n"+
 							"Attempted to assign to index %d", index.Value)
 				}
-				return newErrorWithLocation("E10003", node.Token.Line, node.Token.Column,
+				return newErrorWithLocation("E5003", node.Token.Line, node.Token.Column,
 					"index out of bounds: attempted to assign to index %d, but valid range is 0-%d",
 					index.Value, strLen-1)
 			}
@@ -876,7 +883,8 @@ func evalAssignment(node *ast.AssignmentStatement, env *Environment) Object {
 			obj.Set(idx, val)
 
 		default:
-			return newError("index operator not supported: %s", container.Type())
+			return newErrorWithLocation("E3016", node.Token.Line, node.Token.Column,
+				"index operator not supported: %s", container.Type())
 		}
 
 	case *ast.MemberExpression:
@@ -885,14 +893,14 @@ func evalAssignment(node *ast.AssignmentStatement, env *Environment) Object {
 			alias := objIdent.Value
 			// Check if it's a user module
 			if _, ok := env.GetModule(alias); ok {
-				return newErrorWithLocation("E6010", node.Token.Line, node.Token.Column,
+				return newErrorWithLocation("E6008", node.Token.Line, node.Token.Column,
 					"cannot assign to module member '%s.%s'\n\n"+
 						"Module exports are read-only and cannot be modified from outside the module.",
 					alias, target.Member.Value)
 			}
 			// Check if it's a stdlib import
 			if _, ok := env.GetImport(alias); ok {
-				return newErrorWithLocation("E6010", node.Token.Line, node.Token.Column,
+				return newErrorWithLocation("E6008", node.Token.Line, node.Token.Column,
 					"cannot assign to module member '%s.%s'\n\n"+
 						"Module exports are read-only and cannot be modified from outside the module.",
 					alias, target.Member.Value)
@@ -906,7 +914,8 @@ func evalAssignment(node *ast.AssignmentStatement, env *Environment) Object {
 		}
 		structObj, ok := obj.(*Struct)
 		if !ok {
-			return newError("member access not supported: %s", obj.Type())
+			return newErrorWithLocation("E4011", node.Token.Line, node.Token.Column,
+				"member access not supported: %s", obj.Type())
 		}
 
 		// Handle compound assignment
@@ -1173,7 +1182,8 @@ func evalForEachStatement(node *ast.ForEachStatement, env *Environment) Object {
 		return NIL
 	}
 
-	return newError("for_each requires array or string, got %s", collection.Type())
+	return newErrorWithLocation("E3017", node.Token.Line, node.Token.Column,
+		"for_each requires array or string, got %s", collection.Type())
 }
 
 func evalEnumDeclaration(node *ast.EnumDeclaration, env *Environment) Object {
@@ -1233,7 +1243,10 @@ func evalEnumDeclaration(node *ast.EnumDeclaration, env *Environment) Object {
 				enum.Values[enumVal.Name.Value] = &Float{Value: currentFloat}
 				currentFloat += floatIncrement
 			case "string":
-				return newError("string enums require explicit values for all members")
+				return newErrorWithLocation("E2031", enumVal.Name.Token.Line, enumVal.Name.Token.Column,
+					"string enum '%s' requires explicit value for member '%s'\n\n"+
+						"String enums do not auto-increment. Provide an explicit value like:\n"+
+						"  %s = \"%s\"", node.Name.Value, enumVal.Name.Value, enumVal.Name.Value, strings.ToLower(enumVal.Name.Value))
 			default:
 				return newError("unsupported enum type: %s", typeName)
 			}
@@ -1290,7 +1303,7 @@ func evalIdentifier(node *ast.Label, env *Environment) Object {
 
 	// Ambiguity check
 	if len(foundModules) > 1 {
-		err := newErrorWithLocation("E4002", node.Token.Line, node.Token.Column,
+		err := newErrorWithLocation("E4008", node.Token.Line, node.Token.Column,
 			"function '%s' found in multiple modules", node.Value)
 		// Build helpful error message
 		moduleList := strings.Join(foundModules, ", ")
@@ -1432,7 +1445,7 @@ func evalInfixExpression(operator string, left, right Object, line, col int) Obj
 		}
 		return TRUE
 	default:
-		return newErrorWithLocation("E5015", line, col, "unknown operator: %s %s %s", left.Type(), operator, right.Type())
+		return newErrorWithLocation("E3014", line, col, "unknown operator: %s %s %s", left.Type(), operator, right.Type())
 	}
 }
 
@@ -1470,7 +1483,7 @@ func evalIntegerInfixExpression(operator string, left, right Object, line, col i
 	case "!=":
 		return nativeBoolToBooleanObject(leftVal != rightVal)
 	default:
-		return newErrorWithLocation("E5015", line, col, "unknown operator: %s %s %s", left.Type(), operator, right.Type())
+		return newErrorWithLocation("E3014", line, col, "unknown operator: %s %s %s", left.Type(), operator, right.Type())
 	}
 }
 
@@ -1516,7 +1529,7 @@ func evalFloatInfixExpression(operator string, left, right Object, line, col int
 	case "!=":
 		return nativeBoolToBooleanObject(leftVal != rightVal)
 	default:
-		return newErrorWithLocation("E5015", line, col, "unknown operator: %s %s %s", left.Type(), operator, right.Type())
+		return newErrorWithLocation("E3014", line, col, "unknown operator: %s %s %s", left.Type(), operator, right.Type())
 	}
 }
 
@@ -1554,7 +1567,7 @@ func evalCharInfixExpression(operator string, left, right Object, line, col int)
 	case ">=":
 		return nativeBoolToBooleanObject(leftVal >= rightVal)
 	default:
-		return newErrorWithLocation("E5015", line, col, "unknown operator: %s %s %s", left.Type(), operator, right.Type())
+		return newErrorWithLocation("E3014", line, col, "unknown operator: %s %s %s", left.Type(), operator, right.Type())
 	}
 }
 
@@ -1749,7 +1762,7 @@ func applyFunction(fn Object, args []Object, line, col int) Object {
 		return result
 
 	default:
-		return newErrorWithLocation("E5015", line, col, "not a function: %s", fn.Type())
+		return newErrorWithLocation("E3015", line, col, "not a function: %s", fn.Type())
 	}
 }
 
@@ -2262,7 +2275,7 @@ func evalMemberExpression(node *ast.MemberExpression, env *Environment) Object {
 
 	// Check for nil reference
 	if obj.Type() == NIL_OBJ {
-		return newErrorWithLocation("E5006", node.Token.Line, node.Token.Column,
+		return newErrorWithLocation("E4010", node.Token.Line, node.Token.Column,
 			"nil reference: cannot access member '%s' of nil", node.Member.Value)
 	}
 
@@ -2288,7 +2301,7 @@ func evalMemberExpression(node *ast.MemberExpression, env *Environment) Object {
 			"enum value '%s' not found in enum '%s'", node.Member.Value, enumObj.Name)
 	}
 
-	return newErrorWithLocation("E5015", node.Token.Line, node.Token.Column,
+	return newErrorWithLocation("E4011", node.Token.Line, node.Token.Column,
 		"member access not supported on type %s", obj.Type())
 }
 

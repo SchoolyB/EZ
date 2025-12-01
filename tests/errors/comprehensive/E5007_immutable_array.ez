@@ -1,0 +1,9 @@
+/*
+ * Error Test: E5007 - immutable-array
+ * Expected: "cannot modify immutable array"
+ */
+
+do main() {
+    const arr [int] = {1, 2, 3}
+    arr[0] = 10  // Trying to modify const array
+}

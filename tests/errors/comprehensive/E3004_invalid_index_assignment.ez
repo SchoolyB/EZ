@@ -1,0 +1,9 @@
+/*
+ * Error Test: E3004 - invalid-index-assignment-type
+ * Expected: "can only assign character to string index"
+ */
+
+do main() {
+    temp s string = "hello"
+    s[0] = 5  // Assigning int to string index instead of char
+}

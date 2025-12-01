@@ -1,0 +1,12 @@
+/*
+ * Error Test: E3010 - undefined-param-type
+ * Expected: "undefined type"
+ */
+
+do process(data UnknownType) {  // Unknown parameter type
+    std.println(data)
+}
+
+do main() {
+    process("test")
+}
