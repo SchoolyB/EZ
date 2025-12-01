@@ -208,4 +208,24 @@ var StringsBuiltins = map[string]*object.Builtin{
 			return object.FALSE
 		},
 	},
+
+	"strings.repeat": {
+		Fn: func(args ...object.Object) object.Object {
+			if len(args) != 2 {
+				return &object.Error{Code: "E10001", Message: "strings.repeat() takes exactly 2 arguments"}
+			}
+			str, ok := args[0].(*object.String)
+			if !ok {
+				return &object.Error{Code: "E10003", Message: "strings.repeat() requires a string as first argument"}
+			}
+			count, ok := args[1].(*object.Integer)
+			if !ok {
+				return &object.Error{Code: "E10006", Message: "strings.repeat() requires an integer as second argument"}
+			}
+			if count.Value < 0 {
+				return &object.Error{Code: "E10007", Message: "strings.repeat() count cannot be negative"}
+			}
+			return &object.String{Value: strings.Repeat(str.Value, int(count.Value))}
+		},
+	},
 }
