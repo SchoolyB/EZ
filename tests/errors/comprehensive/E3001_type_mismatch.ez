@@ -1,0 +1,8 @@
+/*
+ * Error Test: E3001 - type-mismatch
+ * Expected: "type mismatch"
+ */
+
+do main() {
+    temp x int = "hello"  // Assigning string to int
+}

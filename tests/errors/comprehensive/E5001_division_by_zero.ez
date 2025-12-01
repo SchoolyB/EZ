@@ -1,0 +1,8 @@
+/*
+ * Error Test: E5001 - division-by-zero
+ * Expected: "division by zero"
+ */
+
+do main() {
+    temp x int = 10 / 0  // Division by zero
+}

@@ -1,0 +1,10 @@
+/*
+ * Error Test: E8001 - sqrt-negative
+ * Expected: "cannot take negative number" or "sqrt"
+ */
+
+import @math
+
+do main() {
+    temp x float = math.sqrt(-1.0)  // sqrt of negative
+}

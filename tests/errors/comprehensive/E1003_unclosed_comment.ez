@@ -1,0 +1,9 @@
+/*
+ * Error Test: E1003 - unclosed-comment
+ * Expected: "unclosed multi-line comment"
+ */
+
+do main() {
+    /* This comment is never closed
+    println("hello")
+}

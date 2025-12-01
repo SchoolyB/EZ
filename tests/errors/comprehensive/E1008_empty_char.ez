@@ -1,0 +1,8 @@
+/*
+ * Error Test: E1008 - empty-char-literal
+ * Expected: "empty character literal"
+ */
+
+do main() {
+    temp c char = ''  // Empty char literal
+}

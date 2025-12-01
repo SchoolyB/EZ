@@ -1,0 +1,8 @@
+/*
+ * Error Test: E1009 - multi-char-literal
+ * Expected: "character literal must contain exactly one character"
+ */
+
+do main() {
+    temp c char = 'ab'  // Multiple characters in char literal
+}

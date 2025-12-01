@@ -1,0 +1,14 @@
+/*
+ * Error Test: E4003 - undefined-field
+ * Expected: "field not found"
+ */
+
+const Point struct {
+    x int
+    y int
+}
+
+do main() {
+    temp p Point = Point{x: 1, y: 2}
+    println(p.z)  // Field 'z' doesn't exist
+}

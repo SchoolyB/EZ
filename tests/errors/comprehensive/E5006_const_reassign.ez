@@ -1,0 +1,9 @@
+/*
+ * Error Test: E5006 - immutable-variable
+ * Expected: "cannot assign to immutable" or "const"
+ */
+
+do main() {
+    const x int = 5
+    x = 10  // Cannot reassign const
+}

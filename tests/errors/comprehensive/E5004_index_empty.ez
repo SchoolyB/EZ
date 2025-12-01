@@ -1,0 +1,9 @@
+/*
+ * Error Test: E5004 - index-empty-collection
+ * Expected: "array is empty"
+ */
+
+do main() {
+    temp arr [int] = {}
+    temp x int = arr[0]  // Index into empty array
+}

@@ -1,0 +1,12 @@
+/*
+ * Error Test: E3012 - return-type-mismatch
+ * Expected: "return type mismatch"
+ */
+
+do get_number() -> int {
+    return "hello"  // Returning string, declared int
+}
+
+do main() {
+    temp x int = get_number()
+}

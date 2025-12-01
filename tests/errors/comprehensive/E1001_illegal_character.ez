@@ -1,0 +1,8 @@
+/*
+ * Error Test: E1001 - illegal-character
+ * Expected: "illegal character" or "unexpected character '&'"
+ */
+
+do main() {
+    temp x int = 5 & 3  // Single & is illegal, should be &&
+}
