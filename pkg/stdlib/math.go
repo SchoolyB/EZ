@@ -636,6 +636,38 @@ var MathBuiltins = map[string]*object.Builtin{
 			return &object.Float{Value: math.Ln10}
 		},
 	},
+	"math.TAU": {
+		Fn: func(args ...object.Object) object.Object {
+			return &object.Float{Value: 2 * math.Pi}
+		},
+	},
+	"math.INF": {
+		Fn: func(args ...object.Object) object.Object {
+			return &object.Float{Value: math.Inf(1)}
+		},
+	},
+	"math.NEG_INF": {
+		Fn: func(args ...object.Object) object.Object {
+			return &object.Float{Value: math.Inf(-1)}
+		},
+	},
+
+	// Special value checks
+	"math.is_inf": {
+		Fn: func(args ...object.Object) object.Object {
+			if len(args) != 1 {
+				return &object.Error{Code: "E8001", Message: "math.is_inf() takes exactly 1 argument"}
+			}
+			val, err := getNumber(args[0])
+			if err != nil {
+				return err
+			}
+			if math.IsInf(val, 0) {
+				return object.TRUE
+			}
+			return object.FALSE
+		},
+	},
 
 	// Deprecated lowercase constants (use uppercase versions instead)
 	"math.pi": {
