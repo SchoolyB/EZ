@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.2.1](https://github.com/SchoolyB/EZ/compare/v0.2.0...v0.2.1) (2025-12-01)
+
+
+### Bug Fixes
+
+* **stdlib:** strings.join no longer includes quotes around elements ([1e8c55a](https://github.com/SchoolyB/EZ/commit/1e8c55a99d1fbbd61bbaf7b4d2b851f6dc538220))
+* **stdlib:** strings.join no longer includes quotes around elements ([1a4b531](https://github.com/SchoolyB/EZ/commit/1a4b531fb689e04a9767efaba6e6f034010d086f)), closes [#205](https://github.com/SchoolyB/EZ/issues/205)
+
 ## [0.2.0](https://github.com/SchoolyB/EZ/compare/v0.1.0...v0.2.0) (2025-12-01)
 
 
