@@ -28,7 +28,7 @@ cd EZ
 make build
 
 # Run a program
-./ez run examples/hello.ez
+./ez examples/hello.ez
 ```
 
 **Requirements:** Go 1.23.1 or higher
@@ -43,9 +43,9 @@ EZ has two test suites: **passing tests** (verify features work) and **error tes
 
 ```bash
 # Run passing tests
-./ez run tests/comprehensive.ez
-./ez run tests/multi-file/main.ez
-./ez run tests/nested-test/main/main.ez
+./ez tests/comprehensive.ez
+./ez tests/multi-file/main.ez
+./ez tests/nested-test/main/main.ez
 
 # Run error tests
 ./tests/errors/run_error_tests.sh ./ez
