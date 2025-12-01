@@ -1,0 +1,9 @@
+/*
+ * Error Test: E3016 - not-indexable
+ * Expected: "index operator not supported"
+ */
+
+do main() {
+    temp x int = 5
+    x[0] = 10  // Trying to index an integer
+}

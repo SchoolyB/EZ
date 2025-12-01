@@ -18,7 +18,7 @@ var MapsBuiltins = map[string]*object.Builtin{
 			}
 			m, ok := args[0].(*object.Map)
 			if !ok {
-				return &object.Error{Code: "E12001", Message: "maps.is_empty() requires a map"}
+				return &object.Error{Code: "E7007", Message: "maps.is_empty() requires a map"}
 			}
 			if len(m.Pairs) == 0 {
 				return object.TRUE
@@ -34,11 +34,11 @@ var MapsBuiltins = map[string]*object.Builtin{
 			}
 			m, ok := args[0].(*object.Map)
 			if !ok {
-				return &object.Error{Code: "E12001", Message: "maps.has() requires a map as first argument"}
+				return &object.Error{Code: "E7007", Message: "maps.has() requires a map as first argument"}
 			}
 			key := args[1]
 			if _, hashOk := object.HashKey(key); !hashOk {
-				return &object.Error{Code: "E12002", Message: "maps.has() key must be a hashable type (string, int, bool, char)"}
+				return &object.Error{Code: "E12001", Message: "maps.has() key must be a hashable type (string, int, bool, char)"}
 			}
 			_, exists := m.Get(key)
 			if exists {
@@ -55,11 +55,11 @@ var MapsBuiltins = map[string]*object.Builtin{
 			}
 			m, ok := args[0].(*object.Map)
 			if !ok {
-				return &object.Error{Code: "E12001", Message: "maps.get() requires a map as first argument"}
+				return &object.Error{Code: "E7007", Message: "maps.get() requires a map as first argument"}
 			}
 			key := args[1]
 			if _, hashOk := object.HashKey(key); !hashOk {
-				return &object.Error{Code: "E12002", Message: "maps.get() key must be a hashable type (string, int, bool, char)"}
+				return &object.Error{Code: "E12001", Message: "maps.get() key must be a hashable type (string, int, bool, char)"}
 			}
 			value, exists := m.Get(key)
 			if exists {
@@ -80,7 +80,7 @@ var MapsBuiltins = map[string]*object.Builtin{
 			}
 			m, ok := args[0].(*object.Map)
 			if !ok {
-				return &object.Error{Code: "E12001", Message: "maps.set() requires a map as first argument"}
+				return &object.Error{Code: "E7007", Message: "maps.set() requires a map as first argument"}
 			}
 			if !m.Mutable {
 				return &object.Error{
@@ -90,7 +90,7 @@ var MapsBuiltins = map[string]*object.Builtin{
 			}
 			key := args[1]
 			if _, hashOk := object.HashKey(key); !hashOk {
-				return &object.Error{Code: "E12002", Message: "maps.set() key must be a hashable type (string, int, bool, char)"}
+				return &object.Error{Code: "E12001", Message: "maps.set() key must be a hashable type (string, int, bool, char)"}
 			}
 			m.Set(key, args[2])
 			return object.NIL
@@ -104,7 +104,7 @@ var MapsBuiltins = map[string]*object.Builtin{
 			}
 			m, ok := args[0].(*object.Map)
 			if !ok {
-				return &object.Error{Code: "E12001", Message: "maps.delete() requires a map as first argument"}
+				return &object.Error{Code: "E7007", Message: "maps.delete() requires a map as first argument"}
 			}
 			if !m.Mutable {
 				return &object.Error{
@@ -114,7 +114,7 @@ var MapsBuiltins = map[string]*object.Builtin{
 			}
 			key := args[1]
 			if _, hashOk := object.HashKey(key); !hashOk {
-				return &object.Error{Code: "E12002", Message: "maps.delete() key must be a hashable type (string, int, bool, char)"}
+				return &object.Error{Code: "E12001", Message: "maps.delete() key must be a hashable type (string, int, bool, char)"}
 			}
 			deleted := m.Delete(key)
 			if deleted {
@@ -131,7 +131,7 @@ var MapsBuiltins = map[string]*object.Builtin{
 			}
 			m, ok := args[0].(*object.Map)
 			if !ok {
-				return &object.Error{Code: "E12001", Message: "maps.clear() requires a map"}
+				return &object.Error{Code: "E7007", Message: "maps.clear() requires a map"}
 			}
 			if !m.Mutable {
 				return &object.Error{
@@ -152,7 +152,7 @@ var MapsBuiltins = map[string]*object.Builtin{
 			}
 			m, ok := args[0].(*object.Map)
 			if !ok {
-				return &object.Error{Code: "E12001", Message: "maps.keys() requires a map"}
+				return &object.Error{Code: "E7007", Message: "maps.keys() requires a map"}
 			}
 			keys := make([]object.Object, len(m.Pairs))
 			for i, pair := range m.Pairs {
@@ -169,7 +169,7 @@ var MapsBuiltins = map[string]*object.Builtin{
 			}
 			m, ok := args[0].(*object.Map)
 			if !ok {
-				return &object.Error{Code: "E12001", Message: "maps.values() requires a map"}
+				return &object.Error{Code: "E7007", Message: "maps.values() requires a map"}
 			}
 			values := make([]object.Object, len(m.Pairs))
 			for i, pair := range m.Pairs {
@@ -186,7 +186,7 @@ var MapsBuiltins = map[string]*object.Builtin{
 			}
 			m, ok := args[0].(*object.Map)
 			if !ok {
-				return &object.Error{Code: "E12001", Message: "maps.copy() requires a map"}
+				return &object.Error{Code: "E7007", Message: "maps.copy() requires a map"}
 			}
 			// Create a shallow copy of the map
 			newMap := object.NewMap()
@@ -207,7 +207,7 @@ var MapsBuiltins = map[string]*object.Builtin{
 			for _, arg := range args {
 				m, ok := arg.(*object.Map)
 				if !ok {
-					return &object.Error{Code: "E12001", Message: "maps.merge() requires maps as arguments"}
+					return &object.Error{Code: "E7007", Message: "maps.merge() requires maps as arguments"}
 				}
 				for _, pair := range m.Pairs {
 					result.Set(pair.Key, pair.Value)
@@ -225,11 +225,11 @@ var MapsBuiltins = map[string]*object.Builtin{
 			}
 			m, ok := args[0].(*object.Map)
 			if !ok {
-				return &object.Error{Code: "E12001", Message: "maps.has_key() requires a map as first argument"}
+				return &object.Error{Code: "E7007", Message: "maps.has_key() requires a map as first argument"}
 			}
 			key := args[1]
 			if _, hashOk := object.HashKey(key); !hashOk {
-				return &object.Error{Code: "E12002", Message: "maps.has_key() key must be a hashable type (string, int, bool, char)"}
+				return &object.Error{Code: "E12001", Message: "maps.has_key() key must be a hashable type (string, int, bool, char)"}
 			}
 			_, exists := m.Get(key)
 			if exists {
@@ -246,7 +246,7 @@ var MapsBuiltins = map[string]*object.Builtin{
 			}
 			m, ok := args[0].(*object.Map)
 			if !ok {
-				return &object.Error{Code: "E12001", Message: "maps.has_value() requires a map as first argument"}
+				return &object.Error{Code: "E7007", Message: "maps.has_value() requires a map as first argument"}
 			}
 			searchValue := args[1]
 			for _, pair := range m.Pairs {
@@ -266,7 +266,7 @@ var MapsBuiltins = map[string]*object.Builtin{
 			m1, ok1 := args[0].(*object.Map)
 			m2, ok2 := args[1].(*object.Map)
 			if !ok1 || !ok2 {
-				return &object.Error{Code: "E12001", Message: "maps.equals() requires two maps"}
+				return &object.Error{Code: "E7007", Message: "maps.equals() requires two maps"}
 			}
 			// Check same length
 			if len(m1.Pairs) != len(m2.Pairs) {
@@ -290,11 +290,11 @@ var MapsBuiltins = map[string]*object.Builtin{
 			}
 			m, ok := args[0].(*object.Map)
 			if !ok {
-				return &object.Error{Code: "E12001", Message: "maps.get_or_set() requires a map as first argument"}
+				return &object.Error{Code: "E7007", Message: "maps.get_or_set() requires a map as first argument"}
 			}
 			key := args[1]
 			if _, hashOk := object.HashKey(key); !hashOk {
-				return &object.Error{Code: "E12002", Message: "maps.get_or_set() key must be a hashable type (string, int, bool, char)"}
+				return &object.Error{Code: "E12001", Message: "maps.get_or_set() key must be a hashable type (string, int, bool, char)"}
 			}
 			// If key exists, return the value
 			value, exists := m.Get(key)
@@ -321,7 +321,7 @@ var MapsBuiltins = map[string]*object.Builtin{
 			}
 			m, ok := args[0].(*object.Map)
 			if !ok {
-				return &object.Error{Code: "E12001", Message: "maps.remove() requires a map as first argument"}
+				return &object.Error{Code: "E7007", Message: "maps.remove() requires a map as first argument"}
 			}
 			if !m.Mutable {
 				return &object.Error{
@@ -331,7 +331,7 @@ var MapsBuiltins = map[string]*object.Builtin{
 			}
 			key := args[1]
 			if _, hashOk := object.HashKey(key); !hashOk {
-				return &object.Error{Code: "E12002", Message: "maps.remove() key must be a hashable type (string, int, bool, char)"}
+				return &object.Error{Code: "E12001", Message: "maps.remove() key must be a hashable type (string, int, bool, char)"}
 			}
 			deleted := m.Delete(key)
 			if deleted {
@@ -349,7 +349,7 @@ var MapsBuiltins = map[string]*object.Builtin{
 			// First argument is the target map (destructive update)
 			target, ok := args[0].(*object.Map)
 			if !ok {
-				return &object.Error{Code: "E12001", Message: "maps.update() requires maps as arguments"}
+				return &object.Error{Code: "E7007", Message: "maps.update() requires maps as arguments"}
 			}
 			if !target.Mutable {
 				return &object.Error{
@@ -361,7 +361,7 @@ var MapsBuiltins = map[string]*object.Builtin{
 			for i := 1; i < len(args); i++ {
 				source, ok := args[i].(*object.Map)
 				if !ok {
-					return &object.Error{Code: "E12001", Message: "maps.update() requires maps as arguments"}
+					return &object.Error{Code: "E7007", Message: "maps.update() requires maps as arguments"}
 				}
 				for _, pair := range source.Pairs {
 					target.Set(pair.Key, pair.Value)
@@ -378,7 +378,7 @@ var MapsBuiltins = map[string]*object.Builtin{
 			}
 			m, ok := args[0].(*object.Map)
 			if !ok {
-				return &object.Error{Code: "E12001", Message: "maps.to_array() requires a map"}
+				return &object.Error{Code: "E7007", Message: "maps.to_array() requires a map"}
 			}
 			// Create array of [key, value] pairs
 			pairs := make([]object.Object, len(m.Pairs))
@@ -399,7 +399,7 @@ var MapsBuiltins = map[string]*object.Builtin{
 			}
 			arr, ok := args[0].(*object.Array)
 			if !ok {
-				return &object.Error{Code: "E12001", Message: "maps.from_array() requires an array"}
+				return &object.Error{Code: "E7007", Message: "maps.from_array() requires an array"}
 			}
 			// Each element should be an array of [key, value]
 			result := object.NewMap()
@@ -431,7 +431,7 @@ var MapsBuiltins = map[string]*object.Builtin{
 			}
 			m, ok := args[0].(*object.Map)
 			if !ok {
-				return &object.Error{Code: "E12001", Message: "maps.invert() requires a map"}
+				return &object.Error{Code: "E7007", Message: "maps.invert() requires a map"}
 			}
 			// Create new map with values as keys and keys as values
 			result := object.NewMap()

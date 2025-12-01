@@ -1,0 +1,9 @@
+/*
+ * Error Test: E4011 - member-access-invalid-type
+ * Expected: "member access not supported"
+ */
+
+do main() {
+    temp x int = 5
+    temp y int = x.value  // Cannot access member on int
+}

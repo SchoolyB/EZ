@@ -1,0 +1,12 @@
+/*
+ * Error Test: E2018 - trailing-comma-call
+ * Expected: "trailing comma"
+ */
+
+do add(a int, b int) -> int {
+    give a + b
+}
+
+do main() {
+    temp result int = add(1, 2,)  // Trailing comma in call
+}
