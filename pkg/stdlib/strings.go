@@ -11,19 +11,6 @@ import (
 
 // StringsBuiltins contains the strings module functions
 var StringsBuiltins = map[string]*object.Builtin{
-	"strings.len": {
-		Fn: func(args ...object.Object) object.Object {
-			if len(args) != 1 {
-				return &object.Error{Code: "E10001", Message: "strings.len() takes exactly 1 argument"}
-			}
-			str, ok := args[0].(*object.String)
-			if !ok {
-				return &object.Error{Code: "E10003", Message: "strings.len() requires a string argument"}
-			}
-			return &object.Integer{Value: int64(len(str.Value))}
-		},
-	},
-
 	"strings.upper": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 1 {
