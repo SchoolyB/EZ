@@ -605,34 +605,72 @@ var MathBuiltins = map[string]*object.Builtin{
 		},
 	},
 
-	// Constants
+	// Constants (UPPERCASE is the standard, lowercase is deprecated)
+	"math.PI": {
+		Fn: func(args ...object.Object) object.Object {
+			return &object.Float{Value: math.Pi}
+		},
+	},
+	"math.E": {
+		Fn: func(args ...object.Object) object.Object {
+			return &object.Float{Value: math.E}
+		},
+	},
+	"math.PHI": {
+		Fn: func(args ...object.Object) object.Object {
+			return &object.Float{Value: math.Phi}
+		},
+	},
+	"math.SQRT2": {
+		Fn: func(args ...object.Object) object.Object {
+			return &object.Float{Value: math.Sqrt2}
+		},
+	},
+	"math.LN2": {
+		Fn: func(args ...object.Object) object.Object {
+			return &object.Float{Value: math.Ln2}
+		},
+	},
+	"math.LN10": {
+		Fn: func(args ...object.Object) object.Object {
+			return &object.Float{Value: math.Ln10}
+		},
+	},
+
+	// Deprecated lowercase constants (use uppercase versions instead)
 	"math.pi": {
 		Fn: func(args ...object.Object) object.Object {
+			fmt.Println("warning: math.pi is deprecated, use math.PI instead")
 			return &object.Float{Value: math.Pi}
 		},
 	},
 	"math.e": {
 		Fn: func(args ...object.Object) object.Object {
+			fmt.Println("warning: math.e is deprecated, use math.E instead")
 			return &object.Float{Value: math.E}
 		},
 	},
 	"math.phi": {
 		Fn: func(args ...object.Object) object.Object {
+			fmt.Println("warning: math.phi is deprecated, use math.PHI instead")
 			return &object.Float{Value: math.Phi}
 		},
 	},
 	"math.sqrt2": {
 		Fn: func(args ...object.Object) object.Object {
+			fmt.Println("warning: math.sqrt2 is deprecated, use math.SQRT2 instead")
 			return &object.Float{Value: math.Sqrt2}
 		},
 	},
 	"math.ln2": {
 		Fn: func(args ...object.Object) object.Object {
+			fmt.Println("warning: math.ln2 is deprecated, use math.LN2 instead")
 			return &object.Float{Value: math.Ln2}
 		},
 	},
 	"math.ln10": {
 		Fn: func(args ...object.Object) object.Object {
+			fmt.Println("warning: math.ln10 is deprecated, use math.LN10 instead")
 			return &object.Float{Value: math.Ln10}
 		},
 	},
