@@ -1,5 +1,25 @@
 # Changelog
 
+## [0.4.0](https://github.com/SchoolyB/EZ/compare/v0.3.0...v0.4.0) (2025-12-01)
+
+
+### Features
+
+* **stdlib:** add arrays.chunk function ([7bb900b](https://github.com/SchoolyB/EZ/commit/7bb900b4ed0bfe00eebc6e48e138748eaba6b406))
+* **stdlib:** add arrays.chunk function ([3964f73](https://github.com/SchoolyB/EZ/commit/3964f7369daa2cb7c344ad1d948be07cb3722256)), closes [#228](https://github.com/SchoolyB/EZ/issues/228)
+* **stdlib:** add math constants and infinity check ([b9c4a59](https://github.com/SchoolyB/EZ/commit/b9c4a59dc6b008d4d70bf18f7aa2b094bddc0f3c))
+* **stdlib:** add math constants and infinity check ([bdf7c2a](https://github.com/SchoolyB/EZ/commit/bdf7c2a09c3874faef2a389e3a491703710c8585))
+* **stdlib:** expand strings module with 12 new functions ([9add23b](https://github.com/SchoolyB/EZ/commit/9add23b10c8bb1dd8e2eca02bee242d412e88c22))
+* **stdlib:** expand strings module with 12 new functions ([be16cfe](https://github.com/SchoolyB/EZ/commit/be16cfe857056ea423a723c49dc341002f15ad7e)), closes [#228](https://github.com/SchoolyB/EZ/issues/228)
+* **stdlib:** expand time module with arithmetic and utilities ([c7f2be1](https://github.com/SchoolyB/EZ/commit/c7f2be1dc1e8c43fb20d4d4a404cb50f5e2f7cc8))
+* **stdlib:** expand time module with arithmetic and utilities ([f7edf78](https://github.com/SchoolyB/EZ/commit/f7edf78f21e7e4a98516d72dc5f46f225a79de73))
+
+
+### Bug Fixes
+
+* **errors:** standardize error codes across codebase ([fdf91d2](https://github.com/SchoolyB/EZ/commit/fdf91d27a4ace86d15f6037b31c47de159886331))
+* **errors:** standardize error codes across codebase ([8cf3bfd](https://github.com/SchoolyB/EZ/commit/8cf3bfd752b016468130c09cb8dd1f98cff23eeb)), closes [#233](https://github.com/SchoolyB/EZ/issues/233)
+
 ## [0.3.0](https://github.com/SchoolyB/EZ/compare/v0.2.2...v0.3.0) (2025-12-01)
 
 
