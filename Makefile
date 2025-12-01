@@ -62,19 +62,19 @@ release:
 	@mkdir -p dist
 	@# Build binaries
 	GOOS=darwin GOARCH=amd64 $(GO) build $(LDFLAGS) -o dist/$(BINARY_NAME) ./cmd/ez && \
-		tar -czf dist/$(BINARY_NAME)-$(VERSION)-darwin-amd64.tar.gz -C dist $(BINARY_NAME) && \
+		tar -czf dist/$(BINARY_NAME)-darwin-amd64.tar.gz -C dist $(BINARY_NAME) && \
 		rm dist/$(BINARY_NAME)
 	GOOS=darwin GOARCH=arm64 $(GO) build $(LDFLAGS) -o dist/$(BINARY_NAME) ./cmd/ez && \
-		tar -czf dist/$(BINARY_NAME)-$(VERSION)-darwin-arm64.tar.gz -C dist $(BINARY_NAME) && \
+		tar -czf dist/$(BINARY_NAME)-darwin-arm64.tar.gz -C dist $(BINARY_NAME) && \
 		rm dist/$(BINARY_NAME)
 	GOOS=linux GOARCH=amd64 $(GO) build $(LDFLAGS) -o dist/$(BINARY_NAME) ./cmd/ez && \
-		tar -czf dist/$(BINARY_NAME)-$(VERSION)-linux-amd64.tar.gz -C dist $(BINARY_NAME) && \
+		tar -czf dist/$(BINARY_NAME)-linux-amd64.tar.gz -C dist $(BINARY_NAME) && \
 		rm dist/$(BINARY_NAME)
 	GOOS=linux GOARCH=arm64 $(GO) build $(LDFLAGS) -o dist/$(BINARY_NAME) ./cmd/ez && \
-		tar -czf dist/$(BINARY_NAME)-$(VERSION)-linux-arm64.tar.gz -C dist $(BINARY_NAME) && \
+		tar -czf dist/$(BINARY_NAME)-linux-arm64.tar.gz -C dist $(BINARY_NAME) && \
 		rm dist/$(BINARY_NAME)
 	GOOS=windows GOARCH=amd64 $(GO) build $(LDFLAGS) -o dist/$(BINARY_NAME).exe ./cmd/ez && \
-		zip -j dist/$(BINARY_NAME)-$(VERSION)-windows-amd64.zip dist/$(BINARY_NAME).exe && \
+		zip -j dist/$(BINARY_NAME)-windows-amd64.zip dist/$(BINARY_NAME).exe && \
 		rm dist/$(BINARY_NAME).exe
 	@# Generate checksums
 	@echo "Generating checksums..."
