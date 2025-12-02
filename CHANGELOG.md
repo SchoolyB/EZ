@@ -1,5 +1,25 @@
 # Changelog
 
+## [0.6.0](https://github.com/SchoolyB/EZ/compare/v0.5.0...v0.6.0) (2025-12-02)
+
+
+### Features
+
+* **lang:** add hex/binary literals and byte warnings ([172028a](https://github.com/SchoolyB/EZ/commit/172028a98ff60b27111b9c87548e599e797e1b35))
+* **lang:** implement byte and [byte] data types ([d1f98be](https://github.com/SchoolyB/EZ/commit/d1f98be06acefca64562411f67366232235b40c5))
+* **lang:** implement byte and [byte] data types ([4499882](https://github.com/SchoolyB/EZ/commit/4499882917a030a02e842df37ab05c9f563878a8)), closes [#248](https://github.com/SchoolyB/EZ/issues/248)
+* **stdlib:** implement [@bytes](https://github.com/bytes) module for binary data operations ([48a05b6](https://github.com/SchoolyB/EZ/commit/48a05b6d3d63e416694abeac198e0008566893a5))
+* **stdlib:** implement [@io](https://github.com/io) module for file system operations ([99115a1](https://github.com/SchoolyB/EZ/commit/99115a15f661f200450c7a34a90dc08ffe1d4acd)), closes [#243](https://github.com/SchoolyB/EZ/issues/243)
+* **stdlib:** implement [@os](https://github.com/os) module ([f2feac2](https://github.com/SchoolyB/EZ/commit/f2feac2761e028bd1d2178b795e75c7b996231ba))
+* **stdlib:** implement [@os](https://github.com/os) module for operating system operations ([7595236](https://github.com/SchoolyB/EZ/commit/75952363d82098c2faad05058985227a7254f348))
+* **stdlib:** implement `[@bytes](https://github.com/bytes)` module for binary data operations ([5533a97](https://github.com/SchoolyB/EZ/commit/5533a972a16ad14168cd5187e653d95914324867))
+* **stdlib:** implement `[@io](https://github.com/io)` module for file system operations ([4b195d4](https://github.com/SchoolyB/EZ/commit/4b195d45596dea2e2431c4b5c481484cedf27646))
+
+
+### Bug Fixes
+
+* **stdlib:** resolve CodeQL warnings ([0a7b971](https://github.com/SchoolyB/EZ/commit/0a7b9714fbbb46ebfc23d5b0ae1cc0ce1cba265b))
+
 ## [0.5.0](https://github.com/SchoolyB/EZ/compare/v0.4.0...v0.5.0) (2025-12-02)
 
 
