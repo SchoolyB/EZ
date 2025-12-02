@@ -1655,26 +1655,33 @@ func (p *Parser) parseTypeName() string {
 		typeName := "["
 		p.nextToken() // move past [
 
-		// The element type should be an identifier
-		if !p.currentTokenMatches(IDENT) {
+		// The element type can be an identifier OR another array type (for matrices)
+		var elementType string
+		if p.currentTokenMatches(LBRACKET) {
+			// Nested array type [[type]] - recursive call
+			elementType = p.parseTypeName()
+			if elementType == "" {
+				return ""
+			}
+		} else if p.currentTokenMatches(IDENT) {
+			elementType = p.currentToken.Literal
+			// Check for qualified type name inside array: [module.TypeName]
+			if p.peekTokenMatches(DOT) {
+				p.nextToken() // consume the DOT
+				p.nextToken() // get the type name
+				if !p.currentTokenMatches(IDENT) {
+					msg := fmt.Sprintf("expected type name after '.', got %s", p.currentToken.Type)
+					p.errors = append(p.errors, msg)
+					p.addEZError(errors.E2024, msg, p.currentToken)
+					return ""
+				}
+				elementType = elementType + "." + p.currentToken.Literal
+			}
+		} else {
 			msg := fmt.Sprintf("expected type name, got %s", p.currentToken.Type)
 			p.errors = append(p.errors, msg)
 			p.addEZError(errors.E2024, msg, p.currentToken)
 			return ""
-		}
-		elementType := p.currentToken.Literal
-
-		// Check for qualified type name inside array: [module.TypeName]
-		if p.peekTokenMatches(DOT) {
-			p.nextToken() // consume the DOT
-			p.nextToken() // get the type name
-			if !p.currentTokenMatches(IDENT) {
-				msg := fmt.Sprintf("expected type name after '.', got %s", p.currentToken.Type)
-				p.errors = append(p.errors, msg)
-				p.addEZError(errors.E2024, msg, p.currentToken)
-				return ""
-			}
-			elementType = elementType + "." + p.currentToken.Literal
 		}
 		typeName += elementType
 
