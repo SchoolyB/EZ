@@ -89,7 +89,7 @@ go tool cover -html=coverage.out
 | pkg/parser | Implemented |
 | pkg/typechecker | Implemented |
 | pkg/interpreter | Implemented |
-| pkg/stdlib | Not yet implemented |
+| pkg/stdlib | Implemented |
 
 ---
 
