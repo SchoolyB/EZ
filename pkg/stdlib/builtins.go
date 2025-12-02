@@ -65,8 +65,9 @@ var StdBuiltins = map[string]*object.Builtin{
 		},
 	},
 
-	// Prints values to standard output WITHOUT a newline
-	"std.print": {
+	// Prints values to standard output WITHOUT a newline (like C's printf)
+	// User must explicitly add \n for newlines
+	"std.printf": {
 		Fn: func(args ...object.Object) object.Object {
 			for i, arg := range args {
 				if i > 0 {
