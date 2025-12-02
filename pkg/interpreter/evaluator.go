@@ -666,13 +666,22 @@ func evalVariableDeclaration(node *ast.VariableDeclaration, env *Environment) Ob
 			// If we have an integer value, set the declared type
 			// and validate signed/unsigned compatibility
 			if intVal, ok := val.(*Integer); ok {
-				// Check for negative value assigned to unsigned type
-				if isUnsignedIntegerType(node.TypeName) && intVal.Value < 0 {
-					return newErrorWithLocation("E3020", node.Token.Line, node.Token.Column,
-						"cannot assign negative value %d to unsigned type '%s'", intVal.Value, node.TypeName)
+				// Special handling for byte type - convert and validate range
+				if node.TypeName == "byte" {
+					if intVal.Value < 0 || intVal.Value > 255 {
+						return newErrorWithLocation("E3020", node.Token.Line, node.Token.Column,
+							"cannot assign value %d to byte: value must be between 0 and 255", intVal.Value)
+					}
+					val = &Byte{Value: uint8(intVal.Value)}
+				} else {
+					// Check for negative value assigned to unsigned type
+					if isUnsignedIntegerType(node.TypeName) && intVal.Value < 0 {
+						return newErrorWithLocation("E3020", node.Token.Line, node.Token.Column,
+							"cannot assign negative value %d to unsigned type '%s'", intVal.Value, node.TypeName)
+					}
+					// Set the declared type on the integer
+					intVal.DeclaredType = node.TypeName
 				}
-				// Set the declared type on the integer
-				intVal.DeclaredType = node.TypeName
 			}
 		}
 	} else if node.TypeName != "" {
@@ -704,6 +713,8 @@ func evalVariableDeclaration(node *ast.VariableDeclaration, env *Environment) Ob
 				val = FALSE // Use existing FALSE constant
 			case "char":
 				val = &Char{Value: '\x00'} // null character as default
+			case "byte":
+				val = &Byte{Value: 0}
 			// For fixed-size arrays and other types, remain NIL
 			default:
 				val = NIL
@@ -1416,6 +1427,11 @@ func evalInfixExpression(operator string, left, right Object, line, col int) Obj
 	switch {
 	case left.Type() == INTEGER_OBJ && right.Type() == INTEGER_OBJ:
 		return evalIntegerInfixExpression(operator, left, right, line, col)
+	case left.Type() == BYTE_OBJ && right.Type() == BYTE_OBJ:
+		return evalByteInfixExpression(operator, left, right, line, col)
+	case (left.Type() == BYTE_OBJ && right.Type() == INTEGER_OBJ) || (left.Type() == INTEGER_OBJ && right.Type() == BYTE_OBJ):
+		// Promote byte to integer for mixed operations
+		return evalByteIntegerInfixExpression(operator, left, right, line, col)
 	case left.Type() == FLOAT_OBJ || right.Type() == FLOAT_OBJ:
 		return evalFloatInfixExpression(operator, left, right, line, col)
 	case left.Type() == STRING_OBJ && right.Type() == STRING_OBJ:
@@ -1573,6 +1589,96 @@ func evalCharInfixExpression(operator string, left, right Object, line, col int)
 	}
 }
 
+func evalByteInfixExpression(operator string, left, right Object, line, col int) Object {
+	leftVal := left.(*Byte).Value
+	rightVal := right.(*Byte).Value
+
+	switch operator {
+	case "+":
+		return &Byte{Value: leftVal + rightVal}
+	case "-":
+		return &Byte{Value: leftVal - rightVal}
+	case "*":
+		return &Byte{Value: leftVal * rightVal}
+	case "/":
+		if rightVal == 0 {
+			return newErrorWithLocation("E5001", line, col, "division by zero")
+		}
+		return &Byte{Value: leftVal / rightVal}
+	case "%":
+		if rightVal == 0 {
+			return newErrorWithLocation("E5002", line, col, "modulo by zero")
+		}
+		return &Byte{Value: leftVal % rightVal}
+	case "<":
+		return nativeBoolToBooleanObject(leftVal < rightVal)
+	case ">":
+		return nativeBoolToBooleanObject(leftVal > rightVal)
+	case "<=":
+		return nativeBoolToBooleanObject(leftVal <= rightVal)
+	case ">=":
+		return nativeBoolToBooleanObject(leftVal >= rightVal)
+	case "==":
+		return nativeBoolToBooleanObject(leftVal == rightVal)
+	case "!=":
+		return nativeBoolToBooleanObject(leftVal != rightVal)
+	default:
+		return newErrorWithLocation("E3014", line, col, "unknown operator: %s %s %s", left.Type(), operator, right.Type())
+	}
+}
+
+func evalByteIntegerInfixExpression(operator string, left, right Object, line, col int) Object {
+	var leftVal, rightVal int64
+
+	// Extract values, promoting byte to int64
+	switch l := left.(type) {
+	case *Byte:
+		leftVal = int64(l.Value)
+	case *Integer:
+		leftVal = l.Value
+	}
+
+	switch r := right.(type) {
+	case *Byte:
+		rightVal = int64(r.Value)
+	case *Integer:
+		rightVal = r.Value
+	}
+
+	switch operator {
+	case "+":
+		return &Integer{Value: leftVal + rightVal}
+	case "-":
+		return &Integer{Value: leftVal - rightVal}
+	case "*":
+		return &Integer{Value: leftVal * rightVal}
+	case "/":
+		if rightVal == 0 {
+			return newErrorWithLocation("E5001", line, col, "division by zero")
+		}
+		return &Integer{Value: leftVal / rightVal}
+	case "%":
+		if rightVal == 0 {
+			return newErrorWithLocation("E5002", line, col, "modulo by zero")
+		}
+		return &Integer{Value: leftVal % rightVal}
+	case "<":
+		return nativeBoolToBooleanObject(leftVal < rightVal)
+	case ">":
+		return nativeBoolToBooleanObject(leftVal > rightVal)
+	case "<=":
+		return nativeBoolToBooleanObject(leftVal <= rightVal)
+	case ">=":
+		return nativeBoolToBooleanObject(leftVal >= rightVal)
+	case "==":
+		return nativeBoolToBooleanObject(leftVal == rightVal)
+	case "!=":
+		return nativeBoolToBooleanObject(leftVal != rightVal)
+	default:
+		return newErrorWithLocation("E3014", line, col, "unknown operator: %s %s %s", left.Type(), operator, right.Type())
+	}
+}
+
 func evalInOperator(left, right Object) Object {
 	arr, ok := right.(*Array)
 	if !ok {
@@ -1600,6 +1706,10 @@ func elementsEqual(a, b Object) bool {
 		}
 	case *Boolean:
 		if bv, ok := b.(*Boolean); ok {
+			return av.Value == bv.Value
+		}
+	case *Byte:
+		if bv, ok := b.(*Byte); ok {
 			return av.Value == bv.Value
 		}
 	}
