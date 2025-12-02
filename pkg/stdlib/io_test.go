@@ -834,12 +834,21 @@ func TestIOBuiltinsRegistered(t *testing.T) {
 	builtins := GetAllBuiltins()
 
 	expectedFunctions := []string{
+		// File reading/writing
 		"io.read_file",
 		"io.write_file",
 		"io.append_file",
+		"io.read_bytes",
+		"io.write_bytes",
+		// Convenience functions
+		"io.read_lines",
+		"io.append_line",
+		"io.expand_path",
+		// File system queries
 		"io.exists",
 		"io.is_file",
 		"io.is_dir",
+		// File/directory operations
 		"io.remove",
 		"io.remove_dir",
 		"io.remove_all",
@@ -850,6 +859,7 @@ func TestIOBuiltinsRegistered(t *testing.T) {
 		"io.read_dir",
 		"io.file_size",
 		"io.file_mod_time",
+		// Path manipulation
 		"io.path_join",
 		"io.path_base",
 		"io.path_dir",
@@ -857,6 +867,27 @@ func TestIOBuiltinsRegistered(t *testing.T) {
 		"io.path_abs",
 		"io.path_clean",
 		"io.path_separator",
+		// File handle constants
+		"io.READ_ONLY",
+		"io.WRITE_ONLY",
+		"io.READ_WRITE",
+		"io.APPEND",
+		"io.CREATE",
+		"io.TRUNCATE",
+		"io.EXCLUSIVE",
+		"io.SEEK_START",
+		"io.SEEK_CURRENT",
+		"io.SEEK_END",
+		// File handle operations
+		"io.open",
+		"io.read",
+		"io.read_all",
+		"io.read_string",
+		"io.write",
+		"io.seek",
+		"io.tell",
+		"io.flush",
+		"io.close",
 	}
 
 	for _, name := range expectedFunctions {
@@ -1369,6 +1400,1047 @@ func TestIOAtomicWrite(t *testing.T) {
 		for _, entry := range entries {
 			if filepath.HasPrefix(entry.Name(), ".ez_tmp_") {
 				t.Errorf("temp file left behind: %s", entry.Name())
+			}
+		}
+	})
+}
+
+// ============================================================================
+// File Handle Constants Tests (Phase 5)
+// ============================================================================
+
+func TestIOConstants(t *testing.T) {
+	// Test file mode constants
+	t.Run("READ_ONLY", func(t *testing.T) {
+		fn := IOBuiltins["io.READ_ONLY"].Fn
+		result := fn()
+		val, ok := result.(*object.Integer)
+		if !ok {
+			t.Fatalf("expected Integer, got %T", result)
+		}
+		if val.Value != int64(os.O_RDONLY) {
+			t.Errorf("expected %d (O_RDONLY), got %d", os.O_RDONLY, val.Value)
+		}
+	})
+
+	t.Run("WRITE_ONLY", func(t *testing.T) {
+		fn := IOBuiltins["io.WRITE_ONLY"].Fn
+		result := fn()
+		val, ok := result.(*object.Integer)
+		if !ok {
+			t.Fatalf("expected Integer, got %T", result)
+		}
+		if val.Value != int64(os.O_WRONLY) {
+			t.Errorf("expected %d (O_WRONLY), got %d", os.O_WRONLY, val.Value)
+		}
+	})
+
+	t.Run("READ_WRITE", func(t *testing.T) {
+		fn := IOBuiltins["io.READ_WRITE"].Fn
+		result := fn()
+		val, ok := result.(*object.Integer)
+		if !ok {
+			t.Fatalf("expected Integer, got %T", result)
+		}
+		if val.Value != int64(os.O_RDWR) {
+			t.Errorf("expected %d (O_RDWR), got %d", os.O_RDWR, val.Value)
+		}
+	})
+
+	t.Run("APPEND", func(t *testing.T) {
+		fn := IOBuiltins["io.APPEND"].Fn
+		result := fn()
+		val, ok := result.(*object.Integer)
+		if !ok {
+			t.Fatalf("expected Integer, got %T", result)
+		}
+		if val.Value != int64(os.O_APPEND) {
+			t.Errorf("expected %d (O_APPEND), got %d", os.O_APPEND, val.Value)
+		}
+	})
+
+	t.Run("CREATE", func(t *testing.T) {
+		fn := IOBuiltins["io.CREATE"].Fn
+		result := fn()
+		val, ok := result.(*object.Integer)
+		if !ok {
+			t.Fatalf("expected Integer, got %T", result)
+		}
+		if val.Value != int64(os.O_CREATE) {
+			t.Errorf("expected %d (O_CREATE), got %d", os.O_CREATE, val.Value)
+		}
+	})
+
+	t.Run("TRUNCATE", func(t *testing.T) {
+		fn := IOBuiltins["io.TRUNCATE"].Fn
+		result := fn()
+		val, ok := result.(*object.Integer)
+		if !ok {
+			t.Fatalf("expected Integer, got %T", result)
+		}
+		if val.Value != int64(os.O_TRUNC) {
+			t.Errorf("expected %d (O_TRUNC), got %d", os.O_TRUNC, val.Value)
+		}
+	})
+
+	t.Run("EXCLUSIVE", func(t *testing.T) {
+		fn := IOBuiltins["io.EXCLUSIVE"].Fn
+		result := fn()
+		val, ok := result.(*object.Integer)
+		if !ok {
+			t.Fatalf("expected Integer, got %T", result)
+		}
+		if val.Value != int64(os.O_EXCL) {
+			t.Errorf("expected %d (O_EXCL), got %d", os.O_EXCL, val.Value)
+		}
+	})
+
+	// Test seek constants
+	t.Run("SEEK_START", func(t *testing.T) {
+		fn := IOBuiltins["io.SEEK_START"].Fn
+		result := fn()
+		val, ok := result.(*object.Integer)
+		if !ok {
+			t.Fatalf("expected Integer, got %T", result)
+		}
+		if val.Value != 0 {
+			t.Errorf("expected 0 (SEEK_START), got %d", val.Value)
+		}
+	})
+
+	t.Run("SEEK_CURRENT", func(t *testing.T) {
+		fn := IOBuiltins["io.SEEK_CURRENT"].Fn
+		result := fn()
+		val, ok := result.(*object.Integer)
+		if !ok {
+			t.Fatalf("expected Integer, got %T", result)
+		}
+		if val.Value != 1 {
+			t.Errorf("expected 1 (SEEK_CURRENT), got %d", val.Value)
+		}
+	})
+
+	t.Run("SEEK_END", func(t *testing.T) {
+		fn := IOBuiltins["io.SEEK_END"].Fn
+		result := fn()
+		val, ok := result.(*object.Integer)
+		if !ok {
+			t.Fatalf("expected Integer, got %T", result)
+		}
+		if val.Value != 2 {
+			t.Errorf("expected 2 (SEEK_END), got %d", val.Value)
+		}
+	})
+}
+
+// ============================================================================
+// File Handle Operations Tests (Phase 5)
+// ============================================================================
+
+func TestIOOpen(t *testing.T) {
+	dir, cleanup := createTempDir(t)
+	defer cleanup()
+
+	openFn := IOBuiltins["io.open"].Fn
+	closeFn := IOBuiltins["io.close"].Fn
+
+	t.Run("open existing file for reading", func(t *testing.T) {
+		content := "Hello, World!"
+		path := createTempFile(t, dir, "open_read.txt", content)
+
+		result := openFn(&object.String{Value: path})
+		assertNoError(t, result)
+
+		vals := getReturnValues(t, result)
+		handle, ok := vals[0].(*object.FileHandle)
+		if !ok {
+			t.Fatalf("expected FileHandle, got %T", vals[0])
+		}
+		if handle.Path != path {
+			t.Errorf("expected path %q, got %q", path, handle.Path)
+		}
+		if handle.IsClosed {
+			t.Error("handle should not be closed")
+		}
+
+		// Clean up
+		closeFn(handle)
+	})
+
+	t.Run("open new file for writing", func(t *testing.T) {
+		path := filepath.Join(dir, "open_write.txt")
+		mode := &object.Integer{Value: int64(os.O_WRONLY | os.O_CREATE)}
+
+		result := openFn(&object.String{Value: path}, mode)
+		assertNoError(t, result)
+
+		vals := getReturnValues(t, result)
+		handle, ok := vals[0].(*object.FileHandle)
+		if !ok {
+			t.Fatalf("expected FileHandle, got %T", vals[0])
+		}
+
+		closeFn(handle)
+
+		// Verify file was created
+		if _, err := os.Stat(path); os.IsNotExist(err) {
+			t.Error("file should have been created")
+		}
+	})
+
+	t.Run("open with custom permissions", func(t *testing.T) {
+		path := filepath.Join(dir, "open_perms.txt")
+		mode := &object.Integer{Value: int64(os.O_WRONLY | os.O_CREATE)}
+		perms := &object.Integer{Value: 0600}
+
+		result := openFn(&object.String{Value: path}, mode, perms)
+		assertNoError(t, result)
+
+		vals := getReturnValues(t, result)
+		handle := vals[0].(*object.FileHandle)
+		closeFn(handle)
+
+		// Verify permissions on Unix
+		if runtime.GOOS != "windows" {
+			info, _ := os.Stat(path)
+			if info.Mode().Perm() != 0600 {
+				t.Errorf("expected permissions 0600, got %o", info.Mode().Perm())
+			}
+		}
+	})
+
+	t.Run("open nonexistent file for reading", func(t *testing.T) {
+		result := openFn(&object.String{Value: filepath.Join(dir, "nonexistent.txt")})
+		assertHasError(t, result)
+	})
+
+	t.Run("empty path error", func(t *testing.T) {
+		result := openFn(&object.String{Value: ""})
+		rv := result.(*object.ReturnValue)
+		errStruct := rv.Values[1].(*object.Struct)
+		code := errStruct.Fields["code"].(*object.String)
+		if code.Value != "E7040" {
+			t.Errorf("expected E7040, got %s", code.Value)
+		}
+	})
+}
+
+func TestIOReadHandle(t *testing.T) {
+	dir, cleanup := createTempDir(t)
+	defer cleanup()
+
+	openFn := IOBuiltins["io.open"].Fn
+	readFn := IOBuiltins["io.read"].Fn
+	closeFn := IOBuiltins["io.close"].Fn
+
+	t.Run("read bytes from file", func(t *testing.T) {
+		content := "Hello, World!"
+		path := createTempFile(t, dir, "read_test.txt", content)
+
+		result := openFn(&object.String{Value: path})
+		assertNoError(t, result)
+		handle := getReturnValues(t, result)[0].(*object.FileHandle)
+
+		// Read 5 bytes
+		readResult := readFn(handle, &object.Integer{Value: 5})
+		assertNoError(t, readResult)
+
+		vals := getReturnValues(t, readResult)
+		arr, ok := vals[0].(*object.Array)
+		if !ok {
+			t.Fatalf("expected Array, got %T", vals[0])
+		}
+		if len(arr.Elements) != 5 {
+			t.Errorf("expected 5 bytes, got %d", len(arr.Elements))
+		}
+
+		// Verify content is "Hello"
+		expected := "Hello"
+		for i, elem := range arr.Elements {
+			b := elem.(*object.Byte)
+			if b.Value != expected[i] {
+				t.Errorf("byte %d: expected %c, got %c", i, expected[i], b.Value)
+			}
+		}
+
+		closeFn(handle)
+	})
+
+	t.Run("read from closed handle", func(t *testing.T) {
+		path := createTempFile(t, dir, "read_closed.txt", "content")
+
+		result := openFn(&object.String{Value: path})
+		handle := getReturnValues(t, result)[0].(*object.FileHandle)
+		closeFn(handle)
+
+		// Try to read from closed handle
+		readResult := readFn(handle, &object.Integer{Value: 5})
+		errStruct := assertHasError(t, readResult)
+		code := errStruct.Fields["code"].(*object.String)
+		if code.Value != "E7050" {
+			t.Errorf("expected E7050, got %s", code.Value)
+		}
+	})
+
+	t.Run("negative byte count", func(t *testing.T) {
+		path := createTempFile(t, dir, "read_negative.txt", "content")
+		result := openFn(&object.String{Value: path})
+		handle := getReturnValues(t, result)[0].(*object.FileHandle)
+
+		readResult := readFn(handle, &object.Integer{Value: -1})
+		_, ok := readResult.(*object.Error)
+		if !ok {
+			t.Errorf("expected Error for negative count, got %T", readResult)
+		}
+
+		closeFn(handle)
+	})
+}
+
+func TestIOReadAll(t *testing.T) {
+	dir, cleanup := createTempDir(t)
+	defer cleanup()
+
+	openFn := IOBuiltins["io.open"].Fn
+	readAllFn := IOBuiltins["io.read_all"].Fn
+	closeFn := IOBuiltins["io.close"].Fn
+
+	t.Run("read all bytes", func(t *testing.T) {
+		content := "Hello, World!"
+		path := createTempFile(t, dir, "readall.txt", content)
+
+		result := openFn(&object.String{Value: path})
+		handle := getReturnValues(t, result)[0].(*object.FileHandle)
+
+		readResult := readAllFn(handle)
+		assertNoError(t, readResult)
+
+		vals := getReturnValues(t, readResult)
+		arr := vals[0].(*object.Array)
+		if len(arr.Elements) != len(content) {
+			t.Errorf("expected %d bytes, got %d", len(content), len(arr.Elements))
+		}
+
+		closeFn(handle)
+	})
+
+	t.Run("read all from closed handle", func(t *testing.T) {
+		path := createTempFile(t, dir, "readall_closed.txt", "content")
+		result := openFn(&object.String{Value: path})
+		handle := getReturnValues(t, result)[0].(*object.FileHandle)
+		closeFn(handle)
+
+		readResult := readAllFn(handle)
+		errStruct := assertHasError(t, readResult)
+		code := errStruct.Fields["code"].(*object.String)
+		if code.Value != "E7050" {
+			t.Errorf("expected E7050, got %s", code.Value)
+		}
+	})
+}
+
+func TestIOReadString(t *testing.T) {
+	dir, cleanup := createTempDir(t)
+	defer cleanup()
+
+	openFn := IOBuiltins["io.open"].Fn
+	readStringFn := IOBuiltins["io.read_string"].Fn
+	closeFn := IOBuiltins["io.close"].Fn
+
+	t.Run("read string from file", func(t *testing.T) {
+		content := "Hello, World!"
+		path := createTempFile(t, dir, "readstring.txt", content)
+
+		result := openFn(&object.String{Value: path})
+		handle := getReturnValues(t, result)[0].(*object.FileHandle)
+
+		readResult := readStringFn(handle, &object.Integer{Value: 5})
+		assertNoError(t, readResult)
+
+		vals := getReturnValues(t, readResult)
+		str, ok := vals[0].(*object.String)
+		if !ok {
+			t.Fatalf("expected String, got %T", vals[0])
+		}
+		if str.Value != "Hello" {
+			t.Errorf("expected 'Hello', got %q", str.Value)
+		}
+
+		closeFn(handle)
+	})
+}
+
+func TestIOWriteHandle(t *testing.T) {
+	dir, cleanup := createTempDir(t)
+	defer cleanup()
+
+	openFn := IOBuiltins["io.open"].Fn
+	writeFn := IOBuiltins["io.write"].Fn
+	closeFn := IOBuiltins["io.close"].Fn
+
+	t.Run("write string to file", func(t *testing.T) {
+		path := filepath.Join(dir, "write_string.txt")
+		mode := &object.Integer{Value: int64(os.O_WRONLY | os.O_CREATE)}
+
+		result := openFn(&object.String{Value: path}, mode)
+		handle := getReturnValues(t, result)[0].(*object.FileHandle)
+
+		writeResult := writeFn(handle, &object.String{Value: "Hello, World!"})
+		assertNoError(t, writeResult)
+
+		vals := getReturnValues(t, writeResult)
+		bytesWritten, ok := vals[0].(*object.Integer)
+		if !ok {
+			t.Fatalf("expected Integer, got %T", vals[0])
+		}
+		if bytesWritten.Value != 13 {
+			t.Errorf("expected 13 bytes written, got %d", bytesWritten.Value)
+		}
+
+		closeFn(handle)
+
+		// Verify content
+		data, _ := os.ReadFile(path)
+		if string(data) != "Hello, World!" {
+			t.Errorf("expected 'Hello, World!', got %q", string(data))
+		}
+	})
+
+	t.Run("write byte array to file", func(t *testing.T) {
+		path := filepath.Join(dir, "write_bytes.txt")
+		mode := &object.Integer{Value: int64(os.O_WRONLY | os.O_CREATE)}
+
+		result := openFn(&object.String{Value: path}, mode)
+		handle := getReturnValues(t, result)[0].(*object.FileHandle)
+
+		byteArr := &object.Array{
+			Elements:    []object.Object{&object.Byte{Value: 0x48}, &object.Byte{Value: 0x69}},
+			ElementType: "byte",
+		}
+
+		writeResult := writeFn(handle, byteArr)
+		assertNoError(t, writeResult)
+
+		closeFn(handle)
+
+		// Verify content
+		data, _ := os.ReadFile(path)
+		if string(data) != "Hi" {
+			t.Errorf("expected 'Hi', got %q", string(data))
+		}
+	})
+
+	t.Run("write to closed handle", func(t *testing.T) {
+		path := filepath.Join(dir, "write_closed.txt")
+		mode := &object.Integer{Value: int64(os.O_WRONLY | os.O_CREATE)}
+
+		result := openFn(&object.String{Value: path}, mode)
+		handle := getReturnValues(t, result)[0].(*object.FileHandle)
+		closeFn(handle)
+
+		writeResult := writeFn(handle, &object.String{Value: "test"})
+		errStruct := assertHasError(t, writeResult)
+		code := errStruct.Fields["code"].(*object.String)
+		if code.Value != "E7050" {
+			t.Errorf("expected E7050, got %s", code.Value)
+		}
+	})
+}
+
+func TestIOSeekAndTell(t *testing.T) {
+	dir, cleanup := createTempDir(t)
+	defer cleanup()
+
+	openFn := IOBuiltins["io.open"].Fn
+	seekFn := IOBuiltins["io.seek"].Fn
+	tellFn := IOBuiltins["io.tell"].Fn
+	readStringFn := IOBuiltins["io.read_string"].Fn
+	closeFn := IOBuiltins["io.close"].Fn
+
+	t.Run("seek and read", func(t *testing.T) {
+		content := "Hello, World!"
+		path := createTempFile(t, dir, "seek_test.txt", content)
+
+		result := openFn(&object.String{Value: path})
+		handle := getReturnValues(t, result)[0].(*object.FileHandle)
+
+		// Seek to position 7
+		seekResult := seekFn(handle, &object.Integer{Value: 7}, &object.Integer{Value: 0}) // SEEK_START
+		assertNoError(t, seekResult)
+
+		vals := getReturnValues(t, seekResult)
+		pos := vals[0].(*object.Integer)
+		if pos.Value != 7 {
+			t.Errorf("expected position 7, got %d", pos.Value)
+		}
+
+		// Read from current position
+		readResult := readStringFn(handle, &object.Integer{Value: 5})
+		assertNoError(t, readResult)
+
+		str := getReturnValues(t, readResult)[0].(*object.String)
+		if str.Value != "World" {
+			t.Errorf("expected 'World', got %q", str.Value)
+		}
+
+		closeFn(handle)
+	})
+
+	t.Run("tell position", func(t *testing.T) {
+		content := "Hello"
+		path := createTempFile(t, dir, "tell_test.txt", content)
+
+		result := openFn(&object.String{Value: path})
+		handle := getReturnValues(t, result)[0].(*object.FileHandle)
+
+		// Initial position should be 0
+		tellResult := tellFn(handle)
+		assertNoError(t, tellResult)
+		pos := getReturnValues(t, tellResult)[0].(*object.Integer)
+		if pos.Value != 0 {
+			t.Errorf("expected position 0, got %d", pos.Value)
+		}
+
+		// Read 3 bytes
+		readStringFn(handle, &object.Integer{Value: 3})
+
+		// Position should now be 3
+		tellResult = tellFn(handle)
+		pos = getReturnValues(t, tellResult)[0].(*object.Integer)
+		if pos.Value != 3 {
+			t.Errorf("expected position 3, got %d", pos.Value)
+		}
+
+		closeFn(handle)
+	})
+
+	t.Run("seek from end", func(t *testing.T) {
+		content := "Hello"
+		path := createTempFile(t, dir, "seek_end.txt", content)
+
+		result := openFn(&object.String{Value: path})
+		handle := getReturnValues(t, result)[0].(*object.FileHandle)
+
+		// Seek to 2 bytes before end
+		seekResult := seekFn(handle, &object.Integer{Value: -2}, &object.Integer{Value: 2}) // SEEK_END
+		assertNoError(t, seekResult)
+
+		pos := getReturnValues(t, seekResult)[0].(*object.Integer)
+		if pos.Value != 3 {
+			t.Errorf("expected position 3, got %d", pos.Value)
+		}
+
+		closeFn(handle)
+	})
+
+	t.Run("seek on closed handle", func(t *testing.T) {
+		path := createTempFile(t, dir, "seek_closed.txt", "test")
+		result := openFn(&object.String{Value: path})
+		handle := getReturnValues(t, result)[0].(*object.FileHandle)
+		closeFn(handle)
+
+		seekResult := seekFn(handle, &object.Integer{Value: 0}, &object.Integer{Value: 0})
+		errStruct := assertHasError(t, seekResult)
+		code := errStruct.Fields["code"].(*object.String)
+		if code.Value != "E7050" {
+			t.Errorf("expected E7050, got %s", code.Value)
+		}
+	})
+
+	t.Run("tell on closed handle", func(t *testing.T) {
+		path := createTempFile(t, dir, "tell_closed.txt", "test")
+		result := openFn(&object.String{Value: path})
+		handle := getReturnValues(t, result)[0].(*object.FileHandle)
+		closeFn(handle)
+
+		tellResult := tellFn(handle)
+		errStruct := assertHasError(t, tellResult)
+		code := errStruct.Fields["code"].(*object.String)
+		if code.Value != "E7050" {
+			t.Errorf("expected E7050, got %s", code.Value)
+		}
+	})
+}
+
+func TestIOFlushAndClose(t *testing.T) {
+	dir, cleanup := createTempDir(t)
+	defer cleanup()
+
+	openFn := IOBuiltins["io.open"].Fn
+	writeFn := IOBuiltins["io.write"].Fn
+	flushFn := IOBuiltins["io.flush"].Fn
+	closeFn := IOBuiltins["io.close"].Fn
+
+	t.Run("flush written data", func(t *testing.T) {
+		path := filepath.Join(dir, "flush_test.txt")
+		mode := &object.Integer{Value: int64(os.O_WRONLY | os.O_CREATE)}
+
+		result := openFn(&object.String{Value: path}, mode)
+		handle := getReturnValues(t, result)[0].(*object.FileHandle)
+
+		writeFn(handle, &object.String{Value: "test"})
+
+		flushResult := flushFn(handle)
+		assertNoError(t, flushResult)
+
+		vals := getReturnValues(t, flushResult)
+		success := vals[0].(*object.Boolean)
+		if !success.Value {
+			t.Error("flush should return true")
+		}
+
+		closeFn(handle)
+	})
+
+	t.Run("close file handle", func(t *testing.T) {
+		path := createTempFile(t, dir, "close_test.txt", "content")
+
+		result := openFn(&object.String{Value: path})
+		handle := getReturnValues(t, result)[0].(*object.FileHandle)
+
+		if handle.IsClosed {
+			t.Error("handle should not be closed initially")
+		}
+
+		closeResult := closeFn(handle)
+		assertNoError(t, closeResult)
+
+		if !handle.IsClosed {
+			t.Error("handle should be closed after io.close()")
+		}
+	})
+
+	t.Run("close already closed handle succeeds", func(t *testing.T) {
+		path := createTempFile(t, dir, "close_twice.txt", "content")
+
+		result := openFn(&object.String{Value: path})
+		handle := getReturnValues(t, result)[0].(*object.FileHandle)
+
+		closeFn(handle)
+		closeResult := closeFn(handle)
+		assertNoError(t, closeResult)
+	})
+
+	t.Run("flush on closed handle", func(t *testing.T) {
+		path := createTempFile(t, dir, "flush_closed.txt", "content")
+
+		result := openFn(&object.String{Value: path})
+		handle := getReturnValues(t, result)[0].(*object.FileHandle)
+		closeFn(handle)
+
+		flushResult := flushFn(handle)
+		errStruct := assertHasError(t, flushResult)
+		code := errStruct.Fields["code"].(*object.String)
+		if code.Value != "E7050" {
+			t.Errorf("expected E7050, got %s", code.Value)
+		}
+	})
+}
+
+func TestIOFileHandleInspect(t *testing.T) {
+	dir, cleanup := createTempDir(t)
+	defer cleanup()
+
+	openFn := IOBuiltins["io.open"].Fn
+	closeFn := IOBuiltins["io.close"].Fn
+
+	t.Run("open handle inspect", func(t *testing.T) {
+		path := createTempFile(t, dir, "inspect.txt", "content")
+
+		result := openFn(&object.String{Value: path})
+		handle := getReturnValues(t, result)[0].(*object.FileHandle)
+
+		inspect := handle.Inspect()
+		if inspect != "<FileHandle "+path+">" {
+			t.Errorf("expected '<FileHandle %s>', got %q", path, inspect)
+		}
+
+		closeFn(handle)
+	})
+
+	t.Run("closed handle inspect", func(t *testing.T) {
+		path := createTempFile(t, dir, "inspect_closed.txt", "content")
+
+		result := openFn(&object.String{Value: path})
+		handle := getReturnValues(t, result)[0].(*object.FileHandle)
+		closeFn(handle)
+
+		inspect := handle.Inspect()
+		if inspect != "<FileHandle(closed) "+path+">" {
+			t.Errorf("expected '<FileHandle(closed) %s>', got %q", path, inspect)
+		}
+	})
+}
+
+// ============================================================================
+// File Handle Integration Tests
+// ============================================================================
+
+func TestIOFileHandleIntegration(t *testing.T) {
+	dir, cleanup := createTempDir(t)
+	defer cleanup()
+
+	openFn := IOBuiltins["io.open"].Fn
+	readFn := IOBuiltins["io.read"].Fn
+	writeFn := IOBuiltins["io.write"].Fn
+	seekFn := IOBuiltins["io.seek"].Fn
+	closeFn := IOBuiltins["io.close"].Fn
+
+	t.Run("write then read with seek", func(t *testing.T) {
+		path := filepath.Join(dir, "rw_test.txt")
+		mode := &object.Integer{Value: int64(os.O_RDWR | os.O_CREATE)}
+
+		// Open for read/write
+		result := openFn(&object.String{Value: path}, mode)
+		handle := getReturnValues(t, result)[0].(*object.FileHandle)
+
+		// Write data
+		writeFn(handle, &object.String{Value: "Hello, World!"})
+
+		// Seek back to start
+		seekFn(handle, &object.Integer{Value: 0}, &object.Integer{Value: 0})
+
+		// Read data back
+		readResult := readFn(handle, &object.Integer{Value: 5})
+		assertNoError(t, readResult)
+
+		arr := getReturnValues(t, readResult)[0].(*object.Array)
+		result_str := ""
+		for _, elem := range arr.Elements {
+			result_str += string(elem.(*object.Byte).Value)
+		}
+		if result_str != "Hello" {
+			t.Errorf("expected 'Hello', got %q", result_str)
+		}
+
+		closeFn(handle)
+	})
+
+	t.Run("append mode", func(t *testing.T) {
+		path := createTempFile(t, dir, "append_test.txt", "Hello")
+
+		// Open in append mode
+		mode := &object.Integer{Value: int64(os.O_WRONLY | os.O_APPEND)}
+		result := openFn(&object.String{Value: path}, mode)
+		handle := getReturnValues(t, result)[0].(*object.FileHandle)
+
+		// Write more data
+		writeFn(handle, &object.String{Value: ", World!"})
+		closeFn(handle)
+
+		// Verify content
+		data, _ := os.ReadFile(path)
+		if string(data) != "Hello, World!" {
+			t.Errorf("expected 'Hello, World!', got %q", string(data))
+		}
+	})
+}
+
+// ============================================================================
+// Phase 6: Convenience Functions Tests
+// ============================================================================
+
+func TestIOReadLines(t *testing.T) {
+	dir, cleanup := createTempDir(t)
+	defer cleanup()
+
+	readLinesFn := IOBuiltins["io.read_lines"].Fn
+
+	t.Run("read multiple lines", func(t *testing.T) {
+		content := "line1\nline2\nline3"
+		path := createTempFile(t, dir, "lines.txt", content)
+
+		result := readLinesFn(&object.String{Value: path})
+		assertNoError(t, result)
+
+		vals := getReturnValues(t, result)
+		arr, ok := vals[0].(*object.Array)
+		if !ok {
+			t.Fatalf("expected Array, got %T", vals[0])
+		}
+		if len(arr.Elements) != 3 {
+			t.Errorf("expected 3 lines, got %d", len(arr.Elements))
+		}
+		if arr.Elements[0].(*object.String).Value != "line1" {
+			t.Errorf("expected 'line1', got %q", arr.Elements[0].(*object.String).Value)
+		}
+	})
+
+	t.Run("handle CRLF line endings", func(t *testing.T) {
+		content := "line1\r\nline2\r\nline3"
+		path := createTempFile(t, dir, "crlf.txt", content)
+
+		result := readLinesFn(&object.String{Value: path})
+		assertNoError(t, result)
+
+		vals := getReturnValues(t, result)
+		arr := vals[0].(*object.Array)
+		if len(arr.Elements) != 3 {
+			t.Errorf("expected 3 lines, got %d", len(arr.Elements))
+		}
+	})
+
+	t.Run("handle trailing newline", func(t *testing.T) {
+		content := "line1\nline2\n"
+		path := createTempFile(t, dir, "trailing.txt", content)
+
+		result := readLinesFn(&object.String{Value: path})
+		assertNoError(t, result)
+
+		vals := getReturnValues(t, result)
+		arr := vals[0].(*object.Array)
+		if len(arr.Elements) != 2 {
+			t.Errorf("expected 2 lines, got %d", len(arr.Elements))
+		}
+	})
+
+	t.Run("empty file", func(t *testing.T) {
+		path := createTempFile(t, dir, "empty.txt", "")
+
+		result := readLinesFn(&object.String{Value: path})
+		assertNoError(t, result)
+
+		vals := getReturnValues(t, result)
+		arr := vals[0].(*object.Array)
+		if len(arr.Elements) != 0 {
+			t.Errorf("expected 0 lines, got %d", len(arr.Elements))
+		}
+	})
+
+	t.Run("directory error", func(t *testing.T) {
+		result := readLinesFn(&object.String{Value: dir})
+		errStruct := assertHasError(t, result)
+		code := errStruct.Fields["code"].(*object.String)
+		if code.Value != "E7042" {
+			t.Errorf("expected E7042, got %s", code.Value)
+		}
+	})
+}
+
+func TestIOAppendLine(t *testing.T) {
+	dir, cleanup := createTempDir(t)
+	defer cleanup()
+
+	appendLineFn := IOBuiltins["io.append_line"].Fn
+
+	t.Run("append to new file", func(t *testing.T) {
+		path := filepath.Join(dir, "newfile.txt")
+
+		result := appendLineFn(&object.String{Value: path}, &object.String{Value: "first line"})
+		assertNoError(t, result)
+
+		data, err := os.ReadFile(path)
+		if err != nil {
+			t.Fatalf("failed to read file: %v", err)
+		}
+		if string(data) != "first line\n" {
+			t.Errorf("expected 'first line\\n', got %q", string(data))
+		}
+	})
+
+	t.Run("append multiple lines", func(t *testing.T) {
+		path := filepath.Join(dir, "multiline.txt")
+
+		appendLineFn(&object.String{Value: path}, &object.String{Value: "line1"})
+		appendLineFn(&object.String{Value: path}, &object.String{Value: "line2"})
+		appendLineFn(&object.String{Value: path}, &object.String{Value: "line3"})
+
+		data, _ := os.ReadFile(path)
+		expected := "line1\nline2\nline3\n"
+		if string(data) != expected {
+			t.Errorf("expected %q, got %q", expected, string(data))
+		}
+	})
+
+	t.Run("with custom permissions", func(t *testing.T) {
+		path := filepath.Join(dir, "perms.txt")
+
+		result := appendLineFn(
+			&object.String{Value: path},
+			&object.String{Value: "test"},
+			&object.Integer{Value: 0600},
+		)
+		assertNoError(t, result)
+
+		if runtime.GOOS != "windows" {
+			info, _ := os.Stat(path)
+			if info.Mode().Perm() != 0600 {
+				t.Errorf("expected permissions 0600, got %o", info.Mode().Perm())
+			}
+		}
+	})
+}
+
+func TestIOExpandPath(t *testing.T) {
+	expandPathFn := IOBuiltins["io.expand_path"].Fn
+
+	t.Run("expand home directory", func(t *testing.T) {
+		result := expandPathFn(&object.String{Value: "~/test"})
+		str, ok := result.(*object.String)
+		if !ok {
+			t.Fatalf("expected String, got %T", result)
+		}
+
+		home, _ := os.UserHomeDir()
+		expected := filepath.Join(home, "test")
+		if str.Value != expected {
+			t.Errorf("expected %q, got %q", expected, str.Value)
+		}
+	})
+
+	t.Run("clean path", func(t *testing.T) {
+		result := expandPathFn(&object.String{Value: "/foo/bar/../baz"})
+		str := result.(*object.String)
+		expected := filepath.Clean("/foo/bar/../baz")
+		if str.Value != expected {
+			t.Errorf("expected %q, got %q", expected, str.Value)
+		}
+	})
+
+	t.Run("no expansion needed", func(t *testing.T) {
+		result := expandPathFn(&object.String{Value: "/absolute/path"})
+		str := result.(*object.String)
+		if str.Value != "/absolute/path" {
+			t.Errorf("expected '/absolute/path', got %q", str.Value)
+		}
+	})
+}
+
+// ============================================================================
+// Phase 6: Optional Permissions Tests
+// ============================================================================
+
+func TestIOWriteFileWithPerms(t *testing.T) {
+	dir, cleanup := createTempDir(t)
+	defer cleanup()
+
+	writeFileFn := IOBuiltins["io.write_file"].Fn
+
+	t.Run("write with custom permissions", func(t *testing.T) {
+		path := filepath.Join(dir, "perms_write.txt")
+
+		result := writeFileFn(
+			&object.String{Value: path},
+			&object.String{Value: "test content"},
+			&object.Integer{Value: 0600},
+		)
+		assertNoError(t, result)
+
+		if runtime.GOOS != "windows" {
+			info, _ := os.Stat(path)
+			if info.Mode().Perm() != 0600 {
+				t.Errorf("expected permissions 0600, got %o", info.Mode().Perm())
+			}
+		}
+	})
+
+	t.Run("default permissions", func(t *testing.T) {
+		path := filepath.Join(dir, "default_perms.txt")
+
+		result := writeFileFn(
+			&object.String{Value: path},
+			&object.String{Value: "test content"},
+		)
+		assertNoError(t, result)
+
+		if runtime.GOOS != "windows" {
+			info, _ := os.Stat(path)
+			if info.Mode().Perm() != 0644 {
+				t.Errorf("expected permissions 0644, got %o", info.Mode().Perm())
+			}
+		}
+	})
+}
+
+func TestIOMkdirWithPerms(t *testing.T) {
+	dir, cleanup := createTempDir(t)
+	defer cleanup()
+
+	mkdirFn := IOBuiltins["io.mkdir"].Fn
+
+	t.Run("mkdir with custom permissions", func(t *testing.T) {
+		path := filepath.Join(dir, "custom_perms_dir")
+
+		result := mkdirFn(
+			&object.String{Value: path},
+			&object.Integer{Value: 0700},
+		)
+		assertNoError(t, result)
+
+		if runtime.GOOS != "windows" {
+			info, _ := os.Stat(path)
+			if info.Mode().Perm() != 0700 {
+				t.Errorf("expected permissions 0700, got %o", info.Mode().Perm())
+			}
+		}
+	})
+}
+
+func TestIOMkdirAllWithPerms(t *testing.T) {
+	dir, cleanup := createTempDir(t)
+	defer cleanup()
+
+	mkdirAllFn := IOBuiltins["io.mkdir_all"].Fn
+
+	t.Run("mkdir_all with custom permissions", func(t *testing.T) {
+		path := filepath.Join(dir, "a", "b", "c")
+
+		result := mkdirAllFn(
+			&object.String{Value: path},
+			&object.Integer{Value: 0700},
+		)
+		assertNoError(t, result)
+
+		if runtime.GOOS != "windows" {
+			info, _ := os.Stat(path)
+			if info.Mode().Perm() != 0700 {
+				t.Errorf("expected permissions 0700, got %o", info.Mode().Perm())
+			}
+		}
+	})
+}
+
+func TestIOCopyWithPerms(t *testing.T) {
+	dir, cleanup := createTempDir(t)
+	defer cleanup()
+
+	copyFn := IOBuiltins["io.copy"].Fn
+
+	t.Run("copy with custom permissions", func(t *testing.T) {
+		srcPath := createTempFile(t, dir, "source.txt", "content")
+		dstPath := filepath.Join(dir, "dest.txt")
+
+		result := copyFn(
+			&object.String{Value: srcPath},
+			&object.String{Value: dstPath},
+			&object.Integer{Value: 0600},
+		)
+		assertNoError(t, result)
+
+		if runtime.GOOS != "windows" {
+			info, _ := os.Stat(dstPath)
+			if info.Mode().Perm() != 0600 {
+				t.Errorf("expected permissions 0600, got %o", info.Mode().Perm())
+			}
+		}
+	})
+
+	t.Run("copy preserves source permissions by default", func(t *testing.T) {
+		srcPath := filepath.Join(dir, "source_perm.txt")
+		os.WriteFile(srcPath, []byte("content"), 0755)
+		dstPath := filepath.Join(dir, "dest_perm.txt")
+
+		result := copyFn(
+			&object.String{Value: srcPath},
+			&object.String{Value: dstPath},
+		)
+		assertNoError(t, result)
+
+		if runtime.GOOS != "windows" {
+			srcInfo, _ := os.Stat(srcPath)
+			dstInfo, _ := os.Stat(dstPath)
+			if srcInfo.Mode().Perm() != dstInfo.Mode().Perm() {
+				t.Errorf("expected permissions %o, got %o", srcInfo.Mode().Perm(), dstInfo.Mode().Perm())
 			}
 		}
 	})

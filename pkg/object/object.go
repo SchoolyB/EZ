@@ -5,6 +5,7 @@ package object
 
 import (
 	"fmt"
+	"os"
 	"strings"
 
 	"github.com/marshallburns/ez/pkg/ast"
@@ -32,6 +33,7 @@ const (
 	ENUM_OBJ         ObjectType = "ENUM"
 	ENUM_VALUE_OBJ   ObjectType = "ENUM_VALUE"
 	MODULE_OBJ       ObjectType = "MODULE"
+	FILE_HANDLE_OBJ  ObjectType = "FILE_HANDLE"
 )
 
 type Object interface {
@@ -94,6 +96,22 @@ type Byte struct {
 
 func (b *Byte) Type() ObjectType { return BYTE_OBJ }
 func (b *Byte) Inspect() string  { return fmt.Sprintf("%d", b.Value) }
+
+// FileHandle wraps an open file handle for streaming I/O
+type FileHandle struct {
+	File     *os.File
+	Path     string // Original path used to open the file
+	Mode     int    // Open mode flags
+	IsClosed bool   // Track if handle has been closed
+}
+
+func (fh *FileHandle) Type() ObjectType { return FILE_HANDLE_OBJ }
+func (fh *FileHandle) Inspect() string {
+	if fh.IsClosed {
+		return fmt.Sprintf("<FileHandle(closed) %s>", fh.Path)
+	}
+	return fmt.Sprintf("<FileHandle %s>", fh.Path)
+}
 
 // Boolean wraps bool
 type Boolean struct {
