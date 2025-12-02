@@ -18,6 +18,7 @@ type (
 	Float           = object.Float
 	String          = object.String
 	Char            = object.Char
+	Byte            = object.Byte
 	Boolean         = object.Boolean
 	Nil             = object.Nil
 	ReturnValue     = object.ReturnValue
@@ -44,6 +45,7 @@ const (
 	FLOAT_OBJ        = object.FLOAT_OBJ
 	STRING_OBJ       = object.STRING_OBJ
 	CHAR_OBJ         = object.CHAR_OBJ
+	BYTE_OBJ         = object.BYTE_OBJ
 	BOOLEAN_OBJ      = object.BOOLEAN_OBJ
 	NIL_OBJ          = object.NIL_OBJ
 	RETURN_VALUE_OBJ = object.RETURN_VALUE_OBJ

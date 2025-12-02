@@ -34,6 +34,15 @@ func GetAllBuiltins() map[string]*object.Builtin {
 	for name, builtin := range MapsBuiltins {
 		all[name] = builtin
 	}
+	for name, builtin := range IOBuiltins {
+		all[name] = builtin
+	}
+	for name, builtin := range OSBuiltins {
+		all[name] = builtin
+	}
+	for name, builtin := range BytesBuiltins {
+		all[name] = builtin
+	}
 
 	return all
 }

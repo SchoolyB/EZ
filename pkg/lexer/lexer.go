@@ -328,6 +328,54 @@ func (l *Lexer) readNumber() (string, tokenizer.TokenType) {
 	startColumn := l.column
 	tokenType := tokenizer.INT
 
+	// Check for hex (0x/0X) or binary (0b/0B) prefix
+	if l.ch == '0' {
+		next := l.peekChar()
+		if next == 'x' || next == 'X' {
+			// Hex literal
+			l.readChar() // consume '0'
+			l.readChar() // consume 'x'
+			if !isHexDigit(l.ch) {
+				l.addError("E1010", "invalid hex literal: expected hex digit after 0x", startLine, startColumn)
+				return l.input[position:l.position], tokenizer.INT
+			}
+			for isHexDigit(l.ch) || l.ch == '_' {
+				if l.ch == '_' {
+					next := l.peekChar()
+					if next == '_' {
+						l.addError("E1011", "consecutive underscores not allowed in numeric literals", startLine, startColumn)
+					}
+					if !isHexDigit(next) {
+						l.addError("E1013", "numeric literal cannot end with underscore", startLine, startColumn)
+					}
+				}
+				l.readChar()
+			}
+			return l.input[position:l.position], tokenizer.INT
+		} else if next == 'b' || next == 'B' {
+			// Binary literal
+			l.readChar() // consume '0'
+			l.readChar() // consume 'b'
+			if l.ch != '0' && l.ch != '1' {
+				l.addError("E1010", "invalid binary literal: expected 0 or 1 after 0b", startLine, startColumn)
+				return l.input[position:l.position], tokenizer.INT
+			}
+			for l.ch == '0' || l.ch == '1' || l.ch == '_' {
+				if l.ch == '_' {
+					next := l.peekChar()
+					if next == '_' {
+						l.addError("E1011", "consecutive underscores not allowed in numeric literals", startLine, startColumn)
+					}
+					if next != '0' && next != '1' {
+						l.addError("E1013", "numeric literal cannot end with underscore", startLine, startColumn)
+					}
+				}
+				l.readChar()
+			}
+			return l.input[position:l.position], tokenizer.INT
+		}
+	}
+
 	// Read integer part (digits and underscores)
 	for isDigit(l.ch) || l.ch == '_' {
 		if l.ch == '_' {
@@ -533,4 +581,8 @@ func isLetter(ch byte) bool {
 
 func isDigit(ch byte) bool {
 	return '0' <= ch && ch <= '9'
+}
+
+func isHexDigit(ch byte) bool {
+	return ('0' <= ch && ch <= '9') || ('a' <= ch && ch <= 'f') || ('A' <= ch && ch <= 'F')
 }

@@ -533,7 +533,7 @@ func TestEnvironmentScopeChain(t *testing.T) {
 
 func TestEnvironmentUpdate(t *testing.T) {
 	env := NewEnvironment()
-	env.Set("x", &Integer{Value: 1}, true) // mutable
+	env.Set("x", &Integer{Value: 1}, true)  // mutable
 	env.Set("y", &Integer{Value: 2}, false) // immutable
 
 	// Update mutable
