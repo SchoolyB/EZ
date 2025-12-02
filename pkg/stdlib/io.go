@@ -24,11 +24,11 @@ var IOBuiltins = map[string]*object.Builtin{
 	"io.read_file": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 1 {
-				return &object.Error{Code: "E8001", Message: "io.read_file() takes exactly 1 argument (path)"}
+				return &object.Error{Code: "E7001", Message: "io.read_file() takes exactly 1 argument (path)"}
 			}
 			path, ok := args[0].(*object.String)
 			if !ok {
-				return &object.Error{Code: "E8002", Message: "io.read_file() requires a string path"}
+				return &object.Error{Code: "E7003", Message: "io.read_file() requires a string path"}
 			}
 
 			content, err := os.ReadFile(path.Value)
@@ -52,15 +52,15 @@ var IOBuiltins = map[string]*object.Builtin{
 	"io.write_file": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 2 {
-				return &object.Error{Code: "E8001", Message: "io.write_file() takes exactly 2 arguments (path, content)"}
+				return &object.Error{Code: "E7001", Message: "io.write_file() takes exactly 2 arguments (path, content)"}
 			}
 			path, ok := args[0].(*object.String)
 			if !ok {
-				return &object.Error{Code: "E8002", Message: "io.write_file() requires a string path as first argument"}
+				return &object.Error{Code: "E7003", Message: "io.write_file() requires a string path as first argument"}
 			}
 			content, ok := args[1].(*object.String)
 			if !ok {
-				return &object.Error{Code: "E8003", Message: "io.write_file() requires a string content as second argument"}
+				return &object.Error{Code: "E7003", Message: "io.write_file() requires a string content as second argument"}
 			}
 
 			err := os.WriteFile(path.Value, []byte(content.Value), 0644)
@@ -80,15 +80,15 @@ var IOBuiltins = map[string]*object.Builtin{
 	"io.append_file": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 2 {
-				return &object.Error{Code: "E8001", Message: "io.append_file() takes exactly 2 arguments (path, content)"}
+				return &object.Error{Code: "E7001", Message: "io.append_file() takes exactly 2 arguments (path, content)"}
 			}
 			path, ok := args[0].(*object.String)
 			if !ok {
-				return &object.Error{Code: "E8002", Message: "io.append_file() requires a string path as first argument"}
+				return &object.Error{Code: "E7003", Message: "io.append_file() requires a string path as first argument"}
 			}
 			content, ok := args[1].(*object.String)
 			if !ok {
-				return &object.Error{Code: "E8003", Message: "io.append_file() requires a string content as second argument"}
+				return &object.Error{Code: "E7003", Message: "io.append_file() requires a string content as second argument"}
 			}
 
 			f, err := os.OpenFile(path.Value, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
@@ -117,11 +117,11 @@ var IOBuiltins = map[string]*object.Builtin{
 	"io.exists": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 1 {
-				return &object.Error{Code: "E8001", Message: "io.exists() takes exactly 1 argument (path)"}
+				return &object.Error{Code: "E7001", Message: "io.exists() takes exactly 1 argument (path)"}
 			}
 			path, ok := args[0].(*object.String)
 			if !ok {
-				return &object.Error{Code: "E8002", Message: "io.exists() requires a string path"}
+				return &object.Error{Code: "E7003", Message: "io.exists() requires a string path"}
 			}
 
 			_, err := os.Stat(path.Value)
@@ -140,11 +140,11 @@ var IOBuiltins = map[string]*object.Builtin{
 	"io.is_file": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 1 {
-				return &object.Error{Code: "E8001", Message: "io.is_file() takes exactly 1 argument (path)"}
+				return &object.Error{Code: "E7001", Message: "io.is_file() takes exactly 1 argument (path)"}
 			}
 			path, ok := args[0].(*object.String)
 			if !ok {
-				return &object.Error{Code: "E8002", Message: "io.is_file() requires a string path"}
+				return &object.Error{Code: "E7003", Message: "io.is_file() requires a string path"}
 			}
 
 			info, err := os.Stat(path.Value)
@@ -162,11 +162,11 @@ var IOBuiltins = map[string]*object.Builtin{
 	"io.is_dir": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 1 {
-				return &object.Error{Code: "E8001", Message: "io.is_dir() takes exactly 1 argument (path)"}
+				return &object.Error{Code: "E7001", Message: "io.is_dir() takes exactly 1 argument (path)"}
 			}
 			path, ok := args[0].(*object.String)
 			if !ok {
-				return &object.Error{Code: "E8002", Message: "io.is_dir() requires a string path"}
+				return &object.Error{Code: "E7003", Message: "io.is_dir() requires a string path"}
 			}
 
 			info, err := os.Stat(path.Value)
@@ -189,11 +189,11 @@ var IOBuiltins = map[string]*object.Builtin{
 	"io.remove": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 1 {
-				return &object.Error{Code: "E8001", Message: "io.remove() takes exactly 1 argument (path)"}
+				return &object.Error{Code: "E7001", Message: "io.remove() takes exactly 1 argument (path)"}
 			}
 			path, ok := args[0].(*object.String)
 			if !ok {
-				return &object.Error{Code: "E8002", Message: "io.remove() requires a string path"}
+				return &object.Error{Code: "E7003", Message: "io.remove() requires a string path"}
 			}
 
 			// Check if it's a directory - if so, don't allow removal with this function
@@ -204,7 +204,7 @@ var IOBuiltins = map[string]*object.Builtin{
 			if info.IsDir() {
 				return &object.ReturnValue{Values: []object.Object{
 					object.FALSE,
-					createIOError("E8006", "io.remove() cannot remove directories, use io.remove_dir() instead"),
+					createIOError("E7018", "io.remove() cannot remove directories, use io.remove_dir() instead"),
 				}}
 			}
 
@@ -225,11 +225,11 @@ var IOBuiltins = map[string]*object.Builtin{
 	"io.remove_dir": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 1 {
-				return &object.Error{Code: "E8001", Message: "io.remove_dir() takes exactly 1 argument (path)"}
+				return &object.Error{Code: "E7001", Message: "io.remove_dir() takes exactly 1 argument (path)"}
 			}
 			path, ok := args[0].(*object.String)
 			if !ok {
-				return &object.Error{Code: "E8002", Message: "io.remove_dir() requires a string path"}
+				return &object.Error{Code: "E7003", Message: "io.remove_dir() requires a string path"}
 			}
 
 			// Check if it's actually a directory
@@ -240,7 +240,7 @@ var IOBuiltins = map[string]*object.Builtin{
 			if !info.IsDir() {
 				return &object.ReturnValue{Values: []object.Object{
 					object.FALSE,
-					createIOError("E8007", "io.remove_dir() can only remove directories, use io.remove() for files"),
+					createIOError("E7019", "io.remove_dir() can only remove directories, use io.remove() for files"),
 				}}
 			}
 
@@ -261,11 +261,11 @@ var IOBuiltins = map[string]*object.Builtin{
 	"io.remove_all": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 1 {
-				return &object.Error{Code: "E8001", Message: "io.remove_all() takes exactly 1 argument (path)"}
+				return &object.Error{Code: "E7001", Message: "io.remove_all() takes exactly 1 argument (path)"}
 			}
 			path, ok := args[0].(*object.String)
 			if !ok {
-				return &object.Error{Code: "E8002", Message: "io.remove_all() requires a string path"}
+				return &object.Error{Code: "E7003", Message: "io.remove_all() requires a string path"}
 			}
 
 			// Safety check: don't allow removing root or home directory
@@ -278,7 +278,7 @@ var IOBuiltins = map[string]*object.Builtin{
 			if absPath == "/" || absPath == filepath.Clean(os.Getenv("HOME")) {
 				return &object.ReturnValue{Values: []object.Object{
 					object.FALSE,
-					createIOError("E8008", "io.remove_all() cannot remove root or home directory for safety"),
+					createIOError("E7020", "io.remove_all() cannot remove root or home directory for safety"),
 				}}
 			}
 
@@ -299,15 +299,15 @@ var IOBuiltins = map[string]*object.Builtin{
 	"io.rename": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 2 {
-				return &object.Error{Code: "E8001", Message: "io.rename() takes exactly 2 arguments (old_path, new_path)"}
+				return &object.Error{Code: "E7001", Message: "io.rename() takes exactly 2 arguments (old_path, new_path)"}
 			}
 			oldPath, ok := args[0].(*object.String)
 			if !ok {
-				return &object.Error{Code: "E8002", Message: "io.rename() requires a string as first argument (old_path)"}
+				return &object.Error{Code: "E7003", Message: "io.rename() requires a string as first argument (old_path)"}
 			}
 			newPath, ok := args[1].(*object.String)
 			if !ok {
-				return &object.Error{Code: "E8002", Message: "io.rename() requires a string as second argument (new_path)"}
+				return &object.Error{Code: "E7003", Message: "io.rename() requires a string as second argument (new_path)"}
 			}
 
 			err := os.Rename(oldPath.Value, newPath.Value)
@@ -327,15 +327,15 @@ var IOBuiltins = map[string]*object.Builtin{
 	"io.copy": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 2 {
-				return &object.Error{Code: "E8001", Message: "io.copy() takes exactly 2 arguments (source, destination)"}
+				return &object.Error{Code: "E7001", Message: "io.copy() takes exactly 2 arguments (source, destination)"}
 			}
 			srcPath, ok := args[0].(*object.String)
 			if !ok {
-				return &object.Error{Code: "E8002", Message: "io.copy() requires a string as first argument (source)"}
+				return &object.Error{Code: "E7003", Message: "io.copy() requires a string as first argument (source)"}
 			}
 			dstPath, ok := args[1].(*object.String)
 			if !ok {
-				return &object.Error{Code: "E8002", Message: "io.copy() requires a string as second argument (destination)"}
+				return &object.Error{Code: "E7003", Message: "io.copy() requires a string as second argument (destination)"}
 			}
 
 			// Check source exists and is a file
@@ -346,7 +346,7 @@ var IOBuiltins = map[string]*object.Builtin{
 			if srcInfo.IsDir() {
 				return &object.ReturnValue{Values: []object.Object{
 					object.FALSE,
-					createIOError("E8009", "io.copy() cannot copy directories, only files"),
+					createIOError("E7021", "io.copy() cannot copy directories, only files"),
 				}}
 			}
 
@@ -393,11 +393,11 @@ var IOBuiltins = map[string]*object.Builtin{
 	"io.mkdir": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 1 {
-				return &object.Error{Code: "E8001", Message: "io.mkdir() takes exactly 1 argument (path)"}
+				return &object.Error{Code: "E7001", Message: "io.mkdir() takes exactly 1 argument (path)"}
 			}
 			path, ok := args[0].(*object.String)
 			if !ok {
-				return &object.Error{Code: "E8002", Message: "io.mkdir() requires a string path"}
+				return &object.Error{Code: "E7003", Message: "io.mkdir() requires a string path"}
 			}
 
 			err := os.Mkdir(path.Value, 0755)
@@ -417,11 +417,11 @@ var IOBuiltins = map[string]*object.Builtin{
 	"io.mkdir_all": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 1 {
-				return &object.Error{Code: "E8001", Message: "io.mkdir_all() takes exactly 1 argument (path)"}
+				return &object.Error{Code: "E7001", Message: "io.mkdir_all() takes exactly 1 argument (path)"}
 			}
 			path, ok := args[0].(*object.String)
 			if !ok {
-				return &object.Error{Code: "E8002", Message: "io.mkdir_all() requires a string path"}
+				return &object.Error{Code: "E7003", Message: "io.mkdir_all() requires a string path"}
 			}
 
 			err := os.MkdirAll(path.Value, 0755)
@@ -441,11 +441,11 @@ var IOBuiltins = map[string]*object.Builtin{
 	"io.read_dir": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 1 {
-				return &object.Error{Code: "E8001", Message: "io.read_dir() takes exactly 1 argument (path)"}
+				return &object.Error{Code: "E7001", Message: "io.read_dir() takes exactly 1 argument (path)"}
 			}
 			path, ok := args[0].(*object.String)
 			if !ok {
-				return &object.Error{Code: "E8002", Message: "io.read_dir() requires a string path"}
+				return &object.Error{Code: "E7003", Message: "io.read_dir() requires a string path"}
 			}
 
 			entries, err := os.ReadDir(path.Value)
@@ -474,11 +474,11 @@ var IOBuiltins = map[string]*object.Builtin{
 	"io.file_size": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 1 {
-				return &object.Error{Code: "E8001", Message: "io.file_size() takes exactly 1 argument (path)"}
+				return &object.Error{Code: "E7001", Message: "io.file_size() takes exactly 1 argument (path)"}
 			}
 			path, ok := args[0].(*object.String)
 			if !ok {
-				return &object.Error{Code: "E8002", Message: "io.file_size() requires a string path"}
+				return &object.Error{Code: "E7003", Message: "io.file_size() requires a string path"}
 			}
 
 			info, err := os.Stat(path.Value)
@@ -498,11 +498,11 @@ var IOBuiltins = map[string]*object.Builtin{
 	"io.file_mod_time": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 1 {
-				return &object.Error{Code: "E8001", Message: "io.file_mod_time() takes exactly 1 argument (path)"}
+				return &object.Error{Code: "E7001", Message: "io.file_mod_time() takes exactly 1 argument (path)"}
 			}
 			path, ok := args[0].(*object.String)
 			if !ok {
-				return &object.Error{Code: "E8002", Message: "io.file_mod_time() requires a string path"}
+				return &object.Error{Code: "E7003", Message: "io.file_mod_time() requires a string path"}
 			}
 
 			info, err := os.Stat(path.Value)
@@ -525,14 +525,14 @@ var IOBuiltins = map[string]*object.Builtin{
 	"io.path_join": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) < 1 {
-				return &object.Error{Code: "E8001", Message: "io.path_join() takes at least 1 argument"}
+				return &object.Error{Code: "E7001", Message: "io.path_join() takes at least 1 argument"}
 			}
 
 			parts := make([]string, len(args))
 			for i, arg := range args {
 				str, ok := arg.(*object.String)
 				if !ok {
-					return &object.Error{Code: "E8002", Message: fmt.Sprintf("io.path_join() argument %d must be a string", i+1)}
+					return &object.Error{Code: "E7003", Message: fmt.Sprintf("io.path_join() argument %d must be a string", i+1)}
 				}
 				parts[i] = str.Value
 			}
@@ -545,11 +545,11 @@ var IOBuiltins = map[string]*object.Builtin{
 	"io.path_base": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 1 {
-				return &object.Error{Code: "E8001", Message: "io.path_base() takes exactly 1 argument (path)"}
+				return &object.Error{Code: "E7001", Message: "io.path_base() takes exactly 1 argument (path)"}
 			}
 			path, ok := args[0].(*object.String)
 			if !ok {
-				return &object.Error{Code: "E8002", Message: "io.path_base() requires a string path"}
+				return &object.Error{Code: "E7003", Message: "io.path_base() requires a string path"}
 			}
 
 			return &object.String{Value: filepath.Base(path.Value)}
@@ -560,11 +560,11 @@ var IOBuiltins = map[string]*object.Builtin{
 	"io.path_dir": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 1 {
-				return &object.Error{Code: "E8001", Message: "io.path_dir() takes exactly 1 argument (path)"}
+				return &object.Error{Code: "E7001", Message: "io.path_dir() takes exactly 1 argument (path)"}
 			}
 			path, ok := args[0].(*object.String)
 			if !ok {
-				return &object.Error{Code: "E8002", Message: "io.path_dir() requires a string path"}
+				return &object.Error{Code: "E7003", Message: "io.path_dir() requires a string path"}
 			}
 
 			return &object.String{Value: filepath.Dir(path.Value)}
@@ -575,11 +575,11 @@ var IOBuiltins = map[string]*object.Builtin{
 	"io.path_ext": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 1 {
-				return &object.Error{Code: "E8001", Message: "io.path_ext() takes exactly 1 argument (path)"}
+				return &object.Error{Code: "E7001", Message: "io.path_ext() takes exactly 1 argument (path)"}
 			}
 			path, ok := args[0].(*object.String)
 			if !ok {
-				return &object.Error{Code: "E8002", Message: "io.path_ext() requires a string path"}
+				return &object.Error{Code: "E7003", Message: "io.path_ext() requires a string path"}
 			}
 
 			return &object.String{Value: filepath.Ext(path.Value)}
@@ -591,11 +591,11 @@ var IOBuiltins = map[string]*object.Builtin{
 	"io.path_abs": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 1 {
-				return &object.Error{Code: "E8001", Message: "io.path_abs() takes exactly 1 argument (path)"}
+				return &object.Error{Code: "E7001", Message: "io.path_abs() takes exactly 1 argument (path)"}
 			}
 			path, ok := args[0].(*object.String)
 			if !ok {
-				return &object.Error{Code: "E8002", Message: "io.path_abs() requires a string path"}
+				return &object.Error{Code: "E7003", Message: "io.path_abs() requires a string path"}
 			}
 
 			absPath, err := filepath.Abs(path.Value)
@@ -614,11 +614,11 @@ var IOBuiltins = map[string]*object.Builtin{
 	"io.path_clean": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 1 {
-				return &object.Error{Code: "E8001", Message: "io.path_clean() takes exactly 1 argument (path)"}
+				return &object.Error{Code: "E7001", Message: "io.path_clean() takes exactly 1 argument (path)"}
 			}
 			path, ok := args[0].(*object.String)
 			if !ok {
-				return &object.Error{Code: "E8002", Message: "io.path_clean() requires a string path"}
+				return &object.Error{Code: "E7003", Message: "io.path_clean() requires a string path"}
 			}
 
 			return &object.String{Value: filepath.Clean(path.Value)}
@@ -651,19 +651,19 @@ func createIOErrorResult(err error, operation string) *object.ReturnValue {
 
 	// Determine error code based on error type
 	if os.IsNotExist(err) {
-		code = "E8004"
+		code = "E7016"
 		message = fmt.Sprintf("file or directory not found: %s", err.Error())
 	} else if os.IsPermission(err) {
-		code = "E8005"
+		code = "E7017"
 		message = fmt.Sprintf("permission denied: %s", err.Error())
 	} else if os.IsExist(err) {
-		code = "E8010"
+		code = "E7022"
 		message = fmt.Sprintf("file or directory already exists: %s", err.Error())
 	} else if strings.Contains(err.Error(), "directory not empty") {
-		code = "E8011"
+		code = "E7023"
 		message = fmt.Sprintf("directory not empty: %s", err.Error())
 	} else {
-		code = "E8099"
+		code = "E7099"
 		message = fmt.Sprintf("io error during %s: %s", operation, err.Error())
 	}
 

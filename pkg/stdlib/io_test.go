@@ -113,8 +113,8 @@ func TestIOReadFile(t *testing.T) {
 		errStruct := assertHasError(t, result)
 
 		code, ok := errStruct.Fields["code"].(*object.String)
-		if !ok || code.Value != "E8004" {
-			t.Errorf("expected error code E8004, got %v", errStruct.Fields["code"])
+		if !ok || code.Value != "E7016" {
+			t.Errorf("expected error code E7016, got %v", errStruct.Fields["code"])
 		}
 	})
 
@@ -328,8 +328,8 @@ func TestIORemove(t *testing.T) {
 		errStruct := assertHasError(t, result)
 
 		code, _ := errStruct.Fields["code"].(*object.String)
-		if code.Value != "E8006" {
-			t.Errorf("expected E8006, got %s", code.Value)
+		if code.Value != "E7018" {
+			t.Errorf("expected E7018, got %s", code.Value)
 		}
 	})
 }
@@ -359,8 +359,8 @@ func TestIORemoveDir(t *testing.T) {
 		errStruct := assertHasError(t, result)
 
 		code, _ := errStruct.Fields["code"].(*object.String)
-		if code.Value != "E8007" {
-			t.Errorf("expected E8007, got %s", code.Value)
+		if code.Value != "E7019" {
+			t.Errorf("expected E7019, got %s", code.Value)
 		}
 	})
 
@@ -399,8 +399,8 @@ func TestIORemoveAll(t *testing.T) {
 		errStruct := assertHasError(t, result)
 
 		code, _ := errStruct.Fields["code"].(*object.String)
-		if code.Value != "E8008" {
-			t.Errorf("expected E8008 safety error, got %s", code.Value)
+		if code.Value != "E7020" {
+			t.Errorf("expected E7020 safety error, got %s", code.Value)
 		}
 	})
 }
@@ -465,8 +465,8 @@ func TestIOCopy(t *testing.T) {
 		errStruct := assertHasError(t, result)
 
 		code, _ := errStruct.Fields["code"].(*object.String)
-		if code.Value != "E8009" {
-			t.Errorf("expected E8009, got %s", code.Value)
+		if code.Value != "E7021" {
+			t.Errorf("expected E7021, got %s", code.Value)
 		}
 	})
 }

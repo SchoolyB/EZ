@@ -36,6 +36,7 @@ var validModules = map[string]bool{
 	"maps":    true, // Map utilities
 	"time":    true, // Time functions
 	"io":      true, // File system and I/O operations
+	"os":      true, // Operating system and environment
 }
 
 // isValidModule checks if a module name is valid (either standard library or user-created)
