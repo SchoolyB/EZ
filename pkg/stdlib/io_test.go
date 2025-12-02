@@ -865,3 +865,257 @@ func TestIOBuiltinsRegistered(t *testing.T) {
 		}
 	}
 }
+
+// ============================================================================
+// Security Validation Tests
+// ============================================================================
+
+func TestIOSecurityEmptyPath(t *testing.T) {
+	// Test that empty paths are rejected with E7040
+	tests := []struct {
+		name string
+		fn   string
+	}{
+		{"io.read_file", "io.read_file"},
+		{"io.write_file", "io.write_file"},
+		{"io.append_file", "io.append_file"},
+		{"io.remove", "io.remove"},
+		{"io.remove_dir", "io.remove_dir"},
+		{"io.remove_all", "io.remove_all"},
+		{"io.mkdir", "io.mkdir"},
+		{"io.mkdir_all", "io.mkdir_all"},
+		{"io.read_dir", "io.read_dir"},
+		{"io.file_size", "io.file_size"},
+		{"io.file_mod_time", "io.file_mod_time"},
+		{"io.path_abs", "io.path_abs"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			fn := IOBuiltins[tt.fn].Fn
+			var result object.Object
+
+			// Call with empty path - functions need different arg counts
+			switch tt.fn {
+			case "io.write_file", "io.append_file":
+				result = fn(&object.String{Value: ""}, &object.String{Value: "content"})
+			default:
+				result = fn(&object.String{Value: ""})
+			}
+
+			// Should return error tuple with E7040
+			rv, ok := result.(*object.ReturnValue)
+			if !ok {
+				t.Fatalf("expected ReturnValue, got %T", result)
+			}
+			if len(rv.Values) < 2 {
+				t.Fatalf("expected 2 return values, got %d", len(rv.Values))
+			}
+			errStruct, ok := rv.Values[1].(*object.Struct)
+			if !ok {
+				t.Fatalf("expected error struct, got %T", rv.Values[1])
+			}
+			code, ok := errStruct.Fields["code"].(*object.String)
+			if !ok || code.Value != "E7040" {
+				t.Errorf("expected error code E7040, got %v", errStruct.Fields["code"])
+			}
+		})
+	}
+
+	// Test two-argument functions with empty paths
+	t.Run("io.rename empty old path", func(t *testing.T) {
+		fn := IOBuiltins["io.rename"].Fn
+		result := fn(&object.String{Value: ""}, &object.String{Value: "/tmp/new"})
+		rv := result.(*object.ReturnValue)
+		errStruct := rv.Values[1].(*object.Struct)
+		code := errStruct.Fields["code"].(*object.String)
+		if code.Value != "E7040" {
+			t.Errorf("expected error code E7040, got %s", code.Value)
+		}
+	})
+
+	t.Run("io.rename empty new path", func(t *testing.T) {
+		dir, cleanup := createTempDir(t)
+		defer cleanup()
+		path := createTempFile(t, dir, "test.txt", "content")
+
+		fn := IOBuiltins["io.rename"].Fn
+		result := fn(&object.String{Value: path}, &object.String{Value: ""})
+		rv := result.(*object.ReturnValue)
+		errStruct := rv.Values[1].(*object.Struct)
+		code := errStruct.Fields["code"].(*object.String)
+		if code.Value != "E7040" {
+			t.Errorf("expected error code E7040, got %s", code.Value)
+		}
+	})
+
+	t.Run("io.copy empty src path", func(t *testing.T) {
+		fn := IOBuiltins["io.copy"].Fn
+		result := fn(&object.String{Value: ""}, &object.String{Value: "/tmp/dst"})
+		rv := result.(*object.ReturnValue)
+		errStruct := rv.Values[1].(*object.Struct)
+		code := errStruct.Fields["code"].(*object.String)
+		if code.Value != "E7040" {
+			t.Errorf("expected error code E7040, got %s", code.Value)
+		}
+	})
+
+	t.Run("io.copy empty dst path", func(t *testing.T) {
+		dir, cleanup := createTempDir(t)
+		defer cleanup()
+		path := createTempFile(t, dir, "test.txt", "content")
+
+		fn := IOBuiltins["io.copy"].Fn
+		result := fn(&object.String{Value: path}, &object.String{Value: ""})
+		rv := result.(*object.ReturnValue)
+		errStruct := rv.Values[1].(*object.Struct)
+		code := errStruct.Fields["code"].(*object.String)
+		if code.Value != "E7040" {
+			t.Errorf("expected error code E7040, got %s", code.Value)
+		}
+	})
+}
+
+func TestIOSecurityNullByte(t *testing.T) {
+	// Test that paths with null bytes are rejected with E7041
+	nullPath := "test\x00file.txt"
+
+	tests := []struct {
+		name string
+		fn   string
+	}{
+		{"io.read_file", "io.read_file"},
+		{"io.write_file", "io.write_file"},
+		{"io.append_file", "io.append_file"},
+		{"io.remove", "io.remove"},
+		{"io.remove_dir", "io.remove_dir"},
+		{"io.remove_all", "io.remove_all"},
+		{"io.mkdir", "io.mkdir"},
+		{"io.mkdir_all", "io.mkdir_all"},
+		{"io.read_dir", "io.read_dir"},
+		{"io.file_size", "io.file_size"},
+		{"io.file_mod_time", "io.file_mod_time"},
+		{"io.path_abs", "io.path_abs"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			fn := IOBuiltins[tt.fn].Fn
+			var result object.Object
+
+			switch tt.fn {
+			case "io.write_file", "io.append_file":
+				result = fn(&object.String{Value: nullPath}, &object.String{Value: "content"})
+			default:
+				result = fn(&object.String{Value: nullPath})
+			}
+
+			rv, ok := result.(*object.ReturnValue)
+			if !ok {
+				t.Fatalf("expected ReturnValue, got %T", result)
+			}
+			errStruct, ok := rv.Values[1].(*object.Struct)
+			if !ok {
+				t.Fatalf("expected error struct, got %T", rv.Values[1])
+			}
+			code, ok := errStruct.Fields["code"].(*object.String)
+			if !ok || code.Value != "E7041" {
+				t.Errorf("expected error code E7041, got %v", errStruct.Fields["code"])
+			}
+		})
+	}
+
+	// Test path utility functions that return object.Error for null bytes
+	pathUtilTests := []string{
+		"io.path_join",
+		"io.path_base",
+		"io.path_dir",
+		"io.path_ext",
+		"io.path_clean",
+	}
+
+	for _, fnName := range pathUtilTests {
+		t.Run(fnName+" null byte", func(t *testing.T) {
+			fn := IOBuiltins[fnName].Fn
+			var result object.Object
+
+			if fnName == "io.path_join" {
+				result = fn(&object.String{Value: "valid"}, &object.String{Value: nullPath})
+			} else {
+				result = fn(&object.String{Value: nullPath})
+			}
+
+			errObj, ok := result.(*object.Error)
+			if !ok {
+				t.Fatalf("expected Error, got %T", result)
+			}
+			if errObj.Code != "E7041" {
+				t.Errorf("expected error code E7041, got %s", errObj.Code)
+			}
+		})
+	}
+}
+
+func TestIOSecurityBoolFunctionsInvalidPaths(t *testing.T) {
+	// Test that boolean functions return false for invalid paths (don't error)
+	tests := []struct {
+		name string
+		fn   string
+	}{
+		{"io.exists empty", "io.exists"},
+		{"io.is_file empty", "io.is_file"},
+		{"io.is_dir empty", "io.is_dir"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name+" empty path", func(t *testing.T) {
+			fn := IOBuiltins[tt.fn].Fn
+			result := fn(&object.String{Value: ""})
+			if result != object.FALSE {
+				t.Errorf("expected FALSE for empty path, got %T", result)
+			}
+		})
+
+		t.Run(tt.name+" null byte path", func(t *testing.T) {
+			fn := IOBuiltins[tt.fn].Fn
+			result := fn(&object.String{Value: "test\x00file"})
+			if result != object.FALSE {
+				t.Errorf("expected FALSE for null byte path, got %T", result)
+			}
+		})
+	}
+}
+
+func TestIOSecurityReadDirectoryAsFile(t *testing.T) {
+	dir, cleanup := createTempDir(t)
+	defer cleanup()
+
+	// Create a subdirectory
+	subdir := filepath.Join(dir, "subdir")
+	if err := os.Mkdir(subdir, 0755); err != nil {
+		t.Fatalf("failed to create subdir: %v", err)
+	}
+
+	fn := IOBuiltins["io.read_file"].Fn
+	result := fn(&object.String{Value: subdir})
+
+	rv, ok := result.(*object.ReturnValue)
+	if !ok {
+		t.Fatalf("expected ReturnValue, got %T", result)
+	}
+
+	// First value should be nil
+	if rv.Values[0] != object.NIL {
+		t.Errorf("expected nil first value, got %T", rv.Values[0])
+	}
+
+	// Second value should be error with E7042
+	errStruct, ok := rv.Values[1].(*object.Struct)
+	if !ok {
+		t.Fatalf("expected error struct, got %T", rv.Values[1])
+	}
+	code, ok := errStruct.Fields["code"].(*object.String)
+	if !ok || code.Value != "E7042" {
+		t.Errorf("expected error code E7042, got %v", errStruct.Fields["code"])
+	}
+}

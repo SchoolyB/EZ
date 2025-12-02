@@ -13,6 +13,29 @@ import (
 	"github.com/marshallburns/ez/pkg/object"
 )
 
+// validatePath checks for invalid path inputs (empty or containing null bytes)
+// Returns nil if valid, or an error tuple if invalid
+func validatePath(path string, funcName string) *object.ReturnValue {
+	if path == "" {
+		return &object.ReturnValue{Values: []object.Object{
+			object.NIL,
+			createIOError("E7040", fmt.Sprintf("%s: path cannot be empty", funcName)),
+		}}
+	}
+	if strings.ContainsRune(path, '\x00') {
+		return &object.ReturnValue{Values: []object.Object{
+			object.NIL,
+			createIOError("E7041", fmt.Sprintf("%s: path contains null byte", funcName)),
+		}}
+	}
+	return nil
+}
+
+// validatePathBool is like validatePath but returns false instead of nil for boolean-returning functions
+func validatePathBool(path string) bool {
+	return path != "" && !strings.ContainsRune(path, '\x00')
+}
+
 // IOBuiltins contains the io module functions for file system operations
 var IOBuiltins = map[string]*object.Builtin{
 	// ============================================================================
@@ -29,6 +52,20 @@ var IOBuiltins = map[string]*object.Builtin{
 			path, ok := args[0].(*object.String)
 			if !ok {
 				return &object.Error{Code: "E7003", Message: "io.read_file() requires a string path"}
+			}
+
+			// Validate path
+			if err := validatePath(path.Value, "io.read_file()"); err != nil {
+				return err
+			}
+
+			// Check if path is a directory
+			info, statErr := os.Stat(path.Value)
+			if statErr == nil && info.IsDir() {
+				return &object.ReturnValue{Values: []object.Object{
+					object.NIL,
+					createIOError("E7042", "io.read_file(): cannot read directory as file"),
+				}}
 			}
 
 			content, err := os.ReadFile(path.Value)
@@ -63,6 +100,11 @@ var IOBuiltins = map[string]*object.Builtin{
 				return &object.Error{Code: "E7003", Message: "io.write_file() requires a string content as second argument"}
 			}
 
+			// Validate path
+			if err := validatePath(path.Value, "io.write_file()"); err != nil {
+				return err
+			}
+
 			err := os.WriteFile(path.Value, []byte(content.Value), 0644)
 			if err != nil {
 				return createIOErrorResult(err, "write")
@@ -89,6 +131,11 @@ var IOBuiltins = map[string]*object.Builtin{
 			content, ok := args[1].(*object.String)
 			if !ok {
 				return &object.Error{Code: "E7003", Message: "io.append_file() requires a string content as second argument"}
+			}
+
+			// Validate path
+			if err := validatePath(path.Value, "io.append_file()"); err != nil {
+				return err
 			}
 
 			f, err := os.OpenFile(path.Value, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
@@ -128,6 +175,11 @@ var IOBuiltins = map[string]*object.Builtin{
 				return &object.Error{Code: "E7003", Message: "io.exists() requires a string path"}
 			}
 
+			// Invalid paths don't exist
+			if !validatePathBool(path.Value) {
+				return object.FALSE
+			}
+
 			_, err := os.Stat(path.Value)
 			if err == nil {
 				return object.TRUE
@@ -151,6 +203,11 @@ var IOBuiltins = map[string]*object.Builtin{
 				return &object.Error{Code: "E7003", Message: "io.is_file() requires a string path"}
 			}
 
+			// Invalid paths are not files
+			if !validatePathBool(path.Value) {
+				return object.FALSE
+			}
+
 			info, err := os.Stat(path.Value)
 			if err != nil {
 				return object.FALSE
@@ -171,6 +228,11 @@ var IOBuiltins = map[string]*object.Builtin{
 			path, ok := args[0].(*object.String)
 			if !ok {
 				return &object.Error{Code: "E7003", Message: "io.is_dir() requires a string path"}
+			}
+
+			// Invalid paths are not directories
+			if !validatePathBool(path.Value) {
+				return object.FALSE
 			}
 
 			info, err := os.Stat(path.Value)
@@ -198,6 +260,11 @@ var IOBuiltins = map[string]*object.Builtin{
 			path, ok := args[0].(*object.String)
 			if !ok {
 				return &object.Error{Code: "E7003", Message: "io.remove() requires a string path"}
+			}
+
+			// Validate path
+			if err := validatePath(path.Value, "io.remove()"); err != nil {
+				return err
 			}
 
 			// Check if it's a directory - if so, don't allow removal with this function
@@ -236,6 +303,11 @@ var IOBuiltins = map[string]*object.Builtin{
 				return &object.Error{Code: "E7003", Message: "io.remove_dir() requires a string path"}
 			}
 
+			// Validate path
+			if err := validatePath(path.Value, "io.remove_dir()"); err != nil {
+				return err
+			}
+
 			// Check if it's actually a directory
 			info, err := os.Stat(path.Value)
 			if err != nil {
@@ -270,6 +342,11 @@ var IOBuiltins = map[string]*object.Builtin{
 			path, ok := args[0].(*object.String)
 			if !ok {
 				return &object.Error{Code: "E7003", Message: "io.remove_all() requires a string path"}
+			}
+
+			// Validate path
+			if err := validatePath(path.Value, "io.remove_all()"); err != nil {
+				return err
 			}
 
 			// Safety check: don't allow removing root or home directory
@@ -314,6 +391,14 @@ var IOBuiltins = map[string]*object.Builtin{
 				return &object.Error{Code: "E7003", Message: "io.rename() requires a string as second argument (new_path)"}
 			}
 
+			// Validate paths
+			if err := validatePath(oldPath.Value, "io.rename()"); err != nil {
+				return err
+			}
+			if err := validatePath(newPath.Value, "io.rename()"); err != nil {
+				return err
+			}
+
 			err := os.Rename(oldPath.Value, newPath.Value)
 			if err != nil {
 				return createIOErrorResult(err, "rename")
@@ -340,6 +425,14 @@ var IOBuiltins = map[string]*object.Builtin{
 			dstPath, ok := args[1].(*object.String)
 			if !ok {
 				return &object.Error{Code: "E7003", Message: "io.copy() requires a string as second argument (destination)"}
+			}
+
+			// Validate paths
+			if err := validatePath(srcPath.Value, "io.copy()"); err != nil {
+				return err
+			}
+			if err := validatePath(dstPath.Value, "io.copy()"); err != nil {
+				return err
 			}
 
 			// Check source exists and is a file
@@ -409,6 +502,11 @@ var IOBuiltins = map[string]*object.Builtin{
 				return &object.Error{Code: "E7003", Message: "io.mkdir() requires a string path"}
 			}
 
+			// Validate path
+			if err := validatePath(path.Value, "io.mkdir()"); err != nil {
+				return err
+			}
+
 			err := os.Mkdir(path.Value, 0755)
 			if err != nil {
 				return createIOErrorResult(err, "mkdir")
@@ -433,6 +531,11 @@ var IOBuiltins = map[string]*object.Builtin{
 				return &object.Error{Code: "E7003", Message: "io.mkdir_all() requires a string path"}
 			}
 
+			// Validate path
+			if err := validatePath(path.Value, "io.mkdir_all()"); err != nil {
+				return err
+			}
+
 			err := os.MkdirAll(path.Value, 0755)
 			if err != nil {
 				return createIOErrorResult(err, "mkdir_all")
@@ -455,6 +558,11 @@ var IOBuiltins = map[string]*object.Builtin{
 			path, ok := args[0].(*object.String)
 			if !ok {
 				return &object.Error{Code: "E7003", Message: "io.read_dir() requires a string path"}
+			}
+
+			// Validate path
+			if err := validatePath(path.Value, "io.read_dir()"); err != nil {
+				return err
 			}
 
 			entries, err := os.ReadDir(path.Value)
@@ -490,6 +598,11 @@ var IOBuiltins = map[string]*object.Builtin{
 				return &object.Error{Code: "E7003", Message: "io.file_size() requires a string path"}
 			}
 
+			// Validate path
+			if err := validatePath(path.Value, "io.file_size()"); err != nil {
+				return err
+			}
+
 			info, err := os.Stat(path.Value)
 			if err != nil {
 				return createIOErrorResult(err, "stat")
@@ -512,6 +625,11 @@ var IOBuiltins = map[string]*object.Builtin{
 			path, ok := args[0].(*object.String)
 			if !ok {
 				return &object.Error{Code: "E7003", Message: "io.file_mod_time() requires a string path"}
+			}
+
+			// Validate path
+			if err := validatePath(path.Value, "io.file_mod_time()"); err != nil {
+				return err
 			}
 
 			info, err := os.Stat(path.Value)
@@ -543,6 +661,10 @@ var IOBuiltins = map[string]*object.Builtin{
 				if !ok {
 					return &object.Error{Code: "E7003", Message: fmt.Sprintf("io.path_join() argument %d must be a string", i+1)}
 				}
+				// Check for null bytes in path components
+				if strings.ContainsRune(str.Value, '\x00') {
+					return &object.Error{Code: "E7041", Message: "io.path_join(): path component contains null byte"}
+				}
 				parts[i] = str.Value
 			}
 
@@ -561,6 +683,11 @@ var IOBuiltins = map[string]*object.Builtin{
 				return &object.Error{Code: "E7003", Message: "io.path_base() requires a string path"}
 			}
 
+			// Check for null bytes
+			if strings.ContainsRune(path.Value, '\x00') {
+				return &object.Error{Code: "E7041", Message: "io.path_base(): path contains null byte"}
+			}
+
 			return &object.String{Value: filepath.Base(path.Value)}
 		},
 	},
@@ -574,6 +701,11 @@ var IOBuiltins = map[string]*object.Builtin{
 			path, ok := args[0].(*object.String)
 			if !ok {
 				return &object.Error{Code: "E7003", Message: "io.path_dir() requires a string path"}
+			}
+
+			// Check for null bytes
+			if strings.ContainsRune(path.Value, '\x00') {
+				return &object.Error{Code: "E7041", Message: "io.path_dir(): path contains null byte"}
 			}
 
 			return &object.String{Value: filepath.Dir(path.Value)}
@@ -591,6 +723,11 @@ var IOBuiltins = map[string]*object.Builtin{
 				return &object.Error{Code: "E7003", Message: "io.path_ext() requires a string path"}
 			}
 
+			// Check for null bytes
+			if strings.ContainsRune(path.Value, '\x00') {
+				return &object.Error{Code: "E7041", Message: "io.path_ext(): path contains null byte"}
+			}
+
 			return &object.String{Value: filepath.Ext(path.Value)}
 		},
 	},
@@ -605,6 +742,11 @@ var IOBuiltins = map[string]*object.Builtin{
 			path, ok := args[0].(*object.String)
 			if !ok {
 				return &object.Error{Code: "E7003", Message: "io.path_abs() requires a string path"}
+			}
+
+			// Validate path
+			if err := validatePath(path.Value, "io.path_abs()"); err != nil {
+				return err
 			}
 
 			absPath, err := filepath.Abs(path.Value)
@@ -628,6 +770,11 @@ var IOBuiltins = map[string]*object.Builtin{
 			path, ok := args[0].(*object.String)
 			if !ok {
 				return &object.Error{Code: "E7003", Message: "io.path_clean() requires a string path"}
+			}
+
+			// Check for null bytes
+			if strings.ContainsRune(path.Value, '\x00') {
+				return &object.Error{Code: "E7041", Message: "io.path_clean(): path contains null byte"}
 			}
 
 			return &object.String{Value: filepath.Clean(path.Value)}
