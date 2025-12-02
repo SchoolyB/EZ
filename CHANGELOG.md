@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.7.1](https://github.com/SchoolyB/EZ/compare/v0.7.0...v0.7.1) (2025-12-02)
+
+
+### Bug Fixes
+
+* **ci:** sync release-please manifest to v0.7.0 ([d908c55](https://github.com/SchoolyB/EZ/commit/d908c55a0aee63d8e9644bd03fbb73aeed901fb4))
+* **ci:** sync release-please manifest to v0.7.0 ([dd05c6e](https://github.com/SchoolyB/EZ/commit/dd05c6e13a6cb68479b800e972a40e87fa460229))
+
 ## [0.7.0](https://github.com/SchoolyB/EZ/compare/v0.6.1...v0.7.0) (2025-12-02)
 
 
