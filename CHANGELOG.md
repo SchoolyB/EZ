@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.7.0](https://github.com/SchoolyB/EZ/compare/v0.6.1...v0.7.0) (2025-12-02)
+
+
+### Features
+
+* **io:** add byte I/O and atomic writes ([ab37220](https://github.com/SchoolyB/EZ/commit/ab37220ea5343df91b40856fe565858fa73149cf))
+* **io:** add file handles, constants, and convenience functions ([870df20](https://github.com/SchoolyB/EZ/commit/870df203ac6cac574a25b49b6bac71168abcf2d4))
+* **io:** byte operations, file handles & enhancements ([7832642](https://github.com/SchoolyB/EZ/commit/783264228085fe2467954fdb8f0b140578777c16))
+
+
+### Bug Fixes
+
+* **io:** handle close errors on writable file handles ([aebdd96](https://github.com/SchoolyB/EZ/commit/aebdd9679296b87152c229aae5a0cc05ede728ef))
+
 ## [0.6.1](https://github.com/SchoolyB/EZ/compare/v0.6.0...v0.6.1) (2025-12-02)
 
 
