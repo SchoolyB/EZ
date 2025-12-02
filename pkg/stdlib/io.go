@@ -95,11 +95,15 @@ var IOBuiltins = map[string]*object.Builtin{
 			if err != nil {
 				return createIOErrorResult(err, "open for append")
 			}
-			defer f.Close()
 
 			_, err = f.WriteString(content.Value)
 			if err != nil {
+				f.Close()
 				return createIOErrorResult(err, "append")
+			}
+
+			if err := f.Close(); err != nil {
+				return createIOErrorResult(err, "close after append")
 			}
 
 			return &object.ReturnValue{Values: []object.Object{
@@ -355,19 +359,24 @@ var IOBuiltins = map[string]*object.Builtin{
 			if err != nil {
 				return createIOErrorResult(err, "open source")
 			}
-			defer src.Close()
+			defer src.Close() // Read-only, error on close is not critical
 
 			// Create destination file
 			dst, err := os.Create(dstPath.Value)
 			if err != nil {
 				return createIOErrorResult(err, "create destination")
 			}
-			defer dst.Close()
 
 			// Copy contents
 			_, err = io.Copy(dst, src)
 			if err != nil {
+				dst.Close()
 				return createIOErrorResult(err, "copy contents")
+			}
+
+			// Close destination and check for write errors
+			if err := dst.Close(); err != nil {
+				return createIOErrorResult(err, "close destination")
 			}
 
 			// Preserve file mode
