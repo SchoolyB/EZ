@@ -180,6 +180,35 @@ var (
 
 	// Legacy codes for backward compatibility with builtins
 	E7015 = ErrorCode{"E7015", "len-unsupported-type", "len not supported for type"}
+
+	// I/O errors
+	E7016 = ErrorCode{"E7016", "file-not-found", "file or directory not found"}
+	E7017 = ErrorCode{"E7017", "permission-denied", "permission denied"}
+	E7018 = ErrorCode{"E7018", "cannot-remove-directory", "io.remove() cannot remove directories"}
+	E7019 = ErrorCode{"E7019", "cannot-remove-file", "io.remove_dir() can only remove directories"}
+	E7020 = ErrorCode{"E7020", "safety-check-failed", "cannot remove root or home directory"}
+	E7021 = ErrorCode{"E7021", "cannot-copy-directory", "io.copy() cannot copy directories"}
+	E7022 = ErrorCode{"E7022", "file-already-exists", "file or directory already exists"}
+	E7023 = ErrorCode{"E7023", "directory-not-empty", "directory not empty"}
+
+	// OS module errors
+	E7024 = ErrorCode{"E7024", "env-var-operation-failed", "environment variable operation failed"}
+	E7025 = ErrorCode{"E7025", "get-cwd-failed", "failed to get current directory"}
+	E7026 = ErrorCode{"E7026", "chdir-failed", "failed to change directory"}
+	E7027 = ErrorCode{"E7027", "get-hostname-failed", "failed to get hostname"}
+	E7028 = ErrorCode{"E7028", "get-username-failed", "failed to get username"}
+	E7029 = ErrorCode{"E7029", "get-homedir-failed", "failed to get home directory"}
+
+	// Path validation errors
+	E7040 = ErrorCode{"E7040", "empty-path", "path cannot be empty"}
+	E7041 = ErrorCode{"E7041", "path-null-byte", "path contains null byte"}
+	E7042 = ErrorCode{"E7042", "read-directory-as-file", "cannot read directory as file"}
+
+	// File handle errors
+	E7050 = ErrorCode{"E7050", "file-handle-closed", "file handle is closed"}
+
+	// General I/O error (catch-all)
+	E7099 = ErrorCode{"E7099", "io-error", "general I/O error"}
 )
 
 // =============================================================================

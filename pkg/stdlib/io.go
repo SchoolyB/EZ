@@ -183,11 +183,12 @@ var IOBuiltins = map[string]*object.Builtin{
 
 	// Writes content to a file atomically, creating it if it doesn't exist or overwriting if it does
 	// Uses temp file + rename to ensure file is never left in a partial state
+	// Takes 2-3 arguments: path, content, and optional permissions (int, default 0644)
 	// Returns (success, error) tuple
 	"io.write_file": {
 		Fn: func(args ...object.Object) object.Object {
-			if len(args) != 2 {
-				return &object.Error{Code: "E7001", Message: "io.write_file() takes exactly 2 arguments (path, content)"}
+			if len(args) < 2 || len(args) > 3 {
+				return &object.Error{Code: "E7001", Message: "io.write_file() takes 2-3 arguments (path, content, [perms])"}
 			}
 			path, ok := args[0].(*object.String)
 			if !ok {
@@ -203,7 +204,17 @@ var IOBuiltins = map[string]*object.Builtin{
 				return err
 			}
 
-			err := atomicWriteFile(path.Value, []byte(content.Value), 0644)
+			// Default permissions
+			perms := os.FileMode(0644)
+			if len(args) == 3 {
+				permVal, ok := args[2].(*object.Integer)
+				if !ok {
+					return &object.Error{Code: "E7004", Message: "io.write_file() permissions must be an integer"}
+				}
+				perms = os.FileMode(permVal.Value)
+			}
+
+			err := atomicWriteFile(path.Value, []byte(content.Value), perms)
 			if err != nil {
 				return createIOErrorResult(err, "write")
 			}
@@ -271,11 +282,12 @@ var IOBuiltins = map[string]*object.Builtin{
 	},
 
 	// Appends content to a file, creating it if it doesn't exist
+	// Takes 2-3 arguments: path, content, and optional permissions (int, default 0644)
 	// Returns (success, error) tuple
 	"io.append_file": {
 		Fn: func(args ...object.Object) object.Object {
-			if len(args) != 2 {
-				return &object.Error{Code: "E7001", Message: "io.append_file() takes exactly 2 arguments (path, content)"}
+			if len(args) < 2 || len(args) > 3 {
+				return &object.Error{Code: "E7001", Message: "io.append_file() takes 2-3 arguments (path, content, [perms])"}
 			}
 			path, ok := args[0].(*object.String)
 			if !ok {
@@ -291,7 +303,17 @@ var IOBuiltins = map[string]*object.Builtin{
 				return err
 			}
 
-			f, err := os.OpenFile(path.Value, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+			// Default permissions
+			perms := os.FileMode(0644)
+			if len(args) == 3 {
+				permVal, ok := args[2].(*object.Integer)
+				if !ok {
+					return &object.Error{Code: "E7004", Message: "io.append_file() permissions must be an integer"}
+				}
+				perms = os.FileMode(permVal.Value)
+			}
+
+			f, err := os.OpenFile(path.Value, os.O_APPEND|os.O_CREATE|os.O_WRONLY, perms)
 			if err != nil {
 				return createIOErrorResult(err, "open for append")
 			}
@@ -310,6 +332,151 @@ var IOBuiltins = map[string]*object.Builtin{
 				object.TRUE,
 				object.NIL,
 			}}
+		},
+	},
+
+	// ============================================================================
+	// Convenience Functions
+	// ============================================================================
+
+	// Reads a file and returns its content as an array of lines
+	// Returns (lines, error) tuple where lines is an array of strings
+	"io.read_lines": {
+		Fn: func(args ...object.Object) object.Object {
+			if len(args) != 1 {
+				return &object.Error{Code: "E7001", Message: "io.read_lines() takes exactly 1 argument (path)"}
+			}
+			path, ok := args[0].(*object.String)
+			if !ok {
+				return &object.Error{Code: "E7003", Message: "io.read_lines() requires a string path"}
+			}
+
+			// Validate path
+			if err := validatePath(path.Value, "io.read_lines()"); err != nil {
+				return err
+			}
+
+			// Check if path is a directory
+			info, err := os.Stat(path.Value)
+			if err == nil && info.IsDir() {
+				return &object.ReturnValue{Values: []object.Object{
+					object.NIL,
+					createIOError("E7042", "io.read_lines(): cannot read directory as file"),
+				}}
+			}
+
+			content, err := os.ReadFile(path.Value)
+			if err != nil {
+				return createIOErrorResult(err, "read")
+			}
+
+			// Split by newlines, handling both \n and \r\n
+			text := strings.ReplaceAll(string(content), "\r\n", "\n")
+			rawLines := strings.Split(text, "\n")
+
+			// Remove trailing empty line if file ends with newline
+			if len(rawLines) > 0 && rawLines[len(rawLines)-1] == "" {
+				rawLines = rawLines[:len(rawLines)-1]
+			}
+
+			// Convert to EZ array
+			lines := make([]object.Object, len(rawLines))
+			for i, line := range rawLines {
+				lines[i] = &object.String{Value: line}
+			}
+
+			return &object.ReturnValue{Values: []object.Object{
+				&object.Array{Elements: lines, ElementType: "string"},
+				object.NIL,
+			}}
+		},
+	},
+
+	// Appends a line to a file, adding a newline at the end
+	// Takes 2-3 arguments: path, line, and optional permissions (int, default 0644)
+	// Returns (success, error) tuple
+	"io.append_line": {
+		Fn: func(args ...object.Object) object.Object {
+			if len(args) < 2 || len(args) > 3 {
+				return &object.Error{Code: "E7001", Message: "io.append_line() takes 2-3 arguments (path, line, [perms])"}
+			}
+			path, ok := args[0].(*object.String)
+			if !ok {
+				return &object.Error{Code: "E7003", Message: "io.append_line() requires a string path as first argument"}
+			}
+			line, ok := args[1].(*object.String)
+			if !ok {
+				return &object.Error{Code: "E7003", Message: "io.append_line() requires a string as second argument"}
+			}
+
+			// Validate path
+			if err := validatePath(path.Value, "io.append_line()"); err != nil {
+				return err
+			}
+
+			// Default permissions
+			perms := os.FileMode(0644)
+			if len(args) == 3 {
+				permVal, ok := args[2].(*object.Integer)
+				if !ok {
+					return &object.Error{Code: "E7004", Message: "io.append_line() permissions must be an integer"}
+				}
+				perms = os.FileMode(permVal.Value)
+			}
+
+			f, err := os.OpenFile(path.Value, os.O_APPEND|os.O_CREATE|os.O_WRONLY, perms)
+			if err != nil {
+				return createIOErrorResult(err, "open for append")
+			}
+
+			// Write line with newline
+			_, err = f.WriteString(line.Value + "\n")
+			if err != nil {
+				f.Close()
+				return createIOErrorResult(err, "append line")
+			}
+
+			if err := f.Close(); err != nil {
+				return createIOErrorResult(err, "close after append")
+			}
+
+			return &object.ReturnValue{Values: []object.Object{
+				object.TRUE,
+				object.NIL,
+			}}
+		},
+	},
+
+	// Expands ~ to home directory and cleans the path
+	// Returns the expanded path string
+	"io.expand_path": {
+		Fn: func(args ...object.Object) object.Object {
+			if len(args) != 1 {
+				return &object.Error{Code: "E7001", Message: "io.expand_path() takes exactly 1 argument (path)"}
+			}
+			path, ok := args[0].(*object.String)
+			if !ok {
+				return &object.Error{Code: "E7003", Message: "io.expand_path() requires a string path"}
+			}
+
+			result := path.Value
+
+			// Expand ~ to home directory
+			if strings.HasPrefix(result, "~") {
+				home, err := os.UserHomeDir()
+				if err != nil {
+					return &object.ReturnValue{Values: []object.Object{
+						object.NIL,
+						createIOError("E7029", "io.expand_path(): failed to get home directory"),
+					}}
+				}
+				result = home + result[1:]
+			}
+
+			// Clean the path
+			result = filepath.Clean(result)
+
+			return &object.String{Value: result}
 		},
 	},
 
@@ -565,11 +732,13 @@ var IOBuiltins = map[string]*object.Builtin{
 	},
 
 	// Copies a file from source to destination
+	// Takes 2-3 arguments: source, destination, and optional permissions (int)
+	// If permissions not specified, preserves source file's permissions
 	// Returns (success, error) tuple
 	"io.copy": {
 		Fn: func(args ...object.Object) object.Object {
-			if len(args) != 2 {
-				return &object.Error{Code: "E7001", Message: "io.copy() takes exactly 2 arguments (source, destination)"}
+			if len(args) < 2 || len(args) > 3 {
+				return &object.Error{Code: "E7001", Message: "io.copy() takes 2-3 arguments (source, destination, [perms])"}
 			}
 			srcPath, ok := args[0].(*object.String)
 			if !ok {
@@ -600,6 +769,18 @@ var IOBuiltins = map[string]*object.Builtin{
 				}}
 			}
 
+			// Determine permissions: explicit or preserve from source
+			var perms os.FileMode
+			if len(args) == 3 {
+				permVal, ok := args[2].(*object.Integer)
+				if !ok {
+					return &object.Error{Code: "E7004", Message: "io.copy() permissions must be an integer"}
+				}
+				perms = os.FileMode(permVal.Value)
+			} else {
+				perms = srcInfo.Mode()
+			}
+
 			// Open source file
 			src, err := os.Open(srcPath.Value)
 			if err != nil {
@@ -607,8 +788,8 @@ var IOBuiltins = map[string]*object.Builtin{
 			}
 			defer src.Close() // Read-only, error on close is not critical
 
-			// Create destination file
-			dst, err := os.Create(dstPath.Value)
+			// Create destination file with proper permissions
+			dst, err := os.OpenFile(dstPath.Value, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, perms)
 			if err != nil {
 				return createIOErrorResult(err, "create destination")
 			}
@@ -625,13 +806,6 @@ var IOBuiltins = map[string]*object.Builtin{
 				return createIOErrorResult(err, "close destination")
 			}
 
-			// Preserve file mode
-			err = os.Chmod(dstPath.Value, srcInfo.Mode())
-			if err != nil {
-				// Non-fatal on Windows, just continue
-				_ = err
-			}
-
 			return &object.ReturnValue{Values: []object.Object{
 				object.TRUE,
 				object.NIL,
@@ -644,11 +818,12 @@ var IOBuiltins = map[string]*object.Builtin{
 	// ============================================================================
 
 	// Creates a directory (parent must exist)
+	// Takes 1-2 arguments: path, and optional permissions (int, default 0755)
 	// Returns (success, error) tuple
 	"io.mkdir": {
 		Fn: func(args ...object.Object) object.Object {
-			if len(args) != 1 {
-				return &object.Error{Code: "E7001", Message: "io.mkdir() takes exactly 1 argument (path)"}
+			if len(args) < 1 || len(args) > 2 {
+				return &object.Error{Code: "E7001", Message: "io.mkdir() takes 1-2 arguments (path, [perms])"}
 			}
 			path, ok := args[0].(*object.String)
 			if !ok {
@@ -660,7 +835,17 @@ var IOBuiltins = map[string]*object.Builtin{
 				return err
 			}
 
-			err := os.Mkdir(path.Value, 0755)
+			// Default permissions
+			perms := os.FileMode(0755)
+			if len(args) == 2 {
+				permVal, ok := args[1].(*object.Integer)
+				if !ok {
+					return &object.Error{Code: "E7004", Message: "io.mkdir() permissions must be an integer"}
+				}
+				perms = os.FileMode(permVal.Value)
+			}
+
+			err := os.Mkdir(path.Value, perms)
 			if err != nil {
 				return createIOErrorResult(err, "mkdir")
 			}
@@ -673,11 +858,12 @@ var IOBuiltins = map[string]*object.Builtin{
 	},
 
 	// Creates a directory and all parent directories as needed
+	// Takes 1-2 arguments: path, and optional permissions (int, default 0755)
 	// Returns (success, error) tuple
 	"io.mkdir_all": {
 		Fn: func(args ...object.Object) object.Object {
-			if len(args) != 1 {
-				return &object.Error{Code: "E7001", Message: "io.mkdir_all() takes exactly 1 argument (path)"}
+			if len(args) < 1 || len(args) > 2 {
+				return &object.Error{Code: "E7001", Message: "io.mkdir_all() takes 1-2 arguments (path, [perms])"}
 			}
 			path, ok := args[0].(*object.String)
 			if !ok {
@@ -689,7 +875,17 @@ var IOBuiltins = map[string]*object.Builtin{
 				return err
 			}
 
-			err := os.MkdirAll(path.Value, 0755)
+			// Default permissions
+			perms := os.FileMode(0755)
+			if len(args) == 2 {
+				permVal, ok := args[1].(*object.Integer)
+				if !ok {
+					return &object.Error{Code: "E7004", Message: "io.mkdir_all() permissions must be an integer"}
+				}
+				perms = os.FileMode(permVal.Value)
+			}
+
+			err := os.MkdirAll(path.Value, perms)
 			if err != nil {
 				return createIOErrorResult(err, "mkdir_all")
 			}
@@ -938,6 +1134,428 @@ var IOBuiltins = map[string]*object.Builtin{
 	"io.path_separator": {
 		Fn: func(args ...object.Object) object.Object {
 			return &object.String{Value: string(filepath.Separator)}
+		},
+	},
+
+	// ============================================================================
+	// File Handle Constants
+	// ============================================================================
+
+	// File open mode constants
+	"io.READ_ONLY": {
+		Fn: func(args ...object.Object) object.Object {
+			return &object.Integer{Value: int64(os.O_RDONLY)}
+		},
+	},
+	"io.WRITE_ONLY": {
+		Fn: func(args ...object.Object) object.Object {
+			return &object.Integer{Value: int64(os.O_WRONLY)}
+		},
+	},
+	"io.READ_WRITE": {
+		Fn: func(args ...object.Object) object.Object {
+			return &object.Integer{Value: int64(os.O_RDWR)}
+		},
+	},
+	"io.APPEND": {
+		Fn: func(args ...object.Object) object.Object {
+			return &object.Integer{Value: int64(os.O_APPEND)}
+		},
+	},
+	"io.CREATE": {
+		Fn: func(args ...object.Object) object.Object {
+			return &object.Integer{Value: int64(os.O_CREATE)}
+		},
+	},
+	"io.TRUNCATE": {
+		Fn: func(args ...object.Object) object.Object {
+			return &object.Integer{Value: int64(os.O_TRUNC)}
+		},
+	},
+	"io.EXCLUSIVE": {
+		Fn: func(args ...object.Object) object.Object {
+			return &object.Integer{Value: int64(os.O_EXCL)}
+		},
+	},
+
+	// Seek whence constants
+	"io.SEEK_START": {
+		Fn: func(args ...object.Object) object.Object {
+			return &object.Integer{Value: int64(io.SeekStart)}
+		},
+	},
+	"io.SEEK_CURRENT": {
+		Fn: func(args ...object.Object) object.Object {
+			return &object.Integer{Value: int64(io.SeekCurrent)}
+		},
+	},
+	"io.SEEK_END": {
+		Fn: func(args ...object.Object) object.Object {
+			return &object.Integer{Value: int64(io.SeekEnd)}
+		},
+	},
+
+	// ============================================================================
+	// File Handle Operations
+	// ============================================================================
+
+	// Opens a file and returns a file handle
+	// Takes path and mode flags (combine with | operator)
+	// Returns (handle, error) tuple
+	"io.open": {
+		Fn: func(args ...object.Object) object.Object {
+			if len(args) < 1 || len(args) > 3 {
+				return &object.Error{Code: "E7001", Message: "io.open() takes 1-3 arguments (path, [mode], [perms])"}
+			}
+			path, ok := args[0].(*object.String)
+			if !ok {
+				return &object.Error{Code: "E7003", Message: "io.open() requires a string path"}
+			}
+
+			// Validate path
+			if err := validatePath(path.Value, "io.open()"); err != nil {
+				return err
+			}
+
+			// Default mode is read-only
+			mode := os.O_RDONLY
+			if len(args) >= 2 {
+				modeVal, ok := args[1].(*object.Integer)
+				if !ok {
+					return &object.Error{Code: "E7004", Message: "io.open() mode must be an integer"}
+				}
+				mode = int(modeVal.Value)
+			}
+
+			// Default permissions
+			perms := os.FileMode(0644)
+			if len(args) == 3 {
+				permVal, ok := args[2].(*object.Integer)
+				if !ok {
+					return &object.Error{Code: "E7004", Message: "io.open() permissions must be an integer"}
+				}
+				perms = os.FileMode(permVal.Value)
+			}
+
+			file, err := os.OpenFile(path.Value, mode, perms)
+			if err != nil {
+				return createIOErrorResult(err, "open")
+			}
+
+			return &object.ReturnValue{Values: []object.Object{
+				&object.FileHandle{
+					File:     file,
+					Path:     path.Value,
+					Mode:     mode,
+					IsClosed: false,
+				},
+				object.NIL,
+			}}
+		},
+	},
+
+	// Reads n bytes from a file handle
+	// Returns (bytes, error) tuple
+	"io.read": {
+		Fn: func(args ...object.Object) object.Object {
+			if len(args) != 2 {
+				return &object.Error{Code: "E7001", Message: "io.read() takes exactly 2 arguments (handle, n)"}
+			}
+			handle, ok := args[0].(*object.FileHandle)
+			if !ok {
+				return &object.Error{Code: "E7003", Message: "io.read() requires a file handle as first argument"}
+			}
+			if handle.IsClosed {
+				return &object.ReturnValue{Values: []object.Object{
+					object.NIL,
+					createIOError("E7050", "io.read(): file handle is closed"),
+				}}
+			}
+			n, ok := args[1].(*object.Integer)
+			if !ok {
+				return &object.Error{Code: "E7004", Message: "io.read() requires an integer as second argument"}
+			}
+			if n.Value < 0 {
+				return &object.Error{Code: "E7011", Message: "io.read() byte count cannot be negative"}
+			}
+
+			buf := make([]byte, n.Value)
+			bytesRead, err := handle.File.Read(buf)
+
+			// Handle EOF - not an error, just return what we got
+			if err != nil && err != io.EOF {
+				return createIOErrorResult(err, "read")
+			}
+
+			// Convert to byte array
+			elements := make([]object.Object, bytesRead)
+			for i := 0; i < bytesRead; i++ {
+				elements[i] = &object.Byte{Value: buf[i]}
+			}
+
+			return &object.ReturnValue{Values: []object.Object{
+				&object.Array{Elements: elements, ElementType: "byte"},
+				object.NIL,
+			}}
+		},
+	},
+
+	// Reads all remaining bytes from a file handle
+	// Returns (bytes, error) tuple
+	"io.read_all": {
+		Fn: func(args ...object.Object) object.Object {
+			if len(args) != 1 {
+				return &object.Error{Code: "E7001", Message: "io.read_all() takes exactly 1 argument (handle)"}
+			}
+			handle, ok := args[0].(*object.FileHandle)
+			if !ok {
+				return &object.Error{Code: "E7003", Message: "io.read_all() requires a file handle"}
+			}
+			if handle.IsClosed {
+				return &object.ReturnValue{Values: []object.Object{
+					object.NIL,
+					createIOError("E7050", "io.read_all(): file handle is closed"),
+				}}
+			}
+
+			content, err := io.ReadAll(handle.File)
+			if err != nil {
+				return createIOErrorResult(err, "read all")
+			}
+
+			// Convert to byte array
+			elements := make([]object.Object, len(content))
+			for i, b := range content {
+				elements[i] = &object.Byte{Value: b}
+			}
+
+			return &object.ReturnValue{Values: []object.Object{
+				&object.Array{Elements: elements, ElementType: "byte"},
+				object.NIL,
+			}}
+		},
+	},
+
+	// Reads n bytes from a file handle as a string
+	// Returns (string, error) tuple
+	"io.read_string": {
+		Fn: func(args ...object.Object) object.Object {
+			if len(args) != 2 {
+				return &object.Error{Code: "E7001", Message: "io.read_string() takes exactly 2 arguments (handle, n)"}
+			}
+			handle, ok := args[0].(*object.FileHandle)
+			if !ok {
+				return &object.Error{Code: "E7003", Message: "io.read_string() requires a file handle as first argument"}
+			}
+			if handle.IsClosed {
+				return &object.ReturnValue{Values: []object.Object{
+					object.NIL,
+					createIOError("E7050", "io.read_string(): file handle is closed"),
+				}}
+			}
+			n, ok := args[1].(*object.Integer)
+			if !ok {
+				return &object.Error{Code: "E7004", Message: "io.read_string() requires an integer as second argument"}
+			}
+			if n.Value < 0 {
+				return &object.Error{Code: "E7011", Message: "io.read_string() byte count cannot be negative"}
+			}
+
+			buf := make([]byte, n.Value)
+			bytesRead, err := handle.File.Read(buf)
+
+			// Handle EOF - not an error, just return what we got
+			if err != nil && err != io.EOF {
+				return createIOErrorResult(err, "read string")
+			}
+
+			return &object.ReturnValue{Values: []object.Object{
+				&object.String{Value: string(buf[:bytesRead])},
+				object.NIL,
+			}}
+		},
+	},
+
+	// Writes data to a file handle
+	// Data can be a string or byte array
+	// Returns (bytes_written, error) tuple
+	"io.write": {
+		Fn: func(args ...object.Object) object.Object {
+			if len(args) != 2 {
+				return &object.Error{Code: "E7001", Message: "io.write() takes exactly 2 arguments (handle, data)"}
+			}
+			handle, ok := args[0].(*object.FileHandle)
+			if !ok {
+				return &object.Error{Code: "E7003", Message: "io.write() requires a file handle as first argument"}
+			}
+			if handle.IsClosed {
+				return &object.ReturnValue{Values: []object.Object{
+					object.NIL,
+					createIOError("E7050", "io.write(): file handle is closed"),
+				}}
+			}
+
+			var data []byte
+			switch v := args[1].(type) {
+			case *object.String:
+				data = []byte(v.Value)
+			case *object.Array:
+				if v.ElementType != "byte" {
+					return &object.Error{Code: "E7002", Message: "io.write() array must be a byte array"}
+				}
+				data = make([]byte, len(v.Elements))
+				for i, elem := range v.Elements {
+					b, ok := elem.(*object.Byte)
+					if !ok {
+						return &object.Error{Code: "E7010", Message: fmt.Sprintf("io.write() byte array element %d is not a byte", i)}
+					}
+					data[i] = b.Value
+				}
+			default:
+				return &object.Error{Code: "E7003", Message: "io.write() data must be a string or byte array"}
+			}
+
+			bytesWritten, err := handle.File.Write(data)
+			if err != nil {
+				return createIOErrorResult(err, "write")
+			}
+
+			return &object.ReturnValue{Values: []object.Object{
+				&object.Integer{Value: int64(bytesWritten)},
+				object.NIL,
+			}}
+		},
+	},
+
+	// Seeks to a position in the file
+	// Returns (new_position, error) tuple
+	"io.seek": {
+		Fn: func(args ...object.Object) object.Object {
+			if len(args) != 3 {
+				return &object.Error{Code: "E7001", Message: "io.seek() takes exactly 3 arguments (handle, offset, whence)"}
+			}
+			handle, ok := args[0].(*object.FileHandle)
+			if !ok {
+				return &object.Error{Code: "E7003", Message: "io.seek() requires a file handle as first argument"}
+			}
+			if handle.IsClosed {
+				return &object.ReturnValue{Values: []object.Object{
+					object.NIL,
+					createIOError("E7050", "io.seek(): file handle is closed"),
+				}}
+			}
+			offset, ok := args[1].(*object.Integer)
+			if !ok {
+				return &object.Error{Code: "E7004", Message: "io.seek() offset must be an integer"}
+			}
+			whence, ok := args[2].(*object.Integer)
+			if !ok {
+				return &object.Error{Code: "E7004", Message: "io.seek() whence must be an integer"}
+			}
+
+			newPos, err := handle.File.Seek(offset.Value, int(whence.Value))
+			if err != nil {
+				return createIOErrorResult(err, "seek")
+			}
+
+			return &object.ReturnValue{Values: []object.Object{
+				&object.Integer{Value: newPos},
+				object.NIL,
+			}}
+		},
+	},
+
+	// Returns the current position in the file
+	// Returns (position, error) tuple
+	"io.tell": {
+		Fn: func(args ...object.Object) object.Object {
+			if len(args) != 1 {
+				return &object.Error{Code: "E7001", Message: "io.tell() takes exactly 1 argument (handle)"}
+			}
+			handle, ok := args[0].(*object.FileHandle)
+			if !ok {
+				return &object.Error{Code: "E7003", Message: "io.tell() requires a file handle"}
+			}
+			if handle.IsClosed {
+				return &object.ReturnValue{Values: []object.Object{
+					object.NIL,
+					createIOError("E7050", "io.tell(): file handle is closed"),
+				}}
+			}
+
+			// Seek with offset 0 from current position to get current position
+			pos, err := handle.File.Seek(0, io.SeekCurrent)
+			if err != nil {
+				return createIOErrorResult(err, "tell")
+			}
+
+			return &object.ReturnValue{Values: []object.Object{
+				&object.Integer{Value: pos},
+				object.NIL,
+			}}
+		},
+	},
+
+	// Flushes any buffered data to the file
+	// Returns (success, error) tuple
+	"io.flush": {
+		Fn: func(args ...object.Object) object.Object {
+			if len(args) != 1 {
+				return &object.Error{Code: "E7001", Message: "io.flush() takes exactly 1 argument (handle)"}
+			}
+			handle, ok := args[0].(*object.FileHandle)
+			if !ok {
+				return &object.Error{Code: "E7003", Message: "io.flush() requires a file handle"}
+			}
+			if handle.IsClosed {
+				return &object.ReturnValue{Values: []object.Object{
+					object.FALSE,
+					createIOError("E7050", "io.flush(): file handle is closed"),
+				}}
+			}
+
+			err := handle.File.Sync()
+			if err != nil {
+				return createIOErrorResult(err, "flush")
+			}
+
+			return &object.ReturnValue{Values: []object.Object{
+				object.TRUE,
+				object.NIL,
+			}}
+		},
+	},
+
+	// Closes a file handle
+	// Returns (success, error) tuple
+	"io.close": {
+		Fn: func(args ...object.Object) object.Object {
+			if len(args) != 1 {
+				return &object.Error{Code: "E7001", Message: "io.close() takes exactly 1 argument (handle)"}
+			}
+			handle, ok := args[0].(*object.FileHandle)
+			if !ok {
+				return &object.Error{Code: "E7003", Message: "io.close() requires a file handle"}
+			}
+			if handle.IsClosed {
+				// Already closed - not an error, just return success
+				return &object.ReturnValue{Values: []object.Object{
+					object.TRUE,
+					object.NIL,
+				}}
+			}
+
+			err := handle.File.Close()
+			handle.IsClosed = true
+
+			if err != nil {
+				return createIOErrorResult(err, "close")
+			}
+
+			return &object.ReturnValue{Values: []object.Object{
+				object.TRUE,
+				object.NIL,
+			}}
 		},
 	},
 }
