@@ -36,6 +36,59 @@ func validatePathBool(path string) bool {
 	return path != "" && !strings.ContainsRune(path, '\x00')
 }
 
+// atomicWriteFile writes data to a file atomically by writing to a temp file first,
+// then renaming. This ensures the file is never left in a partial state.
+func atomicWriteFile(path string, data []byte, perm os.FileMode) error {
+	// Get the directory of the target file
+	dir := filepath.Dir(path)
+
+	// Create a temp file in the same directory (ensures same filesystem for atomic rename)
+	tmpFile, err := os.CreateTemp(dir, ".ez_tmp_*")
+	if err != nil {
+		return fmt.Errorf("create temp file: %w", err)
+	}
+	tmpPath := tmpFile.Name()
+
+	// Clean up temp file on any error
+	success := false
+	defer func() {
+		if !success {
+			os.Remove(tmpPath)
+		}
+	}()
+
+	// Set permissions before writing (for security)
+	if err := tmpFile.Chmod(perm); err != nil {
+		tmpFile.Close()
+		return fmt.Errorf("set permissions: %w", err)
+	}
+
+	// Write data
+	if _, err := tmpFile.Write(data); err != nil {
+		tmpFile.Close()
+		return fmt.Errorf("write data: %w", err)
+	}
+
+	// Sync to ensure data is on disk before rename
+	if err := tmpFile.Sync(); err != nil {
+		tmpFile.Close()
+		return fmt.Errorf("sync: %w", err)
+	}
+
+	// Close before rename
+	if err := tmpFile.Close(); err != nil {
+		return fmt.Errorf("close temp file: %w", err)
+	}
+
+	// Atomic rename
+	if err := os.Rename(tmpPath, path); err != nil {
+		return fmt.Errorf("rename: %w", err)
+	}
+
+	success = true
+	return nil
+}
+
 // IOBuiltins contains the io module functions for file system operations
 var IOBuiltins = map[string]*object.Builtin{
 	// ============================================================================
@@ -80,11 +133,56 @@ var IOBuiltins = map[string]*object.Builtin{
 		},
 	},
 
+	// Reads the entire contents of a file as a byte array
+	// Returns (bytes, error) tuple - error is nil on success
+	"io.read_bytes": {
+		Fn: func(args ...object.Object) object.Object {
+			if len(args) != 1 {
+				return &object.Error{Code: "E7001", Message: "io.read_bytes() takes exactly 1 argument (path)"}
+			}
+			path, ok := args[0].(*object.String)
+			if !ok {
+				return &object.Error{Code: "E7003", Message: "io.read_bytes() requires a string path"}
+			}
+
+			// Validate path
+			if err := validatePath(path.Value, "io.read_bytes()"); err != nil {
+				return err
+			}
+
+			// Check if path is a directory
+			info, statErr := os.Stat(path.Value)
+			if statErr == nil && info.IsDir() {
+				return &object.ReturnValue{Values: []object.Object{
+					object.NIL,
+					createIOError("E7042", "io.read_bytes(): cannot read directory as file"),
+				}}
+			}
+
+			content, err := os.ReadFile(path.Value)
+			if err != nil {
+				return createIOErrorResult(err, "read")
+			}
+
+			// Convert to byte array
+			elements := make([]object.Object, len(content))
+			for i, b := range content {
+				elements[i] = &object.Byte{Value: b}
+			}
+
+			return &object.ReturnValue{Values: []object.Object{
+				&object.Array{Elements: elements, ElementType: "byte"},
+				object.NIL,
+			}}
+		},
+	},
+
 	// ============================================================================
 	// File Writing
 	// ============================================================================
 
-	// Writes content to a file, creating it if it doesn't exist or overwriting if it does
+	// Writes content to a file atomically, creating it if it doesn't exist or overwriting if it does
+	// Uses temp file + rename to ensure file is never left in a partial state
 	// Returns (success, error) tuple
 	"io.write_file": {
 		Fn: func(args ...object.Object) object.Object {
@@ -105,9 +203,64 @@ var IOBuiltins = map[string]*object.Builtin{
 				return err
 			}
 
-			err := os.WriteFile(path.Value, []byte(content.Value), 0644)
+			err := atomicWriteFile(path.Value, []byte(content.Value), 0644)
 			if err != nil {
 				return createIOErrorResult(err, "write")
+			}
+
+			return &object.ReturnValue{Values: []object.Object{
+				object.TRUE,
+				object.NIL,
+			}}
+		},
+	},
+
+	// Writes bytes to a file atomically, creating it if it doesn't exist or overwriting if it does
+	// Uses temp file + rename to ensure file is never left in a partial state
+	// Takes 2-3 arguments: path, data (byte array), and optional permissions (int)
+	// Returns (success, error) tuple
+	"io.write_bytes": {
+		Fn: func(args ...object.Object) object.Object {
+			if len(args) < 2 || len(args) > 3 {
+				return &object.Error{Code: "E7001", Message: "io.write_bytes() takes 2-3 arguments (path, data, [perms])"}
+			}
+			path, ok := args[0].(*object.String)
+			if !ok {
+				return &object.Error{Code: "E7003", Message: "io.write_bytes() requires a string path as first argument"}
+			}
+			data, ok := args[1].(*object.Array)
+			if !ok || data.ElementType != "byte" {
+				return &object.Error{Code: "E7002", Message: "io.write_bytes() requires a byte array as second argument"}
+			}
+
+			// Validate path
+			if err := validatePath(path.Value, "io.write_bytes()"); err != nil {
+				return err
+			}
+
+			// Default permissions
+			perms := os.FileMode(0644)
+			if len(args) == 3 {
+				permVal, ok := args[2].(*object.Integer)
+				if !ok {
+					return &object.Error{Code: "E7004", Message: "io.write_bytes() permissions must be an integer"}
+				}
+				perms = os.FileMode(permVal.Value)
+			}
+
+			// Convert byte array to []byte
+			bytes := make([]byte, len(data.Elements))
+			for i, elem := range data.Elements {
+				b, ok := elem.(*object.Byte)
+				if !ok {
+					return &object.Error{Code: "E7010", Message: fmt.Sprintf("io.write_bytes() byte array element %d is not a byte", i)}
+				}
+				bytes[i] = b.Value
+			}
+
+			err := atomicWriteFile(path.Value, bytes, perms)
+			if err != nil {
+				return createIOErrorResult(err, "write bytes")
 			}
 
 			return &object.ReturnValue{Values: []object.Object{
