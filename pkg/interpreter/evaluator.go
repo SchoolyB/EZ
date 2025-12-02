@@ -29,12 +29,13 @@ var globalEvalContext *EvalContext
 // validModules lists all available standard library modules
 var validModules = map[string]bool{
 	"std":     true, // Standard I/O functions (println, print, read_int)
-	"math":    true, // Math functions (upcoming)
-	"string":  true, // String manipulation (upcoming)
-	"strings": true, // String utilities (upcoming)
-	"arrays":  true, // Array utilities (upcoming)
+	"math":    true, // Math functions
+	"string":  true, // String manipulation (alias for strings)
+	"strings": true, // String utilities
+	"arrays":  true, // Array utilities
 	"maps":    true, // Map utilities
-	"time":    true, // Time functions (upcoming)
+	"time":    true, // Time functions
+	"io":      true, // File system and I/O operations
 }
 
 // isValidModule checks if a module name is valid (either standard library or user-created)

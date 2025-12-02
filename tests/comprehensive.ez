@@ -17,7 +17,7 @@
 // IMPORTS
 // ==================================================
 
-import @std, @math, @arrays, @strings, @maps, @time
+import @std, @math, @arrays, @strings, @maps, @time, @io
 
 using std
 
@@ -145,6 +145,10 @@ do main() {
     total_failed += result.failed
 
     result = test_stdlib_time()
+    total_passed += result.passed
+    total_failed += result.failed
+
+    result = test_stdlib_io()
     total_passed += result.passed
     total_failed += result.failed
 
@@ -1041,6 +1045,228 @@ do test_printf_and_escapes() -> TestResult {
     temp quote_str string = "She said \"Hello\""
     println("  Escaped quotes: ${quote_str}")
     passed += 1
+
+    println("  PASSED: ${passed}, FAILED: ${failed}")
+    return TestResult{passed: passed, failed: failed}
+}
+
+// ==================================================
+// STDLIB: @io
+// ==================================================
+
+do test_stdlib_io() -> TestResult {
+    print_section("Standard Library: @io")
+    temp passed int = 0
+    temp failed int = 0
+
+    // Create a test directory for our IO tests
+    temp test_dir string = io.path_join(".", "ez_io_test_temp")
+
+    // Test mkdir (use multi-return without type annotations)
+    temp mkdir_ok, mkdir_err = io.mkdir(test_dir)
+    if mkdir_err == nil {
+        println("  io.mkdir('${test_dir}') = success")
+        passed += 1
+    } otherwise {
+        println("  io.mkdir failed (may already exist)")
+        passed += 1
+    }
+
+    // Test exists
+    temp dir_exists bool = io.exists(test_dir)
+    println("  io.exists('${test_dir}') = ${dir_exists}")
+    passed += 1
+
+    // Test is_dir
+    temp is_directory bool = io.is_dir(test_dir)
+    println("  io.is_dir('${test_dir}') = ${is_directory}")
+    passed += 1
+
+    // Test write_file
+    temp test_file string = io.path_join(test_dir, "test.txt")
+    temp content string = "Hello from EZ IO test!\nThis is line 2."
+    temp write_ok, write_err = io.write_file(test_file, content)
+    if write_err == nil {
+        println("  io.write_file() = success")
+        passed += 1
+    } otherwise {
+        println("  io.write_file() = FAILED")
+        failed += 1
+    }
+
+    // Test is_file
+    temp is_regular_file bool = io.is_file(test_file)
+    println("  io.is_file('${test_file}') = ${is_regular_file}")
+    passed += 1
+
+    // Test read_file
+    temp read_content, read_err = io.read_file(test_file)
+    if read_err == nil {
+        println("  io.read_file() = success (${len(read_content)} bytes)")
+        passed += 1
+    } otherwise {
+        println("  io.read_file() = FAILED")
+        failed += 1
+    }
+
+    // Test append_file
+    temp append_ok, append_err = io.append_file(test_file, "\nAppended line.")
+    if append_err == nil {
+        println("  io.append_file() = success")
+        passed += 1
+    } otherwise {
+        println("  io.append_file() = FAILED")
+        failed += 1
+    }
+
+    // Verify append worked
+    temp updated_content, @ignore = io.read_file(test_file)
+    temp has_append bool = strings.contains(updated_content, "Appended line")
+    println("  Append verification: ${has_append}")
+    passed += 1
+
+    // Test file_size
+    temp size, size_err = io.file_size(test_file)
+    if size_err == nil {
+        println("  io.file_size('${test_file}') = ${size} bytes")
+        passed += 1
+    } otherwise {
+        println("  io.file_size() = FAILED")
+        failed += 1
+    }
+
+    // Test file_mod_time
+    temp mod_time, mod_err = io.file_mod_time(test_file)
+    if mod_err == nil {
+        println("  io.file_mod_time() = ${mod_time} (Unix timestamp)")
+        passed += 1
+    } otherwise {
+        println("  io.file_mod_time() = FAILED")
+        failed += 1
+    }
+
+    // Test copy
+    temp copy_dest string = io.path_join(test_dir, "copy.txt")
+    temp copy_ok, copy_err = io.copy(test_file, copy_dest)
+    if copy_err == nil {
+        println("  io.copy() = success")
+        passed += 1
+    } otherwise {
+        println("  io.copy() = FAILED")
+        failed += 1
+    }
+
+    // Test rename
+    temp rename_dest string = io.path_join(test_dir, "renamed.txt")
+    temp rename_ok, rename_err = io.rename(copy_dest, rename_dest)
+    if rename_err == nil {
+        println("  io.rename() = success")
+        passed += 1
+    } otherwise {
+        println("  io.rename() = FAILED")
+        failed += 1
+    }
+
+    // Test mkdir_all (nested directories)
+    temp nested_dir string = io.path_join(test_dir, "a", "b", "c")
+    temp mkdirall_ok, mkdirall_err = io.mkdir_all(nested_dir)
+    if mkdirall_err == nil {
+        println("  io.mkdir_all('${nested_dir}') = success")
+        passed += 1
+    } otherwise {
+        println("  io.mkdir_all() = FAILED")
+        failed += 1
+    }
+
+    // Test read_dir
+    temp entries, readdir_err = io.read_dir(test_dir)
+    if readdir_err == nil {
+        println("  io.read_dir() returned ${len(entries)} entries:")
+        for_each entry in entries {
+            println("    - ${entry}")
+        }
+        passed += 1
+    } otherwise {
+        println("  io.read_dir() = FAILED")
+        failed += 1
+    }
+
+    // Test path utilities
+    println("")
+    println("  Path Utilities:")
+    temp sample_path string = io.path_join("home", "user", "docs", "file.txt")
+    println("  io.path_join('home', 'user', 'docs', 'file.txt') = '${sample_path}'")
+    passed += 1
+
+    temp base string = io.path_base(sample_path)
+    println("  io.path_base('${sample_path}') = '${base}'")
+    passed += 1
+
+    temp dir string = io.path_dir(sample_path)
+    println("  io.path_dir('${sample_path}') = '${dir}'")
+    passed += 1
+
+    temp ext string = io.path_ext(sample_path)
+    println("  io.path_ext('${sample_path}') = '${ext}'")
+    passed += 1
+
+    temp separator string = io.path_separator()
+    println("  io.path_separator() = '${separator}'")
+    passed += 1
+
+    temp clean_path string = io.path_clean("./foo/../bar//baz")
+    println("  io.path_clean('./foo/../bar//baz') = '${clean_path}'")
+    passed += 1
+
+    temp abs_path, abs_err = io.path_abs(".")
+    if abs_err == nil {
+        println("  io.path_abs('.') = '${abs_path}'")
+        passed += 1
+    } otherwise {
+        println("  io.path_abs() = FAILED")
+        failed += 1
+    }
+
+    // Test error handling - non-existent file
+    println("")
+    println("  Error Handling:")
+    temp not_found_content, not_found_err = io.read_file("nonexistent_file_12345.txt")
+    if not_found_err != nil {
+        println("  io.read_file(nonexistent) correctly returned error")
+        passed += 1
+    } otherwise {
+        println("  Expected error but got nil")
+        failed += 1
+    }
+
+    // Cleanup - remove test files and directories
+    println("")
+    println("  Cleanup:")
+
+    // Remove files first
+    temp rm1_ok, rm1_err = io.remove(test_file)
+    temp rm2_ok, rm2_err = io.remove(rename_dest)
+    println("  Removed test files")
+
+    // Remove nested directory recursively
+    temp rmall_ok, rmall_err = io.remove_all(test_dir)
+    if rmall_err == nil {
+        println("  io.remove_all('${test_dir}') = success")
+        passed += 1
+    } otherwise {
+        println("  io.remove_all() = FAILED")
+        failed += 1
+    }
+
+    // Verify cleanup
+    temp still_exists bool = io.exists(test_dir)
+    if !still_exists {
+        println("  Cleanup verified - directory removed")
+        passed += 1
+    } otherwise {
+        println("  Cleanup incomplete")
+        failed += 1
+    }
 
     println("  PASSED: ${passed}, FAILED: ${failed}")
     return TestResult{passed: passed, failed: failed}
