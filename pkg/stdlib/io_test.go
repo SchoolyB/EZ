@@ -1119,3 +1119,257 @@ func TestIOSecurityReadDirectoryAsFile(t *testing.T) {
 		t.Errorf("expected error code E7042, got %v", errStruct.Fields["code"])
 	}
 }
+
+// ============================================================================
+// Byte I/O Tests (Phase 4)
+// ============================================================================
+
+func TestIOReadBytes(t *testing.T) {
+	dir, cleanup := createTempDir(t)
+	defer cleanup()
+
+	readBytesFn := IOBuiltins["io.read_bytes"].Fn
+
+	t.Run("read binary file", func(t *testing.T) {
+		// Create a file with known binary content
+		content := []byte{0x00, 0x48, 0x65, 0x6c, 0x6c, 0x6f, 0xFF, 0x00}
+		path := filepath.Join(dir, "binary.dat")
+		if err := os.WriteFile(path, content, 0644); err != nil {
+			t.Fatalf("failed to create test file: %v", err)
+		}
+
+		result := readBytesFn(&object.String{Value: path})
+		assertNoError(t, result)
+
+		vals := getReturnValues(t, result)
+		arr, ok := vals[0].(*object.Array)
+		if !ok {
+			t.Fatalf("expected Array, got %T", vals[0])
+		}
+
+		if len(arr.Elements) != len(content) {
+			t.Errorf("expected %d bytes, got %d", len(content), len(arr.Elements))
+		}
+
+		// Verify each byte
+		for i, elem := range arr.Elements {
+			b, ok := elem.(*object.Byte)
+			if !ok {
+				t.Errorf("element %d: expected Byte, got %T", i, elem)
+				continue
+			}
+			if b.Value != content[i] {
+				t.Errorf("element %d: expected 0x%02x, got 0x%02x", i, content[i], b.Value)
+			}
+		}
+	})
+
+	t.Run("read nonexistent file", func(t *testing.T) {
+		result := readBytesFn(&object.String{Value: filepath.Join(dir, "nonexistent.dat")})
+		assertHasError(t, result)
+	})
+
+	t.Run("read directory as bytes", func(t *testing.T) {
+		result := readBytesFn(&object.String{Value: dir})
+		errStruct := assertHasError(t, result)
+		code := errStruct.Fields["code"].(*object.String)
+		if code.Value != "E7042" {
+			t.Errorf("expected E7042, got %s", code.Value)
+		}
+	})
+
+	t.Run("empty path", func(t *testing.T) {
+		result := readBytesFn(&object.String{Value: ""})
+		rv := result.(*object.ReturnValue)
+		errStruct := rv.Values[1].(*object.Struct)
+		code := errStruct.Fields["code"].(*object.String)
+		if code.Value != "E7040" {
+			t.Errorf("expected E7040, got %s", code.Value)
+		}
+	})
+}
+
+func TestIOWriteBytes(t *testing.T) {
+	dir, cleanup := createTempDir(t)
+	defer cleanup()
+
+	writeBytesFn := IOBuiltins["io.write_bytes"].Fn
+	readBytesFn := IOBuiltins["io.read_bytes"].Fn
+
+	// Helper to create byte array
+	makeByteArray := func(data []byte) *object.Array {
+		elements := make([]object.Object, len(data))
+		for i, b := range data {
+			elements[i] = &object.Byte{Value: b}
+		}
+		return &object.Array{Elements: elements, ElementType: "byte"}
+	}
+
+	t.Run("write binary file", func(t *testing.T) {
+		content := []byte{0x00, 0x48, 0x65, 0x6c, 0x6c, 0x6f, 0xFF, 0x00}
+		path := filepath.Join(dir, "write_test.dat")
+
+		result := writeBytesFn(&object.String{Value: path}, makeByteArray(content))
+		assertNoError(t, result)
+
+		// Verify by reading back
+		readResult := readBytesFn(&object.String{Value: path})
+		assertNoError(t, readResult)
+
+		vals := getReturnValues(t, readResult)
+		arr := vals[0].(*object.Array)
+
+		if len(arr.Elements) != len(content) {
+			t.Errorf("expected %d bytes, got %d", len(content), len(arr.Elements))
+		}
+
+		for i, elem := range arr.Elements {
+			b := elem.(*object.Byte)
+			if b.Value != content[i] {
+				t.Errorf("byte %d: expected 0x%02x, got 0x%02x", i, content[i], b.Value)
+			}
+		}
+	})
+
+	t.Run("write with permissions", func(t *testing.T) {
+		content := []byte{0x41, 0x42, 0x43}
+		path := filepath.Join(dir, "perms_test.dat")
+
+		// Write with custom permissions (0600 = owner read/write only)
+		result := writeBytesFn(
+			&object.String{Value: path},
+			makeByteArray(content),
+			&object.Integer{Value: 0600},
+		)
+		assertNoError(t, result)
+
+		// Verify file exists and has correct content
+		data, err := os.ReadFile(path)
+		if err != nil {
+			t.Fatalf("failed to read file: %v", err)
+		}
+		if string(data) != "ABC" {
+			t.Errorf("expected ABC, got %s", string(data))
+		}
+
+		// Verify permissions (on Unix)
+		if runtime.GOOS != "windows" {
+			info, err := os.Stat(path)
+			if err != nil {
+				t.Fatalf("failed to stat file: %v", err)
+			}
+			perm := info.Mode().Perm()
+			if perm != 0600 {
+				t.Errorf("expected permissions 0600, got %o", perm)
+			}
+		}
+	})
+
+	t.Run("overwrite existing file", func(t *testing.T) {
+		path := filepath.Join(dir, "overwrite_test.dat")
+
+		// Write initial content
+		result := writeBytesFn(&object.String{Value: path}, makeByteArray([]byte{0x01, 0x02, 0x03}))
+		assertNoError(t, result)
+
+		// Overwrite with new content
+		result = writeBytesFn(&object.String{Value: path}, makeByteArray([]byte{0xFF, 0xFE}))
+		assertNoError(t, result)
+
+		// Verify new content
+		data, err := os.ReadFile(path)
+		if err != nil {
+			t.Fatalf("failed to read file: %v", err)
+		}
+		if len(data) != 2 || data[0] != 0xFF || data[1] != 0xFE {
+			t.Errorf("expected [0xFF, 0xFE], got %v", data)
+		}
+	})
+
+	t.Run("empty path", func(t *testing.T) {
+		result := writeBytesFn(&object.String{Value: ""}, makeByteArray([]byte{0x00}))
+		rv := result.(*object.ReturnValue)
+		errStruct := rv.Values[1].(*object.Struct)
+		code := errStruct.Fields["code"].(*object.String)
+		if code.Value != "E7040" {
+			t.Errorf("expected E7040, got %s", code.Value)
+		}
+	})
+
+	t.Run("wrong argument type", func(t *testing.T) {
+		path := filepath.Join(dir, "wrong_type.dat")
+		// Pass string instead of byte array
+		result := writeBytesFn(&object.String{Value: path}, &object.String{Value: "hello"})
+		_, ok := result.(*object.Error)
+		if !ok {
+			t.Errorf("expected Error for wrong type, got %T", result)
+		}
+	})
+}
+
+func TestIOAtomicWrite(t *testing.T) {
+	dir, cleanup := createTempDir(t)
+	defer cleanup()
+
+	writeFileFn := IOBuiltins["io.write_file"].Fn
+	readFileFn := IOBuiltins["io.read_file"].Fn
+
+	t.Run("atomic write creates file", func(t *testing.T) {
+		path := filepath.Join(dir, "atomic_test.txt")
+		content := "Hello, atomic world!"
+
+		result := writeFileFn(&object.String{Value: path}, &object.String{Value: content})
+		assertNoError(t, result)
+
+		// Verify content
+		readResult := readFileFn(&object.String{Value: path})
+		assertNoError(t, readResult)
+
+		vals := getReturnValues(t, readResult)
+		str := vals[0].(*object.String)
+		if str.Value != content {
+			t.Errorf("expected %q, got %q", content, str.Value)
+		}
+	})
+
+	t.Run("atomic write overwrites existing", func(t *testing.T) {
+		path := filepath.Join(dir, "atomic_overwrite.txt")
+
+		// Create initial file
+		result := writeFileFn(&object.String{Value: path}, &object.String{Value: "initial"})
+		assertNoError(t, result)
+
+		// Overwrite
+		result = writeFileFn(&object.String{Value: path}, &object.String{Value: "overwritten"})
+		assertNoError(t, result)
+
+		// Verify
+		readResult := readFileFn(&object.String{Value: path})
+		assertNoError(t, readResult)
+
+		vals := getReturnValues(t, readResult)
+		str := vals[0].(*object.String)
+		if str.Value != "overwritten" {
+			t.Errorf("expected 'overwritten', got %q", str.Value)
+		}
+	})
+
+	t.Run("no temp files left behind", func(t *testing.T) {
+		path := filepath.Join(dir, "no_leftovers.txt")
+
+		result := writeFileFn(&object.String{Value: path}, &object.String{Value: "test"})
+		assertNoError(t, result)
+
+		// Check for any .ez_tmp_ files
+		entries, err := os.ReadDir(dir)
+		if err != nil {
+			t.Fatalf("failed to read dir: %v", err)
+		}
+
+		for _, entry := range entries {
+			if filepath.HasPrefix(entry.Name(), ".ez_tmp_") {
+				t.Errorf("temp file left behind: %s", entry.Name())
+			}
+		}
+	})
+}
