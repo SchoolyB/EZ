@@ -39,7 +39,9 @@ For pre-built binaries and installation instructions, visit the [documentation](
 
 ## Running Tests
 
-EZ has two test suites: **passing tests** (verify features work) and **error tests** (verify error messages).
+EZ has two types of tests: **EZ language tests** (written in EZ) and **Go unit tests** (for the interpreter internals).
+
+### EZ Language Tests
 
 ```bash
 # Run passing tests
@@ -50,6 +52,44 @@ EZ has two test suites: **passing tests** (verify features work) and **error tes
 # Run error tests
 ./tests/errors/run_error_tests.sh ./ez
 ```
+
+### Go Unit Tests
+
+```bash
+# Run all unit tests
+go test ./...
+
+# Run tests with verbose output
+go test -v ./...
+
+# Run tests for a specific package
+go test ./pkg/lexer/...
+go test ./pkg/parser/...
+go test ./pkg/ast/...
+go test ./pkg/object/...
+go test ./pkg/errors/...
+
+# Run with coverage report
+go test -cover ./...
+
+# Generate HTML coverage report
+go test -coverprofile=coverage.out ./...
+go tool cover -html=coverage.out
+```
+
+### Unit Test Coverage
+
+| Package | Status |
+|---------|--------|
+| pkg/tokenizer | Implemented |
+| pkg/errors | Implemented |
+| pkg/lexer | Implemented |
+| pkg/ast | Implemented |
+| pkg/object | Implemented |
+| pkg/parser | Implemented |
+| pkg/typechecker | Implemented |
+| pkg/interpreter | Implemented |
+| pkg/stdlib | Not yet implemented |
 
 ---
 
