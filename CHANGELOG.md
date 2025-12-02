@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.6.1](https://github.com/SchoolyB/EZ/compare/v0.6.0...v0.6.1) (2025-12-02)
+
+
+### Bug Fixes
+
+* **io:** add path security validation ([3f82018](https://github.com/SchoolyB/EZ/commit/3f82018747ce98752772faa1304e117009185c48))
+* **io:** add path security validation ([a520f30](https://github.com/SchoolyB/EZ/commit/a520f30c9f4f49d9bb3cd07b3953272dd22277d6)), closes [#254](https://github.com/SchoolyB/EZ/issues/254)
+
 ## [0.6.0](https://github.com/SchoolyB/EZ/compare/v0.5.0...v0.6.0) (2025-12-02)
 
 
