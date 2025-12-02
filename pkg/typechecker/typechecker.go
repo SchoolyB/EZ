@@ -172,7 +172,7 @@ func (tc *TypeChecker) registerBuiltinTypes() {
 		// Floats
 		"f32", "f64", "float",
 		// Other primitives
-		"bool", "char", "string",
+		"bool", "char", "string", "byte",
 		// Special
 		"void", "nil",
 	}
@@ -2026,7 +2026,7 @@ func (tc *TypeChecker) isNumericType(typeName string) bool {
 	switch typeName {
 	case "int", "i8", "i16", "i32", "i64", "i128", "i256",
 		"uint", "u8", "u16", "u32", "u64", "u128", "u256",
-		"float", "f32", "f64":
+		"float", "f32", "f64", "byte":
 		return true
 	default:
 		return false
@@ -2155,6 +2155,17 @@ func (tc *TypeChecker) typesCompatible(declared, actual string) bool {
 	// For now, we allow int to unsigned assignment and let runtime catch negative values
 	if tc.isUnsignedIntegerType(declared) && tc.isSignedIntegerType(actual) {
 		// We'll be permissive here - the runtime already catches negative values
+		return true
+	}
+
+	// Byte type compatibility - bytes are like unsigned 8-bit integers
+	// Allow int to byte assignment (runtime validates 0-255 range)
+	if declared == "byte" && (tc.isSignedIntegerType(actual) || tc.isUnsignedIntegerType(actual)) {
+		return true
+	}
+
+	// Allow byte to integer/unsigned types
+	if (tc.isSignedIntegerType(declared) || tc.isUnsignedIntegerType(declared)) && actual == "byte" {
 		return true
 	}
 

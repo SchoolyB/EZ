@@ -17,6 +17,7 @@ const (
 	FLOAT_OBJ        ObjectType = "FLOAT"
 	STRING_OBJ       ObjectType = "STRING"
 	CHAR_OBJ         ObjectType = "CHAR"
+	BYTE_OBJ         ObjectType = "BYTE"
 	BOOLEAN_OBJ      ObjectType = "BOOLEAN"
 	NIL_OBJ          ObjectType = "NIL"
 	RETURN_VALUE_OBJ ObjectType = "RETURN_VALUE"
@@ -85,6 +86,14 @@ type Char struct {
 
 func (c *Char) Type() ObjectType { return CHAR_OBJ }
 func (c *Char) Inspect() string  { return string(c.Value) }
+
+// Byte wraps uint8 (0-255)
+type Byte struct {
+	Value uint8
+}
+
+func (b *Byte) Type() ObjectType { return BYTE_OBJ }
+func (b *Byte) Inspect() string  { return fmt.Sprintf("%d", b.Value) }
 
 // Boolean wraps bool
 type Boolean struct {
@@ -206,6 +215,8 @@ func HashKey(obj Object) (string, bool) {
 		return "b:false", true
 	case *Char:
 		return fmt.Sprintf("c:%d", o.Value), true
+	case *Byte:
+		return fmt.Sprintf("y:%d", o.Value), true
 	default:
 		return "", false
 	}
