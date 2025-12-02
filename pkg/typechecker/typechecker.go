@@ -757,6 +757,66 @@ func (tc *TypeChecker) checkVariableDeclaration(decl *ast.VariableDeclaration) {
 				return
 			}
 
+			// Check byte value range for single byte declaration
+			if declaredType == "byte" {
+				if intLit, ok := decl.Value.(*ast.IntegerValue); ok {
+					if intLit.Value < 0 || intLit.Value > 255 {
+						tc.addError(
+							errors.E3021,
+							fmt.Sprintf("byte value %d out of range: must be between 0 and 255", intLit.Value),
+							decl.Name.Token.Line,
+							decl.Name.Token.Column,
+						)
+						return
+					}
+				}
+				// Handle negative literals like -5 (parsed as prefix expression)
+				if prefixExpr, ok := decl.Value.(*ast.PrefixExpression); ok {
+					if prefixExpr.Operator == "-" {
+						if intLit, ok := prefixExpr.Right.(*ast.IntegerValue); ok {
+							tc.addError(
+								errors.E3021,
+								fmt.Sprintf("byte value -%d out of range: must be between 0 and 255", intLit.Value),
+								decl.Name.Token.Line,
+								decl.Name.Token.Column,
+							)
+							return
+						}
+					}
+				}
+			}
+
+			// Check byte array element values
+			if declaredType == "[byte]" || strings.HasPrefix(declaredType, "[byte,") {
+				if arrLit, ok := decl.Value.(*ast.ArrayValue); ok {
+					for i, elem := range arrLit.Elements {
+						if intLit, ok := elem.(*ast.IntegerValue); ok {
+							if intLit.Value < 0 || intLit.Value > 255 {
+								tc.addError(
+									errors.E3022,
+									fmt.Sprintf("byte array element [%d] value %d out of range: must be between 0 and 255", i, intLit.Value),
+									intLit.Token.Line,
+									intLit.Token.Column,
+								)
+							}
+						}
+						// Handle negative literals like -5 (parsed as prefix expression)
+						if prefixExpr, ok := elem.(*ast.PrefixExpression); ok {
+							if prefixExpr.Operator == "-" {
+								if intLit, ok := prefixExpr.Right.(*ast.IntegerValue); ok {
+									tc.addError(
+										errors.E3022,
+										fmt.Sprintf("byte array element [%d] value -%d out of range: must be between 0 and 255", i, intLit.Value),
+										prefixExpr.Token.Line,
+										prefixExpr.Token.Column,
+									)
+								}
+							}
+						}
+					}
+				}
+			}
+
 			// Check for fixed-size array size mismatch (W3003)
 			if tc.isArrayType(declaredType) {
 				declaredSize := tc.extractArraySize(declaredType)
@@ -990,6 +1050,25 @@ func (tc *TypeChecker) checkInfixExpression(infix *ast.InfixExpression) {
 	case "+":
 		// Valid for numbers or strings
 		if tc.isNumericType(leftType) && tc.isNumericType(rightType) {
+			// Warn about potential byte overflow
+			if leftType == "byte" && rightType == "byte" {
+				tc.addWarning(
+					errors.W2006,
+					"byte + byte arithmetic may overflow (result wraps at 255)",
+					line,
+					column,
+				)
+			}
+			// Warn about implicit type conversion when mixing byte with larger types
+			if (leftType == "byte" && rightType != "byte" && tc.isNumericType(rightType)) ||
+				(rightType == "byte" && leftType != "byte" && tc.isNumericType(leftType)) {
+				tc.addWarning(
+					errors.W2004,
+					fmt.Sprintf("implicit type conversion: byte promoted to %s in arithmetic operation", tc.getPromotedType(leftType, rightType)),
+					line,
+					column,
+				)
+			}
 			return // OK
 		}
 		if leftType == "string" && rightType == "string" {
@@ -1011,6 +1090,26 @@ func (tc *TypeChecker) checkInfixExpression(infix *ast.InfixExpression) {
 				line,
 				column,
 			)
+		} else {
+			// Warn about potential byte overflow (especially for * which can easily overflow)
+			if leftType == "byte" && rightType == "byte" {
+				tc.addWarning(
+					errors.W2006,
+					fmt.Sprintf("byte %s byte arithmetic may overflow (result wraps at 255)", infix.Operator),
+					line,
+					column,
+				)
+			}
+			// Warn about implicit type conversion when mixing byte with larger types
+			if (leftType == "byte" && rightType != "byte" && tc.isNumericType(rightType)) ||
+				(rightType == "byte" && leftType != "byte" && tc.isNumericType(leftType)) {
+				tc.addWarning(
+					errors.W2004,
+					fmt.Sprintf("implicit type conversion: byte promoted to %s in arithmetic operation", tc.getPromotedType(leftType, rightType)),
+					line,
+					column,
+				)
+			}
 		}
 
 	case "==", "!=":
@@ -2031,6 +2130,15 @@ func (tc *TypeChecker) isNumericType(typeName string) bool {
 	default:
 		return false
 	}
+}
+
+// getPromotedType returns the resulting type when two numeric types are used together
+// byte is promoted to the other type in mixed operations
+func (tc *TypeChecker) getPromotedType(left, right string) string {
+	if left == "byte" {
+		return right
+	}
+	return left
 }
 
 // isIntegerType checks if a type is an integer type

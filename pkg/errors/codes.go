@@ -94,6 +94,8 @@ var (
 	E3018 = ErrorCode{"E3018", "array-literal-required", "array type requires array literal"}
 	E3019 = ErrorCode{"E3019", "signed-to-unsigned", "cannot assign signed type to unsigned"}
 	E3020 = ErrorCode{"E3020", "negative-to-unsigned", "cannot assign negative value to unsigned type"}
+	E3021 = ErrorCode{"E3021", "byte-value-out-of-range", "byte value must be between 0 and 255"}
+	E3022 = ErrorCode{"E3022", "byte-array-element-out-of-range", "byte array element must be between 0 and 255"}
 )
 
 // =============================================================================
@@ -246,6 +248,7 @@ var (
 	W2003 = ErrorCode{"W2003", "missing-return", "function may not return value"}
 	W2004 = ErrorCode{"W2004", "implicit-type-conversion", "implicit type conversion occurring"}
 	W2005 = ErrorCode{"W2005", "deprecated-feature", "using deprecated feature"}
+	W2006 = ErrorCode{"W2006", "byte-overflow-potential", "byte arithmetic may overflow"}
 
 	// Code Quality Warnings (W3xxx)
 	W3001 = ErrorCode{"W3001", "empty-block", "block statement is empty"}
