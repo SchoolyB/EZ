@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.5.0](https://github.com/SchoolyB/EZ/compare/v0.4.0...v0.5.0) (2025-12-02)
+
+
+### Features
+
+* rename std.print to std.printf and fix escape sequences ([d5a03a0](https://github.com/SchoolyB/EZ/commit/d5a03a0f819a566c0d47a2616a11c19e2660838b))
+* rename std.print to std.printf and fix escape sequences ([2a17192](https://github.com/SchoolyB/EZ/commit/2a171922b963ff2a37bbc92b0c3cdf50c5c9d6fc)), closes [#237](https://github.com/SchoolyB/EZ/issues/237)
+
+
+### Bug Fixes
+
+* correct CodeQL workflow order and permissions ([d93affa](https://github.com/SchoolyB/EZ/commit/d93affa9ba06d493044359f7eb48295bcab1d84d))
+* correct CodeQL workflow order and permissions ([#221](https://github.com/SchoolyB/EZ/issues/221)) ([29a4c21](https://github.com/SchoolyB/EZ/commit/29a4c21c67055de62938b22bd815b89ba68c4ec3))
+
 ## [0.4.0](https://github.com/SchoolyB/EZ/compare/v0.3.0...v0.4.0) (2025-12-01)
 
 
