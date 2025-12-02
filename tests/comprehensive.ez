@@ -148,6 +148,10 @@ do main() {
     total_passed += result.passed
     total_failed += result.failed
 
+    result = test_printf_and_escapes()
+    total_passed += result.passed
+    total_failed += result.failed
+
     temp total int = total_passed + total_failed
 
     println("")
@@ -992,6 +996,50 @@ do test_stdlib_time() -> TestResult {
     // Calendar utilities
     println("  time.quarter() = Q${time.quarter()}")
     println("  time.week_of_year() = ${time.week_of_year()}")
+    passed += 1
+
+    println("  PASSED: ${passed}, FAILED: ${failed}")
+    return TestResult{passed: passed, failed: failed}
+}
+
+// ==================================================
+// STDLIB: printf and escape sequences
+// ==================================================
+
+do test_printf_and_escapes() -> TestResult {
+    print_section("Printf and Escape Sequences")
+    temp passed int = 0
+    temp failed int = 0
+
+    // Test std.printf (no automatic newline)
+    std.printf("  printf test: ")
+    std.printf("Hello")
+    std.printf(" World\n")
+    passed += 1
+
+    // Test escape sequences in strings
+    temp tab_str string = "A\tB"
+    println("  Tab escape: '${tab_str}'")
+    passed += 1
+
+    temp newline_str string = "Line1\nLine2"
+    println("  Newline escape (in variable):")
+    println("${newline_str}")
+    passed += 1
+
+    // Test carriage return
+    temp cr_str string = "Hello\rWorld"
+    println("  Carriage return: '${cr_str}'")
+    passed += 1
+
+    // Test escaped backslash
+    temp backslash_str string = "Path\\to\\file"
+    println("  Escaped backslash: '${backslash_str}'")
+    passed += 1
+
+    // Test escaped quotes
+    temp quote_str string = "She said \"Hello\""
+    println("  Escaped quotes: ${quote_str}")
     passed += 1
 
     println("  PASSED: ${passed}, FAILED: ${failed}")
