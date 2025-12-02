@@ -154,7 +154,7 @@ var OSBuiltins = map[string]*object.Builtin{
 				}
 			}
 			os.Exit(code)
-			return object.NIL // Never reached
+			select {} // Unreachable; satisfies compiler requirement
 		},
 	},
 
