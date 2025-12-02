@@ -31,6 +31,8 @@ func getEZTypeName(obj Object) string {
 		return "bool"
 	case *Char:
 		return "char"
+	case *Byte:
+		return "byte"
 	case *Array:
 		return "array"
 	case *Map:

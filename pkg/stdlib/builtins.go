@@ -29,6 +29,8 @@ func getEZTypeName(obj object.Object) string {
 		return "bool"
 	case *object.Char:
 		return "char"
+	case *object.Byte:
+		return "byte"
 	case *object.Array:
 		return "array"
 	case *object.Struct:
@@ -267,6 +269,62 @@ var StdBuiltins = map[string]*object.Builtin{
 				return &object.Error{Code: "E7001", Message: "string() takes exactly 1 argument"}
 			}
 			return &object.String{Value: args[0].Inspect()}
+		},
+	},
+
+	// Converts a value to a byte (0-255)
+	"byte": {
+		Fn: func(args ...object.Object) object.Object {
+			if len(args) != 1 {
+				return &object.Error{Code: "E7001", Message: "byte() takes exactly 1 argument"}
+			}
+			switch arg := args[0].(type) {
+			case *object.Byte:
+				return arg
+			case *object.Integer:
+				if arg.Value < 0 || arg.Value > 255 {
+					return &object.Error{
+						Code:    "E7014",
+						Message: fmt.Sprintf("cannot convert %d to byte: value must be between 0 and 255", arg.Value),
+					}
+				}
+				return &object.Byte{Value: uint8(arg.Value)}
+			case *object.Float:
+				intVal := int64(arg.Value)
+				if intVal < 0 || intVal > 255 {
+					return &object.Error{
+						Code:    "E7014",
+						Message: fmt.Sprintf("cannot convert %v to byte: value must be between 0 and 255", arg.Value),
+					}
+				}
+				return &object.Byte{Value: uint8(intVal)}
+			case *object.Char:
+				if arg.Value < 0 || arg.Value > 255 {
+					return &object.Error{
+						Code:    "E7014",
+						Message: fmt.Sprintf("cannot convert char %q to byte: value must be between 0 and 255", arg.Value),
+					}
+				}
+				return &object.Byte{Value: uint8(arg.Value)}
+			case *object.String:
+				cleanedValue := strings.ReplaceAll(arg.Value, "_", "")
+				val, err := strconv.ParseInt(cleanedValue, 10, 64)
+				if err != nil {
+					return &object.Error{
+						Code:    "E7014",
+						Message: fmt.Sprintf("cannot convert %q to byte: invalid integer format", arg.Value),
+					}
+				}
+				if val < 0 || val > 255 {
+					return &object.Error{
+						Code:    "E7014",
+						Message: fmt.Sprintf("cannot convert %q to byte: value must be between 0 and 255", arg.Value),
+					}
+				}
+				return &object.Byte{Value: uint8(val)}
+			default:
+				return &object.Error{Code: "E7014", Message: fmt.Sprintf("cannot convert %s to byte", args[0].Type())}
+			}
 		},
 	},
 
