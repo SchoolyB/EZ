@@ -2002,6 +2002,9 @@ func (p *Parser) parseStringValue() Expression {
 	token := p.currentToken
 	literal := p.currentToken.Literal
 
+	// Process escape sequences like \n, \t, etc.
+	literal = processEscapeSequences(literal)
+
 	// Check if string contains interpolation patterns ${...}
 	if !containsInterpolation(literal) {
 		return &StringValue{Token: token, Value: literal}
@@ -2087,6 +2090,46 @@ func containsInterpolation(s string) bool {
 		}
 	}
 	return false
+}
+
+// processEscapeSequences converts escape sequences like \n, \t to actual characters
+func processEscapeSequences(s string) string {
+	var result strings.Builder
+	result.Grow(len(s))
+
+	for i := 0; i < len(s); i++ {
+		if s[i] == '\\' && i+1 < len(s) {
+			switch s[i+1] {
+			case 'n':
+				result.WriteByte('\n')
+				i++
+			case 't':
+				result.WriteByte('\t')
+				i++
+			case 'r':
+				result.WriteByte('\r')
+				i++
+			case '\\':
+				result.WriteByte('\\')
+				i++
+			case '"':
+				result.WriteByte('"')
+				i++
+			case '\'':
+				result.WriteByte('\'')
+				i++
+			case '0':
+				result.WriteByte(0)
+				i++
+			default:
+				// Not a valid escape, keep as-is (lexer already reported error)
+				result.WriteByte(s[i])
+			}
+		} else {
+			result.WriteByte(s[i])
+		}
+	}
+	return result.String()
 }
 
 // parseInterpolatedExpression parses an expression from within ${}
