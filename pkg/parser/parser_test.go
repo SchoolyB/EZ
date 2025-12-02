@@ -1397,3 +1397,85 @@ func TestIsReservedName(t *testing.T) {
 		})
 	}
 }
+
+// ============================================================================
+// Matrix Type Parsing Tests
+// ============================================================================
+
+func TestMatrixTypeParsing(t *testing.T) {
+	tests := []struct {
+		name         string
+		input        string
+		expectedName string
+		typeName     string
+	}{
+		{"2D int array", "temp matrix [[int]] = {{1, 2}, {3, 4}}", "matrix", "[[int]]"},
+		{"2D string array", "temp strs [[string]] = {{\"a\", \"b\"}, {\"c\", \"d\"}}", "strs", "[[string]]"},
+		{"2D float array", "temp floats [[float]] = {{1.1, 2.2}, {3.3, 4.4}}", "floats", "[[float]]"},
+		{"2D bool array", "temp flags [[bool]] = {{true, false}, {false, true}}", "flags", "[[bool]]"},
+		{"3D int array", "temp cube [[[int]]] = {{{1, 2}, {3, 4}}, {{5, 6}, {7, 8}}}", "cube", "[[[int]]]"},
+		{"empty 2D array", "temp empty [[int]] = {}", "empty", "[[int]]"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			program := parseProgram(t, tt.input)
+			if len(program.Statements) == 0 {
+				t.Fatalf("no statements parsed")
+			}
+			stmt, ok := program.Statements[0].(*VariableDeclaration)
+			if !ok {
+				t.Fatalf("not VariableDeclaration, got %T", program.Statements[0])
+			}
+			if stmt.Name.Value != tt.expectedName {
+				t.Errorf("expected name %q, got %q", tt.expectedName, stmt.Name.Value)
+			}
+			if stmt.TypeName != tt.typeName {
+				t.Errorf("expected typeName %q, got %q", tt.typeName, stmt.TypeName)
+			}
+		})
+	}
+}
+
+func TestMatrixInFunctionParameter(t *testing.T) {
+	input := `do processMatrix(m [[int]]) -> int {
+		return 0
+	}`
+	program := parseProgram(t, input)
+	fn := program.Statements[0].(*FunctionDeclaration)
+
+	if len(fn.Parameters) != 1 {
+		t.Fatalf("expected 1 parameter, got %d", len(fn.Parameters))
+	}
+	if fn.Parameters[0].TypeName != "[[int]]" {
+		t.Errorf("expected parameter type '[[int]]', got %q", fn.Parameters[0].TypeName)
+	}
+}
+
+func TestMatrixInFunctionReturn(t *testing.T) {
+	input := `do createMatrix() -> [[int]] {
+		return {{1, 2}, {3, 4}}
+	}`
+	program := parseProgram(t, input)
+	fn := program.Statements[0].(*FunctionDeclaration)
+
+	if len(fn.ReturnTypes) != 1 || fn.ReturnTypes[0] != "[[int]]" {
+		t.Errorf("expected return type '[[int]]', got %v", fn.ReturnTypes)
+	}
+}
+
+func TestMatrixInStructField(t *testing.T) {
+	input := `const Grid struct {
+		data [[int]]
+		rows int
+	}`
+	program := parseProgram(t, input)
+	stmt := program.Statements[0].(*StructDeclaration)
+
+	if len(stmt.Fields) != 2 {
+		t.Fatalf("expected 2 fields, got %d", len(stmt.Fields))
+	}
+	if stmt.Fields[0].TypeName != "[[int]]" {
+		t.Errorf("expected field type '[[int]]', got %q", stmt.Fields[0].TypeName)
+	}
+}

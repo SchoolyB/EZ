@@ -112,6 +112,10 @@ do main() {
     total_passed += result.passed
     total_failed += result.failed
 
+    result = test_matrices()
+    total_passed += result.passed
+    total_failed += result.failed
+
     result = test_maps()
     total_passed += result.passed
     total_failed += result.failed
@@ -443,11 +447,75 @@ do test_arrays() -> TestResult {
     println("  after mutable[1] = 25: ${mutable}")
     passed += 1
 
-    // NOTE: 2D arrays [[int]] not supported - see GitHub issue #47
-
     // Fixed size array
     const fixed [int, 3] = {100, 200, 300}
     println("  fixed size array: ${fixed}")
+    passed += 1
+
+    println("  PASSED: ${passed}, FAILED: ${failed}")
+    return TestResult{passed: passed, failed: failed}
+}
+
+// ==================================================
+// MATRICES (2D Arrays)
+// ==================================================
+
+do test_matrices() -> TestResult {
+    print_section("Matrices (2D Arrays)")
+    temp passed int = 0
+    temp failed int = 0
+
+    // 2D int array declaration
+    temp int_matrix [[int]] = {{1, 2, 3}, {4, 5, 6}}
+    println("  [[int]] matrix: ${int_matrix}")
+    println("  int_matrix[0]: ${int_matrix[0]}")
+    println("  int_matrix[1][2]: ${int_matrix[1][2]}")
+    passed += 1
+
+    // 2D string array
+    temp str_matrix [[string]] = {{"a", "b"}, {"c", "d"}}
+    println("  [[string]] matrix: ${str_matrix}")
+    println("  str_matrix[1][0]: ${str_matrix[1][0]}")
+    passed += 1
+
+    // Empty 2D array
+    temp empty_matrix [[int]] = {}
+    println("  empty matrix length: ${len(empty_matrix)}")
+    passed += 1
+
+    // Matrix from arrays.zip
+    temp zipped [[int]] = arrays.zip({1, 2}, {3, 4})
+    println("  arrays.zip result: ${zipped}")
+    println("  zipped[0][1]: ${zipped[0][1]}")
+    passed += 1
+
+    // Matrix from arrays.chunk
+    temp chunked [[int]] = arrays.chunk({1, 2, 3, 4, 5, 6}, 2)
+    println("  arrays.chunk result: ${chunked}")
+    println("  chunked[1][0]: ${chunked[1][0]}")
+    passed += 1
+
+    // Flatten matrix back to 1D
+    temp nested [[int]] = {{10, 20}, {30, 40}}
+    temp flattened [int] = arrays.flatten(nested)
+    println("  arrays.flatten({{10,20},{30,40}}): ${flattened}")
+    passed += 1
+
+    // Iterate over matrix rows
+    temp rows [[int]] = {{1, 2}, {3, 4}, {5, 6}}
+    temp row_sum int = 0
+    for_each row in rows {
+        for_each val in row {
+            row_sum += val
+        }
+    }
+    println("  sum of all elements in matrix: ${row_sum}")
+    passed += 1
+
+    // 3D array (nested matrices)
+    temp cube [[[int]]] = {{{1, 2}, {3, 4}}, {{5, 6}, {7, 8}}}
+    println("  [[[int]]] 3D array: ${cube}")
+    println("  cube[1][0][1]: ${cube[1][0][1]}")
     passed += 1
 
     println("  PASSED: ${passed}, FAILED: ${failed}")
