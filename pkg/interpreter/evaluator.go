@@ -639,6 +639,26 @@ func evalVariableDeclaration(node *ast.VariableDeclaration, env *Environment) Ob
 				arr.ElementType = elemType
 				// Set mutability based on temp vs const
 				arr.Mutable = node.Mutable
+
+				// Validate byte array elements are in range 0-255
+				if elemType == "byte" {
+					for i, elem := range arr.Elements {
+						switch e := elem.(type) {
+						case *Integer:
+							if e.Value < 0 || e.Value > 255 {
+								return newErrorWithLocation("E3022", node.Token.Line, node.Token.Column,
+									"byte array element [%d] value %d out of range: must be between 0 and 255", i, e.Value)
+							}
+							// Convert integer to byte
+							arr.Elements[i] = &Byte{Value: uint8(e.Value)}
+						case *Byte:
+							// Already a byte, OK
+						default:
+							return newErrorWithLocation("E3022", node.Token.Line, node.Token.Column,
+								"byte array element [%d] must be an integer value between 0 and 255", i)
+						}
+					}
+				}
 			}
 
 			// Check if declared type is a map type
