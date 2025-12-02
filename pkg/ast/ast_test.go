@@ -403,11 +403,11 @@ func TestProgramStructure(t *testing.T) {
 
 func TestVariableDeclarationStructure(t *testing.T) {
 	v := &VariableDeclaration{
-		Token:    tok(tokenizer.TEMP, "temp"),
-		Name:     &Label{Value: "x"},
-		TypeName: "int",
-		Value:    &IntegerValue{Value: 42},
-		Mutable:  true,
+		Token:      tok(tokenizer.TEMP, "temp"),
+		Name:       &Label{Value: "x"},
+		TypeName:   "int",
+		Value:      &IntegerValue{Value: 42},
+		Mutable:    true,
 		Visibility: VisibilityPublic,
 	}
 

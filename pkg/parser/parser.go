@@ -28,7 +28,7 @@ var reservedKeywords = map[string]bool{
 // Builtin function names that cannot be redefined
 var builtinNames = map[string]bool{
 	"len": true, "typeof": true, "input": true,
-	"int": true, "float": true, "string": true, "bool": true, "char": true,
+	"int": true, "float": true, "string": true, "bool": true, "char": true, "byte": true,
 	"println": true, "print": true, "read_int": true,
 }
 
