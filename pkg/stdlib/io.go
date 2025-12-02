@@ -320,7 +320,7 @@ var IOBuiltins = map[string]*object.Builtin{
 
 			_, err = f.WriteString(content.Value)
 			if err != nil {
-				f.Close()
+				_ = f.Close()
 				return createIOErrorResult(err, "append")
 			}
 
@@ -432,7 +432,7 @@ var IOBuiltins = map[string]*object.Builtin{
 			// Write line with newline
 			_, err = f.WriteString(line.Value + "\n")
 			if err != nil {
-				f.Close()
+				_ = f.Close()
 				return createIOErrorResult(err, "append line")
 			}
 
