@@ -339,6 +339,49 @@ var StdBuiltins = map[string]*object.Builtin{
 		},
 	},
 
+	// Converts a value to a char (Unicode code point)
+	"char": {
+		Fn: func(args ...object.Object) object.Object {
+			if len(args) != 1 {
+				return &object.Error{Code: "E7001", Message: "char() takes exactly 1 argument"}
+			}
+			switch arg := args[0].(type) {
+			case *object.Char:
+				return arg
+			case *object.Integer:
+				if arg.Value < 0 || arg.Value > 0x10FFFF {
+					return &object.Error{
+						Code:    "E7014",
+						Message: fmt.Sprintf("cannot convert %d to char: value must be a valid Unicode code point (0 to 0x10FFFF)", arg.Value),
+					}
+				}
+				return &object.Char{Value: rune(arg.Value)}
+			case *object.Float:
+				intVal := int64(arg.Value)
+				if intVal < 0 || intVal > 0x10FFFF {
+					return &object.Error{
+						Code:    "E7014",
+						Message: fmt.Sprintf("cannot convert %v to char: value must be a valid Unicode code point (0 to 0x10FFFF)", arg.Value),
+					}
+				}
+				return &object.Char{Value: rune(intVal)}
+			case *object.Byte:
+				return &object.Char{Value: rune(arg.Value)}
+			case *object.String:
+				runes := []rune(arg.Value)
+				if len(runes) != 1 {
+					return &object.Error{
+						Code:    "E7014",
+						Message: fmt.Sprintf("cannot convert %q to char: string must be exactly one character", arg.Value),
+					}
+				}
+				return &object.Char{Value: runes[0]}
+			default:
+				return &object.Error{Code: "E7014", Message: fmt.Sprintf("cannot convert %s to char", args[0].Type())}
+			}
+		},
+	},
+
 	// Converts a value to a byte (0-255)
 	"byte": {
 		Fn: func(args ...object.Object) object.Object {

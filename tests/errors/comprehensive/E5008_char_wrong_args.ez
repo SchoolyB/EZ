@@ -1,0 +1,8 @@
+/*
+ * Error Test: E5008 - char() wrong argument count
+ * Expected: "char() requires exactly 1 argument, got 2"
+ */
+
+do main() {
+    temp c char = char(65, 66)  // Too many arguments
+}
