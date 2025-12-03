@@ -1,0 +1,12 @@
+/*
+ * libB.ez - Test module B
+ */
+module libB
+
+do multiply(a int, b int) -> int {
+    return a * b
+}
+
+do format_number(n int) -> string {
+    return "Number: ${n}"
+}
