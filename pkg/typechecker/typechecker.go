@@ -29,6 +29,7 @@ const (
 type Scope struct {
 	parent       *Scope
 	variables    map[string]string // variable name -> type name
+	mutability   map[string]bool   // variable name -> is mutable
 	usingModules map[string]bool   // modules imported via 'using'
 }
 
@@ -37,13 +38,32 @@ func NewScope(parent *Scope) *Scope {
 	return &Scope{
 		parent:       parent,
 		variables:    make(map[string]string),
+		mutability:   make(map[string]bool),
 		usingModules: make(map[string]bool),
 	}
 }
 
-// Define adds a variable to the current scope
+// Define adds a variable to the current scope (defaults to immutable)
 func (s *Scope) Define(name, typeName string) {
 	s.variables[name] = typeName
+	s.mutability[name] = false
+}
+
+// DefineWithMutability adds a variable to the current scope with explicit mutability
+func (s *Scope) DefineWithMutability(name, typeName string, mutable bool) {
+	s.variables[name] = typeName
+	s.mutability[name] = mutable
+}
+
+// IsMutable checks if a variable is mutable in the current scope or any parent scope
+func (s *Scope) IsMutable(name string) (bool, bool) {
+	if mutable, ok := s.mutability[name]; ok {
+		return mutable, true
+	}
+	if s.parent != nil {
+		return s.parent.IsMutable(name)
+	}
+	return false, false
 }
 
 // Lookup finds a variable in the current scope or any parent scope
@@ -119,8 +139,9 @@ type FunctionSignature struct {
 
 // Parameter represents a function parameter with type
 type Parameter struct {
-	Name string
-	Type string
+	Name    string
+	Type    string
+	Mutable bool // true if declared with & prefix
 }
 
 // TypeChecker validates types in an EZ program
@@ -485,8 +506,9 @@ func (tc *TypeChecker) checkFunctionDeclaration(node *ast.FunctionDeclaration) {
 			)
 		}
 		sig.Parameters = append(sig.Parameters, &Parameter{
-			Name: param.Name.Value,
-			Type: param.TypeName,
+			Name:    param.Name.Value,
+			Type:    param.TypeName,
+			Mutable: param.Mutable,
 		})
 	}
 
@@ -511,9 +533,9 @@ func (tc *TypeChecker) checkFunctionBody(node *ast.FunctionDeclaration) {
 	tc.enterScope()
 	defer tc.exitScope()
 
-	// Add function parameters to scope
+	// Add function parameters to scope with their mutability
 	for _, param := range node.Parameters {
-		tc.defineVariable(param.Name.Value, param.TypeName)
+		tc.defineVariableWithMutability(param.Name.Value, param.TypeName, param.Mutable)
 	}
 
 	// Check if function body contains at least one return statement (for functions with return types)
@@ -841,9 +863,9 @@ func (tc *TypeChecker) checkVariableDeclaration(decl *ast.VariableDeclaration) {
 		}
 	}
 
-	// Register variable in current scope
+	// Register variable in current scope with mutability (temp = mutable, const = immutable)
 	if declaredType != "" {
-		tc.defineVariable(varName, declaredType)
+		tc.defineVariableWithMutability(varName, declaredType, decl.Mutable)
 	}
 }
 
@@ -851,6 +873,20 @@ func (tc *TypeChecker) checkVariableDeclaration(decl *ast.VariableDeclaration) {
 func (tc *TypeChecker) checkAssignment(assign *ast.AssignmentStatement) {
 	// Also validate the value expression
 	tc.checkExpression(assign.Value)
+
+	// Check mutability - error if trying to modify an immutable variable (E5016)
+	if rootVar := tc.extractRootVariable(assign.Name); rootVar != "" {
+		isMutable, found := tc.isVariableMutable(rootVar)
+		if found && !isMutable {
+			line, column := tc.getExpressionPosition(assign.Name)
+			tc.addError(
+				errors.E5016,
+				fmt.Sprintf("cannot modify read-only parameter '%s'", rootVar),
+				line,
+				column,
+			)
+		}
+	}
 
 	// Get the target type
 	targetType, targetOk := tc.inferExpressionType(assign.Name)
@@ -882,6 +918,21 @@ func (tc *TypeChecker) checkAssignment(assign *ast.AssignmentStatement) {
 	// For index expressions, also validate the index
 	if indexExpr, ok := assign.Name.(*ast.IndexExpression); ok {
 		tc.checkIndexExpression(indexExpr)
+	}
+}
+
+// extractRootVariable returns the root variable name from an expression
+// For "x" returns "x", for "x.field" returns "x", for "arr[0]" returns "arr"
+func (tc *TypeChecker) extractRootVariable(expr ast.Expression) string {
+	switch e := expr.(type) {
+	case *ast.Label:
+		return e.Value
+	case *ast.MemberExpression:
+		return tc.extractRootVariable(e.Object)
+	case *ast.IndexExpression:
+		return tc.extractRootVariable(e.Left)
+	default:
+		return ""
 	}
 }
 
@@ -1291,7 +1342,7 @@ func (tc *TypeChecker) checkFunctionCall(call *ast.CallExpression) {
 		return
 	}
 
-	// Check argument types
+	// Check argument types and mutability
 	for i, arg := range call.Arguments {
 		actualType, ok := tc.inferExpressionType(arg)
 		if !ok {
@@ -1308,6 +1359,26 @@ func (tc *TypeChecker) checkFunctionCall(call *ast.CallExpression) {
 				line,
 				column,
 			)
+		}
+
+		// Check for const -> & param error (E3023)
+		// If the parameter is mutable (&), the argument must be a mutable variable
+		if sig.Parameters[i].Mutable {
+			// Check if argument is a simple variable (Label)
+			if label, isLabel := arg.(*ast.Label); isLabel {
+				// Check if this variable is mutable in scope
+				isMutable, found := tc.isVariableMutable(label.Value)
+				if found && !isMutable {
+					line, column := tc.getExpressionPosition(arg)
+					tc.addError(
+						errors.E3023,
+						fmt.Sprintf("cannot pass immutable variable '%s' to mutable parameter '&%s' in call to '%s'",
+							label.Value, sig.Parameters[i].Name, funcName),
+						line,
+						column,
+					)
+				}
+			}
 		}
 	}
 }
@@ -1676,11 +1747,26 @@ func (tc *TypeChecker) exitScope() {
 	}
 }
 
-// defineVariable adds a variable to the current scope
+// defineVariable adds a variable to the current scope (defaults to immutable)
 func (tc *TypeChecker) defineVariable(name, typeName string) {
 	if tc.currentScope != nil {
 		tc.currentScope.Define(name, typeName)
 	}
+}
+
+// defineVariableWithMutability adds a variable to the current scope with explicit mutability
+func (tc *TypeChecker) defineVariableWithMutability(name, typeName string, mutable bool) {
+	if tc.currentScope != nil {
+		tc.currentScope.DefineWithMutability(name, typeName, mutable)
+	}
+}
+
+// isVariableMutable checks if a variable is mutable in the current scope
+func (tc *TypeChecker) isVariableMutable(name string) (bool, bool) {
+	if tc.currentScope != nil {
+		return tc.currentScope.IsMutable(name)
+	}
+	return false, false
 }
 
 // lookupVariable finds a variable type in scope chain or global variables

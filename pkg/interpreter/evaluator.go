@@ -780,6 +780,23 @@ func evalAssignment(node *ast.AssignmentStatement, env *Environment) Object {
 
 	switch target := node.Name.(type) {
 	case *ast.Label:
+		// Check if the variable is a Reference (for & params)
+		if existingVal, ok := env.Get(target.Value); ok {
+			if ref, isRef := existingVal.(*Reference); isRef {
+				// Handle compound assignment for references
+				if node.Operator != "=" {
+					oldVal, _ := ref.Deref()
+					val = evalCompoundAssignment(node.Operator, oldVal, val, node.Token.Line, node.Token.Column)
+					if isError(val) {
+						return val
+					}
+				}
+				// Update through the reference
+				ref.SetValue(val)
+				return NIL
+			}
+		}
+
 		// Handle compound assignment
 		if node.Operator != "=" {
 			oldVal, ok := env.Get(target.Value)
@@ -1306,6 +1323,12 @@ func evalFunctionDeclaration(node *ast.FunctionDeclaration, env *Environment) Ob
 
 func evalIdentifier(node *ast.Label, env *Environment) Object {
 	if val, ok := env.Get(node.Value); ok {
+		// If the value is a Reference (for & params), dereference it
+		if ref, isRef := val.(*Reference); isRef {
+			if derefVal, ok := ref.Deref(); ok {
+				return derefVal
+			}
+		}
 		// Mutability is now set at declaration time, not at lookup time
 		// This preserves the original object's mutability when passed to functions
 		return val
@@ -1788,12 +1811,47 @@ func evalCallExpression(node *ast.CallExpression, env *Environment) Object {
 		return function
 	}
 
+	// For user-defined functions with mutable (&) params, handle references specially
+	if fn, ok := function.(*Function); ok {
+		args := evalArgsWithReferences(node.Arguments, fn.Parameters, env)
+		if len(args) == 1 && isError(args[0]) {
+			return args[0]
+		}
+		return applyFunction(function, args, node.Token.Line, node.Token.Column)
+	}
+
+	// For builtins and other callables, evaluate arguments normally
 	args := evalExpressions(node.Arguments, env)
 	if len(args) == 1 && isError(args[0]) {
 		return args[0]
 	}
 
 	return applyFunction(function, args, node.Token.Line, node.Token.Column)
+}
+
+// evalArgsWithReferences evaluates arguments, creating References for mutable (&) params
+func evalArgsWithReferences(argExprs []ast.Expression, params []*ast.Parameter, env *Environment) []Object {
+	args := make([]Object, len(argExprs))
+
+	for i, argExpr := range argExprs {
+		// Check if this parameter is mutable and the argument is a variable
+		if i < len(params) && params[i].Mutable {
+			if label, ok := argExpr.(*ast.Label); ok {
+				// Create a reference to the original variable
+				args[i] = &Reference{Env: env, Name: label.Value}
+				continue
+			}
+		}
+
+		// Otherwise, evaluate normally
+		evaluated := Eval(argExpr, env)
+		if isError(evaluated) {
+			return []Object{evaluated}
+		}
+		args[i] = evaluated
+	}
+
+	return args
 }
 
 func evalMemberCall(member *ast.MemberExpression, args []ast.Expression, env *Environment) Object {
@@ -2081,7 +2139,8 @@ func extendFunctionEnv(fn *Function, args []Object) *Environment {
 
 	for i, param := range fn.Parameters {
 		if i < len(args) {
-			env.Set(param.Name.Value, args[i], false) // params are immutable (const)
+			// Use parameter's Mutable field: & params are mutable, non-& params are immutable
+			env.Set(param.Name.Value, args[i], param.Mutable)
 		}
 	}
 
