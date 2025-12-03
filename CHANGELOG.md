@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.9.0](https://github.com/SchoolyB/EZ/compare/v0.8.3...v0.9.0) (2025-12-03)
+
+
+### Features
+
+* add `copy()` builtin for explicit value semantics ([051a752](https://github.com/SchoolyB/EZ/commit/051a7529922b92768cb26ecf5bfc08cb4b04b3bd))
+* add copy() builtin for explicit value semantics ([#265](https://github.com/SchoolyB/EZ/issues/265)) ([4681cdd](https://github.com/SchoolyB/EZ/commit/4681cddcd4009f7157fddfe53df9be013bcde503))
+
 ## [0.8.3](https://github.com/SchoolyB/EZ/compare/v0.8.2...v0.8.3) (2025-12-03)
 
 
