@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.8.2](https://github.com/SchoolyB/EZ/compare/v0.8.1...v0.8.2) (2025-12-03)
+
+
+### Bug Fixes
+
+* prevent modification of const struct fields ([20074af](https://github.com/SchoolyB/EZ/commit/20074af830d6828088817465a6e5b1410e39cca2))
+* prevent modification of const struct fields ([#266](https://github.com/SchoolyB/EZ/issues/266)) ([17b033a](https://github.com/SchoolyB/EZ/commit/17b033a466f6591c211b64bc86be051c96201fd5))
+
 ## [0.8.1](https://github.com/SchoolyB/EZ/compare/v0.8.0...v0.8.1) (2025-12-03)
 
 
