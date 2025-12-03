@@ -988,3 +988,242 @@ func TestTypeErrors(t *testing.T) {
 		})
 	}
 }
+
+// ============================================================================
+// copy() Builtin Tests
+// ============================================================================
+
+func TestCopyPrimitives(t *testing.T) {
+	copyFn := StdBuiltins["copy"].Fn
+
+	tests := []struct {
+		name  string
+		input object.Object
+	}{
+		{"integer", &object.Integer{Value: 42, DeclaredType: "int"}},
+		{"float", &object.Float{Value: 3.14}},
+		{"string", &object.String{Value: "hello"}},
+		{"boolean", &object.Boolean{Value: true}},
+		{"char", &object.Char{Value: 'x'}},
+		{"byte", &object.Byte{Value: 255}},
+		{"nil", object.NIL},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := copyFn(tt.input)
+			if result.Inspect() != tt.input.Inspect() {
+				t.Errorf("copy(%s) = %s, want %s", tt.input.Inspect(), result.Inspect(), tt.input.Inspect())
+			}
+		})
+	}
+}
+
+func TestCopyIntegerPreservesDeclaredType(t *testing.T) {
+	copyFn := StdBuiltins["copy"].Fn
+
+	original := &object.Integer{Value: 100, DeclaredType: "u64"}
+	result := copyFn(original)
+
+	copied, ok := result.(*object.Integer)
+	if !ok {
+		t.Fatalf("copy(Integer) returned %T, want *object.Integer", result)
+	}
+	if copied.DeclaredType != original.DeclaredType {
+		t.Errorf("copy() did not preserve DeclaredType: got %s, want %s", copied.DeclaredType, original.DeclaredType)
+	}
+	if copied.Value != original.Value {
+		t.Errorf("copy() changed Value: got %d, want %d", copied.Value, original.Value)
+	}
+}
+
+func TestCopyArray(t *testing.T) {
+	copyFn := StdBuiltins["copy"].Fn
+
+	original := &object.Array{
+		Elements: []object.Object{
+			&object.Integer{Value: 1},
+			&object.Integer{Value: 2},
+			&object.Integer{Value: 3},
+		},
+	}
+
+	result := copyFn(original)
+	copied, ok := result.(*object.Array)
+	if !ok {
+		t.Fatalf("copy(Array) returned %T, want *object.Array", result)
+	}
+
+	// Verify length
+	if len(copied.Elements) != len(original.Elements) {
+		t.Fatalf("copy() returned array with wrong length: got %d, want %d", len(copied.Elements), len(original.Elements))
+	}
+
+	// Verify values match
+	for i, elem := range copied.Elements {
+		origInt := original.Elements[i].(*object.Integer)
+		copiedInt := elem.(*object.Integer)
+		if copiedInt.Value != origInt.Value {
+			t.Errorf("element %d: got %d, want %d", i, copiedInt.Value, origInt.Value)
+		}
+	}
+
+	// Verify it's a deep copy - modifying copied doesn't affect original
+	copied.Elements[0] = &object.Integer{Value: 100}
+	origInt := original.Elements[0].(*object.Integer)
+	if origInt.Value != 1 {
+		t.Error("copy() did not create independent copy - modifying copy affected original")
+	}
+}
+
+func TestCopyMap(t *testing.T) {
+	copyFn := StdBuiltins["copy"].Fn
+
+	original := object.NewMap()
+	original.Set(&object.String{Value: "a"}, &object.Integer{Value: 1})
+	original.Set(&object.String{Value: "b"}, &object.Integer{Value: 2})
+
+	result := copyFn(original)
+	copied, ok := result.(*object.Map)
+	if !ok {
+		t.Fatalf("copy(Map) returned %T, want *object.Map", result)
+	}
+
+	// Verify length
+	if len(copied.Pairs) != len(original.Pairs) {
+		t.Fatalf("copy() returned map with wrong length: got %d, want %d", len(copied.Pairs), len(original.Pairs))
+	}
+
+	// Verify it's a deep copy - modifying copied doesn't affect original
+	copied.Set(&object.String{Value: "a"}, &object.Integer{Value: 100})
+	origVal, _ := original.Get(&object.String{Value: "a"})
+	if origVal.(*object.Integer).Value != 1 {
+		t.Error("copy() did not create independent copy - modifying copy affected original")
+	}
+}
+
+func TestCopyStruct(t *testing.T) {
+	copyFn := StdBuiltins["copy"].Fn
+
+	original := &object.Struct{
+		TypeName: "Person",
+		Fields: map[string]object.Object{
+			"name": &object.String{Value: "Alice"},
+			"age":  &object.Integer{Value: 30},
+		},
+		Mutable: true,
+	}
+
+	result := copyFn(original)
+	copied, ok := result.(*object.Struct)
+	if !ok {
+		t.Fatalf("copy(Struct) returned %T, want *object.Struct", result)
+	}
+
+	// Verify TypeName
+	if copied.TypeName != original.TypeName {
+		t.Errorf("copy() did not preserve TypeName: got %s, want %s", copied.TypeName, original.TypeName)
+	}
+
+	// Verify Mutable - copy() always returns mutable values
+	if !copied.Mutable {
+		t.Error("copy() should return mutable struct")
+	}
+
+	// Verify field count
+	if len(copied.Fields) != len(original.Fields) {
+		t.Fatalf("copy() returned struct with wrong field count: got %d, want %d", len(copied.Fields), len(original.Fields))
+	}
+
+	// Verify it's a deep copy - modifying copied doesn't affect original
+	copied.Fields["age"] = &object.Integer{Value: 31}
+	origAge := original.Fields["age"].(*object.Integer)
+	if origAge.Value != 30 {
+		t.Error("copy() did not create independent copy - modifying copy affected original")
+	}
+}
+
+func TestCopyNestedStruct(t *testing.T) {
+	copyFn := StdBuiltins["copy"].Fn
+
+	// Create nested struct: Outer{inner: Inner{val: 42}}
+	inner := &object.Struct{
+		TypeName: "Inner",
+		Fields: map[string]object.Object{
+			"val": &object.Integer{Value: 42},
+		},
+	}
+	original := &object.Struct{
+		TypeName: "Outer",
+		Fields: map[string]object.Object{
+			"inner": inner,
+		},
+	}
+
+	result := copyFn(original)
+	copied, ok := result.(*object.Struct)
+	if !ok {
+		t.Fatalf("copy(Struct) returned %T, want *object.Struct", result)
+	}
+
+	// Verify nested struct was copied
+	copiedInner, ok := copied.Fields["inner"].(*object.Struct)
+	if !ok {
+		t.Fatalf("copied.inner is %T, want *object.Struct", copied.Fields["inner"])
+	}
+
+	// Modify the copied nested struct
+	copiedInner.Fields["val"] = &object.Integer{Value: 99}
+
+	// Verify original nested struct is unchanged
+	origInnerVal := inner.Fields["val"].(*object.Integer)
+	if origInnerVal.Value != 42 {
+		t.Error("copy() did not create deep copy - modifying nested copy affected original")
+	}
+}
+
+func TestCopyNestedArray(t *testing.T) {
+	copyFn := StdBuiltins["copy"].Fn
+
+	// Create nested array: [[1, 2], [3, 4]]
+	inner1 := &object.Array{Elements: []object.Object{
+		&object.Integer{Value: 1},
+		&object.Integer{Value: 2},
+	}}
+	inner2 := &object.Array{Elements: []object.Object{
+		&object.Integer{Value: 3},
+		&object.Integer{Value: 4},
+	}}
+	original := &object.Array{Elements: []object.Object{inner1, inner2}}
+
+	result := copyFn(original)
+	copied, ok := result.(*object.Array)
+	if !ok {
+		t.Fatalf("copy(Array) returned %T, want *object.Array", result)
+	}
+
+	// Modify the copied nested array
+	copiedInner := copied.Elements[0].(*object.Array)
+	copiedInner.Elements[0] = &object.Integer{Value: 100}
+
+	// Verify original nested array is unchanged
+	origInnerVal := inner1.Elements[0].(*object.Integer)
+	if origInnerVal.Value != 1 {
+		t.Error("copy() did not create deep copy - modifying nested array affected original")
+	}
+}
+
+func TestCopyErrors(t *testing.T) {
+	copyFn := StdBuiltins["copy"].Fn
+
+	// Wrong number of arguments
+	result := copyFn()
+	if !isErrorObject(result) {
+		t.Error("expected error for no arguments")
+	}
+
+	result = copyFn(&object.Integer{Value: 1}, &object.Integer{Value: 2})
+	if !isErrorObject(result) {
+		t.Error("expected error for too many arguments")
+	}
+}
