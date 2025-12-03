@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.8.0](https://github.com/SchoolyB/EZ/compare/v0.7.1...v0.8.0) (2025-12-03)
+
+
+### Features
+
+* add mutable parameters with & syntax ([7fdeb24](https://github.com/SchoolyB/EZ/commit/7fdeb24241a643a050beaeceb8cd1b9f600be9ca))
+* add mutable parameters with & syntax ([#268](https://github.com/SchoolyB/EZ/issues/268)) ([5075f6f](https://github.com/SchoolyB/EZ/commit/5075f6fbdc888dbf3cf3dbded0dda7928f884b32))
+
 ## [0.7.1](https://github.com/SchoolyB/EZ/compare/v0.7.0...v0.7.1) (2025-12-02)
 
 
