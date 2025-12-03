@@ -684,6 +684,11 @@ func evalVariableDeclaration(node *ast.VariableDeclaration, env *Environment) Ob
 				}
 			}
 
+			// If we have a struct value, set mutability based on temp vs const
+			if structObj, ok := val.(*Struct); ok {
+				structObj.Mutable = node.Mutable
+			}
+
 			// If we have an integer value, set the declared type
 			// and validate signed/unsigned compatibility
 			if intVal, ok := val.(*Integer); ok {
@@ -967,6 +972,12 @@ func evalAssignment(node *ast.AssignmentStatement, env *Environment) Object {
 		if !ok {
 			return newErrorWithLocation("E4011", node.Token.Line, node.Token.Column,
 				"member access not supported: %s", obj.Type())
+		}
+
+		// Check if struct is mutable
+		if !structObj.Mutable {
+			return newErrorWithLocation("E5017", node.Token.Line, node.Token.Column,
+				"cannot modify field of immutable struct (declared as const)")
 		}
 
 		// Handle compound assignment
@@ -2473,6 +2484,10 @@ func evalMemberExpression(node *ast.MemberExpression, env *Environment) Object {
 
 	if structObj, ok := obj.(*Struct); ok {
 		if val, ok := structObj.Fields[node.Member.Value]; ok {
+			// Propagate mutability to nested structs
+			if nestedStruct, ok := val.(*Struct); ok {
+				nestedStruct.Mutable = structObj.Mutable
+			}
 			return val
 		}
 		return newErrorWithLocation("E4003", node.Token.Line, node.Token.Column,

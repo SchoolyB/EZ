@@ -339,6 +339,7 @@ func NewMap() *Map {
 type Struct struct {
 	TypeName string
 	Fields   map[string]Object
+	Mutable  bool
 }
 
 func (s *Struct) Type() ObjectType { return STRUCT_OBJ }

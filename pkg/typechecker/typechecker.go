@@ -874,17 +874,27 @@ func (tc *TypeChecker) checkAssignment(assign *ast.AssignmentStatement) {
 	// Also validate the value expression
 	tc.checkExpression(assign.Value)
 
-	// Check mutability - error if trying to modify an immutable variable (E5016)
+	// Check mutability - error if trying to modify an immutable variable
 	if rootVar := tc.extractRootVariable(assign.Name); rootVar != "" {
 		isMutable, found := tc.isVariableMutable(rootVar)
 		if found && !isMutable {
 			line, column := tc.getExpressionPosition(assign.Name)
-			tc.addError(
-				errors.E5016,
-				fmt.Sprintf("cannot modify read-only parameter '%s'", rootVar),
-				line,
-				column,
-			)
+			// Check if this is a struct field assignment
+			if _, isMember := assign.Name.(*ast.MemberExpression); isMember {
+				tc.addError(
+					errors.E5017,
+					fmt.Sprintf("cannot modify field of immutable struct '%s' (declared as const)", rootVar),
+					line,
+					column,
+				)
+			} else {
+				tc.addError(
+					errors.E5016,
+					fmt.Sprintf("cannot modify immutable variable '%s' (declared as const or as non-& parameter)", rootVar),
+					line,
+					column,
+				)
+			}
 		}
 	}
 

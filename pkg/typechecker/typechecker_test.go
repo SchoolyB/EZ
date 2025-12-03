@@ -1109,7 +1109,7 @@ do main() {
 }
 
 func TestE5016_ModifyImmutableParam(t *testing.T) {
-	// Test: modifying a non-& param inside function - should error E5016
+	// Test: modifying a non-& param inside function - should error E5017 (struct field)
 	input := `
 const Person struct {
 	name string
@@ -1126,11 +1126,11 @@ do main() {
 }
 `
 	tc := typecheck(t, input)
-	assertHasError(t, tc, errors.E5016)
+	assertHasError(t, tc, errors.E5017)
 }
 
 func TestE5016_ModifyImmutableParamField(t *testing.T) {
-	// Test: modifying a field on non-& param - should error E5016
+	// Test: modifying a field on non-& param - should error E5017 (struct field)
 	input := `
 const Person struct {
 	name string
@@ -1147,7 +1147,7 @@ do main() {
 }
 `
 	tc := typecheck(t, input)
-	assertHasError(t, tc, errors.E5016)
+	assertHasError(t, tc, errors.E5017)
 }
 
 func TestE5016_ModifyImmutableArrayParam(t *testing.T) {
