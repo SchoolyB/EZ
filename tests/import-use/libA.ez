@@ -1,0 +1,14 @@
+/*
+ * libA.ez - Test module A
+ */
+module libA
+
+do greet(name string) -> string {
+    return "Hello, " + name
+}
+
+do add(a int, b int) -> int {
+    return a + b
+}
+
+const VERSION string = "1.0.0"
