@@ -1,0 +1,11 @@
+/*
+ * Error Test: E2002 - for_each without opening paren but with closing paren
+ * Expected: "expected {, got ) instead"
+ */
+
+do main() {
+    temp items [int] = {1, 2, 3}
+    for_each item in items) {
+        temp x int = item
+    }
+}
