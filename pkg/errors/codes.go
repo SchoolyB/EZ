@@ -96,6 +96,7 @@ var (
 	E3020 = ErrorCode{"E3020", "negative-to-unsigned", "cannot assign negative value to unsigned type"}
 	E3021 = ErrorCode{"E3021", "byte-value-out-of-range", "byte value must be between 0 and 255"}
 	E3022 = ErrorCode{"E3022", "byte-array-element-out-of-range", "byte array element must be between 0 and 255"}
+	E3023 = ErrorCode{"E3023", "const-to-mutable-param", "cannot pass immutable variable to mutable parameter"}
 )
 
 // =============================================================================
@@ -134,6 +135,7 @@ var (
 	E5013 = ErrorCode{"E5013", "range-start-not-integer", "range start must be integer"}
 	E5014 = ErrorCode{"E5014", "range-end-not-integer", "range end must be integer"}
 	E5015 = ErrorCode{"E5015", "postfix-requires-identifier", "postfix operator needs variable"}
+	E5016 = ErrorCode{"E5016", "immutable-parameter", "cannot modify read-only parameter"}
 )
 
 // =============================================================================

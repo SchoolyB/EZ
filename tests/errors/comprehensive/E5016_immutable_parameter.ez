@@ -1,0 +1,18 @@
+/*
+ * Error Test: E5016 - immutable-parameter
+ * Expected: "cannot modify read-only parameter"
+ */
+
+const Person struct {
+    name string
+    age int
+}
+
+do try_modify(p Person) {
+    p.age = p.age + 1  // ERROR: cannot modify non-& param
+}
+
+do main() {
+    temp bob Person = Person{name: "Bob", age: 30}
+    try_modify(bob)
+}
