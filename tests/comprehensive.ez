@@ -109,6 +109,10 @@ do main() {
     total_passed += result.passed
     total_failed += result.failed
 
+    result = test_optional_parens()
+    total_passed += result.passed
+    total_failed += result.failed
+
     result = test_arrays()
     total_passed += result.passed
     total_failed += result.failed
@@ -423,6 +427,307 @@ do test_control_flow() -> TestResult {
     }
     println("    sum with skip = ${cont_sum}")
     passed += 1
+
+    println("  PASSED: ${passed}, FAILED: ${failed}")
+    return TestResult{passed: passed, failed: failed}
+}
+
+// ==================================================
+// OPTIONAL PARENTHESES IN CONTROL FLOW
+// ==================================================
+
+do test_optional_parens() -> TestResult {
+    print_section("Optional Parentheses")
+    temp passed int = 0
+    temp failed int = 0
+
+    // ========== FOR LOOPS ==========
+
+    // for loop WITHOUT parentheses (original syntax)
+    println("  for without parens:")
+    temp sum1 int = 0
+    for i in range(0, 5) {
+        sum1 += i
+    }
+    println("    sum = ${sum1}")
+    if sum1 == 10 {
+        passed += 1
+    } otherwise {
+        failed += 1
+        println("    FAIL: expected 10")
+    }
+
+    // for loop WITH parentheses (new syntax)
+    println("  for with parens:")
+    temp sum2 int = 0
+    for (i in range(0, 5)) {
+        sum2 += i
+    }
+    println("    sum = ${sum2}")
+    if sum2 == 10 {
+        passed += 1
+    } otherwise {
+        failed += 1
+        println("    FAIL: expected 10")
+    }
+
+    // for loop with type annotation WITHOUT parens
+    println("  for with type, no parens:")
+    temp sum3 int = 0
+    for i int in range(0, 3) {
+        sum3 += i
+    }
+    println("    sum = ${sum3}")
+    if sum3 == 3 {
+        passed += 1
+    } otherwise {
+        failed += 1
+        println("    FAIL: expected 3")
+    }
+
+    // for loop with type annotation WITH parens
+    println("  for with type and parens:")
+    temp sum4 int = 0
+    for (i int in range(0, 3)) {
+        sum4 += i
+    }
+    println("    sum = ${sum4}")
+    if sum4 == 3 {
+        passed += 1
+    } otherwise {
+        failed += 1
+        println("    FAIL: expected 3")
+    }
+
+    // for loop with descending range WITH parens
+    println("  for descending with parens:")
+    temp desc_list string = ""
+    for (i in range(3, 0)) {
+        desc_list = "${desc_list}${i}"
+    }
+    println("    result = ${desc_list}")
+    if desc_list == "321" {
+        passed += 1
+    } otherwise {
+        failed += 1
+        println("    FAIL: expected '321'")
+    }
+
+    // ========== FOR_EACH LOOPS ==========
+
+    // for_each WITHOUT parentheses
+    println("  for_each without parens:")
+    temp items [string] = {"a", "b", "c"}
+    temp concat1 string = ""
+    for_each item in items {
+        concat1 = "${concat1}${item}"
+    }
+    println("    result = ${concat1}")
+    if concat1 == "abc" {
+        passed += 1
+    } otherwise {
+        failed += 1
+        println("    FAIL: expected 'abc'")
+    }
+
+    // for_each WITH parentheses
+    println("  for_each with parens:")
+    temp concat2 string = ""
+    for_each (item in items) {
+        concat2 = "${concat2}${item}"
+    }
+    println("    result = ${concat2}")
+    if concat2 == "abc" {
+        passed += 1
+    } otherwise {
+        failed += 1
+        println("    FAIL: expected 'abc'")
+    }
+
+    // ========== IF STATEMENTS ==========
+
+    // if WITHOUT parentheses
+    println("  if without parens:")
+    temp x int = 5
+    temp result1 string = ""
+    if x > 3 {
+        result1 = "gt3"
+    }
+    println("    result = ${result1}")
+    if result1 == "gt3" {
+        passed += 1
+    } otherwise {
+        failed += 1
+        println("    FAIL: expected 'gt3'")
+    }
+
+    // if WITH parentheses
+    println("  if with parens:")
+    temp result2 string = ""
+    if (x > 3) {
+        result2 = "gt3"
+    }
+    println("    result = ${result2}")
+    if result2 == "gt3" {
+        passed += 1
+    } otherwise {
+        failed += 1
+        println("    FAIL: expected 'gt3'")
+    }
+
+    // if/or/otherwise WITHOUT parentheses
+    println("  if/or/otherwise without parens:")
+    temp y int = 15
+    temp result3 string = ""
+    if y < 10 {
+        result3 = "small"
+    } or y < 20 {
+        result3 = "medium"
+    } otherwise {
+        result3 = "large"
+    }
+    println("    result = ${result3}")
+    if result3 == "medium" {
+        passed += 1
+    } otherwise {
+        failed += 1
+        println("    FAIL: expected 'medium'")
+    }
+
+    // if/or/otherwise WITH parentheses
+    println("  if/or/otherwise with parens:")
+    temp result4 string = ""
+    if (y < 10) {
+        result4 = "small"
+    } or (y < 20) {
+        result4 = "medium"
+    } otherwise {
+        result4 = "large"
+    }
+    println("    result = ${result4}")
+    if result4 == "medium" {
+        passed += 1
+    } otherwise {
+        failed += 1
+        println("    FAIL: expected 'medium'")
+    }
+
+    // Mixed parens in if/or chain
+    println("  if/or mixed parens:")
+    temp result5 string = ""
+    if y < 10 {
+        result5 = "small"
+    } or (y < 20) {
+        result5 = "medium"
+    } otherwise {
+        result5 = "large"
+    }
+    println("    result = ${result5}")
+    if result5 == "medium" {
+        passed += 1
+    } otherwise {
+        failed += 1
+        println("    FAIL: expected 'medium'")
+    }
+
+    // ========== AS_LONG_AS (WHILE) ==========
+
+    // as_long_as WITHOUT parentheses
+    println("  as_long_as without parens:")
+    temp count1 int = 0
+    as_long_as count1 < 3 {
+        count1 += 1
+    }
+    println("    count = ${count1}")
+    if count1 == 3 {
+        passed += 1
+    } otherwise {
+        failed += 1
+        println("    FAIL: expected 3")
+    }
+
+    // as_long_as WITH parentheses
+    println("  as_long_as with parens:")
+    temp count2 int = 0
+    as_long_as (count2 < 3) {
+        count2 += 1
+    }
+    println("    count = ${count2}")
+    if count2 == 3 {
+        passed += 1
+    } otherwise {
+        failed += 1
+        println("    FAIL: expected 3")
+    }
+
+    // ========== NESTED CONTROL FLOW WITH PARENS ==========
+
+    // Nested for loops with parens
+    println("  nested for loops with parens:")
+    temp nested_sum int = 0
+    for (i in range(0, 3)) {
+        for (j in range(0, 2)) {
+            nested_sum += 1
+        }
+    }
+    println("    sum = ${nested_sum}")
+    if nested_sum == 6 {
+        passed += 1
+    } otherwise {
+        failed += 1
+        println("    FAIL: expected 6")
+    }
+
+    // for with if inside, both with parens
+    println("  for with if inside (both parens):")
+    temp even_sum int = 0
+    for (i in range(0, 6)) {
+        if (i % 2 == 0) {
+            even_sum += i
+        }
+    }
+    println("    even sum = ${even_sum}")
+    if even_sum == 6 {
+        passed += 1
+    } otherwise {
+        failed += 1
+        println("    FAIL: expected 6 (0+2+4)")
+    }
+
+    // as_long_as with break inside, both with parens
+    println("  as_long_as with break (both parens):")
+    temp break_count int = 0
+    as_long_as (break_count < 100) {
+        if (break_count == 5) {
+            break
+        }
+        break_count += 1
+    }
+    println("    count at break = ${break_count}")
+    if break_count == 5 {
+        passed += 1
+    } otherwise {
+        failed += 1
+        println("    FAIL: expected 5")
+    }
+
+    // for_each with continue, both with parens
+    println("  for_each with continue (both parens):")
+    temp nums [int] = {1, 2, 3, 4, 5}
+    temp skip_sum int = 0
+    for_each (n in nums) {
+        if (n == 3) {
+            continue
+        }
+        skip_sum += n
+    }
+    println("    sum without 3 = ${skip_sum}")
+    if skip_sum == 12 {
+        passed += 1
+    } otherwise {
+        failed += 1
+        println("    FAIL: expected 12 (1+2+4+5)")
+    }
 
     println("  PASSED: ${passed}, FAILED: ${failed}")
     return TestResult{passed: passed, failed: failed}

@@ -880,6 +880,237 @@ func TestForEachStatement(t *testing.T) {
 	}
 }
 
+func TestForStatementWithParens(t *testing.T) {
+	// Test optional parentheses around for loop expression
+	input := `for (i in range(0, 10)) {
+		x = i
+	}`
+	program := parseProgram(t, input)
+	stmt := program.Statements[0].(*ForStatement)
+
+	if stmt.Variable == nil {
+		t.Error("variable is nil")
+	}
+	if stmt.Variable.Value != "i" {
+		t.Errorf("expected variable 'i', got %q", stmt.Variable.Value)
+	}
+	if stmt.Iterable == nil {
+		t.Error("iterable is nil")
+	}
+}
+
+func TestForStatementWithParensAndType(t *testing.T) {
+	// Test optional parentheses with type annotation
+	input := `for (i int in range(0, 10)) {
+		x = i
+	}`
+	program := parseProgram(t, input)
+	stmt := program.Statements[0].(*ForStatement)
+
+	if stmt.Variable.Value != "i" {
+		t.Errorf("expected variable 'i', got %q", stmt.Variable.Value)
+	}
+	if stmt.VarType != "int" {
+		t.Errorf("expected VarType 'int', got %q", stmt.VarType)
+	}
+}
+
+func TestForEachStatementWithParens(t *testing.T) {
+	// Test optional parentheses around for_each loop expression
+	input := `for_each (item in items) {
+		process(item)
+	}`
+	program := parseProgram(t, input)
+	stmt := program.Statements[0].(*ForEachStatement)
+
+	if stmt.Variable == nil {
+		t.Fatal("variable is nil")
+	}
+	if stmt.Variable.Value != "item" {
+		t.Errorf("expected variable 'item', got %q", stmt.Variable.Value)
+	}
+	if stmt.Collection == nil {
+		t.Error("collection is nil")
+	}
+}
+
+func TestForStatementNestedWithParens(t *testing.T) {
+	// Test nested for loops both with parentheses
+	input := `for (i in range(0, 3)) {
+		for (j in range(0, 2)) {
+			x = i + j
+		}
+	}`
+	program := parseProgram(t, input)
+	outerFor := program.Statements[0].(*ForStatement)
+
+	if outerFor.Variable.Value != "i" {
+		t.Errorf("expected outer variable 'i', got %q", outerFor.Variable.Value)
+	}
+
+	// Check inner for loop
+	if len(outerFor.Body.Statements) == 0 {
+		t.Fatal("outer body is empty")
+	}
+	innerFor, ok := outerFor.Body.Statements[0].(*ForStatement)
+	if !ok {
+		t.Fatalf("expected inner ForStatement, got %T", outerFor.Body.Statements[0])
+	}
+	if innerFor.Variable.Value != "j" {
+		t.Errorf("expected inner variable 'j', got %q", innerFor.Variable.Value)
+	}
+}
+
+func TestForStatementWithComplexIterable(t *testing.T) {
+	// Test for loop with parentheses containing function call
+	input := `for (i in get_range()) {
+		x = i
+	}`
+	program := parseProgram(t, input)
+	stmt := program.Statements[0].(*ForStatement)
+
+	if stmt.Variable.Value != "i" {
+		t.Errorf("expected variable 'i', got %q", stmt.Variable.Value)
+	}
+	// Verify iterable is a call expression
+	_, ok := stmt.Iterable.(*CallExpression)
+	if !ok {
+		t.Errorf("expected iterable to be CallExpression, got %T", stmt.Iterable)
+	}
+}
+
+func TestForStatementWithArrayLiteralIterable(t *testing.T) {
+	// Test for loop with parentheses containing array literal
+	input := `for (x in {1, 2, 3}) {
+		sum += x
+	}`
+	program := parseProgram(t, input)
+	stmt := program.Statements[0].(*ForStatement)
+
+	if stmt.Variable.Value != "x" {
+		t.Errorf("expected variable 'x', got %q", stmt.Variable.Value)
+	}
+	// Verify iterable is an array value
+	_, ok := stmt.Iterable.(*ArrayValue)
+	if !ok {
+		t.Errorf("expected iterable to be ArrayValue, got %T", stmt.Iterable)
+	}
+}
+
+func TestForStatementMixedParensStyle(t *testing.T) {
+	// Test that we can have outer for with parens, inner without
+	input := `for (i in range(0, 3)) {
+		for j in range(0, 2) {
+			x = i + j
+		}
+	}`
+	program := parseProgram(t, input)
+	outerFor := program.Statements[0].(*ForStatement)
+
+	if outerFor.Variable.Value != "i" {
+		t.Errorf("expected outer variable 'i', got %q", outerFor.Variable.Value)
+	}
+
+	innerFor := outerFor.Body.Statements[0].(*ForStatement)
+	if innerFor.Variable.Value != "j" {
+		t.Errorf("expected inner variable 'j', got %q", innerFor.Variable.Value)
+	}
+}
+
+func TestForStatementParensMissingClosing(t *testing.T) {
+	// Test that missing closing paren produces an error
+	input := `for (i in range(0, 10) {
+		x = i
+	}`
+	l := NewLexer(input)
+	p := New(l)
+	p.ParseProgram()
+
+	errs := p.Errors()
+	if len(errs) == 0 {
+		t.Error("expected parser error for missing closing paren, got none")
+	}
+}
+
+func TestForEachStatementParensMissingClosing(t *testing.T) {
+	// Test that missing closing paren produces an error
+	input := `for_each (item in items {
+		process(item)
+	}`
+	l := NewLexer(input)
+	p := New(l)
+	p.ParseProgram()
+
+	errs := p.Errors()
+	if len(errs) == 0 {
+		t.Error("expected parser error for missing closing paren, got none")
+	}
+}
+
+func TestWhileStatementWithParens(t *testing.T) {
+	// Test as_long_as with optional parentheses
+	input := `as_long_as (x < 10) {
+		x++
+	}`
+	program := parseProgram(t, input)
+	stmt := program.Statements[0].(*WhileStatement)
+
+	if stmt.Condition == nil {
+		t.Error("condition is nil")
+	}
+}
+
+func TestIfStatementWithParens(t *testing.T) {
+	// Test if with optional parentheses
+	input := `if (x > 5) {
+		y = 1
+	}`
+	program := parseProgram(t, input)
+	stmt := program.Statements[0].(*IfStatement)
+
+	if stmt.Condition == nil {
+		t.Error("condition is nil")
+	}
+}
+
+func TestIfOrStatementWithParens(t *testing.T) {
+	// Test if/or/otherwise with optional parentheses
+	input := `if (x < 10) {
+		y = 1
+	} or (x < 20) {
+		y = 2
+	} otherwise {
+		y = 3
+	}`
+	program := parseProgram(t, input)
+	stmt := program.Statements[0].(*IfStatement)
+
+	if stmt.Condition == nil {
+		t.Error("if condition is nil")
+	}
+	if stmt.Alternative == nil {
+		t.Error("alternative (or clause) is nil")
+	}
+}
+
+func TestIfOrStatementMixedParens(t *testing.T) {
+	// Test if without parens, or with parens
+	input := `if x < 10 {
+		y = 1
+	} or (x < 20) {
+		y = 2
+	}`
+	program := parseProgram(t, input)
+	stmt := program.Statements[0].(*IfStatement)
+
+	if stmt.Condition == nil {
+		t.Error("if condition is nil")
+	}
+	if stmt.Alternative == nil {
+		t.Error("or clause is nil")
+	}
+}
+
 func TestWhileStatement(t *testing.T) {
 	input := `as_long_as x < 10 {
 		x++
