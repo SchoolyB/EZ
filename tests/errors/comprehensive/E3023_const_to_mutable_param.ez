@@ -1,0 +1,18 @@
+/*
+ * Error Test: E3023 - const-to-mutable-param
+ * Expected: "cannot pass immutable variable" to mutable parameter
+ */
+
+const Person struct {
+    name string
+    age int
+}
+
+do modify(&p Person) {
+    p.age = p.age + 1
+}
+
+do main() {
+    const alice Person = Person{name: "Alice", age: 25}
+    modify(alice)  // ERROR: cannot pass const to & param
+}

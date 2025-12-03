@@ -417,6 +417,7 @@ func (f *FunctionDeclaration) TokenLiteral() string { return f.Token.Literal }
 type Parameter struct {
 	Name     *Label
 	TypeName string
+	Mutable  bool // true if declared with & prefix
 }
 
 // ImportItem represents a single module import with optional alias

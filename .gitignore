@@ -4,6 +4,7 @@ dist/
 context
 *.txt
 tmp/
+.DS_Store
 
 # Ignore all .ez files by default (for local scratch/testing)
 *.ez

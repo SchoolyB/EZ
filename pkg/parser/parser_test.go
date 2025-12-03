@@ -1479,3 +1479,165 @@ func TestMatrixInStructField(t *testing.T) {
 		t.Errorf("expected field type '[[int]]', got %q", stmt.Fields[0].TypeName)
 	}
 }
+
+// ============================================================================
+// Mutable Parameter Tests (& prefix)
+// ============================================================================
+
+func TestMutableParameter(t *testing.T) {
+	input := `do modify(&p Person) {
+		p.age = 30
+	}`
+	program := parseProgram(t, input)
+	fn := program.Statements[0].(*FunctionDeclaration)
+
+	if len(fn.Parameters) != 1 {
+		t.Fatalf("expected 1 parameter, got %d", len(fn.Parameters))
+	}
+	if fn.Parameters[0].Name.Value != "p" {
+		t.Errorf("expected parameter name 'p', got %q", fn.Parameters[0].Name.Value)
+	}
+	if fn.Parameters[0].TypeName != "Person" {
+		t.Errorf("expected parameter type 'Person', got %q", fn.Parameters[0].TypeName)
+	}
+	if !fn.Parameters[0].Mutable {
+		t.Errorf("expected parameter to be mutable (& prefix)")
+	}
+}
+
+func TestNonMutableParameter(t *testing.T) {
+	input := `do getName(p Person) -> string {
+		return p.name
+	}`
+	program := parseProgram(t, input)
+	fn := program.Statements[0].(*FunctionDeclaration)
+
+	if len(fn.Parameters) != 1 {
+		t.Fatalf("expected 1 parameter, got %d", len(fn.Parameters))
+	}
+	if fn.Parameters[0].Mutable {
+		t.Errorf("expected parameter to be immutable (no & prefix)")
+	}
+}
+
+func TestMixedMutableParameters(t *testing.T) {
+	input := `do process(&arr [int], count int) {
+		arr[0] = count
+	}`
+	program := parseProgram(t, input)
+	fn := program.Statements[0].(*FunctionDeclaration)
+
+	if len(fn.Parameters) != 2 {
+		t.Fatalf("expected 2 parameters, got %d", len(fn.Parameters))
+	}
+
+	// First param should be mutable
+	if fn.Parameters[0].Name.Value != "arr" {
+		t.Errorf("expected first param name 'arr', got %q", fn.Parameters[0].Name.Value)
+	}
+	if !fn.Parameters[0].Mutable {
+		t.Errorf("expected first parameter to be mutable")
+	}
+
+	// Second param should be immutable
+	if fn.Parameters[1].Name.Value != "count" {
+		t.Errorf("expected second param name 'count', got %q", fn.Parameters[1].Name.Value)
+	}
+	if fn.Parameters[1].Mutable {
+		t.Errorf("expected second parameter to be immutable")
+	}
+}
+
+func TestMultipleMutableParamsSharedType(t *testing.T) {
+	// Test: &a, &b int - both should be mutable with type int
+	input := `do swap(&a, &b int) {
+		temp t int = a
+		a = b
+		b = t
+	}`
+	program := parseProgram(t, input)
+	fn := program.Statements[0].(*FunctionDeclaration)
+
+	if len(fn.Parameters) != 2 {
+		t.Fatalf("expected 2 parameters, got %d", len(fn.Parameters))
+	}
+
+	if fn.Parameters[0].Name.Value != "a" {
+		t.Errorf("expected first param name 'a', got %q", fn.Parameters[0].Name.Value)
+	}
+	if fn.Parameters[0].TypeName != "int" {
+		t.Errorf("expected first param type 'int', got %q", fn.Parameters[0].TypeName)
+	}
+	if !fn.Parameters[0].Mutable {
+		t.Errorf("expected first parameter to be mutable")
+	}
+
+	if fn.Parameters[1].Name.Value != "b" {
+		t.Errorf("expected second param name 'b', got %q", fn.Parameters[1].Name.Value)
+	}
+	if fn.Parameters[1].TypeName != "int" {
+		t.Errorf("expected second param type 'int', got %q", fn.Parameters[1].TypeName)
+	}
+	if !fn.Parameters[1].Mutable {
+		t.Errorf("expected second parameter to be mutable")
+	}
+}
+
+func TestMixedMutabilitySharedType(t *testing.T) {
+	// Test: &a, b int - a is mutable, b is immutable, both type int
+	input := `do test(&a, b int) {
+		a = b
+	}`
+	program := parseProgram(t, input)
+	fn := program.Statements[0].(*FunctionDeclaration)
+
+	if len(fn.Parameters) != 2 {
+		t.Fatalf("expected 2 parameters, got %d", len(fn.Parameters))
+	}
+
+	if !fn.Parameters[0].Mutable {
+		t.Errorf("expected first parameter 'a' to be mutable")
+	}
+	if fn.Parameters[1].Mutable {
+		t.Errorf("expected second parameter 'b' to be immutable")
+	}
+}
+
+func TestMutableArrayParameter(t *testing.T) {
+	input := `do doubleAll(&arr [int]) {
+		arr[0] = arr[0] * 2
+	}`
+	program := parseProgram(t, input)
+	fn := program.Statements[0].(*FunctionDeclaration)
+
+	if len(fn.Parameters) != 1 {
+		t.Fatalf("expected 1 parameter, got %d", len(fn.Parameters))
+	}
+	if fn.Parameters[0].TypeName != "[int]" {
+		t.Errorf("expected parameter type '[int]', got %q", fn.Parameters[0].TypeName)
+	}
+	if !fn.Parameters[0].Mutable {
+		t.Errorf("expected parameter to be mutable")
+	}
+}
+
+func TestMutableMapParameter(t *testing.T) {
+	input := `do addEntry(&m map[string:int], key string, val int) {
+		m[key] = val
+	}`
+	program := parseProgram(t, input)
+	fn := program.Statements[0].(*FunctionDeclaration)
+
+	if len(fn.Parameters) != 3 {
+		t.Fatalf("expected 3 parameters, got %d", len(fn.Parameters))
+	}
+	if fn.Parameters[0].TypeName != "map[string:int]" {
+		t.Errorf("expected first param type 'map[string:int]', got %q", fn.Parameters[0].TypeName)
+	}
+	if !fn.Parameters[0].Mutable {
+		t.Errorf("expected first parameter to be mutable")
+	}
+	if fn.Parameters[1].Mutable || fn.Parameters[2].Mutable {
+		t.Errorf("expected second and third parameters to be immutable")
+	}
+}
