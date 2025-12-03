@@ -886,8 +886,6 @@ do test_maps() -> TestResult {
     println("  int-keyed map: ${lookup}")
     passed += 1
 
-    // NOTE: Empty map {} not yet supported
-
     println("  PASSED: ${passed}, FAILED: ${failed}")
     return TestResult{passed: passed, failed: failed}
 }
@@ -980,8 +978,6 @@ do test_enums() -> TestResult {
     println("  current_priority = ${current_priority}")
     passed += 1
 
-    // NOTE: Enum comparison in if statement not yet supported
-
     println("  PASSED: ${passed}, FAILED: ${failed}")
     return TestResult{passed: passed, failed: failed}
 }
@@ -1030,8 +1026,6 @@ do test_functions() -> TestResult {
     println("  double_array({1,2,3}) = ${doubled}")
     passed += 1
 
-    // NOTE: Multiple return values not yet supported
-
     println("  PASSED: ${passed}, FAILED: ${failed}")
     return TestResult{passed: passed, failed: failed}
 }
@@ -1075,8 +1069,6 @@ do double_array(nums [int]) -> [int] {
     }
     return result
 }
-
-// NOTE: min_max with multiple returns removed - not yet supported
 
 // ==================================================
 // MUTABLE PARAMETERS (&)
