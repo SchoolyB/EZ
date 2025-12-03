@@ -2179,8 +2179,13 @@ func (tc *TypeChecker) inferIndexType(index *ast.IndexExpression) (string, bool)
 
 	// Indexing into an array returns element type
 	if len(leftType) > 2 && leftType[0] == '[' {
-		// Extract element type from [type]
-		return leftType[1 : len(leftType)-1], true
+		// Extract element type from [type] or [type,size]
+		inner := leftType[1 : len(leftType)-1]
+		// Handle fixed-size arrays: [int,3] -> int
+		if commaIdx := strings.Index(inner, ","); commaIdx != -1 {
+			return inner[:commaIdx], true
+		}
+		return inner, true
 	}
 
 	// Indexing into a map returns value type
