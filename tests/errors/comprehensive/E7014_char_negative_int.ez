@@ -1,0 +1,8 @@
+/*
+ * Error Test: E7014 - char() conversion from negative integer
+ * Expected: "cannot convert ... to char: value must be a valid Unicode code point"
+ */
+
+do main() {
+    temp c char = char(-1)  // Negative value cannot convert to char
+}
