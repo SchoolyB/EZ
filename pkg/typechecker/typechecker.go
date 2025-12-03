@@ -2653,7 +2653,6 @@ func (tc *TypeChecker) checkArraysModuleCall(funcName string, call *ast.CallExpr
 		"pop":        {1, 1, []string{"array"}, "any"},
 		"shift":      {1, 1, []string{"array"}, "any"},
 		"clear":      {1, 1, []string{"array"}, "array"},
-		"copy":       {1, 1, []string{"array"}, "array"},
 		"reverse":    {1, 1, []string{"array"}, "array"},
 		"sort":       {1, 1, []string{"array"}, "array"},
 		"sort_desc":  {1, 1, []string{"array"}, "array"},
@@ -2721,7 +2720,6 @@ func (tc *TypeChecker) checkMapsModuleCall(funcName string, call *ast.CallExpres
 		"keys":     {1, 1, []string{"map"}, "array"},
 		"values":   {1, 1, []string{"map"}, "array"},
 		"clear":    {1, 1, []string{"map"}, "void"},
-		"copy":     {1, 1, []string{"map"}, "map"},
 		"to_array": {1, 1, []string{"map"}, "array"},
 		"invert":   {1, 1, []string{"map"}, "map"},
 
