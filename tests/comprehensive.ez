@@ -137,6 +137,10 @@ do main() {
     total_passed += result.passed
     total_failed += result.failed
 
+    result = test_copy()
+    total_passed += result.passed
+    total_failed += result.failed
+
     result = test_stdlib_math()
     total_passed += result.passed
     total_failed += result.failed
@@ -1030,6 +1034,118 @@ do add_score(&state GameState, points int) {
 
 do lose_life(&state GameState) {
     state.lives = state.lives - 1
+}
+
+// ==================================================
+// COPY BUILTIN
+// ==================================================
+
+const CopyInner struct {
+    val int
+}
+
+const CopyOuter struct {
+    inner CopyInner
+}
+
+do test_copy() -> TestResult {
+    print_section("copy() Builtin")
+    temp passed int = 0
+    temp failed int = 0
+
+    // Test copy with primitives
+    temp original_int int = 42
+    temp copied_int int = copy(original_int)
+    if copied_int == 42 {
+        println("  copy(int): ${copied_int} (expected 42)")
+        passed += 1
+    } otherwise {
+        println("  copy(int): FAILED - got ${copied_int}")
+        failed += 1
+    }
+
+    temp original_string string = "hello"
+    temp copied_string string = copy(original_string)
+    if copied_string == "hello" {
+        println("  copy(string): '${copied_string}' (expected 'hello')")
+        passed += 1
+    } otherwise {
+        println("  copy(string): FAILED - got '${copied_string}'")
+        failed += 1
+    }
+
+    // Test copy with struct - verify deep copy
+    temp a Person = Person{name: "Alice", age: 30, active: true}
+    temp b Person = copy(a)
+    b.age = 31
+    if a.age == 30 && b.age == 31 {
+        println("  copy(struct): original.age=${a.age}, copied.age=${b.age} (expected 30, 31)")
+        passed += 1
+    } otherwise {
+        println("  copy(struct): FAILED - original.age=${a.age}, copied.age=${b.age}")
+        failed += 1
+    }
+
+    // Test copy with array - verify deep copy
+    temp arr1 [int] = {1, 2, 3}
+    temp arr2 [int] = copy(arr1)
+    arr2[0] = 100
+    if arr1[0] == 1 && arr2[0] == 100 {
+        println("  copy(array): original[0]=${arr1[0]}, copied[0]=${arr2[0]} (expected 1, 100)")
+        passed += 1
+    } otherwise {
+        println("  copy(array): FAILED - original[0]=${arr1[0]}, copied[0]=${arr2[0]}")
+        failed += 1
+    }
+
+    // Test copy with map - verify deep copy
+    temp m1 map[string:int] = {"a": 1, "b": 2}
+    temp m2 map[string:int] = copy(m1)
+    m2["a"] = 100
+    if m1["a"] == 1 && m2["a"] == 100 {
+        println("  copy(map): original['a']=${m1["a"]}, copied['a']=${m2["a"]} (expected 1, 100)")
+        passed += 1
+    } otherwise {
+        println("  copy(map): FAILED - original['a']=${m1["a"]}, copied['a']=${m2["a"]}")
+        failed += 1
+    }
+
+    // Test copy with nil
+    temp nil_copy = copy(nil)
+    if nil_copy == nil {
+        println("  copy(nil): ${nil_copy} (expected nil)")
+        passed += 1
+    } otherwise {
+        println("  copy(nil): FAILED - got ${nil_copy}")
+        failed += 1
+    }
+
+    // Test copy with nested struct - verify deep copy
+    temp outer1 CopyOuter = CopyOuter{inner: CopyInner{val: 42}}
+    temp outer2 CopyOuter = copy(outer1)
+    outer2.inner.val = 99
+    if outer1.inner.val == 42 && outer2.inner.val == 99 {
+        println("  copy(nested struct): original.inner.val=${outer1.inner.val}, copied.inner.val=${outer2.inner.val} (expected 42, 99)")
+        passed += 1
+    } otherwise {
+        println("  copy(nested struct): FAILED - original.inner.val=${outer1.inner.val}, copied.inner.val=${outer2.inner.val}")
+        failed += 1
+    }
+
+    // Test copy with nested array - verify deep copy
+    temp nested1 [[int]] = {{1, 2}, {3, 4}}
+    temp nested2 [[int]] = copy(nested1)
+    nested2[0][0] = 100
+    if nested1[0][0] == 1 && nested2[0][0] == 100 {
+        println("  copy(nested array): original[0][0]=${nested1[0][0]}, copied[0][0]=${nested2[0][0]} (expected 1, 100)")
+        passed += 1
+    } otherwise {
+        println("  copy(nested array): FAILED - original[0][0]=${nested1[0][0]}, copied[0][0]=${nested2[0][0]}")
+        failed += 1
+    }
+
+    println("  PASSED: ${passed}, FAILED: ${failed}")
+    return TestResult{passed: passed, failed: failed}
 }
 
 // ==================================================
