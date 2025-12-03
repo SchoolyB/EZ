@@ -1,0 +1,10 @@
+/*
+ * Error Test: E2002 - for loop with opening paren but missing closing paren
+ * Expected: "expected ), got { instead"
+ */
+
+do main() {
+    for (i in range(0, 3) {
+        temp x int = i
+    }
+}

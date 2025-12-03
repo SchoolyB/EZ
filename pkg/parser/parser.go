@@ -1007,6 +1007,12 @@ func (p *Parser) parseAlternative() Statement {
 func (p *Parser) parseForStatement() *ForStatement {
 	stmt := &ForStatement{Token: p.currentToken}
 
+	// Check for optional opening parenthesis
+	hasParens := p.peekTokenMatches(LPAREN)
+	if hasParens {
+		p.nextToken() // consume '('
+	}
+
 	if !p.expectPeek(IDENT) {
 		return nil
 	}
@@ -1026,6 +1032,13 @@ func (p *Parser) parseForStatement() *ForStatement {
 	p.nextToken() // move past 'in'
 	stmt.Iterable = p.parseExpression(LOWEST)
 
+	// Check for optional closing parenthesis
+	if hasParens {
+		if !p.expectPeek(RPAREN) {
+			return nil
+		}
+	}
+
 	if !p.expectPeek(LBRACE) {
 		return nil
 	}
@@ -1037,6 +1050,12 @@ func (p *Parser) parseForStatement() *ForStatement {
 
 func (p *Parser) parseForEachStatement() *ForEachStatement {
 	stmt := &ForEachStatement{Token: p.currentToken}
+
+	// Check for optional opening parenthesis
+	hasParens := p.peekTokenMatches(LPAREN)
+	if hasParens {
+		p.nextToken() // consume '('
+	}
 
 	if !p.expectPeek(IDENT) {
 		return nil
@@ -1050,6 +1069,13 @@ func (p *Parser) parseForEachStatement() *ForEachStatement {
 
 	p.nextToken() // move past 'in'
 	stmt.Collection = p.parseExpression(LOWEST)
+
+	// Check for optional closing parenthesis
+	if hasParens {
+		if !p.expectPeek(RPAREN) {
+			return nil
+		}
+	}
 
 	if !p.expectPeek(LBRACE) {
 		return nil

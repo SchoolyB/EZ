@@ -1,0 +1,10 @@
+/*
+ * Error Test: E2002 - for loop with type annotation and missing closing paren
+ * Expected: "expected ), got { instead"
+ */
+
+do main() {
+    for (i int in range(0, 3) {
+        temp x int = i
+    }
+}
