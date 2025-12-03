@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.11.1](https://github.com/SchoolyB/EZ/compare/v0.11.0...v0.11.1) (2025-12-03)
+
+
+### Bug Fixes
+
+* allow optional parentheses in for loops ([#293](https://github.com/SchoolyB/EZ/issues/293)) ([d86b71c](https://github.com/SchoolyB/EZ/commit/d86b71cb48281f221f19bf0aa40e98e3f67ac9c2))
+* allow optional parentheses in for loops ([#293](https://github.com/SchoolyB/EZ/issues/293)) ([16c968d](https://github.com/SchoolyB/EZ/commit/16c968d5b03fc08de82a4589207f8852b0ad8841))
+
 ## [0.11.0](https://github.com/SchoolyB/EZ/compare/v0.10.0...v0.11.0) (2025-12-03)
 
 
