@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.11.0](https://github.com/SchoolyB/EZ/compare/v0.10.0...v0.11.0) (2025-12-03)
+
+
+### Features
+
+* implement char() type conversion function ([d7362bf](https://github.com/SchoolyB/EZ/commit/d7362bf42bb6539a9592e95dcf8710b3965d9aad))
+* implement char() type conversion function ([#100](https://github.com/SchoolyB/EZ/issues/100)) ([e23c6d3](https://github.com/SchoolyB/EZ/commit/e23c6d35a67488fc42c4355f98136b9223e32e61))
+
 ## [0.10.0](https://github.com/SchoolyB/EZ/compare/v0.9.0...v0.10.0) (2025-12-03)
 
 
