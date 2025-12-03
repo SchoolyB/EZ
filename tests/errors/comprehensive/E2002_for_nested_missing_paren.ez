@@ -1,0 +1,12 @@
+/*
+ * Error Test: E2002 - nested for loop with mismatched parens
+ * Expected: "expected ), got { instead"
+ */
+
+do main() {
+    for (i in range(0, 3)) {
+        for (j in range(0, 2) {
+            temp x int = i + j
+        }
+    }
+}
