@@ -897,21 +897,6 @@ var ArraysBuiltins = map[string]*object.Builtin{
 		},
 	},
 
-	"arrays.copy": {
-		Fn: func(args ...object.Object) object.Object {
-			if len(args) != 1 {
-				return newError("arrays.copy() takes exactly 1 argument")
-			}
-			arr, ok := args[0].(*object.Array)
-			if !ok {
-				return &object.Error{Code: "E7002", Message: "arrays.copy() requires an array"}
-			}
-			newElements := make([]object.Object, len(arr.Elements))
-			copy(newElements, arr.Elements)
-			return &object.Array{Elements: newElements}
-		},
-	},
-
 	"arrays.join": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 2 {

@@ -179,24 +179,6 @@ var MapsBuiltins = map[string]*object.Builtin{
 		},
 	},
 
-	"maps.copy": {
-		Fn: func(args ...object.Object) object.Object {
-			if len(args) != 1 {
-				return newError("maps.copy() takes exactly 1 argument")
-			}
-			m, ok := args[0].(*object.Map)
-			if !ok {
-				return &object.Error{Code: "E7007", Message: "maps.copy() requires a map"}
-			}
-			// Create a shallow copy of the map
-			newMap := object.NewMap()
-			for _, pair := range m.Pairs {
-				newMap.Set(pair.Key, pair.Value)
-			}
-			return newMap
-		},
-	},
-
 	"maps.merge": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) < 2 {
