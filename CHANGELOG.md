@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.8.3](https://github.com/SchoolyB/EZ/compare/v0.8.2...v0.8.3) (2025-12-03)
+
+
+### Bug Fixes
+
+* fixed-size array indexing returns correct element type ([4c7211f](https://github.com/SchoolyB/EZ/commit/4c7211fe3edfb4ef4f3188cb9c5b65a12bb7a368))
+* fixed-size array indexing returns correct element type ([#267](https://github.com/SchoolyB/EZ/issues/267)) ([92eeb28](https://github.com/SchoolyB/EZ/commit/92eeb2809e33d9a39eed3ad6f00cd6e43fa72634))
+* Handle comma in array type when extracting element type in inferIndexType. ([92eeb28](https://github.com/SchoolyB/EZ/commit/92eeb2809e33d9a39eed3ad6f00cd6e43fa72634))
+
 ## [0.8.2](https://github.com/SchoolyB/EZ/compare/v0.8.1...v0.8.2) (2025-12-03)
 
 
