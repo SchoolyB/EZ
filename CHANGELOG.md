@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.10.0](https://github.com/SchoolyB/EZ/compare/v0.9.0...v0.10.0) (2025-12-03)
+
+
+### Features
+
+* remove arrays.copy() and maps.copy() in favor of copy() builtin ([#269](https://github.com/SchoolyB/EZ/issues/269)) ([aa2de1d](https://github.com/SchoolyB/EZ/commit/aa2de1dbe8304eaea2950aa60c2dd8d02e537acd))
+
 ## [0.9.0](https://github.com/SchoolyB/EZ/compare/v0.8.3...v0.9.0) (2025-12-03)
 
 
