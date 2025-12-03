@@ -1040,3 +1040,177 @@ do main() {
 	tc := typecheck(t, input)
 	assertNoErrors(t, tc)
 }
+
+// ============================================================================
+// Mutable Parameter Tests (& prefix)
+// ============================================================================
+
+func TestMutableParameterValid(t *testing.T) {
+	// Test: temp variable passed to & param - should be valid
+	input := `
+const Person struct {
+	name string
+	age int
+}
+
+do birthday(&p Person) {
+	p.age = p.age + 1
+}
+
+do main() {
+	temp bob Person = Person{name: "Bob", age: 30}
+	birthday(bob)
+}
+`
+	tc := typecheck(t, input)
+	assertNoErrors(t, tc)
+}
+
+func TestImmutableParameterValid(t *testing.T) {
+	// Test: const variable passed to non-& param - should be valid
+	input := `
+const Person struct {
+	name string
+	age int
+}
+
+do getName(p Person) -> string {
+	return p.name
+}
+
+do main() {
+	const alice Person = Person{name: "Alice", age: 25}
+	temp name string = getName(alice)
+}
+`
+	tc := typecheck(t, input)
+	assertNoErrors(t, tc)
+}
+
+func TestE3023_ConstToMutableParam(t *testing.T) {
+	// Test: const variable passed to & param - should error E3023
+	input := `
+const Person struct {
+	name string
+	age int
+}
+
+do modify(&p Person) {
+	p.age = p.age + 1
+}
+
+do main() {
+	const alice Person = Person{name: "Alice", age: 25}
+	modify(alice)
+}
+`
+	tc := typecheck(t, input)
+	assertHasError(t, tc, errors.E3023)
+}
+
+func TestE5016_ModifyImmutableParam(t *testing.T) {
+	// Test: modifying a non-& param inside function - should error E5016
+	input := `
+const Person struct {
+	name string
+	age int
+}
+
+do tryModify(p Person) {
+	p.age = 100
+}
+
+do main() {
+	temp bob Person = Person{name: "Bob", age: 30}
+	tryModify(bob)
+}
+`
+	tc := typecheck(t, input)
+	assertHasError(t, tc, errors.E5016)
+}
+
+func TestE5016_ModifyImmutableParamField(t *testing.T) {
+	// Test: modifying a field on non-& param - should error E5016
+	input := `
+const Person struct {
+	name string
+	age int
+}
+
+do tryModifyField(p Person) {
+	p.name = "Changed"
+}
+
+do main() {
+	temp bob Person = Person{name: "Bob", age: 30}
+	tryModifyField(bob)
+}
+`
+	tc := typecheck(t, input)
+	assertHasError(t, tc, errors.E5016)
+}
+
+func TestE5016_ModifyImmutableArrayParam(t *testing.T) {
+	// Test: modifying array element on non-& param - should error E5016
+	input := `
+do tryModifyArray(arr [int]) {
+	arr[0] = 100
+}
+
+do main() {
+	temp nums [int] = {1, 2, 3}
+	tryModifyArray(nums)
+}
+`
+	tc := typecheck(t, input)
+	assertHasError(t, tc, errors.E5016)
+}
+
+func TestMutableArrayParamValid(t *testing.T) {
+	// Test: modifying array element on & param - should be valid
+	input := `
+do modifyArray(&arr [int]) {
+	arr[0] = 100
+}
+
+do main() {
+	temp nums [int] = {1, 2, 3}
+	modifyArray(nums)
+}
+`
+	tc := typecheck(t, input)
+	assertNoErrors(t, tc)
+}
+
+func TestMixedMutableParamsValid(t *testing.T) {
+	// Test: function with both mutable and immutable params
+	input := `
+do copyFirst(&dest [int], src [int]) {
+	dest[0] = src[0]
+}
+
+do main() {
+	temp target [int] = {0, 0, 0}
+	temp source [int] = {1, 2, 3}
+	copyFirst(target, source)
+}
+`
+	tc := typecheck(t, input)
+	assertNoErrors(t, tc)
+}
+
+func TestE3023_ConstArrayToMutableParam(t *testing.T) {
+	// Test: const array passed to & param - should error E3023
+	input := `
+do modify(&arr [int]) {
+	arr[0] = 100
+}
+
+do main() {
+	const nums [int] = {1, 2, 3}
+	modify(nums)
+}
+`
+	tc := typecheck(t, input)
+	assertHasError(t, tc, errors.E3023)
+}

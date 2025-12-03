@@ -37,6 +37,7 @@ type (
 	EnumValue       = object.EnumValue
 	Environment     = object.Environment
 	ModuleObject    = object.ModuleObject
+	Reference       = object.Reference
 )
 
 // Re-export constants
@@ -60,6 +61,7 @@ const (
 	ENUM_OBJ         = object.ENUM_OBJ
 	ENUM_VALUE_OBJ   = object.ENUM_VALUE_OBJ
 	MODULE_OBJ       = object.MODULE_OBJ
+	REFERENCE_OBJ    = object.REFERENCE_OBJ
 
 	// Visibility constants
 	VisibilityPublic        = object.VisibilityPublic

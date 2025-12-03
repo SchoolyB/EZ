@@ -8,6 +8,7 @@
  *   - Control flow (if/or/otherwise, for, while, for_each, range)
  *   - All operators (arithmetic, comparison, logical, assignment)
  *   - Functions (parameters, returns, multiple returns)
+ *   - Mutable parameters (&) for pass-by-reference
  *   - Standard library (@std, @math, @arrays, @strings, @maps, @time)
  *   - String interpolation
  *   - Comments (single-line and multi-line)
@@ -129,6 +130,10 @@ do main() {
     total_failed += result.failed
 
     result = test_functions()
+    total_passed += result.passed
+    total_failed += result.failed
+
+    result = test_mutable_params()
     total_passed += result.passed
     total_failed += result.failed
 
@@ -742,6 +747,273 @@ do double_array(nums [int]) -> [int] {
 }
 
 // NOTE: min_max with multiple returns removed - not yet supported
+
+// ==================================================
+// MUTABLE PARAMETERS (&)
+// ==================================================
+
+do test_mutable_params() -> TestResult {
+    print_section("Mutable Parameters (&)")
+    temp passed int = 0
+    temp failed int = 0
+
+    // Basic mutable int parameter
+    temp counter int = 0
+    increment(counter)
+    if counter == 1 {
+        println("  increment(&n int): counter = ${counter} (expected 1)")
+        passed += 1
+    } otherwise {
+        println("  increment(&n int): FAILED - got ${counter}, expected 1")
+        failed += 1
+    }
+
+    // Multiple increments
+    increment(counter)
+    increment(counter)
+    if counter == 3 {
+        println("  multiple increments: counter = ${counter} (expected 3)")
+        passed += 1
+    } otherwise {
+        println("  multiple increments: FAILED - got ${counter}, expected 3")
+        failed += 1
+    }
+
+    // Swap two values
+    temp x int = 10
+    temp y int = 20
+    swap_values(x, y)
+    if x == 20 && y == 10 {
+        println("  swap(&a, &b int): x=${x}, y=${y} (expected x=20, y=10)")
+        passed += 1
+    } otherwise {
+        println("  swap(&a, &b int): FAILED - got x=${x}, y=${y}")
+        failed += 1
+    }
+
+    // Mutable float parameter
+    temp f float = 0.0
+    set_to_pi(f)
+    if f > 3.14 && f < 3.15 {
+        println("  set_to_pi(&f float): f = ${f} (expected ~3.14159)")
+        passed += 1
+    } otherwise {
+        println("  set_to_pi(&f float): FAILED - got ${f}")
+        failed += 1
+    }
+
+    // Mutable bool parameter
+    temp flag bool = false
+    toggle_bool(flag)
+    if flag == true {
+        println("  toggle_bool(&b bool): flag = ${flag} (expected true)")
+        passed += 1
+    } otherwise {
+        println("  toggle_bool(&b bool): FAILED - got ${flag}")
+        failed += 1
+    }
+    toggle_bool(flag)
+    if flag == false {
+        println("  toggle again: flag = ${flag} (expected false)")
+        passed += 1
+    } otherwise {
+        println("  toggle again: FAILED - got ${flag}")
+        failed += 1
+    }
+
+    // Mutable string parameter
+    temp message string = "Hello"
+    append_world(message)
+    if message == "Hello, World!" {
+        println("  append_world(&s string): '${message}'")
+        passed += 1
+    } otherwise {
+        println("  append_world(&s string): FAILED - got '${message}'")
+        failed += 1
+    }
+
+    // Mutable byte parameter
+    temp b byte = 0x0F
+    shift_byte_left(b)
+    if b == 0x1E {
+        println("  shift_byte_left(&b byte): b = ${b} (expected 30/0x1E)")
+        passed += 1
+    } otherwise {
+        println("  shift_byte_left(&b byte): FAILED - got ${b}")
+        failed += 1
+    }
+
+    // Mutable byte array parameter
+    temp bytes [byte] = {0x01, 0x02, 0x03}
+    double_bytes(bytes)
+    if bytes[0] == 0x02 && bytes[1] == 0x04 && bytes[2] == 0x06 {
+        println("  double_bytes(&arr [byte]): ${bytes}")
+        passed += 1
+    } otherwise {
+        println("  double_bytes(&arr [byte]): FAILED - got ${bytes}")
+        failed += 1
+    }
+
+    // Mutable struct parameter
+    temp p Point = Point{x: 5, y: 10}
+    double_point(p)
+    if p.x == 10 && p.y == 20 {
+        println("  double_point(&p Point): x=${p.x}, y=${p.y} (expected 10, 20)")
+        passed += 1
+    } otherwise {
+        println("  double_point(&p Point): FAILED - got x=${p.x}, y=${p.y}")
+        failed += 1
+    }
+
+    // Mutable array parameter
+    temp nums [int] = {1, 2, 3, 4, 5}
+    double_array_in_place(nums)
+    if nums[0] == 2 && nums[2] == 6 && nums[4] == 10 {
+        println("  double_array_in_place(&arr [int]): ${nums}")
+        passed += 1
+    } otherwise {
+        println("  double_array_in_place(&arr [int]): FAILED - got ${nums}")
+        failed += 1
+    }
+
+    // Mixed mutable and immutable parameters
+    temp result int = 0
+    add_to_result(result, 15)
+    add_to_result(result, 25)
+    if result == 40 {
+        println("  add_to_result(&result, value): result = ${result} (expected 40)")
+        passed += 1
+    } otherwise {
+        println("  add_to_result(&result, value): FAILED - got ${result}")
+        failed += 1
+    }
+
+    // Multiple output pattern (quotient and remainder)
+    temp q int = 0
+    temp r int = 0
+    divide_with_remainder(q, r, 17, 5)
+    if q == 3 && r == 2 {
+        println("  divide_with_remainder: 17/5 = ${q} remainder ${r}")
+        passed += 1
+    } otherwise {
+        println("  divide_with_remainder: FAILED - got q=${q}, r=${r}")
+        failed += 1
+    }
+
+    // Accumulator pattern with string
+    temp greeting string = ""
+    append_name(greeting, "Alice")
+    append_name(greeting, "Bob")
+    append_name(greeting, "Carol")
+    temp expected_greeting string = "Hello, Alice! Hello, Bob! Hello, Carol! "
+    if greeting == expected_greeting {
+        println("  accumulator pattern: '${greeting}'")
+        passed += 1
+    } otherwise {
+        println("  accumulator pattern: FAILED")
+        println("    got:      '${greeting}'")
+        println("    expected: '${expected_greeting}'")
+        failed += 1
+    }
+
+    // State machine pattern (game state)
+    temp game GameState = GameState{score: 0, lives: 3, level: 1}
+    add_score(game, 50)
+    add_score(game, 60)  // This should trigger level up (score >= level * 100)
+    if game.score == 110 && game.level == 2 {
+        println("  state machine: score=${game.score}, level=${game.level}")
+        passed += 1
+    } otherwise {
+        println("  state machine: FAILED - score=${game.score}, level=${game.level}")
+        failed += 1
+    }
+
+    lose_life(game)
+    if game.lives == 2 {
+        println("  lose_life: lives=${game.lives} (expected 2)")
+        passed += 1
+    } otherwise {
+        println("  lose_life: FAILED - lives=${game.lives}")
+        failed += 1
+    }
+
+    println("  PASSED: ${passed}, FAILED: ${failed}")
+    return TestResult{passed: passed, failed: failed}
+}
+
+// Helper functions for mutable parameter tests
+do increment(&n int) {
+    n = n + 1
+}
+
+do swap_values(&a, &b int) {
+    temp t int = a
+    a = b
+    b = t
+}
+
+do set_to_pi(&f float) {
+    f = 3.14159
+}
+
+do toggle_bool(&b bool) {
+    b = !b
+}
+
+do append_world(&s string) {
+    s = s + ", World!"
+}
+
+do shift_byte_left(&b byte) {
+    b = b * 2
+}
+
+do double_bytes(&arr [byte]) {
+    for i in range(0, len(arr)) {
+        arr[i] = arr[i] * 2
+    }
+}
+
+do double_point(&p Point) {
+    p.x = p.x * 2
+    p.y = p.y * 2
+}
+
+do double_array_in_place(&arr [int]) {
+    for i in range(0, len(arr)) {
+        arr[i] = arr[i] * 2
+    }
+}
+
+do add_to_result(&result int, value int) {
+    result = result + value
+}
+
+do divide_with_remainder(&quotient, &remainder int, a, b int) {
+    quotient = a / b
+    remainder = a % b
+}
+
+do append_name(&message string, name string) {
+    message = message + "Hello, " + name + "! "
+}
+
+const GameState struct {
+    score int
+    lives int
+    level int
+}
+
+do add_score(&state GameState, points int) {
+    state.score = state.score + points
+    if state.score >= state.level * 100 {
+        state.level = state.level + 1
+    }
+}
+
+do lose_life(&state GameState) {
+    state.lives = state.lives - 1
+}
 
 // ==================================================
 // STDLIB: @math

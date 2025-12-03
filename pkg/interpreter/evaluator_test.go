@@ -892,3 +892,188 @@ r
 	evaluated := testEval(input)
 	testIntegerObject(t, evaluated, 55)
 }
+
+// ============================================================================
+// Mutable Parameter Tests (& prefix)
+// ============================================================================
+
+func TestMutableStructParameter(t *testing.T) {
+	// Test that & param allows modification and changes persist
+	input := `
+const Person struct {
+	name string
+	age int
+}
+
+do birthday(&p Person) {
+	p.age = p.age + 1
+}
+
+temp bob Person = Person{name: "Bob", age: 30}
+birthday(bob)
+bob.age
+`
+	evaluated := testEval(input)
+	testIntegerObject(t, evaluated, 31)
+}
+
+func TestImmutableStructParameterNoChange(t *testing.T) {
+	// Test that non-& param doesn't modify the original (read-only copy behavior)
+	// Note: This test verifies the evaluator behavior - the typechecker would
+	// actually error on this code, but the evaluator should handle it gracefully
+	input := `
+const Person struct {
+	name string
+	age int
+}
+
+do getName(p Person) -> string {
+	return p.name
+}
+
+temp bob Person = Person{name: "Bob", age: 30}
+temp n string = getName(bob)
+n
+`
+	evaluated := testEval(input)
+	testStringObject(t, evaluated, "Bob")
+}
+
+func TestMutableArrayParameter(t *testing.T) {
+	// Test that & param allows array modification
+	input := `
+do doubleFirst(&arr [int]) {
+	arr[0] = arr[0] * 2
+}
+
+temp nums [int] = {10, 20, 30}
+doubleFirst(nums)
+nums[0]
+`
+	evaluated := testEval(input)
+	testIntegerObject(t, evaluated, 20)
+}
+
+func TestMutableParameterMultipleCalls(t *testing.T) {
+	// Test multiple calls with mutable primitive param
+	// Primitives now support true reference semantics with &
+	input := `
+do increment(&n int) {
+	n = n + 1
+}
+
+temp counter int = 0
+increment(counter)
+increment(counter)
+increment(counter)
+counter
+`
+	evaluated := testEval(input)
+	testIntegerObject(t, evaluated, 3)
+}
+
+func TestMutableAndImmutableMixed(t *testing.T) {
+	// Test function with both mutable and immutable params
+	input := `
+do addToFirst(&arr [int], value int) {
+	arr[0] = arr[0] + value
+}
+
+temp nums [int] = {100, 200, 300}
+addToFirst(nums, 50)
+nums[0]
+`
+	evaluated := testEval(input)
+	testIntegerObject(t, evaluated, 150)
+}
+
+func TestMutableNestedStructField(t *testing.T) {
+	// Test modifying nested struct field through & param
+	input := `
+const Address struct {
+	city string
+	zip int
+}
+
+const Person struct {
+	name string
+	addr Address
+}
+
+do updateZip(&p Person, newZip int) {
+	p.addr.zip = newZip
+}
+
+temp bob Person = Person{name: "Bob", addr: Address{city: "NYC", zip: 10001}}
+updateZip(bob, 90210)
+bob.addr.zip
+`
+	evaluated := testEval(input)
+	testIntegerObject(t, evaluated, 90210)
+}
+
+func TestSwapWithMutableParams(t *testing.T) {
+	// Test swap operation with two mutable primitive params
+	// Primitives now support true reference semantics with &
+	input := `
+do swap(&a, &b int) {
+	temp t int = a
+	a = b
+	b = t
+}
+
+temp x int = 10
+temp y int = 20
+swap(x, y)
+x + y * 100
+`
+	// Result should be 20 + 10*100 = 1020 if swap worked
+	// (x becomes 20, y becomes 10)
+	evaluated := testEval(input)
+	testIntegerObject(t, evaluated, 1020)
+}
+
+func TestMutableFloatParameter(t *testing.T) {
+	// Test mutable float parameter
+	input := `
+do setFloat(&f float) {
+	f = 3.14
+}
+
+temp val float = 0.0
+setFloat(val)
+val
+`
+	evaluated := testEval(input)
+	testFloatObject(t, evaluated, 3.14)
+}
+
+func TestMutableBoolParameter(t *testing.T) {
+	// Test mutable bool parameter
+	input := `
+do toggle(&b bool) {
+	b = !b
+}
+
+temp flag bool = false
+toggle(flag)
+flag
+`
+	evaluated := testEval(input)
+	testBooleanObject(t, evaluated, true)
+}
+
+func TestMutableStringParameter(t *testing.T) {
+	// Test mutable string parameter
+	input := `
+do setString(&s string) {
+	s = "modified"
+}
+
+temp str string = "original"
+setString(str)
+str
+`
+	evaluated := testEval(input)
+	testStringObject(t, evaluated, "modified")
+}

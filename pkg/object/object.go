@@ -34,6 +34,7 @@ const (
 	ENUM_VALUE_OBJ   ObjectType = "ENUM_VALUE"
 	MODULE_OBJ       ObjectType = "MODULE"
 	FILE_HANDLE_OBJ  ObjectType = "FILE_HANDLE"
+	REFERENCE_OBJ    ObjectType = "REFERENCE"
 )
 
 type Object interface {
@@ -111,6 +112,40 @@ func (fh *FileHandle) Inspect() string {
 		return fmt.Sprintf("<FileHandle(closed) %s>", fh.Path)
 	}
 	return fmt.Sprintf("<FileHandle %s>", fh.Path)
+}
+
+// Reference represents a reference to a variable in another environment
+// Used for mutable (&) parameters to allow modifications to persist to the caller
+type Reference struct {
+	Env  *Environment // The environment where the original variable lives
+	Name string       // The variable name in that environment
+}
+
+func (r *Reference) Type() ObjectType { return REFERENCE_OBJ }
+func (r *Reference) Inspect() string  { return fmt.Sprintf("<ref %s>", r.Name) }
+
+// Deref returns the current value of the referenced variable
+func (r *Reference) Deref() (Object, bool) {
+	return r.Env.Get(r.Name)
+}
+
+// SetValue updates the referenced variable's value
+// Traverses the scope chain to find and update the variable
+func (r *Reference) SetValue(val Object) bool {
+	return r.Env.updateRef(r.Name, val)
+}
+
+// updateRef updates a variable's value, traversing outer scopes if needed
+// This is used by Reference.SetValue to update through references
+func (e *Environment) updateRef(name string, val Object) bool {
+	if _, ok := e.store[name]; ok {
+		e.store[name] = val
+		return true
+	}
+	if e.outer != nil {
+		return e.outer.updateRef(name, val)
+	}
+	return false
 }
 
 // Boolean wraps bool

@@ -1200,10 +1200,24 @@ func (p *Parser) parseFunctionParameters() []*Parameter {
 
 	p.nextToken()
 
+	// Helper struct to track name and mutability together
+	type paramInfo struct {
+		name    *Label
+		mutable bool
+	}
+
 	for {
 		// Collect parameter names that will share a type
 		// e.g., in "x, y int", collect ["x", "y"]
-		namesForType := []*Label{}
+		// e.g., in "&x, &y int", collect ["x", "y"] with mutable=true
+		namesForType := []paramInfo{}
+
+		// Check for & prefix (mutable parameter)
+		isMutable := false
+		if p.currentTokenMatches(AMPERSAND) {
+			isMutable = true
+			p.nextToken() // consume &
+		}
 
 		// Read first parameter name
 		if !p.currentTokenMatches(IDENT) {
@@ -1236,9 +1250,16 @@ func (p *Parser) parseFunctionParameters() []*Parameter {
 				} else {
 					paramNames[currentIdent.Value] = currentIdent.Token
 				}
-				namesForType = append(namesForType, currentIdent)
+				namesForType = append(namesForType, paramInfo{name: currentIdent, mutable: isMutable})
 				p.nextToken() // consume IDENT
-				p.nextToken() // consume COMMA, move to next IDENT
+				p.nextToken() // consume COMMA, move to next token
+
+				// Check for & prefix on next parameter in the shared-type group
+				isMutable = false
+				if p.currentTokenMatches(AMPERSAND) {
+					isMutable = true
+					p.nextToken() // consume &
+				}
 				continue
 			} else if p.peekTokenMatches(IDENT) || p.peekTokenMatches(LBRACKET) {
 				// This IDENT is a parameter name, and the next token is the type
@@ -1251,7 +1272,7 @@ func (p *Parser) parseFunctionParameters() []*Parameter {
 				} else {
 					paramNames[currentIdent.Value] = currentIdent.Token
 				}
-				namesForType = append(namesForType, currentIdent)
+				namesForType = append(namesForType, paramInfo{name: currentIdent, mutable: isMutable})
 				p.nextToken() // move to the type
 				break
 			} else if p.peekTokenMatches(RPAREN) {
@@ -1280,8 +1301,8 @@ func (p *Parser) parseFunctionParameters() []*Parameter {
 		}
 
 		// Apply the type to all collected names
-		for _, name := range namesForType {
-			params = append(params, &Parameter{Name: name, TypeName: typeName})
+		for _, info := range namesForType {
+			params = append(params, &Parameter{Name: info.name, TypeName: typeName, Mutable: info.mutable})
 		}
 
 		// Check for comma (more parameters) or closing paren
