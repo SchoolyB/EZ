@@ -141,6 +141,10 @@ do main() {
     total_passed += result.passed
     total_failed += result.failed
 
+    result = test_char_conversion()
+    total_passed += result.passed
+    total_failed += result.failed
+
     result = test_stdlib_math()
     total_passed += result.passed
     total_failed += result.failed
@@ -1141,6 +1145,101 @@ do test_copy() -> TestResult {
         passed += 1
     } otherwise {
         println("  copy(nested array): FAILED - original[0][0]=${nested1[0][0]}, copied[0][0]=${nested2[0][0]}")
+        failed += 1
+    }
+
+    println("  PASSED: ${passed}, FAILED: ${failed}")
+    return TestResult{passed: passed, failed: failed}
+}
+
+// ==================================================
+// CHAR CONVERSION
+// ==================================================
+
+do test_char_conversion() -> TestResult {
+    print_section("char() Type Conversion")
+    temp passed int = 0
+    temp failed int = 0
+
+    // Test int to char (ASCII)
+    temp c1 char = char(65)
+    if c1 == 'A' {
+        println("  char(65): '${c1}' (expected 'A')")
+        passed += 1
+    } otherwise {
+        println("  char(65): FAILED - got '${c1}'")
+        failed += 1
+    }
+
+    // Test int to char (lowercase)
+    temp c2 char = char(97)
+    if c2 == 'a' {
+        println("  char(97): '${c2}' (expected 'a')")
+        passed += 1
+    } otherwise {
+        println("  char(97): FAILED - got '${c2}'")
+        failed += 1
+    }
+
+    // Test char to char (identity)
+    temp original char = 'Z'
+    temp c3 char = char(original)
+    if c3 == 'Z' {
+        println("  char('Z'): '${c3}' (expected 'Z')")
+        passed += 1
+    } otherwise {
+        println("  char('Z'): FAILED - got '${c3}'")
+        failed += 1
+    }
+
+    // Test float to char (truncates)
+    temp c4 char = char(66.9)
+    if c4 == 'B' {
+        println("  char(66.9): '${c4}' (expected 'B')")
+        passed += 1
+    } otherwise {
+        println("  char(66.9): FAILED - got '${c4}'")
+        failed += 1
+    }
+
+    // Test byte to char
+    temp b byte = byte(67)
+    temp c5 char = char(b)
+    if c5 == 'C' {
+        println("  char(byte(67)): '${c5}' (expected 'C')")
+        passed += 1
+    } otherwise {
+        println("  char(byte(67)): FAILED - got '${c5}'")
+        failed += 1
+    }
+
+    // Test string to char (single character)
+    temp c6 char = char("D")
+    if c6 == 'D' {
+        println("  char(\"D\"): '${c6}' (expected 'D')")
+        passed += 1
+    } otherwise {
+        println("  char(\"D\"): FAILED - got '${c6}'")
+        failed += 1
+    }
+
+    // Test digit char
+    temp c7 char = char(48)
+    if c7 == '0' {
+        println("  char(48): '${c7}' (expected '0')")
+        passed += 1
+    } otherwise {
+        println("  char(48): FAILED - got '${c7}'")
+        failed += 1
+    }
+
+    // Test special char (newline)
+    temp c8 char = char(10)
+    if int(c8) == 10 {
+        println("  char(10): newline character (expected newline)")
+        passed += 1
+    } otherwise {
+        println("  char(10): FAILED")
         failed += 1
     }
 

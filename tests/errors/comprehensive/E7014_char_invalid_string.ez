@@ -1,0 +1,8 @@
+/*
+ * Error Test: E7014 - char() conversion from multi-char string
+ * Expected: "cannot convert ... to char: string must be exactly one character"
+ */
+
+do main() {
+    temp c char = char("AB")  // Multi-character string cannot convert to char
+}
