@@ -1,0 +1,14 @@
+/*
+ * E5017: Cannot modify field of immutable struct
+ * Expected: "cannot modify field of const struct"
+ */
+
+const Person struct {
+    name string
+    age int
+}
+
+do main() {
+    const p Person = Person{name: "Alice", age: 30}
+    p.age = 31  // ERROR: cannot modify field of const struct
+}

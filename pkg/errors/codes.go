@@ -136,6 +136,7 @@ var (
 	E5014 = ErrorCode{"E5014", "range-end-not-integer", "range end must be integer"}
 	E5015 = ErrorCode{"E5015", "postfix-requires-identifier", "postfix operator needs variable"}
 	E5016 = ErrorCode{"E5016", "immutable-parameter", "cannot modify read-only parameter"}
+	E5017 = ErrorCode{"E5017", "immutable-struct", "cannot modify field of const struct"}
 )
 
 // =============================================================================

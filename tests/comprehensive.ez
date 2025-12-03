@@ -581,10 +581,15 @@ do test_structs() -> TestResult {
     println("  Point: x=${p.x}, y=${p.y}")
     passed += 1
 
-    // Field modification
+    // Field modification (temp struct is mutable)
     p.x = 15
-    println("  After p.x = 15: x=${p.x}")
-    passed += 1
+    if p.x == 15 {
+        println("  After p.x = 15: x=${p.x} (temp struct field modification works)")
+        passed += 1
+    } otherwise {
+        println("  FAILED: temp struct field modification")
+        failed += 1
+    }
 
     // Struct with different types
     temp person Person = Person{
