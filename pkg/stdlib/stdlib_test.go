@@ -271,6 +271,91 @@ func TestStringConversionForString(t *testing.T) {
 }
 
 // ============================================================================
+// Char Conversion Tests
+// ============================================================================
+
+func testCharObject(t *testing.T, obj object.Object, expected rune) bool {
+	t.Helper()
+	result, ok := obj.(*object.Char)
+	if !ok {
+		t.Errorf("object is not Char. got=%T (%+v)", obj, obj)
+		return false
+	}
+	if result.Value != expected {
+		t.Errorf("object has wrong value. got=%c (%d), want=%c (%d)", result.Value, result.Value, expected, expected)
+		return false
+	}
+	return true
+}
+
+func TestCharConversion(t *testing.T) {
+	charFn := StdBuiltins["char"].Fn
+
+	tests := []struct {
+		name     string
+		input    object.Object
+		expected rune
+	}{
+		{"char identity", &object.Char{Value: 'A'}, 'A'},
+		{"integer to char", &object.Integer{Value: 65}, 'A'},
+		{"integer to char B", &object.Integer{Value: 66}, 'B'},
+		{"float to char", &object.Float{Value: 67.9}, 'C'},
+		{"byte to char", &object.Byte{Value: 68}, 'D'},
+		{"string to char", &object.String{Value: "E"}, 'E'},
+		{"unicode char", &object.Integer{Value: 0x1F600}, 0x1F600}, // 😀
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := charFn(tt.input)
+			testCharObject(t, result, tt.expected)
+		})
+	}
+}
+
+func TestCharConversionErrors(t *testing.T) {
+	charFn := StdBuiltins["char"].Fn
+
+	tests := []struct {
+		name  string
+		input object.Object
+	}{
+		{"negative integer", &object.Integer{Value: -1}},
+		{"too large integer", &object.Integer{Value: 0x110000}}, // Beyond Unicode range
+		{"multi-char string", &object.String{Value: "AB"}},
+		{"empty string", &object.String{Value: ""}},
+		{"negative float", &object.Float{Value: -1.5}},
+		{"array", &object.Array{Elements: []object.Object{}}},
+		{"map", object.NewMap()},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := charFn(tt.input)
+			if !isErrorObject(result) {
+				t.Errorf("expected error for %s, got %T", tt.name, result)
+			}
+		})
+	}
+}
+
+func TestCharConversionArgCount(t *testing.T) {
+	charFn := StdBuiltins["char"].Fn
+
+	// No arguments
+	result := charFn()
+	if !isErrorObject(result) {
+		t.Error("expected error for no arguments")
+	}
+
+	// Too many arguments
+	result = charFn(&object.Integer{Value: 65}, &object.Integer{Value: 66})
+	if !isErrorObject(result) {
+		t.Error("expected error for too many arguments")
+	}
+}
+
+// ============================================================================
 // Math Module Tests
 // ============================================================================
 
