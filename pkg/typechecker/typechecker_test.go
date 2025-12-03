@@ -1214,3 +1214,17 @@ do main() {
 	tc := typecheck(t, input)
 	assertHasError(t, tc, errors.E3023)
 }
+
+func TestFixedSizeArrayIndexType(t *testing.T) {
+	// Test: indexing fixed-size array returns element type, not "type,size"
+	// This was bug #267 - [int,3][0] was returning type "int,3" instead of "int"
+	input := `
+do main() {
+	temp arr [int, 3] = {1, 2, 3}
+	temp x int = arr[0]
+	temp y int = arr[1] + arr[2]
+}
+`
+	tc := typecheck(t, input)
+	assertNoErrors(t, tc)
+}
