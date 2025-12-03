@@ -457,6 +457,18 @@ do test_arrays() -> TestResult {
     println("  fixed size array: ${fixed}")
     passed += 1
 
+    // Fixed size array indexing returns correct element type (bug #267 fix)
+    temp fixed_mutable [int, 3] = {10, 20, 30}
+    temp elem int = fixed_mutable[0]
+    temp sum int = fixed_mutable[0] + fixed_mutable[1] + fixed_mutable[2]
+    if elem == 10 && sum == 60 {
+        println("  fixed size array indexing: elem=${elem}, sum=${sum}")
+        passed += 1
+    } otherwise {
+        println("  FAILED: fixed size array indexing")
+        failed += 1
+    }
+
     println("  PASSED: ${passed}, FAILED: ${failed}")
     return TestResult{passed: passed, failed: failed}
 }
