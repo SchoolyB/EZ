@@ -45,6 +45,73 @@ func getEZTypeName(obj object.Object) string {
 	}
 }
 
+// deepCopy creates a deep copy of an object
+// Primitives return themselves (they're immutable)
+// Structs, arrays, and maps are recursively copied
+func deepCopy(obj object.Object) object.Object {
+	switch v := obj.(type) {
+	case *object.Nil:
+		return v
+	case *object.Integer:
+		return &object.Integer{Value: v.Value, DeclaredType: v.DeclaredType}
+	case *object.Float:
+		return &object.Float{Value: v.Value}
+	case *object.String:
+		return &object.String{Value: v.Value}
+	case *object.Boolean:
+		return &object.Boolean{Value: v.Value}
+	case *object.Char:
+		return &object.Char{Value: v.Value}
+	case *object.Byte:
+		return &object.Byte{Value: v.Value}
+	case *object.Array:
+		newElements := make([]object.Object, len(v.Elements))
+		for i, elem := range v.Elements {
+			newElements[i] = deepCopy(elem)
+		}
+		// Copied arrays are mutable by default to allow modification
+		// (const enforcement happens at variable declaration level)
+		return &object.Array{
+			Elements:    newElements,
+			Mutable:     true,
+			ElementType: v.ElementType,
+		}
+	case *object.Map:
+		newMap := object.NewMap()
+		for _, pair := range v.Pairs {
+			// Keys are immutable (hashable), but values may need deep copy
+			newMap.Set(pair.Key, deepCopy(pair.Value))
+		}
+		// Copied maps are mutable by default to allow modification
+		newMap.Mutable = true
+		return newMap
+	case *object.Struct:
+		newFields := make(map[string]object.Object)
+		for key, val := range v.Fields {
+			newFields[key] = deepCopy(val)
+		}
+		// Copied structs are mutable by default to allow modification
+		// (const enforcement happens at variable declaration level)
+		return &object.Struct{
+			TypeName: v.TypeName,
+			Fields:   newFields,
+			Mutable:  true,
+		}
+	case *object.EnumValue:
+		// Enum values are immutable references, return as-is
+		return v
+	case *object.Function:
+		// Functions are not copied (they're code references)
+		return v
+	case *object.Builtin:
+		// Builtins are not copied
+		return v
+	default:
+		// For any other types, return as-is
+		return obj
+	}
+}
+
 // StdBuiltins contains the core standard library functions
 var StdBuiltins = map[string]*object.Builtin{
 	// Prints values to standard output followed by a newline
@@ -334,6 +401,17 @@ var StdBuiltins = map[string]*object.Builtin{
 			text, _ := stdinReader.ReadString('\n')
 			text = strings.TrimRight(text, "\r\n")
 			return &object.String{Value: text}
+		},
+	},
+
+	// Creates a deep copy of a value
+	// Primitives return themselves, structs/arrays/maps are recursively copied
+	"copy": {
+		Fn: func(args ...object.Object) object.Object {
+			if len(args) != 1 {
+				return &object.Error{Code: "E7001", Message: fmt.Sprintf("copy() takes exactly 1 argument, got %d", len(args))}
+			}
+			return deepCopy(args[0])
 		},
 	},
 }
