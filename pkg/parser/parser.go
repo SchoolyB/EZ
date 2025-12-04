@@ -1885,7 +1885,16 @@ func (p *Parser) parseStructDeclaration() *StructDeclaration {
 	for !p.currentTokenMatches(RBRACE) && !p.currentTokenMatches(EOF) {
 		// Collect all field names (supports "name, email string" syntax)
 		var names []*Label
-		names = append(names, &Label{Token: p.currentToken, Value: p.currentToken.Literal})
+
+		// Validate first field name
+		fieldName := p.currentToken.Literal
+		if isReservedName(fieldName) {
+			msg := fmt.Sprintf("'%s' is a reserved keyword and cannot be used as a struct field name", fieldName)
+			p.errors = append(p.errors, msg)
+			p.addEZError(errors.E2034, msg, p.currentToken)
+			return nil
+		}
+		names = append(names, &Label{Token: p.currentToken, Value: fieldName})
 
 		// Check for comma-separated names
 		for p.peekTokenMatches(COMMA) {
@@ -1896,7 +1905,15 @@ func (p *Parser) parseStructDeclaration() *StructDeclaration {
 				p.addEZError(errors.E2003, msg, p.currentToken)
 				return nil
 			}
-			names = append(names, &Label{Token: p.currentToken, Value: p.currentToken.Literal})
+			// Validate subsequent field names
+			fieldName := p.currentToken.Literal
+			if isReservedName(fieldName) {
+				msg := fmt.Sprintf("'%s' is a reserved keyword and cannot be used as a struct field name", fieldName)
+				p.errors = append(p.errors, msg)
+				p.addEZError(errors.E2034, msg, p.currentToken)
+				return nil
+			}
+			names = append(names, &Label{Token: p.currentToken, Value: fieldName})
 		}
 
 		// Move to type token (can be IDENT or LBRACKET for arrays)
