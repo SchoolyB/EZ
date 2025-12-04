@@ -1,0 +1,17 @@
+/*
+ * E5017: Cannot modify field of immutable struct created with literal
+ * Expected: "cannot modify field of const struct"
+ *
+ * This tests that const structs created via struct literal are immutable.
+ * Fix for issue #298: struct mutability now respects temp/const.
+ */
+
+const Person struct {
+    name string
+    age int
+}
+
+do main() {
+    const p Person = Person{name: "Bob", age: 25}
+    p.age = 30  // ERROR: cannot modify field of const struct
+}
