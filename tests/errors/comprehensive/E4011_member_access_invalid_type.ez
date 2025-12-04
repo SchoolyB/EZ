@@ -1,0 +1,10 @@
+/*
+ * Error Test: E4011 - member-access-invalid-type
+ * Expected: "not a struct"
+ */
+import & use @std
+
+do main() {
+    temp s = "hello"
+    println(s.name)  // strings don't have members
+}

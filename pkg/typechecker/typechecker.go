@@ -1016,6 +1016,48 @@ func (tc *TypeChecker) checkMemberAssignment(member *ast.MemberExpression, value
 	}
 }
 
+// checkMemberExpression validates member access expressions
+func (tc *TypeChecker) checkMemberExpression(member *ast.MemberExpression) {
+	// Get the object type
+	objType, ok := tc.inferExpressionType(member.Object)
+	if !ok {
+		return
+	}
+
+	// Skip module access - those are handled separately
+	if _, isModule := tc.modules[objType]; isModule {
+		return
+	}
+	if _, isUsedModule := tc.fileUsingModules[objType]; isUsedModule {
+		return
+	}
+
+	// Check if it's a struct type
+	structType, exists := tc.types[objType]
+	if !exists || structType.Kind != StructType {
+		// Not a struct - member access is invalid
+		line, column := tc.getExpressionPosition(member.Member)
+		tc.addError(
+			errors.E4011,
+			fmt.Sprintf("cannot access member '%s' on type '%s' (not a struct)", member.Member.Value, objType),
+			line,
+			column,
+		)
+		return
+	}
+
+	// Check if the field exists
+	if _, hasField := structType.Fields[member.Member.Value]; !hasField {
+		line, column := tc.getExpressionPosition(member.Member)
+		tc.addError(
+			errors.E4003,
+			fmt.Sprintf("struct '%s' has no field '%s'", objType, member.Member.Value),
+			line,
+			column,
+		)
+	}
+}
+
 // checkReturnStatement validates a return statement (Phase 4)
 func (tc *TypeChecker) checkReturnStatement(ret *ast.ReturnStatement, expectedTypes []string) {
 	// Validate all return value expressions
@@ -1106,6 +1148,7 @@ func (tc *TypeChecker) checkExpression(expr ast.Expression) {
 
 	case *ast.MemberExpression:
 		tc.checkExpression(e.Object)
+		tc.checkMemberExpression(e)
 
 	case *ast.ArrayValue:
 		for _, elem := range e.Elements {
