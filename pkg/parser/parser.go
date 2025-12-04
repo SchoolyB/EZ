@@ -25,11 +25,21 @@ var reservedKeywords = map[string]bool{
 	"module": true, "private": true, "from": true, "use": true,
 }
 
-// Builtin function names that cannot be redefined
+// Builtin function and type names that cannot be redefined
 var builtinNames = map[string]bool{
+	// Builtin functions
 	"len": true, "typeof": true, "input": true,
-	"int": true, "float": true, "string": true, "bool": true, "char": true, "byte": true,
 	"println": true, "print": true, "read_int": true,
+	"copy": true, "append": true, "error": true,
+	// Primitive type names
+	"int": true, "float": true, "string": true, "bool": true, "char": true, "byte": true,
+	// Sized integers
+	"i8": true, "i16": true, "i32": true, "i64": true, "i128": true, "i256": true,
+	"u8": true, "u16": true, "u32": true, "u64": true, "u128": true, "u256": true, "uint": true,
+	// Sized floats
+	"f32": true, "f64": true,
+	// Collection types
+	"map": true,
 }
 
 // isReservedName checks if a name is a reserved keyword or builtin
@@ -1280,6 +1290,13 @@ func (p *Parser) parseFunctionParameters() []*Parameter {
 			// Look ahead to see what follows this IDENT
 			if p.peekTokenMatches(COMMA) {
 				// This IDENT is a parameter name (more names or params follow)
+				// Check for reserved names
+				if isReservedName(currentIdent.Value) {
+					msg := fmt.Sprintf("'%s' is a reserved keyword and cannot be used as a parameter name", currentIdent.Value)
+					p.errors = append(p.errors, msg)
+					p.addEZError(errors.E2033, msg, currentIdent.Token)
+					return nil
+				}
 				// Check for duplicate
 				if prevToken, exists := paramNames[currentIdent.Value]; exists {
 					msg := fmt.Sprintf("duplicate parameter name '%s'", currentIdent.Value)
@@ -1302,6 +1319,13 @@ func (p *Parser) parseFunctionParameters() []*Parameter {
 				continue
 			} else if p.peekTokenMatches(IDENT) || p.peekTokenMatches(LBRACKET) {
 				// This IDENT is a parameter name, and the next token is the type
+				// Check for reserved names
+				if isReservedName(currentIdent.Value) {
+					msg := fmt.Sprintf("'%s' is a reserved keyword and cannot be used as a parameter name", currentIdent.Value)
+					p.errors = append(p.errors, msg)
+					p.addEZError(errors.E2033, msg, currentIdent.Token)
+					return nil
+				}
 				// Check for duplicate
 				if prevToken, exists := paramNames[currentIdent.Value]; exists {
 					msg := fmt.Sprintf("duplicate parameter name '%s'", currentIdent.Value)
