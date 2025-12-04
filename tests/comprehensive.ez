@@ -942,6 +942,36 @@ do test_structs() -> TestResult {
     println("  Array of Points: ${points}")
     passed += 1
 
+    // const type inference with new() (issue #302)
+    const p1 = new(Person)
+    if p1.name == "" && p1.age == 0 {
+        println("  const p1 = new(Person) - type inferred correctly")
+        passed += 1
+    } otherwise {
+        println("  FAILED: const type inference with new()")
+        failed += 1
+    }
+
+    // const type inference with struct literal (issue #302)
+    const p2 = Person{name: "Bob", age: 25, active: true}
+    if p2.name == "Bob" && p2.age == 25 {
+        println("  const p2 = Person{...} - type inferred correctly")
+        passed += 1
+    } otherwise {
+        println("  FAILED: const type inference with struct literal")
+        failed += 1
+    }
+
+    // const type inference with copy()
+    const p3 = copy(person)
+    if p3.name == "Alice" && p3.age == 30 {
+        println("  const p3 = copy(person) - type inferred correctly")
+        passed += 1
+    } otherwise {
+        println("  FAILED: const type inference with copy()")
+        failed += 1
+    }
+
     println("  PASSED: ${passed}, FAILED: ${failed}")
     return TestResult{passed: passed, failed: failed}
 }
