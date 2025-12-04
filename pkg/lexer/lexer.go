@@ -31,6 +31,15 @@ func NewLexer(input string) *Lexer {
 	return l
 }
 
+// NewLexerWithOffset creates a new Lexer with specified starting line and column
+// This is useful for parsing substrings like string interpolation expressions
+// where the offset should match the original source position
+func NewLexerWithOffset(input string, startLine, startColumn int) *Lexer {
+	l := &Lexer{input: input, line: startLine, column: startColumn, errors: []LexerError{}}
+	l.readChar()
+	return l
+}
+
 // Errors returns any lexer errors
 func (l *Lexer) Errors() []LexerError {
 	return l.errors
