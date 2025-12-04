@@ -211,7 +211,7 @@ func (tc *TypeChecker) registerBuiltinTypes() {
 		Kind: StructType,
 		Fields: map[string]*Type{
 			"message": {Name: "string", Kind: PrimitiveType},
-			"code":    {Name: "int", Kind: PrimitiveType},
+			"code":    {Name: "string", Kind: PrimitiveType},
 		},
 	}
 }

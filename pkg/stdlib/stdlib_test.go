@@ -1312,3 +1312,69 @@ func TestCopyErrors(t *testing.T) {
 		t.Error("expected error for too many arguments")
 	}
 }
+
+// ============================================================================
+// error() Builtin Tests
+// ============================================================================
+
+func TestErrorConstructor(t *testing.T) {
+	errorFn := StdBuiltins["error"].Fn
+
+	result := errorFn(&object.String{Value: "something went wrong"})
+
+	// Should return an Error struct, not an object.Error
+	errStruct, ok := result.(*object.Struct)
+	if !ok {
+		t.Fatalf("error() returned %T, want *object.Struct", result)
+	}
+
+	if errStruct.TypeName != "Error" {
+		t.Errorf("error() returned struct with TypeName %q, want \"Error\"", errStruct.TypeName)
+	}
+
+	// Check message field
+	msg, ok := errStruct.Fields["message"].(*object.String)
+	if !ok {
+		t.Fatalf("error().message is %T, want *object.String", errStruct.Fields["message"])
+	}
+	if msg.Value != "something went wrong" {
+		t.Errorf("error().message = %q, want \"something went wrong\"", msg.Value)
+	}
+
+	// Check code field (should be empty string)
+	code, ok := errStruct.Fields["code"].(*object.String)
+	if !ok {
+		t.Fatalf("error().code is %T, want *object.String", errStruct.Fields["code"])
+	}
+	if code.Value != "" {
+		t.Errorf("error().code = %q, want empty string", code.Value)
+	}
+}
+
+func TestErrorConstructorErrors(t *testing.T) {
+	errorFn := StdBuiltins["error"].Fn
+
+	// Wrong number of arguments - no args
+	result := errorFn()
+	if !isErrorObject(result) {
+		t.Error("expected runtime error for no arguments")
+	}
+
+	// Wrong number of arguments - too many
+	result = errorFn(&object.String{Value: "a"}, &object.String{Value: "b"})
+	if !isErrorObject(result) {
+		t.Error("expected runtime error for too many arguments")
+	}
+
+	// Wrong type - integer instead of string
+	result = errorFn(&object.Integer{Value: 42})
+	if !isErrorObject(result) {
+		t.Error("expected runtime error for non-string argument")
+	}
+
+	// Wrong type - boolean instead of string
+	result = errorFn(&object.Boolean{Value: true})
+	if !isErrorObject(result) {
+		t.Error("expected runtime error for non-string argument")
+	}
+}

@@ -1,0 +1,14 @@
+/*
+ * E7003: error() requires string argument
+ * Expected: "error() argument must be a string"
+ *
+ * The error() constructor only accepts a string message.
+ * Passing other types should produce this error.
+ */
+
+import & use @std
+
+do main() {
+    temp err = error(42)  // ERROR: must be a string
+    println(err.message)
+}
