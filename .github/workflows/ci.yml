@@ -34,11 +34,11 @@ jobs:
 
       - name: Run interpreter tests
         if: runner.os != 'Windows'
-        run: ./ez.bin run test/interpreter_tests.ez
+        run: ./ez.bin run tests/comprehensive.ez
 
       - name: Run interpreter tests (Windows)
         if: runner.os == 'Windows'
-        run: .\ez.exe run test\interpreter_tests.ez
+        run: .\ez.exe run tests\comprehensive.ez
 
       - name: Validate example files
         if: runner.os != 'Windows'
@@ -58,11 +58,22 @@ jobs:
             if ($LASTEXITCODE -ne 0) { exit 1 }
           }
 
-      - name: Test REPL basic functionality
-        if: runner.os != 'Windows'
+      - name: Test REPL basic functionality (Linux)
+        if: runner.os == 'Linux'
         run: |
           echo "Testing REPL..."
           echo -e "temp x int = 5\nx + 10\nexit" | timeout 5 ./ez.bin repl | grep -q "15"
+
+      - name: Test REPL basic functionality (macOS)
+        if: runner.os == 'macOS'
+        run: |
+          echo "Testing REPL..."
+          # macOS doesn't have timeout, use a subshell with background process
+          (echo -e "temp x int = 5\nx + 10\nexit" | ./ez.bin repl > /tmp/repl_output.txt) &
+          pid=$!
+          sleep 5
+          kill $pid 2>/dev/null || true
+          grep -q "15" /tmp/repl_output.txt
 
       - name: Test REPL basic functionality (Windows)
         if: runner.os == 'Windows'
