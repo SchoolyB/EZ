@@ -1579,7 +1579,7 @@ var IOBuiltins = map[string]*object.Builtin{
 			if err != nil {
 				return &object.ReturnValue{Values: []object.Object{
 					object.NIL,
-					createIOError("E7050", fmt.Sprintf("io.glob() invalid pattern: %s", err.Error())),
+					createIOError("E7043", fmt.Sprintf("io.glob() invalid pattern: %s", err.Error())),
 				}}
 			}
 
