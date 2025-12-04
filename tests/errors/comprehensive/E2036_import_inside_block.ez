@@ -1,0 +1,10 @@
+/*
+ * Error Test: E2036 - import-inside-block
+ * Expected: "import"
+ */
+import & use @std
+
+do main() {
+    import & use @math  // imports not allowed inside blocks
+    println("test")
+}

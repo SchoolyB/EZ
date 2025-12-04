@@ -71,6 +71,7 @@ var (
 	E2033 = ErrorCode{"E2033", "reserved-param-name", "parameter name is reserved"}
 	E2034 = ErrorCode{"E2034", "invalid-struct-field", "invalid struct field name"}
 	E2035 = ErrorCode{"E2035", "invalid-enum-value", "invalid enum value name"}
+	E2036 = ErrorCode{"E2036", "import-inside-block", "import must be at file level"}
 )
 
 // =============================================================================
