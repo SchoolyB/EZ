@@ -413,8 +413,13 @@ func (p *Parser) ParseProgram() *Program {
 			}
 			p.nextToken()
 			continue
-		} else if !p.currentTokenMatches(EOF) && !p.currentTokenMatches(IMPORT) {
+		} else if !p.currentTokenMatches(EOF) && !p.currentTokenMatches(IMPORT) && !p.currentTokenMatches(FROM) {
 			seenOtherDeclaration = true
+		}
+
+		// Check for imports after other declarations (functions, types, etc.)
+		if (p.currentTokenMatches(IMPORT) || p.currentTokenMatches(FROM)) && seenOtherDeclaration {
+			p.addEZError(errors.E2036, "import statements must appear at the top of the file, before any declarations", p.currentToken)
 		}
 
 		stmt := p.parseStatement()
@@ -907,6 +912,16 @@ func (p *Parser) parseBlockStatementWithSuppress(suppressions []*Attribute) *Blo
 	unreachable := false // track if we've hit a terminating statement
 
 	for !p.currentTokenMatches(RBRACE) && !p.currentTokenMatches(EOF) {
+		// Check for import statements inside blocks (not allowed)
+		if p.currentTokenMatches(IMPORT) || p.currentTokenMatches(FROM) {
+			p.addEZError(errors.E2036, "import statements must appear at the top of the file, not inside blocks", p.currentToken)
+			// Skip the import statement to continue parsing
+			for !p.currentTokenMatches(NEWLINE) && !p.currentTokenMatches(RBRACE) && !p.currentTokenMatches(EOF) {
+				p.nextToken()
+			}
+			continue
+		}
+
 		stmt := p.parseStatement()
 		if stmt != nil {
 			// Check for unreachable code
