@@ -362,7 +362,7 @@ do helper() {
 }
 `
 	tc := typecheck(t, input)
-	assertHasError(t, tc, errors.E3007)
+	assertHasError(t, tc, errors.E4009)
 }
 
 func TestModuleWithoutMain(t *testing.T) {

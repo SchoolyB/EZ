@@ -580,7 +580,7 @@ func (tc *TypeChecker) checkFunctionBody(node *ast.FunctionDeclaration) {
 func (tc *TypeChecker) checkMainFunction() {
 	if _, exists := tc.functions["main"]; !exists {
 		tc.addError(
-			errors.E3007,
+			errors.E4009,
 			"Program must define a main() function",
 			1,
 			1,
