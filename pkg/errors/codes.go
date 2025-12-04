@@ -201,11 +201,16 @@ var (
 	E7027 = ErrorCode{"E7027", "get-hostname-failed", "failed to get hostname"}
 	E7028 = ErrorCode{"E7028", "get-username-failed", "failed to get username"}
 	E7029 = ErrorCode{"E7029", "get-homedir-failed", "failed to get home directory"}
+	E7030 = ErrorCode{"E7030", "command-not-found", "command or executable not found"}
+	E7031 = ErrorCode{"E7031", "command-failed", "command execution failed"}
 
 	// Path validation errors
 	E7040 = ErrorCode{"E7040", "empty-path", "path cannot be empty"}
 	E7041 = ErrorCode{"E7041", "path-null-byte", "path contains null byte"}
 	E7042 = ErrorCode{"E7042", "read-directory-as-file", "cannot read directory as file"}
+
+	// Glob pattern errors
+	E7043 = ErrorCode{"E7043", "invalid-glob-pattern", "invalid glob pattern syntax"}
 
 	// File handle errors
 	E7050 = ErrorCode{"E7050", "file-handle-closed", "file handle is closed"}

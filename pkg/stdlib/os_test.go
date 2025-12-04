@@ -582,3 +582,116 @@ func TestCreateOSError(t *testing.T) {
 		t.Errorf("Expected code 'E9999', got '%s'", codeField.Value)
 	}
 }
+
+// ============================================================================
+// Command Execution Tests
+// ============================================================================
+
+func TestOSExec(t *testing.T) {
+	execFn := OSBuiltins["os.exec"].Fn
+
+	t.Run("successful command", func(t *testing.T) {
+		result := execFn(&object.String{Value: "echo hello"})
+		rv, ok := result.(*object.ReturnValue)
+		if !ok {
+			t.Fatalf("expected ReturnValue, got %T", result)
+		}
+		if len(rv.Values) != 2 {
+			t.Fatalf("expected 2 return values, got %d", len(rv.Values))
+		}
+
+		exitCode, ok := rv.Values[0].(*object.Integer)
+		if !ok {
+			t.Fatalf("expected Integer exit code, got %T", rv.Values[0])
+		}
+		if exitCode.Value != 0 {
+			t.Errorf("expected exit code 0, got %d", exitCode.Value)
+		}
+
+		if rv.Values[1] != object.NIL {
+			t.Errorf("expected nil error, got %T", rv.Values[1])
+		}
+	})
+
+	t.Run("command with non-zero exit", func(t *testing.T) {
+		result := execFn(&object.String{Value: "exit 42"})
+		rv := result.(*object.ReturnValue)
+
+		exitCode := rv.Values[0].(*object.Integer)
+		if exitCode.Value != 42 {
+			t.Errorf("expected exit code 42, got %d", exitCode.Value)
+		}
+
+		// Error should still be nil for non-zero exit
+		if rv.Values[1] != object.NIL {
+			t.Errorf("expected nil error for non-zero exit, got %T", rv.Values[1])
+		}
+	})
+
+	t.Run("wrong argument type", func(t *testing.T) {
+		result := execFn(&object.Integer{Value: 123})
+		if _, ok := result.(*object.Error); !ok {
+			t.Errorf("expected Error for wrong type, got %T", result)
+		}
+	})
+}
+
+func TestOSExecOutput(t *testing.T) {
+	execOutputFn := OSBuiltins["os.exec_output"].Fn
+
+	t.Run("capture output", func(t *testing.T) {
+		result := execOutputFn(&object.String{Value: "echo hello"})
+		rv, ok := result.(*object.ReturnValue)
+		if !ok {
+			t.Fatalf("expected ReturnValue, got %T", result)
+		}
+
+		output, ok := rv.Values[0].(*object.String)
+		if !ok {
+			t.Fatalf("expected String output, got %T", rv.Values[0])
+		}
+		if output.Value != "hello" {
+			t.Errorf("expected 'hello', got '%s'", output.Value)
+		}
+
+		if rv.Values[1] != object.NIL {
+			t.Errorf("expected nil error, got %T", rv.Values[1])
+		}
+	})
+
+	t.Run("output is trimmed", func(t *testing.T) {
+		result := execOutputFn(&object.String{Value: "printf 'test\\n\\n'"})
+		rv := result.(*object.ReturnValue)
+		output := rv.Values[0].(*object.String)
+
+		if output.Value != "test" {
+			t.Errorf("expected 'test' (trimmed), got '%s'", output.Value)
+		}
+	})
+
+	t.Run("command with non-zero exit returns output and error", func(t *testing.T) {
+		// This command outputs something then exits with error
+		result := execOutputFn(&object.String{Value: "echo 'error output' && exit 1"})
+		rv := result.(*object.ReturnValue)
+
+		output := rv.Values[0].(*object.String)
+		if output.Value != "error output" {
+			t.Errorf("expected 'error output', got '%s'", output.Value)
+		}
+
+		// Should have error for non-zero exit
+		if rv.Values[1] == object.NIL {
+			t.Error("expected error for non-zero exit")
+		}
+	})
+
+	t.Run("invalid command returns error", func(t *testing.T) {
+		result := execOutputFn(&object.String{Value: "nonexistent_command_xyz123"})
+		rv := result.(*object.ReturnValue)
+
+		// Should have error
+		if rv.Values[1] == object.NIL {
+			t.Error("expected error for invalid command")
+		}
+	})
+}

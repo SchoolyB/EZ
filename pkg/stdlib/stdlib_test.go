@@ -571,6 +571,59 @@ func TestMathConstants(t *testing.T) {
 	testFloatObject(t, result, math.E)
 }
 
+func TestMathLogBase(t *testing.T) {
+	logBaseFn := MathBuiltins["math.log_base"].Fn
+
+	// log_base(8, 2) = 3 (since 2^3 = 8)
+	result := logBaseFn(&object.Integer{Value: 8}, &object.Integer{Value: 2})
+	testFloatObject(t, result, 3.0)
+
+	// log_base(1000, 10) = 3 (since 10^3 = 1000)
+	result = logBaseFn(&object.Integer{Value: 1000}, &object.Integer{Value: 10})
+	testFloatObject(t, result, 3.0)
+
+	// log_base(27, 3) = 3 (since 3^3 = 27)
+	result = logBaseFn(&object.Integer{Value: 27}, &object.Integer{Value: 3})
+	testFloatObject(t, result, 3.0)
+
+	// log_base(1, any) = 0
+	result = logBaseFn(&object.Integer{Value: 1}, &object.Integer{Value: 5})
+	testFloatObject(t, result, 0.0)
+}
+
+func TestMathLogBaseErrors(t *testing.T) {
+	logBaseFn := MathBuiltins["math.log_base"].Fn
+
+	// Value <= 0
+	result := logBaseFn(&object.Integer{Value: 0}, &object.Integer{Value: 2})
+	if !isErrorObject(result) {
+		t.Error("expected error for value <= 0")
+	}
+
+	result = logBaseFn(&object.Integer{Value: -5}, &object.Integer{Value: 2})
+	if !isErrorObject(result) {
+		t.Error("expected error for negative value")
+	}
+
+	// Base <= 0
+	result = logBaseFn(&object.Integer{Value: 8}, &object.Integer{Value: 0})
+	if !isErrorObject(result) {
+		t.Error("expected error for base <= 0")
+	}
+
+	// Base = 1 (undefined)
+	result = logBaseFn(&object.Integer{Value: 8}, &object.Integer{Value: 1})
+	if !isErrorObject(result) {
+		t.Error("expected error for base = 1")
+	}
+
+	// Wrong number of args
+	result = logBaseFn(&object.Integer{Value: 8})
+	if !isErrorObject(result) {
+		t.Error("expected error for 1 argument")
+	}
+}
+
 // ============================================================================
 // Arrays Module Tests
 // ============================================================================
@@ -900,6 +953,152 @@ func TestStringsReverse(t *testing.T) {
 
 	result := reverseFn(&object.String{Value: "hello"})
 	testStringObject(t, result, "olleh")
+}
+
+func TestStringsReplaceN(t *testing.T) {
+	replaceNFn := StringsBuiltins["strings.replace_n"].Fn
+
+	// Replace first 2 occurrences
+	result := replaceNFn(
+		&object.String{Value: "aaa"},
+		&object.String{Value: "a"},
+		&object.String{Value: "b"},
+		&object.Integer{Value: 2},
+	)
+	testStringObject(t, result, "bba")
+
+	// Replace all with n=-1
+	result = replaceNFn(
+		&object.String{Value: "aaa"},
+		&object.String{Value: "a"},
+		&object.String{Value: "b"},
+		&object.Integer{Value: -1},
+	)
+	testStringObject(t, result, "bbb")
+
+	// Replace 0
+	result = replaceNFn(
+		&object.String{Value: "aaa"},
+		&object.String{Value: "a"},
+		&object.String{Value: "b"},
+		&object.Integer{Value: 0},
+	)
+	testStringObject(t, result, "aaa")
+}
+
+func TestStringsIsNumeric(t *testing.T) {
+	isNumericFn := StringsBuiltins["strings.is_numeric"].Fn
+
+	tests := []struct {
+		input    string
+		expected bool
+	}{
+		{"12345", true},
+		{"0", true},
+		{"", false},
+		{"12a34", false},
+		{"12.34", false},
+		{"-123", false},
+		{"abc", false},
+	}
+
+	for _, tt := range tests {
+		result := isNumericFn(&object.String{Value: tt.input})
+		testBooleanObject(t, result, tt.expected)
+	}
+}
+
+func TestStringsIsAlpha(t *testing.T) {
+	isAlphaFn := StringsBuiltins["strings.is_alpha"].Fn
+
+	tests := []struct {
+		input    string
+		expected bool
+	}{
+		{"Hello", true},
+		{"ABC", true},
+		{"abc", true},
+		{"", false},
+		{"Hello123", false},
+		{"Hello World", false},
+		{"123", false},
+	}
+
+	for _, tt := range tests {
+		result := isAlphaFn(&object.String{Value: tt.input})
+		testBooleanObject(t, result, tt.expected)
+	}
+}
+
+func TestStringsTruncate(t *testing.T) {
+	truncateFn := StringsBuiltins["strings.truncate"].Fn
+
+	// Normal truncation
+	result := truncateFn(
+		&object.String{Value: "Hello World"},
+		&object.Integer{Value: 8},
+		&object.String{Value: "..."},
+	)
+	testStringObject(t, result, "Hello...")
+
+	// String shorter than max length
+	result = truncateFn(
+		&object.String{Value: "Hi"},
+		&object.Integer{Value: 10},
+		&object.String{Value: "..."},
+	)
+	testStringObject(t, result, "Hi")
+
+	// Exact length
+	result = truncateFn(
+		&object.String{Value: "Hello"},
+		&object.Integer{Value: 5},
+		&object.String{Value: "..."},
+	)
+	testStringObject(t, result, "Hello")
+
+	// Max length smaller than suffix
+	result = truncateFn(
+		&object.String{Value: "Hello World"},
+		&object.Integer{Value: 2},
+		&object.String{Value: "..."},
+	)
+	testStringObject(t, result, "..")
+}
+
+func TestStringsTruncateErrors(t *testing.T) {
+	truncateFn := StringsBuiltins["strings.truncate"].Fn
+
+	// Negative length
+	result := truncateFn(
+		&object.String{Value: "Hello"},
+		&object.Integer{Value: -1},
+		&object.String{Value: "..."},
+	)
+	if !isErrorObject(result) {
+		t.Error("expected error for negative length")
+	}
+}
+
+func TestStringsCompare(t *testing.T) {
+	compareFn := StringsBuiltins["strings.compare"].Fn
+
+	tests := []struct {
+		a, b     string
+		expected int64
+	}{
+		{"apple", "banana", -1},
+		{"banana", "apple", 1},
+		{"apple", "apple", 0},
+		{"", "", 0},
+		{"a", "", 1},
+		{"", "a", -1},
+	}
+
+	for _, tt := range tests {
+		result := compareFn(&object.String{Value: tt.a}, &object.String{Value: tt.b})
+		testIntegerObject(t, result, tt.expected)
+	}
 }
 
 // ============================================================================
