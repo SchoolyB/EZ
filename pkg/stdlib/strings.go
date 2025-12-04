@@ -506,4 +506,128 @@ var StringsBuiltins = map[string]*object.Builtin{
 			return &object.String{Value: string(runes)}
 		},
 	},
+
+	"strings.replace_n": {
+		Fn: func(args ...object.Object) object.Object {
+			if len(args) != 4 {
+				return &object.Error{Code: "E7001", Message: "strings.replace_n() takes exactly 4 arguments (string, old, new, n)"}
+			}
+			str, ok := args[0].(*object.String)
+			if !ok {
+				return &object.Error{Code: "E7003", Message: "strings.replace_n() requires a string as first argument"}
+			}
+			old, ok := args[1].(*object.String)
+			if !ok {
+				return &object.Error{Code: "E7003", Message: "strings.replace_n() requires a string as second argument"}
+			}
+			newStr, ok := args[2].(*object.String)
+			if !ok {
+				return &object.Error{Code: "E7003", Message: "strings.replace_n() requires a string as third argument"}
+			}
+			n, ok := args[3].(*object.Integer)
+			if !ok {
+				return &object.Error{Code: "E7004", Message: "strings.replace_n() requires an integer as fourth argument"}
+			}
+			return &object.String{Value: strings.Replace(str.Value, old.Value, newStr.Value, int(n.Value))}
+		},
+	},
+
+	"strings.is_numeric": {
+		Fn: func(args ...object.Object) object.Object {
+			if len(args) != 1 {
+				return &object.Error{Code: "E7001", Message: "strings.is_numeric() takes exactly 1 argument"}
+			}
+			str, ok := args[0].(*object.String)
+			if !ok {
+				return &object.Error{Code: "E7003", Message: "strings.is_numeric() requires a string argument"}
+			}
+			if len(str.Value) == 0 {
+				return object.FALSE
+			}
+			for _, r := range str.Value {
+				if !unicode.IsDigit(r) {
+					return object.FALSE
+				}
+			}
+			return object.TRUE
+		},
+	},
+
+	"strings.is_alpha": {
+		Fn: func(args ...object.Object) object.Object {
+			if len(args) != 1 {
+				return &object.Error{Code: "E7001", Message: "strings.is_alpha() takes exactly 1 argument"}
+			}
+			str, ok := args[0].(*object.String)
+			if !ok {
+				return &object.Error{Code: "E7003", Message: "strings.is_alpha() requires a string argument"}
+			}
+			if len(str.Value) == 0 {
+				return object.FALSE
+			}
+			for _, r := range str.Value {
+				if !unicode.IsLetter(r) {
+					return object.FALSE
+				}
+			}
+			return object.TRUE
+		},
+	},
+
+	"strings.truncate": {
+		Fn: func(args ...object.Object) object.Object {
+			if len(args) != 3 {
+				return &object.Error{Code: "E7001", Message: "strings.truncate() takes exactly 3 arguments (string, length, suffix)"}
+			}
+			str, ok := args[0].(*object.String)
+			if !ok {
+				return &object.Error{Code: "E7003", Message: "strings.truncate() requires a string as first argument"}
+			}
+			maxLen, ok := args[1].(*object.Integer)
+			if !ok {
+				return &object.Error{Code: "E7004", Message: "strings.truncate() requires an integer as second argument"}
+			}
+			suffix, ok := args[2].(*object.String)
+			if !ok {
+				return &object.Error{Code: "E7003", Message: "strings.truncate() requires a string as third argument"}
+			}
+
+			if maxLen.Value < 0 {
+				return &object.Error{Code: "E10001", Message: "strings.truncate() length cannot be negative"}
+			}
+
+			runes := []rune(str.Value)
+			targetLen := int(maxLen.Value)
+
+			if len(runes) <= targetLen {
+				return str
+			}
+
+			suffixRunes := []rune(suffix.Value)
+			if targetLen <= len(suffixRunes) {
+				// If max length is less than or equal to suffix length, just return truncated suffix
+				return &object.String{Value: string(suffixRunes[:targetLen])}
+			}
+
+			truncateAt := targetLen - len(suffixRunes)
+			return &object.String{Value: string(runes[:truncateAt]) + suffix.Value}
+		},
+	},
+
+	"strings.compare": {
+		Fn: func(args ...object.Object) object.Object {
+			if len(args) != 2 {
+				return &object.Error{Code: "E7001", Message: "strings.compare() takes exactly 2 arguments"}
+			}
+			a, ok := args[0].(*object.String)
+			if !ok {
+				return &object.Error{Code: "E7003", Message: "strings.compare() requires string arguments"}
+			}
+			b, ok := args[1].(*object.String)
+			if !ok {
+				return &object.Error{Code: "E7003", Message: "strings.compare() requires string arguments"}
+			}
+			return &object.Integer{Value: int64(strings.Compare(a.Value, b.Value))}
+		},
+	},
 }

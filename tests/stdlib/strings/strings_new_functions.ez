@@ -1,0 +1,90 @@
+// Test new @strings module functions
+// Tests replace_n, is_numeric, is_alpha, truncate, compare
+
+import @std, @strings
+
+using std
+
+do main() {
+    // Test strings.replace_n()
+    temp replaced string = strings.replace_n("aaa", "a", "b", 2)
+    if replaced != "bba" {
+        println("FAIL: strings.replace_n('aaa', 'a', 'b', 2) expected 'bba', got '" + replaced + "'")
+        exit(1)
+    }
+
+    // Replace all with n=-1
+    temp replaceAll string = strings.replace_n("aaa", "a", "b", -1)
+    if replaceAll != "bbb" {
+        println("FAIL: strings.replace_n with n=-1 should replace all")
+        exit(1)
+    }
+
+    // Test strings.is_numeric() - check by storing result and comparing string
+    temp numResult string = string(strings.is_numeric("12345"))
+    if numResult != "true" {
+        println("FAIL: strings.is_numeric('12345') should be true")
+        exit(1)
+    }
+
+    temp numResult2 string = string(strings.is_numeric("12a34"))
+    if numResult2 != "false" {
+        println("FAIL: strings.is_numeric('12a34') should be false, got " + numResult2)
+        exit(1)
+    }
+
+    temp numResult3 string = string(strings.is_numeric(""))
+    if numResult3 != "false" {
+        println("FAIL: strings.is_numeric('') should be false")
+        exit(1)
+    }
+
+    // Test strings.is_alpha() - check by storing result and comparing string
+    temp alphaResult string = string(strings.is_alpha("Hello"))
+    if alphaResult != "true" {
+        println("FAIL: strings.is_alpha('Hello') should be true")
+        exit(1)
+    }
+
+    temp alphaResult2 string = string(strings.is_alpha("Hello123"))
+    if alphaResult2 != "false" {
+        println("FAIL: strings.is_alpha('Hello123') should be false")
+        exit(1)
+    }
+
+    temp alphaResult3 string = string(strings.is_alpha(""))
+    if alphaResult3 != "false" {
+        println("FAIL: strings.is_alpha('') should be false")
+        exit(1)
+    }
+
+    // Test strings.truncate()
+    temp truncated string = strings.truncate("Hello World", 8, "...")
+    if truncated != "Hello..." {
+        println("FAIL: strings.truncate('Hello World', 8, '...') expected 'Hello...', got '" + truncated + "'")
+        exit(1)
+    }
+
+    // String shorter than max length should not truncate
+    temp noTrunc string = strings.truncate("Hi", 10, "...")
+    if noTrunc != "Hi" {
+        println("FAIL: strings.truncate should not modify short strings")
+        exit(1)
+    }
+
+    // Test strings.compare()
+    if strings.compare("apple", "banana") != -1 {
+        println("FAIL: strings.compare('apple', 'banana') should be -1")
+        exit(1)
+    }
+    if strings.compare("banana", "apple") != 1 {
+        println("FAIL: strings.compare('banana', 'apple') should be 1")
+        exit(1)
+    }
+    if strings.compare("apple", "apple") != 0 {
+        println("FAIL: strings.compare('apple', 'apple') should be 0")
+        exit(1)
+    }
+
+    println("PASS: All new strings function tests passed")
+}

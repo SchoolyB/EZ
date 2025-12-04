@@ -1,0 +1,44 @@
+// Test math.log_base() function
+
+import @std, @math
+
+using std
+
+do main() {
+    // log_base(8, 2) = 3 (since 2^3 = 8)
+    temp result float = math.log_base(8, 2)
+    if result < 2.99 || result > 3.01 {
+        println("FAIL: math.log_base(8, 2) should be 3, got " + string(result))
+        exit(1)
+    }
+
+    // log_base(1000, 10) = 3 (since 10^3 = 1000)
+    temp result2 float = math.log_base(1000, 10)
+    if result2 < 2.99 || result2 > 3.01 {
+        println("FAIL: math.log_base(1000, 10) should be 3, got " + string(result2))
+        exit(1)
+    }
+
+    // log_base(27, 3) = 3 (since 3^3 = 27)
+    temp result3 float = math.log_base(27, 3)
+    if result3 < 2.99 || result3 > 3.01 {
+        println("FAIL: math.log_base(27, 3) should be 3, got " + string(result3))
+        exit(1)
+    }
+
+    // log_base(1, any) = 0
+    temp result4 float = math.log_base(1, 7)
+    if result4 < -0.01 || result4 > 0.01 {
+        println("FAIL: math.log_base(1, 7) should be 0, got " + string(result4))
+        exit(1)
+    }
+
+    // log_base(base, base) = 1
+    temp result5 float = math.log_base(5, 5)
+    if result5 < 0.99 || result5 > 1.01 {
+        println("FAIL: math.log_base(5, 5) should be 1, got " + string(result5))
+        exit(1)
+    }
+
+    println("PASS: All math.log_base tests passed")
+}
