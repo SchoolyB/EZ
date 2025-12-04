@@ -676,7 +676,11 @@ func (p *Parser) parseVarableDeclarationOrStruct() Statement {
 	}
 
 	// Not the special "const Name struct" case, use regular variable declaration
-	return p.parseVarableDeclaration()
+	result := p.parseVarableDeclaration()
+	if result == nil {
+		return nil // Return untyped nil to avoid typed nil interface issue
+	}
+	return result
 }
 
 func (p *Parser) parseVarableDeclaration() *VariableDeclaration {
