@@ -494,6 +494,7 @@ func TestVariableDeclarations(t *testing.T) {
 		{"temp with type", "temp x int = 5", "x", true, "int"},
 		{"temp inferred", "temp x = 5", "x", true, ""},
 		{"const with type", "const x int = 5", "x", false, "int"},
+		{"const inferred", "const x = 5", "x", false, ""},
 		{"temp float", "temp f float = 3.14", "f", true, "float"},
 		{"temp string", "temp s string = \"hello\"", "s", true, "string"},
 		{"temp bool", "temp b bool = true", "b", true, "bool"},
