@@ -181,6 +181,10 @@ do main() {
     total_passed += result.passed
     total_failed += result.failed
 
+    result = test_error_constructor()
+    total_passed += result.passed
+    total_failed += result.failed
+
     temp total int = total_passed + total_failed
 
     println("")
@@ -1948,6 +1952,84 @@ do test_printf_and_escapes() -> TestResult {
     temp quote_str string = "She said \"Hello\""
     println("  Escaped quotes: ${quote_str}")
     passed += 1
+
+    println("  PASSED: ${passed}, FAILED: ${failed}")
+    return TestResult{passed: passed, failed: failed}
+}
+
+// ==================================================
+// ERROR CONSTRUCTOR
+// ==================================================
+
+// Helper function that validates a name and returns Error on failure
+do validate_name(name string) -> Error {
+    if len(name) == 0 {
+        return error("name cannot be empty")
+    }
+    return nil
+}
+
+// Helper function that divides and returns Error on division by zero
+do safe_divide(a int, b int) -> (int, Error) {
+    if b == 0 {
+        return 0, error("division by zero")
+    }
+    return a / b, nil
+}
+
+do test_error_constructor() -> TestResult {
+    print_section("Error Constructor")
+    temp passed int = 0
+    temp failed int = 0
+
+    // Test 1: error() creates Error struct with message
+    temp err1 = validate_name("")
+    if err1 != nil && err1.message == "name cannot be empty" {
+        println("  error() with message: PASS")
+        passed += 1
+    } otherwise {
+        println("  error() with message: FAIL")
+        failed += 1
+    }
+
+    // Test 2: error().code is empty string for user errors
+    if err1 != nil && err1.code == "" {
+        println("  error().code is empty: PASS")
+        passed += 1
+    } otherwise {
+        println("  error().code is empty: FAIL")
+        failed += 1
+    }
+
+    // Test 3: returning nil for no error
+    temp err2 = validate_name("Alice")
+    if err2 == nil {
+        println("  return nil for no error: PASS")
+        passed += 1
+    } otherwise {
+        println("  return nil for no error: FAIL")
+        failed += 1
+    }
+
+    // Test 4: error in tuple return
+    temp result, err3 = safe_divide(10, 0)
+    if err3 != nil && err3.message == "division by zero" {
+        println("  error in tuple return: PASS")
+        passed += 1
+    } otherwise {
+        println("  error in tuple return: FAIL")
+        failed += 1
+    }
+
+    // Test 5: nil error in tuple return
+    temp result2, err4 = safe_divide(10, 2)
+    if err4 == nil && result2 == 5 {
+        println("  nil error in tuple return: PASS")
+        passed += 1
+    } otherwise {
+        println("  nil error in tuple return: FAIL")
+        failed += 1
+    }
 
     println("  PASSED: ${passed}, FAILED: ${failed}")
     return TestResult{passed: passed, failed: failed}
