@@ -495,8 +495,30 @@ func (tc *TypeChecker) checkFunctionDeclaration(node *ast.FunctionDeclaration) {
 		ReturnTypes: node.ReturnTypes,
 	}
 
-	// Check parameter types
+	// Check parameter types and names
 	for _, param := range node.Parameters {
+		paramName := param.Name.Value
+
+		// Check if parameter name shadows a user-defined type (struct/enum)
+		if _, exists := tc.types[paramName]; exists {
+			tc.addError(
+				errors.E2033,
+				fmt.Sprintf("'%s' is a type name and cannot be used as a parameter name", paramName),
+				param.Name.Token.Line,
+				param.Name.Token.Column,
+			)
+		}
+
+		// Check if parameter name shadows a user-defined function
+		if _, exists := tc.functions[paramName]; exists {
+			tc.addError(
+				errors.E2033,
+				fmt.Sprintf("'%s' is a function name and cannot be used as a parameter name", paramName),
+				param.Name.Token.Line,
+				param.Name.Token.Column,
+			)
+		}
+
 		if !tc.TypeExists(param.TypeName) {
 			tc.addError(
 				errors.E3010,
