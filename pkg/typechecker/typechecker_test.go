@@ -948,6 +948,24 @@ do main() {
 	assertNoErrors(t, tc)
 }
 
+func TestConstTypeInference(t *testing.T) {
+	input := `
+const Person struct {
+	name string
+	age int
+}
+
+do main() {
+	const p1 = new(Person)
+	const p2 = Person{name: "Alice", age: 30}
+	const x = 42
+	const s = "hello"
+}
+`
+	tc := typecheck(t, input)
+	assertNoErrors(t, tc)
+}
+
 func TestMapDeclaration(t *testing.T) {
 	input := `
 do main() {
