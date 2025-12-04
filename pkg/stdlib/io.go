@@ -1558,6 +1558,115 @@ var IOBuiltins = map[string]*object.Builtin{
 			}}
 		},
 	},
+
+	// ============================================================================
+	// Filesystem Utilities
+	// ============================================================================
+
+	// Finds files matching a glob pattern
+	// Returns ([string], error) tuple - array of matching paths
+	"io.glob": {
+		Fn: func(args ...object.Object) object.Object {
+			if len(args) != 1 {
+				return &object.Error{Code: "E7001", Message: "io.glob() takes exactly 1 argument (pattern)"}
+			}
+			pattern, ok := args[0].(*object.String)
+			if !ok {
+				return &object.Error{Code: "E7003", Message: "io.glob() requires a string pattern"}
+			}
+
+			matches, err := filepath.Glob(pattern.Value)
+			if err != nil {
+				return &object.ReturnValue{Values: []object.Object{
+					object.NIL,
+					createIOError("E7050", fmt.Sprintf("io.glob() invalid pattern: %s", err.Error())),
+				}}
+			}
+
+			// Convert matches to EZ array
+			elements := make([]object.Object, len(matches))
+			for i, m := range matches {
+				elements[i] = &object.String{Value: m}
+			}
+
+			return &object.ReturnValue{Values: []object.Object{
+				&object.Array{Elements: elements, Mutable: true},
+				object.NIL,
+			}}
+		},
+	},
+
+	// Recursively walks a directory tree, returning all file paths
+	// Returns ([string], error) tuple - array of all file paths
+	"io.walk": {
+		Fn: func(args ...object.Object) object.Object {
+			if len(args) != 1 {
+				return &object.Error{Code: "E7001", Message: "io.walk() takes exactly 1 argument (directory)"}
+			}
+			dir, ok := args[0].(*object.String)
+			if !ok {
+				return &object.Error{Code: "E7003", Message: "io.walk() requires a string directory path"}
+			}
+
+			// Validate path
+			if err := validatePath(dir.Value, "io.walk()"); err != nil {
+				return err
+			}
+
+			var files []string
+			err := filepath.Walk(dir.Value, func(path string, info os.FileInfo, err error) error {
+				if err != nil {
+					return err
+				}
+				// Only include files, not directories
+				if !info.IsDir() {
+					files = append(files, path)
+				}
+				return nil
+			})
+
+			if err != nil {
+				return createIOErrorResult(err, "walk")
+			}
+
+			// Convert to EZ array
+			elements := make([]object.Object, len(files))
+			for i, f := range files {
+				elements[i] = &object.String{Value: f}
+			}
+
+			return &object.ReturnValue{Values: []object.Object{
+				&object.Array{Elements: elements, Mutable: true},
+				object.NIL,
+			}}
+		},
+	},
+
+	// Checks if a path is a symbolic link
+	// Returns bool (false for non-existent paths, not an error)
+	"io.is_symlink": {
+		Fn: func(args ...object.Object) object.Object {
+			if len(args) != 1 {
+				return &object.Error{Code: "E7001", Message: "io.is_symlink() takes exactly 1 argument (path)"}
+			}
+			path, ok := args[0].(*object.String)
+			if !ok {
+				return &object.Error{Code: "E7003", Message: "io.is_symlink() requires a string path"}
+			}
+
+			// Use Lstat to not follow symlinks
+			info, err := os.Lstat(path.Value)
+			if err != nil {
+				// Non-existent paths return false, not an error
+				return object.FALSE
+			}
+
+			if info.Mode()&os.ModeSymlink != 0 {
+				return object.TRUE
+			}
+			return object.FALSE
+		},
+	},
 }
 
 // createIOError creates an Error struct for IO operations

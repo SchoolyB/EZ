@@ -2445,3 +2445,153 @@ func TestIOCopyWithPerms(t *testing.T) {
 		}
 	})
 }
+
+// ============================================================================
+// Filesystem Utilities Tests
+// ============================================================================
+
+func TestIOGlob(t *testing.T) {
+	dir, cleanup := createTempDir(t)
+	defer cleanup()
+
+	globFn := IOBuiltins["io.glob"].Fn
+
+	// Create test files
+	createTempFile(t, dir, "file1.txt", "content1")
+	createTempFile(t, dir, "file2.txt", "content2")
+	createTempFile(t, dir, "file3.go", "content3")
+
+	t.Run("glob matches txt files", func(t *testing.T) {
+		pattern := filepath.Join(dir, "*.txt")
+		result := globFn(&object.String{Value: pattern})
+		assertNoError(t, result)
+
+		vals := getReturnValues(t, result)
+		arr, ok := vals[0].(*object.Array)
+		if !ok {
+			t.Fatalf("expected Array, got %T", vals[0])
+		}
+
+		if len(arr.Elements) != 2 {
+			t.Errorf("expected 2 matches, got %d", len(arr.Elements))
+		}
+	})
+
+	t.Run("glob matches go files", func(t *testing.T) {
+		pattern := filepath.Join(dir, "*.go")
+		result := globFn(&object.String{Value: pattern})
+		assertNoError(t, result)
+
+		vals := getReturnValues(t, result)
+		arr := vals[0].(*object.Array)
+
+		if len(arr.Elements) != 1 {
+			t.Errorf("expected 1 match, got %d", len(arr.Elements))
+		}
+	})
+
+	t.Run("glob no matches returns empty array", func(t *testing.T) {
+		pattern := filepath.Join(dir, "*.xyz")
+		result := globFn(&object.String{Value: pattern})
+		assertNoError(t, result)
+
+		vals := getReturnValues(t, result)
+		arr := vals[0].(*object.Array)
+
+		if len(arr.Elements) != 0 {
+			t.Errorf("expected 0 matches, got %d", len(arr.Elements))
+		}
+	})
+
+	t.Run("glob invalid pattern returns error", func(t *testing.T) {
+		result := globFn(&object.String{Value: "["}) // Invalid pattern
+		vals := getReturnValues(t, result)
+		if vals[1] == object.NIL {
+			t.Error("expected error for invalid pattern")
+		}
+	})
+}
+
+func TestIOWalk(t *testing.T) {
+	dir, cleanup := createTempDir(t)
+	defer cleanup()
+
+	walkFn := IOBuiltins["io.walk"].Fn
+
+	// Create directory structure
+	subdir := filepath.Join(dir, "subdir")
+	os.Mkdir(subdir, 0755)
+
+	createTempFile(t, dir, "root.txt", "root content")
+	createTempFile(t, subdir, "nested.txt", "nested content")
+
+	t.Run("walk finds all files", func(t *testing.T) {
+		result := walkFn(&object.String{Value: dir})
+		assertNoError(t, result)
+
+		vals := getReturnValues(t, result)
+		arr, ok := vals[0].(*object.Array)
+		if !ok {
+			t.Fatalf("expected Array, got %T", vals[0])
+		}
+
+		// Should find 2 files (root.txt and subdir/nested.txt)
+		if len(arr.Elements) != 2 {
+			t.Errorf("expected 2 files, got %d", len(arr.Elements))
+		}
+	})
+
+	t.Run("walk non-existent directory returns error", func(t *testing.T) {
+		result := walkFn(&object.String{Value: "/nonexistent/path"})
+		vals := getReturnValues(t, result)
+		if vals[1] == object.NIL {
+			t.Error("expected error for non-existent directory")
+		}
+	})
+}
+
+func TestIOIsSymlink(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("symlink tests not reliable on Windows")
+	}
+
+	dir, cleanup := createTempDir(t)
+	defer cleanup()
+
+	isSymlinkFn := IOBuiltins["io.is_symlink"].Fn
+
+	// Create a regular file
+	regularFile := createTempFile(t, dir, "regular.txt", "content")
+
+	// Create a symlink
+	symlinkPath := filepath.Join(dir, "symlink.txt")
+	os.Symlink(regularFile, symlinkPath)
+
+	t.Run("regular file is not symlink", func(t *testing.T) {
+		result := isSymlinkFn(&object.String{Value: regularFile})
+		if result != object.FALSE {
+			t.Error("expected regular file to not be symlink")
+		}
+	})
+
+	t.Run("symlink is symlink", func(t *testing.T) {
+		result := isSymlinkFn(&object.String{Value: symlinkPath})
+		if result != object.TRUE {
+			t.Error("expected symlink to be detected as symlink")
+		}
+	})
+
+	t.Run("non-existent path returns false", func(t *testing.T) {
+		result := isSymlinkFn(&object.String{Value: "/nonexistent/path"})
+		if result != object.FALSE {
+			t.Error("expected non-existent path to return false")
+		}
+	})
+
+	t.Run("directory is not symlink", func(t *testing.T) {
+		result := isSymlinkFn(&object.String{Value: dir})
+		if result != object.FALSE {
+			t.Error("expected directory to not be symlink")
+		}
+	})
+}
