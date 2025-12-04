@@ -43,6 +43,9 @@ func GetAllBuiltins() map[string]*object.Builtin {
 	for name, builtin := range BytesBuiltins {
 		all[name] = builtin
 	}
+	for name, builtin := range RandomBuiltins {
+		all[name] = builtin
+	}
 
 	return all
 }

@@ -1,0 +1,68 @@
+// Test @random module basic functionality
+// This test verifies that all random functions work correctly
+
+import @std, @random
+
+using std
+
+do main() {
+    // Test random.float()
+    temp f float = random.float()
+    if f < 0.0 || f >= 1.0 {
+        println("FAIL: random.float() out of range [0.0, 1.0)")
+        exit(1)
+    }
+
+    // Test random.float(min, max)
+    temp f2 float = random.float(5.0, 10.0)
+    if f2 < 5.0 || f2 >= 10.0 {
+        println("FAIL: random.float(5.0, 10.0) out of range")
+        exit(1)
+    }
+
+    // Test random.int(max)
+    temp i int = random.int(100)
+    if i < 0 || i >= 100 {
+        println("FAIL: random.int(100) out of range [0, 100)")
+        exit(1)
+    }
+
+    // Test random.int(min, max)
+    temp i2 int = random.int(10, 20)
+    if i2 < 10 || i2 >= 20 {
+        println("FAIL: random.int(10, 20) out of range [10, 20)")
+        exit(1)
+    }
+
+    // Test random.bool()
+    temp b bool = random.bool()
+    // Can't really test the value, just that it returns a bool
+    if typeof(b) != "bool" {
+        println("FAIL: random.bool() did not return bool")
+        exit(1)
+    }
+
+    // Test random.byte()
+    temp by byte = random.byte()
+    if typeof(by) != "byte" {
+        println("FAIL: random.byte() did not return byte")
+        exit(1)
+    }
+
+    // Test random.char()
+    temp c char = random.char()
+    temp cInt int = int(c)
+    if cInt < 32 || cInt > 126 {
+        println("FAIL: random.char() out of printable ASCII range")
+        exit(1)
+    }
+
+    // Test random.char(min, max)
+    temp c2 char = random.char('a', 'z')
+    if c2 < 'a' || c2 > 'z' {
+        println("FAIL: random.char('a', 'z') out of range")
+        exit(1)
+    }
+
+    println("PASS: All random basic tests passed")
+}
