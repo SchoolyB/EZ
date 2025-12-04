@@ -1,0 +1,10 @@
+/*
+ * Error Test: E2021 - reserved-function-name
+ * Expected: "'if' is a reserved keyword and cannot be used as a function name"
+ */
+
+do if() {
+    return
+}
+
+do main() {}

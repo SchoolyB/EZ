@@ -1355,13 +1355,141 @@ func TestGroupedExpressions(t *testing.T) {
 // ============================================================================
 
 func TestReservedKeywordAsVariable(t *testing.T) {
-	input := "temp if int = 5"
-	l := NewLexer(input)
-	p := NewWithSource(l, input, "test.ez")
-	p.ParseProgram()
+	tests := []struct {
+		name          string
+		input         string
+		expectedCode  string
+		expectedIdent string
+	}{
+		{
+			name:          "if as variable",
+			input:         "temp if int = 5",
+			expectedCode:  "E2020",
+			expectedIdent: "if",
+		},
+		{
+			name:          "do as variable",
+			input:         "temp do = 1",
+			expectedCode:  "E2020",
+			expectedIdent: "do",
+		},
+		{
+			name:          "for as variable",
+			input:         "temp for = 1",
+			expectedCode:  "E2020",
+			expectedIdent: "for",
+		},
+		{
+			name:          "return as variable",
+			input:         "temp return = 1",
+			expectedCode:  "E2020",
+			expectedIdent: "return",
+		},
+	}
 
-	if !p.EZErrors().HasErrors() {
-		t.Error("expected error for reserved keyword as variable name")
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			l := NewLexer(tt.input)
+			p := NewWithSource(l, tt.input, "test.ez")
+			p.ParseProgram()
+
+			if !p.EZErrors().HasErrors() {
+				t.Fatal("expected error for reserved keyword as variable name")
+			}
+
+			// Check that the first error has the expected code
+			firstErr := p.EZErrors().Errors[0]
+			if firstErr.ErrorCode.Code != tt.expectedCode {
+				t.Errorf("expected error code %s, got %s", tt.expectedCode, firstErr.ErrorCode.Code)
+			}
+			if !strings.Contains(firstErr.Message, tt.expectedIdent) {
+				t.Errorf("expected error message to contain '%s', got '%s'", tt.expectedIdent, firstErr.Message)
+			}
+		})
+	}
+}
+
+func TestReservedKeywordAsFunctionName(t *testing.T) {
+	tests := []struct {
+		name          string
+		input         string
+		expectedCode  string
+		expectedIdent string
+	}{
+		{
+			name:          "if as function name",
+			input:         "do if() {}",
+			expectedCode:  "E2021",
+			expectedIdent: "if",
+		},
+		{
+			name:          "return as function name",
+			input:         "do return() {}",
+			expectedCode:  "E2021",
+			expectedIdent: "return",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			l := NewLexer(tt.input)
+			p := NewWithSource(l, tt.input, "test.ez")
+			p.ParseProgram()
+
+			if !p.EZErrors().HasErrors() {
+				t.Fatal("expected error for reserved keyword as function name")
+			}
+
+			firstErr := p.EZErrors().Errors[0]
+			if firstErr.ErrorCode.Code != tt.expectedCode {
+				t.Errorf("expected error code %s, got %s", tt.expectedCode, firstErr.ErrorCode.Code)
+			}
+			if !strings.Contains(firstErr.Message, tt.expectedIdent) {
+				t.Errorf("expected error message to contain '%s', got '%s'", tt.expectedIdent, firstErr.Message)
+			}
+		})
+	}
+}
+
+func TestReservedKeywordAsParameter(t *testing.T) {
+	tests := []struct {
+		name          string
+		input         string
+		expectedCode  string
+		expectedIdent string
+	}{
+		{
+			name:          "if as parameter",
+			input:         "do test(if int) {}",
+			expectedCode:  "E2033",
+			expectedIdent: "if",
+		},
+		{
+			name:          "for as parameter",
+			input:         "do test(for int) {}",
+			expectedCode:  "E2033",
+			expectedIdent: "for",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			l := NewLexer(tt.input)
+			p := NewWithSource(l, tt.input, "test.ez")
+			p.ParseProgram()
+
+			if !p.EZErrors().HasErrors() {
+				t.Fatal("expected error for reserved keyword as parameter name")
+			}
+
+			firstErr := p.EZErrors().Errors[0]
+			if firstErr.ErrorCode.Code != tt.expectedCode {
+				t.Errorf("expected error code %s, got %s", tt.expectedCode, firstErr.ErrorCode.Code)
+			}
+			if !strings.Contains(firstErr.Message, tt.expectedIdent) {
+				t.Errorf("expected error message to contain '%s', got '%s'", tt.expectedIdent, firstErr.Message)
+			}
+		})
 	}
 }
 
@@ -1871,5 +1999,77 @@ func TestMutableMapParameter(t *testing.T) {
 	}
 	if fn.Parameters[1].Mutable || fn.Parameters[2].Mutable {
 		t.Errorf("expected second and third parameters to be immutable")
+	}
+}
+
+// ============================================================================
+// Bug Fix Tests - December 2025
+// ============================================================================
+
+func TestImportInsideFunctionBlock(t *testing.T) {
+	// Test: import inside function block should error E2036
+	// Fixes #324
+	input := `import & use @std
+do main() {
+	import & use @math
+	println("test")
+}`
+	l := NewLexer(input)
+	p := NewWithSource(l, input, "test.ez")
+	p.ParseProgram()
+
+	if !p.EZErrors().HasErrors() {
+		t.Error("expected error for import inside function block")
+	}
+}
+
+func TestImportAfterDeclarations(t *testing.T) {
+	// Test: import after function declarations should error E2036
+	// Fixes #324
+	input := `import & use @std
+do foo() {
+	println("foo")
+}
+import & use @math
+do main() {
+	println("test")
+}`
+	l := NewLexer(input)
+	p := NewWithSource(l, input, "test.ez")
+	p.ParseProgram()
+
+	if !p.EZErrors().HasErrors() {
+		t.Error("expected error for import after declarations")
+	}
+}
+
+func TestReservedStructName(t *testing.T) {
+	// Test: using reserved keyword as struct name should error E2037
+	// Fixes #325
+	input := `const int struct {
+	x int
+}`
+	l := NewLexer(input)
+	p := NewWithSource(l, input, "test.ez")
+	p.ParseProgram()
+
+	if !p.EZErrors().HasErrors() {
+		t.Error("expected error for reserved struct name")
+	}
+}
+
+func TestReservedEnumName(t *testing.T) {
+	// Test: using reserved keyword as enum name should error E2038
+	// Fixes #326
+	input := `const int enum {
+	A
+	B
+}`
+	l := NewLexer(input)
+	p := NewWithSource(l, input, "test.ez")
+	p.ParseProgram()
+
+	if !p.EZErrors().HasErrors() {
+		t.Error("expected error for reserved enum name")
 	}
 }

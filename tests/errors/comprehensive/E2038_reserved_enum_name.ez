@@ -1,0 +1,13 @@
+/*
+ * Error Test: E2038 - reserved-enum-name
+ * Expected: "enum name is reserved"
+ */
+
+const int enum {
+    A
+    B
+}
+
+do main() {
+    println("Should not compile!")
+}
