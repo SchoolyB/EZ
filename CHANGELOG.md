@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.11.2](https://github.com/SchoolyB/EZ/compare/v0.11.1...v0.11.2) (2025-12-04)
+
+
+### Bug Fixes
+
+* CI REPL test failing on macOS ([42cb93c](https://github.com/SchoolyB/EZ/commit/42cb93cccd995d927606e05a26fdf02e145afba2))
+* CI REPL test failing on macOS ([#299](https://github.com/SchoolyB/EZ/issues/299)) ([8b14f75](https://github.com/SchoolyB/EZ/commit/8b14f754baf770a2bca091fa9748fa342d8b7de7))
+
 ## [0.11.1](https://github.com/SchoolyB/EZ/compare/v0.11.0...v0.11.1) (2025-12-03)
 
 
