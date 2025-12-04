@@ -38,6 +38,7 @@ var validModules = map[string]bool{
 	"io":      true, // File system and I/O operations
 	"os":      true, // Operating system and environment
 	"bytes":   true, // Binary data operations
+	"random":  true, // Random number generation
 }
 
 // isValidModule checks if a module name is valid (either standard library or user-created)
