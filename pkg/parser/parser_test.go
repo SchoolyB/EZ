@@ -1873,3 +1873,75 @@ func TestMutableMapParameter(t *testing.T) {
 		t.Errorf("expected second and third parameters to be immutable")
 	}
 }
+
+// ============================================================================
+// Bug Fix Tests - December 2025
+// ============================================================================
+
+func TestImportInsideFunctionBlock(t *testing.T) {
+	// Test: import inside function block should error E2036
+	// Fixes #324
+	input := `import & use @std
+do main() {
+	import & use @math
+	println("test")
+}`
+	l := NewLexer(input)
+	p := NewWithSource(l, input, "test.ez")
+	p.ParseProgram()
+
+	if !p.EZErrors().HasErrors() {
+		t.Error("expected error for import inside function block")
+	}
+}
+
+func TestImportAfterDeclarations(t *testing.T) {
+	// Test: import after function declarations should error E2036
+	// Fixes #324
+	input := `import & use @std
+do foo() {
+	println("foo")
+}
+import & use @math
+do main() {
+	println("test")
+}`
+	l := NewLexer(input)
+	p := NewWithSource(l, input, "test.ez")
+	p.ParseProgram()
+
+	if !p.EZErrors().HasErrors() {
+		t.Error("expected error for import after declarations")
+	}
+}
+
+func TestReservedStructName(t *testing.T) {
+	// Test: using reserved keyword as struct name should error E2037
+	// Fixes #325
+	input := `const int struct {
+	x int
+}`
+	l := NewLexer(input)
+	p := NewWithSource(l, input, "test.ez")
+	p.ParseProgram()
+
+	if !p.EZErrors().HasErrors() {
+		t.Error("expected error for reserved struct name")
+	}
+}
+
+func TestReservedEnumName(t *testing.T) {
+	// Test: using reserved keyword as enum name should error E2038
+	// Fixes #326
+	input := `const int enum {
+	A
+	B
+}`
+	l := NewLexer(input)
+	p := NewWithSource(l, input, "test.ez")
+	p.ParseProgram()
+
+	if !p.EZErrors().HasErrors() {
+		t.Error("expected error for reserved enum name")
+	}
+}
