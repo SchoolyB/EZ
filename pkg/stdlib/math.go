@@ -406,6 +406,29 @@ var MathBuiltins = map[string]*object.Builtin{
 			return &object.Float{Value: math.Log10(val)}
 		},
 	},
+	"math.log_base": {
+		Fn: func(args ...object.Object) object.Object {
+			if len(args) != 2 {
+				return &object.Error{Code: "E7001", Message: "math.log_base() takes exactly 2 arguments (value, base)"}
+			}
+			val, err := getNumber(args[0])
+			if err != nil {
+				return err
+			}
+			base, err := getNumber(args[1])
+			if err != nil {
+				return err
+			}
+			if val <= 0 {
+				return &object.Error{Code: "E8002", Message: "math.log_base() requires positive value"}
+			}
+			if base <= 0 || base == 1 {
+				return &object.Error{Code: "E8002", Message: "math.log_base() requires positive base != 1"}
+			}
+			// log_base(x, b) = log(x) / log(b)
+			return &object.Float{Value: math.Log(val) / math.Log(base)}
+		},
+	},
 
 	// Trigonometry
 	"math.sin": {
