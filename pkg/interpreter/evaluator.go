@@ -17,6 +17,11 @@ var (
 	FALSE = &Boolean{Value: false}
 )
 
+// Call stack depth tracking for recursion limit
+const MAX_CALL_DEPTH = 10000
+
+var callDepth int
+
 // EvalContext holds context for evaluation including the module loader
 type EvalContext struct {
 	Loader      *ModuleLoader
@@ -1941,6 +1946,15 @@ func evalMemberCall(member *ast.MemberExpression, args []ast.Expression, env *En
 }
 
 func applyFunction(fn Object, args []Object, line, col int) Object {
+	// Check recursion depth limit
+	callDepth++
+	if callDepth > MAX_CALL_DEPTH {
+		callDepth = 0 // Reset for future use
+		return newErrorWithLocation("E5018", line, col,
+			"maximum recursion depth exceeded (limit: %d)", MAX_CALL_DEPTH)
+	}
+	defer func() { callDepth-- }()
+
 	switch fn := fn.(type) {
 	case *Function:
 		// Validate argument count
