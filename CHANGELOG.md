@@ -1,5 +1,26 @@
 # Changelog
 
+## [0.14.1](https://github.com/SchoolyB/EZ/compare/v0.14.0...v0.14.1) (2025-12-04)
+
+
+### Bug Fixes
+
+* **interpreter:** add recursion depth limit to prevent stack overflow ([ccda7b7](https://github.com/SchoolyB/EZ/commit/ccda7b779bc8534b00f3e6a5f8396b4a7c574231)), closes [#327](https://github.com/SchoolyB/EZ/issues/327)
+* **lexer:** preserve line numbers in string interpolation expressions ([5a236b7](https://github.com/SchoolyB/EZ/commit/5a236b72949fb37a54a4acdcb65cbe8069978f07)), closes [#323](https://github.com/SchoolyB/EZ/issues/323)
+* **parser:** block reserved names as function parameter names ([1a52eb0](https://github.com/SchoolyB/EZ/commit/1a52eb00148ccf97b2e80684183d541335a12985))
+* **parser:** disallow import statements inside blocks and after declarations ([19118f6](https://github.com/SchoolyB/EZ/commit/19118f6eddcecd4632c9f1d893fe78ab90251d51)), closes [#324](https://github.com/SchoolyB/EZ/issues/324)
+* **parser:** prevent nil pointer crash when using 'const' as identifier ([e2177b3](https://github.com/SchoolyB/EZ/commit/e2177b389aed3acd022e8214387146609d1b6e17)), closes [#317](https://github.com/SchoolyB/EZ/issues/317)
+* **parser:** use helpful error when keywords used as identifiers ([614d2bd](https://github.com/SchoolyB/EZ/commit/614d2bda79524de9348734bbaa42c9be2ca86f0b))
+* **parser:** use helpful error when keywords used as identifiers ([5ffb6e3](https://github.com/SchoolyB/EZ/commit/5ffb6e393445ae14bf806bbaa1f3baa39174746a)), closes [#326](https://github.com/SchoolyB/EZ/issues/326)
+* **parser:** use specific error codes for struct/enum reserved names ([c86b903](https://github.com/SchoolyB/EZ/commit/c86b9038ca1e85e46e77b93d90a8a1d56236ec4a))
+* **parser:** validate enum value names against reserved keywords ([1a3f9b1](https://github.com/SchoolyB/EZ/commit/1a3f9b18df2107bd2806fdd9b525461ffd3f2c10)), closes [#322](https://github.com/SchoolyB/EZ/issues/322)
+* **parser:** validate struct field names against reserved keywords ([a077535](https://github.com/SchoolyB/EZ/commit/a077535e905202e19dc34fd696f02e4bc51f59d9)), closes [#321](https://github.com/SchoolyB/EZ/issues/321)
+* **typechecker:** block user-defined types/functions as parameter names ([2bea2dc](https://github.com/SchoolyB/EZ/commit/2bea2dc6377f246adb34601f1b0e0ab058b4868a))
+* **typechecker:** enforce static typing for type-inferred variables ([e1a4437](https://github.com/SchoolyB/EZ/commit/e1a443768b3f0afce1aab733f868fa5ff83fedb7)), closes [#329](https://github.com/SchoolyB/EZ/issues/329)
+* **typechecker:** make missing return statement an error instead of warning ([1338860](https://github.com/SchoolyB/EZ/commit/1338860d0ebabe392f05f3b311dc2d6981960a69)), closes [#318](https://github.com/SchoolyB/EZ/issues/318)
+* **typechecker:** use correct error code for missing main function ([92b3463](https://github.com/SchoolyB/EZ/commit/92b3463ad86ecb87b809a23ae6ee3cefe66495c3)), closes [#328](https://github.com/SchoolyB/EZ/issues/328)
+* **typechecker:** validate member access on non-struct types ([df0daee](https://github.com/SchoolyB/EZ/commit/df0daee12fe43410abce26e41b0811adaeac3936)), closes [#313](https://github.com/SchoolyB/EZ/issues/313)
+
 ## [0.14.0](https://github.com/SchoolyB/EZ/compare/v0.13.0...v0.14.0) (2025-12-04)
 
 
