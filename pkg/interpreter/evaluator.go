@@ -748,6 +748,13 @@ func evalVariableDeclaration(node *ast.VariableDeclaration, env *Environment) Ob
 		}
 	}
 
+	// Set struct mutability based on temp vs const (for type inference case where TypeName == "")
+	// This handles cases like: temp p = new(Person) or temp p = Person{name: "test"}
+	// where no explicit type annotation is provided
+	if structObj, ok := val.(*Struct); ok {
+		structObj.Mutable = node.Mutable
+	}
+
 	// Handle multiple assignment: temp result, err = function()
 	vis := convertVisibility(node.Visibility)
 	if len(node.Names) > 1 {
