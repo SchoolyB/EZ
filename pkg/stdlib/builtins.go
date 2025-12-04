@@ -457,4 +457,27 @@ var StdBuiltins = map[string]*object.Builtin{
 			return deepCopy(args[0])
 		},
 	},
+
+	// Creates a user-defined error with the given message
+	// Returns an Error struct with .message set to the argument and .code set to empty string
+	// This is different from object.Error which is a runtime error that halts execution
+	"error": {
+		Fn: func(args ...object.Object) object.Object {
+			if len(args) != 1 {
+				return &object.Error{Code: "E7001", Message: fmt.Sprintf("error() takes exactly 1 argument, got %d", len(args))}
+			}
+			str, ok := args[0].(*object.String)
+			if !ok {
+				return &object.Error{Code: "E7003", Message: fmt.Sprintf("error() argument must be a string, got %s", getEZTypeName(args[0]))}
+			}
+			// Return an Error struct (not object.Error which is a runtime error)
+			return &object.Struct{
+				TypeName: "Error",
+				Fields: map[string]object.Object{
+					"message": &object.String{Value: str.Value},
+					"code":    &object.String{Value: ""},
+				},
+			}
+		},
+	},
 }
