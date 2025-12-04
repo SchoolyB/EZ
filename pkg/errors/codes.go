@@ -70,6 +70,7 @@ var (
 	E2032 = ErrorCode{"E2032", "const-array-requires-size", "const array must have fixed size"}
 	E2033 = ErrorCode{"E2033", "reserved-param-name", "parameter name is reserved"}
 	E2034 = ErrorCode{"E2034", "invalid-struct-field", "invalid struct field name"}
+	E2035 = ErrorCode{"E2035", "invalid-enum-value", "invalid enum value name"}
 )
 
 // =============================================================================
