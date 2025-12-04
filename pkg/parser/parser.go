@@ -2250,8 +2250,9 @@ func processEscapeSequences(s string) string {
 
 // parseInterpolatedExpression parses an expression from within ${}
 func (p *Parser) parseInterpolatedExpression(exprStr string, origToken Token) Expression {
-	// Create a new lexer for the expression
-	lexer := NewLexer(exprStr)
+	// Create a new lexer for the expression with the original token's line/column
+	// This ensures error messages point to the correct location in the source
+	lexer := NewLexerWithOffset(exprStr, origToken.Line, origToken.Column)
 
 	// Create a temporary parser
 	tempParser := &Parser{
