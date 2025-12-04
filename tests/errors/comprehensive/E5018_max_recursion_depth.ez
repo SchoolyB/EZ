@@ -1,0 +1,13 @@
+/*
+ * Error Test: E5018 - max-recursion-depth
+ * Expected: "maximum recursion depth exceeded"
+ */
+import & use @std
+
+do recurse(n int) {
+    recurse(n + 1)
+}
+
+do main() {
+    recurse(0)
+}
