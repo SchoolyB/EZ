@@ -633,6 +633,15 @@ func (p *Parser) parseVarableDeclarationOrStruct() Statement {
 		stmt.Names = append(stmt.Names, &Label{Token: nameToken, Value: nameToken.Literal})
 		stmt.Name = stmt.Names[0]
 
+		// Check if this is a type-inferred assignment (const x = value)
+		// This allows: const p = new(Person) or const p = Person{...}
+		if p.peekTokenMatches(ASSIGN) {
+			p.nextToken() // consume =
+			p.nextToken() // move to value
+			stmt.Value = p.parseExpression(LOWEST)
+			return stmt
+		}
+
 		// Parse type using parseTypeName which handles qualified names (module.Type),
 		// arrays ([type], [type,size]), and maps (map[key:value])
 		p.nextToken()
