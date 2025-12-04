@@ -1,0 +1,10 @@
+/*
+ * Error Test: E2033 - reserved-param-name
+ * Expected: "'if' is a reserved keyword and cannot be used as a parameter name"
+ */
+
+do test(if int) {
+    return
+}
+
+do main() {}

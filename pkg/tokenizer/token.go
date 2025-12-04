@@ -157,3 +157,25 @@ func LookupIdentifier(ident string) TokenType {
 	}
 	return IDENT
 }
+
+// IsKeyword returns true if the token type is a keyword
+func IsKeyword(t TokenType) bool {
+	switch t {
+	case TEMP, CONST, DO, RETURN, IF, OR_KW, OTHERWISE,
+		FOR, FOR_EACH, AS_LONG_AS, LOOP, BREAK, CONTINUE,
+		IN, NOT_IN, RANGE, IMPORT, USING, STRUCT, ENUM,
+		NIL, NEW, TRUE, FALSE, IGNORE, MODULE, PRIVATE, FROM, USE:
+		return true
+	}
+	return false
+}
+
+// KeywordLiteral returns the string literal for a keyword token type
+func KeywordLiteral(t TokenType) string {
+	for literal, tokType := range keywords {
+		if tokType == t {
+			return literal
+		}
+	}
+	return string(t)
+}

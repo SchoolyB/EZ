@@ -706,6 +706,13 @@ func (p *Parser) parseVarableDeclaration() *VariableDeclaration {
 	if p.peekTokenMatches(IGNORE) {
 		p.nextToken()
 		stmt.Names = append(stmt.Names, &Label{Token: p.currentToken, Value: "@ignore"})
+	} else if IsKeyword(p.peekToken.Type) {
+		// If user tries to use a keyword as variable name, give helpful error
+		keyword := KeywordLiteral(p.peekToken.Type)
+		msg := fmt.Sprintf("'%s' is a reserved keyword and cannot be used as a variable name", keyword)
+		p.errors = append(p.errors, msg)
+		p.addEZError(errors.E2020, msg, p.peekToken)
+		return nil
 	} else if !p.expectPeek(IDENT) {
 		return nil
 	} else {
@@ -734,6 +741,13 @@ func (p *Parser) parseVarableDeclaration() *VariableDeclaration {
 
 		if p.currentTokenMatches(IGNORE) {
 			stmt.Names = append(stmt.Names, &Label{Token: p.currentToken, Value: "@ignore"})
+		} else if IsKeyword(p.currentToken.Type) {
+			// If user tries to use a keyword as variable name, give helpful error
+			keyword := KeywordLiteral(p.currentToken.Type)
+			msg := fmt.Sprintf("'%s' is a reserved keyword and cannot be used as a variable name", keyword)
+			p.errors = append(p.errors, msg)
+			p.addEZError(errors.E2020, msg, p.currentToken)
+			return nil
 		} else if p.currentTokenMatches(IDENT) {
 			name := p.currentToken.Literal
 			// Check for reserved names
@@ -1051,6 +1065,14 @@ func (p *Parser) parseForStatement() *ForStatement {
 		p.nextToken() // consume '('
 	}
 
+	if IsKeyword(p.peekToken.Type) {
+		// If user tries to use a keyword as loop variable, give helpful error
+		keyword := KeywordLiteral(p.peekToken.Type)
+		msg := fmt.Sprintf("'%s' is a reserved keyword and cannot be used as a variable name", keyword)
+		p.errors = append(p.errors, msg)
+		p.addEZError(errors.E2020, msg, p.peekToken)
+		return nil
+	}
 	if !p.expectPeek(IDENT) {
 		return nil
 	}
@@ -1095,6 +1117,14 @@ func (p *Parser) parseForEachStatement() *ForEachStatement {
 		p.nextToken() // consume '('
 	}
 
+	if IsKeyword(p.peekToken.Type) {
+		// If user tries to use a keyword as loop variable, give helpful error
+		keyword := KeywordLiteral(p.peekToken.Type)
+		msg := fmt.Sprintf("'%s' is a reserved keyword and cannot be used as a variable name", keyword)
+		p.errors = append(p.errors, msg)
+		p.addEZError(errors.E2020, msg, p.peekToken)
+		return nil
+	}
 	if !p.expectPeek(IDENT) {
 		return nil
 	}
@@ -1169,6 +1199,14 @@ func (p *Parser) parseFunctionDeclarationWithAttrs(attrs []*Attribute) *Function
 		return nil
 	}
 
+	if IsKeyword(p.peekToken.Type) {
+		// If user tries to use a keyword as function name, give helpful error
+		keyword := KeywordLiteral(p.peekToken.Type)
+		msg := fmt.Sprintf("'%s' is a reserved keyword and cannot be used as a function name", keyword)
+		p.errors = append(p.errors, msg)
+		p.addEZError(errors.E2021, msg, p.peekToken)
+		return nil
+	}
 	if !p.expectPeek(IDENT) {
 		return nil
 	}
@@ -1284,6 +1322,14 @@ func (p *Parser) parseFunctionParameters() []*Parameter {
 		}
 
 		// Read first parameter name
+		if IsKeyword(p.currentToken.Type) {
+			// If user tries to use a keyword as parameter name, give helpful error
+			keyword := KeywordLiteral(p.currentToken.Type)
+			msg := fmt.Sprintf("'%s' is a reserved keyword and cannot be used as a parameter name", keyword)
+			p.errors = append(p.errors, msg)
+			p.addEZError(errors.E2033, msg, p.currentToken)
+			return nil
+		}
 		if !p.currentTokenMatches(IDENT) {
 			msg := fmt.Sprintf("expected parameter name, got %s", p.currentToken.Type)
 			p.addEZError(errors.E2002, msg, p.currentToken)
@@ -1294,6 +1340,14 @@ func (p *Parser) parseFunctionParameters() []*Parameter {
 		// Strategy: collect IDENT tokens while they're followed by COMMA
 		// The last IDENT (not followed by COMMA) is the type
 		for {
+			if IsKeyword(p.currentToken.Type) {
+				// If user tries to use a keyword as parameter name, give helpful error
+				keyword := KeywordLiteral(p.currentToken.Type)
+				msg := fmt.Sprintf("'%s' is a reserved keyword and cannot be used as a parameter name", keyword)
+				p.errors = append(p.errors, msg)
+				p.addEZError(errors.E2033, msg, p.currentToken)
+				return nil
+			}
 			if !p.currentTokenMatches(IDENT) {
 				msg := fmt.Sprintf("expected parameter name, got %s", p.currentToken.Type)
 				p.addEZError(errors.E2002, msg, p.currentToken)
