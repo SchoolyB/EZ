@@ -1,0 +1,12 @@
+/*
+ * Error Test: E2037 - reserved-struct-name
+ * Expected: "struct name is reserved"
+ */
+
+const int struct {
+    x int
+}
+
+do main() {
+    println("Should not compile!")
+}

@@ -68,6 +68,12 @@ var (
 	E2030 = ErrorCode{"E2030", "expected-block", "expected block statement"}
 	E2031 = ErrorCode{"E2031", "string-enum-requires-values", "string enum needs explicit values"}
 	E2032 = ErrorCode{"E2032", "const-array-requires-size", "const array must have fixed size"}
+	E2033 = ErrorCode{"E2033", "reserved-param-name", "parameter name is reserved"}
+	E2034 = ErrorCode{"E2034", "invalid-struct-field", "invalid struct field name"}
+	E2035 = ErrorCode{"E2035", "invalid-enum-value", "invalid enum value name"}
+	E2036 = ErrorCode{"E2036", "import-inside-block", "import must be at file level"}
+	E2037 = ErrorCode{"E2037", "reserved-struct-name", "struct name is reserved"}
+	E2038 = ErrorCode{"E2038", "reserved-enum-name", "enum name is reserved"}
 )
 
 // =============================================================================
@@ -97,6 +103,7 @@ var (
 	E3021 = ErrorCode{"E3021", "byte-value-out-of-range", "byte value must be between 0 and 255"}
 	E3022 = ErrorCode{"E3022", "byte-array-element-out-of-range", "byte array element must be between 0 and 255"}
 	E3023 = ErrorCode{"E3023", "const-to-mutable-param", "cannot pass immutable variable to mutable parameter"}
+	E3024 = ErrorCode{"E3024", "missing-return-statement", "function must return a value"}
 )
 
 // =============================================================================
@@ -137,6 +144,7 @@ var (
 	E5015 = ErrorCode{"E5015", "postfix-requires-identifier", "postfix operator needs variable"}
 	E5016 = ErrorCode{"E5016", "immutable-parameter", "cannot modify read-only parameter"}
 	E5017 = ErrorCode{"E5017", "immutable-struct", "cannot modify field of const struct"}
+	E5018 = ErrorCode{"E5018", "max-recursion-depth", "maximum recursion depth exceeded"}
 )
 
 // =============================================================================

@@ -362,7 +362,7 @@ do helper() {
 }
 `
 	tc := typecheck(t, input)
-	assertHasError(t, tc, errors.E3007)
+	assertHasError(t, tc, errors.E4009)
 }
 
 func TestModuleWithoutMain(t *testing.T) {
@@ -541,7 +541,7 @@ do main() {}
 	assertHasError(t, tc, errors.E3011)
 }
 
-func TestFunctionMissingReturnWarning(t *testing.T) {
+func TestFunctionMissingReturnError(t *testing.T) {
 	input := `
 do getValue() -> int {
 	temp x int = 5
@@ -550,7 +550,7 @@ do getValue() -> int {
 do main() {}
 `
 	tc := typecheck(t, input)
-	assertHasWarning(t, tc, errors.W2003)
+	assertHasError(t, tc, errors.E3024)
 }
 
 func TestFunctionWithReturn(t *testing.T) {
@@ -1241,6 +1241,41 @@ do main() {
 	temp arr [int, 3] = {1, 2, 3}
 	temp x int = arr[0]
 	temp y int = arr[1] + arr[2]
+}
+`
+	tc := typecheck(t, input)
+	assertNoErrors(t, tc)
+}
+
+// ============================================================================
+// Bug Fix Tests - December 2025
+// ============================================================================
+
+func TestE4011_MemberAccessOnPrimitive(t *testing.T) {
+	// Test: accessing member on primitive type should error E4011
+	// Fixes #313
+	input := `
+do main() {
+	temp s = "hello"
+	temp x = s.name
+}
+`
+	tc := typecheck(t, input)
+	assertHasError(t, tc, errors.E4011)
+}
+
+func TestMemberAccessOnStructValid(t *testing.T) {
+	// Test: accessing member on struct should work
+	input := `
+const Person struct {
+	name string
+	age int
+}
+
+do main() {
+	temp p = Person{name: "Alice", age: 30}
+	temp n = p.name
+	temp a = p.age
 }
 `
 	tc := typecheck(t, input)

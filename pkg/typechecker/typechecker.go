@@ -495,8 +495,30 @@ func (tc *TypeChecker) checkFunctionDeclaration(node *ast.FunctionDeclaration) {
 		ReturnTypes: node.ReturnTypes,
 	}
 
-	// Check parameter types
+	// Check parameter types and names
 	for _, param := range node.Parameters {
+		paramName := param.Name.Value
+
+		// Check if parameter name shadows a user-defined type (struct/enum)
+		if _, exists := tc.types[paramName]; exists {
+			tc.addError(
+				errors.E2033,
+				fmt.Sprintf("'%s' is a type name and cannot be used as a parameter name", paramName),
+				param.Name.Token.Line,
+				param.Name.Token.Column,
+			)
+		}
+
+		// Check if parameter name shadows a user-defined function
+		if _, exists := tc.functions[paramName]; exists {
+			tc.addError(
+				errors.E2033,
+				fmt.Sprintf("'%s' is a function name and cannot be used as a parameter name", paramName),
+				param.Name.Token.Line,
+				param.Name.Token.Column,
+			)
+		}
+
 		if !tc.TypeExists(param.TypeName) {
 			tc.addError(
 				errors.E3010,
@@ -540,16 +562,13 @@ func (tc *TypeChecker) checkFunctionBody(node *ast.FunctionDeclaration) {
 
 	// Check if function body contains at least one return statement (for functions with return types)
 	if len(node.ReturnTypes) > 0 {
-		// Check if W2003 warning is suppressed
-		if !tc.isSuppressed("W2003", node.Attributes) {
-			if !tc.hasReturnStatement(node.Body) {
-				tc.addWarning(
-					errors.W2003,
-					fmt.Sprintf("Function '%s' declares return type(s) but has no return statement", node.Name.Value),
-					node.Name.Token.Line,
-					node.Name.Token.Column,
-				)
-			}
+		if !tc.hasReturnStatement(node.Body) {
+			tc.addError(
+				errors.E3024,
+				fmt.Sprintf("Function '%s' declares return type(s) but has no return statement", node.Name.Value),
+				node.Name.Token.Line,
+				node.Name.Token.Column,
+			)
 		}
 	}
 
@@ -561,7 +580,7 @@ func (tc *TypeChecker) checkFunctionBody(node *ast.FunctionDeclaration) {
 func (tc *TypeChecker) checkMainFunction() {
 	if _, exists := tc.functions["main"]; !exists {
 		tc.addError(
-			errors.E3007,
+			errors.E4009,
 			"Program must define a main() function",
 			1,
 			1,
@@ -577,7 +596,6 @@ func (tc *TypeChecker) isSuppressed(warningCode string, attrs []*ast.Attribute) 
 
 	// Map warning codes to their alternate names
 	alternateNames := map[string]string{
-		"W2003": "missing_return",
 		"W3003": "array_size_mismatch",
 	}
 
@@ -751,8 +769,14 @@ func (tc *TypeChecker) checkVariableDeclaration(decl *ast.VariableDeclaration) {
 		// Validate the expression itself
 		tc.checkExpression(decl.Value)
 
+		// If no declared type, infer from value and register it
 		if declaredType == "" {
-			return // No type to check against
+			inferredType, ok := tc.inferExpressionType(decl.Value)
+			if ok && inferredType != "" {
+				// Register the inferred type so future assignments are type-checked
+				tc.defineVariableWithMutability(varName, inferredType, decl.Mutable)
+			}
+			return
 		}
 
 		actualType, ok := tc.inferExpressionType(decl.Value)
@@ -992,6 +1016,48 @@ func (tc *TypeChecker) checkMemberAssignment(member *ast.MemberExpression, value
 	}
 }
 
+// checkMemberExpression validates member access expressions
+func (tc *TypeChecker) checkMemberExpression(member *ast.MemberExpression) {
+	// Get the object type
+	objType, ok := tc.inferExpressionType(member.Object)
+	if !ok {
+		return
+	}
+
+	// Skip module access - those are handled separately
+	if _, isModule := tc.modules[objType]; isModule {
+		return
+	}
+	if _, isUsedModule := tc.fileUsingModules[objType]; isUsedModule {
+		return
+	}
+
+	// Check if it's a struct type
+	structType, exists := tc.types[objType]
+	if !exists || structType.Kind != StructType {
+		// Not a struct - member access is invalid
+		line, column := tc.getExpressionPosition(member.Member)
+		tc.addError(
+			errors.E4011,
+			fmt.Sprintf("cannot access member '%s' on type '%s' (not a struct)", member.Member.Value, objType),
+			line,
+			column,
+		)
+		return
+	}
+
+	// Check if the field exists
+	if _, hasField := structType.Fields[member.Member.Value]; !hasField {
+		line, column := tc.getExpressionPosition(member.Member)
+		tc.addError(
+			errors.E4003,
+			fmt.Sprintf("struct '%s' has no field '%s'", objType, member.Member.Value),
+			line,
+			column,
+		)
+	}
+}
+
 // checkReturnStatement validates a return statement (Phase 4)
 func (tc *TypeChecker) checkReturnStatement(ret *ast.ReturnStatement, expectedTypes []string) {
 	// Validate all return value expressions
@@ -1082,6 +1148,7 @@ func (tc *TypeChecker) checkExpression(expr ast.Expression) {
 
 	case *ast.MemberExpression:
 		tc.checkExpression(e.Object)
+		tc.checkMemberExpression(e)
 
 	case *ast.ArrayValue:
 		for _, elem := range e.Elements {
