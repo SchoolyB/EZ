@@ -6,8 +6,10 @@ package stdlib
 import (
 	"fmt"
 	"os"
+	"os/exec"
 	"os/user"
 	"runtime"
+	"strings"
 
 	"github.com/marshallburns/ez/pkg/object"
 )
@@ -391,6 +393,99 @@ var OSBuiltins = map[string]*object.Builtin{
 				return &object.String{Value: "NUL"}
 			}
 			return &object.String{Value: "/dev/null"}
+		},
+	},
+
+	// ============================================================================
+	// Command Execution
+	// ============================================================================
+
+	// Runs a shell command and returns (exit_code, error)
+	// Commands run through the system shell (/bin/sh -c on Unix, cmd /c on Windows)
+	// Note: User input should be sanitized before passing to this function
+	"os.exec": {
+		Fn: func(args ...object.Object) object.Object {
+			if len(args) != 1 {
+				return &object.Error{Code: "E7001", Message: "os.exec() takes exactly 1 argument (command)"}
+			}
+			cmdStr, ok := args[0].(*object.String)
+			if !ok {
+				return &object.Error{Code: "E7003", Message: "os.exec() requires a string command"}
+			}
+
+			var cmd *exec.Cmd
+			if runtime.GOOS == "windows" {
+				cmd = exec.Command("cmd", "/c", cmdStr.Value)
+			} else {
+				cmd = exec.Command("/bin/sh", "-c", cmdStr.Value)
+			}
+
+			err := cmd.Run()
+
+			var exitCode int64 = 0
+			if err != nil {
+				if exitErr, ok := err.(*exec.ExitError); ok {
+					exitCode = int64(exitErr.ExitCode())
+				} else {
+					// Command failed to start entirely
+					return &object.ReturnValue{Values: []object.Object{
+						&object.Integer{Value: -1},
+						createOSError("E7030", fmt.Sprintf("command failed to execute: %s", err.Error())),
+					}}
+				}
+			}
+
+			return &object.ReturnValue{Values: []object.Object{
+				&object.Integer{Value: exitCode},
+				object.NIL,
+			}}
+		},
+	},
+
+	// Runs a shell command and returns (output, error)
+	// Captures both stdout and stderr combined
+	// Output has trailing whitespace trimmed
+	// Note: User input should be sanitized before passing to this function
+	"os.exec_output": {
+		Fn: func(args ...object.Object) object.Object {
+			if len(args) != 1 {
+				return &object.Error{Code: "E7001", Message: "os.exec_output() takes exactly 1 argument (command)"}
+			}
+			cmdStr, ok := args[0].(*object.String)
+			if !ok {
+				return &object.Error{Code: "E7003", Message: "os.exec_output() requires a string command"}
+			}
+
+			var cmd *exec.Cmd
+			if runtime.GOOS == "windows" {
+				cmd = exec.Command("cmd", "/c", cmdStr.Value)
+			} else {
+				cmd = exec.Command("/bin/sh", "-c", cmdStr.Value)
+			}
+
+			output, err := cmd.CombinedOutput()
+			outputStr := strings.TrimRight(string(output), " \t\n\r")
+
+			if err != nil {
+				if _, ok := err.(*exec.ExitError); ok {
+					// Command ran but returned non-zero exit code
+					// Still return output with error
+					return &object.ReturnValue{Values: []object.Object{
+						&object.String{Value: outputStr},
+						createOSError("E7031", fmt.Sprintf("command exited with error: %s", err.Error())),
+					}}
+				}
+				// Command failed to start entirely
+				return &object.ReturnValue{Values: []object.Object{
+					&object.String{Value: ""},
+					createOSError("E7030", fmt.Sprintf("command failed to execute: %s", err.Error())),
+				}}
+			}
+
+			return &object.ReturnValue{Values: []object.Object{
+				&object.String{Value: outputStr},
+				object.NIL,
+			}}
 		},
 	},
 }
