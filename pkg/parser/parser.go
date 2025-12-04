@@ -1694,6 +1694,14 @@ func (p *Parser) parseEnumDeclaration() *EnumDeclaration {
 		enumValue := &EnumValue{}
 		enumValue.Name = &Label{Token: p.currentToken, Value: p.currentToken.Literal}
 
+		// Check for reserved names
+		if isReservedName(enumValue.Name.Value) {
+			msg := fmt.Sprintf("'%s' is a reserved keyword and cannot be used as an enum value name", enumValue.Name.Value)
+			p.errors = append(p.errors, msg)
+			p.addEZError(errors.E2035, msg, enumValue.Name.Token)
+			return nil
+		}
+
 		// Check for duplicate value names
 		if prevToken, exists := valueNames[enumValue.Name.Value]; exists {
 			msg := fmt.Sprintf("duplicate value name '%s' in enum '%s'", enumValue.Name.Value, stmt.Name.Value)
