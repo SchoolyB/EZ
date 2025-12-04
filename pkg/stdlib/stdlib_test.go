@@ -571,6 +571,59 @@ func TestMathConstants(t *testing.T) {
 	testFloatObject(t, result, math.E)
 }
 
+func TestMathLogBase(t *testing.T) {
+	logBaseFn := MathBuiltins["math.log_base"].Fn
+
+	// log_base(8, 2) = 3 (since 2^3 = 8)
+	result := logBaseFn(&object.Integer{Value: 8}, &object.Integer{Value: 2})
+	testFloatObject(t, result, 3.0)
+
+	// log_base(1000, 10) = 3 (since 10^3 = 1000)
+	result = logBaseFn(&object.Integer{Value: 1000}, &object.Integer{Value: 10})
+	testFloatObject(t, result, 3.0)
+
+	// log_base(27, 3) = 3 (since 3^3 = 27)
+	result = logBaseFn(&object.Integer{Value: 27}, &object.Integer{Value: 3})
+	testFloatObject(t, result, 3.0)
+
+	// log_base(1, any) = 0
+	result = logBaseFn(&object.Integer{Value: 1}, &object.Integer{Value: 5})
+	testFloatObject(t, result, 0.0)
+}
+
+func TestMathLogBaseErrors(t *testing.T) {
+	logBaseFn := MathBuiltins["math.log_base"].Fn
+
+	// Value <= 0
+	result := logBaseFn(&object.Integer{Value: 0}, &object.Integer{Value: 2})
+	if !isErrorObject(result) {
+		t.Error("expected error for value <= 0")
+	}
+
+	result = logBaseFn(&object.Integer{Value: -5}, &object.Integer{Value: 2})
+	if !isErrorObject(result) {
+		t.Error("expected error for negative value")
+	}
+
+	// Base <= 0
+	result = logBaseFn(&object.Integer{Value: 8}, &object.Integer{Value: 0})
+	if !isErrorObject(result) {
+		t.Error("expected error for base <= 0")
+	}
+
+	// Base = 1 (undefined)
+	result = logBaseFn(&object.Integer{Value: 8}, &object.Integer{Value: 1})
+	if !isErrorObject(result) {
+		t.Error("expected error for base = 1")
+	}
+
+	// Wrong number of args
+	result = logBaseFn(&object.Integer{Value: 8})
+	if !isErrorObject(result) {
+		t.Error("expected error for 1 argument")
+	}
+}
+
 // ============================================================================
 // Arrays Module Tests
 // ============================================================================
