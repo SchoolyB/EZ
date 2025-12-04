@@ -1650,7 +1650,7 @@ func (p *Parser) parseEnumDeclaration() *EnumDeclaration {
 	if isReservedName(p.currentToken.Literal) {
 		msg := fmt.Sprintf("'%s' is a reserved keyword and cannot be used as an enum name", p.currentToken.Literal)
 		p.errors = append(p.errors, msg)
-		p.addEZError(errors.E2022, msg, p.currentToken)
+		p.addEZError(errors.E2038, msg, p.currentToken)
 		return nil
 	}
 
@@ -1885,7 +1885,7 @@ func (p *Parser) parseStructDeclaration() *StructDeclaration {
 	if isReservedName(p.currentToken.Literal) {
 		msg := fmt.Sprintf("'%s' is a reserved keyword and cannot be used as a struct name", p.currentToken.Literal)
 		p.errors = append(p.errors, msg)
-		p.addEZError(errors.E2022, msg, p.currentToken)
+		p.addEZError(errors.E2037, msg, p.currentToken)
 		return nil
 	}
 
