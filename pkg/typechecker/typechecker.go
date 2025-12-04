@@ -747,8 +747,14 @@ func (tc *TypeChecker) checkVariableDeclaration(decl *ast.VariableDeclaration) {
 		// Validate the expression itself
 		tc.checkExpression(decl.Value)
 
+		// If no declared type, infer from value and register it
 		if declaredType == "" {
-			return // No type to check against
+			inferredType, ok := tc.inferExpressionType(decl.Value)
+			if ok && inferredType != "" {
+				// Register the inferred type so future assignments are type-checked
+				tc.defineVariableWithMutability(varName, inferredType, decl.Mutable)
+			}
+			return
 		}
 
 		actualType, ok := tc.inferExpressionType(decl.Value)
