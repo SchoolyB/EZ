@@ -1246,3 +1246,38 @@ do main() {
 	tc := typecheck(t, input)
 	assertNoErrors(t, tc)
 }
+
+// ============================================================================
+// Bug Fix Tests - December 2025
+// ============================================================================
+
+func TestE4011_MemberAccessOnPrimitive(t *testing.T) {
+	// Test: accessing member on primitive type should error E4011
+	// Fixes #313
+	input := `
+do main() {
+	temp s = "hello"
+	temp x = s.name
+}
+`
+	tc := typecheck(t, input)
+	assertHasError(t, tc, errors.E4011)
+}
+
+func TestMemberAccessOnStructValid(t *testing.T) {
+	// Test: accessing member on struct should work
+	input := `
+const Person struct {
+	name string
+	age int
+}
+
+do main() {
+	temp p = Person{name: "Alice", age: 30}
+	temp n = p.name
+	temp a = p.age
+}
+`
+	tc := typecheck(t, input)
+	assertNoErrors(t, tc)
+}
