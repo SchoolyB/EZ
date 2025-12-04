@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.13.0](https://github.com/SchoolyB/EZ/compare/v0.12.0...v0.13.0) (2025-12-04)
+
+
+### Features
+
+* add error() constructor for user-defined errors ([95a85fe](https://github.com/SchoolyB/EZ/commit/95a85fed06360177d671cb18dedd1bf55e465be2))
+* add error() constructor for user-defined errors ([#292](https://github.com/SchoolyB/EZ/issues/292)) ([4f2bc5e](https://github.com/SchoolyB/EZ/commit/4f2bc5eed24b63d31d9b3bc76c44035260a74434))
+
 ## [0.12.0](https://github.com/SchoolyB/EZ/compare/v0.11.3...v0.12.0) (2025-12-04)
 
 
