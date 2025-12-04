@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.12.0](https://github.com/SchoolyB/EZ/compare/v0.11.3...v0.12.0) (2025-12-04)
+
+
+### Features
+
+* allow type inference for const declarations ([279afc8](https://github.com/SchoolyB/EZ/commit/279afc80d91d072a3b35aa85372bd3ea9ae6c893))
+* allow type inference for const declarations ([#302](https://github.com/SchoolyB/EZ/issues/302)) ([ff94be9](https://github.com/SchoolyB/EZ/commit/ff94be94f855368dc08f67efe0cee3d398a0b8df))
+
 ## [0.11.3](https://github.com/SchoolyB/EZ/compare/v0.11.2...v0.11.3) (2025-12-04)
 
 
