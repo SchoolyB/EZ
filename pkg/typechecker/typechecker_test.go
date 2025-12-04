@@ -541,7 +541,7 @@ do main() {}
 	assertHasError(t, tc, errors.E3011)
 }
 
-func TestFunctionMissingReturnWarning(t *testing.T) {
+func TestFunctionMissingReturnError(t *testing.T) {
 	input := `
 do getValue() -> int {
 	temp x int = 5
@@ -550,7 +550,7 @@ do getValue() -> int {
 do main() {}
 `
 	tc := typecheck(t, input)
-	assertHasWarning(t, tc, errors.W2003)
+	assertHasError(t, tc, errors.E3024)
 }
 
 func TestFunctionWithReturn(t *testing.T) {

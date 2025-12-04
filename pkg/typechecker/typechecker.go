@@ -540,16 +540,13 @@ func (tc *TypeChecker) checkFunctionBody(node *ast.FunctionDeclaration) {
 
 	// Check if function body contains at least one return statement (for functions with return types)
 	if len(node.ReturnTypes) > 0 {
-		// Check if W2003 warning is suppressed
-		if !tc.isSuppressed("W2003", node.Attributes) {
-			if !tc.hasReturnStatement(node.Body) {
-				tc.addWarning(
-					errors.W2003,
-					fmt.Sprintf("Function '%s' declares return type(s) but has no return statement", node.Name.Value),
-					node.Name.Token.Line,
-					node.Name.Token.Column,
-				)
-			}
+		if !tc.hasReturnStatement(node.Body) {
+			tc.addError(
+				errors.E3024,
+				fmt.Sprintf("Function '%s' declares return type(s) but has no return statement", node.Name.Value),
+				node.Name.Token.Line,
+				node.Name.Token.Column,
+			)
 		}
 	}
 
@@ -577,7 +574,6 @@ func (tc *TypeChecker) isSuppressed(warningCode string, attrs []*ast.Attribute) 
 
 	// Map warning codes to their alternate names
 	alternateNames := map[string]string{
-		"W2003": "missing_return",
 		"W3003": "array_size_mismatch",
 	}
 
