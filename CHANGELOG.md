@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.14.2](https://github.com/SchoolyB/EZ/compare/v0.14.1...v0.14.2) (2025-12-05)
+
+
+### Bug Fixes
+
+* **typechecker:** handle array and map types in struct fields ([0455540](https://github.com/SchoolyB/EZ/commit/04555409b90e3bcc90825f2915348eecc84e6b40))
+* **typechecker:** handle array and map types in struct fields ([0d1cd53](https://github.com/SchoolyB/EZ/commit/0d1cd53cd6d738c969c4beccfad56ba49f18ddd1))
+
 ## [0.14.1](https://github.com/SchoolyB/EZ/compare/v0.14.0...v0.14.1) (2025-12-04)
 
 
