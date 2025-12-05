@@ -1576,3 +1576,61 @@ do main() {
 	tc := typecheck(t, input)
 	assertNoErrors(t, tc)
 }
+
+// ============================================================================
+// Error Location Tests (Fixes #345)
+// ============================================================================
+
+func TestTypeErrorLocationNilInIfCondition(t *testing.T) {
+	// Test that type errors report correct source location
+	// Fixes #345
+	input := `do main() {
+	if nil {
+		temp x int = 1
+	}
+}`
+	tc := typecheck(t, input)
+
+	if !tc.Errors().HasErrors() {
+		t.Fatal("expected type error for nil in if condition")
+	}
+
+	// Check that error is NOT at line 1
+	errs := tc.Errors()
+	for _, err := range errs.Errors {
+		if err.ErrorCode == errors.E3001 {
+			if err.Line == 1 {
+				t.Errorf("error should not be at line 1, got line %d", err.Line)
+			}
+			if err.Line != 2 {
+				t.Errorf("error should be at line 2, got line %d", err.Line)
+			}
+			return
+		}
+	}
+	t.Error("expected error E3001 not found")
+}
+
+func TestTypeErrorLocationMapValue(t *testing.T) {
+	// Test that map value errors report correct location
+	input := `do main() {
+	if {"a": 1} {
+		temp x int = 1
+	}
+}`
+	tc := typecheck(t, input)
+
+	if !tc.Errors().HasErrors() {
+		t.Fatal("expected type error for map in if condition")
+	}
+
+	errs := tc.Errors()
+	for _, err := range errs.Errors {
+		if err.ErrorCode == errors.E3001 {
+			if err.Line == 1 {
+				t.Errorf("error should not be at line 1, got line %d", err.Line)
+			}
+			return
+		}
+	}
+}
