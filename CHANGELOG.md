@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.14.5](https://github.com/SchoolyB/EZ/compare/v0.14.4...v0.14.5) (2025-12-05)
+
+
+### Bug Fixes
+
+* **evaluator:** isTruthy now checks Boolean.Value instead of pointer identity ([#354](https://github.com/SchoolyB/EZ/issues/354)) ([18edd78](https://github.com/SchoolyB/EZ/commit/18edd78036eb4c57637303283729496f2d3c03b1))
+
 ## [0.14.4](https://github.com/SchoolyB/EZ/compare/v0.14.3...v0.14.4) (2025-12-05)
 
 
