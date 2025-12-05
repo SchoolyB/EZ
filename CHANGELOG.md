@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.14.9](https://github.com/SchoolyB/EZ/compare/v0.14.8...v0.14.9) (2025-12-05)
+
+
+### Bug Fixes
+
+* **interpreter:** nested mutable parameter forwarding now works correctly ([#367](https://github.com/SchoolyB/EZ/issues/367)) ([5762939](https://github.com/SchoolyB/EZ/commit/57629390fb7bd4a9c53b55d9a259f853841de901)), closes [#338](https://github.com/SchoolyB/EZ/issues/338)
+
 ## [0.14.8](https://github.com/SchoolyB/EZ/compare/v0.14.7...v0.14.8) (2025-12-05)
 
 
