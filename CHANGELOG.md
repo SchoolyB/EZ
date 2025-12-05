@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.14.3](https://github.com/SchoolyB/EZ/compare/v0.14.2...v0.14.3) (2025-12-05)
+
+
+### Bug Fixes
+
+* **evaluator:** implement short-circuit evaluation for && and || ([a9e4fe1](https://github.com/SchoolyB/EZ/commit/a9e4fe13877775af1a2f7859cc218484a31909b2))
+* **evaluator:** implement short-circuit evaluation for && and || ([2f6f0a6](https://github.com/SchoolyB/EZ/commit/2f6f0a6bdc10484e58ade9b54c2a45ca4acd3a25))
+
 ## [0.14.2](https://github.com/SchoolyB/EZ/compare/v0.14.1...v0.14.2) (2025-12-05)
 
 
