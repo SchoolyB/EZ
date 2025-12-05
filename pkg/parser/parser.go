@@ -2570,6 +2570,20 @@ func (p *Parser) parsePrefixExpression() Expression {
 		Operator: p.currentToken.Literal,
 	}
 
+	// Special case for minimum int64: -9223372036854775808
+	// This value can't be parsed as a positive int64 first then negated,
+	// because 9223372036854775808 overflows int64.
+	if expression.Operator == "-" && p.peekTokenMatches(INT) {
+		cleanedLiteral := stripUnderscores(p.peekToken.Literal)
+		if cleanedLiteral == "9223372036854775808" {
+			p.nextToken() // consume the integer token
+			return &IntegerValue{
+				Token: p.currentToken,
+				Value: -9223372036854775808, // math.MinInt64
+			}
+		}
+	}
+
 	p.nextToken()
 	expression.Right = p.parseExpression(PREFIX)
 
