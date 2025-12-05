@@ -2073,3 +2073,27 @@ func TestReservedEnumName(t *testing.T) {
 		t.Error("expected error for reserved enum name")
 	}
 }
+
+func TestEnumMemberInIfCondition(t *testing.T) {
+	// Test: enum member access in if condition should parse correctly
+	// Fixes #339
+	input := `const Color enum { Red, Green, Blue }
+do main() {
+    temp c Color = Color.Red
+    if c == Color.Red {
+        println("red")
+    }
+}`
+	l := NewLexer(input)
+	p := NewWithSource(l, input, "test.ez")
+	program := p.ParseProgram()
+
+	if p.EZErrors().HasErrors() {
+		t.Errorf("unexpected parser errors: %v", p.Errors())
+	}
+
+	// Should have parsed without errors
+	if program == nil {
+		t.Fatal("program is nil")
+	}
+}
