@@ -3171,3 +3171,111 @@ func TestCharInequality(t *testing.T) {
 	testBooleanObject(t, evaluated, true)
 }
 
+// ============================================================================
+// Short-Circuit Evaluation Tests
+// ============================================================================
+
+func TestShortCircuitAndFalseLeft(t *testing.T) {
+	// false && expr should NOT evaluate expr (short-circuit)
+	input := `
+temp call_count int = 0
+do side_effect() -> bool {
+    call_count += 1
+    return true
+}
+temp result bool = false && side_effect()
+call_count
+`
+	evaluated := testEval(input)
+	// call_count should be 0 because side_effect() should not be called
+	testIntegerObject(t, evaluated, 0)
+}
+
+func TestShortCircuitOrTrueLeft(t *testing.T) {
+	// true || expr should NOT evaluate expr (short-circuit)
+	input := `
+temp call_count int = 0
+do side_effect() -> bool {
+    call_count += 1
+    return true
+}
+temp result bool = true || side_effect()
+call_count
+`
+	evaluated := testEval(input)
+	// call_count should be 0 because side_effect() should not be called
+	testIntegerObject(t, evaluated, 0)
+}
+
+func TestShortCircuitAndTrueLeft(t *testing.T) {
+	// true && expr SHOULD evaluate expr
+	input := `
+temp call_count int = 0
+do side_effect() -> bool {
+    call_count += 1
+    return true
+}
+temp result bool = true && side_effect()
+call_count
+`
+	evaluated := testEval(input)
+	// call_count should be 1 because side_effect() was called
+	testIntegerObject(t, evaluated, 1)
+}
+
+func TestShortCircuitOrFalseLeft(t *testing.T) {
+	// false || expr SHOULD evaluate expr
+	input := `
+temp call_count int = 0
+do side_effect() -> bool {
+    call_count += 1
+    return true
+}
+temp result bool = false || side_effect()
+call_count
+`
+	evaluated := testEval(input)
+	// call_count should be 1 because side_effect() was called
+	testIntegerObject(t, evaluated, 1)
+}
+
+func TestShortCircuitAndResult(t *testing.T) {
+	// Verify correct results for && operator
+	tests := []struct {
+		input    string
+		expected bool
+	}{
+		{"false && true", false},
+		{"false && false", false},
+		{"true && true", true},
+		{"true && false", false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.input, func(t *testing.T) {
+			evaluated := testEval(tt.input)
+			testBooleanObject(t, evaluated, tt.expected)
+		})
+	}
+}
+
+func TestShortCircuitOrResult(t *testing.T) {
+	// Verify correct results for || operator
+	tests := []struct {
+		input    string
+		expected bool
+	}{
+		{"true || false", true},
+		{"true || true", true},
+		{"false || true", true},
+		{"false || false", false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.input, func(t *testing.T) {
+			evaluated := testEval(tt.input)
+			testBooleanObject(t, evaluated, tt.expected)
+		})
+	}
+}
+
