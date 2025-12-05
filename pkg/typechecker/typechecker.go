@@ -1814,6 +1814,18 @@ func (tc *TypeChecker) getExpressionPosition(expr ast.Expression) (int, int) {
 		return e.Token.Line, e.Token.Column
 	case *ast.MemberExpression:
 		return e.Token.Line, e.Token.Column
+	case *ast.NilValue:
+		return e.Token.Line, e.Token.Column
+	case *ast.MapValue:
+		return e.Token.Line, e.Token.Column
+	case *ast.StructValue:
+		return e.Token.Line, e.Token.Column
+	case *ast.NewExpression:
+		return e.Token.Line, e.Token.Column
+	case *ast.PostfixExpression:
+		return e.Token.Line, e.Token.Column
+	case *ast.RangeExpression:
+		return e.Token.Line, e.Token.Column
 	default:
 		return 1, 1
 	}
