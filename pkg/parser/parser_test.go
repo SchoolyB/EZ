@@ -2097,3 +2097,40 @@ do main() {
 		t.Fatal("program is nil")
 	}
 }
+
+func TestMinInt64Literal(t *testing.T) {
+	// Test: minimum int64 value should parse correctly
+	// Fixes #346
+	input := `temp x int = -9223372036854775808`
+	l := NewLexer(input)
+	p := NewWithSource(l, input, "test.ez")
+	program := p.ParseProgram()
+
+	if p.EZErrors().HasErrors() {
+		t.Errorf("unexpected parser errors: %v", p.Errors())
+	}
+
+	if program == nil {
+		t.Fatal("program is nil")
+	}
+
+	// Should have one statement (variable declaration)
+	if len(program.Statements) != 1 {
+		t.Fatalf("expected 1 statement, got %d", len(program.Statements))
+	}
+
+	// The value should be an IntegerValue with min int64
+	varDecl, ok := program.Statements[0].(*VariableDeclaration)
+	if !ok {
+		t.Fatalf("expected VariableDeclaration, got %T", program.Statements[0])
+	}
+
+	intVal, ok := varDecl.Value.(*IntegerValue)
+	if !ok {
+		t.Fatalf("expected IntegerValue, got %T", varDecl.Value)
+	}
+
+	if intVal.Value != -9223372036854775808 {
+		t.Errorf("expected -9223372036854775808, got %d", intVal.Value)
+	}
+}
