@@ -42,7 +42,7 @@ jobs:
   # Smart auto-merge: only auto-merge release PRs with user-facing changes
   auto-merge-release:
     needs: release-please
-    if: ${{ needs.release-please.outputs.pr && !needs.release-please.outputs.release_created }}
+    if: ${{ needs.release-please.outputs.pr }}
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
