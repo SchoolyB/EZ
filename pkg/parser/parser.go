@@ -2639,10 +2639,17 @@ func (p *Parser) parseMemberExpression(left Expression) Expression {
 	// Only if member starts with uppercase (type naming convention) AND is not all uppercase.
 	// All-uppercase names like STATUS.ACTIVE are enum members, not struct types.
 	// Struct types use PascalCase (e.g., Person, MyType).
+	// Additionally, if the object (left side) starts with uppercase, it's likely an enum
+	// access (e.g., Color.Red) not a module.TypeName struct literal.
 	memberName := exp.Member.Value
 	if p.peekTokenMatches(LBRACE) && len(memberName) > 0 && memberName[0] >= 'A' && memberName[0] <= 'Z' && !isAllUpperCase(memberName) {
 		// Build the qualified name from the member expression
 		if ident, ok := left.(*Label); ok {
+			// If the object (module name) also starts with uppercase, this is likely
+			// an enum access like Color.Red, not a struct literal like module.Person{}
+			if len(ident.Value) > 0 && ident.Value[0] >= 'A' && ident.Value[0] <= 'Z' {
+				return exp // It's an enum access, not a struct literal
+			}
 			qualifiedName := &Label{
 				Token: exp.Token,
 				Value: ident.Value + "." + memberName,
