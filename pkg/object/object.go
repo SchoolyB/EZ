@@ -125,8 +125,17 @@ func (r *Reference) Type() ObjectType { return REFERENCE_OBJ }
 func (r *Reference) Inspect() string  { return fmt.Sprintf("<ref %s>", r.Name) }
 
 // Deref returns the current value of the referenced variable
+// Recursively dereferences if the target is also a Reference (for nested mutable param forwarding)
 func (r *Reference) Deref() (Object, bool) {
-	return r.Env.Get(r.Name)
+	val, ok := r.Env.Get(r.Name)
+	if !ok {
+		return nil, false
+	}
+	// Chase through nested references
+	if ref, isRef := val.(*Reference); isRef {
+		return ref.Deref()
+	}
+	return val, ok
 }
 
 // SetValue updates the referenced variable's value
@@ -137,8 +146,13 @@ func (r *Reference) SetValue(val Object) bool {
 
 // updateRef updates a variable's value, traversing outer scopes if needed
 // This is used by Reference.SetValue to update through references
+// If the target is itself a Reference, chase through to the ultimate target
 func (e *Environment) updateRef(name string, val Object) bool {
-	if _, ok := e.store[name]; ok {
+	if current, ok := e.store[name]; ok {
+		// If current value is a Reference, chase through it
+		if ref, isRef := current.(*Reference); isRef {
+			return ref.SetValue(val)
+		}
 		e.store[name] = val
 		return true
 	}
