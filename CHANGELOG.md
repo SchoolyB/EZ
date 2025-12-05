@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.14.6](https://github.com/SchoolyB/EZ/compare/v0.14.5...v0.14.6) (2025-12-05)
+
+
+### Bug Fixes
+
+* **parser:** enum member access in if condition no longer causes parser error ([#358](https://github.com/SchoolyB/EZ/issues/358)) ([6e0c5de](https://github.com/SchoolyB/EZ/commit/6e0c5de28bc3ba4e287bd1bbbb92ac5abd126fc8))
+
 ## [0.14.5](https://github.com/SchoolyB/EZ/compare/v0.14.4...v0.14.5) (2025-12-05)
 
 
