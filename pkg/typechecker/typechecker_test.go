@@ -482,6 +482,57 @@ do main() {
 	assertNoErrors(t, tc)
 }
 
+func TestStructWithArrayField(t *testing.T) {
+	// Regression test for issue #336: typechecker crashed when accessing
+	// struct fields with array types due to nil pointer dereference
+	input := `
+const TestResult struct {
+	passed int
+	bugs [string]
+}
+
+do main() {
+	temp r TestResult = TestResult{passed: 1, bugs: {"bug1"}}
+	temp bug_list [string] = r.bugs
+}
+`
+	tc := typecheck(t, input)
+	assertNoErrors(t, tc)
+}
+
+func TestStructWithMapField(t *testing.T) {
+	// Ensure struct fields with map types also work correctly
+	input := `
+const Config struct {
+	name string
+	settings map[string:int]
+}
+
+do main() {
+	temp c Config = Config{name: "test", settings: {"a": 1}}
+	temp s map[string:int] = c.settings
+}
+`
+	tc := typecheck(t, input)
+	assertNoErrors(t, tc)
+}
+
+func TestStructWithNestedArrayField(t *testing.T) {
+	// Test nested array types in struct fields
+	input := `
+const Matrix struct {
+	rows [[int]]
+}
+
+do main() {
+	temp m Matrix = Matrix{rows: {{1, 2}, {3, 4}}}
+	temp r [[int]] = m.rows
+}
+`
+	tc := typecheck(t, input)
+	assertNoErrors(t, tc)
+}
+
 // ============================================================================
 // Enum Tests
 // ============================================================================
