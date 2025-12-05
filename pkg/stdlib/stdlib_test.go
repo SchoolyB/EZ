@@ -2101,6 +2101,190 @@ func TestArraysFill(t *testing.T) {
 	}
 }
 
+func TestArraysInsert(t *testing.T) {
+	insertFn := ArraysBuiltins["arrays.insert"].Fn
+
+	arr := &object.Array{
+		Elements: []object.Object{
+			&object.Integer{Value: 1},
+			&object.Integer{Value: 2},
+			&object.Integer{Value: 3},
+		},
+		Mutable: true,
+	}
+
+	// Insert 99 at index 1
+	result := insertFn(arr, &object.Integer{Value: 1}, &object.Integer{Value: 99})
+
+	// Should return nil (modifies in-place)
+	if result != object.NIL {
+		t.Errorf("arrays.insert() returned %T, want NIL", result)
+	}
+
+	// Array should now have 4 elements
+	if len(arr.Elements) != 4 {
+		t.Fatalf("arrays.insert() should modify array to have 4 elements, got %d", len(arr.Elements))
+	}
+
+	// Verify the elements: {1, 99, 2, 3}
+	expected := []int64{1, 99, 2, 3}
+	for i, exp := range expected {
+		intVal, ok := arr.Elements[i].(*object.Integer)
+		if !ok {
+			t.Errorf("arr[%d] is %T, want Integer", i, arr.Elements[i])
+			continue
+		}
+		if intVal.Value != exp {
+			t.Errorf("arr[%d] = %d, want %d", i, intVal.Value, exp)
+		}
+	}
+}
+
+func TestArraysInsertAtStart(t *testing.T) {
+	insertFn := ArraysBuiltins["arrays.insert"].Fn
+
+	arr := &object.Array{
+		Elements: []object.Object{
+			&object.Integer{Value: 2},
+			&object.Integer{Value: 3},
+		},
+		Mutable: true,
+	}
+
+	// Insert 1 at index 0
+	insertFn(arr, &object.Integer{Value: 0}, &object.Integer{Value: 1})
+
+	// Verify the elements: {1, 2, 3}
+	expected := []int64{1, 2, 3}
+	for i, exp := range expected {
+		intVal := arr.Elements[i].(*object.Integer)
+		if intVal.Value != exp {
+			t.Errorf("arr[%d] = %d, want %d", i, intVal.Value, exp)
+		}
+	}
+}
+
+func TestArraysInsertAtEnd(t *testing.T) {
+	insertFn := ArraysBuiltins["arrays.insert"].Fn
+
+	arr := &object.Array{
+		Elements: []object.Object{
+			&object.Integer{Value: 1},
+			&object.Integer{Value: 2},
+		},
+		Mutable: true,
+	}
+
+	// Insert 3 at end (index 2)
+	insertFn(arr, &object.Integer{Value: 2}, &object.Integer{Value: 3})
+
+	// Verify the elements: {1, 2, 3}
+	expected := []int64{1, 2, 3}
+	for i, exp := range expected {
+		intVal := arr.Elements[i].(*object.Integer)
+		if intVal.Value != exp {
+			t.Errorf("arr[%d] = %d, want %d", i, intVal.Value, exp)
+		}
+	}
+}
+
+func TestArraysInsertImmutable(t *testing.T) {
+	insertFn := ArraysBuiltins["arrays.insert"].Fn
+
+	arr := &object.Array{
+		Elements: []object.Object{&object.Integer{Value: 1}},
+		Mutable:  false,
+	}
+
+	result := insertFn(arr, &object.Integer{Value: 0}, &object.Integer{Value: 99})
+
+	if !isErrorObject(result) {
+		t.Error("expected error for immutable array")
+	}
+}
+
+func TestArraysRemove(t *testing.T) {
+	removeFn := ArraysBuiltins["arrays.remove"].Fn
+
+	arr := &object.Array{
+		Elements: []object.Object{
+			&object.Integer{Value: 1},
+			&object.Integer{Value: 2},
+			&object.Integer{Value: 3},
+			&object.Integer{Value: 2},
+			&object.Integer{Value: 4},
+		},
+		Mutable: true,
+	}
+
+	// Remove first occurrence of 2
+	result := removeFn(arr, &object.Integer{Value: 2})
+
+	// Should return nil (modifies in-place)
+	if result != object.NIL {
+		t.Errorf("arrays.remove() returned %T, want NIL", result)
+	}
+
+	// Array should now have 4 elements
+	if len(arr.Elements) != 4 {
+		t.Fatalf("arrays.remove() should modify array to have 4 elements, got %d", len(arr.Elements))
+	}
+
+	// Verify the elements: {1, 3, 2, 4} (first 2 removed)
+	expected := []int64{1, 3, 2, 4}
+	for i, exp := range expected {
+		intVal, ok := arr.Elements[i].(*object.Integer)
+		if !ok {
+			t.Errorf("arr[%d] is %T, want Integer", i, arr.Elements[i])
+			continue
+		}
+		if intVal.Value != exp {
+			t.Errorf("arr[%d] = %d, want %d", i, intVal.Value, exp)
+		}
+	}
+}
+
+func TestArraysRemoveNotFound(t *testing.T) {
+	removeFn := ArraysBuiltins["arrays.remove"].Fn
+
+	arr := &object.Array{
+		Elements: []object.Object{
+			&object.Integer{Value: 1},
+			&object.Integer{Value: 2},
+			&object.Integer{Value: 3},
+		},
+		Mutable: true,
+	}
+
+	// Remove non-existent element
+	result := removeFn(arr, &object.Integer{Value: 99})
+
+	// Should return nil (no error)
+	if result != object.NIL {
+		t.Errorf("arrays.remove() returned %T, want NIL", result)
+	}
+
+	// Array should remain unchanged
+	if len(arr.Elements) != 3 {
+		t.Errorf("arrays.remove() should not change array length, got %d", len(arr.Elements))
+	}
+}
+
+func TestArraysRemoveImmutable(t *testing.T) {
+	removeFn := ArraysBuiltins["arrays.remove"].Fn
+
+	arr := &object.Array{
+		Elements: []object.Object{&object.Integer{Value: 1}},
+		Mutable:  false,
+	}
+
+	result := removeFn(arr, &object.Integer{Value: 1})
+
+	if !isErrorObject(result) {
+		t.Error("expected error for immutable array")
+	}
+}
+
 // ============================================================================
 // More Math Module Tests
 // ============================================================================
