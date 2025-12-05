@@ -231,3 +231,107 @@ func TestKeywordCount(t *testing.T) {
 		t.Errorf("Keyword count = %d, want %d", actualCount, expectedCount)
 	}
 }
+
+// TestIsKeyword tests the IsKeyword function
+func TestIsKeyword(t *testing.T) {
+	// All keyword token types should return true
+	keywordTypes := []TokenType{
+		TEMP, CONST, DO, RETURN, IF, OR_KW, OTHERWISE,
+		FOR, FOR_EACH, AS_LONG_AS, LOOP, BREAK, CONTINUE,
+		IN, NOT_IN, RANGE, IMPORT, USING, STRUCT, ENUM,
+		NIL, NEW, TRUE, FALSE, IGNORE, MODULE, PRIVATE, FROM, USE,
+	}
+
+	for _, tt := range keywordTypes {
+		t.Run("keyword_"+string(tt), func(t *testing.T) {
+			if !IsKeyword(tt) {
+				t.Errorf("IsKeyword(%q) = false, want true", tt)
+			}
+		})
+	}
+
+	// Non-keyword token types should return false
+	nonKeywordTypes := []TokenType{
+		ILLEGAL, EOF, IDENT, INT, FLOAT, STRING, CHAR,
+		ASSIGN, PLUS, MINUS, BANG, ASTERISK, SLASH, PERCENT,
+		LT, GT, EQ, NOT_EQ, LT_EQ, GT_EQ,
+		PLUS_ASSIGN, MINUS_ASSIGN, ASTERISK_ASSIGN, SLASH_ASSIGN, PERCENT_ASSIGN,
+		INCREMENT, DECREMENT, AND, OR,
+		COMMA, COLON, SEMICOLON, NEWLINE,
+		LPAREN, RPAREN, LBRACE, RBRACE, LBRACKET, RBRACKET,
+		ARROW, DOT, AT, AMPERSAND, SUPPRESS,
+	}
+
+	for _, tt := range nonKeywordTypes {
+		t.Run("non_keyword_"+string(tt), func(t *testing.T) {
+			if IsKeyword(tt) {
+				t.Errorf("IsKeyword(%q) = true, want false", tt)
+			}
+		})
+	}
+}
+
+// TestKeywordLiteral tests the KeywordLiteral function
+func TestKeywordLiteral(t *testing.T) {
+	tests := []struct {
+		tokenType TokenType
+		expected  string
+	}{
+		{TEMP, "temp"},
+		{CONST, "const"},
+		{DO, "do"},
+		{RETURN, "return"},
+		{IF, "if"},
+		{OR_KW, "or"},
+		{OTHERWISE, "otherwise"},
+		{FOR, "for"},
+		{FOR_EACH, "for_each"},
+		{AS_LONG_AS, "as_long_as"},
+		{LOOP, "loop"},
+		{BREAK, "break"},
+		{CONTINUE, "continue"},
+		{IN, "in"},
+		{NOT_IN, "not_in"},
+		{RANGE, "range"},
+		{IMPORT, "import"},
+		{USING, "using"},
+		{STRUCT, "struct"},
+		{ENUM, "enum"},
+		{NIL, "nil"},
+		{NEW, "new"},
+		{TRUE, "true"},
+		{FALSE, "false"},
+		{IGNORE, "@ignore"},
+		{MODULE, "module"},
+		{PRIVATE, "private"},
+		{FROM, "from"},
+		{USE, "use"},
+	}
+
+	for _, tt := range tests {
+		t.Run(string(tt.tokenType), func(t *testing.T) {
+			got := KeywordLiteral(tt.tokenType)
+			if got != tt.expected {
+				t.Errorf("KeywordLiteral(%q) = %q, want %q", tt.tokenType, got, tt.expected)
+			}
+		})
+	}
+}
+
+// TestKeywordLiteralNonKeyword tests KeywordLiteral with non-keyword tokens
+func TestKeywordLiteralNonKeyword(t *testing.T) {
+	// Non-keywords should return their string representation
+	nonKeywords := []TokenType{
+		IDENT, INT, FLOAT, STRING, PLUS, MINUS, ASSIGN,
+	}
+
+	for _, tt := range nonKeywords {
+		t.Run("non_keyword_"+string(tt), func(t *testing.T) {
+			got := KeywordLiteral(tt)
+			expected := string(tt)
+			if got != expected {
+				t.Errorf("KeywordLiteral(%q) = %q, want %q", tt, got, expected)
+			}
+		})
+	}
+}

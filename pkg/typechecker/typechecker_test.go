@@ -1281,3 +1281,247 @@ do main() {
 	tc := typecheck(t, input)
 	assertNoErrors(t, tc)
 }
+
+// ============================================================================
+// ForEach Statement Tests
+// ============================================================================
+
+func TestForEachStatementArray(t *testing.T) {
+	input := `
+do main() {
+	temp nums [int] = {1, 2, 3}
+	temp sum int = 0
+	for_each n in nums {
+		sum = sum + n
+	}
+}
+`
+	tc := typecheck(t, input)
+	assertNoErrors(t, tc)
+}
+
+func TestForEachStatementString(t *testing.T) {
+	input := `
+do main() {
+	temp str string = "hello"
+	temp count int = 0
+	for_each c in str {
+		count = count + 1
+	}
+}
+`
+	tc := typecheck(t, input)
+	assertNoErrors(t, tc)
+}
+
+func TestForEachStatementMap(t *testing.T) {
+	input := `
+do main() {
+	temp m map[string:int] = {"a": 1, "b": 2}
+	for_each k in m {
+	}
+}
+`
+	tc := typecheck(t, input)
+	assertNoErrors(t, tc)
+}
+
+// ============================================================================
+// Loop Statement Tests
+// ============================================================================
+
+func TestLoopStatement(t *testing.T) {
+	input := `
+do main() {
+	temp count int = 0
+	loop {
+		count = count + 1
+		if count == 5 {
+			break
+		}
+	}
+}
+`
+	tc := typecheck(t, input)
+	assertNoErrors(t, tc)
+}
+
+func TestLoopStatementWithContinue(t *testing.T) {
+	input := `
+do main() {
+	temp count int = 0
+	loop {
+		count = count + 1
+		if count == 3 {
+			continue
+		}
+		if count == 5 {
+			break
+		}
+	}
+}
+`
+	tc := typecheck(t, input)
+	assertNoErrors(t, tc)
+}
+
+// ============================================================================
+// Stdlib Call Tests
+// ============================================================================
+
+func TestMathModuleCall(t *testing.T) {
+	input := `
+import @math
+using math
+
+do main() {
+	temp x float = math.sqrt(16.0)
+	temp y float = math.abs(-5.0)
+	temp z float = math.pow(2.0, 3.0)
+}
+`
+	tc := typecheck(t, input)
+	assertNoErrors(t, tc)
+}
+
+func TestArraysModuleCall(t *testing.T) {
+	input := `
+import @arrays
+using arrays
+
+do main() {
+	temp nums [int] = {1, 2, 3}
+	temp first int = arrays.first(nums)
+	temp last int = arrays.last(nums)
+	temp rev [int] = arrays.reverse(nums)
+}
+`
+	tc := typecheck(t, input)
+	assertNoErrors(t, tc)
+}
+
+func TestStringsModuleCall(t *testing.T) {
+	input := `
+import @strings
+using strings
+
+do main() {
+	temp s string = "hello"
+	temp upper string = strings.upper(s)
+	temp lower string = strings.lower(s)
+	temp trimmed string = strings.trim("  hello  ")
+}
+`
+	tc := typecheck(t, input)
+	assertNoErrors(t, tc)
+}
+
+func TestTimeModuleCall(t *testing.T) {
+	input := `
+import @time
+using time
+
+do main() {
+	temp year int = time.year()
+	temp month int = time.month()
+	temp day int = time.day()
+}
+`
+	tc := typecheck(t, input)
+	assertNoErrors(t, tc)
+}
+
+func TestMapsModuleCall(t *testing.T) {
+	input := `
+import @maps
+using maps
+
+do main() {
+	temp m map[string:int] = {"a": 1, "b": 2}
+	temp keys [string] = maps.keys(m)
+	temp values [int] = maps.values(m)
+	temp has bool = maps.has(m, "a")
+}
+`
+	tc := typecheck(t, input)
+	assertNoErrors(t, tc)
+}
+
+// ============================================================================
+// Prefix Expression Tests
+// ============================================================================
+
+func TestPrefixExpressionNot(t *testing.T) {
+	input := `
+do main() {
+	temp flag bool = true
+	temp negated bool = !flag
+}
+`
+	tc := typecheck(t, input)
+	assertNoErrors(t, tc)
+}
+
+func TestPrefixExpressionNegation(t *testing.T) {
+	input := `
+do main() {
+	temp x int = 5
+	temp neg int = -x
+}
+`
+	tc := typecheck(t, input)
+	assertNoErrors(t, tc)
+}
+
+// ============================================================================
+// Enum Declaration Tests
+// ============================================================================
+
+func TestEnumDeclaration(t *testing.T) {
+	input := `
+const Status enum {
+	Pending
+	Active
+	Done
+}
+
+do main() {
+	temp s Status = Status.Active
+}
+`
+	tc := typecheck(t, input)
+	assertNoErrors(t, tc)
+}
+
+func TestEnumWithStringValues(t *testing.T) {
+	input := `
+const Status enum {
+	TODO = "todo"
+	IN_PROGRESS = "in_progress"
+	DONE = "done"
+}
+
+do main() {
+	temp s Status = Status.TODO
+}
+`
+	tc := typecheck(t, input)
+	assertNoErrors(t, tc)
+}
+
+// ============================================================================
+// Global Variable Declaration Tests
+// ============================================================================
+
+func TestGlobalVariableDeclaration(t *testing.T) {
+	input := `
+const MAX_SIZE int = 100
+temp counter int = 0
+
+do main() {
+	temp x int = MAX_SIZE
+}
+`
+	tc := typecheck(t, input)
+	assertNoErrors(t, tc)
+}

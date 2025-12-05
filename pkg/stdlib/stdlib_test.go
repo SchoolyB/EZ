@@ -1577,3 +1577,576 @@ func TestErrorConstructorErrors(t *testing.T) {
 		t.Error("expected runtime error for non-string argument")
 	}
 }
+
+// ============================================================================
+// Time Module Tests
+// ============================================================================
+
+func TestTimeNow(t *testing.T) {
+	nowFn := TimeBuiltins["time.now"].Fn
+	result := nowFn()
+
+	// time.now() returns Unix timestamp as integer
+	ts, ok := result.(*object.Integer)
+	if !ok {
+		t.Fatalf("time.now() returned %T, want Integer", result)
+	}
+	// Should be a reasonable Unix timestamp (after year 2020)
+	if ts.Value < 1577836800 { // 2020-01-01
+		t.Errorf("time.now() = %d, expected reasonable Unix timestamp", ts.Value)
+	}
+}
+
+func TestTimeYear(t *testing.T) {
+	yearFn := TimeBuiltins["time.year"].Fn
+	result := yearFn()
+
+	year, ok := result.(*object.Integer)
+	if !ok {
+		t.Fatalf("time.year() returned %T, want Integer", result)
+	}
+	// Year should be at least 2024
+	if year.Value < 2024 {
+		t.Errorf("time.year() = %d, expected >= 2024", year.Value)
+	}
+}
+
+func TestTimeMonth(t *testing.T) {
+	monthFn := TimeBuiltins["time.month"].Fn
+	result := monthFn()
+
+	month, ok := result.(*object.Integer)
+	if !ok {
+		t.Fatalf("time.month() returned %T, want Integer", result)
+	}
+	// Month should be 1-12
+	if month.Value < 1 || month.Value > 12 {
+		t.Errorf("time.month() = %d, expected 1-12", month.Value)
+	}
+}
+
+func TestTimeDay(t *testing.T) {
+	dayFn := TimeBuiltins["time.day"].Fn
+	result := dayFn()
+
+	day, ok := result.(*object.Integer)
+	if !ok {
+		t.Fatalf("time.day() returned %T, want Integer", result)
+	}
+	// Day should be 1-31
+	if day.Value < 1 || day.Value > 31 {
+		t.Errorf("time.day() = %d, expected 1-31", day.Value)
+	}
+}
+
+func TestTimeHour(t *testing.T) {
+	hourFn := TimeBuiltins["time.hour"].Fn
+	result := hourFn()
+
+	hour, ok := result.(*object.Integer)
+	if !ok {
+		t.Fatalf("time.hour() returned %T, want Integer", result)
+	}
+	// Hour should be 0-23
+	if hour.Value < 0 || hour.Value > 23 {
+		t.Errorf("time.hour() = %d, expected 0-23", hour.Value)
+	}
+}
+
+func TestTimeMinute(t *testing.T) {
+	minuteFn := TimeBuiltins["time.minute"].Fn
+	result := minuteFn()
+
+	minute, ok := result.(*object.Integer)
+	if !ok {
+		t.Fatalf("time.minute() returned %T, want Integer", result)
+	}
+	// Minute should be 0-59
+	if minute.Value < 0 || minute.Value > 59 {
+		t.Errorf("time.minute() = %d, expected 0-59", minute.Value)
+	}
+}
+
+func TestTimeSecond(t *testing.T) {
+	secondFn := TimeBuiltins["time.second"].Fn
+	result := secondFn()
+
+	second, ok := result.(*object.Integer)
+	if !ok {
+		t.Fatalf("time.second() returned %T, want Integer", result)
+	}
+	// Second should be 0-59
+	if second.Value < 0 || second.Value > 59 {
+		t.Errorf("time.second() = %d, expected 0-59", second.Value)
+	}
+}
+
+func TestTimeSleep(t *testing.T) {
+	sleepFn := TimeBuiltins["time.sleep"].Fn
+	// Just test that it doesn't error - sleep for 1ms
+	result := sleepFn(&object.Integer{Value: 1})
+	if result != object.NIL {
+		t.Errorf("time.sleep() = %v, want nil", result)
+	}
+}
+
+// ============================================================================
+// Arrays Shuffle Test
+// ============================================================================
+
+func TestArraysShuffle(t *testing.T) {
+	shuffleFn := ArraysBuiltins["arrays.shuffle"].Fn
+
+	arr := &object.Array{
+		Elements: []object.Object{
+			&object.Integer{Value: 1},
+			&object.Integer{Value: 2},
+			&object.Integer{Value: 3},
+			&object.Integer{Value: 4},
+			&object.Integer{Value: 5},
+		},
+		Mutable: true,
+	}
+
+	result := shuffleFn(arr)
+
+	shuffled, ok := result.(*object.Array)
+	if !ok {
+		t.Fatalf("arrays.shuffle() returned %T, want Array", result)
+	}
+
+	// Verify length is preserved
+	if len(shuffled.Elements) != 5 {
+		t.Errorf("arrays.shuffle() returned %d elements, want 5", len(shuffled.Elements))
+	}
+}
+
+// ============================================================================
+// Arrays Slice Test
+// ============================================================================
+
+func TestArraysSlice(t *testing.T) {
+	sliceFn := ArraysBuiltins["arrays.slice"].Fn
+
+	arr := &object.Array{
+		Elements: []object.Object{
+			&object.Integer{Value: 1},
+			&object.Integer{Value: 2},
+			&object.Integer{Value: 3},
+			&object.Integer{Value: 4},
+			&object.Integer{Value: 5},
+		},
+	}
+
+	result := sliceFn(arr, &object.Integer{Value: 1}, &object.Integer{Value: 4})
+
+	sliced, ok := result.(*object.Array)
+	if !ok {
+		t.Fatalf("arrays.slice() returned %T, want Array", result)
+	}
+
+	if len(sliced.Elements) != 3 {
+		t.Errorf("arrays.slice() returned %d elements, want 3", len(sliced.Elements))
+	}
+}
+
+// ============================================================================
+// Time Module Tests (more coverage)
+// ============================================================================
+
+func TestTimeWeekdayFunc(t *testing.T) {
+	weekdayFn := TimeBuiltins["time.weekday"].Fn
+
+	result := weekdayFn()
+
+	intVal, ok := result.(*object.Integer)
+	if !ok {
+		t.Fatalf("time.weekday() returned %T, want Integer", result)
+	}
+
+	if intVal.Value < 0 || intVal.Value > 6 {
+		t.Errorf("time.weekday() returned %d, want between 0 and 6", intVal.Value)
+	}
+}
+
+func TestTimeDayOfYear(t *testing.T) {
+	yeardayFn := TimeBuiltins["time.day_of_year"].Fn
+
+	result := yeardayFn()
+
+	intVal, ok := result.(*object.Integer)
+	if !ok {
+		t.Fatalf("time.day_of_year() returned %T, want Integer", result)
+	}
+
+	if intVal.Value < 1 || intVal.Value > 366 {
+		t.Errorf("time.day_of_year() returned %d, want between 1 and 366", intVal.Value)
+	}
+}
+
+func TestTimeNowMs(t *testing.T) {
+	nowMsFn := TimeBuiltins["time.now_ms"].Fn
+
+	result := nowMsFn()
+
+	intVal, ok := result.(*object.Integer)
+	if !ok {
+		t.Fatalf("time.now_ms() returned %T, want Integer", result)
+	}
+
+	// Millisecond timestamp should be a large positive number
+	if intVal.Value < 1000000000000 {
+		t.Errorf("time.now_ms() returned %d, want a reasonable ms timestamp", intVal.Value)
+	}
+}
+
+// ============================================================================
+// Math Module Tests (more coverage)
+// ============================================================================
+
+func TestMathClampValues(t *testing.T) {
+	clampFn := MathBuiltins["math.clamp"].Fn
+
+	result := clampFn(&object.Integer{Value: 5}, &object.Integer{Value: 0}, &object.Integer{Value: 10})
+
+	intVal, ok := result.(*object.Integer)
+	if !ok {
+		t.Fatalf("math.clamp() returned %T, want Integer", result)
+	}
+
+	if intVal.Value != 5 {
+		t.Errorf("math.clamp(5, 0, 10) returned %d, want 5", intVal.Value)
+	}
+
+	// Test clamping below minimum
+	result = clampFn(&object.Integer{Value: -5}, &object.Integer{Value: 0}, &object.Integer{Value: 10})
+	intVal, ok = result.(*object.Integer)
+	if !ok {
+		t.Fatalf("math.clamp() returned %T, want Integer", result)
+	}
+	if intVal.Value != 0 {
+		t.Errorf("math.clamp(-5, 0, 10) returned %d, want 0", intVal.Value)
+	}
+
+	// Test clamping above maximum
+	result = clampFn(&object.Integer{Value: 15}, &object.Integer{Value: 0}, &object.Integer{Value: 10})
+	intVal, ok = result.(*object.Integer)
+	if !ok {
+		t.Fatalf("math.clamp() returned %T, want Integer", result)
+	}
+	if intVal.Value != 10 {
+		t.Errorf("math.clamp(15, 0, 10) returned %d, want 10", intVal.Value)
+	}
+}
+
+func TestMathIsInfFunc(t *testing.T) {
+	isinfFn := MathBuiltins["math.is_inf"].Fn
+
+	// Test with positive infinity
+	result := isinfFn(&object.Float{Value: math.Inf(1)})
+
+	boolVal, ok := result.(*object.Boolean)
+	if !ok {
+		t.Fatalf("math.is_inf() returned %T, want Boolean", result)
+	}
+
+	if !boolVal.Value {
+		t.Errorf("math.is_inf(+Inf) returned false, want true")
+	}
+
+	// Test with normal number
+	result = isinfFn(&object.Float{Value: 3.14})
+	boolVal, ok = result.(*object.Boolean)
+	if !ok {
+		t.Fatalf("math.is_inf() returned %T, want Boolean", result)
+	}
+
+	if boolVal.Value {
+		t.Errorf("math.is_inf(3.14) returned true, want false")
+	}
+}
+
+func TestMathIsPrime(t *testing.T) {
+	isprimeFn := MathBuiltins["math.is_prime"].Fn
+
+	// Test with prime number
+	result := isprimeFn(&object.Integer{Value: 7})
+
+	boolVal, ok := result.(*object.Boolean)
+	if !ok {
+		t.Fatalf("math.is_prime() returned %T, want Boolean", result)
+	}
+
+	if !boolVal.Value {
+		t.Errorf("math.is_prime(7) returned false, want true")
+	}
+
+	// Test with non-prime
+	result = isprimeFn(&object.Integer{Value: 4})
+	boolVal, ok = result.(*object.Boolean)
+	if !ok {
+		t.Fatalf("math.is_prime() returned %T, want Boolean", result)
+	}
+
+	if boolVal.Value {
+		t.Errorf("math.is_prime(4) returned true, want false")
+	}
+}
+
+func TestMathIsEven(t *testing.T) {
+	isevenFn := MathBuiltins["math.is_even"].Fn
+
+	// Test with even number
+	result := isevenFn(&object.Integer{Value: 4})
+
+	boolVal, ok := result.(*object.Boolean)
+	if !ok {
+		t.Fatalf("math.is_even() returned %T, want Boolean", result)
+	}
+
+	if !boolVal.Value {
+		t.Errorf("math.is_even(4) returned false, want true")
+	}
+
+	// Test with odd number
+	result = isevenFn(&object.Integer{Value: 5})
+	boolVal, ok = result.(*object.Boolean)
+	if !ok {
+		t.Fatalf("math.is_even() returned %T, want Boolean", result)
+	}
+
+	if boolVal.Value {
+		t.Errorf("math.is_even(5) returned true, want false")
+	}
+}
+
+func TestMathIsOdd(t *testing.T) {
+	isoddFn := MathBuiltins["math.is_odd"].Fn
+
+	// Test with odd number
+	result := isoddFn(&object.Integer{Value: 5})
+
+	boolVal, ok := result.(*object.Boolean)
+	if !ok {
+		t.Fatalf("math.is_odd() returned %T, want Boolean", result)
+	}
+
+	if !boolVal.Value {
+		t.Errorf("math.is_odd(5) returned false, want true")
+	}
+
+	// Test with even number
+	result = isoddFn(&object.Integer{Value: 4})
+	boolVal, ok = result.(*object.Boolean)
+	if !ok {
+		t.Fatalf("math.is_odd() returned %T, want Boolean", result)
+	}
+
+	if boolVal.Value {
+		t.Errorf("math.is_odd(4) returned true, want false")
+	}
+}
+
+// ============================================================================
+// More Strings Module Tests
+// ============================================================================
+
+func TestStringsIndex(t *testing.T) {
+	indexFn := StringsBuiltins["strings.index"].Fn
+
+	result := indexFn(&object.String{Value: "hello world"}, &object.String{Value: "world"})
+
+	intVal, ok := result.(*object.Integer)
+	if !ok {
+		t.Fatalf("strings.index() returned %T, want Integer", result)
+	}
+
+	if intVal.Value != 6 {
+		t.Errorf("strings.index('hello world', 'world') = %d, want 6", intVal.Value)
+	}
+}
+
+func TestStringsIndexNotFound(t *testing.T) {
+	indexFn := StringsBuiltins["strings.index"].Fn
+
+	result := indexFn(&object.String{Value: "hello"}, &object.String{Value: "xyz"})
+
+	intVal, ok := result.(*object.Integer)
+	if !ok {
+		t.Fatalf("strings.index() returned %T, want Integer", result)
+	}
+
+	if intVal.Value != -1 {
+		t.Errorf("strings.index('hello', 'xyz') = %d, want -1", intVal.Value)
+	}
+}
+
+func TestStringsPadLeft(t *testing.T) {
+	padFn := StringsBuiltins["strings.pad_left"].Fn
+
+	result := padFn(&object.String{Value: "hello"}, &object.Integer{Value: 10}, &object.String{Value: " "})
+
+	strVal, ok := result.(*object.String)
+	if !ok {
+		t.Fatalf("strings.pad_left() returned %T, want String", result)
+	}
+
+	if strVal.Value != "     hello" {
+		t.Errorf("strings.pad_left('hello', 10, ' ') = %q, want '     hello'", strVal.Value)
+	}
+}
+
+func TestStringsPadRight(t *testing.T) {
+	padFn := StringsBuiltins["strings.pad_right"].Fn
+
+	result := padFn(&object.String{Value: "hello"}, &object.Integer{Value: 10}, &object.String{Value: " "})
+
+	strVal, ok := result.(*object.String)
+	if !ok {
+		t.Fatalf("strings.pad_right() returned %T, want String", result)
+	}
+
+	if strVal.Value != "hello     " {
+		t.Errorf("strings.pad_right('hello', 10, ' ') = %q, want 'hello     '", strVal.Value)
+	}
+}
+
+// ============================================================================
+// More Arrays Module Tests
+// ============================================================================
+
+func TestArraysClear(t *testing.T) {
+	clearFn := ArraysBuiltins["arrays.clear"].Fn
+
+	arr := &object.Array{
+		Elements: []object.Object{
+			&object.Integer{Value: 1},
+			&object.Integer{Value: 2},
+			&object.Integer{Value: 3},
+		},
+		Mutable: true,
+	}
+
+	result := clearFn(arr)
+
+	cleared, ok := result.(*object.Array)
+	if !ok {
+		t.Fatalf("arrays.clear() returned %T, want Array", result)
+	}
+
+	if len(cleared.Elements) != 0 {
+		t.Errorf("arrays.clear() returned %d elements, want 0", len(cleared.Elements))
+	}
+}
+
+func TestArraysConcat(t *testing.T) {
+	concatFn := ArraysBuiltins["arrays.concat"].Fn
+
+	arr1 := &object.Array{
+		Elements: []object.Object{
+			&object.Integer{Value: 1},
+			&object.Integer{Value: 2},
+		},
+	}
+	arr2 := &object.Array{
+		Elements: []object.Object{
+			&object.Integer{Value: 3},
+			&object.Integer{Value: 4},
+		},
+	}
+
+	result := concatFn(arr1, arr2)
+
+	concatenated, ok := result.(*object.Array)
+	if !ok {
+		t.Fatalf("arrays.concat() returned %T, want Array", result)
+	}
+
+	if len(concatenated.Elements) != 4 {
+		t.Errorf("arrays.concat() returned %d elements, want 4", len(concatenated.Elements))
+	}
+}
+
+func TestArraysFill(t *testing.T) {
+	fillFn := ArraysBuiltins["arrays.fill"].Fn
+
+	// Create an array with 5 elements
+	inputArr := &object.Array{
+		Elements: []object.Object{
+			&object.Integer{Value: 1},
+			&object.Integer{Value: 2},
+			&object.Integer{Value: 3},
+			&object.Integer{Value: 4},
+			&object.Integer{Value: 5},
+		},
+	}
+
+	result := fillFn(inputArr, &object.Integer{Value: 0})
+
+	arr, ok := result.(*object.Array)
+	if !ok {
+		t.Fatalf("arrays.fill() returned %T, want Array", result)
+	}
+
+	if len(arr.Elements) != 5 {
+		t.Errorf("arrays.fill() returned %d elements, want 5", len(arr.Elements))
+	}
+
+	// All elements should now be 0
+	for i, elem := range arr.Elements {
+		intVal, ok := elem.(*object.Integer)
+		if !ok || intVal.Value != 0 {
+			t.Errorf("arr[%d] = %v, want 0", i, elem)
+		}
+	}
+}
+
+// ============================================================================
+// More Math Module Tests
+// ============================================================================
+
+func TestMathGCD(t *testing.T) {
+	gcdFn := MathBuiltins["math.gcd"].Fn
+
+	result := gcdFn(&object.Integer{Value: 48}, &object.Integer{Value: 18})
+
+	intVal, ok := result.(*object.Integer)
+	if !ok {
+		t.Fatalf("math.gcd() returned %T, want Integer", result)
+	}
+
+	if intVal.Value != 6 {
+		t.Errorf("math.gcd(48, 18) = %d, want 6", intVal.Value)
+	}
+}
+
+func TestMathLCM(t *testing.T) {
+	lcmFn := MathBuiltins["math.lcm"].Fn
+
+	result := lcmFn(&object.Integer{Value: 4}, &object.Integer{Value: 6})
+
+	intVal, ok := result.(*object.Integer)
+	if !ok {
+		t.Fatalf("math.lcm() returned %T, want Integer", result)
+	}
+
+	if intVal.Value != 12 {
+		t.Errorf("math.lcm(4, 6) = %d, want 12", intVal.Value)
+	}
+}
+
+func TestMathFactorial(t *testing.T) {
+	factFn := MathBuiltins["math.factorial"].Fn
+
+	result := factFn(&object.Integer{Value: 5})
+
+	intVal, ok := result.(*object.Integer)
+	if !ok {
+		t.Fatalf("math.factorial() returned %T, want Integer", result)
+	}
+
+	if intVal.Value != 120 {
+		t.Errorf("math.factorial(5) = %d, want 120", intVal.Value)
+	}
+}
+

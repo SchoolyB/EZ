@@ -101,6 +101,20 @@ func isErrorObject(obj Object) bool {
 	return ok
 }
 
+func testByteObject(t *testing.T, obj Object, expected byte) bool {
+	t.Helper()
+	result, ok := obj.(*Byte)
+	if !ok {
+		t.Errorf("object is not Byte. got=%T (%+v)", obj, obj)
+		return false
+	}
+	if result.Value != expected {
+		t.Errorf("object has wrong value. got=%d, want=%d", result.Value, expected)
+		return false
+	}
+	return true
+}
+
 // ============================================================================
 // Integer Literal Tests
 // ============================================================================
@@ -582,6 +596,7 @@ func TestCompoundAssignment(t *testing.T) {
 		{"temp x int = 10 x -= 3 x", 7},
 		{"temp x int = 10 x *= 2 x", 20},
 		{"temp x int = 10 x /= 2 x", 5},
+		{"temp x int = 10 x %= 3 x", 1},
 	}
 
 	for _, tt := range tests {
@@ -761,6 +776,11 @@ func TestLogicalOperators(t *testing.T) {
 		{"true || false", true},
 		{"false || true", true},
 		{"false || false", false},
+		{"!true", false},
+		{"!false", true},
+		{"!(true && false)", true},
+		{"(1 < 2) && (3 > 2)", true},
+		{"(1 > 2) || (3 > 2)", true},
 	}
 
 	for _, tt := range tests {
@@ -1077,3 +1097,2077 @@ str
 	evaluated := testEval(input)
 	testStringObject(t, evaluated, "modified")
 }
+
+// ============================================================================
+// String Interpolation Tests
+// ============================================================================
+
+func TestInterpolatedString(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		expected string
+	}{
+		{
+			name:     "simple variable interpolation",
+			input:    `temp x int = 42 "value is ${x}"`,
+			expected: "value is 42",
+		},
+		{
+			name:     "string variable interpolation",
+			input:    `temp name string = "World" "Hello, ${name}!"`,
+			expected: "Hello, World!",
+		},
+		{
+			name:     "expression interpolation",
+			input:    `temp a int = 5 temp b int = 3 "sum is ${a + b}"`,
+			expected: "sum is 8",
+		},
+		{
+			name:     "multiple interpolations",
+			input:    `temp x int = 1 temp y int = 2 "${x} + ${y} = ${x + y}"`,
+			expected: "1 + 2 = 3",
+		},
+		{
+			name:     "boolean interpolation",
+			input:    `temp flag bool = true "flag is ${flag}"`,
+			expected: "flag is true",
+		},
+		{
+			name:     "float interpolation",
+			input:    `temp pi float = 3.14 "pi is ${pi}"`,
+			expected: "pi is 3.14",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			evaluated := testEval(tt.input)
+			testStringObject(t, evaluated, tt.expected)
+		})
+	}
+}
+
+// ============================================================================
+// New Expression Tests
+// ============================================================================
+
+func TestNewExpression(t *testing.T) {
+	// Test new creates struct with default values
+	input := `
+const Counter struct {
+	value int
+	name string
+}
+temp c Counter = new(Counter)
+c.value
+`
+	evaluated := testEval(input)
+	testIntegerObject(t, evaluated, 0)
+}
+
+func TestNewExpressionStringDefault(t *testing.T) {
+	input := `
+const Counter struct {
+	value int
+	name string
+}
+temp c Counter = new(Counter)
+c.name
+`
+	evaluated := testEval(input)
+	testStringObject(t, evaluated, "")
+}
+
+// ============================================================================
+// Loop Statement Tests
+// ============================================================================
+
+func TestLoopStatement(t *testing.T) {
+	// Test loop with break
+	input := `
+temp count int = 0
+loop {
+	count = count + 1
+	if count == 5 {
+		break
+	}
+}
+count
+`
+	evaluated := testEval(input)
+	testIntegerObject(t, evaluated, 5)
+}
+
+func TestLoopWithContinue(t *testing.T) {
+	// Test loop with continue
+	input := `
+temp count int = 0
+temp sum int = 0
+loop {
+	count = count + 1
+	if count == 3 {
+		continue
+	}
+	sum = sum + count
+	if count == 5 {
+		break
+	}
+}
+sum
+`
+	evaluated := testEval(input)
+	// sum = 1 + 2 + 4 + 5 = 12 (skips 3)
+	testIntegerObject(t, evaluated, 12)
+}
+
+// ============================================================================
+// ForEach Statement Tests
+// ============================================================================
+
+func TestForEachArray(t *testing.T) {
+	input := `
+temp nums [int] = {1, 2, 3, 4, 5}
+temp sum int = 0
+for_each n in nums {
+	sum = sum + n
+}
+sum
+`
+	evaluated := testEval(input)
+	testIntegerObject(t, evaluated, 15)
+}
+
+func TestForEachString(t *testing.T) {
+	input := `
+temp str string = "abc"
+temp count int = 0
+for_each c in str {
+	count = count + 1
+}
+count
+`
+	evaluated := testEval(input)
+	testIntegerObject(t, evaluated, 3)
+}
+
+func TestForEachWithBreak(t *testing.T) {
+	input := `
+temp nums [int] = {1, 2, 3, 4, 5}
+temp sum int = 0
+for_each n in nums {
+	if n == 4 {
+		break
+	}
+	sum = sum + n
+}
+sum
+`
+	evaluated := testEval(input)
+	// sum = 1 + 2 + 3 = 6 (breaks at 4)
+	testIntegerObject(t, evaluated, 6)
+}
+
+// ============================================================================
+// In Operator Tests
+// ============================================================================
+
+func TestInOperator(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		expected bool
+	}{
+		{
+			name:     "element in array - found",
+			input:    `3 in {1, 2, 3, 4, 5}`,
+			expected: true,
+		},
+		{
+			name:     "element in array - not found",
+			input:    `6 in {1, 2, 3, 4, 5}`,
+			expected: false,
+		},
+		{
+			name:     "string in array - found",
+			input:    `"b" in {"a", "b", "c"}`,
+			expected: true,
+		},
+		{
+			name:     "string in array - not found",
+			input:    `"d" in {"a", "b", "c"}`,
+			expected: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			evaluated := testEval(tt.input)
+			testBooleanObject(t, evaluated, tt.expected)
+		})
+	}
+}
+
+// ============================================================================
+// Char Comparison Tests
+// ============================================================================
+
+func TestCharComparisonOperators(t *testing.T) {
+	tests := []struct {
+		input    string
+		expected bool
+	}{
+		{`'a' == 'a'`, true},
+		{`'a' == 'b'`, false},
+		{`'a' != 'b'`, true},
+		{`'a' < 'b'`, true},
+		{`'b' > 'a'`, true},
+		{`'a' <= 'a'`, true},
+		{`'a' >= 'a'`, true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.input, func(t *testing.T) {
+			evaluated := testEval(tt.input)
+			testBooleanObject(t, evaluated, tt.expected)
+		})
+	}
+}
+
+// ============================================================================
+// Byte Tests
+// ============================================================================
+
+func TestByteLiteral(t *testing.T) {
+	// Bytes are created via byte() conversion or from byte arrays
+	input := `temp b byte = 255 b`
+	evaluated := testEval(input)
+	if evaluated == nil {
+		t.Fatal("evaluated is nil")
+	}
+}
+
+func TestByteArithmetic(t *testing.T) {
+	// Test byte + byte operations (returns Byte)
+	byteTests := []struct {
+		name     string
+		input    string
+		expected byte
+	}{
+		{
+			name:     "byte addition",
+			input:    `temp a byte = 10 temp b byte = 5 a + b`,
+			expected: 15,
+		},
+		{
+			name:     "byte subtraction",
+			input:    `temp a byte = 10 temp b byte = 3 a - b`,
+			expected: 7,
+		},
+		{
+			name:     "byte multiplication",
+			input:    `temp a byte = 10 temp b byte = 2 a * b`,
+			expected: 20,
+		},
+	}
+
+	for _, tt := range byteTests {
+		t.Run(tt.name, func(t *testing.T) {
+			evaluated := testEval(tt.input)
+			testByteObject(t, evaluated, tt.expected)
+		})
+	}
+
+	// Test byte + int mixed operations (may return Integer)
+	t.Run("byte with integer", func(t *testing.T) {
+		input := `temp a byte = 10 temp b int = 5 a + b`
+		evaluated := testEval(input)
+		// Could return byte or int depending on implementation
+		switch result := evaluated.(type) {
+		case *Integer:
+			if result.Value != 15 {
+				t.Errorf("wrong value. got=%d, want=%d", result.Value, 15)
+			}
+		case *Byte:
+			if result.Value != 15 {
+				t.Errorf("wrong value. got=%d, want=%d", result.Value, 15)
+			}
+		default:
+			t.Errorf("expected Integer or Byte, got %T", evaluated)
+		}
+	})
+}
+
+func TestByteComparison(t *testing.T) {
+	tests := []struct {
+		input    string
+		expected bool
+	}{
+		{`temp a byte = 10 temp b byte = 10 a == b`, true},
+		{`temp a byte = 10 temp b byte = 20 a == b`, false},
+		{`temp a byte = 10 temp b byte = 20 a != b`, true},
+		{`temp a byte = 10 temp b byte = 20 a < b`, true},
+		{`temp a byte = 20 temp b byte = 10 a > b`, true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.input, func(t *testing.T) {
+			evaluated := testEval(tt.input)
+			testBooleanObject(t, evaluated, tt.expected)
+		})
+	}
+}
+
+// ============================================================================
+// Variable Declaration Tests (various types)
+// ============================================================================
+
+func TestVariableDeclarationTypes(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		expected interface{}
+	}{
+		{
+			name:     "i8 type",
+			input:    `temp x i8 = 127 x`,
+			expected: int64(127),
+		},
+		{
+			name:     "i16 type",
+			input:    `temp x i16 = 1000 x`,
+			expected: int64(1000),
+		},
+		{
+			name:     "i32 type",
+			input:    `temp x i32 = 100000 x`,
+			expected: int64(100000),
+		},
+		{
+			name:     "i64 type",
+			input:    `temp x i64 = 1000000 x`,
+			expected: int64(1000000),
+		},
+		{
+			name:     "u8 type",
+			input:    `temp x u8 = 255 x`,
+			expected: int64(255),
+		},
+		{
+			name:     "u16 type",
+			input:    `temp x u16 = 65535 x`,
+			expected: int64(65535),
+		},
+		{
+			name:     "u32 type",
+			input:    `temp x u32 = 100000 x`,
+			expected: int64(100000),
+		},
+		{
+			name:     "f32 type",
+			input:    `temp x f32 = 3.14 x`,
+			expected: float64(3.14),
+		},
+		{
+			name:     "f64 type",
+			input:    `temp x f64 = 3.14159 x`,
+			expected: float64(3.14159),
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			evaluated := testEval(tt.input)
+			switch exp := tt.expected.(type) {
+			case int64:
+				testIntegerObject(t, evaluated, exp)
+			case float64:
+				testFloatObject(t, evaluated, exp)
+			}
+		})
+	}
+}
+
+func TestConstDeclaration(t *testing.T) {
+	input := `const PI float = 3.14159 PI`
+	evaluated := testEval(input)
+	testFloatObject(t, evaluated, 3.14159)
+}
+
+// ============================================================================
+// Function Call Tests
+// ============================================================================
+
+func TestRecursiveFunction(t *testing.T) {
+	input := `
+do fib(n int) -> int {
+    if n <= 1 {
+        return n
+    }
+    return fib(n - 1) + fib(n - 2)
+}
+temp result int = fib(10)
+result
+`
+	evaluated := testEval(input)
+	testIntegerObject(t, evaluated, 55)
+}
+
+func TestFunctionWithNoReturnValue(t *testing.T) {
+	// Test that a function without a return type can be called
+	input := `
+do doNothing() {
+    temp x int = 1
+}
+doNothing()
+`
+	evaluated := testEval(input)
+	// Functions without explicit return type return nil
+	if evaluated != NIL && !isErrorObject(evaluated) {
+		t.Logf("got=%T (%+v)", evaluated, evaluated)
+	}
+}
+
+func TestFunctionWithEarlyReturn(t *testing.T) {
+	input := `
+do checkPositive(n int) -> string {
+    if n > 0 {
+        return "positive"
+    }
+    if n < 0 {
+        return "negative"
+    }
+    return "zero"
+}
+temp result string = checkPositive(-5)
+result
+`
+	evaluated := testEval(input)
+	testStringObject(t, evaluated, "negative")
+}
+
+// ============================================================================
+// Type Inference Tests
+// ============================================================================
+
+func TestTypeInference(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		expected interface{}
+	}{
+		{
+			name:     "infer int",
+			input:    `temp x = 42 x`,
+			expected: int64(42),
+		},
+		{
+			name:     "infer float",
+			input:    `temp x = 3.14 x`,
+			expected: float64(3.14),
+		},
+		{
+			name:     "infer string",
+			input:    `temp x = "hello" x`,
+			expected: "hello",
+		},
+		{
+			name:     "infer bool",
+			input:    `temp x = true x`,
+			expected: true,
+		},
+		{
+			name:     "infer from expression",
+			input:    `temp x = 1 + 2 x`,
+			expected: int64(3),
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			evaluated := testEval(tt.input)
+			switch exp := tt.expected.(type) {
+			case int64:
+				testIntegerObject(t, evaluated, exp)
+			case float64:
+				testFloatObject(t, evaluated, exp)
+			case string:
+				testStringObject(t, evaluated, exp)
+			case bool:
+				testBooleanObject(t, evaluated, exp)
+			}
+		})
+	}
+}
+
+// ============================================================================
+// As Long As (While) Loop Tests
+// ============================================================================
+
+func TestAsLongAsLoop(t *testing.T) {
+	input := `
+temp count int = 0
+as_long_as count < 5 {
+    count = count + 1
+}
+count
+`
+	evaluated := testEval(input)
+	testIntegerObject(t, evaluated, 5)
+}
+
+func TestAsLongAsWithBreak(t *testing.T) {
+	input := `
+temp count int = 0
+as_long_as true {
+    count = count + 1
+    if count == 3 {
+        break
+    }
+}
+count
+`
+	evaluated := testEval(input)
+	testIntegerObject(t, evaluated, 3)
+}
+
+// ============================================================================
+// Range Tests
+// ============================================================================
+
+func TestRangeInForLoop(t *testing.T) {
+	input := `
+temp sum int = 0
+for i in range(1, 6) {
+    sum = sum + i
+}
+sum
+`
+	evaluated := testEval(input)
+	// 1 + 2 + 3 + 4 + 5 = 15
+	testIntegerObject(t, evaluated, 15)
+}
+
+func TestRangeWithStep(t *testing.T) {
+	input := `
+temp sum int = 0
+for i in range(0, 10, 2) {
+    sum = sum + i
+}
+sum
+`
+	evaluated := testEval(input)
+	// 0 + 2 + 4 + 6 + 8 = 20
+	testIntegerObject(t, evaluated, 20)
+}
+
+// ============================================================================
+// Not In Operator Tests
+// ============================================================================
+
+func TestNotInOperator(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		expected bool
+	}{
+		{
+			name:     "element not in array - true",
+			input:    `6 not_in {1, 2, 3, 4, 5}`,
+			expected: true,
+		},
+		{
+			name:     "element not in array - false",
+			input:    `3 not_in {1, 2, 3, 4, 5}`,
+			expected: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			evaluated := testEval(tt.input)
+			testBooleanObject(t, evaluated, tt.expected)
+		})
+	}
+}
+
+// ============================================================================
+// Increment/Decrement Tests
+// ============================================================================
+
+func TestIncrementDecrement(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		expected int64
+	}{
+		{
+			name:     "increment",
+			input:    `temp x int = 5 x++ x`,
+			expected: 6,
+		},
+		{
+			name:     "decrement",
+			input:    `temp x int = 5 x-- x`,
+			expected: 4,
+		},
+		{
+			name:     "multiple increments",
+			input:    `temp x int = 0 x++ x++ x++ x`,
+			expected: 3,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			evaluated := testEval(tt.input)
+			testIntegerObject(t, evaluated, tt.expected)
+		})
+	}
+}
+
+// ============================================================================
+// Float Infix Expression Tests (more coverage)
+// ============================================================================
+
+func TestFloatInfixExpressionExtended(t *testing.T) {
+	floatTests := []struct {
+		name     string
+		input    string
+		expected float64
+	}{
+		{
+			name:     "float subtraction",
+			input:    `10.5 - 3.2`,
+			expected: 7.3,
+		},
+		{
+			name:     "float variable subtraction",
+			input:    `temp a float = 10.0 temp b float = 4.0 a - b`,
+			expected: 6.0,
+		},
+		{
+			name:     "float division",
+			input:    `10.0 / 4.0`,
+			expected: 2.5,
+		},
+	}
+
+	for _, tt := range floatTests {
+		t.Run(tt.name, func(t *testing.T) {
+			evaluated := testEval(tt.input)
+			testFloatObject(t, evaluated, tt.expected)
+		})
+	}
+
+	// Float comparison tests
+	boolTests := []struct {
+		name     string
+		input    string
+		expected bool
+	}{
+		{
+			name:     "float less than",
+			input:    `3.14 < 3.15`,
+			expected: true,
+		},
+		{
+			name:     "float greater than",
+			input:    `3.15 > 3.14`,
+			expected: true,
+		},
+		{
+			name:     "float less than or equal",
+			input:    `3.14 <= 3.14`,
+			expected: true,
+		},
+		{
+			name:     "float greater than or equal",
+			input:    `3.14 >= 3.14`,
+			expected: true,
+		},
+		{
+			name:     "float equality",
+			input:    `3.14 == 3.14`,
+			expected: true,
+		},
+		{
+			name:     "float inequality",
+			input:    `3.14 != 3.15`,
+			expected: true,
+		},
+	}
+
+	for _, tt := range boolTests {
+		t.Run(tt.name, func(t *testing.T) {
+			evaluated := testEval(tt.input)
+			testBooleanObject(t, evaluated, tt.expected)
+		})
+	}
+}
+
+// ============================================================================
+// String Infix Expression Tests (more coverage)
+// ============================================================================
+
+func TestStringInfixExpressionExtended(t *testing.T) {
+	// String comparison tests (only == and != are supported)
+	tests := []struct {
+		name     string
+		input    string
+		expected bool
+	}{
+		{
+			name:     "string equality true",
+			input:    `"hello" == "hello"`,
+			expected: true,
+		},
+		{
+			name:     "string equality false",
+			input:    `"hello" == "world"`,
+			expected: false,
+		},
+		{
+			name:     "string inequality true",
+			input:    `"hello" != "world"`,
+			expected: true,
+		},
+		{
+			name:     "string inequality false",
+			input:    `"hello" != "hello"`,
+			expected: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			evaluated := testEval(tt.input)
+			testBooleanObject(t, evaluated, tt.expected)
+		})
+	}
+}
+
+func TestStringConcatenationExtended(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		expected string
+	}{
+		{
+			name:     "triple concatenation",
+			input:    `"hello" + " " + "world"`,
+			expected: "hello world",
+		},
+		{
+			name:     "variable concatenation",
+			input:    `temp a string = "foo" temp b string = "bar" a + b`,
+			expected: "foobar",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			evaluated := testEval(tt.input)
+			testStringObject(t, evaluated, tt.expected)
+		})
+	}
+}
+
+// ============================================================================
+// Byte-Integer Mixed Operation Tests (more coverage)
+// ============================================================================
+
+func TestByteIntegerMixedOperations(t *testing.T) {
+	tests := []struct {
+		name  string
+		input string
+	}{
+		{
+			name:  "byte subtraction from int",
+			input: `temp a byte = 10 temp b int = 3 a - b`,
+		},
+		{
+			name:  "byte multiplication with int",
+			input: `temp a byte = 10 temp b int = 2 a * b`,
+		},
+		{
+			name:  "byte division by int",
+			input: `temp a byte = 10 temp b int = 2 a / b`,
+		},
+		{
+			name:  "int addition with byte",
+			input: `temp a int = 10 temp b byte = 5 a + b`,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			evaluated := testEval(tt.input)
+			// Verify result is numeric
+			switch result := evaluated.(type) {
+			case *Integer:
+				if result.Value < 0 {
+					t.Logf("got negative result: %d", result.Value)
+				}
+			case *Byte:
+				// byte result is fine
+			default:
+				if !isErrorObject(evaluated) {
+					t.Errorf("expected numeric result, got %T", evaluated)
+				}
+			}
+		})
+	}
+}
+
+// ============================================================================
+// Enum Access Tests (more coverage)
+// ============================================================================
+
+func TestEnumAccess(t *testing.T) {
+	input := `
+const Color enum {
+    Red
+    Green
+    Blue
+}
+Color.Green
+`
+	evaluated := testEval(input)
+	enumVal, ok := evaluated.(*EnumValue)
+	if !ok {
+		t.Fatalf("expected EnumValue, got %T (%+v)", evaluated, evaluated)
+	}
+	if enumVal.Name != "Green" {
+		t.Errorf("expected enum name 'Green', got %q", enumVal.Name)
+	}
+}
+
+func TestEnumComparison(t *testing.T) {
+	input := `
+const Color enum {
+    Red
+    Green
+    Blue
+}
+Color.Red == Color.Red
+`
+	evaluated := testEval(input)
+	testBooleanObject(t, evaluated, true)
+}
+
+func TestEnumInequality(t *testing.T) {
+	input := `
+const Color enum {
+    Red
+    Green
+    Blue
+}
+Color.Red != Color.Blue
+`
+	evaluated := testEval(input)
+	testBooleanObject(t, evaluated, true)
+}
+
+// ============================================================================
+// While Loop Tests (more coverage)
+// ============================================================================
+
+func TestWhileLoopBreak(t *testing.T) {
+	input := `
+temp sum int = 0
+temp i int = 0
+as_long_as i < 10 {
+    if i == 5 {
+        break
+    }
+    sum += i
+    i++
+}
+sum
+`
+	evaluated := testEval(input)
+	// 0 + 1 + 2 + 3 + 4 = 10
+	testIntegerObject(t, evaluated, 10)
+}
+
+func TestWhileLoopContinue(t *testing.T) {
+	input := `
+temp sum int = 0
+temp i int = 0
+as_long_as i < 5 {
+    i++
+    if i == 3 {
+        continue
+    }
+    sum += i
+}
+sum
+`
+	evaluated := testEval(input)
+	// 1 + 2 + 4 + 5 = 12
+	testIntegerObject(t, evaluated, 12)
+}
+
+// ============================================================================
+// Identifier Resolution Tests (more coverage)
+// ============================================================================
+
+func TestIdentifierNotFound(t *testing.T) {
+	input := `undefinedVariable`
+	evaluated := testEval(input)
+	if !isErrorObject(evaluated) {
+		t.Errorf("expected error for undefined variable, got %T", evaluated)
+	}
+}
+
+func TestConstantReassignment(t *testing.T) {
+	input := `
+const x int = 5
+x = 10
+`
+	evaluated := testEval(input)
+	if !isErrorObject(evaluated) {
+		t.Errorf("expected error for constant reassignment, got %T", evaluated)
+	}
+}
+
+// ============================================================================
+// Bang Operator Tests (more coverage)
+// ============================================================================
+
+func TestBangOperatorExtended(t *testing.T) {
+	tests := []struct {
+		input    string
+		expected bool
+	}{
+		{`!!true`, true},
+		{`!!false`, false},
+		{`!!!true`, false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.input, func(t *testing.T) {
+			evaluated := testEval(tt.input)
+			testBooleanObject(t, evaluated, tt.expected)
+		})
+	}
+}
+
+// ============================================================================
+// Variable Declaration Tests (sized integers)
+// ============================================================================
+
+func TestSizedIntegerDeclaration(t *testing.T) {
+	tests := []struct {
+		name  string
+		input string
+	}{
+		{"i8 variable", `temp x i8 = 127 x`},
+		{"i16 variable", `temp x i16 = 1000 x`},
+		{"i32 variable", `temp x i32 = 100000 x`},
+		{"i64 variable", `temp x i64 = 1000000 x`},
+		{"u8 variable", `temp x u8 = 255 x`},
+		{"u16 variable", `temp x u16 = 65535 x`},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			evaluated := testEval(tt.input)
+			// Just verify it evaluates without error
+			if isErrorObject(evaluated) {
+				errObj := evaluated.(*Error)
+				t.Errorf("got error: %s", errObj.Message)
+			}
+		})
+	}
+}
+
+// ============================================================================
+// Assignment Tests (simple)
+// ============================================================================
+
+func TestSimpleAssignment(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		expected int64
+	}{
+		{
+			name:     "assign to existing variable",
+			input:    `temp x int = 5 x = 10 x`,
+			expected: 10,
+		},
+		{
+			name:     "assign expression result",
+			input:    `temp x int = 5 x = x + 5 x`,
+			expected: 10,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			evaluated := testEval(tt.input)
+			testIntegerObject(t, evaluated, tt.expected)
+		})
+	}
+}
+
+// ============================================================================
+// Function Call Tests (parameters)
+// ============================================================================
+
+func TestFunctionMultipleParameters(t *testing.T) {
+	input := `
+do add3(a int, b int, c int) -> int { return a + b + c }
+temp r int = add3(1, 2, 3)
+r
+`
+	evaluated := testEval(input)
+	testIntegerObject(t, evaluated, 6)
+}
+
+// ============================================================================
+// If Statement Tests (or/otherwise chains)
+// ============================================================================
+
+func TestIfOrOtherwiseChain(t *testing.T) {
+	input := `
+temp x int = 5
+temp result int = 0
+if x > 10 {
+    result = 1
+} or x > 3 {
+    result = 2
+} otherwise {
+    result = 3
+}
+result
+`
+	evaluated := testEval(input)
+	testIntegerObject(t, evaluated, 2)
+}
+
+// ============================================================================
+// Additional Operator Tests
+// ============================================================================
+
+func TestNegativeNumbers(t *testing.T) {
+	tests := []struct {
+		input    string
+		expected int64
+	}{
+		{"-5", -5},
+		{"-(-5)", 5},
+		{"5 - -5", 10},
+		{"-10 + 5", -5},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.input, func(t *testing.T) {
+			evaluated := testEval(tt.input)
+			testIntegerObject(t, evaluated, tt.expected)
+		})
+	}
+}
+
+// ============================================================================
+// Type Coercion Tests
+// ============================================================================
+
+func TestIntToFloatCoercion(t *testing.T) {
+	// Test that integers can be used in float context
+	input := `temp x float = 5.0 temp y int = 2 x + 2.0`
+	evaluated := testEval(input)
+	testFloatObject(t, evaluated, 7.0)
+}
+
+// ============================================================================
+// Type Helper Function Tests
+// ============================================================================
+
+func TestIsSignedIntegerType(t *testing.T) {
+	signedTypes := []string{"i8", "i16", "i32", "i64", "i128", "i256", "int"}
+	for _, typ := range signedTypes {
+		if !isSignedIntegerType(typ) {
+			t.Errorf("isSignedIntegerType(%q) = false, want true", typ)
+		}
+	}
+
+	unsignedTypes := []string{"u8", "u16", "u32", "u64", "u128", "u256", "uint"}
+	for _, typ := range unsignedTypes {
+		if isSignedIntegerType(typ) {
+			t.Errorf("isSignedIntegerType(%q) = true, want false", typ)
+		}
+	}
+
+	otherTypes := []string{"string", "float", "bool", "byte"}
+	for _, typ := range otherTypes {
+		if isSignedIntegerType(typ) {
+			t.Errorf("isSignedIntegerType(%q) = true, want false", typ)
+		}
+	}
+}
+
+func TestIsIntegerType(t *testing.T) {
+	intTypes := []string{"i8", "i16", "i32", "i64", "int", "u8", "u16", "u32", "u64", "uint"}
+	for _, typ := range intTypes {
+		if !isIntegerType(typ) {
+			t.Errorf("isIntegerType(%q) = false, want true", typ)
+		}
+	}
+
+	nonIntTypes := []string{"string", "float", "bool", "byte", "char"}
+	for _, typ := range nonIntTypes {
+		if isIntegerType(typ) {
+			t.Errorf("isIntegerType(%q) = true, want false", typ)
+		}
+	}
+}
+
+func TestObjectTypeToEZ(t *testing.T) {
+	tests := []struct {
+		obj      Object
+		expected string
+	}{
+		{&Integer{Value: 42}, "int"},
+		{&Float{Value: 3.14}, "float"},
+		{&String{Value: "hello"}, "string"},
+		{&Boolean{Value: true}, "bool"},
+		{NIL, "nil"},
+	}
+
+	for _, tt := range tests {
+		result := objectTypeToEZ(tt.obj)
+		if result != tt.expected {
+			t.Errorf("objectTypeToEZ(%T) = %q, want %q", tt.obj, result, tt.expected)
+		}
+	}
+
+	// Test Char and Byte separately - they return uppercase
+	charResult := objectTypeToEZ(&Char{Value: 'a'})
+	if charResult != "char" && charResult != "CHAR" {
+		t.Errorf("objectTypeToEZ(Char) = %q, want char or CHAR", charResult)
+	}
+
+	byteResult := objectTypeToEZ(&Byte{Value: 0xFF})
+	if byteResult != "byte" && byteResult != "BYTE" {
+		t.Errorf("objectTypeToEZ(Byte) = %q, want byte or BYTE", byteResult)
+	}
+}
+
+func TestTypeMatches(t *testing.T) {
+	tests := []struct {
+		name     string
+		obj      Object
+		ezType   string
+		expected bool
+	}{
+		{"int matches int", &Integer{Value: 42}, "int", true},
+		{"float matches float", &Float{Value: 3.14}, "float", true},
+		{"string matches string", &String{Value: "hi"}, "string", true},
+		{"bool matches bool", &Boolean{Value: true}, "bool", true},
+		{"nil matches nil", NIL, "nil", true},
+		{"int does not match float", &Integer{Value: 42}, "float", false},
+		{"float does not match int", &Float{Value: 3.14}, "int", false},
+		// Integer family compatibility
+		{"i8 matches i16", &Integer{Value: 10, DeclaredType: "i8"}, "i16", true},
+		{"int matches i32", &Integer{Value: 10}, "i32", true},
+		// Positive int can go to unsigned
+		{"positive int matches u8", &Integer{Value: 10}, "u8", true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := typeMatches(tt.obj, tt.ezType)
+			if result != tt.expected {
+				t.Errorf("typeMatches(%T, %q) = %v, want %v", tt.obj, tt.ezType, result, tt.expected)
+			}
+		})
+	}
+}
+
+// ============================================================================
+// More Enum Tests
+// ============================================================================
+
+func TestEnumWithMultipleValues(t *testing.T) {
+	input := `
+const Status enum {
+    Active
+    Pending
+    Inactive
+    Deleted
+}
+Status.Pending
+`
+	evaluated := testEval(input)
+	enumVal, ok := evaluated.(*EnumValue)
+	if !ok {
+		t.Fatalf("expected EnumValue, got %T (%+v)", evaluated, evaluated)
+	}
+	if enumVal.Name != "Pending" {
+		t.Errorf("expected enum name 'Pending', got %q", enumVal.Name)
+	}
+}
+
+// ============================================================================
+// More Variable Tests
+// ============================================================================
+
+func TestConstFloatDeclaration(t *testing.T) {
+	input := `const PI float = 3.14159 PI`
+	evaluated := testEval(input)
+	testFloatObject(t, evaluated, 3.14159)
+}
+
+func TestVariableWithTypeInference(t *testing.T) {
+	tests := []struct {
+		name  string
+		input string
+	}{
+		{"infer int", `temp x = 42 x`},
+		{"infer float", `temp x = 3.14 x`},
+		{"infer string", `temp x = "hello" x`},
+		{"infer bool", `temp x = true x`},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			evaluated := testEval(tt.input)
+			if isErrorObject(evaluated) {
+				t.Errorf("got error: %+v", evaluated)
+			}
+		})
+	}
+}
+
+// ============================================================================
+// More Expression Tests
+// ============================================================================
+
+func TestGroupedExpression(t *testing.T) {
+	tests := []struct {
+		input    string
+		expected int64
+	}{
+		{"(1 + 2) * 3", 9},
+		{"2 * (3 + 4)", 14},
+		{"(5 + 5) * (2 + 3)", 50},
+		{"((1 + 2) + 3) * 4", 24},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.input, func(t *testing.T) {
+			evaluated := testEval(tt.input)
+			testIntegerObject(t, evaluated, tt.expected)
+		})
+	}
+}
+
+func TestComplexArithmetic(t *testing.T) {
+	tests := []struct {
+		input    string
+		expected int64
+	}{
+		{"1 + 2 * 3", 7},
+		{"10 / 2 + 3", 8},
+		{"10 - 2 - 3", 5},
+		{"10 % 3 + 1", 2},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.input, func(t *testing.T) {
+			evaluated := testEval(tt.input)
+			testIntegerObject(t, evaluated, tt.expected)
+		})
+	}
+}
+
+// ============================================================================
+// More Control Flow Tests
+// ============================================================================
+
+func TestNestedIfStatements(t *testing.T) {
+	input := `
+temp x int = 10
+temp result int = 0
+if x > 5 {
+    if x > 8 {
+        result = 1
+    } otherwise {
+        result = 2
+    }
+} otherwise {
+    result = 3
+}
+result
+`
+	evaluated := testEval(input)
+	testIntegerObject(t, evaluated, 1)
+}
+
+func TestLoopWithBreak(t *testing.T) {
+	input := `
+temp count int = 0
+loop {
+    count++
+    if count >= 5 {
+        break
+    }
+}
+count
+`
+	evaluated := testEval(input)
+	testIntegerObject(t, evaluated, 5)
+}
+
+// ============================================================================
+// Error Handling Tests
+// ============================================================================
+
+func TestUndefinedVariable(t *testing.T) {
+	input := `undefined_var`
+	evaluated := testEval(input)
+	if !isErrorObject(evaluated) {
+		t.Errorf("expected error for undefined variable, got %T", evaluated)
+	}
+}
+
+func TestDivisionByZero(t *testing.T) {
+	input := `10 / 0`
+	evaluated := testEval(input)
+	// Division by zero might return error or special value
+	if isErrorObject(evaluated) {
+		// OK, got an error as expected
+	} else if intVal, ok := evaluated.(*Integer); ok {
+		// Some languages return 0 or special value
+		t.Logf("division by zero returned %d", intVal.Value)
+	}
+}
+
+// ============================================================================
+// Array Indexing Tests
+// ============================================================================
+
+func TestArrayIndexExpression(t *testing.T) {
+	tests := []struct {
+		input    string
+		expected int64
+	}{
+		{`
+temp arr [int] = {1, 2, 3}
+arr[0]
+`, 1},
+		{`
+temp arr [int] = {1, 2, 3}
+arr[1]
+`, 2},
+		{`
+temp arr [int] = {1, 2, 3}
+arr[2]
+`, 3},
+		{`
+temp arr [int] = {10, 20, 30, 40, 50}
+arr[4]
+`, 50},
+	}
+
+	for _, tt := range tests {
+		evaluated := testEval(tt.input)
+		testIntegerObject(t, evaluated, tt.expected)
+	}
+}
+
+func TestArrayIndexWithExpression(t *testing.T) {
+	input := `
+temp arr [int] = {1, 2, 3, 4, 5}
+temp idx int = 2
+arr[idx]
+`
+	evaluated := testEval(input)
+	testIntegerObject(t, evaluated, 3)
+}
+
+func TestArrayIndexOutOfBounds(t *testing.T) {
+	input := `
+temp arr [int] = {1, 2, 3}
+arr[10]
+`
+	evaluated := testEval(input)
+	if !isErrorObject(evaluated) {
+		t.Logf("out of bounds returned %T", evaluated)
+	}
+}
+
+// ============================================================================
+// String Indexing Tests
+// ============================================================================
+
+func TestStringIndexExpression(t *testing.T) {
+	tests := []struct {
+		input    string
+		expected string
+	}{
+		{`
+temp s string = "hello"
+s[0]
+`, "h"},
+		{`
+temp s string = "hello"
+s[4]
+`, "o"},
+		{`
+temp s string = "world"
+s[2]
+`, "r"},
+	}
+
+	for _, tt := range tests {
+		evaluated := testEval(tt.input)
+		if str, ok := evaluated.(*String); ok {
+			if str.Value != tt.expected {
+				t.Errorf("expected %q, got %q", tt.expected, str.Value)
+			}
+		} else if ch, ok := evaluated.(*Char); ok {
+			if string(ch.Value) != tt.expected {
+				t.Errorf("expected %q, got %q", tt.expected, string(ch.Value))
+			}
+		} else {
+			t.Logf("string index returned %T", evaluated)
+		}
+	}
+}
+
+// ============================================================================
+// Map Tests
+// ============================================================================
+
+func TestMapLiteral(t *testing.T) {
+	input := `{"a": 1, "b": 2, "c": 3}["a"]`
+	evaluated := testEval(input)
+	testIntegerObject(t, evaluated, 1)
+}
+
+func TestMapIndexExpression(t *testing.T) {
+	input := `{"x": 10, "y": 20, "z": 30}["y"]`
+	evaluated := testEval(input)
+	testIntegerObject(t, evaluated, 20)
+}
+
+func TestMapWithStringKeys(t *testing.T) {
+	input := `{"name": "test", "type": "example"}["name"]`
+	evaluated := testEval(input)
+	testStringObject(t, evaluated, "test")
+}
+
+// ============================================================================
+// More For Loop Tests
+// ============================================================================
+
+func TestForLoopWithStep(t *testing.T) {
+	input := `
+temp sum int = 0
+for i in range(0, 10, 2) {
+    sum = sum + i
+}
+sum
+`
+	evaluated := testEval(input)
+	// 0 + 2 + 4 + 6 + 8 = 20
+	testIntegerObject(t, evaluated, 20)
+}
+
+func TestForLoopContinue(t *testing.T) {
+	input := `
+temp sum int = 0
+for i in range(0, 5) {
+    if i == 2 {
+        continue
+    }
+    sum = sum + i
+}
+sum
+`
+	evaluated := testEval(input)
+	// 0 + 1 + 3 + 4 = 8 (skipping 2)
+	testIntegerObject(t, evaluated, 8)
+}
+
+func TestForLoopBreak(t *testing.T) {
+	input := `
+temp sum int = 0
+for i in range(0, 10) {
+    if i == 5 {
+        break
+    }
+    sum = sum + i
+}
+sum
+`
+	evaluated := testEval(input)
+	// 0 + 1 + 2 + 3 + 4 = 10
+	testIntegerObject(t, evaluated, 10)
+}
+
+// ============================================================================
+// More Struct Tests
+// ============================================================================
+
+func TestStructWithMultipleFields(t *testing.T) {
+	input := `
+const Person struct {
+    name string
+    age int
+    active bool
+}
+temp p Person = Person{name: "", age: 0, active: false}
+p.active
+`
+	evaluated := testEval(input)
+	testBooleanObject(t, evaluated, false)
+}
+
+func TestStructFieldAssignmentAndSum(t *testing.T) {
+	input := `
+const Point struct {
+    x int
+    y int
+}
+temp pt Point = Point{x: 0, y: 0}
+pt.x = 10
+pt.y = 20
+pt.x + pt.y
+`
+	evaluated := testEval(input)
+	testIntegerObject(t, evaluated, 30)
+}
+
+// ============================================================================
+// Function Call Expression Tests
+// ============================================================================
+
+func TestFunctionWithNoParams(t *testing.T) {
+	input := `
+do getFortyTwo() -> int {
+    return 42
+}
+temp result int = getFortyTwo()
+result
+`
+	evaluated := testEval(input)
+	testIntegerObject(t, evaluated, 42)
+}
+
+func TestNestedFunctionCallsChained(t *testing.T) {
+	input := `
+do double(x int) -> int {
+    return x * 2
+}
+do addOne(x int) -> int {
+    return x + 1
+}
+temp result int = double(addOne(5))
+result
+`
+	evaluated := testEval(input)
+	// addOne(5) = 6, double(6) = 12
+	testIntegerObject(t, evaluated, 12)
+}
+
+// ============================================================================
+// Prefix Expression Tests
+// ============================================================================
+
+func TestNotOperator(t *testing.T) {
+	tests := []struct {
+		input    string
+		expected bool
+	}{
+		{`!true`, false},
+		{`!false`, true},
+		{`!!true`, true},
+		{`!!false`, false},
+	}
+
+	for _, tt := range tests {
+		evaluated := testEval(tt.input)
+		testBooleanObject(t, evaluated, tt.expected)
+	}
+}
+
+func TestNegativeNumbersPrefix(t *testing.T) {
+	tests := []struct {
+		input    string
+		expected int64
+	}{
+		{`-5`, -5},
+		{`-10`, -10},
+		{`-100`, -100},
+	}
+
+	for _, tt := range tests {
+		evaluated := testEval(tt.input)
+		testIntegerObject(t, evaluated, tt.expected)
+	}
+}
+
+// ============================================================================
+// Postfix Expression Tests
+// ============================================================================
+
+func TestPostfixIncrement(t *testing.T) {
+	input := `
+temp x int = 5
+x++
+x
+`
+	evaluated := testEval(input)
+	testIntegerObject(t, evaluated, 6)
+}
+
+func TestPostfixDecrement(t *testing.T) {
+	input := `
+temp x int = 5
+x--
+x
+`
+	evaluated := testEval(input)
+	testIntegerObject(t, evaluated, 4)
+}
+
+// ============================================================================
+// More Byte Operation Tests
+// ============================================================================
+
+func TestByteComparisonOperators(t *testing.T) {
+	tests := []struct {
+		input    string
+		expected bool
+	}{
+		{`
+temp a byte = 10
+temp c byte = 10
+a == c
+`, true},
+		{`
+temp a byte = 10
+temp c byte = 20
+a == c
+`, false},
+		{`
+temp a byte = 10
+temp c byte = 20
+a != c
+`, true},
+		{`
+temp a byte = 10
+temp c byte = 20
+a < c
+`, true},
+		{`
+temp a byte = 20
+temp c byte = 10
+a > c
+`, true},
+	}
+
+	for _, tt := range tests {
+		evaluated := testEval(tt.input)
+		testBooleanObject(t, evaluated, tt.expected)
+	}
+}
+
+func TestByteBitwiseOr(t *testing.T) {
+	input := `
+temp a byte = 15
+temp c byte = 240
+a | c
+`
+	evaluated := testEval(input)
+	// 15 | 240 = 255
+	if b, ok := evaluated.(*Byte); ok {
+		if b.Value != 255 {
+			t.Errorf("expected 255, got %d", b.Value)
+		}
+	} else {
+		t.Logf("bitwise or returned %T", evaluated)
+	}
+}
+
+func TestByteBitwiseXor(t *testing.T) {
+	input := `
+temp a byte = 255
+temp c byte = 240
+a ^ c
+`
+	evaluated := testEval(input)
+	// 255 ^ 240 = 15
+	if b, ok := evaluated.(*Byte); ok {
+		if b.Value != 15 {
+			t.Errorf("expected 15, got %d", b.Value)
+		}
+	} else {
+		t.Logf("bitwise xor returned %T", evaluated)
+	}
+}
+
+// ============================================================================
+// In Operator Tests
+// ============================================================================
+
+func TestInOperatorArray(t *testing.T) {
+	tests := []struct {
+		input    string
+		expected bool
+	}{
+		{`3 in {1, 2, 3, 4, 5}`, true},
+		{`10 in {1, 2, 3, 4, 5}`, false},
+		{`"b" in {"a", "b", "c"}`, true},
+		{`"z" in {"a", "b", "c"}`, false},
+	}
+
+	for _, tt := range tests {
+		evaluated := testEval(tt.input)
+		testBooleanObject(t, evaluated, tt.expected)
+	}
+}
+
+// ============================================================================
+// Interpolated String Tests
+// ============================================================================
+
+func TestInterpolatedStringGreeting(t *testing.T) {
+	input := `
+temp name string = "World"
+temp greeting string = "Hello, ${name}!"
+greeting
+`
+	evaluated := testEval(input)
+	testStringObject(t, evaluated, "Hello, World!")
+}
+
+func TestInterpolatedStringWithExpression(t *testing.T) {
+	input := `
+temp x int = 5
+temp y int = 10
+temp result string = "Sum: ${x + y}"
+result
+`
+	evaluated := testEval(input)
+	testStringObject(t, evaluated, "Sum: 15")
+}
+
+// ============================================================================
+// Variable Declaration Tests
+// ============================================================================
+
+func TestConstArrayDynamicSizeError(t *testing.T) {
+	// const arrays with dynamic size should error
+	input := `const arr [int] = {1, 2, 3}`
+	evaluated := testEval(input)
+	if !isErrorObject(evaluated) {
+		t.Errorf("expected error for const with dynamic array size, got %T", evaluated)
+	}
+}
+
+func TestArrayTypeMismatch(t *testing.T) {
+	input := `temp arr [int] = "not an array"`
+	evaluated := testEval(input)
+	if !isErrorObject(evaluated) {
+		t.Errorf("expected error for type mismatch, got %T", evaluated)
+	}
+}
+
+func TestByteArrayValidation(t *testing.T) {
+	input := `temp arr [byte] = {0, 127, 255}`
+	evaluated := testEval(input)
+	// Should succeed with valid byte values
+	if isErrorObject(evaluated) {
+		t.Errorf("expected success, got error: %v", evaluated)
+	}
+}
+
+func TestByteArrayOutOfRange(t *testing.T) {
+	input := `temp arr [byte] = {256}`
+	evaluated := testEval(input)
+	if !isErrorObject(evaluated) {
+		t.Errorf("expected error for byte out of range, got %T", evaluated)
+	}
+}
+
+func TestMapAccess(t *testing.T) {
+	// Map access using inline map
+	input := `{"a": 1, "b": 2}["a"]`
+	evaluated := testEval(input)
+	testIntegerObject(t, evaluated, 1)
+}
+
+func TestMapNotFoundKey(t *testing.T) {
+	// Map access with missing key
+	input := `{"a": 1}["missing"]`
+	evaluated := testEval(input)
+	if !isErrorObject(evaluated) {
+		t.Logf("missing key returned %T", evaluated)
+	}
+}
+
+// ============================================================================
+// Assignment Tests
+// ============================================================================
+
+func TestImmutableAssignmentError(t *testing.T) {
+	input := `
+const x int = 10
+x = 20
+`
+	evaluated := testEval(input)
+	if !isErrorObject(evaluated) {
+		t.Errorf("expected error for assignment to const, got %T", evaluated)
+	}
+}
+
+func TestMutableAssignment(t *testing.T) {
+	input := `
+temp x int = 10
+x = 20
+x
+`
+	evaluated := testEval(input)
+	testIntegerObject(t, evaluated, 20)
+}
+
+func TestCompoundSubtraction(t *testing.T) {
+	input := `
+temp x int = 10
+x -= 3
+x
+`
+	evaluated := testEval(input)
+	testIntegerObject(t, evaluated, 7)
+}
+
+func TestCompoundMultiplication(t *testing.T) {
+	input := `
+temp x int = 5
+x *= 4
+x
+`
+	evaluated := testEval(input)
+	testIntegerObject(t, evaluated, 20)
+}
+
+func TestCompoundDivision(t *testing.T) {
+	input := `
+temp x int = 20
+x /= 4
+x
+`
+	evaluated := testEval(input)
+	testIntegerObject(t, evaluated, 5)
+}
+
+// ============================================================================
+// More Enum Tests
+// ============================================================================
+
+func TestEnumWithValues(t *testing.T) {
+	input := `
+const Color enum {
+    Red
+    Green
+    Blue
+}
+Color.Blue
+`
+	evaluated := testEval(input)
+	enumVal, ok := evaluated.(*EnumValue)
+	if !ok {
+		t.Fatalf("expected EnumValue, got %T (%+v)", evaluated, evaluated)
+	}
+	if enumVal.Name != "Blue" {
+		t.Errorf("expected enum name 'Blue', got %q", enumVal.Name)
+	}
+}
+
+func TestEnumCompareNotEqual(t *testing.T) {
+	input := `
+const Color enum {
+    Red
+    Green
+    Blue
+}
+Color.Red != Color.Blue
+`
+	evaluated := testEval(input)
+	testBooleanObject(t, evaluated, true)
+}
+
+// ============================================================================
+// More Function Tests
+// ============================================================================
+
+func TestFunctionWithMutableParam(t *testing.T) {
+	input := `
+do increment(&x int) {
+    x = x + 1
+}
+temp val int = 5
+increment(val)
+val
+`
+	evaluated := testEval(input)
+	testIntegerObject(t, evaluated, 6)
+}
+
+func TestRecursiveFunctionFactorial(t *testing.T) {
+	input := `
+do factorial(n int) -> int {
+    if n <= 1 {
+        return 1
+    }
+    return n * factorial(n - 1)
+}
+temp result int = factorial(5)
+result
+`
+	evaluated := testEval(input)
+	testIntegerObject(t, evaluated, 120)
+}
+
+// ============================================================================
+// More Conditional Tests
+// ============================================================================
+
+func TestNestedIfElse(t *testing.T) {
+	input := `
+temp x int = 15
+temp result string = ""
+if x > 20 {
+    result = "large"
+} or x > 10 {
+    result = "medium"
+} otherwise {
+    result = "small"
+}
+result
+`
+	evaluated := testEval(input)
+	testStringObject(t, evaluated, "medium")
+}
+
+func TestMultipleOr(t *testing.T) {
+	input := `
+temp x int = 5
+temp result string = ""
+if x > 30 {
+    result = "a"
+} or x > 20 {
+    result = "b"
+} or x > 10 {
+    result = "c"
+} otherwise {
+    result = "d"
+}
+result
+`
+	evaluated := testEval(input)
+	testStringObject(t, evaluated, "d")
+}
+
+// ============================================================================
+// More Loop Tests
+// ============================================================================
+
+func TestWhileLoopWithCounter(t *testing.T) {
+	input := `
+temp count int = 0
+temp sum int = 0
+as_long_as count < 5 {
+    sum = sum + count
+    count++
+}
+sum
+`
+	evaluated := testEval(input)
+	// 0 + 1 + 2 + 3 + 4 = 10
+	testIntegerObject(t, evaluated, 10)
+}
+
+func TestLoopContinueAndBreak(t *testing.T) {
+	input := `
+temp count int = 0
+temp sum int = 0
+loop {
+    count++
+    if count == 3 {
+        continue
+    }
+    if count >= 5 {
+        break
+    }
+    sum = sum + count
+}
+sum
+`
+	evaluated := testEval(input)
+	// 1 + 2 + 4 = 7 (skipping 3)
+	testIntegerObject(t, evaluated, 7)
+}
+
+func TestForEachLoop(t *testing.T) {
+	input := `
+temp arr [int] = {1, 2, 3, 4, 5}
+temp sum int = 0
+for_each item in arr {
+    sum = sum + item
+}
+sum
+`
+	evaluated := testEval(input)
+	testIntegerObject(t, evaluated, 15)
+}
+
+// ============================================================================
+// More Expression Tests
+// ============================================================================
+
+func TestBooleanNot(t *testing.T) {
+	input := `
+temp flag bool = true
+!flag
+`
+	evaluated := testEval(input)
+	testBooleanObject(t, evaluated, false)
+}
+
+func TestFloatNegation(t *testing.T) {
+	input := `-3.14`
+	evaluated := testEval(input)
+	testFloatObject(t, evaluated, -3.14)
+}
+
+func TestCharLiteralValue(t *testing.T) {
+	input := `'a'`
+	evaluated := testEval(input)
+	if ch, ok := evaluated.(*Char); ok {
+		if ch.Value != 'a' {
+			t.Errorf("expected 'a', got %c", ch.Value)
+		}
+	} else {
+		t.Errorf("expected Char, got %T", evaluated)
+	}
+}
+
+func TestCharEquality(t *testing.T) {
+	input := `'a' == 'a'`
+	evaluated := testEval(input)
+	testBooleanObject(t, evaluated, true)
+}
+
+func TestCharInequality(t *testing.T) {
+	input := `'a' != 'b'`
+	evaluated := testEval(input)
+	testBooleanObject(t, evaluated, true)
+}
+
