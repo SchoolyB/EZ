@@ -428,6 +428,29 @@ func Eval(node ast.Node, env *Environment) Object {
 		if isError(left) {
 			return left
 		}
+
+		// Short-circuit evaluation for && and ||
+		if node.Operator == "&&" {
+			if !isTruthy(left) {
+				return FALSE // Left is false, don't evaluate right
+			}
+			right := Eval(node.Right, env)
+			if isError(right) {
+				return right
+			}
+			return nativeBoolToBooleanObject(isTruthy(right))
+		}
+		if node.Operator == "||" {
+			if isTruthy(left) {
+				return TRUE // Left is true, don't evaluate right
+			}
+			right := Eval(node.Right, env)
+			if isError(right) {
+				return right
+			}
+			return nativeBoolToBooleanObject(isTruthy(right))
+		}
+
 		right := Eval(node.Right, env)
 		if isError(right) {
 			return right
