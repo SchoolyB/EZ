@@ -74,6 +74,12 @@ var ArraysBuiltins = map[string]*object.Builtin{
 			if !ok {
 				return newError("arrays.insert() requires an array as first argument")
 			}
+			if !arr.Mutable {
+				return &object.Error{
+					Message: "cannot modify immutable array (declared as const)",
+					Code:    "E4005",
+				}
+			}
 			idx, ok := args[1].(*object.Integer)
 			if !ok {
 				return &object.Error{Code: "E7004", Message: "arrays.insert() requires an integer index"}
@@ -82,11 +88,11 @@ var ArraysBuiltins = map[string]*object.Builtin{
 			if index < 0 || index > len(arr.Elements) {
 				return &object.Error{Code: "E5003", Message: "arrays.insert() index out of bounds"}
 			}
-			newElements := make([]object.Object, len(arr.Elements)+1)
-			copy(newElements[:index], arr.Elements[:index])
-			newElements[index] = args[2]
-			copy(newElements[index+1:], arr.Elements[index:])
-			return &object.Array{Elements: newElements}
+			// Insert element at index by modifying the array in-place
+			arr.Elements = append(arr.Elements, nil)
+			copy(arr.Elements[index+1:], arr.Elements[index:])
+			arr.Elements[index] = args[2]
+			return object.NIL
 		},
 	},
 
@@ -163,15 +169,20 @@ var ArraysBuiltins = map[string]*object.Builtin{
 			if !ok {
 				return &object.Error{Code: "E7002", Message: "arrays.remove() requires an array"}
 			}
-			for i, el := range arr.Elements {
-				if objectsEqual(el, args[1]) {
-					newElements := make([]object.Object, len(arr.Elements)-1)
-					copy(newElements[:i], arr.Elements[:i])
-					copy(newElements[i:], arr.Elements[i+1:])
-					return &object.Array{Elements: newElements}
+			if !arr.Mutable {
+				return &object.Error{
+					Message: "cannot modify immutable array (declared as const)",
+					Code:    "E4005",
 				}
 			}
-			return arr
+			for i, el := range arr.Elements {
+				if objectsEqual(el, args[1]) {
+					// Remove element at index by modifying the array in-place
+					arr.Elements = append(arr.Elements[:i], arr.Elements[i+1:]...)
+					return object.NIL
+				}
+			}
+			return object.NIL
 		},
 	},
 
