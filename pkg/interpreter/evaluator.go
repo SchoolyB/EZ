@@ -2565,11 +2565,11 @@ func nativeBoolToBooleanObject(input bool) *Boolean {
 }
 
 func isTruthy(obj Object) bool {
-	switch obj {
-	case NIL:
+	switch v := obj.(type) {
+	case *Nil:
 		return false
-	case FALSE:
-		return false
+	case *Boolean:
+		return v.Value
 	default:
 		return true
 	}

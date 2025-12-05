@@ -4,6 +4,7 @@ package interpreter
 // Licensed under the MIT License. See LICENSE for details.
 
 import (
+	"fmt"
 	"strings"
 	"testing"
 
@@ -3277,5 +3278,91 @@ func TestShortCircuitOrResult(t *testing.T) {
 			testBooleanObject(t, evaluated, tt.expected)
 		})
 	}
+}
+
+// ============================================================================
+// Boolean Truthiness Tests (for #342 fix)
+// ============================================================================
+
+func TestBooleanTruthyInIfCondition(t *testing.T) {
+	// Test that boolean values from stdlib functions work correctly in if conditions
+	tests := []struct {
+		input    string
+		expected string
+	}{
+		// Test with stdlib function returning false - should take else branch
+		{`
+import @strings
+temp s string = "hello"
+temp result string = ""
+if strings.contains(s, "xyz") {
+    result = "true"
+} otherwise {
+    result = "false"
+}
+result
+`, "false"},
+		// Test with stdlib function returning true - should take if branch
+		{`
+import @strings
+temp s string = "hello"
+temp result string = ""
+if strings.contains(s, "ell") {
+    result = "true"
+} otherwise {
+    result = "false"
+}
+result
+`, "true"},
+		// Test starts_with returning false
+		{`
+import @strings
+temp s string = "hello"
+temp result string = ""
+if strings.starts_with(s, "world") {
+    result = "true"
+} otherwise {
+    result = "false"
+}
+result
+`, "false"},
+		// Test ends_with returning false
+		{`
+import @strings
+temp s string = "hello"
+temp result string = ""
+if strings.ends_with(s, "world") {
+    result = "true"
+} otherwise {
+    result = "false"
+}
+result
+`, "false"},
+	}
+
+	for i, tt := range tests {
+		t.Run(fmt.Sprintf("test_%d", i), func(t *testing.T) {
+			evaluated := testEval(tt.input)
+			testStringObject(t, evaluated, tt.expected)
+		})
+	}
+}
+
+func TestBooleanAssignmentAndCondition(t *testing.T) {
+	// Test that boolean assigned to variable works correctly in if condition
+	input := `
+import @strings
+temp s string = "hello world"
+temp result bool = strings.contains(s, "xyz")
+temp output string = ""
+if result {
+    output = "bug"
+} otherwise {
+    output = "correct"
+}
+output
+`
+	evaluated := testEval(input)
+	testStringObject(t, evaluated, "correct")
 }
 
