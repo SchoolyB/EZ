@@ -438,7 +438,18 @@ func (tc *TypeChecker) checkStructDeclaration(node *ast.StructDeclaration) {
 		}
 
 		// Add field to struct type
-		fieldType, _ := tc.GetType(field.TypeName)
+		fieldType, ok := tc.GetType(field.TypeName)
+		if !ok {
+			// For array/map types, create a Type on-the-fly since they're not in the registry
+			if tc.isArrayType(field.TypeName) {
+				fieldType = &Type{Name: field.TypeName, Kind: ArrayType}
+			} else if tc.isMapType(field.TypeName) {
+				fieldType = &Type{Name: field.TypeName, Kind: MapType}
+			} else {
+				// This shouldn't happen since TypeExists passed, but be safe
+				continue
+			}
+		}
 		structType.Fields[field.Name.Value] = fieldType
 	}
 }
