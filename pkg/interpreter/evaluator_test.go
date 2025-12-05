@@ -1099,6 +1099,49 @@ str
 	testStringObject(t, evaluated, "modified")
 }
 
+func TestNestedMutableParameterForwarding(t *testing.T) {
+	// Test that mutable parameters work when forwarded through multiple functions
+	// This tests issue #338 - nested mutable parameter forwarding breaks array indexing
+	input := `
+do outer(&arr [int]) {
+	inner(arr)
+}
+
+do inner(&arr [int]) {
+	arr[0] = 999
+}
+
+temp nums [int] = {1, 2, 3}
+outer(nums)
+nums[0]
+`
+	evaluated := testEval(input)
+	testIntegerObject(t, evaluated, 999)
+}
+
+func TestDeeplyNestedMutableParameterForwarding(t *testing.T) {
+	// Test mutable parameters forwarded through multiple levels
+	input := `
+do level1(&n int) {
+	level2(n)
+}
+
+do level2(&n int) {
+	level3(n)
+}
+
+do level3(&n int) {
+	n = 42
+}
+
+temp x int = 0
+level1(x)
+x
+`
+	evaluated := testEval(input)
+	testIntegerObject(t, evaluated, 42)
+}
+
 // ============================================================================
 // String Interpolation Tests
 // ============================================================================
