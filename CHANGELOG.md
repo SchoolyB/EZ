@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.14.8](https://github.com/SchoolyB/EZ/compare/v0.14.7...v0.14.8) (2025-12-05)
+
+
+### Bug Fixes
+
+* **typechecker:** type errors now report correct source location ([#362](https://github.com/SchoolyB/EZ/issues/362)) ([13cdb4e](https://github.com/SchoolyB/EZ/commit/13cdb4ecd40f282c01749bf0f0ff65a22b6ea011))
+
 ## [0.14.7](https://github.com/SchoolyB/EZ/compare/v0.14.6...v0.14.7) (2025-12-05)
 
 
