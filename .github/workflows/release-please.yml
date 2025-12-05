@@ -15,6 +15,7 @@ jobs:
     outputs:
       release_created: ${{ steps.release.outputs.release_created }}
       tag_name: ${{ steps.release.outputs.tag_name }}
+      pr: ${{ steps.release.outputs.pr }}
     steps:
       - uses: googleapis/release-please-action@v4
         id: release
@@ -37,6 +38,64 @@ jobs:
               {"type": "build", "section": "Build System", "hidden": true},
               {"type": "ci", "section": "CI", "hidden": true}
             ]
+
+  # Smart auto-merge: only auto-merge release PRs with user-facing changes
+  auto-merge-release:
+    needs: release-please
+    if: ${{ needs.release-please.outputs.pr && !needs.release-please.outputs.release_created }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Check if PR should auto-merge
+        id: check
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ fromJson(needs.release-please.outputs.pr).number }}
+        run: |
+          echo "Checking release PR #$PR_NUMBER for auto-merge eligibility..."
+
+          # Get PR body (contains changelog)
+          PR_BODY=$(gh pr view "$PR_NUMBER" --json body --jq '.body')
+
+          SHOULD_RELEASE=false
+
+          # Check changelog sections for user-facing changes
+          # These are generated from conventional commit prefixes:
+          # feat:, fix:, perf:, revert:, hotfix:, bugfix:, patch:, feature:
+          if echo "$PR_BODY" | grep -qE "^### (Features|Bug Fixes|Performance Improvements|Reverts)"; then
+            echo "Found user-facing changes in changelog (Features/Bug Fixes/Perf/Reverts)"
+            SHOULD_RELEASE=true
+          fi
+
+          # Also check for commit prefixes directly in the PR body
+          # This catches non-standard prefixes that might be included
+          if [ "$SHOULD_RELEASE" = "false" ]; then
+            if echo "$PR_BODY" | grep -qiE "\* (feat|fix|hotfix|bugfix|patch|feature|perf|revert)(\(.+\))?:"; then
+              echo "Found release-worthy commit prefix in changelog"
+              SHOULD_RELEASE=true
+            fi
+          fi
+
+          if [ "$SHOULD_RELEASE" = "true" ]; then
+            echo "should_merge=true" >> $GITHUB_OUTPUT
+            echo "✅ PR qualifies for auto-merge"
+          else
+            echo "should_merge=false" >> $GITHUB_OUTPUT
+            echo "⏸️ PR contains only internal changes (chore/docs/refactor/etc), skipping auto-merge"
+            echo "   Release PR will stay open until a feat/fix/hotfix commit is added"
+          fi
+
+      - name: Enable auto-merge
+        if: steps.check.outputs.should_merge == 'true'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ fromJson(needs.release-please.outputs.pr).number }}
+        run: |
+          echo "Enabling auto-merge for PR #$PR_NUMBER..."
+          gh pr merge "$PR_NUMBER" --auto --squash
+          echo "✅ Auto-merge enabled - PR will merge when CI passes"
 
   build-release:
     needs: release-please
