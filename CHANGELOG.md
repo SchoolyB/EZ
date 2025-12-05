@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.14.7](https://github.com/SchoolyB/EZ/compare/v0.14.6...v0.14.7) (2025-12-05)
+
+
+### Bug Fixes
+
+* **parser:** handle minimum int64 literal (-9223372036854775808) ([#360](https://github.com/SchoolyB/EZ/issues/360)) ([8c75b43](https://github.com/SchoolyB/EZ/commit/8c75b434ff40f3e11066edbeb13a563e03a43b76))
+
 ## [0.14.6](https://github.com/SchoolyB/EZ/compare/v0.14.5...v0.14.6) (2025-12-05)
 
 
