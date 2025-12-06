@@ -1,0 +1,25 @@
+name: Clean up stale issues
+
+on:
+  schedule:
+    - cron: "0 2 * * *"   # daily (2:00 UTC)
+  workflow_dispatch:
+
+permissions:
+  issues: write
+
+jobs:
+  cleanup:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/stale@v10
+        with:
+          days-before-stale: 60
+          days-before-close: 14
+
+          stale-issue-label: "stale"
+          stale-issue-message: >
+            ⚠️ This issue has been marked as stale due to inactivity.
+            If it’s still relevant, please leave a comment — otherwise it will be closed soon.
+
+          remove-stale-when-updated: true
