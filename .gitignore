@@ -8,6 +8,7 @@ tmp/
 
 # Ignore all .ez files by default (for local scratch/testing)
 *.ez
+coverage.out
 
 # Keep tests and examples tracked
 !tests/
