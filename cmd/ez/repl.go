@@ -4,7 +4,6 @@ package main
 // Licensed under the MIT License. See LICENSE for details.
 
 import (
-	"bufio"
 	"fmt"
 	"os"
 	"strings"
@@ -13,6 +12,7 @@ import (
 	"github.com/marshallburns/ez/pkg/errors"
 	"github.com/marshallburns/ez/pkg/interpreter"
 	"github.com/marshallburns/ez/pkg/lexer"
+	"github.com/marshallburns/ez/pkg/lineeditor"
 	"github.com/marshallburns/ez/pkg/parser"
 )
 
@@ -29,16 +29,24 @@ func startREPL() {
 	fmt.Println()
 
 	env := interpreter.NewEnvironment()
-	scanner := bufio.NewScanner(os.Stdin)
+	editor := lineeditor.New(100)
+	defer editor.Close()
 
 	for {
-		fmt.Print(PROMPT)
-
-		if !scanner.Scan() {
+		line, err := editor.ReadLine(PROMPT)
+		if err != nil {
+			if err == lineeditor.ErrInterrupted {
+				continue // Ctrl+C just cancels current line
+			}
+			if err == lineeditor.ErrEOF {
+				fmt.Println("Goodbye!")
+				break
+			}
+			fmt.Fprintf(os.Stderr, "Error reading input: %v\n", err)
 			break
 		}
 
-		line := strings.TrimSpace(scanner.Text())
+		line = strings.TrimSpace(line)
 
 		// Handle empty lines
 		if line == "" {
@@ -53,7 +61,7 @@ func startREPL() {
 
 		// Check if we need multi-line input
 		if needsMoreInput(line) {
-			line = readMultiLineInput(scanner, line)
+			line = readMultiLineInputWithEditor(editor, line)
 			if line == "" {
 				continue // User cancelled or error
 			}
@@ -61,10 +69,6 @@ func startREPL() {
 
 		// Parse and evaluate
 		evaluateLine(line, env)
-	}
-
-	if err := scanner.Err(); err != nil {
-		fmt.Fprintf(os.Stderr, "Error reading input: %v\n", err)
 	}
 }
 
@@ -143,19 +147,17 @@ func needsMoreInput(line string) bool {
 	return false
 }
 
-// readMultiLineInput continues reading input for multi-line statements
-func readMultiLineInput(scanner *bufio.Scanner, initial string) string {
+// readMultiLineInputWithEditor continues reading input for multi-line statements using the line editor
+func readMultiLineInputWithEditor(editor *lineeditor.Editor, initial string) string {
 	var lines []string
 	lines = append(lines, initial)
 
 	for {
-		fmt.Print(CONTINUE)
-
-		if !scanner.Scan() {
-			return "" // EOF or error
+		line, err := editor.ReadLine(CONTINUE)
+		if err != nil {
+			return "" // EOF, interrupt, or error
 		}
 
-		line := scanner.Text()
 		lines = append(lines, line)
 
 		// Check if we have balanced braces
