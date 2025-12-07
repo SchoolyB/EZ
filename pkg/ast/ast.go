@@ -271,13 +271,13 @@ type VariableDeclaration struct {
 	Visibility Visibility   // Public (default), Private, or PrivateModule
 }
 
-// IgnoreValue represents @ignore in multiple assignment
-type IgnoreValue struct {
+// BlankIdentifier represents _ (blank identifier) in multiple assignment
+type BlankIdentifier struct {
 	Token Token
 }
 
-func (i *IgnoreValue) expressionNode()      {}
-func (i *IgnoreValue) TokenLiteral() string { return i.Token.Literal }
+func (b *BlankIdentifier) expressionNode()      {}
+func (b *BlankIdentifier) TokenLiteral() string { return b.Token.Literal }
 
 // Attribute represents @suppress(warning_name, ...)
 type Attribute struct {

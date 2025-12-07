@@ -534,16 +534,71 @@ func TestMultipleVariableDeclaration(t *testing.T) {
 	}
 }
 
-func TestIgnoreInMultipleDeclaration(t *testing.T) {
-	input := "temp @ignore, b = getValues()"
+func TestBlankIdentifierInMultipleDeclaration(t *testing.T) {
+	// Test that _ (blank identifier) works in multiple assignment
+	input := "temp _, b = getValues()"
 	program := parseProgram(t, input)
 	stmt := program.Statements[0].(*VariableDeclaration)
 
 	if len(stmt.Names) != 2 {
 		t.Fatalf("expected 2 names, got %d", len(stmt.Names))
 	}
-	if stmt.Names[0].Value != "@ignore" {
-		t.Errorf("expected first name '@ignore', got %q", stmt.Names[0].Value)
+	if stmt.Names[0].Value != "_" {
+		t.Errorf("expected first name '_', got %q", stmt.Names[0].Value)
+	}
+	if stmt.Names[1].Value != "b" {
+		t.Errorf("expected second name 'b', got %q", stmt.Names[1].Value)
+	}
+}
+
+func TestBlankIdentifierAsSecondValue(t *testing.T) {
+	// Test _ as second value in multiple assignment
+	input := "temp a, _ = getValues()"
+	program := parseProgram(t, input)
+	stmt := program.Statements[0].(*VariableDeclaration)
+
+	if len(stmt.Names) != 2 {
+		t.Fatalf("expected 2 names, got %d", len(stmt.Names))
+	}
+	if stmt.Names[0].Value != "a" {
+		t.Errorf("expected first name 'a', got %q", stmt.Names[0].Value)
+	}
+	if stmt.Names[1].Value != "_" {
+		t.Errorf("expected second name '_', got %q", stmt.Names[1].Value)
+	}
+}
+
+func TestMultipleBlankIdentifiers(t *testing.T) {
+	// Test multiple _ in a single assignment
+	input := "temp _, _, c = getThreeValues()"
+	program := parseProgram(t, input)
+	stmt := program.Statements[0].(*VariableDeclaration)
+
+	if len(stmt.Names) != 3 {
+		t.Fatalf("expected 3 names, got %d", len(stmt.Names))
+	}
+	if stmt.Names[0].Value != "_" {
+		t.Errorf("expected first name '_', got %q", stmt.Names[0].Value)
+	}
+	if stmt.Names[1].Value != "_" {
+		t.Errorf("expected second name '_', got %q", stmt.Names[1].Value)
+	}
+	if stmt.Names[2].Value != "c" {
+		t.Errorf("expected third name 'c', got %q", stmt.Names[2].Value)
+	}
+}
+
+func TestBlankIdentifierOnly(t *testing.T) {
+	// Test _ as the only variable (discarding a single return value)
+	input := "temp _ = getSingleValue()"
+	program := parseProgram(t, input)
+	stmt := program.Statements[0].(*VariableDeclaration)
+
+	if len(stmt.Names) != 1 {
+		t.Fatalf("expected 1 name, got %d", len(stmt.Names))
+	}
+	if stmt.Names[0].Value != "_" {
+		t.Errorf("expected name '_', got %q", stmt.Names[0].Value)
 	}
 }
 

@@ -208,16 +208,8 @@ func (l *Lexer) NextToken() tokenizer.Token {
 	case '.':
 		tok = newToken(tokenizer.DOT, l.ch, l.line, l.column)
 	case '@':
-		// Peek ahead to check for @ignore or @suppress
-		if l.peekAheadString(7) == "@ignore" {
-			// Found @ignore
-			tok = tokenizer.Token{Type: tokenizer.IGNORE, Literal: "@ignore", Line: l.line, Column: l.column}
-			// Consume the entire @ignore token
-			for i := 0; i < 7; i++ {
-				l.readChar()
-			}
-			return tok
-		} else if l.peekAheadString(9) == "@suppress" {
+		// Peek ahead to check for @suppress
+		if l.peekAheadString(9) == "@suppress" {
 			// Found @suppress
 			tok = tokenizer.Token{Type: tokenizer.SUPPRESS, Literal: "@suppress", Line: l.line, Column: l.column}
 			// Consume the entire @suppress token
