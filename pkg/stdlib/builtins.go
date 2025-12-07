@@ -191,6 +191,7 @@ var StdBuiltins = map[string]*object.Builtin{
 	},
 
 	// Returns the length of a string or array
+	// For strings, returns character count (not byte count) to properly support UTF-8
 	"len": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 1 {
@@ -199,7 +200,8 @@ var StdBuiltins = map[string]*object.Builtin{
 
 			switch arg := args[0].(type) {
 			case *object.String:
-				return &object.Integer{Value: int64(len(arg.Value))}
+				// Use []rune to count characters, not bytes (proper UTF-8 support)
+				return &object.Integer{Value: int64(len([]rune(arg.Value)))}
 			case *object.Array:
 				return &object.Integer{Value: int64(len(arg.Elements))}
 			case *object.Map:

@@ -1,0 +1,9 @@
+/*
+ * Error Test: E5005 - integer-overflow (addition)
+ * Expected: "integer overflow"
+ */
+
+do main() {
+    temp max int = 9223372036854775807  // max int64
+    temp result int = max + 1  // Overflow
+}

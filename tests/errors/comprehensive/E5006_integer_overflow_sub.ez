@@ -1,0 +1,9 @@
+/*
+ * Error Test: E5006 - integer-overflow (subtraction)
+ * Expected: "integer overflow"
+ */
+
+do main() {
+    temp min int = -9223372036854775808  // min int64
+    temp result int = min - 1  // Underflow
+}

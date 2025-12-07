@@ -3465,3 +3465,319 @@ a + c
 	testIntegerObject(t, evaluated, 40)
 }
 
+// ============================================================================
+// Bug Fix Tests (#378-#383)
+// ============================================================================
+
+// TestUTF8StringLen tests that len() returns character count, not byte count (#378)
+func TestUTF8StringLen(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		expected int64
+	}{
+		{
+			name:     "ASCII string",
+			input:    `len("Hello")`,
+			expected: 5,
+		},
+		{
+			name:     "UTF-8 string with Chinese characters",
+			input:    `len("Hello 世界")`,
+			expected: 8, // 6 ASCII + 2 Chinese characters
+		},
+		{
+			name:     "pure Chinese",
+			input:    `len("世界")`,
+			expected: 2,
+		},
+		{
+			name:     "emoji string",
+			input:    `len("Hello 👋")`,
+			expected: 7, // 6 ASCII + 1 emoji
+		},
+		{
+			name:     "empty string",
+			input:    `len("")`,
+			expected: 0,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			evaluated := testEval(tt.input)
+			testIntegerObject(t, evaluated, tt.expected)
+		})
+	}
+}
+
+// TestUTF8StringIndexing tests that string indexing returns correct UTF-8 characters (#379)
+func TestUTF8StringIndexing(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		expected rune
+	}{
+		{
+			name: "access ASCII char in UTF-8 string",
+			input: `
+temp s string = "Hello 世界"
+s[0]
+`,
+			expected: 'H',
+		},
+		{
+			name: "access first Chinese character",
+			input: `
+temp s string = "Hello 世界"
+s[6]
+`,
+			expected: '世',
+		},
+		{
+			name: "access second Chinese character",
+			input: `
+temp s string = "Hello 世界"
+s[7]
+`,
+			expected: '界',
+		},
+		{
+			name: "access emoji",
+			input: `
+temp s string = "Hi 👋 there"
+s[3]
+`,
+			expected: '👋',
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			evaluated := testEval(tt.input)
+			if ch, ok := evaluated.(*Char); ok {
+				if ch.Value != tt.expected {
+					t.Errorf("expected %q, got %q", string(tt.expected), string(ch.Value))
+				}
+			} else {
+				t.Errorf("expected Char, got %T (%+v)", evaluated, evaluated)
+			}
+		})
+	}
+}
+
+// TestInOperatorChar tests that 'in' operator works for char arrays (#380)
+func TestInOperatorChar(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		expected bool
+	}{
+		{
+			name:     "char found in array",
+			input:    `'a' in {'a', 'b', 'c'}`,
+			expected: true,
+		},
+		{
+			name:     "char not found in array",
+			input:    `'d' in {'a', 'b', 'c'}`,
+			expected: false,
+		},
+		{
+			name:     "char at end of array",
+			input:    `'c' in {'a', 'b', 'c'}`,
+			expected: true,
+		},
+		{
+			name:     "unicode char in array",
+			input:    `'世' in {'世', '界'}`,
+			expected: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			evaluated := testEval(tt.input)
+			testBooleanObject(t, evaluated, tt.expected)
+		})
+	}
+}
+
+// TestInOperatorFloat tests that 'in' operator works for float arrays (#381)
+func TestInOperatorFloat(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		expected bool
+	}{
+		{
+			name:     "float found in array",
+			input:    `1.5 in {1.5, 2.5, 3.5}`,
+			expected: true,
+		},
+		{
+			name:     "float not found in array",
+			input:    `4.5 in {1.5, 2.5, 3.5}`,
+			expected: false,
+		},
+		{
+			name:     "zero float in array",
+			input:    `0.0 in {0.0, 1.0, 2.0}`,
+			expected: true,
+		},
+		{
+			name:     "negative float in array",
+			input:    `-1.5 in {-2.5, -1.5, 0.5}`,
+			expected: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			evaluated := testEval(tt.input)
+			testBooleanObject(t, evaluated, tt.expected)
+		})
+	}
+}
+
+// TestIntegerOverflowDetection tests that integer arithmetic overflow is detected (#382)
+func TestIntegerOverflowDetection(t *testing.T) {
+	tests := []struct {
+		name        string
+		input       string
+		expectError bool
+		errorCode   string
+	}{
+		{
+			name:        "addition overflow",
+			input:       `9223372036854775807 + 1`,
+			expectError: true,
+			errorCode:   "E5005",
+		},
+		{
+			name:        "addition underflow",
+			input:       `-9223372036854775808 + (-1)`,
+			expectError: true,
+			errorCode:   "E5005",
+		},
+		{
+			name:        "subtraction overflow",
+			input:       `-9223372036854775808 - 1`,
+			expectError: true,
+			errorCode:   "E5006",
+		},
+		{
+			name:        "subtraction underflow",
+			input:       `9223372036854775807 - (-1)`,
+			expectError: true,
+			errorCode:   "E5006",
+		},
+		{
+			name:        "multiplication overflow",
+			input:       `9223372036854775807 * 2`,
+			expectError: true,
+			errorCode:   "E5007",
+		},
+		{
+			name:        "normal addition - no overflow",
+			input:       `100 + 200`,
+			expectError: false,
+		},
+		{
+			name:        "normal subtraction - no overflow",
+			input:       `100 - 200`,
+			expectError: false,
+		},
+		{
+			name:        "normal multiplication - no overflow",
+			input:       `100 * 200`,
+			expectError: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			evaluated := testEval(tt.input)
+			if tt.expectError {
+				if err, ok := evaluated.(*Error); ok {
+					if err.Code != tt.errorCode {
+						t.Errorf("expected error code %s, got %s", tt.errorCode, err.Code)
+					}
+				} else {
+					t.Errorf("expected error, got %T (%+v)", evaluated, evaluated)
+				}
+			} else {
+				if _, ok := evaluated.(*Error); ok {
+					t.Errorf("did not expect error, got %+v", evaluated)
+				}
+			}
+		})
+	}
+}
+
+// TestPostfixOverflowDetection tests that postfix ++/-- overflow is detected (#383)
+func TestPostfixOverflowDetection(t *testing.T) {
+	tests := []struct {
+		name        string
+		input       string
+		expectError bool
+		errorCode   string
+	}{
+		{
+			name: "increment overflow",
+			input: `
+temp i int = 9223372036854775807
+i++
+`,
+			expectError: true,
+			errorCode:   "E5008",
+		},
+		{
+			name: "decrement underflow",
+			input: `
+temp i int = -9223372036854775808
+i--
+`,
+			expectError: true,
+			errorCode:   "E5009",
+		},
+		{
+			name: "normal increment - no overflow",
+			input: `
+temp i int = 100
+i++
+i
+`,
+			expectError: false,
+		},
+		{
+			name: "normal decrement - no overflow",
+			input: `
+temp i int = 100
+i--
+i
+`,
+			expectError: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			evaluated := testEval(tt.input)
+			if tt.expectError {
+				if err, ok := evaluated.(*Error); ok {
+					if err.Code != tt.errorCode {
+						t.Errorf("expected error code %s, got %s", tt.errorCode, err.Code)
+					}
+				} else {
+					t.Errorf("expected error, got %T (%+v)", evaluated, evaluated)
+				}
+			} else {
+				if _, ok := evaluated.(*Error); ok {
+					t.Errorf("did not expect error, got %+v", evaluated)
+				}
+			}
+		})
+	}
+}
+
