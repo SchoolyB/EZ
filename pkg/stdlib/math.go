@@ -108,10 +108,15 @@ var MathBuiltins = map[string]*object.Builtin{
 			if isFloat(args[0]) {
 				return &object.Float{Value: math.Abs(val)}
 			}
-			if val < 0 {
-				return &object.Integer{Value: int64(-val)}
+			// Check for MinInt64 overflow: abs(-9223372036854775808) cannot be represented as int64
+			intVal := args[0].(*object.Integer).Value
+			if intVal == math.MinInt64 {
+				return &object.Error{Code: "E5004", Message: "math.abs() overflow: absolute value of minimum int64 cannot be represented"}
 			}
-			return &object.Integer{Value: int64(val)}
+			if intVal < 0 {
+				return &object.Integer{Value: -intVal}
+			}
+			return &object.Integer{Value: intVal}
 		},
 	},
 	"math.sign": {
@@ -143,7 +148,12 @@ var MathBuiltins = map[string]*object.Builtin{
 			if isFloat(args[0]) {
 				return &object.Float{Value: -val}
 			}
-			return &object.Integer{Value: int64(-val)}
+			// Check for MinInt64 overflow: neg(-9223372036854775808) cannot be represented as int64
+			intVal := args[0].(*object.Integer).Value
+			if intVal == math.MinInt64 {
+				return &object.Error{Code: "E5004", Message: "math.neg() overflow: negation of minimum int64 cannot be represented"}
+			}
+			return &object.Integer{Value: -intVal}
 		},
 	},
 
@@ -292,6 +302,13 @@ var MathBuiltins = map[string]*object.Builtin{
 			result := math.Pow(base, exp)
 			if isFloat(args[0]) || isFloat(args[1]) || exp < 0 {
 				return &object.Float{Value: result}
+			}
+			// Check for integer overflow
+			// Use 2^63 as the boundary since float64(math.MaxInt64) loses precision
+			const maxInt64AsFloat = float64(1 << 63)           // 9223372036854775808.0
+			const minInt64AsFloat = float64(math.MinInt64)     // -9223372036854775808.0
+			if result >= maxInt64AsFloat || result < minInt64AsFloat || math.IsInf(result, 0) || math.IsNaN(result) {
+				return &object.Error{Code: "E5004", Message: "math.pow() overflow: result exceeds int64 range"}
 			}
 			return &object.Integer{Value: int64(result)}
 		},

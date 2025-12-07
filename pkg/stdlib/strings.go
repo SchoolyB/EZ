@@ -230,15 +230,20 @@ var StringsBuiltins = map[string]*object.Builtin{
 			if !ok {
 				return &object.Error{Code: "E7004", Message: "strings.slice() requires integer indices"}
 			}
+
+			// Convert to runes for proper UTF-8 character handling
+			runes := []rune(str.Value)
+			runeLen := len(runes)
+
 			startIdx := int(start.Value)
 			if startIdx < 0 {
-				startIdx = len(str.Value) + startIdx
+				startIdx = runeLen + startIdx
 			}
 			if startIdx < 0 {
 				startIdx = 0
 			}
 
-			endIdx := len(str.Value)
+			endIdx := runeLen
 			if len(args) == 3 {
 				end, ok := args[2].(*object.Integer)
 				if !ok {
@@ -246,21 +251,21 @@ var StringsBuiltins = map[string]*object.Builtin{
 				}
 				endIdx = int(end.Value)
 				if endIdx < 0 {
-					endIdx = len(str.Value) + endIdx
+					endIdx = runeLen + endIdx
 				}
 			}
 
-			if startIdx > len(str.Value) {
-				startIdx = len(str.Value)
+			if startIdx > runeLen {
+				startIdx = runeLen
 			}
-			if endIdx > len(str.Value) {
-				endIdx = len(str.Value)
+			if endIdx > runeLen {
+				endIdx = runeLen
 			}
 			if startIdx > endIdx {
 				return &object.String{Value: ""}
 			}
 
-			return &object.String{Value: str.Value[startIdx:endIdx]}
+			return &object.String{Value: string(runes[startIdx:endIdx])}
 		},
 	},
 
@@ -310,14 +315,18 @@ var StringsBuiltins = map[string]*object.Builtin{
 					return &object.Error{Code: "E7003", Message: "strings.pad_left() requires a string as pad character"}
 				}
 				if len(pad.Value) > 0 {
-					padChar = string(pad.Value[0])
+					// Use first rune of pad string for proper UTF-8 handling
+					padRunes := []rune(pad.Value)
+					padChar = string(padRunes[0])
 				}
 			}
 			targetWidth := int(width.Value)
-			if len(str.Value) >= targetWidth {
+			// Use rune count instead of byte length for proper UTF-8 handling
+			strRuneLen := len([]rune(str.Value))
+			if strRuneLen >= targetWidth {
 				return str
 			}
-			padding := strings.Repeat(padChar, targetWidth-len(str.Value))
+			padding := strings.Repeat(padChar, targetWidth-strRuneLen)
 			return &object.String{Value: padding + str.Value}
 		},
 	},
@@ -342,14 +351,18 @@ var StringsBuiltins = map[string]*object.Builtin{
 					return &object.Error{Code: "E7003", Message: "strings.pad_right() requires a string as pad character"}
 				}
 				if len(pad.Value) > 0 {
-					padChar = string(pad.Value[0])
+					// Use first rune of pad string for proper UTF-8 handling
+					padRunes := []rune(pad.Value)
+					padChar = string(padRunes[0])
 				}
 			}
 			targetWidth := int(width.Value)
-			if len(str.Value) >= targetWidth {
+			// Use rune count instead of byte length for proper UTF-8 handling
+			strRuneLen := len([]rune(str.Value))
+			if strRuneLen >= targetWidth {
 				return str
 			}
-			padding := strings.Repeat(padChar, targetWidth-len(str.Value))
+			padding := strings.Repeat(padChar, targetWidth-strRuneLen)
 			return &object.String{Value: str.Value + padding}
 		},
 	},
