@@ -182,6 +182,38 @@ func TestFloatLiterals(t *testing.T) {
 	}
 }
 
+// TestScientificNotation tests scientific notation parsing (Bug #366 fix)
+func TestScientificNotation(t *testing.T) {
+	tests := []struct {
+		input   string
+		literal string
+	}{
+		{"1e10", "1e10"},
+		{"1E10", "1E10"},
+		{"1e+10", "1e+10"},
+		{"1e-10", "1e-10"},
+		{"1.5e10", "1.5e10"},
+		{"1.5e+10", "1.5e+10"},
+		{"1.5e-10", "1.5e-10"},
+		{"1.5E10", "1.5E10"},
+		{"2.5e308", "2.5e308"},
+		{"5e-3", "5e-3"},
+		{"3.14e2", "3.14e2"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.input, func(t *testing.T) {
+			tokens := tokenize(tt.input)
+			if tokens[0].Type != tokenizer.FLOAT {
+				t.Errorf("type = %s, want FLOAT", tokens[0].Type)
+			}
+			if tokens[0].Literal != tt.literal {
+				t.Errorf("literal = %q, want %q", tokens[0].Literal, tt.literal)
+			}
+		})
+	}
+}
+
 // TestStringLiterals tests string token parsing
 func TestStringLiterals(t *testing.T) {
 	tests := []struct {

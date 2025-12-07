@@ -1816,7 +1816,8 @@ func (p *Parser) parseTypeName() string {
 		typeName := "["
 		p.nextToken() // move past [
 
-		// The element type can be an identifier OR another array type (for matrices)
+		// The element type can be an identifier, another array type (for matrices),
+		// or a map type (for arrays of maps)
 		var elementType string
 		if p.currentTokenMatches(LBRACKET) {
 			// Nested array type [[type]] - recursive call
@@ -1825,18 +1826,26 @@ func (p *Parser) parseTypeName() string {
 				return ""
 			}
 		} else if p.currentTokenMatches(IDENT) {
-			elementType = p.currentToken.Literal
-			// Check for qualified type name inside array: [module.TypeName]
-			if p.peekTokenMatches(DOT) {
-				p.nextToken() // consume the DOT
-				p.nextToken() // get the type name
-				if !p.currentTokenMatches(IDENT) {
-					msg := fmt.Sprintf("expected type name after '.', got %s", p.currentToken.Type)
-					p.errors = append(p.errors, msg)
-					p.addEZError(errors.E2024, msg, p.currentToken)
+			// Check for map type inside array: [map[K:V]]
+			if p.currentToken.Literal == "map" && p.peekTokenMatches(LBRACKET) {
+				elementType = p.parseMapTypeName()
+				if elementType == "" {
 					return ""
 				}
-				elementType = elementType + "." + p.currentToken.Literal
+			} else {
+				elementType = p.currentToken.Literal
+				// Check for qualified type name inside array: [module.TypeName]
+				if p.peekTokenMatches(DOT) {
+					p.nextToken() // consume the DOT
+					p.nextToken() // get the type name
+					if !p.currentTokenMatches(IDENT) {
+						msg := fmt.Sprintf("expected type name after '.', got %s", p.currentToken.Type)
+						p.errors = append(p.errors, msg)
+						p.addEZError(errors.E2024, msg, p.currentToken)
+						return ""
+					}
+					elementType = elementType + "." + p.currentToken.Literal
+				}
 			}
 		} else {
 			msg := fmt.Sprintf("expected type name, got %s", p.currentToken.Type)
@@ -1917,11 +1926,32 @@ func (p *Parser) parseMapTypeName() string {
 	}
 	typeName += ":"
 
-	// Parse value type
-	if !p.expectPeek(IDENT) {
+	// Parse value type - can be an identifier, array type, or nested map type
+	p.nextToken()
+	if p.currentTokenMatches(LBRACKET) {
+		// Array value type: map[K:[V]]
+		valueType := p.parseTypeName()
+		if valueType == "" {
+			return ""
+		}
+		typeName += valueType
+	} else if p.currentTokenMatches(IDENT) {
+		// Check for nested map type: map[K:map[K2:V2]]
+		if p.currentToken.Literal == "map" && p.peekTokenMatches(LBRACKET) {
+			valueType := p.parseMapTypeName()
+			if valueType == "" {
+				return ""
+			}
+			typeName += valueType
+		} else {
+			typeName += p.currentToken.Literal
+		}
+	} else {
+		msg := fmt.Sprintf("expected value type in map declaration, got %s", p.currentToken.Type)
+		p.errors = append(p.errors, msg)
+		p.addEZError(errors.E2024, msg, p.currentToken)
 		return ""
 	}
-	typeName += p.currentToken.Literal
 
 	// Expect closing bracket
 	if !p.expectPeek(RBRACKET) {
