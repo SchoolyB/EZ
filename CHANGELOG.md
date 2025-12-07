@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.16.0](https://github.com/SchoolyB/EZ/compare/v0.15.2...v0.16.0) (2025-12-07)
+
+
+### Features
+
+* add line editor for REPL with arrow key navigation and history ([#400](https://github.com/SchoolyB/EZ/issues/400)) ([bce7343](https://github.com/SchoolyB/EZ/commit/bce7343118564ec2f8b7b2e79b2eec3cd0b49711))
+
 ## [0.15.2](https://github.com/SchoolyB/EZ/compare/v0.15.1...v0.15.2) (2025-12-07)
 
 
