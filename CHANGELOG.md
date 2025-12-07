@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.15.2](https://github.com/SchoolyB/EZ/compare/v0.15.1...v0.15.2) (2025-12-07)
+
+
+### Bug Fixes
+
+* resolve stdlib bugs for arrays, strings, and math modules ([#398](https://github.com/SchoolyB/EZ/issues/398)) ([b278ce6](https://github.com/SchoolyB/EZ/commit/b278ce6744cba9c3e8bf22237038f8cce398bda8))
+
 ## [0.15.1](https://github.com/SchoolyB/EZ/compare/v0.15.0...v0.15.1) (2025-12-07)
 
 
