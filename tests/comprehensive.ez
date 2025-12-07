@@ -185,6 +185,10 @@ do main() {
     total_passed += result.passed
     total_failed += result.failed
 
+    result = test_bugfix_378_383()
+    total_passed += result.passed
+    total_failed += result.failed
+
     temp total int = total_passed + total_failed
 
     println("")
@@ -2559,6 +2563,194 @@ do test_stdlib_os() -> TestResult {
         passed += 1
     } otherwise {
         println("  os.chdir(invalid) should have returned error")
+        failed += 1
+    }
+
+    println("  PASSED: ${passed}, FAILED: ${failed}")
+    return TestResult{passed: passed, failed: failed}
+}
+
+// ==================================================
+// BUG FIXES #378-#383
+// ==================================================
+
+do test_bugfix_378_383() -> TestResult {
+    print_section("Bug Fixes #378-#383")
+    temp passed int = 0
+    temp failed int = 0
+
+    // ===== Test #378: UTF-8 string len() =====
+    println("  [#378] UTF-8 string len():")
+
+    // ASCII string
+    if len("Hello") == 5 {
+        println("    ASCII string length: PASS")
+        passed += 1
+    } otherwise {
+        println("    ASCII string length: FAIL")
+        failed += 1
+    }
+
+    // UTF-8 string with Chinese characters (8 chars: 6 ASCII + 2 Chinese)
+    if len("Hello 世界") == 8 {
+        println("    UTF-8 string with Chinese: PASS")
+        passed += 1
+    } otherwise {
+        println("    UTF-8 string with Chinese: FAIL (got ${len("Hello 世界")})")
+        failed += 1
+    }
+
+    // Pure Chinese
+    if len("世界") == 2 {
+        println("    Pure Chinese string: PASS")
+        passed += 1
+    } otherwise {
+        println("    Pure Chinese string: FAIL (got ${len("世界")})")
+        failed += 1
+    }
+
+    // ===== Test #379: UTF-8 string indexing =====
+    println("  [#379] UTF-8 string indexing:")
+
+    temp s string = "Hello 世界"
+
+    // Access ASCII char
+    if s[0] == 'H' {
+        println("    Access ASCII char: PASS")
+        passed += 1
+    } otherwise {
+        println("    Access ASCII char: FAIL")
+        failed += 1
+    }
+
+    // Access Chinese characters using int() since they're multi-byte
+    // '世' = Unicode 19990, '界' = Unicode 30028
+    if int(s[6]) == 19990 {
+        println("    Access first Chinese char: PASS")
+        passed += 1
+    } otherwise {
+        println("    Access first Chinese char: FAIL (got ${int(s[6])})")
+        failed += 1
+    }
+
+    if int(s[7]) == 30028 {
+        println("    Access second Chinese char: PASS")
+        passed += 1
+    } otherwise {
+        println("    Access second Chinese char: FAIL (got ${int(s[7])})")
+        failed += 1
+    }
+
+    // ===== Test #380: 'in' operator for char arrays =====
+    println("  [#380] 'in' operator for char arrays:")
+
+    temp chars [char] = {'a', 'b', 'c'}
+
+    if 'a' in chars {
+        println("    char 'a' in array: PASS")
+        passed += 1
+    } otherwise {
+        println("    char 'a' in array: FAIL")
+        failed += 1
+    }
+
+    if 'b' in chars {
+        println("    char 'b' in array: PASS")
+        passed += 1
+    } otherwise {
+        println("    char 'b' in array: FAIL")
+        failed += 1
+    }
+
+    if !('d' in chars) {
+        println("    char 'd' not in array: PASS")
+        passed += 1
+    } otherwise {
+        println("    char 'd' not in array: FAIL")
+        failed += 1
+    }
+
+    // ===== Test #381: 'in' operator for float arrays =====
+    println("  [#381] 'in' operator for float arrays:")
+
+    temp floats [float] = {1.5, 2.5, 3.5}
+
+    if 1.5 in floats {
+        println("    float 1.5 in array: PASS")
+        passed += 1
+    } otherwise {
+        println("    float 1.5 in array: FAIL")
+        failed += 1
+    }
+
+    if 2.5 in floats {
+        println("    float 2.5 in array: PASS")
+        passed += 1
+    } otherwise {
+        println("    float 2.5 in array: FAIL")
+        failed += 1
+    }
+
+    if !(4.5 in floats) {
+        println("    float 4.5 not in array: PASS")
+        passed += 1
+    } otherwise {
+        println("    float 4.5 not in array: FAIL")
+        failed += 1
+    }
+
+    // ===== Test #382-383: Normal arithmetic (no overflow) =====
+    println("  [#382-383] Normal arithmetic (overflow detection enabled):")
+
+    // Normal addition
+    temp a int = 100 + 200
+    if a == 300 {
+        println("    Normal addition: PASS")
+        passed += 1
+    } otherwise {
+        println("    Normal addition: FAIL")
+        failed += 1
+    }
+
+    // Normal subtraction
+    temp b int = 500 - 200
+    if b == 300 {
+        println("    Normal subtraction: PASS")
+        passed += 1
+    } otherwise {
+        println("    Normal subtraction: FAIL")
+        failed += 1
+    }
+
+    // Normal multiplication
+    temp c int = 10 * 30
+    if c == 300 {
+        println("    Normal multiplication: PASS")
+        passed += 1
+    } otherwise {
+        println("    Normal multiplication: FAIL")
+        failed += 1
+    }
+
+    // Normal increment
+    temp d int = 99
+    d++
+    if d == 100 {
+        println("    Normal increment: PASS")
+        passed += 1
+    } otherwise {
+        println("    Normal increment: FAIL")
+        failed += 1
+    }
+
+    // Normal decrement
+    temp e int = 101
+    e--
+    if e == 100 {
+        println("    Normal decrement: PASS")
+        passed += 1
+    } otherwise {
+        println("    Normal decrement: FAIL")
         failed += 1
     }
 

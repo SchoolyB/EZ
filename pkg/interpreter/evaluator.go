@@ -5,11 +5,41 @@ package interpreter
 
 import (
 	"fmt"
+	"math"
 	"strings"
 
 	"github.com/marshallburns/ez/pkg/ast"
 	"github.com/marshallburns/ez/pkg/errors"
 )
+
+// Integer overflow detection helper functions
+func addOverflows(a, b int64) bool {
+	if b > 0 && a > math.MaxInt64-b {
+		return true
+	}
+	if b < 0 && a < math.MinInt64-b {
+		return true
+	}
+	return false
+}
+
+func subOverflows(a, b int64) bool {
+	if b < 0 && a > math.MaxInt64+b {
+		return true
+	}
+	if b > 0 && a < math.MinInt64+b {
+		return true
+	}
+	return false
+}
+
+func mulOverflows(a, b int64) bool {
+	if a == 0 || b == 0 {
+		return false
+	}
+	result := a * b
+	return result/a != b
+}
 
 var (
 	NIL   = &Nil{}
@@ -521,7 +551,9 @@ func Eval(node ast.Node, env *Environment) Object {
 			return obj.Elements[idx.Value]
 
 		case *String:
-			strLen := int64(len(obj.Value))
+			// Convert to runes for proper UTF-8 character indexing
+			runes := []rune(obj.Value)
+			strLen := int64(len(runes))
 			if idx.Value < 0 || idx.Value >= strLen {
 				if strLen == 0 {
 					return newErrorWithLocation("E10004", node.Token.Line, node.Token.Column,
@@ -532,7 +564,7 @@ func Eval(node ast.Node, env *Environment) Object {
 					"index out of bounds: attempted to access index %d, but valid range is 0-%d",
 					idx.Value, strLen-1)
 			}
-			return &Char{Value: rune(obj.Value[idx.Value])}
+			return &Char{Value: runes[idx.Value]}
 
 		default:
 			return newErrorWithLocation("E5015", node.Token.Line, node.Token.Column,
@@ -929,7 +961,9 @@ func evalAssignment(node *ast.AssignmentStatement, env *Environment) Object {
 				return newErrorWithLocation("E3004", node.Token.Line, node.Token.Column,
 					"can only assign character to string index, got %s", val.Type())
 			}
-			strLen := int64(len(obj.Value))
+			// Convert string to rune slice for proper UTF-8 character indexing
+			runes := []rune(obj.Value)
+			strLen := int64(len(runes))
 			if index.Value < 0 || index.Value >= strLen {
 				if strLen == 0 {
 					return newErrorWithLocation("E5004", node.Token.Line, node.Token.Column,
@@ -940,8 +974,7 @@ func evalAssignment(node *ast.AssignmentStatement, env *Environment) Object {
 					"index out of bounds: attempted to assign to index %d, but valid range is 0-%d",
 					index.Value, strLen-1)
 			}
-			// Convert string to rune slice, modify, convert back
-			runes := []rune(obj.Value)
+			// Modify rune slice and convert back
 			runes[index.Value] = charObj.Value
 			obj.Value = string(runes)
 
@@ -1516,6 +1549,15 @@ func evalInfixExpression(operator string, left, right Object, line, col int) Obj
 	}
 
 	switch {
+	// Handle 'in' and 'not_in' operators early - they work with any type + array
+	case operator == "in":
+		return evalInOperator(left, right)
+	case operator == "not_in" || operator == "!in":
+		result := evalInOperator(left, right)
+		if result == TRUE {
+			return FALSE
+		}
+		return TRUE
 	case left.Type() == INTEGER_OBJ && right.Type() == INTEGER_OBJ:
 		return evalIntegerInfixExpression(operator, left, right, line, col)
 	case left.Type() == BYTE_OBJ && right.Type() == BYTE_OBJ:
@@ -1545,14 +1587,6 @@ func evalInfixExpression(operator string, left, right Object, line, col int) Obj
 		return nativeBoolToBooleanObject(isTruthy(left) && isTruthy(right))
 	case operator == "||":
 		return nativeBoolToBooleanObject(isTruthy(left) || isTruthy(right))
-	case operator == "in":
-		return evalInOperator(left, right)
-	case operator == "not_in" || operator == "!in":
-		result := evalInOperator(left, right)
-		if result == TRUE {
-			return FALSE
-		}
-		return TRUE
 	default:
 		return newErrorWithLocation("E3014", line, col, "unknown operator: %s %s %s", left.Type(), operator, right.Type())
 	}
@@ -1564,10 +1598,19 @@ func evalIntegerInfixExpression(operator string, left, right Object, line, col i
 
 	switch operator {
 	case "+":
+		if addOverflows(leftVal, rightVal) {
+			return newErrorWithLocation("E5005", line, col, "integer overflow: %d + %d exceeds int64 range", leftVal, rightVal)
+		}
 		return &Integer{Value: leftVal + rightVal}
 	case "-":
+		if subOverflows(leftVal, rightVal) {
+			return newErrorWithLocation("E5006", line, col, "integer overflow: %d - %d exceeds int64 range", leftVal, rightVal)
+		}
 		return &Integer{Value: leftVal - rightVal}
 	case "*":
+		if mulOverflows(leftVal, rightVal) {
+			return newErrorWithLocation("E5007", line, col, "integer overflow: %d * %d exceeds int64 range", leftVal, rightVal)
+		}
 		return &Integer{Value: leftVal * rightVal}
 	case "/":
 		if rightVal == 0 {
@@ -1803,6 +1846,14 @@ func elementsEqual(a, b Object) bool {
 		if bv, ok := b.(*Byte); ok {
 			return av.Value == bv.Value
 		}
+	case *Char:
+		if bv, ok := b.(*Char); ok {
+			return av.Value == bv.Value
+		}
+	case *Float:
+		if bv, ok := b.(*Float); ok {
+			return av.Value == bv.Value
+		}
 	}
 	return a == b
 }
@@ -1826,8 +1877,16 @@ func evalPostfixExpression(node *ast.PostfixExpression, env *Environment) Object
 	var newVal int64
 	switch node.Operator {
 	case "++":
+		if addOverflows(intVal.Value, 1) {
+			return newErrorWithLocation("E5008", node.Token.Line, node.Token.Column,
+				"integer overflow: %d++ exceeds int64 range", intVal.Value)
+		}
 		newVal = intVal.Value + 1
 	case "--":
+		if subOverflows(intVal.Value, 1) {
+			return newErrorWithLocation("E5009", node.Token.Line, node.Token.Column,
+				"integer overflow: %d-- exceeds int64 range", intVal.Value)
+		}
 		newVal = intVal.Value - 1
 	default:
 		return newError("unknown postfix operator: %s", node.Operator)
@@ -2243,11 +2302,13 @@ func evalStringIndexExpression(str, index Object) Object {
 	stringObject := str.(*String)
 	idx := index.(*Integer).Value
 
-	if idx < 0 || idx >= int64(len(stringObject.Value)) {
+	// Convert to runes for proper UTF-8 character indexing
+	runes := []rune(stringObject.Value)
+	if idx < 0 || idx >= int64(len(runes)) {
 		return newError("index out of bounds: %d", idx)
 	}
 
-	return &Char{Value: rune(stringObject.Value[idx])}
+	return &Char{Value: runes[idx]}
 }
 
 func evalMapLiteral(node *ast.MapValue, env *Environment) Object {

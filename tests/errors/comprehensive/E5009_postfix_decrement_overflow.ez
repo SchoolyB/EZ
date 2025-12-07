@@ -1,0 +1,9 @@
+/*
+ * Error Test: E5009 - postfix-decrement-overflow
+ * Expected: "integer overflow"
+ */
+
+do main() {
+    temp min int = -9223372036854775808  // min int64
+    min--  // Underflow
+}
