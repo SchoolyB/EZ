@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.14.10](https://github.com/SchoolyB/EZ/compare/v0.14.9...v0.14.10) (2025-12-07)
+
+
+### Bug Fixes
+
+* resolve multiple bugs in stdlib, lexer, and parser ([#374](https://github.com/SchoolyB/EZ/issues/374)) ([c4be966](https://github.com/SchoolyB/EZ/commit/c4be9660ed9ced0f6a812d5a98ef5eea9389a813))
+
 ## [0.14.9](https://github.com/SchoolyB/EZ/compare/v0.14.8...v0.14.9) (2025-12-05)
 
 
