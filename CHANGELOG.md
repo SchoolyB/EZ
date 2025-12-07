@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.15.0](https://github.com/SchoolyB/EZ/compare/v0.14.10...v0.15.0) (2025-12-07)
+
+
+### Features
+
+* replace [@ignore](https://github.com/ignore) with _ (underscore) blank identifier ([#376](https://github.com/SchoolyB/EZ/issues/376)) ([66111be](https://github.com/SchoolyB/EZ/commit/66111beaf80ca72dab092a9b0e62b1fa5e4da58a))
+
 ## [0.14.10](https://github.com/SchoolyB/EZ/compare/v0.14.9...v0.14.10) (2025-12-07)
 
 
