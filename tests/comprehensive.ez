@@ -2105,7 +2105,7 @@ do test_stdlib_io() -> TestResult {
     }
 
     // Verify append worked
-    temp updated_content, @ignore = io.read_file(test_file)
+    temp updated_content, _ = io.read_file(test_file)
     temp has_append bool = strings.contains(updated_content, "Appended line")
     println("  Append verification: ${has_append}")
     passed += 1
@@ -2532,7 +2532,7 @@ do test_stdlib_os() -> TestResult {
     println("")
     println("  Directory Operations:")
 
-    temp original_dir, @ignore = os.cwd()
+    temp original_dir, _ = os.cwd()
     temp target_dir string = os.temp_dir()
 
     temp chdir_ok, chdir_err = os.chdir(target_dir)

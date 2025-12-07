@@ -296,6 +296,25 @@ func (p *Parser) addEZError(code errors.ErrorCode, message string, tok Token) {
 	p.ezErrors.AddError(err)
 }
 
+// addWarning adds a deprecation or other warning to the warning list
+func (p *Parser) addWarning(code string, message string, tok Token) {
+	sourceLine := ""
+	if p.source != "" {
+		sourceLine = errors.GetSourceLine(p.source, tok.Line)
+	}
+
+	warn := errors.NewErrorWithSource(
+		errors.W2005, // deprecated-feature
+		message,
+		p.filename,
+		tok.Line,
+		tok.Column,
+		sourceLine,
+	)
+	warn.EndColumn = tok.Column + len(tok.Literal)
+	p.ezErrors.AddWarning(warn)
+}
+
 func (p *Parser) nextToken() {
 	p.currentToken = p.peekToken
 	p.peekToken = p.l.NextToken()
@@ -702,10 +721,10 @@ func (p *Parser) parseVarableDeclaration() *VariableDeclaration {
 	stmt := &VariableDeclaration{Token: p.currentToken}
 	stmt.Mutable = p.currentToken.Type == TEMP
 
-	// Check for @ignore or IDENT
-	if p.peekTokenMatches(IGNORE) {
+	// Check for blank identifier (_) or IDENT
+	if p.peekTokenMatches(BLANK) {
 		p.nextToken()
-		stmt.Names = append(stmt.Names, &Label{Token: p.currentToken, Value: "@ignore"})
+		stmt.Names = append(stmt.Names, &Label{Token: p.currentToken, Value: "_"})
 	} else if IsKeyword(p.peekToken.Type) {
 		// If user tries to use a keyword as variable name, give helpful error
 		keyword := KeywordLiteral(p.peekToken.Type)
@@ -737,10 +756,10 @@ func (p *Parser) parseVarableDeclaration() *VariableDeclaration {
 	// Check for multiple assignment: temp result, err = ...
 	for p.peekTokenMatches(COMMA) {
 		p.nextToken() // consume comma
-		p.nextToken() // move to next identifier or @ignore
+		p.nextToken() // move to next identifier or _
 
-		if p.currentTokenMatches(IGNORE) {
-			stmt.Names = append(stmt.Names, &Label{Token: p.currentToken, Value: "@ignore"})
+		if p.currentTokenMatches(BLANK) {
+			stmt.Names = append(stmt.Names, &Label{Token: p.currentToken, Value: "_"})
 		} else if IsKeyword(p.currentToken.Type) {
 			// If user tries to use a keyword as variable name, give helpful error
 			keyword := KeywordLiteral(p.currentToken.Type)
@@ -766,7 +785,7 @@ func (p *Parser) parseVarableDeclaration() *VariableDeclaration {
 			}
 			stmt.Names = append(stmt.Names, &Label{Token: p.currentToken, Value: name})
 		} else {
-			msg := fmt.Sprintf("expected identifier or @ignore, got %s", p.currentToken.Type)
+			msg := fmt.Sprintf("expected identifier or _ (blank identifier), got %s", p.currentToken.Type)
 			p.errors = append(p.errors, msg)
 			p.addEZError(errors.E2029, msg, p.currentToken)
 			return nil

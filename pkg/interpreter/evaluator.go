@@ -200,14 +200,14 @@ func Eval(node ast.Node, env *Environment) Object {
 		if call, ok := node.Expression.(*ast.CallExpression); ok {
 			if fn, ok := result.(*ReturnValue); ok && len(fn.Values) > 0 {
 				return newErrorWithLocation("E4009", call.Token.Line, call.Token.Column,
-					"return value from function not used (use @ignore to discard)")
+					"return value from function not used (use _ to discard)")
 			}
 			// Also check if the function has declared return types but result is not NIL
 			if result != NIL {
 				// Check if it's a user function with return types
 				if fnObj := getFunctionObject(call, env); fnObj != nil && len(fnObj.ReturnTypes) > 0 {
 					return newErrorWithLocation("E4009", call.Token.Line, call.Token.Column,
-						"return value from function not used (use @ignore to discard)")
+						"return value from function not used (use _ to discard)")
 				}
 			}
 		}
@@ -799,8 +799,8 @@ func evalVariableDeclaration(node *ast.VariableDeclaration, env *Environment) Ob
 		}
 
 		for i, name := range node.Names {
-			// Skip @ignore
-			if name.Value == "@ignore" {
+			// Skip blank identifier (_)
+			if name.Value == "_" {
 				continue
 			}
 			env.SetWithVisibility(name.Value, returnVal.Values[i], node.Mutable, vis)
