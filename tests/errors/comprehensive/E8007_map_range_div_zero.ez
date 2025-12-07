@@ -1,0 +1,9 @@
+// Expected error: E8007 - math.map_range() requires in_min != in_max (division by zero)
+import @std, @math
+using std
+
+do main() {
+    // When inMin == inMax, division by zero occurs - this should error
+    temp result float = math.map_range(5.0, 0.0, 0.0, 0.0, 100.0)
+    println("${result}")
+}

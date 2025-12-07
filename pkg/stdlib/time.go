@@ -343,8 +343,34 @@ var TimeBuiltins = map[string]*object.Builtin{
 				return &object.Error{Code: "E7004", Message: "time.add_months() requires integer months"}
 			}
 			t := time.Unix(ts.Value, 0)
-			t = t.AddDate(0, int(months.Value), 0)
-			return &object.Integer{Value: t.Unix()}
+			originalDay := t.Day()
+
+			// Move to target month (first of month to avoid overflow issues)
+			targetYear := t.Year()
+			targetMonth := int(t.Month()) + int(months.Value)
+
+			// Normalize month/year
+			for targetMonth > 12 {
+				targetMonth -= 12
+				targetYear++
+			}
+			for targetMonth < 1 {
+				targetMonth += 12
+				targetYear--
+			}
+
+			// Get last day of target month
+			lastDay := daysInMonth(targetYear, time.Month(targetMonth))
+
+			// Clamp day to valid range
+			day := originalDay
+			if day > lastDay {
+				day = lastDay
+			}
+
+			result := time.Date(targetYear, time.Month(targetMonth), day,
+				t.Hour(), t.Minute(), t.Second(), t.Nanosecond(), t.Location())
+			return &object.Integer{Value: result.Unix()}
 		},
 	},
 	"time.add_years": {
@@ -664,4 +690,10 @@ func replaceAll(s, old, new string) string {
 		}
 	}
 	return result
+}
+
+// daysInMonth returns the number of days in the given month
+func daysInMonth(year int, month time.Month) int {
+	// Use Go's time normalization: day 0 of month+1 is the last day of month
+	return time.Date(year, month+1, 0, 0, 0, 0, 0, time.UTC).Day()
 }

@@ -5,8 +5,8 @@ package stdlib
 
 import (
 	"fmt"
+	"math/rand"
 	"sort"
-	"time"
 
 	"github.com/marshallburns/ez/pkg/object"
 )
@@ -1043,5 +1043,8 @@ func compareObjects(a, b object.Object) int {
 }
 
 func randomInt(max int64) int64 {
-	return int64(float64(max) * float64(time.Now().UnixNano()%1000) / 1000.0)
+	if max <= 0 {
+		return 0
+	}
+	return rand.Int63n(max)
 }

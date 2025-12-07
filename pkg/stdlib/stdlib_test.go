@@ -6,6 +6,7 @@ package stdlib
 import (
 	"math"
 	"testing"
+	gotime "time"
 
 	"github.com/marshallburns/ez/pkg/object"
 )
@@ -2331,6 +2332,114 @@ func TestMathFactorial(t *testing.T) {
 
 	if intVal.Value != 120 {
 		t.Errorf("math.factorial(5) = %d, want 120", intVal.Value)
+	}
+}
+
+// ============================================================================
+// Bug Fix Tests
+// ============================================================================
+
+// Test for Bug #369 fix: arrays.shuffle() must produce different results
+func TestArraysShuffleRandomness(t *testing.T) {
+	shuffleFn := ArraysBuiltins["arrays.shuffle"].Fn
+
+	// Create array with 10 elements
+	elements := make([]object.Object, 10)
+	for i := 0; i < 10; i++ {
+		elements[i] = &object.Integer{Value: int64(i + 1)}
+	}
+	arr := &object.Array{Elements: elements, Mutable: true}
+
+	// Shuffle multiple times and check that at least one result is different
+	different := false
+	for i := 0; i < 10; i++ {
+		result := shuffleFn(arr)
+		shuffled, ok := result.(*object.Array)
+		if !ok {
+			t.Fatalf("arrays.shuffle() returned %T, want Array", result)
+		}
+
+		// Check if shuffled order is different from original
+		for j := 0; j < len(shuffled.Elements); j++ {
+			origVal := elements[j].(*object.Integer).Value
+			shuffledVal := shuffled.Elements[j].(*object.Integer).Value
+			if origVal != shuffledVal {
+				different = true
+				break
+			}
+		}
+		if different {
+			break
+		}
+	}
+
+	if !different {
+		t.Error("arrays.shuffle() did not produce different results in 10 attempts")
+	}
+}
+
+// Test for Bug #370 fix: math.map_range() with division by zero
+func TestMathMapRangeDivByZero(t *testing.T) {
+	mapRangeFn := MathBuiltins["math.map_range"].Fn
+
+	// When inMin == inMax, should return error
+	result := mapRangeFn(
+		&object.Float{Value: 5.0},
+		&object.Float{Value: 0.0},
+		&object.Float{Value: 0.0}, // inMax == inMin = 0
+		&object.Float{Value: 0.0},
+		&object.Float{Value: 100.0},
+	)
+
+	_, ok := result.(*object.Error)
+	if !ok {
+		t.Errorf("math.map_range() with inMin==inMax should return error, got %T", result)
+	}
+}
+
+// Test for Bug #370 fix: math.map_range() with valid inputs
+func TestMathMapRangeValid(t *testing.T) {
+	mapRangeFn := MathBuiltins["math.map_range"].Fn
+
+	result := mapRangeFn(
+		&object.Float{Value: 5.0},
+		&object.Float{Value: 0.0},
+		&object.Float{Value: 10.0},
+		&object.Float{Value: 0.0},
+		&object.Float{Value: 100.0},
+	)
+
+	floatVal, ok := result.(*object.Float)
+	if !ok {
+		t.Fatalf("math.map_range() returned %T, want Float", result)
+	}
+
+	if floatVal.Value != 50.0 {
+		t.Errorf("math.map_range(5, 0-10, 0-100) = %f, want 50.0", floatVal.Value)
+	}
+}
+
+// Test for Bug #371 fix: time.add_months() with end-of-month clamping
+func TestTimeAddMonthsEndOfMonth(t *testing.T) {
+	addMonthsFn := TimeBuiltins["time.add_months"].Fn
+
+	// January 31, 2024 (leap year) + 1 month = February 29
+	// Use time.Date to create a timestamp in the local timezone
+	jan31 := gotime.Date(2024, 1, 31, 12, 0, 0, 0, gotime.Local).Unix()
+	result := addMonthsFn(
+		&object.Integer{Value: jan31},
+		&object.Integer{Value: 1},
+	)
+
+	intVal, ok := result.(*object.Integer)
+	if !ok {
+		t.Fatalf("time.add_months() returned %T, want Integer", result)
+	}
+
+	// Check that the result is February 29
+	resultTime := gotime.Unix(intVal.Value, 0)
+	if resultTime.Month() != gotime.February || resultTime.Day() != 29 {
+		t.Errorf("time.add_months(Jan31, 1) = %s, want February 29", resultTime.Format("2006-01-02"))
 	}
 }
 
