@@ -2030,13 +2030,29 @@ func TestArraysClear(t *testing.T) {
 
 	result := clearFn(arr)
 
-	cleared, ok := result.(*object.Array)
-	if !ok {
-		t.Fatalf("arrays.clear() returned %T, want Array", result)
+	// Should return NIL and modify array in-place
+	if result != object.NIL {
+		t.Fatalf("arrays.clear() returned %T, want NIL", result)
 	}
 
-	if len(cleared.Elements) != 0 {
-		t.Errorf("arrays.clear() returned %d elements, want 0", len(cleared.Elements))
+	// Original array should now be empty
+	if len(arr.Elements) != 0 {
+		t.Errorf("arrays.clear() should clear array in-place, got %d elements", len(arr.Elements))
+	}
+}
+
+func TestArraysClearImmutable(t *testing.T) {
+	clearFn := ArraysBuiltins["arrays.clear"].Fn
+
+	arr := &object.Array{
+		Elements: []object.Object{&object.Integer{Value: 1}},
+		Mutable:  false,
+	}
+
+	result := clearFn(arr)
+
+	if !isErrorObject(result) {
+		t.Error("expected error for immutable array")
 	}
 }
 
@@ -2071,7 +2087,7 @@ func TestArraysConcat(t *testing.T) {
 func TestArraysFill(t *testing.T) {
 	fillFn := ArraysBuiltins["arrays.fill"].Fn
 
-	// Create an array with 5 elements
+	// Create a mutable array with 5 elements
 	inputArr := &object.Array{
 		Elements: []object.Object{
 			&object.Integer{Value: 1},
@@ -2080,25 +2096,41 @@ func TestArraysFill(t *testing.T) {
 			&object.Integer{Value: 4},
 			&object.Integer{Value: 5},
 		},
+		Mutable: true,
 	}
 
 	result := fillFn(inputArr, &object.Integer{Value: 0})
 
-	arr, ok := result.(*object.Array)
-	if !ok {
-		t.Fatalf("arrays.fill() returned %T, want Array", result)
+	// Should return NIL and modify array in-place
+	if result != object.NIL {
+		t.Fatalf("arrays.fill() returned %T, want NIL", result)
 	}
 
-	if len(arr.Elements) != 5 {
-		t.Errorf("arrays.fill() returned %d elements, want 5", len(arr.Elements))
+	if len(inputArr.Elements) != 5 {
+		t.Errorf("arrays.fill() should not change array length, got %d elements", len(inputArr.Elements))
 	}
 
 	// All elements should now be 0
-	for i, elem := range arr.Elements {
+	for i, elem := range inputArr.Elements {
 		intVal, ok := elem.(*object.Integer)
 		if !ok || intVal.Value != 0 {
 			t.Errorf("arr[%d] = %v, want 0", i, elem)
 		}
+	}
+}
+
+func TestArraysFillImmutable(t *testing.T) {
+	fillFn := ArraysBuiltins["arrays.fill"].Fn
+
+	arr := &object.Array{
+		Elements: []object.Object{&object.Integer{Value: 1}},
+		Mutable:  false,
+	}
+
+	result := fillFn(arr, &object.Integer{Value: 0})
+
+	if !isErrorObject(result) {
+		t.Error("expected error for immutable array")
 	}
 }
 
@@ -2339,6 +2371,55 @@ func TestMathFactorial(t *testing.T) {
 // Bug Fix Tests
 // ============================================================================
 
+// Test for Bug #391 fix: arrays.shift() must remove element from array
+func TestArraysShiftRemovesElement(t *testing.T) {
+	shiftFn := ArraysBuiltins["arrays.shift"].Fn
+
+	arr := &object.Array{
+		Elements: []object.Object{
+			&object.Integer{Value: 10},
+			&object.Integer{Value: 20},
+			&object.Integer{Value: 30},
+		},
+		Mutable: true,
+	}
+
+	// First shift
+	result := shiftFn(arr)
+	testIntegerObject(t, result, 10)
+
+	// Array should now have 2 elements
+	if len(arr.Elements) != 2 {
+		t.Errorf("after shift, array should have 2 elements, got %d", len(arr.Elements))
+	}
+
+	// First element should now be 20
+	testIntegerObject(t, arr.Elements[0], 20)
+
+	// Second shift
+	result = shiftFn(arr)
+	testIntegerObject(t, result, 20)
+
+	if len(arr.Elements) != 1 {
+		t.Errorf("after second shift, array should have 1 element, got %d", len(arr.Elements))
+	}
+}
+
+func TestArraysShiftImmutable(t *testing.T) {
+	shiftFn := ArraysBuiltins["arrays.shift"].Fn
+
+	arr := &object.Array{
+		Elements: []object.Object{&object.Integer{Value: 1}},
+		Mutable:  false,
+	}
+
+	result := shiftFn(arr)
+
+	if !isErrorObject(result) {
+		t.Error("expected error for immutable array")
+	}
+}
+
 // Test for Bug #369 fix: arrays.shuffle() must produce different results
 func TestArraysShuffleRandomness(t *testing.T) {
 	shuffleFn := ArraysBuiltins["arrays.shuffle"].Fn
@@ -2441,5 +2522,111 @@ func TestTimeAddMonthsEndOfMonth(t *testing.T) {
 	if resultTime.Month() != gotime.February || resultTime.Day() != 29 {
 		t.Errorf("time.add_months(Jan31, 1) = %s, want February 29", resultTime.Format("2006-01-02"))
 	}
+}
+
+// Test for Bug #392 fix: strings.slice() UTF-8 support
+func TestStringsSliceUTF8(t *testing.T) {
+	sliceFn := StringsBuiltins["strings.slice"].Fn
+
+	// Test with Chinese characters
+	str := &object.String{Value: "Hello 世界"}
+
+	// Slice to get "Hello"
+	result := sliceFn(str, &object.Integer{Value: 0}, &object.Integer{Value: 5})
+	testStringObject(t, result, "Hello")
+
+	// Slice to get "世界" (characters at indices 6 and 7)
+	result = sliceFn(str, &object.Integer{Value: 6}, &object.Integer{Value: 8})
+	testStringObject(t, result, "世界")
+
+	// Slice to get just "世" (character at index 6)
+	result = sliceFn(str, &object.Integer{Value: 6}, &object.Integer{Value: 7})
+	testStringObject(t, result, "世")
+
+	// Test with emoji
+	emojiStr := &object.String{Value: "Hi 😀 there"}
+	// "Hi " = 3 chars, "😀" = 1 char, " there" = 6 chars = 10 total
+	result = sliceFn(emojiStr, &object.Integer{Value: 3}, &object.Integer{Value: 4})
+	testStringObject(t, result, "😀")
+}
+
+// Test for Bug #393 fix: strings.pad_left/pad_right UTF-8 support
+func TestStringsPadLeftUTF8(t *testing.T) {
+	padFn := StringsBuiltins["strings.pad_left"].Fn
+
+	// Test with Chinese string - "世界" has 2 characters
+	str := &object.String{Value: "世界"}
+
+	// Padding to width 5 should add 3 spaces
+	result := padFn(str, &object.Integer{Value: 5})
+	strVal := result.(*object.String)
+	if strVal.Value != "   世界" {
+		t.Errorf("pad_left('世界', 5) = %q, want '   世界'", strVal.Value)
+	}
+
+	// Padding a string that's already >= target width should not change it
+	result = padFn(str, &object.Integer{Value: 2})
+	testStringObject(t, result, "世界")
+}
+
+func TestStringsPadRightUTF8(t *testing.T) {
+	padFn := StringsBuiltins["strings.pad_right"].Fn
+
+	// Test with Chinese string - "世界" has 2 characters
+	str := &object.String{Value: "世界"}
+
+	// Padding to width 5 should add 3 spaces
+	result := padFn(str, &object.Integer{Value: 5})
+	strVal := result.(*object.String)
+	if strVal.Value != "世界   " {
+		t.Errorf("pad_right('世界', 5) = %q, want '世界   '", strVal.Value)
+	}
+}
+
+// Test for Bug #394 fix: math.abs() MinInt64 overflow
+func TestMathAbsMinInt64(t *testing.T) {
+	absFn := MathBuiltins["math.abs"].Fn
+
+	// abs(MinInt64) should return an error because the result cannot be represented
+	result := absFn(&object.Integer{Value: math.MinInt64})
+
+	if !isErrorObject(result) {
+		t.Errorf("math.abs(MinInt64) should return error, got %T: %v", result, result.Inspect())
+	}
+}
+
+// Test for Bug #395 fix: math.neg() MinInt64 overflow
+func TestMathNegMinInt64(t *testing.T) {
+	negFn := MathBuiltins["math.neg"].Fn
+
+	// neg(MinInt64) should return an error because the result cannot be represented
+	result := negFn(&object.Integer{Value: math.MinInt64})
+
+	if !isErrorObject(result) {
+		t.Errorf("math.neg(MinInt64) should return error, got %T: %v", result, result.Inspect())
+	}
+}
+
+// Test for Bug #396 fix: math.pow() overflow detection
+func TestMathPowOverflow(t *testing.T) {
+	powFn := MathBuiltins["math.pow"].Fn
+
+	// 2^63 overflows int64 (max int64 is 2^63 - 1)
+	result := powFn(&object.Integer{Value: 2}, &object.Integer{Value: 63})
+
+	if !isErrorObject(result) {
+		t.Errorf("math.pow(2, 63) should return overflow error, got %T: %v", result, result.Inspect())
+	}
+
+	// Very large exponent
+	result = powFn(&object.Integer{Value: 10}, &object.Integer{Value: 100})
+
+	if !isErrorObject(result) {
+		t.Errorf("math.pow(10, 100) should return overflow error, got %T: %v", result, result.Inspect())
+	}
+
+	// Valid power should still work
+	result = powFn(&object.Integer{Value: 2}, &object.Integer{Value: 10})
+	testIntegerObject(t, result, 1024)
 }
 
