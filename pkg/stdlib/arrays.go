@@ -129,10 +129,18 @@ var ArraysBuiltins = map[string]*object.Builtin{
 			if !ok {
 				return &object.Error{Code: "E7002", Message: "arrays.shift() requires an array"}
 			}
+			if !arr.Mutable {
+				return &object.Error{
+					Message: "cannot modify immutable array (declared as const)",
+					Code:    "E4005",
+				}
+			}
 			if len(arr.Elements) == 0 {
 				return &object.Error{Code: "E9001", Message: "arrays.shift() cannot shift from empty array"}
 			}
-			return arr.Elements[0]
+			firstElement := arr.Elements[0]
+			arr.Elements = arr.Elements[1:]
+			return firstElement
 		},
 	},
 
@@ -210,11 +218,18 @@ var ArraysBuiltins = map[string]*object.Builtin{
 			if len(args) != 1 {
 				return newError("arrays.clear() takes exactly 1 argument")
 			}
-			_, ok := args[0].(*object.Array)
+			arr, ok := args[0].(*object.Array)
 			if !ok {
 				return &object.Error{Code: "E7002", Message: "arrays.clear() requires an array"}
 			}
-			return &object.Array{Elements: []object.Object{}}
+			if !arr.Mutable {
+				return &object.Error{
+					Message: "cannot modify immutable array (declared as const)",
+					Code:    "E4005",
+				}
+			}
+			arr.Elements = []object.Object{}
+			return object.NIL
 		},
 	},
 
@@ -900,11 +915,16 @@ var ArraysBuiltins = map[string]*object.Builtin{
 			if !ok {
 				return &object.Error{Code: "E7002", Message: "arrays.fill() requires an array"}
 			}
-			elements := make([]object.Object, len(arr.Elements))
-			for i := range elements {
-				elements[i] = args[1]
+			if !arr.Mutable {
+				return &object.Error{
+					Message: "cannot modify immutable array (declared as const)",
+					Code:    "E4005",
+				}
 			}
-			return &object.Array{Elements: elements}
+			for i := range arr.Elements {
+				arr.Elements[i] = args[1]
+			}
+			return object.NIL
 		},
 	},
 

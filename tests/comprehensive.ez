@@ -189,6 +189,10 @@ do main() {
     total_passed += result.passed
     total_failed += result.failed
 
+    result = test_bugfix_388_396()
+    total_passed += result.passed
+    total_failed += result.failed
+
     temp total int = total_passed + total_failed
 
     println("")
@@ -2751,6 +2755,139 @@ do test_bugfix_378_383() -> TestResult {
         passed += 1
     } otherwise {
         println("    Normal decrement: FAIL")
+        failed += 1
+    }
+
+    println("  PASSED: ${passed}, FAILED: ${failed}")
+    return TestResult{passed: passed, failed: failed}
+}
+
+// ==================================================
+// BUG FIXES #388-#396 (STDLIB BUGS)
+// ==================================================
+
+do test_bugfix_388_396() -> TestResult {
+    print_section("Bug Fixes #388-#396 (Stdlib)")
+    temp passed int = 0
+    temp failed int = 0
+
+    // ===== Test #388: arrays.clear() modifies in-place =====
+    println("  [#388] arrays.clear() in-place:")
+
+    temp clear_arr [int] = {1, 2, 3, 4, 5}
+    arrays.clear(clear_arr)
+    if len(clear_arr) == 0 {
+        println("    arrays.clear() modifies in-place: PASS")
+        passed += 1
+    } otherwise {
+        println("    arrays.clear() modifies in-place: FAIL (got ${len(clear_arr)} elements)")
+        failed += 1
+    }
+
+    // ===== Test #389: arrays.fill() modifies in-place =====
+    println("  [#389] arrays.fill() in-place:")
+
+    temp fill_arr [int] = {1, 2, 3}
+    arrays.fill(fill_arr, 0)
+    if fill_arr[0] == 0 && fill_arr[1] == 0 && fill_arr[2] == 0 {
+        println("    arrays.fill() modifies in-place: PASS")
+        passed += 1
+    } otherwise {
+        println("    arrays.fill() modifies in-place: FAIL")
+        failed += 1
+    }
+
+    // ===== Test #391: arrays.shift() removes element =====
+    println("  [#391] arrays.shift() removes element:")
+
+    temp shift_arr [int] = {10, 20, 30}
+    temp shifted int = arrays.shift(shift_arr)
+    if shifted == 10 && len(shift_arr) == 2 && shift_arr[0] == 20 {
+        println("    arrays.shift() removes element: PASS")
+        passed += 1
+    } otherwise {
+        println("    arrays.shift() removes element: FAIL (shifted=${shifted}, len=${len(shift_arr)})")
+        failed += 1
+    }
+
+    // ===== Test #392: strings.slice() UTF-8 support =====
+    println("  [#392] strings.slice() UTF-8:")
+
+    temp utf8_str string = "Hello 世界"
+
+    // Slice ASCII part
+    temp ascii_slice string = strings.slice(utf8_str, 0, 5)
+    if ascii_slice == "Hello" {
+        println("    ASCII slice: PASS")
+        passed += 1
+    } otherwise {
+        println("    ASCII slice: FAIL (got '${ascii_slice}')")
+        failed += 1
+    }
+
+    // Slice Chinese part
+    temp chinese_slice string = strings.slice(utf8_str, 6, 8)
+    if chinese_slice == "世界" {
+        println("    Chinese slice: PASS")
+        passed += 1
+    } otherwise {
+        println("    Chinese slice: FAIL (got '${chinese_slice}')")
+        failed += 1
+    }
+
+    // ===== Test #393: strings.pad_left/pad_right UTF-8 support =====
+    println("  [#393] strings.pad_left/pad_right UTF-8:")
+
+    temp chinese_str string = "世界"
+
+    // pad_left: "世界" is 2 characters, padding to 5 should add 3 spaces
+    temp padded_left string = strings.pad_left(chinese_str, 5)
+    if len(padded_left) == 5 && strings.ends_with(padded_left, "世界") {
+        println("    pad_left with UTF-8: PASS")
+        passed += 1
+    } otherwise {
+        println("    pad_left with UTF-8: FAIL (len=${len(padded_left)})")
+        failed += 1
+    }
+
+    // pad_right: "世界" is 2 characters, padding to 5 should add 3 spaces
+    temp padded_right string = strings.pad_right(chinese_str, 5)
+    if len(padded_right) == 5 && strings.starts_with(padded_right, "世界") {
+        println("    pad_right with UTF-8: PASS")
+        passed += 1
+    } otherwise {
+        println("    pad_right with UTF-8: FAIL (len=${len(padded_right)})")
+        failed += 1
+    }
+
+    // ===== Test #394-396: Math overflow handling =====
+    // Note: These tests verify normal behavior since we can't easily test errors in EZ scripts
+    println("  [#394-396] Math functions (normal behavior):")
+
+    // math.abs() with normal values
+    if math.abs(-42) == 42 {
+        println("    math.abs(-42): PASS")
+        passed += 1
+    } otherwise {
+        println("    math.abs(-42): FAIL")
+        failed += 1
+    }
+
+    // math.neg() with normal values
+    if math.neg(42) == -42 && math.neg(-42) == 42 {
+        println("    math.neg(): PASS")
+        passed += 1
+    } otherwise {
+        println("    math.neg(): FAIL")
+        failed += 1
+    }
+
+    // math.pow() with normal values
+    if math.pow(2, 10) == 1024 {
+        println("    math.pow(2, 10): PASS")
+        passed += 1
+    } otherwise {
+        println("    math.pow(2, 10): FAIL")
         failed += 1
     }
 
