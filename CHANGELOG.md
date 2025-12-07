@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.15.1](https://github.com/SchoolyB/EZ/compare/v0.15.0...v0.15.1) (2025-12-07)
+
+
+### Bug Fixes
+
+* resolve several interpreter bugs ([5c083d3](https://github.com/SchoolyB/EZ/commit/5c083d33e3d0f18cef30049f3f57e184ce131d78))
+
 ## [0.15.0](https://github.com/SchoolyB/EZ/compare/v0.14.10...v0.15.0) (2025-12-07)
 
 
