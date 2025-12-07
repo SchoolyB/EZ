@@ -1,0 +1,9 @@
+/*
+ * Error Test: E5008 - postfix-increment-overflow
+ * Expected: "integer overflow"
+ */
+
+do main() {
+    temp max int = 9223372036854775807  // max int64
+    max++  // Overflow
+}
