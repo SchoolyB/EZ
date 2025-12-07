@@ -462,6 +462,37 @@ func (l *Lexer) readNumber() (string, tokenizer.TokenType) {
 		}
 	}
 
+	// Check for scientific notation (e.g., 1e10, 1.5e-3, 1E+6)
+	if l.ch == 'e' || l.ch == 'E' {
+		// Scientific notation makes this a float
+		tokenType = tokenizer.FLOAT
+		l.readChar() // consume 'e' or 'E'
+
+		// Optional sign
+		if l.ch == '+' || l.ch == '-' {
+			l.readChar()
+		}
+
+		// Must have at least one digit in exponent
+		if !isDigit(l.ch) {
+			l.addError("E1010", "invalid number format: exponent must contain digits", startLine, startColumn)
+		}
+
+		// Read exponent digits
+		for isDigit(l.ch) || l.ch == '_' {
+			if l.ch == '_' {
+				next := l.peekChar()
+				if next == '_' {
+					l.addError("E1011", "consecutive underscores not allowed in numeric literals", startLine, startColumn)
+				}
+				if !isDigit(next) {
+					l.addError("E1013", "numeric literal cannot end with underscore", startLine, startColumn)
+				}
+			}
+			l.readChar()
+		}
+	}
+
 	// Check for leading underscore (number starts with underscore)
 	literal := l.input[position:l.position]
 	if len(literal) > 0 && literal[0] == '_' {

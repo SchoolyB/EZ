@@ -893,6 +893,9 @@ var MathBuiltins = map[string]*object.Builtin{
 			if err != nil {
 				return err
 			}
+			if inMax == inMin {
+				return &object.Error{Code: "E8007", Message: "math.map_range() requires in_min != in_max (division by zero)"}
+			}
 			result := (value-inMin)*(outMax-outMin)/(inMax-inMin) + outMin
 			return &object.Float{Value: result}
 		},
