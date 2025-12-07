@@ -39,7 +39,7 @@ func TestNodeInterface(t *testing.T) {
 		&MemberExpression{},
 		&NewExpression{},
 		&RangeExpression{},
-		&IgnoreValue{},
+		&BlankIdentifier{},
 		&Attribute{},
 		&VariableDeclaration{},
 		&AssignmentStatement{},
@@ -89,7 +89,7 @@ func TestExpressionInterface(t *testing.T) {
 		&MemberExpression{},
 		&NewExpression{},
 		&RangeExpression{},
-		&IgnoreValue{},
+		&BlankIdentifier{},
 		&Attribute{},
 	}
 

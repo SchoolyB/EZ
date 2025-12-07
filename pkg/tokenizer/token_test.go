@@ -99,7 +99,7 @@ func TestTokenTypeConstants(t *testing.T) {
 		{"NEW", NEW, "NEW"},
 		{"TRUE", TRUE, "TRUE"},
 		{"FALSE", FALSE, "FALSE"},
-		{"IGNORE", IGNORE, "IGNORE"},
+		{"BLANK", BLANK, "BLANK"},
 		{"SUPPRESS", SUPPRESS, "SUPPRESS"},
 		{"MODULE", MODULE, "MODULE"},
 		{"PRIVATE", PRIVATE, "PRIVATE"},
@@ -147,7 +147,7 @@ func TestLookupIdentifier(t *testing.T) {
 		{"new", NEW},
 		{"true", TRUE},
 		{"false", FALSE},
-		{"@ignore", IGNORE},
+		{"_", BLANK},
 		{"module", MODULE},
 		{"private", PRIVATE},
 		{"from", FROM},
@@ -208,7 +208,7 @@ func TestTokenStruct(t *testing.T) {
 
 // TestKeywordCount verifies the expected number of keywords
 func TestKeywordCount(t *testing.T) {
-	// Count keywords in the map (including @ignore)
+	// Count keywords in the map (including _)
 	expectedCount := 29
 	actualCount := 0
 
@@ -217,7 +217,7 @@ func TestKeywordCount(t *testing.T) {
 		"temp", "const", "do", "return", "if", "or", "otherwise",
 		"for", "for_each", "as_long_as", "loop", "break", "continue",
 		"in", "not_in", "range", "import", "using", "struct", "enum",
-		"nil", "new", "true", "false", "@ignore", "module", "private",
+		"nil", "new", "true", "false", "_", "module", "private",
 		"from", "use",
 	}
 
@@ -239,7 +239,7 @@ func TestIsKeyword(t *testing.T) {
 		TEMP, CONST, DO, RETURN, IF, OR_KW, OTHERWISE,
 		FOR, FOR_EACH, AS_LONG_AS, LOOP, BREAK, CONTINUE,
 		IN, NOT_IN, RANGE, IMPORT, USING, STRUCT, ENUM,
-		NIL, NEW, TRUE, FALSE, IGNORE, MODULE, PRIVATE, FROM, USE,
+		NIL, NEW, TRUE, FALSE, BLANK, MODULE, PRIVATE, FROM, USE,
 	}
 
 	for _, tt := range keywordTypes {
@@ -301,7 +301,7 @@ func TestKeywordLiteral(t *testing.T) {
 		{NEW, "new"},
 		{TRUE, "true"},
 		{FALSE, "false"},
-		{IGNORE, "@ignore"},
+		{BLANK, "_"},
 		{MODULE, "module"},
 		{PRIVATE, "private"},
 		{FROM, "from"},

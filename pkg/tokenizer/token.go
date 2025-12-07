@@ -75,7 +75,7 @@ const (
 	// Dot
 	DOT TokenType = "."
 
-	// At sign (for attributes and @ignore)
+	// At sign (for attributes)
 	AT TokenType = "@"
 
 	// Keywords
@@ -103,7 +103,7 @@ const (
 	NEW        TokenType = "NEW"
 	TRUE       TokenType = "TRUE"
 	FALSE      TokenType = "FALSE"
-	IGNORE     TokenType = "IGNORE"
+	BLANK TokenType = "BLANK" // _ blank identifier
 	SUPPRESS   TokenType = "SUPPRESS"
 
 	// Module system keywords
@@ -141,7 +141,7 @@ var keywords = map[string]TokenType{
 	"new":        NEW,
 	"true":       TRUE,
 	"false":      FALSE,
-	"@ignore":    IGNORE,
+	"_": BLANK,
 	"module":     MODULE,
 	"private":    PRIVATE,
 	"from":       FROM,
@@ -164,7 +164,7 @@ func IsKeyword(t TokenType) bool {
 	case TEMP, CONST, DO, RETURN, IF, OR_KW, OTHERWISE,
 		FOR, FOR_EACH, AS_LONG_AS, LOOP, BREAK, CONTINUE,
 		IN, NOT_IN, RANGE, IMPORT, USING, STRUCT, ENUM,
-		NIL, NEW, TRUE, FALSE, IGNORE, MODULE, PRIVATE, FROM, USE:
+		NIL, NEW, TRUE, FALSE, BLANK, MODULE, PRIVATE, FROM, USE:
 		return true
 	}
 	return false

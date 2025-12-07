@@ -3409,3 +3409,59 @@ output
 	testStringObject(t, evaluated, "correct")
 }
 
+// ============================================================================
+// Blank Identifier Tests
+// ============================================================================
+
+func TestBlankIdentifierDiscardsValue(t *testing.T) {
+	input := `
+do getTwo() -> (int, int) {
+    return 1, 2
+}
+
+temp a, _ = getTwo()
+a
+`
+	evaluated := testEval(input)
+	testIntegerObject(t, evaluated, 1)
+}
+
+func TestBlankIdentifierAsFirstValue(t *testing.T) {
+	input := `
+do getTwo() -> (int, int) {
+    return 1, 2
+}
+
+temp _, b = getTwo()
+b
+`
+	evaluated := testEval(input)
+	testIntegerObject(t, evaluated, 2)
+}
+
+func TestMultipleBlankIdentifiersInAssignment(t *testing.T) {
+	input := `
+do getThree() -> (int, int, int) {
+    return 1, 2, 3
+}
+
+temp _, _, c = getThree()
+c
+`
+	evaluated := testEval(input)
+	testIntegerObject(t, evaluated, 3)
+}
+
+func TestBlankIdentifierMiddleValue(t *testing.T) {
+	input := `
+do getThree() -> (int, int, int) {
+    return 10, 20, 30
+}
+
+temp a, _, c = getThree()
+a + c
+`
+	evaluated := testEval(input)
+	testIntegerObject(t, evaluated, 40)
+}
+

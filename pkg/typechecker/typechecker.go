@@ -1960,7 +1960,7 @@ func (tc *TypeChecker) inferExpressionType(expr ast.Expression) (string, bool) {
 	case *ast.InterpolatedString:
 		return "string", true
 
-	case *ast.IgnoreValue:
+	case *ast.BlankIdentifier:
 		return "void", true
 
 	default:
