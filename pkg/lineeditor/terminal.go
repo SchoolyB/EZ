@@ -1,3 +1,5 @@
+//go:build darwin || linux
+
 package lineeditor
 
 // Copyright (c) 2025-Present Marshall A Burns
@@ -104,7 +106,7 @@ func (t *Terminal) getTermios(termios *syscall.Termios) error {
 	_, _, errno := syscall.Syscall6(
 		syscall.SYS_IOCTL,
 		uintptr(t.fd),
-		uintptr(syscall.TIOCGETA),
+		ioctlReadTermios,
 		uintptr(unsafe.Pointer(termios)),
 		0, 0, 0,
 	)
@@ -119,7 +121,7 @@ func (t *Terminal) setTermios(termios *syscall.Termios) error {
 	_, _, errno := syscall.Syscall6(
 		syscall.SYS_IOCTL,
 		uintptr(t.fd),
-		uintptr(syscall.TIOCSETA),
+		ioctlWriteTermios,
 		uintptr(unsafe.Pointer(termios)),
 		0, 0, 0,
 	)
@@ -141,7 +143,7 @@ func (t *Terminal) GetSize() (width, height int, err error) {
 	_, _, errno := syscall.Syscall6(
 		syscall.SYS_IOCTL,
 		uintptr(t.stdoutFd),
-		uintptr(syscall.TIOCGWINSZ),
+		syscall.TIOCGWINSZ,
 		uintptr(unsafe.Pointer(&ws)),
 		0, 0, 0,
 	)
