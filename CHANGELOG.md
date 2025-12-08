@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.16.7](https://github.com/SchoolyB/EZ/compare/v0.16.6...v0.16.7) (2025-12-08)
+
+
+### Bug Fixes
+
+* detect integer overflow in negation and division ([#424](https://github.com/SchoolyB/EZ/issues/424)) ([e83bdfe](https://github.com/SchoolyB/EZ/commit/e83bdfef81ab73cad1d2b5d9062b1a8be071f2d8))
+
 ## [0.16.6](https://github.com/SchoolyB/EZ/compare/v0.16.5...v0.16.6) (2025-12-08)
 
 
