@@ -1664,9 +1664,7 @@ func evalFloatInfixExpression(operator string, left, right Object, line, col int
 	case "*":
 		return &Float{Value: leftVal * rightVal}
 	case "/":
-		if rightVal == 0 {
-			return newErrorWithLocation("E5001", line, col, "division by zero")
-		}
+		// Float division by zero returns +Inf, -Inf, or NaN per IEEE 754
 		return &Float{Value: leftVal / rightVal}
 	case "<":
 		return nativeBoolToBooleanObject(leftVal < rightVal)
