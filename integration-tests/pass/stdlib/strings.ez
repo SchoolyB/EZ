@@ -343,8 +343,9 @@ do main() {
     // ==================== strings.chars / strings.from_chars ====================
     println("  -- strings.chars / strings.from_chars --")
 
-    // Test 30: chars
-    temp char_arr [char] = strings.chars("EZ")
+    // Test 30: chars (typechecker thinks [string] but runtime returns [char] - see #433)
+    // Using untyped temp to work around typechecker bug
+    temp char_arr = strings.chars("EZ")
     if len(char_arr) == 2 && char_arr[0] == 'E' && char_arr[1] == 'Z' {
         println("  [PASS] strings.chars('EZ')")
         passed += 1
@@ -354,7 +355,8 @@ do main() {
     }
 
     // Test 31: from_chars
-    temp from_chars_result string = strings.from_chars(char_arr)
+    temp from_chars_arr [char] = {'E', 'Z'}
+    temp from_chars_result string = strings.from_chars(from_chars_arr)
     if from_chars_result == "EZ" {
         println("  [PASS] strings.from_chars({'E', 'Z'})")
         passed += 1

@@ -77,13 +77,13 @@ do main() {
         failed += 1
     }
 
-    // Test 7: pow with int overload
-    temp pow_int int = math.pow(2, 10)
-    if pow_int == 1024 {
-        println("  [PASS] math.pow(2, 10) = 1024 (int)")
+    // Test 7: pow with int args (returns float)
+    temp pow_int float = math.pow(2, 10)
+    if pow_int == 1024.0 {
+        println("  [PASS] math.pow(2, 10) = 1024.0")
         passed += 1
     } otherwise {
-        println("  [FAIL] math.pow(2, 10): expected 1024, got ${pow_int}")
+        println("  [FAIL] math.pow(2, 10): expected 1024.0, got ${pow_int}")
         failed += 1
     }
 

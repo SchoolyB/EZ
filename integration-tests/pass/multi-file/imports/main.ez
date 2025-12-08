@@ -10,14 +10,14 @@
  *   - Regular import with alias"./path" syntax
  */
 
+// Test 1: import & use with user module (no alias)
+import & use @std, "./libA"
+
 // Test result tracking
 const TestResult struct {
     passed int
     failed int
 }
-
-// Test 1: import & use with user module (no alias)
-import & use @std, "./libA"
 
 do main() {
     println("========================================")
