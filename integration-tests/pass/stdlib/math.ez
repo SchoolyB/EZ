@@ -1,0 +1,271 @@
+/*
+ * math.ez - Test @math standard library with PROPER ASSERTIONS
+ */
+
+import @std, @math
+using std
+
+do main() {
+    println("=== @math Standard Library Test ===")
+    temp passed int = 0
+    temp failed int = 0
+
+    // ==================== math.abs ====================
+    println("  -- math.abs --")
+
+    // Test 1: abs of negative int
+    if math.abs(-5) == 5 {
+        println("  [PASS] math.abs(-5) = 5")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] math.abs(-5): expected 5, got ${math.abs(-5)}")
+        failed += 1
+    }
+
+    // Test 2: abs of positive
+    if math.abs(5) == 5 {
+        println("  [PASS] math.abs(5) = 5")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] math.abs(5): expected 5")
+        failed += 1
+    }
+
+    // Test 3: abs of negative float
+    temp abs_float float = math.abs(-3.14)
+    if abs_float > 3.13 && abs_float < 3.15 {
+        println("  [PASS] math.abs(-3.14)")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] math.abs(-3.14): got ${abs_float}")
+        failed += 1
+    }
+
+    // ==================== math.sqrt ====================
+    println("  -- math.sqrt --")
+
+    // Test 4: sqrt of perfect square
+    temp sqrt_result float = math.sqrt(16.0)
+    if sqrt_result == 4.0 {
+        println("  [PASS] math.sqrt(16) = 4")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] math.sqrt(16): expected 4, got ${sqrt_result}")
+        failed += 1
+    }
+
+    // Test 5: sqrt of non-perfect square
+    temp sqrt_2 float = math.sqrt(2.0)
+    if sqrt_2 > 1.41 && sqrt_2 < 1.42 {
+        println("  [PASS] math.sqrt(2) ~ 1.414")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] math.sqrt(2): got ${sqrt_2}")
+        failed += 1
+    }
+
+    // ==================== math.pow ====================
+    println("  -- math.pow --")
+
+    // Test 6: pow
+    temp pow_result float = math.pow(2.0, 8.0)
+    if pow_result == 256.0 {
+        println("  [PASS] math.pow(2, 8) = 256")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] math.pow(2, 8): expected 256, got ${pow_result}")
+        failed += 1
+    }
+
+    // Test 7: pow with int overload
+    temp pow_int int = math.pow(2, 10)
+    if pow_int == 1024 {
+        println("  [PASS] math.pow(2, 10) = 1024 (int)")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] math.pow(2, 10): expected 1024, got ${pow_int}")
+        failed += 1
+    }
+
+    // ==================== math.floor / math.ceil / math.round ====================
+    println("  -- math.floor / math.ceil / math.round --")
+
+    // Test 8: floor
+    temp floor_result float = math.floor(3.7)
+    if floor_result == 3.0 {
+        println("  [PASS] math.floor(3.7) = 3")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] math.floor(3.7): expected 3, got ${floor_result}")
+        failed += 1
+    }
+
+    // Test 9: ceil
+    temp ceil_result float = math.ceil(3.2)
+    if ceil_result == 4.0 {
+        println("  [PASS] math.ceil(3.2) = 4")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] math.ceil(3.2): expected 4, got ${ceil_result}")
+        failed += 1
+    }
+
+    // Test 10: round
+    temp round_result float = math.round(3.5)
+    if round_result == 4.0 {
+        println("  [PASS] math.round(3.5) = 4")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] math.round(3.5): expected 4, got ${round_result}")
+        failed += 1
+    }
+
+    // Test 11: round down
+    temp round_down float = math.round(3.4)
+    if round_down == 3.0 {
+        println("  [PASS] math.round(3.4) = 3")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] math.round(3.4): expected 3, got ${round_down}")
+        failed += 1
+    }
+
+    // ==================== math.min / math.max ====================
+    println("  -- math.min / math.max --")
+
+    // Test 12: min
+    if math.min(5, 3) == 3 {
+        println("  [PASS] math.min(5, 3) = 3")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] math.min(5, 3): expected 3, got ${math.min(5, 3)}")
+        failed += 1
+    }
+
+    // Test 13: max
+    if math.max(5, 3) == 5 {
+        println("  [PASS] math.max(5, 3) = 5")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] math.max(5, 3): expected 5, got ${math.max(5, 3)}")
+        failed += 1
+    }
+
+    // ==================== math.neg ====================
+    println("  -- math.neg --")
+
+    // Test 14: neg positive
+    if math.neg(42) == -42 {
+        println("  [PASS] math.neg(42) = -42")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] math.neg(42): expected -42, got ${math.neg(42)}")
+        failed += 1
+    }
+
+    // Test 15: neg negative (double negative)
+    if math.neg(-42) == 42 {
+        println("  [PASS] math.neg(-42) = 42")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] math.neg(-42): expected 42, got ${math.neg(-42)}")
+        failed += 1
+    }
+
+    // ==================== CONSTANTS ====================
+    println("  -- Constants --")
+
+    // Test 16: PI
+    if math.PI > 3.14159 && math.PI < 3.14160 {
+        println("  [PASS] math.PI ~ 3.14159")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] math.PI: got ${math.PI}")
+        failed += 1
+    }
+
+    // Test 17: TAU = 2*PI
+    if math.TAU > 6.28 && math.TAU < 6.29 {
+        println("  [PASS] math.TAU ~ 6.283")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] math.TAU: got ${math.TAU}")
+        failed += 1
+    }
+
+    // Test 18: E
+    if math.E > 2.718 && math.E < 2.719 {
+        println("  [PASS] math.E ~ 2.718")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] math.E: got ${math.E}")
+        failed += 1
+    }
+
+    // ==================== TRIGONOMETRY ====================
+    println("  -- Trigonometry --")
+
+    // Test 19: sin(0)
+    temp sin_0 float = math.sin(0.0)
+    if sin_0 == 0.0 {
+        println("  [PASS] math.sin(0) = 0")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] math.sin(0): expected 0, got ${sin_0}")
+        failed += 1
+    }
+
+    // Test 20: cos(0)
+    temp cos_0 float = math.cos(0.0)
+    if cos_0 == 1.0 {
+        println("  [PASS] math.cos(0) = 1")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] math.cos(0): expected 1, got ${cos_0}")
+        failed += 1
+    }
+
+    // ==================== SPECIAL VALUES ====================
+    println("  -- Special Values --")
+
+    // Test 21: is_inf for INF
+    if math.is_inf(math.INF) == true {
+        println("  [PASS] math.is_inf(math.INF)")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] math.is_inf(math.INF): expected true")
+        failed += 1
+    }
+
+    // Test 22: is_inf for normal value
+    if math.is_inf(3.14) == false {
+        println("  [PASS] math.is_inf(3.14) = false")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] math.is_inf(3.14): expected false")
+        failed += 1
+    }
+
+    // ==================== RANDOM ====================
+    println("  -- Random --")
+
+    // Test 23: random generates value in range
+    temp rand_val int = math.random(100)
+    if rand_val >= 0 && rand_val < 100 {
+        println("  [PASS] math.random(100) in range [0, 100)")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] math.random(100): got ${rand_val} (out of range)")
+        failed += 1
+    }
+
+    // Summary
+    println("")
+    println("Results: ${passed} passed, ${failed} failed")
+
+    if failed > 0 {
+        println("SOME TESTS FAILED")
+    } otherwise {
+        println("ALL TESTS PASSED")
+    }
+}

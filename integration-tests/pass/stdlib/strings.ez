@@ -1,0 +1,375 @@
+/*
+ * strings.ez - Test @strings standard library with PROPER ASSERTIONS
+ */
+
+import @std, @strings
+using std
+
+do main() {
+    println("=== @strings Standard Library Test ===")
+    temp passed int = 0
+    temp failed int = 0
+
+    // ==================== strings.trim ====================
+    println("  -- strings.trim --")
+
+    // Test 1: trim both sides
+    temp s string = "  hello world  "
+    temp trimmed string = strings.trim(s)
+    if trimmed == "hello world" {
+        println("  [PASS] strings.trim('  hello world  ')")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] strings.trim: expected 'hello world', got '${trimmed}'")
+        failed += 1
+    }
+
+    // Test 2: trim_left
+    temp left_trimmed string = strings.trim_left(s)
+    if left_trimmed == "hello world  " {
+        println("  [PASS] strings.trim_left")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] strings.trim_left: got '${left_trimmed}'")
+        failed += 1
+    }
+
+    // Test 3: trim_right
+    temp right_trimmed string = strings.trim_right(s)
+    if right_trimmed == "  hello world" {
+        println("  [PASS] strings.trim_right")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] strings.trim_right: got '${right_trimmed}'")
+        failed += 1
+    }
+
+    // ==================== strings.upper / strings.lower ====================
+    println("  -- strings.upper / strings.lower --")
+
+    // Test 4: upper
+    temp upper_result string = strings.upper("Hello World")
+    if upper_result == "HELLO WORLD" {
+        println("  [PASS] strings.upper('Hello World')")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] strings.upper: expected 'HELLO WORLD', got '${upper_result}'")
+        failed += 1
+    }
+
+    // Test 5: lower
+    temp lower_result string = strings.lower("Hello World")
+    if lower_result == "hello world" {
+        println("  [PASS] strings.lower('Hello World')")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] strings.lower: expected 'hello world', got '${lower_result}'")
+        failed += 1
+    }
+
+    // ==================== strings.split / strings.join ====================
+    println("  -- strings.split / strings.join --")
+
+    // Test 6: split
+    temp csv string = "apple,banana,cherry"
+    temp parts [string] = strings.split(csv, ",")
+    if len(parts) == 3 && parts[0] == "apple" && parts[1] == "banana" && parts[2] == "cherry" {
+        println("  [PASS] strings.split('apple,banana,cherry', ',')")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] strings.split: got ${parts}")
+        failed += 1
+    }
+
+    // Test 7: join
+    temp joined string = strings.join(parts, " | ")
+    if joined == "apple | banana | cherry" {
+        println("  [PASS] strings.join with ' | '")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] strings.join: expected 'apple | banana | cherry', got '${joined}'")
+        failed += 1
+    }
+
+    // ==================== strings.contains ====================
+    println("  -- strings.contains --")
+
+    // Test 8: contains - found
+    temp hello_world string = "hello world"
+    if strings.contains(hello_world, "world") == true {
+        println("  [PASS] strings.contains('hello world', 'world')")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] strings.contains: expected true")
+        failed += 1
+    }
+
+    // Test 9: contains - not found
+    if strings.contains(hello_world, "xyz") == false {
+        println("  [PASS] strings.contains('hello world', 'xyz') = false")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] strings.contains: expected false")
+        failed += 1
+    }
+
+    // ==================== strings.starts_with / strings.ends_with ====================
+    println("  -- strings.starts_with / strings.ends_with --")
+
+    // Test 10: starts_with
+    if strings.starts_with("hello", "he") == true {
+        println("  [PASS] strings.starts_with('hello', 'he')")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] strings.starts_with: expected true")
+        failed += 1
+    }
+
+    // Test 11: starts_with - false
+    if strings.starts_with("hello", "lo") == false {
+        println("  [PASS] strings.starts_with('hello', 'lo') = false")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] strings.starts_with: expected false")
+        failed += 1
+    }
+
+    // Test 12: ends_with
+    if strings.ends_with("hello", "lo") == true {
+        println("  [PASS] strings.ends_with('hello', 'lo')")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] strings.ends_with: expected true")
+        failed += 1
+    }
+
+    // ==================== strings.replace ====================
+    println("  -- strings.replace --")
+
+    // Test 13: replace
+    temp replace_result string = strings.replace("hello", "l", "L")
+    if replace_result == "heLLo" {
+        println("  [PASS] strings.replace('hello', 'l', 'L')")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] strings.replace: expected 'heLLo', got '${replace_result}'")
+        failed += 1
+    }
+
+    // ==================== strings.index / strings.last_index ====================
+    println("  -- strings.index / strings.last_index --")
+
+    // Test 14: index
+    temp idx int = strings.index("hello", "l")
+    if idx == 2 {
+        println("  [PASS] strings.index('hello', 'l') = 2")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] strings.index: expected 2, got ${idx}")
+        failed += 1
+    }
+
+    // Test 15: last_index
+    temp repeat_str string = "hello world hello"
+    temp last_idx int = strings.last_index(repeat_str, "hello")
+    if last_idx == 12 {
+        println("  [PASS] strings.last_index('hello world hello', 'hello') = 12")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] strings.last_index: expected 12, got ${last_idx}")
+        failed += 1
+    }
+
+    // ==================== strings.slice ====================
+    println("  -- strings.slice --")
+
+    // Test 16: slice ASCII
+    temp slice_result string = strings.slice("hello world", 0, 5)
+    if slice_result == "hello" {
+        println("  [PASS] strings.slice('hello world', 0, 5)")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] strings.slice: expected 'hello', got '${slice_result}'")
+        failed += 1
+    }
+
+    // Test 17: slice UTF-8
+    temp utf8_str string = "Hello 世界"
+    temp chinese_slice string = strings.slice(utf8_str, 6, 8)
+    if chinese_slice == "世界" {
+        println("  [PASS] strings.slice UTF-8 ('Hello 世界', 6, 8)")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] strings.slice UTF-8: expected '世界', got '${chinese_slice}'")
+        failed += 1
+    }
+
+    // ==================== strings.reverse ====================
+    println("  -- strings.reverse --")
+
+    // Test 18: reverse
+    temp reversed string = strings.reverse("hello")
+    if reversed == "olleh" {
+        println("  [PASS] strings.reverse('hello')")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] strings.reverse: expected 'olleh', got '${reversed}'")
+        failed += 1
+    }
+
+    // ==================== strings.count ====================
+    println("  -- strings.count --")
+
+    // Test 19: count occurrences
+    temp count_result int = strings.count("banana", "a")
+    if count_result == 3 {
+        println("  [PASS] strings.count('banana', 'a') = 3")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] strings.count: expected 3, got ${count_result}")
+        failed += 1
+    }
+
+    // ==================== strings.pad_left / strings.pad_right ====================
+    println("  -- strings.pad_left / strings.pad_right --")
+
+    // Test 20: pad_left with spaces
+    temp padded_left string = strings.pad_left("42", 5)
+    if padded_left == "   42" && len(padded_left) == 5 {
+        println("  [PASS] strings.pad_left('42', 5)")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] strings.pad_left: expected '   42', got '${padded_left}'")
+        failed += 1
+    }
+
+    // Test 21: pad_left with custom char
+    temp padded_left_zero string = strings.pad_left("42", 5, "0")
+    if padded_left_zero == "00042" {
+        println("  [PASS] strings.pad_left('42', 5, '0')")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] strings.pad_left with '0': expected '00042', got '${padded_left_zero}'")
+        failed += 1
+    }
+
+    // Test 22: pad_right
+    temp padded_right string = strings.pad_right("42", 5)
+    if padded_right == "42   " && len(padded_right) == 5 {
+        println("  [PASS] strings.pad_right('42', 5)")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] strings.pad_right: expected '42   ', got '${padded_right}'")
+        failed += 1
+    }
+
+    // Test 23: pad with UTF-8
+    temp chinese_str string = "世界"
+    temp padded_chinese string = strings.pad_left(chinese_str, 5)
+    if len(padded_chinese) == 5 && strings.ends_with(padded_chinese, "世界") {
+        println("  [PASS] strings.pad_left UTF-8")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] strings.pad_left UTF-8: len=${len(padded_chinese)}")
+        failed += 1
+    }
+
+    // ==================== strings.repeat ====================
+    println("  -- strings.repeat --")
+
+    // Test 24: repeat
+    temp repeated string = strings.repeat("ab", 3)
+    if repeated == "ababab" {
+        println("  [PASS] strings.repeat('ab', 3)")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] strings.repeat: expected 'ababab', got '${repeated}'")
+        failed += 1
+    }
+
+    // ==================== strings.is_empty ====================
+    println("  -- strings.is_empty --")
+
+    // Test 25: is_empty - true
+    if strings.is_empty("") == true {
+        println("  [PASS] strings.is_empty('')")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] strings.is_empty(''): expected true")
+        failed += 1
+    }
+
+    // Test 26: is_empty - whitespace only
+    if strings.is_empty("   ") == true {
+        println("  [PASS] strings.is_empty('   ') (whitespace only)")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] strings.is_empty('   '): expected true")
+        failed += 1
+    }
+
+    // Test 27: is_empty - false
+    if strings.is_empty("hello") == false {
+        println("  [PASS] strings.is_empty('hello') = false")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] strings.is_empty('hello'): expected false")
+        failed += 1
+    }
+
+    // ==================== strings.capitalize / strings.title ====================
+    println("  -- strings.capitalize / strings.title --")
+
+    // Test 28: capitalize
+    temp capitalized string = strings.capitalize("hello world")
+    if capitalized == "Hello world" {
+        println("  [PASS] strings.capitalize('hello world')")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] strings.capitalize: expected 'Hello world', got '${capitalized}'")
+        failed += 1
+    }
+
+    // Test 29: title
+    temp titled string = strings.title("hello world")
+    if titled == "Hello World" {
+        println("  [PASS] strings.title('hello world')")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] strings.title: expected 'Hello World', got '${titled}'")
+        failed += 1
+    }
+
+    // ==================== strings.chars / strings.from_chars ====================
+    println("  -- strings.chars / strings.from_chars --")
+
+    // Test 30: chars
+    temp char_arr [char] = strings.chars("EZ")
+    if len(char_arr) == 2 && char_arr[0] == 'E' && char_arr[1] == 'Z' {
+        println("  [PASS] strings.chars('EZ')")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] strings.chars: got ${char_arr}")
+        failed += 1
+    }
+
+    // Test 31: from_chars
+    temp from_chars_result string = strings.from_chars(char_arr)
+    if from_chars_result == "EZ" {
+        println("  [PASS] strings.from_chars({'E', 'Z'})")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] strings.from_chars: expected 'EZ', got '${from_chars_result}'")
+        failed += 1
+    }
+
+    // Summary
+    println("")
+    println("Results: ${passed} passed, ${failed} failed")
+
+    if failed > 0 {
+        println("SOME TESTS FAILED")
+    } otherwise {
+        println("ALL TESTS PASSED")
+    }
+}
