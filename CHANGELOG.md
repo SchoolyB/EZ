@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.16.1](https://github.com/SchoolyB/EZ/compare/v0.16.0...v0.16.1) (2025-12-08)
+
+
+### Bug Fixes
+
+* make array functions modify in-place and fix remove() API ([#412](https://github.com/SchoolyB/EZ/issues/412)) ([f6890b8](https://github.com/SchoolyB/EZ/commit/f6890b82553549702b3d52186843ca7c11e2860d))
+
 ## [0.16.0](https://github.com/SchoolyB/EZ/compare/v0.15.2...v0.16.0) (2025-12-07)
 
 
