@@ -1560,6 +1560,21 @@ do main() {
 	assertNoErrors(t, tc)
 }
 
+func TestMixedTypeEnumError(t *testing.T) {
+	input := `
+const MixedEnum enum {
+	A = 1
+	B = "hello"
+	C = 3
+}
+
+do main() {
+}
+`
+	tc := typecheck(t, input)
+	assertHasError(t, tc, errors.E3025) // enum members must all have the same type
+}
+
 // ============================================================================
 // Global Variable Declaration Tests
 // ============================================================================

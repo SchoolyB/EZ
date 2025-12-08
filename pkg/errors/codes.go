@@ -104,6 +104,7 @@ var (
 	E3022 = ErrorCode{"E3022", "byte-array-element-out-of-range", "byte array element must be between 0 and 255"}
 	E3023 = ErrorCode{"E3023", "const-to-mutable-param", "cannot pass immutable variable to mutable parameter"}
 	E3024 = ErrorCode{"E3024", "missing-return-statement", "function must return a value"}
+	E3025 = ErrorCode{"E3025", "enum-mixed-types", "enum members must all have the same type"}
 )
 
 // =============================================================================
