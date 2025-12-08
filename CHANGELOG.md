@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.16.6](https://github.com/SchoolyB/EZ/compare/v0.16.5...v0.16.6) (2025-12-08)
+
+
+### Bug Fixes
+
+* stdlib functions preserve input type ([#422](https://github.com/SchoolyB/EZ/issues/422)) ([1e91801](https://github.com/SchoolyB/EZ/commit/1e91801ff35219dbdee45e87ae6a4af4be9453eb)), closes [#404](https://github.com/SchoolyB/EZ/issues/404)
+
 ## [0.16.5](https://github.com/SchoolyB/EZ/compare/v0.16.4...v0.16.5) (2025-12-08)
 
 
