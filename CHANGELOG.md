@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.16.8](https://github.com/SchoolyB/EZ/compare/v0.16.7...v0.16.8) (2025-12-08)
+
+
+### Bug Fixes
+
+* integration test overhaul and bug fixes ([#435](https://github.com/SchoolyB/EZ/issues/435)) ([a4ad4e8](https://github.com/SchoolyB/EZ/commit/a4ad4e8549490a5cf03b8d54bd9b48511a3af264))
+
 ## [0.16.7](https://github.com/SchoolyB/EZ/compare/v0.16.6...v0.16.7) (2025-12-08)
 
 
