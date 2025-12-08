@@ -1,0 +1,8 @@
+/*
+ * Error Test: E1012 - number-leading-underscore
+ * Expected: "leading underscore" or "starts with underscore"
+ */
+
+do main() {
+    temp x int = _1000  // leading underscore
+}

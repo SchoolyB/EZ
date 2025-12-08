@@ -1,0 +1,9 @@
+/*
+ * Error Test: E3021 - type-change-not-allowed
+ * Expected: "cannot change type" or "after declaration"
+ */
+
+do main() {
+    temp x int = 5
+    x = "hello"  // cannot change type from int to string
+}

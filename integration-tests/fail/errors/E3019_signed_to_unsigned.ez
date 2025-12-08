@@ -1,0 +1,9 @@
+/*
+ * Error Test: E3019 - signed-to-unsigned
+ * Expected: "signed" or "unsigned"
+ */
+
+do main() {
+    temp x int = -5
+    temp y uint = x  // cannot assign signed to unsigned
+}

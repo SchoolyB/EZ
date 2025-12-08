@@ -1,0 +1,4 @@
+module badmodule
+
+// Invalid syntax that makes module unparseable
+do incomplete( {

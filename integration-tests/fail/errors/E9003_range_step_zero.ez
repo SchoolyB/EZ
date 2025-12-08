@@ -1,0 +1,10 @@
+/*
+ * Error Test: E9003 - range-step-zero
+ * Expected: "step" or "zero"
+ */
+
+import @arrays
+
+do main() {
+    temp arr = arrays.range(1, 10, 0)  // step cannot be zero
+}

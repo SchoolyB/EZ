@@ -1,0 +1,8 @@
+/*
+ * Error Test: E1010 - invalid-number-format
+ * Expected: "invalid" or "number"
+ */
+
+do main() {
+    temp x int = 0x  // hex without digits
+}

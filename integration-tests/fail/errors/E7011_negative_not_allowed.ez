@@ -1,0 +1,10 @@
+/*
+ * Error Test: E7011 - negative-not-allowed
+ * Expected: "cannot be negative" or "negative"
+ */
+
+import @strings
+
+do main() {
+    temp s string = strings.repeat("x", -5)  // negative count
+}

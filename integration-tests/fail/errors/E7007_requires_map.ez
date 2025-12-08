@@ -1,0 +1,10 @@
+/*
+ * Error Test: E7007 - requires-map
+ * Expected: "must be a map" or "requires map"
+ */
+
+import @maps
+
+do main() {
+    temp keys = maps.keys("not a map")
+}

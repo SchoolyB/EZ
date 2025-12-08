@@ -1,0 +1,181 @@
+/*
+ * maps.ez - Test @maps standard library with PROPER ASSERTIONS
+ */
+
+import @std, @maps
+using std
+
+do main() {
+    println("=== @maps Standard Library Test ===")
+    temp passed int = 0
+    temp failed int = 0
+
+    // ==================== maps.keys ====================
+    println("  -- maps.keys --")
+
+    temp m map[string:int] = {"a": 1, "b": 2, "c": 3}
+
+    // Test 1: keys returns correct count
+    temp keys [string] = maps.keys(m)
+    if len(keys) == 3 {
+        println("  [PASS] maps.keys() returns 3 keys")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] maps.keys: expected 3 keys, got ${len(keys)}")
+        failed += 1
+    }
+
+    // ==================== maps.values ====================
+    println("  -- maps.values --")
+
+    // Test 2: values returns correct count
+    temp values [int] = maps.values(m)
+    if len(values) == 3 {
+        println("  [PASS] maps.values() returns 3 values")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] maps.values: expected 3 values, got ${len(values)}")
+        failed += 1
+    }
+
+    // ==================== maps.has ====================
+    println("  -- maps.has --")
+
+    // Test 3: has - key exists
+    if maps.has(m, "a") == true {
+        println("  [PASS] maps.has(m, 'a') = true")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] maps.has(m, 'a'): expected true")
+        failed += 1
+    }
+
+    // Test 4: has - key doesn't exist
+    if maps.has(m, "z") == false {
+        println("  [PASS] maps.has(m, 'z') = false")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] maps.has(m, 'z'): expected false")
+        failed += 1
+    }
+
+    // ==================== maps.delete ====================
+    println("  -- maps.delete --")
+
+    // Test 5: delete removes key
+    temp del_map map[string:int] = {"x": 10, "y": 20, "z": 30}
+    maps.delete(del_map, "y")
+    if len(del_map) == 2 && !maps.has(del_map, "y") {
+        println("  [PASS] maps.delete() removed key 'y'")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] maps.delete: len=${len(del_map)}, has_y=${maps.has(del_map, "y")}")
+        failed += 1
+    }
+
+    // Test 6: remaining keys still accessible
+    if del_map["x"] == 10 && del_map["z"] == 30 {
+        println("  [PASS] remaining keys still accessible after delete")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] remaining keys: x=${del_map["x"]}, z=${del_map["z"]}")
+        failed += 1
+    }
+
+    // ==================== maps.clear ====================
+    println("  -- maps.clear --")
+
+    // Test 7: clear empties map
+    temp clear_map map[string:int] = {"a": 1, "b": 2, "c": 3}
+    maps.clear(clear_map)
+    if len(clear_map) == 0 {
+        println("  [PASS] maps.clear() empties map")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] maps.clear: expected len 0, got ${len(clear_map)}")
+        failed += 1
+    }
+
+    // ==================== maps.merge ====================
+    println("  -- maps.merge --")
+
+    // Test 8: merge two maps
+    temp m1 map[string:int] = {"a": 1, "b": 2}
+    temp m2 map[string:int] = {"c": 3, "d": 4}
+    temp merged map[string:int] = maps.merge(m1, m2)
+    if len(merged) == 4 && merged["a"] == 1 && merged["d"] == 4 {
+        println("  [PASS] maps.merge() combines maps")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] maps.merge: expected 4 entries, got ${len(merged)}")
+        failed += 1
+    }
+
+    // Test 9: merge with overlapping keys (second overwrites)
+    temp m3 map[string:int] = {"a": 100}
+    temp merged_overlap map[string:int] = maps.merge(m1, m3)
+    if merged_overlap["a"] == 100 {
+        println("  [PASS] maps.merge() overwrites with second map's value")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] maps.merge overlap: expected a=100, got ${merged_overlap["a"]}")
+        failed += 1
+    }
+
+    // ==================== INT KEY MAPS ====================
+    println("  -- Int Key Maps --")
+
+    temp int_map map[int:string] = {1: "one", 2: "two", 3: "three"}
+
+    // Test 10: int keys work
+    if int_map[2] == "two" {
+        println("  [PASS] int-keyed map: [2] = 'two'")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] int-keyed map: expected 'two', got '${int_map[2]}'")
+        failed += 1
+    }
+
+    // Test 11: maps.has with int key
+    if maps.has(int_map, 1) == true && maps.has(int_map, 99) == false {
+        println("  [PASS] maps.has() works with int keys")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] maps.has with int keys")
+        failed += 1
+    }
+
+    // ==================== EMPTY MAP ====================
+    println("  -- Empty Map --")
+
+    temp empty_map map[string:int] = {}
+
+    // Test 12: empty map has length 0
+    if len(empty_map) == 0 {
+        println("  [PASS] empty map len = 0")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] empty map len: expected 0, got ${len(empty_map)}")
+        failed += 1
+    }
+
+    // Test 13: maps.keys on empty map
+    temp empty_keys [string] = maps.keys(empty_map)
+    if len(empty_keys) == 0 {
+        println("  [PASS] maps.keys() on empty map returns []")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] maps.keys on empty: got ${empty_keys}")
+        failed += 1
+    }
+
+    // Summary
+    println("")
+    println("Results: ${passed} passed, ${failed} failed")
+
+    if failed > 0 {
+        println("SOME TESTS FAILED")
+    } otherwise {
+        println("ALL TESTS PASSED")
+    }
+}

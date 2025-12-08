@@ -1,0 +1,10 @@
+/*
+ * Error Test: E7009 - requires-char
+ * Expected: "must be a char" or "requires char"
+ */
+
+import @strings
+
+do main() {
+    temp idx int = strings.index_char("hello", "ll")  // string instead of char
+}

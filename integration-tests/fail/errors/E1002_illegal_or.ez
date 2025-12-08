@@ -1,0 +1,8 @@
+/*
+ * Error Test: E1002 - illegal-or-character
+ * Expected: "illegal OR character"
+ */
+
+do main() {
+    temp x bool = true | false  // Single | is illegal, should be ||
+}

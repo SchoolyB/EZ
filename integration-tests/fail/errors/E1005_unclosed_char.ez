@@ -1,0 +1,8 @@
+/*
+ * Error Test: E1005 - unclosed-char
+ * Expected: "character literal not closed"
+ */
+
+do main() {
+    temp c char = 'a
+}

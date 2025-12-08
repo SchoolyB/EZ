@@ -1,0 +1,9 @@
+/*
+ * Error Test: E2006 - unclosed-bracket
+ * Expected: "missing closing bracket" or "]"
+ */
+
+do main() {
+    temp arr [int] = {1, 2, 3
+    temp y int = arr[0
+}

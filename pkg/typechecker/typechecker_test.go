@@ -1174,7 +1174,7 @@ do main() {
 }
 `
 	tc := typecheck(t, input)
-	assertHasError(t, tc, errors.E3023)
+	assertHasError(t, tc, errors.E3027)
 }
 
 func TestE5016_ModifyImmutableParam(t *testing.T) {
@@ -1281,7 +1281,7 @@ do main() {
 }
 `
 	tc := typecheck(t, input)
-	assertHasError(t, tc, errors.E3023)
+	assertHasError(t, tc, errors.E3027)
 }
 
 func TestFixedSizeArrayIndexType(t *testing.T) {
@@ -1601,7 +1601,7 @@ do main() {
 }
 `
 	tc := typecheck(t, input)
-	assertHasError(t, tc, errors.E3025) // enum members must all have the same type
+	assertHasError(t, tc, errors.E3028) // enum members must all have the same type
 }
 
 func TestNilAssignmentToPrimitiveError(t *testing.T) {

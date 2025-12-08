@@ -1,0 +1,81 @@
+/*
+ * variables.ez - Test variable declarations (var, const, temp)
+ */
+
+import @std
+using std
+
+const TestResult struct {
+    passed int
+    failed int
+}
+
+do main() {
+    println("=== Variables Test ===")
+    temp passed int = 0
+    temp failed int = 0
+
+    // Test 1: temp - mutable variable
+    temp counter int = 0
+    counter = 1
+    if counter == 1 {
+        println("  [PASS] temp variable assignment")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] temp variable assignment: expected 1, got ${counter}")
+        failed += 1
+    }
+
+    // Test 2: const - immutable constant
+    const PI float = 3.14159
+    if PI > 3.14 && PI < 3.15 {
+        println("  [PASS] const declaration")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] const declaration: unexpected value ${PI}")
+        failed += 1
+    }
+
+    // Test 3: temp reassignment
+    temp local_val int = 42
+    local_val = 43
+    if local_val == 43 {
+        println("  [PASS] temp reassignment")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] temp reassignment: expected 43, got ${local_val}")
+        failed += 1
+    }
+
+    // Test 4: temp with different types
+    temp str_var string = "hello"
+    str_var = "world"
+    if str_var == "world" {
+        println("  [PASS] temp string reassignment")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] temp string reassignment: expected 'world', got '${str_var}'")
+        failed += 1
+    }
+
+    // Test 5: temp bool
+    temp flag bool = true
+    flag = false
+    if flag == false {
+        println("  [PASS] temp bool reassignment")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] temp bool reassignment: expected false, got ${flag}")
+        failed += 1
+    }
+
+    // Summary
+    println("")
+    println("Results: ${passed} passed, ${failed} failed")
+
+    if failed > 0 {
+        println("SOME TESTS FAILED")
+    } otherwise {
+        println("ALL TESTS PASSED")
+    }
+}

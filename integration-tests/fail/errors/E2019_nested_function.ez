@@ -1,0 +1,10 @@
+/*
+ * Error Test: E2019 - nested-function
+ * Expected: "nested" or "function inside function"
+ */
+
+do main() {
+    do inner() {  // nested function not allowed
+        println("nested")
+    }
+}

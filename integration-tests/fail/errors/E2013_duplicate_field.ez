@@ -1,0 +1,14 @@
+/*
+ * Error Test: E2013 - duplicate-field
+ * Expected: "duplicate" or "already used"
+ */
+
+struct Person {
+    name string,
+    age int,
+    name string  // duplicate field
+}
+
+do main() {
+    temp p Person = new Person
+}

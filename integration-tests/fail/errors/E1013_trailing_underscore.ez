@@ -1,0 +1,8 @@
+/*
+ * Error Test: E1013 - number-trailing-underscore
+ * Expected: "trailing underscore" or "ends with underscore"
+ */
+
+do main() {
+    temp x int = 1000_  // trailing underscore
+}

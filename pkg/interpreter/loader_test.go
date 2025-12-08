@@ -466,7 +466,7 @@ func TestLoadModuleWithParseError(t *testing.T) {
 
 	// Create a file with invalid syntax
 	testFile := filepath.Join(tmpDir, "invalid.ez")
-	content := `do invalid( { }`  // Missing parameter list close
+	content := `do invalid( { }` // Missing parameter list close
 	if err := os.WriteFile(testFile, []byte(content), 0644); err != nil {
 		t.Fatal(err)
 	}

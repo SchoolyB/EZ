@@ -1,0 +1,8 @@
+/*
+ * Error Test: E1007 - invalid-escape-char
+ * Expected: "invalid escape sequence"
+ */
+
+do main() {
+    temp c char = '\q'  // \q is not valid escape
+}

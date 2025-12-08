@@ -1,0 +1,10 @@
+/*
+ * Error Test: E6007 - internal-import-denied
+ * Expected: "internal" or "cannot import"
+ */
+
+import "./somemod/internal/secret"
+
+do main() {
+    println("test")
+}

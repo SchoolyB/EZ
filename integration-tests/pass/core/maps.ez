@@ -1,0 +1,153 @@
+/*
+ * maps.ez - Test map types and operations
+ */
+
+import @std, @maps
+using std
+
+do main() {
+    println("=== Maps Test ===")
+    temp passed int = 0
+    temp failed int = 0
+
+    // ==================== MAP LITERALS ====================
+    println("  -- Map Literals --")
+
+    // Test 1: string:int map
+    temp ages map[string:int] = {
+        "alice": 30,
+        "bob": 25,
+        "charlie": 35
+    }
+    if len(ages) == 3 {
+        println("  [PASS] map length = 3")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] map length: expected 3, got ${len(ages)}")
+        failed += 1
+    }
+
+    // Test 2: map access
+    temp alice_age int = ages["alice"]
+    if alice_age == 30 {
+        println("  [PASS] ages[\"alice\"] = 30")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] ages[\"alice\"]: expected 30, got ${alice_age}")
+        failed += 1
+    }
+
+    // Test 3: map modification
+    ages["david"] = 28
+    if ages["david"] == 28 && len(ages) == 4 {
+        println("  [PASS] added new key to map")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] adding new key")
+        failed += 1
+    }
+
+    // Test 4: update existing key
+    ages["alice"] = 31
+    if ages["alice"] == 31 {
+        println("  [PASS] updated existing key")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] updating key: expected 31, got ${ages["alice"]}")
+        failed += 1
+    }
+
+    // ==================== INT KEY MAPS ====================
+    println("  -- Int Key Maps --")
+
+    // Test 5: int:string map
+    temp lookup map[int:string] = {
+        1: "one",
+        2: "two",
+        3: "three"
+    }
+    if lookup[2] == "two" {
+        println("  [PASS] lookup[2] = \"two\"")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] lookup[2]: expected \"two\", got \"${lookup[2]}\"")
+        failed += 1
+    }
+
+    // ==================== MAP FUNCTIONS ====================
+    println("  -- Map Functions --")
+
+    temp m map[string:int] = {"a": 1, "b": 2, "c": 3}
+
+    // Test 6: maps.keys
+    temp keys [string] = maps.keys(m)
+    if len(keys) == 3 {
+        println("  [PASS] maps.keys() returns 3 keys")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] maps.keys(): expected 3 keys, got ${len(keys)}")
+        failed += 1
+    }
+
+    // Test 7: maps.values
+    temp values [int] = maps.values(m)
+    if len(values) == 3 {
+        println("  [PASS] maps.values() returns 3 values")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] maps.values(): expected 3 values, got ${len(values)}")
+        failed += 1
+    }
+
+    // Test 8: maps.has - key exists
+    temp has_a bool = maps.has(m, "a")
+    if has_a == true {
+        println("  [PASS] maps.has(m, \"a\") = true")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] maps.has(m, \"a\"): expected true")
+        failed += 1
+    }
+
+    // Test 9: maps.has - key doesn't exist
+    temp has_z bool = maps.has(m, "z")
+    if has_z == false {
+        println("  [PASS] maps.has(m, \"z\") = false")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] maps.has(m, \"z\"): expected false")
+        failed += 1
+    }
+
+    // Test 10: maps.delete
+    temp del_map map[string:int] = {"x": 10, "y": 20}
+    maps.delete(del_map, "x")
+    if len(del_map) == 1 && !maps.has(del_map, "x") {
+        println("  [PASS] maps.delete() removed key")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] maps.delete()")
+        failed += 1
+    }
+
+    // Test 11: maps.clear
+    temp clear_map map[string:int] = {"a": 1, "b": 2}
+    maps.clear(clear_map)
+    if len(clear_map) == 0 {
+        println("  [PASS] maps.clear() empties map")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] maps.clear(): expected 0 length, got ${len(clear_map)}")
+        failed += 1
+    }
+
+    // Summary
+    println("")
+    println("Results: ${passed} passed, ${failed} failed")
+
+    if failed > 0 {
+        println("SOME TESTS FAILED")
+    } otherwise {
+        println("ALL TESTS PASSED")
+    }
+}

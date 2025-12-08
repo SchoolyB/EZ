@@ -1,0 +1,8 @@
+/*
+ * Error Test: E2008 - invalid-assignment-target
+ * Expected: "cannot assign" or "invalid assignment"
+ */
+
+do main() {
+    5 = 10  // cannot assign to literal
+}

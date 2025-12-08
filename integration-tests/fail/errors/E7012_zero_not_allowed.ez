@@ -1,0 +1,11 @@
+/*
+ * Error Test: E7012 - zero-not-allowed
+ * Expected: "cannot be zero" or "zero"
+ */
+
+import @arrays
+
+do main() {
+    temp arr [int] = {1, 2, 3, 4, 5, 6}
+    temp chunks = arrays.chunk(arr, 0)  // chunk size cannot be zero
+}

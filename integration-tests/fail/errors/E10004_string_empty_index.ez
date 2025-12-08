@@ -1,0 +1,11 @@
+/*
+ * Error Test: E10004 - string-empty-index
+ * Expected: "empty string" or "cannot index"
+ */
+
+import @strings
+
+do main() {
+    temp s string = ""
+    temp c = strings.char_at(s, 0)  // cannot index empty string
+}

@@ -1,0 +1,11 @@
+/*
+ * Error Test: E7006 - requires-function
+ * Expected: "must be a function" or "requires function"
+ */
+
+import @arrays
+
+do main() {
+    temp arr [int] = {1, 2, 3}
+    temp result = arrays.map(arr, "not a function")
+}

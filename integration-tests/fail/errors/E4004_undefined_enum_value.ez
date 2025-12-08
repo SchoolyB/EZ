@@ -1,0 +1,13 @@
+/*
+ * Error Test: E4004 - undefined-enum-value
+ * Expected: "enum value" or "does not exist"
+ */
+
+enum Status {
+    ACTIVE,
+    INACTIVE
+}
+
+do main() {
+    temp s = Status.PENDING  // PENDING does not exist
+}

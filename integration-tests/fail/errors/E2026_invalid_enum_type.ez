@@ -1,0 +1,17 @@
+/*
+ * Error Test: E2026 - invalid-enum-type
+ * Expected: "enum type" or "must be primitive"
+ */
+
+enum Colors [Person] {  // struct not allowed as enum type
+    RED,
+    GREEN
+}
+
+struct Person {
+    name string
+}
+
+do main() {
+    temp c = Colors.RED
+}

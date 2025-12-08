@@ -305,8 +305,8 @@ var MathBuiltins = map[string]*object.Builtin{
 			}
 			// Check for integer overflow
 			// Use 2^63 as the boundary since float64(math.MaxInt64) loses precision
-			const maxInt64AsFloat = float64(1 << 63)           // 9223372036854775808.0
-			const minInt64AsFloat = float64(math.MinInt64)     // -9223372036854775808.0
+			const maxInt64AsFloat = float64(1 << 63)       // 9223372036854775808.0
+			const minInt64AsFloat = float64(math.MinInt64) // -9223372036854775808.0
 			if result >= maxInt64AsFloat || result < minInt64AsFloat || math.IsInf(result, 0) || math.IsNaN(result) {
 				return &object.Error{Code: "E5004", Message: "math.pow() overflow: result exceeds int64 range"}
 			}

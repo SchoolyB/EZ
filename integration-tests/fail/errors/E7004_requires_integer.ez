@@ -1,0 +1,10 @@
+/*
+ * Error Test: E7004 - requires-integer
+ * Expected: "must be an integer" or "requires integer"
+ */
+
+import @strings
+
+do main() {
+    temp s string = strings.repeat("x", 3.5)  // float instead of int
+}

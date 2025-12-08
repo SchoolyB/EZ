@@ -1,0 +1,14 @@
+/*
+ * Error Test: E2009 - using-after-declarations
+ * Expected: "using" or "must come first"
+ */
+
+import @std
+
+temp x int = 5  // declaration before using
+
+using std
+
+do main() {
+    println(x)
+}

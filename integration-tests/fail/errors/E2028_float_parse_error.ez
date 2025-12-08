@@ -1,0 +1,8 @@
+/*
+ * Error Test: E2028 - float-parse-error
+ * Expected: "cannot parse float" or "parse"
+ */
+
+do main() {
+    temp x float = 1e99999999  // too large exponent
+}

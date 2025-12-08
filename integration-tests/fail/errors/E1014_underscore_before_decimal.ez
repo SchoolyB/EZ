@@ -1,0 +1,8 @@
+/*
+ * Error Test: E1014 - number-underscore-before-decimal
+ * Expected: "underscore before decimal"
+ */
+
+do main() {
+    temp x float = 1_.5  // underscore before decimal
+}

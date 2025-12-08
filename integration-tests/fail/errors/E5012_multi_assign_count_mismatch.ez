@@ -1,0 +1,12 @@
+/*
+ * Error Test: E5012 - multi-assign-count-mismatch
+ * Expected: "count mismatch" or "assignment"
+ */
+
+do getTwo() -> (int, int) {
+    return 1, 2
+}
+
+do main() {
+    temp a int, b int, c int = getTwo()  // 3 vars, 2 values
+}

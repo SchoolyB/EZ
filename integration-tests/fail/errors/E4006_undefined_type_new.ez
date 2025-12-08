@@ -1,0 +1,8 @@
+/*
+ * Error Test: E4006 - undefined-type-new
+ * Expected: "type not found" or "undefined"
+ */
+
+do main() {
+    temp p = new FooBar  // FooBar type not defined
+}

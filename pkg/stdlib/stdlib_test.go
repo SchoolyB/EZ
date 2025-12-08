@@ -776,10 +776,10 @@ func TestArraysReverse(t *testing.T) {
 		Mutable: true,
 	}
 
-	// arrays.reverse modifies in-place and returns NIL
+	// arrays.reverse modifies in-place and returns the array
 	result := reverseFn(arr)
-	if result != object.NIL {
-		t.Fatalf("expected NIL, got %T", result)
+	if result != arr {
+		t.Fatalf("expected array to be returned, got %T", result)
 	}
 
 	// Check reversed order in original array (in-place)
@@ -2823,4 +2823,3 @@ func TestMathPowOverflow(t *testing.T) {
 	result = powFn(&object.Integer{Value: 2}, &object.Integer{Value: 10})
 	testIntegerObject(t, result, 1024)
 }
-

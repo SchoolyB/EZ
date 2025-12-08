@@ -1,0 +1,12 @@
+/*
+ * Error Test: E2034 - invalid-struct-field
+ * Expected: "struct field" or "reserved"
+ */
+
+struct Person {
+    int string  // int is a reserved keyword
+}
+
+do main() {
+    temp p Person = new Person
+}

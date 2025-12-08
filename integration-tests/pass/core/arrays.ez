@@ -1,0 +1,211 @@
+/*
+ * arrays.ez - Test array types and operations
+ */
+
+import @std, @arrays
+using std
+
+do main() {
+    println("=== Arrays Test ===")
+    temp passed int = 0
+    temp failed int = 0
+
+    // ==================== ARRAY LITERALS ====================
+    println("  -- Array Literals --")
+
+    // Test 1: int array
+    temp nums [int] = {1, 2, 3, 4, 5}
+    if len(nums) == 5 {
+        println("  [PASS] int array length = 5")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] int array length: expected 5, got ${len(nums)}")
+        failed += 1
+    }
+
+    // Test 2: first element
+    if nums[0] == 1 {
+        println("  [PASS] nums[0] = 1")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] nums[0]: expected 1, got ${nums[0]}")
+        failed += 1
+    }
+
+    // Test 3: last element
+    if nums[4] == 5 {
+        println("  [PASS] nums[4] = 5")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] nums[4]: expected 5, got ${nums[4]}")
+        failed += 1
+    }
+
+    // Test 4: empty array
+    temp empty [int] = {}
+    if len(empty) == 0 {
+        println("  [PASS] empty array length = 0")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] empty array length: expected 0, got ${len(empty)}")
+        failed += 1
+    }
+
+    // Test 5: string array
+    temp words [string] = {"hello", "world"}
+    if len(words) == 2 && words[0] == "hello" && words[1] == "world" {
+        println("  [PASS] string array")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] string array")
+        failed += 1
+    }
+
+    // ==================== ARRAY MODIFICATION ====================
+    println("  -- Array Modification --")
+
+    // Test 6: index assignment
+    temp mutable [int] = {10, 20, 30}
+    mutable[1] = 25
+    if mutable[1] == 25 {
+        println("  [PASS] array index assignment")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] array index assignment: expected 25, got ${mutable[1]}")
+        failed += 1
+    }
+
+    // ==================== FIXED SIZE ARRAYS ====================
+    println("  -- Fixed Size Arrays --")
+
+    // Test 7: fixed size array
+    const fixed [int, 3] = {100, 200, 300}
+    if len(fixed) == 3 {
+        println("  [PASS] fixed size array length = 3")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] fixed size array length: expected 3, got ${len(fixed)}")
+        failed += 1
+    }
+
+    // Test 8: fixed size array indexing
+    temp fixed_mutable [int, 3] = {10, 20, 30}
+    temp elem int = fixed_mutable[0]
+    temp sum int = fixed_mutable[0] + fixed_mutable[1] + fixed_mutable[2]
+    if elem == 10 && sum == 60 {
+        println("  [PASS] fixed size array indexing and sum")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] fixed size array: elem=${elem}, sum=${sum}")
+        failed += 1
+    }
+
+    // ==================== MATRICES (2D ARRAYS) ====================
+    println("  -- Matrices (2D Arrays) --")
+
+    // Test 9: 2D array declaration
+    temp int_matrix [[int]] = {{1, 2, 3}, {4, 5, 6}}
+    if len(int_matrix) == 2 {
+        println("  [PASS] 2D array has 2 rows")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] 2D array rows: expected 2, got ${len(int_matrix)}")
+        failed += 1
+    }
+
+    // Test 10: 2D array row access
+    if len(int_matrix[0]) == 3 {
+        println("  [PASS] first row has 3 elements")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] first row length: expected 3, got ${len(int_matrix[0])}")
+        failed += 1
+    }
+
+    // Test 11: 2D array element access
+    if int_matrix[1][2] == 6 {
+        println("  [PASS] int_matrix[1][2] = 6")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] int_matrix[1][2]: expected 6, got ${int_matrix[1][2]}")
+        failed += 1
+    }
+
+    // Test 12: nested iteration
+    temp rows [[int]] = {{1, 2}, {3, 4}, {5, 6}}
+    temp row_sum int = 0
+    for_each row in rows {
+        for_each val in row {
+            row_sum += val
+        }
+    }
+    if row_sum == 21 {
+        println("  [PASS] matrix sum = 21")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] matrix sum: expected 21, got ${row_sum}")
+        failed += 1
+    }
+
+    // Test 13: 3D array
+    temp cube [[[int]]] = {{{1, 2}, {3, 4}}, {{5, 6}, {7, 8}}}
+    if cube[1][0][1] == 6 {
+        println("  [PASS] 3D array access cube[1][0][1] = 6")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] 3D array: expected 6, got ${cube[1][0][1]}")
+        failed += 1
+    }
+
+    // ==================== IN OPERATOR ====================
+    println("  -- 'in' Operator --")
+
+    // Test 14: int in array
+    temp check_arr [int] = {1, 2, 3, 4, 5}
+    if 3 in check_arr {
+        println("  [PASS] 3 in {1,2,3,4,5}")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] 3 should be in array")
+        failed += 1
+    }
+
+    // Test 15: int not in array
+    if !(10 in check_arr) {
+        println("  [PASS] 10 not in {1,2,3,4,5}")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] 10 should not be in array")
+        failed += 1
+    }
+
+    // Test 16: char in array
+    temp chars [char] = {'a', 'b', 'c'}
+    if 'b' in chars {
+        println("  [PASS] 'b' in char array")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] 'b' should be in char array")
+        failed += 1
+    }
+
+    // Test 17: float in array
+    temp floats [float] = {1.5, 2.5, 3.5}
+    if 2.5 in floats {
+        println("  [PASS] 2.5 in float array")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] 2.5 should be in float array")
+        failed += 1
+    }
+
+    // Summary
+    println("")
+    println("Results: ${passed} passed, ${failed} failed")
+
+    if failed > 0 {
+        println("SOME TESTS FAILED")
+    } otherwise {
+        println("ALL TESTS PASSED")
+    }
+}

@@ -1,0 +1,3 @@
+module conflictmod
+
+const VALUE1 int = 1

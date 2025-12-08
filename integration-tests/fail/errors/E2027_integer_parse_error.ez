@@ -1,0 +1,8 @@
+/*
+ * Error Test: E2027 - integer-parse-error
+ * Expected: "cannot parse integer" or "parse"
+ */
+
+do main() {
+    temp x int = 99999999999999999999999999999999  // too large
+}

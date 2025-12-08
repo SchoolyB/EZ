@@ -1,0 +1,9 @@
+/*
+ * Error Test: E2007 - unclosed-interpolation
+ * Expected: "interpolation not closed" or "${"
+ */
+
+do main() {
+    temp name string = "world"
+    temp s string = "hello ${name"
+}

@@ -1,0 +1,11 @@
+/*
+ * Error Test: E9002 - array-non-numeric
+ * Expected: "numeric" or "array"
+ */
+
+import @arrays
+
+do main() {
+    temp arr [string] = {"a", "b", "c"}
+    temp total = arrays.sum(arr)  // sum requires numeric array
+}

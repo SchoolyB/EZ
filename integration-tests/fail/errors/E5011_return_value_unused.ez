@@ -1,0 +1,12 @@
+/*
+ * Error Test: E5011 - return-value-unused
+ * Expected: "return value" or "unused" or "not used"
+ */
+
+do getValue() -> int {
+    return 42
+}
+
+do main() {
+    getValue()  // return value not used
+}

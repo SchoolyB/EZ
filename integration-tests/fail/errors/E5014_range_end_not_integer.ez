@@ -1,0 +1,10 @@
+/*
+ * Error Test: E5014 - range-end-not-integer
+ * Expected: "range" or "end" or "integer"
+ */
+
+do main() {
+    for i in 1..10.5 {  // range end must be integer
+        println(i)
+    }
+}

@@ -1,0 +1,8 @@
+/*
+ * Error Test: E2003 - missing-expression
+ * Expected: "expected expression"
+ */
+
+do main() {
+    temp x int =   // missing expression after =
+}

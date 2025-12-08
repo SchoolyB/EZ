@@ -1,0 +1,10 @@
+/*
+ * Error Test: E8002 - log-non-positive
+ * Expected: "logarithm" or "positive"
+ */
+
+import @math
+
+do main() {
+    temp x float = math.log(-5.0)  // log requires positive number
+}

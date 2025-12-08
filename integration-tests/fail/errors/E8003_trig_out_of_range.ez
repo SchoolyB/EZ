@@ -1,0 +1,10 @@
+/*
+ * Error Test: E8003 - trig-out-of-range
+ * Expected: "out of range" or "trigonometric"
+ */
+
+import @math
+
+do main() {
+    temp x float = math.asin(2.0)  // asin only accepts -1 to 1
+}

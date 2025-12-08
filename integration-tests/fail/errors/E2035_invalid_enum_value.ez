@@ -1,0 +1,13 @@
+/*
+ * Error Test: E2035 - invalid-enum-value
+ * Expected: "enum value" or "reserved"
+ */
+
+enum Status {
+    int,     // int is a reserved keyword
+    ACTIVE
+}
+
+do main() {
+    temp s = Status.ACTIVE
+}

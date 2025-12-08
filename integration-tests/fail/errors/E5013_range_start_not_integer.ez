@@ -1,0 +1,10 @@
+/*
+ * Error Test: E5013 - range-start-not-integer
+ * Expected: "range" or "start" or "integer"
+ */
+
+do main() {
+    for i in 1.5..10 {  // range start must be integer
+        println(i)
+    }
+}

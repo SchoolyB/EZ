@@ -1,0 +1,8 @@
+/*
+ * Error Test: E3018 - array-literal-required
+ * Expected: "array" or "literal"
+ */
+
+do main() {
+    temp arr [int] = 5  // array type requires array literal
+}

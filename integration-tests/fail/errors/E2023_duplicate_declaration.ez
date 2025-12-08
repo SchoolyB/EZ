@@ -1,0 +1,9 @@
+/*
+ * Error Test: E2023 - duplicate-declaration
+ * Expected: "duplicate" or "already declared"
+ */
+
+do main() {
+    temp x int = 5
+    temp x int = 10  // duplicate declaration
+}

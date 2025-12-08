@@ -1,0 +1,3 @@
+module differentname  // different module name in same directory
+
+const VALUE2 int = 2

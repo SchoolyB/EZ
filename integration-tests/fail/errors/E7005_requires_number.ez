@@ -1,0 +1,10 @@
+/*
+ * Error Test: E7005 - requires-number
+ * Expected: "must be a number" or "requires number"
+ */
+
+import @math
+
+do main() {
+    temp x float = math.sqrt("hello")  // string instead of number
+}

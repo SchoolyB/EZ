@@ -1,0 +1,8 @@
+/*
+ * Error Test: E3026 - byte-array-element-out-of-range
+ * Expected: "byte" or "0 and 255"
+ */
+
+do main() {
+    temp arr [byte] = {100, 200, 300}  // 300 out of range
+}
