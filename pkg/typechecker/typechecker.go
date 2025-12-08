@@ -1107,6 +1107,12 @@ func (tc *TypeChecker) checkMemberExpression(member *ast.MemberExpression) {
 		return
 	}
 
+	// Skip qualified module types (like "models.Task") - we don't have cross-module type info
+	// Let runtime handle field access validation for imported types
+	if strings.Contains(objType, ".") {
+		return
+	}
+
 	// Check if it's a struct type
 	structType, exists := tc.types[objType]
 	if !exists || structType.Kind != StructType {
