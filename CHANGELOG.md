@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.16.9](https://github.com/SchoolyB/EZ/compare/v0.16.8...v0.16.9) (2025-12-08)
+
+
+### Bug Fixes
+
+* implement arbitrary precision integers for i128/u128 support ([#437](https://github.com/SchoolyB/EZ/issues/437)) ([#440](https://github.com/SchoolyB/EZ/issues/440)) ([af4cdbf](https://github.com/SchoolyB/EZ/commit/af4cdbfd42edcd87d5982032d06cc913cc01e75f))
+
 ## [0.16.8](https://github.com/SchoolyB/EZ/compare/v0.16.7...v0.16.8) (2025-12-08)
 
 
