@@ -1575,6 +1575,31 @@ do main() {
 	assertHasError(t, tc, errors.E3025) // enum members must all have the same type
 }
 
+func TestNilAssignmentToPrimitiveError(t *testing.T) {
+	input := `
+do main() {
+	temp x int = nil
+}
+`
+	tc := typecheck(t, input)
+	assertHasError(t, tc, errors.E3001) // cannot assign nil to int
+}
+
+func TestNilAssignmentToStructAllowed(t *testing.T) {
+	input := `
+const Point struct {
+	x int
+	y int
+}
+
+do main() {
+	temp p Point = nil
+}
+`
+	tc := typecheck(t, input)
+	assertNoErrors(t, tc)
+}
+
 // ============================================================================
 // Global Variable Declaration Tests
 // ============================================================================

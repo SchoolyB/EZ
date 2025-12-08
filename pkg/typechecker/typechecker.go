@@ -1796,6 +1796,18 @@ func (tc *TypeChecker) isMapType(typeName string) bool {
 	return strings.HasPrefix(typeName, "map[") && strings.HasSuffix(typeName, "]")
 }
 
+// isNullableType checks if a type can accept nil values
+// Only user-defined struct types can be nil in EZ
+// Arrays, maps, and primitives cannot be nil
+func (tc *TypeChecker) isNullableType(typeName string) bool {
+	// User-defined struct types can be nil
+	if t, exists := tc.types[typeName]; exists && t.Kind == StructType {
+		return true
+	}
+	// Everything else (arrays, maps, primitives, enums) cannot be nil
+	return false
+}
+
 // isHashableType checks if a type can be used as a map key
 func (tc *TypeChecker) isHashableType(typeName string) bool {
 	switch typeName {
@@ -2445,9 +2457,10 @@ func (tc *TypeChecker) typesCompatible(declared, actual string) bool {
 		return true
 	}
 
-	// nil is compatible with any reference type
+	// nil is only compatible with reference types (arrays, maps, structs)
+	// Primitive types (int, float, string, bool, char, byte) cannot be nil
 	if actual == "nil" {
-		return true
+		return tc.isNullableType(declared)
 	}
 
 	// Handle array type compatibility
