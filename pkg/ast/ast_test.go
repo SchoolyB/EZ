@@ -1,6 +1,7 @@
 package ast
 
 import (
+	"math/big"
 	"testing"
 
 	"github.com/marshallburns/ez/pkg/tokenizer"
@@ -161,7 +162,7 @@ func TestLabelTokenLiteral(t *testing.T) {
 }
 
 func TestIntegerValueTokenLiteral(t *testing.T) {
-	v := &IntegerValue{Token: tok(tokenizer.INT, "42"), Value: 42}
+	v := &IntegerValue{Token: tok(tokenizer.INT, "42"), Value: big.NewInt(42)}
 	if v.TokenLiteral() != "42" {
 		t.Errorf("TokenLiteral() = %q, want %q", v.TokenLiteral(), "42")
 	}
@@ -406,7 +407,7 @@ func TestVariableDeclarationStructure(t *testing.T) {
 		Token:      tok(tokenizer.TEMP, "temp"),
 		Name:       &Label{Value: "x"},
 		TypeName:   "int",
-		Value:      &IntegerValue{Value: 42},
+		Value:      &IntegerValue{Value: big.NewInt(42)},
 		Mutable:    true,
 		Visibility: VisibilityPublic,
 	}
@@ -535,9 +536,9 @@ func TestImportStatementStructure(t *testing.T) {
 func TestInfixExpressionStructure(t *testing.T) {
 	i := &InfixExpression{
 		Token:    tok(tokenizer.PLUS, "+"),
-		Left:     &IntegerValue{Value: 1},
+		Left:     &IntegerValue{Value: big.NewInt(1)},
 		Operator: "+",
-		Right:    &IntegerValue{Value: 2},
+		Right:    &IntegerValue{Value: big.NewInt(2)},
 	}
 
 	if i.Operator != "+" {
@@ -584,9 +585,9 @@ func TestMapPairStructure(t *testing.T) {
 func TestRangeExpressionStructure(t *testing.T) {
 	r := &RangeExpression{
 		Token: tok(tokenizer.RANGE, "range"),
-		Start: &IntegerValue{Value: 0},
-		End:   &IntegerValue{Value: 10},
-		Step:  &IntegerValue{Value: 2},
+		Start: &IntegerValue{Value: big.NewInt(0)},
+		End:   &IntegerValue{Value: big.NewInt(10)},
+		Step:  &IntegerValue{Value: big.NewInt(2)},
 	}
 
 	if r.Start == nil {

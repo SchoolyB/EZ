@@ -1,0 +1,10 @@
+/*
+ * Error Test: E5006 - integer-overflow (u128 subtraction)
+ * Expected: "integer overflow"
+ * Tests that u128 underflows (goes negative)
+ */
+
+do main() {
+    temp zero u128 = 0
+    temp result u128 = zero - 1  // Underflow (unsigned can't go negative)
+}

@@ -4,6 +4,7 @@ package stdlib
 // Licensed under the MIT License. See LICENSE for details.
 
 import (
+	"math/big"
 	"math/rand"
 
 	"github.com/marshallburns/ez/pkg/object"
@@ -47,7 +48,7 @@ var RandomBuiltins = map[string]*object.Builtin{
 				if max <= 0 {
 					return &object.Error{Code: "E8006", Message: "random.int() max must be positive"}
 				}
-				return &object.Integer{Value: int64(rand.Intn(int(max)))}
+				return &object.Integer{Value: big.NewInt(int64(rand.Intn(int(max))))}
 			} else if len(args) == 2 {
 				min, err := getRandomNumber(args[0])
 				if err != nil {
@@ -60,7 +61,7 @@ var RandomBuiltins = map[string]*object.Builtin{
 				if max <= min {
 					return &object.Error{Code: "E8006", Message: "random.int() max must be greater than min"}
 				}
-				return &object.Integer{Value: int64(min) + int64(rand.Intn(int(max-min)))}
+				return &object.Integer{Value: big.NewInt(int64(min) + int64(rand.Intn(int(max-min))))}
 			}
 			return &object.Error{Code: "E7001", Message: "random.int() takes 1 or 2 arguments"}
 		},
@@ -104,7 +105,7 @@ var RandomBuiltins = map[string]*object.Builtin{
 				case *object.Char:
 					minVal = v.Value
 				case *object.Integer:
-					minVal = rune(v.Value)
+					minVal = rune(v.Value.Int64())
 				default:
 					return &object.Error{Code: "E7003", Message: "random.char() requires char or integer arguments"}
 				}
@@ -114,7 +115,7 @@ var RandomBuiltins = map[string]*object.Builtin{
 				case *object.Char:
 					maxVal = v.Value
 				case *object.Integer:
-					maxVal = rune(v.Value)
+					maxVal = rune(v.Value.Int64())
 				default:
 					return &object.Error{Code: "E7003", Message: "random.char() requires char or integer arguments"}
 				}
@@ -185,7 +186,7 @@ var RandomBuiltins = map[string]*object.Builtin{
 			if !ok {
 				return &object.Error{Code: "E7004", Message: "random.sample() requires an integer as second argument"}
 			}
-			n := int(nObj.Value)
+			n := int(nObj.Value.Int64())
 
 			if n < 0 {
 				return &object.Error{Code: "E10001", Message: "random.sample() count cannot be negative"}
@@ -220,7 +221,8 @@ var RandomBuiltins = map[string]*object.Builtin{
 func getRandomNumber(obj object.Object) (float64, *object.Error) {
 	switch v := obj.(type) {
 	case *object.Integer:
-		return float64(v.Value), nil
+		f, _ := new(big.Float).SetInt(v.Value).Float64()
+		return f, nil
 	case *object.Float:
 		return v.Value, nil
 	default:

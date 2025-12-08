@@ -5,6 +5,7 @@ package parser
 
 import (
 	"fmt"
+	"math/big"
 	"strconv"
 	"strings"
 
@@ -2176,8 +2177,10 @@ func (p *Parser) parseIntegerValue() Expression {
 	// Strip underscores for numeric conversion (they're only for readability)
 	cleanedLiteral := stripUnderscores(p.currentToken.Literal)
 
-	value, err := strconv.ParseInt(cleanedLiteral, 0, 64)
-	if err != nil {
+	// Use big.Int to parse integers of arbitrary size
+	value := new(big.Int)
+	_, ok := value.SetString(cleanedLiteral, 0)
+	if !ok {
 		msg := fmt.Sprintf("could not parse %q as integer", p.currentToken.Literal)
 		p.errors = append(p.errors, msg)
 		p.addEZError(errors.E2027, msg, p.currentToken)
@@ -2653,9 +2656,11 @@ func (p *Parser) parsePrefixExpression() Expression {
 		cleanedLiteral := stripUnderscores(p.peekToken.Literal)
 		if cleanedLiteral == "9223372036854775808" {
 			p.nextToken() // consume the integer token
+			minInt64 := new(big.Int)
+			minInt64.SetString("-9223372036854775808", 10) // math.MinInt64
 			return &IntegerValue{
 				Token: p.currentToken,
-				Value: -9223372036854775808, // math.MinInt64
+				Value: minInt64,
 			}
 		}
 	}
@@ -3036,8 +3041,9 @@ func (p *Parser) parseEnumAttributes(attrs []*Attribute) *EnumAttributes {
 					if i+1 < len(attr.Args) {
 						// Parse the increment value
 						incrementStr := attr.Args[i+1]
-						// Try to parse as int64
-						if val, err := strconv.ParseInt(incrementStr, 10, 64); err == nil {
+						// Try to parse as big.Int
+						val := new(big.Int)
+						if _, ok := val.SetString(incrementStr, 10); ok {
 							enumAttrs.Increment = &IntegerValue{
 								Token: Token{Type: INT, Literal: incrementStr},
 								Value: val,

@@ -2,7 +2,11 @@ package ast
 
 // Copyright (c) 2025-Present Marshall A Burns
 // Licensed under the MIT License. See LICENSE for details.
-import . "github.com/marshallburns/ez/pkg/tokenizer"
+import (
+	"math/big"
+
+	. "github.com/marshallburns/ez/pkg/tokenizer"
+)
 
 // Node is the base interface for all AST nodes
 type Node interface {
@@ -71,7 +75,7 @@ func (l *Label) TokenLiteral() string { return l.Token.Literal }
 // Represents an integer value
 type IntegerValue struct {
 	Token Token
-	Value int64
+	Value *big.Int
 }
 
 // Takes in a pointer to an IntegerValue(v)

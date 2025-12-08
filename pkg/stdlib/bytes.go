@@ -8,6 +8,7 @@ import (
 	"encoding/base64"
 	"encoding/hex"
 	"fmt"
+	"math/big"
 
 	"github.com/marshallburns/ez/pkg/object"
 )
@@ -45,7 +46,7 @@ var BytesBuiltins = map[string]*object.Builtin{
 				var val int64
 				switch e := elem.(type) {
 				case *object.Integer:
-					val = e.Value
+					val = e.Value.Int64()
 				case *object.Byte:
 					val = int64(e.Value)
 				default:
@@ -163,7 +164,7 @@ var BytesBuiltins = map[string]*object.Builtin{
 				if !ok {
 					// Try integer for backwards compatibility
 					if intVal, ok := elem.(*object.Integer); ok {
-						data[i] = byte(intVal.Value)
+						data[i] = byte(intVal.Value.Int64())
 						continue
 					}
 					return &object.Error{Code: "E7002", Message: "bytes.to_string() requires a byte array"}
@@ -189,7 +190,7 @@ var BytesBuiltins = map[string]*object.Builtin{
 			for i, elem := range arr.Elements {
 				switch e := elem.(type) {
 				case *object.Byte:
-					elements[i] = &object.Integer{Value: int64(e.Value)}
+					elements[i] = &object.Integer{Value: big.NewInt(int64(e.Value))}
 				case *object.Integer:
 					elements[i] = e
 				default:
@@ -275,8 +276,8 @@ var BytesBuiltins = map[string]*object.Builtin{
 			}
 
 			length := int64(len(arr.Elements))
-			start := startArg.Value
-			end := endArg.Value
+			start := startArg.Value.Int64()
+			end := endArg.Value.Int64()
 
 			// Handle negative indices
 			if start < 0 {
@@ -424,7 +425,7 @@ var BytesBuiltins = map[string]*object.Builtin{
 				return errObj
 			}
 
-			return &object.Integer{Value: int64(bytes.Index(data, pattern))}
+			return &object.Integer{Value: big.NewInt(int64(bytes.Index(data, pattern)))}
 		},
 	},
 
@@ -443,7 +444,7 @@ var BytesBuiltins = map[string]*object.Builtin{
 				return errObj
 			}
 
-			return &object.Integer{Value: int64(bytes.LastIndex(data, pattern))}
+			return &object.Integer{Value: big.NewInt(int64(bytes.LastIndex(data, pattern)))}
 		},
 	},
 
@@ -462,7 +463,7 @@ var BytesBuiltins = map[string]*object.Builtin{
 				return errObj
 			}
 
-			return &object.Integer{Value: int64(bytes.Count(data, pattern))}
+			return &object.Integer{Value: big.NewInt(int64(bytes.Count(data, pattern)))}
 		},
 	},
 
@@ -481,7 +482,7 @@ var BytesBuiltins = map[string]*object.Builtin{
 				return errObj
 			}
 
-			return &object.Integer{Value: int64(bytes.Compare(data1, data2))}
+			return &object.Integer{Value: big.NewInt(int64(bytes.Compare(data1, data2)))}
 		},
 	},
 
@@ -611,12 +612,13 @@ var BytesBuiltins = map[string]*object.Builtin{
 			if !ok {
 				return &object.Error{Code: "E7004", Message: "bytes.repeat() requires an integer count"}
 			}
-			if count.Value < 0 {
+			countVal := count.Value.Int64()
+			if countVal < 0 {
 				return &object.Error{Code: "E7011", Message: "bytes.repeat() count cannot be negative"}
 			}
 
-			elements := make([]object.Object, 0, len(arr.Elements)*int(count.Value))
-			for i := int64(0); i < count.Value; i++ {
+			elements := make([]object.Object, 0, len(arr.Elements)*int(countVal))
+			for i := int64(0); i < countVal; i++ {
 				elements = append(elements, arr.Elements...)
 			}
 			return &object.Array{Elements: elements, ElementType: "byte"}
@@ -670,7 +672,7 @@ var BytesBuiltins = map[string]*object.Builtin{
 				return &object.Error{Code: "E7004", Message: "bytes.replace_n() requires an integer count"}
 			}
 
-			result := bytes.Replace(data, old, newBytes, int(n.Value))
+			result := bytes.Replace(data, old, newBytes, int(n.Value.Int64()))
 			return sliceToByteArray(result)
 		},
 	},
@@ -754,16 +756,17 @@ var BytesBuiltins = map[string]*object.Builtin{
 				return err
 			}
 
+			lengthVal := length.Value.Int64()
 			currentLen := int64(len(arr.Elements))
-			if currentLen >= length.Value {
+			if currentLen >= lengthVal {
 				// Return copy of original
 				elements := make([]object.Object, len(arr.Elements))
 				copy(elements, arr.Elements)
 				return &object.Array{Elements: elements, ElementType: "byte"}
 			}
 
-			padCount := length.Value - currentLen
-			elements := make([]object.Object, length.Value)
+			padCount := lengthVal - currentLen
+			elements := make([]object.Object, lengthVal)
 			for i := int64(0); i < padCount; i++ {
 				elements[i] = &object.Byte{Value: padByte}
 			}
@@ -791,17 +794,18 @@ var BytesBuiltins = map[string]*object.Builtin{
 				return err
 			}
 
+			lengthVal := length.Value.Int64()
 			currentLen := int64(len(arr.Elements))
-			if currentLen >= length.Value {
+			if currentLen >= lengthVal {
 				// Return copy of original
 				elements := make([]object.Object, len(arr.Elements))
 				copy(elements, arr.Elements)
 				return &object.Array{Elements: elements, ElementType: "byte"}
 			}
 
-			elements := make([]object.Object, length.Value)
+			elements := make([]object.Object, lengthVal)
 			copy(elements, arr.Elements)
-			for i := currentLen; i < length.Value; i++ {
+			for i := currentLen; i < lengthVal; i++ {
 				elements[i] = &object.Byte{Value: padByte}
 			}
 			return &object.Array{Elements: elements, ElementType: "byte"}
@@ -1007,7 +1011,7 @@ func bytesArgToSlice(arg object.Object, funcName string) ([]byte, *object.Error)
 		case *object.Byte:
 			data[i] = e.Value
 		case *object.Integer:
-			data[i] = byte(e.Value)
+			data[i] = byte(e.Value.Int64())
 		default:
 			return nil, &object.Error{Code: "E7002", Message: fmt.Sprintf("%s requires a byte array", funcName)}
 		}
@@ -1030,10 +1034,11 @@ func getByteValue(arg object.Object, funcName string) (uint8, *object.Error) {
 	case *object.Byte:
 		return v.Value, nil
 	case *object.Integer:
-		if v.Value < 0 || v.Value > 255 {
-			return 0, &object.Error{Code: "E3021", Message: fmt.Sprintf("%s byte value %d out of range (0-255)", funcName, v.Value)}
+		intVal := v.Value.Int64()
+		if intVal < 0 || intVal > 255 {
+			return 0, &object.Error{Code: "E3021", Message: fmt.Sprintf("%s byte value %s out of range (0-255)", funcName, v.Value.String())}
 		}
-		return uint8(v.Value), nil
+		return uint8(intVal), nil
 	default:
 		return 0, &object.Error{Code: "E7004", Message: fmt.Sprintf("%s requires a byte or integer value", funcName)}
 	}
