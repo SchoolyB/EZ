@@ -100,11 +100,14 @@ var (
 	E3018 = ErrorCode{"E3018", "array-literal-required", "array type requires array literal"}
 	E3019 = ErrorCode{"E3019", "signed-to-unsigned", "cannot assign signed type to unsigned"}
 	E3020 = ErrorCode{"E3020", "negative-to-unsigned", "cannot assign negative value to unsigned type"}
-	E3021 = ErrorCode{"E3021", "byte-value-out-of-range", "byte value must be between 0 and 255"}
-	E3022 = ErrorCode{"E3022", "byte-array-element-out-of-range", "byte array element must be between 0 and 255"}
-	E3023 = ErrorCode{"E3023", "const-to-mutable-param", "cannot pass immutable variable to mutable parameter"}
+	E3021 = ErrorCode{"E3021", "type-change-not-allowed", "cannot change type of variable after declaration"}
+	E3022 = ErrorCode{"E3022", "undefined-struct-field", "struct field not found"}
+	E3023 = ErrorCode{"E3023", "undefined-enum-value", "enum value not found"}
 	E3024 = ErrorCode{"E3024", "missing-return-statement", "function must return a value"}
-	E3025 = ErrorCode{"E3025", "enum-mixed-types", "enum members must all have the same type"}
+	E3025 = ErrorCode{"E3025", "byte-value-out-of-range", "byte value must be between 0 and 255"}
+	E3026 = ErrorCode{"E3026", "byte-array-element-out-of-range", "byte array element must be between 0 and 255"}
+	E3027 = ErrorCode{"E3027", "const-to-mutable-param", "cannot pass immutable variable to mutable parameter"}
+	E3028 = ErrorCode{"E3028", "enum-mixed-types", "enum members must all have the same type"}
 )
 
 // =============================================================================
@@ -239,6 +242,7 @@ var (
 	E8004 = ErrorCode{"E8004", "factorial-negative", "factorial requires non-negative integer"}
 	E8005 = ErrorCode{"E8005", "factorial-overflow", "factorial result exceeds maximum value"}
 	E8006 = ErrorCode{"E8006", "random-invalid-range", "random range is invalid"}
+	E8007 = ErrorCode{"E8007", "map-range-div-zero", "map_range requires in_min != in_max"}
 )
 
 // =============================================================================
@@ -258,6 +262,9 @@ var (
 // =============================================================================
 var (
 	E10001 = ErrorCode{"E10001", "repeat-count-negative", "repeat count cannot be negative"}
+	E10002 = ErrorCode{"E10002", "empty-array-selection", "cannot select from empty array"}
+	E10003 = ErrorCode{"E10003", "string-index-out-of-bounds", "string index out of bounds"}
+	E10004 = ErrorCode{"E10004", "string-empty-index", "cannot index empty string"}
 )
 
 // =============================================================================
@@ -276,6 +283,8 @@ var (
 	E12001 = ErrorCode{"E12001", "map-key-not-hashable", "map key must be a hashable type"}
 	E12002 = ErrorCode{"E12002", "map-immutable", "cannot modify immutable map"}
 	E12003 = ErrorCode{"E12003", "map-key-not-found", "key not found in map"}
+	E12004 = ErrorCode{"E12004", "map-invalid-pair", "map entry must be a [key, value] pair"}
+	E12005 = ErrorCode{"E12005", "map-value-not-hashable", "map value is not hashable and cannot become a key"}
 )
 
 // =============================================================================

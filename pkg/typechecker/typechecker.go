@@ -470,7 +470,7 @@ func (tc *TypeChecker) checkEnumDeclaration(node *ast.EnumDeclaration) {
 				firstMemberName = member.Name.Value
 			} else if firstType != "int" {
 				tc.addError(
-					errors.E3025,
+					errors.E3028,
 					fmt.Sprintf("enum '%s' has mixed types: member '%s' is %s, but '%s' has no value (defaults to int)",
 						node.Name.Value, firstMemberName, firstType, member.Name.Value),
 					member.Name.Token.Line,
@@ -494,7 +494,7 @@ func (tc *TypeChecker) checkEnumDeclaration(node *ast.EnumDeclaration) {
 		} else if memberType != firstType {
 			// Type mismatch!
 			tc.addError(
-				errors.E3025,
+				errors.E3028,
 				fmt.Sprintf("enum '%s' has mixed types: member '%s' is %s, but '%s' is %s",
 					node.Name.Value, firstMemberName, firstType, member.Name.Value, memberType),
 				member.Name.Token.Line,
@@ -883,7 +883,7 @@ func (tc *TypeChecker) checkVariableDeclaration(decl *ast.VariableDeclaration) {
 				if intLit, ok := decl.Value.(*ast.IntegerValue); ok {
 					if intLit.Value < 0 || intLit.Value > 255 {
 						tc.addError(
-							errors.E3021,
+							errors.E3025,
 							fmt.Sprintf("byte value %d out of range: must be between 0 and 255", intLit.Value),
 							decl.Name.Token.Line,
 							decl.Name.Token.Column,
@@ -896,7 +896,7 @@ func (tc *TypeChecker) checkVariableDeclaration(decl *ast.VariableDeclaration) {
 					if prefixExpr.Operator == "-" {
 						if intLit, ok := prefixExpr.Right.(*ast.IntegerValue); ok {
 							tc.addError(
-								errors.E3021,
+								errors.E3025,
 								fmt.Sprintf("byte value -%d out of range: must be between 0 and 255", intLit.Value),
 								decl.Name.Token.Line,
 								decl.Name.Token.Column,
@@ -914,7 +914,7 @@ func (tc *TypeChecker) checkVariableDeclaration(decl *ast.VariableDeclaration) {
 						if intLit, ok := elem.(*ast.IntegerValue); ok {
 							if intLit.Value < 0 || intLit.Value > 255 {
 								tc.addError(
-									errors.E3022,
+									errors.E3026,
 									fmt.Sprintf("byte array element [%d] value %d out of range: must be between 0 and 255", i, intLit.Value),
 									intLit.Token.Line,
 									intLit.Token.Column,
@@ -926,7 +926,7 @@ func (tc *TypeChecker) checkVariableDeclaration(decl *ast.VariableDeclaration) {
 							if prefixExpr.Operator == "-" {
 								if intLit, ok := prefixExpr.Right.(*ast.IntegerValue); ok {
 									tc.addError(
-										errors.E3022,
+										errors.E3026,
 										fmt.Sprintf("byte array element [%d] value -%d out of range: must be between 0 and 255", i, intLit.Value),
 										prefixExpr.Token.Line,
 										prefixExpr.Token.Column,
@@ -1523,7 +1523,7 @@ func (tc *TypeChecker) checkFunctionCall(call *ast.CallExpression) {
 				if found && !isMutable {
 					line, column := tc.getExpressionPosition(arg)
 					tc.addError(
-						errors.E3023,
+						errors.E3027,
 						fmt.Sprintf("cannot pass immutable variable '%s' to mutable parameter '&%s' in call to '%s'",
 							label.Value, sig.Parameters[i].Name, funcName),
 						line,
