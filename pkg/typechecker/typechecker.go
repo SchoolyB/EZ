@@ -456,8 +456,72 @@ func (tc *TypeChecker) checkStructDeclaration(node *ast.StructDeclaration) {
 
 // checkEnumDeclaration validates an enum declaration
 func (tc *TypeChecker) checkEnumDeclaration(node *ast.EnumDeclaration) {
-	// TODO: Validate enum base type if specified
-	// For now, enums are just registered as types
+	// All enum members must have the same type
+	// Determine the type from explicit values, or default to int for auto-assigned
+
+	var firstType string
+	var firstMemberName string
+
+	for _, member := range node.Values {
+		if member.Value == nil {
+			// No explicit value - will be auto-assigned as int
+			if firstType == "" {
+				firstType = "int"
+				firstMemberName = member.Name.Value
+			} else if firstType != "int" {
+				tc.addError(
+					errors.E3025,
+					fmt.Sprintf("enum '%s' has mixed types: member '%s' is %s, but '%s' has no value (defaults to int)",
+						node.Name.Value, firstMemberName, firstType, member.Name.Value),
+					member.Name.Token.Line,
+					member.Name.Token.Column,
+				)
+			}
+			continue
+		}
+
+		// Determine the type of this member's value
+		memberType := tc.getEnumValueType(member.Value)
+		if memberType == "" {
+			// Could not determine type - skip (parser should have caught invalid values)
+			continue
+		}
+
+		if firstType == "" {
+			// This is the first member with a determinable type
+			firstType = memberType
+			firstMemberName = member.Name.Value
+		} else if memberType != firstType {
+			// Type mismatch!
+			tc.addError(
+				errors.E3025,
+				fmt.Sprintf("enum '%s' has mixed types: member '%s' is %s, but '%s' is %s",
+					node.Name.Value, firstMemberName, firstType, member.Name.Value, memberType),
+				member.Name.Token.Line,
+				member.Name.Token.Column,
+			)
+		}
+	}
+}
+
+// getEnumValueType returns the type of an enum value expression
+func (tc *TypeChecker) getEnumValueType(expr ast.Expression) string {
+	switch expr.(type) {
+	case *ast.IntegerValue:
+		return "int"
+	case *ast.FloatValue:
+		return "float"
+	case *ast.StringValue:
+		return "string"
+	case *ast.BooleanValue:
+		return "bool"
+	case *ast.CharValue:
+		return "char"
+	default:
+		// For more complex expressions, we can't easily determine the type
+		// This covers cases like enum values referencing other enums, etc.
+		return ""
+	}
 }
 
 // checkGlobalVariableDeclaration validates a global variable declaration
