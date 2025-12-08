@@ -1451,6 +1451,35 @@ do main() {
 	assertNoErrors(t, tc)
 }
 
+func TestArraysSumPreservesIntType(t *testing.T) {
+	input := `
+import @arrays
+
+do main() {
+	temp nums [int] = {1, 2, 3, 4, 5}
+	temp sum int = arrays.sum(nums)
+	temp min_val int = arrays.min(nums)
+	temp max_val int = arrays.max(nums)
+}
+`
+	tc := typecheck(t, input)
+	assertNoErrors(t, tc)
+}
+
+func TestMathAbsPreservesIntType(t *testing.T) {
+	input := `
+import @math
+
+do main() {
+	temp abs_val int = math.abs(-5)
+	temp min_val int = math.min(3, 7)
+	temp max_val int = math.max(3, 7)
+}
+`
+	tc := typecheck(t, input)
+	assertNoErrors(t, tc)
+}
+
 func TestStringsModuleCall(t *testing.T) {
 	input := `
 import @strings
