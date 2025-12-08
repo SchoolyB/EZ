@@ -553,11 +553,11 @@ var ArraysBuiltins = map[string]*object.Builtin{
 					Code:    "E4005",
 				}
 			}
-			// Reverse in-place
+			// Reverse in-place and return the array
 			for i, j := 0, len(arr.Elements)-1; i < j; i, j = i+1, j-1 {
 				arr.Elements[i], arr.Elements[j] = arr.Elements[j], arr.Elements[i]
 			}
-			return object.NIL
+			return arr
 		},
 	},
 
