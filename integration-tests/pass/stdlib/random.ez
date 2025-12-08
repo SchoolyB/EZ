@@ -1,0 +1,233 @@
+/*
+ * random.ez - Test @random standard library
+ */
+
+import @std, @random
+using std
+
+do main() {
+    println("=== @random Standard Library Test ===")
+    temp passed int = 0
+    temp failed int = 0
+
+    // ==================== random.float ====================
+    println("  -- random.float --")
+
+    // Test 1: random.float() returns value in [0, 1)
+    temp f1 float = random.float()
+    if f1 >= 0.0 && f1 < 1.0 {
+        println("  [PASS] random.float() in range [0, 1)")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] random.float(): got ${f1}, expected [0, 1)")
+        failed += 1
+    }
+
+    // Test 2: random.float(min, max) returns value in [min, max)
+    temp f2 float = random.float(10.0, 20.0)
+    if f2 >= 10.0 && f2 < 20.0 {
+        println("  [PASS] random.float(10, 20) in range")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] random.float(10, 20): got ${f2}")
+        failed += 1
+    }
+
+    // ==================== random.int ====================
+    println("  -- random.int --")
+
+    // Test 3: random.int(max) returns value in [0, max)
+    temp i1 int = random.int(100)
+    if i1 >= 0 && i1 < 100 {
+        println("  [PASS] random.int(100) in range [0, 100)")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] random.int(100): got ${i1}")
+        failed += 1
+    }
+
+    // Test 4: random.int(min, max) returns value in [min, max)
+    temp i2 int = random.int(50, 60)
+    if i2 >= 50 && i2 < 60 {
+        println("  [PASS] random.int(50, 60) in range")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] random.int(50, 60): got ${i2}")
+        failed += 1
+    }
+
+    // ==================== random.bool ====================
+    println("  -- random.bool --")
+
+    // Test 5: random.bool() returns boolean
+    temp b bool = random.bool()
+    if b == true || b == false {
+        println("  [PASS] random.bool() returns boolean")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] random.bool(): not a boolean")
+        failed += 1
+    }
+
+    // Test 6: random.bool() produces both values (statistical test)
+    temp true_count int = 0
+    temp false_count int = 0
+    for i in range(100) {
+        if random.bool() {
+            true_count += 1
+        } otherwise {
+            false_count += 1
+        }
+    }
+    if true_count > 0 && false_count > 0 {
+        println("  [PASS] random.bool() produces both true and false")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] random.bool(): only produced one value in 100 tries")
+        failed += 1
+    }
+
+    // ==================== random.byte ====================
+    println("  -- random.byte --")
+
+    // Test 7: random.byte() returns value in [0, 255]
+    temp by byte = random.byte()
+    if by >= 0 && by <= 255 {
+        println("  [PASS] random.byte() in range [0, 255]")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] random.byte(): got ${by}")
+        failed += 1
+    }
+
+    // ==================== random.char ====================
+    println("  -- random.char --")
+
+    // Test 8: random.char() returns printable ASCII
+    temp c1 char = random.char()
+    temp c1_int int = int(c1)
+    if c1_int >= 32 && c1_int <= 126 {
+        println("  [PASS] random.char() in printable ASCII range")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] random.char(): got ${c1} (${c1_int})")
+        failed += 1
+    }
+
+    // Test 9: random.char(min, max) returns char in range
+    temp c2 char = random.char('A', 'Z')
+    if c2 >= 'A' && c2 <= 'Z' {
+        println("  [PASS] random.char('A', 'Z') in range")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] random.char('A', 'Z'): got '${c2}'")
+        failed += 1
+    }
+
+    // ==================== random.choice ====================
+    println("  -- random.choice --")
+
+    // Test 10: random.choice returns element from array
+    temp arr [string] = {"apple", "banana", "cherry"}
+    temp choice string = random.choice(arr)
+    if choice == "apple" || choice == "banana" || choice == "cherry" {
+        println("  [PASS] random.choice() returned valid element")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] random.choice(): got '${choice}'")
+        failed += 1
+    }
+
+    // Test 11: random.choice with int array
+    temp nums [int] = {10, 20, 30, 40, 50}
+    temp num_choice int = random.choice(nums)
+    if num_choice == 10 || num_choice == 20 || num_choice == 30 || num_choice == 40 || num_choice == 50 {
+        println("  [PASS] random.choice() with int array")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] random.choice() int: got ${num_choice}")
+        failed += 1
+    }
+
+    // ==================== random.shuffle ====================
+    println("  -- random.shuffle --")
+
+    // Test 12: random.shuffle returns array of same length
+    temp original [int] = {1, 2, 3, 4, 5}
+    temp shuffled [int] = random.shuffle(original)
+    if len(shuffled) == 5 {
+        println("  [PASS] random.shuffle() preserves length")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] random.shuffle(): length ${len(shuffled)}, expected 5")
+        failed += 1
+    }
+
+    // Test 13: random.shuffle contains same elements (sum check)
+    temp original_sum int = 0
+    temp shuffled_sum int = 0
+    for i in range(5) {
+        original_sum += original[i]
+        shuffled_sum += shuffled[i]
+    }
+    if original_sum == shuffled_sum {
+        println("  [PASS] random.shuffle() preserves elements")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] random.shuffle(): sums differ (${original_sum} vs ${shuffled_sum})")
+        failed += 1
+    }
+
+    // Test 14: original array is unchanged (shuffle returns copy)
+    if original[0] == 1 && original[4] == 5 {
+        println("  [PASS] random.shuffle() doesn't modify original")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] random.shuffle() modified original array")
+        failed += 1
+    }
+
+    // ==================== random.sample ====================
+    println("  -- random.sample --")
+
+    // Test 15: random.sample returns correct count
+    temp pool [int] = {1, 2, 3, 4, 5, 6, 7, 8, 9, 10}
+    temp sampled = random.sample(pool, 3)
+    if len(sampled) == 3 {
+        println("  [PASS] random.sample(arr, 3) returns 3 elements")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] random.sample(): got ${len(sampled)} elements")
+        failed += 1
+    }
+
+    // Test 16: random.sample(arr, 0) returns empty array
+    temp empty_sample = random.sample(pool, 0)
+    if len(empty_sample) == 0 {
+        println("  [PASS] random.sample(arr, 0) returns empty")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] random.sample(arr, 0): got ${len(empty_sample)} elements")
+        failed += 1
+    }
+
+    // Test 17: random.sample(arr, len) returns all elements
+    temp full_sample = random.sample(pool, 10)
+    if len(full_sample) == 10 {
+        println("  [PASS] random.sample(arr, len) returns all")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] random.sample(arr, len): got ${len(full_sample)}")
+        failed += 1
+    }
+
+    // Summary
+    println("")
+    println("Results: ${passed} passed, ${failed} failed")
+
+    if failed > 0 {
+        println("SOME TESTS FAILED")
+    } otherwise {
+        println("ALL TESTS PASSED")
+    }
+}
