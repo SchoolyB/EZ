@@ -2445,10 +2445,34 @@ func (p *Parser) registerParseFunctions() {
 }
 
 func (p *Parser) parseCharValue() Expression {
-	value := []rune(p.currentToken.Literal)
-	if len(value) == 0 {
+	literal := p.currentToken.Literal
+	if len(literal) == 0 {
 		return &CharValue{Token: p.currentToken, Value: 0}
 	}
+
+	// Handle escape sequences
+	if literal[0] == '\\' && len(literal) >= 2 {
+		var ch rune
+		switch literal[1] {
+		case 'n':
+			ch = '\n'
+		case 't':
+			ch = '\t'
+		case 'r':
+			ch = '\r'
+		case '\\':
+			ch = '\\'
+		case '\'':
+			ch = '\''
+		case '0':
+			ch = 0
+		default:
+			ch = rune(literal[1])
+		}
+		return &CharValue{Token: p.currentToken, Value: ch}
+	}
+
+	value := []rune(literal)
 	return &CharValue{Token: p.currentToken, Value: value[0]}
 }
 
