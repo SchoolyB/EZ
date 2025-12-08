@@ -1,0 +1,13 @@
+/*
+ * Error Test: E3028 - enum-mixed-types
+ * Expected: "mixed type" or "same type"
+ */
+
+enum Status [string] {
+    ACTIVE = "active",
+    PENDING = 1  // mixing string and int
+}
+
+do main() {
+    temp s = Status.ACTIVE
+}

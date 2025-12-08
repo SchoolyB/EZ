@@ -1,0 +1,8 @@
+/*
+ * Error Test: E7015 - len-unsupported-type
+ * Expected: "len" or "not supported" or "unsupported"
+ */
+
+do main() {
+    temp x int = len(42)  // len not supported for int
+}

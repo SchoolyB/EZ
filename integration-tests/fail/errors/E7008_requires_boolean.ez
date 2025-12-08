@@ -1,0 +1,12 @@
+/*
+ * Error Test: E7008 - requires-boolean
+ * Expected: "must be a boolean" or "requires boolean"
+ */
+
+import @std
+using std
+
+do main() {
+    temp s string = string(42)  // testing bool requirement - using assert
+    assert("not a bool")  // string instead of bool
+}

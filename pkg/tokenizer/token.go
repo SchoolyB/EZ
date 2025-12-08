@@ -103,7 +103,7 @@ const (
 	NEW        TokenType = "NEW"
 	TRUE       TokenType = "TRUE"
 	FALSE      TokenType = "FALSE"
-	BLANK TokenType = "BLANK" // _ blank identifier
+	BLANK      TokenType = "BLANK" // _ blank identifier
 	SUPPRESS   TokenType = "SUPPRESS"
 
 	// Module system keywords
@@ -141,7 +141,7 @@ var keywords = map[string]TokenType{
 	"new":        NEW,
 	"true":       TRUE,
 	"false":      FALSE,
-	"_": BLANK,
+	"_":          BLANK,
 	"module":     MODULE,
 	"private":    PRIVATE,
 	"from":       FROM,

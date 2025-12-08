@@ -123,7 +123,7 @@ for test_file in "$SCRIPT_DIR"/fail/errors/*.ez; do
     fi
 done
 
-# Multi-file error tests
+# Multi-file error tests (single files)
 for test_file in "$SCRIPT_DIR"/fail/multi-file/*.ez; do
     if [ -f "$test_file" ]; then
         test_name=$(basename "$test_file" .ez)
@@ -135,6 +135,26 @@ for test_file in "$SCRIPT_DIR"/fail/multi-file/*.ez; do
         else
             echo -e "${GREEN}PASS${NC}"
             ((PASS_COUNT++))
+        fi
+    fi
+done
+
+# Multi-file error tests (directories with main.ez)
+for dir in "$SCRIPT_DIR"/fail/multi-file/*/; do
+    if [ -d "$dir" ]; then
+        dir_name=$(basename "$dir")
+        main_file=$(find "$dir" -name "main.ez" | head -1)
+
+        if [ -n "$main_file" ]; then
+            printf "  multi-file/%s... " "$dir_name"
+
+            if "$EZ_BIN" run "$main_file" >/dev/null 2>&1; then
+                echo -e "${RED}FAIL${NC} (expected error, got success)"
+                ((FAIL_COUNT++))
+            else
+                echo -e "${GREEN}PASS${NC}"
+                ((PASS_COUNT++))
+            fi
         fi
     fi
 done

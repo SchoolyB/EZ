@@ -1,0 +1,10 @@
+/*
+ * Error Test: E6006 - module-name-conflict
+ * Expected: "module name" or "conflict" or "different"
+ */
+
+import "./conflictmod"
+
+do main() {
+    println("test")
+}

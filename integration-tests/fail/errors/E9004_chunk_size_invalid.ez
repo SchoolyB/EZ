@@ -1,0 +1,11 @@
+/*
+ * Error Test: E9004 - chunk-size-invalid
+ * Expected: "chunk" or "size" or "greater than zero"
+ */
+
+import @arrays
+
+do main() {
+    temp arr [int] = {1, 2, 3, 4, 5}
+    temp chunks = arrays.chunk(arr, -1)  // negative chunk size
+}

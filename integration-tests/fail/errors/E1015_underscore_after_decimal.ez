@@ -1,0 +1,8 @@
+/*
+ * Error Test: E1015 - number-underscore-after-decimal
+ * Expected: "underscore after decimal"
+ */
+
+do main() {
+    temp x float = 1._5  // underscore after decimal
+}

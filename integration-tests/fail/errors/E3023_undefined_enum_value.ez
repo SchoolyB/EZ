@@ -1,0 +1,14 @@
+/*
+ * Error Test: E3023 - undefined-enum-value
+ * Expected: "enum value" or "not found"
+ */
+
+enum Color {
+    RED,
+    GREEN,
+    BLUE
+}
+
+do main() {
+    temp c = Color.YELLOW  // YELLOW does not exist
+}

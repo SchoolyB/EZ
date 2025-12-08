@@ -1,0 +1,10 @@
+/*
+ * Error Test: E7010 - invalid-argument-value
+ * Expected: "invalid" or "argument value"
+ */
+
+import @time
+
+do main() {
+    temp t = time.parse("invalid-date-format", "not-a-format")
+}

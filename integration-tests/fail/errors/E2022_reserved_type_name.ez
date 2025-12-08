@@ -1,0 +1,12 @@
+/*
+ * Error Test: E2022 - reserved-type-name
+ * Expected: "reserved" or "type name"
+ */
+
+struct int {  // int is reserved
+    value int
+}
+
+do main() {
+    temp x int = 5
+}

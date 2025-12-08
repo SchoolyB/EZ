@@ -1,0 +1,14 @@
+/*
+ * Error Test: E3022 - undefined-struct-field
+ * Expected: "struct field" or "not found"
+ */
+
+struct Person {
+    name string,
+    age int
+}
+
+do main() {
+    temp p Person = new Person
+    p.height = 180  // height field does not exist
+}

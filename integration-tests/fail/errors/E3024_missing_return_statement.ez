@@ -1,0 +1,13 @@
+/*
+ * Error Test: E3024 - missing-return-statement
+ * Expected: "missing return" or "must return"
+ */
+
+do getValue() -> int {
+    temp x int = 5
+    // missing return statement
+}
+
+do main() {
+    temp v int = getValue()
+}

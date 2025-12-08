@@ -1,0 +1,5 @@
+module module_a
+
+import "../module_b"
+
+const VALUE int = 1

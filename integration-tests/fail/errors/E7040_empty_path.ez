@@ -1,0 +1,10 @@
+/*
+ * Error Test: E7040 - empty-path
+ * Expected: "path" or "empty"
+ */
+
+import @io
+
+do main() {
+    temp content string = io.read("")  // empty path
+}
