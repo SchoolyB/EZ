@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.16.4](https://github.com/SchoolyB/EZ/compare/v0.16.3...v0.16.4) (2025-12-08)
+
+
+### Bug Fixes
+
+* allow byte to int conversion with int() ([#418](https://github.com/SchoolyB/EZ/issues/418)) ([33dd463](https://github.com/SchoolyB/EZ/commit/33dd463d19ed16fe36f03fa3b9aba641c56edffb)), closes [#403](https://github.com/SchoolyB/EZ/issues/403)
+
 ## [0.16.3](https://github.com/SchoolyB/EZ/compare/v0.16.2...v0.16.3) (2025-12-08)
 
 
