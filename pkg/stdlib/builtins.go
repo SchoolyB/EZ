@@ -250,6 +250,8 @@ var StdBuiltins = map[string]*object.Builtin{
 				return &object.Integer{Value: val}
 			case *object.Char:
 				return &object.Integer{Value: int64(arg.Value)}
+			case *object.Byte:
+				return &object.Integer{Value: int64(arg.Value)}
 			case *object.EnumValue:
 				// Extract the underlying value from the enum
 				switch v := arg.Value.(type) {
