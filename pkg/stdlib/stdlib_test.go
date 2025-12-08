@@ -776,17 +776,106 @@ func TestArraysReverse(t *testing.T) {
 		Mutable: true,
 	}
 
-	// arrays.reverse returns a NEW reversed array
+	// arrays.reverse modifies in-place and returns NIL
 	result := reverseFn(arr)
-	newArr, ok := result.(*object.Array)
-	if !ok {
-		t.Fatalf("expected Array, got %T", result)
+	if result != object.NIL {
+		t.Fatalf("expected NIL, got %T", result)
 	}
 
-	// Check reversed order in returned array
-	testIntegerObject(t, newArr.Elements[0], 3)
-	testIntegerObject(t, newArr.Elements[1], 2)
-	testIntegerObject(t, newArr.Elements[2], 1)
+	// Check reversed order in original array (in-place)
+	testIntegerObject(t, arr.Elements[0], 3)
+	testIntegerObject(t, arr.Elements[1], 2)
+	testIntegerObject(t, arr.Elements[2], 1)
+}
+
+func TestArraysReverseImmutable(t *testing.T) {
+	reverseFn := ArraysBuiltins["arrays.reverse"].Fn
+
+	arr := &object.Array{
+		Elements: []object.Object{
+			&object.Integer{Value: 1},
+			&object.Integer{Value: 2},
+			&object.Integer{Value: 3},
+		},
+		Mutable: false, // immutable
+	}
+
+	result := reverseFn(arr)
+	if !isErrorObject(result) {
+		t.Error("expected error for immutable array")
+	}
+}
+
+func TestArraysSort(t *testing.T) {
+	sortFn := ArraysBuiltins["arrays.sort"].Fn
+
+	arr := &object.Array{
+		Elements: []object.Object{
+			&object.Integer{Value: 5},
+			&object.Integer{Value: 2},
+			&object.Integer{Value: 8},
+			&object.Integer{Value: 1},
+			&object.Integer{Value: 9},
+		},
+		Mutable: true,
+	}
+
+	// arrays.sort modifies in-place and returns NIL
+	result := sortFn(arr)
+	if result != object.NIL {
+		t.Fatalf("expected NIL, got %T", result)
+	}
+
+	// Check sorted order in original array (in-place)
+	expected := []int64{1, 2, 5, 8, 9}
+	for i, exp := range expected {
+		testIntegerObject(t, arr.Elements[i], exp)
+	}
+}
+
+func TestArraysSortImmutable(t *testing.T) {
+	sortFn := ArraysBuiltins["arrays.sort"].Fn
+
+	arr := &object.Array{
+		Elements: []object.Object{
+			&object.Integer{Value: 3},
+			&object.Integer{Value: 1},
+			&object.Integer{Value: 2},
+		},
+		Mutable: false, // immutable
+	}
+
+	result := sortFn(arr)
+	if !isErrorObject(result) {
+		t.Error("expected error for immutable array")
+	}
+}
+
+func TestArraysSortDesc(t *testing.T) {
+	sortDescFn := ArraysBuiltins["arrays.sort_desc"].Fn
+
+	arr := &object.Array{
+		Elements: []object.Object{
+			&object.Integer{Value: 5},
+			&object.Integer{Value: 2},
+			&object.Integer{Value: 8},
+			&object.Integer{Value: 1},
+			&object.Integer{Value: 9},
+		},
+		Mutable: true,
+	}
+
+	// arrays.sort_desc modifies in-place and returns NIL
+	result := sortDescFn(arr)
+	if result != object.NIL {
+		t.Fatalf("expected NIL, got %T", result)
+	}
+
+	// Check sorted order (descending) in original array
+	expected := []int64{9, 8, 5, 2, 1}
+	for i, exp := range expected {
+		testIntegerObject(t, arr.Elements[i], exp)
+	}
 }
 
 func TestArraysSum(t *testing.T) {
@@ -1709,16 +1798,32 @@ func TestArraysShuffle(t *testing.T) {
 		Mutable: true,
 	}
 
+	// arrays.shuffle modifies in-place and returns NIL
 	result := shuffleFn(arr)
-
-	shuffled, ok := result.(*object.Array)
-	if !ok {
-		t.Fatalf("arrays.shuffle() returned %T, want Array", result)
+	if result != object.NIL {
+		t.Fatalf("arrays.shuffle() returned %T, want NIL", result)
 	}
 
-	// Verify length is preserved
-	if len(shuffled.Elements) != 5 {
-		t.Errorf("arrays.shuffle() returned %d elements, want 5", len(shuffled.Elements))
+	// Verify length is preserved in original array (in-place)
+	if len(arr.Elements) != 5 {
+		t.Errorf("arrays.shuffle() modified array to %d elements, want 5", len(arr.Elements))
+	}
+}
+
+func TestArraysShuffleImmutable(t *testing.T) {
+	shuffleFn := ArraysBuiltins["arrays.shuffle"].Fn
+
+	arr := &object.Array{
+		Elements: []object.Object{
+			&object.Integer{Value: 1},
+			&object.Integer{Value: 2},
+		},
+		Mutable: false, // immutable
+	}
+
+	result := shuffleFn(arr)
+	if !isErrorObject(result) {
+		t.Error("expected error for immutable array")
 	}
 }
 
@@ -2236,8 +2341,92 @@ func TestArraysInsertImmutable(t *testing.T) {
 	}
 }
 
+// arrays.remove() removes by INDEX (not value!)
 func TestArraysRemove(t *testing.T) {
 	removeFn := ArraysBuiltins["arrays.remove"].Fn
+
+	arr := &object.Array{
+		Elements: []object.Object{
+			&object.Integer{Value: 10},
+			&object.Integer{Value: 20},
+			&object.Integer{Value: 30},
+			&object.Integer{Value: 40},
+			&object.Integer{Value: 50},
+		},
+		Mutable: true,
+	}
+
+	// Remove element at INDEX 2 (value 30)
+	result := removeFn(arr, &object.Integer{Value: 2})
+
+	// Should return nil (modifies in-place)
+	if result != object.NIL {
+		t.Errorf("arrays.remove() returned %T, want NIL", result)
+	}
+
+	// Array should now have 4 elements
+	if len(arr.Elements) != 4 {
+		t.Fatalf("arrays.remove() should modify array to have 4 elements, got %d", len(arr.Elements))
+	}
+
+	// Verify the elements: {10, 20, 40, 50} (index 2 removed)
+	expected := []int64{10, 20, 40, 50}
+	for i, exp := range expected {
+		intVal, ok := arr.Elements[i].(*object.Integer)
+		if !ok {
+			t.Errorf("arr[%d] is %T, want Integer", i, arr.Elements[i])
+			continue
+		}
+		if intVal.Value != exp {
+			t.Errorf("arr[%d] = %d, want %d", i, intVal.Value, exp)
+		}
+	}
+}
+
+func TestArraysRemoveOutOfBounds(t *testing.T) {
+	removeFn := ArraysBuiltins["arrays.remove"].Fn
+
+	arr := &object.Array{
+		Elements: []object.Object{
+			&object.Integer{Value: 1},
+			&object.Integer{Value: 2},
+			&object.Integer{Value: 3},
+		},
+		Mutable: true,
+	}
+
+	// Remove at out-of-bounds index
+	result := removeFn(arr, &object.Integer{Value: 99})
+
+	// Should return error
+	if !isErrorObject(result) {
+		t.Error("expected error for out-of-bounds index")
+	}
+
+	// Array should remain unchanged
+	if len(arr.Elements) != 3 {
+		t.Errorf("arrays.remove() should not change array length on error, got %d", len(arr.Elements))
+	}
+}
+
+func TestArraysRemoveImmutable(t *testing.T) {
+	removeFn := ArraysBuiltins["arrays.remove"].Fn
+
+	arr := &object.Array{
+		Elements: []object.Object{&object.Integer{Value: 1}},
+		Mutable:  false,
+	}
+
+	result := removeFn(arr, &object.Integer{Value: 0})
+
+	if !isErrorObject(result) {
+		t.Error("expected error for immutable array")
+	}
+}
+
+// arrays.remove_value() removes by VALUE (first occurrence)
+func TestArraysRemoveValue(t *testing.T) {
+	removeValueFn := ArraysBuiltins["arrays.remove_value"].Fn
 
 	arr := &object.Array{
 		Elements: []object.Object{
@@ -2250,17 +2439,17 @@ func TestArraysRemove(t *testing.T) {
 		Mutable: true,
 	}
 
-	// Remove first occurrence of 2
-	result := removeFn(arr, &object.Integer{Value: 2})
+	// Remove first occurrence of VALUE 2
+	result := removeValueFn(arr, &object.Integer{Value: 2})
 
 	// Should return nil (modifies in-place)
 	if result != object.NIL {
-		t.Errorf("arrays.remove() returned %T, want NIL", result)
+		t.Errorf("arrays.remove_value() returned %T, want NIL", result)
 	}
 
 	// Array should now have 4 elements
 	if len(arr.Elements) != 4 {
-		t.Fatalf("arrays.remove() should modify array to have 4 elements, got %d", len(arr.Elements))
+		t.Fatalf("arrays.remove_value() should modify array to have 4 elements, got %d", len(arr.Elements))
 	}
 
 	// Verify the elements: {1, 3, 2, 4} (first 2 removed)
@@ -2277,8 +2466,8 @@ func TestArraysRemove(t *testing.T) {
 	}
 }
 
-func TestArraysRemoveNotFound(t *testing.T) {
-	removeFn := ArraysBuiltins["arrays.remove"].Fn
+func TestArraysRemoveValueNotFound(t *testing.T) {
+	removeValueFn := ArraysBuiltins["arrays.remove_value"].Fn
 
 	arr := &object.Array{
 		Elements: []object.Object{
@@ -2289,29 +2478,29 @@ func TestArraysRemoveNotFound(t *testing.T) {
 		Mutable: true,
 	}
 
-	// Remove non-existent element
-	result := removeFn(arr, &object.Integer{Value: 99})
+	// Remove non-existent value
+	result := removeValueFn(arr, &object.Integer{Value: 99})
 
-	// Should return nil (no error)
+	// Should return nil (no error, just does nothing)
 	if result != object.NIL {
-		t.Errorf("arrays.remove() returned %T, want NIL", result)
+		t.Errorf("arrays.remove_value() returned %T, want NIL", result)
 	}
 
 	// Array should remain unchanged
 	if len(arr.Elements) != 3 {
-		t.Errorf("arrays.remove() should not change array length, got %d", len(arr.Elements))
+		t.Errorf("arrays.remove_value() should not change array length, got %d", len(arr.Elements))
 	}
 }
 
-func TestArraysRemoveImmutable(t *testing.T) {
-	removeFn := ArraysBuiltins["arrays.remove"].Fn
+func TestArraysRemoveValueImmutable(t *testing.T) {
+	removeValueFn := ArraysBuiltins["arrays.remove_value"].Fn
 
 	arr := &object.Array{
 		Elements: []object.Object{&object.Integer{Value: 1}},
 		Mutable:  false,
 	}
 
-	result := removeFn(arr, &object.Integer{Value: 1})
+	result := removeValueFn(arr, &object.Integer{Value: 1})
 
 	if !isErrorObject(result) {
 		t.Error("expected error for immutable array")
@@ -2424,27 +2613,32 @@ func TestArraysShiftImmutable(t *testing.T) {
 func TestArraysShuffleRandomness(t *testing.T) {
 	shuffleFn := ArraysBuiltins["arrays.shuffle"].Fn
 
-	// Create array with 10 elements
-	elements := make([]object.Object, 10)
-	for i := 0; i < 10; i++ {
-		elements[i] = &object.Integer{Value: int64(i + 1)}
-	}
-	arr := &object.Array{Elements: elements, Mutable: true}
-
-	// Shuffle multiple times and check that at least one result is different
+	// Try multiple times to verify shuffle produces different orderings
 	different := false
-	for i := 0; i < 10; i++ {
+	for attempt := 0; attempt < 10; attempt++ {
+		// Create fresh array for each attempt
+		elements := make([]object.Object, 10)
+		for i := 0; i < 10; i++ {
+			elements[i] = &object.Integer{Value: int64(i + 1)}
+		}
+		arr := &object.Array{Elements: elements, Mutable: true}
+
+		// Store original order
+		original := make([]int64, 10)
+		for i := 0; i < 10; i++ {
+			original[i] = int64(i + 1)
+		}
+
+		// arrays.shuffle now modifies in-place and returns NIL
 		result := shuffleFn(arr)
-		shuffled, ok := result.(*object.Array)
-		if !ok {
-			t.Fatalf("arrays.shuffle() returned %T, want Array", result)
+		if result != object.NIL {
+			t.Fatalf("arrays.shuffle() returned %T, want NIL", result)
 		}
 
 		// Check if shuffled order is different from original
-		for j := 0; j < len(shuffled.Elements); j++ {
-			origVal := elements[j].(*object.Integer).Value
-			shuffledVal := shuffled.Elements[j].(*object.Integer).Value
-			if origVal != shuffledVal {
+		for j := 0; j < len(arr.Elements); j++ {
+			shuffledVal := arr.Elements[j].(*object.Integer).Value
+			if original[j] != shuffledVal {
 				different = true
 				break
 			}

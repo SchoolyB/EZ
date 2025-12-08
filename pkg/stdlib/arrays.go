@@ -168,10 +168,13 @@ var ArraysBuiltins = map[string]*object.Builtin{
 		},
 	},
 
+	// arrays.remove(arr, index) - Removes element at the specified INDEX (not value!)
+	// Use arrays.remove_value() if you need to remove by value instead.
+	// Modifies array in-place, returns NIL.
 	"arrays.remove": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 2 {
-				return newError("arrays.remove() takes exactly 2 arguments")
+				return newError("arrays.remove() takes exactly 2 arguments (array, index)")
 			}
 			arr, ok := args[0].(*object.Array)
 			if !ok {
@@ -183,13 +186,46 @@ var ArraysBuiltins = map[string]*object.Builtin{
 					Code:    "E4005",
 				}
 			}
+			idx, ok := args[1].(*object.Integer)
+			if !ok {
+				return &object.Error{Code: "E7004", Message: "arrays.remove() requires an integer index"}
+			}
+			index := int(idx.Value)
+			if index < 0 || index >= len(arr.Elements) {
+				return &object.Error{Code: "E9001", Message: fmt.Sprintf("arrays.remove() index out of bounds: %d (array length: %d)", index, len(arr.Elements))}
+			}
+			// Remove element at index by modifying the array in-place
+			arr.Elements = append(arr.Elements[:index], arr.Elements[index+1:]...)
+			return object.NIL
+		},
+	},
+
+	// arrays.remove_value(arr, value) - Removes the FIRST occurrence of the specified VALUE.
+	// Use arrays.remove() if you need to remove by index instead.
+	// Modifies array in-place, returns NIL. Does nothing if value not found.
+	"arrays.remove_value": {
+		Fn: func(args ...object.Object) object.Object {
+			if len(args) != 2 {
+				return newError("arrays.remove_value() takes exactly 2 arguments (array, value)")
+			}
+			arr, ok := args[0].(*object.Array)
+			if !ok {
+				return &object.Error{Code: "E7002", Message: "arrays.remove_value() requires an array"}
+			}
+			if !arr.Mutable {
+				return &object.Error{
+					Message: "cannot modify immutable array (declared as const)",
+					Code:    "E4005",
+				}
+			}
 			for i, el := range arr.Elements {
 				if objectsEqual(el, args[1]) {
-					// Remove element at index by modifying the array in-place
+					// Remove first occurrence of value by modifying the array in-place
 					arr.Elements = append(arr.Elements[:i], arr.Elements[i+1:]...)
 					return object.NIL
 				}
 			}
+			// Value not found - do nothing
 			return object.NIL
 		},
 	},
@@ -511,11 +547,17 @@ var ArraysBuiltins = map[string]*object.Builtin{
 			if !ok {
 				return &object.Error{Code: "E7002", Message: "arrays.reverse() requires an array"}
 			}
-			newElements := make([]object.Object, len(arr.Elements))
-			for i, el := range arr.Elements {
-				newElements[len(arr.Elements)-1-i] = el
+			if !arr.Mutable {
+				return &object.Error{
+					Message: "cannot modify immutable array (declared as const)",
+					Code:    "E4005",
+				}
 			}
-			return &object.Array{Elements: newElements}
+			// Reverse in-place
+			for i, j := 0, len(arr.Elements)-1; i < j; i, j = i+1, j-1 {
+				arr.Elements[i], arr.Elements[j] = arr.Elements[j], arr.Elements[i]
+			}
+			return object.NIL
 		},
 	},
 
@@ -528,18 +570,22 @@ var ArraysBuiltins = map[string]*object.Builtin{
 			if !ok {
 				return &object.Error{Code: "E7002", Message: "arrays.sort() requires an array"}
 			}
+			if !arr.Mutable {
+				return &object.Error{
+					Message: "cannot modify immutable array (declared as const)",
+					Code:    "E4005",
+				}
+			}
 			if len(arr.Elements) == 0 {
-				return &object.Array{Elements: []object.Object{}}
+				return object.NIL
 			}
 
-			newElements := make([]object.Object, len(arr.Elements))
-			copy(newElements, arr.Elements)
-
-			sort.Slice(newElements, func(i, j int) bool {
-				return compareObjects(newElements[i], newElements[j]) < 0
+			// Sort in-place
+			sort.Slice(arr.Elements, func(i, j int) bool {
+				return compareObjects(arr.Elements[i], arr.Elements[j]) < 0
 			})
 
-			return &object.Array{Elements: newElements}
+			return object.NIL
 		},
 	},
 
@@ -552,18 +598,22 @@ var ArraysBuiltins = map[string]*object.Builtin{
 			if !ok {
 				return &object.Error{Code: "E7002", Message: "arrays.sort_desc() requires an array"}
 			}
+			if !arr.Mutable {
+				return &object.Error{
+					Message: "cannot modify immutable array (declared as const)",
+					Code:    "E4005",
+				}
+			}
 			if len(arr.Elements) == 0 {
-				return &object.Array{Elements: []object.Object{}}
+				return object.NIL
 			}
 
-			newElements := make([]object.Object, len(arr.Elements))
-			copy(newElements, arr.Elements)
-
-			sort.Slice(newElements, func(i, j int) bool {
-				return compareObjects(newElements[i], newElements[j]) > 0
+			// Sort in-place (descending)
+			sort.Slice(arr.Elements, func(i, j int) bool {
+				return compareObjects(arr.Elements[i], arr.Elements[j]) > 0
 			})
 
-			return &object.Array{Elements: newElements}
+			return object.NIL
 		},
 	},
 
@@ -576,16 +626,20 @@ var ArraysBuiltins = map[string]*object.Builtin{
 			if !ok {
 				return &object.Error{Code: "E7002", Message: "arrays.shuffle() requires an array"}
 			}
-
-			newElements := make([]object.Object, len(arr.Elements))
-			copy(newElements, arr.Elements)
-
-			for i := len(newElements) - 1; i > 0; i-- {
-				j := int(randomInt(int64(i + 1)))
-				newElements[i], newElements[j] = newElements[j], newElements[i]
+			if !arr.Mutable {
+				return &object.Error{
+					Message: "cannot modify immutable array (declared as const)",
+					Code:    "E4005",
+				}
 			}
 
-			return &object.Array{Elements: newElements}
+			// Shuffle in-place (Fisher-Yates)
+			for i := len(arr.Elements) - 1; i > 0; i-- {
+				j := int(randomInt(int64(i + 1)))
+				arr.Elements[i], arr.Elements[j] = arr.Elements[j], arr.Elements[i]
+			}
+
+			return object.NIL
 		},
 	},
 
