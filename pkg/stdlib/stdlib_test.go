@@ -5,6 +5,7 @@ package stdlib
 
 import (
 	"math"
+	"math/big"
 	"testing"
 	gotime "time"
 
@@ -22,8 +23,8 @@ func testIntegerObject(t *testing.T, obj object.Object, expected int64) bool {
 		t.Errorf("object is not Integer. got=%T (%+v)", obj, obj)
 		return false
 	}
-	if result.Value != expected {
-		t.Errorf("object has wrong value. got=%d, want=%d", result.Value, expected)
+	if result.Value.Cmp(big.NewInt(expected)) != 0 {
+		t.Errorf("object has wrong value. got=%s, want=%d", result.Value.String(), expected)
 		return false
 	}
 	return true
@@ -121,9 +122,9 @@ func TestLen(t *testing.T) {
 		{"string", &object.String{Value: "hello"}, 5},
 		{"empty array", &object.Array{Elements: []object.Object{}}, 0},
 		{"array", &object.Array{Elements: []object.Object{
-			&object.Integer{Value: 1},
-			&object.Integer{Value: 2},
-			&object.Integer{Value: 3},
+			&object.Integer{Value: big.NewInt(1)},
+			&object.Integer{Value: big.NewInt(2)},
+			&object.Integer{Value: big.NewInt(3)},
 		}}, 3},
 	}
 
@@ -144,13 +145,13 @@ func TestLenErrors(t *testing.T) {
 		t.Error("expected error for no arguments")
 	}
 
-	result = lenFn(&object.Integer{Value: 5}, &object.Integer{Value: 10})
+	result = lenFn(&object.Integer{Value: big.NewInt(5)}, &object.Integer{Value: big.NewInt(10)})
 	if !isErrorObject(result) {
 		t.Error("expected error for too many arguments")
 	}
 
 	// Unsupported type
-	result = lenFn(&object.Integer{Value: 5})
+	result = lenFn(&object.Integer{Value: big.NewInt(5)})
 	if !isErrorObject(result) {
 		t.Error("expected error for unsupported type")
 	}
@@ -164,7 +165,7 @@ func TestTypeof(t *testing.T) {
 		input    object.Object
 		expected string
 	}{
-		{"integer", &object.Integer{Value: 5}, "int"},
+		{"integer", &object.Integer{Value: big.NewInt(5)}, "int"},
 		{"float", &object.Float{Value: 3.14}, "float"},
 		{"string", &object.String{Value: "hello"}, "string"},
 		{"boolean", &object.Boolean{Value: true}, "bool"},
@@ -188,7 +189,7 @@ func TestIntConversion(t *testing.T) {
 		input    object.Object
 		expected int64
 	}{
-		{"integer", &object.Integer{Value: 42}, 42},
+		{"integer", &object.Integer{Value: big.NewInt(42)}, 42},
 		{"float", &object.Float{Value: 3.7}, 3},
 		{"string", &object.String{Value: "123"}, 123},
 		{"string with underscores", &object.String{Value: "1_000"}, 1000},
@@ -221,7 +222,7 @@ func TestFloatConversion(t *testing.T) {
 		input    object.Object
 		expected float64
 	}{
-		{"integer", &object.Integer{Value: 42}, 42.0},
+		{"integer", &object.Integer{Value: big.NewInt(42)}, 42.0},
 		{"float", &object.Float{Value: 3.14}, 3.14},
 		{"string", &object.String{Value: "3.14"}, 3.14},
 	}
@@ -242,7 +243,7 @@ func TestStringConversion(t *testing.T) {
 		input    object.Object
 		expected string
 	}{
-		{"integer", &object.Integer{Value: 42}, "42"},
+		{"integer", &object.Integer{Value: big.NewInt(42)}, "42"},
 		{"float", &object.Float{Value: 3.14}, "3.14"},
 		// Note: string() on a string returns the quoted version in EZ
 		{"boolean true", &object.Boolean{Value: true}, "true"},
@@ -298,12 +299,12 @@ func TestCharConversion(t *testing.T) {
 		expected rune
 	}{
 		{"char identity", &object.Char{Value: 'A'}, 'A'},
-		{"integer to char", &object.Integer{Value: 65}, 'A'},
-		{"integer to char B", &object.Integer{Value: 66}, 'B'},
+		{"integer to char", &object.Integer{Value: big.NewInt(65)}, 'A'},
+		{"integer to char B", &object.Integer{Value: big.NewInt(66)}, 'B'},
 		{"float to char", &object.Float{Value: 67.9}, 'C'},
 		{"byte to char", &object.Byte{Value: 68}, 'D'},
 		{"string to char", &object.String{Value: "E"}, 'E'},
-		{"unicode char", &object.Integer{Value: 0x1F600}, 0x1F600}, // 😀
+		{"unicode char", &object.Integer{Value: big.NewInt(0x1F600)}, 0x1F600}, // 😀
 	}
 
 	for _, tt := range tests {
@@ -321,8 +322,8 @@ func TestCharConversionErrors(t *testing.T) {
 		name  string
 		input object.Object
 	}{
-		{"negative integer", &object.Integer{Value: -1}},
-		{"too large integer", &object.Integer{Value: 0x110000}}, // Beyond Unicode range
+		{"negative integer", &object.Integer{Value: big.NewInt(-1)}},
+		{"too large integer", &object.Integer{Value: big.NewInt(0x110000)}}, // Beyond Unicode range
 		{"multi-char string", &object.String{Value: "AB"}},
 		{"empty string", &object.String{Value: ""}},
 		{"negative float", &object.Float{Value: -1.5}},
@@ -350,7 +351,7 @@ func TestCharConversionArgCount(t *testing.T) {
 	}
 
 	// Too many arguments
-	result = charFn(&object.Integer{Value: 65}, &object.Integer{Value: 66})
+	result = charFn(&object.Integer{Value: big.NewInt(65)}, &object.Integer{Value: big.NewInt(66)})
 	if !isErrorObject(result) {
 		t.Error("expected error for too many arguments")
 	}
@@ -369,9 +370,9 @@ func TestMathAdd(t *testing.T) {
 		expected float64
 		isInt    bool
 	}{
-		{"integers", &object.Integer{Value: 5}, &object.Integer{Value: 3}, 8, true},
+		{"integers", &object.Integer{Value: big.NewInt(5)}, &object.Integer{Value: big.NewInt(3)}, 8, true},
 		{"floats", &object.Float{Value: 2.5}, &object.Float{Value: 1.5}, 4.0, false},
-		{"mixed", &object.Integer{Value: 5}, &object.Float{Value: 2.5}, 7.5, false},
+		{"mixed", &object.Integer{Value: big.NewInt(5)}, &object.Float{Value: 2.5}, 7.5, false},
 	}
 
 	for _, tt := range tests {
@@ -389,7 +390,7 @@ func TestMathAdd(t *testing.T) {
 func TestMathSub(t *testing.T) {
 	subFn := MathBuiltins["math.sub"].Fn
 
-	result := subFn(&object.Integer{Value: 10}, &object.Integer{Value: 3})
+	result := subFn(&object.Integer{Value: big.NewInt(10)}, &object.Integer{Value: big.NewInt(3)})
 	testIntegerObject(t, result, 7)
 
 	result = subFn(&object.Float{Value: 5.5}, &object.Float{Value: 2.0})
@@ -399,7 +400,7 @@ func TestMathSub(t *testing.T) {
 func TestMathMul(t *testing.T) {
 	mulFn := MathBuiltins["math.mul"].Fn
 
-	result := mulFn(&object.Integer{Value: 6}, &object.Integer{Value: 7})
+	result := mulFn(&object.Integer{Value: big.NewInt(6)}, &object.Integer{Value: big.NewInt(7)})
 	testIntegerObject(t, result, 42)
 
 	result = mulFn(&object.Float{Value: 2.5}, &object.Float{Value: 4.0})
@@ -409,11 +410,11 @@ func TestMathMul(t *testing.T) {
 func TestMathDiv(t *testing.T) {
 	divFn := MathBuiltins["math.div"].Fn
 
-	result := divFn(&object.Integer{Value: 10}, &object.Integer{Value: 4})
+	result := divFn(&object.Integer{Value: big.NewInt(10)}, &object.Integer{Value: big.NewInt(4)})
 	testFloatObject(t, result, 2.5)
 
 	// Division by zero
-	result = divFn(&object.Integer{Value: 10}, &object.Integer{Value: 0})
+	result = divFn(&object.Integer{Value: big.NewInt(10)}, &object.Integer{Value: big.NewInt(0)})
 	if !isErrorObject(result) {
 		t.Error("expected error for division by zero")
 	}
@@ -422,11 +423,11 @@ func TestMathDiv(t *testing.T) {
 func TestMathMod(t *testing.T) {
 	modFn := MathBuiltins["math.mod"].Fn
 
-	result := modFn(&object.Integer{Value: 10}, &object.Integer{Value: 3})
+	result := modFn(&object.Integer{Value: big.NewInt(10)}, &object.Integer{Value: big.NewInt(3)})
 	testFloatObject(t, result, 1.0)
 
 	// Modulo by zero
-	result = modFn(&object.Integer{Value: 10}, &object.Integer{Value: 0})
+	result = modFn(&object.Integer{Value: big.NewInt(10)}, &object.Integer{Value: big.NewInt(0)})
 	if !isErrorObject(result) {
 		t.Error("expected error for modulo by zero")
 	}
@@ -441,11 +442,11 @@ func TestMathAbs(t *testing.T) {
 		expected float64
 		isInt    bool
 	}{
-		{"positive int", &object.Integer{Value: 5}, 5, true},
-		{"negative int", &object.Integer{Value: -5}, 5, true},
+		{"positive int", &object.Integer{Value: big.NewInt(5)}, 5, true},
+		{"negative int", &object.Integer{Value: big.NewInt(-5)}, 5, true},
 		{"positive float", &object.Float{Value: 3.14}, 3.14, false},
 		{"negative float", &object.Float{Value: -3.14}, 3.14, false},
-		{"zero", &object.Integer{Value: 0}, 0, true},
+		{"zero", &object.Integer{Value: big.NewInt(0)}, 0, true},
 	}
 
 	for _, tt := range tests {
@@ -468,9 +469,9 @@ func TestMathSign(t *testing.T) {
 		input    object.Object
 		expected int64
 	}{
-		{"positive", &object.Integer{Value: 42}, 1},
-		{"negative", &object.Integer{Value: -42}, -1},
-		{"zero", &object.Integer{Value: 0}, 0},
+		{"positive", &object.Integer{Value: big.NewInt(42)}, 1},
+		{"negative", &object.Integer{Value: big.NewInt(-42)}, -1},
+		{"zero", &object.Integer{Value: big.NewInt(0)}, 0},
 	}
 
 	for _, tt := range tests {
@@ -484,10 +485,10 @@ func TestMathSign(t *testing.T) {
 func TestMathNeg(t *testing.T) {
 	negFn := MathBuiltins["math.neg"].Fn
 
-	result := negFn(&object.Integer{Value: 5})
+	result := negFn(&object.Integer{Value: big.NewInt(5)})
 	testIntegerObject(t, result, -5)
 
-	result = negFn(&object.Integer{Value: -5})
+	result = negFn(&object.Integer{Value: big.NewInt(-5)})
 	testIntegerObject(t, result, 5)
 
 	result = negFn(&object.Float{Value: 3.14})
@@ -498,10 +499,10 @@ func TestMathMinMax(t *testing.T) {
 	minFn := MathBuiltins["math.min"].Fn
 	maxFn := MathBuiltins["math.max"].Fn
 
-	result := minFn(&object.Integer{Value: 5}, &object.Integer{Value: 3})
+	result := minFn(&object.Integer{Value: big.NewInt(5)}, &object.Integer{Value: big.NewInt(3)})
 	testIntegerObject(t, result, 3)
 
-	result = maxFn(&object.Integer{Value: 5}, &object.Integer{Value: 3})
+	result = maxFn(&object.Integer{Value: big.NewInt(5)}, &object.Integer{Value: big.NewInt(3)})
 	testIntegerObject(t, result, 5)
 }
 
@@ -509,7 +510,7 @@ func TestMathPow(t *testing.T) {
 	powFn := MathBuiltins["math.pow"].Fn
 
 	// Integer power returns integer when result is whole number
-	result := powFn(&object.Integer{Value: 2}, &object.Integer{Value: 3})
+	result := powFn(&object.Integer{Value: big.NewInt(2)}, &object.Integer{Value: big.NewInt(3)})
 	testIntegerObject(t, result, 8)
 
 	// Float power returns float
@@ -520,7 +521,7 @@ func TestMathPow(t *testing.T) {
 func TestMathSqrt(t *testing.T) {
 	sqrtFn := MathBuiltins["math.sqrt"].Fn
 
-	result := sqrtFn(&object.Integer{Value: 16})
+	result := sqrtFn(&object.Integer{Value: big.NewInt(16)})
 	testFloatObject(t, result, 4.0)
 
 	result = sqrtFn(&object.Float{Value: 2.0})
@@ -576,19 +577,19 @@ func TestMathLogBase(t *testing.T) {
 	logBaseFn := MathBuiltins["math.log_base"].Fn
 
 	// log_base(8, 2) = 3 (since 2^3 = 8)
-	result := logBaseFn(&object.Integer{Value: 8}, &object.Integer{Value: 2})
+	result := logBaseFn(&object.Integer{Value: big.NewInt(8)}, &object.Integer{Value: big.NewInt(2)})
 	testFloatObject(t, result, 3.0)
 
 	// log_base(1000, 10) = 3 (since 10^3 = 1000)
-	result = logBaseFn(&object.Integer{Value: 1000}, &object.Integer{Value: 10})
+	result = logBaseFn(&object.Integer{Value: big.NewInt(1000)}, &object.Integer{Value: big.NewInt(10)})
 	testFloatObject(t, result, 3.0)
 
 	// log_base(27, 3) = 3 (since 3^3 = 27)
-	result = logBaseFn(&object.Integer{Value: 27}, &object.Integer{Value: 3})
+	result = logBaseFn(&object.Integer{Value: big.NewInt(27)}, &object.Integer{Value: big.NewInt(3)})
 	testFloatObject(t, result, 3.0)
 
 	// log_base(1, any) = 0
-	result = logBaseFn(&object.Integer{Value: 1}, &object.Integer{Value: 5})
+	result = logBaseFn(&object.Integer{Value: big.NewInt(1)}, &object.Integer{Value: big.NewInt(5)})
 	testFloatObject(t, result, 0.0)
 }
 
@@ -596,30 +597,30 @@ func TestMathLogBaseErrors(t *testing.T) {
 	logBaseFn := MathBuiltins["math.log_base"].Fn
 
 	// Value <= 0
-	result := logBaseFn(&object.Integer{Value: 0}, &object.Integer{Value: 2})
+	result := logBaseFn(&object.Integer{Value: big.NewInt(0)}, &object.Integer{Value: big.NewInt(2)})
 	if !isErrorObject(result) {
 		t.Error("expected error for value <= 0")
 	}
 
-	result = logBaseFn(&object.Integer{Value: -5}, &object.Integer{Value: 2})
+	result = logBaseFn(&object.Integer{Value: big.NewInt(-5)}, &object.Integer{Value: big.NewInt(2)})
 	if !isErrorObject(result) {
 		t.Error("expected error for negative value")
 	}
 
 	// Base <= 0
-	result = logBaseFn(&object.Integer{Value: 8}, &object.Integer{Value: 0})
+	result = logBaseFn(&object.Integer{Value: big.NewInt(8)}, &object.Integer{Value: big.NewInt(0)})
 	if !isErrorObject(result) {
 		t.Error("expected error for base <= 0")
 	}
 
 	// Base = 1 (undefined)
-	result = logBaseFn(&object.Integer{Value: 8}, &object.Integer{Value: 1})
+	result = logBaseFn(&object.Integer{Value: big.NewInt(8)}, &object.Integer{Value: big.NewInt(1)})
 	if !isErrorObject(result) {
 		t.Error("expected error for base = 1")
 	}
 
 	// Wrong number of args
-	result = logBaseFn(&object.Integer{Value: 8})
+	result = logBaseFn(&object.Integer{Value: big.NewInt(8)})
 	if !isErrorObject(result) {
 		t.Error("expected error for 1 argument")
 	}
@@ -637,15 +638,15 @@ func TestArraysIsEmpty(t *testing.T) {
 	testBooleanObject(t, result, true)
 
 	// Non-empty array
-	result = isEmptyFn(&object.Array{Elements: []object.Object{&object.Integer{Value: 1}}})
+	result = isEmptyFn(&object.Array{Elements: []object.Object{&object.Integer{Value: big.NewInt(1)}}})
 	testBooleanObject(t, result, false)
 }
 
 func TestArraysAppend(t *testing.T) {
 	appendFn := ArraysBuiltins["arrays.append"].Fn
 
-	arr := &object.Array{Elements: []object.Object{&object.Integer{Value: 1}}, Mutable: true}
-	appendFn(arr, &object.Integer{Value: 2}, &object.Integer{Value: 3})
+	arr := &object.Array{Elements: []object.Object{&object.Integer{Value: big.NewInt(1)}}, Mutable: true}
+	appendFn(arr, &object.Integer{Value: big.NewInt(2)}, &object.Integer{Value: big.NewInt(3)})
 
 	if len(arr.Elements) != 3 {
 		t.Errorf("expected 3 elements, got %d", len(arr.Elements))
@@ -655,8 +656,8 @@ func TestArraysAppend(t *testing.T) {
 func TestArraysAppendImmutable(t *testing.T) {
 	appendFn := ArraysBuiltins["arrays.append"].Fn
 
-	arr := &object.Array{Elements: []object.Object{&object.Integer{Value: 1}}, Mutable: false}
-	result := appendFn(arr, &object.Integer{Value: 2})
+	arr := &object.Array{Elements: []object.Object{&object.Integer{Value: big.NewInt(1)}}, Mutable: false}
+	result := appendFn(arr, &object.Integer{Value: big.NewInt(2)})
 
 	if !isErrorObject(result) {
 		t.Error("expected error for immutable array")
@@ -668,9 +669,9 @@ func TestArraysPop(t *testing.T) {
 
 	arr := &object.Array{
 		Elements: []object.Object{
-			&object.Integer{Value: 1},
-			&object.Integer{Value: 2},
-			&object.Integer{Value: 3},
+			&object.Integer{Value: big.NewInt(1)},
+			&object.Integer{Value: big.NewInt(2)},
+			&object.Integer{Value: big.NewInt(3)},
 		},
 		Mutable: true,
 	}
@@ -699,9 +700,9 @@ func TestArraysLenUsingBuiltinLen(t *testing.T) {
 	lenFn := StdBuiltins["len"].Fn
 
 	arr := &object.Array{Elements: []object.Object{
-		&object.Integer{Value: 1},
-		&object.Integer{Value: 2},
-		&object.Integer{Value: 3},
+		&object.Integer{Value: big.NewInt(1)},
+		&object.Integer{Value: big.NewInt(2)},
+		&object.Integer{Value: big.NewInt(3)},
 	}}
 
 	result := lenFn(arr)
@@ -712,8 +713,8 @@ func TestArraysFirst(t *testing.T) {
 	firstFn := ArraysBuiltins["arrays.first"].Fn
 
 	arr := &object.Array{Elements: []object.Object{
-		&object.Integer{Value: 10},
-		&object.Integer{Value: 20},
+		&object.Integer{Value: big.NewInt(10)},
+		&object.Integer{Value: big.NewInt(20)},
 	}}
 
 	result := firstFn(arr)
@@ -724,8 +725,8 @@ func TestArraysLast(t *testing.T) {
 	lastFn := ArraysBuiltins["arrays.last"].Fn
 
 	arr := &object.Array{Elements: []object.Object{
-		&object.Integer{Value: 10},
-		&object.Integer{Value: 20},
+		&object.Integer{Value: big.NewInt(10)},
+		&object.Integer{Value: big.NewInt(20)},
 	}}
 
 	result := lastFn(arr)
@@ -736,15 +737,15 @@ func TestArraysContains(t *testing.T) {
 	containsFn := ArraysBuiltins["arrays.contains"].Fn
 
 	arr := &object.Array{Elements: []object.Object{
-		&object.Integer{Value: 1},
-		&object.Integer{Value: 2},
-		&object.Integer{Value: 3},
+		&object.Integer{Value: big.NewInt(1)},
+		&object.Integer{Value: big.NewInt(2)},
+		&object.Integer{Value: big.NewInt(3)},
 	}}
 
-	result := containsFn(arr, &object.Integer{Value: 2})
+	result := containsFn(arr, &object.Integer{Value: big.NewInt(2)})
 	testBooleanObject(t, result, true)
 
-	result = containsFn(arr, &object.Integer{Value: 5})
+	result = containsFn(arr, &object.Integer{Value: big.NewInt(5)})
 	testBooleanObject(t, result, false)
 }
 
@@ -752,15 +753,15 @@ func TestArraysIndexOf(t *testing.T) {
 	indexOfFn := ArraysBuiltins["arrays.index_of"].Fn
 
 	arr := &object.Array{Elements: []object.Object{
-		&object.Integer{Value: 10},
-		&object.Integer{Value: 20},
-		&object.Integer{Value: 30},
+		&object.Integer{Value: big.NewInt(10)},
+		&object.Integer{Value: big.NewInt(20)},
+		&object.Integer{Value: big.NewInt(30)},
 	}}
 
-	result := indexOfFn(arr, &object.Integer{Value: 20})
+	result := indexOfFn(arr, &object.Integer{Value: big.NewInt(20)})
 	testIntegerObject(t, result, 1)
 
-	result = indexOfFn(arr, &object.Integer{Value: 99})
+	result = indexOfFn(arr, &object.Integer{Value: big.NewInt(99)})
 	testIntegerObject(t, result, -1)
 }
 
@@ -769,9 +770,9 @@ func TestArraysReverse(t *testing.T) {
 
 	arr := &object.Array{
 		Elements: []object.Object{
-			&object.Integer{Value: 1},
-			&object.Integer{Value: 2},
-			&object.Integer{Value: 3},
+			&object.Integer{Value: big.NewInt(1)},
+			&object.Integer{Value: big.NewInt(2)},
+			&object.Integer{Value: big.NewInt(3)},
 		},
 		Mutable: true,
 	}
@@ -793,9 +794,9 @@ func TestArraysReverseImmutable(t *testing.T) {
 
 	arr := &object.Array{
 		Elements: []object.Object{
-			&object.Integer{Value: 1},
-			&object.Integer{Value: 2},
-			&object.Integer{Value: 3},
+			&object.Integer{Value: big.NewInt(1)},
+			&object.Integer{Value: big.NewInt(2)},
+			&object.Integer{Value: big.NewInt(3)},
 		},
 		Mutable: false, // immutable
 	}
@@ -811,11 +812,11 @@ func TestArraysSort(t *testing.T) {
 
 	arr := &object.Array{
 		Elements: []object.Object{
-			&object.Integer{Value: 5},
-			&object.Integer{Value: 2},
-			&object.Integer{Value: 8},
-			&object.Integer{Value: 1},
-			&object.Integer{Value: 9},
+			&object.Integer{Value: big.NewInt(5)},
+			&object.Integer{Value: big.NewInt(2)},
+			&object.Integer{Value: big.NewInt(8)},
+			&object.Integer{Value: big.NewInt(1)},
+			&object.Integer{Value: big.NewInt(9)},
 		},
 		Mutable: true,
 	}
@@ -838,9 +839,9 @@ func TestArraysSortImmutable(t *testing.T) {
 
 	arr := &object.Array{
 		Elements: []object.Object{
-			&object.Integer{Value: 3},
-			&object.Integer{Value: 1},
-			&object.Integer{Value: 2},
+			&object.Integer{Value: big.NewInt(3)},
+			&object.Integer{Value: big.NewInt(1)},
+			&object.Integer{Value: big.NewInt(2)},
 		},
 		Mutable: false, // immutable
 	}
@@ -856,11 +857,11 @@ func TestArraysSortDesc(t *testing.T) {
 
 	arr := &object.Array{
 		Elements: []object.Object{
-			&object.Integer{Value: 5},
-			&object.Integer{Value: 2},
-			&object.Integer{Value: 8},
-			&object.Integer{Value: 1},
-			&object.Integer{Value: 9},
+			&object.Integer{Value: big.NewInt(5)},
+			&object.Integer{Value: big.NewInt(2)},
+			&object.Integer{Value: big.NewInt(8)},
+			&object.Integer{Value: big.NewInt(1)},
+			&object.Integer{Value: big.NewInt(9)},
 		},
 		Mutable: true,
 	}
@@ -882,10 +883,10 @@ func TestArraysSum(t *testing.T) {
 	sumFn := ArraysBuiltins["arrays.sum"].Fn
 
 	arr := &object.Array{Elements: []object.Object{
-		&object.Integer{Value: 1},
-		&object.Integer{Value: 2},
-		&object.Integer{Value: 3},
-		&object.Integer{Value: 4},
+		&object.Integer{Value: big.NewInt(1)},
+		&object.Integer{Value: big.NewInt(2)},
+		&object.Integer{Value: big.NewInt(3)},
+		&object.Integer{Value: big.NewInt(4)},
 	}}
 
 	result := sumFn(arr)
@@ -1034,7 +1035,7 @@ func TestStringsIsEmpty(t *testing.T) {
 func TestStringsRepeat(t *testing.T) {
 	repeatFn := StringsBuiltins["strings.repeat"].Fn
 
-	result := repeatFn(&object.String{Value: "ab"}, &object.Integer{Value: 3})
+	result := repeatFn(&object.String{Value: "ab"}, &object.Integer{Value: big.NewInt(3)})
 	testStringObject(t, result, "ababab")
 }
 
@@ -1053,7 +1054,7 @@ func TestStringsReplaceN(t *testing.T) {
 		&object.String{Value: "aaa"},
 		&object.String{Value: "a"},
 		&object.String{Value: "b"},
-		&object.Integer{Value: 2},
+		&object.Integer{Value: big.NewInt(2)},
 	)
 	testStringObject(t, result, "bba")
 
@@ -1062,7 +1063,7 @@ func TestStringsReplaceN(t *testing.T) {
 		&object.String{Value: "aaa"},
 		&object.String{Value: "a"},
 		&object.String{Value: "b"},
-		&object.Integer{Value: -1},
+		&object.Integer{Value: big.NewInt(-1)},
 	)
 	testStringObject(t, result, "bbb")
 
@@ -1071,7 +1072,7 @@ func TestStringsReplaceN(t *testing.T) {
 		&object.String{Value: "aaa"},
 		&object.String{Value: "a"},
 		&object.String{Value: "b"},
-		&object.Integer{Value: 0},
+		&object.Integer{Value: big.NewInt(0)},
 	)
 	testStringObject(t, result, "aaa")
 }
@@ -1126,7 +1127,7 @@ func TestStringsTruncate(t *testing.T) {
 	// Normal truncation
 	result := truncateFn(
 		&object.String{Value: "Hello World"},
-		&object.Integer{Value: 8},
+		&object.Integer{Value: big.NewInt(8)},
 		&object.String{Value: "..."},
 	)
 	testStringObject(t, result, "Hello...")
@@ -1134,7 +1135,7 @@ func TestStringsTruncate(t *testing.T) {
 	// String shorter than max length
 	result = truncateFn(
 		&object.String{Value: "Hi"},
-		&object.Integer{Value: 10},
+		&object.Integer{Value: big.NewInt(10)},
 		&object.String{Value: "..."},
 	)
 	testStringObject(t, result, "Hi")
@@ -1142,7 +1143,7 @@ func TestStringsTruncate(t *testing.T) {
 	// Exact length
 	result = truncateFn(
 		&object.String{Value: "Hello"},
-		&object.Integer{Value: 5},
+		&object.Integer{Value: big.NewInt(5)},
 		&object.String{Value: "..."},
 	)
 	testStringObject(t, result, "Hello")
@@ -1150,7 +1151,7 @@ func TestStringsTruncate(t *testing.T) {
 	// Max length smaller than suffix
 	result = truncateFn(
 		&object.String{Value: "Hello World"},
-		&object.Integer{Value: 2},
+		&object.Integer{Value: big.NewInt(2)},
 		&object.String{Value: "..."},
 	)
 	testStringObject(t, result, "..")
@@ -1162,7 +1163,7 @@ func TestStringsTruncateErrors(t *testing.T) {
 	// Negative length
 	result := truncateFn(
 		&object.String{Value: "Hello"},
-		&object.Integer{Value: -1},
+		&object.Integer{Value: big.NewInt(-1)},
 		&object.String{Value: "..."},
 	)
 	if !isErrorObject(result) {
@@ -1203,7 +1204,7 @@ func TestMapsIsEmpty(t *testing.T) {
 	testBooleanObject(t, result, true)
 
 	nonEmptyMap := object.NewMap()
-	nonEmptyMap.Set(&object.String{Value: "key"}, &object.Integer{Value: 1})
+	nonEmptyMap.Set(&object.String{Value: "key"}, &object.Integer{Value: big.NewInt(1)})
 	result = isEmptyFn(nonEmptyMap)
 	testBooleanObject(t, result, false)
 }
@@ -1237,7 +1238,7 @@ func TestMapsSet(t *testing.T) {
 	m := object.NewMap()
 	m.Mutable = true
 
-	setFn(m, &object.String{Value: "key"}, &object.Integer{Value: 42})
+	setFn(m, &object.String{Value: "key"}, &object.Integer{Value: big.NewInt(42)})
 
 	val, exists := m.Get(&object.String{Value: "key"})
 	if !exists {
@@ -1251,7 +1252,7 @@ func TestMapsDelete(t *testing.T) {
 
 	m := object.NewMap()
 	m.Mutable = true
-	m.Set(&object.String{Value: "key"}, &object.Integer{Value: 42})
+	m.Set(&object.String{Value: "key"}, &object.Integer{Value: big.NewInt(42)})
 
 	deleteFn(m, &object.String{Value: "key"})
 
@@ -1265,8 +1266,8 @@ func TestMapsKeys(t *testing.T) {
 	keysFn := MapsBuiltins["maps.keys"].Fn
 
 	m := object.NewMap()
-	m.Set(&object.String{Value: "a"}, &object.Integer{Value: 1})
-	m.Set(&object.String{Value: "b"}, &object.Integer{Value: 2})
+	m.Set(&object.String{Value: "a"}, &object.Integer{Value: big.NewInt(1)})
+	m.Set(&object.String{Value: "b"}, &object.Integer{Value: big.NewInt(2)})
 
 	result := keysFn(m)
 	arr, ok := result.(*object.Array)
@@ -1283,8 +1284,8 @@ func TestMapsValues(t *testing.T) {
 	valuesFn := MapsBuiltins["maps.values"].Fn
 
 	m := object.NewMap()
-	m.Set(&object.String{Value: "a"}, &object.Integer{Value: 1})
-	m.Set(&object.String{Value: "b"}, &object.Integer{Value: 2})
+	m.Set(&object.String{Value: "a"}, &object.Integer{Value: big.NewInt(1)})
+	m.Set(&object.String{Value: "b"}, &object.Integer{Value: big.NewInt(2)})
 
 	result := valuesFn(m)
 	arr, ok := result.(*object.Array)
@@ -1305,8 +1306,8 @@ func TestMapsLenUsingBuiltinLen(t *testing.T) {
 	result := lenFn(m)
 	testIntegerObject(t, result, 0)
 
-	m.Set(&object.String{Value: "a"}, &object.Integer{Value: 1})
-	m.Set(&object.String{Value: "b"}, &object.Integer{Value: 2})
+	m.Set(&object.String{Value: "a"}, &object.Integer{Value: big.NewInt(1)})
+	m.Set(&object.String{Value: "b"}, &object.Integer{Value: big.NewInt(2)})
 
 	result = lenFn(m)
 	testIntegerObject(t, result, 2)
@@ -1326,7 +1327,7 @@ func TestArgumentCountErrors(t *testing.T) {
 		{"len no args", StdBuiltins["len"].Fn, []object.Object{}},
 		{"typeof no args", StdBuiltins["typeof"].Fn, []object.Object{}},
 		{"int no args", StdBuiltins["int"].Fn, []object.Object{}},
-		{"math.add one arg", MathBuiltins["math.add"].Fn, []object.Object{&object.Integer{Value: 1}}},
+		{"math.add one arg", MathBuiltins["math.add"].Fn, []object.Object{&object.Integer{Value: big.NewInt(1)}}},
 		{"math.abs no args", MathBuiltins["math.abs"].Fn, []object.Object{}},
 	}
 
@@ -1347,10 +1348,10 @@ func TestTypeErrors(t *testing.T) {
 		fn   func(...object.Object) object.Object
 		args []object.Object
 	}{
-		{"arrays.is_empty with int", ArraysBuiltins["arrays.is_empty"].Fn, []object.Object{&object.Integer{Value: 1}}},
+		{"arrays.is_empty with int", ArraysBuiltins["arrays.is_empty"].Fn, []object.Object{&object.Integer{Value: big.NewInt(1)}}},
 		{"arrays.pop with string", ArraysBuiltins["arrays.pop"].Fn, []object.Object{&object.String{Value: "hello"}}},
-		{"strings.upper with int", StringsBuiltins["strings.upper"].Fn, []object.Object{&object.Integer{Value: 1}}},
-		{"maps.has_key with int", MapsBuiltins["maps.has_key"].Fn, []object.Object{&object.Integer{Value: 1}, &object.String{Value: "key"}}},
+		{"strings.upper with int", StringsBuiltins["strings.upper"].Fn, []object.Object{&object.Integer{Value: big.NewInt(1)}}},
+		{"maps.has_key with int", MapsBuiltins["maps.has_key"].Fn, []object.Object{&object.Integer{Value: big.NewInt(1)}, &object.String{Value: "key"}}},
 	}
 
 	for _, tt := range tests {
@@ -1374,7 +1375,7 @@ func TestCopyPrimitives(t *testing.T) {
 		name  string
 		input object.Object
 	}{
-		{"integer", &object.Integer{Value: 42, DeclaredType: "int"}},
+		{"integer", &object.Integer{Value: big.NewInt(42), DeclaredType: "int"}},
 		{"float", &object.Float{Value: 3.14}},
 		{"string", &object.String{Value: "hello"}},
 		{"boolean", &object.Boolean{Value: true}},
@@ -1396,7 +1397,7 @@ func TestCopyPrimitives(t *testing.T) {
 func TestCopyIntegerPreservesDeclaredType(t *testing.T) {
 	copyFn := StdBuiltins["copy"].Fn
 
-	original := &object.Integer{Value: 100, DeclaredType: "u64"}
+	original := &object.Integer{Value: big.NewInt(100), DeclaredType: "u64"}
 	result := copyFn(original)
 
 	copied, ok := result.(*object.Integer)
@@ -1416,9 +1417,9 @@ func TestCopyArray(t *testing.T) {
 
 	original := &object.Array{
 		Elements: []object.Object{
-			&object.Integer{Value: 1},
-			&object.Integer{Value: 2},
-			&object.Integer{Value: 3},
+			&object.Integer{Value: big.NewInt(1)},
+			&object.Integer{Value: big.NewInt(2)},
+			&object.Integer{Value: big.NewInt(3)},
 		},
 	}
 
@@ -1443,9 +1444,9 @@ func TestCopyArray(t *testing.T) {
 	}
 
 	// Verify it's a deep copy - modifying copied doesn't affect original
-	copied.Elements[0] = &object.Integer{Value: 100}
+	copied.Elements[0] = &object.Integer{Value: big.NewInt(100)}
 	origInt := original.Elements[0].(*object.Integer)
-	if origInt.Value != 1 {
+	if origInt.Value.Cmp(big.NewInt(1)) != 0 {
 		t.Error("copy() did not create independent copy - modifying copy affected original")
 	}
 }
@@ -1454,8 +1455,8 @@ func TestCopyMap(t *testing.T) {
 	copyFn := StdBuiltins["copy"].Fn
 
 	original := object.NewMap()
-	original.Set(&object.String{Value: "a"}, &object.Integer{Value: 1})
-	original.Set(&object.String{Value: "b"}, &object.Integer{Value: 2})
+	original.Set(&object.String{Value: "a"}, &object.Integer{Value: big.NewInt(1)})
+	original.Set(&object.String{Value: "b"}, &object.Integer{Value: big.NewInt(2)})
 
 	result := copyFn(original)
 	copied, ok := result.(*object.Map)
@@ -1469,9 +1470,9 @@ func TestCopyMap(t *testing.T) {
 	}
 
 	// Verify it's a deep copy - modifying copied doesn't affect original
-	copied.Set(&object.String{Value: "a"}, &object.Integer{Value: 100})
+	copied.Set(&object.String{Value: "a"}, &object.Integer{Value: big.NewInt(100)})
 	origVal, _ := original.Get(&object.String{Value: "a"})
-	if origVal.(*object.Integer).Value != 1 {
+	if origVal.(*object.Integer).Value.Cmp(big.NewInt(1)) != 0 {
 		t.Error("copy() did not create independent copy - modifying copy affected original")
 	}
 }
@@ -1483,7 +1484,7 @@ func TestCopyStruct(t *testing.T) {
 		TypeName: "Person",
 		Fields: map[string]object.Object{
 			"name": &object.String{Value: "Alice"},
-			"age":  &object.Integer{Value: 30},
+			"age":  &object.Integer{Value: big.NewInt(30)},
 		},
 		Mutable: true,
 	}
@@ -1510,9 +1511,9 @@ func TestCopyStruct(t *testing.T) {
 	}
 
 	// Verify it's a deep copy - modifying copied doesn't affect original
-	copied.Fields["age"] = &object.Integer{Value: 31}
+	copied.Fields["age"] = &object.Integer{Value: big.NewInt(31)}
 	origAge := original.Fields["age"].(*object.Integer)
-	if origAge.Value != 30 {
+	if origAge.Value.Cmp(big.NewInt(30)) != 0 {
 		t.Error("copy() did not create independent copy - modifying copy affected original")
 	}
 }
@@ -1524,7 +1525,7 @@ func TestCopyNestedStruct(t *testing.T) {
 	inner := &object.Struct{
 		TypeName: "Inner",
 		Fields: map[string]object.Object{
-			"val": &object.Integer{Value: 42},
+			"val": &object.Integer{Value: big.NewInt(42)},
 		},
 	}
 	original := &object.Struct{
@@ -1547,11 +1548,11 @@ func TestCopyNestedStruct(t *testing.T) {
 	}
 
 	// Modify the copied nested struct
-	copiedInner.Fields["val"] = &object.Integer{Value: 99}
+	copiedInner.Fields["val"] = &object.Integer{Value: big.NewInt(99)}
 
 	// Verify original nested struct is unchanged
 	origInnerVal := inner.Fields["val"].(*object.Integer)
-	if origInnerVal.Value != 42 {
+	if origInnerVal.Value.Cmp(big.NewInt(42)) != 0 {
 		t.Error("copy() did not create deep copy - modifying nested copy affected original")
 	}
 }
@@ -1561,12 +1562,12 @@ func TestCopyNestedArray(t *testing.T) {
 
 	// Create nested array: [[1, 2], [3, 4]]
 	inner1 := &object.Array{Elements: []object.Object{
-		&object.Integer{Value: 1},
-		&object.Integer{Value: 2},
+		&object.Integer{Value: big.NewInt(1)},
+		&object.Integer{Value: big.NewInt(2)},
 	}}
 	inner2 := &object.Array{Elements: []object.Object{
-		&object.Integer{Value: 3},
-		&object.Integer{Value: 4},
+		&object.Integer{Value: big.NewInt(3)},
+		&object.Integer{Value: big.NewInt(4)},
 	}}
 	original := &object.Array{Elements: []object.Object{inner1, inner2}}
 
@@ -1578,11 +1579,11 @@ func TestCopyNestedArray(t *testing.T) {
 
 	// Modify the copied nested array
 	copiedInner := copied.Elements[0].(*object.Array)
-	copiedInner.Elements[0] = &object.Integer{Value: 100}
+	copiedInner.Elements[0] = &object.Integer{Value: big.NewInt(100)}
 
 	// Verify original nested array is unchanged
 	origInnerVal := inner1.Elements[0].(*object.Integer)
-	if origInnerVal.Value != 1 {
+	if origInnerVal.Value.Cmp(big.NewInt(1)) != 0 {
 		t.Error("copy() did not create deep copy - modifying nested array affected original")
 	}
 }
@@ -1596,7 +1597,7 @@ func TestCopyErrors(t *testing.T) {
 		t.Error("expected error for no arguments")
 	}
 
-	result = copyFn(&object.Integer{Value: 1}, &object.Integer{Value: 2})
+	result = copyFn(&object.Integer{Value: big.NewInt(1)}, &object.Integer{Value: big.NewInt(2)})
 	if !isErrorObject(result) {
 		t.Error("expected error for too many arguments")
 	}
@@ -1656,7 +1657,7 @@ func TestErrorConstructorErrors(t *testing.T) {
 	}
 
 	// Wrong type - integer instead of string
-	result = errorFn(&object.Integer{Value: 42})
+	result = errorFn(&object.Integer{Value: big.NewInt(42)})
 	if !isErrorObject(result) {
 		t.Error("expected runtime error for non-string argument")
 	}
@@ -1682,8 +1683,8 @@ func TestTimeNow(t *testing.T) {
 		t.Fatalf("time.now() returned %T, want Integer", result)
 	}
 	// Should be a reasonable Unix timestamp (after year 2020)
-	if ts.Value < 1577836800 { // 2020-01-01
-		t.Errorf("time.now() = %d, expected reasonable Unix timestamp", ts.Value)
+	if ts.Value.Cmp(big.NewInt(1577836800)) < 0 { // 2020-01-01
+		t.Errorf("time.now() = %s, expected reasonable Unix timestamp", ts.Value.String())
 	}
 }
 
@@ -1696,8 +1697,8 @@ func TestTimeYear(t *testing.T) {
 		t.Fatalf("time.year() returned %T, want Integer", result)
 	}
 	// Year should be at least 2024
-	if year.Value < 2024 {
-		t.Errorf("time.year() = %d, expected >= 2024", year.Value)
+	if year.Value.Cmp(big.NewInt(2024)) < 0 {
+		t.Errorf("time.year() = %s, expected >= 2024", year.Value.String())
 	}
 }
 
@@ -1710,8 +1711,8 @@ func TestTimeMonth(t *testing.T) {
 		t.Fatalf("time.month() returned %T, want Integer", result)
 	}
 	// Month should be 1-12
-	if month.Value < 1 || month.Value > 12 {
-		t.Errorf("time.month() = %d, expected 1-12", month.Value)
+	if month.Value.Cmp(big.NewInt(1)) < 0 || month.Value.Cmp(big.NewInt(12)) > 0 {
+		t.Errorf("time.month() = %s, expected 1-12", month.Value.String())
 	}
 }
 
@@ -1724,8 +1725,8 @@ func TestTimeDay(t *testing.T) {
 		t.Fatalf("time.day() returned %T, want Integer", result)
 	}
 	// Day should be 1-31
-	if day.Value < 1 || day.Value > 31 {
-		t.Errorf("time.day() = %d, expected 1-31", day.Value)
+	if day.Value.Cmp(big.NewInt(1)) < 0 || day.Value.Cmp(big.NewInt(31)) > 0 {
+		t.Errorf("time.day() = %s, expected 1-31", day.Value.String())
 	}
 }
 
@@ -1738,8 +1739,8 @@ func TestTimeHour(t *testing.T) {
 		t.Fatalf("time.hour() returned %T, want Integer", result)
 	}
 	// Hour should be 0-23
-	if hour.Value < 0 || hour.Value > 23 {
-		t.Errorf("time.hour() = %d, expected 0-23", hour.Value)
+	if hour.Value.Sign() < 0 || hour.Value.Cmp(big.NewInt(23)) > 0 {
+		t.Errorf("time.hour() = %s, expected 0-23", hour.Value.String())
 	}
 }
 
@@ -1752,8 +1753,8 @@ func TestTimeMinute(t *testing.T) {
 		t.Fatalf("time.minute() returned %T, want Integer", result)
 	}
 	// Minute should be 0-59
-	if minute.Value < 0 || minute.Value > 59 {
-		t.Errorf("time.minute() = %d, expected 0-59", minute.Value)
+	if minute.Value.Sign() < 0 || minute.Value.Cmp(big.NewInt(59)) > 0 {
+		t.Errorf("time.minute() = %s, expected 0-59", minute.Value.String())
 	}
 }
 
@@ -1766,15 +1767,15 @@ func TestTimeSecond(t *testing.T) {
 		t.Fatalf("time.second() returned %T, want Integer", result)
 	}
 	// Second should be 0-59
-	if second.Value < 0 || second.Value > 59 {
-		t.Errorf("time.second() = %d, expected 0-59", second.Value)
+	if second.Value.Sign() < 0 || second.Value.Cmp(big.NewInt(59)) > 0 {
+		t.Errorf("time.second() = %s, expected 0-59", second.Value.String())
 	}
 }
 
 func TestTimeSleep(t *testing.T) {
 	sleepFn := TimeBuiltins["time.sleep"].Fn
 	// Just test that it doesn't error - sleep for 1ms
-	result := sleepFn(&object.Integer{Value: 1})
+	result := sleepFn(&object.Integer{Value: big.NewInt(1)})
 	if result != object.NIL {
 		t.Errorf("time.sleep() = %v, want nil", result)
 	}
@@ -1789,11 +1790,11 @@ func TestArraysShuffle(t *testing.T) {
 
 	arr := &object.Array{
 		Elements: []object.Object{
-			&object.Integer{Value: 1},
-			&object.Integer{Value: 2},
-			&object.Integer{Value: 3},
-			&object.Integer{Value: 4},
-			&object.Integer{Value: 5},
+			&object.Integer{Value: big.NewInt(1)},
+			&object.Integer{Value: big.NewInt(2)},
+			&object.Integer{Value: big.NewInt(3)},
+			&object.Integer{Value: big.NewInt(4)},
+			&object.Integer{Value: big.NewInt(5)},
 		},
 		Mutable: true,
 	}
@@ -1815,8 +1816,8 @@ func TestArraysShuffleImmutable(t *testing.T) {
 
 	arr := &object.Array{
 		Elements: []object.Object{
-			&object.Integer{Value: 1},
-			&object.Integer{Value: 2},
+			&object.Integer{Value: big.NewInt(1)},
+			&object.Integer{Value: big.NewInt(2)},
 		},
 		Mutable: false, // immutable
 	}
@@ -1836,15 +1837,15 @@ func TestArraysSlice(t *testing.T) {
 
 	arr := &object.Array{
 		Elements: []object.Object{
-			&object.Integer{Value: 1},
-			&object.Integer{Value: 2},
-			&object.Integer{Value: 3},
-			&object.Integer{Value: 4},
-			&object.Integer{Value: 5},
+			&object.Integer{Value: big.NewInt(1)},
+			&object.Integer{Value: big.NewInt(2)},
+			&object.Integer{Value: big.NewInt(3)},
+			&object.Integer{Value: big.NewInt(4)},
+			&object.Integer{Value: big.NewInt(5)},
 		},
 	}
 
-	result := sliceFn(arr, &object.Integer{Value: 1}, &object.Integer{Value: 4})
+	result := sliceFn(arr, &object.Integer{Value: big.NewInt(1)}, &object.Integer{Value: big.NewInt(4)})
 
 	sliced, ok := result.(*object.Array)
 	if !ok {
@@ -1870,8 +1871,8 @@ func TestTimeWeekdayFunc(t *testing.T) {
 		t.Fatalf("time.weekday() returned %T, want Integer", result)
 	}
 
-	if intVal.Value < 0 || intVal.Value > 6 {
-		t.Errorf("time.weekday() returned %d, want between 0 and 6", intVal.Value)
+	if intVal.Value.Sign() < 0 || intVal.Value.Cmp(big.NewInt(6)) > 0 {
+		t.Errorf("time.weekday() returned %s, want between 0 and 6", intVal.Value.String())
 	}
 }
 
@@ -1885,8 +1886,8 @@ func TestTimeDayOfYear(t *testing.T) {
 		t.Fatalf("time.day_of_year() returned %T, want Integer", result)
 	}
 
-	if intVal.Value < 1 || intVal.Value > 366 {
-		t.Errorf("time.day_of_year() returned %d, want between 1 and 366", intVal.Value)
+	if intVal.Value.Cmp(big.NewInt(1)) < 0 || intVal.Value.Cmp(big.NewInt(366)) > 0 {
+		t.Errorf("time.day_of_year() returned %s, want between 1 and 366", intVal.Value.String())
 	}
 }
 
@@ -1901,8 +1902,8 @@ func TestTimeNowMs(t *testing.T) {
 	}
 
 	// Millisecond timestamp should be a large positive number
-	if intVal.Value < 1000000000000 {
-		t.Errorf("time.now_ms() returned %d, want a reasonable ms timestamp", intVal.Value)
+	if intVal.Value.Cmp(big.NewInt(1000000000000)) < 0 {
+		t.Errorf("time.now_ms() returned %s, want a reasonable ms timestamp", intVal.Value.String())
 	}
 }
 
@@ -1913,35 +1914,35 @@ func TestTimeNowMs(t *testing.T) {
 func TestMathClampValues(t *testing.T) {
 	clampFn := MathBuiltins["math.clamp"].Fn
 
-	result := clampFn(&object.Integer{Value: 5}, &object.Integer{Value: 0}, &object.Integer{Value: 10})
+	result := clampFn(&object.Integer{Value: big.NewInt(5)}, &object.Integer{Value: big.NewInt(0)}, &object.Integer{Value: big.NewInt(10)})
 
 	intVal, ok := result.(*object.Integer)
 	if !ok {
 		t.Fatalf("math.clamp() returned %T, want Integer", result)
 	}
 
-	if intVal.Value != 5 {
-		t.Errorf("math.clamp(5, 0, 10) returned %d, want 5", intVal.Value)
+	if intVal.Value.Cmp(big.NewInt(5)) != 0 {
+		t.Errorf("math.clamp(5, 0, 10) returned %s, want 5", intVal.Value.String())
 	}
 
 	// Test clamping below minimum
-	result = clampFn(&object.Integer{Value: -5}, &object.Integer{Value: 0}, &object.Integer{Value: 10})
+	result = clampFn(&object.Integer{Value: big.NewInt(-5)}, &object.Integer{Value: big.NewInt(0)}, &object.Integer{Value: big.NewInt(10)})
 	intVal, ok = result.(*object.Integer)
 	if !ok {
 		t.Fatalf("math.clamp() returned %T, want Integer", result)
 	}
-	if intVal.Value != 0 {
-		t.Errorf("math.clamp(-5, 0, 10) returned %d, want 0", intVal.Value)
+	if intVal.Value.Cmp(big.NewInt(0)) != 0 {
+		t.Errorf("math.clamp(-5, 0, 10) returned %s, want 0", intVal.Value.String())
 	}
 
 	// Test clamping above maximum
-	result = clampFn(&object.Integer{Value: 15}, &object.Integer{Value: 0}, &object.Integer{Value: 10})
+	result = clampFn(&object.Integer{Value: big.NewInt(15)}, &object.Integer{Value: big.NewInt(0)}, &object.Integer{Value: big.NewInt(10)})
 	intVal, ok = result.(*object.Integer)
 	if !ok {
 		t.Fatalf("math.clamp() returned %T, want Integer", result)
 	}
-	if intVal.Value != 10 {
-		t.Errorf("math.clamp(15, 0, 10) returned %d, want 10", intVal.Value)
+	if intVal.Value.Cmp(big.NewInt(10)) != 0 {
+		t.Errorf("math.clamp(15, 0, 10) returned %s, want 10", intVal.Value.String())
 	}
 }
 
@@ -1976,7 +1977,7 @@ func TestMathIsPrime(t *testing.T) {
 	isprimeFn := MathBuiltins["math.is_prime"].Fn
 
 	// Test with prime number
-	result := isprimeFn(&object.Integer{Value: 7})
+	result := isprimeFn(&object.Integer{Value: big.NewInt(7)})
 
 	boolVal, ok := result.(*object.Boolean)
 	if !ok {
@@ -1988,7 +1989,7 @@ func TestMathIsPrime(t *testing.T) {
 	}
 
 	// Test with non-prime
-	result = isprimeFn(&object.Integer{Value: 4})
+	result = isprimeFn(&object.Integer{Value: big.NewInt(4)})
 	boolVal, ok = result.(*object.Boolean)
 	if !ok {
 		t.Fatalf("math.is_prime() returned %T, want Boolean", result)
@@ -2003,7 +2004,7 @@ func TestMathIsEven(t *testing.T) {
 	isevenFn := MathBuiltins["math.is_even"].Fn
 
 	// Test with even number
-	result := isevenFn(&object.Integer{Value: 4})
+	result := isevenFn(&object.Integer{Value: big.NewInt(4)})
 
 	boolVal, ok := result.(*object.Boolean)
 	if !ok {
@@ -2015,7 +2016,7 @@ func TestMathIsEven(t *testing.T) {
 	}
 
 	// Test with odd number
-	result = isevenFn(&object.Integer{Value: 5})
+	result = isevenFn(&object.Integer{Value: big.NewInt(5)})
 	boolVal, ok = result.(*object.Boolean)
 	if !ok {
 		t.Fatalf("math.is_even() returned %T, want Boolean", result)
@@ -2030,7 +2031,7 @@ func TestMathIsOdd(t *testing.T) {
 	isoddFn := MathBuiltins["math.is_odd"].Fn
 
 	// Test with odd number
-	result := isoddFn(&object.Integer{Value: 5})
+	result := isoddFn(&object.Integer{Value: big.NewInt(5)})
 
 	boolVal, ok := result.(*object.Boolean)
 	if !ok {
@@ -2042,7 +2043,7 @@ func TestMathIsOdd(t *testing.T) {
 	}
 
 	// Test with even number
-	result = isoddFn(&object.Integer{Value: 4})
+	result = isoddFn(&object.Integer{Value: big.NewInt(4)})
 	boolVal, ok = result.(*object.Boolean)
 	if !ok {
 		t.Fatalf("math.is_odd() returned %T, want Boolean", result)
@@ -2067,8 +2068,8 @@ func TestStringsIndex(t *testing.T) {
 		t.Fatalf("strings.index() returned %T, want Integer", result)
 	}
 
-	if intVal.Value != 6 {
-		t.Errorf("strings.index('hello world', 'world') = %d, want 6", intVal.Value)
+	if intVal.Value.Cmp(big.NewInt(6)) != 0 {
+		t.Errorf("strings.index('hello world', 'world') = %s, want 6", intVal.Value.String())
 	}
 }
 
@@ -2082,15 +2083,15 @@ func TestStringsIndexNotFound(t *testing.T) {
 		t.Fatalf("strings.index() returned %T, want Integer", result)
 	}
 
-	if intVal.Value != -1 {
-		t.Errorf("strings.index('hello', 'xyz') = %d, want -1", intVal.Value)
+	if intVal.Value.Cmp(big.NewInt(-1)) != 0 {
+		t.Errorf("strings.index('hello', 'xyz') = %s, want -1", intVal.Value.String())
 	}
 }
 
 func TestStringsPadLeft(t *testing.T) {
 	padFn := StringsBuiltins["strings.pad_left"].Fn
 
-	result := padFn(&object.String{Value: "hello"}, &object.Integer{Value: 10}, &object.String{Value: " "})
+	result := padFn(&object.String{Value: "hello"}, &object.Integer{Value: big.NewInt(10)}, &object.String{Value: " "})
 
 	strVal, ok := result.(*object.String)
 	if !ok {
@@ -2105,7 +2106,7 @@ func TestStringsPadLeft(t *testing.T) {
 func TestStringsPadRight(t *testing.T) {
 	padFn := StringsBuiltins["strings.pad_right"].Fn
 
-	result := padFn(&object.String{Value: "hello"}, &object.Integer{Value: 10}, &object.String{Value: " "})
+	result := padFn(&object.String{Value: "hello"}, &object.Integer{Value: big.NewInt(10)}, &object.String{Value: " "})
 
 	strVal, ok := result.(*object.String)
 	if !ok {
@@ -2126,9 +2127,9 @@ func TestArraysClear(t *testing.T) {
 
 	arr := &object.Array{
 		Elements: []object.Object{
-			&object.Integer{Value: 1},
-			&object.Integer{Value: 2},
-			&object.Integer{Value: 3},
+			&object.Integer{Value: big.NewInt(1)},
+			&object.Integer{Value: big.NewInt(2)},
+			&object.Integer{Value: big.NewInt(3)},
 		},
 		Mutable: true,
 	}
@@ -2150,7 +2151,7 @@ func TestArraysClearImmutable(t *testing.T) {
 	clearFn := ArraysBuiltins["arrays.clear"].Fn
 
 	arr := &object.Array{
-		Elements: []object.Object{&object.Integer{Value: 1}},
+		Elements: []object.Object{&object.Integer{Value: big.NewInt(1)}},
 		Mutable:  false,
 	}
 
@@ -2166,14 +2167,14 @@ func TestArraysConcat(t *testing.T) {
 
 	arr1 := &object.Array{
 		Elements: []object.Object{
-			&object.Integer{Value: 1},
-			&object.Integer{Value: 2},
+			&object.Integer{Value: big.NewInt(1)},
+			&object.Integer{Value: big.NewInt(2)},
 		},
 	}
 	arr2 := &object.Array{
 		Elements: []object.Object{
-			&object.Integer{Value: 3},
-			&object.Integer{Value: 4},
+			&object.Integer{Value: big.NewInt(3)},
+			&object.Integer{Value: big.NewInt(4)},
 		},
 	}
 
@@ -2195,16 +2196,16 @@ func TestArraysFill(t *testing.T) {
 	// Create a mutable array with 5 elements
 	inputArr := &object.Array{
 		Elements: []object.Object{
-			&object.Integer{Value: 1},
-			&object.Integer{Value: 2},
-			&object.Integer{Value: 3},
-			&object.Integer{Value: 4},
-			&object.Integer{Value: 5},
+			&object.Integer{Value: big.NewInt(1)},
+			&object.Integer{Value: big.NewInt(2)},
+			&object.Integer{Value: big.NewInt(3)},
+			&object.Integer{Value: big.NewInt(4)},
+			&object.Integer{Value: big.NewInt(5)},
 		},
 		Mutable: true,
 	}
 
-	result := fillFn(inputArr, &object.Integer{Value: 0})
+	result := fillFn(inputArr, &object.Integer{Value: big.NewInt(0)})
 
 	// Should return NIL and modify array in-place
 	if result != object.NIL {
@@ -2218,7 +2219,7 @@ func TestArraysFill(t *testing.T) {
 	// All elements should now be 0
 	for i, elem := range inputArr.Elements {
 		intVal, ok := elem.(*object.Integer)
-		if !ok || intVal.Value != 0 {
+		if !ok || intVal.Value.Cmp(big.NewInt(0)) != 0 {
 			t.Errorf("arr[%d] = %v, want 0", i, elem)
 		}
 	}
@@ -2228,11 +2229,11 @@ func TestArraysFillImmutable(t *testing.T) {
 	fillFn := ArraysBuiltins["arrays.fill"].Fn
 
 	arr := &object.Array{
-		Elements: []object.Object{&object.Integer{Value: 1}},
+		Elements: []object.Object{&object.Integer{Value: big.NewInt(1)}},
 		Mutable:  false,
 	}
 
-	result := fillFn(arr, &object.Integer{Value: 0})
+	result := fillFn(arr, &object.Integer{Value: big.NewInt(0)})
 
 	if !isErrorObject(result) {
 		t.Error("expected error for immutable array")
@@ -2244,15 +2245,15 @@ func TestArraysInsert(t *testing.T) {
 
 	arr := &object.Array{
 		Elements: []object.Object{
-			&object.Integer{Value: 1},
-			&object.Integer{Value: 2},
-			&object.Integer{Value: 3},
+			&object.Integer{Value: big.NewInt(1)},
+			&object.Integer{Value: big.NewInt(2)},
+			&object.Integer{Value: big.NewInt(3)},
 		},
 		Mutable: true,
 	}
 
 	// Insert 99 at index 1
-	result := insertFn(arr, &object.Integer{Value: 1}, &object.Integer{Value: 99})
+	result := insertFn(arr, &object.Integer{Value: big.NewInt(1)}, &object.Integer{Value: big.NewInt(99)})
 
 	// Should return nil (modifies in-place)
 	if result != object.NIL {
@@ -2272,8 +2273,8 @@ func TestArraysInsert(t *testing.T) {
 			t.Errorf("arr[%d] is %T, want Integer", i, arr.Elements[i])
 			continue
 		}
-		if intVal.Value != exp {
-			t.Errorf("arr[%d] = %d, want %d", i, intVal.Value, exp)
+		if intVal.Value.Cmp(big.NewInt(exp)) != 0 {
+			t.Errorf("arr[%d] = %s, want %d", i, intVal.Value.String(), exp)
 		}
 	}
 }
@@ -2283,21 +2284,21 @@ func TestArraysInsertAtStart(t *testing.T) {
 
 	arr := &object.Array{
 		Elements: []object.Object{
-			&object.Integer{Value: 2},
-			&object.Integer{Value: 3},
+			&object.Integer{Value: big.NewInt(2)},
+			&object.Integer{Value: big.NewInt(3)},
 		},
 		Mutable: true,
 	}
 
 	// Insert 1 at index 0
-	insertFn(arr, &object.Integer{Value: 0}, &object.Integer{Value: 1})
+	insertFn(arr, &object.Integer{Value: big.NewInt(0)}, &object.Integer{Value: big.NewInt(1)})
 
 	// Verify the elements: {1, 2, 3}
 	expected := []int64{1, 2, 3}
 	for i, exp := range expected {
 		intVal := arr.Elements[i].(*object.Integer)
-		if intVal.Value != exp {
-			t.Errorf("arr[%d] = %d, want %d", i, intVal.Value, exp)
+		if intVal.Value.Cmp(big.NewInt(exp)) != 0 {
+			t.Errorf("arr[%d] = %s, want %d", i, intVal.Value.String(), exp)
 		}
 	}
 }
@@ -2307,21 +2308,21 @@ func TestArraysInsertAtEnd(t *testing.T) {
 
 	arr := &object.Array{
 		Elements: []object.Object{
-			&object.Integer{Value: 1},
-			&object.Integer{Value: 2},
+			&object.Integer{Value: big.NewInt(1)},
+			&object.Integer{Value: big.NewInt(2)},
 		},
 		Mutable: true,
 	}
 
 	// Insert 3 at end (index 2)
-	insertFn(arr, &object.Integer{Value: 2}, &object.Integer{Value: 3})
+	insertFn(arr, &object.Integer{Value: big.NewInt(2)}, &object.Integer{Value: big.NewInt(3)})
 
 	// Verify the elements: {1, 2, 3}
 	expected := []int64{1, 2, 3}
 	for i, exp := range expected {
 		intVal := arr.Elements[i].(*object.Integer)
-		if intVal.Value != exp {
-			t.Errorf("arr[%d] = %d, want %d", i, intVal.Value, exp)
+		if intVal.Value.Cmp(big.NewInt(exp)) != 0 {
+			t.Errorf("arr[%d] = %s, want %d", i, intVal.Value.String(), exp)
 		}
 	}
 }
@@ -2330,11 +2331,11 @@ func TestArraysInsertImmutable(t *testing.T) {
 	insertFn := ArraysBuiltins["arrays.insert"].Fn
 
 	arr := &object.Array{
-		Elements: []object.Object{&object.Integer{Value: 1}},
+		Elements: []object.Object{&object.Integer{Value: big.NewInt(1)}},
 		Mutable:  false,
 	}
 
-	result := insertFn(arr, &object.Integer{Value: 0}, &object.Integer{Value: 99})
+	result := insertFn(arr, &object.Integer{Value: big.NewInt(0)}, &object.Integer{Value: big.NewInt(99)})
 
 	if !isErrorObject(result) {
 		t.Error("expected error for immutable array")
@@ -2347,17 +2348,17 @@ func TestArraysRemove(t *testing.T) {
 
 	arr := &object.Array{
 		Elements: []object.Object{
-			&object.Integer{Value: 10},
-			&object.Integer{Value: 20},
-			&object.Integer{Value: 30},
-			&object.Integer{Value: 40},
-			&object.Integer{Value: 50},
+			&object.Integer{Value: big.NewInt(10)},
+			&object.Integer{Value: big.NewInt(20)},
+			&object.Integer{Value: big.NewInt(30)},
+			&object.Integer{Value: big.NewInt(40)},
+			&object.Integer{Value: big.NewInt(50)},
 		},
 		Mutable: true,
 	}
 
 	// Remove element at INDEX 2 (value 30)
-	result := removeFn(arr, &object.Integer{Value: 2})
+	result := removeFn(arr, &object.Integer{Value: big.NewInt(2)})
 
 	// Should return nil (modifies in-place)
 	if result != object.NIL {
@@ -2377,8 +2378,8 @@ func TestArraysRemove(t *testing.T) {
 			t.Errorf("arr[%d] is %T, want Integer", i, arr.Elements[i])
 			continue
 		}
-		if intVal.Value != exp {
-			t.Errorf("arr[%d] = %d, want %d", i, intVal.Value, exp)
+		if intVal.Value.Cmp(big.NewInt(exp)) != 0 {
+			t.Errorf("arr[%d] = %s, want %d", i, intVal.Value.String(), exp)
 		}
 	}
 }
@@ -2388,15 +2389,15 @@ func TestArraysRemoveOutOfBounds(t *testing.T) {
 
 	arr := &object.Array{
 		Elements: []object.Object{
-			&object.Integer{Value: 1},
-			&object.Integer{Value: 2},
-			&object.Integer{Value: 3},
+			&object.Integer{Value: big.NewInt(1)},
+			&object.Integer{Value: big.NewInt(2)},
+			&object.Integer{Value: big.NewInt(3)},
 		},
 		Mutable: true,
 	}
 
 	// Remove at out-of-bounds index
-	result := removeFn(arr, &object.Integer{Value: 99})
+	result := removeFn(arr, &object.Integer{Value: big.NewInt(99)})
 
 	// Should return error
 	if !isErrorObject(result) {
@@ -2413,11 +2414,11 @@ func TestArraysRemoveImmutable(t *testing.T) {
 	removeFn := ArraysBuiltins["arrays.remove"].Fn
 
 	arr := &object.Array{
-		Elements: []object.Object{&object.Integer{Value: 1}},
+		Elements: []object.Object{&object.Integer{Value: big.NewInt(1)}},
 		Mutable:  false,
 	}
 
-	result := removeFn(arr, &object.Integer{Value: 0})
+	result := removeFn(arr, &object.Integer{Value: big.NewInt(0)})
 
 	if !isErrorObject(result) {
 		t.Error("expected error for immutable array")
@@ -2430,17 +2431,17 @@ func TestArraysRemoveValue(t *testing.T) {
 
 	arr := &object.Array{
 		Elements: []object.Object{
-			&object.Integer{Value: 1},
-			&object.Integer{Value: 2},
-			&object.Integer{Value: 3},
-			&object.Integer{Value: 2},
-			&object.Integer{Value: 4},
+			&object.Integer{Value: big.NewInt(1)},
+			&object.Integer{Value: big.NewInt(2)},
+			&object.Integer{Value: big.NewInt(3)},
+			&object.Integer{Value: big.NewInt(2)},
+			&object.Integer{Value: big.NewInt(4)},
 		},
 		Mutable: true,
 	}
 
 	// Remove first occurrence of VALUE 2
-	result := removeValueFn(arr, &object.Integer{Value: 2})
+	result := removeValueFn(arr, &object.Integer{Value: big.NewInt(2)})
 
 	// Should return nil (modifies in-place)
 	if result != object.NIL {
@@ -2460,8 +2461,8 @@ func TestArraysRemoveValue(t *testing.T) {
 			t.Errorf("arr[%d] is %T, want Integer", i, arr.Elements[i])
 			continue
 		}
-		if intVal.Value != exp {
-			t.Errorf("arr[%d] = %d, want %d", i, intVal.Value, exp)
+		if intVal.Value.Cmp(big.NewInt(exp)) != 0 {
+			t.Errorf("arr[%d] = %s, want %d", i, intVal.Value.String(), exp)
 		}
 	}
 }
@@ -2471,15 +2472,15 @@ func TestArraysRemoveValueNotFound(t *testing.T) {
 
 	arr := &object.Array{
 		Elements: []object.Object{
-			&object.Integer{Value: 1},
-			&object.Integer{Value: 2},
-			&object.Integer{Value: 3},
+			&object.Integer{Value: big.NewInt(1)},
+			&object.Integer{Value: big.NewInt(2)},
+			&object.Integer{Value: big.NewInt(3)},
 		},
 		Mutable: true,
 	}
 
 	// Remove non-existent value
-	result := removeValueFn(arr, &object.Integer{Value: 99})
+	result := removeValueFn(arr, &object.Integer{Value: big.NewInt(99)})
 
 	// Should return nil (no error, just does nothing)
 	if result != object.NIL {
@@ -2496,11 +2497,11 @@ func TestArraysRemoveValueImmutable(t *testing.T) {
 	removeValueFn := ArraysBuiltins["arrays.remove_value"].Fn
 
 	arr := &object.Array{
-		Elements: []object.Object{&object.Integer{Value: 1}},
+		Elements: []object.Object{&object.Integer{Value: big.NewInt(1)}},
 		Mutable:  false,
 	}
 
-	result := removeValueFn(arr, &object.Integer{Value: 1})
+	result := removeValueFn(arr, &object.Integer{Value: big.NewInt(1)})
 
 	if !isErrorObject(result) {
 		t.Error("expected error for immutable array")
@@ -2514,45 +2515,45 @@ func TestArraysRemoveValueImmutable(t *testing.T) {
 func TestMathGCD(t *testing.T) {
 	gcdFn := MathBuiltins["math.gcd"].Fn
 
-	result := gcdFn(&object.Integer{Value: 48}, &object.Integer{Value: 18})
+	result := gcdFn(&object.Integer{Value: big.NewInt(48)}, &object.Integer{Value: big.NewInt(18)})
 
 	intVal, ok := result.(*object.Integer)
 	if !ok {
 		t.Fatalf("math.gcd() returned %T, want Integer", result)
 	}
 
-	if intVal.Value != 6 {
-		t.Errorf("math.gcd(48, 18) = %d, want 6", intVal.Value)
+	if intVal.Value.Cmp(big.NewInt(6)) != 0 {
+		t.Errorf("math.gcd(48, 18) = %s, want 6", intVal.Value.String())
 	}
 }
 
 func TestMathLCM(t *testing.T) {
 	lcmFn := MathBuiltins["math.lcm"].Fn
 
-	result := lcmFn(&object.Integer{Value: 4}, &object.Integer{Value: 6})
+	result := lcmFn(&object.Integer{Value: big.NewInt(4)}, &object.Integer{Value: big.NewInt(6)})
 
 	intVal, ok := result.(*object.Integer)
 	if !ok {
 		t.Fatalf("math.lcm() returned %T, want Integer", result)
 	}
 
-	if intVal.Value != 12 {
-		t.Errorf("math.lcm(4, 6) = %d, want 12", intVal.Value)
+	if intVal.Value.Cmp(big.NewInt(12)) != 0 {
+		t.Errorf("math.lcm(4, 6) = %s, want 12", intVal.Value.String())
 	}
 }
 
 func TestMathFactorial(t *testing.T) {
 	factFn := MathBuiltins["math.factorial"].Fn
 
-	result := factFn(&object.Integer{Value: 5})
+	result := factFn(&object.Integer{Value: big.NewInt(5)})
 
 	intVal, ok := result.(*object.Integer)
 	if !ok {
 		t.Fatalf("math.factorial() returned %T, want Integer", result)
 	}
 
-	if intVal.Value != 120 {
-		t.Errorf("math.factorial(5) = %d, want 120", intVal.Value)
+	if intVal.Value.Cmp(big.NewInt(120)) != 0 {
+		t.Errorf("math.factorial(5) = %s, want 120", intVal.Value.String())
 	}
 }
 
@@ -2566,9 +2567,9 @@ func TestArraysShiftRemovesElement(t *testing.T) {
 
 	arr := &object.Array{
 		Elements: []object.Object{
-			&object.Integer{Value: 10},
-			&object.Integer{Value: 20},
-			&object.Integer{Value: 30},
+			&object.Integer{Value: big.NewInt(10)},
+			&object.Integer{Value: big.NewInt(20)},
+			&object.Integer{Value: big.NewInt(30)},
 		},
 		Mutable: true,
 	}
@@ -2598,7 +2599,7 @@ func TestArraysShiftImmutable(t *testing.T) {
 	shiftFn := ArraysBuiltins["arrays.shift"].Fn
 
 	arr := &object.Array{
-		Elements: []object.Object{&object.Integer{Value: 1}},
+		Elements: []object.Object{&object.Integer{Value: big.NewInt(1)}},
 		Mutable:  false,
 	}
 
@@ -2619,7 +2620,7 @@ func TestArraysShuffleRandomness(t *testing.T) {
 		// Create fresh array for each attempt
 		elements := make([]object.Object, 10)
 		for i := 0; i < 10; i++ {
-			elements[i] = &object.Integer{Value: int64(i + 1)}
+			elements[i] = &object.Integer{Value: big.NewInt(int64(i + 1))}
 		}
 		arr := &object.Array{Elements: elements, Mutable: true}
 
@@ -2637,7 +2638,7 @@ func TestArraysShuffleRandomness(t *testing.T) {
 
 		// Check if shuffled order is different from original
 		for j := 0; j < len(arr.Elements); j++ {
-			shuffledVal := arr.Elements[j].(*object.Integer).Value
+			shuffledVal := arr.Elements[j].(*object.Integer).Value.Int64()
 			if original[j] != shuffledVal {
 				different = true
 				break
@@ -2702,8 +2703,8 @@ func TestTimeAddMonthsEndOfMonth(t *testing.T) {
 	// Use time.Date to create a timestamp in the local timezone
 	jan31 := gotime.Date(2024, 1, 31, 12, 0, 0, 0, gotime.Local).Unix()
 	result := addMonthsFn(
-		&object.Integer{Value: jan31},
-		&object.Integer{Value: 1},
+		&object.Integer{Value: big.NewInt(jan31)},
+		&object.Integer{Value: big.NewInt(1)},
 	)
 
 	intVal, ok := result.(*object.Integer)
@@ -2712,7 +2713,7 @@ func TestTimeAddMonthsEndOfMonth(t *testing.T) {
 	}
 
 	// Check that the result is February 29
-	resultTime := gotime.Unix(intVal.Value, 0)
+	resultTime := gotime.Unix(intVal.Value.Int64(), 0)
 	if resultTime.Month() != gotime.February || resultTime.Day() != 29 {
 		t.Errorf("time.add_months(Jan31, 1) = %s, want February 29", resultTime.Format("2006-01-02"))
 	}
@@ -2726,21 +2727,21 @@ func TestStringsSliceUTF8(t *testing.T) {
 	str := &object.String{Value: "Hello 世界"}
 
 	// Slice to get "Hello"
-	result := sliceFn(str, &object.Integer{Value: 0}, &object.Integer{Value: 5})
+	result := sliceFn(str, &object.Integer{Value: big.NewInt(0)}, &object.Integer{Value: big.NewInt(5)})
 	testStringObject(t, result, "Hello")
 
 	// Slice to get "世界" (characters at indices 6 and 7)
-	result = sliceFn(str, &object.Integer{Value: 6}, &object.Integer{Value: 8})
+	result = sliceFn(str, &object.Integer{Value: big.NewInt(6)}, &object.Integer{Value: big.NewInt(8)})
 	testStringObject(t, result, "世界")
 
 	// Slice to get just "世" (character at index 6)
-	result = sliceFn(str, &object.Integer{Value: 6}, &object.Integer{Value: 7})
+	result = sliceFn(str, &object.Integer{Value: big.NewInt(6)}, &object.Integer{Value: big.NewInt(7)})
 	testStringObject(t, result, "世")
 
 	// Test with emoji
 	emojiStr := &object.String{Value: "Hi 😀 there"}
 	// "Hi " = 3 chars, "😀" = 1 char, " there" = 6 chars = 10 total
-	result = sliceFn(emojiStr, &object.Integer{Value: 3}, &object.Integer{Value: 4})
+	result = sliceFn(emojiStr, &object.Integer{Value: big.NewInt(3)}, &object.Integer{Value: big.NewInt(4)})
 	testStringObject(t, result, "😀")
 }
 
@@ -2752,14 +2753,14 @@ func TestStringsPadLeftUTF8(t *testing.T) {
 	str := &object.String{Value: "世界"}
 
 	// Padding to width 5 should add 3 spaces
-	result := padFn(str, &object.Integer{Value: 5})
+	result := padFn(str, &object.Integer{Value: big.NewInt(5)})
 	strVal := result.(*object.String)
 	if strVal.Value != "   世界" {
 		t.Errorf("pad_left('世界', 5) = %q, want '   世界'", strVal.Value)
 	}
 
 	// Padding a string that's already >= target width should not change it
-	result = padFn(str, &object.Integer{Value: 2})
+	result = padFn(str, &object.Integer{Value: big.NewInt(2)})
 	testStringObject(t, result, "世界")
 }
 
@@ -2770,34 +2771,48 @@ func TestStringsPadRightUTF8(t *testing.T) {
 	str := &object.String{Value: "世界"}
 
 	// Padding to width 5 should add 3 spaces
-	result := padFn(str, &object.Integer{Value: 5})
+	result := padFn(str, &object.Integer{Value: big.NewInt(5)})
 	strVal := result.(*object.String)
 	if strVal.Value != "世界   " {
 		t.Errorf("pad_right('世界', 5) = %q, want '世界   '", strVal.Value)
 	}
 }
 
-// Test for Bug #394 fix: math.abs() MinInt64 overflow
+// Test for Bug #394 fix: math.abs() MinInt64 works with big.Int
 func TestMathAbsMinInt64(t *testing.T) {
 	absFn := MathBuiltins["math.abs"].Fn
 
-	// abs(MinInt64) should return an error because the result cannot be represented
-	result := absFn(&object.Integer{Value: math.MinInt64})
+	// With big.Int, abs(MinInt64) now returns a valid result (no overflow)
+	result := absFn(&object.Integer{Value: big.NewInt(math.MinInt64)})
 
-	if !isErrorObject(result) {
-		t.Errorf("math.abs(MinInt64) should return error, got %T: %v", result, result.Inspect())
+	intVal, ok := result.(*object.Integer)
+	if !ok {
+		t.Fatalf("math.abs(MinInt64) returned %T, want Integer", result)
+	}
+
+	// abs(-9223372036854775808) = 9223372036854775808
+	expected := new(big.Int).Neg(big.NewInt(math.MinInt64))
+	if intVal.Value.Cmp(expected) != 0 {
+		t.Errorf("math.abs(MinInt64) = %s, want %s", intVal.Value.String(), expected.String())
 	}
 }
 
-// Test for Bug #395 fix: math.neg() MinInt64 overflow
+// Test for Bug #395 fix: math.neg() MinInt64 works with big.Int
 func TestMathNegMinInt64(t *testing.T) {
 	negFn := MathBuiltins["math.neg"].Fn
 
-	// neg(MinInt64) should return an error because the result cannot be represented
-	result := negFn(&object.Integer{Value: math.MinInt64})
+	// With big.Int, neg(MinInt64) now returns a valid result (no overflow)
+	result := negFn(&object.Integer{Value: big.NewInt(math.MinInt64)})
 
-	if !isErrorObject(result) {
-		t.Errorf("math.neg(MinInt64) should return error, got %T: %v", result, result.Inspect())
+	intVal, ok := result.(*object.Integer)
+	if !ok {
+		t.Fatalf("math.neg(MinInt64) returned %T, want Integer", result)
+	}
+
+	// neg(-9223372036854775808) = 9223372036854775808
+	expected := new(big.Int).Neg(big.NewInt(math.MinInt64))
+	if intVal.Value.Cmp(expected) != 0 {
+		t.Errorf("math.neg(MinInt64) = %s, want %s", intVal.Value.String(), expected.String())
 	}
 }
 
@@ -2806,20 +2821,20 @@ func TestMathPowOverflow(t *testing.T) {
 	powFn := MathBuiltins["math.pow"].Fn
 
 	// 2^63 overflows int64 (max int64 is 2^63 - 1)
-	result := powFn(&object.Integer{Value: 2}, &object.Integer{Value: 63})
+	result := powFn(&object.Integer{Value: big.NewInt(2)}, &object.Integer{Value: big.NewInt(63)})
 
 	if !isErrorObject(result) {
 		t.Errorf("math.pow(2, 63) should return overflow error, got %T: %v", result, result.Inspect())
 	}
 
 	// Very large exponent
-	result = powFn(&object.Integer{Value: 10}, &object.Integer{Value: 100})
+	result = powFn(&object.Integer{Value: big.NewInt(10)}, &object.Integer{Value: big.NewInt(100)})
 
 	if !isErrorObject(result) {
 		t.Errorf("math.pow(10, 100) should return overflow error, got %T: %v", result, result.Inspect())
 	}
 
 	// Valid power should still work
-	result = powFn(&object.Integer{Value: 2}, &object.Integer{Value: 10})
+	result = powFn(&object.Integer{Value: big.NewInt(2)}, &object.Integer{Value: big.NewInt(10)})
 	testIntegerObject(t, result, 1024)
 }

@@ -1,6 +1,7 @@
 package parser
 
 import (
+	"math/big"
 	"strings"
 	"testing"
 
@@ -50,8 +51,22 @@ func testIntegerLiteral(t *testing.T, il Expression, expected int64) bool {
 		t.Errorf("expression not *IntegerValue, got=%T", il)
 		return false
 	}
-	if integ.Value != expected {
-		t.Errorf("integ.Value not %d, got=%d", expected, integ.Value)
+	if integ.Value.Cmp(big.NewInt(expected)) != 0 {
+		t.Errorf("integ.Value not %d, got=%s", expected, integ.Value.String())
+		return false
+	}
+	return true
+}
+
+func testBigIntegerLiteral(t *testing.T, il Expression, expected *big.Int) bool {
+	t.Helper()
+	integ, ok := il.(*IntegerValue)
+	if !ok {
+		t.Errorf("expression not *IntegerValue, got=%T", il)
+		return false
+	}
+	if integ.Value.Cmp(expected) != 0 {
+		t.Errorf("integ.Value not %s, got=%s", expected.String(), integ.Value.String())
 		return false
 	}
 	return true
@@ -2185,7 +2200,107 @@ func TestMinInt64Literal(t *testing.T) {
 		t.Fatalf("expected IntegerValue, got %T", varDecl.Value)
 	}
 
-	if intVal.Value != -9223372036854775808 {
-		t.Errorf("expected -9223372036854775808, got %d", intVal.Value)
+	minInt64 := new(big.Int)
+	minInt64.SetString("-9223372036854775808", 10)
+	if intVal.Value.Cmp(minInt64) != 0 {
+		t.Errorf("expected -9223372036854775808, got %s", intVal.Value.String())
+	}
+}
+
+// ============================================================================
+// Large Integer Parsing Tests (i128/u128)
+// ============================================================================
+
+func TestParseLargeIntegerLiterals(t *testing.T) {
+	tests := []struct {
+		input    string
+		expected string
+	}{
+		// Values larger than int64 max
+		{"temp x i128 = 10000000000000000000", "10000000000000000000"},
+		{"temp x i128 = 9223372036854775808", "9223372036854775808"},                     // int64 max + 1
+		{"temp x u128 = 18446744073709551615", "18446744073709551615"},                   // uint64 max
+		{"temp x u128 = 18446744073709551616", "18446744073709551616"},                   // uint64 max + 1
+		{"temp x i128 = 170141183460469231731687303715884105727", "170141183460469231731687303715884105727"}, // i128 max
+		{"temp x u128 = 340282366920938463463374607431768211455", "340282366920938463463374607431768211455"}, // u128 max
+		// Underscores in large numbers
+		{"temp x i128 = 10_000_000_000_000_000_000", "10000000000000000000"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.expected, func(t *testing.T) {
+			program := parseProgram(t, tt.input)
+
+			if len(program.Statements) != 1 {
+				t.Fatalf("expected 1 statement, got %d", len(program.Statements))
+			}
+
+			varDecl, ok := program.Statements[0].(*VariableDeclaration)
+			if !ok {
+				t.Fatalf("expected VariableDeclaration, got %T", program.Statements[0])
+			}
+
+			intVal, ok := varDecl.Value.(*IntegerValue)
+			if !ok {
+				t.Fatalf("expected IntegerValue, got %T", varDecl.Value)
+			}
+
+			expected := new(big.Int)
+			expected.SetString(tt.expected, 10)
+			if intVal.Value.Cmp(expected) != 0 {
+				t.Errorf("expected %s, got %s", tt.expected, intVal.Value.String())
+			}
+		})
+	}
+}
+
+func TestParseLargeNegativeIntegerLiterals(t *testing.T) {
+	tests := []struct {
+		input    string
+		expected string
+	}{
+		{"temp x i128 = -10000000000000000000", "-10000000000000000000"},
+		{"temp x i128 = -9223372036854775809", "-9223372036854775809"}, // int64 min - 1
+		{"temp x i128 = -170141183460469231731687303715884105728", "-170141183460469231731687303715884105728"}, // i128 min
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.expected, func(t *testing.T) {
+			program := parseProgram(t, tt.input)
+
+			if len(program.Statements) != 1 {
+				t.Fatalf("expected 1 statement, got %d", len(program.Statements))
+			}
+
+			varDecl, ok := program.Statements[0].(*VariableDeclaration)
+			if !ok {
+				t.Fatalf("expected VariableDeclaration, got %T", program.Statements[0])
+			}
+
+			// The value might be a PrefixExpression (negation) or direct IntegerValue
+			switch v := varDecl.Value.(type) {
+			case *IntegerValue:
+				expected := new(big.Int)
+				expected.SetString(tt.expected, 10)
+				if v.Value.Cmp(expected) != 0 {
+					t.Errorf("expected %s, got %s", tt.expected, v.Value.String())
+				}
+			case *PrefixExpression:
+				if v.Operator != "-" {
+					t.Fatalf("expected '-' operator, got %s", v.Operator)
+				}
+				intVal, ok := v.Right.(*IntegerValue)
+				if !ok {
+					t.Fatalf("expected IntegerValue in prefix, got %T", v.Right)
+				}
+				expected := new(big.Int)
+				expected.SetString(tt.expected[1:], 10) // Remove the leading '-'
+				if intVal.Value.Cmp(expected) != 0 {
+					t.Errorf("expected %s, got %s", tt.expected[1:], intVal.Value.String())
+				}
+			default:
+				t.Fatalf("expected IntegerValue or PrefixExpression, got %T", varDecl.Value)
+			}
+		})
 	}
 }

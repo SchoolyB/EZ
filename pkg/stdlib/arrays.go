@@ -5,6 +5,7 @@ package stdlib
 
 import (
 	"fmt"
+	"math/big"
 	"math/rand"
 	"sort"
 
@@ -92,7 +93,7 @@ var ArraysBuiltins = map[string]*object.Builtin{
 			if !ok {
 				return &object.Error{Code: "E7004", Message: "arrays.insert() requires an integer index"}
 			}
-			index := int(idx.Value)
+			index := int(idx.Value.Int64())
 			if index < 0 || index > len(arr.Elements) {
 				return &object.Error{Code: "E5003", Message: "arrays.insert() index out of bounds"}
 			}
@@ -165,7 +166,7 @@ var ArraysBuiltins = map[string]*object.Builtin{
 			if !ok {
 				return &object.Error{Code: "E7004", Message: "arrays.remove_at() requires an integer index"}
 			}
-			index := int(idx.Value)
+			index := int(idx.Value.Int64())
 			if index < 0 || index >= len(arr.Elements) {
 				return &object.Error{Code: "E5003", Message: "arrays.remove_at() index out of bounds"}
 			}
@@ -198,7 +199,7 @@ var ArraysBuiltins = map[string]*object.Builtin{
 			if !ok {
 				return &object.Error{Code: "E7004", Message: "arrays.remove() requires an integer index"}
 			}
-			index := int(idx.Value)
+			index := int(idx.Value.Int64())
 			if index < 0 || index >= len(arr.Elements) {
 				return &object.Error{Code: "E9001", Message: fmt.Sprintf("arrays.remove() index out of bounds: %d (array length: %d)", index, len(arr.Elements))}
 			}
@@ -290,7 +291,7 @@ var ArraysBuiltins = map[string]*object.Builtin{
 			if !ok {
 				return &object.Error{Code: "E7004", Message: "arrays.get() requires an integer index"}
 			}
-			index := int(idx.Value)
+			index := int(idx.Value.Int64())
 			if index < 0 || index >= len(arr.Elements) {
 				return &object.Error{Code: "E5003", Message: "arrays.get() index out of bounds"}
 			}
@@ -343,7 +344,7 @@ var ArraysBuiltins = map[string]*object.Builtin{
 			if !ok {
 				return &object.Error{Code: "E7004", Message: "arrays.set() requires an integer index"}
 			}
-			index := int(idx.Value)
+			index := int(idx.Value.Int64())
 			if index < 0 || index >= len(arr.Elements) {
 				return &object.Error{Code: "E5003", Message: "arrays.set() index out of bounds"}
 			}
@@ -367,7 +368,7 @@ var ArraysBuiltins = map[string]*object.Builtin{
 			if !ok {
 				return newError("arrays.slice() requires integer indices")
 			}
-			startIdx := int(start.Value)
+			startIdx := int(start.Value.Int64())
 			if startIdx < 0 {
 				startIdx = len(arr.Elements) + startIdx
 			}
@@ -381,7 +382,7 @@ var ArraysBuiltins = map[string]*object.Builtin{
 				if !ok {
 					return newError("arrays.slice() requires integer indices")
 				}
-				endIdx = int(end.Value)
+				endIdx = int(end.Value.Int64())
 				if endIdx < 0 {
 					endIdx = len(arr.Elements) + endIdx
 				}
@@ -416,7 +417,7 @@ var ArraysBuiltins = map[string]*object.Builtin{
 			if !ok {
 				return &object.Error{Code: "E7004", Message: "arrays.take() requires an integer"}
 			}
-			count := int(n.Value)
+			count := int(n.Value.Int64())
 			if count < 0 {
 				count = 0
 			}
@@ -442,7 +443,7 @@ var ArraysBuiltins = map[string]*object.Builtin{
 			if !ok {
 				return &object.Error{Code: "E7004", Message: "arrays.drop() requires an integer"}
 			}
-			count := int(n.Value)
+			count := int(n.Value.Int64())
 			if count < 0 {
 				count = 0
 			}
@@ -484,10 +485,10 @@ var ArraysBuiltins = map[string]*object.Builtin{
 			}
 			for i, el := range arr.Elements {
 				if objectsEqual(el, args[1]) {
-					return &object.Integer{Value: int64(i)}
+					return &object.Integer{Value: big.NewInt(int64(i))}
 				}
 			}
-			return &object.Integer{Value: -1}
+			return &object.Integer{Value: big.NewInt(-1)}
 		},
 	},
 
@@ -502,10 +503,10 @@ var ArraysBuiltins = map[string]*object.Builtin{
 			}
 			for i, el := range arr.Elements {
 				if objectsEqual(el, args[1]) {
-					return &object.Integer{Value: int64(i)}
+					return &object.Integer{Value: big.NewInt(int64(i))}
 				}
 			}
-			return &object.Integer{Value: -1}
+			return &object.Integer{Value: big.NewInt(-1)}
 		},
 	},
 
@@ -520,10 +521,10 @@ var ArraysBuiltins = map[string]*object.Builtin{
 			}
 			for i := len(arr.Elements) - 1; i >= 0; i-- {
 				if objectsEqual(arr.Elements[i], args[1]) {
-					return &object.Integer{Value: int64(i)}
+					return &object.Integer{Value: big.NewInt(int64(i))}
 				}
 			}
-			return &object.Integer{Value: -1}
+			return &object.Integer{Value: big.NewInt(-1)}
 		},
 	},
 
@@ -542,7 +543,7 @@ var ArraysBuiltins = map[string]*object.Builtin{
 					count++
 				}
 			}
-			return &object.Integer{Value: int64(count)}
+			return &object.Integer{Value: big.NewInt(int64(count))}
 		},
 	},
 
@@ -785,7 +786,8 @@ var ArraysBuiltins = map[string]*object.Builtin{
 			for _, el := range arr.Elements {
 				switch v := el.(type) {
 				case *object.Integer:
-					sum += float64(v.Value)
+					f, _ := new(big.Float).SetInt(v.Value).Float64()
+					sum += f
 				case *object.Float:
 					sum += v.Value
 					hasFloat = true
@@ -796,7 +798,7 @@ var ArraysBuiltins = map[string]*object.Builtin{
 			if hasFloat {
 				return &object.Float{Value: sum}
 			}
-			return &object.Integer{Value: int64(sum)}
+			return &object.Integer{Value: big.NewInt(int64(sum))}
 		},
 	},
 
@@ -810,7 +812,7 @@ var ArraysBuiltins = map[string]*object.Builtin{
 				return &object.Error{Code: "E7002", Message: "arrays.product() requires an array"}
 			}
 			if len(arr.Elements) == 0 {
-				return &object.Integer{Value: 1}
+				return &object.Integer{Value: big.NewInt(1)}
 			}
 
 			product := 1.0
@@ -818,7 +820,8 @@ var ArraysBuiltins = map[string]*object.Builtin{
 			for _, el := range arr.Elements {
 				switch v := el.(type) {
 				case *object.Integer:
-					product *= float64(v.Value)
+					f, _ := new(big.Float).SetInt(v.Value).Float64()
+					product *= f
 				case *object.Float:
 					product *= v.Value
 					hasFloat = true
@@ -829,7 +832,7 @@ var ArraysBuiltins = map[string]*object.Builtin{
 			if hasFloat {
 				return &object.Float{Value: product}
 			}
-			return &object.Integer{Value: int64(product)}
+			return &object.Integer{Value: big.NewInt(int64(product))}
 		},
 	},
 
@@ -896,7 +899,8 @@ var ArraysBuiltins = map[string]*object.Builtin{
 			for _, el := range arr.Elements {
 				switch v := el.(type) {
 				case *object.Integer:
-					sum += float64(v.Value)
+					f, _ := new(big.Float).SetInt(v.Value).Float64()
+					sum += f
 				case *object.Float:
 					sum += v.Value
 				default:
@@ -916,17 +920,17 @@ var ArraysBuiltins = map[string]*object.Builtin{
 			var start, end, step int64
 
 			if len(args) == 1 {
-				end = args[0].(*object.Integer).Value
+				end = args[0].(*object.Integer).Value.Int64()
 				start = 0
 				step = 1
 			} else if len(args) == 2 {
-				start = args[0].(*object.Integer).Value
-				end = args[1].(*object.Integer).Value
+				start = args[0].(*object.Integer).Value.Int64()
+				end = args[1].(*object.Integer).Value.Int64()
 				step = 1
 			} else {
-				start = args[0].(*object.Integer).Value
-				end = args[1].(*object.Integer).Value
-				step = args[2].(*object.Integer).Value
+				start = args[0].(*object.Integer).Value.Int64()
+				end = args[1].(*object.Integer).Value.Int64()
+				step = args[2].(*object.Integer).Value.Int64()
 			}
 
 			if step == 0 {
@@ -936,11 +940,11 @@ var ArraysBuiltins = map[string]*object.Builtin{
 			var elements []object.Object
 			if step > 0 {
 				for i := start; i < end; i += step {
-					elements = append(elements, &object.Integer{Value: i})
+					elements = append(elements, &object.Integer{Value: big.NewInt(i)})
 				}
 			} else {
 				for i := start; i > end; i += step {
-					elements = append(elements, &object.Integer{Value: i})
+					elements = append(elements, &object.Integer{Value: big.NewInt(i)})
 				}
 			}
 			return &object.Array{Elements: elements}
@@ -956,7 +960,7 @@ var ArraysBuiltins = map[string]*object.Builtin{
 			if !ok {
 				return newError("arrays.repeat() requires integer count")
 			}
-			count := int(n.Value)
+			count := int(n.Value.Int64())
 			if count < 0 {
 				count = 0
 			}
@@ -1051,11 +1055,11 @@ var ArraysBuiltins = map[string]*object.Builtin{
 			if !ok {
 				return &object.Error{Code: "E7004", Message: "arrays.chunk() requires an integer size"}
 			}
-			if size.Value <= 0 {
+			if size.Value.Sign() <= 0 {
 				return &object.Error{Code: "E9004", Message: "arrays.chunk() size must be greater than 0"}
 			}
 
-			chunkSize := int(size.Value)
+			chunkSize := int(size.Value.Int64())
 			var chunks []object.Object
 
 			for i := 0; i < len(arr.Elements); i += chunkSize {
@@ -1088,12 +1092,7 @@ func objectsEqual(a, b object.Object) bool {
 func compareObjects(a, b object.Object) int {
 	if ai, ok := a.(*object.Integer); ok {
 		if bi, ok := b.(*object.Integer); ok {
-			if ai.Value < bi.Value {
-				return -1
-			} else if ai.Value > bi.Value {
-				return 1
-			}
-			return 0
+			return ai.Value.Cmp(bi.Value)
 		}
 	}
 	if af, ok := a.(*object.Float); ok {

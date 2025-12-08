@@ -4,6 +4,7 @@ package stdlib
 // Licensed under the MIT License. See LICENSE for details.
 
 import (
+	"math/big"
 	"testing"
 
 	"github.com/marshallburns/ez/pkg/object"
@@ -78,7 +79,7 @@ func TestRandomInt(t *testing.T) {
 	intFn := RandomBuiltins["random.int"].Fn
 
 	// With max - should return int in [0, max)
-	max := &object.Integer{Value: 100}
+	max := &object.Integer{Value: big.NewInt(100)}
 
 	for i := 0; i < 100; i++ {
 		result := intFn(max)
@@ -86,8 +87,8 @@ func TestRandomInt(t *testing.T) {
 		if !ok {
 			t.Fatalf("random.int(100) returned %T, want Integer", result)
 		}
-		if n.Value < 0 || n.Value >= 100 {
-			t.Errorf("random.int(100) = %d, want [0, 100)", n.Value)
+		if n.Value.Sign() < 0 || n.Value.Cmp(big.NewInt(100)) >= 0 {
+			t.Errorf("random.int(100) = %s, want [0, 100)", n.Value.String())
 		}
 	}
 }
@@ -96,8 +97,8 @@ func TestRandomIntRange(t *testing.T) {
 	intFn := RandomBuiltins["random.int"].Fn
 
 	// With min, max - should return int in [min, max)
-	min := &object.Integer{Value: 10}
-	max := &object.Integer{Value: 20}
+	min := &object.Integer{Value: big.NewInt(10)}
+	max := &object.Integer{Value: big.NewInt(20)}
 
 	for i := 0; i < 100; i++ {
 		result := intFn(min, max)
@@ -105,8 +106,8 @@ func TestRandomIntRange(t *testing.T) {
 		if !ok {
 			t.Fatalf("random.int(10, 20) returned %T, want Integer", result)
 		}
-		if n.Value < 10 || n.Value >= 20 {
-			t.Errorf("random.int(10, 20) = %d, want [10, 20)", n.Value)
+		if n.Value.Cmp(big.NewInt(10)) < 0 || n.Value.Cmp(big.NewInt(20)) >= 0 {
+			t.Errorf("random.int(10, 20) = %s, want [10, 20)", n.Value.String())
 		}
 	}
 }
@@ -121,18 +122,18 @@ func TestRandomIntErrors(t *testing.T) {
 	}
 
 	// max <= 0
-	result = intFn(&object.Integer{Value: 0})
+	result = intFn(&object.Integer{Value: big.NewInt(0)})
 	if !isErrorObject(result) {
 		t.Error("expected error for max <= 0")
 	}
 
-	result = intFn(&object.Integer{Value: -5})
+	result = intFn(&object.Integer{Value: big.NewInt(-5)})
 	if !isErrorObject(result) {
 		t.Error("expected error for negative max")
 	}
 
 	// max <= min
-	result = intFn(&object.Integer{Value: 20}, &object.Integer{Value: 10})
+	result = intFn(&object.Integer{Value: big.NewInt(20)}, &object.Integer{Value: big.NewInt(10)})
 	if !isErrorObject(result) {
 		t.Error("expected error for max <= min")
 	}
@@ -175,7 +176,7 @@ func TestRandomBoolErrors(t *testing.T) {
 	boolFn := RandomBuiltins["random.bool"].Fn
 
 	// With args - should error
-	result := boolFn(&object.Integer{Value: 1})
+	result := boolFn(&object.Integer{Value: big.NewInt(1)})
 	if !isErrorObject(result) {
 		t.Error("expected error for arguments")
 	}
@@ -203,7 +204,7 @@ func TestRandomByteErrors(t *testing.T) {
 	byteFn := RandomBuiltins["random.byte"].Fn
 
 	// With args - should error
-	result := byteFn(&object.Integer{Value: 1})
+	result := byteFn(&object.Integer{Value: big.NewInt(1)})
 	if !isErrorObject(result) {
 		t.Error("expected error for arguments")
 	}
@@ -248,8 +249,8 @@ func TestRandomCharRange(t *testing.T) {
 	}
 
 	// With integer range
-	minInt := &object.Integer{Value: 65} // 'A'
-	maxInt := &object.Integer{Value: 90} // 'Z'
+	minInt := &object.Integer{Value: big.NewInt(65)} // 'A'
+	maxInt := &object.Integer{Value: big.NewInt(90)} // 'Z'
 
 	for i := 0; i < 100; i++ {
 		result := charFn(minInt, maxInt)
@@ -293,9 +294,9 @@ func TestRandomChoice(t *testing.T) {
 	choiceFn := RandomBuiltins["random.choice"].Fn
 
 	arr := &object.Array{Elements: []object.Object{
-		&object.Integer{Value: 1},
-		&object.Integer{Value: 2},
-		&object.Integer{Value: 3},
+		&object.Integer{Value: big.NewInt(1)},
+		&object.Integer{Value: big.NewInt(2)},
+		&object.Integer{Value: big.NewInt(3)},
 	}}
 
 	counts := make(map[int64]int)
@@ -306,7 +307,7 @@ func TestRandomChoice(t *testing.T) {
 		if !ok {
 			t.Fatalf("random.choice() returned %T, want Integer", result)
 		}
-		counts[n.Value]++
+		counts[n.Value.Int64()]++
 	}
 
 	// All elements should be chosen at least once
@@ -327,7 +328,7 @@ func TestRandomChoiceErrors(t *testing.T) {
 	}
 
 	// Not an array
-	result = choiceFn(&object.Integer{Value: 5})
+	result = choiceFn(&object.Integer{Value: big.NewInt(5)})
 	if !isErrorObject(result) {
 		t.Error("expected error for non-array argument")
 	}
@@ -347,11 +348,11 @@ func TestRandomShuffle(t *testing.T) {
 	shuffleFn := RandomBuiltins["random.shuffle"].Fn
 
 	arr := &object.Array{Elements: []object.Object{
-		&object.Integer{Value: 1},
-		&object.Integer{Value: 2},
-		&object.Integer{Value: 3},
-		&object.Integer{Value: 4},
-		&object.Integer{Value: 5},
+		&object.Integer{Value: big.NewInt(1)},
+		&object.Integer{Value: big.NewInt(2)},
+		&object.Integer{Value: big.NewInt(3)},
+		&object.Integer{Value: big.NewInt(4)},
+		&object.Integer{Value: big.NewInt(5)},
 	}}
 
 	result := shuffleFn(arr)
@@ -370,10 +371,10 @@ func TestRandomShuffle(t *testing.T) {
 	shuffledCounts := make(map[int64]int)
 
 	for _, el := range arr.Elements {
-		originalCounts[el.(*object.Integer).Value]++
+		originalCounts[el.(*object.Integer).Value.Int64()]++
 	}
 	for _, el := range shuffled.Elements {
-		shuffledCounts[el.(*object.Integer).Value]++
+		shuffledCounts[el.(*object.Integer).Value.Int64()]++
 	}
 
 	for k, v := range originalCounts {
@@ -384,7 +385,7 @@ func TestRandomShuffle(t *testing.T) {
 
 	// Original should be unchanged
 	for i, expected := range []int64{1, 2, 3, 4, 5} {
-		if arr.Elements[i].(*object.Integer).Value != expected {
+		if arr.Elements[i].(*object.Integer).Value.Int64() != expected {
 			t.Errorf("original array was modified at index %d", i)
 		}
 	}
@@ -400,7 +401,7 @@ func TestRandomShuffleErrors(t *testing.T) {
 	}
 
 	// Not an array
-	result = shuffleFn(&object.Integer{Value: 5})
+	result = shuffleFn(&object.Integer{Value: big.NewInt(5)})
 	if !isErrorObject(result) {
 		t.Error("expected error for non-array argument")
 	}
@@ -414,14 +415,14 @@ func TestRandomSample(t *testing.T) {
 	sampleFn := RandomBuiltins["random.sample"].Fn
 
 	arr := &object.Array{Elements: []object.Object{
-		&object.Integer{Value: 1},
-		&object.Integer{Value: 2},
-		&object.Integer{Value: 3},
-		&object.Integer{Value: 4},
-		&object.Integer{Value: 5},
+		&object.Integer{Value: big.NewInt(1)},
+		&object.Integer{Value: big.NewInt(2)},
+		&object.Integer{Value: big.NewInt(3)},
+		&object.Integer{Value: big.NewInt(4)},
+		&object.Integer{Value: big.NewInt(5)},
 	}}
 
-	result := sampleFn(arr, &object.Integer{Value: 3})
+	result := sampleFn(arr, &object.Integer{Value: big.NewInt(3)})
 	sampled, ok := result.(*object.Array)
 	if !ok {
 		t.Fatalf("random.sample() returned %T, want Array", result)
@@ -435,7 +436,7 @@ func TestRandomSample(t *testing.T) {
 	// All elements should be from original array
 	validValues := map[int64]bool{1: true, 2: true, 3: true, 4: true, 5: true}
 	for _, el := range sampled.Elements {
-		val := el.(*object.Integer).Value
+		val := el.(*object.Integer).Value.Int64()
 		if !validValues[val] {
 			t.Errorf("sampled element %d not in original array", val)
 		}
@@ -444,7 +445,7 @@ func TestRandomSample(t *testing.T) {
 	// No duplicates
 	seen := make(map[int64]bool)
 	for _, el := range sampled.Elements {
-		val := el.(*object.Integer).Value
+		val := el.(*object.Integer).Value.Int64()
 		if seen[val] {
 			t.Errorf("duplicate element %d in sample", val)
 		}
@@ -456,11 +457,11 @@ func TestRandomSampleZero(t *testing.T) {
 	sampleFn := RandomBuiltins["random.sample"].Fn
 
 	arr := &object.Array{Elements: []object.Object{
-		&object.Integer{Value: 1},
-		&object.Integer{Value: 2},
+		&object.Integer{Value: big.NewInt(1)},
+		&object.Integer{Value: big.NewInt(2)},
 	}}
 
-	result := sampleFn(arr, &object.Integer{Value: 0})
+	result := sampleFn(arr, &object.Integer{Value: big.NewInt(0)})
 	sampled, ok := result.(*object.Array)
 	if !ok {
 		t.Fatalf("random.sample(arr, 0) returned %T, want Array", result)
@@ -475,12 +476,12 @@ func TestRandomSampleAll(t *testing.T) {
 	sampleFn := RandomBuiltins["random.sample"].Fn
 
 	arr := &object.Array{Elements: []object.Object{
-		&object.Integer{Value: 1},
-		&object.Integer{Value: 2},
-		&object.Integer{Value: 3},
+		&object.Integer{Value: big.NewInt(1)},
+		&object.Integer{Value: big.NewInt(2)},
+		&object.Integer{Value: big.NewInt(3)},
 	}}
 
-	result := sampleFn(arr, &object.Integer{Value: 3})
+	result := sampleFn(arr, &object.Integer{Value: big.NewInt(3)})
 	sampled, ok := result.(*object.Array)
 	if !ok {
 		t.Fatalf("random.sample() returned %T, want Array", result)
@@ -495,8 +496,8 @@ func TestRandomSampleErrors(t *testing.T) {
 	sampleFn := RandomBuiltins["random.sample"].Fn
 
 	arr := &object.Array{Elements: []object.Object{
-		&object.Integer{Value: 1},
-		&object.Integer{Value: 2},
+		&object.Integer{Value: big.NewInt(1)},
+		&object.Integer{Value: big.NewInt(2)},
 	}}
 
 	// No args
@@ -506,7 +507,7 @@ func TestRandomSampleErrors(t *testing.T) {
 	}
 
 	// Not an array
-	result = sampleFn(&object.Integer{Value: 5}, &object.Integer{Value: 1})
+	result = sampleFn(&object.Integer{Value: big.NewInt(5)}, &object.Integer{Value: big.NewInt(1)})
 	if !isErrorObject(result) {
 		t.Error("expected error for non-array argument")
 	}
@@ -518,13 +519,13 @@ func TestRandomSampleErrors(t *testing.T) {
 	}
 
 	// n < 0
-	result = sampleFn(arr, &object.Integer{Value: -1})
+	result = sampleFn(arr, &object.Integer{Value: big.NewInt(-1)})
 	if !isErrorObject(result) {
 		t.Error("expected error for negative n")
 	}
 
 	// n > len(array)
-	result = sampleFn(arr, &object.Integer{Value: 5})
+	result = sampleFn(arr, &object.Integer{Value: big.NewInt(5)})
 	if !isErrorObject(result) {
 		t.Error("expected error for n > array length")
 	}

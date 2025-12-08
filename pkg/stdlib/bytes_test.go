@@ -1,6 +1,7 @@
 package stdlib
 
 import (
+	"math/big"
 	"testing"
 
 	"github.com/marshallburns/ez/pkg/object"
@@ -19,7 +20,7 @@ func makeByteArray(data []byte) *object.Array {
 func makeIntArray(data []int64) *object.Array {
 	elements := make([]object.Object, len(data))
 	for i, v := range data {
-		elements[i] = &object.Integer{Value: v}
+		elements[i] = &object.Integer{Value: big.NewInt(v)}
 	}
 	return &object.Array{Elements: elements}
 }
@@ -36,7 +37,7 @@ func getByteSlice(obj object.Object) []byte {
 		case *object.Byte:
 			result[i] = e.Value
 		case *object.Integer:
-			result[i] = byte(e.Value)
+			result[i] = byte(e.Value.Int64())
 		}
 	}
 	return result
@@ -213,8 +214,8 @@ func TestBytesToArray(t *testing.T) {
 	if len(arr.Elements) != 2 {
 		t.Errorf("got len %d, want 2", len(arr.Elements))
 	}
-	if arr.Elements[0].(*object.Integer).Value != 72 {
-		t.Errorf("got %d, want 72", arr.Elements[0].(*object.Integer).Value)
+	if arr.Elements[0].(*object.Integer).Value.Cmp(big.NewInt(72)) != 0 {
+		t.Errorf("got %s, want 72", arr.Elements[0].(*object.Integer).Value.String())
 	}
 }
 
@@ -267,14 +268,14 @@ func TestBytesSlice(t *testing.T) {
 	input := makeByteArray([]byte("Hello"))
 
 	// Normal slice
-	result := fn(input, &object.Integer{Value: 1}, &object.Integer{Value: 4})
+	result := fn(input, &object.Integer{Value: big.NewInt(1)}, &object.Integer{Value: big.NewInt(4)})
 	got := getByteSlice(result)
 	if string(got) != "ell" {
 		t.Errorf("got %s, want ell", string(got))
 	}
 
 	// Negative indices
-	result = fn(input, &object.Integer{Value: -3}, &object.Integer{Value: -1})
+	result = fn(input, &object.Integer{Value: big.NewInt(-3)}, &object.Integer{Value: big.NewInt(-1)})
 	got = getByteSlice(result)
 	if string(got) != "ll" {
 		t.Errorf("got %s, want ll", string(got))
@@ -321,14 +322,14 @@ func TestBytesIndex(t *testing.T) {
 
 	result := fn(haystack, needle)
 	idx := result.(*object.Integer).Value
-	if idx != 6 {
-		t.Errorf("got %d, want 6", idx)
+	if idx.Cmp(big.NewInt(6)) != 0 {
+		t.Errorf("got %s, want 6", idx.String())
 	}
 
 	result = fn(haystack, missing)
 	idx = result.(*object.Integer).Value
-	if idx != -1 {
-		t.Errorf("got %d, want -1", idx)
+	if idx.Cmp(big.NewInt(-1)) != 0 {
+		t.Errorf("got %s, want -1", idx.String())
 	}
 }
 
@@ -340,8 +341,8 @@ func TestBytesLastIndex(t *testing.T) {
 
 	result := fn(haystack, needle)
 	idx := result.(*object.Integer).Value
-	if idx != 4 {
-		t.Errorf("got %d, want 4", idx)
+	if idx.Cmp(big.NewInt(4)) != 0 {
+		t.Errorf("got %s, want 4", idx.String())
 	}
 }
 
@@ -353,8 +354,8 @@ func TestBytesCount(t *testing.T) {
 
 	result := fn(haystack, needle)
 	count := result.(*object.Integer).Value
-	if count != 4 {
-		t.Errorf("got %d, want 4", count)
+	if count.Cmp(big.NewInt(4)) != 0 {
+		t.Errorf("got %s, want 4", count.String())
 	}
 }
 
@@ -365,17 +366,17 @@ func TestBytesCompare(t *testing.T) {
 	b := makeByteArray([]byte("bbb"))
 
 	result := fn(a, b)
-	if result.(*object.Integer).Value != -1 {
+	if result.(*object.Integer).Value.Cmp(big.NewInt(-1)) != 0 {
 		t.Errorf("expected -1 for a < b")
 	}
 
 	result = fn(b, a)
-	if result.(*object.Integer).Value != 1 {
+	if result.(*object.Integer).Value.Cmp(big.NewInt(1)) != 0 {
 		t.Errorf("expected 1 for b > a")
 	}
 
 	result = fn(a, a)
-	if result.(*object.Integer).Value != 0 {
+	if result.(*object.Integer).Value.Cmp(big.NewInt(0)) != 0 {
 		t.Errorf("expected 0 for a == a")
 	}
 }
@@ -467,13 +468,13 @@ func TestBytesRepeat(t *testing.T) {
 
 	input := makeByteArray([]byte("ab"))
 
-	result := fn(input, &object.Integer{Value: 3})
+	result := fn(input, &object.Integer{Value: big.NewInt(3)})
 	got := getByteSlice(result)
 	if string(got) != "ababab" {
 		t.Errorf("got %s, want ababab", string(got))
 	}
 
-	result = fn(input, &object.Integer{Value: 0})
+	result = fn(input, &object.Integer{Value: big.NewInt(0)})
 	got = getByteSlice(result)
 	if len(got) != 0 {
 		t.Errorf("got len %d, want 0", len(got))
@@ -501,7 +502,7 @@ func TestBytesReplaceN(t *testing.T) {
 	old := makeByteArray([]byte("hello"))
 	new := makeByteArray([]byte("hi"))
 
-	result := fn(input, old, new, &object.Integer{Value: 2})
+	result := fn(input, old, new, &object.Integer{Value: big.NewInt(2)})
 	got := getByteSlice(result)
 	if string(got) != "hi hi hello" {
 		t.Errorf("got %s, want hi hi hello", string(got))
@@ -526,7 +527,7 @@ func TestBytesPadLeft(t *testing.T) {
 
 	input := makeByteArray([]byte("Hi"))
 
-	result := fn(input, &object.Integer{Value: 5}, &object.Integer{Value: 0})
+	result := fn(input, &object.Integer{Value: big.NewInt(5)}, &object.Integer{Value: big.NewInt(0)})
 	got := getByteSlice(result)
 	expected := []byte{0, 0, 0, 'H', 'i'}
 	if string(got) != string(expected) {
@@ -534,7 +535,7 @@ func TestBytesPadLeft(t *testing.T) {
 	}
 
 	// No padding needed
-	result = fn(input, &object.Integer{Value: 2}, &object.Integer{Value: 0})
+	result = fn(input, &object.Integer{Value: big.NewInt(2)}, &object.Integer{Value: big.NewInt(0)})
 	got = getByteSlice(result)
 	if string(got) != "Hi" {
 		t.Errorf("got %s, want Hi", string(got))
@@ -546,7 +547,7 @@ func TestBytesPadRight(t *testing.T) {
 
 	input := makeByteArray([]byte("Hi"))
 
-	result := fn(input, &object.Integer{Value: 5}, &object.Integer{Value: 0})
+	result := fn(input, &object.Integer{Value: big.NewInt(5)}, &object.Integer{Value: big.NewInt(0)})
 	got := getByteSlice(result)
 	expected := []byte{'H', 'i', 0, 0, 0}
 	if string(got) != string(expected) {
@@ -641,7 +642,7 @@ func TestBytesFill(t *testing.T) {
 
 	input := makeByteArray([]byte{1, 2, 3, 4, 5})
 
-	result := fn(input, &object.Integer{Value: 0xFF})
+	result := fn(input, &object.Integer{Value: big.NewInt(0xFF)})
 	got := getByteSlice(result)
 	for i, b := range got {
 		if b != 0xFF {

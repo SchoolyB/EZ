@@ -6,39 +6,114 @@ package interpreter
 import (
 	"fmt"
 	"math"
+	"math/big"
 	"strings"
 
 	"github.com/marshallburns/ez/pkg/ast"
 	"github.com/marshallburns/ez/pkg/errors"
 )
 
-// Integer overflow detection helper functions
-func addOverflows(a, b int64) bool {
-	if b > 0 && a > math.MaxInt64-b {
-		return true
-	}
-	if b < 0 && a < math.MinInt64-b {
-		return true
-	}
-	return false
+// Type bounds for integer types
+var (
+	// Signed integer bounds
+	minInt8   = big.NewInt(math.MinInt8)
+	maxInt8   = big.NewInt(math.MaxInt8)
+	minInt16  = big.NewInt(math.MinInt16)
+	maxInt16  = big.NewInt(math.MaxInt16)
+	minInt32  = big.NewInt(math.MinInt32)
+	maxInt32  = big.NewInt(math.MaxInt32)
+	minInt64  = big.NewInt(math.MinInt64)
+	maxInt64  = big.NewInt(math.MaxInt64)
+	minInt128 = new(big.Int)
+	maxInt128 = new(big.Int)
+	minInt256 = new(big.Int)
+	maxInt256 = new(big.Int)
+
+	// Unsigned integer bounds
+	maxUint8   = big.NewInt(math.MaxUint8)
+	maxUint16  = big.NewInt(math.MaxUint16)
+	maxUint32  = big.NewInt(math.MaxUint32)
+	maxUint64  = new(big.Int).SetUint64(math.MaxUint64)
+	maxUint128 = new(big.Int)
+	maxUint256 = new(big.Int)
+
+	zero = big.NewInt(0)
+	one  = big.NewInt(1)
+)
+
+func init() {
+	// i128: -2^127 to 2^127-1
+	minInt128.Lsh(big.NewInt(-1), 127)
+	maxInt128.Lsh(big.NewInt(1), 127)
+	maxInt128.Sub(maxInt128, one)
+
+	// i256: -2^255 to 2^255-1
+	minInt256.Lsh(big.NewInt(-1), 255)
+	maxInt256.Lsh(big.NewInt(1), 255)
+	maxInt256.Sub(maxInt256, one)
+
+	// u128: 0 to 2^128-1
+	maxUint128.Lsh(big.NewInt(1), 128)
+	maxUint128.Sub(maxUint128, one)
+
+	// u256: 0 to 2^256-1
+	maxUint256.Lsh(big.NewInt(1), 256)
+	maxUint256.Sub(maxUint256, one)
 }
 
-func subOverflows(a, b int64) bool {
-	if b < 0 && a > math.MaxInt64+b {
-		return true
+// getTypeBounds returns the min and max values for a given integer type
+func getTypeBounds(typeName string) (min, max *big.Int) {
+	switch typeName {
+	case "i8":
+		return minInt8, maxInt8
+	case "i16":
+		return minInt16, maxInt16
+	case "i32":
+		return minInt32, maxInt32
+	case "i64", "int", "":
+		return minInt64, maxInt64
+	case "i128":
+		return minInt128, maxInt128
+	case "i256":
+		return minInt256, maxInt256
+	case "u8":
+		return zero, maxUint8
+	case "u16":
+		return zero, maxUint16
+	case "u32":
+		return zero, maxUint32
+	case "u64", "uint":
+		return zero, maxUint64
+	case "u128":
+		return zero, maxUint128
+	case "u256":
+		return zero, maxUint256
+	default:
+		// Default to int64 range for unknown types
+		return minInt64, maxInt64
 	}
-	if b > 0 && a < math.MinInt64+b {
-		return true
-	}
-	return false
 }
 
-func mulOverflows(a, b int64) bool {
-	if a == 0 || b == 0 {
-		return false
+// checkOverflow checks if a value is within bounds for a given type
+func checkOverflow(result *big.Int, typeName string) bool {
+	min, max := getTypeBounds(typeName)
+	return result.Cmp(min) < 0 || result.Cmp(max) > 0
+}
+
+// getTypeRangeName returns a human-readable name for the type's range
+func getTypeRangeName(typeName string) string {
+	switch typeName {
+	case "i8", "i16", "i32", "i64", "i128", "i256":
+		return typeName
+	case "u8", "u16", "u32", "u64", "u128", "u256":
+		return typeName
+	case "int", "":
+		return "int64"
+	case "uint":
+		return "uint64"
+	default:
+		return "int64"
 	}
-	result := a * b
-	return result/a != b
 }
 
 var (
@@ -407,7 +482,7 @@ func Eval(node ast.Node, env *Environment) Object {
 
 	// Expressions
 	case *ast.IntegerValue:
-		return &Integer{Value: node.Value}
+		return &Integer{Value: new(big.Int).Set(node.Value)}
 
 	case *ast.FloatValue:
 		return &Float{Value: node.Value}
@@ -536,35 +611,35 @@ func Eval(node ast.Node, env *Environment) Object {
 
 		switch obj := left.(type) {
 		case *Array:
-			arrLen := int64(len(obj.Elements))
-			if idx.Value < 0 || idx.Value >= arrLen {
-				if arrLen == 0 {
+			arrLen := big.NewInt(int64(len(obj.Elements)))
+			if idx.Value.Sign() < 0 || idx.Value.Cmp(arrLen) >= 0 {
+				if arrLen.Sign() == 0 {
 					return newErrorWithLocation("E9004", node.Token.Line, node.Token.Column,
 						"index out of bounds: array is empty (length 0)\n\n"+
-							"Attempted to access index %d, but array has no elements\n"+
-							"Hint: Use arrays.append() to add elements before accessing by index", idx.Value)
+							"Attempted to access index %s, but array has no elements\n"+
+							"Hint: Use arrays.append() to add elements before accessing by index", idx.Value.String())
 				}
 				return newErrorWithLocation("E9001", node.Token.Line, node.Token.Column,
-					"index out of bounds: attempted to access index %d, but valid range is 0-%d",
-					idx.Value, arrLen-1)
+					"index out of bounds: attempted to access index %s, but valid range is 0-%d",
+					idx.Value.String(), arrLen.Int64()-1)
 			}
-			return obj.Elements[idx.Value]
+			return obj.Elements[idx.Value.Int64()]
 
 		case *String:
 			// Convert to runes for proper UTF-8 character indexing
 			runes := []rune(obj.Value)
-			strLen := int64(len(runes))
-			if idx.Value < 0 || idx.Value >= strLen {
-				if strLen == 0 {
+			strLen := big.NewInt(int64(len(runes)))
+			if idx.Value.Sign() < 0 || idx.Value.Cmp(strLen) >= 0 {
+				if strLen.Sign() == 0 {
 					return newErrorWithLocation("E10004", node.Token.Line, node.Token.Column,
 						"index out of bounds: string is empty (length 0)\n\n"+
-							"Attempted to access index %d", idx.Value)
+							"Attempted to access index %s", idx.Value.String())
 				}
 				return newErrorWithLocation("E10003", node.Token.Line, node.Token.Column,
-					"index out of bounds: attempted to access index %d, but valid range is 0-%d",
-					idx.Value, strLen-1)
+					"index out of bounds: attempted to access index %s, but valid range is 0-%d",
+					idx.Value.String(), strLen.Int64()-1)
 			}
-			return &Char{Value: runes[idx.Value]}
+			return &Char{Value: runes[idx.Value.Int64()]}
 
 		default:
 			return newErrorWithLocation("E5015", node.Token.Line, node.Token.Column,
@@ -707,12 +782,12 @@ func evalVariableDeclaration(node *ast.VariableDeclaration, env *Environment) Ob
 					for i, elem := range arr.Elements {
 						switch e := elem.(type) {
 						case *Integer:
-							if e.Value < 0 || e.Value > 255 {
+							if e.Value.Sign() < 0 || e.Value.Cmp(big.NewInt(255)) > 0 {
 								return newErrorWithLocation("E3022", node.Token.Line, node.Token.Column,
-									"byte array element [%d] value %d out of range: must be between 0 and 255", i, e.Value)
+									"byte array element [%d] value %s out of range: must be between 0 and 255", i, e.Value.String())
 							}
 							// Convert integer to byte
-							arr.Elements[i] = &Byte{Value: uint8(e.Value)}
+							arr.Elements[i] = &Byte{Value: uint8(e.Value.Int64())}
 						case *Byte:
 							// Already a byte, OK
 						default:
@@ -755,16 +830,16 @@ func evalVariableDeclaration(node *ast.VariableDeclaration, env *Environment) Ob
 			if intVal, ok := val.(*Integer); ok {
 				// Special handling for byte type - convert and validate range
 				if node.TypeName == "byte" {
-					if intVal.Value < 0 || intVal.Value > 255 {
+					if intVal.Value.Sign() < 0 || intVal.Value.Cmp(big.NewInt(255)) > 0 {
 						return newErrorWithLocation("E3020", node.Token.Line, node.Token.Column,
-							"cannot assign value %d to byte: value must be between 0 and 255", intVal.Value)
+							"cannot assign value %s to byte: value must be between 0 and 255", intVal.Value.String())
 					}
-					val = &Byte{Value: uint8(intVal.Value)}
+					val = &Byte{Value: uint8(intVal.Value.Int64())}
 				} else {
 					// Check for negative value assigned to unsigned type
-					if isUnsignedIntegerType(node.TypeName) && intVal.Value < 0 {
+					if isUnsignedIntegerType(node.TypeName) && intVal.Value.Sign() < 0 {
 						return newErrorWithLocation("E3020", node.Token.Line, node.Token.Column,
-							"cannot assign negative value %d to unsigned type '%s'", intVal.Value, node.TypeName)
+							"cannot assign negative value %s to unsigned type '%s'", intVal.Value.String(), node.TypeName)
 					}
 					// Set the declared type on the integer
 					intVal.DeclaredType = node.TypeName
@@ -788,7 +863,7 @@ func evalVariableDeclaration(node *ast.VariableDeclaration, env *Environment) Ob
 			val = m
 		} else if isIntegerType(node.TypeName) {
 			// Handle all integer types (signed and unsigned)
-			val = &Integer{Value: 0, DeclaredType: node.TypeName}
+			val = &Integer{Value: big.NewInt(0), DeclaredType: node.TypeName}
 		} else {
 			// Provide default values for other primitive types
 			switch node.TypeName {
@@ -925,29 +1000,29 @@ func evalAssignment(node *ast.AssignmentStatement, env *Environment) Object {
 				return newErrorWithLocation("E3003", node.Token.Line, node.Token.Column,
 					"array index must be integer, got %s", idx.Type())
 			}
-			arrLen := int64(len(obj.Elements))
-			if index.Value < 0 || index.Value >= arrLen {
-				if arrLen == 0 {
+			arrLen := big.NewInt(int64(len(obj.Elements)))
+			if index.Value.Sign() < 0 || index.Value.Cmp(arrLen) >= 0 {
+				if arrLen.Sign() == 0 {
 					return newErrorWithLocation("E9004", node.Token.Line, node.Token.Column,
 						"index out of bounds: array is empty (length 0)\n\n"+
-							"Attempted to assign to index %d, but array has no elements\n"+
-							"Hint: Use arrays.append() to add elements before accessing by index", index.Value)
+							"Attempted to assign to index %s, but array has no elements\n"+
+							"Hint: Use arrays.append() to add elements before accessing by index", index.Value.String())
 				}
 				return newErrorWithLocation("E9001", node.Token.Line, node.Token.Column,
-					"index out of bounds: attempted to assign to index %d, but valid range is 0-%d",
-					index.Value, arrLen-1)
+					"index out of bounds: attempted to assign to index %s, but valid range is 0-%d",
+					index.Value.String(), arrLen.Int64()-1)
 			}
 
 			// Handle compound assignment
 			if node.Operator != "=" {
-				oldVal := obj.Elements[index.Value]
+				oldVal := obj.Elements[index.Value.Int64()]
 				val = evalCompoundAssignment(node.Operator, oldVal, val, node.Token.Line, node.Token.Column)
 				if isError(val) {
 					return val
 				}
 			}
 
-			obj.Elements[index.Value] = val
+			obj.Elements[index.Value.Int64()] = val
 
 		case *String:
 			index, ok := idx.(*Integer)
@@ -963,19 +1038,19 @@ func evalAssignment(node *ast.AssignmentStatement, env *Environment) Object {
 			}
 			// Convert string to rune slice for proper UTF-8 character indexing
 			runes := []rune(obj.Value)
-			strLen := int64(len(runes))
-			if index.Value < 0 || index.Value >= strLen {
-				if strLen == 0 {
+			strLen := big.NewInt(int64(len(runes)))
+			if index.Value.Sign() < 0 || index.Value.Cmp(strLen) >= 0 {
+				if strLen.Sign() == 0 {
 					return newErrorWithLocation("E5004", node.Token.Line, node.Token.Column,
 						"index out of bounds: string is empty (length 0)\n\n"+
-							"Attempted to assign to index %d", index.Value)
+							"Attempted to assign to index %s", index.Value.String())
 				}
 				return newErrorWithLocation("E5003", node.Token.Line, node.Token.Column,
-					"index out of bounds: attempted to assign to index %d, but valid range is 0-%d",
-					index.Value, strLen-1)
+					"index out of bounds: attempted to assign to index %s, but valid range is 0-%d",
+					index.Value.String(), strLen.Int64()-1)
 			}
 			// Modify rune slice and convert back
-			runes[index.Value] = charObj.Value
+			runes[index.Value.Int64()] = charObj.Value
 			obj.Value = string(runes)
 
 		case *Map:
@@ -1184,7 +1259,7 @@ func evalForStatement(node *ast.ForStatement, env *Environment) Object {
 	}
 
 	// Handle start - defaults to 0 if nil (single-argument form)
-	var start int64 = 0
+	start := big.NewInt(0)
 	if rangeExpr.Start != nil {
 		startObj := Eval(rangeExpr.Start, env)
 		if isError(startObj) {
@@ -1194,7 +1269,7 @@ func evalForStatement(node *ast.ForStatement, env *Environment) Object {
 		if !ok {
 			return newError("range start must be integer")
 		}
-		start = startInt.Value
+		start = new(big.Int).Set(startInt.Value)
 	}
 
 	// Handle end
@@ -1209,7 +1284,7 @@ func evalForStatement(node *ast.ForStatement, env *Environment) Object {
 	end := endInt.Value
 
 	// Handle step - defaults to 1 (or -1 for descending ranges)
-	var step int64 = 1
+	step := big.NewInt(1)
 	if rangeExpr.Step != nil {
 		stepObj := Eval(rangeExpr.Step, env)
 		if isError(stepObj) {
@@ -1219,21 +1294,21 @@ func evalForStatement(node *ast.ForStatement, env *Environment) Object {
 		if !ok {
 			return newError("range step must be integer")
 		}
-		step = stepInt.Value
-		if step == 0 {
+		step = new(big.Int).Set(stepInt.Value)
+		if step.Sign() == 0 {
 			return newError("range step cannot be zero")
 		}
-	} else if start > end {
+	} else if start.Cmp(end) > 0 {
 		// Auto-detect descending range when no step is provided
-		step = -1
+		step = big.NewInt(-1)
 	}
 
 	loopEnv := NewEnclosedEnvironment(env)
 
 	// Handle positive and negative steps
-	if step > 0 {
-		for i := start; i < end; i += step {
-			loopEnv.Set(node.Variable.Value, &Integer{Value: i}, true)
+	if step.Sign() > 0 {
+		for i := new(big.Int).Set(start); i.Cmp(end) < 0; i.Add(i, step) {
+			loopEnv.Set(node.Variable.Value, &Integer{Value: new(big.Int).Set(i)}, true)
 
 			result := Eval(node.Body, loopEnv)
 			if result != nil {
@@ -1247,8 +1322,8 @@ func evalForStatement(node *ast.ForStatement, env *Environment) Object {
 		}
 	} else {
 		// Negative step: count down
-		for i := start; i > end; i += step {
-			loopEnv.Set(node.Variable.Value, &Integer{Value: i}, true)
+		for i := new(big.Int).Set(start); i.Cmp(end) > 0; i.Add(i, step) {
+			loopEnv.Set(node.Variable.Value, &Integer{Value: new(big.Int).Set(i)}, true)
 
 			result := Eval(node.Body, loopEnv)
 			if result != nil {
@@ -1324,8 +1399,8 @@ func evalEnumDeclaration(node *ast.EnumDeclaration, env *Environment) Object {
 	}
 
 	// Get enum attributes (type, skip, increment)
-	typeName := "int"     // default
-	increment := int64(1) // default increment
+	typeName := "int"                   // default
+	increment := big.NewInt(1)          // default increment
 	var floatIncrement float64 = 1.0
 
 	if node.Attributes != nil {
@@ -1334,8 +1409,8 @@ func evalEnumDeclaration(node *ast.EnumDeclaration, env *Environment) Object {
 			// Evaluate the increment expression
 			incVal := Eval(node.Attributes.Increment, env)
 			if intVal, ok := incVal.(*Integer); ok {
-				increment = intVal.Value
-				floatIncrement = float64(intVal.Value)
+				increment = new(big.Int).Set(intVal.Value)
+				floatIncrement, _ = new(big.Float).SetInt(intVal.Value).Float64()
 			} else if floatVal, ok := incVal.(*Float); ok {
 				floatIncrement = floatVal.Value
 			}
@@ -1343,7 +1418,7 @@ func evalEnumDeclaration(node *ast.EnumDeclaration, env *Environment) Object {
 	}
 
 	// Compute enum values
-	var currentInt int64 = 0
+	currentInt := big.NewInt(0)
 	var currentFloat float64 = 0.0
 
 	for _, enumVal := range node.Values {
@@ -1358,7 +1433,7 @@ func evalEnumDeclaration(node *ast.EnumDeclaration, env *Environment) Object {
 			// Update current value for next auto-increment
 			switch v := val.(type) {
 			case *Integer:
-				currentInt = v.Value + increment
+				currentInt = new(big.Int).Add(v.Value, increment)
 			case *Float:
 				currentFloat = v.Value + floatIncrement
 			case *String:
@@ -1368,8 +1443,8 @@ func evalEnumDeclaration(node *ast.EnumDeclaration, env *Environment) Object {
 			// Auto-assign value based on type
 			switch typeName {
 			case "int":
-				enum.Values[enumVal.Name.Value] = &Integer{Value: currentInt}
-				currentInt += increment
+				enum.Values[enumVal.Name.Value] = &Integer{Value: new(big.Int).Set(currentInt)}
+				currentInt.Add(currentInt, increment)
 			case "float":
 				enum.Values[enumVal.Name.Value] = &Float{Value: currentFloat}
 				currentFloat += floatIncrement
@@ -1521,11 +1596,13 @@ func evalBangOperator(right Object) Object {
 func evalMinusPrefixOperator(right Object) Object {
 	switch obj := right.(type) {
 	case *Integer:
-		// Check for overflow: -MinInt64 would exceed MaxInt64
-		if obj.Value == math.MinInt64 {
-			return newError("integer overflow: negating %d exceeds int64 range", obj.Value)
+		result := new(big.Int).Neg(obj.Value)
+		// Only check for overflow if a declared type is set
+		// When no type is set, overflow will be checked at assignment time
+		if obj.DeclaredType != "" && checkOverflow(result, obj.DeclaredType) {
+			return newError("integer overflow: negating %s exceeds %s range", obj.Value.String(), getTypeRangeName(obj.DeclaredType))
 		}
-		return &Integer{Value: -obj.Value}
+		return &Integer{Value: result, DeclaredType: obj.DeclaredType}
 	case *Float:
 		return &Float{Value: -obj.Value}
 	default:
@@ -1597,51 +1674,64 @@ func evalInfixExpression(operator string, left, right Object, line, col int) Obj
 }
 
 func evalIntegerInfixExpression(operator string, left, right Object, line, col int) Object {
-	leftVal := left.(*Integer).Value
-	rightVal := right.(*Integer).Value
+	leftInt := left.(*Integer)
+	rightInt := right.(*Integer)
+	leftVal := leftInt.Value
+	rightVal := rightInt.Value
+
+	// Determine result type - use the wider type or the left operand's type
+	resultType := leftInt.DeclaredType
+	if resultType == "" {
+		resultType = rightInt.DeclaredType
+	}
 
 	switch operator {
 	case "+":
-		if addOverflows(leftVal, rightVal) {
-			return newErrorWithLocation("E5005", line, col, "integer overflow: %d + %d exceeds int64 range", leftVal, rightVal)
+		result := new(big.Int).Add(leftVal, rightVal)
+		if checkOverflow(result, resultType) {
+			return newErrorWithLocation("E5005", line, col, "integer overflow: %s + %s exceeds %s range", leftVal.String(), rightVal.String(), getTypeRangeName(resultType))
 		}
-		return &Integer{Value: leftVal + rightVal}
+		return &Integer{Value: result, DeclaredType: resultType}
 	case "-":
-		if subOverflows(leftVal, rightVal) {
-			return newErrorWithLocation("E5006", line, col, "integer overflow: %d - %d exceeds int64 range", leftVal, rightVal)
+		result := new(big.Int).Sub(leftVal, rightVal)
+		if checkOverflow(result, resultType) {
+			return newErrorWithLocation("E5006", line, col, "integer overflow: %s - %s exceeds %s range", leftVal.String(), rightVal.String(), getTypeRangeName(resultType))
 		}
-		return &Integer{Value: leftVal - rightVal}
+		return &Integer{Value: result, DeclaredType: resultType}
 	case "*":
-		if mulOverflows(leftVal, rightVal) {
-			return newErrorWithLocation("E5007", line, col, "integer overflow: %d * %d exceeds int64 range", leftVal, rightVal)
+		result := new(big.Int).Mul(leftVal, rightVal)
+		if checkOverflow(result, resultType) {
+			return newErrorWithLocation("E5007", line, col, "integer overflow: %s * %s exceeds %s range", leftVal.String(), rightVal.String(), getTypeRangeName(resultType))
 		}
-		return &Integer{Value: leftVal * rightVal}
+		return &Integer{Value: result, DeclaredType: resultType}
 	case "/":
-		if rightVal == 0 {
+		if rightVal.Sign() == 0 {
 			return newErrorWithLocation("E5001", line, col, "division by zero")
 		}
-		// Check for overflow: MinInt64 / -1 would exceed MaxInt64
-		if leftVal == math.MinInt64 && rightVal == -1 {
-			return newErrorWithLocation("E5007", line, col, "integer overflow: %d / %d exceeds int64 range", leftVal, rightVal)
+		result := new(big.Int).Quo(leftVal, rightVal)
+		// Check for overflow: MinInt / -1 would exceed MaxInt for signed types
+		if checkOverflow(result, resultType) {
+			return newErrorWithLocation("E5007", line, col, "integer overflow: %s / %s exceeds %s range", leftVal.String(), rightVal.String(), getTypeRangeName(resultType))
 		}
-		return &Integer{Value: leftVal / rightVal}
+		return &Integer{Value: result, DeclaredType: resultType}
 	case "%":
-		if rightVal == 0 {
+		if rightVal.Sign() == 0 {
 			return newErrorWithLocation("E5002", line, col, "modulo by zero")
 		}
-		return &Integer{Value: leftVal % rightVal}
+		result := new(big.Int).Rem(leftVal, rightVal)
+		return &Integer{Value: result, DeclaredType: resultType}
 	case "<":
-		return nativeBoolToBooleanObject(leftVal < rightVal)
+		return nativeBoolToBooleanObject(leftVal.Cmp(rightVal) < 0)
 	case ">":
-		return nativeBoolToBooleanObject(leftVal > rightVal)
+		return nativeBoolToBooleanObject(leftVal.Cmp(rightVal) > 0)
 	case "<=":
-		return nativeBoolToBooleanObject(leftVal <= rightVal)
+		return nativeBoolToBooleanObject(leftVal.Cmp(rightVal) <= 0)
 	case ">=":
-		return nativeBoolToBooleanObject(leftVal >= rightVal)
+		return nativeBoolToBooleanObject(leftVal.Cmp(rightVal) >= 0)
 	case "==":
-		return nativeBoolToBooleanObject(leftVal == rightVal)
+		return nativeBoolToBooleanObject(leftVal.Cmp(rightVal) == 0)
 	case "!=":
-		return nativeBoolToBooleanObject(leftVal != rightVal)
+		return nativeBoolToBooleanObject(leftVal.Cmp(rightVal) != 0)
 	default:
 		return newErrorWithLocation("E3014", line, col, "unknown operator: %s %s %s", left.Type(), operator, right.Type())
 	}
@@ -1654,14 +1744,14 @@ func evalFloatInfixExpression(operator string, left, right Object, line, col int
 	case *Float:
 		leftVal = l.Value
 	case *Integer:
-		leftVal = float64(l.Value)
+		leftVal, _ = new(big.Float).SetInt(l.Value).Float64()
 	}
 
 	switch r := right.(type) {
 	case *Float:
 		rightVal = r.Value
 	case *Integer:
-		rightVal = float64(r.Value)
+		rightVal, _ = new(big.Float).SetInt(r.Value).Float64()
 	}
 
 	switch operator {
@@ -1768,56 +1858,52 @@ func evalByteInfixExpression(operator string, left, right Object, line, col int)
 }
 
 func evalByteIntegerInfixExpression(operator string, left, right Object, line, col int) Object {
-	var leftVal, rightVal int64
+	var leftVal, rightVal *big.Int
 
-	// Extract values, promoting byte to int64
+	// Extract values, promoting byte to big.Int
 	switch l := left.(type) {
 	case *Byte:
-		leftVal = int64(l.Value)
+		leftVal = big.NewInt(int64(l.Value))
 	case *Integer:
 		leftVal = l.Value
 	}
 
 	switch r := right.(type) {
 	case *Byte:
-		rightVal = int64(r.Value)
+		rightVal = big.NewInt(int64(r.Value))
 	case *Integer:
 		rightVal = r.Value
 	}
 
 	switch operator {
 	case "+":
-		return &Integer{Value: leftVal + rightVal}
+		return &Integer{Value: new(big.Int).Add(leftVal, rightVal)}
 	case "-":
-		return &Integer{Value: leftVal - rightVal}
+		return &Integer{Value: new(big.Int).Sub(leftVal, rightVal)}
 	case "*":
-		return &Integer{Value: leftVal * rightVal}
+		return &Integer{Value: new(big.Int).Mul(leftVal, rightVal)}
 	case "/":
-		if rightVal == 0 {
+		if rightVal.Sign() == 0 {
 			return newErrorWithLocation("E5001", line, col, "division by zero")
 		}
-		// Check for overflow: MinInt64 / -1 would exceed MaxInt64
-		if leftVal == math.MinInt64 && rightVal == -1 {
-			return newErrorWithLocation("E5007", line, col, "integer overflow: %d / %d exceeds int64 range", leftVal, rightVal)
-		}
-		return &Integer{Value: leftVal / rightVal}
+		return &Integer{Value: new(big.Int).Quo(leftVal, rightVal)}
 	case "%":
-		if rightVal == 0 {
+		if rightVal.Sign() == 0 {
 			return newErrorWithLocation("E5002", line, col, "modulo by zero")
 		}
-		return &Integer{Value: leftVal % rightVal}
+		return &Integer{Value: new(big.Int).Rem(leftVal, rightVal)}
 	case "<":
-		return nativeBoolToBooleanObject(leftVal < rightVal)
+		return nativeBoolToBooleanObject(leftVal.Cmp(rightVal) < 0)
 	case ">":
-		return nativeBoolToBooleanObject(leftVal > rightVal)
+		return nativeBoolToBooleanObject(leftVal.Cmp(rightVal) > 0)
 	case "<=":
-		return nativeBoolToBooleanObject(leftVal <= rightVal)
+		return nativeBoolToBooleanObject(leftVal.Cmp(rightVal) <= 0)
 	case ">=":
-		return nativeBoolToBooleanObject(leftVal >= rightVal)
+		return nativeBoolToBooleanObject(leftVal.Cmp(rightVal) >= 0)
 	case "==":
-		return nativeBoolToBooleanObject(leftVal == rightVal)
+		return nativeBoolToBooleanObject(leftVal.Cmp(rightVal) == 0)
 	case "!=":
-		return nativeBoolToBooleanObject(leftVal != rightVal)
+		return nativeBoolToBooleanObject(leftVal.Cmp(rightVal) != 0)
 	default:
 		return newErrorWithLocation("E3014", line, col, "unknown operator: %s %s %s", left.Type(), operator, right.Type())
 	}
@@ -1842,7 +1928,7 @@ func elementsEqual(a, b Object) bool {
 	switch av := a.(type) {
 	case *Integer:
 		if bv, ok := b.(*Integer); ok {
-			return av.Value == bv.Value
+			return av.Value.Cmp(bv.Value) == 0
 		}
 	case *String:
 		if bv, ok := b.(*String); ok {
@@ -1884,25 +1970,25 @@ func evalPostfixExpression(node *ast.PostfixExpression, env *Environment) Object
 		return newError("postfix operator requires integer")
 	}
 
-	var newVal int64
+	var newVal *big.Int
 	switch node.Operator {
 	case "++":
-		if addOverflows(intVal.Value, 1) {
+		newVal = new(big.Int).Add(intVal.Value, one)
+		if checkOverflow(newVal, intVal.DeclaredType) {
 			return newErrorWithLocation("E5008", node.Token.Line, node.Token.Column,
-				"integer overflow: %d++ exceeds int64 range", intVal.Value)
+				"integer overflow: %s++ exceeds %s range", intVal.Value.String(), getTypeRangeName(intVal.DeclaredType))
 		}
-		newVal = intVal.Value + 1
 	case "--":
-		if subOverflows(intVal.Value, 1) {
+		newVal = new(big.Int).Sub(intVal.Value, one)
+		if checkOverflow(newVal, intVal.DeclaredType) {
 			return newErrorWithLocation("E5009", node.Token.Line, node.Token.Column,
-				"integer overflow: %d-- exceeds int64 range", intVal.Value)
+				"integer overflow: %s-- exceeds %s range", intVal.Value.String(), getTypeRangeName(intVal.DeclaredType))
 		}
-		newVal = intVal.Value - 1
 	default:
 		return newError("unknown postfix operator: %s", node.Operator)
 	}
 
-	env.Update(ident.Value, &Integer{Value: newVal})
+	env.Update(ident.Value, &Integer{Value: newVal, DeclaredType: intVal.DeclaredType})
 	return intVal // Return old value (postfix behavior)
 }
 
@@ -2136,9 +2222,9 @@ func createTypeMismatchError(val Object, expectedType string, line, col int) *Er
 // This catches cases like `return -1` where the function returns u8
 func checkNegativeToUnsigned(val Object, expectedType string, line, col int) *Error {
 	if intVal, ok := val.(*Integer); ok {
-		if isUnsignedIntegerType(expectedType) && intVal.Value < 0 {
+		if isUnsignedIntegerType(expectedType) && intVal.Value.Sign() < 0 {
 			return newErrorWithLocation("E3020", line, col,
-				"cannot return negative value %d to unsigned type '%s'", intVal.Value, expectedType)
+				"cannot return negative value %s to unsigned type '%s'", intVal.Value.String(), expectedType)
 		}
 	}
 	return nil
@@ -2212,7 +2298,7 @@ func typeMatches(obj Object, ezType string) bool {
 		if isSignedIntegerType(actualType) && isUnsignedIntegerType(ezType) {
 			if intVal, ok := obj.(*Integer); ok {
 				// Non-negative signed value is safe for unsigned
-				if intVal.Value >= 0 {
+				if intVal.Value.Sign() >= 0 {
 					return true
 				}
 			}
@@ -2301,11 +2387,11 @@ func evalArrayIndexExpression(array, index Object) Object {
 	arrayObject := array.(*Array)
 	idx := index.(*Integer).Value
 
-	if idx < 0 || idx >= int64(len(arrayObject.Elements)) {
-		return newError("index out of bounds: %d", idx)
+	if idx.Sign() < 0 || idx.Cmp(big.NewInt(int64(len(arrayObject.Elements)))) >= 0 {
+		return newError("index out of bounds: %s", idx.String())
 	}
 
-	return arrayObject.Elements[idx]
+	return arrayObject.Elements[idx.Int64()]
 }
 
 func evalStringIndexExpression(str, index Object) Object {
@@ -2314,11 +2400,11 @@ func evalStringIndexExpression(str, index Object) Object {
 
 	// Convert to runes for proper UTF-8 character indexing
 	runes := []rune(stringObject.Value)
-	if idx < 0 || idx >= int64(len(runes)) {
-		return newError("index out of bounds: %d", idx)
+	if idx.Sign() < 0 || idx.Cmp(big.NewInt(int64(len(runes)))) >= 0 {
+		return newError("index out of bounds: %s", idx.String())
 	}
 
-	return &Char{Value: runes[idx]}
+	return &Char{Value: runes[idx.Int64()]}
 }
 
 func evalMapLiteral(node *ast.MapValue, env *Environment) Object {
@@ -2546,7 +2632,7 @@ func getDefaultValue(typeName string) Object {
 
 	switch typeName {
 	case "int":
-		return &Integer{Value: 0}
+		return &Integer{Value: big.NewInt(0)}
 	case "float":
 		return &Float{Value: 0.0}
 	case "string":

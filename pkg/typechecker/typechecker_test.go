@@ -1703,3 +1703,108 @@ func TestTypeErrorLocationMapValue(t *testing.T) {
 		}
 	}
 }
+
+// ============================================================================
+// Large Integer Type Tests (i128/u128)
+// ============================================================================
+
+func TestLargeIntegerTypes(t *testing.T) {
+	tests := []struct {
+		name  string
+		input string
+	}{
+		{
+			"i128 with large positive value",
+			`do main() {
+				temp x i128 = 10000000000000000000
+			}`,
+		},
+		{
+			"i128 with value larger than int64 max",
+			`do main() {
+				temp x i128 = 9223372036854775808
+			}`,
+		},
+		{
+			"u128 with large value",
+			`do main() {
+				temp x u128 = 18446744073709551615
+			}`,
+		},
+		{
+			"u128 with value larger than uint64 max",
+			`do main() {
+				temp x u128 = 18446744073709551616
+			}`,
+		},
+		{
+			"i128 with i128 max value",
+			`do main() {
+				temp x i128 = 170141183460469231731687303715884105727
+			}`,
+		},
+		{
+			"u128 with u128 max value",
+			`do main() {
+				temp x u128 = 340282366920938463463374607431768211455
+			}`,
+		},
+		{
+			"i128 arithmetic",
+			`do main() {
+				temp a i128 = 9223372036854775807
+				temp b i128 = 1
+				temp c i128 = a + b
+			}`,
+		},
+		{
+			"u128 arithmetic",
+			`do main() {
+				temp a u128 = 18446744073709551615
+				temp b u128 = 1
+				temp c u128 = a + b
+			}`,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tc := typecheck(t, tt.input)
+			assertNoErrors(t, tc)
+		})
+	}
+}
+
+func TestLargeIntegerNegativeValues(t *testing.T) {
+	tests := []struct {
+		name  string
+		input string
+	}{
+		{
+			"i128 with large negative value",
+			`do main() {
+				temp x i128 = -10000000000000000000
+			}`,
+		},
+		{
+			"i128 with value smaller than int64 min",
+			`do main() {
+				temp x i128 = -9223372036854775809
+			}`,
+		},
+		{
+			"i128 with i128 min value",
+			`do main() {
+				temp x i128 = -170141183460469231731687303715884105728
+			}`,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tc := typecheck(t, tt.input)
+			assertNoErrors(t, tc)
+		})
+	}
+}
+

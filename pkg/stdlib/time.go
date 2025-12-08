@@ -4,6 +4,7 @@ package stdlib
 // Licensed under the MIT License. See LICENSE for details.
 
 import (
+	"math/big"
 	"time"
 
 	"github.com/marshallburns/ez/pkg/object"
@@ -14,17 +15,17 @@ var TimeBuiltins = map[string]*object.Builtin{
 	// Current time
 	"time.now": {
 		Fn: func(args ...object.Object) object.Object {
-			return &object.Integer{Value: time.Now().Unix()}
+			return &object.Integer{Value: big.NewInt(time.Now().Unix())}
 		},
 	},
 	"time.now_ms": {
 		Fn: func(args ...object.Object) object.Object {
-			return &object.Integer{Value: time.Now().UnixMilli()}
+			return &object.Integer{Value: big.NewInt(time.Now().UnixMilli())}
 		},
 	},
 	"time.now_ns": {
 		Fn: func(args ...object.Object) object.Object {
-			return &object.Integer{Value: time.Now().UnixNano()}
+			return &object.Integer{Value: big.NewInt(time.Now().UnixNano())}
 		},
 	},
 
@@ -36,7 +37,7 @@ var TimeBuiltins = map[string]*object.Builtin{
 			}
 			switch v := args[0].(type) {
 			case *object.Integer:
-				time.Sleep(time.Duration(v.Value) * time.Second)
+				time.Sleep(time.Duration(v.Value.Int64()) * time.Second)
 			case *object.Float:
 				time.Sleep(time.Duration(v.Value * float64(time.Second)))
 			default:
@@ -54,7 +55,7 @@ var TimeBuiltins = map[string]*object.Builtin{
 			if !ok {
 				return &object.Error{Code: "E7004", Message: "time.sleep_ms() requires an integer"}
 			}
-			time.Sleep(time.Duration(ms.Value) * time.Millisecond)
+			time.Sleep(time.Duration(ms.Value.Int64()) * time.Millisecond)
 			return object.NIL
 		},
 	},
@@ -63,43 +64,43 @@ var TimeBuiltins = map[string]*object.Builtin{
 	"time.year": {
 		Fn: func(args ...object.Object) object.Object {
 			t := getTime(args)
-			return &object.Integer{Value: int64(t.Year())}
+			return &object.Integer{Value: big.NewInt(int64(t.Year()))}
 		},
 	},
 	"time.month": {
 		Fn: func(args ...object.Object) object.Object {
 			t := getTime(args)
-			return &object.Integer{Value: int64(t.Month())}
+			return &object.Integer{Value: big.NewInt(int64(t.Month()))}
 		},
 	},
 	"time.day": {
 		Fn: func(args ...object.Object) object.Object {
 			t := getTime(args)
-			return &object.Integer{Value: int64(t.Day())}
+			return &object.Integer{Value: big.NewInt(int64(t.Day()))}
 		},
 	},
 	"time.hour": {
 		Fn: func(args ...object.Object) object.Object {
 			t := getTime(args)
-			return &object.Integer{Value: int64(t.Hour())}
+			return &object.Integer{Value: big.NewInt(int64(t.Hour()))}
 		},
 	},
 	"time.minute": {
 		Fn: func(args ...object.Object) object.Object {
 			t := getTime(args)
-			return &object.Integer{Value: int64(t.Minute())}
+			return &object.Integer{Value: big.NewInt(int64(t.Minute()))}
 		},
 	},
 	"time.second": {
 		Fn: func(args ...object.Object) object.Object {
 			t := getTime(args)
-			return &object.Integer{Value: int64(t.Second())}
+			return &object.Integer{Value: big.NewInt(int64(t.Second()))}
 		},
 	},
 	"time.weekday": {
 		Fn: func(args ...object.Object) object.Object {
 			t := getTime(args)
-			return &object.Integer{Value: int64(t.Weekday())}
+			return &object.Integer{Value: big.NewInt(int64(t.Weekday()))}
 		},
 	},
 	"time.weekday_name": {
@@ -117,7 +118,7 @@ var TimeBuiltins = map[string]*object.Builtin{
 	"time.day_of_year": {
 		Fn: func(args ...object.Object) object.Object {
 			t := getTime(args)
-			return &object.Integer{Value: int64(t.YearDay())}
+			return &object.Integer{Value: big.NewInt(int64(t.YearDay()))}
 		},
 	},
 
@@ -149,7 +150,7 @@ var TimeBuiltins = map[string]*object.Builtin{
 				if !ok {
 					return &object.Error{Code: "E7004", Message: "time.format() requires an integer timestamp as second argument"}
 				}
-				t = time.Unix(ts.Value, 0)
+				t = time.Unix(ts.Value.Int64(), 0)
 			}
 
 			goFormat := convertFormat(format)
@@ -195,7 +196,7 @@ var TimeBuiltins = map[string]*object.Builtin{
 			if err != nil {
 				return &object.Error{Code: "E11001", Message: "time.parse() failed: " + err.Error()}
 			}
-			return &object.Integer{Value: t.Unix()}
+			return &object.Integer{Value: big.NewInt(t.Unix())}
 		},
 	},
 
@@ -225,26 +226,26 @@ var TimeBuiltins = map[string]*object.Builtin{
 				if !ok {
 					return &object.Error{Code: "E7004", Message: "time.make() requires integer arguments"}
 				}
-				hour = int(h.Value)
+				hour = int(h.Value.Int64())
 			}
 			if len(args) > 4 {
 				m, ok := args[4].(*object.Integer)
 				if !ok {
 					return &object.Error{Code: "E7004", Message: "time.make() requires integer arguments"}
 				}
-				minute = int(m.Value)
+				minute = int(m.Value.Int64())
 			}
 			if len(args) > 5 {
 				s, ok := args[5].(*object.Integer)
 				if !ok {
 					return &object.Error{Code: "E7004", Message: "time.make() requires integer arguments"}
 				}
-				second = int(s.Value)
+				second = int(s.Value.Int64())
 			}
 
-			t := time.Date(int(year.Value), time.Month(month.Value), int(day.Value),
+			t := time.Date(int(year.Value.Int64()), time.Month(month.Value.Int64()), int(day.Value.Int64()),
 				hour, minute, second, 0, time.Local)
-			return &object.Integer{Value: t.Unix()}
+			return &object.Integer{Value: big.NewInt(t.Unix())}
 		},
 	},
 
@@ -262,7 +263,8 @@ var TimeBuiltins = map[string]*object.Builtin{
 			if !ok {
 				return &object.Error{Code: "E7004", Message: "time.add_seconds() requires integer seconds"}
 			}
-			return &object.Integer{Value: ts.Value + secs.Value}
+			result := new(big.Int).Add(ts.Value, secs.Value)
+			return &object.Integer{Value: result}
 		},
 	},
 	"time.add_minutes": {
@@ -278,7 +280,8 @@ var TimeBuiltins = map[string]*object.Builtin{
 			if !ok {
 				return &object.Error{Code: "E7004", Message: "time.add_minutes() requires integer minutes"}
 			}
-			return &object.Integer{Value: ts.Value + mins.Value*60}
+			result := new(big.Int).Add(ts.Value, new(big.Int).Mul(mins.Value, big.NewInt(60)))
+			return &object.Integer{Value: result}
 		},
 	},
 	"time.add_hours": {
@@ -294,7 +297,8 @@ var TimeBuiltins = map[string]*object.Builtin{
 			if !ok {
 				return &object.Error{Code: "E7004", Message: "time.add_hours() requires integer hours"}
 			}
-			return &object.Integer{Value: ts.Value + hours.Value*3600}
+			result := new(big.Int).Add(ts.Value, new(big.Int).Mul(hours.Value, big.NewInt(3600)))
+			return &object.Integer{Value: result}
 		},
 	},
 	"time.add_days": {
@@ -310,7 +314,8 @@ var TimeBuiltins = map[string]*object.Builtin{
 			if !ok {
 				return &object.Error{Code: "E7004", Message: "time.add_days() requires integer days"}
 			}
-			return &object.Integer{Value: ts.Value + days.Value*86400}
+			result := new(big.Int).Add(ts.Value, new(big.Int).Mul(days.Value, big.NewInt(86400)))
+			return &object.Integer{Value: result}
 		},
 	},
 	"time.add_weeks": {
@@ -326,7 +331,8 @@ var TimeBuiltins = map[string]*object.Builtin{
 			if !ok {
 				return &object.Error{Code: "E7004", Message: "time.add_weeks() requires integer weeks"}
 			}
-			return &object.Integer{Value: ts.Value + weeks.Value*604800}
+			result := new(big.Int).Add(ts.Value, new(big.Int).Mul(weeks.Value, big.NewInt(604800)))
+			return &object.Integer{Value: result}
 		},
 	},
 	"time.add_months": {
@@ -342,12 +348,12 @@ var TimeBuiltins = map[string]*object.Builtin{
 			if !ok {
 				return &object.Error{Code: "E7004", Message: "time.add_months() requires integer months"}
 			}
-			t := time.Unix(ts.Value, 0)
+			t := time.Unix(ts.Value.Int64(), 0)
 			originalDay := t.Day()
 
 			// Move to target month (first of month to avoid overflow issues)
 			targetYear := t.Year()
-			targetMonth := int(t.Month()) + int(months.Value)
+			targetMonth := int(t.Month()) + int(months.Value.Int64())
 
 			// Normalize month/year
 			for targetMonth > 12 {
@@ -370,7 +376,7 @@ var TimeBuiltins = map[string]*object.Builtin{
 
 			result := time.Date(targetYear, time.Month(targetMonth), day,
 				t.Hour(), t.Minute(), t.Second(), t.Nanosecond(), t.Location())
-			return &object.Integer{Value: result.Unix()}
+			return &object.Integer{Value: big.NewInt(result.Unix())}
 		},
 	},
 	"time.add_years": {
@@ -386,9 +392,9 @@ var TimeBuiltins = map[string]*object.Builtin{
 			if !ok {
 				return &object.Error{Code: "E7004", Message: "time.add_years() requires integer years"}
 			}
-			t := time.Unix(ts.Value, 0)
-			t = t.AddDate(int(years.Value), 0, 0)
-			return &object.Integer{Value: t.Unix()}
+			t := time.Unix(ts.Value.Int64(), 0)
+			t = t.AddDate(int(years.Value.Int64()), 0, 0)
+			return &object.Integer{Value: big.NewInt(t.Unix())}
 		},
 	},
 
@@ -406,7 +412,8 @@ var TimeBuiltins = map[string]*object.Builtin{
 			if !ok {
 				return &object.Error{Code: "E7004", Message: "time.diff() requires integer timestamps"}
 			}
-			return &object.Integer{Value: ts1.Value - ts2.Value}
+			result := new(big.Int).Sub(ts1.Value, ts2.Value)
+			return &object.Integer{Value: result}
 		},
 	},
 	"time.diff_days": {
@@ -422,7 +429,8 @@ var TimeBuiltins = map[string]*object.Builtin{
 			if !ok {
 				return &object.Error{Code: "E7004", Message: "time.diff_days() requires integer timestamps"}
 			}
-			return &object.Integer{Value: (ts1.Value - ts2.Value) / 86400}
+			result := new(big.Int).Quo(new(big.Int).Sub(ts1.Value, ts2.Value), big.NewInt(86400))
+			return &object.Integer{Value: result}
 		},
 	},
 	"time.diff_hours": {
@@ -438,7 +446,8 @@ var TimeBuiltins = map[string]*object.Builtin{
 			if !ok {
 				return &object.Error{Code: "E7004", Message: "time.diff_hours() requires integer timestamps"}
 			}
-			return &object.Integer{Value: (ts1.Value - ts2.Value) / 3600}
+			result := new(big.Int).Quo(new(big.Int).Sub(ts1.Value, ts2.Value), big.NewInt(3600))
+			return &object.Integer{Value: result}
 		},
 	},
 	"time.diff_minutes": {
@@ -454,7 +463,8 @@ var TimeBuiltins = map[string]*object.Builtin{
 			if !ok {
 				return &object.Error{Code: "E7004", Message: "time.diff_minutes() requires integer timestamps"}
 			}
-			return &object.Integer{Value: (ts1.Value - ts2.Value) / 60}
+			result := new(big.Int).Quo(new(big.Int).Sub(ts1.Value, ts2.Value), big.NewInt(60))
+			return &object.Integer{Value: result}
 		},
 	},
 
@@ -472,7 +482,7 @@ var TimeBuiltins = map[string]*object.Builtin{
 			if !ok {
 				return &object.Error{Code: "E7004", Message: "time.is_before() requires integer timestamps"}
 			}
-			if ts1.Value < ts2.Value {
+			if ts1.Value.Cmp(ts2.Value) < 0 {
 				return object.TRUE
 			}
 			return object.FALSE
@@ -491,7 +501,7 @@ var TimeBuiltins = map[string]*object.Builtin{
 			if !ok {
 				return &object.Error{Code: "E7004", Message: "time.is_after() requires integer timestamps"}
 			}
-			if ts1.Value > ts2.Value {
+			if ts1.Value.Cmp(ts2.Value) > 0 {
 				return object.TRUE
 			}
 			return object.FALSE
@@ -508,7 +518,7 @@ var TimeBuiltins = map[string]*object.Builtin{
 	"time.utc_offset": {
 		Fn: func(args ...object.Object) object.Object {
 			_, offset := time.Now().Zone()
-			return &object.Integer{Value: int64(offset)}
+			return &object.Integer{Value: big.NewInt(int64(offset))}
 		},
 	},
 
@@ -523,7 +533,7 @@ var TimeBuiltins = map[string]*object.Builtin{
 				if !ok {
 					return &object.Error{Code: "E7004", Message: "time.is_leap_year() requires an integer year"}
 				}
-				year = int(y.Value)
+				year = int(y.Value.Int64())
 			}
 			if year%4 == 0 && (year%100 != 0 || year%400 == 0) {
 				return object.TRUE
@@ -547,14 +557,14 @@ var TimeBuiltins = map[string]*object.Builtin{
 				if !ok {
 					return &object.Error{Code: "E7004", Message: "time.days_in_month() requires integer arguments"}
 				}
-				year = int(y.Value)
-				month = int(m.Value)
+				year = int(y.Value.Int64())
+				month = int(m.Value.Int64())
 			} else {
 				return &object.Error{Code: "E7001", Message: "time.days_in_month() takes 0 or 2 arguments"}
 			}
 
 			t := time.Date(year, time.Month(month+1), 0, 0, 0, 0, 0, time.UTC)
-			return &object.Integer{Value: int64(t.Day())}
+			return &object.Integer{Value: big.NewInt(int64(t.Day()))}
 		},
 	},
 
@@ -563,42 +573,42 @@ var TimeBuiltins = map[string]*object.Builtin{
 		Fn: func(args ...object.Object) object.Object {
 			t := getTime(args)
 			start := time.Date(t.Year(), t.Month(), t.Day(), 0, 0, 0, 0, t.Location())
-			return &object.Integer{Value: start.Unix()}
+			return &object.Integer{Value: big.NewInt(start.Unix())}
 		},
 	},
 	"time.end_of_day": {
 		Fn: func(args ...object.Object) object.Object {
 			t := getTime(args)
 			end := time.Date(t.Year(), t.Month(), t.Day(), 23, 59, 59, 0, t.Location())
-			return &object.Integer{Value: end.Unix()}
+			return &object.Integer{Value: big.NewInt(end.Unix())}
 		},
 	},
 	"time.start_of_month": {
 		Fn: func(args ...object.Object) object.Object {
 			t := getTime(args)
 			start := time.Date(t.Year(), t.Month(), 1, 0, 0, 0, 0, t.Location())
-			return &object.Integer{Value: start.Unix()}
+			return &object.Integer{Value: big.NewInt(start.Unix())}
 		},
 	},
 	"time.end_of_month": {
 		Fn: func(args ...object.Object) object.Object {
 			t := getTime(args)
 			end := time.Date(t.Year(), t.Month()+1, 0, 23, 59, 59, 0, t.Location())
-			return &object.Integer{Value: end.Unix()}
+			return &object.Integer{Value: big.NewInt(end.Unix())}
 		},
 	},
 	"time.start_of_year": {
 		Fn: func(args ...object.Object) object.Object {
 			t := getTime(args)
 			start := time.Date(t.Year(), 1, 1, 0, 0, 0, 0, t.Location())
-			return &object.Integer{Value: start.Unix()}
+			return &object.Integer{Value: big.NewInt(start.Unix())}
 		},
 	},
 	"time.end_of_year": {
 		Fn: func(args ...object.Object) object.Object {
 			t := getTime(args)
 			end := time.Date(t.Year(), 12, 31, 23, 59, 59, 0, t.Location())
-			return &object.Integer{Value: end.Unix()}
+			return &object.Integer{Value: big.NewInt(end.Unix())}
 		},
 	},
 
@@ -608,21 +618,21 @@ var TimeBuiltins = map[string]*object.Builtin{
 			t := getTime(args)
 			month := int(t.Month())
 			quarter := (month-1)/3 + 1
-			return &object.Integer{Value: int64(quarter)}
+			return &object.Integer{Value: big.NewInt(int64(quarter))}
 		},
 	},
 	"time.week_of_year": {
 		Fn: func(args ...object.Object) object.Object {
 			t := getTime(args)
 			_, week := t.ISOWeek()
-			return &object.Integer{Value: int64(week)}
+			return &object.Integer{Value: big.NewInt(int64(week))}
 		},
 	},
 
 	// Timing/benchmarking
 	"time.tick": {
 		Fn: func(args ...object.Object) object.Object {
-			return &object.Integer{Value: time.Now().UnixNano()}
+			return &object.Integer{Value: big.NewInt(time.Now().UnixNano())}
 		},
 	},
 	"time.elapsed_ms": {
@@ -634,7 +644,7 @@ var TimeBuiltins = map[string]*object.Builtin{
 			if !ok {
 				return &object.Error{Code: "E7004", Message: "time.elapsed_ms() requires integer tick"}
 			}
-			elapsed := time.Now().UnixNano() - start.Value
+			elapsed := time.Now().UnixNano() - start.Value.Int64()
 			return &object.Float{Value: float64(elapsed) / 1e6}
 		},
 	},
@@ -646,7 +656,7 @@ func getTime(args []object.Object) time.Time {
 		return time.Now()
 	}
 	if ts, ok := args[0].(*object.Integer); ok {
-		return time.Unix(ts.Value, 0)
+		return time.Unix(ts.Value.Int64(), 0)
 	}
 	return time.Now()
 }

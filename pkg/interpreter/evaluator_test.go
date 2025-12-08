@@ -5,6 +5,7 @@ package interpreter
 
 import (
 	"fmt"
+	"math/big"
 	"strings"
 	"testing"
 
@@ -38,8 +39,22 @@ func testIntegerObject(t *testing.T, obj Object, expected int64) bool {
 		t.Errorf("object is not Integer. got=%T (%+v)", obj, obj)
 		return false
 	}
-	if result.Value != expected {
-		t.Errorf("object has wrong value. got=%d, want=%d", result.Value, expected)
+	if result.Value.Cmp(big.NewInt(expected)) != 0 {
+		t.Errorf("object has wrong value. got=%s, want=%d", result.Value.String(), expected)
+		return false
+	}
+	return true
+}
+
+func testBigIntegerObject(t *testing.T, obj Object, expected *big.Int) bool {
+	t.Helper()
+	result, ok := obj.(*Integer)
+	if !ok {
+		t.Errorf("object is not Integer. got=%T (%+v)", obj, obj)
+		return false
+	}
+	if result.Value.Cmp(expected) != 0 {
+		t.Errorf("object has wrong value. got=%s, want=%s", result.Value.String(), expected.String())
 		return false
 	}
 	return true
@@ -833,7 +848,7 @@ func TestNewEnvironment(t *testing.T) {
 
 func TestEnclosedEnvironment(t *testing.T) {
 	outer := NewEnvironment()
-	outer.Set("x", &Integer{Value: 5}, true)
+	outer.Set("x", &Integer{Value: big.NewInt(5)}, true)
 
 	inner := NewEnclosedEnvironment(outer)
 
@@ -845,7 +860,7 @@ func TestEnclosedEnvironment(t *testing.T) {
 	testIntegerObject(t, val, 5)
 
 	// Setting in inner shouldn't affect outer
-	inner.Set("y", &Integer{Value: 10}, true)
+	inner.Set("y", &Integer{Value: big.NewInt(10)}, true)
 	_, ok = outer.Get("y")
 	if ok {
 		t.Error("outer environment should not see inner's variable y")
@@ -1429,8 +1444,8 @@ func TestByteArithmetic(t *testing.T) {
 		// Could return byte or int depending on implementation
 		switch result := evaluated.(type) {
 		case *Integer:
-			if result.Value != 15 {
-				t.Errorf("wrong value. got=%d, want=%d", result.Value, 15)
+			if result.Value.Cmp(big.NewInt(15)) != 0 {
+				t.Errorf("wrong value. got=%s, want=%d", result.Value.String(), 15)
 			}
 		case *Byte:
 			if result.Value != 15 {
@@ -1950,8 +1965,8 @@ func TestByteIntegerMixedOperations(t *testing.T) {
 			// Verify result is numeric
 			switch result := evaluated.(type) {
 			case *Integer:
-				if result.Value < 0 {
-					t.Logf("got negative result: %d", result.Value)
+				if result.Value.Sign() < 0 {
+					t.Logf("got negative result: %s", result.Value.String())
 				}
 			case *Byte:
 				// byte result is fine
@@ -2274,7 +2289,7 @@ func TestObjectTypeToEZ(t *testing.T) {
 		obj      Object
 		expected string
 	}{
-		{&Integer{Value: 42}, "int"},
+		{&Integer{Value: big.NewInt(42)}, "int"},
 		{&Float{Value: 3.14}, "float"},
 		{&String{Value: "hello"}, "string"},
 		{&Boolean{Value: true}, "bool"},
@@ -2307,18 +2322,18 @@ func TestTypeMatches(t *testing.T) {
 		ezType   string
 		expected bool
 	}{
-		{"int matches int", &Integer{Value: 42}, "int", true},
+		{"int matches int", &Integer{Value: big.NewInt(42)}, "int", true},
 		{"float matches float", &Float{Value: 3.14}, "float", true},
 		{"string matches string", &String{Value: "hi"}, "string", true},
 		{"bool matches bool", &Boolean{Value: true}, "bool", true},
 		{"nil matches nil", NIL, "nil", true},
-		{"int does not match float", &Integer{Value: 42}, "float", false},
+		{"int does not match float", &Integer{Value: big.NewInt(42)}, "float", false},
 		{"float does not match int", &Float{Value: 3.14}, "int", false},
 		// Integer family compatibility
-		{"i8 matches i16", &Integer{Value: 10, DeclaredType: "i8"}, "i16", true},
-		{"int matches i32", &Integer{Value: 10}, "i32", true},
+		{"i8 matches i16", &Integer{Value: big.NewInt(10), DeclaredType: "i8"}, "i16", true},
+		{"int matches i32", &Integer{Value: big.NewInt(10)}, "i32", true},
 		// Positive int can go to unsigned
-		{"positive int matches u8", &Integer{Value: 10}, "u8", true},
+		{"positive int matches u8", &Integer{Value: big.NewInt(10)}, "u8", true},
 	}
 
 	for _, tt := range tests {
@@ -3723,14 +3738,19 @@ func TestNegationOverflow(t *testing.T) {
 		expectError bool
 	}{
 		{
-			name:        "negation overflow - minInt",
-			input:       `-(-9223372036854775808)`,
+			name:        "negation overflow - minInt with typed variable",
+			input:       "temp x int = -9223372036854775808\n-x",
 			expectError: true,
 		},
 		{
 			name:        "normal negation",
 			input:       `-(-5)`,
 			expectError: false,
+		},
+		{
+			name:        "untyped literal negation - no overflow with big.Int",
+			input:       `-(-9223372036854775808)`,
+			expectError: false, // With big.Int, untyped literals don't overflow
 		},
 	}
 
@@ -3854,5 +3874,126 @@ i
 				}
 			}
 		})
+	}
+}
+
+// ============================================================================
+// Large Integer Tests (i128/u128) - Issue #437
+// ============================================================================
+
+func TestLargeIntegerArithmetic(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		expected string
+	}{
+		{
+			"i128 addition beyond int64",
+			"temp a i128 = 9223372036854775807\ntemp b i128 = 1\na + b",
+			"9223372036854775808",
+		},
+		{
+			"u128 addition beyond uint64",
+			"temp a u128 = 18446744073709551615\ntemp b u128 = 1\na + b",
+			"18446744073709551616",
+		},
+		{
+			"i128 multiplication",
+			"temp a i128 = 10000000000\ntemp b i128 = 10000000000\na * b",
+			"100000000000000000000",
+		},
+		{
+			"i128 large literal",
+			"temp x i128 = 10000000000000000000\nx",
+			"10000000000000000000",
+		},
+		{
+			"u128 large literal",
+			"temp x u128 = 18446744073709551616\nx",
+			"18446744073709551616",
+		},
+		{
+			"i128 negative subtraction beyond int64",
+			"temp a i128 = -9223372036854775808\ntemp b i128 = 1\na - b",
+			"-9223372036854775809",
+		},
+		{
+			"i128 division",
+			"temp a i128 = 100000000000000000000\ntemp b i128 = 10000000000\na / b",
+			"10000000000",
+		},
+		{
+			"i128 modulo",
+			"temp a i128 = 100000000000000000001\ntemp b i128 = 10000000000\na % b",
+			"1",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			evaluated := testEval(tt.input)
+			expected := new(big.Int)
+			expected.SetString(tt.expected, 10)
+			testBigIntegerObject(t, evaluated, expected)
+		})
+	}
+}
+
+func TestLargeIntegerOverflow(t *testing.T) {
+	tests := []struct {
+		name      string
+		input     string
+		errorCode string
+	}{
+		{
+			"i128 overflow on addition",
+			"temp max i128 = 170141183460469231731687303715884105727\ntemp r i128 = max + 1",
+			"E5005",
+		},
+		{
+			"i128 underflow on subtraction",
+			"temp min i128 = -170141183460469231731687303715884105728\ntemp r i128 = min - 1",
+			"E5006",
+		},
+		{
+			"u128 overflow on addition",
+			"temp max u128 = 340282366920938463463374607431768211455\ntemp r u128 = max + 1",
+			"E5005",
+		},
+		{
+			"u128 underflow on subtraction",
+			"temp zero u128 = 0\ntemp r u128 = zero - 1",
+			"E5006",
+		},
+		{
+			"int overflow still works",
+			"temp max int = 9223372036854775807\ntemp r int = max + 1",
+			"E5005",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			evaluated := testEval(tt.input)
+			err, ok := evaluated.(*Error)
+			if !ok {
+				t.Fatalf("expected error, got %T (%+v)", evaluated, evaluated)
+			}
+			if err.Code != tt.errorCode {
+				t.Errorf("expected error code %s, got %s: %s", tt.errorCode, err.Code, err.Message)
+			}
+		})
+	}
+}
+
+func TestNegativeToUnsignedTypeError(t *testing.T) {
+	input := "temp x u128 = -1"
+	evaluated := testEval(input)
+	err, ok := evaluated.(*Error)
+	if !ok {
+		t.Fatalf("expected error, got %T (%+v)", evaluated, evaluated)
+	}
+	if err.Code != "E3020" {
+		t.Errorf("expected error code E3020, got %s: %s", err.Code, err.Message)
 	}
 }

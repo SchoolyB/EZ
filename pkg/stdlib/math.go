@@ -6,6 +6,7 @@ package stdlib
 import (
 	"fmt"
 	"math"
+	"math/big"
 	"math/rand"
 	"time"
 
@@ -31,7 +32,7 @@ var MathBuiltins = map[string]*object.Builtin{
 			if isFloat(args[0]) || isFloat(args[1]) {
 				return &object.Float{Value: a + b}
 			}
-			return &object.Integer{Value: int64(a + b)}
+			return &object.Integer{Value: big.NewInt(int64(a + b))}
 		},
 	},
 	"math.sub": {
@@ -46,7 +47,7 @@ var MathBuiltins = map[string]*object.Builtin{
 			if isFloat(args[0]) || isFloat(args[1]) {
 				return &object.Float{Value: a - b}
 			}
-			return &object.Integer{Value: int64(a - b)}
+			return &object.Integer{Value: big.NewInt(int64(a - b))}
 		},
 	},
 	"math.mul": {
@@ -61,7 +62,7 @@ var MathBuiltins = map[string]*object.Builtin{
 			if isFloat(args[0]) || isFloat(args[1]) {
 				return &object.Float{Value: a * b}
 			}
-			return &object.Integer{Value: int64(a * b)}
+			return &object.Integer{Value: big.NewInt(int64(a * b))}
 		},
 	},
 	"math.div": {
@@ -108,15 +109,10 @@ var MathBuiltins = map[string]*object.Builtin{
 			if isFloat(args[0]) {
 				return &object.Float{Value: math.Abs(val)}
 			}
-			// Check for MinInt64 overflow: abs(-9223372036854775808) cannot be represented as int64
+			// For big.Int, we can always compute absolute value
 			intVal := args[0].(*object.Integer).Value
-			if intVal == math.MinInt64 {
-				return &object.Error{Code: "E5004", Message: "math.abs() overflow: absolute value of minimum int64 cannot be represented"}
-			}
-			if intVal < 0 {
-				return &object.Integer{Value: -intVal}
-			}
-			return &object.Integer{Value: intVal}
+			result := new(big.Int).Abs(intVal)
+			return &object.Integer{Value: result}
 		},
 	},
 	"math.sign": {
@@ -129,11 +125,11 @@ var MathBuiltins = map[string]*object.Builtin{
 				return err
 			}
 			if val > 0 {
-				return &object.Integer{Value: 1}
+				return &object.Integer{Value: big.NewInt(1)}
 			} else if val < 0 {
-				return &object.Integer{Value: -1}
+				return &object.Integer{Value: big.NewInt(-1)}
 			}
-			return &object.Integer{Value: 0}
+			return &object.Integer{Value: big.NewInt(0)}
 		},
 	},
 	"math.neg": {
@@ -148,12 +144,10 @@ var MathBuiltins = map[string]*object.Builtin{
 			if isFloat(args[0]) {
 				return &object.Float{Value: -val}
 			}
-			// Check for MinInt64 overflow: neg(-9223372036854775808) cannot be represented as int64
+			// For big.Int, we can always negate
 			intVal := args[0].(*object.Integer).Value
-			if intVal == math.MinInt64 {
-				return &object.Error{Code: "E5004", Message: "math.neg() overflow: negation of minimum int64 cannot be represented"}
-			}
-			return &object.Integer{Value: -intVal}
+			result := new(big.Int).Neg(intVal)
+			return &object.Integer{Value: result}
 		},
 	},
 
@@ -183,7 +177,7 @@ var MathBuiltins = map[string]*object.Builtin{
 			if hasFloat {
 				return &object.Float{Value: minVal}
 			}
-			return &object.Integer{Value: int64(minVal)}
+			return &object.Integer{Value: big.NewInt(int64(minVal))}
 		},
 	},
 	"math.max": {
@@ -211,7 +205,7 @@ var MathBuiltins = map[string]*object.Builtin{
 			if hasFloat {
 				return &object.Float{Value: maxVal}
 			}
-			return &object.Integer{Value: int64(maxVal)}
+			return &object.Integer{Value: big.NewInt(int64(maxVal))}
 		},
 	},
 	"math.clamp": {
@@ -235,7 +229,7 @@ var MathBuiltins = map[string]*object.Builtin{
 			if isFloat(args[0]) || isFloat(args[1]) || isFloat(args[2]) {
 				return &object.Float{Value: result}
 			}
-			return &object.Integer{Value: int64(result)}
+			return &object.Integer{Value: big.NewInt(int64(result))}
 		},
 	},
 
@@ -249,7 +243,7 @@ var MathBuiltins = map[string]*object.Builtin{
 			if err != nil {
 				return err
 			}
-			return &object.Integer{Value: int64(math.Floor(val))}
+			return &object.Integer{Value: big.NewInt(int64(math.Floor(val)))}
 		},
 	},
 	"math.ceil": {
@@ -261,7 +255,7 @@ var MathBuiltins = map[string]*object.Builtin{
 			if err != nil {
 				return err
 			}
-			return &object.Integer{Value: int64(math.Ceil(val))}
+			return &object.Integer{Value: big.NewInt(int64(math.Ceil(val)))}
 		},
 	},
 	"math.round": {
@@ -273,7 +267,7 @@ var MathBuiltins = map[string]*object.Builtin{
 			if err != nil {
 				return err
 			}
-			return &object.Integer{Value: int64(math.Round(val))}
+			return &object.Integer{Value: big.NewInt(int64(math.Round(val)))}
 		},
 	},
 	"math.trunc": {
@@ -285,7 +279,7 @@ var MathBuiltins = map[string]*object.Builtin{
 			if err != nil {
 				return err
 			}
-			return &object.Integer{Value: int64(math.Trunc(val))}
+			return &object.Integer{Value: big.NewInt(int64(math.Trunc(val)))}
 		},
 	},
 
@@ -310,7 +304,7 @@ var MathBuiltins = map[string]*object.Builtin{
 			if result >= maxInt64AsFloat || result < minInt64AsFloat || math.IsInf(result, 0) || math.IsNaN(result) {
 				return &object.Error{Code: "E5004", Message: "math.pow() overflow: result exceeds int64 range"}
 			}
-			return &object.Integer{Value: int64(result)}
+			return &object.Integer{Value: big.NewInt(int64(result))}
 		},
 	},
 	"math.sqrt": {
@@ -616,7 +610,7 @@ var MathBuiltins = map[string]*object.Builtin{
 				if max <= 0 {
 					return &object.Error{Code: "E8006", Message: "math.random() max must be positive"}
 				}
-				return &object.Integer{Value: int64(rand.Intn(int(max)))}
+				return &object.Integer{Value: big.NewInt(int64(rand.Intn(int(max))))}
 			} else if len(args) == 2 {
 				min, max, err := getTwoNumbers(args)
 				if err != nil {
@@ -625,7 +619,7 @@ var MathBuiltins = map[string]*object.Builtin{
 				if max <= min {
 					return &object.Error{Code: "E8006", Message: "math.random() max must be greater than min"}
 				}
-				return &object.Integer{Value: int64(min) + int64(rand.Intn(int(max-min)))}
+				return &object.Integer{Value: big.NewInt(int64(min) + int64(rand.Intn(int(max-min))))}
 			}
 			return &object.Error{Code: "E7001", Message: "math.random() takes 0, 1, or 2 arguments"}
 		},
@@ -713,7 +707,7 @@ var MathBuiltins = map[string]*object.Builtin{
 	"math.sum": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) == 0 {
-				return &object.Integer{Value: 0}
+				return &object.Integer{Value: big.NewInt(0)}
 			}
 			var sum float64
 			hasFloat := false
@@ -730,7 +724,7 @@ var MathBuiltins = map[string]*object.Builtin{
 			if hasFloat {
 				return &object.Float{Value: sum}
 			}
-			return &object.Integer{Value: int64(sum)}
+			return &object.Integer{Value: big.NewInt(int64(sum))}
 		},
 	},
 	"math.avg": {
@@ -769,7 +763,7 @@ var MathBuiltins = map[string]*object.Builtin{
 			for i := int64(2); i <= n; i++ {
 				result *= i
 			}
-			return &object.Integer{Value: result}
+			return &object.Integer{Value: big.NewInt(result)}
 		},
 	},
 	"math.gcd": {
@@ -785,7 +779,7 @@ var MathBuiltins = map[string]*object.Builtin{
 			for bi != 0 {
 				ai, bi = bi, ai%bi
 			}
-			return &object.Integer{Value: ai}
+			return &object.Integer{Value: big.NewInt(ai)}
 		},
 	},
 	"math.lcm": {
@@ -799,13 +793,13 @@ var MathBuiltins = map[string]*object.Builtin{
 			}
 			ai, bi := int64(math.Abs(a)), int64(math.Abs(b))
 			if ai == 0 || bi == 0 {
-				return &object.Integer{Value: 0}
+				return &object.Integer{Value: big.NewInt(0)}
 			}
 			ta, tb := ai, bi
 			for tb != 0 {
 				ta, tb = tb, ta%tb
 			}
-			return &object.Integer{Value: (ai * bi) / ta}
+			return &object.Integer{Value: big.NewInt((ai * bi) / ta)}
 		},
 	},
 	"math.is_prime": {
@@ -949,7 +943,8 @@ var MathBuiltins = map[string]*object.Builtin{
 func getNumber(obj object.Object) (float64, *object.Error) {
 	switch v := obj.(type) {
 	case *object.Integer:
-		return float64(v.Value), nil
+		f, _ := new(big.Float).SetInt(v.Value).Float64()
+		return f, nil
 	case *object.Float:
 		return v.Value, nil
 	default:

@@ -4,6 +4,7 @@ package stdlib
 // Licensed under the MIT License. See LICENSE for details.
 
 import (
+	"math/big"
 	"strings"
 	"unicode"
 
@@ -153,7 +154,7 @@ var StringsBuiltins = map[string]*object.Builtin{
 			if !ok {
 				return &object.Error{Code: "E7003", Message: "strings.index() requires string arguments"}
 			}
-			return &object.Integer{Value: int64(strings.Index(str.Value, substr.Value))}
+			return &object.Integer{Value: big.NewInt(int64(strings.Index(str.Value, substr.Value)))}
 		},
 	},
 
@@ -210,10 +211,10 @@ var StringsBuiltins = map[string]*object.Builtin{
 			if !ok {
 				return &object.Error{Code: "E7004", Message: "strings.repeat() requires an integer as second argument"}
 			}
-			if count.Value < 0 {
+			if count.Value.Sign() < 0 {
 				return &object.Error{Code: "E10001", Message: "strings.repeat() count cannot be negative"}
 			}
-			return &object.String{Value: strings.Repeat(str.Value, int(count.Value))}
+			return &object.String{Value: strings.Repeat(str.Value, int(count.Value.Int64()))}
 		},
 	},
 
@@ -235,7 +236,7 @@ var StringsBuiltins = map[string]*object.Builtin{
 			runes := []rune(str.Value)
 			runeLen := len(runes)
 
-			startIdx := int(start.Value)
+			startIdx := int(start.Value.Int64())
 			if startIdx < 0 {
 				startIdx = runeLen + startIdx
 			}
@@ -249,7 +250,7 @@ var StringsBuiltins = map[string]*object.Builtin{
 				if !ok {
 					return &object.Error{Code: "E7004", Message: "strings.slice() requires integer indices"}
 				}
-				endIdx = int(end.Value)
+				endIdx = int(end.Value.Int64())
 				if endIdx < 0 {
 					endIdx = runeLen + endIdx
 				}
@@ -320,7 +321,7 @@ var StringsBuiltins = map[string]*object.Builtin{
 					padChar = string(padRunes[0])
 				}
 			}
-			targetWidth := int(width.Value)
+			targetWidth := int(width.Value.Int64())
 			// Use rune count instead of byte length for proper UTF-8 handling
 			strRuneLen := len([]rune(str.Value))
 			if strRuneLen >= targetWidth {
@@ -356,7 +357,7 @@ var StringsBuiltins = map[string]*object.Builtin{
 					padChar = string(padRunes[0])
 				}
 			}
-			targetWidth := int(width.Value)
+			targetWidth := int(width.Value.Int64())
 			// Use rune count instead of byte length for proper UTF-8 handling
 			strRuneLen := len([]rune(str.Value))
 			if strRuneLen >= targetWidth {
@@ -397,7 +398,7 @@ var StringsBuiltins = map[string]*object.Builtin{
 			if !ok {
 				return &object.Error{Code: "E7003", Message: "strings.count() requires string arguments"}
 			}
-			return &object.Integer{Value: int64(strings.Count(str.Value, substr.Value))}
+			return &object.Integer{Value: big.NewInt(int64(strings.Count(str.Value, substr.Value)))}
 		},
 	},
 
@@ -474,7 +475,7 @@ var StringsBuiltins = map[string]*object.Builtin{
 			if !ok {
 				return &object.Error{Code: "E7003", Message: "strings.last_index() requires string arguments"}
 			}
-			return &object.Integer{Value: int64(strings.LastIndex(str.Value, substr.Value))}
+			return &object.Integer{Value: big.NewInt(int64(strings.LastIndex(str.Value, substr.Value)))}
 		},
 	},
 
@@ -541,7 +542,7 @@ var StringsBuiltins = map[string]*object.Builtin{
 			if !ok {
 				return &object.Error{Code: "E7004", Message: "strings.replace_n() requires an integer as fourth argument"}
 			}
-			return &object.String{Value: strings.Replace(str.Value, old.Value, newStr.Value, int(n.Value))}
+			return &object.String{Value: strings.Replace(str.Value, old.Value, newStr.Value, int(n.Value.Int64()))}
 		},
 	},
 
@@ -605,12 +606,12 @@ var StringsBuiltins = map[string]*object.Builtin{
 				return &object.Error{Code: "E7003", Message: "strings.truncate() requires a string as third argument"}
 			}
 
-			if maxLen.Value < 0 {
+			if maxLen.Value.Sign() < 0 {
 				return &object.Error{Code: "E10001", Message: "strings.truncate() length cannot be negative"}
 			}
 
 			runes := []rune(str.Value)
-			targetLen := int(maxLen.Value)
+			targetLen := int(maxLen.Value.Int64())
 
 			if len(runes) <= targetLen {
 				return str
@@ -640,7 +641,7 @@ var StringsBuiltins = map[string]*object.Builtin{
 			if !ok {
 				return &object.Error{Code: "E7003", Message: "strings.compare() requires string arguments"}
 			}
-			return &object.Integer{Value: int64(strings.Compare(a.Value, b.Value))}
+			return &object.Integer{Value: big.NewInt(int64(strings.Compare(a.Value, b.Value)))}
 		},
 	},
 }

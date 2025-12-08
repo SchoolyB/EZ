@@ -4,6 +4,7 @@ package stdlib
 // Licensed under the MIT License. See LICENSE for details.
 
 import (
+	"math/big"
 	"os"
 	"os/user"
 	"runtime"
@@ -50,7 +51,7 @@ func TestOSGetEnv(t *testing.T) {
 	}
 
 	// Test wrong argument type
-	result = fn.Fn(&object.Integer{Value: 123})
+	result = fn.Fn(&object.Integer{Value: big.NewInt(123)})
 	errResult, ok = result.(*object.Error)
 	if !ok {
 		t.Fatalf("Expected Error, got %T", result)
@@ -339,8 +340,8 @@ func TestOSPid(t *testing.T) {
 		t.Fatalf("Expected Integer, got %T", result)
 	}
 
-	if intResult.Value != int64(os.Getpid()) {
-		t.Errorf("Expected %d, got %d", os.Getpid(), intResult.Value)
+	if intResult.Value.Cmp(big.NewInt(int64(os.Getpid()))) != 0 {
+		t.Errorf("Expected %d, got %s", os.Getpid(), intResult.Value.String())
 	}
 }
 
@@ -353,8 +354,8 @@ func TestOSPpid(t *testing.T) {
 		t.Fatalf("Expected Integer, got %T", result)
 	}
 
-	if intResult.Value != int64(os.Getppid()) {
-		t.Errorf("Expected %d, got %d", os.Getppid(), intResult.Value)
+	if intResult.Value.Cmp(big.NewInt(int64(os.Getppid()))) != 0 {
+		t.Errorf("Expected %d, got %s", os.Getppid(), intResult.Value.String())
 	}
 }
 
@@ -373,30 +374,30 @@ func TestOSConstants(t *testing.T) {
 	linuxResult := linux.Fn().(*object.Integer)
 	windowsResult := windows.Fn().(*object.Integer)
 
-	if macResult.Value != 0 {
-		t.Errorf("Expected MAC_OS = 0, got %d", macResult.Value)
+	if macResult.Value.Cmp(big.NewInt(0)) != 0 {
+		t.Errorf("Expected MAC_OS = 0, got %s", macResult.Value.String())
 	}
-	if linuxResult.Value != 1 {
-		t.Errorf("Expected LINUX = 1, got %d", linuxResult.Value)
+	if linuxResult.Value.Cmp(big.NewInt(1)) != 0 {
+		t.Errorf("Expected LINUX = 1, got %s", linuxResult.Value.String())
 	}
-	if windowsResult.Value != 2 {
-		t.Errorf("Expected WINDOWS = 2, got %d", windowsResult.Value)
+	if windowsResult.Value.Cmp(big.NewInt(2)) != 0 {
+		t.Errorf("Expected WINDOWS = 2, got %s", windowsResult.Value.String())
 	}
 
 	// Check CURRENT_OS matches expected constant for this platform
 	currentResult := currentOS.Fn().(*object.Integer)
 	switch runtime.GOOS {
 	case "darwin":
-		if currentResult.Value != 0 {
-			t.Errorf("Expected CURRENT_OS = MAC_OS (0) on darwin, got %d", currentResult.Value)
+		if currentResult.Value.Cmp(big.NewInt(0)) != 0 {
+			t.Errorf("Expected CURRENT_OS = MAC_OS (0) on darwin, got %s", currentResult.Value.String())
 		}
 	case "linux":
-		if currentResult.Value != 1 {
-			t.Errorf("Expected CURRENT_OS = LINUX (1) on linux, got %d", currentResult.Value)
+		if currentResult.Value.Cmp(big.NewInt(1)) != 0 {
+			t.Errorf("Expected CURRENT_OS = LINUX (1) on linux, got %s", currentResult.Value.String())
 		}
 	case "windows":
-		if currentResult.Value != 2 {
-			t.Errorf("Expected CURRENT_OS = WINDOWS (2) on windows, got %d", currentResult.Value)
+		if currentResult.Value.Cmp(big.NewInt(2)) != 0 {
+			t.Errorf("Expected CURRENT_OS = WINDOWS (2) on windows, got %s", currentResult.Value.String())
 		}
 	}
 }
@@ -483,8 +484,8 @@ func TestOSNumCpu(t *testing.T) {
 		t.Fatalf("Expected Integer, got %T", result)
 	}
 
-	if intResult.Value != int64(runtime.NumCPU()) {
-		t.Errorf("Expected %d, got %d", runtime.NumCPU(), intResult.Value)
+	if intResult.Value.Cmp(big.NewInt(int64(runtime.NumCPU()))) != 0 {
+		t.Errorf("Expected %d, got %s", runtime.NumCPU(), intResult.Value.String())
 	}
 }
 
@@ -604,8 +605,8 @@ func TestOSExec(t *testing.T) {
 		if !ok {
 			t.Fatalf("expected Integer exit code, got %T", rv.Values[0])
 		}
-		if exitCode.Value != 0 {
-			t.Errorf("expected exit code 0, got %d", exitCode.Value)
+		if exitCode.Value.Cmp(big.NewInt(0)) != 0 {
+			t.Errorf("expected exit code 0, got %s", exitCode.Value.String())
 		}
 
 		if rv.Values[1] != object.NIL {
@@ -618,8 +619,8 @@ func TestOSExec(t *testing.T) {
 		rv := result.(*object.ReturnValue)
 
 		exitCode := rv.Values[0].(*object.Integer)
-		if exitCode.Value != 42 {
-			t.Errorf("expected exit code 42, got %d", exitCode.Value)
+		if exitCode.Value.Cmp(big.NewInt(42)) != 0 {
+			t.Errorf("expected exit code 42, got %s", exitCode.Value.String())
 		}
 
 		// Error should still be nil for non-zero exit
@@ -629,7 +630,7 @@ func TestOSExec(t *testing.T) {
 	})
 
 	t.Run("wrong argument type", func(t *testing.T) {
-		result := execFn(&object.Integer{Value: 123})
+		result := execFn(&object.Integer{Value: big.NewInt(123)})
 		if _, ok := result.(*object.Error); !ok {
 			t.Errorf("expected Error for wrong type, got %T", result)
 		}

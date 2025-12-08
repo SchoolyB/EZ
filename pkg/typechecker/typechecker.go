@@ -5,6 +5,7 @@ package typechecker
 
 import (
 	"fmt"
+	"math/big"
 	"strconv"
 	"strings"
 
@@ -881,10 +882,10 @@ func (tc *TypeChecker) checkVariableDeclaration(decl *ast.VariableDeclaration) {
 			// Check byte value range for single byte declaration
 			if declaredType == "byte" {
 				if intLit, ok := decl.Value.(*ast.IntegerValue); ok {
-					if intLit.Value < 0 || intLit.Value > 255 {
+					if intLit.Value.Sign() < 0 || intLit.Value.Cmp(big.NewInt(255)) > 0 {
 						tc.addError(
 							errors.E3025,
-							fmt.Sprintf("byte value %d out of range: must be between 0 and 255", intLit.Value),
+							fmt.Sprintf("byte value %s out of range: must be between 0 and 255", intLit.Value.String()),
 							decl.Name.Token.Line,
 							decl.Name.Token.Column,
 						)
@@ -897,7 +898,7 @@ func (tc *TypeChecker) checkVariableDeclaration(decl *ast.VariableDeclaration) {
 						if intLit, ok := prefixExpr.Right.(*ast.IntegerValue); ok {
 							tc.addError(
 								errors.E3025,
-								fmt.Sprintf("byte value -%d out of range: must be between 0 and 255", intLit.Value),
+								fmt.Sprintf("byte value -%s out of range: must be between 0 and 255", intLit.Value.String()),
 								decl.Name.Token.Line,
 								decl.Name.Token.Column,
 							)
@@ -912,10 +913,10 @@ func (tc *TypeChecker) checkVariableDeclaration(decl *ast.VariableDeclaration) {
 				if arrLit, ok := decl.Value.(*ast.ArrayValue); ok {
 					for i, elem := range arrLit.Elements {
 						if intLit, ok := elem.(*ast.IntegerValue); ok {
-							if intLit.Value < 0 || intLit.Value > 255 {
+							if intLit.Value.Sign() < 0 || intLit.Value.Cmp(big.NewInt(255)) > 0 {
 								tc.addError(
 									errors.E3026,
-									fmt.Sprintf("byte array element [%d] value %d out of range: must be between 0 and 255", i, intLit.Value),
+									fmt.Sprintf("byte array element [%d] value %s out of range: must be between 0 and 255", i, intLit.Value.String()),
 									intLit.Token.Line,
 									intLit.Token.Column,
 								)
@@ -927,7 +928,7 @@ func (tc *TypeChecker) checkVariableDeclaration(decl *ast.VariableDeclaration) {
 								if intLit, ok := prefixExpr.Right.(*ast.IntegerValue); ok {
 									tc.addError(
 										errors.E3026,
-										fmt.Sprintf("byte array element [%d] value -%d out of range: must be between 0 and 255", i, intLit.Value),
+										fmt.Sprintf("byte array element [%d] value -%s out of range: must be between 0 and 255", i, intLit.Value.String()),
 										prefixExpr.Token.Line,
 										prefixExpr.Token.Column,
 									)

@@ -1,0 +1,10 @@
+/*
+ * Error Test: E5006 - integer-overflow (i128 subtraction)
+ * Expected: "integer overflow"
+ * Tests that i128 underflows at the correct bound (-2^127)
+ */
+
+do main() {
+    temp min i128 = -170141183460469231731687303715884105728  // min i128 (-2^127)
+    temp result i128 = min - 1  // Underflow
+}

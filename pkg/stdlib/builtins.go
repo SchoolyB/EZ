@@ -6,6 +6,7 @@ package stdlib
 import (
 	"bufio"
 	"fmt"
+	"math/big"
 	"os"
 	"strconv"
 	"strings"
@@ -168,10 +169,10 @@ var StdBuiltins = map[string]*object.Builtin{
 					TypeName: "Error",
 					Fields: map[string]object.Object{
 						"message": &object.String{Value: "failed to read input"},
-						"code":    &object.Integer{Value: 1},
+						"code":    &object.Integer{Value: big.NewInt(1)},
 					},
 				}
-				return &object.ReturnValue{Values: []object.Object{&object.Integer{Value: 0}, errObj}}
+				return &object.ReturnValue{Values: []object.Object{&object.Integer{Value: big.NewInt(0)}, errObj}}
 			}
 
 			val, parseErr := strconv.ParseInt(text, 10, 64)
@@ -180,13 +181,13 @@ var StdBuiltins = map[string]*object.Builtin{
 					TypeName: "Error",
 					Fields: map[string]object.Object{
 						"message": &object.String{Value: "invalid integer input"},
-						"code":    &object.Integer{Value: 2},
+						"code":    &object.Integer{Value: big.NewInt(2)},
 					},
 				}
-				return &object.ReturnValue{Values: []object.Object{&object.Integer{Value: 0}, errObj}}
+				return &object.ReturnValue{Values: []object.Object{&object.Integer{Value: big.NewInt(0)}, errObj}}
 			}
 
-			return &object.ReturnValue{Values: []object.Object{&object.Integer{Value: val}, object.NIL}}
+			return &object.ReturnValue{Values: []object.Object{&object.Integer{Value: big.NewInt(val)}, object.NIL}}
 		},
 	},
 
@@ -201,11 +202,11 @@ var StdBuiltins = map[string]*object.Builtin{
 			switch arg := args[0].(type) {
 			case *object.String:
 				// Use []rune to count characters, not bytes (proper UTF-8 support)
-				return &object.Integer{Value: int64(len([]rune(arg.Value)))}
+				return &object.Integer{Value: big.NewInt(int64(len([]rune(arg.Value))))}
 			case *object.Array:
-				return &object.Integer{Value: int64(len(arg.Elements))}
+				return &object.Integer{Value: big.NewInt(int64(len(arg.Elements)))}
 			case *object.Map:
-				return &object.Integer{Value: int64(len(arg.Pairs))}
+				return &object.Integer{Value: big.NewInt(int64(len(arg.Pairs)))}
 			default:
 				return &object.Error{Code: "E7015", Message: fmt.Sprintf("len() not supported for %s", args[0].Type())}
 			}
@@ -232,7 +233,7 @@ var StdBuiltins = map[string]*object.Builtin{
 			case *object.Integer:
 				return arg
 			case *object.Float:
-				return &object.Integer{Value: int64(arg.Value)}
+				return &object.Integer{Value: big.NewInt(int64(arg.Value))}
 			case *object.String:
 				cleanedValue := strings.ReplaceAll(arg.Value, "_", "")
 				val, err := strconv.ParseInt(cleanedValue, 10, 64)
@@ -247,18 +248,18 @@ var StdBuiltins = map[string]*object.Builtin{
 							"  \"42\", \"-123\", \"1_000_000\"", arg.Value),
 					}
 				}
-				return &object.Integer{Value: val}
+				return &object.Integer{Value: big.NewInt(val)}
 			case *object.Char:
-				return &object.Integer{Value: int64(arg.Value)}
+				return &object.Integer{Value: big.NewInt(int64(arg.Value))}
 			case *object.Byte:
-				return &object.Integer{Value: int64(arg.Value)}
+				return &object.Integer{Value: big.NewInt(int64(arg.Value))}
 			case *object.EnumValue:
 				// Extract the underlying value from the enum
 				switch v := arg.Value.(type) {
 				case *object.Integer:
 					return v
 				case *object.Float:
-					return &object.Integer{Value: int64(v.Value)}
+					return &object.Integer{Value: big.NewInt(int64(v.Value))}
 				case *object.String:
 					cleanedValue := strings.ReplaceAll(v.Value, "_", "")
 					val, err := strconv.ParseInt(cleanedValue, 10, 64)
@@ -268,7 +269,7 @@ var StdBuiltins = map[string]*object.Builtin{
 							Message: fmt.Sprintf("cannot convert enum value %q to int: underlying value is not numeric", v.Value),
 						}
 					}
-					return &object.Integer{Value: val}
+					return &object.Integer{Value: big.NewInt(val)}
 				default:
 					return &object.Error{
 						Code:    "E7005",
@@ -300,7 +301,8 @@ var StdBuiltins = map[string]*object.Builtin{
 			case *object.Float:
 				return arg
 			case *object.Integer:
-				return &object.Float{Value: float64(arg.Value)}
+				f, _ := new(big.Float).SetInt(arg.Value).Float64()
+				return &object.Float{Value: f}
 			case *object.String:
 				cleanedValue := strings.ReplaceAll(arg.Value, "_", "")
 				val, err := strconv.ParseFloat(cleanedValue, 64)
@@ -353,13 +355,14 @@ var StdBuiltins = map[string]*object.Builtin{
 			case *object.Char:
 				return arg
 			case *object.Integer:
-				if arg.Value < 0 || arg.Value > 0x10FFFF {
+				intVal := arg.Value.Int64()
+				if intVal < 0 || intVal > 0x10FFFF {
 					return &object.Error{
 						Code:    "E7014",
-						Message: fmt.Sprintf("cannot convert %d to char: value must be a valid Unicode code point (0 to 0x10FFFF)", arg.Value),
+						Message: fmt.Sprintf("cannot convert %s to char: value must be a valid Unicode code point (0 to 0x10FFFF)", arg.Value.String()),
 					}
 				}
-				return &object.Char{Value: rune(arg.Value)}
+				return &object.Char{Value: rune(intVal)}
 			case *object.Float:
 				intVal := int64(arg.Value)
 				if intVal < 0 || intVal > 0x10FFFF {
@@ -396,13 +399,14 @@ var StdBuiltins = map[string]*object.Builtin{
 			case *object.Byte:
 				return arg
 			case *object.Integer:
-				if arg.Value < 0 || arg.Value > 255 {
+				intVal := arg.Value.Int64()
+				if intVal < 0 || intVal > 255 {
 					return &object.Error{
 						Code:    "E7014",
-						Message: fmt.Sprintf("cannot convert %d to byte: value must be between 0 and 255", arg.Value),
+						Message: fmt.Sprintf("cannot convert %s to byte: value must be between 0 and 255", arg.Value.String()),
 					}
 				}
-				return &object.Byte{Value: uint8(arg.Value)}
+				return &object.Byte{Value: uint8(intVal)}
 			case *object.Float:
 				intVal := int64(arg.Value)
 				if intVal < 0 || intVal > 255 {
