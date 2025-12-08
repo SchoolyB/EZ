@@ -2240,8 +2240,17 @@ func (tc *TypeChecker) inferStdCallType(funcName string, args []ast.Expression) 
 // inferMathCallType infers return types for @math functions
 func (tc *TypeChecker) inferMathCallType(funcName string, args []ast.Expression) (string, bool) {
 	switch funcName {
-	case "abs", "floor", "ceil", "round", "sqrt", "pow", "log", "log2", "log10",
-		"sin", "cos", "tan", "asin", "acos", "atan", "exp", "min", "max", "avg",
+	case "abs", "min", "max":
+		// Return type matches input type
+		if len(args) > 0 {
+			argType, ok := tc.inferExpressionType(args[0])
+			if ok && (argType == "int" || argType == "float") {
+				return argType, true
+			}
+		}
+		return "float", true // fallback
+	case "floor", "ceil", "round", "sqrt", "pow", "log", "log2", "log10",
+		"sin", "cos", "tan", "asin", "acos", "atan", "exp", "avg",
 		"random_float":
 		return "float", true
 	case "random", "factorial":
@@ -2273,8 +2282,19 @@ func (tc *TypeChecker) inferArraysCallType(funcName string, args []ast.Expressio
 		}
 		return "", false
 	case "sum", "product", "min", "max":
-		// Could be int or float depending on array type
-		return "float", true
+		// Return type matches array element type
+		if len(args) > 0 {
+			arrType, ok := tc.inferExpressionType(args[0])
+			if ok && len(arrType) > 2 && arrType[0] == '[' {
+				elemType := arrType[1 : len(arrType)-1]
+				// Handle fixed-size arrays like [int, 5]
+				if commaIdx := strings.Index(elemType, ","); commaIdx != -1 {
+					elemType = strings.TrimSpace(elemType[:commaIdx])
+				}
+				return elemType, true
+			}
+		}
+		return "float", true // fallback
 	case "avg":
 		return "float", true
 	case "reverse", "slice", "copy", "concat", "unique", "sorted", "filter", "map":
