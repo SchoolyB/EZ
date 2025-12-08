@@ -3715,6 +3715,82 @@ func TestIntegerOverflowDetection(t *testing.T) {
 	}
 }
 
+// TestNegationOverflow tests that unary negation overflow is detected (#386)
+func TestNegationOverflow(t *testing.T) {
+	tests := []struct {
+		name        string
+		input       string
+		expectError bool
+	}{
+		{
+			name:        "negation overflow - minInt",
+			input:       `-(-9223372036854775808)`,
+			expectError: true,
+		},
+		{
+			name:        "normal negation",
+			input:       `-(-5)`,
+			expectError: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			evaluated := testEval(tt.input)
+			if tt.expectError {
+				if _, ok := evaluated.(*Error); !ok {
+					t.Errorf("expected error, got %T (%+v)", evaluated, evaluated)
+				}
+			} else {
+				if _, ok := evaluated.(*Error); ok {
+					t.Errorf("did not expect error, got %+v", evaluated)
+				}
+			}
+		})
+	}
+}
+
+// TestDivisionOverflow tests that minInt / -1 overflow is detected (#387)
+func TestDivisionOverflow(t *testing.T) {
+	tests := []struct {
+		name        string
+		input       string
+		expectError bool
+		errorCode   string
+	}{
+		{
+			name:        "division overflow - minInt / -1",
+			input:       `-9223372036854775808 / -1`,
+			expectError: true,
+			errorCode:   "E5007",
+		},
+		{
+			name:        "normal division",
+			input:       `10 / -2`,
+			expectError: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			evaluated := testEval(tt.input)
+			if tt.expectError {
+				if err, ok := evaluated.(*Error); ok {
+					if err.Code != tt.errorCode {
+						t.Errorf("expected error code %s, got %s", tt.errorCode, err.Code)
+					}
+				} else {
+					t.Errorf("expected error, got %T (%+v)", evaluated, evaluated)
+				}
+			} else {
+				if _, ok := evaluated.(*Error); ok {
+					t.Errorf("did not expect error, got %+v", evaluated)
+				}
+			}
+		})
+	}
+}
+
 // TestPostfixOverflowDetection tests that postfix ++/-- overflow is detected (#383)
 func TestPostfixOverflowDetection(t *testing.T) {
 	tests := []struct {
