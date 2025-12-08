@@ -1521,6 +1521,10 @@ func evalBangOperator(right Object) Object {
 func evalMinusPrefixOperator(right Object) Object {
 	switch obj := right.(type) {
 	case *Integer:
+		// Check for overflow: -MinInt64 would exceed MaxInt64
+		if obj.Value == math.MinInt64 {
+			return newError("integer overflow: negating %d exceeds int64 range", obj.Value)
+		}
 		return &Integer{Value: -obj.Value}
 	case *Float:
 		return &Float{Value: -obj.Value}
@@ -1615,6 +1619,10 @@ func evalIntegerInfixExpression(operator string, left, right Object, line, col i
 	case "/":
 		if rightVal == 0 {
 			return newErrorWithLocation("E5001", line, col, "division by zero")
+		}
+		// Check for overflow: MinInt64 / -1 would exceed MaxInt64
+		if leftVal == math.MinInt64 && rightVal == -1 {
+			return newErrorWithLocation("E5007", line, col, "integer overflow: %d / %d exceeds int64 range", leftVal, rightVal)
 		}
 		return &Integer{Value: leftVal / rightVal}
 	case "%":
@@ -1787,6 +1795,10 @@ func evalByteIntegerInfixExpression(operator string, left, right Object, line, c
 	case "/":
 		if rightVal == 0 {
 			return newErrorWithLocation("E5001", line, col, "division by zero")
+		}
+		// Check for overflow: MinInt64 / -1 would exceed MaxInt64
+		if leftVal == math.MinInt64 && rightVal == -1 {
+			return newErrorWithLocation("E5007", line, col, "integer overflow: %d / %d exceeds int64 range", leftVal, rightVal)
 		}
 		return &Integer{Value: leftVal / rightVal}
 	case "%":
