@@ -4,6 +4,7 @@ package stdlib
 // Licensed under the MIT License. See LICENSE for details.
 
 import (
+	"math/big"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -126,7 +127,7 @@ func TestIOReadFile(t *testing.T) {
 	})
 
 	t.Run("wrong argument type", func(t *testing.T) {
-		result := readFileFn(&object.Integer{Value: 123})
+		result := readFileFn(&object.Integer{Value: big.NewInt(123)})
 		if !isErrorObject(result) {
 			t.Error("expected error for wrong argument type")
 		}
@@ -579,8 +580,8 @@ func TestIOFileSize(t *testing.T) {
 		if !ok {
 			t.Fatalf("expected Integer, got %T", vals[0])
 		}
-		if size.Value != int64(len(content)) {
-			t.Errorf("expected %d, got %d", len(content), size.Value)
+		if size.Value.Cmp(big.NewInt(int64(len(content)))) != 0 {
+			t.Errorf("expected %d, got %s", len(content), size.Value.String())
 		}
 	})
 
@@ -607,7 +608,7 @@ func TestIOFileModTime(t *testing.T) {
 		if !ok {
 			t.Fatalf("expected Integer, got %T", vals[0])
 		}
-		if timestamp.Value <= 0 {
+		if timestamp.Value.Sign() <= 0 {
 			t.Error("timestamp should be positive")
 		}
 	})
@@ -1270,7 +1271,7 @@ func TestIOWriteBytes(t *testing.T) {
 		result := writeBytesFn(
 			&object.String{Value: path},
 			makeByteArray(content),
-			&object.Integer{Value: 0600},
+			&object.Integer{Value: big.NewInt(0600)},
 		)
 		assertNoError(t, result)
 
@@ -1418,8 +1419,8 @@ func TestIOConstants(t *testing.T) {
 		if !ok {
 			t.Fatalf("expected Integer, got %T", result)
 		}
-		if val.Value != int64(os.O_RDONLY) {
-			t.Errorf("expected %d (O_RDONLY), got %d", os.O_RDONLY, val.Value)
+		if val.Value.Cmp(big.NewInt(int64(os.O_RDONLY))) != 0 {
+			t.Errorf("expected %d (O_RDONLY), got %s", os.O_RDONLY, val.Value.String())
 		}
 	})
 
@@ -1430,8 +1431,8 @@ func TestIOConstants(t *testing.T) {
 		if !ok {
 			t.Fatalf("expected Integer, got %T", result)
 		}
-		if val.Value != int64(os.O_WRONLY) {
-			t.Errorf("expected %d (O_WRONLY), got %d", os.O_WRONLY, val.Value)
+		if val.Value.Cmp(big.NewInt(int64(os.O_WRONLY))) != 0 {
+			t.Errorf("expected %d (O_WRONLY), got %s", os.O_WRONLY, val.Value.String())
 		}
 	})
 
@@ -1442,8 +1443,8 @@ func TestIOConstants(t *testing.T) {
 		if !ok {
 			t.Fatalf("expected Integer, got %T", result)
 		}
-		if val.Value != int64(os.O_RDWR) {
-			t.Errorf("expected %d (O_RDWR), got %d", os.O_RDWR, val.Value)
+		if val.Value.Cmp(big.NewInt(int64(os.O_RDWR))) != 0 {
+			t.Errorf("expected %d (O_RDWR), got %s", os.O_RDWR, val.Value.String())
 		}
 	})
 
@@ -1454,8 +1455,8 @@ func TestIOConstants(t *testing.T) {
 		if !ok {
 			t.Fatalf("expected Integer, got %T", result)
 		}
-		if val.Value != int64(os.O_APPEND) {
-			t.Errorf("expected %d (O_APPEND), got %d", os.O_APPEND, val.Value)
+		if val.Value.Cmp(big.NewInt(int64(os.O_APPEND))) != 0 {
+			t.Errorf("expected %d (O_APPEND), got %s", os.O_APPEND, val.Value.String())
 		}
 	})
 
@@ -1466,8 +1467,8 @@ func TestIOConstants(t *testing.T) {
 		if !ok {
 			t.Fatalf("expected Integer, got %T", result)
 		}
-		if val.Value != int64(os.O_CREATE) {
-			t.Errorf("expected %d (O_CREATE), got %d", os.O_CREATE, val.Value)
+		if val.Value.Cmp(big.NewInt(int64(os.O_CREATE))) != 0 {
+			t.Errorf("expected %d (O_CREATE), got %s", os.O_CREATE, val.Value.String())
 		}
 	})
 
@@ -1478,8 +1479,8 @@ func TestIOConstants(t *testing.T) {
 		if !ok {
 			t.Fatalf("expected Integer, got %T", result)
 		}
-		if val.Value != int64(os.O_TRUNC) {
-			t.Errorf("expected %d (O_TRUNC), got %d", os.O_TRUNC, val.Value)
+		if val.Value.Cmp(big.NewInt(int64(os.O_TRUNC))) != 0 {
+			t.Errorf("expected %d (O_TRUNC), got %s", os.O_TRUNC, val.Value.String())
 		}
 	})
 
@@ -1490,8 +1491,8 @@ func TestIOConstants(t *testing.T) {
 		if !ok {
 			t.Fatalf("expected Integer, got %T", result)
 		}
-		if val.Value != int64(os.O_EXCL) {
-			t.Errorf("expected %d (O_EXCL), got %d", os.O_EXCL, val.Value)
+		if val.Value.Cmp(big.NewInt(int64(os.O_EXCL))) != 0 {
+			t.Errorf("expected %d (O_EXCL), got %s", os.O_EXCL, val.Value.String())
 		}
 	})
 
@@ -1503,8 +1504,8 @@ func TestIOConstants(t *testing.T) {
 		if !ok {
 			t.Fatalf("expected Integer, got %T", result)
 		}
-		if val.Value != 0 {
-			t.Errorf("expected 0 (SEEK_START), got %d", val.Value)
+		if val.Value.Cmp(big.NewInt(0)) != 0 {
+			t.Errorf("expected 0 (SEEK_START), got %s", val.Value.String())
 		}
 	})
 
@@ -1515,8 +1516,8 @@ func TestIOConstants(t *testing.T) {
 		if !ok {
 			t.Fatalf("expected Integer, got %T", result)
 		}
-		if val.Value != 1 {
-			t.Errorf("expected 1 (SEEK_CURRENT), got %d", val.Value)
+		if val.Value.Cmp(big.NewInt(1)) != 0 {
+			t.Errorf("expected 1 (SEEK_CURRENT), got %s", val.Value.String())
 		}
 	})
 
@@ -1527,8 +1528,8 @@ func TestIOConstants(t *testing.T) {
 		if !ok {
 			t.Fatalf("expected Integer, got %T", result)
 		}
-		if val.Value != 2 {
-			t.Errorf("expected 2 (SEEK_END), got %d", val.Value)
+		if val.Value.Cmp(big.NewInt(2)) != 0 {
+			t.Errorf("expected 2 (SEEK_END), got %s", val.Value.String())
 		}
 	})
 }
@@ -1569,7 +1570,7 @@ func TestIOOpen(t *testing.T) {
 
 	t.Run("open new file for writing", func(t *testing.T) {
 		path := filepath.Join(dir, "open_write.txt")
-		mode := &object.Integer{Value: int64(os.O_WRONLY | os.O_CREATE)}
+		mode := &object.Integer{Value: big.NewInt(int64(os.O_WRONLY | os.O_CREATE))}
 
 		result := openFn(&object.String{Value: path}, mode)
 		assertNoError(t, result)
@@ -1590,8 +1591,8 @@ func TestIOOpen(t *testing.T) {
 
 	t.Run("open with custom permissions", func(t *testing.T) {
 		path := filepath.Join(dir, "open_perms.txt")
-		mode := &object.Integer{Value: int64(os.O_WRONLY | os.O_CREATE)}
-		perms := &object.Integer{Value: 0600}
+		mode := &object.Integer{Value: big.NewInt(int64(os.O_WRONLY | os.O_CREATE))}
+		perms := &object.Integer{Value: big.NewInt(0600)}
 
 		result := openFn(&object.String{Value: path}, mode, perms)
 		assertNoError(t, result)
@@ -1642,7 +1643,7 @@ func TestIOReadHandle(t *testing.T) {
 		handle := getReturnValues(t, result)[0].(*object.FileHandle)
 
 		// Read 5 bytes
-		readResult := readFn(handle, &object.Integer{Value: 5})
+		readResult := readFn(handle, &object.Integer{Value: big.NewInt(5)})
 		assertNoError(t, readResult)
 
 		vals := getReturnValues(t, readResult)
@@ -1674,7 +1675,7 @@ func TestIOReadHandle(t *testing.T) {
 		closeFn(handle)
 
 		// Try to read from closed handle
-		readResult := readFn(handle, &object.Integer{Value: 5})
+		readResult := readFn(handle, &object.Integer{Value: big.NewInt(5)})
 		errStruct := assertHasError(t, readResult)
 		code := errStruct.Fields["code"].(*object.String)
 		if code.Value != "E7050" {
@@ -1687,7 +1688,7 @@ func TestIOReadHandle(t *testing.T) {
 		result := openFn(&object.String{Value: path})
 		handle := getReturnValues(t, result)[0].(*object.FileHandle)
 
-		readResult := readFn(handle, &object.Integer{Value: -1})
+		readResult := readFn(handle, &object.Integer{Value: big.NewInt(-1)})
 		_, ok := readResult.(*object.Error)
 		if !ok {
 			t.Errorf("expected Error for negative count, got %T", readResult)
@@ -1754,7 +1755,7 @@ func TestIOReadString(t *testing.T) {
 		result := openFn(&object.String{Value: path})
 		handle := getReturnValues(t, result)[0].(*object.FileHandle)
 
-		readResult := readStringFn(handle, &object.Integer{Value: 5})
+		readResult := readStringFn(handle, &object.Integer{Value: big.NewInt(5)})
 		assertNoError(t, readResult)
 
 		vals := getReturnValues(t, readResult)
@@ -1780,7 +1781,7 @@ func TestIOWriteHandle(t *testing.T) {
 
 	t.Run("write string to file", func(t *testing.T) {
 		path := filepath.Join(dir, "write_string.txt")
-		mode := &object.Integer{Value: int64(os.O_WRONLY | os.O_CREATE)}
+		mode := &object.Integer{Value: big.NewInt(int64(os.O_WRONLY | os.O_CREATE))}
 
 		result := openFn(&object.String{Value: path}, mode)
 		handle := getReturnValues(t, result)[0].(*object.FileHandle)
@@ -1793,8 +1794,8 @@ func TestIOWriteHandle(t *testing.T) {
 		if !ok {
 			t.Fatalf("expected Integer, got %T", vals[0])
 		}
-		if bytesWritten.Value != 13 {
-			t.Errorf("expected 13 bytes written, got %d", bytesWritten.Value)
+		if bytesWritten.Value.Cmp(big.NewInt(13)) != 0 {
+			t.Errorf("expected 13 bytes written, got %s", bytesWritten.Value.String())
 		}
 
 		closeFn(handle)
@@ -1808,7 +1809,7 @@ func TestIOWriteHandle(t *testing.T) {
 
 	t.Run("write byte array to file", func(t *testing.T) {
 		path := filepath.Join(dir, "write_bytes.txt")
-		mode := &object.Integer{Value: int64(os.O_WRONLY | os.O_CREATE)}
+		mode := &object.Integer{Value: big.NewInt(int64(os.O_WRONLY | os.O_CREATE))}
 
 		result := openFn(&object.String{Value: path}, mode)
 		handle := getReturnValues(t, result)[0].(*object.FileHandle)
@@ -1832,7 +1833,7 @@ func TestIOWriteHandle(t *testing.T) {
 
 	t.Run("write to closed handle", func(t *testing.T) {
 		path := filepath.Join(dir, "write_closed.txt")
-		mode := &object.Integer{Value: int64(os.O_WRONLY | os.O_CREATE)}
+		mode := &object.Integer{Value: big.NewInt(int64(os.O_WRONLY | os.O_CREATE))}
 
 		result := openFn(&object.String{Value: path}, mode)
 		handle := getReturnValues(t, result)[0].(*object.FileHandle)
@@ -1865,17 +1866,17 @@ func TestIOSeekAndTell(t *testing.T) {
 		handle := getReturnValues(t, result)[0].(*object.FileHandle)
 
 		// Seek to position 7
-		seekResult := seekFn(handle, &object.Integer{Value: 7}, &object.Integer{Value: 0}) // SEEK_START
+		seekResult := seekFn(handle, &object.Integer{Value: big.NewInt(7)}, &object.Integer{Value: big.NewInt(0)}) // SEEK_START
 		assertNoError(t, seekResult)
 
 		vals := getReturnValues(t, seekResult)
 		pos := vals[0].(*object.Integer)
-		if pos.Value != 7 {
-			t.Errorf("expected position 7, got %d", pos.Value)
+		if pos.Value.Cmp(big.NewInt(7)) != 0 {
+			t.Errorf("expected position 7, got %s", pos.Value.String())
 		}
 
 		// Read from current position
-		readResult := readStringFn(handle, &object.Integer{Value: 5})
+		readResult := readStringFn(handle, &object.Integer{Value: big.NewInt(5)})
 		assertNoError(t, readResult)
 
 		str := getReturnValues(t, readResult)[0].(*object.String)
@@ -1897,18 +1898,18 @@ func TestIOSeekAndTell(t *testing.T) {
 		tellResult := tellFn(handle)
 		assertNoError(t, tellResult)
 		pos := getReturnValues(t, tellResult)[0].(*object.Integer)
-		if pos.Value != 0 {
-			t.Errorf("expected position 0, got %d", pos.Value)
+		if pos.Value.Cmp(big.NewInt(0)) != 0 {
+			t.Errorf("expected position 0, got %s", pos.Value.String())
 		}
 
 		// Read 3 bytes
-		readStringFn(handle, &object.Integer{Value: 3})
+		readStringFn(handle, &object.Integer{Value: big.NewInt(3)})
 
 		// Position should now be 3
 		tellResult = tellFn(handle)
 		pos = getReturnValues(t, tellResult)[0].(*object.Integer)
-		if pos.Value != 3 {
-			t.Errorf("expected position 3, got %d", pos.Value)
+		if pos.Value.Cmp(big.NewInt(3)) != 0 {
+			t.Errorf("expected position 3, got %s", pos.Value.String())
 		}
 
 		closeFn(handle)
@@ -1922,12 +1923,12 @@ func TestIOSeekAndTell(t *testing.T) {
 		handle := getReturnValues(t, result)[0].(*object.FileHandle)
 
 		// Seek to 2 bytes before end
-		seekResult := seekFn(handle, &object.Integer{Value: -2}, &object.Integer{Value: 2}) // SEEK_END
+		seekResult := seekFn(handle, &object.Integer{Value: big.NewInt(-2)}, &object.Integer{Value: big.NewInt(2)}) // SEEK_END
 		assertNoError(t, seekResult)
 
 		pos := getReturnValues(t, seekResult)[0].(*object.Integer)
-		if pos.Value != 3 {
-			t.Errorf("expected position 3, got %d", pos.Value)
+		if pos.Value.Cmp(big.NewInt(3)) != 0 {
+			t.Errorf("expected position 3, got %s", pos.Value.String())
 		}
 
 		closeFn(handle)
@@ -1939,7 +1940,7 @@ func TestIOSeekAndTell(t *testing.T) {
 		handle := getReturnValues(t, result)[0].(*object.FileHandle)
 		closeFn(handle)
 
-		seekResult := seekFn(handle, &object.Integer{Value: 0}, &object.Integer{Value: 0})
+		seekResult := seekFn(handle, &object.Integer{Value: big.NewInt(0)}, &object.Integer{Value: big.NewInt(0)})
 		errStruct := assertHasError(t, seekResult)
 		code := errStruct.Fields["code"].(*object.String)
 		if code.Value != "E7050" {
@@ -1973,7 +1974,7 @@ func TestIOFlushAndClose(t *testing.T) {
 
 	t.Run("flush written data", func(t *testing.T) {
 		path := filepath.Join(dir, "flush_test.txt")
-		mode := &object.Integer{Value: int64(os.O_WRONLY | os.O_CREATE)}
+		mode := &object.Integer{Value: big.NewInt(int64(os.O_WRONLY | os.O_CREATE))}
 
 		result := openFn(&object.String{Value: path}, mode)
 		handle := getReturnValues(t, result)[0].(*object.FileHandle)
@@ -2088,7 +2089,7 @@ func TestIOFileHandleIntegration(t *testing.T) {
 
 	t.Run("write then read with seek", func(t *testing.T) {
 		path := filepath.Join(dir, "rw_test.txt")
-		mode := &object.Integer{Value: int64(os.O_RDWR | os.O_CREATE)}
+		mode := &object.Integer{Value: big.NewInt(int64(os.O_RDWR | os.O_CREATE))}
 
 		// Open for read/write
 		result := openFn(&object.String{Value: path}, mode)
@@ -2098,10 +2099,10 @@ func TestIOFileHandleIntegration(t *testing.T) {
 		writeFn(handle, &object.String{Value: "Hello, World!"})
 
 		// Seek back to start
-		seekFn(handle, &object.Integer{Value: 0}, &object.Integer{Value: 0})
+		seekFn(handle, &object.Integer{Value: big.NewInt(0)}, &object.Integer{Value: big.NewInt(0)})
 
 		// Read data back
-		readResult := readFn(handle, &object.Integer{Value: 5})
+		readResult := readFn(handle, &object.Integer{Value: big.NewInt(5)})
 		assertNoError(t, readResult)
 
 		arr := getReturnValues(t, readResult)[0].(*object.Array)
@@ -2120,7 +2121,7 @@ func TestIOFileHandleIntegration(t *testing.T) {
 		path := createTempFile(t, dir, "append_test.txt", "Hello")
 
 		// Open in append mode
-		mode := &object.Integer{Value: int64(os.O_WRONLY | os.O_APPEND)}
+		mode := &object.Integer{Value: big.NewInt(int64(os.O_WRONLY | os.O_APPEND))}
 		result := openFn(&object.String{Value: path}, mode)
 		handle := getReturnValues(t, result)[0].(*object.FileHandle)
 
@@ -2258,7 +2259,7 @@ func TestIOAppendLine(t *testing.T) {
 		result := appendLineFn(
 			&object.String{Value: path},
 			&object.String{Value: "test"},
-			&object.Integer{Value: 0600},
+			&object.Integer{Value: big.NewInt(0600)},
 		)
 		assertNoError(t, result)
 
@@ -2322,7 +2323,7 @@ func TestIOWriteFileWithPerms(t *testing.T) {
 		result := writeFileFn(
 			&object.String{Value: path},
 			&object.String{Value: "test content"},
-			&object.Integer{Value: 0600},
+			&object.Integer{Value: big.NewInt(0600)},
 		)
 		assertNoError(t, result)
 
@@ -2363,7 +2364,7 @@ func TestIOMkdirWithPerms(t *testing.T) {
 
 		result := mkdirFn(
 			&object.String{Value: path},
-			&object.Integer{Value: 0700},
+			&object.Integer{Value: big.NewInt(0700)},
 		)
 		assertNoError(t, result)
 
@@ -2387,7 +2388,7 @@ func TestIOMkdirAllWithPerms(t *testing.T) {
 
 		result := mkdirAllFn(
 			&object.String{Value: path},
-			&object.Integer{Value: 0700},
+			&object.Integer{Value: big.NewInt(0700)},
 		)
 		assertNoError(t, result)
 
@@ -2413,7 +2414,7 @@ func TestIOCopyWithPerms(t *testing.T) {
 		result := copyFn(
 			&object.String{Value: srcPath},
 			&object.String{Value: dstPath},
-			&object.Integer{Value: 0600},
+			&object.Integer{Value: big.NewInt(0600)},
 		)
 		assertNoError(t, result)
 

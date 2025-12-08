@@ -5,6 +5,7 @@ package stdlib
 
 import (
 	"fmt"
+	"math/big"
 	"os"
 	"os/exec"
 	"os/user"
@@ -150,7 +151,7 @@ var OSBuiltins = map[string]*object.Builtin{
 			code := 0
 			if len(args) > 0 {
 				if codeObj, ok := args[0].(*object.Integer); ok {
-					code = int(codeObj.Value)
+					code = int(codeObj.Value.Int64())
 				} else {
 					return &object.Error{Code: "E7003", Message: "os.exit() requires an integer exit code"}
 				}
@@ -269,14 +270,14 @@ var OSBuiltins = map[string]*object.Builtin{
 	// Returns the process ID of the current process
 	"os.pid": {
 		Fn: func(args ...object.Object) object.Object {
-			return &object.Integer{Value: int64(os.Getpid())}
+			return &object.Integer{Value: big.NewInt(int64(os.Getpid()))}
 		},
 	},
 
 	// Returns the parent process ID
 	"os.ppid": {
 		Fn: func(args ...object.Object) object.Object {
-			return &object.Integer{Value: int64(os.Getppid())}
+			return &object.Integer{Value: big.NewInt(int64(os.Getppid()))}
 		},
 	},
 
@@ -287,17 +288,17 @@ var OSBuiltins = map[string]*object.Builtin{
 	// OS Constants - use these for comparison with CURRENT_OS
 	"os.MAC_OS": {
 		Fn: func(args ...object.Object) object.Object {
-			return &object.Integer{Value: 0}
+			return &object.Integer{Value: big.NewInt(0)}
 		},
 	},
 	"os.LINUX": {
 		Fn: func(args ...object.Object) object.Object {
-			return &object.Integer{Value: 1}
+			return &object.Integer{Value: big.NewInt(1)}
 		},
 	},
 	"os.WINDOWS": {
 		Fn: func(args ...object.Object) object.Object {
-			return &object.Integer{Value: 2}
+			return &object.Integer{Value: big.NewInt(2)}
 		},
 	},
 
@@ -306,13 +307,13 @@ var OSBuiltins = map[string]*object.Builtin{
 		Fn: func(args ...object.Object) object.Object {
 			switch runtime.GOOS {
 			case "darwin":
-				return &object.Integer{Value: 0} // MAC_OS
+				return &object.Integer{Value: big.NewInt(0)} // MAC_OS
 			case "linux":
-				return &object.Integer{Value: 1} // LINUX
+				return &object.Integer{Value: big.NewInt(1)} // LINUX
 			case "windows":
-				return &object.Integer{Value: 2} // WINDOWS
+				return &object.Integer{Value: big.NewInt(2)} // WINDOWS
 			default:
-				return &object.Integer{Value: -1} // Unknown
+				return &object.Integer{Value: big.NewInt(-1)} // Unknown
 			}
 		},
 	},
@@ -366,7 +367,7 @@ var OSBuiltins = map[string]*object.Builtin{
 	// Returns the number of CPUs available
 	"os.num_cpu": {
 		Fn: func(args ...object.Object) object.Object {
-			return &object.Integer{Value: int64(runtime.NumCPU())}
+			return &object.Integer{Value: big.NewInt(int64(runtime.NumCPU()))}
 		},
 	},
 
@@ -429,14 +430,14 @@ var OSBuiltins = map[string]*object.Builtin{
 				} else {
 					// Command failed to start entirely
 					return &object.ReturnValue{Values: []object.Object{
-						&object.Integer{Value: -1},
+						&object.Integer{Value: big.NewInt(-1)},
 						createOSError("E7030", fmt.Sprintf("command failed to execute: %s", err.Error())),
 					}}
 				}
 			}
 
 			return &object.ReturnValue{Values: []object.Object{
-				&object.Integer{Value: exitCode},
+				&object.Integer{Value: big.NewInt(exitCode)},
 				object.NIL,
 			}}
 		},

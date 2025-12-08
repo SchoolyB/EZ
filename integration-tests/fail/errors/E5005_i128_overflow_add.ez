@@ -1,0 +1,10 @@
+/*
+ * Error Test: E5005 - integer-overflow (i128 addition)
+ * Expected: "integer overflow"
+ * Tests that i128 overflows at the correct bound (2^127 - 1)
+ */
+
+do main() {
+    temp max i128 = 170141183460469231731687303715884105727  // max i128 (2^127 - 1)
+    temp result i128 = max + 1  // Overflow
+}

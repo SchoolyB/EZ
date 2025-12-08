@@ -5,6 +5,7 @@ package object
 
 import (
 	"fmt"
+	"math/big"
 	"os"
 	"strings"
 
@@ -42,14 +43,14 @@ type Object interface {
 	Inspect() string
 }
 
-// Integer wraps int64
+// Integer wraps big.Int for arbitrary precision integer support
 type Integer struct {
-	Value        int64
+	Value        *big.Int
 	DeclaredType string
 }
 
 func (i *Integer) Type() ObjectType { return INTEGER_OBJ }
-func (i *Integer) Inspect() string  { return fmt.Sprintf("%d", i.Value) }
+func (i *Integer) Inspect() string  { return i.Value.String() }
 
 func (i *Integer) GetDeclaredType() string {
 	if i.DeclaredType == "" {

@@ -1,6 +1,7 @@
 package object
 
 import (
+	"math/big"
 	"strings"
 	"testing"
 )
@@ -48,7 +49,7 @@ func TestObjectTypeConstants(t *testing.T) {
 // ============================================================================
 
 func TestIntegerObject(t *testing.T) {
-	i := &Integer{Value: 42}
+	i := &Integer{Value: big.NewInt(42)}
 	if i.Type() != INTEGER_OBJ {
 		t.Errorf("Type() = %s, want %s", i.Type(), INTEGER_OBJ)
 	}
@@ -59,14 +60,14 @@ func TestIntegerObject(t *testing.T) {
 
 func TestIntegerDeclaredType(t *testing.T) {
 	t.Run("default type", func(t *testing.T) {
-		i := &Integer{Value: 42}
+		i := &Integer{Value: big.NewInt(42)}
 		if i.GetDeclaredType() != "int" {
 			t.Errorf("GetDeclaredType() = %q, want %q", i.GetDeclaredType(), "int")
 		}
 	})
 
 	t.Run("explicit type", func(t *testing.T) {
-		i := &Integer{Value: 42, DeclaredType: "i32"}
+		i := &Integer{Value: big.NewInt(42), DeclaredType: "i32"}
 		if i.GetDeclaredType() != "i32" {
 			t.Errorf("GetDeclaredType() = %q, want %q", i.GetDeclaredType(), "i32")
 		}
@@ -148,8 +149,8 @@ func TestNilObject(t *testing.T) {
 func TestReturnValueObject(t *testing.T) {
 	rv := &ReturnValue{
 		Values: []Object{
-			&Integer{Value: 1},
-			&Integer{Value: 2},
+			&Integer{Value: big.NewInt(1)},
+			&Integer{Value: big.NewInt(2)},
 		},
 	}
 	if rv.Type() != RETURN_VALUE_OBJ {
@@ -202,9 +203,9 @@ func TestBuiltinObject(t *testing.T) {
 func TestArrayObject(t *testing.T) {
 	a := &Array{
 		Elements: []Object{
-			&Integer{Value: 1},
-			&Integer{Value: 2},
-			&Integer{Value: 3},
+			&Integer{Value: big.NewInt(1)},
+			&Integer{Value: big.NewInt(2)},
+			&Integer{Value: big.NewInt(3)},
 		},
 		Mutable: true,
 	}
@@ -240,8 +241,8 @@ func TestEnumObject(t *testing.T) {
 	e := &Enum{
 		Name: "Status",
 		Values: map[string]Object{
-			"TODO": &Integer{Value: 0},
-			"DONE": &Integer{Value: 1},
+			"TODO": &Integer{Value: big.NewInt(0)},
+			"DONE": &Integer{Value: big.NewInt(1)},
 		},
 	}
 	if e.Type() != ENUM_OBJ {
@@ -257,7 +258,7 @@ func TestEnumValueObject(t *testing.T) {
 	ev := &EnumValue{
 		EnumType: "Status",
 		Name:     "TODO",
-		Value:    &Integer{Value: 0},
+		Value:    &Integer{Value: big.NewInt(0)},
 	}
 	if ev.Type() != ENUM_VALUE_OBJ {
 		t.Errorf("Type() = %s, want %s", ev.Type(), ENUM_VALUE_OBJ)
@@ -301,7 +302,7 @@ func TestStructObject(t *testing.T) {
 		TypeName: "Person",
 		Fields: map[string]Object{
 			"name": &String{Value: "Alice"},
-			"age":  &Integer{Value: 30},
+			"age":  &Integer{Value: big.NewInt(30)},
 		},
 	}
 	if s.Type() != STRUCT_OBJ {
@@ -350,23 +351,23 @@ func TestMapSetAndGet(t *testing.T) {
 	m := NewMap()
 
 	// Set values
-	m.Set(&String{Value: "key1"}, &Integer{Value: 1})
-	m.Set(&String{Value: "key2"}, &Integer{Value: 2})
+	m.Set(&String{Value: "key1"}, &Integer{Value: big.NewInt(1)})
+	m.Set(&String{Value: "key2"}, &Integer{Value: big.NewInt(2)})
 
 	// Get values
 	val, ok := m.Get(&String{Value: "key1"})
 	if !ok {
 		t.Error("Get(key1) should return true")
 	}
-	if val.(*Integer).Value != 1 {
-		t.Errorf("Get(key1) = %d, want 1", val.(*Integer).Value)
+	if val.(*Integer).Value.Cmp(big.NewInt(1)) != 0 {
+		t.Errorf("Get(key1) = %s, want 1", val.(*Integer).Value.String())
 	}
 
 	// Update existing key
-	m.Set(&String{Value: "key1"}, &Integer{Value: 100})
+	m.Set(&String{Value: "key1"}, &Integer{Value: big.NewInt(100)})
 	val, _ = m.Get(&String{Value: "key1"})
-	if val.(*Integer).Value != 100 {
-		t.Errorf("Updated key1 = %d, want 100", val.(*Integer).Value)
+	if val.(*Integer).Value.Cmp(big.NewInt(100)) != 0 {
+		t.Errorf("Updated key1 = %s, want 100", val.(*Integer).Value.String())
 	}
 
 	// Get non-existent key
@@ -378,9 +379,9 @@ func TestMapSetAndGet(t *testing.T) {
 
 func TestMapDelete(t *testing.T) {
 	m := NewMap()
-	m.Set(&String{Value: "a"}, &Integer{Value: 1})
-	m.Set(&String{Value: "b"}, &Integer{Value: 2})
-	m.Set(&String{Value: "c"}, &Integer{Value: 3})
+	m.Set(&String{Value: "a"}, &Integer{Value: big.NewInt(1)})
+	m.Set(&String{Value: "b"}, &Integer{Value: big.NewInt(2)})
+	m.Set(&String{Value: "c"}, &Integer{Value: big.NewInt(3)})
 
 	// Delete middle key
 	ok := m.Delete(&String{Value: "b"})
@@ -428,7 +429,7 @@ func TestHashKey(t *testing.T) {
 		ok       bool
 	}{
 		{&String{Value: "hello"}, "s:hello", true},
-		{&Integer{Value: 42}, "i:42", true},
+		{&Integer{Value: big.NewInt(42)}, "i:42", true},
 		{&Boolean{Value: true}, "b:true", true},
 		{&Boolean{Value: false}, "b:false", true},
 		{&Char{Value: 'A'}, "c:65", true},
@@ -490,15 +491,15 @@ func TestEnvironmentGetSet(t *testing.T) {
 	env := NewEnvironment()
 
 	// Set value
-	env.Set("x", &Integer{Value: 42}, true)
+	env.Set("x", &Integer{Value: big.NewInt(42)}, true)
 
 	// Get value
 	val, ok := env.Get("x")
 	if !ok {
 		t.Error("Get(x) should return true")
 	}
-	if val.(*Integer).Value != 42 {
-		t.Errorf("Get(x) = %d, want 42", val.(*Integer).Value)
+	if val.(*Integer).Value.Cmp(big.NewInt(42)) != 0 {
+		t.Errorf("Get(x) = %s, want 42", val.(*Integer).Value.String())
 	}
 
 	// Get non-existent
@@ -510,18 +511,18 @@ func TestEnvironmentGetSet(t *testing.T) {
 
 func TestEnvironmentScopeChain(t *testing.T) {
 	outer := NewEnvironment()
-	outer.Set("x", &Integer{Value: 1}, true)
+	outer.Set("x", &Integer{Value: big.NewInt(1)}, true)
 
 	inner := NewEnclosedEnvironment(outer)
-	inner.Set("y", &Integer{Value: 2}, true)
+	inner.Set("y", &Integer{Value: big.NewInt(2)}, true)
 
 	// Inner can see outer's variables
 	val, ok := inner.Get("x")
 	if !ok {
 		t.Error("inner.Get(x) should return true")
 	}
-	if val.(*Integer).Value != 1 {
-		t.Errorf("inner.Get(x) = %d, want 1", val.(*Integer).Value)
+	if val.(*Integer).Value.Cmp(big.NewInt(1)) != 0 {
+		t.Errorf("inner.Get(x) = %s, want 1", val.(*Integer).Value.String())
 	}
 
 	// Outer cannot see inner's variables
@@ -533,21 +534,21 @@ func TestEnvironmentScopeChain(t *testing.T) {
 
 func TestEnvironmentUpdate(t *testing.T) {
 	env := NewEnvironment()
-	env.Set("x", &Integer{Value: 1}, true)  // mutable
-	env.Set("y", &Integer{Value: 2}, false) // immutable
+	env.Set("x", &Integer{Value: big.NewInt(1)}, true)  // mutable
+	env.Set("y", &Integer{Value: big.NewInt(2)}, false) // immutable
 
 	// Update mutable
-	found, updated := env.Update("x", &Integer{Value: 10})
+	found, updated := env.Update("x", &Integer{Value: big.NewInt(10)})
 	if !found || !updated {
 		t.Error("Update(x) should succeed")
 	}
 	val, _ := env.Get("x")
-	if val.(*Integer).Value != 10 {
-		t.Errorf("After update, x = %d, want 10", val.(*Integer).Value)
+	if val.(*Integer).Value.Cmp(big.NewInt(10)) != 0 {
+		t.Errorf("After update, x = %s, want 10", val.(*Integer).Value.String())
 	}
 
 	// Update immutable
-	found, updated = env.Update("y", &Integer{Value: 20})
+	found, updated = env.Update("y", &Integer{Value: big.NewInt(20)})
 	if !found {
 		t.Error("Update(y) should find the variable")
 	}
@@ -556,7 +557,7 @@ func TestEnvironmentUpdate(t *testing.T) {
 	}
 
 	// Update non-existent
-	found, _ = env.Update("z", &Integer{Value: 30})
+	found, _ = env.Update("z", &Integer{Value: big.NewInt(30)})
 	if found {
 		t.Error("Update(z) should not find variable")
 	}
@@ -564,8 +565,8 @@ func TestEnvironmentUpdate(t *testing.T) {
 
 func TestEnvironmentIsMutable(t *testing.T) {
 	env := NewEnvironment()
-	env.Set("mutable", &Integer{Value: 1}, true)
-	env.Set("immutable", &Integer{Value: 2}, false)
+	env.Set("mutable", &Integer{Value: big.NewInt(1)}, true)
+	env.Set("immutable", &Integer{Value: big.NewInt(2)}, false)
 
 	isMut, ok := env.IsMutable("mutable")
 	if !ok || !isMut {
@@ -687,8 +688,8 @@ func TestEnvironmentStructDefs(t *testing.T) {
 
 func TestEnvironmentVisibility(t *testing.T) {
 	env := NewEnvironment()
-	env.SetWithVisibility("public", &Integer{Value: 1}, true, VisibilityPublic)
-	env.SetWithVisibility("private", &Integer{Value: 2}, true, VisibilityPrivate)
+	env.SetWithVisibility("public", &Integer{Value: big.NewInt(1)}, true, VisibilityPublic)
+	env.SetWithVisibility("private", &Integer{Value: big.NewInt(2)}, true, VisibilityPrivate)
 
 	vis, ok := env.GetVisibility("public")
 	if !ok || vis != VisibilityPublic {
@@ -703,9 +704,9 @@ func TestEnvironmentVisibility(t *testing.T) {
 
 func TestEnvironmentGetPublicBindings(t *testing.T) {
 	env := NewEnvironment()
-	env.SetWithVisibility("public1", &Integer{Value: 1}, true, VisibilityPublic)
-	env.SetWithVisibility("public2", &Integer{Value: 2}, true, VisibilityPublic)
-	env.SetWithVisibility("private", &Integer{Value: 3}, true, VisibilityPrivate)
+	env.SetWithVisibility("public1", &Integer{Value: big.NewInt(1)}, true, VisibilityPublic)
+	env.SetWithVisibility("public2", &Integer{Value: big.NewInt(2)}, true, VisibilityPublic)
+	env.SetWithVisibility("private", &Integer{Value: big.NewInt(3)}, true, VisibilityPrivate)
 
 	bindings := env.GetPublicBindings()
 	if len(bindings) != 2 {

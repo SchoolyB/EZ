@@ -6,6 +6,7 @@ package stdlib
 import (
 	"fmt"
 	"io"
+	"math/big"
 	"os"
 	"path/filepath"
 	"strings"
@@ -211,7 +212,7 @@ var IOBuiltins = map[string]*object.Builtin{
 				if !ok {
 					return &object.Error{Code: "E7004", Message: "io.write_file() permissions must be an integer"}
 				}
-				perms = os.FileMode(permVal.Value)
+				perms = os.FileMode(permVal.Value.Int64())
 			}
 
 			err := atomicWriteFile(path.Value, []byte(content.Value), perms)
@@ -256,7 +257,7 @@ var IOBuiltins = map[string]*object.Builtin{
 				if !ok {
 					return &object.Error{Code: "E7004", Message: "io.write_bytes() permissions must be an integer"}
 				}
-				perms = os.FileMode(permVal.Value)
+				perms = os.FileMode(permVal.Value.Int64())
 			}
 
 			// Convert byte array to []byte
@@ -310,7 +311,7 @@ var IOBuiltins = map[string]*object.Builtin{
 				if !ok {
 					return &object.Error{Code: "E7004", Message: "io.append_file() permissions must be an integer"}
 				}
-				perms = os.FileMode(permVal.Value)
+				perms = os.FileMode(permVal.Value.Int64())
 			}
 
 			f, err := os.OpenFile(path.Value, os.O_APPEND|os.O_CREATE|os.O_WRONLY, perms)
@@ -421,7 +422,7 @@ var IOBuiltins = map[string]*object.Builtin{
 				if !ok {
 					return &object.Error{Code: "E7004", Message: "io.append_line() permissions must be an integer"}
 				}
-				perms = os.FileMode(permVal.Value)
+				perms = os.FileMode(permVal.Value.Int64())
 			}
 
 			f, err := os.OpenFile(path.Value, os.O_APPEND|os.O_CREATE|os.O_WRONLY, perms)
@@ -776,7 +777,7 @@ var IOBuiltins = map[string]*object.Builtin{
 				if !ok {
 					return &object.Error{Code: "E7004", Message: "io.copy() permissions must be an integer"}
 				}
-				perms = os.FileMode(permVal.Value)
+				perms = os.FileMode(permVal.Value.Int64())
 			} else {
 				perms = srcInfo.Mode()
 			}
@@ -842,7 +843,7 @@ var IOBuiltins = map[string]*object.Builtin{
 				if !ok {
 					return &object.Error{Code: "E7004", Message: "io.mkdir() permissions must be an integer"}
 				}
-				perms = os.FileMode(permVal.Value)
+				perms = os.FileMode(permVal.Value.Int64())
 			}
 
 			err := os.Mkdir(path.Value, perms)
@@ -882,7 +883,7 @@ var IOBuiltins = map[string]*object.Builtin{
 				if !ok {
 					return &object.Error{Code: "E7004", Message: "io.mkdir_all() permissions must be an integer"}
 				}
-				perms = os.FileMode(permVal.Value)
+				perms = os.FileMode(permVal.Value.Int64())
 			}
 
 			err := os.MkdirAll(path.Value, perms)
@@ -958,7 +959,7 @@ var IOBuiltins = map[string]*object.Builtin{
 			}
 
 			return &object.ReturnValue{Values: []object.Object{
-				&object.Integer{Value: info.Size()},
+				&object.Integer{Value: big.NewInt(info.Size())},
 				object.NIL,
 			}}
 		},
@@ -987,7 +988,7 @@ var IOBuiltins = map[string]*object.Builtin{
 			}
 
 			return &object.ReturnValue{Values: []object.Object{
-				&object.Integer{Value: info.ModTime().Unix()},
+				&object.Integer{Value: big.NewInt(info.ModTime().Unix())},
 				object.NIL,
 			}}
 		},
@@ -1144,54 +1145,54 @@ var IOBuiltins = map[string]*object.Builtin{
 	// File open mode constants
 	"io.READ_ONLY": {
 		Fn: func(args ...object.Object) object.Object {
-			return &object.Integer{Value: int64(os.O_RDONLY)}
+			return &object.Integer{Value: big.NewInt(int64(os.O_RDONLY))}
 		},
 	},
 	"io.WRITE_ONLY": {
 		Fn: func(args ...object.Object) object.Object {
-			return &object.Integer{Value: int64(os.O_WRONLY)}
+			return &object.Integer{Value: big.NewInt(int64(os.O_WRONLY))}
 		},
 	},
 	"io.READ_WRITE": {
 		Fn: func(args ...object.Object) object.Object {
-			return &object.Integer{Value: int64(os.O_RDWR)}
+			return &object.Integer{Value: big.NewInt(int64(os.O_RDWR))}
 		},
 	},
 	"io.APPEND": {
 		Fn: func(args ...object.Object) object.Object {
-			return &object.Integer{Value: int64(os.O_APPEND)}
+			return &object.Integer{Value: big.NewInt(int64(os.O_APPEND))}
 		},
 	},
 	"io.CREATE": {
 		Fn: func(args ...object.Object) object.Object {
-			return &object.Integer{Value: int64(os.O_CREATE)}
+			return &object.Integer{Value: big.NewInt(int64(os.O_CREATE))}
 		},
 	},
 	"io.TRUNCATE": {
 		Fn: func(args ...object.Object) object.Object {
-			return &object.Integer{Value: int64(os.O_TRUNC)}
+			return &object.Integer{Value: big.NewInt(int64(os.O_TRUNC))}
 		},
 	},
 	"io.EXCLUSIVE": {
 		Fn: func(args ...object.Object) object.Object {
-			return &object.Integer{Value: int64(os.O_EXCL)}
+			return &object.Integer{Value: big.NewInt(int64(os.O_EXCL))}
 		},
 	},
 
 	// Seek whence constants
 	"io.SEEK_START": {
 		Fn: func(args ...object.Object) object.Object {
-			return &object.Integer{Value: int64(io.SeekStart)}
+			return &object.Integer{Value: big.NewInt(int64(io.SeekStart))}
 		},
 	},
 	"io.SEEK_CURRENT": {
 		Fn: func(args ...object.Object) object.Object {
-			return &object.Integer{Value: int64(io.SeekCurrent)}
+			return &object.Integer{Value: big.NewInt(int64(io.SeekCurrent))}
 		},
 	},
 	"io.SEEK_END": {
 		Fn: func(args ...object.Object) object.Object {
-			return &object.Integer{Value: int64(io.SeekEnd)}
+			return &object.Integer{Value: big.NewInt(int64(io.SeekEnd))}
 		},
 	},
 
@@ -1224,7 +1225,7 @@ var IOBuiltins = map[string]*object.Builtin{
 				if !ok {
 					return &object.Error{Code: "E7004", Message: "io.open() mode must be an integer"}
 				}
-				mode = int(modeVal.Value)
+				mode = int(modeVal.Value.Int64())
 			}
 
 			// Default permissions
@@ -1234,7 +1235,7 @@ var IOBuiltins = map[string]*object.Builtin{
 				if !ok {
 					return &object.Error{Code: "E7004", Message: "io.open() permissions must be an integer"}
 				}
-				perms = os.FileMode(permVal.Value)
+				perms = os.FileMode(permVal.Value.Int64())
 			}
 
 			file, err := os.OpenFile(path.Value, mode, perms)
@@ -1275,11 +1276,11 @@ var IOBuiltins = map[string]*object.Builtin{
 			if !ok {
 				return &object.Error{Code: "E7004", Message: "io.read() requires an integer as second argument"}
 			}
-			if n.Value < 0 {
+			if n.Value.Sign() < 0 {
 				return &object.Error{Code: "E7011", Message: "io.read() byte count cannot be negative"}
 			}
 
-			buf := make([]byte, n.Value)
+			buf := make([]byte, n.Value.Int64())
 			bytesRead, err := handle.File.Read(buf)
 
 			// Handle EOF - not an error, just return what we got
@@ -1357,11 +1358,11 @@ var IOBuiltins = map[string]*object.Builtin{
 			if !ok {
 				return &object.Error{Code: "E7004", Message: "io.read_string() requires an integer as second argument"}
 			}
-			if n.Value < 0 {
+			if n.Value.Sign() < 0 {
 				return &object.Error{Code: "E7011", Message: "io.read_string() byte count cannot be negative"}
 			}
 
-			buf := make([]byte, n.Value)
+			buf := make([]byte, n.Value.Int64())
 			bytesRead, err := handle.File.Read(buf)
 
 			// Handle EOF - not an error, just return what we got
@@ -1421,7 +1422,7 @@ var IOBuiltins = map[string]*object.Builtin{
 			}
 
 			return &object.ReturnValue{Values: []object.Object{
-				&object.Integer{Value: int64(bytesWritten)},
+				&object.Integer{Value: big.NewInt(int64(bytesWritten))},
 				object.NIL,
 			}}
 		},
@@ -1453,13 +1454,13 @@ var IOBuiltins = map[string]*object.Builtin{
 				return &object.Error{Code: "E7004", Message: "io.seek() whence must be an integer"}
 			}
 
-			newPos, err := handle.File.Seek(offset.Value, int(whence.Value))
+			newPos, err := handle.File.Seek(offset.Value.Int64(), int(whence.Value.Int64()))
 			if err != nil {
 				return createIOErrorResult(err, "seek")
 			}
 
 			return &object.ReturnValue{Values: []object.Object{
-				&object.Integer{Value: newPos},
+				&object.Integer{Value: big.NewInt(newPos)},
 				object.NIL,
 			}}
 		},
@@ -1490,7 +1491,7 @@ var IOBuiltins = map[string]*object.Builtin{
 			}
 
 			return &object.ReturnValue{Values: []object.Object{
-				&object.Integer{Value: pos},
+				&object.Integer{Value: big.NewInt(pos)},
 				object.NIL,
 			}}
 		},
