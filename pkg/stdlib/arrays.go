@@ -58,10 +58,18 @@ var ArraysBuiltins = map[string]*object.Builtin{
 			if !ok {
 				return newError("arrays.unshift() requires an array as first argument")
 			}
+			if !arr.Mutable {
+				return &object.Error{
+					Message: "cannot modify immutable array (declared as const)",
+					Code:    "E5007",
+				}
+			}
+			// Prepend elements in-place
 			newElements := make([]object.Object, 0, len(arr.Elements)+len(args)-1)
 			newElements = append(newElements, args[1:]...)
 			newElements = append(newElements, arr.Elements...)
-			return &object.Array{Elements: newElements}
+			arr.Elements = newElements
+			return arr
 		},
 	},
 
