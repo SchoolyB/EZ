@@ -1,0 +1,3 @@
+module wrongname  // declares different name than directory
+
+const VALUE int = 42

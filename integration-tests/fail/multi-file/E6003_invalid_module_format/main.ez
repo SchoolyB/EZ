@@ -1,0 +1,10 @@
+/*
+ * Error Test: E6003 - invalid-module-format
+ * Expected: "invalid" or "module" or "format"
+ */
+
+import "./badmodule"
+
+do main() {
+    println("test")
+}

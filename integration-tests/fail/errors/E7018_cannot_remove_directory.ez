@@ -1,0 +1,10 @@
+/*
+ * Error Test: E7018 - cannot-remove-directory
+ * Expected: "cannot remove directories" or "io.remove"
+ */
+
+import @io
+
+do main() {
+    io.remove("/tmp")  // io.remove cannot remove directories
+}

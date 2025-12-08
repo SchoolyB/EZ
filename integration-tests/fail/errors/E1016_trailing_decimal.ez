@@ -1,0 +1,8 @@
+/*
+ * Error Test: E1016 - number-trailing-decimal
+ * Expected: "decimal" or "trailing"
+ */
+
+do main() {
+    temp x float = 1.  // trailing decimal
+}

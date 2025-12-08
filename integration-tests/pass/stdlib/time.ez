@@ -1,0 +1,222 @@
+/*
+ * time.ez - Test @time standard library with PROPER ASSERTIONS
+ */
+
+import @std, @time
+using std
+
+do main() {
+    println("=== @time Standard Library Test ===")
+    temp passed int = 0
+    temp failed int = 0
+
+    // ==================== time.now ====================
+    println("  -- time.now --")
+
+    // Test 1: now returns a reasonable timestamp (after 2024)
+    temp now int = time.now()
+    // Unix timestamp for Jan 1 2024 00:00:00 UTC is 1704067200
+    if now > 1704067200 {
+        println("  [PASS] time.now() returns current timestamp")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] time.now(): got ${now} (too small)")
+        failed += 1
+    }
+
+    // ==================== time.date ====================
+    println("  -- time.date --")
+
+    // Test 2: date returns non-empty string
+    temp date string = time.date()
+    if len(date) > 0 {
+        println("  [PASS] time.date() returns '${date}'")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] time.date(): got empty string")
+        failed += 1
+    }
+
+    // ==================== time.iso ====================
+    println("  -- time.iso --")
+
+    // Test 3: iso returns ISO format
+    temp iso string = time.iso()
+    // ISO format looks like: 2024-12-08T12:34:56Z or similar
+    if len(iso) >= 19 {
+        println("  [PASS] time.iso() returns '${iso}'")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] time.iso(): got '${iso}'")
+        failed += 1
+    }
+
+    // ==================== time.year / month / day ====================
+    println("  -- time.year / month / day --")
+
+    // Test 4: year is reasonable
+    temp year int = time.year()
+    if year >= 2024 {
+        println("  [PASS] time.year() = ${year}")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] time.year(): expected >= 2024, got ${year}")
+        failed += 1
+    }
+
+    // Test 5: month is 1-12
+    temp month int = time.month()
+    if month >= 1 && month <= 12 {
+        println("  [PASS] time.month() = ${month}")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] time.month(): expected 1-12, got ${month}")
+        failed += 1
+    }
+
+    // Test 6: day is 1-31
+    temp day int = time.day()
+    if day >= 1 && day <= 31 {
+        println("  [PASS] time.day() = ${day}")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] time.day(): expected 1-31, got ${day}")
+        failed += 1
+    }
+
+    // ==================== time.hour / minute / second ====================
+    println("  -- time.hour / minute / second --")
+
+    // Test 7: hour is 0-23
+    temp hour int = time.hour()
+    if hour >= 0 && hour <= 23 {
+        println("  [PASS] time.hour() = ${hour}")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] time.hour(): expected 0-23, got ${hour}")
+        failed += 1
+    }
+
+    // Test 8: minute is 0-59
+    temp minute int = time.minute()
+    if minute >= 0 && minute <= 59 {
+        println("  [PASS] time.minute() = ${minute}")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] time.minute(): expected 0-59, got ${minute}")
+        failed += 1
+    }
+
+    // Test 9: second is 0-59
+    temp second int = time.second()
+    if second >= 0 && second <= 59 {
+        println("  [PASS] time.second() = ${second}")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] time.second(): expected 0-59, got ${second}")
+        failed += 1
+    }
+
+    // ==================== time.format ====================
+    println("  -- time.format --")
+
+    // Test 10: format with pattern
+    temp formatted string = time.format("YYYY-MM-DD")
+    // Should return something like "2024-12-08"
+    if len(formatted) == 10 {
+        println("  [PASS] time.format('YYYY-MM-DD') = '${formatted}'")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] time.format: expected len 10, got '${formatted}'")
+        failed += 1
+    }
+
+    // Test 11: format with timestamp
+    temp time_fmt string = time.format("HH:mm:ss", now)
+    if len(time_fmt) == 8 {
+        println("  [PASS] time.format('HH:mm:ss', now) = '${time_fmt}'")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] time.format with timestamp: got '${time_fmt}'")
+        failed += 1
+    }
+
+    // ==================== time arithmetic ====================
+    println("  -- time arithmetic --")
+
+    // Test 12: add_days
+    temp future int = time.add_days(now, 7)
+    temp diff_days int = (future - now) / 86400
+    if diff_days == 7 {
+        println("  [PASS] time.add_days(now, 7) adds 7 days")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] time.add_days: expected 7 day diff, got ${diff_days}")
+        failed += 1
+    }
+
+    // Test 13: add_weeks
+    temp week_later int = time.add_weeks(now, 1)
+    temp week_diff int = time.diff_days(week_later, now)
+    if week_diff == 7 {
+        println("  [PASS] time.add_weeks(now, 1) adds 7 days")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] time.add_weeks: expected 7 day diff, got ${week_diff}")
+        failed += 1
+    }
+
+    // Test 14: add_hours / diff_hours
+    temp five_hours int = time.add_hours(now, 5)
+    temp hour_diff int = time.diff_hours(five_hours, now)
+    if hour_diff == 5 {
+        println("  [PASS] time.add_hours(now, 5) / diff_hours = 5")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] time.add_hours/diff_hours: expected 5, got ${hour_diff}")
+        failed += 1
+    }
+
+    // Test 15: diff_minutes
+    temp minute_diff int = time.diff_minutes(five_hours, now)
+    if minute_diff == 300 {
+        println("  [PASS] time.diff_minutes for 5 hours = 300")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] time.diff_minutes: expected 300, got ${minute_diff}")
+        failed += 1
+    }
+
+    // ==================== calendar utilities ====================
+    println("  -- calendar utilities --")
+
+    // Test 16: quarter is 1-4
+    temp quarter int = time.quarter()
+    if quarter >= 1 && quarter <= 4 {
+        println("  [PASS] time.quarter() = Q${quarter}")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] time.quarter(): expected 1-4, got ${quarter}")
+        failed += 1
+    }
+
+    // Test 17: week_of_year is 1-53
+    temp week int = time.week_of_year()
+    if week >= 1 && week <= 53 {
+        println("  [PASS] time.week_of_year() = ${week}")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] time.week_of_year(): expected 1-53, got ${week}")
+        failed += 1
+    }
+
+    // Summary
+    println("")
+    println("Results: ${passed} passed, ${failed} failed")
+
+    if failed > 0 {
+        println("SOME TESTS FAILED")
+    } otherwise {
+        println("ALL TESTS PASSED")
+    }
+}

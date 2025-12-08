@@ -1,0 +1,177 @@
+/*
+ * structs.ez - Test struct definitions and usage
+ */
+
+import @std, @arrays
+using std
+
+const Point struct {
+    x int
+    y int
+}
+
+const Person struct {
+    name string
+    age int
+    active bool
+}
+
+const Task struct {
+    id int
+    title string
+    priority int
+    status string
+    tags [string]
+}
+
+const CopyInner struct {
+    val int
+}
+
+const CopyOuter struct {
+    inner CopyInner
+}
+
+do main() {
+    println("=== Structs Test ===")
+    temp passed int = 0
+    temp failed int = 0
+
+    // ==================== BASIC STRUCTS ====================
+    println("  -- Basic Structs --")
+
+    // Test 1: struct instantiation
+    temp p Point = Point{x: 10, y: 20}
+    if p.x == 10 && p.y == 20 {
+        println("  [PASS] struct instantiation")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] struct instantiation: x=${p.x}, y=${p.y}")
+        failed += 1
+    }
+
+    // Test 2: field modification
+    p.x = 15
+    if p.x == 15 {
+        println("  [PASS] struct field modification")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] struct field modification: expected 15, got ${p.x}")
+        failed += 1
+    }
+
+    // Test 3: struct with different types
+    temp person Person = Person{
+        name: "Alice",
+        age: 30,
+        active: true
+    }
+    if person.name == "Alice" && person.age == 30 && person.active == true {
+        println("  [PASS] struct with multiple field types")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] struct with multiple types")
+        failed += 1
+    }
+
+    // Test 4: struct with array field
+    temp task Task = Task{
+        id: 1,
+        title: "Test Task",
+        priority: 20,
+        status: "todo",
+        tags: {"urgent", "review"}
+    }
+    if task.id == 1 && len(task.tags) == 2 && task.tags[0] == "urgent" {
+        println("  [PASS] struct with array field")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] struct with array field")
+        failed += 1
+    }
+
+    // ==================== ARRAY OF STRUCTS ====================
+    println("  -- Array of Structs --")
+
+    // Test 5: array of structs
+    temp points [Point] = {}
+    arrays.append(points, Point{x: 0, y: 0})
+    arrays.append(points, Point{x: 1, y: 1})
+    if len(points) == 2 && points[0].x == 0 && points[1].x == 1 {
+        println("  [PASS] array of structs")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] array of structs")
+        failed += 1
+    }
+
+    // ==================== TYPE INFERENCE ====================
+    println("  -- Type Inference --")
+
+    // Test 6: const type inference with new()
+    const p1 = new(Person)
+    if p1.name == "" && p1.age == 0 {
+        println("  [PASS] const with new() type inference")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] const with new(): name='${p1.name}', age=${p1.age}")
+        failed += 1
+    }
+
+    // Test 7: const type inference with struct literal
+    const p2 = Person{name: "Bob", age: 25, active: true}
+    if p2.name == "Bob" && p2.age == 25 {
+        println("  [PASS] const with struct literal type inference")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] const with struct literal")
+        failed += 1
+    }
+
+    // Test 8: const type inference with copy()
+    const p3 = copy(person)
+    if p3.name == "Alice" && p3.age == 30 {
+        println("  [PASS] const with copy() type inference")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] const with copy()")
+        failed += 1
+    }
+
+    // ==================== COPY BUILTIN ====================
+    println("  -- copy() Builtin --")
+
+    // Test 9: copy struct - verify deep copy
+    temp a Person = Person{name: "Alice", age: 30, active: true}
+    temp b Person = copy(a)
+    b.age = 31
+    if a.age == 30 && b.age == 31 {
+        println("  [PASS] copy(struct) creates independent copy")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] copy(struct): original.age=${a.age}, copied.age=${b.age}")
+        failed += 1
+    }
+
+    // Test 10: copy nested struct - verify deep copy
+    temp outer1 CopyOuter = CopyOuter{inner: CopyInner{val: 42}}
+    temp outer2 CopyOuter = copy(outer1)
+    outer2.inner.val = 99
+    if outer1.inner.val == 42 && outer2.inner.val == 99 {
+        println("  [PASS] copy(nested struct) creates deep copy")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] copy(nested): original.inner.val=${outer1.inner.val}, copied=${outer2.inner.val}")
+        failed += 1
+    }
+
+    // Summary
+    println("")
+    println("Results: ${passed} passed, ${failed} failed")
+
+    if failed > 0 {
+        println("SOME TESTS FAILED")
+    } otherwise {
+        println("ALL TESTS PASSED")
+    }
+}

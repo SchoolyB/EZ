@@ -1,0 +1,10 @@
+/*
+ * Error Test: E7016 - file-not-found
+ * Expected: "file" or "not found"
+ */
+
+import @io
+
+do main() {
+    temp content string = io.read("/nonexistent/path/file.txt")
+}

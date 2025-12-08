@@ -1,0 +1,10 @@
+/*
+ * Error Test: E6005 - module-name-mismatch
+ * Expected: "module name" or "does not match" or "directory"
+ */
+
+import "./mymod"
+
+do main() {
+    println("test")
+}

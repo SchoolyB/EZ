@@ -11,9 +11,9 @@ tmp/
 coverage.out
 
 # Keep tests and examples tracked
-!tests/
-!tests/**
-!tests/**/*.ez
+!integration-tests/
+!integration-tests/**
+!integration-tests/**/*.ez
 !examples/
 !examples/**
 !examples/**/*.ez

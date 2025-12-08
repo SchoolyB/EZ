@@ -1,0 +1,10 @@
+/*
+ * Error Test: E10001 - repeat-count-negative
+ * Expected: "repeat" or "negative"
+ */
+
+import @strings
+
+do main() {
+    temp s string = strings.repeat("x", -5)  // negative count
+}

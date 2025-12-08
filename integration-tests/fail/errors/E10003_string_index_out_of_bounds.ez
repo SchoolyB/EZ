@@ -1,0 +1,11 @@
+/*
+ * Error Test: E10003 - string-index-out-of-bounds
+ * Expected: "string index" or "out of bounds"
+ */
+
+import @strings
+
+do main() {
+    temp s string = "hello"
+    temp c = strings.char_at(s, 100)  // index out of bounds
+}

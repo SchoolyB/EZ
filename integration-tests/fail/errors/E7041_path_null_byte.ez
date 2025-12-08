@@ -1,0 +1,10 @@
+/*
+ * Error Test: E7041 - path-null-byte
+ * Expected: "null byte" or "path"
+ */
+
+import @io
+
+do main() {
+    temp content string = io.read("test\x00file.txt")  // null byte in path
+}

@@ -1,0 +1,8 @@
+/*
+ * Error Test: E1011 - number-consecutive-underscores
+ * Expected: "consecutive underscores"
+ */
+
+do main() {
+    temp x int = 1__000  // consecutive underscores
+}

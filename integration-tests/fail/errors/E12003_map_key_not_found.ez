@@ -1,0 +1,12 @@
+/*
+ * Error Test: E12003 - map-key-not-found
+ * Expected: "key not found" or "not found in map"
+ */
+
+import @maps
+
+do main() {
+    temp m = maps.new()
+    maps.set(m, "key", "value")
+    temp v = maps.get(m, "nonexistent")  // key not found
+}

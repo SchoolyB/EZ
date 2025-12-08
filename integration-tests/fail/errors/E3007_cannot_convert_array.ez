@@ -1,0 +1,9 @@
+/*
+ * Error Test: E3007 - cannot-convert-array
+ * Expected: "cannot convert array"
+ */
+
+do main() {
+    temp arr [int] = {1, 2, 3}
+    temp x int = int(arr)  // cannot convert array to int
+}

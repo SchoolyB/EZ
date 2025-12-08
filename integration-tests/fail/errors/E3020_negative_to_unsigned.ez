@@ -1,0 +1,8 @@
+/*
+ * Error Test: E3020 - negative-to-unsigned
+ * Expected: "negative" or "unsigned"
+ */
+
+do main() {
+    temp x uint = -5  // cannot assign negative to unsigned
+}

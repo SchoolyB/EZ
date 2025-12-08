@@ -1,0 +1,377 @@
+/*
+ * arrays.ez - Test @arrays standard library with PROPER ASSERTIONS
+ *
+ * This file replaces the broken tests that auto-passed without validation.
+ * Every test now compares expected vs actual values.
+ */
+
+import @std, @arrays
+using std
+
+do main() {
+    println("=== @arrays Standard Library Test ===")
+    temp passed int = 0
+    temp failed int = 0
+
+    // ==================== arrays.append ====================
+    println("  -- arrays.append --")
+
+    // Test 1: append to array
+    temp push_arr [int] = {1, 2, 3}
+    arrays.append(push_arr, 4)
+    if len(push_arr) == 4 && push_arr[3] == 4 {
+        println("  [PASS] arrays.append({1,2,3}, 4)")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] arrays.append: expected {1,2,3,4}, got ${push_arr}")
+        failed += 1
+    }
+
+    // Test 2: append to empty array
+    temp empty_arr [int] = {}
+    arrays.append(empty_arr, 42)
+    if len(empty_arr) == 1 && empty_arr[0] == 42 {
+        println("  [PASS] arrays.append to empty array")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] arrays.append to empty: expected {42}, got ${empty_arr}")
+        failed += 1
+    }
+
+    // ==================== arrays.pop ====================
+    println("  -- arrays.pop --")
+
+    // Test 3: pop from array
+    temp pop_arr [int] = {1, 2, 3, 4}
+    temp popped int = arrays.pop(pop_arr)
+    if popped == 4 && len(pop_arr) == 3 {
+        println("  [PASS] arrays.pop() returns 4, array is now {1,2,3}")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] arrays.pop: expected 4, got ${popped}, arr=${pop_arr}")
+        failed += 1
+    }
+
+    // ==================== arrays.first / arrays.last ====================
+    println("  -- arrays.first / arrays.last --")
+
+    // Test 4: first element
+    temp arr [int] = {10, 20, 30, 40}
+    temp first int = arrays.first(arr)
+    if first == 10 {
+        println("  [PASS] arrays.first({10,20,30,40}) = 10")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] arrays.first: expected 10, got ${first}")
+        failed += 1
+    }
+
+    // Test 5: last element
+    temp last int = arrays.last(arr)
+    if last == 40 {
+        println("  [PASS] arrays.last({10,20,30,40}) = 40")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] arrays.last: expected 40, got ${last}")
+        failed += 1
+    }
+
+    // ==================== arrays.reverse ====================
+    println("  -- arrays.reverse --")
+
+    // Test 6: reverse array (THE CRITICAL BUG TEST)
+    temp to_reverse [int] = {1, 2, 3}
+    temp reversed [int] = arrays.reverse(to_reverse)
+    if len(reversed) == 3 && reversed[0] == 3 && reversed[1] == 2 && reversed[2] == 1 {
+        println("  [PASS] arrays.reverse({1,2,3}) = {3,2,1}")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] arrays.reverse({1,2,3}): expected {3,2,1}, got ${reversed}")
+        failed += 1
+    }
+
+    // Test 7: reverse single element
+    temp single [int] = {42}
+    temp reversed_single [int] = arrays.reverse(single)
+    if len(reversed_single) == 1 && reversed_single[0] == 42 {
+        println("  [PASS] arrays.reverse({42}) = {42}")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] arrays.reverse single: got ${reversed_single}")
+        failed += 1
+    }
+
+    // Test 8: reverse empty array
+    temp empty [int] = {}
+    temp reversed_empty [int] = arrays.reverse(empty)
+    if len(reversed_empty) == 0 {
+        println("  [PASS] arrays.reverse({}) = {}")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] arrays.reverse empty: got ${reversed_empty}")
+        failed += 1
+    }
+
+    // ==================== arrays.slice ====================
+    println("  -- arrays.slice --")
+
+    // Test 9: slice middle
+    temp slice_arr [int] = {0, 1, 2, 3, 4, 5}
+    temp sliced [int] = arrays.slice(slice_arr, 2, 5)
+    if len(sliced) == 3 && sliced[0] == 2 && sliced[1] == 3 && sliced[2] == 4 {
+        println("  [PASS] arrays.slice({0,1,2,3,4,5}, 2, 5) = {2,3,4}")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] arrays.slice: expected {2,3,4}, got ${sliced}")
+        failed += 1
+    }
+
+    // Test 10: slice from start
+    temp sliced_start [int] = arrays.slice(slice_arr, 0, 3)
+    if len(sliced_start) == 3 && sliced_start[0] == 0 && sliced_start[2] == 2 {
+        println("  [PASS] arrays.slice from start")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] arrays.slice from start: got ${sliced_start}")
+        failed += 1
+    }
+
+    // ==================== arrays.contains ====================
+    println("  -- arrays.contains --")
+
+    // Test 11: contains - found
+    temp contains_arr [int] = {1, 2, 3, 4, 5}
+    if arrays.contains(contains_arr, 3) == true {
+        println("  [PASS] arrays.contains({1,2,3,4,5}, 3) = true")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] arrays.contains: expected true for 3")
+        failed += 1
+    }
+
+    // Test 12: contains - not found
+    if arrays.contains(contains_arr, 10) == false {
+        println("  [PASS] arrays.contains({1,2,3,4,5}, 10) = false")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] arrays.contains: expected false for 10")
+        failed += 1
+    }
+
+    // ==================== arrays.index_of ====================
+    println("  -- arrays.index_of --")
+
+    // Test 13: index_of - found
+    temp idx int = arrays.index_of(contains_arr, 3)
+    if idx == 2 {
+        println("  [PASS] arrays.index_of({1,2,3,4,5}, 3) = 2")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] arrays.index_of: expected 2, got ${idx}")
+        failed += 1
+    }
+
+    // Test 14: index_of - not found
+    temp idx_notfound int = arrays.index_of(contains_arr, 10)
+    if idx_notfound == -1 {
+        println("  [PASS] arrays.index_of(not found) = -1")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] arrays.index_of not found: expected -1, got ${idx_notfound}")
+        failed += 1
+    }
+
+    // ==================== arrays.clear ====================
+    println("  -- arrays.clear --")
+
+    // Test 15: clear array
+    temp clear_arr [int] = {1, 2, 3, 4, 5}
+    arrays.clear(clear_arr)
+    if len(clear_arr) == 0 {
+        println("  [PASS] arrays.clear() empties array")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] arrays.clear: expected len 0, got ${len(clear_arr)}")
+        failed += 1
+    }
+
+    // ==================== arrays.fill ====================
+    println("  -- arrays.fill --")
+
+    // Test 16: fill array
+    temp fill_arr [int] = {1, 2, 3}
+    arrays.fill(fill_arr, 0)
+    if fill_arr[0] == 0 && fill_arr[1] == 0 && fill_arr[2] == 0 {
+        println("  [PASS] arrays.fill({1,2,3}, 0) = {0,0,0}")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] arrays.fill: expected {0,0,0}, got ${fill_arr}")
+        failed += 1
+    }
+
+    // ==================== arrays.shift ====================
+    println("  -- arrays.shift --")
+
+    // Test 17: shift (remove first)
+    temp shift_arr [int] = {10, 20, 30}
+    temp shifted int = arrays.shift(shift_arr)
+    if shifted == 10 && len(shift_arr) == 2 && shift_arr[0] == 20 {
+        println("  [PASS] arrays.shift() returns 10, array is {20,30}")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] arrays.shift: shifted=${shifted}, arr=${shift_arr}")
+        failed += 1
+    }
+
+    // ==================== arrays.unshift ====================
+    println("  -- arrays.unshift --")
+
+    // Test 18: unshift (add to front)
+    temp unshift_arr [int] = {2, 3}
+    arrays.unshift(unshift_arr, 1)
+    if len(unshift_arr) == 3 && unshift_arr[0] == 1 && unshift_arr[1] == 2 {
+        println("  [PASS] arrays.unshift({2,3}, 1) = {1,2,3}")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] arrays.unshift: expected {1,2,3}, got ${unshift_arr}")
+        failed += 1
+    }
+
+    // ==================== arrays.chunk ====================
+    println("  -- arrays.chunk --")
+
+    // Test 19: chunk array
+    temp to_chunk [int] = {1, 2, 3, 4, 5, 6, 7}
+    temp chunked [[int]] = arrays.chunk(to_chunk, 3)
+    if len(chunked) == 3 && len(chunked[0]) == 3 && len(chunked[2]) == 1 {
+        println("  [PASS] arrays.chunk({1..7}, 3) creates 3 chunks")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] arrays.chunk: expected 3 chunks, got ${len(chunked)}")
+        failed += 1
+    }
+
+    // Test 20: chunk first element
+    if chunked[0][0] == 1 && chunked[0][2] == 3 {
+        println("  [PASS] first chunk is {1,2,3}")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] chunk content: got ${chunked[0]}")
+        failed += 1
+    }
+
+    // ==================== arrays.flatten ====================
+    println("  -- arrays.flatten --")
+
+    // Test 21: flatten 2D array
+    temp nested [[int]] = {{10, 20}, {30, 40}}
+    temp flattened [int] = arrays.flatten(nested)
+    if len(flattened) == 4 && flattened[0] == 10 && flattened[3] == 40 {
+        println("  [PASS] arrays.flatten({{10,20},{30,40}}) = {10,20,30,40}")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] arrays.flatten: got ${flattened}")
+        failed += 1
+    }
+
+    // ==================== arrays.zip ====================
+    println("  -- arrays.zip --")
+
+    // Test 22: zip two arrays
+    temp zipped [[int]] = arrays.zip({1, 2}, {3, 4})
+    if len(zipped) == 2 && zipped[0][0] == 1 && zipped[0][1] == 3 {
+        println("  [PASS] arrays.zip({1,2}, {3,4})")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] arrays.zip: got ${zipped}")
+        failed += 1
+    }
+
+    // ==================== arrays.concat ====================
+    println("  -- arrays.concat --")
+
+    // Test 23: concat arrays
+    temp concat_result [int] = arrays.concat({1, 2}, {3, 4})
+    if len(concat_result) == 4 && concat_result[0] == 1 && concat_result[3] == 4 {
+        println("  [PASS] arrays.concat({1,2}, {3,4}) = {1,2,3,4}")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] arrays.concat: got ${concat_result}")
+        failed += 1
+    }
+
+    // ==================== arrays.unique ====================
+    println("  -- arrays.unique --")
+
+    // Test 24: unique removes duplicates
+    temp with_dups [int] = {1, 2, 2, 3, 3, 3, 4}
+    temp unique_arr [int] = arrays.unique(with_dups)
+    if len(unique_arr) == 4 {
+        println("  [PASS] arrays.unique removes duplicates (len=4)")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] arrays.unique: expected len 4, got ${len(unique_arr)}")
+        failed += 1
+    }
+
+    // ==================== arrays.count ====================
+    println("  -- arrays.count --")
+
+    // Test 25: count occurrences
+    temp count_arr [int] = {1, 2, 2, 3, 2, 4, 2}
+    temp count int = arrays.count(count_arr, 2)
+    if count == 4 {
+        println("  [PASS] arrays.count({1,2,2,3,2,4,2}, 2) = 4")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] arrays.count: expected 4, got ${count}")
+        failed += 1
+    }
+
+    // ==================== arrays.sum ====================
+    println("  -- arrays.sum --")
+
+    // Test 26: sum of ints
+    temp sum int = arrays.sum({1, 2, 3, 4, 5})
+    if sum == 15 {
+        println("  [PASS] arrays.sum({1,2,3,4,5}) = 15")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] arrays.sum: expected 15, got ${sum}")
+        failed += 1
+    }
+
+    // ==================== arrays.min / arrays.max ====================
+    println("  -- arrays.min / arrays.max --")
+
+    // Test 27: min
+    temp minmax_arr [int] = {5, 2, 8, 1, 9, 3}
+    temp min_val int = arrays.min(minmax_arr)
+    if min_val == 1 {
+        println("  [PASS] arrays.min({5,2,8,1,9,3}) = 1")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] arrays.min: expected 1, got ${min_val}")
+        failed += 1
+    }
+
+    // Test 28: max
+    temp max_val int = arrays.max(minmax_arr)
+    if max_val == 9 {
+        println("  [PASS] arrays.max({5,2,8,1,9,3}) = 9")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] arrays.max: expected 9, got ${max_val}")
+        failed += 1
+    }
+
+    // Summary
+    println("")
+    println("Results: ${passed} passed, ${failed} failed")
+
+    if failed > 0 {
+        println("SOME TESTS FAILED")
+    } otherwise {
+        println("ALL TESTS PASSED")
+    }
+}

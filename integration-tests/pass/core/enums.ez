@@ -1,0 +1,160 @@
+/*
+ * enums.ez - Test enum definitions and usage
+ */
+
+import @std
+using std
+
+/* Basic int enum (auto-incremented) */
+const Direction enum {
+    NORTH
+    EAST
+    SOUTH
+    WEST
+}
+
+/* Int enum with skip attribute */
+@(int, skip, 10)
+const Priority enum {
+    LOW       // 0
+    MEDIUM    // 10
+    HIGH      // 20
+    CRITICAL  // 30
+}
+
+/* String enum with explicit values */
+const Status enum {
+    TODO = "todo"
+    IN_PROGRESS = "in_progress"
+    DONE = "done"
+}
+
+do main() {
+    println("=== Enums Test ===")
+    temp passed int = 0
+    temp failed int = 0
+
+    // ==================== BASIC INT ENUM ====================
+    println("  -- Basic Int Enum --")
+
+    // Test 1: first enum value is 0
+    if Direction.NORTH == 0 {
+        println("  [PASS] Direction.NORTH = 0")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] Direction.NORTH: expected 0, got ${Direction.NORTH}")
+        failed += 1
+    }
+
+    // Test 2: auto-increment
+    if Direction.EAST == 1 && Direction.SOUTH == 2 && Direction.WEST == 3 {
+        println("  [PASS] enum auto-increment (1, 2, 3)")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] enum auto-increment")
+        failed += 1
+    }
+
+    // Test 3: store enum in variable
+    temp current int = Direction.SOUTH
+    if current == 2 {
+        println("  [PASS] enum value in variable")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] enum in variable: expected 2, got ${current}")
+        failed += 1
+    }
+
+    // ==================== ENUM WITH SKIP ====================
+    println("  -- Enum with Skip Attribute --")
+
+    // Test 4: first value is still 0
+    if Priority.LOW == 0 {
+        println("  [PASS] Priority.LOW = 0")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] Priority.LOW: expected 0, got ${Priority.LOW}")
+        failed += 1
+    }
+
+    // Test 5: skip by 10
+    if Priority.MEDIUM == 10 {
+        println("  [PASS] Priority.MEDIUM = 10 (skip 10)")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] Priority.MEDIUM: expected 10, got ${Priority.MEDIUM}")
+        failed += 1
+    }
+
+    // Test 6: continue skipping
+    if Priority.HIGH == 20 && Priority.CRITICAL == 30 {
+        println("  [PASS] Priority.HIGH=20, CRITICAL=30")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] skip enum: HIGH=${Priority.HIGH}, CRITICAL=${Priority.CRITICAL}")
+        failed += 1
+    }
+
+    // ==================== STRING ENUM ====================
+    println("  -- String Enum --")
+
+    // Test 7: string enum value
+    if Status.TODO == "todo" {
+        println("  [PASS] Status.TODO = \"todo\"")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] Status.TODO: expected \"todo\", got \"${Status.TODO}\"")
+        failed += 1
+    }
+
+    // Test 8: other string values
+    if Status.IN_PROGRESS == "in_progress" && Status.DONE == "done" {
+        println("  [PASS] Status.IN_PROGRESS and DONE")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] string enum values")
+        failed += 1
+    }
+
+    // Test 9: string enum in variable
+    temp current_status string = Status.IN_PROGRESS
+    if current_status == "in_progress" {
+        println("  [PASS] string enum in variable")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] string enum in variable: got \"${current_status}\"")
+        failed += 1
+    }
+
+    // ==================== ENUM COMPARISON ====================
+    println("  -- Enum Comparison --")
+
+    // Test 10: compare enum values
+    temp priority int = Priority.HIGH
+    if priority >= Priority.MEDIUM {
+        println("  [PASS] enum comparison (HIGH >= MEDIUM)")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] enum comparison")
+        failed += 1
+    }
+
+    // Test 11: enum equality
+    if priority == Priority.HIGH {
+        println("  [PASS] enum equality check")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] enum equality")
+        failed += 1
+    }
+
+    // Summary
+    println("")
+    println("Results: ${passed} passed, ${failed} failed")
+
+    if failed > 0 {
+        println("SOME TESTS FAILED")
+    } otherwise {
+        println("ALL TESTS PASSED")
+    }
+}

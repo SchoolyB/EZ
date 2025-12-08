@@ -1,0 +1,10 @@
+/*
+ * Error Test: E6001 - circular-import
+ * Expected: "circular import"
+ */
+
+import "./module_a"
+
+do main() {
+    println("test")
+}

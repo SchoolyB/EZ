@@ -1,0 +1,10 @@
+/*
+ * Error Test: E12004 - map-invalid-pair
+ * Expected: "pair" or "key, value"
+ */
+
+import @maps
+
+do main() {
+    temp m = maps.from_pairs({{1, 2, 3}})  // not a valid pair
+}

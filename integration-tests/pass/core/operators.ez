@@ -1,0 +1,258 @@
+/*
+ * operators.ez - Test all operators (arithmetic, comparison, logical, assignment)
+ */
+
+import @std
+using std
+
+do main() {
+    println("=== Operators Test ===")
+    temp passed int = 0
+    temp failed int = 0
+
+    // ==================== ARITHMETIC ====================
+    println("  -- Arithmetic --")
+
+    // Test 1: Addition
+    temp add_result int = 10 + 3
+    if add_result == 13 {
+        println("  [PASS] 10 + 3 = 13")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] 10 + 3: expected 13, got ${add_result}")
+        failed += 1
+    }
+
+    // Test 2: Subtraction
+    temp sub_result int = 10 - 3
+    if sub_result == 7 {
+        println("  [PASS] 10 - 3 = 7")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] 10 - 3: expected 7, got ${sub_result}")
+        failed += 1
+    }
+
+    // Test 3: Multiplication
+    temp mul_result int = 10 * 3
+    if mul_result == 30 {
+        println("  [PASS] 10 * 3 = 30")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] 10 * 3: expected 30, got ${mul_result}")
+        failed += 1
+    }
+
+    // Test 4: Integer division
+    temp div_result int = 10 / 3
+    if div_result == 3 {
+        println("  [PASS] 10 / 3 = 3 (integer division)")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] 10 / 3: expected 3, got ${div_result}")
+        failed += 1
+    }
+
+    // Test 5: Modulo
+    temp mod_result int = 10 % 3
+    if mod_result == 1 {
+        println("  [PASS] 10 % 3 = 1")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] 10 % 3: expected 1, got ${mod_result}")
+        failed += 1
+    }
+
+    // Test 6: Float division
+    temp float_div float = 10.0 / 3.0
+    if float_div > 3.33 && float_div < 3.34 {
+        println("  [PASS] 10.0 / 3.0 = ~3.333")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] 10.0 / 3.0: expected ~3.333, got ${float_div}")
+        failed += 1
+    }
+
+    // ==================== COMPARISON ====================
+    println("  -- Comparison --")
+
+    temp a int = 10
+    temp b int = 3
+
+    // Test 7: Equal
+    if (a == 10) == true {
+        println("  [PASS] 10 == 10 is true")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] 10 == 10 should be true")
+        failed += 1
+    }
+
+    // Test 8: Not equal
+    if (a != b) == true {
+        println("  [PASS] 10 != 3 is true")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] 10 != 3 should be true")
+        failed += 1
+    }
+
+    // Test 9: Less than
+    if (b < a) == true {
+        println("  [PASS] 3 < 10 is true")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] 3 < 10 should be true")
+        failed += 1
+    }
+
+    // Test 10: Greater than
+    if (a > b) == true {
+        println("  [PASS] 10 > 3 is true")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] 10 > 3 should be true")
+        failed += 1
+    }
+
+    // Test 11: Less than or equal
+    if (3 <= 3) == true {
+        println("  [PASS] 3 <= 3 is true")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] 3 <= 3 should be true")
+        failed += 1
+    }
+
+    // Test 12: Greater than or equal
+    if (10 >= 10) == true {
+        println("  [PASS] 10 >= 10 is true")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] 10 >= 10 should be true")
+        failed += 1
+    }
+
+    // ==================== LOGICAL ====================
+    println("  -- Logical --")
+
+    temp t bool = true
+    temp f bool = false
+
+    // Test 13: AND
+    if (t && t) == true && (t && f) == false {
+        println("  [PASS] && operator")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] && operator")
+        failed += 1
+    }
+
+    // Test 14: OR
+    if (t || f) == true && (f || f) == false {
+        println("  [PASS] || operator")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] || operator")
+        failed += 1
+    }
+
+    // Test 15: NOT
+    if !t == false && !f == true {
+        println("  [PASS] ! operator")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] ! operator")
+        failed += 1
+    }
+
+    // ==================== ASSIGNMENT ====================
+    println("  -- Assignment --")
+
+    // Test 16: +=
+    temp num int = 10
+    num += 5
+    if num == 15 {
+        println("  [PASS] += operator")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] +=: expected 15, got ${num}")
+        failed += 1
+    }
+
+    // Test 17: -=
+    num -= 3
+    if num == 12 {
+        println("  [PASS] -= operator")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] -=: expected 12, got ${num}")
+        failed += 1
+    }
+
+    // Test 18: *=
+    num *= 2
+    if num == 24 {
+        println("  [PASS] *= operator")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] *=: expected 24, got ${num}")
+        failed += 1
+    }
+
+    // Test 19: /=
+    num /= 4
+    if num == 6 {
+        println("  [PASS] /= operator")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] /=: expected 6, got ${num}")
+        failed += 1
+    }
+
+    // Test 20: ++
+    temp counter int = 0
+    counter++
+    if counter == 1 {
+        println("  [PASS] ++ operator")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] ++: expected 1, got ${counter}")
+        failed += 1
+    }
+
+    // Test 21: --
+    counter--
+    if counter == 0 {
+        println("  [PASS] -- operator")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] --: expected 0, got ${counter}")
+        failed += 1
+    }
+
+    // ==================== STRING ====================
+    println("  -- String --")
+
+    // Test 22: String concatenation
+    temp str1 string = "Hello"
+    temp str2 string = "World"
+    temp concat string = str1 + " " + str2
+    if concat == "Hello World" {
+        println("  [PASS] string concatenation")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] string concatenation: expected 'Hello World', got '${concat}'")
+        failed += 1
+    }
+
+    // Summary
+    println("")
+    println("Results: ${passed} passed, ${failed} failed")
+
+    if failed > 0 {
+        println("SOME TESTS FAILED")
+    } otherwise {
+        println("ALL TESTS PASSED")
+    }
+}

@@ -481,13 +481,13 @@ func runFile(filename string) {
 			errList.AddError(ezErr)
 		}
 		fmt.Print(errors.FormatErrorList(errList))
-		return
+		os.Exit(1)
 	}
 
 	// Check for parser errors using new error system
 	if p.EZErrors().HasErrors() {
 		fmt.Print(errors.FormatErrorList(p.EZErrors()))
-		return
+		os.Exit(1)
 	}
 
 	// Display parser warnings (even if no errors)
@@ -502,7 +502,7 @@ func runFile(filename string) {
 	// Check for type errors
 	if tc.Errors().HasErrors() {
 		fmt.Print(errors.FormatErrorList(tc.Errors()))
-		return
+		os.Exit(1)
 	}
 
 	// Display type checker warnings (even if no errors)
@@ -534,7 +534,7 @@ func runFile(filename string) {
 	// Check for evaluation errors
 	if errObj, ok := result.(*interpreter.Error); ok {
 		printRuntimeError(errObj, source, filename)
-		return
+		os.Exit(1)
 	}
 
 	// Look for main function and call it
@@ -546,6 +546,7 @@ func runFile(filename string) {
 			// Check for errors from main
 			if errObj, ok := mainResult.(*interpreter.Error); ok {
 				printRuntimeError(errObj, source, filename)
+				os.Exit(1)
 			}
 		}
 	}

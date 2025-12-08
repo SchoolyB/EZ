@@ -1,0 +1,8 @@
+/*
+ * Error Test: E5015 - postfix-requires-identifier
+ * Expected: "postfix" or "identifier" or "variable"
+ */
+
+do main() {
+    5++  // postfix operator needs variable
+}

@@ -1,0 +1,10 @@
+/*
+ * Error Test: E7001 - wrong-argument-count
+ * Expected: "wrong number of arguments" or "argument count"
+ */
+
+import @strings
+
+do main() {
+    temp s string = strings.upper()  // missing required argument
+}

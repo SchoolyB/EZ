@@ -1,0 +1,10 @@
+/*
+ * Error Test: E7042 - read-directory-as-file
+ * Expected: "cannot read directory" or "directory as file"
+ */
+
+import @io
+
+do main() {
+    temp content string = io.read("/tmp")  // cannot read directory as file
+}

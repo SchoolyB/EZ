@@ -1,0 +1,10 @@
+/*
+ * Error Test: E7002 - requires-array
+ * Expected: "must be an array" or "requires array"
+ */
+
+import @arrays
+
+do main() {
+    temp x int = arrays.sum("hello")  // string instead of array
+}

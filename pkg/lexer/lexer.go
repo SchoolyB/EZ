@@ -4,6 +4,8 @@ package lexer
 // Licensed under the MIT License. See LICENSE for details.
 
 import (
+	"fmt"
+
 	"github.com/marshallburns/ez/pkg/tokenizer"
 )
 
@@ -256,6 +258,7 @@ func (l *Lexer) NextToken() tokenizer.Token {
 			tok.Column = startColumn
 			return tok
 		} else {
+			l.addError("E1001", fmt.Sprintf("illegal character '%c' in source", l.ch), l.line, l.column)
 			tok = newToken(tokenizer.ILLEGAL, l.ch, l.line, l.column)
 		}
 	}

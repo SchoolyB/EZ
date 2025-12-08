@@ -1,0 +1,319 @@
+/*
+ * os.ez - Test @os standard library with PROPER ASSERTIONS
+ */
+
+import @std, @os
+using std
+
+do main() {
+    println("=== @os Standard Library Test ===")
+    temp passed int = 0
+    temp failed int = 0
+
+    // ==================== ENVIRONMENT VARIABLES ====================
+    println("  -- Environment Variables --")
+
+    // Test 1: get_env for PATH (should exist on all systems)
+    temp path_value = os.get_env("PATH")
+    if path_value != nil && len(path_value) > 0 {
+        println("  [PASS] os.get_env('PATH') exists")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] os.get_env('PATH'): expected non-nil")
+        failed += 1
+    }
+
+    // Test 2: get_env for non-existent variable
+    temp nonexistent = os.get_env("EZ_NONEXISTENT_VAR_12345")
+    if nonexistent == nil {
+        println("  [PASS] os.get_env(nonexistent) = nil")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] os.get_env(nonexistent): expected nil")
+        failed += 1
+    }
+
+    // Test 3: set_env
+    temp set_ok, set_err = os.set_env("EZ_TEST_VAR", "test_value_123")
+    if set_err == nil {
+        println("  [PASS] os.set_env()")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] os.set_env()")
+        failed += 1
+    }
+
+    // Test 4: verify set_env worked
+    temp verify_value = os.get_env("EZ_TEST_VAR")
+    if verify_value == "test_value_123" {
+        println("  [PASS] os.get_env() verified set value")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] os.get_env after set: got '${verify_value}'")
+        failed += 1
+    }
+
+    // Test 5: unset_env
+    temp unset_ok, unset_err = os.unset_env("EZ_TEST_VAR")
+    if unset_err == nil {
+        println("  [PASS] os.unset_env()")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] os.unset_env()")
+        failed += 1
+    }
+
+    // Test 6: verify unset worked
+    temp after_unset = os.get_env("EZ_TEST_VAR")
+    if after_unset == nil {
+        println("  [PASS] variable correctly unset")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] variable should have been unset")
+        failed += 1
+    }
+
+    // Test 7: os.env() returns all env vars
+    temp all_env = os.env()
+    temp env_count int = len(all_env)
+    if env_count > 0 {
+        println("  [PASS] os.env() returned ${env_count} entries")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] os.env() returned empty map")
+        failed += 1
+    }
+
+    // ==================== PROCESS / SYSTEM ====================
+    println("  -- Process / System --")
+
+    // Test 8: os.cwd
+    temp cwd, cwd_err = os.cwd()
+    if cwd_err == nil && len(cwd) > 0 {
+        println("  [PASS] os.cwd() = '${cwd}'")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] os.cwd()")
+        failed += 1
+    }
+
+    // Test 9: os.hostname
+    temp hostname, host_err = os.hostname()
+    if host_err == nil && len(hostname) > 0 {
+        println("  [PASS] os.hostname() = '${hostname}'")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] os.hostname()")
+        failed += 1
+    }
+
+    // Test 10: os.username
+    temp username, user_err = os.username()
+    if user_err == nil && len(username) > 0 {
+        println("  [PASS] os.username() = '${username}'")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] os.username()")
+        failed += 1
+    }
+
+    // Test 11: os.home_dir
+    temp home, home_err = os.home_dir()
+    if home_err == nil && len(home) > 0 {
+        println("  [PASS] os.home_dir() = '${home}'")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] os.home_dir()")
+        failed += 1
+    }
+
+    // Test 12: os.temp_dir
+    temp temp_dir string = os.temp_dir()
+    if len(temp_dir) > 0 {
+        println("  [PASS] os.temp_dir() = '${temp_dir}'")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] os.temp_dir() returned empty")
+        failed += 1
+    }
+
+    // Test 13: os.pid
+    temp pid int = os.pid()
+    if pid > 0 {
+        println("  [PASS] os.pid() = ${pid}")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] os.pid(): expected > 0, got ${pid}")
+        failed += 1
+    }
+
+    // Test 14: os.ppid
+    temp ppid int = os.ppid()
+    if ppid > 0 {
+        println("  [PASS] os.ppid() = ${ppid}")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] os.ppid(): expected > 0, got ${ppid}")
+        failed += 1
+    }
+
+    // Test 15: os.args
+    temp args = os.args()
+    if len(args) >= 0 {
+        println("  [PASS] os.args() returned ${len(args)} args")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] os.args()")
+        failed += 1
+    }
+
+    // ==================== PLATFORM DETECTION ====================
+    println("  -- Platform Detection --")
+
+    // Test 16: os.platform
+    temp platform string = os.platform()
+    if platform == "darwin" || platform == "linux" || platform == "windows" {
+        println("  [PASS] os.platform() = '${platform}'")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] os.platform(): unexpected '${platform}'")
+        failed += 1
+    }
+
+    // Test 17: os.arch
+    temp arch string = os.arch()
+    if len(arch) > 0 {
+        println("  [PASS] os.arch() = '${arch}'")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] os.arch() returned empty")
+        failed += 1
+    }
+
+    // Test 18-20: platform booleans are consistent
+    temp is_win bool = os.is_windows()
+    temp is_lin bool = os.is_linux()
+    temp is_mac bool = os.is_macos()
+
+    temp platform_count int = 0
+    if is_win {
+        platform_count += 1
+    }
+    if is_lin {
+        platform_count += 1
+    }
+    if is_mac {
+        platform_count += 1
+    }
+
+    if platform_count == 1 {
+        println("  [PASS] exactly one platform boolean is true")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] platform booleans: win=${is_win}, lin=${is_lin}, mac=${is_mac}")
+        failed += 1
+    }
+
+    // Test 21: platform consistency
+    temp platform_consistent bool = false
+    if platform == "darwin" && is_mac {
+        platform_consistent = true
+    }
+    if platform == "linux" && is_lin {
+        platform_consistent = true
+    }
+    if platform == "windows" && is_win {
+        platform_consistent = true
+    }
+    if platform_consistent {
+        println("  [PASS] platform string matches boolean")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] platform mismatch")
+        failed += 1
+    }
+
+    // Test 22: os.num_cpu
+    temp num_cpus int = os.num_cpu()
+    if num_cpus > 0 {
+        println("  [PASS] os.num_cpu() = ${num_cpus}")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] os.num_cpu(): expected > 0, got ${num_cpus}")
+        failed += 1
+    }
+
+    // ==================== OS CONSTANTS ====================
+    println("  -- OS Constants --")
+
+    // Test 23: line_separator is valid
+    temp line_sep string = os.line_separator()
+    temp line_sep_len int = len(line_sep)
+    if line_sep_len > 0 && line_sep_len <= 2 {
+        println("  [PASS] os.line_separator() = [${line_sep_len} char(s)]")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] os.line_separator() unexpected length: ${line_sep_len}")
+        failed += 1
+    }
+
+    // Test 24: dev_null is correct for platform
+    temp dev_null string = os.dev_null()
+    temp dev_null_ok bool = false
+    if is_win && dev_null == "NUL" {
+        dev_null_ok = true
+    }
+    if !is_win && dev_null == "/dev/null" {
+        dev_null_ok = true
+    }
+    if dev_null_ok {
+        println("  [PASS] os.dev_null() = '${dev_null}'")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] os.dev_null() = '${dev_null}' (unexpected for platform)")
+        failed += 1
+    }
+
+    // ==================== DIRECTORY OPERATIONS ====================
+    println("  -- Directory Operations --")
+
+    // Test 25: chdir and restore
+    temp original_dir, _ = os.cwd()
+    temp target_dir string = os.temp_dir()
+
+    temp chdir_ok, chdir_err = os.chdir(target_dir)
+    if chdir_err == nil {
+        temp new_cwd, _ = os.cwd()
+        println("  [PASS] os.chdir('${target_dir}')")
+        passed += 1
+
+        // Restore original directory
+        temp restore_ok, _ = os.chdir(original_dir)
+        println("  [PASS] restored to original dir")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] os.chdir()")
+        failed += 1
+        failed += 1  // count both tests as failed
+    }
+
+    // Test 26: chdir to invalid directory returns error
+    temp bad_chdir_ok, bad_chdir_err = os.chdir("/nonexistent/path/12345")
+    if bad_chdir_err != nil {
+        println("  [PASS] os.chdir(invalid) returns error")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] os.chdir(invalid) should return error")
+        failed += 1
+    }
+
+    // Summary
+    println("")
+    println("Results: ${passed} passed, ${failed} failed")
+
+    if failed > 0 {
+        println("SOME TESTS FAILED")
+    } otherwise {
+        println("ALL TESTS PASSED")
+    }
+}

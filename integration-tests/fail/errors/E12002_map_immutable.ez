@@ -1,0 +1,11 @@
+/*
+ * Error Test: E12002 - map-immutable
+ * Expected: "immutable" or "cannot modify"
+ */
+
+import @maps
+
+do main() {
+    const m = maps.from_pairs({{"key", "value"}})
+    maps.set(m, "new_key", "new_value")  // cannot modify const map
+}

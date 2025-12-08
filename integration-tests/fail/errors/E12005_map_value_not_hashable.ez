@@ -1,0 +1,12 @@
+/*
+ * Error Test: E12005 - map-value-not-hashable
+ * Expected: "hashable" or "cannot become a key"
+ */
+
+import @maps
+
+do main() {
+    temp m = maps.new()
+    temp arr [int] = {1, 2, 3}
+    maps.set(m, arr, "value")  // array is not hashable
+}
