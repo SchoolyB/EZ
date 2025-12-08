@@ -2098,6 +2098,9 @@ func (p *Parser) parseExpression(precedence int) Expression {
 		case RBRACKET:
 			msg = "expected expression, found ']'"
 			code = errors.E2003
+		case AMPERSAND:
+			msg = "'&' is only valid for mutable parameters (e.g., 'do foo(&x int)') or import & use"
+			code = errors.E2001
 		default:
 			msg = fmt.Sprintf("unexpected token '%s'", p.currentToken.Literal)
 			code = errors.E2001
