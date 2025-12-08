@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.16.5](https://github.com/SchoolyB/EZ/compare/v0.16.4...v0.16.5) (2025-12-08)
+
+
+### Bug Fixes
+
+* float division by zero returns INF per IEEE 754 ([#420](https://github.com/SchoolyB/EZ/issues/420)) ([744cf75](https://github.com/SchoolyB/EZ/commit/744cf75b2f9188103cfd4e4734900b364c3a4781)), closes [#402](https://github.com/SchoolyB/EZ/issues/402)
+
 ## [0.16.4](https://github.com/SchoolyB/EZ/compare/v0.16.3...v0.16.4) (2025-12-08)
 
 
