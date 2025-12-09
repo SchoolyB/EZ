@@ -1119,7 +1119,25 @@ func evalAssignment(node *ast.AssignmentStatement, env *Environment) Object {
 		}
 
 		// Check if struct is mutable
-		if !structObj.Mutable {
+		// A struct is considered mutable if:
+		// 1. It was declared with 'temp' (structObj.Mutable is true), OR
+		// 2. It's accessed via an index on a mutable container (array/map)
+		isMutableAccess := structObj.Mutable
+		if !isMutableAccess {
+			// Check if struct is accessed via mutable container
+			if indexExpr, isIndex := target.Object.(*ast.IndexExpression); isIndex {
+				container := Eval(indexExpr.Left, env)
+				if !isError(container) {
+					switch c := container.(type) {
+					case *Array:
+						isMutableAccess = c.Mutable
+					case *Map:
+						isMutableAccess = c.Mutable
+					}
+				}
+			}
+		}
+		if !isMutableAccess {
 			return newErrorWithLocation("E5017", node.Token.Line, node.Token.Column,
 				"cannot modify field of immutable struct (declared as const)")
 		}
@@ -1399,8 +1417,8 @@ func evalEnumDeclaration(node *ast.EnumDeclaration, env *Environment) Object {
 	}
 
 	// Get enum attributes (type, skip, increment)
-	typeName := "int"                   // default
-	increment := big.NewInt(1)          // default increment
+	typeName := "int"          // default
+	increment := big.NewInt(1) // default increment
 	var floatIncrement float64 = 1.0
 
 	if node.Attributes != nil {
