@@ -158,8 +158,7 @@ var StdBuiltins = map[string]*object.Builtin{
 	// Reads an integer from standard input
 	"read_int": {
 		Fn: func(args ...object.Object) object.Object {
-			reader := bufio.NewReader(os.Stdin)
-			text, readErr := reader.ReadString('\n')
+			text, readErr := stdinReader.ReadString('\n')
 			if len(text) > 0 && text[len(text)-1] == '\n' {
 				text = text[:len(text)-1]
 			}
