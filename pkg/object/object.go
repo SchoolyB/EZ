@@ -285,6 +285,13 @@ func HashKey(obj Object) (string, bool) {
 		return fmt.Sprintf("c:%d", o.Value), true
 	case *Byte:
 		return fmt.Sprintf("y:%d", o.Value), true
+	case *EnumValue:
+		// Enum values are hashable based on their type and name
+		// Float-based enums are not allowed as map keys (checked at compile time)
+		if _, isFloat := o.Value.(*Float); isFloat {
+			return "", false
+		}
+		return fmt.Sprintf("e:%s.%s", o.EnumType, o.Name), true
 	default:
 		return "", false
 	}

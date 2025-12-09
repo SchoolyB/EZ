@@ -122,13 +122,14 @@ func (s *Scope) GetAllUsingModules() []string {
 
 // Type represents a type in the EZ type system
 type Type struct {
-	Name        string
-	Kind        TypeKind
-	ElementType *Type            // For arrays
-	KeyType     *Type            // For maps
-	ValueType   *Type            // For maps
-	Fields      map[string]*Type // For structs
-	Size        int              // For fixed-size arrays, -1 for dynamic
+	Name         string
+	Kind         TypeKind
+	ElementType  *Type            // For arrays
+	KeyType      *Type            // For maps
+	ValueType    *Type            // For maps
+	Fields       map[string]*Type // For structs
+	Size         int              // For fixed-size arrays, -1 for dynamic
+	EnumBaseType string           // For enums: "int", "string", or "float"
 }
 
 // FunctionSignature represents a function's type signature
@@ -415,9 +416,16 @@ func (tc *TypeChecker) registerStructType(node *ast.StructDeclaration) {
 
 // registerEnumType registers an enum type name
 func (tc *TypeChecker) registerEnumType(node *ast.EnumDeclaration) {
+	// Determine base type from attributes, default to "int"
+	baseType := "int"
+	if node.Attributes != nil && node.Attributes.TypeName != "" {
+		baseType = node.Attributes.TypeName
+	}
+
 	enumType := &Type{
-		Name: node.Name.Value,
-		Kind: EnumType,
+		Name:         node.Name.Value,
+		Kind:         EnumType,
+		EnumBaseType: baseType,
 	}
 	tc.RegisterType(node.Name.Value, enumType)
 }
@@ -838,6 +846,22 @@ func (tc *TypeChecker) checkVariableDeclaration(decl *ast.VariableDeclaration) {
 			decl.Name.Token.Column,
 		)
 		return
+	}
+
+	// Check for float-based enum as map key (not allowed)
+	if declaredType != "" && tc.isMapType(declaredType) {
+		keyType := tc.extractMapKeyType(declaredType)
+		if enumType, ok := tc.GetType(keyType); ok && enumType.Kind == EnumType {
+			if enumType.EnumBaseType == "float" {
+				tc.addError(
+					errors.E3029,
+					fmt.Sprintf("float-based enum '%s' cannot be used as map key", keyType),
+					decl.Name.Token.Line,
+					decl.Name.Token.Column,
+				)
+				return
+			}
+		}
 	}
 
 	// If there's an initial value, check type compatibility
@@ -1801,6 +1825,22 @@ func (tc *TypeChecker) isArrayType(typeName string) bool {
 // isMapType checks if a type string represents a map type
 func (tc *TypeChecker) isMapType(typeName string) bool {
 	return strings.HasPrefix(typeName, "map[") && strings.HasSuffix(typeName, "]")
+}
+
+// extractMapKeyType extracts the key type from a map type string
+// For "map[Status:string]" returns "Status"
+func (tc *TypeChecker) extractMapKeyType(mapType string) string {
+	if !tc.isMapType(mapType) {
+		return ""
+	}
+	// Extract "Status:string" from "map[Status:string]"
+	inner := mapType[4 : len(mapType)-1]
+	// Find the colon separator
+	colonIdx := strings.Index(inner, ":")
+	if colonIdx == -1 {
+		return ""
+	}
+	return inner[:colonIdx]
 }
 
 // isNullableType checks if a type can accept nil values
