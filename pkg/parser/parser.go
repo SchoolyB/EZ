@@ -904,12 +904,13 @@ func (p *Parser) parseReturnStatement() *ReturnStatement {
 	stmt := &ReturnStatement{Token: p.currentToken}
 	stmt.Values = []Expression{}
 
-	p.nextToken()
-
-	// Check for empty return
-	if p.currentTokenMatches(RBRACE) || p.currentTokenMatches(EOF) {
+	// Check for empty return BEFORE advancing
+	// This prevents consuming the closing brace which would leave the block unclosed
+	if p.peekTokenMatches(RBRACE) || p.peekTokenMatches(EOF) || p.peekTokenMatches(NEWLINE) {
 		return stmt
 	}
+
+	p.nextToken() // Only advance if there's a value to parse
 
 	// Parse return values
 	stmt.Values = append(stmt.Values, p.parseExpression(LOWEST))

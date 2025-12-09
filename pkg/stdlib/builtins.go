@@ -6,6 +6,7 @@ package stdlib
 import (
 	"bufio"
 	"fmt"
+	"io"
 	"math/big"
 	"os"
 	"strconv"
@@ -158,10 +159,29 @@ var StdBuiltins = map[string]*object.Builtin{
 	// Reads an integer from standard input
 	"read_int": {
 		Fn: func(args ...object.Object) object.Object {
-			reader := bufio.NewReader(os.Stdin)
-			text, readErr := reader.ReadString('\n')
+			text, readErr := stdinReader.ReadString('\n')
 			if len(text) > 0 && text[len(text)-1] == '\n' {
 				text = text[:len(text)-1]
+			}
+
+			// Handle EOF separately from other errors
+			if readErr == io.EOF {
+				// If we got some text before EOF, try to parse it
+				if len(text) > 0 {
+					val, parseErr := strconv.ParseInt(text, 10, 64)
+					if parseErr == nil {
+						return &object.ReturnValue{Values: []object.Object{&object.Integer{Value: big.NewInt(val)}, object.NIL}}
+					}
+				}
+				// Return a distinguishable EOF error
+				errObj := &object.Struct{
+					TypeName: "Error",
+					Fields: map[string]object.Object{
+						"message": &object.String{Value: "end of input"},
+						"code":    &object.Integer{Value: big.NewInt(3)},
+					},
+				}
+				return &object.ReturnValue{Values: []object.Object{&object.Integer{Value: big.NewInt(0)}, errObj}}
 			}
 
 			if readErr != nil {

@@ -108,6 +108,7 @@ var (
 	E3026 = ErrorCode{"E3026", "byte-array-element-out-of-range", "byte array element must be between 0 and 255"}
 	E3027 = ErrorCode{"E3027", "const-to-mutable-param", "cannot pass immutable variable to mutable parameter"}
 	E3028 = ErrorCode{"E3028", "enum-mixed-types", "enum members must all have the same type"}
+	E3029 = ErrorCode{"E3029", "float-enum-map-key", "float-based enum cannot be used as map key"}
 )
 
 // =============================================================================
