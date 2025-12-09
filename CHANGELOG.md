@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.16.10](https://github.com/SchoolyB/EZ/compare/v0.16.9...v0.16.10) (2025-12-09)
+
+
+### Bug Fixes
+
+* bug fixes batch - parser, stdlib, interpreter, and enum map keys ([#454](https://github.com/SchoolyB/EZ/issues/454)) ([f90e10f](https://github.com/SchoolyB/EZ/commit/f90e10fd02b3946ac37341956b453db744198017)), closes [#452](https://github.com/SchoolyB/EZ/issues/452)
+
 ## [0.16.9](https://github.com/SchoolyB/EZ/compare/v0.16.8...v0.16.9) (2025-12-08)
 
 
