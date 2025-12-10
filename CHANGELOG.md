@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.17.1](https://github.com/SchoolyB/EZ/compare/v0.17.0...v0.17.1) (2025-12-10)
+
+
+### Bug Fixes
+
+* handle .tar.gz/.zip archives in ez update ([#481](https://github.com/SchoolyB/EZ/issues/481)) ([b7d4314](https://github.com/SchoolyB/EZ/commit/b7d43143472a1436037fa79e63efb396e4e3126f))
+
 ## [0.17.0](https://github.com/SchoolyB/EZ/compare/v0.16.15...v0.17.0) (2025-12-10)
 
 
