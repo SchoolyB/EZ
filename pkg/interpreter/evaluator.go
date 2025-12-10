@@ -215,9 +215,9 @@ func EvalWithContext(node ast.Node, env *Environment, ctx *EvalContext) Object {
 }
 
 // loadUserModule loads a user module from a file path and returns a ModuleObject
-func loadUserModule(importPath string, token ast.Node, env *Environment) (*ModuleObject, Object) {
+func loadUserModule(importPath string, line, column int, env *Environment) (*ModuleObject, Object) {
 	if globalEvalContext == nil || globalEvalContext.Loader == nil {
-		return nil, newError("E6001: %s", "module loader not initialized")
+		return nil, newErrorWithLocation("E6001", line, column, "module loader not initialized")
 	}
 
 	// Set the current file for relative path resolution
@@ -231,8 +231,11 @@ func loadUserModule(importPath string, token ast.Node, env *Environment) (*Modul
 			// Return the formatted errors directly without wrapping
 			return nil, &Error{Message: modErr.Error(), PreFormatted: true}
 		}
-		// ModuleError.Error() already includes the error code, so pass it through directly
-		return nil, &Error{Message: err.Error()}
+		// Return error with location info for proper formatting
+		if modErr, ok := err.(*ModuleError); ok {
+			return nil, newErrorWithLocation(modErr.Code, line, column, modErr.Message)
+		}
+		return nil, newErrorWithLocation("E6001", line, column, err.Error())
 	}
 
 	// If module is already fully loaded, return cached ModuleObject
@@ -408,7 +411,7 @@ func Eval(node ast.Node, env *Environment) Object {
 					}
 				} else if item.Path != "" {
 					// User module import - load the module
-					moduleObj, loadErr := loadUserModule(item.Path, node, env)
+					moduleObj, loadErr := loadUserModule(item.Path, node.Token.Line, node.Token.Column, env)
 					if loadErr != nil {
 						return loadErr
 					}
