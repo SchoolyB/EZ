@@ -30,6 +30,9 @@ func main() {
 		return
 	}
 
+	// Check for updates in background (non-blocking, once per day)
+	CheckForUpdateAsync()
+
 	command := os.Args[1]
 
 	switch command {
@@ -37,19 +40,21 @@ func main() {
 		printHelp()
 	case "version", "-v", "--version":
 		printVersion()
+	case "update":
+		runUpdate()
 	case "repl":
 		startREPL()
-	case "build":
+	case "check", "build":
 		if len(os.Args) < 3 {
-			// No argument: build project in current directory
-			buildProject(".")
+			// No argument: check project in current directory
+			checkProject(".")
 		} else {
 			arg := os.Args[2]
 			// Check if it's a .ez file or a directory
 			if strings.HasSuffix(arg, ".ez") {
-				buildFile(arg)
+				checkFile(arg)
 			} else {
-				buildProject(arg)
+				checkProject(arg)
 			}
 		}
 	case "lex":
@@ -64,12 +69,6 @@ func main() {
 			return
 		}
 		parse_file(os.Args[2])
-	case "run":
-		if len(os.Args) < 3 {
-			fmt.Println("Usage: ez run <file>")
-			return
-		}
-		runFile(os.Args[2])
 	default:
 		// If it's not a known command, treat it as a file to run
 		// This allows: ez myProgram.ez
@@ -90,22 +89,23 @@ func printHelp() {
 	fmt.Println("  ez <command> [args] Run a specific command")
 	fmt.Println()
 	fmt.Println("Commands:")
-	fmt.Println("  run <file>     Run an EZ program")
-	fmt.Println("  build          Build project in current directory (requires main.ez)")
-	fmt.Println("  build <dir>    Build project in specified directory")
-	fmt.Println("  build <file>   Check syntax and types for a single file")
+	fmt.Println("  check          Check syntax and types in current directory (requires main.ez)")
+	fmt.Println("  check <dir>    Check syntax and types in specified directory")
+	fmt.Println("  check <file>   Check syntax and types for a single file")
 	fmt.Println("  repl           Start interactive REPL mode")
-	fmt.Println("  lex <file>     Tokenize a file (debug)")
-	fmt.Println("  parse <file>   Parse a file (debug)")
+	fmt.Println("  update         Check for updates and upgrade EZ")
 	fmt.Println("  version        Show version information")
 	fmt.Println("  help           Show this help message")
 	fmt.Println()
+	fmt.Println("Debug Commands:")
+	fmt.Println("  lex <file>     Tokenize a file")
+	fmt.Println("  parse <file>   Parse a file")
+	fmt.Println()
 	fmt.Println("Examples:")
 	fmt.Println("  ez myProgram.ez")
-	fmt.Println("  ez run examples/hello.ez")
-	fmt.Println("  ez build                    # Build project in current directory")
-	fmt.Println("  ez build ./myproject        # Build project in myproject/")
-	fmt.Println("  ez build utils.ez           # Check single file")
+	fmt.Println("  ez check                    # Check project in current directory")
+	fmt.Println("  ez check ./myproject        # Check project in myproject/")
+	fmt.Println("  ez check utils.ez           # Check single file")
 	fmt.Println("  ez repl")
 }
 
@@ -115,7 +115,7 @@ func printVersion() {
 	fmt.Println("Copyright (c) 2025-Present Marshall A Burns")
 }
 
-func buildFile(filename string) {
+func checkFile(filename string) {
 	data, err := os.ReadFile(filename)
 	if err != nil {
 		fmt.Printf("Error reading file: %v\n", err)
@@ -172,11 +172,11 @@ func buildFile(filename string) {
 		fmt.Print(errors.FormatErrorList(tc.Errors()))
 	}
 
-	fmt.Printf("Build successful: %s\n", filename)
+	fmt.Printf("Check successful: %s\n", filename)
 }
 
-// buildProject builds an entire EZ project starting from main.ez
-func buildProject(dir string) {
+// checkProject checks an entire EZ project starting from main.ez
+func checkProject(dir string) {
 	// Resolve to absolute path
 	absDir, err := filepath.Abs(dir)
 	if err != nil {
@@ -369,11 +369,11 @@ func buildProject(dir string) {
 	}
 
 	if hasErrors {
-		fmt.Println("\nBuild failed.")
+		fmt.Println("\nCheck failed.")
 		return
 	}
 
-	fmt.Printf("Build successful: %d file(s) checked\n", len(modulesChecked))
+	fmt.Printf("Check successful: %d file(s) checked\n", len(modulesChecked))
 }
 
 // collectImports extracts import paths from a program's AST
