@@ -1,0 +1,12 @@
+// E2040: mutable parameter cannot have default value
+
+do bad_func(&x int = 10) {
+    // This should fail - mutable params can't have defaults
+    x = x + 1
+    println(x)
+}
+
+do main() {
+    temp val int = 5
+    bad_func(val)
+}

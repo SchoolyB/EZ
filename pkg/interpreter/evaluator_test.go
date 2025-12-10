@@ -3997,3 +3997,177 @@ func TestNegativeToUnsignedTypeError(t *testing.T) {
 		t.Errorf("expected error code E3020, got %s: %s", err.Code, err.Message)
 	}
 }
+
+// =============================================================================
+// DEFAULT PARAMETER TESTS
+// =============================================================================
+
+func TestDefaultParameterBasicString(t *testing.T) {
+	input := `do greet(name string = "World") -> string { return "Hello, " + name + "!" } temp r string = greet() r`
+	evaluated := testEval(input)
+	result, ok := evaluated.(*String)
+	if !ok {
+		t.Fatalf("expected String, got %T (%+v)", evaluated, evaluated)
+	}
+	if result.Value != "Hello, World!" {
+		t.Errorf("expected 'Hello, World!', got '%s'", result.Value)
+	}
+}
+
+func TestDefaultParameterOverride(t *testing.T) {
+	input := `do greet(name string = "World") -> string { return "Hello, " + name + "!" } temp r string = greet("Alice") r`
+	evaluated := testEval(input)
+	result, ok := evaluated.(*String)
+	if !ok {
+		t.Fatalf("expected String, got %T (%+v)", evaluated, evaluated)
+	}
+	if result.Value != "Hello, Alice!" {
+		t.Errorf("expected 'Hello, Alice!', got '%s'", result.Value)
+	}
+}
+
+func TestDefaultParameterNumeric(t *testing.T) {
+	input := `do add(a int, b int = 10) -> int { return a + b } temp r int = add(5) r`
+	evaluated := testEval(input)
+	result, ok := evaluated.(*Integer)
+	if !ok {
+		t.Fatalf("expected Integer, got %T (%+v)", evaluated, evaluated)
+	}
+	if result.Value.Int64() != 15 {
+		t.Errorf("expected 15, got %d", result.Value.Int64())
+	}
+}
+
+func TestDefaultParameterNumericOverride(t *testing.T) {
+	input := `do add(a int, b int = 10) -> int { return a + b } temp r int = add(5, 20) r`
+	evaluated := testEval(input)
+	result, ok := evaluated.(*Integer)
+	if !ok {
+		t.Fatalf("expected Integer, got %T (%+v)", evaluated, evaluated)
+	}
+	if result.Value.Int64() != 25 {
+		t.Errorf("expected 25, got %d", result.Value.Int64())
+	}
+}
+
+func TestDefaultParameterMultiple(t *testing.T) {
+	input := `do calc(a int, b int = 2, c int = 3) -> int { return a * b + c } temp r int = calc(5) r`
+	evaluated := testEval(input)
+	result, ok := evaluated.(*Integer)
+	if !ok {
+		t.Fatalf("expected Integer, got %T (%+v)", evaluated, evaluated)
+	}
+	// 5 * 2 + 3 = 13
+	if result.Value.Int64() != 13 {
+		t.Errorf("expected 13, got %d", result.Value.Int64())
+	}
+}
+
+func TestDefaultParameterPartialOverride(t *testing.T) {
+	input := `do calc(a int, b int = 2, c int = 3) -> int { return a * b + c } temp r int = calc(5, 10) r`
+	evaluated := testEval(input)
+	result, ok := evaluated.(*Integer)
+	if !ok {
+		t.Fatalf("expected Integer, got %T (%+v)", evaluated, evaluated)
+	}
+	// 5 * 10 + 3 = 53
+	if result.Value.Int64() != 53 {
+		t.Errorf("expected 53, got %d", result.Value.Int64())
+	}
+}
+
+func TestDefaultParameterAllDefaults(t *testing.T) {
+	input := `do triple(a int = 1, b int = 2, c int = 3) -> int { return a + b + c } temp r int = triple() r`
+	evaluated := testEval(input)
+	result, ok := evaluated.(*Integer)
+	if !ok {
+		t.Fatalf("expected Integer, got %T (%+v)", evaluated, evaluated)
+	}
+	if result.Value.Int64() != 6 {
+		t.Errorf("expected 6, got %d", result.Value.Int64())
+	}
+}
+
+func TestDefaultParameterExpressionDefault(t *testing.T) {
+	input := `do calc(mult float = 3.14 * 2.0) -> float { return mult } temp r float = calc() r`
+	evaluated := testEval(input)
+	result, ok := evaluated.(*Float)
+	if !ok {
+		t.Fatalf("expected Float, got %T (%+v)", evaluated, evaluated)
+	}
+	// 3.14 * 2.0 = 6.28
+	if result.Value != 6.28 {
+		t.Errorf("expected 6.28, got %f", result.Value)
+	}
+}
+
+func TestDefaultParameterGroupedParams(t *testing.T) {
+	// x, y int = 0 means x is required, y has default
+	input := `do point(x, y int = 0) -> int { return x + y } temp r int = point(5) r`
+	evaluated := testEval(input)
+	result, ok := evaluated.(*Integer)
+	if !ok {
+		t.Fatalf("expected Integer, got %T (%+v)", evaluated, evaluated)
+	}
+	if result.Value.Int64() != 5 {
+		t.Errorf("expected 5, got %d", result.Value.Int64())
+	}
+}
+
+func TestDefaultParameterGroupedParamsWithOverride(t *testing.T) {
+	input := `do point(x, y int = 0) -> int { return x + y } temp r int = point(3, 4) r`
+	evaluated := testEval(input)
+	result, ok := evaluated.(*Integer)
+	if !ok {
+		t.Fatalf("expected Integer, got %T (%+v)", evaluated, evaluated)
+	}
+	if result.Value.Int64() != 7 {
+		t.Errorf("expected 7, got %d", result.Value.Int64())
+	}
+}
+
+func TestDefaultParameterBoolDefault(t *testing.T) {
+	input := `do toggle(val bool = false) -> bool { return !val } temp r bool = toggle() r`
+	evaluated := testEval(input)
+	result, ok := evaluated.(*Boolean)
+	if !ok {
+		t.Fatalf("expected Boolean, got %T (%+v)", evaluated, evaluated)
+	}
+	if result.Value != true {
+		t.Errorf("expected true, got %v", result.Value)
+	}
+}
+
+func TestDefaultParameterTooFewArgsError(t *testing.T) {
+	input := `
+	do add(a int, b int = 10) -> int {
+		return a + b
+	}
+	add()
+	`
+	evaluated := testEval(input)
+	err, ok := evaluated.(*Error)
+	if !ok {
+		t.Fatalf("expected error, got %T (%+v)", evaluated, evaluated)
+	}
+	if err.Code != "E5008" {
+		t.Errorf("expected error code E5008, got %s: %s", err.Code, err.Message)
+	}
+}
+
+func TestDefaultParameterTooManyArgsError(t *testing.T) {
+	input := `
+	do add(a int = 1) -> int {
+		return a
+	}
+	add(1, 2)
+	`
+	evaluated := testEval(input)
+	err, ok := evaluated.(*Error)
+	if !ok {
+		t.Fatalf("expected error, got %T (%+v)", evaluated, evaluated)
+	}
+	if err.Code != "E5008" {
+		t.Errorf("expected error code E5008, got %s: %s", err.Code, err.Message)
+	}
+}
