@@ -37,6 +37,42 @@ For pre-built binaries and installation instructions, visit the [documentation](
 
 ---
 
+## Updating
+
+EZ includes a built-in update command:
+
+```bash
+ez update
+```
+
+This will check for new versions, show the changelog, and prompt you to upgrade. If EZ is installed in a system directory (like `/usr/local/bin`), it will automatically prompt for your password.
+
+### Upgrading from v0.17.1 or earlier
+
+If you're upgrading from **v0.17.1 or earlier**, you'll need to manually update once:
+
+```bash
+# macOS (Apple Silicon)
+curl -L https://github.com/SchoolyB/EZ/releases/latest/download/ez-darwin-arm64.tar.gz | tar xz
+sudo mv ez /usr/local/bin/ez
+
+# macOS (Intel)
+curl -L https://github.com/SchoolyB/EZ/releases/latest/download/ez-darwin-amd64.tar.gz | tar xz
+sudo mv ez /usr/local/bin/ez
+
+# Linux (x86_64)
+curl -L https://github.com/SchoolyB/EZ/releases/latest/download/ez-linux-amd64.tar.gz | tar xz
+sudo mv ez /usr/local/bin/ez
+
+# Linux (ARM64)
+curl -L https://github.com/SchoolyB/EZ/releases/latest/download/ez-linux-arm64.tar.gz | tar xz
+sudo mv ez /usr/local/bin/ez
+```
+
+After this one-time manual update, `ez update` will work automatically for all future versions.
+
+---
+
 ## Running Tests
 
 EZ has two types of tests: **EZ language tests** (written in EZ) and **Go unit tests** (for the interpreter internals).
