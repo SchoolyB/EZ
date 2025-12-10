@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.16.14](https://github.com/SchoolyB/EZ/compare/v0.16.13...v0.16.14) (2025-12-10)
+
+
+### Bug Fixes
+
+* show file location in module not found error ([#461](https://github.com/SchoolyB/EZ/issues/461)) ([#474](https://github.com/SchoolyB/EZ/issues/474)) ([a6eec23](https://github.com/SchoolyB/EZ/commit/a6eec2353111ce07adfca2733e93d58afe352c3d))
+
 ## [0.16.13](https://github.com/SchoolyB/EZ/compare/v0.16.12...v0.16.13) (2025-12-10)
 
 
