@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.17.0](https://github.com/SchoolyB/EZ/compare/v0.16.15...v0.17.0) (2025-12-10)
+
+
+### Features
+
+* add update checker and `ez update` command ([#478](https://github.com/SchoolyB/EZ/issues/478)) ([#479](https://github.com/SchoolyB/EZ/issues/479)) ([a33c92b](https://github.com/SchoolyB/EZ/commit/a33c92be20dc111bf0d8a1529b7a06b7f3b7522b))
+
 ## [0.16.15](https://github.com/SchoolyB/EZ/compare/v0.16.14...v0.16.15) (2025-12-10)
 
 
