@@ -10,6 +10,7 @@ type Token struct {
 	Literal string
 	Line    int
 	Column  int
+	File    string // Source file (optional, set for multi-file modules)
 }
 
 const (

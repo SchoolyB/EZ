@@ -1,0 +1,3 @@
+module utils
+
+const VALUE int = 42

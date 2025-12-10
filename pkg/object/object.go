@@ -197,6 +197,7 @@ type Error struct {
 	Code         string
 	Line         int
 	Column       int
+	File         string // Source file where error occurred
 	Help         string
 	PreFormatted bool // If true, Message is already formatted and shouldn't be wrapped
 }
@@ -215,6 +216,7 @@ type Function struct {
 	ReturnTypes []string
 	Body        *ast.BlockStatement
 	Env         *Environment
+	File        string // Source file where function was defined
 }
 
 func (f *Function) Type() ObjectType { return FUNCTION_OBJ }
