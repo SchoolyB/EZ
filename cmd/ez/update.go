@@ -4,7 +4,10 @@ package main
 // Licensed under the MIT License. See LICENSE for details.
 
 import (
+	"archive/tar"
+	"archive/zip"
 	"bufio"
+	"compress/gzip"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -281,36 +284,21 @@ func runUpdate() {
 	fmt.Println("Restart your terminal or run `ez version` to verify.")
 }
 
-// getAssetName returns the expected binary name for this OS/arch
+// getAssetName returns the expected archive name for this OS/arch
 func getAssetName() string {
-	os := runtime.GOOS
+	osName := runtime.GOOS
 	arch := runtime.GOARCH
 
-	// Map to common naming conventions
-	switch os {
-	case "darwin":
-		os = "darwin"
-	case "linux":
-		os = "linux"
-	case "windows":
-		os = "windows"
-	}
-
-	switch arch {
-	case "amd64":
-		arch = "amd64"
-	case "arm64":
-		arch = "arm64"
-	}
-
-	name := fmt.Sprintf("ez-%s-%s", os, arch)
+	name := fmt.Sprintf("ez-%s-%s", osName, arch)
 	if runtime.GOOS == "windows" {
-		name += ".exe"
+		name += ".zip"
+	} else {
+		name += ".tar.gz"
 	}
 	return name
 }
 
-// downloadAndInstall downloads the new binary and replaces the current one
+// downloadAndInstall downloads the archive and extracts/installs the binary
 func downloadAndInstall(url string) error {
 	// Get current executable path
 	execPath, err := os.Executable()
@@ -322,7 +310,7 @@ func downloadAndInstall(url string) error {
 		return fmt.Errorf("failed to resolve symlinks: %w", err)
 	}
 
-	// Download to temp file
+	// Download archive to temp file
 	resp, err := http.Get(url)
 	if err != nil {
 		return fmt.Errorf("failed to download: %w", err)
@@ -333,44 +321,164 @@ func downloadAndInstall(url string) error {
 		return fmt.Errorf("download failed with status %d", resp.StatusCode)
 	}
 
-	// Create temp file in same directory as executable (for atomic rename)
-	dir := filepath.Dir(execPath)
-	tmpFile, err := os.CreateTemp(dir, "ez-update-*")
+	// Create temp directory for extraction
+	tmpDir, err := os.MkdirTemp("", "ez-update-*")
 	if err != nil {
-		return fmt.Errorf("failed to create temp file: %w", err)
+		return fmt.Errorf("failed to create temp directory: %w", err)
 	}
-	tmpPath := tmpFile.Name()
+	defer os.RemoveAll(tmpDir)
 
-	// Download to temp file
-	_, err = io.Copy(tmpFile, resp.Body)
-	tmpFile.Close()
+	// Download archive
+	archivePath := filepath.Join(tmpDir, "archive")
+	archiveFile, err := os.Create(archivePath)
 	if err != nil {
-		os.Remove(tmpPath)
-		return fmt.Errorf("failed to write update: %w", err)
+		return fmt.Errorf("failed to create archive file: %w", err)
+	}
+
+	_, err = io.Copy(archiveFile, resp.Body)
+	archiveFile.Close()
+	if err != nil {
+		return fmt.Errorf("failed to download archive: %w", err)
+	}
+
+	// Extract binary from archive
+	var binaryPath string
+	if runtime.GOOS == "windows" {
+		binaryPath, err = extractZip(archivePath, tmpDir)
+	} else {
+		binaryPath, err = extractTarGz(archivePath, tmpDir)
+	}
+	if err != nil {
+		return fmt.Errorf("failed to extract archive: %w", err)
 	}
 
 	// Make executable
-	if err := os.Chmod(tmpPath, 0755); err != nil {
-		os.Remove(tmpPath)
+	if err := os.Chmod(binaryPath, 0755); err != nil {
 		return fmt.Errorf("failed to set permissions: %w", err)
 	}
 
 	// Backup current executable
 	backupPath := execPath + ".backup"
 	if err := os.Rename(execPath, backupPath); err != nil {
-		os.Remove(tmpPath)
 		return fmt.Errorf("failed to backup current binary: %w", err)
 	}
 
-	// Move new binary into place
-	if err := os.Rename(tmpPath, execPath); err != nil {
+	// Copy new binary into place (can't rename across filesystems)
+	if err := copyFile(binaryPath, execPath); err != nil {
 		// Try to restore backup
 		os.Rename(backupPath, execPath)
 		return fmt.Errorf("failed to install update: %w", err)
+	}
+
+	// Make the new binary executable
+	if err := os.Chmod(execPath, 0755); err != nil {
+		// Try to restore backup
+		os.Remove(execPath)
+		os.Rename(backupPath, execPath)
+		return fmt.Errorf("failed to set permissions: %w", err)
 	}
 
 	// Remove backup
 	os.Remove(backupPath)
 
 	return nil
+}
+
+// extractTarGz extracts the ez binary from a .tar.gz archive
+func extractTarGz(archivePath, destDir string) (string, error) {
+	file, err := os.Open(archivePath)
+	if err != nil {
+		return "", err
+	}
+	defer file.Close()
+
+	gzr, err := gzip.NewReader(file)
+	if err != nil {
+		return "", err
+	}
+	defer gzr.Close()
+
+	tr := tar.NewReader(gzr)
+
+	for {
+		header, err := tr.Next()
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			return "", err
+		}
+
+		// Look for the ez binary (might be "ez" or in a subdirectory)
+		name := filepath.Base(header.Name)
+		if name == "ez" || name == "ez.exe" {
+			destPath := filepath.Join(destDir, name)
+			outFile, err := os.Create(destPath)
+			if err != nil {
+				return "", err
+			}
+			if _, err := io.Copy(outFile, tr); err != nil {
+				outFile.Close()
+				return "", err
+			}
+			outFile.Close()
+			return destPath, nil
+		}
+	}
+
+	return "", fmt.Errorf("ez binary not found in archive")
+}
+
+// extractZip extracts the ez binary from a .zip archive
+func extractZip(archivePath, destDir string) (string, error) {
+	r, err := zip.OpenReader(archivePath)
+	if err != nil {
+		return "", err
+	}
+	defer r.Close()
+
+	for _, f := range r.File {
+		name := filepath.Base(f.Name)
+		if name == "ez" || name == "ez.exe" {
+			rc, err := f.Open()
+			if err != nil {
+				return "", err
+			}
+
+			destPath := filepath.Join(destDir, name)
+			outFile, err := os.Create(destPath)
+			if err != nil {
+				rc.Close()
+				return "", err
+			}
+
+			_, err = io.Copy(outFile, rc)
+			outFile.Close()
+			rc.Close()
+			if err != nil {
+				return "", err
+			}
+			return destPath, nil
+		}
+	}
+
+	return "", fmt.Errorf("ez binary not found in archive")
+}
+
+// copyFile copies a file from src to dst
+func copyFile(src, dst string) error {
+	in, err := os.Open(src)
+	if err != nil {
+		return err
+	}
+	defer in.Close()
+
+	out, err := os.Create(dst)
+	if err != nil {
+		return err
+	}
+	defer out.Close()
+
+	_, err = io.Copy(out, in)
+	return err
 }
