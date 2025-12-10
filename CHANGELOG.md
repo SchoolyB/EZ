@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.18.0](https://github.com/SchoolyB/EZ/compare/v0.17.2...v0.18.0) (2025-12-10)
+
+
+### Features
+
+* add default parameter values for functions ([#312](https://github.com/SchoolyB/EZ/issues/312)) ([#485](https://github.com/SchoolyB/EZ/issues/485)) ([933ca6f](https://github.com/SchoolyB/EZ/commit/933ca6fe278654cfea9a1172e4a3eb0419f05f58))
+
 ## [0.17.2](https://github.com/SchoolyB/EZ/compare/v0.17.1...v0.17.2) (2025-12-10)
 
 
