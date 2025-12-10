@@ -1,0 +1,40 @@
+/*
+ * Test for_each with same-module array constants
+ * Regression test for bug #465
+ */
+import @std
+import "./testmod"
+
+using std
+
+do main() {
+    println("=== For_each Module Constant Test ===")
+    temp passed int = 0
+    temp failed int = 0
+
+    // Test 1: for_each over string array constant
+    println("Items:")
+    testmod.print_items()
+    println("  [PASS] for_each over string array")
+    passed += 1
+
+    // Test 2: for_each over int array constant with accumulation
+    temp sum = testmod.sum_numbers()
+    if sum == 100 {
+        println("  [PASS] for_each over int array (sum=${sum})")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] for_each over int array: expected 100, got ${sum}")
+        failed += 1
+    }
+
+    // Summary
+    println("")
+    println("Results: ${passed} passed, ${failed} failed")
+
+    if failed > 0 {
+        println("SOME TESTS FAILED")
+    } otherwise {
+        println("ALL TESTS PASSED")
+    }
+}
