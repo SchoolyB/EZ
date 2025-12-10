@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.17.2](https://github.com/SchoolyB/EZ/compare/v0.17.1...v0.17.2) (2025-12-10)
+
+
+### Bug Fixes
+
+* auto-elevate to sudo when update needs root permissions ([#483](https://github.com/SchoolyB/EZ/issues/483)) ([8cfa5c3](https://github.com/SchoolyB/EZ/commit/8cfa5c3d2814d8ec2fa7c2593ab405829e80bdb9))
+
 ## [0.17.1](https://github.com/SchoolyB/EZ/compare/v0.17.0...v0.17.1) (2025-12-10)
 
 
