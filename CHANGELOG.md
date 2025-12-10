@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.16.11](https://github.com/SchoolyB/EZ/compare/v0.16.10...v0.16.11) (2025-12-10)
+
+
+### Bug Fixes
+
+* resolve uppercase constants being parsed as struct literals ([#462](https://github.com/SchoolyB/EZ/issues/462)) ([a406de3](https://github.com/SchoolyB/EZ/commit/a406de3d496cf89c4f405182d5392b16405c6fc4))
+
 ## [0.16.10](https://github.com/SchoolyB/EZ/compare/v0.16.9...v0.16.10) (2025-12-09)
 
 
