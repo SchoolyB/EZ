@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.16.15](https://github.com/SchoolyB/EZ/compare/v0.16.14...v0.16.15) (2025-12-10)
+
+
+### Bug Fixes
+
+* show correct file location for multi-file module errors ([#466](https://github.com/SchoolyB/EZ/issues/466)) ([#476](https://github.com/SchoolyB/EZ/issues/476)) ([b187e1a](https://github.com/SchoolyB/EZ/commit/b187e1a6b8e98347acc541775eb27d6d59c98869))
+
 ## [0.16.14](https://github.com/SchoolyB/EZ/compare/v0.16.13...v0.16.14) (2025-12-10)
 
 
