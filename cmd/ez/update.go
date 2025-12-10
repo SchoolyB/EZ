@@ -14,6 +14,7 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"runtime"
 	"strings"
@@ -207,7 +208,22 @@ func CheckForUpdateAsync() {
 }
 
 // runUpdate runs the interactive update command
-func runUpdate() {
+// If args contains "--confirm" followed by a URL, it skips confirmation and installs directly
+// (used when re-executing with sudo)
+func runUpdate(args []string) {
+	// Check for --confirm flag (used by sudo re-exec)
+	if len(args) >= 2 && args[0] == "--confirm" {
+		downloadURL := args[1]
+		fmt.Printf("Installing update...\n")
+		if err := downloadAndInstall(downloadURL); err != nil {
+			fmt.Printf("Error during update: %v\n", err)
+			os.Exit(1)
+		}
+		fmt.Println("\nSuccessfully updated!")
+		fmt.Println("Restart your terminal or run `ez version` to verify.")
+		return
+	}
+
 	fmt.Printf("Current version: %s\n", Version)
 	fmt.Println("Checking for updates...")
 
@@ -298,6 +314,19 @@ func getAssetName() string {
 	return name
 }
 
+// checkWritePermission checks if we can write to the executable's directory
+func checkWritePermission(path string) bool {
+	dir := filepath.Dir(path)
+	testFile := filepath.Join(dir, ".ez-update-test")
+	f, err := os.Create(testFile)
+	if err != nil {
+		return false
+	}
+	f.Close()
+	os.Remove(testFile)
+	return true
+}
+
 // downloadAndInstall downloads the archive and extracts/installs the binary
 func downloadAndInstall(url string) error {
 	// Get current executable path
@@ -310,6 +339,26 @@ func downloadAndInstall(url string) error {
 		return fmt.Errorf("failed to resolve symlinks: %w", err)
 	}
 
+	// Check if we have write permission
+	if !checkWritePermission(execPath) {
+		// Need elevated permissions - re-exec with sudo
+		if runtime.GOOS == "windows" {
+			return fmt.Errorf("permission denied. Please run as Administrator")
+		}
+		fmt.Println("Root permissions required. Running with sudo...")
+		// Re-run the update command with sudo
+		cmd := exec.Command("sudo", os.Args[0], "update", "--confirm", url)
+		cmd.Stdin = os.Stdin
+		cmd.Stdout = os.Stdout
+		cmd.Stderr = os.Stderr
+		return cmd.Run()
+	}
+
+	return doInstall(url, execPath)
+}
+
+// doInstall performs the actual download and installation
+func doInstall(url, execPath string) error {
 	// Download archive to temp file
 	resp, err := http.Get(url)
 	if err != nil {
