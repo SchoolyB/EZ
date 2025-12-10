@@ -600,8 +600,18 @@ func printRuntimeError(errObj *interpreter.Error, source, filename string) {
 			code = errors.ErrorCode{Code: errObj.Code, Name: "error", Description: "error occurred here"}
 		}
 
-		sourceLine := errors.GetSourceLine(source, errObj.Line)
-		ezErr := errors.NewErrorWithSource(code, errObj.Message, filename, errObj.Line, errObj.Column, sourceLine)
+		// Use error's file if available, otherwise fall back to main file
+		errorFile := filename
+		errorSource := source
+		if errObj.File != "" {
+			errorFile = errObj.File
+			// Read source from the error's file
+			if data, err := os.ReadFile(errObj.File); err == nil {
+				errorSource = string(data)
+			}
+		}
+		sourceLine := errors.GetSourceLine(errorSource, errObj.Line)
+		ezErr := errors.NewErrorWithSource(code, errObj.Message, errorFile, errObj.Line, errObj.Column, sourceLine)
 		if errObj.Help != "" {
 			ezErr.Help = errObj.Help
 		}

@@ -1486,11 +1486,17 @@ func evalEnumDeclaration(node *ast.EnumDeclaration, env *Environment) Object {
 }
 
 func evalFunctionDeclaration(node *ast.FunctionDeclaration, env *Environment) Object {
+	// Get file from token (set by parser for multi-file modules) or from context
+	file := node.Token.File
+	if file == "" && globalEvalContext != nil {
+		file = globalEvalContext.CurrentFile
+	}
 	fn := &Function{
 		Parameters:  node.Parameters,
 		ReturnTypes: node.ReturnTypes,
 		Body:        node.Body,
 		Env:         env,
+		File:        file,
 	}
 	vis := convertVisibility(node.Visibility)
 	env.SetWithVisibility(node.Name.Value, fn, false, vis) // functions are immutable
@@ -2162,7 +2168,21 @@ func applyFunction(fn Object, args []Object, line, col int) Object {
 				"wrong number of arguments: expected %d, got %d", len(fn.Parameters), len(args))
 		}
 		extendedEnv := extendFunctionEnv(fn, args)
+
+		// Save current file and set function's file as current for error reporting
+		var oldFile string
+		if globalEvalContext != nil && fn.File != "" {
+			oldFile = globalEvalContext.CurrentFile
+			globalEvalContext.CurrentFile = fn.File
+		}
+
 		evaluated := Eval(fn.Body, extendedEnv)
+
+		// Restore current file
+		if globalEvalContext != nil && fn.File != "" {
+			globalEvalContext.CurrentFile = oldFile
+		}
+
 		result := unwrapReturnValue(evaluated)
 
 		// Validate return type if function declares one
@@ -2796,10 +2816,15 @@ func newError(format string, a ...interface{}) *Error {
 
 // newErrorWithLocation creates an error with line/column info
 func newErrorWithLocation(code string, line, column int, format string, a ...interface{}) *Error {
+	file := ""
+	if globalEvalContext != nil {
+		file = globalEvalContext.CurrentFile
+	}
 	return &Error{
 		Message: fmt.Sprintf(format, a...),
 		Code:    code,
 		Line:    line,
 		Column:  column,
+		File:    file,
 	}
 }
