@@ -1,0 +1,5 @@
+module mymod
+
+do get_value() -> int {
+    return VALUE
+}

@@ -516,3 +516,37 @@ do foo() -> int { return 1 }
 		t.Errorf("warning should contain W4001, got %q", warnings[0])
 	}
 }
+
+func TestLoadModuleNameNoWarningWhenInMatchingDir(t *testing.T) {
+	tmpDir, err := os.MkdirTemp("", "ez-test-*")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	// Create a directory that matches the module name
+	modDir := filepath.Join(tmpDir, "mymod")
+	if err := os.MkdirAll(modDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+
+	// Create a file where module name matches the parent directory (not the filename)
+	testFile := filepath.Join(modDir, "helpers.ez")
+	content := `module mymod
+do foo() -> int { return 1 }
+`
+	if err := os.WriteFile(testFile, []byte(content), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	loader := NewModuleLoader(tmpDir)
+	_, err = loader.Load("./mymod/helpers")
+	if err != nil {
+		t.Fatalf("Load() error = %v", err)
+	}
+
+	warnings := loader.GetWarnings()
+	if len(warnings) > 0 {
+		t.Errorf("expected no warning when module name matches parent directory, got: %v", warnings)
+	}
+}

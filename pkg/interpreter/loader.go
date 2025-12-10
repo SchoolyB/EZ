@@ -208,7 +208,10 @@ func (l *ModuleLoader) loadFileModule(mod *Module, filePath string) error {
 	if program.Module != nil {
 		mod.Name = program.Module.Name.Value
 		// Warn if declared name doesn't match filename
-		if mod.Name != fileName {
+		// But don't warn if the file is in a directory that matches the module name
+		// (this supports multi-file modules where files are in a module directory)
+		parentDir := filepath.Base(filepath.Dir(filePath))
+		if mod.Name != fileName && mod.Name != parentDir {
 			l.AddWarning(fmt.Sprintf("warning[W4001]: module declares name '%s' but file is named '%s.ez'\n  --> %s\n  = help: consider renaming the module or file to match",
 				mod.Name, fileName, filePath))
 		}
