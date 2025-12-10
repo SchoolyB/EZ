@@ -141,9 +141,10 @@ type FunctionSignature struct {
 
 // Parameter represents a function parameter with type
 type Parameter struct {
-	Name    string
-	Type    string
-	Mutable bool // true if declared with & prefix
+	Name       string
+	Type       string
+	Mutable    bool // true if declared with & prefix
+	HasDefault bool // true if parameter has a default value
 }
 
 // TypeChecker validates types in an EZ program
@@ -612,9 +613,10 @@ func (tc *TypeChecker) checkFunctionDeclaration(node *ast.FunctionDeclaration) {
 			)
 		}
 		sig.Parameters = append(sig.Parameters, &Parameter{
-			Name:    param.Name.Value,
-			Type:    param.TypeName,
-			Mutable: param.Mutable,
+			Name:       param.Name.Value,
+			Type:       param.TypeName,
+			Mutable:    param.Mutable,
+			HasDefault: param.DefaultValue != nil,
 		})
 	}
 
@@ -1512,16 +1514,26 @@ func (tc *TypeChecker) checkFunctionCall(call *ast.CallExpression) {
 		return
 	}
 
+	// Calculate minimum required arguments (parameters without defaults)
+	minRequired := 0
+	for _, param := range sig.Parameters {
+		if !param.HasDefault {
+			minRequired++
+		}
+	}
+
 	// Check argument count
-	if len(call.Arguments) != len(sig.Parameters) {
+	if len(call.Arguments) < minRequired || len(call.Arguments) > len(sig.Parameters) {
 		line, column := tc.getExpressionPosition(call.Function)
-		tc.addError(
-			errors.E5008,
-			fmt.Sprintf("wrong number of arguments to '%s': expected %d, got %d",
-				funcName, len(sig.Parameters), len(call.Arguments)),
-			line,
-			column,
-		)
+		var msg string
+		if minRequired == len(sig.Parameters) {
+			msg = fmt.Sprintf("wrong number of arguments to '%s': expected %d, got %d",
+				funcName, len(sig.Parameters), len(call.Arguments))
+		} else {
+			msg = fmt.Sprintf("wrong number of arguments to '%s': expected %d to %d, got %d",
+				funcName, minRequired, len(sig.Parameters), len(call.Arguments))
+		}
+		tc.addError(errors.E5008, msg, line, column)
 		return
 	}
 

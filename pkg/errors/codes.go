@@ -74,6 +74,8 @@ var (
 	E2036 = ErrorCode{"E2036", "import-inside-block", "import must be at file level"}
 	E2037 = ErrorCode{"E2037", "reserved-struct-name", "struct name is reserved"}
 	E2038 = ErrorCode{"E2038", "reserved-enum-name", "enum name is reserved"}
+	E2039 = ErrorCode{"E2039", "required-after-default", "required parameter after parameter with default"}
+	E2040 = ErrorCode{"E2040", "mutable-with-default", "mutable parameter cannot have default value"}
 )
 
 // =============================================================================

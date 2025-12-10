@@ -419,9 +419,10 @@ func (f *FunctionDeclaration) TokenLiteral() string { return f.Token.Literal }
 
 // Parameter represents a function parameter
 type Parameter struct {
-	Name     *Label
-	TypeName string
-	Mutable  bool // true if declared with & prefix
+	Name         *Label
+	TypeName     string
+	Mutable      bool       // true if declared with & prefix
+	DefaultValue Expression // nil if no default value
 }
 
 // ImportItem represents a single module import with optional alias

@@ -2162,10 +2162,22 @@ func applyFunction(fn Object, args []Object, line, col int) Object {
 
 	switch fn := fn.(type) {
 	case *Function:
+		// Calculate minimum required arguments (parameters without defaults)
+		minRequired := 0
+		for _, param := range fn.Parameters {
+			if param.DefaultValue == nil {
+				minRequired++
+			}
+		}
+
 		// Validate argument count
-		if len(args) != len(fn.Parameters) {
-			return newErrorWithLocation("E5004", line, col,
-				"wrong number of arguments: expected %d, got %d", len(fn.Parameters), len(args))
+		if len(args) < minRequired || len(args) > len(fn.Parameters) {
+			if minRequired == len(fn.Parameters) {
+				return newErrorWithLocation("E5008", line, col,
+					"wrong number of arguments: expected %d, got %d", len(fn.Parameters), len(args))
+			}
+			return newErrorWithLocation("E5008", line, col,
+				"wrong number of arguments: expected %d to %d, got %d", minRequired, len(fn.Parameters), len(args))
 		}
 		extendedEnv := extendFunctionEnv(fn, args)
 
@@ -2408,9 +2420,17 @@ func extendFunctionEnv(fn *Function, args []Object) *Environment {
 	env := NewEnclosedEnvironment(fn.Env)
 
 	for i, param := range fn.Parameters {
+		var value Object
 		if i < len(args) {
+			// Use provided argument
+			value = args[i]
+		} else if param.DefaultValue != nil {
+			// Evaluate default value in the function's closure environment
+			value = Eval(param.DefaultValue, fn.Env)
+		}
+		if value != nil {
 			// Use parameter's Mutable field: & params are mutable, non-& params are immutable
-			env.Set(param.Name.Value, args[i], param.Mutable)
+			env.Set(param.Name.Value, value, param.Mutable)
 		}
 	}
 
