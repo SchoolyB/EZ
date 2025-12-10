@@ -51,6 +51,7 @@ This will check for new versions, show the changelog, and prompt you to upgrade.
 
 If you're upgrading from **v0.17.1 or earlier**, you'll need to manually update once:
 
+**macOS/Linux:**
 ```bash
 # macOS (Apple Silicon)
 curl -L https://github.com/SchoolyB/EZ/releases/latest/download/ez-darwin-arm64.tar.gz | tar xz
@@ -67,6 +68,17 @@ sudo mv ez /usr/local/bin/ez
 # Linux (ARM64)
 curl -L https://github.com/SchoolyB/EZ/releases/latest/download/ez-linux-arm64.tar.gz | tar xz
 sudo mv ez /usr/local/bin/ez
+```
+
+**Windows (PowerShell as Administrator):**
+```powershell
+# Download and extract
+Invoke-WebRequest -Uri "https://github.com/SchoolyB/EZ/releases/latest/download/ez-windows-amd64.zip" -OutFile ez.zip
+Expand-Archive ez.zip -DestinationPath .
+Remove-Item ez.zip
+
+# Move to a directory in your PATH (e.g., C:\Program Files\ez)
+Move-Item ez.exe "C:\Program Files\ez\ez.exe"
 ```
 
 After this one-time manual update, `ez update` will work automatically for all future versions.
