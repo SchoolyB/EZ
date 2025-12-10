@@ -1,0 +1,10 @@
+// E2039: required parameter after parameter with default value
+
+do bad_func(x int = 10, y int) {
+    // This should fail - y is required but comes after x which has a default
+    println(x + y)
+}
+
+do main() {
+    bad_func(5, 10)
+}

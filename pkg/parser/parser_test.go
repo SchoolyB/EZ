@@ -2218,9 +2218,9 @@ func TestParseLargeIntegerLiterals(t *testing.T) {
 	}{
 		// Values larger than int64 max
 		{"temp x i128 = 10000000000000000000", "10000000000000000000"},
-		{"temp x i128 = 9223372036854775808", "9223372036854775808"},                     // int64 max + 1
-		{"temp x u128 = 18446744073709551615", "18446744073709551615"},                   // uint64 max
-		{"temp x u128 = 18446744073709551616", "18446744073709551616"},                   // uint64 max + 1
+		{"temp x i128 = 9223372036854775808", "9223372036854775808"},                                         // int64 max + 1
+		{"temp x u128 = 18446744073709551615", "18446744073709551615"},                                       // uint64 max
+		{"temp x u128 = 18446744073709551616", "18446744073709551616"},                                       // uint64 max + 1
 		{"temp x i128 = 170141183460469231731687303715884105727", "170141183460469231731687303715884105727"}, // i128 max
 		{"temp x u128 = 340282366920938463463374607431768211455", "340282366920938463463374607431768211455"}, // u128 max
 		// Underscores in large numbers
@@ -2260,7 +2260,7 @@ func TestParseLargeNegativeIntegerLiterals(t *testing.T) {
 		expected string
 	}{
 		{"temp x i128 = -10000000000000000000", "-10000000000000000000"},
-		{"temp x i128 = -9223372036854775809", "-9223372036854775809"}, // int64 min - 1
+		{"temp x i128 = -9223372036854775809", "-9223372036854775809"},                                         // int64 min - 1
 		{"temp x i128 = -170141183460469231731687303715884105728", "-170141183460469231731687303715884105728"}, // i128 min
 	}
 
@@ -2302,5 +2302,263 @@ func TestParseLargeNegativeIntegerLiterals(t *testing.T) {
 				t.Fatalf("expected IntegerValue or PrefixExpression, got %T", varDecl.Value)
 			}
 		})
+	}
+}
+
+// =============================================================================
+// DEFAULT PARAMETER TESTS
+// =============================================================================
+
+func TestFunctionWithDefaultParameter(t *testing.T) {
+	input := `do greet(name string = "World") {
+		println(name)
+	}`
+	program := parseProgram(t, input)
+	fn := program.Statements[0].(*FunctionDeclaration)
+
+	if fn.Name.Value != "greet" {
+		t.Errorf("expected name 'greet', got %q", fn.Name.Value)
+	}
+	if len(fn.Parameters) != 1 {
+		t.Fatalf("expected 1 parameter, got %d", len(fn.Parameters))
+	}
+
+	param := fn.Parameters[0]
+	if param.Name.Value != "name" {
+		t.Errorf("expected param name 'name', got %q", param.Name.Value)
+	}
+	if param.TypeName != "string" {
+		t.Errorf("expected param type 'string', got %q", param.TypeName)
+	}
+	if param.DefaultValue == nil {
+		t.Fatal("expected default value, got nil")
+	}
+	strVal, ok := param.DefaultValue.(*StringValue)
+	if !ok {
+		t.Fatalf("expected StringValue default, got %T", param.DefaultValue)
+	}
+	if strVal.Value != "World" {
+		t.Errorf("expected default value 'World', got %q", strVal.Value)
+	}
+}
+
+func TestFunctionWithMultipleDefaultParameters(t *testing.T) {
+	input := `do config(debug bool = false, level int = 1) {
+		println(debug)
+	}`
+	program := parseProgram(t, input)
+	fn := program.Statements[0].(*FunctionDeclaration)
+
+	if len(fn.Parameters) != 2 {
+		t.Fatalf("expected 2 parameters, got %d", len(fn.Parameters))
+	}
+
+	// First param: debug bool = false
+	p1 := fn.Parameters[0]
+	if p1.Name.Value != "debug" {
+		t.Errorf("expected param name 'debug', got %q", p1.Name.Value)
+	}
+	if p1.TypeName != "bool" {
+		t.Errorf("expected param type 'bool', got %q", p1.TypeName)
+	}
+	if p1.DefaultValue == nil {
+		t.Fatal("expected default value for debug, got nil")
+	}
+	boolVal, ok := p1.DefaultValue.(*BooleanValue)
+	if !ok {
+		t.Fatalf("expected BooleanValue default, got %T", p1.DefaultValue)
+	}
+	if boolVal.Value != false {
+		t.Errorf("expected default value false, got %v", boolVal.Value)
+	}
+
+	// Second param: level int = 1
+	p2 := fn.Parameters[1]
+	if p2.Name.Value != "level" {
+		t.Errorf("expected param name 'level', got %q", p2.Name.Value)
+	}
+	if p2.TypeName != "int" {
+		t.Errorf("expected param type 'int', got %q", p2.TypeName)
+	}
+	if p2.DefaultValue == nil {
+		t.Fatal("expected default value for level, got nil")
+	}
+}
+
+func TestFunctionWithMixedRequiredAndDefaultParams(t *testing.T) {
+	input := `do create(name string, health int = 100) {
+		println(name)
+	}`
+	program := parseProgram(t, input)
+	fn := program.Statements[0].(*FunctionDeclaration)
+
+	if len(fn.Parameters) != 2 {
+		t.Fatalf("expected 2 parameters, got %d", len(fn.Parameters))
+	}
+
+	// First param: name string (required, no default)
+	p1 := fn.Parameters[0]
+	if p1.Name.Value != "name" {
+		t.Errorf("expected param name 'name', got %q", p1.Name.Value)
+	}
+	if p1.DefaultValue != nil {
+		t.Errorf("expected no default for 'name', got %v", p1.DefaultValue)
+	}
+
+	// Second param: health int = 100 (optional)
+	p2 := fn.Parameters[1]
+	if p2.Name.Value != "health" {
+		t.Errorf("expected param name 'health', got %q", p2.Name.Value)
+	}
+	if p2.DefaultValue == nil {
+		t.Fatal("expected default value for 'health', got nil")
+	}
+}
+
+func TestFunctionWithGroupedParamsAndDefault(t *testing.T) {
+	// For grouped params "x, y int = 0", only y gets the default
+	input := `do point(x, y int = 0) {
+		println(x)
+	}`
+	program := parseProgram(t, input)
+	fn := program.Statements[0].(*FunctionDeclaration)
+
+	if len(fn.Parameters) != 2 {
+		t.Fatalf("expected 2 parameters, got %d", len(fn.Parameters))
+	}
+
+	// First param: x int (required, no default)
+	p1 := fn.Parameters[0]
+	if p1.Name.Value != "x" {
+		t.Errorf("expected param name 'x', got %q", p1.Name.Value)
+	}
+	if p1.TypeName != "int" {
+		t.Errorf("expected param type 'int', got %q", p1.TypeName)
+	}
+	if p1.DefaultValue != nil {
+		t.Errorf("expected no default for 'x', got %v", p1.DefaultValue)
+	}
+
+	// Second param: y int = 0 (optional)
+	p2 := fn.Parameters[1]
+	if p2.Name.Value != "y" {
+		t.Errorf("expected param name 'y', got %q", p2.Name.Value)
+	}
+	if p2.TypeName != "int" {
+		t.Errorf("expected param type 'int', got %q", p2.TypeName)
+	}
+	if p2.DefaultValue == nil {
+		t.Fatal("expected default value for 'y', got nil")
+	}
+}
+
+func TestFunctionWithExpressionDefault(t *testing.T) {
+	input := `do calc(mult float = 3.14 * 2.0) {
+		println(mult)
+	}`
+	program := parseProgram(t, input)
+	fn := program.Statements[0].(*FunctionDeclaration)
+
+	if len(fn.Parameters) != 1 {
+		t.Fatalf("expected 1 parameter, got %d", len(fn.Parameters))
+	}
+
+	param := fn.Parameters[0]
+	if param.DefaultValue == nil {
+		t.Fatal("expected default value expression, got nil")
+	}
+
+	// Should be an infix expression (3.14 * 2.0)
+	_, ok := param.DefaultValue.(*InfixExpression)
+	if !ok {
+		t.Fatalf("expected InfixExpression default, got %T", param.DefaultValue)
+	}
+}
+
+func TestFunctionWithDefaultAndReturnType(t *testing.T) {
+	input := `do greet(name string = "World") -> string {
+		return name
+	}`
+	program := parseProgram(t, input)
+	fn := program.Statements[0].(*FunctionDeclaration)
+
+	if len(fn.Parameters) != 1 {
+		t.Fatalf("expected 1 parameter, got %d", len(fn.Parameters))
+	}
+	if fn.Parameters[0].DefaultValue == nil {
+		t.Fatal("expected default value, got nil")
+	}
+	if len(fn.ReturnTypes) != 1 || fn.ReturnTypes[0] != "string" {
+		t.Errorf("expected return type 'string', got %v", fn.ReturnTypes)
+	}
+}
+
+func TestRequiredParamAfterDefaultError(t *testing.T) {
+	input := `do bad(x int = 10, y int) {
+		println(x)
+	}`
+	l := NewLexer(input)
+	p := New(l)
+	p.ParseProgram()
+
+	// Check that parsing failed (errors or EZ errors)
+	if len(p.Errors()) == 0 && !p.EZErrors().HasErrors() {
+		t.Fatal("expected parser error for required param after default")
+	}
+
+	// Check that we got the E2039 error in the EZ error list
+	foundError := false
+	for _, err := range p.EZErrors().Errors {
+		if err.ErrorCode.Code == "E2039" || strings.Contains(err.Message, "cannot follow a parameter with a default") {
+			foundError = true
+			break
+		}
+	}
+	if !foundError {
+		t.Errorf("expected E2039 error, got: %v", p.Errors())
+	}
+}
+
+func TestMutableParamWithDefaultError(t *testing.T) {
+	input := `do bad(&x int = 10) {
+		println(x)
+	}`
+	l := NewLexer(input)
+	p := New(l)
+	p.ParseProgram()
+
+	// Check that parsing failed
+	if len(p.Errors()) == 0 && !p.EZErrors().HasErrors() {
+		t.Fatal("expected parser error for mutable param with default")
+	}
+
+	// Check that we got the E2040 error
+	foundError := false
+	for _, err := range p.EZErrors().Errors {
+		if err.ErrorCode.Code == "E2040" || strings.Contains(err.Message, "mutable parameter") {
+			foundError = true
+			break
+		}
+	}
+	if !foundError {
+		t.Errorf("expected E2040 error, got: %v", p.Errors())
+	}
+}
+
+func TestAllParamsWithDefaults(t *testing.T) {
+	input := `do config(a int = 1, b int = 2, c int = 3) {
+		println(a + b + c)
+	}`
+	program := parseProgram(t, input)
+	fn := program.Statements[0].(*FunctionDeclaration)
+
+	if len(fn.Parameters) != 3 {
+		t.Fatalf("expected 3 parameters, got %d", len(fn.Parameters))
+	}
+
+	for i, param := range fn.Parameters {
+		if param.DefaultValue == nil {
+			t.Errorf("parameter %d (%s) expected to have default value", i, param.Name.Value)
+		}
 	}
 }

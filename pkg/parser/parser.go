@@ -1320,6 +1320,7 @@ func (p *Parser) parseFunctionDeclarationWithAttrs(attrs []*Attribute) *Function
 func (p *Parser) parseFunctionParameters() []*Parameter {
 	params := []*Parameter{}
 	paramNames := make(map[string]Token) // track parameter names for duplicate detection
+	seenDefault := false                 // track if we've seen a parameter with default value
 
 	if p.peekTokenMatches(RPAREN) {
 		p.nextToken()
@@ -1458,9 +1459,44 @@ func (p *Parser) parseFunctionParameters() []*Parameter {
 			return nil
 		}
 
+		// Check for default value (= expression)
+		var defaultValue Expression
+		if p.peekTokenMatches(ASSIGN) {
+			p.nextToken() // consume =
+			p.nextToken() // move to expression
+
+			// Check if any parameter in this group is mutable - can't have default on mutable params
+			for _, info := range namesForType {
+				if info.mutable {
+					msg := fmt.Sprintf("mutable parameter '%s' cannot have a default value", info.name.Value)
+					p.addEZError(errors.E2040, msg, info.name.Token)
+					return nil
+				}
+			}
+
+			defaultValue = p.parseExpression(LOWEST)
+			if defaultValue == nil {
+				return nil
+			}
+		} else if seenDefault {
+			// Required parameter after one with default - error
+			// Get the first param name from this group for the error message
+			paramName := namesForType[0].name.Value
+			msg := fmt.Sprintf("required parameter '%s' cannot follow a parameter with a default value", paramName)
+			p.addEZError(errors.E2039, msg, namesForType[0].name.Token)
+			return nil
+		}
+
 		// Apply the type to all collected names
-		for _, info := range namesForType {
-			params = append(params, &Parameter{Name: info.name, TypeName: typeName, Mutable: info.mutable})
+		// For grouped params like "x, y int = 0", only the LAST param gets the default
+		for i, info := range namesForType {
+			param := &Parameter{Name: info.name, TypeName: typeName, Mutable: info.mutable}
+			// Only the last parameter in the group gets the default value
+			if i == len(namesForType)-1 && defaultValue != nil {
+				param.DefaultValue = defaultValue
+				seenDefault = true // Mark that we've seen a default (for next iteration)
+			}
+			params = append(params, param)
 		}
 
 		// Check for comma (more parameters) or closing paren

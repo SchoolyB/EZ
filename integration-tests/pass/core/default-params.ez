@@ -1,0 +1,156 @@
+/*
+ * default-params.ez - Test default parameter values for functions
+ */
+
+import @std
+using std
+
+// Test basic default parameter
+do greet(name string = "World") -> string {
+    return "Hello, ${name}!"
+}
+
+// Test multiple parameters with some having defaults
+do create_player(name string, health int = 100, mana int = 50) -> string {
+    return "${name}: HP=${health}, MP=${mana}"
+}
+
+// Test all parameters with defaults
+do config(debug bool = false, verbose bool = true, level int = 1) -> string {
+    return "debug=${debug}, verbose=${verbose}, level=${level}"
+}
+
+// Test expression as default value
+do calculate(multiplier float = 3.14 * 2.0) -> float {
+    return multiplier
+}
+
+// Test grouped params where only last gets default: x is required, y defaults to 0
+do point(x, y int = 0) -> string {
+    return "(${x}, ${y})"
+}
+
+do main() {
+    println("=== Default Parameters Test ===")
+    temp passed int = 0
+    temp failed int = 0
+
+    // Test 1: greet with default
+    temp result1 = greet()
+    if result1 == "Hello, World!" {
+        println("  [PASS] greet() uses default")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] greet() expected 'Hello, World!', got '${result1}'")
+        failed += 1
+    }
+
+    // Test 2: greet with provided value
+    temp result2 = greet("Alice")
+    if result2 == "Hello, Alice!" {
+        println("  [PASS] greet('Alice') uses provided value")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] greet('Alice') expected 'Hello, Alice!', got '${result2}'")
+        failed += 1
+    }
+
+    // Test 3: create_player with only required arg
+    temp player1 = create_player("Hero")
+    if player1 == "Hero: HP=100, MP=50" {
+        println("  [PASS] create_player('Hero') uses defaults")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] create_player('Hero') expected 'Hero: HP=100, MP=50', got '${player1}'")
+        failed += 1
+    }
+
+    // Test 4: create_player with health provided
+    temp player2 = create_player("Boss", 200)
+    if player2 == "Boss: HP=200, MP=50" {
+        println("  [PASS] create_player('Boss', 200) uses default for mana")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] expected 'Boss: HP=200, MP=50', got '${player2}'")
+        failed += 1
+    }
+
+    // Test 5: create_player with all args
+    temp player3 = create_player("Wizard", 80, 150)
+    if player3 == "Wizard: HP=80, MP=150" {
+        println("  [PASS] create_player('Wizard', 80, 150) uses all provided")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] expected 'Wizard: HP=80, MP=150', got '${player3}'")
+        failed += 1
+    }
+
+    // Test 6: all defaults
+    temp cfg1 = config()
+    if cfg1 == "debug=false, verbose=true, level=1" {
+        println("  [PASS] config() uses all defaults")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] config() expected 'debug=false, verbose=true, level=1', got '${cfg1}'")
+        failed += 1
+    }
+
+    // Test 7: partial override
+    temp cfg2 = config(true)
+    if cfg2 == "debug=true, verbose=true, level=1" {
+        println("  [PASS] config(true) overrides first param")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] config(true) expected 'debug=true, verbose=true, level=1', got '${cfg2}'")
+        failed += 1
+    }
+
+    // Test 8: expression default
+    temp calc1 = calculate()
+    if calc1 >= 6.28 && calc1 < 6.29 {
+        println("  [PASS] calculate() evaluates expression default")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] calculate() expected ~6.28, got ${calc1}")
+        failed += 1
+    }
+
+    // Test 9: expression default with provided value
+    temp calc2 = calculate(2.0)
+    if calc2 == 2.0 {
+        println("  [PASS] calculate(2.0) uses provided value")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] calculate(2.0) expected 2.0, got ${calc2}")
+        failed += 1
+    }
+
+    // Test 10: grouped params - x is required, y has default
+    temp pt1 = point(5)
+    if pt1 == "(5, 0)" {
+        println("  [PASS] point(5) uses default for y")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] point(5) expected '(5, 0)', got '${pt1}'")
+        failed += 1
+    }
+
+    // Test 11: grouped params - both provided
+    temp pt2 = point(3, 4)
+    if pt2 == "(3, 4)" {
+        println("  [PASS] point(3, 4) uses both provided")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] point(3, 4) expected '(3, 4)', got '${pt2}'")
+        failed += 1
+    }
+
+    // Summary
+    println("")
+    println("Results: ${passed} passed, ${failed} failed")
+    if failed > 0 {
+        println("SOME TESTS FAILED")
+    } otherwise {
+        println("All tests passed!")
+    }
+}

@@ -1808,3 +1808,111 @@ func TestLargeIntegerNegativeValues(t *testing.T) {
 	}
 }
 
+// =============================================================================
+// DEFAULT PARAMETER TESTS
+// =============================================================================
+
+func TestDefaultParameterBasic(t *testing.T) {
+	input := `
+	do greet(name string = "World") {
+		println(name)
+	}
+	do main() {
+		greet()
+		greet("Alice")
+	}`
+	tc := typecheck(t, input)
+	assertNoErrors(t, tc)
+}
+
+func TestDefaultParameterMixedRequiredAndOptional(t *testing.T) {
+	input := `
+	do create(name string, health int = 100, mana int = 50) {
+		println(name)
+	}
+	do main() {
+		create("Hero")
+		create("Boss", 200)
+		create("Wizard", 80, 150)
+	}`
+	tc := typecheck(t, input)
+	assertNoErrors(t, tc)
+}
+
+func TestDefaultParameterAllOptional(t *testing.T) {
+	input := `
+	do config(debug bool = false, level int = 1) {
+		println(debug)
+	}
+	do main() {
+		config()
+		config(true)
+		config(true, 5)
+	}`
+	tc := typecheck(t, input)
+	assertNoErrors(t, tc)
+}
+
+func TestDefaultParameterExpressionDefault(t *testing.T) {
+	input := `
+	do calc(mult float = 3.14 * 2.0) -> float {
+		return mult
+	}
+	do main() {
+		temp a = calc()
+		temp b = calc(10.0)
+	}`
+	tc := typecheck(t, input)
+	assertNoErrors(t, tc)
+}
+
+func TestDefaultParameterGroupedParams(t *testing.T) {
+	// x, y int = 0 means x is required, y has default
+	input := `
+	do point(x, y int = 0) {
+		println(x + y)
+	}
+	do main() {
+		point(5)
+		point(3, 4)
+	}`
+	tc := typecheck(t, input)
+	assertNoErrors(t, tc)
+}
+
+func TestDefaultParameterTooFewArgs(t *testing.T) {
+	input := `
+	do create(name string, health int = 100) {
+		println(name)
+	}
+	do main() {
+		create()
+	}`
+	tc := typecheck(t, input)
+	assertHasError(t, tc, errors.E5008)
+}
+
+func TestDefaultParameterTooManyArgs(t *testing.T) {
+	input := `
+	do greet(name string = "World") {
+		println(name)
+	}
+	do main() {
+		greet("Alice", "extra")
+	}`
+	tc := typecheck(t, input)
+	assertHasError(t, tc, errors.E5008)
+}
+
+func TestDefaultParameterWithReturnType(t *testing.T) {
+	input := `
+	do greet(name string = "World") -> string {
+		return "Hello, ${name}!"
+	}
+	do main() {
+		temp msg1 = greet()
+		temp msg2 = greet("Alice")
+	}`
+	tc := typecheck(t, input)
+	assertNoErrors(t, tc)
+}
