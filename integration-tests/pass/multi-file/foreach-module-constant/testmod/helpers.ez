@@ -1,0 +1,18 @@
+module testmod
+
+import @std
+using std
+
+do print_items() {
+    for_each item in ITEMS {
+        println(item)
+    }
+}
+
+do sum_numbers() -> int {
+    temp total int = 0
+    for_each n in NUMBERS {
+        total += n
+    }
+    return total
+}
