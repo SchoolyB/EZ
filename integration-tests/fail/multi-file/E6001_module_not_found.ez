@@ -1,0 +1,11 @@
+/*
+ * Error Test: E6001 - module-not-found
+ * Expected: "module not found"
+ * Regression test for bug #461 - error message now shows location
+ */
+
+import "./nonexistent_module"
+
+do main() {
+    println("test")
+}
