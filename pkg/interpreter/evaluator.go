@@ -2296,6 +2296,15 @@ func typeMatches(obj Object, ezType string) bool {
 		return true
 	}
 
+	// Handle module-prefixed types (e.g., utils.Hero vs Hero)
+	// Strip module prefix and compare base type names
+	actualBase := stripModulePrefix(actualType)
+	expectedBase := stripModulePrefix(ezType)
+	if actualBase == expectedBase && (actualBase != actualType || expectedBase != ezType) {
+		// Base names match and at least one had a module prefix
+		return true
+	}
+
 	// Integer family compatibility rules
 	if isIntegerType(actualType) && isIntegerType(ezType) {
 		// Within same family: always OK
@@ -2326,6 +2335,15 @@ func typeMatches(obj Object, ezType string) bool {
 	}
 
 	return false
+}
+
+// stripModulePrefix removes the module prefix from a type name
+// e.g., "utils.Hero" -> "Hero", "Hero" -> "Hero"
+func stripModulePrefix(typeName string) string {
+	if idx := strings.LastIndex(typeName, "."); idx != -1 {
+		return typeName[idx+1:]
+	}
+	return typeName
 }
 
 // objectTypeToEZ converts Object type to EZ language type name

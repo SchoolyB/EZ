@@ -1,0 +1,19 @@
+/*
+ * helpers.ez - Helper functions with module-prefixed return types
+ * Regression test for bug #463
+ */
+module testmod
+
+do make_hero() -> testmod.Hero {
+    temp h = new(Hero)
+    h.name = "Test Hero"
+    h.lvl = 1
+    return h
+}
+
+do make_hero_direct() -> Hero {
+    temp h = new(Hero)
+    h.name = "Direct Hero"
+    h.lvl = 2
+    return h
+}

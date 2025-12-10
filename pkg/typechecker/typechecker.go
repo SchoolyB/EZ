@@ -2524,6 +2524,15 @@ func (tc *TypeChecker) typesCompatible(declared, actual string) bool {
 		return true
 	}
 
+	// Handle module-prefixed types (e.g., utils.Hero vs Hero)
+	// Strip module prefix and compare base type names
+	declaredBase := tc.stripModulePrefix(declared)
+	actualBase := tc.stripModulePrefix(actual)
+	if declaredBase == actualBase && declaredBase != declared {
+		// Base names match and at least one had a module prefix
+		return true
+	}
+
 	// nil is only compatible with reference types (arrays, maps, structs)
 	// Primitive types (int, float, string, bool, char, byte) cannot be nil
 	if actual == "nil" {
@@ -2613,6 +2622,15 @@ func (tc *TypeChecker) typesCompatible(declared, actual string) bool {
 	}
 
 	return false
+}
+
+// stripModulePrefix removes the module prefix from a type name
+// e.g., "utils.Hero" -> "Hero", "Hero" -> "Hero"
+func (tc *TypeChecker) stripModulePrefix(typeName string) string {
+	if idx := strings.LastIndex(typeName, "."); idx != -1 {
+		return typeName[idx+1:]
+	}
+	return typeName
 }
 
 // ============================================================================

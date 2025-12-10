@@ -1,0 +1,44 @@
+/*
+ * main.ez - Test module-prefixed types in return annotations
+ * Regression test for bug #463
+ */
+import @std
+import "./testmod"
+
+using std
+
+do main() {
+    println("=== Module Prefix Type Test ===")
+    temp passed int = 0
+    temp failed int = 0
+
+    // Test 1: Function with module-prefixed return type
+    temp hero1 = testmod.make_hero()
+    if hero1.name == "Test Hero" && hero1.lvl == 1 {
+        println("  [PASS] module-prefixed return type")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] module-prefixed return type")
+        failed += 1
+    }
+
+    // Test 2: Function with non-prefixed return type
+    temp hero2 = testmod.make_hero_direct()
+    if hero2.name == "Direct Hero" && hero2.lvl == 2 {
+        println("  [PASS] non-prefixed return type")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] non-prefixed return type")
+        failed += 1
+    }
+
+    // Summary
+    println("")
+    println("Results: ${passed} passed, ${failed} failed")
+
+    if failed > 0 {
+        println("SOME TESTS FAILED")
+    } otherwise {
+        println("ALL TESTS PASSED")
+    }
+}
