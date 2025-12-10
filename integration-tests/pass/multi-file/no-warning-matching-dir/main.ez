@@ -1,0 +1,34 @@
+/*
+ * Test that no W4001 warning is shown for files in matching directory
+ * Regression test for bug #464
+ */
+import @std
+import "./mymod"
+
+using std
+
+do main() {
+    println("=== No Warning Matching Dir Test ===")
+    temp passed int = 0
+    temp failed int = 0
+
+    // Test that module works correctly (no warnings should be shown)
+    temp val = mymod.get_value()
+    if val == 42 {
+        println("  [PASS] multi-file module works")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] multi-file module: expected 42, got ${val}")
+        failed += 1
+    }
+
+    // Summary
+    println("")
+    println("Results: ${passed} passed, ${failed} failed")
+
+    if failed > 0 {
+        println("SOME TESTS FAILED")
+    } otherwise {
+        println("ALL TESTS PASSED")
+    }
+}

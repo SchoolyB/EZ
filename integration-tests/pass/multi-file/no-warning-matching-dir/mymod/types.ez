@@ -1,0 +1,3 @@
+module mymod
+
+const VALUE int = 42
