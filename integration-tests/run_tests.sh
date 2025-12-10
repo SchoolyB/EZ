@@ -46,7 +46,7 @@ for test_file in "$SCRIPT_DIR"/pass/core/*.ez; do
         test_name=$(basename "$test_file" .ez)
         printf "  core/%s... " "$test_name"
 
-        if output=$("$EZ_BIN" run "$test_file" 2>&1); then
+        if output=$("$EZ_BIN" "$test_file" 2>&1); then
             if echo "$output" | grep -q "SOME TESTS FAILED"; then
                 echo -e "${RED}FAIL${NC} (test assertions failed)"
                 ((FAIL_COUNT++))
@@ -67,7 +67,7 @@ for test_file in "$SCRIPT_DIR"/pass/stdlib/*.ez; do
         test_name=$(basename "$test_file" .ez)
         printf "  stdlib/%s... " "$test_name"
 
-        if output=$("$EZ_BIN" run "$test_file" 2>&1); then
+        if output=$("$EZ_BIN" "$test_file" 2>&1); then
             if echo "$output" | grep -q "SOME TESTS FAILED"; then
                 echo -e "${RED}FAIL${NC} (test assertions failed)"
                 ((FAIL_COUNT++))
@@ -92,7 +92,7 @@ for dir in "$SCRIPT_DIR"/pass/multi-file/*/; do
         if [ -n "$main_file" ]; then
             printf "  multi-file/%s... " "$dir_name"
 
-            if output=$("$EZ_BIN" run "$main_file" 2>&1); then
+            if output=$("$EZ_BIN" "$main_file" 2>&1); then
                 echo -e "${GREEN}PASS${NC}"
                 ((PASS_COUNT++))
             else
@@ -113,7 +113,7 @@ for test_file in "$SCRIPT_DIR"/fail/errors/*.ez; do
         test_name=$(basename "$test_file" .ez)
         printf "  errors/%s... " "$test_name"
 
-        if "$EZ_BIN" run "$test_file" >/dev/null 2>&1; then
+        if "$EZ_BIN" "$test_file" >/dev/null 2>&1; then
             echo -e "${RED}FAIL${NC} (expected error, got success)"
             ((FAIL_COUNT++))
         else
@@ -129,7 +129,7 @@ for test_file in "$SCRIPT_DIR"/fail/multi-file/*.ez; do
         test_name=$(basename "$test_file" .ez)
         printf "  multi-file/%s... " "$test_name"
 
-        if "$EZ_BIN" run "$test_file" >/dev/null 2>&1; then
+        if "$EZ_BIN" "$test_file" >/dev/null 2>&1; then
             echo -e "${RED}FAIL${NC} (expected error, got success)"
             ((FAIL_COUNT++))
         else
@@ -148,7 +148,7 @@ for dir in "$SCRIPT_DIR"/fail/multi-file/*/; do
         if [ -n "$main_file" ]; then
             printf "  multi-file/%s... " "$dir_name"
 
-            if "$EZ_BIN" run "$main_file" >/dev/null 2>&1; then
+            if "$EZ_BIN" "$main_file" >/dev/null 2>&1; then
                 echo -e "${RED}FAIL${NC} (expected error, got success)"
                 ((FAIL_COUNT++))
             else
