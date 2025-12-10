@@ -1,0 +1,12 @@
+module utils
+
+import @std
+using std
+
+do get_value() -> int {
+    return VALUE
+}
+
+do print_value() {
+    println(VALUE)
+}

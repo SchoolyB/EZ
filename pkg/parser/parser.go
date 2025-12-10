@@ -319,6 +319,11 @@ func (p *Parser) addWarning(code string, message string, tok Token) {
 func (p *Parser) nextToken() {
 	p.currentToken = p.peekToken
 	p.peekToken = p.l.NextToken()
+	// Set file info on tokens for multi-file module support
+	if p.filename != "" && p.filename != "<unknown>" {
+		p.currentToken.File = p.filename
+		p.peekToken.File = p.filename
+	}
 }
 
 func (p *Parser) currentTokenMatches(tType TokenType) bool {
