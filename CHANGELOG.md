@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.16.13](https://github.com/SchoolyB/EZ/compare/v0.16.12...v0.16.13) (2025-12-10)
+
+
+### Bug Fixes
+
+* suppress module name warning for files in matching directories ([#464](https://github.com/SchoolyB/EZ/issues/464)) ([#472](https://github.com/SchoolyB/EZ/issues/472)) ([6be1062](https://github.com/SchoolyB/EZ/commit/6be106280f0cd375a9a93dac8197b6ab4fe34c2e))
+
 ## [0.16.12](https://github.com/SchoolyB/EZ/compare/v0.16.11...v0.16.12) (2025-12-10)
 
 
