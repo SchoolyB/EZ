@@ -41,7 +41,7 @@ func main() {
 	case "version", "-v", "--version":
 		printVersion()
 	case "update":
-		runUpdate()
+		runUpdate(os.Args[2:])
 	case "repl":
 		startREPL()
 	case "check", "build":
