@@ -2131,13 +2131,56 @@ func (p *Parser) parseIdentifier() Expression {
 	ident := &Label{Token: p.currentToken, Value: p.currentToken.Literal}
 
 	// Check if this is a struct literal: TypeName{...}
-	// Only treat it as struct literal if identifier starts with uppercase (type naming convention)
+	// Only treat it as struct literal if:
+	// 1. identifier starts with uppercase (type naming convention)
+	// 2. next token is {
+	// 3. it actually looks like a struct literal (empty {}, or field: value pattern)
+	//    This check prevents treating "if val > MAX_VALUE {" as a struct literal
 	if p.peekTokenMatches(LBRACE) && len(ident.Value) > 0 && ident.Value[0] >= 'A' && ident.Value[0] <= 'Z' {
-		p.nextToken() // move to {
-		return p.parseStructLiteralFromIdent(ident)
+		// Use speculative lookahead to check what's inside the brace
+		if p.looksLikeStructLiteral() {
+			p.nextToken() // move to {
+			return p.parseStructLiteralFromIdent(ident)
+		}
 	}
 
 	return ident
+}
+
+// looksLikeStructLiteral checks if the upcoming { starts a struct literal
+// by peeking ahead: struct literals have {} or {field: ...} pattern
+func (p *Parser) looksLikeStructLiteral() bool {
+	// Save lexer state for speculative lookahead
+	savedState := p.l.SaveState()
+
+	// Get the token after { (which is currently peekToken)
+	// The lexer is positioned to read what comes after {
+	afterBrace := p.l.NextToken()
+
+	// Empty struct: {}
+	if afterBrace.Type == RBRACE {
+		p.l.RestoreState(savedState)
+		return true
+	}
+
+	// Non-empty struct must have field: pattern
+	if afterBrace.Type == IDENT {
+		// Get the token after the identifier (don't restore yet)
+		afterIdent := p.l.NextToken()
+
+		// Restore lexer state now
+		p.l.RestoreState(savedState)
+
+		// If IDENT is followed by COLON, it's a struct literal
+		if afterIdent.Type == COLON {
+			return true
+		}
+		return false
+	}
+
+	// Not a struct literal pattern
+	p.l.RestoreState(savedState)
+	return false
 }
 
 // parseStructLiteralFromIdent parses a struct literal when we've already identified the type name

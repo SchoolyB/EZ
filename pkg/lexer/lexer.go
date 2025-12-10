@@ -79,6 +79,35 @@ func (l *Lexer) peekChar() byte {
 	return l.input[l.readPosition]
 }
 
+// LexerState holds the lexer state for save/restore operations
+type LexerState struct {
+	position     int
+	readPosition int
+	ch           byte
+	line         int
+	column       int
+}
+
+// SaveState returns the current lexer state for later restoration
+func (l *Lexer) SaveState() LexerState {
+	return LexerState{
+		position:     l.position,
+		readPosition: l.readPosition,
+		ch:           l.ch,
+		line:         l.line,
+		column:       l.column,
+	}
+}
+
+// RestoreState restores the lexer to a previously saved state
+func (l *Lexer) RestoreState(state LexerState) {
+	l.position = state.position
+	l.readPosition = state.readPosition
+	l.ch = state.ch
+	l.line = state.line
+	l.column = state.column
+}
+
 func (l *Lexer) NextToken() tokenizer.Token {
 	var tok tokenizer.Token
 

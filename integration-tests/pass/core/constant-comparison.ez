@@ -1,0 +1,94 @@
+/*
+ * constant-comparison.ez - Test constants on right side of comparisons
+ * Regression test for bug #462
+ */
+
+import @std
+using std
+
+const MAX_VALUE int = 100
+const MIN_VALUE int = 0
+const THRESHOLD float = 3.14
+
+do main() {
+    println("=== Constant Comparison Test ===")
+    temp passed int = 0
+    temp failed int = 0
+
+    // Test 1: constant on right side of > comparison
+    temp val1 int = 50
+    if val1 > MIN_VALUE {
+        println("  [PASS] val > MIN_VALUE")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] val > MIN_VALUE")
+        failed += 1
+    }
+
+    // Test 2: constant on right side of < comparison
+    if val1 < MAX_VALUE {
+        println("  [PASS] val < MAX_VALUE")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] val < MAX_VALUE")
+        failed += 1
+    }
+
+    // Test 3: constant on left side (should still work)
+    if MAX_VALUE > val1 {
+        println("  [PASS] MAX_VALUE > val")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] MAX_VALUE > val")
+        failed += 1
+    }
+
+    // Test 4: both sides are constants
+    if MAX_VALUE > MIN_VALUE {
+        println("  [PASS] MAX_VALUE > MIN_VALUE")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] MAX_VALUE > MIN_VALUE")
+        failed += 1
+    }
+
+    // Test 5: constant in complex expression
+    temp val2 int = 25
+    if val1 + val2 > MIN_VALUE && val1 - val2 < MAX_VALUE {
+        println("  [PASS] complex expression with constants")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] complex expression with constants")
+        failed += 1
+    }
+
+    // Test 6: float constant comparison
+    temp pi float = 3.0
+    if pi < THRESHOLD {
+        println("  [PASS] float constant comparison")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] float constant comparison")
+        failed += 1
+    }
+
+    // Test 7: equality with constant
+    temp exact int = 100
+    if exact == MAX_VALUE {
+        println("  [PASS] equality with constant")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] equality with constant")
+        failed += 1
+    }
+
+    // Summary
+    println("")
+    println("Results: ${passed} passed, ${failed} failed")
+
+    if failed > 0 {
+        println("SOME TESTS FAILED")
+    } otherwise {
+        println("ALL TESTS PASSED")
+    }
+}
