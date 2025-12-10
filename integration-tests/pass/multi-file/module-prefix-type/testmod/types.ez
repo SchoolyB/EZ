@@ -1,0 +1,10 @@
+/*
+ * types.ez - Type definitions for module prefix test
+ * Regression test for bug #463
+ */
+module testmod
+
+const Hero struct {
+    name string
+    lvl u8
+}
