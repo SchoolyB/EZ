@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.18.1](https://github.com/SchoolyB/EZ/compare/v0.18.0...v0.18.1) (2025-12-11)
+
+
+### Bug Fixes
+
+* correct error codes for immutable variable/map errors ([#488](https://github.com/SchoolyB/EZ/issues/488)) ([727ce1b](https://github.com/SchoolyB/EZ/commit/727ce1bce576f0628aef67c1e7dd500a4c24e7d1))
+
 ## [0.18.0](https://github.com/SchoolyB/EZ/compare/v0.17.2...v0.18.0) (2025-12-10)
 
 
