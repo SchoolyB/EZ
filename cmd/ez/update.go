@@ -172,39 +172,48 @@ func fetchLatestRelease(ctx context.Context) (*GitHubRelease, error) {
 
 // CheckForUpdateAsync checks for updates and prints notice if available
 // This is called at startup. It:
-// 1. Checks cached state and prints notice immediately if update available
-// 2. Spawns background goroutine to refresh the cache (once per day)
+// 1. If cache is fresh, use cached state to print notice
+// 2. If cache is stale/empty, do a synchronous check and print notice
 func CheckForUpdateAsync() {
-	// First, check cached state and print notice immediately (synchronous)
 	state, _ := readUpdateState()
-	if state != nil && state.LatestVersion != "" {
+
+	// If we have cached state and it's fresh (checked today), use it
+	if state != nil && state.LatestVersion != "" && !shouldCheckForUpdate() {
 		if isNewerVersion(Version, state.LatestVersion) {
 			fmt.Printf("Note: EZ %s available (you have %s). Run `ez update` to upgrade.\n\n",
 				state.LatestVersion, Version)
 		}
-	}
-
-	// Then, refresh cache in background if needed (async, no printing)
-	if !shouldCheckForUpdate() {
 		return
 	}
 
-	go func() {
-		ctx, cancel := context.WithTimeout(context.Background(), checkTimeout)
-		defer cancel()
+	// Cache is stale or empty - do a synchronous check
+	ctx, cancel := context.WithTimeout(context.Background(), checkTimeout)
+	defer cancel()
 
-		release, err := fetchLatestRelease(ctx)
-		if err != nil {
-			return // Silently fail - don't bother user with network errors
+	release, err := fetchLatestRelease(ctx)
+	if err != nil {
+		// Network error - fall back to cached state if available
+		if state != nil && state.LatestVersion != "" {
+			if isNewerVersion(Version, state.LatestVersion) {
+				fmt.Printf("Note: EZ %s available (you have %s). Run `ez update` to upgrade.\n\n",
+					state.LatestVersion, Version)
+			}
 		}
+		return
+	}
 
-		// Update state (will be used on next run)
-		newState := &UpdateState{
-			LastCheck:     time.Now().Format("2006-01-02"),
-			LatestVersion: release.TagName,
-		}
-		writeUpdateState(newState)
-	}()
+	// Update cache
+	newState := &UpdateState{
+		LastCheck:     time.Now().Format("2006-01-02"),
+		LatestVersion: release.TagName,
+	}
+	writeUpdateState(newState)
+
+	// Print notification if newer version available
+	if isNewerVersion(Version, release.TagName) {
+		fmt.Printf("Note: EZ %s available (you have %s). Run `ez update` to upgrade.\n\n",
+			release.TagName, Version)
+	}
 }
 
 // runUpdate runs the interactive update command
