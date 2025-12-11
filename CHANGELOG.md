@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.19.3](https://github.com/SchoolyB/EZ/compare/v0.19.2...v0.19.3) (2025-12-11)
+
+
+### Bug Fixes
+
+* remove [@string](https://github.com/string) alias and add module suggestion hints ([#502](https://github.com/SchoolyB/EZ/issues/502)) ([#503](https://github.com/SchoolyB/EZ/issues/503)) ([53122a1](https://github.com/SchoolyB/EZ/commit/53122a1350104efae0bed292167851a34e04d4a6))
+
 ## [0.19.2](https://github.com/SchoolyB/EZ/compare/v0.19.1...v0.19.2) (2025-12-11)
 
 
