@@ -794,6 +794,9 @@ func (tc *TypeChecker) checkStatement(stmt ast.Statement, expectedReturnTypes []
 	case *ast.IfStatement:
 		tc.checkIfStatement(s, expectedReturnTypes)
 
+	case *ast.WhenStatement:
+		tc.checkWhenStatement(s, expectedReturnTypes)
+
 	case *ast.ForStatement:
 		tc.checkForStatement(s, expectedReturnTypes)
 
@@ -1761,6 +1764,155 @@ func (tc *TypeChecker) checkIfStatement(ifStmt *ast.IfStatement, expectedReturnT
 			tc.exitScope()
 		}
 	}
+}
+
+// checkWhenStatement validates a when/is/default statement
+func (tc *TypeChecker) checkWhenStatement(whenStmt *ast.WhenStatement, expectedReturnTypes []string) {
+	// Infer the type of the value being matched
+	valueType, ok := tc.inferExpressionType(whenStmt.Value)
+	if !ok {
+		// Type inference failed - check if the condition is a type name instead of a value
+		if label, isLabel := whenStmt.Value.(*ast.Label); isLabel {
+			// Check if this is a locally defined type (enum or struct)
+			// This catches cases like `when COLOR { ... }` where COLOR is an enum type
+			if _, isLocalType := tc.types[label.Value]; isLocalType {
+				tc.addError(
+					errors.E2047,
+					fmt.Sprintf("when condition must be a value, not a type name '%s'", label.Value),
+					whenStmt.Token.Line,
+					whenStmt.Token.Column,
+				)
+			}
+		}
+		return
+	}
+
+	// Check that value type is allowed
+	// Disallowed: bool, nil, arrays, maps
+	if valueType == "bool" {
+		tc.addError(
+			errors.E2048,
+			"when condition cannot be a boolean. Use if/or/otherwise instead",
+			whenStmt.Token.Line,
+			whenStmt.Token.Column,
+		)
+		return
+	}
+
+	if valueType == "nil" {
+		tc.addError(
+			errors.E2049,
+			"when condition cannot be nil. Use if/otherwise to check for nil",
+			whenStmt.Token.Line,
+			whenStmt.Token.Column,
+		)
+		return
+	}
+
+	// Check for array or map types
+	if tc.isArrayType(valueType) || tc.isMapType(valueType) {
+		tc.addError(
+			errors.E2050,
+			fmt.Sprintf("when condition cannot be an array or map (got %s)", valueType),
+			whenStmt.Token.Line,
+			whenStmt.Token.Column,
+		)
+		return
+	}
+
+	// Track seen case values for duplicate detection
+	seenCases := make(map[string]bool)
+
+	// Check if this is an enum type for @(strict) validation
+	enumTypeInfo, isEnumType := tc.GetType(valueType)
+	if isEnumType && enumTypeInfo != nil && enumTypeInfo.Kind != EnumType {
+		isEnumType = false
+	}
+
+	// Validate @(strict) is only used with enums
+	if whenStmt.IsStrict && !isEnumType {
+		tc.addError(
+			errors.E2045,
+			"@(strict) attribute only allowed on enum when statements",
+			whenStmt.Token.Line,
+			whenStmt.Token.Column,
+		)
+	}
+
+	// Check each case
+	for _, whenCase := range whenStmt.Cases {
+		for _, caseValue := range whenCase.Values {
+			// Skip range expressions for duplicate detection
+			if _, isRange := caseValue.(*ast.RangeExpression); isRange {
+				continue
+			}
+
+			// Get a string representation of the case value for duplicate detection
+			caseKey := tc.getCaseValueKey(caseValue)
+			if caseKey != "" {
+				if seenCases[caseKey] {
+					line, col := tc.getExpressionPosition(caseValue)
+					tc.addError(
+						errors.E2043,
+						fmt.Sprintf("duplicate case value: %s", caseKey),
+						line,
+						col,
+					)
+				}
+				seenCases[caseKey] = true
+			}
+
+			// Type check the case value matches the when value type
+			caseType, ok := tc.inferExpressionType(caseValue)
+			if ok && caseType != valueType && caseType != "unknown" && valueType != "unknown" {
+				// Allow enum type matching
+				if !strings.HasPrefix(caseType, valueType) && !strings.HasSuffix(caseType, "."+valueType) {
+					line, col := tc.getExpressionPosition(caseValue)
+					tc.addError(
+						errors.E3001,
+						fmt.Sprintf("case value type %s does not match when value type %s", caseType, valueType),
+						line,
+						col,
+					)
+				}
+			}
+		}
+
+		// Check the case body
+		tc.enterScope()
+		tc.checkBlock(whenCase.Body, expectedReturnTypes)
+		tc.exitScope()
+	}
+
+	// Note: @(strict) enum exhaustiveness check is enforced at runtime
+	// A full compile-time check would require tracking enum members in the type system
+
+	// Check the default block if present
+	if whenStmt.Default != nil {
+		tc.enterScope()
+		tc.checkBlock(whenStmt.Default, expectedReturnTypes)
+		tc.exitScope()
+	}
+}
+
+// getCaseValueKey returns a string key for a case value for duplicate detection
+func (tc *TypeChecker) getCaseValueKey(expr ast.Expression) string {
+	switch v := expr.(type) {
+	case *ast.IntegerValue:
+		return v.Value.String()
+	case *ast.StringValue:
+		return "\"" + v.Value + "\""
+	case *ast.CharValue:
+		return "'" + string(v.Value) + "'"
+	case *ast.Label:
+		return v.Value
+	case *ast.MemberExpression:
+		// Handle Enum.MEMBER
+		if obj, ok := v.Object.(*ast.Label); ok {
+			return obj.Value + "." + v.Member.Value
+		}
+	}
+	return ""
 }
 
 // checkForStatement validates a for loop

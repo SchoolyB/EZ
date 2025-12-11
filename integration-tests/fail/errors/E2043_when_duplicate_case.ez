@@ -1,0 +1,13 @@
+// E2043: duplicate case value in when statement
+import @std
+using std
+
+do main() {
+    temp x = 1
+    when x {
+        is 1 { println("one") }
+        is 2 { println("two") }
+        is 1 { println("one again") }
+        default { println("other") }
+    }
+}
