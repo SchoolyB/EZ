@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.19.1](https://github.com/SchoolyB/EZ/compare/v0.19.0...v0.19.1) (2025-12-11)
+
+
+### Bug Fixes
+
+* add path validation to archive extraction functions ([#487](https://github.com/SchoolyB/EZ/issues/487)) ([#495](https://github.com/SchoolyB/EZ/issues/495)) ([974250a](https://github.com/SchoolyB/EZ/commit/974250a0f45c8cbee29039c8b5e8ed002283f736))
+
 ## [0.19.0](https://github.com/SchoolyB/EZ/compare/v0.18.1...v0.19.0) (2025-12-11)
 
 
