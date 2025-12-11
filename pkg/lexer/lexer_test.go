@@ -329,7 +329,6 @@ func TestKeywords(t *testing.T) {
 		{"false", tokenizer.FALSE},
 		{"module", tokenizer.MODULE},
 		{"private", tokenizer.PRIVATE},
-		{"from", tokenizer.FROM},
 		{"use", tokenizer.USE},
 	}
 

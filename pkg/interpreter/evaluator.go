@@ -456,21 +456,6 @@ func Eval(node ast.Node, env *Environment) Object {
 		}
 		return NIL
 
-	case *ast.FromImportStatement:
-		// Handle "from @module import item1, item2" syntax
-		// This imports specific items from a module directly into scope
-		if node.IsStdlib {
-			if !isValidModule(node.Path) {
-				return newErrorWithLocation("E6002", node.Token.Line, node.Token.Column,
-					"module '%s' not found", node.Path)
-			}
-		}
-		// Note: Selective imports will require additional infrastructure
-		// to resolve individual symbols from modules
-		// For now, import the full module and register the items
-		env.Import(node.Path, node.Path)
-		return NIL
-
 	case *ast.UsingStatement:
 		// Bring the module(s) functions into scope (function-scoped using)
 		for _, module := range node.Modules {
