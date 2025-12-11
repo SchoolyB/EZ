@@ -438,12 +438,12 @@ func (p *Parser) ParseProgram() *Program {
 			}
 			p.nextToken()
 			continue
-		} else if !p.currentTokenMatches(EOF) && !p.currentTokenMatches(IMPORT) && !p.currentTokenMatches(FROM) {
+		} else if !p.currentTokenMatches(EOF) && !p.currentTokenMatches(IMPORT) {
 			seenOtherDeclaration = true
 		}
 
 		// Check for imports after other declarations (functions, types, etc.)
-		if (p.currentTokenMatches(IMPORT) || p.currentTokenMatches(FROM)) && seenOtherDeclaration {
+		if p.currentTokenMatches(IMPORT) && seenOtherDeclaration {
 			p.addEZError(errors.E2036, "import statements must appear at the top of the file, before any declarations", p.currentToken)
 		}
 
@@ -514,8 +514,6 @@ func (p *Parser) parseStatement() Statement {
 	}
 
 	switch p.currentToken.Type {
-	case FROM:
-		return p.parseFromImportStatement()
 	case CONST:
 		// For struct declarations like "const Name struct { ... }",
 		// we handle them in parseVarableDeclaration by detecting the STRUCT token
@@ -955,7 +953,7 @@ func (p *Parser) parseBlockStatementWithSuppress(suppressions []*Attribute) *Blo
 
 	for !p.currentTokenMatches(RBRACE) && !p.currentTokenMatches(EOF) {
 		// Check for import statements inside blocks (not allowed)
-		if p.currentTokenMatches(IMPORT) || p.currentTokenMatches(FROM) {
+		if p.currentTokenMatches(IMPORT) {
 			p.addEZError(errors.E2036, "import statements must appear at the top of the file, not inside blocks", p.currentToken)
 			// Skip the import statement to continue parsing
 			for !p.currentTokenMatches(NEWLINE) && !p.currentTokenMatches(RBRACE) && !p.currentTokenMatches(EOF) {
@@ -1788,69 +1786,6 @@ func (p *Parser) parseModuleDeclaration() *ModuleDeclaration {
 	}
 
 	stmt.Name = &Label{Token: p.currentToken, Value: p.currentToken.Literal}
-	return stmt
-}
-
-// parseFromImportStatement parses "from @module import item1, item2"
-// or "from ./path import item1, item2"
-func (p *Parser) parseFromImportStatement() *FromImportStatement {
-	stmt := &FromImportStatement{Token: p.currentToken}
-	stmt.Items = []*ImportSpec{}
-
-	p.nextToken() // move past 'from'
-
-	// Parse module path
-	if p.currentTokenMatches(AT) {
-		// Stdlib: from @arrays import ...
-		stmt.IsStdlib = true
-		p.nextToken()
-		if p.currentTokenMatches(IDENT) {
-			stmt.Path = p.currentToken.Literal
-		}
-	} else if p.currentTokenMatches(STRING) {
-		// User module: from "./utils" import ...
-		stmt.IsStdlib = false
-		stmt.Path = p.currentToken.Literal
-	} else {
-		p.addEZError(errors.E2002, "expected module path after 'from'", p.currentToken)
-		return nil
-	}
-
-	// Expect 'import' keyword
-	if !p.expectPeek(IMPORT) {
-		return nil
-	}
-
-	// Parse imported items
-	p.nextToken() // move past 'import'
-
-	for {
-		if !p.currentTokenMatches(IDENT) {
-			p.addEZError(errors.E2029, "expected identifier in from-import", p.currentToken)
-			return nil
-		}
-
-		spec := &ImportSpec{Name: p.currentToken.Literal}
-
-		// Check for 'as' alias
-		if p.peekTokenMatches(IDENT) && p.peekToken.Literal == "as" {
-			p.nextToken() // consume current ident
-			p.nextToken() // consume 'as'
-			if p.currentTokenMatches(IDENT) {
-				spec.Alias = p.currentToken.Literal
-			}
-		}
-
-		stmt.Items = append(stmt.Items, spec)
-
-		// Check for more items
-		if !p.peekTokenMatches(COMMA) {
-			break
-		}
-		p.nextToken() // consume comma
-		p.nextToken() // move to next item
-	}
-
 	return stmt
 }
 

@@ -1308,19 +1308,6 @@ func TestImportMultiple(t *testing.T) {
 	}
 }
 
-func TestFromImportStatement(t *testing.T) {
-	input := `from @arrays import append, pop`
-	program := parseProgram(t, input)
-	stmt := program.Statements[0].(*FromImportStatement)
-
-	if stmt.Path != "arrays" {
-		t.Errorf("expected path 'arrays', got %q", stmt.Path)
-	}
-	if len(stmt.Items) != 2 {
-		t.Fatalf("expected 2 items, got %d", len(stmt.Items))
-	}
-}
-
 // ============================================================================
 // Using Statement Tests
 // ============================================================================
