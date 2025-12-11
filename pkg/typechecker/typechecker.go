@@ -1771,17 +1771,53 @@ func (tc *TypeChecker) checkWhenStatement(whenStmt *ast.WhenStatement, expectedR
 	// Infer the type of the value being matched
 	valueType, ok := tc.inferExpressionType(whenStmt.Value)
 	if !ok {
+		// Type inference failed - check if the condition is a type name instead of a value
+		if label, isLabel := whenStmt.Value.(*ast.Label); isLabel {
+			// Check if this is a locally defined type (enum or struct)
+			// This catches cases like `when COLOR { ... }` where COLOR is an enum type
+			if _, isLocalType := tc.types[label.Value]; isLocalType {
+				tc.addError(
+					errors.E2047,
+					fmt.Sprintf("when condition must be a value, not a type name '%s'", label.Value),
+					whenStmt.Token.Line,
+					whenStmt.Token.Column,
+				)
+			}
+		}
 		return
 	}
 
-	// Check that value type is allowed (not float)
-	if valueType == "float" || valueType == "float32" || valueType == "float64" {
+	// Check that value type is allowed
+	// Disallowed: bool, nil, arrays, maps
+	if valueType == "bool" {
 		tc.addError(
-			errors.E2044,
-			"float type not allowed in when statement",
+			errors.E2048,
+			"when condition cannot be a boolean. Use if/or/otherwise instead",
 			whenStmt.Token.Line,
 			whenStmt.Token.Column,
 		)
+		return
+	}
+
+	if valueType == "nil" {
+		tc.addError(
+			errors.E2049,
+			"when condition cannot be nil. Use if/otherwise to check for nil",
+			whenStmt.Token.Line,
+			whenStmt.Token.Column,
+		)
+		return
+	}
+
+	// Check for array or map types
+	if tc.isArrayType(valueType) || tc.isMapType(valueType) {
+		tc.addError(
+			errors.E2050,
+			fmt.Sprintf("when condition cannot be an array or map (got %s)", valueType),
+			whenStmt.Token.Line,
+			whenStmt.Token.Column,
+		)
+		return
 	}
 
 	// Track seen case values for duplicate detection
