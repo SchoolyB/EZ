@@ -466,25 +466,6 @@ type ImportStatement struct {
 	Module string
 }
 
-// FromImportStatement represents "from @arrays import append, pop"
-// or "from ./utils import helper, Config"
-type FromImportStatement struct {
-	Token    Token
-	Path     string        // Module path (e.g., "@arrays" or "./utils")
-	IsStdlib bool          // True if importing from stdlib
-	Items    []*ImportSpec // Specific items to import
-}
-
-func (f *FromImportStatement) statementNode()       {}
-func (f *FromImportStatement) TokenLiteral() string { return f.Token.Literal }
-
-// ImportSpec represents a single item in a from-import statement
-// e.g., "append" or "sqrt as square_root"
-type ImportSpec struct {
-	Name  string // Original name
-	Alias string // Optional alias (for "as" syntax)
-}
-
 func (i *ImportStatement) statementNode()       {}
 func (i *ImportStatement) TokenLiteral() string { return i.Token.Literal }
 
