@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.20.0](https://github.com/SchoolyB/EZ/compare/v0.19.3...v0.20.0) (2025-12-11)
+
+
+### Features
+
+* allow range() in if/in expressions and when/is statements ([#501](https://github.com/SchoolyB/EZ/issues/501)) ([#505](https://github.com/SchoolyB/EZ/issues/505)) ([de2890f](https://github.com/SchoolyB/EZ/commit/de2890f16bcd738adca6de3803d93c8e1dabddef))
+
 ## [0.19.3](https://github.com/SchoolyB/EZ/compare/v0.19.2...v0.19.3) (2025-12-11)
 
 
