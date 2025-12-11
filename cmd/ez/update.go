@@ -433,6 +433,40 @@ func doInstall(url, execPath string) error {
 	return nil
 }
 
+// sanitizeArchivePath validates that the extracted file path is within the destination directory.
+// This prevents path traversal attacks (CWE-22) from malicious archives.
+func sanitizeArchivePath(destDir, filename string) (string, error) {
+	// Clean the filename to remove any path traversal sequences
+	cleanName := filepath.Clean(filepath.Base(filename))
+
+	// Reject any filename that is empty, a dot, or contains path separators after cleaning
+	if cleanName == "" || cleanName == "." || cleanName == ".." {
+		return "", fmt.Errorf("invalid filename in archive: %s", filename)
+	}
+
+	// Construct the destination path
+	destPath := filepath.Join(destDir, cleanName)
+
+	// Resolve to absolute path and verify it's within destDir
+	absDestPath, err := filepath.Abs(destPath)
+	if err != nil {
+		return "", fmt.Errorf("failed to resolve path: %w", err)
+	}
+
+	absDestDir, err := filepath.Abs(destDir)
+	if err != nil {
+		return "", fmt.Errorf("failed to resolve destination directory: %w", err)
+	}
+
+	// Ensure the destination path starts with the destination directory
+	// Add separator to prevent matching partial directory names (e.g., /tmp/ez vs /tmp/ez-malicious)
+	if !strings.HasPrefix(absDestPath, absDestDir+string(filepath.Separator)) && absDestPath != absDestDir {
+		return "", fmt.Errorf("path traversal detected: %s", filename)
+	}
+
+	return destPath, nil
+}
+
 // extractTarGz extracts the ez binary from a .tar.gz archive
 func extractTarGz(archivePath, destDir string) (string, error) {
 	file, err := os.Open(archivePath)
@@ -461,7 +495,12 @@ func extractTarGz(archivePath, destDir string) (string, error) {
 		// Look for the ez binary (might be "ez" or in a subdirectory)
 		name := filepath.Base(header.Name)
 		if name == "ez" || name == "ez.exe" {
-			destPath := filepath.Join(destDir, name)
+			// Validate the destination path to prevent path traversal attacks
+			destPath, err := sanitizeArchivePath(destDir, name)
+			if err != nil {
+				return "", err
+			}
+
 			outFile, err := os.Create(destPath)
 			if err != nil {
 				return "", err
@@ -489,12 +528,17 @@ func extractZip(archivePath, destDir string) (string, error) {
 	for _, f := range r.File {
 		name := filepath.Base(f.Name)
 		if name == "ez" || name == "ez.exe" {
+			// Validate the destination path to prevent path traversal attacks
+			destPath, err := sanitizeArchivePath(destDir, name)
+			if err != nil {
+				return "", err
+			}
+
 			rc, err := f.Open()
 			if err != nil {
 				return "", err
 			}
 
-			destPath := filepath.Join(destDir, name)
 			outFile, err := os.Create(destPath)
 			if err != nil {
 				rc.Close()
