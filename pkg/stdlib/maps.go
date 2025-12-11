@@ -85,7 +85,7 @@ var MapsBuiltins = map[string]*object.Builtin{
 			if !m.Mutable {
 				return &object.Error{
 					Message: "cannot modify immutable map (declared as const)",
-					Code:    "E12003",
+					Code:    "E12002",
 				}
 			}
 			key := args[1]
@@ -109,7 +109,7 @@ var MapsBuiltins = map[string]*object.Builtin{
 			if !m.Mutable {
 				return &object.Error{
 					Message: "cannot modify immutable map (declared as const)",
-					Code:    "E12003",
+					Code:    "E12002",
 				}
 			}
 			key := args[1]
@@ -136,7 +136,7 @@ var MapsBuiltins = map[string]*object.Builtin{
 			if !m.Mutable {
 				return &object.Error{
 					Message: "cannot modify immutable map (declared as const)",
-					Code:    "E12003",
+					Code:    "E12002",
 				}
 			}
 			m.Pairs = []*object.MapPair{}
@@ -287,7 +287,7 @@ var MapsBuiltins = map[string]*object.Builtin{
 			if !m.Mutable {
 				return &object.Error{
 					Message: "cannot modify immutable map (declared as const)",
-					Code:    "E12003",
+					Code:    "E12002",
 				}
 			}
 			m.Set(key, args[2])
@@ -308,7 +308,7 @@ var MapsBuiltins = map[string]*object.Builtin{
 			if !m.Mutable {
 				return &object.Error{
 					Message: "cannot modify immutable map (declared as const)",
-					Code:    "E12003",
+					Code:    "E12002",
 				}
 			}
 			key := args[1]
@@ -336,7 +336,7 @@ var MapsBuiltins = map[string]*object.Builtin{
 			if !target.Mutable {
 				return &object.Error{
 					Message: "cannot modify immutable map (declared as const)",
-					Code:    "E12003",
+					Code:    "E12002",
 				}
 			}
 			// Merge all source maps into target

@@ -6,6 +6,6 @@
 import @maps
 
 do main() {
-    const m = maps.from_pairs({{"key", "value"}})
+    const m map[string:string] = {"key": "value"}
     maps.set(m, "new_key", "new_value")  // cannot modify const map
 }
