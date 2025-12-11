@@ -140,7 +140,6 @@ var globalEvalContext *EvalContext
 var validModules = map[string]bool{
 	"std":     true, // Standard I/O functions (println, print, read_int)
 	"math":    true, // Math functions
-	"string":  true, // String manipulation (alias for strings)
 	"strings": true, // String utilities
 	"arrays":  true, // Array utilities
 	"maps":    true, // Map utilities
@@ -162,6 +161,43 @@ func isValidModule(moduleName string) bool {
 	// For now, we only validate against standard library
 
 	return false
+}
+
+// suggestModule returns a suggestion for a similar module name, or empty string if none found.
+func suggestModule(invalidName string) string {
+	// Check for common typos/variations
+	suggestions := map[string]string{
+		"string":  "strings",
+		"array":   "arrays",
+		"map":     "maps",
+		"rand":    "random",
+		"file":    "io",
+		"files":   "io",
+		"fs":      "io",
+		"env":     "os",
+		"system":  "os",
+		"byte":    "bytes",
+		"datetime": "time",
+		"date":    "time",
+	}
+
+	if suggestion, ok := suggestions[invalidName]; ok {
+		return suggestion
+	}
+
+	// Check for close matches using simple prefix/suffix matching
+	for validName := range validModules {
+		// Check if input is a prefix of a valid module (e.g., "str" -> "strings")
+		if len(invalidName) >= 3 && strings.HasPrefix(validName, invalidName) {
+			return validName
+		}
+		// Check if valid module is a prefix of input (e.g., "stringss" -> "strings")
+		if len(validName) >= 3 && strings.HasPrefix(invalidName, validName) {
+			return validName
+		}
+	}
+
+	return ""
 }
 
 // convertVisibility converts AST visibility to object visibility
@@ -404,6 +440,10 @@ func Eval(node ast.Node, env *Environment) Object {
 				if item.IsStdlib {
 					// Standard library import
 					if !isValidModule(item.Module) {
+						if suggestion := suggestModule(item.Module); suggestion != "" {
+							return newErrorWithLocation("E6002", node.Token.Line, node.Token.Column,
+								"module '%s' not found. Did you mean @%s?", item.Module, suggestion)
+						}
 						return newErrorWithLocation("E6002", node.Token.Line, node.Token.Column,
 							"module '%s' not found", item.Module)
 					}
@@ -439,6 +479,10 @@ func Eval(node ast.Node, env *Environment) Object {
 		} else {
 			// Backward compatibility: handle single import using old fields
 			if !isValidModule(node.Module) {
+				if suggestion := suggestModule(node.Module); suggestion != "" {
+					return newErrorWithLocation("E6002", node.Token.Line, node.Token.Column,
+						"module '%s' not found. Did you mean @%s?", node.Module, suggestion)
+				}
 				return newErrorWithLocation("E6002", node.Token.Line, node.Token.Column,
 					"module '%s' not found", node.Module)
 			}
