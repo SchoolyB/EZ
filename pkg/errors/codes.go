@@ -162,6 +162,8 @@ var (
 	E5016 = ErrorCode{"E5016", "immutable-parameter", "cannot modify read-only parameter"}
 	E5017 = ErrorCode{"E5017", "immutable-struct", "cannot modify field of const struct"}
 	E5018 = ErrorCode{"E5018", "max-recursion-depth", "maximum recursion depth exceeded"}
+	E5019 = ErrorCode{"E5019", "range-step-not-integer", "range step must be integer"}
+	E5020 = ErrorCode{"E5020", "range-in-operand-not-integer", "value checked against range must be integer"}
 )
 
 // =============================================================================

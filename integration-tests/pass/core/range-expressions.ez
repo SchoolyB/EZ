@@ -1,0 +1,285 @@
+/*
+ * range-expressions.ez - Test range() in various contexts (for, if/in, when/is)
+ */
+
+import @std
+using std
+
+do main() {
+    println("=== Range Expressions Test ===")
+    temp passed int = 0
+    temp failed int = 0
+
+    // ==================== RANGE IN FOR LOOPS ====================
+    println("  -- range in for loops --")
+
+    // Test 1: Basic range
+    temp sum int = 0
+    for i in range(0, 5) {
+        sum += i
+    }
+    if sum == 10 {
+        println("  [PASS] range(0, 5) sums to 10")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] range(0, 5): expected 10, got ${sum}")
+        failed += 1
+    }
+
+    // Test 2: Range with step
+    temp step_sum int = 0
+    for i in range(0, 10, 2) {
+        step_sum += i
+    }
+    if step_sum == 20 {
+        println("  [PASS] range(0, 10, 2) sums to 20")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] range(0, 10, 2): expected 20, got ${step_sum}")
+        failed += 1
+    }
+
+    // Test 3: Descending range
+    temp desc_list string = ""
+    for i in range(5, 0) {
+        desc_list = "${desc_list}${i}"
+    }
+    if desc_list == "54321" {
+        println("  [PASS] range(5, 0) descending")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] range(5, 0): expected '54321', got '${desc_list}'")
+        failed += 1
+    }
+
+    // ==================== RANGE IN 'IN' OPERATOR ====================
+    println("  -- range in 'in' operator --")
+
+    // Test 4: Value in range - true
+    temp x int = 5
+    if x in range(0, 10) {
+        println("  [PASS] 5 in range(0, 10)")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] 5 should be in range(0, 10)")
+        failed += 1
+    }
+
+    // Test 5: Value at start of range (inclusive)
+    if 0 in range(0, 10) {
+        println("  [PASS] 0 in range(0, 10) - start inclusive")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] 0 should be in range(0, 10)")
+        failed += 1
+    }
+
+    // Test 6: Value at end of range (exclusive)
+    if 10 !in range(0, 10) {
+        println("  [PASS] 10 !in range(0, 10) - end exclusive")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] 10 should NOT be in range(0, 10)")
+        failed += 1
+    }
+
+    // Test 7: Value below range
+    if -1 !in range(0, 10) {
+        println("  [PASS] -1 !in range(0, 10)")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] -1 should NOT be in range(0, 10)")
+        failed += 1
+    }
+
+    // Test 8: Value above range
+    if 15 !in range(0, 10) {
+        println("  [PASS] 15 !in range(0, 10)")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] 15 should NOT be in range(0, 10)")
+        failed += 1
+    }
+
+    // Test 9: Value in range with step - on step
+    if 6 in range(0, 10, 2) {
+        println("  [PASS] 6 in range(0, 10, 2)")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] 6 should be in range(0, 10, 2)")
+        failed += 1
+    }
+
+    // Test 10: Value in range with step - off step
+    if 5 !in range(0, 10, 2) {
+        println("  [PASS] 5 !in range(0, 10, 2) - not on step")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] 5 should NOT be in range(0, 10, 2)")
+        failed += 1
+    }
+
+    // Test 11: not_in operator with range
+    if 15 not_in range(0, 10) {
+        println("  [PASS] 15 not_in range(0, 10)")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] 15 should not_in range(0, 10)")
+        failed += 1
+    }
+
+    // ==================== RANGE IN WHEN/IS ====================
+    println("  -- range in when/is --")
+
+    // Test 12: when with range - match first case
+    temp val1 int = 3
+    temp result1 int = 0
+    when val1 {
+        is range(0, 5) {
+            result1 = 1
+        }
+        is range(5, 10) {
+            result1 = 2
+        }
+        default {
+            result1 = 3
+        }
+    }
+    if result1 == 1 {
+        println("  [PASS] when 3: matches range(0, 5)")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] when 3: expected result 1, got ${result1}")
+        failed += 1
+    }
+
+    // Test 13: when with range - match second case
+    temp val2 int = 7
+    temp result2 int = 0
+    when val2 {
+        is range(0, 5) {
+            result2 = 1
+        }
+        is range(5, 10) {
+            result2 = 2
+        }
+        default {
+            result2 = 3
+        }
+    }
+    if result2 == 2 {
+        println("  [PASS] when 7: matches range(5, 10)")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] when 7: expected result 2, got ${result2}")
+        failed += 1
+    }
+
+    // Test 14: when with range - match default
+    temp val3 int = 15
+    temp result3 int = 0
+    when val3 {
+        is range(0, 5) {
+            result3 = 1
+        }
+        is range(5, 10) {
+            result3 = 2
+        }
+        default {
+            result3 = 3
+        }
+    }
+    if result3 == 3 {
+        println("  [PASS] when 15: matches default")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] when 15: expected result 3, got ${result3}")
+        failed += 1
+    }
+
+    // Test 15: when with range and step - on step
+    temp val4 int = 6
+    temp result4 int = 0
+    when val4 {
+        is range(0, 10, 2) {
+            result4 = 1
+        }
+        default {
+            result4 = 2
+        }
+    }
+    if result4 == 1 {
+        println("  [PASS] when 6: matches range(0, 10, 2)")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] when 6: expected result 1, got ${result4}")
+        failed += 1
+    }
+
+    // Test 16: when with range and step - off step
+    temp val5 int = 5
+    temp result5 int = 0
+    when val5 {
+        is range(0, 10, 2) {
+            result5 = 1
+        }
+        default {
+            result5 = 2
+        }
+    }
+    if result5 == 2 {
+        println("  [PASS] when 5: does NOT match range(0, 10, 2)")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] when 5: expected result 2, got ${result5}")
+        failed += 1
+    }
+
+    // Test 17: when with range - boundary at start (inclusive)
+    temp val6 int = 0
+    temp result6 int = 0
+    when val6 {
+        is range(0, 5) {
+            result6 = 1
+        }
+        default {
+            result6 = 2
+        }
+    }
+    if result6 == 1 {
+        println("  [PASS] when 0: matches range(0, 5) - start inclusive")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] when 0: expected result 1, got ${result6}")
+        failed += 1
+    }
+
+    // Test 18: when with range - boundary at end (exclusive)
+    temp val7 int = 5
+    temp result7 int = 0
+    when val7 {
+        is range(0, 5) {
+            result7 = 1
+        }
+        default {
+            result7 = 2
+        }
+    }
+    if result7 == 2 {
+        println("  [PASS] when 5: does NOT match range(0, 5) - end exclusive")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] when 5: expected result 2, got ${result7}")
+        failed += 1
+    }
+
+    // Summary
+    println("")
+    println("Results: ${passed} passed, ${failed} failed")
+
+    if failed > 0 {
+        println("SOME TESTS FAILED")
+    } otherwise {
+        println("ALL TESTS PASSED")
+    }
+}

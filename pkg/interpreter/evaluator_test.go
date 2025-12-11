@@ -1720,6 +1720,280 @@ sum
 	testIntegerObject(t, evaluated, 20)
 }
 
+func TestRangeInOperator(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		expected bool
+	}{
+		{
+			name:     "value in range - true",
+			input:    `5 in range(0, 10)`,
+			expected: true,
+		},
+		{
+			name:     "value at start of range - true",
+			input:    `0 in range(0, 10)`,
+			expected: true,
+		},
+		{
+			name:     "value at end of range - false (exclusive)",
+			input:    `10 in range(0, 10)`,
+			expected: false,
+		},
+		{
+			name:     "value below range - false",
+			input:    `-1 in range(0, 10)`,
+			expected: false,
+		},
+		{
+			name:     "value above range - false",
+			input:    `15 in range(0, 10)`,
+			expected: false,
+		},
+		{
+			name:     "value in range with step - on step",
+			input:    `6 in range(0, 10, 2)`,
+			expected: true,
+		},
+		{
+			name:     "value in range with step - off step",
+			input:    `5 in range(0, 10, 2)`,
+			expected: false,
+		},
+		{
+			name:     "value not_in range - true",
+			input:    `15 not_in range(0, 10)`,
+			expected: true,
+		},
+		{
+			name:     "value not_in range - false",
+			input:    `5 not_in range(0, 10)`,
+			expected: false,
+		},
+		{
+			name:     "value !in range with step",
+			input:    `5 !in range(0, 10, 2)`,
+			expected: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			evaluated := testEval(tt.input)
+			testBooleanObject(t, evaluated, tt.expected)
+		})
+	}
+}
+
+func TestRangeInWhenStatement(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		expected int64
+	}{
+		{
+			name: "when with range - match first case",
+			input: `
+temp x int = 3
+temp result int = 0
+when x {
+    is range(0, 5) {
+        result = 1
+    }
+    is range(5, 10) {
+        result = 2
+    }
+    default {
+        result = 3
+    }
+}
+result
+`,
+			expected: 1,
+		},
+		{
+			name: "when with range - match second case",
+			input: `
+temp x int = 7
+temp result int = 0
+when x {
+    is range(0, 5) {
+        result = 1
+    }
+    is range(5, 10) {
+        result = 2
+    }
+    default {
+        result = 3
+    }
+}
+result
+`,
+			expected: 2,
+		},
+		{
+			name: "when with range - match default",
+			input: `
+temp x int = 15
+temp result int = 0
+when x {
+    is range(0, 5) {
+        result = 1
+    }
+    is range(5, 10) {
+        result = 2
+    }
+    default {
+        result = 3
+    }
+}
+result
+`,
+			expected: 3,
+		},
+		{
+			name: "when with range and step - on step",
+			input: `
+temp x int = 6
+temp result int = 0
+when x {
+    is range(0, 10, 2) {
+        result = 1
+    }
+    default {
+        result = 2
+    }
+}
+result
+`,
+			expected: 1,
+		},
+		{
+			name: "when with range and step - off step",
+			input: `
+temp x int = 5
+temp result int = 0
+when x {
+    is range(0, 10, 2) {
+        result = 1
+    }
+    default {
+        result = 2
+    }
+}
+result
+`,
+			expected: 2,
+		},
+		{
+			name: "when with range - boundary at start (inclusive)",
+			input: `
+temp x int = 0
+temp result int = 0
+when x {
+    is range(0, 5) {
+        result = 1
+    }
+    default {
+        result = 2
+    }
+}
+result
+`,
+			expected: 1,
+		},
+		{
+			name: "when with range - boundary at end (exclusive)",
+			input: `
+temp x int = 5
+temp result int = 0
+when x {
+    is range(0, 5) {
+        result = 1
+    }
+    default {
+        result = 2
+    }
+}
+result
+`,
+			expected: 2,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			evaluated := testEval(tt.input)
+			testIntegerObject(t, evaluated, tt.expected)
+		})
+	}
+}
+
+func TestRangeInIfStatement(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		expected int64
+	}{
+		{
+			name: "if with range in - true branch",
+			input: `
+temp x int = 5
+temp result int = 0
+if x in range(0, 10) {
+    result = 1
+}
+result
+`,
+			expected: 1,
+		},
+		{
+			name: "if with range in - false (not executed)",
+			input: `
+temp x int = 15
+temp result int = 0
+if x in range(0, 10) {
+    result = 1
+}
+result
+`,
+			expected: 0,
+		},
+		{
+			name: "if with range !in - true branch",
+			input: `
+temp x int = 15
+temp result int = 0
+if x !in range(0, 10) {
+    result = 1
+}
+result
+`,
+			expected: 1,
+		},
+		{
+			name: "if with range and step",
+			input: `
+temp x int = 4
+temp result int = 0
+if x in range(0, 10, 2) {
+    result = 1
+}
+result
+`,
+			expected: 1,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			evaluated := testEval(tt.input)
+			testIntegerObject(t, evaluated, tt.expected)
+		})
+	}
+}
+
 // ============================================================================
 // Not In Operator Tests
 // ============================================================================
