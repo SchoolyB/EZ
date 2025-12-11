@@ -76,6 +76,12 @@ var (
 	E2038 = ErrorCode{"E2038", "reserved-enum-name", "enum name is reserved"}
 	E2039 = ErrorCode{"E2039", "required-after-default", "required parameter after parameter with default"}
 	E2040 = ErrorCode{"E2040", "mutable-with-default", "mutable parameter cannot have default value"}
+	E2041 = ErrorCode{"E2041", "when-missing-default", "when statement requires a default case"}
+	E2042 = ErrorCode{"E2042", "when-strict-has-default", "strict when statement cannot have a default case"}
+	E2043 = ErrorCode{"E2043", "when-duplicate-case", "duplicate case value in when statement"}
+	E2044 = ErrorCode{"E2044", "when-float-not-allowed", "float type not allowed in when statement"}
+	E2045 = ErrorCode{"E2045", "when-strict-non-enum", "strict attribute only allowed on enum when statements"}
+	E2046 = ErrorCode{"E2046", "when-strict-missing-case", "strict when statement missing enum case"}
 )
 
 // =============================================================================

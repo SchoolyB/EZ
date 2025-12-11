@@ -794,6 +794,9 @@ func (tc *TypeChecker) checkStatement(stmt ast.Statement, expectedReturnTypes []
 	case *ast.IfStatement:
 		tc.checkIfStatement(s, expectedReturnTypes)
 
+	case *ast.WhenStatement:
+		tc.checkWhenStatement(s, expectedReturnTypes)
+
 	case *ast.ForStatement:
 		tc.checkForStatement(s, expectedReturnTypes)
 
@@ -1761,6 +1764,119 @@ func (tc *TypeChecker) checkIfStatement(ifStmt *ast.IfStatement, expectedReturnT
 			tc.exitScope()
 		}
 	}
+}
+
+// checkWhenStatement validates a when/is/default statement
+func (tc *TypeChecker) checkWhenStatement(whenStmt *ast.WhenStatement, expectedReturnTypes []string) {
+	// Infer the type of the value being matched
+	valueType, ok := tc.inferExpressionType(whenStmt.Value)
+	if !ok {
+		return
+	}
+
+	// Check that value type is allowed (not float)
+	if valueType == "float" || valueType == "float32" || valueType == "float64" {
+		tc.addError(
+			errors.E2044,
+			"float type not allowed in when statement",
+			whenStmt.Token.Line,
+			whenStmt.Token.Column,
+		)
+	}
+
+	// Track seen case values for duplicate detection
+	seenCases := make(map[string]bool)
+
+	// Check if this is an enum type for @(strict) validation
+	enumTypeInfo, isEnumType := tc.GetType(valueType)
+	if isEnumType && enumTypeInfo != nil && enumTypeInfo.Kind != EnumType {
+		isEnumType = false
+	}
+
+	// Validate @(strict) is only used with enums
+	if whenStmt.IsStrict && !isEnumType {
+		tc.addError(
+			errors.E2045,
+			"@(strict) attribute only allowed on enum when statements",
+			whenStmt.Token.Line,
+			whenStmt.Token.Column,
+		)
+	}
+
+	// Check each case
+	for _, whenCase := range whenStmt.Cases {
+		for _, caseValue := range whenCase.Values {
+			// Skip range expressions for duplicate detection
+			if _, isRange := caseValue.(*ast.RangeExpression); isRange {
+				continue
+			}
+
+			// Get a string representation of the case value for duplicate detection
+			caseKey := tc.getCaseValueKey(caseValue)
+			if caseKey != "" {
+				if seenCases[caseKey] {
+					line, col := tc.getExpressionPosition(caseValue)
+					tc.addError(
+						errors.E2043,
+						fmt.Sprintf("duplicate case value: %s", caseKey),
+						line,
+						col,
+					)
+				}
+				seenCases[caseKey] = true
+			}
+
+			// Type check the case value matches the when value type
+			caseType, ok := tc.inferExpressionType(caseValue)
+			if ok && caseType != valueType && caseType != "unknown" && valueType != "unknown" {
+				// Allow enum type matching
+				if !strings.HasPrefix(caseType, valueType) && !strings.HasSuffix(caseType, "."+valueType) {
+					line, col := tc.getExpressionPosition(caseValue)
+					tc.addError(
+						errors.E3001,
+						fmt.Sprintf("case value type %s does not match when value type %s", caseType, valueType),
+						line,
+						col,
+					)
+				}
+			}
+		}
+
+		// Check the case body
+		tc.enterScope()
+		tc.checkBlock(whenCase.Body, expectedReturnTypes)
+		tc.exitScope()
+	}
+
+	// Note: @(strict) enum exhaustiveness check is enforced at runtime
+	// A full compile-time check would require tracking enum members in the type system
+
+	// Check the default block if present
+	if whenStmt.Default != nil {
+		tc.enterScope()
+		tc.checkBlock(whenStmt.Default, expectedReturnTypes)
+		tc.exitScope()
+	}
+}
+
+// getCaseValueKey returns a string key for a case value for duplicate detection
+func (tc *TypeChecker) getCaseValueKey(expr ast.Expression) string {
+	switch v := expr.(type) {
+	case *ast.IntegerValue:
+		return v.Value.String()
+	case *ast.StringValue:
+		return "\"" + v.Value + "\""
+	case *ast.CharValue:
+		return "'" + string(v.Value) + "'"
+	case *ast.Label:
+		return v.Value
+	case *ast.MemberExpression:
+		// Handle Enum.MEMBER
+		if obj, ok := v.Object.(*ast.Label); ok {
+			return obj.Value + "." + v.Member.Value
+		}
+	}
+	return ""
 }
 
 // checkForStatement validates a for loop

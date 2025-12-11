@@ -557,6 +557,8 @@ func (p *Parser) parseStatement() Statement {
 		return p.parseReturnStatement()
 	case IF:
 		return p.parseIfStatement()
+	case WHEN:
+		return p.parseWhenStatement(attrs)
 	case FOR:
 		return p.parseForStatement()
 	case FOR_EACH:
@@ -1080,6 +1082,122 @@ func (p *Parser) parseAlternative() Statement {
 		return p.parseBlockStatement()
 	}
 	return nil
+}
+
+// parseWhenStatement parses when/is/default statements
+// Syntax: when value { is 1 { ... } is 2, 3 { ... } default { ... } }
+func (p *Parser) parseWhenStatement(attrs []*Attribute) *WhenStatement {
+	stmt := &WhenStatement{Token: p.currentToken, Attributes: attrs}
+
+	// Check for @(strict) attribute
+	for _, attr := range attrs {
+		// @(strict) is parsed as an attribute with Name="enum_config" and Args=["strict"]
+		for _, arg := range attr.Args {
+			if arg == "strict" {
+				stmt.IsStrict = true
+				break
+			}
+		}
+		if stmt.IsStrict {
+			break
+		}
+	}
+
+	p.nextToken() // move past 'when'
+	stmt.Value = p.parseExpression(LOWEST)
+
+	if !p.expectPeek(LBRACE) {
+		return nil
+	}
+
+	p.nextToken() // move past '{'
+
+	// Parse cases and default
+	for !p.currentTokenMatches(RBRACE) && !p.currentTokenMatches(EOF) {
+		// Skip newlines
+		for p.currentTokenMatches(NEWLINE) {
+			p.nextToken()
+		}
+
+		if p.currentTokenMatches(RBRACE) {
+			break
+		}
+
+		if p.currentTokenMatches(IS) {
+			whenCase := p.parseWhenCase()
+			if whenCase != nil {
+				stmt.Cases = append(stmt.Cases, whenCase)
+			}
+		} else if p.currentTokenMatches(DEFAULT) {
+			p.nextToken() // move past 'default'
+			if !p.currentTokenMatches(LBRACE) {
+				p.addEZError(errors.E2002, "expected '{' after default", p.currentToken)
+				return nil
+			}
+			stmt.Default = p.parseBlockStatement()
+			p.nextToken() // move past '}'
+		} else {
+			p.addEZError(errors.E2001, fmt.Sprintf("unexpected token '%s' in when statement, expected 'is' or 'default'", p.currentToken.Literal), p.currentToken)
+			p.nextToken()
+		}
+	}
+
+	// Validate: default is required unless @(strict)
+	if stmt.Default == nil && !stmt.IsStrict {
+		p.addEZError(errors.E2041, "when statement requires a 'default' case", stmt.Token)
+	}
+
+	// Validate: @(strict) cannot have default
+	if stmt.Default != nil && stmt.IsStrict {
+		p.addEZError(errors.E2042, "@(strict) when statement cannot have a 'default' case", stmt.Token)
+	}
+
+	return stmt
+}
+
+// parseWhenCase parses a single is case: is 1, 2, 3 { ... }
+func (p *Parser) parseWhenCase() *WhenCase {
+	whenCase := &WhenCase{Token: p.currentToken}
+
+	p.nextToken() // move past 'is'
+
+	// Parse the first value
+	firstVal := p.parseExpression(LOWEST)
+	if firstVal == nil {
+		return nil
+	}
+
+	// Check if this is a range expression
+	if _, ok := firstVal.(*RangeExpression); ok {
+		whenCase.IsRange = true
+	}
+	if call, ok := firstVal.(*CallExpression); ok {
+		if label, ok := call.Function.(*Label); ok && label.Value == "range" {
+			whenCase.IsRange = true
+		}
+	}
+
+	whenCase.Values = append(whenCase.Values, firstVal)
+
+	// Parse additional comma-separated values
+	for p.peekTokenMatches(COMMA) {
+		p.nextToken() // consume comma
+		p.nextToken() // move to next value
+		val := p.parseExpression(LOWEST)
+		if val != nil {
+			whenCase.Values = append(whenCase.Values, val)
+		}
+	}
+
+	// Expect the block
+	if !p.expectPeek(LBRACE) {
+		return nil
+	}
+
+	whenCase.Body = p.parseBlockStatement()
+	p.nextToken() // move past '}'
+
+	return whenCase
 }
 
 func (p *Parser) parseForStatement() *ForStatement {
