@@ -688,8 +688,7 @@ func Eval(node ast.Node, env *Environment) Object {
 		return evalNewExpression(node, env)
 
 	case *ast.RangeExpression:
-		// Range is typically used in for loops, not standalone
-		return newError("range() can only be used in for loops")
+		return evalRangeExpression(node, env)
 	}
 
 	return newError("unknown node type: %T", node)
@@ -1257,31 +1256,18 @@ func evalWhenStatement(node *ast.WhenStatement, env *Environment) Object {
 		for _, caseValue := range whenCase.Values {
 			// Check if this is a range expression
 			if rangeExpr, ok := caseValue.(*ast.RangeExpression); ok {
-				// Evaluate the range bounds
-				var startObj Object
-				if rangeExpr.Start != nil {
-					startObj = Eval(rangeExpr.Start, env)
-					if isError(startObj) {
-						return startObj
-					}
-				} else {
-					// Default start is 0
-					startObj = &Integer{Value: big.NewInt(0)}
-				}
-				endObj := Eval(rangeExpr.End, env)
-				if isError(endObj) {
-					return endObj
+				// Evaluate the range expression to get a Range object
+				rangeObj := evalRangeExpression(rangeExpr, env)
+				if isError(rangeObj) {
+					return rangeObj
 				}
 
-				// Check if match value is within range (exclusive end, like for loops)
+				// Check if match value is within range (respects step)
 				if matchInt, ok := matchValue.(*Integer); ok {
-					if startInt, ok := startObj.(*Integer); ok {
-						if endInt, ok := endObj.(*Integer); ok {
-							// Use Cmp: returns -1 if a < b, 0 if a == b, 1 if a > b
-							if matchInt.Value.Cmp(startInt.Value) >= 0 && matchInt.Value.Cmp(endInt.Value) < 0 {
-								matched = true
-								break
-							}
+					if r, ok := rangeObj.(*Range); ok {
+						if r.Contains(matchInt.Value) {
+							matched = true
+							break
 						}
 					}
 				}
@@ -1393,6 +1379,61 @@ func evalLoopStatement(node *ast.LoopStatement, env *Environment) Object {
 	}
 
 	return NIL
+}
+
+func evalRangeExpression(node *ast.RangeExpression, env *Environment) Object {
+	line, col := node.Token.Line, node.Token.Column
+
+	// Handle start - defaults to 0 if nil (single-argument form)
+	start := big.NewInt(0)
+	if node.Start != nil {
+		startObj := Eval(node.Start, env)
+		if isError(startObj) {
+			return startObj
+		}
+		startInt, ok := startObj.(*Integer)
+		if !ok {
+			return newErrorWithLocation("E5013", line, col,
+				"range start must be integer, got %s", startObj.Type())
+		}
+		start = new(big.Int).Set(startInt.Value)
+	}
+
+	// Handle end
+	endObj := Eval(node.End, env)
+	if isError(endObj) {
+		return endObj
+	}
+	endInt, ok := endObj.(*Integer)
+	if !ok {
+		return newErrorWithLocation("E5014", line, col,
+			"range end must be integer, got %s", endObj.Type())
+	}
+	end := new(big.Int).Set(endInt.Value)
+
+	// Handle step - defaults to 1 (or -1 for descending ranges)
+	step := big.NewInt(1)
+	if node.Step != nil {
+		stepObj := Eval(node.Step, env)
+		if isError(stepObj) {
+			return stepObj
+		}
+		stepInt, ok := stepObj.(*Integer)
+		if !ok {
+			return newErrorWithLocation("E5019", line, col,
+				"range step must be integer, got %s", stepObj.Type())
+		}
+		step = new(big.Int).Set(stepInt.Value)
+		if step.Sign() == 0 {
+			return newErrorWithLocation("E9003", line, col,
+				"range step cannot be zero")
+		}
+	} else if start.Cmp(end) > 0 {
+		// Auto-detect descending range when no step is provided
+		step = big.NewInt(-1)
+	}
+
+	return &Range{Start: start, End: end, Step: step}
 }
 
 func evalForStatement(node *ast.ForStatement, env *Environment) Object {
@@ -1791,9 +1832,9 @@ func evalInfixExpression(operator string, left, right Object, line, col int) Obj
 	switch {
 	// Handle 'in' and 'not_in' operators early - they work with any type + array
 	case operator == "in":
-		return evalInOperator(left, right)
+		return evalInOperator(left, right, line, col)
 	case operator == "not_in" || operator == "!in":
-		result := evalInOperator(left, right)
+		result := evalInOperator(left, right, line, col)
 		if result == TRUE {
 			return FALSE
 		}
@@ -2068,10 +2109,26 @@ func evalByteIntegerInfixExpression(operator string, left, right Object, line, c
 	}
 }
 
-func evalInOperator(left, right Object) Object {
+func evalInOperator(left, right Object, line, col int) Object {
+	// Handle range membership check
+	if r, ok := right.(*Range); ok {
+		// Only integers can be checked against ranges
+		leftInt, ok := left.(*Integer)
+		if !ok {
+			return newErrorWithLocation("E5020", line, col,
+				"left operand of 'in range()' must be integer, got %s", left.Type())
+		}
+		if r.Contains(leftInt.Value) {
+			return TRUE
+		}
+		return FALSE
+	}
+
+	// Handle array membership check
 	arr, ok := right.(*Array)
 	if !ok {
-		return newError("right operand of 'in' must be array, got %s", right.Type())
+		return newErrorWithLocation("E3014", line, col,
+			"right operand of 'in' must be array or range, got %s", right.Type())
 	}
 
 	for _, elem := range arr.Elements {

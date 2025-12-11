@@ -36,6 +36,7 @@ const (
 	MODULE_OBJ       ObjectType = "MODULE"
 	FILE_HANDLE_OBJ  ObjectType = "FILE_HANDLE"
 	REFERENCE_OBJ    ObjectType = "REFERENCE"
+	RANGE_OBJ        ObjectType = "RANGE"
 )
 
 type Object interface {
@@ -98,6 +99,45 @@ type Byte struct {
 
 func (b *Byte) Type() ObjectType { return BYTE_OBJ }
 func (b *Byte) Inspect() string  { return fmt.Sprintf("%d", b.Value) }
+
+// Range represents a range of values for use in membership checks and iteration
+type Range struct {
+	Start *big.Int
+	End   *big.Int
+	Step  *big.Int
+}
+
+func (r *Range) Type() ObjectType { return RANGE_OBJ }
+func (r *Range) Inspect() string {
+	if r.Step.Cmp(big.NewInt(1)) == 0 {
+		return fmt.Sprintf("range(%s, %s)", r.Start.String(), r.End.String())
+	}
+	return fmt.Sprintf("range(%s, %s, %s)", r.Start.String(), r.End.String(), r.Step.String())
+}
+
+// Contains checks if a value is within the range (respecting step)
+func (r *Range) Contains(value *big.Int) bool {
+	if r.Step.Sign() > 0 {
+		// Positive step: start <= value < end
+		if value.Cmp(r.Start) < 0 || value.Cmp(r.End) >= 0 {
+			return false
+		}
+		// Check if value is on a step: (value - start) % step == 0
+		diff := new(big.Int).Sub(value, r.Start)
+		mod := new(big.Int).Mod(diff, r.Step)
+		return mod.Sign() == 0
+	} else {
+		// Negative step: end < value <= start
+		if value.Cmp(r.Start) > 0 || value.Cmp(r.End) <= 0 {
+			return false
+		}
+		// Check if value is on a step: (start - value) % abs(step) == 0
+		diff := new(big.Int).Sub(r.Start, value)
+		absStep := new(big.Int).Abs(r.Step)
+		mod := new(big.Int).Mod(diff, absStep)
+		return mod.Sign() == 0
+	}
+}
 
 // FileHandle wraps an open file handle for streaming I/O
 type FileHandle struct {
