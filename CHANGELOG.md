@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.19.2](https://github.com/SchoolyB/EZ/compare/v0.19.1...v0.19.2) (2025-12-11)
+
+
+### Bug Fixes
+
+* show update notification immediately on all commands ([#499](https://github.com/SchoolyB/EZ/issues/499)) ([c436b2f](https://github.com/SchoolyB/EZ/commit/c436b2fe91d723317f54c5021499f45f94934ac7)), closes [#498](https://github.com/SchoolyB/EZ/issues/498)
+
 ## [0.19.1](https://github.com/SchoolyB/EZ/compare/v0.19.0...v0.19.1) (2025-12-11)
 
 
