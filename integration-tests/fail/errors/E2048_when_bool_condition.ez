@@ -1,0 +1,10 @@
+// E2048: when condition cannot be a boolean. Use if/or/otherwise instead
+import @std
+using std
+
+do main() {
+    when 1 > 0 {
+        is true { println("true") }
+        default { println("false") }
+    }
+}

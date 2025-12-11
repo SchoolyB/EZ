@@ -1,0 +1,10 @@
+// E2049: when condition cannot be nil. Use if/otherwise to check for nil
+import @std
+using std
+
+do main() {
+    when nil {
+        is 1 { println("one") }
+        default { println("nil") }
+    }
+}

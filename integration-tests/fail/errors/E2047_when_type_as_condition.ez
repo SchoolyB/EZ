@@ -1,0 +1,16 @@
+// E2047: when condition must be a value, not a type name
+import @std
+using std
+
+const COLOR enum {
+    RED
+    GREEN
+    BLUE
+}
+
+do main() {
+    when COLOR {
+        is COLOR.RED { println("Red") }
+        default { println("Wrong") }
+    }
+}

@@ -1,0 +1,160 @@
+// Test when/is/default statements (issue #179)
+
+import @std
+using std
+
+const Status enum {
+    PENDING,
+    ACTIVE,
+    DONE
+}
+
+do test_basic_int() {
+    temp x = 2
+    temp result = ""
+
+    when x {
+        is 1 { result = "one" }
+        is 2 { result = "two" }
+        is 3 { result = "three" }
+        default { result = "other" }
+    }
+
+    if result != "two" {
+        println("FAIL: test_basic_int - expected 'two', got '${result}'")
+    }
+}
+
+do test_multi_value() {
+    temp day = 6
+    temp result = ""
+
+    when day {
+        is 1, 2, 3, 4, 5 { result = "weekday" }
+        is 6, 7 { result = "weekend" }
+        default { result = "invalid" }
+    }
+
+    if result != "weekend" {
+        println("FAIL: test_multi_value - expected 'weekend', got '${result}'")
+    }
+}
+
+do test_range() {
+    temp score = 85
+    temp grade = ""
+
+    when score {
+        is range(0, 60) { grade = "F" }
+        is range(60, 70) { grade = "D" }
+        is range(70, 80) { grade = "C" }
+        is range(80, 90) { grade = "B" }
+        is range(90, 101) { grade = "A" }
+        default { grade = "Invalid" }
+    }
+
+    if grade != "B" {
+        println("FAIL: test_range - expected 'B', got '${grade}'")
+    }
+}
+
+do test_string() {
+    temp color = "green"
+    temp result = ""
+
+    when color {
+        is "red" { result = "stop" }
+        is "yellow" { result = "caution" }
+        is "green" { result = "go" }
+        default { result = "unknown" }
+    }
+
+    if result != "go" {
+        println("FAIL: test_string - expected 'go', got '${result}'")
+    }
+}
+
+do test_default() {
+    temp x = 999
+    temp result = ""
+
+    when x {
+        is 1 { result = "one" }
+        is 2 { result = "two" }
+        default { result = "fallback" }
+    }
+
+    if result != "fallback" {
+        println("FAIL: test_default - expected 'fallback', got '${result}'")
+    }
+}
+
+do test_enum() {
+    temp status = Status.ACTIVE
+    temp result = ""
+
+    when status {
+        is Status.PENDING { result = "waiting" }
+        is Status.ACTIVE { result = "working" }
+        is Status.DONE { result = "finished" }
+        default { result = "unknown" }
+    }
+
+    if result != "working" {
+        println("FAIL: test_enum - expected 'working', got '${result}'")
+    }
+}
+
+do test_strict_enum() {
+    temp s = Status.DONE
+    temp result = ""
+
+    @(strict)
+    when s {
+        is Status.PENDING { result = "pending" }
+        is Status.ACTIVE { result = "active" }
+        is Status.DONE { result = "done" }
+    }
+
+    if result != "done" {
+        println("FAIL: test_strict_enum - expected 'done', got '${result}'")
+    }
+}
+
+do test_nested_when() {
+    temp category = 1
+    temp subcategory = 2
+    temp result = ""
+
+    when category {
+        is 1 {
+            when subcategory {
+                is 1 { result = "1-1" }
+                is 2 { result = "1-2" }
+                default { result = "1-other" }
+            }
+        }
+        is 2 {
+            result = "category-2"
+        }
+        default {
+            result = "other-category"
+        }
+    }
+
+    if result != "1-2" {
+        println("FAIL: test_nested_when - expected '1-2', got '${result}'")
+    }
+}
+
+do main() {
+    test_basic_int()
+    test_multi_value()
+    test_range()
+    test_string()
+    test_default()
+    test_enum()
+    test_strict_enum()
+    test_nested_when()
+    println("when/is tests completed")
+}

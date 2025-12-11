@@ -1,0 +1,11 @@
+// E2041: when statement requires a default case
+import @std
+using std
+
+do main() {
+    temp x = 1
+    when x {
+        is 1 { println("one") }
+        is 2 { println("two") }
+    }
+}

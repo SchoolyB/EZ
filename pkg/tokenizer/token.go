@@ -113,6 +113,11 @@ const (
 	FROM    TokenType = "FROM"
 	USE     TokenType = "USE"
 
+	// When/Is keywords
+	WHEN    TokenType = "WHEN"
+	IS      TokenType = "IS"
+	DEFAULT TokenType = "DEFAULT"
+
 	// Ampersand (for import & use syntax)
 	AMPERSAND TokenType = "&"
 )
@@ -147,6 +152,9 @@ var keywords = map[string]TokenType{
 	"private":    PRIVATE,
 	"from":       FROM,
 	"use":        USE,
+	"when":       WHEN,
+	"is":         IS,
+	"default":    DEFAULT,
 }
 
 // Looks up the passed in identifier(i)
@@ -165,7 +173,8 @@ func IsKeyword(t TokenType) bool {
 	case TEMP, CONST, DO, RETURN, IF, OR_KW, OTHERWISE,
 		FOR, FOR_EACH, AS_LONG_AS, LOOP, BREAK, CONTINUE,
 		IN, NOT_IN, RANGE, IMPORT, USING, STRUCT, ENUM,
-		NIL, NEW, TRUE, FALSE, BLANK, MODULE, PRIVATE, FROM, USE:
+		NIL, NEW, TRUE, FALSE, BLANK, MODULE, PRIVATE, FROM, USE,
+		WHEN, IS, DEFAULT:
 		return true
 	}
 	return false

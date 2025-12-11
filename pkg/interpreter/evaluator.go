@@ -336,6 +336,9 @@ func Eval(node ast.Node, env *Environment) Object {
 	case *ast.IfStatement:
 		return evalIfStatement(node, env)
 
+	case *ast.WhenStatement:
+		return evalWhenStatement(node, env)
+
 	case *ast.WhileStatement:
 		return evalWhileStatement(node, env)
 
@@ -1209,6 +1212,106 @@ func evalIfStatement(node *ast.IfStatement, env *Environment) Object {
 	}
 
 	return NIL
+}
+
+func evalWhenStatement(node *ast.WhenStatement, env *Environment) Object {
+	// Evaluate the value being matched
+	matchValue := Eval(node.Value, env)
+	if isError(matchValue) {
+		return matchValue
+	}
+
+	// Try each case
+	for _, whenCase := range node.Cases {
+		matched := false
+
+		for _, caseValue := range whenCase.Values {
+			// Check if this is a range expression
+			if rangeExpr, ok := caseValue.(*ast.RangeExpression); ok {
+				// Evaluate the range bounds
+				var startObj Object
+				if rangeExpr.Start != nil {
+					startObj = Eval(rangeExpr.Start, env)
+					if isError(startObj) {
+						return startObj
+					}
+				} else {
+					// Default start is 0
+					startObj = &Integer{Value: big.NewInt(0)}
+				}
+				endObj := Eval(rangeExpr.End, env)
+				if isError(endObj) {
+					return endObj
+				}
+
+				// Check if match value is within range (exclusive end, like for loops)
+				if matchInt, ok := matchValue.(*Integer); ok {
+					if startInt, ok := startObj.(*Integer); ok {
+						if endInt, ok := endObj.(*Integer); ok {
+							// Use Cmp: returns -1 if a < b, 0 if a == b, 1 if a > b
+							if matchInt.Value.Cmp(startInt.Value) >= 0 && matchInt.Value.Cmp(endInt.Value) < 0 {
+								matched = true
+								break
+							}
+						}
+					}
+				}
+				continue
+			}
+
+			// Evaluate the case value
+			evalCaseValue := Eval(caseValue, env)
+			if isError(evalCaseValue) {
+				return evalCaseValue
+			}
+
+			// Compare for equality
+			if objectsEqual(matchValue, evalCaseValue) {
+				matched = true
+				break
+			}
+		}
+
+		if matched {
+			caseEnv := NewEnclosedEnvironment(env)
+			return Eval(whenCase.Body, caseEnv)
+		}
+	}
+
+	// No case matched, execute default if present
+	if node.Default != nil {
+		defaultEnv := NewEnclosedEnvironment(env)
+		return Eval(node.Default, defaultEnv)
+	}
+
+	return NIL
+}
+
+// objectsEqual compares two objects for equality
+func objectsEqual(a, b Object) bool {
+	switch aVal := a.(type) {
+	case *Integer:
+		if bVal, ok := b.(*Integer); ok {
+			return aVal.Value.Cmp(bVal.Value) == 0
+		}
+	case *String:
+		if bVal, ok := b.(*String); ok {
+			return aVal.Value == bVal.Value
+		}
+	case *Char:
+		if bVal, ok := b.(*Char); ok {
+			return aVal.Value == bVal.Value
+		}
+	case *Boolean:
+		if bVal, ok := b.(*Boolean); ok {
+			return aVal.Value == bVal.Value
+		}
+	case *EnumValue:
+		if bVal, ok := b.(*EnumValue); ok {
+			return aVal.EnumType == bVal.EnumType && aVal.Name == bVal.Name
+		}
+	}
+	return false
 }
 
 func evalWhileStatement(node *ast.WhileStatement, env *Environment) Object {

@@ -345,6 +345,27 @@ type IfStatement struct {
 func (is *IfStatement) statementNode()       {}
 func (is *IfStatement) TokenLiteral() string { return is.Token.Literal }
 
+// WhenCase represents a single case in a when statement: is 1, 2 { ... }
+type WhenCase struct {
+	Token   Token        // The IS token
+	Values  []Expression // Can be multiple values (is 1, 2, 3) or a range expression
+	Body    *BlockStatement
+	IsRange bool // true if this case uses range()
+}
+
+// WhenStatement represents when/is/default switch statement
+type WhenStatement struct {
+	Token      Token           // The WHEN token
+	Value      Expression      // The value being matched
+	Cases      []*WhenCase     // All is cases
+	Default    *BlockStatement // Required default case
+	IsStrict   bool            // true if @(strict) attribute present
+	Attributes []*Attribute    // Any attributes like @(strict)
+}
+
+func (ws *WhenStatement) statementNode()       {}
+func (ws *WhenStatement) TokenLiteral() string { return ws.Token.Literal }
+
 // ForStatement represents for i in range(0, 10) { }
 type ForStatement struct {
 	Token    Token

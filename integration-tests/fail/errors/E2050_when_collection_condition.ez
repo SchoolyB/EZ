@@ -1,0 +1,11 @@
+// E2050: when condition cannot be an array or map
+import @std
+using std
+
+do main() {
+    temp arr [int] = {1, 2, 3}
+    when arr {
+        is 1 { println("match") }
+        default { println("no match") }
+    }
+}
