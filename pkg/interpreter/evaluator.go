@@ -977,7 +977,7 @@ func evalAssignment(node *ast.AssignmentStatement, env *Environment) Object {
 		if ident, ok := target.Left.(*ast.Label); ok {
 			isMutable, exists := env.IsMutable(ident.Value)
 			if exists && !isMutable {
-				return newErrorWithLocation("E5014", node.Token.Line, node.Token.Column,
+				return newErrorWithLocation("E5006", node.Token.Line, node.Token.Column,
 					"cannot modify immutable variable '%s' (declared as const)", ident.Value)
 			}
 		}
@@ -1066,7 +1066,7 @@ func evalAssignment(node *ast.AssignmentStatement, env *Environment) Object {
 
 			// Check if map is mutable
 			if !obj.Mutable {
-				return newErrorWithLocation("E5014", node.Token.Line, node.Token.Column,
+				return newErrorWithLocation("E12002", node.Token.Line, node.Token.Column,
 					"cannot modify immutable map (declared as const)")
 			}
 
