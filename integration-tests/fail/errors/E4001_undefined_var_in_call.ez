@@ -1,0 +1,14 @@
+/*
+ * Error Test: E4001 - undefined-variable (in function call argument)
+ * Expected: "undefined variable"
+ */
+
+module main
+
+do greet(name string) {
+    println(name)
+}
+
+do main() {
+    greet(undefinedVar)  // 'undefinedVar' is not defined
+}
