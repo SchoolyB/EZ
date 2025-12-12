@@ -48,6 +48,64 @@ func isReservedName(name string) bool {
 	return reservedKeywords[name] || builtinNames[name]
 }
 
+// allWarningCodes contains all valid warning codes in the language
+var allWarningCodes = map[string]bool{
+	// Code Style Warnings (W1xxx)
+	"W1001": true, // unused-variable
+	"W1002": true, // unused-import
+	"W1003": true, // unused-function
+	"W1004": true, // unused-parameter
+	// Potential Bug Warnings (W2xxx)
+	"W2001": true, // unreachable-code
+	"W2002": true, // shadowed-variable
+	"W2003": true, // missing-return
+	"W2004": true, // implicit-type-conversion
+	"W2005": true, // deprecated-feature
+	"W2006": true, // byte-overflow-potential
+	// Code Quality Warnings (W3xxx)
+	"W3001": true, // empty-block
+	"W3002": true, // redundant-condition
+	"W3003": true, // array-size-mismatch
+	// Module Warnings (W4xxx)
+	"W4001": true, // module-name-mismatch
+}
+
+// suppressibleWarnings contains warning codes that can be suppressed via @suppress
+// These are function-body warnings that make sense to suppress at the function level
+var suppressibleWarnings = map[string]bool{
+	"W1001": true, // unused-variable
+	"W1004": true, // unused-parameter
+	"W2001": true, // unreachable-code
+	"W2002": true, // shadowed-variable
+	"W2003": true, // missing-return
+	"W2004": true, // implicit-type-conversion
+	"W2005": true, // deprecated-feature
+	"W2006": true, // byte-overflow-potential
+	"W3001": true, // empty-block
+	"W3002": true, // redundant-condition
+	"W3003": true, // array-size-mismatch
+}
+
+// isValidWarningCode checks if a warning code exists
+func isValidWarningCode(code string) bool {
+	return allWarningCodes[code]
+}
+
+// isWarningSuppressible checks if a warning code can be suppressed
+func isWarningSuppressible(code string) bool {
+	return suppressibleWarnings[code]
+}
+
+// hasSuppressAttribute checks if attributes contain a @suppress attribute
+func hasSuppressAttribute(attrs []*Attribute) *Attribute {
+	for _, attr := range attrs {
+		if attr.Name == "suppress" {
+			return attr
+		}
+	}
+	return nil
+}
+
 // Operator precedence levels
 const (
 	_ int = iota
@@ -510,6 +568,21 @@ func (p *Parser) parseStatement() Statement {
 			}
 		} else {
 			p.nextToken() // move past PRIVATE to the declaration
+		}
+	}
+
+	// Validate @suppress is only used on function declarations
+	if suppressAttr := hasSuppressAttribute(attrs); suppressAttr != nil {
+		if !p.currentTokenMatches(DO) {
+			p.addEZError(errors.E2051, "@suppress can only be applied to function declarations", suppressAttr.Token)
+			// Clear @suppress attributes to prevent them from being applied
+			newAttrs := []*Attribute{}
+			for _, attr := range attrs {
+				if attr.Name != "suppress" {
+					newAttrs = append(newAttrs, attr)
+				}
+			}
+			attrs = newAttrs
 		}
 	}
 
@@ -3079,7 +3152,17 @@ func (p *Parser) parseSuppressAttribute() *Attribute {
 
 		// First argument
 		if p.currentTokenMatches(IDENT) || p.currentTokenMatches(STRING) {
-			attr.Args = append(attr.Args, p.currentToken.Literal)
+			code := p.currentToken.Literal
+			// Validate the warning code exists and is suppressible
+			if !isValidWarningCode(code) {
+				msg := fmt.Sprintf("%s is not a valid warning code", code)
+				p.addEZError(errors.E2052, msg, p.currentToken)
+			} else if !isWarningSuppressible(code) {
+				msg := fmt.Sprintf("warning code %s cannot be suppressed", code)
+				p.addEZError(errors.E2052, msg, p.currentToken)
+			} else {
+				attr.Args = append(attr.Args, code)
+			}
 		}
 
 		// Additional arguments
@@ -3088,7 +3171,17 @@ func (p *Parser) parseSuppressAttribute() *Attribute {
 			p.nextToken() // move to next argument
 
 			if p.currentTokenMatches(IDENT) || p.currentTokenMatches(STRING) {
-				attr.Args = append(attr.Args, p.currentToken.Literal)
+				code := p.currentToken.Literal
+				// Validate the warning code exists and is suppressible
+				if !isValidWarningCode(code) {
+					msg := fmt.Sprintf("%s is not a valid warning code", code)
+					p.addEZError(errors.E2052, msg, p.currentToken)
+				} else if !isWarningSuppressible(code) {
+					msg := fmt.Sprintf("warning code %s cannot be suppressed", code)
+					p.addEZError(errors.E2052, msg, p.currentToken)
+				} else {
+					attr.Args = append(attr.Args, code)
+				}
 			}
 		}
 	}
