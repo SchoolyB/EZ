@@ -235,6 +235,7 @@ var (
 	E7030 = ErrorCode{"E7030", "command-not-found", "command or executable not found"}
 	E7031 = ErrorCode{"E7031", "command-failed", "command execution failed"}
 	E7032 = ErrorCode{"E7032", "sleep-negative", "sleep duration cannot be negative"}
+	E7033 = ErrorCode{"E7033", "conversion-overflow", "value exceeds target type range"}
 
 	// Path validation errors
 	E7040 = ErrorCode{"E7040", "empty-path", "path cannot be empty"}
