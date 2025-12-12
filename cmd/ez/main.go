@@ -595,6 +595,12 @@ func printRuntimeError(errObj *interpreter.Error, source, filename string) {
 			code = errors.E4006
 		case "E4007":
 			code = errors.E4007
+		case "E5021":
+			// Panic - special display
+			code = errors.ErrorCode{Code: "PANIC", Name: "panic", Description: "panicked here"}
+		case "E5022":
+			// Assertion failure - special display
+			code = errors.ErrorCode{Code: "ASSERT", Name: "assertion-failed", Description: "assertion failed here"}
 		default:
 			// Unknown code, use generic
 			code = errors.ErrorCode{Code: errObj.Code, Name: "error", Description: "error occurred here"}

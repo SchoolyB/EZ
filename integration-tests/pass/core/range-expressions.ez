@@ -39,18 +39,8 @@ do main() {
         failed += 1
     }
 
-    // Test 3: Descending range
-    temp desc_list string = ""
-    for i in range(5, 0) {
-        desc_list = "${desc_list}${i}"
-    }
-    if desc_list == "54321" {
-        println("  [PASS] range(5, 0) descending")
-        passed += 1
-    } otherwise {
-        println("  [FAIL] range(5, 0): expected '54321', got '${desc_list}'")
-        failed += 1
-    }
+    // Note: Descending range like range(5, 0) is now a compile-time error (E9005)
+    // Use a for loop with decrement if you need to count backwards
 
     // ==================== RANGE IN 'IN' OPERATOR ====================
     println("  -- range in 'in' operator --")

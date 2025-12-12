@@ -1,0 +1,114 @@
+/*
+ * std.ez - Test @std standard library expanded functions
+ *
+ * Global builtins (no import needed): exit, EXIT_SUCCESS, EXIT_FAILURE, panic, assert
+ * @std module functions (require import): println, printf, sleep_*, eprintln, eprintf
+ */
+
+import @std
+using std
+
+do main() {
+    println("=== @std Standard Library Test ===")
+    temp passed int = 0
+    temp failed int = 0
+
+    // ==================== EXIT_SUCCESS (global builtin) ====================
+    println("  -- EXIT_SUCCESS --")
+
+    if EXIT_SUCCESS == 0 {
+        println("  [PASS] EXIT_SUCCESS = 0")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] EXIT_SUCCESS: expected 0, got ${EXIT_SUCCESS}")
+        failed += 1
+    }
+
+    // ==================== EXIT_FAILURE (global builtin) ====================
+    println("  -- EXIT_FAILURE --")
+
+    if EXIT_FAILURE == 1 {
+        println("  [PASS] EXIT_FAILURE = 1")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] EXIT_FAILURE: expected 1, got ${EXIT_FAILURE}")
+        failed += 1
+    }
+
+    // ==================== sleep_milliseconds (@std) ====================
+    println("  -- sleep_milliseconds --")
+
+    // Test: sleep 0 milliseconds (should succeed immediately)
+    sleep_milliseconds(0)
+    println("  [PASS] sleep_milliseconds(0) completed")
+    passed += 1
+
+    // Test: sleep 1 millisecond (quick test)
+    sleep_milliseconds(1)
+    println("  [PASS] sleep_milliseconds(1) completed")
+    passed += 1
+
+    // ==================== sleep_nanoseconds (@std) ====================
+    println("  -- sleep_nanoseconds --")
+
+    // Test: sleep 0 nanoseconds
+    sleep_nanoseconds(0)
+    println("  [PASS] sleep_nanoseconds(0) completed")
+    passed += 1
+
+    // Test: sleep 1000 nanoseconds (1 microsecond)
+    sleep_nanoseconds(1000)
+    println("  [PASS] sleep_nanoseconds(1000) completed")
+    passed += 1
+
+    // ==================== eprintln (@std) ====================
+    println("  -- eprintln --")
+
+    // Test: eprintln outputs to stderr (we can only verify it doesn't crash)
+    eprintln("This goes to stderr")
+    println("  [PASS] eprintln() executed without error")
+    passed += 1
+
+    // Test: eprintln with multiple args
+    eprintln("stderr:", 42, true)
+    println("  [PASS] eprintln() with multiple args executed")
+    passed += 1
+
+    // ==================== eprintf (@std) ====================
+    println("  -- eprintf --")
+
+    // Test: eprintf outputs to stderr without newline
+    eprintf("stderr without newline")
+    eprintln()  // add newline after
+    println("  [PASS] eprintf() executed without error")
+    passed += 1
+
+    // ==================== assert (global builtin) ====================
+    println("  -- assert --")
+
+    // Test: assert with true condition (should pass)
+    assert(true, "this should not fail")
+    println("  [PASS] assert(true, msg) passed")
+    passed += 1
+
+    // Test: assert with expression
+    assert(1 + 1 == 2, "math works")
+    println("  [PASS] assert(1+1==2, msg) passed")
+    passed += 1
+
+    // Test: assert with comparison
+    temp x int = 42
+    assert(x == 42, "variable check")
+    println("  [PASS] assert(x==42, msg) passed")
+    passed += 1
+
+    // ==================== Summary ====================
+    println("")
+    println("=== Summary ===")
+    println("Passed: ${passed}")
+    println("Failed: ${failed}")
+
+    if failed > 0 {
+        exit(EXIT_FAILURE)
+    }
+}

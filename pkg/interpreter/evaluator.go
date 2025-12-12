@@ -167,18 +167,18 @@ func isValidModule(moduleName string) bool {
 func suggestModule(invalidName string) string {
 	// Check for common typos/variations
 	suggestions := map[string]string{
-		"string":  "strings",
-		"array":   "arrays",
-		"map":     "maps",
-		"rand":    "random",
-		"file":    "io",
-		"files":   "io",
-		"fs":      "io",
-		"env":     "os",
-		"system":  "os",
-		"byte":    "bytes",
+		"string":   "strings",
+		"array":    "arrays",
+		"map":      "maps",
+		"rand":     "random",
+		"file":     "io",
+		"files":    "io",
+		"fs":       "io",
+		"env":      "os",
+		"system":   "os",
+		"byte":     "bytes",
 		"datetime": "time",
-		"date":    "time",
+		"date":     "time",
 	}
 
 	if suggestion, ok := suggestions[invalidName]; ok {
@@ -1735,6 +1735,10 @@ func evalIdentifier(node *ast.Label, env *Environment) Object {
 	// Found in exactly one module
 	if len(foundModules) == 1 {
 		if foundBuiltin != nil {
+			// For constants (IsConstant=true), call immediately to get the value
+			if foundBuiltin.IsConstant {
+				return foundBuiltin.Fn()
+			}
 			return foundBuiltin
 		}
 		return foundUserObj
@@ -1742,6 +1746,10 @@ func evalIdentifier(node *ast.Label, env *Environment) Object {
 
 	// Check global builtins (like len, typeof, etc.)
 	if builtin, ok := builtins[node.Value]; ok {
+		// For constants (IsConstant=true), call immediately to get the value
+		if builtin.IsConstant {
+			return builtin.Fn()
+		}
 		return builtin
 	}
 
@@ -2812,10 +2820,13 @@ func evalStructValue(node *ast.StructValue, env *Environment) Object {
 		}
 	}
 
-	// Create a new struct with the given fields
+	// Create a new struct with default values for all fields first
 	fields := make(map[string]Object)
+	for fieldName, fieldType := range structDef.Fields {
+		fields[fieldName] = getDefaultValue(fieldType)
+	}
 
-	// Evaluate each field expression
+	// Override with explicitly provided field values
 	for fieldName, fieldExpr := range node.Fields {
 		val := Eval(fieldExpr, env)
 		if isError(val) {

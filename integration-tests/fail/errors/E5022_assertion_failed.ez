@@ -1,0 +1,9 @@
+/*
+ * Error Test: E5022 - assertion-failed
+ * Expected: "assertion" or "failed"
+ * Note: assert() is a global builtin, no import needed
+ */
+
+do main() {
+    assert(false, "expected failure")
+}

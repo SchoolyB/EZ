@@ -267,7 +267,8 @@ type BuiltinFunction func(args ...Object) Object
 
 // Builtin represents a built-in function
 type Builtin struct {
-	Fn BuiltinFunction
+	Fn         BuiltinFunction
+	IsConstant bool // If true, this is a constant (zero-arg function that returns a value)
 }
 
 func (b *Builtin) Type() ObjectType { return BUILTIN_OBJ }

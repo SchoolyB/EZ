@@ -1,0 +1,11 @@
+/*
+ * Error Test: E7032 - sleep-negative
+ * Expected: "negative" or "sleep"
+ */
+
+import @std
+using std
+
+do main() {
+    sleep_seconds(-5)  // negative duration
+}

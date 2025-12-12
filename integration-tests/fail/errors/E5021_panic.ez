@@ -1,0 +1,9 @@
+/*
+ * Error Test: E5021 - panic
+ * Expected: "panic"
+ * Note: panic() is a global builtin, no import needed
+ */
+
+do main() {
+    panic("intentional panic for testing")
+}

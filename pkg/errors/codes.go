@@ -166,6 +166,8 @@ var (
 	E5018 = ErrorCode{"E5018", "max-recursion-depth", "maximum recursion depth exceeded"}
 	E5019 = ErrorCode{"E5019", "range-step-not-integer", "range step must be integer"}
 	E5020 = ErrorCode{"E5020", "range-in-operand-not-integer", "value checked against range must be integer"}
+	E5021 = ErrorCode{"E5021", "panic", "explicit panic called"}
+	E5022 = ErrorCode{"E5022", "assertion-failed", "assertion condition was false"}
 )
 
 // =============================================================================
@@ -232,6 +234,8 @@ var (
 	E7029 = ErrorCode{"E7029", "get-homedir-failed", "failed to get home directory"}
 	E7030 = ErrorCode{"E7030", "command-not-found", "command or executable not found"}
 	E7031 = ErrorCode{"E7031", "command-failed", "command execution failed"}
+	E7032 = ErrorCode{"E7032", "sleep-negative", "sleep duration cannot be negative"}
+	E7033 = ErrorCode{"E7033", "conversion-overflow", "value exceeds target type range"}
 
 	// Path validation errors
 	E7040 = ErrorCode{"E7040", "empty-path", "path cannot be empty"}
@@ -271,6 +275,7 @@ var (
 	E9002 = ErrorCode{"E9002", "array-non-numeric", "operation requires numeric array"}
 	E9003 = ErrorCode{"E9003", "range-step-zero", "range step cannot be zero"}
 	E9004 = ErrorCode{"E9004", "chunk-size-invalid", "chunk size must be greater than zero"}
+	E9005 = ErrorCode{"E9005", "range-invalid-bounds", "range start must be less than or equal to end"}
 )
 
 // =============================================================================
