@@ -11,6 +11,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/marshallburns/ez/pkg/object"
 )
@@ -506,6 +507,191 @@ var StdBuiltins = map[string]*object.Builtin{
 					"code":    &object.String{Value: ""},
 				},
 			}
+		},
+	},
+
+	// EXIT_SUCCESS constant - returns 0 (global builtin, no import needed)
+	"EXIT_SUCCESS": {
+		Fn: func(args ...object.Object) object.Object {
+			return &object.Integer{Value: big.NewInt(0)}
+		},
+		IsConstant: true,
+	},
+
+	// EXIT_FAILURE constant - returns 1 (global builtin, no import needed)
+	"EXIT_FAILURE": {
+		Fn: func(args ...object.Object) object.Object {
+			return &object.Integer{Value: big.NewInt(1)}
+		},
+		IsConstant: true,
+	},
+
+	// Exits the program with the given exit code (global builtin, no import needed)
+	// Example:
+	//   exit(0)            // exit successfully
+	//   exit(EXIT_SUCCESS) // same as above
+	//   exit(EXIT_FAILURE) // exit with error code 1
+	"exit": {
+		Fn: func(args ...object.Object) object.Object {
+			if len(args) != 1 {
+				return &object.Error{Code: "E7001", Message: fmt.Sprintf("exit() takes exactly 1 argument, got %d", len(args))}
+			}
+			code, ok := args[0].(*object.Integer)
+			if !ok {
+				return &object.Error{Code: "E7004", Message: fmt.Sprintf("exit() argument must be an integer, got %s", getEZTypeName(args[0]))}
+			}
+			os.Exit(int(code.Value.Int64()))
+			return object.NIL // Never reached
+		},
+	},
+
+	// Sleeps for the given number of seconds
+	"std.sleep_seconds": {
+		Fn: func(args ...object.Object) object.Object {
+			if len(args) != 1 {
+				return &object.Error{Code: "E7001", Message: fmt.Sprintf("sleep_seconds() takes exactly 1 argument, got %d", len(args))}
+			}
+			seconds, ok := args[0].(*object.Integer)
+			if !ok {
+				return &object.Error{Code: "E7004", Message: fmt.Sprintf("sleep_seconds() argument must be an integer, got %s", getEZTypeName(args[0]))}
+			}
+			if seconds.Value.Sign() < 0 {
+				return &object.Error{Code: "E7032", Message: "sleep_seconds() duration cannot be negative"}
+			}
+			time.Sleep(time.Duration(seconds.Value.Int64()) * time.Second)
+			return object.NIL
+		},
+	},
+
+	// Sleeps for the given number of milliseconds
+	"std.sleep_milliseconds": {
+		Fn: func(args ...object.Object) object.Object {
+			if len(args) != 1 {
+				return &object.Error{Code: "E7001", Message: fmt.Sprintf("sleep_milliseconds() takes exactly 1 argument, got %d", len(args))}
+			}
+			ms, ok := args[0].(*object.Integer)
+			if !ok {
+				return &object.Error{Code: "E7004", Message: fmt.Sprintf("sleep_milliseconds() argument must be an integer, got %s", getEZTypeName(args[0]))}
+			}
+			if ms.Value.Sign() < 0 {
+				return &object.Error{Code: "E7032", Message: "sleep_milliseconds() duration cannot be negative"}
+			}
+			time.Sleep(time.Duration(ms.Value.Int64()) * time.Millisecond)
+			return object.NIL
+		},
+	},
+
+	// Sleeps for the given number of nanoseconds
+	"std.sleep_nanoseconds": {
+		Fn: func(args ...object.Object) object.Object {
+			if len(args) != 1 {
+				return &object.Error{Code: "E7001", Message: fmt.Sprintf("sleep_nanoseconds() takes exactly 1 argument, got %d", len(args))}
+			}
+			ns, ok := args[0].(*object.Integer)
+			if !ok {
+				return &object.Error{Code: "E7004", Message: fmt.Sprintf("sleep_nanoseconds() argument must be an integer, got %s", getEZTypeName(args[0]))}
+			}
+			if ns.Value.Sign() < 0 {
+				return &object.Error{Code: "E7032", Message: "sleep_nanoseconds() duration cannot be negative"}
+			}
+			time.Sleep(time.Duration(ns.Value.Int64()) * time.Nanosecond)
+			return object.NIL
+		},
+	},
+
+	// Terminates the program with an error message (global builtin, no import needed)
+	// Use panic() when something truly unrecoverable happens.
+	// Example:
+	//   panic("something went terribly wrong")
+	"panic": {
+		Fn: func(args ...object.Object) object.Object {
+			if len(args) != 1 {
+				return &object.Error{Code: "E7001", Message: fmt.Sprintf("panic() takes exactly 1 argument, got %d", len(args))}
+			}
+			msg, ok := args[0].(*object.String)
+			if !ok {
+				return &object.Error{Code: "E7003", Message: fmt.Sprintf("panic() argument must be a string, got %s", getEZTypeName(args[0]))}
+			}
+			return &object.Error{Code: "E5021", Message: fmt.Sprintf("panic: %s", msg.Value)}
+		},
+	},
+
+	// Prints values to standard error (stderr) followed by a newline.
+	//
+	// Why use eprintln() instead of println()?
+	// - println() writes to "stdout" (standard output) - for normal program output
+	// - eprintln() writes to "stderr" (standard error) - for error messages and diagnostics
+	//
+	// Both display in your terminal by default, but they can be separated:
+	//   ./ez myprogram.ez > output.txt    # stdout goes to file, stderr still shows
+	//   ./ez myprogram.ez 2> errors.txt   # stderr goes to file, stdout still shows
+	//
+	// Example:
+	//   eprintln("Error: file not found")
+	//   eprintln("Warning:", "value is", 0)
+	"std.eprintln": {
+		Fn: func(args ...object.Object) object.Object {
+			for i, arg := range args {
+				if i > 0 {
+					fmt.Fprint(os.Stderr, " ")
+				}
+				if str, ok := arg.(*object.String); ok {
+					fmt.Fprint(os.Stderr, str.Value)
+				} else {
+					fmt.Fprint(os.Stderr, arg.Inspect())
+				}
+			}
+			fmt.Fprintln(os.Stderr)
+			return object.NIL
+		},
+	},
+
+	// Prints values to standard error (stderr) WITHOUT a newline.
+	// Same as eprintln() but doesn't add a newline at the end.
+	// See eprintln() documentation for when to use stderr vs stdout.
+	//
+	// Example:
+	//   eprintf("Loading...")
+	//   // do work
+	//   eprintln(" done!")  // Output: "Loading... done!"
+	"std.eprintf": {
+		Fn: func(args ...object.Object) object.Object {
+			for i, arg := range args {
+				if i > 0 {
+					fmt.Fprint(os.Stderr, " ")
+				}
+				if str, ok := arg.(*object.String); ok {
+					fmt.Fprint(os.Stderr, str.Value)
+				} else {
+					fmt.Fprint(os.Stderr, arg.Inspect())
+				}
+			}
+			return object.NIL
+		},
+	},
+
+	// Asserts that a condition is true, otherwise terminates with an error (global builtin, no import needed)
+	// Use assert() to verify assumptions during development and catch bugs early.
+	// Example:
+	//   assert(x > 0, "x must be positive")
+	//   assert(len(items) > 0, "items cannot be empty")
+	"assert": {
+		Fn: func(args ...object.Object) object.Object {
+			if len(args) != 2 {
+				return &object.Error{Code: "E7001", Message: fmt.Sprintf("assert() takes exactly 2 arguments, got %d", len(args))}
+			}
+			cond, ok := args[0].(*object.Boolean)
+			if !ok {
+				return &object.Error{Code: "E7008", Message: fmt.Sprintf("assert() first argument must be a boolean, got %s", getEZTypeName(args[0]))}
+			}
+			msg, ok := args[1].(*object.String)
+			if !ok {
+				return &object.Error{Code: "E7003", Message: fmt.Sprintf("assert() second argument must be a string, got %s", getEZTypeName(args[1]))}
+			}
+			if !cond.Value {
+				return &object.Error{Code: "E5022", Message: fmt.Sprintf("assertion failed: %s", msg.Value)}
+			}
+			return object.NIL
 		},
 	},
 }

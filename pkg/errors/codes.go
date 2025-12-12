@@ -166,6 +166,8 @@ var (
 	E5018 = ErrorCode{"E5018", "max-recursion-depth", "maximum recursion depth exceeded"}
 	E5019 = ErrorCode{"E5019", "range-step-not-integer", "range step must be integer"}
 	E5020 = ErrorCode{"E5020", "range-in-operand-not-integer", "value checked against range must be integer"}
+	E5021 = ErrorCode{"E5021", "panic", "explicit panic called"}
+	E5022 = ErrorCode{"E5022", "assertion-failed", "assertion condition was false"}
 )
 
 // =============================================================================
@@ -232,6 +234,7 @@ var (
 	E7029 = ErrorCode{"E7029", "get-homedir-failed", "failed to get home directory"}
 	E7030 = ErrorCode{"E7030", "command-not-found", "command or executable not found"}
 	E7031 = ErrorCode{"E7031", "command-failed", "command execution failed"}
+	E7032 = ErrorCode{"E7032", "sleep-negative", "sleep duration cannot be negative"}
 
 	// Path validation errors
 	E7040 = ErrorCode{"E7040", "empty-path", "path cannot be empty"}

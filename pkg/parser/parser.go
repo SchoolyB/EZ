@@ -1044,7 +1044,7 @@ func (p *Parser) parseBlockStatementWithSuppress(suppressions []*Attribute) *Blo
 				// Check if W2001 is suppressed
 				if !p.isSuppressed("W2001", suppressions) && !p.isSuppressed("unreachable_code", suppressions) {
 					// Warn about unreachable code
-					msg := "unreachable code after return/break/continue"
+					msg := "unreachable code after return/break/continue/exit/panic"
 					warn := errors.NewErrorWithSource(
 						errors.W2001,
 						msg,
@@ -1061,9 +1061,16 @@ func (p *Parser) parseBlockStatementWithSuppress(suppressions []*Attribute) *Blo
 			block.Statements = append(block.Statements, stmt)
 
 			// Check if this statement terminates the block
-			switch stmt.(type) {
+			switch s := stmt.(type) {
 			case *ReturnStatement, *BreakStatement, *ContinueStatement:
 				unreachable = true
+			case *ExpressionStatement:
+				// Check for noreturn function calls like exit() and panic()
+				if call, ok := s.Expression.(*CallExpression); ok {
+					if isNoReturnCall(call) {
+						unreachable = true
+					}
+				}
 			}
 		}
 		// Always advance to the next token after parsing a statement.
@@ -3293,4 +3300,27 @@ func (p *Parser) parseEnumAttributes(attrs []*Attribute) *EnumAttributes {
 	}
 
 	return enumAttrs
+}
+
+// isNoReturnCall checks if a call expression is a "noreturn" function
+// (i.e., a function that never returns, like exit() or panic())
+func isNoReturnCall(call *CallExpression) bool {
+	// Check for direct function calls like exit() or panic()
+	if label, ok := call.Function.(*Label); ok {
+		switch label.Value {
+		case "exit", "panic":
+			return true
+		}
+	}
+
+	// Check for member calls like std.exit() or std.panic()
+	if member, ok := call.Function.(*MemberExpression); ok {
+		// MemberExpression.Member is already a *Label
+		switch member.Member.Value {
+		case "exit", "panic":
+			return true
+		}
+	}
+
+	return false
 }
