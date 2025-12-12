@@ -1592,30 +1592,21 @@ func evalEnumDeclaration(node *ast.EnumDeclaration, env *Environment) Object {
 		Values: make(map[string]Object),
 	}
 
-	// Get enum attributes (type, skip, increment)
-	typeName := "int"          // default
-	increment := big.NewInt(1) // default increment
-	var floatIncrement float64 = 1.0
+	// Get enum attributes (type, flags)
+	typeName := "int" // default
+	isFlags := false
 
 	if node.Attributes != nil {
 		typeName = node.Attributes.TypeName
-		if node.Attributes.Skip && node.Attributes.Increment != nil {
-			// Evaluate the increment expression
-			incVal := Eval(node.Attributes.Increment, env)
-			if intVal, ok := incVal.(*Integer); ok {
-				increment = new(big.Int).Set(intVal.Value)
-				floatIncrement, _ = new(big.Float).SetInt(intVal.Value).Float64()
-			} else if floatVal, ok := incVal.(*Float); ok {
-				floatIncrement = floatVal.Value
-			}
-		}
+		isFlags = node.Attributes.IsFlags
 	}
 
 	// Compute enum values
 	currentInt := big.NewInt(0)
 	var currentFloat float64 = 0.0
+	flagValue := big.NewInt(1) // for @flags: 1, 2, 4, 8, ...
 
-	for _, enumVal := range node.Values {
+	for i, enumVal := range node.Values {
 		if enumVal.Value != nil {
 			// Explicit value assignment
 			val := Eval(enumVal.Value, env)
@@ -1627,9 +1618,14 @@ func evalEnumDeclaration(node *ast.EnumDeclaration, env *Environment) Object {
 			// Update current value for next auto-increment
 			switch v := val.(type) {
 			case *Integer:
-				currentInt = new(big.Int).Add(v.Value, increment)
+				if isFlags {
+					// For flags, next value is double the current
+					flagValue = new(big.Int).Lsh(v.Value, 1)
+				} else {
+					currentInt = new(big.Int).Add(v.Value, big.NewInt(1))
+				}
 			case *Float:
-				currentFloat = v.Value + floatIncrement
+				currentFloat = v.Value + 1.0
 			case *String:
 				// Strings don't auto-increment
 			}
@@ -1637,11 +1633,23 @@ func evalEnumDeclaration(node *ast.EnumDeclaration, env *Environment) Object {
 			// Auto-assign value based on type
 			switch typeName {
 			case "int":
-				enum.Values[enumVal.Name.Value] = &Integer{Value: new(big.Int).Set(currentInt)}
-				currentInt.Add(currentInt, increment)
+				if isFlags {
+					// @flags: use power-of-2 values (1, 2, 4, 8, ...)
+					if i == 0 {
+						enum.Values[enumVal.Name.Value] = &Integer{Value: big.NewInt(1)}
+						flagValue = big.NewInt(2)
+					} else {
+						enum.Values[enumVal.Name.Value] = &Integer{Value: new(big.Int).Set(flagValue)}
+						flagValue = new(big.Int).Lsh(flagValue, 1) // multiply by 2
+					}
+				} else {
+					// Regular int enum: 0, 1, 2, 3, ...
+					enum.Values[enumVal.Name.Value] = &Integer{Value: new(big.Int).Set(currentInt)}
+					currentInt.Add(currentInt, big.NewInt(1))
+				}
 			case "float":
 				enum.Values[enumVal.Name.Value] = &Float{Value: currentFloat}
-				currentFloat += floatIncrement
+				currentFloat += 1.0
 			case "string":
 				return newErrorWithLocation("E2031", enumVal.Name.Token.Line, enumVal.Name.Token.Column,
 					"string enum '%s' requires explicit value for member '%s'\n\n"+

@@ -86,6 +86,8 @@ var (
 	E2048 = ErrorCode{"E2048", "when-bool-condition", "when condition cannot be a boolean. Use if/or/otherwise instead"}
 	E2049 = ErrorCode{"E2049", "when-nil-condition", "when condition cannot be nil. Use if/otherwise to check for nil"}
 	E2050 = ErrorCode{"E2050", "when-collection-condition", "when condition cannot be an array or map"}
+	E2051 = ErrorCode{"E2051", "suppress-invalid-target", "@suppress can only be applied to function declarations"}
+	E2052 = ErrorCode{"E2052", "suppress-invalid-code", "warning code cannot be suppressed"}
 )
 
 // =============================================================================
