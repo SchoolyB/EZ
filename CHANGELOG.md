@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.21.0](https://github.com/SchoolyB/EZ/compare/v0.20.1...v0.21.0) (2025-12-12)
+
+
+### Features
+
+* global builtins, [@std](https://github.com/std) expansion, and bug fixes ([#525](https://github.com/SchoolyB/EZ/issues/525), [#526](https://github.com/SchoolyB/EZ/issues/526), [#522](https://github.com/SchoolyB/EZ/issues/522), [#523](https://github.com/SchoolyB/EZ/issues/523), [#524](https://github.com/SchoolyB/EZ/issues/524), [#527](https://github.com/SchoolyB/EZ/issues/527)) ([#532](https://github.com/SchoolyB/EZ/issues/532)) ([accd080](https://github.com/SchoolyB/EZ/commit/accd0803e711b1327d2f4b0ee6c334f04c600846))
+
 ## [0.20.1](https://github.com/SchoolyB/EZ/compare/v0.20.0...v0.20.1) (2025-12-12)
 
 
