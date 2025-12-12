@@ -1204,6 +1204,21 @@ func (tc *TypeChecker) checkReturnStatement(ret *ast.ReturnStatement, expectedTy
 	for i, val := range ret.Values {
 		actualType, ok := tc.inferExpressionType(val)
 		if !ok {
+			// Check if this is an undefined variable (simple identifier)
+			if label, isLabel := val.(*ast.Label); isLabel {
+				// Check if it's not a known function or type
+				if _, isFunc := tc.functions[label.Value]; !isFunc {
+					if _, isType := tc.types[label.Value]; !isType {
+						line, column := tc.getExpressionPosition(val)
+						tc.addError(
+							errors.E4001,
+							fmt.Sprintf("undefined variable '%s'", label.Value),
+							line,
+							column,
+						)
+					}
+				}
+			}
 			continue // Can't determine type
 		}
 
@@ -1544,6 +1559,21 @@ func (tc *TypeChecker) checkFunctionCall(call *ast.CallExpression) {
 	for i, arg := range call.Arguments {
 		actualType, ok := tc.inferExpressionType(arg)
 		if !ok {
+			// Check if this is an undefined variable
+			if label, isLabel := arg.(*ast.Label); isLabel {
+				// Check if it's not a known function or type
+				if _, isFunc := tc.functions[label.Value]; !isFunc {
+					if _, isType := tc.types[label.Value]; !isType {
+						line, column := tc.getExpressionPosition(arg)
+						tc.addError(
+							errors.E4001,
+							fmt.Sprintf("undefined variable '%s'", label.Value),
+							line,
+							column,
+						)
+					}
+				}
+			}
 			continue
 		}
 
