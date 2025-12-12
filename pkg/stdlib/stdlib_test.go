@@ -212,6 +212,38 @@ func TestIntConversionErrors(t *testing.T) {
 	if !isErrorObject(result) {
 		t.Error("expected error for invalid string")
 	}
+
+	// Float overflow - value exceeds int64 max (#522)
+	result = intFn(&object.Float{Value: 9999999999999999999.9})
+	if err, ok := result.(*object.Error); !ok {
+		t.Error("expected error for float overflow")
+	} else if err.Code != "E7033" {
+		t.Errorf("expected E7033 error code, got %s", err.Code)
+	}
+
+	// Float overflow - negative value below int64 min
+	result = intFn(&object.Float{Value: -9999999999999999999.9})
+	if err, ok := result.(*object.Error); !ok {
+		t.Error("expected error for negative float overflow")
+	} else if err.Code != "E7033" {
+		t.Errorf("expected E7033 error code, got %s", err.Code)
+	}
+
+	// NaN conversion should fail
+	result = intFn(&object.Float{Value: math.NaN()})
+	if err, ok := result.(*object.Error); !ok {
+		t.Error("expected error for NaN conversion")
+	} else if err.Code != "E7033" {
+		t.Errorf("expected E7033 error code, got %s", err.Code)
+	}
+
+	// Inf conversion should fail
+	result = intFn(&object.Float{Value: math.Inf(1)})
+	if err, ok := result.(*object.Error); !ok {
+		t.Error("expected error for Inf conversion")
+	} else if err.Code != "E7033" {
+		t.Errorf("expected E7033 error code, got %s", err.Code)
+	}
 }
 
 func TestFloatConversion(t *testing.T) {

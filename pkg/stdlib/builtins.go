@@ -7,6 +7,7 @@ import (
 	"bufio"
 	"fmt"
 	"io"
+	"math"
 	"math/big"
 	"os"
 	"strconv"
@@ -254,6 +255,26 @@ var StdBuiltins = map[string]*object.Builtin{
 			case *object.Integer:
 				return arg
 			case *object.Float:
+				// Check for NaN and Inf
+				if math.IsNaN(arg.Value) {
+					return &object.Error{
+						Code:    "E7033",
+						Message: "cannot convert NaN to int",
+					}
+				}
+				if math.IsInf(arg.Value, 0) {
+					return &object.Error{
+						Code:    "E7033",
+						Message: "cannot convert Inf to int",
+					}
+				}
+				// Check for overflow: float64 can exceed int64 range
+				if arg.Value > float64(math.MaxInt64) || arg.Value < float64(math.MinInt64) {
+					return &object.Error{
+						Code:    "E7033",
+						Message: fmt.Sprintf("float-to-int overflow: %g exceeds int64 range", arg.Value),
+					}
+				}
 				return &object.Integer{Value: big.NewInt(int64(arg.Value))}
 			case *object.String:
 				cleanedValue := strings.ReplaceAll(arg.Value, "_", "")
@@ -280,6 +301,26 @@ var StdBuiltins = map[string]*object.Builtin{
 				case *object.Integer:
 					return v
 				case *object.Float:
+					// Check for NaN and Inf
+					if math.IsNaN(v.Value) {
+						return &object.Error{
+							Code:    "E7033",
+							Message: "cannot convert enum with NaN value to int",
+						}
+					}
+					if math.IsInf(v.Value, 0) {
+						return &object.Error{
+							Code:    "E7033",
+							Message: "cannot convert enum with Inf value to int",
+						}
+					}
+					// Check for overflow
+					if v.Value > float64(math.MaxInt64) || v.Value < float64(math.MinInt64) {
+						return &object.Error{
+							Code:    "E7033",
+							Message: fmt.Sprintf("float-to-int overflow: enum value %g exceeds int64 range", v.Value),
+						}
+					}
 					return &object.Integer{Value: big.NewInt(int64(v.Value))}
 				case *object.String:
 					cleanedValue := strings.ReplaceAll(v.Value, "_", "")
