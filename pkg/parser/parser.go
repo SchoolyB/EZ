@@ -545,9 +545,9 @@ func (p *Parser) ParseLine() Statement {
 }
 
 func (p *Parser) parseStatement() Statement {
-	// Check for @suppress or @(...) attributes
+	// Check for @suppress, @strict, or @(...) attributes
 	var attrs []*Attribute
-	if p.currentTokenMatches(SUPPRESS) || p.currentTokenMatches(AT) {
+	if p.currentTokenMatches(SUPPRESS) || p.currentTokenMatches(STRICT) || p.currentTokenMatches(AT) {
 		attrs = p.parseAttributes()
 		// parseAttributes advances to the declaration token
 	}
@@ -1160,16 +1160,11 @@ func (p *Parser) parseAlternative() Statement {
 func (p *Parser) parseWhenStatement(attrs []*Attribute) *WhenStatement {
 	stmt := &WhenStatement{Token: p.currentToken, Attributes: attrs}
 
-	// Check for @(strict) attribute
+	// Check for @strict attribute
 	for _, attr := range attrs {
-		// @(strict) is parsed as an attribute with Name="enum_config" and Args=["strict"]
-		for _, arg := range attr.Args {
-			if arg == "strict" {
-				stmt.IsStrict = true
-				break
-			}
-		}
-		if stmt.IsStrict {
+		// @strict is parsed as an attribute with Name="strict"
+		if attr.Name == "strict" {
+			stmt.IsStrict = true
 			break
 		}
 	}
@@ -1213,14 +1208,14 @@ func (p *Parser) parseWhenStatement(attrs []*Attribute) *WhenStatement {
 		}
 	}
 
-	// Validate: default is required unless @(strict)
+	// Validate: default is required unless @strict
 	if stmt.Default == nil && !stmt.IsStrict {
 		p.addEZError(errors.E2041, "when statement requires a 'default' case", stmt.Token)
 	}
 
-	// Validate: @(strict) cannot have default
+	// Validate: @strict cannot have default
 	if stmt.Default != nil && stmt.IsStrict {
-		p.addEZError(errors.E2042, "@(strict) when statement cannot have a 'default' case", stmt.Token)
+		p.addEZError(errors.E2042, "@strict when statement cannot have a 'default' case", stmt.Token)
 	}
 
 	return stmt
@@ -3064,17 +3059,23 @@ func (p *Parser) parseRangeExpression() Expression {
 // ============================================================================
 
 // Known attribute names (without the @ prefix)
-var knownAttributeNames = []string{"suppress", "ignore"}
+var knownAttributeNames = []string{"suppress", "strict", "ignore"}
 
 // parseAttributes parses @suppress(...) and @(...) attributes before declarations
 func (p *Parser) parseAttributes() []*Attribute {
 	attributes := []*Attribute{}
 
-	// Handle @suppress(...), @(...), and detect unknown attributes like @supress
-	for p.currentTokenMatches(SUPPRESS) || p.currentTokenMatches(AT) {
+	// Handle @suppress(...), @strict, @(...), and detect unknown attributes like @supress
+	for p.currentTokenMatches(SUPPRESS) || p.currentTokenMatches(STRICT) || p.currentTokenMatches(AT) {
 		if p.currentTokenMatches(SUPPRESS) {
 			// Handle @suppress(...) - existing code
 			attributes = append(attributes, p.parseSuppressAttribute())
+			continue
+		}
+
+		if p.currentTokenMatches(STRICT) {
+			// Handle @strict - simple flag attribute for when statements
+			attributes = append(attributes, p.parseStrictAttribute())
 			continue
 		}
 
@@ -3192,6 +3193,19 @@ func (p *Parser) parseSuppressAttribute() *Attribute {
 	}
 
 	// Move to next token (might be another attribute or the declaration)
+	p.nextToken()
+
+	return attr
+}
+
+func (p *Parser) parseStrictAttribute() *Attribute {
+	attr := &Attribute{
+		Token: p.currentToken,
+		Name:  "strict",
+		Args:  []string{},
+	}
+
+	// Move to next token (the declaration that follows)
 	p.nextToken()
 
 	return attr

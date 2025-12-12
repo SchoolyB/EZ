@@ -106,6 +106,7 @@ const (
 	FALSE      TokenType = "FALSE"
 	BLANK      TokenType = "BLANK" // _ blank identifier
 	SUPPRESS   TokenType = "SUPPRESS"
+	STRICT     TokenType = "STRICT"
 
 	// Module system keywords
 	MODULE  TokenType = "MODULE"

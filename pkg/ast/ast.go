@@ -359,8 +359,8 @@ type WhenStatement struct {
 	Value      Expression      // The value being matched
 	Cases      []*WhenCase     // All is cases
 	Default    *BlockStatement // Required default case
-	IsStrict   bool            // true if @(strict) attribute present
-	Attributes []*Attribute    // Any attributes like @(strict)
+	IsStrict   bool            // true if @strict attribute present
+	Attributes []*Attribute    // Any attributes like @strict
 }
 
 func (ws *WhenStatement) statementNode()       {}

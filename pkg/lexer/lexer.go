@@ -249,6 +249,16 @@ func (l *Lexer) NextToken() tokenizer.Token {
 			}
 			return tok
 		}
+		// Peek ahead to check for @strict
+		if l.peekAheadString(7) == "@strict" {
+			// Found @strict
+			tok = tokenizer.Token{Type: tokenizer.STRICT, Literal: "@strict", Line: l.line, Column: l.column}
+			// Consume the entire @strict token
+			for i := 0; i < 7; i++ {
+				l.readChar()
+			}
+			return tok
+		}
 		// Just a regular @ symbol (e.g., for imports like @std)
 		tok = newToken(tokenizer.AT, l.ch, l.line, l.column)
 	case '"':
