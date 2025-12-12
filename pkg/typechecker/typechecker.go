@@ -354,6 +354,12 @@ func (tc *TypeChecker) CheckProgram(program *ast.Program) bool {
 					moduleName = item.Module
 				}
 				tc.modules[moduleName] = true
+
+				// If this is an "import & use" statement, also register for file-level using
+				// This allows unqualified access to types from the module
+				if importStmt.AutoUse {
+					tc.fileUsingModules[moduleName] = true
+				}
 			}
 		}
 	}
