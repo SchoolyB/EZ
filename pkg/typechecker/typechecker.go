@@ -1853,17 +1853,17 @@ func (tc *TypeChecker) checkWhenStatement(whenStmt *ast.WhenStatement, expectedR
 	// Track seen case values for duplicate detection
 	seenCases := make(map[string]bool)
 
-	// Check if this is an enum type for @(strict) validation
+	// Check if this is an enum type for @strict validation
 	enumTypeInfo, isEnumType := tc.GetType(valueType)
 	if isEnumType && enumTypeInfo != nil && enumTypeInfo.Kind != EnumType {
 		isEnumType = false
 	}
 
-	// Validate @(strict) is only used with enums
+	// Validate @strict is only used with enums
 	if whenStmt.IsStrict && !isEnumType {
 		tc.addError(
 			errors.E2045,
-			"@(strict) attribute only allowed on enum when statements",
+			"@strict attribute only allowed on enum when statements",
 			whenStmt.Token.Line,
 			whenStmt.Token.Column,
 		)
@@ -1914,7 +1914,7 @@ func (tc *TypeChecker) checkWhenStatement(whenStmt *ast.WhenStatement, expectedR
 		tc.exitScope()
 	}
 
-	// Note: @(strict) enum exhaustiveness check is enforced at runtime
+	// Note: @strict enum exhaustiveness check is enforced at runtime
 	// A full compile-time check would require tracking enum members in the type system
 
 	// Check the default block if present
