@@ -2438,6 +2438,8 @@ func (tc *TypeChecker) inferBuiltinCallType(name string, args []ast.Expression) 
 		return "bool", true
 	case "char":
 		return "char", true
+	case "byte":
+		return "byte", true
 	default:
 		return "", false
 	}
