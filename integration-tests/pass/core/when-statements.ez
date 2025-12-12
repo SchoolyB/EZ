@@ -109,7 +109,7 @@ do test_strict_enum() {
     temp s = Status.DONE
     temp result = ""
 
-    @(strict)
+    @strict
     when s {
         is Status.PENDING { result = "pending" }
         is Status.ACTIVE { result = "active" }

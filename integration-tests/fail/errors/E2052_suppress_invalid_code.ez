@@ -1,0 +1,15 @@
+/*
+ * Error Test: E2052 - suppress-invalid-code
+ * Expected: "is not a valid warning code"
+ */
+
+module main
+
+@suppress(W9999)
+do foo() {
+    // W9999 does not exist
+}
+
+do main() {
+    foo()
+}

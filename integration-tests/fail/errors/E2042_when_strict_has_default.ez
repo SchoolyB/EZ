@@ -1,4 +1,4 @@
-// E2042: @(strict) when statement cannot have a default case
+// E2042: @strict when statement cannot have a default case
 import @std
 using std
 
@@ -10,7 +10,7 @@ const Status enum {
 do main() {
     temp s = Status.PENDING
 
-    @(strict)
+    @strict
     when s {
         is Status.PENDING { println("pending") }
         is Status.ACTIVE { println("active") }

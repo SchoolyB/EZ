@@ -472,7 +472,7 @@ func TestEnumDeclarationStructure(t *testing.T) {
 		},
 		Attributes: &EnumAttributes{
 			TypeName: "int",
-			Skip:     true,
+			IsFlags:  true,
 		},
 	}
 

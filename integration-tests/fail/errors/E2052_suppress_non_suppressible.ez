@@ -1,0 +1,15 @@
+/*
+ * Error Test: E2052 - suppress-invalid-code (non-suppressible)
+ * Expected: "warning code W1002 cannot be suppressed"
+ */
+
+module main
+
+@suppress(W1002)
+do foo() {
+    // W1002 (unused-import) is a valid code but cannot be suppressed
+}
+
+do main() {
+    foo()
+}

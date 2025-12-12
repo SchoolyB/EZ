@@ -354,6 +354,12 @@ func (tc *TypeChecker) CheckProgram(program *ast.Program) bool {
 					moduleName = item.Module
 				}
 				tc.modules[moduleName] = true
+
+				// If this is an "import & use" statement, also register for file-level using
+				// This allows unqualified access to types from the module
+				if importStmt.AutoUse {
+					tc.fileUsingModules[moduleName] = true
+				}
 			}
 		}
 	}
@@ -1204,6 +1210,21 @@ func (tc *TypeChecker) checkReturnStatement(ret *ast.ReturnStatement, expectedTy
 	for i, val := range ret.Values {
 		actualType, ok := tc.inferExpressionType(val)
 		if !ok {
+			// Check if this is an undefined variable (simple identifier)
+			if label, isLabel := val.(*ast.Label); isLabel {
+				// Check if it's not a known function or type
+				if _, isFunc := tc.functions[label.Value]; !isFunc {
+					if _, isType := tc.types[label.Value]; !isType {
+						line, column := tc.getExpressionPosition(val)
+						tc.addError(
+							errors.E4001,
+							fmt.Sprintf("undefined variable '%s'", label.Value),
+							line,
+							column,
+						)
+					}
+				}
+			}
 			continue // Can't determine type
 		}
 
@@ -1544,6 +1565,21 @@ func (tc *TypeChecker) checkFunctionCall(call *ast.CallExpression) {
 	for i, arg := range call.Arguments {
 		actualType, ok := tc.inferExpressionType(arg)
 		if !ok {
+			// Check if this is an undefined variable
+			if label, isLabel := arg.(*ast.Label); isLabel {
+				// Check if it's not a known function or type
+				if _, isFunc := tc.functions[label.Value]; !isFunc {
+					if _, isType := tc.types[label.Value]; !isType {
+						line, column := tc.getExpressionPosition(arg)
+						tc.addError(
+							errors.E4001,
+							fmt.Sprintf("undefined variable '%s'", label.Value),
+							line,
+							column,
+						)
+					}
+				}
+			}
 			continue
 		}
 
@@ -1823,17 +1859,17 @@ func (tc *TypeChecker) checkWhenStatement(whenStmt *ast.WhenStatement, expectedR
 	// Track seen case values for duplicate detection
 	seenCases := make(map[string]bool)
 
-	// Check if this is an enum type for @(strict) validation
+	// Check if this is an enum type for @strict validation
 	enumTypeInfo, isEnumType := tc.GetType(valueType)
 	if isEnumType && enumTypeInfo != nil && enumTypeInfo.Kind != EnumType {
 		isEnumType = false
 	}
 
-	// Validate @(strict) is only used with enums
+	// Validate @strict is only used with enums
 	if whenStmt.IsStrict && !isEnumType {
 		tc.addError(
 			errors.E2045,
-			"@(strict) attribute only allowed on enum when statements",
+			"@strict attribute only allowed on enum when statements",
 			whenStmt.Token.Line,
 			whenStmt.Token.Column,
 		)
@@ -1884,7 +1920,7 @@ func (tc *TypeChecker) checkWhenStatement(whenStmt *ast.WhenStatement, expectedR
 		tc.exitScope()
 	}
 
-	// Note: @(strict) enum exhaustiveness check is enforced at runtime
+	// Note: @strict enum exhaustiveness check is enforced at runtime
 	// A full compile-time check would require tracking enum members in the type system
 
 	// Check the default block if present

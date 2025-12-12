@@ -5,7 +5,7 @@
 import @std
 using std
 
-/* Basic int enum (auto-incremented) */
+/* Basic int enum (auto-incremented 0, 1, 2, 3) */
 const Direction enum {
     NORTH
     EAST
@@ -13,13 +13,13 @@ const Direction enum {
     WEST
 }
 
-/* Int enum with skip attribute */
-@(int, skip, 10)
-const Priority enum {
-    LOW       // 0
-    MEDIUM    // 10
-    HIGH      // 20
-    CRITICAL  // 30
+/* Flags enum with power-of-2 values (1, 2, 4, 8) */
+@flags
+const Permissions enum {
+    READ      // 1
+    WRITE     // 2
+    EXECUTE   // 4
+    DELETE    // 8
 }
 
 /* String enum with explicit values */
@@ -27,6 +27,14 @@ const Status enum {
     TODO = "todo"
     IN_PROGRESS = "in_progress"
     DONE = "done"
+}
+
+/* Explicit int enum (same as default) */
+@enum(int)
+const Priority enum {
+    LOW       // 0
+    MEDIUM    // 1
+    HIGH      // 2
 }
 
 do main() {
@@ -65,33 +73,33 @@ do main() {
         failed += 1
     }
 
-    // ==================== ENUM WITH SKIP ====================
-    println("  -- Enum with Skip Attribute --")
+    // ==================== FLAGS ENUM ====================
+    println("  -- Flags Enum (power-of-2) --")
 
-    // Test 4: first value is still 0
-    if Priority.LOW == 0 {
-        println("  [PASS] Priority.LOW = 0")
+    // Test 4: first flag value is 1
+    if Permissions.READ == 1 {
+        println("  [PASS] Permissions.READ = 1")
         passed += 1
     } otherwise {
-        println("  [FAIL] Priority.LOW: expected 0, got ${Priority.LOW}")
+        println("  [FAIL] Permissions.READ: expected 1, got ${Permissions.READ}")
         failed += 1
     }
 
-    // Test 5: skip by 10
-    if Priority.MEDIUM == 10 {
-        println("  [PASS] Priority.MEDIUM = 10 (skip 10)")
+    // Test 5: power-of-2 values
+    if Permissions.WRITE == 2 {
+        println("  [PASS] Permissions.WRITE = 2")
         passed += 1
     } otherwise {
-        println("  [FAIL] Priority.MEDIUM: expected 10, got ${Priority.MEDIUM}")
+        println("  [FAIL] Permissions.WRITE: expected 2, got ${Permissions.WRITE}")
         failed += 1
     }
 
-    // Test 6: continue skipping
-    if Priority.HIGH == 20 && Priority.CRITICAL == 30 {
-        println("  [PASS] Priority.HIGH=20, CRITICAL=30")
+    // Test 6: continue power-of-2
+    if Permissions.EXECUTE == 4 && Permissions.DELETE == 8 {
+        println("  [PASS] Permissions.EXECUTE=4, DELETE=8")
         passed += 1
     } otherwise {
-        println("  [FAIL] skip enum: HIGH=${Priority.HIGH}, CRITICAL=${Priority.CRITICAL}")
+        println("  [FAIL] flags enum: EXECUTE=${Permissions.EXECUTE}, DELETE=${Permissions.DELETE}")
         failed += 1
     }
 
@@ -126,25 +134,28 @@ do main() {
         failed += 1
     }
 
+    // ==================== EXPLICIT INT ENUM ====================
+    println("  -- Explicit @enum(int) --")
+
+    // Test 10: @enum(int) works like default
+    if Priority.LOW == 0 && Priority.MEDIUM == 1 && Priority.HIGH == 2 {
+        println("  [PASS] @enum(int) auto-increment (0, 1, 2)")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] @enum(int): LOW=${Priority.LOW}, MEDIUM=${Priority.MEDIUM}, HIGH=${Priority.HIGH}")
+        failed += 1
+    }
+
     // ==================== ENUM COMPARISON ====================
     println("  -- Enum Comparison --")
 
-    // Test 10: compare enum values
+    // Test 11: compare enum values
     temp priority int = Priority.HIGH
     if priority >= Priority.MEDIUM {
         println("  [PASS] enum comparison (HIGH >= MEDIUM)")
         passed += 1
     } otherwise {
         println("  [FAIL] enum comparison")
-        failed += 1
-    }
-
-    // Test 11: enum equality
-    if priority == Priority.HIGH {
-        println("  [PASS] enum equality check")
-        passed += 1
-    } otherwise {
-        println("  [FAIL] enum equality")
         failed += 1
     }
 
