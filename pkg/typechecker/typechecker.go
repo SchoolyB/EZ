@@ -1292,6 +1292,41 @@ func (tc *TypeChecker) checkExpression(expr ast.Expression) {
 			tc.checkExpression(pair.Key)
 			tc.checkExpression(pair.Value)
 		}
+
+	case *ast.RangeExpression:
+		tc.checkRangeExpression(e)
+	}
+}
+
+// checkRangeExpression validates range bounds
+func (tc *TypeChecker) checkRangeExpression(rangeExpr *ast.RangeExpression) {
+	// Check if both start and end are integer literals
+	// If so, verify start <= end
+	if rangeExpr.Start == nil {
+		return // range(end) form, start defaults to 0, always valid
+	}
+
+	startInt, startOk := rangeExpr.Start.(*ast.IntegerValue)
+	endInt, endOk := rangeExpr.End.(*ast.IntegerValue)
+
+	if startOk && endOk {
+		// Both are literals, we can check at compile time
+		if startInt.Value.Cmp(endInt.Value) > 0 {
+			tc.addError(
+				errors.E9005,
+				fmt.Sprintf("invalid range: start (%s) must be less than or equal to end (%s)",
+					startInt.Value.String(), endInt.Value.String()),
+				rangeExpr.Token.Line,
+				rangeExpr.Token.Column,
+			)
+		}
+	}
+
+	// Also check subexpressions
+	tc.checkExpression(rangeExpr.Start)
+	tc.checkExpression(rangeExpr.End)
+	if rangeExpr.Step != nil {
+		tc.checkExpression(rangeExpr.Step)
 	}
 }
 
@@ -1878,6 +1913,9 @@ func (tc *TypeChecker) checkWhenStatement(whenStmt *ast.WhenStatement, expectedR
 	// Check each case
 	for _, whenCase := range whenStmt.Cases {
 		for _, caseValue := range whenCase.Values {
+			// Check the case value expression (validates range bounds, etc.)
+			tc.checkExpression(caseValue)
+
 			// Skip range expressions for duplicate detection
 			if _, isRange := caseValue.(*ast.RangeExpression); isRange {
 				continue
@@ -1954,6 +1992,11 @@ func (tc *TypeChecker) getCaseValueKey(expr ast.Expression) string {
 // checkForStatement validates a for loop
 func (tc *TypeChecker) checkForStatement(forStmt *ast.ForStatement, expectedReturnTypes []string) {
 	tc.enterScope()
+
+	// Check the iterable expression (e.g., range())
+	if forStmt.Iterable != nil {
+		tc.checkExpression(forStmt.Iterable)
+	}
 
 	// Add loop variable to scope
 	if forStmt.Variable != nil {
