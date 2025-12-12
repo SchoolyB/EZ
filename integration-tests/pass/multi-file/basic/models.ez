@@ -12,13 +12,12 @@ import @std
 // ENUMS
 // ==================================================
 
-/* Priority levels with skip attribute */
-@(int, skip, 10)
+/* Priority levels (auto-increment: 0, 1, 2, 3) */
 const Priority enum {
     LOW       // 0
-    MEDIUM    // 10
-    HIGH      // 20
-    CRITICAL  // 30
+    MEDIUM    // 1
+    HIGH      // 2
+    CRITICAL  // 3
 }
 
 /* Task status as string enum */
@@ -62,11 +61,11 @@ const TaskStats struct {
 do get_priority_name(priority int) -> string {
     if priority == 0 {
         return "Low"
-    } or priority == 10 {
+    } or priority == 1 {
         return "Medium"
-    } or priority == 20 {
+    } or priority == 2 {
         return "High"
-    } or priority == 30 {
+    } or priority == 3 {
         return "Critical"
     } otherwise {
         return "Unknown"
@@ -96,5 +95,5 @@ do is_complete(task Task) -> bool {
 
 /* is_high_priority - Check if task is high priority or above */
 do is_high_priority(task Task) -> bool {
-    return task.priority >= 20
+    return task.priority >= 2
 }

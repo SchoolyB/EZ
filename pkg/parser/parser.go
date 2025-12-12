@@ -545,9 +545,9 @@ func (p *Parser) ParseLine() Statement {
 }
 
 func (p *Parser) parseStatement() Statement {
-	// Check for @suppress, @strict, or @(...) attributes
+	// Check for @suppress, @strict, @enum(...), @flags, or unknown @ attributes
 	var attrs []*Attribute
-	if p.currentTokenMatches(SUPPRESS) || p.currentTokenMatches(STRICT) || p.currentTokenMatches(AT) {
+	if p.currentTokenMatches(SUPPRESS) || p.currentTokenMatches(STRICT) || p.currentTokenMatches(ENUM_ATTR) || p.currentTokenMatches(FLAGS) || p.currentTokenMatches(AT) {
 		attrs = p.parseAttributes()
 		// parseAttributes advances to the declaration token
 	}
@@ -1917,9 +1917,8 @@ func (p *Parser) parseEnumDeclaration() *EnumDeclaration {
 
 		// Initialize attributes with the specified type
 		stmt.Attributes = &EnumAttributes{
-			TypeName:  typeName,
-			Skip:      false,
-			Increment: nil,
+			TypeName: typeName,
+			IsFlags:  false,
 		}
 
 		p.nextToken() // move past type name to '{'
@@ -3059,14 +3058,14 @@ func (p *Parser) parseRangeExpression() Expression {
 // ============================================================================
 
 // Known attribute names (without the @ prefix)
-var knownAttributeNames = []string{"suppress", "strict", "ignore"}
+var knownAttributeNames = []string{"suppress", "strict", "enum", "flags", "ignore"}
 
-// parseAttributes parses @suppress(...) and @(...) attributes before declarations
+// parseAttributes parses @suppress(...), @strict, @enum(...), @flags, and detects unknown attributes
 func (p *Parser) parseAttributes() []*Attribute {
 	attributes := []*Attribute{}
 
-	// Handle @suppress(...), @strict, @(...), and detect unknown attributes like @supress
-	for p.currentTokenMatches(SUPPRESS) || p.currentTokenMatches(STRICT) || p.currentTokenMatches(AT) {
+	// Handle @suppress(...), @strict, @enum(...), @flags, and detect unknown attributes
+	for p.currentTokenMatches(SUPPRESS) || p.currentTokenMatches(STRICT) || p.currentTokenMatches(ENUM_ATTR) || p.currentTokenMatches(FLAGS) || p.currentTokenMatches(AT) {
 		if p.currentTokenMatches(SUPPRESS) {
 			// Handle @suppress(...) - existing code
 			attributes = append(attributes, p.parseSuppressAttribute())
@@ -3079,15 +3078,20 @@ func (p *Parser) parseAttributes() []*Attribute {
 			continue
 		}
 
-		// Handle AT token - could be @(...) or @identifier (unknown/misspelled attribute)
-		if p.currentTokenMatches(AT) {
-			// Check what follows the @
-			if p.peekTokenMatches(LPAREN) {
-				// @(...) - generic attribute for enums
-				attributes = append(attributes, p.parseGenericAttribute())
-				continue
-			}
+		if p.currentTokenMatches(ENUM_ATTR) {
+			// Handle @enum(type) - enum type attribute
+			attributes = append(attributes, p.parseEnumAttrAttribute())
+			continue
+		}
 
+		if p.currentTokenMatches(FLAGS) {
+			// Handle @flags - power-of-2 enum attribute
+			attributes = append(attributes, p.parseFlagsAttribute())
+			continue
+		}
+
+		// Handle AT token - could be @identifier (unknown/misspelled attribute)
+		if p.currentTokenMatches(AT) {
 			if p.peekTokenMatches(IDENT) {
 				// @identifier - unknown or misspelled attribute name
 				atToken := p.currentToken
@@ -3211,41 +3215,39 @@ func (p *Parser) parseStrictAttribute() *Attribute {
 	return attr
 }
 
-func (p *Parser) parseGenericAttribute() *Attribute {
+func (p *Parser) parseEnumAttrAttribute() *Attribute {
 	attr := &Attribute{
 		Token: p.currentToken,
-		Name:  "enum_config",
+		Name:  "enum",
 		Args:  []string{},
 	}
 
 	// Expect opening paren
 	if !p.expectPeek(LPAREN) {
+		msg := "expected '(' after @enum"
+		p.addEZError(errors.E2001, msg, p.currentToken)
 		return attr
 	}
 
-	// Parse comma-separated arguments (type, "skip" keyword, increment value)
+	// Parse the type argument
 	if !p.peekTokenMatches(RPAREN) {
-		p.nextToken() // move to first argument
+		p.nextToken() // move to type argument
 
-		// Collect all arguments
-		for {
-			if p.currentTokenMatches(IDENT) {
-				attr.Args = append(attr.Args, p.currentToken.Literal)
-			} else if p.currentTokenMatches(INT) {
-				attr.Args = append(attr.Args, p.currentToken.Literal)
-			} else if p.currentTokenMatches(FLOAT) {
-				attr.Args = append(attr.Args, p.currentToken.Literal)
-			} else if p.currentTokenMatches(STRING) {
-				attr.Args = append(attr.Args, p.currentToken.Literal)
+		if p.currentTokenMatches(IDENT) {
+			typeName := p.currentToken.Literal
+			// Validate that type is a primitive (int, float, or string)
+			if typeName != "int" && typeName != "float" && typeName != "string" {
+				msg := fmt.Sprintf("@enum type must be int, float, or string, got '%s'", typeName)
+				p.addEZError(errors.E2026, msg, p.currentToken)
 			}
-
-			if !p.peekTokenMatches(COMMA) {
-				break
-			}
-
-			p.nextToken() // consume comma
-			p.nextToken() // move to next argument
+			attr.Args = append(attr.Args, typeName)
+		} else {
+			msg := fmt.Sprintf("expected type name in @enum(...), got %s", p.currentToken.Type)
+			p.addEZError(errors.E2001, msg, p.currentToken)
 		}
+	} else {
+		msg := "@enum requires a type argument, e.g., @enum(int), @enum(float), or @enum(string)"
+		p.addEZError(errors.E2001, msg, p.currentToken)
 	}
 
 	// Expect closing paren
@@ -3259,53 +3261,34 @@ func (p *Parser) parseGenericAttribute() *Attribute {
 	return attr
 }
 
-// parseEnumAttributes converts generic attributes to EnumAttributes
+func (p *Parser) parseFlagsAttribute() *Attribute {
+	attr := &Attribute{
+		Token: p.currentToken,
+		Name:  "flags",
+		Args:  []string{},
+	}
+
+	// Move to next token (the declaration that follows)
+	p.nextToken()
+
+	return attr
+}
+
+// parseEnumAttributes converts @enum(type) and @flags attributes to EnumAttributes
 func (p *Parser) parseEnumAttributes(attrs []*Attribute) *EnumAttributes {
 	enumAttrs := &EnumAttributes{
-		TypeName:  "int", // default
-		Skip:      false,
-		Increment: nil,
+		TypeName: "int", // default
+		IsFlags:  false,
 	}
 
 	for _, attr := range attrs {
-		if attr.Name == "enum_config" && len(attr.Args) > 0 {
-			// First arg is the type
+		if attr.Name == "enum" && len(attr.Args) > 0 {
+			// @enum(type) - set the enum type
 			enumAttrs.TypeName = attr.Args[0]
-
-			// Validate that type is a primitive (int, float, or string)
-			if enumAttrs.TypeName != "int" && enumAttrs.TypeName != "float" && enumAttrs.TypeName != "string" {
-				msg := fmt.Sprintf("enum type attributes must be primitive types (int, float, or string), got '%s'", enumAttrs.TypeName)
-				p.addEZError(errors.E2026, msg, attr.Token)
-			}
-
-			// Check for "skip" keyword
-			for i, arg := range attr.Args {
-				if arg == "skip" {
-					enumAttrs.Skip = true
-					// Next arg (if exists) is the increment value
-					if i+1 < len(attr.Args) {
-						// Parse the increment value
-						incrementStr := attr.Args[i+1]
-						// Try to parse as big.Int
-						val := new(big.Int)
-						if _, ok := val.SetString(incrementStr, 10); ok {
-							enumAttrs.Increment = &IntegerValue{
-								Token: Token{Type: INT, Literal: incrementStr},
-								Value: val,
-							}
-						} else {
-							// Try to parse as float64
-							if fval, err := strconv.ParseFloat(incrementStr, 64); err == nil {
-								enumAttrs.Increment = &FloatValue{
-									Token: Token{Type: FLOAT, Literal: incrementStr},
-									Value: fval,
-								}
-							}
-						}
-					}
-					break
-				}
-			}
+		} else if attr.Name == "flags" {
+			// @flags - power-of-2 enum (always int type)
+			enumAttrs.IsFlags = true
+			enumAttrs.TypeName = "int" // flags are always int
 		}
 	}
 
