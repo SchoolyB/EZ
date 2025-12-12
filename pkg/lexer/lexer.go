@@ -259,6 +259,26 @@ func (l *Lexer) NextToken() tokenizer.Token {
 			}
 			return tok
 		}
+		// Peek ahead to check for @flags
+		if l.peekAheadString(6) == "@flags" {
+			// Found @flags
+			tok = tokenizer.Token{Type: tokenizer.FLAGS, Literal: "@flags", Line: l.line, Column: l.column}
+			// Consume the entire @flags token
+			for i := 0; i < 6; i++ {
+				l.readChar()
+			}
+			return tok
+		}
+		// Peek ahead to check for @enum
+		if l.peekAheadString(5) == "@enum" {
+			// Found @enum
+			tok = tokenizer.Token{Type: tokenizer.ENUM_ATTR, Literal: "@enum", Line: l.line, Column: l.column}
+			// Consume the entire @enum token
+			for i := 0; i < 5; i++ {
+				l.readChar()
+			}
+			return tok
+		}
 		// Just a regular @ symbol (e.g., for imports like @std)
 		tok = newToken(tokenizer.AT, l.ch, l.line, l.column)
 	case '"':

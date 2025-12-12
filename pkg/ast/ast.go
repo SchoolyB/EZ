@@ -515,9 +515,8 @@ type EnumValue struct {
 	Value Expression // optional explicit value
 }
 
-// EnumAttributes represents @(type, skip, increment)
+// EnumAttributes represents @enum(type) or @flags
 type EnumAttributes struct {
-	TypeName  string
-	Skip      bool
-	Increment Expression
+	TypeName string // "int", "float", or "string"
+	IsFlags  bool   // true if @flags attribute present (power-of-2 values)
 }

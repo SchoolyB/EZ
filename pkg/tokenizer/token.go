@@ -107,6 +107,8 @@ const (
 	BLANK      TokenType = "BLANK" // _ blank identifier
 	SUPPRESS   TokenType = "SUPPRESS"
 	STRICT     TokenType = "STRICT"
+	ENUM_ATTR  TokenType = "ENUM_ATTR" // @enum(type)
+	FLAGS      TokenType = "FLAGS"     // @flags
 
 	// Module system keywords
 	MODULE  TokenType = "MODULE"
