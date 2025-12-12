@@ -275,6 +275,7 @@ var (
 	E9002 = ErrorCode{"E9002", "array-non-numeric", "operation requires numeric array"}
 	E9003 = ErrorCode{"E9003", "range-step-zero", "range step cannot be zero"}
 	E9004 = ErrorCode{"E9004", "chunk-size-invalid", "chunk size must be greater than zero"}
+	E9005 = ErrorCode{"E9005", "range-invalid-bounds", "range start must be less than or equal to end"}
 )
 
 // =============================================================================

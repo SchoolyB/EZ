@@ -77,20 +77,10 @@ do main() {
         failed += 1
     }
 
-    // Test 5: for descending range
-    temp desc_list string = ""
-    for i in range(5, 0) {
-        desc_list = "${desc_list}${i}"
-    }
-    if desc_list == "54321" {
-        println("  [PASS] for descending range(5, 0)")
-        passed += 1
-    } otherwise {
-        println("  [FAIL] descending range: expected '54321', got '${desc_list}'")
-        failed += 1
-    }
+    // Note: Descending range like range(5, 0) is now a compile-time error (E9005)
+    // Use a for loop with decrement if you need to count backwards
 
-    // Test 6: for with type annotation
+    // Test 5: for with type annotation
     temp sum3 int = 0
     for i int in range(0, 3) {
         sum3 += i
