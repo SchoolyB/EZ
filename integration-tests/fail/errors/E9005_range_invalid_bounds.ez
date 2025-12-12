@@ -1,0 +1,10 @@
+/*
+ * Error Test: E9005 - range-invalid-bounds
+ * Expected: "invalid range" or "start" or "less than"
+ */
+
+do main() {
+    for i in range(10, 5) {
+        // This should error - start > end
+    }
+}

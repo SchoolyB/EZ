@@ -212,6 +212,38 @@ func TestIntConversionErrors(t *testing.T) {
 	if !isErrorObject(result) {
 		t.Error("expected error for invalid string")
 	}
+
+	// Float overflow - value exceeds int64 max (#522)
+	result = intFn(&object.Float{Value: 9999999999999999999.9})
+	if err, ok := result.(*object.Error); !ok {
+		t.Error("expected error for float overflow")
+	} else if err.Code != "E7033" {
+		t.Errorf("expected E7033 error code, got %s", err.Code)
+	}
+
+	// Float overflow - negative value below int64 min
+	result = intFn(&object.Float{Value: -9999999999999999999.9})
+	if err, ok := result.(*object.Error); !ok {
+		t.Error("expected error for negative float overflow")
+	} else if err.Code != "E7033" {
+		t.Errorf("expected E7033 error code, got %s", err.Code)
+	}
+
+	// NaN conversion should fail
+	result = intFn(&object.Float{Value: math.NaN()})
+	if err, ok := result.(*object.Error); !ok {
+		t.Error("expected error for NaN conversion")
+	} else if err.Code != "E7033" {
+		t.Errorf("expected E7033 error code, got %s", err.Code)
+	}
+
+	// Inf conversion should fail
+	result = intFn(&object.Float{Value: math.Inf(1)})
+	if err, ok := result.(*object.Error); !ok {
+		t.Error("expected error for Inf conversion")
+	} else if err.Code != "E7033" {
+		t.Errorf("expected E7033 error code, got %s", err.Code)
+	}
 }
 
 func TestFloatConversion(t *testing.T) {
@@ -2837,4 +2869,241 @@ func TestMathPowOverflow(t *testing.T) {
 	// Valid power should still work
 	result = powFn(&object.Integer{Value: big.NewInt(2)}, &object.Integer{Value: big.NewInt(10)})
 	testIntegerObject(t, result, 1024)
+}
+
+// ============================================================================
+// Issue #526: @std Module Expansion Tests
+// ============================================================================
+
+// Test EXIT_SUCCESS constant (global builtin)
+func TestExitSuccess(t *testing.T) {
+	exitSuccessFn := StdBuiltins["EXIT_SUCCESS"].Fn
+	result := exitSuccessFn()
+	testIntegerObject(t, result, 0)
+}
+
+// Test EXIT_FAILURE constant (global builtin)
+func TestExitFailure(t *testing.T) {
+	exitFailureFn := StdBuiltins["EXIT_FAILURE"].Fn
+	result := exitFailureFn()
+	testIntegerObject(t, result, 1)
+}
+
+// Note: exit() is not tested as it calls os.Exit() which terminates the test process
+
+// Test sleep_seconds() with negative value (should error)
+func TestSleepSecondsNegativeError(t *testing.T) {
+	sleepFn := StdBuiltins["std.sleep_seconds"].Fn
+	result := sleepFn(&object.Integer{Value: big.NewInt(-1)})
+	if !isErrorObject(result) {
+		t.Error("sleep_seconds() with negative duration should return error")
+	}
+}
+
+// Test sleep_seconds() with wrong argument type
+func TestSleepSecondsWrongTypeError(t *testing.T) {
+	sleepFn := StdBuiltins["std.sleep_seconds"].Fn
+	result := sleepFn(&object.String{Value: "5"})
+	if !isErrorObject(result) {
+		t.Error("sleep_seconds() with string argument should return error")
+	}
+}
+
+// Test sleep_seconds() with wrong number of arguments
+func TestSleepSecondsWrongArgCountError(t *testing.T) {
+	sleepFn := StdBuiltins["std.sleep_seconds"].Fn
+	result := sleepFn()
+	if !isErrorObject(result) {
+		t.Error("sleep_seconds() with no arguments should return error")
+	}
+	result = sleepFn(&object.Integer{Value: big.NewInt(1)}, &object.Integer{Value: big.NewInt(2)})
+	if !isErrorObject(result) {
+		t.Error("sleep_seconds() with two arguments should return error")
+	}
+}
+
+// Test sleep_milliseconds() with negative value (should error)
+func TestSleepMillisecondsNegativeError(t *testing.T) {
+	sleepFn := StdBuiltins["std.sleep_milliseconds"].Fn
+	result := sleepFn(&object.Integer{Value: big.NewInt(-1)})
+	if !isErrorObject(result) {
+		t.Error("sleep_milliseconds() with negative duration should return error")
+	}
+}
+
+// Test sleep_nanoseconds() with negative value (should error)
+func TestSleepNanosecondsNegativeError(t *testing.T) {
+	sleepFn := StdBuiltins["std.sleep_nanoseconds"].Fn
+	result := sleepFn(&object.Integer{Value: big.NewInt(-1)})
+	if !isErrorObject(result) {
+		t.Error("sleep_nanoseconds() with negative duration should return error")
+	}
+}
+
+// Test sleep with zero (should succeed)
+func TestSleepZero(t *testing.T) {
+	sleepFn := StdBuiltins["std.sleep_seconds"].Fn
+	result := sleepFn(&object.Integer{Value: big.NewInt(0)})
+	if isErrorObject(result) {
+		t.Error("sleep_seconds(0) should succeed")
+	}
+	if result != object.NIL {
+		t.Errorf("sleep_seconds() should return nil, got %T", result)
+	}
+}
+
+// Test panic() returns an error with correct code (global builtin)
+func TestPanic(t *testing.T) {
+	panicFn := StdBuiltins["panic"].Fn
+	result := panicFn(&object.String{Value: "something went wrong"})
+
+	err, ok := result.(*object.Error)
+	if !ok {
+		t.Fatalf("panic() should return Error, got %T", result)
+	}
+	if err.Code != "E5021" {
+		t.Errorf("panic() error code should be E5021, got %s", err.Code)
+	}
+	if err.Message != "panic: something went wrong" {
+		t.Errorf("panic() message wrong, got %s", err.Message)
+	}
+}
+
+// Test panic() with wrong argument type
+func TestPanicWrongTypeError(t *testing.T) {
+	panicFn := StdBuiltins["panic"].Fn
+	result := panicFn(&object.Integer{Value: big.NewInt(42)})
+
+	err, ok := result.(*object.Error)
+	if !ok {
+		t.Fatalf("panic() with non-string should return Error, got %T", result)
+	}
+	if err.Code != "E7003" {
+		t.Errorf("panic() with non-string should return E7003 error, got %s", err.Code)
+	}
+}
+
+// Test panic() with wrong number of arguments
+func TestPanicWrongArgCountError(t *testing.T) {
+	panicFn := StdBuiltins["panic"].Fn
+	result := panicFn()
+	if !isErrorObject(result) {
+		t.Error("panic() with no arguments should return error")
+	}
+	result = panicFn(&object.String{Value: "a"}, &object.String{Value: "b"})
+	if !isErrorObject(result) {
+		t.Error("panic() with two arguments should return error")
+	}
+}
+
+// Test eprintln() returns nil (actual output is to stderr, hard to test)
+func TestEprintln(t *testing.T) {
+	eprintlnFn := StdBuiltins["std.eprintln"].Fn
+	result := eprintlnFn(&object.String{Value: "test output"})
+	if result != object.NIL {
+		t.Errorf("eprintln() should return nil, got %T", result)
+	}
+}
+
+// Test eprintf() returns nil
+func TestEprintf(t *testing.T) {
+	eprintfFn := StdBuiltins["std.eprintf"].Fn
+	result := eprintfFn(&object.String{Value: "test output"})
+	if result != object.NIL {
+		t.Errorf("eprintf() should return nil, got %T", result)
+	}
+}
+
+// Test eprintln() with multiple arguments
+func TestEprintlnMultipleArgs(t *testing.T) {
+	eprintlnFn := StdBuiltins["std.eprintln"].Fn
+	result := eprintlnFn(
+		&object.String{Value: "hello"},
+		&object.Integer{Value: big.NewInt(42)},
+		&object.Boolean{Value: true},
+	)
+	if result != object.NIL {
+		t.Errorf("eprintln() should return nil, got %T", result)
+	}
+}
+
+// ============================================================================
+// Issue #525: assert() Tests
+// ============================================================================
+
+// Test assert() with true condition (should pass)
+func TestAssertTrue(t *testing.T) {
+	assertFn := StdBuiltins["assert"].Fn
+	result := assertFn(&object.Boolean{Value: true}, &object.String{Value: "this should not fail"})
+	if result != object.NIL {
+		t.Errorf("assert(true, msg) should return nil, got %T", result)
+	}
+}
+
+// Test assert() with false condition (should error)
+func TestAssertFalse(t *testing.T) {
+	assertFn := StdBuiltins["assert"].Fn
+	result := assertFn(&object.Boolean{Value: false}, &object.String{Value: "expected failure"})
+
+	err, ok := result.(*object.Error)
+	if !ok {
+		t.Fatalf("assert(false, msg) should return Error, got %T", result)
+	}
+	if err.Code != "E5022" {
+		t.Errorf("assert() error code should be E5022, got %s", err.Code)
+	}
+	if err.Message != "assertion failed: expected failure" {
+		t.Errorf("assert() message wrong, got %s", err.Message)
+	}
+}
+
+// Test assert() with wrong first argument type
+func TestAssertWrongFirstArgType(t *testing.T) {
+	assertFn := StdBuiltins["assert"].Fn
+	result := assertFn(&object.Integer{Value: big.NewInt(1)}, &object.String{Value: "msg"})
+
+	err, ok := result.(*object.Error)
+	if !ok {
+		t.Fatalf("assert() with non-boolean should return Error, got %T", result)
+	}
+	if err.Code != "E7008" {
+		t.Errorf("assert() with non-boolean should return E7008 error, got %s", err.Code)
+	}
+}
+
+// Test assert() with wrong second argument type
+func TestAssertWrongSecondArgType(t *testing.T) {
+	assertFn := StdBuiltins["assert"].Fn
+	result := assertFn(&object.Boolean{Value: true}, &object.Integer{Value: big.NewInt(42)})
+
+	err, ok := result.(*object.Error)
+	if !ok {
+		t.Fatalf("assert() with non-string message should return Error, got %T", result)
+	}
+	if err.Code != "E7003" {
+		t.Errorf("assert() with non-string message should return E7003 error, got %s", err.Code)
+	}
+}
+
+// Test assert() with wrong number of arguments
+func TestAssertWrongArgCount(t *testing.T) {
+	assertFn := StdBuiltins["assert"].Fn
+
+	// No arguments
+	result := assertFn()
+	if !isErrorObject(result) {
+		t.Error("assert() with no arguments should return error")
+	}
+
+	// One argument
+	result = assertFn(&object.Boolean{Value: true})
+	if !isErrorObject(result) {
+		t.Error("assert() with one argument should return error")
+	}
+
+	// Three arguments
+	result = assertFn(&object.Boolean{Value: true}, &object.String{Value: "msg"}, &object.String{Value: "extra"})
+	if !isErrorObject(result) {
+		t.Error("assert() with three arguments should return error")
+	}
 }
