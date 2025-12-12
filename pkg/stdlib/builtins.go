@@ -582,7 +582,7 @@ var StdBuiltins = map[string]*object.Builtin{
 				return &object.Error{Code: "E7004", Message: fmt.Sprintf("exit() argument must be an integer, got %s", getEZTypeName(args[0]))}
 			}
 			os.Exit(int(code.Value.Int64()))
-			return object.NIL // Never reached
+			return nil // Unreachable, but required by Go's type system
 		},
 	},
 
