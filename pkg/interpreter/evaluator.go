@@ -2820,10 +2820,13 @@ func evalStructValue(node *ast.StructValue, env *Environment) Object {
 		}
 	}
 
-	// Create a new struct with the given fields
+	// Create a new struct with default values for all fields first
 	fields := make(map[string]Object)
+	for fieldName, fieldType := range structDef.Fields {
+		fields[fieldName] = getDefaultValue(fieldType)
+	}
 
-	// Evaluate each field expression
+	// Override with explicitly provided field values
 	for fieldName, fieldExpr := range node.Fields {
 		val := Eval(fieldExpr, env)
 		if isError(val) {
