@@ -1,0 +1,55 @@
+/*
+ * Test for_each with namespaced identifier as collection
+ * Regression test for bug #534
+ *
+ * This tests that for_each correctly parses lib.Items as a collection
+ * when an import uses namespace prefix (import lib"..." without & use).
+ */
+import @std
+import lib"./testlib"
+
+using std
+
+do main() {
+    println("=== For_each Namespaced Collection Test ===")
+    temp passed int = 0
+    temp failed int = 0
+
+    // Test 1: for_each over namespaced string array
+    println("Items from lib.Items:")
+    temp item_count int = 0
+    for_each item in lib.Items {
+        println("  ${item}")
+        item_count += 1
+    }
+    if item_count == 3 {
+        println("  [PASS] for_each over namespaced string array")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] expected 3 items, got ${item_count}")
+        failed += 1
+    }
+
+    // Test 2: for_each over namespaced int array with accumulation
+    temp sum int = 0
+    for_each n in lib.Numbers {
+        sum += n
+    }
+    if sum == 100 {
+        println("  [PASS] for_each over namespaced int array (sum=${sum})")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] for_each over namespaced int array: expected 100, got ${sum}")
+        failed += 1
+    }
+
+    // Summary
+    println("")
+    println("Results: ${passed} passed, ${failed} failed")
+
+    if failed > 0 {
+        println("SOME TESTS FAILED")
+    } otherwise {
+        println("ALL TESTS PASSED")
+    }
+}
