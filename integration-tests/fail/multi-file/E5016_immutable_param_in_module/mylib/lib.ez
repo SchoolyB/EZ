@@ -1,0 +1,10 @@
+module mylib
+
+const Hero struct {
+    name string
+    hp int
+}
+
+do update_hero(hero Hero) {
+    hero = Hero{name: "Modified", hp: 999}
+}

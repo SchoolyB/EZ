@@ -2957,12 +2957,16 @@ func (p *Parser) parseMemberExpression(left Expression) Expression {
 			if len(ident.Value) > 0 && ident.Value[0] >= 'A' && ident.Value[0] <= 'Z' {
 				return exp // It's an enum access, not a struct literal
 			}
-			qualifiedName := &Label{
-				Token: exp.Token,
-				Value: ident.Value + "." + memberName,
+			// Use speculative lookahead to verify this is actually a struct literal
+			// and not a block statement (e.g., in for_each item in lib.Items { ... })
+			if p.looksLikeStructLiteral() {
+				qualifiedName := &Label{
+					Token: exp.Token,
+					Value: ident.Value + "." + memberName,
+				}
+				p.nextToken() // move to {
+				return p.parseStructLiteralFromIdent(qualifiedName)
 			}
-			p.nextToken() // move to {
-			return p.parseStructLiteralFromIdent(qualifiedName)
 		}
 	}
 

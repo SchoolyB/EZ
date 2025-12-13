@@ -1,0 +1,4 @@
+module testlib
+
+const Items [string, 3] = {"apple", "banana", "cherry"}
+const Numbers [int, 4] = {10, 20, 30, 40}

@@ -1,0 +1,15 @@
+/*
+ * Error Test: E5016 - immutable-parameter in module file
+ * Expected: "cannot modify" (error in imported module should be caught)
+ * Regression test for bug #535
+ */
+
+import @std
+import lib"./mylib"
+
+using std
+
+do main() {
+    temp h = lib.Hero{name: "Test", hp: 50}
+    lib.update_hero(h)
+}

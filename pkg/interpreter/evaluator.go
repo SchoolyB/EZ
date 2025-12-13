@@ -2189,7 +2189,8 @@ func elementsEqual(a, b Object) bool {
 func evalPostfixExpression(node *ast.PostfixExpression, env *Environment) Object {
 	ident, ok := node.Left.(*ast.Label)
 	if !ok {
-		return newError("postfix operator requires identifier")
+		return newErrorWithLocation("E5015", node.Token.Line, node.Token.Column,
+			"postfix operator %s requires a variable identifier", node.Operator)
 	}
 
 	val, ok := env.Get(ident.Value)
@@ -2199,7 +2200,8 @@ func evalPostfixExpression(node *ast.PostfixExpression, env *Environment) Object
 
 	intVal, ok := val.(*Integer)
 	if !ok {
-		return newError("postfix operator requires integer")
+		return newErrorWithLocation("E5023", node.Token.Line, node.Token.Column,
+			"postfix operator %s requires integer operand, got %s", node.Operator, val.Type())
 	}
 
 	var newVal *big.Int
