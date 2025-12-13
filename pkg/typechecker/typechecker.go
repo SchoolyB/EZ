@@ -1295,6 +1295,10 @@ func (tc *TypeChecker) checkExpression(expr ast.Expression) {
 
 	case *ast.RangeExpression:
 		tc.checkRangeExpression(e)
+
+	case *ast.PostfixExpression:
+		tc.checkExpression(e.Left)
+		tc.checkPostfixExpression(e)
 	}
 }
 
@@ -1327,6 +1331,24 @@ func (tc *TypeChecker) checkRangeExpression(rangeExpr *ast.RangeExpression) {
 	tc.checkExpression(rangeExpr.End)
 	if rangeExpr.Step != nil {
 		tc.checkExpression(rangeExpr.Step)
+	}
+}
+
+// checkPostfixExpression validates postfix operators (++ and --)
+// These operators modify the operand, so we must check mutability
+func (tc *TypeChecker) checkPostfixExpression(postfix *ast.PostfixExpression) {
+	// Check mutability - error if trying to modify an immutable variable
+	if rootVar := tc.extractRootVariable(postfix.Left); rootVar != "" {
+		isMutable, found := tc.isVariableMutable(rootVar)
+		if found && !isMutable {
+			line, column := tc.getExpressionPosition(postfix.Left)
+			tc.addError(
+				errors.E5016,
+				fmt.Sprintf("cannot modify immutable variable '%s' (declared as const or as non-& parameter)", rootVar),
+				line,
+				column,
+			)
+		}
 	}
 }
 

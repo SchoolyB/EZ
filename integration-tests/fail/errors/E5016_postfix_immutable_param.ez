@@ -1,0 +1,17 @@
+/*
+ * Error Test: E5016 - postfix on immutable parameter
+ * Expected: "cannot modify"
+ * Regression test for bug #539
+ */
+
+do test_increment(x int) {
+    x++  // ERROR: cannot modify immutable param with postfix
+}
+
+do test_decrement(y int) {
+    y--  // ERROR: cannot modify immutable param with postfix
+}
+
+do main() {
+    test_increment(5)
+}
