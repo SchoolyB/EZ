@@ -168,6 +168,7 @@ var (
 	E5020 = ErrorCode{"E5020", "range-in-operand-not-integer", "value checked against range must be integer"}
 	E5021 = ErrorCode{"E5021", "panic", "explicit panic called"}
 	E5022 = ErrorCode{"E5022", "assertion-failed", "assertion condition was false"}
+	E5023 = ErrorCode{"E5023", "postfix-requires-integer", "postfix operator needs integer operand"}
 )
 
 // =============================================================================
