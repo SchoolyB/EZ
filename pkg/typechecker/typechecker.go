@@ -681,13 +681,18 @@ func (tc *TypeChecker) checkGlobalVariableDeclaration(node *ast.VariableDeclarat
 		if node.TypeName != "" {
 			typeName = node.TypeName
 		} else if node.Value != nil {
-			// Type inference from value (for multi-return assignments)
-			// For now, we'll handle this in the function body checking
+			// Type inference from value
+			if inferredType, ok := tc.inferExpressionType(node.Value); ok {
+				typeName = inferredType
+			} else {
+				continue
+			}
+		} else {
 			continue
 		}
 
-		// Check if type exists
-		if !tc.TypeExists(typeName) {
+		// Check if type exists (skip for inferred types that might be complex)
+		if typeName != "" && !tc.TypeExists(typeName) && !strings.HasPrefix(typeName, "[") && !strings.HasPrefix(typeName, "map[") {
 			tc.addError(
 				errors.E3002,
 				fmt.Sprintf("undefined type '%s'", typeName),
@@ -995,6 +1000,42 @@ func (tc *TypeChecker) checkVariableDeclaration(decl *ast.VariableDeclaration) {
 
 	varName := decl.Name.Value
 	declaredType := decl.TypeName
+
+	// Check if variable name shadows a type (enum/struct) - #571
+	if t, exists := tc.types[varName]; exists && (t.Kind == EnumType || t.Kind == StructType) {
+		kind := "enum"
+		if t.Kind == StructType {
+			kind = "struct"
+		}
+		tc.addError(
+			errors.E4012,
+			fmt.Sprintf("variable '%s' shadows %s type of the same name", varName, kind),
+			decl.Name.Token.Line,
+			decl.Name.Token.Column,
+		)
+	}
+
+	// Check if variable name shadows a function - #572
+	if _, exists := tc.functions[varName]; exists {
+		tc.addError(
+			errors.E4013,
+			fmt.Sprintf("variable '%s' shadows function of the same name", varName),
+			decl.Name.Token.Line,
+			decl.Name.Token.Column,
+		)
+	}
+
+	// Check if variable name shadows a global constant - #573
+	if _, exists := tc.variables[varName]; exists && tc.currentScope != nil {
+		// Only check if we're in a local scope (not global)
+		// This catches local variables shadowing global constants
+		tc.addWarning(
+			errors.W2007,
+			fmt.Sprintf("variable '%s' shadows global variable/constant of the same name", varName),
+			decl.Name.Token.Line,
+			decl.Name.Token.Column,
+		)
+	}
 
 	// Check if declared type exists
 	if declaredType != "" && !tc.TypeExists(declaredType) {
