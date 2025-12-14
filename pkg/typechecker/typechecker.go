@@ -466,6 +466,17 @@ func (tc *TypeChecker) registerEnumType(node *ast.EnumDeclaration) {
 	baseType := "int"
 	if node.Attributes != nil && node.Attributes.TypeName != "" {
 		baseType = node.Attributes.TypeName
+	} else {
+		// Infer base type from first value if no explicit attribute
+		for _, member := range node.Values {
+			if member.Value != nil {
+				baseType = tc.getEnumValueType(member.Value)
+				if baseType == "" {
+					baseType = "int" // fallback
+				}
+				break
+			}
+		}
 	}
 
 	enumType := &Type{
@@ -608,6 +619,9 @@ func (tc *TypeChecker) checkEnumDeclaration(node *ast.EnumDeclaration) {
 	var firstType string
 	var firstMemberName string
 
+	// Track seen values to detect duplicates (#577)
+	seenValues := make(map[string]string) // value string -> member name
+
 	for _, member := range node.Values {
 		if member.Value == nil {
 			// No explicit value - will be auto-assigned as int
@@ -647,6 +661,20 @@ func (tc *TypeChecker) checkEnumDeclaration(node *ast.EnumDeclaration) {
 				member.Name.Token.Column,
 			)
 		}
+
+		// Check for duplicate values (#577)
+		valueStr := tc.getEnumValueString(member.Value)
+		if existingMember, exists := seenValues[valueStr]; exists {
+			tc.addError(
+				errors.E3033,
+				fmt.Sprintf("enum '%s' has duplicate value: '%s' and '%s' both have value %s",
+					node.Name.Value, existingMember, member.Name.Value, valueStr),
+				member.Name.Token.Line,
+				member.Name.Token.Column,
+			)
+		} else {
+			seenValues[valueStr] = member.Name.Value
+		}
 	}
 }
 
@@ -666,6 +694,24 @@ func (tc *TypeChecker) getEnumValueType(expr ast.Expression) string {
 	default:
 		// For more complex expressions, we can't easily determine the type
 		// This covers cases like enum values referencing other enums, etc.
+		return ""
+	}
+}
+
+// getEnumValueString returns a string representation of an enum value for duplicate detection
+func (tc *TypeChecker) getEnumValueString(expr ast.Expression) string {
+	switch e := expr.(type) {
+	case *ast.IntegerValue:
+		return fmt.Sprintf("%d", e.Value)
+	case *ast.FloatValue:
+		return fmt.Sprintf("%v", e.Value)
+	case *ast.StringValue:
+		return fmt.Sprintf("\"%s\"", e.Value)
+	case *ast.BooleanValue:
+		return fmt.Sprintf("%v", e.Value)
+	case *ast.CharValue:
+		return fmt.Sprintf("'%c'", e.Value)
+	default:
 		return ""
 	}
 }
@@ -1032,6 +1078,16 @@ func (tc *TypeChecker) checkVariableDeclaration(decl *ast.VariableDeclaration) {
 		tc.addWarning(
 			errors.W2007,
 			fmt.Sprintf("variable '%s' shadows global variable/constant of the same name", varName),
+			decl.Name.Token.Line,
+			decl.Name.Token.Column,
+		)
+	}
+
+	// Check if variable name shadows an imported module - #579
+	if _, exists := tc.modules[varName]; exists {
+		tc.addError(
+			errors.E4014,
+			fmt.Sprintf("variable '%s' shadows imported module of the same name", varName),
 			decl.Name.Token.Line,
 			decl.Name.Token.Column,
 		)
@@ -1634,6 +1690,19 @@ func (tc *TypeChecker) checkInfixExpression(infix *ast.InfixExpression) {
 		}
 
 	case "==", "!=":
+		// Check for comparing different enum types (#576)
+		leftIsEnum := tc.isEnumType(leftType)
+		rightIsEnum := tc.isEnumType(rightType)
+		if leftIsEnum && rightIsEnum && leftType != rightType {
+			tc.addError(
+				errors.E3032,
+				fmt.Sprintf("cannot compare different enum types: %s and %s", leftType, rightType),
+				line,
+				column,
+			)
+			return
+		}
+
 		// Valid for any matching types
 		if !tc.typesCompatible(leftType, rightType) && !tc.typesCompatible(rightType, leftType) {
 			tc.addError(
@@ -1645,8 +1714,10 @@ func (tc *TypeChecker) checkInfixExpression(infix *ast.InfixExpression) {
 		}
 
 	case "<", ">", "<=", ">=":
-		// Only valid for numbers or strings
-		if !tc.isNumericType(leftType) && leftType != "string" {
+		// Only valid for numbers, strings, chars, or enums with numeric/string base type
+		leftComparable := tc.isNumericType(leftType) || leftType == "string" || leftType == "char" || tc.isComparableEnumType(leftType)
+		rightComparable := tc.isNumericType(rightType) || rightType == "string" || rightType == "char" || tc.isComparableEnumType(rightType)
+		if !leftComparable {
 			tc.addError(
 				errors.E3002,
 				fmt.Sprintf("invalid operand for '%s': %s (expected numeric or string)", infix.Operator, leftType),
@@ -1654,7 +1725,7 @@ func (tc *TypeChecker) checkInfixExpression(infix *ast.InfixExpression) {
 				column,
 			)
 		}
-		if !tc.isNumericType(rightType) && rightType != "string" {
+		if !rightComparable {
 			tc.addError(
 				errors.E3002,
 				fmt.Sprintf("invalid operand for '%s': %s (expected numeric or string)", infix.Operator, rightType),
@@ -2965,6 +3036,14 @@ func (tc *TypeChecker) inferIndexType(index *ast.IndexExpression) (string, bool)
 
 // inferMemberType infers the type of a member access expression
 func (tc *TypeChecker) inferMemberType(member *ast.MemberExpression) (string, bool) {
+	// Check if accessing enum member (e.g., Status.ACTIVE)
+	if label, isLabel := member.Object.(*ast.Label); isLabel {
+		if enumType, exists := tc.types[label.Value]; exists && enumType.Kind == EnumType {
+			// Return the enum type name
+			return label.Value, true
+		}
+	}
+
 	// Check if accessing struct field
 	objType, ok := tc.inferExpressionType(member.Object)
 	if !ok {
@@ -2993,6 +3072,22 @@ func (tc *TypeChecker) isNumericType(typeName string) bool {
 	default:
 		return false
 	}
+}
+
+// isEnumType checks if a type name refers to a user-defined enum type
+func (tc *TypeChecker) isEnumType(typeName string) bool {
+	if t, exists := tc.types[typeName]; exists {
+		return t.Kind == EnumType
+	}
+	return false
+}
+
+// isComparableEnumType checks if a type is an enum with a comparable base type (numeric or string)
+func (tc *TypeChecker) isComparableEnumType(typeName string) bool {
+	if t, exists := tc.types[typeName]; exists && t.Kind == EnumType {
+		return tc.isNumericType(t.EnumBaseType) || t.EnumBaseType == "string"
+	}
+	return false
 }
 
 // getPromotedType returns the resulting type when two numeric types are used together
@@ -3060,6 +3155,19 @@ func (tc *TypeChecker) typesCompatible(declared, actual string) bool {
 	if declaredBase == actualBase && declaredBase != declared {
 		// Base names match and at least one had a module prefix
 		return true
+	}
+
+	// Handle enum-to-base-type compatibility
+	// Enum values are compatible with their underlying base type
+	if declaredType, exists := tc.types[declared]; exists && declaredType.Kind == EnumType {
+		if declaredType.EnumBaseType == actual {
+			return true
+		}
+	}
+	if actualType, exists := tc.types[actual]; exists && actualType.Kind == EnumType {
+		if actualType.EnumBaseType == declared {
+			return true
+		}
 	}
 
 	// nil is only compatible with reference types (arrays, maps, structs)

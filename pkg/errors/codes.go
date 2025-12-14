@@ -126,6 +126,8 @@ var (
 	E3029 = ErrorCode{"E3029", "float-enum-map-key", "float-based enum cannot be used as map key"}
 	E3030 = ErrorCode{"E3030", "type-as-value", "type definition cannot be used as a runtime value"}
 	E3031 = ErrorCode{"E3031", "function-as-value", "function cannot be used as a value without calling it"}
+	E3032 = ErrorCode{"E3032", "enum-type-mismatch", "cannot compare values from different enum types"}
+	E3033 = ErrorCode{"E3033", "duplicate-enum-value", "enum contains duplicate values"}
 )
 
 // =============================================================================
@@ -145,6 +147,7 @@ var (
 	E4011 = ErrorCode{"E4011", "member-access-invalid-type", "type does not support member access"}
 	E4012 = ErrorCode{"E4012", "shadows-type", "variable shadows a type definition"}
 	E4013 = ErrorCode{"E4013", "shadows-function", "variable shadows a function"}
+	E4014 = ErrorCode{"E4014", "shadows-module", "variable shadows an imported module"}
 )
 
 // =============================================================================
