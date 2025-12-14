@@ -3038,6 +3038,13 @@ func (tc *TypeChecker) checkStdlibCall(member *ast.MemberExpression, call *ast.C
 	funcName := member.Member.Value
 	line, column := tc.getExpressionPosition(member.Member)
 
+	// Check if the module was imported (for standard library modules)
+	stdModules := map[string]bool{"std": true, "math": true, "arrays": true, "strings": true, "time": true, "maps": true, "io": true, "os": true, "random": true}
+	if stdModules[moduleName] && !tc.modules[moduleName] {
+		tc.addError(errors.E4007, fmt.Sprintf("module '%s' not imported; add 'import @%s'", moduleName, moduleName), line, column)
+		return
+	}
+
 	switch moduleName {
 	case "std":
 		tc.checkStdModuleCall(funcName, call, line, column)
