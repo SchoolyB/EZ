@@ -509,6 +509,52 @@ func (tc *TypeChecker) checkStructDeclaration(node *ast.StructDeclaration) {
 	}
 }
 
+// checkStructLiteral validates a struct literal's field values against the type definition
+func (tc *TypeChecker) checkStructLiteral(structVal *ast.StructValue) {
+	if structVal.Name == nil {
+		return
+	}
+
+	structName := structVal.Name.Value
+	structType, exists := tc.types[structName]
+	if !exists || structType.Kind != StructType {
+		// Struct type doesn't exist - will be caught elsewhere
+		return
+	}
+
+	// Check each field in the literal
+	for fieldName, fieldValue := range structVal.Fields {
+		// Check for type/function used as field value
+		tc.checkValueExpression(fieldValue)
+		tc.checkExpression(fieldValue)
+
+		// Get the expected type for this field
+		expectedType, fieldExists := structType.Fields[fieldName]
+		if !fieldExists {
+			// Field doesn't exist on struct - let other code handle this
+			continue
+		}
+
+		// Infer the actual type of the field value
+		actualType, ok := tc.inferExpressionType(fieldValue)
+		if !ok {
+			continue
+		}
+
+		// Check type compatibility
+		if !tc.typesCompatible(expectedType.Name, actualType) {
+			line, column := tc.getExpressionPosition(fieldValue)
+			tc.addError(
+				errors.E3001,
+				fmt.Sprintf("struct field '%s' expects %s, got %s",
+					fieldName, expectedType.Name, actualType),
+				line,
+				column,
+			)
+		}
+	}
+}
+
 // checkEnumDeclaration validates an enum declaration
 func (tc *TypeChecker) checkEnumDeclaration(node *ast.EnumDeclaration) {
 	// All enum members must have the same type
@@ -934,6 +980,9 @@ func (tc *TypeChecker) checkVariableDeclaration(decl *ast.VariableDeclaration) {
 
 	// If there's an initial value, check type compatibility
 	if decl.Value != nil {
+		// Check for type/function used as value
+		tc.checkValueExpression(decl.Value)
+
 		// Validate the expression itself
 		tc.checkExpression(decl.Value)
 
@@ -1361,6 +1410,9 @@ func (tc *TypeChecker) checkExpression(expr ast.Expression) {
 			tc.checkValueExpression(pair.Value) // Catch type/function used as map value
 			tc.checkExpression(pair.Value)
 		}
+
+	case *ast.StructValue:
+		tc.checkStructLiteral(e)
 
 	case *ast.RangeExpression:
 		tc.checkRangeExpression(e)
