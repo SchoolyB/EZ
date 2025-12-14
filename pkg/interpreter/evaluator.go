@@ -405,15 +405,16 @@ func Eval(node ast.Node, env *Environment) Object {
 		return evalFunctionDeclaration(node, env)
 
 	case *ast.StructDeclaration:
-		// Register the struct type definition
+		// Register the struct type definition with visibility
 		fields := make(map[string]string)
 		for _, field := range node.Fields {
 			fields[field.Name.Value] = field.TypeName
 		}
-		env.RegisterStructDef(node.Name.Value, &StructDef{
+		vis := convertVisibility(node.Visibility)
+		env.RegisterStructDefWithVisibility(node.Name.Value, &StructDef{
 			Name:   node.Name.Value,
 			Fields: fields,
-		})
+		}, vis)
 		return NIL
 
 	case *ast.EnumDeclaration:
@@ -1679,8 +1680,9 @@ func evalEnumDeclaration(node *ast.EnumDeclaration, env *Environment) Object {
 		}
 	}
 
-	// Store the enum in the environment
-	env.Set(node.Name.Value, enum, false) // enums are immutable
+	// Store the enum in the environment with visibility
+	vis := convertVisibility(node.Visibility)
+	env.SetWithVisibility(node.Name.Value, enum, false, vis) // enums are immutable
 	return NIL
 }
 
