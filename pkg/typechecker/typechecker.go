@@ -1212,17 +1212,23 @@ func (tc *TypeChecker) checkReturnStatement(ret *ast.ReturnStatement, expectedTy
 		if !ok {
 			// Check if this is an undefined variable (simple identifier)
 			if label, isLabel := val.(*ast.Label); isLabel {
-				// Check if it's not a known function or type
-				if _, isFunc := tc.functions[label.Value]; !isFunc {
-					if _, isType := tc.types[label.Value]; !isType {
-						line, column := tc.getExpressionPosition(val)
-						tc.addError(
-							errors.E4001,
-							fmt.Sprintf("undefined variable '%s'", label.Value),
-							line,
-							column,
-						)
-					}
+				line, column := tc.getExpressionPosition(val)
+				// Check if it's a type name being used as a value (common mistake)
+				if _, isType := tc.types[label.Value]; isType {
+					tc.addError(
+						errors.E4001,
+						fmt.Sprintf("cannot return type '%s' as a value; did you mean to return a variable?", label.Value),
+						line,
+						column,
+					)
+				} else if _, isFunc := tc.functions[label.Value]; !isFunc {
+					// Not a type and not a function - truly undefined
+					tc.addError(
+						errors.E4001,
+						fmt.Sprintf("undefined variable '%s'", label.Value),
+						line,
+						column,
+					)
 				}
 			}
 			continue // Can't determine type
