@@ -20,6 +20,9 @@ import (
 // Global stdin reader to maintain buffering across multiple input() calls
 var stdinReader = bufio.NewReader(os.Stdin)
 
+// Track if stdin EOF has been encountered - subsequent reads will exit gracefully
+var stdinEOFReached = false
+
 // getEZTypeName returns the EZ language type name for an object
 func getEZTypeName(obj object.Object) string {
 	switch v := obj.(type) {
@@ -161,6 +164,11 @@ var StdBuiltins = map[string]*object.Builtin{
 	// Reads an integer from standard input
 	"read_int": {
 		Fn: func(args ...object.Object) object.Object {
+			// If EOF was already reached, exit gracefully to prevent infinite loops
+			if stdinEOFReached {
+				os.Exit(0)
+			}
+
 			text, readErr := stdinReader.ReadString('\n')
 			if len(text) > 0 && text[len(text)-1] == '\n' {
 				text = text[:len(text)-1]
@@ -168,6 +176,9 @@ var StdBuiltins = map[string]*object.Builtin{
 
 			// Handle EOF separately from other errors
 			if readErr == io.EOF {
+				// Mark that EOF has been reached
+				stdinEOFReached = true
+
 				// If we got some text before EOF, try to parse it
 				if len(text) > 0 {
 					val, parseErr := strconv.ParseInt(text, 10, 64)
@@ -511,8 +522,19 @@ var StdBuiltins = map[string]*object.Builtin{
 	// Reads a line of input from standard input
 	"input": {
 		Fn: func(args ...object.Object) object.Object {
-			text, _ := stdinReader.ReadString('\n')
+			// If EOF was already reached, exit gracefully to prevent infinite loops
+			if stdinEOFReached {
+				os.Exit(0)
+			}
+
+			text, readErr := stdinReader.ReadString('\n')
 			text = strings.TrimRight(text, "\r\n")
+
+			// Mark EOF if reached (even if we got some text)
+			if readErr == io.EOF {
+				stdinEOFReached = true
+			}
+
 			return &object.String{Value: text}
 		},
 	},

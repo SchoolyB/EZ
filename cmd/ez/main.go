@@ -4,10 +4,12 @@ package main
 // Licensed under the MIT License. See LICENSE for details.
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/marshallburns/ez/pkg/ast"
 	"github.com/marshallburns/ez/pkg/errors"
@@ -30,10 +32,13 @@ func main() {
 		return
 	}
 
-	// Check for updates in background (non-blocking, once per day)
-	CheckForUpdateAsync()
-
 	command := os.Args[1]
+
+	// Check for updates in background (non-blocking, once per day)
+	// Skip for version command - it handles update checking itself
+	if command != "version" && command != "-v" && command != "--version" {
+		CheckForUpdateAsync()
+	}
 
 	switch command {
 	case "help", "-h", "--help":
@@ -113,10 +118,59 @@ func printVersion() {
 	fmt.Printf("EZ Language %s\n", Version)
 	fmt.Printf("Built: %s\n", BuildTime)
 	fmt.Println("Copyright (c) 2025-Present Marshall A Burns")
+
+	// Check for updates and display if available
+	state, _ := readUpdateState()
+
+	// If we have cached state and it's fresh (checked today), use it
+	if state != nil && state.LatestVersion != "" && !shouldCheckForUpdate() {
+		if isNewerVersion(Version, state.LatestVersion) {
+			fmt.Printf("\nUpdate available: %s (you have %s). Run `ez update` to upgrade.\n",
+				state.LatestVersion, Version)
+		}
+		return
+	}
+
+	// Cache is stale or empty - do a synchronous check
+	ctx, cancel := context.WithTimeout(context.Background(), checkTimeout)
+	defer cancel()
+
+	release, err := fetchLatestRelease(ctx)
+	if err != nil {
+		// Network error - fall back to cached state if available
+		if state != nil && state.LatestVersion != "" {
+			if isNewerVersion(Version, state.LatestVersion) {
+				fmt.Printf("\nUpdate available: %s (you have %s). Run `ez update` to upgrade.\n",
+					state.LatestVersion, Version)
+			}
+		}
+		return
+	}
+
+	// Update cache
+	newState := &UpdateState{
+		LastCheck:     time.Now().Format("2006-01-02"),
+		LatestVersion: release.TagName,
+	}
+	writeUpdateState(newState)
+
+	// Print notification if newer version available
+	if isNewerVersion(Version, release.TagName) {
+		fmt.Printf("\nUpdate available: %s (you have %s). Run `ez update` to upgrade.\n",
+			release.TagName, Version)
+	}
 }
 
 func checkFile(filename string) {
-	data, err := os.ReadFile(filename)
+	// Resolve to absolute path
+	absFile, err := filepath.Abs(filename)
+	if err != nil {
+		fmt.Printf("Error resolving path: %v\n", err)
+		return
+	}
+	absDir := filepath.Dir(absFile)
+
+	data, err := os.ReadFile(absFile)
 	if err != nil {
 		fmt.Printf("Error reading file: %v\n", err)
 		return
@@ -124,7 +178,7 @@ func checkFile(filename string) {
 
 	source := string(data)
 	l := lexer.NewLexer(source)
-	p := parser.NewWithSource(l, source, filename)
+	p := parser.NewWithSource(l, source, absFile)
 	program := p.ParseProgram()
 
 	// Check for lexer errors
@@ -139,7 +193,7 @@ func checkFile(filename string) {
 				code = errors.ErrorCode{Code: lexErr.Code, Name: "lexer-error", Description: "Lexer error"}
 			}
 			sourceLine := errors.GetSourceLine(source, lexErr.Line)
-			ezErr := errors.NewErrorWithSource(code, lexErr.Message, filename, lexErr.Line, lexErr.Column, sourceLine)
+			ezErr := errors.NewErrorWithSource(code, lexErr.Message, absFile, lexErr.Line, lexErr.Column, sourceLine)
 			errList.AddError(ezErr)
 		}
 		fmt.Print(errors.FormatErrorList(errList))
@@ -157,8 +211,8 @@ func checkFile(filename string) {
 		fmt.Print(errors.FormatErrorList(p.EZErrors()))
 	}
 
-	// Type checking
-	tc := typechecker.NewTypeChecker(source, filename)
+	// Type checking for main file
+	tc := typechecker.NewTypeChecker(source, absFile)
 	tc.CheckProgram(program)
 
 	// Check for type errors
@@ -170,6 +224,112 @@ func checkFile(filename string) {
 	// Display type checker warnings
 	if tc.Errors().HasWarnings() {
 		fmt.Print(errors.FormatErrorList(tc.Errors()))
+	}
+
+	// Initialize the module loader to check imported modules
+	loader := interpreter.NewModuleLoader(absDir)
+
+	// Track all modules that need to be checked
+	filesChecked := 1 // Start with 1 for the main file
+	hasErrors := false
+	modulesToCheck := collectImports(program, absDir, absFile)
+	checked := make(map[string]bool)
+	checked[absFile] = true
+
+	for len(modulesToCheck) > 0 {
+		// Pop first module
+		modPath := modulesToCheck[0]
+		modulesToCheck = modulesToCheck[1:]
+
+		if checked[modPath] {
+			continue
+		}
+		checked[modPath] = true
+
+		// Load the module using the loader
+		loader.SetCurrentFile(absFile) // Set context for relative imports
+		mod, err := loader.Load(modPath)
+		if err != nil {
+			fmt.Printf("Error loading module %s: %v\n", modPath, err)
+			hasErrors = true
+			continue
+		}
+
+		// Check each file in the module
+		for _, filePath := range mod.Files {
+			if checked[filePath] {
+				continue
+			}
+			checked[filePath] = true
+			filesChecked++
+
+			// Read and check the file
+			fileData, err := os.ReadFile(filePath)
+			if err != nil {
+				fmt.Printf("Error reading %s: %v\n", filePath, err)
+				hasErrors = true
+				continue
+			}
+
+			fileSource := string(fileData)
+			fileLex := lexer.NewLexer(fileSource)
+			fileParser := parser.NewWithSource(fileLex, fileSource, filePath)
+			fileProgram := fileParser.ParseProgram()
+
+			// Check for lexer errors
+			if len(fileLex.Errors()) > 0 {
+				errList := errors.NewErrorList()
+				for _, lexErr := range fileLex.Errors() {
+					var code errors.ErrorCode
+					switch lexErr.Code {
+					case "E1005":
+						code = errors.E1005
+					default:
+						code = errors.ErrorCode{Code: lexErr.Code, Name: "lexer-error", Description: "Lexer error"}
+					}
+					sourceLine := errors.GetSourceLine(fileSource, lexErr.Line)
+					ezErr := errors.NewErrorWithSource(code, lexErr.Message, filePath, lexErr.Line, lexErr.Column, sourceLine)
+					errList.AddError(ezErr)
+				}
+				fmt.Print(errors.FormatErrorList(errList))
+				hasErrors = true
+				continue
+			}
+
+			// Check for parser errors
+			if fileParser.EZErrors().HasErrors() {
+				fmt.Print(errors.FormatErrorList(fileParser.EZErrors()))
+				hasErrors = true
+				continue
+			}
+
+			if fileParser.EZErrors().HasWarnings() {
+				fmt.Print(errors.FormatErrorList(fileParser.EZErrors()))
+			}
+
+			// Type check (skip main() requirement for module files)
+			fileTc := typechecker.NewTypeChecker(fileSource, filePath)
+			fileTc.SetSkipMainCheck(true) // Module files don't need main()
+			fileTc.CheckProgram(fileProgram)
+
+			if fileTc.Errors().HasErrors() {
+				fmt.Print(errors.FormatErrorList(fileTc.Errors()))
+				hasErrors = true
+				continue
+			}
+
+			if fileTc.Errors().HasWarnings() {
+				fmt.Print(errors.FormatErrorList(fileTc.Errors()))
+			}
+
+			// Collect more imports from this file
+			newImports := collectImports(fileProgram, absDir, filePath)
+			modulesToCheck = append(modulesToCheck, newImports...)
+		}
+	}
+
+	if hasErrors {
+		return
 	}
 
 	fmt.Printf("Check successful: %s\n", filename)
