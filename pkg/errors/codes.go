@@ -124,6 +124,8 @@ var (
 	E3027 = ErrorCode{"E3027", "const-to-mutable-param", "cannot pass immutable variable to mutable parameter"}
 	E3028 = ErrorCode{"E3028", "enum-mixed-types", "enum members must all have the same type"}
 	E3029 = ErrorCode{"E3029", "float-enum-map-key", "float-based enum cannot be used as map key"}
+	E3030 = ErrorCode{"E3030", "type-as-value", "type definition cannot be used as a runtime value"}
+	E3031 = ErrorCode{"E3031", "function-as-value", "function cannot be used as a value without calling it"}
 )
 
 // =============================================================================
