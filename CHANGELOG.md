@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.21.1](https://github.com/SchoolyB/EZ/compare/v0.21.0...v0.21.1) (2025-12-14)
+
+
+### Bug Fixes
+
+* December 14, 2025 bug fixes ([#544](https://github.com/SchoolyB/EZ/issues/544)) ([3169059](https://github.com/SchoolyB/EZ/commit/31690596cf470115b4c4269d1ac6d24519c15296))
+
 ## [0.21.0](https://github.com/SchoolyB/EZ/compare/v0.20.1...v0.21.0) (2025-12-12)
 
 
