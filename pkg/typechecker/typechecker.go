@@ -1324,15 +1324,19 @@ func (tc *TypeChecker) checkExpression(expr ast.Expression) {
 		tc.checkFunctionCall(e)
 		// Also check arguments
 		for _, arg := range e.Arguments {
+			tc.checkValueExpression(arg) // Catch type/function used as argument
 			tc.checkExpression(arg)
 		}
 
 	case *ast.InfixExpression:
+		tc.checkValueExpression(e.Left)  // Catch type/function in operator
+		tc.checkValueExpression(e.Right) // Catch type/function in operator
 		tc.checkInfixExpression(e)
 		tc.checkExpression(e.Left)
 		tc.checkExpression(e.Right)
 
 	case *ast.PrefixExpression:
+		tc.checkValueExpression(e.Right) // Catch type/function in operator
 		tc.checkPrefixExpression(e)
 		tc.checkExpression(e.Right)
 
@@ -1347,12 +1351,14 @@ func (tc *TypeChecker) checkExpression(expr ast.Expression) {
 
 	case *ast.ArrayValue:
 		for _, elem := range e.Elements {
+			tc.checkValueExpression(elem) // Catch type/function used as array element
 			tc.checkExpression(elem)
 		}
 
 	case *ast.MapValue:
 		for _, pair := range e.Pairs {
 			tc.checkExpression(pair.Key)
+			tc.checkValueExpression(pair.Value) // Catch type/function used as map value
 			tc.checkExpression(pair.Value)
 		}
 
@@ -1892,6 +1898,10 @@ func (tc *TypeChecker) isNumericString(s string) bool {
 
 // checkIfStatement validates an if statement
 func (tc *TypeChecker) checkIfStatement(ifStmt *ast.IfStatement, expectedReturnTypes []string) {
+	// Check for type/function used as condition
+	tc.checkValueExpression(ifStmt.Condition)
+	tc.checkExpression(ifStmt.Condition)
+
 	// Check that condition is boolean
 	condType, ok := tc.inferExpressionType(ifStmt.Condition)
 	if ok && condType != "bool" {
@@ -2336,6 +2346,57 @@ func (tc *TypeChecker) lookupVariable(name string) (string, bool) {
 		return typeName, true
 	}
 	return "", false
+}
+
+// checkValueExpression validates that an expression is not a type name or function
+// name being used as a value. Returns true if an error was reported.
+// This catches bugs like copy(StatusEnum) or copy(helperFunc).
+func (tc *TypeChecker) checkValueExpression(expr ast.Expression) bool {
+	label, isLabel := expr.(*ast.Label)
+	if !isLabel {
+		return false
+	}
+
+	// Check if this label refers to a type (enum or struct)
+	if t, isType := tc.types[label.Value]; isType {
+		// Only error for user-defined types (enum/struct), not primitives
+		if t.Kind == EnumType {
+			line, column := tc.getExpressionPosition(expr)
+			tc.addError(
+				errors.E3030,
+				fmt.Sprintf("enum type '%s' cannot be used as a value - use a specific enum member like %s.MEMBER",
+					label.Value, label.Value),
+				line,
+				column,
+			)
+			return true
+		} else if t.Kind == StructType {
+			line, column := tc.getExpressionPosition(expr)
+			tc.addError(
+				errors.E3030,
+				fmt.Sprintf("struct type '%s' cannot be used as a value - create an instance with %s { field: value }",
+					label.Value, label.Value),
+				line,
+				column,
+			)
+			return true
+		}
+	}
+
+	// Check if this label refers to a function (not being called)
+	if _, isFunc := tc.functions[label.Value]; isFunc {
+		line, column := tc.getExpressionPosition(expr)
+		tc.addError(
+			errors.E3031,
+			fmt.Sprintf("function '%s' cannot be used as a value - functions must be called with ()",
+				label.Value),
+			line,
+			column,
+		)
+		return true
+	}
+
+	return false
 }
 
 // inferExpressionType determines the type of an expression at build-time
