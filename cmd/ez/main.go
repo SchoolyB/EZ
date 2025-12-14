@@ -328,6 +328,11 @@ func checkFile(filename string) {
 		}
 	}
 
+	// Print module loader warnings
+	for _, warning := range loader.GetWarnings() {
+		fmt.Print(errors.FormatError(warning))
+	}
+
 	if hasErrors {
 		return
 	}
@@ -525,7 +530,7 @@ func checkProject(dir string) {
 
 	// Print module loader warnings
 	for _, warning := range loader.GetWarnings() {
-		fmt.Println(warning)
+		fmt.Print(errors.FormatError(warning))
 	}
 
 	if hasErrors {
@@ -687,7 +692,7 @@ func runFile(filename string) {
 	// Print any module loading warnings
 	if ctx := interpreter.GetEvalContext(); ctx != nil && ctx.Loader != nil {
 		for _, warning := range ctx.Loader.GetWarnings() {
-			fmt.Println(warning)
+			fmt.Print(errors.FormatError(warning))
 		}
 	}
 
