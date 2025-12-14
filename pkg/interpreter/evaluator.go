@@ -2979,6 +2979,10 @@ func evalMemberExpression(node *ast.MemberExpression, env *Environment) Object {
 			if nestedStruct, ok := val.(*Struct); ok {
 				nestedStruct.Mutable = structObj.Mutable
 			}
+			// Propagate mutability to nested arrays
+			if arr, ok := val.(*Array); ok {
+				arr.Mutable = structObj.Mutable
+			}
 			return val
 		}
 		return newErrorWithLocation("E4003", node.Token.Line, node.Token.Column,
