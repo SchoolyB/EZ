@@ -729,6 +729,13 @@ func evalProgram(program *ast.Program, env *Environment) Object {
 			continue
 		}
 
+		// Update current file context for accurate error reporting in multi-file modules
+		if globalEvalContext != nil {
+			if stmtFile := getStatementFile(stmt); stmtFile != "" {
+				globalEvalContext.CurrentFile = stmtFile
+			}
+		}
+
 		result = Eval(stmt, env)
 
 		switch result := result.(type) {
@@ -3057,6 +3064,52 @@ func getFunctionObject(call *ast.CallExpression, env *Environment) *Function {
 
 func newError(format string, a ...interface{}) *Error {
 	return &Error{Message: fmt.Sprintf(format, a...)}
+}
+
+// getStatementFile extracts the source file from a statement's token
+// This is used to track the current file during multi-file module evaluation
+func getStatementFile(stmt ast.Statement) string {
+	switch s := stmt.(type) {
+	case *ast.VariableDeclaration:
+		return s.Token.File
+	case *ast.FunctionDeclaration:
+		return s.Token.File
+	case *ast.StructDeclaration:
+		return s.Token.File
+	case *ast.EnumDeclaration:
+		return s.Token.File
+	case *ast.AssignmentStatement:
+		return s.Token.File
+	case *ast.ReturnStatement:
+		return s.Token.File
+	case *ast.ExpressionStatement:
+		return s.Token.File
+	case *ast.BlockStatement:
+		return s.Token.File
+	case *ast.IfStatement:
+		return s.Token.File
+	case *ast.WhenStatement:
+		return s.Token.File
+	case *ast.ForStatement:
+		return s.Token.File
+	case *ast.ForEachStatement:
+		return s.Token.File
+	case *ast.WhileStatement:
+		return s.Token.File
+	case *ast.LoopStatement:
+		return s.Token.File
+	case *ast.BreakStatement:
+		return s.Token.File
+	case *ast.ContinueStatement:
+		return s.Token.File
+	case *ast.ImportStatement:
+		return s.Token.File
+	case *ast.UsingStatement:
+		return s.Token.File
+	case *ast.ModuleDeclaration:
+		return s.Token.File
+	}
+	return ""
 }
 
 // newErrorWithLocation creates an error with line/column info
