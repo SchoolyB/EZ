@@ -827,6 +827,24 @@ func (tc *TypeChecker) checkStatement(stmt ast.Statement, expectedReturnTypes []
 				tc.currentScope.AddUsingModule(mod.Value)
 			}
 		}
+
+	case *ast.StructDeclaration:
+		// Structs cannot be declared inside functions - must be at file level
+		tc.addError(
+			errors.E2053,
+			fmt.Sprintf("struct '%s' cannot be declared inside a function; move it to file level", s.Name.Value),
+			s.Token.Line,
+			s.Token.Column,
+		)
+
+	case *ast.EnumDeclaration:
+		// Enums cannot be declared inside functions - must be at file level
+		tc.addError(
+			errors.E2053,
+			fmt.Sprintf("enum '%s' cannot be declared inside a function; move it to file level", s.Name.Value),
+			s.Token.Line,
+			s.Token.Column,
+		)
 	}
 }
 
