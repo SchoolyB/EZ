@@ -531,7 +531,14 @@ func (tc *TypeChecker) checkStructLiteral(structVal *ast.StructValue) {
 		// Get the expected type for this field
 		expectedType, fieldExists := structType.Fields[fieldName]
 		if !fieldExists {
-			// Field doesn't exist on struct - let other code handle this
+			// Field doesn't exist on struct - report error
+			line, column := tc.getExpressionPosition(fieldValue)
+			tc.addError(
+				errors.E4003,
+				fmt.Sprintf("struct '%s' has no field '%s'", structName, fieldName),
+				line,
+				column,
+			)
 			continue
 		}
 
@@ -548,6 +555,44 @@ func (tc *TypeChecker) checkStructLiteral(structVal *ast.StructValue) {
 				errors.E3001,
 				fmt.Sprintf("struct field '%s' expects %s, got %s",
 					fieldName, expectedType.Name, actualType),
+				line,
+				column,
+			)
+		}
+	}
+}
+
+// checkArrayLiteral validates array literal elements have consistent types
+func (tc *TypeChecker) checkArrayLiteral(arr *ast.ArrayValue) {
+	if len(arr.Elements) == 0 {
+		return // Empty array is OK
+	}
+
+	// Check each element for type/function used as value
+	for _, elem := range arr.Elements {
+		tc.checkValueExpression(elem)
+		tc.checkExpression(elem)
+	}
+
+	// Get the type of the first element
+	firstType, ok := tc.inferExpressionType(arr.Elements[0])
+	if !ok {
+		return // Can't determine type
+	}
+
+	// All other elements must have the same type
+	for i := 1; i < len(arr.Elements); i++ {
+		elemType, ok := tc.inferExpressionType(arr.Elements[i])
+		if !ok {
+			continue
+		}
+
+		if !tc.typesCompatible(firstType, elemType) {
+			line, column := tc.getExpressionPosition(arr.Elements[i])
+			tc.addError(
+				errors.E3001,
+				fmt.Sprintf("array element type mismatch: expected %s (from first element), got %s",
+					firstType, elemType),
 				line,
 				column,
 			)
@@ -1399,10 +1444,7 @@ func (tc *TypeChecker) checkExpression(expr ast.Expression) {
 		tc.checkMemberExpression(e)
 
 	case *ast.ArrayValue:
-		for _, elem := range e.Elements {
-			tc.checkValueExpression(elem) // Catch type/function used as array element
-			tc.checkExpression(elem)
-		}
+		tc.checkArrayLiteral(e)
 
 	case *ast.MapValue:
 		for _, pair := range e.Pairs {
