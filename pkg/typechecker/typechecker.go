@@ -2969,8 +2969,10 @@ func (tc *TypeChecker) inferStringsCallType(funcName string, args []ast.Expressi
 	case "upper", "lower", "trim", "trim_left", "trim_right", "reverse",
 		"replace", "substring", "repeat", "pad_left", "pad_right", "join":
 		return "string", true
-	case "split", "chars":
+	case "split":
 		return "[string]", true
+	case "chars":
+		return "[char]", true
 	default:
 		return "", false
 	}
