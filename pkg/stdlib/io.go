@@ -425,13 +425,33 @@ var IOBuiltins = map[string]*object.Builtin{
 				perms = os.FileMode(permVal.Value.Int64())
 			}
 
+			// Check if file exists and doesn't end with newline
+			needsLeadingNewline := false
+			if info, statErr := os.Stat(path.Value); statErr == nil && info.Size() > 0 {
+				// File exists and has content, check if it ends with newline
+				rf, readErr := os.Open(path.Value)
+				if readErr == nil {
+					// Seek to last byte
+					_, _ = rf.Seek(-1, 2) // 2 = io.SeekEnd
+					lastByte := make([]byte, 1)
+					if n, _ := rf.Read(lastByte); n == 1 && lastByte[0] != '\n' {
+						needsLeadingNewline = true
+					}
+					_ = rf.Close()
+				}
+			}
+
 			f, err := os.OpenFile(path.Value, os.O_APPEND|os.O_CREATE|os.O_WRONLY, perms)
 			if err != nil {
 				return createIOErrorResult(err, "open for append")
 			}
 
-			// Write line with newline
-			_, err = f.WriteString(line.Value + "\n")
+			// Write line with newline, prepending newline if file didn't end with one
+			content := line.Value + "\n"
+			if needsLeadingNewline {
+				content = "\n" + content
+			}
+			_, err = f.WriteString(content)
 			if err != nil {
 				_ = f.Close()
 				return createIOErrorResult(err, "append line")
