@@ -1249,6 +1249,12 @@ func evalWhenStatement(node *ast.WhenStatement, env *Environment) Object {
 		return matchValue
 	}
 
+	// Unwrap EnumValue to get the underlying value for comparisons
+	// This allows matching enum values against integers and ranges
+	if ev, ok := matchValue.(*EnumValue); ok {
+		matchValue = ev.Value
+	}
+
 	// Try each case
 	for _, whenCase := range node.Cases {
 		matched := false
@@ -1278,6 +1284,11 @@ func evalWhenStatement(node *ast.WhenStatement, env *Environment) Object {
 			evalCaseValue := Eval(caseValue, env)
 			if isError(evalCaseValue) {
 				return evalCaseValue
+			}
+
+			// Unwrap EnumValue case values for comparison
+			if ev, ok := evalCaseValue.(*EnumValue); ok {
+				evalCaseValue = ev.Value
 			}
 
 			// Compare for equality

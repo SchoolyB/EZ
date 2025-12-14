@@ -1969,13 +1969,16 @@ func (tc *TypeChecker) checkWhenStatement(whenStmt *ast.WhenStatement, expectedR
 			if ok && caseType != valueType && caseType != "unknown" && valueType != "unknown" {
 				// Allow enum type matching
 				if !strings.HasPrefix(caseType, valueType) && !strings.HasSuffix(caseType, "."+valueType) {
-					line, col := tc.getExpressionPosition(caseValue)
-					tc.addError(
-						errors.E3001,
-						fmt.Sprintf("case value type %s does not match when value type %s", caseType, valueType),
-						line,
-						col,
-					)
+					// Allow int case values when matching against enum types (enums have int underlying values)
+					if !(isEnumType && caseType == "int") {
+						line, col := tc.getExpressionPosition(caseValue)
+						tc.addError(
+							errors.E3001,
+							fmt.Sprintf("case value type %s does not match when value type %s", caseType, valueType),
+							line,
+							col,
+						)
+					}
 				}
 			}
 		}
