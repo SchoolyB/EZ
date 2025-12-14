@@ -149,12 +149,14 @@ type Parameter struct {
 
 // TypeChecker validates types in an EZ program
 type TypeChecker struct {
-	types            map[string]*Type              // All known types
-	functions        map[string]*FunctionSignature // All function signatures
-	variables        map[string]string             // Variable name -> type name (global scope)
-	modules          map[string]bool               // Imported module names
-	fileUsingModules map[string]bool               // File-level using modules
-	currentScope     *Scope                        // Current scope for local variable tracking
+	types            map[string]*Type                         // All known types
+	functions        map[string]*FunctionSignature            // All function signatures
+	variables        map[string]string                        // Variable name -> type name (global scope)
+	modules          map[string]bool                          // Imported module names
+	fileUsingModules map[string]bool                          // File-level using modules
+	moduleFunctions  map[string]map[string]*FunctionSignature // Module name -> function name -> signature
+	moduleTypes      map[string]map[string]*Type              // Module name -> type name -> type
+	currentScope     *Scope                                   // Current scope for local variable tracking
 	errors           *errors.EZErrorList
 	source           string
 	filename         string
@@ -169,6 +171,8 @@ func NewTypeChecker(source, filename string) *TypeChecker {
 		variables:        make(map[string]string),
 		modules:          make(map[string]bool),
 		fileUsingModules: make(map[string]bool),
+		moduleFunctions:  make(map[string]map[string]*FunctionSignature),
+		moduleTypes:      make(map[string]map[string]*Type),
 		errors:           errors.NewErrorList(),
 		source:           source,
 		filename:         filename,
@@ -184,6 +188,41 @@ func NewTypeChecker(source, filename string) *TypeChecker {
 // Use this for module files that don't need a main() function
 func (tc *TypeChecker) SetSkipMainCheck(skip bool) {
 	tc.skipMainCheck = skip
+}
+
+// RegisterModuleFunction registers a function signature from an imported module
+func (tc *TypeChecker) RegisterModuleFunction(moduleName, funcName string, sig *FunctionSignature) {
+	if tc.moduleFunctions[moduleName] == nil {
+		tc.moduleFunctions[moduleName] = make(map[string]*FunctionSignature)
+	}
+	tc.moduleFunctions[moduleName][funcName] = sig
+}
+
+// RegisterModuleType registers a type from an imported module
+func (tc *TypeChecker) RegisterModuleType(moduleName, typeName string, t *Type) {
+	if tc.moduleTypes[moduleName] == nil {
+		tc.moduleTypes[moduleName] = make(map[string]*Type)
+	}
+	tc.moduleTypes[moduleName][typeName] = t
+}
+
+// GetModuleFunction retrieves a function signature from a module
+func (tc *TypeChecker) GetModuleFunction(moduleName, funcName string) (*FunctionSignature, bool) {
+	if funcs, ok := tc.moduleFunctions[moduleName]; ok {
+		sig, exists := funcs[funcName]
+		return sig, exists
+	}
+	return nil, false
+}
+
+// GetFunctions returns the functions map (for extracting signatures from module typechecker)
+func (tc *TypeChecker) GetFunctions() map[string]*FunctionSignature {
+	return tc.functions
+}
+
+// GetTypes returns the types map (for extracting types from module typechecker)
+func (tc *TypeChecker) GetTypes() map[string]*Type {
+	return tc.types
 }
 
 // registerBuiltinTypes adds all built-in types to the registry
@@ -3085,6 +3124,83 @@ func (tc *TypeChecker) checkStdlibCall(member *ast.MemberExpression, call *ast.C
 		tc.checkTimeModuleCall(funcName, call, line, column)
 	case "maps":
 		tc.checkMapsModuleCall(funcName, call, line, column)
+	default:
+		// User-defined module - check if we have type info for it
+		tc.checkUserModuleCall(moduleName, funcName, call, line, column)
+	}
+}
+
+// checkUserModuleCall validates a user-defined module function call
+func (tc *TypeChecker) checkUserModuleCall(moduleName, funcName string, call *ast.CallExpression, line, column int) {
+	// Look up function signature in registered module functions
+	sig, ok := tc.GetModuleFunction(moduleName, funcName)
+	if !ok {
+		// Function not found in module registry - might not have been registered yet
+		// This is expected if the module wasn't pre-processed
+		return
+	}
+
+	// Calculate minimum required arguments (parameters without defaults)
+	minRequired := 0
+	for _, param := range sig.Parameters {
+		if !param.HasDefault {
+			minRequired++
+		}
+	}
+
+	// Check argument count
+	if len(call.Arguments) < minRequired || len(call.Arguments) > len(sig.Parameters) {
+		var msg string
+		if minRequired == len(sig.Parameters) {
+			msg = fmt.Sprintf("wrong number of arguments to '%s.%s': expected %d, got %d",
+				moduleName, funcName, len(sig.Parameters), len(call.Arguments))
+		} else {
+			msg = fmt.Sprintf("wrong number of arguments to '%s.%s': expected %d to %d, got %d",
+				moduleName, funcName, minRequired, len(sig.Parameters), len(call.Arguments))
+		}
+		tc.addError(errors.E5008, msg, line, column)
+		return
+	}
+
+	// Check argument types
+	for i, arg := range call.Arguments {
+		if i >= len(sig.Parameters) {
+			break
+		}
+
+		actualType, ok := tc.inferExpressionType(arg)
+		if !ok {
+			continue
+		}
+
+		expectedType := sig.Parameters[i].Type
+		if !tc.typesCompatible(expectedType, actualType) {
+			argLine, argColumn := tc.getExpressionPosition(arg)
+			tc.addError(
+				errors.E3001,
+				fmt.Sprintf("argument type mismatch in call to '%s.%s': parameter '%s' expects %s, got %s",
+					moduleName, funcName, sig.Parameters[i].Name, expectedType, actualType),
+				argLine,
+				argColumn,
+			)
+		}
+
+		// Check for const -> & param error
+		if sig.Parameters[i].Mutable {
+			if label, isLabel := arg.(*ast.Label); isLabel {
+				isMutable, found := tc.isVariableMutable(label.Value)
+				if found && !isMutable {
+					argLine, argColumn := tc.getExpressionPosition(arg)
+					tc.addError(
+						errors.E3027,
+						fmt.Sprintf("cannot pass immutable variable '%s' to mutable parameter '&%s' in call to '%s.%s'",
+							label.Value, sig.Parameters[i].Name, moduleName, funcName),
+						argLine,
+						argColumn,
+					)
+				}
+			}
+		}
 	}
 }
 
