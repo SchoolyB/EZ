@@ -143,6 +143,8 @@ var (
 	E4009 = ErrorCode{"E4009", "no-main-function", "program has no entry point"}
 	E4010 = ErrorCode{"E4010", "nil-member-access", "cannot access member of nil"}
 	E4011 = ErrorCode{"E4011", "member-access-invalid-type", "type does not support member access"}
+	E4012 = ErrorCode{"E4012", "shadows-type", "variable shadows a type definition"}
+	E4013 = ErrorCode{"E4013", "shadows-function", "variable shadows a function"}
 )
 
 // =============================================================================
@@ -330,6 +332,7 @@ var (
 	W2004 = ErrorCode{"W2004", "implicit-type-conversion", "implicit type conversion occurring"}
 	W2005 = ErrorCode{"W2005", "deprecated-feature", "using deprecated feature"}
 	W2006 = ErrorCode{"W2006", "byte-overflow-potential", "byte arithmetic may overflow"}
+	W2007 = ErrorCode{"W2007", "shadows-global", "variable shadows global variable or constant"}
 
 	// Code Quality Warnings (W3xxx)
 	W3001 = ErrorCode{"W3001", "empty-block", "block statement is empty"}
