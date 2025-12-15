@@ -1,0 +1,13 @@
+/*
+ * Error Test: E3001 - multi-return-type-mismatch
+ * Expected: "type mismatch" or "multi-return"
+ */
+
+do get_pair() -> (int, string) {
+    return 42, "hello"
+}
+
+do main() {
+    // Types reversed - should fail
+    temp x string, y int = get_pair()
+}
