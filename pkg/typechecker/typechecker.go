@@ -2482,6 +2482,22 @@ func (tc *TypeChecker) extractMapKeyType(mapType string) string {
 	return inner[:colonIdx]
 }
 
+// extractMapValueType extracts the value type from a map type string
+// For "map[string:int]" returns "int"
+func (tc *TypeChecker) extractMapValueType(mapType string) string {
+	if !tc.isMapType(mapType) {
+		return ""
+	}
+	// Extract "string:int" from "map[string:int]"
+	inner := mapType[4 : len(mapType)-1]
+	// Find the colon separator
+	colonIdx := strings.Index(inner, ":")
+	if colonIdx == -1 {
+		return ""
+	}
+	return inner[colonIdx+1:]
+}
+
 // isNullableType checks if a type can accept nil values
 // Only user-defined struct types can be nil in EZ
 // Arrays, maps, and primitives cannot be nil
@@ -3905,6 +3921,134 @@ func (tc *TypeChecker) checkMapsModuleCall(funcName string, call *ast.CallExpres
 	}
 
 	tc.validateStdlibCall("maps", funcName, call, sig, line, column)
+
+	// Additional key/value type validation (#593)
+	tc.checkMapKeyValueTypeCompatibility(funcName, call, line, column)
+}
+
+// checkMapKeyValueTypeCompatibility validates that keys and values passed to map functions
+// have types compatible with the map's declared key/value types
+func (tc *TypeChecker) checkMapKeyValueTypeCompatibility(funcName string, call *ast.CallExpression, line, column int) {
+	if len(call.Arguments) < 1 {
+		return
+	}
+
+	// Get the map type from the first argument
+	mapType, ok := tc.inferExpressionType(call.Arguments[0])
+	if !ok || !tc.isMapType(mapType) {
+		return
+	}
+
+	keyType := tc.extractMapKeyType(mapType)
+	valueType := tc.extractMapValueType(mapType)
+
+	switch funcName {
+	case "has", "has_key", "delete", "remove":
+		// Second arg is key
+		if len(call.Arguments) < 2 {
+			return
+		}
+		argType, ok := tc.inferExpressionType(call.Arguments[1])
+		if !ok {
+			return
+		}
+		if !tc.typesCompatible(keyType, argType) {
+			argLine, argCol := tc.getExpressionPosition(call.Arguments[1])
+			tc.addError(errors.E3001,
+				fmt.Sprintf("maps.%s: key type mismatch - map has key type %s, but got %s",
+					funcName, keyType, argType),
+				argLine, argCol)
+		}
+
+	case "has_value":
+		// Second arg is value
+		if len(call.Arguments) < 2 {
+			return
+		}
+		argType, ok := tc.inferExpressionType(call.Arguments[1])
+		if !ok {
+			return
+		}
+		if !tc.typesCompatible(valueType, argType) {
+			argLine, argCol := tc.getExpressionPosition(call.Arguments[1])
+			tc.addError(errors.E3001,
+				fmt.Sprintf("maps.%s: value type mismatch - map has value type %s, but got %s",
+					funcName, valueType, argType),
+				argLine, argCol)
+		}
+
+	case "get":
+		// Second arg is key, optional third arg is default value
+		if len(call.Arguments) < 2 {
+			return
+		}
+		keyArgType, ok := tc.inferExpressionType(call.Arguments[1])
+		if ok && !tc.typesCompatible(keyType, keyArgType) {
+			argLine, argCol := tc.getExpressionPosition(call.Arguments[1])
+			tc.addError(errors.E3001,
+				fmt.Sprintf("maps.%s: key type mismatch - map has key type %s, but got %s",
+					funcName, keyType, keyArgType),
+				argLine, argCol)
+		}
+		// Check default value type if provided
+		if len(call.Arguments) >= 3 {
+			defaultArgType, ok := tc.inferExpressionType(call.Arguments[2])
+			if ok && !tc.typesCompatible(valueType, defaultArgType) {
+				argLine, argCol := tc.getExpressionPosition(call.Arguments[2])
+				tc.addError(errors.E3001,
+					fmt.Sprintf("maps.%s: default value type mismatch - map has value type %s, but got %s",
+						funcName, valueType, defaultArgType),
+					argLine, argCol)
+			}
+		}
+
+	case "set", "get_or_set":
+		// Second arg is key, third arg is value
+		if len(call.Arguments) < 3 {
+			return
+		}
+		keyArgType, ok := tc.inferExpressionType(call.Arguments[1])
+		if ok && !tc.typesCompatible(keyType, keyArgType) {
+			argLine, argCol := tc.getExpressionPosition(call.Arguments[1])
+			tc.addError(errors.E3001,
+				fmt.Sprintf("maps.%s: key type mismatch - map has key type %s, but got %s",
+					funcName, keyType, keyArgType),
+				argLine, argCol)
+		}
+		valueArgType, ok := tc.inferExpressionType(call.Arguments[2])
+		if ok && !tc.typesCompatible(valueType, valueArgType) {
+			argLine, argCol := tc.getExpressionPosition(call.Arguments[2])
+			tc.addError(errors.E3001,
+				fmt.Sprintf("maps.%s: value type mismatch - map has value type %s, but got %s",
+					funcName, valueType, valueArgType),
+				argLine, argCol)
+		}
+
+	case "merge", "update", "equals":
+		// All args are maps - check they have compatible key/value types
+		for i := 1; i < len(call.Arguments); i++ {
+			argType, ok := tc.inferExpressionType(call.Arguments[i])
+			if !ok || !tc.isMapType(argType) {
+				continue
+			}
+			argKeyType := tc.extractMapKeyType(argType)
+			argValueType := tc.extractMapValueType(argType)
+			if !tc.typesCompatible(keyType, argKeyType) {
+				argLine, argCol := tc.getExpressionPosition(call.Arguments[i])
+				tc.addError(errors.E3001,
+					fmt.Sprintf("maps.%s: incompatible map key types - first map has %s, but argument %d has %s",
+						funcName, keyType, i+1, argKeyType),
+					argLine, argCol)
+			}
+			if !tc.typesCompatible(valueType, argValueType) {
+				argLine, argCol := tc.getExpressionPosition(call.Arguments[i])
+				tc.addError(errors.E3001,
+					fmt.Sprintf("maps.%s: incompatible map value types - first map has %s, but argument %d has %s",
+						funcName, valueType, i+1, argValueType),
+					argLine, argCol)
+			}
+		}
+	}
 }
 
 // checkStringsModuleCall validates strings module function calls
