@@ -1,0 +1,13 @@
+/*
+ * Error Test: E3001 - range-type-mismatch
+ * Expected: "range()" and "integer"
+ */
+
+import @std
+using std
+
+do main() {
+    for i in range("a", "z") {  // Should fail: strings to range()
+        println(i)
+    }
+}
