@@ -1,0 +1,12 @@
+/*
+ * Error Test: E3015 - call-non-function
+ * Expected: "cannot call" or "non-function"
+ */
+
+import @std
+using std
+
+do main() {
+    temp x int = 5
+    temp y = x()  // Should fail: calling non-function
+}

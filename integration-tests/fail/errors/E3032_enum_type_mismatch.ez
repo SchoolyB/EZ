@@ -1,0 +1,12 @@
+import @std
+using std
+
+const Status enum { ACTIVE, INACTIVE }
+const Other enum { A, B }
+
+do main() {
+    // Bug #576: Different enum types should not compare equal
+    if Status.ACTIVE == Other.A {
+        println("Different enum members are equal")
+    }
+}

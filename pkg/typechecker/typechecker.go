@@ -130,6 +130,7 @@ type Type struct {
 	Fields       map[string]*Type // For structs
 	Size         int              // For fixed-size arrays, -1 for dynamic
 	EnumBaseType string           // For enums: "int", "string", or "float"
+	EnumMembers  map[string]bool  // For enums: set of valid member names (#607)
 }
 
 // FunctionSignature represents a function's type signature
@@ -149,16 +150,19 @@ type Parameter struct {
 
 // TypeChecker validates types in an EZ program
 type TypeChecker struct {
-	types            map[string]*Type              // All known types
-	functions        map[string]*FunctionSignature // All function signatures
-	variables        map[string]string             // Variable name -> type name (global scope)
-	modules          map[string]bool               // Imported module names
-	fileUsingModules map[string]bool               // File-level using modules
-	currentScope     *Scope                        // Current scope for local variable tracking
+	types            map[string]*Type                         // All known types
+	functions        map[string]*FunctionSignature            // All function signatures
+	variables        map[string]string                        // Variable name -> type name (global scope)
+	modules          map[string]bool                          // Imported module names
+	fileUsingModules map[string]bool                          // File-level using modules
+	moduleFunctions  map[string]map[string]*FunctionSignature // Module name -> function name -> signature
+	moduleTypes      map[string]map[string]*Type              // Module name -> type name -> type
+	currentScope     *Scope                                   // Current scope for local variable tracking
 	errors           *errors.EZErrorList
 	source           string
 	filename         string
 	skipMainCheck    bool // Skip main() function requirement (for module files)
+	loopDepth        int  // Track nesting depth of loops for break/continue validation (#603)
 }
 
 // NewTypeChecker creates a new type checker
@@ -169,6 +173,8 @@ func NewTypeChecker(source, filename string) *TypeChecker {
 		variables:        make(map[string]string),
 		modules:          make(map[string]bool),
 		fileUsingModules: make(map[string]bool),
+		moduleFunctions:  make(map[string]map[string]*FunctionSignature),
+		moduleTypes:      make(map[string]map[string]*Type),
 		errors:           errors.NewErrorList(),
 		source:           source,
 		filename:         filename,
@@ -184,6 +190,41 @@ func NewTypeChecker(source, filename string) *TypeChecker {
 // Use this for module files that don't need a main() function
 func (tc *TypeChecker) SetSkipMainCheck(skip bool) {
 	tc.skipMainCheck = skip
+}
+
+// RegisterModuleFunction registers a function signature from an imported module
+func (tc *TypeChecker) RegisterModuleFunction(moduleName, funcName string, sig *FunctionSignature) {
+	if tc.moduleFunctions[moduleName] == nil {
+		tc.moduleFunctions[moduleName] = make(map[string]*FunctionSignature)
+	}
+	tc.moduleFunctions[moduleName][funcName] = sig
+}
+
+// RegisterModuleType registers a type from an imported module
+func (tc *TypeChecker) RegisterModuleType(moduleName, typeName string, t *Type) {
+	if tc.moduleTypes[moduleName] == nil {
+		tc.moduleTypes[moduleName] = make(map[string]*Type)
+	}
+	tc.moduleTypes[moduleName][typeName] = t
+}
+
+// GetModuleFunction retrieves a function signature from a module
+func (tc *TypeChecker) GetModuleFunction(moduleName, funcName string) (*FunctionSignature, bool) {
+	if funcs, ok := tc.moduleFunctions[moduleName]; ok {
+		sig, exists := funcs[funcName]
+		return sig, exists
+	}
+	return nil, false
+}
+
+// GetFunctions returns the functions map (for extracting signatures from module typechecker)
+func (tc *TypeChecker) GetFunctions() map[string]*FunctionSignature {
+	return tc.functions
+}
+
+// GetTypes returns the types map (for extracting types from module typechecker)
+func (tc *TypeChecker) GetTypes() map[string]*Type {
+	return tc.types
 }
 
 // registerBuiltinTypes adds all built-in types to the registry
@@ -427,12 +468,30 @@ func (tc *TypeChecker) registerEnumType(node *ast.EnumDeclaration) {
 	baseType := "int"
 	if node.Attributes != nil && node.Attributes.TypeName != "" {
 		baseType = node.Attributes.TypeName
+	} else {
+		// Infer base type from first value if no explicit attribute
+		for _, member := range node.Values {
+			if member.Value != nil {
+				baseType = tc.getEnumValueType(member.Value)
+				if baseType == "" {
+					baseType = "int" // fallback
+				}
+				break
+			}
+		}
+	}
+
+	// Collect enum member names (#607)
+	enumMembers := make(map[string]bool)
+	for _, member := range node.Values {
+		enumMembers[member.Name.Value] = true
 	}
 
 	enumType := &Type{
 		Name:         node.Name.Value,
 		Kind:         EnumType,
 		EnumBaseType: baseType,
+		EnumMembers:  enumMembers,
 	}
 	tc.RegisterType(node.Name.Value, enumType)
 }
@@ -470,6 +529,97 @@ func (tc *TypeChecker) checkStructDeclaration(node *ast.StructDeclaration) {
 	}
 }
 
+// checkStructLiteral validates a struct literal's field values against the type definition
+func (tc *TypeChecker) checkStructLiteral(structVal *ast.StructValue) {
+	if structVal.Name == nil {
+		return
+	}
+
+	structName := structVal.Name.Value
+	structType, exists := tc.types[structName]
+	if !exists || structType.Kind != StructType {
+		// Struct type doesn't exist - will be caught elsewhere
+		return
+	}
+
+	// Check each field in the literal
+	for fieldName, fieldValue := range structVal.Fields {
+		// Check for type/function used as field value
+		tc.checkValueExpression(fieldValue)
+		tc.checkExpression(fieldValue)
+
+		// Get the expected type for this field
+		expectedType, fieldExists := structType.Fields[fieldName]
+		if !fieldExists {
+			// Field doesn't exist on struct - report error
+			line, column := tc.getExpressionPosition(fieldValue)
+			tc.addError(
+				errors.E4003,
+				fmt.Sprintf("struct '%s' has no field '%s'", structName, fieldName),
+				line,
+				column,
+			)
+			continue
+		}
+
+		// Infer the actual type of the field value
+		actualType, ok := tc.inferExpressionType(fieldValue)
+		if !ok {
+			continue
+		}
+
+		// Check type compatibility
+		if !tc.typesCompatible(expectedType.Name, actualType) {
+			line, column := tc.getExpressionPosition(fieldValue)
+			tc.addError(
+				errors.E3001,
+				fmt.Sprintf("struct field '%s' expects %s, got %s",
+					fieldName, expectedType.Name, actualType),
+				line,
+				column,
+			)
+		}
+	}
+}
+
+// checkArrayLiteral validates array literal elements have consistent types
+func (tc *TypeChecker) checkArrayLiteral(arr *ast.ArrayValue) {
+	if len(arr.Elements) == 0 {
+		return // Empty array is OK
+	}
+
+	// Check each element for type/function used as value
+	for _, elem := range arr.Elements {
+		tc.checkValueExpression(elem)
+		tc.checkExpression(elem)
+	}
+
+	// Get the type of the first element
+	firstType, ok := tc.inferExpressionType(arr.Elements[0])
+	if !ok {
+		return // Can't determine type
+	}
+
+	// All other elements must have the same type
+	for i := 1; i < len(arr.Elements); i++ {
+		elemType, ok := tc.inferExpressionType(arr.Elements[i])
+		if !ok {
+			continue
+		}
+
+		if !tc.typesCompatible(firstType, elemType) {
+			line, column := tc.getExpressionPosition(arr.Elements[i])
+			tc.addError(
+				errors.E3001,
+				fmt.Sprintf("array element type mismatch: expected %s (from first element), got %s",
+					firstType, elemType),
+				line,
+				column,
+			)
+		}
+	}
+}
+
 // checkEnumDeclaration validates an enum declaration
 func (tc *TypeChecker) checkEnumDeclaration(node *ast.EnumDeclaration) {
 	// All enum members must have the same type
@@ -477,6 +627,9 @@ func (tc *TypeChecker) checkEnumDeclaration(node *ast.EnumDeclaration) {
 
 	var firstType string
 	var firstMemberName string
+
+	// Track seen values to detect duplicates (#577)
+	seenValues := make(map[string]string) // value string -> member name
 
 	for _, member := range node.Values {
 		if member.Value == nil {
@@ -517,6 +670,20 @@ func (tc *TypeChecker) checkEnumDeclaration(node *ast.EnumDeclaration) {
 				member.Name.Token.Column,
 			)
 		}
+
+		// Check for duplicate values (#577)
+		valueStr := tc.getEnumValueString(member.Value)
+		if existingMember, exists := seenValues[valueStr]; exists {
+			tc.addError(
+				errors.E3033,
+				fmt.Sprintf("enum '%s' has duplicate value: '%s' and '%s' both have value %s",
+					node.Name.Value, existingMember, member.Name.Value, valueStr),
+				member.Name.Token.Line,
+				member.Name.Token.Column,
+			)
+		} else {
+			seenValues[valueStr] = member.Name.Value
+		}
 	}
 }
 
@@ -540,6 +707,24 @@ func (tc *TypeChecker) getEnumValueType(expr ast.Expression) string {
 	}
 }
 
+// getEnumValueString returns a string representation of an enum value for duplicate detection
+func (tc *TypeChecker) getEnumValueString(expr ast.Expression) string {
+	switch e := expr.(type) {
+	case *ast.IntegerValue:
+		return fmt.Sprintf("%d", e.Value)
+	case *ast.FloatValue:
+		return fmt.Sprintf("%v", e.Value)
+	case *ast.StringValue:
+		return fmt.Sprintf("\"%s\"", e.Value)
+	case *ast.BooleanValue:
+		return fmt.Sprintf("%v", e.Value)
+	case *ast.CharValue:
+		return fmt.Sprintf("'%c'", e.Value)
+	default:
+		return ""
+	}
+}
+
 // checkGlobalVariableDeclaration validates a global variable declaration
 func (tc *TypeChecker) checkGlobalVariableDeclaration(node *ast.VariableDeclaration) {
 	// Check each variable in the declaration
@@ -551,13 +736,18 @@ func (tc *TypeChecker) checkGlobalVariableDeclaration(node *ast.VariableDeclarat
 		if node.TypeName != "" {
 			typeName = node.TypeName
 		} else if node.Value != nil {
-			// Type inference from value (for multi-return assignments)
-			// For now, we'll handle this in the function body checking
+			// Type inference from value
+			if inferredType, ok := tc.inferExpressionType(node.Value); ok {
+				typeName = inferredType
+			} else {
+				continue
+			}
+		} else {
 			continue
 		}
 
-		// Check if type exists
-		if !tc.TypeExists(typeName) {
+		// Check if type exists (skip for inferred types that might be complex)
+		if typeName != "" && !tc.TypeExists(typeName) && !strings.HasPrefix(typeName, "[") && !strings.HasPrefix(typeName, "map[") {
 			tc.addError(
 				errors.E3002,
 				fmt.Sprintf("undefined type '%s'", typeName),
@@ -618,6 +808,22 @@ func (tc *TypeChecker) checkFunctionDeclaration(node *ast.FunctionDeclaration) {
 				param.Name.Token.Column,
 			)
 		}
+
+		// Check default value type matches parameter type (#582)
+		if param.DefaultValue != nil {
+			defaultType, ok := tc.inferExpressionType(param.DefaultValue)
+			if ok && !tc.typesCompatible(param.TypeName, defaultType) {
+				line, col := tc.getExpressionPosition(param.DefaultValue)
+				tc.addError(
+					errors.E3001,
+					fmt.Sprintf("default value type mismatch: parameter '%s' expects %s, got %s",
+						param.Name.Value, param.TypeName, defaultType),
+					line,
+					col,
+				)
+			}
+		}
+
 		sig.Parameters = append(sig.Parameters, &Parameter{
 			Name:       param.Name.Value,
 			Type:       param.TypeName,
@@ -827,6 +1033,46 @@ func (tc *TypeChecker) checkStatement(stmt ast.Statement, expectedReturnTypes []
 				tc.currentScope.AddUsingModule(mod.Value)
 			}
 		}
+
+	case *ast.BreakStatement:
+		// Check that break is inside a loop (#603)
+		if tc.loopDepth == 0 {
+			tc.addError(
+				errors.E5009,
+				"break statement outside loop",
+				s.Token.Line,
+				s.Token.Column,
+			)
+		}
+
+	case *ast.ContinueStatement:
+		// Check that continue is inside a loop (#603)
+		if tc.loopDepth == 0 {
+			tc.addError(
+				errors.E5009,
+				"continue statement outside loop",
+				s.Token.Line,
+				s.Token.Column,
+			)
+		}
+
+	case *ast.StructDeclaration:
+		// Structs cannot be declared inside functions - must be at file level
+		tc.addError(
+			errors.E2053,
+			fmt.Sprintf("struct '%s' cannot be declared inside a function; move it to file level", s.Name.Value),
+			s.Token.Line,
+			s.Token.Column,
+		)
+
+	case *ast.EnumDeclaration:
+		// Enums cannot be declared inside functions - must be at file level
+		tc.addError(
+			errors.E2053,
+			fmt.Sprintf("enum '%s' cannot be declared inside a function; move it to file level", s.Name.Value),
+			s.Token.Line,
+			s.Token.Column,
+		)
 	}
 }
 
@@ -834,9 +1080,7 @@ func (tc *TypeChecker) checkStatement(stmt ast.Statement, expectedReturnTypes []
 func (tc *TypeChecker) checkVariableDeclaration(decl *ast.VariableDeclaration) {
 	// Handle multiple names (for multi-return assignment)
 	if len(decl.Names) > 1 {
-		// Multi-return assignment like: temp result, err = divide(10, 2)
-		// For now, we can't easily infer types for multi-return
-		// The runtime will handle this
+		tc.checkMultiReturnDeclaration(decl)
 		return
 	}
 
@@ -847,6 +1091,52 @@ func (tc *TypeChecker) checkVariableDeclaration(decl *ast.VariableDeclaration) {
 
 	varName := decl.Name.Value
 	declaredType := decl.TypeName
+
+	// Check if variable name shadows a type (enum/struct) - #571
+	if t, exists := tc.types[varName]; exists && (t.Kind == EnumType || t.Kind == StructType) {
+		kind := "enum"
+		if t.Kind == StructType {
+			kind = "struct"
+		}
+		tc.addError(
+			errors.E4012,
+			fmt.Sprintf("variable '%s' shadows %s type of the same name", varName, kind),
+			decl.Name.Token.Line,
+			decl.Name.Token.Column,
+		)
+	}
+
+	// Check if variable name shadows a function - #572
+	if _, exists := tc.functions[varName]; exists {
+		tc.addError(
+			errors.E4013,
+			fmt.Sprintf("variable '%s' shadows function of the same name", varName),
+			decl.Name.Token.Line,
+			decl.Name.Token.Column,
+		)
+	}
+
+	// Check if variable name shadows a global constant - #573
+	if _, exists := tc.variables[varName]; exists && tc.currentScope != nil {
+		// Only check if we're in a local scope (not global)
+		// This catches local variables shadowing global constants
+		tc.addWarning(
+			errors.W2007,
+			fmt.Sprintf("variable '%s' shadows global variable/constant of the same name", varName),
+			decl.Name.Token.Line,
+			decl.Name.Token.Column,
+		)
+	}
+
+	// Check if variable name shadows an imported module - #579
+	if _, exists := tc.modules[varName]; exists {
+		tc.addError(
+			errors.E4014,
+			fmt.Sprintf("variable '%s' shadows imported module of the same name", varName),
+			decl.Name.Token.Line,
+			decl.Name.Token.Column,
+		)
+	}
 
 	// Check if declared type exists
 	if declaredType != "" && !tc.TypeExists(declaredType) {
@@ -877,6 +1167,9 @@ func (tc *TypeChecker) checkVariableDeclaration(decl *ast.VariableDeclaration) {
 
 	// If there's an initial value, check type compatibility
 	if decl.Value != nil {
+		// Check for type/function used as value
+		tc.checkValueExpression(decl.Value)
+
 		// Validate the expression itself
 		tc.checkExpression(decl.Value)
 
@@ -1001,6 +1294,84 @@ func (tc *TypeChecker) checkVariableDeclaration(decl *ast.VariableDeclaration) {
 	// Register variable in current scope with mutability (temp = mutable, const = immutable)
 	if declaredType != "" {
 		tc.defineVariableWithMutability(varName, declaredType, decl.Mutable)
+	}
+}
+
+// checkMultiReturnDeclaration validates multi-return variable declarations
+// e.g., temp x int, y string = getValues()
+func (tc *TypeChecker) checkMultiReturnDeclaration(decl *ast.VariableDeclaration) {
+	// Check for type/function used as value
+	if decl.Value != nil {
+		tc.checkValueExpression(decl.Value)
+		tc.checkExpression(decl.Value)
+	}
+
+	// If no explicit types declared, nothing to check at compile time
+	if len(decl.TypeNames) == 0 {
+		return
+	}
+
+	// Get the function call to check return types
+	callExpr, ok := decl.Value.(*ast.CallExpression)
+	if !ok {
+		// Value is not a function call, can't check return types
+		return
+	}
+
+	// Get the function name
+	var funcName string
+	switch fn := callExpr.Function.(type) {
+	case *ast.Label:
+		funcName = fn.Value
+	case *ast.MemberExpression:
+		// Module.function call - get the function part
+		funcName = fn.Member.Value
+	default:
+		return
+	}
+
+	// Look up the function signature
+	funcSig, exists := tc.functions[funcName]
+	if !exists {
+		// Function not found - will be caught elsewhere
+		return
+	}
+
+	// Check that the number of declared types matches the number of return types
+	if len(decl.TypeNames) != len(funcSig.ReturnTypes) {
+		// Count mismatch will be caught by E5012 at runtime
+		return
+	}
+
+	// Check each declared type against the corresponding return type
+	for i, declaredType := range decl.TypeNames {
+		if i >= len(funcSig.ReturnTypes) {
+			break
+		}
+		returnType := funcSig.ReturnTypes[i]
+
+		if !tc.typesCompatible(declaredType, returnType) {
+			// Get position from the variable name at this index
+			line, col := 0, 0
+			if i < len(decl.Names) && decl.Names[i] != nil {
+				line = decl.Names[i].Token.Line
+				col = decl.Names[i].Token.Column
+			}
+			tc.addError(
+				errors.E3001,
+				fmt.Sprintf("type mismatch in multi-return: variable '%s' declared as %s but function returns %s",
+					decl.Names[i].Value, declaredType, returnType),
+				line,
+				col,
+			)
+		}
+	}
+
+	// Register variables in scope
+	for i, name := range decl.Names {
+		if name != nil && i < len(decl.TypeNames) {
+			tc.defineVariableWithMutability(name.Value, decl.TypeNames[i], decl.Mutable)
+		}
 	}
 }
 
@@ -1212,17 +1583,23 @@ func (tc *TypeChecker) checkReturnStatement(ret *ast.ReturnStatement, expectedTy
 		if !ok {
 			// Check if this is an undefined variable (simple identifier)
 			if label, isLabel := val.(*ast.Label); isLabel {
-				// Check if it's not a known function or type
-				if _, isFunc := tc.functions[label.Value]; !isFunc {
-					if _, isType := tc.types[label.Value]; !isType {
-						line, column := tc.getExpressionPosition(val)
-						tc.addError(
-							errors.E4001,
-							fmt.Sprintf("undefined variable '%s'", label.Value),
-							line,
-							column,
-						)
-					}
+				line, column := tc.getExpressionPosition(val)
+				// Check if it's a type name being used as a value (common mistake)
+				if _, isType := tc.types[label.Value]; isType {
+					tc.addError(
+						errors.E4001,
+						fmt.Sprintf("cannot return type '%s' as a value; did you mean to return a variable?", label.Value),
+						line,
+						column,
+					)
+				} else if _, isFunc := tc.functions[label.Value]; !isFunc {
+					// Not a type and not a function - truly undefined
+					tc.addError(
+						errors.E4001,
+						fmt.Sprintf("undefined variable '%s'", label.Value),
+						line,
+						column,
+					)
 				}
 			}
 			continue // Can't determine type
@@ -1261,15 +1638,19 @@ func (tc *TypeChecker) checkExpression(expr ast.Expression) {
 		tc.checkFunctionCall(e)
 		// Also check arguments
 		for _, arg := range e.Arguments {
+			tc.checkValueExpression(arg) // Catch type/function used as argument
 			tc.checkExpression(arg)
 		}
 
 	case *ast.InfixExpression:
+		tc.checkValueExpression(e.Left)  // Catch type/function in operator
+		tc.checkValueExpression(e.Right) // Catch type/function in operator
 		tc.checkInfixExpression(e)
 		tc.checkExpression(e.Left)
 		tc.checkExpression(e.Right)
 
 	case *ast.PrefixExpression:
+		tc.checkValueExpression(e.Right) // Catch type/function in operator
 		tc.checkPrefixExpression(e)
 		tc.checkExpression(e.Right)
 
@@ -1283,15 +1664,17 @@ func (tc *TypeChecker) checkExpression(expr ast.Expression) {
 		tc.checkMemberExpression(e)
 
 	case *ast.ArrayValue:
-		for _, elem := range e.Elements {
-			tc.checkExpression(elem)
-		}
+		tc.checkArrayLiteral(e)
 
 	case *ast.MapValue:
 		for _, pair := range e.Pairs {
 			tc.checkExpression(pair.Key)
+			tc.checkValueExpression(pair.Value) // Catch type/function used as map value
 			tc.checkExpression(pair.Value)
 		}
+
+	case *ast.StructValue:
+		tc.checkStructLiteral(e)
 
 	case *ast.RangeExpression:
 		tc.checkRangeExpression(e)
@@ -1302,12 +1685,55 @@ func (tc *TypeChecker) checkExpression(expr ast.Expression) {
 	}
 }
 
-// checkRangeExpression validates range bounds
+// checkRangeExpression validates range bounds and argument types (#597)
 func (tc *TypeChecker) checkRangeExpression(rangeExpr *ast.RangeExpression) {
+	// Validate argument types - all must be integers
+	if rangeExpr.Start != nil {
+		startType, ok := tc.inferExpressionType(rangeExpr.Start)
+		if ok && !tc.isIntegerType(startType) {
+			line, col := tc.getExpressionPosition(rangeExpr.Start)
+			tc.addError(
+				errors.E3001,
+				fmt.Sprintf("range() start must be integer, got %s", startType),
+				line, col,
+			)
+		}
+	}
+
+	if rangeExpr.End != nil {
+		endType, ok := tc.inferExpressionType(rangeExpr.End)
+		if ok && !tc.isIntegerType(endType) {
+			line, col := tc.getExpressionPosition(rangeExpr.End)
+			tc.addError(
+				errors.E3001,
+				fmt.Sprintf("range() end must be integer, got %s", endType),
+				line, col,
+			)
+		}
+	}
+
+	if rangeExpr.Step != nil {
+		stepType, ok := tc.inferExpressionType(rangeExpr.Step)
+		if ok && !tc.isIntegerType(stepType) {
+			line, col := tc.getExpressionPosition(rangeExpr.Step)
+			tc.addError(
+				errors.E3001,
+				fmt.Sprintf("range() step must be integer, got %s", stepType),
+				line, col,
+			)
+		}
+	}
+
 	// Check if both start and end are integer literals
 	// If so, verify start <= end
 	if rangeExpr.Start == nil {
-		return // range(end) form, start defaults to 0, always valid
+		// range(end) form, start defaults to 0
+		// Also check subexpressions
+		tc.checkExpression(rangeExpr.End)
+		if rangeExpr.Step != nil {
+			tc.checkExpression(rangeExpr.Step)
+		}
+		return
 	}
 
 	startInt, startOk := rangeExpr.Start.(*ast.IntegerValue)
@@ -1335,8 +1761,20 @@ func (tc *TypeChecker) checkRangeExpression(rangeExpr *ast.RangeExpression) {
 }
 
 // checkPostfixExpression validates postfix operators (++ and --)
-// These operators modify the operand, so we must check mutability
+// These operators modify the operand, so we must check mutability and type (#598)
 func (tc *TypeChecker) checkPostfixExpression(postfix *ast.PostfixExpression) {
+	// Check that operand is an integer type
+	operandType, ok := tc.inferExpressionType(postfix.Left)
+	if ok && !tc.isIntegerType(operandType) {
+		line, column := tc.getExpressionPosition(postfix.Left)
+		tc.addError(
+			errors.E3001,
+			fmt.Sprintf("postfix operator %s requires integer operand, got %s", postfix.Operator, operandType),
+			line,
+			column,
+		)
+	}
+
 	// Check mutability - error if trying to modify an immutable variable
 	if rootVar := tc.extractRootVariable(postfix.Left); rootVar != "" {
 		isMutable, found := tc.isVariableMutable(rootVar)
@@ -1398,7 +1836,7 @@ func (tc *TypeChecker) checkInfixExpression(infix *ast.InfixExpression) {
 			column,
 		)
 
-	case "-", "*", "/", "%":
+	case "-", "*", "/":
 		// Only valid for numbers
 		if !tc.isNumericType(leftType) || !tc.isNumericType(rightType) {
 			tc.addError(
@@ -1429,7 +1867,31 @@ func (tc *TypeChecker) checkInfixExpression(infix *ast.InfixExpression) {
 			}
 		}
 
+	case "%":
+		// Modulo only valid for integers (#601)
+		if !tc.isIntegerType(leftType) || !tc.isIntegerType(rightType) {
+			tc.addError(
+				errors.E3002,
+				fmt.Sprintf("invalid operands for '%%': %s and %s (expected integer)", leftType, rightType),
+				line,
+				column,
+			)
+		}
+
 	case "==", "!=":
+		// Check for comparing different enum types (#576)
+		leftIsEnum := tc.isEnumType(leftType)
+		rightIsEnum := tc.isEnumType(rightType)
+		if leftIsEnum && rightIsEnum && leftType != rightType {
+			tc.addError(
+				errors.E3032,
+				fmt.Sprintf("cannot compare different enum types: %s and %s", leftType, rightType),
+				line,
+				column,
+			)
+			return
+		}
+
 		// Valid for any matching types
 		if !tc.typesCompatible(leftType, rightType) && !tc.typesCompatible(rightType, leftType) {
 			tc.addError(
@@ -1441,8 +1903,10 @@ func (tc *TypeChecker) checkInfixExpression(infix *ast.InfixExpression) {
 		}
 
 	case "<", ">", "<=", ">=":
-		// Only valid for numbers or strings
-		if !tc.isNumericType(leftType) && leftType != "string" {
+		// Only valid for numbers, strings, chars, or enums with numeric/string base type
+		leftComparable := tc.isNumericType(leftType) || leftType == "string" || leftType == "char" || tc.isComparableEnumType(leftType)
+		rightComparable := tc.isNumericType(rightType) || rightType == "string" || rightType == "char" || tc.isComparableEnumType(rightType)
+		if !leftComparable {
 			tc.addError(
 				errors.E3002,
 				fmt.Sprintf("invalid operand for '%s': %s (expected numeric or string)", infix.Operator, leftType),
@@ -1450,7 +1914,7 @@ func (tc *TypeChecker) checkInfixExpression(infix *ast.InfixExpression) {
 				column,
 			)
 		}
-		if !tc.isNumericType(rightType) && rightType != "string" {
+		if !rightComparable {
 			tc.addError(
 				errors.E3002,
 				fmt.Sprintf("invalid operand for '%s': %s (expected numeric or string)", infix.Operator, rightType),
@@ -1541,6 +2005,19 @@ func (tc *TypeChecker) checkIndexExpression(index *ast.IndexExpression) {
 				column,
 			)
 		}
+		// Validate that index type matches the map's declared key type (#608)
+		if indexOk {
+			mapKeyType := tc.extractMapKeyType(leftType)
+			if mapKeyType != "" && !tc.typesCompatible(mapKeyType, indexType) {
+				line, column := tc.getExpressionPosition(index.Index)
+				tc.addError(
+					errors.E3003,
+					fmt.Sprintf("map key type mismatch: expected %s, got %s", mapKeyType, indexType),
+					line,
+					column,
+				)
+			}
+		}
 		return
 	}
 
@@ -1574,6 +2051,20 @@ func (tc *TypeChecker) checkFunctionCall(call *ast.CallExpression) {
 	switch fn := call.Function.(type) {
 	case *ast.Label:
 		funcName = fn.Value
+		// Check if this is a variable being called as a function (#602)
+		if _, isVar := tc.lookupVariable(funcName); isVar {
+			// It's a variable, not a function - error
+			if _, isFunc := tc.functions[funcName]; !isFunc {
+				line, column := tc.getExpressionPosition(call.Function)
+				tc.addError(
+					errors.E3015,
+					fmt.Sprintf("cannot call non-function value '%s'", funcName),
+					line,
+					column,
+				)
+				return
+			}
+		}
 	case *ast.MemberExpression:
 		// Module function call - validate stdlib calls
 		tc.checkStdlibCall(fn, call)
@@ -1829,6 +2320,10 @@ func (tc *TypeChecker) isNumericString(s string) bool {
 
 // checkIfStatement validates an if statement
 func (tc *TypeChecker) checkIfStatement(ifStmt *ast.IfStatement, expectedReturnTypes []string) {
+	// Check for type/function used as condition
+	tc.checkValueExpression(ifStmt.Condition)
+	tc.checkExpression(ifStmt.Condition)
+
 	// Check that condition is boolean
 	condType, ok := tc.inferExpressionType(ifStmt.Condition)
 	if ok && condType != "bool" {
@@ -1963,13 +2458,16 @@ func (tc *TypeChecker) checkWhenStatement(whenStmt *ast.WhenStatement, expectedR
 			if ok && caseType != valueType && caseType != "unknown" && valueType != "unknown" {
 				// Allow enum type matching
 				if !strings.HasPrefix(caseType, valueType) && !strings.HasSuffix(caseType, "."+valueType) {
-					line, col := tc.getExpressionPosition(caseValue)
-					tc.addError(
-						errors.E3001,
-						fmt.Sprintf("case value type %s does not match when value type %s", caseType, valueType),
-						line,
-						col,
-					)
+					// Allow int case values when matching against enum types (enums have int underlying values)
+					if !(isEnumType && caseType == "int") {
+						line, col := tc.getExpressionPosition(caseValue)
+						tc.addError(
+							errors.E3001,
+							fmt.Sprintf("case value type %s does not match when value type %s", caseType, valueType),
+							line,
+							col,
+						)
+					}
 				}
 			}
 		}
@@ -2014,6 +2512,7 @@ func (tc *TypeChecker) getCaseValueKey(expr ast.Expression) string {
 // checkForStatement validates a for loop
 func (tc *TypeChecker) checkForStatement(forStmt *ast.ForStatement, expectedReturnTypes []string) {
 	tc.enterScope()
+	tc.loopDepth++ // Track loop nesting for break/continue validation (#603)
 
 	// Check the iterable expression (e.g., range())
 	if forStmt.Iterable != nil {
@@ -2030,29 +2529,41 @@ func (tc *TypeChecker) checkForStatement(forStmt *ast.ForStatement, expectedRetu
 	}
 
 	tc.checkBlock(forStmt.Body, expectedReturnTypes)
+	tc.loopDepth--
 	tc.exitScope()
 }
 
 // checkForEachStatement validates a for_each loop
 func (tc *TypeChecker) checkForEachStatement(forEach *ast.ForEachStatement, expectedReturnTypes []string) {
 	tc.enterScope()
+	tc.loopDepth++ // Track loop nesting for break/continue validation (#603)
 
-	// Infer element type from collection
+	// Infer element type from collection and validate it's iterable (#595)
 	if forEach.Variable != nil && forEach.Collection != nil {
 		collType, ok := tc.inferExpressionType(forEach.Collection)
 		if ok {
 			// For arrays, element type is inside []
-			if len(collType) > 2 && collType[0] == '[' {
-				elemType := collType[1 : len(collType)-1]
+			if tc.isArrayType(collType) {
+				elemType := tc.extractArrayElementType(collType)
 				tc.defineVariable(forEach.Variable.Value, elemType)
 			} else if collType == "string" {
 				// Iterating over string gives char
 				tc.defineVariable(forEach.Variable.Value, "char")
+			} else {
+				// Not an iterable type - produce error
+				line, column := tc.getExpressionPosition(forEach.Collection)
+				tc.addError(
+					errors.E3017,
+					fmt.Sprintf("for_each requires array or string, got %s", collType),
+					line,
+					column,
+				)
 			}
 		}
 	}
 
 	tc.checkBlock(forEach.Body, expectedReturnTypes)
+	tc.loopDepth--
 	tc.exitScope()
 }
 
@@ -2071,14 +2582,18 @@ func (tc *TypeChecker) checkWhileStatement(whileStmt *ast.WhileStatement, expect
 	}
 
 	tc.enterScope()
+	tc.loopDepth++ // Track loop nesting for break/continue validation (#603)
 	tc.checkBlock(whileStmt.Body, expectedReturnTypes)
+	tc.loopDepth--
 	tc.exitScope()
 }
 
 // checkLoopStatement validates a loop statement
 func (tc *TypeChecker) checkLoopStatement(loopStmt *ast.LoopStatement, expectedReturnTypes []string) {
 	tc.enterScope()
+	tc.loopDepth++ // Track loop nesting for break/continue validation (#603)
 	tc.checkBlock(loopStmt.Body, expectedReturnTypes)
+	tc.loopDepth--
 	tc.exitScope()
 }
 
@@ -2106,6 +2621,22 @@ func (tc *TypeChecker) extractMapKeyType(mapType string) string {
 		return ""
 	}
 	return inner[:colonIdx]
+}
+
+// extractMapValueType extracts the value type from a map type string
+// For "map[string:int]" returns "int"
+func (tc *TypeChecker) extractMapValueType(mapType string) string {
+	if !tc.isMapType(mapType) {
+		return ""
+	}
+	// Extract "string:int" from "map[string:int]"
+	inner := mapType[4 : len(mapType)-1]
+	// Find the colon separator
+	colonIdx := strings.Index(inner, ":")
+	if colonIdx == -1 {
+		return ""
+	}
+	return inner[colonIdx+1:]
 }
 
 // isNullableType checks if a type can accept nil values
@@ -2270,6 +2801,57 @@ func (tc *TypeChecker) lookupVariable(name string) (string, bool) {
 		return typeName, true
 	}
 	return "", false
+}
+
+// checkValueExpression validates that an expression is not a type name or function
+// name being used as a value. Returns true if an error was reported.
+// This catches bugs like copy(StatusEnum) or copy(helperFunc).
+func (tc *TypeChecker) checkValueExpression(expr ast.Expression) bool {
+	label, isLabel := expr.(*ast.Label)
+	if !isLabel {
+		return false
+	}
+
+	// Check if this label refers to a type (enum or struct)
+	if t, isType := tc.types[label.Value]; isType {
+		// Only error for user-defined types (enum/struct), not primitives
+		if t.Kind == EnumType {
+			line, column := tc.getExpressionPosition(expr)
+			tc.addError(
+				errors.E3030,
+				fmt.Sprintf("enum type '%s' cannot be used as a value - use a specific enum member like %s.MEMBER",
+					label.Value, label.Value),
+				line,
+				column,
+			)
+			return true
+		} else if t.Kind == StructType {
+			line, column := tc.getExpressionPosition(expr)
+			tc.addError(
+				errors.E3030,
+				fmt.Sprintf("struct type '%s' cannot be used as a value - create an instance with %s { field: value }",
+					label.Value, label.Value),
+				line,
+				column,
+			)
+			return true
+		}
+	}
+
+	// Check if this label refers to a function (not being called)
+	if _, isFunc := tc.functions[label.Value]; isFunc {
+		line, column := tc.getExpressionPosition(expr)
+		tc.addError(
+			errors.E3031,
+			fmt.Sprintf("function '%s' cannot be used as a value - functions must be called with ()",
+				label.Value),
+			line,
+			column,
+		)
+		return true
+	}
+
+	return false
 }
 
 // inferExpressionType determines the type of an expression at build-time
@@ -2636,8 +3218,10 @@ func (tc *TypeChecker) inferStringsCallType(funcName string, args []ast.Expressi
 	case "upper", "lower", "trim", "trim_left", "trim_right", "reverse",
 		"replace", "substring", "repeat", "pad_left", "pad_right", "join":
 		return "string", true
-	case "split", "chars":
+	case "split":
 		return "[string]", true
+	case "chars":
+		return "[char]", true
 	default:
 		return "", false
 	}
@@ -2703,6 +3287,25 @@ func (tc *TypeChecker) inferIndexType(index *ast.IndexExpression) (string, bool)
 
 // inferMemberType infers the type of a member access expression
 func (tc *TypeChecker) inferMemberType(member *ast.MemberExpression) (string, bool) {
+	// Check if accessing enum member (e.g., Status.ACTIVE)
+	if label, isLabel := member.Object.(*ast.Label); isLabel {
+		if enumType, exists := tc.types[label.Value]; exists && enumType.Kind == EnumType {
+			// Validate that the member exists (#607)
+			memberName := member.Member.Value
+			if enumType.EnumMembers != nil && !enumType.EnumMembers[memberName] {
+				tc.addError(
+					errors.E4004,
+					fmt.Sprintf("enum '%s' has no member '%s'", label.Value, memberName),
+					member.Member.Token.Line,
+					member.Member.Token.Column,
+				)
+				return "", false
+			}
+			// Return the enum type name
+			return label.Value, true
+		}
+	}
+
 	// Check if accessing struct field
 	objType, ok := tc.inferExpressionType(member.Object)
 	if !ok {
@@ -2731,6 +3334,22 @@ func (tc *TypeChecker) isNumericType(typeName string) bool {
 	default:
 		return false
 	}
+}
+
+// isEnumType checks if a type name refers to a user-defined enum type
+func (tc *TypeChecker) isEnumType(typeName string) bool {
+	if t, exists := tc.types[typeName]; exists {
+		return t.Kind == EnumType
+	}
+	return false
+}
+
+// isComparableEnumType checks if a type is an enum with a comparable base type (numeric or string)
+func (tc *TypeChecker) isComparableEnumType(typeName string) bool {
+	if t, exists := tc.types[typeName]; exists && t.Kind == EnumType {
+		return tc.isNumericType(t.EnumBaseType) || t.EnumBaseType == "string"
+	}
+	return false
 }
 
 // getPromotedType returns the resulting type when two numeric types are used together
@@ -2798,6 +3417,19 @@ func (tc *TypeChecker) typesCompatible(declared, actual string) bool {
 	if declaredBase == actualBase && declaredBase != declared {
 		// Base names match and at least one had a module prefix
 		return true
+	}
+
+	// Handle enum-to-base-type compatibility
+	// Enum values are compatible with their underlying base type
+	if declaredType, exists := tc.types[declared]; exists && declaredType.Kind == EnumType {
+		if declaredType.EnumBaseType == actual {
+			return true
+		}
+	}
+	if actualType, exists := tc.types[actual]; exists && actualType.Kind == EnumType {
+		if actualType.EnumBaseType == declared {
+			return true
+		}
 	}
 
 	// nil is only compatible with reference types (arrays, maps, structs)
@@ -3038,6 +3670,13 @@ func (tc *TypeChecker) checkStdlibCall(member *ast.MemberExpression, call *ast.C
 	funcName := member.Member.Value
 	line, column := tc.getExpressionPosition(member.Member)
 
+	// Check if the module was imported (for standard library modules)
+	stdModules := map[string]bool{"std": true, "math": true, "arrays": true, "strings": true, "time": true, "maps": true, "io": true, "os": true, "random": true}
+	if stdModules[moduleName] && !tc.modules[moduleName] {
+		tc.addError(errors.E4007, fmt.Sprintf("module '%s' not imported; add 'import @%s'", moduleName, moduleName), line, column)
+		return
+	}
+
 	switch moduleName {
 	case "std":
 		tc.checkStdModuleCall(funcName, call, line, column)
@@ -3051,6 +3690,83 @@ func (tc *TypeChecker) checkStdlibCall(member *ast.MemberExpression, call *ast.C
 		tc.checkTimeModuleCall(funcName, call, line, column)
 	case "maps":
 		tc.checkMapsModuleCall(funcName, call, line, column)
+	default:
+		// User-defined module - check if we have type info for it
+		tc.checkUserModuleCall(moduleName, funcName, call, line, column)
+	}
+}
+
+// checkUserModuleCall validates a user-defined module function call
+func (tc *TypeChecker) checkUserModuleCall(moduleName, funcName string, call *ast.CallExpression, line, column int) {
+	// Look up function signature in registered module functions
+	sig, ok := tc.GetModuleFunction(moduleName, funcName)
+	if !ok {
+		// Function not found in module registry - might not have been registered yet
+		// This is expected if the module wasn't pre-processed
+		return
+	}
+
+	// Calculate minimum required arguments (parameters without defaults)
+	minRequired := 0
+	for _, param := range sig.Parameters {
+		if !param.HasDefault {
+			minRequired++
+		}
+	}
+
+	// Check argument count
+	if len(call.Arguments) < minRequired || len(call.Arguments) > len(sig.Parameters) {
+		var msg string
+		if minRequired == len(sig.Parameters) {
+			msg = fmt.Sprintf("wrong number of arguments to '%s.%s': expected %d, got %d",
+				moduleName, funcName, len(sig.Parameters), len(call.Arguments))
+		} else {
+			msg = fmt.Sprintf("wrong number of arguments to '%s.%s': expected %d to %d, got %d",
+				moduleName, funcName, minRequired, len(sig.Parameters), len(call.Arguments))
+		}
+		tc.addError(errors.E5008, msg, line, column)
+		return
+	}
+
+	// Check argument types
+	for i, arg := range call.Arguments {
+		if i >= len(sig.Parameters) {
+			break
+		}
+
+		actualType, ok := tc.inferExpressionType(arg)
+		if !ok {
+			continue
+		}
+
+		expectedType := sig.Parameters[i].Type
+		if !tc.typesCompatible(expectedType, actualType) {
+			argLine, argColumn := tc.getExpressionPosition(arg)
+			tc.addError(
+				errors.E3001,
+				fmt.Sprintf("argument type mismatch in call to '%s.%s': parameter '%s' expects %s, got %s",
+					moduleName, funcName, sig.Parameters[i].Name, expectedType, actualType),
+				argLine,
+				argColumn,
+			)
+		}
+
+		// Check for const -> & param error
+		if sig.Parameters[i].Mutable {
+			if label, isLabel := arg.(*ast.Label); isLabel {
+				isMutable, found := tc.isVariableMutable(label.Value)
+				if found && !isMutable {
+					argLine, argColumn := tc.getExpressionPosition(arg)
+					tc.addError(
+						errors.E3027,
+						fmt.Sprintf("cannot pass immutable variable '%s' to mutable parameter '&%s' in call to '%s.%s'",
+							label.Value, sig.Parameters[i].Name, moduleName, funcName),
+						argLine,
+						argColumn,
+					)
+				}
+			}
+		}
 	}
 }
 
@@ -3228,6 +3944,88 @@ func (tc *TypeChecker) checkArraysModuleCall(funcName string, call *ast.CallExpr
 	}
 
 	tc.validateStdlibCall("arrays", funcName, call, sig, line, column)
+
+	// Additional element type validation for functions that modify arrays (#589, #590, #591)
+	tc.checkArrayElementTypeCompatibility(funcName, call, line, column)
+}
+
+// checkArrayElementTypeCompatibility validates that elements being added to arrays
+// have types compatible with the array's element type
+func (tc *TypeChecker) checkArrayElementTypeCompatibility(funcName string, call *ast.CallExpression, line, column int) {
+	if len(call.Arguments) < 2 {
+		return
+	}
+
+	switch funcName {
+	case "append", "unshift", "contains", "index_of", "last_index_of", "count", "remove", "remove_all", "fill":
+		// First arg is array, remaining args are elements
+		arrayType, ok := tc.inferExpressionType(call.Arguments[0])
+		if !ok || !tc.isArrayType(arrayType) {
+			return
+		}
+		elementType := tc.extractArrayElementType(arrayType)
+
+		// Check each element argument (starting from index 1)
+		for i := 1; i < len(call.Arguments); i++ {
+			argType, ok := tc.inferExpressionType(call.Arguments[i])
+			if !ok {
+				continue
+			}
+			if !tc.typesCompatible(elementType, argType) {
+				argLine, argCol := tc.getExpressionPosition(call.Arguments[i])
+				tc.addError(errors.E3001,
+					fmt.Sprintf("arrays.%s: element type mismatch - array has element type %s, but got %s",
+						funcName, elementType, argType),
+					argLine, argCol)
+			}
+		}
+
+	case "insert", "set":
+		// First arg is array, second is index, third is element
+		if len(call.Arguments) < 3 {
+			return
+		}
+		arrayType, ok := tc.inferExpressionType(call.Arguments[0])
+		if !ok || !tc.isArrayType(arrayType) {
+			return
+		}
+		elementType := tc.extractArrayElementType(arrayType)
+
+		argType, ok := tc.inferExpressionType(call.Arguments[2])
+		if !ok {
+			return
+		}
+		if !tc.typesCompatible(elementType, argType) {
+			argLine, argCol := tc.getExpressionPosition(call.Arguments[2])
+			tc.addError(errors.E3001,
+				fmt.Sprintf("arrays.%s: element type mismatch - array has element type %s, but got %s",
+					funcName, elementType, argType),
+				argLine, argCol)
+		}
+
+	case "concat", "zip":
+		// All args are arrays - check they have compatible element types
+		firstArrayType, ok := tc.inferExpressionType(call.Arguments[0])
+		if !ok || !tc.isArrayType(firstArrayType) {
+			return
+		}
+		firstElementType := tc.extractArrayElementType(firstArrayType)
+
+		for i := 1; i < len(call.Arguments); i++ {
+			argType, ok := tc.inferExpressionType(call.Arguments[i])
+			if !ok || !tc.isArrayType(argType) {
+				continue
+			}
+			argElementType := tc.extractArrayElementType(argType)
+			if !tc.typesCompatible(firstElementType, argElementType) {
+				argLine, argCol := tc.getExpressionPosition(call.Arguments[i])
+				tc.addError(errors.E3001,
+					fmt.Sprintf("arrays.%s: incompatible array element types - first array has %s, but argument %d has %s",
+						funcName, firstElementType, i+1, argElementType),
+					argLine, argCol)
+			}
+		}
+	}
 }
 
 // checkMapsModuleCall validates maps module function calls
@@ -3275,6 +4073,134 @@ func (tc *TypeChecker) checkMapsModuleCall(funcName string, call *ast.CallExpres
 	}
 
 	tc.validateStdlibCall("maps", funcName, call, sig, line, column)
+
+	// Additional key/value type validation (#593)
+	tc.checkMapKeyValueTypeCompatibility(funcName, call, line, column)
+}
+
+// checkMapKeyValueTypeCompatibility validates that keys and values passed to map functions
+// have types compatible with the map's declared key/value types
+func (tc *TypeChecker) checkMapKeyValueTypeCompatibility(funcName string, call *ast.CallExpression, line, column int) {
+	if len(call.Arguments) < 1 {
+		return
+	}
+
+	// Get the map type from the first argument
+	mapType, ok := tc.inferExpressionType(call.Arguments[0])
+	if !ok || !tc.isMapType(mapType) {
+		return
+	}
+
+	keyType := tc.extractMapKeyType(mapType)
+	valueType := tc.extractMapValueType(mapType)
+
+	switch funcName {
+	case "has", "has_key", "delete", "remove":
+		// Second arg is key
+		if len(call.Arguments) < 2 {
+			return
+		}
+		argType, ok := tc.inferExpressionType(call.Arguments[1])
+		if !ok {
+			return
+		}
+		if !tc.typesCompatible(keyType, argType) {
+			argLine, argCol := tc.getExpressionPosition(call.Arguments[1])
+			tc.addError(errors.E3001,
+				fmt.Sprintf("maps.%s: key type mismatch - map has key type %s, but got %s",
+					funcName, keyType, argType),
+				argLine, argCol)
+		}
+
+	case "has_value":
+		// Second arg is value
+		if len(call.Arguments) < 2 {
+			return
+		}
+		argType, ok := tc.inferExpressionType(call.Arguments[1])
+		if !ok {
+			return
+		}
+		if !tc.typesCompatible(valueType, argType) {
+			argLine, argCol := tc.getExpressionPosition(call.Arguments[1])
+			tc.addError(errors.E3001,
+				fmt.Sprintf("maps.%s: value type mismatch - map has value type %s, but got %s",
+					funcName, valueType, argType),
+				argLine, argCol)
+		}
+
+	case "get":
+		// Second arg is key, optional third arg is default value
+		if len(call.Arguments) < 2 {
+			return
+		}
+		keyArgType, ok := tc.inferExpressionType(call.Arguments[1])
+		if ok && !tc.typesCompatible(keyType, keyArgType) {
+			argLine, argCol := tc.getExpressionPosition(call.Arguments[1])
+			tc.addError(errors.E3001,
+				fmt.Sprintf("maps.%s: key type mismatch - map has key type %s, but got %s",
+					funcName, keyType, keyArgType),
+				argLine, argCol)
+		}
+		// Check default value type if provided
+		if len(call.Arguments) >= 3 {
+			defaultArgType, ok := tc.inferExpressionType(call.Arguments[2])
+			if ok && !tc.typesCompatible(valueType, defaultArgType) {
+				argLine, argCol := tc.getExpressionPosition(call.Arguments[2])
+				tc.addError(errors.E3001,
+					fmt.Sprintf("maps.%s: default value type mismatch - map has value type %s, but got %s",
+						funcName, valueType, defaultArgType),
+					argLine, argCol)
+			}
+		}
+
+	case "set", "get_or_set":
+		// Second arg is key, third arg is value
+		if len(call.Arguments) < 3 {
+			return
+		}
+		keyArgType, ok := tc.inferExpressionType(call.Arguments[1])
+		if ok && !tc.typesCompatible(keyType, keyArgType) {
+			argLine, argCol := tc.getExpressionPosition(call.Arguments[1])
+			tc.addError(errors.E3001,
+				fmt.Sprintf("maps.%s: key type mismatch - map has key type %s, but got %s",
+					funcName, keyType, keyArgType),
+				argLine, argCol)
+		}
+		valueArgType, ok := tc.inferExpressionType(call.Arguments[2])
+		if ok && !tc.typesCompatible(valueType, valueArgType) {
+			argLine, argCol := tc.getExpressionPosition(call.Arguments[2])
+			tc.addError(errors.E3001,
+				fmt.Sprintf("maps.%s: value type mismatch - map has value type %s, but got %s",
+					funcName, valueType, valueArgType),
+				argLine, argCol)
+		}
+
+	case "merge", "update", "equals":
+		// All args are maps - check they have compatible key/value types
+		for i := 1; i < len(call.Arguments); i++ {
+			argType, ok := tc.inferExpressionType(call.Arguments[i])
+			if !ok || !tc.isMapType(argType) {
+				continue
+			}
+			argKeyType := tc.extractMapKeyType(argType)
+			argValueType := tc.extractMapValueType(argType)
+			if !tc.typesCompatible(keyType, argKeyType) {
+				argLine, argCol := tc.getExpressionPosition(call.Arguments[i])
+				tc.addError(errors.E3001,
+					fmt.Sprintf("maps.%s: incompatible map key types - first map has %s, but argument %d has %s",
+						funcName, keyType, i+1, argKeyType),
+					argLine, argCol)
+			}
+			if !tc.typesCompatible(valueType, argValueType) {
+				argLine, argCol := tc.getExpressionPosition(call.Arguments[i])
+				tc.addError(errors.E3001,
+					fmt.Sprintf("maps.%s: incompatible map value types - first map has %s, but argument %d has %s",
+						funcName, valueType, i+1, argValueType),
+					argLine, argCol)
+			}
+		}
+	}
 }
 
 // checkStringsModuleCall validates strings module function calls

@@ -1,0 +1,12 @@
+/*
+ * Error Test: E3001 - array-concat-type-mismatch
+ * Expected: "type mismatch" or "element type"
+ */
+
+import @arrays
+
+do main() {
+    temp nums [int] = {1, 2, 3}
+    temp strs [string] = {"a", "b"}
+    temp result = arrays.concat(nums, strs)  // Should fail: incompatible element types
+}

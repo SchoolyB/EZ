@@ -1,0 +1,11 @@
+/*
+ * Error Test: E3001 - map-set-type-mismatch
+ * Expected: "type mismatch" or "value type"
+ */
+
+import @maps
+
+do main() {
+    temp m map[string:int] = {"a": 1, "b": 2}
+    maps.set(m, "c", "wrong")  // Should fail: string value into int map
+}

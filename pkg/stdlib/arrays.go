@@ -556,17 +556,13 @@ var ArraysBuiltins = map[string]*object.Builtin{
 			if !ok {
 				return &object.Error{Code: "E7002", Message: "arrays.reverse() requires an array"}
 			}
-			if !arr.Mutable {
-				return &object.Error{
-					Message: "cannot modify immutable array (declared as const)",
-					Code:    "E4005",
-				}
+			// Create a new array with reversed elements (don't mutate original)
+			n := len(arr.Elements)
+			reversed := make([]object.Object, n)
+			for i := 0; i < n; i++ {
+				reversed[i] = arr.Elements[n-1-i]
 			}
-			// Reverse in-place and return the array
-			for i, j := 0, len(arr.Elements)-1; i < j; i, j = i+1, j-1 {
-				arr.Elements[i], arr.Elements[j] = arr.Elements[j], arr.Elements[i]
-			}
-			return arr
+			return &object.Array{Elements: reversed, Mutable: true}
 		},
 	},
 

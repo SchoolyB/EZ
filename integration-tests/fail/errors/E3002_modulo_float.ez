@@ -1,0 +1,12 @@
+/*
+ * Error Test: E3002 - modulo-float
+ * Expected: "%" and "integer"
+ */
+
+import @std
+using std
+
+do main() {
+    temp f float = 3.14
+    temp x = f % 2  // Should fail: modulo on float
+}

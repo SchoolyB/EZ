@@ -1,0 +1,11 @@
+import @std
+using std
+
+do helper() {
+    println("hi")
+}
+
+do main() {
+    // Bug: function cannot be used as a value without calling it
+    temp x = copy(helper)
+}

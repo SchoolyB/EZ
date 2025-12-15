@@ -44,7 +44,7 @@ type ModuleLoader struct {
 	cache       map[string]*Module // Cache of loaded modules (keyed by absolute path)
 	rootPath    string             // Project root directory
 	currentFile string             // Currently processing file (for relative imports)
-	warnings    []string           // Accumulated warnings during loading
+	warnings    []*errors.EZError  // Accumulated warnings during loading
 }
 
 // NewModuleLoader creates a new module loader
@@ -52,23 +52,23 @@ func NewModuleLoader(rootPath string) *ModuleLoader {
 	return &ModuleLoader{
 		cache:    make(map[string]*Module),
 		rootPath: rootPath,
-		warnings: []string{},
+		warnings: []*errors.EZError{},
 	}
 }
 
-// AddWarning adds a warning message
-func (l *ModuleLoader) AddWarning(msg string) {
-	l.warnings = append(l.warnings, msg)
+// AddWarning adds a warning to the loader
+func (l *ModuleLoader) AddWarning(warn *errors.EZError) {
+	l.warnings = append(l.warnings, warn)
 }
 
 // GetWarnings returns all accumulated warnings
-func (l *ModuleLoader) GetWarnings() []string {
+func (l *ModuleLoader) GetWarnings() []*errors.EZError {
 	return l.warnings
 }
 
 // ClearWarnings clears all warnings
 func (l *ModuleLoader) ClearWarnings() {
-	l.warnings = []string{}
+	l.warnings = []*errors.EZError{}
 }
 
 // SetCurrentFile sets the current file being processed (for relative import resolution)
@@ -212,8 +212,12 @@ func (l *ModuleLoader) loadFileModule(mod *Module, filePath string) error {
 		// (this supports multi-file modules where files are in a module directory)
 		parentDir := filepath.Base(filepath.Dir(filePath))
 		if mod.Name != fileName && mod.Name != parentDir {
-			l.AddWarning(fmt.Sprintf("warning[W4001]: module declares name '%s' but file is named '%s.ez'\n  --> %s\n  = help: consider renaming the module or file to match",
-				mod.Name, fileName, filePath))
+			warn := errors.NewError(errors.W4001,
+				fmt.Sprintf("module declares name '%s' but file is named '%s.ez'", mod.Name, fileName),
+				filePath, 1, 1)
+			warn.Severity = errors.SeverityWarning
+			warn.Help = "consider renaming the module or file to match"
+			l.AddWarning(warn)
 		}
 	} else {
 		// Infer from filename
@@ -306,8 +310,12 @@ func (l *ModuleLoader) loadDirectoryModule(mod *Module) error {
 		mod.Name = declaredModuleName
 		// Warn if declared name doesn't match directory name
 		if declaredModuleName != dirName {
-			l.AddWarning(fmt.Sprintf("warning[W4001]: module declares name '%s' but directory is named '%s'\n  --> %s\n  = help: consider renaming the module or directory to match",
-				declaredModuleName, dirName, mod.FilePath))
+			warn := errors.NewError(errors.W4001,
+				fmt.Sprintf("module declares name '%s' but directory is named '%s'", declaredModuleName, dirName),
+				mod.FilePath, 1, 1)
+			warn.Severity = errors.SeverityWarning
+			warn.Help = "consider renaming the module or directory to match"
+			l.AddWarning(warn)
 		}
 	} else {
 		// Infer from directory name

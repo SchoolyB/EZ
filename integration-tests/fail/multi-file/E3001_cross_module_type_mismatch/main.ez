@@ -1,0 +1,6 @@
+import "./utils"
+
+do main() {
+    // Bug test: passing strings to function expecting ints
+    temp result = utils.addNumbers("hello", "world")
+}

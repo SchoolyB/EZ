@@ -1,0 +1,11 @@
+/*
+ * Error Test: E3001 - map-key-type-mismatch
+ * Expected: "type mismatch" or "key type"
+ */
+
+import @maps
+
+do main() {
+    temp m map[string:int] = {"a": 1, "b": 2}
+    maps.get(m, 123)  // Should fail: int key for string key map
+}
