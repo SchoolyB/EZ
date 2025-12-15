@@ -363,7 +363,7 @@ func checkFile(filename string) {
 
 	filesChecked++ // Count main file
 
-	fmt.Printf("Check successful: %s\n", filename)
+	fmt.Printf("Check successful: %s (%d file(s) checked)\n", filename, filesChecked)
 }
 
 // checkProject checks an entire EZ project starting from main.ez
