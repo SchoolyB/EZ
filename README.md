@@ -5,7 +5,7 @@
 <h3 align="center">Programming Made EZ</h3>
 
 <p align="center">
-  A simple, statically-typed programming language designed for clarity and ease of use.
+  A simple, interpreted, statically-typed programming language designed for clarity and ease of use.
 </p>
 
 <p align="center">
@@ -15,7 +15,7 @@
 
 ---
 
-## Quick Start (For Developers)
+## Developer Quick Start
 
 Want to contribute or build from source?
 
@@ -87,57 +87,15 @@ After this one-time manual update, `ez update` will work automatically for all f
 
 ## Running Tests
 
-EZ has two types of tests: **EZ language tests** (written in EZ) and **Go unit tests** (for the interpreter internals).
-
-### EZ Language Tests
-
 ```bash
-# Run passing tests
-./ez tests/comprehensive.ez
-./ez tests/multi-file/main.ez
-./ez tests/nested-test/main/main.ez
+# Run integration tests
+./integration-tests/run_tests.sh
 
-# Run error tests
-./tests/errors/run_error_tests.sh ./ez
-```
-
-### Go Unit Tests
-
-```bash
-# Run all unit tests
+# Run unit tests
 go test ./...
-
-# Run tests with verbose output
-go test -v ./...
-
-# Run tests for a specific package
-go test ./pkg/lexer/...
-go test ./pkg/parser/...
-go test ./pkg/ast/...
-go test ./pkg/object/...
-go test ./pkg/errors/...
-
-# Run with coverage report
-go test -cover ./...
-
-# Generate HTML coverage report
-go test -coverprofile=coverage.out ./...
-go tool cover -html=coverage.out
 ```
 
-### Unit Test Coverage
-
-| Package | Status |
-|---------|--------|
-| pkg/tokenizer | Implemented |
-| pkg/errors | Implemented |
-| pkg/lexer | Implemented |
-| pkg/ast | Implemented |
-| pkg/object | Implemented |
-| pkg/parser | Implemented |
-| pkg/typechecker | Implemented |
-| pkg/interpreter | Implemented |
-| pkg/stdlib | Implemented |
+For more details, see the [Testing Guide](TESTING.md).
 
 ---
 
