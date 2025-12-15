@@ -130,6 +130,7 @@ type Type struct {
 	Fields       map[string]*Type // For structs
 	Size         int              // For fixed-size arrays, -1 for dynamic
 	EnumBaseType string           // For enums: "int", "string", or "float"
+	EnumMembers  map[string]bool  // For enums: set of valid member names (#607)
 }
 
 // FunctionSignature represents a function's type signature
@@ -480,10 +481,17 @@ func (tc *TypeChecker) registerEnumType(node *ast.EnumDeclaration) {
 		}
 	}
 
+	// Collect enum member names (#607)
+	enumMembers := make(map[string]bool)
+	for _, member := range node.Values {
+		enumMembers[member.Name.Value] = true
+	}
+
 	enumType := &Type{
 		Name:         node.Name.Value,
 		Kind:         EnumType,
 		EnumBaseType: baseType,
+		EnumMembers:  enumMembers,
 	}
 	tc.RegisterType(node.Name.Value, enumType)
 }
@@ -3269,6 +3277,17 @@ func (tc *TypeChecker) inferMemberType(member *ast.MemberExpression) (string, bo
 	// Check if accessing enum member (e.g., Status.ACTIVE)
 	if label, isLabel := member.Object.(*ast.Label); isLabel {
 		if enumType, exists := tc.types[label.Value]; exists && enumType.Kind == EnumType {
+			// Validate that the member exists (#607)
+			memberName := member.Member.Value
+			if enumType.EnumMembers != nil && !enumType.EnumMembers[memberName] {
+				tc.addError(
+					errors.E4004,
+					fmt.Sprintf("enum '%s' has no member '%s'", label.Value, memberName),
+					member.Member.Token.Line,
+					member.Member.Token.Column,
+				)
+				return "", false
+			}
 			// Return the enum type name
 			return label.Value, true
 		}

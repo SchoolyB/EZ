@@ -1,0 +1,17 @@
+/*
+ * Error Test: E4004 - enum-variant-not-found
+ * Expected: "not found" or "Yellow"
+ */
+
+import @std
+using std
+
+const Color enum {
+    Red
+    Green
+    Blue
+}
+
+do main() {
+    temp c = Color.Yellow  // Should fail: Yellow doesn't exist
+}
