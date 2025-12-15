@@ -2007,6 +2007,20 @@ func (tc *TypeChecker) checkFunctionCall(call *ast.CallExpression) {
 	switch fn := call.Function.(type) {
 	case *ast.Label:
 		funcName = fn.Value
+		// Check if this is a variable being called as a function (#602)
+		if _, isVar := tc.lookupVariable(funcName); isVar {
+			// It's a variable, not a function - error
+			if _, isFunc := tc.functions[funcName]; !isFunc {
+				line, column := tc.getExpressionPosition(call.Function)
+				tc.addError(
+					errors.E3015,
+					fmt.Sprintf("cannot call non-function value '%s'", funcName),
+					line,
+					column,
+				)
+				return
+			}
+		}
 	case *ast.MemberExpression:
 		// Module function call - validate stdlib calls
 		tc.checkStdlibCall(fn, call)
