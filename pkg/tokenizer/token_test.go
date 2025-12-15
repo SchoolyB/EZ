@@ -1,5 +1,8 @@
 package tokenizer
 
+// Copyright (c) 2025-Present Marshall A Burns
+// Licensed under the MIT License. See LICENSE for details.
+
 import "testing"
 
 // TestTokenTypeConstants verifies all token type constants are defined correctly

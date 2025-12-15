@@ -2,6 +2,9 @@
 #
 # EZ Integration Test Runner
 #
+# Copyright (c) 2025-Present Marshall A Burns
+# Licensed under the MIT License. See LICENSE for details.
+#
 # This script runs all integration tests and reports results.
 # - Tests in pass/ should execute successfully
 # - Tests in fail/ should fail with expected errors

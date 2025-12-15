@@ -1,5 +1,9 @@
 #!/usr/bin/env bash
 # EZ Language Installer
+#
+# Copyright (c) 2025-Present Marshall A Burns
+# Licensed under the MIT License. See LICENSE for details.
+
 set -e
 
 INSTALL_DIR="/usr/local/bin"

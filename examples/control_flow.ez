@@ -37,12 +37,15 @@ do main() {
         println("  ${i}")
     }
 
-    // Descending range (countdown)
+    // Note: Descending ranges like range(5, 0) are now compile-time errors (E9005)
+    // Use as_long_as with decrement if you need to count backwards:
     println("")
-    println("-- Descending range --")
+    println("-- Counting backwards --")
     println("Countdown from 5:")
-    for i in range(5, 0) {
-        println("  ${i}")
+    temp n int = 5
+    as_long_as n > 0 {
+        println("  ${n}")
+        n--
     }
 
     // for_each loop
