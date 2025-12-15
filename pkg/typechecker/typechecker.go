@@ -1997,6 +1997,19 @@ func (tc *TypeChecker) checkIndexExpression(index *ast.IndexExpression) {
 				column,
 			)
 		}
+		// Validate that index type matches the map's declared key type (#608)
+		if indexOk {
+			mapKeyType := tc.extractMapKeyType(leftType)
+			if mapKeyType != "" && !tc.typesCompatible(mapKeyType, indexType) {
+				line, column := tc.getExpressionPosition(index.Index)
+				tc.addError(
+					errors.E3003,
+					fmt.Sprintf("map key type mismatch: expected %s, got %s", mapKeyType, indexType),
+					line,
+					column,
+				)
+			}
+		}
 		return
 	}
 
