@@ -88,6 +88,7 @@ var (
 	E2050 = ErrorCode{"E2050", "when-collection-condition", "when condition cannot be an array or map"}
 	E2051 = ErrorCode{"E2051", "suppress-invalid-target", "@suppress can only be applied to function declarations"}
 	E2052 = ErrorCode{"E2052", "suppress-invalid-code", "warning code cannot be suppressed"}
+	E2053 = ErrorCode{"E2053", "type-definition-in-function", "type definitions must be at file level"}
 )
 
 // =============================================================================
@@ -123,6 +124,10 @@ var (
 	E3027 = ErrorCode{"E3027", "const-to-mutable-param", "cannot pass immutable variable to mutable parameter"}
 	E3028 = ErrorCode{"E3028", "enum-mixed-types", "enum members must all have the same type"}
 	E3029 = ErrorCode{"E3029", "float-enum-map-key", "float-based enum cannot be used as map key"}
+	E3030 = ErrorCode{"E3030", "type-as-value", "type definition cannot be used as a runtime value"}
+	E3031 = ErrorCode{"E3031", "function-as-value", "function cannot be used as a value without calling it"}
+	E3032 = ErrorCode{"E3032", "enum-type-mismatch", "cannot compare values from different enum types"}
+	E3033 = ErrorCode{"E3033", "duplicate-enum-value", "enum contains duplicate values"}
 )
 
 // =============================================================================
@@ -140,6 +145,9 @@ var (
 	E4009 = ErrorCode{"E4009", "no-main-function", "program has no entry point"}
 	E4010 = ErrorCode{"E4010", "nil-member-access", "cannot access member of nil"}
 	E4011 = ErrorCode{"E4011", "member-access-invalid-type", "type does not support member access"}
+	E4012 = ErrorCode{"E4012", "shadows-type", "variable shadows a type definition"}
+	E4013 = ErrorCode{"E4013", "shadows-function", "variable shadows a function"}
+	E4014 = ErrorCode{"E4014", "shadows-module", "variable shadows an imported module"}
 )
 
 // =============================================================================
@@ -327,6 +335,7 @@ var (
 	W2004 = ErrorCode{"W2004", "implicit-type-conversion", "implicit type conversion occurring"}
 	W2005 = ErrorCode{"W2005", "deprecated-feature", "using deprecated feature"}
 	W2006 = ErrorCode{"W2006", "byte-overflow-potential", "byte arithmetic may overflow"}
+	W2007 = ErrorCode{"W2007", "shadows-global", "variable shadows global variable or constant"}
 
 	// Code Quality Warnings (W3xxx)
 	W3001 = ErrorCode{"W3001", "empty-block", "block statement is empty"}

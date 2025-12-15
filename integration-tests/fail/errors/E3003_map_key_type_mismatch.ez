@@ -1,0 +1,12 @@
+/*
+ * Error Test: E3003 - map-key-type-mismatch
+ * Expected: "key" and "type"
+ */
+
+import @std
+using std
+
+do main() {
+    temp m map[string:int] = {"a": 1, "b": 2}
+    temp val = m[123]  // Should fail: int key on string-keyed map
+}

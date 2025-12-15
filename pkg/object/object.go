@@ -706,6 +706,12 @@ func (e *Environment) RegisterStructDef(name string, def *StructDef) {
 	e.structDefs[name] = def
 }
 
+// RegisterStructDefWithVisibility registers a struct definition with explicit visibility
+func (e *Environment) RegisterStructDefWithVisibility(name string, def *StructDef, vis Visibility) {
+	e.structDefs[name] = def
+	e.visibility[name] = vis
+}
+
 func (e *Environment) GetStructDef(name string) (*StructDef, bool) {
 	if def, ok := e.structDefs[name]; ok {
 		return def, true

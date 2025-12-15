@@ -405,15 +405,16 @@ func Eval(node ast.Node, env *Environment) Object {
 		return evalFunctionDeclaration(node, env)
 
 	case *ast.StructDeclaration:
-		// Register the struct type definition
+		// Register the struct type definition with visibility
 		fields := make(map[string]string)
 		for _, field := range node.Fields {
 			fields[field.Name.Value] = field.TypeName
 		}
-		env.RegisterStructDef(node.Name.Value, &StructDef{
+		vis := convertVisibility(node.Visibility)
+		env.RegisterStructDefWithVisibility(node.Name.Value, &StructDef{
 			Name:   node.Name.Value,
 			Fields: fields,
-		})
+		}, vis)
 		return NIL
 
 	case *ast.EnumDeclaration:
@@ -727,6 +728,13 @@ func evalProgram(program *ast.Program, env *Environment) Object {
 		// Skip imports (already processed)
 		if _, ok := stmt.(*ast.ImportStatement); ok {
 			continue
+		}
+
+		// Update current file context for accurate error reporting in multi-file modules
+		if globalEvalContext != nil {
+			if stmtFile := getStatementFile(stmt); stmtFile != "" {
+				globalEvalContext.CurrentFile = stmtFile
+			}
 		}
 
 		result = Eval(stmt, env)
@@ -1249,6 +1257,12 @@ func evalWhenStatement(node *ast.WhenStatement, env *Environment) Object {
 		return matchValue
 	}
 
+	// Unwrap EnumValue to get the underlying value for comparisons
+	// This allows matching enum values against integers and ranges
+	if ev, ok := matchValue.(*EnumValue); ok {
+		matchValue = ev.Value
+	}
+
 	// Try each case
 	for _, whenCase := range node.Cases {
 		matched := false
@@ -1278,6 +1292,11 @@ func evalWhenStatement(node *ast.WhenStatement, env *Environment) Object {
 			evalCaseValue := Eval(caseValue, env)
 			if isError(evalCaseValue) {
 				return evalCaseValue
+			}
+
+			// Unwrap EnumValue case values for comparison
+			if ev, ok := evalCaseValue.(*EnumValue); ok {
+				evalCaseValue = ev.Value
 			}
 
 			// Compare for equality
@@ -1661,8 +1680,9 @@ func evalEnumDeclaration(node *ast.EnumDeclaration, env *Environment) Object {
 		}
 	}
 
-	// Store the enum in the environment
-	env.Set(node.Name.Value, enum, false) // enums are immutable
+	// Store the enum in the environment with visibility
+	vis := convertVisibility(node.Visibility)
+	env.SetWithVisibility(node.Name.Value, enum, false, vis) // enums are immutable
 	return NIL
 }
 
@@ -2979,6 +2999,10 @@ func evalMemberExpression(node *ast.MemberExpression, env *Environment) Object {
 			if nestedStruct, ok := val.(*Struct); ok {
 				nestedStruct.Mutable = structObj.Mutable
 			}
+			// Propagate mutability to nested arrays
+			if arr, ok := val.(*Array); ok {
+				arr.Mutable = structObj.Mutable
+			}
 			return val
 		}
 		return newErrorWithLocation("E4003", node.Token.Line, node.Token.Column,
@@ -3042,6 +3066,52 @@ func getFunctionObject(call *ast.CallExpression, env *Environment) *Function {
 
 func newError(format string, a ...interface{}) *Error {
 	return &Error{Message: fmt.Sprintf(format, a...)}
+}
+
+// getStatementFile extracts the source file from a statement's token
+// This is used to track the current file during multi-file module evaluation
+func getStatementFile(stmt ast.Statement) string {
+	switch s := stmt.(type) {
+	case *ast.VariableDeclaration:
+		return s.Token.File
+	case *ast.FunctionDeclaration:
+		return s.Token.File
+	case *ast.StructDeclaration:
+		return s.Token.File
+	case *ast.EnumDeclaration:
+		return s.Token.File
+	case *ast.AssignmentStatement:
+		return s.Token.File
+	case *ast.ReturnStatement:
+		return s.Token.File
+	case *ast.ExpressionStatement:
+		return s.Token.File
+	case *ast.BlockStatement:
+		return s.Token.File
+	case *ast.IfStatement:
+		return s.Token.File
+	case *ast.WhenStatement:
+		return s.Token.File
+	case *ast.ForStatement:
+		return s.Token.File
+	case *ast.ForEachStatement:
+		return s.Token.File
+	case *ast.WhileStatement:
+		return s.Token.File
+	case *ast.LoopStatement:
+		return s.Token.File
+	case *ast.BreakStatement:
+		return s.Token.File
+	case *ast.ContinueStatement:
+		return s.Token.File
+	case *ast.ImportStatement:
+		return s.Token.File
+	case *ast.UsingStatement:
+		return s.Token.File
+	case *ast.ModuleDeclaration:
+		return s.Token.File
+	}
+	return ""
 }
 
 // newErrorWithLocation creates an error with line/column info

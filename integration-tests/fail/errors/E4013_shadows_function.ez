@@ -1,0 +1,8 @@
+import @std
+using std
+
+do helper() { println("hi") }
+
+do main() {
+    temp helper = "shadowed"
+}

@@ -211,30 +211,19 @@ func checkFile(filename string) {
 		fmt.Print(errors.FormatErrorList(p.EZErrors()))
 	}
 
-	// Type checking for main file
-	tc := typechecker.NewTypeChecker(source, absFile)
-	tc.CheckProgram(program)
-
-	// Check for type errors
-	if tc.Errors().HasErrors() {
-		fmt.Print(errors.FormatErrorList(tc.Errors()))
-		return
-	}
-
-	// Display type checker warnings
-	if tc.Errors().HasWarnings() {
-		fmt.Print(errors.FormatErrorList(tc.Errors()))
-	}
-
 	// Initialize the module loader to check imported modules
 	loader := interpreter.NewModuleLoader(absDir)
 
-	// Track all modules that need to be checked
-	filesChecked := 1 // Start with 1 for the main file
+	// PHASE 1: Load and typecheck all imported modules FIRST
+	// This allows us to gather module function signatures before typechecking main file
+	filesChecked := 0
 	hasErrors := false
 	modulesToCheck := collectImports(program, absDir, absFile)
 	checked := make(map[string]bool)
 	checked[absFile] = true
+
+	// Store module function signatures: moduleName -> funcName -> signature
+	moduleSignatures := make(map[string]map[string]*typechecker.FunctionSignature)
 
 	for len(modulesToCheck) > 0 {
 		// Pop first module
@@ -322,17 +311,59 @@ func checkFile(filename string) {
 				fmt.Print(errors.FormatErrorList(fileTc.Errors()))
 			}
 
+			// Extract module name and function signatures for cross-module type checking
+			if fileProgram.Module != nil && fileProgram.Module.Name != nil {
+				moduleName := fileProgram.Module.Name.Value
+				if moduleSignatures[moduleName] == nil {
+					moduleSignatures[moduleName] = make(map[string]*typechecker.FunctionSignature)
+				}
+				// Copy function signatures from this file's typechecker
+				for funcName, sig := range fileTc.GetFunctions() {
+					moduleSignatures[moduleName][funcName] = sig
+				}
+			}
+
 			// Collect more imports from this file
 			newImports := collectImports(fileProgram, absDir, filePath)
 			modulesToCheck = append(modulesToCheck, newImports...)
 		}
 	}
 
+	// Print module loader warnings
+	for _, warning := range loader.GetWarnings() {
+		fmt.Print(errors.FormatError(warning))
+	}
+
 	if hasErrors {
 		return
 	}
 
-	fmt.Printf("Check successful: %s\n", filename)
+	// PHASE 2: Type check main file with knowledge of module signatures
+	tc := typechecker.NewTypeChecker(source, absFile)
+
+	// Register all module function signatures for cross-module type checking
+	for moduleName, funcs := range moduleSignatures {
+		for funcName, sig := range funcs {
+			tc.RegisterModuleFunction(moduleName, funcName, sig)
+		}
+	}
+
+	tc.CheckProgram(program)
+
+	// Check for type errors
+	if tc.Errors().HasErrors() {
+		fmt.Print(errors.FormatErrorList(tc.Errors()))
+		return
+	}
+
+	// Display type checker warnings
+	if tc.Errors().HasWarnings() {
+		fmt.Print(errors.FormatErrorList(tc.Errors()))
+	}
+
+	filesChecked++ // Count main file
+
+	fmt.Printf("Check successful: %s (%d file(s) checked)\n", filename, filesChecked)
 }
 
 // checkProject checks an entire EZ project starting from main.ez
@@ -525,7 +556,7 @@ func checkProject(dir string) {
 
 	// Print module loader warnings
 	for _, warning := range loader.GetWarnings() {
-		fmt.Println(warning)
+		fmt.Print(errors.FormatError(warning))
 	}
 
 	if hasErrors {
@@ -687,7 +718,7 @@ func runFile(filename string) {
 	// Print any module loading warnings
 	if ctx := interpreter.GetEvalContext(); ctx != nil && ctx.Loader != nil {
 		for _, warning := range ctx.Loader.GetWarnings() {
-			fmt.Println(warning)
+			fmt.Print(errors.FormatError(warning))
 		}
 	}
 

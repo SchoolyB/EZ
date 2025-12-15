@@ -1,0 +1,6 @@
+import @std
+using std
+
+do main() {
+    temp std = "shadowed"
+}
