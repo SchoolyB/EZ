@@ -1365,7 +1365,7 @@ do main() {
 	assertNoErrors(t, tc)
 }
 
-func TestForEachStatementMap(t *testing.T) {
+func TestForEachStatementMapError(t *testing.T) {
 	input := `
 do main() {
 	temp m map[string:int] = {"a": 1, "b": 2}
@@ -1374,7 +1374,7 @@ do main() {
 }
 `
 	tc := typecheck(t, input)
-	assertNoErrors(t, tc)
+	assertHasError(t, tc, errors.E3017) // for_each on map should be an error (#595)
 }
 
 // ============================================================================
