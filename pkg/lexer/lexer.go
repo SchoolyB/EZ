@@ -291,6 +291,16 @@ func (l *Lexer) NextToken() tokenizer.Token {
 			l.readChar() // consume closing quote
 		}
 		return tok
+	case '`':
+		tok.Line = l.line
+		tok.Column = l.column
+		tok.Type = tokenizer.RAW_STRING // Distinct type so parser skips interpolation
+		var ok bool
+		tok.Literal, ok = l.readRawString()
+		if ok {
+			l.readChar() // consume closing backtick
+		}
+		return tok
 	case '\'':
 		tok.Type = tokenizer.CHAR
 		tok.Literal = l.readCharValue()
@@ -607,6 +617,36 @@ func (l *Lexer) readString() (string, bool) {
 			}
 			l.readChar() // skip escaped character
 		}
+	}
+}
+
+// readRawString reads a raw string literal enclosed in backticks.
+// Raw strings:
+// - Do NOT process escape sequences (\n is literal backslash-n)
+// - Do NOT process string interpolation (${x} is literal text)
+// - DO allow newlines (multi-line strings)
+// - Cannot contain backticks (no escape mechanism)
+func (l *Lexer) readRawString() (string, bool) {
+	startLine := l.line
+	startColumn := l.column
+	position := l.position + 1 // skip opening backtick
+
+	for {
+		l.readChar()
+
+		if l.ch == '`' {
+			// Found closing backtick
+			return l.input[position:l.position], true
+		}
+
+		if l.ch == 0 {
+			// EOF without closing backtick
+			l.addError("E1017", "unclosed raw string literal", startLine, startColumn)
+			return l.input[position:l.position], false
+		}
+
+		// All other characters (including newlines) are taken literally
+		// No escape processing, no interpolation processing
 	}
 }
 

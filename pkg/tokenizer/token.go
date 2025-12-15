@@ -19,11 +19,12 @@ const (
 	EOF     TokenType = "EOF"
 
 	// Identifiers and literals
-	IDENT  TokenType = "IDENT"
-	INT    TokenType = "INT"
-	FLOAT  TokenType = "FLOAT"
-	STRING TokenType = "STRING"
-	CHAR   TokenType = "CHAR"
+	IDENT      TokenType = "IDENT"
+	INT        TokenType = "INT"
+	FLOAT      TokenType = "FLOAT"
+	STRING     TokenType = "STRING"
+	RAW_STRING TokenType = "RAW_STRING" // Backtick strings - no escapes, no interpolation
+	CHAR       TokenType = "CHAR"
 
 	// Operators
 	ASSIGN   TokenType = "="

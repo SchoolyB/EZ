@@ -223,6 +223,7 @@ func New(l *Lexer) *Parser {
 	p.setPrefix(INT, p.parseIntegerValue)
 	p.setPrefix(FLOAT, p.parseFloatValue)
 	p.setPrefix(STRING, p.parseStringValue)
+	p.setPrefix(RAW_STRING, p.parseRawStringValue)
 	p.setPrefix(CHAR, p.parseCharValue)
 	p.setPrefix(TRUE, p.parseBooleanValue)
 	p.setPrefix(FALSE, p.parseBooleanValue)
@@ -279,6 +280,7 @@ func NewWithSource(l *Lexer, source, filename string) *Parser {
 	p.setPrefix(INT, p.parseIntegerValue)
 	p.setPrefix(FLOAT, p.parseFloatValue)
 	p.setPrefix(STRING, p.parseStringValue)
+	p.setPrefix(RAW_STRING, p.parseRawStringValue)
 	p.setPrefix(CHAR, p.parseCharValue)
 	p.setPrefix(TRUE, p.parseBooleanValue)
 	p.setPrefix(FALSE, p.parseBooleanValue)
@@ -2531,6 +2533,15 @@ func (p *Parser) parseStringValue() Expression {
 	return &InterpolatedString{
 		Token: token,
 		Parts: parts,
+	}
+}
+
+// parseRawStringValue parses a raw string literal (backtick strings).
+// Raw strings have no escape processing and no interpolation.
+func (p *Parser) parseRawStringValue() Expression {
+	return &StringValue{
+		Token: p.currentToken,
+		Value: p.currentToken.Literal, // Use literal as-is, no processing
 	}
 }
 

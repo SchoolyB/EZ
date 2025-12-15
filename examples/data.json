@@ -1,0 +1,25 @@
+{
+  "app_name": "My Todo App",
+  "version": "1.0",
+  "tasks": [
+    {
+      "title": "Learn EZ language",
+      "completed": true,
+      "priority": 1
+    },
+    {
+      "title": "Build something cool",
+      "completed": false,
+      "priority": 2
+    },
+    {
+      "title": "Share with friends",
+      "completed": false,
+      "priority": 3
+    }
+  ],
+  "settings": {
+    "theme": "dark",
+    "notifications": true
+  }
+}
