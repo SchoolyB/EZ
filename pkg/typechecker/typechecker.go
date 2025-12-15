@@ -1730,8 +1730,20 @@ func (tc *TypeChecker) checkRangeExpression(rangeExpr *ast.RangeExpression) {
 }
 
 // checkPostfixExpression validates postfix operators (++ and --)
-// These operators modify the operand, so we must check mutability
+// These operators modify the operand, so we must check mutability and type (#598)
 func (tc *TypeChecker) checkPostfixExpression(postfix *ast.PostfixExpression) {
+	// Check that operand is an integer type
+	operandType, ok := tc.inferExpressionType(postfix.Left)
+	if ok && !tc.isIntegerType(operandType) {
+		line, column := tc.getExpressionPosition(postfix.Left)
+		tc.addError(
+			errors.E3001,
+			fmt.Sprintf("postfix operator %s requires integer operand, got %s", postfix.Operator, operandType),
+			line,
+			column,
+		)
+	}
+
 	// Check mutability - error if trying to modify an immutable variable
 	if rootVar := tc.extractRootVariable(postfix.Left); rootVar != "" {
 		isMutable, found := tc.isVariableMutable(rootVar)
