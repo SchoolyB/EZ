@@ -3776,6 +3776,88 @@ func (tc *TypeChecker) checkArraysModuleCall(funcName string, call *ast.CallExpr
 	}
 
 	tc.validateStdlibCall("arrays", funcName, call, sig, line, column)
+
+	// Additional element type validation for functions that modify arrays (#589, #590, #591)
+	tc.checkArrayElementTypeCompatibility(funcName, call, line, column)
+}
+
+// checkArrayElementTypeCompatibility validates that elements being added to arrays
+// have types compatible with the array's element type
+func (tc *TypeChecker) checkArrayElementTypeCompatibility(funcName string, call *ast.CallExpression, line, column int) {
+	if len(call.Arguments) < 2 {
+		return
+	}
+
+	switch funcName {
+	case "append", "unshift", "contains", "index_of", "last_index_of", "count", "remove", "remove_all", "fill":
+		// First arg is array, remaining args are elements
+		arrayType, ok := tc.inferExpressionType(call.Arguments[0])
+		if !ok || !tc.isArrayType(arrayType) {
+			return
+		}
+		elementType := tc.extractArrayElementType(arrayType)
+
+		// Check each element argument (starting from index 1)
+		for i := 1; i < len(call.Arguments); i++ {
+			argType, ok := tc.inferExpressionType(call.Arguments[i])
+			if !ok {
+				continue
+			}
+			if !tc.typesCompatible(elementType, argType) {
+				argLine, argCol := tc.getExpressionPosition(call.Arguments[i])
+				tc.addError(errors.E3001,
+					fmt.Sprintf("arrays.%s: element type mismatch - array has element type %s, but got %s",
+						funcName, elementType, argType),
+					argLine, argCol)
+			}
+		}
+
+	case "insert", "set":
+		// First arg is array, second is index, third is element
+		if len(call.Arguments) < 3 {
+			return
+		}
+		arrayType, ok := tc.inferExpressionType(call.Arguments[0])
+		if !ok || !tc.isArrayType(arrayType) {
+			return
+		}
+		elementType := tc.extractArrayElementType(arrayType)
+
+		argType, ok := tc.inferExpressionType(call.Arguments[2])
+		if !ok {
+			return
+		}
+		if !tc.typesCompatible(elementType, argType) {
+			argLine, argCol := tc.getExpressionPosition(call.Arguments[2])
+			tc.addError(errors.E3001,
+				fmt.Sprintf("arrays.%s: element type mismatch - array has element type %s, but got %s",
+					funcName, elementType, argType),
+				argLine, argCol)
+		}
+
+	case "concat", "zip":
+		// All args are arrays - check they have compatible element types
+		firstArrayType, ok := tc.inferExpressionType(call.Arguments[0])
+		if !ok || !tc.isArrayType(firstArrayType) {
+			return
+		}
+		firstElementType := tc.extractArrayElementType(firstArrayType)
+
+		for i := 1; i < len(call.Arguments); i++ {
+			argType, ok := tc.inferExpressionType(call.Arguments[i])
+			if !ok || !tc.isArrayType(argType) {
+				continue
+			}
+			argElementType := tc.extractArrayElementType(argType)
+			if !tc.typesCompatible(firstElementType, argElementType) {
+				argLine, argCol := tc.getExpressionPosition(call.Arguments[i])
+				tc.addError(errors.E3001,
+					fmt.Sprintf("arrays.%s: incompatible array element types - first array has %s, but argument %d has %s",
+						funcName, firstElementType, i+1, argElementType),
+					argLine, argCol)
+			}
+		}
+	}
 }
 
 // checkMapsModuleCall validates maps module function calls

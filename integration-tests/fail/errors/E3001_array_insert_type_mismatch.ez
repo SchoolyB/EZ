@@ -1,0 +1,11 @@
+/*
+ * Error Test: E3001 - array-insert-type-mismatch
+ * Expected: "type mismatch" or "element type"
+ */
+
+import @arrays
+
+do main() {
+    temp nums [int] = {1, 2, 3}
+    arrays.insert(nums, 0, "hello")  // Should fail: string into int array
+}
