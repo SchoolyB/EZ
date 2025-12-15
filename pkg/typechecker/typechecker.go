@@ -1805,7 +1805,7 @@ func (tc *TypeChecker) checkInfixExpression(infix *ast.InfixExpression) {
 			column,
 		)
 
-	case "-", "*", "/", "%":
+	case "-", "*", "/":
 		// Only valid for numbers
 		if !tc.isNumericType(leftType) || !tc.isNumericType(rightType) {
 			tc.addError(
@@ -1834,6 +1834,17 @@ func (tc *TypeChecker) checkInfixExpression(infix *ast.InfixExpression) {
 					column,
 				)
 			}
+		}
+
+	case "%":
+		// Modulo only valid for integers (#601)
+		if !tc.isIntegerType(leftType) || !tc.isIntegerType(rightType) {
+			tc.addError(
+				errors.E3002,
+				fmt.Sprintf("invalid operands for '%%': %s and %s (expected integer)", leftType, rightType),
+				line,
+				column,
+			)
 		}
 
 	case "==", "!=":
