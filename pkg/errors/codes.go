@@ -150,6 +150,7 @@ var (
 	E4012 = ErrorCode{"E4012", "shadows-type", "variable shadows a type definition"}
 	E4013 = ErrorCode{"E4013", "shadows-function", "variable shadows a function"}
 	E4014 = ErrorCode{"E4014", "shadows-module", "variable shadows an imported module"}
+	E4015 = ErrorCode{"E4015", "shadows-used-module-function", "variable shadows a function from a used module"}
 )
 
 // =============================================================================

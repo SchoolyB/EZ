@@ -1170,6 +1170,16 @@ func (tc *TypeChecker) checkVariableDeclaration(decl *ast.VariableDeclaration) {
 		)
 	}
 
+	// Check if variable name shadows a function from a 'used' module - #616
+	if shadowedModule := tc.getUsedModuleShadowingFunction(varName); shadowedModule != "" {
+		tc.addError(
+			errors.E4015,
+			fmt.Sprintf("variable '%s' shadows function '%s.%s' from used module", varName, shadowedModule, varName),
+			decl.Name.Token.Line,
+			decl.Name.Token.Column,
+		)
+	}
+
 	// Check if declared type exists
 	if declaredType != "" && !tc.TypeExists(declaredType) {
 		tc.addError(
@@ -3767,6 +3777,72 @@ func (tc *TypeChecker) isTimeFunction(name string) bool {
 		"days_in_month": true, "elapsed_ms": true,
 	}
 	return timeFuncs[name]
+}
+
+// isMapsFunction checks if a function name exists in the maps module
+func (tc *TypeChecker) isMapsFunction(name string) bool {
+	mapsFuncs := map[string]bool{
+		"len": true, "is_empty": true, "keys": true, "values": true, "clear": true,
+		"to_array": true, "invert": true, "has": true, "has_key": true, "delete": true,
+		"remove": true, "has_value": true, "get": true, "set": true, "get_or_set": true,
+		"merge": true, "copy": true,
+	}
+	return mapsFuncs[name]
+}
+
+// isStdFunction checks if a function name exists in the std module
+func (tc *TypeChecker) isStdFunction(name string) bool {
+	stdFuncs := map[string]bool{
+		"println": true, "print": true, "printf": true,
+	}
+	return stdFuncs[name]
+}
+
+// getUsedModuleShadowingFunction checks if a name shadows a function from a used module
+// Returns the module name if there's a shadow, empty string otherwise
+func (tc *TypeChecker) getUsedModuleShadowingFunction(name string) string {
+	// Check file-level using modules
+	for moduleName := range tc.fileUsingModules {
+		if tc.isModuleFunction(moduleName, name) {
+			return moduleName
+		}
+	}
+
+	// Check scope-level using modules
+	if tc.currentScope != nil {
+		for _, moduleName := range tc.currentScope.GetAllUsingModules() {
+			if tc.isModuleFunction(moduleName, name) {
+				return moduleName
+			}
+		}
+	}
+
+	return ""
+}
+
+// isModuleFunction checks if a function name exists in the specified module
+func (tc *TypeChecker) isModuleFunction(moduleName, funcName string) bool {
+	switch moduleName {
+	case "std":
+		return tc.isStdFunction(funcName)
+	case "math":
+		return tc.isMathFunction(funcName)
+	case "arrays":
+		return tc.isArraysFunction(funcName)
+	case "strings":
+		return tc.isStringsFunction(funcName)
+	case "time":
+		return tc.isTimeFunction(funcName)
+	case "maps":
+		return tc.isMapsFunction(funcName)
+	default:
+		// Check user-defined modules
+		if funcs, ok := tc.moduleFunctions[moduleName]; ok {
+			_, exists := funcs[funcName]
+			return exists
+		}
+		return false
+	}
 }
 
 // checkStdlibCall validates a standard library module function call

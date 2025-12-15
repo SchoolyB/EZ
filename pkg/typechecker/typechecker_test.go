@@ -1442,8 +1442,8 @@ using arrays
 
 do main() {
 	temp nums [int] = {1, 2, 3}
-	temp first int = arrays.first(nums)
-	temp last int = arrays.last(nums)
+	temp first_item int = arrays.first(nums)
+	temp last_item int = arrays.last(nums)
 	temp rev [int] = arrays.reverse(nums)
 }
 `
@@ -1487,8 +1487,8 @@ using strings
 
 do main() {
 	temp s string = "hello"
-	temp upper string = strings.upper(s)
-	temp lower string = strings.lower(s)
+	temp upper_str string = strings.upper(s)
+	temp lower_str string = strings.lower(s)
 	temp trimmed string = strings.trim("  hello  ")
 }
 `
@@ -1502,9 +1502,9 @@ import @time
 using time
 
 do main() {
-	temp year int = time.year()
-	temp month int = time.month()
-	temp day int = time.day()
+	temp cur_year int = time.year()
+	temp cur_month int = time.month()
+	temp cur_day int = time.day()
 }
 `
 	tc := typecheck(t, input)
@@ -1518,9 +1518,53 @@ using maps
 
 do main() {
 	temp m map[string:int] = {"a": 1, "b": 2}
-	temp keys [string] = maps.keys(m)
-	temp values [int] = maps.values(m)
-	temp has bool = maps.has(m, "a")
+	temp map_keys [string] = maps.keys(m)
+	temp map_values [int] = maps.values(m)
+	temp key_exists bool = maps.has(m, "a")
+}
+`
+	tc := typecheck(t, input)
+	assertNoErrors(t, tc)
+}
+
+func TestVariableShadowsUsedModuleFunction(t *testing.T) {
+	// Test that declaring a variable with the same name as a function from a 'used' module
+	// triggers an error - issue #616
+	input := `
+import & use @maps
+
+do main() {
+	temp m map[string:int] = {"a": 1}
+	temp values [int] = {1, 2, 3}
+}
+`
+	tc := typecheck(t, input)
+	assertHasError(t, tc, errors.E4015)
+}
+
+func TestVariableShadowsUsedModuleFunctionWithSeparateUsing(t *testing.T) {
+	// Test with separate 'using' statement instead of 'import & use'
+	input := `
+import @arrays
+using arrays
+
+do main() {
+	temp nums [int] = {1, 2, 3}
+	temp reverse [int] = {3, 2, 1}
+}
+`
+	tc := typecheck(t, input)
+	assertHasError(t, tc, errors.E4015)
+}
+
+func TestNoErrorWhenNotUsingModule(t *testing.T) {
+	// Test that variable names matching module functions are OK when not using the module
+	input := `
+import @maps
+
+do main() {
+	temp m map[string:int] = {"a": 1}
+	temp values [int] = {1, 2, 3}
 }
 `
 	tc := typecheck(t, input)
