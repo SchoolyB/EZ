@@ -46,7 +46,7 @@ do main() {
 
     // Step 3: Decode the JSON
     println("Decoding JSON...")
-    temp data any, decode_err error = json.decode(content)
+    temp data, decode_err = json.decode(content)
     if decode_err != nil {
         println("Error decoding JSON: ${decode_err.message}")
         return
