@@ -1,0 +1,14 @@
+/*
+ * Error Test: E3017 - for_each-non-iterable
+ * Expected: "for_each requires" or "array or string"
+ */
+
+import @std
+using std
+
+do main() {
+    temp m map[string:int] = {"a": 1}
+    for_each item in m {  // Should fail: map is not iterable
+        println(item)
+    }
+}

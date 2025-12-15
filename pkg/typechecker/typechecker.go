@@ -2411,17 +2411,26 @@ func (tc *TypeChecker) checkForStatement(forStmt *ast.ForStatement, expectedRetu
 func (tc *TypeChecker) checkForEachStatement(forEach *ast.ForEachStatement, expectedReturnTypes []string) {
 	tc.enterScope()
 
-	// Infer element type from collection
+	// Infer element type from collection and validate it's iterable (#595)
 	if forEach.Variable != nil && forEach.Collection != nil {
 		collType, ok := tc.inferExpressionType(forEach.Collection)
 		if ok {
 			// For arrays, element type is inside []
-			if len(collType) > 2 && collType[0] == '[' {
-				elemType := collType[1 : len(collType)-1]
+			if tc.isArrayType(collType) {
+				elemType := tc.extractArrayElementType(collType)
 				tc.defineVariable(forEach.Variable.Value, elemType)
 			} else if collType == "string" {
 				// Iterating over string gives char
 				tc.defineVariable(forEach.Variable.Value, "char")
+			} else {
+				// Not an iterable type - produce error
+				line, column := tc.getExpressionPosition(forEach.Collection)
+				tc.addError(
+					errors.E3017,
+					fmt.Sprintf("for_each requires array or string, got %s", collType),
+					line,
+					column,
+				)
 			}
 		}
 	}
