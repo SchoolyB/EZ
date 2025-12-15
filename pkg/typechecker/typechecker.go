@@ -1033,9 +1033,7 @@ func (tc *TypeChecker) checkStatement(stmt ast.Statement, expectedReturnTypes []
 func (tc *TypeChecker) checkVariableDeclaration(decl *ast.VariableDeclaration) {
 	// Handle multiple names (for multi-return assignment)
 	if len(decl.Names) > 1 {
-		// Multi-return assignment like: temp result, err = divide(10, 2)
-		// For now, we can't easily infer types for multi-return
-		// The runtime will handle this
+		tc.checkMultiReturnDeclaration(decl)
 		return
 	}
 
@@ -1249,6 +1247,84 @@ func (tc *TypeChecker) checkVariableDeclaration(decl *ast.VariableDeclaration) {
 	// Register variable in current scope with mutability (temp = mutable, const = immutable)
 	if declaredType != "" {
 		tc.defineVariableWithMutability(varName, declaredType, decl.Mutable)
+	}
+}
+
+// checkMultiReturnDeclaration validates multi-return variable declarations
+// e.g., temp x int, y string = getValues()
+func (tc *TypeChecker) checkMultiReturnDeclaration(decl *ast.VariableDeclaration) {
+	// Check for type/function used as value
+	if decl.Value != nil {
+		tc.checkValueExpression(decl.Value)
+		tc.checkExpression(decl.Value)
+	}
+
+	// If no explicit types declared, nothing to check at compile time
+	if len(decl.TypeNames) == 0 {
+		return
+	}
+
+	// Get the function call to check return types
+	callExpr, ok := decl.Value.(*ast.CallExpression)
+	if !ok {
+		// Value is not a function call, can't check return types
+		return
+	}
+
+	// Get the function name
+	var funcName string
+	switch fn := callExpr.Function.(type) {
+	case *ast.Label:
+		funcName = fn.Value
+	case *ast.MemberExpression:
+		// Module.function call - get the function part
+		funcName = fn.Member.Value
+	default:
+		return
+	}
+
+	// Look up the function signature
+	funcSig, exists := tc.functions[funcName]
+	if !exists {
+		// Function not found - will be caught elsewhere
+		return
+	}
+
+	// Check that the number of declared types matches the number of return types
+	if len(decl.TypeNames) != len(funcSig.ReturnTypes) {
+		// Count mismatch will be caught by E5012 at runtime
+		return
+	}
+
+	// Check each declared type against the corresponding return type
+	for i, declaredType := range decl.TypeNames {
+		if i >= len(funcSig.ReturnTypes) {
+			break
+		}
+		returnType := funcSig.ReturnTypes[i]
+
+		if !tc.typesCompatible(declaredType, returnType) {
+			// Get position from the variable name at this index
+			line, col := 0, 0
+			if i < len(decl.Names) && decl.Names[i] != nil {
+				line = decl.Names[i].Token.Line
+				col = decl.Names[i].Token.Column
+			}
+			tc.addError(
+				errors.E3001,
+				fmt.Sprintf("type mismatch in multi-return: variable '%s' declared as %s but function returns %s",
+					decl.Names[i].Value, declaredType, returnType),
+				line,
+				col,
+			)
+		}
+	}
+
+	// Register variables in scope
+	for i, name := range decl.Names {
+		if name != nil && i < len(decl.TypeNames) {
+			tc.defineVariableWithMutability(name.Value, decl.TypeNames[i], decl.Mutable)
+		}
 	}
 }
 
