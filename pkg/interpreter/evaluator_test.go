@@ -2365,6 +2365,12 @@ x = 10
 	}
 }
 
+// Note: TestStructTypeAsIdentifier tests are covered by:
+// - pkg/stdlib/json_test.go (TestJSONDecodeTyped* tests)
+// - integration-tests/pass/stdlib/json.ez
+// These tests verify that struct types can be passed as function arguments
+// and that the evaluator correctly returns TypeValue objects for struct identifiers.
+
 // ============================================================================
 // Bang Operator Tests (more coverage)
 // ============================================================================

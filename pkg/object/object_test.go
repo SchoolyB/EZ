@@ -735,3 +735,66 @@ func TestVisibilityConstants(t *testing.T) {
 		t.Errorf("VisibilityPrivateModule = %d, want 2", VisibilityPrivateModule)
 	}
 }
+
+// ============================================================================
+// TypeValue Tests
+// ============================================================================
+
+func TestTypeValueType(t *testing.T) {
+	tv := &TypeValue{TypeName: "Person", Def: nil}
+	if tv.Type() != TYPE_OBJ {
+		t.Errorf("TypeValue.Type() = %s, want %s", tv.Type(), TYPE_OBJ)
+	}
+}
+
+func TestTypeValueInspect(t *testing.T) {
+	tv := &TypeValue{TypeName: "Person", Def: nil}
+	expected := "<type Person>"
+	if tv.Inspect() != expected {
+		t.Errorf("TypeValue.Inspect() = %s, want %s", tv.Inspect(), expected)
+	}
+}
+
+func TestTypeValueWithStructDef(t *testing.T) {
+	structDef := &StructDef{
+		Name: "Person",
+		Fields: map[string]string{
+			"name": "string",
+			"age":  "int",
+		},
+	}
+	tv := &TypeValue{TypeName: "Person", Def: structDef}
+
+	if tv.TypeName != "Person" {
+		t.Errorf("TypeValue.TypeName = %s, want Person", tv.TypeName)
+	}
+
+	if tv.Def == nil {
+		t.Error("TypeValue.Def should not be nil")
+	}
+
+	if tv.Def.Name != "Person" {
+		t.Errorf("TypeValue.Def.Name = %s, want Person", tv.Def.Name)
+	}
+
+	if len(tv.Def.Fields) != 2 {
+		t.Errorf("TypeValue.Def.Fields length = %d, want 2", len(tv.Def.Fields))
+	}
+
+	if tv.Def.Fields["name"] != "string" {
+		t.Errorf("TypeValue.Def.Fields[name] = %s, want string", tv.Def.Fields["name"])
+	}
+}
+
+func TestTypeValueWithoutStructDef(t *testing.T) {
+	// TypeValue without Def (for primitive types or when Def is not needed)
+	tv := &TypeValue{TypeName: "int", Def: nil}
+
+	if tv.TypeName != "int" {
+		t.Errorf("TypeValue.TypeName = %s, want int", tv.TypeName)
+	}
+
+	if tv.Def != nil {
+		t.Error("TypeValue.Def should be nil for primitive types")
+	}
+}

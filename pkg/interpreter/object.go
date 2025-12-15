@@ -39,6 +39,7 @@ type (
 	ModuleObject    = object.ModuleObject
 	Reference       = object.Reference
 	Range           = object.Range
+	TypeValue       = object.TypeValue
 )
 
 // Re-export constants
@@ -64,6 +65,7 @@ const (
 	MODULE_OBJ       = object.MODULE_OBJ
 	REFERENCE_OBJ    = object.REFERENCE_OBJ
 	RANGE_OBJ        = object.RANGE_OBJ
+	TYPE_OBJ         = object.TYPE_OBJ
 
 	// Visibility constants
 	VisibilityPublic        = object.VisibilityPublic
