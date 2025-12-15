@@ -1,0 +1,12 @@
+/*
+ * Error Test: E3001 - postfix-type-mismatch
+ * Expected: "postfix" and "integer"
+ */
+
+import @std
+using std
+
+do main() {
+    temp s string = "hello"
+    s++  // Should fail: increment on string
+}
