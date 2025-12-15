@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.22.1](https://github.com/SchoolyB/EZ/compare/v0.22.0...v0.22.1) (2025-12-15)
+
+
+### Bug Fixes
+
+* detect variable shadowing of functions from used modules ([db505b4](https://github.com/SchoolyB/EZ/commit/db505b40bd022a64e31752f08f1b59ad02e9bfe2))
+* detect variable shadowing of functions from used modules ([#616](https://github.com/SchoolyB/EZ/issues/616)) ([cf40e75](https://github.com/SchoolyB/EZ/commit/cf40e75abffaee9d9a9553bc652014bda149f07e))
+
 ## [0.22.0](https://github.com/SchoolyB/EZ/compare/v0.21.2...v0.22.0) (2025-12-15)
 
 
