@@ -26,7 +26,7 @@ do main() {
 
     // Step 1: Read the JSON file
     println("Reading data.json...")
-    temp content string, read_err error = io.read_file("examples/data.json")
+    temp content string, read_err error = io.read_file("examples/json/data.json")
     if read_err != nil {
         println("Error reading file: ${read_err.message}")
         return
