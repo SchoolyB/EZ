@@ -799,6 +799,22 @@ func (tc *TypeChecker) checkFunctionDeclaration(node *ast.FunctionDeclaration) {
 				param.Name.Token.Column,
 			)
 		}
+
+		// Check default value type matches parameter type (#582)
+		if param.DefaultValue != nil {
+			defaultType, ok := tc.inferExpressionType(param.DefaultValue)
+			if ok && !tc.typesCompatible(param.TypeName, defaultType) {
+				line, col := tc.getExpressionPosition(param.DefaultValue)
+				tc.addError(
+					errors.E3001,
+					fmt.Sprintf("default value type mismatch: parameter '%s' expects %s, got %s",
+						param.Name.Value, param.TypeName, defaultType),
+					line,
+					col,
+				)
+			}
+		}
+
 		sig.Parameters = append(sig.Parameters, &Parameter{
 			Name:       param.Name.Value,
 			Type:       param.TypeName,
