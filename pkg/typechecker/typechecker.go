@@ -161,6 +161,7 @@ type TypeChecker struct {
 	source           string
 	filename         string
 	skipMainCheck    bool // Skip main() function requirement (for module files)
+	loopDepth        int  // Track nesting depth of loops for break/continue validation (#603)
 }
 
 // NewTypeChecker creates a new type checker
@@ -1023,6 +1024,28 @@ func (tc *TypeChecker) checkStatement(stmt ast.Statement, expectedReturnTypes []
 			if tc.currentScope != nil {
 				tc.currentScope.AddUsingModule(mod.Value)
 			}
+		}
+
+	case *ast.BreakStatement:
+		// Check that break is inside a loop (#603)
+		if tc.loopDepth == 0 {
+			tc.addError(
+				errors.E5009,
+				"break statement outside loop",
+				s.Token.Line,
+				s.Token.Column,
+			)
+		}
+
+	case *ast.ContinueStatement:
+		// Check that continue is inside a loop (#603)
+		if tc.loopDepth == 0 {
+			tc.addError(
+				errors.E5009,
+				"continue statement outside loop",
+				s.Token.Line,
+				s.Token.Column,
+			)
 		}
 
 	case *ast.StructDeclaration:
@@ -2468,6 +2491,7 @@ func (tc *TypeChecker) getCaseValueKey(expr ast.Expression) string {
 // checkForStatement validates a for loop
 func (tc *TypeChecker) checkForStatement(forStmt *ast.ForStatement, expectedReturnTypes []string) {
 	tc.enterScope()
+	tc.loopDepth++ // Track loop nesting for break/continue validation (#603)
 
 	// Check the iterable expression (e.g., range())
 	if forStmt.Iterable != nil {
@@ -2484,12 +2508,14 @@ func (tc *TypeChecker) checkForStatement(forStmt *ast.ForStatement, expectedRetu
 	}
 
 	tc.checkBlock(forStmt.Body, expectedReturnTypes)
+	tc.loopDepth--
 	tc.exitScope()
 }
 
 // checkForEachStatement validates a for_each loop
 func (tc *TypeChecker) checkForEachStatement(forEach *ast.ForEachStatement, expectedReturnTypes []string) {
 	tc.enterScope()
+	tc.loopDepth++ // Track loop nesting for break/continue validation (#603)
 
 	// Infer element type from collection and validate it's iterable (#595)
 	if forEach.Variable != nil && forEach.Collection != nil {
@@ -2516,6 +2542,7 @@ func (tc *TypeChecker) checkForEachStatement(forEach *ast.ForEachStatement, expe
 	}
 
 	tc.checkBlock(forEach.Body, expectedReturnTypes)
+	tc.loopDepth--
 	tc.exitScope()
 }
 
@@ -2534,14 +2561,18 @@ func (tc *TypeChecker) checkWhileStatement(whileStmt *ast.WhileStatement, expect
 	}
 
 	tc.enterScope()
+	tc.loopDepth++ // Track loop nesting for break/continue validation (#603)
 	tc.checkBlock(whileStmt.Body, expectedReturnTypes)
+	tc.loopDepth--
 	tc.exitScope()
 }
 
 // checkLoopStatement validates a loop statement
 func (tc *TypeChecker) checkLoopStatement(loopStmt *ast.LoopStatement, expectedReturnTypes []string) {
 	tc.enterScope()
+	tc.loopDepth++ // Track loop nesting for break/continue validation (#603)
 	tc.checkBlock(loopStmt.Body, expectedReturnTypes)
+	tc.loopDepth--
 	tc.exitScope()
 }
 

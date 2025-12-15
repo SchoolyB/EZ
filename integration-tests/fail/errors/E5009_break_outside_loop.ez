@@ -1,8 +1,11 @@
 /*
  * Error Test: E5009 - break-outside-loop
- * Expected: "break statement outside loop"
+ * Expected: "break" and "outside loop"
  */
 
+import @std
+using std
+
 do main() {
-    break  // break outside of any loop
+    break  // Should fail: break outside loop
 }
