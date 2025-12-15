@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.22.0](https://github.com/SchoolyB/EZ/compare/v0.21.2...v0.22.0) (2025-12-15)
+
+
+### Features
+
+* add `@JSON` module, raw strings, and restrict `any` type ([8e566e5](https://github.com/SchoolyB/EZ/commit/8e566e5c73e9cd14c595f7b63dbed93104745f1f))
+* add JSON module, raw strings, and restrict 'any' type ([f66b734](https://github.com/SchoolyB/EZ/commit/f66b734823d38dc9c40312044e25905cda096374))
+
 ## [0.21.2](https://github.com/SchoolyB/EZ/compare/v0.21.1...v0.21.2) (2025-12-15)
 
 
