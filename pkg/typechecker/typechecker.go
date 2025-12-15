@@ -1654,12 +1654,55 @@ func (tc *TypeChecker) checkExpression(expr ast.Expression) {
 	}
 }
 
-// checkRangeExpression validates range bounds
+// checkRangeExpression validates range bounds and argument types (#597)
 func (tc *TypeChecker) checkRangeExpression(rangeExpr *ast.RangeExpression) {
+	// Validate argument types - all must be integers
+	if rangeExpr.Start != nil {
+		startType, ok := tc.inferExpressionType(rangeExpr.Start)
+		if ok && !tc.isIntegerType(startType) {
+			line, col := tc.getExpressionPosition(rangeExpr.Start)
+			tc.addError(
+				errors.E3001,
+				fmt.Sprintf("range() start must be integer, got %s", startType),
+				line, col,
+			)
+		}
+	}
+
+	if rangeExpr.End != nil {
+		endType, ok := tc.inferExpressionType(rangeExpr.End)
+		if ok && !tc.isIntegerType(endType) {
+			line, col := tc.getExpressionPosition(rangeExpr.End)
+			tc.addError(
+				errors.E3001,
+				fmt.Sprintf("range() end must be integer, got %s", endType),
+				line, col,
+			)
+		}
+	}
+
+	if rangeExpr.Step != nil {
+		stepType, ok := tc.inferExpressionType(rangeExpr.Step)
+		if ok && !tc.isIntegerType(stepType) {
+			line, col := tc.getExpressionPosition(rangeExpr.Step)
+			tc.addError(
+				errors.E3001,
+				fmt.Sprintf("range() step must be integer, got %s", stepType),
+				line, col,
+			)
+		}
+	}
+
 	// Check if both start and end are integer literals
 	// If so, verify start <= end
 	if rangeExpr.Start == nil {
-		return // range(end) form, start defaults to 0, always valid
+		// range(end) form, start defaults to 0
+		// Also check subexpressions
+		tc.checkExpression(rangeExpr.End)
+		if rangeExpr.Step != nil {
+			tc.checkExpression(rangeExpr.Step)
+		}
+		return
 	}
 
 	startInt, startOk := rangeExpr.Start.(*ast.IntegerValue)
