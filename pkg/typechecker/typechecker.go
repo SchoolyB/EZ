@@ -239,7 +239,9 @@ func (tc *TypeChecker) registerBuiltinTypes() {
 		// Other primitives
 		"bool", "char", "string", "byte",
 		// Special
-		"void", "nil",
+		"void", "nil", "error",
+		// Internal types (not for user code - will be rejected by E3034)
+		"any",
 	}
 
 	for _, name := range primitives {
@@ -757,6 +759,17 @@ func (tc *TypeChecker) checkGlobalVariableDeclaration(node *ast.VariableDeclarat
 			continue
 		}
 
+		// Check if 'any' type is used (not allowed for user code)
+		if typeName != "" && tc.containsAnyType(typeName) {
+			tc.addError(
+				errors.E3034,
+				"'any' type cannot be used in variable declarations",
+				name.Token.Line,
+				name.Token.Column,
+			)
+			continue
+		}
+
 		// Register variable
 		tc.variables[varName] = typeName
 
@@ -809,6 +822,16 @@ func (tc *TypeChecker) checkFunctionDeclaration(node *ast.FunctionDeclaration) {
 			)
 		}
 
+		// Check if 'any' type is used in parameter type (not allowed for user code)
+		if tc.containsAnyType(param.TypeName) {
+			tc.addError(
+				errors.E3034,
+				fmt.Sprintf("'any' type cannot be used as parameter type for '%s'", param.Name.Value),
+				param.Name.Token.Line,
+				param.Name.Token.Column,
+			)
+		}
+
 		// Check default value type matches parameter type (#582)
 		if param.DefaultValue != nil {
 			defaultType, ok := tc.inferExpressionType(param.DefaultValue)
@@ -838,6 +861,15 @@ func (tc *TypeChecker) checkFunctionDeclaration(node *ast.FunctionDeclaration) {
 			tc.addError(
 				errors.E3011,
 				fmt.Sprintf("undefined return type '%s' in function '%s'", returnType, node.Name.Value),
+				node.Name.Token.Line,
+				node.Name.Token.Column,
+			)
+		}
+		// Check if 'any' type is used in return type (not allowed for user code)
+		if tc.containsAnyType(returnType) {
+			tc.addError(
+				errors.E3034,
+				fmt.Sprintf("'any' type cannot be used as return type in function '%s'", node.Name.Value),
 				node.Name.Token.Line,
 				node.Name.Token.Column,
 			)
@@ -1149,6 +1181,17 @@ func (tc *TypeChecker) checkVariableDeclaration(decl *ast.VariableDeclaration) {
 		return
 	}
 
+	// Check if 'any' type is used (not allowed for user code)
+	if declaredType != "" && tc.containsAnyType(declaredType) {
+		tc.addError(
+			errors.E3034,
+			"'any' type cannot be used in variable declarations",
+			decl.Name.Token.Line,
+			decl.Name.Token.Column,
+		)
+		return
+	}
+
 	// Check for float-based enum as map key (not allowed)
 	if declaredType != "" && tc.isMapType(declaredType) {
 		keyType := tc.extractMapKeyType(declaredType)
@@ -1309,6 +1352,24 @@ func (tc *TypeChecker) checkMultiReturnDeclaration(decl *ast.VariableDeclaration
 	// If no explicit types declared, nothing to check at compile time
 	if len(decl.TypeNames) == 0 {
 		return
+	}
+
+	// Check if 'any' type is used in any of the declared types (not allowed for user code)
+	for i, declaredType := range decl.TypeNames {
+		if tc.containsAnyType(declaredType) {
+			line, col := 0, 0
+			if i < len(decl.Names) && decl.Names[i] != nil {
+				line = decl.Names[i].Token.Line
+				col = decl.Names[i].Token.Column
+			}
+			tc.addError(
+				errors.E3034,
+				"'any' type cannot be used in variable declarations",
+				line,
+				col,
+			)
+			return
+		}
 	}
 
 	// Get the function call to check return types
@@ -1638,7 +1699,8 @@ func (tc *TypeChecker) checkExpression(expr ast.Expression) {
 		tc.checkFunctionCall(e)
 		// Also check arguments
 		for _, arg := range e.Arguments {
-			tc.checkValueExpression(arg) // Catch type/function used as argument
+			// Allow struct types as function arguments (for functions like json.decode that accept types)
+			tc.checkValueExpressionAllowTypes(arg) // Catch function used as argument (but allow types)
 			tc.checkExpression(arg)
 		}
 
@@ -2607,6 +2669,26 @@ func (tc *TypeChecker) isMapType(typeName string) bool {
 	return strings.HasPrefix(typeName, "map[") && strings.HasSuffix(typeName, "]")
 }
 
+// containsAnyType checks if a type string is or contains the 'any' type
+// This catches: "any", "[any]", "map[string:any]", etc.
+func (tc *TypeChecker) containsAnyType(typeName string) bool {
+	if typeName == "any" {
+		return true
+	}
+	// Check array element type
+	if tc.isArrayType(typeName) {
+		elemType := typeName[1 : len(typeName)-1]
+		return tc.containsAnyType(elemType)
+	}
+	// Check map key and value types
+	if tc.isMapType(typeName) {
+		keyType := tc.extractMapKeyType(typeName)
+		valueType := tc.extractMapValueType(typeName)
+		return tc.containsAnyType(keyType) || tc.containsAnyType(valueType)
+	}
+	return false
+}
+
 // extractMapKeyType extracts the key type from a map type string
 // For "map[Status:string]" returns "Status"
 func (tc *TypeChecker) extractMapKeyType(mapType string) string {
@@ -2801,6 +2883,36 @@ func (tc *TypeChecker) lookupVariable(name string) (string, bool) {
 		return typeName, true
 	}
 	return "", false
+}
+
+// checkValueExpressionAllowTypes validates that an expression is not a function
+// name being used as a value, but allows struct/enum types as values.
+// This is used for function arguments where types can be passed (e.g., json.decode).
+func (tc *TypeChecker) checkValueExpressionAllowTypes(expr ast.Expression) bool {
+	label, isLabel := expr.(*ast.Label)
+	if !isLabel {
+		return false
+	}
+
+	// Allow struct/enum types as values when passed to functions
+	if _, isType := tc.types[label.Value]; isType {
+		return false // Types are allowed as function arguments
+	}
+
+	// Check if this label refers to a function (not being called)
+	if _, isFunc := tc.functions[label.Value]; isFunc {
+		line, column := tc.getExpressionPosition(expr)
+		tc.addError(
+			errors.E3031,
+			fmt.Sprintf("function '%s' cannot be used as a value - functions must be called with ()",
+				label.Value),
+			line,
+			column,
+		)
+		return true
+	}
+
+	return false
 }
 
 // checkValueExpression validates that an expression is not a type name or function

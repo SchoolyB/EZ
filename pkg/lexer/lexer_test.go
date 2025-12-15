@@ -524,7 +524,6 @@ func TestE1001IllegalCharacter(t *testing.T) {
 		"$", // standalone $ is illegal
 		"#",
 		"~",
-		"`",
 	}
 
 	for _, input := range tests {
@@ -778,5 +777,77 @@ func TestEOF(t *testing.T) {
 	}
 	if tokens[0].Type != tokenizer.EOF {
 		t.Errorf("type = %s, want EOF", tokens[0].Type)
+	}
+}
+
+// ============================================================================
+// Raw String Tests (backtick strings)
+// ============================================================================
+
+// TestRawStringBasic tests basic raw string lexing
+func TestRawStringBasic(t *testing.T) {
+	tokens := tokenize("`hello world`")
+	if len(tokens) != 2 { // RAW_STRING + EOF
+		t.Fatalf("got %d tokens, want 2", len(tokens))
+	}
+	if tokens[0].Type != tokenizer.RAW_STRING {
+		t.Errorf("type = %s, want RAW_STRING", tokens[0].Type)
+	}
+	if tokens[0].Literal != "hello world" {
+		t.Errorf("literal = %q, want %q", tokens[0].Literal, "hello world")
+	}
+}
+
+// TestRawStringNoEscapeProcessing tests that escapes are not processed
+func TestRawStringNoEscapeProcessing(t *testing.T) {
+	tokens := tokenize("`hello\\nworld`")
+	if tokens[0].Literal != "hello\\nworld" {
+		t.Errorf("literal = %q, want %q", tokens[0].Literal, "hello\\nworld")
+	}
+}
+
+// TestRawStringWithQuotes tests that quotes are literal inside raw strings
+func TestRawStringWithQuotes(t *testing.T) {
+	input := "`{\"name\": \"Alice\"}`"
+	tokens := tokenize(input)
+	expected := "{\"name\": \"Alice\"}"
+	if tokens[0].Literal != expected {
+		t.Errorf("literal = %q, want %q", tokens[0].Literal, expected)
+	}
+}
+
+// TestRawStringMultiline tests multiline raw strings
+func TestRawStringMultiline(t *testing.T) {
+	input := "`line1\nline2\nline3`"
+	tokens := tokenize(input)
+	if tokens[0].Type != tokenizer.RAW_STRING {
+		t.Errorf("type = %s, want RAW_STRING", tokens[0].Type)
+	}
+	expected := "line1\nline2\nline3"
+	if tokens[0].Literal != expected {
+		t.Errorf("literal = %q, want %q", tokens[0].Literal, expected)
+	}
+}
+
+// TestRawStringWithDollarBrace tests that ${} is not processed as interpolation
+func TestRawStringWithDollarBrace(t *testing.T) {
+	tokens := tokenize("`Hello ${name}!`")
+	if tokens[0].Literal != "Hello ${name}!" {
+		t.Errorf("literal = %q, want %q", tokens[0].Literal, "Hello ${name}!")
+	}
+}
+
+// TestE1017UnclosedRawString tests unclosed raw string detection
+func TestE1017UnclosedRawString(t *testing.T) {
+	errs := lexErrors("`unclosed raw string")
+	found := false
+	for _, e := range errs {
+		if e.Code == "E1017" {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Error("expected E1017 for unclosed raw string")
 	}
 }

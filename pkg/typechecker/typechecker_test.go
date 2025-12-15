@@ -1916,3 +1916,112 @@ func TestDefaultParameterWithReturnType(t *testing.T) {
 	tc := typecheck(t, input)
 	assertNoErrors(t, tc)
 }
+
+// ============================================================================
+// Type as Function Argument Tests
+// ============================================================================
+
+func TestStructTypeAsFunctionArgument(t *testing.T) {
+	// Struct types should be allowed as function arguments
+	// This enables features like json.decode(text, Type)
+	input := `
+	import @std, @json
+	using std
+	const Person struct {
+		name string
+		age int
+	}
+	do main() {
+		temp p Person, err error = json.decode("{}", Person)
+	}`
+	tc := typecheck(t, input)
+	assertNoErrors(t, tc)
+}
+
+func TestStructTypeAsArgumentDoesNotErrorE3030(t *testing.T) {
+	// Previously, struct types would cause E3030 error when used as values
+	// Now they should be allowed when passed as function arguments (like json.decode)
+	input := `
+	import @json
+	const Task struct {
+		title string
+		completed bool
+	}
+	do main() {
+		temp t Task, err error = json.decode("{}", Task)
+	}`
+	tc := typecheck(t, input)
+	// Should not have E3030 error (struct type cannot be used as value)
+	for _, err := range tc.Errors().Errors {
+		if err.ErrorCode == errors.E3030 {
+			t.Errorf("got unexpected E3030 error: %s", err.Message)
+		}
+	}
+}
+
+func TestFunctionAsArgumentStillErrors(t *testing.T) {
+	// Functions should error when used as values (not called)
+	// This test verifies E3031 fires even in assignment context
+	input := `
+	do helper() {
+		// Some helper function
+	}
+	do main() {
+		temp x string = helper
+	}`
+	tc := typecheck(t, input)
+	// Should have E3031 error (function cannot be used as value)
+	assertHasError(t, tc, errors.E3031)
+}
+
+// ============================================================================
+// Test E3034: 'any' type not allowed for user code
+// ============================================================================
+
+func TestAnyTypeNotAllowedInVariableDeclaration(t *testing.T) {
+	input := `
+	do main() {
+		temp x any = "hello"
+	}`
+	tc := typecheck(t, input)
+	assertHasError(t, tc, errors.E3034)
+}
+
+func TestAnyTypeNotAllowedInFunctionReturnType(t *testing.T) {
+	input := `
+	do getData() -> any {
+		return "hello"
+	}
+	do main() {
+	}`
+	tc := typecheck(t, input)
+	assertHasError(t, tc, errors.E3034)
+}
+
+func TestAnyTypeNotAllowedInFunctionParameter(t *testing.T) {
+	input := `
+	do process(x any) {
+	}
+	do main() {
+	}`
+	tc := typecheck(t, input)
+	assertHasError(t, tc, errors.E3034)
+}
+
+func TestAnyTypeNotAllowedInArray(t *testing.T) {
+	input := `
+	do main() {
+		temp x [any] = {}
+	}`
+	tc := typecheck(t, input)
+	assertHasError(t, tc, errors.E3034)
+}
+
+func TestAnyTypeNotAllowedInMap(t *testing.T) {
+	input := `
+	do main() {
+		temp x map[string:any] = {}
+	}`
+	tc := typecheck(t, input)
+	assertHasError(t, tc, errors.E3034)
+}
