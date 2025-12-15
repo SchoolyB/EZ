@@ -30,6 +30,7 @@ var (
 	E1014 = ErrorCode{"E1014", "number-underscore-before-decimal", "underscore before decimal point"}
 	E1015 = ErrorCode{"E1015", "number-underscore-after-decimal", "underscore after decimal point"}
 	E1016 = ErrorCode{"E1016", "number-trailing-decimal", "decimal point without digits"}
+	E1017 = ErrorCode{"E1017", "unclosed-raw-string", "raw string literal not closed"}
 )
 
 // =============================================================================
@@ -128,6 +129,7 @@ var (
 	E3031 = ErrorCode{"E3031", "function-as-value", "function cannot be used as a value without calling it"}
 	E3032 = ErrorCode{"E3032", "enum-type-mismatch", "cannot compare values from different enum types"}
 	E3033 = ErrorCode{"E3033", "duplicate-enum-value", "enum contains duplicate values"}
+	E3034 = ErrorCode{"E3034", "any-type-not-allowed", "'any' type is reserved for internal use"}
 )
 
 // =============================================================================
@@ -316,6 +318,16 @@ var (
 	E12003 = ErrorCode{"E12003", "map-key-not-found", "key not found in map"}
 	E12004 = ErrorCode{"E12004", "map-invalid-pair", "map entry must be a [key, value] pair"}
 	E12005 = ErrorCode{"E12005", "map-value-not-hashable", "map value is not hashable and cannot become a key"}
+)
+
+// =============================================================================
+// JSON ERRORS (E13xxx) - JSON-specific domain errors
+// These are errors unique to JSON operations
+// =============================================================================
+var (
+	E13001 = ErrorCode{"E13001", "json-syntax-error", "invalid JSON syntax"}
+	E13002 = ErrorCode{"E13002", "json-unsupported-type", "type cannot be converted to JSON"}
+	E13003 = ErrorCode{"E13003", "json-invalid-map-key", "JSON object keys must be strings"}
 )
 
 // =============================================================================

@@ -148,6 +148,7 @@ var validModules = map[string]bool{
 	"os":      true, // Operating system and environment
 	"bytes":   true, // Binary data operations
 	"random":  true, // Random number generation
+	"json":    true, // JSON encoding/decoding
 }
 
 // isValidModule checks if a module name is valid (either standard library or user-created)
@@ -1771,6 +1772,11 @@ func evalIdentifier(node *ast.Label, env *Environment) Object {
 			return builtin.Fn()
 		}
 		return builtin
+	}
+
+	// Check if it's a struct type (allows types to be passed as values to functions)
+	if structDef, ok := env.GetStructDef(node.Value); ok {
+		return &TypeValue{TypeName: node.Value, Def: structDef}
 	}
 
 	// Create error with potential suggestion

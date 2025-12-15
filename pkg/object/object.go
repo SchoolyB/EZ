@@ -37,6 +37,7 @@ const (
 	FILE_HANDLE_OBJ  ObjectType = "FILE_HANDLE"
 	REFERENCE_OBJ    ObjectType = "REFERENCE"
 	RANGE_OBJ        ObjectType = "RANGE"
+	TYPE_OBJ         ObjectType = "TYPE"
 )
 
 type Object interface {
@@ -433,6 +434,15 @@ type StructDef struct {
 	Name   string
 	Fields map[string]string
 }
+
+// TypeValue represents a type as a first-class value (for passing types to functions)
+type TypeValue struct {
+	TypeName string
+	Def      *StructDef // nil for primitive types
+}
+
+func (t *TypeValue) Type() ObjectType { return TYPE_OBJ }
+func (t *TypeValue) Inspect() string  { return fmt.Sprintf("<type %s>", t.TypeName) }
 
 // Enum represents an enum with computed values
 type Enum struct {

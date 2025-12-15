@@ -8,6 +8,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/marshallburns/ez/pkg/errors"
 )
 
 // ============================================================================
@@ -32,19 +34,21 @@ func TestModuleLoaderWarnings(t *testing.T) {
 	loader := NewModuleLoader("/test")
 
 	// Test AddWarning
-	loader.AddWarning("warning 1")
-	loader.AddWarning("warning 2")
+	warn1 := &errors.EZError{Message: "warning 1"}
+	warn2 := &errors.EZError{Message: "warning 2"}
+	loader.AddWarning(warn1)
+	loader.AddWarning(warn2)
 
 	// Test GetWarnings
 	warnings := loader.GetWarnings()
 	if len(warnings) != 2 {
 		t.Fatalf("expected 2 warnings, got %d", len(warnings))
 	}
-	if warnings[0] != "warning 1" {
-		t.Errorf("warnings[0] = %q, want %q", warnings[0], "warning 1")
+	if warnings[0].Message != "warning 1" {
+		t.Errorf("warnings[0].Message = %q, want %q", warnings[0].Message, "warning 1")
 	}
-	if warnings[1] != "warning 2" {
-		t.Errorf("warnings[1] = %q, want %q", warnings[1], "warning 2")
+	if warnings[1].Message != "warning 2" {
+		t.Errorf("warnings[1].Message = %q, want %q", warnings[1].Message, "warning 2")
 	}
 
 	// Test ClearWarnings
@@ -512,8 +516,8 @@ do foo() -> int { return 1 }
 	if len(warnings) == 0 {
 		t.Error("expected warning for module name mismatch")
 	}
-	if len(warnings) > 0 && !strings.Contains(warnings[0], "W4001") {
-		t.Errorf("warning should contain W4001, got %q", warnings[0])
+	if len(warnings) > 0 && warnings[0].ErrorCode.Code != "W4001" {
+		t.Errorf("warning code should be W4001, got %q", warnings[0].ErrorCode.Code)
 	}
 }
 

@@ -809,19 +809,26 @@ func TestArraysReverse(t *testing.T) {
 		Mutable: true,
 	}
 
-	// arrays.reverse modifies in-place and returns the array
+	// arrays.reverse returns a new reversed array (does NOT modify in-place)
 	result := reverseFn(arr)
-	if result != arr {
-		t.Fatalf("expected array to be returned, got %T", result)
+	resultArr, ok := result.(*object.Array)
+	if !ok {
+		t.Fatalf("expected Array to be returned, got %T", result)
 	}
 
-	// Check reversed order in original array (in-place)
-	testIntegerObject(t, arr.Elements[0], 3)
+	// Check reversed order in result array
+	testIntegerObject(t, resultArr.Elements[0], 3)
+	testIntegerObject(t, resultArr.Elements[1], 2)
+	testIntegerObject(t, resultArr.Elements[2], 1)
+
+	// Original array should be unchanged
+	testIntegerObject(t, arr.Elements[0], 1)
 	testIntegerObject(t, arr.Elements[1], 2)
-	testIntegerObject(t, arr.Elements[2], 1)
+	testIntegerObject(t, arr.Elements[2], 3)
 }
 
 func TestArraysReverseImmutable(t *testing.T) {
+	// arrays.reverse creates a new array, so it works on immutable arrays
 	reverseFn := ArraysBuiltins["arrays.reverse"].Fn
 
 	arr := &object.Array{
@@ -834,8 +841,19 @@ func TestArraysReverseImmutable(t *testing.T) {
 	}
 
 	result := reverseFn(arr)
-	if !isErrorObject(result) {
-		t.Error("expected error for immutable array")
+	resultArr, ok := result.(*object.Array)
+	if !ok {
+		t.Fatalf("expected Array to be returned, got %T", result)
+	}
+
+	// Check reversed order in result array
+	testIntegerObject(t, resultArr.Elements[0], 3)
+	testIntegerObject(t, resultArr.Elements[1], 2)
+	testIntegerObject(t, resultArr.Elements[2], 1)
+
+	// The returned array is mutable by default
+	if !resultArr.Mutable {
+		t.Error("returned array should be mutable")
 	}
 }
 
