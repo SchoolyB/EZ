@@ -1,5 +1,23 @@
 # Changelog
 
+## [0.22.2](https://github.com/SchoolyB/EZ/compare/v0.22.1...v0.22.2) (2025-12-16)
+
+
+### Bug Fixes
+
+* [@strict](https://github.com/strict) when enforces enum exhaustiveness at compile time ([#629](https://github.com/SchoolyB/EZ/issues/629)) ([f549a3b](https://github.com/SchoolyB/EZ/commit/f549a3bd63c013f13cdb3bb4987f061ff794a0d1))
+* [@strict](https://github.com/strict) when rejects non-enum expressions ([#628](https://github.com/SchoolyB/EZ/issues/628)) ([c734b18](https://github.com/SchoolyB/EZ/commit/c734b1845b109643f8aa1c5d7acb91fab7e3c232))
+* [@strict](https://github.com/strict) when rejects non-enum expressions in cases ([#628](https://github.com/SchoolyB/EZ/issues/628)) ([799b7a7](https://github.com/SchoolyB/EZ/commit/799b7a7fd3035eae677fb9388d25eef06d09fa1a))
+* `[@strict](https://github.com/strict)` when enforces enum exhaustiveness at compile time ([#629](https://github.com/SchoolyB/EZ/issues/629)) ([be87d59](https://github.com/SchoolyB/EZ/commit/be87d591d8c4357f87f6700196b107976df19e91))
+* duplicate map keys in literal now produce compile-time error ([#641](https://github.com/SchoolyB/EZ/issues/641)) ([06b3f91](https://github.com/SchoolyB/EZ/commit/06b3f91df8e8add8e7a020a50d9bd60cea691482))
+* duplicate map keys in literal now produce compile-time error ([#641](https://github.com/SchoolyB/EZ/issues/641)) ([f011903](https://github.com/SchoolyB/EZ/commit/f0119037c23adb2d7ebd610b347bf10453d7bb88))
+* float display now shows actual precision for debugging ([#640](https://github.com/SchoolyB/EZ/issues/640)) ([d2051fb](https://github.com/SchoolyB/EZ/commit/d2051fbce7ab28af8e3016c527766ec0b75bc186))
+* float display now shows actual precision for debugging ([#640](https://github.com/SchoolyB/EZ/issues/640)) ([3ef9314](https://github.com/SchoolyB/EZ/commit/3ef93147f3104321000e65e39ebdaf7f55b7318d))
+* recursively initialize nested struct fields ([#621](https://github.com/SchoolyB/EZ/issues/621)) ([ad4f911](https://github.com/SchoolyB/EZ/commit/ad4f911fbd6308544fcf67970280839baad41089))
+* recursively initialize nested struct fields ([#621](https://github.com/SchoolyB/EZ/issues/621)) ([3b7c653](https://github.com/SchoolyB/EZ/commit/3b7c65385280bd48f58b505b42f6c0850e863cce))
+* validate type assignments for imported module struct fields ([#620](https://github.com/SchoolyB/EZ/issues/620)) ([194d74f](https://github.com/SchoolyB/EZ/commit/194d74fa917c8690bb0baf68392447d1b6cf8089))
+* validate type assignments for imported module struct fields ([#620](https://github.com/SchoolyB/EZ/issues/620)) ([a965fb3](https://github.com/SchoolyB/EZ/commit/a965fb3a239bf82385c1752494ba844fa33b5b80))
+
 ## [0.22.1](https://github.com/SchoolyB/EZ/compare/v0.22.0...v0.22.1) (2025-12-15)
 
 
