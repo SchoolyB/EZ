@@ -4689,3 +4689,298 @@ func TestByteTypeZero(t *testing.T) {
 	evaluated := testEval(input)
 	testByteObject(t, evaluated, 0)
 }
+
+// ============================================================================
+// Helper Function Tests
+// ============================================================================
+
+func TestSuggestModule(t *testing.T) {
+	tests := []struct {
+		input    string
+		expected string
+	}{
+		{"string", "strings"},
+		{"array", "arrays"},
+		{"map", "maps"},
+		{"rand", "random"},
+		{"file", "io"},
+		{"files", "io"},
+		{"fs", "io"},
+		{"env", "os"},
+		{"system", "os"},
+		{"byte", "bytes"},
+		{"datetime", "time"},
+		{"date", "time"},
+		{"unknown", ""}, // No suggestion
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.input, func(t *testing.T) {
+			result := suggestModule(tt.input)
+			if result != tt.expected {
+				t.Errorf("suggestModule(%q) = %q, want %q", tt.input, result, tt.expected)
+			}
+		})
+	}
+}
+
+func TestExtractModuleName(t *testing.T) {
+	tests := []struct {
+		input    string
+		expected string
+	}{
+		{"./mymodule", "mymodule"},
+		{"../utils", "utils"},
+		{"../../lib/helper", "helper"},
+		{"simple", "simple"},
+		{"path/to/module", "module"},
+		{"./a/b/c", "c"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.input, func(t *testing.T) {
+			result := extractModuleName(tt.input)
+			if result != tt.expected {
+				t.Errorf("extractModuleName(%q) = %q, want %q", tt.input, result, tt.expected)
+			}
+		})
+	}
+}
+
+func TestEvalContext(t *testing.T) {
+	// Test SetEvalContext and GetEvalContext
+	ctx := &EvalContext{
+		CurrentFile: "test.ez",
+	}
+
+	SetEvalContext(ctx)
+	retrieved := GetEvalContext()
+
+	if retrieved == nil {
+		t.Fatal("GetEvalContext returned nil")
+	}
+	if retrieved.CurrentFile != "test.ez" {
+		t.Errorf("CurrentFile = %q, want %q", retrieved.CurrentFile, "test.ez")
+	}
+
+	// Clean up
+	SetEvalContext(nil)
+}
+
+// ============================================================================
+// Additional Expression Tests
+// ============================================================================
+
+func TestCharComparison(t *testing.T) {
+	tests := []struct {
+		input    string
+		expected bool
+	}{
+		{"'a' == 'a'", true},
+		{"'a' == 'b'", false},
+		{"'a' != 'b'", true},
+		{"'a' < 'b'", true},
+		{"'b' > 'a'", true},
+		{"'a' <= 'a'", true},
+		{"'a' >= 'a'", true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.input, func(t *testing.T) {
+			evaluated := testEval(tt.input)
+			testBooleanObject(t, evaluated, tt.expected)
+		})
+	}
+}
+
+func TestNestedStructAccessDeep(t *testing.T) {
+	input := `
+	const Inner struct {
+		value int
+	}
+	const Outer struct {
+		inner Inner
+	}
+	temp o Outer = Outer{inner: Inner{value: 42}}
+	o.inner.value
+	`
+	evaluated := testEval(input)
+	testIntegerObject(t, evaluated, 42)
+}
+
+// Test objectsEqual via when statements with different types
+func TestWhenWithStrings(t *testing.T) {
+	input := `
+	temp s string = "hello"
+	temp result int = 0
+	when s {
+		is "world" { result = 1 }
+		is "hello" { result = 2 }
+		default { result = 3 }
+	}
+	result
+	`
+	evaluated := testEval(input)
+	testIntegerObject(t, evaluated, 2)
+}
+
+func TestWhenWithChars(t *testing.T) {
+	input := `
+	temp c char = 'b'
+	temp result int = 0
+	when c {
+		is 'a' { result = 1 }
+		is 'b' { result = 2 }
+		is 'c' { result = 3 }
+	}
+	result
+	`
+	evaluated := testEval(input)
+	testIntegerObject(t, evaluated, 2)
+}
+
+func TestWhenWithBooleans(t *testing.T) {
+	input := `
+	temp b bool = false
+	temp result int = 0
+	when b {
+		is true { result = 1 }
+		is false { result = 2 }
+	}
+	result
+	`
+	evaluated := testEval(input)
+	testIntegerObject(t, evaluated, 2)
+}
+
+// Test integer overflow detection with different types
+func TestI8OverflowDetection(t *testing.T) {
+	input := `
+	temp x i8 = 127
+	x + 1
+	`
+	evaluated := testEval(input)
+	if _, ok := evaluated.(*Error); !ok {
+		t.Errorf("expected overflow error, got %T (%+v)", evaluated, evaluated)
+	}
+}
+
+func TestI16OverflowDetection(t *testing.T) {
+	input := `
+	temp x i16 = 32767
+	x + 1
+	`
+	evaluated := testEval(input)
+	if _, ok := evaluated.(*Error); !ok {
+		t.Errorf("expected overflow error, got %T (%+v)", evaluated, evaluated)
+	}
+}
+
+func TestU8OverflowDetection(t *testing.T) {
+	input := `
+	temp x u8 = 255
+	x + 1
+	`
+	evaluated := testEval(input)
+	if _, ok := evaluated.(*Error); !ok {
+		t.Errorf("expected overflow error, got %T (%+v)", evaluated, evaluated)
+	}
+}
+
+func TestU16OverflowDetection(t *testing.T) {
+	input := `
+	temp x u16 = 65535
+	x + 1
+	`
+	evaluated := testEval(input)
+	if _, ok := evaluated.(*Error); !ok {
+		t.Errorf("expected overflow error, got %T (%+v)", evaluated, evaluated)
+	}
+}
+
+// Test unsigned underflow
+func TestU8UnderflowDetection(t *testing.T) {
+	input := `
+	temp x u8 = 0
+	x - 1
+	`
+	evaluated := testEval(input)
+	if _, ok := evaluated.(*Error); !ok {
+		t.Errorf("expected underflow error, got %T (%+v)", evaluated, evaluated)
+	}
+}
+
+// Test i128 and u128 types
+func TestI128Declaration(t *testing.T) {
+	input := `
+	temp x i128 = 1000000000000
+	x
+	`
+	evaluated := testEval(input)
+	testIntegerObject(t, evaluated, 1000000000000)
+}
+
+func TestU128Declaration(t *testing.T) {
+	input := `
+	temp x u128 = 1000000000000
+	x
+	`
+	evaluated := testEval(input)
+	testIntegerObject(t, evaluated, 1000000000000)
+}
+
+// Test assignment expressions
+func TestArrayElementAssignment(t *testing.T) {
+	input := `
+	temp arr [int] = {1, 2, 3}
+	arr[1] = 42
+	arr[1]
+	`
+	evaluated := testEval(input)
+	testIntegerObject(t, evaluated, 42)
+}
+
+func TestMapElementAssignment(t *testing.T) {
+	input := `
+	temp m map[string:int] = {"a": 1, "b": 2}
+	m["a"] = 100
+	m["a"]
+	`
+	evaluated := testEval(input)
+	testIntegerObject(t, evaluated, 100)
+}
+
+func TestStructFieldMutation(t *testing.T) {
+	input := `
+	const Point struct {
+		x int
+		y int
+	}
+	temp p Point = Point{x: 1, y: 2}
+	p.x = 10
+	p.x
+	`
+	evaluated := testEval(input)
+	testIntegerObject(t, evaluated, 10)
+}
+
+// Test compound assignments with different types
+func TestCompoundAssignI32(t *testing.T) {
+	input := `
+	temp x i32 = 10
+	x += 5
+	x
+	`
+	evaluated := testEval(input)
+	testIntegerObject(t, evaluated, 15)
+}
+
+func TestCompoundAssignFloat(t *testing.T) {
+	input := `
+	temp x float = 10.5
+	x += 2.5
+	x
+	`
+	evaluated := testEval(input)
+	testFloatObject(t, evaluated, 13.0)
+}
