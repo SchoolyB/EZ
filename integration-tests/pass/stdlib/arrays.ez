@@ -209,6 +209,42 @@ do main() {
         failed += 1
     }
 
+    // ==================== arrays.set ====================
+    println("  -- arrays.set --")
+
+    // Test: set element at index
+    temp set_arr [int] = {1, 2, 3}
+    arrays.set(set_arr, 1, 99)
+    if set_arr[0] == 1 && set_arr[1] == 99 && set_arr[2] == 3 {
+        println("  [PASS] arrays.set({1,2,3}, 1, 99) = {1,99,3}")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] arrays.set: expected {1,99,3}, got ${set_arr}")
+        failed += 1
+    }
+
+    // Test: set first element
+    temp set_first [int] = {10, 20, 30}
+    arrays.set(set_first, 0, 99)
+    if set_first[0] == 99 && set_first[1] == 20 {
+        println("  [PASS] arrays.set at index 0")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] arrays.set at index 0: got ${set_first}")
+        failed += 1
+    }
+
+    // Test: set last element
+    temp set_last [int] = {10, 20, 30}
+    arrays.set(set_last, 2, 99)
+    if set_last[2] == 99 && set_last[1] == 20 {
+        println("  [PASS] arrays.set at last index")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] arrays.set at last index: got ${set_last}")
+        failed += 1
+    }
+
     // ==================== arrays.shift ====================
     println("  -- arrays.shift --")
 
