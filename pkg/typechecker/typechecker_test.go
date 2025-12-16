@@ -482,6 +482,24 @@ do main() {
 	assertNoErrors(t, tc)
 }
 
+func TestStructFieldAssignmentTypeMismatch(t *testing.T) {
+	// Regression test for issue #622: struct field assignment type mismatch
+	// was not being caught after initialization
+	input := `
+const Person struct {
+	name string
+	age int
+}
+
+do main() {
+	temp p Person = Person{name: "", age: 0}
+	p.name = 123
+}
+`
+	tc := typecheck(t, input)
+	assertHasError(t, tc, errors.E3001)
+}
+
 func TestStructWithArrayField(t *testing.T) {
 	// Regression test for issue #336: typechecker crashed when accessing
 	// struct fields with array types due to nil pointer dereference
@@ -2068,4 +2086,89 @@ func TestAnyTypeNotAllowedInMap(t *testing.T) {
 	}`
 	tc := typecheck(t, input)
 	assertHasError(t, tc, errors.E3034)
+}
+
+// ============================================================================
+// @strict When Statement Tests (#628)
+// ============================================================================
+
+func TestStrictWhenRejectsRangeExpression(t *testing.T) {
+	input := `
+const Color enum { RED, GREEN, BLUE }
+do main() {
+	temp c Color = Color.RED
+	@strict
+	when c {
+		is range(0, 2) {
+		}
+	}
+}`
+	tc := typecheck(t, input)
+	assertHasError(t, tc, errors.E2054)
+}
+
+func TestStrictWhenRejectsIntegerLiteral(t *testing.T) {
+	input := `
+const Color enum { RED, GREEN, BLUE }
+do main() {
+	temp c Color = Color.RED
+	@strict
+	when c {
+		is 0 {
+		}
+	}
+}`
+	tc := typecheck(t, input)
+	assertHasError(t, tc, errors.E2054)
+}
+
+func TestStrictWhenAcceptsEnumMembers(t *testing.T) {
+	input := `
+const Color enum { RED, GREEN, BLUE }
+do main() {
+	temp c Color = Color.RED
+	@strict
+	when c {
+		is Color.RED {
+		}
+		is Color.GREEN {
+		}
+		is Color.BLUE {
+		}
+	}
+}`
+	tc := typecheck(t, input)
+	assertNoErrors(t, tc)
+}
+
+func TestStrictWhenMissingEnumCases(t *testing.T) {
+	input := `
+const Color enum { RED, GREEN, BLUE }
+do main() {
+	temp c Color = Color.RED
+	@strict
+	when c {
+		is Color.RED {
+		}
+	}
+}`
+	tc := typecheck(t, input)
+	assertHasError(t, tc, errors.E2046)
+}
+
+func TestStrictWhenPartialEnumCases(t *testing.T) {
+	input := `
+const Color enum { RED, GREEN, BLUE }
+do main() {
+	temp c Color = Color.RED
+	@strict
+	when c {
+		is Color.RED {
+		}
+		is Color.GREEN {
+		}
+	}
+}`
+	tc := typecheck(t, input)
+	assertHasError(t, tc, errors.E2046)
 }

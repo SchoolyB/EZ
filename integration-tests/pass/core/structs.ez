@@ -138,10 +138,40 @@ do main() {
         failed += 1
     }
 
+    // Test 9: new() initializes nested struct fields
+    temp newOuter = new(CopyOuter)
+    if newOuter.inner.val == 0 {
+        println("  [PASS] new() initializes nested struct with defaults")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] new() nested struct not initialized")
+        failed += 1
+    }
+
+    // Test 10: can modify nested struct field after new()
+    newOuter.inner.val = 42
+    if newOuter.inner.val == 42 {
+        println("  [PASS] can modify nested struct field after new()")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] cannot modify nested struct field")
+        failed += 1
+    }
+
+    // Test 11: empty struct literal initializes nested struct
+    temp emptyOuter = CopyOuter{}
+    if emptyOuter.inner.val == 0 {
+        println("  [PASS] empty struct literal initializes nested struct")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] empty struct literal nested struct not initialized")
+        failed += 1
+    }
+
     // ==================== COPY BUILTIN ====================
     println("  -- copy() Builtin --")
 
-    // Test 9: copy struct - verify deep copy
+    // Test 12: copy struct - verify deep copy
     temp a Person = Person{name: "Alice", age: 30, active: true}
     temp b Person = copy(a)
     b.age = 31
@@ -153,7 +183,7 @@ do main() {
         failed += 1
     }
 
-    // Test 10: copy nested struct - verify deep copy
+    // Test 13: copy nested struct - verify deep copy
     temp outer1 CopyOuter = CopyOuter{inner: CopyInner{val: 42}}
     temp outer2 CopyOuter = copy(outer1)
     outer2.inner.val = 99

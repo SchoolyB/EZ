@@ -1238,6 +1238,43 @@ c.name
 	testStringObject(t, evaluated, "")
 }
 
+func TestNewExpressionNestedStruct(t *testing.T) {
+	// Regression test for issue #621/#622: new() should recursively initialize
+	// nested struct fields instead of leaving them as nil
+	input := `
+const Inner struct {
+	val int
+}
+const Outer struct {
+	inner Inner
+}
+temp o = new(Outer)
+o.inner.val = 42
+o.inner.val
+`
+	evaluated := testEval(input)
+	testIntegerObject(t, evaluated, 42)
+}
+
+func TestStructLiteralNestedStruct(t *testing.T) {
+	// Regression test for issue #621/#622: struct literals should recursively
+	// initialize nested struct fields
+	input := `
+const Inner struct {
+	val int
+}
+const Outer struct {
+	inner Inner
+	name string
+}
+temp o = Outer{name: "test"}
+o.inner.val = 99
+o.inner.val
+`
+	evaluated := testEval(input)
+	testIntegerObject(t, evaluated, 99)
+}
+
 // ============================================================================
 // Loop Statement Tests
 // ============================================================================

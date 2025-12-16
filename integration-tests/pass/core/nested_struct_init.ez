@@ -1,0 +1,98 @@
+/*
+ * nested_struct_init.ez - Test nested struct initialization with new() and literals
+ * Regression test for bug #621
+ */
+
+import @std
+using std
+
+const Inner struct {
+    val int
+    name string
+}
+
+const Outer struct {
+    inner Inner
+    count int
+}
+
+const Deep struct {
+    outer Outer
+    label string
+}
+
+do main() {
+    println("=== Nested Struct Init Test ===")
+    temp passed int = 0
+    temp failed int = 0
+
+    // Test 1: new() initializes nested struct
+    temp o = new(Outer)
+    if o.inner.val == 0 && o.inner.name == "" {
+        println("  [PASS] new() initializes nested struct with defaults")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] new() nested struct not initialized")
+        failed += 1
+    }
+
+    // Test 2: Can modify nested struct field
+    o.inner.val = 42
+    if o.inner.val == 42 {
+        println("  [PASS] can modify nested struct field")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] cannot modify nested struct field")
+        failed += 1
+    }
+
+    // Test 3: Deeply nested structs with new()
+    temp d = new(Deep)
+    if d.outer.inner.val == 0 {
+        println("  [PASS] deeply nested struct initialized with new()")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] deeply nested struct not initialized")
+        failed += 1
+    }
+
+    // Test 4: Can modify deeply nested field
+    d.outer.inner.name = "test"
+    if d.outer.inner.name == "test" {
+        println("  [PASS] can modify deeply nested field")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] cannot modify deeply nested field")
+        failed += 1
+    }
+
+    // Test 5: Empty struct literal initializes nested struct
+    temp o2 = Outer{}
+    if o2.inner.val == 0 && o2.inner.name == "" {
+        println("  [PASS] empty struct literal initializes nested struct")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] empty struct literal nested struct not initialized")
+        failed += 1
+    }
+
+    // Test 6: Partial struct literal initializes unspecified nested struct
+    temp o3 = Outer{count: 5}
+    if o3.inner.val == 0 && o3.count == 5 {
+        println("  [PASS] partial struct literal initializes nested struct")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] partial struct literal nested struct not initialized")
+        failed += 1
+    }
+
+    // Summary
+    println("")
+    println("Results: ${passed} passed, ${failed} failed")
+
+    if failed > 0 {
+        println("SOME TESTS FAILED")
+    } otherwise {
+        println("ALL TESTS PASSED")
+    }
+}
