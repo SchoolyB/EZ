@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.22.4](https://github.com/SchoolyB/EZ/compare/v0.22.3...v0.22.4) (2025-12-16)
+
+
+### Bug Fixes
+
+* workflow rebase, add README badges, improve test coverage ([d356bce](https://github.com/SchoolyB/EZ/commit/d356bcef43c84c48ddabcf09e501dd50c82fffa8))
+
 ## [0.22.3](https://github.com/SchoolyB/EZ/compare/v0.22.2...v0.22.3) (2025-12-16)
 
 
