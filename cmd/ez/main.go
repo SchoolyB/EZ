@@ -218,12 +218,24 @@ func checkFile(filename string) {
 	// This allows us to gather module function signatures before typechecking main file
 	filesChecked := 0
 	hasErrors := false
-	modulesToCheck := collectImports(program, absDir, absFile)
+	importsWithAliases := collectImportsWithAliases(program, absDir, absFile)
 	checked := make(map[string]bool)
 	checked[absFile] = true
 
-	// Store module function signatures: moduleName -> funcName -> signature
+	// Map from module path to the alias used by the importing file
+	pathToAlias := make(map[string]string)
+	var modulesToCheck []string
+	for _, imp := range importsWithAliases {
+		modulesToCheck = append(modulesToCheck, imp.Path)
+		if imp.Alias != "" {
+			pathToAlias[imp.Path] = imp.Alias
+		}
+	}
+
+	// Store module function signatures: alias/moduleName -> funcName -> signature
 	moduleSignatures := make(map[string]map[string]*typechecker.FunctionSignature)
+	// Store module type definitions: alias/moduleName -> typeName -> type
+	moduleTypes := make(map[string]map[string]*typechecker.Type)
 
 	for len(modulesToCheck) > 0 {
 		// Pop first module
@@ -311,15 +323,29 @@ func checkFile(filename string) {
 				fmt.Print(errors.FormatErrorList(fileTc.Errors()))
 			}
 
-			// Extract module name and function signatures for cross-module type checking
+			// Extract module name, function signatures, and types for cross-module type checking
 			if fileProgram.Module != nil && fileProgram.Module.Name != nil {
+				// Use the alias if one was provided, otherwise use the module's internal name
 				moduleName := fileProgram.Module.Name.Value
+				if alias, hasAlias := pathToAlias[modPath]; hasAlias {
+					moduleName = alias
+				}
 				if moduleSignatures[moduleName] == nil {
 					moduleSignatures[moduleName] = make(map[string]*typechecker.FunctionSignature)
+				}
+				if moduleTypes[moduleName] == nil {
+					moduleTypes[moduleName] = make(map[string]*typechecker.Type)
 				}
 				// Copy function signatures from this file's typechecker
 				for funcName, sig := range fileTc.GetFunctions() {
 					moduleSignatures[moduleName][funcName] = sig
+				}
+				// Copy type definitions from this file's typechecker
+				for typeName, t := range fileTc.GetTypes() {
+					// Only copy user-defined types (structs and enums), not builtins
+					if t.Kind == typechecker.StructType || t.Kind == typechecker.EnumType {
+						moduleTypes[moduleName][typeName] = t
+					}
 				}
 			}
 
@@ -338,13 +364,20 @@ func checkFile(filename string) {
 		return
 	}
 
-	// PHASE 2: Type check main file with knowledge of module signatures
+	// PHASE 2: Type check main file with knowledge of module signatures and types
 	tc := typechecker.NewTypeChecker(source, absFile)
 
 	// Register all module function signatures for cross-module type checking
 	for moduleName, funcs := range moduleSignatures {
 		for funcName, sig := range funcs {
 			tc.RegisterModuleFunction(moduleName, funcName, sig)
+		}
+	}
+
+	// Register all module type definitions for cross-module type checking
+	for moduleName, types := range moduleTypes {
+		for typeName, t := range types {
+			tc.RegisterModuleType(moduleName, typeName, t)
 		}
 	}
 
@@ -567,6 +600,12 @@ func checkProject(dir string) {
 	fmt.Printf("Check successful: %d file(s) checked\n", len(modulesChecked))
 }
 
+// ImportInfo holds information about an import
+type ImportInfo struct {
+	Path  string
+	Alias string
+}
+
 // collectImports extracts import paths from a program's AST
 func collectImports(program *ast.Program, rootDir string, currentFile string) []string {
 	var imports []string
@@ -585,6 +624,36 @@ func collectImports(program *ast.Program, rootDir string, currentFile string) []
 					absPath, err := filepath.Abs(filepath.Join(basePath, item.Path))
 					if err == nil {
 						imports = append(imports, absPath)
+					}
+				}
+			}
+		}
+	}
+
+	return imports
+}
+
+// collectImportsWithAliases extracts import paths and their aliases from a program's AST
+func collectImportsWithAliases(program *ast.Program, rootDir string, currentFile string) []ImportInfo {
+	var imports []ImportInfo
+
+	for _, stmt := range program.Statements {
+		if importStmt, ok := stmt.(*ast.ImportStatement); ok {
+			for _, item := range importStmt.Imports {
+				// Skip stdlib imports (start with @)
+				if strings.HasPrefix(item.Module, "@") || item.Module != "" {
+					continue
+				}
+				// User module import (has a path)
+				if item.Path != "" {
+					// Resolve the path relative to current file
+					basePath := filepath.Dir(currentFile)
+					absPath, err := filepath.Abs(filepath.Join(basePath, item.Path))
+					if err == nil {
+						imports = append(imports, ImportInfo{
+							Path:  absPath,
+							Alias: item.Alias,
+						})
 					}
 				}
 			}
@@ -686,8 +755,108 @@ func runFile(filename string) {
 		fmt.Print(errors.FormatErrorList(p.EZErrors()))
 	}
 
-	// Type checking phase
+	// Initialize the module loader with the directory of the main file
+	rootDir := filepath.Dir(absPath)
+	loader := interpreter.NewModuleLoader(rootDir)
+
+	// Load imported modules and extract their type definitions for cross-module type checking
+	importsWithAliases := collectImportsWithAliases(program, rootDir, absPath)
+	pathToAlias := make(map[string]string)
+	var modulesToCheck []string
+	for _, imp := range importsWithAliases {
+		modulesToCheck = append(modulesToCheck, imp.Path)
+		if imp.Alias != "" {
+			pathToAlias[imp.Path] = imp.Alias
+		}
+	}
+
+	moduleSignatures := make(map[string]map[string]*typechecker.FunctionSignature)
+	moduleTypes := make(map[string]map[string]*typechecker.Type)
+	checked := make(map[string]bool)
+	checked[absPath] = true
+
+	for len(modulesToCheck) > 0 {
+		modPath := modulesToCheck[0]
+		modulesToCheck = modulesToCheck[1:]
+
+		if checked[modPath] {
+			continue
+		}
+		checked[modPath] = true
+
+		loader.SetCurrentFile(absPath)
+		mod, err := loader.Load(modPath)
+		if err != nil {
+			continue // Module load errors will be caught at runtime
+		}
+
+		for _, filePath := range mod.Files {
+			if checked[filePath] {
+				continue
+			}
+			checked[filePath] = true
+
+			fileData, err := os.ReadFile(filePath)
+			if err != nil {
+				continue
+			}
+
+			fileSource := string(fileData)
+			fileLex := lexer.NewLexer(fileSource)
+			fileParser := parser.NewWithSource(fileLex, fileSource, filePath)
+			fileProgram := fileParser.ParseProgram()
+
+			if len(fileLex.Errors()) > 0 || fileParser.EZErrors().HasErrors() {
+				continue
+			}
+
+			fileTc := typechecker.NewTypeChecker(fileSource, filePath)
+			fileTc.SetSkipMainCheck(true)
+			fileTc.CheckProgram(fileProgram)
+
+			// Extract module name, function signatures, and types
+			if fileProgram.Module != nil && fileProgram.Module.Name != nil {
+				// Use the alias if one was provided, otherwise use the module's internal name
+				moduleName := fileProgram.Module.Name.Value
+				if alias, hasAlias := pathToAlias[modPath]; hasAlias {
+					moduleName = alias
+				}
+				if moduleSignatures[moduleName] == nil {
+					moduleSignatures[moduleName] = make(map[string]*typechecker.FunctionSignature)
+				}
+				if moduleTypes[moduleName] == nil {
+					moduleTypes[moduleName] = make(map[string]*typechecker.Type)
+				}
+				for funcName, sig := range fileTc.GetFunctions() {
+					moduleSignatures[moduleName][funcName] = sig
+				}
+				for typeName, t := range fileTc.GetTypes() {
+					if t.Kind == typechecker.StructType || t.Kind == typechecker.EnumType {
+						moduleTypes[moduleName][typeName] = t
+					}
+				}
+			}
+
+			newImports := collectImports(fileProgram, rootDir, filePath)
+			modulesToCheck = append(modulesToCheck, newImports...)
+		}
+	}
+
+	// Type checking phase with module type information
 	tc := typechecker.NewTypeChecker(source, filename)
+
+	// Register module function signatures and types
+	for moduleName, funcs := range moduleSignatures {
+		for funcName, sig := range funcs {
+			tc.RegisterModuleFunction(moduleName, funcName, sig)
+		}
+	}
+	for moduleName, types := range moduleTypes {
+		for typeName, t := range types {
+			tc.RegisterModuleType(moduleName, typeName, t)
+		}
+	}
+
 	tc.CheckProgram(program)
 
 	// Check for type errors
@@ -700,10 +869,6 @@ func runFile(filename string) {
 	if tc.Errors().HasWarnings() {
 		fmt.Print(errors.FormatErrorList(tc.Errors()))
 	}
-
-	// Initialize the module loader with the directory of the main file
-	rootDir := filepath.Dir(absPath)
-	loader := interpreter.NewModuleLoader(rootDir)
 
 	// Set up the evaluation context
 	ctx := &interpreter.EvalContext{
