@@ -1,0 +1,12 @@
+import @std
+using std
+
+const Person struct {
+    name string
+    age int
+}
+
+do main() {
+    temp p = Person{name: "John", age: 30}
+    p.name = 123
+}
