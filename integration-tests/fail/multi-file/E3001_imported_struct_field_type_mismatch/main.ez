@@ -1,0 +1,6 @@
+import "./models"
+
+do main() {
+    temp p = new(models.Person)
+    p.name = 123  // ERROR: cannot assign int to string field
+}

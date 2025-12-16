@@ -1,0 +1,6 @@
+module models
+
+const Person struct {
+    name string
+    age int
+}
