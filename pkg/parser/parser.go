@@ -106,6 +106,16 @@ func hasSuppressAttribute(attrs []*Attribute) *Attribute {
 	return nil
 }
 
+// hasStrictAttribute checks if attributes contain a @strict attribute
+func hasStrictAttribute(attrs []*Attribute) *Attribute {
+	for _, attr := range attrs {
+		if attr.Name == "strict" {
+			return attr
+		}
+	}
+	return nil
+}
+
 // Operator precedence levels
 const (
 	_ int = iota
@@ -581,6 +591,21 @@ func (p *Parser) parseStatement() Statement {
 			newAttrs := []*Attribute{}
 			for _, attr := range attrs {
 				if attr.Name != "suppress" {
+					newAttrs = append(newAttrs, attr)
+				}
+			}
+			attrs = newAttrs
+		}
+	}
+
+	// Validate @strict is only used on when statements
+	if strictAttr := hasStrictAttribute(attrs); strictAttr != nil {
+		if !p.currentTokenMatches(WHEN) {
+			p.addEZError(errors.E2055, "@strict can only be applied to when statements", strictAttr.Token)
+			// Clear @strict attributes to prevent them from being applied
+			newAttrs := []*Attribute{}
+			for _, attr := range attrs {
+				if attr.Name != "strict" {
 					newAttrs = append(newAttrs, attr)
 				}
 			}

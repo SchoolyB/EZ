@@ -1,0 +1,19 @@
+import @std
+using std
+
+const Color enum {
+    RED
+    GREEN
+    BLUE
+}
+
+do main() {
+    temp c Color = Color.RED
+
+    @strict
+    when c {
+        is range(0, 2) {
+            println("in range")
+        }
+    }
+}
