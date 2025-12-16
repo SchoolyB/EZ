@@ -2851,7 +2851,7 @@ func evalStructValue(node *ast.StructValue, env *Environment) Object {
 	// Create a new struct with default values for all fields first
 	fields := make(map[string]Object)
 	for fieldName, fieldType := range structDef.Fields {
-		fields[fieldName] = getDefaultValue(fieldType)
+		fields[fieldName] = getDefaultValueWithEnv(fieldType, env)
 	}
 
 	// Override with explicitly provided field values
@@ -2929,7 +2929,7 @@ func evalNewExpression(node *ast.NewExpression, env *Environment) Object {
 	// Create a new struct with default values for all fields
 	fields := make(map[string]Object)
 	for fieldName, fieldType := range structDef.Fields {
-		fields[fieldName] = getDefaultValue(fieldType)
+		fields[fieldName] = getDefaultValueWithEnv(fieldType, env)
 	}
 
 	return &Struct{
@@ -2958,6 +2958,61 @@ func getDefaultValue(typeName string) Object {
 		return &Char{Value: '\x00'}
 	default:
 		// For other types (structs, fixed-size arrays, etc.), default to nil
+		return NIL
+	}
+}
+
+// getDefaultValueWithEnv returns the default zero value for a given type,
+// with access to the environment for looking up struct definitions
+func getDefaultValueWithEnv(typeName string, env *Environment) Object {
+	// Check if it's a dynamic array type (starts with '[' but doesn't contain ',')
+	if len(typeName) > 0 && typeName[0] == '[' && !strings.Contains(typeName, ",") {
+		return &Array{Elements: []Object{}}
+	}
+
+	switch typeName {
+	case "int", "i8", "i16", "i32", "i64", "i128", "i256":
+		return &Integer{Value: big.NewInt(0)}
+	case "uint", "u8", "u16", "u32", "u64", "u128", "u256", "byte":
+		return &Integer{Value: big.NewInt(0)}
+	case "float", "f32", "f64":
+		return &Float{Value: 0.0}
+	case "string":
+		return &String{Value: "", Mutable: true}
+	case "bool":
+		return FALSE
+	case "char":
+		return &Char{Value: '\x00'}
+	default:
+		// Check if it's a struct type and recursively initialize it
+		if structDef, ok := env.GetStructDef(typeName); ok {
+			fields := make(map[string]Object)
+			for fieldName, fieldType := range structDef.Fields {
+				fields[fieldName] = getDefaultValueWithEnv(fieldType, env)
+			}
+			return &Struct{
+				TypeName: structDef.Name,
+				Fields:   fields,
+			}
+		}
+
+		// Check modules from "using" directives
+		for _, alias := range env.GetUsing() {
+			if moduleObj, modOk := env.GetModule(alias); modOk {
+				if structDef, sdOk := moduleObj.GetStructDef(typeName); sdOk {
+					fields := make(map[string]Object)
+					for fieldName, fieldType := range structDef.Fields {
+						fields[fieldName] = getDefaultValueWithEnv(fieldType, env)
+					}
+					return &Struct{
+						TypeName: structDef.Name,
+						Fields:   fields,
+					}
+				}
+			}
+		}
+
+		// For unknown types, default to nil
 		return NIL
 	}
 }
