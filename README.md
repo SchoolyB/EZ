@@ -13,6 +13,11 @@
   <a href="https://schoolyb.github.io/language.ez/docs">Documentation</a>
 </p>
 
+<p align="center">
+  <a href="https://github.com/SchoolyB/EZ/actions/workflows/ci.yml"><img src="https://github.com/SchoolyB/EZ/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
+  <a href="https://github.com/SchoolyB/EZ/actions/workflows/codeql-analysis.yml"><img src="https://github.com/SchoolyB/EZ/actions/workflows/codeql-analysis.yml/badge.svg" alt="CodeQL Security Scan"></a>
+</p>
+
 ---
 
 ## Developer Quick Start

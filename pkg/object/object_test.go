@@ -798,3 +798,296 @@ func TestTypeValueWithoutStructDef(t *testing.T) {
 		t.Error("TypeValue.Def should be nil for primitive types")
 	}
 }
+
+// ============================================================================
+// Byte Object Tests
+// ============================================================================
+
+func TestByteObject(t *testing.T) {
+	b := &Byte{Value: 255}
+	if b.Type() != BYTE_OBJ {
+		t.Errorf("Type() = %s, want %s", b.Type(), BYTE_OBJ)
+	}
+	if b.Inspect() != "255" {
+		t.Errorf("Inspect() = %q, want %q", b.Inspect(), "255")
+	}
+}
+
+func TestByteObjectZero(t *testing.T) {
+	b := &Byte{Value: 0}
+	if b.Inspect() != "0" {
+		t.Errorf("Inspect() = %q, want %q", b.Inspect(), "0")
+	}
+}
+
+// ============================================================================
+// Range Object Tests
+// ============================================================================
+
+func TestRangeObject(t *testing.T) {
+	r := &Range{
+		Start: big.NewInt(0),
+		End:   big.NewInt(10),
+		Step:  big.NewInt(1),
+	}
+	if r.Type() != RANGE_OBJ {
+		t.Errorf("Type() = %s, want %s", r.Type(), RANGE_OBJ)
+	}
+	if r.Inspect() != "range(0, 10)" {
+		t.Errorf("Inspect() = %q, want %q", r.Inspect(), "range(0, 10)")
+	}
+}
+
+func TestRangeObjectWithStep(t *testing.T) {
+	r := &Range{
+		Start: big.NewInt(0),
+		End:   big.NewInt(10),
+		Step:  big.NewInt(2),
+	}
+	if r.Inspect() != "range(0, 10, 2)" {
+		t.Errorf("Inspect() = %q, want %q", r.Inspect(), "range(0, 10, 2)")
+	}
+}
+
+func TestRangeContainsPositiveStep(t *testing.T) {
+	r := &Range{
+		Start: big.NewInt(0),
+		End:   big.NewInt(10),
+		Step:  big.NewInt(2),
+	}
+
+	// Values that should be contained
+	if !r.Contains(big.NewInt(0)) {
+		t.Error("Range should contain 0")
+	}
+	if !r.Contains(big.NewInt(2)) {
+		t.Error("Range should contain 2")
+	}
+	if !r.Contains(big.NewInt(8)) {
+		t.Error("Range should contain 8")
+	}
+
+	// Values that should not be contained
+	if r.Contains(big.NewInt(-1)) {
+		t.Error("Range should not contain -1 (before start)")
+	}
+	if r.Contains(big.NewInt(10)) {
+		t.Error("Range should not contain 10 (at end)")
+	}
+	if r.Contains(big.NewInt(3)) {
+		t.Error("Range should not contain 3 (not on step)")
+	}
+}
+
+func TestRangeContainsNegativeStep(t *testing.T) {
+	r := &Range{
+		Start: big.NewInt(10),
+		End:   big.NewInt(0),
+		Step:  big.NewInt(-2),
+	}
+
+	// Values that should be contained
+	if !r.Contains(big.NewInt(10)) {
+		t.Error("Range should contain 10")
+	}
+	if !r.Contains(big.NewInt(8)) {
+		t.Error("Range should contain 8")
+	}
+	if !r.Contains(big.NewInt(2)) {
+		t.Error("Range should contain 2")
+	}
+
+	// Values that should not be contained
+	if r.Contains(big.NewInt(11)) {
+		t.Error("Range should not contain 11 (above start)")
+	}
+	if r.Contains(big.NewInt(0)) {
+		t.Error("Range should not contain 0 (at end)")
+	}
+	if r.Contains(big.NewInt(7)) {
+		t.Error("Range should not contain 7 (not on step)")
+	}
+}
+
+// ============================================================================
+// FileHandle Object Tests
+// ============================================================================
+
+func TestFileHandleObject(t *testing.T) {
+	fh := &FileHandle{
+		File:     nil,
+		Path:     "/tmp/test.txt",
+		Mode:     0,
+		IsClosed: false,
+	}
+	if fh.Type() != FILE_HANDLE_OBJ {
+		t.Errorf("Type() = %s, want %s", fh.Type(), FILE_HANDLE_OBJ)
+	}
+	if fh.Inspect() != "<FileHandle /tmp/test.txt>" {
+		t.Errorf("Inspect() = %q, want %q", fh.Inspect(), "<FileHandle /tmp/test.txt>")
+	}
+}
+
+func TestFileHandleObjectClosed(t *testing.T) {
+	fh := &FileHandle{
+		File:     nil,
+		Path:     "/tmp/test.txt",
+		Mode:     0,
+		IsClosed: true,
+	}
+	if fh.Inspect() != "<FileHandle(closed) /tmp/test.txt>" {
+		t.Errorf("Inspect() = %q, want %q", fh.Inspect(), "<FileHandle(closed) /tmp/test.txt>")
+	}
+}
+
+// ============================================================================
+// Reference Object Tests
+// ============================================================================
+
+func TestReferenceObject(t *testing.T) {
+	env := NewEnvironment()
+	ref := &Reference{
+		Env:  env,
+		Name: "myVar",
+	}
+	if ref.Type() != REFERENCE_OBJ {
+		t.Errorf("Type() = %s, want %s", ref.Type(), REFERENCE_OBJ)
+	}
+	if ref.Inspect() != "<ref myVar>" {
+		t.Errorf("Inspect() = %q, want %q", ref.Inspect(), "<ref myVar>")
+	}
+}
+
+func TestReferenceDeref(t *testing.T) {
+	env := NewEnvironment()
+	env.Set("x", &Integer{Value: big.NewInt(42)}, true)
+
+	ref := &Reference{Env: env, Name: "x"}
+	val, ok := ref.Deref()
+	if !ok {
+		t.Error("Deref() should return true")
+	}
+	if val.(*Integer).Value.Cmp(big.NewInt(42)) != 0 {
+		t.Errorf("Deref() value = %s, want 42", val.(*Integer).Value.String())
+	}
+}
+
+func TestReferenceDerefNotFound(t *testing.T) {
+	env := NewEnvironment()
+	ref := &Reference{Env: env, Name: "nonexistent"}
+	_, ok := ref.Deref()
+	if ok {
+		t.Error("Deref() should return false for non-existent variable")
+	}
+}
+
+func TestReferenceDerefNested(t *testing.T) {
+	env1 := NewEnvironment()
+	env1.Set("x", &Integer{Value: big.NewInt(100)}, true)
+
+	env2 := NewEnvironment()
+	ref1 := &Reference{Env: env1, Name: "x"}
+	env2.Set("y", ref1, true)
+
+	ref2 := &Reference{Env: env2, Name: "y"}
+	val, ok := ref2.Deref()
+	if !ok {
+		t.Error("Nested Deref() should return true")
+	}
+	// Should chase through nested references
+	if val.(*Integer).Value.Cmp(big.NewInt(100)) != 0 {
+		t.Errorf("Nested Deref() value = %s, want 100", val.(*Integer).Value.String())
+	}
+}
+
+func TestReferenceSetValue(t *testing.T) {
+	env := NewEnvironment()
+	env.Set("x", &Integer{Value: big.NewInt(1)}, true)
+
+	ref := &Reference{Env: env, Name: "x"}
+	ok := ref.SetValue(&Integer{Value: big.NewInt(999)})
+	if !ok {
+		t.Error("SetValue() should return true")
+	}
+
+	val, _ := env.Get("x")
+	if val.(*Integer).Value.Cmp(big.NewInt(999)) != 0 {
+		t.Errorf("After SetValue, x = %s, want 999", val.(*Integer).Value.String())
+	}
+}
+
+func TestReferenceSetValueNotFound(t *testing.T) {
+	env := NewEnvironment()
+	ref := &Reference{Env: env, Name: "nonexistent"}
+	ok := ref.SetValue(&Integer{Value: big.NewInt(1)})
+	if ok {
+		t.Error("SetValue() should return false for non-existent variable")
+	}
+}
+
+func TestReferenceSetValueNested(t *testing.T) {
+	env1 := NewEnvironment()
+	env1.Set("x", &Integer{Value: big.NewInt(1)}, true)
+
+	env2 := NewEnvironment()
+	ref1 := &Reference{Env: env1, Name: "x"}
+	env2.Set("y", ref1, true)
+
+	ref2 := &Reference{Env: env2, Name: "y"}
+	ok := ref2.SetValue(&Integer{Value: big.NewInt(777)})
+	if !ok {
+		t.Error("Nested SetValue() should return true")
+	}
+
+	// The value should be updated in the original environment
+	val, _ := env1.Get("x")
+	if val.(*Integer).Value.Cmp(big.NewInt(777)) != 0 {
+		t.Errorf("After nested SetValue, x = %s, want 777", val.(*Integer).Value.String())
+	}
+}
+
+func TestEnvironmentUpdateRefScopeChain(t *testing.T) {
+	outer := NewEnvironment()
+	outer.Set("x", &Integer{Value: big.NewInt(1)}, true)
+
+	inner := NewEnclosedEnvironment(outer)
+
+	// Update through inner should affect outer
+	ok := inner.updateRef("x", &Integer{Value: big.NewInt(100)})
+	if !ok {
+		t.Error("updateRef should succeed through scope chain")
+	}
+
+	val, _ := outer.Get("x")
+	if val.(*Integer).Value.Cmp(big.NewInt(100)) != 0 {
+		t.Errorf("After updateRef through scope chain, x = %s, want 100", val.(*Integer).Value.String())
+	}
+}
+
+// ============================================================================
+// Additional Object Type Tests
+// ============================================================================
+
+func TestObjectTypeByteConstant(t *testing.T) {
+	if string(BYTE_OBJ) != "BYTE" {
+		t.Errorf("BYTE_OBJ = %q, want %q", BYTE_OBJ, "BYTE")
+	}
+}
+
+func TestObjectTypeRangeConstant(t *testing.T) {
+	if string(RANGE_OBJ) != "RANGE" {
+		t.Errorf("RANGE_OBJ = %q, want %q", RANGE_OBJ, "RANGE")
+	}
+}
+
+func TestObjectTypeFileHandleConstant(t *testing.T) {
+	if string(FILE_HANDLE_OBJ) != "FILE_HANDLE" {
+		t.Errorf("FILE_HANDLE_OBJ = %q, want %q", FILE_HANDLE_OBJ, "FILE_HANDLE")
+	}
+}
+
+func TestObjectTypeReferenceConstant(t *testing.T) {
+	if string(REFERENCE_OBJ) != "REFERENCE" {
+		t.Errorf("REFERENCE_OBJ = %q, want %q", REFERENCE_OBJ, "REFERENCE")
+	}
+}
