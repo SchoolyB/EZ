@@ -1,0 +1,12 @@
+/*
+ * Error Test: E12006 - map-duplicate-key
+ * Expected: "duplicate key" in map literal
+ */
+
+do main() {
+    temp m map[string:int] = {
+        "a": 1,
+        "b": 2,
+        "a": 3
+    }
+}
