@@ -128,15 +128,18 @@ func parseVersion(v string) (major, minor, patch int) {
 	return
 }
 
-// isNewerVersion returns true if remote version has higher major or minor than local
+// isNewerVersion returns true if remote version is higher than local
 func isNewerVersion(local, remote string) bool {
-	localMajor, localMinor, _ := parseVersion(local)
-	remoteMajor, remoteMinor, _ := parseVersion(remote)
+	localMajor, localMinor, localPatch := parseVersion(local)
+	remoteMajor, remoteMinor, remotePatch := parseVersion(remote)
 
 	if remoteMajor > localMajor {
 		return true
 	}
 	if remoteMajor == localMajor && remoteMinor > localMinor {
+		return true
+	}
+	if remoteMajor == localMajor && remoteMinor == localMinor && remotePatch > localPatch {
 		return true
 	}
 	return false
