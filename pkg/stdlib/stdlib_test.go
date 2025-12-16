@@ -2392,6 +2392,129 @@ func TestArraysInsertImmutable(t *testing.T) {
 	}
 }
 
+func TestArraysSet(t *testing.T) {
+	setFn := ArraysBuiltins["arrays.set"].Fn
+
+	arr := &object.Array{
+		Elements: []object.Object{
+			&object.Integer{Value: big.NewInt(1)},
+			&object.Integer{Value: big.NewInt(2)},
+			&object.Integer{Value: big.NewInt(3)},
+		},
+		Mutable: true,
+	}
+
+	// Set index 1 to 99
+	result := setFn(arr, &object.Integer{Value: big.NewInt(1)}, &object.Integer{Value: big.NewInt(99)})
+
+	// Should return nil (modifies in-place)
+	if result != object.NIL {
+		t.Errorf("arrays.set() returned %T, want NIL", result)
+	}
+
+	// Array should still have 3 elements
+	if len(arr.Elements) != 3 {
+		t.Fatalf("arrays.set() should not change array length, got %d", len(arr.Elements))
+	}
+
+	// Verify the elements: {1, 99, 3}
+	expected := []int64{1, 99, 3}
+	for i, exp := range expected {
+		intVal, ok := arr.Elements[i].(*object.Integer)
+		if !ok {
+			t.Errorf("arr[%d] is %T, want Integer", i, arr.Elements[i])
+			continue
+		}
+		if intVal.Value.Cmp(big.NewInt(exp)) != 0 {
+			t.Errorf("arr[%d] = %s, want %d", i, intVal.Value.String(), exp)
+		}
+	}
+}
+
+func TestArraysSetFirst(t *testing.T) {
+	setFn := ArraysBuiltins["arrays.set"].Fn
+
+	arr := &object.Array{
+		Elements: []object.Object{
+			&object.Integer{Value: big.NewInt(1)},
+			&object.Integer{Value: big.NewInt(2)},
+			&object.Integer{Value: big.NewInt(3)},
+		},
+		Mutable: true,
+	}
+
+	// Set index 0 to 99
+	setFn(arr, &object.Integer{Value: big.NewInt(0)}, &object.Integer{Value: big.NewInt(99)})
+
+	// Verify the elements: {99, 2, 3}
+	expected := []int64{99, 2, 3}
+	for i, exp := range expected {
+		intVal := arr.Elements[i].(*object.Integer)
+		if intVal.Value.Cmp(big.NewInt(exp)) != 0 {
+			t.Errorf("arr[%d] = %s, want %d", i, intVal.Value.String(), exp)
+		}
+	}
+}
+
+func TestArraysSetLast(t *testing.T) {
+	setFn := ArraysBuiltins["arrays.set"].Fn
+
+	arr := &object.Array{
+		Elements: []object.Object{
+			&object.Integer{Value: big.NewInt(1)},
+			&object.Integer{Value: big.NewInt(2)},
+			&object.Integer{Value: big.NewInt(3)},
+		},
+		Mutable: true,
+	}
+
+	// Set last index to 99
+	setFn(arr, &object.Integer{Value: big.NewInt(2)}, &object.Integer{Value: big.NewInt(99)})
+
+	// Verify the elements: {1, 2, 99}
+	expected := []int64{1, 2, 99}
+	for i, exp := range expected {
+		intVal := arr.Elements[i].(*object.Integer)
+		if intVal.Value.Cmp(big.NewInt(exp)) != 0 {
+			t.Errorf("arr[%d] = %s, want %d", i, intVal.Value.String(), exp)
+		}
+	}
+}
+
+func TestArraysSetImmutable(t *testing.T) {
+	setFn := ArraysBuiltins["arrays.set"].Fn
+
+	arr := &object.Array{
+		Elements: []object.Object{&object.Integer{Value: big.NewInt(1)}},
+		Mutable:  false,
+	}
+
+	result := setFn(arr, &object.Integer{Value: big.NewInt(0)}, &object.Integer{Value: big.NewInt(99)})
+
+	if !isErrorObject(result) {
+		t.Error("expected error for immutable array")
+	}
+}
+
+func TestArraysSetOutOfBounds(t *testing.T) {
+	setFn := ArraysBuiltins["arrays.set"].Fn
+
+	arr := &object.Array{
+		Elements: []object.Object{
+			&object.Integer{Value: big.NewInt(1)},
+			&object.Integer{Value: big.NewInt(2)},
+		},
+		Mutable: true,
+	}
+
+	// Try to set at index 5 (out of bounds)
+	result := setFn(arr, &object.Integer{Value: big.NewInt(5)}, &object.Integer{Value: big.NewInt(99)})
+
+	if !isErrorObject(result) {
+		t.Error("expected error for out of bounds index")
+	}
+}
+
 // arrays.remove() removes by INDEX (not value!)
 func TestArraysRemove(t *testing.T) {
 	removeFn := ArraysBuiltins["arrays.remove"].Fn
