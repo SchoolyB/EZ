@@ -1728,9 +1728,15 @@ func (tc *TypeChecker) checkExpression(expr ast.Expression) {
 	case *ast.CallExpression:
 		tc.checkFunctionCall(e)
 		// Also check arguments
+		allowsTypeArgs := tc.functionAllowsTypeArguments(e)
 		for _, arg := range e.Arguments {
-			// Allow struct types as function arguments (for functions like json.decode that accept types)
-			tc.checkValueExpressionAllowTypes(arg) // Catch function used as argument (but allow types)
+			if allowsTypeArgs {
+				// Functions like json.decode accept type arguments
+				tc.checkValueExpressionAllowTypes(arg) // Catch function used as argument (but allow types)
+			} else {
+				// Most functions should not accept types as arguments
+				tc.checkValueExpression(arg) // Catch type/function used as argument
+			}
 			tc.checkExpression(arg)
 		}
 
@@ -3031,6 +3037,22 @@ func (tc *TypeChecker) lookupVariable(name string) (string, bool) {
 		return typeName, true
 	}
 	return "", false
+}
+
+// functionAllowsTypeArguments returns true if the function accepts type arguments.
+// Some functions like json.decode need a type parameter to know what to decode into.
+func (tc *TypeChecker) functionAllowsTypeArguments(call *ast.CallExpression) bool {
+	// Check for module.function pattern (e.g., json.decode)
+	if member, ok := call.Function.(*ast.MemberExpression); ok {
+		if obj, ok := member.Object.(*ast.Label); ok {
+			funcName := obj.Value + "." + member.Member.Value
+			switch funcName {
+			case "json.decode":
+				return true
+			}
+		}
+	}
+	return false
 }
 
 // checkValueExpressionAllowTypes validates that an expression is not a function
