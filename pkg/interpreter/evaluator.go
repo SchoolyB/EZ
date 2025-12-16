@@ -2794,6 +2794,7 @@ func evalInterpolatedString(node *ast.InterpolatedString, env *Environment) Obje
 func evalStructValue(node *ast.StructValue, env *Environment) Object {
 	typeName := node.Name.Value
 	var structDef *StructDef
+	var sourceModule *ModuleObject // Track source module for nested struct lookup
 	var ok bool
 
 	// Check for qualified type name (module.TypeName)
@@ -2809,6 +2810,7 @@ func evalStructValue(node *ast.StructValue, env *Environment) Object {
 				return newErrorWithLocation("E3002", node.Token.Line, node.Token.Column,
 					"undefined type '%s' in module '%s'", structName, moduleName)
 			}
+			sourceModule = moduleObj // Remember the source module for nested structs
 		} else {
 			return newErrorWithLocation("E4007", node.Token.Line, node.Token.Column,
 				"module '%s' not imported", moduleName)
@@ -2820,12 +2822,14 @@ func evalStructValue(node *ast.StructValue, env *Environment) Object {
 			// Not found locally, check modules from "using" directives
 			var foundModules []string
 			var foundStructDef *StructDef
+			var foundModule *ModuleObject
 
 			for _, alias := range env.GetUsing() {
 				if moduleObj, modOk := env.GetModule(alias); modOk {
 					if sd, sdOk := moduleObj.GetStructDef(typeName); sdOk {
 						foundModules = append(foundModules, alias)
 						foundStructDef = sd
+						foundModule = moduleObj
 					}
 				}
 			}
@@ -2841,6 +2845,7 @@ func evalStructValue(node *ast.StructValue, env *Environment) Object {
 			// Found in exactly one module
 			if len(foundModules) == 1 {
 				structDef = foundStructDef
+				sourceModule = foundModule // Remember the source module
 			} else {
 				return newErrorWithLocation("E3002", node.Token.Line, node.Token.Column,
 					"undefined type: '%s'", typeName)
@@ -2851,7 +2856,7 @@ func evalStructValue(node *ast.StructValue, env *Environment) Object {
 	// Create a new struct with default values for all fields first
 	fields := make(map[string]Object)
 	for fieldName, fieldType := range structDef.Fields {
-		fields[fieldName] = getDefaultValueWithEnv(fieldType, env)
+		fields[fieldName] = getDefaultValueWithEnv(fieldType, env, sourceModule)
 	}
 
 	// Override with explicitly provided field values
@@ -2872,6 +2877,7 @@ func evalStructValue(node *ast.StructValue, env *Environment) Object {
 func evalNewExpression(node *ast.NewExpression, env *Environment) Object {
 	typeName := node.TypeName.Value
 	var structDef *StructDef
+	var sourceModule *ModuleObject // Track source module for nested struct lookup
 	var ok bool
 
 	// Check for qualified type name (module.TypeName)
@@ -2887,6 +2893,7 @@ func evalNewExpression(node *ast.NewExpression, env *Environment) Object {
 				return newErrorWithLocation("E3002", node.Token.Line, node.Token.Column,
 					"undefined type '%s' in module '%s'", structName, moduleName)
 			}
+			sourceModule = moduleObj // Remember the source module for nested structs
 		} else {
 			return newErrorWithLocation("E4007", node.Token.Line, node.Token.Column,
 				"module '%s' not imported", moduleName)
@@ -2898,12 +2905,14 @@ func evalNewExpression(node *ast.NewExpression, env *Environment) Object {
 			// Not found locally, check modules from "using" directives
 			var foundModules []string
 			var foundStructDef *StructDef
+			var foundModule *ModuleObject
 
 			for _, alias := range env.GetUsing() {
 				if moduleObj, modOk := env.GetModule(alias); modOk {
 					if sd, sdOk := moduleObj.GetStructDef(typeName); sdOk {
 						foundModules = append(foundModules, alias)
 						foundStructDef = sd
+						foundModule = moduleObj
 					}
 				}
 			}
@@ -2919,6 +2928,7 @@ func evalNewExpression(node *ast.NewExpression, env *Environment) Object {
 			// Found in exactly one module
 			if len(foundModules) == 1 {
 				structDef = foundStructDef
+				sourceModule = foundModule // Remember the source module
 			} else {
 				return newErrorWithLocation("E3002", node.Token.Line, node.Token.Column,
 					"undefined type: '%s'", typeName)
@@ -2929,7 +2939,7 @@ func evalNewExpression(node *ast.NewExpression, env *Environment) Object {
 	// Create a new struct with default values for all fields
 	fields := make(map[string]Object)
 	for fieldName, fieldType := range structDef.Fields {
-		fields[fieldName] = getDefaultValueWithEnv(fieldType, env)
+		fields[fieldName] = getDefaultValueWithEnv(fieldType, env, sourceModule)
 	}
 
 	return &Struct{
@@ -2963,8 +2973,10 @@ func getDefaultValue(typeName string) Object {
 }
 
 // getDefaultValueWithEnv returns the default zero value for a given type,
-// with access to the environment for looking up struct definitions
-func getDefaultValueWithEnv(typeName string, env *Environment) Object {
+// with access to the environment for looking up struct definitions.
+// sourceModule is optional - if provided, nested struct types will be looked up
+// in that module first (for cross-module struct initialization).
+func getDefaultValueWithEnv(typeName string, env *Environment, sourceModule *ModuleObject) Object {
 	// Check if it's a dynamic array type (starts with '[' but doesn't contain ',')
 	if len(typeName) > 0 && typeName[0] == '[' && !strings.Contains(typeName, ",") {
 		return &Array{Elements: []Object{}}
@@ -2984,11 +2996,25 @@ func getDefaultValueWithEnv(typeName string, env *Environment) Object {
 	case "char":
 		return &Char{Value: '\x00'}
 	default:
-		// Check if it's a struct type and recursively initialize it
+		// First, check the source module if provided (for cross-module nested structs)
+		if sourceModule != nil {
+			if structDef, sdOk := sourceModule.GetStructDef(typeName); sdOk {
+				fields := make(map[string]Object)
+				for fieldName, fieldType := range structDef.Fields {
+					fields[fieldName] = getDefaultValueWithEnv(fieldType, env, sourceModule)
+				}
+				return &Struct{
+					TypeName: structDef.Name,
+					Fields:   fields,
+				}
+			}
+		}
+
+		// Check if it's a struct type in the current environment
 		if structDef, ok := env.GetStructDef(typeName); ok {
 			fields := make(map[string]Object)
 			for fieldName, fieldType := range structDef.Fields {
-				fields[fieldName] = getDefaultValueWithEnv(fieldType, env)
+				fields[fieldName] = getDefaultValueWithEnv(fieldType, env, sourceModule)
 			}
 			return &Struct{
 				TypeName: structDef.Name,
@@ -3002,7 +3028,7 @@ func getDefaultValueWithEnv(typeName string, env *Environment) Object {
 				if structDef, sdOk := moduleObj.GetStructDef(typeName); sdOk {
 					fields := make(map[string]Object)
 					for fieldName, fieldType := range structDef.Fields {
-						fields[fieldName] = getDefaultValueWithEnv(fieldType, env)
+						fields[fieldName] = getDefaultValueWithEnv(fieldType, env, moduleObj)
 					}
 					return &Struct{
 						TypeName: structDef.Name,
