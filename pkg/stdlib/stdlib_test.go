@@ -3125,3 +3125,90 @@ func TestAssertWrongArgCount(t *testing.T) {
 		t.Error("assert() with three arguments should return error")
 	}
 }
+
+// ============================================================================
+// Time Format Conversion Tests
+// ============================================================================
+
+func TestConvertFormat(t *testing.T) {
+	tests := []struct {
+		input    string
+		expected string
+	}{
+		{"YYYY-MM-DD", "2006-01-02"},
+		{"YYYY/MM/DD HH:mm:ss", "2006/01/02 15:04:05"},
+		{"DD/MM/YYYY", "02/01/2006"},
+		{"YY-MM-DD", "06-01-02"},
+		{"hh:mm:ss A", "03:04:05 PM"},
+		{"HH:mm:ss.SSS", "15:04:05.000"},
+		{"YYYY-MM-DDTHH:mm:ssZ", "2006-01-02T15:04:05-0700"},
+		{"YYYY-MM-DDTHH:mm:ssZZ", "2006-01-02T15:04:05-07:00"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.input, func(t *testing.T) {
+			result := convertFormat(tt.input)
+			if result != tt.expected {
+				t.Errorf("convertFormat(%q) = %q, want %q", tt.input, result, tt.expected)
+			}
+		})
+	}
+}
+
+func TestReplaceAll(t *testing.T) {
+	tests := []struct {
+		s        string
+		old      string
+		new      string
+		expected string
+	}{
+		{"hello world", "world", "there", "hello there"},
+		{"aaa", "a", "b", "bbb"},
+		{"no match", "xyz", "abc", "no match"},
+		{"", "a", "b", ""},
+		{"YYYY-YYYY", "YYYY", "2006", "2006-2006"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.s, func(t *testing.T) {
+			result := replaceAll(tt.s, tt.old, tt.new)
+			if result != tt.expected {
+				t.Errorf("replaceAll(%q, %q, %q) = %q, want %q", tt.s, tt.old, tt.new, result, tt.expected)
+			}
+		})
+	}
+}
+
+func TestGetTimeWithTimestamp(t *testing.T) {
+	// Test with timestamp argument
+	timestamp := int64(1609459200) // 2021-01-01 00:00:00 UTC
+	args := []object.Object{&object.Integer{Value: big.NewInt(timestamp)}}
+	result := getTime(args)
+
+	if result.Unix() != timestamp {
+		t.Errorf("getTime with timestamp = %d, want %d", result.Unix(), timestamp)
+	}
+}
+
+func TestGetTimeWithNoArgs(t *testing.T) {
+	// Test with no arguments (should return current time)
+	before := gotime.Now().Unix()
+	result := getTime([]object.Object{})
+	after := gotime.Now().Unix()
+
+	if result.Unix() < before || result.Unix() > after {
+		t.Error("getTime with no args should return current time")
+	}
+}
+
+func TestGetTimeWithInvalidArg(t *testing.T) {
+	// Test with invalid argument type (should return current time)
+	before := gotime.Now().Unix()
+	args := []object.Object{&object.String{Value: "invalid"}}
+	result := getTime(args)
+	after := gotime.Now().Unix()
+
+	if result.Unix() < before || result.Unix() > after {
+		t.Error("getTime with invalid arg should return current time")
+	}
+}
