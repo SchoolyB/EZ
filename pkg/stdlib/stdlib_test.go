@@ -3340,3 +3340,172 @@ func TestObjectsEqual(t *testing.T) {
 		})
 	}
 }
+
+func TestZeroValueForType(t *testing.T) {
+	tests := []struct {
+		typeName string
+		check    func(object.Object) bool
+	}{
+		{"int", func(o object.Object) bool {
+			i, ok := o.(*object.Integer)
+			return ok && i.Value.Int64() == 0
+		}},
+		{"float", func(o object.Object) bool {
+			f, ok := o.(*object.Float)
+			return ok && f.Value == 0.0
+		}},
+		{"string", func(o object.Object) bool {
+			s, ok := o.(*object.String)
+			return ok && s.Value == ""
+		}},
+		{"bool", func(o object.Object) bool {
+			return o == object.FALSE
+		}},
+		{"char", func(o object.Object) bool {
+			c, ok := o.(*object.Char)
+			return ok && c.Value == 0
+		}},
+		{"byte", func(o object.Object) bool {
+			b, ok := o.(*object.Byte)
+			return ok && b.Value == 0
+		}},
+		{"unknown", func(o object.Object) bool {
+			return o == object.NIL
+		}},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.typeName, func(t *testing.T) {
+			result := zeroValueForType(tt.typeName)
+			if !tt.check(result) {
+				t.Errorf("zeroValueForType(%q) = %v, unexpected", tt.typeName, result)
+			}
+		})
+	}
+}
+
+func TestConvertToTypedValueInt(t *testing.T) {
+	// Test float64 to int
+	result := convertToTypedValue(float64(42), "int")
+	intObj, ok := result.(*object.Integer)
+	if !ok {
+		t.Fatalf("expected Integer, got %T", result)
+	}
+	if intObj.Value.Int64() != 42 {
+		t.Errorf("expected 42, got %d", intObj.Value.Int64())
+	}
+
+	// Test string to int
+	result = convertToTypedValue("123", "int")
+	intObj, ok = result.(*object.Integer)
+	if !ok {
+		t.Fatalf("expected Integer, got %T", result)
+	}
+	if intObj.Value.Int64() != 123 {
+		t.Errorf("expected 123, got %d", intObj.Value.Int64())
+	}
+
+	// Test invalid string returns 0
+	result = convertToTypedValue("not a number", "int")
+	intObj, ok = result.(*object.Integer)
+	if !ok {
+		t.Fatalf("expected Integer, got %T", result)
+	}
+	if intObj.Value.Int64() != 0 {
+		t.Errorf("expected 0, got %d", intObj.Value.Int64())
+	}
+}
+
+func TestConvertToTypedValueFloat(t *testing.T) {
+	// Test float64 to float
+	result := convertToTypedValue(float64(3.14), "float")
+	floatObj, ok := result.(*object.Float)
+	if !ok {
+		t.Fatalf("expected Float, got %T", result)
+	}
+	if floatObj.Value != 3.14 {
+		t.Errorf("expected 3.14, got %f", floatObj.Value)
+	}
+
+	// Test string returns 0.0 (no auto-convert)
+	result = convertToTypedValue("3.14", "float")
+	floatObj, ok = result.(*object.Float)
+	if !ok {
+		t.Fatalf("expected Float, got %T", result)
+	}
+	if floatObj.Value != 0.0 {
+		t.Errorf("expected 0.0, got %f", floatObj.Value)
+	}
+}
+
+func TestConvertToTypedValueString(t *testing.T) {
+	// Test string to string
+	result := convertToTypedValue("hello", "string")
+	strObj, ok := result.(*object.String)
+	if !ok {
+		t.Fatalf("expected String, got %T", result)
+	}
+	if strObj.Value != "hello" {
+		t.Errorf("expected hello, got %s", strObj.Value)
+	}
+
+	// Test int-like float to string
+	result = convertToTypedValue(float64(42), "string")
+	strObj, ok = result.(*object.String)
+	if !ok {
+		t.Fatalf("expected String, got %T", result)
+	}
+	if strObj.Value != "42" {
+		t.Errorf("expected '42', got '%s'", strObj.Value)
+	}
+
+	// Test float to string
+	result = convertToTypedValue(float64(3.14), "string")
+	strObj, ok = result.(*object.String)
+	if !ok {
+		t.Fatalf("expected String, got %T", result)
+	}
+	if strObj.Value != "3.14" {
+		t.Errorf("expected '3.14', got '%s'", strObj.Value)
+	}
+
+	// Test bool true to string
+	result = convertToTypedValue(true, "string")
+	strObj, ok = result.(*object.String)
+	if !ok {
+		t.Fatalf("expected String, got %T", result)
+	}
+	if strObj.Value != "true" {
+		t.Errorf("expected 'true', got '%s'", strObj.Value)
+	}
+
+	// Test bool false to string
+	result = convertToTypedValue(false, "string")
+	strObj, ok = result.(*object.String)
+	if !ok {
+		t.Fatalf("expected String, got %T", result)
+	}
+	if strObj.Value != "false" {
+		t.Errorf("expected 'false', got '%s'", strObj.Value)
+	}
+}
+
+func TestConvertToTypedValueBool(t *testing.T) {
+	// Test bool true
+	result := convertToTypedValue(true, "bool")
+	if result != object.TRUE {
+		t.Errorf("expected TRUE, got %v", result)
+	}
+
+	// Test bool false
+	result = convertToTypedValue(false, "bool")
+	if result != object.FALSE {
+		t.Errorf("expected FALSE, got %v", result)
+	}
+
+	// Test non-bool returns FALSE
+	result = convertToTypedValue("not bool", "bool")
+	if result != object.FALSE {
+		t.Errorf("expected FALSE, got %v", result)
+	}
+}
