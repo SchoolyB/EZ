@@ -1,22 +1,32 @@
 name: Sync ERRORS.md
 
 on:
-  push:
+  pull_request:
     branches:
       - main
     paths:
       - 'pkg/errors/codes.go'
+  push:
+    branches:
+      - main
+    paths:
+      - 'ERRORS.md'
 
 jobs:
   sync:
     name: Regenerate ERRORS.md
     runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
     permissions:
       contents: write
+      pull-requests: write
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+        with:
+          ref: ${{ github.head_ref }}
+          token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Set up Go
         uses: actions/setup-go@v5
@@ -35,7 +45,7 @@ jobs:
             echo "changed=true" >> $GITHUB_OUTPUT
           fi
 
-      - name: Commit and push
+      - name: Commit changes to PR
         if: steps.check.outputs.changed == 'true'
         run: |
           git config --local user.email "github-actions[bot]@users.noreply.github.com"
@@ -44,8 +54,12 @@ jobs:
           git commit -m "docs: regenerate ERRORS.md from codes.go"
           git push
 
+  trigger-docs:
+    name: Trigger docs sync
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push'
+    steps:
       - name: Trigger docs sync
-        if: github.ref == 'refs/heads/main'
         run: |
           curl -X POST \
             -H "Accept: application/vnd.github+json" \

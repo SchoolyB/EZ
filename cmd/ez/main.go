@@ -117,48 +117,46 @@ func printHelp() {
 func printVersion() {
 	fmt.Printf("EZ Language %s\n", Version)
 	fmt.Printf("Built: %s\n", BuildTime)
-	fmt.Println("Copyright (c) 2025-Present Marshall A Burns")
 
-	// Check for updates and display if available
+	// Check for latest version and always display it
+	var latestVersion string
+
 	state, _ := readUpdateState()
 
 	// If we have cached state and it's fresh (checked today), use it
 	if state != nil && state.LatestVersion != "" && !shouldCheckForUpdate() {
-		if isNewerVersion(Version, state.LatestVersion) {
-			fmt.Printf("\nUpdate available: %s (you have %s). Run `ez update` to upgrade.\n",
-				state.LatestVersion, Version)
-		}
-		return
-	}
+		latestVersion = state.LatestVersion
+	} else {
+		// Cache is stale or empty - do a synchronous check
+		ctx, cancel := context.WithTimeout(context.Background(), checkTimeout)
+		defer cancel()
 
-	// Cache is stale or empty - do a synchronous check
-	ctx, cancel := context.WithTimeout(context.Background(), checkTimeout)
-	defer cancel()
-
-	release, err := fetchLatestRelease(ctx)
-	if err != nil {
-		// Network error - fall back to cached state if available
-		if state != nil && state.LatestVersion != "" {
-			if isNewerVersion(Version, state.LatestVersion) {
-				fmt.Printf("\nUpdate available: %s (you have %s). Run `ez update` to upgrade.\n",
-					state.LatestVersion, Version)
+		release, err := fetchLatestRelease(ctx)
+		if err != nil {
+			// Network error - fall back to cached state if available
+			if state != nil && state.LatestVersion != "" {
+				latestVersion = state.LatestVersion
 			}
+		} else {
+			// Update cache
+			newState := &UpdateState{
+				LastCheck:     time.Now().Format("2006-01-02"),
+				LatestVersion: release.TagName,
+			}
+			writeUpdateState(newState)
+			latestVersion = release.TagName
 		}
-		return
 	}
 
-	// Update cache
-	newState := &UpdateState{
-		LastCheck:     time.Now().Format("2006-01-02"),
-		LatestVersion: release.TagName,
+	// Always display latest version if we have it
+	if latestVersion != "" {
+		fmt.Printf("Latest: %s\n", latestVersion)
+		if isNewerVersion(Version, latestVersion) {
+			fmt.Printf("\nUpdate available! Run `ez update` to upgrade.\n")
+		}
 	}
-	writeUpdateState(newState)
 
-	// Print notification if newer version available
-	if isNewerVersion(Version, release.TagName) {
-		fmt.Printf("\nUpdate available: %s (you have %s). Run `ez update` to upgrade.\n",
-			release.TagName, Version)
-	}
+	fmt.Println("Copyright (c) 2025-Present Marshall A Burns")
 }
 
 func checkFile(filename string) {
