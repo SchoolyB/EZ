@@ -4267,9 +4267,9 @@ func (tc *TypeChecker) checkArraysModuleCall(funcName string, call *ast.CallExpr
 		"take":      {2, 2, []string{"array", "int"}, "array"},
 		"drop":      {2, 2, []string{"array", "int"}, "array"},
 
-		// Array + int + value
-		"set":    {3, 3, []string{"array", "int", "any"}, "array"},
-		"insert": {3, 3, []string{"array", "int", "any"}, "array"},
+		// Array + int + value (modify in-place, return void)
+		"set":    {3, 3, []string{"array", "int", "any"}, "void"},
+		"insert": {3, 3, []string{"array", "int", "any"}, "void"},
 
 		// Array + int + int (optional)
 		"slice": {2, 3, []string{"array", "int", "int"}, "array"},

@@ -340,6 +340,12 @@ var ArraysBuiltins = map[string]*object.Builtin{
 			if !ok {
 				return &object.Error{Code: "E7002", Message: "arrays.set() requires an array"}
 			}
+			if !arr.Mutable {
+				return &object.Error{
+					Message: "cannot modify immutable array (declared as const)",
+					Code:    "E4005",
+				}
+			}
 			idx, ok := args[1].(*object.Integer)
 			if !ok {
 				return &object.Error{Code: "E7004", Message: "arrays.set() requires an integer index"}
@@ -348,10 +354,8 @@ var ArraysBuiltins = map[string]*object.Builtin{
 			if index < 0 || index >= len(arr.Elements) {
 				return &object.Error{Code: "E5003", Message: "arrays.set() index out of bounds"}
 			}
-			newElements := make([]object.Object, len(arr.Elements))
-			copy(newElements, arr.Elements)
-			newElements[index] = args[2]
-			return &object.Array{Elements: newElements}
+			arr.Elements[index] = args[2]
+			return object.NIL
 		},
 	},
 
