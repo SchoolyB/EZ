@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.22.5](https://github.com/SchoolyB/EZ/compare/v0.22.4...v0.22.5) (2025-12-16)
+
+
+### Bug Fixes
+
+* cross-module nested struct initialization ([a22d7e3](https://github.com/SchoolyB/EZ/commit/a22d7e36822d957f741a578ee1f5df694480e503))
+* cross-module nested struct initialization ([13cf3e0](https://github.com/SchoolyB/EZ/commit/13cf3e0d46325920a59696df767a736cc473f5c5))
+
 ## [0.22.4](https://github.com/SchoolyB/EZ/compare/v0.22.3...v0.22.4) (2025-12-16)
 
 
