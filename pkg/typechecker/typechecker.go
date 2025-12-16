@@ -2524,6 +2524,19 @@ func (tc *TypeChecker) checkWhenStatement(whenStmt *ast.WhenStatement, expectedR
 			// Check the case value expression (validates range bounds, etc.)
 			tc.checkExpression(caseValue)
 
+			// For @strict enum when statements, only allow enum member expressions
+			if whenStmt.IsStrict && isEnumType {
+				if !tc.isEnumMemberExpression(caseValue, valueType, enumTypeInfo) {
+					line, col := tc.getExpressionPosition(caseValue)
+					tc.addError(
+						errors.E2054,
+						fmt.Sprintf("@strict when requires explicit enum member values, got non-enum expression"),
+						line,
+						col,
+					)
+				}
+			}
+
 			// Skip range expressions for duplicate detection
 			if _, isRange := caseValue.(*ast.RangeExpression); isRange {
 				continue
@@ -2578,6 +2591,53 @@ func (tc *TypeChecker) checkWhenStatement(whenStmt *ast.WhenStatement, expectedR
 		tc.checkBlock(whenStmt.Default, expectedReturnTypes)
 		tc.exitScope()
 	}
+}
+
+// isEnumMemberExpression checks if an expression is a valid enum member reference
+// for use in @strict when statements. Valid forms are:
+// - EnumType.MEMBER (e.g., Color.RED)
+// - MEMBER (if it's a known enum value of the expected type)
+func (tc *TypeChecker) isEnumMemberExpression(expr ast.Expression, enumTypeName string, enumTypeInfo *Type) bool {
+	switch v := expr.(type) {
+	case *ast.MemberExpression:
+		// Check for EnumType.MEMBER pattern
+		if obj, ok := v.Object.(*ast.Label); ok {
+			// Get the base type name (strip module prefix if present)
+			baseEnumName := enumTypeName
+			if idx := strings.LastIndex(enumTypeName, "."); idx != -1 {
+				baseEnumName = enumTypeName[idx+1:]
+			}
+			// Check if object matches the enum type name
+			if obj.Value == baseEnumName || obj.Value == enumTypeName {
+				// Verify the member is a valid enum value
+				if enumTypeInfo != nil && enumTypeInfo.EnumMembers != nil {
+					if enumTypeInfo.EnumMembers[v.Member.Value] {
+						return true
+					}
+				}
+			}
+			// Also check module-prefixed enum types in moduleTypes
+			for moduleName, moduleTypes := range tc.moduleTypes {
+				if enumType, exists := moduleTypes[obj.Value]; exists && enumType.Kind == EnumType {
+					if enumType.EnumMembers != nil && enumType.EnumMembers[v.Member.Value] {
+						// Verify this is the right enum type
+						fullTypeName := moduleName + "." + obj.Value
+						if fullTypeName == enumTypeName || obj.Value == baseEnumName {
+							return true
+						}
+					}
+				}
+			}
+		}
+	case *ast.Label:
+		// Check if it's a bare enum value (e.g., just RED instead of Color.RED)
+		if enumTypeInfo != nil && enumTypeInfo.EnumMembers != nil {
+			if enumTypeInfo.EnumMembers[v.Value] {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 // getCaseValueKey returns a string key for a case value for duplicate detection
