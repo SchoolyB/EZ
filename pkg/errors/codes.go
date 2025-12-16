@@ -321,6 +321,7 @@ var (
 	E12003 = ErrorCode{"E12003", "map-key-not-found", "key not found in map"}
 	E12004 = ErrorCode{"E12004", "map-invalid-pair", "map entry must be a [key, value] pair"}
 	E12005 = ErrorCode{"E12005", "map-value-not-hashable", "map value is not hashable and cannot become a key"}
+	E12006 = ErrorCode{"E12006", "map-duplicate-key", "map literal contains duplicate key"}
 )
 
 // =============================================================================
