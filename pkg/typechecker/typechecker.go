@@ -1759,10 +1759,29 @@ func (tc *TypeChecker) checkExpression(expr ast.Expression) {
 		tc.checkArrayLiteral(e)
 
 	case *ast.MapValue:
+		// Track seen keys to detect duplicates (#641)
+		seenKeys := make(map[string]int) // key string -> line number of first occurrence
 		for _, pair := range e.Pairs {
 			tc.checkExpression(pair.Key)
 			tc.checkValueExpression(pair.Value) // Catch type/function used as map value
 			tc.checkExpression(pair.Value)
+
+			// Check for duplicate keys
+			keyStr := tc.getEnumValueString(pair.Key) // Reuse enum helper for literal conversion
+			if keyStr != "" {                         // Only check if we can get a string representation
+				if firstLine, exists := seenKeys[keyStr]; exists {
+					line, col := tc.getExpressionPosition(pair.Key)
+					tc.addError(
+						errors.E12006,
+						fmt.Sprintf("duplicate key %s in map literal (first defined on line %d)", keyStr, firstLine),
+						line,
+						col,
+					)
+				} else {
+					line, _ := tc.getExpressionPosition(pair.Key)
+					seenKeys[keyStr] = line
+				}
+			}
 		}
 
 	case *ast.StructValue:
