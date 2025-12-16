@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.22.3](https://github.com/SchoolyB/EZ/compare/v0.22.2...v0.22.3) (2025-12-16)
+
+
+### Bug Fixes
+
+* version update detection and error sync workflow ([fbdb7bd](https://github.com/SchoolyB/EZ/commit/fbdb7bd421d6419452fa901940d5c6a950cacf2e))
+* version update detection and error sync workflow ([f773ddb](https://github.com/SchoolyB/EZ/commit/f773ddb0af517295dadf3dc3f747ebe26970b53d))
+
 ## [0.22.2](https://github.com/SchoolyB/EZ/compare/v0.22.1...v0.22.2) (2025-12-16)
 
 
