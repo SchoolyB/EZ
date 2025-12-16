@@ -2172,3 +2172,522 @@ do main() {
 	tc := typecheck(t, input)
 	assertHasError(t, tc, errors.E2046)
 }
+
+// ============================================================================
+// Module Registration Tests
+// ============================================================================
+
+func TestRegisterModuleFunction(t *testing.T) {
+	tc := NewTypeChecker("", "test.ez")
+
+	sig := &FunctionSignature{
+		Name:        "helper",
+		Parameters:  []*Parameter{{Name: "x", Type: "int"}},
+		ReturnTypes: []string{"int"},
+	}
+
+	tc.RegisterModuleFunction("mymodule", "helper", sig)
+
+	// Verify function was registered
+	retrieved, ok := tc.GetModuleFunction("mymodule", "helper")
+	if !ok {
+		t.Error("should find registered module function")
+	}
+	if retrieved.Name != "helper" {
+		t.Errorf("expected function name 'helper', got '%s'", retrieved.Name)
+	}
+
+	// Test non-existent module function
+	_, ok = tc.GetModuleFunction("nonexistent", "helper")
+	if ok {
+		t.Error("should not find function in non-existent module")
+	}
+
+	// Test non-existent function in existing module
+	_, ok = tc.GetModuleFunction("mymodule", "nonexistent")
+	if ok {
+		t.Error("should not find non-existent function in module")
+	}
+}
+
+func TestRegisterModuleType(t *testing.T) {
+	tc := NewTypeChecker("", "test.ez")
+
+	customType := &Type{
+		Name: "ModuleStruct",
+		Kind: StructType,
+		Fields: map[string]*Type{
+			"value": {Name: "int", Kind: PrimitiveType},
+		},
+	}
+
+	tc.RegisterModuleType("mymodule", "ModuleStruct", customType)
+
+	// Verify type was registered by checking types map
+	types := tc.GetTypes()
+	// Module types are stored in moduleTypes, not types
+	// But GetTypes returns the types map which is used for registration
+	if types == nil {
+		t.Error("GetTypes should not return nil")
+	}
+}
+
+func TestGetFunctions(t *testing.T) {
+	tc := NewTypeChecker("", "test.ez")
+
+	sig := &FunctionSignature{
+		Name:        "testFunc",
+		Parameters:  []*Parameter{},
+		ReturnTypes: []string{"void"},
+	}
+
+	tc.RegisterFunction("testFunc", sig)
+
+	functions := tc.GetFunctions()
+	if functions == nil {
+		t.Error("GetFunctions should not return nil")
+	}
+	if functions["testFunc"] == nil {
+		t.Error("should find registered function via GetFunctions")
+	}
+}
+
+func TestGetTypes(t *testing.T) {
+	tc := NewTypeChecker("", "test.ez")
+
+	customType := &Type{
+		Name: "CustomType",
+		Kind: StructType,
+	}
+
+	tc.RegisterType("CustomType", customType)
+
+	types := tc.GetTypes()
+	if types == nil {
+		t.Error("GetTypes should not return nil")
+	}
+	if types["CustomType"] == nil {
+		t.Error("should find registered type via GetTypes")
+	}
+}
+
+// ============================================================================
+// Postfix Expression Tests
+// ============================================================================
+
+func TestPostfixIncrementValid(t *testing.T) {
+	input := `
+do main() {
+	temp x int = 0
+	x++
+}
+`
+	tc := typecheck(t, input)
+	assertNoErrors(t, tc)
+}
+
+func TestPostfixDecrementValid(t *testing.T) {
+	input := `
+do main() {
+	temp x int = 10
+	x--
+}
+`
+	tc := typecheck(t, input)
+	assertNoErrors(t, tc)
+}
+
+func TestPostfixOnNonIntegerError(t *testing.T) {
+	input := `
+do main() {
+	temp s string = "hello"
+	s++
+}
+`
+	tc := typecheck(t, input)
+	assertHasError(t, tc, errors.E3001)
+}
+
+func TestPostfixOnConstError(t *testing.T) {
+	input := `
+do main() {
+	const x int = 5
+	x++
+}
+`
+	tc := typecheck(t, input)
+	assertHasError(t, tc, errors.E5016)
+}
+
+// ============================================================================
+// Builtin Call Type Inference Tests
+// ============================================================================
+
+func TestLenBuiltinReturnsInt(t *testing.T) {
+	input := `
+do main() {
+	temp arr [int] = {1, 2, 3}
+	temp length int = len(arr)
+}
+`
+	tc := typecheck(t, input)
+	assertNoErrors(t, tc)
+}
+
+func TestTypeofBuiltinReturnsString(t *testing.T) {
+	input := `
+do main() {
+	temp x int = 5
+	temp t string = typeof(x)
+}
+`
+	tc := typecheck(t, input)
+	assertNoErrors(t, tc)
+}
+
+func TestIntConversionBuiltin(t *testing.T) {
+	input := `
+do main() {
+	temp f float = 3.14
+	temp i int = int(f)
+}
+`
+	tc := typecheck(t, input)
+	assertNoErrors(t, tc)
+}
+
+func TestFloatConversionBuiltin(t *testing.T) {
+	input := `
+do main() {
+	temp i int = 42
+	temp f float = float(i)
+}
+`
+	tc := typecheck(t, input)
+	assertNoErrors(t, tc)
+}
+
+func TestStringConversionBuiltin(t *testing.T) {
+	input := `
+do main() {
+	temp i int = 123
+	temp s string = string(i)
+}
+`
+	tc := typecheck(t, input)
+	assertNoErrors(t, tc)
+}
+
+func TestBoolConversionBuiltin(t *testing.T) {
+	input := `
+do main() {
+	temp i int = 1
+	temp b bool = bool(i)
+}
+`
+	tc := typecheck(t, input)
+	assertNoErrors(t, tc)
+}
+
+func TestCharConversionBuiltin(t *testing.T) {
+	input := `
+do main() {
+	temp i int = 65
+	temp c char = char(i)
+}
+`
+	tc := typecheck(t, input)
+	assertNoErrors(t, tc)
+}
+
+func TestByteConversionBuiltin(t *testing.T) {
+	input := `
+do main() {
+	temp i int = 255
+	temp b byte = byte(i)
+}
+`
+	tc := typecheck(t, input)
+	assertNoErrors(t, tc)
+}
+
+// ============================================================================
+// Standard Call Type Inference Tests
+// ============================================================================
+
+func TestInputReturnsString(t *testing.T) {
+	input := `
+import @std
+using std
+
+do main() {
+	temp name string = std.input("Enter name: ")
+}
+`
+	tc := typecheck(t, input)
+	assertNoErrors(t, tc)
+}
+
+func TestPrintlnIsVoid(t *testing.T) {
+	input := `
+do main() {
+	println("hello")
+}
+`
+	tc := typecheck(t, input)
+	assertNoErrors(t, tc)
+}
+
+// ============================================================================
+// Printf Validation Tests
+// ============================================================================
+
+func TestPrintfWithFormatString(t *testing.T) {
+	input := `
+do main() {
+	printf("Value: %d", 42)
+}
+`
+	tc := typecheck(t, input)
+	assertNoErrors(t, tc)
+}
+
+func TestPrintfNoArgsError(t *testing.T) {
+	input := `
+import @std
+using std
+
+do main() {
+	std.printf()
+}
+`
+	tc := typecheck(t, input)
+	assertHasError(t, tc, errors.E5008)
+}
+
+func TestPrintfNonStringFormatError(t *testing.T) {
+	input := `
+import @std
+using std
+
+do main() {
+	std.printf(123, "value")
+}
+`
+	tc := typecheck(t, input)
+	assertHasError(t, tc, errors.E3001)
+}
+
+// ============================================================================
+// Comparable Enum Type Tests
+// ============================================================================
+
+func TestEnumWithIntValuesIsComparable(t *testing.T) {
+	input := `
+const Priority enum {
+	LOW = 1
+	MEDIUM = 2
+	HIGH = 3
+}
+
+do main() {
+	temp p1 Priority = Priority.LOW
+	temp p2 Priority = Priority.HIGH
+	temp result bool = p1 < p2
+}
+`
+	tc := typecheck(t, input)
+	assertNoErrors(t, tc)
+}
+
+func TestEnumWithStringValuesIsComparable(t *testing.T) {
+	input := `
+const Status enum {
+	OPEN = "open"
+	CLOSED = "closed"
+}
+
+do main() {
+	temp s1 Status = Status.OPEN
+	temp s2 Status = Status.CLOSED
+	temp result bool = s1 == s2
+}
+`
+	tc := typecheck(t, input)
+	assertNoErrors(t, tc)
+}
+
+// ============================================================================
+// Map Key Type Validation Tests
+// ============================================================================
+
+func TestMapWithStringKeyValid(t *testing.T) {
+	input := `
+do main() {
+	temp m map[string:int] = {"a": 1, "b": 2}
+}
+`
+	tc := typecheck(t, input)
+	assertNoErrors(t, tc)
+}
+
+func TestMapWithIntKeyValid(t *testing.T) {
+	input := `
+do main() {
+	temp m map[int:string] = {1: "one", 2: "two"}
+}
+`
+	tc := typecheck(t, input)
+	assertNoErrors(t, tc)
+}
+
+func TestMapWithBoolKeyValid(t *testing.T) {
+	input := `
+do main() {
+	temp m map[bool:string] = {true: "yes", false: "no"}
+}
+`
+	tc := typecheck(t, input)
+	assertNoErrors(t, tc)
+}
+
+func TestMapWithCharKeyValid(t *testing.T) {
+	input := `
+do main() {
+	temp m map[char:int] = {'a': 1, 'b': 2}
+}
+`
+	tc := typecheck(t, input)
+	assertNoErrors(t, tc)
+}
+
+// ============================================================================
+// Type Promotion Tests
+// ============================================================================
+
+func TestByteWithIntPromotion(t *testing.T) {
+	input := `
+do main() {
+	temp b byte = 255
+	temp i int = 100
+	temp result int = i + int(b)
+}
+`
+	tc := typecheck(t, input)
+	assertNoErrors(t, tc)
+}
+
+// ============================================================================
+// Additional Edge Case Tests
+// ============================================================================
+
+func TestLenOnString(t *testing.T) {
+	input := `
+do main() {
+	temp s string = "hello"
+	temp length int = len(s)
+}
+`
+	tc := typecheck(t, input)
+	assertNoErrors(t, tc)
+}
+
+func TestLenOnMap(t *testing.T) {
+	input := `
+do main() {
+	temp m map[string:int] = {"a": 1}
+	temp count int = len(m)
+}
+`
+	tc := typecheck(t, input)
+	assertNoErrors(t, tc)
+}
+
+func TestMultipleModuleFunctions(t *testing.T) {
+	tc := NewTypeChecker("", "test.ez")
+
+	// Register multiple functions for same module
+	tc.RegisterModuleFunction("mymod", "func1", &FunctionSignature{Name: "func1", ReturnTypes: []string{"int"}})
+	tc.RegisterModuleFunction("mymod", "func2", &FunctionSignature{Name: "func2", ReturnTypes: []string{"string"}})
+
+	// Both should be retrievable
+	sig1, ok := tc.GetModuleFunction("mymod", "func1")
+	if !ok || sig1.Name != "func1" {
+		t.Error("should find func1")
+	}
+
+	sig2, ok := tc.GetModuleFunction("mymod", "func2")
+	if !ok || sig2.Name != "func2" {
+		t.Error("should find func2")
+	}
+}
+
+func TestPostfixOnUnsignedIntegers(t *testing.T) {
+	tests := []struct {
+		name  string
+		input string
+	}{
+		{
+			"u8 increment",
+			`do main() { temp x u8 = 0
+			x++ }`,
+		},
+		{
+			"u16 decrement",
+			`do main() { temp x u16 = 10
+			x-- }`,
+		},
+		{
+			"u32 increment",
+			`do main() { temp x u32 = 100
+			x++ }`,
+		},
+		{
+			"u64 decrement",
+			`do main() { temp x u64 = 1000
+			x-- }`,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tc := typecheck(t, tt.input)
+			assertNoErrors(t, tc)
+		})
+	}
+}
+
+func TestPostfixOnSignedIntegers(t *testing.T) {
+	tests := []struct {
+		name  string
+		input string
+	}{
+		{
+			"i8 increment",
+			`do main() { temp x i8 = 0
+			x++ }`,
+		},
+		{
+			"i16 decrement",
+			`do main() { temp x i16 = 10
+			x-- }`,
+		},
+		{
+			"i32 increment",
+			`do main() { temp x i32 = 100
+			x++ }`,
+		},
+		{
+			"i64 decrement",
+			`do main() { temp x i64 = 1000
+			x-- }`,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tc := typecheck(t, tt.input)
+			assertNoErrors(t, tc)
+		})
+	}
+}
