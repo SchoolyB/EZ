@@ -6,6 +6,7 @@ package typechecker
 import (
 	"fmt"
 	"math/big"
+	"sort"
 	"strconv"
 	"strings"
 
@@ -2518,6 +2519,9 @@ func (tc *TypeChecker) checkWhenStatement(whenStmt *ast.WhenStatement, expectedR
 		)
 	}
 
+	// Track handled enum cases for @strict exhaustiveness check
+	handledEnumCases := make(map[string]bool)
+
 	// Check each case
 	for _, whenCase := range whenStmt.Cases {
 		for _, caseValue := range whenCase.Values {
@@ -2534,6 +2538,11 @@ func (tc *TypeChecker) checkWhenStatement(whenStmt *ast.WhenStatement, expectedR
 						line,
 						col,
 					)
+				} else {
+					// Track this enum member as handled for exhaustiveness check
+					if memberName := tc.getEnumMemberName(caseValue); memberName != "" {
+						handledEnumCases[memberName] = true
+					}
 				}
 			}
 
@@ -2582,8 +2591,25 @@ func (tc *TypeChecker) checkWhenStatement(whenStmt *ast.WhenStatement, expectedR
 		tc.exitScope()
 	}
 
-	// Note: @strict enum exhaustiveness check is enforced at runtime
-	// A full compile-time check would require tracking enum members in the type system
+	// @strict enum exhaustiveness check - ensure all enum cases are handled
+	if whenStmt.IsStrict && isEnumType && enumTypeInfo != nil && enumTypeInfo.EnumMembers != nil {
+		var missingCases []string
+		for enumMember := range enumTypeInfo.EnumMembers {
+			if !handledEnumCases[enumMember] {
+				missingCases = append(missingCases, enumMember)
+			}
+		}
+		if len(missingCases) > 0 {
+			// Sort for consistent error messages
+			sort.Strings(missingCases)
+			tc.addError(
+				errors.E2046,
+				fmt.Sprintf("@strict when statement missing enum cases: %s", strings.Join(missingCases, ", ")),
+				whenStmt.Token.Line,
+				whenStmt.Token.Column,
+			)
+		}
+	}
 
 	// Check the default block if present
 	if whenStmt.Default != nil {
@@ -2591,6 +2617,20 @@ func (tc *TypeChecker) checkWhenStatement(whenStmt *ast.WhenStatement, expectedR
 		tc.checkBlock(whenStmt.Default, expectedReturnTypes)
 		tc.exitScope()
 	}
+}
+
+// getEnumMemberName extracts the enum member name from a case value expression
+// Returns the member name (e.g., "RED" from "Color.RED") or empty string if not an enum member
+func (tc *TypeChecker) getEnumMemberName(expr ast.Expression) string {
+	switch v := expr.(type) {
+	case *ast.MemberExpression:
+		// Handle EnumType.MEMBER pattern - return just the member name
+		return v.Member.Value
+	case *ast.Label:
+		// Handle bare enum value (e.g., just RED)
+		return v.Value
+	}
+	return ""
 }
 
 // isEnumMemberExpression checks if an expression is a valid enum member reference
