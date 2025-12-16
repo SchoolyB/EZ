@@ -3125,3 +3125,387 @@ func TestAssertWrongArgCount(t *testing.T) {
 		t.Error("assert() with three arguments should return error")
 	}
 }
+
+// ============================================================================
+// Time Format Conversion Tests
+// ============================================================================
+
+func TestConvertFormat(t *testing.T) {
+	tests := []struct {
+		input    string
+		expected string
+	}{
+		{"YYYY-MM-DD", "2006-01-02"},
+		{"YYYY/MM/DD HH:mm:ss", "2006/01/02 15:04:05"},
+		{"DD/MM/YYYY", "02/01/2006"},
+		{"YY-MM-DD", "06-01-02"},
+		{"hh:mm:ss A", "03:04:05 PM"},
+		{"HH:mm:ss.SSS", "15:04:05.000"},
+		{"YYYY-MM-DDTHH:mm:ssZ", "2006-01-02T15:04:05-0700"},
+		{"YYYY-MM-DDTHH:mm:ssZZ", "2006-01-02T15:04:05-07:00"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.input, func(t *testing.T) {
+			result := convertFormat(tt.input)
+			if result != tt.expected {
+				t.Errorf("convertFormat(%q) = %q, want %q", tt.input, result, tt.expected)
+			}
+		})
+	}
+}
+
+func TestReplaceAll(t *testing.T) {
+	tests := []struct {
+		s        string
+		old      string
+		new      string
+		expected string
+	}{
+		{"hello world", "world", "there", "hello there"},
+		{"aaa", "a", "b", "bbb"},
+		{"no match", "xyz", "abc", "no match"},
+		{"", "a", "b", ""},
+		{"YYYY-YYYY", "YYYY", "2006", "2006-2006"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.s, func(t *testing.T) {
+			result := replaceAll(tt.s, tt.old, tt.new)
+			if result != tt.expected {
+				t.Errorf("replaceAll(%q, %q, %q) = %q, want %q", tt.s, tt.old, tt.new, result, tt.expected)
+			}
+		})
+	}
+}
+
+func TestGetTimeWithTimestamp(t *testing.T) {
+	// Test with timestamp argument
+	timestamp := int64(1609459200) // 2021-01-01 00:00:00 UTC
+	args := []object.Object{&object.Integer{Value: big.NewInt(timestamp)}}
+	result := getTime(args)
+
+	if result.Unix() != timestamp {
+		t.Errorf("getTime with timestamp = %d, want %d", result.Unix(), timestamp)
+	}
+}
+
+func TestGetTimeWithNoArgs(t *testing.T) {
+	// Test with no arguments (should return current time)
+	before := gotime.Now().Unix()
+	result := getTime([]object.Object{})
+	after := gotime.Now().Unix()
+
+	if result.Unix() < before || result.Unix() > after {
+		t.Error("getTime with no args should return current time")
+	}
+}
+
+func TestGetTimeWithInvalidArg(t *testing.T) {
+	// Test with invalid argument type (should return current time)
+	before := gotime.Now().Unix()
+	args := []object.Object{&object.String{Value: "invalid"}}
+	result := getTime(args)
+	after := gotime.Now().Unix()
+
+	if result.Unix() < before || result.Unix() > after {
+		t.Error("getTime with invalid arg should return current time")
+	}
+}
+
+// ============================================================================
+// Arrays Helper Function Tests
+// ============================================================================
+
+func TestCompareObjectsIntegers(t *testing.T) {
+	tests := []struct {
+		a, b     int64
+		expected int
+	}{
+		{1, 2, -1},
+		{2, 1, 1},
+		{5, 5, 0},
+		{-10, 10, -1},
+		{0, 0, 0},
+	}
+
+	for _, tt := range tests {
+		a := &object.Integer{Value: big.NewInt(tt.a)}
+		b := &object.Integer{Value: big.NewInt(tt.b)}
+		result := compareObjects(a, b)
+		if result != tt.expected {
+			t.Errorf("compareObjects(%d, %d) = %d, want %d", tt.a, tt.b, result, tt.expected)
+		}
+	}
+}
+
+func TestCompareObjectsFloats(t *testing.T) {
+	tests := []struct {
+		a, b     float64
+		expected int
+	}{
+		{1.0, 2.0, -1},
+		{2.0, 1.0, 1},
+		{3.14, 3.14, 0},
+		{-1.5, 1.5, -1},
+	}
+
+	for _, tt := range tests {
+		a := &object.Float{Value: tt.a}
+		b := &object.Float{Value: tt.b}
+		result := compareObjects(a, b)
+		if result != tt.expected {
+			t.Errorf("compareObjects(%f, %f) = %d, want %d", tt.a, tt.b, result, tt.expected)
+		}
+	}
+}
+
+func TestCompareObjectsStrings(t *testing.T) {
+	tests := []struct {
+		a, b     string
+		expected int
+	}{
+		{"apple", "banana", -1},
+		{"banana", "apple", 1},
+		{"hello", "hello", 0},
+		{"", "a", -1},
+		{"z", "a", 1},
+	}
+
+	for _, tt := range tests {
+		a := &object.String{Value: tt.a}
+		b := &object.String{Value: tt.b}
+		result := compareObjects(a, b)
+		if result != tt.expected {
+			t.Errorf("compareObjects(%q, %q) = %d, want %d", tt.a, tt.b, result, tt.expected)
+		}
+	}
+}
+
+func TestCompareObjectsFallback(t *testing.T) {
+	// Test with boolean (uses Inspect fallback)
+	a := &object.Boolean{Value: false}
+	b := &object.Boolean{Value: true}
+	result := compareObjects(a, b)
+	// "false" < "true" lexicographically
+	if result != -1 {
+		t.Errorf("compareObjects(false, true) = %d, want -1", result)
+	}
+}
+
+func TestObjectsEqual(t *testing.T) {
+	tests := []struct {
+		name     string
+		a, b     object.Object
+		expected bool
+	}{
+		{
+			"same integers",
+			&object.Integer{Value: big.NewInt(42)},
+			&object.Integer{Value: big.NewInt(42)},
+			true,
+		},
+		{
+			"different integers",
+			&object.Integer{Value: big.NewInt(1)},
+			&object.Integer{Value: big.NewInt(2)},
+			false,
+		},
+		{
+			"same strings",
+			&object.String{Value: "hello"},
+			&object.String{Value: "hello"},
+			true,
+		},
+		{
+			"different strings",
+			&object.String{Value: "hello"},
+			&object.String{Value: "world"},
+			false,
+		},
+		{
+			"different types",
+			&object.Integer{Value: big.NewInt(1)},
+			&object.String{Value: "1"},
+			false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := objectsEqual(tt.a, tt.b)
+			if result != tt.expected {
+				t.Errorf("objectsEqual() = %v, want %v", result, tt.expected)
+			}
+		})
+	}
+}
+
+func TestZeroValueForType(t *testing.T) {
+	tests := []struct {
+		typeName string
+		check    func(object.Object) bool
+	}{
+		{"int", func(o object.Object) bool {
+			i, ok := o.(*object.Integer)
+			return ok && i.Value.Int64() == 0
+		}},
+		{"float", func(o object.Object) bool {
+			f, ok := o.(*object.Float)
+			return ok && f.Value == 0.0
+		}},
+		{"string", func(o object.Object) bool {
+			s, ok := o.(*object.String)
+			return ok && s.Value == ""
+		}},
+		{"bool", func(o object.Object) bool {
+			return o == object.FALSE
+		}},
+		{"char", func(o object.Object) bool {
+			c, ok := o.(*object.Char)
+			return ok && c.Value == 0
+		}},
+		{"byte", func(o object.Object) bool {
+			b, ok := o.(*object.Byte)
+			return ok && b.Value == 0
+		}},
+		{"unknown", func(o object.Object) bool {
+			return o == object.NIL
+		}},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.typeName, func(t *testing.T) {
+			result := zeroValueForType(tt.typeName)
+			if !tt.check(result) {
+				t.Errorf("zeroValueForType(%q) = %v, unexpected", tt.typeName, result)
+			}
+		})
+	}
+}
+
+func TestConvertToTypedValueInt(t *testing.T) {
+	// Test float64 to int
+	result := convertToTypedValue(float64(42), "int")
+	intObj, ok := result.(*object.Integer)
+	if !ok {
+		t.Fatalf("expected Integer, got %T", result)
+	}
+	if intObj.Value.Int64() != 42 {
+		t.Errorf("expected 42, got %d", intObj.Value.Int64())
+	}
+
+	// Test string to int
+	result = convertToTypedValue("123", "int")
+	intObj, ok = result.(*object.Integer)
+	if !ok {
+		t.Fatalf("expected Integer, got %T", result)
+	}
+	if intObj.Value.Int64() != 123 {
+		t.Errorf("expected 123, got %d", intObj.Value.Int64())
+	}
+
+	// Test invalid string returns 0
+	result = convertToTypedValue("not a number", "int")
+	intObj, ok = result.(*object.Integer)
+	if !ok {
+		t.Fatalf("expected Integer, got %T", result)
+	}
+	if intObj.Value.Int64() != 0 {
+		t.Errorf("expected 0, got %d", intObj.Value.Int64())
+	}
+}
+
+func TestConvertToTypedValueFloat(t *testing.T) {
+	// Test float64 to float
+	result := convertToTypedValue(float64(3.14), "float")
+	floatObj, ok := result.(*object.Float)
+	if !ok {
+		t.Fatalf("expected Float, got %T", result)
+	}
+	if floatObj.Value != 3.14 {
+		t.Errorf("expected 3.14, got %f", floatObj.Value)
+	}
+
+	// Test string returns 0.0 (no auto-convert)
+	result = convertToTypedValue("3.14", "float")
+	floatObj, ok = result.(*object.Float)
+	if !ok {
+		t.Fatalf("expected Float, got %T", result)
+	}
+	if floatObj.Value != 0.0 {
+		t.Errorf("expected 0.0, got %f", floatObj.Value)
+	}
+}
+
+func TestConvertToTypedValueString(t *testing.T) {
+	// Test string to string
+	result := convertToTypedValue("hello", "string")
+	strObj, ok := result.(*object.String)
+	if !ok {
+		t.Fatalf("expected String, got %T", result)
+	}
+	if strObj.Value != "hello" {
+		t.Errorf("expected hello, got %s", strObj.Value)
+	}
+
+	// Test int-like float to string
+	result = convertToTypedValue(float64(42), "string")
+	strObj, ok = result.(*object.String)
+	if !ok {
+		t.Fatalf("expected String, got %T", result)
+	}
+	if strObj.Value != "42" {
+		t.Errorf("expected '42', got '%s'", strObj.Value)
+	}
+
+	// Test float to string
+	result = convertToTypedValue(float64(3.14), "string")
+	strObj, ok = result.(*object.String)
+	if !ok {
+		t.Fatalf("expected String, got %T", result)
+	}
+	if strObj.Value != "3.14" {
+		t.Errorf("expected '3.14', got '%s'", strObj.Value)
+	}
+
+	// Test bool true to string
+	result = convertToTypedValue(true, "string")
+	strObj, ok = result.(*object.String)
+	if !ok {
+		t.Fatalf("expected String, got %T", result)
+	}
+	if strObj.Value != "true" {
+		t.Errorf("expected 'true', got '%s'", strObj.Value)
+	}
+
+	// Test bool false to string
+	result = convertToTypedValue(false, "string")
+	strObj, ok = result.(*object.String)
+	if !ok {
+		t.Fatalf("expected String, got %T", result)
+	}
+	if strObj.Value != "false" {
+		t.Errorf("expected 'false', got '%s'", strObj.Value)
+	}
+}
+
+func TestConvertToTypedValueBool(t *testing.T) {
+	// Test bool true
+	result := convertToTypedValue(true, "bool")
+	if result != object.TRUE {
+		t.Errorf("expected TRUE, got %v", result)
+	}
+
+	// Test bool false
+	result = convertToTypedValue(false, "bool")
+	if result != object.FALSE {
+		t.Errorf("expected FALSE, got %v", result)
+	}
+
+	// Test non-bool returns FALSE
+	result = convertToTypedValue("not bool", "bool")
+	if result != object.FALSE {
+		t.Errorf("expected FALSE, got %v", result)
+	}
+}

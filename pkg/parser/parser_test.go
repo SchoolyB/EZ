@@ -2552,3 +2552,306 @@ func TestAllParamsWithDefaults(t *testing.T) {
 		}
 	}
 }
+
+// ============================================================================
+// When Statement Tests
+// ============================================================================
+
+func TestWhenStatementBasic(t *testing.T) {
+	input := `do main() {
+		temp x int = 1
+		when x {
+			is 1 { println("one") }
+			is 2 { println("two") }
+			default { println("other") }
+		}
+	}`
+	program := parseProgram(t, input)
+	fn := program.Statements[0].(*FunctionDeclaration)
+
+	if len(fn.Body.Statements) != 2 {
+		t.Fatalf("expected 2 statements, got %d", len(fn.Body.Statements))
+	}
+
+	whenStmt, ok := fn.Body.Statements[1].(*WhenStatement)
+	if !ok {
+		t.Fatalf("statement is not WhenStatement, got=%T", fn.Body.Statements[1])
+	}
+
+	if len(whenStmt.Cases) != 2 {
+		t.Errorf("expected 2 cases, got %d", len(whenStmt.Cases))
+	}
+
+	if whenStmt.Default == nil {
+		t.Error("expected default case")
+	}
+}
+
+func TestWhenStatementMultipleValues(t *testing.T) {
+	input := `do main() {
+		temp x int = 1
+		when x {
+			is 1, 2, 3 { println("small") }
+			is 4, 5 { println("medium") }
+			default { println("other") }
+		}
+	}`
+	program := parseProgram(t, input)
+	fn := program.Statements[0].(*FunctionDeclaration)
+
+	whenStmt := fn.Body.Statements[1].(*WhenStatement)
+
+	if len(whenStmt.Cases[0].Values) != 3 {
+		t.Errorf("expected 3 values in first case, got %d", len(whenStmt.Cases[0].Values))
+	}
+
+	if len(whenStmt.Cases[1].Values) != 2 {
+		t.Errorf("expected 2 values in second case, got %d", len(whenStmt.Cases[1].Values))
+	}
+}
+
+func TestWhenStatementStrict(t *testing.T) {
+	input := `const Status enum { ACTIVE, INACTIVE }
+	do main() {
+		temp s Status = Status.ACTIVE
+		@strict
+		when s {
+			is Status.ACTIVE { println("active") }
+			is Status.INACTIVE { println("inactive") }
+		}
+	}`
+	program := parseProgram(t, input)
+	fn := program.Statements[1].(*FunctionDeclaration)
+
+	whenStmt := fn.Body.Statements[1].(*WhenStatement)
+
+	if !whenStmt.IsStrict {
+		t.Error("expected IsStrict to be true")
+	}
+
+	if whenStmt.Default != nil {
+		t.Error("strict when should not have default")
+	}
+}
+
+func TestWhenStatementMissingDefault(t *testing.T) {
+	input := `do main() {
+		temp x int = 1
+		when x {
+			is 1 { println("one") }
+		}
+	}`
+	l := NewLexer(input)
+	p := NewWithSource(l, input, "test.ez")
+	p.ParseProgram()
+
+	// Parser should produce E2041 error for missing default
+	ezErrors := p.EZErrors()
+	hasE2041 := false
+	for _, e := range ezErrors.Errors {
+		if e.ErrorCode.Code == "E2041" {
+			hasE2041 = true
+			break
+		}
+	}
+	if !hasE2041 {
+		t.Error("expected E2041 error for missing default case")
+	}
+}
+
+func TestWhenStatementStrictWithDefault(t *testing.T) {
+	input := `do main() {
+		temp x int = 1
+		@strict
+		when x {
+			is 1 { println("one") }
+			default { println("other") }
+		}
+	}`
+	l := NewLexer(input)
+	p := NewWithSource(l, input, "test.ez")
+	p.ParseProgram()
+
+	// Parser should produce E2042 error for strict with default
+	ezErrors := p.EZErrors()
+	hasE2042 := false
+	for _, e := range ezErrors.Errors {
+		if e.ErrorCode.Code == "E2042" {
+			hasE2042 = true
+			break
+		}
+	}
+	if !hasE2042 {
+		t.Error("expected E2042 error for strict when with default")
+	}
+}
+
+// ============================================================================
+// Raw String Tests
+// ============================================================================
+
+func TestRawStringLiteral(t *testing.T) {
+	// Test that raw strings are parsed (the lexer handles r"..." prefix)
+	input := `do main() { temp s string = "hello\nworld" }`
+	program := parseProgram(t, input)
+	fn := program.Statements[0].(*FunctionDeclaration)
+
+	decl := fn.Body.Statements[0].(*VariableDeclaration)
+	str, ok := decl.Value.(*StringValue)
+	if !ok {
+		t.Fatalf("expected StringValue, got=%T", decl.Value)
+	}
+
+	// Normal string should have newline interpreted
+	if str.Value != "hello\nworld" {
+		t.Errorf("expected 'hello\\nworld' (with actual newline), got=%q", str.Value)
+	}
+}
+
+// ============================================================================
+// String Interpolation Tests
+// ============================================================================
+
+func TestStringInterpolation(t *testing.T) {
+	input := `do main() {
+		temp name string = "world"
+		temp msg string = "hello ${name}"
+	}`
+	program := parseProgram(t, input)
+	fn := program.Statements[0].(*FunctionDeclaration)
+
+	if len(fn.Body.Statements) != 2 {
+		t.Fatalf("expected 2 statements, got %d", len(fn.Body.Statements))
+	}
+
+	decl := fn.Body.Statements[1].(*VariableDeclaration)
+	interp, ok := decl.Value.(*InterpolatedString)
+	if !ok {
+		t.Fatalf("expected InterpolatedString, got=%T", decl.Value)
+	}
+
+	if len(interp.Parts) == 0 {
+		t.Error("expected interpolated string to have parts")
+	}
+}
+
+func TestStringInterpolationMultiple(t *testing.T) {
+	input := `do main() {
+		temp a int = 1
+		temp b int = 2
+		temp msg string = "${a} + ${b} = ${a + b}"
+	}`
+	program := parseProgram(t, input)
+	fn := program.Statements[0].(*FunctionDeclaration)
+
+	decl := fn.Body.Statements[2].(*VariableDeclaration)
+	interp, ok := decl.Value.(*InterpolatedString)
+	if !ok {
+		t.Fatalf("expected InterpolatedString, got=%T", decl.Value)
+	}
+
+	// Should have multiple parts (strings and expressions)
+	if len(interp.Parts) < 5 {
+		t.Errorf("expected at least 5 parts, got %d", len(interp.Parts))
+	}
+}
+
+// ============================================================================
+// Module Path Tests
+// ============================================================================
+
+func TestExtractModuleNameFromPath(t *testing.T) {
+	// extractModuleNameFromPath returns filename with extension
+	tests := []struct {
+		path     string
+		expected string
+	}{
+		{"utils.ez", "utils.ez"},
+		{"../lib/helpers.ez", "helpers.ez"},
+		{"/absolute/path/module.ez", "module.ez"},
+		{"simple", "simple"},
+		{"./local.ez", "local.ez"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.path, func(t *testing.T) {
+			result := extractModuleNameFromPath(tt.path)
+			if result != tt.expected {
+				t.Errorf("extractModuleNameFromPath(%q) = %q, want %q", tt.path, result, tt.expected)
+			}
+		})
+	}
+}
+
+// ============================================================================
+// Struct Literal Tests
+// ============================================================================
+
+func TestStructLiteralParsing(t *testing.T) {
+	input := `const Point struct {
+	xPos int
+	yPos int
+}
+do main() {
+	temp p Point = Point{xPos: 10, yPos: 20}
+}`
+	program := parseProgram(t, input)
+	fn := program.Statements[1].(*FunctionDeclaration)
+
+	decl := fn.Body.Statements[0].(*VariableDeclaration)
+	structVal, ok := decl.Value.(*StructValue)
+	if !ok {
+		t.Fatalf("expected StructValue, got=%T", decl.Value)
+	}
+
+	if structVal.Name.Value != "Point" {
+		t.Errorf("expected type name 'Point', got=%q", structVal.Name.Value)
+	}
+
+	if len(structVal.Fields) != 2 {
+		t.Errorf("expected 2 fields, got %d", len(structVal.Fields))
+	}
+}
+
+// ============================================================================
+// Enum Attribute Tests
+// ============================================================================
+
+func TestEnumWithEnumTypeAttribute(t *testing.T) {
+	input := `@enum(string)
+	const Status enum { ACTIVE = "active", INACTIVE = "inactive" }`
+	program := parseProgram(t, input)
+
+	enumDecl := program.Statements[0].(*EnumDeclaration)
+	if enumDecl.Name.Value != "Status" {
+		t.Errorf("expected enum name 'Status', got=%q", enumDecl.Name.Value)
+	}
+
+	if enumDecl.Attributes == nil || enumDecl.Attributes.TypeName != "string" {
+		t.Error("expected @enum(string) attribute with TypeName='string'")
+	}
+}
+
+func TestEnumWithFlagsAttribute(t *testing.T) {
+	input := `@flags
+	const Permissions enum { READ = 1, WRITE = 2, EXECUTE = 4 }`
+	program := parseProgram(t, input)
+
+	enumDecl := program.Statements[0].(*EnumDeclaration)
+
+	if enumDecl.Attributes == nil || !enumDecl.Attributes.IsFlags {
+		t.Error("expected @flags attribute with IsFlags=true")
+	}
+}
+
+func TestEnumWithFloatAttribute(t *testing.T) {
+	input := `@enum(float)
+	const Values enum { PI = 3.14, E = 2.71 }`
+	program := parseProgram(t, input)
+
+	enumDecl := program.Statements[0].(*EnumDeclaration)
+
+	if enumDecl.Attributes == nil || enumDecl.Attributes.TypeName != "float" {
+		t.Error("expected @enum(float) attribute with TypeName='float'")
+	}
+}

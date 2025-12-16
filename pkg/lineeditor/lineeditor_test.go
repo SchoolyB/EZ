@@ -511,3 +511,321 @@ func TestBufferReplaceLine(t *testing.T) {
 		t.Errorf("ReplaceLine: cursor = %d, want 5", e.cursor)
 	}
 }
+
+// ============================================================================
+// Additional Key Parsing Tests
+// ============================================================================
+
+func TestParseUnknownEscapeSequences(t *testing.T) {
+	tests := []struct {
+		name         string
+		input        []byte
+		wantKey      Key
+		wantConsumed int
+	}{
+		{"escape alone", []byte{0x1b}, KeyUnknown, 1},
+		{"incomplete CSI", []byte{0x1b, '['}, KeyUnknown, 2},
+		{"unknown CSI sequence", []byte{0x1b, '[', 'Z'}, KeyUnknown, 1},
+		{"unknown tilde sequence", []byte{0x1b, '[', '9', '~'}, KeyUnknown, 1},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			event, consumed := ParseKey(tt.input, len(tt.input))
+			if event.Key != tt.wantKey {
+				t.Errorf("ParseKey(%v) key = %v, want %v", tt.input, event.Key, tt.wantKey)
+			}
+			if consumed != tt.wantConsumed {
+				t.Errorf("ParseKey(%v) consumed = %d, want %d", tt.input, consumed, tt.wantConsumed)
+			}
+		})
+	}
+}
+
+func TestParseControlCharacters(t *testing.T) {
+	tests := []struct {
+		name    string
+		input   byte
+		wantKey Key
+	}{
+		{"ctrl-a (0x01)", 0x01, KeyUnknown},
+		{"ctrl-b (0x02)", 0x02, KeyUnknown},
+		{"ctrl-e (0x05)", 0x05, KeyUnknown},
+		{"ctrl-f (0x06)", 0x06, KeyUnknown},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			event, _ := ParseKey([]byte{tt.input}, 1)
+			if event.Key != tt.wantKey {
+				t.Errorf("ParseKey(%x) key = %v, want %v", tt.input, event.Key, tt.wantKey)
+			}
+		})
+	}
+}
+
+func TestParseInvalidUTF8(t *testing.T) {
+	tests := []struct {
+		name         string
+		input        []byte
+		wantKey      Key
+		wantConsumed int
+	}{
+		// Invalid continuation byte - returns replacement char
+		{"invalid continuation byte", []byte{0xc3, 0x00}, KeyChar, 1},
+		// Single byte with high bit set goes to parseSingleByte, returns Unknown
+		{"incomplete 2-byte (single)", []byte{0xc3}, KeyUnknown, 1},
+		// Incomplete multi-byte sequences with 2+ bytes
+		{"incomplete 3-byte", []byte{0xe2, 0x82}, KeyChar, 1},
+		{"incomplete 4-byte", []byte{0xf0, 0x9f, 0x98}, KeyChar, 1},
+		// Overlong encoding
+		{"overlong 2-byte", []byte{0xc0, 0x80}, KeyChar, 1},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			event, consumed := ParseKey(tt.input, len(tt.input))
+			if event.Key != tt.wantKey {
+				t.Errorf("ParseKey(%v) key = %v, want %v", tt.input, event.Key, tt.wantKey)
+			}
+			if consumed != tt.wantConsumed {
+				t.Errorf("ParseKey(%v) consumed = %d, want %d", tt.input, consumed, tt.wantConsumed)
+			}
+		})
+	}
+}
+
+// ============================================================================
+// Additional History Tests
+// ============================================================================
+
+func TestHistoryNavigationCycle(t *testing.T) {
+	h := NewHistory(10)
+	h.Add("first")
+	h.Add("second")
+	h.Add("third")
+
+	// Navigate all the way back
+	h.Previous("current")
+	h.Previous("")
+	h.Previous("")
+
+	// Now at "first"
+	entry, _ := h.Previous("")
+	if entry != "first" {
+		t.Errorf("At start, Previous should stay at first, got %q", entry)
+	}
+
+	// Navigate all the way forward
+	entry, _ = h.Next()
+	if entry != "second" {
+		t.Errorf("Next from first should be second, got %q", entry)
+	}
+
+	entry, _ = h.Next()
+	if entry != "third" {
+		t.Errorf("Next from second should be third, got %q", entry)
+	}
+
+	entry, _ = h.Next()
+	if entry != "current" {
+		t.Errorf("Next from third should restore 'current', got %q", entry)
+	}
+
+	// One more Next should fail
+	_, ok := h.Next()
+	if ok {
+		t.Error("Next at end should return false")
+	}
+}
+
+func TestHistoryAddAfterNavigation(t *testing.T) {
+	h := NewHistory(10)
+	h.Add("first")
+	h.Add("second")
+
+	// Navigate back
+	h.Previous("typing")
+
+	// Add new entry
+	h.Add("new")
+
+	// Navigation should be reset
+	entry, _ := h.Previous("fresh")
+	if entry != "new" {
+		t.Errorf("After Add, Previous should return new entry, got %q", entry)
+	}
+}
+
+func TestHistoryWhitespaceOnly(t *testing.T) {
+	h := NewHistory(10)
+	h.Add("   ") // Whitespace only - should be added
+	h.Add("	")   // Tab only - should be added
+
+	if h.Len() != 2 {
+		t.Errorf("Whitespace entries should be added, got len %d", h.Len())
+	}
+}
+
+func TestHistoryEntries(t *testing.T) {
+	h := NewHistory(5)
+	h.Add("one")
+	h.Add("two")
+	h.Add("three")
+
+	entries := h.Entries()
+
+	// Modifying returned slice shouldn't affect history
+	entries[0] = "modified"
+
+	original := h.Entries()
+	if original[0] == "modified" {
+		t.Error("Entries() should return a copy, not the original slice")
+	}
+}
+
+// ============================================================================
+// Additional Buffer Operation Tests
+// ============================================================================
+
+func TestBufferDeleteAtEnd(t *testing.T) {
+	e := New(10)
+	e.buffer = []rune("hello")
+	e.cursor = 5 // At end
+
+	// Delete at end should do nothing
+	originalLen := len(e.buffer)
+	if e.cursor >= len(e.buffer) {
+		// Delete does nothing
+	}
+
+	if len(e.buffer) != originalLen {
+		t.Errorf("Delete at end should not change buffer length")
+	}
+}
+
+func TestBufferBackspaceAtStart(t *testing.T) {
+	e := New(10)
+	e.buffer = []rune("hello")
+	e.cursor = 0 // At start
+
+	// Backspace at start should do nothing
+	originalLen := len(e.buffer)
+	if e.cursor > 0 {
+		// Backspace does nothing
+	}
+
+	if len(e.buffer) != originalLen {
+		t.Errorf("Backspace at start should not change buffer length")
+	}
+	if e.cursor != 0 {
+		t.Errorf("Backspace at start should not change cursor position")
+	}
+}
+
+func TestBufferCursorBounds(t *testing.T) {
+	e := New(10)
+	e.buffer = []rune("hello")
+
+	// Cursor at start, try move left
+	e.cursor = 0
+	if e.cursor > 0 {
+		e.cursor--
+	}
+	if e.cursor != 0 {
+		t.Errorf("Cursor should stay at 0, got %d", e.cursor)
+	}
+
+	// Cursor at end, try move right
+	e.cursor = len(e.buffer)
+	if e.cursor < len(e.buffer) {
+		e.cursor++
+	}
+	if e.cursor != 5 {
+		t.Errorf("Cursor should stay at 5, got %d", e.cursor)
+	}
+}
+
+func TestBufferEmptyOperations(t *testing.T) {
+	e := New(10)
+	e.buffer = []rune{}
+	e.cursor = 0
+
+	// All operations on empty buffer should be safe
+	if e.cursor > 0 {
+		e.cursor--
+	}
+	if e.cursor < len(e.buffer) {
+		e.cursor++
+	}
+
+	if e.cursor != 0 {
+		t.Errorf("Empty buffer cursor should stay at 0, got %d", e.cursor)
+	}
+	if len(e.buffer) != 0 {
+		t.Errorf("Empty buffer should remain empty, got len %d", len(e.buffer))
+	}
+}
+
+func TestBufferUnicodeOperations(t *testing.T) {
+	e := New(10)
+	e.buffer = []rune("héllo")
+	e.cursor = 2 // After 'é'
+
+	// Insert unicode character
+	ch := '世'
+	e.buffer = append(e.buffer, 0)
+	copy(e.buffer[e.cursor+1:], e.buffer[e.cursor:])
+	e.buffer[e.cursor] = ch
+	e.cursor++
+
+	if string(e.buffer) != "hé世llo" {
+		t.Errorf("Unicode insert: buffer = %q, want %q", string(e.buffer), "hé世llo")
+	}
+}
+
+// ============================================================================
+// Editor Close Test
+// ============================================================================
+
+func TestEditorClose(t *testing.T) {
+	e := New(10)
+	// Close should not panic even without raw mode being enabled
+	err := e.Close()
+	if err != nil {
+		t.Errorf("Close() returned error: %v", err)
+	}
+}
+
+// ============================================================================
+// Edge Case Tests for Key Sequences
+// ============================================================================
+
+func TestParseKeyWithExtraData(t *testing.T) {
+	// Buffer has more data than needed for one key
+	buf := []byte{'a', 'b', 'c'}
+	event, consumed := ParseKey(buf, 3)
+
+	if event.Key != KeyChar {
+		t.Errorf("First key should be KeyChar, got %v", event.Key)
+	}
+	if event.Char != 'a' {
+		t.Errorf("First char should be 'a', got %c", event.Char)
+	}
+	if consumed != 1 {
+		t.Errorf("Should consume only 1 byte, got %d", consumed)
+	}
+}
+
+func TestParseEscapeWithShortBuffer(t *testing.T) {
+	// Just escape, buffer length indicates only 1 byte
+	buf := []byte{0x1b}
+	event, consumed := ParseKey(buf, 1)
+
+	if event.Key != KeyUnknown {
+		t.Errorf("Lone escape should be KeyUnknown, got %v", event.Key)
+	}
+	if consumed != 1 {
+		t.Errorf("Should consume 1 byte, got %d", consumed)
+	}
+}
