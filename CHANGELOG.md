@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.22.6](https://github.com/SchoolyB/EZ/compare/v0.22.5...v0.22.6) (2025-12-16)
+
+
+### Bug Fixes
+
+* **stdlib:** `arrays.set()` now modifies array in place ([411c17f](https://github.com/SchoolyB/EZ/commit/411c17f085cb3ffe342a62d46bd318e5c898680c))
+* **stdlib:** arrays.set() now modifies array in-place ([2cdb73a](https://github.com/SchoolyB/EZ/commit/2cdb73a58be0a24dd92f41b26f9ba655cdbbb8fd)), closes [#652](https://github.com/SchoolyB/EZ/issues/652)
+
 ## [0.22.5](https://github.com/SchoolyB/EZ/compare/v0.22.4...v0.22.5) (2025-12-16)
 
 
