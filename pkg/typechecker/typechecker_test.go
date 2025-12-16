@@ -2140,3 +2140,35 @@ do main() {
 	tc := typecheck(t, input)
 	assertNoErrors(t, tc)
 }
+
+func TestStrictWhenMissingEnumCases(t *testing.T) {
+	input := `
+const Color enum { RED, GREEN, BLUE }
+do main() {
+	temp c Color = Color.RED
+	@strict
+	when c {
+		is Color.RED {
+		}
+	}
+}`
+	tc := typecheck(t, input)
+	assertHasError(t, tc, errors.E2046)
+}
+
+func TestStrictWhenPartialEnumCases(t *testing.T) {
+	input := `
+const Color enum { RED, GREEN, BLUE }
+do main() {
+	temp c Color = Color.RED
+	@strict
+	when c {
+		is Color.RED {
+		}
+		is Color.GREEN {
+		}
+	}
+}`
+	tc := typecheck(t, input)
+	assertHasError(t, tc, errors.E2046)
+}
