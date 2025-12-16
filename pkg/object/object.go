@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"math/big"
 	"os"
+	"strconv"
 	"strings"
 
 	"github.com/marshallburns/ez/pkg/ast"
@@ -68,10 +69,13 @@ type Float struct {
 
 func (f *Float) Type() ObjectType { return FLOAT_OBJ }
 func (f *Float) Inspect() string {
-	s := fmt.Sprintf("%.10f", f.Value)
-	s = strings.TrimRight(s, "0")
-	if strings.HasSuffix(s, ".") {
-		s += "0"
+	// Use %g format which shows the shortest representation that
+	// accurately represents the value - important for debugging
+	// floating point precision issues (#640)
+	s := strconv.FormatFloat(f.Value, 'g', -1, 64)
+	// Ensure whole numbers still show as floats (e.g., "1" -> "1.0")
+	if !strings.Contains(s, ".") && !strings.Contains(s, "e") {
+		s += ".0"
 	}
 	return s
 }
