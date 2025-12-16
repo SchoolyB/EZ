@@ -90,6 +90,8 @@ var (
 	E2051 = ErrorCode{"E2051", "suppress-invalid-target", "@suppress can only be applied to function declarations"}
 	E2052 = ErrorCode{"E2052", "suppress-invalid-code", "warning code cannot be suppressed"}
 	E2053 = ErrorCode{"E2053", "type-definition-in-function", "type definitions must be at file level"}
+	E2054 = ErrorCode{"E2054", "when-strict-non-enum-case", "@strict when requires explicit enum member values in cases"}
+	E2055 = ErrorCode{"E2055", "strict-invalid-target", "@strict can only be applied to when statements"}
 )
 
 // =============================================================================
@@ -319,6 +321,7 @@ var (
 	E12003 = ErrorCode{"E12003", "map-key-not-found", "key not found in map"}
 	E12004 = ErrorCode{"E12004", "map-invalid-pair", "map entry must be a [key, value] pair"}
 	E12005 = ErrorCode{"E12005", "map-value-not-hashable", "map value is not hashable and cannot become a key"}
+	E12006 = ErrorCode{"E12006", "map-duplicate-key", "map literal contains duplicate key"}
 )
 
 // =============================================================================

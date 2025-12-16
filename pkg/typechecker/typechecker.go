@@ -6,6 +6,7 @@ package typechecker
 import (
 	"fmt"
 	"math/big"
+	"sort"
 	"strconv"
 	"strings"
 
@@ -342,6 +343,31 @@ func (tc *TypeChecker) RegisterFunction(name string, sig *FunctionSignature) {
 func (tc *TypeChecker) GetType(name string) (*Type, bool) {
 	t, ok := tc.types[name]
 	return t, ok
+}
+
+// getStructTypeIncludingModules looks up a struct type by name, checking both local
+// and module types. For qualified names like "lib.Hero", it looks up in moduleTypes.
+func (tc *TypeChecker) getStructTypeIncludingModules(typeName string) (*Type, bool) {
+	// First check local types
+	if t, exists := tc.types[typeName]; exists && t.Kind == StructType {
+		return t, true
+	}
+
+	// Check if it's a qualified type (e.g., "lib.Hero")
+	if strings.Contains(typeName, ".") {
+		parts := strings.SplitN(typeName, ".", 2)
+		if len(parts) == 2 {
+			moduleName := parts[0]
+			baseTypeName := parts[1]
+			if moduleTypes, hasModule := tc.moduleTypes[moduleName]; hasModule {
+				if t, exists := moduleTypes[baseTypeName]; exists && t.Kind == StructType {
+					return t, true
+				}
+			}
+		}
+	}
+
+	return nil, false
 }
 
 // Errors returns the error list
@@ -1531,9 +1557,9 @@ func (tc *TypeChecker) checkMemberAssignment(member *ast.MemberExpression, value
 		return
 	}
 
-	// Look up struct type
-	structType, exists := tc.types[objType]
-	if !exists || structType.Kind != StructType {
+	// Look up struct type (including module types for qualified names like "lib.Hero")
+	structType, exists := tc.getStructTypeIncludingModules(objType)
+	if !exists {
 		return // Not a struct, can't check field types
 	}
 
@@ -1585,15 +1611,9 @@ func (tc *TypeChecker) checkMemberExpression(member *ast.MemberExpression) {
 		return
 	}
 
-	// Skip qualified module types (like "models.Task") - we don't have cross-module type info
-	// Let runtime handle field access validation for imported types
-	if strings.Contains(objType, ".") {
-		return
-	}
-
-	// Check if it's a struct type
-	structType, exists := tc.types[objType]
-	if !exists || structType.Kind != StructType {
+	// Check if it's a struct type (including module types for qualified names like "lib.Hero")
+	structType, exists := tc.getStructTypeIncludingModules(objType)
+	if !exists {
 		// Not a struct - member access is invalid
 		line, column := tc.getExpressionPosition(member.Member)
 		tc.addError(
@@ -1739,10 +1759,29 @@ func (tc *TypeChecker) checkExpression(expr ast.Expression) {
 		tc.checkArrayLiteral(e)
 
 	case *ast.MapValue:
+		// Track seen keys to detect duplicates (#641)
+		seenKeys := make(map[string]int) // key string -> line number of first occurrence
 		for _, pair := range e.Pairs {
 			tc.checkExpression(pair.Key)
 			tc.checkValueExpression(pair.Value) // Catch type/function used as map value
 			tc.checkExpression(pair.Value)
+
+			// Check for duplicate keys
+			keyStr := tc.getEnumValueString(pair.Key) // Reuse enum helper for literal conversion
+			if keyStr != "" {                         // Only check if we can get a string representation
+				if firstLine, exists := seenKeys[keyStr]; exists {
+					line, col := tc.getExpressionPosition(pair.Key)
+					tc.addError(
+						errors.E12006,
+						fmt.Sprintf("duplicate key %s in map literal (first defined on line %d)", keyStr, firstLine),
+						line,
+						col,
+					)
+				} else {
+					line, _ := tc.getExpressionPosition(pair.Key)
+					seenKeys[keyStr] = line
+				}
+			}
 		}
 
 	case *ast.StructValue:
@@ -2499,11 +2538,32 @@ func (tc *TypeChecker) checkWhenStatement(whenStmt *ast.WhenStatement, expectedR
 		)
 	}
 
+	// Track handled enum cases for @strict exhaustiveness check
+	handledEnumCases := make(map[string]bool)
+
 	// Check each case
 	for _, whenCase := range whenStmt.Cases {
 		for _, caseValue := range whenCase.Values {
 			// Check the case value expression (validates range bounds, etc.)
 			tc.checkExpression(caseValue)
+
+			// For @strict enum when statements, only allow enum member expressions
+			if whenStmt.IsStrict && isEnumType {
+				if !tc.isEnumMemberExpression(caseValue, valueType, enumTypeInfo) {
+					line, col := tc.getExpressionPosition(caseValue)
+					tc.addError(
+						errors.E2054,
+						fmt.Sprintf("@strict when requires explicit enum member values, got non-enum expression"),
+						line,
+						col,
+					)
+				} else {
+					// Track this enum member as handled for exhaustiveness check
+					if memberName := tc.getEnumMemberName(caseValue); memberName != "" {
+						handledEnumCases[memberName] = true
+					}
+				}
+			}
 
 			// Skip range expressions for duplicate detection
 			if _, isRange := caseValue.(*ast.RangeExpression); isRange {
@@ -2550,8 +2610,25 @@ func (tc *TypeChecker) checkWhenStatement(whenStmt *ast.WhenStatement, expectedR
 		tc.exitScope()
 	}
 
-	// Note: @strict enum exhaustiveness check is enforced at runtime
-	// A full compile-time check would require tracking enum members in the type system
+	// @strict enum exhaustiveness check - ensure all enum cases are handled
+	if whenStmt.IsStrict && isEnumType && enumTypeInfo != nil && enumTypeInfo.EnumMembers != nil {
+		var missingCases []string
+		for enumMember := range enumTypeInfo.EnumMembers {
+			if !handledEnumCases[enumMember] {
+				missingCases = append(missingCases, enumMember)
+			}
+		}
+		if len(missingCases) > 0 {
+			// Sort for consistent error messages
+			sort.Strings(missingCases)
+			tc.addError(
+				errors.E2046,
+				fmt.Sprintf("@strict when statement missing enum cases: %s", strings.Join(missingCases, ", ")),
+				whenStmt.Token.Line,
+				whenStmt.Token.Column,
+			)
+		}
+	}
 
 	// Check the default block if present
 	if whenStmt.Default != nil {
@@ -2559,6 +2636,67 @@ func (tc *TypeChecker) checkWhenStatement(whenStmt *ast.WhenStatement, expectedR
 		tc.checkBlock(whenStmt.Default, expectedReturnTypes)
 		tc.exitScope()
 	}
+}
+
+// getEnumMemberName extracts the enum member name from a case value expression
+// Returns the member name (e.g., "RED" from "Color.RED") or empty string if not an enum member
+func (tc *TypeChecker) getEnumMemberName(expr ast.Expression) string {
+	switch v := expr.(type) {
+	case *ast.MemberExpression:
+		// Handle EnumType.MEMBER pattern - return just the member name
+		return v.Member.Value
+	case *ast.Label:
+		// Handle bare enum value (e.g., just RED)
+		return v.Value
+	}
+	return ""
+}
+
+// isEnumMemberExpression checks if an expression is a valid enum member reference
+// for use in @strict when statements. Valid forms are:
+// - EnumType.MEMBER (e.g., Color.RED)
+// - MEMBER (if it's a known enum value of the expected type)
+func (tc *TypeChecker) isEnumMemberExpression(expr ast.Expression, enumTypeName string, enumTypeInfo *Type) bool {
+	switch v := expr.(type) {
+	case *ast.MemberExpression:
+		// Check for EnumType.MEMBER pattern
+		if obj, ok := v.Object.(*ast.Label); ok {
+			// Get the base type name (strip module prefix if present)
+			baseEnumName := enumTypeName
+			if idx := strings.LastIndex(enumTypeName, "."); idx != -1 {
+				baseEnumName = enumTypeName[idx+1:]
+			}
+			// Check if object matches the enum type name
+			if obj.Value == baseEnumName || obj.Value == enumTypeName {
+				// Verify the member is a valid enum value
+				if enumTypeInfo != nil && enumTypeInfo.EnumMembers != nil {
+					if enumTypeInfo.EnumMembers[v.Member.Value] {
+						return true
+					}
+				}
+			}
+			// Also check module-prefixed enum types in moduleTypes
+			for moduleName, moduleTypes := range tc.moduleTypes {
+				if enumType, exists := moduleTypes[obj.Value]; exists && enumType.Kind == EnumType {
+					if enumType.EnumMembers != nil && enumType.EnumMembers[v.Member.Value] {
+						// Verify this is the right enum type
+						fullTypeName := moduleName + "." + obj.Value
+						if fullTypeName == enumTypeName || obj.Value == baseEnumName {
+							return true
+						}
+					}
+				}
+			}
+		}
+	case *ast.Label:
+		// Check if it's a bare enum value (e.g., just RED instead of Color.RED)
+		if enumTypeInfo != nil && enumTypeInfo.EnumMembers != nil {
+			if enumTypeInfo.EnumMembers[v.Value] {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 // getCaseValueKey returns a string key for a case value for duplicate detection
@@ -3434,8 +3572,8 @@ func (tc *TypeChecker) inferMemberType(member *ast.MemberExpression) (string, bo
 		return "", false
 	}
 
-	// Look up struct type
-	if structType, exists := tc.types[objType]; exists && structType.Kind == StructType {
+	// Look up struct type (including module types for qualified names like "lib.Hero")
+	if structType, exists := tc.getStructTypeIncludingModules(objType); exists {
 		if fieldType, hasField := structType.Fields[member.Member.Value]; hasField {
 			return fieldType.Name, true
 		}
@@ -3532,11 +3670,11 @@ func (tc *TypeChecker) typesCompatible(declared, actual string) bool {
 		return true
 	}
 
-	// Handle module-prefixed types (e.g., utils.Hero vs Hero)
+	// Handle module-prefixed types (e.g., utils.Hero vs Hero, or Hero vs utils.Hero)
 	// Strip module prefix and compare base type names
 	declaredBase := tc.stripModulePrefix(declared)
 	actualBase := tc.stripModulePrefix(actual)
-	if declaredBase == actualBase && declaredBase != declared {
+	if declaredBase == actualBase && (declaredBase != declared || actualBase != actual) {
 		// Base names match and at least one had a module prefix
 		return true
 	}
