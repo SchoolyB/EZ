@@ -482,6 +482,24 @@ do main() {
 	assertNoErrors(t, tc)
 }
 
+func TestStructFieldAssignmentTypeMismatch(t *testing.T) {
+	// Regression test for issue #622: struct field assignment type mismatch
+	// was not being caught after initialization
+	input := `
+const Person struct {
+	name string
+	age int
+}
+
+do main() {
+	temp p Person = Person{name: "", age: 0}
+	p.name = 123
+}
+`
+	tc := typecheck(t, input)
+	assertHasError(t, tc, errors.E3001)
+}
+
 func TestStructWithArrayField(t *testing.T) {
 	// Regression test for issue #336: typechecker crashed when accessing
 	// struct fields with array types due to nil pointer dereference
