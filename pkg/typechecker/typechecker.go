@@ -344,6 +344,31 @@ func (tc *TypeChecker) GetType(name string) (*Type, bool) {
 	return t, ok
 }
 
+// getStructTypeIncludingModules looks up a struct type by name, checking both local
+// and module types. For qualified names like "lib.Hero", it looks up in moduleTypes.
+func (tc *TypeChecker) getStructTypeIncludingModules(typeName string) (*Type, bool) {
+	// First check local types
+	if t, exists := tc.types[typeName]; exists && t.Kind == StructType {
+		return t, true
+	}
+
+	// Check if it's a qualified type (e.g., "lib.Hero")
+	if strings.Contains(typeName, ".") {
+		parts := strings.SplitN(typeName, ".", 2)
+		if len(parts) == 2 {
+			moduleName := parts[0]
+			baseTypeName := parts[1]
+			if moduleTypes, hasModule := tc.moduleTypes[moduleName]; hasModule {
+				if t, exists := moduleTypes[baseTypeName]; exists && t.Kind == StructType {
+					return t, true
+				}
+			}
+		}
+	}
+
+	return nil, false
+}
+
 // Errors returns the error list
 func (tc *TypeChecker) Errors() *errors.EZErrorList {
 	return tc.errors
@@ -1531,9 +1556,9 @@ func (tc *TypeChecker) checkMemberAssignment(member *ast.MemberExpression, value
 		return
 	}
 
-	// Look up struct type
-	structType, exists := tc.types[objType]
-	if !exists || structType.Kind != StructType {
+	// Look up struct type (including module types for qualified names like "lib.Hero")
+	structType, exists := tc.getStructTypeIncludingModules(objType)
+	if !exists {
 		return // Not a struct, can't check field types
 	}
 
@@ -1585,15 +1610,9 @@ func (tc *TypeChecker) checkMemberExpression(member *ast.MemberExpression) {
 		return
 	}
 
-	// Skip qualified module types (like "models.Task") - we don't have cross-module type info
-	// Let runtime handle field access validation for imported types
-	if strings.Contains(objType, ".") {
-		return
-	}
-
-	// Check if it's a struct type
-	structType, exists := tc.types[objType]
-	if !exists || structType.Kind != StructType {
+	// Check if it's a struct type (including module types for qualified names like "lib.Hero")
+	structType, exists := tc.getStructTypeIncludingModules(objType)
+	if !exists {
 		// Not a struct - member access is invalid
 		line, column := tc.getExpressionPosition(member.Member)
 		tc.addError(
@@ -3434,8 +3453,8 @@ func (tc *TypeChecker) inferMemberType(member *ast.MemberExpression) (string, bo
 		return "", false
 	}
 
-	// Look up struct type
-	if structType, exists := tc.types[objType]; exists && structType.Kind == StructType {
+	// Look up struct type (including module types for qualified names like "lib.Hero")
+	if structType, exists := tc.getStructTypeIncludingModules(objType); exists {
 		if fieldType, hasField := structType.Fields[member.Member.Value]; hasField {
 			return fieldType.Name, true
 		}
@@ -3532,11 +3551,11 @@ func (tc *TypeChecker) typesCompatible(declared, actual string) bool {
 		return true
 	}
 
-	// Handle module-prefixed types (e.g., utils.Hero vs Hero)
+	// Handle module-prefixed types (e.g., utils.Hero vs Hero, or Hero vs utils.Hero)
 	// Strip module prefix and compare base type names
 	declaredBase := tc.stripModulePrefix(declared)
 	actualBase := tc.stripModulePrefix(actual)
-	if declaredBase == actualBase && declaredBase != declared {
+	if declaredBase == actualBase && (declaredBase != declared || actualBase != actual) {
 		// Base names match and at least one had a module prefix
 		return true
 	}
