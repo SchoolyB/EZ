@@ -3212,3 +3212,131 @@ func TestGetTimeWithInvalidArg(t *testing.T) {
 		t.Error("getTime with invalid arg should return current time")
 	}
 }
+
+// ============================================================================
+// Arrays Helper Function Tests
+// ============================================================================
+
+func TestCompareObjectsIntegers(t *testing.T) {
+	tests := []struct {
+		a, b     int64
+		expected int
+	}{
+		{1, 2, -1},
+		{2, 1, 1},
+		{5, 5, 0},
+		{-10, 10, -1},
+		{0, 0, 0},
+	}
+
+	for _, tt := range tests {
+		a := &object.Integer{Value: big.NewInt(tt.a)}
+		b := &object.Integer{Value: big.NewInt(tt.b)}
+		result := compareObjects(a, b)
+		if result != tt.expected {
+			t.Errorf("compareObjects(%d, %d) = %d, want %d", tt.a, tt.b, result, tt.expected)
+		}
+	}
+}
+
+func TestCompareObjectsFloats(t *testing.T) {
+	tests := []struct {
+		a, b     float64
+		expected int
+	}{
+		{1.0, 2.0, -1},
+		{2.0, 1.0, 1},
+		{3.14, 3.14, 0},
+		{-1.5, 1.5, -1},
+	}
+
+	for _, tt := range tests {
+		a := &object.Float{Value: tt.a}
+		b := &object.Float{Value: tt.b}
+		result := compareObjects(a, b)
+		if result != tt.expected {
+			t.Errorf("compareObjects(%f, %f) = %d, want %d", tt.a, tt.b, result, tt.expected)
+		}
+	}
+}
+
+func TestCompareObjectsStrings(t *testing.T) {
+	tests := []struct {
+		a, b     string
+		expected int
+	}{
+		{"apple", "banana", -1},
+		{"banana", "apple", 1},
+		{"hello", "hello", 0},
+		{"", "a", -1},
+		{"z", "a", 1},
+	}
+
+	for _, tt := range tests {
+		a := &object.String{Value: tt.a}
+		b := &object.String{Value: tt.b}
+		result := compareObjects(a, b)
+		if result != tt.expected {
+			t.Errorf("compareObjects(%q, %q) = %d, want %d", tt.a, tt.b, result, tt.expected)
+		}
+	}
+}
+
+func TestCompareObjectsFallback(t *testing.T) {
+	// Test with boolean (uses Inspect fallback)
+	a := &object.Boolean{Value: false}
+	b := &object.Boolean{Value: true}
+	result := compareObjects(a, b)
+	// "false" < "true" lexicographically
+	if result != -1 {
+		t.Errorf("compareObjects(false, true) = %d, want -1", result)
+	}
+}
+
+func TestObjectsEqual(t *testing.T) {
+	tests := []struct {
+		name     string
+		a, b     object.Object
+		expected bool
+	}{
+		{
+			"same integers",
+			&object.Integer{Value: big.NewInt(42)},
+			&object.Integer{Value: big.NewInt(42)},
+			true,
+		},
+		{
+			"different integers",
+			&object.Integer{Value: big.NewInt(1)},
+			&object.Integer{Value: big.NewInt(2)},
+			false,
+		},
+		{
+			"same strings",
+			&object.String{Value: "hello"},
+			&object.String{Value: "hello"},
+			true,
+		},
+		{
+			"different strings",
+			&object.String{Value: "hello"},
+			&object.String{Value: "world"},
+			false,
+		},
+		{
+			"different types",
+			&object.Integer{Value: big.NewInt(1)},
+			&object.String{Value: "1"},
+			false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := objectsEqual(tt.a, tt.b)
+			if result != tt.expected {
+				t.Errorf("objectsEqual() = %v, want %v", result, tt.expected)
+			}
+		})
+	}
+}
