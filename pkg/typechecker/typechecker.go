@@ -1632,6 +1632,22 @@ func (tc *TypeChecker) checkMultiReturnDeclaration(decl *ast.VariableDeclaration
 	// Look up the function signature
 	funcSig, exists := tc.functions[funcName]
 	if !exists {
+		// Check if it's a builtin function with multiple return values
+		builtinReturnTypes := tc.getBuiltinMultiReturnTypes(funcName)
+		if builtinReturnTypes != nil {
+			// Register variables with the correct builtin return types
+			for i, name := range decl.Names {
+				if name != nil {
+					inferredType := ""
+					if i < len(builtinReturnTypes) {
+						inferredType = builtinReturnTypes[i]
+					}
+					tc.defineVariableWithMutability(name.Value, inferredType, decl.Mutable)
+				}
+			}
+			return
+		}
+
 		// Function not found - still register variables with unknown types
 		// (undefined function error will be caught elsewhere)
 		for _, name := range decl.Names {
@@ -3987,6 +4003,17 @@ func (tc *TypeChecker) inferCallType(call *ast.CallExpression) (string, bool) {
 
 	default:
 		return "", false
+	}
+}
+
+// getBuiltinMultiReturnTypes returns the return types for built-in functions that return multiple values
+// Returns nil if the function is not a known multi-return builtin
+func (tc *TypeChecker) getBuiltinMultiReturnTypes(name string) []string {
+	switch name {
+	case "read_int":
+		return []string{"int", "error"}
+	default:
+		return nil
 	}
 }
 
