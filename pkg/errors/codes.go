@@ -355,6 +355,7 @@ var (
 	W2005 = ErrorCode{"W2005", "deprecated-feature", "using deprecated feature"}
 	W2006 = ErrorCode{"W2006", "byte-overflow-potential", "byte arithmetic may overflow"}
 	W2007 = ErrorCode{"W2007", "shadows-global", "variable shadows global variable or constant"}
+	W2008 = ErrorCode{"W2008", "integer-overflow-potential", "integer arithmetic may overflow"}
 
 	// Code Quality Warnings (W3xxx)
 	W3001 = ErrorCode{"W3001", "empty-block", "block statement is empty"}
