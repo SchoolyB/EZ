@@ -1320,9 +1320,12 @@ func (tc *TypeChecker) checkVariableDeclaration(decl *ast.VariableDeclaration) {
 		// If no declared type, infer from value and register it
 		if declaredType == "" {
 			inferredType, ok := tc.inferExpressionType(decl.Value)
-			if ok && inferredType != "" {
-				// Register the inferred type so future assignments are type-checked
+			if ok {
+				// Register the variable with inferred type (may be empty for stdlib calls)
 				tc.defineVariableWithMutability(varName, inferredType, decl.Mutable)
+			} else {
+				// Still register with empty type so variable is in scope
+				tc.defineVariableWithMutability(varName, "", decl.Mutable)
 			}
 			return
 		}
@@ -1450,8 +1453,60 @@ func (tc *TypeChecker) checkMultiReturnDeclaration(decl *ast.VariableDeclaration
 		tc.checkExpression(decl.Value)
 	}
 
-	// If no explicit types declared, nothing to check at compile time
+	// Get the function call to check return types (needed for both type checking and inference)
+	callExpr, ok := decl.Value.(*ast.CallExpression)
+	if !ok {
+		// Value is not a function call - still register variables with unknown types
+		for _, name := range decl.Names {
+			if name != nil {
+				tc.defineVariableWithMutability(name.Value, "", decl.Mutable)
+			}
+		}
+		return
+	}
+
+	// Get the function name
+	var funcName string
+	switch fn := callExpr.Function.(type) {
+	case *ast.Label:
+		funcName = fn.Value
+	case *ast.MemberExpression:
+		// Module.function call - get the function part
+		funcName = fn.Member.Value
+	default:
+		// Still register variables with unknown types
+		for _, name := range decl.Names {
+			if name != nil {
+				tc.defineVariableWithMutability(name.Value, "", decl.Mutable)
+			}
+		}
+		return
+	}
+
+	// Look up the function signature
+	funcSig, exists := tc.functions[funcName]
+	if !exists {
+		// Function not found - still register variables with unknown types
+		// (undefined function error will be caught elsewhere)
+		for _, name := range decl.Names {
+			if name != nil {
+				tc.defineVariableWithMutability(name.Value, "", decl.Mutable)
+			}
+		}
+		return
+	}
+
+	// If no explicit types declared, infer from function return types and register
 	if len(decl.TypeNames) == 0 {
+		for i, name := range decl.Names {
+			if name != nil {
+				inferredType := ""
+				if i < len(funcSig.ReturnTypes) {
+					inferredType = funcSig.ReturnTypes[i]
+				}
+				tc.defineVariableWithMutability(name.Value, inferredType, decl.Mutable)
+			}
+		}
 		return
 	}
 
@@ -1471,32 +1526,6 @@ func (tc *TypeChecker) checkMultiReturnDeclaration(decl *ast.VariableDeclaration
 			)
 			return
 		}
-	}
-
-	// Get the function call to check return types
-	callExpr, ok := decl.Value.(*ast.CallExpression)
-	if !ok {
-		// Value is not a function call, can't check return types
-		return
-	}
-
-	// Get the function name
-	var funcName string
-	switch fn := callExpr.Function.(type) {
-	case *ast.Label:
-		funcName = fn.Value
-	case *ast.MemberExpression:
-		// Module.function call - get the function part
-		funcName = fn.Member.Value
-	default:
-		return
-	}
-
-	// Look up the function signature
-	funcSig, exists := tc.functions[funcName]
-	if !exists {
-		// Function not found - will be caught elsewhere
-		return
 	}
 
 	// Check that the number of declared types matches the number of return types
@@ -1618,7 +1647,7 @@ func (tc *TypeChecker) extractRootVariable(expr ast.Expression) string {
 func (tc *TypeChecker) checkMemberAssignment(member *ast.MemberExpression, value ast.Expression) {
 	// Get the object type
 	objType, ok := tc.inferExpressionType(member.Object)
-	if !ok {
+	if !ok || objType == "" {
 		return
 	}
 
@@ -1665,6 +1694,11 @@ func (tc *TypeChecker) checkMemberExpression(member *ast.MemberExpression) {
 	// Get the object type
 	objType, ok := tc.inferExpressionType(member.Object)
 	if !ok {
+		return
+	}
+
+	// Skip validation for unknown types (empty string)
+	if objType == "" {
 		return
 	}
 
@@ -1864,6 +1898,18 @@ func (tc *TypeChecker) checkExpression(expr ast.Expression) {
 	case *ast.PostfixExpression:
 		tc.checkExpression(e.Left)
 		tc.checkPostfixExpression(e)
+
+	case *ast.Label:
+		// Check if the identifier is known (variable, function, type, enum, etc.)
+		if !tc.isKnownIdentifier(e.Value) {
+			line, col := tc.getExpressionPosition(e)
+			tc.addError(
+				errors.E4001,
+				fmt.Sprintf("undefined variable '%s'", e.Value),
+				line,
+				col,
+			)
+		}
 	}
 }
 
@@ -1979,6 +2025,12 @@ func (tc *TypeChecker) checkInfixExpression(infix *ast.InfixExpression) {
 
 	if !leftOk || !rightOk {
 		return // Can't determine types
+	}
+
+	// If either type is unknown (empty string), skip type checking
+	// This can happen with stdlib multi-return functions where we don't have signatures
+	if leftType == "" || rightType == "" {
+		return
 	}
 
 	line, column := tc.getExpressionPosition(infix.Left)
@@ -2264,7 +2316,17 @@ func (tc *TypeChecker) checkFunctionCall(call *ast.CallExpression) {
 	sig, ok := tc.functions[funcName]
 	if !ok {
 		// Check if this function might be from a 'using' imported module
-		tc.checkDirectStdlibCall(funcName, call)
+		if tc.checkDirectStdlibCall(funcName, call) {
+			return
+		}
+		// Function not found anywhere - report error
+		line, column := tc.getExpressionPosition(call.Function)
+		tc.addError(
+			errors.E4002,
+			fmt.Sprintf("undefined function '%s'", funcName),
+			line,
+			column,
+		)
 		return
 	}
 
@@ -2403,7 +2465,9 @@ func (tc *TypeChecker) checkBuiltinTypeConversion(funcName string, call *ast.Cal
 		}
 		return true
 
-	case "string", "bool", "char":
+	case "string", "bool", "char", "byte",
+		"i8", "i16", "i32", "i64",
+		"u8", "u16", "u32", "u64":
 		// These conversions are generally safe - but validate arg count
 		if len(call.Arguments) != 1 {
 			line, column := tc.getExpressionPosition(call.Function)
@@ -2423,7 +2487,8 @@ func (tc *TypeChecker) checkBuiltinTypeConversion(funcName string, call *ast.Cal
 			return true
 		}
 		argType, ok := tc.inferExpressionType(call.Arguments[0])
-		if ok && argType != "string" && !tc.isArrayType(argType) && !tc.isMapType(argType) {
+		// Skip type check if type is unknown (empty string)
+		if ok && argType != "" && argType != "string" && !tc.isArrayType(argType) && !tc.isMapType(argType) {
 			line, column := tc.getExpressionPosition(call.Arguments[0])
 			tc.addError(errors.E3001,
 				fmt.Sprintf("len() argument must be string, array, or map, got %s", argType),
@@ -2457,6 +2522,66 @@ func (tc *TypeChecker) checkBuiltinTypeConversion(funcName string, call *ast.Cal
 			line, column := tc.getExpressionPosition(call.Function)
 			tc.addError(errors.E5008,
 				fmt.Sprintf("read_int() takes 0 arguments, got %d", len(call.Arguments)),
+				line, column)
+		}
+		return true
+
+	case "copy":
+		// copy() requires exactly 1 argument
+		if len(call.Arguments) != 1 {
+			line, column := tc.getExpressionPosition(call.Function)
+			tc.addError(errors.E5008,
+				fmt.Sprintf("copy() requires exactly 1 argument, got %d", len(call.Arguments)),
+				line, column)
+		}
+		return true
+
+	case "error":
+		// error() requires exactly 1 argument (the error message)
+		if len(call.Arguments) != 1 {
+			line, column := tc.getExpressionPosition(call.Function)
+			tc.addError(errors.E5008,
+				fmt.Sprintf("error() requires exactly 1 argument, got %d", len(call.Arguments)),
+				line, column)
+		}
+		return true
+
+	case "append":
+		// append() requires at least 2 arguments (array, value)
+		if len(call.Arguments) < 2 {
+			line, column := tc.getExpressionPosition(call.Function)
+			tc.addError(errors.E5008,
+				fmt.Sprintf("append() requires at least 2 arguments, got %d", len(call.Arguments)),
+				line, column)
+		}
+		return true
+
+	case "new":
+		// new() requires exactly 1 argument (the type)
+		if len(call.Arguments) != 1 {
+			line, column := tc.getExpressionPosition(call.Function)
+			tc.addError(errors.E5008,
+				fmt.Sprintf("new() requires exactly 1 argument, got %d", len(call.Arguments)),
+				line, column)
+		}
+		return true
+
+	case "ref":
+		// ref() requires exactly 1 argument
+		if len(call.Arguments) != 1 {
+			line, column := tc.getExpressionPosition(call.Function)
+			tc.addError(errors.E5008,
+				fmt.Sprintf("ref() requires exactly 1 argument, got %d", len(call.Arguments)),
+				line, column)
+		}
+		return true
+
+	case "range":
+		// range() requires 2 or 3 arguments
+		if len(call.Arguments) < 2 || len(call.Arguments) > 3 {
+			line, column := tc.getExpressionPosition(call.Function)
+			tc.addError(errors.E5008,
+				fmt.Sprintf("range() requires 2 or 3 arguments, got %d", len(call.Arguments)),
 				line, column)
 		}
 		return true
@@ -3108,6 +3233,105 @@ func (tc *TypeChecker) lookupVariable(name string) (string, bool) {
 	return "", false
 }
 
+// isBuiltinFunction returns true if the name is a builtin function
+func (tc *TypeChecker) isBuiltinFunction(name string) bool {
+	builtins := map[string]bool{
+		// Type conversions
+		"int": true, "float": true, "string": true, "bool": true, "char": true,
+		"i8": true, "i16": true, "i32": true, "i64": true,
+		"u8": true, "u16": true, "u32": true, "u64": true,
+		"byte": true,
+		// Core builtins
+		"len": true, "typeof": true, "input": true, "copy": true, "error": true,
+		"append": true, "new": true, "ref": true, "range": true,
+		// Global builtins (no import needed)
+		"exit": true, "panic": true, "assert": true,
+	}
+	return builtins[name]
+}
+
+// isBuiltinConstant returns true if the name is a builtin constant
+func (tc *TypeChecker) isBuiltinConstant(name string) bool {
+	constants := map[string]bool{
+		"EXIT_SUCCESS": true,
+		"EXIT_FAILURE": true,
+		"nil":          true,
+		"true":         true,
+		"false":        true,
+	}
+	return constants[name]
+}
+
+// isStdlibFunction returns true if the name is a stdlib function (accessible via using)
+func (tc *TypeChecker) isStdlibFunction(moduleName, funcName string) bool {
+	stdFuncs := map[string]map[string]bool{
+		"std": {
+			"println": true, "printf": true, "print": true,
+			"eprintln": true, "eprintf": true, "eprint": true,
+			"sleep_milliseconds": true, "sleep_seconds": true, "sleep_nanoseconds": true,
+			"read_int": true, "read_float": true, "read_string": true,
+		},
+	}
+	if modFuncs, ok := stdFuncs[moduleName]; ok {
+		return modFuncs[funcName]
+	}
+	return false
+}
+
+// isKnownIdentifier checks if a name is a known identifier (variable, function, type, module, etc.)
+func (tc *TypeChecker) isKnownIdentifier(name string) bool {
+	// Check if it's a variable
+	if _, ok := tc.lookupVariable(name); ok {
+		return true
+	}
+	// Check if it's a function
+	if _, ok := tc.functions[name]; ok {
+		return true
+	}
+	// Check if it's a type (struct/enum)
+	if _, ok := tc.types[name]; ok {
+		return true
+	}
+	// Check if it's an enum value (check all enum types for this member)
+	for _, t := range tc.types {
+		if t.Kind == EnumType && t.EnumMembers != nil {
+			if t.EnumMembers[name] {
+				return true
+			}
+		}
+	}
+	// Check if it's a builtin function
+	if tc.isBuiltinFunction(name) {
+		return true
+	}
+	// Check if it's a builtin constant (EXIT_SUCCESS, etc.)
+	if tc.isBuiltinConstant(name) {
+		return true
+	}
+	// Check if it's an imported module (e.g., math, strings, arrays)
+	if tc.modules[name] {
+		return true
+	}
+	// Check if it's a using module
+	if tc.hasUsingModule(name) {
+		return true
+	}
+	// Check if it's a stdlib function accessible via 'using'
+	for moduleName := range tc.fileUsingModules {
+		if tc.isStdlibFunction(moduleName, name) {
+			return true
+		}
+	}
+	if tc.currentScope != nil {
+		for moduleName := range tc.currentScope.usingModules {
+			if tc.isStdlibFunction(moduleName, name) {
+				return true
+			}
+		}
+	}
+	return false
+}
+
 // functionAllowsTypeArguments returns true if the function accepts type arguments.
 // Some functions like json.decode need a type parameter to know what to decode into.
 func (tc *TypeChecker) functionAllowsTypeArguments(call *ast.CallExpression) bool {
@@ -3438,6 +3662,46 @@ func (tc *TypeChecker) inferBuiltinCallType(name string, args []ast.Expression) 
 		return "char", true
 	case "byte":
 		return "byte", true
+	case "i8":
+		return "i8", true
+	case "i16":
+		return "i16", true
+	case "i32":
+		return "i32", true
+	case "i64":
+		return "i64", true
+	case "u8":
+		return "u8", true
+	case "u16":
+		return "u16", true
+	case "u32":
+		return "u32", true
+	case "u64":
+		return "u64", true
+	case "input":
+		return "string", true
+	case "read_int":
+		return "int", true
+	case "copy", "ref":
+		// copy() and ref() return the same type as their argument
+		if len(args) > 0 {
+			if argType, ok := tc.inferExpressionType(args[0]); ok {
+				return argType, true
+			}
+		}
+		return "", false
+	case "error":
+		return "error", true
+	case "new":
+		// new() returns an instance of the type passed as argument
+		if len(args) > 0 {
+			if label, ok := args[0].(*ast.Label); ok {
+				return label.Value, true
+			}
+		}
+		return "", false
+	case "range":
+		return "[int]", true
 	default:
 		return "", false
 	}
@@ -3904,53 +4168,77 @@ type StdlibFuncSig struct {
 
 // checkDirectStdlibCall validates a direct function call that might be from an imported module
 // This handles cases like: using math; sqrt(4) instead of math.sqrt(4)
-func (tc *TypeChecker) checkDirectStdlibCall(funcName string, call *ast.CallExpression) {
+// hasUsingModule checks if a module is imported via 'using' at file or scope level
+func (tc *TypeChecker) hasUsingModule(moduleName string) bool {
+	// Check file-level using
+	if tc.fileUsingModules[moduleName] {
+		return true
+	}
+	// Check scope-level using
+	if tc.currentScope != nil && tc.currentScope.HasUsingModule(moduleName) {
+		return true
+	}
+	return false
+}
+
+func (tc *TypeChecker) checkDirectStdlibCall(funcName string, call *ast.CallExpression) bool {
 	line, column := tc.getExpressionPosition(call.Function)
 
-	// Check which modules are imported via 'using' and see if the function exists there
-	if tc.currentScope == nil {
-		return
-	}
-
 	// Check std module
-	if tc.currentScope.HasUsingModule("std") {
-		if funcName == "println" || funcName == "print" || funcName == "printf" {
+	if tc.hasUsingModule("std") {
+		stdFuncs := map[string]bool{
+			"println": true, "print": true, "printf": true,
+			"eprintln": true, "eprint": true, "eprintf": true,
+			"sleep_milliseconds": true, "sleep_seconds": true, "sleep_nanoseconds": true,
+			"read_int": true, "read_float": true, "read_string": true,
+		}
+		if stdFuncs[funcName] {
 			tc.checkStdModuleCall(funcName, call, line, column)
-			return
+			return true
 		}
 	}
 
+	// Check global builtins (no using required)
+	globalBuiltins := map[string]bool{
+		"exit": true, "panic": true, "assert": true,
+	}
+	if globalBuiltins[funcName] {
+		return true // These are handled by runtime
+	}
+
 	// Check math module
-	if tc.currentScope.HasUsingModule("math") {
+	if tc.hasUsingModule("math") {
 		if tc.isMathFunction(funcName) {
 			tc.checkMathModuleCall(funcName, call, line, column)
-			return
+			return true
 		}
 	}
 
 	// Check arrays module
-	if tc.currentScope.HasUsingModule("arrays") {
+	if tc.hasUsingModule("arrays") {
 		if tc.isArraysFunction(funcName) {
 			tc.checkArraysModuleCall(funcName, call, line, column)
-			return
+			return true
 		}
 	}
 
 	// Check strings module
-	if tc.currentScope.HasUsingModule("strings") {
+	if tc.hasUsingModule("strings") {
 		if tc.isStringsFunction(funcName) {
 			tc.checkStringsModuleCall(funcName, call, line, column)
-			return
+			return true
 		}
 	}
 
 	// Check time module
-	if tc.currentScope.HasUsingModule("time") {
+	if tc.hasUsingModule("time") {
 		if tc.isTimeFunction(funcName) {
 			tc.checkTimeModuleCall(funcName, call, line, column)
-			return
+			return true
 		}
 	}
+
+	return false
 }
 
 // isMathFunction checks if a function name exists in the math module
@@ -4783,6 +5071,11 @@ func (tc *TypeChecker) validateStdlibCall(moduleName, funcName string, call *ast
 
 // typeMatchesExpected checks if an actual type matches an expected type constraint
 func (tc *TypeChecker) typeMatchesExpected(actual, expected string) bool {
+	// Unknown type (empty string) - skip validation, let runtime catch it
+	if actual == "" {
+		return true
+	}
+
 	switch expected {
 	case "any":
 		return true
