@@ -2247,14 +2247,15 @@ func (tc *TypeChecker) checkInfixExpression(infix *ast.InfixExpression) {
 	case "+":
 		// Valid for numbers or strings
 		if tc.isNumericType(leftType) && tc.isNumericType(rightType) {
-			// Warn about potential byte overflow
-			if leftType == "byte" && rightType == "byte" {
-				tc.addWarning(
-					errors.W2006,
-					"byte + byte arithmetic may overflow (result wraps at 255)",
-					line,
-					column,
-				)
+			// Check for potential overflow with literal values (#686)
+			if tc.isIntegerType(leftType) && tc.isIntegerType(rightType) && leftType == rightType {
+				leftVal, leftLit := tc.getLiteralIntValue(infix.Left)
+				rightVal, rightLit := tc.getLiteralIntValue(infix.Right)
+				if leftLit && rightLit {
+					if overflows, msg := tc.checkArithmeticOverflow(leftVal, rightVal, "+", leftType); overflows {
+						tc.addWarning(errors.W2008, msg, line, column)
+					}
+				}
 			}
 			// Warn about implicit type conversion when mixing byte with larger types
 			if (leftType == "byte" && rightType != "byte" && tc.isNumericType(rightType)) ||
@@ -2297,14 +2298,15 @@ func (tc *TypeChecker) checkInfixExpression(infix *ast.InfixExpression) {
 					column,
 				)
 			}
-			// Warn about potential byte overflow (especially for * which can easily overflow)
-			if leftType == "byte" && rightType == "byte" {
-				tc.addWarning(
-					errors.W2006,
-					fmt.Sprintf("byte %s byte arithmetic may overflow (result wraps at 255)", infix.Operator),
-					line,
-					column,
-				)
+			// Check for potential overflow with literal values (#686)
+			if infix.Operator != "/" && tc.isIntegerType(leftType) && tc.isIntegerType(rightType) && leftType == rightType {
+				leftVal, leftLit := tc.getLiteralIntValue(infix.Left)
+				rightVal, rightLit := tc.getLiteralIntValue(infix.Right)
+				if leftLit && rightLit {
+					if overflows, msg := tc.checkArithmeticOverflow(leftVal, rightVal, infix.Operator, leftType); overflows {
+						tc.addWarning(errors.W2008, msg, line, column)
+					}
+				}
 			}
 			// Warn about implicit type conversion when mixing byte with larger types
 			if (leftType == "byte" && rightType != "byte" && tc.isNumericType(rightType)) ||
@@ -3323,6 +3325,7 @@ func (tc *TypeChecker) getIntegerTypeRange(typeName string) (min, max *big.Int) 
 }
 
 // checkIntegerLiteralRange validates that an integer literal fits within the target type's range (#666)
+// Extended in #686 to also handle simple arithmetic expressions with literal operands
 func (tc *TypeChecker) checkIntegerLiteralRange(expr ast.Expression, targetType string, line, column int) {
 	min, max := tc.getIntegerTypeRange(targetType)
 	if min == nil || max == nil {
@@ -3330,7 +3333,6 @@ func (tc *TypeChecker) checkIntegerLiteralRange(expr ast.Expression, targetType 
 	}
 
 	var value *big.Int
-	isNegative := false
 
 	// Check for direct integer literal
 	if intLit, ok := expr.(*ast.IntegerValue); ok {
@@ -3342,32 +3344,47 @@ func (tc *TypeChecker) checkIntegerLiteralRange(expr ast.Expression, targetType 
 		if prefixExpr.Operator == "-" {
 			if intLit, ok := prefixExpr.Right.(*ast.IntegerValue); ok {
 				value = new(big.Int).Neg(intLit.Value)
-				isNegative = true
 			}
 		}
 	}
 
+	// Check for simple arithmetic expressions with literal operands (#686)
+	if infixExpr, ok := expr.(*ast.InfixExpression); ok {
+		leftVal, leftOk := tc.getLiteralIntValue(infixExpr.Left)
+		rightVal, rightOk := tc.getLiteralIntValue(infixExpr.Right)
+		if leftOk && rightOk {
+			var result int64
+			switch infixExpr.Operator {
+			case "+":
+				result = leftVal + rightVal
+			case "-":
+				result = leftVal - rightVal
+			case "*":
+				result = leftVal * rightVal
+			case "/":
+				if rightVal != 0 {
+					result = leftVal / rightVal
+				}
+			default:
+				// Unsupported operator, skip
+				return
+			}
+			value = big.NewInt(result)
+		}
+	}
+
 	if value == nil {
-		return // Not a literal, skip range check
+		return // Not a literal or computable expression, skip range check
 	}
 
 	// Check if value is within range
 	if value.Cmp(min) < 0 || value.Cmp(max) > 0 {
-		valueStr := value.String()
-		if isNegative && value.Sign() < 0 {
-			// Value is already negative, just use it
-		}
 		tc.addError(
 			errors.E3036,
-			fmt.Sprintf("value %s out of range for type %s (valid range: %s to %s)", valueStr, targetType, min.String(), max.String()),
+			fmt.Sprintf("value %s out of range for type %s (valid range: %s to %s)", value.String(), targetType, min.String(), max.String()),
 			line,
 			column,
 		)
-	}
-
-	// For unsigned types, also check for negative values explicitly
-	if strings.HasPrefix(targetType, "u") && value.Sign() < 0 {
-		// Already caught by the range check above, but being explicit
 	}
 }
 
@@ -4558,6 +4575,81 @@ func (tc *TypeChecker) isUnsignedIntegerType(typeName string) bool {
 	default:
 		return false
 	}
+}
+
+// getIntegerBounds returns the min and max values for an integer type
+// Returns (0, 0, false) if not a known integer type
+func (tc *TypeChecker) getIntegerBounds(typeName string) (min, max int64, ok bool) {
+	switch typeName {
+	case "i8":
+		return -128, 127, true
+	case "i16":
+		return -32768, 32767, true
+	case "i32":
+		return -2147483648, 2147483647, true
+	case "i64", "int":
+		return -9223372036854775808, 9223372036854775807, true
+	case "u8", "byte":
+		return 0, 255, true
+	case "u16":
+		return 0, 65535, true
+	case "u32":
+		return 0, 4294967295, true
+	case "u64", "uint":
+		// Note: max u64 exceeds int64, but we'll use int64 max for overflow checking
+		return 0, 9223372036854775807, true
+	default:
+		return 0, 0, false
+	}
+}
+
+// checkArithmeticOverflow checks if an arithmetic operation with literal values would overflow
+// Returns true and a warning message if overflow is detected
+func (tc *TypeChecker) checkArithmeticOverflow(left, right int64, operator, resultType string) (bool, string) {
+	minVal, maxVal, ok := tc.getIntegerBounds(resultType)
+	if !ok {
+		return false, ""
+	}
+
+	var result int64
+	var overflows bool
+
+	switch operator {
+	case "+":
+		// Check for addition overflow
+		if right > 0 && left > maxVal-right {
+			overflows = true
+		} else if right < 0 && left < minVal-right {
+			overflows = true
+		} else {
+			result = left + right
+		}
+	case "-":
+		// Check for subtraction overflow
+		if right < 0 && left > maxVal+right {
+			overflows = true
+		} else if right > 0 && left < minVal+right {
+			overflows = true
+		} else {
+			result = left - right
+		}
+	case "*":
+		// Check for multiplication overflow
+		if left != 0 && right != 0 {
+			result = left * right
+			if result/left != right {
+				overflows = true
+			}
+		}
+	default:
+		return false, ""
+	}
+
+	if overflows || result > maxVal || result < minVal {
+		return true, fmt.Sprintf("%s arithmetic with values %d %s %d overflows type %s (range %d to %d)",
+			resultType, left, operator, right, resultType, minVal, maxVal)
+	}
+	return false, ""
 }
 
 // promoteNumericTypes returns the "wider" type for mixed numeric operations

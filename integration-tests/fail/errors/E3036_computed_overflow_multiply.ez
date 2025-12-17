@@ -1,0 +1,12 @@
+/*
+ * Error Test: E3036 - computed value overflow from multiplication
+ * Expected: "out of range"
+ */
+
+import @std
+using std
+
+do main() {
+    temp x i8 = 20 * 10  // 200 exceeds i8 max of 127
+    println(x)
+}
