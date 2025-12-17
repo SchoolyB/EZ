@@ -464,14 +464,17 @@ func (tc *TypeChecker) CheckProgram(program *ast.Program) bool {
 		}
 	}
 
-	// Phase 3: Type check function bodies
+	// Phase 3: Check for invalid file-scope statements (#662)
+	tc.checkFileScopeStatements(program.Statements)
+
+	// Phase 4: Type check function bodies
 	for _, stmt := range program.Statements {
 		if fn, ok := stmt.(*ast.FunctionDeclaration); ok {
 			tc.checkFunctionBody(fn)
 		}
 	}
 
-	// Phase 4: Validate that a main() function exists (unless skipped for module files)
+	// Phase 5: Validate that a main() function exists (unless skipped for module files)
 	if !tc.skipMainCheck {
 		tc.checkMainFunction()
 	}
@@ -950,6 +953,120 @@ func (tc *TypeChecker) checkMainFunction() {
 			1,
 			1,
 		)
+	}
+}
+
+// checkFileScopeStatements validates that only declarations are at file scope (#662)
+// File scope should only allow: import, using, function declarations (do),
+// type declarations (struct, enum), and variable declarations (const, temp).
+// Control flow and executable statements should error.
+func (tc *TypeChecker) checkFileScopeStatements(statements []ast.Statement) {
+	for _, stmt := range statements {
+		switch s := stmt.(type) {
+		// These are allowed at file scope - do nothing
+		case *ast.ImportStatement:
+			// imports are allowed
+		case *ast.UsingStatement:
+			// using is allowed
+		case *ast.FunctionDeclaration:
+			// function declarations are allowed
+		case *ast.StructDeclaration:
+			// struct declarations are allowed
+		case *ast.EnumDeclaration:
+			// enum declarations are allowed
+		case *ast.VariableDeclaration:
+			// const/temp declarations are allowed at file scope
+			// However, we might want to disallow mutable variable declarations
+			// For now, allow both const and temp at file scope
+
+		// Control flow statements - NOT allowed at file scope
+		case *ast.IfStatement:
+			tc.addError(
+				errors.E2056,
+				"'if' statement not allowed at file scope; move it inside a function",
+				s.Token.Line,
+				s.Token.Column,
+			)
+		case *ast.ForStatement:
+			tc.addError(
+				errors.E2056,
+				"'for' statement not allowed at file scope; move it inside a function",
+				s.Token.Line,
+				s.Token.Column,
+			)
+		case *ast.ForEachStatement:
+			tc.addError(
+				errors.E2056,
+				"'for_each' statement not allowed at file scope; move it inside a function",
+				s.Token.Line,
+				s.Token.Column,
+			)
+		case *ast.WhenStatement:
+			tc.addError(
+				errors.E2056,
+				"'when' statement not allowed at file scope; move it inside a function",
+				s.Token.Line,
+				s.Token.Column,
+			)
+		case *ast.WhileStatement:
+			tc.addError(
+				errors.E2056,
+				"'as_long_as' statement not allowed at file scope; move it inside a function",
+				s.Token.Line,
+				s.Token.Column,
+			)
+		case *ast.LoopStatement:
+			tc.addError(
+				errors.E2056,
+				"'loop' statement not allowed at file scope; move it inside a function",
+				s.Token.Line,
+				s.Token.Column,
+			)
+
+		// Executable statements - NOT allowed at file scope
+		case *ast.AssignmentStatement:
+			tc.addError(
+				errors.E2056,
+				"assignment not allowed at file scope; move it inside a function",
+				s.Token.Line,
+				s.Token.Column,
+			)
+		case *ast.ExpressionStatement:
+			tc.addError(
+				errors.E2056,
+				"expression statement not allowed at file scope; move it inside a function",
+				s.Token.Line,
+				s.Token.Column,
+			)
+		case *ast.ReturnStatement:
+			tc.addError(
+				errors.E2056,
+				"'return' statement not allowed at file scope; can only be used inside a function",
+				s.Token.Line,
+				s.Token.Column,
+			)
+		case *ast.BreakStatement:
+			tc.addError(
+				errors.E2056,
+				"'break' statement not allowed at file scope; can only be used inside a loop",
+				s.Token.Line,
+				s.Token.Column,
+			)
+		case *ast.ContinueStatement:
+			tc.addError(
+				errors.E2056,
+				"'continue' statement not allowed at file scope; can only be used inside a loop",
+				s.Token.Line,
+				s.Token.Column,
+			)
+		case *ast.BlockStatement:
+			tc.addError(
+				errors.E2056,
+				"block statement not allowed at file scope; move it inside a function",
+				s.Token.Line,
+				s.Token.Column,
+			)
+		}
 	}
 }
 

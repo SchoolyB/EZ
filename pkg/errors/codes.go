@@ -92,6 +92,7 @@ var (
 	E2053 = ErrorCode{"E2053", "type-definition-in-function", "type definitions must be at file level"}
 	E2054 = ErrorCode{"E2054", "when-strict-non-enum-case", "@strict when requires explicit enum member values in cases"}
 	E2055 = ErrorCode{"E2055", "strict-invalid-target", "@strict can only be applied to when statements"}
+	E2056 = ErrorCode{"E2056", "executable-at-file-scope", "executable statement not allowed at file scope"}
 )
 
 // =============================================================================
