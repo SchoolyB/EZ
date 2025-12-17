@@ -234,6 +234,8 @@ func checkFile(filename string) {
 	moduleSignatures := make(map[string]map[string]*typechecker.FunctionSignature)
 	// Store module type definitions: alias/moduleName -> typeName -> type
 	moduleTypes := make(map[string]map[string]*typechecker.Type)
+	// Store module variable/constant definitions: alias/moduleName -> varName -> type (#677)
+	moduleVariables := make(map[string]map[string]string)
 
 	for len(modulesToCheck) > 0 {
 		// Pop first module
@@ -334,6 +336,9 @@ func checkFile(filename string) {
 				if moduleTypes[moduleName] == nil {
 					moduleTypes[moduleName] = make(map[string]*typechecker.Type)
 				}
+				if moduleVariables[moduleName] == nil {
+					moduleVariables[moduleName] = make(map[string]string)
+				}
 				// Copy function signatures from this file's typechecker
 				for funcName, sig := range fileTc.GetFunctions() {
 					moduleSignatures[moduleName][funcName] = sig
@@ -344,6 +349,10 @@ func checkFile(filename string) {
 					if t.Kind == typechecker.StructType || t.Kind == typechecker.EnumType {
 						moduleTypes[moduleName][typeName] = t
 					}
+				}
+				// Copy variable/constant definitions from this file's typechecker (#677)
+				for varName, varType := range fileTc.GetVariables() {
+					moduleVariables[moduleName][varName] = varType
 				}
 			}
 
@@ -376,6 +385,13 @@ func checkFile(filename string) {
 	for moduleName, types := range moduleTypes {
 		for typeName, t := range types {
 			tc.RegisterModuleType(moduleName, typeName, t)
+		}
+	}
+
+	// Register all module variable/constant definitions for cross-module type checking (#677)
+	for moduleName, vars := range moduleVariables {
+		for varName, varType := range vars {
+			tc.RegisterModuleVariable(moduleName, varName, varType)
 		}
 	}
 
@@ -770,6 +786,7 @@ func runFile(filename string) {
 
 	moduleSignatures := make(map[string]map[string]*typechecker.FunctionSignature)
 	moduleTypes := make(map[string]map[string]*typechecker.Type)
+	moduleVariables := make(map[string]map[string]string) // (#677)
 	checked := make(map[string]bool)
 	checked[absPath] = true
 
@@ -825,6 +842,9 @@ func runFile(filename string) {
 				if moduleTypes[moduleName] == nil {
 					moduleTypes[moduleName] = make(map[string]*typechecker.Type)
 				}
+				if moduleVariables[moduleName] == nil {
+					moduleVariables[moduleName] = make(map[string]string)
+				}
 				for funcName, sig := range fileTc.GetFunctions() {
 					moduleSignatures[moduleName][funcName] = sig
 				}
@@ -832,6 +852,10 @@ func runFile(filename string) {
 					if t.Kind == typechecker.StructType || t.Kind == typechecker.EnumType {
 						moduleTypes[moduleName][typeName] = t
 					}
+				}
+				// Copy variable/constant definitions (#677)
+				for varName, varType := range fileTc.GetVariables() {
+					moduleVariables[moduleName][varName] = varType
 				}
 			}
 
@@ -852,6 +876,12 @@ func runFile(filename string) {
 	for moduleName, types := range moduleTypes {
 		for typeName, t := range types {
 			tc.RegisterModuleType(moduleName, typeName, t)
+		}
+	}
+	// Register module variables/constants (#677)
+	for moduleName, vars := range moduleVariables {
+		for varName, varType := range vars {
+			tc.RegisterModuleVariable(moduleName, varName, varType)
 		}
 	}
 
