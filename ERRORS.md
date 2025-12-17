@@ -342,6 +342,7 @@ Possible bugs
 | W2005 | deprecated-feature | using deprecated feature |
 | W2006 | byte-overflow-potential | byte arithmetic may overflow |
 | W2007 | shadows-global | variable shadows global variable or constant |
+| W2008 | integer-overflow-potential | integer arithmetic may overflow |
 
 ## Code Quality Warnings (W3xxx)
 
@@ -365,4 +366,4 @@ Module-related warnings
 
 ## Summary
 
-**Total:** 236 error/warning codes
+**Total:** 237 error/warning codes
