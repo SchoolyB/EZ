@@ -2493,6 +2493,36 @@ func (tc *TypeChecker) checkIndexExpression(index *ast.IndexExpression) {
 		)
 	}
 
+	// Check array bounds for literal indices (#685)
+	if leftOk && tc.isArrayType(leftType) {
+		// Try to get the index as a literal value
+		indexValue, isLiteral := tc.getLiteralIntValue(index.Index)
+		if isLiteral {
+			// Check for negative index
+			if indexValue < 0 {
+				line, column := tc.getExpressionPosition(index.Index)
+				tc.addError(
+					errors.E5003,
+					fmt.Sprintf("array index %d is negative", indexValue),
+					line,
+					column,
+				)
+			} else {
+				// Check against fixed array size if known
+				arraySize := tc.extractArraySize(leftType)
+				if arraySize > 0 && indexValue >= int64(arraySize) {
+					line, column := tc.getExpressionPosition(index.Index)
+					tc.addError(
+						errors.E5003,
+						fmt.Sprintf("array index %d out of bounds for array of size %d", indexValue, arraySize),
+						line,
+						column,
+					)
+				}
+			}
+		}
+	}
+
 	// Check that the left side is indexable
 	if leftOk && !tc.isArrayType(leftType) && leftType != "string" && !tc.isMapType(leftType) {
 		line, column := tc.getExpressionPosition(index.Left)
@@ -3462,6 +3492,24 @@ func (tc *TypeChecker) extractArraySize(arrType string) int {
 	}
 
 	return -1 // Dynamic array
+}
+
+// getLiteralIntValue extracts the integer value from a literal expression
+// Returns the value and true if the expression is a literal integer (including negative)
+// Returns 0 and false if the expression is not a literal
+func (tc *TypeChecker) getLiteralIntValue(expr ast.Expression) (int64, bool) {
+	switch e := expr.(type) {
+	case *ast.IntegerValue:
+		return e.Value.Int64(), true
+	case *ast.PrefixExpression:
+		// Handle negative literals like -5
+		if e.Operator == "-" {
+			if intVal, ok := e.Right.(*ast.IntegerValue); ok {
+				return -intVal.Value.Int64(), true
+			}
+		}
+	}
+	return 0, false
 }
 
 // getExpressionPosition returns the line and column of an expression
