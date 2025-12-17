@@ -3493,9 +3493,11 @@ func (tc *TypeChecker) inferArraysCallType(funcName string, args []ast.Expressio
 // inferStringsCallType infers return types for @strings functions
 func (tc *TypeChecker) inferStringsCallType(funcName string, args []ast.Expression) (string, bool) {
 	switch funcName {
-	case "len", "index", "last_index", "count":
+	case "len", "index", "last_index", "count", "to_int":
 		return "int", true
-	case "contains", "starts_with", "ends_with", "is_empty":
+	case "to_float":
+		return "float", true
+	case "contains", "starts_with", "ends_with", "is_empty", "to_bool":
 		return "bool", true
 	case "upper", "lower", "trim", "trim_left", "trim_right", "reverse",
 		"replace", "substring", "repeat", "pad_left", "pad_right", "join":
@@ -3917,7 +3919,7 @@ func (tc *TypeChecker) isStringsFunction(name string) bool {
 	stringsFuncs := map[string]bool{
 		"len": true, "upper": true, "lower": true, "trim": true, "contains": true,
 		"starts_with": true, "ends_with": true, "index": true, "split": true,
-		"join": true, "replace": true,
+		"join": true, "replace": true, "to_int": true, "to_float": true, "to_bool": true,
 	}
 	return stringsFuncs[name]
 }
@@ -4555,10 +4557,13 @@ func (tc *TypeChecker) checkMapKeyValueTypeCompatibility(funcName string, call *
 func (tc *TypeChecker) checkStringsModuleCall(funcName string, call *ast.CallExpression, line, column int) {
 	signatures := map[string]StdlibFuncSig{
 		// Single string arg
-		"len":   {1, 1, []string{"string"}, "int"},
-		"upper": {1, 1, []string{"string"}, "string"},
-		"lower": {1, 1, []string{"string"}, "string"},
-		"trim":  {1, 1, []string{"string"}, "string"},
+		"len":      {1, 1, []string{"string"}, "int"},
+		"upper":    {1, 1, []string{"string"}, "string"},
+		"lower":    {1, 1, []string{"string"}, "string"},
+		"trim":     {1, 1, []string{"string"}, "string"},
+		"to_int":   {1, 1, []string{"string"}, "int"},
+		"to_float": {1, 1, []string{"string"}, "float"},
+		"to_bool":  {1, 1, []string{"string"}, "bool"},
 
 		// String + string
 		"contains":    {2, 2, []string{"string", "string"}, "bool"},
