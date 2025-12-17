@@ -2554,13 +2554,18 @@ func typeMatches(obj Object, ezType string) bool {
 		// nil matches nil, or any non-primitive type
 		// For now, we'll accept nil for any type except explicit primitives
 		// This allows: return nil as Error
-		return ezType == "nil" || ezType == "Error" || ezType == "array" ||
+		return ezType == "nil" || ezType == "Error" || ezType == "error" || ezType == "array" ||
 			(ezType != "int" && ezType != "float" && ezType != "string" &&
 				ezType != "bool" && ezType != "char" && !isIntegerType(ezType))
 	}
 
 	// Exact match
 	if actualType == ezType {
+		return true
+	}
+
+	// error/Error are interchangeable (error is alias for Error struct)
+	if (actualType == "error" && ezType == "Error") || (actualType == "Error" && ezType == "error") {
 		return true
 	}
 
