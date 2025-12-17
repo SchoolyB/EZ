@@ -49,7 +49,6 @@ uninstall:
 clean:
 	@echo "Cleaning build artifacts..."
 	@rm -f $(BINARY_NAME)
-	@rm -f ez.bin
 	@rm -rf dist/
 	@echo "Clean complete"
 

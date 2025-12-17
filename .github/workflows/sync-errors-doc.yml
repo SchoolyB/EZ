@@ -52,8 +52,9 @@ jobs:
           git config --local user.name "github-actions[bot]"
           git add ERRORS.md
           git commit -m "docs: regenerate ERRORS.md from codes.go"
-          git pull --rebase
-          git push
+          # Pull latest changes and rebase, then push to current branch
+          git pull --rebase origin ${{ github.head_ref }}
+          git push origin HEAD:${{ github.head_ref }}
 
   trigger-docs:
     name: Trigger docs sync
