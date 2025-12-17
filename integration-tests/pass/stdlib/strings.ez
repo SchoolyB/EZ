@@ -365,6 +365,117 @@ do main() {
         failed += 1
     }
 
+    // ==================== strings.to_int ====================
+    println("  -- strings.to_int --")
+
+    // Test 32: to_int basic
+    temp int_result int = strings.to_int("42")
+    if int_result == 42 {
+        println("  [PASS] strings.to_int('42')")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] strings.to_int: expected 42, got ${int_result}")
+        failed += 1
+    }
+
+    // Test 33: to_int negative
+    temp neg_int int = strings.to_int("-123")
+    if neg_int == -123 {
+        println("  [PASS] strings.to_int('-123')")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] strings.to_int negative: expected -123, got ${neg_int}")
+        failed += 1
+    }
+
+    // Test 34: to_int with whitespace
+    temp ws_int int = strings.to_int("  55  ")
+    if ws_int == 55 {
+        println("  [PASS] strings.to_int('  55  ')")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] strings.to_int with whitespace: expected 55, got ${ws_int}")
+        failed += 1
+    }
+
+    // ==================== strings.to_float ====================
+    println("  -- strings.to_float --")
+
+    // Test 35: to_float basic
+    temp float_result float = strings.to_float("3.14")
+    if float_result == 3.14 {
+        println("  [PASS] strings.to_float('3.14')")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] strings.to_float: expected 3.14, got ${float_result}")
+        failed += 1
+    }
+
+    // Test 36: to_float from integer string
+    temp float_from_int float = strings.to_float("42")
+    if float_from_int == 42.0 {
+        println("  [PASS] strings.to_float('42')")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] strings.to_float from int: expected 42.0, got ${float_from_int}")
+        failed += 1
+    }
+
+    // Test 37: to_float negative
+    temp neg_float float = strings.to_float("-2.5")
+    if neg_float == -2.5 {
+        println("  [PASS] strings.to_float('-2.5')")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] strings.to_float negative: expected -2.5, got ${neg_float}")
+        failed += 1
+    }
+
+    // ==================== strings.to_bool ====================
+    println("  -- strings.to_bool --")
+
+    // Test 38: to_bool true
+    temp bool_true bool = strings.to_bool("true")
+    if bool_true == true {
+        println("  [PASS] strings.to_bool('true')")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] strings.to_bool: expected true")
+        failed += 1
+    }
+
+    // Test 39: to_bool false
+    temp bool_false bool = strings.to_bool("false")
+    if bool_false == false {
+        println("  [PASS] strings.to_bool('false')")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] strings.to_bool: expected false")
+        failed += 1
+    }
+
+    // Test 40: to_bool "1" and "0"
+    temp bool_one bool = strings.to_bool("1")
+    temp bool_zero bool = strings.to_bool("0")
+    if bool_one == true && bool_zero == false {
+        println("  [PASS] strings.to_bool('1') and strings.to_bool('0')")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] strings.to_bool with 1/0")
+        failed += 1
+    }
+
+    // Test 41: to_bool "yes"/"no"
+    temp bool_yes bool = strings.to_bool("yes")
+    temp bool_no bool = strings.to_bool("no")
+    if bool_yes == true && bool_no == false {
+        println("  [PASS] strings.to_bool('yes') and strings.to_bool('no')")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] strings.to_bool with yes/no")
+        failed += 1
+    }
+
     // Summary
     println("")
     println("Results: ${passed} passed, ${failed} failed")
