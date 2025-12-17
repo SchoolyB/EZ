@@ -158,6 +158,7 @@ type TypeChecker struct {
 	fileUsingModules map[string]bool                          // File-level using modules
 	moduleFunctions  map[string]map[string]*FunctionSignature // Module name -> function name -> signature
 	moduleTypes      map[string]map[string]*Type              // Module name -> type name -> type
+	moduleVariables  map[string]map[string]string             // Module name -> variable name -> type (#677)
 	currentScope     *Scope                                   // Current scope for local variable tracking
 	errors           *errors.EZErrorList
 	source           string
@@ -176,6 +177,7 @@ func NewTypeChecker(source, filename string) *TypeChecker {
 		fileUsingModules: make(map[string]bool),
 		moduleFunctions:  make(map[string]map[string]*FunctionSignature),
 		moduleTypes:      make(map[string]map[string]*Type),
+		moduleVariables:  make(map[string]map[string]string),
 		errors:           errors.NewErrorList(),
 		source:           source,
 		filename:         filename,
@@ -209,6 +211,14 @@ func (tc *TypeChecker) RegisterModuleType(moduleName, typeName string, t *Type) 
 	tc.moduleTypes[moduleName][typeName] = t
 }
 
+// RegisterModuleVariable registers a variable/constant from an imported module (#677)
+func (tc *TypeChecker) RegisterModuleVariable(moduleName, varName, typeName string) {
+	if tc.moduleVariables[moduleName] == nil {
+		tc.moduleVariables[moduleName] = make(map[string]string)
+	}
+	tc.moduleVariables[moduleName][varName] = typeName
+}
+
 // GetModuleFunction retrieves a function signature from a module
 func (tc *TypeChecker) GetModuleFunction(moduleName, funcName string) (*FunctionSignature, bool) {
 	if funcs, ok := tc.moduleFunctions[moduleName]; ok {
@@ -216,6 +226,15 @@ func (tc *TypeChecker) GetModuleFunction(moduleName, funcName string) (*Function
 		return sig, exists
 	}
 	return nil, false
+}
+
+// GetModuleVariable retrieves a variable type from a module (#677)
+func (tc *TypeChecker) GetModuleVariable(moduleName, varName string) (string, bool) {
+	if vars, ok := tc.moduleVariables[moduleName]; ok {
+		typeName, exists := vars[varName]
+		return typeName, exists
+	}
+	return "", false
 }
 
 // GetFunctions returns the functions map (for extracting signatures from module typechecker)
@@ -226,6 +245,11 @@ func (tc *TypeChecker) GetFunctions() map[string]*FunctionSignature {
 // GetTypes returns the types map (for extracting types from module typechecker)
 func (tc *TypeChecker) GetTypes() map[string]*Type {
 	return tc.types
+}
+
+// GetVariables returns the variables map (for extracting constants from module typechecker) (#677)
+func (tc *TypeChecker) GetVariables() map[string]string {
+	return tc.variables
 }
 
 // registerBuiltinTypes adds all built-in types to the registry
@@ -3619,6 +3643,23 @@ func (tc *TypeChecker) isKnownIdentifier(name string) bool {
 			}
 		}
 	}
+	// Check if it's a variable/constant from a user module accessible via 'using' (#677)
+	for moduleName := range tc.fileUsingModules {
+		if vars, ok := tc.moduleVariables[moduleName]; ok {
+			if _, exists := vars[name]; exists {
+				return true
+			}
+		}
+	}
+	if tc.currentScope != nil {
+		for moduleName := range tc.currentScope.usingModules {
+			if vars, ok := tc.moduleVariables[moduleName]; ok {
+				if _, exists := vars[name]; exists {
+					return true
+				}
+			}
+		}
+	}
 	return false
 }
 
@@ -4210,6 +4251,15 @@ func (tc *TypeChecker) inferMemberType(member *ast.MemberExpression) (string, bo
 			}
 			// Return the enum type name
 			return label.Value, true
+		}
+
+		// Check if accessing module variable (e.g., lib.Numbers) (#677)
+		moduleName := label.Value
+		if tc.modules[moduleName] {
+			memberName := member.Member.Value
+			if varType, ok := tc.GetModuleVariable(moduleName, memberName); ok {
+				return varType, true
+			}
 		}
 	}
 
