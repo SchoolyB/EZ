@@ -1,0 +1,157 @@
+/*
+ * copy_semantics.ez - Test copy-by-default and ref() builtin (#661)
+ *
+ * Tests that:
+ * - Assignment copies by default for structs, arrays, maps
+ * - ref() creates explicit references for shared state
+ * - ref() works on primitives
+ */
+
+import @std
+using std
+
+const Point struct {
+    x int
+    y int
+}
+
+const Nested struct {
+    inner Point
+    value int
+}
+
+do main() {
+    println("=== Copy Semantics Test (#661) ===")
+    temp passed int = 0
+    temp failed int = 0
+
+    // ==================== COPY-BY-DEFAULT ====================
+    println("  -- Copy-by-Default --")
+
+    // Test 1: struct copy-by-default
+    temp p1 Point = Point{x: 10, y: 20}
+    temp p2 Point = p1
+    p2.x = 999
+    if p1.x == 10 && p2.x == 999 {
+        println("  [PASS] struct assignment creates copy")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] struct assignment: p1.x=${p1.x}, p2.x=${p2.x}")
+        failed += 1
+    }
+
+    // Test 2: array copy-by-default
+    temp arr1 [int] = {1, 2, 3}
+    temp arr2 [int] = arr1
+    arr2[0] = 999
+    if arr1[0] == 1 && arr2[0] == 999 {
+        println("  [PASS] array assignment creates copy")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] array assignment: arr1[0]=${arr1[0]}, arr2[0]=${arr2[0]}")
+        failed += 1
+    }
+
+    // Test 3: nested struct copy-by-default
+    temp n1 Nested = Nested{inner: Point{x: 5, y: 10}, value: 100}
+    temp n2 Nested = n1
+    n2.inner.x = 999
+    n2.value = 888
+    if n1.inner.x == 5 && n1.value == 100 && n2.inner.x == 999 && n2.value == 888 {
+        println("  [PASS] nested struct assignment creates deep copy")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] nested struct: n1.inner.x=${n1.inner.x}, n2.inner.x=${n2.inner.x}")
+        failed += 1
+    }
+
+    // Test 4: reassignment also copies
+    temp p3 Point = Point{x: 1, y: 2}
+    temp p4 Point = Point{x: 0, y: 0}
+    p4 = p3
+    p4.x = 999
+    if p3.x == 1 && p4.x == 999 {
+        println("  [PASS] reassignment also creates copy")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] reassignment: p3.x=${p3.x}, p4.x=${p4.x}")
+        failed += 1
+    }
+
+    // ==================== REF() BUILTIN ====================
+    println("  -- ref() Builtin --")
+
+    // Test 5: ref() for struct sharing (use type inference)
+    temp p5 Point = Point{x: 100, y: 200}
+    temp p6 = ref(p5)
+    p6.x = 500
+    if p5.x == 500 && p6.x == 500 {
+        println("  [PASS] ref() creates shared struct reference")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] ref() struct: p5.x=${p5.x}, p6.x=${p6.x}")
+        failed += 1
+    }
+
+    // Test 6: ref() for primitive sharing (use type inference)
+    temp x int = 10
+    temp y = ref(x)
+    y = 99
+    if x == 99 && y == 99 {
+        println("  [PASS] ref() works on primitives")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] ref() primitive: x=${x}, y=${y}")
+        failed += 1
+    }
+
+    // Test 7: ref() for array sharing (use type inference)
+    temp arr3 [int] = {10, 20, 30}
+    temp arr4 = ref(arr3)
+    arr4[0] = 999
+    if arr3[0] == 999 && arr4[0] == 999 {
+        println("  [PASS] ref() creates shared array reference")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] ref() array: arr3[0]=${arr3[0]}, arr4[0]=${arr4[0]}")
+        failed += 1
+    }
+
+    // Test 8: multiple refs to same variable (use type inference)
+    temp val int = 42
+    temp ref1 = ref(val)
+    temp ref2 = ref(val)
+    ref1 = 100
+    if val == 100 && ref1 == 100 && ref2 == 100 {
+        println("  [PASS] multiple refs share same variable")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] multiple refs: val=${val}, ref1=${ref1}, ref2=${ref2}")
+        failed += 1
+    }
+
+    // ==================== COPY() STILL WORKS ====================
+    println("  -- copy() Builtin --")
+
+    // Test 9: explicit copy() still works
+    temp p7 Point = Point{x: 1, y: 2}
+    temp p8 Point = copy(p7)
+    p8.x = 999
+    if p7.x == 1 && p8.x == 999 {
+        println("  [PASS] copy() still creates explicit copy")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] copy(): p7.x=${p7.x}, p8.x=${p8.x}")
+        failed += 1
+    }
+
+    // Summary
+    println("")
+    println("Results: ${passed} passed, ${failed} failed")
+
+    if failed > 0 {
+        println("SOME TESTS FAILED")
+    } otherwise {
+        println("ALL TESTS PASSED")
+    }
+}
