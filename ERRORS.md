@@ -344,6 +344,7 @@ Possible bugs
 | W2007 | shadows-global | variable shadows global variable or constant |
 | W2008 | integer-overflow-potential | integer arithmetic may overflow |
 | W2009 | nil-dereference-potential | accessing member on potentially nil value |
+| W2010 | chained-nil-access | chained member access on nullable struct type |
 
 ## Code Quality Warnings (W3xxx)
 

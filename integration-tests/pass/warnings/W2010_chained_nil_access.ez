@@ -1,0 +1,24 @@
+/*
+ * Warning Test: W2010 - chained member access on nullable struct type
+ * Expected: warning about accessing member on struct that may be nil
+ */
+
+import @std
+using std
+
+const Position struct {
+    x int
+    y int
+}
+
+const Player struct {
+    name string
+    pos Position
+}
+
+do main() {
+    temp p Player
+    // This should warn: p.pos could be nil, accessing .x on it is risky
+    temp x = p.pos.x
+    println(x)
+}
