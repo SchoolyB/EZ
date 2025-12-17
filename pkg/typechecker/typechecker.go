@@ -2216,6 +2216,15 @@ func (tc *TypeChecker) checkInfixExpression(infix *ast.InfixExpression) {
 				column,
 			)
 		} else {
+			// Check for division by literal zero (#667)
+			if infix.Operator == "/" && tc.isLiteralZero(infix.Right) {
+				tc.addError(
+					errors.E5001,
+					"division by zero",
+					line,
+					column,
+				)
+			}
 			// Warn about potential byte overflow (especially for * which can easily overflow)
 			if leftType == "byte" && rightType == "byte" {
 				tc.addWarning(
@@ -2246,6 +2255,16 @@ func (tc *TypeChecker) checkInfixExpression(infix *ast.InfixExpression) {
 				line,
 				column,
 			)
+		} else {
+			// Check for modulo by literal zero (#667)
+			if tc.isLiteralZero(infix.Right) {
+				tc.addError(
+					errors.E5002,
+					"modulo by zero",
+					line,
+					column,
+				)
+			}
 		}
 
 	case "==", "!=":
@@ -3154,6 +3173,19 @@ func (tc *TypeChecker) isSizedIntegerType(typeName string) bool {
 	switch typeName {
 	case "i8", "i16", "i32", "i64", "u8", "u16", "u32", "u64":
 		return true
+	}
+	return false
+}
+
+// isLiteralZero checks if an expression is a literal zero value (#667)
+func (tc *TypeChecker) isLiteralZero(expr ast.Expression) bool {
+	// Check for integer literal 0
+	if intLit, ok := expr.(*ast.IntegerValue); ok {
+		return intLit.Value.Sign() == 0
+	}
+	// Check for float literal 0.0
+	if floatLit, ok := expr.(*ast.FloatValue); ok {
+		return floatLit.Value == 0.0
 	}
 	return false
 }
