@@ -1688,8 +1688,22 @@ func (tc *TypeChecker) checkAssignment(assign *ast.AssignmentStatement) {
 	// Also validate the value expression
 	tc.checkExpression(assign.Value)
 
-	// Check mutability - error if trying to modify an immutable variable
+	// Check that the assignment target exists and is mutable
 	if rootVar := tc.extractRootVariable(assign.Name); rootVar != "" {
+		// First check if the variable exists (#665)
+		_, varExists := tc.lookupVariable(rootVar)
+		if !varExists {
+			line, column := tc.getExpressionPosition(assign.Name)
+			tc.addError(
+				errors.E4001,
+				fmt.Sprintf("undefined variable '%s'", rootVar),
+				line,
+				column,
+			)
+			return
+		}
+
+		// Check mutability - error if trying to modify an immutable variable
 		isMutable, found := tc.isVariableMutable(rootVar)
 		if found && !isMutable {
 			line, column := tc.getExpressionPosition(assign.Name)
