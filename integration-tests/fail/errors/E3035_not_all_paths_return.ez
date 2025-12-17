@@ -1,0 +1,20 @@
+/*
+ * Error Test: E3035 - not-all-paths-return
+ *
+ * Functions with return types must return a value on ALL code paths.
+ * This function only returns in the if branch, not the fallthrough.
+ */
+import @std
+using std
+
+do maybe_return(x int) -> int {
+    if x > 0 {
+        return x
+    }
+    // Missing return when x <= 0
+}
+
+do main() {
+    temp result int = maybe_return(5)
+    println(result)
+}

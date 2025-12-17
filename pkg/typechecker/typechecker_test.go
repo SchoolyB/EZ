@@ -687,6 +687,115 @@ do main() {}
 }
 
 // ============================================================================
+// All Paths Return Tests (E3035)
+// ============================================================================
+
+func TestNotAllPathsReturn_IfWithoutOtherwise(t *testing.T) {
+	input := `
+do maybe_return(x int) -> int {
+	if x > 0 {
+		return x
+	}
+}
+
+do main() {}
+`
+	tc := typecheck(t, input)
+	assertHasError(t, tc, errors.E3035)
+}
+
+func TestNotAllPathsReturn_IfOrWithoutOtherwise(t *testing.T) {
+	input := `
+do classify(x int) -> string {
+	if x > 0 {
+		return "positive"
+	} or x < 0 {
+		return "negative"
+	}
+}
+
+do main() {}
+`
+	tc := typecheck(t, input)
+	assertHasError(t, tc, errors.E3035)
+}
+
+func TestNotAllPathsReturn_ReturnOnlyInLoop(t *testing.T) {
+	input := `
+do find_first(arr [int]) -> int {
+	for_each i in arr {
+		return i
+	}
+}
+
+do main() {}
+`
+	tc := typecheck(t, input)
+	assertHasError(t, tc, errors.E3035)
+}
+
+func TestAllPathsReturn_IfOtherwise(t *testing.T) {
+	input := `
+do get_sign(x int) -> string {
+	if x > 0 {
+		return "positive"
+	} otherwise {
+		return "non-positive"
+	}
+}
+
+do main() {}
+`
+	tc := typecheck(t, input)
+	assertNoErrors(t, tc)
+}
+
+func TestAllPathsReturn_IfOrOtherwise(t *testing.T) {
+	input := `
+do classify(x int) -> string {
+	if x > 0 {
+		return "positive"
+	} or x < 0 {
+		return "negative"
+	} otherwise {
+		return "zero"
+	}
+}
+
+do main() {}
+`
+	tc := typecheck(t, input)
+	assertNoErrors(t, tc)
+}
+
+func TestAllPathsReturn_DirectReturn(t *testing.T) {
+	input := `
+do double(x int) -> int {
+	return x * 2
+}
+
+do main() {}
+`
+	tc := typecheck(t, input)
+	assertNoErrors(t, tc)
+}
+
+func TestAllPathsReturn_ReturnAfterIf(t *testing.T) {
+	input := `
+do abs_value(x int) -> int {
+	if x < 0 {
+		return -x
+	}
+	return x
+}
+
+do main() {}
+`
+	tc := typecheck(t, input)
+	assertNoErrors(t, tc)
+}
+
+// ============================================================================
 // Operator Type Checking Tests
 // ============================================================================
 
