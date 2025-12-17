@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.23.1](https://github.com/SchoolyB/EZ/compare/v0.23.0...v0.23.1) (2025-12-17)
+
+
+### Bug Fixes
+
+* allow nil return for error type in user-defined functions ([4d78d05](https://github.com/SchoolyB/EZ/commit/4d78d050ba9d314303f239c6f8f96e520bd55a51))
+* allow nil return for error type in user-defined functions ([f0fd24a](https://github.com/SchoolyB/EZ/commit/f0fd24a8bd821d782427ba30dfd42fc69ec129b3)), closes [#657](https://github.com/SchoolyB/EZ/issues/657)
+
 ## [0.23.0](https://github.com/SchoolyB/EZ/compare/v0.22.6...v0.23.0) (2025-12-17)
 
 
