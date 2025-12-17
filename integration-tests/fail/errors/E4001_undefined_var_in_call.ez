@@ -3,6 +3,9 @@
  * Expected: "undefined variable"
  */
 
+import @std
+using std
+
 module main
 
 do greet(name string) {

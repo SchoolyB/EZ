@@ -30,6 +30,8 @@ func typecheck(t *testing.T, input string) *TypeChecker {
 	}
 
 	tc := NewTypeChecker(input, "test.ez")
+	// Auto-register std module for test convenience (tests don't need explicit imports)
+	tc.fileUsingModules["std"] = true
 	tc.CheckProgram(program)
 	return tc
 }
