@@ -2876,9 +2876,13 @@ func (tc *TypeChecker) extractMapValueType(mapType string) string {
 }
 
 // isNullableType checks if a type can accept nil values
-// Only user-defined struct types can be nil in EZ
+// error type and user-defined struct types can be nil in EZ
 // Arrays, maps, and primitives cannot be nil
 func (tc *TypeChecker) isNullableType(typeName string) bool {
+	// error type can be nil (for error handling pattern)
+	if typeName == "error" {
+		return true
+	}
 	// User-defined struct types can be nil
 	if t, exists := tc.types[typeName]; exists && t.Kind == StructType {
 		return true
@@ -3691,6 +3695,11 @@ func (tc *TypeChecker) promoteNumericTypes(left, right string) string {
 func (tc *TypeChecker) typesCompatible(declared, actual string) bool {
 	// Exact match
 	if declared == actual {
+		return true
+	}
+
+	// error/Error are interchangeable (error is alias for Error struct)
+	if (declared == "error" && actual == "Error") || (declared == "Error" && actual == "error") {
 		return true
 	}
 
