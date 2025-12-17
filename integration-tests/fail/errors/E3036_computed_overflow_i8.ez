@@ -1,0 +1,12 @@
+/*
+ * Error Test: E3036 - computed value overflow for i8
+ * Expected: "out of range"
+ */
+
+import @std
+using std
+
+do main() {
+    temp x i8 = 100 + 50  // 150 exceeds i8 max of 127
+    println(x)
+}
