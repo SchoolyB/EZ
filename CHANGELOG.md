@@ -1,5 +1,49 @@
 # Changelog
 
+## [0.24.0](https://github.com/SchoolyB/EZ/compare/v0.23.1...v0.24.0) (2025-12-17)
+
+
+### Features
+
+* add W2010 warning for chained member access on nullable structs ([#689](https://github.com/SchoolyB/EZ/issues/689)) ([cd57753](https://github.com/SchoolyB/EZ/commit/cd57753bd3858e2e8b33ca230661c9c23b416934))
+* add W2010 warning for chained member access on nullable structs ([#689](https://github.com/SchoolyB/EZ/issues/689)) ([3cd1ede](https://github.com/SchoolyB/EZ/commit/3cd1ede848574aa97f0b697905ffce283a7d713b))
+* implement ref() builtin and copy-by-default semantics ([#661](https://github.com/SchoolyB/EZ/issues/661)) ([743153c](https://github.com/SchoolyB/EZ/commit/743153cee33eb181622433e489dc0fa94d62a701))
+* implement ref() builtin and copy-by-default semantics ([#661](https://github.com/SchoolyB/EZ/issues/661)) ([d064e56](https://github.com/SchoolyB/EZ/commit/d064e56e894206ba2a2074a03f75bca15949de14))
+* **typechecker:** comprehensive typechecker overhaul with ref() builtin ([e05a459](https://github.com/SchoolyB/EZ/commit/e05a4591c8be5a5a0f99eb04fe833fd3542e7021))
+* **typechecker:** detect literal division/modulo by zero ([8ce1a11](https://github.com/SchoolyB/EZ/commit/8ce1a1124f8de946cd6f283b427eb242a0e97faf))
+* **typechecker:** detect literal division/modulo by zero ([#667](https://github.com/SchoolyB/EZ/issues/667)) ([76b4f1e](https://github.com/SchoolyB/EZ/commit/76b4f1e2da6d955787e394fb1fab07eb872b8e0a))
+* **typechecker:** detect undefined variables and functions at check time ([#663](https://github.com/SchoolyB/EZ/issues/663)) ([4ca2c68](https://github.com/SchoolyB/EZ/commit/4ca2c68a56b82fc2917f4121373ff862bf715fdd))
+* **typechecker:** detect undefined variables and functions at check time ([#663](https://github.com/SchoolyB/EZ/issues/663)) ([5334c4b](https://github.com/SchoolyB/EZ/commit/5334c4bb39363c1ec27994991d01ebc4792f6591))
+* **typechecker:** reject executable statements at file scope ([c2b372f](https://github.com/SchoolyB/EZ/commit/c2b372f0ec6ecbd0868a8a75b81d8fa2561abe1e))
+* **typechecker:** reject executable statements at file scope ([#662](https://github.com/SchoolyB/EZ/issues/662)) ([9ec3cd0](https://github.com/SchoolyB/EZ/commit/9ec3cd0c4155840dc1fa21f17a838c10fe470ce7))
+* **typechecker:** validate integer literal ranges for sized types ([c315995](https://github.com/SchoolyB/EZ/commit/c3159952bd246079c6671e0883b2c4ae8867b03b))
+* **typechecker:** validate integer literal ranges for sized types ([#666](https://github.com/SchoolyB/EZ/issues/666)) ([0d7cdfe](https://github.com/SchoolyB/EZ/commit/0d7cdfea655141e0a31359f17e66f95418072b91))
+
+
+### Bug Fixes
+
+* add type inference for stdlib module multi-return functions ([c2be2c1](https://github.com/SchoolyB/EZ/commit/c2be2c14d2cc8040e4368a7e94a912c16464782d))
+* add type inference for stdlib module multi-return functions ([f5120f8](https://github.com/SchoolyB/EZ/commit/f5120f8c5594e64fb0856dd4bd01bb3d1c4ed1cb))
+* detect missing return on all code paths at check time ([860be2a](https://github.com/SchoolyB/EZ/commit/860be2a8843fd5f6a1a7821f64241b41e43f4b64))
+* detect missing return on all code paths at check time ([81667b9](https://github.com/SchoolyB/EZ/commit/81667b9707f2cad25c5802da7be9a74cd15d26d1)), closes [#660](https://github.com/SchoolyB/EZ/issues/660)
+* properly type multi-return builtin functions like read_int() ([70519bc](https://github.com/SchoolyB/EZ/commit/70519bc5717aedd6cfc1135bc25790c0feb354b1))
+* properly type multi-return builtin functions like read_int() ([a88577e](https://github.com/SchoolyB/EZ/commit/a88577e2cac2e8233df18b25345b53fdc3f9a4b2))
+* support module constants via using directive ([#677](https://github.com/SchoolyB/EZ/issues/677)) ([a493e46](https://github.com/SchoolyB/EZ/commit/a493e461198baad719b48c9fe3109dfad183c23d))
+* support module constants via using directive ([#677](https://github.com/SchoolyB/EZ/issues/677)) ([70dbfc3](https://github.com/SchoolyB/EZ/commit/70dbfc362b9948cd10efc08fdcc567b59aa20819))
+* **typechecker:** add compile-time array bounds checking ([#685](https://github.com/SchoolyB/EZ/issues/685)) ([9fb99de](https://github.com/SchoolyB/EZ/commit/9fb99ded85c0e18e6539deccd5cea722e603e3fb))
+* **typechecker:** add compile-time array bounds checking ([#685](https://github.com/SchoolyB/EZ/issues/685)) ([c150246](https://github.com/SchoolyB/EZ/commit/c1502462ea431098d9c6afee0e52dfc5b8a51f26))
+* **typechecker:** add warning for member access on error type ([#687](https://github.com/SchoolyB/EZ/issues/687)) ([052ead9](https://github.com/SchoolyB/EZ/commit/052ead9c9159f73d485600ed4cb6e4368800e126))
+* **typechecker:** add warning for member access on error type ([#687](https://github.com/SchoolyB/EZ/issues/687)) ([189a14c](https://github.com/SchoolyB/EZ/commit/189a14c8fb669fb89bb4952ce83eb02e3b153779))
+* **typechecker:** detect undefined variables in assignment targets ([f467bcf](https://github.com/SchoolyB/EZ/commit/f467bcfcf834b3f0c89506decd42d3532b7aa9df))
+* **typechecker:** detect undefined variables in assignment targets ([#665](https://github.com/SchoolyB/EZ/issues/665)) ([24cf9b1](https://github.com/SchoolyB/EZ/commit/24cf9b11b46ede1acf6e8e3f090300da9e377546))
+* **typechecker:** extend overflow detection to all integer types ([#686](https://github.com/SchoolyB/EZ/issues/686)) ([c56aa3d](https://github.com/SchoolyB/EZ/commit/c56aa3d22302f93c5a3f8e60a17f382a94e20f36))
+* **typechecker:** extend overflow detection to all integer types ([#686](https://github.com/SchoolyB/EZ/issues/686)) ([6e0b31a](https://github.com/SchoolyB/EZ/commit/6e0b31a1f5d1bbf3a332e53324391a9da3e4f84c))
+* **typechecker:** infer types for module variables via using directive ([#677](https://github.com/SchoolyB/EZ/issues/677)) ([584d42e](https://github.com/SchoolyB/EZ/commit/584d42eedafcd97fefb2c731ee7108d2d3c3ea4b))
+* **typechecker:** resolve user module functions via 'using' directive ([b90830e](https://github.com/SchoolyB/EZ/commit/b90830e4bea45b86cabe3aef4d0d021bad617729))
+* **typechecker:** resolve user module functions via 'using' directive ([#671](https://github.com/SchoolyB/EZ/issues/671)) ([1285737](https://github.com/SchoolyB/EZ/commit/1285737733f4f2c9ae5bcfec0cee70fe0ec9a864))
+* **typechecker:** validate expressions in string interpolations ([#684](https://github.com/SchoolyB/EZ/issues/684)) ([a4d8990](https://github.com/SchoolyB/EZ/commit/a4d8990b53e5a689bc06f40815265f0230518a5d))
+* **typechecker:** validate expressions in string interpolations ([#684](https://github.com/SchoolyB/EZ/issues/684)) ([4da234d](https://github.com/SchoolyB/EZ/commit/4da234de0f6214635e766ae6da8dfd4a3e351d05))
+
 ## [0.23.1](https://github.com/SchoolyB/EZ/compare/v0.23.0...v0.23.1) (2025-12-17)
 
 
