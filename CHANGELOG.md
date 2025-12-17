@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.23.0](https://github.com/SchoolyB/EZ/compare/v0.22.6...v0.23.0) (2025-12-17)
+
+
+### Features
+
+* **stdlib:** add `strings.to_int()`, `strings.to_float()`, `strings.to_bool()` ([846f90a](https://github.com/SchoolyB/EZ/commit/846f90af5f781c96bc13e983d4e2e183e30d6dd4))
+* **stdlib:** add strings.to_int(), strings.to_float(), strings.to_bool() ([e496f23](https://github.com/SchoolyB/EZ/commit/e496f231bafb51979f7127a7c8a26516df365afb)), closes [#651](https://github.com/SchoolyB/EZ/issues/651)
+
 ## [0.22.6](https://github.com/SchoolyB/EZ/compare/v0.22.5...v0.22.6) (2025-12-16)
 
 
