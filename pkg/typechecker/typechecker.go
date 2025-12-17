@@ -916,12 +916,21 @@ func (tc *TypeChecker) checkFunctionBody(node *ast.FunctionDeclaration) {
 		tc.defineVariableWithMutability(param.Name.Value, param.TypeName, param.Mutable)
 	}
 
-	// Check if function body contains at least one return statement (for functions with return types)
+	// Check if function body returns on all code paths (for functions with return types)
 	if len(node.ReturnTypes) > 0 {
 		if !tc.hasReturnStatement(node.Body) {
+			// No return statement at all
 			tc.addError(
 				errors.E3024,
 				fmt.Sprintf("Function '%s' declares return type(s) but has no return statement", node.Name.Value),
+				node.Name.Token.Line,
+				node.Name.Token.Column,
+			)
+		} else if !tc.allPathsReturn(node.Body) {
+			// Has return statements, but not on all code paths
+			tc.addError(
+				errors.E3035,
+				fmt.Sprintf("Function '%s' does not return a value on all code paths", node.Name.Value),
 				node.Name.Token.Line,
 				node.Name.Token.Column,
 			)
@@ -1026,6 +1035,62 @@ func (tc *TypeChecker) hasReturnInIfStatement(ifStmt *ast.IfStatement) bool {
 			// Check the otherwise block
 			return tc.hasReturnStatement(altBlock)
 		}
+	}
+
+	return false
+}
+
+// allPathsReturn checks if ALL code paths in a block return a value.
+// This is stricter than hasReturnStatement which only checks if ANY path returns.
+func (tc *TypeChecker) allPathsReturn(block *ast.BlockStatement) bool {
+	if block == nil || len(block.Statements) == 0 {
+		return false
+	}
+
+	for _, stmt := range block.Statements {
+		switch s := stmt.(type) {
+		case *ast.ReturnStatement:
+			// Found a return at this level - this path returns
+			return true
+
+		case *ast.IfStatement:
+			// For an if statement to guarantee a return on all paths:
+			// 1. It must have an otherwise (else) clause
+			// 2. Both the if branch AND the otherwise branch must all-paths-return
+			if tc.ifAllPathsReturn(s) {
+				return true
+			}
+			// If the if doesn't cover all paths, continue checking subsequent statements
+		}
+		// Loops (for, foreach, while) can't guarantee they execute,
+		// so we can't count returns inside them as covering all paths.
+		// Continue to next statement.
+	}
+
+	// Reached end of block without finding a guaranteed return
+	return false
+}
+
+// ifAllPathsReturn checks if an if/or/otherwise chain returns on ALL paths
+func (tc *TypeChecker) ifAllPathsReturn(ifStmt *ast.IfStatement) bool {
+	// The consequence (if block) must return on all its paths
+	if !tc.allPathsReturn(ifStmt.Consequence) {
+		return false
+	}
+
+	// Must have an alternative (or/otherwise)
+	if ifStmt.Alternative == nil {
+		return false
+	}
+
+	// Check the alternative
+	switch alt := ifStmt.Alternative.(type) {
+	case *ast.IfStatement:
+		// It's an "or" (else if) - recursively check
+		return tc.ifAllPathsReturn(alt)
+	case *ast.BlockStatement:
+		// It's an "otherwise" (else) block
+		return tc.allPathsReturn(alt)
 	}
 
 	return false

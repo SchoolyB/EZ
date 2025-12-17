@@ -130,6 +130,7 @@ Type system errors
 | E3032 | enum-type-mismatch | cannot compare values from different enum types |
 | E3033 | duplicate-enum-value | enum contains duplicate values |
 | E3034 | any-type-not-allowed | 'any' type is reserved for internal use |
+| E3035 | not-all-paths-return | not all code paths return a value |
 
 ## Reference Errors (E4xxx)
 
