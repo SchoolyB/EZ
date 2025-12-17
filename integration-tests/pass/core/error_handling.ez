@@ -1,0 +1,81 @@
+/*
+ * error_handling.ez - Test error type with nil returns
+ */
+
+import @std
+using std
+
+// Function that can fail - uses error type (lowercase)
+do parse_int(s string) -> (int, error) {
+    if s == "" {
+        return 0, error("empty string")
+    }
+    if s == "bad" {
+        return 0, error("invalid input")
+    }
+    return 42, nil
+}
+
+// Function using Error type (capitalized) - should also work
+do parse_float(s string) -> (float, Error) {
+    if s == "" {
+        return 0.0, error("empty string")
+    }
+    return 3.14, nil
+}
+
+do main() {
+    println("=== Error Handling Test ===")
+    temp passed int = 0
+    temp failed int = 0
+
+    // Test 1: successful parse with error type
+    temp val1, err1 = parse_int("42")
+    if err1 == nil && val1 == 42 {
+        println("  [PASS] parse_int success returns nil error")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] parse_int success case")
+        failed += 1
+    }
+
+    // Test 2: failed parse with error type  
+    temp val2, err2 = parse_int("bad")
+    if err2 != nil && val2 == 0 {
+        println("  [PASS] parse_int failure returns error")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] parse_int failure case")
+        failed += 1
+    }
+
+    // Test 3: successful parse with Error type (capitalized)
+    temp val3, err3 = parse_float("3.14")
+    if err3 == nil && val3 == 3.14 {
+        println("  [PASS] parse_float success returns nil error")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] parse_float success case")
+        failed += 1
+    }
+
+    // Test 4: failed parse with Error type (capitalized)
+    temp val4, err4 = parse_float("")
+    if err4 != nil {
+        println("  [PASS] parse_float failure returns error")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] parse_float failure case")
+        failed += 1
+    }
+
+    // Summary
+    println("")
+    println("Results: ${passed} passed, ${failed} failed")
+
+    if failed > 0 {
+        println("SOME TESTS FAILED")
+    } otherwise {
+        println("ALL TESTS PASSED")
+    }
+}
