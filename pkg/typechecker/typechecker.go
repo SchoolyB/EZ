@@ -264,7 +264,7 @@ func (tc *TypeChecker) registerBuiltinTypes() {
 		// Other primitives
 		"bool", "char", "string", "byte",
 		// Special
-		"void", "nil", "error",
+		"void", "nil",
 		// Internal types (not for user code - will be rejected by E3034)
 		"any",
 	}
@@ -276,15 +276,17 @@ func (tc *TypeChecker) registerBuiltinTypes() {
 		}
 	}
 
-	// Register built-in Error struct
-	tc.types["Error"] = &Type{
+	// Register built-in Error struct (both "Error" and "error" alias)
+	errorType := &Type{
 		Name: "Error",
 		Kind: StructType,
 		Fields: map[string]*Type{
 			"message": {Name: "string", Kind: PrimitiveType},
-			"code":    {Name: "string", Kind: PrimitiveType},
+			"code":    {Name: "int", Kind: PrimitiveType},
 		},
 	}
+	tc.types["Error"] = errorType
+	tc.types["error"] = errorType // Alias for convenience
 }
 
 // TypeExists checks if a type name is registered
@@ -1906,6 +1908,17 @@ func (tc *TypeChecker) checkMemberExpression(member *ast.MemberExpression) {
 	}
 	if _, isUsedModule := tc.fileUsingModules[objType]; isUsedModule {
 		return
+	}
+
+	// Warn about member access on error type which is commonly nil (#687)
+	if objType == "error" || objType == "Error" {
+		line, column := tc.getExpressionPosition(member.Object)
+		tc.addWarning(
+			errors.W2009,
+			fmt.Sprintf("accessing member '%s' on error type which may be nil - consider checking for nil first", member.Member.Value),
+			line,
+			column,
+		)
 	}
 
 	// Check if it's a struct type (including module types for qualified names like "lib.Hero")
