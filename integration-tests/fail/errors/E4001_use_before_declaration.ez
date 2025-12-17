@@ -1,0 +1,13 @@
+/*
+ * Error Test: E4001 - undefined-variable (use before declaration)
+ * Expected: "undefined variable"
+ */
+
+import @std
+using std
+
+do main() {
+    y = 10          // assigning to y before declaration
+    temp y = 5
+    println(y)
+}
