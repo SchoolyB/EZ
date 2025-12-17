@@ -777,6 +777,11 @@ func evalVariableDeclaration(node *ast.VariableDeclaration, env *Environment) Ob
 			return val
 		}
 
+		// Copy-by-default for complex types (#661)
+		// When assigning from another variable, deep copy structs/arrays/maps
+		// UNLESS the value is a Reference (from ref() builtin)
+		val = copyByDefault(val)
+
 		// Validate type compatibility if a type is declared
 		if node.TypeName != "" {
 			// Check if declared type is an array type
@@ -967,6 +972,11 @@ func evalAssignment(node *ast.AssignmentStatement, env *Environment) Object {
 	val := Eval(node.Value, env)
 	if isError(val) {
 		return val
+	}
+
+	// Copy-by-default for complex types on simple assignment (#661)
+	if node.Operator == "=" {
+		val = copyByDefault(val)
 	}
 
 	switch target := node.Name.(type) {
@@ -2258,6 +2268,11 @@ func evalCallExpression(node *ast.CallExpression, env *Environment) Object {
 		return evalMemberCall(member, node.Arguments, env)
 	}
 
+	// Special handling for ref() builtin - needs access to environment (#661)
+	if label, ok := node.Function.(*ast.Label); ok && label.Value == "ref" {
+		return evalRefBuiltin(node.Arguments, env, node.Token.Line, node.Token.Column)
+	}
+
 	function := Eval(node.Function, env)
 	if isError(function) {
 		// Check if this is an "identifier not found" error and make it more specific
@@ -2289,6 +2304,30 @@ func evalCallExpression(node *ast.CallExpression, env *Environment) Object {
 	}
 
 	return applyFunction(function, args, node.Token.Line, node.Token.Column)
+}
+
+// evalRefBuiltin handles the ref() builtin which creates a reference to a variable (#661)
+// ref() allows explicit reference creation for shared state
+func evalRefBuiltin(args []ast.Expression, env *Environment, line, column int) Object {
+	if len(args) != 1 {
+		return newErrorWithLocation("E7001", line, column,
+			"ref() takes exactly 1 argument, got %d", len(args))
+	}
+
+	// The argument must be a variable (Label) to create a reference
+	if label, ok := args[0].(*ast.Label); ok {
+		// Verify the variable exists
+		if _, ok := env.Get(label.Value); !ok {
+			return newErrorWithLocation("E4001", label.Token.Line, label.Token.Column,
+				"undefined variable: '%s'", label.Value)
+		}
+		// Create a reference to the variable
+		return &Reference{Env: env, Name: label.Value}
+	}
+
+	// ref() requires a variable
+	return newErrorWithLocation("E7003", line, column,
+		"ref() argument must be a variable")
 }
 
 // evalArgsWithReferences evaluates arguments, creating References for mutable (&) params
@@ -3134,6 +3173,51 @@ func isTruthy(obj Object) bool {
 		return v.Value
 	default:
 		return true
+	}
+}
+
+// copyByDefault implements copy-by-default semantics for complex types (#661)
+// Returns a deep copy of structs, arrays, and maps.
+// References are returned as-is (that's the point of ref()).
+// Primitives are returned as-is (they're immutable anyway).
+func copyByDefault(val Object) Object {
+	switch v := val.(type) {
+	case *Reference:
+		// References are NOT copied - that's the point of ref()
+		return v
+	case *Struct:
+		// Deep copy struct
+		newFields := make(map[string]Object)
+		for key, fieldVal := range v.Fields {
+			newFields[key] = copyByDefault(fieldVal)
+		}
+		return &Struct{
+			TypeName: v.TypeName,
+			Fields:   newFields,
+			Mutable:  v.Mutable,
+		}
+	case *Array:
+		// Deep copy array
+		newElements := make([]Object, len(v.Elements))
+		for i, elem := range v.Elements {
+			newElements[i] = copyByDefault(elem)
+		}
+		return &Array{
+			Elements:    newElements,
+			Mutable:     v.Mutable,
+			ElementType: v.ElementType,
+		}
+	case *Map:
+		// Deep copy map
+		newMap := NewMap()
+		for _, pair := range v.Pairs {
+			newMap.Set(pair.Key, copyByDefault(pair.Value))
+		}
+		newMap.Mutable = v.Mutable
+		return newMap
+	default:
+		// Primitives and other types are returned as-is
+		return val
 	}
 }
 

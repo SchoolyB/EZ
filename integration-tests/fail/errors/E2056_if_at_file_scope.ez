@@ -1,0 +1,15 @@
+/*
+ * Error Test: E2056 - executable-at-file-scope
+ * Expected: "file scope" or "not allowed"
+ */
+
+import @std
+using std
+
+if true {
+    println("if at file scope")
+}
+
+do main() {
+    println("main")
+}

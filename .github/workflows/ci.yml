@@ -28,7 +28,7 @@ jobs:
           go-version: ${{ matrix.go-version }}
 
       - name: Build interpreter
-        run: go build -o ez.bin ./cmd/ez
+        run: go build -o ez ./cmd/ez
         if: runner.os != 'Windows'
 
       - name: Build interpreter (Windows)
@@ -37,7 +37,7 @@ jobs:
 
       - name: Run interpreter tests
         if: runner.os != 'Windows'
-        run: ./ez.bin run tests/comprehensive.ez
+        run: ./ez run tests/comprehensive.ez
 
       - name: Run interpreter tests (Windows)
         if: runner.os == 'Windows'
@@ -48,7 +48,7 @@ jobs:
         run: |
           for file in examples/*.ez; do
             echo "Validating $file..."
-            ./ez.bin build "$file" || exit 1
+            ./ez build "$file" || exit 1
           done
 
       - name: Validate example files (Windows)
@@ -65,14 +65,14 @@ jobs:
         if: runner.os == 'Linux'
         run: |
           echo "Testing REPL..."
-          echo -e "temp x int = 5\nx + 10\nexit" | timeout 5 ./ez.bin repl | grep -q "15"
+          echo -e "temp x int = 5\nx + 10\nexit" | timeout 5 ./ez repl | grep -q "15"
 
       - name: Test REPL basic functionality (macOS)
         if: runner.os == 'macOS'
         run: |
           echo "Testing REPL..."
           # macOS doesn't have timeout, use a subshell with background process
-          (echo -e "temp x int = 5\nx + 10\nexit" | ./ez.bin repl > /tmp/repl_output.txt) &
+          (echo -e "temp x int = 5\nx + 10\nexit" | ./ez repl > /tmp/repl_output.txt) &
           pid=$!
           sleep 5
           kill $pid 2>/dev/null || true

@@ -92,6 +92,7 @@ var (
 	E2053 = ErrorCode{"E2053", "type-definition-in-function", "type definitions must be at file level"}
 	E2054 = ErrorCode{"E2054", "when-strict-non-enum-case", "@strict when requires explicit enum member values in cases"}
 	E2055 = ErrorCode{"E2055", "strict-invalid-target", "@strict can only be applied to when statements"}
+	E2056 = ErrorCode{"E2056", "executable-at-file-scope", "executable statement not allowed at file scope"}
 )
 
 // =============================================================================
@@ -132,6 +133,8 @@ var (
 	E3032 = ErrorCode{"E3032", "enum-type-mismatch", "cannot compare values from different enum types"}
 	E3033 = ErrorCode{"E3033", "duplicate-enum-value", "enum contains duplicate values"}
 	E3034 = ErrorCode{"E3034", "any-type-not-allowed", "'any' type is reserved for internal use"}
+	E3035 = ErrorCode{"E3035", "not-all-paths-return", "not all code paths return a value"}
+	E3036 = ErrorCode{"E3036", "integer-out-of-range", "integer literal exceeds type range"}
 )
 
 // =============================================================================
@@ -352,6 +355,9 @@ var (
 	W2005 = ErrorCode{"W2005", "deprecated-feature", "using deprecated feature"}
 	W2006 = ErrorCode{"W2006", "byte-overflow-potential", "byte arithmetic may overflow"}
 	W2007 = ErrorCode{"W2007", "shadows-global", "variable shadows global variable or constant"}
+	W2008 = ErrorCode{"W2008", "integer-overflow-potential", "integer arithmetic may overflow"}
+	W2009 = ErrorCode{"W2009", "nil-dereference-potential", "accessing member on potentially nil value"}
+	W2010 = ErrorCode{"W2010", "chained-nil-access", "chained member access on nullable struct type"}
 
 	// Code Quality Warnings (W3xxx)
 	W3001 = ErrorCode{"W3001", "empty-block", "block statement is empty"}
