@@ -1,0 +1,95 @@
+/*
+ * references.ez - Copy-by-default and explicit references
+ *
+ * EZ uses copy-by-default for assignment:
+ * - Assigning structs, arrays, or maps creates independent copies
+ * - Use ref() when you need shared state
+ * - Use copy() for explicit copying when intent needs to be clear
+ */
+
+import @std
+using std
+
+const Point struct {
+    x int
+    y int
+}
+
+do main() {
+    println("=== References in EZ ===")
+    println("")
+
+    // ==================== COPY-BY-DEFAULT ====================
+    println("-- Copy-by-Default --")
+    println("Assignment creates independent copies (safe by default)")
+    println("")
+
+    // Structs are copied
+    temp p1 Point = Point{x: 10, y: 20}
+    temp p2 Point = p1      // p2 is a COPY of p1
+    p2.x = 999
+
+    println("p1 = Point{x: 10, y: 20}")
+    println("p2 = p1")
+    println("p2.x = 999")
+    println("")
+    println("Result: p1.x = ${p1.x}, p2.x = ${p2.x}")
+    println("p1 is unchanged because p2 is an independent copy")
+    println("")
+
+    // Arrays are copied too
+    temp arr1 [int] = {1, 2, 3}
+    temp arr2 [int] = arr1  // arr2 is a COPY of arr1
+    arr2[0] = 999
+
+    println("arr1 = {1, 2, 3}")
+    println("arr2 = arr1")
+    println("arr2[0] = 999")
+    println("")
+    println("Result: arr1[0] = ${arr1[0]}, arr2[0] = ${arr2[0]}")
+    println("arr1 is unchanged because arr2 is an independent copy")
+    println("")
+
+    // ==================== EXPLICIT REFERENCES ====================
+    println("-- Explicit References with ref() --")
+    println("Use ref() when you WANT shared state")
+    println("")
+
+    // Create a shared reference to a struct
+    temp p3 Point = Point{x: 100, y: 200}
+    temp p4 = ref(p3)       // p4 SHARES state with p3
+    p4.x = 500
+
+    println("p3 = Point{x: 100, y: 200}")
+    println("p4 = ref(p3)")
+    println("p4.x = 500")
+    println("")
+    println("Result: p3.x = ${p3.x}, p4.x = ${p4.x}")
+    println("Both changed because p4 is a REFERENCE to p3")
+    println("")
+
+    // ref() works on primitives too
+    temp counter int = 0
+    temp alias = ref(counter)
+    alias = 42
+
+    println("counter = 0")
+    println("alias = ref(counter)")
+    println("alias = 42")
+    println("")
+    println("Result: counter = ${counter}, alias = ${alias}")
+    println("Both are 42 because alias references counter")
+    println("")
+
+    // ==================== WHEN TO USE EACH ====================
+    println("-- When to Use Each --")
+    println("")
+    println("Use assignment (=) when you want:")
+    println("  - Independent copies that can be modified separately")
+    println("  - Safe default behavior without side effects")
+    println("")
+    println("Use ref() when you want:")
+    println("  - Multiple variables to share the same data")
+    println("  - Changes through one variable to affect all references")
+    println("  - Performance optimization (avoid copying large data)")
+}
