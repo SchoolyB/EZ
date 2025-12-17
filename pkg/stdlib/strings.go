@@ -5,6 +5,7 @@ package stdlib
 
 import (
 	"math/big"
+	"strconv"
 	"strings"
 	"unicode"
 
@@ -642,6 +643,66 @@ var StringsBuiltins = map[string]*object.Builtin{
 				return &object.Error{Code: "E7003", Message: "strings.compare() requires string arguments"}
 			}
 			return &object.Integer{Value: big.NewInt(int64(strings.Compare(a.Value, b.Value)))}
+		},
+	},
+
+	"strings.to_int": {
+		Fn: func(args ...object.Object) object.Object {
+			if len(args) != 1 {
+				return &object.Error{Code: "E7001", Message: "strings.to_int() takes exactly 1 argument"}
+			}
+			str, ok := args[0].(*object.String)
+			if !ok {
+				return &object.Error{Code: "E7003", Message: "strings.to_int() requires a string argument"}
+			}
+			// Trim whitespace before parsing
+			trimmed := strings.TrimSpace(str.Value)
+			val, ok := new(big.Int).SetString(trimmed, 10)
+			if !ok {
+				return &object.Error{Code: "E7014", Message: "strings.to_int() cannot parse \"" + str.Value + "\" as integer"}
+			}
+			return &object.Integer{Value: val}
+		},
+	},
+
+	"strings.to_float": {
+		Fn: func(args ...object.Object) object.Object {
+			if len(args) != 1 {
+				return &object.Error{Code: "E7001", Message: "strings.to_float() takes exactly 1 argument"}
+			}
+			str, ok := args[0].(*object.String)
+			if !ok {
+				return &object.Error{Code: "E7003", Message: "strings.to_float() requires a string argument"}
+			}
+			// Trim whitespace before parsing
+			trimmed := strings.TrimSpace(str.Value)
+			val, err := strconv.ParseFloat(trimmed, 64)
+			if err != nil {
+				return &object.Error{Code: "E7014", Message: "strings.to_float() cannot parse \"" + str.Value + "\" as float"}
+			}
+			return &object.Float{Value: val}
+		},
+	},
+
+	"strings.to_bool": {
+		Fn: func(args ...object.Object) object.Object {
+			if len(args) != 1 {
+				return &object.Error{Code: "E7001", Message: "strings.to_bool() takes exactly 1 argument"}
+			}
+			str, ok := args[0].(*object.String)
+			if !ok {
+				return &object.Error{Code: "E7003", Message: "strings.to_bool() requires a string argument"}
+			}
+			// Trim whitespace and lowercase before parsing
+			trimmed := strings.ToLower(strings.TrimSpace(str.Value))
+			switch trimmed {
+			case "true", "1", "yes", "on":
+				return object.TRUE
+			case "false", "0", "no", "off":
+				return object.FALSE
+			default:
+				return &object.Error{Code: "E7014", Message: "strings.to_bool() cannot parse \"" + str.Value + "\" as boolean"}
+			}
 		},
 	},
 }

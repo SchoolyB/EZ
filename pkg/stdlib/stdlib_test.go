@@ -2951,6 +2951,141 @@ func TestStringsPadRightUTF8(t *testing.T) {
 	}
 }
 
+func TestStringsToInt(t *testing.T) {
+	toIntFn := StringsBuiltins["strings.to_int"].Fn
+
+	// Test valid integer
+	result := toIntFn(&object.String{Value: "42"})
+	intVal, ok := result.(*object.Integer)
+	if !ok {
+		t.Fatalf("strings.to_int('42') returned %T, want Integer", result)
+	}
+	if intVal.Value.Cmp(big.NewInt(42)) != 0 {
+		t.Errorf("strings.to_int('42') = %s, want 42", intVal.Value.String())
+	}
+
+	// Test negative integer
+	result = toIntFn(&object.String{Value: "-123"})
+	intVal, ok = result.(*object.Integer)
+	if !ok {
+		t.Fatalf("strings.to_int('-123') returned %T, want Integer", result)
+	}
+	if intVal.Value.Cmp(big.NewInt(-123)) != 0 {
+		t.Errorf("strings.to_int('-123') = %s, want -123", intVal.Value.String())
+	}
+
+	// Test with whitespace
+	result = toIntFn(&object.String{Value: "  55  "})
+	intVal, ok = result.(*object.Integer)
+	if !ok {
+		t.Fatalf("strings.to_int('  55  ') returned %T, want Integer", result)
+	}
+	if intVal.Value.Cmp(big.NewInt(55)) != 0 {
+		t.Errorf("strings.to_int('  55  ') = %s, want 55", intVal.Value.String())
+	}
+
+	// Test invalid integer
+	result = toIntFn(&object.String{Value: "abc"})
+	if !isErrorObject(result) {
+		t.Error("strings.to_int('abc') should return an error")
+	}
+
+	// Test float string (should fail)
+	result = toIntFn(&object.String{Value: "3.14"})
+	if !isErrorObject(result) {
+		t.Error("strings.to_int('3.14') should return an error")
+	}
+}
+
+func TestStringsToFloat(t *testing.T) {
+	toFloatFn := StringsBuiltins["strings.to_float"].Fn
+
+	// Test valid float
+	result := toFloatFn(&object.String{Value: "3.14"})
+	floatVal, ok := result.(*object.Float)
+	if !ok {
+		t.Fatalf("strings.to_float('3.14') returned %T, want Float", result)
+	}
+	if floatVal.Value != 3.14 {
+		t.Errorf("strings.to_float('3.14') = %f, want 3.14", floatVal.Value)
+	}
+
+	// Test integer as float
+	result = toFloatFn(&object.String{Value: "42"})
+	floatVal, ok = result.(*object.Float)
+	if !ok {
+		t.Fatalf("strings.to_float('42') returned %T, want Float", result)
+	}
+	if floatVal.Value != 42.0 {
+		t.Errorf("strings.to_float('42') = %f, want 42.0", floatVal.Value)
+	}
+
+	// Test negative float
+	result = toFloatFn(&object.String{Value: "-2.5"})
+	floatVal, ok = result.(*object.Float)
+	if !ok {
+		t.Fatalf("strings.to_float('-2.5') returned %T, want Float", result)
+	}
+	if floatVal.Value != -2.5 {
+		t.Errorf("strings.to_float('-2.5') = %f, want -2.5", floatVal.Value)
+	}
+
+	// Test with whitespace
+	result = toFloatFn(&object.String{Value: "  1.5  "})
+	floatVal, ok = result.(*object.Float)
+	if !ok {
+		t.Fatalf("strings.to_float('  1.5  ') returned %T, want Float", result)
+	}
+	if floatVal.Value != 1.5 {
+		t.Errorf("strings.to_float('  1.5  ') = %f, want 1.5", floatVal.Value)
+	}
+
+	// Test invalid float
+	result = toFloatFn(&object.String{Value: "abc"})
+	if !isErrorObject(result) {
+		t.Error("strings.to_float('abc') should return an error")
+	}
+}
+
+func TestStringsToBool(t *testing.T) {
+	toBoolFn := StringsBuiltins["strings.to_bool"].Fn
+
+	// Test "true" variations
+	trueValues := []string{"true", "TRUE", "True", "1", "yes", "YES", "on", "ON"}
+	for _, v := range trueValues {
+		result := toBoolFn(&object.String{Value: v})
+		if result != object.TRUE {
+			t.Errorf("strings.to_bool('%s') = %v, want TRUE", v, result)
+		}
+	}
+
+	// Test "false" variations
+	falseValues := []string{"false", "FALSE", "False", "0", "no", "NO", "off", "OFF"}
+	for _, v := range falseValues {
+		result := toBoolFn(&object.String{Value: v})
+		if result != object.FALSE {
+			t.Errorf("strings.to_bool('%s') = %v, want FALSE", v, result)
+		}
+	}
+
+	// Test with whitespace
+	result := toBoolFn(&object.String{Value: "  true  "})
+	if result != object.TRUE {
+		t.Errorf("strings.to_bool('  true  ') = %v, want TRUE", result)
+	}
+
+	// Test invalid boolean
+	result = toBoolFn(&object.String{Value: "abc"})
+	if !isErrorObject(result) {
+		t.Error("strings.to_bool('abc') should return an error")
+	}
+
+	result = toBoolFn(&object.String{Value: "2"})
+	if !isErrorObject(result) {
+		t.Error("strings.to_bool('2') should return an error")
+	}
+}
+
 // Test for Bug #394 fix: math.abs() MinInt64 works with big.Int
 func TestMathAbsMinInt64(t *testing.T) {
 	absFn := MathBuiltins["math.abs"].Fn
