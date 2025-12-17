@@ -3788,7 +3788,23 @@ func (tc *TypeChecker) inferExpressionType(expr ast.Expression) (string, bool) {
 
 	case *ast.Label:
 		// Variable lookup
-		return tc.lookupVariable(e.Value)
+		if varType, ok := tc.lookupVariable(e.Value); ok {
+			return varType, true
+		}
+		// Check module variables accessible via 'using' (#677)
+		for moduleName := range tc.fileUsingModules {
+			if varType, ok := tc.GetModuleVariable(moduleName, e.Value); ok {
+				return varType, true
+			}
+		}
+		if tc.currentScope != nil {
+			for moduleName := range tc.currentScope.usingModules {
+				if varType, ok := tc.GetModuleVariable(moduleName, e.Value); ok {
+					return varType, true
+				}
+			}
+		}
+		return "", false
 
 	case *ast.ArrayValue:
 		return tc.inferArrayType(e)
