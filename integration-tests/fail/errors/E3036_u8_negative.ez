@@ -1,0 +1,8 @@
+/*
+ * Error Test: E3036 - integer-out-of-range (negative for unsigned)
+ * Expected: "out of range" or "u8"
+ */
+
+do main() {
+    temp x u8 = -1  // u8 cannot be negative
+}
