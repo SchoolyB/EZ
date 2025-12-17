@@ -1611,14 +1611,18 @@ func (tc *TypeChecker) checkMultiReturnDeclaration(decl *ast.VariableDeclaration
 		return
 	}
 
-	// Get the function name
+	// Get the function name and module name (if applicable)
 	var funcName string
+	var moduleName string
 	switch fn := callExpr.Function.(type) {
 	case *ast.Label:
 		funcName = fn.Value
 	case *ast.MemberExpression:
-		// Module.function call - get the function part
+		// Module.function call - get both module and function names
 		funcName = fn.Member.Value
+		if obj, ok := fn.Object.(*ast.Label); ok {
+			moduleName = obj.Value
+		}
 	default:
 		// Still register variables with unknown types
 		for _, name := range decl.Names {
@@ -1632,6 +1636,24 @@ func (tc *TypeChecker) checkMultiReturnDeclaration(decl *ast.VariableDeclaration
 	// Look up the function signature
 	funcSig, exists := tc.functions[funcName]
 	if !exists {
+		// Check if it's a module function with multiple return values
+		if moduleName != "" {
+			moduleReturnTypes := tc.getModuleMultiReturnTypes(moduleName, funcName)
+			if moduleReturnTypes != nil {
+				// Register variables with the correct module function return types
+				for i, name := range decl.Names {
+					if name != nil {
+						inferredType := ""
+						if i < len(moduleReturnTypes) {
+							inferredType = moduleReturnTypes[i]
+						}
+						tc.defineVariableWithMutability(name.Value, inferredType, decl.Mutable)
+					}
+				}
+				return
+			}
+		}
+
 		// Check if it's a builtin function with multiple return values
 		builtinReturnTypes := tc.getBuiltinMultiReturnTypes(funcName)
 		if builtinReturnTypes != nil {
@@ -4015,6 +4037,94 @@ func (tc *TypeChecker) getBuiltinMultiReturnTypes(name string) []string {
 	default:
 		return nil
 	}
+}
+
+// getModuleMultiReturnTypes returns the return types for stdlib module functions that return multiple values
+// Returns nil if the function is not a known multi-return module function
+func (tc *TypeChecker) getModuleMultiReturnTypes(moduleName, funcName string) []string {
+	switch moduleName {
+	case "io":
+		switch funcName {
+		case "read_file", "read_lines", "read_bytes":
+			// io.read_file returns (string, error)
+			// io.read_lines returns ([string], error)
+			// io.read_bytes returns ([byte], error)
+			switch funcName {
+			case "read_file":
+				return []string{"string", "error"}
+			case "read_lines":
+				return []string{"[string]", "error"}
+			case "read_bytes":
+				return []string{"[byte]", "error"}
+			}
+		case "write_file", "append_file", "write_bytes":
+			return []string{"bool", "error"}
+		case "create_dir", "remove", "remove_dir", "rename", "copy_file":
+			return []string{"bool", "error"}
+		case "exists", "is_dir", "is_file":
+			return []string{"bool", "error"}
+		case "file_size":
+			return []string{"int", "error"}
+		case "list_dir":
+			return []string{"[string]", "error"}
+		case "read_stdin":
+			return []string{"string", "error"}
+		case "open", "create":
+			return []string{"FileHandle", "error"}
+		case "fread", "fread_line", "fread_all":
+			return []string{"string", "error"}
+		case "fread_bytes":
+			return []string{"[byte]", "error"}
+		case "fwrite", "fwrite_line", "fwrite_bytes":
+			return []string{"int", "error"}
+		case "fseek", "ftell":
+			return []string{"int", "error"}
+		case "fclose", "fflush", "ftruncate":
+			return []string{"bool", "error"}
+		case "feof":
+			return []string{"bool", "error"}
+		case "temp_file", "temp_dir":
+			return []string{"string", "error"}
+		case "abs_path", "rel_path":
+			return []string{"string", "error"}
+		case "file_info":
+			return []string{"FileInfo", "error"}
+		}
+	case "json":
+		switch funcName {
+		case "parse", "parse_file":
+			return []string{"any", "error"}
+		case "stringify":
+			return []string{"string", "error"}
+		}
+	case "os":
+		switch funcName {
+		case "exec", "exec_silent":
+			return []string{"string", "error"}
+		case "get_env":
+			return []string{"string", "error"}
+		case "set_env", "unset_env":
+			return []string{"bool", "error"}
+		}
+	case "bytes":
+		switch funcName {
+		case "to_string":
+			return []string{"string", "error"}
+		case "from_string":
+			return []string{"[byte]", "error"}
+		case "read_u8", "read_i8":
+			return []string{"int", "error"}
+		case "read_u16", "read_u16_be", "read_i16", "read_i16_be":
+			return []string{"int", "error"}
+		case "read_u32", "read_u32_be", "read_i32", "read_i32_be":
+			return []string{"int", "error"}
+		case "read_u64", "read_u64_be", "read_i64", "read_i64_be":
+			return []string{"int", "error"}
+		case "read_f32", "read_f32_be", "read_f64", "read_f64_be":
+			return []string{"float", "error"}
+		}
+	}
+	return nil
 }
 
 // inferBuiltinCallType infers the return type of built-in functions
