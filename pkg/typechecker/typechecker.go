@@ -2097,6 +2097,16 @@ func (tc *TypeChecker) checkExpression(expr ast.Expression) {
 		tc.checkExpression(e.Left)
 		tc.checkPostfixExpression(e)
 
+	case *ast.InterpolatedString:
+		// Check all embedded expressions in the interpolated string (#684)
+		for _, part := range e.Parts {
+			// Skip string literal parts - only check embedded expressions
+			if _, isString := part.(*ast.StringValue); !isString {
+				tc.checkValueExpression(part) // Catch type/function used as interpolation value
+				tc.checkExpression(part)
+			}
+		}
+
 	case *ast.Label:
 		// Check if the identifier is known (variable, function, type, enum, etc.)
 		if !tc.isKnownIdentifier(e.Value) {

@@ -1,0 +1,12 @@
+/*
+ * Error Test: E3002 - type mismatch in string interpolation expression
+ * Expected: "invalid operands"
+ */
+
+import @std
+using std
+
+do main() {
+    temp s = "${1 + true}"  // Cannot add int and bool
+    println(s)
+}
