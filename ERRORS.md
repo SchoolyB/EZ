@@ -89,6 +89,9 @@ Syntax and parsing errors
 | E2051 | suppress-invalid-target | @suppress can only be applied to function declarations |
 | E2052 | suppress-invalid-code | warning code cannot be suppressed |
 | E2053 | type-definition-in-function | type definitions must be at file level |
+| E2054 | when-strict-non-enum-case | @strict when requires explicit enum member values in cases |
+| E2055 | strict-invalid-target | @strict can only be applied to when statements |
+| E2056 | executable-at-file-scope | executable statement not allowed at file scope |
 
 ## Type Errors (E3xxx)
 
@@ -130,6 +133,8 @@ Type system errors
 | E3032 | enum-type-mismatch | cannot compare values from different enum types |
 | E3033 | duplicate-enum-value | enum contains duplicate values |
 | E3034 | any-type-not-allowed | 'any' type is reserved for internal use |
+| E3035 | not-all-paths-return | not all code paths return a value |
+| E3036 | integer-out-of-range | integer literal exceeds type range |
 
 ## Reference Errors (E4xxx)
 
@@ -301,6 +306,7 @@ Map-specific errors
 | E12003 | map-key-not-found | key not found in map |
 | E12004 | map-invalid-pair | map entry must be a [key, value] pair |
 | E12005 | map-value-not-hashable | map value is not hashable and cannot become a key |
+| E12006 | map-duplicate-key | map literal contains duplicate key |
 
 ## JSON Errors (E13xxx)
 
@@ -336,6 +342,9 @@ Possible bugs
 | W2005 | deprecated-feature | using deprecated feature |
 | W2006 | byte-overflow-potential | byte arithmetic may overflow |
 | W2007 | shadows-global | variable shadows global variable or constant |
+| W2008 | integer-overflow-potential | integer arithmetic may overflow |
+| W2009 | nil-dereference-potential | accessing member on potentially nil value |
+| W2010 | chained-nil-access | chained member access on nullable struct type |
 
 ## Code Quality Warnings (W3xxx)
 
@@ -359,4 +368,4 @@ Module-related warnings
 
 ## Summary
 
-**Total:** 230 error/warning codes
+**Total:** 239 error/warning codes

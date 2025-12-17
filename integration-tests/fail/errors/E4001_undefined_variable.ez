@@ -1,7 +1,10 @@
 /*
  * Error Test: E4001 - undefined-variable
- * Expected: "identifier not found"
+ * Expected: "undefined variable"
  */
+
+import @std
+using std
 
 do main() {
     println(undefined_var)  // Variable doesn't exist

@@ -1,0 +1,12 @@
+/*
+ * Error Test: E3036 - computed value underflow for unsigned type
+ * Expected: "out of range"
+ */
+
+import @std
+using std
+
+do main() {
+    temp x u8 = 10 - 20  // -10 is below u8 min of 0
+    println(x)
+}
