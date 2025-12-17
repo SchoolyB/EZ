@@ -3585,6 +3585,40 @@ func (tc *TypeChecker) isKnownIdentifier(name string) bool {
 			}
 		}
 	}
+	// Check if it's a function from a user module accessible via 'using' (#671)
+	for moduleName := range tc.fileUsingModules {
+		if funcs, ok := tc.moduleFunctions[moduleName]; ok {
+			if _, exists := funcs[name]; exists {
+				return true
+			}
+		}
+	}
+	if tc.currentScope != nil {
+		for moduleName := range tc.currentScope.usingModules {
+			if funcs, ok := tc.moduleFunctions[moduleName]; ok {
+				if _, exists := funcs[name]; exists {
+					return true
+				}
+			}
+		}
+	}
+	// Check if it's a type from a user module accessible via 'using' (#671)
+	for moduleName := range tc.fileUsingModules {
+		if types, ok := tc.moduleTypes[moduleName]; ok {
+			if _, exists := types[name]; exists {
+				return true
+			}
+		}
+	}
+	if tc.currentScope != nil {
+		for moduleName := range tc.currentScope.usingModules {
+			if types, ok := tc.moduleTypes[moduleName]; ok {
+				if _, exists := types[name]; exists {
+					return true
+				}
+			}
+		}
+	}
 	return false
 }
 
@@ -4494,7 +4528,52 @@ func (tc *TypeChecker) checkDirectStdlibCall(funcName string, call *ast.CallExpr
 		}
 	}
 
+	// Check user-defined module functions accessible via 'using' (#671)
+	for moduleName := range tc.fileUsingModules {
+		if funcs, ok := tc.moduleFunctions[moduleName]; ok {
+			if sig, exists := funcs[funcName]; exists {
+				// Validate argument count
+				tc.validateCallArguments(funcName, call, sig, line, column)
+				return true
+			}
+		}
+	}
+	if tc.currentScope != nil {
+		for moduleName := range tc.currentScope.usingModules {
+			if funcs, ok := tc.moduleFunctions[moduleName]; ok {
+				if sig, exists := funcs[funcName]; exists {
+					tc.validateCallArguments(funcName, call, sig, line, column)
+					return true
+				}
+			}
+		}
+	}
+
 	return false
+}
+
+// validateCallArguments validates argument count for a function call (#671)
+func (tc *TypeChecker) validateCallArguments(funcName string, call *ast.CallExpression, sig *FunctionSignature, line, column int) {
+	// Calculate minimum required arguments (parameters without defaults)
+	minRequired := 0
+	for _, param := range sig.Parameters {
+		if !param.HasDefault {
+			minRequired++
+		}
+	}
+
+	// Check argument count
+	if len(call.Arguments) < minRequired || len(call.Arguments) > len(sig.Parameters) {
+		var msg string
+		if minRequired == len(sig.Parameters) {
+			msg = fmt.Sprintf("wrong number of arguments to '%s': expected %d, got %d",
+				funcName, len(sig.Parameters), len(call.Arguments))
+		} else {
+			msg = fmt.Sprintf("wrong number of arguments to '%s': expected %d to %d, got %d",
+				funcName, minRequired, len(sig.Parameters), len(call.Arguments))
+		}
+		tc.addError(errors.E5008, msg, line, column)
+	}
 }
 
 // isMathFunction checks if a function name exists in the math module
