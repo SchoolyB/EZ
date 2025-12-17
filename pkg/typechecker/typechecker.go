@@ -1921,6 +1921,20 @@ func (tc *TypeChecker) checkMemberExpression(member *ast.MemberExpression) {
 		)
 	}
 
+	// Warn about chained member access on nullable struct types (#689)
+	// e.g., p.pos.x where p.pos is a struct that could be nil
+	if _, isChained := member.Object.(*ast.MemberExpression); isChained {
+		if tc.isNullableType(objType) && objType != "error" && objType != "Error" {
+			line, column := tc.getExpressionPosition(member.Object)
+			tc.addWarning(
+				errors.W2010,
+				fmt.Sprintf("accessing member '%s' on struct type '%s' which may be nil - consider checking for nil first", member.Member.Value, objType),
+				line,
+				column,
+			)
+		}
+	}
+
 	// Check if it's a struct type (including module types for qualified names like "lib.Hero")
 	structType, exists := tc.getStructTypeIncludingModules(objType)
 	if !exists {
