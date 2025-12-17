@@ -1500,6 +1500,11 @@ func (tc *TypeChecker) checkVariableDeclaration(decl *ast.VariableDeclaration) {
 				}
 			}
 
+			// Check sized integer type ranges (#666)
+			if tc.isSizedIntegerType(declaredType) {
+				tc.checkIntegerLiteralRange(decl.Value, declaredType, decl.Name.Token.Line, decl.Name.Token.Column)
+			}
+
 			// Check byte array element values
 			if declaredType == "[byte]" || strings.HasPrefix(declaredType, "[byte,") {
 				if arrLit, ok := decl.Value.(*ast.ArrayValue); ok {
@@ -3142,6 +3147,94 @@ func (tc *TypeChecker) isArrayType(typeName string) bool {
 // isMapType checks if a type string represents a map type
 func (tc *TypeChecker) isMapType(typeName string) bool {
 	return strings.HasPrefix(typeName, "map[") && strings.HasSuffix(typeName, "]")
+}
+
+// isSizedIntegerType checks if a type is a sized integer type (#666)
+func (tc *TypeChecker) isSizedIntegerType(typeName string) bool {
+	switch typeName {
+	case "i8", "i16", "i32", "i64", "u8", "u16", "u32", "u64":
+		return true
+	}
+	return false
+}
+
+// getIntegerTypeRange returns the min and max values for a sized integer type (#666)
+func (tc *TypeChecker) getIntegerTypeRange(typeName string) (min, max *big.Int) {
+	switch typeName {
+	case "i8":
+		return big.NewInt(-128), big.NewInt(127)
+	case "i16":
+		return big.NewInt(-32768), big.NewInt(32767)
+	case "i32":
+		return big.NewInt(-2147483648), big.NewInt(2147483647)
+	case "i64":
+		min = new(big.Int)
+		max = new(big.Int)
+		min.SetString("-9223372036854775808", 10)
+		max.SetString("9223372036854775807", 10)
+		return min, max
+	case "u8":
+		return big.NewInt(0), big.NewInt(255)
+	case "u16":
+		return big.NewInt(0), big.NewInt(65535)
+	case "u32":
+		return big.NewInt(0), big.NewInt(4294967295)
+	case "u64":
+		min = big.NewInt(0)
+		max = new(big.Int)
+		max.SetString("18446744073709551615", 10)
+		return min, max
+	}
+	return nil, nil
+}
+
+// checkIntegerLiteralRange validates that an integer literal fits within the target type's range (#666)
+func (tc *TypeChecker) checkIntegerLiteralRange(expr ast.Expression, targetType string, line, column int) {
+	min, max := tc.getIntegerTypeRange(targetType)
+	if min == nil || max == nil {
+		return
+	}
+
+	var value *big.Int
+	isNegative := false
+
+	// Check for direct integer literal
+	if intLit, ok := expr.(*ast.IntegerValue); ok {
+		value = intLit.Value
+	}
+
+	// Check for negative literal (prefix expression with -)
+	if prefixExpr, ok := expr.(*ast.PrefixExpression); ok {
+		if prefixExpr.Operator == "-" {
+			if intLit, ok := prefixExpr.Right.(*ast.IntegerValue); ok {
+				value = new(big.Int).Neg(intLit.Value)
+				isNegative = true
+			}
+		}
+	}
+
+	if value == nil {
+		return // Not a literal, skip range check
+	}
+
+	// Check if value is within range
+	if value.Cmp(min) < 0 || value.Cmp(max) > 0 {
+		valueStr := value.String()
+		if isNegative && value.Sign() < 0 {
+			// Value is already negative, just use it
+		}
+		tc.addError(
+			errors.E3036,
+			fmt.Sprintf("value %s out of range for type %s (valid range: %s to %s)", valueStr, targetType, min.String(), max.String()),
+			line,
+			column,
+		)
+	}
+
+	// For unsigned types, also check for negative values explicitly
+	if strings.HasPrefix(targetType, "u") && value.Sign() < 0 {
+		// Already caught by the range check above, but being explicit
+	}
 }
 
 // containsAnyType checks if a type string is or contains the 'any' type
