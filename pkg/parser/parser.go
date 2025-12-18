@@ -244,6 +244,7 @@ func New(l *Lexer) *Parser {
 	p.setPrefix(LBRACE, p.parseArrayValue)
 	p.setPrefix(NEW, p.parseNewExpression)
 	p.setPrefix(RANGE, p.parseRangeExpression)
+	p.setPrefix(CAST, p.parseCastExpression)
 
 	p.infixParseFns = make(map[TokenType]infixParseFn)
 	p.setInfix(PLUS, p.parseInfixExpression)
@@ -301,6 +302,7 @@ func NewWithSource(l *Lexer, source, filename string) *Parser {
 	p.setPrefix(LBRACE, p.parseArrayValue)
 	p.setPrefix(NEW, p.parseNewExpression)
 	p.setPrefix(RANGE, p.parseRangeExpression)
+	p.setPrefix(CAST, p.parseCastExpression)
 
 	p.infixParseFns = make(map[TokenType]infixParseFn)
 	p.setInfix(PLUS, p.parseInfixExpression)
@@ -2716,6 +2718,7 @@ func (p *Parser) registerParseFunctions() {
 	p.setPrefix(LBRACE, p.parseArrayValue)
 	p.setPrefix(NEW, p.parseNewExpression)
 	p.setPrefix(RANGE, p.parseRangeExpression)
+	p.setPrefix(CAST, p.parseCastExpression)
 
 	// Infix parse functions
 	p.setInfix(PLUS, p.parseInfixExpression)
@@ -3139,6 +3142,64 @@ func (p *Parser) parseRangeExpression() Expression {
 	exp.Start = firstArg
 	exp.End = secondArg
 	exp.Step = thirdArg
+	return exp
+}
+
+// parseCastExpression parses cast(value, type) or cast(value, [type])
+func (p *Parser) parseCastExpression() Expression {
+	exp := &CastExpression{Token: p.currentToken}
+
+	if !p.expectPeek(LPAREN) {
+		return nil
+	}
+
+	// Parse the value expression
+	p.nextToken()
+	exp.Value = p.parseExpression(LOWEST)
+
+	if !p.expectPeek(COMMA) {
+		return nil
+	}
+
+	p.nextToken()
+
+	// Parse the target type - can be either:
+	// - Simple type: int, u8, byte, etc.
+	// - Array type: [int], [u8], [byte], etc.
+	if p.currentTokenMatches(LBRACKET) {
+		// Array type like [u8]
+		exp.IsArray = true
+		p.nextToken() // consume [
+
+		if !p.currentTokenMatches(IDENT) {
+			msg := fmt.Sprintf("expected type name in array type, got %s", p.currentToken.Type)
+			p.errors = append(p.errors, msg)
+			p.addEZError(errors.E2024, msg, p.currentToken)
+			return nil
+		}
+
+		exp.ElementType = p.currentToken.Literal
+		exp.TargetType = "[" + exp.ElementType + "]"
+
+		if !p.expectPeek(RBRACKET) {
+			return nil
+		}
+	} else if p.currentTokenMatches(IDENT) {
+		// Simple type like u8
+		exp.IsArray = false
+		exp.TargetType = p.currentToken.Literal
+		exp.ElementType = ""
+	} else {
+		msg := fmt.Sprintf("expected type name or array type, got %s", p.currentToken.Type)
+		p.errors = append(p.errors, msg)
+		p.addEZError(errors.E2024, msg, p.currentToken)
+		return nil
+	}
+
+	if !p.expectPeek(RPAREN) {
+		return nil
+	}
+
 	return exp
 }
 

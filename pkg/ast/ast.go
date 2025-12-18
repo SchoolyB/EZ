@@ -256,6 +256,18 @@ type RangeExpression struct {
 func (r *RangeExpression) expressionNode()      {}
 func (r *RangeExpression) TokenLiteral() string { return r.Token.Literal }
 
+// CastExpression represents cast(value, type) for type conversion
+type CastExpression struct {
+	Token       Token      // The 'cast' token
+	Value       Expression // The expression to convert
+	TargetType  string     // The target type (e.g., "u8", "[u8]", "int")
+	IsArray     bool       // True if target is an array type like [u8]
+	ElementType string     // For arrays, the element type (e.g., "u8" from "[u8]")
+}
+
+func (c *CastExpression) expressionNode()      {}
+func (c *CastExpression) TokenLiteral() string { return c.Token.Literal }
+
 // ============================================================================
 // Statements
 // ============================================================================

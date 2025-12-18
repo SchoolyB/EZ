@@ -4984,3 +4984,222 @@ func TestCompoundAssignFloat(t *testing.T) {
 	evaluated := testEval(input)
 	testFloatObject(t, evaluated, 13.0)
 }
+
+// ============================================================================
+// Cast Expression Tests
+// ============================================================================
+
+func TestCastIntToU8(t *testing.T) {
+	input := `cast(42, u8)`
+	evaluated := testEval(input)
+	result, ok := evaluated.(*Integer)
+	if !ok {
+		t.Fatalf("object is not Integer. got=%T (%+v)", evaluated, evaluated)
+	}
+	if result.Value.Int64() != 42 {
+		t.Errorf("wrong value. got=%d, want=42", result.Value.Int64())
+	}
+	if result.DeclaredType != "u8" {
+		t.Errorf("wrong declared type. got=%s, want=u8", result.DeclaredType)
+	}
+}
+
+func TestCastIntToI16(t *testing.T) {
+	input := `cast(-100, i16)`
+	evaluated := testEval(input)
+	result, ok := evaluated.(*Integer)
+	if !ok {
+		t.Fatalf("object is not Integer. got=%T (%+v)", evaluated, evaluated)
+	}
+	if result.Value.Int64() != -100 {
+		t.Errorf("wrong value. got=%d, want=-100", result.Value.Int64())
+	}
+	if result.DeclaredType != "i16" {
+		t.Errorf("wrong declared type. got=%s, want=i16", result.DeclaredType)
+	}
+}
+
+func TestCastIntToFloat(t *testing.T) {
+	input := `cast(42, float)`
+	evaluated := testEval(input)
+	testFloatObject(t, evaluated, 42.0)
+}
+
+func TestCastFloatToInt(t *testing.T) {
+	input := `cast(3.7, int)`
+	evaluated := testEval(input)
+	testIntegerObject(t, evaluated, 3)
+}
+
+func TestCastIntToString(t *testing.T) {
+	input := `cast(123, string)`
+	evaluated := testEval(input)
+	testStringObject(t, evaluated, "123")
+}
+
+func TestCastIntToChar(t *testing.T) {
+	input := `cast(65, char)`
+	evaluated := testEval(input)
+	result, ok := evaluated.(*Char)
+	if !ok {
+		t.Fatalf("object is not Char. got=%T (%+v)", evaluated, evaluated)
+	}
+	if result.Value != 'A' {
+		t.Errorf("wrong value. got=%c, want=A", result.Value)
+	}
+}
+
+func TestCastIntToByte(t *testing.T) {
+	input := `cast(200, byte)`
+	evaluated := testEval(input)
+	result, ok := evaluated.(*Byte)
+	if !ok {
+		t.Fatalf("object is not Byte. got=%T (%+v)", evaluated, evaluated)
+	}
+	if result.Value != 200 {
+		t.Errorf("wrong value. got=%d, want=200", result.Value)
+	}
+}
+
+func TestCastArrayIntToU8(t *testing.T) {
+	input := `
+	temp arr [int] = {1, 2, 3}
+	temp result [u8] = cast(arr, [u8])
+	result[0]
+	`
+	evaluated := testEval(input)
+	result, ok := evaluated.(*Integer)
+	if !ok {
+		t.Fatalf("object is not Integer. got=%T (%+v)", evaluated, evaluated)
+	}
+	if result.Value.Int64() != 1 {
+		t.Errorf("wrong value. got=%d, want=1", result.Value.Int64())
+	}
+	if result.DeclaredType != "u8" {
+		t.Errorf("wrong declared type. got=%s, want=u8", result.DeclaredType)
+	}
+}
+
+func TestCastArrayByteToU8(t *testing.T) {
+	input := `
+	temp arr [byte] = {72, 101, 108}
+	temp result [u8] = cast(arr, [u8])
+	result[1]
+	`
+	evaluated := testEval(input)
+	result, ok := evaluated.(*Integer)
+	if !ok {
+		t.Fatalf("object is not Integer. got=%T (%+v)", evaluated, evaluated)
+	}
+	if result.Value.Int64() != 101 {
+		t.Errorf("wrong value. got=%d, want=101", result.Value.Int64())
+	}
+}
+
+func TestCastArrayIntToString(t *testing.T) {
+	input := `
+	temp arr [int] = {1, 2, 3}
+	temp result [string] = cast(arr, [string])
+	result[0]
+	`
+	evaluated := testEval(input)
+	testStringObject(t, evaluated, "1")
+}
+
+func TestCastArrayLength(t *testing.T) {
+	input := `
+	temp arr [int] = {10, 20, 30, 40, 50}
+	temp result [u8] = cast(arr, [u8])
+	len(result)
+	`
+	evaluated := testEval(input)
+	testIntegerObject(t, evaluated, 5)
+}
+
+func TestCastU8OutOfRange(t *testing.T) {
+	input := `cast(256, u8)`
+	evaluated := testEval(input)
+	errObj, ok := evaluated.(*Error)
+	if !ok {
+		t.Fatalf("expected Error. got=%T (%+v)", evaluated, evaluated)
+	}
+	if !strings.Contains(errObj.Message, "out of u8 range") {
+		t.Errorf("expected out of range error, got: %s", errObj.Message)
+	}
+}
+
+func TestCastI8OutOfRange(t *testing.T) {
+	input := `cast(200, i8)`
+	evaluated := testEval(input)
+	errObj, ok := evaluated.(*Error)
+	if !ok {
+		t.Fatalf("expected Error. got=%T (%+v)", evaluated, evaluated)
+	}
+	if !strings.Contains(errObj.Message, "out of i8 range") {
+		t.Errorf("expected out of range error, got: %s", errObj.Message)
+	}
+}
+
+func TestCastArrayFailsAtIndex(t *testing.T) {
+	input := `
+	temp arr [int] = {1, 2, 300}
+	cast(arr, [u8])
+	`
+	evaluated := testEval(input)
+	errObj, ok := evaluated.(*Error)
+	if !ok {
+		t.Fatalf("expected Error. got=%T (%+v)", evaluated, evaluated)
+	}
+	if !strings.Contains(errObj.Message, "index 2") {
+		t.Errorf("expected error at index 2, got: %s", errObj.Message)
+	}
+}
+
+func TestCastNonArrayToArrayType(t *testing.T) {
+	input := `cast(42, [u8])`
+	evaluated := testEval(input)
+	errObj, ok := evaluated.(*Error)
+	if !ok {
+		t.Fatalf("expected Error. got=%T (%+v)", evaluated, evaluated)
+	}
+	if !strings.Contains(errObj.Message, "requires array value") {
+		t.Errorf("expected array required error, got: %s", errObj.Message)
+	}
+}
+
+func TestCastWithExpression(t *testing.T) {
+	input := `
+	temp x int = 10
+	temp y int = 5
+	cast(x + y, u8)
+	`
+	evaluated := testEval(input)
+	result, ok := evaluated.(*Integer)
+	if !ok {
+		t.Fatalf("object is not Integer. got=%T (%+v)", evaluated, evaluated)
+	}
+	if result.Value.Int64() != 15 {
+		t.Errorf("wrong value. got=%d, want=15", result.Value.Int64())
+	}
+	if result.DeclaredType != "u8" {
+		t.Errorf("wrong declared type. got=%s, want=u8", result.DeclaredType)
+	}
+}
+
+func TestCastInFunction(t *testing.T) {
+	input := `
+	do convert(x int) -> u8 {
+		return cast(x, u8)
+	}
+	temp result u8 = convert(42)
+	result
+	`
+	evaluated := testEval(input)
+	result, ok := evaluated.(*Integer)
+	if !ok {
+		t.Fatalf("object is not Integer. got=%T (%+v)", evaluated, evaluated)
+	}
+	if result.Value.Int64() != 42 {
+		t.Errorf("wrong value. got=%d, want=42", result.Value.Int64())
+	}
+}
