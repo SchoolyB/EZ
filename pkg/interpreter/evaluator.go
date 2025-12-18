@@ -2688,6 +2688,17 @@ func objectTypeToEZ(obj Object) string {
 		return "nil"
 	case *Function:
 		return "function"
+	case *ReturnValue:
+		// Handle return values - format as tuple if multiple values
+		if len(v.Values) == 1 {
+			return objectTypeToEZ(v.Values[0])
+		}
+		// Multiple return values - format as tuple
+		types := make([]string, len(v.Values))
+		for i, val := range v.Values {
+			types[i] = objectTypeToEZ(val)
+		}
+		return "(" + strings.Join(types, ", ") + ")"
 	default:
 		return string(obj.Type())
 	}
