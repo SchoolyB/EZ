@@ -1,0 +1,13 @@
+module main
+
+// Test: Undefined function in imported module
+// Expected: E4002 - undefined function 'lib.ad'
+
+import & use @std
+import lib"./lib"
+
+do main() {
+    // ERROR: 'ad' is not defined in lib (should be 'add')
+    temp sum = lib.ad(10, 20)
+    println(sum)
+}
