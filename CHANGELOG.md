@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.26.0](https://github.com/SchoolyB/EZ/compare/v0.25.0...v0.26.0) (2025-12-18)
+
+
+### Features
+
+* **parser:** support tuple unpacking in assignment statements ([#699](https://github.com/SchoolyB/EZ/issues/699)) ([#704](https://github.com/SchoolyB/EZ/issues/704)) ([1c01533](https://github.com/SchoolyB/EZ/commit/1c015336253968ce0d1655580103116de6aff52c))
+
 ## [0.25.0](https://github.com/SchoolyB/EZ/compare/v0.24.0...v0.25.0) (2025-12-18)
 
 
