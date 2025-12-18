@@ -846,11 +846,26 @@ func runFile(filename string) {
 			continue // Module load errors will be caught at runtime
 		}
 
+		// For multi-file modules, use two-pass type checking (#722)
+		// Pass 1: Parse all files and extract declarations
+		// Pass 2: Full type check with complete module context
+		type parsedFile struct {
+			path    string
+			source  string
+			program *ast.Program
+		}
+		var parsedFiles []parsedFile
+
+		// Module-internal declarations (shared across files in the same module)
+		moduleInternalTypes := make(map[string]*typechecker.Type)
+		moduleInternalFuncs := make(map[string]*typechecker.FunctionSignature)
+		moduleInternalVars := make(map[string]string)
+
+		// Pass 1: Parse all files and extract declarations
 		for _, filePath := range mod.Files {
 			if checked[filePath] {
 				continue
 			}
-			checked[filePath] = true
 
 			fileData, err := os.ReadFile(filePath)
 			if err != nil {
@@ -866,7 +881,46 @@ func runFile(filename string) {
 				continue
 			}
 
-			fileTc := typechecker.NewTypeChecker(fileSource, filePath)
+			parsedFiles = append(parsedFiles, parsedFile{filePath, fileSource, fileProgram})
+
+			// Lightweight declaration extraction for multi-file modules
+			if len(mod.Files) > 1 {
+				declTc := typechecker.NewTypeChecker(fileSource, filePath)
+				declTc.SetSkipMainCheck(true)
+
+				// Register external module types/functions for type resolution
+				for modName, types := range moduleTypes {
+					for typeName, t := range types {
+						declTc.RegisterModuleType(modName, typeName, t)
+					}
+				}
+
+				declTc.RegisterDeclarations(fileProgram)
+
+				// Collect types, functions, and variables from this file
+				for typeName, t := range declTc.GetTypes() {
+					if t.Kind == typechecker.StructType || t.Kind == typechecker.EnumType {
+						moduleInternalTypes[typeName] = t
+					}
+				}
+				for funcName, sig := range declTc.GetFunctions() {
+					moduleInternalFuncs[funcName] = sig
+				}
+				for varName, varType := range declTc.GetVariables() {
+					moduleInternalVars[varName] = varType
+				}
+			}
+
+			// Collect imports from all files
+			newImports := collectImports(fileProgram, rootDir, filePath)
+			modulesToCheck = append(modulesToCheck, newImports...)
+		}
+
+		// Pass 2: Full type checking with complete module context
+		for _, pf := range parsedFiles {
+			checked[pf.path] = true
+
+			fileTc := typechecker.NewTypeChecker(pf.source, pf.path)
 			fileTc.SetSkipMainCheck(true)
 
 			// Register already-collected module types for cross-module checking (#709)
@@ -881,12 +935,46 @@ func runFile(filename string) {
 				}
 			}
 
-			fileTc.CheckProgram(fileProgram)
+			// For multi-file modules, register module-internal types/functions/variables (#722)
+			if len(mod.Files) > 1 {
+				// Get module name for self-referencing types (e.g., testmod.Hero within testmod)
+				var selfModuleName string
+				if pf.program.Module != nil && pf.program.Module.Name != nil {
+					selfModuleName = pf.program.Module.Name.Value
+				}
+
+				for typeName, t := range moduleInternalTypes {
+					fileTc.RegisterType(typeName, t)
+					// Also register as module-prefixed type for self-referencing (bug #463)
+					if selfModuleName != "" {
+						fileTc.RegisterModuleType(selfModuleName, typeName, t)
+					}
+				}
+				for funcName, sig := range moduleInternalFuncs {
+					fileTc.RegisterFunction(funcName, sig)
+				}
+				for varName, varType := range moduleInternalVars {
+					fileTc.RegisterVariable(varName, varType)
+				}
+			}
+
+			fileTc.CheckProgram(pf.program)
+
+			// Check for type errors in module files (#720, #722)
+			if fileTc.Errors().HasErrors() {
+				fmt.Print(errors.FormatErrorList(fileTc.Errors()))
+				os.Exit(1)
+			}
+
+			// Display type checker warnings from module files
+			if fileTc.Errors().HasWarnings() {
+				fmt.Print(errors.FormatErrorList(fileTc.Errors()))
+			}
 
 			// Extract module name, function signatures, and types
-			if fileProgram.Module != nil && fileProgram.Module.Name != nil {
+			if pf.program.Module != nil && pf.program.Module.Name != nil {
 				// Use the alias if one was provided, otherwise use the module's internal name
-				moduleName := fileProgram.Module.Name.Value
+				moduleName := pf.program.Module.Name.Value
 				if alias, hasAlias := pathToAlias[modPath]; hasAlias {
 					moduleName = alias
 				}
@@ -912,9 +1000,6 @@ func runFile(filename string) {
 					moduleVariables[moduleName][varName] = varType
 				}
 			}
-
-			newImports := collectImports(fileProgram, rootDir, filePath)
-			modulesToCheck = append(modulesToCheck, newImports...)
 		}
 	}
 

@@ -50,6 +50,8 @@ func isReservedName(name string) bool {
 
 // allWarningCodes contains all valid warning codes in the language
 var allWarningCodes = map[string]bool{
+	// Special
+	"ALL": true, // suppress all warnings
 	// Code Style Warnings (W1xxx)
 	"W1001": true, // unused-variable
 	"W1002": true, // unused-import
@@ -62,6 +64,7 @@ var allWarningCodes = map[string]bool{
 	"W2004": true, // implicit-type-conversion
 	"W2005": true, // deprecated-feature
 	"W2006": true, // byte-overflow-potential
+	"W2009": true, // nil-dereference-potential
 	// Code Quality Warnings (W3xxx)
 	"W3001": true, // empty-block
 	"W3002": true, // redundant-condition
@@ -70,9 +73,10 @@ var allWarningCodes = map[string]bool{
 	"W4001": true, // module-name-mismatch
 }
 
-// suppressibleWarnings contains warning codes that can be suppressed via @suppress
+// suppressibleWarnings contains warning codes that can be suppressed via #suppress
 // These are function-body warnings that make sense to suppress at the function level
 var suppressibleWarnings = map[string]bool{
+	"ALL":   true, // suppress all warnings
 	"W1001": true, // unused-variable
 	"W1004": true, // unused-parameter
 	"W2001": true, // unreachable-code
@@ -81,6 +85,7 @@ var suppressibleWarnings = map[string]bool{
 	"W2004": true, // implicit-type-conversion
 	"W2005": true, // deprecated-feature
 	"W2006": true, // byte-overflow-potential
+	"W2009": true, // nil-dereference-potential
 	"W3001": true, // empty-block
 	"W3002": true, // redundant-condition
 	"W3003": true, // array-size-mismatch
@@ -96,7 +101,7 @@ func isWarningSuppressible(code string) bool {
 	return suppressibleWarnings[code]
 }
 
-// hasSuppressAttribute checks if attributes contain a @suppress attribute
+// hasSuppressAttribute checks if attributes contain a #suppress attribute
 func hasSuppressAttribute(attrs []*Attribute) *Attribute {
 	for _, attr := range attrs {
 		if attr.Name == "suppress" {
@@ -106,7 +111,7 @@ func hasSuppressAttribute(attrs []*Attribute) *Attribute {
 	return nil
 }
 
-// hasStrictAttribute checks if attributes contain a @strict attribute
+// hasStrictAttribute checks if attributes contain a #strict attribute
 func hasStrictAttribute(attrs []*Attribute) *Attribute {
 	for _, attr := range attrs {
 		if attr.Name == "strict" {
@@ -114,6 +119,53 @@ func hasStrictAttribute(attrs []*Attribute) *Attribute {
 		}
 	}
 	return nil
+}
+
+// parseFileLevelSuppress parses a file-level #suppress(...) and returns the warning codes
+func (p *Parser) parseFileLevelSuppress() []string {
+	var codes []string
+	suppressToken := p.currentToken
+
+	p.nextToken() // move past #suppress
+
+	// Expect opening paren
+	if !p.currentTokenMatches(LPAREN) {
+		p.addEZError(errors.E2002, "#suppress requires parentheses with warning code(s)", suppressToken)
+		return codes
+	}
+	p.nextToken() // move past (
+
+	// Parse warning codes
+	for !p.currentTokenMatches(RPAREN) && !p.currentTokenMatches(EOF) {
+		if p.currentTokenMatches(STRING) {
+			code := p.currentToken.Literal
+			// Validate the warning code
+			if !isValidWarningCode(code) {
+				p.addEZError(errors.E2052, fmt.Sprintf("%s is not a valid warning code", code), p.currentToken)
+			} else if !isWarningSuppressible(code) {
+				p.addEZError(errors.E2053, fmt.Sprintf("%s cannot be suppressed", code), p.currentToken)
+			} else {
+				codes = append(codes, code)
+			}
+			p.nextToken()
+		} else if p.currentTokenMatches(IDENT) && p.currentToken.Literal == "ALL" {
+			// Allow ALL without quotes
+			codes = append(codes, "ALL")
+			p.nextToken()
+		} else if p.currentTokenMatches(COMMA) {
+			p.nextToken()
+		} else {
+			p.addEZError(errors.E2002, "expected warning code string in #suppress", p.currentToken)
+			p.nextToken()
+		}
+	}
+
+	// Move past closing paren if present
+	if p.currentTokenMatches(RPAREN) {
+		// Don't advance - ParseProgram will call nextToken
+	}
+
+	return codes
 }
 
 // Operator precedence levels
@@ -244,6 +296,7 @@ func New(l *Lexer) *Parser {
 	p.setPrefix(LBRACE, p.parseArrayValue)
 	p.setPrefix(NEW, p.parseNewExpression)
 	p.setPrefix(RANGE, p.parseRangeExpression)
+	p.setPrefix(CAST, p.parseCastExpression)
 
 	p.infixParseFns = make(map[TokenType]infixParseFn)
 	p.setInfix(PLUS, p.parseInfixExpression)
@@ -301,6 +354,7 @@ func NewWithSource(l *Lexer, source, filename string) *Parser {
 	p.setPrefix(LBRACE, p.parseArrayValue)
 	p.setPrefix(NEW, p.parseNewExpression)
 	p.setPrefix(RANGE, p.parseRangeExpression)
+	p.setPrefix(CAST, p.parseCastExpression)
 
 	p.infixParseFns = make(map[TokenType]infixParseFn)
 	p.setInfix(PLUS, p.parseInfixExpression)
@@ -485,6 +539,15 @@ func (p *Parser) ParseProgram() *Program {
 			continue
 		}
 
+		// Handle file-level #suppress (must come after imports/using, before other declarations)
+		if p.currentTokenMatches(SUPPRESS) {
+			// Parse the #suppress(...) and store in program
+			suppressCodes := p.parseFileLevelSuppress()
+			program.FileSuppressWarnings = append(program.FileSuppressWarnings, suppressCodes...)
+			p.nextToken()
+			continue
+		}
+
 		// Track what we've seen for placement validation
 		if p.currentTokenMatches(USING) {
 			// File-scoped using: must come before other declarations
@@ -557,9 +620,9 @@ func (p *Parser) ParseLine() Statement {
 }
 
 func (p *Parser) parseStatement() Statement {
-	// Check for @suppress, @strict, @enum(...), @flags, or unknown @ attributes
+	// Check for #suppress, #strict, #enum(...), #flags attributes
 	var attrs []*Attribute
-	if p.currentTokenMatches(SUPPRESS) || p.currentTokenMatches(STRICT) || p.currentTokenMatches(ENUM_ATTR) || p.currentTokenMatches(FLAGS) || p.currentTokenMatches(AT) {
+	if p.currentTokenMatches(SUPPRESS) || p.currentTokenMatches(STRICT) || p.currentTokenMatches(ENUM_ATTR) || p.currentTokenMatches(FLAGS) {
 		attrs = p.parseAttributes()
 		// parseAttributes advances to the declaration token
 	}
@@ -583,11 +646,11 @@ func (p *Parser) parseStatement() Statement {
 		}
 	}
 
-	// Validate @suppress is only used on function declarations
+	// Validate #suppress is only used on function declarations
 	if suppressAttr := hasSuppressAttribute(attrs); suppressAttr != nil {
 		if !p.currentTokenMatches(DO) {
-			p.addEZError(errors.E2051, "@suppress can only be applied to function declarations", suppressAttr.Token)
-			// Clear @suppress attributes to prevent them from being applied
+			p.addEZError(errors.E2051, "#suppress can only be applied to function declarations", suppressAttr.Token)
+			// Clear #suppress attributes to prevent them from being applied
 			newAttrs := []*Attribute{}
 			for _, attr := range attrs {
 				if attr.Name != "suppress" {
@@ -598,11 +661,11 @@ func (p *Parser) parseStatement() Statement {
 		}
 	}
 
-	// Validate @strict is only used on when statements
+	// Validate #strict is only used on when statements
 	if strictAttr := hasStrictAttribute(attrs); strictAttr != nil {
 		if !p.currentTokenMatches(WHEN) {
-			p.addEZError(errors.E2055, "@strict can only be applied to when statements", strictAttr.Token)
-			// Clear @strict attributes to prevent them from being applied
+			p.addEZError(errors.E2055, "#strict can only be applied to when statements", strictAttr.Token)
+			// Clear #strict attributes to prevent them from being applied
 			newAttrs := []*Attribute{}
 			for _, attr := range attrs {
 				if attr.Name != "strict" {
@@ -1236,9 +1299,9 @@ func (p *Parser) parseAlternative() Statement {
 func (p *Parser) parseWhenStatement(attrs []*Attribute) *WhenStatement {
 	stmt := &WhenStatement{Token: p.currentToken, Attributes: attrs}
 
-	// Check for @strict attribute
+	// Check for #strict attribute
 	for _, attr := range attrs {
-		// @strict is parsed as an attribute with Name="strict"
+		// #strict is parsed as an attribute with Name="strict"
 		if attr.Name == "strict" {
 			stmt.IsStrict = true
 			break
@@ -1284,14 +1347,14 @@ func (p *Parser) parseWhenStatement(attrs []*Attribute) *WhenStatement {
 		}
 	}
 
-	// Validate: default is required unless @strict
+	// Validate: default is required unless #strict
 	if stmt.Default == nil && !stmt.IsStrict {
 		p.addEZError(errors.E2041, "when statement requires a 'default' case", stmt.Token)
 	}
 
-	// Validate: @strict cannot have default
+	// Validate: #strict cannot have default
 	if stmt.Default != nil && stmt.IsStrict {
-		p.addEZError(errors.E2042, "@strict when statement cannot have a 'default' case", stmt.Token)
+		p.addEZError(errors.E2042, "#strict when statement cannot have a 'default' case", stmt.Token)
 	}
 
 	return stmt
@@ -2716,6 +2779,7 @@ func (p *Parser) registerParseFunctions() {
 	p.setPrefix(LBRACE, p.parseArrayValue)
 	p.setPrefix(NEW, p.parseNewExpression)
 	p.setPrefix(RANGE, p.parseRangeExpression)
+	p.setPrefix(CAST, p.parseCastExpression)
 
 	// Infix parse functions
 	p.setInfix(PLUS, p.parseInfixExpression)
@@ -3142,85 +3206,98 @@ func (p *Parser) parseRangeExpression() Expression {
 	return exp
 }
 
+// parseCastExpression parses cast(value, type) or cast(value, [type])
+func (p *Parser) parseCastExpression() Expression {
+	exp := &CastExpression{Token: p.currentToken}
+
+	if !p.expectPeek(LPAREN) {
+		return nil
+	}
+
+	// Parse the value expression
+	p.nextToken()
+	exp.Value = p.parseExpression(LOWEST)
+
+	if !p.expectPeek(COMMA) {
+		return nil
+	}
+
+	p.nextToken()
+
+	// Parse the target type - can be either:
+	// - Simple type: int, u8, byte, etc.
+	// - Array type: [int], [u8], [byte], etc.
+	if p.currentTokenMatches(LBRACKET) {
+		// Array type like [u8]
+		exp.IsArray = true
+		p.nextToken() // consume [
+
+		if !p.currentTokenMatches(IDENT) {
+			msg := fmt.Sprintf("expected type name in array type, got %s", p.currentToken.Type)
+			p.errors = append(p.errors, msg)
+			p.addEZError(errors.E2024, msg, p.currentToken)
+			return nil
+		}
+
+		exp.ElementType = p.currentToken.Literal
+		exp.TargetType = "[" + exp.ElementType + "]"
+
+		if !p.expectPeek(RBRACKET) {
+			return nil
+		}
+	} else if p.currentTokenMatches(IDENT) {
+		// Simple type like u8
+		exp.IsArray = false
+		exp.TargetType = p.currentToken.Literal
+		exp.ElementType = ""
+	} else {
+		msg := fmt.Sprintf("expected type name or array type, got %s", p.currentToken.Type)
+		p.errors = append(p.errors, msg)
+		p.addEZError(errors.E2024, msg, p.currentToken)
+		return nil
+	}
+
+	if !p.expectPeek(RPAREN) {
+		return nil
+	}
+
+	return exp
+}
+
 // ============================================================================
 // Attribute Parsing
 // ============================================================================
 
-// Known attribute names (without the @ prefix)
+// Known attribute names (without the # prefix)
 var knownAttributeNames = []string{"suppress", "strict", "enum", "flags", "ignore"}
 
-// parseAttributes parses @suppress(...), @strict, @enum(...), @flags, and detects unknown attributes
+// parseAttributes parses #suppress(...), #strict, #enum(...), #flags attributes
 func (p *Parser) parseAttributes() []*Attribute {
 	attributes := []*Attribute{}
 
-	// Handle @suppress(...), @strict, @enum(...), @flags, and detect unknown attributes
-	for p.currentTokenMatches(SUPPRESS) || p.currentTokenMatches(STRICT) || p.currentTokenMatches(ENUM_ATTR) || p.currentTokenMatches(FLAGS) || p.currentTokenMatches(AT) {
+	// Handle #suppress(...), #strict, #enum(...), #flags
+	for p.currentTokenMatches(SUPPRESS) || p.currentTokenMatches(STRICT) || p.currentTokenMatches(ENUM_ATTR) || p.currentTokenMatches(FLAGS) {
 		if p.currentTokenMatches(SUPPRESS) {
-			// Handle @suppress(...) - existing code
+			// Handle #suppress(...)
 			attributes = append(attributes, p.parseSuppressAttribute())
 			continue
 		}
 
 		if p.currentTokenMatches(STRICT) {
-			// Handle @strict - simple flag attribute for when statements
+			// Handle #strict - simple flag attribute for when statements
 			attributes = append(attributes, p.parseStrictAttribute())
 			continue
 		}
 
 		if p.currentTokenMatches(ENUM_ATTR) {
-			// Handle @enum(type) - enum type attribute
+			// Handle #enum(type) - enum type attribute
 			attributes = append(attributes, p.parseEnumAttrAttribute())
 			continue
 		}
 
 		if p.currentTokenMatches(FLAGS) {
-			// Handle @flags - power-of-2 enum attribute
+			// Handle #flags - power-of-2 enum attribute
 			attributes = append(attributes, p.parseFlagsAttribute())
-			continue
-		}
-
-		// Handle AT token - could be @identifier (unknown/misspelled attribute)
-		if p.currentTokenMatches(AT) {
-			if p.peekTokenMatches(IDENT) {
-				// @identifier - unknown or misspelled attribute name
-				atToken := p.currentToken
-				p.nextToken() // move to the identifier
-				attrName := p.currentToken.Literal
-
-				// Try to suggest a known attribute name
-				suggestion := errors.SuggestFromList(attrName, knownAttributeNames)
-				var msg string
-				if suggestion != "" {
-					msg = fmt.Sprintf("unknown attribute '@%s', did you mean '@%s'?", attrName, suggestion)
-				} else {
-					msg = fmt.Sprintf("unknown attribute '@%s'", attrName)
-				}
-				p.addEZError(errors.E2001, msg, atToken)
-
-				// Skip past the attribute arguments if present: @name(...)
-				if p.peekTokenMatches(LPAREN) {
-					p.nextToken() // consume LPAREN
-					// Skip until we find matching RPAREN or hit declaration tokens
-					depth := 1
-					for depth > 0 && !p.currentTokenMatches(EOF) {
-						p.nextToken()
-						if p.currentTokenMatches(LPAREN) {
-							depth++
-						} else if p.currentTokenMatches(RPAREN) {
-							depth--
-						}
-					}
-				}
-
-				// Move to next token
-				p.nextToken()
-				continue
-			}
-
-			// @ followed by something unexpected - skip it and emit error
-			msg := fmt.Sprintf("unexpected token after '@': %s", p.peekToken.Literal)
-			p.addEZError(errors.E2001, msg, p.currentToken)
-			p.nextToken() // skip the @
 			continue
 		}
 	}
@@ -3313,7 +3390,7 @@ func (p *Parser) parseEnumAttrAttribute() *Attribute {
 
 	// Expect opening paren
 	if !p.expectPeek(LPAREN) {
-		msg := "expected '(' after @enum"
+		msg := "expected '(' after #enum"
 		p.addEZError(errors.E2001, msg, p.currentToken)
 		return attr
 	}
@@ -3326,16 +3403,16 @@ func (p *Parser) parseEnumAttrAttribute() *Attribute {
 			typeName := p.currentToken.Literal
 			// Validate that type is a primitive (int, float, or string)
 			if typeName != "int" && typeName != "float" && typeName != "string" {
-				msg := fmt.Sprintf("@enum type must be int, float, or string, got '%s'", typeName)
+				msg := fmt.Sprintf("#enum type must be int, float, or string, got '%s'", typeName)
 				p.addEZError(errors.E2026, msg, p.currentToken)
 			}
 			attr.Args = append(attr.Args, typeName)
 		} else {
-			msg := fmt.Sprintf("expected type name in @enum(...), got %s", p.currentToken.Type)
+			msg := fmt.Sprintf("expected type name in #enum(...), got %s", p.currentToken.Type)
 			p.addEZError(errors.E2001, msg, p.currentToken)
 		}
 	} else {
-		msg := "@enum requires a type argument, e.g., @enum(int), @enum(float), or @enum(string)"
+		msg := "#enum requires a type argument, e.g., #enum(int), #enum(float), or #enum(string)"
 		p.addEZError(errors.E2001, msg, p.currentToken)
 	}
 
@@ -3363,7 +3440,7 @@ func (p *Parser) parseFlagsAttribute() *Attribute {
 	return attr
 }
 
-// parseEnumAttributes converts @enum(type) and @flags attributes to EnumAttributes
+// parseEnumAttributes converts #enum(type) and #flags attributes to EnumAttributes
 func (p *Parser) parseEnumAttributes(attrs []*Attribute) *EnumAttributes {
 	enumAttrs := &EnumAttributes{
 		TypeName: "int", // default
@@ -3372,10 +3449,10 @@ func (p *Parser) parseEnumAttributes(attrs []*Attribute) *EnumAttributes {
 
 	for _, attr := range attrs {
 		if attr.Name == "enum" && len(attr.Args) > 0 {
-			// @enum(type) - set the enum type
+			// #enum(type) - set the enum type
 			enumAttrs.TypeName = attr.Args[0]
 		} else if attr.Name == "flags" {
-			// @flags - power-of-2 enum (always int type)
+			// #flags - power-of-2 enum (always int type)
 			enumAttrs.IsFlags = true
 			enumAttrs.TypeName = "int" // flags are always int
 		}

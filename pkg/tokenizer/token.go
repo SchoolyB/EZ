@@ -121,6 +121,9 @@ const (
 	IS      TokenType = "IS"
 	DEFAULT TokenType = "DEFAULT"
 
+	// Type conversion
+	CAST TokenType = "CAST"
+
 	// Ampersand (for import & use syntax)
 	AMPERSAND TokenType = "&"
 )
@@ -157,6 +160,7 @@ var keywords = map[string]TokenType{
 	"when":       WHEN,
 	"is":         IS,
 	"default":    DEFAULT,
+	"cast":       CAST,
 }
 
 // Looks up the passed in identifier(i)
@@ -176,7 +180,7 @@ func IsKeyword(t TokenType) bool {
 		FOR, FOR_EACH, AS_LONG_AS, LOOP, BREAK, CONTINUE,
 		IN, NOT_IN, RANGE, IMPORT, USING, STRUCT, ENUM,
 		NIL, NEW, TRUE, FALSE, BLANK, MODULE, PRIVATE, USE,
-		WHEN, IS, DEFAULT:
+		WHEN, IS, DEFAULT, CAST:
 		return true
 	}
 	return false

@@ -1371,7 +1371,7 @@ func TestPrivateModuleVisibility(t *testing.T) {
 // ============================================================================
 
 func TestSuppressAttribute(t *testing.T) {
-	input := `@suppress("W2001")
+	input := `#suppress("W2001")
 do test() {
 	return 1
 	x = 2
@@ -2614,7 +2614,7 @@ func TestWhenStatementStrict(t *testing.T) {
 	input := `const Status enum { ACTIVE, INACTIVE }
 	do main() {
 		temp s Status = Status.ACTIVE
-		@strict
+		#strict
 		when s {
 			is Status.ACTIVE { println("active") }
 			is Status.INACTIVE { println("inactive") }
@@ -2662,7 +2662,7 @@ func TestWhenStatementMissingDefault(t *testing.T) {
 func TestWhenStatementStrictWithDefault(t *testing.T) {
 	input := `do main() {
 		temp x int = 1
-		@strict
+		#strict
 		when x {
 			is 1 { println("one") }
 			default { println("other") }
@@ -2818,7 +2818,7 @@ do main() {
 // ============================================================================
 
 func TestEnumWithEnumTypeAttribute(t *testing.T) {
-	input := `@enum(string)
+	input := `#enum(string)
 	const Status enum { ACTIVE = "active", INACTIVE = "inactive" }`
 	program := parseProgram(t, input)
 
@@ -2828,30 +2828,30 @@ func TestEnumWithEnumTypeAttribute(t *testing.T) {
 	}
 
 	if enumDecl.Attributes == nil || enumDecl.Attributes.TypeName != "string" {
-		t.Error("expected @enum(string) attribute with TypeName='string'")
+		t.Error("expected #enum(string) attribute with TypeName='string'")
 	}
 }
 
 func TestEnumWithFlagsAttribute(t *testing.T) {
-	input := `@flags
+	input := `#flags
 	const Permissions enum { READ = 1, WRITE = 2, EXECUTE = 4 }`
 	program := parseProgram(t, input)
 
 	enumDecl := program.Statements[0].(*EnumDeclaration)
 
 	if enumDecl.Attributes == nil || !enumDecl.Attributes.IsFlags {
-		t.Error("expected @flags attribute with IsFlags=true")
+		t.Error("expected #flags attribute with IsFlags=true")
 	}
 }
 
 func TestEnumWithFloatAttribute(t *testing.T) {
-	input := `@enum(float)
+	input := `#enum(float)
 	const Values enum { PI = 3.14, E = 2.71 }`
 	program := parseProgram(t, input)
 
 	enumDecl := program.Statements[0].(*EnumDeclaration)
 
 	if enumDecl.Attributes == nil || enumDecl.Attributes.TypeName != "float" {
-		t.Error("expected @enum(float) attribute with TypeName='float'")
+		t.Error("expected #enum(float) attribute with TypeName='float'")
 	}
 }
