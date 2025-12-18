@@ -5,7 +5,7 @@
 
 module main
 
-@suppress(W1002)
+#suppress(W1002)
 do foo() {
     // W1002 (unused-import) is a valid code but cannot be suppressed
 }

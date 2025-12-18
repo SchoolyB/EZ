@@ -14,7 +14,7 @@ const Direction enum {
 }
 
 /* Flags enum with power-of-2 values (1, 2, 4, 8) */
-@flags
+#flags
 const Permissions enum {
     READ      // 1
     WRITE     // 2
@@ -30,7 +30,7 @@ const Status enum {
 }
 
 /* Explicit int enum (same as default) */
-@enum(int)
+#enum(int)
 const Priority enum {
     LOW       // 0
     MEDIUM    // 1
@@ -135,14 +135,14 @@ do main() {
     }
 
     // ==================== EXPLICIT INT ENUM ====================
-    println("  -- Explicit @enum(int) --")
+    println("  -- Explicit #enum(int) --")
 
-    // Test 10: @enum(int) works like default
+    // Test 10: #enum(int) works like default
     if Priority.LOW == 0 && Priority.MEDIUM == 1 && Priority.HIGH == 2 {
-        println("  [PASS] @enum(int) auto-increment (0, 1, 2)")
+        println("  [PASS] #enum(int) auto-increment (0, 1, 2)")
         passed += 1
     } otherwise {
-        println("  [FAIL] @enum(int): LOW=${Priority.LOW}, MEDIUM=${Priority.MEDIUM}, HIGH=${Priority.HIGH}")
+        println("  [FAIL] #enum(int): LOW=${Priority.LOW}, MEDIUM=${Priority.MEDIUM}, HIGH=${Priority.HIGH}")
         failed += 1
     }
 

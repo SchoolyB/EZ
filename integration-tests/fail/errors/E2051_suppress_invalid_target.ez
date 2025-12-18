@@ -1,12 +1,12 @@
 /*
  * Error Test: E2051 - suppress-invalid-target
- * Expected: "@suppress can only be applied to function declarations"
+ * Expected: "#suppress can only be applied to function declarations"
  */
 
 module main
 
-@suppress(W1001)
-const x = 5  // @suppress on variable declaration is not allowed
+#suppress(W1001)
+const x = 5  // #suppress on variable declaration is not allowed
 
 do main() {
     println(x)

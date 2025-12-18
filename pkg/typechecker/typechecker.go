@@ -165,8 +165,8 @@ type TypeChecker struct {
 	filename             string
 	skipMainCheck        bool             // Skip main() function requirement (for module files)
 	loopDepth            int              // Track nesting depth of loops for break/continue validation (#603)
-	currentFuncAttrs     []*ast.Attribute // Current function's attributes for @suppress checking
-	fileSuppressWarnings []string         // File-level suppressed warnings (from @suppress at file scope)
+	currentFuncAttrs     []*ast.Attribute // Current function's attributes for #suppress checking
+	fileSuppressWarnings []string         // File-level suppressed warnings (from #suppress at file scope)
 }
 
 // NewTypeChecker creates a new type checker
@@ -1066,7 +1066,7 @@ func (tc *TypeChecker) checkFunctionBody(node *ast.FunctionDeclaration) {
 	tc.enterScope()
 	defer tc.exitScope()
 
-	// Track current function's attributes for @suppress checking
+	// Track current function's attributes for #suppress checking
 	prevAttrs := tc.currentFuncAttrs
 	tc.currentFuncAttrs = node.Attributes
 	defer func() { tc.currentFuncAttrs = prevAttrs }()
@@ -1227,7 +1227,7 @@ func (tc *TypeChecker) checkFileScopeStatements(statements []ast.Statement) {
 	}
 }
 
-// isSuppressed checks if a warning code is suppressed by function attributes or file-level @suppress
+// isSuppressed checks if a warning code is suppressed by function attributes or file-level #suppress
 func (tc *TypeChecker) isSuppressed(warningCode string, attrs []*ast.Attribute) bool {
 	// Check file-level suppressions first
 	for _, code := range tc.fileSuppressWarnings {
@@ -3281,23 +3281,23 @@ func (tc *TypeChecker) checkWhenStatement(whenStmt *ast.WhenStatement, expectedR
 	// Track seen case values for duplicate detection
 	seenCases := make(map[string]bool)
 
-	// Check if this is an enum type for @strict validation
+	// Check if this is an enum type for #strict validation
 	enumTypeInfo, isEnumType := tc.GetType(valueType)
 	if isEnumType && enumTypeInfo != nil && enumTypeInfo.Kind != EnumType {
 		isEnumType = false
 	}
 
-	// Validate @strict is only used with enums
+	// Validate #strict is only used with enums
 	if whenStmt.IsStrict && !isEnumType {
 		tc.addError(
 			errors.E2045,
-			"@strict attribute only allowed on enum when statements",
+			"#strict attribute only allowed on enum when statements",
 			whenStmt.Token.Line,
 			whenStmt.Token.Column,
 		)
 	}
 
-	// Track handled enum cases for @strict exhaustiveness check
+	// Track handled enum cases for #strict exhaustiveness check
 	handledEnumCases := make(map[string]bool)
 
 	// Check each case
@@ -3306,13 +3306,13 @@ func (tc *TypeChecker) checkWhenStatement(whenStmt *ast.WhenStatement, expectedR
 			// Check the case value expression (validates range bounds, etc.)
 			tc.checkExpression(caseValue)
 
-			// For @strict enum when statements, only allow enum member expressions
+			// For #strict enum when statements, only allow enum member expressions
 			if whenStmt.IsStrict && isEnumType {
 				if !tc.isEnumMemberExpression(caseValue, valueType, enumTypeInfo) {
 					line, col := tc.getExpressionPosition(caseValue)
 					tc.addError(
 						errors.E2054,
-						fmt.Sprintf("@strict when requires explicit enum member values, got non-enum expression"),
+						fmt.Sprintf("#strict when requires explicit enum member values, got non-enum expression"),
 						line,
 						col,
 					)
@@ -3369,7 +3369,7 @@ func (tc *TypeChecker) checkWhenStatement(whenStmt *ast.WhenStatement, expectedR
 		tc.exitScope()
 	}
 
-	// @strict enum exhaustiveness check - ensure all enum cases are handled
+	// #strict enum exhaustiveness check - ensure all enum cases are handled
 	if whenStmt.IsStrict && isEnumType && enumTypeInfo != nil && enumTypeInfo.EnumMembers != nil {
 		var missingCases []string
 		for enumMember := range enumTypeInfo.EnumMembers {
@@ -3382,7 +3382,7 @@ func (tc *TypeChecker) checkWhenStatement(whenStmt *ast.WhenStatement, expectedR
 			sort.Strings(missingCases)
 			tc.addError(
 				errors.E2046,
-				fmt.Sprintf("@strict when statement missing enum cases: %s", strings.Join(missingCases, ", ")),
+				fmt.Sprintf("#strict when statement missing enum cases: %s", strings.Join(missingCases, ", ")),
 				whenStmt.Token.Line,
 				whenStmt.Token.Column,
 			)
@@ -3412,7 +3412,7 @@ func (tc *TypeChecker) getEnumMemberName(expr ast.Expression) string {
 }
 
 // isEnumMemberExpression checks if an expression is a valid enum member reference
-// for use in @strict when statements. Valid forms are:
+// for use in #strict when statements. Valid forms are:
 // - EnumType.MEMBER (e.g., Color.RED)
 // - MEMBER (if it's a known enum value of the expected type)
 func (tc *TypeChecker) isEnumMemberExpression(expr ast.Expression, enumTypeName string, enumTypeInfo *Type) bool {

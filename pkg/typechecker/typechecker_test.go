@@ -2200,7 +2200,7 @@ func TestAnyTypeNotAllowedInMap(t *testing.T) {
 }
 
 // ============================================================================
-// @strict When Statement Tests (#628)
+// #strict When Statement Tests (#628)
 // ============================================================================
 
 func TestStrictWhenRejectsRangeExpression(t *testing.T) {
@@ -2208,7 +2208,7 @@ func TestStrictWhenRejectsRangeExpression(t *testing.T) {
 const Color enum { RED, GREEN, BLUE }
 do main() {
 	temp c Color = Color.RED
-	@strict
+	#strict
 	when c {
 		is range(0, 2) {
 		}
@@ -2223,7 +2223,7 @@ func TestStrictWhenRejectsIntegerLiteral(t *testing.T) {
 const Color enum { RED, GREEN, BLUE }
 do main() {
 	temp c Color = Color.RED
-	@strict
+	#strict
 	when c {
 		is 0 {
 		}
@@ -2238,7 +2238,7 @@ func TestStrictWhenAcceptsEnumMembers(t *testing.T) {
 const Color enum { RED, GREEN, BLUE }
 do main() {
 	temp c Color = Color.RED
-	@strict
+	#strict
 	when c {
 		is Color.RED {
 		}
@@ -2257,7 +2257,7 @@ func TestStrictWhenMissingEnumCases(t *testing.T) {
 const Color enum { RED, GREEN, BLUE }
 do main() {
 	temp c Color = Color.RED
-	@strict
+	#strict
 	when c {
 		is Color.RED {
 		}
@@ -2272,7 +2272,7 @@ func TestStrictWhenPartialEnumCases(t *testing.T) {
 const Color enum { RED, GREEN, BLUE }
 do main() {
 	temp c Color = Color.RED
-	@strict
+	#strict
 	when c {
 		is Color.RED {
 		}
