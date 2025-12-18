@@ -2380,7 +2380,7 @@ func (tc *TypeChecker) checkCastExpression(castExpr *ast.CastExpression) {
 
 	// Infer the source type and check if the conversion is valid
 	sourceType, ok := tc.inferExpressionType(castExpr.Value)
-	if !ok {
+	if !ok || sourceType == "" {
 		return // Can't validate without knowing source type
 	}
 
@@ -4500,6 +4500,40 @@ func (tc *TypeChecker) getModuleMultiReturnTypes(moduleName, funcName string) []
 		case "read_u64", "read_u64_be", "read_i64", "read_i64_be":
 			return []string{"int", "error"}
 		case "read_f32", "read_f32_be", "read_f64", "read_f64_be":
+			return []string{"float", "error"}
+		}
+	case "binary":
+		// All binary encode functions return ([byte], error)
+		// All binary decode functions return (typed_int_or_float, error)
+		switch funcName {
+		case "encode_i8", "encode_u8",
+			"encode_i16_to_little_endian", "encode_u16_to_little_endian",
+			"encode_i16_to_big_endian", "encode_u16_to_big_endian",
+			"encode_i32_to_little_endian", "encode_u32_to_little_endian",
+			"encode_i32_to_big_endian", "encode_u32_to_big_endian",
+			"encode_i64_to_little_endian", "encode_u64_to_little_endian",
+			"encode_i64_to_big_endian", "encode_u64_to_big_endian",
+			"encode_i128_to_little_endian", "encode_u128_to_little_endian",
+			"encode_i128_to_big_endian", "encode_u128_to_big_endian",
+			"encode_i256_to_little_endian", "encode_u256_to_little_endian",
+			"encode_i256_to_big_endian", "encode_u256_to_big_endian",
+			"encode_f32_to_little_endian", "encode_f32_to_big_endian",
+			"encode_f64_to_little_endian", "encode_f64_to_big_endian":
+			return []string{"[byte]", "error"}
+		case "decode_i8", "decode_u8",
+			"decode_i16_from_little_endian", "decode_u16_from_little_endian",
+			"decode_i16_from_big_endian", "decode_u16_from_big_endian",
+			"decode_i32_from_little_endian", "decode_u32_from_little_endian",
+			"decode_i32_from_big_endian", "decode_u32_from_big_endian",
+			"decode_i64_from_little_endian", "decode_u64_from_little_endian",
+			"decode_i64_from_big_endian", "decode_u64_from_big_endian",
+			"decode_i128_from_little_endian", "decode_u128_from_little_endian",
+			"decode_i128_from_big_endian", "decode_u128_from_big_endian",
+			"decode_i256_from_little_endian", "decode_u256_from_little_endian",
+			"decode_i256_from_big_endian", "decode_u256_from_big_endian":
+			return []string{"int", "error"}
+		case "decode_f32_from_little_endian", "decode_f32_from_big_endian",
+			"decode_f64_from_little_endian", "decode_f64_from_big_endian":
 			return []string{"float", "error"}
 		}
 	}
