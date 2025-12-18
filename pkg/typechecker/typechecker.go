@@ -593,8 +593,10 @@ func (tc *TypeChecker) checkStructLiteral(structVal *ast.StructValue) {
 	}
 
 	structName := structVal.Name.Value
-	structType, exists := tc.types[structName]
-	if !exists || structType.Kind != StructType {
+	// Use getStructTypeIncludingModules to handle both local types and
+	// qualified imported types like "lib.Item"
+	structType, exists := tc.getStructTypeIncludingModules(structName)
+	if !exists {
 		// Struct type doesn't exist - will be caught elsewhere
 		return
 	}
