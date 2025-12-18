@@ -1,5 +1,23 @@
 # Changelog
 
+## [0.28.0](https://github.com/SchoolyB/EZ/compare/v0.27.0...v0.28.0) (2025-12-18)
+
+
+### Features
+
+* **lang:** add `cast()` keyword for type conversion ([0cc34f2](https://github.com/SchoolyB/EZ/commit/0cc34f24c469efaac6602765958c356eff36a4d7))
+* **lang:** add cast() keyword for type conversion ([ab814f8](https://github.com/SchoolyB/EZ/commit/ab814f8ca127598625d37c0a1092ed9ef4a1054f)), closes [#717](https://github.com/SchoolyB/EZ/issues/717)
+* **stdlib:** add [@binary](https://github.com/binary) module and sized type conversions ([496f874](https://github.com/SchoolyB/EZ/commit/496f87433c5f5f6a84f80af4b39f66194f309a6b))
+* **stdlib:** add [@binary](https://github.com/binary) module and sized type conversions ([9487a65](https://github.com/SchoolyB/EZ/commit/9487a65fd48c8e9bb6a8ebcf9440fae5e3d14625)), closes [#716](https://github.com/SchoolyB/EZ/issues/716)
+
+
+### Bug Fixes
+
+* **modules:** add type checking for multi-file modules ([#722](https://github.com/SchoolyB/EZ/issues/722)) ([19b5006](https://github.com/SchoolyB/EZ/commit/19b50061bcc9054d653d94bc41e63e2d0cacaeda))
+* **modules:** add type checking for multi-file modules ([#722](https://github.com/SchoolyB/EZ/issues/722)) ([d806280](https://github.com/SchoolyB/EZ/commit/d8062804910fe308d4a8886ac481b9bf45798009))
+* **modules:** report type errors in single-file modules at compile time ([#720](https://github.com/SchoolyB/EZ/issues/720)) ([72ec320](https://github.com/SchoolyB/EZ/commit/72ec320f48bc5ec1cb9b13fd0ab88a8f08de0e15))
+* **modules:** report type errors in single-file modules at compile time ([#720](https://github.com/SchoolyB/EZ/issues/720)) ([efcf797](https://github.com/SchoolyB/EZ/commit/efcf79757eb22c792cce539211c5a842751d756d))
+
 ## [0.27.0](https://github.com/SchoolyB/EZ/compare/v0.26.0...v0.27.0) (2025-12-18)
 
 
