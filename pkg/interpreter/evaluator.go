@@ -1061,10 +1061,45 @@ func evalAssignment(node *ast.AssignmentStatement, env *Environment) Object {
 		val = copyByDefault(val)
 	}
 
+	// Handle tuple unpacking assignment: a, b = func() (#699)
+	if len(node.Names) > 1 {
+		returnVal, ok := val.(*ReturnValue)
+		if !ok {
+			return newErrorWithLocation("E5012", node.Token.Line, node.Token.Column,
+				"expected %d values, got 1", len(node.Names))
+		}
+
+		if len(returnVal.Values) != len(node.Names) {
+			return newErrorWithLocation("E5012", node.Token.Line, node.Token.Column,
+				"expected %d values, got %d", len(node.Names), len(returnVal.Values))
+		}
+
+		for i, name := range node.Names {
+			// Skip blank identifier (_)
+			if name.Value == "_" {
+				continue
+			}
+
+			unpackedVal := copyByDefault(returnVal.Values[i])
+
+			// Update the variable
+			found, isMutable := env.Update(name.Value, unpackedVal)
+			if !found {
+				return newErrorWithLocation("E4001", node.Token.Line, node.Token.Column,
+					"undefined variable '%s'", name.Value)
+			}
+			if !isMutable {
+				return newErrorWithLocation("E5013", node.Token.Line, node.Token.Column,
+					"cannot assign to immutable variable '%s' (declared as const)", name.Value)
+			}
+		}
+		return NIL
+	}
+
 	// Check for multi-value return being assigned to single variable (#698)
 	if retVal, ok := val.(*ReturnValue); ok && len(retVal.Values) > 1 {
 		return newErrorWithLocation("E5012", node.Token.Line, node.Token.Column,
-			"cannot assign %d values to single variable; use a declaration with tuple unpacking: temp a, b = func()",
+			"cannot assign %d values to single variable; use tuple unpacking: a, b = func()",
 			len(retVal.Values))
 	}
 

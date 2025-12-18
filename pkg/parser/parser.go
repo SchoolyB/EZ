@@ -674,6 +674,11 @@ func (p *Parser) parseStatement() Statement {
 	case USING:
 		return p.parseUsingStatement()
 	case IDENT:
+		// Check for tuple unpacking assignment: a, b = func() (#699)
+		if p.peekTokenMatches(COMMA) {
+			return p.parseTupleAssignment()
+		}
+
 		// Parse the expression first to handle identifiers, index expressions, and member access
 		expr := p.parseExpression(LOWEST)
 
@@ -1025,6 +1030,43 @@ func (p *Parser) parseReturnStatement() *ReturnStatement {
 		p.nextToken() // move to next value
 		stmt.Values = append(stmt.Values, p.parseExpression(LOWEST))
 	}
+
+	return stmt
+}
+
+// parseTupleAssignment handles tuple unpacking in assignments: a, b = func() (#699)
+func (p *Parser) parseTupleAssignment() *AssignmentStatement {
+	stmt := &AssignmentStatement{Token: p.currentToken, Operator: "="}
+
+	// First identifier is current token
+	firstName := p.currentToken.Literal
+	stmt.Names = append(stmt.Names, &Label{Token: p.currentToken, Value: firstName})
+
+	// Parse additional identifiers separated by commas
+	for p.peekTokenMatches(COMMA) {
+		p.nextToken() // consume comma
+		p.nextToken() // move to next identifier
+
+		if p.currentTokenMatches(IDENT) {
+			name := p.currentToken.Literal
+			// Support blank identifier (_)
+			stmt.Names = append(stmt.Names, &Label{Token: p.currentToken, Value: name})
+		} else {
+			msg := fmt.Sprintf("expected identifier in tuple assignment, got %s", p.currentToken.Type)
+			p.errors = append(p.errors, msg)
+			p.addEZError(errors.E2029, msg, p.currentToken)
+			return nil
+		}
+	}
+
+	// Expect assignment operator
+	if !p.expectPeek(ASSIGN) {
+		return nil
+	}
+
+	// Parse the value expression
+	p.nextToken()
+	stmt.Value = p.parseExpression(LOWEST)
 
 	return stmt
 }
