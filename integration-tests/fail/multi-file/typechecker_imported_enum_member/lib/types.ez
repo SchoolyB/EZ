@@ -1,0 +1,7 @@
+module lib
+
+const Status enum {
+    ACTIVE
+    INACTIVE
+    PENDING
+}

@@ -195,13 +195,13 @@ func checkFile(filename string) {
 			errList.AddError(ezErr)
 		}
 		fmt.Print(errors.FormatErrorList(errList))
-		return
+		os.Exit(1)
 	}
 
 	// Check for parser errors
 	if p.EZErrors().HasErrors() {
 		fmt.Print(errors.FormatErrorList(p.EZErrors()))
-		return
+		os.Exit(1)
 	}
 
 	// Display parser warnings
@@ -256,15 +256,25 @@ func checkFile(filename string) {
 			continue
 		}
 
-		// Check each file in the module
+		// Two-pass approach for checking module files (#709):
+		// Pass 1: Parse all files and extract type/function declarations
+		// Pass 2: Full type check with all declarations available
+
+		type parsedFile struct {
+			path    string
+			source  string
+			program *ast.Program
+			parser  *parser.Parser
+			lexer   *lexer.Lexer
+		}
+		var parsedFiles []parsedFile
+
+		// Pass 1: Parse all files and extract declarations
 		for _, filePath := range mod.Files {
 			if checked[filePath] {
 				continue
 			}
-			checked[filePath] = true
-			filesChecked++
 
-			// Read and check the file
 			fileData, err := os.ReadFile(filePath)
 			if err != nil {
 				fmt.Printf("Error reading %s: %v\n", filePath, err)
@@ -304,28 +314,16 @@ func checkFile(filename string) {
 				continue
 			}
 
-			if fileParser.EZErrors().HasWarnings() {
-				fmt.Print(errors.FormatErrorList(fileParser.EZErrors()))
-			}
+			parsedFiles = append(parsedFiles, parsedFile{
+				path:    filePath,
+				source:  fileSource,
+				program: fileProgram,
+				parser:  fileParser,
+				lexer:   fileLex,
+			})
 
-			// Type check (skip main() requirement for module files)
-			fileTc := typechecker.NewTypeChecker(fileSource, filePath)
-			fileTc.SetSkipMainCheck(true) // Module files don't need main()
-			fileTc.CheckProgram(fileProgram)
-
-			if fileTc.Errors().HasErrors() {
-				fmt.Print(errors.FormatErrorList(fileTc.Errors()))
-				hasErrors = true
-				continue
-			}
-
-			if fileTc.Errors().HasWarnings() {
-				fmt.Print(errors.FormatErrorList(fileTc.Errors()))
-			}
-
-			// Extract module name, function signatures, and types for cross-module type checking
+			// Extract types and functions from this file (lightweight pass)
 			if fileProgram.Module != nil && fileProgram.Module.Name != nil {
-				// Use the alias if one was provided, otherwise use the module's internal name
 				moduleName := fileProgram.Module.Name.Value
 				if alias, hasAlias := pathToAlias[modPath]; hasAlias {
 					moduleName = alias
@@ -339,26 +337,69 @@ func checkFile(filename string) {
 				if moduleVariables[moduleName] == nil {
 					moduleVariables[moduleName] = make(map[string]string)
 				}
-				// Copy function signatures from this file's typechecker
-				for funcName, sig := range fileTc.GetFunctions() {
+
+				// Extract type declarations without full type checking
+				extractTc := typechecker.NewTypeChecker(fileSource, filePath)
+				extractTc.SetSkipMainCheck(true)
+				extractTc.RegisterDeclarations(fileProgram) // Register types/functions only
+
+				for funcName, sig := range extractTc.GetFunctions() {
 					moduleSignatures[moduleName][funcName] = sig
 				}
-				// Copy type definitions from this file's typechecker
-				for typeName, t := range fileTc.GetTypes() {
-					// Only copy user-defined types (structs and enums), not builtins
+				for typeName, t := range extractTc.GetTypes() {
 					if t.Kind == typechecker.StructType || t.Kind == typechecker.EnumType {
 						moduleTypes[moduleName][typeName] = t
 					}
 				}
-				// Copy variable/constant definitions from this file's typechecker (#677)
-				for varName, varType := range fileTc.GetVariables() {
+				for varName, varType := range extractTc.GetVariables() {
 					moduleVariables[moduleName][varName] = varType
 				}
 			}
 
-			// Collect more imports from this file
+			// Collect imports from this file
 			newImports := collectImports(fileProgram, absDir, filePath)
 			modulesToCheck = append(modulesToCheck, newImports...)
+		}
+
+		// Pass 2: Full type check with all declarations available
+		for _, pf := range parsedFiles {
+			if checked[pf.path] {
+				continue
+			}
+			checked[pf.path] = true
+			filesChecked++
+
+			if pf.parser.EZErrors().HasWarnings() {
+				fmt.Print(errors.FormatErrorList(pf.parser.EZErrors()))
+			}
+
+			// Type check with all module types registered
+			fileTc := typechecker.NewTypeChecker(pf.source, pf.path)
+			fileTc.SetSkipMainCheck(true)
+
+			// Register all collected module types for cross-module checking (#709)
+			for modName, types := range moduleTypes {
+				for typeName, t := range types {
+					fileTc.RegisterModuleType(modName, typeName, t)
+				}
+			}
+			for modName, funcs := range moduleSignatures {
+				for funcName, sig := range funcs {
+					fileTc.RegisterModuleFunction(modName, funcName, sig)
+				}
+			}
+
+			fileTc.CheckProgram(pf.program)
+
+			if fileTc.Errors().HasErrors() {
+				fmt.Print(errors.FormatErrorList(fileTc.Errors()))
+				hasErrors = true
+				continue
+			}
+
+			if fileTc.Errors().HasWarnings() {
+				fmt.Print(errors.FormatErrorList(fileTc.Errors()))
+			}
 		}
 	}
 
@@ -400,7 +441,7 @@ func checkFile(filename string) {
 	// Check for type errors
 	if tc.Errors().HasErrors() {
 		fmt.Print(errors.FormatErrorList(tc.Errors()))
-		return
+		os.Exit(1)
 	}
 
 	// Display type checker warnings
@@ -827,6 +868,19 @@ func runFile(filename string) {
 
 			fileTc := typechecker.NewTypeChecker(fileSource, filePath)
 			fileTc.SetSkipMainCheck(true)
+
+			// Register already-collected module types for cross-module checking (#709)
+			for modName, types := range moduleTypes {
+				for typeName, t := range types {
+					fileTc.RegisterModuleType(modName, typeName, t)
+				}
+			}
+			for modName, funcs := range moduleSignatures {
+				for funcName, sig := range funcs {
+					fileTc.RegisterModuleFunction(modName, funcName, sig)
+				}
+			}
+
 			fileTc.CheckProgram(fileProgram)
 
 			// Extract module name, function signatures, and types
