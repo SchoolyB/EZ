@@ -692,6 +692,9 @@ func Eval(node ast.Node, env *Environment) Object {
 
 	case *ast.RangeExpression:
 		return evalRangeExpression(node, env)
+
+	case *ast.CastExpression:
+		return evalCastExpression(node, env)
 	}
 
 	return newError("unknown node type: %T", node)
@@ -1589,6 +1592,71 @@ func evalRangeExpression(node *ast.RangeExpression, env *Environment) Object {
 	}
 
 	return &Range{Start: start, End: end, Step: step}
+}
+
+// evalCastExpression evaluates cast(value, type) expressions for type conversion
+func evalCastExpression(node *ast.CastExpression, env *Environment) Object {
+	line, col := node.Token.Line, node.Token.Column
+
+	// Evaluate the value expression
+	value := Eval(node.Value, env)
+	if isError(value) {
+		return value
+	}
+
+	if node.IsArray {
+		// Array cast: convert each element
+		return evalArrayCast(value, node.ElementType, line, col)
+	}
+
+	// Single value cast
+	return evalSingleCast(value, node.TargetType, line, col)
+}
+
+// evalArrayCast converts an array to a new array with elements of the target type
+func evalArrayCast(value Object, elementType string, line, col int) Object {
+	arr, ok := value.(*Array)
+	if !ok {
+		return newErrorWithLocation("E3001", line, col,
+			"cast to array type requires array value, got %s", value.Type())
+	}
+
+	newElements := make([]Object, len(arr.Elements))
+	for i, elem := range arr.Elements {
+		converted := evalSingleCast(elem, elementType, line, col)
+		if isError(converted) {
+			// Add index info to the error
+			errObj := converted.(*Error)
+			return newErrorWithLocation(errObj.Code, line, col,
+				"cast failed at index %d: %s", i, errObj.Message)
+		}
+		newElements[i] = converted
+	}
+
+	return &Array{
+		Elements:    newElements,
+		Mutable:     true,
+		ElementType: elementType,
+	}
+}
+
+// evalSingleCast converts a single value to the target type
+func evalSingleCast(value Object, targetType string, line, col int) Object {
+	// Get the appropriate builtin conversion function
+	builtin, ok := builtins[targetType]
+	if !ok {
+		return newErrorWithLocation("E3001", line, col,
+			"unknown cast target type: %s", targetType)
+	}
+
+	result := builtin.Fn(value)
+	if errObj, isErr := result.(*Error); isErr {
+		if errObj.Line == 0 && errObj.Column == 0 {
+			errObj.Line = line
+			errObj.Column = col
+		}
+	}
+	return result
 }
 
 func evalForStatement(node *ast.ForStatement, env *Environment) Object {
