@@ -5285,6 +5285,52 @@ func (tc *TypeChecker) isBytesFunction(name string) bool {
 	return bytesFuncs[name]
 }
 
+// isBinaryFunction checks if a function name exists in the binary module
+func (tc *TypeChecker) isBinaryFunction(name string) bool {
+	binaryFuncs := map[string]bool{
+		// 8-bit (no endianness)
+		"encode_i8": true, "decode_i8": true,
+		"encode_u8": true, "decode_u8": true,
+		// 16-bit little endian
+		"encode_i16_to_little_endian": true, "decode_i16_from_little_endian": true,
+		"encode_u16_to_little_endian": true, "decode_u16_from_little_endian": true,
+		// 16-bit big endian
+		"encode_i16_to_big_endian": true, "decode_i16_from_big_endian": true,
+		"encode_u16_to_big_endian": true, "decode_u16_from_big_endian": true,
+		// 32-bit little endian
+		"encode_i32_to_little_endian": true, "decode_i32_from_little_endian": true,
+		"encode_u32_to_little_endian": true, "decode_u32_from_little_endian": true,
+		// 32-bit big endian
+		"encode_i32_to_big_endian": true, "decode_i32_from_big_endian": true,
+		"encode_u32_to_big_endian": true, "decode_u32_from_big_endian": true,
+		// 64-bit little endian
+		"encode_i64_to_little_endian": true, "decode_i64_from_little_endian": true,
+		"encode_u64_to_little_endian": true, "decode_u64_from_little_endian": true,
+		// 64-bit big endian
+		"encode_i64_to_big_endian": true, "decode_i64_from_big_endian": true,
+		"encode_u64_to_big_endian": true, "decode_u64_from_big_endian": true,
+		// 128-bit little endian
+		"encode_i128_to_little_endian": true, "decode_i128_from_little_endian": true,
+		"encode_u128_to_little_endian": true, "decode_u128_from_little_endian": true,
+		// 128-bit big endian
+		"encode_i128_to_big_endian": true, "decode_i128_from_big_endian": true,
+		"encode_u128_to_big_endian": true, "decode_u128_from_big_endian": true,
+		// 256-bit little endian
+		"encode_i256_to_little_endian": true, "decode_i256_from_little_endian": true,
+		"encode_u256_to_little_endian": true, "decode_u256_from_little_endian": true,
+		// 256-bit big endian
+		"encode_i256_to_big_endian": true, "decode_i256_from_big_endian": true,
+		"encode_u256_to_big_endian": true, "decode_u256_from_big_endian": true,
+		// Float little endian
+		"encode_f32_to_little_endian": true, "decode_f32_from_little_endian": true,
+		"encode_f64_to_little_endian": true, "decode_f64_from_little_endian": true,
+		// Float big endian
+		"encode_f32_to_big_endian": true, "decode_f32_from_big_endian": true,
+		"encode_f64_to_big_endian": true, "decode_f64_from_big_endian": true,
+	}
+	return binaryFuncs[name]
+}
+
 // getUsedModuleShadowingFunction checks if a name shadows a function from a used module
 // Returns the module name if there's a shadow, empty string otherwise
 func (tc *TypeChecker) getUsedModuleShadowingFunction(name string) string {
@@ -5332,6 +5378,8 @@ func (tc *TypeChecker) isModuleFunction(moduleName, funcName string) bool {
 		return tc.isJsonFunction(funcName)
 	case "bytes":
 		return tc.isBytesFunction(funcName)
+	case "binary":
+		return tc.isBinaryFunction(funcName)
 	default:
 		// Check user-defined modules
 		if funcs, ok := tc.moduleFunctions[moduleName]; ok {
@@ -5356,7 +5404,7 @@ func (tc *TypeChecker) checkStdlibCall(member *ast.MemberExpression, call *ast.C
 	line, column := tc.getExpressionPosition(member.Member)
 
 	// Check if the module was imported (for standard library modules)
-	stdModules := map[string]bool{"std": true, "math": true, "arrays": true, "strings": true, "time": true, "maps": true, "io": true, "os": true, "bytes": true, "random": true, "json": true}
+	stdModules := map[string]bool{"std": true, "math": true, "arrays": true, "strings": true, "time": true, "maps": true, "io": true, "os": true, "bytes": true, "random": true, "json": true, "binary": true}
 	if stdModules[moduleName] && !tc.modules[moduleName] {
 		tc.addError(errors.E4007, fmt.Sprintf("module '%s' not imported; add 'import @%s'", moduleName, moduleName), line, column)
 		return
@@ -5385,6 +5433,8 @@ func (tc *TypeChecker) checkStdlibCall(member *ast.MemberExpression, call *ast.C
 		tc.checkJsonModuleCall(funcName, call, line, column)
 	case "bytes":
 		tc.checkBytesModuleCall(funcName, call, line, column)
+	case "binary":
+		tc.checkBinaryModuleCall(funcName, call, line, column)
 	default:
 		// User-defined module - check if we have type info for it
 		tc.checkUserModuleCall(moduleName, funcName, call, line, column)
@@ -6259,6 +6309,96 @@ func (tc *TypeChecker) checkBytesModuleCall(funcName string, call *ast.CallExpre
 	}
 
 	tc.validateStdlibCall("bytes", funcName, call, sig, line, column)
+}
+
+// checkBinaryModuleCall validates binary module function calls
+func (tc *TypeChecker) checkBinaryModuleCall(funcName string, call *ast.CallExpression, line, column int) {
+	signatures := map[string]StdlibFuncSig{
+		// 8-bit (no endianness)
+		"encode_i8": {1, 1, []string{"int"}, "tuple"},
+		"decode_i8": {1, 1, []string{"array"}, "tuple"},
+		"encode_u8": {1, 1, []string{"int"}, "tuple"},
+		"decode_u8": {1, 1, []string{"array"}, "tuple"},
+
+		// 16-bit little endian
+		"encode_i16_to_little_endian":   {1, 1, []string{"int"}, "tuple"},
+		"decode_i16_from_little_endian": {1, 1, []string{"array"}, "tuple"},
+		"encode_u16_to_little_endian":   {1, 1, []string{"int"}, "tuple"},
+		"decode_u16_from_little_endian": {1, 1, []string{"array"}, "tuple"},
+
+		// 16-bit big endian
+		"encode_i16_to_big_endian":   {1, 1, []string{"int"}, "tuple"},
+		"decode_i16_from_big_endian": {1, 1, []string{"array"}, "tuple"},
+		"encode_u16_to_big_endian":   {1, 1, []string{"int"}, "tuple"},
+		"decode_u16_from_big_endian": {1, 1, []string{"array"}, "tuple"},
+
+		// 32-bit little endian
+		"encode_i32_to_little_endian":   {1, 1, []string{"int"}, "tuple"},
+		"decode_i32_from_little_endian": {1, 1, []string{"array"}, "tuple"},
+		"encode_u32_to_little_endian":   {1, 1, []string{"int"}, "tuple"},
+		"decode_u32_from_little_endian": {1, 1, []string{"array"}, "tuple"},
+
+		// 32-bit big endian
+		"encode_i32_to_big_endian":   {1, 1, []string{"int"}, "tuple"},
+		"decode_i32_from_big_endian": {1, 1, []string{"array"}, "tuple"},
+		"encode_u32_to_big_endian":   {1, 1, []string{"int"}, "tuple"},
+		"decode_u32_from_big_endian": {1, 1, []string{"array"}, "tuple"},
+
+		// 64-bit little endian
+		"encode_i64_to_little_endian":   {1, 1, []string{"int"}, "tuple"},
+		"decode_i64_from_little_endian": {1, 1, []string{"array"}, "tuple"},
+		"encode_u64_to_little_endian":   {1, 1, []string{"int"}, "tuple"},
+		"decode_u64_from_little_endian": {1, 1, []string{"array"}, "tuple"},
+
+		// 64-bit big endian
+		"encode_i64_to_big_endian":   {1, 1, []string{"int"}, "tuple"},
+		"decode_i64_from_big_endian": {1, 1, []string{"array"}, "tuple"},
+		"encode_u64_to_big_endian":   {1, 1, []string{"int"}, "tuple"},
+		"decode_u64_from_big_endian": {1, 1, []string{"array"}, "tuple"},
+
+		// 128-bit little endian
+		"encode_i128_to_little_endian":   {1, 1, []string{"int"}, "tuple"},
+		"decode_i128_from_little_endian": {1, 1, []string{"array"}, "tuple"},
+		"encode_u128_to_little_endian":   {1, 1, []string{"int"}, "tuple"},
+		"decode_u128_from_little_endian": {1, 1, []string{"array"}, "tuple"},
+
+		// 128-bit big endian
+		"encode_i128_to_big_endian":   {1, 1, []string{"int"}, "tuple"},
+		"decode_i128_from_big_endian": {1, 1, []string{"array"}, "tuple"},
+		"encode_u128_to_big_endian":   {1, 1, []string{"int"}, "tuple"},
+		"decode_u128_from_big_endian": {1, 1, []string{"array"}, "tuple"},
+
+		// 256-bit little endian
+		"encode_i256_to_little_endian":   {1, 1, []string{"int"}, "tuple"},
+		"decode_i256_from_little_endian": {1, 1, []string{"array"}, "tuple"},
+		"encode_u256_to_little_endian":   {1, 1, []string{"int"}, "tuple"},
+		"decode_u256_from_little_endian": {1, 1, []string{"array"}, "tuple"},
+
+		// 256-bit big endian
+		"encode_i256_to_big_endian":   {1, 1, []string{"int"}, "tuple"},
+		"decode_i256_from_big_endian": {1, 1, []string{"array"}, "tuple"},
+		"encode_u256_to_big_endian":   {1, 1, []string{"int"}, "tuple"},
+		"decode_u256_from_big_endian": {1, 1, []string{"array"}, "tuple"},
+
+		// Float little endian
+		"encode_f32_to_little_endian":   {1, 1, []string{"float"}, "tuple"},
+		"decode_f32_from_little_endian": {1, 1, []string{"array"}, "tuple"},
+		"encode_f64_to_little_endian":   {1, 1, []string{"float"}, "tuple"},
+		"decode_f64_from_little_endian": {1, 1, []string{"array"}, "tuple"},
+
+		// Float big endian
+		"encode_f32_to_big_endian":   {1, 1, []string{"float"}, "tuple"},
+		"decode_f32_from_big_endian": {1, 1, []string{"array"}, "tuple"},
+		"encode_f64_to_big_endian":   {1, 1, []string{"float"}, "tuple"},
+		"decode_f64_from_big_endian": {1, 1, []string{"array"}, "tuple"},
+	}
+
+	sig, exists := signatures[funcName]
+	if !exists {
+		return
+	}
+
+	tc.validateStdlibCall("binary", funcName, call, sig, line, column)
 }
 
 // validateStdlibCall performs the actual validation of a stdlib call
