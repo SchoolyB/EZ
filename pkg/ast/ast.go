@@ -300,6 +300,7 @@ func (v *VariableDeclaration) TokenLiteral() string { return v.Token.Literal }
 type AssignmentStatement struct {
 	Token    Token
 	Name     Expression // can be Identifier, IndexExpression, or MemberExpression
+	Names    []*Label   // for tuple unpacking: a, b = func()
 	Operator string
 	Value    Expression
 }
