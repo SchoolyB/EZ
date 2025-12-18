@@ -883,6 +883,22 @@ func runFile(filename string) {
 
 			fileTc.CheckProgram(fileProgram)
 
+			// Check for type errors in single-file modules (#720)
+			// For multi-file modules, we skip error checking here because each file
+			// is type-checked without context from other files in the same module.
+			// Multi-file module type errors will be caught at runtime.
+			if len(mod.Files) == 1 {
+				if fileTc.Errors().HasErrors() {
+					fmt.Print(errors.FormatErrorList(fileTc.Errors()))
+					os.Exit(1)
+				}
+
+				// Display type checker warnings from single-file modules
+				if fileTc.Errors().HasWarnings() {
+					fmt.Print(errors.FormatErrorList(fileTc.Errors()))
+				}
+			}
+
 			// Extract module name, function signatures, and types
 			if fileProgram.Module != nil && fileProgram.Module.Name != nil {
 				// Use the alias if one was provided, otherwise use the module's internal name
