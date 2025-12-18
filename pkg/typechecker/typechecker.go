@@ -519,6 +519,103 @@ func (tc *TypeChecker) CheckProgram(program *ast.Program) bool {
 	return errCount == 0
 }
 
+// RegisterDeclarations performs a lightweight pass to register type and function
+// declarations without full type checking. Used for multi-file modules to make
+// types available before checking files that depend on them (#709).
+func (tc *TypeChecker) RegisterDeclarations(program *ast.Program) {
+	// Phase 0: Register all imported modules
+	for _, stmt := range program.Statements {
+		if importStmt, ok := stmt.(*ast.ImportStatement); ok {
+			for _, item := range importStmt.Imports {
+				moduleName := item.Alias
+				if moduleName == "" {
+					moduleName = item.Module
+				}
+				tc.modules[moduleName] = true
+				if importStmt.AutoUse {
+					tc.fileUsingModules[moduleName] = true
+				}
+			}
+		}
+	}
+
+	// Phase 0.5: Register file-level using modules
+	for _, usingStmt := range program.FileUsing {
+		for _, mod := range usingStmt.Modules {
+			tc.fileUsingModules[mod.Value] = true
+		}
+	}
+
+	// Phase 1: Register all user-defined types (structs, enums)
+	for _, stmt := range program.Statements {
+		switch node := stmt.(type) {
+		case *ast.StructDeclaration:
+			tc.registerStructType(node)
+		case *ast.EnumDeclaration:
+			tc.registerEnumType(node)
+		}
+	}
+
+	// Phase 1.5: Populate struct fields (without validation errors)
+	for _, stmt := range program.Statements {
+		if node, ok := stmt.(*ast.StructDeclaration); ok {
+			tc.populateStructFields(node)
+		}
+	}
+
+	// Phase 2: Register function signatures
+	for _, stmt := range program.Statements {
+		switch node := stmt.(type) {
+		case *ast.FunctionDeclaration:
+			sig := &FunctionSignature{
+				Name:        node.Name.Value,
+				Parameters:  []*Parameter{},
+				ReturnTypes: node.ReturnTypes,
+			}
+			for _, param := range node.Parameters {
+				sig.Parameters = append(sig.Parameters, &Parameter{
+					Name:       param.Name.Value,
+					Type:       param.TypeName,
+					Mutable:    param.Mutable,
+					HasDefault: param.DefaultValue != nil,
+				})
+			}
+			tc.RegisterFunction(node.Name.Value, sig)
+		case *ast.VariableDeclaration:
+			// Register global constants/variables
+			varType := node.TypeName
+			if varType == "" {
+				varType, _ = tc.inferExpressionType(node.Value)
+			}
+			tc.variables[node.Name.Value] = varType
+		}
+	}
+}
+
+// populateStructFields adds field types to a struct without validation errors
+func (tc *TypeChecker) populateStructFields(node *ast.StructDeclaration) {
+	structType, ok := tc.GetType(node.Name.Value)
+	if !ok {
+		return
+	}
+
+	for _, field := range node.Fields {
+		// Create type for the field (skip validation - will be done in full check)
+		var fieldType *Type
+		if tc.isArrayType(field.TypeName) {
+			fieldType = &Type{Name: field.TypeName, Kind: ArrayType}
+		} else if tc.isMapType(field.TypeName) {
+			fieldType = &Type{Name: field.TypeName, Kind: MapType}
+		} else if existingType, exists := tc.GetType(field.TypeName); exists {
+			fieldType = existingType
+		} else {
+			// Type doesn't exist yet - create placeholder
+			fieldType = &Type{Name: field.TypeName, Kind: StructType}
+		}
+		structType.Fields[field.Name.Value] = fieldType
+	}
+}
+
 // registerStructType registers a struct type name (without validating fields yet)
 func (tc *TypeChecker) registerStructType(node *ast.StructDeclaration) {
 	structType := &Type{
@@ -2961,6 +3058,9 @@ func (tc *TypeChecker) checkIfStatement(ifStmt *ast.IfStatement, expectedReturnT
 
 // checkWhenStatement validates a when/is/default statement
 func (tc *TypeChecker) checkWhenStatement(whenStmt *ast.WhenStatement, expectedReturnTypes []string) {
+	// Validate the when value expression (check for field access errors, etc.)
+	tc.checkExpression(whenStmt.Value)
+
 	// Infer the type of the value being matched
 	valueType, ok := tc.inferExpressionType(whenStmt.Value)
 	if !ok {
@@ -3273,6 +3373,9 @@ func (tc *TypeChecker) checkForEachStatement(forEach *ast.ForEachStatement, expe
 
 // checkWhileStatement validates an as_long_as loop
 func (tc *TypeChecker) checkWhileStatement(whileStmt *ast.WhileStatement, expectedReturnTypes []string) {
+	// Validate the condition expression (check for field access errors, etc.)
+	tc.checkExpression(whileStmt.Condition)
+
 	// Check that condition is boolean
 	condType, ok := tc.inferExpressionType(whileStmt.Condition)
 	if ok && condType != "bool" {
@@ -4530,6 +4633,36 @@ func (tc *TypeChecker) inferMemberType(member *ast.MemberExpression) (string, bo
 		}
 	}
 
+	// Check if accessing imported enum member (e.g., lib.Status.ACTIVE)
+	// In this case, member.Object is itself a MemberExpression (lib.Status)
+	if innerMember, isInnerMember := member.Object.(*ast.MemberExpression); isInnerMember {
+		if moduleLabel, isModuleLabel := innerMember.Object.(*ast.Label); isModuleLabel {
+			moduleName := moduleLabel.Value
+			enumName := innerMember.Member.Value
+			memberName := member.Member.Value
+
+			// Check if this is a module.EnumType.MEMBER pattern
+			if tc.modules[moduleName] {
+				if moduleTypes, hasModule := tc.moduleTypes[moduleName]; hasModule {
+					if enumType, hasEnum := moduleTypes[enumName]; hasEnum && enumType.Kind == EnumType {
+						// Validate that the enum member exists
+						if enumType.EnumMembers != nil && !enumType.EnumMembers[memberName] {
+							tc.addError(
+								errors.E4004,
+								fmt.Sprintf("enum '%s.%s' has no member '%s'", moduleName, enumName, memberName),
+								member.Member.Token.Line,
+								member.Member.Token.Column,
+							)
+							return "", false
+						}
+						// Return the qualified enum type name
+						return moduleName + "." + enumName, true
+					}
+				}
+			}
+		}
+	}
+
 	// Check if accessing struct field
 	objType, ok := tc.inferExpressionType(member.Object)
 	if !ok {
@@ -5140,8 +5273,16 @@ func (tc *TypeChecker) checkUserModuleCall(moduleName, funcName string, call *as
 	// Look up function signature in registered module functions
 	sig, ok := tc.GetModuleFunction(moduleName, funcName)
 	if !ok {
-		// Function not found in module registry - might not have been registered yet
-		// This is expected if the module wasn't pre-processed
+		// Check if the module itself is registered - if so, the function doesn't exist
+		if tc.modules[moduleName] {
+			// Module is registered but function doesn't exist - report error
+			tc.addError(
+				errors.E4002,
+				fmt.Sprintf("undefined function '%s.%s'", moduleName, funcName),
+				line,
+				column,
+			)
+		}
 		return
 	}
 
