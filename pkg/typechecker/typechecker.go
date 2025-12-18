@@ -2229,6 +2229,9 @@ func (tc *TypeChecker) checkExpression(expr ast.Expression) {
 	case *ast.RangeExpression:
 		tc.checkRangeExpression(e)
 
+	case *ast.CastExpression:
+		tc.checkCastExpression(e)
+
 	case *ast.PostfixExpression:
 		tc.checkExpression(e.Left)
 		tc.checkPostfixExpression(e)
@@ -2330,6 +2333,136 @@ func (tc *TypeChecker) checkRangeExpression(rangeExpr *ast.RangeExpression) {
 	if rangeExpr.Step != nil {
 		tc.checkExpression(rangeExpr.Step)
 	}
+}
+
+// checkCastExpression validates cast(value, type) expressions
+func (tc *TypeChecker) checkCastExpression(castExpr *ast.CastExpression) {
+	// Check the value expression
+	tc.checkExpression(castExpr.Value)
+
+	// Validate that the target type is a valid type
+	targetType := castExpr.TargetType
+	if castExpr.IsArray {
+		// For array types like [u8], validate the element type
+		if !tc.isValidCastTargetType(castExpr.ElementType) {
+			tc.addError(
+				errors.E3001,
+				fmt.Sprintf("invalid cast target type: [%s]", castExpr.ElementType),
+				castExpr.Token.Line,
+				castExpr.Token.Column,
+			)
+			return
+		}
+	} else {
+		// For simple types like u8, validate directly
+		if !tc.isValidCastTargetType(targetType) {
+			tc.addError(
+				errors.E3001,
+				fmt.Sprintf("invalid cast target type: %s", targetType),
+				castExpr.Token.Line,
+				castExpr.Token.Column,
+			)
+			return
+		}
+	}
+
+	// Infer the source type and check if the conversion is valid
+	sourceType, ok := tc.inferExpressionType(castExpr.Value)
+	if !ok {
+		return // Can't validate without knowing source type
+	}
+
+	// Check if the conversion is valid
+	if castExpr.IsArray {
+		// For array casts, source must be an array
+		if !tc.isArrayType(sourceType) {
+			tc.addError(
+				errors.E3001,
+				fmt.Sprintf("cannot cast non-array type %s to array type %s", sourceType, targetType),
+				castExpr.Token.Line,
+				castExpr.Token.Column,
+			)
+			return
+		}
+
+		// Get source element type and check if element conversion is valid
+		sourceElemType := tc.extractArrayElementType(sourceType)
+		if sourceElemType != "" && !tc.isValidCastConversion(sourceElemType, castExpr.ElementType) {
+			tc.addWarning(
+				errors.W2004,
+				fmt.Sprintf("cast from [%s] to [%s] may fail at runtime", sourceElemType, castExpr.ElementType),
+				castExpr.Token.Line,
+				castExpr.Token.Column,
+			)
+		}
+	} else {
+		// For single value casts, check if conversion is valid
+		if !tc.isValidCastConversion(sourceType, targetType) {
+			tc.addWarning(
+				errors.W2004,
+				fmt.Sprintf("cast from %s to %s may fail at runtime", sourceType, targetType),
+				castExpr.Token.Line,
+				castExpr.Token.Column,
+			)
+		}
+	}
+}
+
+// isValidCastTargetType checks if a type name is valid as a cast target
+func (tc *TypeChecker) isValidCastTargetType(typeName string) bool {
+	switch typeName {
+	case "int", "i8", "i16", "i32", "i64", "i128", "i256",
+		"uint", "u8", "u16", "u32", "u64", "u128", "u256",
+		"float", "f32", "f64",
+		"byte", "char", "string", "bool":
+		return true
+	default:
+		return false
+	}
+}
+
+// isValidCastConversion checks if a conversion from source to target type is valid
+func (tc *TypeChecker) isValidCastConversion(source, target string) bool {
+	// Any type can be cast to string (via Inspect)
+	if target == "string" {
+		return true
+	}
+
+	// Numeric types can be cast to other numeric types
+	if tc.isNumericType(source) && tc.isNumericType(target) {
+		return true
+	}
+
+	// char can be cast to int/numeric and vice versa
+	if source == "char" && tc.isNumericType(target) {
+		return true
+	}
+	if tc.isNumericType(source) && target == "char" {
+		return true
+	}
+
+	// byte can be cast to other numeric types
+	if source == "byte" && tc.isNumericType(target) {
+		return true
+	}
+	if tc.isNumericType(source) && target == "byte" {
+		return true
+	}
+
+	// string can be cast to numeric types (parsing)
+	if source == "string" && tc.isNumericType(target) {
+		return true
+	}
+
+	// bool conversions
+	if target == "bool" {
+		return source == "bool" || source == "int" || source == "string"
+	}
+	if source == "bool" && target == "int" {
+		return true
+	}
+
+	return false
 }
 
 // checkPostfixExpression validates postfix operators (++ and --)
@@ -3721,6 +3854,8 @@ func (tc *TypeChecker) getExpressionPosition(expr ast.Expression) (int, int) {
 		return e.Token.Line, e.Token.Column
 	case *ast.RangeExpression:
 		return e.Token.Line, e.Token.Column
+	case *ast.CastExpression:
+		return e.Token.Line, e.Token.Column
 	default:
 		return 1, 1
 	}
@@ -4114,6 +4249,10 @@ func (tc *TypeChecker) inferExpressionType(expr ast.Expression) (string, bool) {
 	case *ast.RangeExpression:
 		// range(start, end) returns [int]
 		return "[int]", true
+
+	case *ast.CastExpression:
+		// cast(value, type) returns the target type
+		return e.TargetType, true
 
 	case *ast.InterpolatedString:
 		return "string", true
