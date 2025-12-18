@@ -782,7 +782,47 @@ func evalVariableDeclaration(node *ast.VariableDeclaration, env *Environment) Ob
 		// UNLESS the value is a Reference (from ref() builtin)
 		val = copyByDefault(val)
 
-		// Validate type compatibility if a type is declared
+		// Handle multiple assignment FIRST: temp result, err = function()
+		// This must happen before single-value type validation (#698)
+		vis := convertVisibility(node.Visibility)
+		if len(node.Names) > 1 {
+			// Expect a ReturnValue with multiple values
+			returnVal, ok := val.(*ReturnValue)
+			if !ok {
+				// Single value assigned to multiple variables - error
+				return newError("expected %d values, got 1", len(node.Names))
+			}
+
+			if len(returnVal.Values) != len(node.Names) {
+				return newError("expected %d values, got %d", len(node.Names), len(returnVal.Values))
+			}
+
+			// Validate types if TypeNames is provided
+			for i, name := range node.Names {
+				// Skip blank identifier (_)
+				if name.Value == "_" {
+					continue
+				}
+
+				unpackedVal := returnVal.Values[i]
+
+				// Apply type validation if TypeNames is provided
+				if i < len(node.TypeNames) && node.TypeNames[i] != "" {
+					typeName := node.TypeNames[i]
+					// Validate and potentially convert the value based on declared type
+					validatedVal, err := validateAndConvertType(unpackedVal, typeName, node.Mutable, node.Token.Line, node.Token.Column)
+					if err != nil {
+						return err
+					}
+					unpackedVal = validatedVal
+				}
+
+				env.SetWithVisibility(name.Value, unpackedVal, node.Mutable, vis)
+			}
+			return NIL
+		}
+
+		// Validate type compatibility if a type is declared (single variable case)
 		if node.TypeName != "" {
 			// Check if declared type is an array type
 			if len(node.TypeName) > 0 && node.TypeName[0] == '[' {
@@ -939,33 +979,75 @@ func evalVariableDeclaration(node *ast.VariableDeclaration, env *Environment) Ob
 		structObj.Mutable = node.Mutable
 	}
 
-	// Handle multiple assignment: temp result, err = function()
-	vis := convertVisibility(node.Visibility)
-	if len(node.Names) > 1 {
-		// Expect a ReturnValue with multiple values
-		returnVal, ok := val.(*ReturnValue)
-		if !ok {
-			// Single value assigned to multiple variables - error
-			return newError("expected %d values, got 1", len(node.Names))
-		}
-
-		if len(returnVal.Values) != len(node.Names) {
-			return newError("expected %d values, got %d", len(node.Names), len(returnVal.Values))
-		}
-
-		for i, name := range node.Names {
-			// Skip blank identifier (_)
-			if name.Value == "_" {
-				continue
-			}
-			env.SetWithVisibility(name.Value, returnVal.Values[i], node.Mutable, vis)
-		}
-		return NIL
-	}
-
 	// Single variable assignment
+	vis := convertVisibility(node.Visibility)
 	env.SetWithVisibility(node.Name.Value, val, node.Mutable, vis)
 	return NIL
+}
+
+// validateAndConvertType validates a value against a declared type and converts if necessary
+func validateAndConvertType(val Object, typeName string, mutable bool, line, col int) (Object, *Error) {
+	// Handle array types
+	if len(typeName) > 0 && typeName[0] == '[' {
+		arr, ok := val.(*Array)
+		if !ok {
+			return nil, newErrorWithLocation("E3018", line, col,
+				"type mismatch: expected array type '%s', got %s",
+				typeName, getEZTypeName(val))
+		}
+		// Extract element type from type name
+		elemType := typeName[1:]
+		if commaIdx := strings.Index(elemType, ","); commaIdx != -1 {
+			elemType = elemType[:commaIdx]
+		} else {
+			elemType = elemType[:len(elemType)-1]
+		}
+		arr.ElementType = elemType
+		arr.Mutable = mutable
+		return arr, nil
+	}
+
+	// Handle map types
+	if strings.HasPrefix(typeName, "map[") {
+		mapObj, ok := val.(*Map)
+		if !ok {
+			if arr, isArr := val.(*Array); isArr && len(arr.Elements) == 0 {
+				mapObj = &Map{Pairs: []*MapPair{}, Index: make(map[string]int), Mutable: mutable}
+				return mapObj, nil
+			}
+			return nil, newErrorWithLocation("E3019", line, col,
+				"type mismatch: expected map type '%s', got %s",
+				typeName, getEZTypeName(val))
+		}
+		mapObj.Mutable = mutable
+		return mapObj, nil
+	}
+
+	// Handle struct types
+	if structObj, ok := val.(*Struct); ok {
+		structObj.Mutable = mutable
+		return structObj, nil
+	}
+
+	// Handle integer types
+	if intVal, ok := val.(*Integer); ok {
+		if typeName == "byte" {
+			if intVal.Value.Sign() < 0 || intVal.Value.Cmp(big.NewInt(255)) > 0 {
+				return nil, newErrorWithLocation("E3020", line, col,
+					"cannot assign value %s to byte: value must be between 0 and 255", intVal.Value.String())
+			}
+			return &Byte{Value: uint8(intVal.Value.Int64())}, nil
+		}
+		if isUnsignedIntegerType(typeName) && intVal.Value.Sign() < 0 {
+			return nil, newErrorWithLocation("E3020", line, col,
+				"cannot assign negative value %s to unsigned type '%s'", intVal.Value.String(), typeName)
+		}
+		intVal.DeclaredType = typeName
+		return intVal, nil
+	}
+
+	// For other types (nil, Error, etc.), just return as-is
+	return val, nil
 }
 
 func evalAssignment(node *ast.AssignmentStatement, env *Environment) Object {
@@ -977,6 +1059,13 @@ func evalAssignment(node *ast.AssignmentStatement, env *Environment) Object {
 	// Copy-by-default for complex types on simple assignment (#661)
 	if node.Operator == "=" {
 		val = copyByDefault(val)
+	}
+
+	// Check for multi-value return being assigned to single variable (#698)
+	if retVal, ok := val.(*ReturnValue); ok && len(retVal.Values) > 1 {
+		return newErrorWithLocation("E5012", node.Token.Line, node.Token.Column,
+			"cannot assign %d values to single variable; use a declaration with tuple unpacking: temp a, b = func()",
+			len(retVal.Values))
 	}
 
 	switch target := node.Name.(type) {
@@ -2688,6 +2777,17 @@ func objectTypeToEZ(obj Object) string {
 		return "nil"
 	case *Function:
 		return "function"
+	case *ReturnValue:
+		// Handle return values - format as tuple if multiple values
+		if len(v.Values) == 1 {
+			return objectTypeToEZ(v.Values[0])
+		}
+		// Multiple return values - format as tuple
+		types := make([]string, len(v.Values))
+		for i, val := range v.Values {
+			types[i] = objectTypeToEZ(val)
+		}
+		return "(" + strings.Join(types, ", ") + ")"
 	default:
 		return string(obj.Type())
 	}
