@@ -1,0 +1,13 @@
+module main
+
+// Test: Invalid enum member access with imported enum
+// Expected: E4004 - enum has no member 'RUNNING'
+
+import & use @std
+import lib"./lib"
+
+do main() {
+    // ERROR: 'RUNNING' is not a member of Status enum
+    temp s = lib.Status.RUNNING
+    println(s)
+}

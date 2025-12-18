@@ -1,0 +1,13 @@
+module main
+
+// Test: Invalid struct field access with imported type
+// Expected: E4003 - struct has no field 'valu'
+
+import & use @std
+import lib"./lib"
+
+do main() {
+    temp item = lib.Item{ name: "Test", value: 100 }
+    // ERROR: 'valu' is not a field of Item (typo)
+    println(item.valu)
+}

@@ -1,0 +1,6 @@
+module lib
+
+const Item struct {
+    name string
+    value u32
+}
