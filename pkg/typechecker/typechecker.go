@@ -5182,6 +5182,98 @@ func (tc *TypeChecker) isStdFunction(name string) bool {
 	return stdFuncs[name]
 }
 
+// isIoFunction checks if a function name exists in the io module
+func (tc *TypeChecker) isIoFunction(name string) bool {
+	ioFuncs := map[string]bool{
+		// File reading
+		"read_file": true, "read_bytes": true, "read_lines": true,
+		// File writing
+		"write_file": true, "write_bytes": true, "append_file": true, "append_line": true,
+		// Path utilities
+		"expand_path": true, "path_join": true, "path_base": true, "path_dir": true,
+		"path_ext": true, "path_abs": true, "path_clean": true, "path_separator": true,
+		// File checks
+		"exists": true, "is_file": true, "is_dir": true, "is_symlink": true,
+		// File operations
+		"remove": true, "remove_dir": true, "remove_all": true, "rename": true, "copy": true,
+		// Directory operations
+		"mkdir": true, "mkdir_all": true, "read_dir": true,
+		// File metadata
+		"file_size": true, "file_mod_time": true,
+		// File handle operations
+		"open": true, "read": true, "read_all": true, "read_string": true,
+		"write": true, "seek": true, "tell": true, "flush": true, "close": true,
+		// Filesystem utilities
+		"glob": true, "walk": true,
+		// Constants (accessed as functions)
+		"READ_ONLY": true, "WRITE_ONLY": true, "READ_WRITE": true,
+		"APPEND": true, "CREATE": true, "TRUNCATE": true, "EXCLUSIVE": true,
+		"SEEK_START": true, "SEEK_CURRENT": true, "SEEK_END": true,
+	}
+	return ioFuncs[name]
+}
+
+// isOsFunction checks if a function name exists in the os module
+func (tc *TypeChecker) isOsFunction(name string) bool {
+	osFuncs := map[string]bool{
+		// Environment variables
+		"get_env": true, "set_env": true, "unset_env": true, "env": true, "args": true,
+		// Process / System
+		"exit": true, "cwd": true, "chdir": true, "hostname": true, "username": true,
+		"home_dir": true, "temp_dir": true, "pid": true, "ppid": true,
+		// Platform detection
+		"platform": true, "arch": true, "is_windows": true, "is_linux": true, "is_macos": true,
+		"num_cpu": true, "line_separator": true, "dev_null": true,
+		// Command execution
+		"exec": true, "exec_output": true,
+		// Constants
+		"MAC_OS": true, "LINUX": true, "WINDOWS": true, "CURRENT_OS": true,
+	}
+	return osFuncs[name]
+}
+
+// isRandomFunction checks if a function name exists in the random module
+func (tc *TypeChecker) isRandomFunction(name string) bool {
+	randomFuncs := map[string]bool{
+		"float": true, "int": true, "bool": true, "byte": true, "char": true,
+		"choice": true, "shuffle": true, "sample": true,
+	}
+	return randomFuncs[name]
+}
+
+// isJsonFunction checks if a function name exists in the json module
+func (tc *TypeChecker) isJsonFunction(name string) bool {
+	jsonFuncs := map[string]bool{
+		"encode": true, "decode": true, "pretty": true, "is_valid": true,
+	}
+	return jsonFuncs[name]
+}
+
+// isBytesFunction checks if a function name exists in the bytes module
+func (tc *TypeChecker) isBytesFunction(name string) bool {
+	bytesFuncs := map[string]bool{
+		// Creation
+		"from_array": true, "from_string": true, "from_hex": true, "from_base64": true,
+		// Conversion
+		"to_string": true, "to_array": true, "to_hex": true, "to_hex_upper": true, "to_base64": true,
+		// Slicing and combining
+		"slice": true, "concat": true, "join": true, "split": true,
+		// Search
+		"contains": true, "index": true, "last_index": true, "count": true,
+		// Comparison
+		"compare": true, "equals": true, "is_empty": true, "starts_with": true, "ends_with": true,
+		// Transformation
+		"reverse": true, "repeat": true, "replace": true, "replace_n": true,
+		"trim": true, "trim_left": true, "trim_right": true,
+		"pad_left": true, "pad_right": true,
+		// Bitwise
+		"and": true, "or": true, "xor": true, "not": true,
+		// Utilities
+		"fill": true, "copy": true, "zero": true,
+	}
+	return bytesFuncs[name]
+}
+
 // getUsedModuleShadowingFunction checks if a name shadows a function from a used module
 // Returns the module name if there's a shadow, empty string otherwise
 func (tc *TypeChecker) getUsedModuleShadowingFunction(name string) string {
@@ -5219,6 +5311,16 @@ func (tc *TypeChecker) isModuleFunction(moduleName, funcName string) bool {
 		return tc.isTimeFunction(funcName)
 	case "maps":
 		return tc.isMapsFunction(funcName)
+	case "io":
+		return tc.isIoFunction(funcName)
+	case "os":
+		return tc.isOsFunction(funcName)
+	case "random":
+		return tc.isRandomFunction(funcName)
+	case "json":
+		return tc.isJsonFunction(funcName)
+	case "bytes":
+		return tc.isBytesFunction(funcName)
 	default:
 		// Check user-defined modules
 		if funcs, ok := tc.moduleFunctions[moduleName]; ok {
@@ -5243,7 +5345,7 @@ func (tc *TypeChecker) checkStdlibCall(member *ast.MemberExpression, call *ast.C
 	line, column := tc.getExpressionPosition(member.Member)
 
 	// Check if the module was imported (for standard library modules)
-	stdModules := map[string]bool{"std": true, "math": true, "arrays": true, "strings": true, "time": true, "maps": true, "io": true, "os": true, "random": true}
+	stdModules := map[string]bool{"std": true, "math": true, "arrays": true, "strings": true, "time": true, "maps": true, "io": true, "os": true, "bytes": true, "random": true, "json": true}
 	if stdModules[moduleName] && !tc.modules[moduleName] {
 		tc.addError(errors.E4007, fmt.Sprintf("module '%s' not imported; add 'import @%s'", moduleName, moduleName), line, column)
 		return
@@ -5262,6 +5364,16 @@ func (tc *TypeChecker) checkStdlibCall(member *ast.MemberExpression, call *ast.C
 		tc.checkTimeModuleCall(funcName, call, line, column)
 	case "maps":
 		tc.checkMapsModuleCall(funcName, call, line, column)
+	case "io":
+		tc.checkIoModuleCall(funcName, call, line, column)
+	case "os":
+		tc.checkOsModuleCall(funcName, call, line, column)
+	case "random":
+		tc.checkRandomModuleCall(funcName, call, line, column)
+	case "json":
+		tc.checkJsonModuleCall(funcName, call, line, column)
+	case "bytes":
+		tc.checkBytesModuleCall(funcName, call, line, column)
 	default:
 		// User-defined module - check if we have type info for it
 		tc.checkUserModuleCall(moduleName, funcName, call, line, column)
@@ -5888,6 +6000,254 @@ func (tc *TypeChecker) checkTimeModuleCall(funcName string, call *ast.CallExpres
 	}
 
 	tc.validateStdlibCall("time", funcName, call, sig, line, column)
+}
+
+// checkIoModuleCall validates io module function calls
+func (tc *TypeChecker) checkIoModuleCall(funcName string, call *ast.CallExpression, line, column int) {
+	signatures := map[string]StdlibFuncSig{
+		// File reading (1 path arg, returns tuple)
+		"read_file":  {1, 1, []string{"string"}, "tuple"},
+		"read_bytes": {1, 1, []string{"string"}, "tuple"},
+		"read_lines": {1, 1, []string{"string"}, "tuple"},
+
+		// File writing (2-3 args: path, content, optional perms)
+		"write_file":  {2, 3, []string{"string", "string", "int"}, "tuple"},
+		"write_bytes": {2, 3, []string{"string", "array", "int"}, "tuple"},
+		"append_file": {2, 3, []string{"string", "string", "int"}, "tuple"},
+		"append_line": {2, 3, []string{"string", "string", "int"}, "tuple"},
+
+		// Path utilities
+		"expand_path":    {1, 1, []string{"string"}, "string"},
+		"path_join":      {1, -1, []string{"string"}, "string"},
+		"path_base":      {1, 1, []string{"string"}, "string"},
+		"path_dir":       {1, 1, []string{"string"}, "string"},
+		"path_ext":       {1, 1, []string{"string"}, "string"},
+		"path_abs":       {1, 1, []string{"string"}, "tuple"},
+		"path_clean":     {1, 1, []string{"string"}, "string"},
+		"path_separator": {0, 0, []string{}, "string"},
+
+		// File checks (1 path arg, returns bool)
+		"exists":     {1, 1, []string{"string"}, "bool"},
+		"is_file":    {1, 1, []string{"string"}, "bool"},
+		"is_dir":     {1, 1, []string{"string"}, "bool"},
+		"is_symlink": {1, 1, []string{"string"}, "bool"},
+
+		// File operations
+		"remove":     {1, 1, []string{"string"}, "tuple"},
+		"remove_dir": {1, 1, []string{"string"}, "tuple"},
+		"remove_all": {1, 1, []string{"string"}, "tuple"},
+		"rename":     {2, 2, []string{"string", "string"}, "tuple"},
+		"copy":       {2, 3, []string{"string", "string", "int"}, "tuple"},
+
+		// Directory operations
+		"mkdir":     {1, 2, []string{"string", "int"}, "tuple"},
+		"mkdir_all": {1, 2, []string{"string", "int"}, "tuple"},
+		"read_dir":  {1, 1, []string{"string"}, "tuple"},
+
+		// File metadata
+		"file_size":     {1, 1, []string{"string"}, "tuple"},
+		"file_mod_time": {1, 1, []string{"string"}, "tuple"},
+
+		// File handle operations
+		"open":        {1, 3, []string{"string", "int", "int"}, "tuple"},
+		"read":        {2, 2, []string{"any", "int"}, "tuple"},
+		"read_all":    {1, 1, []string{"any"}, "tuple"},
+		"read_string": {2, 2, []string{"any", "int"}, "tuple"},
+		"write":       {2, 2, []string{"any", "any"}, "tuple"},
+		"seek":        {3, 3, []string{"any", "int", "int"}, "tuple"},
+		"tell":        {1, 1, []string{"any"}, "tuple"},
+		"flush":       {1, 1, []string{"any"}, "tuple"},
+		"close":       {1, 1, []string{"any"}, "tuple"},
+
+		// Filesystem utilities
+		"glob": {1, 1, []string{"string"}, "tuple"},
+		"walk": {1, 1, []string{"string"}, "tuple"},
+
+		// Constants (no args)
+		"READ_ONLY":    {0, 0, []string{}, "int"},
+		"WRITE_ONLY":   {0, 0, []string{}, "int"},
+		"READ_WRITE":   {0, 0, []string{}, "int"},
+		"APPEND":       {0, 0, []string{}, "int"},
+		"CREATE":       {0, 0, []string{}, "int"},
+		"TRUNCATE":     {0, 0, []string{}, "int"},
+		"EXCLUSIVE":    {0, 0, []string{}, "int"},
+		"SEEK_START":   {0, 0, []string{}, "int"},
+		"SEEK_CURRENT": {0, 0, []string{}, "int"},
+		"SEEK_END":     {0, 0, []string{}, "int"},
+	}
+
+	sig, exists := signatures[funcName]
+	if !exists {
+		return
+	}
+
+	tc.validateStdlibCall("io", funcName, call, sig, line, column)
+}
+
+// checkOsModuleCall validates os module function calls
+func (tc *TypeChecker) checkOsModuleCall(funcName string, call *ast.CallExpression, line, column int) {
+	signatures := map[string]StdlibFuncSig{
+		// Environment variables
+		"get_env":   {1, 1, []string{"string"}, "any"},
+		"set_env":   {2, 2, []string{"string", "string"}, "tuple"},
+		"unset_env": {1, 1, []string{"string"}, "tuple"},
+		"env":       {0, 0, []string{}, "map"},
+		"args":      {0, 0, []string{}, "array"},
+
+		// Process / System
+		"exit":     {0, 1, []string{"int"}, "void"},
+		"cwd":      {0, 0, []string{}, "tuple"},
+		"chdir":    {1, 1, []string{"string"}, "tuple"},
+		"hostname": {0, 0, []string{}, "tuple"},
+		"username": {0, 0, []string{}, "tuple"},
+		"home_dir": {0, 0, []string{}, "tuple"},
+		"temp_dir": {0, 0, []string{}, "string"},
+		"pid":      {0, 0, []string{}, "int"},
+		"ppid":     {0, 0, []string{}, "int"},
+
+		// Platform detection
+		"platform":       {0, 0, []string{}, "string"},
+		"arch":           {0, 0, []string{}, "string"},
+		"is_windows":     {0, 0, []string{}, "bool"},
+		"is_linux":       {0, 0, []string{}, "bool"},
+		"is_macos":       {0, 0, []string{}, "bool"},
+		"num_cpu":        {0, 0, []string{}, "int"},
+		"line_separator": {0, 0, []string{}, "string"},
+		"dev_null":       {0, 0, []string{}, "string"},
+
+		// Command execution
+		"exec":        {1, 1, []string{"string"}, "tuple"},
+		"exec_output": {1, 1, []string{"string"}, "tuple"},
+
+		// Constants
+		"MAC_OS":     {0, 0, []string{}, "int"},
+		"LINUX":      {0, 0, []string{}, "int"},
+		"WINDOWS":    {0, 0, []string{}, "int"},
+		"CURRENT_OS": {0, 0, []string{}, "int"},
+	}
+
+	sig, exists := signatures[funcName]
+	if !exists {
+		return
+	}
+
+	tc.validateStdlibCall("os", funcName, call, sig, line, column)
+}
+
+// checkRandomModuleCall validates random module function calls
+func (tc *TypeChecker) checkRandomModuleCall(funcName string, call *ast.CallExpression, line, column int) {
+	signatures := map[string]StdlibFuncSig{
+		// random.float() or random.float(min, max)
+		"float": {0, 2, []string{"numeric", "numeric"}, "float"},
+		// random.int(max) or random.int(min, max)
+		"int": {1, 2, []string{"numeric", "numeric"}, "int"},
+		// random.bool()
+		"bool": {0, 0, []string{}, "bool"},
+		// random.byte()
+		"byte": {0, 0, []string{}, "byte"},
+		// random.char() or random.char(min, max)
+		"char": {0, 2, []string{"any", "any"}, "char"},
+		// random.choice(array)
+		"choice": {1, 1, []string{"array"}, "any"},
+		// random.shuffle(array)
+		"shuffle": {1, 1, []string{"array"}, "array"},
+		// random.sample(array, n)
+		"sample": {2, 2, []string{"array", "int"}, "array"},
+	}
+
+	sig, exists := signatures[funcName]
+	if !exists {
+		return
+	}
+
+	tc.validateStdlibCall("random", funcName, call, sig, line, column)
+}
+
+// checkJsonModuleCall validates json module function calls
+func (tc *TypeChecker) checkJsonModuleCall(funcName string, call *ast.CallExpression, line, column int) {
+	signatures := map[string]StdlibFuncSig{
+		// json.encode(value)
+		"encode": {1, 1, []string{"any"}, "tuple"},
+		// json.decode(text) or json.decode(text, Type)
+		"decode": {1, 2, []string{"string", "any"}, "tuple"},
+		// json.pretty(value, indent)
+		"pretty": {2, 2, []string{"any", "string"}, "tuple"},
+		// json.is_valid(text)
+		"is_valid": {1, 1, []string{"string"}, "bool"},
+	}
+
+	sig, exists := signatures[funcName]
+	if !exists {
+		return
+	}
+
+	tc.validateStdlibCall("json", funcName, call, sig, line, column)
+}
+
+// checkBytesModuleCall validates bytes module function calls
+func (tc *TypeChecker) checkBytesModuleCall(funcName string, call *ast.CallExpression, line, column int) {
+	signatures := map[string]StdlibFuncSig{
+		// Creation functions
+		"from_array":  {1, 1, []string{"array"}, "array"},
+		"from_string": {1, 1, []string{"string"}, "array"},
+		"from_hex":    {1, 1, []string{"string"}, "tuple"},
+		"from_base64": {1, 1, []string{"string"}, "tuple"},
+
+		// Conversion functions
+		"to_string":    {1, 1, []string{"array"}, "string"},
+		"to_array":     {1, 1, []string{"array"}, "array"},
+		"to_hex":       {1, 1, []string{"array"}, "string"},
+		"to_hex_upper": {1, 1, []string{"array"}, "string"},
+		"to_base64":    {1, 1, []string{"array"}, "string"},
+
+		// Slicing and combining
+		"slice":  {2, 3, []string{"array", "int", "int"}, "array"},
+		"concat": {2, -1, []string{"array"}, "array"},
+		"join":   {2, 2, []string{"array", "array"}, "array"},
+		"split":  {2, 2, []string{"array", "array"}, "array"},
+
+		// Search functions
+		"contains":   {2, 2, []string{"array", "array"}, "bool"},
+		"index":      {2, 2, []string{"array", "array"}, "int"},
+		"last_index": {2, 2, []string{"array", "array"}, "int"},
+		"count":      {2, 2, []string{"array", "array"}, "int"},
+
+		// Comparison functions
+		"compare":     {2, 2, []string{"array", "array"}, "int"},
+		"equals":      {2, 2, []string{"array", "array"}, "bool"},
+		"is_empty":    {1, 1, []string{"array"}, "bool"},
+		"starts_with": {2, 2, []string{"array", "array"}, "bool"},
+		"ends_with":   {2, 2, []string{"array", "array"}, "bool"},
+
+		// Transformation functions
+		"reverse":    {1, 1, []string{"array"}, "array"},
+		"repeat":     {2, 2, []string{"array", "int"}, "array"},
+		"replace":    {3, 3, []string{"array", "array", "array"}, "array"},
+		"replace_n":  {4, 4, []string{"array", "array", "array", "int"}, "array"},
+		"trim":       {2, 2, []string{"array", "array"}, "array"},
+		"trim_left":  {2, 2, []string{"array", "array"}, "array"},
+		"trim_right": {2, 2, []string{"array", "array"}, "array"},
+		"pad_left":   {3, 3, []string{"array", "int", "int"}, "array"},
+		"pad_right":  {3, 3, []string{"array", "int", "int"}, "array"},
+
+		// Bitwise functions
+		"and": {2, 2, []string{"array", "array"}, "array"},
+		"or":  {2, 2, []string{"array", "array"}, "array"},
+		"xor": {2, 2, []string{"array", "array"}, "array"},
+		"not": {1, 1, []string{"array"}, "array"},
+
+		// Utility functions
+		"fill": {2, 2, []string{"array", "int"}, "array"},
+		"copy": {1, 1, []string{"array"}, "array"},
+		"zero": {1, 1, []string{"array"}, "array"},
+	}
+
+	sig, exists := signatures[funcName]
+	if !exists {
+		return
+	}
+
+	tc.validateStdlibCall("bytes", funcName, call, sig, line, column)
 }
 
 // validateStdlibCall performs the actual validation of a stdlib call
