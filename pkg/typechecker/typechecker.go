@@ -163,8 +163,9 @@ type TypeChecker struct {
 	errors           *errors.EZErrorList
 	source           string
 	filename         string
-	skipMainCheck    bool // Skip main() function requirement (for module files)
-	loopDepth        int  // Track nesting depth of loops for break/continue validation (#603)
+	skipMainCheck    bool             // Skip main() function requirement (for module files)
+	loopDepth        int              // Track nesting depth of loops for break/continue validation (#603)
+	currentFuncAttrs []*ast.Attribute // Current function's attributes for @suppress checking
 }
 
 // NewTypeChecker creates a new type checker
@@ -1060,6 +1061,11 @@ func (tc *TypeChecker) checkFunctionBody(node *ast.FunctionDeclaration) {
 	// Create a new scope for this function
 	tc.enterScope()
 	defer tc.exitScope()
+
+	// Track current function's attributes for @suppress checking
+	prevAttrs := tc.currentFuncAttrs
+	tc.currentFuncAttrs = node.Attributes
+	defer func() { tc.currentFuncAttrs = prevAttrs }()
 
 	// Add function parameters to scope with their mutability
 	for _, param := range node.Parameters {
@@ -2033,13 +2039,15 @@ func (tc *TypeChecker) checkMemberExpression(member *ast.MemberExpression) {
 
 	// Warn about member access on error type which is commonly nil (#687)
 	if objType == "error" || objType == "Error" {
-		line, column := tc.getExpressionPosition(member.Object)
-		tc.addWarning(
-			errors.W2009,
-			fmt.Sprintf("accessing member '%s' on error type which may be nil - consider checking for nil first", member.Member.Value),
-			line,
-			column,
-		)
+		if !tc.isSuppressed("W2009", tc.currentFuncAttrs) {
+			line, column := tc.getExpressionPosition(member.Object)
+			tc.addWarning(
+				errors.W2009,
+				fmt.Sprintf("accessing member '%s' on error type which may be nil - consider checking for nil first", member.Member.Value),
+				line,
+				column,
+			)
+		}
 	}
 
 	// Warn about chained member access on nullable struct types (#689)

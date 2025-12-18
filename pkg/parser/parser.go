@@ -62,6 +62,7 @@ var allWarningCodes = map[string]bool{
 	"W2004": true, // implicit-type-conversion
 	"W2005": true, // deprecated-feature
 	"W2006": true, // byte-overflow-potential
+	"W2009": true, // nil-dereference-potential
 	// Code Quality Warnings (W3xxx)
 	"W3001": true, // empty-block
 	"W3002": true, // redundant-condition
@@ -81,6 +82,7 @@ var suppressibleWarnings = map[string]bool{
 	"W2004": true, // implicit-type-conversion
 	"W2005": true, // deprecated-feature
 	"W2006": true, // byte-overflow-potential
+	"W2009": true, // nil-dereference-potential
 	"W3001": true, // empty-block
 	"W3002": true, // redundant-condition
 	"W3003": true, // array-size-mismatch
