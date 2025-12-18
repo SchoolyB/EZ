@@ -10,7 +10,7 @@ const Color enum {
 do main() {
     temp c Color = Color.RED
 
-    @strict
+    #strict
     when c {
         is range(0, 2) {
             println("in range")
