@@ -1,5 +1,24 @@
 # Changelog
 
+## [0.27.0](https://github.com/SchoolyB/EZ/compare/v0.26.0...v0.27.0) (2025-12-18)
+
+
+### Features
+
+* **typechecker:** add type checking for all stdlib modules ([8842961](https://github.com/SchoolyB/EZ/commit/88429612f75394597e66db37d99180ea9e90d76d))
+* **typechecker:** add type checking for all stdlib modules ([fc1f4e8](https://github.com/SchoolyB/EZ/commit/fc1f4e8364aeef6e43a2451629d010d542224dd6))
+
+
+### Bug Fixes
+
+* **typechecker:** comprehensive validation of imported types ([#709](https://github.com/SchoolyB/EZ/issues/709)) ([0aedff9](https://github.com/SchoolyB/EZ/commit/0aedff9e65b5d0919574f48bdb0dd5c650784f7e))
+* **typechecker:** comprehensive validation of imported types ([#709](https://github.com/SchoolyB/EZ/issues/709)) ([88c32a7](https://github.com/SchoolyB/EZ/commit/88c32a7254e89a52e0a891eb7683266efb30a683))
+* **typechecker:** for_each loop variables inherit mutability from collection ([fc7dd06](https://github.com/SchoolyB/EZ/commit/fc7dd0659c3cc63a864aa17c66a701157aa2520e))
+* **typechecker:** resolve unqualified imported types in member access ([#706](https://github.com/SchoolyB/EZ/issues/706)) ([72f8bfc](https://github.com/SchoolyB/EZ/commit/72f8bfcde68df0de3bcf796cff8202d7c7b54c10))
+* **typechecker:** resolve unqualified imported types in member access ([#706](https://github.com/SchoolyB/EZ/issues/706)) ([e6935f8](https://github.com/SchoolyB/EZ/commit/e6935f80b45949215101fa0300f2c367c940a87c))
+* **typechecker:** validate field names in imported struct literals ([#708](https://github.com/SchoolyB/EZ/issues/708)) ([9ecc16b](https://github.com/SchoolyB/EZ/commit/9ecc16bb1d104ca2b00a3f3ed82c2860bb07b545))
+* **typechecker:** validate field names in imported struct literals ([#708](https://github.com/SchoolyB/EZ/issues/708)) ([a14162b](https://github.com/SchoolyB/EZ/commit/a14162b9419700bace7d5c373fe47ad4faad01dd))
+
 ## [0.26.0](https://github.com/SchoolyB/EZ/compare/v0.25.0...v0.26.0) (2025-12-18)
 
 
