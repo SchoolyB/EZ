@@ -1,0 +1,326 @@
+/*
+ * bytes.ez - Test @bytes standard library with PROPER ASSERTIONS
+ */
+
+import @std, @bytes
+using std
+
+do main() {
+    println("=== @bytes Standard Library Test ===")
+    temp passed int = 0
+    temp failed int = 0
+
+    // ==================== bytes.from_string / bytes.to_string ====================
+    println("  -- Creation and Conversion --")
+
+    // Test 1: from_string and to_string roundtrip
+    temp data [byte] = bytes.from_string("hello")
+    temp back string = bytes.to_string(data)
+    if back == "hello" {
+        println("  [PASS] bytes.from_string/to_string roundtrip")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] bytes.from_string/to_string: expected 'hello', got '${back}'")
+        failed += 1
+    }
+
+    // Test 2: from_array
+    temp arr [int] = {72, 105}  // "Hi" in ASCII
+    temp from_arr [byte] = bytes.from_array(arr)
+    temp from_arr_str string = bytes.to_string(from_arr)
+    if from_arr_str == "Hi" {
+        println("  [PASS] bytes.from_array")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] bytes.from_array: expected 'Hi', got '${from_arr_str}'")
+        failed += 1
+    }
+
+    // Test 3: to_hex
+    temp hex_data [byte] = bytes.from_string("AB")
+    temp hex_str string = bytes.to_hex(hex_data)
+    if hex_str == "4142" {
+        println("  [PASS] bytes.to_hex")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] bytes.to_hex: expected '4142', got '${hex_str}'")
+        failed += 1
+    }
+
+    // Test 4: to_hex_upper
+    temp hex_upper string = bytes.to_hex_upper(hex_data)
+    if hex_upper == "4142" {
+        println("  [PASS] bytes.to_hex_upper")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] bytes.to_hex_upper: expected '4142', got '${hex_upper}'")
+        failed += 1
+    }
+
+    // Test 5: from_hex
+    temp from_hex_result [byte], from_hex_err error = bytes.from_hex("4142")
+    if from_hex_err == nil {
+        temp from_hex_str string = bytes.to_string(from_hex_result)
+        if from_hex_str == "AB" {
+            println("  [PASS] bytes.from_hex")
+            passed += 1
+        } otherwise {
+            println("  [FAIL] bytes.from_hex: expected 'AB', got '${from_hex_str}'")
+            failed += 1
+        }
+    } otherwise {
+        println("  [FAIL] bytes.from_hex: unexpected error")
+        failed += 1
+    }
+
+    // Test 6: to_base64
+    temp b64_data [byte] = bytes.from_string("Hello")
+    temp b64_str string = bytes.to_base64(b64_data)
+    if b64_str == "SGVsbG8=" {
+        println("  [PASS] bytes.to_base64")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] bytes.to_base64: expected 'SGVsbG8=', got '${b64_str}'")
+        failed += 1
+    }
+
+    // Test 7: from_base64
+    temp from_b64 [byte], from_b64_err error = bytes.from_base64("SGVsbG8=")
+    if from_b64_err == nil {
+        temp from_b64_str string = bytes.to_string(from_b64)
+        if from_b64_str == "Hello" {
+            println("  [PASS] bytes.from_base64")
+            passed += 1
+        } otherwise {
+            println("  [FAIL] bytes.from_base64: expected 'Hello', got '${from_b64_str}'")
+            failed += 1
+        }
+    } otherwise {
+        println("  [FAIL] bytes.from_base64: unexpected error")
+        failed += 1
+    }
+
+    // ==================== Slicing and Combining ====================
+    println("  -- Slicing and Combining --")
+
+    // Test 8: slice
+    temp slice_data [byte] = bytes.from_string("Hello World")
+    temp sliced [byte] = bytes.slice(slice_data, 0, 5)
+    temp sliced_str string = bytes.to_string(sliced)
+    if sliced_str == "Hello" {
+        println("  [PASS] bytes.slice")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] bytes.slice: expected 'Hello', got '${sliced_str}'")
+        failed += 1
+    }
+
+    // Test 9: concat
+    temp a [byte] = bytes.from_string("Hello")
+    temp b [byte] = bytes.from_string(" World")
+    temp concat_result [byte] = bytes.concat(a, b)
+    temp concat_str string = bytes.to_string(concat_result)
+    if concat_str == "Hello World" {
+        println("  [PASS] bytes.concat")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] bytes.concat: expected 'Hello World', got '${concat_str}'")
+        failed += 1
+    }
+
+    // Test 10: copy
+    temp original [byte] = bytes.from_string("test")
+    temp copied [byte] = bytes.copy(original)
+    temp copied_str string = bytes.to_string(copied)
+    if copied_str == "test" {
+        println("  [PASS] bytes.copy")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] bytes.copy: expected 'test', got '${copied_str}'")
+        failed += 1
+    }
+
+    // ==================== Search Functions ====================
+    println("  -- Search Functions --")
+
+    // Test 11: contains
+    temp haystack [byte] = bytes.from_string("Hello World")
+    temp needle [byte] = bytes.from_string("World")
+    if bytes.contains(haystack, needle) {
+        println("  [PASS] bytes.contains (found)")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] bytes.contains: expected true")
+        failed += 1
+    }
+
+    // Test 12: contains (not found)
+    temp not_needle [byte] = bytes.from_string("xyz")
+    if bytes.contains(haystack, not_needle) == false {
+        println("  [PASS] bytes.contains (not found)")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] bytes.contains: expected false")
+        failed += 1
+    }
+
+    // Test 13: index
+    temp idx int = bytes.index(haystack, needle)
+    if idx == 6 {
+        println("  [PASS] bytes.index")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] bytes.index: expected 6, got ${idx}")
+        failed += 1
+    }
+
+    // Test 14: count
+    temp count_data [byte] = bytes.from_string("aaa")
+    temp count_pattern [byte] = bytes.from_string("a")
+    temp cnt int = bytes.count(count_data, count_pattern)
+    if cnt == 3 {
+        println("  [PASS] bytes.count")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] bytes.count: expected 3, got ${cnt}")
+        failed += 1
+    }
+
+    // ==================== Comparison Functions ====================
+    println("  -- Comparison Functions --")
+
+    // Test 15: equals
+    temp eq1 [byte] = bytes.from_string("test")
+    temp eq2 [byte] = bytes.from_string("test")
+    if bytes.equals(eq1, eq2) {
+        println("  [PASS] bytes.equals (equal)")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] bytes.equals: expected true")
+        failed += 1
+    }
+
+    // Test 16: equals (not equal)
+    temp eq3 [byte] = bytes.from_string("other")
+    if bytes.equals(eq1, eq3) == false {
+        println("  [PASS] bytes.equals (not equal)")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] bytes.equals: expected false")
+        failed += 1
+    }
+
+    // Test 17: is_empty
+    temp empty [byte] = bytes.from_string("")
+    if bytes.is_empty(empty) {
+        println("  [PASS] bytes.is_empty (empty)")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] bytes.is_empty: expected true")
+        failed += 1
+    }
+
+    // Test 18: is_empty (not empty)
+    if bytes.is_empty(eq1) == false {
+        println("  [PASS] bytes.is_empty (not empty)")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] bytes.is_empty: expected false")
+        failed += 1
+    }
+
+    // Test 19: starts_with
+    temp sw_data [byte] = bytes.from_string("Hello World")
+    temp sw_prefix [byte] = bytes.from_string("Hello")
+    if bytes.starts_with(sw_data, sw_prefix) {
+        println("  [PASS] bytes.starts_with")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] bytes.starts_with: expected true")
+        failed += 1
+    }
+
+    // Test 20: ends_with
+    temp ew_suffix [byte] = bytes.from_string("World")
+    if bytes.ends_with(sw_data, ew_suffix) {
+        println("  [PASS] bytes.ends_with")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] bytes.ends_with: expected true")
+        failed += 1
+    }
+
+    // ==================== Transformation Functions ====================
+    println("  -- Transformation Functions --")
+
+    // Test 21: reverse
+    temp rev_data [byte] = bytes.from_string("abc")
+    temp reversed [byte] = bytes.reverse(rev_data)
+    temp reversed_str string = bytes.to_string(reversed)
+    if reversed_str == "cba" {
+        println("  [PASS] bytes.reverse")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] bytes.reverse: expected 'cba', got '${reversed_str}'")
+        failed += 1
+    }
+
+    // Test 22: repeat
+    temp rep_data [byte] = bytes.from_string("ab")
+    temp repeated [byte] = bytes.repeat(rep_data, 3)
+    temp repeated_str string = bytes.to_string(repeated)
+    if repeated_str == "ababab" {
+        println("  [PASS] bytes.repeat")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] bytes.repeat: expected 'ababab', got '${repeated_str}'")
+        failed += 1
+    }
+
+    // Test 23: replace
+    temp repl_data [byte] = bytes.from_string("hello")
+    temp repl_old [byte] = bytes.from_string("l")
+    temp repl_new [byte] = bytes.from_string("L")
+    temp replaced [byte] = bytes.replace(repl_data, repl_old, repl_new)
+    temp replaced_str string = bytes.to_string(replaced)
+    if replaced_str == "heLLo" {
+        println("  [PASS] bytes.replace")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] bytes.replace: expected 'heLLo', got '${replaced_str}'")
+        failed += 1
+    }
+
+    // ==================== Utility Functions ====================
+    println("  -- Utility Functions --")
+
+    // Test 24: zero (zeros out a byte array)
+    temp to_zero [byte] = bytes.from_string("hello")
+    temp zeroed [byte] = bytes.zero(to_zero)
+    temp all_zero bool = true
+    for_each z in zeroed {
+        if z != 0x00 {
+            all_zero = false
+        }
+    }
+    if all_zero && len(zeroed) == 5 {
+        println("  [PASS] bytes.zero")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] bytes.zero: expected 5 zero bytes")
+        failed += 1
+    }
+
+    // ==================== Summary ====================
+    println("")
+    println("=== Summary ===")
+    println("  Passed: ${passed}")
+    println("  Failed: ${failed}")
+    println("")
+
+    if failed > 0 {
+        println("SOME TESTS FAILED")
+    } otherwise {
+        println("ALL TESTS PASSED")
+    }
+}
