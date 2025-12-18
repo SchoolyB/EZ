@@ -318,9 +318,16 @@ func (tc *TypeChecker) TypeExists(typeName string) bool {
 		parts := strings.SplitN(typeName, ".", 2)
 		if len(parts) == 2 {
 			moduleName := parts[0]
+			typeNamePart := parts[1]
 			// Check if the module has been imported
 			if tc.modules[moduleName] {
 				return true
+			}
+			// Also check registered module types (#722 - self-referencing types)
+			if modTypes, ok := tc.moduleTypes[moduleName]; ok {
+				if _, exists := modTypes[typeNamePart]; exists {
+					return true
+				}
 			}
 		}
 	}
@@ -363,6 +370,11 @@ func (tc *TypeChecker) RegisterType(name string, t *Type) {
 // RegisterFunction adds a function signature to the registry
 func (tc *TypeChecker) RegisterFunction(name string, sig *FunctionSignature) {
 	tc.functions[name] = sig
+}
+
+// RegisterVariable adds a variable/constant to the global scope (#722)
+func (tc *TypeChecker) RegisterVariable(name, typeName string) {
+	tc.variables[name] = typeName
 }
 
 // GetType retrieves a type by name
