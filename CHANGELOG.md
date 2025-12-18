@@ -1,5 +1,20 @@
 # Changelog
 
+## [0.25.0](https://github.com/SchoolyB/EZ/compare/v0.24.0...v0.25.0) (2025-12-18)
+
+
+### Features
+
+* multi-value handling improvements ([5b533d1](https://github.com/SchoolyB/EZ/commit/5b533d1a40ea3e3f3477f9a0805acd3a17113d39))
+
+
+### Bug Fixes
+
+* **interpreter:** display actual return type instead of RETURN_VALUE in E5012 errors ([e702d39](https://github.com/SchoolyB/EZ/commit/e702d396e2f17db6c6e9025fd5a473f4b7ba8729))
+* **interpreter:** display actual return type instead of RETURN_VALUE in E5012 errors ([#696](https://github.com/SchoolyB/EZ/issues/696)) ([c84928e](https://github.com/SchoolyB/EZ/commit/c84928e2a3b632833738fdf98cf257322de2c8d5))
+* **interpreter:** handle multi-value assignment errors correctly ([2f08c12](https://github.com/SchoolyB/EZ/commit/2f08c12ca9ca0c4852a249964fac49a917337b7e))
+* **interpreter:** handle multi-value assignment errors correctly ([#698](https://github.com/SchoolyB/EZ/issues/698)) ([6270ad2](https://github.com/SchoolyB/EZ/commit/6270ad2a1d7786d0522f58c0a4371dee2a501aee))
+
 ## [0.24.0](https://github.com/SchoolyB/EZ/compare/v0.23.1...v0.24.0) (2025-12-17)
 
 
