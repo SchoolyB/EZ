@@ -151,20 +151,22 @@ type Parameter struct {
 
 // TypeChecker validates types in an EZ program
 type TypeChecker struct {
-	types            map[string]*Type                         // All known types
-	functions        map[string]*FunctionSignature            // All function signatures
-	variables        map[string]string                        // Variable name -> type name (global scope)
-	modules          map[string]bool                          // Imported module names
-	fileUsingModules map[string]bool                          // File-level using modules
-	moduleFunctions  map[string]map[string]*FunctionSignature // Module name -> function name -> signature
-	moduleTypes      map[string]map[string]*Type              // Module name -> type name -> type
-	moduleVariables  map[string]map[string]string             // Module name -> variable name -> type (#677)
-	currentScope     *Scope                                   // Current scope for local variable tracking
-	errors           *errors.EZErrorList
-	source           string
-	filename         string
-	skipMainCheck    bool // Skip main() function requirement (for module files)
-	loopDepth        int  // Track nesting depth of loops for break/continue validation (#603)
+	types                map[string]*Type                         // All known types
+	functions            map[string]*FunctionSignature            // All function signatures
+	variables            map[string]string                        // Variable name -> type name (global scope)
+	modules              map[string]bool                          // Imported module names
+	fileUsingModules     map[string]bool                          // File-level using modules
+	moduleFunctions      map[string]map[string]*FunctionSignature // Module name -> function name -> signature
+	moduleTypes          map[string]map[string]*Type              // Module name -> type name -> type
+	moduleVariables      map[string]map[string]string             // Module name -> variable name -> type (#677)
+	currentScope         *Scope                                   // Current scope for local variable tracking
+	errors               *errors.EZErrorList
+	source               string
+	filename             string
+	skipMainCheck        bool             // Skip main() function requirement (for module files)
+	loopDepth            int              // Track nesting depth of loops for break/continue validation (#603)
+	currentFuncAttrs     []*ast.Attribute // Current function's attributes for #suppress checking
+	fileSuppressWarnings []string         // File-level suppressed warnings (from #suppress at file scope)
 }
 
 // NewTypeChecker creates a new type checker
@@ -318,9 +320,16 @@ func (tc *TypeChecker) TypeExists(typeName string) bool {
 		parts := strings.SplitN(typeName, ".", 2)
 		if len(parts) == 2 {
 			moduleName := parts[0]
+			typeNamePart := parts[1]
 			// Check if the module has been imported
 			if tc.modules[moduleName] {
 				return true
+			}
+			// Also check registered module types (#722 - self-referencing types)
+			if modTypes, ok := tc.moduleTypes[moduleName]; ok {
+				if _, exists := modTypes[typeNamePart]; exists {
+					return true
+				}
 			}
 		}
 	}
@@ -363,6 +372,11 @@ func (tc *TypeChecker) RegisterType(name string, t *Type) {
 // RegisterFunction adds a function signature to the registry
 func (tc *TypeChecker) RegisterFunction(name string, sig *FunctionSignature) {
 	tc.functions[name] = sig
+}
+
+// RegisterVariable adds a variable/constant to the global scope (#722)
+func (tc *TypeChecker) RegisterVariable(name, typeName string) {
+	tc.variables[name] = typeName
 }
 
 // GetType retrieves a type by name
@@ -449,6 +463,9 @@ func (tc *TypeChecker) addWarning(code errors.ErrorCode, message string, line, c
 
 // CheckProgram performs type checking on the entire program
 func (tc *TypeChecker) CheckProgram(program *ast.Program) bool {
+	// Store file-level suppressions
+	tc.fileSuppressWarnings = program.FileSuppressWarnings
+
 	// Phase 0: Register all imported modules
 	for _, stmt := range program.Statements {
 		if importStmt, ok := stmt.(*ast.ImportStatement); ok {
@@ -1049,6 +1066,11 @@ func (tc *TypeChecker) checkFunctionBody(node *ast.FunctionDeclaration) {
 	tc.enterScope()
 	defer tc.exitScope()
 
+	// Track current function's attributes for #suppress checking
+	prevAttrs := tc.currentFuncAttrs
+	tc.currentFuncAttrs = node.Attributes
+	defer func() { tc.currentFuncAttrs = prevAttrs }()
+
 	// Add function parameters to scope with their mutability
 	for _, param := range node.Parameters {
 		tc.defineVariableWithMutability(param.Name.Value, param.TypeName, param.Mutable)
@@ -1205,8 +1227,16 @@ func (tc *TypeChecker) checkFileScopeStatements(statements []ast.Statement) {
 	}
 }
 
-// isSuppressed checks if a warning code is suppressed by function attributes
+// isSuppressed checks if a warning code is suppressed by function attributes or file-level #suppress
 func (tc *TypeChecker) isSuppressed(warningCode string, attrs []*ast.Attribute) bool {
+	// Check file-level suppressions first
+	for _, code := range tc.fileSuppressWarnings {
+		if code == "ALL" || code == warningCode {
+			return true
+		}
+	}
+
+	// Check function-level attributes
 	if attrs == nil {
 		return false
 	}
@@ -1219,7 +1249,7 @@ func (tc *TypeChecker) isSuppressed(warningCode string, attrs []*ast.Attribute) 
 	for _, attr := range attrs {
 		if attr.Name == "suppress" {
 			for _, arg := range attr.Args {
-				if arg == warningCode {
+				if arg == "ALL" || arg == warningCode {
 					return true
 				}
 				// Check if the alternate name matches
@@ -2021,13 +2051,15 @@ func (tc *TypeChecker) checkMemberExpression(member *ast.MemberExpression) {
 
 	// Warn about member access on error type which is commonly nil (#687)
 	if objType == "error" || objType == "Error" {
-		line, column := tc.getExpressionPosition(member.Object)
-		tc.addWarning(
-			errors.W2009,
-			fmt.Sprintf("accessing member '%s' on error type which may be nil - consider checking for nil first", member.Member.Value),
-			line,
-			column,
-		)
+		if !tc.isSuppressed("W2009", tc.currentFuncAttrs) {
+			line, column := tc.getExpressionPosition(member.Object)
+			tc.addWarning(
+				errors.W2009,
+				fmt.Sprintf("accessing member '%s' on error type which may be nil - consider checking for nil first", member.Member.Value),
+				line,
+				column,
+			)
+		}
 	}
 
 	// Warn about chained member access on nullable struct types (#689)
@@ -2229,6 +2261,9 @@ func (tc *TypeChecker) checkExpression(expr ast.Expression) {
 	case *ast.RangeExpression:
 		tc.checkRangeExpression(e)
 
+	case *ast.CastExpression:
+		tc.checkCastExpression(e)
+
 	case *ast.PostfixExpression:
 		tc.checkExpression(e.Left)
 		tc.checkPostfixExpression(e)
@@ -2330,6 +2365,136 @@ func (tc *TypeChecker) checkRangeExpression(rangeExpr *ast.RangeExpression) {
 	if rangeExpr.Step != nil {
 		tc.checkExpression(rangeExpr.Step)
 	}
+}
+
+// checkCastExpression validates cast(value, type) expressions
+func (tc *TypeChecker) checkCastExpression(castExpr *ast.CastExpression) {
+	// Check the value expression
+	tc.checkExpression(castExpr.Value)
+
+	// Validate that the target type is a valid type
+	targetType := castExpr.TargetType
+	if castExpr.IsArray {
+		// For array types like [u8], validate the element type
+		if !tc.isValidCastTargetType(castExpr.ElementType) {
+			tc.addError(
+				errors.E3001,
+				fmt.Sprintf("invalid cast target type: [%s]", castExpr.ElementType),
+				castExpr.Token.Line,
+				castExpr.Token.Column,
+			)
+			return
+		}
+	} else {
+		// For simple types like u8, validate directly
+		if !tc.isValidCastTargetType(targetType) {
+			tc.addError(
+				errors.E3001,
+				fmt.Sprintf("invalid cast target type: %s", targetType),
+				castExpr.Token.Line,
+				castExpr.Token.Column,
+			)
+			return
+		}
+	}
+
+	// Infer the source type and check if the conversion is valid
+	sourceType, ok := tc.inferExpressionType(castExpr.Value)
+	if !ok || sourceType == "" {
+		return // Can't validate without knowing source type
+	}
+
+	// Check if the conversion is valid
+	if castExpr.IsArray {
+		// For array casts, source must be an array
+		if !tc.isArrayType(sourceType) {
+			tc.addError(
+				errors.E3001,
+				fmt.Sprintf("cannot cast non-array type %s to array type %s", sourceType, targetType),
+				castExpr.Token.Line,
+				castExpr.Token.Column,
+			)
+			return
+		}
+
+		// Get source element type and check if element conversion is valid
+		sourceElemType := tc.extractArrayElementType(sourceType)
+		if sourceElemType != "" && !tc.isValidCastConversion(sourceElemType, castExpr.ElementType) {
+			tc.addWarning(
+				errors.W2004,
+				fmt.Sprintf("cast from [%s] to [%s] may fail at runtime", sourceElemType, castExpr.ElementType),
+				castExpr.Token.Line,
+				castExpr.Token.Column,
+			)
+		}
+	} else {
+		// For single value casts, check if conversion is valid
+		if !tc.isValidCastConversion(sourceType, targetType) {
+			tc.addWarning(
+				errors.W2004,
+				fmt.Sprintf("cast from %s to %s may fail at runtime", sourceType, targetType),
+				castExpr.Token.Line,
+				castExpr.Token.Column,
+			)
+		}
+	}
+}
+
+// isValidCastTargetType checks if a type name is valid as a cast target
+func (tc *TypeChecker) isValidCastTargetType(typeName string) bool {
+	switch typeName {
+	case "int", "i8", "i16", "i32", "i64", "i128", "i256",
+		"uint", "u8", "u16", "u32", "u64", "u128", "u256",
+		"float", "f32", "f64",
+		"byte", "char", "string", "bool":
+		return true
+	default:
+		return false
+	}
+}
+
+// isValidCastConversion checks if a conversion from source to target type is valid
+func (tc *TypeChecker) isValidCastConversion(source, target string) bool {
+	// Any type can be cast to string (via Inspect)
+	if target == "string" {
+		return true
+	}
+
+	// Numeric types can be cast to other numeric types
+	if tc.isNumericType(source) && tc.isNumericType(target) {
+		return true
+	}
+
+	// char can be cast to int/numeric and vice versa
+	if source == "char" && tc.isNumericType(target) {
+		return true
+	}
+	if tc.isNumericType(source) && target == "char" {
+		return true
+	}
+
+	// byte can be cast to other numeric types
+	if source == "byte" && tc.isNumericType(target) {
+		return true
+	}
+	if tc.isNumericType(source) && target == "byte" {
+		return true
+	}
+
+	// string can be cast to numeric types (parsing)
+	if source == "string" && tc.isNumericType(target) {
+		return true
+	}
+
+	// bool conversions
+	if target == "bool" {
+		return source == "bool" || source == "int" || source == "string"
+	}
+	if source == "bool" && target == "int" {
+		return true
+	}
+
+	return false
 }
 
 // checkPostfixExpression validates postfix operators (++ and --)
@@ -3116,23 +3281,23 @@ func (tc *TypeChecker) checkWhenStatement(whenStmt *ast.WhenStatement, expectedR
 	// Track seen case values for duplicate detection
 	seenCases := make(map[string]bool)
 
-	// Check if this is an enum type for @strict validation
+	// Check if this is an enum type for #strict validation
 	enumTypeInfo, isEnumType := tc.GetType(valueType)
 	if isEnumType && enumTypeInfo != nil && enumTypeInfo.Kind != EnumType {
 		isEnumType = false
 	}
 
-	// Validate @strict is only used with enums
+	// Validate #strict is only used with enums
 	if whenStmt.IsStrict && !isEnumType {
 		tc.addError(
 			errors.E2045,
-			"@strict attribute only allowed on enum when statements",
+			"#strict attribute only allowed on enum when statements",
 			whenStmt.Token.Line,
 			whenStmt.Token.Column,
 		)
 	}
 
-	// Track handled enum cases for @strict exhaustiveness check
+	// Track handled enum cases for #strict exhaustiveness check
 	handledEnumCases := make(map[string]bool)
 
 	// Check each case
@@ -3141,13 +3306,13 @@ func (tc *TypeChecker) checkWhenStatement(whenStmt *ast.WhenStatement, expectedR
 			// Check the case value expression (validates range bounds, etc.)
 			tc.checkExpression(caseValue)
 
-			// For @strict enum when statements, only allow enum member expressions
+			// For #strict enum when statements, only allow enum member expressions
 			if whenStmt.IsStrict && isEnumType {
 				if !tc.isEnumMemberExpression(caseValue, valueType, enumTypeInfo) {
 					line, col := tc.getExpressionPosition(caseValue)
 					tc.addError(
 						errors.E2054,
-						fmt.Sprintf("@strict when requires explicit enum member values, got non-enum expression"),
+						fmt.Sprintf("#strict when requires explicit enum member values, got non-enum expression"),
 						line,
 						col,
 					)
@@ -3204,7 +3369,7 @@ func (tc *TypeChecker) checkWhenStatement(whenStmt *ast.WhenStatement, expectedR
 		tc.exitScope()
 	}
 
-	// @strict enum exhaustiveness check - ensure all enum cases are handled
+	// #strict enum exhaustiveness check - ensure all enum cases are handled
 	if whenStmt.IsStrict && isEnumType && enumTypeInfo != nil && enumTypeInfo.EnumMembers != nil {
 		var missingCases []string
 		for enumMember := range enumTypeInfo.EnumMembers {
@@ -3217,7 +3382,7 @@ func (tc *TypeChecker) checkWhenStatement(whenStmt *ast.WhenStatement, expectedR
 			sort.Strings(missingCases)
 			tc.addError(
 				errors.E2046,
-				fmt.Sprintf("@strict when statement missing enum cases: %s", strings.Join(missingCases, ", ")),
+				fmt.Sprintf("#strict when statement missing enum cases: %s", strings.Join(missingCases, ", ")),
 				whenStmt.Token.Line,
 				whenStmt.Token.Column,
 			)
@@ -3247,7 +3412,7 @@ func (tc *TypeChecker) getEnumMemberName(expr ast.Expression) string {
 }
 
 // isEnumMemberExpression checks if an expression is a valid enum member reference
-// for use in @strict when statements. Valid forms are:
+// for use in #strict when statements. Valid forms are:
 // - EnumType.MEMBER (e.g., Color.RED)
 // - MEMBER (if it's a known enum value of the expected type)
 func (tc *TypeChecker) isEnumMemberExpression(expr ast.Expression, enumTypeName string, enumTypeInfo *Type) bool {
@@ -3721,6 +3886,8 @@ func (tc *TypeChecker) getExpressionPosition(expr ast.Expression) (int, int) {
 		return e.Token.Line, e.Token.Column
 	case *ast.RangeExpression:
 		return e.Token.Line, e.Token.Column
+	case *ast.CastExpression:
+		return e.Token.Line, e.Token.Column
 	default:
 		return 1, 1
 	}
@@ -4115,6 +4282,10 @@ func (tc *TypeChecker) inferExpressionType(expr ast.Expression) (string, bool) {
 		// range(start, end) returns [int]
 		return "[int]", true
 
+	case *ast.CastExpression:
+		// cast(value, type) returns the target type
+		return e.TargetType, true
+
 	case *ast.InterpolatedString:
 		return "string", true
 
@@ -4349,6 +4520,40 @@ func (tc *TypeChecker) getModuleMultiReturnTypes(moduleName, funcName string) []
 		case "read_u64", "read_u64_be", "read_i64", "read_i64_be":
 			return []string{"int", "error"}
 		case "read_f32", "read_f32_be", "read_f64", "read_f64_be":
+			return []string{"float", "error"}
+		}
+	case "binary":
+		// All binary encode functions return ([byte], error)
+		// All binary decode functions return (typed_int_or_float, error)
+		switch funcName {
+		case "encode_i8", "encode_u8",
+			"encode_i16_to_little_endian", "encode_u16_to_little_endian",
+			"encode_i16_to_big_endian", "encode_u16_to_big_endian",
+			"encode_i32_to_little_endian", "encode_u32_to_little_endian",
+			"encode_i32_to_big_endian", "encode_u32_to_big_endian",
+			"encode_i64_to_little_endian", "encode_u64_to_little_endian",
+			"encode_i64_to_big_endian", "encode_u64_to_big_endian",
+			"encode_i128_to_little_endian", "encode_u128_to_little_endian",
+			"encode_i128_to_big_endian", "encode_u128_to_big_endian",
+			"encode_i256_to_little_endian", "encode_u256_to_little_endian",
+			"encode_i256_to_big_endian", "encode_u256_to_big_endian",
+			"encode_f32_to_little_endian", "encode_f32_to_big_endian",
+			"encode_f64_to_little_endian", "encode_f64_to_big_endian":
+			return []string{"[byte]", "error"}
+		case "decode_i8", "decode_u8",
+			"decode_i16_from_little_endian", "decode_u16_from_little_endian",
+			"decode_i16_from_big_endian", "decode_u16_from_big_endian",
+			"decode_i32_from_little_endian", "decode_u32_from_little_endian",
+			"decode_i32_from_big_endian", "decode_u32_from_big_endian",
+			"decode_i64_from_little_endian", "decode_u64_from_little_endian",
+			"decode_i64_from_big_endian", "decode_u64_from_big_endian",
+			"decode_i128_from_little_endian", "decode_u128_from_little_endian",
+			"decode_i128_from_big_endian", "decode_u128_from_big_endian",
+			"decode_i256_from_little_endian", "decode_u256_from_little_endian",
+			"decode_i256_from_big_endian", "decode_u256_from_big_endian":
+			return []string{"int", "error"}
+		case "decode_f32_from_little_endian", "decode_f32_from_big_endian",
+			"decode_f64_from_little_endian", "decode_f64_from_big_endian":
 			return []string{"float", "error"}
 		}
 	}
@@ -5285,6 +5490,52 @@ func (tc *TypeChecker) isBytesFunction(name string) bool {
 	return bytesFuncs[name]
 }
 
+// isBinaryFunction checks if a function name exists in the binary module
+func (tc *TypeChecker) isBinaryFunction(name string) bool {
+	binaryFuncs := map[string]bool{
+		// 8-bit (no endianness)
+		"encode_i8": true, "decode_i8": true,
+		"encode_u8": true, "decode_u8": true,
+		// 16-bit little endian
+		"encode_i16_to_little_endian": true, "decode_i16_from_little_endian": true,
+		"encode_u16_to_little_endian": true, "decode_u16_from_little_endian": true,
+		// 16-bit big endian
+		"encode_i16_to_big_endian": true, "decode_i16_from_big_endian": true,
+		"encode_u16_to_big_endian": true, "decode_u16_from_big_endian": true,
+		// 32-bit little endian
+		"encode_i32_to_little_endian": true, "decode_i32_from_little_endian": true,
+		"encode_u32_to_little_endian": true, "decode_u32_from_little_endian": true,
+		// 32-bit big endian
+		"encode_i32_to_big_endian": true, "decode_i32_from_big_endian": true,
+		"encode_u32_to_big_endian": true, "decode_u32_from_big_endian": true,
+		// 64-bit little endian
+		"encode_i64_to_little_endian": true, "decode_i64_from_little_endian": true,
+		"encode_u64_to_little_endian": true, "decode_u64_from_little_endian": true,
+		// 64-bit big endian
+		"encode_i64_to_big_endian": true, "decode_i64_from_big_endian": true,
+		"encode_u64_to_big_endian": true, "decode_u64_from_big_endian": true,
+		// 128-bit little endian
+		"encode_i128_to_little_endian": true, "decode_i128_from_little_endian": true,
+		"encode_u128_to_little_endian": true, "decode_u128_from_little_endian": true,
+		// 128-bit big endian
+		"encode_i128_to_big_endian": true, "decode_i128_from_big_endian": true,
+		"encode_u128_to_big_endian": true, "decode_u128_from_big_endian": true,
+		// 256-bit little endian
+		"encode_i256_to_little_endian": true, "decode_i256_from_little_endian": true,
+		"encode_u256_to_little_endian": true, "decode_u256_from_little_endian": true,
+		// 256-bit big endian
+		"encode_i256_to_big_endian": true, "decode_i256_from_big_endian": true,
+		"encode_u256_to_big_endian": true, "decode_u256_from_big_endian": true,
+		// Float little endian
+		"encode_f32_to_little_endian": true, "decode_f32_from_little_endian": true,
+		"encode_f64_to_little_endian": true, "decode_f64_from_little_endian": true,
+		// Float big endian
+		"encode_f32_to_big_endian": true, "decode_f32_from_big_endian": true,
+		"encode_f64_to_big_endian": true, "decode_f64_from_big_endian": true,
+	}
+	return binaryFuncs[name]
+}
+
 // getUsedModuleShadowingFunction checks if a name shadows a function from a used module
 // Returns the module name if there's a shadow, empty string otherwise
 func (tc *TypeChecker) getUsedModuleShadowingFunction(name string) string {
@@ -5332,6 +5583,8 @@ func (tc *TypeChecker) isModuleFunction(moduleName, funcName string) bool {
 		return tc.isJsonFunction(funcName)
 	case "bytes":
 		return tc.isBytesFunction(funcName)
+	case "binary":
+		return tc.isBinaryFunction(funcName)
 	default:
 		// Check user-defined modules
 		if funcs, ok := tc.moduleFunctions[moduleName]; ok {
@@ -5356,7 +5609,7 @@ func (tc *TypeChecker) checkStdlibCall(member *ast.MemberExpression, call *ast.C
 	line, column := tc.getExpressionPosition(member.Member)
 
 	// Check if the module was imported (for standard library modules)
-	stdModules := map[string]bool{"std": true, "math": true, "arrays": true, "strings": true, "time": true, "maps": true, "io": true, "os": true, "bytes": true, "random": true, "json": true}
+	stdModules := map[string]bool{"std": true, "math": true, "arrays": true, "strings": true, "time": true, "maps": true, "io": true, "os": true, "bytes": true, "random": true, "json": true, "binary": true}
 	if stdModules[moduleName] && !tc.modules[moduleName] {
 		tc.addError(errors.E4007, fmt.Sprintf("module '%s' not imported; add 'import @%s'", moduleName, moduleName), line, column)
 		return
@@ -5385,6 +5638,8 @@ func (tc *TypeChecker) checkStdlibCall(member *ast.MemberExpression, call *ast.C
 		tc.checkJsonModuleCall(funcName, call, line, column)
 	case "bytes":
 		tc.checkBytesModuleCall(funcName, call, line, column)
+	case "binary":
+		tc.checkBinaryModuleCall(funcName, call, line, column)
 	default:
 		// User-defined module - check if we have type info for it
 		tc.checkUserModuleCall(moduleName, funcName, call, line, column)
@@ -6259,6 +6514,96 @@ func (tc *TypeChecker) checkBytesModuleCall(funcName string, call *ast.CallExpre
 	}
 
 	tc.validateStdlibCall("bytes", funcName, call, sig, line, column)
+}
+
+// checkBinaryModuleCall validates binary module function calls
+func (tc *TypeChecker) checkBinaryModuleCall(funcName string, call *ast.CallExpression, line, column int) {
+	signatures := map[string]StdlibFuncSig{
+		// 8-bit (no endianness)
+		"encode_i8": {1, 1, []string{"int"}, "tuple"},
+		"decode_i8": {1, 1, []string{"array"}, "tuple"},
+		"encode_u8": {1, 1, []string{"int"}, "tuple"},
+		"decode_u8": {1, 1, []string{"array"}, "tuple"},
+
+		// 16-bit little endian
+		"encode_i16_to_little_endian":   {1, 1, []string{"int"}, "tuple"},
+		"decode_i16_from_little_endian": {1, 1, []string{"array"}, "tuple"},
+		"encode_u16_to_little_endian":   {1, 1, []string{"int"}, "tuple"},
+		"decode_u16_from_little_endian": {1, 1, []string{"array"}, "tuple"},
+
+		// 16-bit big endian
+		"encode_i16_to_big_endian":   {1, 1, []string{"int"}, "tuple"},
+		"decode_i16_from_big_endian": {1, 1, []string{"array"}, "tuple"},
+		"encode_u16_to_big_endian":   {1, 1, []string{"int"}, "tuple"},
+		"decode_u16_from_big_endian": {1, 1, []string{"array"}, "tuple"},
+
+		// 32-bit little endian
+		"encode_i32_to_little_endian":   {1, 1, []string{"int"}, "tuple"},
+		"decode_i32_from_little_endian": {1, 1, []string{"array"}, "tuple"},
+		"encode_u32_to_little_endian":   {1, 1, []string{"int"}, "tuple"},
+		"decode_u32_from_little_endian": {1, 1, []string{"array"}, "tuple"},
+
+		// 32-bit big endian
+		"encode_i32_to_big_endian":   {1, 1, []string{"int"}, "tuple"},
+		"decode_i32_from_big_endian": {1, 1, []string{"array"}, "tuple"},
+		"encode_u32_to_big_endian":   {1, 1, []string{"int"}, "tuple"},
+		"decode_u32_from_big_endian": {1, 1, []string{"array"}, "tuple"},
+
+		// 64-bit little endian
+		"encode_i64_to_little_endian":   {1, 1, []string{"int"}, "tuple"},
+		"decode_i64_from_little_endian": {1, 1, []string{"array"}, "tuple"},
+		"encode_u64_to_little_endian":   {1, 1, []string{"int"}, "tuple"},
+		"decode_u64_from_little_endian": {1, 1, []string{"array"}, "tuple"},
+
+		// 64-bit big endian
+		"encode_i64_to_big_endian":   {1, 1, []string{"int"}, "tuple"},
+		"decode_i64_from_big_endian": {1, 1, []string{"array"}, "tuple"},
+		"encode_u64_to_big_endian":   {1, 1, []string{"int"}, "tuple"},
+		"decode_u64_from_big_endian": {1, 1, []string{"array"}, "tuple"},
+
+		// 128-bit little endian
+		"encode_i128_to_little_endian":   {1, 1, []string{"int"}, "tuple"},
+		"decode_i128_from_little_endian": {1, 1, []string{"array"}, "tuple"},
+		"encode_u128_to_little_endian":   {1, 1, []string{"int"}, "tuple"},
+		"decode_u128_from_little_endian": {1, 1, []string{"array"}, "tuple"},
+
+		// 128-bit big endian
+		"encode_i128_to_big_endian":   {1, 1, []string{"int"}, "tuple"},
+		"decode_i128_from_big_endian": {1, 1, []string{"array"}, "tuple"},
+		"encode_u128_to_big_endian":   {1, 1, []string{"int"}, "tuple"},
+		"decode_u128_from_big_endian": {1, 1, []string{"array"}, "tuple"},
+
+		// 256-bit little endian
+		"encode_i256_to_little_endian":   {1, 1, []string{"int"}, "tuple"},
+		"decode_i256_from_little_endian": {1, 1, []string{"array"}, "tuple"},
+		"encode_u256_to_little_endian":   {1, 1, []string{"int"}, "tuple"},
+		"decode_u256_from_little_endian": {1, 1, []string{"array"}, "tuple"},
+
+		// 256-bit big endian
+		"encode_i256_to_big_endian":   {1, 1, []string{"int"}, "tuple"},
+		"decode_i256_from_big_endian": {1, 1, []string{"array"}, "tuple"},
+		"encode_u256_to_big_endian":   {1, 1, []string{"int"}, "tuple"},
+		"decode_u256_from_big_endian": {1, 1, []string{"array"}, "tuple"},
+
+		// Float little endian
+		"encode_f32_to_little_endian":   {1, 1, []string{"float"}, "tuple"},
+		"decode_f32_from_little_endian": {1, 1, []string{"array"}, "tuple"},
+		"encode_f64_to_little_endian":   {1, 1, []string{"float"}, "tuple"},
+		"decode_f64_from_little_endian": {1, 1, []string{"array"}, "tuple"},
+
+		// Float big endian
+		"encode_f32_to_big_endian":   {1, 1, []string{"float"}, "tuple"},
+		"decode_f32_from_big_endian": {1, 1, []string{"array"}, "tuple"},
+		"encode_f64_to_big_endian":   {1, 1, []string{"float"}, "tuple"},
+		"decode_f64_from_big_endian": {1, 1, []string{"array"}, "tuple"},
+	}
+
+	sig, exists := signatures[funcName]
+	if !exists {
+		return
+	}
+
+	tc.validateStdlibCall("binary", funcName, call, sig, line, column)
 }
 
 // validateStdlibCall performs the actual validation of a stdlib call

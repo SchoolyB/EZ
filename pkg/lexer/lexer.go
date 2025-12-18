@@ -239,48 +239,44 @@ func (l *Lexer) NextToken() tokenizer.Token {
 	case '.':
 		tok = newToken(tokenizer.DOT, l.ch, l.line, l.column)
 	case '@':
-		// Peek ahead to check for @suppress
-		if l.peekAheadString(9) == "@suppress" {
-			// Found @suppress
-			tok = tokenizer.Token{Type: tokenizer.SUPPRESS, Literal: "@suppress", Line: l.line, Column: l.column}
-			// Consume the entire @suppress token
+		// @ is only used for stdlib imports like @std, @binary
+		tok = newToken(tokenizer.AT, l.ch, l.line, l.column)
+	case '#':
+		// # is used for attributes like #suppress, #strict, #flags, #enum
+		// Peek ahead to check for #suppress
+		if l.peekAheadString(9) == "#suppress" {
+			tok = tokenizer.Token{Type: tokenizer.SUPPRESS, Literal: "#suppress", Line: l.line, Column: l.column}
 			for i := 0; i < 9; i++ {
 				l.readChar()
 			}
 			return tok
 		}
-		// Peek ahead to check for @strict
-		if l.peekAheadString(7) == "@strict" {
-			// Found @strict
-			tok = tokenizer.Token{Type: tokenizer.STRICT, Literal: "@strict", Line: l.line, Column: l.column}
-			// Consume the entire @strict token
+		// Peek ahead to check for #strict
+		if l.peekAheadString(7) == "#strict" {
+			tok = tokenizer.Token{Type: tokenizer.STRICT, Literal: "#strict", Line: l.line, Column: l.column}
 			for i := 0; i < 7; i++ {
 				l.readChar()
 			}
 			return tok
 		}
-		// Peek ahead to check for @flags
-		if l.peekAheadString(6) == "@flags" {
-			// Found @flags
-			tok = tokenizer.Token{Type: tokenizer.FLAGS, Literal: "@flags", Line: l.line, Column: l.column}
-			// Consume the entire @flags token
+		// Peek ahead to check for #flags
+		if l.peekAheadString(6) == "#flags" {
+			tok = tokenizer.Token{Type: tokenizer.FLAGS, Literal: "#flags", Line: l.line, Column: l.column}
 			for i := 0; i < 6; i++ {
 				l.readChar()
 			}
 			return tok
 		}
-		// Peek ahead to check for @enum
-		if l.peekAheadString(5) == "@enum" {
-			// Found @enum
-			tok = tokenizer.Token{Type: tokenizer.ENUM_ATTR, Literal: "@enum", Line: l.line, Column: l.column}
-			// Consume the entire @enum token
+		// Peek ahead to check for #enum
+		if l.peekAheadString(5) == "#enum" {
+			tok = tokenizer.Token{Type: tokenizer.ENUM_ATTR, Literal: "#enum", Line: l.line, Column: l.column}
 			for i := 0; i < 5; i++ {
 				l.readChar()
 			}
 			return tok
 		}
-		// Just a regular @ symbol (e.g., for imports like @std)
-		tok = newToken(tokenizer.AT, l.ch, l.line, l.column)
+		// Unknown # usage - treat as illegal
+		tok = newToken(tokenizer.ILLEGAL, l.ch, l.line, l.column)
 	case '"':
 		tok.Line = l.line
 		tok.Column = l.column

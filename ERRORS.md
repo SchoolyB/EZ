@@ -86,11 +86,11 @@ Syntax and parsing errors
 | E2048 | when-bool-condition | when condition cannot be a boolean. Use if/or/otherwise instead |
 | E2049 | when-nil-condition | when condition cannot be nil. Use if/otherwise to check for nil |
 | E2050 | when-collection-condition | when condition cannot be an array or map |
-| E2051 | suppress-invalid-target | @suppress can only be applied to function declarations |
+| E2051 | suppress-invalid-target | #suppress can only be applied to function declarations |
 | E2052 | suppress-invalid-code | warning code cannot be suppressed |
 | E2053 | type-definition-in-function | type definitions must be at file level |
-| E2054 | when-strict-non-enum-case | @strict when requires explicit enum member values in cases |
-| E2055 | strict-invalid-target | @strict can only be applied to when statements |
+| E2054 | when-strict-non-enum-case | #strict when requires explicit enum member values in cases |
+| E2055 | strict-invalid-target | #strict can only be applied to when statements |
 | E2056 | executable-at-file-scope | executable statement not allowed at file scope |
 
 ## Type Errors (E3xxx)

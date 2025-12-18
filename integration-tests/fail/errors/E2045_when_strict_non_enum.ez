@@ -1,10 +1,10 @@
-// E2045: @strict attribute only allowed on enum when statements
+// E2045: #strict attribute only allowed on enum when statements
 import @std
 using std
 
 do main() {
     temp x = 1
-    @strict
+    #strict
     when x {
         is 1 { println("one") }
         is 2 { println("two") }

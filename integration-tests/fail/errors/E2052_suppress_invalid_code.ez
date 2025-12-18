@@ -5,7 +5,7 @@
 
 module main
 
-@suppress(W9999)
+#suppress(W9999)
 do foo() {
     // W9999 does not exist
 }

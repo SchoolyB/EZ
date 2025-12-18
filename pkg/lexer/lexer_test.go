@@ -374,14 +374,14 @@ func TestIdentifiers(t *testing.T) {
 	}
 }
 
-// TestSpecialTokens tests @suppress, !in, and blank identifier
+// TestSpecialTokens tests #suppress, !in, and blank identifier
 func TestSpecialTokens(t *testing.T) {
 	tests := []struct {
 		input    string
 		expected tokenizer.TokenType
 		literal  string
 	}{
-		{"@suppress", tokenizer.SUPPRESS, "@suppress"},
+		{"#suppress", tokenizer.SUPPRESS, "#suppress"},
 		{"!in", tokenizer.NOT_IN, "!in"},
 		{"_", tokenizer.BLANK, "_"},
 	}

@@ -27,9 +27,10 @@ type Expression interface {
 
 // Program is the root node of every AST
 type Program struct {
-	Module     *ModuleDeclaration // Optional module declaration (first statement if present)
-	FileUsing  []*UsingStatement  // File-scoped using declarations
-	Statements []Statement
+	Module               *ModuleDeclaration // Optional module declaration (first statement if present)
+	FileUsing            []*UsingStatement  // File-scoped using declarations
+	Statements           []Statement
+	FileSuppressWarnings []string // File-level #suppress warnings (e.g., "W2009", "ALL")
 }
 
 // Visibility represents the access level of a declaration
@@ -256,6 +257,18 @@ type RangeExpression struct {
 func (r *RangeExpression) expressionNode()      {}
 func (r *RangeExpression) TokenLiteral() string { return r.Token.Literal }
 
+// CastExpression represents cast(value, type) for type conversion
+type CastExpression struct {
+	Token       Token      // The 'cast' token
+	Value       Expression // The expression to convert
+	TargetType  string     // The target type (e.g., "u8", "[u8]", "int")
+	IsArray     bool       // True if target is an array type like [u8]
+	ElementType string     // For arrays, the element type (e.g., "u8" from "[u8]")
+}
+
+func (c *CastExpression) expressionNode()      {}
+func (c *CastExpression) TokenLiteral() string { return c.Token.Literal }
+
 // ============================================================================
 // Statements
 // ============================================================================
@@ -271,7 +284,7 @@ type VariableDeclaration struct {
 	TypeNames  []string // for typed tuple unpacking (int, string)
 	Value      Expression
 	Mutable    bool
-	Attributes []*Attribute // @suppress(...) attributes
+	Attributes []*Attribute // #suppress(...) attributes
 	Visibility Visibility   // Public (default), Private, or PrivateModule
 }
 
@@ -283,7 +296,7 @@ type BlankIdentifier struct {
 func (b *BlankIdentifier) expressionNode()      {}
 func (b *BlankIdentifier) TokenLiteral() string { return b.Token.Literal }
 
-// Attribute represents @suppress(warning_name, ...)
+// Attribute represents #suppress(warning_name, ...)
 type Attribute struct {
 	Token Token
 	Name  string   // "suppress"
@@ -360,8 +373,8 @@ type WhenStatement struct {
 	Value      Expression      // The value being matched
 	Cases      []*WhenCase     // All is cases
 	Default    *BlockStatement // Required default case
-	IsStrict   bool            // true if @strict attribute present
-	Attributes []*Attribute    // Any attributes like @strict
+	IsStrict   bool            // true if #strict attribute present
+	Attributes []*Attribute    // Any attributes like #strict
 }
 
 func (ws *WhenStatement) statementNode()       {}
@@ -432,7 +445,7 @@ type FunctionDeclaration struct {
 	Parameters  []*Parameter
 	ReturnTypes []string // can be multiple for multi-return
 	Body        *BlockStatement
-	Attributes  []*Attribute // @suppress(...) attributes
+	Attributes  []*Attribute // #suppress(...) attributes
 	Visibility  Visibility   // Public (default), Private, or PrivateModule
 }
 
@@ -516,8 +529,8 @@ type EnumValue struct {
 	Value Expression // optional explicit value
 }
 
-// EnumAttributes represents @enum(type) or @flags
+// EnumAttributes represents #enum(type) or #flags
 type EnumAttributes struct {
 	TypeName string // "int", "float", or "string"
-	IsFlags  bool   // true if @flags attribute present (power-of-2 values)
+	IsFlags  bool   // true if #flags attribute present (power-of-2 values)
 }

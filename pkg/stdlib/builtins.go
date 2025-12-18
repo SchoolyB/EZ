@@ -119,6 +119,78 @@ func deepCopy(obj object.Object) object.Object {
 	}
 }
 
+// extractIntValue extracts a big.Int value from various EZ types for sized integer conversions
+func extractIntValue(arg object.Object, targetType string) (*big.Int, *object.Error) {
+	switch v := arg.(type) {
+	case *object.Integer:
+		return v.Value, nil
+	case *object.Float:
+		// Check for NaN and Inf
+		if math.IsNaN(v.Value) {
+			return nil, &object.Error{
+				Code:    "E7033",
+				Message: fmt.Sprintf("cannot convert NaN to %s", targetType),
+			}
+		}
+		if math.IsInf(v.Value, 0) {
+			return nil, &object.Error{
+				Code:    "E7033",
+				Message: fmt.Sprintf("cannot convert Inf to %s", targetType),
+			}
+		}
+		return big.NewInt(int64(v.Value)), nil
+	case *object.String:
+		cleanedValue := strings.ReplaceAll(v.Value, "_", "")
+		val, ok := new(big.Int).SetString(cleanedValue, 10)
+		if !ok {
+			return nil, &object.Error{
+				Code:    "E7014",
+				Message: fmt.Sprintf("cannot convert %q to %s: invalid integer format", v.Value, targetType),
+			}
+		}
+		return val, nil
+	case *object.Byte:
+		return big.NewInt(int64(v.Value)), nil
+	case *object.Char:
+		return big.NewInt(int64(v.Value)), nil
+	default:
+		return nil, &object.Error{
+			Code:    "E7014",
+			Message: fmt.Sprintf("cannot convert %s to %s", arg.Type(), targetType),
+		}
+	}
+}
+
+// extractFloatValue extracts a float64 value from various EZ types for float conversions
+func extractFloatValue(arg object.Object, targetType string) (float64, *object.Error) {
+	switch v := arg.(type) {
+	case *object.Float:
+		return v.Value, nil
+	case *object.Integer:
+		f, _ := new(big.Float).SetInt(v.Value).Float64()
+		return f, nil
+	case *object.String:
+		cleanedValue := strings.ReplaceAll(v.Value, "_", "")
+		val, err := strconv.ParseFloat(cleanedValue, 64)
+		if err != nil {
+			return 0, &object.Error{
+				Code:    "E7014",
+				Message: fmt.Sprintf("cannot convert %q to %s: invalid float format", v.Value, targetType),
+			}
+		}
+		return val, nil
+	case *object.Byte:
+		return float64(v.Value), nil
+	case *object.Char:
+		return float64(v.Value), nil
+	default:
+		return 0, &object.Error{
+			Code:    "E7014",
+			Message: fmt.Sprintf("cannot convert %s to %s", arg.Type(), targetType),
+		}
+	}
+}
+
 // StdBuiltins contains the core standard library functions
 var StdBuiltins = map[string]*object.Builtin{
 	// Prints values to standard output followed by a newline
@@ -516,6 +588,296 @@ var StdBuiltins = map[string]*object.Builtin{
 			default:
 				return &object.Error{Code: "E7014", Message: fmt.Sprintf("cannot convert %s to byte", args[0].Type())}
 			}
+		},
+	},
+
+	// ============================================================================
+	// Sized Integer Conversion Functions
+	// ============================================================================
+
+	// Converts a value to an i8 (signed 8-bit integer, -128 to 127)
+	"i8": {
+		Fn: func(args ...object.Object) object.Object {
+			if len(args) != 1 {
+				return &object.Error{Code: "E7001", Message: "i8() takes exactly 1 argument"}
+			}
+			val, err := extractIntValue(args[0], "i8")
+			if err != nil {
+				return err
+			}
+			if val.Cmp(big.NewInt(-128)) < 0 || val.Cmp(big.NewInt(127)) > 0 {
+				return &object.Error{
+					Code:    "E3022",
+					Message: fmt.Sprintf("value %s out of i8 range (-128 to 127)", val.String()),
+				}
+			}
+			return &object.Integer{Value: new(big.Int).Set(val), DeclaredType: "i8"}
+		},
+	},
+
+	// Converts a value to an i16 (signed 16-bit integer, -32768 to 32767)
+	"i16": {
+		Fn: func(args ...object.Object) object.Object {
+			if len(args) != 1 {
+				return &object.Error{Code: "E7001", Message: "i16() takes exactly 1 argument"}
+			}
+			val, err := extractIntValue(args[0], "i16")
+			if err != nil {
+				return err
+			}
+			if val.Cmp(big.NewInt(-32768)) < 0 || val.Cmp(big.NewInt(32767)) > 0 {
+				return &object.Error{
+					Code:    "E3022",
+					Message: fmt.Sprintf("value %s out of i16 range (-32768 to 32767)", val.String()),
+				}
+			}
+			return &object.Integer{Value: new(big.Int).Set(val), DeclaredType: "i16"}
+		},
+	},
+
+	// Converts a value to an i32 (signed 32-bit integer)
+	"i32": {
+		Fn: func(args ...object.Object) object.Object {
+			if len(args) != 1 {
+				return &object.Error{Code: "E7001", Message: "i32() takes exactly 1 argument"}
+			}
+			val, err := extractIntValue(args[0], "i32")
+			if err != nil {
+				return err
+			}
+			minI32 := big.NewInt(-2147483648)
+			maxI32 := big.NewInt(2147483647)
+			if val.Cmp(minI32) < 0 || val.Cmp(maxI32) > 0 {
+				return &object.Error{
+					Code:    "E3022",
+					Message: fmt.Sprintf("value %s out of i32 range (-2147483648 to 2147483647)", val.String()),
+				}
+			}
+			return &object.Integer{Value: new(big.Int).Set(val), DeclaredType: "i32"}
+		},
+	},
+
+	// Converts a value to an i64 (signed 64-bit integer)
+	"i64": {
+		Fn: func(args ...object.Object) object.Object {
+			if len(args) != 1 {
+				return &object.Error{Code: "E7001", Message: "i64() takes exactly 1 argument"}
+			}
+			val, err := extractIntValue(args[0], "i64")
+			if err != nil {
+				return err
+			}
+			minI64 := new(big.Int).SetInt64(-9223372036854775808)
+			maxI64 := new(big.Int).SetInt64(9223372036854775807)
+			if val.Cmp(minI64) < 0 || val.Cmp(maxI64) > 0 {
+				return &object.Error{
+					Code:    "E3022",
+					Message: fmt.Sprintf("value %s out of i64 range", val.String()),
+				}
+			}
+			return &object.Integer{Value: new(big.Int).Set(val), DeclaredType: "i64"}
+		},
+	},
+
+	// Converts a value to an i128 (signed 128-bit integer)
+	"i128": {
+		Fn: func(args ...object.Object) object.Object {
+			if len(args) != 1 {
+				return &object.Error{Code: "E7001", Message: "i128() takes exactly 1 argument"}
+			}
+			val, err := extractIntValue(args[0], "i128")
+			if err != nil {
+				return err
+			}
+			// -2^127 to 2^127-1
+			minI128 := new(big.Int).Lsh(big.NewInt(-1), 127)
+			maxI128 := new(big.Int).Sub(new(big.Int).Lsh(big.NewInt(1), 127), big.NewInt(1))
+			if val.Cmp(minI128) < 0 || val.Cmp(maxI128) > 0 {
+				return &object.Error{
+					Code:    "E3022",
+					Message: fmt.Sprintf("value %s out of i128 range", val.String()),
+				}
+			}
+			return &object.Integer{Value: new(big.Int).Set(val), DeclaredType: "i128"}
+		},
+	},
+
+	// Converts a value to an i256 (signed 256-bit integer)
+	"i256": {
+		Fn: func(args ...object.Object) object.Object {
+			if len(args) != 1 {
+				return &object.Error{Code: "E7001", Message: "i256() takes exactly 1 argument"}
+			}
+			val, err := extractIntValue(args[0], "i256")
+			if err != nil {
+				return err
+			}
+			// -2^255 to 2^255-1
+			minI256 := new(big.Int).Lsh(big.NewInt(-1), 255)
+			maxI256 := new(big.Int).Sub(new(big.Int).Lsh(big.NewInt(1), 255), big.NewInt(1))
+			if val.Cmp(minI256) < 0 || val.Cmp(maxI256) > 0 {
+				return &object.Error{
+					Code:    "E3022",
+					Message: fmt.Sprintf("value %s out of i256 range", val.String()),
+				}
+			}
+			return &object.Integer{Value: new(big.Int).Set(val), DeclaredType: "i256"}
+		},
+	},
+
+	// Converts a value to a u8 (unsigned 8-bit integer, 0 to 255)
+	"u8": {
+		Fn: func(args ...object.Object) object.Object {
+			if len(args) != 1 {
+				return &object.Error{Code: "E7001", Message: "u8() takes exactly 1 argument"}
+			}
+			val, err := extractIntValue(args[0], "u8")
+			if err != nil {
+				return err
+			}
+			if val.Sign() < 0 || val.Cmp(big.NewInt(255)) > 0 {
+				return &object.Error{
+					Code:    "E3022",
+					Message: fmt.Sprintf("value %s out of u8 range (0 to 255)", val.String()),
+				}
+			}
+			return &object.Integer{Value: new(big.Int).Set(val), DeclaredType: "u8"}
+		},
+	},
+
+	// Converts a value to a u16 (unsigned 16-bit integer, 0 to 65535)
+	"u16": {
+		Fn: func(args ...object.Object) object.Object {
+			if len(args) != 1 {
+				return &object.Error{Code: "E7001", Message: "u16() takes exactly 1 argument"}
+			}
+			val, err := extractIntValue(args[0], "u16")
+			if err != nil {
+				return err
+			}
+			if val.Sign() < 0 || val.Cmp(big.NewInt(65535)) > 0 {
+				return &object.Error{
+					Code:    "E3022",
+					Message: fmt.Sprintf("value %s out of u16 range (0 to 65535)", val.String()),
+				}
+			}
+			return &object.Integer{Value: new(big.Int).Set(val), DeclaredType: "u16"}
+		},
+	},
+
+	// Converts a value to a u32 (unsigned 32-bit integer, 0 to 4294967295)
+	"u32": {
+		Fn: func(args ...object.Object) object.Object {
+			if len(args) != 1 {
+				return &object.Error{Code: "E7001", Message: "u32() takes exactly 1 argument"}
+			}
+			val, err := extractIntValue(args[0], "u32")
+			if err != nil {
+				return err
+			}
+			maxU32 := new(big.Int).SetUint64(4294967295)
+			if val.Sign() < 0 || val.Cmp(maxU32) > 0 {
+				return &object.Error{
+					Code:    "E3022",
+					Message: fmt.Sprintf("value %s out of u32 range (0 to 4294967295)", val.String()),
+				}
+			}
+			return &object.Integer{Value: new(big.Int).Set(val), DeclaredType: "u32"}
+		},
+	},
+
+	// Converts a value to a u64 (unsigned 64-bit integer)
+	"u64": {
+		Fn: func(args ...object.Object) object.Object {
+			if len(args) != 1 {
+				return &object.Error{Code: "E7001", Message: "u64() takes exactly 1 argument"}
+			}
+			val, err := extractIntValue(args[0], "u64")
+			if err != nil {
+				return err
+			}
+			maxU64 := new(big.Int).SetUint64(18446744073709551615)
+			if val.Sign() < 0 || val.Cmp(maxU64) > 0 {
+				return &object.Error{
+					Code:    "E3022",
+					Message: fmt.Sprintf("value %s out of u64 range (0 to 18446744073709551615)", val.String()),
+				}
+			}
+			return &object.Integer{Value: new(big.Int).Set(val), DeclaredType: "u64"}
+		},
+	},
+
+	// Converts a value to a u128 (unsigned 128-bit integer)
+	"u128": {
+		Fn: func(args ...object.Object) object.Object {
+			if len(args) != 1 {
+				return &object.Error{Code: "E7001", Message: "u128() takes exactly 1 argument"}
+			}
+			val, err := extractIntValue(args[0], "u128")
+			if err != nil {
+				return err
+			}
+			// 0 to 2^128-1
+			maxU128 := new(big.Int).Sub(new(big.Int).Lsh(big.NewInt(1), 128), big.NewInt(1))
+			if val.Sign() < 0 || val.Cmp(maxU128) > 0 {
+				return &object.Error{
+					Code:    "E3022",
+					Message: fmt.Sprintf("value %s out of u128 range", val.String()),
+				}
+			}
+			return &object.Integer{Value: new(big.Int).Set(val), DeclaredType: "u128"}
+		},
+	},
+
+	// Converts a value to a u256 (unsigned 256-bit integer)
+	"u256": {
+		Fn: func(args ...object.Object) object.Object {
+			if len(args) != 1 {
+				return &object.Error{Code: "E7001", Message: "u256() takes exactly 1 argument"}
+			}
+			val, err := extractIntValue(args[0], "u256")
+			if err != nil {
+				return err
+			}
+			// 0 to 2^256-1
+			maxU256 := new(big.Int).Sub(new(big.Int).Lsh(big.NewInt(1), 256), big.NewInt(1))
+			if val.Sign() < 0 || val.Cmp(maxU256) > 0 {
+				return &object.Error{
+					Code:    "E3022",
+					Message: fmt.Sprintf("value %s out of u256 range", val.String()),
+				}
+			}
+			return &object.Integer{Value: new(big.Int).Set(val), DeclaredType: "u256"}
+		},
+	},
+
+	// Converts a value to a float32
+	"f32": {
+		Fn: func(args ...object.Object) object.Object {
+			if len(args) != 1 {
+				return &object.Error{Code: "E7001", Message: "f32() takes exactly 1 argument"}
+			}
+			val, err := extractFloatValue(args[0], "f32")
+			if err != nil {
+				return err
+			}
+			// Convert to float32 and back to truncate precision
+			f32 := float32(val)
+			return &object.Float{Value: float64(f32)}
+		},
+	},
+
+	// Converts a value to a float64
+	"f64": {
+		Fn: func(args ...object.Object) object.Object {
+			if len(args) != 1 {
+				return &object.Error{Code: "E7001", Message: "f64() takes exactly 1 argument"}
+			}
+			val, err := extractFloatValue(args[0], "f64")
+			if err != nil {
+				return err
+			}
+			return &object.Float{Value: val}
 		},
 	},
 
