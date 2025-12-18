@@ -151,21 +151,22 @@ type Parameter struct {
 
 // TypeChecker validates types in an EZ program
 type TypeChecker struct {
-	types            map[string]*Type                         // All known types
-	functions        map[string]*FunctionSignature            // All function signatures
-	variables        map[string]string                        // Variable name -> type name (global scope)
-	modules          map[string]bool                          // Imported module names
-	fileUsingModules map[string]bool                          // File-level using modules
-	moduleFunctions  map[string]map[string]*FunctionSignature // Module name -> function name -> signature
-	moduleTypes      map[string]map[string]*Type              // Module name -> type name -> type
-	moduleVariables  map[string]map[string]string             // Module name -> variable name -> type (#677)
-	currentScope     *Scope                                   // Current scope for local variable tracking
-	errors           *errors.EZErrorList
-	source           string
-	filename         string
-	skipMainCheck    bool             // Skip main() function requirement (for module files)
-	loopDepth        int              // Track nesting depth of loops for break/continue validation (#603)
-	currentFuncAttrs []*ast.Attribute // Current function's attributes for @suppress checking
+	types                map[string]*Type                         // All known types
+	functions            map[string]*FunctionSignature            // All function signatures
+	variables            map[string]string                        // Variable name -> type name (global scope)
+	modules              map[string]bool                          // Imported module names
+	fileUsingModules     map[string]bool                          // File-level using modules
+	moduleFunctions      map[string]map[string]*FunctionSignature // Module name -> function name -> signature
+	moduleTypes          map[string]map[string]*Type              // Module name -> type name -> type
+	moduleVariables      map[string]map[string]string             // Module name -> variable name -> type (#677)
+	currentScope         *Scope                                   // Current scope for local variable tracking
+	errors               *errors.EZErrorList
+	source               string
+	filename             string
+	skipMainCheck        bool             // Skip main() function requirement (for module files)
+	loopDepth            int              // Track nesting depth of loops for break/continue validation (#603)
+	currentFuncAttrs     []*ast.Attribute // Current function's attributes for @suppress checking
+	fileSuppressWarnings []string         // File-level suppressed warnings (from @suppress at file scope)
 }
 
 // NewTypeChecker creates a new type checker
@@ -462,6 +463,9 @@ func (tc *TypeChecker) addWarning(code errors.ErrorCode, message string, line, c
 
 // CheckProgram performs type checking on the entire program
 func (tc *TypeChecker) CheckProgram(program *ast.Program) bool {
+	// Store file-level suppressions
+	tc.fileSuppressWarnings = program.FileSuppressWarnings
+
 	// Phase 0: Register all imported modules
 	for _, stmt := range program.Statements {
 		if importStmt, ok := stmt.(*ast.ImportStatement); ok {
@@ -1223,8 +1227,16 @@ func (tc *TypeChecker) checkFileScopeStatements(statements []ast.Statement) {
 	}
 }
 
-// isSuppressed checks if a warning code is suppressed by function attributes
+// isSuppressed checks if a warning code is suppressed by function attributes or file-level @suppress
 func (tc *TypeChecker) isSuppressed(warningCode string, attrs []*ast.Attribute) bool {
+	// Check file-level suppressions first
+	for _, code := range tc.fileSuppressWarnings {
+		if code == "ALL" || code == warningCode {
+			return true
+		}
+	}
+
+	// Check function-level attributes
 	if attrs == nil {
 		return false
 	}
@@ -1237,7 +1249,7 @@ func (tc *TypeChecker) isSuppressed(warningCode string, attrs []*ast.Attribute) 
 	for _, attr := range attrs {
 		if attr.Name == "suppress" {
 			for _, arg := range attr.Args {
-				if arg == warningCode {
+				if arg == "ALL" || arg == warningCode {
 					return true
 				}
 				// Check if the alternate name matches

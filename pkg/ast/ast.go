@@ -27,9 +27,10 @@ type Expression interface {
 
 // Program is the root node of every AST
 type Program struct {
-	Module     *ModuleDeclaration // Optional module declaration (first statement if present)
-	FileUsing  []*UsingStatement  // File-scoped using declarations
-	Statements []Statement
+	Module               *ModuleDeclaration // Optional module declaration (first statement if present)
+	FileUsing            []*UsingStatement  // File-scoped using declarations
+	Statements           []Statement
+	FileSuppressWarnings []string // File-level @suppress warnings (e.g., "W2009", "ALL")
 }
 
 // Visibility represents the access level of a declaration

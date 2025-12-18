@@ -50,6 +50,8 @@ func isReservedName(name string) bool {
 
 // allWarningCodes contains all valid warning codes in the language
 var allWarningCodes = map[string]bool{
+	// Special
+	"ALL": true, // suppress all warnings
 	// Code Style Warnings (W1xxx)
 	"W1001": true, // unused-variable
 	"W1002": true, // unused-import
@@ -74,6 +76,7 @@ var allWarningCodes = map[string]bool{
 // suppressibleWarnings contains warning codes that can be suppressed via @suppress
 // These are function-body warnings that make sense to suppress at the function level
 var suppressibleWarnings = map[string]bool{
+	"ALL":   true, // suppress all warnings
 	"W1001": true, // unused-variable
 	"W1004": true, // unused-parameter
 	"W2001": true, // unreachable-code
@@ -116,6 +119,53 @@ func hasStrictAttribute(attrs []*Attribute) *Attribute {
 		}
 	}
 	return nil
+}
+
+// parseFileLevelSuppress parses a file-level @suppress(...) and returns the warning codes
+func (p *Parser) parseFileLevelSuppress() []string {
+	var codes []string
+	suppressToken := p.currentToken
+
+	p.nextToken() // move past @suppress
+
+	// Expect opening paren
+	if !p.currentTokenMatches(LPAREN) {
+		p.addEZError(errors.E2002, "@suppress requires parentheses with warning code(s)", suppressToken)
+		return codes
+	}
+	p.nextToken() // move past (
+
+	// Parse warning codes
+	for !p.currentTokenMatches(RPAREN) && !p.currentTokenMatches(EOF) {
+		if p.currentTokenMatches(STRING) {
+			code := p.currentToken.Literal
+			// Validate the warning code
+			if !isValidWarningCode(code) {
+				p.addEZError(errors.E2052, fmt.Sprintf("%s is not a valid warning code", code), p.currentToken)
+			} else if !isWarningSuppressible(code) {
+				p.addEZError(errors.E2053, fmt.Sprintf("%s cannot be suppressed", code), p.currentToken)
+			} else {
+				codes = append(codes, code)
+			}
+			p.nextToken()
+		} else if p.currentTokenMatches(IDENT) && p.currentToken.Literal == "ALL" {
+			// Allow ALL without quotes
+			codes = append(codes, "ALL")
+			p.nextToken()
+		} else if p.currentTokenMatches(COMMA) {
+			p.nextToken()
+		} else {
+			p.addEZError(errors.E2002, "expected warning code string in @suppress", p.currentToken)
+			p.nextToken()
+		}
+	}
+
+	// Move past closing paren if present
+	if p.currentTokenMatches(RPAREN) {
+		// Don't advance - ParseProgram will call nextToken
+	}
+
+	return codes
 }
 
 // Operator precedence levels
@@ -485,6 +535,15 @@ func (p *Parser) ParseProgram() *Program {
 			} else if seenOtherDeclaration {
 				p.addEZError(errors.E2002, "module declaration must be the first statement in the file", p.currentToken)
 			}
+			p.nextToken()
+			continue
+		}
+
+		// Handle file-level @suppress (must come after imports/using, before other declarations)
+		if p.currentTokenMatches(SUPPRESS) {
+			// Parse the @suppress(...) and store in program
+			suppressCodes := p.parseFileLevelSuppress()
+			program.FileSuppressWarnings = append(program.FileSuppressWarnings, suppressCodes...)
 			p.nextToken()
 			continue
 		}
