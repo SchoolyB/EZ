@@ -3346,13 +3346,24 @@ func (tc *TypeChecker) checkForEachStatement(forEach *ast.ForEachStatement, expe
 	if forEach.Variable != nil && forEach.Collection != nil {
 		collType, ok := tc.inferExpressionType(forEach.Collection)
 		if ok {
+			// Determine if the collection is mutable by checking the root variable
+			// If iterating over a mutable variable's field (e.g., h.inventory where h is &),
+			// the loop variable should also be mutable
+			collectionMutable := false
+			if rootVar := tc.extractRootVariable(forEach.Collection); rootVar != "" {
+				if isMutable, found := tc.isVariableMutable(rootVar); found {
+					collectionMutable = isMutable
+				}
+			}
+
 			// For arrays, element type is inside []
 			if tc.isArrayType(collType) {
 				elemType := tc.extractArrayElementType(collType)
-				tc.defineVariable(forEach.Variable.Value, elemType)
+				// Loop variable inherits mutability from collection
+				tc.defineVariableWithMutability(forEach.Variable.Value, elemType, collectionMutable)
 			} else if collType == "string" {
 				// Iterating over string gives char
-				tc.defineVariable(forEach.Variable.Value, "char")
+				tc.defineVariableWithMutability(forEach.Variable.Value, "char", collectionMutable)
 			} else {
 				// Not an iterable type - produce error
 				line, column := tc.getExpressionPosition(forEach.Collection)
