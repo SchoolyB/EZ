@@ -373,6 +373,7 @@ func (tc *TypeChecker) GetType(name string) (*Type, bool) {
 
 // getStructTypeIncludingModules looks up a struct type by name, checking both local
 // and module types. For qualified names like "lib.Hero", it looks up in moduleTypes.
+// For unqualified names like "Item", it also searches through all registered modules.
 func (tc *TypeChecker) getStructTypeIncludingModules(typeName string) (*Type, bool) {
 	// First check local types
 	if t, exists := tc.types[typeName]; exists && t.Kind == StructType {
@@ -390,6 +391,15 @@ func (tc *TypeChecker) getStructTypeIncludingModules(typeName string) (*Type, bo
 					return t, true
 				}
 			}
+		}
+	}
+
+	// For unqualified names, search through all registered modules
+	// This handles cases where a struct field type like "[Item]" references
+	// a type from the same module without qualification
+	for _, moduleTypes := range tc.moduleTypes {
+		if t, exists := moduleTypes[typeName]; exists && t.Kind == StructType {
+			return t, true
 		}
 	}
 
