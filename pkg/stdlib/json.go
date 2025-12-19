@@ -265,10 +265,8 @@ func objectToGoValue(obj object.Object, seen map[uintptr]bool) (interface{}, *js
 					if tag.OmitEmpty && val.Type() == object.NIL_OBJ {
 						break
 					}
-					if tag.EncodeAsString && 
-					val.Type() == object.INTEGER_OBJ || 
-					val.Type() == object.FLOAT_OBJ {
-						// TODO
+					// TODO: encode value object as string
+					if tag.EncodeAsString {
 					}
 					m[tag.Name] = goVal
 				default:
@@ -316,11 +314,25 @@ func decodeToStruct(jsonStr string, structDef *object.StructDef) (*object.Struct
 	// Create struct with fields from JSON
 	fields := make(map[string]object.Object)
 	for fieldName, fieldType := range structDef.Fields {
-		if jsonVal, exists := jsonMap[fieldName]; exists {
-			fields[fieldName] = convertToTypedValue(jsonVal, fieldType)
-		} else {
-			// Set zero value for missing field
-			fields[fieldName] = zeroValueForType(fieldType)
+		switch tag := structDef.FieldTags[fieldName].(type) {
+			case *object.JSONTag:
+				if tag.Ignore {
+					break
+				}
+			 
+				if jsonVal, exists := jsonMap[tag.Name]; exists {
+					fields[fieldName] = convertToTypedValue(jsonVal, fieldType)
+				} else if !exists && !tag.OmitEmpty {
+					// Set zero value if `omitempty` is not set
+					fields[fieldName] = zeroValueForType(fieldType)
+				}
+			default:
+				if jsonVal, exists := jsonMap[fieldName]; exists {
+					fields[fieldName] = convertToTypedValue(jsonVal, fieldType)
+				} else {
+					// Set zero value for missing field
+					fields[fieldName] = zeroValueForType(fieldType)
+				}
 		}
 	}
 
