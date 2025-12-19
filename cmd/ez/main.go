@@ -843,7 +843,13 @@ func runFile(filename string) {
 		loader.SetCurrentFile(absPath)
 		mod, err := loader.Load(modPath)
 		if err != nil {
-			continue // Module load errors will be caught at runtime
+			// Check if this is a module error with parse errors (#726)
+			if modErr, ok := err.(*interpreter.ModuleError); ok && modErr.EZErrors != nil && modErr.EZErrors.HasErrors() {
+				fmt.Print(errors.FormatErrorList(modErr.EZErrors))
+				os.Exit(1)
+			}
+			// For other errors (module not found, etc.), let them be caught at runtime
+			continue
 		}
 
 		// For multi-file modules, use two-pass type checking (#722)
@@ -877,8 +883,29 @@ func runFile(filename string) {
 			fileParser := parser.NewWithSource(fileLex, fileSource, filePath)
 			fileProgram := fileParser.ParseProgram()
 
-			if len(fileLex.Errors()) > 0 || fileParser.EZErrors().HasErrors() {
-				continue
+			// Check for lexer errors in imported module
+			if len(fileLex.Errors()) > 0 {
+				errList := errors.NewErrorList()
+				for _, lexErr := range fileLex.Errors() {
+					var code errors.ErrorCode
+					switch lexErr.Code {
+					case "E1005":
+						code = errors.E1005
+					default:
+						code = errors.ErrorCode{Code: lexErr.Code, Name: "lexer-error", Description: "Lexer error"}
+					}
+					sourceLine := errors.GetSourceLine(fileSource, lexErr.Line)
+					ezErr := errors.NewErrorWithSource(code, lexErr.Message, filePath, lexErr.Line, lexErr.Column, sourceLine)
+					errList.AddError(ezErr)
+				}
+				fmt.Print(errors.FormatErrorList(errList))
+				os.Exit(1)
+			}
+
+			// Check for parser errors in imported module
+			if fileParser.EZErrors().HasErrors() {
+				fmt.Print(errors.FormatErrorList(fileParser.EZErrors()))
+				os.Exit(1)
 			}
 
 			parsedFiles = append(parsedFiles, parsedFile{filePath, fileSource, fileProgram})
