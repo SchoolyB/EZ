@@ -317,13 +317,13 @@ func decodeToStruct(jsonStr string, structDef *object.StructDef) (*object.Struct
 		switch tag := structDef.FieldTags[fieldName].(type) {
 			case *object.JSONTag:
 				if tag.Ignore {
+					fields[fieldName] = zeroValueForType(fieldType)
 					break
 				}
 			 
 				if jsonVal, exists := jsonMap[tag.Name]; exists {
 					fields[fieldName] = convertToTypedValue(jsonVal, fieldType)
-				} else if !exists && !tag.OmitEmpty {
-					// Set zero value if `omitempty` is not set
+				} else if !exists {
 					fields[fieldName] = zeroValueForType(fieldType)
 				}
 			default:
