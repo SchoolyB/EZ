@@ -409,13 +409,38 @@ func Eval(node ast.Node, env *Environment) Object {
 	case *ast.StructDeclaration:
 		// Register the struct type definition with visibility
 		fields := make(map[string]string)
+		tags := make(map[string]StructFieldTags)
 		for _, field := range node.Fields {
 			fields[field.Name.Value] = field.TypeName
+			if (strings.HasPrefix(field.Tag, "json:\"")) {
+				jsonTag := &JSONTag{Name: field.Name.Value}
+				optionString, _ := strings.CutPrefix(field.Tag, "json:\"")
+				optionString, _ = strings.CutSuffix(optionString, "\"")
+				options := strings.Split(optionString, ",")
+				switch options[0] {
+					case "-":
+						jsonTag.Ignore = true
+				default:
+					jsonTag.Name = options[0]
+					for _, opt := range options[1:] {
+							switch opt {
+								case "omitempty":
+									jsonTag.OmitEmpty = true
+								case "string":
+									jsonTag.EncodeAsString = true
+							}
+					}
+				}
+				tags[field.Name.Value] = jsonTag
+			} else if (field.Tag == "") {
+				tags[field.Name.Value] = &EmptyTag{}
+			}
 		}
 		vis := convertVisibility(node.Visibility)
 		env.RegisterStructDefWithVisibility(node.Name.Value, &StructDef{
 			Name:   node.Name.Value,
 			Fields: fields,
+			FieldTags: tags,
 		}, vis)
 		return NIL
 
@@ -3127,6 +3152,7 @@ func evalStructValue(node *ast.StructValue, env *Environment) Object {
 	return &Struct{
 		TypeName: structDef.Name,
 		Fields:   fields,
+		FieldTags: structDef.FieldTags,
 	}
 }
 
@@ -3406,6 +3432,7 @@ func copyByDefault(val Object) Object {
 		return &Struct{
 			TypeName: v.TypeName,
 			Fields:   newFields,
+			FieldTags: v.FieldTags,
 			Mutable:  v.Mutable,
 		}
 	case *Array:
