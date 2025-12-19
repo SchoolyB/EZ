@@ -5,6 +5,7 @@ package errors
 
 import (
 	"fmt"
+	"sort"
 	"strings"
 )
 
@@ -89,18 +90,41 @@ func FormatError(err *EZError) string {
 	return sb.String()
 }
 
+// sortErrors sorts errors by file path, then line number, then column
+func sortErrors(errors []*EZError) []*EZError {
+	sorted := make([]*EZError, len(errors))
+	copy(sorted, errors)
+	sort.Slice(sorted, func(i, j int) bool {
+		// Sort by file path first
+		if sorted[i].File != sorted[j].File {
+			return sorted[i].File < sorted[j].File
+		}
+		// Then by line number
+		if sorted[i].Line != sorted[j].Line {
+			return sorted[i].Line < sorted[j].Line
+		}
+		// Then by column
+		return sorted[i].Column < sorted[j].Column
+	})
+	return sorted
+}
+
 // FormatErrorList formats multiple errors and warnings
 func FormatErrorList(el *EZErrorList) string {
 	var sb strings.Builder
 
+	// Sort errors by file and line number before printing
+	sortedErrors := sortErrors(el.Errors)
+	sortedWarnings := sortErrors(el.Warnings)
+
 	// Print all errors first
-	for _, err := range el.Errors {
+	for _, err := range sortedErrors {
 		sb.WriteString(FormatError(err))
 		sb.WriteString("\n")
 	}
 
 	// Then print warnings
-	for _, warn := range el.Warnings {
+	for _, warn := range sortedWarnings {
 		sb.WriteString(FormatError(warn))
 		sb.WriteString("\n")
 	}
