@@ -257,7 +257,23 @@ func objectToGoValue(obj object.Object, seen map[uintptr]bool) (interface{}, *js
 			if err != nil {
 				return nil, err
 			}
-			m[key] = goVal
+			switch tag := v.FieldTags[key].(type) {
+				case *object.JSONTag:
+					if tag.Ignore {
+						break
+					}
+					if tag.OmitEmpty && val.Type() == object.NIL_OBJ {
+						break
+					}
+					if tag.EncodeAsString && 
+					val.Type() == object.INTEGER_OBJ || 
+					val.Type() == object.FLOAT_OBJ {
+						// TODO
+					}
+					m[tag.Name] = goVal
+				default:
+					m[key] = goVal
+			}
 		}
 		return m, nil
 
