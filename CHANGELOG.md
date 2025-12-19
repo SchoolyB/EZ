@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.28.1](https://github.com/SchoolyB/EZ/compare/v0.28.0...v0.28.1) (2025-12-19)
+
+
+### Bug Fixes
+
+* sort type checker errors by file and line number ([9ca37f6](https://github.com/SchoolyB/EZ/commit/9ca37f661b4d52121f42c27ddd6c14ac87b37f2a))
+* sort type checker errors by file and line number ([c8e7f6b](https://github.com/SchoolyB/EZ/commit/c8e7f6bc67e2b119beadd6f37f2b90dffa4fa456)), closes [#727](https://github.com/SchoolyB/EZ/issues/727)
+
 ## [0.28.0](https://github.com/SchoolyB/EZ/compare/v0.27.0...v0.28.0) (2025-12-18)
 
 
