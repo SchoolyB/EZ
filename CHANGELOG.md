@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.28.3](https://github.com/SchoolyB/EZ/compare/v0.28.2...v0.28.3) (2025-12-19)
+
+
+### Bug Fixes
+
+* module symbol sharing and using statement resolution ([94eea8d](https://github.com/SchoolyB/EZ/commit/94eea8dac49e6c60a121d22a0d3f1316d7d231f0))
+* module symbol sharing and using statement resolution ([2b7a0d0](https://github.com/SchoolyB/EZ/commit/2b7a0d021271e4a71f027b7aac3d86279f5eab91))
+
 ## [0.28.2](https://github.com/SchoolyB/EZ/compare/v0.28.1...v0.28.2) (2025-12-19)
 
 
