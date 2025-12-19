@@ -265,8 +265,13 @@ func objectToGoValue(obj object.Object, seen map[uintptr]bool) (interface{}, *js
 					if tag.OmitEmpty && val.Type() == object.NIL_OBJ {
 						break
 					}
-					// TODO: encode value object as string
 					if tag.EncodeAsString {
+					switch v := goVal.(type) {
+							case *object.Integer:
+								m[tag.Name] = v.Inspect()
+							case *object.Float:
+								m[tag.Name] = v.Inspect()
+						}
 					}
 					m[tag.Name] = goVal
 				default:
