@@ -405,11 +405,44 @@ func NewMap() *Map {
 	}
 }
 
+type StructFieldTags interface {
+	Inspect() string
+}
+
+type EmptyTag struct {}
+
+func (et *EmptyTag) Inspect() string {
+	return "Tag: ``\n"
+}
+
+type JSONTag struct {
+	Name 					 string
+	Ignore 				 bool
+	OmitEmpty 		 bool
+	EncodeAsString bool
+}
+
+func (jt *JSONTag) Inspect() string {
+	if jt.Ignore {
+		return "Tag: `json:\"-\"`"
+	}
+	tag := fmt.Sprintf("Tag: `json:\"%s", jt.Name)
+	if jt.OmitEmpty {
+		tag += ",omitempty"
+	}
+	if jt.EncodeAsString {
+		tag += ",string"
+	}
+	tag += "\"`"
+	return tag
+}
+
 // Struct represents a struct instance
 type Struct struct {
-	TypeName string
-	Fields   map[string]Object
-	Mutable  bool
+	TypeName  string
+	Fields    map[string]Object
+	FieldTags map[string]StructFieldTags
+	Mutable   bool
 }
 
 func (s *Struct) Type() ObjectType { return STRUCT_OBJ }
@@ -437,6 +470,7 @@ func (c *Continue) Inspect() string  { return "continue" }
 type StructDef struct {
 	Name   string
 	Fields map[string]string
+	FieldTags   map[string]StructFieldTags
 }
 
 // TypeValue represents a type as a first-class value (for passing types to functions)
