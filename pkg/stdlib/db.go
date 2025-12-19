@@ -87,7 +87,45 @@ var DbBuiltins = map[string]*object.Builtin{
 		},
 	},
 
-	"db.close": {},
+	"db.close": {
+		Fn: func(args ...object.Object) object.Object {
+			if len(args) != 1 {
+				return &object.Error{Code: "E7001", Message: "db.close() takes exactly 1 argument"}
+			}
+
+			db, ok := args[0].(*object.Database)
+			if !ok {
+				return &object.Error{Code: "E7001", Message: "db.close() requires a Database struct as argument"}
+			}
+
+			if db.IsClosed.Value {
+				return &object.ReturnValue{Values: []object.Object{
+					&object.Error{Code: "E17005", Message: "db.save() cannot operate on closed database"},
+				}}
+			}
+
+			jsonRes := JsonBuiltins["json.encode"].Fn(&db.Store).(*object.ReturnValue)
+			if jsonRes.Values[1] != object.NIL {
+				return &object.ReturnValue{Values: []object.Object{
+					&object.Error{Code: "E17003", Message: "db.save() database contents not json encodable"},
+				}}
+			}
+
+			encodedStr := jsonRes.Values[0].(*object.String)
+			ioRes := IOBuiltins["io.write_file"].Fn(&db.Path, encodedStr).(*object.ReturnValue)
+			if ioRes.Values[1] != object.NIL {
+				return &object.ReturnValue{Values: []object.Object{
+					&object.Error{Code: "E17003", Message: "db.save() failed to write to database"},
+				}}
+			}
+
+			db.IsClosed = object.Boolean{Value: true}
+
+			return &object.ReturnValue{Values: []object.Object{
+				&object.Nil{},
+			}}
+		},
+	},
 	"db.set": {},
 	"db.get": {},
 	"db.delete": {},
@@ -129,7 +167,9 @@ var DbBuiltins = map[string]*object.Builtin{
 				}}
 			}
 
-			return &object.Nil{}
+			return &object.ReturnValue{Values: []object.Object{
+				&object.Nil{},
+			}}
 		},
 	},
 }

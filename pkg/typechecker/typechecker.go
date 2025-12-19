@@ -6705,7 +6705,7 @@ func (tc *TypeChecker) checkBinaryModuleCall(funcName string, call *ast.CallExpr
 func (tc *TypeChecker) checkDBModuleCall(funcName string, call *ast.CallExpression, line, column int) {
 	signatures := map[string]StdlibFuncSig{
 		"open": {1, 1, []string{"string"}, "tuple"},
-		"close": {1, 2, []string{"any"}, "tuple"},
+		"close": {1, 2, []string{"any"}, "error"},
 		"set": {3, 3, []string{"any", "string", "any"}, "nil"},
 		"get": {2, 2, []string{"any", "string"}, "tuple"},
 		"delete": {2, 2, []string{"any", "string"}, "bool"},
@@ -6714,7 +6714,7 @@ func (tc *TypeChecker) checkDBModuleCall(funcName string, call *ast.CallExpressi
 		"prefix": {2, 2, []string{"any", "string"}, "any"},
 		"count": {1, 1, []string{"any"}, "int"},
 		"clear": {1, 1, []string{"any"}, "nil"},
-		"save": {1, 1, []string{"any"}, "nil"},
+		"save": {1, 1, []string{"any"}, "error"},
 	}
 
 	sig, exists := signatures[funcName]
