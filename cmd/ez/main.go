@@ -377,6 +377,11 @@ func checkFile(filename string) {
 			fileTc := typechecker.NewTypeChecker(pf.source, pf.path)
 			fileTc.SetSkipMainCheck(true)
 
+			// Set current module name for same-module symbol lookup
+			if pf.program.Module != nil && pf.program.Module.Name != nil {
+				fileTc.SetCurrentModule(pf.program.Module.Name.Value)
+			}
+
 			// Register all collected module types for cross-module checking (#709)
 			for modName, types := range moduleTypes {
 				for typeName, t := range types {
@@ -386,6 +391,11 @@ func checkFile(filename string) {
 			for modName, funcs := range moduleSignatures {
 				for funcName, sig := range funcs {
 					fileTc.RegisterModuleFunction(modName, funcName, sig)
+				}
+			}
+			for modName, vars := range moduleVariables {
+				for varName, varType := range vars {
+					fileTc.RegisterModuleVariable(modName, varName, varType)
 				}
 			}
 
