@@ -5548,6 +5548,15 @@ func (tc *TypeChecker) isJsonFunction(name string) bool {
 	return jsonFuncs[name]
 }
 
+func (tc *TypeChecker) isDBFunction(name string) bool {
+	dbFuncs := map[string]bool{
+		"open": true, "close": true, "set": true, "get": true, "delete": true, 
+		"has": true, "keys": true, "prefix": true, "count": true, "clear": true,
+		"save": true,
+	}
+	return dbFuncs[name]
+}
+
 // isBytesFunction checks if a function name exists in the bytes module
 func (tc *TypeChecker) isBytesFunction(name string) bool {
 	bytesFuncs := map[string]bool{
@@ -5668,6 +5677,8 @@ func (tc *TypeChecker) isModuleFunction(moduleName, funcName string) bool {
 		return tc.isBytesFunction(funcName)
 	case "binary":
 		return tc.isBinaryFunction(funcName)
+	case "db":
+		return tc.isDBFunction(funcName)
 	default:
 		// Check user-defined modules
 		if funcs, ok := tc.moduleFunctions[moduleName]; ok {
@@ -5692,7 +5703,7 @@ func (tc *TypeChecker) checkStdlibCall(member *ast.MemberExpression, call *ast.C
 	line, column := tc.getExpressionPosition(member.Member)
 
 	// Check if the module was imported (for standard library modules)
-	stdModules := map[string]bool{"std": true, "math": true, "arrays": true, "strings": true, "time": true, "maps": true, "io": true, "os": true, "bytes": true, "random": true, "json": true, "binary": true}
+	stdModules := map[string]bool{"std": true, "math": true, "arrays": true, "strings": true, "time": true, "maps": true, "io": true, "os": true, "bytes": true, "random": true, "json": true, "binary": true, "db": true}
 	if stdModules[moduleName] && !tc.modules[moduleName] {
 		tc.addError(errors.E4007, fmt.Sprintf("module '%s' not imported; add 'import @%s'", moduleName, moduleName), line, column)
 		return
@@ -5723,6 +5734,8 @@ func (tc *TypeChecker) checkStdlibCall(member *ast.MemberExpression, call *ast.C
 		tc.checkBytesModuleCall(funcName, call, line, column)
 	case "binary":
 		tc.checkBinaryModuleCall(funcName, call, line, column)
+	case "db":
+		tc.checkDBModuleCall(funcName, call, line, column)
 	default:
 		// User-defined module - check if we have type info for it
 		tc.checkUserModuleCall(moduleName, funcName, call, line, column)
@@ -6689,6 +6702,28 @@ func (tc *TypeChecker) checkBinaryModuleCall(funcName string, call *ast.CallExpr
 	tc.validateStdlibCall("binary", funcName, call, sig, line, column)
 }
 
+func (tc *TypeChecker) checkDBModuleCall(funcName string, call *ast.CallExpression, line, column int) {
+	signatures := map[string]StdlibFuncSig{
+		"open": {1, 1, []string{"string"}, "tuple"},
+		"close": {1, 2, []string{"any"}, "tuple"},
+		"set": {3, 3, []string{"any", "string", "any"}, "nil"},
+		"get": {2, 2, []string{"any", "string"}, "tuple"},
+		"delete": {2, 2, []string{"any", "string"}, "bool"},
+		"has": {2, 2, []string{"any", "string"}, "bool"},
+		"keys": {1, 1, []string{"any"}, "any"},
+		"prefix": {2, 2, []string{"any", "string"}, "any"},
+		"count": {1, 1, []string{"any"}, "int"},
+		"clear": {1, 1, []string{"any"}, "nil"},
+		"save": {1, 1, []string{"any"}, "nil"},
+	}
+
+	sig, exists := signatures[funcName]
+	if !exists {
+		return
+	}
+
+	tc.validateStdlibCall("db", funcName, call, sig, line, column)
+}
 // validateStdlibCall performs the actual validation of a stdlib call
 func (tc *TypeChecker) validateStdlibCall(moduleName, funcName string, call *ast.CallExpression, sig StdlibFuncSig, line, column int) {
 	argCount := len(call.Arguments)
