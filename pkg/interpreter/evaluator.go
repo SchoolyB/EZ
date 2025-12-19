@@ -417,18 +417,21 @@ func Eval(node ast.Node, env *Environment) Object {
 				optionString, _ := strings.CutPrefix(field.Tag, "json:\"")
 				optionString, _ = strings.CutSuffix(optionString, "\"")
 				options := strings.Split(optionString, ",")
-				for _, opt := range options {
-					switch opt {
-						case "-":
-							jsonTag.Ignore = true
-						case "omitempty":
-							jsonTag.OmitEmpty = true
-						case "string":
-							jsonTag.EncodeAsString = true
-						default:
-							jsonTag.Name = opt
+				switch options[0] {
+					case "-":
+						jsonTag.Ignore = true
+				default:
+					jsonTag.Name = options[0]
+					for _, opt := range options[1:] {
+							switch opt {
+								case "omitempty":
+									jsonTag.OmitEmpty = true
+								case "string":
+									jsonTag.EncodeAsString = true
+							}
 					}
 				}
+				tags[field.Name.Value] = jsonTag
 			} else if (field.Tag == "") {
 				tags[field.Name.Value] = &EmptyTag{}
 			}
