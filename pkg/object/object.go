@@ -736,12 +736,6 @@ func (e *Environment) GetStructDef(name string) (*StructDef, bool) {
 	return nil, false
 }
 
-// GetAllBindings returns all bindings in this environment (not including outer scopes)
-// Used for debugging
-func (e *Environment) GetAllBindings() map[string]Object {
-	return e.store
-}
-
 // GetPublicBindings returns only public bindings (for module exports)
 func (e *Environment) GetPublicBindings() map[string]Object {
 	result := make(map[string]Object)
