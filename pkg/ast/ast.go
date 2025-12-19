@@ -508,6 +508,7 @@ func (sd *StructDeclaration) TokenLiteral() string { return sd.Token.Literal }
 type StructField struct {
 	Name       *Label
 	TypeName   string
+	Tag 			 string
 	Visibility Visibility // Public (default), Private, or PrivateModule
 }
 

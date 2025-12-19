@@ -2353,8 +2353,17 @@ func (p *Parser) parseStructDeclaration() *StructDeclaration {
 			return nil
 		}
 
+		var tags []string
+		// Check for struct field tags
+		if (p.peekTokenMatches(RAW_STRING)) {
+			p.nextToken()
+			tags = append(tags, p.currentToken.Literal)
+		} else {
+			tags = append(tags, "")
+		}
+
 		// Create a field for each name with the same type
-		for _, name := range names {
+		for i, name := range names {
 			// Check for duplicate field names
 			if prevToken, exists := fieldNames[name.Value]; exists {
 				msg := fmt.Sprintf("duplicate field name '%s' in struct '%s'", name.Value, stmt.Name.Value)
@@ -2369,6 +2378,7 @@ func (p *Parser) parseStructDeclaration() *StructDeclaration {
 			field := &StructField{
 				Name:     name,
 				TypeName: typeName,
+				Tag: 			tags[i],
 			}
 			stmt.Fields = append(stmt.Fields, field)
 		}
