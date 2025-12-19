@@ -3113,6 +3113,14 @@ func evalStructValue(node *ast.StructValue, env *Environment) Object {
 		if isError(val) {
 			return val
 		}
+		// If the value is an empty array but the field type is a map, create an empty map instead
+		if arr, ok := val.(*Array); ok && len(arr.Elements) == 0 {
+			if fieldType, hasField := structDef.Fields[fieldName]; hasField {
+				if strings.HasPrefix(fieldType, "map[") {
+					val = &Map{Pairs: []*MapPair{}, Index: make(map[string]int), Mutable: true}
+				}
+			}
+		}
 		fields[fieldName] = val
 	}
 

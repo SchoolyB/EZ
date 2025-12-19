@@ -167,6 +167,7 @@ type TypeChecker struct {
 	loopDepth            int              // Track nesting depth of loops for break/continue validation (#603)
 	currentFuncAttrs     []*ast.Attribute // Current function's attributes for #suppress checking
 	fileSuppressWarnings []string         // File-level suppressed warnings (from #suppress at file scope)
+	currentModuleName    string           // Current module name for same-module symbol lookup
 }
 
 // NewTypeChecker creates a new type checker
@@ -195,6 +196,12 @@ func NewTypeChecker(source, filename string) *TypeChecker {
 // Use this for module files that don't need a main() function
 func (tc *TypeChecker) SetSkipMainCheck(skip bool) {
 	tc.skipMainCheck = skip
+}
+
+// SetCurrentModule sets the current module name for same-module symbol lookup
+// This allows files in the same module to access each other's symbols without qualification
+func (tc *TypeChecker) SetCurrentModule(moduleName string) {
+	tc.currentModuleName = moduleName
 }
 
 // RegisterModuleFunction registers a function signature from an imported module
@@ -237,6 +244,31 @@ func (tc *TypeChecker) GetModuleVariable(moduleName, varName string) (string, bo
 		return typeName, exists
 	}
 	return "", false
+}
+
+// lookupType looks up a type by name, checking local types first then same-module types then using modules
+func (tc *TypeChecker) lookupType(typeName string) (*Type, bool) {
+	// First check local types
+	if t, exists := tc.types[typeName]; exists {
+		return t, true
+	}
+	// Then check same-module types (multi-file module support)
+	if tc.currentModuleName != "" {
+		if moduleTypes, hasModule := tc.moduleTypes[tc.currentModuleName]; hasModule {
+			if t, found := moduleTypes[typeName]; found {
+				return t, true
+			}
+		}
+	}
+	// Finally check types from user-defined modules via 'using'
+	for moduleName := range tc.fileUsingModules {
+		if moduleTypes, hasModule := tc.moduleTypes[moduleName]; hasModule {
+			if t, found := moduleTypes[typeName]; found {
+				return t, true
+			}
+		}
+	}
+	return nil, false
 }
 
 // GetFunctions returns the functions map (for extracting signatures from module typechecker)
@@ -1795,6 +1827,18 @@ func (tc *TypeChecker) checkMultiReturnDeclaration(decl *ast.VariableDeclaration
 			}
 		}
 
+		// Check if it's a function from a user-defined module via 'using'
+		for usingModuleName := range tc.fileUsingModules {
+			if moduleFuncs, hasModule := tc.moduleFunctions[usingModuleName]; hasModule {
+				if moduleSig, found := moduleFuncs[funcName]; found {
+					funcSig = moduleSig
+					exists = true
+					break
+				}
+			}
+		}
+	}
+	if !exists {
 		// Check if it's a builtin function with multiple return values
 		builtinReturnTypes := tc.getBuiltinMultiReturnTypes(funcName)
 		if builtinReturnTypes != nil {
@@ -2875,6 +2919,29 @@ func (tc *TypeChecker) checkFunctionCall(call *ast.CallExpression) {
 	// Look up function signature
 	sig, ok := tc.functions[funcName]
 	if !ok {
+		// Check if this function is from the same module (multi-file module support)
+		if tc.currentModuleName != "" {
+			if moduleFuncs, hasModule := tc.moduleFunctions[tc.currentModuleName]; hasModule {
+				if moduleSig, found := moduleFuncs[funcName]; found {
+					sig = moduleSig
+					ok = true
+				}
+			}
+		}
+	}
+	if !ok {
+		// Check if this function is from a user-defined module via 'using'
+		for moduleName := range tc.fileUsingModules {
+			if moduleFuncs, hasModule := tc.moduleFunctions[moduleName]; hasModule {
+				if moduleSig, found := moduleFuncs[funcName]; found {
+					sig = moduleSig
+					ok = true
+					break
+				}
+			}
+		}
+	}
+	if !ok {
 		// Check if this function might be from a 'using' imported module
 		if tc.checkDirectStdlibCall(funcName, call) {
 			return
@@ -3931,7 +3998,7 @@ func (tc *TypeChecker) isVariableMutable(name string) (bool, bool) {
 	return false, false
 }
 
-// lookupVariable finds a variable type in scope chain or global variables
+// lookupVariable finds a variable type in scope chain, global variables, or same-module variables
 func (tc *TypeChecker) lookupVariable(name string) (string, bool) {
 	// First check local scopes
 	if tc.currentScope != nil {
@@ -3942,6 +4009,22 @@ func (tc *TypeChecker) lookupVariable(name string) (string, bool) {
 	// Then check global variables
 	if typeName, ok := tc.variables[name]; ok {
 		return typeName, true
+	}
+	// Then check same-module variables (multi-file module support)
+	if tc.currentModuleName != "" {
+		if moduleVars, hasModule := tc.moduleVariables[tc.currentModuleName]; hasModule {
+			if typeName, found := moduleVars[name]; found {
+				return typeName, true
+			}
+		}
+	}
+	// Finally check variables from user-defined modules via 'using'
+	for moduleName := range tc.fileUsingModules {
+		if moduleVars, hasModule := tc.moduleVariables[moduleName]; hasModule {
+			if typeName, found := moduleVars[name]; found {
+				return typeName, true
+			}
+		}
 	}
 	return "", false
 }
@@ -4464,7 +4547,7 @@ func (tc *TypeChecker) getModuleMultiReturnTypes(moduleName, funcName string) []
 			return []string{"bool", "error"}
 		case "file_size":
 			return []string{"int", "error"}
-		case "list_dir":
+		case "list_dir", "read_dir":
 			return []string{"[string]", "error"}
 		case "read_stdin":
 			return []string{"string", "error"}
