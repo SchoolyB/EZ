@@ -6,6 +6,7 @@ package stdlib
 import (
 	"math"
 	"math/big"
+	"strings"
 	"testing"
 	gotime "time"
 
@@ -4949,5 +4950,679 @@ func TestBytesConcatExtended(t *testing.T) {
 
 	if len(arr.Elements) != 4 {
 		t.Errorf("expected 4 bytes, got %d", len(arr.Elements))
+	}
+}
+
+// ============================================================================
+// Binary Module - U128/U256 Encoding Tests (tests padBigIntBytesUnsigned)
+// ============================================================================
+
+func TestBinaryEncodeU128LittleEndian(t *testing.T) {
+	encodeFn := BinaryBuiltins["binary.encode_u128_to_little_endian"].Fn
+
+	// Test with a value that requires padding
+	val := &object.Integer{Value: big.NewInt(256), DeclaredType: "u128"}
+	result := encodeFn(val)
+
+	retVal, ok := result.(*object.ReturnValue)
+	if !ok {
+		t.Fatalf("expected ReturnValue, got %T", result)
+	}
+
+	arr, ok := retVal.Values[0].(*object.Array)
+	if !ok {
+		t.Fatalf("expected Array, got %T", retVal.Values[0])
+	}
+
+	if len(arr.Elements) != 16 {
+		t.Errorf("expected 16 bytes, got %d", len(arr.Elements))
+	}
+}
+
+func TestBinaryEncodeU256LittleEndian(t *testing.T) {
+	encodeFn := BinaryBuiltins["binary.encode_u256_to_little_endian"].Fn
+
+	// Test with a value that requires padding
+	val := &object.Integer{Value: big.NewInt(65536), DeclaredType: "u256"}
+	result := encodeFn(val)
+
+	retVal, ok := result.(*object.ReturnValue)
+	if !ok {
+		t.Fatalf("expected ReturnValue, got %T", result)
+	}
+
+	arr, ok := retVal.Values[0].(*object.Array)
+	if !ok {
+		t.Fatalf("expected Array, got %T", retVal.Values[0])
+	}
+
+	if len(arr.Elements) != 32 {
+		t.Errorf("expected 32 bytes, got %d", len(arr.Elements))
+	}
+}
+
+func TestBinaryEncodeU128BigEndian(t *testing.T) {
+	encodeFn := BinaryBuiltins["binary.encode_u128_to_big_endian"].Fn
+
+	val := &object.Integer{Value: big.NewInt(1024), DeclaredType: "u128"}
+	result := encodeFn(val)
+
+	retVal, ok := result.(*object.ReturnValue)
+	if !ok {
+		t.Fatalf("expected ReturnValue, got %T", result)
+	}
+
+	arr, ok := retVal.Values[0].(*object.Array)
+	if !ok {
+		t.Fatalf("expected Array, got %T", retVal.Values[0])
+	}
+
+	if len(arr.Elements) != 16 {
+		t.Errorf("expected 16 bytes, got %d", len(arr.Elements))
+	}
+}
+
+func TestBinaryEncodeU256BigEndian(t *testing.T) {
+	encodeFn := BinaryBuiltins["binary.encode_u256_to_big_endian"].Fn
+
+	val := &object.Integer{Value: big.NewInt(1048576), DeclaredType: "u256"}
+	result := encodeFn(val)
+
+	retVal, ok := result.(*object.ReturnValue)
+	if !ok {
+		t.Fatalf("expected ReturnValue, got %T", result)
+	}
+
+	arr, ok := retVal.Values[0].(*object.Array)
+	if !ok {
+		t.Fatalf("expected Array, got %T", retVal.Values[0])
+	}
+
+	if len(arr.Elements) != 32 {
+		t.Errorf("expected 32 bytes, got %d", len(arr.Elements))
+	}
+}
+
+// ============================================================================
+// JSON Module - Pretty Print Tests (tests formatJSONValue)
+// ============================================================================
+
+func TestJSONPrettyPrintInteger(t *testing.T) {
+	prettyFn := JsonBuiltins["json.pretty"].Fn
+
+	val := &object.Integer{Value: big.NewInt(42)}
+	result := prettyFn(val, &object.String{Value: "  "})
+
+	retVal, ok := result.(*object.ReturnValue)
+	if !ok {
+		t.Fatalf("expected ReturnValue, got %T", result)
+	}
+
+	strVal, ok := retVal.Values[0].(*object.String)
+	if !ok {
+		t.Fatalf("expected String, got %T", retVal.Values[0])
+	}
+
+	if strVal.Value != "42" {
+		t.Errorf("expected '42', got '%s'", strVal.Value)
+	}
+}
+
+func TestJSONPrettyPrintLargeInteger(t *testing.T) {
+	prettyFn := JsonBuiltins["json.pretty"].Fn
+	indent := &object.String{Value: "  "}
+
+	// Create a large integer that doesn't fit in int64
+	largeVal := new(big.Int)
+	largeVal.SetString("99999999999999999999999999999", 10)
+	val := &object.Integer{Value: largeVal}
+	result := prettyFn(val, indent)
+
+	retVal, ok := result.(*object.ReturnValue)
+	if !ok {
+		t.Fatalf("expected ReturnValue, got %T", result)
+	}
+
+	strVal, ok := retVal.Values[0].(*object.String)
+	if !ok {
+		t.Fatalf("expected String, got %T", retVal.Values[0])
+	}
+
+	// Large integers are encoded as strings
+	if strVal.Value != `"99999999999999999999999999999"` {
+		t.Errorf("expected quoted large int, got '%s'", strVal.Value)
+	}
+}
+
+func TestJSONPrettyPrintFloat(t *testing.T) {
+	prettyFn := JsonBuiltins["json.pretty"].Fn
+	indent := &object.String{Value: "  "}
+
+	val := &object.Float{Value: 3.14159}
+	result := prettyFn(val, indent)
+
+	retVal, ok := result.(*object.ReturnValue)
+	if !ok {
+		t.Fatalf("expected ReturnValue, got %T", result)
+	}
+
+	strVal, ok := retVal.Values[0].(*object.String)
+	if !ok {
+		t.Fatalf("expected String, got %T", retVal.Values[0])
+	}
+
+	if strVal.Value != "3.14159" {
+		t.Errorf("expected '3.14159', got '%s'", strVal.Value)
+	}
+}
+
+func TestJSONPrettyPrintBoolean(t *testing.T) {
+	prettyFn := JsonBuiltins["json.pretty"].Fn
+	indent := &object.String{Value: "  "}
+
+	// Test true
+	result := prettyFn(&object.Boolean{Value: true}, indent)
+	retVal := result.(*object.ReturnValue)
+	strVal := retVal.Values[0].(*object.String)
+	if strVal.Value != "true" {
+		t.Errorf("expected 'true', got '%s'", strVal.Value)
+	}
+
+	// Test false
+	result = prettyFn(&object.Boolean{Value: false}, indent)
+	retVal = result.(*object.ReturnValue)
+	strVal = retVal.Values[0].(*object.String)
+	if strVal.Value != "false" {
+		t.Errorf("expected 'false', got '%s'", strVal.Value)
+	}
+}
+
+func TestJSONPrettyPrintNil(t *testing.T) {
+	prettyFn := JsonBuiltins["json.pretty"].Fn
+	indent := &object.String{Value: "  "}
+
+	result := prettyFn(object.NIL, indent)
+	retVal := result.(*object.ReturnValue)
+	strVal := retVal.Values[0].(*object.String)
+	if strVal.Value != "null" {
+		t.Errorf("expected 'null', got '%s'", strVal.Value)
+	}
+}
+
+func TestJSONPrettyPrintChar(t *testing.T) {
+	prettyFn := JsonBuiltins["json.pretty"].Fn
+	indent := &object.String{Value: "  "}
+
+	result := prettyFn(&object.Char{Value: 'A'}, indent)
+	retVal := result.(*object.ReturnValue)
+	strVal := retVal.Values[0].(*object.String)
+	if strVal.Value != `"A"` {
+		t.Errorf("expected '\"A\"', got '%s'", strVal.Value)
+	}
+}
+
+func TestJSONPrettyPrintByte(t *testing.T) {
+	prettyFn := JsonBuiltins["json.pretty"].Fn
+	indent := &object.String{Value: "  "}
+
+	result := prettyFn(&object.Byte{Value: 255}, indent)
+	retVal := result.(*object.ReturnValue)
+	strVal := retVal.Values[0].(*object.String)
+	if strVal.Value != "255" {
+		t.Errorf("expected '255', got '%s'", strVal.Value)
+	}
+}
+
+func TestJSONPrettyPrintArray(t *testing.T) {
+	prettyFn := JsonBuiltins["json.pretty"].Fn
+	indent := &object.String{Value: "  "}
+
+	arr := &object.Array{
+		Elements: []object.Object{
+			&object.Integer{Value: big.NewInt(1)},
+			&object.Integer{Value: big.NewInt(2)},
+			&object.Integer{Value: big.NewInt(3)},
+		},
+	}
+	result := prettyFn(arr, indent)
+
+	retVal, ok := result.(*object.ReturnValue)
+	if !ok {
+		t.Fatalf("expected ReturnValue, got %T", result)
+	}
+
+	strVal, ok := retVal.Values[0].(*object.String)
+	if !ok {
+		t.Fatalf("expected String, got %T", retVal.Values[0])
+	}
+
+	// Should contain newlines for pretty print
+	if !strings.Contains(strVal.Value, "\n") {
+		t.Errorf("expected pretty printed array with newlines, got '%s'", strVal.Value)
+	}
+}
+
+func TestJSONPrettyPrintEmptyArray(t *testing.T) {
+	prettyFn := JsonBuiltins["json.pretty"].Fn
+	indent := &object.String{Value: "  "}
+
+	arr := &object.Array{Elements: []object.Object{}}
+	result := prettyFn(arr, indent)
+
+	retVal := result.(*object.ReturnValue)
+	strVal := retVal.Values[0].(*object.String)
+	if strVal.Value != "[]" {
+		t.Errorf("expected '[]', got '%s'", strVal.Value)
+	}
+}
+
+func TestJSONPrettyPrintMap(t *testing.T) {
+	prettyFn := JsonBuiltins["json.pretty"].Fn
+	indent := &object.String{Value: "  "}
+
+	m := object.NewMap()
+	m.Set(&object.String{Value: "key"}, &object.Integer{Value: big.NewInt(42)})
+
+	result := prettyFn(m, indent)
+	retVal := result.(*object.ReturnValue)
+	strVal := retVal.Values[0].(*object.String)
+
+	// Should contain the key and value
+	if !strings.Contains(strVal.Value, "key") || !strings.Contains(strVal.Value, "42") {
+		t.Errorf("expected map with key and value, got '%s'", strVal.Value)
+	}
+}
+
+func TestJSONPrettyPrintEmptyMap(t *testing.T) {
+	prettyFn := JsonBuiltins["json.pretty"].Fn
+	indent := &object.String{Value: "  "}
+
+	m := object.NewMap()
+	result := prettyFn(m, indent)
+
+	retVal := result.(*object.ReturnValue)
+	strVal := retVal.Values[0].(*object.String)
+	if strVal.Value != "{}" {
+		t.Errorf("expected '{}', got '%s'", strVal.Value)
+	}
+}
+
+// ============================================================================
+// Builtins - getEZTypeName Tests
+// ============================================================================
+
+func TestTypeOfInteger(t *testing.T) {
+	typeofFn := StdBuiltins["typeof"].Fn
+
+	result := typeofFn(&object.Integer{Value: big.NewInt(42), DeclaredType: "i32"})
+	strVal, ok := result.(*object.String)
+	if !ok {
+		t.Fatalf("expected String, got %T", result)
+	}
+	if strVal.Value != "i32" {
+		t.Errorf("expected 'i32', got '%s'", strVal.Value)
+	}
+}
+
+func TestTypeOfFloat(t *testing.T) {
+	typeofFn := StdBuiltins["typeof"].Fn
+
+	result := typeofFn(&object.Float{Value: 3.14})
+	strVal := result.(*object.String)
+	if strVal.Value != "float" {
+		t.Errorf("expected 'float', got '%s'", strVal.Value)
+	}
+}
+
+func TestTypeOfString(t *testing.T) {
+	typeofFn := StdBuiltins["typeof"].Fn
+
+	result := typeofFn(&object.String{Value: "hello"})
+	strVal := result.(*object.String)
+	if strVal.Value != "string" {
+		t.Errorf("expected 'string', got '%s'", strVal.Value)
+	}
+}
+
+func TestTypeOfBool(t *testing.T) {
+	typeofFn := StdBuiltins["typeof"].Fn
+
+	result := typeofFn(&object.Boolean{Value: true})
+	strVal := result.(*object.String)
+	if strVal.Value != "bool" {
+		t.Errorf("expected 'bool', got '%s'", strVal.Value)
+	}
+}
+
+func TestTypeOfChar(t *testing.T) {
+	typeofFn := StdBuiltins["typeof"].Fn
+
+	result := typeofFn(&object.Char{Value: 'x'})
+	strVal := result.(*object.String)
+	if strVal.Value != "char" {
+		t.Errorf("expected 'char', got '%s'", strVal.Value)
+	}
+}
+
+func TestTypeOfByte(t *testing.T) {
+	typeofFn := StdBuiltins["typeof"].Fn
+
+	result := typeofFn(&object.Byte{Value: 0xFF})
+	strVal := result.(*object.String)
+	if strVal.Value != "byte" {
+		t.Errorf("expected 'byte', got '%s'", strVal.Value)
+	}
+}
+
+func TestTypeOfArray(t *testing.T) {
+	typeofFn := StdBuiltins["typeof"].Fn
+
+	result := typeofFn(&object.Array{Elements: []object.Object{}})
+	strVal := result.(*object.String)
+	if strVal.Value != "array" {
+		t.Errorf("expected 'array', got '%s'", strVal.Value)
+	}
+}
+
+func TestTypeOfNil(t *testing.T) {
+	typeofFn := StdBuiltins["typeof"].Fn
+
+	result := typeofFn(object.NIL)
+	strVal := result.(*object.String)
+	if strVal.Value != "nil" {
+		t.Errorf("expected 'nil', got '%s'", strVal.Value)
+	}
+}
+
+// ============================================================================
+// Builtins - deepCopy Tests
+// ============================================================================
+
+func TestDeepCopyInteger(t *testing.T) {
+	copyFn := StdBuiltins["copy"].Fn
+
+	original := &object.Integer{Value: big.NewInt(42), DeclaredType: "i64"}
+	result := copyFn(original)
+
+	copied, ok := result.(*object.Integer)
+	if !ok {
+		t.Fatalf("expected Integer, got %T", result)
+	}
+
+	if copied.Value.Int64() != 42 {
+		t.Errorf("expected 42, got %d", copied.Value.Int64())
+	}
+
+	// Verify it's a copy (modifying original shouldn't affect copy)
+	original.Value = big.NewInt(100)
+	if copied.Value.Int64() != 42 {
+		t.Error("copy was affected by modifying original")
+	}
+}
+
+func TestDeepCopyFloat(t *testing.T) {
+	copyFn := StdBuiltins["copy"].Fn
+
+	result := copyFn(&object.Float{Value: 3.14})
+	copied := result.(*object.Float)
+	if copied.Value != 3.14 {
+		t.Errorf("expected 3.14, got %f", copied.Value)
+	}
+}
+
+func TestDeepCopyString(t *testing.T) {
+	copyFn := StdBuiltins["copy"].Fn
+
+	result := copyFn(&object.String{Value: "hello"})
+	copied := result.(*object.String)
+	if copied.Value != "hello" {
+		t.Errorf("expected 'hello', got '%s'", copied.Value)
+	}
+}
+
+func TestDeepCopyBoolean(t *testing.T) {
+	copyFn := StdBuiltins["copy"].Fn
+
+	result := copyFn(&object.Boolean{Value: true})
+	copied := result.(*object.Boolean)
+	if !copied.Value {
+		t.Error("expected true, got false")
+	}
+}
+
+func TestDeepCopyChar(t *testing.T) {
+	copyFn := StdBuiltins["copy"].Fn
+
+	result := copyFn(&object.Char{Value: 'Z'})
+	copied := result.(*object.Char)
+	if copied.Value != 'Z' {
+		t.Errorf("expected 'Z', got '%c'", copied.Value)
+	}
+}
+
+func TestDeepCopyByte(t *testing.T) {
+	copyFn := StdBuiltins["copy"].Fn
+
+	result := copyFn(&object.Byte{Value: 128})
+	copied := result.(*object.Byte)
+	if copied.Value != 128 {
+		t.Errorf("expected 128, got %d", copied.Value)
+	}
+}
+
+func TestDeepCopyNil(t *testing.T) {
+	copyFn := StdBuiltins["copy"].Fn
+
+	result := copyFn(object.NIL)
+	if result != object.NIL {
+		t.Errorf("expected NIL, got %T", result)
+	}
+}
+
+func TestDeepCopyArray(t *testing.T) {
+	copyFn := StdBuiltins["copy"].Fn
+
+	original := &object.Array{
+		Elements: []object.Object{
+			&object.Integer{Value: big.NewInt(1)},
+			&object.Integer{Value: big.NewInt(2)},
+		},
+	}
+	result := copyFn(original)
+
+	copied, ok := result.(*object.Array)
+	if !ok {
+		t.Fatalf("expected Array, got %T", result)
+	}
+
+	if len(copied.Elements) != 2 {
+		t.Errorf("expected 2 elements, got %d", len(copied.Elements))
+	}
+
+	// Verify deep copy
+	original.Elements[0] = &object.Integer{Value: big.NewInt(999)}
+	first := copied.Elements[0].(*object.Integer)
+	if first.Value.Int64() != 1 {
+		t.Error("copy was affected by modifying original array")
+	}
+}
+
+func TestDeepCopyMap(t *testing.T) {
+	copyFn := StdBuiltins["copy"].Fn
+
+	original := object.NewMap()
+	original.Set(&object.String{Value: "key"}, &object.Integer{Value: big.NewInt(42)})
+
+	result := copyFn(original)
+
+	copied, ok := result.(*object.Map)
+	if !ok {
+		t.Fatalf("expected Map, got %T", result)
+	}
+
+	// Verify the copy has the same data
+	val, found := copied.Get(&object.String{Value: "key"})
+	if !found || val == nil {
+		t.Fatal("expected to find 'key' in copied map")
+	}
+
+	intVal := val.(*object.Integer)
+	if intVal.Value.Int64() != 42 {
+		t.Errorf("expected 42, got %d", intVal.Value.Int64())
+	}
+}
+
+// ============================================================================
+// Math Module - getNumber Tests
+// ============================================================================
+
+func TestMathAbsFloat(t *testing.T) {
+	absFn := MathBuiltins["math.abs"].Fn
+
+	result := absFn(&object.Float{Value: -3.14})
+	floatVal, ok := result.(*object.Float)
+	if !ok {
+		t.Fatalf("expected Float, got %T", result)
+	}
+	if floatVal.Value != 3.14 {
+		t.Errorf("expected 3.14, got %f", floatVal.Value)
+	}
+}
+
+func TestMathAbsInteger(t *testing.T) {
+	absFn := MathBuiltins["math.abs"].Fn
+
+	result := absFn(&object.Integer{Value: big.NewInt(-42)})
+	intVal, ok := result.(*object.Integer)
+	if !ok {
+		t.Fatalf("expected Integer, got %T", result)
+	}
+	if intVal.Value.Int64() != 42 {
+		t.Errorf("expected 42, got %d", intVal.Value.Int64())
+	}
+}
+
+func TestMathPowFloats(t *testing.T) {
+	powFn := MathBuiltins["math.pow"].Fn
+
+	result := powFn(&object.Float{Value: 2.0}, &object.Float{Value: 3.0})
+	floatVal, ok := result.(*object.Float)
+	if !ok {
+		t.Fatalf("expected Float, got %T", result)
+	}
+	if floatVal.Value != 8.0 {
+		t.Errorf("expected 8.0, got %f", floatVal.Value)
+	}
+}
+
+func TestMathMinMaxFloats(t *testing.T) {
+	minFn := MathBuiltins["math.min"].Fn
+	maxFn := MathBuiltins["math.max"].Fn
+
+	// Test min with floats
+	result := minFn(&object.Float{Value: 5.0}, &object.Float{Value: 3.0})
+	floatVal := result.(*object.Float)
+	if floatVal.Value != 3.0 {
+		t.Errorf("min expected 3.0, got %f", floatVal.Value)
+	}
+
+	// Test max with floats
+	result = maxFn(&object.Float{Value: 5.0}, &object.Float{Value: 3.0})
+	floatVal = result.(*object.Float)
+	if floatVal.Value != 5.0 {
+		t.Errorf("max expected 5.0, got %f", floatVal.Value)
+	}
+}
+
+// ============================================================================
+// Random Module - getRandomNumber Tests
+// ============================================================================
+
+func TestRandomIntRangeWithFloats(t *testing.T) {
+	randIntFn := RandomBuiltins["random.int"].Fn
+
+	// Test with float bounds (should convert)
+	result := randIntFn(&object.Float{Value: 0.0}, &object.Float{Value: 10.0})
+	intVal, ok := result.(*object.Integer)
+	if !ok {
+		t.Fatalf("expected Integer, got %T", result)
+	}
+
+	val := intVal.Value.Int64()
+	if val < 0 || val >= 10 {
+		t.Errorf("expected value in [0, 10), got %d", val)
+	}
+}
+
+func TestRandomFloatRangeWithInts(t *testing.T) {
+	randFloatFn := RandomBuiltins["random.float"].Fn
+
+	// Test with integer bounds (should convert)
+	result := randFloatFn(&object.Integer{Value: big.NewInt(0)}, &object.Integer{Value: big.NewInt(1)})
+	floatVal, ok := result.(*object.Float)
+	if !ok {
+		t.Fatalf("expected Float, got %T", result)
+	}
+
+	if floatVal.Value < 0.0 || floatVal.Value >= 1.0 {
+		t.Errorf("expected value in [0.0, 1.0), got %f", floatVal.Value)
+	}
+}
+
+// ============================================================================
+// Arrays Module - Error Cases (tests newError)
+// ============================================================================
+
+func TestArraysIndexOfNotFound(t *testing.T) {
+	indexOfFn := ArraysBuiltins["arrays.index_of"].Fn
+
+	arr := &object.Array{
+		Elements: []object.Object{
+			&object.Integer{Value: big.NewInt(1)},
+			&object.Integer{Value: big.NewInt(2)},
+		},
+	}
+
+	result := indexOfFn(arr, &object.Integer{Value: big.NewInt(999)})
+	intVal, ok := result.(*object.Integer)
+	if !ok {
+		t.Fatalf("expected Integer, got %T", result)
+	}
+
+	// Should return -1 when not found
+	if intVal.Value.Int64() != -1 {
+		t.Errorf("expected -1, got %d", intVal.Value.Int64())
+	}
+}
+
+func TestArraysSortError(t *testing.T) {
+	sortFn := ArraysBuiltins["arrays.sort"].Fn
+
+	// Test with wrong argument count
+	result := sortFn()
+	errVal, ok := result.(*object.Error)
+	if !ok {
+		t.Fatalf("expected Error, got %T", result)
+	}
+
+	if errVal.Message == "" {
+		t.Error("expected error message")
+	}
+}
+
+func TestArraysPopEmptyError(t *testing.T) {
+	popFn := ArraysBuiltins["arrays.pop"].Fn
+
+	arr := &object.Array{Elements: []object.Object{}}
+	result := popFn(arr)
+
+	// Should return error for empty array
+	errVal, ok := result.(*object.Error)
+	if !ok {
+		t.Fatalf("expected Error for empty array pop, got %T", result)
+	}
+
+	if errVal.Message == "" {
+		t.Error("expected error message")
 	}
 }
