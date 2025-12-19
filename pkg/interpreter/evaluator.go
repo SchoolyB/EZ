@@ -3432,6 +3432,7 @@ func copyByDefault(val Object) Object {
 		return &Struct{
 			TypeName: v.TypeName,
 			Fields:   newFields,
+			FieldTags: v.FieldTags,
 			Mutable:  v.Mutable,
 		}
 	case *Array:
