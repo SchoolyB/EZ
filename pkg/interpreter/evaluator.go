@@ -150,6 +150,7 @@ var validModules = map[string]bool{
 	"random":  true, // Random number generation
 	"json":    true, // JSON encoding/decoding
 	"binary":  true, // Binary encoding/decoding for integers and floats
+	"db": 		 true, // Simple key-value database
 }
 
 // isValidModule checks if a module name is valid (either standard library or user-created)

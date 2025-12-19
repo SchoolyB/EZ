@@ -36,6 +36,7 @@ const (
 	ENUM_VALUE_OBJ   ObjectType = "ENUM_VALUE"
 	MODULE_OBJ       ObjectType = "MODULE"
 	FILE_HANDLE_OBJ  ObjectType = "FILE_HANDLE"
+	DATABASE_OBJ		 ObjectType = "DATABASE"
 	REFERENCE_OBJ    ObjectType = "REFERENCE"
 	RANGE_OBJ        ObjectType = "RANGE"
 	TYPE_OBJ         ObjectType = "TYPE"
@@ -795,4 +796,18 @@ func (e *Environment) GetPublicStructDefs() map[string]*StructDef {
 		}
 	}
 	return result
+}
+
+type Database struct {
+	Path 		 String
+	Store 	 Map
+	IsClosed Boolean
+}
+
+func (db *Database) Type() ObjectType { return DATABASE_OBJ }
+func (db *Database) Inspect() string {
+	if db.IsClosed.Value {
+		return fmt.Sprintf("<Database(closed) %s>", db.Path)
+	}
+	return fmt.Sprintf("<Database %s>", db.Path)
 }
