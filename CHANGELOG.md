@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.29.0](https://github.com/SchoolyB/EZ/compare/v0.28.3...v0.29.0) (2025-12-19)
+
+
+### Features
+
+* Struct field tags JSON customization ([ae64d0a](https://github.com/SchoolyB/EZ/commit/ae64d0aeb925d572b57c9a5898ed2753bcec0866))
+
 ## [0.28.3](https://github.com/SchoolyB/EZ/compare/v0.28.2...v0.28.3) (2025-12-19)
 
 
