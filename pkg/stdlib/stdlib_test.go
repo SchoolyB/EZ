@@ -3767,3 +3767,586 @@ func TestConvertToTypedValueBool(t *testing.T) {
 		t.Errorf("expected FALSE, got %v", result)
 	}
 }
+
+// ============================================================================
+// Binary Module Tests
+// ============================================================================
+
+// Test extractEncodingInt with Float input
+func TestBinaryEncodeI8WithFloat(t *testing.T) {
+	encodeFn := BinaryBuiltins["binary.encode_i8"].Fn
+
+	// Encode a float value (should be converted to int)
+	result := encodeFn(&object.Float{Value: 42.7})
+
+	retVal, ok := result.(*object.ReturnValue)
+	if !ok {
+		t.Fatalf("expected ReturnValue, got %T", result)
+	}
+
+	arr, ok := retVal.Values[0].(*object.Array)
+	if !ok {
+		t.Fatalf("expected Array in first return value, got %T", retVal.Values[0])
+	}
+
+	if len(arr.Elements) != 1 {
+		t.Errorf("expected 1 byte, got %d", len(arr.Elements))
+	}
+
+	byteVal, ok := arr.Elements[0].(*object.Byte)
+	if !ok {
+		t.Fatalf("expected Byte, got %T", arr.Elements[0])
+	}
+
+	// 42.7 truncates to 42
+	if byteVal.Value != 42 {
+		t.Errorf("expected byte value 42, got %d", byteVal.Value)
+	}
+}
+
+// Test extractEncodingInt with Byte input
+func TestBinaryEncodeI8WithByte(t *testing.T) {
+	encodeFn := BinaryBuiltins["binary.encode_i8"].Fn
+
+	// Encode a byte value
+	result := encodeFn(&object.Byte{Value: 100})
+
+	retVal, ok := result.(*object.ReturnValue)
+	if !ok {
+		t.Fatalf("expected ReturnValue, got %T", result)
+	}
+
+	arr, ok := retVal.Values[0].(*object.Array)
+	if !ok {
+		t.Fatalf("expected Array in first return value, got %T", retVal.Values[0])
+	}
+
+	byteVal, ok := arr.Elements[0].(*object.Byte)
+	if !ok {
+		t.Fatalf("expected Byte, got %T", arr.Elements[0])
+	}
+
+	if byteVal.Value != 100 {
+		t.Errorf("expected byte value 100, got %d", byteVal.Value)
+	}
+}
+
+// Test extractEncodingInt with invalid type (error case)
+func TestBinaryEncodeI8WithInvalidType(t *testing.T) {
+	encodeFn := BinaryBuiltins["binary.encode_i8"].Fn
+
+	// Try to encode a string - should return error
+	result := encodeFn(&object.String{Value: "not a number"})
+
+	errObj, ok := result.(*object.Error)
+	if !ok {
+		t.Fatalf("expected Error, got %T", result)
+	}
+
+	if errObj.Code != "E7004" {
+		t.Errorf("expected error code E7004, got %s", errObj.Code)
+	}
+}
+
+// Test binary.encode_i8 argument count
+func TestBinaryEncodeI8ArgCount(t *testing.T) {
+	encodeFn := BinaryBuiltins["binary.encode_i8"].Fn
+
+	// No arguments
+	result := encodeFn()
+	if !isErrorObject(result) {
+		t.Error("expected error for no arguments")
+	}
+
+	// Too many arguments
+	result = encodeFn(&object.Integer{Value: big.NewInt(42)}, &object.Integer{Value: big.NewInt(10)})
+	if !isErrorObject(result) {
+		t.Error("expected error for too many arguments")
+	}
+}
+
+// Test binary.encode_i8 range error
+func TestBinaryEncodeI8RangeError(t *testing.T) {
+	encodeFn := BinaryBuiltins["binary.encode_i8"].Fn
+
+	// Value out of i8 range (> 127)
+	result := encodeFn(&object.Integer{Value: big.NewInt(200)})
+
+	retVal, ok := result.(*object.ReturnValue)
+	if !ok {
+		t.Fatalf("expected ReturnValue, got %T", result)
+	}
+
+	// First value should be NIL for error case
+	if retVal.Values[0] != object.NIL {
+		t.Errorf("expected NIL for out-of-range value")
+	}
+
+	// Second value should be error struct
+	errStruct, ok := retVal.Values[1].(*object.Struct)
+	if !ok {
+		t.Fatalf("expected Struct error, got %T", retVal.Values[1])
+	}
+
+	codeField, ok := errStruct.Fields["code"].(*object.String)
+	if !ok || codeField.Value != "E3022" {
+		t.Errorf("expected error code E3022")
+	}
+}
+
+// Test binary.decode_i8
+func TestBinaryDecodeI8(t *testing.T) {
+	decodeFn := BinaryBuiltins["binary.decode_i8"].Fn
+
+	// Decode a valid byte array
+	arr := &object.Array{
+		Elements: []object.Object{&object.Byte{Value: 0xFF}}, // -1 in signed i8
+	}
+
+	result := decodeFn(arr)
+
+	retVal, ok := result.(*object.ReturnValue)
+	if !ok {
+		t.Fatalf("expected ReturnValue, got %T", result)
+	}
+
+	intVal, ok := retVal.Values[0].(*object.Integer)
+	if !ok {
+		t.Fatalf("expected Integer, got %T", retVal.Values[0])
+	}
+
+	// 0xFF as signed i8 is -1
+	if intVal.Value.Int64() != -1 {
+		t.Errorf("expected -1, got %d", intVal.Value.Int64())
+	}
+}
+
+// Test binary.decode_i8 with wrong byte count
+func TestBinaryDecodeI8WrongByteCount(t *testing.T) {
+	decodeFn := BinaryBuiltins["binary.decode_i8"].Fn
+
+	// Too many bytes
+	arr := &object.Array{
+		Elements: []object.Object{
+			&object.Byte{Value: 1},
+			&object.Byte{Value: 2},
+		},
+	}
+
+	result := decodeFn(arr)
+
+	retVal, ok := result.(*object.ReturnValue)
+	if !ok {
+		t.Fatalf("expected ReturnValue, got %T", result)
+	}
+
+	// First value should be NIL
+	if retVal.Values[0] != object.NIL {
+		t.Errorf("expected NIL for wrong byte count")
+	}
+}
+
+// Test binary.decode_i8 with non-array
+func TestBinaryDecodeI8NonArray(t *testing.T) {
+	decodeFn := BinaryBuiltins["binary.decode_i8"].Fn
+
+	result := decodeFn(&object.String{Value: "not an array"})
+
+	retVal, ok := result.(*object.ReturnValue)
+	if !ok {
+		t.Fatalf("expected ReturnValue, got %T", result)
+	}
+
+	if retVal.Values[0] != object.NIL {
+		t.Errorf("expected NIL for non-array input")
+	}
+}
+
+// Test binaryBytesToSlice with Integer elements (out of range)
+func TestBinaryDecodeWithIntegerOutOfRange(t *testing.T) {
+	decodeFn := BinaryBuiltins["binary.decode_i8"].Fn
+
+	// Array with integer value out of byte range
+	arr := &object.Array{
+		Elements: []object.Object{
+			&object.Integer{Value: big.NewInt(300)}, // Out of 0-255 range
+		},
+	}
+
+	result := decodeFn(arr)
+
+	retVal, ok := result.(*object.ReturnValue)
+	if !ok {
+		t.Fatalf("expected ReturnValue, got %T", result)
+	}
+
+	if retVal.Values[0] != object.NIL {
+		t.Errorf("expected NIL for out-of-range integer")
+	}
+}
+
+// Test binaryBytesToSlice with valid Integer elements
+func TestBinaryDecodeWithIntegerElements(t *testing.T) {
+	decodeFn := BinaryBuiltins["binary.decode_i8"].Fn
+
+	// Array with valid integer value
+	arr := &object.Array{
+		Elements: []object.Object{
+			&object.Integer{Value: big.NewInt(127)},
+		},
+	}
+
+	result := decodeFn(arr)
+
+	retVal, ok := result.(*object.ReturnValue)
+	if !ok {
+		t.Fatalf("expected ReturnValue, got %T", result)
+	}
+
+	intVal, ok := retVal.Values[0].(*object.Integer)
+	if !ok {
+		t.Fatalf("expected Integer, got %T", retVal.Values[0])
+	}
+
+	if intVal.Value.Int64() != 127 {
+		t.Errorf("expected 127, got %d", intVal.Value.Int64())
+	}
+}
+
+// Test binaryBytesToSlice with invalid element type
+func TestBinaryDecodeWithInvalidElementType(t *testing.T) {
+	decodeFn := BinaryBuiltins["binary.decode_i8"].Fn
+
+	// Array with string element (invalid)
+	arr := &object.Array{
+		Elements: []object.Object{
+			&object.String{Value: "invalid"},
+		},
+	}
+
+	result := decodeFn(arr)
+
+	retVal, ok := result.(*object.ReturnValue)
+	if !ok {
+		t.Fatalf("expected ReturnValue, got %T", result)
+	}
+
+	if retVal.Values[0] != object.NIL {
+		t.Errorf("expected NIL for invalid element type")
+	}
+}
+
+// Test binary.encode_u8
+func TestBinaryEncodeU8(t *testing.T) {
+	encodeFn := BinaryBuiltins["binary.encode_u8"].Fn
+
+	result := encodeFn(&object.Integer{Value: big.NewInt(200)})
+
+	retVal, ok := result.(*object.ReturnValue)
+	if !ok {
+		t.Fatalf("expected ReturnValue, got %T", result)
+	}
+
+	arr, ok := retVal.Values[0].(*object.Array)
+	if !ok {
+		t.Fatalf("expected Array, got %T", retVal.Values[0])
+	}
+
+	byteVal, ok := arr.Elements[0].(*object.Byte)
+	if !ok {
+		t.Fatalf("expected Byte, got %T", arr.Elements[0])
+	}
+
+	if byteVal.Value != 200 {
+		t.Errorf("expected 200, got %d", byteVal.Value)
+	}
+}
+
+// Test binary.encode_u8 range error
+func TestBinaryEncodeU8RangeError(t *testing.T) {
+	encodeFn := BinaryBuiltins["binary.encode_u8"].Fn
+
+	// Negative value
+	result := encodeFn(&object.Integer{Value: big.NewInt(-1)})
+
+	retVal, ok := result.(*object.ReturnValue)
+	if !ok {
+		t.Fatalf("expected ReturnValue, got %T", result)
+	}
+
+	if retVal.Values[0] != object.NIL {
+		t.Errorf("expected NIL for negative value")
+	}
+}
+
+// Test binary.decode_u8
+func TestBinaryDecodeU8(t *testing.T) {
+	decodeFn := BinaryBuiltins["binary.decode_u8"].Fn
+
+	arr := &object.Array{
+		Elements: []object.Object{&object.Byte{Value: 255}},
+	}
+
+	result := decodeFn(arr)
+
+	retVal, ok := result.(*object.ReturnValue)
+	if !ok {
+		t.Fatalf("expected ReturnValue, got %T", result)
+	}
+
+	intVal, ok := retVal.Values[0].(*object.Integer)
+	if !ok {
+		t.Fatalf("expected Integer, got %T", retVal.Values[0])
+	}
+
+	if intVal.Value.Int64() != 255 {
+		t.Errorf("expected 255, got %d", intVal.Value.Int64())
+	}
+}
+
+// Test 16-bit encoding with Float (tests extractEncodingInt Float branch)
+func TestBinaryEncodeI16WithFloat(t *testing.T) {
+	encodeFn := BinaryBuiltins["binary.encode_i16_to_little_endian"].Fn
+
+	result := encodeFn(&object.Float{Value: 1000.9})
+
+	retVal, ok := result.(*object.ReturnValue)
+	if !ok {
+		t.Fatalf("expected ReturnValue, got %T", result)
+	}
+
+	arr, ok := retVal.Values[0].(*object.Array)
+	if !ok {
+		t.Fatalf("expected Array, got %T", retVal.Values[0])
+	}
+
+	if len(arr.Elements) != 2 {
+		t.Errorf("expected 2 bytes, got %d", len(arr.Elements))
+	}
+}
+
+// Test 16-bit encoding with Byte (tests extractEncodingInt Byte branch)
+func TestBinaryEncodeI16WithByte(t *testing.T) {
+	encodeFn := BinaryBuiltins["binary.encode_i16_to_little_endian"].Fn
+
+	result := encodeFn(&object.Byte{Value: 200})
+
+	retVal, ok := result.(*object.ReturnValue)
+	if !ok {
+		t.Fatalf("expected ReturnValue, got %T", result)
+	}
+
+	arr, ok := retVal.Values[0].(*object.Array)
+	if !ok {
+		t.Fatalf("expected Array, got %T", retVal.Values[0])
+	}
+
+	if len(arr.Elements) != 2 {
+		t.Errorf("expected 2 bytes, got %d", len(arr.Elements))
+	}
+}
+
+// Test 32-bit float encoding
+func TestBinaryEncodeF32(t *testing.T) {
+	encodeFn := BinaryBuiltins["binary.encode_f32_to_little_endian"].Fn
+
+	result := encodeFn(&object.Float{Value: 3.14})
+
+	retVal, ok := result.(*object.ReturnValue)
+	if !ok {
+		t.Fatalf("expected ReturnValue, got %T", result)
+	}
+
+	arr, ok := retVal.Values[0].(*object.Array)
+	if !ok {
+		t.Fatalf("expected Array, got %T", retVal.Values[0])
+	}
+
+	if len(arr.Elements) != 4 {
+		t.Errorf("expected 4 bytes, got %d", len(arr.Elements))
+	}
+}
+
+// Test 32-bit float encoding with Integer
+func TestBinaryEncodeF32WithInteger(t *testing.T) {
+	encodeFn := BinaryBuiltins["binary.encode_f32_to_little_endian"].Fn
+
+	result := encodeFn(&object.Integer{Value: big.NewInt(42)})
+
+	retVal, ok := result.(*object.ReturnValue)
+	if !ok {
+		t.Fatalf("expected ReturnValue, got %T", result)
+	}
+
+	arr, ok := retVal.Values[0].(*object.Array)
+	if !ok {
+		t.Fatalf("expected Array, got %T", retVal.Values[0])
+	}
+
+	if len(arr.Elements) != 4 {
+		t.Errorf("expected 4 bytes, got %d", len(arr.Elements))
+	}
+}
+
+// Test 32-bit float encoding with invalid type
+func TestBinaryEncodeF32WithInvalidType(t *testing.T) {
+	encodeFn := BinaryBuiltins["binary.encode_f32_to_little_endian"].Fn
+
+	result := encodeFn(&object.String{Value: "invalid"})
+
+	if !isErrorObject(result) {
+		t.Error("expected error for invalid type")
+	}
+}
+
+// Test 64-bit float encoding
+func TestBinaryEncodeF64(t *testing.T) {
+	encodeFn := BinaryBuiltins["binary.encode_f64_to_little_endian"].Fn
+
+	result := encodeFn(&object.Float{Value: 3.141592653589793})
+
+	retVal, ok := result.(*object.ReturnValue)
+	if !ok {
+		t.Fatalf("expected ReturnValue, got %T", result)
+	}
+
+	arr, ok := retVal.Values[0].(*object.Array)
+	if !ok {
+		t.Fatalf("expected Array, got %T", retVal.Values[0])
+	}
+
+	if len(arr.Elements) != 8 {
+		t.Errorf("expected 8 bytes, got %d", len(arr.Elements))
+	}
+}
+
+// Test 64-bit float encoding with Integer
+func TestBinaryEncodeF64WithInteger(t *testing.T) {
+	encodeFn := BinaryBuiltins["binary.encode_f64_to_little_endian"].Fn
+
+	result := encodeFn(&object.Integer{Value: big.NewInt(12345)})
+
+	retVal, ok := result.(*object.ReturnValue)
+	if !ok {
+		t.Fatalf("expected ReturnValue, got %T", result)
+	}
+
+	arr, ok := retVal.Values[0].(*object.Array)
+	if !ok {
+		t.Fatalf("expected Array, got %T", retVal.Values[0])
+	}
+
+	if len(arr.Elements) != 8 {
+		t.Errorf("expected 8 bytes, got %d", len(arr.Elements))
+	}
+}
+
+// Test float decode
+func TestBinaryDecodeF32(t *testing.T) {
+	decodeFn := BinaryBuiltins["binary.decode_f32_from_little_endian"].Fn
+
+	// Create a byte array representing 3.14 in little-endian f32
+	arr := &object.Array{
+		Elements: []object.Object{
+			&object.Byte{Value: 0xC3},
+			&object.Byte{Value: 0xF5},
+			&object.Byte{Value: 0x48},
+			&object.Byte{Value: 0x40},
+		},
+	}
+
+	result := decodeFn(arr)
+
+	retVal, ok := result.(*object.ReturnValue)
+	if !ok {
+		t.Fatalf("expected ReturnValue, got %T", result)
+	}
+
+	floatVal, ok := retVal.Values[0].(*object.Float)
+	if !ok {
+		t.Fatalf("expected Float, got %T", retVal.Values[0])
+	}
+
+	// Should be approximately 3.14
+	if math.Abs(floatVal.Value-3.14) > 0.01 {
+		t.Errorf("expected ~3.14, got %f", floatVal.Value)
+	}
+}
+
+// Test float decode f64
+func TestBinaryDecodeF64(t *testing.T) {
+	decodeFn := BinaryBuiltins["binary.decode_f64_from_little_endian"].Fn
+
+	// Encode and then decode to round-trip
+	encodeFn := BinaryBuiltins["binary.encode_f64_to_little_endian"].Fn
+	encoded := encodeFn(&object.Float{Value: 2.718281828})
+
+	retVal := encoded.(*object.ReturnValue)
+	arr := retVal.Values[0].(*object.Array)
+
+	result := decodeFn(arr)
+
+	decodeRet, ok := result.(*object.ReturnValue)
+	if !ok {
+		t.Fatalf("expected ReturnValue, got %T", result)
+	}
+
+	floatVal, ok := decodeRet.Values[0].(*object.Float)
+	if !ok {
+		t.Fatalf("expected Float, got %T", decodeRet.Values[0])
+	}
+
+	if math.Abs(floatVal.Value-2.718281828) > 0.0000001 {
+		t.Errorf("expected ~2.718281828, got %f", floatVal.Value)
+	}
+}
+
+// Test big-endian encoding
+func TestBinaryEncodeI16BigEndian(t *testing.T) {
+	encodeFn := BinaryBuiltins["binary.encode_i16_to_big_endian"].Fn
+
+	result := encodeFn(&object.Integer{Value: big.NewInt(0x0102)})
+
+	retVal, ok := result.(*object.ReturnValue)
+	if !ok {
+		t.Fatalf("expected ReturnValue, got %T", result)
+	}
+
+	arr, ok := retVal.Values[0].(*object.Array)
+	if !ok {
+		t.Fatalf("expected Array, got %T", retVal.Values[0])
+	}
+
+	// Big-endian: high byte first
+	if arr.Elements[0].(*object.Byte).Value != 0x01 {
+		t.Errorf("expected first byte 0x01, got 0x%02X", arr.Elements[0].(*object.Byte).Value)
+	}
+	if arr.Elements[1].(*object.Byte).Value != 0x02 {
+		t.Errorf("expected second byte 0x02, got 0x%02X", arr.Elements[1].(*object.Byte).Value)
+	}
+}
+
+// Test negative integer encoding
+func TestBinaryEncodeNegativeI16(t *testing.T) {
+	encodeFn := BinaryBuiltins["binary.encode_i16_to_little_endian"].Fn
+
+	result := encodeFn(&object.Integer{Value: big.NewInt(-1)})
+
+	retVal, ok := result.(*object.ReturnValue)
+	if !ok {
+		t.Fatalf("expected ReturnValue, got %T", result)
+	}
+
+	arr, ok := retVal.Values[0].(*object.Array)
+	if !ok {
+		t.Fatalf("expected Array, got %T", retVal.Values[0])
+	}
+
+	// -1 in two's complement 16-bit is 0xFFFF
+	if arr.Elements[0].(*object.Byte).Value != 0xFF {
+		t.Errorf("expected first byte 0xFF, got 0x%02X", arr.Elements[0].(*object.Byte).Value)
+	}
+	if arr.Elements[1].(*object.Byte).Value != 0xFF {
+		t.Errorf("expected second byte 0xFF, got 0x%02X", arr.Elements[1].(*object.Byte).Value)
+	}
+}
