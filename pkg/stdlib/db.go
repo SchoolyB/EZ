@@ -257,31 +257,62 @@ var DbBuiltins = map[string]*object.Builtin{
 	"db.keys": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 1 {
-				return &object.Error{Code: "E7001", Message: "db.count() takes exactly 1 arguments"}
+				return &object.Error{Code: "E7001", Message: "db.keys() takes exactly 1 arguments"}
 			}
 
 			db, ok := args[0].(*object.Database)
 			if !ok {
-				return &object.Error{Code: "E7001", Message: "db.count() requires a Database object as first argument"}
+				return &object.Error{Code: "E7001", Message: "db.keys() requires a Database object as first argument"}
 			}
 
 			if db.IsClosed.Value {
 				return &object.ReturnValue{Values: []object.Object{
-					&object.Error{Code: "E17005", Message: "db.count() cannot operate on closed database"},
+					&object.Error{Code: "E17005", Message: "db.keys() cannot operate on closed database"},
 				}}
 			}
 
-			var keys *object.Array
+			var keys object.Array
 			for _, pair := range db.Store.Pairs {
 				keys.Elements = append(keys.Elements, pair.Key)
 			}
-			return &object.ReturnValue{Values: []object.Object{
-				keys,
-			}}
+
+			return	&keys
 		},
 	},
 
-	"db.prefix": {},
+	"db.prefix": {
+		Fn: func(args ...object.Object) object.Object {
+			if len(args) != 2 {
+				return &object.Error{Code: "E7001", Message: "db.prefix() takes exactly 2 arguments"}
+			}
+
+			db, ok := args[0].(*object.Database)
+			if !ok {
+				return &object.Error{Code: "E7001", Message: "db.prefix() requires a Database object as first argument"}
+			}
+
+			if db.IsClosed.Value {
+				return &object.ReturnValue{Values: []object.Object{
+					&object.Error{Code: "E17005", Message: "db.prefix() cannot operate on closed database"},
+				}}
+			}
+
+			prefix, ok := args[1].(*object.String)
+			if !ok {
+				return &object.Error{Code: "E7003", Message: "db.prefix() requires a String as second argument"}
+			}
+
+			var keys object.Array
+			for _, pair := range db.Store.Pairs {
+				key, ok := pair.Key.(*object.String)
+				if ok && strings.HasPrefix(key.Value, prefix.Value) {
+					keys.Elements = append(keys.Elements, key)
+				}
+			}
+
+			return &keys
+		},
+	},
 
 	"db.count": {
 		Fn: func(args ...object.Object) object.Object {
