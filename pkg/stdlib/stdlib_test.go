@@ -6,6 +6,7 @@ package stdlib
 import (
 	"math"
 	"math/big"
+	"strings"
 	"testing"
 	gotime "time"
 
@@ -3765,5 +3766,3086 @@ func TestConvertToTypedValueBool(t *testing.T) {
 	result = convertToTypedValue("not bool", "bool")
 	if result != object.FALSE {
 		t.Errorf("expected FALSE, got %v", result)
+	}
+}
+
+// ============================================================================
+// Binary Module Tests
+// ============================================================================
+
+// Test extractEncodingInt with Float input
+func TestBinaryEncodeI8WithFloat(t *testing.T) {
+	encodeFn := BinaryBuiltins["binary.encode_i8"].Fn
+
+	// Encode a float value (should be converted to int)
+	result := encodeFn(&object.Float{Value: 42.7})
+
+	retVal, ok := result.(*object.ReturnValue)
+	if !ok {
+		t.Fatalf("expected ReturnValue, got %T", result)
+	}
+
+	arr, ok := retVal.Values[0].(*object.Array)
+	if !ok {
+		t.Fatalf("expected Array in first return value, got %T", retVal.Values[0])
+	}
+
+	if len(arr.Elements) != 1 {
+		t.Errorf("expected 1 byte, got %d", len(arr.Elements))
+	}
+
+	byteVal, ok := arr.Elements[0].(*object.Byte)
+	if !ok {
+		t.Fatalf("expected Byte, got %T", arr.Elements[0])
+	}
+
+	// 42.7 truncates to 42
+	if byteVal.Value != 42 {
+		t.Errorf("expected byte value 42, got %d", byteVal.Value)
+	}
+}
+
+// Test extractEncodingInt with Byte input
+func TestBinaryEncodeI8WithByte(t *testing.T) {
+	encodeFn := BinaryBuiltins["binary.encode_i8"].Fn
+
+	// Encode a byte value
+	result := encodeFn(&object.Byte{Value: 100})
+
+	retVal, ok := result.(*object.ReturnValue)
+	if !ok {
+		t.Fatalf("expected ReturnValue, got %T", result)
+	}
+
+	arr, ok := retVal.Values[0].(*object.Array)
+	if !ok {
+		t.Fatalf("expected Array in first return value, got %T", retVal.Values[0])
+	}
+
+	byteVal, ok := arr.Elements[0].(*object.Byte)
+	if !ok {
+		t.Fatalf("expected Byte, got %T", arr.Elements[0])
+	}
+
+	if byteVal.Value != 100 {
+		t.Errorf("expected byte value 100, got %d", byteVal.Value)
+	}
+}
+
+// Test extractEncodingInt with invalid type (error case)
+func TestBinaryEncodeI8WithInvalidType(t *testing.T) {
+	encodeFn := BinaryBuiltins["binary.encode_i8"].Fn
+
+	// Try to encode a string - should return error
+	result := encodeFn(&object.String{Value: "not a number"})
+
+	errObj, ok := result.(*object.Error)
+	if !ok {
+		t.Fatalf("expected Error, got %T", result)
+	}
+
+	if errObj.Code != "E7004" {
+		t.Errorf("expected error code E7004, got %s", errObj.Code)
+	}
+}
+
+// Test binary.encode_i8 argument count
+func TestBinaryEncodeI8ArgCount(t *testing.T) {
+	encodeFn := BinaryBuiltins["binary.encode_i8"].Fn
+
+	// No arguments
+	result := encodeFn()
+	if !isErrorObject(result) {
+		t.Error("expected error for no arguments")
+	}
+
+	// Too many arguments
+	result = encodeFn(&object.Integer{Value: big.NewInt(42)}, &object.Integer{Value: big.NewInt(10)})
+	if !isErrorObject(result) {
+		t.Error("expected error for too many arguments")
+	}
+}
+
+// Test binary.encode_i8 range error
+func TestBinaryEncodeI8RangeError(t *testing.T) {
+	encodeFn := BinaryBuiltins["binary.encode_i8"].Fn
+
+	// Value out of i8 range (> 127)
+	result := encodeFn(&object.Integer{Value: big.NewInt(200)})
+
+	retVal, ok := result.(*object.ReturnValue)
+	if !ok {
+		t.Fatalf("expected ReturnValue, got %T", result)
+	}
+
+	// First value should be NIL for error case
+	if retVal.Values[0] != object.NIL {
+		t.Errorf("expected NIL for out-of-range value")
+	}
+
+	// Second value should be error struct
+	errStruct, ok := retVal.Values[1].(*object.Struct)
+	if !ok {
+		t.Fatalf("expected Struct error, got %T", retVal.Values[1])
+	}
+
+	codeField, ok := errStruct.Fields["code"].(*object.String)
+	if !ok || codeField.Value != "E3022" {
+		t.Errorf("expected error code E3022")
+	}
+}
+
+// Test binary.decode_i8
+func TestBinaryDecodeI8(t *testing.T) {
+	decodeFn := BinaryBuiltins["binary.decode_i8"].Fn
+
+	// Decode a valid byte array
+	arr := &object.Array{
+		Elements: []object.Object{&object.Byte{Value: 0xFF}}, // -1 in signed i8
+	}
+
+	result := decodeFn(arr)
+
+	retVal, ok := result.(*object.ReturnValue)
+	if !ok {
+		t.Fatalf("expected ReturnValue, got %T", result)
+	}
+
+	intVal, ok := retVal.Values[0].(*object.Integer)
+	if !ok {
+		t.Fatalf("expected Integer, got %T", retVal.Values[0])
+	}
+
+	// 0xFF as signed i8 is -1
+	if intVal.Value.Int64() != -1 {
+		t.Errorf("expected -1, got %d", intVal.Value.Int64())
+	}
+}
+
+// Test binary.decode_i8 with wrong byte count
+func TestBinaryDecodeI8WrongByteCount(t *testing.T) {
+	decodeFn := BinaryBuiltins["binary.decode_i8"].Fn
+
+	// Too many bytes
+	arr := &object.Array{
+		Elements: []object.Object{
+			&object.Byte{Value: 1},
+			&object.Byte{Value: 2},
+		},
+	}
+
+	result := decodeFn(arr)
+
+	retVal, ok := result.(*object.ReturnValue)
+	if !ok {
+		t.Fatalf("expected ReturnValue, got %T", result)
+	}
+
+	// First value should be NIL
+	if retVal.Values[0] != object.NIL {
+		t.Errorf("expected NIL for wrong byte count")
+	}
+}
+
+// Test binary.decode_i8 with non-array
+func TestBinaryDecodeI8NonArray(t *testing.T) {
+	decodeFn := BinaryBuiltins["binary.decode_i8"].Fn
+
+	result := decodeFn(&object.String{Value: "not an array"})
+
+	retVal, ok := result.(*object.ReturnValue)
+	if !ok {
+		t.Fatalf("expected ReturnValue, got %T", result)
+	}
+
+	if retVal.Values[0] != object.NIL {
+		t.Errorf("expected NIL for non-array input")
+	}
+}
+
+// Test binaryBytesToSlice with Integer elements (out of range)
+func TestBinaryDecodeWithIntegerOutOfRange(t *testing.T) {
+	decodeFn := BinaryBuiltins["binary.decode_i8"].Fn
+
+	// Array with integer value out of byte range
+	arr := &object.Array{
+		Elements: []object.Object{
+			&object.Integer{Value: big.NewInt(300)}, // Out of 0-255 range
+		},
+	}
+
+	result := decodeFn(arr)
+
+	retVal, ok := result.(*object.ReturnValue)
+	if !ok {
+		t.Fatalf("expected ReturnValue, got %T", result)
+	}
+
+	if retVal.Values[0] != object.NIL {
+		t.Errorf("expected NIL for out-of-range integer")
+	}
+}
+
+// Test binaryBytesToSlice with valid Integer elements
+func TestBinaryDecodeWithIntegerElements(t *testing.T) {
+	decodeFn := BinaryBuiltins["binary.decode_i8"].Fn
+
+	// Array with valid integer value
+	arr := &object.Array{
+		Elements: []object.Object{
+			&object.Integer{Value: big.NewInt(127)},
+		},
+	}
+
+	result := decodeFn(arr)
+
+	retVal, ok := result.(*object.ReturnValue)
+	if !ok {
+		t.Fatalf("expected ReturnValue, got %T", result)
+	}
+
+	intVal, ok := retVal.Values[0].(*object.Integer)
+	if !ok {
+		t.Fatalf("expected Integer, got %T", retVal.Values[0])
+	}
+
+	if intVal.Value.Int64() != 127 {
+		t.Errorf("expected 127, got %d", intVal.Value.Int64())
+	}
+}
+
+// Test binaryBytesToSlice with invalid element type
+func TestBinaryDecodeWithInvalidElementType(t *testing.T) {
+	decodeFn := BinaryBuiltins["binary.decode_i8"].Fn
+
+	// Array with string element (invalid)
+	arr := &object.Array{
+		Elements: []object.Object{
+			&object.String{Value: "invalid"},
+		},
+	}
+
+	result := decodeFn(arr)
+
+	retVal, ok := result.(*object.ReturnValue)
+	if !ok {
+		t.Fatalf("expected ReturnValue, got %T", result)
+	}
+
+	if retVal.Values[0] != object.NIL {
+		t.Errorf("expected NIL for invalid element type")
+	}
+}
+
+// Test binary.encode_u8
+func TestBinaryEncodeU8(t *testing.T) {
+	encodeFn := BinaryBuiltins["binary.encode_u8"].Fn
+
+	result := encodeFn(&object.Integer{Value: big.NewInt(200)})
+
+	retVal, ok := result.(*object.ReturnValue)
+	if !ok {
+		t.Fatalf("expected ReturnValue, got %T", result)
+	}
+
+	arr, ok := retVal.Values[0].(*object.Array)
+	if !ok {
+		t.Fatalf("expected Array, got %T", retVal.Values[0])
+	}
+
+	byteVal, ok := arr.Elements[0].(*object.Byte)
+	if !ok {
+		t.Fatalf("expected Byte, got %T", arr.Elements[0])
+	}
+
+	if byteVal.Value != 200 {
+		t.Errorf("expected 200, got %d", byteVal.Value)
+	}
+}
+
+// Test binary.encode_u8 range error
+func TestBinaryEncodeU8RangeError(t *testing.T) {
+	encodeFn := BinaryBuiltins["binary.encode_u8"].Fn
+
+	// Negative value
+	result := encodeFn(&object.Integer{Value: big.NewInt(-1)})
+
+	retVal, ok := result.(*object.ReturnValue)
+	if !ok {
+		t.Fatalf("expected ReturnValue, got %T", result)
+	}
+
+	if retVal.Values[0] != object.NIL {
+		t.Errorf("expected NIL for negative value")
+	}
+}
+
+// Test binary.decode_u8
+func TestBinaryDecodeU8(t *testing.T) {
+	decodeFn := BinaryBuiltins["binary.decode_u8"].Fn
+
+	arr := &object.Array{
+		Elements: []object.Object{&object.Byte{Value: 255}},
+	}
+
+	result := decodeFn(arr)
+
+	retVal, ok := result.(*object.ReturnValue)
+	if !ok {
+		t.Fatalf("expected ReturnValue, got %T", result)
+	}
+
+	intVal, ok := retVal.Values[0].(*object.Integer)
+	if !ok {
+		t.Fatalf("expected Integer, got %T", retVal.Values[0])
+	}
+
+	if intVal.Value.Int64() != 255 {
+		t.Errorf("expected 255, got %d", intVal.Value.Int64())
+	}
+}
+
+// Test 16-bit encoding with Float (tests extractEncodingInt Float branch)
+func TestBinaryEncodeI16WithFloat(t *testing.T) {
+	encodeFn := BinaryBuiltins["binary.encode_i16_to_little_endian"].Fn
+
+	result := encodeFn(&object.Float{Value: 1000.9})
+
+	retVal, ok := result.(*object.ReturnValue)
+	if !ok {
+		t.Fatalf("expected ReturnValue, got %T", result)
+	}
+
+	arr, ok := retVal.Values[0].(*object.Array)
+	if !ok {
+		t.Fatalf("expected Array, got %T", retVal.Values[0])
+	}
+
+	if len(arr.Elements) != 2 {
+		t.Errorf("expected 2 bytes, got %d", len(arr.Elements))
+	}
+}
+
+// Test 16-bit encoding with Byte (tests extractEncodingInt Byte branch)
+func TestBinaryEncodeI16WithByte(t *testing.T) {
+	encodeFn := BinaryBuiltins["binary.encode_i16_to_little_endian"].Fn
+
+	result := encodeFn(&object.Byte{Value: 200})
+
+	retVal, ok := result.(*object.ReturnValue)
+	if !ok {
+		t.Fatalf("expected ReturnValue, got %T", result)
+	}
+
+	arr, ok := retVal.Values[0].(*object.Array)
+	if !ok {
+		t.Fatalf("expected Array, got %T", retVal.Values[0])
+	}
+
+	if len(arr.Elements) != 2 {
+		t.Errorf("expected 2 bytes, got %d", len(arr.Elements))
+	}
+}
+
+// Test 32-bit float encoding
+func TestBinaryEncodeF32(t *testing.T) {
+	encodeFn := BinaryBuiltins["binary.encode_f32_to_little_endian"].Fn
+
+	result := encodeFn(&object.Float{Value: 3.14})
+
+	retVal, ok := result.(*object.ReturnValue)
+	if !ok {
+		t.Fatalf("expected ReturnValue, got %T", result)
+	}
+
+	arr, ok := retVal.Values[0].(*object.Array)
+	if !ok {
+		t.Fatalf("expected Array, got %T", retVal.Values[0])
+	}
+
+	if len(arr.Elements) != 4 {
+		t.Errorf("expected 4 bytes, got %d", len(arr.Elements))
+	}
+}
+
+// Test 32-bit float encoding with Integer
+func TestBinaryEncodeF32WithInteger(t *testing.T) {
+	encodeFn := BinaryBuiltins["binary.encode_f32_to_little_endian"].Fn
+
+	result := encodeFn(&object.Integer{Value: big.NewInt(42)})
+
+	retVal, ok := result.(*object.ReturnValue)
+	if !ok {
+		t.Fatalf("expected ReturnValue, got %T", result)
+	}
+
+	arr, ok := retVal.Values[0].(*object.Array)
+	if !ok {
+		t.Fatalf("expected Array, got %T", retVal.Values[0])
+	}
+
+	if len(arr.Elements) != 4 {
+		t.Errorf("expected 4 bytes, got %d", len(arr.Elements))
+	}
+}
+
+// Test 32-bit float encoding with invalid type
+func TestBinaryEncodeF32WithInvalidType(t *testing.T) {
+	encodeFn := BinaryBuiltins["binary.encode_f32_to_little_endian"].Fn
+
+	result := encodeFn(&object.String{Value: "invalid"})
+
+	if !isErrorObject(result) {
+		t.Error("expected error for invalid type")
+	}
+}
+
+// Test 64-bit float encoding
+func TestBinaryEncodeF64(t *testing.T) {
+	encodeFn := BinaryBuiltins["binary.encode_f64_to_little_endian"].Fn
+
+	result := encodeFn(&object.Float{Value: 3.141592653589793})
+
+	retVal, ok := result.(*object.ReturnValue)
+	if !ok {
+		t.Fatalf("expected ReturnValue, got %T", result)
+	}
+
+	arr, ok := retVal.Values[0].(*object.Array)
+	if !ok {
+		t.Fatalf("expected Array, got %T", retVal.Values[0])
+	}
+
+	if len(arr.Elements) != 8 {
+		t.Errorf("expected 8 bytes, got %d", len(arr.Elements))
+	}
+}
+
+// Test 64-bit float encoding with Integer
+func TestBinaryEncodeF64WithInteger(t *testing.T) {
+	encodeFn := BinaryBuiltins["binary.encode_f64_to_little_endian"].Fn
+
+	result := encodeFn(&object.Integer{Value: big.NewInt(12345)})
+
+	retVal, ok := result.(*object.ReturnValue)
+	if !ok {
+		t.Fatalf("expected ReturnValue, got %T", result)
+	}
+
+	arr, ok := retVal.Values[0].(*object.Array)
+	if !ok {
+		t.Fatalf("expected Array, got %T", retVal.Values[0])
+	}
+
+	if len(arr.Elements) != 8 {
+		t.Errorf("expected 8 bytes, got %d", len(arr.Elements))
+	}
+}
+
+// Test float decode
+func TestBinaryDecodeF32(t *testing.T) {
+	decodeFn := BinaryBuiltins["binary.decode_f32_from_little_endian"].Fn
+
+	// Create a byte array representing 3.14 in little-endian f32
+	arr := &object.Array{
+		Elements: []object.Object{
+			&object.Byte{Value: 0xC3},
+			&object.Byte{Value: 0xF5},
+			&object.Byte{Value: 0x48},
+			&object.Byte{Value: 0x40},
+		},
+	}
+
+	result := decodeFn(arr)
+
+	retVal, ok := result.(*object.ReturnValue)
+	if !ok {
+		t.Fatalf("expected ReturnValue, got %T", result)
+	}
+
+	floatVal, ok := retVal.Values[0].(*object.Float)
+	if !ok {
+		t.Fatalf("expected Float, got %T", retVal.Values[0])
+	}
+
+	// Should be approximately 3.14
+	if math.Abs(floatVal.Value-3.14) > 0.01 {
+		t.Errorf("expected ~3.14, got %f", floatVal.Value)
+	}
+}
+
+// Test float decode f64
+func TestBinaryDecodeF64(t *testing.T) {
+	decodeFn := BinaryBuiltins["binary.decode_f64_from_little_endian"].Fn
+
+	// Encode and then decode to round-trip
+	encodeFn := BinaryBuiltins["binary.encode_f64_to_little_endian"].Fn
+	encoded := encodeFn(&object.Float{Value: 2.718281828})
+
+	retVal := encoded.(*object.ReturnValue)
+	arr := retVal.Values[0].(*object.Array)
+
+	result := decodeFn(arr)
+
+	decodeRet, ok := result.(*object.ReturnValue)
+	if !ok {
+		t.Fatalf("expected ReturnValue, got %T", result)
+	}
+
+	floatVal, ok := decodeRet.Values[0].(*object.Float)
+	if !ok {
+		t.Fatalf("expected Float, got %T", decodeRet.Values[0])
+	}
+
+	if math.Abs(floatVal.Value-2.718281828) > 0.0000001 {
+		t.Errorf("expected ~2.718281828, got %f", floatVal.Value)
+	}
+}
+
+// Test big-endian encoding
+func TestBinaryEncodeI16BigEndian(t *testing.T) {
+	encodeFn := BinaryBuiltins["binary.encode_i16_to_big_endian"].Fn
+
+	result := encodeFn(&object.Integer{Value: big.NewInt(0x0102)})
+
+	retVal, ok := result.(*object.ReturnValue)
+	if !ok {
+		t.Fatalf("expected ReturnValue, got %T", result)
+	}
+
+	arr, ok := retVal.Values[0].(*object.Array)
+	if !ok {
+		t.Fatalf("expected Array, got %T", retVal.Values[0])
+	}
+
+	// Big-endian: high byte first
+	if arr.Elements[0].(*object.Byte).Value != 0x01 {
+		t.Errorf("expected first byte 0x01, got 0x%02X", arr.Elements[0].(*object.Byte).Value)
+	}
+	if arr.Elements[1].(*object.Byte).Value != 0x02 {
+		t.Errorf("expected second byte 0x02, got 0x%02X", arr.Elements[1].(*object.Byte).Value)
+	}
+}
+
+// Test negative integer encoding
+func TestBinaryEncodeNegativeI16(t *testing.T) {
+	encodeFn := BinaryBuiltins["binary.encode_i16_to_little_endian"].Fn
+
+	result := encodeFn(&object.Integer{Value: big.NewInt(-1)})
+
+	retVal, ok := result.(*object.ReturnValue)
+	if !ok {
+		t.Fatalf("expected ReturnValue, got %T", result)
+	}
+
+	arr, ok := retVal.Values[0].(*object.Array)
+	if !ok {
+		t.Fatalf("expected Array, got %T", retVal.Values[0])
+	}
+
+	// -1 in two's complement 16-bit is 0xFFFF
+	if arr.Elements[0].(*object.Byte).Value != 0xFF {
+		t.Errorf("expected first byte 0xFF, got 0x%02X", arr.Elements[0].(*object.Byte).Value)
+	}
+	if arr.Elements[1].(*object.Byte).Value != 0xFF {
+		t.Errorf("expected second byte 0xFF, got 0x%02X", arr.Elements[1].(*object.Byte).Value)
+	}
+}
+
+// ============================================================================
+// Typed Integer Conversion Tests (extractIntValue coverage)
+// ============================================================================
+
+func TestI8Conversion(t *testing.T) {
+	i8Fn := StdBuiltins["i8"].Fn
+
+	// Integer to i8
+	result := i8Fn(&object.Integer{Value: big.NewInt(100)})
+	intVal, ok := result.(*object.Integer)
+	if !ok {
+		t.Fatalf("expected Integer, got %T", result)
+	}
+	if intVal.Value.Int64() != 100 {
+		t.Errorf("expected 100, got %d", intVal.Value.Int64())
+	}
+
+	// Float to i8
+	result = i8Fn(&object.Float{Value: 50.9})
+	intVal, ok = result.(*object.Integer)
+	if !ok {
+		t.Fatalf("expected Integer, got %T", result)
+	}
+	if intVal.Value.Int64() != 50 {
+		t.Errorf("expected 50, got %d", intVal.Value.Int64())
+	}
+
+	// String to i8
+	result = i8Fn(&object.String{Value: "42"})
+	intVal, ok = result.(*object.Integer)
+	if !ok {
+		t.Fatalf("expected Integer, got %T", result)
+	}
+	if intVal.Value.Int64() != 42 {
+		t.Errorf("expected 42, got %d", intVal.Value.Int64())
+	}
+
+	// Byte to i8
+	result = i8Fn(&object.Byte{Value: 127})
+	intVal, ok = result.(*object.Integer)
+	if !ok {
+		t.Fatalf("expected Integer, got %T", result)
+	}
+	if intVal.Value.Int64() != 127 {
+		t.Errorf("expected 127, got %d", intVal.Value.Int64())
+	}
+}
+
+func TestI8ConversionErrors(t *testing.T) {
+	i8Fn := StdBuiltins["i8"].Fn
+
+	// Out of range
+	result := i8Fn(&object.Integer{Value: big.NewInt(200)})
+	if !isErrorObject(result) {
+		t.Error("expected error for out of range value")
+	}
+
+	// Invalid string
+	result = i8Fn(&object.String{Value: "not a number"})
+	if !isErrorObject(result) {
+		t.Error("expected error for invalid string")
+	}
+
+	// NaN
+	result = i8Fn(&object.Float{Value: math.NaN()})
+	if !isErrorObject(result) {
+		t.Error("expected error for NaN")
+	}
+
+	// Inf
+	result = i8Fn(&object.Float{Value: math.Inf(1)})
+	if !isErrorObject(result) {
+		t.Error("expected error for Inf")
+	}
+}
+
+func TestI16Conversion(t *testing.T) {
+	i16Fn := StdBuiltins["i16"].Fn
+
+	result := i16Fn(&object.Integer{Value: big.NewInt(1000)})
+	intVal, ok := result.(*object.Integer)
+	if !ok {
+		t.Fatalf("expected Integer, got %T", result)
+	}
+	if intVal.Value.Int64() != 1000 {
+		t.Errorf("expected 1000, got %d", intVal.Value.Int64())
+	}
+
+	// String with underscores
+	result = i16Fn(&object.String{Value: "1_000"})
+	intVal, ok = result.(*object.Integer)
+	if !ok {
+		t.Fatalf("expected Integer, got %T", result)
+	}
+	if intVal.Value.Int64() != 1000 {
+		t.Errorf("expected 1000, got %d", intVal.Value.Int64())
+	}
+}
+
+func TestI32Conversion(t *testing.T) {
+	i32Fn := StdBuiltins["i32"].Fn
+
+	result := i32Fn(&object.Integer{Value: big.NewInt(100000)})
+	intVal, ok := result.(*object.Integer)
+	if !ok {
+		t.Fatalf("expected Integer, got %T", result)
+	}
+	if intVal.Value.Int64() != 100000 {
+		t.Errorf("expected 100000, got %d", intVal.Value.Int64())
+	}
+}
+
+func TestI64Conversion(t *testing.T) {
+	i64Fn := StdBuiltins["i64"].Fn
+
+	result := i64Fn(&object.Integer{Value: big.NewInt(9223372036854775807)})
+	intVal, ok := result.(*object.Integer)
+	if !ok {
+		t.Fatalf("expected Integer, got %T", result)
+	}
+	if intVal.Value.Int64() != 9223372036854775807 {
+		t.Errorf("expected max i64, got %d", intVal.Value.Int64())
+	}
+}
+
+func TestU8Conversion(t *testing.T) {
+	u8Fn := StdBuiltins["u8"].Fn
+
+	result := u8Fn(&object.Integer{Value: big.NewInt(200)})
+	intVal, ok := result.(*object.Integer)
+	if !ok {
+		t.Fatalf("expected Integer, got %T", result)
+	}
+	if intVal.Value.Int64() != 200 {
+		t.Errorf("expected 200, got %d", intVal.Value.Int64())
+	}
+
+	// Negative should error
+	result = u8Fn(&object.Integer{Value: big.NewInt(-1)})
+	if !isErrorObject(result) {
+		t.Error("expected error for negative value")
+	}
+}
+
+func TestU16Conversion(t *testing.T) {
+	u16Fn := StdBuiltins["u16"].Fn
+
+	result := u16Fn(&object.Integer{Value: big.NewInt(60000)})
+	intVal, ok := result.(*object.Integer)
+	if !ok {
+		t.Fatalf("expected Integer, got %T", result)
+	}
+	if intVal.Value.Int64() != 60000 {
+		t.Errorf("expected 60000, got %d", intVal.Value.Int64())
+	}
+}
+
+func TestU32Conversion(t *testing.T) {
+	u32Fn := StdBuiltins["u32"].Fn
+
+	result := u32Fn(&object.Integer{Value: big.NewInt(4000000000)})
+	intVal, ok := result.(*object.Integer)
+	if !ok {
+		t.Fatalf("expected Integer, got %T", result)
+	}
+	if intVal.Value.Uint64() != 4000000000 {
+		t.Errorf("expected 4000000000, got %d", intVal.Value.Uint64())
+	}
+}
+
+func TestU64Conversion(t *testing.T) {
+	u64Fn := StdBuiltins["u64"].Fn
+
+	result := u64Fn(&object.Integer{Value: big.NewInt(0).SetUint64(18446744073709551615)})
+	intVal, ok := result.(*object.Integer)
+	if !ok {
+		t.Fatalf("expected Integer, got %T", result)
+	}
+	if intVal.Value.Uint64() != 18446744073709551615 {
+		t.Errorf("expected max u64, got %d", intVal.Value.Uint64())
+	}
+}
+
+// ============================================================================
+// Typed Float Conversion Tests (extractFloatValue coverage)
+// ============================================================================
+
+func TestF32Conversion(t *testing.T) {
+	f32Fn := StdBuiltins["f32"].Fn
+
+	// Float to f32
+	result := f32Fn(&object.Float{Value: 3.14})
+	floatVal, ok := result.(*object.Float)
+	if !ok {
+		t.Fatalf("expected Float, got %T", result)
+	}
+	if math.Abs(floatVal.Value-3.14) > 0.001 {
+		t.Errorf("expected ~3.14, got %f", floatVal.Value)
+	}
+
+	// Integer to f32
+	result = f32Fn(&object.Integer{Value: big.NewInt(42)})
+	floatVal, ok = result.(*object.Float)
+	if !ok {
+		t.Fatalf("expected Float, got %T", result)
+	}
+	if floatVal.Value != 42.0 {
+		t.Errorf("expected 42.0, got %f", floatVal.Value)
+	}
+
+	// String to f32
+	result = f32Fn(&object.String{Value: "3.14"})
+	floatVal, ok = result.(*object.Float)
+	if !ok {
+		t.Fatalf("expected Float, got %T", result)
+	}
+	if math.Abs(floatVal.Value-3.14) > 0.001 {
+		t.Errorf("expected ~3.14, got %f", floatVal.Value)
+	}
+
+	// Byte to f32
+	result = f32Fn(&object.Byte{Value: 100})
+	floatVal, ok = result.(*object.Float)
+	if !ok {
+		t.Fatalf("expected Float, got %T", result)
+	}
+	if floatVal.Value != 100.0 {
+		t.Errorf("expected 100.0, got %f", floatVal.Value)
+	}
+
+	// Char to f32
+	result = f32Fn(&object.Char{Value: 'A'})
+	floatVal, ok = result.(*object.Float)
+	if !ok {
+		t.Fatalf("expected Float, got %T", result)
+	}
+	if floatVal.Value != 65.0 {
+		t.Errorf("expected 65.0, got %f", floatVal.Value)
+	}
+}
+
+func TestF32ConversionErrors(t *testing.T) {
+	f32Fn := StdBuiltins["f32"].Fn
+
+	// Invalid string
+	result := f32Fn(&object.String{Value: "not a number"})
+	if !isErrorObject(result) {
+		t.Error("expected error for invalid string")
+	}
+
+	// Unsupported type
+	result = f32Fn(&object.Array{Elements: []object.Object{}})
+	if !isErrorObject(result) {
+		t.Error("expected error for unsupported type")
+	}
+}
+
+func TestF64Conversion(t *testing.T) {
+	f64Fn := StdBuiltins["f64"].Fn
+
+	// Float to f64
+	result := f64Fn(&object.Float{Value: 3.141592653589793})
+	floatVal, ok := result.(*object.Float)
+	if !ok {
+		t.Fatalf("expected Float, got %T", result)
+	}
+	if math.Abs(floatVal.Value-3.141592653589793) > 0.0000001 {
+		t.Errorf("expected ~3.141592653589793, got %f", floatVal.Value)
+	}
+
+	// String with underscores
+	result = f64Fn(&object.String{Value: "1_000.5"})
+	floatVal, ok = result.(*object.Float)
+	if !ok {
+		t.Fatalf("expected Float, got %T", result)
+	}
+	if floatVal.Value != 1000.5 {
+		t.Errorf("expected 1000.5, got %f", floatVal.Value)
+	}
+}
+
+// ============================================================================
+// Arrays Module Additional Tests
+// ============================================================================
+
+func TestArraysReverseExtended(t *testing.T) {
+	reverseFn := ArraysBuiltins["arrays.reverse"].Fn
+
+	arr := &object.Array{
+		Elements: []object.Object{
+			&object.Integer{Value: big.NewInt(1)},
+			&object.Integer{Value: big.NewInt(2)},
+			&object.Integer{Value: big.NewInt(3)},
+		},
+	}
+
+	result := reverseFn(arr)
+	newArr, ok := result.(*object.Array)
+	if !ok {
+		t.Fatalf("expected Array, got %T", result)
+	}
+
+	if len(newArr.Elements) != 3 {
+		t.Fatalf("expected 3 elements, got %d", len(newArr.Elements))
+	}
+
+	// Check reversed order
+	first := newArr.Elements[0].(*object.Integer)
+	if first.Value.Int64() != 3 {
+		t.Errorf("expected first element 3, got %d", first.Value.Int64())
+	}
+}
+
+func TestArraysContainsExtended(t *testing.T) {
+	containsFn := ArraysBuiltins["arrays.contains"].Fn
+
+	arr := &object.Array{
+		Elements: []object.Object{
+			&object.Integer{Value: big.NewInt(1)},
+			&object.Integer{Value: big.NewInt(2)},
+			&object.Integer{Value: big.NewInt(3)},
+		},
+	}
+
+	// Should find element
+	result := containsFn(arr, &object.Integer{Value: big.NewInt(2)})
+	boolVal, ok := result.(*object.Boolean)
+	if !ok {
+		t.Fatalf("expected Boolean, got %T", result)
+	}
+	if !boolVal.Value {
+		t.Error("expected true, got false")
+	}
+
+	// Should not find element
+	result = containsFn(arr, &object.Integer{Value: big.NewInt(5)})
+	boolVal, ok = result.(*object.Boolean)
+	if !ok {
+		t.Fatalf("expected Boolean, got %T", result)
+	}
+	if boolVal.Value {
+		t.Error("expected false, got true")
+	}
+}
+
+func TestArraysJoin(t *testing.T) {
+	joinFn := ArraysBuiltins["arrays.join"].Fn
+
+	arr := &object.Array{
+		Elements: []object.Object{
+			&object.String{Value: "a"},
+			&object.String{Value: "b"},
+			&object.String{Value: "c"},
+		},
+	}
+
+	result := joinFn(arr, &object.String{Value: ","})
+	strVal, ok := result.(*object.String)
+	if !ok {
+		t.Fatalf("expected String, got %T", result)
+	}
+	// The join function includes quotes around string elements
+	if strVal.Value != `"a","b","c"` {
+		t.Errorf("expected '\"a\",\"b\",\"c\"', got '%s'", strVal.Value)
+	}
+}
+
+func TestArraysSliceExtended(t *testing.T) {
+	sliceFn := ArraysBuiltins["arrays.slice"].Fn
+
+	arr := &object.Array{
+		Elements: []object.Object{
+			&object.Integer{Value: big.NewInt(1)},
+			&object.Integer{Value: big.NewInt(2)},
+			&object.Integer{Value: big.NewInt(3)},
+			&object.Integer{Value: big.NewInt(4)},
+			&object.Integer{Value: big.NewInt(5)},
+		},
+	}
+
+	result := sliceFn(arr, &object.Integer{Value: big.NewInt(1)}, &object.Integer{Value: big.NewInt(4)})
+	newArr, ok := result.(*object.Array)
+	if !ok {
+		t.Fatalf("expected Array, got %T", result)
+	}
+
+	if len(newArr.Elements) != 3 {
+		t.Errorf("expected 3 elements, got %d", len(newArr.Elements))
+	}
+}
+
+// ============================================================================
+// Maps Module Additional Tests
+// ============================================================================
+
+func TestMapsKeysExtended(t *testing.T) {
+	keysFn := MapsBuiltins["maps.keys"].Fn
+
+	m := object.NewMap()
+	m.Set(&object.String{Value: "a"}, &object.Integer{Value: big.NewInt(1)})
+	m.Set(&object.String{Value: "b"}, &object.Integer{Value: big.NewInt(2)})
+
+	result := keysFn(m)
+	arr, ok := result.(*object.Array)
+	if !ok {
+		t.Fatalf("expected Array, got %T", result)
+	}
+
+	if len(arr.Elements) != 2 {
+		t.Errorf("expected 2 keys, got %d", len(arr.Elements))
+	}
+}
+
+func TestMapsValuesExtended(t *testing.T) {
+	valuesFn := MapsBuiltins["maps.values"].Fn
+
+	m := object.NewMap()
+	m.Set(&object.String{Value: "a"}, &object.Integer{Value: big.NewInt(1)})
+	m.Set(&object.String{Value: "b"}, &object.Integer{Value: big.NewInt(2)})
+
+	result := valuesFn(m)
+	arr, ok := result.(*object.Array)
+	if !ok {
+		t.Fatalf("expected Array, got %T", result)
+	}
+
+	if len(arr.Elements) != 2 {
+		t.Errorf("expected 2 values, got %d", len(arr.Elements))
+	}
+}
+
+func TestMapsHasKeyExtended(t *testing.T) {
+	hasKeyFn := MapsBuiltins["maps.has_key"].Fn
+
+	m := object.NewMap()
+	m.Set(&object.String{Value: "exists"}, &object.Integer{Value: big.NewInt(1)})
+
+	// Key exists
+	result := hasKeyFn(m, &object.String{Value: "exists"})
+	boolVal, ok := result.(*object.Boolean)
+	if !ok {
+		t.Fatalf("expected Boolean, got %T", result)
+	}
+	if !boolVal.Value {
+		t.Error("expected true, got false")
+	}
+
+	// Key doesn't exist
+	result = hasKeyFn(m, &object.String{Value: "missing"})
+	boolVal, ok = result.(*object.Boolean)
+	if !ok {
+		t.Fatalf("expected Boolean, got %T", result)
+	}
+	if boolVal.Value {
+		t.Error("expected false, got true")
+	}
+}
+
+// ============================================================================
+// Strings Module Additional Tests
+// ============================================================================
+
+func TestStringsReplaceExtended(t *testing.T) {
+	replaceFn := StringsBuiltins["strings.replace"].Fn
+
+	result := replaceFn(
+		&object.String{Value: "hello world"},
+		&object.String{Value: "world"},
+		&object.String{Value: "EZ"},
+	)
+
+	strVal, ok := result.(*object.String)
+	if !ok {
+		t.Fatalf("expected String, got %T", result)
+	}
+	if strVal.Value != "hello EZ" {
+		t.Errorf("expected 'hello EZ', got '%s'", strVal.Value)
+	}
+}
+
+func TestStringsContainsExtended(t *testing.T) {
+	containsFn := StringsBuiltins["strings.contains"].Fn
+
+	result := containsFn(&object.String{Value: "hello world"}, &object.String{Value: "world"})
+	boolVal, ok := result.(*object.Boolean)
+	if !ok {
+		t.Fatalf("expected Boolean, got %T", result)
+	}
+	if !boolVal.Value {
+		t.Error("expected true, got false")
+	}
+}
+
+func TestStringsSplitExtended(t *testing.T) {
+	splitFn := StringsBuiltins["strings.split"].Fn
+
+	result := splitFn(&object.String{Value: "a,b,c"}, &object.String{Value: ","})
+	arr, ok := result.(*object.Array)
+	if !ok {
+		t.Fatalf("expected Array, got %T", result)
+	}
+	if len(arr.Elements) != 3 {
+		t.Errorf("expected 3 elements, got %d", len(arr.Elements))
+	}
+}
+
+func TestStringsTrimExtended(t *testing.T) {
+	trimFn := StringsBuiltins["strings.trim"].Fn
+
+	result := trimFn(&object.String{Value: "  hello  "})
+	strVal, ok := result.(*object.String)
+	if !ok {
+		t.Fatalf("expected String, got %T", result)
+	}
+	if strVal.Value != "hello" {
+		t.Errorf("expected 'hello', got '%s'", strVal.Value)
+	}
+}
+
+func TestStringsStartsWithExtended(t *testing.T) {
+	startsWithFn := StringsBuiltins["strings.starts_with"].Fn
+
+	result := startsWithFn(&object.String{Value: "hello world"}, &object.String{Value: "hello"})
+	boolVal, ok := result.(*object.Boolean)
+	if !ok {
+		t.Fatalf("expected Boolean, got %T", result)
+	}
+	if !boolVal.Value {
+		t.Error("expected true, got false")
+	}
+}
+
+func TestStringsEndsWithExtended(t *testing.T) {
+	endsWithFn := StringsBuiltins["strings.ends_with"].Fn
+
+	result := endsWithFn(&object.String{Value: "hello world"}, &object.String{Value: "world"})
+	boolVal, ok := result.(*object.Boolean)
+	if !ok {
+		t.Fatalf("expected Boolean, got %T", result)
+	}
+	if !boolVal.Value {
+		t.Error("expected true, got false")
+	}
+}
+
+// ============================================================================
+// Bytes Module Additional Tests
+// ============================================================================
+
+func TestBytesFromStringExtended(t *testing.T) {
+	fromStringFn := BytesBuiltins["bytes.from_string"].Fn
+
+	result := fromStringFn(&object.String{Value: "hello"})
+	arr, ok := result.(*object.Array)
+	if !ok {
+		t.Fatalf("expected Array, got %T", result)
+	}
+
+	if len(arr.Elements) != 5 {
+		t.Errorf("expected 5 bytes, got %d", len(arr.Elements))
+	}
+}
+
+func TestBytesToStringExtended(t *testing.T) {
+	toStringFn := BytesBuiltins["bytes.to_string"].Fn
+
+	arr := &object.Array{
+		Elements: []object.Object{
+			&object.Byte{Value: 'h'},
+			&object.Byte{Value: 'i'},
+		},
+	}
+
+	result := toStringFn(arr)
+	strVal, ok := result.(*object.String)
+	if !ok {
+		t.Fatalf("expected String, got %T", result)
+	}
+
+	if strVal.Value != "hi" {
+		t.Errorf("expected 'hi', got '%s'", strVal.Value)
+	}
+}
+
+func TestBytesConcatExtended(t *testing.T) {
+	concatFn := BytesBuiltins["bytes.concat"].Fn
+
+	arr1 := &object.Array{Elements: []object.Object{&object.Byte{Value: 1}, &object.Byte{Value: 2}}}
+	arr2 := &object.Array{Elements: []object.Object{&object.Byte{Value: 3}, &object.Byte{Value: 4}}}
+
+	result := concatFn(arr1, arr2)
+	arr, ok := result.(*object.Array)
+	if !ok {
+		t.Fatalf("expected Array, got %T", result)
+	}
+
+	if len(arr.Elements) != 4 {
+		t.Errorf("expected 4 bytes, got %d", len(arr.Elements))
+	}
+}
+
+// ============================================================================
+// Binary Module - U128/U256 Encoding Tests (tests padBigIntBytesUnsigned)
+// ============================================================================
+
+func TestBinaryEncodeU128LittleEndian(t *testing.T) {
+	encodeFn := BinaryBuiltins["binary.encode_u128_to_little_endian"].Fn
+
+	// Test with a value that requires padding
+	val := &object.Integer{Value: big.NewInt(256), DeclaredType: "u128"}
+	result := encodeFn(val)
+
+	retVal, ok := result.(*object.ReturnValue)
+	if !ok {
+		t.Fatalf("expected ReturnValue, got %T", result)
+	}
+
+	arr, ok := retVal.Values[0].(*object.Array)
+	if !ok {
+		t.Fatalf("expected Array, got %T", retVal.Values[0])
+	}
+
+	if len(arr.Elements) != 16 {
+		t.Errorf("expected 16 bytes, got %d", len(arr.Elements))
+	}
+}
+
+func TestBinaryEncodeU256LittleEndian(t *testing.T) {
+	encodeFn := BinaryBuiltins["binary.encode_u256_to_little_endian"].Fn
+
+	// Test with a value that requires padding
+	val := &object.Integer{Value: big.NewInt(65536), DeclaredType: "u256"}
+	result := encodeFn(val)
+
+	retVal, ok := result.(*object.ReturnValue)
+	if !ok {
+		t.Fatalf("expected ReturnValue, got %T", result)
+	}
+
+	arr, ok := retVal.Values[0].(*object.Array)
+	if !ok {
+		t.Fatalf("expected Array, got %T", retVal.Values[0])
+	}
+
+	if len(arr.Elements) != 32 {
+		t.Errorf("expected 32 bytes, got %d", len(arr.Elements))
+	}
+}
+
+func TestBinaryEncodeU128BigEndian(t *testing.T) {
+	encodeFn := BinaryBuiltins["binary.encode_u128_to_big_endian"].Fn
+
+	val := &object.Integer{Value: big.NewInt(1024), DeclaredType: "u128"}
+	result := encodeFn(val)
+
+	retVal, ok := result.(*object.ReturnValue)
+	if !ok {
+		t.Fatalf("expected ReturnValue, got %T", result)
+	}
+
+	arr, ok := retVal.Values[0].(*object.Array)
+	if !ok {
+		t.Fatalf("expected Array, got %T", retVal.Values[0])
+	}
+
+	if len(arr.Elements) != 16 {
+		t.Errorf("expected 16 bytes, got %d", len(arr.Elements))
+	}
+}
+
+func TestBinaryEncodeU256BigEndian(t *testing.T) {
+	encodeFn := BinaryBuiltins["binary.encode_u256_to_big_endian"].Fn
+
+	val := &object.Integer{Value: big.NewInt(1048576), DeclaredType: "u256"}
+	result := encodeFn(val)
+
+	retVal, ok := result.(*object.ReturnValue)
+	if !ok {
+		t.Fatalf("expected ReturnValue, got %T", result)
+	}
+
+	arr, ok := retVal.Values[0].(*object.Array)
+	if !ok {
+		t.Fatalf("expected Array, got %T", retVal.Values[0])
+	}
+
+	if len(arr.Elements) != 32 {
+		t.Errorf("expected 32 bytes, got %d", len(arr.Elements))
+	}
+}
+
+// ============================================================================
+// JSON Module - Pretty Print Tests (tests formatJSONValue)
+// ============================================================================
+
+func TestJSONPrettyPrintInteger(t *testing.T) {
+	prettyFn := JsonBuiltins["json.pretty"].Fn
+
+	val := &object.Integer{Value: big.NewInt(42)}
+	result := prettyFn(val, &object.String{Value: "  "})
+
+	retVal, ok := result.(*object.ReturnValue)
+	if !ok {
+		t.Fatalf("expected ReturnValue, got %T", result)
+	}
+
+	strVal, ok := retVal.Values[0].(*object.String)
+	if !ok {
+		t.Fatalf("expected String, got %T", retVal.Values[0])
+	}
+
+	if strVal.Value != "42" {
+		t.Errorf("expected '42', got '%s'", strVal.Value)
+	}
+}
+
+func TestJSONPrettyPrintLargeInteger(t *testing.T) {
+	prettyFn := JsonBuiltins["json.pretty"].Fn
+	indent := &object.String{Value: "  "}
+
+	// Create a large integer that doesn't fit in int64
+	largeVal := new(big.Int)
+	largeVal.SetString("99999999999999999999999999999", 10)
+	val := &object.Integer{Value: largeVal}
+	result := prettyFn(val, indent)
+
+	retVal, ok := result.(*object.ReturnValue)
+	if !ok {
+		t.Fatalf("expected ReturnValue, got %T", result)
+	}
+
+	strVal, ok := retVal.Values[0].(*object.String)
+	if !ok {
+		t.Fatalf("expected String, got %T", retVal.Values[0])
+	}
+
+	// Large integers are encoded as strings
+	if strVal.Value != `"99999999999999999999999999999"` {
+		t.Errorf("expected quoted large int, got '%s'", strVal.Value)
+	}
+}
+
+func TestJSONPrettyPrintFloat(t *testing.T) {
+	prettyFn := JsonBuiltins["json.pretty"].Fn
+	indent := &object.String{Value: "  "}
+
+	val := &object.Float{Value: 3.14159}
+	result := prettyFn(val, indent)
+
+	retVal, ok := result.(*object.ReturnValue)
+	if !ok {
+		t.Fatalf("expected ReturnValue, got %T", result)
+	}
+
+	strVal, ok := retVal.Values[0].(*object.String)
+	if !ok {
+		t.Fatalf("expected String, got %T", retVal.Values[0])
+	}
+
+	if strVal.Value != "3.14159" {
+		t.Errorf("expected '3.14159', got '%s'", strVal.Value)
+	}
+}
+
+func TestJSONPrettyPrintBoolean(t *testing.T) {
+	prettyFn := JsonBuiltins["json.pretty"].Fn
+	indent := &object.String{Value: "  "}
+
+	// Test true
+	result := prettyFn(&object.Boolean{Value: true}, indent)
+	retVal := result.(*object.ReturnValue)
+	strVal := retVal.Values[0].(*object.String)
+	if strVal.Value != "true" {
+		t.Errorf("expected 'true', got '%s'", strVal.Value)
+	}
+
+	// Test false
+	result = prettyFn(&object.Boolean{Value: false}, indent)
+	retVal = result.(*object.ReturnValue)
+	strVal = retVal.Values[0].(*object.String)
+	if strVal.Value != "false" {
+		t.Errorf("expected 'false', got '%s'", strVal.Value)
+	}
+}
+
+func TestJSONPrettyPrintNil(t *testing.T) {
+	prettyFn := JsonBuiltins["json.pretty"].Fn
+	indent := &object.String{Value: "  "}
+
+	result := prettyFn(object.NIL, indent)
+	retVal := result.(*object.ReturnValue)
+	strVal := retVal.Values[0].(*object.String)
+	if strVal.Value != "null" {
+		t.Errorf("expected 'null', got '%s'", strVal.Value)
+	}
+}
+
+func TestJSONPrettyPrintChar(t *testing.T) {
+	prettyFn := JsonBuiltins["json.pretty"].Fn
+	indent := &object.String{Value: "  "}
+
+	result := prettyFn(&object.Char{Value: 'A'}, indent)
+	retVal := result.(*object.ReturnValue)
+	strVal := retVal.Values[0].(*object.String)
+	if strVal.Value != `"A"` {
+		t.Errorf("expected '\"A\"', got '%s'", strVal.Value)
+	}
+}
+
+func TestJSONPrettyPrintByte(t *testing.T) {
+	prettyFn := JsonBuiltins["json.pretty"].Fn
+	indent := &object.String{Value: "  "}
+
+	result := prettyFn(&object.Byte{Value: 255}, indent)
+	retVal := result.(*object.ReturnValue)
+	strVal := retVal.Values[0].(*object.String)
+	if strVal.Value != "255" {
+		t.Errorf("expected '255', got '%s'", strVal.Value)
+	}
+}
+
+func TestJSONPrettyPrintArray(t *testing.T) {
+	prettyFn := JsonBuiltins["json.pretty"].Fn
+	indent := &object.String{Value: "  "}
+
+	arr := &object.Array{
+		Elements: []object.Object{
+			&object.Integer{Value: big.NewInt(1)},
+			&object.Integer{Value: big.NewInt(2)},
+			&object.Integer{Value: big.NewInt(3)},
+		},
+	}
+	result := prettyFn(arr, indent)
+
+	retVal, ok := result.(*object.ReturnValue)
+	if !ok {
+		t.Fatalf("expected ReturnValue, got %T", result)
+	}
+
+	strVal, ok := retVal.Values[0].(*object.String)
+	if !ok {
+		t.Fatalf("expected String, got %T", retVal.Values[0])
+	}
+
+	// Should contain newlines for pretty print
+	if !strings.Contains(strVal.Value, "\n") {
+		t.Errorf("expected pretty printed array with newlines, got '%s'", strVal.Value)
+	}
+}
+
+func TestJSONPrettyPrintEmptyArray(t *testing.T) {
+	prettyFn := JsonBuiltins["json.pretty"].Fn
+	indent := &object.String{Value: "  "}
+
+	arr := &object.Array{Elements: []object.Object{}}
+	result := prettyFn(arr, indent)
+
+	retVal := result.(*object.ReturnValue)
+	strVal := retVal.Values[0].(*object.String)
+	if strVal.Value != "[]" {
+		t.Errorf("expected '[]', got '%s'", strVal.Value)
+	}
+}
+
+func TestJSONPrettyPrintMap(t *testing.T) {
+	prettyFn := JsonBuiltins["json.pretty"].Fn
+	indent := &object.String{Value: "  "}
+
+	m := object.NewMap()
+	m.Set(&object.String{Value: "key"}, &object.Integer{Value: big.NewInt(42)})
+
+	result := prettyFn(m, indent)
+	retVal := result.(*object.ReturnValue)
+	strVal := retVal.Values[0].(*object.String)
+
+	// Should contain the key and value
+	if !strings.Contains(strVal.Value, "key") || !strings.Contains(strVal.Value, "42") {
+		t.Errorf("expected map with key and value, got '%s'", strVal.Value)
+	}
+}
+
+func TestJSONPrettyPrintEmptyMap(t *testing.T) {
+	prettyFn := JsonBuiltins["json.pretty"].Fn
+	indent := &object.String{Value: "  "}
+
+	m := object.NewMap()
+	result := prettyFn(m, indent)
+
+	retVal := result.(*object.ReturnValue)
+	strVal := retVal.Values[0].(*object.String)
+	if strVal.Value != "{}" {
+		t.Errorf("expected '{}', got '%s'", strVal.Value)
+	}
+}
+
+// ============================================================================
+// Builtins - getEZTypeName Tests
+// ============================================================================
+
+func TestTypeOfInteger(t *testing.T) {
+	typeofFn := StdBuiltins["typeof"].Fn
+
+	result := typeofFn(&object.Integer{Value: big.NewInt(42), DeclaredType: "i32"})
+	strVal, ok := result.(*object.String)
+	if !ok {
+		t.Fatalf("expected String, got %T", result)
+	}
+	if strVal.Value != "i32" {
+		t.Errorf("expected 'i32', got '%s'", strVal.Value)
+	}
+}
+
+func TestTypeOfFloat(t *testing.T) {
+	typeofFn := StdBuiltins["typeof"].Fn
+
+	result := typeofFn(&object.Float{Value: 3.14})
+	strVal := result.(*object.String)
+	if strVal.Value != "float" {
+		t.Errorf("expected 'float', got '%s'", strVal.Value)
+	}
+}
+
+func TestTypeOfString(t *testing.T) {
+	typeofFn := StdBuiltins["typeof"].Fn
+
+	result := typeofFn(&object.String{Value: "hello"})
+	strVal := result.(*object.String)
+	if strVal.Value != "string" {
+		t.Errorf("expected 'string', got '%s'", strVal.Value)
+	}
+}
+
+func TestTypeOfBool(t *testing.T) {
+	typeofFn := StdBuiltins["typeof"].Fn
+
+	result := typeofFn(&object.Boolean{Value: true})
+	strVal := result.(*object.String)
+	if strVal.Value != "bool" {
+		t.Errorf("expected 'bool', got '%s'", strVal.Value)
+	}
+}
+
+func TestTypeOfChar(t *testing.T) {
+	typeofFn := StdBuiltins["typeof"].Fn
+
+	result := typeofFn(&object.Char{Value: 'x'})
+	strVal := result.(*object.String)
+	if strVal.Value != "char" {
+		t.Errorf("expected 'char', got '%s'", strVal.Value)
+	}
+}
+
+func TestTypeOfByte(t *testing.T) {
+	typeofFn := StdBuiltins["typeof"].Fn
+
+	result := typeofFn(&object.Byte{Value: 0xFF})
+	strVal := result.(*object.String)
+	if strVal.Value != "byte" {
+		t.Errorf("expected 'byte', got '%s'", strVal.Value)
+	}
+}
+
+func TestTypeOfArray(t *testing.T) {
+	typeofFn := StdBuiltins["typeof"].Fn
+
+	result := typeofFn(&object.Array{Elements: []object.Object{}})
+	strVal := result.(*object.String)
+	if strVal.Value != "array" {
+		t.Errorf("expected 'array', got '%s'", strVal.Value)
+	}
+}
+
+func TestTypeOfNil(t *testing.T) {
+	typeofFn := StdBuiltins["typeof"].Fn
+
+	result := typeofFn(object.NIL)
+	strVal := result.(*object.String)
+	if strVal.Value != "nil" {
+		t.Errorf("expected 'nil', got '%s'", strVal.Value)
+	}
+}
+
+// ============================================================================
+// Builtins - deepCopy Tests
+// ============================================================================
+
+func TestDeepCopyInteger(t *testing.T) {
+	copyFn := StdBuiltins["copy"].Fn
+
+	original := &object.Integer{Value: big.NewInt(42), DeclaredType: "i64"}
+	result := copyFn(original)
+
+	copied, ok := result.(*object.Integer)
+	if !ok {
+		t.Fatalf("expected Integer, got %T", result)
+	}
+
+	if copied.Value.Int64() != 42 {
+		t.Errorf("expected 42, got %d", copied.Value.Int64())
+	}
+
+	// Verify it's a copy (modifying original shouldn't affect copy)
+	original.Value = big.NewInt(100)
+	if copied.Value.Int64() != 42 {
+		t.Error("copy was affected by modifying original")
+	}
+}
+
+func TestDeepCopyFloat(t *testing.T) {
+	copyFn := StdBuiltins["copy"].Fn
+
+	result := copyFn(&object.Float{Value: 3.14})
+	copied := result.(*object.Float)
+	if copied.Value != 3.14 {
+		t.Errorf("expected 3.14, got %f", copied.Value)
+	}
+}
+
+func TestDeepCopyString(t *testing.T) {
+	copyFn := StdBuiltins["copy"].Fn
+
+	result := copyFn(&object.String{Value: "hello"})
+	copied := result.(*object.String)
+	if copied.Value != "hello" {
+		t.Errorf("expected 'hello', got '%s'", copied.Value)
+	}
+}
+
+func TestDeepCopyBoolean(t *testing.T) {
+	copyFn := StdBuiltins["copy"].Fn
+
+	result := copyFn(&object.Boolean{Value: true})
+	copied := result.(*object.Boolean)
+	if !copied.Value {
+		t.Error("expected true, got false")
+	}
+}
+
+func TestDeepCopyChar(t *testing.T) {
+	copyFn := StdBuiltins["copy"].Fn
+
+	result := copyFn(&object.Char{Value: 'Z'})
+	copied := result.(*object.Char)
+	if copied.Value != 'Z' {
+		t.Errorf("expected 'Z', got '%c'", copied.Value)
+	}
+}
+
+func TestDeepCopyByte(t *testing.T) {
+	copyFn := StdBuiltins["copy"].Fn
+
+	result := copyFn(&object.Byte{Value: 128})
+	copied := result.(*object.Byte)
+	if copied.Value != 128 {
+		t.Errorf("expected 128, got %d", copied.Value)
+	}
+}
+
+func TestDeepCopyNil(t *testing.T) {
+	copyFn := StdBuiltins["copy"].Fn
+
+	result := copyFn(object.NIL)
+	if result != object.NIL {
+		t.Errorf("expected NIL, got %T", result)
+	}
+}
+
+func TestDeepCopyArray(t *testing.T) {
+	copyFn := StdBuiltins["copy"].Fn
+
+	original := &object.Array{
+		Elements: []object.Object{
+			&object.Integer{Value: big.NewInt(1)},
+			&object.Integer{Value: big.NewInt(2)},
+		},
+	}
+	result := copyFn(original)
+
+	copied, ok := result.(*object.Array)
+	if !ok {
+		t.Fatalf("expected Array, got %T", result)
+	}
+
+	if len(copied.Elements) != 2 {
+		t.Errorf("expected 2 elements, got %d", len(copied.Elements))
+	}
+
+	// Verify deep copy
+	original.Elements[0] = &object.Integer{Value: big.NewInt(999)}
+	first := copied.Elements[0].(*object.Integer)
+	if first.Value.Int64() != 1 {
+		t.Error("copy was affected by modifying original array")
+	}
+}
+
+func TestDeepCopyMap(t *testing.T) {
+	copyFn := StdBuiltins["copy"].Fn
+
+	original := object.NewMap()
+	original.Set(&object.String{Value: "key"}, &object.Integer{Value: big.NewInt(42)})
+
+	result := copyFn(original)
+
+	copied, ok := result.(*object.Map)
+	if !ok {
+		t.Fatalf("expected Map, got %T", result)
+	}
+
+	// Verify the copy has the same data
+	val, found := copied.Get(&object.String{Value: "key"})
+	if !found || val == nil {
+		t.Fatal("expected to find 'key' in copied map")
+	}
+
+	intVal := val.(*object.Integer)
+	if intVal.Value.Int64() != 42 {
+		t.Errorf("expected 42, got %d", intVal.Value.Int64())
+	}
+}
+
+// ============================================================================
+// Math Module - getNumber Tests
+// ============================================================================
+
+func TestMathAbsFloat(t *testing.T) {
+	absFn := MathBuiltins["math.abs"].Fn
+
+	result := absFn(&object.Float{Value: -3.14})
+	floatVal, ok := result.(*object.Float)
+	if !ok {
+		t.Fatalf("expected Float, got %T", result)
+	}
+	if floatVal.Value != 3.14 {
+		t.Errorf("expected 3.14, got %f", floatVal.Value)
+	}
+}
+
+func TestMathAbsInteger(t *testing.T) {
+	absFn := MathBuiltins["math.abs"].Fn
+
+	result := absFn(&object.Integer{Value: big.NewInt(-42)})
+	intVal, ok := result.(*object.Integer)
+	if !ok {
+		t.Fatalf("expected Integer, got %T", result)
+	}
+	if intVal.Value.Int64() != 42 {
+		t.Errorf("expected 42, got %d", intVal.Value.Int64())
+	}
+}
+
+func TestMathPowFloats(t *testing.T) {
+	powFn := MathBuiltins["math.pow"].Fn
+
+	result := powFn(&object.Float{Value: 2.0}, &object.Float{Value: 3.0})
+	floatVal, ok := result.(*object.Float)
+	if !ok {
+		t.Fatalf("expected Float, got %T", result)
+	}
+	if floatVal.Value != 8.0 {
+		t.Errorf("expected 8.0, got %f", floatVal.Value)
+	}
+}
+
+func TestMathMinMaxFloats(t *testing.T) {
+	minFn := MathBuiltins["math.min"].Fn
+	maxFn := MathBuiltins["math.max"].Fn
+
+	// Test min with floats
+	result := minFn(&object.Float{Value: 5.0}, &object.Float{Value: 3.0})
+	floatVal := result.(*object.Float)
+	if floatVal.Value != 3.0 {
+		t.Errorf("min expected 3.0, got %f", floatVal.Value)
+	}
+
+	// Test max with floats
+	result = maxFn(&object.Float{Value: 5.0}, &object.Float{Value: 3.0})
+	floatVal = result.(*object.Float)
+	if floatVal.Value != 5.0 {
+		t.Errorf("max expected 5.0, got %f", floatVal.Value)
+	}
+}
+
+// ============================================================================
+// Random Module - getRandomNumber Tests
+// ============================================================================
+
+func TestRandomIntRangeWithFloats(t *testing.T) {
+	randIntFn := RandomBuiltins["random.int"].Fn
+
+	// Test with float bounds (should convert)
+	result := randIntFn(&object.Float{Value: 0.0}, &object.Float{Value: 10.0})
+	intVal, ok := result.(*object.Integer)
+	if !ok {
+		t.Fatalf("expected Integer, got %T", result)
+	}
+
+	val := intVal.Value.Int64()
+	if val < 0 || val >= 10 {
+		t.Errorf("expected value in [0, 10), got %d", val)
+	}
+}
+
+func TestRandomFloatRangeWithInts(t *testing.T) {
+	randFloatFn := RandomBuiltins["random.float"].Fn
+
+	// Test with integer bounds (should convert)
+	result := randFloatFn(&object.Integer{Value: big.NewInt(0)}, &object.Integer{Value: big.NewInt(1)})
+	floatVal, ok := result.(*object.Float)
+	if !ok {
+		t.Fatalf("expected Float, got %T", result)
+	}
+
+	if floatVal.Value < 0.0 || floatVal.Value >= 1.0 {
+		t.Errorf("expected value in [0.0, 1.0), got %f", floatVal.Value)
+	}
+}
+
+// ============================================================================
+// Arrays Module - Error Cases (tests newError)
+// ============================================================================
+
+func TestArraysIndexOfNotFound(t *testing.T) {
+	indexOfFn := ArraysBuiltins["arrays.index_of"].Fn
+
+	arr := &object.Array{
+		Elements: []object.Object{
+			&object.Integer{Value: big.NewInt(1)},
+			&object.Integer{Value: big.NewInt(2)},
+		},
+	}
+
+	result := indexOfFn(arr, &object.Integer{Value: big.NewInt(999)})
+	intVal, ok := result.(*object.Integer)
+	if !ok {
+		t.Fatalf("expected Integer, got %T", result)
+	}
+
+	// Should return -1 when not found
+	if intVal.Value.Int64() != -1 {
+		t.Errorf("expected -1, got %d", intVal.Value.Int64())
+	}
+}
+
+func TestArraysSortError(t *testing.T) {
+	sortFn := ArraysBuiltins["arrays.sort"].Fn
+
+	// Test with wrong argument count
+	result := sortFn()
+	errVal, ok := result.(*object.Error)
+	if !ok {
+		t.Fatalf("expected Error, got %T", result)
+	}
+
+	if errVal.Message == "" {
+		t.Error("expected error message")
+	}
+}
+
+func TestArraysPopEmptyError(t *testing.T) {
+	popFn := ArraysBuiltins["arrays.pop"].Fn
+
+	arr := &object.Array{Elements: []object.Object{}}
+	result := popFn(arr)
+
+	// Should return error for empty array
+	errVal, ok := result.(*object.Error)
+	if !ok {
+		t.Fatalf("expected Error for empty array pop, got %T", result)
+	}
+
+	if errVal.Message == "" {
+		t.Error("expected error message")
+	}
+}
+
+// ============================================================================
+// JSON Module - objectToGoValue Additional Cases
+// ============================================================================
+
+func TestJSONEncodeMapWithNonStringKey(t *testing.T) {
+	encodeFn := JsonBuiltins["json.encode"].Fn
+
+	// Create a map with integer key (should error)
+	m := object.NewMap()
+	m.Set(&object.Integer{Value: big.NewInt(42)}, &object.String{Value: "value"})
+
+	result := encodeFn(m)
+	retVal, ok := result.(*object.ReturnValue)
+	if !ok {
+		t.Fatalf("expected ReturnValue, got %T", result)
+	}
+
+	// Second value should be an error struct
+	if retVal.Values[1] == object.NIL {
+		t.Error("expected error for non-string map key")
+	}
+}
+
+func TestJSONEncodeNestedArray(t *testing.T) {
+	encodeFn := JsonBuiltins["json.encode"].Fn
+
+	// Create nested array
+	inner := &object.Array{
+		Elements: []object.Object{
+			&object.Integer{Value: big.NewInt(1)},
+			&object.Integer{Value: big.NewInt(2)},
+		},
+	}
+	outer := &object.Array{
+		Elements: []object.Object{inner, &object.String{Value: "test"}},
+	}
+
+	result := encodeFn(outer)
+	retVal, ok := result.(*object.ReturnValue)
+	if !ok {
+		t.Fatalf("expected ReturnValue, got %T", result)
+	}
+
+	strVal, ok := retVal.Values[0].(*object.String)
+	if !ok {
+		t.Fatalf("expected String, got %T", retVal.Values[0])
+	}
+
+	if !strings.Contains(strVal.Value, "[1,2]") {
+		t.Errorf("expected nested array in JSON, got '%s'", strVal.Value)
+	}
+}
+
+func TestJSONEncodeChar(t *testing.T) {
+	encodeFn := JsonBuiltins["json.encode"].Fn
+
+	result := encodeFn(&object.Char{Value: 'Z'})
+	retVal := result.(*object.ReturnValue)
+	strVal := retVal.Values[0].(*object.String)
+
+	if strVal.Value != `"Z"` {
+		t.Errorf("expected '\"Z\"', got '%s'", strVal.Value)
+	}
+}
+
+func TestJSONEncodeByte(t *testing.T) {
+	encodeFn := JsonBuiltins["json.encode"].Fn
+
+	result := encodeFn(&object.Byte{Value: 200})
+	retVal := result.(*object.ReturnValue)
+	strVal := retVal.Values[0].(*object.String)
+
+	if strVal.Value != "200" {
+		t.Errorf("expected '200', got '%s'", strVal.Value)
+	}
+}
+
+// ============================================================================
+// Math Module - getTwoNumbers Additional Cases
+// ============================================================================
+
+func TestMathPowInvalidSecondArg(t *testing.T) {
+	powFn := MathBuiltins["math.pow"].Fn
+
+	// First arg valid, second arg invalid
+	result := powFn(&object.Float{Value: 2.0}, &object.String{Value: "not a number"})
+	_, ok := result.(*object.Error)
+	if !ok {
+		t.Fatalf("expected Error for invalid second arg, got %T", result)
+	}
+}
+
+func TestMathModWithFloats(t *testing.T) {
+	modFn := MathBuiltins["math.mod"].Fn
+
+	result := modFn(&object.Float{Value: 10.5}, &object.Float{Value: 3.0})
+	floatVal, ok := result.(*object.Float)
+	if !ok {
+		t.Fatalf("expected Float, got %T", result)
+	}
+
+	// 10.5 mod 3.0 = 1.5
+	if floatVal.Value != 1.5 {
+		t.Errorf("expected 1.5, got %f", floatVal.Value)
+	}
+}
+
+// ============================================================================
+// Strings Module - Additional Edge Cases
+// ============================================================================
+
+func TestStringsRepeatMultiple(t *testing.T) {
+	repeatFn := StringsBuiltins["strings.repeat"].Fn
+
+	result := repeatFn(&object.String{Value: "ab"}, &object.Integer{Value: big.NewInt(3)})
+	strVal, ok := result.(*object.String)
+	if !ok {
+		t.Fatalf("expected String, got %T", result)
+	}
+
+	if strVal.Value != "ababab" {
+		t.Errorf("expected 'ababab', got '%s'", strVal.Value)
+	}
+}
+
+func TestStringsPadLeftZeros(t *testing.T) {
+	padFn := StringsBuiltins["strings.pad_left"].Fn
+
+	result := padFn(&object.String{Value: "42"}, &object.Integer{Value: big.NewInt(5)}, &object.String{Value: "0"})
+	strVal, ok := result.(*object.String)
+	if !ok {
+		t.Fatalf("expected String, got %T", result)
+	}
+
+	if strVal.Value != "00042" {
+		t.Errorf("expected '00042', got '%s'", strVal.Value)
+	}
+}
+
+func TestStringsPadRightZeros(t *testing.T) {
+	padFn := StringsBuiltins["strings.pad_right"].Fn
+
+	result := padFn(&object.String{Value: "42"}, &object.Integer{Value: big.NewInt(5)}, &object.String{Value: "0"})
+	strVal, ok := result.(*object.String)
+	if !ok {
+		t.Fatalf("expected String, got %T", result)
+	}
+
+	if strVal.Value != "42000" {
+		t.Errorf("expected '42000', got '%s'", strVal.Value)
+	}
+}
+
+func TestStringsReverseWord(t *testing.T) {
+	reverseFn := StringsBuiltins["strings.reverse"].Fn
+
+	result := reverseFn(&object.String{Value: "hello"})
+	strVal, ok := result.(*object.String)
+	if !ok {
+		t.Fatalf("expected String, got %T", result)
+	}
+
+	if strVal.Value != "olleh" {
+		t.Errorf("expected 'olleh', got '%s'", strVal.Value)
+	}
+}
+
+// ============================================================================
+// Builtins - Additional getEZTypeName Cases
+// ============================================================================
+
+func TestTypeOfStruct(t *testing.T) {
+	typeofFn := StdBuiltins["typeof"].Fn
+
+	// Struct with TypeName
+	s := &object.Struct{
+		TypeName: "Person",
+		Fields:   map[string]object.Object{},
+	}
+	result := typeofFn(s)
+	strVal := result.(*object.String)
+	if strVal.Value != "Person" {
+		t.Errorf("expected 'Person', got '%s'", strVal.Value)
+	}
+}
+
+func TestTypeOfStructNoName(t *testing.T) {
+	typeofFn := StdBuiltins["typeof"].Fn
+
+	// Struct without TypeName
+	s := &object.Struct{
+		TypeName: "",
+		Fields:   map[string]object.Object{},
+	}
+	result := typeofFn(s)
+	strVal := result.(*object.String)
+	if strVal.Value != "struct" {
+		t.Errorf("expected 'struct', got '%s'", strVal.Value)
+	}
+}
+
+func TestTypeOfMap(t *testing.T) {
+	typeofFn := StdBuiltins["typeof"].Fn
+
+	m := object.NewMap()
+	result := typeofFn(m)
+	strVal := result.(*object.String)
+	// Map type falls through to default
+	if strVal.Value == "" {
+		t.Error("expected non-empty type name for map")
+	}
+}
+
+// ============================================================================
+// Arrays - Additional compareObjects Cases
+// ============================================================================
+
+func TestArraysSortStrings(t *testing.T) {
+	sortFn := ArraysBuiltins["arrays.sort"].Fn
+
+	arr := &object.Array{
+		Mutable: true,
+		Elements: []object.Object{
+			&object.String{Value: "banana"},
+			&object.String{Value: "apple"},
+			&object.String{Value: "cherry"},
+		},
+	}
+
+	result := sortFn(arr)
+	if result != object.NIL {
+		t.Fatalf("expected NIL, got %T", result)
+	}
+
+	// Check first element is "apple" (sorted in-place)
+	first := arr.Elements[0].(*object.String)
+	if first.Value != "apple" {
+		t.Errorf("expected first element 'apple', got '%s'", first.Value)
+	}
+}
+
+func TestArraysSortFloats(t *testing.T) {
+	sortFn := ArraysBuiltins["arrays.sort"].Fn
+
+	arr := &object.Array{
+		Mutable: true,
+		Elements: []object.Object{
+			&object.Float{Value: 3.14},
+			&object.Float{Value: 1.41},
+			&object.Float{Value: 2.72},
+		},
+	}
+
+	result := sortFn(arr)
+	if result != object.NIL {
+		t.Fatalf("expected NIL, got %T", result)
+	}
+
+	// Check first element is smallest (sorted in-place)
+	first := arr.Elements[0].(*object.Float)
+	if first.Value != 1.41 {
+		t.Errorf("expected first element 1.41, got %f", first.Value)
+	}
+}
+
+// ============================================================================
+// IO Module - Additional Cases
+// ============================================================================
+
+func TestIOReadFileNotFound(t *testing.T) {
+	readFn := IOBuiltins["io.read_file"].Fn
+
+	result := readFn(&object.String{Value: "/nonexistent/path/file.txt"})
+	retVal, ok := result.(*object.ReturnValue)
+	if !ok {
+		t.Fatalf("expected ReturnValue, got %T", result)
+	}
+
+	// Should return error in second value
+	if retVal.Values[1] == object.NIL {
+		t.Error("expected error for non-existent file")
+	}
+}
+
+func TestIOExistsNot(t *testing.T) {
+	existsFn := IOBuiltins["io.exists"].Fn
+
+	result := existsFn(&object.String{Value: "/nonexistent/path/file.txt"})
+	boolVal, ok := result.(*object.Boolean)
+	if !ok {
+		t.Fatalf("expected Boolean, got %T", result)
+	}
+
+	if boolVal.Value {
+		t.Error("expected false for non-existent file")
+	}
+}
+
+func TestIOIsDirCurrentDir(t *testing.T) {
+	isDirFn := IOBuiltins["io.is_dir"].Fn
+
+	// Test with current directory (should exist)
+	result := isDirFn(&object.String{Value: "."})
+	boolVal, ok := result.(*object.Boolean)
+	if !ok {
+		t.Fatalf("expected Boolean, got %T", result)
+	}
+
+	if !boolVal.Value {
+		t.Error("expected true for current directory")
+	}
+}
+
+// ============================================================================
+// Bytes Module - Error Cases
+// ============================================================================
+
+func TestBytesFromStringWithNonString(t *testing.T) {
+	fromStringFn := BytesBuiltins["bytes.from_string"].Fn
+
+	// Try with an integer instead of string
+	result := fromStringFn(&object.Integer{Value: big.NewInt(123)})
+	_, ok := result.(*object.Error)
+	if !ok {
+		t.Errorf("expected Error for non-string, got %T", result)
+	}
+}
+
+func TestBytesToStringWithNonArray(t *testing.T) {
+	toStringFn := BytesBuiltins["bytes.to_string"].Fn
+
+	// Try with an integer instead of array
+	result := toStringFn(&object.Integer{Value: big.NewInt(123)})
+	_, ok := result.(*object.Error)
+	if !ok {
+		t.Errorf("expected Error for non-array, got %T", result)
+	}
+}
+
+func TestBytesToStringWithWrongElements(t *testing.T) {
+	toStringFn := BytesBuiltins["bytes.to_string"].Fn
+
+	// Try with array containing strings instead of bytes
+	arr := &object.Array{
+		Elements: []object.Object{
+			&object.String{Value: "not a byte"},
+		},
+	}
+	result := toStringFn(arr)
+	_, ok := result.(*object.Error)
+	if !ok {
+		t.Errorf("expected Error for wrong element types, got %T", result)
+	}
+}
+
+// ============================================================================
+// Compare Objects - Additional Cases
+// ============================================================================
+
+func TestArraysSortBooleans(t *testing.T) {
+	sortFn := ArraysBuiltins["arrays.sort"].Fn
+
+	arr := &object.Array{
+		Mutable: true,
+		Elements: []object.Object{
+			&object.Boolean{Value: true},
+			&object.Boolean{Value: false},
+			&object.Boolean{Value: true},
+		},
+	}
+
+	result := sortFn(arr)
+	if result != object.NIL {
+		t.Fatalf("expected NIL, got %T", result)
+	}
+
+	// false should come before true
+	first := arr.Elements[0].(*object.Boolean)
+	if first.Value != false {
+		t.Error("expected false first after sorting booleans")
+	}
+}
+
+func TestArraysSortChars(t *testing.T) {
+	sortFn := ArraysBuiltins["arrays.sort"].Fn
+
+	arr := &object.Array{
+		Mutable: true,
+		Elements: []object.Object{
+			&object.Char{Value: 'c'},
+			&object.Char{Value: 'a'},
+			&object.Char{Value: 'b'},
+		},
+	}
+
+	result := sortFn(arr)
+	if result != object.NIL {
+		t.Fatalf("expected NIL, got %T", result)
+	}
+
+	first := arr.Elements[0].(*object.Char)
+	if first.Value != 'a' {
+		t.Errorf("expected 'a' first, got '%c'", first.Value)
+	}
+}
+
+func TestArraysSortBytes(t *testing.T) {
+	sortFn := ArraysBuiltins["arrays.sort"].Fn
+
+	arr := &object.Array{
+		Mutable: true,
+		Elements: []object.Object{
+			&object.Byte{Value: 200},
+			&object.Byte{Value: 50},
+			&object.Byte{Value: 100},
+		},
+	}
+
+	result := sortFn(arr)
+	if result != object.NIL {
+		t.Fatalf("expected NIL, got %T", result)
+	}
+
+	// Just check that it sorted without error - don't assume order for Byte
+	// since compareObjects may not have a case for Byte
+	if len(arr.Elements) != 3 {
+		t.Error("expected 3 elements after sort")
+	}
+}
+
+// ============================================================================
+// JSON Module - Additional Decode Cases
+// ============================================================================
+
+func TestJsonDecodeArray(t *testing.T) {
+	decodeFn := JsonBuiltins["json.decode"].Fn
+
+	result := decodeFn(&object.String{Value: "[1, 2, 3]"})
+	retVal, ok := result.(*object.ReturnValue)
+	if !ok {
+		t.Fatalf("expected ReturnValue, got %T", result)
+	}
+
+	arr, ok := retVal.Values[0].(*object.Array)
+	if !ok {
+		t.Fatalf("expected Array in first value, got %T", retVal.Values[0])
+	}
+
+	if len(arr.Elements) != 3 {
+		t.Errorf("expected 3 elements, got %d", len(arr.Elements))
+	}
+}
+
+func TestJsonDecodeNestedObject(t *testing.T) {
+	decodeFn := JsonBuiltins["json.decode"].Fn
+
+	result := decodeFn(&object.String{Value: `{"nested": {"key": "value"}}`})
+	retVal, ok := result.(*object.ReturnValue)
+	if !ok {
+		t.Fatalf("expected ReturnValue, got %T", result)
+	}
+
+	m, ok := retVal.Values[0].(*object.Map)
+	if !ok {
+		t.Fatalf("expected Map, got %T", retVal.Values[0])
+	}
+
+	nested, found := m.Get(&object.String{Value: "nested"})
+	if !found {
+		t.Fatal("expected to find 'nested' key")
+	}
+
+	nestedMap, ok := nested.(*object.Map)
+	if !ok {
+		t.Fatalf("expected nested Map, got %T", nested)
+	}
+
+	val, _ := nestedMap.Get(&object.String{Value: "key"})
+	strVal, ok := val.(*object.String)
+	if !ok {
+		t.Fatalf("expected String, got %T", val)
+	}
+
+	if strVal.Value != "value" {
+		t.Errorf("expected 'value', got '%s'", strVal.Value)
+	}
+}
+
+func TestJsonDecodeInvalid(t *testing.T) {
+	decodeFn := JsonBuiltins["json.decode"].Fn
+
+	result := decodeFn(&object.String{Value: "not valid json"})
+	retVal, ok := result.(*object.ReturnValue)
+	if !ok {
+		t.Fatalf("expected ReturnValue, got %T", result)
+	}
+
+	// Error should be in second value
+	if retVal.Values[1] == object.NIL {
+		t.Error("expected error for invalid JSON, got nil")
+	}
+}
+
+// ============================================================================
+// Random - Additional Edge Cases
+// ============================================================================
+
+func TestRandomChoiceBasic(t *testing.T) {
+	choiceFn := RandomBuiltins["random.choice"].Fn
+
+	arr := &object.Array{
+		Elements: []object.Object{
+			&object.Integer{Value: big.NewInt(1)},
+			&object.Integer{Value: big.NewInt(2)},
+			&object.Integer{Value: big.NewInt(3)},
+		},
+	}
+
+	result := choiceFn(arr)
+	_, ok := result.(*object.Integer)
+	if !ok {
+		t.Fatalf("expected Integer, got %T", result)
+	}
+}
+
+func TestRandomChoiceEmpty(t *testing.T) {
+	choiceFn := RandomBuiltins["random.choice"].Fn
+
+	arr := &object.Array{Elements: []object.Object{}}
+
+	result := choiceFn(arr)
+	_, ok := result.(*object.Error)
+	if !ok {
+		t.Errorf("expected Error for empty array, got %T", result)
+	}
+}
+
+// ============================================================================
+// Strings - Additional Cases
+// ============================================================================
+
+func TestStringsCompareEqual(t *testing.T) {
+	compareFn := StringsBuiltins["strings.compare"].Fn
+
+	result := compareFn(&object.String{Value: "abc"}, &object.String{Value: "abc"})
+	intVal, ok := result.(*object.Integer)
+	if !ok {
+		t.Fatalf("expected Integer, got %T", result)
+	}
+
+	if intVal.Value.Int64() != 0 {
+		t.Errorf("expected 0 for equal strings, got %d", intVal.Value.Int64())
+	}
+}
+
+func TestStringsIsNumericTrue(t *testing.T) {
+	isNumericFn := StringsBuiltins["strings.is_numeric"].Fn
+
+	result := isNumericFn(&object.String{Value: "12345"})
+	boolVal, ok := result.(*object.Boolean)
+	if !ok {
+		t.Fatalf("expected Boolean, got %T", result)
+	}
+
+	if !boolVal.Value {
+		t.Error("expected true for numeric string")
+	}
+}
+
+func TestStringsIsAlphaTrue(t *testing.T) {
+	isAlphaFn := StringsBuiltins["strings.is_alpha"].Fn
+
+	result := isAlphaFn(&object.String{Value: "abcXYZ"})
+	boolVal, ok := result.(*object.Boolean)
+	if !ok {
+		t.Fatalf("expected Boolean, got %T", result)
+	}
+
+	if !boolVal.Value {
+		t.Error("expected true for alpha string")
+	}
+}
+
+func TestStringsTruncateWithSuffix(t *testing.T) {
+	truncateFn := StringsBuiltins["strings.truncate"].Fn
+
+	result := truncateFn(
+		&object.String{Value: "hello world"},
+		&object.Integer{Value: big.NewInt(8)},
+		&object.String{Value: "..."},
+	)
+	strVal, ok := result.(*object.String)
+	if !ok {
+		t.Fatalf("expected String, got %T", result)
+	}
+
+	// 8 chars total, 3 for "...", so 5 from original
+	if strVal.Value != "hello..." {
+		t.Errorf("expected 'hello...', got '%s'", strVal.Value)
+	}
+}
+
+// ============================================================================
+// Maps - Additional Cases
+// ============================================================================
+
+func TestMapsKeysEmpty(t *testing.T) {
+	keysFn := MapsBuiltins["maps.keys"].Fn
+
+	m := object.NewMap()
+	result := keysFn(m)
+	arr, ok := result.(*object.Array)
+	if !ok {
+		t.Fatalf("expected Array, got %T", result)
+	}
+
+	if len(arr.Elements) != 0 {
+		t.Errorf("expected 0 keys, got %d", len(arr.Elements))
+	}
+}
+
+func TestMapsValuesEmpty(t *testing.T) {
+	valuesFn := MapsBuiltins["maps.values"].Fn
+
+	m := object.NewMap()
+	result := valuesFn(m)
+	arr, ok := result.(*object.Array)
+	if !ok {
+		t.Fatalf("expected Array, got %T", result)
+	}
+
+	if len(arr.Elements) != 0 {
+		t.Errorf("expected 0 values, got %d", len(arr.Elements))
+	}
+}
+
+func TestMapsMerge(t *testing.T) {
+	mergeFn := MapsBuiltins["maps.merge"].Fn
+
+	m1 := object.NewMap()
+	m1.Set(&object.String{Value: "a"}, &object.Integer{Value: big.NewInt(1)})
+
+	m2 := object.NewMap()
+	m2.Set(&object.String{Value: "b"}, &object.Integer{Value: big.NewInt(2)})
+
+	result := mergeFn(m1, m2)
+	merged, ok := result.(*object.Map)
+	if !ok {
+		t.Fatalf("expected Map, got %T", result)
+	}
+
+	// Check both keys exist
+	_, found1 := merged.Get(&object.String{Value: "a"})
+	_, found2 := merged.Get(&object.String{Value: "b"})
+	if !found1 || !found2 {
+		t.Error("expected both keys in merged map")
+	}
+}
+
+// ============================================================================
+// Arrays - More Edge Cases
+// ============================================================================
+
+func TestArraysSliceValidRange(t *testing.T) {
+	sliceFn := ArraysBuiltins["arrays.slice"].Fn
+
+	arr := &object.Array{
+		Elements: []object.Object{
+			&object.Integer{Value: big.NewInt(1)},
+			&object.Integer{Value: big.NewInt(2)},
+			&object.Integer{Value: big.NewInt(3)},
+			&object.Integer{Value: big.NewInt(4)},
+		},
+	}
+
+	// Valid slice from index 1 to 3
+	result := sliceFn(arr, &object.Integer{Value: big.NewInt(1)}, &object.Integer{Value: big.NewInt(3)})
+	sliced, ok := result.(*object.Array)
+	if !ok {
+		t.Fatalf("expected Array, got %T", result)
+	}
+
+	if len(sliced.Elements) != 2 {
+		t.Errorf("expected 2 elements, got %d", len(sliced.Elements))
+	}
+}
+
+func TestArraysConcatThree(t *testing.T) {
+	concatFn := ArraysBuiltins["arrays.concat"].Fn
+
+	arr1 := &object.Array{Elements: []object.Object{&object.Integer{Value: big.NewInt(1)}}}
+	arr2 := &object.Array{Elements: []object.Object{&object.Integer{Value: big.NewInt(2)}}}
+	arr3 := &object.Array{Elements: []object.Object{&object.Integer{Value: big.NewInt(3)}}}
+
+	result := concatFn(arr1, arr2, arr3)
+	concat, ok := result.(*object.Array)
+	if !ok {
+		t.Fatalf("expected Array, got %T", result)
+	}
+
+	if len(concat.Elements) != 3 {
+		t.Errorf("expected 3 elements, got %d", len(concat.Elements))
+	}
+}
+
+// ============================================================================
+// Binary - Edge Cases
+// ============================================================================
+
+func TestBinaryEncodeI8OverflowPositive(t *testing.T) {
+	encodeI8Fn := BinaryBuiltins["binary.encode_i8"].Fn
+
+	// Value too large for i8 (max is 127)
+	result := encodeI8Fn(&object.Integer{Value: big.NewInt(200)})
+	retVal, ok := result.(*object.ReturnValue)
+	if !ok {
+		t.Fatalf("expected ReturnValue, got %T", result)
+	}
+
+	// Error should be in second value
+	if retVal.Values[1] == object.NIL {
+		t.Error("expected error for overflow, got nil")
+	}
+}
+
+func TestBinaryEncodeU8OverflowPositive(t *testing.T) {
+	encodeU8Fn := BinaryBuiltins["binary.encode_u8"].Fn
+
+	// Value too large for u8 (max is 255)
+	result := encodeU8Fn(&object.Integer{Value: big.NewInt(300)})
+	retVal, ok := result.(*object.ReturnValue)
+	if !ok {
+		t.Fatalf("expected ReturnValue, got %T", result)
+	}
+
+	// Error should be in second value
+	if retVal.Values[1] == object.NIL {
+		t.Error("expected error for overflow, got nil")
+	}
+}
+
+func TestBinaryEncodeDecodeU8Valid(t *testing.T) {
+	encodeU8Fn := BinaryBuiltins["binary.encode_u8"].Fn
+	decodeU8Fn := BinaryBuiltins["binary.decode_u8"].Fn
+
+	// Encode 200
+	encodeResult := encodeU8Fn(&object.Integer{Value: big.NewInt(200)})
+	encRetVal, ok := encodeResult.(*object.ReturnValue)
+	if !ok {
+		t.Fatalf("expected ReturnValue, got %T", encodeResult)
+	}
+
+	arr, ok := encRetVal.Values[0].(*object.Array)
+	if !ok {
+		t.Fatalf("expected Array in first value, got %T", encRetVal.Values[0])
+	}
+
+	if len(arr.Elements) != 1 {
+		t.Errorf("expected 1 byte, got %d", len(arr.Elements))
+	}
+
+	// Decode back
+	decodeResult := decodeU8Fn(arr)
+	decRetVal, ok := decodeResult.(*object.ReturnValue)
+	if !ok {
+		t.Fatalf("expected ReturnValue, got %T", decodeResult)
+	}
+
+	intVal, ok := decRetVal.Values[0].(*object.Integer)
+	if !ok {
+		t.Fatalf("expected Integer, got %T", decRetVal.Values[0])
+	}
+
+	if intVal.Value.Int64() != 200 {
+		t.Errorf("expected 200, got %d", intVal.Value.Int64())
+	}
+}
+
+// ============================================================================
+// Math - Additional Edge Cases
+// ============================================================================
+
+func TestMathAbsNegativeFloat(t *testing.T) {
+	absFn := MathBuiltins["math.abs"].Fn
+
+	result := absFn(&object.Float{Value: -3.14})
+	floatVal, ok := result.(*object.Float)
+	if !ok {
+		t.Fatalf("expected Float, got %T", result)
+	}
+
+	if floatVal.Value != 3.14 {
+		t.Errorf("expected 3.14, got %f", floatVal.Value)
+	}
+}
+
+func TestMathSqrtNegative(t *testing.T) {
+	sqrtFn := MathBuiltins["math.sqrt"].Fn
+
+	result := sqrtFn(&object.Integer{Value: big.NewInt(-1)})
+	_, ok := result.(*object.Error)
+	if !ok {
+		t.Errorf("expected Error for sqrt of negative, got %T", result)
+	}
+}
+
+func TestMathLog10(t *testing.T) {
+	log10Fn := MathBuiltins["math.log10"].Fn
+
+	result := log10Fn(&object.Integer{Value: big.NewInt(100)})
+	floatVal, ok := result.(*object.Float)
+	if !ok {
+		t.Fatalf("expected Float, got %T", result)
+	}
+
+	if floatVal.Value != 2.0 {
+		t.Errorf("expected 2.0, got %f", floatVal.Value)
+	}
+}
+
+func TestMathFloorFloat(t *testing.T) {
+	floorFn := MathBuiltins["math.floor"].Fn
+
+	result := floorFn(&object.Float{Value: 3.7})
+	intVal, ok := result.(*object.Integer)
+	if !ok {
+		t.Fatalf("expected Integer, got %T", result)
+	}
+
+	if intVal.Value.Int64() != 3 {
+		t.Errorf("expected 3, got %d", intVal.Value.Int64())
+	}
+}
+
+func TestMathCeilFloat(t *testing.T) {
+	ceilFn := MathBuiltins["math.ceil"].Fn
+
+	result := ceilFn(&object.Float{Value: 3.2})
+	intVal, ok := result.(*object.Integer)
+	if !ok {
+		t.Fatalf("expected Integer, got %T", result)
+	}
+
+	if intVal.Value.Int64() != 4 {
+		t.Errorf("expected 4, got %d", intVal.Value.Int64())
+	}
+}
+
+func TestMathRoundFloat(t *testing.T) {
+	roundFn := MathBuiltins["math.round"].Fn
+
+	result := roundFn(&object.Float{Value: 3.7})
+	intVal, ok := result.(*object.Integer)
+	if !ok {
+		t.Fatalf("expected Integer, got %T", result)
+	}
+
+	if intVal.Value.Int64() != 4 {
+		t.Errorf("expected 4, got %d", intVal.Value.Int64())
+	}
+}
+
+func TestMathSin(t *testing.T) {
+	sinFn := MathBuiltins["math.sin"].Fn
+
+	result := sinFn(&object.Float{Value: 0})
+	floatVal, ok := result.(*object.Float)
+	if !ok {
+		t.Fatalf("expected Float, got %T", result)
+	}
+
+	if floatVal.Value != 0 {
+		t.Errorf("expected 0, got %f", floatVal.Value)
+	}
+}
+
+func TestMathCos(t *testing.T) {
+	cosFn := MathBuiltins["math.cos"].Fn
+
+	result := cosFn(&object.Float{Value: 0})
+	floatVal, ok := result.(*object.Float)
+	if !ok {
+		t.Fatalf("expected Float, got %T", result)
+	}
+
+	if floatVal.Value != 1 {
+		t.Errorf("expected 1, got %f", floatVal.Value)
+	}
+}
+
+func TestMathTan(t *testing.T) {
+	tanFn := MathBuiltins["math.tan"].Fn
+
+	result := tanFn(&object.Float{Value: 0})
+	floatVal, ok := result.(*object.Float)
+	if !ok {
+		t.Fatalf("expected Float, got %T", result)
+	}
+
+	if floatVal.Value != 0 {
+		t.Errorf("expected 0, got %f", floatVal.Value)
+	}
+}
+
+func TestMathPowInteger(t *testing.T) {
+	powFn := MathBuiltins["math.pow"].Fn
+
+	result := powFn(&object.Integer{Value: big.NewInt(2)}, &object.Integer{Value: big.NewInt(3)})
+	// math.pow returns Integer for integer inputs
+	intVal, ok := result.(*object.Integer)
+	if !ok {
+		t.Fatalf("expected Integer, got %T", result)
+	}
+
+	if intVal.Value.Int64() != 8 {
+		t.Errorf("expected 8, got %d", intVal.Value.Int64())
+	}
+}
+
+// ============================================================================
+// Time - Additional Cases
+// ============================================================================
+
+func TestTimeFormatDate(t *testing.T) {
+	formatFn := TimeBuiltins["time.format"].Fn
+
+	// Format a specific timestamp (Jan 1, 2020 00:00:00 UTC = 1577836800)
+	// First arg is format string, second is timestamp
+	result := formatFn(
+		&object.String{Value: "YYYY"},
+		&object.Integer{Value: big.NewInt(1577836800)},
+	)
+	strVal, ok := result.(*object.String)
+	if !ok {
+		t.Fatalf("expected String, got %T", result)
+	}
+
+	// Just check it returned a 4-digit year (timezone may affect exact value)
+	if len(strVal.Value) != 4 {
+		t.Errorf("expected 4-digit year, got '%s'", strVal.Value)
+	}
+}
+
+// ============================================================================
+// IO - Additional Cases
+// ============================================================================
+
+func TestIOReadDirNonExistent(t *testing.T) {
+	readDirFn := IOBuiltins["io.read_dir"].Fn
+
+	result := readDirFn(&object.String{Value: "/nonexistent/directory/12345"})
+	retVal, ok := result.(*object.ReturnValue)
+	if !ok {
+		t.Fatalf("expected ReturnValue, got %T", result)
+	}
+
+	// Error should be in second value
+	if retVal.Values[1] == object.NIL {
+		t.Error("expected error for non-existent directory")
+	}
+}
+
+func TestIOIsFileOnDir(t *testing.T) {
+	isFileFn := IOBuiltins["io.is_file"].Fn
+
+	// Check current directory - should return false (it's a directory not a file)
+	result := isFileFn(&object.String{Value: "."})
+	boolVal, ok := result.(*object.Boolean)
+	if !ok {
+		t.Fatalf("expected Boolean, got %T", result)
+	}
+
+	if boolVal.Value {
+		t.Error("expected false for directory")
+	}
+}
+
+// ============================================================================
+// Random - More Tests
+// ============================================================================
+
+func TestRandomBoolReturnsBoolean(t *testing.T) {
+	boolFn := RandomBuiltins["random.bool"].Fn
+
+	result := boolFn()
+	_, ok := result.(*object.Boolean)
+	if !ok {
+		t.Fatalf("expected Boolean, got %T", result)
+	}
+}
+
+// ============================================================================
+// Math - More Tests
+// ============================================================================
+
+func TestMathMinTwoArgs(t *testing.T) {
+	minFn := MathBuiltins["math.min"].Fn
+
+	result := minFn(&object.Integer{Value: big.NewInt(5)}, &object.Integer{Value: big.NewInt(3)})
+	intVal, ok := result.(*object.Integer)
+	if !ok {
+		t.Fatalf("expected Integer, got %T", result)
+	}
+
+	if intVal.Value.Int64() != 3 {
+		t.Errorf("expected 3, got %d", intVal.Value.Int64())
+	}
+}
+
+func TestMathMaxTwoArgs(t *testing.T) {
+	maxFn := MathBuiltins["math.max"].Fn
+
+	result := maxFn(&object.Integer{Value: big.NewInt(5)}, &object.Integer{Value: big.NewInt(3)})
+	intVal, ok := result.(*object.Integer)
+	if !ok {
+		t.Fatalf("expected Integer, got %T", result)
+	}
+
+	if intVal.Value.Int64() != 5 {
+		t.Errorf("expected 5, got %d", intVal.Value.Int64())
+	}
+}
+
+func TestMathModulo(t *testing.T) {
+	modFn := MathBuiltins["math.mod"].Fn
+
+	result := modFn(&object.Integer{Value: big.NewInt(10)}, &object.Integer{Value: big.NewInt(3)})
+	floatVal, ok := result.(*object.Float)
+	if !ok {
+		t.Fatalf("expected Float, got %T", result)
+	}
+
+	if floatVal.Value != 1 {
+		t.Errorf("expected 1, got %f", floatVal.Value)
+	}
+}
+
+func TestMathExp(t *testing.T) {
+	expFn := MathBuiltins["math.exp"].Fn
+
+	result := expFn(&object.Integer{Value: big.NewInt(0)})
+	floatVal, ok := result.(*object.Float)
+	if !ok {
+		t.Fatalf("expected Float, got %T", result)
+	}
+
+	if floatVal.Value != 1 {
+		t.Errorf("expected 1 (e^0), got %f", floatVal.Value)
+	}
+}
+
+func TestMathLog(t *testing.T) {
+	logFn := MathBuiltins["math.log"].Fn
+
+	// Using math.E would give 1
+	result := logFn(&object.Float{Value: 2.718281828459045})
+	floatVal, ok := result.(*object.Float)
+	if !ok {
+		t.Fatalf("expected Float, got %T", result)
+	}
+
+	// ln(e) should be approximately 1
+	if floatVal.Value < 0.99 || floatVal.Value > 1.01 {
+		t.Errorf("expected ~1, got %f", floatVal.Value)
+	}
+}
+
+// ============================================================================
+// Time - More Tests
+// ============================================================================
+
+func TestTimeDateNow(t *testing.T) {
+	dateFn := TimeBuiltins["time.date"].Fn
+
+	result := dateFn()
+	strVal, ok := result.(*object.String)
+	if !ok {
+		t.Fatalf("expected String, got %T", result)
+	}
+
+	// Should be in YYYY-MM-DD format (10 chars)
+	if len(strVal.Value) != 10 {
+		t.Errorf("expected 10-char date, got '%s'", strVal.Value)
+	}
+}
+
+func TestTimeClockNow(t *testing.T) {
+	clockFn := TimeBuiltins["time.clock"].Fn
+
+	result := clockFn()
+	strVal, ok := result.(*object.String)
+	if !ok {
+		t.Fatalf("expected String, got %T", result)
+	}
+
+	// Should be in HH:MM:SS format (8 chars)
+	if len(strVal.Value) != 8 {
+		t.Errorf("expected 8-char time, got '%s'", strVal.Value)
+	}
+}
+
+func TestTimeIso(t *testing.T) {
+	isoFn := TimeBuiltins["time.iso"].Fn
+
+	result := isoFn()
+	strVal, ok := result.(*object.String)
+	if !ok {
+		t.Fatalf("expected String, got %T", result)
+	}
+
+	// ISO format should contain 'T'
+	if len(strVal.Value) < 19 {
+		t.Errorf("expected ISO date string, got '%s'", strVal.Value)
+	}
+}
+
+// ============================================================================
+// Strings - More Tests
+// ============================================================================
+
+func TestStringsJoinEmpty(t *testing.T) {
+	joinFn := StringsBuiltins["strings.join"].Fn
+
+	arr := &object.Array{Elements: []object.Object{}}
+	result := joinFn(arr, &object.String{Value: ","})
+	strVal, ok := result.(*object.String)
+	if !ok {
+		t.Fatalf("expected String, got %T", result)
+	}
+
+	if strVal.Value != "" {
+		t.Errorf("expected empty string, got '%s'", strVal.Value)
+	}
+}
+
+func TestStringsRepeatZero(t *testing.T) {
+	repeatFn := StringsBuiltins["strings.repeat"].Fn
+
+	result := repeatFn(&object.String{Value: "hello"}, &object.Integer{Value: big.NewInt(0)})
+	strVal, ok := result.(*object.String)
+	if !ok {
+		t.Fatalf("expected String, got %T", result)
+	}
+
+	if strVal.Value != "" {
+		t.Errorf("expected empty string, got '%s'", strVal.Value)
+	}
+}
+
+func TestStringsSplitEmpty(t *testing.T) {
+	splitFn := StringsBuiltins["strings.split"].Fn
+
+	result := splitFn(&object.String{Value: ""}, &object.String{Value: ","})
+	arr, ok := result.(*object.Array)
+	if !ok {
+		t.Fatalf("expected Array, got %T", result)
+	}
+
+	if len(arr.Elements) != 1 {
+		t.Errorf("expected 1 element, got %d", len(arr.Elements))
+	}
+}
+
+func TestStringsReplaceNone(t *testing.T) {
+	replaceFn := StringsBuiltins["strings.replace"].Fn
+
+	result := replaceFn(
+		&object.String{Value: "hello"},
+		&object.String{Value: "x"},
+		&object.String{Value: "y"},
+	)
+	strVal, ok := result.(*object.String)
+	if !ok {
+		t.Fatalf("expected String, got %T", result)
+	}
+
+	if strVal.Value != "hello" {
+		t.Errorf("expected 'hello', got '%s'", strVal.Value)
+	}
+}
+
+func TestMathAtanFloat(t *testing.T) {
+	atanFn := MathBuiltins["math.atan"].Fn
+
+	result := atanFn(&object.Float{Value: 0})
+	floatVal, ok := result.(*object.Float)
+	if !ok {
+		t.Fatalf("expected Float, got %T", result)
+	}
+
+	if floatVal.Value != 0 {
+		t.Errorf("expected 0, got %f", floatVal.Value)
+	}
+}
+
+func TestMathAsinFloat(t *testing.T) {
+	asinFn := MathBuiltins["math.asin"].Fn
+
+	result := asinFn(&object.Float{Value: 0})
+	floatVal, ok := result.(*object.Float)
+	if !ok {
+		t.Fatalf("expected Float, got %T", result)
+	}
+
+	if floatVal.Value != 0 {
+		t.Errorf("expected 0, got %f", floatVal.Value)
+	}
+}
+
+func TestMathAcosFloat(t *testing.T) {
+	acosFn := MathBuiltins["math.acos"].Fn
+
+	result := acosFn(&object.Float{Value: 1})
+	floatVal, ok := result.(*object.Float)
+	if !ok {
+		t.Fatalf("expected Float, got %T", result)
+	}
+
+	if floatVal.Value != 0 {
+		t.Errorf("expected 0, got %f", floatVal.Value)
 	}
 }

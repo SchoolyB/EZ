@@ -5203,3 +5203,446 @@ func TestCastInFunction(t *testing.T) {
 		t.Errorf("wrong value. got=%d, want=42", result.Value.Int64())
 	}
 }
+
+// ============================================================================
+// Assignment Coverage Tests
+// ============================================================================
+
+func TestTupleUnpackingWithDeclaration(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		expected interface{}
+	}{
+		{
+			name: "basic tuple unpacking with declaration",
+			input: `
+do getPair() -> (int, int) {
+	return 10, 20
+}
+temp a, b = getPair()
+a + b
+			`,
+			expected: int64(30),
+		},
+		{
+			name: "tuple unpacking with blank in declaration",
+			input: `
+do getTriple() -> (int, int, int) {
+	return 1, 2, 3
+}
+temp a, _, c = getTriple()
+a + c
+			`,
+			expected: int64(4),
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			evaluated := testEval(tt.input)
+			if exp, ok := tt.expected.(int64); ok {
+				testIntegerObject(t, evaluated, exp)
+			}
+		})
+	}
+}
+
+func TestMultiValueReturnErrors(t *testing.T) {
+	tests := []struct {
+		name          string
+		input         string
+		expectedError string
+	}{
+		{
+			name: "wrong number of values",
+			input: `
+do getPair() -> (int, int) {
+	return 1, 2
+}
+temp a, b, c = getPair()
+			`,
+			expectedError: "expected 3 values",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			evaluated := testEval(tt.input)
+			errObj, ok := evaluated.(*Error)
+			if !ok {
+				t.Fatalf("expected Error, got %T (%+v)", evaluated, evaluated)
+			}
+			if !strings.Contains(errObj.Message, tt.expectedError) {
+				t.Errorf("expected error to contain %q, got: %s", tt.expectedError, errObj.Message)
+			}
+		})
+	}
+}
+
+func TestAssignmentToUndefinedVariable(t *testing.T) {
+	input := `undefined_var = 42`
+	evaluated := testEval(input)
+	errObj, ok := evaluated.(*Error)
+	if !ok {
+		t.Fatalf("expected Error, got %T (%+v)", evaluated, evaluated)
+	}
+	if !strings.Contains(errObj.Message, "undefined variable") {
+		t.Errorf("expected 'undefined variable' error, got: %s", errObj.Message)
+	}
+}
+
+func TestAssignmentToImmutableVariable(t *testing.T) {
+	input := `
+		const x int = 10
+		x = 20
+	`
+	evaluated := testEval(input)
+	errObj, ok := evaluated.(*Error)
+	if !ok {
+		t.Fatalf("expected Error, got %T (%+v)", evaluated, evaluated)
+	}
+	if !strings.Contains(errObj.Message, "immutable variable") {
+		t.Errorf("expected 'immutable variable' error, got: %s", errObj.Message)
+	}
+}
+
+func TestCompoundAssignmentOperators(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		expected int64
+	}{
+		{
+			name: "add assign",
+			input: `
+				temp x int = 10
+				x += 5
+				x
+			`,
+			expected: 15,
+		},
+		{
+			name: "subtract assign",
+			input: `
+				temp x int = 10
+				x -= 3
+				x
+			`,
+			expected: 7,
+		},
+		{
+			name: "multiply assign",
+			input: `
+				temp x int = 10
+				x *= 4
+				x
+			`,
+			expected: 40,
+		},
+		{
+			name: "divide assign",
+			input: `
+				temp x int = 20
+				x /= 4
+				x
+			`,
+			expected: 5,
+		},
+		{
+			name: "modulo assign",
+			input: `
+				temp x int = 17
+				x %= 5
+				x
+			`,
+			expected: 2,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			evaluated := testEval(tt.input)
+			testIntegerObject(t, evaluated, tt.expected)
+		})
+	}
+}
+
+func TestCompoundAssignmentOnUndefined(t *testing.T) {
+	input := `undefined_var += 10`
+	evaluated := testEval(input)
+	errObj, ok := evaluated.(*Error)
+	if !ok {
+		t.Fatalf("expected Error, got %T (%+v)", evaluated, evaluated)
+	}
+	if !strings.Contains(errObj.Message, "undefined variable") {
+		t.Errorf("expected 'undefined variable' error, got: %s", errObj.Message)
+	}
+}
+
+// ============================================================================
+// Index Assignment Coverage Tests
+// ============================================================================
+
+func TestArrayIndexAssignment(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		expected interface{}
+	}{
+		{
+			name: "simple array index assignment",
+			input: `
+				temp arr [int] = {1, 2, 3}
+				arr[1] = 99
+				arr[1]
+			`,
+			expected: int64(99),
+		},
+		{
+			name: "compound assignment on array index",
+			input: `
+				temp arr [int] = {10, 20, 30}
+				arr[0] += 5
+				arr[0]
+			`,
+			expected: int64(15),
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			evaluated := testEval(tt.input)
+			if exp, ok := tt.expected.(int64); ok {
+				testIntegerObject(t, evaluated, exp)
+			}
+		})
+	}
+}
+
+func TestMapIndexAssignmentCoverage(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		expected interface{}
+	}{
+		{
+			name: "update existing key",
+			input: `
+temp m map[string:int] = {"a": 1}
+m["a"] = 100
+m["a"]
+			`,
+			expected: int64(100),
+		},
+		{
+			name: "add new key",
+			input: `
+temp m map[string:int] = {"a": 1}
+m["b"] = 200
+m["b"]
+			`,
+			expected: int64(200),
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			evaluated := testEval(tt.input)
+			if exp, ok := tt.expected.(int64); ok {
+				testIntegerObject(t, evaluated, exp)
+			}
+		})
+	}
+}
+
+func TestAssignmentToImmutableArray(t *testing.T) {
+	input := `
+		const arr [int, 3] = {1, 2, 3}
+		arr[0] = 99
+	`
+	evaluated := testEval(input)
+	errObj, ok := evaluated.(*Error)
+	if !ok {
+		t.Fatalf("expected Error, got %T (%+v)", evaluated, evaluated)
+	}
+	if !strings.Contains(errObj.Message, "immutable") || !strings.Contains(errObj.Message, "const") {
+		t.Errorf("expected immutable error, got: %s", errObj.Message)
+	}
+}
+
+// ============================================================================
+// Struct Field Assignment Coverage Tests
+// ============================================================================
+
+func TestStructFieldAssignmentCoverage(t *testing.T) {
+	input := `
+const Point struct {
+	x int
+	y int
+}
+temp p Point = Point{x: 0, y: 0}
+p.x = 10
+p.y = 20
+p.x + p.y
+`
+	evaluated := testEval(input)
+	testIntegerObject(t, evaluated, 30)
+}
+
+func TestStructFieldCompoundAssignment(t *testing.T) {
+	input := `
+const Counter struct {
+	value int
+}
+temp c Counter = Counter{value: 10}
+c.value += 5
+c.value
+`
+	evaluated := testEval(input)
+	testIntegerObject(t, evaluated, 15)
+}
+
+// ============================================================================
+// Enum Coverage Tests
+// ============================================================================
+
+func TestEnumDeclarationAndUsageCoverage(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		expected interface{}
+	}{
+		{
+			name: "simple enum",
+			input: `
+const Color enum {
+	Red
+	Green
+	Blue
+}
+temp c Color = Color.Red
+c == Color.Red
+`,
+			expected: true,
+		},
+		{
+			name: "enum with values",
+			input: `
+const Status enum {
+	Active = 1
+	Inactive = 0
+}
+temp s Status = Status.Active
+s == Status.Active
+`,
+			expected: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			evaluated := testEval(tt.input)
+			if exp, ok := tt.expected.(bool); ok {
+				testBooleanObject(t, evaluated, exp)
+			}
+		})
+	}
+}
+
+// ============================================================================
+// Identifier Evaluation Coverage Tests
+// ============================================================================
+
+func TestIdentifierEvaluation(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		expected interface{}
+	}{
+		{
+			name: "simple variable",
+			input: `
+				temp x int = 42
+				x
+			`,
+			expected: int64(42),
+		},
+		{
+			name: "nil literal",
+			input: `nil`,
+			expected: nil,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			evaluated := testEval(tt.input)
+			switch exp := tt.expected.(type) {
+			case int64:
+				testIntegerObject(t, evaluated, exp)
+			case nil:
+				testNilObject(t, evaluated)
+			}
+		})
+	}
+}
+
+func TestUndefinedIdentifier(t *testing.T) {
+	input := `undefined_variable`
+	evaluated := testEval(input)
+	errObj, ok := evaluated.(*Error)
+	if !ok {
+		t.Fatalf("expected Error, got %T (%+v)", evaluated, evaluated)
+	}
+	if !strings.Contains(errObj.Message, "undefined") {
+		t.Errorf("expected 'undefined' error, got: %s", errObj.Message)
+	}
+}
+
+// ============================================================================
+// Prefix Expression Coverage Tests
+// ============================================================================
+
+func TestBangOperatorCoverage(t *testing.T) {
+	tests := []struct {
+		input    string
+		expected bool
+	}{
+		{"!true", false},
+		{"!false", true},
+		{"!!true", true},
+		{"!!false", false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.input, func(t *testing.T) {
+			evaluated := testEval(tt.input)
+			testBooleanObject(t, evaluated, tt.expected)
+		})
+	}
+}
+
+func TestMinusPrefixCoverage(t *testing.T) {
+	tests := []struct {
+		input    string
+		expected interface{}
+	}{
+		{"-5", int64(-5)},
+		{"-(-5)", int64(5)},
+		{"-3.14", float64(-3.14)},
+		{"-(-3.14)", float64(3.14)},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.input, func(t *testing.T) {
+			evaluated := testEval(tt.input)
+			switch exp := tt.expected.(type) {
+			case int64:
+				testIntegerObject(t, evaluated, exp)
+			case float64:
+				testFloatObject(t, evaluated, exp)
+			}
+		})
+	}
+}
