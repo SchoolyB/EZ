@@ -1142,7 +1142,11 @@ func evalAssignment(node *ast.AssignmentStatement, env *Environment) Object {
 			if ref, isRef := existingVal.(*Reference); isRef {
 				// Handle compound assignment for references
 				if node.Operator != "=" {
-					oldVal, _ := ref.Deref()
+					oldVal, ok := ref.Deref()
+					if !ok {
+						return newErrorWithLocation("E4001", node.Token.Line, node.Token.Column,
+							"cannot dereference variable '%s'", target.Value)
+					}
 					val = evalCompoundAssignment(node.Operator, oldVal, val, node.Token.Line, node.Token.Column)
 					if isError(val) {
 						return val
