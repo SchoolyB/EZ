@@ -107,21 +107,21 @@ var DbBuiltins = map[string]*object.Builtin{
 
 			if db.IsClosed.Value {
 				return &object.ReturnValue{Values: []object.Object{
-					&object.Error{Code: "E17005", Message: "db.save() cannot operate on closed database"},
+					&object.Error{Code: "E17005", Message: "db.close() cannot operate on closed database"},
 				}}
 			}
 
 			jsonRes, err := encodeToJSON(&db.Store, make(map[uintptr]bool))
 			if err != nil {
 				return &object.ReturnValue{Values: []object.Object{
-					&object.Error{Code: "E17003", Message: "db.save() database contents not json encodable"},
+					&object.Error{Code: "E17003", Message: "db.close() database contents not json encodable"},
 				}}
 			}
 
 			perms := os.FileMode(0644)
 			if err := atomicWriteFile(db.Path.Value, []byte(jsonRes), perms); err != nil {
 				return &object.ReturnValue{Values: []object.Object{
-					&object.Error{Code: "E17003", Message: "db.save() failed to write to database"},
+					&object.Error{Code: "E17003", Message: "db.close() failed to write to database"},
 				}}
 			}
 
