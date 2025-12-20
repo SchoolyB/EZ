@@ -409,16 +409,16 @@ type StructFieldTags interface {
 	Inspect() string
 }
 
-type EmptyTag struct {}
+type EmptyTag struct{}
 
 func (et *EmptyTag) Inspect() string {
 	return "Tag: ``\n"
 }
 
 type JSONTag struct {
-	Name 					 string
-	Ignore 				 bool
-	OmitEmpty 		 bool
+	Name           string
+	Ignore         bool
+	OmitEmpty      bool
 	EncodeAsString bool
 }
 
@@ -468,9 +468,9 @@ func (c *Continue) Inspect() string  { return "continue" }
 
 // StructDef holds the definition of a struct type
 type StructDef struct {
-	Name   string
-	Fields map[string]string
-	FieldTags   map[string]StructFieldTags
+	Name      string
+	Fields    map[string]string
+	FieldTags map[string]StructFieldTags
 }
 
 // TypeValue represents a type as a first-class value (for passing types to functions)

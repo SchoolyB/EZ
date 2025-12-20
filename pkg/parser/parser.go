@@ -2355,7 +2355,7 @@ func (p *Parser) parseStructDeclaration() *StructDeclaration {
 
 		var tags []string
 		// Check for struct field tags
-		if (p.peekTokenMatches(RAW_STRING)) {
+		if p.peekTokenMatches(RAW_STRING) {
 			p.nextToken()
 			tags = append(tags, p.currentToken.Literal)
 		} else {
@@ -2378,7 +2378,7 @@ func (p *Parser) parseStructDeclaration() *StructDeclaration {
 			field := &StructField{
 				Name:     name,
 				TypeName: typeName,
-				Tag: 			tags[i],
+				Tag:      tags[i],
 			}
 			stmt.Fields = append(stmt.Fields, field)
 		}
