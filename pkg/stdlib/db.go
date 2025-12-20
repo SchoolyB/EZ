@@ -249,7 +249,32 @@ var DbBuiltins = map[string]*object.Builtin{
 		},
 	},
 
-	"db.keys": {},
+	"db.keys": {
+		Fn: func(args ...object.Object) object.Object {
+			if len(args) != 1 {
+				return &object.Error{Code: "E7001", Message: "db.count() takes exactly 1 arguments"}
+			}
+
+			db, ok := args[0].(*object.Database)
+			if !ok {
+				return &object.Error{Code: "E7001", Message: "db.count() requires a Database object as first argument"}
+			}
+
+			if db.IsClosed.Value {
+				return &object.ReturnValue{Values: []object.Object{
+					&object.Error{Code: "E17005", Message: "db.count() cannot operate on closed database"},
+				}}
+			}
+
+			var keys *object.Array
+			for _, pair := range db.Store.Pairs {
+				keys.Elements = append(keys.Elements, pair.Key)
+			}
+			return &object.ReturnValue{Values: []object.Object{
+				keys,
+			}}
+		},
+	},
 
 	"db.prefix": {},
 
