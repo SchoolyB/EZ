@@ -338,6 +338,18 @@ var (
 )
 
 // =============================================================================
+//	DB ERRORS (E17xxx) - DB-specific domain errors
+// These are errors unique to database operations
+// =============================================================================
+var (
+	E17001 = ErrorCode{"E17001", "db-open-failed", "failed to open database"}
+	E17002 = ErrorCode{"E17002", "db-read-failed", "failed to read database file"}
+	E17003 = ErrorCode{"E17003", "db-write-failed", "failed to write database file"}
+	E17004 = ErrorCode{"E17004", "db-corrupted", "database file is corrupted"}
+	E17005 = ErrorCode{"E17005", "db-closed", "operation on closed database"}
+)
+
+// =============================================================================
 // WARNINGS (W1xxx - W6xxx)
 // =============================================================================
 var (
