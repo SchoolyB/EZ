@@ -155,7 +155,12 @@ var DbBuiltins = map[string]*object.Builtin{
 				return &object.Error{Code: "E7001", Message: "db.set() requires a String as second argument"}
 			}
 
-			db.Store.Set(key, args[2])
+			val, ok := args[2].(*object.String)
+			if !ok {
+				return &object.Error{Code: "E7001", Message: "db.set() requires a String as third argument"}
+			}
+
+			db.Store.Set(key, val)
 
 			return &object.Nil{}
 		},
@@ -185,7 +190,7 @@ var DbBuiltins = map[string]*object.Builtin{
 
 			val, exists := db.Store.Get(key)
 			return &object.ReturnValue{Values: []object.Object{
-				val,
+				val.(*object.String),
 				&object.Boolean{Value: exists},
 			}}
 		},
