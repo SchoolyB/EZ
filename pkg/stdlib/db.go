@@ -1,8 +1,9 @@
 package stdlib
 
 import (
-	"strings"
+	"math/big"
 	"os"
+	"strings"
 
 	"github.com/marshallburns/ez/pkg/object"
 )
@@ -131,13 +132,124 @@ var DbBuiltins = map[string]*object.Builtin{
 			}}
 		},
 	},
-	"db.set": {},
-	"db.get": {},
+
+	"db.set": {
+		Fn: func(args ...object.Object) object.Object {
+			if len(args) != 3 {
+				return &object.Error{Code: "E7001", Message: "db.set() takes exactly 3 arguments"}
+			}
+
+			db, ok := args[0].(*object.Database)
+			if !ok {
+				return &object.Error{Code: "E7001", Message: "db.set() requires a Database object as first argument"}
+			}
+
+			if db.IsClosed.Value {
+				return &object.ReturnValue{Values: []object.Object{
+					&object.Error{Code: "E17005", Message: "db.set() cannot operate on closed database"},
+				}}
+			}
+
+			key, ok := args[1].(*object.String)
+			if !ok {
+				return &object.Error{Code: "E7001", Message: "db.set() requires a String as second argument"}
+			}
+
+			db.Store.Set(key, args[2])
+
+			return &object.Nil{}
+		},
+	},
+
+	"db.get": {
+		Fn: func(args ...object.Object) object.Object {
+			if len(args) != 2 {
+				return &object.Error{Code: "E7001", Message: "db.get() takes exactly 2 arguments"}
+			}
+
+			db, ok := args[0].(*object.Database)
+			if !ok {
+				return &object.Error{Code: "E7001", Message: "db.get() requires a Database object as first argument"}
+			}
+
+			if db.IsClosed.Value {
+				return &object.ReturnValue{Values: []object.Object{
+					&object.Error{Code: "E17005", Message: "db.get() cannot operate on closed database"},
+				}}
+			}
+
+			key, ok := args[1].(*object.String)
+			if !ok {
+				return &object.Error{Code: "E7001", Message: "db.get() requires a String as second argument"}
+			}
+
+			val, exists := db.Store.Get(key)
+			return &object.ReturnValue{Values: []object.Object{
+				val,
+				&object.Boolean{Value: exists},
+			}}
+		},
+	},
+
 	"db.delete": {},
-	"db.has": {},
+
+	"db.has": {
+		Fn: func(args ...object.Object) object.Object {
+			if len(args) != 2 {
+				return &object.Error{Code: "E7001", Message: "db.has() takes exactly 2 arguments"}
+			}
+
+			db, ok := args[0].(*object.Database)
+			if !ok {
+				return &object.Error{Code: "E7001", Message: "db.has() requires a Database object as first argument"}
+			}
+
+			if db.IsClosed.Value {
+				return &object.ReturnValue{Values: []object.Object{
+					&object.Error{Code: "E17005", Message: "db.has() cannot operate on closed database"},
+				}}
+			}
+
+			key, ok := args[1].(*object.String)
+			if !ok {
+				return &object.Error{Code: "E7001", Message: "db.has() requires a String as second argument"}
+			}
+
+			_, exists := db.Store.Get(key)
+			return &object.ReturnValue{Values: []object.Object{
+				&object.Boolean{Value: exists},
+			}}
+		},
+	},
+
 	"db.keys": {},
+
 	"db.prefix": {},
-	"db.count": {},
+
+	"db.count": {
+		Fn: func(args ...object.Object) object.Object {
+			if len(args) != 1 {
+				return &object.Error{Code: "E7001", Message: "db.count() takes exactly 1 arguments"}
+			}
+
+			db, ok := args[0].(*object.Database)
+			if !ok {
+				return &object.Error{Code: "E7001", Message: "db.count() requires a Database object as first argument"}
+			}
+
+			if db.IsClosed.Value {
+				return &object.ReturnValue{Values: []object.Object{
+					&object.Error{Code: "E17005", Message: "db.count() cannot operate on closed database"},
+				}}
+			}
+
+			count := len(db.Store.Pairs)
+			return &object.ReturnValue{Values: []object.Object{
+				&object.Integer{Value: big.NewInt(int64(count))},
+			}}
+		},
+	},
+
 	"db.clear": {},
 
 	"db.save": {
@@ -153,7 +265,7 @@ var DbBuiltins = map[string]*object.Builtin{
 
 			if db.IsClosed.Value {
 				return &object.ReturnValue{Values: []object.Object{
-					&object.Error{Code: "E17005", Message: "db.save() cannot operate on closed database"},
+					&object.Error{Code: "E17005", Message: "db.close() cannot operate on closed database"},
 				}}
 			}
 
