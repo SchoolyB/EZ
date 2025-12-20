@@ -1,5 +1,25 @@
 # Changelog
 
+## [0.29.1](https://github.com/SchoolyB/EZ/compare/v0.29.0...v0.29.1) (2025-12-20)
+
+
+### Bug Fixes
+
+* **interpreter:** add bounds check for empty ReturnValue.Values ([69c1c39](https://github.com/SchoolyB/EZ/commit/69c1c39b14ad7ffc728fcb17e4f3979b8a7d043d))
+* **interpreter:** add bounds check for empty ReturnValue.Values ([66859ca](https://github.com/SchoolyB/EZ/commit/66859cad7eca7b3f58bcc76e28064c32956b9d75)), closes [#740](https://github.com/SchoolyB/EZ/issues/740)
+* **interpreter:** check Deref() error before compound assignment ([645af52](https://github.com/SchoolyB/EZ/commit/645af527f6e29700094504c890c38e2e0dd0d9a3))
+* **interpreter:** check Deref() error before compound assignment ([836b7f7](https://github.com/SchoolyB/EZ/commit/836b7f71bcde48738ea16f7f67528bbc197bb958)), closes [#741](https://github.com/SchoolyB/EZ/issues/741)
+* **parser:** prevent panic on comma-separated struct fields ([7886e20](https://github.com/SchoolyB/EZ/commit/7886e206e0b309821e4d3254b935d7aa123b9d66))
+* **parser:** prevent panic on comma-separated struct fields ([aa68024](https://github.com/SchoolyB/EZ/commit/aa680242c9eb6b0317acd29ddb663054c38bac21)), closes [#750](https://github.com/SchoolyB/EZ/issues/750)
+* **stdlib:** add bounds check for integer-to-byte conversion ([191ec8d](https://github.com/SchoolyB/EZ/commit/191ec8d7cc76739995ab150a937eee9f69e8d0e7))
+* **stdlib:** add bounds check for integer-to-byte conversion ([26e214f](https://github.com/SchoolyB/EZ/commit/26e214fd72504dbeca12c470b4f3a7c6a1729470)), closes [#748](https://github.com/SchoolyB/EZ/issues/748)
+* **stdlib:** make ignored file Close errors explicit in io.go ([c4048a9](https://github.com/SchoolyB/EZ/commit/c4048a9119e5e6fc51acd9a80b22bb5233cbbf0a))
+* **stdlib:** make ignored file Close errors explicit in io.go ([52dd245](https://github.com/SchoolyB/EZ/commit/52dd245abae18f20a569d8dbae7296034218816e)), closes [#742](https://github.com/SchoolyB/EZ/issues/742)
+* **stdlib:** remove redundant arrays.range() function ([f957fdd](https://github.com/SchoolyB/EZ/commit/f957fdd594212261739e1f9ce96dfb193f842c53))
+* **stdlib:** remove redundant arrays.range() function ([6a2a7ec](https://github.com/SchoolyB/EZ/commit/6a2a7ec428f136deec22e6bd088f5109a0cc13e4)), closes [#746](https://github.com/SchoolyB/EZ/issues/746)
+* **typechecker:** handle ignored error returns properly ([15d48a8](https://github.com/SchoolyB/EZ/commit/15d48a8528bd282fa4c896414d27c4b43dff3442))
+* **typechecker:** handle ignored error returns properly ([5f18740](https://github.com/SchoolyB/EZ/commit/5f18740fd6a1c658e0bd4692106869db12712590)), closes [#752](https://github.com/SchoolyB/EZ/issues/752)
+
 ## [0.29.0](https://github.com/SchoolyB/EZ/compare/v0.28.3...v0.29.0) (2025-12-19)
 
 
