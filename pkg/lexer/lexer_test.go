@@ -851,3 +851,342 @@ func TestE1017UnclosedRawString(t *testing.T) {
 		t.Error("expected E1017 for unclosed raw string")
 	}
 }
+
+// ============================================================================
+// Number Literal Coverage Tests
+// ============================================================================
+
+// TestHexLiterals tests hex number parsing
+func TestHexLiterals(t *testing.T) {
+	tests := []struct {
+		input   string
+		literal string
+	}{
+		{"0x10", "0x10"},
+		{"0X10", "0X10"},
+		{"0xFF", "0xFF"},
+		{"0xABCDEF", "0xABCDEF"},
+		{"0x1234567890", "0x1234567890"},
+		{"0xabcdef", "0xabcdef"},
+		{"0x1_2_3", "0x1_2_3"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.input, func(t *testing.T) {
+			tokens := tokenize(tt.input)
+			if len(tokens) < 1 {
+				t.Fatal("expected at least 1 token")
+			}
+			if tokens[0].Type != tokenizer.INT {
+				t.Errorf("type = %s, want INT", tokens[0].Type)
+			}
+			if tokens[0].Literal != tt.literal {
+				t.Errorf("literal = %s, want %s", tokens[0].Literal, tt.literal)
+			}
+		})
+	}
+}
+
+// TestBinaryLiterals tests binary number parsing
+func TestBinaryLiterals(t *testing.T) {
+	tests := []struct {
+		input   string
+		literal string
+	}{
+		{"0b101", "0b101"},
+		{"0B101", "0B101"},
+		{"0b11111111", "0b11111111"},
+		{"0b0", "0b0"},
+		{"0b1", "0b1"},
+		{"0b1010_1010", "0b1010_1010"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.input, func(t *testing.T) {
+			tokens := tokenize(tt.input)
+			if len(tokens) < 1 {
+				t.Fatal("expected at least 1 token")
+			}
+			if tokens[0].Type != tokenizer.INT {
+				t.Errorf("type = %s, want INT", tokens[0].Type)
+			}
+			if tokens[0].Literal != tt.literal {
+				t.Errorf("literal = %s, want %s", tokens[0].Literal, tt.literal)
+			}
+		})
+	}
+}
+
+// TestE1010InvalidHexLiteral tests invalid hex literal detection
+func TestE1010InvalidHexLiteral(t *testing.T) {
+	errs := lexErrors("0x")
+	found := false
+	for _, e := range errs {
+		if e.Code == "E1010" {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Error("expected E1010 for invalid hex literal")
+	}
+}
+
+// TestE1010InvalidBinaryLiteral tests invalid binary literal detection
+func TestE1010InvalidBinaryLiteral(t *testing.T) {
+	errs := lexErrors("0b")
+	found := false
+	for _, e := range errs {
+		if e.Code == "E1010" {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Error("expected E1010 for invalid binary literal")
+	}
+}
+
+// TestE1010InvalidBinaryDigit tests invalid digit in binary literal
+func TestE1010InvalidBinaryDigit(t *testing.T) {
+	errs := lexErrors("0b2")
+	found := false
+	for _, e := range errs {
+		if e.Code == "E1010" {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Error("expected E1010 for invalid binary digit")
+	}
+}
+
+// TestE1010MultipleDecimalPoints tests multiple decimal points detection
+func TestE1010MultipleDecimalPoints(t *testing.T) {
+	errs := lexErrors("1.2.3")
+	found := false
+	for _, e := range errs {
+		if e.Code == "E1010" {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Error("expected E1010 for multiple decimal points")
+	}
+}
+
+// TestE1010InvalidExponent tests invalid exponent detection
+func TestE1010InvalidExponent(t *testing.T) {
+	errs := lexErrors("1e")
+	found := false
+	for _, e := range errs {
+		if e.Code == "E1010" {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Error("expected E1010 for invalid exponent")
+	}
+}
+
+// TestE1016DecimalNoDigits tests decimal point without following digits
+func TestE1016DecimalNoDigits(t *testing.T) {
+	errs := lexErrors("1. ")
+	found := false
+	for _, e := range errs {
+		if e.Code == "E1016" {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Error("expected E1016 for decimal point without digits")
+	}
+}
+
+// TestHexUnderscores tests underscores in hex literals
+func TestHexUnderscores(t *testing.T) {
+	tokens := tokenize("0xFF_FF")
+	if len(tokens) < 1 {
+		t.Fatal("expected at least 1 token")
+	}
+	if tokens[0].Literal != "0xFF_FF" {
+		t.Errorf("literal = %s, want 0xFF_FF", tokens[0].Literal)
+	}
+}
+
+// TestHexConsecutiveUnderscores tests consecutive underscores in hex
+func TestHexConsecutiveUnderscores(t *testing.T) {
+	errs := lexErrors("0xFF__FF")
+	found := false
+	for _, e := range errs {
+		if e.Code == "E1011" {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Error("expected E1011 for consecutive underscores in hex")
+	}
+}
+
+// TestBinaryConsecutiveUnderscores tests consecutive underscores in binary
+func TestBinaryConsecutiveUnderscores(t *testing.T) {
+	errs := lexErrors("0b10__10")
+	found := false
+	for _, e := range errs {
+		if e.Code == "E1011" {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Error("expected E1011 for consecutive underscores in binary")
+	}
+}
+
+// TestHexTrailingUnderscore tests trailing underscore in hex
+func TestHexTrailingUnderscore(t *testing.T) {
+	errs := lexErrors("0xFF_")
+	found := false
+	for _, e := range errs {
+		if e.Code == "E1013" {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Error("expected E1013 for trailing underscore in hex")
+	}
+}
+
+// TestBinaryTrailingUnderscore tests trailing underscore in binary
+func TestBinaryTrailingUnderscore(t *testing.T) {
+	errs := lexErrors("0b101_")
+	found := false
+	for _, e := range errs {
+		if e.Code == "E1013" {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Error("expected E1013 for trailing underscore in binary")
+	}
+}
+
+// TestScientificNotationWithSign tests scientific notation with explicit signs
+func TestScientificNotationWithSign(t *testing.T) {
+	tests := []struct {
+		input   string
+		literal string
+	}{
+		{"1e+5", "1e+5"},
+		{"1e-5", "1e-5"},
+		{"2.5E+10", "2.5E+10"},
+		{"2.5E-10", "2.5E-10"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.input, func(t *testing.T) {
+			tokens := tokenize(tt.input)
+			if len(tokens) < 1 {
+				t.Fatal("expected at least 1 token")
+			}
+			if tokens[0].Type != tokenizer.FLOAT {
+				t.Errorf("type = %s, want FLOAT", tokens[0].Type)
+			}
+			if tokens[0].Literal != tt.literal {
+				t.Errorf("literal = %s, want %s", tokens[0].Literal, tt.literal)
+			}
+		})
+	}
+}
+
+// TestExponentUnderscores tests underscores in exponent
+func TestExponentUnderscores(t *testing.T) {
+	tokens := tokenize("1e1_0")
+	if len(tokens) < 1 {
+		t.Fatal("expected at least 1 token")
+	}
+	if tokens[0].Literal != "1e1_0" {
+		t.Errorf("literal = %s, want 1e1_0", tokens[0].Literal)
+	}
+}
+
+// TestExponentConsecutiveUnderscores tests consecutive underscores in exponent
+func TestExponentConsecutiveUnderscores(t *testing.T) {
+	errs := lexErrors("1e1__0")
+	found := false
+	for _, e := range errs {
+		if e.Code == "E1011" {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Error("expected E1011 for consecutive underscores in exponent")
+	}
+}
+
+// TestExponentTrailingUnderscore tests trailing underscore in exponent
+func TestExponentTrailingUnderscore(t *testing.T) {
+	errs := lexErrors("1e10_")
+	found := false
+	for _, e := range errs {
+		if e.Code == "E1013" {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Error("expected E1013 for trailing underscore in exponent")
+	}
+}
+
+// ============================================================================
+// Lexer State Tests
+// ============================================================================
+
+// TestLexerSaveRestoreState tests save and restore state functionality
+func TestLexerSaveRestoreState(t *testing.T) {
+	l := NewLexer("hello world")
+
+	// Read first token
+	tok1 := l.NextToken()
+	if tok1.Literal != "hello" {
+		t.Errorf("first token = %s, want hello", tok1.Literal)
+	}
+
+	// Save state
+	state := l.SaveState()
+
+	// Read second token
+	tok2 := l.NextToken()
+	if tok2.Literal != "world" {
+		t.Errorf("second token = %s, want world", tok2.Literal)
+	}
+
+	// Restore state
+	l.RestoreState(state)
+
+	// Should read "world" again
+	tok3 := l.NextToken()
+	if tok3.Literal != "world" {
+		t.Errorf("after restore = %s, want world", tok3.Literal)
+	}
+}
+
+// TestNewLexerWithOffset tests creating lexer with position offset
+func TestNewLexerWithOffset(t *testing.T) {
+	l := NewLexerWithOffset("test code", 10, 5)
+	tok := l.NextToken()
+
+	// Token should be at line 10, column adjusted by offset
+	if tok.Line != 10 {
+		t.Errorf("line = %d, want 10", tok.Line)
+	}
+}
