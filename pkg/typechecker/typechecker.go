@@ -634,7 +634,9 @@ func (tc *TypeChecker) RegisterDeclarations(program *ast.Program) {
 			// Register global constants/variables
 			varType := node.TypeName
 			if varType == "" {
-				varType, _ = tc.inferExpressionType(node.Value)
+				if inferred, ok := tc.inferExpressionType(node.Value); ok {
+					varType = inferred
+				}
 			}
 			tc.variables[node.Name.Value] = varType
 		}
@@ -711,7 +713,10 @@ func (tc *TypeChecker) registerEnumType(node *ast.EnumDeclaration) {
 
 // checkStructDeclaration validates a struct's field types
 func (tc *TypeChecker) checkStructDeclaration(node *ast.StructDeclaration) {
-	structType, _ := tc.GetType(node.Name.Value)
+	structType, ok := tc.GetType(node.Name.Value)
+	if !ok {
+		return
+	}
 
 	for _, field := range node.Fields {
 		// Check if field type exists
