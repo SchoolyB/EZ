@@ -191,7 +191,34 @@ var DbBuiltins = map[string]*object.Builtin{
 		},
 	},
 
-	"db.delete": {},
+	"db.delete": {
+		Fn: func(args ...object.Object) object.Object {
+			if len(args) != 2 {
+				return &object.Error{Code: "E7001", Message: "db.has() takes exactly 2 arguments"}
+			}
+
+			db, ok := args[0].(*object.Database)
+			if !ok {
+				return &object.Error{Code: "E7001", Message: "db.has() requires a Database object as first argument"}
+			}
+
+			if db.IsClosed.Value {
+				return &object.ReturnValue{Values: []object.Object{
+					&object.Error{Code: "E17005", Message: "db.has() cannot operate on closed database"},
+				}}
+			}
+
+			key, ok := args[1].(*object.String)
+			if !ok {
+				return &object.Error{Code: "E7001", Message: "db.has() requires a String as second argument"}
+			}
+
+			deleted := db.Store.Delete(key)
+			return &object.ReturnValue{Values: []object.Object{
+				&object.Boolean{Value: deleted},
+			}}
+		},
+	},
 
 	"db.has": {
 		Fn: func(args ...object.Object) object.Object {
