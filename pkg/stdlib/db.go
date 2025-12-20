@@ -42,6 +42,12 @@ var DbBuiltins = map[string]*object.Builtin{
 			}
 
 			if os.IsNotExist(statErr) {
+				perms := os.FileMode(0644)
+				if err := atomicWriteFile(path.Value, []byte(""), perms); err != nil {
+					return &object.ReturnValue{Values: []object.Object{
+						&object.Error{Code: "E17001", Message: "db.open() failed to open database file"},
+					}}
+				}
 				return &object.ReturnValue{Values: []object.Object{
 					&object.Database{
 						Path: *path,
@@ -95,7 +101,7 @@ var DbBuiltins = map[string]*object.Builtin{
 
 			db, ok := args[0].(*object.Database)
 			if !ok {
-				return &object.Error{Code: "E7001", Message: "db.close() requires a Database struct as argument"}
+				return &object.Error{Code: "E7001", Message: "db.close() requires a Database object as argument"}
 			}
 
 			if db.IsClosed.Value {
@@ -142,7 +148,7 @@ var DbBuiltins = map[string]*object.Builtin{
 
 			db, ok := args[0].(*object.Database)
 			if !ok {
-				return &object.Error{Code: "E7001", Message: "db.close() requires a Database struct as argument"}
+				return &object.Error{Code: "E7001", Message: "db.close() requires a Database object as argument"}
 			}
 
 			if db.IsClosed.Value {
