@@ -4644,6 +4644,14 @@ func (tc *TypeChecker) getModuleMultiReturnTypes(moduleName, funcName string) []
 			"decode_f64_from_little_endian", "decode_f64_from_big_endian":
 			return []string{"float", "error"}
 		}
+
+	case "db":
+		switch funcName {
+		case "open":
+			return []string{"Database", "error"}
+		case "get":
+			return []string{"any", "bool"}
+		}
 	}
 	return nil
 }
@@ -6715,8 +6723,8 @@ func (tc *TypeChecker) checkDBModuleCall(funcName string, call *ast.CallExpressi
 		"get": {2, 2, []string{"any", "string"}, "tuple"},
 		"delete": {2, 2, []string{"any", "string"}, "bool"},
 		"has": {2, 2, []string{"any", "string"}, "bool"},
-		"keys": {1, 1, []string{"any"}, "any"},
-		"prefix": {2, 2, []string{"any", "string"}, "any"},
+		"keys": {1, 1, []string{"any"}, "[string]"},
+		"prefix": {2, 2, []string{"any", "string"}, "[string]"},
 		"count": {1, 1, []string{"any"}, "int"},
 		"clear": {1, 1, []string{"any"}, "nil"},
 		"save": {1, 1, []string{"any"}, "error"},
