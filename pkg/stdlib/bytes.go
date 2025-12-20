@@ -164,7 +164,11 @@ var BytesBuiltins = map[string]*object.Builtin{
 				if !ok {
 					// Try integer for backwards compatibility
 					if intVal, ok := elem.(*object.Integer); ok {
-						data[i] = byte(intVal.Value.Int64())
+						val := intVal.Value.Int64()
+						if val < 0 || val > 255 {
+							return &object.Error{Code: "E7005", Message: fmt.Sprintf("byte value at index %d out of range: %d (must be 0-255)", i, val)}
+						}
+						data[i] = byte(val)
 						continue
 					}
 					return &object.Error{Code: "E7002", Message: "bytes.to_string() requires a byte array"}
@@ -1011,7 +1015,11 @@ func bytesArgToSlice(arg object.Object, funcName string) ([]byte, *object.Error)
 		case *object.Byte:
 			data[i] = e.Value
 		case *object.Integer:
-			data[i] = byte(e.Value.Int64())
+			val := e.Value.Int64()
+			if val < 0 || val > 255 {
+				return nil, &object.Error{Code: "E7005", Message: fmt.Sprintf("byte value at index %d out of range: %d (must be 0-255)", i, val)}
+			}
+			data[i] = byte(val)
 		default:
 			return nil, &object.Error{Code: "E7002", Message: fmt.Sprintf("%s requires a byte array", funcName)}
 		}

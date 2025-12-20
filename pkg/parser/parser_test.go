@@ -2855,3 +2855,310 @@ func TestEnumWithFloatAttribute(t *testing.T) {
 		t.Error("expected #enum(float) attribute with TypeName='float'")
 	}
 }
+
+// ============================================================================
+// Variable Declaration Coverage Tests
+// ============================================================================
+
+func TestBlankIdentifierDeclaration(t *testing.T) {
+	input := `temp _ int = 42`
+	l := NewLexer(input)
+	p := New(l)
+	program := p.ParseProgram()
+
+	if len(program.Statements) != 1 {
+		t.Fatalf("expected 1 statement, got %d", len(program.Statements))
+	}
+
+	varDecl, ok := program.Statements[0].(*VariableDeclaration)
+	if !ok {
+		t.Fatalf("expected VariableDeclaration, got %T", program.Statements[0])
+	}
+
+	if len(varDecl.Names) != 1 || varDecl.Names[0].Value != "_" {
+		t.Errorf("expected blank identifier '_', got %v", varDecl.Names)
+	}
+}
+
+func TestMultipleAssignmentDeclaration(t *testing.T) {
+	input := `temp a, b = getValue()`
+	l := NewLexer(input)
+	p := New(l)
+	program := p.ParseProgram()
+
+	if len(program.Statements) != 1 {
+		t.Fatalf("expected 1 statement, got %d", len(program.Statements))
+	}
+
+	varDecl, ok := program.Statements[0].(*VariableDeclaration)
+	if !ok {
+		t.Fatalf("expected VariableDeclaration, got %T", program.Statements[0])
+	}
+
+	if len(varDecl.Names) != 2 {
+		t.Errorf("expected 2 names, got %d", len(varDecl.Names))
+	}
+
+	if varDecl.Names[0].Value != "a" || varDecl.Names[1].Value != "b" {
+		t.Errorf("expected names 'a' and 'b', got %v", varDecl.Names)
+	}
+}
+
+func TestMultipleAssignmentWithBlank(t *testing.T) {
+	input := `temp result, _ = getValue()`
+	l := NewLexer(input)
+	p := New(l)
+	program := p.ParseProgram()
+
+	if len(program.Statements) != 1 {
+		t.Fatalf("expected 1 statement, got %d", len(program.Statements))
+	}
+
+	varDecl, ok := program.Statements[0].(*VariableDeclaration)
+	if !ok {
+		t.Fatalf("expected VariableDeclaration, got %T", program.Statements[0])
+	}
+
+	if len(varDecl.Names) != 2 {
+		t.Errorf("expected 2 names, got %d", len(varDecl.Names))
+	}
+
+	if varDecl.Names[0].Value != "result" || varDecl.Names[1].Value != "_" {
+		t.Errorf("expected names 'result' and '_', got %v", varDecl.Names)
+	}
+}
+
+func TestConstWithoutInitializationError(t *testing.T) {
+	input := `const x int`
+	l := NewLexer(input)
+	p := New(l)
+	_ = p.ParseProgram()
+
+	if len(p.Errors()) == 0 {
+		t.Error("expected error for const without initialization")
+	}
+
+	foundError := false
+	for _, err := range p.Errors() {
+		if strings.Contains(err, "must be initialized") {
+			foundError = true
+			break
+		}
+	}
+	if !foundError {
+		t.Errorf("expected 'must be initialized' error, got: %v", p.Errors())
+	}
+}
+
+func TestDuplicateDeclarationError(t *testing.T) {
+	input := `do test() {
+	temp x int = 1
+	temp x int = 2
+}`
+	l := NewLexer(input)
+	p := New(l)
+	_ = p.ParseProgram()
+
+	if len(p.Errors()) == 0 {
+		t.Error("expected error for duplicate declaration")
+	}
+
+	foundError := false
+	for _, err := range p.Errors() {
+		if strings.Contains(err, "already declared") {
+			foundError = true
+			break
+		}
+	}
+	if !foundError {
+		t.Errorf("expected 'already declared' error, got: %v", p.Errors())
+	}
+}
+
+func TestKeywordAsVariableNameError(t *testing.T) {
+	input := `temp if int = 1`
+	l := NewLexer(input)
+	p := New(l)
+	_ = p.ParseProgram()
+
+	if len(p.Errors()) == 0 {
+		t.Error("expected error for using keyword as variable name")
+	}
+
+	foundError := false
+	for _, err := range p.Errors() {
+		if strings.Contains(err, "reserved keyword") {
+			foundError = true
+			break
+		}
+	}
+	if !foundError {
+		t.Errorf("expected 'reserved keyword' error, got: %v", p.Errors())
+	}
+}
+
+func TestIncompleteAssignmentError(t *testing.T) {
+	input := `temp x int = }`
+	l := NewLexer(input)
+	p := New(l)
+	_ = p.ParseProgram()
+
+	if len(p.Errors()) == 0 {
+		t.Error("expected error for incomplete assignment")
+	}
+}
+
+func TestTypeInferredAssignment(t *testing.T) {
+	input := `temp x = 42`
+	l := NewLexer(input)
+	p := New(l)
+	program := p.ParseProgram()
+	checkParserErrors(t, p)
+
+	if len(program.Statements) != 1 {
+		t.Fatalf("expected 1 statement, got %d", len(program.Statements))
+	}
+
+	varDecl, ok := program.Statements[0].(*VariableDeclaration)
+	if !ok {
+		t.Fatalf("expected VariableDeclaration, got %T", program.Statements[0])
+	}
+
+	if varDecl.TypeName != "" {
+		t.Errorf("expected no type name for inferred type, got %q", varDecl.TypeName)
+	}
+
+	if varDecl.Value == nil {
+		t.Error("expected value to be set")
+	}
+}
+
+// ============================================================================
+// Parser Error Path Coverage Tests
+// ============================================================================
+
+func TestParserPrecedences(t *testing.T) {
+	// Test different operator precedences by verifying expressions parse without errors
+	tests := []string{
+		"1 + 2 * 3",
+		"1 * 2 + 3",
+		"1 + 2 + 3",
+		"-1 + 2",
+		"!true == false",
+		"(1 + 2) * 3",
+		"1 < 2 && 3 > 2",
+		"1 == 1 || 2 == 3",
+	}
+
+	for _, input := range tests {
+		t.Run(input, func(t *testing.T) {
+			l := NewLexer(input)
+			p := New(l)
+			program := p.ParseProgram()
+			checkParserErrors(t, p)
+
+			if len(program.Statements) != 1 {
+				t.Fatalf("expected 1 statement, got %d", len(program.Statements))
+			}
+
+			_, ok := program.Statements[0].(*ExpressionStatement)
+			if !ok {
+				t.Fatalf("expected ExpressionStatement, got %T", program.Statements[0])
+			}
+		})
+	}
+}
+
+func TestWhenStatementParsingCoverage(t *testing.T) {
+	input := `do test() {
+	temp x int = 1
+	when x {
+		is 1 { println("one") }
+		is 2 { println("two") }
+		default { println("default") }
+	}
+}`
+	l := NewLexer(input)
+	p := New(l)
+	program := p.ParseProgram()
+	checkParserErrors(t, p)
+
+	if len(program.Statements) != 1 {
+		t.Fatalf("expected 1 statement, got %d", len(program.Statements))
+	}
+
+	fn, ok := program.Statements[0].(*FunctionDeclaration)
+	if !ok {
+		t.Fatalf("expected FunctionDeclaration, got %T", program.Statements[0])
+	}
+
+	whenStmt, ok := fn.Body.Statements[1].(*WhenStatement)
+	if !ok {
+		t.Fatalf("expected WhenStatement, got %T", fn.Body.Statements[1])
+	}
+
+	if len(whenStmt.Cases) != 2 {
+		t.Errorf("expected 2 cases, got %d", len(whenStmt.Cases))
+	}
+
+	if whenStmt.Default == nil {
+		t.Error("expected default case")
+	}
+}
+
+func TestForLoopParsingCoverage(t *testing.T) {
+	input := `for i in range(0, 10) {
+	temp x int = i
+}`
+	l := NewLexer(input)
+	p := New(l)
+	program := p.ParseProgram()
+	checkParserErrors(t, p)
+
+	if len(program.Statements) != 1 {
+		t.Fatalf("expected 1 statement, got %d", len(program.Statements))
+	}
+
+	_, ok := program.Statements[0].(*ForStatement)
+	if !ok {
+		t.Fatalf("expected ForStatement, got %T", program.Statements[0])
+	}
+}
+
+func TestWhileLoopParsingCoverage(t *testing.T) {
+	input := `as_long_as x < 10 {
+	x++
+}`
+	l := NewLexer(input)
+	p := New(l)
+	program := p.ParseProgram()
+	checkParserErrors(t, p)
+
+	if len(program.Statements) != 1 {
+		t.Fatalf("expected 1 statement, got %d", len(program.Statements))
+	}
+
+	_, ok := program.Statements[0].(*WhileStatement)
+	if !ok {
+		t.Fatalf("expected WhileStatement, got %T", program.Statements[0])
+	}
+}
+
+func TestLoopStatementParsingCoverage(t *testing.T) {
+	input := `loop {
+	break
+}`
+	l := NewLexer(input)
+	p := New(l)
+	program := p.ParseProgram()
+	checkParserErrors(t, p)
+
+	if len(program.Statements) != 1 {
+		t.Fatalf("expected 1 statement, got %d", len(program.Statements))
+	}
+
+	_, ok := program.Statements[0].(*LoopStatement)
+	if !ok {
+		t.Fatalf("expected LoopStatement, got %T", program.Statements[0])
+	}
+}

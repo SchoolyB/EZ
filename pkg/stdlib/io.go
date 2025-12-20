@@ -60,19 +60,19 @@ func atomicWriteFile(path string, data []byte, perm os.FileMode) error {
 
 	// Set permissions before writing (for security)
 	if err := tmpFile.Chmod(perm); err != nil {
-		tmpFile.Close()
+		_ = tmpFile.Close() // Error ignored; already returning an error
 		return fmt.Errorf("set permissions: %w", err)
 	}
 
 	// Write data
 	if _, err := tmpFile.Write(data); err != nil {
-		tmpFile.Close()
+		_ = tmpFile.Close() // Error ignored; already returning an error
 		return fmt.Errorf("write data: %w", err)
 	}
 
 	// Sync to ensure data is on disk before rename
 	if err := tmpFile.Sync(); err != nil {
-		tmpFile.Close()
+		_ = tmpFile.Close() // Error ignored; already returning an error
 		return fmt.Errorf("sync: %w", err)
 	}
 
