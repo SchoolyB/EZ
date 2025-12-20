@@ -4650,7 +4650,7 @@ func (tc *TypeChecker) getModuleMultiReturnTypes(moduleName, funcName string) []
 		case "open":
 			return []string{"Database", "error"}
 		case "get":
-			return []string{"any", "bool"}
+			return []string{"string", "bool"}
 		}
 	}
 	return nil
@@ -6719,7 +6719,7 @@ func (tc *TypeChecker) checkDBModuleCall(funcName string, call *ast.CallExpressi
 	signatures := map[string]StdlibFuncSig{
 		"open": {1, 1, []string{"string"}, "tuple"},
 		"close": {1, 2, []string{"any"}, "error"},
-		"set": {3, 3, []string{"any", "string", "any"}, "nil"},
+		"set": {3, 3, []string{"any", "string", "string"}, "nil"},
 		"get": {2, 2, []string{"any", "string"}, "tuple"},
 		"delete": {2, 2, []string{"any", "string"}, "bool"},
 		"has": {2, 2, []string{"any", "string"}, "bool"},
