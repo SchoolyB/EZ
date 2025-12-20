@@ -771,7 +771,10 @@ func evalProgram(program *ast.Program, env *Environment) Object {
 
 		switch result := result.(type) {
 		case *ReturnValue:
-			return result.Values[0]
+			if len(result.Values) > 0 {
+				return result.Values[0]
+			}
+			return NIL
 		case *Error:
 			return result
 		}
