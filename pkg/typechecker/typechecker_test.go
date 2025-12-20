@@ -5971,3 +5971,742 @@ do main() {
 	tc := typecheck(t, input)
 	assertNoErrors(t, tc)
 }
+
+// ============================================================================
+// Array Element Type Compatibility Tests (checkArrayElementTypeCompatibility)
+// ============================================================================
+
+func TestArraysAppendTypeMismatch(t *testing.T) {
+	input := `
+import @arrays
+using arrays
+
+do main() {
+	temp arr [int] = {1, 2, 3}
+	arrays.append(arr, "wrong")
+}
+`
+	tc := typecheck(t, input)
+	assertHasError(t, tc, errors.E3001)
+}
+
+func TestArraysUnshiftTypeMismatch(t *testing.T) {
+	input := `
+import @arrays
+using arrays
+
+do main() {
+	temp arr [string] = {"a", "b"}
+	arrays.unshift(arr, 123)
+}
+`
+	tc := typecheck(t, input)
+	assertHasError(t, tc, errors.E3001)
+}
+
+func TestArraysContainsTypeMismatch(t *testing.T) {
+	input := `
+import @arrays
+using arrays
+
+do main() {
+	temp arr [int] = {1, 2, 3}
+	temp found bool = arrays.contains(arr, "string")
+}
+`
+	tc := typecheck(t, input)
+	assertHasError(t, tc, errors.E3001)
+}
+
+func TestArraysIndexOfTypeMismatch(t *testing.T) {
+	input := `
+import @arrays
+using arrays
+
+do main() {
+	temp arr [float] = {1.0, 2.0, 3.0}
+	temp idx int = arrays.index_of(arr, "not a float")
+}
+`
+	tc := typecheck(t, input)
+	assertHasError(t, tc, errors.E3001)
+}
+
+func TestArraysInsertTypeMismatch(t *testing.T) {
+	input := `
+import @arrays
+using arrays
+
+do main() {
+	temp arr [int] = {1, 2, 3}
+	arrays.insert(arr, 0, "wrong type")
+}
+`
+	tc := typecheck(t, input)
+	assertHasError(t, tc, errors.E3001)
+}
+
+func TestArraysSetTypeMismatch(t *testing.T) {
+	input := `
+import @arrays
+using arrays
+
+do main() {
+	temp arr [bool] = {true, false}
+	arrays.set(arr, 0, "not bool")
+}
+`
+	tc := typecheck(t, input)
+	assertHasError(t, tc, errors.E3001)
+}
+
+func TestArraysConcatTypeMismatch(t *testing.T) {
+	input := `
+import @arrays
+using arrays
+
+do main() {
+	temp arr1 [int] = {1, 2}
+	temp arr2 [string] = {"a", "b"}
+	temp result [int] = arrays.concat(arr1, arr2)
+}
+`
+	tc := typecheck(t, input)
+	assertHasError(t, tc, errors.E3001)
+}
+
+func TestArraysFillTypeMismatch(t *testing.T) {
+	input := `
+import @arrays
+using arrays
+
+do main() {
+	temp arr [int] = {1, 2, 3}
+	arrays.fill(arr, "not an int")
+}
+`
+	tc := typecheck(t, input)
+	assertHasError(t, tc, errors.E3001)
+}
+
+func TestArraysRemoveTypeMismatch(t *testing.T) {
+	input := `
+import @arrays
+using arrays
+
+do main() {
+	temp arr [int] = {1, 2, 3}
+	arrays.remove(arr, "string")
+}
+`
+	tc := typecheck(t, input)
+	assertHasError(t, tc, errors.E3001)
+}
+
+func TestArraysRemoveAllTypeMismatch(t *testing.T) {
+	input := `
+import @arrays
+using arrays
+
+do main() {
+	temp arr [int] = {1, 2, 3, 2}
+	arrays.remove_all(arr, true)
+}
+`
+	tc := typecheck(t, input)
+	assertHasError(t, tc, errors.E3001)
+}
+
+func TestArraysLastIndexOfTypeMismatch(t *testing.T) {
+	input := `
+import @arrays
+using arrays
+
+do main() {
+	temp arr [int] = {1, 2, 3, 2}
+	temp idx int = arrays.last_index_of(arr, 3.14)
+}
+`
+	tc := typecheck(t, input)
+	assertHasError(t, tc, errors.E3001)
+}
+
+func TestArraysCountTypeMismatch(t *testing.T) {
+	input := `
+import @arrays
+using arrays
+
+do main() {
+	temp arr [string] = {"a", "b", "a"}
+	temp count int = arrays.count(arr, 42)
+}
+`
+	tc := typecheck(t, input)
+	assertHasError(t, tc, errors.E3001)
+}
+
+func TestArraysAppendCorrectType(t *testing.T) {
+	input := `
+import @arrays
+using arrays
+
+do main() {
+	temp arr [int] = {1, 2, 3}
+	arrays.append(arr, 4)
+}
+`
+	tc := typecheck(t, input)
+	assertNoErrors(t, tc)
+}
+
+func TestArraysInsertCorrectType(t *testing.T) {
+	input := `
+import @arrays
+using arrays
+
+do main() {
+	temp arr [string] = {"a", "b"}
+	arrays.insert(arr, 1, "c")
+}
+`
+	tc := typecheck(t, input)
+	assertNoErrors(t, tc)
+}
+
+func TestArraysConcatCorrectType(t *testing.T) {
+	input := `
+import @arrays
+using arrays
+
+do main() {
+	temp arr1 [int] = {1, 2}
+	temp arr2 [int] = {3, 4}
+	temp result [int] = arrays.concat(arr1, arr2)
+}
+`
+	tc := typecheck(t, input)
+	assertNoErrors(t, tc)
+}
+
+// ============================================================================
+// Map Key/Value Type Compatibility Tests (checkMapKeyValueTypeCompatibility)
+// ============================================================================
+
+func TestMapsHasKeyTypeMismatch(t *testing.T) {
+	input := `
+import @maps
+using maps
+
+do main() {
+	temp m map[string:int] = {"a": 1, "b": 2}
+	temp found bool = maps.has_key(m, 123)
+}
+`
+	tc := typecheck(t, input)
+	assertHasError(t, tc, errors.E3001)
+}
+
+func TestMapsDeleteKeyTypeMismatch(t *testing.T) {
+	input := `
+import @maps
+using maps
+
+do main() {
+	temp m map[int:string] = {1: "one", 2: "two"}
+	maps.delete(m, "not an int")
+}
+`
+	tc := typecheck(t, input)
+	assertHasError(t, tc, errors.E3001)
+}
+
+func TestMapsSetKeyTypeMismatch(t *testing.T) {
+	input := `
+import @maps
+using maps
+
+do main() {
+	temp m map[string:int] = {"a": 1}
+	maps.set(m, 123, 5)
+}
+`
+	tc := typecheck(t, input)
+	assertHasError(t, tc, errors.E3001)
+}
+
+func TestMapsSetValueTypeMismatch(t *testing.T) {
+	input := `
+import @maps
+using maps
+
+do main() {
+	temp m map[string:int] = {"a": 1}
+	maps.set(m, "b", "wrong")
+}
+`
+	tc := typecheck(t, input)
+	assertHasError(t, tc, errors.E3001)
+}
+
+func TestMapsGetKeyTypeMismatch(t *testing.T) {
+	input := `
+import @maps
+using maps
+
+do main() {
+	temp m map[string:int] = {"a": 1}
+	maps.get(m, 999)
+}
+`
+	tc := typecheck(t, input)
+	assertHasError(t, tc, errors.E3001)
+}
+
+func TestMapsGetOrSetKeyTypeMismatch(t *testing.T) {
+	input := `
+import @maps
+using maps
+
+do main() {
+	temp m map[int:string] = {1: "one"}
+	maps.get_or_set(m, "wrong", "default")
+}
+`
+	tc := typecheck(t, input)
+	assertHasError(t, tc, errors.E3001)
+}
+
+func TestMapsGetOrSetValueTypeMismatch(t *testing.T) {
+	input := `
+import @maps
+using maps
+
+do main() {
+	temp m map[int:string] = {1: "one"}
+	maps.get_or_set(m, 2, 42)
+}
+`
+	tc := typecheck(t, input)
+	assertHasError(t, tc, errors.E3001)
+}
+
+func TestMapsHasCorrectKeyType(t *testing.T) {
+	input := `
+import @maps
+using maps
+
+do main() {
+	temp m map[string:int] = {"a": 1, "b": 2}
+	temp found bool = maps.has(m, "a")
+}
+`
+	tc := typecheck(t, input)
+	assertNoErrors(t, tc)
+}
+
+func TestMapsSetCorrectTypes(t *testing.T) {
+	input := `
+import @maps
+using maps
+
+do main() {
+	temp m map[string:int] = {"a": 1}
+	maps.set(m, "b", 2)
+}
+`
+	tc := typecheck(t, input)
+	assertNoErrors(t, tc)
+}
+
+func TestMapsRemoveKeyTypeMismatch(t *testing.T) {
+	input := `
+import @maps
+using maps
+
+do main() {
+	temp m map[string:int] = {"a": 1}
+	maps.remove(m, 123)
+}
+`
+	tc := typecheck(t, input)
+	assertHasError(t, tc, errors.E3001)
+}
+
+// ============================================================================
+// Type Lookup and Module Tests (lookupType)
+// ============================================================================
+
+func TestLookupTypeFromLocalScope(t *testing.T) {
+	input := `
+const Point struct {
+	x int
+	y int
+}
+
+do main() {
+	temp p Point = Point{x: 1, y: 2}
+}
+`
+	tc := typecheck(t, input)
+	assertNoErrors(t, tc)
+
+	// Verify the type was registered
+	pointType, found := tc.GetType("Point")
+	if !found || pointType == nil {
+		t.Error("expected Point type to be registered")
+	}
+}
+
+func TestTypeLookupForNestedStructs(t *testing.T) {
+	input := `
+const Inner struct {
+	value int
+}
+
+const Outer struct {
+	inner Inner
+}
+
+do main() {
+	temp o Outer = Outer{inner: Inner{value: 42}}
+}
+`
+	tc := typecheck(t, input)
+	assertNoErrors(t, tc)
+}
+
+// ============================================================================
+// Builtin Type Conversion Coverage Tests (checkBuiltinTypeConversion)
+// ============================================================================
+
+func TestStringToFloatConversionCoverage(t *testing.T) {
+	input := `
+do main() {
+	temp s string = "3.14"
+	temp f float = float(s)
+}
+`
+	_ = typecheck(t, input)
+	// This is expected to give a warning about runtime conversion
+	// Just check that it compiles
+}
+
+func TestCharToIntConversionCoverage(t *testing.T) {
+	input := `
+do main() {
+	temp c char = 'A'
+	temp i int = int(c)
+}
+`
+	tc := typecheck(t, input)
+	assertNoErrors(t, tc)
+}
+
+func TestIntToCharConversionCoverage(t *testing.T) {
+	input := `
+do main() {
+	temp i int = 65
+	temp c char = char(i)
+}
+`
+	tc := typecheck(t, input)
+	assertNoErrors(t, tc)
+}
+
+func TestByteConversionsCoverage(t *testing.T) {
+	input := `
+do main() {
+	temp b byte = byte(65)
+	temp i int = int(b)
+	temp c char = char(b)
+}
+`
+	tc := typecheck(t, input)
+	assertNoErrors(t, tc)
+}
+
+// ============================================================================
+// Cast Expression Tests (checkCastExpression)
+// ============================================================================
+
+func TestCastIntToI32(t *testing.T) {
+	input := `
+do main() {
+	temp i int = 42
+	temp i32val i32 = i32(i)
+}
+`
+	tc := typecheck(t, input)
+	assertNoErrors(t, tc)
+}
+
+func TestCastI64ToInt(t *testing.T) {
+	input := `
+do main() {
+	temp i64val i64 = 42
+	temp i int = int(i64val)
+}
+`
+	tc := typecheck(t, input)
+	assertNoErrors(t, tc)
+}
+
+func TestCastU8ToU16(t *testing.T) {
+	input := `
+do main() {
+	temp u8val u8 = 255
+	temp u16val u16 = u16(u8val)
+}
+`
+	tc := typecheck(t, input)
+	assertNoErrors(t, tc)
+}
+
+func TestCastF32ToFloat(t *testing.T) {
+	input := `
+do main() {
+	temp f32val f32 = 3.14
+	temp fval float = float(f32val)
+}
+`
+	tc := typecheck(t, input)
+	assertNoErrors(t, tc)
+}
+
+// ============================================================================
+// Multi-Return Declaration Tests (checkMultiReturnDeclaration)
+// ============================================================================
+
+func TestMultiReturnDeclarationWithBlankIdentifier(t *testing.T) {
+	input := `
+do getTwo() -> (int, string) {
+	return 42, "hello"
+}
+
+do main() {
+	temp x, _ = getTwo()
+}
+`
+	tc := typecheck(t, input)
+	assertNoErrors(t, tc)
+}
+
+func TestMultiReturnDeclarationAllBlank(t *testing.T) {
+	input := `
+do getThree() -> (int, string, bool) {
+	return 1, "test", true
+}
+
+do main() {
+	temp _, _, _ = getThree()
+}
+`
+	tc := typecheck(t, input)
+	assertNoErrors(t, tc)
+}
+
+func TestMultiReturnWithTwoVariables(t *testing.T) {
+	input := `
+do getTwo() -> (int, string) {
+	return 42, "hello"
+}
+
+do main() {
+	temp x, y = getTwo()
+}
+`
+	tc := typecheck(t, input)
+	assertNoErrors(t, tc)
+}
+
+// ============================================================================
+// Integer Bounds Coverage Tests (getIntegerBounds)
+// ============================================================================
+
+func TestI32BoundsCoverage(t *testing.T) {
+	input := `
+do main() {
+	temp min i32 = -2147483648
+	temp max i32 = 2147483647
+}
+`
+	tc := typecheck(t, input)
+	assertNoErrors(t, tc)
+}
+
+func TestU32BoundsCoverage(t *testing.T) {
+	input := `
+do main() {
+	temp min u32 = 0
+	temp max u32 = 4294967295
+}
+`
+	tc := typecheck(t, input)
+	assertNoErrors(t, tc)
+}
+
+func TestI64BoundsCoverage(t *testing.T) {
+	input := `
+do main() {
+	temp val i64 = 9223372036854775807
+}
+`
+	tc := typecheck(t, input)
+	assertNoErrors(t, tc)
+}
+
+func TestU64BoundsCoverage(t *testing.T) {
+	input := `
+do main() {
+	temp val u64 = 18446744073709551615
+}
+`
+	tc := typecheck(t, input)
+	assertNoErrors(t, tc)
+}
+
+// ============================================================================
+// Direct Stdlib Call Tests (checkDirectStdlibCall)
+// ============================================================================
+
+func TestDirectStdlibCallWithoutImport(t *testing.T) {
+	input := `
+do main() {
+	arrays.reverse({1, 2, 3})
+}
+`
+	tc := typecheck(t, input)
+	assertHasError(t, tc, errors.E4007)
+}
+
+func TestDirectStdlibCallWithImport(t *testing.T) {
+	input := `
+import @arrays
+
+do main() {
+	arrays.reverse({1, 2, 3})
+}
+`
+	tc := typecheck(t, input)
+	assertNoErrors(t, tc)
+}
+
+// ============================================================================
+// Infer Builtin Call Type Tests (inferBuiltinCallType)
+// ============================================================================
+
+func TestInferLenReturnType(t *testing.T) {
+	input := `
+do main() {
+	temp arr [int] = {1, 2, 3}
+	temp length int = len(arr)
+}
+`
+	tc := typecheck(t, input)
+	assertNoErrors(t, tc)
+}
+
+func TestInferTypeofReturnType(t *testing.T) {
+	input := `
+do main() {
+	temp x int = 42
+	temp typeName string = typeof(x)
+}
+`
+	tc := typecheck(t, input)
+	assertNoErrors(t, tc)
+}
+
+func TestInferCopyReturnType(t *testing.T) {
+	input := `
+do main() {
+	temp arr [int] = {1, 2, 3}
+	temp arrCopy [int] = copy(arr)
+}
+`
+	tc := typecheck(t, input)
+	assertNoErrors(t, tc)
+}
+
+func TestInferAppendReturnType(t *testing.T) {
+	input := `
+do main() {
+	temp arr [int] = {1, 2, 3}
+	temp newArr [int] = append(arr, 4)
+}
+`
+	tc := typecheck(t, input)
+	assertNoErrors(t, tc)
+}
+
+func TestInferRangeReturnType(t *testing.T) {
+	input := `
+do main() {
+	temp nums [int] = range(1, 10)
+}
+`
+	tc := typecheck(t, input)
+	assertNoErrors(t, tc)
+}
+
+// ============================================================================
+// Suppression Tests (isSuppressed)
+// ============================================================================
+
+func TestSuppressionComment(t *testing.T) {
+	input := `
+do main() {
+	// @suppress E3002
+	temp x = 42
+}
+`
+	tc := typecheck(t, input)
+	// Should not have E3002 error because it's suppressed
+	for _, err := range tc.Errors().Errors {
+		if err.ErrorCode == errors.E3002 {
+			t.Error("E3002 should be suppressed")
+		}
+	}
+}
+
+// ============================================================================
+// Has Return in If Statement Tests (hasReturnInIfStatement)
+// ============================================================================
+
+func TestNestedIfWithReturns(t *testing.T) {
+	input := `
+do nested_return(x int, y int) -> int {
+	if x > 0 {
+		if y > 0 {
+			return x + y
+		} otherwise {
+			return x - y
+		}
+	} otherwise {
+		return -x
+	}
+}
+
+do main() {}
+`
+	tc := typecheck(t, input)
+	assertNoErrors(t, tc)
+}
+
+func TestNestedIfMissingReturn(t *testing.T) {
+	input := `
+do nested_missing(x int, y int) -> int {
+	if x > 0 {
+		if y > 0 {
+			return x + y
+		}
+	} otherwise {
+		return -x
+	}
+}
+
+do main() {}
+`
+	tc := typecheck(t, input)
+	assertHasError(t, tc, errors.E3035)
+}
