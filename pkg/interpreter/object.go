@@ -31,8 +31,8 @@ type (
 	MapPair         = object.MapPair
 	Struct          = object.Struct
 	StructFieldTags = object.StructFieldTags
-	EmptyTag 				= object.EmptyTag
-	JSONTag 				= object.JSONTag
+	EmptyTag        = object.EmptyTag
+	JSONTag         = object.JSONTag
 	Break           = object.Break
 	Continue        = object.Continue
 	StructDef       = object.StructDef

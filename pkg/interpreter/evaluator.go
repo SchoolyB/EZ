@@ -412,34 +412,34 @@ func Eval(node ast.Node, env *Environment) Object {
 		tags := make(map[string]StructFieldTags)
 		for _, field := range node.Fields {
 			fields[field.Name.Value] = field.TypeName
-			if (strings.HasPrefix(field.Tag, "json:\"")) {
+			if strings.HasPrefix(field.Tag, "json:\"") {
 				jsonTag := &JSONTag{Name: field.Name.Value}
 				optionString, _ := strings.CutPrefix(field.Tag, "json:\"")
 				optionString, _ = strings.CutSuffix(optionString, "\"")
 				options := strings.Split(optionString, ",")
 				switch options[0] {
-					case "-":
-						jsonTag.Ignore = true
+				case "-":
+					jsonTag.Ignore = true
 				default:
 					jsonTag.Name = options[0]
 					for _, opt := range options[1:] {
-							switch opt {
-								case "omitempty":
-									jsonTag.OmitEmpty = true
-								case "string":
-									jsonTag.EncodeAsString = true
-							}
+						switch opt {
+						case "omitempty":
+							jsonTag.OmitEmpty = true
+						case "string":
+							jsonTag.EncodeAsString = true
+						}
 					}
 				}
 				tags[field.Name.Value] = jsonTag
-			} else if (field.Tag == "") {
+			} else if field.Tag == "" {
 				tags[field.Name.Value] = &EmptyTag{}
 			}
 		}
 		vis := convertVisibility(node.Visibility)
 		env.RegisterStructDefWithVisibility(node.Name.Value, &StructDef{
-			Name:   node.Name.Value,
-			Fields: fields,
+			Name:      node.Name.Value,
+			Fields:    fields,
 			FieldTags: tags,
 		}, vis)
 		return NIL
@@ -771,7 +771,10 @@ func evalProgram(program *ast.Program, env *Environment) Object {
 
 		switch result := result.(type) {
 		case *ReturnValue:
-			return result.Values[0]
+			if len(result.Values) > 0 {
+				return result.Values[0]
+			}
+			return NIL
 		case *Error:
 			return result
 		}
@@ -1139,7 +1142,11 @@ func evalAssignment(node *ast.AssignmentStatement, env *Environment) Object {
 			if ref, isRef := existingVal.(*Reference); isRef {
 				// Handle compound assignment for references
 				if node.Operator != "=" {
-					oldVal, _ := ref.Deref()
+					oldVal, ok := ref.Deref()
+					if !ok {
+						return newErrorWithLocation("E4001", node.Token.Line, node.Token.Column,
+							"cannot dereference variable '%s'", target.Value)
+					}
 					val = evalCompoundAssignment(node.Operator, oldVal, val, node.Token.Line, node.Token.Column)
 					if isError(val) {
 						return val
@@ -3150,8 +3157,8 @@ func evalStructValue(node *ast.StructValue, env *Environment) Object {
 	}
 
 	return &Struct{
-		TypeName: structDef.Name,
-		Fields:   fields,
+		TypeName:  structDef.Name,
+		Fields:    fields,
 		FieldTags: structDef.FieldTags,
 	}
 }
@@ -3430,10 +3437,10 @@ func copyByDefault(val Object) Object {
 			newFields[key] = copyByDefault(fieldVal)
 		}
 		return &Struct{
-			TypeName: v.TypeName,
-			Fields:   newFields,
+			TypeName:  v.TypeName,
+			Fields:    newFields,
 			FieldTags: v.FieldTags,
-			Mutable:  v.Mutable,
+			Mutable:   v.Mutable,
 		}
 	case *Array:
 		// Deep copy array

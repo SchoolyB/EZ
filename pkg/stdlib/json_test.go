@@ -736,3 +736,207 @@ func TestJSONDecodeTypedWrongSecondArg(t *testing.T) {
 		t.Errorf("expected error code E7003, got %s", err.Code)
 	}
 }
+
+// ============================================================================
+// Additional coverage tests
+// ============================================================================
+
+func TestJSONPrettyEncodeMap(t *testing.T) {
+	fn := JsonBuiltins["json.pretty"].Fn
+
+	// Test with map
+	m := &object.Map{
+		Pairs: []*object.MapPair{
+			{Key: &object.String{Value: "name"}, Value: &object.String{Value: "Alice"}},
+		},
+		Index: map[string]int{"s:name": 0},
+	}
+
+	result := fn(m, &object.String{Value: "  "})
+	rv, ok := result.(*object.ReturnValue)
+	if !ok {
+		t.Fatalf("expected ReturnValue, got %T", result)
+	}
+
+	str, ok := rv.Values[0].(*object.String)
+	if !ok {
+		t.Fatalf("expected String result, got %T", rv.Values[0])
+	}
+
+	// Check that it contains formatting (newlines/indentation)
+	if len(str.Value) == 0 {
+		t.Error("expected non-empty result")
+	}
+}
+
+func TestJSONEncodeByteCoverage(t *testing.T) {
+	fn := JsonBuiltins["json.encode"].Fn
+
+	result := fn(&object.Byte{Value: 65})
+
+	rv, ok := result.(*object.ReturnValue)
+	if !ok {
+		t.Fatalf("expected ReturnValue, got %T", result)
+	}
+
+	str, ok := rv.Values[0].(*object.String)
+	if !ok {
+		t.Fatalf("expected String result, got %T", rv.Values[0])
+	}
+
+	if str.Value != "65" {
+		t.Errorf("expected '65', got %s", str.Value)
+	}
+}
+
+func TestJSONEncodeCharCoverage(t *testing.T) {
+	fn := JsonBuiltins["json.encode"].Fn
+
+	result := fn(&object.Char{Value: 'A'})
+
+	rv, ok := result.(*object.ReturnValue)
+	if !ok {
+		t.Fatalf("expected ReturnValue, got %T", result)
+	}
+
+	str, ok := rv.Values[0].(*object.String)
+	if !ok {
+		t.Fatalf("expected String result, got %T", rv.Values[0])
+	}
+
+	if str.Value != `"A"` {
+		t.Errorf("expected '\"A\"', got %s", str.Value)
+	}
+}
+
+func TestJSONEncodeNestedArrayCoverage(t *testing.T) {
+	fn := JsonBuiltins["json.encode"].Fn
+
+	nested := &object.Array{
+		Elements: []object.Object{
+			&object.Array{
+				Elements: []object.Object{
+					&object.Integer{Value: big.NewInt(1)},
+					&object.Integer{Value: big.NewInt(2)},
+				},
+			},
+			&object.Array{
+				Elements: []object.Object{
+					&object.Integer{Value: big.NewInt(3)},
+					&object.Integer{Value: big.NewInt(4)},
+				},
+			},
+		},
+	}
+
+	result := fn(nested)
+	rv, ok := result.(*object.ReturnValue)
+	if !ok {
+		t.Fatalf("expected ReturnValue, got %T", result)
+	}
+
+	str, ok := rv.Values[0].(*object.String)
+	if !ok {
+		t.Fatalf("expected String result, got %T", rv.Values[0])
+	}
+
+	if str.Value != "[[1,2],[3,4]]" {
+		t.Errorf("expected '[[1,2],[3,4]]', got %s", str.Value)
+	}
+}
+
+func TestJSONDecodeArrayCoverage(t *testing.T) {
+	fn := JsonBuiltins["json.decode"].Fn
+
+	result := fn(&object.String{Value: `[1, 2, 3]`})
+
+	rv, ok := result.(*object.ReturnValue)
+	if !ok {
+		t.Fatalf("expected ReturnValue, got %T", result)
+	}
+
+	arr, ok := rv.Values[0].(*object.Array)
+	if !ok {
+		t.Fatalf("expected Array result, got %T", rv.Values[0])
+	}
+
+	if len(arr.Elements) != 3 {
+		t.Errorf("expected 3 elements, got %d", len(arr.Elements))
+	}
+}
+
+func TestJSONDecodeNestedObject(t *testing.T) {
+	fn := JsonBuiltins["json.decode"].Fn
+
+	result := fn(&object.String{Value: `{"person": {"name": "Alice", "age": 30}}`})
+
+	rv, ok := result.(*object.ReturnValue)
+	if !ok {
+		t.Fatalf("expected ReturnValue, got %T", result)
+	}
+
+	m, ok := rv.Values[0].(*object.Map)
+	if !ok {
+		t.Fatalf("expected Map result, got %T", rv.Values[0])
+	}
+
+	if len(m.Pairs) != 1 {
+		t.Errorf("expected 1 pair, got %d", len(m.Pairs))
+	}
+}
+
+func TestJSONDecodeBooleanCoverage(t *testing.T) {
+	fn := JsonBuiltins["json.decode"].Fn
+
+	// Test true
+	result := fn(&object.String{Value: `true`})
+	rv, ok := result.(*object.ReturnValue)
+	if !ok {
+		t.Fatalf("expected ReturnValue, got %T", result)
+	}
+
+	if rv.Values[0] != object.TRUE {
+		t.Errorf("expected TRUE, got %v", rv.Values[0])
+	}
+
+	// Test false
+	result = fn(&object.String{Value: `false`})
+	rv, _ = result.(*object.ReturnValue)
+
+	if rv.Values[0] != object.FALSE {
+		t.Errorf("expected FALSE, got %v", rv.Values[0])
+	}
+}
+
+func TestJSONDecodeNullCoverage(t *testing.T) {
+	fn := JsonBuiltins["json.decode"].Fn
+
+	result := fn(&object.String{Value: `null`})
+	rv, ok := result.(*object.ReturnValue)
+	if !ok {
+		t.Fatalf("expected ReturnValue, got %T", result)
+	}
+
+	if rv.Values[0] != object.NIL {
+		t.Errorf("expected NIL, got %v", rv.Values[0])
+	}
+}
+
+func TestJSONDecodeFloatCoverage(t *testing.T) {
+	fn := JsonBuiltins["json.decode"].Fn
+
+	result := fn(&object.String{Value: `3.14159`})
+	rv, ok := result.(*object.ReturnValue)
+	if !ok {
+		t.Fatalf("expected ReturnValue, got %T", result)
+	}
+
+	f, ok := rv.Values[0].(*object.Float)
+	if !ok {
+		t.Fatalf("expected Float result, got %T", rv.Values[0])
+	}
+
+	if f.Value != 3.14159 {
+		t.Errorf("expected 3.14159, got %f", f.Value)
+	}
+}

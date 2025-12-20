@@ -911,46 +911,6 @@ var ArraysBuiltins = map[string]*object.Builtin{
 		},
 	},
 
-	"arrays.range": {
-		Fn: func(args ...object.Object) object.Object {
-			if len(args) < 1 || len(args) > 3 {
-				return newError("arrays.range() takes 1 to 3 arguments")
-			}
-
-			var start, end, step int64
-
-			if len(args) == 1 {
-				end = args[0].(*object.Integer).Value.Int64()
-				start = 0
-				step = 1
-			} else if len(args) == 2 {
-				start = args[0].(*object.Integer).Value.Int64()
-				end = args[1].(*object.Integer).Value.Int64()
-				step = 1
-			} else {
-				start = args[0].(*object.Integer).Value.Int64()
-				end = args[1].(*object.Integer).Value.Int64()
-				step = args[2].(*object.Integer).Value.Int64()
-			}
-
-			if step == 0 {
-				return &object.Error{Code: "E9003", Message: "arrays.range() step cannot be zero"}
-			}
-
-			var elements []object.Object
-			if step > 0 {
-				for i := start; i < end; i += step {
-					elements = append(elements, &object.Integer{Value: big.NewInt(i)})
-				}
-			} else {
-				for i := start; i > end; i += step {
-					elements = append(elements, &object.Integer{Value: big.NewInt(i)})
-				}
-			}
-			return &object.Array{Elements: elements}
-		},
-	},
-
 	"arrays.repeat": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 2 {
