@@ -2802,3 +2802,3911 @@ func TestPostfixOnSignedIntegers(t *testing.T) {
 		})
 	}
 }
+
+// ============================================================================
+// IO Module Type Checking Tests
+// ============================================================================
+
+func TestIoModuleReadFile(t *testing.T) {
+	input := `
+import @io
+using io
+
+do main() {
+	temp content string, err error = io.read_file("test.txt")
+}
+`
+	tc := typecheck(t, input)
+	assertNoErrors(t, tc)
+}
+
+func TestIoModuleWriteFile(t *testing.T) {
+	input := `
+import @io
+using io
+
+do main() {
+	temp success bool, err error = io.write_file("test.txt", "content")
+}
+`
+	tc := typecheck(t, input)
+	assertNoErrors(t, tc)
+}
+
+func TestIoModuleAppendFile(t *testing.T) {
+	input := `
+import @io
+using io
+
+do main() {
+	temp success bool, err error = io.append_file("test.txt", "more content")
+}
+`
+	tc := typecheck(t, input)
+	assertNoErrors(t, tc)
+}
+
+func TestIoModuleFileExists(t *testing.T) {
+	input := `
+import @io
+using io
+
+do main() {
+	temp file_exists_result bool = io.file_exists("test.txt")
+}
+`
+	tc := typecheck(t, input)
+	assertNoErrors(t, tc)
+}
+
+func TestIoModuleReadLines(t *testing.T) {
+	input := `
+import @io
+using io
+
+do main() {
+	temp lines [string], err error = io.read_lines("test.txt")
+}
+`
+	tc := typecheck(t, input)
+	assertNoErrors(t, tc)
+}
+
+func TestIoModuleReadBytes(t *testing.T) {
+	input := `
+import @io
+using io
+
+do main() {
+	temp data [byte], err error = io.read_bytes("test.bin")
+}
+`
+	tc := typecheck(t, input)
+	assertNoErrors(t, tc)
+}
+
+func TestIoModuleWriteBytes(t *testing.T) {
+	input := `
+import @io
+using io
+
+do main() {
+	temp data [byte] = {0x48, 0x65, 0x6c, 0x6c, 0x6f}
+	temp success bool, err error = io.write_bytes("test.bin", data)
+}
+`
+	tc := typecheck(t, input)
+	assertNoErrors(t, tc)
+}
+
+func TestIoModuleDeleteFile(t *testing.T) {
+	input := `
+import @io
+using io
+
+do main() {
+	temp success bool, err error = io.delete_file("test.txt")
+}
+`
+	tc := typecheck(t, input)
+	assertNoErrors(t, tc)
+}
+
+func TestIoModuleCopyFile(t *testing.T) {
+	input := `
+import @io
+using io
+
+do main() {
+	temp success bool, err error = io.copy_file("src.txt", "dst.txt")
+}
+`
+	tc := typecheck(t, input)
+	assertNoErrors(t, tc)
+}
+
+func TestIoModuleMoveFile(t *testing.T) {
+	input := `
+import @io
+using io
+
+do main() {
+	temp success bool, err error = io.move_file("old.txt", "new.txt")
+}
+`
+	tc := typecheck(t, input)
+	assertNoErrors(t, tc)
+}
+
+func TestIoModuleWrongArgCount(t *testing.T) {
+	input := `
+import @io
+using io
+
+do main() {
+	temp content string, err error = io.read_file()
+}
+`
+	tc := typecheck(t, input)
+	assertHasError(t, tc, errors.E5008)
+}
+
+func TestIoModuleWrongArgType(t *testing.T) {
+	input := `
+import @io
+using io
+
+do main() {
+	temp content string, err error = io.read_file(123)
+}
+`
+	tc := typecheck(t, input)
+	assertHasError(t, tc, errors.E3001)
+}
+
+// ============================================================================
+// OS Module Type Checking Tests
+// ============================================================================
+
+func TestOsModuleGetEnv(t *testing.T) {
+	input := `
+import @os
+using os
+
+do main() {
+	temp value string = os.get_env("HOME")
+}
+`
+	tc := typecheck(t, input)
+	assertNoErrors(t, tc)
+}
+
+func TestOsModuleSetEnv(t *testing.T) {
+	input := `
+import @os
+using os
+
+do main() {
+	temp success bool, err error = os.set_env("MY_VAR", "value")
+}
+`
+	tc := typecheck(t, input)
+	assertNoErrors(t, tc)
+}
+
+func TestOsModuleUnsetEnv(t *testing.T) {
+	input := `
+import @os
+using os
+
+do main() {
+	temp success bool, err error = os.unset_env("MY_VAR")
+}
+`
+	tc := typecheck(t, input)
+	assertNoErrors(t, tc)
+}
+
+func TestOsModuleGetCwd(t *testing.T) {
+	input := `
+import @os
+using os
+
+do main() {
+	temp current_dir string = os.get_cwd()
+}
+`
+	tc := typecheck(t, input)
+	assertNoErrors(t, tc)
+}
+
+func TestOsModuleArgs(t *testing.T) {
+	input := `
+import @os
+using os
+
+do main() {
+	temp cli_args [string] = os.args()
+}
+`
+	tc := typecheck(t, input)
+	assertNoErrors(t, tc)
+}
+
+func TestOsModuleExit(t *testing.T) {
+	input := `
+import @os
+using os
+
+do main() {
+	os.exit(0)
+}
+`
+	tc := typecheck(t, input)
+	assertNoErrors(t, tc)
+}
+
+func TestOsModuleWrongArgCount(t *testing.T) {
+	input := `
+import @os
+using os
+
+do main() {
+	temp value string = os.get_env()
+}
+`
+	tc := typecheck(t, input)
+	assertHasError(t, tc, errors.E5008)
+}
+
+func TestOsModuleWrongArgType(t *testing.T) {
+	input := `
+import @os
+using os
+
+do main() {
+	temp success bool, err error = os.set_env(123, "value")
+}
+`
+	tc := typecheck(t, input)
+	assertHasError(t, tc, errors.E3001)
+}
+
+// ============================================================================
+// Random Module Type Checking Tests
+// ============================================================================
+
+func TestRandomModuleInt(t *testing.T) {
+	input := `
+import @random
+using random
+
+do main() {
+	temp r int = random.int(100)
+}
+`
+	tc := typecheck(t, input)
+	assertNoErrors(t, tc)
+}
+
+func TestRandomModuleIntRange(t *testing.T) {
+	input := `
+import @random
+using random
+
+do main() {
+	temp r int = random.int(10, 100)
+}
+`
+	tc := typecheck(t, input)
+	assertNoErrors(t, tc)
+}
+
+func TestRandomModuleFloat(t *testing.T) {
+	input := `
+import @random
+using random
+
+do main() {
+	temp r float = random.float()
+}
+`
+	tc := typecheck(t, input)
+	assertNoErrors(t, tc)
+}
+
+func TestRandomModuleFloatRange(t *testing.T) {
+	input := `
+import @random
+using random
+
+do main() {
+	temp r float = random.float(0.0, 1.0)
+}
+`
+	tc := typecheck(t, input)
+	assertNoErrors(t, tc)
+}
+
+func TestRandomModuleBool(t *testing.T) {
+	input := `
+import @random
+using random
+
+do main() {
+	temp r bool = random.bool()
+}
+`
+	tc := typecheck(t, input)
+	assertNoErrors(t, tc)
+}
+
+func TestRandomModuleChoice(t *testing.T) {
+	input := `
+import @random
+using random
+
+do main() {
+	temp arr [int] = {1, 2, 3, 4, 5}
+	temp r int = random.choice(arr)
+}
+`
+	tc := typecheck(t, input)
+	assertNoErrors(t, tc)
+}
+
+func TestRandomModuleShuffle(t *testing.T) {
+	input := `
+import @random
+using random
+
+do main() {
+	temp arr [int] = {1, 2, 3, 4, 5}
+	temp shuffled [int] = random.shuffle(arr)
+}
+`
+	tc := typecheck(t, input)
+	assertNoErrors(t, tc)
+}
+
+func TestRandomModuleWrongArgCount(t *testing.T) {
+	input := `
+import @random
+using random
+
+do main() {
+	temp r int = random.int()
+}
+`
+	tc := typecheck(t, input)
+	assertHasError(t, tc, errors.E5008)
+}
+
+// ============================================================================
+// Bytes Module Type Checking Tests
+// ============================================================================
+
+func TestBytesModuleFromString(t *testing.T) {
+	input := `
+import @bytes
+using bytes
+
+do main() {
+	temp b [byte] = bytes.from_string("hello")
+}
+`
+	tc := typecheck(t, input)
+	assertNoErrors(t, tc)
+}
+
+func TestBytesModuleFromArray(t *testing.T) {
+	input := `
+import @bytes
+using bytes
+
+do main() {
+	temp arr [int] = {72, 101, 108, 108, 111}
+	temp b [byte] = bytes.from_array(arr)
+}
+`
+	tc := typecheck(t, input)
+	assertNoErrors(t, tc)
+}
+
+func TestBytesModuleToString(t *testing.T) {
+	input := `
+import @bytes
+using bytes
+
+do main() {
+	temp b [byte] = {72, 101, 108, 108, 111}
+	temp s string = bytes.to_string(b)
+}
+`
+	tc := typecheck(t, input)
+	assertNoErrors(t, tc)
+}
+
+func TestBytesModuleFromHex(t *testing.T) {
+	input := `
+import @bytes
+using bytes
+
+do main() {
+	temp b [byte], err error = bytes.from_hex("48656c6c6f")
+}
+`
+	tc := typecheck(t, input)
+	assertNoErrors(t, tc)
+}
+
+func TestBytesModuleToHex(t *testing.T) {
+	input := `
+import @bytes
+using bytes
+
+do main() {
+	temp b [byte] = {72, 101, 108, 108, 111}
+	temp hex string = bytes.to_hex(b)
+}
+`
+	tc := typecheck(t, input)
+	assertNoErrors(t, tc)
+}
+
+func TestBytesModuleSlice(t *testing.T) {
+	input := `
+import @bytes
+using bytes
+
+do main() {
+	temp b [byte] = {1, 2, 3, 4, 5}
+	temp sliced [byte] = bytes.slice(b, 1, 3)
+}
+`
+	tc := typecheck(t, input)
+	assertNoErrors(t, tc)
+}
+
+func TestBytesModuleConcat(t *testing.T) {
+	input := `
+import @bytes
+using bytes
+
+do main() {
+	temp a [byte] = {1, 2, 3}
+	temp b [byte] = {4, 5, 6}
+	temp c [byte] = bytes.concat(a, b)
+}
+`
+	tc := typecheck(t, input)
+	assertNoErrors(t, tc)
+}
+
+func TestBytesModuleWrongArgType(t *testing.T) {
+	input := `
+import @bytes
+using bytes
+
+do main() {
+	temp b [byte] = bytes.from_string(123)
+}
+`
+	tc := typecheck(t, input)
+	assertHasError(t, tc, errors.E3001)
+}
+
+// ============================================================================
+// Binary Module Type Checking Tests
+// ============================================================================
+
+func TestBinaryModuleEncodeI8(t *testing.T) {
+	input := `
+import @binary
+using binary
+
+do main() {
+	temp b [byte], err error = binary.encode_i8(127)
+}
+`
+	tc := typecheck(t, input)
+	assertNoErrors(t, tc)
+}
+
+func TestBinaryModuleDecodeI8(t *testing.T) {
+	input := `
+import @binary
+using binary
+
+do main() {
+	temp data [byte] = {127}
+	temp value int, err error = binary.decode_i8(data)
+}
+`
+	tc := typecheck(t, input)
+	assertNoErrors(t, tc)
+}
+
+func TestBinaryModuleEncodeU16LE(t *testing.T) {
+	input := `
+import @binary
+using binary
+
+do main() {
+	temp b [byte], err error = binary.encode_u16_le(65535)
+}
+`
+	tc := typecheck(t, input)
+	assertNoErrors(t, tc)
+}
+
+func TestBinaryModuleDecodeU16LE(t *testing.T) {
+	input := `
+import @binary
+using binary
+
+do main() {
+	temp data [byte] = {0xFF, 0xFF}
+	temp value int, err error = binary.decode_u16_le(data)
+}
+`
+	tc := typecheck(t, input)
+	assertNoErrors(t, tc)
+}
+
+func TestBinaryModuleEncodeI32BE(t *testing.T) {
+	input := `
+import @binary
+using binary
+
+do main() {
+	temp b [byte], err error = binary.encode_i32_be(2147483647)
+}
+`
+	tc := typecheck(t, input)
+	assertNoErrors(t, tc)
+}
+
+func TestBinaryModuleDecodeI32BE(t *testing.T) {
+	input := `
+import @binary
+using binary
+
+do main() {
+	temp data [byte] = {0x7F, 0xFF, 0xFF, 0xFF}
+	temp value int, err error = binary.decode_i32_be(data)
+}
+`
+	tc := typecheck(t, input)
+	assertNoErrors(t, tc)
+}
+
+func TestBinaryModuleEncodeF32LE(t *testing.T) {
+	input := `
+import @binary
+using binary
+
+do main() {
+	temp b [byte], err error = binary.encode_f32_le(3.14)
+}
+`
+	tc := typecheck(t, input)
+	assertNoErrors(t, tc)
+}
+
+func TestBinaryModuleDecodeF32LE(t *testing.T) {
+	input := `
+import @binary
+using binary
+
+do main() {
+	temp data [byte] = {0xC3, 0xF5, 0x48, 0x40}
+	temp value float, err error = binary.decode_f32_le(data)
+}
+`
+	tc := typecheck(t, input)
+	assertNoErrors(t, tc)
+}
+
+func TestBinaryModuleEncodeF64BE(t *testing.T) {
+	input := `
+import @binary
+using binary
+
+do main() {
+	temp b [byte], err error = binary.encode_f64_be(3.14159265359)
+}
+`
+	tc := typecheck(t, input)
+	assertNoErrors(t, tc)
+}
+
+func TestBinaryModuleDecodeF64BE(t *testing.T) {
+	input := `
+import @binary
+using binary
+
+do main() {
+	temp data [byte] = {0x40, 0x09, 0x21, 0xFB, 0x54, 0x44, 0x2D, 0x18}
+	temp value float, err error = binary.decode_f64_be(data)
+}
+`
+	tc := typecheck(t, input)
+	assertNoErrors(t, tc)
+}
+
+func TestBinaryModuleWrongArgType(t *testing.T) {
+	input := `
+import @binary
+using binary
+
+do main() {
+	temp b [byte], err error = binary.encode_i8("not a number")
+}
+`
+	tc := typecheck(t, input)
+	assertHasError(t, tc, errors.E3001)
+}
+
+func TestBinaryModuleWrongArgCount(t *testing.T) {
+	input := `
+import @binary
+using binary
+
+do main() {
+	temp b [byte], err error = binary.encode_i8()
+}
+`
+	tc := typecheck(t, input)
+	assertHasError(t, tc, errors.E5008)
+}
+
+// ============================================================================
+// Array Element Type Compatibility Tests
+// ============================================================================
+
+func TestArrayElementTypeMismatch(t *testing.T) {
+	input := `
+do main() {
+	temp arr [int] = {1, "two", 3}
+}
+`
+	tc := typecheck(t, input)
+	assertHasError(t, tc, errors.E3001)
+}
+
+func TestArrayElementTypeCompatibleIntegers(t *testing.T) {
+	input := `
+do main() {
+	temp arr [int] = {1, 2, 3, 4, 5}
+}
+`
+	tc := typecheck(t, input)
+	assertNoErrors(t, tc)
+}
+
+func TestArrayElementTypeCompatibleFloats(t *testing.T) {
+	input := `
+do main() {
+	temp arr [float] = {1.1, 2.2, 3.3}
+}
+`
+	tc := typecheck(t, input)
+	assertNoErrors(t, tc)
+}
+
+func TestArrayElementTypeCompatibleStrings(t *testing.T) {
+	input := `
+do main() {
+	temp arr [string] = {"a", "b", "c"}
+}
+`
+	tc := typecheck(t, input)
+	assertNoErrors(t, tc)
+}
+
+func TestNestedArrayElementTypeMismatch(t *testing.T) {
+	input := `
+do main() {
+	temp arr [[int]] = {{1, 2}, {"a", "b"}}
+}
+`
+	tc := typecheck(t, input)
+	assertHasError(t, tc, errors.E3001)
+}
+
+func TestArraysModuleWithTypeMismatch(t *testing.T) {
+	input := `
+import @arrays
+using arrays
+
+do main() {
+	temp nums [string] = {"a", "b"}
+	temp sum int = arrays.sum(nums)
+}
+`
+	tc := typecheck(t, input)
+	assertHasError(t, tc, errors.E3001)
+}
+
+// ============================================================================
+// Map Key/Value Type Compatibility Tests
+// ============================================================================
+
+func TestMapLiteralAcceptsMatchingTypes(t *testing.T) {
+	input := `
+do main() {
+	temp m map[string:int] = {"a": 1, "b": 2}
+}
+`
+	tc := typecheck(t, input)
+	assertNoErrors(t, tc)
+}
+
+func TestMapKeyValueTypesCompatible(t *testing.T) {
+	input := `
+do main() {
+	temp m map[string:int] = {"a": 1, "b": 2, "c": 3}
+}
+`
+	tc := typecheck(t, input)
+	assertNoErrors(t, tc)
+}
+
+func TestMapsModuleKeysType(t *testing.T) {
+	input := `
+import @maps
+using maps
+
+do main() {
+	temp m map[int:string] = {1: "one", 2: "two"}
+	temp map_keys [int] = maps.keys(m)
+}
+`
+	tc := typecheck(t, input)
+	assertNoErrors(t, tc)
+}
+
+func TestMapsModuleValuesType(t *testing.T) {
+	input := `
+import @maps
+using maps
+
+do main() {
+	temp m map[int:string] = {1: "one", 2: "two"}
+	temp map_values [string] = maps.values(m)
+}
+`
+	tc := typecheck(t, input)
+	assertNoErrors(t, tc)
+}
+
+// ============================================================================
+// Additional TypeChecker Coverage Tests
+// ============================================================================
+
+func TestSetCurrentModule(t *testing.T) {
+	tc := NewTypeChecker("", "test.ez")
+	// Just verify SetCurrentModule doesn't panic
+	tc.SetCurrentModule("mymodule")
+}
+
+func TestRegisterModuleVariable(t *testing.T) {
+	tc := NewTypeChecker("", "test.ez")
+	tc.RegisterModuleVariable("mymodule", "myvar", "int")
+
+	// Verify variable was registered
+	typeName, ok := tc.GetModuleVariable("mymodule", "myvar")
+	if !ok {
+		t.Error("should find registered module variable")
+	}
+	if typeName != "int" {
+		t.Errorf("expected type 'int', got '%s'", typeName)
+	}
+}
+
+func TestRegisterVariable(t *testing.T) {
+	tc := NewTypeChecker("", "test.ez")
+	tc.RegisterVariable("globalVar", "string")
+
+	// Verify variable was registered
+	vars := tc.GetVariables()
+	if vars == nil {
+		t.Error("GetVariables should not return nil")
+	}
+	if vars["globalVar"] != "string" {
+		t.Errorf("expected type 'string', got '%s'", vars["globalVar"])
+	}
+}
+
+func TestGetVariables(t *testing.T) {
+	tc := NewTypeChecker("", "test.ez")
+	tc.RegisterVariable("var1", "int")
+	tc.RegisterVariable("var2", "string")
+
+	vars := tc.GetVariables()
+	if len(vars) != 2 {
+		t.Errorf("expected 2 variables, got %d", len(vars))
+	}
+}
+
+func TestJsonModuleEncode(t *testing.T) {
+	input := `
+import @json
+using json
+
+const Person struct {
+	name string
+	age int
+}
+
+do main() {
+	temp p Person = Person{name: "Alice", age: 30}
+	temp jsonStr string, err error = json.encode(p)
+}
+`
+	tc := typecheck(t, input)
+	assertNoErrors(t, tc)
+}
+
+func TestJsonModuleDecode(t *testing.T) {
+	input := `
+import @json
+using json
+
+const Person struct {
+	name string
+	age int
+}
+
+do main() {
+	temp p Person, err error = json.decode("{}", Person)
+}
+`
+	tc := typecheck(t, input)
+	assertNoErrors(t, tc)
+}
+
+func TestJsonModulePretty(t *testing.T) {
+	input := `
+import @json
+using json
+
+const Person struct {
+	name string
+	age int
+}
+
+do main() {
+	temp p Person = Person{name: "Alice", age: 30}
+	temp jsonStr string, err error = json.pretty(p, "  ")
+}
+`
+	tc := typecheck(t, input)
+	assertNoErrors(t, tc)
+}
+
+func TestMathModuleFloorCall(t *testing.T) {
+	// Tests module function call validation
+	input := `
+import @math
+using math
+
+do main() {
+	temp x float = math.floor(3.7)
+}
+`
+	tc := typecheck(t, input)
+	assertNoErrors(t, tc)
+}
+
+// ============================================================================
+// Index Expression Tests
+// ============================================================================
+
+func TestArrayIndexExpression(t *testing.T) {
+	input := `
+do main() {
+	temp arr [int] = {1, 2, 3}
+	temp x int = arr[0]
+	temp y int = arr[1]
+}
+`
+	tc := typecheck(t, input)
+	assertNoErrors(t, tc)
+}
+
+func TestMapIndexExpression(t *testing.T) {
+	input := `
+do main() {
+	temp m map[string:int] = {"a": 1, "b": 2}
+	temp x int = m["a"]
+}
+`
+	tc := typecheck(t, input)
+	assertNoErrors(t, tc)
+}
+
+func TestStringIndexExpression(t *testing.T) {
+	input := `
+do main() {
+	temp s string = "hello"
+	temp c char = s[0]
+}
+`
+	tc := typecheck(t, input)
+	assertNoErrors(t, tc)
+}
+
+func TestNestedIndexExpression(t *testing.T) {
+	input := `
+do main() {
+	temp arr [[int]] = {{1, 2}, {3, 4}}
+	temp x int = arr[0][1]
+}
+`
+	tc := typecheck(t, input)
+	assertNoErrors(t, tc)
+}
+
+// ============================================================================
+// Builtin Type Conversion Tests
+// ============================================================================
+
+func TestCastToI8(t *testing.T) {
+	input := `
+do main() {
+	temp x i8 = cast(127, i8)
+}
+`
+	tc := typecheck(t, input)
+	assertNoErrors(t, tc)
+}
+
+func TestCastToI16(t *testing.T) {
+	input := `
+do main() {
+	temp x i16 = cast(1000, i16)
+}
+`
+	tc := typecheck(t, input)
+	assertNoErrors(t, tc)
+}
+
+func TestCastToI32(t *testing.T) {
+	input := `
+do main() {
+	temp x i32 = cast(100000, i32)
+}
+`
+	tc := typecheck(t, input)
+	assertNoErrors(t, tc)
+}
+
+func TestCastToU8(t *testing.T) {
+	input := `
+do main() {
+	temp x u8 = cast(255, u8)
+}
+`
+	tc := typecheck(t, input)
+	assertNoErrors(t, tc)
+}
+
+func TestCastToU16(t *testing.T) {
+	input := `
+do main() {
+	temp x u16 = cast(65535, u16)
+}
+`
+	tc := typecheck(t, input)
+	assertNoErrors(t, tc)
+}
+
+func TestCastToF32(t *testing.T) {
+	input := `
+do main() {
+	temp x f32 = cast(3.14, f32)
+}
+`
+	tc := typecheck(t, input)
+	assertNoErrors(t, tc)
+}
+
+func TestCastToF64(t *testing.T) {
+	input := `
+do main() {
+	temp x f64 = cast(3.14159, f64)
+}
+`
+	tc := typecheck(t, input)
+	assertNoErrors(t, tc)
+}
+
+// ============================================================================
+// Integer Bounds Tests
+// ============================================================================
+
+func TestI8Bounds(t *testing.T) {
+	input := `
+do main() {
+	temp min i8 = -128
+	temp max i8 = 127
+}
+`
+	tc := typecheck(t, input)
+	assertNoErrors(t, tc)
+}
+
+func TestU8Bounds(t *testing.T) {
+	input := `
+do main() {
+	temp min u8 = 0
+	temp max u8 = 255
+}
+`
+	tc := typecheck(t, input)
+	assertNoErrors(t, tc)
+}
+
+func TestI16Bounds(t *testing.T) {
+	input := `
+do main() {
+	temp min i16 = -32768
+	temp max i16 = 32767
+}
+`
+	tc := typecheck(t, input)
+	assertNoErrors(t, tc)
+}
+
+func TestU16Bounds(t *testing.T) {
+	input := `
+do main() {
+	temp min u16 = 0
+	temp max u16 = 65535
+}
+`
+	tc := typecheck(t, input)
+	assertNoErrors(t, tc)
+}
+
+// ============================================================================
+// Strings Module Call Tests
+// ============================================================================
+
+func TestStringsContains(t *testing.T) {
+	input := `
+import @strings
+using strings
+
+do main() {
+	temp result bool = strings.contains("hello world", "world")
+}
+`
+	tc := typecheck(t, input)
+	assertNoErrors(t, tc)
+}
+
+func TestStringsSplit(t *testing.T) {
+	input := `
+import @strings
+using strings
+
+do main() {
+	temp parts [string] = strings.split("a,b,c", ",")
+}
+`
+	tc := typecheck(t, input)
+	assertNoErrors(t, tc)
+}
+
+func TestStringsJoin(t *testing.T) {
+	input := `
+import @strings
+using strings
+
+do main() {
+	temp parts [string] = {"a", "b", "c"}
+	temp joined string = strings.join(parts, ",")
+}
+`
+	tc := typecheck(t, input)
+	assertNoErrors(t, tc)
+}
+
+func TestStringsReplace(t *testing.T) {
+	input := `
+import @strings
+using strings
+
+do main() {
+	temp result string = strings.replace("hello world", "world", "there")
+}
+`
+	tc := typecheck(t, input)
+	assertNoErrors(t, tc)
+}
+
+func TestStringsSubstring(t *testing.T) {
+	input := `
+import @strings
+using strings
+
+do main() {
+	temp sub string = strings.substring("hello", 0, 3)
+}
+`
+	tc := typecheck(t, input)
+	assertNoErrors(t, tc)
+}
+
+// ============================================================================
+// Time Module Call Tests
+// ============================================================================
+
+func TestTimeNow(t *testing.T) {
+	input := `
+import @time
+using time
+
+do main() {
+	temp timestamp int = time.now()
+}
+`
+	tc := typecheck(t, input)
+	assertNoErrors(t, tc)
+}
+
+func TestTimeFormat(t *testing.T) {
+	input := `
+import @time
+using time
+
+do main() {
+	temp formatted string = time.format("YYYY-MM-DD", 1234567890)
+}
+`
+	tc := typecheck(t, input)
+	assertNoErrors(t, tc)
+}
+
+func TestTimeHour(t *testing.T) {
+	input := `
+import @time
+using time
+
+do main() {
+	temp h int = time.hour()
+}
+`
+	tc := typecheck(t, input)
+	assertNoErrors(t, tc)
+}
+
+func TestTimeMinute(t *testing.T) {
+	input := `
+import @time
+using time
+
+do main() {
+	temp m int = time.minute()
+}
+`
+	tc := typecheck(t, input)
+	assertNoErrors(t, tc)
+}
+
+func TestTimeSecond(t *testing.T) {
+	input := `
+import @time
+using time
+
+do main() {
+	temp s int = time.second()
+}
+`
+	tc := typecheck(t, input)
+	assertNoErrors(t, tc)
+}
+
+// ============================================================================
+// File Scope Statement Tests
+// ============================================================================
+
+func TestGlobalConstDeclaration(t *testing.T) {
+	input := `
+const MAX_VALUE int = 100
+const MIN_VALUE int = 0
+
+do main() {
+	temp x int = MAX_VALUE
+}
+`
+	tc := typecheck(t, input)
+	assertNoErrors(t, tc)
+}
+
+func TestGlobalTempDeclaration(t *testing.T) {
+	input := `
+temp counter int = 0
+
+do main() {
+	counter = counter + 1
+}
+`
+	tc := typecheck(t, input)
+	assertNoErrors(t, tc)
+}
+
+// ============================================================================
+// Multi-Return Declaration Tests
+// ============================================================================
+
+func TestMultiReturnWithError(t *testing.T) {
+	input := `
+import @io
+using io
+
+do main() {
+	temp content string, err error = io.read_file("test.txt")
+	if err != nil {
+		println("Error reading file")
+	}
+}
+`
+	tc := typecheck(t, input)
+	assertNoErrors(t, tc)
+}
+
+func TestMultiReturnBothValues(t *testing.T) {
+	input := `
+import @io
+using io
+
+do main() {
+	temp data string, err error = io.read_file("test.txt")
+	println(data)
+}
+`
+	tc := typecheck(t, input)
+	assertNoErrors(t, tc)
+}
+
+// ============================================================================
+// Enum Value Type Tests
+// ============================================================================
+
+func TestEnumWithIntValues(t *testing.T) {
+	input := `
+const Priority enum {
+	LOW = 0
+	MEDIUM = 1
+	HIGH = 2
+}
+
+do main() {
+	temp p Priority = Priority.HIGH
+}
+`
+	tc := typecheck(t, input)
+	assertNoErrors(t, tc)
+}
+
+func TestEnumWithFloatValues(t *testing.T) {
+	input := `
+const Scale enum {
+	SMALL = 0.5
+	MEDIUM = 1.0
+	LARGE = 2.0
+}
+
+do main() {
+	temp s Scale = Scale.MEDIUM
+}
+`
+	tc := typecheck(t, input)
+	assertNoErrors(t, tc)
+}
+
+func TestEnumDefaultValues(t *testing.T) {
+	input := `
+const Direction enum {
+	NORTH
+	SOUTH
+	EAST
+	WEST
+}
+
+do main() {
+	temp d Direction = Direction.NORTH
+}
+`
+	tc := typecheck(t, input)
+	assertNoErrors(t, tc)
+}
+
+// ============================================================================
+// Range Expression Tests
+// ============================================================================
+
+func TestRangeInForLoop(t *testing.T) {
+	input := `
+do main() {
+	for i in range(0, 10) {
+		println(i)
+	}
+}
+`
+	tc := typecheck(t, input)
+	assertNoErrors(t, tc)
+}
+
+func TestRangeWithStep(t *testing.T) {
+	input := `
+do main() {
+	for i in range(0, 10, 2) {
+		println(i)
+	}
+}
+`
+	tc := typecheck(t, input)
+	assertNoErrors(t, tc)
+}
+
+// ============================================================================
+// Member Access Tests
+// ============================================================================
+
+func TestStructMemberAccess(t *testing.T) {
+	input := `
+const Point struct {
+	x int
+	y int
+}
+
+do main() {
+	temp p Point = Point{x: 10, y: 20}
+	temp sum int = p.x + p.y
+}
+`
+	tc := typecheck(t, input)
+	assertNoErrors(t, tc)
+}
+
+func TestNestedStructMemberAccess(t *testing.T) {
+	input := `
+const Inner struct {
+	value int
+}
+
+const Outer struct {
+	inner Inner
+}
+
+do main() {
+	temp o Outer = Outer{inner: Inner{value: 42}}
+	temp v int = o.inner.value
+}
+`
+	tc := typecheck(t, input)
+	assertNoErrors(t, tc)
+}
+
+func TestEnumMemberAccess(t *testing.T) {
+	input := `
+const Color enum {
+	RED = 1
+	GREEN = 2
+	BLUE = 3
+}
+
+do main() {
+	temp c Color = Color.RED
+	temp isRed bool = c == Color.RED
+}
+`
+	tc := typecheck(t, input)
+	assertNoErrors(t, tc)
+}
+
+// ============================================================================
+// Additional Coverage Tests
+// ============================================================================
+
+func TestWhenStatementWithEnumValue(t *testing.T) {
+	input := `
+const Status enum {
+	PENDING
+	ACTIVE
+	DONE
+}
+
+do main() {
+	temp s Status = Status.PENDING
+	when s {
+		is Status.PENDING {
+			println("pending")
+		}
+		is Status.ACTIVE {
+			println("active")
+		}
+		is Status.DONE {
+			println("done")
+		}
+	}
+}
+`
+	tc := typecheck(t, input)
+	assertNoErrors(t, tc)
+}
+
+func TestWhenStatementWithInteger(t *testing.T) {
+	input := `
+do main() {
+	temp x int = 5
+	when x {
+		is 1 {
+			println("one")
+		}
+		is 5 {
+			println("five")
+		}
+	}
+}
+`
+	tc := typecheck(t, input)
+	assertNoErrors(t, tc)
+}
+
+func TestNewBuiltinFunction(t *testing.T) {
+	input := `
+const Person struct {
+	name string
+	age int
+}
+
+do main() {
+	temp p Person = new(Person)
+	p.name = "Alice"
+	p.age = 30
+}
+`
+	tc := typecheck(t, input)
+	assertNoErrors(t, tc)
+}
+
+func TestArrayLength(t *testing.T) {
+	input := `
+do main() {
+	temp arr [int] = {1, 2, 3, 4, 5}
+	temp length int = len(arr)
+}
+`
+	tc := typecheck(t, input)
+	assertNoErrors(t, tc)
+}
+
+func TestStringLength(t *testing.T) {
+	input := `
+do main() {
+	temp s string = "hello world"
+	temp length int = len(s)
+}
+`
+	tc := typecheck(t, input)
+	assertNoErrors(t, tc)
+}
+
+func TestCompoundAssignment(t *testing.T) {
+	input := `
+do main() {
+	temp x int = 10
+	x += 5
+	x -= 3
+	x *= 2
+	x /= 4
+}
+`
+	tc := typecheck(t, input)
+	assertNoErrors(t, tc)
+}
+
+func TestBreakAndContinue(t *testing.T) {
+	input := `
+do main() {
+	for i in range(0, 10) {
+		if i == 5 {
+			break
+		}
+		if i == 3 {
+			continue
+		}
+		println(i)
+	}
+}
+`
+	tc := typecheck(t, input)
+	assertNoErrors(t, tc)
+}
+
+func TestNestedLoops(t *testing.T) {
+	input := `
+do main() {
+	for i in range(0, 5) {
+		for j in range(0, 5) {
+			temp product int = i * j
+		}
+	}
+}
+`
+	tc := typecheck(t, input)
+	assertNoErrors(t, tc)
+}
+
+func TestStructWithOptionalField(t *testing.T) {
+	input := `
+const Config struct {
+	name string
+	timeout int
+}
+
+do main() {
+	temp c Config = Config{name: "test", timeout: 30}
+}
+`
+	tc := typecheck(t, input)
+	assertNoErrors(t, tc)
+}
+
+func TestArrayLengthCheck(t *testing.T) {
+	input := `
+import @arrays
+using arrays
+
+do main() {
+	temp arr [int] = {1, 2, 3}
+	temp isEmpty bool = arrays.is_empty(arr)
+}
+`
+	tc := typecheck(t, input)
+	assertNoErrors(t, tc)
+}
+
+func TestArrayFirst(t *testing.T) {
+	input := `
+import @arrays
+using arrays
+
+do main() {
+	temp arr [int] = {1, 2, 3}
+	temp firstElement int = arrays.first(arr)
+}
+`
+	tc := typecheck(t, input)
+	assertNoErrors(t, tc)
+}
+
+func TestMapMerge(t *testing.T) {
+	input := `
+import @maps
+using maps
+
+do main() {
+	temp m1 map[string:int] = {"a": 1}
+	temp m2 map[string:int] = {"b": 2}
+	temp merged map[string:int] = maps.merge(m1, m2)
+}
+`
+	tc := typecheck(t, input)
+	assertNoErrors(t, tc)
+}
+
+func TestMapDelete(t *testing.T) {
+	input := `
+import @maps
+using maps
+
+do main() {
+	temp m map[string:int] = {"a": 1, "b": 2}
+	temp result map[string:int] = maps.delete(m, "a")
+}
+`
+	tc := typecheck(t, input)
+	assertNoErrors(t, tc)
+}
+
+func TestStringInterpolation(t *testing.T) {
+	input := `
+do main() {
+	temp name string = "world"
+	temp greeting string = "Hello, ${name}!"
+}
+`
+	tc := typecheck(t, input)
+	assertNoErrors(t, tc)
+}
+
+func TestIfCondition(t *testing.T) {
+	input := `
+do main() {
+	temp x int = 5
+	if x > 0 {
+		println("positive")
+	}
+}
+`
+	tc := typecheck(t, input)
+	assertNoErrors(t, tc)
+}
+
+func TestLogicalOperators(t *testing.T) {
+	input := `
+do main() {
+	temp a bool = true
+	temp b bool = false
+	temp andResult bool = a && b
+	temp orResult bool = a || b
+	temp notResult bool = !a
+}
+`
+	tc := typecheck(t, input)
+	assertNoErrors(t, tc)
+}
+
+func TestComparisonOperators(t *testing.T) {
+	input := `
+do main() {
+	temp a int = 5
+	temp b int = 3
+	temp gt bool = a > b
+	temp lt bool = a < b
+	temp eq bool = a == b
+	temp neq bool = a != b
+}
+`
+	tc := typecheck(t, input)
+	assertNoErrors(t, tc)
+}
+
+// ============================================================================
+// Additional Tests for 60% Coverage
+// ============================================================================
+
+func TestNestedIfStatements(t *testing.T) {
+	input := `
+do main() {
+	temp x int = 5
+	if x > 10 {
+		println("big")
+	}
+	if x > 0 {
+		println("positive")
+	}
+}
+`
+	tc := typecheck(t, input)
+	assertNoErrors(t, tc)
+}
+
+func TestForEachWithArray(t *testing.T) {
+	input := `
+do main() {
+	temp items [string] = {"a", "b", "c"}
+	for_each item in items {
+		println(item)
+	}
+}
+`
+	tc := typecheck(t, input)
+	assertNoErrors(t, tc)
+}
+
+func TestForLoopIteration(t *testing.T) {
+	input := `
+do main() {
+	temp sum int = 0
+	for i in range(0, 10) {
+		sum = sum + i
+	}
+}
+`
+	tc := typecheck(t, input)
+	assertNoErrors(t, tc)
+}
+
+func TestFunctionCall(t *testing.T) {
+	input := `
+do add(a int, b int) -> int {
+	return a + b
+}
+
+do main() {
+	temp sum int = add(5, 3)
+}
+`
+	tc := typecheck(t, input)
+	assertNoErrors(t, tc)
+}
+
+func TestFunctionWithMultipleParams(t *testing.T) {
+	input := `
+do greet(name string, times int) {
+	for i in range(0, times) {
+		println(name)
+	}
+}
+
+do main() {
+	greet("Hello", 3)
+}
+`
+	tc := typecheck(t, input)
+	assertNoErrors(t, tc)
+}
+
+func TestArraysReverse(t *testing.T) {
+	input := `
+import @arrays
+using arrays
+
+do main() {
+	temp arr [int] = {1, 2, 3}
+	temp reversed [int] = arrays.reverse(arr)
+}
+`
+	tc := typecheck(t, input)
+	assertNoErrors(t, tc)
+}
+
+func TestArraysContains(t *testing.T) {
+	input := `
+import @arrays
+using arrays
+
+do main() {
+	temp arr [int] = {1, 2, 3}
+	temp hasTwo bool = arrays.contains(arr, 2)
+}
+`
+	tc := typecheck(t, input)
+	assertNoErrors(t, tc)
+}
+
+func TestMathPow(t *testing.T) {
+	input := `
+import @math
+using math
+
+do main() {
+	temp result float = math.pow(2.0, 10.0)
+}
+`
+	tc := typecheck(t, input)
+	assertNoErrors(t, tc)
+}
+
+func TestMathSqrt(t *testing.T) {
+	input := `
+import @math
+using math
+
+do main() {
+	temp result float = math.sqrt(16.0)
+}
+`
+	tc := typecheck(t, input)
+	assertNoErrors(t, tc)
+}
+
+func TestMathCeil(t *testing.T) {
+	input := `
+import @math
+using math
+
+do main() {
+	temp result float = math.ceil(3.2)
+}
+`
+	tc := typecheck(t, input)
+	assertNoErrors(t, tc)
+}
+
+func TestMathRound(t *testing.T) {
+	input := `
+import @math
+using math
+
+do main() {
+	temp result float = math.round(3.7)
+}
+`
+	tc := typecheck(t, input)
+	assertNoErrors(t, tc)
+}
+
+func TestStringsUpper(t *testing.T) {
+	input := `
+import @strings
+using strings
+
+do main() {
+	temp result string = strings.upper("hello")
+}
+`
+	tc := typecheck(t, input)
+	assertNoErrors(t, tc)
+}
+
+func TestStringsLower(t *testing.T) {
+	input := `
+import @strings
+using strings
+
+do main() {
+	temp result string = strings.lower("HELLO")
+}
+`
+	tc := typecheck(t, input)
+	assertNoErrors(t, tc)
+}
+
+func TestStringsTrim(t *testing.T) {
+	input := `
+import @strings
+using strings
+
+do main() {
+	temp result string = strings.trim("  hello  ")
+}
+`
+	tc := typecheck(t, input)
+	assertNoErrors(t, tc)
+}
+
+func TestStringsStartsWith(t *testing.T) {
+	input := `
+import @strings
+using strings
+
+do main() {
+	temp result bool = strings.starts_with("hello world", "hello")
+}
+`
+	tc := typecheck(t, input)
+	assertNoErrors(t, tc)
+}
+
+func TestStringsEndsWith(t *testing.T) {
+	input := `
+import @strings
+using strings
+
+do main() {
+	temp result bool = strings.ends_with("hello world", "world")
+}
+`
+	tc := typecheck(t, input)
+	assertNoErrors(t, tc)
+}
+
+func TestStringsIndexOf(t *testing.T) {
+	input := `
+import @strings
+using strings
+
+do main() {
+	temp idx int = strings.index_of("hello world", "world")
+}
+`
+	tc := typecheck(t, input)
+	assertNoErrors(t, tc)
+}
+
+func TestMathMin(t *testing.T) {
+	input := `
+import @math
+using math
+
+do main() {
+	temp result int = math.min(5, 3)
+}
+`
+	tc := typecheck(t, input)
+	assertNoErrors(t, tc)
+}
+
+func TestMathMax(t *testing.T) {
+	input := `
+import @math
+using math
+
+do main() {
+	temp result int = math.max(5, 3)
+}
+`
+	tc := typecheck(t, input)
+	assertNoErrors(t, tc)
+}
+
+func TestArraysSort(t *testing.T) {
+	input := `
+import @arrays
+using arrays
+
+do main() {
+	temp arr [int] = {3, 1, 4, 1, 5}
+	temp sorted [int] = arrays.sort(arr)
+}
+`
+	tc := typecheck(t, input)
+	assertNoErrors(t, tc)
+}
+
+func TestArraysSum(t *testing.T) {
+	input := `
+import @arrays
+using arrays
+
+do main() {
+	temp arr [int] = {1, 2, 3, 4, 5}
+	temp total int = arrays.sum(arr)
+}
+`
+	tc := typecheck(t, input)
+	assertNoErrors(t, tc)
+}
+
+func TestMapsContains(t *testing.T) {
+	input := `
+import @maps
+using maps
+
+do main() {
+	temp m map[string:int] = {"a": 1, "b": 2}
+	temp hasKey bool = maps.has(m, "a")
+}
+`
+	tc := typecheck(t, input)
+	assertNoErrors(t, tc)
+}
+
+func TestMapsSize(t *testing.T) {
+	input := `
+import @maps
+using maps
+
+do main() {
+	temp m map[string:int] = {"a": 1, "b": 2}
+	temp mapSize int = maps.len(m)
+}
+`
+	tc := typecheck(t, input)
+	assertNoErrors(t, tc)
+}
+
+// ============================================================================
+// Cast Expression Tests
+// ============================================================================
+
+func TestCastIntToFloat(t *testing.T) {
+	input := `
+do main() {
+	temp x int = 42
+	temp f float = cast(x, float)
+}
+`
+	tc := typecheck(t, input)
+	assertNoErrors(t, tc)
+}
+
+func TestCastFloatToInt(t *testing.T) {
+	input := `
+do main() {
+	temp f float = 3.14
+	temp x int = cast(f, int)
+}
+`
+	tc := typecheck(t, input)
+	assertNoErrors(t, tc)
+}
+
+func TestCastIntToString(t *testing.T) {
+	input := `
+do main() {
+	temp x int = 42
+	temp s string = cast(x, string)
+}
+`
+	tc := typecheck(t, input)
+	assertNoErrors(t, tc)
+}
+
+func TestCastStringToInt(t *testing.T) {
+	input := `
+do main() {
+	temp s string = "42"
+	temp x int = cast(s, int)
+}
+`
+	tc := typecheck(t, input)
+	assertNoErrors(t, tc)
+}
+
+func TestCastIntToByte(t *testing.T) {
+	input := `
+do main() {
+	temp x int = 65
+	temp b byte = cast(x, byte)
+}
+`
+	tc := typecheck(t, input)
+	assertNoErrors(t, tc)
+}
+
+func TestCastByteToInt(t *testing.T) {
+	input := `
+do main() {
+	temp b byte = 65
+	temp x int = cast(b, int)
+}
+`
+	tc := typecheck(t, input)
+	assertNoErrors(t, tc)
+}
+
+func TestCastIntToChar(t *testing.T) {
+	input := `
+do main() {
+	temp x int = 65
+	temp c char = cast(x, char)
+}
+`
+	tc := typecheck(t, input)
+	assertNoErrors(t, tc)
+}
+
+func TestCastCharToInt(t *testing.T) {
+	input := `
+do main() {
+	temp c char = 'A'
+	temp x int = cast(c, int)
+}
+`
+	tc := typecheck(t, input)
+	assertNoErrors(t, tc)
+}
+
+// ============================================================================
+// More Type Conversion Tests
+// ============================================================================
+
+func TestIntToFloatConversion(t *testing.T) {
+	input := `
+do main() {
+	temp x int = 42
+	temp f float = float(x)
+}
+`
+	tc := typecheck(t, input)
+	assertNoErrors(t, tc)
+}
+
+func TestFloatToIntConversion(t *testing.T) {
+	input := `
+do main() {
+	temp f float = 3.14
+	temp x int = int(f)
+}
+`
+	tc := typecheck(t, input)
+	assertNoErrors(t, tc)
+}
+
+func TestIntToStringConversion(t *testing.T) {
+	input := `
+do main() {
+	temp x int = 42
+	temp s string = string(x)
+}
+`
+	tc := typecheck(t, input)
+	assertNoErrors(t, tc)
+}
+
+func TestBoolToStringConversion(t *testing.T) {
+	input := `
+do main() {
+	temp b bool = true
+	temp s string = string(b)
+}
+`
+	tc := typecheck(t, input)
+	assertNoErrors(t, tc)
+}
+
+// ============================================================================
+// Return Type Tests
+// ============================================================================
+
+func TestFunctionReturnsStruct(t *testing.T) {
+	input := `
+const Point struct {
+	x int
+	y int
+}
+
+do makePoint(x int, y int) -> Point {
+	return Point{x: x, y: y}
+}
+
+do main() {
+	temp p Point = makePoint(10, 20)
+}
+`
+	tc := typecheck(t, input)
+	assertNoErrors(t, tc)
+}
+
+func TestFunctionReturnsArray(t *testing.T) {
+	input := `
+do makeNumbers() -> [int] {
+	return {1, 2, 3, 4, 5}
+}
+
+do main() {
+	temp nums [int] = makeNumbers()
+}
+`
+	tc := typecheck(t, input)
+	assertNoErrors(t, tc)
+}
+
+func TestFunctionReturnsBool(t *testing.T) {
+	input := `
+do isPositive(x int) -> bool {
+	return x > 0
+}
+
+do main() {
+	temp result bool = isPositive(5)
+}
+`
+	tc := typecheck(t, input)
+	assertNoErrors(t, tc)
+}
+
+func TestFunctionReturnsString(t *testing.T) {
+	input := `
+do greet(name string) -> string {
+	return "Hello, " + name
+}
+
+do main() {
+	temp msg string = greet("World")
+}
+`
+	tc := typecheck(t, input)
+	assertNoErrors(t, tc)
+}
+
+// ============================================================================
+// Additional Tests for 60% Threshold
+// ============================================================================
+
+func TestRecursiveFunctionFactorial(t *testing.T) {
+	input := `
+do factorial(n int) -> int {
+	if n <= 1 {
+		return 1
+	}
+	return n * factorial(n - 1)
+}
+
+do main() {
+	temp result int = factorial(5)
+}
+`
+	tc := typecheck(t, input)
+	assertNoErrors(t, tc)
+}
+
+func TestFunctionWithNoParamsGetZero(t *testing.T) {
+	input := `
+do getZero() -> int {
+	return 0
+}
+
+do main() {
+	temp x int = getZero()
+}
+`
+	tc := typecheck(t, input)
+	assertNoErrors(t, tc)
+}
+
+func TestStructFieldAccessPerson(t *testing.T) {
+	input := `
+const Person struct {
+	name string
+	age int
+}
+
+do main() {
+	temp p Person = Person{name: "Alice", age: 30}
+	temp n string = p.name
+	temp a int = p.age
+}
+`
+	tc := typecheck(t, input)
+	assertNoErrors(t, tc)
+}
+
+func TestStructFieldAssignment(t *testing.T) {
+	input := `
+const Person struct {
+	name string
+	age int
+}
+
+do main() {
+	temp p Person = Person{name: "Alice", age: 30}
+	p.name = "Bob"
+	p.age = 25
+}
+`
+	tc := typecheck(t, input)
+	assertNoErrors(t, tc)
+}
+
+func TestNilComparison(t *testing.T) {
+	input := `
+import @io
+using io
+
+do main() {
+	temp content string, err error = io.read_file("test.txt")
+	if err == nil {
+		println("success")
+	}
+	if err != nil {
+		println("error")
+	}
+}
+`
+	tc := typecheck(t, input)
+	assertNoErrors(t, tc)
+}
+
+func TestEnumComparison(t *testing.T) {
+	input := `
+const Status enum {
+	PENDING
+	ACTIVE
+	DONE
+}
+
+do main() {
+	temp s Status = Status.PENDING
+	if s == Status.PENDING {
+		println("pending")
+	}
+}
+`
+	tc := typecheck(t, input)
+	assertNoErrors(t, tc)
+}
+
+func TestArrayOfStructs(t *testing.T) {
+	input := `
+const Point struct {
+	x int
+	y int
+}
+
+do main() {
+	temp points [Point] = {Point{x: 0, y: 0}, Point{x: 1, y: 1}}
+	temp first Point = points[0]
+}
+`
+	tc := typecheck(t, input)
+	assertNoErrors(t, tc)
+}
+
+func TestMapOfStructs(t *testing.T) {
+	input := `
+const Person struct {
+	name string
+	age int
+}
+
+do main() {
+	temp people map[string:Person] = {
+		"alice": Person{name: "Alice", age: 30}
+	}
+	temp p Person = people["alice"]
+}
+`
+	tc := typecheck(t, input)
+	assertNoErrors(t, tc)
+}
+
+func TestCastToI64(t *testing.T) {
+	input := `
+do main() {
+	temp x int = 1000000
+	temp y i64 = cast(x, i64)
+}
+`
+	tc := typecheck(t, input)
+	assertNoErrors(t, tc)
+}
+
+func TestCastToU32(t *testing.T) {
+	input := `
+do main() {
+	temp x int = 1000
+	temp y u32 = cast(x, u32)
+}
+`
+	tc := typecheck(t, input)
+	assertNoErrors(t, tc)
+}
+
+func TestCastToBool(t *testing.T) {
+	input := `
+do main() {
+	temp x int = 1
+	temp b bool = cast(x, bool)
+}
+`
+	tc := typecheck(t, input)
+	assertNoErrors(t, tc)
+}
+
+func TestMapWithIntKeys(t *testing.T) {
+	input := `
+do main() {
+	temp m map[int:string] = {1: "one", 2: "two", 3: "three"}
+	temp s string = m[1]
+}
+`
+	tc := typecheck(t, input)
+	assertNoErrors(t, tc)
+}
+
+func TestNestedForLoops(t *testing.T) {
+	input := `
+do main() {
+	for i in range(0, 3) {
+		for j in range(0, 3) {
+			temp product int = i * j
+		}
+	}
+}
+`
+	tc := typecheck(t, input)
+	assertNoErrors(t, tc)
+}
+
+func TestMultipleFunctionParams(t *testing.T) {
+	input := `
+do calculate(a int, b int, c int, d int) -> int {
+	return a + b + c + d
+}
+
+do main() {
+	temp result int = calculate(1, 2, 3, 4)
+}
+`
+	tc := typecheck(t, input)
+	assertNoErrors(t, tc)
+}
+
+func TestStructWithManyFields(t *testing.T) {
+	input := `
+const Record struct {
+	id int
+	name string
+	active bool
+	score float
+}
+
+do main() {
+	temp r Record = Record{id: 1, name: "test", active: true, score: 95.5}
+}
+`
+	tc := typecheck(t, input)
+	assertNoErrors(t, tc)
+}
+
+func TestGlobalConstant(t *testing.T) {
+	input := `
+const PI float = 3.14159
+const MAX_SIZE int = 100
+
+do main() {
+	temp area float = PI * 10.0 * 10.0
+	temp size int = MAX_SIZE
+}
+`
+	tc := typecheck(t, input)
+	assertNoErrors(t, tc)
+}
+
+func TestMultipleStructTypes(t *testing.T) {
+	input := `
+const Point struct {
+	x int
+	y int
+}
+
+const Size struct {
+	width int
+	height int
+}
+
+const Rectangle struct {
+	origin Point
+	size Size
+}
+
+do main() {
+	temp r Rectangle = Rectangle{origin: Point{x: 0, y: 0}, size: Size{width: 100, height: 50}}
+}
+`
+	tc := typecheck(t, input)
+	assertNoErrors(t, tc)
+}
+
+func TestEnumInSwitch(t *testing.T) {
+	input := `
+const Color enum {
+	RED = 1
+	GREEN = 2
+	BLUE = 3
+}
+
+do main() {
+	temp c Color = Color.RED
+	when c {
+		is Color.RED {
+			println("red")
+		}
+		is Color.GREEN {
+			println("green")
+		}
+	}
+}
+`
+	tc := typecheck(t, input)
+	assertNoErrors(t, tc)
+}
+
+func TestComplexExpression(t *testing.T) {
+	input := `
+do main() {
+	temp a int = 5
+	temp b int = 10
+	temp c int = 3
+	temp result int = (a + b) * c - (b / a)
+}
+`
+	tc := typecheck(t, input)
+	assertNoErrors(t, tc)
+}
+
+func TestStringConcatenation(t *testing.T) {
+	input := `
+do main() {
+	temp first string = "Hello"
+	temp second string = " "
+	temp third string = "World"
+	temp result string = first + second + third
+}
+`
+	tc := typecheck(t, input)
+	assertNoErrors(t, tc)
+}
+
+func TestArrayWithMixedOps(t *testing.T) {
+	input := `
+import @arrays
+using arrays
+
+do main() {
+	temp arr [int] = {5, 3, 8, 1, 9}
+	temp length int = len(arr)
+	temp isEmpty bool = arrays.is_empty(arr)
+	temp firstEl int = arrays.first(arr)
+	temp lastEl int = arrays.last(arr)
+}
+`
+	tc := typecheck(t, input)
+	assertNoErrors(t, tc)
+}
+
+func TestMapWithMixedOps(t *testing.T) {
+	input := `
+import @maps
+using maps
+
+do main() {
+	temp m map[string:int] = {"a": 1, "b": 2, "c": 3}
+	temp hasA bool = maps.has(m, "a")
+	temp mapLen int = maps.len(m)
+}
+`
+	tc := typecheck(t, input)
+	assertNoErrors(t, tc)
+}
+
+func TestFunctionParameterTypes(t *testing.T) {
+	input := `
+do processData(text string, count int, flag bool, value float) {
+	println(text)
+}
+
+do main() {
+	processData("test", 10, true, 3.14)
+}
+`
+	tc := typecheck(t, input)
+	assertNoErrors(t, tc)
+}
+
+func TestNestedStructAccess(t *testing.T) {
+	input := `
+const Inner struct {
+	value int
+}
+
+const Middle struct {
+	inner Inner
+}
+
+const Outer struct {
+	middle Middle
+}
+
+do main() {
+	temp o Outer = Outer{middle: Middle{inner: Inner{value: 42}}}
+	temp v int = o.middle.inner.value
+}
+`
+	tc := typecheck(t, input)
+	assertNoErrors(t, tc)
+}
+
+func TestEmptyArray(t *testing.T) {
+	input := `
+do main() {
+	temp arr [int] = {}
+	temp arrLen int = len(arr)
+}
+`
+	tc := typecheck(t, input)
+	assertNoErrors(t, tc)
+}
+
+func TestEmptyMap(t *testing.T) {
+	input := `
+do main() {
+	temp m map[string:int] = {}
+}
+`
+	tc := typecheck(t, input)
+	assertNoErrors(t, tc)
+}
+
+func TestBooleanExpression(t *testing.T) {
+	input := `
+do main() {
+	temp a bool = true
+	temp b bool = false
+	temp result bool = (a && !b) || (!a && b)
+}
+`
+	tc := typecheck(t, input)
+	assertNoErrors(t, tc)
+}
+
+func TestComparisonChain(t *testing.T) {
+	input := `
+do main() {
+	temp x int = 5
+	temp isInRange bool = x > 0 && x < 10
+}
+`
+	tc := typecheck(t, input)
+	assertNoErrors(t, tc)
+}
+
+func TestMathOperations(t *testing.T) {
+	input := `
+do main() {
+	temp a int = 10
+	temp b int = 3
+	temp sum int = a + b
+	temp diff int = a - b
+	temp prod int = a * b
+	temp quot int = a / b
+	temp rem int = a % b
+}
+`
+	tc := typecheck(t, input)
+	assertNoErrors(t, tc)
+}
+
+func TestFloatOperations(t *testing.T) {
+	input := `
+do main() {
+	temp a float = 10.5
+	temp b float = 3.2
+	temp sum float = a + b
+	temp diff float = a - b
+	temp prod float = a * b
+	temp quot float = a / b
+}
+`
+	tc := typecheck(t, input)
+	assertNoErrors(t, tc)
+}
+
+func TestPrintlnVariousTypes(t *testing.T) {
+	input := `
+do main() {
+	println("string")
+	println(42)
+	println(3.14)
+	println(true)
+}
+`
+	tc := typecheck(t, input)
+	assertNoErrors(t, tc)
+}
+
+func TestUnaryOperators(t *testing.T) {
+	input := `
+do main() {
+	temp a int = 5
+	temp neg int = -a
+	temp b bool = true
+	temp notB bool = !b
+}
+`
+	tc := typecheck(t, input)
+	assertNoErrors(t, tc)
+}
+
+func TestLargeArrayLiteral(t *testing.T) {
+	input := `
+do main() {
+	temp arr [int] = {1, 2, 3, 4, 5, 6, 7, 8, 9, 10}
+}
+`
+	tc := typecheck(t, input)
+	assertNoErrors(t, tc)
+}
+
+func TestLargeMapLiteral(t *testing.T) {
+	input := `
+do main() {
+	temp m map[string:int] = {
+		"one": 1,
+		"two": 2,
+		"three": 3,
+		"four": 4,
+		"five": 5
+	}
+}
+`
+	tc := typecheck(t, input)
+	assertNoErrors(t, tc)
+}
+
+func TestVariableReassignment(t *testing.T) {
+	input := `
+do main() {
+	temp x int = 5
+	x = 10
+	x = x + 1
+}
+`
+	tc := typecheck(t, input)
+	assertNoErrors(t, tc)
+}
+
+func TestConstVariableUsage(t *testing.T) {
+	input := `
+const MAX int = 100
+
+do main() {
+	temp x int = MAX
+	temp y int = MAX + 1
+}
+`
+	tc := typecheck(t, input)
+	assertNoErrors(t, tc)
+}
+
+// Additional tests to push coverage to 60%
+
+func TestHashableMapKeyTypesExtended(t *testing.T) {
+	input := `
+do main() {
+	temp m1 map[int:string] = {1: "one", 2: "two"}
+	temp m2 map[bool:string] = {true: "yes", false: "no"}
+	temp m3 map[char:int] = {'a': 1, 'b': 2}
+	temp m4 map[byte:int] = {}
+}
+`
+	tc := typecheck(t, input)
+	assertNoErrors(t, tc)
+}
+
+func TestComparisonOperatorsExtended(t *testing.T) {
+	input := `
+do main() {
+	temp a int = 5
+	temp b int = 10
+	temp lt bool = a < b
+	temp gt bool = a > b
+	temp lte bool = a <= b
+	temp gte bool = a >= b
+	temp eq bool = a == b
+	temp neq bool = a != b
+}
+`
+	tc := typecheck(t, input)
+	assertNoErrors(t, tc)
+}
+
+func TestLogicalOperatorsExtended(t *testing.T) {
+	input := `
+do main() {
+	temp a bool = true
+	temp b bool = false
+	temp andResult bool = a && b
+	temp orResult bool = a || b
+	temp complex bool = (a && b) || (!a && !b)
+}
+`
+	tc := typecheck(t, input)
+	assertNoErrors(t, tc)
+}
+
+func TestRangeInForLoopExtended(t *testing.T) {
+	input := `
+do main() {
+	for i in range(0, 10) {
+		println(i)
+	}
+}
+`
+	tc := typecheck(t, input)
+	assertNoErrors(t, tc)
+}
+
+func TestRangeWithStepInForLoopExtended(t *testing.T) {
+	input := `
+do main() {
+	for i in range(0, 10, 2) {
+		println(i)
+	}
+}
+`
+	tc := typecheck(t, input)
+	assertNoErrors(t, tc)
+}
+
+func TestNestedStructAccessExtended(t *testing.T) {
+	input := `
+const Inner struct {
+	value int
+}
+
+const Outer struct {
+	inner Inner
+}
+
+do main() {
+	temp o Outer = new(Outer)
+	o.inner.value = 42
+	temp v int = o.inner.value
+}
+`
+	tc := typecheck(t, input)
+	assertNoErrors(t, tc)
+}
+
+func TestFunctionWithSingleReturnValue(t *testing.T) {
+	input := `
+do square(n int) -> int {
+	return n * n
+}
+
+do main() {
+	temp result int = square(5)
+}
+`
+	tc := typecheck(t, input)
+	assertNoErrors(t, tc)
+}
+
+func TestStringIndexing(t *testing.T) {
+	input := `
+do main() {
+	temp s string = "hello"
+	temp ch char = s[0]
+	temp last char = s[4]
+}
+`
+	tc := typecheck(t, input)
+	assertNoErrors(t, tc)
+}
+
+func TestIndexExpressionOnMapExtended(t *testing.T) {
+	input := `
+do main() {
+	temp m map[string:int] = {"a": 1, "b": 2}
+	temp val int = m["a"]
+	temp val2 int = m["b"]
+}
+`
+	tc := typecheck(t, input)
+	assertNoErrors(t, tc)
+}
+
+func TestGlobalVariableWithInitialization(t *testing.T) {
+	input := `
+temp GLOBAL_VAL int = 100
+
+do main() {
+	temp x int = GLOBAL_VAL
+	GLOBAL_VAL = 200
+	temp y int = GLOBAL_VAL
+}
+`
+	tc := typecheck(t, input)
+	assertNoErrors(t, tc)
+}
+
+func TestWhileLoopExtended(t *testing.T) {
+	input := `
+do main() {
+	temp i int = 0
+	as_long_as i < 10 {
+		i = i + 1
+	}
+}
+`
+	tc := typecheck(t, input)
+	assertNoErrors(t, tc)
+}
+
+func TestBreakStatementInLoop(t *testing.T) {
+	input := `
+do main() {
+	for i in range(0, 10) {
+		break
+	}
+}
+`
+	tc := typecheck(t, input)
+	assertNoErrors(t, tc)
+}
+
+func TestContinueStatementInLoop(t *testing.T) {
+	input := `
+do main() {
+	for i in range(0, 10) {
+		continue
+	}
+}
+`
+	tc := typecheck(t, input)
+	assertNoErrors(t, tc)
+}
+
+func TestConditionalExtended(t *testing.T) {
+	input := `
+do main() {
+	temp x int = 5
+	if x > 3 {
+		println("greater")
+	}
+}
+`
+	tc := typecheck(t, input)
+	assertNoErrors(t, tc)
+}
+
+func TestEnumComparisonExtended(t *testing.T) {
+	input := `
+const Status enum {
+	PENDING = 1
+	ACTIVE = 2
+	DONE = 3
+}
+
+do main() {
+	temp s Status = Status.PENDING
+	temp isActive bool = s == Status.ACTIVE
+	temp notDone bool = s != Status.DONE
+}
+`
+	tc := typecheck(t, input)
+	assertNoErrors(t, tc)
+}
+
+func TestEmptyArrayLiteral(t *testing.T) {
+	input := `
+do main() {
+	temp arr [int] = {}
+	temp strArr [string] = {}
+}
+`
+	tc := typecheck(t, input)
+	assertNoErrors(t, tc)
+}
+
+func TestEmptyMapLiteral(t *testing.T) {
+	input := `
+do main() {
+	temp m map[string:int] = {}
+	temp m2 map[int:bool] = {}
+}
+`
+	tc := typecheck(t, input)
+	assertNoErrors(t, tc)
+}
+
+func TestTypeExistsForBuiltins(t *testing.T) {
+	tc := NewTypeChecker("", "test.ez")
+	tc.SetSkipMainCheck(true)
+
+	builtinTypes := []string{
+		"int", "i8", "i16", "i32", "i64",
+		"u8", "u16", "u32", "u64",
+		"float", "f32", "f64",
+		"string", "bool", "char", "byte",
+		"nil", "error",
+	}
+
+	for _, typeName := range builtinTypes {
+		if !tc.TypeExists(typeName) {
+			t.Errorf("expected type %s to exist", typeName)
+		}
+	}
+}
+
+func TestFunctionCallWithNoArgs(t *testing.T) {
+	input := `
+do greet() {
+	println("hello")
+}
+
+do main() {
+	greet()
+}
+`
+	tc := typecheck(t, input)
+	assertNoErrors(t, tc)
+}
+
+func TestStringConcatenationExtended(t *testing.T) {
+	input := `
+do main() {
+	temp a string = "hello"
+	temp b string = "world"
+	temp c string = a + " " + b
+}
+`
+	tc := typecheck(t, input)
+	assertNoErrors(t, tc)
+}
+
+func TestFloatArithmetic(t *testing.T) {
+	input := `
+do main() {
+	temp a float = 3.14
+	temp b float = 2.71
+	temp sum float = a + b
+	temp diff float = a - b
+	temp prod float = a * b
+	temp quot float = a / b
+}
+`
+	tc := typecheck(t, input)
+	assertNoErrors(t, tc)
+}
+
+func TestIntegerArithmeticExtended(t *testing.T) {
+	input := `
+do main() {
+	temp a int = 10
+	temp b int = 3
+	temp sum int = a + b
+	temp diff int = a - b
+	temp prod int = a * b
+	temp quot int = a / b
+	temp mod int = a % b
+}
+`
+	tc := typecheck(t, input)
+	assertNoErrors(t, tc)
+}
+
+func TestNestedIfStatement(t *testing.T) {
+	input := `
+do main() {
+	temp x int = 5
+	temp y int = 10
+	if x > 0 {
+		if y > 5 {
+			println("both positive and y > 5")
+		}
+	}
+}
+`
+	tc := typecheck(t, input)
+	assertNoErrors(t, tc)
+}
+
+func TestForEachWithArrayExtended(t *testing.T) {
+	input := `
+do main() {
+	temp arr [int] = {1, 2, 3, 4, 5}
+	for_each item in arr {
+		println(item)
+	}
+}
+`
+	tc := typecheck(t, input)
+	assertNoErrors(t, tc)
+}
+
+func TestForEachWithStringExtended(t *testing.T) {
+	input := `
+do main() {
+	temp s string = "hello"
+	for_each ch in s {
+		println(ch)
+	}
+}
+`
+	tc := typecheck(t, input)
+	assertNoErrors(t, tc)
+}
+
+func TestNestedForLoop(t *testing.T) {
+	input := `
+do main() {
+	for i in range(0, 3) {
+		for j in range(0, 3) {
+			println(i + j)
+		}
+	}
+}
+`
+	tc := typecheck(t, input)
+	assertNoErrors(t, tc)
+}
+
+func TestFunctionWithParameters(t *testing.T) {
+	input := `
+do add(a int, b int) -> int {
+	return a + b
+}
+
+do main() {
+	temp result int = add(5, 3)
+}
+`
+	tc := typecheck(t, input)
+	assertNoErrors(t, tc)
+}
+
+func TestStructWithMultipleFieldsExtended(t *testing.T) {
+	input := `
+const Rectangle struct {
+	w int
+	h int
+	n string
+}
+
+do main() {
+	temp r Rectangle = new(Rectangle)
+	r.w = 10
+	r.h = 20
+	r.n = "test"
+}
+`
+	tc := typecheck(t, input)
+	assertNoErrors(t, tc)
+}
+
+func TestMethodCallsExtended(t *testing.T) {
+	input := `
+import @strings
+using strings
+
+do main() {
+	temp s string = "hello world"
+	temp upperStr string = strings.upper(s)
+	temp lowerStr string = strings.lower(s)
+}
+`
+	tc := typecheck(t, input)
+	assertNoErrors(t, tc)
+}
+
+func TestMathModuleCalls(t *testing.T) {
+	input := `
+import @math
+using math
+
+do main() {
+	temp absVal int = math.abs(-5)
+	temp maxVal int = math.max(10, 20)
+	temp minVal int = math.min(10, 20)
+}
+`
+	tc := typecheck(t, input)
+	assertNoErrors(t, tc)
+}
+
+func TestArraysModuleCalls(t *testing.T) {
+	input := `
+import @arrays
+using arrays
+
+do main() {
+	temp arr [int] = {3, 1, 4, 1, 5}
+	temp isEmpty bool = arrays.is_empty(arr)
+	temp length int = len(arr)
+}
+`
+	tc := typecheck(t, input)
+	assertNoErrors(t, tc)
+}
+
+// ============================================================================
+// Array Element Type Compatibility Tests (checkArrayElementTypeCompatibility)
+// ============================================================================
+
+func TestArraysAppendTypeMismatch(t *testing.T) {
+	input := `
+import @arrays
+using arrays
+
+do main() {
+	temp arr [int] = {1, 2, 3}
+	arrays.append(arr, "wrong")
+}
+`
+	tc := typecheck(t, input)
+	assertHasError(t, tc, errors.E3001)
+}
+
+func TestArraysUnshiftTypeMismatch(t *testing.T) {
+	input := `
+import @arrays
+using arrays
+
+do main() {
+	temp arr [string] = {"a", "b"}
+	arrays.unshift(arr, 123)
+}
+`
+	tc := typecheck(t, input)
+	assertHasError(t, tc, errors.E3001)
+}
+
+func TestArraysContainsTypeMismatch(t *testing.T) {
+	input := `
+import @arrays
+using arrays
+
+do main() {
+	temp arr [int] = {1, 2, 3}
+	temp found bool = arrays.contains(arr, "string")
+}
+`
+	tc := typecheck(t, input)
+	assertHasError(t, tc, errors.E3001)
+}
+
+func TestArraysIndexOfTypeMismatch(t *testing.T) {
+	input := `
+import @arrays
+using arrays
+
+do main() {
+	temp arr [float] = {1.0, 2.0, 3.0}
+	temp idx int = arrays.index_of(arr, "not a float")
+}
+`
+	tc := typecheck(t, input)
+	assertHasError(t, tc, errors.E3001)
+}
+
+func TestArraysInsertTypeMismatch(t *testing.T) {
+	input := `
+import @arrays
+using arrays
+
+do main() {
+	temp arr [int] = {1, 2, 3}
+	arrays.insert(arr, 0, "wrong type")
+}
+`
+	tc := typecheck(t, input)
+	assertHasError(t, tc, errors.E3001)
+}
+
+func TestArraysSetTypeMismatch(t *testing.T) {
+	input := `
+import @arrays
+using arrays
+
+do main() {
+	temp arr [bool] = {true, false}
+	arrays.set(arr, 0, "not bool")
+}
+`
+	tc := typecheck(t, input)
+	assertHasError(t, tc, errors.E3001)
+}
+
+func TestArraysConcatTypeMismatch(t *testing.T) {
+	input := `
+import @arrays
+using arrays
+
+do main() {
+	temp arr1 [int] = {1, 2}
+	temp arr2 [string] = {"a", "b"}
+	temp result [int] = arrays.concat(arr1, arr2)
+}
+`
+	tc := typecheck(t, input)
+	assertHasError(t, tc, errors.E3001)
+}
+
+func TestArraysFillTypeMismatch(t *testing.T) {
+	input := `
+import @arrays
+using arrays
+
+do main() {
+	temp arr [int] = {1, 2, 3}
+	arrays.fill(arr, "not an int")
+}
+`
+	tc := typecheck(t, input)
+	assertHasError(t, tc, errors.E3001)
+}
+
+func TestArraysRemoveTypeMismatch(t *testing.T) {
+	input := `
+import @arrays
+using arrays
+
+do main() {
+	temp arr [int] = {1, 2, 3}
+	arrays.remove(arr, "string")
+}
+`
+	tc := typecheck(t, input)
+	assertHasError(t, tc, errors.E3001)
+}
+
+func TestArraysRemoveAllTypeMismatch(t *testing.T) {
+	input := `
+import @arrays
+using arrays
+
+do main() {
+	temp arr [int] = {1, 2, 3, 2}
+	arrays.remove_all(arr, true)
+}
+`
+	tc := typecheck(t, input)
+	assertHasError(t, tc, errors.E3001)
+}
+
+func TestArraysLastIndexOfTypeMismatch(t *testing.T) {
+	input := `
+import @arrays
+using arrays
+
+do main() {
+	temp arr [int] = {1, 2, 3, 2}
+	temp idx int = arrays.last_index_of(arr, 3.14)
+}
+`
+	tc := typecheck(t, input)
+	assertHasError(t, tc, errors.E3001)
+}
+
+func TestArraysCountTypeMismatch(t *testing.T) {
+	input := `
+import @arrays
+using arrays
+
+do main() {
+	temp arr [string] = {"a", "b", "a"}
+	temp count int = arrays.count(arr, 42)
+}
+`
+	tc := typecheck(t, input)
+	assertHasError(t, tc, errors.E3001)
+}
+
+func TestArraysAppendCorrectType(t *testing.T) {
+	input := `
+import @arrays
+using arrays
+
+do main() {
+	temp arr [int] = {1, 2, 3}
+	arrays.append(arr, 4)
+}
+`
+	tc := typecheck(t, input)
+	assertNoErrors(t, tc)
+}
+
+func TestArraysInsertCorrectType(t *testing.T) {
+	input := `
+import @arrays
+using arrays
+
+do main() {
+	temp arr [string] = {"a", "b"}
+	arrays.insert(arr, 1, "c")
+}
+`
+	tc := typecheck(t, input)
+	assertNoErrors(t, tc)
+}
+
+func TestArraysConcatCorrectType(t *testing.T) {
+	input := `
+import @arrays
+using arrays
+
+do main() {
+	temp arr1 [int] = {1, 2}
+	temp arr2 [int] = {3, 4}
+	temp result [int] = arrays.concat(arr1, arr2)
+}
+`
+	tc := typecheck(t, input)
+	assertNoErrors(t, tc)
+}
+
+// ============================================================================
+// Map Key/Value Type Compatibility Tests (checkMapKeyValueTypeCompatibility)
+// ============================================================================
+
+func TestMapsHasKeyTypeMismatch(t *testing.T) {
+	input := `
+import @maps
+using maps
+
+do main() {
+	temp m map[string:int] = {"a": 1, "b": 2}
+	temp found bool = maps.has_key(m, 123)
+}
+`
+	tc := typecheck(t, input)
+	assertHasError(t, tc, errors.E3001)
+}
+
+func TestMapsDeleteKeyTypeMismatch(t *testing.T) {
+	input := `
+import @maps
+using maps
+
+do main() {
+	temp m map[int:string] = {1: "one", 2: "two"}
+	maps.delete(m, "not an int")
+}
+`
+	tc := typecheck(t, input)
+	assertHasError(t, tc, errors.E3001)
+}
+
+func TestMapsSetKeyTypeMismatch(t *testing.T) {
+	input := `
+import @maps
+using maps
+
+do main() {
+	temp m map[string:int] = {"a": 1}
+	maps.set(m, 123, 5)
+}
+`
+	tc := typecheck(t, input)
+	assertHasError(t, tc, errors.E3001)
+}
+
+func TestMapsSetValueTypeMismatch(t *testing.T) {
+	input := `
+import @maps
+using maps
+
+do main() {
+	temp m map[string:int] = {"a": 1}
+	maps.set(m, "b", "wrong")
+}
+`
+	tc := typecheck(t, input)
+	assertHasError(t, tc, errors.E3001)
+}
+
+func TestMapsGetKeyTypeMismatch(t *testing.T) {
+	input := `
+import @maps
+using maps
+
+do main() {
+	temp m map[string:int] = {"a": 1}
+	maps.get(m, 999)
+}
+`
+	tc := typecheck(t, input)
+	assertHasError(t, tc, errors.E3001)
+}
+
+func TestMapsGetOrSetKeyTypeMismatch(t *testing.T) {
+	input := `
+import @maps
+using maps
+
+do main() {
+	temp m map[int:string] = {1: "one"}
+	maps.get_or_set(m, "wrong", "default")
+}
+`
+	tc := typecheck(t, input)
+	assertHasError(t, tc, errors.E3001)
+}
+
+func TestMapsGetOrSetValueTypeMismatch(t *testing.T) {
+	input := `
+import @maps
+using maps
+
+do main() {
+	temp m map[int:string] = {1: "one"}
+	maps.get_or_set(m, 2, 42)
+}
+`
+	tc := typecheck(t, input)
+	assertHasError(t, tc, errors.E3001)
+}
+
+func TestMapsHasCorrectKeyType(t *testing.T) {
+	input := `
+import @maps
+using maps
+
+do main() {
+	temp m map[string:int] = {"a": 1, "b": 2}
+	temp found bool = maps.has(m, "a")
+}
+`
+	tc := typecheck(t, input)
+	assertNoErrors(t, tc)
+}
+
+func TestMapsSetCorrectTypes(t *testing.T) {
+	input := `
+import @maps
+using maps
+
+do main() {
+	temp m map[string:int] = {"a": 1}
+	maps.set(m, "b", 2)
+}
+`
+	tc := typecheck(t, input)
+	assertNoErrors(t, tc)
+}
+
+func TestMapsRemoveKeyTypeMismatch(t *testing.T) {
+	input := `
+import @maps
+using maps
+
+do main() {
+	temp m map[string:int] = {"a": 1}
+	maps.remove(m, 123)
+}
+`
+	tc := typecheck(t, input)
+	assertHasError(t, tc, errors.E3001)
+}
+
+// ============================================================================
+// Type Lookup and Module Tests (lookupType)
+// ============================================================================
+
+func TestLookupTypeFromLocalScope(t *testing.T) {
+	input := `
+const Point struct {
+	x int
+	y int
+}
+
+do main() {
+	temp p Point = Point{x: 1, y: 2}
+}
+`
+	tc := typecheck(t, input)
+	assertNoErrors(t, tc)
+
+	// Verify the type was registered
+	pointType, found := tc.GetType("Point")
+	if !found || pointType == nil {
+		t.Error("expected Point type to be registered")
+	}
+}
+
+func TestTypeLookupForNestedStructs(t *testing.T) {
+	input := `
+const Inner struct {
+	value int
+}
+
+const Outer struct {
+	inner Inner
+}
+
+do main() {
+	temp o Outer = Outer{inner: Inner{value: 42}}
+}
+`
+	tc := typecheck(t, input)
+	assertNoErrors(t, tc)
+}
+
+// ============================================================================
+// Builtin Type Conversion Coverage Tests (checkBuiltinTypeConversion)
+// ============================================================================
+
+func TestStringToFloatConversionCoverage(t *testing.T) {
+	input := `
+do main() {
+	temp s string = "3.14"
+	temp f float = float(s)
+}
+`
+	_ = typecheck(t, input)
+	// This is expected to give a warning about runtime conversion
+	// Just check that it compiles
+}
+
+func TestCharToIntConversionCoverage(t *testing.T) {
+	input := `
+do main() {
+	temp c char = 'A'
+	temp i int = int(c)
+}
+`
+	tc := typecheck(t, input)
+	assertNoErrors(t, tc)
+}
+
+func TestIntToCharConversionCoverage(t *testing.T) {
+	input := `
+do main() {
+	temp i int = 65
+	temp c char = char(i)
+}
+`
+	tc := typecheck(t, input)
+	assertNoErrors(t, tc)
+}
+
+func TestByteConversionsCoverage(t *testing.T) {
+	input := `
+do main() {
+	temp b byte = byte(65)
+	temp i int = int(b)
+	temp c char = char(b)
+}
+`
+	tc := typecheck(t, input)
+	assertNoErrors(t, tc)
+}
+
+// ============================================================================
+// Cast Expression Tests (checkCastExpression)
+// ============================================================================
+
+func TestCastIntToI32(t *testing.T) {
+	input := `
+do main() {
+	temp i int = 42
+	temp i32val i32 = i32(i)
+}
+`
+	tc := typecheck(t, input)
+	assertNoErrors(t, tc)
+}
+
+func TestCastI64ToInt(t *testing.T) {
+	input := `
+do main() {
+	temp i64val i64 = 42
+	temp i int = int(i64val)
+}
+`
+	tc := typecheck(t, input)
+	assertNoErrors(t, tc)
+}
+
+func TestCastU8ToU16(t *testing.T) {
+	input := `
+do main() {
+	temp u8val u8 = 255
+	temp u16val u16 = u16(u8val)
+}
+`
+	tc := typecheck(t, input)
+	assertNoErrors(t, tc)
+}
+
+func TestCastF32ToFloat(t *testing.T) {
+	input := `
+do main() {
+	temp f32val f32 = 3.14
+	temp fval float = float(f32val)
+}
+`
+	tc := typecheck(t, input)
+	assertNoErrors(t, tc)
+}
+
+// ============================================================================
+// Multi-Return Declaration Tests (checkMultiReturnDeclaration)
+// ============================================================================
+
+func TestMultiReturnDeclarationWithBlankIdentifier(t *testing.T) {
+	input := `
+do getTwo() -> (int, string) {
+	return 42, "hello"
+}
+
+do main() {
+	temp x, _ = getTwo()
+}
+`
+	tc := typecheck(t, input)
+	assertNoErrors(t, tc)
+}
+
+func TestMultiReturnDeclarationAllBlank(t *testing.T) {
+	input := `
+do getThree() -> (int, string, bool) {
+	return 1, "test", true
+}
+
+do main() {
+	temp _, _, _ = getThree()
+}
+`
+	tc := typecheck(t, input)
+	assertNoErrors(t, tc)
+}
+
+func TestMultiReturnWithTwoVariables(t *testing.T) {
+	input := `
+do getTwo() -> (int, string) {
+	return 42, "hello"
+}
+
+do main() {
+	temp x, y = getTwo()
+}
+`
+	tc := typecheck(t, input)
+	assertNoErrors(t, tc)
+}
+
+// ============================================================================
+// Integer Bounds Coverage Tests (getIntegerBounds)
+// ============================================================================
+
+func TestI32BoundsCoverage(t *testing.T) {
+	input := `
+do main() {
+	temp min i32 = -2147483648
+	temp max i32 = 2147483647
+}
+`
+	tc := typecheck(t, input)
+	assertNoErrors(t, tc)
+}
+
+func TestU32BoundsCoverage(t *testing.T) {
+	input := `
+do main() {
+	temp min u32 = 0
+	temp max u32 = 4294967295
+}
+`
+	tc := typecheck(t, input)
+	assertNoErrors(t, tc)
+}
+
+func TestI64BoundsCoverage(t *testing.T) {
+	input := `
+do main() {
+	temp val i64 = 9223372036854775807
+}
+`
+	tc := typecheck(t, input)
+	assertNoErrors(t, tc)
+}
+
+func TestU64BoundsCoverage(t *testing.T) {
+	input := `
+do main() {
+	temp val u64 = 18446744073709551615
+}
+`
+	tc := typecheck(t, input)
+	assertNoErrors(t, tc)
+}
+
+// ============================================================================
+// Direct Stdlib Call Tests (checkDirectStdlibCall)
+// ============================================================================
+
+func TestDirectStdlibCallWithoutImport(t *testing.T) {
+	input := `
+do main() {
+	arrays.reverse({1, 2, 3})
+}
+`
+	tc := typecheck(t, input)
+	assertHasError(t, tc, errors.E4007)
+}
+
+func TestDirectStdlibCallWithImport(t *testing.T) {
+	input := `
+import @arrays
+
+do main() {
+	arrays.reverse({1, 2, 3})
+}
+`
+	tc := typecheck(t, input)
+	assertNoErrors(t, tc)
+}
+
+// ============================================================================
+// Infer Builtin Call Type Tests (inferBuiltinCallType)
+// ============================================================================
+
+func TestInferLenReturnType(t *testing.T) {
+	input := `
+do main() {
+	temp arr [int] = {1, 2, 3}
+	temp length int = len(arr)
+}
+`
+	tc := typecheck(t, input)
+	assertNoErrors(t, tc)
+}
+
+func TestInferTypeofReturnType(t *testing.T) {
+	input := `
+do main() {
+	temp x int = 42
+	temp typeName string = typeof(x)
+}
+`
+	tc := typecheck(t, input)
+	assertNoErrors(t, tc)
+}
+
+func TestInferCopyReturnType(t *testing.T) {
+	input := `
+do main() {
+	temp arr [int] = {1, 2, 3}
+	temp arrCopy [int] = copy(arr)
+}
+`
+	tc := typecheck(t, input)
+	assertNoErrors(t, tc)
+}
+
+func TestInferAppendReturnType(t *testing.T) {
+	input := `
+do main() {
+	temp arr [int] = {1, 2, 3}
+	temp newArr [int] = append(arr, 4)
+}
+`
+	tc := typecheck(t, input)
+	assertNoErrors(t, tc)
+}
+
+func TestInferRangeReturnType(t *testing.T) {
+	input := `
+do main() {
+	temp nums [int] = range(1, 10)
+}
+`
+	tc := typecheck(t, input)
+	assertNoErrors(t, tc)
+}
+
+// ============================================================================
+// Suppression Tests (isSuppressed)
+// ============================================================================
+
+func TestSuppressionComment(t *testing.T) {
+	input := `
+do main() {
+	// @suppress E3002
+	temp x = 42
+}
+`
+	tc := typecheck(t, input)
+	// Should not have E3002 error because it's suppressed
+	for _, err := range tc.Errors().Errors {
+		if err.ErrorCode == errors.E3002 {
+			t.Error("E3002 should be suppressed")
+		}
+	}
+}
+
+// ============================================================================
+// Has Return in If Statement Tests (hasReturnInIfStatement)
+// ============================================================================
+
+func TestNestedIfWithReturns(t *testing.T) {
+	input := `
+do nested_return(x int, y int) -> int {
+	if x > 0 {
+		if y > 0 {
+			return x + y
+		} otherwise {
+			return x - y
+		}
+	} otherwise {
+		return -x
+	}
+}
+
+do main() {}
+`
+	tc := typecheck(t, input)
+	assertNoErrors(t, tc)
+}
+
+func TestNestedIfMissingReturn(t *testing.T) {
+	input := `
+do nested_missing(x int, y int) -> int {
+	if x > 0 {
+		if y > 0 {
+			return x + y
+		}
+	} otherwise {
+		return -x
+	}
+}
+
+do main() {}
+`
+	tc := typecheck(t, input)
+	assertHasError(t, tc, errors.E3035)
+}
