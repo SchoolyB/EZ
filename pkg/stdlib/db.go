@@ -8,7 +8,15 @@ import (
 	"github.com/marshallburns/ez/pkg/object"
 )
 
-var DbBuiltins = map[string]*object.Builtin{
+// DBBuiltings contains the db module functions for database operations
+var DBBuiltins = map[string]*object.Builtin{
+	// ============================================================================
+	// Database Management
+	// ============================================================================
+
+	// Opens database using provided path
+	// Creates new database file if it does not exist
+	// Returns (database, error) tuple - error is nil on success
 	"db.open": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 1 {
@@ -93,6 +101,9 @@ var DbBuiltins = map[string]*object.Builtin{
 		},
 	},
 
+	// Closes the database and prevents further actions on the database
+	// Saves state of database to disk when closing
+	// Returns (error) - error is nil on success
 	"db.close": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 1 {
@@ -124,6 +135,43 @@ var DbBuiltins = map[string]*object.Builtin{
 		},
 	},
 
+	// Manual saving of database to disk
+	// Returns (error) - error is nil on success
+	"db.save": {
+		Fn: func(args ...object.Object) object.Object {
+			if len(args) != 1 {
+				return &object.Error{Code: "E7001", Message: "db.save() takes exactly 1 argument"}
+			}
+
+			db, ok := args[0].(*object.Database)
+			if !ok {
+				return &object.Error{Code: "E7001", Message: "db.save() requires a Database object as argument"}
+			}
+
+			if db.IsClosed.Value {
+				return &object.Error{Code: "E17005", Message: "db.save() cannot operate on closed database"}
+			}
+
+			jsonRes, err := encodeToJSON(&db.Store, make(map[uintptr]bool))
+			if err != nil {
+				return &object.Error{Code: "E17003", Message: "db.save() database contents not json encodable"}
+			}
+
+			perms := os.FileMode(0644)
+			if err := atomicWriteFile(db.Path.Value, []byte(jsonRes), perms); err != nil {
+				return &object.Error{Code: "E17003", Message: "db.save() failed to write to database"}
+			}
+
+			return &object.Nil{}
+		},
+	},
+
+	// ============================================================================
+	// Database Operations
+	// ============================================================================
+
+	// Sets a key value pair in database
+	// Returns nothing
 	"db.set": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 3 {
@@ -155,6 +203,8 @@ var DbBuiltins = map[string]*object.Builtin{
 		},
 	},
 
+	// Returns value associated with key if it exists
+	// Returns (string, bool) - string is empty if key does not exist
 	"db.get": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 2 {
@@ -190,6 +240,8 @@ var DbBuiltins = map[string]*object.Builtin{
 		},
 	},
 
+	// Deletes key value pair from database
+	// Returns (bool) - false if key does not exist
 	"db.delete": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 2 {
@@ -215,6 +267,8 @@ var DbBuiltins = map[string]*object.Builtin{
 		},
 	},
 
+	// Checks if key exists in database
+	// Returns (bool)
 	"db.has": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 2 {
@@ -240,6 +294,8 @@ var DbBuiltins = map[string]*object.Builtin{
 		},
 	},
 
+	// Fetches array of keys present in database
+	// Returns ([string])
 	"db.keys": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 1 {
@@ -264,6 +320,8 @@ var DbBuiltins = map[string]*object.Builtin{
 		},
 	},
 
+	// Fetches keys with prefix in database
+	// Returns ([string])
 	"db.prefix": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 2 {
@@ -296,6 +354,8 @@ var DbBuiltins = map[string]*object.Builtin{
 		},
 	},
 
+	// Number of key value pairs in database
+	// Returns (int)
 	"db.count": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 1 {
@@ -316,6 +376,8 @@ var DbBuiltins = map[string]*object.Builtin{
 		},
 	},
 
+	// Clears all key value pairs in database
+	// Returns nothing
 	"db.clear": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 1 {
@@ -333,35 +395,6 @@ var DbBuiltins = map[string]*object.Builtin{
 
 			db.Store = *object.NewMap()
 			
-			return &object.Nil{}
-		},
-	},
-
-	"db.save": {
-		Fn: func(args ...object.Object) object.Object {
-			if len(args) != 1 {
-				return &object.Error{Code: "E7001", Message: "db.save() takes exactly 1 argument"}
-			}
-
-			db, ok := args[0].(*object.Database)
-			if !ok {
-				return &object.Error{Code: "E7001", Message: "db.save() requires a Database object as argument"}
-			}
-
-			if db.IsClosed.Value {
-				return &object.Error{Code: "E17005", Message: "db.save() cannot operate on closed database"}
-			}
-
-			jsonRes, err := encodeToJSON(&db.Store, make(map[uintptr]bool))
-			if err != nil {
-				return &object.Error{Code: "E17003", Message: "db.save() database contents not json encodable"}
-			}
-
-			perms := os.FileMode(0644)
-			if err := atomicWriteFile(db.Path.Value, []byte(jsonRes), perms); err != nil {
-				return &object.Error{Code: "E17003", Message: "db.save() failed to write to database"}
-			}
-
 			return &object.Nil{}
 		},
 	},
