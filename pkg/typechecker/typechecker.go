@@ -948,7 +948,7 @@ func (tc *TypeChecker) getEnumValueString(expr ast.Expression) string {
 // checkGlobalVariableDeclaration validates a global variable declaration
 func (tc *TypeChecker) checkGlobalVariableDeclaration(node *ast.VariableDeclaration) {
 	// Check each variable in the declaration
-	for i, name := range node.Names {
+	for _, name := range node.Names {
 		varName := name.Value
 
 		// Determine the type
@@ -991,11 +991,6 @@ func (tc *TypeChecker) checkGlobalVariableDeclaration(node *ast.VariableDeclarat
 		// Register variable
 		tc.variables[varName] = typeName
 
-		// If there's an initial value, check type compatibility
-		if node.Value != nil && i == 0 {
-			// TODO: Check that value type matches declared type
-			// This requires expression type inference
-		}
 	}
 }
 
