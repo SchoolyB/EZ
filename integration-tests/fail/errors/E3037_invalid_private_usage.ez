@@ -1,0 +1,8 @@
+/*
+ * Error Test: E3037 - invalid-private-usage
+ * Expected: "private modifier cannot be used here"
+ */
+
+do main() {
+    private temp x int = 5  // private not allowed inside functions
+}
