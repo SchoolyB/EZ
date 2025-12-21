@@ -631,19 +631,7 @@ func (p *Parser) parseStatement() Statement {
 	visibility := VisibilityPublic
 	if p.currentTokenMatches(PRIVATE) {
 		visibility = VisibilityPrivate
-		// Check for private:module syntax
-		if p.peekTokenMatches(COLON) {
-			p.nextToken() // consume PRIVATE
-			p.nextToken() // consume COLON
-			if p.currentTokenMatches(IDENT) && p.currentToken.Literal == "module" {
-				visibility = VisibilityPrivateModule
-				p.nextToken() // move past "module"
-			} else {
-				p.addEZError(errors.E2002, "expected 'module' after 'private:'", p.currentToken)
-			}
-		} else {
-			p.nextToken() // move past PRIVATE to the declaration
-		}
+		p.nextToken() // move past PRIVATE to the declaration
 	}
 
 	// Validate #suppress is only used on function declarations

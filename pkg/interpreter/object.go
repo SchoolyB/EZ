@@ -71,9 +71,8 @@ const (
 	TYPE_OBJ         = object.TYPE_OBJ
 
 	// Visibility constants
-	VisibilityPublic        = object.VisibilityPublic
-	VisibilityPrivate       = object.VisibilityPrivate
-	VisibilityPrivateModule = object.VisibilityPrivateModule
+	VisibilityPublic  = object.VisibilityPublic
+	VisibilityPrivate = object.VisibilityPrivate
 )
 
 // Re-export Visibility type
