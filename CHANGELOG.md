@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.30.0](https://github.com/SchoolyB/EZ/compare/v0.29.2...v0.30.0) (2025-12-21)
+
+
+### Features
+
+* **stdlib:** add [@db](https://github.com/db) module for simple key-value database ([342a4f9](https://github.com/SchoolyB/EZ/commit/342a4f922911cebf1a56eda176a83874b907cdf4))
+* **stdlib:** add [@db](https://github.com/db) module for simple key-value database ([23e112a](https://github.com/SchoolyB/EZ/commit/23e112a3d9086ce9baf9ce66f6e8b936ed6c3932)), closes [#460](https://github.com/SchoolyB/EZ/issues/460)
+
 ## [0.29.2](https://github.com/SchoolyB/EZ/compare/v0.29.1...v0.29.2) (2025-12-21)
 
 
