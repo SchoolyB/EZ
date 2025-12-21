@@ -124,7 +124,7 @@ func TestDBClose(t *testing.T) {
 		}
 	})
 
-	t.Run("save database to disk after close", func(t *testing.T) {
+	t.Run("autosave database to disk on close", func(t *testing.T) {
 		path := dir + "mydb.ezdb"
 		result := openFn(&object.String{Value: path})
 		assertNoError(t, result)
@@ -152,6 +152,28 @@ func TestDBClose(t *testing.T) {
 			t.Errorf("expected %q, got %q", content, string(data))
 		}
 	})
+
+	t.Run("close already closed database", func(t *testing.T) {
+		path := dir + "mydb.ezdb"
+		result := openFn(&object.String{Value: path})
+		assertNoError(t, result)
+
+		vals := getReturnValues(t, result)
+		db, ok := vals[0].(*object.Database)
+		if !ok {
+			t.Fatalf("expected Database, got %T", vals[0])
+		}
+
+		result = closeFn(db)
+		if isErrorObject(result) {
+			t.Fatalf("unexpected error while closing database")
+		}
+
+		result = closeFn(db)
+		if !isErrorObject(result) {
+			t.Fatalf("expected error for operating after close, got %T", result)
+		}
+	})
 }
 
 // ============================================================================
@@ -163,6 +185,7 @@ func TestDBSetAndGet(t *testing.T) {
 	defer cleanup()
 
 	openFn := DbBuiltins["db.open"].Fn
+	closeFn := DbBuiltins["db.close"].Fn
 	setFn := DbBuiltins["db.set"].Fn
 	getFn := DbBuiltins["db.get"].Fn
 
@@ -203,6 +226,28 @@ func TestDBSetAndGet(t *testing.T) {
 			t.Fatalf("expected second return to be false")
 		}
 	})
+
+	t.Run("set on closed database", func(t *testing.T) {
+		res := closeFn(db)
+		if isErrorObject(res) {
+			t.Fatalf("unexpected error during close")
+		}
+
+		key := &object.String{Value: "name"}
+		val := &object.String{Value: "Alice"}
+		res = setFn(db, key, val)
+		if !isErrorObject(res) {
+			t.Fatalf("expected error for operating after close, got %T", res)
+		}
+	})
+
+	t.Run("has on closed database", func(t *testing.T) {
+		key := &object.String{Value: "name"}
+		res := getFn(db, key)
+		if !isErrorObject(res) {
+			t.Fatalf("expected error for operating after close, got %T", res)
+		}
+	})
 }
 
 // ============================================================================
@@ -214,6 +259,7 @@ func TestDBDeleteAndHas(t *testing.T) {
 	defer cleanup()
 
 	openFn := DbBuiltins["db.open"].Fn
+	closeFn := DbBuiltins["db.close"].Fn
 	setFn := DbBuiltins["db.set"].Fn
 	delFn := DbBuiltins["db.delete"].Fn
 	hasFn := DbBuiltins["db.has"].Fn
@@ -251,6 +297,25 @@ func TestDBDeleteAndHas(t *testing.T) {
 			t.Fatalf("expected false after deletion")
 		}
 	})
+
+	t.Run("delete on closed database", func(t *testing.T) {
+		res := closeFn(db)
+		if isErrorObject(res) {
+			t.Fatalf("unexpected error during close")
+		}
+
+		res = delFn(db, key)
+		if !isErrorObject(res) {
+			t.Fatalf("expected error for operating after close, got %T", res)
+		}
+	})
+
+	t.Run("has on closed database", func(t *testing.T) {
+		res := hasFn(db, key)
+		if !isErrorObject(res) {
+			t.Fatalf("expected error for operating after close, got %T", res)
+		}
+	})
 }
 
 // ============================================================================
@@ -262,6 +327,7 @@ func TestDBKeysAndPrefix(t *testing.T) {
 	defer cleanup()
 
 	openFn := DbBuiltins["db.open"].Fn
+	closeFn := DbBuiltins["db.close"].Fn
 	setFn := DbBuiltins["db.set"].Fn
 	keysFn := DbBuiltins["db.keys"].Fn
 	prefixFn := DbBuiltins["db.prefix"].Fn
@@ -290,6 +356,25 @@ func TestDBKeysAndPrefix(t *testing.T) {
 			t.Fatalf("expected 2 keys, got %d", len(arr.Elements))
 		}
 	})
+
+	t.Run("keys on closed database", func(t *testing.T) {
+		res := closeFn(db)
+		if isErrorObject(res) {
+			t.Fatalf("unexpected error during close")
+		}
+
+		res = prefixFn(db, &object.String{Value: "user:"})
+		if !isErrorObject(res) {
+			t.Fatalf("expected error for operating after close, got %T", res)
+		}
+	})
+
+	t.Run("prefix on closed database", func(t *testing.T) {
+		res := keysFn(db)
+		if !isErrorObject(res) {
+			t.Fatalf("expected error for operating after close, got %T", res)
+		}
+	})
 }
 
 // ============================================================================
@@ -301,6 +386,7 @@ func TestDBCountAndClear(t *testing.T) {
 	defer cleanup()
 
 	openFn := DbBuiltins["db.open"].Fn
+	closeFn := DbBuiltins["db.close"].Fn
 	setFn := DbBuiltins["db.set"].Fn
 	countFn := DbBuiltins["db.count"].Fn
 	clearFn := DbBuiltins["db.clear"].Fn
@@ -327,6 +413,25 @@ func TestDBCountAndClear(t *testing.T) {
 
 		if vals[0].(*object.Integer).Value.Int64() != 0 {
 			t.Fatalf("expected count=0 after clear")
+		}
+	})
+
+	t.Run("count on closed database", func(t *testing.T) {
+		res := closeFn(db)
+		if isErrorObject(res) {
+			t.Fatalf("unexpected error during close")
+		}
+
+		res = countFn(db)
+		if !isErrorObject(res) {
+			t.Fatalf("expected error for operating after close, got %T", res)
+		}
+	})
+
+	t.Run("clear on closed database", func(t *testing.T) {
+		res := clearFn(db)
+		if !isErrorObject(res) {
+			t.Fatalf("expected error for operating after close, got %T", res)
 		}
 	})
 }
@@ -373,9 +478,8 @@ func TestDBSave(t *testing.T) {
 		}
 
 		res = saveFn(db)
-		vals := getReturnValues(t, res)
-		if !isErrorObject(vals[0]) {
-			t.Fatalf("expected error on saving after closing database")
+		if !isErrorObject(res) {
+			t.Fatalf("expected error for operating after close, got %T", res)
 		}
 	})
 }
