@@ -806,7 +806,7 @@ type Database struct {
 func (db *Database) Type() ObjectType { return DATABASE_OBJ }
 func (db *Database) Inspect() string {
 	if db.IsClosed.Value {
-		return fmt.Sprintf("<Database(closed) %s>", db.Path)
+		return fmt.Sprintf("<Database(closed) %s>", db.Path.Value)
 	}
-	return fmt.Sprintf("<Database %s>", db.Path)
+	return fmt.Sprintf("<Database %s>", db.Path.Value)
 }
