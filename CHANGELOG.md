@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.29.2](https://github.com/SchoolyB/EZ/compare/v0.29.1...v0.29.2) (2025-12-21)
+
+
+### Bug Fixes
+
+* **cli:** consistent arg handling and remove stale `ez run` references ([8fcb687](https://github.com/SchoolyB/EZ/commit/8fcb687f7ef990aab376df653df3d14c29a0dc66))
+* **cli:** consistent arg handling and remove stale `ez run` references ([0b7ba8c](https://github.com/SchoolyB/EZ/commit/0b7ba8c2dbba5968c557c7bc46b3f1113be72e59)), closes [#765](https://github.com/SchoolyB/EZ/issues/765)
+* **language:** remove broken `private:module` and add typechecker validation ([3fcb311](https://github.com/SchoolyB/EZ/commit/3fcb31107049e1143186d3f468e7b9a75fa9f7b8))
+* use existing E12001 instead of undefined E9020 ([09734b0](https://github.com/SchoolyB/EZ/commit/09734b0960a5383d5bfd37d2d4c9bb9663ea951f))
+* use existing E12001 instead of undefined E9020 ([f959f49](https://github.com/SchoolyB/EZ/commit/f959f49b6f92fc65e21e7a87c87e02f9566f9af6)), closes [#769](https://github.com/SchoolyB/EZ/issues/769)
+* **visibility:** remove broken private:module and add typechecker validation ([bca6f4c](https://github.com/SchoolyB/EZ/commit/bca6f4cdb5058bf60729fc72a3bf375cf27e9149)), closes [#767](https://github.com/SchoolyB/EZ/issues/767)
+
 ## [0.29.1](https://github.com/SchoolyB/EZ/compare/v0.29.0...v0.29.1) (2025-12-20)
 
 
