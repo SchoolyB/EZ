@@ -135,6 +135,7 @@ Type system errors
 | E3034 | any-type-not-allowed | 'any' type is reserved for internal use |
 | E3035 | not-all-paths-return | not all code paths return a value |
 | E3036 | integer-out-of-range | integer literal exceeds type range |
+| E3037 | invalid-private-usage | private modifier cannot be used here |
 
 ## Reference Errors (E4xxx)
 
@@ -368,4 +369,4 @@ Module-related warnings
 
 ## Summary
 
-**Total:** 239 error/warning codes
+**Total:** 240 error/warning codes
