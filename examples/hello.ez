@@ -1,7 +1,7 @@
 /*
  * hello.ez - Your first EZ program
  *
- * Run with: ez run examples/hello.ez
+ * Run with: ez examples/hello.ez
  */
 
 import @std
