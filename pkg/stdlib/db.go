@@ -45,10 +45,9 @@ var DbBuiltins = map[string]*object.Builtin{
 			if os.IsNotExist(statErr) {
 				perms := os.FileMode(0644)
 				if err := atomicWriteFile(path.Value, []byte(""), perms); err != nil {
-					return &object.ReturnValue{Values: []object.Object{
-						&object.Error{Code: "E17001", Message: "db.open() failed to open database file"},
-					}}
+					return &object.Error{Code: "E17001", Message: "db.open() failed to open database file"}
 				}
+
 				return &object.ReturnValue{Values: []object.Object{
 					&object.Database{
 						Path: *path,
@@ -111,23 +110,17 @@ var DbBuiltins = map[string]*object.Builtin{
 
 			jsonRes, err := encodeToJSON(&db.Store, make(map[uintptr]bool))
 			if err != nil {
-				return &object.ReturnValue{Values: []object.Object{
-					&object.Error{Code: "E17003", Message: "db.close() database contents not json encodable"},
-				}}
+				return &object.Error{Code: "E17003", Message: "db.close() database contents not json encodable"}
 			}
 
 			perms := os.FileMode(0644)
 			if err := atomicWriteFile(db.Path.Value, []byte(jsonRes), perms); err != nil {
-				return &object.ReturnValue{Values: []object.Object{
-					&object.Error{Code: "E17003", Message: "db.close() failed to write to database"},
-				}}
+				return &object.Error{Code: "E17003", Message: "db.close() failed to write to database"}
 			}
 
 			db.IsClosed = object.Boolean{Value: true}
 
-			return &object.ReturnValue{Values: []object.Object{
-				&object.Nil{},
-			}}
+			return	&object.Nil{}
 		},
 	},
 
@@ -218,9 +211,7 @@ var DbBuiltins = map[string]*object.Builtin{
 			}
 
 			deleted := db.Store.Delete(key)
-			return &object.ReturnValue{Values: []object.Object{
-				&object.Boolean{Value: deleted},
-			}}
+			return &object.Boolean{Value: deleted}
 		},
 	},
 
@@ -245,9 +236,7 @@ var DbBuiltins = map[string]*object.Builtin{
 			}
 
 			_, exists := db.Store.Get(key)
-			return &object.ReturnValue{Values: []object.Object{
-				&object.Boolean{Value: exists},
-			}}
+			return &object.Boolean{Value: exists}
 		},
 	},
 
@@ -323,9 +312,7 @@ var DbBuiltins = map[string]*object.Builtin{
 			}
 
 			count := len(db.Store.Pairs)
-			return &object.ReturnValue{Values: []object.Object{
-				&object.Integer{Value: big.NewInt(int64(count))},
-			}}
+			return &object.Integer{Value: big.NewInt(int64(count))}
 		},
 	},
 
@@ -367,21 +354,15 @@ var DbBuiltins = map[string]*object.Builtin{
 
 			jsonRes, err := encodeToJSON(&db.Store, make(map[uintptr]bool))
 			if err != nil {
-				return &object.ReturnValue{Values: []object.Object{
-					&object.Error{Code: "E17003", Message: "db.save() database contents not json encodable"},
-				}}
+				return &object.Error{Code: "E17003", Message: "db.save() database contents not json encodable"}
 			}
 
 			perms := os.FileMode(0644)
 			if err := atomicWriteFile(db.Path.Value, []byte(jsonRes), perms); err != nil {
-				return &object.ReturnValue{Values: []object.Object{
-					&object.Error{Code: "E17003", Message: "db.save() failed to write to database"},
-				}}
+				return &object.Error{Code: "E17003", Message: "db.save() failed to write to database"}
 			}
 
-			return &object.ReturnValue{Values: []object.Object{
-				&object.Nil{},
-			}}
+			return &object.Nil{}
 		},
 	},
 }
