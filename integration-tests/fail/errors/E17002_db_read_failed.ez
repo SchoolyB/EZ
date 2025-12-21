@@ -1,0 +1,11 @@
+/*
+ * Error Test: E17002 - db-read-failed
+ * Expected: "failed to read database file"
+ */
+
+ import @db, @io
+
+ do main() {
+    temp _, _ = io.write_file("mydb.ezdb", "{}", io.WRITE_ONLY)
+    temp db, err = db.open("mydb.ezdb") // trying to read file which cannot be read
+ }

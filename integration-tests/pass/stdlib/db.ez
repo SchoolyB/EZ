@@ -19,7 +19,7 @@ do main() {
     println("  -- Opening --")
 
     // Test 1: opening database
-    temp store Database, err error = db.open("myapp.ezdb")
+    temp store Database, err error = db.open("mydb.ezdb")
     if err != nil {
         println("   [FAIL] db.open(string): unexpected error")
         failed += 1
