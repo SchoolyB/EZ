@@ -106,9 +106,7 @@ var DbBuiltins = map[string]*object.Builtin{
 			}
 
 			if db.IsClosed.Value {
-				return &object.ReturnValue{Values: []object.Object{
-					&object.Error{Code: "E17005", Message: "db.close() cannot operate on closed database"},
-				}}
+				return &object.Error{Code: "E17005", Message: "db.close() cannot operate on closed database"}
 			}
 
 			jsonRes, err := encodeToJSON(&db.Store, make(map[uintptr]bool))
@@ -145,9 +143,7 @@ var DbBuiltins = map[string]*object.Builtin{
 			}
 
 			if db.IsClosed.Value {
-				return &object.ReturnValue{Values: []object.Object{
-					&object.Error{Code: "E17005", Message: "db.set() cannot operate on closed database"},
-				}}
+				return &object.Error{Code: "E17005", Message: "db.set() cannot operate on closed database"}
 			}
 
 			key, ok := args[1].(*object.String)
@@ -178,9 +174,7 @@ var DbBuiltins = map[string]*object.Builtin{
 			}
 
 			if db.IsClosed.Value {
-				return &object.ReturnValue{Values: []object.Object{
-					&object.Error{Code: "E17005", Message: "db.get() cannot operate on closed database"},
-				}}
+				return &object.Error{Code: "E17005", Message: "db.get() cannot operate on closed database"}
 			}
 
 			key, ok := args[1].(*object.String)
@@ -215,9 +209,7 @@ var DbBuiltins = map[string]*object.Builtin{
 			}
 
 			if db.IsClosed.Value {
-				return &object.ReturnValue{Values: []object.Object{
-					&object.Error{Code: "E17005", Message: "db.delete() cannot operate on closed database"},
-				}}
+				return &object.Error{Code: "E17005", Message: "db.delete() cannot operate on closed database"}
 			}
 
 			key, ok := args[1].(*object.String)
@@ -244,9 +236,7 @@ var DbBuiltins = map[string]*object.Builtin{
 			}
 
 			if db.IsClosed.Value {
-				return &object.ReturnValue{Values: []object.Object{
-					&object.Error{Code: "E17005", Message: "db.has() cannot operate on closed database"},
-				}}
+				return &object.Error{Code: "E17005", Message: "db.has() cannot operate on closed database"}
 			}
 
 			key, ok := args[1].(*object.String)
@@ -273,9 +263,7 @@ var DbBuiltins = map[string]*object.Builtin{
 			}
 
 			if db.IsClosed.Value {
-				return &object.ReturnValue{Values: []object.Object{
-					&object.Error{Code: "E17005", Message: "db.keys() cannot operate on closed database"},
-				}}
+				return &object.Error{Code: "E17005", Message: "db.keys() cannot operate on closed database"}
 			}
 
 			var keys object.Array
@@ -299,9 +287,7 @@ var DbBuiltins = map[string]*object.Builtin{
 			}
 
 			if db.IsClosed.Value {
-				return &object.ReturnValue{Values: []object.Object{
-					&object.Error{Code: "E17005", Message: "db.prefix() cannot operate on closed database"},
-				}}
+				return &object.Error{Code: "E17005", Message: "db.prefix() cannot operate on closed database"}
 			}
 
 			prefix, ok := args[1].(*object.String)
@@ -333,9 +319,7 @@ var DbBuiltins = map[string]*object.Builtin{
 			}
 
 			if db.IsClosed.Value {
-				return &object.ReturnValue{Values: []object.Object{
-					&object.Error{Code: "E17005", Message: "db.count() cannot operate on closed database"},
-				}}
+				return &object.Error{Code: "E17005", Message: "db.count() cannot operate on closed database"}
 			}
 
 			count := len(db.Store.Pairs)
@@ -357,9 +341,7 @@ var DbBuiltins = map[string]*object.Builtin{
 			}
 
 			if db.IsClosed.Value {
-				return &object.ReturnValue{Values: []object.Object{
-					&object.Error{Code: "E17005", Message: "db.clear() cannot operate on closed database"},
-				}}
+				return &object.Error{Code: "E17005", Message: "db.clear() cannot operate on closed database"}
 			}
 
 			db.Store = *object.NewMap()
@@ -380,9 +362,7 @@ var DbBuiltins = map[string]*object.Builtin{
 			}
 
 			if db.IsClosed.Value {
-				return &object.ReturnValue{Values: []object.Object{
-					&object.Error{Code: "E17005", Message: "db.save() cannot operate on closed database"},
-				}}
+				return &object.Error{Code: "E17005", Message: "db.save() cannot operate on closed database"}
 			}
 
 			jsonRes, err := encodeToJSON(&db.Store, make(map[uintptr]bool))
