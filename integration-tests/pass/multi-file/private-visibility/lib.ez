@@ -1,0 +1,23 @@
+/*
+ * lib.ez - Library with private and public functions
+ * Tests that private functions are not exported
+ */
+module lib
+
+// Private function - should NOT be accessible from main.ez
+private do internal_helper() -> string {
+    return "internal"
+}
+
+// Private constant - should NOT be accessible from main.ez
+private const SECRET_KEY string = "abc123"
+
+// Public function - SHOULD be accessible from main.ez
+do get_greeting(name string) -> string {
+    // Can call private function internally
+    temp prefix string = internal_helper()
+    return prefix + ": Hello, " + name
+}
+
+// Public constant - SHOULD be accessible from main.ez
+const VERSION string = "1.0.0"
