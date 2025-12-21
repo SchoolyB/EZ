@@ -1,0 +1,47 @@
+/*
+ * main.ez - Test private visibility
+ *
+ * Tests:
+ *   - Public functions are accessible via module prefix
+ *   - Public constants are accessible via module prefix
+ *   - Private functions/constants are NOT exported (tested separately in fail tests)
+ */
+
+import @std
+import "./lib"
+
+using std
+
+do main() {
+    println("=== Private Visibility Test ===")
+    temp passed int = 0
+
+    // Test 1: Access public function
+    temp greeting string = lib.get_greeting("World")
+    if greeting == "internal: Hello, World" {
+        println("  [PASS] public function accessible")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] public function: got '${greeting}'")
+    }
+
+    // Test 2: Access public constant
+    if lib.VERSION == "1.0.0" {
+        println("  [PASS] public constant accessible")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] public constant: got '${lib.VERSION}'")
+    }
+
+    // Note: Accessing lib.internal_helper() or lib.SECRET_KEY would fail
+    // Those cases are tested in fail/multi-file tests
+
+    println("")
+    println("Results: ${passed}/2 passed")
+    
+    if passed == 2 {
+        println("ALL TESTS PASSED")
+    } otherwise {
+        println("SOME TESTS FAILED")
+    }
+}
