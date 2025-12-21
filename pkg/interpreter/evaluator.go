@@ -207,8 +207,6 @@ func convertVisibility(vis ast.Visibility) Visibility {
 	switch vis {
 	case ast.VisibilityPrivate:
 		return VisibilityPrivate
-	case ast.VisibilityPrivateModule:
-		return VisibilityPrivateModule
 	default:
 		return VisibilityPublic
 	}

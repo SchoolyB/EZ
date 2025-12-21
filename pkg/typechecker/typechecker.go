@@ -1520,6 +1520,16 @@ func (tc *TypeChecker) checkStatement(stmt ast.Statement, expectedReturnTypes []
 
 // checkVariableDeclaration validates a variable declaration (Phase 3)
 func (tc *TypeChecker) checkVariableDeclaration(decl *ast.VariableDeclaration) {
+	// Check if private is used inside a function (not allowed)
+	if decl.Visibility == ast.VisibilityPrivate && tc.currentScope != nil {
+		tc.addError(
+			errors.E3037,
+			"'private' modifier can only be used at module level, not inside functions",
+			decl.Token.Line,
+			decl.Token.Column,
+		)
+	}
+
 	// Handle multiple names (for multi-return assignment)
 	if len(decl.Names) > 1 {
 		tc.checkMultiReturnDeclaration(decl)
