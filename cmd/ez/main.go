@@ -51,16 +51,15 @@ func main() {
 		startREPL()
 	case "check", "build":
 		if len(os.Args) < 3 {
-			// No argument: check project in current directory
-			checkProject(".")
+			fmt.Println("Usage: ez check <file.ez | directory>")
+			return
+		}
+		arg := os.Args[2]
+		// Check if it's a .ez file or a directory
+		if strings.HasSuffix(arg, ".ez") {
+			checkFile(arg)
 		} else {
-			arg := os.Args[2]
-			// Check if it's a .ez file or a directory
-			if strings.HasSuffix(arg, ".ez") {
-				checkFile(arg)
-			} else {
-				checkProject(arg)
-			}
+			checkProject(arg)
 		}
 	case "lex":
 		if len(os.Args) < 3 {
@@ -94,9 +93,7 @@ func printHelp() {
 	fmt.Println("  ez <command> [args] Run a specific command")
 	fmt.Println()
 	fmt.Println("Commands:")
-	fmt.Println("  check          Check syntax and types in current directory (requires main.ez)")
-	fmt.Println("  check <dir>    Check syntax and types in specified directory")
-	fmt.Println("  check <file>   Check syntax and types for a single file")
+	fmt.Println("  check <file | dir>   Check syntax and types for a file or directory")
 	fmt.Println("  repl           Start interactive REPL mode")
 	fmt.Println("  update         Check for updates and upgrade EZ")
 	fmt.Println("  version        Show version information")
@@ -108,7 +105,7 @@ func printHelp() {
 	fmt.Println()
 	fmt.Println("Examples:")
 	fmt.Println("  ez myProgram.ez")
-	fmt.Println("  ez check                    # Check project in current directory")
+	fmt.Println("  ez check .                  # Check project in current directory")
 	fmt.Println("  ez check ./myproject        # Check project in myproject/")
 	fmt.Println("  ez check utils.ez           # Check single file")
 	fmt.Println("  ez repl")

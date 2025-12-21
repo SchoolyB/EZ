@@ -135,6 +135,7 @@ var (
 	E3034 = ErrorCode{"E3034", "any-type-not-allowed", "'any' type is reserved for internal use"}
 	E3035 = ErrorCode{"E3035", "not-all-paths-return", "not all code paths return a value"}
 	E3036 = ErrorCode{"E3036", "integer-out-of-range", "integer literal exceeds type range"}
+	E3037 = ErrorCode{"E3037", "invalid-private-usage", "private modifier cannot be used here"}
 )
 
 // =============================================================================
