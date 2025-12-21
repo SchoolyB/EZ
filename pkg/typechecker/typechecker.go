@@ -5568,9 +5568,15 @@ func (tc *TypeChecker) isJsonFunction(name string) bool {
 
 func (tc *TypeChecker) isDBFunction(name string) bool {
 	dbFuncs := map[string]bool{
-		"open": true, "close": true, "set": true, "get": true, "delete": true, 
-		"has": true, "keys": true, "prefix": true, "count": true, "clear": true,
+		// Creation
+		"open": true, 
+		// Closing
+		"close": true, 
+		// Saving
 		"save": true,
+		// Operations
+		"set": true, "get": true, "delete": true, "has": true, 
+		"keys": true, "prefix": true, "count": true, "clear": true,
 	}
 	return dbFuncs[name]
 }
@@ -6722,17 +6728,20 @@ func (tc *TypeChecker) checkBinaryModuleCall(funcName string, call *ast.CallExpr
 
 func (tc *TypeChecker) checkDBModuleCall(funcName string, call *ast.CallExpression, line, column int) {
 	signatures := map[string]StdlibFuncSig{
+		// Database management
 		"open": {1, 1, []string{"string"}, "tuple"},
-		"close": {1, 2, []string{"any"}, "error"},
-		"set": {3, 3, []string{"any", "string", "string"}, "nil"},
-		"get": {2, 2, []string{"any", "string"}, "tuple"},
+		"close": 	{1, 2, []string{"any"}, "error"},
+		"save": 	{1, 1, []string{"any"}, "error"},
+
+		// Database operations
+		"set": 		{3, 3, []string{"any", "string", "string"}, "nil"},
+		"get": 		{2, 2, []string{"any", "string"}, "tuple"},
 		"delete": {2, 2, []string{"any", "string"}, "bool"},
-		"has": {2, 2, []string{"any", "string"}, "bool"},
-		"keys": {1, 1, []string{"any"}, "[string]"},
+		"has": 		{2, 2, []string{"any", "string"}, "bool"},
+		"keys": 	{1, 1, []string{"any"}, "[string]"},
 		"prefix": {2, 2, []string{"any", "string"}, "[string]"},
-		"count": {1, 1, []string{"any"}, "int"},
-		"clear": {1, 1, []string{"any"}, "nil"},
-		"save": {1, 1, []string{"any"}, "error"},
+		"count": 	{1, 1, []string{"any"}, "int"},
+		"clear": 	{1, 1, []string{"any"}, "nil"},
 	}
 
 	sig, exists := signatures[funcName]
