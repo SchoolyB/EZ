@@ -21,7 +21,7 @@ func TestDBOpen(t *testing.T) {
 	dir, cleanup := createTempDir(t)
 	defer cleanup()
 
-	openFn := DbBuiltins["db.open"].Fn
+	openFn := DBBuiltins["db.open"].Fn
 
 	t.Run("opening existing file", func(t *testing.T) {
 		content := "{\"name\":\"Alice\"}"
@@ -70,9 +70,9 @@ func TestDBClose(t *testing.T) {
 	dir, cleanup := createTempDir(t)
 	defer cleanup()
 
-	openFn := DbBuiltins["db.open"].Fn
-	closeFn := DbBuiltins["db.close"].Fn
-	setFn := DbBuiltins["db.set"].Fn
+	openFn := DBBuiltins["db.open"].Fn
+	closeFn := DBBuiltins["db.close"].Fn
+	setFn := DBBuiltins["db.set"].Fn
 
 	t.Run("closing existing database file", func(t *testing.T) {
 		content := "{\"name\":\"Alice\"}"
@@ -184,10 +184,10 @@ func TestDBSetAndGet(t *testing.T) {
 	dir, cleanup := createTempDir(t)
 	defer cleanup()
 
-	openFn := DbBuiltins["db.open"].Fn
-	closeFn := DbBuiltins["db.close"].Fn
-	setFn := DbBuiltins["db.set"].Fn
-	getFn := DbBuiltins["db.get"].Fn
+	openFn := DBBuiltins["db.open"].Fn
+	closeFn := DBBuiltins["db.close"].Fn
+	setFn := DBBuiltins["db.set"].Fn
+	getFn := DBBuiltins["db.get"].Fn
 
 	path := createTempFile(t, dir, "mydb.ezdb", "{}")
 	openRes := openFn(&object.String{Value: path})
@@ -258,11 +258,11 @@ func TestDBDeleteAndHas(t *testing.T) {
 	dir, cleanup := createTempDir(t)
 	defer cleanup()
 
-	openFn := DbBuiltins["db.open"].Fn
-	closeFn := DbBuiltins["db.close"].Fn
-	setFn := DbBuiltins["db.set"].Fn
-	delFn := DbBuiltins["db.delete"].Fn
-	hasFn := DbBuiltins["db.has"].Fn
+	openFn := DBBuiltins["db.open"].Fn
+	closeFn := DBBuiltins["db.close"].Fn
+	setFn := DBBuiltins["db.set"].Fn
+	delFn := DBBuiltins["db.delete"].Fn
+	hasFn := DBBuiltins["db.has"].Fn
 
 	path := createTempFile(t, dir, "mydb.ezdb", "{}")
 	db := getReturnValues(t, openFn(&object.String{Value: path}))[0].(*object.Database)
@@ -326,11 +326,11 @@ func TestDBKeysAndPrefix(t *testing.T) {
 	dir, cleanup := createTempDir(t)
 	defer cleanup()
 
-	openFn := DbBuiltins["db.open"].Fn
-	closeFn := DbBuiltins["db.close"].Fn
-	setFn := DbBuiltins["db.set"].Fn
-	keysFn := DbBuiltins["db.keys"].Fn
-	prefixFn := DbBuiltins["db.prefix"].Fn
+	openFn := DBBuiltins["db.open"].Fn
+	closeFn := DBBuiltins["db.close"].Fn
+	setFn := DBBuiltins["db.set"].Fn
+	keysFn := DBBuiltins["db.keys"].Fn
+	prefixFn := DBBuiltins["db.prefix"].Fn
 
 	path := createTempFile(t, dir, "mydb.ezdb", "{}")
 	db := getReturnValues(t, openFn(&object.String{Value: path}))[0].(*object.Database)
@@ -385,11 +385,11 @@ func TestDBCountAndClear(t *testing.T) {
 	dir, cleanup := createTempDir(t)
 	defer cleanup()
 
-	openFn := DbBuiltins["db.open"].Fn
-	closeFn := DbBuiltins["db.close"].Fn
-	setFn := DbBuiltins["db.set"].Fn
-	countFn := DbBuiltins["db.count"].Fn
-	clearFn := DbBuiltins["db.clear"].Fn
+	openFn := DBBuiltins["db.open"].Fn
+	closeFn := DBBuiltins["db.close"].Fn
+	setFn := DBBuiltins["db.set"].Fn
+	countFn := DBBuiltins["db.count"].Fn
+	clearFn := DBBuiltins["db.clear"].Fn
 
 	path := createTempFile(t, dir, "mydb.ezdb", "{}")
 	db := getReturnValues(t, openFn(&object.String{Value: path}))[0].(*object.Database)
@@ -444,10 +444,10 @@ func TestDBSave(t *testing.T) {
 	dir, cleanup := createTempDir(t)
 	defer cleanup()
 
-	openFn := DbBuiltins["db.open"].Fn
-	setFn := DbBuiltins["db.set"].Fn
-	saveFn := DbBuiltins["db.save"].Fn
-	closeFn := DbBuiltins["db.close"].Fn
+	openFn := DBBuiltins["db.open"].Fn
+	setFn := DBBuiltins["db.set"].Fn
+	saveFn := DBBuiltins["db.save"].Fn
+	closeFn := DBBuiltins["db.close"].Fn
 
 	path := dir + "mydb.ezdb"
 
