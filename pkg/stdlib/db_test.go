@@ -273,27 +273,24 @@ func TestDBDeleteAndHas(t *testing.T) {
 
 	t.Run("has existing key", func(t *testing.T) {
 		res := hasFn(db, key)
-		vals := getReturnValues(t, res)
 
-		if !vals[0].(*object.Boolean).Value {
+		if !res.(*object.Boolean).Value {
 			t.Fatalf("expected true")
 		}
 	})
 
 	t.Run("delete existing key", func(t *testing.T) {
 		res := delFn(db, key)
-		vals := getReturnValues(t, res)
 
-		if !vals[0].(*object.Boolean).Value {
+		if !res.(*object.Boolean).Value {
 			t.Fatalf("expected deletion to succeed")
 		}
 	})
 
 	t.Run("has deleted key", func(t *testing.T) {
 		res := hasFn(db, key)
-		vals := getReturnValues(t, res)
 
-		if vals[0].(*object.Boolean).Value {
+		if res.(*object.Boolean).Value {
 			t.Fatalf("expected false after deletion")
 		}
 	})
@@ -399,9 +396,8 @@ func TestDBCountAndClear(t *testing.T) {
 
 	t.Run("count entries", func(t *testing.T) {
 		res := countFn(db)
-		vals := getReturnValues(t, res)
 
-		if vals[0].(*object.Integer).Value.Int64() != 2 {
+		if res.(*object.Integer).Value.Int64() != 2 {
 			t.Fatalf("expected count=2")
 		}
 	})
@@ -409,9 +405,8 @@ func TestDBCountAndClear(t *testing.T) {
 	t.Run("clear database", func(t *testing.T) {
 		clearFn(db)
 		res := countFn(db)
-		vals := getReturnValues(t, res)
 
-		if vals[0].(*object.Integer).Value.Int64() != 0 {
+		if res.(*object.Integer).Value.Int64() != 0 {
 			t.Fatalf("expected count=0 after clear")
 		}
 	})
