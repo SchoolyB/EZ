@@ -159,9 +159,6 @@ func isValidModule(moduleName string) bool {
 		return true
 	}
 
-	// TODO: Check for user-created modules (e.g., local .ez files)
-	// For now, we only validate against standard library
-
 	return false
 }
 
