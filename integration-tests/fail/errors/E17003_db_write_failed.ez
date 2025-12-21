@@ -1,0 +1,12 @@
+/*
+ * Error Test: E17003 - db-write-failed
+ * Expected: "failed to write database file"
+ */
+
+ import @db, @io
+
+ do main() {
+    temp store, _ = db.open("mydb.ezdb")
+    temp _, _ = io.write_file("mydb.ezdb", "{}", io.READ_ONLY)
+    temp err = db.close(store) // attempting to write to a read only file
+ }
