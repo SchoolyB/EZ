@@ -189,10 +189,17 @@ var DbBuiltins = map[string]*object.Builtin{
 			}
 
 			val, exists := db.Store.Get(key)
-			return &object.ReturnValue{Values: []object.Object{
-				val.(*object.String),
-				&object.Boolean{Value: exists},
-			}}
+			if exists {
+				return &object.ReturnValue{Values: []object.Object{
+					val.(*object.String),
+					&object.Boolean{Value: true},
+				}}
+			} else {
+				return &object.ReturnValue{Values: []object.Object{
+					&object.String{Value: ""},
+					&object.Boolean{Value: false},
+				}}
+			}
 		},
 	},
 
