@@ -254,6 +254,84 @@ func TestDBDeleteAndHas(t *testing.T) {
 }
 
 // ============================================================================
+// Database Keys and Prefix Tests
+// ============================================================================
+
+func TestDBKeysAndPrefix(t *testing.T) {
+	dir, cleanup := createTempDir(t)
+	defer cleanup()
+
+	openFn := DbBuiltins["db.open"].Fn
+	setFn := DbBuiltins["db.set"].Fn
+	keysFn := DbBuiltins["db.keys"].Fn
+	prefixFn := DbBuiltins["db.prefix"].Fn
+
+	path := createTempFile(t, dir, "mydb.ezdb", "{}")
+	db := getReturnValues(t, openFn(&object.String{Value: path}))[0].(*object.Database)
+
+	setFn(db, &object.String{Value: "user:1"}, &object.String{Value: "A"})
+	setFn(db, &object.String{Value: "user:2"}, &object.String{Value: "B"})
+	setFn(db, &object.String{Value: "admin:1"}, &object.String{Value: "C"})
+
+	t.Run("keys returns all keys", func(t *testing.T) {
+		res := keysFn(db)
+		arr := res.(*object.Array)
+
+		if len(arr.Elements) != 3 {
+			t.Fatalf("expected 3 keys, got %d", len(arr.Elements))
+		}
+	})
+
+	t.Run("prefix filters keys", func(t *testing.T) {
+		res := prefixFn(db, &object.String{Value: "user:"})
+		arr := res.(*object.Array)
+
+		if len(arr.Elements) != 2 {
+			t.Fatalf("expected 2 keys, got %d", len(arr.Elements))
+		}
+	})
+}
+
+// ============================================================================
+// Database Count and Clear Tests
+// ============================================================================
+
+func TestDBCountAndClear(t *testing.T) {
+	dir, cleanup := createTempDir(t)
+	defer cleanup()
+
+	openFn := DbBuiltins["db.open"].Fn
+	setFn := DbBuiltins["db.set"].Fn
+	countFn := DbBuiltins["db.count"].Fn
+	clearFn := DbBuiltins["db.clear"].Fn
+
+	path := createTempFile(t, dir, "mydb.ezdb", "{}")
+	db := getReturnValues(t, openFn(&object.String{Value: path}))[0].(*object.Database)
+
+	setFn(db, &object.String{Value: "a"}, &object.String{Value: "1"})
+	setFn(db, &object.String{Value: "b"}, &object.String{Value: "2"})
+
+	t.Run("count entries", func(t *testing.T) {
+		res := countFn(db)
+		vals := getReturnValues(t, res)
+
+		if vals[0].(*object.Integer).Value.Int64() != 2 {
+			t.Fatalf("expected count=2")
+		}
+	})
+
+	t.Run("clear database", func(t *testing.T) {
+		clearFn(db)
+		res := countFn(db)
+		vals := getReturnValues(t, res)
+
+		if vals[0].(*object.Integer).Value.Int64() != 0 {
+			t.Fatalf("expected count=0 after clear")
+		}
+	})
+}
+
+// ============================================================================
 // Database Saving Tests
 // ============================================================================
 
