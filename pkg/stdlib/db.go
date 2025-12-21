@@ -29,25 +29,16 @@ var DBBuiltins = map[string]*object.Builtin{
 			}
 
 			if err := validatePath(path.Value, "db.open()"); err != nil {
-				return &object.ReturnValue{Values: []object.Object{
-					object.NIL,
-					createDBError("E17001",  "db.open() requires a valid path"),
-				}}
+				return &object.Error{Code: "E17001", Message: "db.open() requires valid path"}
 			}
 
 			if !strings.HasSuffix(path.Value, ".ezdb") {
-				return &object.ReturnValue{Values: []object.Object{
-					object.NIL,
-					createDBError("E17001",  "db.open() requires a `.ezdb` file"),
-				}}
+				return &object.Error{Code: "E17001", Message: "db.open() requires a `.ezdb` file"}
 			}
 
 			info, statErr := os.Stat(path.Value)
 			if statErr == nil && info.IsDir() {
-				return &object.ReturnValue{Values: []object.Object{
-					object.NIL,
-					createDBError("E17002", "db.open(): cannot read directory as file"),
-				}}
+				return &object.Error{Code: "E17002", Message: "db.open(): cannot read directory as file"}
 			}
 
 			if os.IsNotExist(statErr) {
@@ -68,26 +59,17 @@ var DBBuiltins = map[string]*object.Builtin{
 
 			content, err := os.ReadFile(path.Value)
 			if err != nil {
-				return &object.ReturnValue{Values: []object.Object{
-					object.NIL,
-					createDBError("E17002", "db.open(): could not read database file"),
-				}}
+				return &object.Error{Code: "E17002", Message: "db.open(): could not read database file"}
 			}
 
 			result, err := decodeFromJSON(string(content))
 			if err != nil {
-				return &object.ReturnValue{Values: []object.Object{
-					object.NIL,
-					createDBError("E17004", "db.open(): database file is corrupted"),
-				}}
+				return &object.Error{Code: "E17004", Message: "db.open(): database file is corrupted"}
 			}
 
 			dbContent, ok := result.(*object.Map)
 			if !ok {
-				return &object.ReturnValue{Values: []object.Object{
-					object.NIL,
-					createDBError("E17004", "db.open(): database file is corrupted"),
-				}}
+				return &object.Error{Code: "E17004", Message: "db.open(): database file is corrupted"}
 			}
 
 			return &object.ReturnValue{Values: []object.Object{
@@ -398,14 +380,4 @@ var DBBuiltins = map[string]*object.Builtin{
 			return &object.Nil{}
 		},
 	},
-}
-
-func createDBError(code, message string) *object.Struct {
-	return &object.Struct{
-		TypeName: "Error",
-		Fields: map[string]object.Object{
-			"message": &object.String{Value: message},
-			"code": &object.String{Value: code},
-		},
-	}
 }
