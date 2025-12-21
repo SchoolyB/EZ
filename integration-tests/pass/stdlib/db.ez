@@ -1,0 +1,217 @@
+/*
+ * db.ez - Test @db standard library with PROPER ASSERTIONS
+ */
+
+import @std, @db, @json
+using std
+
+const User struct {
+	name string
+	age  int
+}
+
+do main() {
+    println("=== @db Standard Library Test ===")
+    temp passed int = 0
+    temp failed int = 0
+
+    // ==================== db.open ====================
+    println("  -- Opening --")
+
+    // Test 1: opening database
+    temp store Database, err error = db.open("mydb.ezdb")
+    if err != nil {
+        println("   [FAIL] db.open(string): unexpected error")
+        failed += 1
+    } otherwise {
+        println("   [PASS] db.open(string)")
+        passed += 1
+    }
+    
+    // ==================== db.set ====================
+    println("  -- Setting --")
+    
+    // Test 1: setting string
+    db.set(store, "config:theme", "dark")
+
+    // Test 2: setting json encoded string
+		temp user1 User = User{name: "Alice", age: 30}
+		temp user1data, _ = json.encode(user1)
+    db.set(store, "user:1", user1data)
+
+		temp user2 User = User{name: "Bob", age: 25}
+		temp user2data, _ = json.encode(user2)
+    db.set(store, "user:2", user2data)
+
+    println("   [PASS] db.set(database, string, string)")
+    passed += 1
+    
+    // ==================== db.get ====================
+    println("  -- Getting --")
+
+    // Test 1: getting value for existing key
+    temp data, found = db.get(store, "user:1")
+		if found {
+				temp user, _ = json.decode(data, User)
+        if user.name == "Alice" && user.age == 30 {
+            println("   [PASS] db.get(database, string)")
+            passed += 1
+        } otherwise {
+            println("   [FAIL] db.get(database, string): stored incorrect value in database")
+            failed += 1
+        }
+		} otherwise {
+        println("   [FAIL] db.get(database, string): value not stored in database")
+        failed += 1
+    }
+
+    // Test 2: getting value for non-existent key
+    data, found = db.get(store, "user:3")
+    if found {
+        println("   [FAIL] db.get(database, string): expected `false`, got `true`")
+        failed += 1
+    } otherwise {
+        println("   [PASS] db.get(database, string)")
+        passed += 1
+    }
+    
+    // ==================== db.has ====================
+    println("  -- db.has --")
+
+    // Test 1: checking for existing key
+    if db.has (store, "user:2") {
+        println("   [PASS] db.has(database, string)")
+        passed += 1
+    } otherwise {
+        println("   [FAIL] db.has(database, string): expected `true`, got `false`")
+        failed += 1
+    }
+
+    // Test 2: checking for non-existent key
+    if !db.has (store, "user:3") {
+        println("   [PASS] db.has(database, string)")
+        passed += 1
+    } otherwise {
+        println("   [FAIL] db.has(database, string): expected `false`, got `true`")
+        failed += 1
+    }
+
+    // ==================== db.keys ====================
+    println("  -- db.keys --")
+
+    // Test 1: Lising present keys
+    temp expected_all_keys [string] = {"config:theme", "user:1", "user:2"}
+
+		temp keys [string] = db.keys(store)
+
+    temp unknown_key bool = false
+    for i in range(0, len(keys)) {
+        if keys[i] != expected_all_keys[i] {
+            unknown_key = true
+        }
+    }
+
+    if unknown_key {
+        println("   [FAIL] db.keys(database): unknown key found in database")
+        failed += 1
+    } otherwise {
+        println("   [PASS] db.keys(database)")
+        passed += 1
+    }
+    
+    // ==================== db.prefix ====================
+    println("  -- db.prefix --")
+    
+    // Test 1: Listing keys with prefix
+    temp expected_prefix_keys [string] = {"user:1", "user:2"}
+
+    temp users [string] = db.prefix(store, "user:")
+
+    temp unknown_prefix_key bool = false
+    for i in range(0, len(users)) {
+        if users[i] != expected_prefix_keys[i] {
+            unknown_prefix_key = true
+        }
+    }
+
+    if unknown_prefix_key {
+        println("   [FAIL] db.prefix(database,string): unknown key found in database")
+        failed += 1
+    } otherwise {
+        println("   [PASS] db.prefix(database,string)")
+        passed += 1
+    }
+
+    // ==================== db.count ====================
+    println("  -- db.count --")
+    
+    // Test 1: Count of all keys
+    if db.count(store) == 3 {
+        println("   [PASS] db.count(database)")
+        passed += 1
+    } otherwise {
+        println("   [FAIL] db.count(database): incorrect count of keys in database")
+        failed += 1
+    }
+
+    // ==================== db.delete ====================
+    println("  -- db.delete --")
+
+    // Test 1: Delete existing key
+    if db.delete(store, "config:theme") {
+        println("   [PASS] db.delete(database, string)")
+        passed += 1
+    } otherwise {
+        println("   [FAIL] db.delete(database, string): could not delete existing key")
+        failed += 1
+    }
+
+    // Test 2: Delete non-existent key
+    if !db.delete(store, "config:time") {
+        println("   [PASS] db.delete(database, string)")
+        passed += 1
+    } otherwise {
+        println("   [FAIL] db.delete(database, string): deleted non-existent key")
+        failed += 1
+    }
+    
+    // ==================== db.save ====================
+    println("  -- db.save --")
+    
+    // Test 1: Manual save to disk
+		temp save_err error = db.save(store)
+    if save_err == nil {
+        println("   [PASS] db.save(database)")
+        passed += 1
+    } otherwise {
+        println("   [FAIL] db.save(database): unexpected error while saving to disk")
+        println("Failed: ${save_err.message}")
+        failed += 1
+    }
+    
+    // ==================== db.close ====================
+    println("  -- db.close --")
+
+    temp close_err error = db.close(store)
+    if close_err == nil {
+        println("   [PASS] db.close(database)")
+        passed += 1
+    } otherwise {
+        println("   [FAIL] db.close(database): unexpected error while closing database")
+        failed += 1
+    }
+
+
+    // ==================== Summary ====================
+    println("")
+    println("=== Summary ===")
+    println("  Passed: ${passed}")
+    println("  Failed: ${failed}")
+    println("")
+
+    if failed > 0 {
+        println("SOME TESTS FAILED")
+    } otherwise {
+        println("ALL TESTS PASSED")
+    }
+}

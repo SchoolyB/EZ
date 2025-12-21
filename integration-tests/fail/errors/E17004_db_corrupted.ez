@@ -1,0 +1,11 @@
+/*
+ * Error Test: E17004 - db-corrupted
+ * Expected: "failed to read database file"
+ */
+
+ import @db, @io
+
+ do main() {
+    temp _, _ = io.write_file("mydb.ezdb", "")
+    temp _, err = db.open("mydb.ezdb") // reading database file with non valid content
+ }

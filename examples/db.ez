@@ -1,0 +1,58 @@
+import @db
+import @std
+import @json
+using std
+
+const User struct {
+	name string
+	age  int
+}
+
+do main() {
+    temp store Database, err error = db.open("mydb.ezdb")
+    if err != nil {
+        println("Failed: ${err.message}")
+        return
+    }
+    
+    // Write data
+		temp user1 User = User{name: "Alice", age: 30}
+		temp user1data, _ = json.encode(user1)
+    db.set(store, "user:1", user1data)
+
+		temp user2 User = User{name: "Bob", age: 25}
+		temp user2data, _ = json.encode(user2)
+    db.set(store, "user:2", user2data)
+
+    db.set(store, "config:theme", "dark")
+    
+    // Read data
+    temp data, found = db.get(store, "user:1")
+		if found {
+				temp user, _ = json.decode(data, User)
+				println("Name: ${user.name}")
+		}
+    
+    // Check existence
+    if db.has(store, "user:3") {
+        println("User 3 exists")
+    } otherwise {
+        println("User 3 not found")
+    }
+
+		temp keys [string] = db.keys(store)
+		println("Keys: ${keys}")
+    
+    // List keys by prefix
+    temp users [string] = db.prefix(store, "user:")
+    println("User keys: ${users}")
+    
+    // Stats
+    println("Total keys: " + string(db.count(store)))
+    
+    // Manual save (optional - auto-saves on close)
+		temp _ error = db.save(store)
+    
+    // Cleanup
+    temp _ error = db.close(store)
+}
