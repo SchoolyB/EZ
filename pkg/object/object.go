@@ -559,9 +559,8 @@ var (
 type Visibility int
 
 const (
-	VisibilityPublic        Visibility = iota // Public (default) - accessible from anywhere
-	VisibilityPrivate                         // Private to this file only
-	VisibilityPrivateModule                   // Private to this module (all files in directory)
+	VisibilityPublic  Visibility = iota // Public (default) - accessible from anywhere
+	VisibilityPrivate                   // Private to this file/module
 )
 
 // Environment holds variable bindings

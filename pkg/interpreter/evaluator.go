@@ -160,9 +160,6 @@ func isValidModule(moduleName string) bool {
 		return true
 	}
 
-	// TODO: Check for user-created modules (e.g., local .ez files)
-	// For now, we only validate against standard library
-
 	return false
 }
 
@@ -208,8 +205,6 @@ func convertVisibility(vis ast.Visibility) Visibility {
 	switch vis {
 	case ast.VisibilityPrivate:
 		return VisibilityPrivate
-	case ast.VisibilityPrivateModule:
-		return VisibilityPrivateModule
 	default:
 		return VisibilityPublic
 	}
@@ -1271,8 +1266,8 @@ func evalAssignment(node *ast.AssignmentStatement, env *Environment) Object {
 			// Map key assignment
 			// Validate that the key is hashable
 			if _, ok := HashKey(idx); !ok {
-				return newErrorWithLocation("E9020", node.Token.Line, node.Token.Column,
-					"unusable as map key: %s", idx.Type())
+				return newErrorWithLocation("E12001", node.Token.Line, node.Token.Column,
+					"map key must be a hashable type, got %s", idx.Type())
 			}
 
 			// Check if map is mutable

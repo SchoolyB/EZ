@@ -731,9 +731,6 @@ func TestVisibilityConstants(t *testing.T) {
 	if VisibilityPrivate != 1 {
 		t.Errorf("VisibilityPrivate = %d, want 1", VisibilityPrivate)
 	}
-	if VisibilityPrivateModule != 2 {
-		t.Errorf("VisibilityPrivateModule = %d, want 2", VisibilityPrivateModule)
-	}
 }
 
 // ============================================================================
