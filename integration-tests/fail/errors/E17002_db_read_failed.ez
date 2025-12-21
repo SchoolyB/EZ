@@ -7,5 +7,5 @@
 
  do main() {
     temp _, _ = io.write_file("mydb.ezdb", "{}", io.WRITE_ONLY)
-    temp db, err = db.open("mydb.ezdb") // trying to read file which cannot be read
+    temp _, err = db.open("mydb.ezdb") // trying to read a write only file
  }
