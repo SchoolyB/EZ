@@ -1,0 +1,12 @@
+/*
+ * Error Test: E17005 - db-closed
+ * Expected: "operation on closed database"
+ */
+
+ import @db
+
+ do main() {
+    temp store, _ = db.open("mydb.ezdb")
+    temp _ = db.close(store)
+    db.set(store, "name", "Alice")
+ }

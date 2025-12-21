@@ -1,0 +1,10 @@
+/*
+ * Error Test: E17001 - db-open-failed
+ * Expected: "failed to open database"
+ */
+
+ import @db
+
+ do main() {
+    temp _, err = db.open("db") // opening non valid database file
+ }
