@@ -37,11 +37,11 @@ jobs:
 
       - name: Run interpreter tests
         if: runner.os != 'Windows'
-        run: ./ez run tests/comprehensive.ez
+        run: ./ez tests/comprehensive.ez
 
       - name: Run interpreter tests (Windows)
         if: runner.os == 'Windows'
-        run: .\ez.exe run tests\comprehensive.ez
+        run: .\ez.exe tests\comprehensive.ez
 
       - name: Validate example files
         if: runner.os != 'Windows'
