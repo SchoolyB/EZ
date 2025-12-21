@@ -39,6 +39,6 @@ rm -f "$BINARY_NAME"
 
 echo ""
 echo "EZ installed successfully!"
-echo "Run 'ez run <file>' to execute EZ programs"
+echo "Run 'ez <file>' to execute EZ programs"
 echo ""
 echo "To uninstall, run: sudo rm $INSTALL_DIR/$BINARY_NAME"
