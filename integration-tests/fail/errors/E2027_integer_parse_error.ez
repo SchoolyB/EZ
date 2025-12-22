@@ -1,0 +1,9 @@
+/*
+ * Error Test: E2027 - integer-parse-error
+ * Expected: "cannot parse" or "parse" or "integer"
+ */
+
+do main() {
+    temp x int = 0xGG  // invalid hex integer
+}
+
