@@ -43,7 +43,7 @@ var DBBuiltins = map[string]*object.Builtin{
 
 			if os.IsNotExist(statErr) {
 				perms := os.FileMode(0644)
-				if err := atomicWriteFile(path.Value, []byte(""), perms); err != nil {
+				if err := atomicWriteFile(path.Value, []byte("{}"), perms); err != nil {
 					return &object.Error{Code: "E17001", Message: "db.open() failed to open database file"}
 				}
 
