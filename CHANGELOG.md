@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.30.2](https://github.com/SchoolyB/EZ/compare/v0.30.1...v0.30.2) (2025-12-22)
+
+
+### Bug Fixes
+
+* **typechecker:** require Database type for db module functions ([2d63dc6](https://github.com/SchoolyB/EZ/commit/2d63dc6b9b10582e26102023f9a31cd7497af976))
+* **typechecker:** require Database type for db module functions ([851a6c2](https://github.com/SchoolyB/EZ/commit/851a6c2da1c824ef48c90f4af6c4a790695a2c87)), closes [#781](https://github.com/SchoolyB/EZ/issues/781)
+
 ## [0.30.1](https://github.com/SchoolyB/EZ/compare/v0.30.0...v0.30.1) (2025-12-22)
 
 
