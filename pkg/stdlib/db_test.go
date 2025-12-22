@@ -47,6 +47,28 @@ func TestDBOpen(t *testing.T) {
 		}
 	})
 
+	t.Run("opening new file twice without closing", func(t *testing.T) {
+		path := dir + "double_open.ezdb"
+
+		// First open creates the file
+		result1 := openFn(&object.String{Value: path})
+		assertNoError(t, result1)
+
+		vals1 := getReturnValues(t, result1)
+		if _, ok := vals1[0].(*object.Database); !ok {
+			t.Fatalf("first open: expected Database, got %T", vals1[0])
+		}
+
+		// Second open should also succeed (not report corruption)
+		result2 := openFn(&object.String{Value: path})
+		assertNoError(t, result2)
+
+		vals2 := getReturnValues(t, result2)
+		if _, ok := vals2[0].(*object.Database); !ok {
+			t.Fatalf("second open: expected Database, got %T", vals2[0])
+		}
+	})
+
 	t.Run("wrong argument count", func(t *testing.T) {
 		result := openFn()
 		if !isErrorObject(result) {
