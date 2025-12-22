@@ -395,6 +395,69 @@ var DBBuiltins = map[string]*object.Builtin{
 		},
 	},
 
+	// Checks if a database file exists at the given path
+	// Returns (bool)
+	"db.exists": {
+		Fn: func(args ...object.Object) object.Object {
+			if len(args) != 1 {
+				return &object.Error{Code: "E7001", Message: "db.exists() takes exactly 1 argument"}
+			}
+
+			path, ok := args[0].(*object.String)
+			if !ok {
+				return &object.Error{Code: "E7003", Message: "db.exists() requires a string path"}
+			}
+
+			if !strings.HasSuffix(path.Value, ".ezdb") {
+				return &object.Error{Code: "E17001", Message: "db.exists() requires a `.ezdb` file"}
+			}
+
+			_, err := os.Stat(path.Value)
+			return &object.Boolean{Value: err == nil}
+		},
+	},
+
+	// Renames a key in the database
+	// Returns (bool) - false if old key does not exist
+	"db.update_key_name": {
+		Fn: func(args ...object.Object) object.Object {
+			if len(args) != 3 {
+				return &object.Error{Code: "E7001", Message: "db.update_key_name() takes exactly 3 arguments"}
+			}
+
+			db, ok := args[0].(*object.Database)
+			if !ok {
+				return &object.Error{Code: "E7001", Message: "db.update_key_name() requires a Database object as first argument"}
+			}
+
+			if db.IsClosed.Value {
+				return &object.Error{Code: "E17005", Message: "db.update_key_name() cannot operate on closed database"}
+			}
+
+			oldKey, ok := args[1].(*object.String)
+			if !ok {
+				return &object.Error{Code: "E7001", Message: "db.update_key_name() requires a String as second argument"}
+			}
+
+			newKey, ok := args[2].(*object.String)
+			if !ok {
+				return &object.Error{Code: "E7001", Message: "db.update_key_name() requires a String as third argument"}
+			}
+
+			// Get the value for the old key
+			val, exists := db.Store.Get(oldKey)
+			if !exists {
+				return &object.Boolean{Value: false}
+			}
+
+			// Delete old key and set new key with the value
+			db.Store.Delete(oldKey)
+			db.Store.Set(newKey, val)
+
+			return &object.Boolean{Value: true}
+		},
+	},
+
 	// Sorts database keys by specified order
 	// Returns nothing
 	"db.sort": {
