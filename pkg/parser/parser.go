@@ -421,25 +421,6 @@ func (p *Parser) addEZError(code errors.ErrorCode, message string, tok Token) {
 	p.ezErrors.AddError(err)
 }
 
-// addWarning adds a deprecation or other warning to the warning list
-func (p *Parser) addWarning(code string, message string, tok Token) {
-	sourceLine := ""
-	if p.source != "" {
-		sourceLine = errors.GetSourceLine(p.source, tok.Line)
-	}
-
-	warn := errors.NewErrorWithSource(
-		errors.W2005, // deprecated-feature
-		message,
-		p.filename,
-		tok.Line,
-		tok.Column,
-		sourceLine,
-	)
-	warn.EndColumn = tok.Column + len(tok.Literal)
-	p.ezErrors.AddWarning(warn)
-}
-
 func (p *Parser) nextToken() {
 	p.currentToken = p.peekToken
 	p.peekToken = p.l.NextToken()
@@ -3263,9 +3244,6 @@ func (p *Parser) parseCastExpression() Expression {
 // ============================================================================
 // Attribute Parsing
 // ============================================================================
-
-// Known attribute names (without the # prefix)
-var knownAttributeNames = []string{"suppress", "strict", "enum", "flags", "ignore"}
 
 // parseAttributes parses #suppress(...), #strict, #enum(...), #flags attributes
 func (p *Parser) parseAttributes() []*Attribute {
