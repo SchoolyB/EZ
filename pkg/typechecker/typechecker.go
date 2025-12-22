@@ -6729,19 +6729,19 @@ func (tc *TypeChecker) checkBinaryModuleCall(funcName string, call *ast.CallExpr
 func (tc *TypeChecker) checkDBModuleCall(funcName string, call *ast.CallExpression, line, column int) {
 	signatures := map[string]StdlibFuncSig{
 		// Database management
-		"open": {1, 1, []string{"string"}, "tuple"},
-		"close": 	{1, 2, []string{"any"}, "error"},
-		"save": 	{1, 1, []string{"any"}, "error"},
+		"open":  {1, 1, []string{"string"}, "tuple"},
+		"close": {1, 1, []string{"Database"}, "nil"},
+		"save":  {1, 1, []string{"Database"}, "nil"},
 
 		// Database operations
-		"set": 		{3, 3, []string{"any", "string", "string"}, "nil"},
-		"get": 		{2, 2, []string{"any", "string"}, "tuple"},
-		"delete": {2, 2, []string{"any", "string"}, "bool"},
-		"has": 		{2, 2, []string{"any", "string"}, "bool"},
-		"keys": 	{1, 1, []string{"any"}, "[string]"},
-		"prefix": {2, 2, []string{"any", "string"}, "[string]"},
-		"count": 	{1, 1, []string{"any"}, "int"},
-		"clear": 	{1, 1, []string{"any"}, "nil"},
+		"set":    {3, 3, []string{"Database", "string", "string"}, "nil"},
+		"get":    {2, 2, []string{"Database", "string"}, "tuple"},
+		"delete": {2, 2, []string{"Database", "string"}, "bool"},
+		"has":    {2, 2, []string{"Database", "string"}, "bool"},
+		"keys":   {1, 1, []string{"Database"}, "[string]"},
+		"prefix": {2, 2, []string{"Database", "string"}, "[string]"},
+		"count":  {1, 1, []string{"Database"}, "int"},
+		"clear":  {1, 1, []string{"Database"}, "nil"},
 	}
 
 	sig, exists := signatures[funcName]
