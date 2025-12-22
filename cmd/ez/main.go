@@ -115,34 +115,27 @@ func printVersion() {
 	fmt.Printf("EZ Language %s\n", Version)
 	fmt.Printf("Built: %s\n", BuildTime)
 
-	// Check for latest version and always display it
+	// Always fetch fresh version info when user explicitly runs 'ez version'
 	var latestVersion string
 
-	state, _ := readUpdateState()
+	ctx, cancel := context.WithTimeout(context.Background(), checkTimeout)
+	defer cancel()
 
-	// If we have cached state and it's fresh (checked today), use it
-	if state != nil && state.LatestVersion != "" && !shouldCheckForUpdate() {
-		latestVersion = state.LatestVersion
-	} else {
-		// Cache is stale or empty - do a synchronous check
-		ctx, cancel := context.WithTimeout(context.Background(), checkTimeout)
-		defer cancel()
-
-		release, err := fetchLatestRelease(ctx)
-		if err != nil {
-			// Network error - fall back to cached state if available
-			if state != nil && state.LatestVersion != "" {
-				latestVersion = state.LatestVersion
-			}
-		} else {
-			// Update cache
-			newState := &UpdateState{
-				LastCheck:     time.Now().Format("2006-01-02"),
-				LatestVersion: release.TagName,
-			}
-			writeUpdateState(newState)
-			latestVersion = release.TagName
+	release, err := fetchLatestRelease(ctx)
+	if err != nil {
+		// Network error - fall back to cached state if available
+		state, _ := readUpdateState()
+		if state != nil && state.LatestVersion != "" {
+			latestVersion = state.LatestVersion
 		}
+	} else {
+		// Update cache with fresh data
+		newState := &UpdateState{
+			LastCheck:     time.Now().Format("2006-01-02"),
+			LatestVersion: release.TagName,
+		}
+		writeUpdateState(newState)
+		latestVersion = release.TagName
 	}
 
 	// Always display latest version if we have it

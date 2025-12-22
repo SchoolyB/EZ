@@ -5,6 +5,7 @@ package stdlib
 
 import (
 	"bufio"
+	"errors"
 	"fmt"
 	"io"
 	"math"
@@ -363,6 +364,13 @@ var StdBuiltins = map[string]*object.Builtin{
 				cleanedValue := strings.ReplaceAll(arg.Value, "_", "")
 				val, err := strconv.ParseInt(cleanedValue, 10, 64)
 				if err != nil {
+					// Check if this is a range error (overflow) vs syntax error (invalid format)
+					if errors.Is(err, strconv.ErrRange) {
+						return &object.Error{
+							Code:    "E7033",
+							Message: fmt.Sprintf("integer overflow: %q exceeds int64 range (-9223372036854775808 to 9223372036854775807)", arg.Value),
+						}
+					}
 					return &object.Error{
 						Code: "E7014",
 						Message: fmt.Sprintf("cannot convert %q to int: invalid integer format\n\n"+
@@ -573,6 +581,13 @@ var StdBuiltins = map[string]*object.Builtin{
 				cleanedValue := strings.ReplaceAll(arg.Value, "_", "")
 				val, err := strconv.ParseInt(cleanedValue, 10, 64)
 				if err != nil {
+					// Check if this is a range error (overflow) vs syntax error (invalid format)
+					if errors.Is(err, strconv.ErrRange) {
+						return &object.Error{
+							Code:    "E7014",
+							Message: fmt.Sprintf("cannot convert %q to byte: value must be between 0 and 255", arg.Value),
+						}
+					}
 					return &object.Error{
 						Code:    "E7014",
 						Message: fmt.Sprintf("cannot convert %q to byte: invalid integer format", arg.Value),
