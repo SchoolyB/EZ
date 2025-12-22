@@ -1,0 +1,79 @@
+name: PR Sanity Check
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+jobs:
+  sanity-check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Block suspicious meta/config files
+        run: |
+          echo "Checking files..."
+          CHANGED_FILES=$(git diff --name-only origin/main...HEAD)
+
+          # Block meta/config files from other language ecosystems
+          SUSPICIOUS=$(echo "$CHANGED_FILES" | grep -E '(
+            package\.json|
+            package-lock\.json|
+            yarn\.lock|
+            pnpm-lock\.yaml|
+            bun\.lockb|
+            bunfig\.toml|
+            deno\.json|
+            deno\.jsonc|
+            tsconfig\.json|
+            jsconfig\.json|
+            requirements\.txt|
+            Pipfile|
+            Gemfile|
+            Cargo\.toml|
+            Cargo\.lock|
+            node_modules/|
+            .*/node_modules/.*
+          )' || true)
+
+          if [ -n "$SUSPICIOUS" ]; then
+            echo "❌ Suspicious meta/config files detected:"
+            echo "$SUSPICIOUS"
+            exit 1
+          fi
+          echo "✅ No suspicious meta/config files detected."
+
+      - name: Reject binary files except images
+        run: |
+          echo "Checking for binary files..."
+          CHANGED_FILES=$(git diff --name-only origin/main...HEAD)
+
+          for file in $CHANGED_FILES; do
+            if [ -f "$file" ]; then
+              MIME=$(file --mime "$file")
+              TYPE=$(echo "$MIME" | awk '{print $1}')
+
+              # Allow common image formats
+              if [[ "$TYPE" =~ ^image/(jpeg|png|gif|svg|webp)$ ]]; then
+                echo "ℹ️ Allowed image file: $file ($TYPE)"
+                continue
+              fi
+
+              # Reject any other binary file
+              if echo "$MIME" | grep -q "charset=binary"; then
+                echo "❌ Binary file detected: $file ($MIME)"
+                exit 1
+              fi
+            fi
+          done
+          echo "✅ No disallowed binary files detected."
+
+      - name: Close PR if checks fail 
+        if: failure()
+        run: |
+          echo "Closing invalid PR"
+          gh pr close ${{ github.event.pull_request.number }} \
+            --repo ${{ github.repository }} \
+            --comment "❌ This PR has been automatically closed because it contains disallowed files (non-image binaries, archives, or unexpected meta/config files)."
+
