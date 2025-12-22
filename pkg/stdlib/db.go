@@ -3,6 +3,8 @@ package stdlib
 import (
 	"math/big"
 	"os"
+	"sort"
+	"strconv"
 	"strings"
 
 	"github.com/marshallburns/ez/pkg/object"
@@ -70,6 +72,18 @@ var DBBuiltins = map[string]*object.Builtin{
 			dbContent, ok := result.(*object.Map)
 			if !ok {
 				return &object.Error{Code: "E17004", Message: "db.open(): database file is corrupted"}
+			}
+
+			// Sort keys alphabetically on load for consistent ordering
+			sort.Slice(dbContent.Pairs, func(i, j int) bool {
+				keyI := dbContent.Pairs[i].Key.(*object.String).Value
+				keyJ := dbContent.Pairs[j].Key.(*object.String).Value
+				return keyI < keyJ
+			})
+			// Rebuild index after sorting
+			for i, pair := range dbContent.Pairs {
+				hash, _ := object.HashKey(pair.Key)
+				dbContent.Index[hash] = i
 			}
 
 			return &object.ReturnValue{Values: []object.Object{
@@ -376,8 +390,189 @@ var DBBuiltins = map[string]*object.Builtin{
 			}
 
 			db.Store = *object.NewMap()
-			
+
 			return &object.Nil{}
+		},
+	},
+
+	// Sorts database keys by specified order
+	// Returns nothing
+	"db.sort": {
+		Fn: func(args ...object.Object) object.Object {
+			if len(args) != 2 {
+				return &object.Error{Code: "E7001", Message: "db.sort() takes exactly 2 arguments"}
+			}
+
+			db, ok := args[0].(*object.Database)
+			if !ok {
+				return &object.Error{Code: "E7001", Message: "db.sort() requires a Database object as first argument"}
+			}
+
+			if db.IsClosed.Value {
+				return &object.Error{Code: "E17005", Message: "db.sort() cannot operate on closed database"}
+			}
+
+			order, ok := args[1].(*object.Integer)
+			if !ok {
+				return &object.Error{Code: "E7001", Message: "db.sort() requires a sort order constant as second argument (e.g., db.ALPHA)"}
+			}
+
+			switch order.Value.Int64() {
+			case 0: // db.ALPHA - keys A-Z
+				sort.Slice(db.Store.Pairs, func(i, j int) bool {
+					keyI := db.Store.Pairs[i].Key.(*object.String).Value
+					keyJ := db.Store.Pairs[j].Key.(*object.String).Value
+					return keyI < keyJ
+				})
+			case 1: // db.ALPHA_DESC - keys Z-A
+				sort.Slice(db.Store.Pairs, func(i, j int) bool {
+					keyI := db.Store.Pairs[i].Key.(*object.String).Value
+					keyJ := db.Store.Pairs[j].Key.(*object.String).Value
+					return keyI > keyJ
+				})
+			case 2: // db.VALUE_ALPHA - values A-Z
+				sort.Slice(db.Store.Pairs, func(i, j int) bool {
+					valI := db.Store.Pairs[i].Value.(*object.String).Value
+					valJ := db.Store.Pairs[j].Value.(*object.String).Value
+					return valI < valJ
+				})
+			case 3: // db.VALUE_ALPHA_DESC - values Z-A
+				sort.Slice(db.Store.Pairs, func(i, j int) bool {
+					valI := db.Store.Pairs[i].Value.(*object.String).Value
+					valJ := db.Store.Pairs[j].Value.(*object.String).Value
+					return valI > valJ
+				})
+			case 4: // db.KEY_LEN - shortest keys first
+				sort.Slice(db.Store.Pairs, func(i, j int) bool {
+					keyI := db.Store.Pairs[i].Key.(*object.String).Value
+					keyJ := db.Store.Pairs[j].Key.(*object.String).Value
+					return len(keyI) < len(keyJ)
+				})
+			case 5: // db.KEY_LEN_DESC - longest keys first
+				sort.Slice(db.Store.Pairs, func(i, j int) bool {
+					keyI := db.Store.Pairs[i].Key.(*object.String).Value
+					keyJ := db.Store.Pairs[j].Key.(*object.String).Value
+					return len(keyI) > len(keyJ)
+				})
+			case 6: // db.VALUE_LEN - shortest values first
+				sort.Slice(db.Store.Pairs, func(i, j int) bool {
+					valI := db.Store.Pairs[i].Value.(*object.String).Value
+					valJ := db.Store.Pairs[j].Value.(*object.String).Value
+					return len(valI) < len(valJ)
+				})
+			case 7: // db.VALUE_LEN_DESC - longest values first
+				sort.Slice(db.Store.Pairs, func(i, j int) bool {
+					valI := db.Store.Pairs[i].Value.(*object.String).Value
+					valJ := db.Store.Pairs[j].Value.(*object.String).Value
+					return len(valI) > len(valJ)
+				})
+			case 8: // db.NUMERIC - keys numerically ascending
+				sort.Slice(db.Store.Pairs, func(i, j int) bool {
+					keyI := db.Store.Pairs[i].Key.(*object.String).Value
+					keyJ := db.Store.Pairs[j].Key.(*object.String).Value
+					numI, errI := strconv.ParseFloat(keyI, 64)
+					numJ, errJ := strconv.ParseFloat(keyJ, 64)
+					if errI != nil || errJ != nil {
+						return keyI < keyJ // fall back to string comparison
+					}
+					return numI < numJ
+				})
+			case 9: // db.NUMERIC_DESC - keys numerically descending
+				sort.Slice(db.Store.Pairs, func(i, j int) bool {
+					keyI := db.Store.Pairs[i].Key.(*object.String).Value
+					keyJ := db.Store.Pairs[j].Key.(*object.String).Value
+					numI, errI := strconv.ParseFloat(keyI, 64)
+					numJ, errJ := strconv.ParseFloat(keyJ, 64)
+					if errI != nil || errJ != nil {
+						return keyI > keyJ // fall back to string comparison
+					}
+					return numI > numJ
+				})
+			default:
+				return &object.Error{Code: "E7003", Message: "db.sort() invalid order constant"}
+			}
+
+			// Rebuild index after sorting
+			for i, pair := range db.Store.Pairs {
+				hash, _ := object.HashKey(pair.Key)
+				db.Store.Index[hash] = i
+			}
+
+			return &object.Nil{}
+		},
+	},
+
+	// ============================================================================
+	// Database Constants
+	// ============================================================================
+
+	// Sort order: keys alphabetically A-Z
+	"db.ALPHA": {
+		Fn: func(args ...object.Object) object.Object {
+			return &object.Integer{Value: big.NewInt(0)}
+		},
+	},
+
+	// Sort order: keys alphabetically Z-A
+	"db.ALPHA_DESC": {
+		Fn: func(args ...object.Object) object.Object {
+			return &object.Integer{Value: big.NewInt(1)}
+		},
+	},
+
+	// Sort order: values alphabetically A-Z
+	"db.VALUE_ALPHA": {
+		Fn: func(args ...object.Object) object.Object {
+			return &object.Integer{Value: big.NewInt(2)}
+		},
+	},
+
+	// Sort order: values alphabetically Z-A
+	"db.VALUE_ALPHA_DESC": {
+		Fn: func(args ...object.Object) object.Object {
+			return &object.Integer{Value: big.NewInt(3)}
+		},
+	},
+
+	// Sort order: shortest keys first
+	"db.KEY_LEN": {
+		Fn: func(args ...object.Object) object.Object {
+			return &object.Integer{Value: big.NewInt(4)}
+		},
+	},
+
+	// Sort order: longest keys first
+	"db.KEY_LEN_DESC": {
+		Fn: func(args ...object.Object) object.Object {
+			return &object.Integer{Value: big.NewInt(5)}
+		},
+	},
+
+	// Sort order: shortest values first
+	"db.VALUE_LEN": {
+		Fn: func(args ...object.Object) object.Object {
+			return &object.Integer{Value: big.NewInt(6)}
+		},
+	},
+
+	// Sort order: longest values first
+	"db.VALUE_LEN_DESC": {
+		Fn: func(args ...object.Object) object.Object {
+			return &object.Integer{Value: big.NewInt(7)}
+		},
+	},
+
+	// Sort order: keys numerically ascending
+	"db.NUMERIC": {
+		Fn: func(args ...object.Object) object.Object {
+			return &object.Integer{Value: big.NewInt(8)}
+		},
+	},
+
+	// Sort order: keys numerically descending
+	"db.NUMERIC_DESC": {
+		Fn: func(args ...object.Object) object.Object {
+			return &object.Integer{Value: big.NewInt(9)}
 		},
 	},
 }
