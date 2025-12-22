@@ -1,5 +1,20 @@
 # Changelog
 
+## [0.31.0](https://github.com/SchoolyB/EZ/compare/v0.30.2...v0.31.0) (2025-12-22)
+
+
+### Features
+
+* **stdlib:** add db.exists() and db.update_key_name() ([f89aac1](https://github.com/SchoolyB/EZ/commit/f89aac142eb5344e7bc86a4500353a1d9cd2c74b))
+* **stdlib:** add db.sort() with sort order constants ([8a26dab](https://github.com/SchoolyB/EZ/commit/8a26dab2c040d2372b004c97d71b9e15363794ed)), closes [#782](https://github.com/SchoolyB/EZ/issues/782)
+
+
+### Bug Fixes
+
+* **cli:** always fetch fresh version info for `ez version` command ([ffe4979](https://github.com/SchoolyB/EZ/commit/ffe49794dae0b9e5abd6189d5392c3ef9a45a5ec))
+* **stdlib:** show overflow error instead of invalid format for large integers ([e4ff4bb](https://github.com/SchoolyB/EZ/commit/e4ff4bbbf01e9164aeb3199eb63dee919b78160a)), closes [#783](https://github.com/SchoolyB/EZ/issues/783)
+* **tests:** strengthen db.ez assertions to actually verify behavior ([5e2bd65](https://github.com/SchoolyB/EZ/commit/5e2bd652f620db758e20f1ec3c69193bb3b32480))
+
 ## [0.30.2](https://github.com/SchoolyB/EZ/compare/v0.30.1...v0.30.2) (2025-12-22)
 
 
