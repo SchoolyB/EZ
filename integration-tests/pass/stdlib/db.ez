@@ -189,6 +189,78 @@ do main() {
         failed += 1
     }
     
+    // ==================== db.exists ====================
+    println("  -- db.exists --")
+
+    // Test 1: Check non-existent file
+    if !db.exists("nonexistent_db_12345.ezdb") {
+        println("   [PASS] db.exists(string) returns false for missing file")
+        passed += 1
+    } otherwise {
+        println("   [FAIL] db.exists(string): should return false for missing file")
+        failed += 1
+    }
+
+    // Test 2: Check existing file (mydb.ezdb was created earlier)
+    if db.exists("mydb.ezdb") {
+        println("   [PASS] db.exists(string) returns true for existing file")
+        passed += 1
+    } otherwise {
+        println("   [FAIL] db.exists(string): should return true for existing file")
+        failed += 1
+    }
+
+    // ==================== db.update_key_name ====================
+    println("  -- db.update_key_name --")
+
+    // Reopen the store for rename tests
+    temp rename_store Database, rename_err error = db.open("rename_test.ezdb")
+    if rename_err != nil {
+        println("   [FAIL] db.update_key_name: could not open test database")
+        failed += 1
+    } otherwise {
+        db.set(rename_store, "original_key", "test_value")
+
+        // Test 1: Rename existing key
+        if db.update_key_name(rename_store, "original_key", "renamed_key") {
+            println("   [PASS] db.update_key_name() returns true")
+            passed += 1
+        } otherwise {
+            println("   [FAIL] db.update_key_name(): should return true for existing key")
+            failed += 1
+        }
+
+        // Test 2: Old key should not exist
+        if !db.has(rename_store, "original_key") {
+            println("   [PASS] db.update_key_name() old key removed")
+            passed += 1
+        } otherwise {
+            println("   [FAIL] db.update_key_name(): old key should be removed")
+            failed += 1
+        }
+
+        // Test 3: New key should have the value
+        temp rename_val, rename_found = db.get(rename_store, "renamed_key")
+        if rename_found && rename_val == "test_value" {
+            println("   [PASS] db.update_key_name() new key has value")
+            passed += 1
+        } otherwise {
+            println("   [FAIL] db.update_key_name(): new key should have the value")
+            failed += 1
+        }
+
+        // Test 4: Rename non-existent key returns false
+        if !db.update_key_name(rename_store, "missing_key", "whatever") {
+            println("   [PASS] db.update_key_name() returns false for missing key")
+            passed += 1
+        } otherwise {
+            println("   [FAIL] db.update_key_name(): should return false for missing key")
+            failed += 1
+        }
+
+        db.close(rename_store)
+    }
+
     // ==================== db.sort ====================
     println("  -- db.sort --")
 
