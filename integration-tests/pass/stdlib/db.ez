@@ -30,21 +30,26 @@ do main() {
     
     // ==================== db.set ====================
     println("  -- Setting --")
-    
-    // Test 1: setting string
+
+    // Test 1: setting string and verifying it was stored
     db.set(store, "config:theme", "dark")
+    temp theme_val, theme_found = db.get(store, "config:theme")
+    if theme_found && theme_val == "dark" {
+        println("   [PASS] db.set(database, string, string)")
+        passed += 1
+    } otherwise {
+        println("   [FAIL] db.set(database, string, string): value not stored correctly")
+        failed += 1
+    }
 
     // Test 2: setting json encoded string
-		temp user1 User = User{name: "Alice", age: 30}
-		temp user1data, _ = json.encode(user1)
+    temp user1 User = User{name: "Alice", age: 30}
+    temp user1data, _ = json.encode(user1)
     db.set(store, "user:1", user1data)
 
-		temp user2 User = User{name: "Bob", age: 25}
-		temp user2data, _ = json.encode(user2)
+    temp user2 User = User{name: "Bob", age: 25}
+    temp user2data, _ = json.encode(user2)
     db.set(store, "user:2", user2data)
-
-    println("   [PASS] db.set(database, string, string)")
-    passed += 1
     
     // ==================== db.get ====================
     println("  -- Getting --")
@@ -302,8 +307,9 @@ do main() {
         // Test db.VALUE_ALPHA - values A-Z
         db.sort(sort_store, db.VALUE_ALPHA)
         temp val_alpha_keys [string] = db.keys(sort_store)
-        // "a" < "medium val" < "short" < "ten" < "two"
-        if val_alpha_keys[0] == "apple" {
+        // values: "a" < "medium val" < "short" < "ten" < "two"
+        // keys:   apple, banana, zebra, 10, 2
+        if val_alpha_keys[0] == "apple" && val_alpha_keys[1] == "banana" && val_alpha_keys[4] == "2" {
             println("   [PASS] db.sort(db.VALUE_ALPHA)")
             passed += 1
         } otherwise {
@@ -326,8 +332,9 @@ do main() {
         // Test db.VALUE_LEN - shortest values first
         db.sort(sort_store, db.VALUE_LEN)
         temp val_len_keys [string] = db.keys(sort_store)
-        // "a" (1), "two" (3), "ten" (3), "short" (5), "medium val" (10)
-        if val_len_keys[0] == "apple" {
+        // value lengths: "a"(1), "ten"(3), "two"(3), "short"(5), "medium val"(10)
+        // keys:          apple,  10,       2,        zebra,      banana
+        if val_len_keys[0] == "apple" && val_len_keys[4] == "banana" {
             println("   [PASS] db.sort(db.VALUE_LEN)")
             passed += 1
         } otherwise {
