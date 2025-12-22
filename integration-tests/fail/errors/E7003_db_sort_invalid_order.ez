@@ -1,0 +1,11 @@
+/*
+ * Error Test: E7003 - db.sort invalid order constant
+ * Expected: "invalid order constant"
+ */
+
+import @db
+
+do main() {
+    temp store, _ = db.open("test.ezdb")
+    db.sort(store, 999)  // Invalid sort order constant
+}
