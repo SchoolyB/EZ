@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.30.1](https://github.com/SchoolyB/EZ/compare/v0.30.0...v0.30.1) (2025-12-22)
+
+
+### Bug Fixes
+
+* **stdlib:** write valid JSON when creating new database file ([ecb396a](https://github.com/SchoolyB/EZ/commit/ecb396a07e99e93519fcb3677e89b26fa66b9956))
+* **stdlib:** write valid JSON when creating new database file ([46e0da2](https://github.com/SchoolyB/EZ/commit/46e0da26f15f7978bb05324a60d7adc3346237b3)), closes [#780](https://github.com/SchoolyB/EZ/issues/780)
+
 ## [0.30.0](https://github.com/SchoolyB/EZ/compare/v0.29.2...v0.30.0) (2025-12-21)
 
 
