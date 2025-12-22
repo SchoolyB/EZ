@@ -2958,43 +2958,6 @@ func unwrapReturnValue(obj Object) Object {
 	return obj
 }
 
-func evalIndexExpression(left, index Object) Object {
-	switch {
-	case left.Type() == ARRAY_OBJ && index.Type() == INTEGER_OBJ:
-		return evalArrayIndexExpression(left, index)
-	case left.Type() == STRING_OBJ && index.Type() == INTEGER_OBJ:
-		return evalStringIndexExpression(left, index)
-	case left.Type() == MAP_OBJ:
-		return evalMapIndexExpression(left, index)
-	default:
-		return newError("index operator not supported: %s", left.Type())
-	}
-}
-
-func evalArrayIndexExpression(array, index Object) Object {
-	arrayObject := array.(*Array)
-	idx := index.(*Integer).Value
-
-	if idx.Sign() < 0 || idx.Cmp(big.NewInt(int64(len(arrayObject.Elements)))) >= 0 {
-		return newError("index out of bounds: %s", idx.String())
-	}
-
-	return arrayObject.Elements[idx.Int64()]
-}
-
-func evalStringIndexExpression(str, index Object) Object {
-	stringObject := str.(*String)
-	idx := index.(*Integer).Value
-
-	// Convert to runes for proper UTF-8 character indexing
-	runes := []rune(stringObject.Value)
-	if idx.Sign() < 0 || idx.Cmp(big.NewInt(int64(len(runes)))) >= 0 {
-		return newError("index out of bounds: %s", idx.String())
-	}
-
-	return &Char{Value: runes[idx.Int64()]}
-}
-
 func evalMapLiteral(node *ast.MapValue, env *Environment) Object {
 	mapObj := NewMap()
 
@@ -3018,30 +2981,6 @@ func evalMapLiteral(node *ast.MapValue, env *Environment) Object {
 	}
 
 	return mapObj
-}
-
-func evalMapIndexExpression(mapObj, index Object) Object {
-	m := mapObj.(*Map)
-
-	// Validate that the key is hashable
-	if _, ok := HashKey(index); !ok {
-		return newError("unusable as map key: %s", index.Type())
-	}
-
-	value, ok := m.Get(index)
-	if !ok {
-		// Build helpful error message with available keys
-		availableKeys := make([]string, len(m.Pairs))
-		for i, pair := range m.Pairs {
-			availableKeys[i] = pair.Key.Inspect()
-		}
-		keyList := ""
-		if len(availableKeys) > 0 {
-			keyList = fmt.Sprintf("\n\nAvailable keys: %v", availableKeys)
-		}
-		return newError("key %s not found in map%s", index.Inspect(), keyList)
-	}
-	return value
 }
 
 func evalInterpolatedString(node *ast.InterpolatedString, env *Environment) Object {
@@ -3230,30 +3169,6 @@ func evalNewExpression(node *ast.NewExpression, env *Environment) Object {
 	return &Struct{
 		TypeName: structDef.Name,
 		Fields:   fields,
-	}
-}
-
-// getDefaultValue returns the default zero value for a given type
-func getDefaultValue(typeName string) Object {
-	// Check if it's a dynamic array type (starts with '[' but doesn't contain ',')
-	if len(typeName) > 0 && typeName[0] == '[' && !strings.Contains(typeName, ",") {
-		return &Array{Elements: []Object{}}
-	}
-
-	switch typeName {
-	case "int":
-		return &Integer{Value: big.NewInt(0)}
-	case "float":
-		return &Float{Value: 0.0}
-	case "string":
-		return &String{Value: "", Mutable: true}
-	case "bool":
-		return FALSE
-	case "char":
-		return &Char{Value: '\x00'}
-	default:
-		// For other types (structs, fixed-size arrays, etc.), default to nil
-		return NIL
 	}
 }
 

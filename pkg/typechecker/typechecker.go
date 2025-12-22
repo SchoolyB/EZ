@@ -246,31 +246,6 @@ func (tc *TypeChecker) GetModuleVariable(moduleName, varName string) (string, bo
 	return "", false
 }
 
-// lookupType looks up a type by name, checking local types first then same-module types then using modules
-func (tc *TypeChecker) lookupType(typeName string) (*Type, bool) {
-	// First check local types
-	if t, exists := tc.types[typeName]; exists {
-		return t, true
-	}
-	// Then check same-module types (multi-file module support)
-	if tc.currentModuleName != "" {
-		if moduleTypes, hasModule := tc.moduleTypes[tc.currentModuleName]; hasModule {
-			if t, found := moduleTypes[typeName]; found {
-				return t, true
-			}
-		}
-	}
-	// Finally check types from user-defined modules via 'using'
-	for moduleName := range tc.fileUsingModules {
-		if moduleTypes, hasModule := tc.moduleTypes[moduleName]; hasModule {
-			if t, found := moduleTypes[typeName]; found {
-				return t, true
-			}
-		}
-	}
-	return nil, false
-}
-
 // GetFunctions returns the functions map (for extracting signatures from module typechecker)
 func (tc *TypeChecker) GetFunctions() map[string]*FunctionSignature {
 	return tc.functions
