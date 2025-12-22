@@ -1,0 +1,11 @@
+/*
+ * Error Test: E7001 - db.sort requires integer constant
+ * Expected: "requires a sort order constant"
+ */
+
+import @db
+
+do main() {
+    temp store, _ = db.open("test.ezdb")
+    db.sort(store, "alpha")  // Wrong type - should be db.ALPHA not string
+}

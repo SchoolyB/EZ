@@ -189,6 +189,107 @@ do main() {
         failed += 1
     }
     
+    // ==================== db.sort ====================
+    println("  -- db.sort --")
+
+    // Create a fresh database for sort tests
+    temp sort_store Database, sort_err error = db.open("sort_test.ezdb")
+    if sort_err != nil {
+        println("   [FAIL] db.sort: could not open test database")
+        failed += 1
+    } otherwise {
+        // Add keys in non-alphabetical order
+        db.set(sort_store, "zebra", "short")
+        db.set(sort_store, "apple", "a")
+        db.set(sort_store, "10", "ten")
+        db.set(sort_store, "2", "two")
+        db.set(sort_store, "banana", "medium val")
+
+        // Test db.ALPHA - keys A-Z
+        db.sort(sort_store, db.ALPHA)
+        temp alpha_keys [string] = db.keys(sort_store)
+        if alpha_keys[0] == "10" && alpha_keys[1] == "2" && alpha_keys[2] == "apple" {
+            println("   [PASS] db.sort(db.ALPHA)")
+            passed += 1
+        } otherwise {
+            println("   [FAIL] db.sort(db.ALPHA): incorrect order")
+            failed += 1
+        }
+
+        // Test db.ALPHA_DESC - keys Z-A
+        db.sort(sort_store, db.ALPHA_DESC)
+        temp alpha_desc_keys [string] = db.keys(sort_store)
+        if alpha_desc_keys[0] == "zebra" && alpha_desc_keys[1] == "banana" {
+            println("   [PASS] db.sort(db.ALPHA_DESC)")
+            passed += 1
+        } otherwise {
+            println("   [FAIL] db.sort(db.ALPHA_DESC): incorrect order")
+            failed += 1
+        }
+
+        // Test db.VALUE_ALPHA - values A-Z
+        db.sort(sort_store, db.VALUE_ALPHA)
+        temp val_alpha_keys [string] = db.keys(sort_store)
+        // "a" < "medium val" < "short" < "ten" < "two"
+        if val_alpha_keys[0] == "apple" {
+            println("   [PASS] db.sort(db.VALUE_ALPHA)")
+            passed += 1
+        } otherwise {
+            println("   [FAIL] db.sort(db.VALUE_ALPHA): incorrect order")
+            failed += 1
+        }
+
+        // Test db.KEY_LEN - shortest keys first
+        db.sort(sort_store, db.KEY_LEN)
+        temp key_len_keys [string] = db.keys(sort_store)
+        // "2" (1), "10" (2), "apple" (5), "zebra" (5), "banana" (6)
+        if key_len_keys[0] == "2" && key_len_keys[1] == "10" {
+            println("   [PASS] db.sort(db.KEY_LEN)")
+            passed += 1
+        } otherwise {
+            println("   [FAIL] db.sort(db.KEY_LEN): incorrect order")
+            failed += 1
+        }
+
+        // Test db.VALUE_LEN - shortest values first
+        db.sort(sort_store, db.VALUE_LEN)
+        temp val_len_keys [string] = db.keys(sort_store)
+        // "a" (1), "two" (3), "ten" (3), "short" (5), "medium val" (10)
+        if val_len_keys[0] == "apple" {
+            println("   [PASS] db.sort(db.VALUE_LEN)")
+            passed += 1
+        } otherwise {
+            println("   [FAIL] db.sort(db.VALUE_LEN): incorrect order")
+            failed += 1
+        }
+
+        // Test db.NUMERIC - numeric keys first, ascending
+        db.sort(sort_store, db.NUMERIC)
+        temp numeric_keys [string] = db.keys(sort_store)
+        // 2, 10, then alpha: apple, banana, zebra
+        if numeric_keys[0] == "2" && numeric_keys[1] == "10" && numeric_keys[2] == "apple" {
+            println("   [PASS] db.sort(db.NUMERIC)")
+            passed += 1
+        } otherwise {
+            println("   [FAIL] db.sort(db.NUMERIC): incorrect order")
+            failed += 1
+        }
+
+        // Test db.NUMERIC_DESC - numeric keys descending
+        db.sort(sort_store, db.NUMERIC_DESC)
+        temp numeric_desc_keys [string] = db.keys(sort_store)
+        // zebra, banana, apple, 10, 2 (alpha desc for non-numeric, then numeric desc)
+        if numeric_desc_keys[len(numeric_desc_keys)-1] == "2" && numeric_desc_keys[len(numeric_desc_keys)-2] == "10" {
+            println("   [PASS] db.sort(db.NUMERIC_DESC)")
+            passed += 1
+        } otherwise {
+            println("   [FAIL] db.sort(db.NUMERIC_DESC): incorrect order")
+            failed += 1
+        }
+
+        db.close(sort_store)
+    }
+
     // ==================== db.close ====================
     println("  -- db.close --")
 
