@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.32.0](https://github.com/SchoolyB/EZ/compare/v0.31.0...v0.32.0) (2025-12-23)
+
+
+### Features
+
+* added workflow for checking PR validity based on filetype ([632d8bd](https://github.com/SchoolyB/EZ/commit/632d8bdf1b58fd9316ca5af5e2f13aed143168ff))
+
+
+### Bug Fixes
+
+* **ci:** add more file extension checks ([c6223fd](https://github.com/SchoolyB/EZ/commit/c6223fd8483db67bb6336dd6b84bf6391791d765))
+* **ci:** correct workflow issues in PR sanity check ([9adafdd](https://github.com/SchoolyB/EZ/commit/9adafdd322c0b194c9fc6b20928d91f6a4280676))
+
 ## [0.31.0](https://github.com/SchoolyB/EZ/compare/v0.30.2...v0.31.0) (2025-12-22)
 
 
