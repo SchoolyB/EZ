@@ -1,0 +1,12 @@
+/*
+ * Error Test: E4015 - shadows-used-module-function
+ * Expected: "shadows a function from a used module"
+ */
+
+import & use @math
+
+do main() {
+    temp abs int = 5  // shadows math.abs function
+    println(abs)
+}
+

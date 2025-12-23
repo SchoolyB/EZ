@@ -1,0 +1,14 @@
+/*
+ * Error Test: E3029 - float-enum-map-key
+ * Expected: "float-based enum cannot be used as map key"
+ */
+
+enum Status [float] {
+    ACTIVE = 1.0,
+    INACTIVE = 2.0
+}
+
+do main() {
+    temp m map[Status: string] = {}  // float enum as map key
+}
+

@@ -1,0 +1,9 @@
+/*
+ * Error Test: E3034 - any-type-not-allowed
+ * Expected: "'any' type is reserved for internal use"
+ */
+
+do main() {
+    temp x any = 42  // 'any' type is reserved
+}
+

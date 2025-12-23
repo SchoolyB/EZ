@@ -1,0 +1,9 @@
+/*
+ * Error Test: E1017 - unclosed-raw-string
+ * Expected: "unclosed raw string literal"
+ */
+
+do main() {
+    temp s string = `this raw string never ends
+}
+
