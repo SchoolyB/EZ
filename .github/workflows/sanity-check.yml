@@ -20,19 +20,47 @@ jobs:
       - name: Fetch base branch
         run: git fetch origin ${{ github.base_ref }}
 
-      - name: Block suspicious meta/config files
+      - name: Block disallowed files by extension
         run: |
-          echo "Checking files..."
+          echo "Checking for disallowed file extensions..."
+          CHANGED_FILES=$(git diff --name-only origin/${{ github.base_ref }}...HEAD)
+
+          # Block by extension
+          BLOCKED=$(echo "$CHANGED_FILES" | grep -E '\.(exe|dll|out|ezdb|db|sqlite|sqlite3)$' || true)
+          if [ -n "$BLOCKED" ]; then
+            echo "::error::Disallowed file extensions detected: $BLOCKED"
+            exit 1
+          fi
+
+          # Block IDE/OS junk folders
+          JUNK=$(echo "$CHANGED_FILES" | grep -E '^(\.idea/|\.vs/|__pycache__/)' || true)
+          if [ -n "$JUNK" ]; then
+            echo "::error::IDE/OS junk detected: $JUNK"
+            exit 1
+          fi
+
+          # Block OS junk files
+          OS_JUNK=$(echo "$CHANGED_FILES" | grep -E '(Thumbs\.db|Desktop\.ini|\.DS_Store)$' || true)
+          if [ -n "$OS_JUNK" ]; then
+            echo "::error::OS junk files detected: $OS_JUNK"
+            exit 1
+          fi
+
+          echo "No disallowed file extensions detected."
+
+      - name: Block meta/config files from other ecosystems
+        run: |
+          echo "Checking for ecosystem files..."
           CHANGED_FILES=$(git diff --name-only origin/${{ github.base_ref }}...HEAD)
 
           # Block meta/config files from other language ecosystems
           SUSPICIOUS=$(echo "$CHANGED_FILES" | grep -E '^(package\.json|package-lock\.json|yarn\.lock|pnpm-lock\.yaml|bun\.lockb|bunfig\.toml|deno\.json|deno\.jsonc|tsconfig\.json|jsconfig\.json|requirements\.txt|Pipfile|Gemfile|Cargo\.toml|Cargo\.lock)$|node_modules/' || true)
 
           if [ -n "$SUSPICIOUS" ]; then
-            echo "::error::Suspicious meta/config files detected: $SUSPICIOUS"
+            echo "::error::Ecosystem config files detected: $SUSPICIOUS"
             exit 1
           fi
-          echo "No suspicious meta/config files detected."
+          echo "No suspicious ecosystem files detected."
 
       - name: Reject binary files except images
         run: |
