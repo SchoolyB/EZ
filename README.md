@@ -24,6 +24,7 @@
 
 Want to contribute or build from source?
 
+**macOS/Linux:**
 ```bash
 # Clone the repository
 git clone https://github.com/SchoolyB/EZ.git
@@ -34,6 +35,19 @@ make build
 
 # Run a program
 ./ez examples/hello.ez
+```
+
+**Windows (PowerShell):**
+```powershell
+# Clone the repository
+git clone https://github.com/SchoolyB/EZ.git
+cd EZ
+
+# Build the binary
+go build -o ez.exe ./cmd/ez
+
+# Run a program
+.\ez.exe examples\hello.ez
 ```
 
 **Requirements:** Go 1.23.1 or higher
@@ -82,8 +96,22 @@ Invoke-WebRequest -Uri "https://github.com/SchoolyB/EZ/releases/latest/download/
 Expand-Archive ez.zip -DestinationPath .
 Remove-Item ez.zip
 
-# Move to a directory in your PATH (e.g., C:\Program Files\ez)
-Move-Item ez.exe "C:\Program Files\ez\ez.exe"
+# Create install directory and move binary
+New-Item -ItemType Directory -Path "$env:ProgramFiles\ez" -Force
+Move-Item ez.exe "$env:ProgramFiles\ez\ez.exe" -Force
+
+# Add to PATH (if not already present)
+$path = [Environment]::GetEnvironmentVariable("Path", "Machine")
+if ($path -notlike "*$env:ProgramFiles\ez*") {
+    [Environment]::SetEnvironmentVariable("Path", "$path;$env:ProgramFiles\ez", "Machine")
+    Write-Host "Added to PATH - restart your terminal for changes to take effect"
+}
+```
+
+Alternatively, if building from source, you can use the install script:
+```powershell
+# Run as Administrator for system-wide install, or as regular user for user-local install
+.\install.ps1
 ```
 
 After this one-time manual update, `ez update` will work automatically for all future versions.
