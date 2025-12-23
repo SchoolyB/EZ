@@ -1,0 +1,11 @@
+/*
+ * Error Test: E5019 - range-step-not-integer
+ * Expected: "range step must be integer"
+ */
+
+do main() {
+    for i in range(0, 10, 2.5) {  // step must be integer
+        println(i)
+    }
+}
+

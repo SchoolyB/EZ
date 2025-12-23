@@ -1,0 +1,9 @@
+/*
+ * mylib.ez - Library with private variable
+ */
+module mylib
+
+private temp private_var int = 42
+
+temp public_var int = 100
+

@@ -1,0 +1,11 @@
+/*
+ * Error Test: E6002 - module-not-found
+ * Expected: "module file not found"
+ */
+
+import @nonexistent_module
+
+do main() {
+    println("test")
+}
+

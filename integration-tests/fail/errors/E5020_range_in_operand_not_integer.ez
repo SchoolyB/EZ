@@ -1,0 +1,12 @@
+/*
+ * Error Test: E5020 - range-in-operand-not-integer
+ * Expected: "left operand of 'in range()' must be integer"
+ */
+
+do main() {
+    temp x float = 5.0
+    if x in range(0, 10) {  // float cannot be checked against range
+        println("in range")
+    }
+}
+

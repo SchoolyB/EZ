@@ -1,0 +1,12 @@
+/*
+ * Error Test: E2053 - type-definition-in-function
+ * Expected: "type definitions must be at file level"
+ */
+
+do main() {
+    struct Person {  // type definition inside function
+        name string
+    }
+    temp p Person = Person{name: "Alice"}
+}
+
