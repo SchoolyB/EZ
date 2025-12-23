@@ -4,76 +4,71 @@ on:
   pull_request:
     types: [opened, synchronize, reopened]
 
+permissions:
+  pull-requests: write
+  contents: read
+
 jobs:
   sanity-check:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Fetch base branch
+        run: git fetch origin ${{ github.base_ref }}
 
       - name: Block suspicious meta/config files
         run: |
           echo "Checking files..."
-          CHANGED_FILES=$(git diff --name-only origin/main...HEAD)
+          CHANGED_FILES=$(git diff --name-only origin/${{ github.base_ref }}...HEAD)
 
           # Block meta/config files from other language ecosystems
-          SUSPICIOUS=$(echo "$CHANGED_FILES" | grep -E '(
-            package\.json|
-            package-lock\.json|
-            yarn\.lock|
-            pnpm-lock\.yaml|
-            bun\.lockb|
-            bunfig\.toml|
-            deno\.json|
-            deno\.jsonc|
-            tsconfig\.json|
-            jsconfig\.json|
-            requirements\.txt|
-            Pipfile|
-            Gemfile|
-            Cargo\.toml|
-            Cargo\.lock|
-            node_modules/|
-            .*/node_modules/.*
-          )' || true)
+          SUSPICIOUS=$(echo "$CHANGED_FILES" | grep -E '^(package\.json|package-lock\.json|yarn\.lock|pnpm-lock\.yaml|bun\.lockb|bunfig\.toml|deno\.json|deno\.jsonc|tsconfig\.json|jsconfig\.json|requirements\.txt|Pipfile|Gemfile|Cargo\.toml|Cargo\.lock)$|node_modules/' || true)
 
           if [ -n "$SUSPICIOUS" ]; then
-            echo "❌ Suspicious meta/config files detected:"
-            echo "$SUSPICIOUS"
+            echo "::error::Suspicious meta/config files detected: $SUSPICIOUS"
             exit 1
           fi
-          echo "✅ No suspicious meta/config files detected."
+          echo "No suspicious meta/config files detected."
 
       - name: Reject binary files except images
         run: |
           echo "Checking for binary files..."
-          CHANGED_FILES=$(git diff --name-only origin/main...HEAD)
+          CHANGED_FILES=$(git diff --name-only origin/${{ github.base_ref }}...HEAD)
 
           for file in $CHANGED_FILES; do
             if [ -f "$file" ]; then
-              MIME=$(file --mime "$file")
-              TYPE=$(echo "$MIME" | awk '{print $1}')
+              MIME=$(file --mime-type -b "$file")
 
               # Allow common image formats
-              if [[ "$TYPE" =~ ^image/(jpeg|png|gif|svg|webp)$ ]]; then
-                echo "ℹ️ Allowed image file: $file ($TYPE)"
+              if [[ "$MIME" =~ ^image/(jpeg|png|gif|svg\+xml|webp)$ ]]; then
+                echo "Allowed image file: $file ($MIME)"
                 continue
               fi
 
-              # Reject any other binary file
-              if echo "$MIME" | grep -q "charset=binary"; then
-                echo "❌ Binary file detected: $file ($MIME)"
+              # Reject executables and archives
+              if file "$file" | grep -qE "executable|binary|archive|compressed"; then
+                echo "::error::Binary/executable file detected: $file"
+                exit 1
+              fi
+
+              # Also check charset=binary for other binary types (but not images)
+              if file --mime "$file" | grep -q "charset=binary" && [[ ! "$MIME" =~ ^image/ ]]; then
+                echo "::error::Binary file detected: $file ($MIME)"
                 exit 1
               fi
             fi
           done
-          echo "✅ No disallowed binary files detected."
+          echo "No disallowed binary files detected."
 
-      - name: Close PR if checks fail 
+      - name: Close PR if checks fail
         if: failure()
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          echo "Closing invalid PR"
           gh pr close ${{ github.event.pull_request.number }} \
             --repo ${{ github.repository }} \
-            --comment "❌ This PR has been automatically closed because it contains disallowed files (non-image binaries, archives, or unexpected meta/config files)."
-
+            --comment "This PR has been automatically closed because it contains disallowed files (binaries, executables, archives, or meta/config files from other ecosystems). Please remove these files and open a new PR."
