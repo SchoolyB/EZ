@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.33.0](https://github.com/SchoolyB/EZ/compare/v0.32.0...v0.33.0) (2025-12-23)
+
+
+### Features
+
+* add PowerShell install script for Windows ([e5ca88b](https://github.com/SchoolyB/EZ/commit/e5ca88bc7595be9beea852117c88d6c704cf3644))
+* add PowerShell install script for Windows ([2244edb](https://github.com/SchoolyB/EZ/commit/2244edbb6c0b74f32e697710273ca459c1fc0a00)), closes [#806](https://github.com/SchoolyB/EZ/issues/806)
+
 ## [0.32.0](https://github.com/SchoolyB/EZ/compare/v0.31.0...v0.32.0) (2025-12-23)
 
 
