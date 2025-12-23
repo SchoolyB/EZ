@@ -1,0 +1,14 @@
+/*
+ * Error Test: E2044 - when-float-not-allowed
+ * Expected: "float type not allowed in when statement"
+ */
+
+do main() {
+    temp x float = 3.14
+    when x {
+        is 1.0 { println("one") }
+        is 2.0 { println("two") }
+        default { println("other") }
+    }
+}
+

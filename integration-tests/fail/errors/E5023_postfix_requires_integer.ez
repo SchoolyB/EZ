@@ -1,0 +1,10 @@
+/*
+ * Error Test: E5023 - postfix-requires-integer
+ * Expected: "postfix operator requires integer operand"
+ */
+
+do main() {
+    temp x float = 3.14
+    x++  // postfix operator needs integer operand
+}
+
