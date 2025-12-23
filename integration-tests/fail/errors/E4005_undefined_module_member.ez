@@ -1,0 +1,11 @@
+/*
+ * Error Test: E4005 - undefined-module-member
+ * Expected: "not found in module"
+ */
+
+import @math
+
+do main() {
+    temp x int = math.nonexistent_function()  // Function doesn't exist
+}
+

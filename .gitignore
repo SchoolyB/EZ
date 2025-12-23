@@ -1,14 +1,62 @@
+# Binaries and compiled files
 *.bin
+*.exe
+*.so
+*.dll
+*.dylib
+*.o
+*.a
 /ez
+
+# Build directories
 dist/
-context
-*.txt
-tmp/
+bin/
+build/
+out/
+
+# Coverage and profiling
+*.out
+*.html
+*.prof
+*.test
+
+# IDE and editors
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.project
+.settings/
+*.sublime-project
+*.sublime-workspace
+
+# OS files
 .DS_Store
+Thumbs.db
+
+# Temp and logs
+tmp/
+*.log
+*.tmp
+
+# Environment and secrets
+.env
+.env.*
+*.pem
+*.key
+
+# Project specific
+context/
+*.txt
+*.ezdb
+
+# Ignore JSON files except examples/json/data.json
+*.json
+!examples/json/data.json
 
 # Ignore all .ez files by default (for local scratch/testing)
 *.ez
-coverage.out
 
 # Keep tests and examples tracked
 !integration-tests/
