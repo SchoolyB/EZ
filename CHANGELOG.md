@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.33.1](https://github.com/SchoolyB/EZ/compare/v0.33.0...v0.33.1) (2025-12-24)
+
+
+### Bug Fixes
+
+* mutable parameters now work with indexed/member expressions ([#813](https://github.com/SchoolyB/EZ/issues/813)) ([4b7bdf2](https://github.com/SchoolyB/EZ/commit/4b7bdf2cfd961e8623d025066d2875ddc472fcc9)), closes [#797](https://github.com/SchoolyB/EZ/issues/797)
+* prevent array mutation during for_each iteration ([#812](https://github.com/SchoolyB/EZ/issues/812)) ([00e0c83](https://github.com/SchoolyB/EZ/commit/00e0c8396b97c2753c5da05713cbaa627f25f7f5)), closes [#796](https://github.com/SchoolyB/EZ/issues/796)
+* type inference for user-defined module function return types ([#811](https://github.com/SchoolyB/EZ/issues/811)) ([be278e7](https://github.com/SchoolyB/EZ/commit/be278e72ac1c59bf6675e688f1c13c9324ad6b56)), closes [#807](https://github.com/SchoolyB/EZ/issues/807)
+
 ## [0.33.0](https://github.com/SchoolyB/EZ/compare/v0.32.0...v0.33.0) (2025-12-23)
 
 
