@@ -12,6 +12,17 @@ import (
 	"github.com/marshallburns/ez/pkg/object"
 )
 
+// checkIterating returns an error if the array is being iterated over
+func checkIterating(arr *object.Array, funcName string) *object.Error {
+	if arr.IsIterating() {
+		return &object.Error{
+			Code:    "E9006",
+			Message: fmt.Sprintf("%s() cannot modify array during for_each iteration", funcName),
+		}
+	}
+	return nil
+}
+
 // ArraysBuiltins contains the arrays module functions
 var ArraysBuiltins = map[string]*object.Builtin{
 	"arrays.is_empty": {
@@ -45,6 +56,9 @@ var ArraysBuiltins = map[string]*object.Builtin{
 					Code:    "E4005",
 				}
 			}
+			if err := checkIterating(arr, "arrays.append"); err != nil {
+				return err
+			}
 			arr.Elements = append(arr.Elements, args[1:]...)
 			return object.NIL
 		},
@@ -64,6 +78,9 @@ var ArraysBuiltins = map[string]*object.Builtin{
 					Message: "cannot modify immutable array (declared as const)",
 					Code:    "E5007",
 				}
+			}
+			if err := checkIterating(arr, "arrays.unshift"); err != nil {
+				return err
 			}
 			// Prepend elements in-place
 			newElements := make([]object.Object, 0, len(arr.Elements)+len(args)-1)
@@ -88,6 +105,9 @@ var ArraysBuiltins = map[string]*object.Builtin{
 					Message: "cannot modify immutable array (declared as const)",
 					Code:    "E4005",
 				}
+			}
+			if err := checkIterating(arr, "arrays.insert"); err != nil {
+				return err
 			}
 			idx, ok := args[1].(*object.Integer)
 			if !ok {
@@ -120,6 +140,9 @@ var ArraysBuiltins = map[string]*object.Builtin{
 					Code:    "E4005",
 				}
 			}
+			if err := checkIterating(arr, "arrays.pop"); err != nil {
+				return err
+			}
 			if len(arr.Elements) == 0 {
 				return &object.Error{Code: "E9001", Message: "arrays.pop() cannot pop from empty array"}
 			}
@@ -143,6 +166,9 @@ var ArraysBuiltins = map[string]*object.Builtin{
 					Message: "cannot modify immutable array (declared as const)",
 					Code:    "E4005",
 				}
+			}
+			if err := checkIterating(arr, "arrays.shift"); err != nil {
+				return err
 			}
 			if len(arr.Elements) == 0 {
 				return &object.Error{Code: "E9001", Message: "arrays.shift() cannot shift from empty array"}
@@ -195,6 +221,9 @@ var ArraysBuiltins = map[string]*object.Builtin{
 					Code:    "E4005",
 				}
 			}
+			if err := checkIterating(arr, "arrays.remove"); err != nil {
+				return err
+			}
 			idx, ok := args[1].(*object.Integer)
 			if !ok {
 				return &object.Error{Code: "E7004", Message: "arrays.remove() requires an integer index"}
@@ -226,6 +255,9 @@ var ArraysBuiltins = map[string]*object.Builtin{
 					Message: "cannot modify immutable array (declared as const)",
 					Code:    "E4005",
 				}
+			}
+			if err := checkIterating(arr, "arrays.remove_value"); err != nil {
+				return err
 			}
 			for i, el := range arr.Elements {
 				if objectsEqual(el, args[1]) {
@@ -272,6 +304,9 @@ var ArraysBuiltins = map[string]*object.Builtin{
 					Message: "cannot modify immutable array (declared as const)",
 					Code:    "E4005",
 				}
+			}
+			if err := checkIterating(arr, "arrays.clear"); err != nil {
+				return err
 			}
 			arr.Elements = []object.Object{}
 			return object.NIL
@@ -345,6 +380,9 @@ var ArraysBuiltins = map[string]*object.Builtin{
 					Message: "cannot modify immutable array (declared as const)",
 					Code:    "E4005",
 				}
+			}
+			if err := checkIterating(arr, "arrays.set"); err != nil {
+				return err
 			}
 			idx, ok := args[1].(*object.Integer)
 			if !ok {
@@ -585,6 +623,9 @@ var ArraysBuiltins = map[string]*object.Builtin{
 					Code:    "E4005",
 				}
 			}
+			if err := checkIterating(arr, "arrays.sort"); err != nil {
+				return err
+			}
 			if len(arr.Elements) == 0 {
 				return object.NIL
 			}
@@ -613,6 +654,9 @@ var ArraysBuiltins = map[string]*object.Builtin{
 					Code:    "E4005",
 				}
 			}
+			if err := checkIterating(arr, "arrays.sort_desc"); err != nil {
+				return err
+			}
 			if len(arr.Elements) == 0 {
 				return object.NIL
 			}
@@ -640,6 +684,9 @@ var ArraysBuiltins = map[string]*object.Builtin{
 					Message: "cannot modify immutable array (declared as const)",
 					Code:    "E4005",
 				}
+			}
+			if err := checkIterating(arr, "arrays.shuffle"); err != nil {
+				return err
 			}
 
 			// Shuffle in-place (Fisher-Yates)
@@ -946,6 +993,9 @@ var ArraysBuiltins = map[string]*object.Builtin{
 					Message: "cannot modify immutable array (declared as const)",
 					Code:    "E4005",
 				}
+			}
+			if err := checkIterating(arr, "arrays.fill"); err != nil {
+				return err
 			}
 			for i := range arr.Elements {
 				arr.Elements[i] = args[1]

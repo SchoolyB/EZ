@@ -282,9 +282,15 @@ func (b *Builtin) Inspect() string  { return "builtin function" }
 
 // Array represents an array
 type Array struct {
-	Elements    []Object
-	Mutable     bool
-	ElementType string // Type of array elements (e.g., "int", "Task")
+	Elements       []Object
+	Mutable        bool
+	ElementType    string // Type of array elements (e.g., "int", "Task")
+	IteratingCount int    // Tracks active for_each iterations over this array
+}
+
+// IsIterating returns true if the array is currently being iterated over
+func (a *Array) IsIterating() bool {
+	return a.IteratingCount > 0
 }
 
 func (a *Array) Type() ObjectType { return ARRAY_OBJ }
