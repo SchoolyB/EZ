@@ -1798,6 +1798,9 @@ func evalForEachStatement(node *ast.ForEachStatement, env *Environment) Object {
 
 	// Handle arrays
 	if arr, ok := collection.(*Array); ok {
+		arr.IteratingCount++
+		defer func() { arr.IteratingCount-- }()
+
 		for _, elem := range arr.Elements {
 			loopEnv.Set(node.Variable.Value, elem, true) // loop vars are mutable
 
