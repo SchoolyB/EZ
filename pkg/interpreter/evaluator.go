@@ -1798,6 +1798,9 @@ func evalForEachStatement(node *ast.ForEachStatement, env *Environment) Object {
 
 	// Handle arrays
 	if arr, ok := collection.(*Array); ok {
+		arr.IteratingCount++
+		defer func() { arr.IteratingCount-- }()
+
 		for _, elem := range arr.Elements {
 			loopEnv.Set(node.Variable.Value, elem, true) // loop vars are mutable
 
@@ -2556,11 +2559,55 @@ func evalArgsWithReferences(argExprs []ast.Expression, params []*ast.Parameter, 
 	args := make([]Object, len(argExprs))
 
 	for i, argExpr := range argExprs {
-		// Check if this parameter is mutable and the argument is a variable
+		// Check if this parameter is mutable
 		if i < len(params) && params[i].Mutable {
+			// Simple variable reference
 			if label, ok := argExpr.(*ast.Label); ok {
-				// Create a reference to the original variable
 				args[i] = &Reference{Env: env, Name: label.Value}
+				continue
+			}
+
+			// Indexed expression (arr[i], map[k])
+			if indexExpr, ok := argExpr.(*ast.IndexExpression); ok {
+				container := Eval(indexExpr.Left, env)
+				if isError(container) {
+					return []Object{container}
+				}
+				index := Eval(indexExpr.Index, env)
+				if isError(index) {
+					return []Object{index}
+				}
+				// Get the variable name for display
+				varName := ""
+				if label, ok := indexExpr.Left.(*ast.Label); ok {
+					varName = label.Value
+				}
+				args[i] = &Reference{
+					Env:       env,
+					Name:      varName,
+					Container: container,
+					Index:     index,
+				}
+				continue
+			}
+
+			// Member expression (s.field)
+			if memberExpr, ok := argExpr.(*ast.MemberExpression); ok {
+				container := Eval(memberExpr.Object, env)
+				if isError(container) {
+					return []Object{container}
+				}
+				// Get the variable name for display
+				varName := ""
+				if label, ok := memberExpr.Object.(*ast.Label); ok {
+					varName = label.Value
+				}
+				args[i] = &Reference{
+					Env:       env,
+					Name:      varName,
+					Container: container,
+					Field:     memberExpr.Member.Value,
+				}
 				continue
 			}
 		}

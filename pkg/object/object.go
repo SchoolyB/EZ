@@ -166,14 +166,78 @@ func (fh *FileHandle) Inspect() string {
 type Reference struct {
 	Env  *Environment // The environment where the original variable lives
 	Name string       // The variable name in that environment
+
+	// For indexed expressions (arr[i], map[k]) - Container and Index are set
+	Container Object // The array/map object (nil for simple variable references)
+	Index     Object // The index/key for array/map access
+
+	// For member expressions (s.field) - Container and Field are set
+	Field string // The field name for struct access
 }
 
 func (r *Reference) Type() ObjectType { return REFERENCE_OBJ }
-func (r *Reference) Inspect() string  { return fmt.Sprintf("<ref %s>", r.Name) }
+func (r *Reference) Inspect() string {
+	if r.Container != nil && r.Field != "" {
+		return fmt.Sprintf("<ref %s.%s>", r.Name, r.Field)
+	}
+	if r.Container != nil && r.Index != nil {
+		return fmt.Sprintf("<ref %s[%s]>", r.Name, r.Index.Inspect())
+	}
+	return fmt.Sprintf("<ref %s>", r.Name)
+}
 
 // Deref returns the current value of the referenced variable
 // Recursively dereferences if the target is also a Reference (for nested mutable param forwarding)
 func (r *Reference) Deref() (Object, bool) {
+	// Handle indexed references (arr[i], map[k])
+	if r.Container != nil && r.Index != nil {
+		switch container := r.Container.(type) {
+		case *Array:
+			if idx, ok := r.Index.(*Integer); ok {
+				i := int(idx.Value.Int64())
+				if i >= 0 && i < len(container.Elements) {
+					val := container.Elements[i]
+					// Chase through nested references
+					if ref, isRef := val.(*Reference); isRef {
+						return ref.Deref()
+					}
+					return val, true
+				}
+			}
+			return nil, false
+		case *Map:
+			hash, ok := HashKey(r.Index)
+			if !ok {
+				return nil, false
+			}
+			if idx, ok := container.Index[hash]; ok {
+				val := container.Pairs[idx].Value
+				// Chase through nested references
+				if ref, isRef := val.(*Reference); isRef {
+					return ref.Deref()
+				}
+				return val, true
+			}
+			return nil, false
+		}
+		return nil, false
+	}
+
+	// Handle member references (s.field)
+	if r.Container != nil && r.Field != "" {
+		if structObj, ok := r.Container.(*Struct); ok {
+			if val, ok := structObj.Fields[r.Field]; ok {
+				// Chase through nested references
+				if ref, isRef := val.(*Reference); isRef {
+					return ref.Deref()
+				}
+				return val, true
+			}
+		}
+		return nil, false
+	}
+
+	// Handle simple variable references
 	val, ok := r.Env.Get(r.Name)
 	if !ok {
 		return nil, false
@@ -188,6 +252,44 @@ func (r *Reference) Deref() (Object, bool) {
 // SetValue updates the referenced variable's value
 // Traverses the scope chain to find and update the variable
 func (r *Reference) SetValue(val Object) bool {
+	// Handle indexed references (arr[i], map[k])
+	if r.Container != nil && r.Index != nil {
+		switch container := r.Container.(type) {
+		case *Array:
+			if idx, ok := r.Index.(*Integer); ok {
+				i := int(idx.Value.Int64())
+				if i >= 0 && i < len(container.Elements) {
+					container.Elements[i] = val
+					return true
+				}
+			}
+			return false
+		case *Map:
+			hash, ok := HashKey(r.Index)
+			if !ok {
+				return false
+			}
+			if idx, ok := container.Index[hash]; ok {
+				container.Pairs[idx].Value = val
+				return true
+			}
+			return false
+		}
+		return false
+	}
+
+	// Handle member references (s.field)
+	if r.Container != nil && r.Field != "" {
+		if structObj, ok := r.Container.(*Struct); ok {
+			if _, ok := structObj.Fields[r.Field]; ok {
+				structObj.Fields[r.Field] = val
+				return true
+			}
+		}
+		return false
+	}
+
+	// Handle simple variable references
 	return r.Env.updateRef(r.Name, val)
 }
 
@@ -282,9 +384,15 @@ func (b *Builtin) Inspect() string  { return "builtin function" }
 
 // Array represents an array
 type Array struct {
-	Elements    []Object
-	Mutable     bool
-	ElementType string // Type of array elements (e.g., "int", "Task")
+	Elements       []Object
+	Mutable        bool
+	ElementType    string // Type of array elements (e.g., "int", "Task")
+	IteratingCount int    // Tracks active for_each iterations over this array
+}
+
+// IsIterating returns true if the array is currently being iterated over
+func (a *Array) IsIterating() bool {
+	return a.IteratingCount > 0
 }
 
 func (a *Array) Type() ObjectType { return ARRAY_OBJ }

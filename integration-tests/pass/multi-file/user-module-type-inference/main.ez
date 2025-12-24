@@ -1,0 +1,48 @@
+/*
+ * main.ez - Test type inference for user-defined module function return types
+ *
+ * Tests issue #807: Type inference fails for user-defined module function return types
+ */
+module main
+
+import & use @std
+import & use lib"./mylib"
+
+do needs_u64(v u64) {
+    println("Got u64: ${v}")
+}
+
+do needs_string(s string) {
+    println("Got string: ${s}")
+}
+
+do needs_float(f float) {
+    println("Got float: ${f}")
+}
+
+do main() {
+    println("========================================")
+    println("  User Module Type Inference Test")
+    println("========================================")
+    println("")
+
+    // Test 1: Type inference from user module function returning u64
+    temp val = lib.get_value()  // Type should be inferred as u64
+    needs_u64(val)              // Should work without explicit type
+    println("Test 1 PASSED: u64 type inference")
+
+    // Test 2: Type inference from user module function returning string
+    temp str = lib.get_string()  // Type should be inferred as string
+    needs_string(str)
+    println("Test 2 PASSED: string type inference")
+
+    // Test 3: Type inference from user module function returning float
+    temp flt = lib.get_float()  // Type should be inferred as float
+    needs_float(flt)
+    println("Test 3 PASSED: float type inference")
+
+    println("")
+    println("========================================")
+    println("  All Tests PASSED!")
+    println("========================================")
+}
