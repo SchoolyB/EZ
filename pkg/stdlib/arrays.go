@@ -271,6 +271,8 @@ var ArraysBuiltins = map[string]*object.Builtin{
 		},
 	},
 
+	// arrays.remove_all(arr, value) - Removes ALL occurrences of the specified VALUE.
+	// Modifies array in-place, returns NIL.
 	"arrays.remove_all": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 2 {
@@ -280,13 +282,23 @@ var ArraysBuiltins = map[string]*object.Builtin{
 			if !ok {
 				return &object.Error{Code: "E7002", Message: "arrays.remove_all() requires an array"}
 			}
+			if !arr.Mutable {
+				return &object.Error{
+					Message: "cannot modify immutable array (declared as const)",
+					Code:    "E4005",
+				}
+			}
+			if err := checkIterating(arr, "arrays.remove_all"); err != nil {
+				return err
+			}
 			newElements := []object.Object{}
 			for _, el := range arr.Elements {
 				if !objectsEqual(el, args[1]) {
 					newElements = append(newElements, el)
 				}
 			}
-			return &object.Array{Elements: newElements}
+			arr.Elements = newElements
+			return object.NIL
 		},
 	},
 
