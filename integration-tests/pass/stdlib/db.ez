@@ -2,7 +2,7 @@
  * db.ez - Test @db standard library with PROPER ASSERTIONS
  */
 
-import @std, @db, @json
+import @std, @db, @json, @io
 using std
 
 const User struct {
@@ -394,4 +394,9 @@ do main() {
     } otherwise {
         println("ALL TESTS PASSED")
     }
+
+    // Cleanup test database files
+    temp _, cleanup_err1 = io.remove("mydb.ezdb")
+    temp _, cleanup_err2 = io.remove("rename_test.ezdb")
+    temp _, cleanup_err3 = io.remove("sort_test.ezdb")
 }
