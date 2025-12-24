@@ -126,6 +126,9 @@ for test_file in "$SCRIPT_DIR"/fail/errors/*.ez; do
     fi
 done
 
+# Cleanup any .ezdb files created by error tests (they are created in cwd, not the test directory)
+rm -f ./*.ezdb
+
 # Multi-file error tests (single files)
 for test_file in "$SCRIPT_DIR"/fail/multi-file/*.ez; do
     if [ -f "$test_file" ]; then

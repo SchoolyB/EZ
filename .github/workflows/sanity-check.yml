@@ -77,6 +77,12 @@ jobs:
                 continue
               fi
 
+              # Allow shell scripts (they report as "executable" but are text files)
+              if [[ "$file" =~ \.sh$ ]]; then
+                echo "Allowed shell script: $file"
+                continue
+              fi
+
               # Reject executables and archives
               if file "$file" | grep -qE "executable|binary|archive|compressed"; then
                 echo "::error::Binary/executable file detected: $file"
