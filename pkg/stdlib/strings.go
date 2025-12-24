@@ -453,7 +453,7 @@ var StringsBuiltins = map[string]*object.Builtin{
 					runes[i] = v.Value
 				case *object.String:
 					if len(v.Value) > 0 {
-						runes[i] = rune(v.Value[0])
+						runes[i] = []rune(v.Value)[0]
 					}
 				default:
 					return &object.Error{Code: "E7003", Message: "strings.from_chars() requires an array of chars"}
