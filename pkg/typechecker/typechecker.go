@@ -1896,16 +1896,18 @@ func (tc *TypeChecker) checkMultiReturnDeclaration(decl *ast.VariableDeclaration
 		returnType := funcSig.ReturnTypes[i]
 
 		if !tc.typesCompatible(declaredType, returnType) {
-			// Get position from the variable name at this index
+			// Get position and name from the variable at this index
 			line, col := 0, 0
+			varName := "<unknown>"
 			if i < len(decl.Names) && decl.Names[i] != nil {
+				varName = decl.Names[i].Value
 				line = decl.Names[i].Token.Line
 				col = decl.Names[i].Token.Column
 			}
 			tc.addError(
 				errors.E3001,
 				fmt.Sprintf("type mismatch in multi-return: variable '%s' declared as %s but function returns %s",
-					decl.Names[i].Value, declaredType, returnType),
+					varName, declaredType, returnType),
 				line,
 				col,
 			)
