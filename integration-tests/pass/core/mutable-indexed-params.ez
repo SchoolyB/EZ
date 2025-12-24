@@ -1,0 +1,75 @@
+/*
+ * Test: Mutable parameters with indexed/member expressions
+ * Tests fix for issue #797: Mutable parameters silently fail for indexed/member expressions
+ */
+module main
+
+import & use @std
+
+const Point struct {
+    x int
+    y int
+}
+
+do modify_int(&x int) {
+    x = 999
+}
+
+do increment(&x int) {
+    x += 1
+}
+
+do main() {
+    println("=== Mutable Indexed/Member Expression Tests ===")
+
+    // Test 1: Array element
+    temp arr [int] = {1, 2, 3}
+    modify_int(arr[0])
+    if arr[0] != 999 {
+        panic("FAIL: arr[0] should be 999")
+    }
+    println("Test 1 PASS: Array element mutation works")
+
+    // Test 2: Array element with compound assignment
+    temp arr2 [int] = {10, 20, 30}
+    increment(arr2[1])
+    if arr2[1] != 21 {
+        panic("FAIL: arr2[1] should be 21")
+    }
+    println("Test 2 PASS: Array element compound assignment works")
+
+    // Test 3: Struct field
+    temp p Point = Point{x: 10, y: 20}
+    modify_int(p.x)
+    if p.x != 999 {
+        panic("FAIL: p.x should be 999")
+    }
+    println("Test 3 PASS: Struct field mutation works")
+
+    // Test 4: Struct field with compound assignment
+    temp p2 Point = Point{x: 5, y: 15}
+    increment(p2.y)
+    if p2.y != 16 {
+        panic("FAIL: p2.y should be 16")
+    }
+    println("Test 4 PASS: Struct field compound assignment works")
+
+    // Test 5: Map value
+    temp m map[string:int] = {"a": 1, "b": 2}
+    modify_int(m["a"])
+    if m["a"] != 999 {
+        panic("FAIL: m[\"a\"] should be 999")
+    }
+    println("Test 5 PASS: Map value mutation works")
+
+    // Test 6: Map value with compound assignment
+    temp m2 map[string:int] = {"x": 100}
+    increment(m2["x"])
+    if m2["x"] != 101 {
+        panic("FAIL: m2[\"x\"] should be 101")
+    }
+    println("Test 6 PASS: Map value compound assignment works")
+
+    println("")
+    println("=== All Tests PASSED ===")
+}
