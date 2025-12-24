@@ -276,6 +276,7 @@ Array-specific errors
 | E9003 | range-step-zero | range step cannot be zero |
 | E9004 | chunk-size-invalid | chunk size must be greater than zero |
 | E9005 | range-invalid-bounds | range start must be less than or equal to end |
+| E9006 | array-modified-during-iteration | cannot modify array during for_each iteration |
 
 ## String Errors (E10xxx)
 
@@ -369,4 +370,4 @@ Module-related warnings
 
 ## Summary
 
-**Total:** 240 error/warning codes
+**Total:** 246 error/warning codes
