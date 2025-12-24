@@ -1,0 +1,17 @@
+/*
+ * Test: E9006 - Cannot modify array during for_each iteration
+ * Expected: Runtime error when trying to modify array during iteration
+ */
+module main
+
+import & use @std, @arrays
+
+do main() {
+    temp arr [int] = {1, 2, 3, 4, 5}
+    for_each item in arr {
+        println("item: ${item}")
+        if item == 2 {
+            arrays.remove(arr, 0)  // ERROR: cannot modify during iteration
+        }
+    }
+}

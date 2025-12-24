@@ -4725,6 +4725,13 @@ func (tc *TypeChecker) inferModuleCallType(member *ast.MemberExpression, args []
 	case "time":
 		return tc.inferTimeCallType(funcName, args)
 	default:
+		// Check user-defined modules
+		if sig, ok := tc.GetModuleFunction(moduleName, funcName); ok {
+			if len(sig.ReturnTypes) >= 1 {
+				return sig.ReturnTypes[0], true
+			}
+			return "void", true
+		}
 		return "", false
 	}
 }
