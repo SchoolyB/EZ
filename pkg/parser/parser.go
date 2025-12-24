@@ -121,6 +121,56 @@ func hasStrictAttribute(attrs []*Attribute) *Attribute {
 	return nil
 }
 
+// isSuppressForFunction checks if #suppress is followed by a function declaration
+// by peeking ahead past the #suppress(...) to see if DO or PRIVATE follows
+func (p *Parser) isSuppressForFunction() bool {
+	// We're at SUPPRESS, need to look past #suppress(...) to see what follows
+	// Save current position
+	savedPos := p.l.GetPosition()
+	savedCurrent := p.currentToken
+	savedPeek := p.peekToken
+
+	// Skip past #suppress
+	p.nextToken()
+
+	// Skip past opening paren
+	if !p.currentTokenMatches(LPAREN) {
+		// Restore and return false
+		p.l.SetPosition(savedPos)
+		p.currentToken = savedCurrent
+		p.peekToken = savedPeek
+		return false
+	}
+	p.nextToken()
+
+	// Skip past contents until closing paren
+	depth := 1
+	for depth > 0 && !p.currentTokenMatches(EOF) {
+		if p.currentTokenMatches(LPAREN) {
+			depth++
+		} else if p.currentTokenMatches(RPAREN) {
+			depth--
+		}
+		if depth > 0 {
+			p.nextToken()
+		}
+	}
+
+	// Now at RPAREN, check what follows
+	p.nextToken()
+
+	// Check if followed by DO or PRIVATE (private function) or another attribute
+	isForFunction := p.currentTokenMatches(DO) || p.currentTokenMatches(PRIVATE) ||
+		p.currentTokenMatches(SUPPRESS) || p.currentTokenMatches(STRICT)
+
+	// Restore position
+	p.l.SetPosition(savedPos)
+	p.currentToken = savedCurrent
+	p.peekToken = savedPeek
+
+	return isForFunction
+}
+
 // parseFileLevelSuppress parses a file-level #suppress(...) and returns the warning codes
 func (p *Parser) parseFileLevelSuppress() []string {
 	var codes []string
@@ -137,25 +187,21 @@ func (p *Parser) parseFileLevelSuppress() []string {
 
 	// Parse warning codes
 	for !p.currentTokenMatches(RPAREN) && !p.currentTokenMatches(EOF) {
-		if p.currentTokenMatches(STRING) {
+		if p.currentTokenMatches(STRING) || p.currentTokenMatches(IDENT) {
 			code := p.currentToken.Literal
 			// Validate the warning code
 			if !isValidWarningCode(code) {
 				p.addEZError(errors.E2052, fmt.Sprintf("%s is not a valid warning code", code), p.currentToken)
 			} else if !isWarningSuppressible(code) {
-				p.addEZError(errors.E2053, fmt.Sprintf("%s cannot be suppressed", code), p.currentToken)
+				p.addEZError(errors.E2052, fmt.Sprintf("warning code %s cannot be suppressed", code), p.currentToken)
 			} else {
 				codes = append(codes, code)
 			}
 			p.nextToken()
-		} else if p.currentTokenMatches(IDENT) && p.currentToken.Literal == "ALL" {
-			// Allow ALL without quotes
-			codes = append(codes, "ALL")
-			p.nextToken()
 		} else if p.currentTokenMatches(COMMA) {
 			p.nextToken()
 		} else {
-			p.addEZError(errors.E2002, "expected warning code string in #suppress", p.currentToken)
+			p.addEZError(errors.E2002, "expected warning code in #suppress", p.currentToken)
 			p.nextToken()
 		}
 	}
@@ -521,7 +567,9 @@ func (p *Parser) ParseProgram() *Program {
 		}
 
 		// Handle file-level #suppress (must come after imports/using, before other declarations)
-		if p.currentTokenMatches(SUPPRESS) {
+		// If we haven't seen other declarations yet, treat #suppress as file-level
+		// If we have seen declarations, treat #suppress as function-level (let parseStatement handle it)
+		if p.currentTokenMatches(SUPPRESS) && !seenOtherDeclaration {
 			// Parse the #suppress(...) and store in program
 			suppressCodes := p.parseFileLevelSuppress()
 			program.FileSuppressWarnings = append(program.FileSuppressWarnings, suppressCodes...)
