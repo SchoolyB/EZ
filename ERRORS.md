@@ -86,7 +86,7 @@ Syntax and parsing errors
 | E2048 | when-bool-condition | when condition cannot be a boolean. Use if/or/otherwise instead |
 | E2049 | when-nil-condition | when condition cannot be nil. Use if/otherwise to check for nil |
 | E2050 | when-collection-condition | when condition cannot be an array or map |
-| E2051 | suppress-invalid-target | #suppress can only be applied to function declarations |
+| E2051 | suppress-invalid-target | #suppress can only be applied at file scope or to function declarations |
 | E2052 | suppress-invalid-code | warning code cannot be suppressed |
 | E2053 | type-definition-in-function | type definitions must be at file level |
 | E2054 | when-strict-non-enum-case | #strict when requires explicit enum member values in cases |
@@ -158,6 +158,7 @@ Undefined variables, functions, modules
 | E4013 | shadows-function | variable shadows a function |
 | E4014 | shadows-module | variable shadows an imported module |
 | E4015 | shadows-used-module-function | variable shadows a function from a used module |
+| E4016 | loop-variable-shadows-loop-variable | loop variable shadows outer loop variable |
 
 ## Runtime Errors (E5xxx)
 
@@ -370,4 +371,4 @@ Module-related warnings
 
 ## Summary
 
-**Total:** 246 error/warning codes
+**Total:** 247 error/warning codes

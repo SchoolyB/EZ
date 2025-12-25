@@ -87,7 +87,7 @@ var (
 	E2048 = ErrorCode{"E2048", "when-bool-condition", "when condition cannot be a boolean. Use if/or/otherwise instead"}
 	E2049 = ErrorCode{"E2049", "when-nil-condition", "when condition cannot be nil. Use if/otherwise to check for nil"}
 	E2050 = ErrorCode{"E2050", "when-collection-condition", "when condition cannot be an array or map"}
-	E2051 = ErrorCode{"E2051", "suppress-invalid-target", "#suppress can only be applied to function declarations"}
+	E2051 = ErrorCode{"E2051", "suppress-invalid-target", "#suppress can only be applied at file scope or to function declarations"}
 	E2052 = ErrorCode{"E2052", "suppress-invalid-code", "warning code cannot be suppressed"}
 	E2053 = ErrorCode{"E2053", "type-definition-in-function", "type definitions must be at file level"}
 	E2054 = ErrorCode{"E2054", "when-strict-non-enum-case", "#strict when requires explicit enum member values in cases"}
@@ -157,6 +157,7 @@ var (
 	E4013 = ErrorCode{"E4013", "shadows-function", "variable shadows a function"}
 	E4014 = ErrorCode{"E4014", "shadows-module", "variable shadows an imported module"}
 	E4015 = ErrorCode{"E4015", "shadows-used-module-function", "variable shadows a function from a used module"}
+	E4016 = ErrorCode{"E4016", "loop-variable-shadows-loop-variable", "loop variable shadows outer loop variable"}
 )
 
 // =============================================================================
