@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.33.3](https://github.com/SchoolyB/EZ/compare/v0.33.2...v0.33.3) (2025-12-25)
+
+
+### Bug Fixes
+
+* type inference for user module functions and void type validation ([#837](https://github.com/SchoolyB/EZ/issues/837)) ([c63c48f](https://github.com/SchoolyB/EZ/commit/c63c48f5d9e1cfad52c914e1f018e3e75e0621e6))
+
 ## [0.33.2](https://github.com/SchoolyB/EZ/compare/v0.33.1...v0.33.2) (2025-12-25)
 
 
