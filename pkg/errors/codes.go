@@ -136,6 +136,7 @@ var (
 	E3035 = ErrorCode{"E3035", "not-all-paths-return", "not all code paths return a value"}
 	E3036 = ErrorCode{"E3036", "integer-out-of-range", "integer literal exceeds type range"}
 	E3037 = ErrorCode{"E3037", "invalid-private-usage", "private modifier cannot be used here"}
+	E3038 = ErrorCode{"E3038", "void-type-not-allowed", "'void' is a return type, not a value type"}
 )
 
 // =============================================================================
@@ -341,7 +342,9 @@ var (
 )
 
 // =============================================================================
+//
 //	DB ERRORS (E17xxx) - DB-specific domain errors
+//
 // These are errors unique to database operations
 // =============================================================================
 var (

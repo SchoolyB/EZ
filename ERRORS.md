@@ -136,6 +136,7 @@ Type system errors
 | E3035 | not-all-paths-return | not all code paths return a value |
 | E3036 | integer-out-of-range | integer literal exceeds type range |
 | E3037 | invalid-private-usage | private modifier cannot be used here |
+| E3038 | void-type-not-allowed | 'void' is a return type, not a value type |
 
 ## Reference Errors (E4xxx)
 
@@ -371,4 +372,4 @@ Module-related warnings
 
 ## Summary
 
-**Total:** 247 error/warning codes
+**Total:** 248 error/warning codes

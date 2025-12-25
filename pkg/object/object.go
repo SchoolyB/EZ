@@ -36,7 +36,7 @@ const (
 	ENUM_VALUE_OBJ   ObjectType = "ENUM_VALUE"
 	MODULE_OBJ       ObjectType = "MODULE"
 	FILE_HANDLE_OBJ  ObjectType = "FILE_HANDLE"
-	DATABASE_OBJ		 ObjectType = "DATABASE"
+	DATABASE_OBJ     ObjectType = "DATABASE"
 	REFERENCE_OBJ    ObjectType = "REFERENCE"
 	RANGE_OBJ        ObjectType = "RANGE"
 	TYPE_OBJ         ObjectType = "TYPE"
@@ -906,8 +906,8 @@ func (e *Environment) GetPublicStructDefs() map[string]*StructDef {
 }
 
 type Database struct {
-	Path 		 String
-	Store 	 Map
+	Path     String
+	Store    Map
 	IsClosed Boolean
 }
 
