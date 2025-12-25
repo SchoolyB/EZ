@@ -29,19 +29,21 @@ const (
 
 // Scope represents a lexical scope for variable tracking
 type Scope struct {
-	parent       *Scope
-	variables    map[string]string // variable name -> type name
-	mutability   map[string]bool   // variable name -> is mutable
-	usingModules map[string]bool   // modules imported via 'using'
+	parent        *Scope
+	variables     map[string]string // variable name -> type name
+	mutability    map[string]bool   // variable name -> is mutable
+	usingModules  map[string]bool   // modules imported via 'using'
+	loopVariables map[string]bool   // loop variable names in this scope
 }
 
 // NewScope creates a new scope with an optional parent
 func NewScope(parent *Scope) *Scope {
 	return &Scope{
-		parent:       parent,
-		variables:    make(map[string]string),
-		mutability:   make(map[string]bool),
-		usingModules: make(map[string]bool),
+		parent:        parent,
+		variables:     make(map[string]string),
+		mutability:    make(map[string]bool),
+		usingModules:  make(map[string]bool),
+		loopVariables: make(map[string]bool),
 	}
 }
 
@@ -119,6 +121,32 @@ func (s *Scope) GetAllUsingModules() []string {
 	}
 
 	return result
+}
+
+// MarkAsLoopVariable marks a variable as a loop variable in the current scope
+func (s *Scope) MarkAsLoopVariable(name string) {
+	s.loopVariables[name] = true
+}
+
+// IsLoopVariableInOuterScope checks if a variable name is used as a loop variable
+// in any parent scope (not the current scope)
+func (s *Scope) IsLoopVariableInOuterScope(name string) bool {
+	if s.parent == nil {
+		return false
+	}
+	// Check parent scope and all its ancestors
+	return s.parent.isLoopVariableInScopeChain(name)
+}
+
+// isLoopVariableInScopeChain checks if a variable is a loop variable in this scope or any parent
+func (s *Scope) isLoopVariableInScopeChain(name string) bool {
+	if s.loopVariables[name] {
+		return true
+	}
+	if s.parent != nil {
+		return s.parent.isLoopVariableInScopeChain(name)
+	}
+	return false
 }
 
 // Type represents a type in the EZ type system
@@ -3544,11 +3572,30 @@ func (tc *TypeChecker) checkForStatement(forStmt *ast.ForStatement, expectedRetu
 
 	// Add loop variable to scope
 	if forStmt.Variable != nil {
+		varName := forStmt.Variable.Value
+
+		// Check if this loop variable shadows an outer loop variable (#114)
+		if tc.currentScope != nil && tc.currentScope.IsLoopVariableInOuterScope(varName) {
+			line := forStmt.Variable.Token.Line
+			column := forStmt.Variable.Token.Column
+			tc.addError(
+				errors.E4016,
+				fmt.Sprintf("loop variable '%s' shadows outer loop variable", varName),
+				line,
+				column,
+			)
+		}
+
 		varType := forStmt.VarType
 		if varType == "" {
 			varType = "int" // Default for range iteration
 		}
-		tc.defineVariable(forStmt.Variable.Value, varType)
+		tc.defineVariable(varName, varType)
+
+		// Mark as loop variable for shadowing detection in nested loops
+		if tc.currentScope != nil {
+			tc.currentScope.MarkAsLoopVariable(varName)
+		}
 	}
 
 	tc.checkBlock(forStmt.Body, expectedReturnTypes)
@@ -3563,6 +3610,20 @@ func (tc *TypeChecker) checkForEachStatement(forEach *ast.ForEachStatement, expe
 
 	// Infer element type from collection and validate it's iterable (#595)
 	if forEach.Variable != nil && forEach.Collection != nil {
+		varName := forEach.Variable.Value
+
+		// Check if this loop variable shadows an outer loop variable (#114)
+		if tc.currentScope != nil && tc.currentScope.IsLoopVariableInOuterScope(varName) {
+			line := forEach.Variable.Token.Line
+			column := forEach.Variable.Token.Column
+			tc.addError(
+				errors.E4016,
+				fmt.Sprintf("loop variable '%s' shadows outer loop variable", varName),
+				line,
+				column,
+			)
+		}
+
 		collType, ok := tc.inferExpressionType(forEach.Collection)
 		if ok {
 			// Determine if the collection is mutable by checking the root variable
@@ -3579,10 +3640,10 @@ func (tc *TypeChecker) checkForEachStatement(forEach *ast.ForEachStatement, expe
 			if tc.isArrayType(collType) {
 				elemType := tc.extractArrayElementType(collType)
 				// Loop variable inherits mutability from collection
-				tc.defineVariableWithMutability(forEach.Variable.Value, elemType, collectionMutable)
+				tc.defineVariableWithMutability(varName, elemType, collectionMutable)
 			} else if collType == "string" {
 				// Iterating over string gives char
-				tc.defineVariableWithMutability(forEach.Variable.Value, "char", collectionMutable)
+				tc.defineVariableWithMutability(varName, "char", collectionMutable)
 			} else {
 				// Not an iterable type - produce error
 				line, column := tc.getExpressionPosition(forEach.Collection)
@@ -3593,6 +3654,11 @@ func (tc *TypeChecker) checkForEachStatement(forEach *ast.ForEachStatement, expe
 					column,
 				)
 			}
+		}
+
+		// Mark as loop variable for shadowing detection in nested loops
+		if tc.currentScope != nil {
+			tc.currentScope.MarkAsLoopVariable(varName)
 		}
 	}
 
