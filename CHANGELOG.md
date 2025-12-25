@@ -1,5 +1,21 @@
 # Changelog
 
+## [0.33.2](https://github.com/SchoolyB/EZ/compare/v0.33.1...v0.33.2) (2025-12-25)
+
+
+### Bug Fixes
+
+* #suppress before function now correctly applies to function only ([#830](https://github.com/SchoolyB/EZ/issues/830), [#831](https://github.com/SchoolyB/EZ/issues/831)) ([#832](https://github.com/SchoolyB/EZ/issues/832)) ([6837668](https://github.com/SchoolyB/EZ/commit/68376685eab9e4aeec51b5b3454aac704a90b34c))
+* add cleanup for database test files ([#800](https://github.com/SchoolyB/EZ/issues/800)) ([#829](https://github.com/SchoolyB/EZ/issues/829)) ([35cfec8](https://github.com/SchoolyB/EZ/commit/35cfec8bcadb9bae1b7d1bc14f551a903473804f))
+* add overflow and division-by-zero checks for float arithmetic ([#798](https://github.com/SchoolyB/EZ/issues/798)) ([#826](https://github.com/SchoolyB/EZ/issues/826)) ([476c18d](https://github.com/SchoolyB/EZ/commit/476c18d284d5841972a248701c6f3e22236d9196))
+* add overflow/underflow checks for byte arithmetic ([#817](https://github.com/SchoolyB/EZ/issues/817)) ([#822](https://github.com/SchoolyB/EZ/issues/822)) ([5bd37ba](https://github.com/SchoolyB/EZ/commit/5bd37ba8ab7e2d538d27cf163e9f7822c2e38170))
+* disallow loop variable shadowing ([#114](https://github.com/SchoolyB/EZ/issues/114)) ([#835](https://github.com/SchoolyB/EZ/issues/835)) ([1cd45c2](https://github.com/SchoolyB/EZ/commit/1cd45c272113f1473b27e4d5c3557c1892817eee))
+* make arrays.remove_all() consistent with other remove functions ([#820](https://github.com/SchoolyB/EZ/issues/820)) ([#825](https://github.com/SchoolyB/EZ/issues/825)) ([725d34d](https://github.com/SchoolyB/EZ/commit/725d34dd10dc86c7d2f1bdac44af712e90c1b3fb))
+* os.exec now returns error on non-zero exit code ([#799](https://github.com/SchoolyB/EZ/issues/799)) ([#827](https://github.com/SchoolyB/EZ/issues/827)) ([06ee450](https://github.com/SchoolyB/EZ/commit/06ee450ed261fad68b87d0b8ee0d420eeb5b6220))
+* prevent json.encode() from overwriting EncodeAsString conversion ([#818](https://github.com/SchoolyB/EZ/issues/818)) ([#823](https://github.com/SchoolyB/EZ/issues/823)) ([85544e7](https://github.com/SchoolyB/EZ/commit/85544e7e70499baba4814579564d8690d1f89f94))
+* prevent panic on multi-return type mismatch with fewer names than types ([#816](https://github.com/SchoolyB/EZ/issues/816)) ([#821](https://github.com/SchoolyB/EZ/issues/821)) ([d983679](https://github.com/SchoolyB/EZ/commit/d98367975d9be03db6b95e5e8ab4171f164be36c))
+* properly extract first rune in strings.from_chars() ([#819](https://github.com/SchoolyB/EZ/issues/819)) ([#824](https://github.com/SchoolyB/EZ/issues/824)) ([060cfa6](https://github.com/SchoolyB/EZ/commit/060cfa67b746b3ff22944a584fde367c26ce4fc2))
+
 ## [0.33.1](https://github.com/SchoolyB/EZ/compare/v0.33.0...v0.33.1) (2025-12-24)
 
 
