@@ -1020,6 +1020,16 @@ func (tc *TypeChecker) checkFunctionDeclaration(node *ast.FunctionDeclaration) {
 			)
 		}
 
+		// Check if 'void' type is used in parameter type (not allowed)
+		if param.TypeName == "void" {
+			tc.addError(
+				errors.E3038,
+				fmt.Sprintf("'void' type cannot be used as parameter type for '%s'", param.Name.Value),
+				param.Name.Token.Line,
+				param.Name.Token.Column,
+			)
+		}
+
 		// Check default value type matches parameter type (#582)
 		if param.DefaultValue != nil {
 			defaultType, ok := tc.inferExpressionType(param.DefaultValue)
@@ -1513,6 +1523,17 @@ func (tc *TypeChecker) checkVariableDeclaration(decl *ast.VariableDeclaration) {
 
 	varName := decl.Name.Value
 	declaredType := decl.TypeName
+
+	// Check if 'void' type is used (not allowed for variables)
+	if declaredType == "void" {
+		tc.addError(
+			errors.E3038,
+			"'void' type cannot be used in variable declarations",
+			decl.Name.Token.Line,
+			decl.Name.Token.Column,
+		)
+		return
+	}
 
 	// Check if variable name shadows a type (enum/struct) - #571
 	if t, exists := tc.types[varName]; exists && (t.Kind == EnumType || t.Kind == StructType) {
@@ -2990,10 +3011,14 @@ func (tc *TypeChecker) checkFunctionCall(call *ast.CallExpression) {
 		expectedType := sig.Parameters[i].Type
 		if !tc.typesCompatible(expectedType, actualType) {
 			line, column := tc.getExpressionPosition(arg)
+			displayType := actualType
+			if displayType == "" {
+				displayType = "<unknown type>"
+			}
 			tc.addError(
 				errors.E3001,
 				fmt.Sprintf("argument type mismatch in call to '%s': parameter '%s' expects %s, got %s",
-					funcName, sig.Parameters[i].Name, expectedType, actualType),
+					funcName, sig.Parameters[i].Name, expectedType, displayType),
 				line,
 				column,
 			)
@@ -4483,6 +4508,47 @@ func (tc *TypeChecker) inferCallType(call *ast.CallExpression) (string, bool) {
 			}
 			return "void", true
 		}
+		// Check if this function is from the same module (multi-file module support)
+		if tc.currentModuleName != "" {
+			if moduleFuncs, hasModule := tc.moduleFunctions[tc.currentModuleName]; hasModule {
+				if moduleSig, found := moduleFuncs[fn.Value]; found {
+					if len(moduleSig.ReturnTypes) == 1 {
+						return moduleSig.ReturnTypes[0], true
+					} else if len(moduleSig.ReturnTypes) > 1 {
+						return moduleSig.ReturnTypes[0], true
+					}
+					return "void", true
+				}
+			}
+		}
+		// Check if this function is from a user-defined module via file-level 'using'
+		for moduleName := range tc.fileUsingModules {
+			if moduleFuncs, hasModule := tc.moduleFunctions[moduleName]; hasModule {
+				if moduleSig, found := moduleFuncs[fn.Value]; found {
+					if len(moduleSig.ReturnTypes) == 1 {
+						return moduleSig.ReturnTypes[0], true
+					} else if len(moduleSig.ReturnTypes) > 1 {
+						return moduleSig.ReturnTypes[0], true
+					}
+					return "void", true
+				}
+			}
+		}
+		// Check if this function is from a user-defined module via scope-level 'using'
+		if tc.currentScope != nil {
+			for moduleName := range tc.currentScope.usingModules {
+				if moduleFuncs, hasModule := tc.moduleFunctions[moduleName]; hasModule {
+					if moduleSig, found := moduleFuncs[fn.Value]; found {
+						if len(moduleSig.ReturnTypes) == 1 {
+							return moduleSig.ReturnTypes[0], true
+						} else if len(moduleSig.ReturnTypes) > 1 {
+							return moduleSig.ReturnTypes[0], true
+						}
+						return "void", true
+					}
+				}
+			}
+		}
 		// Check built-in functions
 		return tc.inferBuiltinCallType(fn.Value, call.Arguments)
 
@@ -5544,13 +5610,13 @@ func (tc *TypeChecker) isJsonFunction(name string) bool {
 func (tc *TypeChecker) isDBFunction(name string) bool {
 	dbFuncs := map[string]bool{
 		// Creation
-		"open": true, 
+		"open": true,
 		// Closing
-		"close": true, 
+		"close": true,
 		// Saving
 		"save": true,
 		// Operations
-		"set": true, "get": true, "delete": true, "has": true, 
+		"set": true, "get": true, "delete": true, "has": true,
 		"keys": true, "prefix": true, "count": true, "clear": true,
 	}
 	return dbFuncs[name]
@@ -5795,10 +5861,14 @@ func (tc *TypeChecker) checkUserModuleCall(moduleName, funcName string, call *as
 		expectedType := sig.Parameters[i].Type
 		if !tc.typesCompatible(expectedType, actualType) {
 			argLine, argColumn := tc.getExpressionPosition(arg)
+			displayType := actualType
+			if displayType == "" {
+				displayType = "<unknown type>"
+			}
 			tc.addError(
 				errors.E3001,
 				fmt.Sprintf("argument type mismatch in call to '%s.%s': parameter '%s' expects %s, got %s",
-					moduleName, funcName, sig.Parameters[i].Name, expectedType, actualType),
+					moduleName, funcName, sig.Parameters[i].Name, expectedType, displayType),
 				argLine,
 				argColumn,
 			)
@@ -6726,6 +6796,7 @@ func (tc *TypeChecker) checkDBModuleCall(funcName string, call *ast.CallExpressi
 
 	tc.validateStdlibCall("db", funcName, call, sig, line, column)
 }
+
 // validateStdlibCall performs the actual validation of a stdlib call
 func (tc *TypeChecker) validateStdlibCall(moduleName, funcName string, call *ast.CallExpression, sig StdlibFuncSig, line, column int) {
 	argCount := len(call.Arguments)
