@@ -157,6 +157,7 @@ var (
 	E4013 = ErrorCode{"E4013", "shadows-function", "variable shadows a function"}
 	E4014 = ErrorCode{"E4014", "shadows-module", "variable shadows an imported module"}
 	E4015 = ErrorCode{"E4015", "shadows-used-module-function", "variable shadows a function from a used module"}
+	E4016 = ErrorCode{"E4016", "loop-variable-shadows-loop-variable", "loop variable shadows outer loop variable"}
 )
 
 // =============================================================================

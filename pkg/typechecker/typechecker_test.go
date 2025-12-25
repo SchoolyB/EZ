@@ -6710,3 +6710,93 @@ do main() {}
 	tc := typecheck(t, input)
 	assertHasError(t, tc, errors.E3035)
 }
+
+// Tests for loop variable shadowing (#114)
+
+func TestLoopVariableShadowsOuterLoopVariable_For(t *testing.T) {
+	input := `
+do main() {
+	for i in range(0, 2) {
+		for i in range(0, 3) {
+			println(i)
+		}
+	}
+}
+`
+	tc := typecheck(t, input)
+	assertHasError(t, tc, errors.E4016)
+}
+
+func TestLoopVariableShadowsOuterLoopVariable_ForEach(t *testing.T) {
+	input := `
+do main() {
+	temp outer [int] = {1, 2}
+	temp inner [int] = {3, 4}
+	for_each item in outer {
+		for_each item in inner {
+			println(item)
+		}
+	}
+}
+`
+	tc := typecheck(t, input)
+	assertHasError(t, tc, errors.E4016)
+}
+
+func TestLoopVariableShadowsOuterLoopVariable_Mixed(t *testing.T) {
+	input := `
+do main() {
+	temp arr [int] = {10, 20}
+	for i in range(0, 2) {
+		for_each i in arr {
+			println(i)
+		}
+	}
+}
+`
+	tc := typecheck(t, input)
+	assertHasError(t, tc, errors.E4016)
+}
+
+func TestLoopVariableNoShadowing_DifferentNames(t *testing.T) {
+	input := `
+do main() {
+	for i in range(0, 2) {
+		for j in range(0, 3) {
+			println(i + j)
+		}
+	}
+}
+`
+	tc := typecheck(t, input)
+	assertNoErrors(t, tc)
+}
+
+func TestLoopVariableCanShadowRegularVariable(t *testing.T) {
+	input := `
+do main() {
+	temp i int = 100
+	for i in range(0, 3) {
+		println(i)
+	}
+	println(i)
+}
+`
+	tc := typecheck(t, input)
+	assertNoErrors(t, tc)
+}
+
+func TestRegularVariableShadowingStillAllowed(t *testing.T) {
+	input := `
+do main() {
+	temp x int = 10
+	if true {
+		temp x int = 20
+		println(x)
+	}
+	println(x)
+}
+`
+	tc := typecheck(t, input)
+	assertNoErrors(t, tc)
+}
