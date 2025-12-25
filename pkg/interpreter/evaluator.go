@@ -150,7 +150,7 @@ var validModules = map[string]bool{
 	"random":  true, // Random number generation
 	"json":    true, // JSON encoding/decoding
 	"binary":  true, // Binary encoding/decoding for integers and floats
-	"db": 		 true, // Simple key-value database
+	"db":      true, // Simple key-value database
 }
 
 // isValidModule checks if a module name is valid (either standard library or user-created)
@@ -1798,6 +1798,9 @@ func evalForEachStatement(node *ast.ForEachStatement, env *Environment) Object {
 
 	// Handle arrays
 	if arr, ok := collection.(*Array); ok {
+		arr.IteratingCount++
+		defer func() { arr.IteratingCount-- }()
+
 		for _, elem := range arr.Elements {
 			loopEnv.Set(node.Variable.Value, elem, true) // loop vars are mutable
 
@@ -2229,14 +2232,32 @@ func evalFloatInfixExpression(operator string, left, right Object, line, col int
 
 	switch operator {
 	case "+":
-		return &Float{Value: leftVal + rightVal}
+		result := leftVal + rightVal
+		if math.IsInf(result, 0) {
+			return newErrorWithLocation("E5005", line, col, "float overflow: %v + %v exceeds float range", leftVal, rightVal)
+		}
+		return &Float{Value: result}
 	case "-":
-		return &Float{Value: leftVal - rightVal}
+		result := leftVal - rightVal
+		if math.IsInf(result, 0) {
+			return newErrorWithLocation("E5006", line, col, "float overflow: %v - %v exceeds float range", leftVal, rightVal)
+		}
+		return &Float{Value: result}
 	case "*":
-		return &Float{Value: leftVal * rightVal}
+		result := leftVal * rightVal
+		if math.IsInf(result, 0) {
+			return newErrorWithLocation("E5007", line, col, "float overflow: %v * %v exceeds float range", leftVal, rightVal)
+		}
+		return &Float{Value: result}
 	case "/":
-		// Float division by zero returns +Inf, -Inf, or NaN per IEEE 754
-		return &Float{Value: leftVal / rightVal}
+		if rightVal == 0 {
+			return newErrorWithLocation("E5001", line, col, "division by zero")
+		}
+		result := leftVal / rightVal
+		if math.IsInf(result, 0) {
+			return newErrorWithLocation("E5007", line, col, "float overflow: %v / %v exceeds float range", leftVal, rightVal)
+		}
+		return &Float{Value: result}
 	case "<":
 		return nativeBoolToBooleanObject(leftVal < rightVal)
 	case ">":
@@ -2298,11 +2319,25 @@ func evalByteInfixExpression(operator string, left, right Object, line, col int)
 
 	switch operator {
 	case "+":
-		return &Byte{Value: leftVal + rightVal}
+		result := leftVal + rightVal
+		if result < leftVal { // overflow: wrapped around
+			return newErrorWithLocation("E5005", line, col, "byte overflow: %d + %d exceeds byte range (0-255)", leftVal, rightVal)
+		}
+		return &Byte{Value: result}
 	case "-":
+		if leftVal < rightVal { // underflow: would wrap around
+			return newErrorWithLocation("E5006", line, col, "byte underflow: %d - %d exceeds byte range (0-255)", leftVal, rightVal)
+		}
 		return &Byte{Value: leftVal - rightVal}
 	case "*":
-		return &Byte{Value: leftVal * rightVal}
+		if rightVal != 0 {
+			result := leftVal * rightVal
+			if result/rightVal != leftVal { // overflow: wrapped around
+				return newErrorWithLocation("E5007", line, col, "byte overflow: %d * %d exceeds byte range (0-255)", leftVal, rightVal)
+			}
+			return &Byte{Value: result}
+		}
+		return &Byte{Value: 0}
 	case "/":
 		if rightVal == 0 {
 			return newErrorWithLocation("E5001", line, col, "division by zero")
@@ -2556,11 +2591,55 @@ func evalArgsWithReferences(argExprs []ast.Expression, params []*ast.Parameter, 
 	args := make([]Object, len(argExprs))
 
 	for i, argExpr := range argExprs {
-		// Check if this parameter is mutable and the argument is a variable
+		// Check if this parameter is mutable
 		if i < len(params) && params[i].Mutable {
+			// Simple variable reference
 			if label, ok := argExpr.(*ast.Label); ok {
-				// Create a reference to the original variable
 				args[i] = &Reference{Env: env, Name: label.Value}
+				continue
+			}
+
+			// Indexed expression (arr[i], map[k])
+			if indexExpr, ok := argExpr.(*ast.IndexExpression); ok {
+				container := Eval(indexExpr.Left, env)
+				if isError(container) {
+					return []Object{container}
+				}
+				index := Eval(indexExpr.Index, env)
+				if isError(index) {
+					return []Object{index}
+				}
+				// Get the variable name for display
+				varName := ""
+				if label, ok := indexExpr.Left.(*ast.Label); ok {
+					varName = label.Value
+				}
+				args[i] = &Reference{
+					Env:       env,
+					Name:      varName,
+					Container: container,
+					Index:     index,
+				}
+				continue
+			}
+
+			// Member expression (s.field)
+			if memberExpr, ok := argExpr.(*ast.MemberExpression); ok {
+				container := Eval(memberExpr.Object, env)
+				if isError(container) {
+					return []Object{container}
+				}
+				// Get the variable name for display
+				varName := ""
+				if label, ok := memberExpr.Object.(*ast.Label); ok {
+					varName = label.Value
+				}
+				args[i] = &Reference{
+					Env:       env,
+					Name:      varName,
+					Container: container,
+					Field:     memberExpr.Member.Value,
+				}
 				continue
 			}
 		}

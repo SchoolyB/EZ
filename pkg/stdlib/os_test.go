@@ -623,9 +623,9 @@ func TestOSExec(t *testing.T) {
 			t.Errorf("expected exit code 42, got %s", exitCode.Value.String())
 		}
 
-		// Error should still be nil for non-zero exit
-		if rv.Values[1] != object.NIL {
-			t.Errorf("expected nil error for non-zero exit, got %T", rv.Values[1])
+		// Error should be returned for non-zero exit (consistent with os.exec_output)
+		if rv.Values[1] == object.NIL {
+			t.Errorf("expected error for non-zero exit, got nil")
 		}
 	})
 

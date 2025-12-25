@@ -270,9 +270,12 @@ func objectToGoValue(obj object.Object, seen map[uintptr]bool) (interface{}, *js
 						m[tag.Name] = v.Inspect()
 					case *object.Float:
 						m[tag.Name] = v.Inspect()
+					default:
+						m[tag.Name] = goVal
 					}
+				} else {
+					m[tag.Name] = goVal
 				}
-				m[tag.Name] = goVal
 			default:
 				m[key] = goVal
 			}
