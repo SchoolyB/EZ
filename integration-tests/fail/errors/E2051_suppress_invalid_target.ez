@@ -1,13 +1,21 @@
 /*
  * Error Test: E2051 - suppress-invalid-target
- * Expected: "#suppress can only be applied to function declarations"
+ * Expected: "#suppress can only be applied at file scope or to function declarations"
  */
 
 module main
 
+import @std
+using std
+
+do helper() {
+    println("helper")
+}
+
 #suppress(W1001)
-const x = 5  // #suppress on variable declaration is not allowed
+const x = 5  // #suppress on variable declaration is not allowed (after a function)
 
 do main() {
+    helper()
     println(x)
 }

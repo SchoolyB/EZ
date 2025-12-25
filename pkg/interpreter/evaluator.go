@@ -2232,14 +2232,32 @@ func evalFloatInfixExpression(operator string, left, right Object, line, col int
 
 	switch operator {
 	case "+":
-		return &Float{Value: leftVal + rightVal}
+		result := leftVal + rightVal
+		if math.IsInf(result, 0) {
+			return newErrorWithLocation("E5005", line, col, "float overflow: %v + %v exceeds float range", leftVal, rightVal)
+		}
+		return &Float{Value: result}
 	case "-":
-		return &Float{Value: leftVal - rightVal}
+		result := leftVal - rightVal
+		if math.IsInf(result, 0) {
+			return newErrorWithLocation("E5006", line, col, "float overflow: %v - %v exceeds float range", leftVal, rightVal)
+		}
+		return &Float{Value: result}
 	case "*":
-		return &Float{Value: leftVal * rightVal}
+		result := leftVal * rightVal
+		if math.IsInf(result, 0) {
+			return newErrorWithLocation("E5007", line, col, "float overflow: %v * %v exceeds float range", leftVal, rightVal)
+		}
+		return &Float{Value: result}
 	case "/":
-		// Float division by zero returns +Inf, -Inf, or NaN per IEEE 754
-		return &Float{Value: leftVal / rightVal}
+		if rightVal == 0 {
+			return newErrorWithLocation("E5001", line, col, "division by zero")
+		}
+		result := leftVal / rightVal
+		if math.IsInf(result, 0) {
+			return newErrorWithLocation("E5007", line, col, "float overflow: %v / %v exceeds float range", leftVal, rightVal)
+		}
+		return &Float{Value: result}
 	case "<":
 		return nativeBoolToBooleanObject(leftVal < rightVal)
 	case ">":
@@ -2301,11 +2319,25 @@ func evalByteInfixExpression(operator string, left, right Object, line, col int)
 
 	switch operator {
 	case "+":
-		return &Byte{Value: leftVal + rightVal}
+		result := leftVal + rightVal
+		if result < leftVal { // overflow: wrapped around
+			return newErrorWithLocation("E5005", line, col, "byte overflow: %d + %d exceeds byte range (0-255)", leftVal, rightVal)
+		}
+		return &Byte{Value: result}
 	case "-":
+		if leftVal < rightVal { // underflow: would wrap around
+			return newErrorWithLocation("E5006", line, col, "byte underflow: %d - %d exceeds byte range (0-255)", leftVal, rightVal)
+		}
 		return &Byte{Value: leftVal - rightVal}
 	case "*":
-		return &Byte{Value: leftVal * rightVal}
+		if rightVal != 0 {
+			result := leftVal * rightVal
+			if result/rightVal != leftVal { // overflow: wrapped around
+				return newErrorWithLocation("E5007", line, col, "byte overflow: %d * %d exceeds byte range (0-255)", leftVal, rightVal)
+			}
+			return &Byte{Value: result}
+		}
+		return &Byte{Value: 0}
 	case "/":
 		if rightVal == 0 {
 			return newErrorWithLocation("E5001", line, col, "division by zero")

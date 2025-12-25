@@ -1,0 +1,11 @@
+module main
+import @std
+using std
+
+do main() {
+    for i in range(0, 2) {
+        for i in range(0, 3) {  // E4016: loop variable 'i' shadows outer loop variable
+            println(i)
+        }
+    }
+}

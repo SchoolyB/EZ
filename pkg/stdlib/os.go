@@ -427,6 +427,11 @@ var OSBuiltins = map[string]*object.Builtin{
 			if err != nil {
 				if exitErr, ok := err.(*exec.ExitError); ok {
 					exitCode = int64(exitErr.ExitCode())
+					// Command ran but returned non-zero exit code - return error for consistency with os.exec_output
+					return &object.ReturnValue{Values: []object.Object{
+						&object.Integer{Value: big.NewInt(exitCode)},
+						createOSError("E7031", fmt.Sprintf("command exited with code %d", exitCode)),
+					}}
 				} else {
 					// Command failed to start entirely
 					return &object.ReturnValue{Values: []object.Object{
