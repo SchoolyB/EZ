@@ -466,7 +466,7 @@ func Eval(node ast.Node, env *Environment) Object {
 					if !isValidModule(item.Module) {
 						if suggestion := suggestModule(item.Module); suggestion != "" {
 							return newErrorWithLocation("E6002", node.Token.Line, node.Token.Column,
-								"module '%s' not found. Did you mean @%s?", item.Module, suggestion)
+								"module '%s' not found; did you mean @%s?", item.Module, suggestion)
 						}
 						return newErrorWithLocation("E6002", node.Token.Line, node.Token.Column,
 							"module '%s' not found", item.Module)
@@ -505,7 +505,7 @@ func Eval(node ast.Node, env *Environment) Object {
 			if !isValidModule(node.Module) {
 				if suggestion := suggestModule(node.Module); suggestion != "" {
 					return newErrorWithLocation("E6002", node.Token.Line, node.Token.Column,
-						"module '%s' not found. Did you mean @%s?", node.Module, suggestion)
+						"module '%s' not found; did you mean @%s?", node.Module, suggestion)
 				}
 				return newErrorWithLocation("E6002", node.Token.Line, node.Token.Column,
 					"module '%s' not found", node.Module)
@@ -3132,7 +3132,7 @@ func evalStructValue(node *ast.StructValue, env *Environment) Object {
 			if len(foundModules) > 1 {
 				moduleList := strings.Join(foundModules, ", ")
 				return newErrorWithLocation("E3002", node.Token.Line, node.Token.Column,
-					"type '%s' found in multiple modules: %s. Use explicit module prefix: %s.%s",
+					"type '%s' found in multiple modules: %s; use explicit module prefix: %s.%s",
 					typeName, moduleList, foundModules[0], typeName)
 			}
 
@@ -3224,7 +3224,7 @@ func evalNewExpression(node *ast.NewExpression, env *Environment) Object {
 			if len(foundModules) > 1 {
 				moduleList := strings.Join(foundModules, ", ")
 				return newErrorWithLocation("E3002", node.Token.Line, node.Token.Column,
-					"type '%s' found in multiple modules: %s. Use explicit module prefix: %s.%s",
+					"type '%s' found in multiple modules: %s; use explicit module prefix: %s.%s",
 					typeName, moduleList, foundModules[0], typeName)
 			}
 
