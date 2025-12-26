@@ -84,8 +84,8 @@ var (
 	E2045 = ErrorCode{"E2045", "when-strict-non-enum", "strict attribute only allowed on enum when statements"}
 	E2046 = ErrorCode{"E2046", "when-strict-missing-case", "strict when statement missing enum case"}
 	E2047 = ErrorCode{"E2047", "when-type-as-condition", "when condition must be a value, not a type name"}
-	E2048 = ErrorCode{"E2048", "when-bool-condition", "when condition cannot be a boolean. Use if/or/otherwise instead"}
-	E2049 = ErrorCode{"E2049", "when-nil-condition", "when condition cannot be nil. Use if/otherwise to check for nil"}
+	E2048 = ErrorCode{"E2048", "when-bool-condition", "when condition cannot be a boolean; use if/or/otherwise instead"}
+	E2049 = ErrorCode{"E2049", "when-nil-condition", "when condition cannot be nil; use if/otherwise to check for nil"}
 	E2050 = ErrorCode{"E2050", "when-collection-condition", "when condition cannot be an array or map"}
 	E2051 = ErrorCode{"E2051", "suppress-invalid-target", "#suppress can only be applied at file scope or to function declarations"}
 	E2052 = ErrorCode{"E2052", "suppress-invalid-code", "warning code cannot be suppressed"}

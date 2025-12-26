@@ -1,0 +1,11 @@
+/* Test file for unused import warning (W1002)
+ * Expected: "imported module 'arrays' is not used"
+ */
+
+import @std, @strings, @arrays
+
+do main() {
+    // Only using std and strings modules
+    // arrays is imported but never used - should trigger W1002
+    std.println(strings.upper("hello"))
+}
