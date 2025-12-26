@@ -1,0 +1,23 @@
+module validate
+
+const MARGIN int = 2
+const MARKUP int = 4
+
+// Check if a choice is valid (1-5)
+do is_valid_choice(choice int) -> bool {
+    return choice >= 1 && choice <= 5
+}
+
+// Check if the combination of two choices is valid
+// (Margin + Markup together is invalid)
+do is_valid_combination(first, second int) -> bool {
+    // Same choice is invalid
+    if first == second {
+        return false
+    }
+    // Margin + Markup together is invalid
+    if (first == MARGIN && second == MARKUP) || (first == MARKUP && second == MARGIN) {
+        return false
+    }
+    return true
+}
