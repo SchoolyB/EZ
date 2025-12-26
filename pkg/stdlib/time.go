@@ -10,9 +10,13 @@ import (
 	"github.com/marshallburns/ez/pkg/object"
 )
 
-// TimeBuiltins contains the time module functions
+// TimeBuiltins contains the time module functions for date/time manipulation.
+// All functions are prefixed with "time." and work with Unix timestamps (seconds since epoch).
+// The module provides: current time, sleep, time components, formatting, parsing,
+// timestamp creation, arithmetic, differences, comparisons, timezone, and calendar utilities.
 var TimeBuiltins = map[string]*object.Builtin{
-	// Current time
+	// Current time functions
+	// time.now() -> int (Unix timestamp in seconds)
 	"time.now": {
 		Fn: func(args ...object.Object) object.Object {
 			return &object.Integer{Value: big.NewInt(time.Now().Unix())}

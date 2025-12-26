@@ -10,7 +10,9 @@ import (
 	"github.com/marshallburns/ez/pkg/object"
 )
 
-// DBBuiltings contains the db module functions for database operations
+// DBBuiltins contains the db module functions for simple key-value database operations.
+// All functions are prefixed with "db." and operate on Database objects (.ezdb files).
+// Provides CRUD operations, key searching, sorting, and automatic persistence.
 var DBBuiltins = map[string]*object.Builtin{
 	// ============================================================================
 	// Database Management
@@ -51,8 +53,8 @@ var DBBuiltins = map[string]*object.Builtin{
 
 				return &object.ReturnValue{Values: []object.Object{
 					&object.Database{
-						Path: *path,
-						Store: *object.NewMap(),
+						Path:     *path,
+						Store:    *object.NewMap(),
 						IsClosed: object.Boolean{Value: false},
 					},
 					object.NIL,
@@ -88,8 +90,8 @@ var DBBuiltins = map[string]*object.Builtin{
 
 			return &object.ReturnValue{Values: []object.Object{
 				&object.Database{
-					Path: *path,
-					Store: *dbContent,
+					Path:     *path,
+					Store:    *dbContent,
 					IsClosed: object.Boolean{Value: false},
 				},
 				object.NIL,
@@ -127,7 +129,7 @@ var DBBuiltins = map[string]*object.Builtin{
 
 			db.IsClosed = object.Boolean{Value: true}
 
-			return	&object.Nil{}
+			return &object.Nil{}
 		},
 	},
 
@@ -312,7 +314,7 @@ var DBBuiltins = map[string]*object.Builtin{
 				keys.Elements = append(keys.Elements, pair.Key)
 			}
 
-			return	&keys
+			return &keys
 		},
 	},
 

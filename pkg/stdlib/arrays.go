@@ -23,8 +23,12 @@ func checkIterating(arr *object.Array, funcName string) *object.Error {
 	return nil
 }
 
-// ArraysBuiltins contains the arrays module functions
+// ArraysBuiltins contains the arrays module functions for array manipulation.
+// All functions are prefixed with "arrays." and operate on array values.
+// Many functions modify arrays in-place (append, pop, etc.) while others return new arrays.
 var ArraysBuiltins = map[string]*object.Builtin{
+	// Returns true if the array has no elements
+	// arrays.is_empty(arr [T]) -> bool
 	"arrays.is_empty": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 1 {
@@ -41,6 +45,8 @@ var ArraysBuiltins = map[string]*object.Builtin{
 		},
 	},
 
+	// Appends one or more elements to the end of an array (modifies in-place)
+	// arrays.append(arr [T], value T, ...) -> nil
 	"arrays.append": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) < 2 {
@@ -64,6 +70,8 @@ var ArraysBuiltins = map[string]*object.Builtin{
 		},
 	},
 
+	// Prepends one or more elements to the beginning of an array (modifies in-place)
+	// arrays.unshift(arr [T], value T, ...) -> [T]
 	"arrays.unshift": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) < 2 {

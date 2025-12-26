@@ -126,7 +126,10 @@ func padBigIntBytesUnsigned(val *big.Int, size int) []byte {
 	return result
 }
 
-// BinaryBuiltins contains the binary module functions for encoding/decoding
+// BinaryBuiltins contains the binary module functions for encoding/decoding integers.
+// All functions are prefixed with "binary." and support 8/16/32/64/128-bit integers.
+// Both signed (i8/i16/i32/i64/i128) and unsigned (u8/u16/u32/u64/u128) types supported.
+// Functions are available in both little-endian and big-endian variants.
 var BinaryBuiltins = map[string]*object.Builtin{
 	// ============================================================================
 	// 8-bit Encoding/Decoding (no endianness needed)

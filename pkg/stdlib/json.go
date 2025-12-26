@@ -12,7 +12,9 @@ import (
 	"github.com/marshallburns/ez/pkg/object"
 )
 
-// JsonBuiltins contains the json module functions
+// JsonBuiltins contains the json module functions for JSON encoding and decoding.
+// All functions are prefixed with "json." and provide serialization to/from EZ types.
+// Supports encoding primitives, arrays, maps, and structs to JSON strings.
 var JsonBuiltins = map[string]*object.Builtin{
 	// json.encode(value) -> (string, error)
 	// Serializes an EZ value to a JSON string

@@ -9,8 +9,12 @@ import (
 	"github.com/marshallburns/ez/pkg/object"
 )
 
-// MapsBuiltins contains the maps module functions
+// MapsBuiltins contains the maps module functions for map/dictionary manipulation.
+// All functions are prefixed with "maps." and operate on map values.
+// Maps use hashable types (string, int, bool, char) as keys.
 var MapsBuiltins = map[string]*object.Builtin{
+	// Returns true if the map has no entries
+	// maps.is_empty(m map) -> bool
 	"maps.is_empty": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 1 {
@@ -27,6 +31,8 @@ var MapsBuiltins = map[string]*object.Builtin{
 		},
 	},
 
+	// Returns true if the map contains the specified key
+	// maps.has(m map, key K) -> bool
 	"maps.has": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 2 {
@@ -48,6 +54,8 @@ var MapsBuiltins = map[string]*object.Builtin{
 		},
 	},
 
+	// Gets a value by key, returns default (or nil) if not found
+	// maps.get(m map, key K, default V?) -> V
 	"maps.get": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) < 2 || len(args) > 3 {
