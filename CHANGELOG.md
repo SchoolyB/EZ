@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.33.4](https://github.com/SchoolyB/EZ/compare/v0.33.3...v0.33.4) (2025-12-26)
+
+
+### Bug Fixes
+
+* UTF-8 characters corrupted in interpolated strings ([#839](https://github.com/SchoolyB/EZ/issues/839)) ([ebb34dc](https://github.com/SchoolyB/EZ/commit/ebb34dc145235f85d7fbb3dc748132fd10a0e4bf))
+
 ## [0.33.3](https://github.com/SchoolyB/EZ/compare/v0.33.2...v0.33.3) (2025-12-25)
 
 
