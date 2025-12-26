@@ -10,7 +10,9 @@ import (
 	"github.com/marshallburns/ez/pkg/object"
 )
 
-// RandomBuiltins contains the random module functions
+// RandomBuiltins contains the random module functions for generating random values.
+// All functions are prefixed with "random." and provide various random generation utilities.
+// Uses Go's crypto/rand seeded math/rand for pseudo-random number generation.
 var RandomBuiltins = map[string]*object.Builtin{
 	// random.float() - returns float [0.0, 1.0)
 	// random.float(min, max) - returns float [min, max)
