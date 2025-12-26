@@ -5,7 +5,7 @@ package ast
 import (
 	"math/big"
 
-	. "github.com/marshallburns/ez/pkg/tokenizer"
+	"github.com/marshallburns/ez/pkg/tokenizer"
 )
 
 // Node is the base interface for all AST nodes
@@ -43,7 +43,7 @@ const (
 
 // ModuleDeclaration represents "module mymodule" at the top of a file
 type ModuleDeclaration struct {
-	Token Token
+	Token tokenizer.Token
 	Name  *Label // Module name (e.g., "server", "utils")
 }
 
@@ -64,7 +64,7 @@ func (p *Program) TokenLiteral() string {
 // A "Label" is just my way of describing
 // an "Identifier" like most languages do.
 type Label struct {
-	Token Token
+	Token tokenizer.Token
 	Value string
 }
 
@@ -74,7 +74,7 @@ func (l *Label) TokenLiteral() string { return l.Token.Literal }
 
 // Represents an integer value
 type IntegerValue struct {
-	Token Token
+	Token tokenizer.Token
 	Value *big.Int
 }
 
@@ -84,7 +84,7 @@ func (v *IntegerValue) TokenLiteral() string { return v.Token.Literal }
 
 // Represents a float value
 type FloatValue struct {
-	Token Token
+	Token tokenizer.Token
 	Value float64
 }
 
@@ -94,7 +94,7 @@ func (v *FloatValue) TokenLiteral() string { return v.Token.Literal }
 
 // Represents a string value
 type StringValue struct {
-	Token Token
+	Token tokenizer.Token
 	Value string
 }
 
@@ -104,7 +104,7 @@ func (v *StringValue) TokenLiteral() string { return v.Token.Literal }
 
 // InterpolatedString represents a string with embedded expressions like "Hello, ${name}!"
 type InterpolatedString struct {
-	Token Token
+	Token tokenizer.Token
 	Parts []Expression // alternating StringValue and Expression nodes
 }
 
@@ -113,7 +113,7 @@ func (i *InterpolatedString) TokenLiteral() string { return i.Token.Literal }
 
 // CharValue represents a character value
 type CharValue struct {
-	Token Token
+	Token tokenizer.Token
 	Value rune
 }
 
@@ -123,7 +123,7 @@ func (v *CharValue) TokenLiteral() string { return v.Token.Literal }
 
 // BooleanValue represents true/false
 type BooleanValue struct {
-	Token Token
+	Token tokenizer.Token
 	Value bool
 }
 
@@ -133,7 +133,7 @@ func (v *BooleanValue) TokenLiteral() string { return v.Token.Literal }
 
 // NilValue represents nil
 type NilValue struct {
-	Token Token
+	Token tokenizer.Token
 	// nil has no value...
 }
 
@@ -143,7 +143,7 @@ func (v *NilValue) TokenLiteral() string { return v.Token.Literal }
 
 // Represents an array literal {1, 2, 3, etc....}
 type ArrayValue struct {
-	Token    Token
+	Token    tokenizer.Token
 	Elements []Expression
 }
 
@@ -158,7 +158,7 @@ type MapPair struct {
 
 // MapValue represents a map literal {"key": value, ...}
 type MapValue struct {
-	Token Token
+	Token tokenizer.Token
 	Pairs []*MapPair
 }
 
@@ -167,7 +167,7 @@ func (m *MapValue) TokenLiteral() string { return m.Token.Literal }
 
 // StructValue represents Person{name: "Bob", age: 25}
 type StructValue struct {
-	Token  Token
+	Token  tokenizer.Token
 	Name   *Label
 	Fields map[string]Expression
 }
@@ -177,7 +177,7 @@ func (s *StructValue) TokenLiteral() string { return s.Token.Literal }
 
 // PrefixExpression represents prefix operators like -5 or !true
 type PrefixExpression struct {
-	Token    Token
+	Token    tokenizer.Token
 	Operator string
 	Right    Expression
 }
@@ -187,7 +187,7 @@ func (p *PrefixExpression) TokenLiteral() string { return p.Token.Literal }
 
 // represents binary operations like 5 + 5
 type InfixExpression struct {
-	Token    Token
+	Token    tokenizer.Token
 	Left     Expression
 	Operator string
 	Right    Expression
@@ -198,7 +198,7 @@ func (i *InfixExpression) TokenLiteral() string { return i.Token.Literal }
 
 // PostfixExpression represents i++ and i--
 type PostfixExpression struct {
-	Token    Token
+	Token    tokenizer.Token
 	Operator string
 	Left     Expression
 }
@@ -208,7 +208,7 @@ func (s *PostfixExpression) TokenLiteral() string { return s.Token.Literal }
 
 // CallExpression represents function calls like add(1, 2)
 type CallExpression struct {
-	Token     Token
+	Token     tokenizer.Token
 	Function  Expression
 	Arguments []Expression
 }
@@ -218,7 +218,7 @@ func (c *CallExpression) TokenLiteral() string { return c.Token.Literal }
 
 // IndexExpression represents array indexing like arr[0]
 type IndexExpression struct {
-	Token Token
+	Token tokenizer.Token
 	Left  Expression
 	Index Expression
 }
@@ -228,7 +228,7 @@ func (i *IndexExpression) TokenLiteral() string { return i.Token.Literal }
 
 // MemberExpression represents member access like std.println
 type MemberExpression struct {
-	Token  Token
+	Token  tokenizer.Token
 	Object Expression
 	Member *Label
 }
@@ -238,7 +238,7 @@ func (m *MemberExpression) TokenLiteral() string { return m.Token.Literal }
 
 // NewExpression represents new(Type)
 type NewExpression struct {
-	Token    Token
+	Token    tokenizer.Token
 	TypeName *Label
 }
 
@@ -247,7 +247,7 @@ func (n *NewExpression) TokenLiteral() string { return n.Token.Literal }
 
 // RangeExpression represents range(end), range(start, end), or range(start, end, step)
 type RangeExpression struct {
-	Token Token
+	Token tokenizer.Token
 	Start Expression // nil for range(end) form, defaults to 0
 	End   Expression
 	Step  Expression // nil for default step of 1
@@ -258,11 +258,11 @@ func (r *RangeExpression) TokenLiteral() string { return r.Token.Literal }
 
 // CastExpression represents cast(value, type) for type conversion
 type CastExpression struct {
-	Token       Token      // The 'cast' token
-	Value       Expression // The expression to convert
-	TargetType  string     // The target type (e.g., "u8", "[u8]", "int")
-	IsArray     bool       // True if target is an array type like [u8]
-	ElementType string     // For arrays, the element type (e.g., "u8" from "[u8]")
+	Token       tokenizer.Token // The 'cast' token
+	Value       Expression      // The expression to convert
+	TargetType  string          // The target type (e.g., "u8", "[u8]", "int")
+	IsArray     bool            // True if target is an array type like [u8]
+	ElementType string          // For arrays, the element type (e.g., "u8" from "[u8]")
 }
 
 func (c *CastExpression) expressionNode()      {}
@@ -276,7 +276,7 @@ func (c *CastExpression) TokenLiteral() string { return c.Token.Literal }
 // Also supports multiple assignment: temp result, err = divide(10, 0)
 // And typed tuple unpacking: temp a int, b string = getValues()
 type VariableDeclaration struct {
-	Token      Token // temp or const
+	Token      tokenizer.Token // temp or const
 	Name       *Label
 	Names      []*Label // for multiple assignment (result, err)
 	TypeName   string
@@ -289,7 +289,7 @@ type VariableDeclaration struct {
 
 // BlankIdentifier represents _ (blank identifier) in multiple assignment
 type BlankIdentifier struct {
-	Token Token
+	Token tokenizer.Token
 }
 
 func (b *BlankIdentifier) expressionNode()      {}
@@ -297,7 +297,7 @@ func (b *BlankIdentifier) TokenLiteral() string { return b.Token.Literal }
 
 // Attribute represents #suppress(warning_name, ...)
 type Attribute struct {
-	Token Token
+	Token tokenizer.Token
 	Name  string   // "suppress"
 	Args  []string // warning codes to suppress
 }
@@ -310,7 +310,7 @@ func (v *VariableDeclaration) TokenLiteral() string { return v.Token.Literal }
 
 // AssignmentStatement represents x = 5 or x += 1
 type AssignmentStatement struct {
-	Token    Token
+	Token    tokenizer.Token
 	Name     Expression // can be Identifier, IndexExpression, or MemberExpression
 	Names    []*Label   // for tuple unpacking: a, b = func()
 	Operator string
@@ -322,7 +322,7 @@ func (a *AssignmentStatement) TokenLiteral() string { return a.Token.Literal }
 
 // ReturnStatement represents return value
 type ReturnStatement struct {
-	Token  Token
+	Token  tokenizer.Token
 	Values []Expression // multiple return values
 }
 
@@ -331,7 +331,7 @@ func (r *ReturnStatement) TokenLiteral() string { return r.Token.Literal }
 
 // ExpressionStatement wraps an expression as a statement
 type ExpressionStatement struct {
-	Token      Token
+	Token      tokenizer.Token
 	Expression Expression
 }
 
@@ -340,7 +340,7 @@ func (es *ExpressionStatement) TokenLiteral() string { return es.Token.Literal }
 
 // BlockStatement represents a block of statements { ... }
 type BlockStatement struct {
-	Token      Token
+	Token      tokenizer.Token
 	Statements []Statement
 }
 
@@ -349,7 +349,7 @@ func (b *BlockStatement) TokenLiteral() string { return b.Token.Literal }
 
 // IfStatement represents if/or/otherwise
 type IfStatement struct {
-	Token       Token
+	Token       tokenizer.Token
 	Condition   Expression
 	Consequence *BlockStatement
 	Alternative Statement // can be another IfStatement (for 'or') or BlockStatement (for 'otherwise')
@@ -360,15 +360,15 @@ func (is *IfStatement) TokenLiteral() string { return is.Token.Literal }
 
 // WhenCase represents a single case in a when statement: is 1, 2 { ... }
 type WhenCase struct {
-	Token   Token        // The IS token
-	Values  []Expression // Can be multiple values (is 1, 2, 3) or a range expression
+	Token   tokenizer.Token // The IS token
+	Values  []Expression    // Can be multiple values (is 1, 2, 3) or a range expression
 	Body    *BlockStatement
 	IsRange bool // true if this case uses range()
 }
 
 // WhenStatement represents when/is/default switch statement
 type WhenStatement struct {
-	Token      Token           // The WHEN token
+	Token      tokenizer.Token // The WHEN token
 	Value      Expression      // The value being matched
 	Cases      []*WhenCase     // All is cases
 	Default    *BlockStatement // Required default case
@@ -381,7 +381,7 @@ func (ws *WhenStatement) TokenLiteral() string { return ws.Token.Literal }
 
 // ForStatement represents for i in range(0, 10) { }
 type ForStatement struct {
-	Token    Token
+	Token    tokenizer.Token
 	Variable *Label
 	VarType  string // optional explicit type
 	Iterable Expression
@@ -393,7 +393,7 @@ func (fs *ForStatement) TokenLiteral() string { return fs.Token.Literal }
 
 // ForEachStatement represents for_each item in collection { }
 type ForEachStatement struct {
-	Token      Token
+	Token      tokenizer.Token
 	Variable   *Label
 	Collection Expression
 	Body       *BlockStatement
@@ -404,7 +404,7 @@ func (f *ForEachStatement) TokenLiteral() string { return f.Token.Literal }
 
 // WhileStatement represents as_long_as condition { }
 type WhileStatement struct {
-	Token     Token
+	Token     tokenizer.Token
 	Condition Expression
 	Body      *BlockStatement
 }
@@ -414,7 +414,7 @@ func (w *WhileStatement) TokenLiteral() string { return w.Token.Literal }
 
 // LoopStatement represents loop { }
 type LoopStatement struct {
-	Token Token
+	Token tokenizer.Token
 	Body  *BlockStatement
 }
 
@@ -423,7 +423,7 @@ func (l *LoopStatement) TokenLiteral() string { return l.Token.Literal }
 
 // BreakStatement represents break
 type BreakStatement struct {
-	Token Token
+	Token tokenizer.Token
 }
 
 func (b *BreakStatement) statementNode()       {}
@@ -431,7 +431,7 @@ func (b *BreakStatement) TokenLiteral() string { return b.Token.Literal }
 
 // ContinueStatement represents continue
 type ContinueStatement struct {
-	Token Token
+	Token tokenizer.Token
 }
 
 func (c *ContinueStatement) statementNode()       {}
@@ -439,7 +439,7 @@ func (c *ContinueStatement) TokenLiteral() string { return c.Token.Literal }
 
 // FunctionDeclaration represents do func_name(params) -> return_type { }
 type FunctionDeclaration struct {
-	Token       Token
+	Token       tokenizer.Token
 	Name        *Label
 	Parameters  []*Parameter
 	ReturnTypes []string // can be multiple for multi-return
@@ -471,7 +471,7 @@ type ImportItem struct {
 // Supports both single (import @std) and comma-separated (import @std, @arrays)
 // Also supports file path imports (import "./utils") and import & use syntax
 type ImportStatement struct {
-	Token   Token
+	Token   tokenizer.Token
 	Imports []ImportItem // For multiple imports
 	AutoUse bool         // True for "import & use" syntax - automatically brings into scope
 	// Deprecated: For backward compatibility with single imports
@@ -485,7 +485,7 @@ func (i *ImportStatement) TokenLiteral() string { return i.Token.Literal }
 // UsingStatement represents using module(s)
 // Supports both single (using std) and comma-separated (using std, arrays)
 type UsingStatement struct {
-	Token   Token
+	Token   tokenizer.Token
 	Modules []*Label // List of modules to bring into scope
 }
 
@@ -494,7 +494,7 @@ func (u *UsingStatement) TokenLiteral() string { return u.Token.Literal }
 
 // StructDeclaration represents Person struct { name string; age int }
 type StructDeclaration struct {
-	Token      Token
+	Token      tokenizer.Token
 	Name       *Label
 	Fields     []*StructField
 	Visibility Visibility // Public (default), Private, or PrivateModule
@@ -513,7 +513,7 @@ type StructField struct {
 
 // EnumDeclaration represents const STATUS enum { ... }
 type EnumDeclaration struct {
-	Token      Token
+	Token      tokenizer.Token
 	Name       *Label
 	Values     []*EnumValue
 	Attributes *EnumAttributes
