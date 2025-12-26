@@ -1,0 +1,71 @@
+module input
+
+import @std, @strings
+using std
+
+// Menu choice constants
+const PRICE int = 1
+const MARGIN int = 2
+const PROFIT int = 3
+const MARKUP int = 4
+const COST int = 5
+
+// Get a menu choice (1-5)
+do get_menu_choice() -> int {
+    printf("Enter choice (1-5): ")
+    temp choice_str string = input()
+    temp choice int = strings.to_int(choice_str)
+    return choice
+}
+
+// Get the label for a menu choice
+do get_choice_label(choice int) -> string {
+    if choice == PRICE {
+        return "Price ($)"
+    } or choice == MARGIN {
+        return "Margin (%)"
+    } or choice == PROFIT {
+        return "Profit ($)"
+    } or choice == MARKUP {
+        return "Markup (%)"
+    } or choice == COST {
+        return "Cost ($)"
+    }
+    return "Unknown"
+}
+
+// Get the input prompt for a choice
+do get_input_prompt(choice int) -> string {
+    if choice == PRICE {
+        return "Enter Price: $"
+    } or choice == MARGIN {
+        return "Enter Margin: %"
+    } or choice == PROFIT {
+        return "Enter Profit: $"
+    } or choice == MARKUP {
+        return "Enter Markup: %"
+    } or choice == COST {
+        return "Enter Cost: $"
+    }
+    return "Enter value: "
+}
+
+// Get a numeric input from the user
+do get_numeric_input(prompt string) -> float {
+    printf(prompt)
+    temp value_str string = input()
+    temp value float = strings.to_float(value_str)
+    return value
+}
+
+// Ask user if they want to continue
+do confirm_continue() -> bool {
+    println("")
+    printf("Would you like to calculate again? (y/n): ")
+    temp response string = input()
+    
+    if response == "y" || response == "Y" || response == "yes" || response == "Yes" {
+        return true
+    }
+    return false
+}

@@ -1,0 +1,150 @@
+/*
+ * main.ez - Price Metrics Calculator
+ *
+ * A console application that calculates Price, Margin, Profit,
+ * Markup, and Cost given any two valid input values.
+ *
+ * Usage: Enter any two values (except Margin + Markup together)
+ *        and the program will calculate the remaining three.
+ */
+
+import @std, @os
+import "./display"
+import "./input"
+import "./validate"
+import "./formulas"
+using std
+
+// Clear the terminal screen using OS command
+do clear_screen() {
+    if os.is_windows() {
+        temp _, _ = os.exec("cls")
+    } otherwise {
+        temp _, _ = os.exec("clear")
+    }
+}
+
+// Menu choice constants
+const PRICE int = 1
+const MARGIN int = 2
+const PROFIT int = 3
+const MARKUP int = 4
+const COST int = 5
+
+do main() {
+    temp running bool = true
+    
+    as_long_as running {
+        clear_screen()
+        display.show_header()
+        
+        // Get first choice
+        display.show_main_menu()
+        temp first_choice int = input.get_menu_choice()
+        
+        // Validate first choice// Given Price and Cost, calculate the rest
+        temp valid1 bool = validate.is_valid_choice(first_choice)
+        if valid1 == false {
+            display.show_error("Invalid choice. Please enter 1-5.")
+            continue
+        }
+        
+        temp first_label string = input.get_choice_label(first_choice)
+        println("")
+        println("You selected: ${first_label}")
+        println("")
+        display.show_separator()
+        println("")
+        
+        // Get second choice
+        display.show_second_menu(first_choice)
+        temp second_choice int = input.get_menu_choice()
+        
+        // Validate second choice
+        temp valid2 bool = validate.is_valid_choice(second_choice)
+        if valid2 == false {
+            display.show_error("Invalid choice. Please enter 1-5.")
+            continue
+        }
+        
+        // Validate combination
+        temp valid_combo bool = validate.is_valid_combination(first_choice, second_choice)
+        if valid_combo == false {
+            if first_choice == second_choice {
+                display.show_error("You cannot select the same value twice.")
+            } otherwise {
+                display.show_error("Margin and Markup cannot be entered together.")
+            }
+            continue
+        }
+        
+        temp second_label string = input.get_choice_label(second_choice)
+        println("")
+        println("You selected: ${second_label}")
+        println("")
+        display.show_separator()
+        println("")
+        
+        // Get the actual values
+        temp first_value float = input.get_numeric_input(input.get_input_prompt(first_choice))
+        temp second_value float = input.get_numeric_input(input.get_input_prompt(second_choice))
+        
+        // Calculate results based on the combination
+        temp price, margin, profit, markup, cost = calculate(first_choice, second_choice, first_value, second_value)
+        
+        // Display results
+        display.show_results(price, margin, profit, markup, cost)
+        
+        // Ask to continue
+        running = input.confirm_continue()
+    }
+    
+    println("")
+    println("Thank you for using Price Metrics Calculator!")
+    println("")
+}
+
+// Route to the appropriate solver based on input choices
+do calculate(choice1, choice2 int, val1, val2 float) -> (float, float, float, float, float) {
+    // Sort choices to simplify matching (lower first)
+    temp c1 int = choice1
+    temp c2 int = choice2
+    temp v1 float = val1
+    temp v2 float = val2
+    
+    if choice1 > choice2 {
+        c1 = choice2
+        c2 = choice1
+        v1 = val2
+        v2 = val1
+    }
+    
+    // Match combinations (c1 is always the lower number)
+    temp price float = 0.0
+    temp margin float = 0.0
+    temp profit float = 0.0
+    temp markup float = 0.0
+    temp cost float = 0.0
+    
+    if c1 == PRICE && c2 == MARGIN {
+        price, margin, profit, markup, cost = formulas.solve_from_price_and_margin(v1, v2)
+    } or c1 == PRICE && c2 == PROFIT {
+        price, margin, profit, markup, cost = formulas.solve_from_price_and_profit(v1, v2)
+    } or c1 == PRICE && c2 == MARKUP {
+        price, margin, profit, markup, cost = formulas.solve_from_price_and_markup(v1, v2)
+    } or c1 == PRICE && c2 == COST {
+        price, margin, profit, markup, cost = formulas.solve_from_price_and_cost(v1, v2)
+    } or c1 == MARGIN && c2 == PROFIT {
+        price, margin, profit, markup, cost = formulas.solve_from_profit_and_margin(v2, v1)
+    } or c1 == MARGIN && c2 == COST {
+        price, margin, profit, markup, cost = formulas.solve_from_cost_and_margin(v2, v1)
+    } or c1 == PROFIT && c2 == MARKUP {
+        price, margin, profit, markup, cost = formulas.solve_from_profit_and_markup(v1, v2)
+    } or c1 == PROFIT && c2 == COST {
+        price, margin, profit, markup, cost = formulas.solve_from_cost_and_profit(v2, v1)
+    } or c1 == MARKUP && c2 == COST {
+        price, margin, profit, markup, cost = formulas.solve_from_cost_and_markup(v2, v1)
+    }
+    
+    return price, margin, profit, markup, cost
+}

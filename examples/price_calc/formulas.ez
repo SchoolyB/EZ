@@ -1,0 +1,73 @@
+module formulas
+
+// Given Price and Cost, calculate the rest
+do solve_from_price_and_cost(price, cost float) -> (float, float, float, float, float) {
+    temp profit float = price - cost
+    temp margin float = (profit / price) * 100.0
+    temp markup float = (profit / cost) * 100.0
+    return price, margin, profit, markup, cost
+}
+
+// Given Price and Profit, calculate the rest
+do solve_from_price_and_profit(price, profit float) -> (float, float, float, float, float) {
+    temp cost float = price - profit
+    temp margin float = (profit / price) * 100.0
+    temp markup float = (profit / cost) * 100.0
+    return price, margin, profit, markup, cost
+}
+
+// Given Price and Margin, calculate the rest
+do solve_from_price_and_margin(price, margin float) -> (float, float, float, float, float) {
+    temp profit float = price * (margin / 100.0)
+    temp cost float = price - profit
+    temp markup float = (profit / cost) * 100.0
+    return price, margin, profit, markup, cost
+}
+
+// Given Price and Markup, calculate the rest
+do solve_from_price_and_markup(price, markup float) -> (float, float, float, float, float) {
+    temp cost float = price / (1.0 + markup / 100.0)
+    temp profit float = price - cost
+    temp margin float = (profit / price) * 100.0
+    return price, margin, profit, markup, cost
+}
+
+// Given Cost and Profit, calculate the rest
+do solve_from_cost_and_profit(cost, profit float) -> (float, float, float, float, float) {
+    temp price float = cost + profit
+    temp margin float = (profit / price) * 100.0
+    temp markup float = (profit / cost) * 100.0
+    return price, margin, profit, markup, cost
+}
+
+// Given Cost and Margin, calculate the rest
+do solve_from_cost_and_margin(cost, margin float) -> (float, float, float, float, float) {
+    temp price float = cost / (1.0 - margin / 100.0)
+    temp profit float = price - cost
+    temp markup float = (profit / cost) * 100.0
+    return price, margin, profit, markup, cost
+}
+
+// Given Cost and Markup, calculate the rest
+do solve_from_cost_and_markup(cost, markup float) -> (float, float, float, float, float) {
+    temp price float = cost * (1.0 + markup / 100.0)
+    temp profit float = price - cost
+    temp margin float = (profit / price) * 100.0
+    return price, margin, profit, markup, cost
+}
+
+// Given Profit and Margin, calculate the rest
+do solve_from_profit_and_margin(profit, margin float) -> (float, float, float, float, float) {
+    temp price float = profit / (margin / 100.0)
+    temp cost float = price - profit
+    temp markup float = (profit / cost) * 100.0
+    return price, margin, profit, markup, cost
+}
+
+// Given Profit and Markup, calculate the rest
+do solve_from_profit_and_markup(profit, markup float) -> (float, float, float, float, float) {
+    temp cost float = profit / (markup / 100.0)
+    temp price float = cost + profit
+    temp margin float = (profit / price) * 100.0
+    return price, margin, profit, markup, cost
+}
