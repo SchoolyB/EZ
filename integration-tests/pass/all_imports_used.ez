@@ -1,0 +1,10 @@
+/* Test file for no unused import warning
+ * Expected: no warnings (all imports are used)
+ */
+
+import @std, @strings
+
+do main() {
+    // Both std and strings modules are used
+    std.println(strings.upper("hello"))
+}
