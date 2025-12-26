@@ -1,0 +1,117 @@
+module display
+
+import @std, @math, @strings
+using std
+
+// Menu choice constants
+const PRICE int = 1
+const MARGIN int = 2
+const PROFIT int = 3
+const MARKUP int = 4
+const COST int = 5
+
+// Display the program header
+do show_header() {
+    println("╔══════════════════════════════════════════╗")
+    println("║       PRICE METRICS CALCULATOR           ║")
+    println("╠══════════════════════════════════════════╣")
+    println("║  Calculate Price, Margin, Profit,        ║")
+    println("║  Markup, and Cost from any two values    ║")
+    println("╚══════════════════════════════════════════╝")
+    println("")
+}
+
+// Display all calculated results
+do show_results(price, margin, profit, markup, cost float) {
+    temp str_price = strings.pad_left(format_decimal(price), 7, " ")
+    temp str_margin = strings.pad_left(format_decimal(margin), 7, " ")
+    temp str_profit = strings.pad_left(format_decimal(profit), 7, " ")
+    temp str_markup = strings.pad_left(format_decimal(markup), 7, " ")
+    temp str_cost = strings.pad_left(format_decimal(cost), 7, " ")
+                    
+    println("")
+    println("┌──────────────────────────────────────────┐")
+    println("│            CALCULATED RESULTS            │")
+    println("├──────────────────────────────────────────┤")
+    println("│             Price: $${str_price}              │")
+    println("│            Margin: %${str_margin}              │")
+    println("│            Profit: $${str_profit}              │")
+    println("│            Markup: %${str_markup}              │")
+    println("│              Cost: $${str_cost}              │")
+    println("└──────────────────────────────────────────┘")
+    println("")
+}
+
+// Display a separator line
+do show_separator() {
+    println("──────────────────────────────────────────")
+}
+
+// Helper to format a float to a string with exactly 2 decimal places
+do format_decimal(val float) -> string {
+    // Round to 2 decimal places
+    temp rounded = math.round(val * 100.0) / 100.0
+    temp str = string(rounded)
+    
+    // Check if string contains a decimal point
+    temp dot_index = strings.index(str, ".")
+    
+    if dot_index == -1 {
+        // No decimal point, add ".00"
+        return str + ".00"
+    }
+    
+    // Count decimal places (characters after the dot)
+    temp decimal_part = strings.slice(str, dot_index + 1)
+    temp decimal_len = len(decimal_part)
+    
+    if decimal_len == 1 {
+        // Only one decimal place, add a zero
+        return str + "0"
+    }
+    
+    // Already has 2 or more decimal places
+    return str
+}
+
+// Display the main input selection menu
+do show_main_menu() {
+    println("Select FIRST value to enter:")
+    println("")
+    println("  1. Price ($)")
+    println("  2. Margin (%)")
+    println("  3. Profit ($)")
+    println("  4. Markup (%)")
+    println("  5. Cost ($)")
+    println("")
+}
+
+// Display second value menu, excluding the first choice and invalid combos
+do show_second_menu(first_choice int) {
+    println("Select SECOND value to enter:")
+    println("")
+    
+    if first_choice != PRICE {
+        println("  1. Price ($)")
+    }
+    if first_choice != MARGIN && first_choice != MARKUP {
+        println("  2. Margin (%)")
+    }
+    if first_choice != PROFIT {
+        println("  3. Profit ($)")
+    }
+    if first_choice != MARKUP && first_choice != MARGIN {
+        println("  4. Markup (%)")
+    }
+    if first_choice != COST {
+        println("  5. Cost ($)")
+    }
+    println("")
+}
+
+// Display an error message
+do show_error(message string) {
+    println("")
+    println("  ⚠ ERROR: ${message}")
+    println("")
+}
