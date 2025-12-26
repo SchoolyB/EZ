@@ -2619,14 +2619,17 @@ func (p *Parser) parseStringValue() Expression {
 		return &StringValue{Token: token, Value: literal}
 	}
 
-	// Parse interpolated string
+	// Parse interpolated string - use runes for proper UTF-8 handling
+	// We need both rune iteration (for Unicode text) and byte positions
+	// (for slicing the expression content inside ${})
 	parts := make([]Expression, 0)
-	i := 0
+	runes := []rune(literal)
+	runeIdx := 0
 	currentLiteral := ""
 
-	for i < len(literal) {
-		// Look for ${
-		if i < len(literal)-1 && literal[i] == '$' && literal[i+1] == '{' {
+	for runeIdx < len(runes) {
+		// Look for ${ - these are ASCII so safe to check as runes
+		if runeIdx < len(runes)-1 && runes[runeIdx] == '$' && runes[runeIdx+1] == '{' {
 			// Add any accumulated literal before this interpolation
 			if currentLiteral != "" {
 				parts = append(parts, &StringValue{
@@ -2637,18 +2640,18 @@ func (p *Parser) parseStringValue() Expression {
 			}
 
 			// Find matching closing brace
-			i += 2 // skip ${
+			runeIdx += 2 // skip ${
 			braceCount := 1
-			exprStart := i
+			exprStartRune := runeIdx
 
-			for i < len(literal) && braceCount > 0 {
-				if literal[i] == '{' {
+			for runeIdx < len(runes) && braceCount > 0 {
+				if runes[runeIdx] == '{' {
 					braceCount++
-				} else if literal[i] == '}' {
+				} else if runes[runeIdx] == '}' {
 					braceCount--
 				}
 				if braceCount > 0 {
-					i++
+					runeIdx++
 				}
 			}
 
@@ -2658,8 +2661,8 @@ func (p *Parser) parseStringValue() Expression {
 				return &StringValue{Token: token, Value: literal}
 			}
 
-			// Parse the expression inside ${}
-			exprStr := literal[exprStart:i]
+			// Parse the expression inside ${} - convert rune slice to string
+			exprStr := string(runes[exprStartRune:runeIdx])
 			if exprStr == "" {
 				p.addEZError(errors.E2002, "empty interpolation in string", token)
 			} else {
@@ -2670,10 +2673,11 @@ func (p *Parser) parseStringValue() Expression {
 				}
 			}
 
-			i++ // skip the closing }
+			runeIdx++ // skip the closing }
 		} else {
-			currentLiteral += string(literal[i])
-			i++
+			// Append the rune as a string (handles multi-byte UTF-8 correctly)
+			currentLiteral += string(runes[runeIdx])
+			runeIdx++
 		}
 	}
 
