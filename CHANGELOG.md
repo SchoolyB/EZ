@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.34.0](https://github.com/SchoolyB/EZ/compare/v0.33.4...v0.34.0) (2025-12-26)
+
+
+### Features
+
+* add warning for unused imports ([#639](https://github.com/SchoolyB/EZ/issues/639)) ([#844](https://github.com/SchoolyB/EZ/issues/844)) ([d299bcd](https://github.com/SchoolyB/EZ/commit/d299bcdcbc750037d68ceb591c94c951abcf1152))
+* **examples:** add price calculator example ([#848](https://github.com/SchoolyB/EZ/issues/848)) ([70d10b7](https://github.com/SchoolyB/EZ/commit/70d10b721970f2fb266c892128b974ad9d069f15))
+
+
+### Bug Fixes
+
+* **examples:** resolve W2009 warning in json.ez ([#357](https://github.com/SchoolyB/EZ/issues/357)) ([#847](https://github.com/SchoolyB/EZ/issues/847)) ([20815bb](https://github.com/SchoolyB/EZ/commit/20815bb81d24c2c4803d89e0c65daf162941f032))
+
 ## [0.33.4](https://github.com/SchoolyB/EZ/compare/v0.33.3...v0.33.4) (2025-12-26)
 
 
