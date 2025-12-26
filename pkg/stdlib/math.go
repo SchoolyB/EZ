@@ -8,14 +8,12 @@ import (
 	"math"
 	"math/big"
 	"math/rand"
-	"time"
 
 	"github.com/marshallburns/ez/pkg/object"
 )
 
-func init() {
-	rand.Seed(time.Now().UnixNano())
-}
+// Note: As of Go 1.20+, math/rand is automatically seeded from a secure source.
+// The rand.Seed() call was deprecated and has been removed.
 
 // MathBuiltins contains the math module functions
 var MathBuiltins = map[string]*object.Builtin{

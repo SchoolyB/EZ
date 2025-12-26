@@ -25,7 +25,9 @@ func parseProgram(t *testing.T, input string) *Program {
 	return program
 }
 
-func parseProgramWithSource(t *testing.T, input string) *Program {
+// parseProgramWithSource is a helper for tests that need source tracking.
+// Currently unused but retained for future test cases.
+func _parseProgramWithSource(t *testing.T, input string) *Program {
 	t.Helper()
 	l := NewLexer(input)
 	p := NewWithSource(l, input, "test.ez")
@@ -61,7 +63,9 @@ func testIntegerLiteral(t *testing.T, il Expression, expected int64) bool {
 	return true
 }
 
-func testBigIntegerLiteral(t *testing.T, il Expression, expected *big.Int) bool {
+// testBigIntegerLiteral tests arbitrary-precision integer parsing.
+// Currently unused but retained for future test cases.
+func _testBigIntegerLiteral(t *testing.T, il Expression, expected *big.Int) bool {
 	t.Helper()
 	integ, ok := il.(*IntegerValue)
 	if !ok {

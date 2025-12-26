@@ -25,7 +25,9 @@ func testEval(input string) Object {
 	return Eval(program, env)
 }
 
-func testEvalWithEnv(input string, env *Environment) Object {
+// testEvalWithEnv is a helper for tests that need a pre-populated environment.
+// Currently unused but retained for future test cases.
+func _testEvalWithEnv(input string, env *Environment) Object {
 	l := lexer.NewLexer(input)
 	p := parser.New(l)
 	program := p.ParseProgram()
@@ -5569,8 +5571,8 @@ func TestIdentifierEvaluation(t *testing.T) {
 			expected: int64(42),
 		},
 		{
-			name: "nil literal",
-			input: `nil`,
+			name:     "nil literal",
+			input:    `nil`,
 			expected: nil,
 		},
 	}

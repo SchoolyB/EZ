@@ -3099,7 +3099,7 @@ func (tc *TypeChecker) checkBuiltinTypeConversion(funcName string, call *ast.Cal
 			line, column := tc.getExpressionPosition(call.Arguments[0])
 			tc.addError(
 				errors.E3005,
-				fmt.Sprintf("cannot convert string to int at build-time (value may not be numeric)"),
+				"cannot convert string to int at build-time (value may not be numeric)",
 				line,
 				column,
 			)
@@ -3125,7 +3125,7 @@ func (tc *TypeChecker) checkBuiltinTypeConversion(funcName string, call *ast.Cal
 			line, column := tc.getExpressionPosition(call.Arguments[0])
 			tc.addError(
 				errors.E3006,
-				fmt.Sprintf("cannot convert string to float at build-time (value may not be numeric)"),
+				"cannot convert string to float at build-time (value may not be numeric)",
 				line,
 				column,
 			)
@@ -3419,7 +3419,7 @@ func (tc *TypeChecker) checkWhenStatement(whenStmt *ast.WhenStatement, expectedR
 					line, col := tc.getExpressionPosition(caseValue)
 					tc.addError(
 						errors.E2054,
-						fmt.Sprintf("#strict when requires explicit enum member values, got non-enum expression"),
+						"#strict when requires explicit enum member values, got non-enum expression",
 						line,
 						col,
 					)
