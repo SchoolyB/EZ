@@ -177,12 +177,20 @@ type Parameter struct {
 	HasDefault bool // true if parameter has a default value
 }
 
+// ImportLocation stores the location of an import statement for error reporting
+type ImportLocation struct {
+	Line   int
+	Column int
+}
+
 // TypeChecker validates types in an EZ program
 type TypeChecker struct {
 	types                map[string]*Type                         // All known types
 	functions            map[string]*FunctionSignature            // All function signatures
 	variables            map[string]string                        // Variable name -> type name (global scope)
 	modules              map[string]bool                          // Imported module names
+	usedModules          map[string]bool                          // Modules that are actually used (#639)
+	importLocations      map[string]ImportLocation                // Module name -> import location for warnings (#639)
 	fileUsingModules     map[string]bool                          // File-level using modules
 	moduleFunctions      map[string]map[string]*FunctionSignature // Module name -> function name -> signature
 	moduleTypes          map[string]map[string]*Type              // Module name -> type name -> type
@@ -205,6 +213,8 @@ func NewTypeChecker(source, filename string) *TypeChecker {
 		functions:        make(map[string]*FunctionSignature),
 		variables:        make(map[string]string),
 		modules:          make(map[string]bool),
+		usedModules:      make(map[string]bool),
+		importLocations:  make(map[string]ImportLocation),
 		fileUsingModules: make(map[string]bool),
 		moduleFunctions:  make(map[string]map[string]*FunctionSignature),
 		moduleTypes:      make(map[string]map[string]*Type),
@@ -512,10 +522,18 @@ func (tc *TypeChecker) CheckProgram(program *ast.Program) bool {
 				}
 				tc.modules[moduleName] = true
 
+				// Store import location for unused import warnings (#639)
+				tc.importLocations[moduleName] = ImportLocation{
+					Line:   importStmt.Token.Line,
+					Column: importStmt.Token.Column,
+				}
+
 				// If this is an "import & use" statement, also register for file-level using
 				// This allows unqualified access to types from the module
 				if importStmt.AutoUse {
 					tc.fileUsingModules[moduleName] = true
+					// Mark as used since "import & use" implies the module will be used
+					tc.usedModules[moduleName] = true
 				}
 			}
 		}
@@ -525,6 +543,8 @@ func (tc *TypeChecker) CheckProgram(program *ast.Program) bool {
 	for _, usingStmt := range program.FileUsing {
 		for _, mod := range usingStmt.Modules {
 			tc.fileUsingModules[mod.Value] = true
+			// Mark as used since explicit 'using' statement implies usage
+			tc.usedModules[mod.Value] = true
 		}
 	}
 
@@ -566,6 +586,9 @@ func (tc *TypeChecker) CheckProgram(program *ast.Program) bool {
 	if !tc.skipMainCheck {
 		tc.checkMainFunction()
 	}
+
+	// Phase 6: Check for unused imports (#639)
+	tc.checkUnusedImports()
 
 	errCount, _ := tc.errors.Count()
 	return errCount == 0
@@ -1151,9 +1174,38 @@ func (tc *TypeChecker) checkMainFunction() {
 	if _, exists := tc.functions["main"]; !exists {
 		tc.addError(
 			errors.E4009,
-			"Program must define a main() function",
+			"program must define a main() function",
 			1,
 			1,
+		)
+	}
+}
+
+// markModuleUsed marks a module as being used in the code (#639)
+func (tc *TypeChecker) markModuleUsed(moduleName string) {
+	tc.usedModules[moduleName] = true
+}
+
+// checkUnusedImports warns about imported modules that are never used (#639)
+func (tc *TypeChecker) checkUnusedImports() {
+	for moduleName := range tc.modules {
+		// Skip if module is used
+		if tc.usedModules[moduleName] {
+			continue
+		}
+
+		// Get import location for the warning
+		loc, hasLoc := tc.importLocations[moduleName]
+		if !hasLoc {
+			// Should not happen, but be safe
+			loc = ImportLocation{Line: 1, Column: 1}
+		}
+
+		tc.addWarning(
+			errors.W1002,
+			fmt.Sprintf("imported module '%s' is not used", moduleName),
+			loc.Line,
+			loc.Column,
 		)
 	}
 }
@@ -3357,7 +3409,7 @@ func (tc *TypeChecker) checkWhenStatement(whenStmt *ast.WhenStatement, expectedR
 	if valueType == "bool" {
 		tc.addError(
 			errors.E2048,
-			"when condition cannot be a boolean. Use if/or/otherwise instead",
+			"when condition cannot be a boolean; use if/or/otherwise instead",
 			whenStmt.Token.Line,
 			whenStmt.Token.Column,
 		)
@@ -3367,7 +3419,7 @@ func (tc *TypeChecker) checkWhenStatement(whenStmt *ast.WhenStatement, expectedR
 	if valueType == "nil" {
 		tc.addError(
 			errors.E2049,
-			"when condition cannot be nil. Use if/otherwise to check for nil",
+			"when condition cannot be nil; use if/otherwise to check for nil",
 			whenStmt.Token.Line,
 			whenStmt.Token.Column,
 		)
@@ -4846,6 +4898,9 @@ func (tc *TypeChecker) inferModuleCallType(member *ast.MemberExpression, args []
 
 	funcName := member.Member.Value
 
+	// Mark the module as used (#639)
+	tc.markModuleUsed(moduleName)
+
 	// Standard library function return types
 	switch moduleName {
 	case "std":
@@ -5061,6 +5116,8 @@ func (tc *TypeChecker) inferMemberType(member *ast.MemberExpression) (string, bo
 		if tc.modules[moduleName] {
 			memberName := member.Member.Value
 			if varType, ok := tc.GetModuleVariable(moduleName, memberName); ok {
+				// Mark the module as used (#639)
+				tc.markModuleUsed(moduleName)
 				return varType, true
 			}
 		}
@@ -5078,6 +5135,8 @@ func (tc *TypeChecker) inferMemberType(member *ast.MemberExpression) (string, bo
 			if tc.modules[moduleName] {
 				if moduleTypes, hasModule := tc.moduleTypes[moduleName]; hasModule {
 					if enumType, hasEnum := moduleTypes[enumName]; hasEnum && enumType.Kind == EnumType {
+						// Mark the module as used (#639)
+						tc.markModuleUsed(moduleName)
 						// Validate that the enum member exists
 						if enumType.EnumMembers != nil && !enumType.EnumMembers[memberName] {
 							tc.addError(
@@ -5849,6 +5908,9 @@ func (tc *TypeChecker) checkStdlibCall(member *ast.MemberExpression, call *ast.C
 		return
 	}
 
+	// Mark the module as used (#639)
+	tc.markModuleUsed(moduleName)
+
 	switch moduleName {
 	case "std":
 		tc.checkStdModuleCall(funcName, call, line, column)
@@ -5899,6 +5961,9 @@ func (tc *TypeChecker) checkUserModuleCall(moduleName, funcName string, call *as
 		}
 		return
 	}
+
+	// Mark the module as used (#639)
+	tc.markModuleUsed(moduleName)
 
 	// Calculate minimum required arguments (parameters without defaults)
 	minRequired := 0
