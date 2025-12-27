@@ -227,6 +227,31 @@ func checkFile(filename string) {
 	// Store module variable/constant definitions: alias/moduleName -> varName -> type (#677)
 	moduleVariables := make(map[string]map[string]string)
 
+	// Two-pass approach for checking module files (#709, #851):
+	// Pass 1: Parse ALL files from ALL modules and extract type/function declarations
+	// Pass 2: Full type check with all declarations available
+	// This fixes #851 where nested imports weren't available during type checking
+
+	type parsedFile struct {
+		path     string
+		source   string
+		program  *ast.Program
+		parser   *parser.Parser
+		lexer    *lexer.Lexer
+		modPath  string // The module path this file belongs to
+		numFiles int    // Number of files in the module
+	}
+	var allParsedFiles []parsedFile
+
+	// Module-internal declarations for multi-file modules (shared across files in the same module)
+	type moduleInternals struct {
+		types map[string]*typechecker.Type
+		funcs map[string]*typechecker.FunctionSignature
+		vars  map[string]string
+	}
+	moduleInternalsMap := make(map[string]*moduleInternals) // keyed by modPath
+
+	// Pass 1: Parse all module files and extract declarations
 	for len(modulesToCheck) > 0 {
 		// Pop first module
 		modPath := modulesToCheck[0]
@@ -246,20 +271,16 @@ func checkFile(filename string) {
 			continue
 		}
 
-		// Two-pass approach for checking module files (#709):
-		// Pass 1: Parse all files and extract type/function declarations
-		// Pass 2: Full type check with all declarations available
-
-		type parsedFile struct {
-			path    string
-			source  string
-			program *ast.Program
-			parser  *parser.Parser
-			lexer   *lexer.Lexer
+		// Initialize module-internal declarations for multi-file modules
+		if len(mod.Files) > 1 {
+			moduleInternalsMap[modPath] = &moduleInternals{
+				types: make(map[string]*typechecker.Type),
+				funcs: make(map[string]*typechecker.FunctionSignature),
+				vars:  make(map[string]string),
+			}
 		}
-		var parsedFiles []parsedFile
 
-		// Pass 1: Parse all files and extract declarations
+		// Parse all files in this module
 		for _, filePath := range mod.Files {
 			if checked[filePath] {
 				continue
@@ -304,12 +325,14 @@ func checkFile(filename string) {
 				continue
 			}
 
-			parsedFiles = append(parsedFiles, parsedFile{
-				path:    filePath,
-				source:  fileSource,
-				program: fileProgram,
-				parser:  fileParser,
-				lexer:   fileLex,
+			allParsedFiles = append(allParsedFiles, parsedFile{
+				path:     filePath,
+				source:   fileSource,
+				program:  fileProgram,
+				parser:   fileParser,
+				lexer:    fileLex,
+				modPath:  modPath,
+				numFiles: len(mod.Files),
 			})
 
 			// Extract types and functions from this file (lightweight pass)
@@ -344,62 +367,108 @@ func checkFile(filename string) {
 				for varName, varType := range extractTc.GetVariables() {
 					moduleVariables[moduleName][varName] = varType
 				}
+
+				// For multi-file modules, also store in module-internal declarations (#722)
+				if len(mod.Files) > 1 {
+					internals := moduleInternalsMap[modPath]
+					for typeName, t := range extractTc.GetTypes() {
+						if t.Kind == typechecker.StructType || t.Kind == typechecker.EnumType {
+							internals.types[typeName] = t
+						}
+					}
+					for funcName, sig := range extractTc.GetFunctions() {
+						internals.funcs[funcName] = sig
+					}
+					for varName, varType := range extractTc.GetVariables() {
+						internals.vars[varName] = varType
+					}
+				}
 			}
 
-			// Collect imports from this file
-			newImports := collectImports(fileProgram, absDir, filePath)
-			modulesToCheck = append(modulesToCheck, newImports...)
+			// Collect imports from this file (including aliases for nested imports) (#851)
+			newImportsWithAliases := collectImportsWithAliases(fileProgram, absDir, filePath)
+			for _, imp := range newImportsWithAliases {
+				modulesToCheck = append(modulesToCheck, imp.Path)
+				if imp.Alias != "" {
+					pathToAlias[imp.Path] = imp.Alias
+				}
+			}
+		}
+	}
+
+	// Pass 2: Full type check with ALL declarations from ALL modules available
+	for _, pf := range allParsedFiles {
+		if checked[pf.path] {
+			continue
+		}
+		checked[pf.path] = true
+		filesChecked++
+
+		if pf.parser.EZErrors().HasWarnings() {
+			fmt.Print(errors.FormatErrorList(pf.parser.EZErrors()))
 		}
 
-		// Pass 2: Full type check with all declarations available
-		for _, pf := range parsedFiles {
-			if checked[pf.path] {
-				continue
+		// Type check with all module types registered
+		fileTc := typechecker.NewTypeChecker(pf.source, pf.path)
+		fileTc.SetSkipMainCheck(true)
+
+		// Set current module name for same-module symbol lookup
+		if pf.program.Module != nil && pf.program.Module.Name != nil {
+			fileTc.SetCurrentModule(pf.program.Module.Name.Value)
+		}
+
+		// Register all collected module types for cross-module checking (#709)
+		for modName, types := range moduleTypes {
+			for typeName, t := range types {
+				fileTc.RegisterModuleType(modName, typeName, t)
 			}
-			checked[pf.path] = true
-			filesChecked++
-
-			if pf.parser.EZErrors().HasWarnings() {
-				fmt.Print(errors.FormatErrorList(pf.parser.EZErrors()))
+		}
+		for modName, funcs := range moduleSignatures {
+			for funcName, sig := range funcs {
+				fileTc.RegisterModuleFunction(modName, funcName, sig)
 			}
-
-			// Type check with all module types registered
-			fileTc := typechecker.NewTypeChecker(pf.source, pf.path)
-			fileTc.SetSkipMainCheck(true)
-
-			// Set current module name for same-module symbol lookup
-			if pf.program.Module != nil && pf.program.Module.Name != nil {
-				fileTc.SetCurrentModule(pf.program.Module.Name.Value)
+		}
+		for modName, vars := range moduleVariables {
+			for varName, varType := range vars {
+				fileTc.RegisterModuleVariable(modName, varName, varType)
 			}
+		}
 
-			// Register all collected module types for cross-module checking (#709)
-			for modName, types := range moduleTypes {
-				for typeName, t := range types {
-					fileTc.RegisterModuleType(modName, typeName, t)
+		// For multi-file modules, register module-internal types/functions/variables (#722)
+		if pf.numFiles > 1 {
+			if internals, ok := moduleInternalsMap[pf.modPath]; ok {
+				// Get module name for self-referencing types (e.g., testmod.Hero within testmod)
+				var selfModuleName string
+				if pf.program.Module != nil && pf.program.Module.Name != nil {
+					selfModuleName = pf.program.Module.Name.Value
+				}
+
+				for typeName, t := range internals.types {
+					fileTc.RegisterType(typeName, t)
+					// Also register as module-prefixed type for self-referencing (bug #463)
+					if selfModuleName != "" {
+						fileTc.RegisterModuleType(selfModuleName, typeName, t)
+					}
+				}
+				for funcName, sig := range internals.funcs {
+					fileTc.RegisterFunction(funcName, sig)
+				}
+				for varName, varType := range internals.vars {
+					fileTc.RegisterVariable(varName, varType)
 				}
 			}
-			for modName, funcs := range moduleSignatures {
-				for funcName, sig := range funcs {
-					fileTc.RegisterModuleFunction(modName, funcName, sig)
-				}
-			}
-			for modName, vars := range moduleVariables {
-				for varName, varType := range vars {
-					fileTc.RegisterModuleVariable(modName, varName, varType)
-				}
-			}
+		}
 
-			fileTc.CheckProgram(pf.program)
+		fileTc.CheckProgram(pf.program)
 
-			if fileTc.Errors().HasErrors() {
-				fmt.Print(errors.FormatErrorList(fileTc.Errors()))
-				hasErrors = true
-				continue
-			}
+		if fileTc.Errors().HasErrors() {
+			fmt.Print(errors.FormatErrorList(fileTc.Errors()))
+			hasErrors = true
+			continue
+		}
 
-			if fileTc.Errors().HasWarnings() {
-				fmt.Print(errors.FormatErrorList(fileTc.Errors()))
-			}
+		if fileTc.Errors().HasWarnings() {
+			fmt.Print(errors.FormatErrorList(fileTc.Errors()))
 		}
 	}
 
@@ -831,6 +900,29 @@ func runFile(filename string) {
 	checked := make(map[string]bool)
 	checked[absPath] = true
 
+	// Two-pass approach for checking module files (#709, #851):
+	// Pass 1: Parse ALL files from ALL modules and extract type/function declarations
+	// Pass 2: Full type check with all declarations available
+	// This fixes #851 where nested imports weren't available during type checking
+
+	type parsedFile struct {
+		path       string
+		source     string
+		program    *ast.Program
+		modPath    string // The module path this file belongs to
+		numFiles   int    // Number of files in the module
+	}
+	var allParsedFiles []parsedFile
+
+	// Module-internal declarations for multi-file modules (shared across files in the same module)
+	type moduleInternals struct {
+		types map[string]*typechecker.Type
+		funcs map[string]*typechecker.FunctionSignature
+		vars  map[string]string
+	}
+	moduleInternalsMap := make(map[string]*moduleInternals) // keyed by modPath
+
+	// Pass 1: Parse all module files and extract declarations
 	for len(modulesToCheck) > 0 {
 		modPath := modulesToCheck[0]
 		modulesToCheck = modulesToCheck[1:]
@@ -852,22 +944,16 @@ func runFile(filename string) {
 			continue
 		}
 
-		// For multi-file modules, use two-pass type checking (#722)
-		// Pass 1: Parse all files and extract declarations
-		// Pass 2: Full type check with complete module context
-		type parsedFile struct {
-			path    string
-			source  string
-			program *ast.Program
+		// Initialize module-internal declarations for multi-file modules
+		if len(mod.Files) > 1 {
+			moduleInternalsMap[modPath] = &moduleInternals{
+				types: make(map[string]*typechecker.Type),
+				funcs: make(map[string]*typechecker.FunctionSignature),
+				vars:  make(map[string]string),
+			}
 		}
-		var parsedFiles []parsedFile
 
-		// Module-internal declarations (shared across files in the same module)
-		moduleInternalTypes := make(map[string]*typechecker.Type)
-		moduleInternalFuncs := make(map[string]*typechecker.FunctionSignature)
-		moduleInternalVars := make(map[string]string)
-
-		// Pass 1: Parse all files and extract declarations
+		// Parse all files in this module
 		for _, filePath := range mod.Files {
 			if checked[filePath] {
 				continue
@@ -908,100 +994,17 @@ func runFile(filename string) {
 				os.Exit(1)
 			}
 
-			parsedFiles = append(parsedFiles, parsedFile{filePath, fileSource, fileProgram})
+			allParsedFiles = append(allParsedFiles, parsedFile{
+				path:     filePath,
+				source:   fileSource,
+				program:  fileProgram,
+				modPath:  modPath,
+				numFiles: len(mod.Files),
+			})
 
-			// Lightweight declaration extraction for multi-file modules
-			if len(mod.Files) > 1 {
-				declTc := typechecker.NewTypeChecker(fileSource, filePath)
-				declTc.SetSkipMainCheck(true)
-
-				// Register external module types/functions for type resolution
-				for modName, types := range moduleTypes {
-					for typeName, t := range types {
-						declTc.RegisterModuleType(modName, typeName, t)
-					}
-				}
-
-				declTc.RegisterDeclarations(fileProgram)
-
-				// Collect types, functions, and variables from this file
-				for typeName, t := range declTc.GetTypes() {
-					if t.Kind == typechecker.StructType || t.Kind == typechecker.EnumType {
-						moduleInternalTypes[typeName] = t
-					}
-				}
-				for funcName, sig := range declTc.GetFunctions() {
-					moduleInternalFuncs[funcName] = sig
-				}
-				for varName, varType := range declTc.GetVariables() {
-					moduleInternalVars[varName] = varType
-				}
-			}
-
-			// Collect imports from all files
-			newImports := collectImports(fileProgram, rootDir, filePath)
-			modulesToCheck = append(modulesToCheck, newImports...)
-		}
-
-		// Pass 2: Full type checking with complete module context
-		for _, pf := range parsedFiles {
-			checked[pf.path] = true
-
-			fileTc := typechecker.NewTypeChecker(pf.source, pf.path)
-			fileTc.SetSkipMainCheck(true)
-
-			// Register already-collected module types for cross-module checking (#709)
-			for modName, types := range moduleTypes {
-				for typeName, t := range types {
-					fileTc.RegisterModuleType(modName, typeName, t)
-				}
-			}
-			for modName, funcs := range moduleSignatures {
-				for funcName, sig := range funcs {
-					fileTc.RegisterModuleFunction(modName, funcName, sig)
-				}
-			}
-
-			// For multi-file modules, register module-internal types/functions/variables (#722)
-			if len(mod.Files) > 1 {
-				// Get module name for self-referencing types (e.g., testmod.Hero within testmod)
-				var selfModuleName string
-				if pf.program.Module != nil && pf.program.Module.Name != nil {
-					selfModuleName = pf.program.Module.Name.Value
-				}
-
-				for typeName, t := range moduleInternalTypes {
-					fileTc.RegisterType(typeName, t)
-					// Also register as module-prefixed type for self-referencing (bug #463)
-					if selfModuleName != "" {
-						fileTc.RegisterModuleType(selfModuleName, typeName, t)
-					}
-				}
-				for funcName, sig := range moduleInternalFuncs {
-					fileTc.RegisterFunction(funcName, sig)
-				}
-				for varName, varType := range moduleInternalVars {
-					fileTc.RegisterVariable(varName, varType)
-				}
-			}
-
-			fileTc.CheckProgram(pf.program)
-
-			// Check for type errors in module files (#720, #722)
-			if fileTc.Errors().HasErrors() {
-				fmt.Print(errors.FormatErrorList(fileTc.Errors()))
-				os.Exit(1)
-			}
-
-			// Display type checker warnings from module files
-			if fileTc.Errors().HasWarnings() {
-				fmt.Print(errors.FormatErrorList(fileTc.Errors()))
-			}
-
-			// Extract module name, function signatures, and types
-			if pf.program.Module != nil && pf.program.Module.Name != nil {
-				// Use the alias if one was provided, otherwise use the module's internal name
-				moduleName := pf.program.Module.Name.Value
+			// Extract types and functions from this file (lightweight pass)
+			if fileProgram.Module != nil && fileProgram.Module.Name != nil {
+				moduleName := fileProgram.Module.Name.Value
 				if alias, hasAlias := pathToAlias[modPath]; hasAlias {
 					moduleName = alias
 				}
@@ -1014,19 +1017,107 @@ func runFile(filename string) {
 				if moduleVariables[moduleName] == nil {
 					moduleVariables[moduleName] = make(map[string]string)
 				}
-				for funcName, sig := range fileTc.GetFunctions() {
+
+				// Extract type declarations without full type checking
+				extractTc := typechecker.NewTypeChecker(fileSource, filePath)
+				extractTc.SetSkipMainCheck(true)
+				extractTc.RegisterDeclarations(fileProgram)
+
+				for funcName, sig := range extractTc.GetFunctions() {
 					moduleSignatures[moduleName][funcName] = sig
 				}
-				for typeName, t := range fileTc.GetTypes() {
+				for typeName, t := range extractTc.GetTypes() {
 					if t.Kind == typechecker.StructType || t.Kind == typechecker.EnumType {
 						moduleTypes[moduleName][typeName] = t
 					}
 				}
-				// Copy variable/constant definitions (#677)
-				for varName, varType := range fileTc.GetVariables() {
+				for varName, varType := range extractTc.GetVariables() {
 					moduleVariables[moduleName][varName] = varType
 				}
+
+				// For multi-file modules, also store in module-internal declarations
+				if len(mod.Files) > 1 {
+					internals := moduleInternalsMap[modPath]
+					for typeName, t := range extractTc.GetTypes() {
+						if t.Kind == typechecker.StructType || t.Kind == typechecker.EnumType {
+							internals.types[typeName] = t
+						}
+					}
+					for funcName, sig := range extractTc.GetFunctions() {
+						internals.funcs[funcName] = sig
+					}
+					for varName, varType := range extractTc.GetVariables() {
+						internals.vars[varName] = varType
+					}
+				}
 			}
+
+			// Collect imports from this file (including aliases for nested imports) (#851)
+			newImportsWithAliases := collectImportsWithAliases(fileProgram, rootDir, filePath)
+			for _, imp := range newImportsWithAliases {
+				modulesToCheck = append(modulesToCheck, imp.Path)
+				if imp.Alias != "" {
+					pathToAlias[imp.Path] = imp.Alias
+				}
+			}
+		}
+	}
+
+	// Pass 2: Full type check with ALL declarations from ALL modules available
+	for _, pf := range allParsedFiles {
+		checked[pf.path] = true
+
+		fileTc := typechecker.NewTypeChecker(pf.source, pf.path)
+		fileTc.SetSkipMainCheck(true)
+
+		// Register all collected module types for cross-module checking (#709)
+		for modName, types := range moduleTypes {
+			for typeName, t := range types {
+				fileTc.RegisterModuleType(modName, typeName, t)
+			}
+		}
+		for modName, funcs := range moduleSignatures {
+			for funcName, sig := range funcs {
+				fileTc.RegisterModuleFunction(modName, funcName, sig)
+			}
+		}
+
+		// For multi-file modules, register module-internal types/functions/variables (#722)
+		if pf.numFiles > 1 {
+			if internals, ok := moduleInternalsMap[pf.modPath]; ok {
+				// Get module name for self-referencing types (e.g., testmod.Hero within testmod)
+				var selfModuleName string
+				if pf.program.Module != nil && pf.program.Module.Name != nil {
+					selfModuleName = pf.program.Module.Name.Value
+				}
+
+				for typeName, t := range internals.types {
+					fileTc.RegisterType(typeName, t)
+					// Also register as module-prefixed type for self-referencing (bug #463)
+					if selfModuleName != "" {
+						fileTc.RegisterModuleType(selfModuleName, typeName, t)
+					}
+				}
+				for funcName, sig := range internals.funcs {
+					fileTc.RegisterFunction(funcName, sig)
+				}
+				for varName, varType := range internals.vars {
+					fileTc.RegisterVariable(varName, varType)
+				}
+			}
+		}
+
+		fileTc.CheckProgram(pf.program)
+
+		// Check for type errors in module files (#720, #722)
+		if fileTc.Errors().HasErrors() {
+			fmt.Print(errors.FormatErrorList(fileTc.Errors()))
+			os.Exit(1)
+		}
+
+		// Display type checker warnings from module files
+		if fileTc.Errors().HasWarnings() {
+			fmt.Print(errors.FormatErrorList(fileTc.Errors()))
 		}
 	}
 
