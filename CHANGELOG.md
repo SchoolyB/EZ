@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.35.0](https://github.com/SchoolyB/EZ/compare/v0.34.1...v0.35.0) (2025-12-27)
+
+
+### Features
+
+* ASCII art banner ([#855](https://github.com/SchoolyB/EZ/issues/855)) ([4ccaea8](https://github.com/SchoolyB/EZ/commit/4ccaea8989729e55beb068cc0ee0cd5aec8389f8))
+
 ## [0.34.1](https://github.com/SchoolyB/EZ/compare/v0.34.0...v0.34.1) (2025-12-27)
 
 
