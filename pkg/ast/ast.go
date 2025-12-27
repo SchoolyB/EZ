@@ -8,6 +8,13 @@ import (
 	. "github.com/marshallburns/ez/pkg/tokenizer"
 )
 
+// Location represents a source code location
+type Location struct {
+	File   string
+	Line   int
+	Column int
+}
+
 // Node is the base interface for all AST nodes
 type Node interface {
 	TokenLiteral() string

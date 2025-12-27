@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/marshallburns/ez/pkg/ast"
+	"github.com/marshallburns/ez/pkg/debugger"
 	"github.com/marshallburns/ez/pkg/errors"
 	"github.com/marshallburns/ez/pkg/interpreter"
 	"github.com/marshallburns/ez/pkg/lexer"
@@ -49,6 +50,18 @@ func main() {
 		runUpdate(os.Args[2:])
 	case "repl":
 		startREPL()
+	case "debug":
+		if len(os.Args) < 3 {
+			fmt.Println("Usage: ez debug <file.ez>")
+			return
+		}
+		runFileDebug(os.Args[2])
+	case "debugserver":
+		if len(os.Args) < 3 {
+			fmt.Println("Usage: ez debugserver <file.ez>")
+			return
+		}
+		runDebugServer(os.Args[2])
 	case "check", "build":
 		if len(os.Args) < 3 {
 			fmt.Println("Usage: ez check <file.ez | directory>")
@@ -95,6 +108,7 @@ func printHelp() {
 	fmt.Println("Commands:")
 	fmt.Println("  check <file | dir>   Check syntax and types for a file or directory")
 	fmt.Println("  repl           Start interactive REPL mode")
+	fmt.Println("  debug <file>   Run a file with interactive debugger")
 	fmt.Println("  update         Check for updates and upgrade EZ")
 	fmt.Println("  version        Show version information")
 	fmt.Println("  help           Show this help message")
@@ -1179,4 +1193,231 @@ func printRuntimeError(errObj *interpreter.Error, source, filename string) {
 		// Fall back to simple output
 		fmt.Println(errObj.Inspect())
 	}
+}
+
+// runFileDebug runs a file with the interactive debugger enabled
+func runFileDebug(filename string) {
+	data, err := os.ReadFile(filename)
+	if err != nil {
+		fmt.Printf("Error reading file: %v\n", err)
+		return
+	}
+
+	// Get absolute path for module loading
+	absPath, err := filepath.Abs(filename)
+	if err != nil {
+		fmt.Printf("Error resolving path: %v\n", err)
+		return
+	}
+
+	source := string(data)
+	l := lexer.NewLexer(source)
+	p := parser.NewWithSource(l, source, filename)
+	program := p.ParseProgram()
+
+	// Check for lexer errors first
+	if len(l.Errors()) > 0 {
+		errList := errors.NewErrorList()
+		for _, lexErr := range l.Errors() {
+			var code errors.ErrorCode
+			switch lexErr.Code {
+			case "E1005":
+				code = errors.E1005
+			default:
+				code = errors.ErrorCode{Code: lexErr.Code, Name: "lexer-error", Description: "Lexer error"}
+			}
+			sourceLine := errors.GetSourceLine(source, lexErr.Line)
+			ezErr := errors.NewErrorWithSource(code, lexErr.Message, filename, lexErr.Line, lexErr.Column, sourceLine)
+			errList.AddError(ezErr)
+		}
+		fmt.Print(errors.FormatErrorList(errList))
+		os.Exit(1)
+	}
+
+	// Check for parser errors
+	if p.EZErrors().HasErrors() {
+		fmt.Print(errors.FormatErrorList(p.EZErrors()))
+		os.Exit(1)
+	}
+
+	// Display parser warnings
+	if p.EZErrors().HasWarnings() {
+		fmt.Print(errors.FormatErrorList(p.EZErrors()))
+	}
+
+	// Initialize the module loader
+	rootDir := filepath.Dir(absPath)
+	loader := interpreter.NewModuleLoader(rootDir)
+
+	// Type check the main program
+	tc := typechecker.NewTypeChecker(source, absPath)
+	tc.CheckProgram(program)
+
+	if tc.Errors().HasErrors() {
+		fmt.Print(errors.FormatErrorList(tc.Errors()))
+		os.Exit(1)
+	}
+
+	// Set up the evaluation context
+	ctx := &interpreter.EvalContext{
+		Loader:      loader,
+		CurrentFile: absPath,
+	}
+	interpreter.SetEvalContext(ctx)
+
+	// Create and configure the debugger
+	dbg := debugger.New()
+	dbg.Enable()
+
+	// Create CLI handler for interactive debugging
+	handler := debugger.NewCLIHandler(dbg, os.Stdin, os.Stdout)
+	dbg.SetEventHandler(handler)
+
+	// Set global debugger so the interpreter can access it
+	debugger.SetGlobalDebugger(dbg)
+
+	// Print debug mode banner
+	fmt.Println("╔══════════════════════════════════════════════════════════╗")
+	fmt.Println("║        EZ Interactive Debugger - Debug Mode             ║")
+	fmt.Println("╚══════════════════════════════════════════════════════════╝")
+	fmt.Printf("\nDebugging: %s\n", filename)
+	fmt.Println("Type 'help' at the debug prompt for available commands")
+	fmt.Println("Execution will start automatically. Use 'step' to begin stepping.\n")
+
+	// Set initial step mode to StepInto so we pause at first statement
+	dbg.StepInto()
+
+	// Create environment and evaluate
+	env := interpreter.NewEnvironment()
+	result := interpreter.Eval(program, env)
+
+	// Print any module loading warnings
+	if ctx := interpreter.GetEvalContext(); ctx != nil && ctx.Loader != nil {
+		for _, warning := range ctx.Loader.GetWarnings() {
+			fmt.Print(errors.FormatError(warning))
+		}
+	}
+
+	// Check for evaluation errors
+	if errObj, ok := result.(*interpreter.Error); ok {
+		printRuntimeError(errObj, source, filename)
+		os.Exit(1)
+	}
+
+	// Look for main function and call it
+	if mainFn, ok := env.Get("main"); ok {
+		if fn, ok := mainFn.(*interpreter.Function); ok {
+			fnEnv := interpreter.NewEnclosedEnvironment(env)
+			mainResult := interpreter.Eval(fn.Body, fnEnv)
+
+			// Check for errors from main
+			if errObj, ok := mainResult.(*interpreter.Error); ok {
+				printRuntimeError(errObj, source, filename)
+				os.Exit(1)
+			}
+		}
+	}
+
+	fmt.Println("\n✓ Program completed successfully")
+}
+
+// runDebugServer runs a file with the JSON protocol debugger for IDE integration
+func runDebugServer(filename string) {
+	data, err := os.ReadFile(filename)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error reading file: %v\n", err)
+		os.Exit(1)
+	}
+
+	// Get absolute path for module loading
+	absPath, err := filepath.Abs(filename)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error resolving path: %v\n", err)
+		os.Exit(1)
+	}
+
+	source := string(data)
+	l := lexer.NewLexer(source)
+	p := parser.NewWithSource(l, source, filename)
+	program := p.ParseProgram()
+
+	// Check for errors
+	if len(l.Errors()) > 0 || p.EZErrors().HasErrors() {
+		fmt.Fprintf(os.Stderr, "Parse errors in file\n")
+		os.Exit(1)
+	}
+
+	// Type check
+	tc := typechecker.NewTypeChecker(source, absPath)
+	tc.CheckProgram(program)
+	if tc.Errors().HasErrors() {
+		fmt.Fprintf(os.Stderr, "Type check errors in file\n")
+		os.Exit(1)
+	}
+
+	// Initialize the module loader
+	rootDir := filepath.Dir(absPath)
+	loader := interpreter.NewModuleLoader(rootDir)
+
+	// Set up evaluation context
+	ctx := &interpreter.EvalContext{
+		Loader:      loader,
+		CurrentFile: absPath,
+	}
+	interpreter.SetEvalContext(ctx)
+
+	// Create and configure the debugger
+	dbg := debugger.New()
+	dbg.Enable()
+
+	// Create JSON protocol handler
+	protocol := debugger.NewJSONProtocol(dbg, os.Stdin, os.Stdout)
+
+	// Create JSON event handler
+	handler := debugger.NewJSONEventHandler(protocol)
+	dbg.SetEventHandler(handler)
+
+	// Set global debugger
+	debugger.SetGlobalDebugger(dbg)
+
+	// Start protocol handler in a goroutine
+	go func() {
+		if err := protocol.Start(); err != nil {
+			fmt.Fprintf(os.Stderr, "Protocol error: %v\n", err)
+			os.Exit(1)
+		}
+	}()
+
+	// Wait for initialize command, then execute program
+	// The protocol handler will control execution via commands
+
+	// For now, we start execution immediately in step mode
+	dbg.StepInto()
+
+	// Create environment and evaluate
+	env := interpreter.NewEnvironment()
+	result := interpreter.Eval(program, env)
+
+	// Check for evaluation errors
+	if errObj, ok := result.(*interpreter.Error); ok {
+		// Send error event via protocol would go here
+		fmt.Fprintf(os.Stderr, "Runtime error: %s\n", errObj.Message)
+		os.Exit(1)
+	}
+
+	// Look for main function and call it
+	if mainFn, ok := env.Get("main"); ok {
+		if fn, ok := mainFn.(*interpreter.Function); ok {
+			fnEnv := interpreter.NewEnclosedEnvironment(env)
+			mainResult := interpreter.Eval(fn.Body, fnEnv)
+
+			if errObj, ok := mainResult.(*interpreter.Error); ok {
+				fmt.Fprintf(os.Stderr, "Runtime error: %s\n", errObj.Message)
+				os.Exit(1)
+			}
+		}
+	}
+
+	// Program completed - send exited event via protocol
+	// This would be handled by the protocol
 }

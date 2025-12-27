@@ -905,6 +905,20 @@ func (e *Environment) GetPublicStructDefs() map[string]*StructDef {
 	return result
 }
 
+// GetAll returns all variables in this environment (not including outer scopes)
+func (e *Environment) GetAll() map[string]Object {
+	result := make(map[string]Object)
+	for name, value := range e.store {
+		result[name] = value
+	}
+	return result
+}
+
+// Outer returns the parent environment
+func (e *Environment) Outer() *Environment {
+	return e.outer
+}
+
 type Database struct {
 	Path     String
 	Store    Map
