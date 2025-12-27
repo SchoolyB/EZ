@@ -1,0 +1,21 @@
+/*
+ * handler.ez - Processes structs from another module
+ * Regression test for issue #851 - struct parameter member access bug
+ */
+module processor
+
+import lib"../library"
+using lib
+
+do create_test_struct(v u8, n string) -> TestStruct {
+    temp ts = TestStruct{Value: v, Name: n}
+    return ts
+}
+
+do process(s TestStruct) -> u8 {
+    return s.Value
+}
+
+do get_name(s TestStruct) -> string {
+    return s.Name
+}

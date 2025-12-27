@@ -1,0 +1,29 @@
+/*
+ * main.ez - Test struct parameter member access across modules
+ * Regression test for issue #851 - struct parameter member access bug
+ */
+module main
+
+import @std
+import proc"./processor"
+
+using std
+
+do main() {
+    println("=== Struct Parameter Member Access Test ===")
+
+    // Create a struct instance using the processor module
+    temp ts = proc.create_test_struct(42, "test")
+
+    // Call processor function that takes the struct as a parameter
+    temp val = proc.process(ts)
+    temp name = proc.get_name(ts)
+
+    if val == 42 && name == "test" {
+        println("  [PASS] struct parameter member access works")
+        println("ALL TESTS PASSED")
+    } otherwise {
+        println("  [FAIL] expected val=42, name='test', got val=${val}, name='${name}'")
+        println("TESTS FAILED")
+    }
+}
