@@ -26,6 +26,15 @@ var (
 	BuildTime = "unknown"
 )
 
+const asciiBanner = `
+ _____ ____
+| ____|__  |
+|  _|   / /
+| |___ / /_
+|_____/____|
+Programming made EZ
+`
+
 func main() {
 	if len(os.Args) < 2 {
 		printHelp()
@@ -112,7 +121,8 @@ func printHelp() {
 }
 
 func printVersion() {
-	fmt.Printf("EZ Language %s\n", Version)
+	fmt.Print(asciiBanner)
+	fmt.Printf("\n%s%s%s\n", errors.Bold, Version, errors.Reset)
 	fmt.Printf("Built: %s\n", BuildTime)
 
 	// Always fetch fresh version info when user explicitly runs 'ez version'
