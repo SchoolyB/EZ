@@ -100,9 +100,14 @@ EZ/
 │   ├── stdlib/          # Standard library modules
 │   ├── tokenizer/       # Token types and definitions
 │   └── typechecker/     # Static type checking
+├── integration-tests/   # Integration test suites
+│   ├── fail/            # Tests expected to fail
+│   └── pass/            # Tests expected to pass
 ├── examples/            # Example EZ programs
-├── fix_docs/            # Internal documentation
-└── scripts/             # Build and release scripts
+├── scripts/             # Build and release scripts
+├── Makefile             # Build automation
+├── ERRORS.md            # Error code documentation
+└── TESTING.md           # Testing guidelines
 ```
 
 ### Key Components
@@ -258,6 +263,7 @@ The standard library is where EZ gets its "batteries included" feel. Here's how 
 * `@os`
 * `@json`
 * `@binary`
+* `@db`
 
 ### Guidelines
 * **Check for duplicates** — Make sure the function doesn't already exist
