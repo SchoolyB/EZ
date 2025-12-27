@@ -25,15 +25,6 @@ func testEval(input string) Object {
 	return Eval(program, env)
 }
 
-// testEvalWithEnv is a helper for tests that need a pre-populated environment.
-// Currently unused but retained for future test cases.
-func _testEvalWithEnv(input string, env *Environment) Object {
-	l := lexer.NewLexer(input)
-	p := parser.New(l)
-	program := p.ParseProgram()
-	return Eval(program, env)
-}
-
 func testIntegerObject(t *testing.T, obj Object, expected int64) bool {
 	t.Helper()
 	result, ok := obj.(*Integer)
