@@ -19,6 +19,8 @@ import (
 	"runtime"
 	"strings"
 	"time"
+
+	"github.com/marshallburns/ez/pkg/errors"
 )
 
 // UpdateState stores the last update check info
@@ -231,6 +233,7 @@ func runUpdate(args []string) {
 			fmt.Printf("Error during update: %v\n", err)
 			os.Exit(1)
 		}
+		fmt.Print(asciiBanner)
 		fmt.Println("\nSuccessfully updated!")
 		fmt.Println("Restart your terminal or run `ez version` to verify.")
 		return
@@ -308,7 +311,9 @@ func runUpdate(args []string) {
 		return
 	}
 
-	fmt.Printf("\nSuccessfully updated to %s!\n", release.TagName)
+	fmt.Print(asciiBanner)
+	fmt.Printf("\n%s%s%s\n", errors.Bold, release.TagName, errors.Reset)
+	fmt.Println("\nSuccessfully updated!")
 	fmt.Println("Restart your terminal or run `ez version` to verify.")
 }
 
