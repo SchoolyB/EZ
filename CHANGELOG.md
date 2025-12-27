@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.34.1](https://github.com/SchoolyB/EZ/compare/v0.34.0...v0.34.1) (2025-12-27)
+
+
+### Bug Fixes
+
+* **typechecker:** resolve struct parameter member access for imported types ([#851](https://github.com/SchoolyB/EZ/issues/851)) ([#853](https://github.com/SchoolyB/EZ/issues/853)) ([dada274](https://github.com/SchoolyB/EZ/commit/dada2740cca72f88d8ed56699d7596e38e368bfe))
+
 ## [0.34.0](https://github.com/SchoolyB/EZ/compare/v0.33.4...v0.34.0) (2025-12-26)
 
 
