@@ -25,14 +25,6 @@ func parseProgram(t *testing.T, input string) *Program {
 	return program
 }
 
-func parseProgramWithSource(t *testing.T, input string) *Program {
-	t.Helper()
-	l := NewLexer(input)
-	p := NewWithSource(l, input, "test.ez")
-	program := p.ParseProgram()
-	return program
-}
-
 func checkParserErrors(t *testing.T, p *Parser) {
 	t.Helper()
 	errs := p.Errors()
@@ -56,20 +48,6 @@ func testIntegerLiteral(t *testing.T, il Expression, expected int64) bool {
 	}
 	if integ.Value.Cmp(big.NewInt(expected)) != 0 {
 		t.Errorf("integ.Value not %d, got=%s", expected, integ.Value.String())
-		return false
-	}
-	return true
-}
-
-func testBigIntegerLiteral(t *testing.T, il Expression, expected *big.Int) bool {
-	t.Helper()
-	integ, ok := il.(*IntegerValue)
-	if !ok {
-		t.Errorf("expression not *IntegerValue, got=%T", il)
-		return false
-	}
-	if integ.Value.Cmp(expected) != 0 {
-		t.Errorf("integ.Value not %s, got=%s", expected.String(), integ.Value.String())
 		return false
 	}
 	return true
