@@ -5764,6 +5764,16 @@ func (tc *TypeChecker) isUuidFunction(name string) bool {
 	return uuidFuncs[name]
 }
 
+// isEncodingFunction checks if a function name exists in the encoding module
+func (tc *TypeChecker) isEncodingFunction(name string) bool {
+	encodingFuncs := map[string]bool{
+		"base64_encode": true, "base64_decode": true,
+		"hex_encode": true, "hex_decode": true,
+		"url_encode": true, "url_decode": true,
+	}
+	return encodingFuncs[name]
+}
+
 // isBytesFunction checks if a function name exists in the bytes module
 func (tc *TypeChecker) isBytesFunction(name string) bool {
 	bytesFuncs := map[string]bool{
@@ -5910,7 +5920,7 @@ func (tc *TypeChecker) checkStdlibCall(member *ast.MemberExpression, call *ast.C
 	line, column := tc.getExpressionPosition(member.Member)
 
 	// Check if the module was imported (for standard library modules)
-	stdModules := map[string]bool{"std": true, "math": true, "arrays": true, "strings": true, "time": true, "maps": true, "io": true, "os": true, "bytes": true, "random": true, "json": true, "binary": true, "db": true, "uuid": true}
+	stdModules := map[string]bool{"std": true, "math": true, "arrays": true, "strings": true, "time": true, "maps": true, "io": true, "os": true, "bytes": true, "random": true, "json": true, "binary": true, "db": true, "uuid": true, "encoding": true}
 	if stdModules[moduleName] && !tc.modules[moduleName] {
 		tc.addError(errors.E4007, fmt.Sprintf("module '%s' not imported; add 'import @%s'", moduleName, moduleName), line, column)
 		return
@@ -5948,6 +5958,8 @@ func (tc *TypeChecker) checkStdlibCall(member *ast.MemberExpression, call *ast.C
 		tc.checkDBModuleCall(funcName, call, line, column)
 	case "uuid":
 		tc.checkUuidModuleCall(funcName, call, line, column)
+	case "encoding":
+		tc.checkEncodingModuleCall(funcName, call, line, column)
 	default:
 		// User-defined module - check if we have type info for it
 		tc.checkUserModuleCall(moduleName, funcName, call, line, column)
@@ -6966,6 +6978,31 @@ func (tc *TypeChecker) checkUuidModuleCall(funcName string, call *ast.CallExpres
 	}
 
 	tc.validateStdlibCall("uuid", funcName, call, sig, line, column)
+}
+
+// checkEncodingModuleCall validates encoding module function calls
+func (tc *TypeChecker) checkEncodingModuleCall(funcName string, call *ast.CallExpression, line, column int) {
+	signatures := map[string]StdlibFuncSig{
+		// encoding.base64_encode(data) - encodes to base64
+		"base64_encode": {1, 1, []string{"string"}, "string"},
+		// encoding.base64_decode(data) - decodes from base64
+		"base64_decode": {1, 1, []string{"string"}, "tuple"},
+		// encoding.hex_encode(data) - encodes to hex
+		"hex_encode": {1, 1, []string{"string"}, "string"},
+		// encoding.hex_decode(data) - decodes from hex
+		"hex_decode": {1, 1, []string{"string"}, "tuple"},
+		// encoding.url_encode(data) - URL percent-encodes
+		"url_encode": {1, 1, []string{"string"}, "string"},
+		// encoding.url_decode(data) - decodes URL encoding
+		"url_decode": {1, 1, []string{"string"}, "tuple"},
+	}
+
+	sig, exists := signatures[funcName]
+	if !exists {
+		return
+	}
+
+	tc.validateStdlibCall("encoding", funcName, call, sig, line, column)
 }
 
 // validateStdlibCall performs the actual validation of a stdlib call

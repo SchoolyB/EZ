@@ -58,6 +58,9 @@ func GetAllBuiltins() map[string]*object.Builtin {
 	for name, builtin := range UUIDBuiltins {
 		all[name] = builtin
 	}
+	for name, builtin := range EncodingBuiltins {
+		all[name] = builtin
+	}
 
 	return all
 }
