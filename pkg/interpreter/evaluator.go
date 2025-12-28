@@ -3274,6 +3274,13 @@ func evalNewExpression(node *ast.NewExpression, env *Environment) Object {
 // sourceModule is optional - if provided, nested struct types will be looked up
 // in that module first (for cross-module struct initialization).
 func getDefaultValueWithEnv(typeName string, env *Environment, sourceModule *ModuleObject) Object {
+	// Use the internal function with an empty visited set for cycle detection (#860)
+	return getDefaultValueInternal(typeName, env, sourceModule, make(map[string]bool))
+}
+
+// getDefaultValueInternal is the internal implementation that tracks visited types
+// to detect and handle self-referential or mutually recursive struct types (#860).
+func getDefaultValueInternal(typeName string, env *Environment, sourceModule *ModuleObject, visited map[string]bool) Object {
 	// Check if it's a dynamic array type (starts with '[' but doesn't contain ',')
 	if len(typeName) > 0 && typeName[0] == '[' && !strings.Contains(typeName, ",") {
 		return &Array{Elements: []Object{}}
@@ -3293,12 +3300,19 @@ func getDefaultValueWithEnv(typeName string, env *Environment, sourceModule *Mod
 	case "char":
 		return &Char{Value: '\x00'}
 	default:
+		// Check for self-referential or mutually recursive types (#860)
+		// If we've already started processing this type, return nil to break the cycle
+		if visited[typeName] {
+			return NIL
+		}
+		visited[typeName] = true
+
 		// First, check the source module if provided (for cross-module nested structs)
 		if sourceModule != nil {
 			if structDef, sdOk := sourceModule.GetStructDef(typeName); sdOk {
 				fields := make(map[string]Object)
 				for fieldName, fieldType := range structDef.Fields {
-					fields[fieldName] = getDefaultValueWithEnv(fieldType, env, sourceModule)
+					fields[fieldName] = getDefaultValueInternal(fieldType, env, sourceModule, visited)
 				}
 				return &Struct{
 					TypeName: structDef.Name,
@@ -3311,7 +3325,7 @@ func getDefaultValueWithEnv(typeName string, env *Environment, sourceModule *Mod
 		if structDef, ok := env.GetStructDef(typeName); ok {
 			fields := make(map[string]Object)
 			for fieldName, fieldType := range structDef.Fields {
-				fields[fieldName] = getDefaultValueWithEnv(fieldType, env, sourceModule)
+				fields[fieldName] = getDefaultValueInternal(fieldType, env, sourceModule, visited)
 			}
 			return &Struct{
 				TypeName: structDef.Name,
@@ -3325,7 +3339,7 @@ func getDefaultValueWithEnv(typeName string, env *Environment, sourceModule *Mod
 				if structDef, sdOk := moduleObj.GetStructDef(typeName); sdOk {
 					fields := make(map[string]Object)
 					for fieldName, fieldType := range structDef.Fields {
-						fields[fieldName] = getDefaultValueWithEnv(fieldType, env, moduleObj)
+						fields[fieldName] = getDefaultValueInternal(fieldType, env, moduleObj, visited)
 					}
 					return &Struct{
 						TypeName: structDef.Name,
