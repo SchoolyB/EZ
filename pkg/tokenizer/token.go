@@ -106,6 +106,7 @@ const (
 	TRUE       TokenType = "TRUE"
 	FALSE      TokenType = "FALSE"
 	BLANK      TokenType = "BLANK" // _ blank identifier
+	ENSURE     TokenType = "ENSURE"
 	SUPPRESS   TokenType = "SUPPRESS"
 	STRICT     TokenType = "STRICT"
 	ENUM_ATTR  TokenType = "ENUM_ATTR" // @enum(type)
@@ -161,6 +162,7 @@ var keywords = map[string]TokenType{
 	"is":         IS,
 	"default":    DEFAULT,
 	"cast":       CAST,
+	"ensure":     ENSURE,
 }
 
 // Looks up the passed in identifier(i)
@@ -180,7 +182,7 @@ func IsKeyword(t TokenType) bool {
 		FOR, FOR_EACH, AS_LONG_AS, LOOP, BREAK, CONTINUE,
 		IN, NOT_IN, RANGE, IMPORT, USING, STRUCT, ENUM,
 		NIL, NEW, TRUE, FALSE, BLANK, MODULE, PRIVATE, USE,
-		WHEN, IS, DEFAULT, CAST:
+		WHEN, IS, DEFAULT, CAST, ENSURE:
 		return true
 	}
 	return false

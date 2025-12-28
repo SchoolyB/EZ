@@ -5639,3 +5639,114 @@ func TestMinusPrefixCoverage(t *testing.T) {
 		})
 	}
 }
+
+// ============================================================================
+// Ensure Statement Tests
+// ============================================================================
+
+func TestEnsureStatementExecution(t *testing.T) {
+	input := `
+temp count int = 0
+do cleanup() {
+	count = count + 1
+}
+do track() {
+	ensure cleanup()
+}
+track()
+count
+`
+	evaluated := testEval(input)
+	testIntegerObject(t, evaluated, 1)
+}
+
+func TestEnsureLIFOOrder(t *testing.T) {
+	input := `
+temp count int = 0
+do first() {
+	count = count * 10 + 1
+}
+do second() {
+	count = count * 10 + 2
+}
+do third() {
+	count = count * 10 + 3
+}
+do track() {
+	ensure first()
+	ensure second()
+	ensure third()
+}
+track()
+count
+`
+	evaluated := testEval(input)
+	// Should execute in reverse: third runs first (3), then second (32), then first (321)
+	testIntegerObject(t, evaluated, 321)
+}
+
+func TestEnsureWithEarlyReturn(t *testing.T) {
+	input := `
+temp count int = 0
+do cleanup() {
+	count = count + 1
+}
+do track() {
+	ensure cleanup()
+	if true {
+		return
+	}
+}
+temp _ = track()
+count
+`
+	evaluated := testEval(input)
+	// Ensure should run even with early return, so count should be 1
+	testIntegerObject(t, evaluated, 1)
+}
+
+func TestEnsureWithNestedFunctions(t *testing.T) {
+	input := `
+temp innerCount int = 0
+temp outerCount int = 0
+do innerCleanup() {
+	innerCount = innerCount + 1
+}
+do outerCleanup() {
+	outerCount = outerCount + 10
+}
+do inner() {
+	ensure innerCleanup()
+}
+do outer() {
+	ensure outerCleanup()
+	inner()
+}
+outer()
+temp result int = outerCount + innerCount
+result
+`
+	evaluated := testEval(input)
+	// outer cleanup: 10, inner cleanup: 1, total: 11
+	testIntegerObject(t, evaluated, 11)
+}
+
+func TestEnsureWithError(t *testing.T) {
+	input := `
+do track() -> int {
+	ensure println("cleanup")
+	// This will cause an error (division by zero)
+	temp x int = 1 / 0
+	return 0
+}
+temp _ int = track()
+`
+	evaluated := testEval(input)
+	// Should return an error, but ensure should still run
+	if !isError(evaluated) {
+		t.Fatalf("expected error, got %T", evaluated)
+	}
+	// Note: In a real scenario, we'd want to verify ensure ran,
+	// but since we're returning an error, we can't check the count.
+	// This test verifies that ensure doesn't prevent error propagation.
+}
