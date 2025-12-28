@@ -61,44 +61,36 @@ func (p *Program) TokenLiteral() string {
 // Expressions
 // ============================================================================
 
-// A "Label" is just my way of describing
-// an "Identifier" like most languages do.
+// Label represents an identifier
 type Label struct {
 	Token Token
 	Value string
 }
 
-// Takes in a pointer to a Lable(l)
 func (l *Label) expressionNode()      {}
 func (l *Label) TokenLiteral() string { return l.Token.Literal }
 
-// Represents an integer value
 type IntegerValue struct {
 	Token Token
 	Value *big.Int
 }
 
-// Takes in a pointer to an IntegerValue(v)
 func (v *IntegerValue) expressionNode()      {}
 func (v *IntegerValue) TokenLiteral() string { return v.Token.Literal }
 
-// Represents a float value
 type FloatValue struct {
 	Token Token
 	Value float64
 }
 
-// Takes in a pointer to an FloatValue(v)
 func (v *FloatValue) expressionNode()      {}
 func (v *FloatValue) TokenLiteral() string { return v.Token.Literal }
 
-// Represents a string value
 type StringValue struct {
 	Token Token
 	Value string
 }
 
-// Takes in a pointer to an StringValue(v)
 func (v *StringValue) expressionNode()      {}
 func (v *StringValue) TokenLiteral() string { return v.Token.Literal }
 
@@ -117,7 +109,6 @@ type CharValue struct {
 	Value rune
 }
 
-// Takes in a pointer to an CharValue(v)
 func (v *CharValue) expressionNode()      {}
 func (v *CharValue) TokenLiteral() string { return v.Token.Literal }
 
@@ -127,7 +118,6 @@ type BooleanValue struct {
 	Value bool
 }
 
-// Takes in a pointer to an BooleanValue(v)
 func (v *BooleanValue) expressionNode()      {}
 func (v *BooleanValue) TokenLiteral() string { return v.Token.Literal }
 
@@ -137,11 +127,9 @@ type NilValue struct {
 	// nil has no value...
 }
 
-// Takes in a pointer to an NilValue(v)
 func (v *NilValue) expressionNode()      {}
 func (v *NilValue) TokenLiteral() string { return v.Token.Literal }
 
-// Represents an array literal {1, 2, 3, etc....}
 type ArrayValue struct {
 	Token    Token
 	Elements []Expression
