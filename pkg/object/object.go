@@ -682,6 +682,7 @@ type Environment struct {
 	modules    map[string]*ModuleObject // User modules: alias -> module object
 	using      []string
 	loopDepth  int
+	ensureStack []*ast.CallExpression // Stack of ensure statements (LIFO order)
 }
 
 func NewEnvironment() *Environment {
@@ -695,6 +696,7 @@ func NewEnvironment() *Environment {
 		modules:    make(map[string]*ModuleObject),
 		using:      []string{},
 		loopDepth:  0,
+		ensureStack: []*ast.CallExpression{},
 	}
 
 	env.structDefs["Error"] = &StructDef{
@@ -856,6 +858,28 @@ func (e *Environment) ExitLoop() {
 
 func (e *Environment) InLoop() bool {
 	return e.loopDepth > 0
+}
+
+// PushEnsure adds an ensure call expression to the stack
+func (e *Environment) PushEnsure(call *ast.CallExpression) {
+	e.ensureStack = append(e.ensureStack, call)
+}
+
+// ExecuteEnsures executes all ensure statements in reverse order (LIFO)
+func (e *Environment) ExecuteEnsures() []*ast.CallExpression {
+	// Return a copy in reverse order for execution
+	ensures := make([]*ast.CallExpression, len(e.ensureStack))
+	copy(ensures, e.ensureStack)
+	// Reverse the slice
+	for i, j := 0, len(ensures)-1; i < j; i, j = i+1, j-1 {
+		ensures[i], ensures[j] = ensures[j], ensures[i]
+	}
+	return ensures
+}
+
+// ClearEnsures clears the ensure stack (called after execution)
+func (e *Environment) ClearEnsures() {
+	e.ensureStack = []*ast.CallExpression{}
 }
 
 func (e *Environment) RegisterStructDef(name string, def *StructDef) {

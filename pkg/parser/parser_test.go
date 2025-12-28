@@ -3140,3 +3140,178 @@ func TestLoopStatementParsingCoverage(t *testing.T) {
 		t.Fatalf("expected LoopStatement, got %T", program.Statements[0])
 	}
 }
+
+// ============================================================================
+// Ensure Statement Tests
+// ============================================================================
+
+func TestEnsureStatement(t *testing.T) {
+	input := `do test() {
+	ensure cleanup()
+}`
+	l := NewLexer(input)
+	p := New(l)
+	program := p.ParseProgram()
+	checkParserErrors(t, p)
+
+	if len(program.Statements) != 1 {
+		t.Fatalf("expected 1 statement, got %d", len(program.Statements))
+	}
+
+	fn, ok := program.Statements[0].(*FunctionDeclaration)
+	if !ok {
+		t.Fatalf("expected FunctionDeclaration, got %T", program.Statements[0])
+	}
+
+	if len(fn.Body.Statements) != 1 {
+		t.Fatalf("expected 1 statement in function body, got %d", len(fn.Body.Statements))
+	}
+
+	ensureStmt, ok := fn.Body.Statements[0].(*EnsureStatement)
+	if !ok {
+		t.Fatalf("expected EnsureStatement, got %T", fn.Body.Statements[0])
+	}
+
+	callExpr, ok := ensureStmt.Expression.(*CallExpression)
+	if !ok {
+		t.Fatalf("expected CallExpression in EnsureStatement, got %T", ensureStmt.Expression)
+	}
+
+	testIdentifier(t, callExpr.Function, "cleanup")
+}
+
+func TestEnsureWithNonCallExpression(t *testing.T) {
+	input := `do test() {
+	ensure x
+}`
+	l := NewLexer(input)
+	p := New(l)
+	_ = p.ParseProgram()
+
+	// Should have parser errors
+	if len(p.Errors()) == 0 {
+		t.Fatal("expected parser errors for ensure with non-call expression")
+	}
+
+	// Check that error mentions function call
+	hasError := false
+	for _, err := range p.Errors() {
+		if strings.Contains(err, "ensure expects a function call") {
+			hasError = true
+			break
+		}
+	}
+	if !hasError {
+		t.Errorf("expected error about function call, got errors: %v", p.Errors())
+	}
+}
+
+func TestEnsureWithFunctionDeclaration(t *testing.T) {
+	input := `do test() {
+	ensure do foo() {
+	}
+}`
+	l := NewLexer(input)
+	p := New(l)
+	_ = p.ParseProgram()
+
+	// Should have parser errors
+	if len(p.Errors()) == 0 {
+		t.Fatal("expected parser errors for ensure with function declaration")
+	}
+
+	// Check that error mentions function declaration
+	hasError := false
+	for _, err := range p.Errors() {
+		if strings.Contains(err, "ensure cannot be used with function declarations") {
+			hasError = true
+			break
+		}
+	}
+	if !hasError {
+		t.Errorf("expected error about function declaration, got errors: %v", p.Errors())
+	}
+}
+
+func TestEnsureWithConstDeclaration(t *testing.T) {
+	input := `do test() {
+	ensure const x int = 5
+}`
+	l := NewLexer(input)
+	p := New(l)
+	_ = p.ParseProgram()
+
+	// Should have parser errors
+	if len(p.Errors()) == 0 {
+		t.Fatal("expected parser errors for ensure with const declaration")
+	}
+
+	// Check that error mentions const declaration
+	hasError := false
+	for _, err := range p.Errors() {
+		if strings.Contains(err, "ensure cannot be used with const declarations") {
+			hasError = true
+			break
+		}
+	}
+	if !hasError {
+		t.Errorf("expected error about const declaration, got errors: %v", p.Errors())
+	}
+}
+
+func TestEnsureWithStructDeclaration(t *testing.T) {
+	input := `do test() {
+	ensure const Point struct {
+		x int
+	}
+}`
+	l := NewLexer(input)
+	p := New(l)
+	_ = p.ParseProgram()
+
+	// Should have parser errors
+	if len(p.Errors()) == 0 {
+		t.Fatal("expected parser errors for ensure with struct declaration")
+	}
+
+	// Check that error mentions const or struct declaration (parser may catch const first)
+	hasError := false
+	for _, err := range p.Errors() {
+		if strings.Contains(err, "ensure cannot be used with struct declarations") ||
+			strings.Contains(err, "ensure cannot be used with const declarations") {
+			hasError = true
+			break
+		}
+	}
+	if !hasError {
+		t.Errorf("expected error about struct/const declaration, got errors: %v", p.Errors())
+	}
+}
+
+func TestEnsureWithBlockStatement(t *testing.T) {
+	input := `do test() {
+	ensure {
+		cleanup()
+	}
+}`
+	l := NewLexer(input)
+	p := New(l)
+	_ = p.ParseProgram()
+
+	// Should have parser errors
+	if len(p.Errors()) == 0 {
+		t.Fatal("expected parser errors for ensure with block statement")
+	}
+
+	// Check that error mentions block statement
+	hasError := false
+	for _, err := range p.Errors() {
+		if strings.Contains(err, "ensure cannot be used with block statements") {
+			hasError = true
+			break
+		}
+	}
+	if !hasError {
+		t.Errorf("expected error about block statement, got errors: %v", p.Errors())
+	}
+}

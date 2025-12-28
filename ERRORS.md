@@ -137,6 +137,7 @@ Type system errors
 | E3036 | integer-out-of-range | integer literal exceeds type range |
 | E3037 | invalid-private-usage | private modifier cannot be used here |
 | E3038 | void-type-not-allowed | 'void' is a return type, not a value type |
+| E3039 | ensure-expects-call | ensure expects a function call |
 
 ## Reference Errors (E4xxx)
 
@@ -372,4 +373,4 @@ Module-related warnings
 
 ## Summary
 
-**Total:** 248 error/warning codes
+**Total:** 249 error/warning codes

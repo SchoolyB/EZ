@@ -317,6 +317,15 @@ type ReturnStatement struct {
 func (r *ReturnStatement) statementNode()       {}
 func (r *ReturnStatement) TokenLiteral() string { return r.Token.Literal }
 
+// EnsureStatement represents an ensure statement that runs cleanup on function exit
+type EnsureStatement struct {
+	Token      Token
+	Expression Expression // Must be a call expression
+}
+
+func (e *EnsureStatement) statementNode()       {}
+func (e *EnsureStatement) TokenLiteral() string { return e.Token.Literal }
+
 // ExpressionStatement wraps an expression as a statement
 type ExpressionStatement struct {
 	Token      Token
