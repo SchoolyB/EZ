@@ -5910,7 +5910,7 @@ func (tc *TypeChecker) checkStdlibCall(member *ast.MemberExpression, call *ast.C
 	line, column := tc.getExpressionPosition(member.Member)
 
 	// Check if the module was imported (for standard library modules)
-	stdModules := map[string]bool{"std": true, "math": true, "arrays": true, "strings": true, "time": true, "maps": true, "io": true, "os": true, "bytes": true, "random": true, "json": true, "binary": true, "db": true, "uuid": true, "encoding": true}
+	stdModules := map[string]bool{"std": true, "math": true, "arrays": true, "strings": true, "time": true, "maps": true, "io": true, "os": true, "bytes": true, "random": true, "json": true, "binary": true, "db": true, "uuid": true, "encoding": true, "crypto": true}
 	if stdModules[moduleName] && !tc.modules[moduleName] {
 		tc.addError(errors.E4007, fmt.Sprintf("module '%s' not imported; add 'import @%s'", moduleName, moduleName), line, column)
 		return
@@ -5950,6 +5950,8 @@ func (tc *TypeChecker) checkStdlibCall(member *ast.MemberExpression, call *ast.C
 		tc.checkUuidModuleCall(funcName, call, line, column)
 	case "encoding":
 		tc.checkEncodingModuleCall(funcName, call, line, column)
+	case "crypto":
+		tc.checkCryptoModuleCall(funcName, call, line, column)
 	default:
 		// User-defined module - check if we have type info for it
 		tc.checkUserModuleCall(moduleName, funcName, call, line, column)
@@ -6993,6 +6995,28 @@ func (tc *TypeChecker) checkEncodingModuleCall(funcName string, call *ast.CallEx
 	}
 
 	tc.validateStdlibCall("encoding", funcName, call, sig, line, column)
+}
+
+func (tc *TypeChecker) checkCryptoModuleCall(funcName string, call *ast.CallExpression, line, column int) {
+	signatures := map[string]StdlibFuncSig{
+		// crypto.sha256(data) - SHA-256 hash
+		"sha256": {1, 1, []string{"string"}, "string"},
+		// crypto.sha512(data) - SHA-512 hash
+		"sha512": {1, 1, []string{"string"}, "string"},
+		// crypto.md5(data) - MD5 hash (legacy)
+		"md5": {1, 1, []string{"string"}, "string"},
+		// crypto.random_bytes(length) - secure random bytes
+		"random_bytes": {1, 1, []string{"int"}, "array"},
+		// crypto.random_hex(length) - secure random hex string
+		"random_hex": {1, 1, []string{"int"}, "string"},
+	}
+
+	sig, exists := signatures[funcName]
+	if !exists {
+		return
+	}
+
+	tc.validateStdlibCall("crypto", funcName, call, sig, line, column)
 }
 
 // validateStdlibCall performs the actual validation of a stdlib call
