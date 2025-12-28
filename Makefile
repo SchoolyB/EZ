@@ -1,5 +1,5 @@
 # EZ Language Build System
-.PHONY: build install uninstall clean test help
+.PHONY: build install uninstall clean test integration-test help
 
 BINARY_NAME=ez
 INSTALL_PATH=/usr/local/bin
@@ -14,12 +14,13 @@ help:
 	@echo "EZ Language Build System"
 	@echo ""
 	@echo "Available targets:"
-	@echo "  make build      - Build the ez binary"
-	@echo "  make install    - Install ez to $(INSTALL_PATH)"
-	@echo "  make uninstall  - Remove ez from $(INSTALL_PATH)"
-	@echo "  make clean      - Remove built binaries"
-	@echo "  make test       - Run tests"
-	@echo "  make release    - Build for multiple platforms"
+	@echo "  make build            - Build the ez binary"
+	@echo "  make install          - Install ez to $(INSTALL_PATH)"
+	@echo "  make uninstall        - Remove ez from $(INSTALL_PATH)"
+	@echo "  make clean            - Remove built binaries and test artifacts"
+	@echo "  make test             - Run Go unit tests"
+	@echo "  make integration-test - Run integration test suite"
+	@echo "  make release          - Build for multiple platforms"
 
 build:
 	@echo "Building EZ..."
@@ -50,10 +51,14 @@ clean:
 	@echo "Cleaning build artifacts..."
 	@rm -f $(BINARY_NAME)
 	@rm -rf dist/
+	@rm -f *.ezdb
 	@echo "Clean complete"
 
 test:
 	$(GO) test ./... -v
+
+integration-test: build
+	./integration-tests/run_tests.sh
 
 # Build for multiple platforms
 release:
