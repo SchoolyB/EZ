@@ -1320,6 +1320,13 @@ func (tc *TypeChecker) checkFileScopeStatements(statements []ast.Statement) {
 				s.Token.Line,
 				s.Token.Column,
 			)
+		case *ast.EnsureStatement:
+			tc.addError(
+				errors.E2056,
+				"'ensure' statement not allowed at file scope; can only be used inside a function",
+				s.Token.Line,
+				s.Token.Column,
+			)
 		}
 	}
 }
