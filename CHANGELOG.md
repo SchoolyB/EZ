@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.36.2](https://github.com/SchoolyB/EZ/compare/v0.36.1...v0.36.2) (2025-12-28)
+
+
+### Bug Fixes
+
+* **ensure:** add missing validations and revert workflow change ([#866](https://github.com/SchoolyB/EZ/issues/866)) ([e502fbd](https://github.com/SchoolyB/EZ/commit/e502fbd2e41abf074ddff95ef71f6b1ab91373a0))
+
 ## [0.36.1](https://github.com/SchoolyB/EZ/compare/v0.36.0...v0.36.1) (2025-12-28)
 
 
