@@ -24,6 +24,7 @@ var reservedKeywords = map[string]bool{
 	"import": true, "using": true, "struct": true, "enum": true,
 	"nil": true, "new": true, "true": true, "false": true,
 	"module": true, "private": true, "from": true, "use": true,
+	"ensure": true,
 }
 
 // Builtin function and type names that cannot be redefined
@@ -683,6 +684,8 @@ func (p *Parser) parseStatement() Statement {
 		return stmt
 	case RETURN:
 		return p.parseReturnStatement()
+	case ENSURE:
+		return p.parseEnsureStatement()
 	case IF:
 		return p.parseIfStatement()
 	case WHEN:
@@ -1059,6 +1062,28 @@ func (p *Parser) parseReturnStatement() *ReturnStatement {
 		p.nextToken() // consume comma
 		p.nextToken() // move to next value
 		stmt.Values = append(stmt.Values, p.parseExpression(LOWEST))
+	}
+
+	return stmt
+}
+
+func (p *Parser) parseEnsureStatement() *EnsureStatement {
+	stmt := &EnsureStatement{Token: p.currentToken}
+
+	p.nextToken() // move to expression
+
+	// Parse the expression (must be a call expression)
+	expr := p.parseExpression(LOWEST)
+
+	// Validate that it's a call expression
+	if callExpr, ok := expr.(*CallExpression); ok {
+		stmt.Expression = callExpr
+	} else {
+		// Error: ensure expects a function call
+		msg := "ensure expects a function call"
+		p.errors = append(p.errors, msg)
+		p.addEZError(errors.E2003, msg, p.currentToken)
+		return nil
 	}
 
 	return stmt
