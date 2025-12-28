@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"strings"
 	"testing"
 
 	"github.com/marshallburns/ez/pkg/object"
@@ -1399,7 +1400,7 @@ func TestIOAtomicWrite(t *testing.T) {
 		}
 
 		for _, entry := range entries {
-			if filepath.HasPrefix(entry.Name(), ".ez_tmp_") {
+			if strings.HasPrefix(entry.Name(), ".ez_tmp_") {
 				t.Errorf("temp file left behind: %s", entry.Name())
 			}
 		}
