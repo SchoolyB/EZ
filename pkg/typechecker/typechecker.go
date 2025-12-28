@@ -2788,6 +2788,14 @@ func (tc *TypeChecker) checkInfixExpression(infix *ast.InfixExpression) {
 			return
 		}
 
+		// Allow int/float comparison like other comparison operators (#857)
+		leftNumeric := tc.isNumericType(leftType)
+		rightNumeric := tc.isNumericType(rightType)
+		if leftNumeric && rightNumeric {
+			// Both are numeric types - allow comparison
+			return
+		}
+
 		// Valid for any matching types
 		if !tc.typesCompatible(leftType, rightType) && !tc.typesCompatible(rightType, leftType) {
 			tc.addError(
