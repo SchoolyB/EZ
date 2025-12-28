@@ -367,6 +367,9 @@ func Eval(node ast.Node, env *Environment) Object {
 	case *ast.ReturnStatement:
 		return evalReturn(node, env)
 
+	case *ast.EnsureStatement:
+		return evalEnsure(node, env)
+
 	case *ast.BlockStatement:
 		return evalBlockStatement(node, env)
 
@@ -1415,6 +1418,18 @@ func evalReturn(node *ast.ReturnStatement, env *Environment) Object {
 		values[i] = val
 	}
 	return &ReturnValue{Values: values}
+}
+
+func evalEnsure(node *ast.EnsureStatement, env *Environment) Object {
+	// Validate that it's a call expression
+	if callExpr, ok := node.Expression.(*ast.CallExpression); ok {
+		// Push the call expression onto the ensure stack
+		env.PushEnsure(callExpr)
+		return NIL
+	}
+	// This should not happen if parser validation works correctly
+	return newErrorWithLocation("E3016", node.Token.Line, node.Token.Column,
+		"ensure expects a function call")
 }
 
 func evalIfStatement(node *ast.IfStatement, env *Environment) Object {
@@ -2781,6 +2796,14 @@ func applyFunction(fn Object, args []Object, line, col int) Object {
 
 		evaluated := Eval(fn.Body, extendedEnv)
 
+		// Execute ensure statements before returning (LIFO order)
+		ensures := extendedEnv.ExecuteEnsures()
+		for _, ensureCall := range ensures {
+			Eval(ensureCall, extendedEnv)
+			// Note: We ignore errors from ensure statements to ensure cleanup always runs
+		}
+		extendedEnv.ClearEnsures()
+
 		// Restore current file
 		if globalEvalContext != nil && fn.File != "" {
 			globalEvalContext.CurrentFile = oldFile
@@ -3548,6 +3571,8 @@ func getStatementFile(stmt ast.Statement) string {
 	case *ast.BreakStatement:
 		return s.Token.File
 	case *ast.ContinueStatement:
+		return s.Token.File
+	case *ast.EnsureStatement:
 		return s.Token.File
 	case *ast.ImportStatement:
 		return s.Token.File
