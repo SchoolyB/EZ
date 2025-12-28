@@ -1,0 +1,108 @@
+/*
+ * uuid.ez - Test uuid module functions
+ */
+
+import @std
+import @uuid
+using std
+
+do main() {
+    println("=== UUID Module Test ===")
+    temp passed int = 0
+    temp failed int = 0
+
+    // Test 1: Generate a new UUID
+    temp id1 string = uuid.create()
+    if len(id1) == 36 {
+        println("  [PASS] uuid.create() returns 36 character string")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] uuid.create() length: expected 36, got ${len(id1)}")
+        failed += 1
+    }
+
+    // Test 2: UUID format validation
+    if uuid.is_valid(id1) {
+        println("  [PASS] uuid.is_valid() validates generated UUID")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] uuid.is_valid() should validate generated UUID")
+        failed += 1
+    }
+
+    // Test 3: Generate compact UUID (no hyphens)
+    temp compact string = uuid.create_compact()
+    if len(compact) == 32 {
+        println("  [PASS] uuid.create_compact() returns 32 character string")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] uuid.create_compact() length: expected 32, got ${len(compact)}")
+        failed += 1
+    }
+
+    // Test 4: Compact UUID should not be valid in standard format
+    if !uuid.is_valid(compact) {
+        println("  [PASS] uuid.is_valid() rejects compact format")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] uuid.is_valid() should reject compact format")
+        failed += 1
+    }
+
+    // Test 5: NIL UUID
+    temp nil_uuid string = uuid.NIL()
+    if nil_uuid == "00000000-0000-0000-0000-000000000000" {
+        println("  [PASS] uuid.NIL() returns nil UUID")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] uuid.NIL() expected nil UUID, got ${nil_uuid}")
+        failed += 1
+    }
+
+    // Test 6: NIL UUID is valid
+    if uuid.is_valid(nil_uuid) {
+        println("  [PASS] uuid.is_valid() accepts nil UUID")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] uuid.is_valid() should accept nil UUID")
+        failed += 1
+    }
+
+    // Test 7: Invalid strings
+    if !uuid.is_valid("not-a-uuid") {
+        println("  [PASS] uuid.is_valid() rejects invalid string")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] uuid.is_valid() should reject 'not-a-uuid'")
+        failed += 1
+    }
+
+    // Test 8: Empty string
+    if !uuid.is_valid("") {
+        println("  [PASS] uuid.is_valid() rejects empty string")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] uuid.is_valid() should reject empty string")
+        failed += 1
+    }
+
+    // Test 9: Two UUIDs should be different
+    temp id2 string = uuid.create()
+    if id1 != id2 {
+        println("  [PASS] uuid.create() generates unique UUIDs")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] uuid.create() should generate unique UUIDs")
+        failed += 1
+    }
+
+    // Summary
+    println("")
+    println("Results: ${passed} passed, ${failed} failed")
+
+    if failed > 0 {
+        println("SOME TESTS FAILED")
+    } otherwise {
+        println("ALL TESTS PASSED")
+    }
+}

@@ -542,7 +542,7 @@ func TestOSDevNull(t *testing.T) {
 func TestOSExitExists(t *testing.T) {
 	fn := OSBuiltins["os.exit"]
 	if fn == nil {
-		t.Error("os.exit function should exist")
+		t.Fatal("os.exit function should exist")
 	}
 
 	// Test wrong argument type (we can test error handling but not actual exit)

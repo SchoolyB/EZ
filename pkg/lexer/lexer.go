@@ -27,35 +27,6 @@ type LexerError struct {
 	Code    string // Error code like "E1005"
 }
 
-// LexerPosition stores the lexer state for backtracking
-type LexerPosition struct {
-	position     int
-	readPosition int
-	ch           byte
-	line         int
-	column       int
-}
-
-// GetPosition returns the current lexer position for later restoration
-func (l *Lexer) GetPosition() LexerPosition {
-	return LexerPosition{
-		position:     l.position,
-		readPosition: l.readPosition,
-		ch:           l.ch,
-		line:         l.line,
-		column:       l.column,
-	}
-}
-
-// SetPosition restores the lexer to a previously saved position
-func (l *Lexer) SetPosition(pos LexerPosition) {
-	l.position = pos.position
-	l.readPosition = pos.readPosition
-	l.ch = pos.ch
-	l.line = pos.line
-	l.column = pos.column
-}
-
 func NewLexer(input string) *Lexer {
 	l := &Lexer{input: input, line: 1, column: 0, errors: []LexerError{}}
 	l.readChar()

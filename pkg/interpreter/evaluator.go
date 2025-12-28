@@ -150,7 +150,10 @@ var validModules = map[string]bool{
 	"random":  true, // Random number generation
 	"json":    true, // JSON encoding/decoding
 	"binary":  true, // Binary encoding/decoding for integers and floats
-	"db":      true, // Simple key-value database
+	"db":       true, // Simple key-value database
+	"uuid":     true, // UUID generation and validation
+	"encoding": true, // Base64, hex, and URL encoding/decoding
+	"crypto":   true, // Cryptographic hashing and secure random
 }
 
 // isValidModule checks if a module name is valid (either standard library or user-created)
@@ -1334,17 +1337,8 @@ func evalAssignment(node *ast.AssignmentStatement, env *Environment) Object {
 		isMutableAccess := structObj.Mutable
 		if !isMutableAccess {
 			// Check if struct is accessed via mutable container
-			if indexExpr, isIndex := target.Object.(*ast.IndexExpression); isIndex {
-				container := Eval(indexExpr.Left, env)
-				if !isError(container) {
-					switch c := container.(type) {
-					case *Array:
-						isMutableAccess = c.Mutable
-					case *Map:
-						isMutableAccess = c.Mutable
-					}
-				}
-			}
+			// This needs to handle nested expressions like arr[1].inner.value (#859)
+			isMutableAccess = checkMutableContainerAccess(target.Object, env)
 		}
 		if !isMutableAccess {
 			return newErrorWithLocation("E5017", node.Token.Line, node.Token.Column,
@@ -1383,6 +1377,31 @@ func evalCompoundAssignment(op string, left, right Object, line, col int) Object
 		return evalInfixExpression("%", left, right, line, col)
 	default:
 		return newError("unknown operator: %s", op)
+	}
+}
+
+// checkMutableContainerAccess recursively checks if an expression is accessed
+// via a mutable container (array or map). This handles nested expressions like
+// arr[1].inner.value where we need to check if arr is mutable. (#859)
+func checkMutableContainerAccess(expr ast.Expression, env *Environment) bool {
+	switch e := expr.(type) {
+	case *ast.IndexExpression:
+		// Found an index expression - check if the container is mutable
+		container := Eval(e.Left, env)
+		if !isError(container) {
+			switch c := container.(type) {
+			case *Array:
+				return c.Mutable
+			case *Map:
+				return c.Mutable
+			}
+		}
+		return false
+	case *ast.MemberExpression:
+		// Keep traversing up through member expressions
+		return checkMutableContainerAccess(e.Object, env)
+	default:
+		return false
 	}
 }
 
@@ -3256,6 +3275,13 @@ func evalNewExpression(node *ast.NewExpression, env *Environment) Object {
 // sourceModule is optional - if provided, nested struct types will be looked up
 // in that module first (for cross-module struct initialization).
 func getDefaultValueWithEnv(typeName string, env *Environment, sourceModule *ModuleObject) Object {
+	// Use the internal function with an empty visited set for cycle detection (#860)
+	return getDefaultValueInternal(typeName, env, sourceModule, make(map[string]bool))
+}
+
+// getDefaultValueInternal is the internal implementation that tracks visited types
+// to detect and handle self-referential or mutually recursive struct types (#860).
+func getDefaultValueInternal(typeName string, env *Environment, sourceModule *ModuleObject, visited map[string]bool) Object {
 	// Check if it's a dynamic array type (starts with '[' but doesn't contain ',')
 	if len(typeName) > 0 && typeName[0] == '[' && !strings.Contains(typeName, ",") {
 		return &Array{Elements: []Object{}}
@@ -3275,12 +3301,19 @@ func getDefaultValueWithEnv(typeName string, env *Environment, sourceModule *Mod
 	case "char":
 		return &Char{Value: '\x00'}
 	default:
+		// Check for self-referential or mutually recursive types (#860)
+		// If we've already started processing this type, return nil to break the cycle
+		if visited[typeName] {
+			return NIL
+		}
+		visited[typeName] = true
+
 		// First, check the source module if provided (for cross-module nested structs)
 		if sourceModule != nil {
 			if structDef, sdOk := sourceModule.GetStructDef(typeName); sdOk {
 				fields := make(map[string]Object)
 				for fieldName, fieldType := range structDef.Fields {
-					fields[fieldName] = getDefaultValueWithEnv(fieldType, env, sourceModule)
+					fields[fieldName] = getDefaultValueInternal(fieldType, env, sourceModule, visited)
 				}
 				return &Struct{
 					TypeName: structDef.Name,
@@ -3293,7 +3326,7 @@ func getDefaultValueWithEnv(typeName string, env *Environment, sourceModule *Mod
 		if structDef, ok := env.GetStructDef(typeName); ok {
 			fields := make(map[string]Object)
 			for fieldName, fieldType := range structDef.Fields {
-				fields[fieldName] = getDefaultValueWithEnv(fieldType, env, sourceModule)
+				fields[fieldName] = getDefaultValueInternal(fieldType, env, sourceModule, visited)
 			}
 			return &Struct{
 				TypeName: structDef.Name,
@@ -3307,7 +3340,7 @@ func getDefaultValueWithEnv(typeName string, env *Environment, sourceModule *Mod
 				if structDef, sdOk := moduleObj.GetStructDef(typeName); sdOk {
 					fields := make(map[string]Object)
 					for fieldName, fieldType := range structDef.Fields {
-						fields[fieldName] = getDefaultValueWithEnv(fieldType, env, moduleObj)
+						fields[fieldName] = getDefaultValueInternal(fieldType, env, moduleObj, visited)
 					}
 					return &Struct{
 						TypeName: structDef.Name,

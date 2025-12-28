@@ -1,5 +1,30 @@
 # Changelog
 
+## [0.36.0](https://github.com/SchoolyB/EZ/compare/v0.35.0...v0.36.0) (2025-12-28)
+
+
+### Features
+
+* stdlib additions and bug fixes ([88791f4](https://github.com/SchoolyB/EZ/commit/88791f4a39b32b68365b5f50e977f763839d9a96))
+* **stdlib:** add [@crypto](https://github.com/crypto) module for hashing and secure random ([9a38974](https://github.com/SchoolyB/EZ/commit/9a3897430d77b6561d6dee76c34e50fcdf5f317d)), closes [#458](https://github.com/SchoolyB/EZ/issues/458)
+* **stdlib:** add [@encoding](https://github.com/encoding) module with base64, hex, and URL functions ([58cf8b6](https://github.com/SchoolyB/EZ/commit/58cf8b6301769e58d323816bff6fe794ff6f55b6))
+* **stdlib:** add [@uuid](https://github.com/uuid) module for UUID generation ([e283602](https://github.com/SchoolyB/EZ/commit/e283602315cffdf0f46635b55baf1fcff8bdf38a)), closes [#759](https://github.com/SchoolyB/EZ/issues/759)
+
+
+### Bug Fixes
+
+* **evaluator:** allow modifying nested struct fields in array elements ([4d5de68](https://github.com/SchoolyB/EZ/commit/4d5de68500fb29a6d00d729ce141704377c22df2)), closes [#859](https://github.com/SchoolyB/EZ/issues/859)
+* **evaluator:** prevent stack overflow on self-referential structs ([6f68d98](https://github.com/SchoolyB/EZ/commit/6f68d981901738e4b6a6d880e61a9650cbe971a8)), closes [#860](https://github.com/SchoolyB/EZ/issues/860)
+* **parser:** allow blank identifier _ in for and for_each loops ([456e75d](https://github.com/SchoolyB/EZ/commit/456e75dcdc287b762fa505561bfe8790c1f03295)), closes [#858](https://github.com/SchoolyB/EZ/issues/858)
+* **typechecker:** allow int/float comparison with == and != operators ([0a5b97d](https://github.com/SchoolyB/EZ/commit/0a5b97d90dbc0b94544f03567190aa3d8c9ce39f)), closes [#857](https://github.com/SchoolyB/EZ/issues/857)
+
+## [0.35.0](https://github.com/SchoolyB/EZ/compare/v0.34.1...v0.35.0) (2025-12-27)
+
+
+### Features
+
+* ASCII art banner ([#855](https://github.com/SchoolyB/EZ/issues/855)) ([4ccaea8](https://github.com/SchoolyB/EZ/commit/4ccaea8989729e55beb068cc0ee0cd5aec8389f8))
+
 ## [0.34.1](https://github.com/SchoolyB/EZ/compare/v0.34.0...v0.34.1) (2025-12-27)
 
 

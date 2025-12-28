@@ -8,14 +8,9 @@ import (
 	"math"
 	"math/big"
 	"math/rand"
-	"time"
 
 	"github.com/marshallburns/ez/pkg/object"
 )
-
-func init() {
-	rand.Seed(time.Now().UnixNano())
-}
 
 // MathBuiltins contains the math module functions
 var MathBuiltins = map[string]*object.Builtin{

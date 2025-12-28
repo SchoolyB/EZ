@@ -121,56 +121,6 @@ func hasStrictAttribute(attrs []*Attribute) *Attribute {
 	return nil
 }
 
-// isSuppressForFunction checks if #suppress is followed by a function declaration
-// by peeking ahead past the #suppress(...) to see if DO or PRIVATE follows
-func (p *Parser) isSuppressForFunction() bool {
-	// We're at SUPPRESS, need to look past #suppress(...) to see what follows
-	// Save current position
-	savedPos := p.l.GetPosition()
-	savedCurrent := p.currentToken
-	savedPeek := p.peekToken
-
-	// Skip past #suppress
-	p.nextToken()
-
-	// Skip past opening paren
-	if !p.currentTokenMatches(LPAREN) {
-		// Restore and return false
-		p.l.SetPosition(savedPos)
-		p.currentToken = savedCurrent
-		p.peekToken = savedPeek
-		return false
-	}
-	p.nextToken()
-
-	// Skip past contents until closing paren
-	depth := 1
-	for depth > 0 && !p.currentTokenMatches(EOF) {
-		if p.currentTokenMatches(LPAREN) {
-			depth++
-		} else if p.currentTokenMatches(RPAREN) {
-			depth--
-		}
-		if depth > 0 {
-			p.nextToken()
-		}
-	}
-
-	// Now at RPAREN, check what follows
-	p.nextToken()
-
-	// Check if followed by DO or PRIVATE (private function) or another attribute
-	isForFunction := p.currentTokenMatches(DO) || p.currentTokenMatches(PRIVATE) ||
-		p.currentTokenMatches(SUPPRESS) || p.currentTokenMatches(STRICT)
-
-	// Restore position
-	p.l.SetPosition(savedPos)
-	p.currentToken = savedCurrent
-	p.peekToken = savedPeek
-
-	return isForFunction
-}
-
 // parseFileLevelSuppress parses a file-level #suppress(...) and returns the warning codes
 func (p *Parser) parseFileLevelSuppress() []string {
 	var codes []string
@@ -1243,13 +1193,11 @@ func (p *Parser) parseBlockStatementWithSuppress(suppressions []*Attribute) *Blo
 // isSuppressed checks if a warning code is suppressed by active suppressions
 func (p *Parser) isSuppressed(warningCode string, attrs []*Attribute) bool {
 	// First check attrs parameter (for backwards compatibility)
-	if attrs != nil {
-		for _, attr := range attrs {
-			if attr.Name == "suppress" {
-				for _, arg := range attr.Args {
-					if arg == warningCode {
-						return true
-					}
+	for _, attr := range attrs {
+		if attr.Name == "suppress" {
+			for _, arg := range attr.Args {
+				if arg == warningCode {
+					return true
 				}
 			}
 		}
@@ -1431,24 +1379,27 @@ func (p *Parser) parseForStatement() *ForStatement {
 		p.nextToken() // consume '('
 	}
 
-	if IsKeyword(p.peekToken.Type) {
+	// Check for blank identifier (_) first - it's valid as a loop variable (#858)
+	if p.peekTokenMatches(BLANK) {
+		p.nextToken()
+		stmt.Variable = &Label{Token: p.currentToken, Value: "_"}
+	} else if IsKeyword(p.peekToken.Type) {
 		// If user tries to use a keyword as loop variable, give helpful error
 		keyword := KeywordLiteral(p.peekToken.Type)
 		msg := fmt.Sprintf("'%s' is a reserved keyword and cannot be used as a variable name", keyword)
 		p.errors = append(p.errors, msg)
 		p.addEZError(errors.E2020, msg, p.peekToken)
 		return nil
-	}
-	if !p.expectPeek(IDENT) {
+	} else if !p.expectPeek(IDENT) {
 		return nil
-	}
+	} else {
+		stmt.Variable = &Label{Token: p.currentToken, Value: p.currentToken.Literal}
 
-	stmt.Variable = &Label{Token: p.currentToken, Value: p.currentToken.Literal}
-
-	// Check for optional type
-	if p.peekTokenMatches(IDENT) {
-		p.nextToken()
-		stmt.VarType = p.currentToken.Literal
+		// Check for optional type
+		if p.peekTokenMatches(IDENT) {
+			p.nextToken()
+			stmt.VarType = p.currentToken.Literal
+		}
 	}
 
 	if !p.expectPeek(IN) {
@@ -1483,19 +1434,22 @@ func (p *Parser) parseForEachStatement() *ForEachStatement {
 		p.nextToken() // consume '('
 	}
 
-	if IsKeyword(p.peekToken.Type) {
+	// Check for blank identifier (_) first - it's valid as a loop variable (#858)
+	if p.peekTokenMatches(BLANK) {
+		p.nextToken()
+		stmt.Variable = &Label{Token: p.currentToken, Value: "_"}
+	} else if IsKeyword(p.peekToken.Type) {
 		// If user tries to use a keyword as loop variable, give helpful error
 		keyword := KeywordLiteral(p.peekToken.Type)
 		msg := fmt.Sprintf("'%s' is a reserved keyword and cannot be used as a variable name", keyword)
 		p.errors = append(p.errors, msg)
 		p.addEZError(errors.E2020, msg, p.peekToken)
 		return nil
-	}
-	if !p.expectPeek(IDENT) {
+	} else if !p.expectPeek(IDENT) {
 		return nil
+	} else {
+		stmt.Variable = &Label{Token: p.currentToken, Value: p.currentToken.Literal}
 	}
-
-	stmt.Variable = &Label{Token: p.currentToken, Value: p.currentToken.Literal}
 
 	if !p.expectPeek(IN) {
 		return nil
@@ -2782,9 +2736,7 @@ func (p *Parser) parseInterpolatedExpression(exprStr string, origToken Token) Ex
 
 	// Check for errors
 	if len(tempParser.errors) > 0 {
-		for _, err := range tempParser.errors {
-			p.errors = append(p.errors, err)
-		}
+		p.errors = append(p.errors, tempParser.errors...)
 		return nil
 	}
 
