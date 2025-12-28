@@ -3,6 +3,10 @@ package interpreter
 // Copyright (c) 2025-Present Marshall A Burns
 // Licensed under the MIT License. See LICENSE for details.
 
+// This file bridges the stdlib builtins into the interpreter package.
+// The actual builtin implementations live in pkg/stdlib/builtins.go.
+// We also keep getEZTypeName here since it uses the interpreter's type aliases.
+
 import (
 	"github.com/marshallburns/ez/pkg/object"
 	"github.com/marshallburns/ez/pkg/stdlib"

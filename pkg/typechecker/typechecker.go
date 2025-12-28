@@ -2788,6 +2788,14 @@ func (tc *TypeChecker) checkInfixExpression(infix *ast.InfixExpression) {
 			return
 		}
 
+		// Allow int/float comparison like other comparison operators (#857)
+		leftNumeric := tc.isNumericType(leftType)
+		rightNumeric := tc.isNumericType(rightType)
+		if leftNumeric && rightNumeric {
+			// Both are numeric types - allow comparison
+			return
+		}
+
 		// Valid for any matching types
 		if !tc.typesCompatible(leftType, rightType) && !tc.typesCompatible(rightType, leftType) {
 			tc.addError(
@@ -3151,7 +3159,7 @@ func (tc *TypeChecker) checkBuiltinTypeConversion(funcName string, call *ast.Cal
 			line, column := tc.getExpressionPosition(call.Arguments[0])
 			tc.addError(
 				errors.E3005,
-				fmt.Sprintf("cannot convert string to int at build-time (value may not be numeric)"),
+				"cannot convert string to int at build-time (value may not be numeric)",
 				line,
 				column,
 			)
@@ -3177,7 +3185,7 @@ func (tc *TypeChecker) checkBuiltinTypeConversion(funcName string, call *ast.Cal
 			line, column := tc.getExpressionPosition(call.Arguments[0])
 			tc.addError(
 				errors.E3006,
-				fmt.Sprintf("cannot convert string to float at build-time (value may not be numeric)"),
+				"cannot convert string to float at build-time (value may not be numeric)",
 				line,
 				column,
 			)
@@ -3471,7 +3479,7 @@ func (tc *TypeChecker) checkWhenStatement(whenStmt *ast.WhenStatement, expectedR
 					line, col := tc.getExpressionPosition(caseValue)
 					tc.addError(
 						errors.E2054,
-						fmt.Sprintf("#strict when requires explicit enum member values, got non-enum expression"),
+						"#strict when requires explicit enum member values, got non-enum expression",
 						line,
 						col,
 					)
@@ -5902,7 +5910,7 @@ func (tc *TypeChecker) checkStdlibCall(member *ast.MemberExpression, call *ast.C
 	line, column := tc.getExpressionPosition(member.Member)
 
 	// Check if the module was imported (for standard library modules)
-	stdModules := map[string]bool{"std": true, "math": true, "arrays": true, "strings": true, "time": true, "maps": true, "io": true, "os": true, "bytes": true, "random": true, "json": true, "binary": true, "db": true}
+	stdModules := map[string]bool{"std": true, "math": true, "arrays": true, "strings": true, "time": true, "maps": true, "io": true, "os": true, "bytes": true, "random": true, "json": true, "binary": true, "db": true, "uuid": true, "encoding": true, "crypto": true}
 	if stdModules[moduleName] && !tc.modules[moduleName] {
 		tc.addError(errors.E4007, fmt.Sprintf("module '%s' not imported; add 'import @%s'", moduleName, moduleName), line, column)
 		return
@@ -5938,6 +5946,12 @@ func (tc *TypeChecker) checkStdlibCall(member *ast.MemberExpression, call *ast.C
 		tc.checkBinaryModuleCall(funcName, call, line, column)
 	case "db":
 		tc.checkDBModuleCall(funcName, call, line, column)
+	case "uuid":
+		tc.checkUuidModuleCall(funcName, call, line, column)
+	case "encoding":
+		tc.checkEncodingModuleCall(funcName, call, line, column)
+	case "crypto":
+		tc.checkCryptoModuleCall(funcName, call, line, column)
 	default:
 		// User-defined module - check if we have type info for it
 		tc.checkUserModuleCall(moduleName, funcName, call, line, column)
@@ -6935,6 +6949,74 @@ func (tc *TypeChecker) checkDBModuleCall(funcName string, call *ast.CallExpressi
 	}
 
 	tc.validateStdlibCall("db", funcName, call, sig, line, column)
+}
+
+// checkUuidModuleCall validates uuid module function calls
+func (tc *TypeChecker) checkUuidModuleCall(funcName string, call *ast.CallExpression, line, column int) {
+	signatures := map[string]StdlibFuncSig{
+		// uuid.create() - generates a new UUID v4
+		"create": {0, 0, []string{}, "string"},
+		// uuid.create_compact() - generates a new UUID v4 without hyphens
+		"create_compact": {0, 0, []string{}, "string"},
+		// uuid.is_valid(str) - checks if a string is a valid UUID
+		"is_valid": {1, 1, []string{"string"}, "bool"},
+		// uuid.NIL - the nil UUID constant
+		"NIL": {0, 0, []string{}, "string"},
+	}
+
+	sig, exists := signatures[funcName]
+	if !exists {
+		return
+	}
+
+	tc.validateStdlibCall("uuid", funcName, call, sig, line, column)
+}
+
+// checkEncodingModuleCall validates encoding module function calls
+func (tc *TypeChecker) checkEncodingModuleCall(funcName string, call *ast.CallExpression, line, column int) {
+	signatures := map[string]StdlibFuncSig{
+		// encoding.base64_encode(data) - encodes to base64
+		"base64_encode": {1, 1, []string{"string"}, "string"},
+		// encoding.base64_decode(data) - decodes from base64
+		"base64_decode": {1, 1, []string{"string"}, "tuple"},
+		// encoding.hex_encode(data) - encodes to hex
+		"hex_encode": {1, 1, []string{"string"}, "string"},
+		// encoding.hex_decode(data) - decodes from hex
+		"hex_decode": {1, 1, []string{"string"}, "tuple"},
+		// encoding.url_encode(data) - URL percent-encodes
+		"url_encode": {1, 1, []string{"string"}, "string"},
+		// encoding.url_decode(data) - decodes URL encoding
+		"url_decode": {1, 1, []string{"string"}, "tuple"},
+	}
+
+	sig, exists := signatures[funcName]
+	if !exists {
+		return
+	}
+
+	tc.validateStdlibCall("encoding", funcName, call, sig, line, column)
+}
+
+func (tc *TypeChecker) checkCryptoModuleCall(funcName string, call *ast.CallExpression, line, column int) {
+	signatures := map[string]StdlibFuncSig{
+		// crypto.sha256(data) - SHA-256 hash
+		"sha256": {1, 1, []string{"string"}, "string"},
+		// crypto.sha512(data) - SHA-512 hash
+		"sha512": {1, 1, []string{"string"}, "string"},
+		// crypto.md5(data) - MD5 hash (legacy)
+		"md5": {1, 1, []string{"string"}, "string"},
+		// crypto.random_bytes(length) - secure random bytes
+		"random_bytes": {1, 1, []string{"int"}, "array"},
+		// crypto.random_hex(length) - secure random hex string
+		"random_hex": {1, 1, []string{"int"}, "string"},
+	}
+
+	sig, exists := signatures[funcName]
+	if !exists {
+		return
+	}
+
+	tc.validateStdlibCall("crypto", funcName, call, sig, line, column)
 }
 
 // validateStdlibCall performs the actual validation of a stdlib call

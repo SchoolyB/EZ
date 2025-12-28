@@ -25,13 +25,6 @@ func testEval(input string) Object {
 	return Eval(program, env)
 }
 
-func testEvalWithEnv(input string, env *Environment) Object {
-	l := lexer.NewLexer(input)
-	p := parser.New(l)
-	program := p.ParseProgram()
-	return Eval(program, env)
-}
-
 func testIntegerObject(t *testing.T, obj Object, expected int64) bool {
 	t.Helper()
 	result, ok := obj.(*Integer)
