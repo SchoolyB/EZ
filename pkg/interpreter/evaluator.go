@@ -1336,17 +1336,8 @@ func evalAssignment(node *ast.AssignmentStatement, env *Environment) Object {
 		isMutableAccess := structObj.Mutable
 		if !isMutableAccess {
 			// Check if struct is accessed via mutable container
-			if indexExpr, isIndex := target.Object.(*ast.IndexExpression); isIndex {
-				container := Eval(indexExpr.Left, env)
-				if !isError(container) {
-					switch c := container.(type) {
-					case *Array:
-						isMutableAccess = c.Mutable
-					case *Map:
-						isMutableAccess = c.Mutable
-					}
-				}
-			}
+			// This needs to handle nested expressions like arr[1].inner.value (#859)
+			isMutableAccess = checkMutableContainerAccess(target.Object, env)
 		}
 		if !isMutableAccess {
 			return newErrorWithLocation("E5017", node.Token.Line, node.Token.Column,
@@ -1385,6 +1376,31 @@ func evalCompoundAssignment(op string, left, right Object, line, col int) Object
 		return evalInfixExpression("%", left, right, line, col)
 	default:
 		return newError("unknown operator: %s", op)
+	}
+}
+
+// checkMutableContainerAccess recursively checks if an expression is accessed
+// via a mutable container (array or map). This handles nested expressions like
+// arr[1].inner.value where we need to check if arr is mutable. (#859)
+func checkMutableContainerAccess(expr ast.Expression, env *Environment) bool {
+	switch e := expr.(type) {
+	case *ast.IndexExpression:
+		// Found an index expression - check if the container is mutable
+		container := Eval(e.Left, env)
+		if !isError(container) {
+			switch c := container.(type) {
+			case *Array:
+				return c.Mutable
+			case *Map:
+				return c.Mutable
+			}
+		}
+		return false
+	case *ast.MemberExpression:
+		// Keep traversing up through member expressions
+		return checkMutableContainerAccess(e.Object, env)
+	default:
+		return false
 	}
 }
 
