@@ -5756,6 +5756,14 @@ func (tc *TypeChecker) isDBFunction(name string) bool {
 	return dbFuncs[name]
 }
 
+// isUuidFunction checks if a function name exists in the uuid module
+func (tc *TypeChecker) isUuidFunction(name string) bool {
+	uuidFuncs := map[string]bool{
+		"create": true, "create_compact": true, "is_valid": true, "NIL": true,
+	}
+	return uuidFuncs[name]
+}
+
 // isBytesFunction checks if a function name exists in the bytes module
 func (tc *TypeChecker) isBytesFunction(name string) bool {
 	bytesFuncs := map[string]bool{
@@ -5902,7 +5910,7 @@ func (tc *TypeChecker) checkStdlibCall(member *ast.MemberExpression, call *ast.C
 	line, column := tc.getExpressionPosition(member.Member)
 
 	// Check if the module was imported (for standard library modules)
-	stdModules := map[string]bool{"std": true, "math": true, "arrays": true, "strings": true, "time": true, "maps": true, "io": true, "os": true, "bytes": true, "random": true, "json": true, "binary": true, "db": true}
+	stdModules := map[string]bool{"std": true, "math": true, "arrays": true, "strings": true, "time": true, "maps": true, "io": true, "os": true, "bytes": true, "random": true, "json": true, "binary": true, "db": true, "uuid": true}
 	if stdModules[moduleName] && !tc.modules[moduleName] {
 		tc.addError(errors.E4007, fmt.Sprintf("module '%s' not imported; add 'import @%s'", moduleName, moduleName), line, column)
 		return
@@ -5938,6 +5946,8 @@ func (tc *TypeChecker) checkStdlibCall(member *ast.MemberExpression, call *ast.C
 		tc.checkBinaryModuleCall(funcName, call, line, column)
 	case "db":
 		tc.checkDBModuleCall(funcName, call, line, column)
+	case "uuid":
+		tc.checkUuidModuleCall(funcName, call, line, column)
 	default:
 		// User-defined module - check if we have type info for it
 		tc.checkUserModuleCall(moduleName, funcName, call, line, column)
@@ -6935,6 +6945,27 @@ func (tc *TypeChecker) checkDBModuleCall(funcName string, call *ast.CallExpressi
 	}
 
 	tc.validateStdlibCall("db", funcName, call, sig, line, column)
+}
+
+// checkUuidModuleCall validates uuid module function calls
+func (tc *TypeChecker) checkUuidModuleCall(funcName string, call *ast.CallExpression, line, column int) {
+	signatures := map[string]StdlibFuncSig{
+		// uuid.create() - generates a new UUID v4
+		"create": {0, 0, []string{}, "string"},
+		// uuid.create_compact() - generates a new UUID v4 without hyphens
+		"create_compact": {0, 0, []string{}, "string"},
+		// uuid.is_valid(str) - checks if a string is a valid UUID
+		"is_valid": {1, 1, []string{"string"}, "bool"},
+		// uuid.NIL - the nil UUID constant
+		"NIL": {0, 0, []string{}, "string"},
+	}
+
+	sig, exists := signatures[funcName]
+	if !exists {
+		return
+	}
+
+	tc.validateStdlibCall("uuid", funcName, call, sig, line, column)
 }
 
 // validateStdlibCall performs the actual validation of a stdlib call
