@@ -1431,24 +1431,27 @@ func (p *Parser) parseForStatement() *ForStatement {
 		p.nextToken() // consume '('
 	}
 
-	if IsKeyword(p.peekToken.Type) {
+	// Check for blank identifier (_) first - it's valid as a loop variable (#858)
+	if p.peekTokenMatches(BLANK) {
+		p.nextToken()
+		stmt.Variable = &Label{Token: p.currentToken, Value: "_"}
+	} else if IsKeyword(p.peekToken.Type) {
 		// If user tries to use a keyword as loop variable, give helpful error
 		keyword := KeywordLiteral(p.peekToken.Type)
 		msg := fmt.Sprintf("'%s' is a reserved keyword and cannot be used as a variable name", keyword)
 		p.errors = append(p.errors, msg)
 		p.addEZError(errors.E2020, msg, p.peekToken)
 		return nil
-	}
-	if !p.expectPeek(IDENT) {
+	} else if !p.expectPeek(IDENT) {
 		return nil
-	}
+	} else {
+		stmt.Variable = &Label{Token: p.currentToken, Value: p.currentToken.Literal}
 
-	stmt.Variable = &Label{Token: p.currentToken, Value: p.currentToken.Literal}
-
-	// Check for optional type
-	if p.peekTokenMatches(IDENT) {
-		p.nextToken()
-		stmt.VarType = p.currentToken.Literal
+		// Check for optional type
+		if p.peekTokenMatches(IDENT) {
+			p.nextToken()
+			stmt.VarType = p.currentToken.Literal
+		}
 	}
 
 	if !p.expectPeek(IN) {
@@ -1483,19 +1486,22 @@ func (p *Parser) parseForEachStatement() *ForEachStatement {
 		p.nextToken() // consume '('
 	}
 
-	if IsKeyword(p.peekToken.Type) {
+	// Check for blank identifier (_) first - it's valid as a loop variable (#858)
+	if p.peekTokenMatches(BLANK) {
+		p.nextToken()
+		stmt.Variable = &Label{Token: p.currentToken, Value: "_"}
+	} else if IsKeyword(p.peekToken.Type) {
 		// If user tries to use a keyword as loop variable, give helpful error
 		keyword := KeywordLiteral(p.peekToken.Type)
 		msg := fmt.Sprintf("'%s' is a reserved keyword and cannot be used as a variable name", keyword)
 		p.errors = append(p.errors, msg)
 		p.addEZError(errors.E2020, msg, p.peekToken)
 		return nil
-	}
-	if !p.expectPeek(IDENT) {
+	} else if !p.expectPeek(IDENT) {
 		return nil
+	} else {
+		stmt.Variable = &Label{Token: p.currentToken, Value: p.currentToken.Literal}
 	}
-
-	stmt.Variable = &Label{Token: p.currentToken, Value: p.currentToken.Literal}
 
 	if !p.expectPeek(IN) {
 		return nil
