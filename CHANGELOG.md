@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.36.1](https://github.com/SchoolyB/EZ/compare/v0.36.0...v0.36.1) (2025-12-28)
+
+
+### Features
+
+* `ensure` keyword for guaranteed cleanup on function exit [#804](https://github.com/SchoolyB/EZ/issues/804) ([#864](https://github.com/SchoolyB/EZ/issues/864)) ([cbef798](https://github.com/SchoolyB/EZ/commit/cbef7983e727a194b4453fc38e48e83ac2fb319a))
+
 ## [0.36.0](https://github.com/SchoolyB/EZ/compare/v0.35.0...v0.36.0) (2025-12-28)
 
 
