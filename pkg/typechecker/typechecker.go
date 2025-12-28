@@ -3159,7 +3159,7 @@ func (tc *TypeChecker) checkBuiltinTypeConversion(funcName string, call *ast.Cal
 			line, column := tc.getExpressionPosition(call.Arguments[0])
 			tc.addError(
 				errors.E3005,
-				fmt.Sprintf("cannot convert string to int at build-time (value may not be numeric)"),
+				"cannot convert string to int at build-time (value may not be numeric)",
 				line,
 				column,
 			)
@@ -3185,7 +3185,7 @@ func (tc *TypeChecker) checkBuiltinTypeConversion(funcName string, call *ast.Cal
 			line, column := tc.getExpressionPosition(call.Arguments[0])
 			tc.addError(
 				errors.E3006,
-				fmt.Sprintf("cannot convert string to float at build-time (value may not be numeric)"),
+				"cannot convert string to float at build-time (value may not be numeric)",
 				line,
 				column,
 			)
@@ -3479,7 +3479,7 @@ func (tc *TypeChecker) checkWhenStatement(whenStmt *ast.WhenStatement, expectedR
 					line, col := tc.getExpressionPosition(caseValue)
 					tc.addError(
 						errors.E2054,
-						fmt.Sprintf("#strict when requires explicit enum member values, got non-enum expression"),
+						"#strict when requires explicit enum member values, got non-enum expression",
 						line,
 						col,
 					)
@@ -5762,24 +5762,6 @@ func (tc *TypeChecker) isDBFunction(name string) bool {
 		"keys": true, "prefix": true, "count": true, "clear": true,
 	}
 	return dbFuncs[name]
-}
-
-// isUuidFunction checks if a function name exists in the uuid module
-func (tc *TypeChecker) isUuidFunction(name string) bool {
-	uuidFuncs := map[string]bool{
-		"create": true, "create_compact": true, "is_valid": true, "NIL": true,
-	}
-	return uuidFuncs[name]
-}
-
-// isEncodingFunction checks if a function name exists in the encoding module
-func (tc *TypeChecker) isEncodingFunction(name string) bool {
-	encodingFuncs := map[string]bool{
-		"base64_encode": true, "base64_decode": true,
-		"hex_encode": true, "hex_decode": true,
-		"url_encode": true, "url_decode": true,
-	}
-	return encodingFuncs[name]
 }
 
 // isBytesFunction checks if a function name exists in the bytes module
