@@ -153,6 +153,7 @@ var validModules = map[string]bool{
 	"db":       true, // Simple key-value database
 	"uuid":     true, // UUID generation and validation
 	"encoding": true, // Base64, hex, and URL encoding/decoding
+	"crypto":   true, // Cryptographic hashing and secure random
 }
 
 // isValidModule checks if a module name is valid (either standard library or user-created)

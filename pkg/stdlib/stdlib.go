@@ -61,6 +61,9 @@ func GetAllBuiltins() map[string]*object.Builtin {
 	for name, builtin := range EncodingBuiltins {
 		all[name] = builtin
 	}
+	for name, builtin := range CryptoBuiltins {
+		all[name] = builtin
+	}
 
 	return all
 }
