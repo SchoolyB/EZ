@@ -3572,7 +3572,8 @@ func getStatementFile(stmt ast.Statement) string {
 		return s.Token.File
 	case *ast.ContinueStatement:
 		return s.Token.File
-	
+	case *ast.EnsureStatement:
+		return s.Token.File
 	case *ast.ImportStatement:
 		return s.Token.File
 	case *ast.UsingStatement:
