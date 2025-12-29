@@ -4848,7 +4848,7 @@ func (tc *TypeChecker) getModuleMultiReturnTypes(moduleName, funcName string) []
 	
 	case "http":
 		switch funcName {
-		case "get":
+		case "get", "post":
 			return []string{"HttpResponse", "error"}
 		}
 	}
@@ -5791,7 +5791,9 @@ func (tc *TypeChecker) isDBFunction(name string) bool {
 
 func (tc *TypeChecker) isHttpFunction(name string) bool {
 	httpFuncs := map[string]bool{
-		"get": true,
+		"get": true, "post": true,
+
+		"json_body": true,
 	}
 	return httpFuncs[name]
 }
@@ -7058,6 +7060,9 @@ func (tc *TypeChecker) checkCryptoModuleCall(funcName string, call *ast.CallExpr
 func (tc *TypeChecker) checkHttpModuleCall(funcName string, call *ast.CallExpression, line, column int) {
 	signatures := map[string]StdlibFuncSig{
 		"get": {1, 1, []string{"string"}, "tuple"},
+		"post": {2, 2, []string{"string", "string"}, "tuple"},
+
+		"json_body": {1, 1, []string{"map"}, "string"},
 	}
 
 	sig, exists := signatures[funcName]
