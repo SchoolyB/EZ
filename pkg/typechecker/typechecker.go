@@ -4848,7 +4848,7 @@ func (tc *TypeChecker) getModuleMultiReturnTypes(moduleName, funcName string) []
 	
 	case "http":
 		switch funcName {
-		case "get", "post", "put", "delete", "patch":
+		case "get", "post", "put", "delete", "patch", "request":
 			return []string{"HttpResponse", "error"}
 		}
 	}
@@ -5793,6 +5793,8 @@ func (tc *TypeChecker) isHttpFunction(name string) bool {
 	httpFuncs := map[string]bool{
 		"get": true, "post": true, "put": true, "delete": true,
 		"patch": true,
+
+		"request": true,
 
 		"json_body": true,
 	}
@@ -7065,6 +7067,8 @@ func (tc *TypeChecker) checkHttpModuleCall(funcName string, call *ast.CallExpres
 		"put": {2, 2, []string{"string", "string"}, "tuple"},
 		"delete": {1, 1, []string{"string"}, "tuple"},
 		"patch": {2, 2, []string{"string", "string"}, "tuple"},
+
+		"request": {5, 5, []string{"string", "string", "string", "map", "int"}, "tuple"},
 
 		"json_body": {1, 1, []string{"map"}, "string"},
 	}

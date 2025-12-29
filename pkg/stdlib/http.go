@@ -11,8 +11,10 @@ import (
 	"github.com/marshallburns/ez/pkg/object"
 )
 
-var client = &http.Client{
-	Timeout: time.Duration(30)*time.Second,
+const DEFAULT_TIMEOUT = 30
+
+var defaultClient = &http.Client{
+	Timeout: time.Duration(DEFAULT_TIMEOUT)*time.Second,
 }
 
 var HttpBuiltins = map[string]*object.Builtin{
@@ -22,16 +24,16 @@ var HttpBuiltins = map[string]*object.Builtin{
 				return &object.Error{Code: "E7001", Message: "http.get() takes exactly 1 argument"}
 			}
 
-			str, ok := args[0].(*object.String)
+			urlArg, ok := args[0].(*object.String)
 			if !ok {
 				return &object.Error{Code: "E7003", Message: "http.get() requires a string argument"}
 			}
 
-			if _, err := url.ParseRequestURI(str.Value); err != nil {
+			if _, err := url.ParseRequestURI(urlArg.Value); err != nil {
 				return &object.Error{Code: "E14001", Message: "invalid url"}
 			}
 
-			req, err := http.NewRequest(http.MethodGet, str.Value, nil)
+			req, err := http.NewRequest(http.MethodGet, urlArg.Value, nil)
 			if err != nil {
 				return &object.ReturnValue{
 					Values: []object.Object{
@@ -41,12 +43,12 @@ var HttpBuiltins = map[string]*object.Builtin{
 				}
 			}
 
-			res, err := client.Do(req)
+			res, err := defaultClient.Do(req)
 			if err != nil {
 				return &object.ReturnValue{
 					Values: []object.Object{
 						&object.Nil{},
-						createHttpError("E14002", "request failed"),
+						createHttpError("E14002", "request failed: "+err.Error()),
 					},
 				}
 			}
@@ -86,21 +88,21 @@ var HttpBuiltins = map[string]*object.Builtin{
 				return &object.Error{Code: "E7001", Message: "http.post() takes exactly 2 arguments"}
 			}
 
-			str, ok := args[0].(*object.String)
+			urlArg, ok := args[0].(*object.String)
 			if !ok {
 				return &object.Error{Code: "E7003", Message: "http.post() requires a string argument"}
 			}
 
-			if _, err := url.ParseRequestURI(str.Value); err != nil {
+			body, ok := args[1].(*object.String)
+			if !ok {
+				return &object.Error{Code: "E7003", Message: "http.post() requires a string argument"}
+			}
+
+			if _, err := url.ParseRequestURI(urlArg.Value); err != nil {
 				return &object.Error{Code: "E14001", Message: "invalid url"}
 			}
 
-			body, ok := args[0].(*object.String)
-			if !ok {
-				return &object.Error{Code: "E7003", Message: "http.post() requires a string argument"}
-			}
-
-			req, err := http.NewRequest(http.MethodPost, str.Value, bytes.NewBuffer([]byte(body.Value)))
+			req, err := http.NewRequest(http.MethodPost, urlArg.Value, bytes.NewBuffer([]byte(body.Value)))
 			if err != nil {
 				return &object.ReturnValue{
 					Values: []object.Object{
@@ -110,12 +112,12 @@ var HttpBuiltins = map[string]*object.Builtin{
 				}
 			}
 
-			res, err := client.Do(req)
+			res, err := defaultClient.Do(req)
 			if err != nil {
 				return &object.ReturnValue{
 					Values: []object.Object{
 						&object.Nil{},
-						createHttpError("E14002", "request failed"),
+						createHttpError("E14002", "request failed: "+err.Error()),
 					},
 				}
 			}
@@ -155,21 +157,21 @@ var HttpBuiltins = map[string]*object.Builtin{
 				return &object.Error{Code: "E7001", Message: "http.put() takes exactly 2 arguments"}
 			}
 
-			str, ok := args[0].(*object.String)
+			urlArg, ok := args[0].(*object.String)
 			if !ok {
 				return &object.Error{Code: "E7003", Message: "http.put() requires a string argument"}
 			}
 
-			if _, err := url.ParseRequestURI(str.Value); err != nil {
+			body, ok := args[1].(*object.String)
+			if !ok {
+				return &object.Error{Code: "E7003", Message: "http.put() requires a string argument"}
+			}
+
+			if _, err := url.ParseRequestURI(urlArg.Value); err != nil {
 				return &object.Error{Code: "E14001", Message: "invalid url"}
 			}
 
-			body, ok := args[0].(*object.String)
-			if !ok {
-				return &object.Error{Code: "E7003", Message: "http.put() requires a string argument"}
-			}
-
-			req, err := http.NewRequest(http.MethodPut, str.Value, bytes.NewBuffer([]byte(body.Value)))
+			req, err := http.NewRequest(http.MethodPut, urlArg.Value, bytes.NewBuffer([]byte(body.Value)))
 			if err != nil {
 				return &object.ReturnValue{
 					Values: []object.Object{
@@ -179,12 +181,12 @@ var HttpBuiltins = map[string]*object.Builtin{
 				}
 			}
 
-			res, err := client.Do(req)
+			res, err := defaultClient.Do(req)
 			if err != nil {
 				return &object.ReturnValue{
 					Values: []object.Object{
 						&object.Nil{},
-						createHttpError("E14002", "request failed"),
+						createHttpError("E14002", "request failed: "+err.Error()),
 					},
 				}
 			}
@@ -224,16 +226,16 @@ var HttpBuiltins = map[string]*object.Builtin{
 				return &object.Error{Code: "E7001", Message: "http.delete() takes exactly 1 argument"}
 			}
 
-			str, ok := args[0].(*object.String)
+			urlArg, ok := args[0].(*object.String)
 			if !ok {
 				return &object.Error{Code: "E7003", Message: "http.delete() requires a string argument"}
 			}
 
-			if _, err := url.ParseRequestURI(str.Value); err != nil {
+			if _, err := url.ParseRequestURI(urlArg.Value); err != nil {
 				return &object.Error{Code: "E14001", Message: "invalid url"}
 			}
 			
-			req, err := http.NewRequest(http.MethodDelete, str.Value, nil)
+			req, err := http.NewRequest(http.MethodDelete, urlArg.Value, nil)
 			if err != nil {
 				return &object.ReturnValue{
 					Values: []object.Object{
@@ -243,12 +245,12 @@ var HttpBuiltins = map[string]*object.Builtin{
 				}
 			}
 
-			res, err := client.Do(req)
+			res, err := defaultClient.Do(req)
 			if err != nil {
 				return &object.ReturnValue{
 					Values: []object.Object{
 						&object.Nil{},
-						createHttpError("E14002", "request failed"),
+						createHttpError("E14002", "request failed: "+err.Error()),
 					},
 				}
 			}
@@ -288,21 +290,21 @@ var HttpBuiltins = map[string]*object.Builtin{
 				return &object.Error{Code: "E7001", Message: "http.patch() takes exactly 2 arguments"}
 			}
 
-			str, ok := args[0].(*object.String)
+			urlArg, ok := args[0].(*object.String)
 			if !ok {
 				return &object.Error{Code: "E7003", Message: "http.patch() requires a string argument"}
 			}
 
-			if _, err := url.ParseRequestURI(str.Value); err != nil {
+			body, ok := args[1].(*object.String)
+			if !ok {
+				return &object.Error{Code: "E7003", Message: "http.patch() requires a string argument"}
+			}
+
+			if _, err := url.ParseRequestURI(urlArg.Value); err != nil {
 				return &object.Error{Code: "E14001", Message: "invalid url"}
 			}
 
-			body, ok := args[0].(*object.String)
-			if !ok {
-				return &object.Error{Code: "E7003", Message: "http.patch() requires a string argument"}
-			}
-
-			req, err := http.NewRequest(http.MethodPatch, str.Value, bytes.NewBuffer([]byte(body.Value)))
+			req, err := http.NewRequest(http.MethodPatch, urlArg.Value, bytes.NewBuffer([]byte(body.Value)))
 			if err != nil {
 				return &object.ReturnValue{
 					Values: []object.Object{
@@ -312,12 +314,123 @@ var HttpBuiltins = map[string]*object.Builtin{
 				}
 			}
 
-			res, err := client.Do(req)
+			res, err := defaultClient.Do(req)
+			if err != nil {
+				return &object.ReturnValue{
+					Values: []object.Object{
+						&object.Nil{},
+						createHttpError("E14002", "request failed: "+err.Error()),
+					},
+				}
+			}
+			defer res.Body.Close()
+
+			responseBody, err := io.ReadAll(res.Body)
+			if err != nil {
+				return &object.ReturnValue{
+					Values: []object.Object{
+						&object.Nil{},
+						createHttpError("E14002", "could not read body"),
+					},
+				}
+			}
+
+			headers := object.NewMap()
+			for key, vals := range res.Header {
+				values := &object.Array{}
+				for _, val := range vals {
+					values.Elements = append(values.Elements, &object.String{Value: val})
+				}
+				headers.Set(&object.String{Value: key}, values)
+			}
+
+			return &object.ReturnValue{
+				Values: []object.Object{
+					newHttpResponse(res.StatusCode, string(responseBody), headers),
+					&object.Nil{},
+				},
+			}
+		},
+	},
+
+	"http.request": {
+		Fn: func(args ...object.Object) object.Object {
+			if len(args) != 5 {
+				return &object.Error{Code: "E7001", Message: "http.request() takes exactly 5 arguments"}
+			}
+
+			methodArg, ok := args[0].(*object.String)
+			if !ok {
+				return &object.Error{Code: "E7003", Message: "http.request() requires a string argument"}
+			}
+
+			urlArg, ok := args[1].(*object.String)
+			if !ok {
+				return &object.Error{Code: "E7003", Message: "http.request() requires a string argument"}
+			}
+
+			bodyArg, ok := args[2].(*object.String)
+			if !ok {
+				return &object.Error{Code: "E7003", Message: "http.request() requires a string argument"}
+			}
+
+			headersArg, ok := args[3].(*object.Map)
+			if !ok {
+				return &object.Error{Code: "E7007", Message: "http.request() requires a map argument"}
+			}
+
+			timeoutArg, ok := args[4].(*object.Integer)
+			if !ok {
+				return &object.Error{Code: "E7004", Message: "http.request() requires a integer argument"}
+			}
+
+			if _, err := url.ParseRequestURI(urlArg.Value); err != nil {
+				return &object.Error{Code: "E14001", Message: "invalid url"}
+			}
+
+			client := http.Client{
+				Timeout: time.Duration(timeoutArg.Value.Uint64())*time.Second,
+			}
+
+			var req *http.Request
+			var err error
+			switch methodArg.Value {
+			case "GET":
+				req, err = http.NewRequest(http.MethodGet, urlArg.Value, nil)
+			case "POST":
+				req, err = http.NewRequest(http.MethodPost, urlArg.Value, bytes.NewBuffer([]byte(bodyArg.Value)))
+			case "PUT":
+				req, err = http.NewRequest(http.MethodPut, urlArg.Value, bytes.NewBuffer([]byte(bodyArg.Value)))
+			case "DELETE":
+				req, err = http.NewRequest(http.MethodDelete, urlArg.Value, nil)
+			case "PATCH":
+				req, err = http.NewRequest(http.MethodPatch, urlArg.Value, bytes.NewBuffer([]byte(bodyArg.Value)))
+			case "OPTIONS":
+				req, err = http.NewRequest(http.MethodOptions, urlArg.Value, nil)
+			case "HEAD":
+				req, err = http.NewRequest(http.MethodHead, urlArg.Value, nil)
+			default:
+				return &object.Error{Code: "E14004", Message: "invalid HTTP method: `"+methodArg.Value+"`"}
+			}
 			if err != nil {
 				return &object.ReturnValue{
 					Values: []object.Object{
 						&object.Nil{},
 						createHttpError("E14002", "request failed"),
+					},
+				}
+			}
+
+			for _, pair := range headersArg.Pairs {
+				req.Header.Add(pair.Key.(*object.String).Value, pair.Value.(*object.String).Value)
+			}
+
+			res, err := client.Do(req)
+			if err != nil {
+				return &object.ReturnValue{
+					Values: []object.Object{
+						&object.Nil{},
+						createHttpError("E14002", "request failed: "+err.Error()),
 					},
 				}
 			}
