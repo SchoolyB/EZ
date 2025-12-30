@@ -388,8 +388,13 @@ var HttpBuiltins = map[string]*object.Builtin{
 				return &object.Error{Code: "E14001", Message: "invalid url"}
 			}
 
+			timeout := DEFAULT_TIMEOUT
+			if timeout > 0 {
+				timeout = int(timeoutArg.Value.Uint64())
+			}
+
 			client := http.Client{
-				Timeout: time.Duration(timeoutArg.Value.Uint64())*time.Second,
+				Timeout: time.Duration(timeout)*time.Second,
 			}
 
 			var req *http.Request
