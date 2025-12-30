@@ -342,7 +342,7 @@ func (tc *TypeChecker) registerBuiltinTypes() {
 		Fields: map[string]*Type{
 			"status": {Name: "int", Kind: PrimitiveType},
 			"body": 	{Name: "string", Kind: PrimitiveType},
-			"headers":{Name: "headers", Kind: MapType},
+			"headers":{Name: "map[string:[string]]", Kind: MapType},
 		},
 	}
 	tc.types["HttpResponse"] = httpResponseType
