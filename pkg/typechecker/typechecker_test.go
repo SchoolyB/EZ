@@ -4409,7 +4409,7 @@ using maps
 
 do main() {
 	temp m map[string:int] = {"a": 1, "b": 2}
-	temp result map[string:int] = maps.delete(m, "a")
+	temp deleted bool = maps.delete(m, "a")
 }
 `
 	tc := typecheck(t, input)

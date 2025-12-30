@@ -4928,6 +4928,28 @@ func (tc *TypeChecker) inferModuleCallType(member *ast.MemberExpression, args []
 		return tc.inferStringsCallType(funcName, args)
 	case "time":
 		return tc.inferTimeCallType(funcName, args)
+	case "maps":
+		return tc.inferMapsCallType(funcName, args)
+	case "io":
+		return tc.inferIOCallType(funcName, args)
+	case "os":
+		return tc.inferOSCallType(funcName, args)
+	case "json":
+		return tc.inferJSONCallType(funcName, args)
+	case "bytes":
+		return tc.inferBytesCallType(funcName, args)
+	case "encoding":
+		return tc.inferEncodingCallType(funcName, args)
+	case "crypto":
+		return tc.inferCryptoCallType(funcName, args)
+	case "random":
+		return tc.inferRandomCallType(funcName, args)
+	case "uuid":
+		return tc.inferUUIDCallType(funcName, args)
+	case "db":
+		return tc.inferDBCallType(funcName, args)
+	case "binary":
+		return tc.inferBinaryCallType(funcName, args)
 	default:
 		// Check user-defined modules
 		if sig, ok := tc.GetModuleFunction(moduleName, funcName); ok {
@@ -5065,6 +5087,290 @@ func (tc *TypeChecker) inferTimeCallType(funcName string, args []ast.Expression)
 		return "void", true
 	case "elapsed_ms":
 		return "int", true
+	default:
+		return "", false
+	}
+}
+
+// inferMapsCallType infers return types for @maps functions
+func (tc *TypeChecker) inferMapsCallType(funcName string, args []ast.Expression) (string, bool) {
+	switch funcName {
+	case "is_empty", "has", "has_key", "has_value", "equals":
+		return "bool", true
+	case "delete", "remove":
+		return "bool", true
+	case "set", "clear", "update":
+		return "void", true
+	case "keys", "values":
+		// Returns array - try to infer element type from map argument
+		if len(args) > 0 {
+			mapType, ok := tc.inferExpressionType(args[0])
+			if ok && tc.isMapType(mapType) {
+				inner := mapType[4 : len(mapType)-1] // Remove "map[" and "]"
+				parts := strings.Split(inner, ":")
+				if len(parts) == 2 {
+					if funcName == "keys" {
+						return "[" + parts[0] + "]", true
+					}
+					return "[" + parts[1] + "]", true
+				}
+			}
+		}
+		return "[]", true
+	case "get", "get_or_set":
+		// Returns value type from map
+		if len(args) > 0 {
+			mapType, ok := tc.inferExpressionType(args[0])
+			if ok && tc.isMapType(mapType) {
+				inner := mapType[4 : len(mapType)-1]
+				parts := strings.Split(inner, ":")
+				if len(parts) == 2 {
+					return parts[1], true
+				}
+			}
+		}
+		return "", false
+	case "merge":
+		// Returns merged map with same type as first argument
+		if len(args) > 0 {
+			mapType, ok := tc.inferExpressionType(args[0])
+			if ok && tc.isMapType(mapType) {
+				return mapType, true
+			}
+		}
+		return "map", true
+	case "invert", "from_array":
+		return "map", true
+	case "to_array":
+		return "[[]]", true
+	default:
+		return "", false
+	}
+}
+
+// inferIOCallType infers return types for @io functions
+func (tc *TypeChecker) inferIOCallType(funcName string, args []ast.Expression) (string, bool) {
+	switch funcName {
+	case "read_file", "read_string":
+		return "string", true
+	case "read_bytes", "read", "read_all":
+		return "[byte]", true
+	case "write_file", "write_bytes", "append_file", "append_line",
+		"remove", "remove_dir", "remove_all", "rename", "copy",
+		"mkdir", "mkdir_all", "flush", "close":
+		return "bool", true
+	case "read_lines", "read_dir", "glob", "walk":
+		return "[string]", true
+	case "expand_path", "path_join", "path_base", "path_dir",
+		"path_ext", "path_clean", "path_separator", "path_abs":
+		return "string", true
+	case "exists", "is_file", "is_dir", "is_symlink":
+		return "bool", true
+	case "file_size", "file_mod_time", "write", "seek", "tell":
+		return "int", true
+	case "open":
+		return "FileHandle", true
+	case "READ_ONLY", "WRITE_ONLY", "READ_WRITE", "APPEND",
+		"CREATE", "TRUNCATE", "EXCLUSIVE",
+		"SEEK_START", "SEEK_CURRENT", "SEEK_END":
+		return "int", true
+	default:
+		return "", false
+	}
+}
+
+// inferOSCallType infers return types for @os functions
+func (tc *TypeChecker) inferOSCallType(funcName string, args []ast.Expression) (string, bool) {
+	switch funcName {
+	case "get_env", "platform", "arch", "line_separator", "dev_null",
+		"cwd", "home_dir", "hostname", "username", "temp_dir":
+		return "string", true
+	case "set_env", "unset_env", "chdir":
+		return "bool", true
+	case "env":
+		return "map[string:string]", true
+	case "args":
+		return "[string]", true
+	case "exit":
+		return "void", true
+	case "pid", "ppid", "num_cpu",
+		"MAC_OS", "LINUX", "WINDOWS", "CURRENT_OS":
+		return "int", true
+	case "is_windows", "is_linux", "is_macos":
+		return "bool", true
+	case "exec":
+		return "int", true
+	case "exec_output":
+		return "string", true
+	default:
+		return "", false
+	}
+}
+
+// inferJSONCallType infers return types for @json functions
+func (tc *TypeChecker) inferJSONCallType(funcName string, args []ast.Expression) (string, bool) {
+	switch funcName {
+	case "encode", "pretty":
+		return "string", true
+	case "decode":
+		return "any", true
+	case "is_valid":
+		return "bool", true
+	default:
+		return "", false
+	}
+}
+
+// inferBytesCallType infers return types for @bytes functions
+func (tc *TypeChecker) inferBytesCallType(funcName string, args []ast.Expression) (string, bool) {
+	switch funcName {
+	case "from_array", "from_string", "from_hex", "from_base64",
+		"slice", "concat", "join", "reverse", "repeat",
+		"replace", "replace_n", "trim", "trim_left", "trim_right",
+		"pad_left", "pad_right", "fill", "copy", "zero", "not",
+		"and", "or", "xor":
+		return "[byte]", true
+	case "to_string", "to_hex", "to_hex_upper", "to_base64":
+		return "string", true
+	case "to_array":
+		return "[int]", true
+	case "split":
+		return "[[byte]]", true
+	case "contains", "equals", "is_empty", "starts_with", "ends_with":
+		return "bool", true
+	case "index", "last_index", "count", "compare":
+		return "int", true
+	default:
+		return "", false
+	}
+}
+
+// inferEncodingCallType infers return types for @encoding functions
+func (tc *TypeChecker) inferEncodingCallType(funcName string, args []ast.Expression) (string, bool) {
+	switch funcName {
+	case "base64_encode", "hex_encode", "url_encode",
+		"base64_decode", "hex_decode", "url_decode":
+		return "string", true
+	default:
+		return "", false
+	}
+}
+
+// inferCryptoCallType infers return types for @crypto functions
+func (tc *TypeChecker) inferCryptoCallType(funcName string, args []ast.Expression) (string, bool) {
+	switch funcName {
+	case "sha256", "sha512", "md5", "random_hex":
+		return "string", true
+	case "random_bytes":
+		return "[byte]", true
+	default:
+		return "", false
+	}
+}
+
+// inferRandomCallType infers return types for @random functions
+func (tc *TypeChecker) inferRandomCallType(funcName string, args []ast.Expression) (string, bool) {
+	switch funcName {
+	case "float":
+		return "float", true
+	case "int":
+		return "int", true
+	case "bool":
+		return "bool", true
+	case "byte":
+		return "byte", true
+	case "char":
+		return "char", true
+	case "choice":
+		// Returns element type from array
+		if len(args) > 0 {
+			arrType, ok := tc.inferExpressionType(args[0])
+			if ok && len(arrType) > 2 && arrType[0] == '[' {
+				return arrType[1 : len(arrType)-1], true
+			}
+		}
+		return "", false
+	case "shuffle", "sample":
+		// Returns same array type
+		if len(args) > 0 {
+			return tc.inferExpressionType(args[0])
+		}
+		return "[]", true
+	default:
+		return "", false
+	}
+}
+
+// inferUUIDCallType infers return types for @uuid functions
+func (tc *TypeChecker) inferUUIDCallType(funcName string, args []ast.Expression) (string, bool) {
+	switch funcName {
+	case "create", "create_compact", "NIL":
+		return "string", true
+	case "is_valid":
+		return "bool", true
+	default:
+		return "", false
+	}
+}
+
+// inferDBCallType infers return types for @db functions
+func (tc *TypeChecker) inferDBCallType(funcName string, args []ast.Expression) (string, bool) {
+	switch funcName {
+	case "open":
+		return "Database", true
+	case "close", "save", "set", "clear", "sort":
+		return "void", true
+	case "get":
+		return "string", true
+	case "delete", "has", "exists", "update_key_name":
+		return "bool", true
+	case "keys", "prefix":
+		return "[string]", true
+	case "count",
+		"ALPHA", "ALPHA_DESC", "VALUE_ALPHA", "VALUE_ALPHA_DESC",
+		"KEY_LEN", "KEY_LEN_DESC", "VALUE_LEN", "VALUE_LEN_DESC",
+		"NUMERIC", "NUMERIC_DESC":
+		return "int", true
+	default:
+		return "", false
+	}
+}
+
+// inferBinaryCallType infers return types for @binary functions
+func (tc *TypeChecker) inferBinaryCallType(funcName string, args []ast.Expression) (string, bool) {
+	switch funcName {
+	// Encode functions return [byte]
+	case "encode_i8", "encode_u8",
+		"encode_i16_to_little_endian", "encode_i16_to_big_endian",
+		"encode_u16_to_little_endian", "encode_u16_to_big_endian",
+		"encode_i32_to_little_endian", "encode_i32_to_big_endian",
+		"encode_u32_to_little_endian", "encode_u32_to_big_endian",
+		"encode_i64_to_little_endian", "encode_i64_to_big_endian",
+		"encode_u64_to_little_endian", "encode_u64_to_big_endian",
+		"encode_i128_to_little_endian", "encode_i128_to_big_endian",
+		"encode_u128_to_little_endian", "encode_u128_to_big_endian",
+		"encode_i256_to_little_endian", "encode_i256_to_big_endian",
+		"encode_u256_to_little_endian", "encode_u256_to_big_endian",
+		"encode_f32_to_little_endian", "encode_f32_to_big_endian",
+		"encode_f64_to_little_endian", "encode_f64_to_big_endian":
+		return "[byte]", true
+	// Integer decode functions return int
+	case "decode_i8", "decode_u8",
+		"decode_i16_from_little_endian", "decode_i16_from_big_endian",
+		"decode_u16_from_little_endian", "decode_u16_from_big_endian",
+		"decode_i32_from_little_endian", "decode_i32_from_big_endian",
+		"decode_u32_from_little_endian", "decode_u32_from_big_endian",
+		"decode_i64_from_little_endian", "decode_i64_from_big_endian",
+		"decode_u64_from_little_endian", "decode_u64_from_big_endian",
+		"decode_i128_from_little_endian", "decode_i128_from_big_endian",
+		"decode_u128_from_little_endian", "decode_u128_from_big_endian",
+		"decode_i256_from_little_endian", "decode_i256_from_big_endian",
+		"decode_u256_from_little_endian", "decode_u256_from_big_endian":
+		return "int", true
+	// Float decode functions return float
+	case "decode_f32_from_little_endian", "decode_f32_from_big_endian",
+		"decode_f64_from_little_endian", "decode_f64_from_big_endian":
+		return "float", true
 	default:
 		return "", false
 	}
