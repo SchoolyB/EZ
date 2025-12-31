@@ -191,6 +191,7 @@ type TypeChecker struct {
 	modules              map[string]bool                          // Imported module names
 	usedModules          map[string]bool                          // Modules that are actually used (#639)
 	importLocations      map[string]ImportLocation                // Module name -> import location for warnings (#639)
+	stdlibAliases        map[string]string                        // Stdlib alias -> module name
 	fileUsingModules     map[string]bool                          // File-level using modules
 	moduleFunctions      map[string]map[string]*FunctionSignature // Module name -> function name -> signature
 	moduleTypes          map[string]map[string]*Type              // Module name -> type name -> type
@@ -215,6 +216,7 @@ func NewTypeChecker(source, filename string) *TypeChecker {
 		modules:          make(map[string]bool),
 		usedModules:      make(map[string]bool),
 		importLocations:  make(map[string]ImportLocation),
+		stdlibAliases:    make(map[string]string),
 		fileUsingModules: make(map[string]bool),
 		moduleFunctions:  make(map[string]map[string]*FunctionSignature),
 		moduleTypes:      make(map[string]map[string]*Type),
@@ -521,6 +523,9 @@ func (tc *TypeChecker) CheckProgram(program *ast.Program) bool {
 					moduleName = item.Module
 				}
 				tc.modules[moduleName] = true
+				if item.IsStdlib && item.Module != "" && moduleName != "" && moduleName != item.Module {
+					tc.stdlibAliases[moduleName] = item.Module
+				}
 
 				// Store import location for unused import warnings (#639)
 				tc.importLocations[moduleName] = ImportLocation{
@@ -607,6 +612,9 @@ func (tc *TypeChecker) RegisterDeclarations(program *ast.Program) {
 					moduleName = item.Module
 				}
 				tc.modules[moduleName] = true
+				if item.IsStdlib && item.Module != "" && moduleName != "" && moduleName != item.Module {
+					tc.stdlibAliases[moduleName] = item.Module
+				}
 				if importStmt.AutoUse {
 					tc.fileUsingModules[moduleName] = true
 				}
@@ -1904,7 +1912,8 @@ func (tc *TypeChecker) checkMultiReturnDeclaration(decl *ast.VariableDeclaration
 	if !exists {
 		// Check if it's a module function with multiple return values
 		if moduleName != "" {
-			moduleReturnTypes := tc.getModuleMultiReturnTypes(moduleName, funcName)
+			resolvedModuleName := tc.resolveStdlibModule(moduleName)
+			moduleReturnTypes := tc.getModuleMultiReturnTypes(resolvedModuleName, funcName)
 			if moduleReturnTypes != nil {
 				// Register variables with the correct module function return types
 				for i, name := range decl.Names {
@@ -4684,6 +4693,9 @@ func (tc *TypeChecker) inferCallType(call *ast.CallExpression) (string, bool) {
 				}
 			}
 		}
+		if inferredType, ok := tc.inferDirectStdlibCallType(fn.Value, call.Arguments); ok {
+			return inferredType, true
+		}
 		// Check built-in functions
 		return tc.inferBuiltinCallType(fn.Value, call.Arguments)
 
@@ -4760,6 +4772,10 @@ func (tc *TypeChecker) getModuleMultiReturnTypes(moduleName, funcName string) []
 		}
 	case "json":
 		switch funcName {
+		case "encode", "pretty":
+			return []string{"string", "error"}
+		case "decode":
+			return []string{"any", "error"}
 		case "parse", "parse_file":
 			return []string{"any", "error"}
 		case "stringify":
@@ -4767,18 +4783,14 @@ func (tc *TypeChecker) getModuleMultiReturnTypes(moduleName, funcName string) []
 		}
 	case "os":
 		switch funcName {
-		case "exec", "exec_silent":
-			return []string{"string", "error"}
-		case "get_env":
+		case "exec", "exec_output", "exec_silent":
 			return []string{"string", "error"}
 		case "set_env", "unset_env":
 			return []string{"bool", "error"}
 		}
 	case "bytes":
 		switch funcName {
-		case "to_string":
-			return []string{"string", "error"}
-		case "from_string":
+		case "from_hex", "from_base64":
 			return []string{"[byte]", "error"}
 		case "read_u8", "read_i8":
 			return []string{"int", "error"}
@@ -4917,7 +4929,12 @@ func (tc *TypeChecker) inferModuleCallType(member *ast.MemberExpression, args []
 	tc.markModuleUsed(moduleName)
 
 	// Standard library function return types
-	switch moduleName {
+	resolvedModuleName := tc.resolveStdlibModule(moduleName)
+	if returnTypes := tc.getModuleMultiReturnTypes(resolvedModuleName, funcName); len(returnTypes) > 1 {
+		// Multi-return stdlib calls cannot be inferred as a single value.
+		return "", true
+	}
+	switch resolvedModuleName {
 	case "std":
 		return tc.inferStdCallType(funcName, args)
 	case "math":
@@ -5106,13 +5123,13 @@ func (tc *TypeChecker) inferMapsCallType(funcName string, args []ast.Expression)
 		if len(args) > 0 {
 			mapType, ok := tc.inferExpressionType(args[0])
 			if ok && tc.isMapType(mapType) {
-				inner := mapType[4 : len(mapType)-1] // Remove "map[" and "]"
-				parts := strings.Split(inner, ":")
-				if len(parts) == 2 {
+				keyType := tc.extractMapKeyType(mapType)
+				valueType := tc.extractMapValueType(mapType)
+				if keyType != "" && valueType != "" {
 					if funcName == "keys" {
-						return "[" + parts[0] + "]", true
+						return "[" + keyType + "]", true
 					}
-					return "[" + parts[1] + "]", true
+					return "[" + valueType + "]", true
 				}
 			}
 		}
@@ -5122,10 +5139,9 @@ func (tc *TypeChecker) inferMapsCallType(funcName string, args []ast.Expression)
 		if len(args) > 0 {
 			mapType, ok := tc.inferExpressionType(args[0])
 			if ok && tc.isMapType(mapType) {
-				inner := mapType[4 : len(mapType)-1]
-				parts := strings.Split(inner, ":")
-				if len(parts) == 2 {
-					return parts[1], true
+				valueType := tc.extractMapValueType(mapType)
+				if valueType != "" {
+					return valueType, true
 				}
 			}
 		}
@@ -5809,11 +5825,30 @@ func (tc *TypeChecker) hasUsingModule(moduleName string) bool {
 	return false
 }
 
+func (tc *TypeChecker) resolveStdlibModule(moduleName string) string {
+	if resolved, ok := tc.stdlibAliases[moduleName]; ok {
+		return resolved
+	}
+	return moduleName
+}
+
+func (tc *TypeChecker) hasUsingStdlibModule(moduleName string) bool {
+	if tc.hasUsingModule(moduleName) {
+		return true
+	}
+	for alias, resolved := range tc.stdlibAliases {
+		if resolved == moduleName && tc.hasUsingModule(alias) {
+			return true
+		}
+	}
+	return false
+}
+
 func (tc *TypeChecker) checkDirectStdlibCall(funcName string, call *ast.CallExpression) bool {
 	line, column := tc.getExpressionPosition(call.Function)
 
 	// Check std module
-	if tc.hasUsingModule("std") {
+	if tc.hasUsingStdlibModule("std") {
 		stdFuncs := map[string]bool{
 			"println": true, "print": true, "printf": true,
 			"eprintln": true, "eprint": true, "eprintf": true,
@@ -5835,7 +5870,7 @@ func (tc *TypeChecker) checkDirectStdlibCall(funcName string, call *ast.CallExpr
 	}
 
 	// Check math module
-	if tc.hasUsingModule("math") {
+	if tc.hasUsingStdlibModule("math") {
 		if tc.isMathFunction(funcName) {
 			tc.checkMathModuleCall(funcName, call, line, column)
 			return true
@@ -5843,7 +5878,7 @@ func (tc *TypeChecker) checkDirectStdlibCall(funcName string, call *ast.CallExpr
 	}
 
 	// Check arrays module
-	if tc.hasUsingModule("arrays") {
+	if tc.hasUsingStdlibModule("arrays") {
 		if tc.isArraysFunction(funcName) {
 			tc.checkArraysModuleCall(funcName, call, line, column)
 			return true
@@ -5851,7 +5886,7 @@ func (tc *TypeChecker) checkDirectStdlibCall(funcName string, call *ast.CallExpr
 	}
 
 	// Check strings module
-	if tc.hasUsingModule("strings") {
+	if tc.hasUsingStdlibModule("strings") {
 		if tc.isStringsFunction(funcName) {
 			tc.checkStringsModuleCall(funcName, call, line, column)
 			return true
@@ -5859,9 +5894,97 @@ func (tc *TypeChecker) checkDirectStdlibCall(funcName string, call *ast.CallExpr
 	}
 
 	// Check time module
-	if tc.hasUsingModule("time") {
+	if tc.hasUsingStdlibModule("time") {
 		if tc.isTimeFunction(funcName) {
 			tc.checkTimeModuleCall(funcName, call, line, column)
+			return true
+		}
+	}
+
+	// Check maps module
+	if tc.hasUsingStdlibModule("maps") {
+		if tc.isMapsFunction(funcName) {
+			tc.checkMapsModuleCall(funcName, call, line, column)
+			return true
+		}
+	}
+
+	// Check io module
+	if tc.hasUsingStdlibModule("io") {
+		if tc.isIoFunction(funcName) {
+			tc.checkIoModuleCall(funcName, call, line, column)
+			return true
+		}
+	}
+
+	// Check os module
+	if tc.hasUsingStdlibModule("os") {
+		if tc.isOsFunction(funcName) {
+			tc.checkOsModuleCall(funcName, call, line, column)
+			return true
+		}
+	}
+
+	// Check random module
+	if tc.hasUsingStdlibModule("random") {
+		if tc.isRandomFunction(funcName) {
+			tc.checkRandomModuleCall(funcName, call, line, column)
+			return true
+		}
+	}
+
+	// Check json module
+	if tc.hasUsingStdlibModule("json") {
+		if tc.isJsonFunction(funcName) {
+			tc.checkJsonModuleCall(funcName, call, line, column)
+			return true
+		}
+	}
+
+	// Check bytes module
+	if tc.hasUsingStdlibModule("bytes") {
+		if tc.isBytesFunction(funcName) {
+			tc.checkBytesModuleCall(funcName, call, line, column)
+			return true
+		}
+	}
+
+	// Check binary module
+	if tc.hasUsingStdlibModule("binary") {
+		if tc.isBinaryFunction(funcName) {
+			tc.checkBinaryModuleCall(funcName, call, line, column)
+			return true
+		}
+	}
+
+	// Check db module
+	if tc.hasUsingStdlibModule("db") {
+		if tc.isDBFunction(funcName) {
+			tc.checkDBModuleCall(funcName, call, line, column)
+			return true
+		}
+	}
+
+	// Check uuid module
+	if tc.hasUsingStdlibModule("uuid") {
+		if tc.isUuidFunction(funcName) {
+			tc.checkUuidModuleCall(funcName, call, line, column)
+			return true
+		}
+	}
+
+	// Check encoding module
+	if tc.hasUsingStdlibModule("encoding") {
+		if tc.isEncodingFunction(funcName) {
+			tc.checkEncodingModuleCall(funcName, call, line, column)
+			return true
+		}
+	}
+
+	// Check crypto module
+	if tc.hasUsingStdlibModule("crypto") {
+		if tc.isCryptoFunction(funcName) {
+			tc.checkCryptoModuleCall(funcName, call, line, column)
 			return true
 		}
 	}
@@ -5888,6 +6011,108 @@ func (tc *TypeChecker) checkDirectStdlibCall(funcName string, call *ast.CallExpr
 	}
 
 	return false
+}
+
+func (tc *TypeChecker) inferDirectStdlibCallType(funcName string, args []ast.Expression) (string, bool) {
+	if tc.hasUsingStdlibModule("std") {
+		if inferred, ok := tc.inferStdCallType(funcName, args); ok {
+			return inferred, true
+		}
+	}
+	if tc.hasUsingStdlibModule("math") {
+		if inferred, ok := tc.inferMathCallType(funcName, args); ok {
+			return inferred, true
+		}
+	}
+	if tc.hasUsingStdlibModule("arrays") {
+		if inferred, ok := tc.inferArraysCallType(funcName, args); ok {
+			return inferred, true
+		}
+	}
+	if tc.hasUsingStdlibModule("strings") {
+		if inferred, ok := tc.inferStringsCallType(funcName, args); ok {
+			return inferred, true
+		}
+	}
+	if tc.hasUsingStdlibModule("time") {
+		if inferred, ok := tc.inferTimeCallType(funcName, args); ok {
+			return inferred, true
+		}
+	}
+	if tc.hasUsingStdlibModule("maps") {
+		if inferred, ok := tc.inferMapsCallType(funcName, args); ok {
+			return inferred, true
+		}
+	}
+	if tc.hasUsingStdlibModule("io") {
+		if returnTypes := tc.getModuleMultiReturnTypes("io", funcName); len(returnTypes) > 1 {
+			return "", true
+		}
+		if inferred, ok := tc.inferIOCallType(funcName, args); ok {
+			return inferred, true
+		}
+	}
+	if tc.hasUsingStdlibModule("os") {
+		if returnTypes := tc.getModuleMultiReturnTypes("os", funcName); len(returnTypes) > 1 {
+			return "", true
+		}
+		if inferred, ok := tc.inferOSCallType(funcName, args); ok {
+			return inferred, true
+		}
+	}
+	if tc.hasUsingStdlibModule("random") {
+		if inferred, ok := tc.inferRandomCallType(funcName, args); ok {
+			return inferred, true
+		}
+	}
+	if tc.hasUsingStdlibModule("json") {
+		if returnTypes := tc.getModuleMultiReturnTypes("json", funcName); len(returnTypes) > 1 {
+			return "", true
+		}
+		if inferred, ok := tc.inferJSONCallType(funcName, args); ok {
+			return inferred, true
+		}
+	}
+	if tc.hasUsingStdlibModule("bytes") {
+		if returnTypes := tc.getModuleMultiReturnTypes("bytes", funcName); len(returnTypes) > 1 {
+			return "", true
+		}
+		if inferred, ok := tc.inferBytesCallType(funcName, args); ok {
+			return inferred, true
+		}
+	}
+	if tc.hasUsingStdlibModule("binary") {
+		if returnTypes := tc.getModuleMultiReturnTypes("binary", funcName); len(returnTypes) > 1 {
+			return "", true
+		}
+		if inferred, ok := tc.inferBinaryCallType(funcName, args); ok {
+			return inferred, true
+		}
+	}
+	if tc.hasUsingStdlibModule("db") {
+		if returnTypes := tc.getModuleMultiReturnTypes("db", funcName); len(returnTypes) > 1 {
+			return "", true
+		}
+		if inferred, ok := tc.inferDBCallType(funcName, args); ok {
+			return inferred, true
+		}
+	}
+	if tc.hasUsingStdlibModule("uuid") {
+		if inferred, ok := tc.inferUUIDCallType(funcName, args); ok {
+			return inferred, true
+		}
+	}
+	if tc.hasUsingStdlibModule("encoding") {
+		if inferred, ok := tc.inferEncodingCallType(funcName, args); ok {
+			return inferred, true
+		}
+	}
+	if tc.hasUsingStdlibModule("crypto") {
+		if inferred, ok := tc.inferCryptoCallType(funcName, args); ok {
+			return inferred, true
+		}
+	}
+	return "", false
 }
 
 // validateCallArguments validates argument count for a function call (#671)
@@ -6062,6 +6287,29 @@ func (tc *TypeChecker) isJsonFunction(name string) bool {
 	return jsonFuncs[name]
 }
 
+func (tc *TypeChecker) isUuidFunction(name string) bool {
+	uuidFuncs := map[string]bool{
+		"create": true, "create_compact": true, "NIL": true, "is_valid": true,
+	}
+	return uuidFuncs[name]
+}
+
+func (tc *TypeChecker) isEncodingFunction(name string) bool {
+	encodingFuncs := map[string]bool{
+		"base64_encode": true, "hex_encode": true, "url_encode": true,
+		"base64_decode": true, "hex_decode": true, "url_decode": true,
+	}
+	return encodingFuncs[name]
+}
+
+func (tc *TypeChecker) isCryptoFunction(name string) bool {
+	cryptoFuncs := map[string]bool{
+		"sha256": true, "sha512": true, "md5": true,
+		"random_hex": true, "random_bytes": true,
+	}
+	return cryptoFuncs[name]
+}
+
 func (tc *TypeChecker) isDBFunction(name string) bool {
 	dbFuncs := map[string]bool{
 		// Creation
@@ -6172,7 +6420,8 @@ func (tc *TypeChecker) getUsedModuleShadowingFunction(name string) string {
 
 // isModuleFunction checks if a function name exists in the specified module
 func (tc *TypeChecker) isModuleFunction(moduleName, funcName string) bool {
-	switch moduleName {
+	resolvedModuleName := tc.resolveStdlibModule(moduleName)
+	switch resolvedModuleName {
 	case "std":
 		return tc.isStdFunction(funcName)
 	case "math":
@@ -6199,6 +6448,12 @@ func (tc *TypeChecker) isModuleFunction(moduleName, funcName string) bool {
 		return tc.isBinaryFunction(funcName)
 	case "db":
 		return tc.isDBFunction(funcName)
+	case "uuid":
+		return tc.isUuidFunction(funcName)
+	case "encoding":
+		return tc.isEncodingFunction(funcName)
+	case "crypto":
+		return tc.isCryptoFunction(funcName)
 	default:
 		// Check user-defined modules
 		if funcs, ok := tc.moduleFunctions[moduleName]; ok {
@@ -6221,18 +6476,19 @@ func (tc *TypeChecker) checkStdlibCall(member *ast.MemberExpression, call *ast.C
 
 	funcName := member.Member.Value
 	line, column := tc.getExpressionPosition(member.Member)
+	resolvedModuleName := tc.resolveStdlibModule(moduleName)
 
 	// Check if the module was imported (for standard library modules)
 	stdModules := map[string]bool{"std": true, "math": true, "arrays": true, "strings": true, "time": true, "maps": true, "io": true, "os": true, "bytes": true, "random": true, "json": true, "binary": true, "db": true, "uuid": true, "encoding": true, "crypto": true}
-	if stdModules[moduleName] && !tc.modules[moduleName] {
-		tc.addError(errors.E4007, fmt.Sprintf("module '%s' not imported; add 'import @%s'", moduleName, moduleName), line, column)
+	if stdModules[resolvedModuleName] && !tc.modules[moduleName] && !tc.modules[resolvedModuleName] {
+		tc.addError(errors.E4007, fmt.Sprintf("module '%s' not imported; add 'import @%s'", moduleName, resolvedModuleName), line, column)
 		return
 	}
 
 	// Mark the module as used (#639)
 	tc.markModuleUsed(moduleName)
 
-	switch moduleName {
+	switch resolvedModuleName {
 	case "std":
 		tc.checkStdModuleCall(funcName, call, line, column)
 	case "math":
