@@ -35,10 +35,17 @@ var replCmd = &cobra.Command{
 }
 
 var updateCmd = &cobra.Command{
-	Use:   "update",
+	Use:   "update [url]",
 	Short: "Check for updates and upgrade EZ",
+	Long:  "Check for updates and upgrade EZ. Optionally specify a custom URL for the update source.",
+	Args:  cobra.MaximumNArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
-		runUpdate(args)
+		confirm, _ := cmd.Flags().GetBool("confirm")
+		var url string
+		if len(args) > 0 {
+			url = args[0]
+		}
+		runUpdate(confirm, url)
 	},
 }
 
