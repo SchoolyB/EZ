@@ -529,7 +529,15 @@ var HttpBuiltins = map[string]*object.Builtin{
 
 			q := url.Values{}
 			for _, pair := range m.Pairs {
-				q.Set(pair.Key.(*object.String).Value, pair.Value.(*object.String).Value)
+				key, ok := pair.Key.(*object.String)
+				if !ok {
+					return &object.Error{Code: "E7007", Message: "http.build_query() requires a map[string:string] argument"}
+				}
+				val, ok := pair.Value.(*object.String)
+				if !ok {
+					return &object.Error{Code: "E7007", Message: "http.build_query() requires a map[string:string] argument"}
+				}
+				q.Set(key.Value, val.Value)
 			}
 
 			return &object.String{Value: q.Encode()}
