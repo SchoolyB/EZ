@@ -42,6 +42,22 @@ var updateCmd = &cobra.Command{
 	},
 }
 
+var helpCmd = &cobra.Command{
+	Use:   "help",
+	Short: "Help about EZ",
+	Run: func(cmd *cobra.Command, args []string) {
+		rootCmd.Help()
+	},
+}
+
+var versionCmd = &cobra.Command{
+	Use:   "version",
+	Short: "Show version information",
+	Run: func(cmd *cobra.Command, args []string) {
+		rootCmd.Printf("%s\n", getVersionString())
+	},
+}
+
 var lexCmd = &cobra.Command{
 	Use:               "lex [file]",
 	Short:             "Tokenize a file",
@@ -80,7 +96,7 @@ var rootCmd = &cobra.Command{
 }
 
 func init() {
-	rootCmd.AddCommand(replCmd, updateCmd, checkCmd, lexCmd, parseCmd)
+	rootCmd.AddCommand(replCmd, updateCmd, checkCmd, lexCmd, parseCmd, helpCmd, versionCmd)
 	rootCmd.PersistentPreRun = func(cmd *cobra.Command, args []string) {
 		CheckForUpdateAsync()
 	}
