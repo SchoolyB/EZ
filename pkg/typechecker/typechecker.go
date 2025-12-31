@@ -351,10 +351,8 @@ func (tc *TypeChecker) TypeExists(typeName string) bool {
 	if strings.HasPrefix(typeName, "map[") && strings.HasSuffix(typeName, "]") {
 		// Validate the map type has proper format
 		inner := typeName[4 : len(typeName)-1] // Extract keyType:valueType
-		parts := strings.Split(inner, ":")
-		if len(parts) == 2 {
-			keyType := parts[0]
-			valueType := parts[1]
+		keyType, valueType, ok := tc.splitMapInnerType(inner)
+		if ok {
 			// Both key and value types must exist
 			return tc.TypeExists(keyType) && tc.TypeExists(valueType)
 		}
@@ -3955,12 +3953,11 @@ func (tc *TypeChecker) extractMapKeyType(mapType string) string {
 	}
 	// Extract "Status:string" from "map[Status:string]"
 	inner := mapType[4 : len(mapType)-1]
-	// Find the colon separator
-	colonIdx := strings.Index(inner, ":")
-	if colonIdx == -1 {
+	keyType, _, ok := tc.splitMapInnerType(inner)
+	if !ok {
 		return ""
 	}
-	return inner[:colonIdx]
+	return keyType
 }
 
 // extractMapValueType extracts the value type from a map type string
@@ -3971,12 +3968,31 @@ func (tc *TypeChecker) extractMapValueType(mapType string) string {
 	}
 	// Extract "string:int" from "map[string:int]"
 	inner := mapType[4 : len(mapType)-1]
-	// Find the colon separator
-	colonIdx := strings.Index(inner, ":")
-	if colonIdx == -1 {
+	_, valueType, ok := tc.splitMapInnerType(inner)
+	if !ok {
 		return ""
 	}
-	return inner[colonIdx+1:]
+	return valueType
+}
+
+// splitMapInnerType splits "key:value" while respecting nested map/array types.
+func (tc *TypeChecker) splitMapInnerType(inner string) (string, string, bool) {
+	depth := 0
+	for i := 0; i < len(inner); i++ {
+		switch inner[i] {
+		case '[':
+			depth++
+		case ']':
+			if depth > 0 {
+				depth--
+			}
+		case ':':
+			if depth == 0 {
+				return inner[:i], inner[i+1:], true
+			}
+		}
+	}
+	return "", "", false
 }
 
 // isNullableType checks if a type can accept nil values
@@ -4783,7 +4799,9 @@ func (tc *TypeChecker) getModuleMultiReturnTypes(moduleName, funcName string) []
 		}
 	case "os":
 		switch funcName {
-		case "exec", "exec_output", "exec_silent":
+		case "exec":
+			return []string{"int", "error"}
+		case "exec_output":
 			return []string{"string", "error"}
 		case "set_env", "unset_env":
 			return []string{"bool", "error"}
@@ -5417,11 +5435,9 @@ func (tc *TypeChecker) inferIndexType(index *ast.IndexExpression) (string, bool)
 
 	// Indexing into a map returns value type
 	if tc.isMapType(leftType) {
-		// Extract value type from map[keyType:valueType]
-		inner := leftType[4 : len(leftType)-1] // Remove "map[" and "]"
-		parts := strings.Split(inner, ":")
-		if len(parts) == 2 {
-			return parts[1], true
+		valueType := tc.extractMapValueType(leftType)
+		if valueType != "" {
+			return valueType, true
 		}
 	}
 
@@ -5732,14 +5748,13 @@ func (tc *TypeChecker) typesCompatible(declared, actual string) bool {
 		}
 
 		if tc.isMapType(actual) {
-			// Extract key and value types
-			declaredInner := declared[4 : len(declared)-1]
-			actualInner := actual[4 : len(actual)-1]
-			declaredParts := strings.Split(declaredInner, ":")
-			actualParts := strings.Split(actualInner, ":")
-			if len(declaredParts) == 2 && len(actualParts) == 2 {
-				keyCompatible := tc.typesCompatible(declaredParts[0], actualParts[0])
-				valueCompatible := tc.typesCompatible(declaredParts[1], actualParts[1])
+			declaredKey := tc.extractMapKeyType(declared)
+			declaredValue := tc.extractMapValueType(declared)
+			actualKey := tc.extractMapKeyType(actual)
+			actualValue := tc.extractMapValueType(actual)
+			if declaredKey != "" && declaredValue != "" && actualKey != "" && actualValue != "" {
+				keyCompatible := tc.typesCompatible(declaredKey, actualKey)
+				valueCompatible := tc.typesCompatible(declaredValue, actualValue)
 				return keyCompatible && valueCompatible
 			}
 		}
