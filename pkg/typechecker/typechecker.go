@@ -342,9 +342,9 @@ func (tc *TypeChecker) registerBuiltinTypes() {
 		Name: "HttpResponse",
 		Kind: StructType,
 		Fields: map[string]*Type{
-			"status": {Name: "int", Kind: PrimitiveType},
-			"body": 	{Name: "string", Kind: PrimitiveType},
-			"headers":{Name: "map[string:[string]]", Kind: MapType},
+			"status":  {Name: "int", Kind: PrimitiveType},
+			"body":    {Name: "string", Kind: PrimitiveType},
+			"headers": {Name: "map[string:[string]]", Kind: MapType},
 		},
 	}
 	tc.types["HttpResponse"] = httpResponseType
@@ -4875,7 +4875,7 @@ func (tc *TypeChecker) getModuleMultiReturnTypes(moduleName, funcName string) []
 		case "get":
 			return []string{"string", "bool"}
 		}
-	
+
 	case "http":
 		switch funcName {
 		case "get", "post", "put", "delete", "patch", "request":
@@ -6531,9 +6531,6 @@ func (tc *TypeChecker) checkStdlibCall(member *ast.MemberExpression, call *ast.C
 
 	// Check if the module was imported (for standard library modules)
 	stdModules := map[string]bool{"std": true, "math": true, "arrays": true, "strings": true, "time": true, "maps": true, "io": true, "os": true, "bytes": true, "random": true, "json": true, "binary": true, "db": true, "uuid": true, "encoding": true, "crypto": true, "http": true}
-	if stdModules[moduleName] && !tc.modules[moduleName] {
-		tc.addError(errors.E4007, fmt.Sprintf("module '%s' not imported; add 'import @%s'", moduleName, moduleName), line, column)
-	stdModules := map[string]bool{"std": true, "math": true, "arrays": true, "strings": true, "time": true, "maps": true, "io": true, "os": true, "bytes": true, "random": true, "json": true, "binary": true, "db": true, "uuid": true, "encoding": true, "crypto": true}
 	if stdModules[resolvedModuleName] && !tc.modules[moduleName] && !tc.modules[resolvedModuleName] {
 		tc.addError(errors.E4007, fmt.Sprintf("module '%s' not imported; add 'import @%s'", moduleName, resolvedModuleName), line, column)
 		return
@@ -7646,16 +7643,16 @@ func (tc *TypeChecker) checkCryptoModuleCall(funcName string, call *ast.CallExpr
 
 func (tc *TypeChecker) checkHttpModuleCall(funcName string, call *ast.CallExpression, line, column int) {
 	signatures := map[string]StdlibFuncSig{
-		"get": {1, 1, []string{"string"}, "tuple"},
-		"post": {2, 2, []string{"string", "string"}, "tuple"},
-		"put": {2, 2, []string{"string", "string"}, "tuple"},
+		"get":    {1, 1, []string{"string"}, "tuple"},
+		"post":   {2, 2, []string{"string", "string"}, "tuple"},
+		"put":    {2, 2, []string{"string", "string"}, "tuple"},
 		"delete": {1, 1, []string{"string"}, "tuple"},
-		"patch": {2, 2, []string{"string", "string"}, "tuple"},
+		"patch":  {2, 2, []string{"string", "string"}, "tuple"},
 
 		"request": {5, 5, []string{"string", "string", "string", "map[string:string]", "int"}, "tuple"},
 
-		"encode_url": {1, 1, []string{"string"}, "string"},
-		"decode_url": {1, 1, []string{"string"}, "tuple"},
+		"encode_url":  {1, 1, []string{"string"}, "string"},
+		"decode_url":  {1, 1, []string{"string"}, "tuple"},
 		"build_query": {1, 1, []string{"map[string:string]"}, "string"},
 
 		"json_body": {1, 1, []string{"map"}, "string"},
