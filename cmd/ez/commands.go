@@ -12,22 +12,8 @@ func filterEzFiles(cmd *cobra.Command, args []string, toComplete string) ([]cobr
 
 var checkCmd = &cobra.Command{
 	Use:               "check [file.ez | directory]",
+	Aliases:           []string{"build"},
 	Short:             "Check syntax and types for a file or directory",
-	Args:              cobra.ExactArgs(1),
-	ValidArgsFunction: filterEzFiles,
-	Run: func(cmd *cobra.Command, args []string) {
-		arg := args[0]
-		if strings.HasSuffix(arg, ".ez") {
-			checkFile(arg)
-		} else {
-			checkProject(arg)
-		}
-	},
-}
-
-var buildCmd = &cobra.Command{
-	Use:               "build [file.ez | directory]",
-	Short:             "Check syntax and types for a file or directory (alias for check)",
 	Args:              cobra.ExactArgs(1),
 	ValidArgsFunction: filterEzFiles,
 	Run: func(cmd *cobra.Command, args []string) {
@@ -94,7 +80,7 @@ var rootCmd = &cobra.Command{
 }
 
 func init() {
-	rootCmd.AddCommand(replCmd, updateCmd, checkCmd, buildCmd, lexCmd, parseCmd)
+	rootCmd.AddCommand(replCmd, updateCmd, checkCmd, lexCmd, parseCmd)
 	rootCmd.PersistentPreRun = func(cmd *cobra.Command, args []string) {
 		CheckForUpdateAsync()
 	}
