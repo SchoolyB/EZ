@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.36.3](https://github.com/SchoolyB/EZ/compare/v0.36.2...v0.36.3) (2025-12-31)
+
+
+### Features
+
+* add`[@http](https://github.com/http)` module HTTP client for web requests ([#877](https://github.com/SchoolyB/EZ/issues/877)) ([34a874f](https://github.com/SchoolyB/EZ/commit/34a874f753f68ff8fbd52ea83a9ff179dad3b2fd))
+
+
+### Bug Fixes
+
+* Bug: Type inference fails for most stdlib module function calls ([#878](https://github.com/SchoolyB/EZ/issues/878)) ([4b6bfa7](https://github.com/SchoolyB/EZ/commit/4b6bfa79c95250241da3f127230ea33317e4f037))
+* resolve merge conflict and regenerate ERRORS.md ([53cc4da](https://github.com/SchoolyB/EZ/commit/53cc4da6f34cc3f644f19d022e5e06a6279a5cf8))
+* **typechecker:** infer json.decode return type from type argument ([908b026](https://github.com/SchoolyB/EZ/commit/908b0265b1df41b75c39cd75679ee13282ab7c14))
+
 ## [0.36.2](https://github.com/SchoolyB/EZ/compare/v0.36.1...v0.36.2) (2025-12-28)
 
 
