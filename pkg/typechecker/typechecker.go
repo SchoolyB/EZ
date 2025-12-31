@@ -1923,7 +1923,7 @@ func (tc *TypeChecker) checkMultiReturnDeclaration(decl *ast.VariableDeclaration
 		// Check if it's a module function with multiple return values
 		if moduleName != "" {
 			resolvedModuleName := tc.resolveStdlibModule(moduleName)
-			moduleReturnTypes := tc.getModuleMultiReturnTypes(resolvedModuleName, funcName)
+			moduleReturnTypes := tc.getModuleMultiReturnTypes(resolvedModuleName, funcName, callExpr.Arguments)
 			if moduleReturnTypes != nil {
 				// Register variables with the correct module function return types
 				for i, name := range decl.Names {
@@ -4749,7 +4749,8 @@ func (tc *TypeChecker) getBuiltinMultiReturnTypes(name string) []string {
 
 // getModuleMultiReturnTypes returns the return types for stdlib module functions that return multiple values
 // Returns nil if the function is not a known multi-return module function
-func (tc *TypeChecker) getModuleMultiReturnTypes(moduleName, funcName string) []string {
+// The args parameter allows type inference based on function arguments (e.g., json.decode with a type hint)
+func (tc *TypeChecker) getModuleMultiReturnTypes(moduleName, funcName string, args []ast.Expression) []string {
 	switch moduleName {
 	case "io":
 		switch funcName {
@@ -4803,6 +4804,12 @@ func (tc *TypeChecker) getModuleMultiReturnTypes(moduleName, funcName string) []
 		case "encode", "pretty":
 			return []string{"string", "error"}
 		case "decode":
+			// If a type argument is provided, return that type instead of "any"
+			if len(args) >= 2 {
+				if label, ok := args[1].(*ast.Label); ok {
+					return []string{label.Value, "error"}
+				}
+			}
 			return []string{"any", "error"}
 		case "parse", "parse_file":
 			return []string{"any", "error"}
@@ -4968,7 +4975,7 @@ func (tc *TypeChecker) inferModuleCallType(member *ast.MemberExpression, args []
 
 	// Standard library function return types
 	resolvedModuleName := tc.resolveStdlibModule(moduleName)
-	if returnTypes := tc.getModuleMultiReturnTypes(resolvedModuleName, funcName); len(returnTypes) > 1 {
+	if returnTypes := tc.getModuleMultiReturnTypes(resolvedModuleName, funcName, args); len(returnTypes) > 1 {
 		// Multi-return stdlib calls cannot be inferred as a single value.
 		return "", true
 	}
@@ -5267,6 +5274,12 @@ func (tc *TypeChecker) inferJSONCallType(funcName string, args []ast.Expression)
 	case "encode", "pretty":
 		return "string", true
 	case "decode":
+		// If a type argument is provided, return that type instead of "any"
+		if len(args) >= 2 {
+			if label, ok := args[1].(*ast.Label); ok {
+				return label.Value, true
+			}
+		}
 		return "any", true
 	case "is_valid":
 		return "bool", true
@@ -5372,7 +5385,9 @@ func (tc *TypeChecker) inferDBCallType(funcName string, args []ast.Expression) (
 	switch funcName {
 	case "open":
 		return "Database", true
-	case "close", "save", "set", "clear", "sort":
+	case "close", "save":
+		return "error", true
+	case "set", "clear", "sort":
 		return "void", true
 	case "get":
 		return "string", true
@@ -6080,7 +6095,7 @@ func (tc *TypeChecker) inferDirectStdlibCallType(funcName string, args []ast.Exp
 		}
 	}
 	if tc.hasUsingStdlibModule("io") {
-		if returnTypes := tc.getModuleMultiReturnTypes("io", funcName); len(returnTypes) > 1 {
+		if returnTypes := tc.getModuleMultiReturnTypes("io", funcName, args); len(returnTypes) > 1 {
 			return "", true
 		}
 		if inferred, ok := tc.inferIOCallType(funcName, args); ok {
@@ -6088,7 +6103,7 @@ func (tc *TypeChecker) inferDirectStdlibCallType(funcName string, args []ast.Exp
 		}
 	}
 	if tc.hasUsingStdlibModule("os") {
-		if returnTypes := tc.getModuleMultiReturnTypes("os", funcName); len(returnTypes) > 1 {
+		if returnTypes := tc.getModuleMultiReturnTypes("os", funcName, args); len(returnTypes) > 1 {
 			return "", true
 		}
 		if inferred, ok := tc.inferOSCallType(funcName, args); ok {
@@ -6101,7 +6116,7 @@ func (tc *TypeChecker) inferDirectStdlibCallType(funcName string, args []ast.Exp
 		}
 	}
 	if tc.hasUsingStdlibModule("json") {
-		if returnTypes := tc.getModuleMultiReturnTypes("json", funcName); len(returnTypes) > 1 {
+		if returnTypes := tc.getModuleMultiReturnTypes("json", funcName, args); len(returnTypes) > 1 {
 			return "", true
 		}
 		if inferred, ok := tc.inferJSONCallType(funcName, args); ok {
@@ -6109,7 +6124,7 @@ func (tc *TypeChecker) inferDirectStdlibCallType(funcName string, args []ast.Exp
 		}
 	}
 	if tc.hasUsingStdlibModule("bytes") {
-		if returnTypes := tc.getModuleMultiReturnTypes("bytes", funcName); len(returnTypes) > 1 {
+		if returnTypes := tc.getModuleMultiReturnTypes("bytes", funcName, args); len(returnTypes) > 1 {
 			return "", true
 		}
 		if inferred, ok := tc.inferBytesCallType(funcName, args); ok {
@@ -6117,7 +6132,7 @@ func (tc *TypeChecker) inferDirectStdlibCallType(funcName string, args []ast.Exp
 		}
 	}
 	if tc.hasUsingStdlibModule("binary") {
-		if returnTypes := tc.getModuleMultiReturnTypes("binary", funcName); len(returnTypes) > 1 {
+		if returnTypes := tc.getModuleMultiReturnTypes("binary", funcName, args); len(returnTypes) > 1 {
 			return "", true
 		}
 		if inferred, ok := tc.inferBinaryCallType(funcName, args); ok {
@@ -6125,7 +6140,7 @@ func (tc *TypeChecker) inferDirectStdlibCallType(funcName string, args []ast.Exp
 		}
 	}
 	if tc.hasUsingStdlibModule("db") {
-		if returnTypes := tc.getModuleMultiReturnTypes("db", funcName); len(returnTypes) > 1 {
+		if returnTypes := tc.getModuleMultiReturnTypes("db", funcName, args); len(returnTypes) > 1 {
 			return "", true
 		}
 		if inferred, ok := tc.inferDBCallType(funcName, args); ok {
