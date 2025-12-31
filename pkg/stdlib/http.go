@@ -389,7 +389,7 @@ var HttpBuiltins = map[string]*object.Builtin{
 			}
 
 			timeout := DEFAULT_TIMEOUT
-			if timeout > 0 {
+			if timeoutArg.Value.Uint64() > 0 {
 				timeout = int(timeoutArg.Value.Uint64())
 			}
 
