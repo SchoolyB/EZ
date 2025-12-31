@@ -373,4 +373,4 @@ Module-related warnings
 
 ## Summary
 
-**Total:** 249 error/warning codes
+**Total:** 255 error/warning codes

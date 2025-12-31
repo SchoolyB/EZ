@@ -51,8 +51,8 @@ do main() {
     println("Total keys: " + string(db.count(store)))
     
     // Manual save (optional - auto-saves on close)
-		temp _ error = db.save(store)
-    
+		temp _ = db.save(store)
+
     // Cleanup
-    temp _ error = db.close(store)
+    temp _ = db.close(store)
 }
