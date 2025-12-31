@@ -224,10 +224,10 @@ func CheckForUpdateAsync() {
 // runUpdate runs the interactive update command
 // If args contains "--confirm" followed by a URL, it skips confirmation and installs directly
 // (used when re-executing with sudo)
-func runUpdate(args []string) {
+func runUpdate(confirm bool, url string) {
 	// Check for --confirm flag (used by sudo re-exec)
-	if len(args) >= 2 && args[0] == "--confirm" {
-		downloadURL := args[1]
+	if confirm {
+		downloadURL := url
 		fmt.Printf("Installing update...\n")
 		if err := downloadAndInstall(downloadURL); err != nil {
 			fmt.Printf("Error during update: %v\n", err)
