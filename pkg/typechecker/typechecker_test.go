@@ -4407,9 +4407,86 @@ func TestMapDelete(t *testing.T) {
 import @maps
 using maps
 
+do takeBool(value bool) {
+}
+
 do main() {
 	temp m map[string:int] = {"a": 1, "b": 2}
-	temp result map[string:int] = maps.delete(m, "a")
+	temp deleted = maps.delete(m, "a")
+	takeBool(deleted)
+}
+`
+	tc := typecheck(t, input)
+	assertNoErrors(t, tc)
+}
+
+func TestStdlibInference(t *testing.T) {
+	input := `
+import @uuid
+import @random
+import @maps
+import @json
+
+do takeString(value string) {
+}
+
+do takeInt(value int) {
+}
+
+do takeBool(value bool) {
+}
+
+do takeStrings(value [string]) {
+}
+
+do main() {
+	temp id = uuid.create()
+	takeString(id)
+
+	temp number = random.int(1, 10)
+	takeInt(number)
+
+	temp m map[string:int] = {"a": 1, "b": 2}
+	temp keys = maps.keys(m)
+	takeStrings(keys)
+
+	temp valid = json.is_valid("{\"a\": 1}")
+	takeBool(valid)
+}
+`
+	tc := typecheck(t, input)
+	assertNoErrors(t, tc)
+}
+
+func TestUsingStdlibInference(t *testing.T) {
+	input := `
+import @maps
+using maps
+
+do takeBool(value bool) {
+}
+
+do main() {
+	temp m map[string:int] = {"a": 1}
+	temp empty = is_empty(m)
+	takeBool(empty)
+}
+`
+	tc := typecheck(t, input)
+	assertNoErrors(t, tc)
+}
+
+func TestStdlibAliasInference(t *testing.T) {
+	input := `
+import m@maps
+
+do takeBool(value bool) {
+}
+
+do main() {
+	temp m0 map[string:int] = {"a": 1}
+	temp empty = m.is_empty(m0)
+	takeBool(empty)
 }
 `
 	tc := typecheck(t, input)

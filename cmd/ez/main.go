@@ -4,6 +4,7 @@ package main
 // Licensed under the MIT License. See LICENSE for details.
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"os"
@@ -36,94 +37,16 @@ Programming made EZ
 `
 
 func main() {
-	if len(os.Args) < 2 {
-		printHelp()
-		return
-	}
-
-	command := os.Args[1]
-
-	// Check for updates in background (non-blocking, once per day)
-	// Skip for version command - it handles update checking itself
-	if command != "version" && command != "-v" && command != "--version" {
-		CheckForUpdateAsync()
-	}
-
-	switch command {
-	case "help", "-h", "--help":
-		printHelp()
-	case "version", "-v", "--version":
-		printVersion()
-	case "update":
-		runUpdate(os.Args[2:])
-	case "repl":
-		startREPL()
-	case "check", "build":
-		if len(os.Args) < 3 {
-			fmt.Println("Usage: ez check <file.ez | directory>")
-			return
-		}
-		arg := os.Args[2]
-		// Check if it's a .ez file or a directory
-		if strings.HasSuffix(arg, ".ez") {
-			checkFile(arg)
-		} else {
-			checkProject(arg)
-		}
-	case "lex":
-		if len(os.Args) < 3 {
-			fmt.Println("Usage: ez lex <file>")
-			return
-		}
-		lexFile(os.Args[2])
-	case "parse":
-		if len(os.Args) < 3 {
-			fmt.Println("Usage: ez parse <file>")
-			return
-		}
-		parse_file(os.Args[2])
-	default:
-		// If it's not a known command, treat it as a file to run
-		// This allows: ez myProgram.ez
-		if len(command) > 3 && command[len(command)-3:] == ".ez" {
-			runFile(command)
-		} else {
-			fmt.Printf("Unknown command: %s\n", command)
-			fmt.Println("Run 'ez help' for usage information")
-		}
+	if err := rootCmd.Execute(); err != nil {
+		os.Exit(1)
 	}
 }
 
-func printHelp() {
-	fmt.Println("EZ Language Interpreter")
-	fmt.Println()
-	fmt.Println("Usage:")
-	fmt.Println("  ez <file>           Run an EZ program")
-	fmt.Println("  ez <command> [args] Run a specific command")
-	fmt.Println()
-	fmt.Println("Commands:")
-	fmt.Println("  check <file | dir>   Check syntax and types for a file or directory")
-	fmt.Println("  repl           Start interactive REPL mode")
-	fmt.Println("  update         Check for updates and upgrade EZ")
-	fmt.Println("  version        Show version information")
-	fmt.Println("  help           Show this help message")
-	fmt.Println()
-	fmt.Println("Debug Commands:")
-	fmt.Println("  lex <file>     Tokenize a file")
-	fmt.Println("  parse <file>   Parse a file")
-	fmt.Println()
-	fmt.Println("Examples:")
-	fmt.Println("  ez myProgram.ez")
-	fmt.Println("  ez check .                  # Check project in current directory")
-	fmt.Println("  ez check ./myproject        # Check project in myproject/")
-	fmt.Println("  ez check utils.ez           # Check single file")
-	fmt.Println("  ez repl")
-}
-
-func printVersion() {
-	fmt.Print(asciiBanner)
-	fmt.Printf("\n%s%s%s\n", errors.Bold, Version, errors.Reset)
-	fmt.Printf("Built: %s\n", BuildTime)
+func getVersionString() string {
+	buf := bytes.Buffer{}
+	buf.WriteString(asciiBanner)
+	fmt.Fprintf(&buf, "\n%s%s%s\n", errors.Bold, Version, errors.Reset)
+	fmt.Fprintf(&buf, "Built: %s\n", BuildTime)
 
 	// Always fetch fresh version info when user explicitly runs 'ez version'
 	var latestVersion string
@@ -150,13 +73,14 @@ func printVersion() {
 
 	// Always display latest version if we have it
 	if latestVersion != "" {
-		fmt.Printf("Latest: %s\n", latestVersion)
+		fmt.Fprintf(&buf, "Latest: %s\n", latestVersion)
 		if isNewerVersion(Version, latestVersion) {
-			fmt.Printf("\nUpdate available! Run `ez update` to upgrade.\n")
+			fmt.Fprintf(&buf, "\nUpdate available! Run `ez update` to upgrade.\n")
 		}
 	}
 
-	fmt.Println("Copyright (c) 2025-Present Marshall A Burns")
+	fmt.Fprintf(&buf, "Copyright (c) 2025-Present Marshall A Burns")
+	return buf.String()
 }
 
 func checkFile(filename string) {
@@ -916,11 +840,11 @@ func runFile(filename string) {
 	// This fixes #851 where nested imports weren't available during type checking
 
 	type parsedFile struct {
-		path       string
-		source     string
-		program    *ast.Program
-		modPath    string // The module path this file belongs to
-		numFiles   int    // Number of files in the module
+		path     string
+		source   string
+		program  *ast.Program
+		modPath  string // The module path this file belongs to
+		numFiles int    // Number of files in the module
 	}
 	var allParsedFiles []parsedFile
 
