@@ -336,6 +336,18 @@ func (tc *TypeChecker) registerBuiltinTypes() {
 	}
 	tc.types["Error"] = errorType
 	tc.types["error"] = errorType // Alias for convenience
+
+	// Built-in HTTP Response struct
+	httpResponseType := &Type{
+		Name: "HttpResponse",
+		Kind: StructType,
+		Fields: map[string]*Type{
+			"status": {Name: "int", Kind: PrimitiveType},
+			"body": 	{Name: "string", Kind: PrimitiveType},
+			"headers":{Name: "map[string:[string]]", Kind: MapType},
+		},
+	}
+	tc.types["HttpResponse"] = httpResponseType
 }
 
 // TypeExists checks if a type name is registered
@@ -4863,6 +4875,14 @@ func (tc *TypeChecker) getModuleMultiReturnTypes(moduleName, funcName string) []
 		case "get":
 			return []string{"string", "bool"}
 		}
+	
+	case "http":
+		switch funcName {
+		case "get", "post", "put", "delete", "patch", "request":
+			return []string{"HttpResponse", "error"}
+		case "decode_url":
+			return []string{"string", "error"}
+		}
 	}
 	return nil
 }
@@ -6340,6 +6360,20 @@ func (tc *TypeChecker) isDBFunction(name string) bool {
 	return dbFuncs[name]
 }
 
+func (tc *TypeChecker) isHttpFunction(name string) bool {
+	httpFuncs := map[string]bool{
+		"get": true, "post": true, "put": true, "delete": true,
+		"patch": true,
+
+		"request": true,
+
+		"encode_url": true, "decode_url": true, "build_query": true,
+
+		"json_body": true,
+	}
+	return httpFuncs[name]
+}
+
 // isBytesFunction checks if a function name exists in the bytes module
 func (tc *TypeChecker) isBytesFunction(name string) bool {
 	bytesFuncs := map[string]bool{
@@ -6463,6 +6497,8 @@ func (tc *TypeChecker) isModuleFunction(moduleName, funcName string) bool {
 		return tc.isBinaryFunction(funcName)
 	case "db":
 		return tc.isDBFunction(funcName)
+	case "http":
+		return tc.isHttpFunction(funcName)
 	case "uuid":
 		return tc.isUuidFunction(funcName)
 	case "encoding":
@@ -6494,6 +6530,9 @@ func (tc *TypeChecker) checkStdlibCall(member *ast.MemberExpression, call *ast.C
 	resolvedModuleName := tc.resolveStdlibModule(moduleName)
 
 	// Check if the module was imported (for standard library modules)
+	stdModules := map[string]bool{"std": true, "math": true, "arrays": true, "strings": true, "time": true, "maps": true, "io": true, "os": true, "bytes": true, "random": true, "json": true, "binary": true, "db": true, "uuid": true, "encoding": true, "crypto": true, "http": true}
+	if stdModules[moduleName] && !tc.modules[moduleName] {
+		tc.addError(errors.E4007, fmt.Sprintf("module '%s' not imported; add 'import @%s'", moduleName, moduleName), line, column)
 	stdModules := map[string]bool{"std": true, "math": true, "arrays": true, "strings": true, "time": true, "maps": true, "io": true, "os": true, "bytes": true, "random": true, "json": true, "binary": true, "db": true, "uuid": true, "encoding": true, "crypto": true}
 	if stdModules[resolvedModuleName] && !tc.modules[moduleName] && !tc.modules[resolvedModuleName] {
 		tc.addError(errors.E4007, fmt.Sprintf("module '%s' not imported; add 'import @%s'", moduleName, resolvedModuleName), line, column)
@@ -6536,6 +6575,8 @@ func (tc *TypeChecker) checkStdlibCall(member *ast.MemberExpression, call *ast.C
 		tc.checkEncodingModuleCall(funcName, call, line, column)
 	case "crypto":
 		tc.checkCryptoModuleCall(funcName, call, line, column)
+	case "http":
+		tc.checkHttpModuleCall(funcName, call, line, column)
 	default:
 		// User-defined module - check if we have type info for it
 		tc.checkUserModuleCall(moduleName, funcName, call, line, column)
@@ -7601,6 +7642,31 @@ func (tc *TypeChecker) checkCryptoModuleCall(funcName string, call *ast.CallExpr
 	}
 
 	tc.validateStdlibCall("crypto", funcName, call, sig, line, column)
+}
+
+func (tc *TypeChecker) checkHttpModuleCall(funcName string, call *ast.CallExpression, line, column int) {
+	signatures := map[string]StdlibFuncSig{
+		"get": {1, 1, []string{"string"}, "tuple"},
+		"post": {2, 2, []string{"string", "string"}, "tuple"},
+		"put": {2, 2, []string{"string", "string"}, "tuple"},
+		"delete": {1, 1, []string{"string"}, "tuple"},
+		"patch": {2, 2, []string{"string", "string"}, "tuple"},
+
+		"request": {5, 5, []string{"string", "string", "string", "map[string:string]", "int"}, "tuple"},
+
+		"encode_url": {1, 1, []string{"string"}, "string"},
+		"decode_url": {1, 1, []string{"string"}, "tuple"},
+		"build_query": {1, 1, []string{"map[string:string]"}, "string"},
+
+		"json_body": {1, 1, []string{"map"}, "string"},
+	}
+
+	sig, exists := signatures[funcName]
+	if !exists {
+		return
+	}
+
+	tc.validateStdlibCall("http", funcName, call, sig, line, column)
 }
 
 // validateStdlibCall performs the actual validation of a stdlib call

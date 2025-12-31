@@ -154,6 +154,7 @@ var validModules = map[string]bool{
 	"uuid":     true, // UUID generation and validation
 	"encoding": true, // Base64, hex, and URL encoding/decoding
 	"crypto":   true, // Cryptographic hashing and secure random
+	"http":			true, // HTTP client for web requests
 }
 
 // isValidModule checks if a module name is valid (either standard library or user-created)
