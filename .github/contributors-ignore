@@ -1,0 +1,15 @@
+# Contributors to exclude from automatic README updates
+# Add GitHub usernames (one per line)
+# Supports comments starting with #
+
+# Bots
+github-actions[bot]
+dependabot[bot]
+release-please[bot]
+
+# AI agents
+claude-code[bot]
+anthropic-ai[bot]
+
+# Repository owner (listed separately or handled differently)
+SchoolyB
