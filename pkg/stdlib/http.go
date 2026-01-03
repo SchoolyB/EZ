@@ -376,7 +376,12 @@ var HttpBuiltins = map[string]*object.Builtin{
 
 			headersArg, ok := args[3].(*object.Map)
 			if !ok {
-				return &object.Error{Code: "E7007", Message: "http.request() requires a map argument"}
+				// Special case: empty {} is parsed as empty Array, convert to empty Map
+				if arr, isArr := args[3].(*object.Array); isArr && len(arr.Elements) == 0 {
+					headersArg = object.NewMap()
+				} else {
+					return &object.Error{Code: "E7007", Message: "http.request() requires a map argument"}
+				}
 			}
 
 			timeoutArg, ok := args[4].(*object.Integer)
@@ -524,7 +529,12 @@ var HttpBuiltins = map[string]*object.Builtin{
 
 			m, ok := args[0].(*object.Map)
 			if !ok {
-				return &object.Error{Code: "E7007", Message: "http.build_query() requires a map argument"}
+				// Special case: empty {} is parsed as empty Array, convert to empty Map
+				if arr, isArr := args[0].(*object.Array); isArr && len(arr.Elements) == 0 {
+					m = object.NewMap()
+				} else {
+					return &object.Error{Code: "E7007", Message: "http.build_query() requires a map argument"}
+				}
 			}
 
 			q := url.Values{}
@@ -552,7 +562,12 @@ var HttpBuiltins = map[string]*object.Builtin{
 
 			m, ok := args[0].(*object.Map)
 			if !ok {
-				return &object.Error{Code: "E7007", Message: "http.json_body() requires a map argument"}
+				// Special case: empty {} is parsed as empty Array, convert to empty Map
+				if arr, isArr := args[0].(*object.Array); isArr && len(arr.Elements) == 0 {
+					m = object.NewMap()
+				} else {
+					return &object.Error{Code: "E7007", Message: "http.json_body() requires a map argument"}
+				}
 			}
 
 			result, err := encodeToJSON(m, make(map[uintptr]bool))

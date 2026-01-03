@@ -7762,8 +7762,22 @@ func (tc *TypeChecker) typeMatchesExpected(actual, expected string) bool {
 	case "array":
 		return tc.isArrayType(actual)
 	case "map":
-		return tc.isMapType(actual)
+		// Use typesCompatible to allow empty arrays [] to be compatible with map types
+		// Check both directions: actual is map, or actual is [] and expected is map
+		if tc.isMapType(actual) {
+			return true
+		}
+		// Empty braces {} parsed as empty array [] should also be compatible with map types
+		if actual == "[]" {
+			return true
+		}
+		return false
 	default:
+		// For specific map types like "map[string:string]", use typesCompatible
+		// which handles empty arrays [] being compatible with map types
+		if tc.isMapType(expected) && actual == "[]" {
+			return true
+		}
 		return tc.typesCompatible(expected, actual)
 	}
 }
