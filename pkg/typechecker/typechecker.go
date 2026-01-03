@@ -2833,13 +2833,24 @@ func (tc *TypeChecker) checkInfixExpression(infix *ast.InfixExpression) {
 		}
 
 	case "<", ">", "<=", ">=":
-		// Only valid for numbers, strings, chars, or enums with numeric/string base type
-		leftComparable := tc.isNumericType(leftType) || leftType == "string" || leftType == "char" || tc.isComparableEnumType(leftType)
-		rightComparable := tc.isNumericType(rightType) || rightType == "string" || rightType == "char" || tc.isComparableEnumType(rightType)
+		// Check for string comparison explicitly to give helpful message (#887)
+		if leftType == "string" && rightType == "string" {
+			tc.addError(
+				errors.E3002,
+				fmt.Sprintf("cannot use '%s' on strings; use strings.compare() instead", infix.Operator),
+				line,
+				column,
+			)
+			return
+		}
+
+		// Only valid for numbers, chars, or enums with numeric base type
+		leftComparable := tc.isNumericType(leftType) || leftType == "char" || tc.isComparableEnumType(leftType)
+		rightComparable := tc.isNumericType(rightType) || rightType == "char" || tc.isComparableEnumType(rightType)
 		if !leftComparable {
 			tc.addError(
 				errors.E3002,
-				fmt.Sprintf("invalid operand for '%s': %s (expected numeric or string)", infix.Operator, leftType),
+				fmt.Sprintf("invalid operand for '%s': %s (expected numeric)", infix.Operator, leftType),
 				line,
 				column,
 			)
@@ -2847,7 +2858,7 @@ func (tc *TypeChecker) checkInfixExpression(infix *ast.InfixExpression) {
 		if !rightComparable {
 			tc.addError(
 				errors.E3002,
-				fmt.Sprintf("invalid operand for '%s': %s (expected numeric or string)", infix.Operator, rightType),
+				fmt.Sprintf("invalid operand for '%s': %s (expected numeric)", infix.Operator, rightType),
 				line,
 				column,
 			)
@@ -5581,10 +5592,10 @@ func (tc *TypeChecker) isEnumType(typeName string) bool {
 	return false
 }
 
-// isComparableEnumType checks if a type is an enum with a comparable base type (numeric or string)
+// isComparableEnumType checks if a type is an enum with a comparable base type (numeric)
 func (tc *TypeChecker) isComparableEnumType(typeName string) bool {
 	if t, exists := tc.types[typeName]; exists && t.Kind == EnumType {
-		return tc.isNumericType(t.EnumBaseType) || t.EnumBaseType == "string"
+		return tc.isNumericType(t.EnumBaseType)
 	}
 	return false
 }
