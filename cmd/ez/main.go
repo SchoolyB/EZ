@@ -1118,6 +1118,14 @@ func runFile(filename string) {
 			fnEnv := interpreter.NewEnclosedEnvironment(env)
 			mainResult := interpreter.Eval(fn.Body, fnEnv)
 
+			// Execute ensure statements before returning (LIFO order)
+			ensures := fnEnv.ExecuteEnsures()
+			for _, ensureCall := range ensures {
+				interpreter.Eval(ensureCall, fnEnv)
+				// Note: We ignore errors from ensure statements to ensure cleanup always runs
+			}
+			fnEnv.ClearEnsures()
+
 			// Check for errors from main
 			if errObj, ok := mainResult.(*interpreter.Error); ok {
 				printRuntimeError(errObj, source, filename)
