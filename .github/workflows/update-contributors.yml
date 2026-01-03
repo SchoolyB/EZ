@@ -1,0 +1,108 @@
+name: Update Contributors
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  update-contributors:
+    name: Update README Contributors
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Update contributors in README
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -e
+
+          # Get list of contributors to ignore
+          IGNORE_FILE=".github/contributors-ignore"
+          declare -A IGNORE_MAP
+          if [ -f "$IGNORE_FILE" ]; then
+            while IFS= read -r line; do
+              # Skip comments and empty lines
+              [[ "$line" =~ ^#.*$ || -z "$line" ]] && continue
+              IGNORE_MAP["$line"]=1
+            done < "$IGNORE_FILE"
+          fi
+
+          # Get contributors from GitHub API
+          mapfile -t API_CONTRIBUTORS < <(gh api repos/${{ github.repository }}/contributors --paginate --jq '.[].login')
+
+          # Get current contributors from README (portable pattern that excludes badge URLs)
+          mapfile -t CURRENT_CONTRIBUTORS < <(grep -o '<a href="https://github.com/[^"]*"><img src="https://github.com/[^"]*\.png"' README.md | grep -o 'github.com/[^"]*"><img' | sed 's|github.com/||;s|"><img||' || true)
+
+          # Build a map of current contributors (case-insensitive)
+          declare -A CURRENT_MAP
+          for c in "${CURRENT_CONTRIBUTORS[@]}"; do
+            CURRENT_MAP["${c,,}"]=1
+          done
+
+          # Find new contributors
+          NEW_CONTRIBUTORS=()
+          for contributor in "${API_CONTRIBUTORS[@]}"; do
+            # Skip if in ignore list
+            [[ -n "${IGNORE_MAP[$contributor]}" ]] && continue
+
+            # Skip if already in README (case-insensitive)
+            [[ -n "${CURRENT_MAP[${contributor,,}]}" ]] && continue
+
+            NEW_CONTRIBUTORS+=("$contributor")
+          done
+
+          # Exit if no new contributors
+          if [ ${#NEW_CONTRIBUTORS[@]} -eq 0 ]; then
+            echo "No new contributors to add"
+            exit 0
+          fi
+
+          echo "New contributors found: ${NEW_CONTRIBUTORS[*]}"
+
+          # Add each new contributor to README
+          for contributor in "${NEW_CONTRIBUTORS[@]}"; do
+            echo "Adding contributor: $contributor"
+
+            NEW_LINE="<a href=\"https://github.com/${contributor}\"><img src=\"https://github.com/${contributor}.png\" width=\"50\" height=\"50\" alt=\"${contributor}\"/></a>"
+
+            # Find the last contributor line and append after it
+            # Using awk to find and append after the last <a href="https://github.com/..."></a> line
+            awk -v new_line="$NEW_LINE" '
+              /<a href="https:\/\/github\.com\/[^"]+"><img/ { last = NR; lastline = $0 }
+              { lines[NR] = $0 }
+              END {
+                for (i = 1; i <= NR; i++) {
+                  print lines[i]
+                  if (i == last) print new_line
+                }
+              }
+            ' README.md > README.tmp && mv README.tmp README.md
+          done
+
+      - name: Check for changes
+        id: check
+        run: |
+          if git diff --quiet README.md; then
+            echo "changed=false" >> $GITHUB_OUTPUT
+          else
+            echo "changed=true" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Commit changes
+        if: steps.check.outputs.changed == 'true'
+        run: |
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+          git add README.md
+          git commit -m "chore: update contributors in README"
+          git push
