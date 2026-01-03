@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.36.4](https://github.com/SchoolyB/EZ/compare/v0.36.3...v0.36.4) (2026-01-03)
+
+
+### Bug Fixes
+
+* **typechecker:** runtime string relational operator failure ([#888](https://github.com/SchoolyB/EZ/issues/888)) ([bc7aee4](https://github.com/SchoolyB/EZ/commit/bc7aee4cdb23dc89e05b7ee84156cf3ee8d92137))
+
 ## [0.36.3](https://github.com/SchoolyB/EZ/compare/v0.36.2...v0.36.3) (2025-12-31)
 
 
