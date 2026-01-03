@@ -5592,10 +5592,10 @@ func (tc *TypeChecker) isEnumType(typeName string) bool {
 	return false
 }
 
-// isComparableEnumType checks if a type is an enum with a comparable base type (numeric or string)
+// isComparableEnumType checks if a type is an enum with a comparable base type (numeric)
 func (tc *TypeChecker) isComparableEnumType(typeName string) bool {
 	if t, exists := tc.types[typeName]; exists && t.Kind == EnumType {
-		return tc.isNumericType(t.EnumBaseType) || t.EnumBaseType == "string"
+		return tc.isNumericType(t.EnumBaseType)
 	}
 	return false
 }
