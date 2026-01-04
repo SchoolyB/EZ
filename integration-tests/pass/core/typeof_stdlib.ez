@@ -1,0 +1,72 @@
+/*
+ * Test: typeof() for stdlib return types
+ * Tests that stdlib functions return correct EZ type names
+ * Related to issue #900: Internal type representation fix
+ */
+
+import @std
+import @random
+import @strings
+import @maps
+
+using std
+
+do main() {
+    // Test random module types
+    temp rf float = random.float()
+    assert(typeof(rf) == "float", "random.float() should return 'float'")
+
+    temp ri int = random.int(100)
+    assert(typeof(ri) == "int", "random.int() should return 'int'")
+
+    temp rb bool = random.bool()
+    assert(typeof(rb) == "bool", "random.bool() should return 'bool'")
+
+    temp rc byte = random.byte()
+    assert(typeof(rc) == "byte", "random.byte() should return 'byte'")
+
+    temp rchar char = random.char()
+    assert(typeof(rchar) == "char", "random.char() should return 'char'")
+
+    // Test random array functions preserve element types
+    temp arr [int] = {1, 2, 3, 4, 5}
+    temp shuffled = random.shuffle(arr)
+    assert(typeof(shuffled) == "[int]", "random.shuffle() should preserve '[int]' type")
+
+    temp sampled = random.sample(arr, 2)
+    assert(typeof(sampled) == "[int]", "random.sample() should preserve '[int]' type")
+
+    temp choice = random.choice(arr)
+    assert(typeof(choice) == "int", "random.choice() should return element type 'int'")
+
+    // Test with string array
+    temp strArr [string] = {"a", "b", "c"}
+    temp strShuffled = random.shuffle(strArr)
+    assert(typeof(strShuffled) == "[string]", "random.shuffle() should preserve '[string]' type")
+
+    // Test Range type
+    temp r = range(0, 10)
+    assert(typeof(r) == "Range<int>", "range() should return 'Range<int>'")
+
+    // Test string array from split
+    temp parts = strings.split("a,b,c", ",")
+    assert(typeof(parts) == "[string]", "strings.split() should return '[string]'")
+
+    // Test map types
+    temp m map[string:int] = {"a": 1, "b": 2}
+    temp keys = maps.keys(m)
+    assert(typeof(keys) == "[string]", "maps.keys() should return '[string]'")
+
+    temp values = maps.values(m)
+    assert(typeof(values) == "[int]", "maps.values() should return '[int]'")
+
+    // Test with different map types
+    temp m2 map[int:string] = {1: "one", 2: "two"}
+    temp keys2 = maps.keys(m2)
+    assert(typeof(keys2) == "[int]", "maps.keys() should return '[int]' for int keys")
+
+    temp values2 = maps.values(m2)
+    assert(typeof(values2) == "[string]", "maps.values() should return '[string]' for string values")
+
+    println("PASS: typeof_stdlib")
+}
