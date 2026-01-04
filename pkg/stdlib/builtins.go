@@ -62,6 +62,8 @@ func getEZTypeName(obj object.Object) string {
 		return "enum"
 	case *object.Range:
 		return "range"
+	case *object.FileHandle:
+		return "File"
 	case *object.Nil:
 		return "nil"
 	case *object.Function:

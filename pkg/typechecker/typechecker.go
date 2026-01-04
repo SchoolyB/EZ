@@ -4871,7 +4871,7 @@ func (tc *TypeChecker) getModuleMultiReturnTypes(moduleName, funcName string, ar
 		case "read_stdin":
 			return []string{"string", "error"}
 		case "open", "create":
-			return []string{"FileHandle", "error"}
+			return []string{"File", "error"}
 		case "fread", "fread_line", "fread_all":
 			return []string{"string", "error"}
 		case "fread_bytes":
@@ -5334,7 +5334,7 @@ func (tc *TypeChecker) inferIOCallType(funcName string, args []ast.Expression) (
 	case "file_size", "file_mod_time", "write", "seek", "tell":
 		return "int", true
 	case "open":
-		return "FileHandle", true
+		return "File", true
 	case "READ_ONLY", "WRITE_ONLY", "READ_WRITE", "APPEND",
 		"CREATE", "TRUNCATE", "EXCLUSIVE",
 		"SEEK_START", "SEEK_CURRENT", "SEEK_END":
