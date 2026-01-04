@@ -31,7 +31,7 @@ func getEZTypeName(obj object.Object) string {
 	case *object.Integer:
 		return v.GetDeclaredType()
 	case *object.Float:
-		return "float"
+		return v.GetDeclaredType()
 	case *object.String:
 		return "string"
 	case *object.Boolean:
@@ -81,7 +81,7 @@ func deepCopy(obj object.Object) object.Object {
 	case *object.Integer:
 		return &object.Integer{Value: v.Value, DeclaredType: v.DeclaredType}
 	case *object.Float:
-		return &object.Float{Value: v.Value}
+		return &object.Float{Value: v.Value, DeclaredType: v.DeclaredType}
 	case *object.String:
 		return &object.String{Value: v.Value}
 	case *object.Boolean:
@@ -898,7 +898,7 @@ var StdBuiltins = map[string]*object.Builtin{
 			}
 			// Convert to float32 and back to truncate precision
 			f32 := float32(val)
-			return &object.Float{Value: float64(f32)}
+			return &object.Float{Value: float64(f32), DeclaredType: "f32"}
 		},
 	},
 
@@ -912,7 +912,7 @@ var StdBuiltins = map[string]*object.Builtin{
 			if err != nil {
 				return err
 			}
-			return &object.Float{Value: val}
+			return &object.Float{Value: val, DeclaredType: "f64"}
 		},
 	},
 

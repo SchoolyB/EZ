@@ -3279,8 +3279,9 @@ func (tc *TypeChecker) checkBuiltinTypeConversion(funcName string, call *ast.Cal
 		return true
 
 	case "string", "bool", "char", "byte",
-		"i8", "i16", "i32", "i64",
-		"u8", "u16", "u32", "u64":
+		"i8", "i16", "i32", "i64", "i128", "i256",
+		"u8", "u16", "u32", "u64", "u128", "u256",
+		"f32", "f64":
 		// These conversions are generally safe - but validate arg count
 		if len(call.Arguments) != 1 {
 			line, column := tc.getExpressionPosition(call.Function)
@@ -4307,6 +4308,8 @@ func (tc *TypeChecker) isBuiltinFunction(name string) bool {
 		"int": true, "float": true, "string": true, "bool": true, "char": true,
 		"i8": true, "i16": true, "i32": true, "i64": true,
 		"u8": true, "u16": true, "u32": true, "u64": true,
+		"i128": true, "i256": true, "u128": true, "u256": true,
+		"f32": true, "f64": true,
 		"byte": true,
 		// Core builtins
 		"len": true, "typeof": true, "input": true, "copy": true, "error": true,
@@ -5018,6 +5021,18 @@ func (tc *TypeChecker) inferBuiltinCallType(name string, args []ast.Expression) 
 		return "u32", true
 	case "u64":
 		return "u64", true
+	case "i128":
+		return "i128", true
+	case "i256":
+		return "i256", true
+	case "u128":
+		return "u128", true
+	case "u256":
+		return "u256", true
+	case "f32":
+		return "f32", true
+	case "f64":
+		return "f64", true
 	case "input":
 		return "string", true
 	case "read_int":
