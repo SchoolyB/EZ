@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.36.6](https://github.com/SchoolyB/EZ/compare/v0.36.5...v0.36.6) (2026-01-04)
+
+
+### Bug Fixes
+
+* **errors:** update E3038 hint to be more accurate ([a34b1b5](https://github.com/SchoolyB/EZ/commit/a34b1b5a42edcfd453c5562c5c2c3df9936a9fa2))
+* **interpreter:** handle void return with ensure correctly ([5580b07](https://github.com/SchoolyB/EZ/commit/5580b0777818975cda78a27be53baee1ec72320f)), closes [#883](https://github.com/SchoolyB/EZ/issues/883)
+* **typechecker:** prevent assignment of void function results ([a574be5](https://github.com/SchoolyB/EZ/commit/a574be5a5888e1dcd6d46bd0b043a67438b3323d))
+* **typechecker:** reject void as explicit return type ([d307711](https://github.com/SchoolyB/EZ/commit/d307711471dcbd5872c6f5f2274ec337d859e89a))
+* **typechecker:** reject void in compound types ([b2182bf](https://github.com/SchoolyB/EZ/commit/b2182bfaac444ef37a47c643cdcf591102a7eb85))
+* void function fixes and comprehensive type rejection ([e504704](https://github.com/SchoolyB/EZ/commit/e504704238c91dd7ab4e8f65476412160aed4e10))
+
 ## [0.36.5](https://github.com/SchoolyB/EZ/compare/v0.36.4...v0.36.5) (2026-01-04)
 
 
