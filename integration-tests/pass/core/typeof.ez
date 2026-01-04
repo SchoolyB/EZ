@@ -56,7 +56,7 @@ do main() {
     assert(typeof(Point{x: 1, y: 2}) == "Point", "struct literal should return struct name")
 
     // Range
-    assert(typeof(range(0, 5)) == "range", "range should return 'range'")
+    assert(typeof(range(0, 5)) == "Range<int>", "range should return 'Range<int>'")
 
     // Function returns
     assert(typeof(returnsInt()) == "int", "function returning int")
