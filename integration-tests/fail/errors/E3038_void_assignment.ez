@@ -1,0 +1,12 @@
+/*
+ * Error Test: E3038 - void-type-not-allowed
+ * Expected: "void" and "cannot assign"
+ */
+
+do main() {
+    temp x = voidFunc()  // Should fail: cannot assign void function result
+}
+
+do voidFunc() {
+    return
+}

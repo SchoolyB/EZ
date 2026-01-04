@@ -1,0 +1,131 @@
+/*
+ * Test: Void functions
+ * Tests void function behavior including early return, ensure, and nesting
+ */
+
+import @std
+using std
+
+do main() {
+    // Test 1: Basic void function
+    basicVoid()
+
+    // Test 2: Void with early return
+    earlyReturn(true)
+    earlyReturn(false)
+
+    // Test 3: Void with ensure
+    withEnsure()
+
+    // Test 4: Void with ensure AND early return (bug #883)
+    ensureWithEarlyReturn(true)
+    ensureWithEarlyReturn(false)
+
+    // Test 5: Return in for loop
+    returnInLoop()
+
+    // Test 6: Return in when/is
+    returnInWhen(1)
+    returnInWhen(2)
+    returnInWhen(99)
+
+    // Test 7: Nested void calls
+    outer()
+
+    // Test 8: Multiple return paths
+    multipleReturns(1)
+    multipleReturns(2)
+    multipleReturns(3)
+
+    // Test 9: Return in as_long_as loop
+    returnInWhile()
+
+    // Test 10: Deeply nested return
+    deeplyNested(true)
+    deeplyNested(false)
+
+    println("PASS: void-functions")
+}
+
+do basicVoid() {
+    temp x int = 1
+}
+
+do earlyReturn(shouldReturn bool) {
+    if shouldReturn {
+        return
+    }
+    temp x int = 1
+}
+
+do withEnsure() {
+    ensure cleanup()
+    temp x int = 1
+}
+
+do ensureWithEarlyReturn(shouldReturn bool) {
+    ensure cleanup()
+    if shouldReturn {
+        return
+    }
+    temp x int = 1
+}
+
+do returnInLoop() {
+    for i in range(0, 3) {
+        if i == 1 {
+            return
+        }
+    }
+}
+
+do returnInWhen(val int) {
+    when val {
+        is 1 { return }
+        is 2 { return }
+        default { return }
+    }
+}
+
+do outer() {
+    inner()
+}
+
+do inner() {
+    return
+}
+
+do multipleReturns(path int) {
+    if path == 1 {
+        return
+    }
+    if path == 2 {
+        return
+    }
+}
+
+do returnInWhile() {
+    temp count int = 0
+    as_long_as count < 10 {
+        if count == 2 {
+            return
+        }
+        count++
+    }
+}
+
+do deeplyNested(flag bool) {
+    if flag {
+        for i in range(0, 3) {
+            if i == 1 {
+                return
+            }
+        }
+    } otherwise {
+        return
+    }
+}
+
+do cleanup() {
+    temp x int = 1
+}
