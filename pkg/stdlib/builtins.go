@@ -61,7 +61,7 @@ func getEZTypeName(obj object.Object) string {
 		}
 		return "enum"
 	case *object.Range:
-		return "range"
+		return "Range<int>"
 	case *object.FileHandle:
 		return "File"
 	case *object.Reference:
