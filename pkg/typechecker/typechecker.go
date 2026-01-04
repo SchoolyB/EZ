@@ -1746,7 +1746,15 @@ func (tc *TypeChecker) checkVariableDeclaration(decl *ast.VariableDeclaration) {
 		if declaredType == "" {
 			inferredType, ok := tc.inferExpressionType(decl.Value)
 			if ok {
-				// Register the variable with inferred type (may be empty for stdlib calls)
+				if inferredType == "void" {
+					tc.addError(
+						errors.E3038,
+						"cannot assign void function result to a variable",
+						decl.Name.Token.Line,
+						decl.Name.Token.Column,
+					)
+					return
+				}
 				tc.defineVariableWithMutability(varName, inferredType, decl.Mutable)
 			} else {
 				// Still register with empty type so variable is in scope
@@ -1757,6 +1765,16 @@ func (tc *TypeChecker) checkVariableDeclaration(decl *ast.VariableDeclaration) {
 
 		actualType, ok := tc.inferExpressionType(decl.Value)
 		if ok {
+			if actualType == "void" {
+				tc.addError(
+					errors.E3038,
+					"cannot assign void function result to a variable",
+					decl.Name.Token.Line,
+					decl.Name.Token.Column,
+				)
+				return
+			}
+
 			// Check if it's an array type mismatch (assigning scalar to array)
 			if tc.isArrayType(declaredType) && !tc.isArrayType(actualType) && actualType != "nil" {
 				tc.addError(
