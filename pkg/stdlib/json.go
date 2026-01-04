@@ -367,11 +367,11 @@ func convertToTypedValue(value interface{}, targetType string) object.Object {
 	case "float":
 		switch v := value.(type) {
 		case float64:
-			return &object.Float{Value: v}
+			return &object.Float{Value: v, DeclaredType: "float"}
 		case string:
 			// Strings stay as strings, can't auto-convert
 		}
-		return &object.Float{Value: 0.0}
+		return &object.Float{Value: 0.0, DeclaredType: "float"}
 
 	case "string":
 		switch v := value.(type) {
@@ -413,7 +413,7 @@ func zeroValueForType(typeName string) object.Object {
 	case "int":
 		return &object.Integer{Value: big.NewInt(0)}
 	case "float":
-		return &object.Float{Value: 0.0}
+		return &object.Float{Value: 0.0, DeclaredType: "float"}
 	case "string":
 		return &object.String{Value: ""}
 	case "bool":
@@ -445,7 +445,7 @@ func goValueToObject(value interface{}) object.Object {
 		if v == float64(int64(v)) {
 			return &object.Integer{Value: big.NewInt(int64(v))}
 		}
-		return &object.Float{Value: v}
+		return &object.Float{Value: v, DeclaredType: "float"}
 
 	case string:
 		return &object.String{Value: v}
