@@ -2314,3 +2314,551 @@ func TestEditorDeleteCharMiddle(t *testing.T) {
 		t.Errorf("cursor should stay 2, got %d", e.cursor)
 	}
 }
+
+// ============================================================================
+// Multi-line Editing Tests
+// ============================================================================
+
+func TestMultiLineStateInitialization(t *testing.T) {
+	e := New(10)
+
+	// Initially not in multi-line mode
+	if e.multiLineMode {
+		t.Error("Editor should not start in multi-line mode")
+	}
+	if len(e.lines) != 0 {
+		t.Errorf("lines should be empty initially, got %d", len(e.lines))
+	}
+}
+
+func TestGetMultiLineText(t *testing.T) {
+	stdinR, stdinW, _ := os.Pipe()
+	defer stdinR.Close()
+	defer stdinW.Close()
+
+	stdoutR, stdoutW, _ := os.Pipe()
+	defer stdoutR.Close()
+	defer stdoutW.Close()
+
+	e := New(10)
+	e.terminal = &Terminal{
+		fd:       int(stdinR.Fd()),
+		stdinFd:  int(stdinR.Fd()),
+		stdoutFd: int(stdoutW.Fd()),
+		isRaw:    true,
+	}
+
+	e.lines = [][]rune{
+		[]rune("do main() {"),
+		[]rune("    println(\"hello\")"),
+		[]rune("}"),
+	}
+
+	result := e.getMultiLineText()
+	expected := "do main() {\n    println(\"hello\")\n}"
+
+	if result != expected {
+		t.Errorf("getMultiLineText() = %q, want %q", result, expected)
+	}
+}
+
+func TestInsertNewLine(t *testing.T) {
+	stdinR, stdinW, _ := os.Pipe()
+	defer stdinR.Close()
+	defer stdinW.Close()
+
+	stdoutR, stdoutW, _ := os.Pipe()
+	defer stdoutR.Close()
+	defer stdoutW.Close()
+
+	e := New(10)
+	e.terminal = &Terminal{
+		fd:       int(stdinR.Fd()),
+		stdinFd:  int(stdinR.Fd()),
+		stdoutFd: int(stdoutW.Fd()),
+		isRaw:    true,
+	}
+
+	e.multiLineMode = true
+	e.lines = [][]rune{[]rune("hello world")}
+	e.currentLine = 0
+	e.cursor = 5 // After "hello"
+	e.prompt = ">> "
+	e.continuePrompt = ".. "
+
+	e.insertNewLine()
+
+	if len(e.lines) != 2 {
+		t.Errorf("Expected 2 lines, got %d", len(e.lines))
+	}
+	if string(e.lines[0]) != "hello" {
+		t.Errorf("First line = %q, want %q", string(e.lines[0]), "hello")
+	}
+	if string(e.lines[1]) != " world" {
+		t.Errorf("Second line = %q, want %q", string(e.lines[1]), " world")
+	}
+	if e.currentLine != 1 {
+		t.Errorf("currentLine = %d, want 1", e.currentLine)
+	}
+	if e.cursor != 0 {
+		t.Errorf("cursor = %d, want 0", e.cursor)
+	}
+}
+
+func TestMoveUpMultiLine(t *testing.T) {
+	stdinR, stdinW, _ := os.Pipe()
+	defer stdinR.Close()
+	defer stdinW.Close()
+
+	stdoutR, stdoutW, _ := os.Pipe()
+	defer stdoutR.Close()
+	defer stdoutW.Close()
+
+	e := New(10)
+	e.terminal = &Terminal{
+		fd:       int(stdinR.Fd()),
+		stdinFd:  int(stdinR.Fd()),
+		stdoutFd: int(stdoutW.Fd()),
+		isRaw:    true,
+	}
+
+	e.multiLineMode = true
+	e.lines = [][]rune{
+		[]rune("line one"),
+		[]rune("line two"),
+		[]rune("line three"),
+	}
+	e.currentLine = 2
+	e.cursor = 5
+	e.prompt = ">> "
+	e.continuePrompt = ".. "
+
+	e.moveUpMultiLine()
+
+	if e.currentLine != 1 {
+		t.Errorf("currentLine = %d, want 1", e.currentLine)
+	}
+	// Cursor should be at end of line when moving up
+	if e.cursor != 8 {
+		t.Errorf("cursor = %d, want 8 (end of 'line two')", e.cursor)
+	}
+}
+
+func TestMoveUpMultiLineCursorAdjustment(t *testing.T) {
+	stdinR, stdinW, _ := os.Pipe()
+	defer stdinR.Close()
+	defer stdinW.Close()
+
+	stdoutR, stdoutW, _ := os.Pipe()
+	defer stdoutR.Close()
+	defer stdoutW.Close()
+
+	e := New(10)
+	e.terminal = &Terminal{
+		fd:       int(stdinR.Fd()),
+		stdinFd:  int(stdinR.Fd()),
+		stdoutFd: int(stdoutW.Fd()),
+		isRaw:    true,
+	}
+
+	e.multiLineMode = true
+	e.lines = [][]rune{
+		[]rune("short"),
+		[]rune("much longer line"),
+	}
+	e.currentLine = 1
+	e.cursor = 15 // Near end of long line
+	e.prompt = ">> "
+	e.continuePrompt = ".. "
+
+	e.moveUpMultiLine()
+
+	if e.currentLine != 0 {
+		t.Errorf("currentLine = %d, want 0", e.currentLine)
+	}
+	// Cursor should be adjusted to end of shorter line
+	if e.cursor != 5 {
+		t.Errorf("cursor = %d, want 5 (end of 'short')", e.cursor)
+	}
+}
+
+func TestMoveDownMultiLine(t *testing.T) {
+	stdinR, stdinW, _ := os.Pipe()
+	defer stdinR.Close()
+	defer stdinW.Close()
+
+	stdoutR, stdoutW, _ := os.Pipe()
+	defer stdoutR.Close()
+	defer stdoutW.Close()
+
+	e := New(10)
+	e.terminal = &Terminal{
+		fd:       int(stdinR.Fd()),
+		stdinFd:  int(stdinR.Fd()),
+		stdoutFd: int(stdoutW.Fd()),
+		isRaw:    true,
+	}
+
+	e.multiLineMode = true
+	e.lines = [][]rune{
+		[]rune("line one"),
+		[]rune("line two"),
+		[]rune("line three"),
+	}
+	e.currentLine = 0
+	e.cursor = 3
+	e.prompt = ">> "
+	e.continuePrompt = ".. "
+
+	e.moveDownMultiLine()
+
+	if e.currentLine != 1 {
+		t.Errorf("currentLine = %d, want 1", e.currentLine)
+	}
+	// Cursor should be at end of line when moving down
+	if e.cursor != 8 {
+		t.Errorf("cursor = %d, want 8 (end of 'line two')", e.cursor)
+	}
+}
+
+func TestMoveDownMultiLineAtLastLine(t *testing.T) {
+	stdinR, stdinW, _ := os.Pipe()
+	defer stdinR.Close()
+	defer stdinW.Close()
+
+	stdoutR, stdoutW, _ := os.Pipe()
+	defer stdoutR.Close()
+	defer stdoutW.Close()
+
+	e := New(10)
+	e.terminal = &Terminal{
+		fd:       int(stdinR.Fd()),
+		stdinFd:  int(stdinR.Fd()),
+		stdoutFd: int(stdoutW.Fd()),
+		isRaw:    true,
+	}
+
+	e.multiLineMode = true
+	e.lines = [][]rune{
+		[]rune("only line"),
+	}
+	e.currentLine = 0
+	e.cursor = 5
+	e.prompt = ">> "
+	e.continuePrompt = ".. "
+
+	e.moveDownMultiLine()
+
+	// Should stay on same line (no next line, no history)
+	if e.currentLine != 0 {
+		t.Errorf("currentLine = %d, want 0", e.currentLine)
+	}
+}
+
+func TestInsertCharMultiLine(t *testing.T) {
+	stdinR, stdinW, _ := os.Pipe()
+	defer stdinR.Close()
+	defer stdinW.Close()
+
+	stdoutR, stdoutW, _ := os.Pipe()
+	defer stdoutR.Close()
+	defer stdoutW.Close()
+
+	e := New(10)
+	e.terminal = &Terminal{
+		fd:       int(stdinR.Fd()),
+		stdinFd:  int(stdinR.Fd()),
+		stdoutFd: int(stdoutW.Fd()),
+		isRaw:    true,
+	}
+
+	e.multiLineMode = true
+	e.lines = [][]rune{[]rune("helo")}
+	e.currentLine = 0
+	e.cursor = 2
+
+	e.insertCharMultiLine('l')
+
+	if string(e.lines[0]) != "hello" {
+		t.Errorf("insertCharMultiLine failed, line = %q, want %q", string(e.lines[0]), "hello")
+	}
+	if e.cursor != 3 {
+		t.Errorf("cursor = %d, want 3", e.cursor)
+	}
+}
+
+func TestBackspaceMultiLine(t *testing.T) {
+	stdinR, stdinW, _ := os.Pipe()
+	defer stdinR.Close()
+	defer stdinW.Close()
+
+	stdoutR, stdoutW, _ := os.Pipe()
+	defer stdoutR.Close()
+	defer stdoutW.Close()
+
+	e := New(10)
+	e.terminal = &Terminal{
+		fd:       int(stdinR.Fd()),
+		stdinFd:  int(stdinR.Fd()),
+		stdoutFd: int(stdoutW.Fd()),
+		isRaw:    true,
+	}
+
+	e.multiLineMode = true
+	e.lines = [][]rune{[]rune("hello")}
+	e.currentLine = 0
+	e.cursor = 5
+
+	e.backspaceMultiLine()
+
+	if string(e.lines[0]) != "hell" {
+		t.Errorf("backspaceMultiLine failed, line = %q, want %q", string(e.lines[0]), "hell")
+	}
+	if e.cursor != 4 {
+		t.Errorf("cursor = %d, want 4", e.cursor)
+	}
+}
+
+func TestBackspaceMultiLineAtStart(t *testing.T) {
+	stdinR, stdinW, _ := os.Pipe()
+	defer stdinR.Close()
+	defer stdinW.Close()
+
+	stdoutR, stdoutW, _ := os.Pipe()
+	defer stdoutR.Close()
+	defer stdoutW.Close()
+
+	e := New(10)
+	e.terminal = &Terminal{
+		fd:       int(stdinR.Fd()),
+		stdinFd:  int(stdinR.Fd()),
+		stdoutFd: int(stdoutW.Fd()),
+		isRaw:    true,
+	}
+
+	e.multiLineMode = true
+	e.lines = [][]rune{[]rune("hello")}
+	e.currentLine = 0
+	e.cursor = 0
+
+	e.backspaceMultiLine() // Should do nothing
+
+	if string(e.lines[0]) != "hello" {
+		t.Errorf("backspaceMultiLine at start changed line to %q", string(e.lines[0]))
+	}
+	if e.cursor != 0 {
+		t.Errorf("cursor = %d, want 0", e.cursor)
+	}
+}
+
+func TestDeleteCharMultiLine(t *testing.T) {
+	stdinR, stdinW, _ := os.Pipe()
+	defer stdinR.Close()
+	defer stdinW.Close()
+
+	stdoutR, stdoutW, _ := os.Pipe()
+	defer stdoutR.Close()
+	defer stdoutW.Close()
+
+	e := New(10)
+	e.terminal = &Terminal{
+		fd:       int(stdinR.Fd()),
+		stdinFd:  int(stdinR.Fd()),
+		stdoutFd: int(stdoutW.Fd()),
+		isRaw:    true,
+	}
+
+	e.multiLineMode = true
+	e.lines = [][]rune{[]rune("hello")}
+	e.currentLine = 0
+	e.cursor = 0
+
+	e.deleteCharMultiLine()
+
+	if string(e.lines[0]) != "ello" {
+		t.Errorf("deleteCharMultiLine failed, line = %q, want %q", string(e.lines[0]), "ello")
+	}
+	if e.cursor != 0 {
+		t.Errorf("cursor = %d, want 0", e.cursor)
+	}
+}
+
+func TestDeleteCharMultiLineAtEnd(t *testing.T) {
+	stdinR, stdinW, _ := os.Pipe()
+	defer stdinR.Close()
+	defer stdinW.Close()
+
+	stdoutR, stdoutW, _ := os.Pipe()
+	defer stdoutR.Close()
+	defer stdoutW.Close()
+
+	e := New(10)
+	e.terminal = &Terminal{
+		fd:       int(stdinR.Fd()),
+		stdinFd:  int(stdinR.Fd()),
+		stdoutFd: int(stdoutW.Fd()),
+		isRaw:    true,
+	}
+
+	e.multiLineMode = true
+	e.lines = [][]rune{[]rune("hello")}
+	e.currentLine = 0
+	e.cursor = 5
+
+	e.deleteCharMultiLine() // Should do nothing
+
+	if string(e.lines[0]) != "hello" {
+		t.Errorf("deleteCharMultiLine at end changed line to %q", string(e.lines[0]))
+	}
+}
+
+func TestMoveCursorLeftMultiLine(t *testing.T) {
+	stdinR, stdinW, _ := os.Pipe()
+	defer stdinR.Close()
+	defer stdinW.Close()
+
+	stdoutR, stdoutW, _ := os.Pipe()
+	defer stdoutR.Close()
+	defer stdoutW.Close()
+
+	e := New(10)
+	e.terminal = &Terminal{
+		fd:       int(stdinR.Fd()),
+		stdinFd:  int(stdinR.Fd()),
+		stdoutFd: int(stdoutW.Fd()),
+		isRaw:    true,
+	}
+
+	e.multiLineMode = true
+	e.lines = [][]rune{[]rune("hello")}
+	e.currentLine = 0
+	e.cursor = 3
+
+	e.moveCursorLeftMultiLine()
+
+	if e.cursor != 2 {
+		t.Errorf("cursor = %d, want 2", e.cursor)
+	}
+}
+
+func TestMoveCursorRightMultiLine(t *testing.T) {
+	stdinR, stdinW, _ := os.Pipe()
+	defer stdinR.Close()
+	defer stdinW.Close()
+
+	stdoutR, stdoutW, _ := os.Pipe()
+	defer stdoutR.Close()
+	defer stdoutW.Close()
+
+	e := New(10)
+	e.terminal = &Terminal{
+		fd:       int(stdinR.Fd()),
+		stdinFd:  int(stdinR.Fd()),
+		stdoutFd: int(stdoutW.Fd()),
+		isRaw:    true,
+	}
+
+	e.multiLineMode = true
+	e.lines = [][]rune{[]rune("hello")}
+	e.currentLine = 0
+	e.cursor = 2
+
+	e.moveCursorRightMultiLine()
+
+	if e.cursor != 3 {
+		t.Errorf("cursor = %d, want 3", e.cursor)
+	}
+}
+
+func TestMoveCursorHomeMultiLine(t *testing.T) {
+	stdinR, stdinW, _ := os.Pipe()
+	defer stdinR.Close()
+	defer stdinW.Close()
+
+	stdoutR, stdoutW, _ := os.Pipe()
+	defer stdoutR.Close()
+	defer stdoutW.Close()
+
+	e := New(10)
+	e.terminal = &Terminal{
+		fd:       int(stdinR.Fd()),
+		stdinFd:  int(stdinR.Fd()),
+		stdoutFd: int(stdoutW.Fd()),
+		isRaw:    true,
+	}
+
+	e.multiLineMode = true
+	e.lines = [][]rune{[]rune("hello")}
+	e.currentLine = 0
+	e.cursor = 3
+
+	e.moveCursorHomeMultiLine()
+
+	if e.cursor != 0 {
+		t.Errorf("cursor = %d, want 0", e.cursor)
+	}
+}
+
+func TestMoveCursorEndMultiLine(t *testing.T) {
+	stdinR, stdinW, _ := os.Pipe()
+	defer stdinR.Close()
+	defer stdinW.Close()
+
+	stdoutR, stdoutW, _ := os.Pipe()
+	defer stdoutR.Close()
+	defer stdoutW.Close()
+
+	e := New(10)
+	e.terminal = &Terminal{
+		fd:       int(stdinR.Fd()),
+		stdinFd:  int(stdinR.Fd()),
+		stdoutFd: int(stdoutW.Fd()),
+		isRaw:    true,
+	}
+
+	e.multiLineMode = true
+	e.lines = [][]rune{[]rune("hello")}
+	e.currentLine = 0
+	e.cursor = 2
+
+	e.moveCursorEndMultiLine()
+
+	if e.cursor != 5 {
+		t.Errorf("cursor = %d, want 5", e.cursor)
+	}
+}
+
+func TestMoveUpMultiLineFirstLineStays(t *testing.T) {
+	stdinR, stdinW, _ := os.Pipe()
+	defer stdinR.Close()
+	defer stdinW.Close()
+
+	stdoutR, stdoutW, _ := os.Pipe()
+	defer stdoutR.Close()
+	defer stdoutW.Close()
+
+	e := New(10)
+	e.terminal = &Terminal{
+		fd:       int(stdinR.Fd()),
+		stdinFd:  int(stdinR.Fd()),
+		stdoutFd: int(stdoutW.Fd()),
+		isRaw:    true,
+	}
+
+	e.multiLineMode = true
+	e.lines = [][]rune{[]rune("current")}
+	e.currentLine = 0
+	e.cursor = 7
+	e.prompt = ">> "
+	e.continuePrompt = ".. "
+
+	e.moveUpMultiLine()
+
+	// Should stay on first line (no history in multi-line v1)
+	if e.currentLine != 0 {
+		t.Errorf("currentLine = %d, want 0", e.currentLine)
+	}
+	if string(e.lines[0]) != "current" {
+		t.Errorf("line = %q, want %q", string(e.lines[0]), "current")
+	}
+}
