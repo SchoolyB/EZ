@@ -110,6 +110,8 @@ func deepCopy(obj object.Object) object.Object {
 		}
 		// Copied maps are mutable by default to allow modification
 		newMap.Mutable = true
+		newMap.KeyType = v.KeyType
+		newMap.ValueType = v.ValueType
 		return newMap
 	case *object.Struct:
 		newFields := make(map[string]object.Object)
