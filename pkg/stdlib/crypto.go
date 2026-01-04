@@ -85,7 +85,7 @@ var CryptoBuiltins = map[string]*object.Builtin{
 				return &object.Error{Code: "E7011", Message: "crypto.random_bytes() length cannot be negative"}
 			}
 			if n == 0 {
-				return &object.Array{Elements: []object.Object{}, Mutable: true}
+				return &object.Array{Elements: []object.Object{}, Mutable: true, ElementType: "byte"}
 			}
 
 			bytes := make([]byte, n)
