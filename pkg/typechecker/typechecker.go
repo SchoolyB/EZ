@@ -3310,12 +3310,21 @@ func (tc *TypeChecker) checkBuiltinTypeConversion(funcName string, call *ast.Cal
 		return true
 
 	case "typeof":
-		// typeof() requires exactly 1 argument (any type)
+		// typeof() requires exactly 1 argument (any type except void)
 		if len(call.Arguments) != 1 {
 			line, column := tc.getExpressionPosition(call.Function)
 			tc.addError(errors.E5008,
 				fmt.Sprintf("typeof() requires exactly 1 argument, got %d", len(call.Arguments)),
 				line, column)
+		} else {
+			// Check if argument is a void function call
+			argType, ok := tc.inferExpressionType(call.Arguments[0])
+			if ok && argType == "void" {
+				line, column := tc.getExpressionPosition(call.Arguments[0])
+				tc.addError(errors.E3038,
+					"cannot use void function result as argument to typeof()",
+					line, column)
+			}
 		}
 		return true
 
