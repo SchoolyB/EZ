@@ -1156,7 +1156,7 @@ var BinaryBuiltins = map[string]*object.Builtin{
 			bits := binary.LittleEndian.Uint32(data)
 			val := math.Float32frombits(bits)
 			return &object.ReturnValue{Values: []object.Object{
-				&object.Float{Value: float64(val)},
+				&object.Float{Value: float64(val), DeclaredType: "f32"},
 				object.NIL,
 			}}
 		},
@@ -1199,7 +1199,7 @@ var BinaryBuiltins = map[string]*object.Builtin{
 			bits := binary.LittleEndian.Uint64(data)
 			val := math.Float64frombits(bits)
 			return &object.ReturnValue{Values: []object.Object{
-				&object.Float{Value: val},
+				&object.Float{Value: val, DeclaredType: "f64"},
 				object.NIL,
 			}}
 		},
@@ -1246,7 +1246,7 @@ var BinaryBuiltins = map[string]*object.Builtin{
 			bits := binary.BigEndian.Uint32(data)
 			val := math.Float32frombits(bits)
 			return &object.ReturnValue{Values: []object.Object{
-				&object.Float{Value: float64(val)},
+				&object.Float{Value: float64(val), DeclaredType: "f32"},
 				object.NIL,
 			}}
 		},
@@ -1289,7 +1289,7 @@ var BinaryBuiltins = map[string]*object.Builtin{
 			bits := binary.BigEndian.Uint64(data)
 			val := math.Float64frombits(bits)
 			return &object.ReturnValue{Values: []object.Object{
-				&object.Float{Value: val},
+				&object.Float{Value: val, DeclaredType: "f64"},
 				object.NIL,
 			}}
 		},

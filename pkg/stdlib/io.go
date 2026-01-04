@@ -946,7 +946,7 @@ var IOBuiltins = map[string]*object.Builtin{
 			}
 
 			return &object.ReturnValue{Values: []object.Object{
-				&object.Array{Elements: elements, Mutable: false},
+				&object.Array{Elements: elements, Mutable: false, ElementType: "string"},
 				object.NIL,
 			}}
 		},
@@ -1611,7 +1611,7 @@ var IOBuiltins = map[string]*object.Builtin{
 			}
 
 			return &object.ReturnValue{Values: []object.Object{
-				&object.Array{Elements: elements, Mutable: true},
+				&object.Array{Elements: elements, Mutable: true, ElementType: "string"},
 				object.NIL,
 			}}
 		},
@@ -1657,7 +1657,7 @@ var IOBuiltins = map[string]*object.Builtin{
 			}
 
 			return &object.ReturnValue{Values: []object.Object{
-				&object.Array{Elements: elements, Mutable: true},
+				&object.Array{Elements: elements, Mutable: true, ElementType: "string"},
 				object.NIL,
 			}}
 		},

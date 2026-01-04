@@ -25,12 +25,13 @@ var stdinReader = bufio.NewReader(os.Stdin)
 var stdinEOFReached = false
 
 // getEZTypeName returns the EZ language type name for an object
+// Returns the full type as it would appear in EZ code (e.g., "[int]", "map[string:int]")
 func getEZTypeName(obj object.Object) string {
 	switch v := obj.(type) {
 	case *object.Integer:
 		return v.GetDeclaredType()
 	case *object.Float:
-		return "float"
+		return v.GetDeclaredType()
 	case *object.String:
 		return "string"
 	case *object.Boolean:
@@ -40,14 +41,41 @@ func getEZTypeName(obj object.Object) string {
 	case *object.Byte:
 		return "byte"
 	case *object.Array:
+		if v.ElementType != "" {
+			return "[" + v.ElementType + "]"
+		}
 		return "array"
+	case *object.Map:
+		if v.KeyType != "" && v.ValueType != "" {
+			return "map[" + v.KeyType + ":" + v.ValueType + "]"
+		}
+		return "map"
 	case *object.Struct:
 		if v.TypeName != "" {
 			return v.TypeName
 		}
 		return "struct"
+	case *object.EnumValue:
+		if v.EnumType != "" {
+			return v.EnumType
+		}
+		return "enum"
+	case *object.Range:
+		return "Range<int>"
+	case *object.FileHandle:
+		return "File"
+	case *object.Database:
+		return "Database"
+	case *object.Reference:
+		// Get the inner type by dereferencing
+		if inner, ok := v.Deref(); ok {
+			return "Ref<" + getEZTypeName(inner) + ">"
+		}
+		return "Ref<unknown>"
 	case *object.Nil:
 		return "nil"
+	case *object.Function:
+		return "function"
 	default:
 		return string(obj.Type())
 	}
@@ -63,7 +91,7 @@ func deepCopy(obj object.Object) object.Object {
 	case *object.Integer:
 		return &object.Integer{Value: v.Value, DeclaredType: v.DeclaredType}
 	case *object.Float:
-		return &object.Float{Value: v.Value}
+		return &object.Float{Value: v.Value, DeclaredType: v.DeclaredType}
 	case *object.String:
 		return &object.String{Value: v.Value}
 	case *object.Boolean:
@@ -92,6 +120,8 @@ func deepCopy(obj object.Object) object.Object {
 		}
 		// Copied maps are mutable by default to allow modification
 		newMap.Mutable = true
+		newMap.KeyType = v.KeyType
+		newMap.ValueType = v.ValueType
 		return newMap
 	case *object.Struct:
 		newFields := make(map[string]object.Object)
@@ -878,7 +908,7 @@ var StdBuiltins = map[string]*object.Builtin{
 			}
 			// Convert to float32 and back to truncate precision
 			f32 := float32(val)
-			return &object.Float{Value: float64(f32)}
+			return &object.Float{Value: float64(f32), DeclaredType: "f32"}
 		},
 	},
 
@@ -892,7 +922,7 @@ var StdBuiltins = map[string]*object.Builtin{
 			if err != nil {
 				return err
 			}
-			return &object.Float{Value: val}
+			return &object.Float{Value: val, DeclaredType: "f64"}
 		},
 	},
 
