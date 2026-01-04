@@ -25,6 +25,7 @@ var stdinReader = bufio.NewReader(os.Stdin)
 var stdinEOFReached = false
 
 // getEZTypeName returns the EZ language type name for an object
+// Returns the full type as it would appear in EZ code (e.g., "[int]", "map[string:int]")
 func getEZTypeName(obj object.Object) string {
 	switch v := obj.(type) {
 	case *object.Integer:
@@ -40,14 +41,31 @@ func getEZTypeName(obj object.Object) string {
 	case *object.Byte:
 		return "byte"
 	case *object.Array:
+		if v.ElementType != "" {
+			return "[" + v.ElementType + "]"
+		}
 		return "array"
+	case *object.Map:
+		if v.KeyType != "" && v.ValueType != "" {
+			return "map[" + v.KeyType + ":" + v.ValueType + "]"
+		}
+		return "map"
 	case *object.Struct:
 		if v.TypeName != "" {
 			return v.TypeName
 		}
 		return "struct"
+	case *object.EnumValue:
+		if v.EnumType != "" {
+			return v.EnumType
+		}
+		return "enum"
+	case *object.Range:
+		return "range"
 	case *object.Nil:
 		return "nil"
+	case *object.Function:
+		return "function"
 	default:
 		return string(obj.Type())
 	}
