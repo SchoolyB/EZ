@@ -1,0 +1,8 @@
+/*
+ * Error Test: E3038 - void-type-not-allowed
+ * Expected: "void" and "variable declarations"
+ */
+
+do main() {
+    temp arr [void] = {}  // Should fail: void cannot be array element type
+}
