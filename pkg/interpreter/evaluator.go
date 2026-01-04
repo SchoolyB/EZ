@@ -1133,6 +1133,24 @@ func evalAssignment(node *ast.AssignmentStatement, env *Environment) Object {
 
 			unpackedVal := copyByDefault(returnVal.Values[i])
 
+			// Enforce byte semantics if the existing variable is a byte
+			if existingVal, ok := env.Get(name.Value); ok {
+				if _, isByte := existingVal.(*Byte); isByte {
+					switch v := unpackedVal.(type) {
+					case *Integer:
+						if v.Value.Sign() < 0 || v.Value.Cmp(big.NewInt(255)) > 0 {
+							return newErrorWithLocation("E3025", node.Token.Line, node.Token.Column,
+								"byte value must be between 0 and 255: %s", v.Value.String())
+						}
+						unpackedVal = &Byte{Value: uint8(v.Value.Int64())}
+					case *Byte:
+						// ok
+					default:
+						return newErrorWithLocation("E3025", node.Token.Line, node.Token.Column,
+							"cannot assign %s to byte variable", unpackedVal.Type())
+					}
+				}
+			}
 			// Update the variable
 			found, isMutable := env.Update(name.Value, unpackedVal)
 			if !found {
@@ -1171,7 +1189,25 @@ func evalAssignment(node *ast.AssignmentStatement, env *Environment) Object {
 						return val
 					}
 				}
-				// Update through the reference
+				// Enforce byte semantics when updating through a reference if the
+				// referenced value is a byte at the time of assignment.
+				if existing, ok := ref.Deref(); ok {
+					if _, isByte := existing.(*Byte); isByte {
+						switch v := val.(type) {
+						case *Integer:
+							if v.Value.Sign() < 0 || v.Value.Cmp(big.NewInt(255)) > 0 {
+								return newErrorWithLocation("E3025", node.Token.Line, node.Token.Column,
+									"byte value must be between 0 and 255: %s", v.Value.String())
+								}
+								val = &Byte{Value: uint8(v.Value.Int64())}
+							case *Byte:
+								// ok
+							default:
+								return newErrorWithLocation("E3025", node.Token.Line, node.Token.Column,
+									"cannot assign %s to byte variable", val.Type())
+							}
+					}
+				}
 				ref.SetValue(val)
 				return NIL
 			}
@@ -1187,6 +1223,25 @@ func evalAssignment(node *ast.AssignmentStatement, env *Environment) Object {
 			val = evalCompoundAssignment(node.Operator, oldVal, val, node.Token.Line, node.Token.Column)
 			if isError(val) {
 				return val
+			}
+		}
+
+		// Enforce byte semantics when assigning back to an existing byte variable.
+		if existingVal, ok := env.Get(target.Value); ok {
+			if _, isByte := existingVal.(*Byte); isByte {
+				switch v := val.(type) {
+				case *Integer:
+					if v.Value.Sign() < 0 || v.Value.Cmp(big.NewInt(255)) > 0 {
+						return newErrorWithLocation("E3025", node.Token.Line, node.Token.Column,
+							"byte value must be between 0 and 255: %s", v.Value.String())
+					}
+					val = &Byte{Value: uint8(v.Value.Int64())}
+				case *Byte:
+					// already a byte - fine
+				default:
+					return newErrorWithLocation("E3025", node.Token.Line, node.Token.Column,
+						"cannot assign %s to byte variable", val.Type())
+				}
 			}
 		}
 
@@ -1254,6 +1309,24 @@ func evalAssignment(node *ast.AssignmentStatement, env *Environment) Object {
 				}
 			}
 
+			// Enforce byte semantics when assigning into a byte array element
+			existingElem := obj.Elements[index.Value.Int64()]
+			if _, isByte := existingElem.(*Byte); isByte {
+				switch v := val.(type) {
+				case *Integer:
+					if v.Value.Sign() < 0 || v.Value.Cmp(big.NewInt(255)) > 0 {
+						return newErrorWithLocation("E3026", node.Token.Line, node.Token.Column,
+							"byte array element must be between 0 and 255: %s", v.Value.String())
+					}
+					val = &Byte{Value: uint8(v.Value.Int64())}
+				case *Byte:
+					// okay
+				default:
+					return newErrorWithLocation("E3026", node.Token.Line, node.Token.Column,
+						"cannot assign %s to byte array element", val.Type())
+				}
+			}
+
 			obj.Elements[index.Value.Int64()] = val
 
 		case *String:
@@ -1312,6 +1385,25 @@ func evalAssignment(node *ast.AssignmentStatement, env *Environment) Object {
 				}
 			}
 
+			// If existing map value is a byte, enforce byte semantics
+			existingMapVal, exists := obj.Get(idx)
+			if exists {
+				if _, isByte := existingMapVal.(*Byte); isByte {
+					switch v := val.(type) {
+					case *Integer:
+						if v.Value.Sign() < 0 || v.Value.Cmp(big.NewInt(255)) > 0 {
+							return newErrorWithLocation("E3026", node.Token.Line, node.Token.Column,
+								"byte map element must be between 0 and 255: %s", v.Value.String())
+						}
+						val = &Byte{Value: uint8(v.Value.Int64())}
+					case *Byte:
+						// ok
+					default:
+						return newErrorWithLocation("E3026", node.Token.Line, node.Token.Column,
+							"cannot assign %s to byte map element", val.Type())
+					}
+				}
+			}
 			obj.Set(idx, val)
 
 		default:
@@ -1374,6 +1466,26 @@ func evalAssignment(node *ast.AssignmentStatement, env *Environment) Object {
 			val = evalCompoundAssignment(node.Operator, oldVal, val, node.Token.Line, node.Token.Column)
 			if isError(val) {
 				return val
+			}
+		}
+
+		// Enforce byte semantics for struct field assignment when the existing
+		// field value is a Byte (covers declared byte fields at runtime).
+		if existingFieldVal, ok := structObj.Fields[target.Member.Value]; ok {
+			if _, isByte := existingFieldVal.(*Byte); isByte {
+				switch v := val.(type) {
+				case *Integer:
+					if v.Value.Sign() < 0 || v.Value.Cmp(big.NewInt(255)) > 0 {
+						return newErrorWithLocation("E3025", node.Token.Line, node.Token.Column,
+							"byte value must be between 0 and 255: %s", v.Value.String())
+					}
+					val = &Byte{Value: uint8(v.Value.Int64())}
+				case *Byte:
+					// ok
+				default:
+					return newErrorWithLocation("E3025", node.Token.Line, node.Token.Column,
+						"cannot assign %s to byte field", val.Type())
+				}
 			}
 		}
 
