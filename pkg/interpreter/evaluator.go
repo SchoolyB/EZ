@@ -3578,6 +3578,8 @@ func copyByDefault(val Object) Object {
 			newMap.Set(pair.Key, copyByDefault(pair.Value))
 		}
 		newMap.Mutable = v.Mutable
+		newMap.KeyType = v.KeyType
+		newMap.ValueType = v.ValueType
 		return newMap
 	default:
 		// Primitives and other types are returned as-is
