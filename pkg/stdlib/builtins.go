@@ -64,6 +64,12 @@ func getEZTypeName(obj object.Object) string {
 		return "range"
 	case *object.FileHandle:
 		return "File"
+	case *object.Reference:
+		// Get the inner type by dereferencing
+		if inner, ok := v.Deref(); ok {
+			return "Ref<" + getEZTypeName(inner) + ">"
+		}
+		return "Ref<unknown>"
 	case *object.Nil:
 		return "nil"
 	case *object.Function:
