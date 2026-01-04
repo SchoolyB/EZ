@@ -388,7 +388,7 @@ var BytesBuiltins = map[string]*object.Builtin{
 				}
 				elements[i] = &object.Array{Elements: partElements, ElementType: "byte"}
 			}
-			return &object.Array{Elements: elements}
+			return &object.Array{Elements: elements, ElementType: "[byte]"}
 		},
 	},
 
