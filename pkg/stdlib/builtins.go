@@ -64,6 +64,8 @@ func getEZTypeName(obj object.Object) string {
 		return "Range<int>"
 	case *object.FileHandle:
 		return "File"
+	case *object.Database:
+		return "Database"
 	case *object.Reference:
 		// Get the inner type by dereferencing
 		if inner, ok := v.Deref(); ok {
