@@ -15,9 +15,15 @@ type Editor struct {
 	history  *History
 	prompt   string
 
-	// Current line state
+	// Current line state (single-line mode)
 	buffer []rune
 	cursor int // Cursor position in buffer
+
+	// Multi-line state
+	lines          [][]rune // All lines in multi-line mode
+	currentLine    int      // Current line index (0-based)
+	multiLineMode  bool     // Whether we're in multi-line editing mode
+	continuePrompt string   // Prompt for continuation lines
 }
 
 // New creates a new line editor with the given history size
@@ -279,6 +285,340 @@ func (e *Editor) History() *History {
 // Close cleans up the editor resources
 func (e *Editor) Close() error {
 	return e.terminal.DisableRawMode()
+}
+
+// ReadMultiLine reads multi-line input with full editing support including
+// navigation between lines. It starts with an initial line and continues
+// until braces are balanced.
+func (e *Editor) ReadMultiLine(prompt, continuePrompt, initial string) (string, error) {
+	e.prompt = prompt
+	e.continuePrompt = continuePrompt
+	e.multiLineMode = true
+	e.lines = [][]rune{[]rune(initial), {}}
+	e.currentLine = 1
+	e.cursor = 0
+
+	if err := e.terminal.EnableRawMode(); err != nil {
+		return e.fallbackReadMultiLine(initial)
+	}
+	defer e.terminal.DisableRawMode()
+
+	e.terminal.WriteString(continuePrompt)
+
+	buf := make([]byte, 32)
+	for {
+		n, err := e.terminal.Read(buf)
+		if err != nil {
+			e.multiLineMode = false
+			return "", err
+		}
+
+		event, _ := ParseKey(buf, n)
+
+		switch event.Key {
+		case KeyEnter:
+			fullText := e.getMultiLineText()
+			openBraces := strings.Count(fullText, "{")
+			closeBraces := strings.Count(fullText, "}")
+
+			if openBraces == closeBraces {
+				e.terminal.WriteString("\r\n")
+				e.history.Add(fullText)
+				e.multiLineMode = false
+				return fullText, nil
+			}
+			e.insertNewLine()
+
+		case KeyCtrlC:
+			e.terminal.WriteString("^C\r\n")
+			e.multiLineMode = false
+			return "", ErrInterrupted
+
+		case KeyCtrlD:
+			if len(e.lines[e.currentLine]) == 0 && len(e.lines) == 1 {
+				e.terminal.WriteString("\r\n")
+				e.multiLineMode = false
+				return "", ErrEOF
+			}
+			e.deleteCharMultiLine()
+
+		case KeyCtrlL:
+			e.terminal.WriteString("\033[H\033[2J")
+			e.redrawMultiLine()
+
+		case KeyBackspace:
+			e.backspaceMultiLine()
+
+		case KeyDelete:
+			e.deleteCharMultiLine()
+
+		case KeyLeft:
+			e.moveCursorLeftMultiLine()
+
+		case KeyRight:
+			e.moveCursorRightMultiLine()
+
+		case KeyUp:
+			e.moveUpMultiLine()
+
+		case KeyDown:
+			e.moveDownMultiLine()
+
+		case KeyHome:
+			e.moveCursorHomeMultiLine()
+
+		case KeyEnd:
+			e.moveCursorEndMultiLine()
+
+		case KeyTab:
+			e.insertCharMultiLine(' ')
+			e.insertCharMultiLine(' ')
+
+		case KeyChar:
+			e.insertCharMultiLine(event.Char)
+		}
+	}
+}
+
+// getMultiLineText returns all lines joined with newlines
+func (e *Editor) getMultiLineText() string {
+	var parts []string
+	for _, line := range e.lines {
+		parts = append(parts, string(line))
+	}
+	return strings.Join(parts, "\n")
+}
+
+func (e *Editor) insertNewLine() {
+	currentLine := e.lines[e.currentLine]
+	beforeCursor := make([]rune, e.cursor)
+	copy(beforeCursor, currentLine[:e.cursor])
+	afterCursor := make([]rune, len(currentLine)-e.cursor)
+	copy(afterCursor, currentLine[e.cursor:])
+
+	e.lines[e.currentLine] = beforeCursor
+
+	newLines := make([][]rune, len(e.lines)+1)
+	copy(newLines, e.lines[:e.currentLine+1])
+	newLines[e.currentLine+1] = afterCursor
+	copy(newLines[e.currentLine+2:], e.lines[e.currentLine+1:])
+	e.lines = newLines
+
+	e.currentLine++
+	e.cursor = 0
+
+	e.terminal.WriteString("\r\n")
+	e.redrawFromCurrentLine()
+}
+
+func (e *Editor) redrawMultiLine() {
+	if e.currentLine > 0 {
+		e.terminal.WriteString(fmt.Sprintf("\033[%dA", e.currentLine))
+	}
+	e.terminal.WriteString("\r")
+
+	for i, line := range e.lines {
+		e.terminal.WriteString("\033[K")
+		if i == 0 {
+			e.terminal.WriteString(e.prompt)
+		} else {
+			e.terminal.WriteString(e.continuePrompt)
+		}
+		e.terminal.WriteString(string(line))
+
+		if i < len(e.lines)-1 {
+			e.terminal.WriteString("\r\n")
+		}
+	}
+
+	e.positionCursor()
+}
+
+func (e *Editor) redrawFromCurrentLine() {
+	startLine := e.currentLine
+
+	for i := startLine; i < len(e.lines); i++ {
+		e.terminal.WriteString("\033[K")
+		if i == 0 {
+			e.terminal.WriteString(e.prompt)
+		} else {
+			e.terminal.WriteString(e.continuePrompt)
+		}
+		e.terminal.WriteString(string(e.lines[i]))
+
+		if i < len(e.lines)-1 {
+			e.terminal.WriteString("\r\n")
+		}
+	}
+
+	e.positionCursor()
+}
+
+func (e *Editor) positionCursor() {
+	linesToMove := len(e.lines) - 1 - e.currentLine
+	if linesToMove > 0 {
+		e.terminal.WriteString(fmt.Sprintf("\033[%dA", linesToMove))
+	}
+
+	e.terminal.WriteString("\r")
+	promptLen := len(e.prompt)
+	if e.currentLine > 0 {
+		promptLen = len(e.continuePrompt)
+	}
+	if promptLen+e.cursor > 0 {
+		e.terminal.WriteString(fmt.Sprintf("\033[%dC", promptLen+e.cursor))
+	}
+}
+
+func (e *Editor) moveUpMultiLine() {
+	if e.currentLine == 0 {
+		return
+	}
+
+	e.currentLine--
+	e.cursor = len(e.lines[e.currentLine])
+
+	e.terminal.WriteString("\033[A")
+	e.terminal.WriteString("\r\033[K")
+	if e.currentLine == 0 {
+		e.terminal.WriteString(e.prompt)
+	} else {
+		e.terminal.WriteString(e.continuePrompt)
+	}
+	e.terminal.WriteString(string(e.lines[e.currentLine]))
+}
+
+func (e *Editor) moveDownMultiLine() {
+	if e.currentLine >= len(e.lines)-1 {
+		return
+	}
+
+	e.currentLine++
+	e.cursor = len(e.lines[e.currentLine])
+
+	promptLen := len(e.continuePrompt)
+	if e.currentLine == 0 {
+		promptLen = len(e.prompt)
+	}
+
+	e.terminal.WriteString(fmt.Sprintf("\033[B\033[%dG", promptLen+e.cursor+1))
+}
+
+func (e *Editor) insertCharMultiLine(ch rune) {
+	line := e.lines[e.currentLine]
+	newLine := make([]rune, len(line)+1)
+	copy(newLine, line[:e.cursor])
+	newLine[e.cursor] = ch
+	copy(newLine[e.cursor+1:], line[e.cursor:])
+	e.lines[e.currentLine] = newLine
+	e.cursor++
+
+	e.terminal.WriteString(string(e.lines[e.currentLine][e.cursor-1:]))
+	if e.cursor < len(e.lines[e.currentLine]) {
+		e.terminal.WriteString(fmt.Sprintf("\033[%dD", len(e.lines[e.currentLine])-e.cursor))
+	}
+}
+
+func (e *Editor) backspaceMultiLine() {
+	if e.cursor == 0 {
+		return
+	}
+
+	line := e.lines[e.currentLine]
+	newLine := make([]rune, len(line)-1)
+	copy(newLine, line[:e.cursor-1])
+	copy(newLine[e.cursor-1:], line[e.cursor:])
+	e.lines[e.currentLine] = newLine
+	e.cursor--
+
+	e.terminal.WriteString("\033[D")
+	e.terminal.WriteString(string(e.lines[e.currentLine][e.cursor:]))
+	e.terminal.WriteString(" \033[D")
+	if e.cursor < len(e.lines[e.currentLine]) {
+		e.terminal.WriteString(fmt.Sprintf("\033[%dD", len(e.lines[e.currentLine])-e.cursor))
+	}
+}
+
+func (e *Editor) deleteCharMultiLine() {
+	line := e.lines[e.currentLine]
+	if e.cursor >= len(line) {
+		return
+	}
+
+	newLine := make([]rune, len(line)-1)
+	copy(newLine, line[:e.cursor])
+	copy(newLine[e.cursor:], line[e.cursor+1:])
+	e.lines[e.currentLine] = newLine
+
+	e.terminal.WriteString(string(e.lines[e.currentLine][e.cursor:]))
+	e.terminal.WriteString(" \033[D")
+	if e.cursor < len(e.lines[e.currentLine]) {
+		e.terminal.WriteString(fmt.Sprintf("\033[%dD", len(e.lines[e.currentLine])-e.cursor))
+	}
+}
+
+func (e *Editor) moveCursorLeftMultiLine() {
+	if e.cursor > 0 {
+		e.cursor--
+		e.terminal.WriteString("\033[D")
+	}
+}
+
+func (e *Editor) moveCursorRightMultiLine() {
+	if e.cursor < len(e.lines[e.currentLine]) {
+		e.cursor++
+		e.terminal.WriteString("\033[C")
+	}
+}
+
+func (e *Editor) moveCursorHomeMultiLine() {
+	if e.cursor > 0 {
+		e.terminal.WriteString(fmt.Sprintf("\033[%dD", e.cursor))
+		e.cursor = 0
+	}
+}
+
+func (e *Editor) moveCursorEndMultiLine() {
+	lineLen := len(e.lines[e.currentLine])
+	if e.cursor < lineLen {
+		e.terminal.WriteString(fmt.Sprintf("\033[%dC", lineLen-e.cursor))
+		e.cursor = lineLen
+	}
+}
+
+func (e *Editor) fallbackReadMultiLine(initial string) (string, error) {
+	var lines []string
+	lines = append(lines, initial)
+
+	for {
+		fmt.Print(e.continuePrompt)
+		var line strings.Builder
+		buf := make([]byte, 1)
+		for {
+			n, err := os.Stdin.Read(buf)
+			if err != nil {
+				return strings.Join(lines, "\n"), err
+			}
+			if n == 0 {
+				continue
+			}
+			if buf[0] == '\n' || buf[0] == '\r' {
+				break
+			}
+			line.WriteByte(buf[0])
+		}
+
+		lines = append(lines, line.String())
+
+		fullText := strings.Join(lines, "\n")
+		openBraces := strings.Count(fullText, "{")
+		closeBraces := strings.Count(fullText, "}")
+
+		if openBraces == closeBraces {
+			e.multiLineMode = false
+			return fullText, nil
+		}
+	}
 }
 
 // Sentinel errors
