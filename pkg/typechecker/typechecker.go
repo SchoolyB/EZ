@@ -774,6 +774,17 @@ func (tc *TypeChecker) checkStructDeclaration(node *ast.StructDeclaration) {
 			continue
 		}
 
+		// Check if 'void' type is used (not allowed)
+		if tc.containsVoidType(field.TypeName) {
+			tc.addError(
+				errors.E3038,
+				fmt.Sprintf("'void' type cannot be used as struct field type for '%s'", field.Name.Value),
+				field.Name.Token.Line,
+				field.Name.Token.Column,
+			)
+			continue
+		}
+
 		// Add field to struct type
 		fieldType, ok := tc.GetType(field.TypeName)
 		if !ok {
@@ -1721,6 +1732,17 @@ func (tc *TypeChecker) checkVariableDeclaration(decl *ast.VariableDeclaration) {
 		tc.addError(
 			errors.E3034,
 			"'any' type cannot be used in variable declarations",
+			decl.Name.Token.Line,
+			decl.Name.Token.Column,
+		)
+		return
+	}
+
+	// Check if 'void' type is used (not allowed)
+	if declaredType != "" && tc.containsVoidType(declaredType) {
+		tc.addError(
+			errors.E3038,
+			"'void' type cannot be used in variable declarations",
 			decl.Name.Token.Line,
 			decl.Name.Token.Column,
 		)
@@ -3991,6 +4013,26 @@ func (tc *TypeChecker) containsAnyType(typeName string) bool {
 		keyType := tc.extractMapKeyType(typeName)
 		valueType := tc.extractMapValueType(typeName)
 		return tc.containsAnyType(keyType) || tc.containsAnyType(valueType)
+	}
+	return false
+}
+
+// containsVoidType checks if a type string is or contains the 'void' type
+// This catches: "void", "[void]", "map[string:void]", etc.
+func (tc *TypeChecker) containsVoidType(typeName string) bool {
+	if typeName == "void" {
+		return true
+	}
+	// Check array element type
+	if tc.isArrayType(typeName) {
+		elemType := typeName[1 : len(typeName)-1]
+		return tc.containsVoidType(elemType)
+	}
+	// Check map key and value types
+	if tc.isMapType(typeName) {
+		keyType := tc.extractMapKeyType(typeName)
+		valueType := tc.extractMapValueType(typeName)
+		return tc.containsVoidType(keyType) || tc.containsVoidType(valueType)
 	}
 	return false
 }
