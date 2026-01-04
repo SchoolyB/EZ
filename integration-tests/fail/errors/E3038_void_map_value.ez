@@ -1,0 +1,8 @@
+/*
+ * Error Test: E3038 - void-type-not-allowed
+ * Expected: "void" and "variable declarations"
+ */
+
+do main() {
+    temp m map[string:void]  // Should fail: void cannot be map value type
+}
