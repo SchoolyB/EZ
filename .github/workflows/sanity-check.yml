@@ -83,14 +83,14 @@ jobs:
                 continue
               fi
 
-              # Reject executables and archives
-              if file "$file" | grep -qE "executable|binary|archive|compressed"; then
+              # Reject executables and archives (use -b to exclude filename from output)
+              if file -b "$file" | grep -qE "executable|binary|archive|compressed"; then
                 echo "::error::Binary/executable file detected: $file"
                 exit 1
               fi
 
               # Also check charset=binary for other binary types (but not images)
-              if file --mime "$file" | grep -q "charset=binary" && [[ ! "$MIME" =~ ^image/ ]]; then
+              if file -b --mime "$file" | grep -q "charset=binary" && [[ ! "$MIME" =~ ^image/ ]]; then
                 echo "::error::Binary file detected: $file ($MIME)"
                 exit 1
               fi
