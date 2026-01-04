@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.36.5](https://github.com/SchoolyB/EZ/compare/v0.36.4...v0.36.5) (2026-01-04)
+
+
+### Bug Fixes
+
+* **repl:** add multi-line navigation support ([33381b0](https://github.com/SchoolyB/EZ/commit/33381b0de8b973edf8cad6424f1ae86771c6b0b2))
+* **repl:** add multi-line navigation support ([a4dcf3d](https://github.com/SchoolyB/EZ/commit/a4dcf3dacb11dc072574a9a7c0de3c368bdeb93c)), closes [#875](https://github.com/SchoolyB/EZ/issues/875)
+
 ## [0.36.4](https://github.com/SchoolyB/EZ/compare/v0.36.3...v0.36.4) (2026-01-03)
 
 
