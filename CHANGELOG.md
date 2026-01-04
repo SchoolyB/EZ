@@ -1,5 +1,33 @@
 # Changelog
 
+## [0.36.7](https://github.com/SchoolyB/EZ/compare/v0.36.6...v0.36.7) (2026-01-04)
+
+
+### Bug Fixes
+
+* **ci:** use file -b to avoid matching on filenames in sanity check ([f01ca70](https://github.com/SchoolyB/EZ/commit/f01ca70345368e389e7d9880e0ab4111be557e26))
+* Internal type representation leaks Go type names instead of EZ types ([26dd6c1](https://github.com/SchoolyB/EZ/commit/26dd6c12921edf797e93ecc68b08be9b7d2048cd))
+* **interpreter:** set Map KeyType/ValueType when maps are created ([04e164f](https://github.com/SchoolyB/EZ/commit/04e164fc6932f5929f3f877aa7a13245e0930c66))
+* **stdlib:** add DeclaredType to float decode functions in binary module ([2fd5582](https://github.com/SchoolyB/EZ/commit/2fd558242534d5185e2b84a5eba5e8f8958f978a))
+* **stdlib:** add ElementType to bytes.split outer array ([330cb1d](https://github.com/SchoolyB/EZ/commit/330cb1db88060fd7a358523ee5adb6cd77ec9aac))
+* **stdlib:** add ElementType to empty array in crypto.random_bytes ([02293e1](https://github.com/SchoolyB/EZ/commit/02293e197ac63c8af5a42740a8fe0090b725152d))
+* **stdlib:** preserve ElementType in arrays module functions ([bb0f8de](https://github.com/SchoolyB/EZ/commit/bb0f8dec4f1b084682e1334f1fad9dd6fc98c816)), closes [#900](https://github.com/SchoolyB/EZ/issues/900)
+* **stdlib:** preserve type info in `[@maps](https://github.com/maps)` module and copyByDefault ([5a0259a](https://github.com/SchoolyB/EZ/commit/5a0259a430b2c5a0df65e926f78b6b2c938f42c0))
+* **stdlib:** preserve type info in builtins and `[@strings](https://github.com/strings)` modules ([0dc4d44](https://github.com/SchoolyB/EZ/commit/0dc4d44efb1fa9ea29a593fa6d5829e59f075aa3))
+* **stdlib:** set DeclaredType for floats in json module ([cb0d46f](https://github.com/SchoolyB/EZ/commit/cb0d46f6c1d5d1065955f66b965bd0644ecbbed8)), closes [#900](https://github.com/SchoolyB/EZ/issues/900)
+* **stdlib:** set ElementType for arrays in db module ([6e5086a](https://github.com/SchoolyB/EZ/commit/6e5086a4b9e6c524267fde59ea40a150d0b6e6b5)), closes [#900](https://github.com/SchoolyB/EZ/issues/900)
+* **stdlib:** set ElementType for arrays in io module ([637bbb7](https://github.com/SchoolyB/EZ/commit/637bbb7812b7eb1430824a12efb69ec8757fb7df)), closes [#900](https://github.com/SchoolyB/EZ/issues/900)
+* **stdlib:** set proper types for headers map and arrays in http module ([450c5f3](https://github.com/SchoolyB/EZ/commit/450c5f3b7be43b4d3c3b84c1673d5b7942005371))
+* **stdlib:** set proper types in os module ([bba1458](https://github.com/SchoolyB/EZ/commit/bba1458f8bee9531162a3704e7c0a6b977456db2)), closes [#900](https://github.com/SchoolyB/EZ/issues/900)
+* **stdlib:** set proper types in random module ([4739f16](https://github.com/SchoolyB/EZ/commit/4739f161aa6872b4f0485bd7bd72ac953cc45499)), closes [#900](https://github.com/SchoolyB/EZ/issues/900)
+* **stdlib:** update getEZTypeName to return proper EZ type names ([d8ee463](https://github.com/SchoolyB/EZ/commit/d8ee463a969c1043062f53ee4a0322ad9ad29b72))
+* **typechecker:** reject typeof() on void function results ([ff9897d](https://github.com/SchoolyB/EZ/commit/ff9897d233e0b3f2ccefdd52412bd8b317552ff1))
+* **types:** add DeclaredType support for Float and sized type conversions ([979e9fd](https://github.com/SchoolyB/EZ/commit/979e9fdd28dcea79f43539b6a1eda35d959b71fe))
+* **types:** typeof() returns "Database" for database objects ([ad2ed95](https://github.com/SchoolyB/EZ/commit/ad2ed951b639438040c8a9f9711114403d3e0486)), closes [#900](https://github.com/SchoolyB/EZ/issues/900)
+* **types:** typeof() returns "Range&lt;int&gt;" for range objects ([64cbb0a](https://github.com/SchoolyB/EZ/commit/64cbb0a762a032e370a41b7fb1cc6f5e952aa367)), closes [#900](https://github.com/SchoolyB/EZ/issues/900)
+* **types:** typeof() returns Ref&lt;innerType&gt; for references ([8b06b9b](https://github.com/SchoolyB/EZ/commit/8b06b9b906d5c8f6589fbd95e47f2bb4bf75a991)), closes [#900](https://github.com/SchoolyB/EZ/issues/900)
+* **types:** use "File" as user-facing type name for FileHandle ([c4d9a5a](https://github.com/SchoolyB/EZ/commit/c4d9a5abaac754c7c39d7a8117489cad0281f590)), closes [#900](https://github.com/SchoolyB/EZ/issues/900)
+
 ## [0.36.6](https://github.com/SchoolyB/EZ/compare/v0.36.5...v0.36.6) (2026-01-04)
 
 
