@@ -1,0 +1,12 @@
+/*
+ * Error Test: E3038 - typeof() with void function result
+ * Expected: "void" and "typeof"
+ */
+
+do main() {
+    typeof(voidFunc())  // Should fail: cannot use void as argument
+}
+
+do voidFunc() {
+    return
+}

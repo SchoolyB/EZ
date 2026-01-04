@@ -3279,8 +3279,9 @@ func (tc *TypeChecker) checkBuiltinTypeConversion(funcName string, call *ast.Cal
 		return true
 
 	case "string", "bool", "char", "byte",
-		"i8", "i16", "i32", "i64",
-		"u8", "u16", "u32", "u64":
+		"i8", "i16", "i32", "i64", "i128", "i256",
+		"u8", "u16", "u32", "u64", "u128", "u256",
+		"f32", "f64":
 		// These conversions are generally safe - but validate arg count
 		if len(call.Arguments) != 1 {
 			line, column := tc.getExpressionPosition(call.Function)
@@ -3310,12 +3311,21 @@ func (tc *TypeChecker) checkBuiltinTypeConversion(funcName string, call *ast.Cal
 		return true
 
 	case "typeof":
-		// typeof() requires exactly 1 argument (any type)
+		// typeof() requires exactly 1 argument (any type except void)
 		if len(call.Arguments) != 1 {
 			line, column := tc.getExpressionPosition(call.Function)
 			tc.addError(errors.E5008,
 				fmt.Sprintf("typeof() requires exactly 1 argument, got %d", len(call.Arguments)),
 				line, column)
+		} else {
+			// Check if argument is a void function call
+			argType, ok := tc.inferExpressionType(call.Arguments[0])
+			if ok && argType == "void" {
+				line, column := tc.getExpressionPosition(call.Arguments[0])
+				tc.addError(errors.E3038,
+					"cannot use void function result as argument to typeof()",
+					line, column)
+			}
 		}
 		return true
 
@@ -4298,6 +4308,8 @@ func (tc *TypeChecker) isBuiltinFunction(name string) bool {
 		"int": true, "float": true, "string": true, "bool": true, "char": true,
 		"i8": true, "i16": true, "i32": true, "i64": true,
 		"u8": true, "u16": true, "u32": true, "u64": true,
+		"i128": true, "i256": true, "u128": true, "u256": true,
+		"f32": true, "f64": true,
 		"byte": true,
 		// Core builtins
 		"len": true, "typeof": true, "input": true, "copy": true, "error": true,
@@ -4859,7 +4871,7 @@ func (tc *TypeChecker) getModuleMultiReturnTypes(moduleName, funcName string, ar
 		case "read_stdin":
 			return []string{"string", "error"}
 		case "open", "create":
-			return []string{"FileHandle", "error"}
+			return []string{"File", "error"}
 		case "fread", "fread_line", "fread_all":
 			return []string{"string", "error"}
 		case "fread_bytes":
@@ -5009,6 +5021,18 @@ func (tc *TypeChecker) inferBuiltinCallType(name string, args []ast.Expression) 
 		return "u32", true
 	case "u64":
 		return "u64", true
+	case "i128":
+		return "i128", true
+	case "i256":
+		return "i256", true
+	case "u128":
+		return "u128", true
+	case "u256":
+		return "u256", true
+	case "f32":
+		return "f32", true
+	case "f64":
+		return "f64", true
 	case "input":
 		return "string", true
 	case "read_int":
@@ -5310,7 +5334,7 @@ func (tc *TypeChecker) inferIOCallType(funcName string, args []ast.Expression) (
 	case "file_size", "file_mod_time", "write", "seek", "tell":
 		return "int", true
 	case "open":
-		return "FileHandle", true
+		return "File", true
 	case "READ_ONLY", "WRITE_ONLY", "READ_WRITE", "APPEND",
 		"CREATE", "TRUNCATE", "EXCLUSIVE",
 		"SEEK_START", "SEEK_CURRENT", "SEEK_END":

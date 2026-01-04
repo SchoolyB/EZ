@@ -107,6 +107,8 @@ var OSBuiltins = map[string]*object.Builtin{
 	"os.env": {
 		Fn: func(args ...object.Object) object.Object {
 			envMap := object.NewMap()
+			envMap.KeyType = "string"
+			envMap.ValueType = "string"
 			for _, entry := range os.Environ() {
 				// Find the first = to split key and value
 				for i := 0; i < len(entry); i++ {
@@ -137,7 +139,7 @@ var OSBuiltins = map[string]*object.Builtin{
 			for i, arg := range sourceArgs {
 				elements[i] = &object.String{Value: arg}
 			}
-			return &object.Array{Elements: elements, Mutable: false}
+			return &object.Array{Elements: elements, Mutable: false, ElementType: "string"}
 		},
 	},
 

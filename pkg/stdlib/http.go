@@ -65,8 +65,10 @@ var HttpBuiltins = map[string]*object.Builtin{
 			}
 
 			headers := object.NewMap()
+			headers.KeyType = "string"
+			headers.ValueType = "[string]"
 			for key, vals := range res.Header {
-				values := &object.Array{}
+				values := &object.Array{ElementType: "string"}
 				for _, val := range vals {
 					values.Elements = append(values.Elements, &object.String{Value: val})
 				}
@@ -134,8 +136,10 @@ var HttpBuiltins = map[string]*object.Builtin{
 			}
 
 			headers := object.NewMap()
+			headers.KeyType = "string"
+			headers.ValueType = "[string]"
 			for key, vals := range res.Header {
-				values := &object.Array{}
+				values := &object.Array{ElementType: "string"}
 				for _, val := range vals {
 					values.Elements = append(values.Elements, &object.String{Value: val})
 				}
@@ -203,8 +207,10 @@ var HttpBuiltins = map[string]*object.Builtin{
 			}
 
 			headers := object.NewMap()
+			headers.KeyType = "string"
+			headers.ValueType = "[string]"
 			for key, vals := range res.Header {
-				values := &object.Array{}
+				values := &object.Array{ElementType: "string"}
 				for _, val := range vals {
 					values.Elements = append(values.Elements, &object.String{Value: val})
 				}
@@ -267,8 +273,10 @@ var HttpBuiltins = map[string]*object.Builtin{
 			}
 
 			headers := object.NewMap()
+			headers.KeyType = "string"
+			headers.ValueType = "[string]"
 			for key, vals := range res.Header {
-				values := &object.Array{}
+				values := &object.Array{ElementType: "string"}
 				for _, val := range vals {
 					values.Elements = append(values.Elements, &object.String{Value: val})
 				}
@@ -336,8 +344,10 @@ var HttpBuiltins = map[string]*object.Builtin{
 			}
 
 			headers := object.NewMap()
+			headers.KeyType = "string"
+			headers.ValueType = "[string]"
 			for key, vals := range res.Header {
-				values := &object.Array{}
+				values := &object.Array{ElementType: "string"}
 				for _, val := range vals {
 					values.Elements = append(values.Elements, &object.String{Value: val})
 				}
@@ -452,8 +462,10 @@ var HttpBuiltins = map[string]*object.Builtin{
 			}
 
 			headers := object.NewMap()
+			headers.KeyType = "string"
+			headers.ValueType = "[string]"
 			for key, vals := range res.Header {
-				values := &object.Array{}
+				values := &object.Array{ElementType: "string"}
 				for _, val := range vals {
 					values.Elements = append(values.Elements, &object.String{Value: val})
 				}

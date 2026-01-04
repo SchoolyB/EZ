@@ -91,7 +91,7 @@ var StringsBuiltins = map[string]*object.Builtin{
 			for i, p := range parts {
 				elements[i] = &object.String{Value: p}
 			}
-			return &object.Array{Elements: elements}
+			return &object.Array{Elements: elements, ElementType: "string"}
 		},
 	},
 
@@ -433,7 +433,7 @@ var StringsBuiltins = map[string]*object.Builtin{
 			for i, r := range runes {
 				elements[i] = &object.Char{Value: r}
 			}
-			return &object.Array{Elements: elements, Mutable: true}
+			return &object.Array{Elements: elements, Mutable: true, ElementType: "char"}
 		},
 	},
 

@@ -199,7 +199,7 @@ var ArraysBuiltins = map[string]*object.Builtin{
 			newElements := make([]object.Object, len(arr.Elements)-1)
 			copy(newElements[:index], arr.Elements[:index])
 			copy(newElements[index:], arr.Elements[index+1:])
-			return &object.Array{Elements: newElements}
+			return &object.Array{Elements: newElements, ElementType: arr.ElementType}
 		},
 	},
 
@@ -449,12 +449,12 @@ var ArraysBuiltins = map[string]*object.Builtin{
 				endIdx = len(arr.Elements)
 			}
 			if startIdx > endIdx {
-				return &object.Array{Elements: []object.Object{}}
+				return &object.Array{Elements: []object.Object{}, ElementType: arr.ElementType}
 			}
 
 			newElements := make([]object.Object, endIdx-startIdx)
 			copy(newElements, arr.Elements[startIdx:endIdx])
-			return &object.Array{Elements: newElements}
+			return &object.Array{Elements: newElements, ElementType: arr.ElementType}
 		},
 	},
 
@@ -480,7 +480,7 @@ var ArraysBuiltins = map[string]*object.Builtin{
 			}
 			newElements := make([]object.Object, count)
 			copy(newElements, arr.Elements[:count])
-			return &object.Array{Elements: newElements}
+			return &object.Array{Elements: newElements, ElementType: arr.ElementType}
 		},
 	},
 
@@ -506,7 +506,7 @@ var ArraysBuiltins = map[string]*object.Builtin{
 			}
 			newElements := make([]object.Object, len(arr.Elements)-count)
 			copy(newElements, arr.Elements[count:])
-			return &object.Array{Elements: newElements}
+			return &object.Array{Elements: newElements, ElementType: arr.ElementType}
 		},
 	},
 
@@ -616,7 +616,7 @@ var ArraysBuiltins = map[string]*object.Builtin{
 			for i := 0; i < n; i++ {
 				reversed[i] = arr.Elements[n-1-i]
 			}
-			return &object.Array{Elements: reversed, Mutable: true}
+			return &object.Array{Elements: reversed, Mutable: true, ElementType: arr.ElementType}
 		},
 	},
 
@@ -717,14 +717,18 @@ var ArraysBuiltins = map[string]*object.Builtin{
 				return newError("arrays.concat() takes at least 2 arguments")
 			}
 			var newElements []object.Object
-			for _, arg := range args {
+			var elementType string
+			for i, arg := range args {
 				arr, ok := arg.(*object.Array)
 				if !ok {
 					return newError("arrays.concat() requires arrays")
 				}
+				if i == 0 {
+					elementType = arr.ElementType
+				}
 				newElements = append(newElements, arr.Elements...)
 			}
-			return &object.Array{Elements: newElements}
+			return &object.Array{Elements: newElements, ElementType: elementType}
 		},
 	},
 
@@ -749,9 +753,9 @@ var ArraysBuiltins = map[string]*object.Builtin{
 
 			newElements := make([]object.Object, minLen)
 			for i := 0; i < minLen; i++ {
-				newElements[i] = &object.Array{Elements: []object.Object{arr1.Elements[i], arr2.Elements[i]}}
+				newElements[i] = &object.Array{Elements: []object.Object{arr1.Elements[i], arr2.Elements[i]}, ElementType: "any"}
 			}
-			return &object.Array{Elements: newElements}
+			return &object.Array{Elements: newElements, ElementType: "array"}
 		},
 	},
 
@@ -766,14 +770,24 @@ var ArraysBuiltins = map[string]*object.Builtin{
 			}
 
 			var newElements []object.Object
+			var elementType string
+			// Try to extract element type from outer array's ElementType
+			// If it's like "[int]", the flattened result should be "int"
+			if len(arr.ElementType) > 2 && arr.ElementType[0] == '[' && arr.ElementType[len(arr.ElementType)-1] == ']' {
+				elementType = arr.ElementType[1 : len(arr.ElementType)-1]
+			}
 			for _, el := range arr.Elements {
 				if innerArr, ok := el.(*object.Array); ok {
 					newElements = append(newElements, innerArr.Elements...)
+					// Prefer inner array's ElementType if available
+					if elementType == "" && innerArr.ElementType != "" {
+						elementType = innerArr.ElementType
+					}
 				} else {
 					newElements = append(newElements, el)
 				}
 			}
-			return &object.Array{Elements: newElements}
+			return &object.Array{Elements: newElements, ElementType: elementType}
 		},
 	},
 
@@ -796,7 +810,7 @@ var ArraysBuiltins = map[string]*object.Builtin{
 					newElements = append(newElements, el)
 				}
 			}
-			return &object.Array{Elements: newElements}
+			return &object.Array{Elements: newElements, ElementType: arr.ElementType}
 		},
 	},
 
@@ -826,7 +840,7 @@ var ArraysBuiltins = map[string]*object.Builtin{
 					newElements = append(newElements, el)
 				}
 			}
-			return &object.Array{Elements: newElements}
+			return &object.Array{Elements: newElements, ElementType: arr.ElementType}
 		},
 	},
 
@@ -987,7 +1001,7 @@ var ArraysBuiltins = map[string]*object.Builtin{
 			for i := 0; i < count; i++ {
 				elements[i] = args[0]
 			}
-			return &object.Array{Elements: elements}
+			return &object.Array{Elements: elements, ElementType: getEZTypeName(args[0])}
 		},
 	},
 
@@ -1091,10 +1105,10 @@ var ArraysBuiltins = map[string]*object.Builtin{
 				}
 				chunk := make([]object.Object, end-i)
 				copy(chunk, arr.Elements[i:end])
-				chunks = append(chunks, &object.Array{Elements: chunk, Mutable: true})
+				chunks = append(chunks, &object.Array{Elements: chunk, Mutable: true, ElementType: arr.ElementType})
 			}
 
-			return &object.Array{Elements: chunks, Mutable: true}
+			return &object.Array{Elements: chunks, Mutable: true, ElementType: "array"}
 		},
 	},
 }

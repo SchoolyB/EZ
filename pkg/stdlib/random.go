@@ -17,7 +17,7 @@ var RandomBuiltins = map[string]*object.Builtin{
 	"random.float": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) == 0 {
-				return &object.Float{Value: rand.Float64()}
+				return &object.Float{Value: rand.Float64(), DeclaredType: "float"}
 			} else if len(args) == 2 {
 				min, err := getRandomNumber(args[0])
 				if err != nil {
@@ -30,7 +30,7 @@ var RandomBuiltins = map[string]*object.Builtin{
 				if max <= min {
 					return &object.Error{Code: "E8006", Message: "random.float() max must be greater than min"}
 				}
-				return &object.Float{Value: min + rand.Float64()*(max-min)}
+				return &object.Float{Value: min + rand.Float64()*(max-min), DeclaredType: "float"}
 			}
 			return &object.Error{Code: "E7001", Message: "random.float() takes 0 or 2 arguments"}
 		},
@@ -168,7 +168,7 @@ var RandomBuiltins = map[string]*object.Builtin{
 				newElements[i], newElements[j] = newElements[j], newElements[i]
 			}
 
-			return &object.Array{Elements: newElements, Mutable: true}
+			return &object.Array{Elements: newElements, Mutable: true, ElementType: arr.ElementType}
 		},
 	},
 
@@ -212,7 +212,7 @@ var RandomBuiltins = map[string]*object.Builtin{
 				result[i] = arr.Elements[indices[i]]
 			}
 
-			return &object.Array{Elements: result, Mutable: true}
+			return &object.Array{Elements: result, Mutable: true, ElementType: arr.ElementType}
 		},
 	},
 }

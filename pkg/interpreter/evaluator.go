@@ -928,7 +928,13 @@ func evalVariableDeclaration(node *ast.VariableDeclaration, env *Environment) Ob
 				if !ok {
 					// Special case: empty {} is parsed as empty Array, convert to empty Map
 					if arr, isArr := val.(*Array); isArr && len(arr.Elements) == 0 {
-						mapObj = &Map{Pairs: []*MapPair{}, Index: make(map[string]int), Mutable: node.Mutable}
+						mapObj = &Map{
+							Pairs:     []*MapPair{},
+							Index:     make(map[string]int),
+							Mutable:   node.Mutable,
+							KeyType:   extractMapKeyType(node.TypeName),
+							ValueType: extractMapValueType(node.TypeName),
+						}
 						val = mapObj
 					} else {
 						return newErrorWithLocation("E3019", node.Token.Line, node.Token.Column,
@@ -938,8 +944,10 @@ func evalVariableDeclaration(node *ast.VariableDeclaration, env *Environment) Ob
 							node.TypeName, getEZTypeName(val), node.TypeName)
 					}
 				} else {
-					// Set mutability based on temp vs const
+					// Set mutability and type info based on declaration
 					mapObj.Mutable = node.Mutable
+					mapObj.KeyType = extractMapKeyType(node.TypeName)
+					mapObj.ValueType = extractMapValueType(node.TypeName)
 				}
 			}
 
@@ -1047,7 +1055,13 @@ func validateAndConvertType(val Object, typeName string, mutable bool, line, col
 		mapObj, ok := val.(*Map)
 		if !ok {
 			if arr, isArr := val.(*Array); isArr && len(arr.Elements) == 0 {
-				mapObj = &Map{Pairs: []*MapPair{}, Index: make(map[string]int), Mutable: mutable}
+				mapObj = &Map{
+					Pairs:     []*MapPair{},
+					Index:     make(map[string]int),
+					Mutable:   mutable,
+					KeyType:   extractMapKeyType(typeName),
+					ValueType: extractMapValueType(typeName),
+				}
 				return mapObj, nil
 			}
 			return nil, newErrorWithLocation("E3019", line, col,
@@ -1055,6 +1069,8 @@ func validateAndConvertType(val Object, typeName string, mutable bool, line, col
 				typeName, getEZTypeName(val))
 		}
 		mapObj.Mutable = mutable
+		mapObj.KeyType = extractMapKeyType(typeName)
+		mapObj.ValueType = extractMapValueType(typeName)
 		return mapObj, nil
 	}
 
@@ -2921,6 +2937,52 @@ func isIntegerType(typeName string) bool {
 	return isSignedIntegerType(typeName) || isUnsignedIntegerType(typeName)
 }
 
+// extractMapKeyType extracts the key type from "map[keyType:valueType]"
+func extractMapKeyType(mapType string) string {
+	if !strings.HasPrefix(mapType, "map[") || !strings.HasSuffix(mapType, "]") {
+		return ""
+	}
+	inner := mapType[4 : len(mapType)-1] // Extract "keyType:valueType"
+	// Find the colon, respecting nested brackets
+	depth := 0
+	for i := 0; i < len(inner); i++ {
+		switch inner[i] {
+		case '[':
+			depth++
+		case ']':
+			depth--
+		case ':':
+			if depth == 0 {
+				return inner[:i]
+			}
+		}
+	}
+	return ""
+}
+
+// extractMapValueType extracts the value type from "map[keyType:valueType]"
+func extractMapValueType(mapType string) string {
+	if !strings.HasPrefix(mapType, "map[") || !strings.HasSuffix(mapType, "]") {
+		return ""
+	}
+	inner := mapType[4 : len(mapType)-1] // Extract "keyType:valueType"
+	// Find the colon, respecting nested brackets
+	depth := 0
+	for i := 0; i < len(inner); i++ {
+		switch inner[i] {
+		case '[':
+			depth++
+		case ']':
+			depth--
+		case ':':
+			if depth == 0 {
+				return inner[i+1:]
+			}
+		}
+	}
+	return ""
+}
+
 // typeMatches checks if an object matches an EZ type name
 // Implements signed/unsigned integer family compatibility rules:
 // - Signed family: i8, i16, i32, i64, i128, i256, int (all compatible with each other)
@@ -3209,7 +3271,13 @@ func evalStructValue(node *ast.StructValue, env *Environment) Object {
 		if arr, ok := val.(*Array); ok && len(arr.Elements) == 0 {
 			if fieldType, hasField := structDef.Fields[fieldName]; hasField {
 				if strings.HasPrefix(fieldType, "map[") {
-					val = &Map{Pairs: []*MapPair{}, Index: make(map[string]int), Mutable: true}
+					val = &Map{
+						Pairs:     []*MapPair{},
+						Index:     make(map[string]int),
+						Mutable:   true,
+						KeyType:   extractMapKeyType(fieldType),
+						ValueType: extractMapValueType(fieldType),
+					}
 				}
 			}
 		}
@@ -3510,6 +3578,8 @@ func copyByDefault(val Object) Object {
 			newMap.Set(pair.Key, copyByDefault(pair.Value))
 		}
 		newMap.Mutable = v.Mutable
+		newMap.KeyType = v.KeyType
+		newMap.ValueType = v.ValueType
 		return newMap
 	default:
 		// Primitives and other types are returned as-is

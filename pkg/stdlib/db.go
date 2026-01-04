@@ -308,6 +308,7 @@ var DBBuiltins = map[string]*object.Builtin{
 			}
 
 			var keys object.Array
+			keys.ElementType = "string"
 			for _, pair := range db.Store.Pairs {
 				keys.Elements = append(keys.Elements, pair.Key)
 			}
@@ -339,6 +340,7 @@ var DBBuiltins = map[string]*object.Builtin{
 			}
 
 			var keys object.Array
+			keys.ElementType = "string"
 			for _, pair := range db.Store.Pairs {
 				key, ok := pair.Key.(*object.String)
 				if ok && strings.HasPrefix(key.Value, prefix.Value) {

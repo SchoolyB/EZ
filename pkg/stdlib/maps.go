@@ -158,7 +158,7 @@ var MapsBuiltins = map[string]*object.Builtin{
 			for i, pair := range m.Pairs {
 				keys[i] = pair.Key
 			}
-			return &object.Array{Elements: keys, Mutable: true}
+			return &object.Array{Elements: keys, Mutable: true, ElementType: m.KeyType}
 		},
 	},
 
@@ -175,7 +175,7 @@ var MapsBuiltins = map[string]*object.Builtin{
 			for i, pair := range m.Pairs {
 				values[i] = pair.Value
 			}
-			return &object.Array{Elements: values, Mutable: true}
+			return &object.Array{Elements: values, Mutable: true, ElementType: m.ValueType}
 		},
 	},
 
@@ -186,6 +186,11 @@ var MapsBuiltins = map[string]*object.Builtin{
 			}
 			// Create a new map with all entries from all input maps (non-destructive)
 			result := object.NewMap()
+			// Inherit type info from first map
+			if firstMap, ok := args[0].(*object.Map); ok {
+				result.KeyType = firstMap.KeyType
+				result.ValueType = firstMap.ValueType
+			}
 			for _, arg := range args {
 				m, ok := arg.(*object.Map)
 				if !ok {
@@ -417,6 +422,9 @@ var MapsBuiltins = map[string]*object.Builtin{
 			}
 			// Create new map with values as keys and keys as values
 			result := object.NewMap()
+			// Swap key and value types
+			result.KeyType = m.ValueType
+			result.ValueType = m.KeyType
 			for _, pair := range m.Pairs {
 				// Value must be hashable to become a key
 				if _, hashOk := object.HashKey(pair.Value); !hashOk {

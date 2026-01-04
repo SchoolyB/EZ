@@ -65,7 +65,8 @@ func (i *Integer) GetDeclaredType() string {
 
 // Float wraps float64
 type Float struct {
-	Value float64
+	Value        float64
+	DeclaredType string
 }
 
 func (f *Float) Type() ObjectType { return FLOAT_OBJ }
@@ -79,6 +80,13 @@ func (f *Float) Inspect() string {
 		s += ".0"
 	}
 	return s
+}
+
+func (f *Float) GetDeclaredType() string {
+	if f.DeclaredType == "" {
+		return "float"
+	}
+	return f.DeclaredType
 }
 
 // String wraps string
@@ -412,9 +420,11 @@ type MapPair struct {
 
 // Map represents a map/dictionary with ordered key-value pairs
 type Map struct {
-	Pairs   []*MapPair     // Ordered pairs for iteration
-	Index   map[string]int // Maps key hash to index in Pairs for O(1) lookup
-	Mutable bool
+	Pairs     []*MapPair     // Ordered pairs for iteration
+	Index     map[string]int // Maps key hash to index in Pairs for O(1) lookup
+	Mutable   bool
+	KeyType   string // Type of map keys (e.g., "string", "int")
+	ValueType string // Type of map values (e.g., "int", "Task")
 }
 
 func (m *Map) Type() ObjectType { return MAP_OBJ }
