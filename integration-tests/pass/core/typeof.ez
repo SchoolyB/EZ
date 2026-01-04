@@ -1,0 +1,88 @@
+/*
+ * Test: typeof() builtin function
+ * Tests that typeof() returns correct EZ type names
+ */
+
+import @std
+using std
+
+const Color enum { RED, GREEN, BLUE }
+const Point struct {
+    x int
+    y int
+}
+
+do main() {
+    // Primitives
+    temp i int = 42
+    temp f float = 3.14
+    temp s string = "hello"
+    temp b bool = true
+
+    assert(typeof(i) == "int", "int variable should return 'int'")
+    assert(typeof(f) == "float", "float variable should return 'float'")
+    assert(typeof(s) == "string", "string variable should return 'string'")
+    assert(typeof(b) == "bool", "bool variable should return 'bool'")
+    assert(typeof(nil) == "nil", "nil should return 'nil'")
+
+    // Literals
+    assert(typeof(42) == "int", "int literal should return 'int'")
+    assert(typeof(3.14) == "float", "float literal should return 'float'")
+    assert(typeof("test") == "string", "string literal should return 'string'")
+    assert(typeof(true) == "bool", "bool literal should return 'bool'")
+
+    // Arrays with declared type
+    temp arr [int] = {1, 2, 3}
+    assert(typeof(arr) == "[int]", "array should return '[int]'")
+
+    temp strArr [string] = {"a", "b"}
+    assert(typeof(strArr) == "[string]", "string array should return '[string]'")
+
+    // Maps with declared type
+    temp m map[string:int] = {"a": 1}
+    assert(typeof(m) == "map[string:int]", "map should return 'map[string:int]'")
+
+    temp m2 map[int:string] = {1: "one"}
+    assert(typeof(m2) == "map[int:string]", "map should return 'map[int:string]'")
+
+    // Enums
+    temp c Color = Color.RED
+    assert(typeof(c) == "Color", "enum variable should return enum type name")
+    assert(typeof(Color.GREEN) == "Color", "enum member should return enum type name")
+
+    // Structs
+    temp p Point = Point{x: 10, y: 20}
+    assert(typeof(p) == "Point", "struct variable should return struct name")
+    assert(typeof(Point{x: 1, y: 2}) == "Point", "struct literal should return struct name")
+
+    // Range
+    assert(typeof(range(0, 5)) == "range", "range should return 'range'")
+
+    // Function returns
+    assert(typeof(returnsInt()) == "int", "function returning int")
+    assert(typeof(returnsString()) == "string", "function returning string")
+    assert(typeof(returnsBool()) == "bool", "function returning bool")
+    assert(typeof(returnsStruct()) == "Point", "function returning struct")
+
+    // Built-in returns
+    assert(typeof(len(arr)) == "int", "len() should return int")
+    assert(typeof(typeof(i)) == "string", "typeof() should return string")
+    assert(typeof(string(42)) == "string", "string() should return string")
+    assert(typeof(int("42")) == "int", "int() should return int")
+    assert(typeof(float(42)) == "float", "float() should return float")
+
+    // Expressions
+    assert(typeof(1 + 2) == "int", "arithmetic should return int")
+    assert(typeof(1 < 2) == "bool", "comparison should return bool")
+    assert(typeof("a" + "b") == "string", "string concat should return string")
+    assert(typeof(arr[0]) == "int", "array index should return element type")
+    assert(typeof(m["a"]) == "int", "map index should return value type")
+    assert(typeof(p.x) == "int", "struct field should return field type")
+
+    println("PASS: typeof")
+}
+
+do returnsInt() -> int { return 42 }
+do returnsString() -> string { return "hello" }
+do returnsBool() -> bool { return true }
+do returnsStruct() -> Point { return Point{x: 0, y: 0} }

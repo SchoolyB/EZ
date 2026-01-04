@@ -1,0 +1,8 @@
+/*
+ * Error Test: E5008 - typeof wrong argument count
+ * Expected: "typeof" and "1 argument"
+ */
+
+do main() {
+    temp x = typeof()  // Should fail: no arguments
+}
