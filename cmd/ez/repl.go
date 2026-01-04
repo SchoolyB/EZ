@@ -149,26 +149,11 @@ func needsMoreInput(line string) bool {
 
 // readMultiLineInputWithEditor continues reading input for multi-line statements using the line editor
 func readMultiLineInputWithEditor(editor *lineeditor.Editor, initial string) string {
-	var lines []string
-	lines = append(lines, initial)
-
-	for {
-		line, err := editor.ReadLine(CONTINUE)
-		if err != nil {
-			return "" // EOF, interrupt, or error
-		}
-
-		lines = append(lines, line)
-
-		// Check if we have balanced braces
-		fullText := strings.Join(lines, "\n")
-		openBraces := strings.Count(fullText, "{")
-		closeBraces := strings.Count(fullText, "}")
-
-		if openBraces == closeBraces {
-			return fullText
-		}
+	result, err := editor.ReadMultiLine(PROMPT, CONTINUE, initial)
+	if err != nil {
+		return "" // EOF, interrupt, or error
 	}
+	return result
 }
 
 // evaluateLine parses and evaluates a single line/statement
