@@ -1141,6 +1141,15 @@ func (tc *TypeChecker) checkFunctionDeclaration(node *ast.FunctionDeclaration) {
 				node.Name.Token.Column,
 			)
 		}
+		// Check if 'void' type is used as return type (not allowed - just omit return type for void functions)
+		if returnType == "void" {
+			tc.addError(
+				errors.E3038,
+				fmt.Sprintf("'void' cannot be used as return type in function '%s'; omit return type for void functions", node.Name.Value),
+				node.Name.Token.Line,
+				node.Name.Token.Column,
+			)
+		}
 	}
 
 	tc.RegisterFunction(node.Name.Value, sig)
