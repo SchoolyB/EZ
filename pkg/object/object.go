@@ -65,7 +65,8 @@ func (i *Integer) GetDeclaredType() string {
 
 // Float wraps float64
 type Float struct {
-	Value float64
+	Value        float64
+	DeclaredType string
 }
 
 func (f *Float) Type() ObjectType { return FLOAT_OBJ }
@@ -79,6 +80,13 @@ func (f *Float) Inspect() string {
 		s += ".0"
 	}
 	return s
+}
+
+func (f *Float) GetDeclaredType() string {
+	if f.DeclaredType == "" {
+		return "float"
+	}
+	return f.DeclaredType
 }
 
 // String wraps string
