@@ -774,6 +774,17 @@ func (tc *TypeChecker) checkStructDeclaration(node *ast.StructDeclaration) {
 			continue
 		}
 
+		// Check if 'void' type is used (not allowed)
+		if tc.containsVoidType(field.TypeName) {
+			tc.addError(
+				errors.E3038,
+				fmt.Sprintf("'void' type cannot be used as struct field type for '%s'", field.Name.Value),
+				field.Name.Token.Line,
+				field.Name.Token.Column,
+			)
+			continue
+		}
+
 		// Add field to struct type
 		fieldType, ok := tc.GetType(field.TypeName)
 		if !ok {
@@ -1137,6 +1148,15 @@ func (tc *TypeChecker) checkFunctionDeclaration(node *ast.FunctionDeclaration) {
 			tc.addError(
 				errors.E3034,
 				fmt.Sprintf("'any' type cannot be used as return type in function '%s'", node.Name.Value),
+				node.Name.Token.Line,
+				node.Name.Token.Column,
+			)
+		}
+		// Check if 'void' type is used as return type (not allowed - just omit return type for void functions)
+		if returnType == "void" {
+			tc.addError(
+				errors.E3038,
+				fmt.Sprintf("'void' cannot be used as return type in function '%s'; omit return type for void functions", node.Name.Value),
 				node.Name.Token.Line,
 				node.Name.Token.Column,
 			)
@@ -1718,6 +1738,17 @@ func (tc *TypeChecker) checkVariableDeclaration(decl *ast.VariableDeclaration) {
 		return
 	}
 
+	// Check if 'void' type is used (not allowed)
+	if declaredType != "" && tc.containsVoidType(declaredType) {
+		tc.addError(
+			errors.E3038,
+			"'void' type cannot be used in variable declarations",
+			decl.Name.Token.Line,
+			decl.Name.Token.Column,
+		)
+		return
+	}
+
 	// Check for float-based enum as map key (not allowed)
 	if declaredType != "" && tc.isMapType(declaredType) {
 		keyType := tc.extractMapKeyType(declaredType)
@@ -1746,7 +1777,15 @@ func (tc *TypeChecker) checkVariableDeclaration(decl *ast.VariableDeclaration) {
 		if declaredType == "" {
 			inferredType, ok := tc.inferExpressionType(decl.Value)
 			if ok {
-				// Register the variable with inferred type (may be empty for stdlib calls)
+				if inferredType == "void" {
+					tc.addError(
+						errors.E3038,
+						"cannot assign void function result to a variable",
+						decl.Name.Token.Line,
+						decl.Name.Token.Column,
+					)
+					return
+				}
 				tc.defineVariableWithMutability(varName, inferredType, decl.Mutable)
 			} else {
 				// Still register with empty type so variable is in scope
@@ -1757,6 +1796,16 @@ func (tc *TypeChecker) checkVariableDeclaration(decl *ast.VariableDeclaration) {
 
 		actualType, ok := tc.inferExpressionType(decl.Value)
 		if ok {
+			if actualType == "void" {
+				tc.addError(
+					errors.E3038,
+					"cannot assign void function result to a variable",
+					decl.Name.Token.Line,
+					decl.Name.Token.Column,
+				)
+				return
+			}
+
 			// Check if it's an array type mismatch (assigning scalar to array)
 			if tc.isArrayType(declaredType) && !tc.isArrayType(actualType) && actualType != "nil" {
 				tc.addError(
@@ -3964,6 +4013,26 @@ func (tc *TypeChecker) containsAnyType(typeName string) bool {
 		keyType := tc.extractMapKeyType(typeName)
 		valueType := tc.extractMapValueType(typeName)
 		return tc.containsAnyType(keyType) || tc.containsAnyType(valueType)
+	}
+	return false
+}
+
+// containsVoidType checks if a type string is or contains the 'void' type
+// This catches: "void", "[void]", "map[string:void]", etc.
+func (tc *TypeChecker) containsVoidType(typeName string) bool {
+	if typeName == "void" {
+		return true
+	}
+	// Check array element type
+	if tc.isArrayType(typeName) {
+		elemType := typeName[1 : len(typeName)-1]
+		return tc.containsVoidType(elemType)
+	}
+	// Check map key and value types
+	if tc.isMapType(typeName) {
+		keyType := tc.extractMapKeyType(typeName)
+		valueType := tc.extractMapValueType(typeName)
+		return tc.containsVoidType(keyType) || tc.containsVoidType(valueType)
 	}
 	return false
 }

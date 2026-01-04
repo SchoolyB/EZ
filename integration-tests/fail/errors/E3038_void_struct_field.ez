@@ -1,0 +1,10 @@
+/*
+ * Error Test: E3038 - void-type-not-allowed
+ * Expected: "void" and "struct field"
+ */
+
+const Foo struct {
+    x void  // Should fail: void cannot be struct field type
+}
+
+do main() {}

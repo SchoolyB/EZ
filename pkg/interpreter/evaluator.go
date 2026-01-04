@@ -3070,6 +3070,9 @@ func extendFunctionEnv(fn *Function, args []Object) *Environment {
 
 func unwrapReturnValue(obj Object) Object {
 	if returnValue, ok := obj.(*ReturnValue); ok {
+		if len(returnValue.Values) == 0 {
+			return NIL
+		}
 		if len(returnValue.Values) == 1 {
 			return returnValue.Values[0]
 		}

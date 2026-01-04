@@ -1,0 +1,11 @@
+/*
+ * Error Test: E3038 - void-type-not-allowed
+ * Expected: "void" and "parameter type"
+ */
+
+do main() {
+    test()
+}
+
+do test(x void) {  // Should fail: void cannot be used as parameter type
+}
