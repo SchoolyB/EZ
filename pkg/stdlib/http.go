@@ -12,9 +12,30 @@ import (
 )
 
 const DEFAULT_TIMEOUT = 30
+const (
+	OK                    int64 = 200
+	CREATED               int64 = 201
+	ACCEPTED              int64 = 202
+	NO_CONTENT            int64 = 204
+	MOVED_PERMANENTLY     int64 = 301
+	FOUND                 int64 = 302
+	NOT_MODIFIED          int64 = 304
+	TEMPORARY_REDIRECT    int64 = 307
+	PERMANENT_REDIRECT    int64 = 308
+	BAD_REQUEST           int64 = 400
+	UNAUTHORIZED          int64 = 401
+	PAYMENT_REQUIRED      int64 = 402
+	FORBIDDEN             int64 = 403
+	NOT_FOUND             int64 = 404
+	METHOD_NOT_ALLOWED    int64 = 405
+	CONFLICT              int64 = 409
+	INTERNAL_SERVER_ERROR int64 = 500
+	BAD_GATEWAY           int64 = 502
+	SERVICE_UNAVAILABLE   int64 = 503
+)
 
 var defaultClient = &http.Client{
-	Timeout: time.Duration(DEFAULT_TIMEOUT)*time.Second,
+	Timeout: time.Duration(DEFAULT_TIMEOUT) * time.Second,
 }
 
 var HttpBuiltins = map[string]*object.Builtin{
@@ -240,7 +261,7 @@ var HttpBuiltins = map[string]*object.Builtin{
 			if _, err := url.ParseRequestURI(urlArg.Value); err != nil {
 				return &object.Error{Code: "E14001", Message: "invalid url"}
 			}
-			
+
 			req, err := http.NewRequest(http.MethodDelete, urlArg.Value, nil)
 			if err != nil {
 				return &object.ReturnValue{
@@ -404,7 +425,7 @@ var HttpBuiltins = map[string]*object.Builtin{
 			}
 
 			client := http.Client{
-				Timeout: time.Duration(timeout)*time.Second,
+				Timeout: time.Duration(timeout) * time.Second,
 			}
 
 			var req *http.Request
@@ -425,7 +446,7 @@ var HttpBuiltins = map[string]*object.Builtin{
 			case "HEAD":
 				req, err = http.NewRequest(http.MethodHead, urlArg.Value, nil)
 			default:
-				return &object.Error{Code: "E14004", Message: "invalid HTTP method: `"+methodArg.Value+"`"}
+				return &object.Error{Code: "E14004", Message: "invalid HTTP method: `" + methodArg.Value + "`"}
 			}
 			if err != nil {
 				return &object.ReturnValue{
@@ -481,7 +502,7 @@ var HttpBuiltins = map[string]*object.Builtin{
 		},
 	},
 
-	"http.encode_url":  {
+	"http.encode_url": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 1 {
 				return &object.Error{Code: "E7001", Message: "http.encode_url() takes exactly 1 arguments"}
@@ -498,7 +519,7 @@ var HttpBuiltins = map[string]*object.Builtin{
 		},
 	},
 
-	"http.decode_url":  {
+	"http.decode_url": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 1 {
 				return &object.Error{Code: "E7001", Message: "http.decode_url() takes exactly 1 arguments"}
@@ -575,12 +596,126 @@ var HttpBuiltins = map[string]*object.Builtin{
 			return &object.String{Value: result}
 		},
 	},
-} 
+
+	"http.OK": {
+		Fn: func(args ...object.Object) object.Object {
+			return &object.Integer{Value: big.NewInt(OK)}
+		},
+	},
+
+	"http.CREATED": {
+		Fn: func(args ...object.Object) object.Object {
+			return &object.Integer{Value: big.NewInt(CREATED)}
+		},
+	},
+
+	"http.ACCEPTED": {
+		Fn: func(args ...object.Object) object.Object {
+			return &object.Integer{Value: big.NewInt(ACCEPTED)}
+		},
+	},
+
+	"http.NO_CONTENT": {
+		Fn: func(args ...object.Object) object.Object {
+			return &object.Integer{Value: big.NewInt(NO_CONTENT)}
+		},
+	},
+
+	"http.MOVED_PERMANENTLY": {
+		Fn: func(args ...object.Object) object.Object {
+			return &object.Integer{Value: big.NewInt(MOVED_PERMANENTLY)}
+		},
+	},
+
+	"http.FOUND": {
+		Fn: func(args ...object.Object) object.Object {
+			return &object.Integer{Value: big.NewInt(FOUND)}
+		},
+	},
+
+	"http.NOT_MODIFIED": {
+		Fn: func(args ...object.Object) object.Object {
+			return &object.Integer{Value: big.NewInt(NOT_MODIFIED)}
+		},
+	},
+
+	"http.TEMPORARY_REDIRECT": {
+		Fn: func(args ...object.Object) object.Object {
+			return &object.Integer{Value: big.NewInt(TEMPORARY_REDIRECT)}
+		},
+	},
+
+	"http.PERMANENT_REDIRECT": {
+		Fn: func(args ...object.Object) object.Object {
+			return &object.Integer{Value: big.NewInt(PERMANENT_REDIRECT)}
+		},
+	},
+
+	"http.BAD_REQUEST": {
+		Fn: func(args ...object.Object) object.Object {
+			return &object.Integer{Value: big.NewInt(BAD_REQUEST)}
+		},
+	},
+
+	"http.UNAUTHORIZED": {
+		Fn: func(args ...object.Object) object.Object {
+			return &object.Integer{Value: big.NewInt(UNAUTHORIZED)}
+		},
+	},
+
+	"http.PAYMENT_REQUIRED": {
+		Fn: func(args ...object.Object) object.Object {
+			return &object.Integer{Value: big.NewInt(PAYMENT_REQUIRED)}
+		},
+	},
+
+	"http.FORBIDDEN": {
+		Fn: func(args ...object.Object) object.Object {
+			return &object.Integer{Value: big.NewInt(FORBIDDEN)}
+		},
+	},
+
+	"http.NOT_FOUND": {
+		Fn: func(args ...object.Object) object.Object {
+			return &object.Integer{Value: big.NewInt(NOT_FOUND)}
+		},
+	},
+
+	"http.METHOD_NOT_ALLOWED": {
+		Fn: func(args ...object.Object) object.Object {
+			return &object.Integer{Value: big.NewInt(METHOD_NOT_ALLOWED)}
+		},
+	},
+
+	"http.CONFLICT": {
+		Fn: func(args ...object.Object) object.Object {
+			return &object.Integer{Value: big.NewInt(CONFLICT)}
+		},
+	},
+
+	"http.INTERNAL_SERVER_ERROR": {
+		Fn: func(args ...object.Object) object.Object {
+			return &object.Integer{Value: big.NewInt(INTERNAL_SERVER_ERROR)}
+		},
+	},
+
+	"http.BAD_GATEWAY": {
+		Fn: func(args ...object.Object) object.Object {
+			return &object.Integer{Value: big.NewInt(BAD_GATEWAY)}
+		},
+	},
+
+	"http.SERVICE_UNAVAILABLE": {
+		Fn: func(args ...object.Object) object.Object {
+			return &object.Integer{Value: big.NewInt(SERVICE_UNAVAILABLE)}
+		},
+	},
+}
 
 func createHttpError(code, message string) *object.Struct {
 	return &object.Struct{
 		TypeName: "Error",
-		Mutable: false,
+		Mutable:  false,
 		Fields: map[string]object.Object{
 			"message": &object.String{Value: message},
 			"code":    &object.String{Value: code},
@@ -591,10 +726,10 @@ func createHttpError(code, message string) *object.Struct {
 func newHttpResponse(status int, body string, headers *object.Map) *object.Struct {
 	return &object.Struct{
 		TypeName: "HttpResponse",
-		Mutable: false,
+		Mutable:  false,
 		Fields: map[string]object.Object{
-			"status": &object.Integer{Value: big.NewInt(int64(status))},
-			"body": &object.String{Value: body},
+			"status":  &object.Integer{Value: big.NewInt(int64(status))},
+			"body":    &object.String{Value: body},
 			"headers": headers,
 		},
 	}

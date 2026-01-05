@@ -8,6 +8,10 @@ do main() {
         println("Error: ${err.message}")
         return
     }
+    if resp.status != http.OK {
+        println("Request Failed: ${resp.status}")
+        return
+    }
     println("Status: ${resp.status}")
     println("Body: ${resp.body}")
 		temp content_type = resp.headers["Content-Type"][0]
@@ -18,6 +22,10 @@ do main() {
         "https://api.example.com/users",
         http.json_body({"name": "John", "email": "john@example.com"})
     )
+    if post_resp.status != http.CREATED {
+        println("Request Failed: ${post_err.message}")
+        return
+    }
 
     // Advanced request with custom headers
     temp headers map[string:string] = {
@@ -31,17 +39,17 @@ do main() {
         headers,
         60
     )
-		if adv_err != nil {
+    if adv_err != nil {
         println("Error: ${adv_err.message}")
         return
-		}
+    }
 
     // URL utilities
     temp encoded string = http.encode_url("hello world")  // "hello%20world"
-		temp decoded string, decode_err error = http.decode_url(encoded)
-		if decode_err != nil {
-			println("${decode_err}")
-			return
-		}
+    temp decoded string, decode_err error = http.decode_url(encoded)
+    if decode_err != nil {
+        println("${decode_err}")
+        return
+    }
     temp query string = http.build_query({"page": "1", "limit": "10"})  // "page=1&limit=10"
 }
