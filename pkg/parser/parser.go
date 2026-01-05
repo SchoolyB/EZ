@@ -2882,6 +2882,22 @@ func (p *Parser) parseNilValue() Expression {
 func (p *Parser) parseArrayValue() Expression {
 	startToken := p.currentToken
 
+	// Check if this is an empty map literal {:}
+	if p.peekTokenMatches(COLON) {
+		// Save lexer state for speculative lookahead
+		savedState := p.l.SaveState()
+		// Get the token after : (peekToken is currently :)
+		afterColon := p.l.NextToken()
+		// Restore lexer state
+		p.l.RestoreState(savedState)
+		// If colon is followed by }, this is {:}
+		if afterColon.Type == RBRACE {
+			p.nextToken() // consume :
+			p.nextToken() // consume }
+			return &MapValue{Token: startToken, Pairs: []*MapPair{}}
+		}
+	}
+
 	// Check if this is an empty literal {} - treat as empty array
 	if p.peekTokenMatches(RBRACE) {
 		p.nextToken()

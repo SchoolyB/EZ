@@ -315,16 +315,28 @@ func TestArrayLiterals(t *testing.T) {
 }
 
 func TestMapLiterals(t *testing.T) {
-	input := `temp m map[string:int] = {"a": 1, "b": 2}`
-	program := parseProgram(t, input)
-	stmt := program.Statements[0].(*VariableDeclaration)
-
-	mapVal, ok := stmt.Value.(*MapValue)
-	if !ok {
-		t.Fatalf("not MapValue, got %T", stmt.Value)
+	tests := []struct {
+		name      string
+		input     string
+		expectedPairs int
+	}{
+		{"non-empty map", `temp m map[string:int] = {"a": 1, "b": 2}`, 2},
+		{"empty map", `temp m map[string:int] = {:}`, 0},
 	}
-	if len(mapVal.Pairs) != 2 {
-		t.Errorf("expected 2 pairs, got %d", len(mapVal.Pairs))
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			program := parseProgram(t, tt.input)
+			stmt := program.Statements[0].(*VariableDeclaration)
+
+			mapVal, ok := stmt.Value.(*MapValue)
+			if !ok {
+				t.Fatalf("not MapValue, got %T", stmt.Value)
+			}
+			if len(mapVal.Pairs) != tt.expectedPairs {
+				t.Errorf("expected %d pairs, got %d", tt.expectedPairs, len(mapVal.Pairs))
+			}
+		})
 	}
 }
 
