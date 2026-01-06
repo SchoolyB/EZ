@@ -1830,7 +1830,7 @@ func (tc *TypeChecker) checkVariableDeclaration(decl *ast.VariableDeclaration) {
 						decl.Name.Token.Line,
 						decl.Name.Token.Column,
 						sourceLine,
-						fmt.Sprintf("use single quotes for char literals: '%s'", decl.Name.Value),
+						fmt.Sprintf("use single quotes for char literals: '%s'", decl.Value.TokenLiteral()),
 					)
 					tc.errors.AddError(mismatchError)
 				} else {
