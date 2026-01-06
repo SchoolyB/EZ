@@ -637,7 +637,13 @@ func downloadAndInstall(url string) error {
 		cmd.Stdin = os.Stdin
 		cmd.Stdout = os.Stdout
 		cmd.Stderr = os.Stderr
-		return cmd.Run()
+
+		err := cmd.Run()
+		if err != nil {
+			return fmt.Errorf("failed to run with sudo: %w", err)
+		}
+
+		os.Exit(0)
 	}
 
 	return doInstall(url, execPath)
