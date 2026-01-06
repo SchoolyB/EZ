@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.39.1](https://github.com/SchoolyB/EZ/compare/v0.39.0...v0.39.1) (2026-01-06)
+
+
+### Bug Fixes
+
+* **update:** exit original process after sudo completes ([#927](https://github.com/SchoolyB/EZ/issues/927)) ([266c5c3](https://github.com/SchoolyB/EZ/commit/266c5c3f759067db37e6043b62e5d60a8bfc5468))
+
 ## [0.39.0](https://github.com/SchoolyB/EZ/compare/v0.38.0...v0.39.0) (2026-01-06)
 
 
