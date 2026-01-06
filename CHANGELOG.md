@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.39.0](https://github.com/SchoolyB/EZ/compare/v0.38.0...v0.39.0) (2026-01-06)
+
+
+### Features
+
+* **time:** add weekday, month and duration constants (resolves [#902](https://github.com/SchoolyB/EZ/issues/902)) ([#923](https://github.com/SchoolyB/EZ/issues/923)) ([179fe62](https://github.com/SchoolyB/EZ/commit/179fe6290e8e95b35085387a2969f911bd87067b))
+
 ## [0.38.0](https://github.com/SchoolyB/EZ/compare/v0.37.0...v0.38.0) (2026-01-06)
 
 
