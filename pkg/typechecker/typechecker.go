@@ -1819,12 +1819,29 @@ func (tc *TypeChecker) checkVariableDeclaration(decl *ast.VariableDeclaration) {
 
 			// Check for type mismatch
 			if !tc.typesCompatible(declaredType, actualType) {
-				tc.addError(
-					errors.E3001,
-					fmt.Sprintf("type mismatch: cannot assign %s to %s", actualType, declaredType),
-					decl.Name.Token.Line,
-					decl.Name.Token.Column,
-				)
+
+				if declaredType == "char" && actualType == "string" {
+					sourceLine := errors.GetSourceLine(tc.source, decl.Name.Token.Line)
+
+					mismatchError := errors.NewErrorWithHelp(
+						errors.E3001,
+						fmt.Sprintf("type mismatch: cannot assign %s to %s", actualType, declaredType),
+						decl.Name.Token.File,
+						decl.Name.Token.Line,
+						decl.Name.Token.Column,
+						sourceLine,
+						fmt.Sprintf("use single quotes for char literals: '%s'", decl.Value.TokenLiteral()),
+					)
+					tc.errors.AddError(mismatchError)
+				} else {
+					tc.addError(
+						errors.E3001,
+						fmt.Sprintf("type mismatch: cannot assign %s to %s", actualType, declaredType),
+						decl.Name.Token.Line,
+						decl.Name.Token.Column,
+					)
+				}
+
 				return
 			}
 
