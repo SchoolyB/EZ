@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.38.0](https://github.com/SchoolyB/EZ/compare/v0.37.0...v0.38.0) (2026-01-06)
+
+
+### Features
+
+* **cli:** improve ez update changelog display ([#920](https://github.com/SchoolyB/EZ/issues/920)) ([7125b83](https://github.com/SchoolyB/EZ/commit/7125b83f4df95183c25795722fd95086f6f3ca3d)), closes [#919](https://github.com/SchoolyB/EZ/issues/919)
+
 ## [0.37.0](https://github.com/SchoolyB/EZ/compare/v0.36.7...v0.37.0) (2026-01-05)
 
 
