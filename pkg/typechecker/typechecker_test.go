@@ -1743,6 +1743,37 @@ do main() {
 	assertNoErrors(t, tc)
 }
 
+func TestHttpModuleConstantWithoutModuleNamespace(t *testing.T) {
+	input := `
+import @http
+using http
+
+do main() {
+	const status_200 int = OK
+	const status_201 int = CREATED
+	const status_202 int = ACCEPTED
+	const status_204 int = NO_CONTENT
+	const status_301 int = MOVED_PERMANENTLY
+	const status_302 int = FOUND
+	const status_304 int = NOT_MODIFIED
+	const status_307 int = TEMPORARY_REDIRECT
+	const status_308 int = PERMANENT_REDIRECT
+	const status_400 int = BAD_REQUEST
+	const status_401 int = UNAUTHORIZED
+	const status_402 int = PAYMENT_REQUIRED
+	const status_403 int = FORBIDDEN
+	const status_404 int = NOT_FOUND
+	const status_405 int = METHOD_NOT_ALLOWED
+	const status_409 int = CONFLICT
+	const status_500 int = INTERNAL_SERVER_ERROR
+	const status_502 int = BAD_GATEWAY
+	const status_503 int = SERVICE_UNAVAILABLE
+}
+`
+	tc := typecheck(t, input)
+	assertNoErrors(t, tc)
+}
+
 // ============================================================================
 // Prefix Expression Tests
 // ============================================================================
