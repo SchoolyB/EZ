@@ -62,15 +62,19 @@ func init() {
 }
 
 // getTypeBounds returns the min and max values for a given integer type
+// Returns nil, nil for arbitrary precision types (int, uint) that have no bounds
 func getTypeBounds(typeName string) (min, max *big.Int) {
 	switch typeName {
+	case "int", "uint":
+		// Arbitrary precision - no bounds
+		return nil, nil
 	case "i8":
 		return minInt8, maxInt8
 	case "i16":
 		return minInt16, maxInt16
 	case "i32":
 		return minInt32, maxInt32
-	case "i64", "int", "":
+	case "i64", "":
 		return minInt64, maxInt64
 	case "i128":
 		return minInt128, maxInt128
@@ -82,7 +86,7 @@ func getTypeBounds(typeName string) (min, max *big.Int) {
 		return zero, maxUint16
 	case "u32":
 		return zero, maxUint32
-	case "u64", "uint":
+	case "u64":
 		return zero, maxUint64
 	case "u128":
 		return zero, maxUint128
@@ -95,8 +99,13 @@ func getTypeBounds(typeName string) (min, max *big.Int) {
 }
 
 // checkOverflow checks if a value is within bounds for a given type
+// Returns false for arbitrary precision types (int, uint) that have no bounds
 func checkOverflow(result *big.Int, typeName string) bool {
 	min, max := getTypeBounds(typeName)
+	if min == nil || max == nil {
+		// Arbitrary precision type - no overflow possible
+		return false
+	}
 	return result.Cmp(min) < 0 || result.Cmp(max) > 0
 }
 

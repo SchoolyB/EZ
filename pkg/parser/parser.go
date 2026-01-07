@@ -2788,9 +2788,36 @@ func (p *Parser) parseInterpolatedExpression(exprStr string, origToken Token) Ex
 	// Parse the expression
 	expr := tempParser.parseExpression(LOWEST)
 
-	// Check for errors
+	// Check for lexer errors (e.g., illegal characters like | or ^)
+	lexerErrors := lexer.Errors()
+	if len(lexerErrors) > 0 {
+		for _, err := range lexerErrors {
+			p.addEZError(errors.E1001, err.Message, origToken)
+		}
+		return nil
+	}
+
+	// Check for parser errors
 	if len(tempParser.errors) > 0 {
 		p.errors = append(p.errors, tempParser.errors...)
+		return nil
+	}
+
+	// Check for unconsumed tokens - if there are tokens left after parsing,
+	// it likely means an invalid operator was encountered (e.g., &, |, ^)
+	if tempParser.peekToken.Type != EOF {
+		// Determine appropriate error message based on the unconsumed token
+		unexpectedToken := tempParser.peekToken
+		var msg string
+		switch unexpectedToken.Type {
+		case AMPERSAND:
+			msg = "& is not a valid binary operator in expressions"
+		case ILLEGAL:
+			msg = fmt.Sprintf("illegal character '%s' in expression", unexpectedToken.Literal)
+		default:
+			msg = fmt.Sprintf("unexpected token '%s' in interpolated expression", unexpectedToken.Literal)
+		}
+		p.addEZError(errors.E2001, msg, origToken)
 		return nil
 	}
 
