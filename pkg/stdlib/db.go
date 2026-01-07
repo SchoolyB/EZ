@@ -51,8 +51,8 @@ var DBBuiltins = map[string]*object.Builtin{
 
 				return &object.ReturnValue{Values: []object.Object{
 					&object.Database{
-						Path: *path,
-						Store: *object.NewMap(),
+						Path:     *path,
+						Store:    *object.NewMap(),
 						IsClosed: object.Boolean{Value: false},
 					},
 					object.NIL,
@@ -88,8 +88,8 @@ var DBBuiltins = map[string]*object.Builtin{
 
 			return &object.ReturnValue{Values: []object.Object{
 				&object.Database{
-					Path: *path,
-					Store: *dbContent,
+					Path:     *path,
+					Store:    *dbContent,
 					IsClosed: object.Boolean{Value: false},
 				},
 				object.NIL,
@@ -127,7 +127,7 @@ var DBBuiltins = map[string]*object.Builtin{
 
 			db.IsClosed = object.Boolean{Value: true}
 
-			return	&object.Nil{}
+			return &object.Nil{}
 		},
 	},
 
@@ -313,7 +313,7 @@ var DBBuiltins = map[string]*object.Builtin{
 				keys.Elements = append(keys.Elements, pair.Key)
 			}
 
-			return	&keys
+			return &keys
 		},
 	},
 
@@ -576,6 +576,7 @@ var DBBuiltins = map[string]*object.Builtin{
 		Fn: func(args ...object.Object) object.Object {
 			return &object.Integer{Value: big.NewInt(0)}
 		},
+		IsConstant: true,
 	},
 
 	// Sort order: keys alphabetically Z-A
@@ -583,6 +584,7 @@ var DBBuiltins = map[string]*object.Builtin{
 		Fn: func(args ...object.Object) object.Object {
 			return &object.Integer{Value: big.NewInt(1)}
 		},
+		IsConstant: true,
 	},
 
 	// Sort order: values alphabetically A-Z
@@ -590,6 +592,7 @@ var DBBuiltins = map[string]*object.Builtin{
 		Fn: func(args ...object.Object) object.Object {
 			return &object.Integer{Value: big.NewInt(2)}
 		},
+		IsConstant: true,
 	},
 
 	// Sort order: values alphabetically Z-A
@@ -597,6 +600,7 @@ var DBBuiltins = map[string]*object.Builtin{
 		Fn: func(args ...object.Object) object.Object {
 			return &object.Integer{Value: big.NewInt(3)}
 		},
+		IsConstant: true,
 	},
 
 	// Sort order: shortest keys first
@@ -604,6 +608,7 @@ var DBBuiltins = map[string]*object.Builtin{
 		Fn: func(args ...object.Object) object.Object {
 			return &object.Integer{Value: big.NewInt(4)}
 		},
+		IsConstant: true,
 	},
 
 	// Sort order: longest keys first
@@ -611,6 +616,7 @@ var DBBuiltins = map[string]*object.Builtin{
 		Fn: func(args ...object.Object) object.Object {
 			return &object.Integer{Value: big.NewInt(5)}
 		},
+		IsConstant: true,
 	},
 
 	// Sort order: shortest values first
@@ -618,6 +624,7 @@ var DBBuiltins = map[string]*object.Builtin{
 		Fn: func(args ...object.Object) object.Object {
 			return &object.Integer{Value: big.NewInt(6)}
 		},
+		IsConstant: true,
 	},
 
 	// Sort order: longest values first
@@ -625,6 +632,7 @@ var DBBuiltins = map[string]*object.Builtin{
 		Fn: func(args ...object.Object) object.Object {
 			return &object.Integer{Value: big.NewInt(7)}
 		},
+		IsConstant: true,
 	},
 
 	// Sort order: keys numerically ascending
@@ -632,6 +640,7 @@ var DBBuiltins = map[string]*object.Builtin{
 		Fn: func(args ...object.Object) object.Object {
 			return &object.Integer{Value: big.NewInt(8)}
 		},
+		IsConstant: true,
 	},
 
 	// Sort order: keys numerically descending
@@ -639,5 +648,6 @@ var DBBuiltins = map[string]*object.Builtin{
 		Fn: func(args ...object.Object) object.Object {
 			return &object.Integer{Value: big.NewInt(9)}
 		},
+		IsConstant: true,
 	},
 }

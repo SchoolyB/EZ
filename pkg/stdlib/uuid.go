@@ -78,6 +78,7 @@ var UUIDBuiltins = map[string]*object.Builtin{
 			}
 			return &object.String{Value: "00000000-0000-0000-0000-000000000000"}
 		},
+		IsConstant: true,
 	},
 }
 

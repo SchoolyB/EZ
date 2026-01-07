@@ -4365,6 +4365,39 @@ func (tc *TypeChecker) isStdlibFunction(moduleName, funcName string) bool {
 	return false
 }
 
+// isStdlibConstant returns true if the name is a stdlib constant (accessible via using)
+func (tc *TypeChecker) isStdlibConstant(moduleName, constName string) bool {
+	stdConsts := map[string]map[string]bool{
+		"std": {
+			"EXIT_SUCCESS": true, "EXIT_FAILURE": true,
+		},
+		"db": {},
+		"http": {
+			"OK": true, "CREATED": true, "ACCEPTED": true,
+			"NO_CONTENT": true, "MOVED_PERMANENTLY": true, "FOUND": true,
+			"NOT_MODIFIED": true, "TEMPORARY_REDIRECT": true, "PERMANENT_REDIRECT": true,
+			"BAD_REQUEST": true, "UNAUTHORIZED": true, "PAYMENT_REQUIRED": true,
+			"FORBIDDEN": true, "NOT_FOUND": true, "METHOD_NOT_ALLOWED": true,
+			"CONFLICT": true, "INTERNAL_SERVER_ERROR": true, "BAD_GATEWAY": true,
+			"SERVICE_UNAVAILABLE": true,
+		},
+		"io":   {},
+		"math": {},
+		"os": {
+			"MAC_OS": true, "LINUX": true, "WINDOWS": true,
+			"CURRENT_OS": true, "line_separator": true, "dev_null": true,
+		},
+		"time": {},
+		"uuid": {
+			"NIL": true,
+		},
+	}
+	if modConsts, ok := stdConsts[moduleName]; ok {
+		return modConsts[constName]
+	}
+	return false
+}
+
 // isKnownIdentifier checks if a name is a known identifier (variable, function, type, module, etc.)
 func (tc *TypeChecker) isKnownIdentifier(name string) bool {
 	// Check if it's a variable
@@ -4416,6 +4449,21 @@ func (tc *TypeChecker) isKnownIdentifier(name string) bool {
 			}
 		}
 	}
+
+	// Check if it's a stdlib constant accessible via 'using'
+	for moduleName := range tc.fileUsingModules {
+		if tc.isStdlibConstant(moduleName, name) {
+			return true
+		}
+	}
+	if tc.currentScope != nil {
+		for moduleName := range tc.currentScope.usingModules {
+			if tc.isStdlibConstant(moduleName, name) {
+				return true
+			}
+		}
+	}
+
 	// Check if it's a function from a user module accessible via 'using' (#671)
 	for moduleName := range tc.fileUsingModules {
 		if funcs, ok := tc.moduleFunctions[moduleName]; ok {

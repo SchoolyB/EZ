@@ -292,16 +292,19 @@ var OSBuiltins = map[string]*object.Builtin{
 		Fn: func(args ...object.Object) object.Object {
 			return &object.Integer{Value: big.NewInt(0)}
 		},
+		IsConstant: true,
 	},
 	"os.LINUX": {
 		Fn: func(args ...object.Object) object.Object {
 			return &object.Integer{Value: big.NewInt(1)}
 		},
+		IsConstant: true,
 	},
 	"os.WINDOWS": {
 		Fn: func(args ...object.Object) object.Object {
 			return &object.Integer{Value: big.NewInt(2)}
 		},
+		IsConstant: true,
 	},
 
 	// Returns the current OS as a constant (matches os.MAC_OS, os.LINUX, or os.WINDOWS)
@@ -318,6 +321,7 @@ var OSBuiltins = map[string]*object.Builtin{
 				return &object.Integer{Value: big.NewInt(-1)} // Unknown
 			}
 		},
+		IsConstant: true,
 	},
 
 	// Returns the operating system name as a string
@@ -386,6 +390,7 @@ var OSBuiltins = map[string]*object.Builtin{
 			}
 			return &object.String{Value: "\n"}
 		},
+		IsConstant: true,
 	},
 
 	// Returns the null device path for the current platform
@@ -397,6 +402,7 @@ var OSBuiltins = map[string]*object.Builtin{
 			}
 			return &object.String{Value: "/dev/null"}
 		},
+		IsConstant: true,
 	},
 
 	// ============================================================================
