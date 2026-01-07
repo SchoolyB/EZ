@@ -1700,50 +1700,50 @@ do main() {
 	assertNoErrors(t, tc)
 }
 
-func TestMathModuleConstantWithoutModuleNamespace(t *testing.T) {
+func TestMathConstantsWithUsing(t *testing.T) {
 	input := `
 import @math
 using math
 
 do main() {
-	const var1 float = PI
-	const var2 float = E
-	const var3 float = PHI
-	const var4 float = SQRT2
-	const var5 float = LN2
-	const var6 float = LN10
-	const var7 float = TAU
-	const var8 float = INF
-	const var9 float = NEG_INF
+	const pi_val float = PI
+	const e_val float = E
+	const phi_val float = PHI
+	const sqrt2_val float = SQRT2
+	const ln2_val float = LN2
+	const ln10_val float = LN10
+	const tau_val float = TAU
+	const inf_val float = INF
+	const neg_inf_val float = NEG_INF
 }
 `
 	tc := typecheck(t, input)
 	assertNoErrors(t, tc)
 }
 
-func TestDBModuleConstantWithoutModuleNamespace(t *testing.T) {
+func TestDbConstantsWithUsing(t *testing.T) {
 	input := `
 import @db
 using db
 
 do main() {
-	const var1 int = ALPHA
-	const var2 int = ALPHA_DESC
-	const var3 int = VALUE_ALPHA
-	const var4 int = VALUE_ALPHA_DESC
-	const var5 int = KEY_LEN
-	const var6 int = KEY_LEN_DESC
-	const var7 int = VALUE_LEN
-	const var8 int = VALUE_LEN_DESC
-	const var9 int = NUMERIC
-	const var10 int = NUMERIC_DESC
+	const alpha_val int = ALPHA
+	const alpha_desc_val int = ALPHA_DESC
+	const value_alpha_val int = VALUE_ALPHA
+	const value_alpha_desc_val int = VALUE_ALPHA_DESC
+	const key_len_val int = KEY_LEN
+	const key_len_desc_val int = KEY_LEN_DESC
+	const value_len_val int = VALUE_LEN
+	const value_len_desc_val int = VALUE_LEN_DESC
+	const numeric_val int = NUMERIC
+	const numberic_desc_val int = NUMERIC_DESC
 }
 `
 	tc := typecheck(t, input)
 	assertNoErrors(t, tc)
 }
 
-func TestHttpModuleConstantWithoutModuleNamespace(t *testing.T) {
+func TestHttpConstantsWithUsing(t *testing.T) {
 	input := `
 import @http
 using http
