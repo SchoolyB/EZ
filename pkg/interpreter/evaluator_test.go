@@ -4132,7 +4132,7 @@ func TestPostfixOverflowDetection(t *testing.T) {
 		{
 			name: "increment overflow",
 			input: `
-temp i int = 9223372036854775807
+temp i i64 = 9223372036854775807
 i++
 `,
 			expectError: true,
@@ -4141,7 +4141,7 @@ i++
 		{
 			name: "decrement underflow",
 			input: `
-temp i int = -9223372036854775808
+temp i i64 = -9223372036854775808
 i--
 `,
 			expectError: true,
@@ -4276,8 +4276,8 @@ func TestLargeIntegerOverflow(t *testing.T) {
 			"E5006",
 		},
 		{
-			"int overflow still works",
-			"temp max int = 9223372036854775807\ntemp r int = max + 1",
+			"i64 overflow still works",
+			"temp max i64 = 9223372036854775807\ntemp r i64 = max + 1",
 			"E5005",
 		},
 	}
