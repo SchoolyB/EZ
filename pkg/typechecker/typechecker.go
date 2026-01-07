@@ -4372,7 +4372,10 @@ func (tc *TypeChecker) isStdlibConstant(moduleName, constName string) bool {
 			"EXIT_SUCCESS": true, "EXIT_FAILURE": true,
 		},
 		"db": {
-			"ALPHA": true,
+			"ALPHA": true, "ALPHA_DESC": true, "VALUE_ALPHA": true,
+			"VALUE_ALPHA_DESC": true, "KEY_LEN": true, "KEY_LEN_DESC": true,
+			"VALUE_LEN": true, "VALUE_LEN_DESC": true, "NUMERIC": true,
+			"NUMERIC_DESC": true,
 		},
 		"http": {
 			"OK": true, "CREATED": true, "ACCEPTED": true,
