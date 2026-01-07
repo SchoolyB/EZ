@@ -4371,7 +4371,9 @@ func (tc *TypeChecker) isStdlibConstant(moduleName, constName string) bool {
 		"std": {
 			"EXIT_SUCCESS": true, "EXIT_FAILURE": true,
 		},
-		"db": {},
+		"db": {
+			"ALPHA": true,
+		},
 		"http": {
 			"OK": true, "CREATED": true, "ACCEPTED": true,
 			"NO_CONTENT": true, "MOVED_PERMANENTLY": true, "FOUND": true,
@@ -4381,8 +4383,12 @@ func (tc *TypeChecker) isStdlibConstant(moduleName, constName string) bool {
 			"CONFLICT": true, "INTERNAL_SERVER_ERROR": true, "BAD_GATEWAY": true,
 			"SERVICE_UNAVAILABLE": true,
 		},
-		"io":   {},
-		"math": {},
+		"io": {},
+		"math": {
+			"PI": true, "E": true, "PHI": true,
+			"SQRT2": true, "LN2": true, "LN10": true,
+			"TAU": true, "INF": true, "NEG_INF": true,
+		},
 		"os": {
 			"MAC_OS": true, "LINUX": true, "WINDOWS": true,
 			"CURRENT_OS": true, "line_separator": true, "dev_null": true,

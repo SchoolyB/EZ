@@ -1564,6 +1564,27 @@ do main() {
 	assertNoErrors(t, tc)
 }
 
+func TestMathModuleConstantWithoutModuleNamespace(t *testing.T) {
+	input := `
+import @math
+using math
+
+do main() {
+	const var1 float = PI
+	const var2 float = E
+	const var3 float = PHI
+	const var4 float = SQRT2
+	const var5 float = LN2
+	const var6 float = LN10
+	const var7 float = TAU
+	const var8 float = INF
+	const var9 float = NEG_INF
+}
+`
+	tc := typecheck(t, input)
+	assertNoErrors(t, tc)
+}
+
 func TestArraysModuleCall(t *testing.T) {
 	input := `
 import @arrays
