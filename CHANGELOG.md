@@ -1,5 +1,33 @@
 # Changelog
 
+## [0.39.1](https://github.com/SchoolyB/EZ/compare/v0.39.0...v0.39.1) (2026-01-06)
+
+
+### Bug Fixes
+
+* **update:** exit original process after sudo completes ([#927](https://github.com/SchoolyB/EZ/issues/927)) ([266c5c3](https://github.com/SchoolyB/EZ/commit/266c5c3f759067db37e6043b62e5d60a8bfc5468))
+
+## [0.39.0](https://github.com/SchoolyB/EZ/compare/v0.38.0...v0.39.0) (2026-01-06)
+
+
+### Features
+
+* **time:** add weekday, month and duration constants (resolves [#902](https://github.com/SchoolyB/EZ/issues/902)) ([#923](https://github.com/SchoolyB/EZ/issues/923)) ([179fe62](https://github.com/SchoolyB/EZ/commit/179fe6290e8e95b35085387a2969f911bd87067b))
+
+## [0.38.0](https://github.com/SchoolyB/EZ/compare/v0.37.0...v0.38.0) (2026-01-06)
+
+
+### Features
+
+* **cli:** improve ez update changelog display ([#920](https://github.com/SchoolyB/EZ/issues/920)) ([7125b83](https://github.com/SchoolyB/EZ/commit/7125b83f4df95183c25795722fd95086f6f3ca3d)), closes [#919](https://github.com/SchoolyB/EZ/issues/919)
+
+## [0.37.0](https://github.com/SchoolyB/EZ/compare/v0.36.7...v0.37.0) (2026-01-05)
+
+
+### Features
+
+* **http:** add HTTP status code constants ([#907](https://github.com/SchoolyB/EZ/issues/907)) ([5ce155d](https://github.com/SchoolyB/EZ/commit/5ce155d7163d83a3f6bd68ba5e3be618de58b4ac))
+
 ## [0.36.7](https://github.com/SchoolyB/EZ/compare/v0.36.6...v0.36.7) (2026-01-04)
 
 

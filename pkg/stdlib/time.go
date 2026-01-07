@@ -648,6 +648,132 @@ var TimeBuiltins = map[string]*object.Builtin{
 			return &object.Float{Value: float64(elapsed) / 1e6}
 		},
 	},
+
+	// Weekday Constants
+	"time.SUNDAY": {
+		Fn: func(args ...object.Object) object.Object {
+			return &object.Integer{Value: big.NewInt(0)}
+		},
+	},
+	"time.MONDAY": {
+		Fn: func(args ...object.Object) object.Object {
+			return &object.Integer{Value: big.NewInt(1)}
+		},
+	},
+	"time.TUESDAY": {
+		Fn: func(args ...object.Object) object.Object {
+			return &object.Integer{Value: big.NewInt(2)}
+		},
+	},
+	"time.WEDNESDAY": {
+		Fn: func(args ...object.Object) object.Object {
+			return &object.Integer{Value: big.NewInt(3)}
+		},
+	},
+	"time.THURSDAY": {
+		Fn: func(args ...object.Object) object.Object {
+			return &object.Integer{Value: big.NewInt(4)}
+		},
+	},
+	"time.FRIDAY": {
+		Fn: func(args ...object.Object) object.Object {
+			return &object.Integer{Value: big.NewInt(5)}
+		},
+	},
+	"time.SATURDAY": {
+		Fn: func(args ...object.Object) object.Object {
+			return &object.Integer{Value: big.NewInt(6)}
+		},
+	},
+
+	// Month Constants
+	"time.JANUARY": {
+		Fn: func(args ...object.Object) object.Object {
+			return &object.Integer{Value: big.NewInt(1)}
+		},
+	},
+	"time.FEBRUARY": {
+		Fn: func(args ...object.Object) object.Object {
+			return &object.Integer{Value: big.NewInt(2)}
+		},
+	},
+	"time.MARCH": {
+		Fn: func(args ...object.Object) object.Object {
+			return &object.Integer{Value: big.NewInt(3)}
+		},
+	},
+	"time.APRIL": {
+		Fn: func(args ...object.Object) object.Object {
+			return &object.Integer{Value: big.NewInt(4)}
+		},
+	},
+	"time.MAY": {
+		Fn: func(args ...object.Object) object.Object {
+			return &object.Integer{Value: big.NewInt(5)}
+		},
+	},
+	"time.JUNE": {
+		Fn: func(args ...object.Object) object.Object {
+			return &object.Integer{Value: big.NewInt(6)}
+		},
+	},
+	"time.JULY": {
+		Fn: func(args ...object.Object) object.Object {
+			return &object.Integer{Value: big.NewInt(7)}
+		},
+	},
+	"time.AUGUST": {
+		Fn: func(args ...object.Object) object.Object {
+			return &object.Integer{Value: big.NewInt(8)}
+		},
+	},
+	"time.SEPTEMBER": {
+		Fn: func(args ...object.Object) object.Object {
+			return &object.Integer{Value: big.NewInt(9)}
+		},
+	},
+	"time.OCTOBER": {
+		Fn: func(args ...object.Object) object.Object {
+			return &object.Integer{Value: big.NewInt(10)}
+		},
+	},
+	"time.NOVEMBER": {
+		Fn: func(args ...object.Object) object.Object {
+			return &object.Integer{Value: big.NewInt(11)}
+		},
+	},
+	"time.DECEMBER": {
+		Fn: func(args ...object.Object) object.Object {
+			return &object.Integer{Value: big.NewInt(12)}
+		},
+	},
+
+	// Duration Constants (in seconds)
+	"time.SECOND": {
+		Fn: func(args ...object.Object) object.Object {
+			return &object.Integer{Value: big.NewInt(1)}
+		},
+	},
+	"time.MINUTE": {
+		Fn: func(args ...object.Object) object.Object {
+			return &object.Integer{Value: big.NewInt(60)}
+		},
+	},
+	"time.HOUR": {
+		Fn: func(args ...object.Object) object.Object {
+			return &object.Integer{Value: big.NewInt(3600)}
+		},
+	},
+	"time.DAY": {
+		Fn: func(args ...object.Object) object.Object {
+			return &object.Integer{Value: big.NewInt(86400)}
+		},
+	},
+	"time.WEEK": {
+		Fn: func(args ...object.Object) object.Object {
+			return &object.Integer{Value: big.NewInt(604800)}
+		},
+	},
 }
 
 // Helper to get time from args (current time if no args)

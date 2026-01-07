@@ -40,10 +40,12 @@ type GitHubRelease struct {
 }
 
 const (
-	githubAPIURL    = "https://api.github.com/repos/SchoolyB/EZ/releases/latest"
-	updateCheckDir  = ".ez"
-	updateCheckFile = "update_check"
-	checkTimeout    = 2 * time.Second
+	githubAPIURL         = "https://api.github.com/repos/SchoolyB/EZ/releases/latest"
+	githubReleasesURL    = "https://api.github.com/repos/SchoolyB/EZ/releases"
+	updateCheckDir       = ".ez"
+	updateCheckFile      = "update_check"
+	checkTimeout         = 2 * time.Second
+	maxChangelogVersions = 10 // Maximum number of versions to show in changelog
 )
 
 // getUpdateStatePath returns the path to the update state file
@@ -147,6 +149,20 @@ func isNewerVersion(local, remote string) bool {
 	return false
 }
 
+// isVersionInRange returns true if version is between fromVersion (exclusive) and toVersion (inclusive)
+// i.e., fromVersion < version <= toVersion
+func isVersionInRange(version, fromVersion, toVersion string) bool {
+	// version must be greater than fromVersion
+	// isNewerVersion(local, remote) returns true if remote > local
+	if !isNewerVersion(fromVersion, version) {
+		return false
+	}
+	// version must be less than or equal to toVersion
+	// i.e., version is NOT greater than toVersion
+	// NOT(version > toVersion) = NOT(isNewerVersion(toVersion, version))
+	return !isNewerVersion(toVersion, version)
+}
+
 // fetchLatestRelease fetches the latest release info from GitHub
 func fetchLatestRelease(ctx context.Context) (*GitHubRelease, error) {
 	req, err := http.NewRequestWithContext(ctx, "GET", githubAPIURL, nil)
@@ -173,6 +189,253 @@ func fetchLatestRelease(ctx context.Context) (*GitHubRelease, error) {
 	}
 
 	return &release, nil
+}
+
+// fetchAllReleases fetches all releases from GitHub
+func fetchAllReleases(ctx context.Context) ([]GitHubRelease, error) {
+	req, err := http.NewRequestWithContext(ctx, "GET", githubReleasesURL, nil)
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Set("Accept", "application/vnd.github.v3+json")
+	req.Header.Set("User-Agent", "EZ-Language-Updater")
+
+	client := &http.Client{Timeout: 10 * time.Second}
+	resp, err := client.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("GitHub API returned status %d", resp.StatusCode)
+	}
+
+	var releases []GitHubRelease
+	if err := json.NewDecoder(resp.Body).Decode(&releases); err != nil {
+		return nil, err
+	}
+
+	return releases, nil
+}
+
+// getReleasesInRange filters releases to those between currentVersion (exclusive) and latestVersion (inclusive)
+func getReleasesInRange(releases []GitHubRelease, currentVersion, latestVersion string) []GitHubRelease {
+	var result []GitHubRelease
+	for _, release := range releases {
+		if isVersionInRange(release.TagName, currentVersion, latestVersion) {
+			result = append(result, release)
+		}
+	}
+	return result
+}
+
+// ParsedChangelog holds the parsed features and bug fixes from a release body
+type ParsedChangelog struct {
+	Features []string
+	BugFixes []string
+}
+
+// parseReleaseBody extracts Features and Bug Fixes sections from a release body
+func parseReleaseBody(body string) ParsedChangelog {
+	result := ParsedChangelog{}
+	lines := strings.Split(body, "\n")
+
+	var currentSection string
+	for _, line := range lines {
+		trimmed := strings.TrimSpace(line)
+
+		// Check for section headers
+		if strings.HasPrefix(trimmed, "### Features") {
+			currentSection = "features"
+			continue
+		}
+		if strings.HasPrefix(trimmed, "### Bug Fixes") {
+			currentSection = "bugfixes"
+			continue
+		}
+		// Any other ### header ends the current section
+		if strings.HasPrefix(trimmed, "###") {
+			currentSection = ""
+			continue
+		}
+
+		// Parse list items
+		if strings.HasPrefix(trimmed, "* ") || strings.HasPrefix(trimmed, "- ") {
+			item := strings.TrimPrefix(trimmed, "* ")
+			item = strings.TrimPrefix(item, "- ")
+
+			// Clean up the item - formats:
+			// **scope:** description ([#issue](url)) ([hash](url))
+			// **scope:** description ([hash](url))
+			// scope: description (hash)
+
+			// Remove markdown bold markers: **text:** -> text:
+			item = strings.ReplaceAll(item, "**", "")
+
+			// Decode HTML entities
+			item = strings.ReplaceAll(item, "&lt;", "<")
+			item = strings.ReplaceAll(item, "&gt;", ">")
+			item = strings.ReplaceAll(item, "&amp;", "&")
+
+			// Remove ", closes [#xxx](url)" suffixes
+			if idx := strings.Index(item, ", closes [#"); idx != -1 {
+				item = item[:idx]
+			}
+
+			// Remove issue references like (#123) or #123
+			for {
+				if idx := strings.Index(item, " (#"); idx != -1 {
+					if endIdx := strings.Index(item[idx:], ")"); endIdx != -1 {
+						item = item[:idx] + item[idx+endIdx+1:]
+						continue
+					}
+				}
+				if idx := strings.Index(item, " #"); idx != -1 {
+					// Check if followed by digits
+					endIdx := idx + 2
+					for endIdx < len(item) && item[endIdx] >= '0' && item[endIdx] <= '9' {
+						endIdx++
+					}
+					if endIdx > idx+2 {
+						item = item[:idx] + item[endIdx:]
+						continue
+					}
+				}
+				break
+			}
+
+			// Extract commit hash - it's the last ([hash](url)) or (hash)
+			var commitHash string
+
+			// Try to find markdown link hash: ([hash](url))
+			// Look for pattern starting from end
+			if lastParen := strings.LastIndex(item, ")"); lastParen != -1 {
+				// Find the matching opening
+				depth := 1
+				start := lastParen - 1
+				for start >= 0 && depth > 0 {
+					if item[start] == ')' {
+						depth++
+					} else if item[start] == '(' {
+						depth--
+					}
+					if depth > 0 {
+						start--
+					}
+				}
+				if start >= 0 && depth == 0 {
+					parenContent := item[start+1 : lastParen]
+					// Check if it's a markdown link [hash](url)
+					if strings.HasPrefix(parenContent, "[") && strings.Contains(parenContent, "](") {
+						// Extract just the hash
+						if hashEnd := strings.Index(parenContent, "]"); hashEnd != -1 {
+							commitHash = parenContent[1:hashEnd]
+						}
+						// Remove this from item
+						item = strings.TrimSpace(item[:start])
+					} else if !strings.HasPrefix(parenContent, "#") && !strings.Contains(parenContent, "://") {
+						// It's a simple (hash) without markdown
+						commitHash = parenContent
+						item = strings.TrimSpace(item[:start])
+					}
+				}
+			}
+
+			// Remove issue link: ([#123](url)) if still present
+			if idx := strings.Index(item, " ([#"); idx != -1 {
+				if endIdx := strings.Index(item[idx:], "])"); endIdx != -1 {
+					// Find the actual end including the outer )
+					fullEnd := idx + endIdx + 2
+					if fullEnd < len(item) && item[fullEnd] == ')' {
+						fullEnd++
+					}
+					item = item[:idx] + item[fullEnd:]
+				}
+			}
+
+			// Clean up markdown links in text: [@module](url) -> @module
+			for strings.Contains(item, "](") {
+				start := strings.Index(item, "[")
+				if start == -1 {
+					break
+				}
+				end := strings.Index(item[start:], ")")
+				if end == -1 {
+					break
+				}
+				end += start
+				linkText := item[start+1 : strings.Index(item[start:], "]")+start]
+				item = item[:start] + linkText + item[end+1:]
+			}
+
+			// Add commit hash back if we found one
+			if commitHash != "" {
+				item = strings.TrimSpace(item) + " (" + commitHash + ")"
+			}
+
+			item = strings.TrimSpace(item)
+
+			if currentSection == "features" && item != "" {
+				result.Features = append(result.Features, item)
+			} else if currentSection == "bugfixes" && item != "" {
+				result.BugFixes = append(result.BugFixes, item)
+			}
+		}
+	}
+
+	return result
+}
+
+// formatChangelog formats the changelog for display
+func formatChangelog(releases []GitHubRelease, currentVersion, latestVersion string) string {
+	var sb strings.Builder
+
+	sb.WriteString(fmt.Sprintf("\nUpdating from %s -> %s\n", currentVersion, latestVersion))
+	sb.WriteString("\nWhat's new since your version:\n")
+	sb.WriteString(strings.Repeat("-", 40) + "\n")
+
+	// Limit to maxChangelogVersions
+	displayReleases := releases
+	truncated := false
+	if len(releases) > maxChangelogVersions {
+		displayReleases = releases[:maxChangelogVersions]
+		truncated = true
+	}
+
+	for _, release := range displayReleases {
+		parsed := parseReleaseBody(release.Body)
+
+		// Skip releases with no features or bug fixes
+		if len(parsed.Features) == 0 && len(parsed.BugFixes) == 0 {
+			continue
+		}
+
+		sb.WriteString(fmt.Sprintf("\n%s%s%s\n", errors.Bold, release.TagName, errors.Reset))
+
+		if len(parsed.Features) > 0 {
+			sb.WriteString("  Features:\n")
+			for _, f := range parsed.Features {
+				sb.WriteString(fmt.Sprintf("    - %s\n", f))
+			}
+		}
+
+		if len(parsed.BugFixes) > 0 {
+			sb.WriteString("  Bug Fixes:\n")
+			for _, b := range parsed.BugFixes {
+				sb.WriteString(fmt.Sprintf("    - %s\n", b))
+			}
+		}
+	}
+
+	if truncated {
+		remaining := len(releases) - maxChangelogVersions
+		sb.WriteString(fmt.Sprintf("\n... and %d more version(s)\n", remaining))
+	}
+
+	sb.WriteString("\n" + strings.Repeat("-", 40))
+
+	return sb.String()
 }
 
 // CheckForUpdateAsync checks for updates and prints notice if available
@@ -265,17 +528,23 @@ func runUpdate(confirm bool, url string) {
 		return
 	}
 
-	// Show changelog
-	fmt.Println("\nWhat's new:")
-	fmt.Println(strings.Repeat("-", 40))
-	// Truncate changelog if too long
-	changelog := release.Body
-	lines := strings.Split(changelog, "\n")
-	if len(lines) > 20 {
-		changelog = strings.Join(lines[:20], "\n") + "\n... (truncated)"
+	// Fetch all releases and show changelog for versions between current and latest
+	allReleases, err := fetchAllReleases(ctx)
+	if err != nil {
+		// Fall back to old behavior if we can't fetch all releases
+		fmt.Println("\nWhat's new:")
+		fmt.Println(strings.Repeat("-", 40))
+		changelog := release.Body
+		lines := strings.Split(changelog, "\n")
+		if len(lines) > 20 {
+			changelog = strings.Join(lines[:20], "\n") + "\n... (truncated)"
+		}
+		fmt.Println(changelog)
+		fmt.Println(strings.Repeat("-", 40))
+	} else {
+		releasesInRange := getReleasesInRange(allReleases, Version, release.TagName)
+		fmt.Print(formatChangelog(releasesInRange, Version, release.TagName))
 	}
-	fmt.Println(changelog)
-	fmt.Println(strings.Repeat("-", 40))
 
 	// Prompt for confirmation
 	fmt.Printf("\nUpgrade to %s? (y/N): ", release.TagName)
@@ -368,7 +637,13 @@ func downloadAndInstall(url string) error {
 		cmd.Stdin = os.Stdin
 		cmd.Stdout = os.Stdout
 		cmd.Stderr = os.Stderr
-		return cmd.Run()
+
+		err := cmd.Run()
+		if err != nil {
+			return fmt.Errorf("failed to run with sudo: %w", err)
+		}
+
+		os.Exit(0)
 	}
 
 	return doInstall(url, execPath)
