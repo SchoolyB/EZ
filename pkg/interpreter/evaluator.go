@@ -658,7 +658,7 @@ func Eval(node ast.Node, env *Environment) Object {
 			// Validate that the key is hashable
 			if _, hashOk := HashKey(index); !hashOk {
 				return newErrorWithLocation("E12001", node.Token.Line, node.Token.Column,
-					"unusable as map key: %s", index.Type())
+					"unusable as map key: %s", objectTypeToEZ(index))
 			}
 			value, exists := mapObj.Get(index)
 			if !exists {
@@ -681,7 +681,7 @@ func Eval(node ast.Node, env *Environment) Object {
 		idx, ok := index.(*Integer)
 		if !ok {
 			return newErrorWithLocation("E9003", node.Token.Line, node.Token.Column,
-				"index must be an integer, got %s", index.Type())
+				"index must be an integer, got %s", objectTypeToEZ(index))
 		}
 
 		switch obj := left.(type) {
@@ -718,7 +718,7 @@ func Eval(node ast.Node, env *Environment) Object {
 
 		default:
 			return newErrorWithLocation("E5015", node.Token.Line, node.Token.Column,
-				"index operator not supported for %s", left.Type())
+				"index operator not supported for %s", objectTypeToEZ(left))
 		}
 
 	case *ast.MemberExpression:
@@ -1156,7 +1156,7 @@ func evalAssignment(node *ast.AssignmentStatement, env *Environment) Object {
 						// ok
 					default:
 						return newErrorWithLocation("E3025", node.Token.Line, node.Token.Column,
-							"cannot assign %s to byte variable", unpackedVal.Type())
+							"cannot assign %s to byte variable", objectTypeToEZ(unpackedVal))
 					}
 				}
 			}
@@ -1213,7 +1213,7 @@ func evalAssignment(node *ast.AssignmentStatement, env *Environment) Object {
 								// ok
 							default:
 								return newErrorWithLocation("E3025", node.Token.Line, node.Token.Column,
-									"cannot assign %s to byte variable", val.Type())
+									"cannot assign %s to byte variable", objectTypeToEZ(val))
 							}
 					}
 				}
@@ -1249,7 +1249,7 @@ func evalAssignment(node *ast.AssignmentStatement, env *Environment) Object {
 					// already a byte - fine
 				default:
 					return newErrorWithLocation("E3025", node.Token.Line, node.Token.Column,
-						"cannot assign %s to byte variable", val.Type())
+						"cannot assign %s to byte variable", objectTypeToEZ(val))
 				}
 			}
 		}
@@ -1294,7 +1294,7 @@ func evalAssignment(node *ast.AssignmentStatement, env *Environment) Object {
 			index, ok := idx.(*Integer)
 			if !ok {
 				return newErrorWithLocation("E3003", node.Token.Line, node.Token.Column,
-					"array index must be integer, got %s", idx.Type())
+					"array index must be integer, got %s", objectTypeToEZ(idx))
 			}
 			arrLen := big.NewInt(int64(len(obj.Elements)))
 			if index.Value.Sign() < 0 || index.Value.Cmp(arrLen) >= 0 {
@@ -1332,7 +1332,7 @@ func evalAssignment(node *ast.AssignmentStatement, env *Environment) Object {
 					// okay
 				default:
 					return newErrorWithLocation("E3026", node.Token.Line, node.Token.Column,
-						"cannot assign %s to byte array element", val.Type())
+						"cannot assign %s to byte array element", objectTypeToEZ(val))
 				}
 			}
 
@@ -1342,13 +1342,13 @@ func evalAssignment(node *ast.AssignmentStatement, env *Environment) Object {
 			index, ok := idx.(*Integer)
 			if !ok {
 				return newErrorWithLocation("E3003", node.Token.Line, node.Token.Column,
-					"string index must be integer, got %s", idx.Type())
+					"string index must be integer, got %s", objectTypeToEZ(idx))
 			}
 			// String mutation - verify the value is a character
 			charObj, ok := val.(*Char)
 			if !ok {
 				return newErrorWithLocation("E3004", node.Token.Line, node.Token.Column,
-					"can only assign character to string index, got %s", val.Type())
+					"can only assign character to string index, got %s", objectTypeToEZ(val))
 			}
 			// Convert string to rune slice for proper UTF-8 character indexing
 			runes := []rune(obj.Value)
@@ -1372,7 +1372,7 @@ func evalAssignment(node *ast.AssignmentStatement, env *Environment) Object {
 			// Validate that the key is hashable
 			if _, ok := HashKey(idx); !ok {
 				return newErrorWithLocation("E12001", node.Token.Line, node.Token.Column,
-					"map key must be a hashable type, got %s", idx.Type())
+					"map key must be a hashable type, got %s", objectTypeToEZ(idx))
 			}
 
 			// Check if map is mutable
@@ -1409,7 +1409,7 @@ func evalAssignment(node *ast.AssignmentStatement, env *Environment) Object {
 						// ok
 					default:
 						return newErrorWithLocation("E3026", node.Token.Line, node.Token.Column,
-							"cannot assign %s to byte map element", val.Type())
+							"cannot assign %s to byte map element", objectTypeToEZ(val))
 					}
 				}
 			}
@@ -1417,7 +1417,7 @@ func evalAssignment(node *ast.AssignmentStatement, env *Environment) Object {
 
 		default:
 			return newErrorWithLocation("E3016", node.Token.Line, node.Token.Column,
-				"index operator not supported: %s", container.Type())
+				"index operator not supported: %s", objectTypeToEZ(container))
 		}
 
 	case *ast.MemberExpression:
@@ -1448,7 +1448,7 @@ func evalAssignment(node *ast.AssignmentStatement, env *Environment) Object {
 		structObj, ok := obj.(*Struct)
 		if !ok {
 			return newErrorWithLocation("E4011", node.Token.Line, node.Token.Column,
-				"member access not supported: %s", obj.Type())
+				"member access not supported: %s", objectTypeToEZ(obj))
 		}
 
 		// Check if struct is mutable
@@ -1493,7 +1493,7 @@ func evalAssignment(node *ast.AssignmentStatement, env *Environment) Object {
 					// ok
 				default:
 					return newErrorWithLocation("E3025", node.Token.Line, node.Token.Column,
-						"cannot assign %s to byte field", val.Type())
+						"cannot assign %s to byte field", objectTypeToEZ(val))
 				}
 			}
 		}
@@ -1752,7 +1752,7 @@ func evalRangeExpression(node *ast.RangeExpression, env *Environment) Object {
 		startInt, ok := startObj.(*Integer)
 		if !ok {
 			return newErrorWithLocation("E5013", line, col,
-				"range start must be integer, got %s", startObj.Type())
+				"range start must be integer, got %s", objectTypeToEZ(startObj))
 		}
 		start = new(big.Int).Set(startInt.Value)
 	}
@@ -1765,7 +1765,7 @@ func evalRangeExpression(node *ast.RangeExpression, env *Environment) Object {
 	endInt, ok := endObj.(*Integer)
 	if !ok {
 		return newErrorWithLocation("E5014", line, col,
-			"range end must be integer, got %s", endObj.Type())
+			"range end must be integer, got %s", objectTypeToEZ(endObj))
 	}
 	end := new(big.Int).Set(endInt.Value)
 
@@ -1779,7 +1779,7 @@ func evalRangeExpression(node *ast.RangeExpression, env *Environment) Object {
 		stepInt, ok := stepObj.(*Integer)
 		if !ok {
 			return newErrorWithLocation("E5019", line, col,
-				"range step must be integer, got %s", stepObj.Type())
+				"range step must be integer, got %s", objectTypeToEZ(stepObj))
 		}
 		step = new(big.Int).Set(stepInt.Value)
 		if step.Sign() == 0 {
@@ -1818,7 +1818,7 @@ func evalArrayCast(value Object, elementType string, line, col int) Object {
 	arr, ok := value.(*Array)
 	if !ok {
 		return newErrorWithLocation("E3001", line, col,
-			"cast to array type requires array value, got %s", value.Type())
+			"cast to array type requires array value, got %s", objectTypeToEZ(value))
 	}
 
 	newElements := make([]Object, len(arr.Elements))
@@ -2009,7 +2009,7 @@ func evalForEachStatement(node *ast.ForEachStatement, env *Environment) Object {
 	}
 
 	return newErrorWithLocation("E3017", node.Token.Line, node.Token.Column,
-		"for_each requires array or string, got %s", collection.Type())
+		"for_each requires array or string, got %s", objectTypeToEZ(collection))
 }
 
 func evalEnumDeclaration(node *ast.EnumDeclaration, env *Environment) Object {
@@ -2220,7 +2220,7 @@ func evalPrefixExpression(operator string, right Object) Object {
 	case "-":
 		return evalMinusPrefixOperator(right)
 	default:
-		return newError("unknown operator: %s%s", operator, right.Type())
+		return newError("unknown operator: %s%s", operator, objectTypeToEZ(right))
 	}
 }
 
@@ -2254,7 +2254,7 @@ func evalMinusPrefixOperator(right Object) Object {
 	case *Float:
 		return &Float{Value: -obj.Value}
 	default:
-		return newError("unknown operator: -%s", right.Type())
+		return newError("unknown operator: -%s", objectTypeToEZ(right))
 	}
 }
 
@@ -2317,7 +2317,7 @@ func evalInfixExpression(operator string, left, right Object, line, col int) Obj
 	case operator == "||":
 		return nativeBoolToBooleanObject(isTruthy(left) || isTruthy(right))
 	default:
-		return newErrorWithLocation("E3014", line, col, "unknown operator: %s %s %s", left.Type(), operator, right.Type())
+		return newErrorWithLocation("E3014", line, col, "unknown operator: %s %s %s", objectTypeToEZ(left), operator, objectTypeToEZ(right))
 	}
 }
 
@@ -2381,7 +2381,7 @@ func evalIntegerInfixExpression(operator string, left, right Object, line, col i
 	case "!=":
 		return nativeBoolToBooleanObject(leftVal.Cmp(rightVal) != 0)
 	default:
-		return newErrorWithLocation("E3014", line, col, "unknown operator: %s %s %s", left.Type(), operator, right.Type())
+		return newErrorWithLocation("E3014", line, col, "unknown operator: %s %s %s", objectTypeToEZ(left), operator, objectTypeToEZ(right))
 	}
 }
 
@@ -2443,7 +2443,7 @@ func evalFloatInfixExpression(operator string, left, right Object, line, col int
 	case "!=":
 		return nativeBoolToBooleanObject(leftVal != rightVal)
 	default:
-		return newErrorWithLocation("E3014", line, col, "unknown operator: %s %s %s", left.Type(), operator, right.Type())
+		return newErrorWithLocation("E3014", line, col, "unknown operator: %s %s %s", objectTypeToEZ(left), operator, objectTypeToEZ(right))
 	}
 }
 
@@ -2459,7 +2459,7 @@ func evalStringInfixExpression(operator string, left, right Object) Object {
 	case "!=":
 		return nativeBoolToBooleanObject(leftVal != rightVal)
 	default:
-		return newError("unknown operator: %s %s %s", left.Type(), operator, right.Type())
+		return newError("unknown operator: %s %s %s", objectTypeToEZ(left), operator, objectTypeToEZ(right))
 	}
 }
 
@@ -2481,7 +2481,7 @@ func evalCharInfixExpression(operator string, left, right Object, line, col int)
 	case ">=":
 		return nativeBoolToBooleanObject(leftVal >= rightVal)
 	default:
-		return newErrorWithLocation("E3014", line, col, "unknown operator: %s %s %s", left.Type(), operator, right.Type())
+		return newErrorWithLocation("E3014", line, col, "unknown operator: %s %s %s", objectTypeToEZ(left), operator, objectTypeToEZ(right))
 	}
 }
 
@@ -2533,7 +2533,7 @@ func evalByteInfixExpression(operator string, left, right Object, line, col int)
 	case "!=":
 		return nativeBoolToBooleanObject(leftVal != rightVal)
 	default:
-		return newErrorWithLocation("E3014", line, col, "unknown operator: %s %s %s", left.Type(), operator, right.Type())
+		return newErrorWithLocation("E3014", line, col, "unknown operator: %s %s %s", objectTypeToEZ(left), operator, objectTypeToEZ(right))
 	}
 }
 
@@ -2585,7 +2585,7 @@ func evalByteIntegerInfixExpression(operator string, left, right Object, line, c
 	case "!=":
 		return nativeBoolToBooleanObject(leftVal.Cmp(rightVal) != 0)
 	default:
-		return newErrorWithLocation("E3014", line, col, "unknown operator: %s %s %s", left.Type(), operator, right.Type())
+		return newErrorWithLocation("E3014", line, col, "unknown operator: %s %s %s", objectTypeToEZ(left), operator, objectTypeToEZ(right))
 	}
 }
 
@@ -2596,7 +2596,7 @@ func evalInOperator(left, right Object, line, col int) Object {
 		leftInt, ok := left.(*Integer)
 		if !ok {
 			return newErrorWithLocation("E5020", line, col,
-				"left operand of 'in range()' must be integer, got %s", left.Type())
+				"left operand of 'in range()' must be integer, got %s", objectTypeToEZ(left))
 		}
 		if r.Contains(leftInt.Value) {
 			return TRUE
@@ -2608,7 +2608,7 @@ func evalInOperator(left, right Object, line, col int) Object {
 	arr, ok := right.(*Array)
 	if !ok {
 		return newErrorWithLocation("E3014", line, col,
-			"right operand of 'in' must be array or range, got %s", right.Type())
+			"right operand of 'in' must be array or range, got %s", objectTypeToEZ(right))
 	}
 
 	for _, elem := range arr.Elements {
@@ -2665,7 +2665,7 @@ func evalPostfixExpression(node *ast.PostfixExpression, env *Environment) Object
 	intVal, ok := val.(*Integer)
 	if !ok {
 		return newErrorWithLocation("E5023", node.Token.Line, node.Token.Column,
-			"postfix operator %s requires integer operand, got %s", node.Operator, val.Type())
+			"postfix operator %s requires integer operand, got %s", node.Operator, objectTypeToEZ(val))
 	}
 
 	var newVal *big.Int
@@ -2969,7 +2969,7 @@ func applyFunction(fn Object, args []Object, line, col int) Object {
 		return result
 
 	default:
-		return newErrorWithLocation("E3015", line, col, "not a function: %s", fn.Type())
+		return newErrorWithLocation("E3015", line, col, "not a function: %s", objectTypeToEZ(fn))
 	}
 }
 
@@ -3283,7 +3283,7 @@ func evalMapLiteral(node *ast.MapValue, env *Environment) Object {
 
 		// Validate that the key is hashable
 		if _, ok := HashKey(key); !ok {
-			return newError("unusable as map key: %s", key.Type())
+			return newError("unusable as map key: %s", objectTypeToEZ(key))
 		}
 
 		value := Eval(pair.Value, env)
@@ -3645,7 +3645,7 @@ func evalMemberExpression(node *ast.MemberExpression, env *Environment) Object {
 	}
 
 	return newErrorWithLocation("E4011", node.Token.Line, node.Token.Column,
-		"member access not supported on type %s", obj.Type())
+		"member access not supported on type %s", objectTypeToEZ(obj))
 }
 
 func nativeBoolToBooleanObject(input bool) *Boolean {
