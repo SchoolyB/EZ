@@ -2554,9 +2554,27 @@ func (p *Parser) parseIntegerValue() Expression {
 	// Strip underscores for numeric conversion (they're only for readability)
 	cleanedLiteral := stripUnderscores(p.currentToken.Literal)
 
+	// Determine the base explicitly (don't auto-detect to avoid implicit octal)
+	base := 10
+	parseStr := cleanedLiteral
+	if len(cleanedLiteral) >= 2 && cleanedLiteral[0] == '0' {
+		switch cleanedLiteral[1] {
+		case 'x', 'X':
+			base = 16
+			parseStr = cleanedLiteral[2:] // strip "0x"
+		case 'b', 'B':
+			base = 2
+			parseStr = cleanedLiteral[2:] // strip "0b"
+		case 'o', 'O':
+			base = 8
+			parseStr = cleanedLiteral[2:] // strip "0o"
+		}
+		// Leading zeros without prefix are treated as decimal (not octal)
+	}
+
 	// Use big.Int to parse integers of arbitrary size
 	value := new(big.Int)
-	_, ok := value.SetString(cleanedLiteral, 0)
+	_, ok := value.SetString(parseStr, base)
 	if !ok {
 		msg := fmt.Sprintf("could not parse %q as integer", p.currentToken.Literal)
 		p.errors = append(p.errors, msg)
