@@ -396,6 +396,13 @@ func (tc *TypeChecker) TypeExists(typeName string) bool {
 		return true
 	}
 
+	// Check if the type looks like a built-in sized type pattern (i<N>, u<N>, f<N>)
+	// If it matches the pattern but wasn't found in tc.types, it's definitely invalid
+	// and should NOT be deferred to module resolution
+	if looksLikeBuiltinSizedType(typeName) {
+		return false
+	}
+
 	// Check if the type might be available via file-level 'using' directive
 	// For unqualified type names, if a module is imported via 'using',
 	// the type will be validated at runtime when the module is loaded
@@ -419,6 +426,31 @@ func (tc *TypeChecker) TypeExists(typeName string) bool {
 	}
 
 	return false
+}
+
+// looksLikeBuiltinSizedType checks if a type name follows the pattern of built-in
+// sized types (i8, i16, u32, f64, etc.) but is NOT a valid one.
+// This prevents invalid types like i512 or u1024 from being deferred to module resolution.
+func looksLikeBuiltinSizedType(typeName string) bool {
+	if len(typeName) < 2 {
+		return false
+	}
+
+	prefix := typeName[0]
+	if prefix != 'i' && prefix != 'u' && prefix != 'f' {
+		return false
+	}
+
+	// Check if the rest is all digits
+	for _, c := range typeName[1:] {
+		if c < '0' || c > '9' {
+			return false
+		}
+	}
+
+	// It matches the pattern (e.g., i512, u1024, f128)
+	// If we got here, it wasn't found in tc.types, so it's an invalid sized type
+	return true
 }
 
 // RegisterType adds a user-defined type to the registry
