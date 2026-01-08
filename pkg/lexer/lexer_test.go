@@ -1078,6 +1078,118 @@ func TestBinaryTrailingUnderscore(t *testing.T) {
 	}
 }
 
+// TestOctalLiterals tests octal number parsing with 0o prefix
+func TestOctalLiterals(t *testing.T) {
+	tests := []struct {
+		input   string
+		literal string
+	}{
+		{"0o123", "0o123"},
+		{"0O123", "0O123"},
+		{"0o0", "0o0"},
+		{"0o7", "0o7"},
+		{"0o777", "0o777"},
+		{"0o1_2_3", "0o1_2_3"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.input, func(t *testing.T) {
+			tokens := tokenize(tt.input)
+			if len(tokens) < 1 {
+				t.Fatal("expected at least 1 token")
+			}
+			if tokens[0].Literal != tt.literal {
+				t.Errorf("literal = %s, want %s", tokens[0].Literal, tt.literal)
+			}
+		})
+	}
+}
+
+// TestE1010InvalidOctalLiteral tests invalid octal literal detection
+func TestE1010InvalidOctalLiteral(t *testing.T) {
+	errs := lexErrors("0o")
+	found := false
+	for _, e := range errs {
+		if e.Code == "E1010" {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Error("expected E1010 for invalid octal literal")
+	}
+}
+
+// TestE1010InvalidOctalDigit tests invalid digit in octal literal
+func TestE1010InvalidOctalDigit(t *testing.T) {
+	errs := lexErrors("0o8")
+	found := false
+	for _, e := range errs {
+		if e.Code == "E1010" {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Error("expected E1010 for invalid octal digit")
+	}
+}
+
+// TestOctalConsecutiveUnderscores tests consecutive underscores in octal
+func TestOctalConsecutiveUnderscores(t *testing.T) {
+	errs := lexErrors("0o12__34")
+	found := false
+	for _, e := range errs {
+		if e.Code == "E1011" {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Error("expected E1011 for consecutive underscores in octal")
+	}
+}
+
+// TestOctalTrailingUnderscore tests trailing underscore in octal
+func TestOctalTrailingUnderscore(t *testing.T) {
+	errs := lexErrors("0o123_")
+	found := false
+	for _, e := range errs {
+		if e.Code == "E1013" {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Error("expected E1013 for trailing underscore in octal")
+	}
+}
+
+// TestLeadingZerosAsDecimal tests that leading zeros are treated as decimal
+func TestLeadingZerosAsDecimal(t *testing.T) {
+	tests := []struct {
+		input   string
+		literal string
+	}{
+		{"0123", "0123"},
+		{"09", "09"},
+		{"007", "007"},
+		{"00123", "00123"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.input, func(t *testing.T) {
+			tokens := tokenize(tt.input)
+			if len(tokens) < 1 {
+				t.Fatal("expected at least 1 token")
+			}
+			if tokens[0].Literal != tt.literal {
+				t.Errorf("literal = %s, want %s", tokens[0].Literal, tt.literal)
+			}
+		})
+	}
+}
+
 // TestScientificNotationWithSign tests scientific notation with explicit signs
 func TestScientificNotationWithSign(t *testing.T) {
 	tests := []struct {
