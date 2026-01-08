@@ -1700,21 +1700,14 @@ do main() {
 	assertNoErrors(t, tc)
 }
 
-func TestMathConstantsWithUsing(t *testing.T) {
+func TestStdlibConstantsWithUsing(t *testing.T) {
 	input := `
-import @math
-using math
+import @std
+using std
 
 do main() {
-	const pi_val float = PI
-	const e_val float = E
-	const phi_val float = PHI
-	const sqrt2_val float = SQRT2
-	const ln2_val float = LN2
-	const ln10_val float = LN10
-	const tau_val float = TAU
-	const inf_val float = INF
-	const neg_inf_val float = NEG_INF
+	const exit_success_val int = EXIT_SUCCESS
+	const exit_failure_val int = EXIT_FAILURE
 }
 `
 	tc := typecheck(t, input)
@@ -1768,6 +1761,49 @@ do main() {
 	const status_500 int = INTERNAL_SERVER_ERROR
 	const status_502 int = BAD_GATEWAY
 	const status_503 int = SERVICE_UNAVAILABLE
+}
+`
+	tc := typecheck(t, input)
+	assertNoErrors(t, tc)
+}
+
+func TestIOConstantsWithUsing(t *testing.T) {
+	input := `
+import @io
+using io
+
+do main() {
+	const read_only_val int = READ_ONLY
+	const write_only_val int = WRITE_ONLY
+	const read_write_val int = READ_WRITE
+	const append_val int = APPEND
+	const create_val int = CREATE
+	const truncate_val int = TRUNCATE
+	const exclusive_val int = EXCLUSIVE
+	const seek_start_val int = SEEK_START
+	const seek_current_val int = SEEK_CURRENT
+	const seek_end_val int = SEEK_END
+}
+`
+	tc := typecheck(t, input)
+	assertNoErrors(t, tc)
+}
+
+func TestMathConstantsWithUsing(t *testing.T) {
+	input := `
+import @math
+using math
+
+do main() {
+	const pi_val float = PI
+	const e_val float = E
+	const phi_val float = PHI
+	const sqrt2_val float = SQRT2
+	const ln2_val float = LN2
+	const ln10_val float = LN10
+	const tau_val float = TAU
+	const inf_val float = INF
+	const neg_inf_val float = NEG_INF
 }
 `
 	tc := typecheck(t, input)

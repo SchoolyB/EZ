@@ -4386,7 +4386,12 @@ func (tc *TypeChecker) isStdlibConstant(moduleName, constName string) bool {
 			"CONFLICT": true, "INTERNAL_SERVER_ERROR": true, "BAD_GATEWAY": true,
 			"SERVICE_UNAVAILABLE": true,
 		},
-		"io": {},
+		"io": {
+			"READ_ONLY": true, "WRITE_ONLY": true, "READ_WRITE": true,
+			"APPEND": true, "CREATE": true, "TRUNCATE": true,
+			"EXCLUSIVE": true, "SEEK_START": true, "SEEK_CURRENT": true,
+			"SEEK_END": true,
+		},
 		"math": {
 			"PI": true, "E": true, "PHI": true,
 			"SQRT2": true, "LN2": true, "LN10": true,
