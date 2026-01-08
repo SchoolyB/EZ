@@ -340,6 +340,7 @@ var (
 	E13001 = ErrorCode{"E13001", "json-syntax-error", "invalid JSON syntax"}
 	E13002 = ErrorCode{"E13002", "json-unsupported-type", "type cannot be converted to JSON"}
 	E13003 = ErrorCode{"E13003", "json-invalid-map-key", "JSON object keys must be strings"}
+	E13004 = ErrorCode{"E13004", "json-decode-requires-type", "json.decode() requires a type argument"}
 )
 
 // =============================================================================
