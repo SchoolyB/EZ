@@ -1810,6 +1810,76 @@ do main() {
 	assertNoErrors(t, tc)
 }
 
+func TestOSConstantsWithUsing(t *testing.T) {
+	input := `
+import @os
+using os
+
+do main() {
+	const mac_os_val int = MAC_OS
+	const linux_val int = LINUX
+	const windows_val int = WINDOWS
+	const current_os_val int = CURRENT_OS
+	const line_sep_val string = line_separator
+	const dev_null_val string = dev_null
+}
+`
+
+	tc := typecheck(t, input)
+	assertNoErrors(t, tc)
+}
+
+func TestTimeConstantsWithUsing(t *testing.T) {
+	input := `
+import @time
+using time
+
+do main() {
+	const sunday_val int = SUNDAY
+	const monday_val int = MONDAY
+	const tuesday_val int = TUESDAY
+	const wednesday_val int = WEDNESDAY
+	const thursday_val int = THURSDAY
+	const friday_val int = FRIDAY
+	const saturday_val int = SATURDAY
+	const january_val int = JANUARY
+	const february_val int = FEBRUARY
+	const march_val int = MARCH
+	const april_val int = APRIL
+	const may_val int = MAY
+	const june_val int = JUNE
+	const july_val int = JULY
+	const august_val int = AUGUST
+	const september_val int = SEPTEMBER
+	const october_val int = OCTOBER
+	const november_val int = NOVEMBER
+	const december_val int = DECEMBER
+	const second_val int = SECOND
+	const minute_val int = MINUTE
+	const hour_val int = HOUR
+	const day_val int = DAY
+	const week_val int = WEEK
+}
+`
+
+	tc := typecheck(t, input)
+	assertNoErrors(t, tc)
+}
+
+func TestUUIDConstantsWithUsing(t *testing.T) {
+	input := `
+import @uuid
+using uuid
+
+do main() {
+	const nil_val string = NIL
+}
+`
+
+	tc := typecheck(t, input)
+	assertNoErrors(t, tc)
+}
+
 // ============================================================================
 // Prefix Expression Tests
 // ============================================================================

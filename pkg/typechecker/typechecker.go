@@ -4401,7 +4401,16 @@ func (tc *TypeChecker) isStdlibConstant(moduleName, constName string) bool {
 			"MAC_OS": true, "LINUX": true, "WINDOWS": true,
 			"CURRENT_OS": true, "line_separator": true, "dev_null": true,
 		},
-		"time": {},
+		"time": {
+			"SUNDAY": true, "MONDAY": true, "TUESDAY": true,
+			"WEDNESDAY": true, "THURSDAY": true, "FRIDAY": true,
+			"SATURDAY": true, "JANUARY": true, "FEBRUARY": true,
+			"MARCH": true, "APRIL": true, "MAY": true,
+			"JUNE": true, "JULY": true, "AUGUST": true,
+			"SEPTEMBER": true, "OCTOBER": true, "NOVEMBER": true,
+			"DECEMBER": true, "SECOND": true, "MINUTE": true,
+			"HOUR": true, "DAY": true, "WEEK": true,
+		},
 		"uuid": {
 			"NIL": true,
 		},
