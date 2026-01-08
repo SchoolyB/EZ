@@ -1822,7 +1822,7 @@ func (tc *TypeChecker) checkVariableDeclaration(decl *ast.VariableDeclaration) {
 					// Check if it's a multi-return function being assigned to a single variable
 					if tc.isMultiReturnCall(decl.Value) {
 						tc.addError(
-							errors.E3001,
+							errors.E3040,
 							"cannot assign multi-return function result to single variable; use multiple variables or discard with _",
 							decl.Name.Token.Line,
 							decl.Name.Token.Column,

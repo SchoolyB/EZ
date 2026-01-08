@@ -1,0 +1,13 @@
+import @db, @maps
+
+do example() {
+    temp database, _ = db.open("test.ezdb")
+    temp value = db.get(database, "key")  
+    
+    temp m map[string:string] = {}
+    maps.set(m, "key", value)
+}
+
+do main() {
+    example()
+}
