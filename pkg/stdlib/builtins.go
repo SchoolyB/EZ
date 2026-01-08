@@ -344,7 +344,7 @@ var StdBuiltins = map[string]*object.Builtin{
 			case *object.Map:
 				return &object.Integer{Value: big.NewInt(int64(len(arg.Pairs)))}
 			default:
-				return &object.Error{Code: "E7015", Message: fmt.Sprintf("len() not supported for %s", args[0].Type())}
+				return &object.Error{Code: "E7015", Message: fmt.Sprintf("len() not supported for %s", getEZTypeName(args[0]))}
 			}
 		},
 	},
@@ -469,7 +469,7 @@ var StdBuiltins = map[string]*object.Builtin{
 							"    len(myArray)  // returns the number of elements",
 					}
 				}
-				return &object.Error{Code: "E7014", Message: fmt.Sprintf("cannot convert %s to int", args[0].Type())}
+				return &object.Error{Code: "E7014", Message: fmt.Sprintf("cannot convert %s to int", getEZTypeName(args[0]))}
 			}
 		},
 	},
@@ -513,7 +513,7 @@ var StdBuiltins = map[string]*object.Builtin{
 							"    len(myArray)  // returns the number of elements",
 					}
 				}
-				return &object.Error{Code: "E7014", Message: fmt.Sprintf("cannot convert %s to float", args[0].Type())}
+				return &object.Error{Code: "E7014", Message: fmt.Sprintf("cannot convert %s to float", getEZTypeName(args[0]))}
 			}
 		},
 	},
@@ -567,7 +567,7 @@ var StdBuiltins = map[string]*object.Builtin{
 				}
 				return &object.Char{Value: runes[0]}
 			default:
-				return &object.Error{Code: "E7014", Message: fmt.Sprintf("cannot convert %s to char", args[0].Type())}
+				return &object.Error{Code: "E7014", Message: fmt.Sprintf("cannot convert %s to char", getEZTypeName(args[0]))}
 			}
 		},
 	},
@@ -631,7 +631,7 @@ var StdBuiltins = map[string]*object.Builtin{
 				}
 				return &object.Byte{Value: uint8(val)}
 			default:
-				return &object.Error{Code: "E7014", Message: fmt.Sprintf("cannot convert %s to byte", args[0].Type())}
+				return &object.Error{Code: "E7014", Message: fmt.Sprintf("cannot convert %s to byte", getEZTypeName(args[0]))}
 			}
 		},
 	},
