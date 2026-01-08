@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.39.2](https://github.com/SchoolyB/EZ/compare/v0.39.1...v0.39.2) (2026-01-07)
+
+
+### Bug Fixes
+
+* **interpreter:** allow arbitrary precision arithmetic for int/uint types ([#917](https://github.com/SchoolyB/EZ/issues/917)) ([#931](https://github.com/SchoolyB/EZ/issues/931)) ([728cd19](https://github.com/SchoolyB/EZ/commit/728cd195b90ddbf3cf373814e6765e2205f0b763))
+* **parser:** error on invalid operators in string interpolation ([#916](https://github.com/SchoolyB/EZ/issues/916)) ([#933](https://github.com/SchoolyB/EZ/issues/933)) ([54b03bc](https://github.com/SchoolyB/EZ/commit/54b03bcdfed35e0b54bd7dec2262f0f199cf8a04))
+* **typechecker:** show correct error for invalid sized types with using directive ([#914](https://github.com/SchoolyB/EZ/issues/914)) ([#932](https://github.com/SchoolyB/EZ/issues/932)) ([9ba4bc0](https://github.com/SchoolyB/EZ/commit/9ba4bc0217edabee4504bac0feca8a8f8b76e3e6))
+
 ## [0.39.1](https://github.com/SchoolyB/EZ/compare/v0.39.0...v0.39.1) (2026-01-06)
 
 
