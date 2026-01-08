@@ -3195,6 +3195,10 @@ func objectTypeToEZ(obj Object) string {
 		return "string"
 	case *Boolean:
 		return "bool"
+	case *Char:
+		return "char"
+	case *Byte:
+		return "byte"
 	case *Array:
 		// Return typed array format if element type is known
 		if v.ElementType != "" {
@@ -3231,6 +3235,17 @@ func objectTypeToEZ(obj Object) string {
 			return "map[" + v.KeyType + ":" + v.ValueType + "]"
 		}
 		return "map"
+	case *Range:
+		return "Range<int>"
+	case *FileHandle:
+		return "File"
+	case *Database:
+		return "Database"
+	case *Reference:
+		if inner, ok := v.Deref(); ok {
+			return "Ref<" + objectTypeToEZ(inner) + ">"
+		}
+		return "Ref"
 	default:
 		return string(obj.Type())
 	}

@@ -59,6 +59,17 @@ func getEZTypeName(obj Object) string {
 		return "nil"
 	case *Function:
 		return "function"
+	case *Range:
+		return "Range<int>"
+	case *FileHandle:
+		return "File"
+	case *Database:
+		return "Database"
+	case *Reference:
+		if inner, ok := v.Deref(); ok {
+			return "Ref<" + getEZTypeName(inner) + ">"
+		}
+		return "Ref"
 	default:
 		return string(obj.Type())
 	}
