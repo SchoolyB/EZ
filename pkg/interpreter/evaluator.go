@@ -3225,6 +3225,12 @@ func objectTypeToEZ(obj Object) string {
 			types[i] = objectTypeToEZ(val)
 		}
 		return "(" + strings.Join(types, ", ") + ")"
+	case *Map:
+		// Return typed map format if key/value types are known
+		if v.KeyType != "" && v.ValueType != "" {
+			return "map[" + v.KeyType + ":" + v.ValueType + "]"
+		}
+		return "map"
 	default:
 		return string(obj.Type())
 	}
