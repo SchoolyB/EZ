@@ -43,6 +43,8 @@ type (
 	Reference       = object.Reference
 	Range           = object.Range
 	TypeValue       = object.TypeValue
+	FileHandle      = object.FileHandle
+	Database        = object.Database
 )
 
 // Re-export constants
@@ -69,6 +71,8 @@ const (
 	REFERENCE_OBJ    = object.REFERENCE_OBJ
 	RANGE_OBJ        = object.RANGE_OBJ
 	TYPE_OBJ         = object.TYPE_OBJ
+	FILE_HANDLE_OBJ  = object.FILE_HANDLE_OBJ
+	DATABASE_OBJ     = object.DATABASE_OBJ
 
 	// Visibility constants
 	VisibilityPublic  = object.VisibilityPublic

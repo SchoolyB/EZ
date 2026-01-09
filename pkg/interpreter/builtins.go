@@ -23,6 +23,7 @@ func init() {
 
 // getEZTypeName returns the EZ language type name for an object
 // For integers, returns the declared type (e.g., "u64", "i32") instead of generic "INTEGER"
+// For arrays and maps, returns the typed format (e.g., "[string]", "map[string:int]")
 func getEZTypeName(obj Object) string {
 	switch v := obj.(type) {
 	case *Integer:
@@ -38,8 +39,14 @@ func getEZTypeName(obj Object) string {
 	case *Byte:
 		return "byte"
 	case *Array:
+		if v.ElementType != "" {
+			return "[" + v.ElementType + "]"
+		}
 		return "array"
 	case *Map:
+		if v.KeyType != "" && v.ValueType != "" {
+			return "map[" + v.KeyType + ":" + v.ValueType + "]"
+		}
 		return "map"
 	case *Struct:
 		if v.TypeName != "" {
@@ -52,6 +59,17 @@ func getEZTypeName(obj Object) string {
 		return "nil"
 	case *Function:
 		return "function"
+	case *Range:
+		return "Range<int>"
+	case *FileHandle:
+		return "File"
+	case *Database:
+		return "Database"
+	case *Reference:
+		if inner, ok := v.Deref(); ok {
+			return "Ref<" + getEZTypeName(inner) + ">"
+		}
+		return "Ref"
 	default:
 		return string(obj.Type())
 	}

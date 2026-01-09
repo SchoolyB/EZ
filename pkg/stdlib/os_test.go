@@ -24,20 +24,37 @@ func TestOSGetEnv(t *testing.T) {
 	os.Setenv("EZ_TEST_VAR", "test_value")
 	defer os.Unsetenv("EZ_TEST_VAR")
 
-	// Test getting existing variable
+	// Test getting existing variable - returns (string, nil)
 	result := fn.Fn(&object.String{Value: "EZ_TEST_VAR"})
-	strResult, ok := result.(*object.String)
+	retVal, ok := result.(*object.ReturnValue)
 	if !ok {
-		t.Fatalf("Expected String, got %T", result)
+		t.Fatalf("Expected ReturnValue, got %T", result)
+	}
+	if len(retVal.Values) != 2 {
+		t.Fatalf("Expected 2 return values, got %d", len(retVal.Values))
+	}
+	strResult, ok := retVal.Values[0].(*object.String)
+	if !ok {
+		t.Fatalf("Expected String as first value, got %T", retVal.Values[0])
 	}
 	if strResult.Value != "test_value" {
 		t.Errorf("Expected 'test_value', got '%s'", strResult.Value)
 	}
+	if retVal.Values[1] != object.NIL {
+		t.Errorf("Expected NIL as second value for existing var, got %T", retVal.Values[1])
+	}
 
-	// Test getting non-existent variable
+	// Test getting non-existent variable - returns ("", error)
 	result = fn.Fn(&object.String{Value: "EZ_NONEXISTENT_VAR_12345"})
-	if result != object.NIL {
-		t.Errorf("Expected NIL for non-existent var, got %T", result)
+	retVal, ok = result.(*object.ReturnValue)
+	if !ok {
+		t.Fatalf("Expected ReturnValue, got %T", result)
+	}
+	if len(retVal.Values) != 2 {
+		t.Fatalf("Expected 2 return values, got %d", len(retVal.Values))
+	}
+	if retVal.Values[1] == object.NIL {
+		t.Errorf("Expected error as second value for non-existent var, got NIL")
 	}
 
 	// Test wrong argument count
