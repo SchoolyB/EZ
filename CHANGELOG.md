@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.39.3](https://github.com/SchoolyB/EZ/compare/v0.39.2...v0.39.3) (2026-01-09)
+
+
+### Bug Fixes
+
+* **interpreter,stdlib:** replace .Type() with helper functions in error messages ([#956](https://github.com/SchoolyB/EZ/issues/956)) ([61cc075](https://github.com/SchoolyB/EZ/commit/61cc07522f3d5870320a2fd9141fe504a74fe62a)), closes [#948](https://github.com/SchoolyB/EZ/issues/948)
+* **interpreter:** add Map case to objectTypeToEZ function ([#955](https://github.com/SchoolyB/EZ/issues/955)) ([8ac5396](https://github.com/SchoolyB/EZ/commit/8ac53962ac63ac22a666ccc77ab4f42be59a0f8a)), closes [#945](https://github.com/SchoolyB/EZ/issues/945)
+* **interpreter:** update type name functions with missing types ([#946](https://github.com/SchoolyB/EZ/issues/946)) ([#958](https://github.com/SchoolyB/EZ/issues/958)) ([0774dde](https://github.com/SchoolyB/EZ/commit/0774dde15d73cbbda2fb516915f47c648421f09f))
+* **lexer,parser:** add explicit 0o octal prefix, treat leading zeros as decimal ([#954](https://github.com/SchoolyB/EZ/issues/954)) ([b8e7f41](https://github.com/SchoolyB/EZ/commit/b8e7f418b4575480a95afb46501a68c5d1136fde)), closes [#915](https://github.com/SchoolyB/EZ/issues/915)
+* **repl:** prevent E4001 error when running REPL commands ([#953](https://github.com/SchoolyB/EZ/issues/953)) ([019a81b](https://github.com/SchoolyB/EZ/commit/019a81befa384bb086868b23f6f767a2eb83ca4b)), closes [#890](https://github.com/SchoolyB/EZ/issues/890)
+* **typechecker,stdlib,tests:** fix integration test failures ([#952](https://github.com/SchoolyB/EZ/issues/952)) ([#960](https://github.com/SchoolyB/EZ/issues/960)) ([f528389](https://github.com/SchoolyB/EZ/commit/f528389001fb1e291417c6439dc0ecda04b56a6c))
+* **typechecker:** require type argument for json.decode ([#947](https://github.com/SchoolyB/EZ/issues/947)) ([#957](https://github.com/SchoolyB/EZ/issues/957)) ([2cbb2c2](https://github.com/SchoolyB/EZ/commit/2cbb2c21375eba690b7a807685afb0f8a4dda9c8))
+
 ## [0.39.2](https://github.com/SchoolyB/EZ/compare/v0.39.1...v0.39.2) (2026-01-07)
 
 
