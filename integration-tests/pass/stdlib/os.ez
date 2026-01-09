@@ -14,22 +14,22 @@ do main() {
     println("  -- Environment Variables --")
 
     // Test 1: get_env for PATH (should exist on all systems)
-    temp path_value = os.get_env("PATH")
-    if path_value != nil && len(path_value) > 0 {
+    temp path_value, path_err = os.get_env("PATH")
+    if path_err == nil && len(path_value) > 0 {
         println("  [PASS] os.get_env('PATH') exists")
         passed += 1
     } otherwise {
-        println("  [FAIL] os.get_env('PATH'): expected non-nil")
+        println("  [FAIL] os.get_env('PATH'): expected to exist")
         failed += 1
     }
 
     // Test 2: get_env for non-existent variable
-    temp nonexistent = os.get_env("EZ_NONEXISTENT_VAR_12345")
-    if nonexistent == nil {
-        println("  [PASS] os.get_env(nonexistent) = nil")
+    temp nonexistent, nonexistent_err = os.get_env("EZ_NONEXISTENT_VAR_12345")
+    if nonexistent_err != nil {
+        println("  [PASS] os.get_env(nonexistent) returns error")
         passed += 1
     } otherwise {
-        println("  [FAIL] os.get_env(nonexistent): expected nil")
+        println("  [FAIL] os.get_env(nonexistent): expected error")
         failed += 1
     }
 
@@ -44,8 +44,8 @@ do main() {
     }
 
     // Test 4: verify set_env worked
-    temp verify_value = os.get_env("EZ_TEST_VAR")
-    if verify_value == "test_value_123" {
+    temp verify_value, verify_err = os.get_env("EZ_TEST_VAR")
+    if verify_err == nil && verify_value == "test_value_123" {
         println("  [PASS] os.get_env() verified set value")
         passed += 1
     } otherwise {
@@ -64,8 +64,8 @@ do main() {
     }
 
     // Test 6: verify unset worked
-    temp after_unset = os.get_env("EZ_TEST_VAR")
-    if after_unset == nil {
+    temp after_unset, after_unset_err = os.get_env("EZ_TEST_VAR")
+    if after_unset_err != nil {
         println("  [PASS] variable correctly unset")
         passed += 1
     } otherwise {
