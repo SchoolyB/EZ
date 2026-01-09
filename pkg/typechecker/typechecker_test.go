@@ -2974,7 +2974,7 @@ import @os
 using os
 
 do main() {
-	temp value string = os.get_env("HOME")
+	temp value string, err error = os.get_env("HOME")
 }
 `
 	tc := typecheck(t, input)

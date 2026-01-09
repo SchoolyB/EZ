@@ -442,6 +442,27 @@ func (l *Lexer) readNumber() (string, tokenizer.TokenType) {
 				l.readChar()
 			}
 			return l.input[position:l.position], tokenizer.INT
+		} else if next == 'o' || next == 'O' {
+			// Octal literal (explicit 0o prefix)
+			l.readChar() // consume '0'
+			l.readChar() // consume 'o'
+			if !isOctalDigit(l.ch) {
+				l.addError("E1010", "invalid octal literal: expected octal digit (0-7) after 0o", startLine, startColumn)
+				return l.input[position:l.position], tokenizer.INT
+			}
+			for isOctalDigit(l.ch) || l.ch == '_' {
+				if l.ch == '_' {
+					next := l.peekChar()
+					if next == '_' {
+						l.addError("E1011", "consecutive underscores not allowed in numeric literals", startLine, startColumn)
+					}
+					if !isOctalDigit(next) {
+						l.addError("E1013", "numeric literal cannot end with underscore", startLine, startColumn)
+					}
+				}
+				l.readChar()
+			}
+			return l.input[position:l.position], tokenizer.INT
 		}
 	}
 
@@ -715,4 +736,8 @@ func isDigit(ch byte) bool {
 
 func isHexDigit(ch byte) bool {
 	return ('0' <= ch && ch <= '9') || ('a' <= ch && ch <= 'f') || ('A' <= ch && ch <= 'F')
+}
+
+func isOctalDigit(ch byte) bool {
+	return '0' <= ch && ch <= '7'
 }

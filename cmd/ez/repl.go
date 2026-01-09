@@ -54,8 +54,10 @@ func startREPL() {
 		}
 
 		// Handle REPL commands
-		if newEnv := handleReplCommand(line, env); newEnv != nil {
-			env = newEnv
+		if newEnv, handled := handleReplCommand(line, env); handled {
+			if newEnv != nil {
+				env = newEnv
+			}
 			continue
 		}
 
@@ -73,18 +75,18 @@ func startREPL() {
 }
 
 // handleReplCommand handles special REPL commands
-// Returns a new environment if the environment should be reset, nil otherwise
-func handleReplCommand(line string, env *interpreter.Environment) *interpreter.Environment {
+// Returns (new environment if reset, whether command was handled)
+func handleReplCommand(line string, env *interpreter.Environment) (*interpreter.Environment, bool) {
 	switch line {
 	case "exit", "quit":
 		fmt.Println("Goodbye!")
 		os.Exit(0)
-		return nil
+		return nil, true
 
 	case "clear":
 		// Clear the terminal screen only
 		fmt.Print("\033[H\033[2J")
-		return nil
+		return nil, true
 
 	case "reset":
 		// Clear the terminal screen AND reset the environment
@@ -92,14 +94,14 @@ func handleReplCommand(line string, env *interpreter.Environment) *interpreter.E
 		fmt.Printf("EZ Language REPL %s\n", Version)
 		fmt.Println("Type 'help' for commands, 'exit' or 'quit' to exit")
 		fmt.Println()
-		return interpreter.NewEnvironment()
+		return interpreter.NewEnvironment(), true
 
 	case "help":
 		printReplHelp()
-		return nil
+		return nil, true
 	}
 
-	return nil
+	return nil, false
 }
 
 // printReplHelp prints REPL help information

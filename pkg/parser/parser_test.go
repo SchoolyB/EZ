@@ -198,6 +198,45 @@ func TestIntegerLiterals(t *testing.T) {
 	}
 }
 
+func TestIntegerLiteralBases(t *testing.T) {
+	tests := []struct {
+		input    string
+		expected int64
+	}{
+		// Hex literals
+		{"temp x int = 0xFF", 255},
+		{"temp x int = 0x10", 16},
+		{"temp x int = 0XFF", 255},
+		// Binary literals
+		{"temp x int = 0b1010", 10},
+		{"temp x int = 0B1111", 15},
+		{"temp x int = 0b0", 0},
+		// Octal literals with explicit 0o prefix
+		{"temp x int = 0o123", 83},
+		{"temp x int = 0O777", 511},
+		{"temp x int = 0o0", 0},
+		// Leading zeros should be decimal (not octal)
+		{"temp x int = 0123", 123},
+		{"temp x int = 09", 9},
+		{"temp x int = 007", 7},
+		{"temp x int = 00123", 123},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.input, func(t *testing.T) {
+			program := parseProgram(t, tt.input)
+			if len(program.Statements) != 1 {
+				t.Fatalf("expected 1 statement, got %d", len(program.Statements))
+			}
+			stmt, ok := program.Statements[0].(*VariableDeclaration)
+			if !ok {
+				t.Fatalf("not VariableDeclaration, got %T", program.Statements[0])
+			}
+			testIntegerLiteral(t, stmt.Value, tt.expected)
+		})
+	}
+}
+
 func TestFloatLiterals(t *testing.T) {
 	tests := []struct {
 		input    string

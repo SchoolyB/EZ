@@ -4,6 +4,6 @@
  */
 
 do main() {
-    temp max int = 9223372036854775807  // max int64
+    temp max i64 = 9223372036854775807  // max i64
     max++  // Overflow
 }
