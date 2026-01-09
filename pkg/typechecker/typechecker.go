@@ -4911,8 +4911,7 @@ func (tc *TypeChecker) getModuleMultiReturnTypes(moduleName, funcName string, ar
 			return []string{"bool", "error"}
 		case "create_dir", "remove", "remove_dir", "rename", "copy_file":
 			return []string{"bool", "error"}
-		case "exists", "is_dir", "is_file":
-			return []string{"bool", "error"}
+		// Note: exists, is_dir, is_file return single bool (not tuple)
 		case "file_size":
 			return []string{"int", "error"}
 		case "list_dir", "read_dir":
@@ -4956,6 +4955,8 @@ func (tc *TypeChecker) getModuleMultiReturnTypes(moduleName, funcName string, ar
 		}
 	case "os":
 		switch funcName {
+		case "get_env":
+			return []string{"string", "error"}
 		case "exec":
 			return []string{"int", "error"}
 		case "exec_output":
