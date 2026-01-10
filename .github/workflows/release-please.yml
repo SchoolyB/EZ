@@ -174,8 +174,11 @@ jobs:
           git commit -m "chore: update playground WASM to ${TAG_NAME}"
           git push origin "$BRANCH"
 
-          gh pr create \
+          PR_URL=$(gh pr create \
             --title "chore: update playground WASM to ${TAG_NAME}" \
             --body "Automated PR to update the playground WASM binary to EZ ${TAG_NAME}." \
             --base main \
-            --head "$BRANCH"
+            --head "$BRANCH")
+
+          echo "Created PR: $PR_URL"
+          gh pr merge "$PR_URL" --auto --squash
