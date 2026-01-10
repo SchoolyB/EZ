@@ -26,7 +26,7 @@ var OSBuiltins = map[string]*object.Builtin{
 	// ============================================================================
 
 	// Gets an environment variable by name
-	// Returns the value as a string, or nil if not set
+	// Returns (value, error) tuple - error is non-nil if variable is not set
 	"os.get_env": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 1 {
@@ -39,9 +39,15 @@ var OSBuiltins = map[string]*object.Builtin{
 
 			value, exists := os.LookupEnv(name.Value)
 			if !exists {
-				return object.NIL
+				return &object.ReturnValue{Values: []object.Object{
+					&object.String{Value: ""},
+					createOSError("E7035", fmt.Sprintf("environment variable '%s' is not set", name.Value)),
+				}}
 			}
-			return &object.String{Value: value}
+			return &object.ReturnValue{Values: []object.Object{
+				&object.String{Value: value},
+				object.NIL,
+			}}
 		},
 	},
 
