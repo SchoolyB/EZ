@@ -106,6 +106,33 @@ for dir in "$SCRIPT_DIR"/pass/multi-file/*/; do
     fi
 done
 
+# Warning tests (should produce specific warnings when checked)
+if [ -d "$SCRIPT_DIR/pass/warnings" ]; then
+    echo ""
+    echo "Running WARNING tests (expecting specific warnings)..."
+    echo "----------------------------------------"
+
+    for test_file in "$SCRIPT_DIR"/pass/warnings/*.ez; do
+        if [ -f "$test_file" ]; then
+            test_name=$(basename "$test_file" .ez)
+            # Extract expected warning code from filename (e.g., W2010_something.ez -> W2010)
+            expected_warning=$(echo "$test_name" | grep -oE '^W[0-9]+')
+            printf "  warnings/%s... " "$test_name"
+
+            # Run ez check (not full execution) to get warnings
+            output=$("$EZ_BIN" check "$test_file" 2>&1) || true
+
+            if echo "$output" | grep -q "warning\[$expected_warning\]"; then
+                echo -e "${GREEN}PASS${NC}"
+                ((PASS_COUNT++))
+            else
+                echo -e "${RED}FAIL${NC} (expected warning $expected_warning not found)"
+                ((FAIL_COUNT++))
+            fi
+        fi
+    done
+fi
+
 echo ""
 echo "Running FAIL tests (expecting errors)..."
 echo "----------------------------------------"

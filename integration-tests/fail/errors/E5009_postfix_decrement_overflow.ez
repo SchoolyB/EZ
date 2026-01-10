@@ -4,6 +4,6 @@
  */
 
 do main() {
-    temp min int = -9223372036854775808  // min int64
+    temp min i64 = -9223372036854775808  // min i64
     min--  // Underflow
 }

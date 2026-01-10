@@ -4982,8 +4982,7 @@ func (tc *TypeChecker) getModuleMultiReturnTypes(moduleName, funcName string, ar
 			return []string{"bool", "error"}
 		case "create_dir", "remove", "remove_dir", "rename", "copy_file":
 			return []string{"bool", "error"}
-		case "exists", "is_dir", "is_file":
-			return []string{"bool", "error"}
+		// Note: exists, is_dir, is_file return single bool (not tuple)
 		case "file_size":
 			return []string{"int", "error"}
 		case "list_dir", "read_dir":
@@ -5016,20 +5015,19 @@ func (tc *TypeChecker) getModuleMultiReturnTypes(moduleName, funcName string, ar
 		case "encode", "pretty":
 			return []string{"string", "error"}
 		case "decode":
-			// If a type argument is provided, return that type instead of "any"
+			// Type argument is required - extract the type from the second argument
 			if len(args) >= 2 {
 				if label, ok := args[1].(*ast.Label); ok {
 					return []string{label.Value, "error"}
 				}
 			}
-			return []string{"any", "error"}
-		case "parse", "parse_file":
-			return []string{"any", "error"}
-		case "stringify":
-			return []string{"string", "error"}
+			// If no type argument, return empty (error will be caught by checkJsonModuleCall)
+			return nil
 		}
 	case "os":
 		switch funcName {
+		case "get_env":
+			return []string{"string", "error"}
 		case "exec":
 			return []string{"int", "error"}
 		case "exec_output":
@@ -5498,13 +5496,14 @@ func (tc *TypeChecker) inferJSONCallType(funcName string, args []ast.Expression)
 	case "encode", "pretty":
 		return "string", true
 	case "decode":
-		// If a type argument is provided, return that type instead of "any"
+		// Type argument is required - extract the type from the second argument
 		if len(args) >= 2 {
 			if label, ok := args[1].(*ast.Label); ok {
 				return label.Value, true
 			}
 		}
-		return "any", true
+		// If no type argument, return false (error will be caught by checkJsonModuleCall)
+		return "", false
 	case "is_valid":
 		return "bool", true
 	default:
@@ -7614,8 +7613,8 @@ func (tc *TypeChecker) checkJsonModuleCall(funcName string, call *ast.CallExpres
 	signatures := map[string]StdlibFuncSig{
 		// json.encode(value)
 		"encode": {1, 1, []string{"any"}, "tuple"},
-		// json.decode(text) or json.decode(text, Type)
-		"decode": {1, 2, []string{"string", "any"}, "tuple"},
+		// json.decode(text, Type) - Type argument is REQUIRED
+		"decode": {2, 2, []string{"string", "any"}, "tuple"},
 		// json.pretty(value, indent)
 		"pretty": {2, 2, []string{"any", "string"}, "tuple"},
 		// json.is_valid(text)
@@ -7624,6 +7623,17 @@ func (tc *TypeChecker) checkJsonModuleCall(funcName string, call *ast.CallExpres
 
 	sig, exists := signatures[funcName]
 	if !exists {
+		return
+	}
+
+	// Special error message for json.decode missing type argument
+	if funcName == "decode" && len(call.Arguments) == 1 {
+		tc.addError(
+			errors.E13004,
+			"json.decode() requires a type argument: json.decode(text, Type)",
+			line,
+			column,
+		)
 		return
 	}
 
