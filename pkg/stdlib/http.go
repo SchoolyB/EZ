@@ -597,118 +597,141 @@ var HttpBuiltins = map[string]*object.Builtin{
 		},
 	},
 
+	// ============================================================================
+	// HTTP Status Code Constants
+	// ============================================================================
+
 	"http.OK": {
 		Fn: func(args ...object.Object) object.Object {
 			return &object.Integer{Value: big.NewInt(OK)}
 		},
+		IsConstant: true,
 	},
 
 	"http.CREATED": {
 		Fn: func(args ...object.Object) object.Object {
 			return &object.Integer{Value: big.NewInt(CREATED)}
 		},
+		IsConstant: true,
 	},
 
 	"http.ACCEPTED": {
 		Fn: func(args ...object.Object) object.Object {
 			return &object.Integer{Value: big.NewInt(ACCEPTED)}
 		},
+		IsConstant: true,
 	},
 
 	"http.NO_CONTENT": {
 		Fn: func(args ...object.Object) object.Object {
 			return &object.Integer{Value: big.NewInt(NO_CONTENT)}
 		},
+		IsConstant: true,
 	},
 
 	"http.MOVED_PERMANENTLY": {
 		Fn: func(args ...object.Object) object.Object {
 			return &object.Integer{Value: big.NewInt(MOVED_PERMANENTLY)}
 		},
+		IsConstant: true,
 	},
 
 	"http.FOUND": {
 		Fn: func(args ...object.Object) object.Object {
 			return &object.Integer{Value: big.NewInt(FOUND)}
 		},
+		IsConstant: true,
 	},
 
 	"http.NOT_MODIFIED": {
 		Fn: func(args ...object.Object) object.Object {
 			return &object.Integer{Value: big.NewInt(NOT_MODIFIED)}
 		},
+		IsConstant: true,
 	},
 
 	"http.TEMPORARY_REDIRECT": {
 		Fn: func(args ...object.Object) object.Object {
 			return &object.Integer{Value: big.NewInt(TEMPORARY_REDIRECT)}
 		},
+		IsConstant: true,
 	},
 
 	"http.PERMANENT_REDIRECT": {
 		Fn: func(args ...object.Object) object.Object {
 			return &object.Integer{Value: big.NewInt(PERMANENT_REDIRECT)}
 		},
+		IsConstant: true,
 	},
 
 	"http.BAD_REQUEST": {
 		Fn: func(args ...object.Object) object.Object {
 			return &object.Integer{Value: big.NewInt(BAD_REQUEST)}
 		},
+		IsConstant: true,
 	},
 
 	"http.UNAUTHORIZED": {
 		Fn: func(args ...object.Object) object.Object {
 			return &object.Integer{Value: big.NewInt(UNAUTHORIZED)}
 		},
+		IsConstant: true,
 	},
 
 	"http.PAYMENT_REQUIRED": {
 		Fn: func(args ...object.Object) object.Object {
 			return &object.Integer{Value: big.NewInt(PAYMENT_REQUIRED)}
 		},
+		IsConstant: true,
 	},
 
 	"http.FORBIDDEN": {
 		Fn: func(args ...object.Object) object.Object {
 			return &object.Integer{Value: big.NewInt(FORBIDDEN)}
 		},
+		IsConstant: true,
 	},
 
 	"http.NOT_FOUND": {
 		Fn: func(args ...object.Object) object.Object {
 			return &object.Integer{Value: big.NewInt(NOT_FOUND)}
 		},
+		IsConstant: true,
 	},
 
 	"http.METHOD_NOT_ALLOWED": {
 		Fn: func(args ...object.Object) object.Object {
 			return &object.Integer{Value: big.NewInt(METHOD_NOT_ALLOWED)}
 		},
+		IsConstant: true,
 	},
 
 	"http.CONFLICT": {
 		Fn: func(args ...object.Object) object.Object {
 			return &object.Integer{Value: big.NewInt(CONFLICT)}
 		},
+		IsConstant: true,
 	},
 
 	"http.INTERNAL_SERVER_ERROR": {
 		Fn: func(args ...object.Object) object.Object {
 			return &object.Integer{Value: big.NewInt(INTERNAL_SERVER_ERROR)}
 		},
+		IsConstant: true,
 	},
 
 	"http.BAD_GATEWAY": {
 		Fn: func(args ...object.Object) object.Object {
 			return &object.Integer{Value: big.NewInt(BAD_GATEWAY)}
 		},
+		IsConstant: true,
 	},
 
 	"http.SERVICE_UNAVAILABLE": {
 		Fn: func(args ...object.Object) object.Object {
 			return &object.Integer{Value: big.NewInt(SERVICE_UNAVAILABLE)}
 		},
+		IsConstant: true,
 	},
 }
 
