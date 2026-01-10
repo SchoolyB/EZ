@@ -11,8 +11,8 @@ cd "$SCRIPT_DIR/../.."
 echo "Building EZ WASM..."
 GOOS=js GOARCH=wasm go build -o cmd/wasm/ez.wasm ./cmd/wasm
 
-echo "Copying wasm_exec.js..."
-cp "$(go env GOROOT)/misc/wasm/wasm_exec.js" cmd/wasm/
+# Note: wasm_exec.js is a customized version that properly routes
+# stderr to console.error (Go's default sends everything to console.log)
 
 echo ""
 echo "Build complete!"

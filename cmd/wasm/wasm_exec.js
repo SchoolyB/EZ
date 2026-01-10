@@ -12,15 +12,26 @@
 	};
 
 	if (!globalThis.fs) {
-		let outputBuf = "";
+		let stdoutBuf = "";
+		let stderrBuf = "";
 		globalThis.fs = {
 			constants: { O_WRONLY: -1, O_RDWR: -1, O_CREAT: -1, O_TRUNC: -1, O_APPEND: -1, O_EXCL: -1 }, // unused
 			writeSync(fd, buf) {
-				outputBuf += decoder.decode(buf);
-				const nl = outputBuf.lastIndexOf("\n");
-				if (nl != -1) {
-					console.log(outputBuf.substring(0, nl));
-					outputBuf = outputBuf.substring(nl + 1);
+				// fd 1 = stdout, fd 2 = stderr
+				if (fd === 2) {
+					stderrBuf += decoder.decode(buf);
+					const nl = stderrBuf.lastIndexOf("\n");
+					if (nl != -1) {
+						console.error(stderrBuf.substring(0, nl));
+						stderrBuf = stderrBuf.substring(nl + 1);
+					}
+				} else {
+					stdoutBuf += decoder.decode(buf);
+					const nl = stdoutBuf.lastIndexOf("\n");
+					if (nl != -1) {
+						console.log(stdoutBuf.substring(0, nl));
+						stdoutBuf = stdoutBuf.substring(nl + 1);
+					}
 				}
 				return buf.length;
 			},
