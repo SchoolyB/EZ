@@ -155,6 +155,7 @@ jobs:
 
       - name: Update WASM files
         run: |
+          mkdir -p website/public/wasm
           cp cmd/wasm/ez.wasm website/public/wasm/
           cp cmd/wasm/wasm_exec.js website/public/wasm/
 
