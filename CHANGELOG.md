@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.40.2](https://github.com/SchoolyB/EZ/compare/v0.40.1...v0.40.2) (2026-01-10)
+
+
+### Bug Fixes
+
+* **ci:** use EZ_DOCS_SYNC token for website repo access ([#974](https://github.com/SchoolyB/EZ/issues/974)) ([f47c649](https://github.com/SchoolyB/EZ/commit/f47c649a5f6bf012e315fc7a5f414fae0180641d))
+
 ## [0.40.1](https://github.com/SchoolyB/EZ/compare/v0.40.0...v0.40.1) (2026-01-10)
 
 
