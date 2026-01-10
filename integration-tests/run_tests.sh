@@ -52,14 +52,14 @@ for test_file in "$SCRIPT_DIR"/pass/core/*.ez; do
         if output=$("$EZ_BIN" "$test_file" 2>&1); then
             if echo "$output" | grep -q "SOME TESTS FAILED"; then
                 echo -e "${RED}FAIL${NC} (test assertions failed)"
-                ((FAIL_COUNT++))
+                ((++FAIL_COUNT))
             else
                 echo -e "${GREEN}PASS${NC}"
-                ((PASS_COUNT++))
+                ((++PASS_COUNT))
             fi
         else
             echo -e "${RED}FAIL${NC} (execution error)"
-            ((FAIL_COUNT++))
+            ((++FAIL_COUNT))
         fi
     fi
 done
@@ -73,14 +73,14 @@ for test_file in "$SCRIPT_DIR"/pass/stdlib/*.ez; do
         if output=$("$EZ_BIN" "$test_file" 2>&1); then
             if echo "$output" | grep -q "SOME TESTS FAILED"; then
                 echo -e "${RED}FAIL${NC} (test assertions failed)"
-                ((FAIL_COUNT++))
+                ((++FAIL_COUNT))
             else
                 echo -e "${GREEN}PASS${NC}"
-                ((PASS_COUNT++))
+                ((++PASS_COUNT))
             fi
         else
             echo -e "${RED}FAIL${NC} (execution error)"
-            ((FAIL_COUNT++))
+            ((++FAIL_COUNT))
         fi
     fi
 done
@@ -97,10 +97,10 @@ for dir in "$SCRIPT_DIR"/pass/multi-file/*/; do
 
             if output=$("$EZ_BIN" "$main_file" 2>&1); then
                 echo -e "${GREEN}PASS${NC}"
-                ((PASS_COUNT++))
+                ((++PASS_COUNT))
             else
                 echo -e "${RED}FAIL${NC} (execution error)"
-                ((FAIL_COUNT++))
+                ((++FAIL_COUNT))
             fi
         fi
     fi
@@ -124,10 +124,10 @@ if [ -d "$SCRIPT_DIR/pass/warnings" ]; then
 
             if echo "$output" | grep -q "warning\[$expected_warning\]"; then
                 echo -e "${GREEN}PASS${NC}"
-                ((PASS_COUNT++))
+                ((++PASS_COUNT))
             else
                 echo -e "${RED}FAIL${NC} (expected warning $expected_warning not found)"
-                ((FAIL_COUNT++))
+                ((++FAIL_COUNT))
             fi
         fi
     done
@@ -145,10 +145,10 @@ for test_file in "$SCRIPT_DIR"/fail/errors/*.ez; do
 
         if "$EZ_BIN" "$test_file" >/dev/null 2>&1; then
             echo -e "${RED}FAIL${NC} (expected error, got success)"
-            ((FAIL_COUNT++))
+            ((++FAIL_COUNT))
         else
             echo -e "${GREEN}PASS${NC}"
-            ((PASS_COUNT++))
+            ((++PASS_COUNT))
         fi
     fi
 done
@@ -164,10 +164,10 @@ for test_file in "$SCRIPT_DIR"/fail/multi-file/*.ez; do
 
         if "$EZ_BIN" "$test_file" >/dev/null 2>&1; then
             echo -e "${RED}FAIL${NC} (expected error, got success)"
-            ((FAIL_COUNT++))
+            ((++FAIL_COUNT))
         else
             echo -e "${GREEN}PASS${NC}"
-            ((PASS_COUNT++))
+            ((++PASS_COUNT))
         fi
     fi
 done
@@ -183,10 +183,10 @@ for dir in "$SCRIPT_DIR"/fail/multi-file/*/; do
 
             if "$EZ_BIN" "$main_file" >/dev/null 2>&1; then
                 echo -e "${RED}FAIL${NC} (expected error, got success)"
-                ((FAIL_COUNT++))
+                ((++FAIL_COUNT))
             else
                 echo -e "${GREEN}PASS${NC}"
-                ((PASS_COUNT++))
+                ((++PASS_COUNT))
             fi
         fi
     fi
