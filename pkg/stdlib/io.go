@@ -1167,36 +1167,43 @@ var IOBuiltins = map[string]*object.Builtin{
 		Fn: func(args ...object.Object) object.Object {
 			return &object.Integer{Value: big.NewInt(int64(os.O_RDONLY))}
 		},
+		IsConstant: true,
 	},
 	"io.WRITE_ONLY": {
 		Fn: func(args ...object.Object) object.Object {
 			return &object.Integer{Value: big.NewInt(int64(os.O_WRONLY))}
 		},
+		IsConstant: true,
 	},
 	"io.READ_WRITE": {
 		Fn: func(args ...object.Object) object.Object {
 			return &object.Integer{Value: big.NewInt(int64(os.O_RDWR))}
 		},
+		IsConstant: true,
 	},
 	"io.APPEND": {
 		Fn: func(args ...object.Object) object.Object {
 			return &object.Integer{Value: big.NewInt(int64(os.O_APPEND))}
 		},
+		IsConstant: true,
 	},
 	"io.CREATE": {
 		Fn: func(args ...object.Object) object.Object {
 			return &object.Integer{Value: big.NewInt(int64(os.O_CREATE))}
 		},
+		IsConstant: true,
 	},
 	"io.TRUNCATE": {
 		Fn: func(args ...object.Object) object.Object {
 			return &object.Integer{Value: big.NewInt(int64(os.O_TRUNC))}
 		},
+		IsConstant: true,
 	},
 	"io.EXCLUSIVE": {
 		Fn: func(args ...object.Object) object.Object {
 			return &object.Integer{Value: big.NewInt(int64(os.O_EXCL))}
 		},
+		IsConstant: true,
 	},
 
 	// Seek whence constants
@@ -1204,16 +1211,19 @@ var IOBuiltins = map[string]*object.Builtin{
 		Fn: func(args ...object.Object) object.Object {
 			return &object.Integer{Value: big.NewInt(int64(io.SeekStart))}
 		},
+		IsConstant: true,
 	},
 	"io.SEEK_CURRENT": {
 		Fn: func(args ...object.Object) object.Object {
 			return &object.Integer{Value: big.NewInt(int64(io.SeekCurrent))}
 		},
+		IsConstant: true,
 	},
 	"io.SEEK_END": {
 		Fn: func(args ...object.Object) object.Object {
 			return &object.Integer{Value: big.NewInt(int64(io.SeekEnd))}
 		},
+		IsConstant: true,
 	},
 
 	// ============================================================================

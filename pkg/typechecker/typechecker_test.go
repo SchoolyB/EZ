@@ -1700,6 +1700,186 @@ do main() {
 	assertNoErrors(t, tc)
 }
 
+func TestStdlibConstantsWithUsing(t *testing.T) {
+	input := `
+import @std
+using std
+
+do main() {
+	const exit_success_val int = EXIT_SUCCESS
+	const exit_failure_val int = EXIT_FAILURE
+}
+`
+	tc := typecheck(t, input)
+	assertNoErrors(t, tc)
+}
+
+func TestDbConstantsWithUsing(t *testing.T) {
+	input := `
+import @db
+using db
+
+do main() {
+	const alpha_val int = ALPHA
+	const alpha_desc_val int = ALPHA_DESC
+	const value_alpha_val int = VALUE_ALPHA
+	const value_alpha_desc_val int = VALUE_ALPHA_DESC
+	const key_len_val int = KEY_LEN
+	const key_len_desc_val int = KEY_LEN_DESC
+	const value_len_val int = VALUE_LEN
+	const value_len_desc_val int = VALUE_LEN_DESC
+	const numeric_val int = NUMERIC
+	const numberic_desc_val int = NUMERIC_DESC
+}
+`
+	tc := typecheck(t, input)
+	assertNoErrors(t, tc)
+}
+
+func TestHttpConstantsWithUsing(t *testing.T) {
+	input := `
+import @http
+using http
+
+do main() {
+	const status_200 int = OK
+	const status_201 int = CREATED
+	const status_202 int = ACCEPTED
+	const status_204 int = NO_CONTENT
+	const status_301 int = MOVED_PERMANENTLY
+	const status_302 int = FOUND
+	const status_304 int = NOT_MODIFIED
+	const status_307 int = TEMPORARY_REDIRECT
+	const status_308 int = PERMANENT_REDIRECT
+	const status_400 int = BAD_REQUEST
+	const status_401 int = UNAUTHORIZED
+	const status_402 int = PAYMENT_REQUIRED
+	const status_403 int = FORBIDDEN
+	const status_404 int = NOT_FOUND
+	const status_405 int = METHOD_NOT_ALLOWED
+	const status_409 int = CONFLICT
+	const status_500 int = INTERNAL_SERVER_ERROR
+	const status_502 int = BAD_GATEWAY
+	const status_503 int = SERVICE_UNAVAILABLE
+}
+`
+	tc := typecheck(t, input)
+	assertNoErrors(t, tc)
+}
+
+func TestIOConstantsWithUsing(t *testing.T) {
+	input := `
+import @io
+using io
+
+do main() {
+	const read_only_val int = READ_ONLY
+	const write_only_val int = WRITE_ONLY
+	const read_write_val int = READ_WRITE
+	const append_val int = APPEND
+	const create_val int = CREATE
+	const truncate_val int = TRUNCATE
+	const exclusive_val int = EXCLUSIVE
+	const seek_start_val int = SEEK_START
+	const seek_current_val int = SEEK_CURRENT
+	const seek_end_val int = SEEK_END
+}
+`
+	tc := typecheck(t, input)
+	assertNoErrors(t, tc)
+}
+
+func TestMathConstantsWithUsing(t *testing.T) {
+	input := `
+import @math
+using math
+
+do main() {
+	const pi_val float = PI
+	const e_val float = E
+	const phi_val float = PHI
+	const sqrt2_val float = SQRT2
+	const ln2_val float = LN2
+	const ln10_val float = LN10
+	const tau_val float = TAU
+	const inf_val float = INF
+	const neg_inf_val float = NEG_INF
+}
+`
+	tc := typecheck(t, input)
+	assertNoErrors(t, tc)
+}
+
+func TestOSConstantsWithUsing(t *testing.T) {
+	input := `
+import @os
+using os
+
+do main() {
+	const mac_os_val int = MAC_OS
+	const linux_val int = LINUX
+	const windows_val int = WINDOWS
+	const current_os_val int = CURRENT_OS
+	const line_sep_val string = line_separator
+	const dev_null_val string = dev_null
+}
+`
+
+	tc := typecheck(t, input)
+	assertNoErrors(t, tc)
+}
+
+func TestTimeConstantsWithUsing(t *testing.T) {
+	input := `
+import @time
+using time
+
+do main() {
+	const sunday_val int = SUNDAY
+	const monday_val int = MONDAY
+	const tuesday_val int = TUESDAY
+	const wednesday_val int = WEDNESDAY
+	const thursday_val int = THURSDAY
+	const friday_val int = FRIDAY
+	const saturday_val int = SATURDAY
+	const january_val int = JANUARY
+	const february_val int = FEBRUARY
+	const march_val int = MARCH
+	const april_val int = APRIL
+	const may_val int = MAY
+	const june_val int = JUNE
+	const july_val int = JULY
+	const august_val int = AUGUST
+	const september_val int = SEPTEMBER
+	const october_val int = OCTOBER
+	const november_val int = NOVEMBER
+	const december_val int = DECEMBER
+	const second_val int = SECOND
+	const minute_val int = MINUTE
+	const hour_val int = HOUR
+	const day_val int = DAY
+	const week_val int = WEEK
+}
+`
+
+	tc := typecheck(t, input)
+	assertNoErrors(t, tc)
+}
+
+func TestUUIDConstantsWithUsing(t *testing.T) {
+	input := `
+import @uuid
+using uuid
+
+do main() {
+	const nil_val string = NIL
+}
+`
+
+	tc := typecheck(t, input)
+	assertNoErrors(t, tc)
+}
+
 // ============================================================================
 // Prefix Expression Tests
 // ============================================================================

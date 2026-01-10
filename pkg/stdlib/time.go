@@ -654,36 +654,43 @@ var TimeBuiltins = map[string]*object.Builtin{
 		Fn: func(args ...object.Object) object.Object {
 			return &object.Integer{Value: big.NewInt(0)}
 		},
+		IsConstant: true,
 	},
 	"time.MONDAY": {
 		Fn: func(args ...object.Object) object.Object {
 			return &object.Integer{Value: big.NewInt(1)}
 		},
+		IsConstant: true,
 	},
 	"time.TUESDAY": {
 		Fn: func(args ...object.Object) object.Object {
 			return &object.Integer{Value: big.NewInt(2)}
 		},
+		IsConstant: true,
 	},
 	"time.WEDNESDAY": {
 		Fn: func(args ...object.Object) object.Object {
 			return &object.Integer{Value: big.NewInt(3)}
 		},
+		IsConstant: true,
 	},
 	"time.THURSDAY": {
 		Fn: func(args ...object.Object) object.Object {
 			return &object.Integer{Value: big.NewInt(4)}
 		},
+		IsConstant: true,
 	},
 	"time.FRIDAY": {
 		Fn: func(args ...object.Object) object.Object {
 			return &object.Integer{Value: big.NewInt(5)}
 		},
+		IsConstant: true,
 	},
 	"time.SATURDAY": {
 		Fn: func(args ...object.Object) object.Object {
 			return &object.Integer{Value: big.NewInt(6)}
 		},
+		IsConstant: true,
 	},
 
 	// Month Constants
@@ -691,61 +698,73 @@ var TimeBuiltins = map[string]*object.Builtin{
 		Fn: func(args ...object.Object) object.Object {
 			return &object.Integer{Value: big.NewInt(1)}
 		},
+		IsConstant: true,
 	},
 	"time.FEBRUARY": {
 		Fn: func(args ...object.Object) object.Object {
 			return &object.Integer{Value: big.NewInt(2)}
 		},
+		IsConstant: true,
 	},
 	"time.MARCH": {
 		Fn: func(args ...object.Object) object.Object {
 			return &object.Integer{Value: big.NewInt(3)}
 		},
+		IsConstant: true,
 	},
 	"time.APRIL": {
 		Fn: func(args ...object.Object) object.Object {
 			return &object.Integer{Value: big.NewInt(4)}
 		},
+		IsConstant: true,
 	},
 	"time.MAY": {
 		Fn: func(args ...object.Object) object.Object {
 			return &object.Integer{Value: big.NewInt(5)}
 		},
+		IsConstant: true,
 	},
 	"time.JUNE": {
 		Fn: func(args ...object.Object) object.Object {
 			return &object.Integer{Value: big.NewInt(6)}
 		},
+		IsConstant: true,
 	},
 	"time.JULY": {
 		Fn: func(args ...object.Object) object.Object {
 			return &object.Integer{Value: big.NewInt(7)}
 		},
+		IsConstant: true,
 	},
 	"time.AUGUST": {
 		Fn: func(args ...object.Object) object.Object {
 			return &object.Integer{Value: big.NewInt(8)}
 		},
+		IsConstant: true,
 	},
 	"time.SEPTEMBER": {
 		Fn: func(args ...object.Object) object.Object {
 			return &object.Integer{Value: big.NewInt(9)}
 		},
+		IsConstant: true,
 	},
 	"time.OCTOBER": {
 		Fn: func(args ...object.Object) object.Object {
 			return &object.Integer{Value: big.NewInt(10)}
 		},
+		IsConstant: true,
 	},
 	"time.NOVEMBER": {
 		Fn: func(args ...object.Object) object.Object {
 			return &object.Integer{Value: big.NewInt(11)}
 		},
+		IsConstant: true,
 	},
 	"time.DECEMBER": {
 		Fn: func(args ...object.Object) object.Object {
 			return &object.Integer{Value: big.NewInt(12)}
 		},
+		IsConstant: true,
 	},
 
 	// Duration Constants (in seconds)
@@ -753,26 +772,31 @@ var TimeBuiltins = map[string]*object.Builtin{
 		Fn: func(args ...object.Object) object.Object {
 			return &object.Integer{Value: big.NewInt(1)}
 		},
+		IsConstant: true,
 	},
 	"time.MINUTE": {
 		Fn: func(args ...object.Object) object.Object {
 			return &object.Integer{Value: big.NewInt(60)}
 		},
+		IsConstant: true,
 	},
 	"time.HOUR": {
 		Fn: func(args ...object.Object) object.Object {
 			return &object.Integer{Value: big.NewInt(3600)}
 		},
+		IsConstant: true,
 	},
 	"time.DAY": {
 		Fn: func(args ...object.Object) object.Object {
 			return &object.Integer{Value: big.NewInt(86400)}
 		},
+		IsConstant: true,
 	},
 	"time.WEEK": {
 		Fn: func(args ...object.Object) object.Object {
 			return &object.Integer{Value: big.NewInt(604800)}
 		},
+		IsConstant: true,
 	},
 }
 

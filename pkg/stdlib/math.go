@@ -639,46 +639,55 @@ var MathBuiltins = map[string]*object.Builtin{
 		Fn: func(args ...object.Object) object.Object {
 			return &object.Float{Value: math.Pi}
 		},
+		IsConstant: true,
 	},
 	"math.E": {
 		Fn: func(args ...object.Object) object.Object {
 			return &object.Float{Value: math.E}
 		},
+		IsConstant: true,
 	},
 	"math.PHI": {
 		Fn: func(args ...object.Object) object.Object {
 			return &object.Float{Value: math.Phi}
 		},
+		IsConstant: true,
 	},
 	"math.SQRT2": {
 		Fn: func(args ...object.Object) object.Object {
 			return &object.Float{Value: math.Sqrt2}
 		},
+		IsConstant: true,
 	},
 	"math.LN2": {
 		Fn: func(args ...object.Object) object.Object {
 			return &object.Float{Value: math.Ln2}
 		},
+		IsConstant: true,
 	},
 	"math.LN10": {
 		Fn: func(args ...object.Object) object.Object {
 			return &object.Float{Value: math.Ln10}
 		},
+		IsConstant: true,
 	},
 	"math.TAU": {
 		Fn: func(args ...object.Object) object.Object {
 			return &object.Float{Value: 2 * math.Pi}
 		},
+		IsConstant: true,
 	},
 	"math.INF": {
 		Fn: func(args ...object.Object) object.Object {
 			return &object.Float{Value: math.Inf(1)}
 		},
+		IsConstant: true,
 	},
 	"math.NEG_INF": {
 		Fn: func(args ...object.Object) object.Object {
 			return &object.Float{Value: math.Inf(-1)}
 		},
+		IsConstant: true,
 	},
 
 	// Special value checks
