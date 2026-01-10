@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.40.1](https://github.com/SchoolyB/EZ/compare/v0.40.0...v0.40.1) (2026-01-10)
+
+
+### Bug Fixes
+
+* **ci:** create wasm directory before copying files ([#972](https://github.com/SchoolyB/EZ/issues/972)) ([193ddcb](https://github.com/SchoolyB/EZ/commit/193ddcb8fd461eb8a599d8b84e4e3a2603401899))
+
 ## [0.40.0](https://github.com/SchoolyB/EZ/compare/v0.39.3...v0.40.0) (2026-01-10)
 
 
