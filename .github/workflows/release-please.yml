@@ -125,3 +125,56 @@ jobs:
             dist/ez-linux-arm64.tar.gz \
             dist/ez-windows-amd64.zip \
             dist/checksums.txt
+
+  # Update playground WASM in website repo
+  update-playground:
+    needs: release-please
+    if: ${{ needs.release-please.outputs.release_created }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout EZ repo
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.21'
+
+      - name: Build WASM
+        run: |
+          echo "Building EZ WASM..."
+          GOOS=js GOARCH=wasm go build -o cmd/wasm/ez.wasm ./cmd/wasm
+          echo "WASM build complete"
+
+      - name: Checkout website repo
+        uses: actions/checkout@v4
+        with:
+          repository: SchoolyB/language.ez
+          token: ${{ secrets.RELEASE_PAT }}
+          path: website
+
+      - name: Update WASM files
+        run: |
+          cp cmd/wasm/ez.wasm website/public/wasm/
+          cp cmd/wasm/wasm_exec.js website/public/wasm/
+
+      - name: Create Pull Request
+        env:
+          GITHUB_TOKEN: ${{ secrets.RELEASE_PAT }}
+          TAG_NAME: ${{ needs.release-please.outputs.tag_name }}
+        run: |
+          cd website
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          BRANCH="update-wasm-${TAG_NAME}"
+          git checkout -b "$BRANCH"
+          git add public/wasm/
+          git commit -m "chore: update playground WASM to ${TAG_NAME}"
+          git push origin "$BRANCH"
+
+          gh pr create \
+            --title "chore: update playground WASM to ${TAG_NAME}" \
+            --body "Automated PR to update the playground WASM binary to EZ ${TAG_NAME}." \
+            --base main \
+            --head "$BRANCH"
