@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.40.4](https://github.com/SchoolyB/EZ/compare/v0.40.3...v0.40.4) (2026-01-10)
+
+
+### Bug Fixes
+
+* resolve integration test failures on Linux ([#981](https://github.com/SchoolyB/EZ/issues/981)) ([b20d676](https://github.com/SchoolyB/EZ/commit/b20d676e28d3dff80ab408a3f6ec698f43918b0f)), closes [#978](https://github.com/SchoolyB/EZ/issues/978)
+
 ## [0.40.3](https://github.com/SchoolyB/EZ/compare/v0.40.2...v0.40.3) (2026-01-10)
 
 
