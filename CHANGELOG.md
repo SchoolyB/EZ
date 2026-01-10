@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.40.0](https://github.com/SchoolyB/EZ/compare/v0.39.3...v0.40.0) (2026-01-10)
+
+
+### Features
+
+* **wasm:** add WebAssembly build for browser playground ([#970](https://github.com/SchoolyB/EZ/issues/970)) ([89e860e](https://github.com/SchoolyB/EZ/commit/89e860e4c41865fe1e0a82e9a26ea64d8913b10e))
+
 ## [0.39.3](https://github.com/SchoolyB/EZ/compare/v0.39.2...v0.39.3) (2026-01-09)
 
 
