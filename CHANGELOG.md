@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.40.3](https://github.com/SchoolyB/EZ/compare/v0.40.2...v0.40.3) (2026-01-10)
+
+
+### Bug Fixes
+
+* Typechecker modification to resolve "using directive" bug ([#979](https://github.com/SchoolyB/EZ/issues/979)) ([42cf234](https://github.com/SchoolyB/EZ/commit/42cf23451c47dc40211e8d636f6abae56f4eb3a4))
+
 ## [0.40.2](https://github.com/SchoolyB/EZ/compare/v0.40.1...v0.40.2) (2026-01-10)
 
 
