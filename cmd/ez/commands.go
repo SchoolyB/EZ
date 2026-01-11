@@ -99,6 +99,8 @@ var rootCmd = &cobra.Command{
 		programArgs := []string{os.Args[0], args[0]}
 		if cmd.ArgsLenAtDash() > 0 {
 			programArgs = slices.Concat(programArgs, args[cmd.ArgsLenAtDash():])
+		} else if len(args) > 1 {
+			programArgs = slices.Concat(programArgs, args[1:])
 		}
 		stdlib.CommandLineArgs = programArgs
 
@@ -109,7 +111,6 @@ var rootCmd = &cobra.Command{
 
 func init() {
 	rootCmd.AddCommand(replCmd, updateCmd, checkCmd, lexCmd, parseCmd, versionCmd)
-	rootCmd.Flags().Bool("confirm", false, "Skip confirmation prompt")
 	rootCmd.PersistentPreRun = func(cmd *cobra.Command, args []string) {
 		CheckForUpdateAsync()
 	}
