@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.40.5](https://github.com/SchoolyB/EZ/compare/v0.40.4...v0.40.5) (2026-01-11)
+
+
+### Bug Fixes
+
+* Add `isMultiReturnCall` to typechecker ([#951](https://github.com/SchoolyB/EZ/issues/951)) ([981d068](https://github.com/SchoolyB/EZ/commit/981d068676520c1bd1a545c8f0b524ff614856eb))
+* **cli:** Allow command line arguments for programs ([#983](https://github.com/SchoolyB/EZ/issues/983)) ([9f4439d](https://github.com/SchoolyB/EZ/commit/9f4439d29be136c720d62d2c3bb0f971e60a414e))
+* Detect invalid string interpolation syntax at parse time ([#988](https://github.com/SchoolyB/EZ/issues/988)) ([7fcbcc1](https://github.com/SchoolyB/EZ/commit/7fcbcc152400e7b8e201eef2c92153a1d56c488d)), closes [#984](https://github.com/SchoolyB/EZ/issues/984)
+* Error on bare function/type names as statements ([#989](https://github.com/SchoolyB/EZ/issues/989)) ([a84ab6b](https://github.com/SchoolyB/EZ/commit/a84ab6b2c742b5411ce84da4b54ff0785549c24a)), closes [#985](https://github.com/SchoolyB/EZ/issues/985)
+* Prevent RETURN_VALUE type leak for multi-return functions ([#987](https://github.com/SchoolyB/EZ/issues/987)) ([750906f](https://github.com/SchoolyB/EZ/commit/750906fcbb445ecdf119c0a8f9204453674a2dcf)), closes [#986](https://github.com/SchoolyB/EZ/issues/986)
+
 ## [0.40.4](https://github.com/SchoolyB/EZ/compare/v0.40.3...v0.40.4) (2026-01-10)
 
 
