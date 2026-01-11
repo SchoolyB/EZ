@@ -1,8 +1,11 @@
 package main
 
 import (
+	"os"
+	"slices"
 	"strings"
 
+	"github.com/marshallburns/ez/pkg/stdlib"
 	"github.com/spf13/cobra"
 )
 
@@ -83,14 +86,26 @@ var rootCmd = &cobra.Command{
 	Use:     "ez [file.ez]",
 	Short:   "EZ Language Interpreter",
 	Long:    "A simple, interpreted, statically-typed programming language designed for clarity and ease of use.",
-	Args:    cobra.MaximumNArgs(1),
+	Args:    cobra.ArbitraryArgs,
 	Version: getVersionString(),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		if len(args) == 1 && strings.HasSuffix(args[0], ".ez") {
-			runFile(args[0])
-			return nil
+		if len(args) == 0 {
+			return cmd.Help()
 		}
-		return cmd.Help()
+		if !strings.HasSuffix(args[0], ".ez") {
+			return cmd.Help()
+		}
+
+		programArgs := []string{os.Args[0], args[0]}
+		if cmd.ArgsLenAtDash() > 0 {
+			programArgs = slices.Concat(programArgs, args[cmd.ArgsLenAtDash():])
+		} else if len(args) > 1 {
+			programArgs = slices.Concat(programArgs, args[1:])
+		}
+		stdlib.CommandLineArgs = programArgs
+
+		runFile(args[0])
+		return nil
 	},
 }
 
