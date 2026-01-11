@@ -136,13 +136,8 @@ var OSBuiltins = map[string]*object.Builtin{
 	"os.args": {
 		Fn: func(args ...object.Object) object.Object {
 			// Use CommandLineArgs if set, otherwise fall back to os.Args
-			sourceArgs := CommandLineArgs
-			if len(sourceArgs) == 0 {
-				sourceArgs = os.Args
-			}
-
-			elements := make([]object.Object, len(sourceArgs))
-			for i, arg := range sourceArgs {
+			elements := make([]object.Object, len(CommandLineArgs))
+			for i, arg := range CommandLineArgs {
 				elements[i] = &object.String{Value: arg}
 			}
 			return &object.Array{Elements: elements, Mutable: false, ElementType: "string"}
