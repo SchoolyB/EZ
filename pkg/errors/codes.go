@@ -93,6 +93,7 @@ var (
 	E2054 = ErrorCode{"E2054", "when-strict-non-enum-case", "#strict when requires explicit enum member values in cases"}
 	E2055 = ErrorCode{"E2055", "strict-invalid-target", "#strict can only be applied to when statements"}
 	E2056 = ErrorCode{"E2056", "executable-at-file-scope", "executable statement not allowed at file scope"}
+	E2057 = ErrorCode{"E2057", "invalid-interpolation-syntax", "invalid string interpolation syntax"}
 )
 
 // =============================================================================
@@ -349,11 +350,11 @@ var (
 // These are errors unique to HTTP operations
 // =============================================================================
 var (
-	E14001 = ErrorCode{"E14001", "http-invalid-url",					"invalid URL"}
-	E14002 = ErrorCode{"E14002", "http-failed-request",       "request failed (network error)"}
-	E14003 = ErrorCode{"E14003", "http-timeout",							"timeout exceeded"}
-	E14004 = ErrorCode{"E14004", "http-invalid-method",				"invalid HTTP method"}
-	E14005 = ErrorCode{"E14005", "http-failed-url-decode",		"URL decode failed"}
+	E14001 = ErrorCode{"E14001", "http-invalid-url", "invalid URL"}
+	E14002 = ErrorCode{"E14002", "http-failed-request", "request failed (network error)"}
+	E14003 = ErrorCode{"E14003", "http-timeout", "timeout exceeded"}
+	E14004 = ErrorCode{"E14004", "http-invalid-method", "invalid HTTP method"}
+	E14005 = ErrorCode{"E14005", "http-failed-url-decode", "URL decode failed"}
 	E14006 = ErrorCode{"E14006", "http-failed-json-encoding", "JSON encoding failed"}
 )
 

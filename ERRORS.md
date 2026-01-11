@@ -92,6 +92,7 @@ Syntax and parsing errors
 | E2054 | when-strict-non-enum-case | #strict when requires explicit enum member values in cases |
 | E2055 | strict-invalid-target | #strict can only be applied to when statements |
 | E2056 | executable-at-file-scope | executable statement not allowed at file scope |
+| E2057 | invalid-interpolation-syntax | invalid string interpolation syntax |
 
 ## Type Errors (E3xxx)
 
