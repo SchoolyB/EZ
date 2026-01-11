@@ -1818,6 +1818,18 @@ func (tc *TypeChecker) checkVariableDeclaration(decl *ast.VariableDeclaration) {
 					)
 					return
 				}
+				if inferredType == "" {
+					// Check if it's a multi-return function being assigned to a single variable
+					if tc.isMultiReturnCall(decl.Value) {
+						tc.addError(
+							errors.E3040,
+							"cannot assign multi-return function result to single variable; use multiple variables or discard with _",
+							decl.Name.Token.Line,
+							decl.Name.Token.Column,
+						)
+						return
+					}
+				}
 				tc.defineVariableWithMutability(varName, inferredType, decl.Mutable)
 			} else {
 				// Still register with empty type so variable is in scope
@@ -1970,6 +1982,60 @@ func (tc *TypeChecker) checkVariableDeclaration(decl *ast.VariableDeclaration) {
 	if declaredType != "" {
 		tc.defineVariableWithMutability(varName, declaredType, decl.Mutable)
 	}
+}
+
+// isMultiReturnCall checks if an expression is a function call that returns multiple values
+func (tc *TypeChecker) isMultiReturnCall(expr ast.Expression) bool {
+	callExpr, ok := expr.(*ast.CallExpression)
+	if !ok {
+		return false
+	}
+
+	// Get the function name and module name (if applicable)
+	var funcName string
+	var moduleName string
+
+	switch fn := callExpr.Function.(type) {
+	case *ast.Label:
+		funcName = fn.Value
+	case *ast.MemberExpression:
+		// Module.function call - get both module and function names
+		funcName = fn.Member.Value
+		if obj, ok := fn.Object.(*ast.Label); ok {
+			moduleName = obj.Value
+		}
+	default:
+		return false
+	}
+
+	// Look up the function signature
+	if funcSig, exists := tc.functions[funcName]; exists {
+		return len(funcSig.ReturnTypes) > 1
+	}
+
+	// Check if it's a module function with multiple return values
+	if moduleName != "" {
+		resolvedModuleName := tc.resolveStdlibModule(moduleName)
+		if returnTypes := tc.getModuleMultiReturnTypes(resolvedModuleName, funcName, callExpr.Arguments); returnTypes != nil {
+			return len(returnTypes) > 1
+		}
+	}
+
+	// Check if it's a function from a user-defined module via 'using'
+	for usingModuleName := range tc.fileUsingModules {
+		if moduleFuncs, hasModule := tc.moduleFunctions[usingModuleName]; hasModule {
+			if moduleSig, found := moduleFuncs[funcName]; found {
+				return len(moduleSig.ReturnTypes) > 1
+			}
+		}
+	}
+
+	// Check if it's a builtin function with multiple return values
+	if builtinReturnTypes := tc.getBuiltinMultiReturnTypes(funcName); builtinReturnTypes != nil {
+		return len(builtinReturnTypes) > 1
+	}
+
+	return false
 }
 
 // checkMultiReturnDeclaration validates multi-return variable declarations

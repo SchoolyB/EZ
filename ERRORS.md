@@ -138,6 +138,7 @@ Type system errors
 | E3037 | invalid-private-usage | private modifier cannot be used here |
 | E3038 | void-type-not-allowed | 'void' is not a valid type |
 | E3039 | ensure-expects-call | ensure expects a function call |
+| E3040 | multi-return-to-single-var | cannot assign multiple return values to single variable |
 
 ## Reference Errors (E4xxx)
 
