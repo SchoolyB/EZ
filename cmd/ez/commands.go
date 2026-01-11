@@ -98,7 +98,7 @@ var rootCmd = &cobra.Command{
 
 		programArgs := []string{os.Args[0], args[0]}
 		if cmd.ArgsLenAtDash() > 0 {
-			programArgs = slices.Concat(programArgs, args[len(args)-cmd.ArgsLenAtDash():])
+			programArgs = slices.Concat(programArgs, args[cmd.ArgsLenAtDash():])
 		}
 		stdlib.CommandLineArgs = programArgs
 
