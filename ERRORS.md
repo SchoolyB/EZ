@@ -375,4 +375,4 @@ Module-related warnings
 
 ## Summary
 
-**Total:** 256 error/warning codes
+**Total:** 257 error/warning codes
