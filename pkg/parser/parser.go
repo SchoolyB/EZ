@@ -2640,6 +2640,11 @@ func (p *Parser) parseStringValue() Expression {
 	// Process escape sequences like \n, \t, etc.
 	literal = processEscapeSequences(literal)
 
+	// Check for invalid interpolation patterns before processing
+	if invalidPattern := detectInvalidInterpolation(literal); invalidPattern != "" {
+		p.addEZError(errors.E2057, fmt.Sprintf("invalid interpolation syntax '%s'; use ${...} for string interpolation", invalidPattern), token)
+	}
+
 	// Check if string contains interpolation patterns ${...}
 	if !containsInterpolation(literal) {
 		return &StringValue{Token: token, Value: literal}
@@ -2738,6 +2743,41 @@ func containsInterpolation(s string) bool {
 		}
 	}
 	return false
+}
+
+// detectInvalidInterpolation checks for likely invalid interpolation syntax.
+// Returns the first invalid pattern found, or empty string if none.
+// Detects patterns like:
+//   - $identifier ($ followed by identifier chars but not {)
+//
+// Note: We intentionally don't flag {identifier} patterns because they have
+// too many false positives with JSON and other legitimate uses of braces.
+func detectInvalidInterpolation(s string) string {
+	for i := 0; i < len(s); i++ {
+		// Check for $identifier pattern ($ not followed by {)
+		if s[i] == '$' {
+			if i+1 < len(s) && s[i+1] != '{' && isIdentChar(s[i+1]) {
+				// Found $ followed by identifier character but not {
+				// Extract the identifier
+				end := i + 1
+				for end < len(s) && isIdentChar(s[end]) {
+					end++
+				}
+				return s[i:end]
+			}
+		}
+	}
+	return ""
+}
+
+// isIdentStartChar checks if a byte can start an identifier (letter or underscore)
+func isIdentStartChar(c byte) bool {
+	return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || c == '_'
+}
+
+// isIdentChar checks if a byte can be part of an identifier
+func isIdentChar(c byte) bool {
+	return isIdentStartChar(c) || (c >= '0' && c <= '9')
 }
 
 // processEscapeSequences converts escape sequences like \n, \t to actual characters

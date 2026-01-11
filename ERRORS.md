@@ -92,6 +92,7 @@ Syntax and parsing errors
 | E2054 | when-strict-non-enum-case | #strict when requires explicit enum member values in cases |
 | E2055 | strict-invalid-target | #strict can only be applied to when statements |
 | E2056 | executable-at-file-scope | executable statement not allowed at file scope |
+| E2057 | invalid-interpolation-syntax | invalid string interpolation syntax |
 
 ## Type Errors (E3xxx)
 
@@ -138,6 +139,7 @@ Type system errors
 | E3037 | invalid-private-usage | private modifier cannot be used here |
 | E3038 | void-type-not-allowed | 'void' is not a valid type |
 | E3039 | ensure-expects-call | ensure expects a function call |
+| E3040 | multi-return-to-single-var | cannot assign multiple return values to single variable |
 
 ## Reference Errors (E4xxx)
 
@@ -374,4 +376,4 @@ Module-related warnings
 
 ## Summary
 
-**Total:** 256 error/warning codes
+**Total:** 258 error/warning codes

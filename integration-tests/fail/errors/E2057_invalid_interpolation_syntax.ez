@@ -1,0 +1,9 @@
+/*
+ * Error Test: E2057 - invalid-interpolation-syntax
+ * Expected: "invalid interpolation syntax" or "$identifier"
+ */
+
+do main() {
+    temp file string = "test.ez"
+    temp s string = "$File: something"
+}

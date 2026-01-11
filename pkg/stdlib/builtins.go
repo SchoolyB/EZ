@@ -76,6 +76,20 @@ func getEZTypeName(obj object.Object) string {
 		return "nil"
 	case *object.Function:
 		return "function"
+	case *object.ReturnValue:
+		// Handle multi-return values - show tuple type
+		if len(v.Values) == 0 {
+			return "void"
+		}
+		if len(v.Values) == 1 {
+			return getEZTypeName(v.Values[0])
+		}
+		// Multiple values - show as tuple
+		types := make([]string, len(v.Values))
+		for i, val := range v.Values {
+			types[i] = getEZTypeName(val)
+		}
+		return "(" + strings.Join(types, ", ") + ")"
 	default:
 		return string(obj.Type())
 	}
