@@ -1807,6 +1807,18 @@ func (tc *TypeChecker) checkVariableDeclaration(decl *ast.VariableDeclaration) {
 
 		// If no declared type, infer from value and register it
 		if declaredType == "" {
+			// Check if it's a multi-return function being assigned to a single variable
+			// Must check BEFORE type inference since inferCallType returns first type for multi-return
+			if tc.isMultiReturnCall(decl.Value) {
+				tc.addError(
+					errors.E3040,
+					"cannot assign multi-return function result to single variable; use multiple variables or discard with _",
+					decl.Name.Token.Line,
+					decl.Name.Token.Column,
+				)
+				return
+			}
+
 			inferredType, ok := tc.inferExpressionType(decl.Value)
 			if ok {
 				if inferredType == "void" {
@@ -1817,18 +1829,6 @@ func (tc *TypeChecker) checkVariableDeclaration(decl *ast.VariableDeclaration) {
 						decl.Name.Token.Column,
 					)
 					return
-				}
-				if inferredType == "" {
-					// Check if it's a multi-return function being assigned to a single variable
-					if tc.isMultiReturnCall(decl.Value) {
-						tc.addError(
-							errors.E3040,
-							"cannot assign multi-return function result to single variable; use multiple variables or discard with _",
-							decl.Name.Token.Line,
-							decl.Name.Token.Column,
-						)
-						return
-					}
 				}
 				tc.defineVariableWithMutability(varName, inferredType, decl.Mutable)
 			} else {

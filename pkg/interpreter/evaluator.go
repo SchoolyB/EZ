@@ -147,23 +147,23 @@ var globalEvalContext *EvalContext
 
 // validModules lists all available standard library modules
 var validModules = map[string]bool{
-	"std":     true, // Standard I/O functions (println, print, read_int)
-	"math":    true, // Math functions
-	"strings": true, // String utilities
-	"arrays":  true, // Array utilities
-	"maps":    true, // Map utilities
-	"time":    true, // Time functions
-	"io":      true, // File system and I/O operations
-	"os":      true, // Operating system and environment
-	"bytes":   true, // Binary data operations
-	"random":  true, // Random number generation
-	"json":    true, // JSON encoding/decoding
-	"binary":  true, // Binary encoding/decoding for integers and floats
+	"std":      true, // Standard I/O functions (println, print, read_int)
+	"math":     true, // Math functions
+	"strings":  true, // String utilities
+	"arrays":   true, // Array utilities
+	"maps":     true, // Map utilities
+	"time":     true, // Time functions
+	"io":       true, // File system and I/O operations
+	"os":       true, // Operating system and environment
+	"bytes":    true, // Binary data operations
+	"random":   true, // Random number generation
+	"json":     true, // JSON encoding/decoding
+	"binary":   true, // Binary encoding/decoding for integers and floats
 	"db":       true, // Simple key-value database
 	"uuid":     true, // UUID generation and validation
 	"encoding": true, // Base64, hex, and URL encoding/decoding
 	"crypto":   true, // Cryptographic hashing and secure random
-	"http":			true, // HTTP client for web requests
+	"http":     true, // HTTP client for web requests
 }
 
 // isValidModule checks if a module name is valid (either standard library or user-created)
@@ -866,6 +866,14 @@ func evalVariableDeclaration(node *ast.VariableDeclaration, env *Environment) Ob
 			return NIL
 		}
 
+		// Defensive check: multi-value return assigned to single variable
+		// The typechecker should catch this (E3040), but guard against regressions
+		if retVal, ok := val.(*ReturnValue); ok && len(retVal.Values) > 1 {
+			return newErrorWithLocation("E5012", node.Token.Line, node.Token.Column,
+				"cannot assign %d values to single variable; use tuple unpacking: a, b = func()",
+				len(retVal.Values))
+		}
+
 		// Validate type compatibility if a type is declared (single variable case)
 		if node.TypeName != "" {
 			// Check if declared type is an array type
@@ -1207,14 +1215,14 @@ func evalAssignment(node *ast.AssignmentStatement, env *Environment) Object {
 							if v.Value.Sign() < 0 || v.Value.Cmp(big.NewInt(255)) > 0 {
 								return newErrorWithLocation("E3025", node.Token.Line, node.Token.Column,
 									"byte value must be between 0 and 255: %s", v.Value.String())
-								}
-								val = &Byte{Value: uint8(v.Value.Int64())}
-							case *Byte:
-								// ok
-							default:
-								return newErrorWithLocation("E3025", node.Token.Line, node.Token.Column,
-									"cannot assign %s to byte variable", objectTypeToEZ(val))
 							}
+							val = &Byte{Value: uint8(v.Value.Int64())}
+						case *Byte:
+							// ok
+						default:
+							return newErrorWithLocation("E3025", node.Token.Line, node.Token.Column,
+								"cannot assign %s to byte variable", objectTypeToEZ(val))
+						}
 					}
 				}
 				ref.SetValue(val)
@@ -2933,7 +2941,7 @@ func applyFunction(fn Object, args []Object, line, col int) Object {
 		}
 
 		evaluated := Eval(fn.Body, extendedEnv)
-		
+
 		// Execute ensure statements before returning (LIFO order)
 		ensures := extendedEnv.ExecuteEnsures()
 		for _, ensureCall := range ensures {
@@ -2941,7 +2949,7 @@ func applyFunction(fn Object, args []Object, line, col int) Object {
 			// Note: We ignore errors from ensure statements to ensure cleanup always runs
 		}
 		extendedEnv.ClearEnsures()
-		
+
 		// Restore current file
 		if globalEvalContext != nil && fn.File != "" {
 			globalEvalContext.CurrentFile = oldFile
