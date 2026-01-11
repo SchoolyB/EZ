@@ -1,0 +1,12 @@
+/*
+ * Error Test: E3031 - function-as-value
+ * Expected: "function" and "cannot be used as a value"
+ */
+
+do some_function() {
+    // Some function
+}
+
+do main() {
+    some_function
+}

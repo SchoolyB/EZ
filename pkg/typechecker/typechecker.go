@@ -2513,6 +2513,10 @@ func (tc *TypeChecker) checkExpressionStatement(exprStmt *ast.ExpressionStatemen
 		return
 	}
 
+	// Check for bare identifiers that have no effect as statements
+	// A bare function name or type name as a statement does nothing
+	tc.checkValueExpression(exprStmt.Expression)
+
 	// Validate the entire expression tree
 	tc.checkExpression(exprStmt.Expression)
 }
