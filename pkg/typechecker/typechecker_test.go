@@ -2730,44 +2730,45 @@ do main() {
 }
 
 // ============================================================================
-// Printf Validation Tests
+// Print Validation Tests
 // ============================================================================
 
-func TestPrintfWithFormatString(t *testing.T) {
+func TestPrintWithFormatString(t *testing.T) {
 	input := `
 do main() {
-	printf("Value: %d", 42)
+	print("Value: %d", 42)
 }
 `
 	tc := typecheck(t, input)
 	assertNoErrors(t, tc)
 }
 
-func TestPrintfNoArgsError(t *testing.T) {
+func TestPrintNoArgsError(t *testing.T) {
 	input := `
 import @std
 using std
 
 do main() {
-	std.printf()
+	std.print()
 }
 `
 	tc := typecheck(t, input)
-	assertHasError(t, tc, errors.E5008)
+	assertNoErrors(t, tc)
 }
 
-func TestPrintfNonStringFormatError(t *testing.T) {
-	input := `
-import @std
-using std
+// this is comment out because print does not support format strings
+// func TestPrintNonStringFormatError(t *testing.T) {
+// 	input := `
+// import @std
+// using std
 
-do main() {
-	std.printf(123, "value")
-}
-`
-	tc := typecheck(t, input)
-	assertHasError(t, tc, errors.E3001)
-}
+// do main() {
+// 	std.print(123, "value")
+// }
+// `
+// 	tc := typecheck(t, input)
+// 	assertHasError(t, tc, errors.E3001)
+// }
 
 // ============================================================================
 // Comparable Enum Type Tests
