@@ -4467,8 +4467,8 @@ func (tc *TypeChecker) isBuiltinConstant(name string) bool {
 func (tc *TypeChecker) isStdlibFunction(moduleName, funcName string) bool {
 	stdFuncs := map[string]map[string]bool{
 		"std": {
-			"println": true, "printf": true, "print": true,
-			"eprintln": true, "eprintf": true, "eprint": true,
+			"println": true, "print": true,
+			"eprintln": true, "eprint": true,
 			"sleep_milliseconds": true, "sleep_seconds": true, "sleep_nanoseconds": true,
 			"read_int": true, "read_float": true, "read_string": true,
 		},
@@ -5331,7 +5331,7 @@ func (tc *TypeChecker) inferModuleCallType(member *ast.MemberExpression, args []
 // inferStdCallType infers return types for @std functions
 func (tc *TypeChecker) inferStdCallType(funcName string, args []ast.Expression) (string, bool) {
 	switch funcName {
-	case "println", "print", "printf":
+	case "println", "print":
 		return "void", true
 	case "input":
 		return "string", true
@@ -6205,8 +6205,8 @@ func (tc *TypeChecker) checkDirectStdlibCall(funcName string, call *ast.CallExpr
 	// Check std module
 	if tc.hasUsingStdlibModule("std") {
 		stdFuncs := map[string]bool{
-			"println": true, "print": true, "printf": true,
-			"eprintln": true, "eprint": true, "eprintf": true,
+			"println": true, "print": true,
+			"eprintln": true, "eprint": true,
 			"sleep_milliseconds": true, "sleep_seconds": true, "sleep_nanoseconds": true,
 			"read_int": true, "read_float": true, "read_string": true,
 		}
@@ -6570,7 +6570,7 @@ func (tc *TypeChecker) isMapsFunction(name string) bool {
 // isStdFunction checks if a function name exists in the std module
 func (tc *TypeChecker) isStdFunction(name string) bool {
 	stdFuncs := map[string]bool{
-		"println": true, "print": true, "printf": true,
+		"println": true, "print": true,
 	}
 	return stdFuncs[name]
 }
@@ -6995,16 +6995,9 @@ func (tc *TypeChecker) checkStdModuleCall(funcName string, call *ast.CallExpress
 	case "println", "print":
 		// Accept any arguments (variadic, any type)
 		return
-	case "printf":
-		// First argument must be a string (format string)
-		if len(call.Arguments) < 1 {
-			tc.addError(errors.E5008, fmt.Sprintf("std.%s requires at least 1 argument (format string)", funcName), line, column)
-			return
-		}
-		argType, ok := tc.inferExpressionType(call.Arguments[0])
-		if ok && argType != "string" {
-			tc.addError(errors.E3001, fmt.Sprintf("std.%s format argument must be string, got %s", funcName, argType), line, column)
-		}
+	case "eprintln", "eprint":
+		// Accept any arguments (variadic, any type)
+		return
 	}
 }
 

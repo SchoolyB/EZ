@@ -3282,12 +3282,12 @@ func TestEprintln(t *testing.T) {
 	}
 }
 
-// Test eprintf() returns nil
-func TestEprintf(t *testing.T) {
-	eprintfFn := StdBuiltins["std.eprintf"].Fn
-	result := eprintfFn(&object.String{Value: "test output"})
+// Test eprint() returns nil
+func TestEprint(t *testing.T) {
+	eprintFn := StdBuiltins["std.eprint"].Fn
+	result := eprintFn(&object.String{Value: "test output"})
 	if result != object.NIL {
-		t.Errorf("eprintf() should return nil, got %T", result)
+		t.Errorf("eprint() should return nil, got %T", result)
 	}
 }
 
@@ -3301,6 +3301,15 @@ func TestEprintlnMultipleArgs(t *testing.T) {
 	)
 	if result != object.NIL {
 		t.Errorf("eprintln() should return nil, got %T", result)
+	}
+}
+
+// Test print() returns nil
+func TestPrint(t *testing.T) {
+	printFn := StdBuiltins["std.print"].Fn
+	result := printFn(&object.String{Value: "test output"})
+	if result != object.NIL {
+		t.Errorf("print() should return nil, got %T", result)
 	}
 }
 
