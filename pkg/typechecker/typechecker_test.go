@@ -2743,7 +2743,7 @@ do main() {
 	assertNoErrors(t, tc)
 }
 
-func TestPrintNoArgsError(t *testing.T) {
+func TestPrintWithNoArgs(t *testing.T) {
 	input := `
 import @std
 using std
@@ -2755,20 +2755,6 @@ do main() {
 	tc := typecheck(t, input)
 	assertNoErrors(t, tc)
 }
-
-// this is comment out because print does not support format strings
-// func TestPrintNonStringFormatError(t *testing.T) {
-// 	input := `
-// import @std
-// using std
-
-// do main() {
-// 	std.print(123, "value")
-// }
-// `
-// 	tc := typecheck(t, input)
-// 	assertHasError(t, tc, errors.E3001)
-// }
 
 // ============================================================================
 // Comparable Enum Type Tests
