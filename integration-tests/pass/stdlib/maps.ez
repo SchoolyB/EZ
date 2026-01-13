@@ -136,12 +136,12 @@ do main() {
         failed += 1
     }
 
-    // Test 11: maps.has with int key
+    // Test 11: maps.contains with int key
     if maps.contains(int_map, 1) == true && maps.contains(int_map, 99) == false {
         println("  [PASS] maps.contains() works with int keys")
         passed += 1
     } otherwise {
-        println("  [FAIL] maps.has with int keys")
+        println("  [FAIL] maps.contains with int keys")
         failed += 1
     }
 
