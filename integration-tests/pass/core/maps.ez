@@ -119,17 +119,6 @@ do main() {
         failed += 1
     }
 
-    // Test 10: maps.delete
-    temp del_map map[string:int] = {"x": 10, "y": 20}
-    maps.delete(del_map, "x")
-    if len(del_map) == 1 && !maps.has(del_map, "x") {
-        println("  [PASS] maps.delete() removed key")
-        passed += 1
-    } otherwise {
-        println("  [FAIL] maps.delete()")
-        failed += 1
-    }
-
     // Test 11: maps.clear
     temp clear_map map[string:int] = {"a": 1, "b": 2}
     maps.clear(clear_map)

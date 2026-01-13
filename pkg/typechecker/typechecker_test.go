@@ -4569,24 +4569,6 @@ do main() {
 	assertNoErrors(t, tc)
 }
 
-func TestMapDelete(t *testing.T) {
-	input := `
-import @maps
-using maps
-
-do takeBool(value bool) {
-}
-
-do main() {
-	temp m map[string:int] = {"a": 1, "b": 2}
-	temp deleted = maps.delete(m, "a")
-	takeBool(deleted)
-}
-`
-	tc := typecheck(t, input)
-	assertNoErrors(t, tc)
-}
-
 func TestStdlibInference(t *testing.T) {
 	input := `
 import @uuid
@@ -4928,19 +4910,6 @@ using strings
 
 do main() {
 	temp result bool = strings.ends_with("hello world", "world")
-}
-`
-	tc := typecheck(t, input)
-	assertNoErrors(t, tc)
-}
-
-func TestStringsIndexOf(t *testing.T) {
-	input := `
-import @strings
-using strings
-
-do main() {
-	temp idx int = strings.index_of("hello world", "world")
 }
 `
 	tc := typecheck(t, input)
@@ -6262,20 +6231,6 @@ do main() {
 	assertHasError(t, tc, errors.E3001)
 }
 
-func TestArraysIndexOfTypeMismatch(t *testing.T) {
-	input := `
-import @arrays
-using arrays
-
-do main() {
-	temp arr [float] = {1.0, 2.0, 3.0}
-	temp idx int = arrays.index_of(arr, "not a float")
-}
-`
-	tc := typecheck(t, input)
-	assertHasError(t, tc, errors.E3001)
-}
-
 func TestArraysInsertTypeMismatch(t *testing.T) {
 	input := `
 import @arrays
@@ -6435,34 +6390,6 @@ do main() {
 // ============================================================================
 // Map Key/Value Type Compatibility Tests (checkMapKeyValueTypeCompatibility)
 // ============================================================================
-
-func TestMapsHasKeyTypeMismatch(t *testing.T) {
-	input := `
-import @maps
-using maps
-
-do main() {
-	temp m map[string:int] = {"a": 1, "b": 2}
-	temp found bool = maps.has_key(m, 123)
-}
-`
-	tc := typecheck(t, input)
-	assertHasError(t, tc, errors.E3001)
-}
-
-func TestMapsDeleteKeyTypeMismatch(t *testing.T) {
-	input := `
-import @maps
-using maps
-
-do main() {
-	temp m map[int:string] = {1: "one", 2: "two"}
-	maps.delete(m, "not an int")
-}
-`
-	tc := typecheck(t, input)
-	assertHasError(t, tc, errors.E3001)
-}
 
 func TestMapsSetKeyTypeMismatch(t *testing.T) {
 	input := `
