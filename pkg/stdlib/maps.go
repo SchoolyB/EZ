@@ -27,18 +27,18 @@ var MapsBuiltins = map[string]*object.Builtin{
 		},
 	},
 
-	"maps.has": {
+	"maps.contains": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 2 {
-				return newError("maps.has() takes exactly 2 arguments (map, key)")
+				return newError("maps.contains() takes exactly 2 arguments (map, key)")
 			}
 			m, ok := args[0].(*object.Map)
 			if !ok {
-				return &object.Error{Code: "E7007", Message: "maps.has() requires a map as first argument"}
+				return &object.Error{Code: "E7007", Message: "maps.contains() requires a map as first argument"}
 			}
 			key := args[1]
 			if _, hashOk := object.HashKey(key); !hashOk {
-				return &object.Error{Code: "E12001", Message: "maps.has() key must be a hashable type (string, int, bool, char)"}
+				return &object.Error{Code: "E12001", Message: "maps.contains() key must be a hashable type (string, int, bool, char)"}
 			}
 			_, exists := m.Get(key)
 			if exists {
@@ -226,14 +226,14 @@ var MapsBuiltins = map[string]*object.Builtin{
 		},
 	},
 
-	"maps.has_value": {
+	"maps.contains_value": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 2 {
-				return newError("maps.has_value() takes exactly 2 arguments (map, value)")
+				return newError("maps.contains_value() takes exactly 2 arguments (map, value)")
 			}
 			m, ok := args[0].(*object.Map)
 			if !ok {
-				return &object.Error{Code: "E7007", Message: "maps.has_value() requires a map as first argument"}
+				return &object.Error{Code: "E7007", Message: "maps.contains_value() requires a map as first argument"}
 			}
 			searchValue := args[1]
 			for _, pair := range m.Pairs {
