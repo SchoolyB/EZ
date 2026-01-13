@@ -8,7 +8,6 @@ import (
 	"github.com/marshallburns/ez/pkg/object"
 )
 
-
 // ============================================================================
 // Test Helpers for DB Module
 // ============================================================================
@@ -273,18 +272,18 @@ func TestDBSetAndGet(t *testing.T) {
 }
 
 // ============================================================================
-// Database Has and Delete Tests
+// Database Contains and Remove Tests
 // ============================================================================
 
-func TestDBDeleteAndHas(t *testing.T) {
+func TestDBRemoveAndContains(t *testing.T) {
 	dir, cleanup := createTempDir(t)
 	defer cleanup()
 
 	openFn := DBBuiltins["db.open"].Fn
 	closeFn := DBBuiltins["db.close"].Fn
 	setFn := DBBuiltins["db.set"].Fn
-	delFn := DBBuiltins["db.delete"].Fn
-	hasFn := DBBuiltins["db.has"].Fn
+	removeFn := DBBuiltins["db.remove"].Fn
+	containsFn := DBBuiltins["db.contains"].Fn
 
 	path := createTempFile(t, dir, "mydb.ezdb", "{}")
 	db := getReturnValues(t, openFn(&object.String{Value: path}))[0].(*object.Database)
@@ -293,44 +292,44 @@ func TestDBDeleteAndHas(t *testing.T) {
 	val := &object.String{Value: "v"}
 	setFn(db, key, val)
 
-	t.Run("has existing key", func(t *testing.T) {
-		res := hasFn(db, key)
+	t.Run("contains existing key", func(t *testing.T) {
+		res := containsFn(db, key)
 
 		if !res.(*object.Boolean).Value {
 			t.Fatalf("expected true")
 		}
 	})
 
-	t.Run("delete existing key", func(t *testing.T) {
-		res := delFn(db, key)
+	t.Run("remove existing key", func(t *testing.T) {
+		res := removeFn(db, key)
 
 		if !res.(*object.Boolean).Value {
 			t.Fatalf("expected deletion to succeed")
 		}
 	})
 
-	t.Run("has deleted key", func(t *testing.T) {
-		res := hasFn(db, key)
+	t.Run("contains removed key", func(t *testing.T) {
+		res := containsFn(db, key)
 
 		if res.(*object.Boolean).Value {
 			t.Fatalf("expected false after deletion")
 		}
 	})
 
-	t.Run("delete on closed database", func(t *testing.T) {
+	t.Run("remove on closed database", func(t *testing.T) {
 		res := closeFn(db)
 		if isErrorObject(res) {
 			t.Fatalf("unexpected error during close")
 		}
 
-		res = delFn(db, key)
+		res = removeFn(db, key)
 		if !isErrorObject(res) {
 			t.Fatalf("expected error for operating after close, got %T", res)
 		}
 	})
 
-	t.Run("has on closed database", func(t *testing.T) {
-		res := hasFn(db, key)
+	t.Run("contains on closed database", func(t *testing.T) {
+		res := containsFn(db, key)
 		if !isErrorObject(res) {
 			t.Fatalf("expected error for operating after close, got %T", res)
 		}
@@ -500,4 +499,3 @@ func TestDBSave(t *testing.T) {
 		}
 	})
 }
-
