@@ -1649,7 +1649,7 @@ do main() {
 	temp m map[string:int] = {"a": 1, "b": 2}
 	temp map_keys [string] = maps.keys(m)
 	temp map_values [int] = maps.values(m)
-	temp key_exists bool = maps.has(m, "a")
+	temp key_exists bool = maps.contains(m, "a")
 }
 `
 	tc := typecheck(t, input)
@@ -5022,7 +5022,7 @@ using maps
 
 do main() {
 	temp m map[string:int] = {"a": 1, "b": 2}
-	temp hasKey bool = maps.has(m, "a")
+	temp hasKey bool = maps.contains(m, "a")
 }
 `
 	tc := typecheck(t, input)
@@ -5591,7 +5591,7 @@ using maps
 
 do main() {
 	temp m map[string:int] = {"a": 1, "b": 2, "c": 3}
-	temp hasA bool = maps.has(m, "a")
+	temp hasA bool = maps.contains(m, "a")
 	temp mapLen int = maps.len(m)
 }
 `
@@ -6382,7 +6382,7 @@ using arrays
 
 do main() {
 	temp arr [int] = {1, 2, 3, 2}
-	temp idx int = arrays.last_index_of(arr, 3.14)
+	temp idx int = arrays.last_index(arr, 3.14)
 }
 `
 	tc := typecheck(t, input)
@@ -6555,7 +6555,7 @@ using maps
 
 do main() {
 	temp m map[string:int] = {"a": 1, "b": 2}
-	temp found bool = maps.has(m, "a")
+	temp found bool = maps.contains(m, "a")
 }
 `
 	tc := typecheck(t, input)

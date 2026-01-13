@@ -5366,7 +5366,7 @@ func (tc *TypeChecker) inferMathCallType(funcName string, args []ast.Expression)
 // inferArraysCallType infers return types for @arrays functions
 func (tc *TypeChecker) inferArraysCallType(funcName string, args []ast.Expression) (string, bool) {
 	switch funcName {
-	case "len", "index_of", "last_index_of":
+	case "len", "index_of", "last_index":
 		return "int", true
 	case "contains", "is_empty":
 		return "bool", true
@@ -5461,7 +5461,7 @@ func (tc *TypeChecker) inferTimeCallType(funcName string, args []ast.Expression)
 // inferMapsCallType infers return types for @maps functions
 func (tc *TypeChecker) inferMapsCallType(funcName string, args []ast.Expression) (string, bool) {
 	switch funcName {
-	case "is_empty", "has", "has_key", "has_value", "equals":
+	case "is_empty", "contains", "has_key", "contains_value", "equals":
 		return "bool", true
 	case "delete", "remove":
 		return "bool", true
@@ -6521,7 +6521,7 @@ func (tc *TypeChecker) isArraysFunction(name string) bool {
 		"sort_desc": true, "shuffle": true, "unique": true, "duplicates": true,
 		"flatten": true, "sum": true, "product": true, "min": true, "max": true,
 		"avg": true, "all_equal": true, "append": true, "unshift": true, "contains": true,
-		"index_of": true, "last_index_of": true, "count": true, "remove": true,
+		"index_of": true, "last_index": true, "count": true, "remove": true,
 		"remove_all": true, "fill": true, "get": true, "remove_at": true, "take": true,
 		"drop": true, "set": true, "insert": true, "slice": true, "join": true,
 		"zip": true, "concat": true, "range": true, "repeat": true,
@@ -6560,8 +6560,8 @@ func (tc *TypeChecker) isTimeFunction(name string) bool {
 func (tc *TypeChecker) isMapsFunction(name string) bool {
 	mapsFuncs := map[string]bool{
 		"len": true, "is_empty": true, "keys": true, "values": true, "clear": true,
-		"to_array": true, "invert": true, "has": true, "has_key": true, "delete": true,
-		"remove": true, "has_value": true, "get": true, "set": true, "get_or_set": true,
+		"to_array": true, "invert": true, "contains": true, "has_key": true, "delete": true,
+		"remove": true, "contains_value": true, "get": true, "set": true, "get_or_set": true,
 		"merge": true, "copy": true,
 	}
 	return mapsFuncs[name]
@@ -7119,7 +7119,7 @@ func (tc *TypeChecker) checkArraysModuleCall(funcName string, call *ast.CallExpr
 		"unshift":       {2, -1, []string{"array", "any"}, "array"},
 		"contains":      {2, 2, []string{"array", "any"}, "bool"},
 		"index_of":      {2, 2, []string{"array", "any"}, "int"},
-		"last_index_of": {2, 2, []string{"array", "any"}, "int"},
+		"last_index": {2, 2, []string{"array", "any"}, "int"},
 		"count":         {2, 2, []string{"array", "any"}, "int"},
 		"remove":        {2, 2, []string{"array", "any"}, "array"},
 		"remove_all":    {2, 2, []string{"array", "any"}, "array"},
@@ -7169,7 +7169,7 @@ func (tc *TypeChecker) checkArrayElementTypeCompatibility(funcName string, call 
 	}
 
 	switch funcName {
-	case "append", "unshift", "contains", "index_of", "last_index_of", "count", "remove", "remove_all", "fill":
+	case "append", "unshift", "contains", "index_of", "last_index", "count", "remove", "remove_all", "fill":
 		// First arg is array, remaining args are elements
 		arrayType, ok := tc.inferExpressionType(call.Arguments[0])
 		if !ok || !tc.isArrayType(arrayType) {
@@ -7253,13 +7253,13 @@ func (tc *TypeChecker) checkMapsModuleCall(funcName string, call *ast.CallExpres
 		"invert":   {1, 1, []string{"map"}, "map"},
 
 		// Map + key
-		"has":     {2, 2, []string{"map", "any"}, "bool"},
+		"contains": {2, 2, []string{"map", "any"}, "bool"},
 		"has_key": {2, 2, []string{"map", "any"}, "bool"},
 		"delete":  {2, 2, []string{"map", "any"}, "bool"},
 		"remove":  {2, 2, []string{"map", "any"}, "bool"},
 
 		// Map + value
-		"has_value": {2, 2, []string{"map", "any"}, "bool"},
+		"contains_value": {2, 2, []string{"map", "any"}, "bool"},
 
 		// Map + key + optional default
 		"get": {2, 3, []string{"map", "any", "any"}, "any"},
@@ -7307,7 +7307,7 @@ func (tc *TypeChecker) checkMapKeyValueTypeCompatibility(funcName string, call *
 	valueType := tc.extractMapValueType(mapType)
 
 	switch funcName {
-	case "has", "has_key", "delete", "remove":
+	case "contains", "has_key", "delete", "remove":
 		// Second arg is key
 		if len(call.Arguments) < 2 {
 			return
@@ -7324,7 +7324,7 @@ func (tc *TypeChecker) checkMapKeyValueTypeCompatibility(funcName string, call *
 				argLine, argCol)
 		}
 
-	case "has_value":
+	case "contains_value":
 		// Second arg is value
 		if len(call.Arguments) < 2 {
 			return

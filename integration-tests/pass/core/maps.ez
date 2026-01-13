@@ -99,30 +99,30 @@ do main() {
         failed += 1
     }
 
-    // Test 8: maps.has - key exists
-    temp has_a bool = maps.has(m, "a")
+    // Test 8: maps.contains - key exists
+    temp has_a bool = maps.contains(m, "a")
     if has_a == true {
-        println("  [PASS] maps.has(m, \"a\") = true")
+        println("  [PASS] maps.contains(m, \"a\") = true")
         passed += 1
     } otherwise {
-        println("  [FAIL] maps.has(m, \"a\"): expected true")
+        println("  [FAIL] maps.contains(m, \"a\"): expected true")
         failed += 1
     }
 
-    // Test 9: maps.has - key doesn't exist
-    temp has_z bool = maps.has(m, "z")
+    // Test 9: maps.contains - key doesn't exist
+    temp has_z bool = maps.contains(m, "z")
     if has_z == false {
-        println("  [PASS] maps.has(m, \"z\") = false")
+        println("  [PASS] maps.contains(m, \"z\") = false")
         passed += 1
     } otherwise {
-        println("  [FAIL] maps.has(m, \"z\"): expected false")
+        println("  [FAIL] maps.contains(m, \"z\"): expected false")
         failed += 1
     }
 
     // Test 10: maps.delete
     temp del_map map[string:int] = {"x": 10, "y": 20}
     maps.delete(del_map, "x")
-    if len(del_map) == 1 && !maps.has(del_map, "x") {
+    if len(del_map) == 1 && !maps.contains(del_map, "x") {
         println("  [PASS] maps.delete() removed key")
         passed += 1
     } otherwise {
