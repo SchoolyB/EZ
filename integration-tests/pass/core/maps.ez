@@ -119,14 +119,14 @@ do main() {
         failed += 1
     }
 
-    // Test 10: maps.delete
+    // Test 10: maps.remove
     temp del_map map[string:int] = {"x": 10, "y": 20}
-    maps.delete(del_map, "x")
+    maps.remove(del_map, "x")
     if len(del_map) == 1 && !maps.contains(del_map, "x") {
-        println("  [PASS] maps.delete() removed key")
+        println("  [PASS] maps.remove() removed key")
         passed += 1
     } otherwise {
-        println("  [FAIL] maps.delete()")
+        println("  [FAIL] maps.remove()")
         failed += 1
     }
 
