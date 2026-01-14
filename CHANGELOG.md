@@ -1,5 +1,22 @@
 # Changelog
 
+## [1.0.0](https://github.com/SchoolyB/EZ/compare/v0.40.5...v1.0.0) (2026-01-14)
+
+
+### ⚠ BREAKING CHANGES
+
+* Existing code using removed/renamed functions must be updated.
+
+### Features
+
+* **#996:** Rename stdlib functions for consistency ([#1001](https://github.com/SchoolyB/EZ/issues/1001)) ([0ad96f8](https://github.com/SchoolyB/EZ/commit/0ad96f881a24123d6fba7f414a48bdb0b819a22d))
+* stdlib function renaming for consistency ([09b658b](https://github.com/SchoolyB/EZ/commit/09b658b681593511294c6fe41d762d117c2aea4f))
+
+
+### Code Refactoring
+
+* remove duplicate stdlib aliases and rename db functions ([#1003](https://github.com/SchoolyB/EZ/issues/1003)) ([4e0dc08](https://github.com/SchoolyB/EZ/commit/4e0dc081711bd70b237bd71fde809972b0db7eca)), closes [#995](https://github.com/SchoolyB/EZ/issues/995) [#997](https://github.com/SchoolyB/EZ/issues/997)
+
 ## [0.40.5](https://github.com/SchoolyB/EZ/compare/v0.40.4...v0.40.5) (2026-01-11)
 
 
