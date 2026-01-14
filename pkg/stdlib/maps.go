@@ -97,33 +97,6 @@ var MapsBuiltins = map[string]*object.Builtin{
 		},
 	},
 
-	"maps.delete": {
-		Fn: func(args ...object.Object) object.Object {
-			if len(args) != 2 {
-				return newError("maps.delete() takes exactly 2 arguments (map, key)")
-			}
-			m, ok := args[0].(*object.Map)
-			if !ok {
-				return &object.Error{Code: "E7007", Message: "maps.delete() requires a map as first argument"}
-			}
-			if !m.Mutable {
-				return &object.Error{
-					Message: "cannot modify immutable map (declared as const)",
-					Code:    "E12002",
-				}
-			}
-			key := args[1]
-			if _, hashOk := object.HashKey(key); !hashOk {
-				return &object.Error{Code: "E12001", Message: "maps.delete() key must be a hashable type (string, int, bool, char)"}
-			}
-			deleted := m.Delete(key)
-			if deleted {
-				return object.TRUE
-			}
-			return object.FALSE
-		},
-	},
-
 	"maps.clear": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 1 {
@@ -201,28 +174,6 @@ var MapsBuiltins = map[string]*object.Builtin{
 				}
 			}
 			return result
-		},
-	},
-
-	// has_key is an alias for has
-	"maps.has_key": {
-		Fn: func(args ...object.Object) object.Object {
-			if len(args) != 2 {
-				return newError("maps.has_key() takes exactly 2 arguments (map, key)")
-			}
-			m, ok := args[0].(*object.Map)
-			if !ok {
-				return &object.Error{Code: "E7007", Message: "maps.has_key() requires a map as first argument"}
-			}
-			key := args[1]
-			if _, hashOk := object.HashKey(key); !hashOk {
-				return &object.Error{Code: "E12001", Message: "maps.has_key() key must be a hashable type (string, int, bool, char)"}
-			}
-			_, exists := m.Get(key)
-			if exists {
-				return object.TRUE
-			}
-			return object.FALSE
 		},
 	},
 

@@ -59,23 +59,23 @@ do main() {
         failed += 1
     }
 
-    // ==================== maps.delete ====================
-    println("  -- maps.delete --")
+    // ==================== maps.remove ====================
+    println("  -- maps.remove --")
 
-    // Test 5: delete removes key
+    // Test 5: remove removes key
     temp del_map map[string:int] = {"x": 10, "y": 20, "z": 30}
-    maps.delete(del_map, "y")
-    if len(del_map) == 2 && !maps.contains(del_map, "y") {
-        println("  [PASS] maps.delete() removed key 'y'")
+    temp removed bool = maps.remove(del_map, "y")
+    if len(del_map) == 2 && !maps.contains(del_map, "y") && removed {
+        println("  [PASS] maps.remove() removed key 'y'")
         passed += 1
     } otherwise {
-        println("  [FAIL] maps.delete: len=${len(del_map)}, contains_y=${maps.contains(del_map, "y")}")
+        println("  [FAIL] maps.remove: len=${len(del_map)}, contains_y=${maps.contains(del_map, "y")}, removed=${removed}")
         failed += 1
     }
 
-    // Test 6: remaining keys still accessible
+    // Test 6: remaining keys still accessible after remove
     if del_map["x"] == 10 && del_map["z"] == 30 {
-        println("  [PASS] remaining keys still accessible after delete")
+        println("  [PASS] remaining keys still accessible after remove")
         passed += 1
     } otherwise {
         println("  [FAIL] remaining keys: x=${del_map["x"]}, z=${del_map["z"]}")
