@@ -38,44 +38,44 @@ do main() {
         failed += 1
     }
 
-    // ==================== maps.has ====================
-    println("  -- maps.has --")
+    // ==================== maps.contains ====================
+    println("  -- maps.contains --")
 
-    // Test 3: has - key exists
-    if maps.has(m, "a") == true {
-        println("  [PASS] maps.has(m, 'a') = true")
+    // Test 3: contains - key exists
+    if maps.contains(m, "a") == true {
+        println("  [PASS] maps.contains(m, 'a') = true")
         passed += 1
     } otherwise {
-        println("  [FAIL] maps.has(m, 'a'): expected true")
+        println("  [FAIL] maps.contains(m, 'a'): expected true")
         failed += 1
     }
 
-    // Test 4: has - key doesn't exist
-    if maps.has(m, "z") == false {
-        println("  [PASS] maps.has(m, 'z') = false")
+    // Test 4: contains - key doesn't exist
+    if maps.contains(m, "z") == false {
+        println("  [PASS] maps.contains(m, 'z') = false")
         passed += 1
     } otherwise {
-        println("  [FAIL] maps.has(m, 'z'): expected false")
+        println("  [FAIL] maps.contains(m, 'z'): expected false")
         failed += 1
     }
 
-    // ==================== maps.delete ====================
-    println("  -- maps.delete --")
+    // ==================== maps.remove ====================
+    println("  -- maps.remove --")
 
-    // Test 5: delete removes key
+    // Test 5: remove removes key
     temp del_map map[string:int] = {"x": 10, "y": 20, "z": 30}
-    maps.delete(del_map, "y")
-    if len(del_map) == 2 && !maps.has(del_map, "y") {
-        println("  [PASS] maps.delete() removed key 'y'")
+    temp removed bool = maps.remove(del_map, "y")
+    if len(del_map) == 2 && !maps.contains(del_map, "y") && removed {
+        println("  [PASS] maps.remove() removed key 'y'")
         passed += 1
     } otherwise {
-        println("  [FAIL] maps.delete: len=${len(del_map)}, has_y=${maps.has(del_map, "y")}")
+        println("  [FAIL] maps.remove: len=${len(del_map)}, contains_y=${maps.contains(del_map, "y")}, removed=${removed}")
         failed += 1
     }
 
-    // Test 6: remaining keys still accessible
+    // Test 6: remaining keys still accessible after remove
     if del_map["x"] == 10 && del_map["z"] == 30 {
-        println("  [PASS] remaining keys still accessible after delete")
+        println("  [PASS] remaining keys still accessible after remove")
         passed += 1
     } otherwise {
         println("  [FAIL] remaining keys: x=${del_map["x"]}, z=${del_map["z"]}")
@@ -136,12 +136,12 @@ do main() {
         failed += 1
     }
 
-    // Test 11: maps.has with int key
-    if maps.has(int_map, 1) == true && maps.has(int_map, 99) == false {
-        println("  [PASS] maps.has() works with int keys")
+    // Test 11: maps.contains with int key
+    if maps.contains(int_map, 1) == true && maps.contains(int_map, 99) == false {
+        println("  [PASS] maps.contains() works with int keys")
         passed += 1
     } otherwise {
-        println("  [FAIL] maps.has with int keys")
+        println("  [FAIL] maps.contains with int keys")
         failed += 1
     }
 

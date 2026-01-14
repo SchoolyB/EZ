@@ -116,10 +116,10 @@ do main() {
 
     temp alice_key string = "alice"
     temp diana_key string = "diana"
-    temp has_alice bool = maps.has(scores, alice_key)
-    temp has_diana bool = maps.has(scores, diana_key)
-    println("maps.has(scores, 'alice') = ${has_alice}")
-    println("maps.has(scores, 'diana') = ${has_diana}")
+    temp has_alice bool = maps.contains(scores, alice_key)
+    temp has_diana bool = maps.contains(scores, diana_key)
+    println("maps.contains(scores, 'alice') = ${has_alice}")
+    println("maps.contains(scores, 'diana') = ${has_diana}")
     println("")
 
     // ==================
