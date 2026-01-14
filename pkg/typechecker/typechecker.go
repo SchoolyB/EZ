@@ -4467,8 +4467,8 @@ func (tc *TypeChecker) isBuiltinConstant(name string) bool {
 func (tc *TypeChecker) isStdlibFunction(moduleName, funcName string) bool {
 	stdFuncs := map[string]map[string]bool{
 		"std": {
-			"println": true, "printf": true, "print": true,
-			"eprintln": true, "eprintf": true, "eprint": true,
+			"println": true, "print": true,
+			"eprintln": true, "eprint": true,
 			"sleep_milliseconds": true, "sleep_seconds": true, "sleep_nanoseconds": true,
 			"read_int": true, "read_float": true, "read_string": true,
 		},
@@ -5331,7 +5331,7 @@ func (tc *TypeChecker) inferModuleCallType(member *ast.MemberExpression, args []
 // inferStdCallType infers return types for @std functions
 func (tc *TypeChecker) inferStdCallType(funcName string, args []ast.Expression) (string, bool) {
 	switch funcName {
-	case "println", "print", "printf":
+	case "println", "print":
 		return "void", true
 	case "input":
 		return "string", true
@@ -5366,7 +5366,7 @@ func (tc *TypeChecker) inferMathCallType(funcName string, args []ast.Expression)
 // inferArraysCallType infers return types for @arrays functions
 func (tc *TypeChecker) inferArraysCallType(funcName string, args []ast.Expression) (string, bool) {
 	switch funcName {
-	case "len", "index_of", "last_index_of":
+	case "len", "last_index":
 		return "int", true
 	case "contains", "is_empty":
 		return "bool", true
@@ -5461,9 +5461,9 @@ func (tc *TypeChecker) inferTimeCallType(funcName string, args []ast.Expression)
 // inferMapsCallType infers return types for @maps functions
 func (tc *TypeChecker) inferMapsCallType(funcName string, args []ast.Expression) (string, bool) {
 	switch funcName {
-	case "is_empty", "has", "has_key", "has_value", "equals":
+	case "is_empty", "contains", "contains_value", "equals":
 		return "bool", true
-	case "delete", "remove":
+	case "remove":
 		return "bool", true
 	case "set", "clear", "update":
 		return "void", true
@@ -5696,7 +5696,7 @@ func (tc *TypeChecker) inferDBCallType(funcName string, args []ast.Expression) (
 		return "void", true
 	case "get":
 		return "string", true
-	case "delete", "has", "exists", "update_key_name":
+	case "remove", "contains", "exists", "update_key_name":
 		return "bool", true
 	case "keys", "prefix":
 		return "[string]", true
@@ -6205,8 +6205,8 @@ func (tc *TypeChecker) checkDirectStdlibCall(funcName string, call *ast.CallExpr
 	// Check std module
 	if tc.hasUsingStdlibModule("std") {
 		stdFuncs := map[string]bool{
-			"println": true, "print": true, "printf": true,
-			"eprintln": true, "eprint": true, "eprintf": true,
+			"println": true, "print": true,
+			"eprintln": true, "eprint": true,
 			"sleep_milliseconds": true, "sleep_seconds": true, "sleep_nanoseconds": true,
 			"read_int": true, "read_float": true, "read_string": true,
 		}
@@ -6521,7 +6521,7 @@ func (tc *TypeChecker) isArraysFunction(name string) bool {
 		"sort_desc": true, "shuffle": true, "unique": true, "duplicates": true,
 		"flatten": true, "sum": true, "product": true, "min": true, "max": true,
 		"avg": true, "all_equal": true, "append": true, "unshift": true, "contains": true,
-		"index_of": true, "last_index_of": true, "count": true, "remove": true,
+		"last_index": true, "count": true, "remove": true,
 		"remove_all": true, "fill": true, "get": true, "remove_at": true, "take": true,
 		"drop": true, "set": true, "insert": true, "slice": true, "join": true,
 		"zip": true, "concat": true, "range": true, "repeat": true,
@@ -6560,8 +6560,8 @@ func (tc *TypeChecker) isTimeFunction(name string) bool {
 func (tc *TypeChecker) isMapsFunction(name string) bool {
 	mapsFuncs := map[string]bool{
 		"len": true, "is_empty": true, "keys": true, "values": true, "clear": true,
-		"to_array": true, "invert": true, "has": true, "has_key": true, "delete": true,
-		"remove": true, "has_value": true, "get": true, "set": true, "get_or_set": true,
+		"to_array": true, "invert": true, "contains": true,
+		"remove": true, "contains_value": true, "get": true, "set": true, "get_or_set": true,
 		"merge": true, "copy": true,
 	}
 	return mapsFuncs[name]
@@ -6570,7 +6570,7 @@ func (tc *TypeChecker) isMapsFunction(name string) bool {
 // isStdFunction checks if a function name exists in the std module
 func (tc *TypeChecker) isStdFunction(name string) bool {
 	stdFuncs := map[string]bool{
-		"println": true, "print": true, "printf": true,
+		"println": true, "print": true,
 	}
 	return stdFuncs[name]
 }
@@ -6674,7 +6674,7 @@ func (tc *TypeChecker) isDBFunction(name string) bool {
 		// Saving
 		"save": true,
 		// Operations
-		"set": true, "get": true, "delete": true, "has": true,
+		"set": true, "get": true, "remove": true, "contains": true,
 		"keys": true, "prefix": true, "count": true, "clear": true,
 	}
 	return dbFuncs[name]
@@ -6995,16 +6995,9 @@ func (tc *TypeChecker) checkStdModuleCall(funcName string, call *ast.CallExpress
 	case "println", "print":
 		// Accept any arguments (variadic, any type)
 		return
-	case "printf":
-		// First argument must be a string (format string)
-		if len(call.Arguments) < 1 {
-			tc.addError(errors.E5008, fmt.Sprintf("std.%s requires at least 1 argument (format string)", funcName), line, column)
-			return
-		}
-		argType, ok := tc.inferExpressionType(call.Arguments[0])
-		if ok && argType != "string" {
-			tc.addError(errors.E3001, fmt.Sprintf("std.%s format argument must be string, got %s", funcName, argType), line, column)
-		}
+	case "eprintln", "eprint":
+		// Accept any arguments (variadic, any type)
+		return
 	}
 }
 
@@ -7125,8 +7118,7 @@ func (tc *TypeChecker) checkArraysModuleCall(funcName string, call *ast.CallExpr
 		"append":        {2, -1, []string{"array", "any"}, "void"},
 		"unshift":       {2, -1, []string{"array", "any"}, "array"},
 		"contains":      {2, 2, []string{"array", "any"}, "bool"},
-		"index_of":      {2, 2, []string{"array", "any"}, "int"},
-		"last_index_of": {2, 2, []string{"array", "any"}, "int"},
+		"last_index": {2, 2, []string{"array", "any"}, "int"},
 		"count":         {2, 2, []string{"array", "any"}, "int"},
 		"remove":        {2, 2, []string{"array", "any"}, "array"},
 		"remove_all":    {2, 2, []string{"array", "any"}, "array"},
@@ -7176,7 +7168,7 @@ func (tc *TypeChecker) checkArrayElementTypeCompatibility(funcName string, call 
 	}
 
 	switch funcName {
-	case "append", "unshift", "contains", "index_of", "last_index_of", "count", "remove", "remove_all", "fill":
+	case "append", "unshift", "contains", "last_index", "count", "remove", "remove_all", "fill":
 		// First arg is array, remaining args are elements
 		arrayType, ok := tc.inferExpressionType(call.Arguments[0])
 		if !ok || !tc.isArrayType(arrayType) {
@@ -7260,13 +7252,11 @@ func (tc *TypeChecker) checkMapsModuleCall(funcName string, call *ast.CallExpres
 		"invert":   {1, 1, []string{"map"}, "map"},
 
 		// Map + key
-		"has":     {2, 2, []string{"map", "any"}, "bool"},
-		"has_key": {2, 2, []string{"map", "any"}, "bool"},
-		"delete":  {2, 2, []string{"map", "any"}, "bool"},
+		"contains": {2, 2, []string{"map", "any"}, "bool"},
 		"remove":  {2, 2, []string{"map", "any"}, "bool"},
 
 		// Map + value
-		"has_value": {2, 2, []string{"map", "any"}, "bool"},
+		"contains_value": {2, 2, []string{"map", "any"}, "bool"},
 
 		// Map + key + optional default
 		"get": {2, 3, []string{"map", "any", "any"}, "any"},
@@ -7314,7 +7304,7 @@ func (tc *TypeChecker) checkMapKeyValueTypeCompatibility(funcName string, call *
 	valueType := tc.extractMapValueType(mapType)
 
 	switch funcName {
-	case "has", "has_key", "delete", "remove":
+	case "contains", "remove":
 		// Second arg is key
 		if len(call.Arguments) < 2 {
 			return
@@ -7331,7 +7321,7 @@ func (tc *TypeChecker) checkMapKeyValueTypeCompatibility(funcName string, call *
 				argLine, argCol)
 		}
 
-	case "has_value":
+	case "contains_value":
 		// Second arg is value
 		if len(call.Arguments) < 2 {
 			return
@@ -7886,11 +7876,11 @@ func (tc *TypeChecker) checkDBModuleCall(funcName string, call *ast.CallExpressi
 		"save":  {1, 1, []string{"Database"}, "nil"},
 
 		// Database operations
-		"set":    {3, 3, []string{"Database", "string", "string"}, "nil"},
-		"get":    {2, 2, []string{"Database", "string"}, "tuple"},
-		"delete": {2, 2, []string{"Database", "string"}, "bool"},
-		"has":    {2, 2, []string{"Database", "string"}, "bool"},
-		"keys":   {1, 1, []string{"Database"}, "[string]"},
+		"set":      {3, 3, []string{"Database", "string", "string"}, "nil"},
+		"get":      {2, 2, []string{"Database", "string"}, "tuple"},
+		"remove":   {2, 2, []string{"Database", "string"}, "bool"},
+		"contains": {2, 2, []string{"Database", "string"}, "bool"},
+		"keys":     {1, 1, []string{"Database"}, "[string]"},
 		"prefix": {2, 2, []string{"Database", "string"}, "[string]"},
 		"count":  {1, 1, []string{"Database"}, "int"},
 		"clear":  {1, 1, []string{"Database"}, "nil"},

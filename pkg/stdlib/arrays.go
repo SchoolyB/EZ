@@ -546,32 +546,14 @@ var ArraysBuiltins = map[string]*object.Builtin{
 		},
 	},
 
-	"arrays.index_of": {
+	"arrays.last_index": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 2 {
-				return newError("arrays.index_of() takes exactly 2 arguments")
+				return newError("arrays.last_index() takes exactly 2 arguments")
 			}
 			arr, ok := args[0].(*object.Array)
 			if !ok {
-				return &object.Error{Code: "E7002", Message: "arrays.index_of() requires an array"}
-			}
-			for i, el := range arr.Elements {
-				if objectsEqual(el, args[1]) {
-					return &object.Integer{Value: big.NewInt(int64(i))}
-				}
-			}
-			return &object.Integer{Value: big.NewInt(-1)}
-		},
-	},
-
-	"arrays.last_index_of": {
-		Fn: func(args ...object.Object) object.Object {
-			if len(args) != 2 {
-				return newError("arrays.last_index_of() takes exactly 2 arguments")
-			}
-			arr, ok := args[0].(*object.Array)
-			if !ok {
-				return &object.Error{Code: "E7002", Message: "arrays.last_index_of() requires an array"}
+				return &object.Error{Code: "E7002", Message: "arrays.last_index() requires an array"}
 			}
 			for i := len(arr.Elements) - 1; i >= 0; i-- {
 				if objectsEqual(arr.Elements[i], args[1]) {

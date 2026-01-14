@@ -2,7 +2,7 @@
  * std.ez - Test @std standard library expanded functions
  *
  * Global builtins (no import needed): exit, EXIT_SUCCESS, EXIT_FAILURE, panic, assert
- * @std module functions (require import): println, printf, sleep_*, eprintln, eprintf
+ * @std module functions (require import): println, print, sleep_*, eprintln, eprint
  */
 
 import @std
@@ -74,13 +74,13 @@ do main() {
     println("  [PASS] eprintln() with multiple args executed")
     passed += 1
 
-    // ==================== eprintf (@std) ====================
-    println("  -- eprintf --")
+    // ==================== eprint (@std) ====================
+    println("  -- eprint --")
 
-    // Test: eprintf outputs to stderr without newline
-    eprintf("stderr without newline")
+    // Test: eprint outputs to stderr without newline
+    eprint("stderr without newline")
     eprintln()  // add newline after
-    println("  [PASS] eprintf() executed without error")
+    println("  [PASS] eprint() executed without error")
     passed += 1
 
     // ==================== assert (global builtin) ====================
