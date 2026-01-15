@@ -9,8 +9,8 @@
 </p>
 
 <p align="center">
-  <a href="https://schoolyb.github.io/language.ez">Website</a> •
-  <a href="https://schoolyb.github.io/language.ez/docs">Documentation</a>
+  <a href="https://schoolyb.github.io/EZ-Language-Webapp">Website</a> •
+  <a href="https://schoolyb.github.io/EZ-Language-Webapp/docs">Documentation</a>
 </p>
 
 <p align="center">
@@ -52,7 +52,7 @@ go build -o ez.exe ./cmd/ez
 
 **Requirements:** Go 1.23.1 or higher
 
-For pre-built binaries and installation instructions, visit the [documentation](https://schoolyb.github.io/language.ez/docs).
+For pre-built binaries and installation instructions, visit the [documentation](https://schoolyb.github.io/EZ-Language-Webapp/docs).
 
 ---
 
