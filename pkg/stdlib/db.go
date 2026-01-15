@@ -64,6 +64,18 @@ var DBBuiltins = map[string]*object.Builtin{
 				return &object.Error{Code: "E17002", Message: "db.open(): could not read database file"}
 			}
 
+			// Handle empty files the same as non-existent files - initialize with empty map
+			if len(content) == 0 {
+				return &object.ReturnValue{Values: []object.Object{
+					&object.Database{
+						Path:     *path,
+						Store:    *object.NewMap(),
+						IsClosed: object.Boolean{Value: false},
+					},
+					object.NIL,
+				}}
+			}
+
 			result, err := decodeFromJSON(string(content))
 			if err != nil {
 				return &object.Error{Code: "E17004", Message: "db.open(): database file is corrupted"}
