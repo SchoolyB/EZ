@@ -1,5 +1,16 @@
 # Changelog
 
+## [1.0.1](https://github.com/SchoolyB/EZ/compare/v1.0.0...v1.0.1) (2026-01-15)
+
+
+### Bug Fixes
+
+* **interpreter:** add error codes and location info to runtime errors ([#1009](https://github.com/SchoolyB/EZ/issues/1009)) ([#1013](https://github.com/SchoolyB/EZ/issues/1013)) ([d1bb289](https://github.com/SchoolyB/EZ/commit/d1bb2897768307a194bbe71b5df8574b976ba272))
+* **interpreter:** add range checking for integer type narrowing ([#962](https://github.com/SchoolyB/EZ/issues/962)) ([#1016](https://github.com/SchoolyB/EZ/issues/1016)) ([02f953b](https://github.com/SchoolyB/EZ/commit/02f953bb6e4efb2b42c47af5708ac5826abd5723))
+* **stdlib:** handle empty database files in db.open() ([#941](https://github.com/SchoolyB/EZ/issues/941)) ([#1012](https://github.com/SchoolyB/EZ/issues/1012)) ([eadc48d](https://github.com/SchoolyB/EZ/commit/eadc48d3edb7817aeddf8b405b01697d6015b3ff))
+* **stdlib:** improve error message when db file contains JSON array ([#942](https://github.com/SchoolyB/EZ/issues/942)) ([#1014](https://github.com/SchoolyB/EZ/issues/1014)) ([bea2f65](https://github.com/SchoolyB/EZ/commit/bea2f659dd141a09014e4a3d7fefd31796380050))
+* **typechecker:** use correct error code E5010 for continue outside loop ([#963](https://github.com/SchoolyB/EZ/issues/963)) ([#1011](https://github.com/SchoolyB/EZ/issues/1011)) ([9f55570](https://github.com/SchoolyB/EZ/commit/9f55570b34c66af16e7eb46cc630801361fe6e87))
+
 ## [1.0.0](https://github.com/SchoolyB/EZ/compare/v0.40.5...v1.0.0) (2026-01-14)
 
 
