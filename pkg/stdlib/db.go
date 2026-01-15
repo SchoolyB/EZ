@@ -71,6 +71,9 @@ var DBBuiltins = map[string]*object.Builtin{
 
 			dbContent, ok := result.(*object.Map)
 			if !ok {
+				if _, isArray := result.(*object.Array); isArray {
+					return &object.Error{Code: "E17004", Message: "db.open(): database file must contain a JSON object, not an array"}
+				}
 				return &object.Error{Code: "E17004", Message: "db.open(): database file is corrupted"}
 			}
 
