@@ -125,6 +125,15 @@ func getTypeRangeName(typeName string) string {
 	}
 }
 
+// getTypeRangeString returns the valid range for a type as a human-readable string
+func getTypeRangeString(typeName string) string {
+	min, max := getTypeBounds(typeName)
+	if min == nil || max == nil {
+		return "arbitrary precision"
+	}
+	return fmt.Sprintf("%s to %s", min.String(), max.String())
+}
+
 var (
 	NIL   = &Nil{}
 	TRUE  = &Boolean{Value: true}
@@ -985,11 +994,18 @@ func evalVariableDeclaration(node *ast.VariableDeclaration, env *Environment) Ob
 							"cannot assign value %s to byte: value must be between 0 and 255", intVal.Value.String())
 					}
 					val = &Byte{Value: uint8(intVal.Value.Int64())}
-				} else {
+				} else if isIntegerType(node.TypeName) {
 					// Check for negative value assigned to unsigned type
 					if isUnsignedIntegerType(node.TypeName) && intVal.Value.Sign() < 0 {
 						return newErrorWithLocation("E3020", node.Token.Line, node.Token.Column,
-							"cannot assign negative value %s to unsigned type '%s'", intVal.Value.String(), node.TypeName)
+							"cannot assign negative value %s to unsigned type '%s' (valid range: %s)",
+							intVal.Value.String(), node.TypeName, getTypeRangeString(node.TypeName))
+					}
+					// Check if value fits in target type's range (#962)
+					if checkOverflow(intVal.Value, node.TypeName) {
+						return newErrorWithLocation("E3036", node.Token.Line, node.Token.Column,
+							"value %s out of range for type '%s' (valid range: %s)",
+							intVal.Value.String(), node.TypeName, getTypeRangeString(node.TypeName))
 					}
 					// Set the declared type on the integer
 					intVal.DeclaredType = node.TypeName
@@ -2944,6 +2960,28 @@ func applyFunction(fn Object, args []Object, line, col int) Object {
 			return newErrorWithLocation("E5008", line, col,
 				"wrong number of arguments: expected %d to %d, got %d", minRequired, len(fn.Parameters), len(args))
 		}
+
+		// Validate integer argument ranges match parameter types (#962)
+		for i, arg := range args {
+			if i < len(fn.Parameters) {
+				param := fn.Parameters[i]
+				if intVal, ok := arg.(*Integer); ok && isIntegerType(param.TypeName) {
+					// Check for negative value assigned to unsigned type
+					if isUnsignedIntegerType(param.TypeName) && intVal.Value.Sign() < 0 {
+						return newErrorWithLocation("E3020", line, col,
+							"cannot pass negative value %s to unsigned parameter '%s' of type '%s' (valid range: %s)",
+							intVal.Value.String(), param.Name.Value, param.TypeName, getTypeRangeString(param.TypeName))
+					}
+					// Check if value fits in parameter type's range
+					if checkOverflow(intVal.Value, param.TypeName) {
+						return newErrorWithLocation("E3036", line, col,
+							"value %s out of range for parameter '%s' of type '%s' (valid range: %s)",
+							intVal.Value.String(), param.Name.Value, param.TypeName, getTypeRangeString(param.TypeName))
+					}
+				}
+			}
+		}
+
 		extendedEnv := extendFunctionEnv(fn, args)
 
 		// Save current file and set function's file as current for error reporting
