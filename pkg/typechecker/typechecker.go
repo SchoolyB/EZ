@@ -1628,7 +1628,7 @@ func (tc *TypeChecker) checkStatement(stmt ast.Statement, expectedReturnTypes []
 		// Check that continue is inside a loop (#603)
 		if tc.loopDepth == 0 {
 			tc.addError(
-				errors.E5009,
+				errors.E5010,
 				"continue statement outside loop",
 				s.Token.Line,
 				s.Token.Column,
