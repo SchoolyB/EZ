@@ -834,11 +834,13 @@ func evalVariableDeclaration(node *ast.VariableDeclaration, env *Environment) Ob
 			returnVal, ok := val.(*ReturnValue)
 			if !ok {
 				// Single value assigned to multiple variables - error
-				return newError("expected %d values, got 1", len(node.Names))
+				return newErrorWithLocation("E5012", node.Token.Line, node.Token.Column,
+					"expected %d values, got 1", len(node.Names))
 			}
 
 			if len(returnVal.Values) != len(node.Names) {
-				return newError("expected %d values, got %d", len(node.Names), len(returnVal.Values))
+				return newErrorWithLocation("E5012", node.Token.Line, node.Token.Column,
+					"expected %d values, got %d", len(node.Names), len(returnVal.Values))
 			}
 
 			// Validate types if TypeNames is provided
@@ -1478,7 +1480,8 @@ func evalAssignment(node *ast.AssignmentStatement, env *Environment) Object {
 		if node.Operator != "=" {
 			oldVal, exists := structObj.Fields[target.Member.Value]
 			if !exists {
-				return newError("field '%s' not found", target.Member.Value)
+				return newErrorWithLocation("E4003", node.Token.Line, node.Token.Column,
+					"field '%s' not found", target.Member.Value)
 			}
 			val = evalCompoundAssignment(node.Operator, oldVal, val, node.Token.Line, node.Token.Column)
 			if isError(val) {
@@ -1525,7 +1528,7 @@ func evalCompoundAssignment(op string, left, right Object, line, col int) Object
 	case "%=":
 		return evalInfixExpression("%", left, right, line, col)
 	default:
-		return newError("unknown operator: %s", op)
+		return newErrorWithLocation("E3014", line, col, "unknown compound operator: %s", op)
 	}
 }
 
@@ -1892,7 +1895,8 @@ func evalForStatement(node *ast.ForStatement, env *Environment) Object {
 		}
 		startInt, ok := startObj.(*Integer)
 		if !ok {
-			return newError("range start must be integer")
+			return newErrorWithLocation("E5013", node.Token.Line, node.Token.Column,
+				"range start must be integer, got %s", objectTypeToEZ(startObj))
 		}
 		start = new(big.Int).Set(startInt.Value)
 	}
@@ -1904,7 +1908,8 @@ func evalForStatement(node *ast.ForStatement, env *Environment) Object {
 	}
 	endInt, ok := endObj.(*Integer)
 	if !ok {
-		return newError("range end must be integer")
+		return newErrorWithLocation("E5014", node.Token.Line, node.Token.Column,
+			"range end must be integer, got %s", objectTypeToEZ(endObj))
 	}
 	end := endInt.Value
 
@@ -1917,11 +1922,13 @@ func evalForStatement(node *ast.ForStatement, env *Environment) Object {
 		}
 		stepInt, ok := stepObj.(*Integer)
 		if !ok {
-			return newError("range step must be integer")
+			return newErrorWithLocation("E5019", node.Token.Line, node.Token.Column,
+				"range step must be integer, got %s", objectTypeToEZ(stepObj))
 		}
 		step = new(big.Int).Set(stepInt.Value)
 		if step.Sign() == 0 {
-			return newError("range step cannot be zero")
+			return newErrorWithLocation("E9003", node.Token.Line, node.Token.Column,
+				"range step cannot be zero")
 		}
 	} else if start.Cmp(end) > 0 {
 		// Auto-detect descending range when no step is provided
@@ -2667,7 +2674,8 @@ func evalPostfixExpression(node *ast.PostfixExpression, env *Environment) Object
 
 	val, ok := env.Get(ident.Value)
 	if !ok {
-		return newError("identifier not found: %s", ident.Value)
+		return newErrorWithLocation("E4001", node.Token.Line, node.Token.Column,
+			"identifier not found: %s", ident.Value)
 	}
 
 	intVal, ok := val.(*Integer)
@@ -2691,7 +2699,8 @@ func evalPostfixExpression(node *ast.PostfixExpression, env *Environment) Object
 				"integer overflow: %s-- exceeds %s range", intVal.Value.String(), getTypeRangeName(intVal.DeclaredType))
 		}
 	default:
-		return newError("unknown postfix operator: %s", node.Operator)
+		return newErrorWithLocation("E3014", node.Token.Line, node.Token.Column,
+			"unknown postfix operator: %s", node.Operator)
 	}
 
 	env.Update(ident.Value, &Integer{Value: newVal, DeclaredType: intVal.DeclaredType})
@@ -2838,7 +2847,8 @@ func evalArgsWithReferences(argExprs []ast.Expression, params []*ast.Parameter, 
 func evalMemberCall(member *ast.MemberExpression, args []ast.Expression, env *Environment) Object {
 	objIdent, ok := member.Object.(*ast.Label)
 	if !ok {
-		return newError("invalid member call")
+		return newErrorWithLocation("E3015", member.Token.Line, member.Token.Column,
+			"invalid member call: expected module or object identifier")
 	}
 
 	alias := objIdent.Value
@@ -2862,7 +2872,8 @@ func evalMemberCall(member *ast.MemberExpression, args []ast.Expression, env *En
 	// Get the actual module name from the alias (stdlib)
 	moduleName, ok := env.GetImport(alias)
 	if !ok {
-		return newError("module '%s' not imported", alias)
+		return newErrorWithLocation("E4007", member.Token.Line, member.Token.Column,
+			"module '%s' not imported", alias)
 	}
 
 	// Create a compound name like "strings.upper" using the actual module name
@@ -2896,10 +2907,12 @@ func evalMemberCall(member *ast.MemberExpression, args []ast.Expression, env *En
 	}
 
 	if suggestion, ok := suggestions[fullName]; ok {
-		return newError("function not found: %s\n  help: %s", fullName, suggestion)
+		return newErrorWithLocation("E4002", member.Token.Line, member.Token.Column,
+			"function not found: %s\n  help: %s", fullName, suggestion)
 	}
 
-	return newError("function not found: %s", fullName)
+	return newErrorWithLocation("E4002", member.Token.Line, member.Token.Column,
+		"function not found: %s", fullName)
 }
 
 func applyFunction(fn Object, args []Object, line, col int) Object {
@@ -3306,7 +3319,8 @@ func evalMapLiteral(node *ast.MapValue, env *Environment) Object {
 
 		// Validate that the key is hashable
 		if _, ok := HashKey(key); !ok {
-			return newError("unusable as map key: %s", objectTypeToEZ(key))
+			return newErrorWithLocation("E12001", node.Token.Line, node.Token.Column,
+				"unusable as map key: %s", objectTypeToEZ(key))
 		}
 
 		value := Eval(pair.Value, env)
