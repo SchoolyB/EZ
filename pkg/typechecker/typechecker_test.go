@@ -940,6 +940,16 @@ do main() {
 	assertHasWarning(t, tc, errors.W3003)
 }
 
+func TestFixedSizeArrayOverflow(t *testing.T) {
+	input := `
+do main() {
+	const arr [int, 3] = {0, 1, 2, 3}
+}
+`
+	tc := typecheck(t, input)
+	assertHasError(t, tc, errors.E3041)
+}
+
 // ============================================================================
 // Control Flow Tests
 // ============================================================================
