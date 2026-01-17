@@ -141,6 +141,7 @@ var (
 	E3038 = ErrorCode{"E3038", "void-type-not-allowed", "'void' is not a valid type"}
 	E3039 = ErrorCode{"E3039", "ensure-expects-call", "ensure expects a function call"}
 	E3040 = ErrorCode{"E3040", "multi-return-to-single-var", "cannot assign multiple return values to single variable"}
+	E3041 = ErrorCode{"E3041", "array-size-overflow", "array literal has more elements than declared size"}
 )
 
 // =============================================================================

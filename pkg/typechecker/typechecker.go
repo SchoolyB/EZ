@@ -1966,7 +1966,7 @@ func (tc *TypeChecker) checkVariableDeclaration(decl *ast.VariableDeclaration) {
 				}
 			}
 
-			// Check for fixed-size array size mismatch (W3003)
+			// Check for fixed-size array size mismatch (W3003, E3041)
 			if tc.isArrayType(declaredType) {
 				declaredSize := tc.extractArraySize(declaredType)
 				if declaredSize > 0 {
@@ -1983,6 +1983,14 @@ func (tc *TypeChecker) checkVariableDeclaration(decl *ast.VariableDeclaration) {
 									decl.Name.Token.Column,
 								)
 							}
+						} else if actualSize > declaredSize {
+							tc.addError(
+								errors.E3041,
+								fmt.Sprintf("array literal has %d element(s) but declared size is %d",
+									actualSize, declaredSize),
+								decl.Name.Token.Line,
+								decl.Name.Token.Column,
+							)
 						}
 					}
 				}
