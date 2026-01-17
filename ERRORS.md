@@ -284,6 +284,7 @@ Array-specific errors
 | E9005 | range-invalid-bounds | range start must be less than or equal to end |
 | E9006 | array-modified-during-iteration | cannot modify array during for_each iteration |
 | E9007 | empty-array-selection | cannot select from empty array |
+| E9008 | sample-count-exceeds-length | sample count exceeds array length |
 
 ## String Errors (E10xxx)
 
@@ -420,4 +421,4 @@ Module-related warnings
 
 ## Summary
 
-**Total:** 263 error/warning codes
+**Total:** 264 error/warning codes

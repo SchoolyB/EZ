@@ -217,7 +217,6 @@ var (
 	// Argument count errors
 	E7001 = ErrorCode{"E7001", "stdlib-argument-mismatch", "wrong number of arguments"}
 
-
 	// Type requirement errors - used when function requires specific type
 	E7002 = ErrorCode{"E7002", "requires-array", "argument must be an array"}
 	E7003 = ErrorCode{"E7003", "requires-string", "argument must be a string"}
@@ -305,8 +304,8 @@ var (
 	E9005 = ErrorCode{"E9005", "range-invalid-bounds", "range start must be less than or equal to end"}
 	E9006 = ErrorCode{"E9006", "array-modified-during-iteration", "cannot modify array during for_each iteration"}
 	E9007 = ErrorCode{"E9007", "empty-array-selection", "cannot select from empty array"}
+	E9008 = ErrorCode{"E9008", "sample-count-exceeds-length", "sample count exceeds array length"}
 )
-
 
 // =============================================================================
 // STRING ERRORS (E10xxx) - String-specific domain errors
@@ -365,20 +364,6 @@ var (
 )
 
 // =============================================================================
-//
-//	DB ERRORS (E17xxx) - DB-specific domain errors
-//
-// These are errors unique to database operations
-// =============================================================================
-var (
-	E17001 = ErrorCode{"E17001", "db-open-failed", "failed to open database"}
-	E17002 = ErrorCode{"E17002", "db-read-failed", "failed to read database file"}
-	E17003 = ErrorCode{"E17003", "db-write-failed", "failed to write database file"}
-	E17004 = ErrorCode{"E17004", "db-corrupted", "database file is corrupted"}
-	E17005 = ErrorCode{"E17005", "db-closed", "operation on closed database"}
-)
-
-// =============================================================================
 // CRYPTO ERRORS (E15xxx) - Cryptography-specific errors
 // =============================================================================
 var (
@@ -394,6 +379,17 @@ var (
 	E16003 = ErrorCode{"E16003", "invalid-url-encoding", "invalid URL encoded input"}
 )
 
+// =============================================================================
+// DB ERRORS (E17xxx) - DB-specific domain errors
+// These are errors unique to database operations
+// =============================================================================
+var (
+	E17001 = ErrorCode{"E17001", "db-open-failed", "failed to open database"}
+	E17002 = ErrorCode{"E17002", "db-read-failed", "failed to read database file"}
+	E17003 = ErrorCode{"E17003", "db-write-failed", "failed to write database file"}
+	E17004 = ErrorCode{"E17004", "db-corrupted", "database file is corrupted"}
+	E17005 = ErrorCode{"E17005", "db-closed", "operation on closed database"}
+)
 
 // =============================================================================
 // WARNINGS (W1xxx - W6xxx)
