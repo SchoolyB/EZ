@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.0.2](https://github.com/SchoolyB/EZ/compare/v1.0.1...v1.0.2) (2026-01-17)
+
+
+### Bug Fixes
+
+* **typechecker:** error when fixed-size array has too many elements ([#1030](https://github.com/SchoolyB/EZ/issues/1030)) ([7d09424](https://github.com/SchoolyB/EZ/commit/7d09424f2bd6128e624a772b8ce2165b15b98c7e)), closes [#1029](https://github.com/SchoolyB/EZ/issues/1029)
+
 ## [1.0.1](https://github.com/SchoolyB/EZ/compare/v1.0.0...v1.0.1) (2026-01-15)
 
 
