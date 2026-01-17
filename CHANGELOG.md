@@ -1,5 +1,44 @@
 # Changelog
 
+## [1.0.1](https://github.com/SchoolyB/EZ/compare/v1.0.0...v1.0.1) (2026-01-15)
+
+
+### Bug Fixes
+
+* **interpreter:** add error codes and location info to runtime errors ([#1009](https://github.com/SchoolyB/EZ/issues/1009)) ([#1013](https://github.com/SchoolyB/EZ/issues/1013)) ([d1bb289](https://github.com/SchoolyB/EZ/commit/d1bb2897768307a194bbe71b5df8574b976ba272))
+* **interpreter:** add range checking for integer type narrowing ([#962](https://github.com/SchoolyB/EZ/issues/962)) ([#1016](https://github.com/SchoolyB/EZ/issues/1016)) ([02f953b](https://github.com/SchoolyB/EZ/commit/02f953bb6e4efb2b42c47af5708ac5826abd5723))
+* **stdlib:** handle empty database files in db.open() ([#941](https://github.com/SchoolyB/EZ/issues/941)) ([#1012](https://github.com/SchoolyB/EZ/issues/1012)) ([eadc48d](https://github.com/SchoolyB/EZ/commit/eadc48d3edb7817aeddf8b405b01697d6015b3ff))
+* **stdlib:** improve error message when db file contains JSON array ([#942](https://github.com/SchoolyB/EZ/issues/942)) ([#1014](https://github.com/SchoolyB/EZ/issues/1014)) ([bea2f65](https://github.com/SchoolyB/EZ/commit/bea2f659dd141a09014e4a3d7fefd31796380050))
+* **typechecker:** use correct error code E5010 for continue outside loop ([#963](https://github.com/SchoolyB/EZ/issues/963)) ([#1011](https://github.com/SchoolyB/EZ/issues/1011)) ([9f55570](https://github.com/SchoolyB/EZ/commit/9f55570b34c66af16e7eb46cc630801361fe6e87))
+
+## [1.0.0](https://github.com/SchoolyB/EZ/compare/v0.40.5...v1.0.0) (2026-01-14)
+
+
+### ⚠ BREAKING CHANGES
+
+* Existing code using removed/renamed functions must be updated.
+
+### Features
+
+* **#996:** Rename stdlib functions for consistency ([#1001](https://github.com/SchoolyB/EZ/issues/1001)) ([0ad96f8](https://github.com/SchoolyB/EZ/commit/0ad96f881a24123d6fba7f414a48bdb0b819a22d))
+* stdlib function renaming for consistency ([09b658b](https://github.com/SchoolyB/EZ/commit/09b658b681593511294c6fe41d762d117c2aea4f))
+
+
+### Code Refactoring
+
+* remove duplicate stdlib aliases and rename db functions ([#1003](https://github.com/SchoolyB/EZ/issues/1003)) ([4e0dc08](https://github.com/SchoolyB/EZ/commit/4e0dc081711bd70b237bd71fde809972b0db7eca)), closes [#995](https://github.com/SchoolyB/EZ/issues/995) [#997](https://github.com/SchoolyB/EZ/issues/997)
+
+## [0.40.5](https://github.com/SchoolyB/EZ/compare/v0.40.4...v0.40.5) (2026-01-11)
+
+
+### Bug Fixes
+
+* Add `isMultiReturnCall` to typechecker ([#951](https://github.com/SchoolyB/EZ/issues/951)) ([981d068](https://github.com/SchoolyB/EZ/commit/981d068676520c1bd1a545c8f0b524ff614856eb))
+* **cli:** Allow command line arguments for programs ([#983](https://github.com/SchoolyB/EZ/issues/983)) ([9f4439d](https://github.com/SchoolyB/EZ/commit/9f4439d29be136c720d62d2c3bb0f971e60a414e))
+* Detect invalid string interpolation syntax at parse time ([#988](https://github.com/SchoolyB/EZ/issues/988)) ([7fcbcc1](https://github.com/SchoolyB/EZ/commit/7fcbcc152400e7b8e201eef2c92153a1d56c488d)), closes [#984](https://github.com/SchoolyB/EZ/issues/984)
+* Error on bare function/type names as statements ([#989](https://github.com/SchoolyB/EZ/issues/989)) ([a84ab6b](https://github.com/SchoolyB/EZ/commit/a84ab6b2c742b5411ce84da4b54ff0785549c24a)), closes [#985](https://github.com/SchoolyB/EZ/issues/985)
+* Prevent RETURN_VALUE type leak for multi-return functions ([#987](https://github.com/SchoolyB/EZ/issues/987)) ([750906f](https://github.com/SchoolyB/EZ/commit/750906fcbb445ecdf119c0a8f9204453674a2dcf)), closes [#986](https://github.com/SchoolyB/EZ/issues/986)
+
 ## [0.40.4](https://github.com/SchoolyB/EZ/compare/v0.40.3...v0.40.4) (2026-01-10)
 
 

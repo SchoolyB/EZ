@@ -782,22 +782,6 @@ func TestArraysContains(t *testing.T) {
 	testBooleanObject(t, result, false)
 }
 
-func TestArraysIndexOf(t *testing.T) {
-	indexOfFn := ArraysBuiltins["arrays.index_of"].Fn
-
-	arr := &object.Array{Elements: []object.Object{
-		&object.Integer{Value: big.NewInt(10)},
-		&object.Integer{Value: big.NewInt(20)},
-		&object.Integer{Value: big.NewInt(30)},
-	}}
-
-	result := indexOfFn(arr, &object.Integer{Value: big.NewInt(20)})
-	testIntegerObject(t, result, 1)
-
-	result = indexOfFn(arr, &object.Integer{Value: big.NewInt(99)})
-	testIntegerObject(t, result, -1)
-}
-
 func TestArraysReverse(t *testing.T) {
 	reverseFn := ArraysBuiltins["arrays.reverse"].Fn
 
@@ -1260,19 +1244,6 @@ func TestMapsIsEmpty(t *testing.T) {
 	testBooleanObject(t, result, false)
 }
 
-func TestMapsHasKey(t *testing.T) {
-	hasKeyFn := MapsBuiltins["maps.has_key"].Fn
-
-	m := object.NewMap()
-	m.Set(&object.String{Value: "name"}, &object.String{Value: "Alice"})
-
-	result := hasKeyFn(m, &object.String{Value: "name"})
-	testBooleanObject(t, result, true)
-
-	result = hasKeyFn(m, &object.String{Value: "age"})
-	testBooleanObject(t, result, false)
-}
-
 func TestMapsGet(t *testing.T) {
 	getFn := MapsBuiltins["maps.get"].Fn
 
@@ -1296,21 +1267,6 @@ func TestMapsSet(t *testing.T) {
 		t.Error("key should exist after set")
 	}
 	testIntegerObject(t, val, 42)
-}
-
-func TestMapsDelete(t *testing.T) {
-	deleteFn := MapsBuiltins["maps.delete"].Fn
-
-	m := object.NewMap()
-	m.Mutable = true
-	m.Set(&object.String{Value: "key"}, &object.Integer{Value: big.NewInt(42)})
-
-	deleteFn(m, &object.String{Value: "key"})
-
-	_, exists := m.Get(&object.String{Value: "key"})
-	if exists {
-		t.Error("key should not exist after delete")
-	}
 }
 
 func TestMapsKeys(t *testing.T) {
@@ -1402,7 +1358,6 @@ func TestTypeErrors(t *testing.T) {
 		{"arrays.is_empty with int", ArraysBuiltins["arrays.is_empty"].Fn, []object.Object{&object.Integer{Value: big.NewInt(1)}}},
 		{"arrays.pop with string", ArraysBuiltins["arrays.pop"].Fn, []object.Object{&object.String{Value: "hello"}}},
 		{"strings.upper with int", StringsBuiltins["strings.upper"].Fn, []object.Object{&object.Integer{Value: big.NewInt(1)}}},
-		{"maps.has_key with int", MapsBuiltins["maps.has_key"].Fn, []object.Object{&object.Integer{Value: big.NewInt(1)}, &object.String{Value: "key"}}},
 	}
 
 	for _, tt := range tests {
@@ -3282,12 +3237,12 @@ func TestEprintln(t *testing.T) {
 	}
 }
 
-// Test eprintf() returns nil
-func TestEprintf(t *testing.T) {
-	eprintfFn := StdBuiltins["std.eprintf"].Fn
-	result := eprintfFn(&object.String{Value: "test output"})
+// Test eprint() returns nil
+func TestEprint(t *testing.T) {
+	eprintFn := StdBuiltins["std.eprint"].Fn
+	result := eprintFn(&object.String{Value: "test output"})
 	if result != object.NIL {
-		t.Errorf("eprintf() should return nil, got %T", result)
+		t.Errorf("eprint() should return nil, got %T", result)
 	}
 }
 
@@ -3301,6 +3256,15 @@ func TestEprintlnMultipleArgs(t *testing.T) {
 	)
 	if result != object.NIL {
 		t.Errorf("eprintln() should return nil, got %T", result)
+	}
+}
+
+// Test print() returns nil
+func TestPrint(t *testing.T) {
+	printFn := StdBuiltins["std.print"].Fn
+	result := printFn(&object.String{Value: "test output"})
+	if result != object.NIL {
+		t.Errorf("print() should return nil, got %T", result)
 	}
 }
 
@@ -4783,33 +4747,6 @@ func TestMapsValuesExtended(t *testing.T) {
 	}
 }
 
-func TestMapsHasKeyExtended(t *testing.T) {
-	hasKeyFn := MapsBuiltins["maps.has_key"].Fn
-
-	m := object.NewMap()
-	m.Set(&object.String{Value: "exists"}, &object.Integer{Value: big.NewInt(1)})
-
-	// Key exists
-	result := hasKeyFn(m, &object.String{Value: "exists"})
-	boolVal, ok := result.(*object.Boolean)
-	if !ok {
-		t.Fatalf("expected Boolean, got %T", result)
-	}
-	if !boolVal.Value {
-		t.Error("expected true, got false")
-	}
-
-	// Key doesn't exist
-	result = hasKeyFn(m, &object.String{Value: "missing"})
-	boolVal, ok = result.(*object.Boolean)
-	if !ok {
-		t.Fatalf("expected Boolean, got %T", result)
-	}
-	if boolVal.Value {
-		t.Error("expected false, got true")
-	}
-}
-
 // ============================================================================
 // Strings Module Additional Tests
 // ============================================================================
@@ -5572,28 +5509,6 @@ func TestRandomFloatRangeWithInts(t *testing.T) {
 // ============================================================================
 // Arrays Module - Error Cases (tests newError)
 // ============================================================================
-
-func TestArraysIndexOfNotFound(t *testing.T) {
-	indexOfFn := ArraysBuiltins["arrays.index_of"].Fn
-
-	arr := &object.Array{
-		Elements: []object.Object{
-			&object.Integer{Value: big.NewInt(1)},
-			&object.Integer{Value: big.NewInt(2)},
-		},
-	}
-
-	result := indexOfFn(arr, &object.Integer{Value: big.NewInt(999)})
-	intVal, ok := result.(*object.Integer)
-	if !ok {
-		t.Fatalf("expected Integer, got %T", result)
-	}
-
-	// Should return -1 when not found
-	if intVal.Value.Int64() != -1 {
-		t.Errorf("expected -1, got %d", intVal.Value.Int64())
-	}
-}
 
 func TestArraysSortError(t *testing.T) {
 	sortFn := ArraysBuiltins["arrays.sort"].Fn

@@ -64,6 +64,18 @@ var DBBuiltins = map[string]*object.Builtin{
 				return &object.Error{Code: "E17002", Message: "db.open(): could not read database file"}
 			}
 
+			// Handle empty files the same as non-existent files - initialize with empty map
+			if len(content) == 0 {
+				return &object.ReturnValue{Values: []object.Object{
+					&object.Database{
+						Path:     *path,
+						Store:    *object.NewMap(),
+						IsClosed: object.Boolean{Value: false},
+					},
+					object.NIL,
+				}}
+			}
+
 			result, err := decodeFromJSON(string(content))
 			if err != nil {
 				return &object.Error{Code: "E17004", Message: "db.open(): database file is corrupted"}
@@ -71,6 +83,9 @@ var DBBuiltins = map[string]*object.Builtin{
 
 			dbContent, ok := result.(*object.Map)
 			if !ok {
+				if _, isArray := result.(*object.Array); isArray {
+					return &object.Error{Code: "E17004", Message: "db.open(): database file must contain a JSON object, not an array"}
+				}
 				return &object.Error{Code: "E17004", Message: "db.open(): database file is corrupted"}
 			}
 
@@ -236,26 +251,26 @@ var DBBuiltins = map[string]*object.Builtin{
 		},
 	},
 
-	// Deletes key value pair from database
+	// Removes key value pair from database
 	// Returns (bool) - false if key does not exist
-	"db.delete": {
+	"db.remove": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 2 {
-				return &object.Error{Code: "E7001", Message: "db.delete() takes exactly 2 arguments"}
+				return &object.Error{Code: "E7001", Message: "db.remove() takes exactly 2 arguments"}
 			}
 
 			db, ok := args[0].(*object.Database)
 			if !ok {
-				return &object.Error{Code: "E7001", Message: "db.delete() requires a Database object as first argument"}
+				return &object.Error{Code: "E7001", Message: "db.remove() requires a Database object as first argument"}
 			}
 
 			if db.IsClosed.Value {
-				return &object.Error{Code: "E17005", Message: "db.delete() cannot operate on closed database"}
+				return &object.Error{Code: "E17005", Message: "db.remove() cannot operate on closed database"}
 			}
 
 			key, ok := args[1].(*object.String)
 			if !ok {
-				return &object.Error{Code: "E7001", Message: "db.delete() requires a String as second argument"}
+				return &object.Error{Code: "E7001", Message: "db.remove() requires a String as second argument"}
 			}
 
 			deleted := db.Store.Delete(key)
@@ -265,24 +280,24 @@ var DBBuiltins = map[string]*object.Builtin{
 
 	// Checks if key exists in database
 	// Returns (bool)
-	"db.has": {
+	"db.contains": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 2 {
-				return &object.Error{Code: "E7001", Message: "db.has() takes exactly 2 arguments"}
+				return &object.Error{Code: "E7001", Message: "db.contains() takes exactly 2 arguments"}
 			}
 
 			db, ok := args[0].(*object.Database)
 			if !ok {
-				return &object.Error{Code: "E7001", Message: "db.has() requires a Database object as first argument"}
+				return &object.Error{Code: "E7001", Message: "db.contains() requires a Database object as first argument"}
 			}
 
 			if db.IsClosed.Value {
-				return &object.Error{Code: "E17005", Message: "db.has() cannot operate on closed database"}
+				return &object.Error{Code: "E17005", Message: "db.contains() cannot operate on closed database"}
 			}
 
 			key, ok := args[1].(*object.String)
 			if !ok {
-				return &object.Error{Code: "E7001", Message: "db.has() requires a String as second argument"}
+				return &object.Error{Code: "E7001", Message: "db.contains() requires a String as second argument"}
 			}
 
 			_, exists := db.Store.Get(key)

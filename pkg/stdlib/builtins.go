@@ -76,6 +76,20 @@ func getEZTypeName(obj object.Object) string {
 		return "nil"
 	case *object.Function:
 		return "function"
+	case *object.ReturnValue:
+		// Handle multi-return values - show tuple type
+		if len(v.Values) == 0 {
+			return "void"
+		}
+		if len(v.Values) == 1 {
+			return getEZTypeName(v.Values[0])
+		}
+		// Multiple values - show as tuple
+		types := make([]string, len(v.Values))
+		for i, val := range v.Values {
+			types[i] = getEZTypeName(val)
+		}
+		return "(" + strings.Join(types, ", ") + ")"
 	default:
 		return string(obj.Type())
 	}
@@ -244,9 +258,9 @@ var StdBuiltins = map[string]*object.Builtin{
 		},
 	},
 
-	// Prints values to standard output WITHOUT a newline (like C's printf)
+	// Prints values to standard output WITHOUT a newline
 	// User must explicitly add \n for newlines
-	"std.printf": {
+	"std.print": {
 		Fn: func(args ...object.Object) object.Object {
 			for i, arg := range args {
 				if i > 0 {
@@ -1121,10 +1135,10 @@ var StdBuiltins = map[string]*object.Builtin{
 	// See eprintln() documentation for when to use stderr vs stdout.
 	//
 	// Example:
-	//   eprintf("Loading...")
+	//   eprint("Loading...")
 	//   // do work
 	//   eprintln(" done!")  // Output: "Loading... done!"
-	"std.eprintf": {
+	"std.eprint": {
 		Fn: func(args ...object.Object) object.Object {
 			for i, arg := range args {
 				if i > 0 {

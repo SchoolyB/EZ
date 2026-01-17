@@ -93,6 +93,7 @@ var (
 	E2054 = ErrorCode{"E2054", "when-strict-non-enum-case", "#strict when requires explicit enum member values in cases"}
 	E2055 = ErrorCode{"E2055", "strict-invalid-target", "#strict can only be applied to when statements"}
 	E2056 = ErrorCode{"E2056", "executable-at-file-scope", "executable statement not allowed at file scope"}
+	E2057 = ErrorCode{"E2057", "invalid-interpolation-syntax", "invalid string interpolation syntax"}
 )
 
 // =============================================================================
@@ -121,7 +122,8 @@ var (
 	E3020 = ErrorCode{"E3020", "negative-to-unsigned", "cannot assign negative value to unsigned type"}
 	E3021 = ErrorCode{"E3021", "type-change-not-allowed", "cannot change type of variable after declaration"}
 	E3022 = ErrorCode{"E3022", "undefined-struct-field", "struct field not found"}
-	E3023 = ErrorCode{"E3023", "undefined-enum-value", "enum value not found"}
+	E3023 = ErrorCode{"E3023", "enum-value-not-found", "enum value not found"}
+
 	E3024 = ErrorCode{"E3024", "missing-return-statement", "function must return a value"}
 	E3025 = ErrorCode{"E3025", "byte-value-out-of-range", "byte value must be between 0 and 255"}
 	E3026 = ErrorCode{"E3026", "byte-array-element-out-of-range", "byte array element must be between 0 and 255"}
@@ -138,6 +140,7 @@ var (
 	E3037 = ErrorCode{"E3037", "invalid-private-usage", "private modifier cannot be used here"}
 	E3038 = ErrorCode{"E3038", "void-type-not-allowed", "'void' is not a valid type"}
 	E3039 = ErrorCode{"E3039", "ensure-expects-call", "ensure expects a function call"}
+	E3040 = ErrorCode{"E3040", "multi-return-to-single-var", "cannot assign multiple return values to single variable"}
 )
 
 // =============================================================================
@@ -212,7 +215,8 @@ var (
 // =============================================================================
 var (
 	// Argument count errors
-	E7001 = ErrorCode{"E7001", "wrong-argument-count", "wrong number of arguments"}
+	E7001 = ErrorCode{"E7001", "stdlib-argument-mismatch", "wrong number of arguments"}
+
 
 	// Type requirement errors - used when function requires specific type
 	E7002 = ErrorCode{"E7002", "requires-array", "argument must be an array"}
@@ -248,6 +252,8 @@ var (
 
 	// OS module errors
 	E7024 = ErrorCode{"E7024", "env-var-operation-failed", "environment variable operation failed"}
+	E7035 = ErrorCode{"E7035", "env-var-not-set", "environment variable is not set"}
+
 	E7025 = ErrorCode{"E7025", "get-cwd-failed", "failed to get current directory"}
 	E7026 = ErrorCode{"E7026", "chdir-failed", "failed to change directory"}
 	E7027 = ErrorCode{"E7027", "get-hostname-failed", "failed to get hostname"}
@@ -298,7 +304,9 @@ var (
 	E9004 = ErrorCode{"E9004", "chunk-size-invalid", "chunk size must be greater than zero"}
 	E9005 = ErrorCode{"E9005", "range-invalid-bounds", "range start must be less than or equal to end"}
 	E9006 = ErrorCode{"E9006", "array-modified-during-iteration", "cannot modify array during for_each iteration"}
+	E9007 = ErrorCode{"E9007", "empty-array-selection", "cannot select from empty array"}
 )
+
 
 // =============================================================================
 // STRING ERRORS (E10xxx) - String-specific domain errors
@@ -306,7 +314,7 @@ var (
 // =============================================================================
 var (
 	E10001 = ErrorCode{"E10001", "repeat-count-negative", "repeat count cannot be negative"}
-	E10002 = ErrorCode{"E10002", "empty-array-selection", "cannot select from empty array"}
+
 	E10003 = ErrorCode{"E10003", "string-index-out-of-bounds", "string index out of bounds"}
 	E10004 = ErrorCode{"E10004", "string-empty-index", "cannot index empty string"}
 )
@@ -348,11 +356,11 @@ var (
 // These are errors unique to HTTP operations
 // =============================================================================
 var (
-	E14001 = ErrorCode{"E14001", "http-invalid-url",					"invalid URL"}
-	E14002 = ErrorCode{"E14002", "http-failed-request",       "request failed (network error)"}
-	E14003 = ErrorCode{"E14003", "http-timeout",							"timeout exceeded"}
-	E14004 = ErrorCode{"E14004", "http-invalid-method",				"invalid HTTP method"}
-	E14005 = ErrorCode{"E14005", "http-failed-url-decode",		"URL decode failed"}
+	E14001 = ErrorCode{"E14001", "http-invalid-url", "invalid URL"}
+	E14002 = ErrorCode{"E14002", "http-failed-request", "request failed (network error)"}
+	E14003 = ErrorCode{"E14003", "http-timeout", "timeout exceeded"}
+	E14004 = ErrorCode{"E14004", "http-invalid-method", "invalid HTTP method"}
+	E14005 = ErrorCode{"E14005", "http-failed-url-decode", "URL decode failed"}
 	E14006 = ErrorCode{"E14006", "http-failed-json-encoding", "JSON encoding failed"}
 )
 
@@ -369,6 +377,23 @@ var (
 	E17004 = ErrorCode{"E17004", "db-corrupted", "database file is corrupted"}
 	E17005 = ErrorCode{"E17005", "db-closed", "operation on closed database"}
 )
+
+// =============================================================================
+// CRYPTO ERRORS (E15xxx) - Cryptography-specific errors
+// =============================================================================
+var (
+	E15001 = ErrorCode{"E15001", "crypto-random-failed", "cryptographic random generation failed"}
+)
+
+// =============================================================================
+// ENCODING ERRORS (E16xxx) - Encoding/decoding errors
+// =============================================================================
+var (
+	E16001 = ErrorCode{"E16001", "invalid-base64", "invalid base64 encoded input"}
+	E16002 = ErrorCode{"E16002", "invalid-hex", "invalid hexadecimal encoded input"}
+	E16003 = ErrorCode{"E16003", "invalid-url-encoding", "invalid URL encoded input"}
+)
+
 
 // =============================================================================
 // WARNINGS (W1xxx - W6xxx)

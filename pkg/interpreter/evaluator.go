@@ -125,6 +125,15 @@ func getTypeRangeName(typeName string) string {
 	}
 }
 
+// getTypeRangeString returns the valid range for a type as a human-readable string
+func getTypeRangeString(typeName string) string {
+	min, max := getTypeBounds(typeName)
+	if min == nil || max == nil {
+		return "arbitrary precision"
+	}
+	return fmt.Sprintf("%s to %s", min.String(), max.String())
+}
+
 var (
 	NIL   = &Nil{}
 	TRUE  = &Boolean{Value: true}
@@ -147,23 +156,23 @@ var globalEvalContext *EvalContext
 
 // validModules lists all available standard library modules
 var validModules = map[string]bool{
-	"std":     true, // Standard I/O functions (println, print, read_int)
-	"math":    true, // Math functions
-	"strings": true, // String utilities
-	"arrays":  true, // Array utilities
-	"maps":    true, // Map utilities
-	"time":    true, // Time functions
-	"io":      true, // File system and I/O operations
-	"os":      true, // Operating system and environment
-	"bytes":   true, // Binary data operations
-	"random":  true, // Random number generation
-	"json":    true, // JSON encoding/decoding
-	"binary":  true, // Binary encoding/decoding for integers and floats
+	"std":      true, // Standard I/O functions (println, print, read_int)
+	"math":     true, // Math functions
+	"strings":  true, // String utilities
+	"arrays":   true, // Array utilities
+	"maps":     true, // Map utilities
+	"time":     true, // Time functions
+	"io":       true, // File system and I/O operations
+	"os":       true, // Operating system and environment
+	"bytes":    true, // Binary data operations
+	"random":   true, // Random number generation
+	"json":     true, // JSON encoding/decoding
+	"binary":   true, // Binary encoding/decoding for integers and floats
 	"db":       true, // Simple key-value database
 	"uuid":     true, // UUID generation and validation
 	"encoding": true, // Base64, hex, and URL encoding/decoding
 	"crypto":   true, // Cryptographic hashing and secure random
-	"http":			true, // HTTP client for web requests
+	"http":     true, // HTTP client for web requests
 }
 
 // isValidModule checks if a module name is valid (either standard library or user-created)
@@ -834,11 +843,13 @@ func evalVariableDeclaration(node *ast.VariableDeclaration, env *Environment) Ob
 			returnVal, ok := val.(*ReturnValue)
 			if !ok {
 				// Single value assigned to multiple variables - error
-				return newError("expected %d values, got 1", len(node.Names))
+				return newErrorWithLocation("E5012", node.Token.Line, node.Token.Column,
+					"expected %d values, got 1", len(node.Names))
 			}
 
 			if len(returnVal.Values) != len(node.Names) {
-				return newError("expected %d values, got %d", len(node.Names), len(returnVal.Values))
+				return newErrorWithLocation("E5012", node.Token.Line, node.Token.Column,
+					"expected %d values, got %d", len(node.Names), len(returnVal.Values))
 			}
 
 			// Validate types if TypeNames is provided
@@ -864,6 +875,14 @@ func evalVariableDeclaration(node *ast.VariableDeclaration, env *Environment) Ob
 				env.SetWithVisibility(name.Value, unpackedVal, node.Mutable, vis)
 			}
 			return NIL
+		}
+
+		// Defensive check: multi-value return assigned to single variable
+		// The typechecker should catch this (E3040), but guard against regressions
+		if retVal, ok := val.(*ReturnValue); ok && len(retVal.Values) > 1 {
+			return newErrorWithLocation("E5012", node.Token.Line, node.Token.Column,
+				"cannot assign %d values to single variable; use tuple unpacking: a, b = func()",
+				len(retVal.Values))
 		}
 
 		// Validate type compatibility if a type is declared (single variable case)
@@ -975,11 +994,18 @@ func evalVariableDeclaration(node *ast.VariableDeclaration, env *Environment) Ob
 							"cannot assign value %s to byte: value must be between 0 and 255", intVal.Value.String())
 					}
 					val = &Byte{Value: uint8(intVal.Value.Int64())}
-				} else {
+				} else if isIntegerType(node.TypeName) {
 					// Check for negative value assigned to unsigned type
 					if isUnsignedIntegerType(node.TypeName) && intVal.Value.Sign() < 0 {
 						return newErrorWithLocation("E3020", node.Token.Line, node.Token.Column,
-							"cannot assign negative value %s to unsigned type '%s'", intVal.Value.String(), node.TypeName)
+							"cannot assign negative value %s to unsigned type '%s' (valid range: %s)",
+							intVal.Value.String(), node.TypeName, getTypeRangeString(node.TypeName))
+					}
+					// Check if value fits in target type's range (#962)
+					if checkOverflow(intVal.Value, node.TypeName) {
+						return newErrorWithLocation("E3036", node.Token.Line, node.Token.Column,
+							"value %s out of range for type '%s' (valid range: %s)",
+							intVal.Value.String(), node.TypeName, getTypeRangeString(node.TypeName))
 					}
 					// Set the declared type on the integer
 					intVal.DeclaredType = node.TypeName
@@ -1207,14 +1233,14 @@ func evalAssignment(node *ast.AssignmentStatement, env *Environment) Object {
 							if v.Value.Sign() < 0 || v.Value.Cmp(big.NewInt(255)) > 0 {
 								return newErrorWithLocation("E3025", node.Token.Line, node.Token.Column,
 									"byte value must be between 0 and 255: %s", v.Value.String())
-								}
-								val = &Byte{Value: uint8(v.Value.Int64())}
-							case *Byte:
-								// ok
-							default:
-								return newErrorWithLocation("E3025", node.Token.Line, node.Token.Column,
-									"cannot assign %s to byte variable", objectTypeToEZ(val))
 							}
+							val = &Byte{Value: uint8(v.Value.Int64())}
+						case *Byte:
+							// ok
+						default:
+							return newErrorWithLocation("E3025", node.Token.Line, node.Token.Column,
+								"cannot assign %s to byte variable", objectTypeToEZ(val))
+						}
 					}
 				}
 				ref.SetValue(val)
@@ -1470,7 +1496,8 @@ func evalAssignment(node *ast.AssignmentStatement, env *Environment) Object {
 		if node.Operator != "=" {
 			oldVal, exists := structObj.Fields[target.Member.Value]
 			if !exists {
-				return newError("field '%s' not found", target.Member.Value)
+				return newErrorWithLocation("E4003", node.Token.Line, node.Token.Column,
+					"field '%s' not found", target.Member.Value)
 			}
 			val = evalCompoundAssignment(node.Operator, oldVal, val, node.Token.Line, node.Token.Column)
 			if isError(val) {
@@ -1517,7 +1544,7 @@ func evalCompoundAssignment(op string, left, right Object, line, col int) Object
 	case "%=":
 		return evalInfixExpression("%", left, right, line, col)
 	default:
-		return newError("unknown operator: %s", op)
+		return newErrorWithLocation("E3014", line, col, "unknown compound operator: %s", op)
 	}
 }
 
@@ -1884,7 +1911,8 @@ func evalForStatement(node *ast.ForStatement, env *Environment) Object {
 		}
 		startInt, ok := startObj.(*Integer)
 		if !ok {
-			return newError("range start must be integer")
+			return newErrorWithLocation("E5013", node.Token.Line, node.Token.Column,
+				"range start must be integer, got %s", objectTypeToEZ(startObj))
 		}
 		start = new(big.Int).Set(startInt.Value)
 	}
@@ -1896,7 +1924,8 @@ func evalForStatement(node *ast.ForStatement, env *Environment) Object {
 	}
 	endInt, ok := endObj.(*Integer)
 	if !ok {
-		return newError("range end must be integer")
+		return newErrorWithLocation("E5014", node.Token.Line, node.Token.Column,
+			"range end must be integer, got %s", objectTypeToEZ(endObj))
 	}
 	end := endInt.Value
 
@@ -1909,11 +1938,13 @@ func evalForStatement(node *ast.ForStatement, env *Environment) Object {
 		}
 		stepInt, ok := stepObj.(*Integer)
 		if !ok {
-			return newError("range step must be integer")
+			return newErrorWithLocation("E5019", node.Token.Line, node.Token.Column,
+				"range step must be integer, got %s", objectTypeToEZ(stepObj))
 		}
 		step = new(big.Int).Set(stepInt.Value)
 		if step.Sign() == 0 {
-			return newError("range step cannot be zero")
+			return newErrorWithLocation("E9003", node.Token.Line, node.Token.Column,
+				"range step cannot be zero")
 		}
 	} else if start.Cmp(end) > 0 {
 		// Auto-detect descending range when no step is provided
@@ -2659,7 +2690,8 @@ func evalPostfixExpression(node *ast.PostfixExpression, env *Environment) Object
 
 	val, ok := env.Get(ident.Value)
 	if !ok {
-		return newError("identifier not found: %s", ident.Value)
+		return newErrorWithLocation("E4001", node.Token.Line, node.Token.Column,
+			"identifier not found: %s", ident.Value)
 	}
 
 	intVal, ok := val.(*Integer)
@@ -2683,7 +2715,8 @@ func evalPostfixExpression(node *ast.PostfixExpression, env *Environment) Object
 				"integer overflow: %s-- exceeds %s range", intVal.Value.String(), getTypeRangeName(intVal.DeclaredType))
 		}
 	default:
-		return newError("unknown postfix operator: %s", node.Operator)
+		return newErrorWithLocation("E3014", node.Token.Line, node.Token.Column,
+			"unknown postfix operator: %s", node.Operator)
 	}
 
 	env.Update(ident.Value, &Integer{Value: newVal, DeclaredType: intVal.DeclaredType})
@@ -2830,7 +2863,8 @@ func evalArgsWithReferences(argExprs []ast.Expression, params []*ast.Parameter, 
 func evalMemberCall(member *ast.MemberExpression, args []ast.Expression, env *Environment) Object {
 	objIdent, ok := member.Object.(*ast.Label)
 	if !ok {
-		return newError("invalid member call")
+		return newErrorWithLocation("E3015", member.Token.Line, member.Token.Column,
+			"invalid member call: expected module or object identifier")
 	}
 
 	alias := objIdent.Value
@@ -2854,7 +2888,8 @@ func evalMemberCall(member *ast.MemberExpression, args []ast.Expression, env *En
 	// Get the actual module name from the alias (stdlib)
 	moduleName, ok := env.GetImport(alias)
 	if !ok {
-		return newError("module '%s' not imported", alias)
+		return newErrorWithLocation("E4007", member.Token.Line, member.Token.Column,
+			"module '%s' not imported", alias)
 	}
 
 	// Create a compound name like "strings.upper" using the actual module name
@@ -2888,10 +2923,12 @@ func evalMemberCall(member *ast.MemberExpression, args []ast.Expression, env *En
 	}
 
 	if suggestion, ok := suggestions[fullName]; ok {
-		return newError("function not found: %s\n  help: %s", fullName, suggestion)
+		return newErrorWithLocation("E4002", member.Token.Line, member.Token.Column,
+			"function not found: %s\n  help: %s", fullName, suggestion)
 	}
 
-	return newError("function not found: %s", fullName)
+	return newErrorWithLocation("E4002", member.Token.Line, member.Token.Column,
+		"function not found: %s", fullName)
 }
 
 func applyFunction(fn Object, args []Object, line, col int) Object {
@@ -2923,6 +2960,28 @@ func applyFunction(fn Object, args []Object, line, col int) Object {
 			return newErrorWithLocation("E5008", line, col,
 				"wrong number of arguments: expected %d to %d, got %d", minRequired, len(fn.Parameters), len(args))
 		}
+
+		// Validate integer argument ranges match parameter types (#962)
+		for i, arg := range args {
+			if i < len(fn.Parameters) {
+				param := fn.Parameters[i]
+				if intVal, ok := arg.(*Integer); ok && isIntegerType(param.TypeName) {
+					// Check for negative value assigned to unsigned type
+					if isUnsignedIntegerType(param.TypeName) && intVal.Value.Sign() < 0 {
+						return newErrorWithLocation("E3020", line, col,
+							"cannot pass negative value %s to unsigned parameter '%s' of type '%s' (valid range: %s)",
+							intVal.Value.String(), param.Name.Value, param.TypeName, getTypeRangeString(param.TypeName))
+					}
+					// Check if value fits in parameter type's range
+					if checkOverflow(intVal.Value, param.TypeName) {
+						return newErrorWithLocation("E3036", line, col,
+							"value %s out of range for parameter '%s' of type '%s' (valid range: %s)",
+							intVal.Value.String(), param.Name.Value, param.TypeName, getTypeRangeString(param.TypeName))
+					}
+				}
+			}
+		}
+
 		extendedEnv := extendFunctionEnv(fn, args)
 
 		// Save current file and set function's file as current for error reporting
@@ -2933,7 +2992,7 @@ func applyFunction(fn Object, args []Object, line, col int) Object {
 		}
 
 		evaluated := Eval(fn.Body, extendedEnv)
-		
+
 		// Execute ensure statements before returning (LIFO order)
 		ensures := extendedEnv.ExecuteEnsures()
 		for _, ensureCall := range ensures {
@@ -2941,7 +3000,7 @@ func applyFunction(fn Object, args []Object, line, col int) Object {
 			// Note: We ignore errors from ensure statements to ensure cleanup always runs
 		}
 		extendedEnv.ClearEnsures()
-		
+
 		// Restore current file
 		if globalEvalContext != nil && fn.File != "" {
 			globalEvalContext.CurrentFile = oldFile
@@ -3298,7 +3357,8 @@ func evalMapLiteral(node *ast.MapValue, env *Environment) Object {
 
 		// Validate that the key is hashable
 		if _, ok := HashKey(key); !ok {
-			return newError("unusable as map key: %s", objectTypeToEZ(key))
+			return newErrorWithLocation("E12001", node.Token.Line, node.Token.Column,
+				"unusable as map key: %s", objectTypeToEZ(key))
 		}
 
 		value := Eval(pair.Value, env)

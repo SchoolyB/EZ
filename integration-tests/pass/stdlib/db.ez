@@ -80,24 +80,24 @@ do main() {
         passed += 1
     }
     
-    // ==================== db.has ====================
-    println("  -- db.has --")
+    // ==================== db.contains ====================
+    println("  -- db.contains --")
 
     // Test 1: checking for existing key
-    if db.has (store, "user:2") {
-        println("   [PASS] db.has(database, string)")
+    if db.contains (store, "user:2") {
+        println("   [PASS] db.contains(database, string)")
         passed += 1
     } otherwise {
-        println("   [FAIL] db.has(database, string): expected `true`, got `false`")
+        println("   [FAIL] db.contains(database, string): expected `true`, got `false`")
         failed += 1
     }
 
     // Test 2: checking for non-existent key
-    if !db.has (store, "user:3") {
-        println("   [PASS] db.has(database, string)")
+    if !db.contains (store, "user:3") {
+        println("   [PASS] db.contains(database, string)")
         passed += 1
     } otherwise {
-        println("   [FAIL] db.has(database, string): expected `false`, got `true`")
+        println("   [FAIL] db.contains(database, string): expected `false`, got `true`")
         failed += 1
     }
 
@@ -159,24 +159,24 @@ do main() {
         failed += 1
     }
 
-    // ==================== db.delete ====================
-    println("  -- db.delete --")
+    // ==================== db.remove ====================
+    println("  -- db.remove --")
 
-    // Test 1: Delete existing key
-    if db.delete(store, "config:theme") {
-        println("   [PASS] db.delete(database, string)")
+    // Test 1: remove existing key
+    if db.remove(store, "config:theme") {
+        println("   [PASS] db.remove(database, string)")
         passed += 1
     } otherwise {
-        println("   [FAIL] db.delete(database, string): could not delete existing key")
+        println("   [FAIL] db.remove(database, string): could not remove existing key")
         failed += 1
     }
 
-    // Test 2: Delete non-existent key
-    if !db.delete(store, "config:time") {
-        println("   [PASS] db.delete(database, string)")
+    // Test 2: remove non-existent key
+    if !db.remove(store, "config:time") {
+        println("   [PASS] db.remove(database, string)")
         passed += 1
     } otherwise {
-        println("   [FAIL] db.delete(database, string): deleted non-existent key")
+        println("   [FAIL] db.remove(database, string): removed non-existent key")
         failed += 1
     }
     
@@ -236,7 +236,7 @@ do main() {
         }
 
         // Test 2: Old key should not exist
-        if !db.has(rename_store, "original_key") {
+        if !db.contains(rename_store, "original_key") {
             println("   [PASS] db.update_key_name() old key removed")
             passed += 1
         } otherwise {

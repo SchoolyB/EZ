@@ -9,8 +9,8 @@
 </p>
 
 <p align="center">
-  <a href="https://schoolyb.github.io/language.ez">Website</a> •
-  <a href="https://schoolyb.github.io/language.ez/docs">Documentation</a>
+  <a href="https://schoolyb.github.io/EZ-Language-Webapp">Website</a> •
+  <a href="https://schoolyb.github.io/EZ-Language-Webapp/docs">Documentation</a>
 </p>
 
 <p align="center">
@@ -52,7 +52,7 @@ go build -o ez.exe ./cmd/ez
 
 **Requirements:** Go 1.23.1 or higher
 
-For pre-built binaries and installation instructions, visit the [documentation](https://schoolyb.github.io/language.ez/docs).
+For pre-built binaries and installation instructions, visit the [documentation](https://schoolyb.github.io/EZ-Language-Webapp/docs).
 
 ---
 
@@ -159,3 +159,6 @@ Thank you to everyone who has contributed to EZ!
 <a href="https://github.com/HCH1212"><img src="https://github.com/HCH1212.png" width="50" height="50" alt="HCH1212"/></a>
 <a href="https://github.com/elect0"><img src="https://github.com/elect0.png" width="50" height="50" alt="elect0"/></a>
 <a href="https://github.com/jgafnea"><img src="https://github.com/jgafnea.png" width="50" height="50" alt="jgafnea"/></a>
+<a href="https://github.com/madhav-murali"><img src="https://github.com/madhav-murali.png" width="50" height="50" alt="madhav-murali"/></a>
+<a href="https://github.com/preettrank53"><img src="https://github.com/preettrank53.png" width="50" height="50" alt="preettrank53"/></a>
+<a href="https://github.com/TechLateef"><img src="https://github.com/TechLateef.png" width="50" height="50" alt="TechLateef"/></a>
