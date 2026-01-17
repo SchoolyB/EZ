@@ -141,7 +141,7 @@ var RandomBuiltins = map[string]*object.Builtin{
 				return &object.Error{Code: "E7002", Message: "random.choice() requires an array argument"}
 			}
 			if len(arr.Elements) == 0 {
-				return &object.Error{Code: "E10002", Message: "random.choice() cannot select from empty array"}
+				return &object.Error{Code: "E9007", Message: "random.choice() cannot select from empty array"}
 			}
 			return arr.Elements[rand.Intn(len(arr.Elements))]
 		},
@@ -192,7 +192,7 @@ var RandomBuiltins = map[string]*object.Builtin{
 				return &object.Error{Code: "E10001", Message: "random.sample() count cannot be negative"}
 			}
 			if n > len(arr.Elements) {
-				return &object.Error{Code: "E10002", Message: "random.sample() count exceeds array length"}
+				return &object.Error{Code: "E9007", Message: "random.sample() count exceeds array length"}
 			}
 
 			// Create index slice and shuffle it
