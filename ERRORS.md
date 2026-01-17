@@ -122,7 +122,7 @@ Type system errors
 | E3020 | negative-to-unsigned | cannot assign negative value to unsigned type |
 | E3021 | type-change-not-allowed | cannot change type of variable after declaration |
 | E3022 | undefined-struct-field | struct field not found |
-| E3023 | undefined-enum-value | enum value not found |
+| E3023 | enum-value-not-found | enum value not found |
 | E3024 | missing-return-statement | function must return a value |
 | E3025 | byte-value-out-of-range | byte value must be between 0 and 255 |
 | E3026 | byte-array-element-out-of-range | byte array element must be between 0 and 255 |
@@ -216,7 +216,7 @@ Standard library validation errors
 
 | Code | Type | Message |
 |------|------|---------|
-| E7001 | wrong-argument-count | wrong number of arguments |
+| E7001 | stdlib-argument-mismatch | wrong number of arguments |
 | E7002 | requires-array | argument must be an array |
 | E7003 | requires-string | argument must be a string |
 | E7004 | requires-integer | argument must be an integer |
@@ -249,6 +249,7 @@ Standard library validation errors
 | E7031 | command-failed | command execution failed |
 | E7032 | sleep-negative | sleep duration cannot be negative |
 | E7033 | conversion-overflow | value exceeds target type range |
+| E7035 | env-var-not-set | environment variable is not set |
 | E7040 | empty-path | path cannot be empty |
 | E7041 | path-null-byte | path contains null byte |
 | E7042 | read-directory-as-file | cannot read directory as file |
@@ -282,6 +283,8 @@ Array-specific errors
 | E9004 | chunk-size-invalid | chunk size must be greater than zero |
 | E9005 | range-invalid-bounds | range start must be less than or equal to end |
 | E9006 | array-modified-during-iteration | cannot modify array during for_each iteration |
+| E9007 | empty-array-selection | cannot select from empty array |
+| E9008 | sample-count-exceeds-length | sample count exceeds array length |
 
 ## String Errors (E10xxx)
 
@@ -290,7 +293,6 @@ String-specific errors
 | Code | Type | Message |
 |------|------|---------|
 | E10001 | repeat-count-negative | repeat count cannot be negative |
-| E10002 | empty-array-selection | cannot select from empty array |
 | E10003 | string-index-out-of-bounds | string index out of bounds |
 | E10004 | string-empty-index | cannot index empty string |
 
@@ -325,6 +327,49 @@ JSON module errors
 | E13002 | json-unsupported-type | type cannot be converted to JSON |
 | E13003 | json-invalid-map-key | JSON object keys must be strings |
 | E13004 | json-decode-requires-type | json.decode() requires a type argument |
+
+## HTTP Errors (E14xxx)
+
+HTTP request errors
+
+| Code | Type | Message |
+|------|------|---------|
+| E14001 | http-invalid-url | invalid URL |
+| E14002 | http-failed-request | request failed (network error) |
+| E14003 | http-timeout | timeout exceeded |
+| E14004 | http-invalid-method | invalid HTTP method |
+| E14005 | http-failed-url-decode | URL decode failed |
+| E14006 | http-failed-json-encoding | JSON encoding failed |
+
+## Crypto Errors (E15xxx)
+
+Cryptography-specific errors
+
+| Code | Type | Message |
+|------|------|---------|
+| E15001 | crypto-random-failed | cryptographic random generation failed |
+
+## Encoding Errors (E16xxx)
+
+Encoding/decoding errors
+
+| Code | Type | Message |
+|------|------|---------|
+| E16001 | invalid-base64 | invalid base64 encoded input |
+| E16002 | invalid-hex | invalid hexadecimal encoded input |
+| E16003 | invalid-url-encoding | invalid URL encoded input |
+
+## DB Errors (E17xxx)
+
+Database operation errors
+
+| Code | Type | Message |
+|------|------|---------|
+| E17001 | db-open-failed | failed to open database |
+| E17002 | db-read-failed | failed to read database file |
+| E17003 | db-write-failed | failed to write database file |
+| E17004 | db-corrupted | database file is corrupted |
+| E17005 | db-closed | operation on closed database |
 
 ## Code Style Warnings (W1xxx)
 
@@ -376,4 +421,4 @@ Module-related warnings
 
 ## Summary
 
-**Total:** 258 error/warning codes
+**Total:** 264 error/warning codes

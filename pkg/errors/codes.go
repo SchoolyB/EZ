@@ -122,7 +122,8 @@ var (
 	E3020 = ErrorCode{"E3020", "negative-to-unsigned", "cannot assign negative value to unsigned type"}
 	E3021 = ErrorCode{"E3021", "type-change-not-allowed", "cannot change type of variable after declaration"}
 	E3022 = ErrorCode{"E3022", "undefined-struct-field", "struct field not found"}
-	E3023 = ErrorCode{"E3023", "undefined-enum-value", "enum value not found"}
+	E3023 = ErrorCode{"E3023", "enum-value-not-found", "enum value not found"}
+
 	E3024 = ErrorCode{"E3024", "missing-return-statement", "function must return a value"}
 	E3025 = ErrorCode{"E3025", "byte-value-out-of-range", "byte value must be between 0 and 255"}
 	E3026 = ErrorCode{"E3026", "byte-array-element-out-of-range", "byte array element must be between 0 and 255"}
@@ -214,7 +215,7 @@ var (
 // =============================================================================
 var (
 	// Argument count errors
-	E7001 = ErrorCode{"E7001", "wrong-argument-count", "wrong number of arguments"}
+	E7001 = ErrorCode{"E7001", "stdlib-argument-mismatch", "wrong number of arguments"}
 
 	// Type requirement errors - used when function requires specific type
 	E7002 = ErrorCode{"E7002", "requires-array", "argument must be an array"}
@@ -250,6 +251,8 @@ var (
 
 	// OS module errors
 	E7024 = ErrorCode{"E7024", "env-var-operation-failed", "environment variable operation failed"}
+	E7035 = ErrorCode{"E7035", "env-var-not-set", "environment variable is not set"}
+
 	E7025 = ErrorCode{"E7025", "get-cwd-failed", "failed to get current directory"}
 	E7026 = ErrorCode{"E7026", "chdir-failed", "failed to change directory"}
 	E7027 = ErrorCode{"E7027", "get-hostname-failed", "failed to get hostname"}
@@ -300,6 +303,8 @@ var (
 	E9004 = ErrorCode{"E9004", "chunk-size-invalid", "chunk size must be greater than zero"}
 	E9005 = ErrorCode{"E9005", "range-invalid-bounds", "range start must be less than or equal to end"}
 	E9006 = ErrorCode{"E9006", "array-modified-during-iteration", "cannot modify array during for_each iteration"}
+	E9007 = ErrorCode{"E9007", "empty-array-selection", "cannot select from empty array"}
+	E9008 = ErrorCode{"E9008", "sample-count-exceeds-length", "sample count exceeds array length"}
 )
 
 // =============================================================================
@@ -308,7 +313,7 @@ var (
 // =============================================================================
 var (
 	E10001 = ErrorCode{"E10001", "repeat-count-negative", "repeat count cannot be negative"}
-	E10002 = ErrorCode{"E10002", "empty-array-selection", "cannot select from empty array"}
+
 	E10003 = ErrorCode{"E10003", "string-index-out-of-bounds", "string index out of bounds"}
 	E10004 = ErrorCode{"E10004", "string-empty-index", "cannot index empty string"}
 )
@@ -359,9 +364,23 @@ var (
 )
 
 // =============================================================================
-//
-//	DB ERRORS (E17xxx) - DB-specific domain errors
-//
+// CRYPTO ERRORS (E15xxx) - Cryptography-specific errors
+// =============================================================================
+var (
+	E15001 = ErrorCode{"E15001", "crypto-random-failed", "cryptographic random generation failed"}
+)
+
+// =============================================================================
+// ENCODING ERRORS (E16xxx) - Encoding/decoding errors
+// =============================================================================
+var (
+	E16001 = ErrorCode{"E16001", "invalid-base64", "invalid base64 encoded input"}
+	E16002 = ErrorCode{"E16002", "invalid-hex", "invalid hexadecimal encoded input"}
+	E16003 = ErrorCode{"E16003", "invalid-url-encoding", "invalid URL encoded input"}
+)
+
+// =============================================================================
+// DB ERRORS (E17xxx) - DB-specific domain errors
 // These are errors unique to database operations
 // =============================================================================
 var (
