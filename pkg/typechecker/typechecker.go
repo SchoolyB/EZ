@@ -1469,10 +1469,37 @@ func (tc *TypeChecker) hasReturnStatement(block *ast.BlockStatement) bool {
 			if tc.hasReturnStatement(s.Body) {
 				return true
 			}
+
+		case *ast.WhenStatement:
+			if tc.hasReturnInWhenStatement(s) {
+				return true
+			}
 		}
 	}
 
 	return false
+}
+
+// hasReturnInWhenStatement checks if a when/is/default statement has exhaustive returns
+func (tc *TypeChecker) hasReturnInWhenStatement(whenStmt *ast.WhenStatement) bool {
+	// Must have a default case for exhaustive coverage
+	if whenStmt.Default == nil {
+		return false
+	}
+
+	// Check that default case has a return
+	if !tc.hasReturnStatement(whenStmt.Default) {
+		return false
+	}
+
+	// Check that all cases have returns
+	for _, c := range whenStmt.Cases {
+		if !tc.hasReturnStatement(c.Body) {
+			return false
+		}
+	}
+
+	return true
 }
 
 // hasReturnInIfStatement recursively checks if/or/otherwise chains for return statements
@@ -1517,6 +1544,14 @@ func (tc *TypeChecker) allPathsReturn(block *ast.BlockStatement) bool {
 				return true
 			}
 			// If the if doesn't cover all paths, continue checking subsequent statements
+
+		case *ast.WhenStatement:
+			// For a when statement to guarantee a return on all paths:
+			// 1. It must have a default case
+			// 2. All cases AND the default must all-paths-return
+			if tc.whenAllPathsReturn(s) {
+				return true
+			}
 		}
 		// Loops (for, foreach, while) can't guarantee they execute,
 		// so we can't count returns inside them as covering all paths.
@@ -1550,6 +1585,28 @@ func (tc *TypeChecker) ifAllPathsReturn(ifStmt *ast.IfStatement) bool {
 	}
 
 	return false
+}
+
+// whenAllPathsReturn checks if a when/is/default statement returns on ALL paths
+func (tc *TypeChecker) whenAllPathsReturn(whenStmt *ast.WhenStatement) bool {
+	// Must have a default case for exhaustive coverage
+	if whenStmt.Default == nil {
+		return false
+	}
+
+	// Default must return on all paths
+	if !tc.allPathsReturn(whenStmt.Default) {
+		return false
+	}
+
+	// All cases must return on all paths
+	for _, c := range whenStmt.Cases {
+		if !tc.allPathsReturn(c.Body) {
+			return false
+		}
+	}
+
+	return true
 }
 
 // ============================================================================
@@ -2477,7 +2534,9 @@ func (tc *TypeChecker) checkReturnStatement(ret *ast.ReturnStatement, expectedTy
 
 	// Check each return value type
 	for i, val := range ret.Values {
-		actualType, ok := tc.inferExpressionType(val)
+		expectedType := expectedTypes[i]
+		// Use context-aware inference for better type checking
+		actualType, ok := tc.inferExpressionTypeWithContext(val, expectedType)
 		if !ok {
 			// Check if this is an undefined variable (simple identifier)
 			if label, isLabel := val.(*ast.Label); isLabel {
@@ -2503,7 +2562,6 @@ func (tc *TypeChecker) checkReturnStatement(ret *ast.ReturnStatement, expectedTy
 			continue // Can't determine type
 		}
 
-		expectedType := expectedTypes[i]
 		if !tc.typesCompatible(expectedType, actualType) {
 			tc.addError(
 				errors.E3012,
@@ -4864,6 +4922,355 @@ func (tc *TypeChecker) inferExpressionType(expr ast.Expression) (string, bool) {
 	}
 }
 
+// inferExpressionTypeWithContext infers the type of an expression with an expected type context
+// This allows literals to inherit the expected type from function signatures
+func (tc *TypeChecker) inferExpressionTypeWithContext(expr ast.Expression, expectedType string) (string, bool) {
+	if expr == nil {
+		return "", false
+	}
+
+	switch e := expr.(type) {
+	case *ast.ArrayValue:
+		// For array literals, use expected type if available
+		if expectedType != "" && tc.isArrayType(expectedType) {
+			elementType := tc.extractElementType(expectedType)
+			if elementType != "" {
+				// Validate elements against expected element type
+				for _, elem := range e.Elements {
+					// Check for negative literals going to unsigned types
+					if tc.isUnsignedIntegerType(elementType) {
+						if prefixExpr, ok := elem.(*ast.PrefixExpression); ok && prefixExpr.Operator == "-" {
+							if intLit, ok := prefixExpr.Right.(*ast.IntegerValue); ok {
+								line, column := tc.getExpressionPosition(elem)
+								tc.addError(
+									errors.E3020,
+									fmt.Sprintf("cannot use negative value -%s in array of type [%s]", intLit.Value.String(), elementType),
+									line,
+									column,
+								)
+								return "", false
+							}
+						}
+						// Also check integer literals for overflow
+						if intLit, ok := elem.(*ast.IntegerValue); ok {
+							if tc.checkIntegerOverflow(intLit.Value, elementType) {
+								line, column := tc.getExpressionPosition(elem)
+								tc.addError(
+									errors.E3036,
+									fmt.Sprintf("value %s out of range for array element type %s", intLit.Value.String(), elementType),
+									line,
+									column,
+								)
+								return "", false
+							}
+						}
+					}
+
+					elemType, ok := tc.inferExpressionType(elem)
+					if !ok {
+						return "", false
+					}
+					// Check element compatibility
+					if !tc.typesCompatible(elementType, elemType) {
+						line, column := tc.getExpressionPosition(elem)
+						tc.addError(
+							errors.E3001,
+							fmt.Sprintf("array element type mismatch: expected %s, got %s", elementType, elemType),
+							line,
+							column,
+						)
+						return "", false
+					}
+				}
+				return expectedType, true
+			}
+		}
+		// Fall back to regular inference
+		return tc.inferArrayType(e)
+
+	case *ast.MapValue:
+		// For map literals, use expected type if available
+		if expectedType != "" && tc.isMapType(expectedType) {
+			expectedKeyType, expectedValueType := tc.extractMapTypes(expectedType)
+			if expectedKeyType != "" && expectedValueType != "" {
+				// Validate all pairs against expected types
+				for _, pair := range e.Pairs {
+					keyType, ok := tc.inferExpressionType(pair.Key)
+					if !ok {
+						return "", false
+					}
+					valueType, ok := tc.inferExpressionType(pair.Value)
+					if !ok {
+						return "", false
+					}
+					// Check compatibility
+					if !tc.typesCompatible(expectedKeyType, keyType) {
+						line, column := tc.getExpressionPosition(pair.Key)
+						tc.addError(
+							errors.E3001,
+							fmt.Sprintf("map key type mismatch: expected %s, got %s", expectedKeyType, keyType),
+							line,
+							column,
+						)
+						return "", false
+					}
+					if !tc.typesCompatible(expectedValueType, valueType) {
+						line, column := tc.getExpressionPosition(pair.Value)
+						tc.addError(
+							errors.E3001,
+							fmt.Sprintf("map value type mismatch: expected %s, got %s", expectedValueType, valueType),
+							line,
+							column,
+						)
+						return "", false
+					}
+				}
+				return expectedType, true
+			}
+		}
+		// Fall back to regular inference
+		return tc.inferMapType(e)
+
+	case *ast.StructValue:
+		// For struct literals, use expected type if available
+		if expectedType != "" {
+			if structType, exists := tc.getStructTypeIncludingModules(expectedType); exists {
+				// Validate struct literal against expected type
+				tc.validateStructLiteral(e, structType)
+				return expectedType, true
+			}
+		}
+		// Fall back to regular inference
+		if e.Name != nil {
+			return e.Name.Value, true
+		}
+		return "", false
+
+	case *ast.StringValue:
+		// String literals are always string type, but validate against expected type
+		if expectedType != "" && expectedType != "string" {
+			if !tc.typesCompatible(expectedType, "string") {
+				line, column := tc.getExpressionPosition(e)
+				tc.addError(
+					errors.E3012,
+					fmt.Sprintf("return type mismatch: expected %s, got string", expectedType),
+					line,
+					column,
+				)
+				return "", false
+			}
+		}
+		return "string", true
+
+	case *ast.IntegerValue:
+		// Integer literals need validation against expected numeric type
+		if expectedType != "" && tc.isNumericType(expectedType) {
+			// Validate integer value against expected numeric type
+			if tc.isUnsignedIntegerType(expectedType) && e.Value.Sign() < 0 {
+				line, column := tc.getExpressionPosition(e)
+				tc.addError(
+					errors.E3020,
+					fmt.Sprintf("cannot use negative value %s in context expecting %s", e.Value.String(), expectedType),
+					line,
+					column,
+				)
+				return "", false
+			}
+			// Check range for specific integer types
+			if tc.checkIntegerOverflow(e.Value, expectedType) {
+				line, column := tc.getExpressionPosition(e)
+				tc.addError(
+					errors.E3036,
+					fmt.Sprintf("value %s out of range for type %s", e.Value.String(), expectedType),
+					line,
+					column,
+				)
+				return "", false
+			}
+			return expectedType, true
+		}
+		// Fall back to regular inference
+		return "int", true
+
+	case *ast.FloatValue:
+		// Float literals need validation against expected numeric type
+		if expectedType != "" && tc.isNumericType(expectedType) {
+			if tc.isIntegerType(expectedType) {
+				line, column := tc.getExpressionPosition(e)
+				tc.addError(
+					errors.E3014,
+					fmt.Sprintf("cannot assign float value to integer type %s", expectedType),
+					line,
+					column,
+				)
+				return "", false
+			}
+			return expectedType, true
+		}
+		// Fall back to regular inference
+		return "float", true
+
+	case *ast.PrefixExpression:
+		// Handle negative literals like -1 (parsed as prefix expression with -)
+		if e.Operator == "-" {
+			if intLit, ok := e.Right.(*ast.IntegerValue); ok {
+				// This is a negative integer literal
+				if expectedType != "" && tc.isNumericType(expectedType) {
+					// Check if expected type is unsigned - negative values not allowed
+					if tc.isUnsignedIntegerType(expectedType) {
+						line, column := tc.getExpressionPosition(e)
+						tc.addError(
+							errors.E3020,
+							fmt.Sprintf("cannot use negative value -%s in context expecting %s", intLit.Value.String(), expectedType),
+							line,
+							column,
+						)
+						return "", false
+					}
+					// For signed types, check range with negated value
+					negValue := new(big.Int).Neg(intLit.Value)
+					if tc.checkIntegerOverflow(negValue, expectedType) {
+						line, column := tc.getExpressionPosition(e)
+						tc.addError(
+							errors.E3036,
+							fmt.Sprintf("value -%s out of range for type %s", intLit.Value.String(), expectedType),
+							line,
+							column,
+						)
+						return "", false
+					}
+					return expectedType, true
+				}
+			}
+		}
+		// Fall back to regular inference for other prefix expressions
+		return tc.inferPrefixType(e)
+
+	default:
+		// For all other expression types, use regular inference
+		return tc.inferExpressionType(expr)
+	}
+}
+
+// extractElementType extracts the element type from an array type string
+// e.g., "[u64]" -> "u64", "[int,5]" -> "int", "[[u8]]" -> "[u8]"
+func (tc *TypeChecker) extractElementType(arrayType string) string {
+	if len(arrayType) < 3 || arrayType[0] != '[' {
+		return ""
+	}
+
+	// Remove outer brackets
+	inner := arrayType[1 : len(arrayType)-1]
+
+	// Check for fixed-size array format "[type,size]"
+	if commaIdx := strings.Index(inner, ","); commaIdx != -1 {
+		return strings.TrimSpace(inner[:commaIdx])
+	}
+
+	return inner
+}
+
+// extractMapTypes extracts key and value types from a map type string
+// e.g., "map[string:int]" -> ("string", "int")
+func (tc *TypeChecker) extractMapTypes(mapType string) (string, string) {
+	if !strings.HasPrefix(mapType, "map[") || !strings.HasSuffix(mapType, "]") {
+		return "", ""
+	}
+
+	inner := mapType[4 : len(mapType)-1] // Remove "map[" and "]"
+	if colonIdx := strings.Index(inner, ":"); colonIdx != -1 {
+		keyType := strings.TrimSpace(inner[:colonIdx])
+		valueType := strings.TrimSpace(inner[colonIdx+1:])
+		return keyType, valueType
+	}
+
+	return "", ""
+}
+
+// validateStructLiteral validates a struct literal against its expected type
+func (tc *TypeChecker) validateStructLiteral(structLit *ast.StructValue, expectedStruct *Type) {
+	// Check that all required fields are present
+	for fieldName, fieldType := range expectedStruct.Fields {
+		if fieldExpr, exists := structLit.Fields[fieldName]; exists {
+			// Validate field type
+			fieldValueType, ok := tc.inferExpressionType(fieldExpr)
+			if !ok {
+				continue
+			}
+			if !tc.typesCompatible(fieldType.Name, fieldValueType) {
+				line, column := tc.getExpressionPosition(fieldExpr)
+				tc.addError(
+					errors.E3001,
+					fmt.Sprintf("struct field '%s' type mismatch: expected %s, got %s", fieldName, fieldType.Name, fieldValueType),
+					line,
+					column,
+				)
+			}
+		} else {
+			line, column := tc.getExpressionPosition(structLit)
+			tc.addError(
+				errors.E4003,
+				fmt.Sprintf("missing required field '%s' in struct literal", fieldName),
+				line,
+				column,
+			)
+		}
+	}
+
+	// Check for extra fields
+	for fieldName := range structLit.Fields {
+		if _, exists := expectedStruct.Fields[fieldName]; !exists {
+			line, column := tc.getExpressionPosition(structLit)
+			tc.addError(
+				errors.E4003,
+				fmt.Sprintf("struct '%s' has no field '%s'", expectedStruct.Name, fieldName),
+				line,
+				column,
+			)
+		}
+	}
+}
+
+// checkIntegerOverflow checks if an integer value overflows the target type
+func (tc *TypeChecker) checkIntegerOverflow(value *big.Int, targetType string) bool {
+	switch targetType {
+	case "i8":
+		return value.Cmp(big.NewInt(-128)) < 0 || value.Cmp(big.NewInt(127)) > 0
+	case "i16":
+		return value.Cmp(big.NewInt(-32768)) < 0 || value.Cmp(big.NewInt(32767)) > 0
+	case "i32":
+		return value.Cmp(big.NewInt(-2147483648)) < 0 || value.Cmp(big.NewInt(2147483647)) > 0
+	case "i64":
+		return value.Cmp(big.NewInt(-9223372036854775808)) < 0 || value.Cmp(big.NewInt(9223372036854775807)) > 0
+	case "i128":
+		minI128 := new(big.Int)
+		minI128.SetString("-170141183460469231731687303715884105728", 10)
+		maxI128 := new(big.Int)
+		maxI128.SetString("170141183460469231731687303715884105727", 10)
+		return value.Cmp(minI128) < 0 || value.Cmp(maxI128) > 0
+	case "uint":
+		maxUint := new(big.Int)
+		maxUint.SetString("18446744073709551615", 10)
+		return value.Cmp(big.NewInt(0)) < 0 || value.Cmp(maxUint) > 0
+	case "u8":
+		return value.Cmp(big.NewInt(0)) < 0 || value.Cmp(big.NewInt(255)) > 0
+	case "u16":
+		return value.Cmp(big.NewInt(0)) < 0 || value.Cmp(big.NewInt(65535)) > 0
+	case "u32":
+		return value.Cmp(big.NewInt(0)) < 0 || value.Cmp(big.NewInt(4294967295)) > 0
+	case "u64":
+		maxU64 := new(big.Int)
+		maxU64.SetString("18446744073709551615", 10)
+		return value.Cmp(big.NewInt(0)) < 0 || value.Cmp(maxU64) > 0
+	case "u128":
+		maxU128 := new(big.Int)
+		maxU128.SetString("340282366920938463463374607431768211455", 10)
+		return value.Cmp(big.NewInt(0)) < 0 || value.Cmp(maxU128) > 0
+	default:
+		return false
+	}
+}
+
 // inferArrayType infers the type of an array literal
 func (tc *TypeChecker) inferArrayType(arr *ast.ArrayValue) (string, bool) {
 	if len(arr.Elements) == 0 {
@@ -5187,8 +5594,6 @@ func (tc *TypeChecker) getModuleMultiReturnTypes(moduleName, funcName string, ar
 		switch funcName {
 		case "get", "post", "put", "delete", "patch", "request":
 			return []string{"HttpResponse", "error"}
-		case "decode_url":
-			return []string{"string", "error"}
 		}
 	}
 	return nil
@@ -6695,7 +7100,7 @@ func (tc *TypeChecker) isHttpFunction(name string) bool {
 
 		"request": true,
 
-		"encode_url": true, "decode_url": true, "build_query": true,
+		"build_query": true,
 
 		"json_body": true,
 	}
@@ -7123,14 +7528,14 @@ func (tc *TypeChecker) checkArraysModuleCall(funcName string, call *ast.CallExpr
 		"all_equal":  {1, 1, []string{"array"}, "bool"},
 
 		// Array + value
-		"append":        {2, -1, []string{"array", "any"}, "void"},
-		"unshift":       {2, -1, []string{"array", "any"}, "array"},
-		"contains":      {2, 2, []string{"array", "any"}, "bool"},
+		"append":     {2, -1, []string{"array", "any"}, "void"},
+		"unshift":    {2, -1, []string{"array", "any"}, "array"},
+		"contains":   {2, 2, []string{"array", "any"}, "bool"},
 		"last_index": {2, 2, []string{"array", "any"}, "int"},
-		"count":         {2, 2, []string{"array", "any"}, "int"},
-		"remove":        {2, 2, []string{"array", "any"}, "array"},
-		"remove_all":    {2, 2, []string{"array", "any"}, "array"},
-		"fill":          {2, 2, []string{"array", "any"}, "array"},
+		"count":      {2, 2, []string{"array", "any"}, "int"},
+		"remove":     {2, 2, []string{"array", "any"}, "array"},
+		"remove_all": {2, 2, []string{"array", "any"}, "array"},
+		"fill":       {2, 2, []string{"array", "any"}, "array"},
 
 		// Array + int
 		"get":       {2, 2, []string{"array", "int"}, "any"},
@@ -7261,7 +7666,7 @@ func (tc *TypeChecker) checkMapsModuleCall(funcName string, call *ast.CallExpres
 
 		// Map + key
 		"contains": {2, 2, []string{"map", "any"}, "bool"},
-		"remove":  {2, 2, []string{"map", "any"}, "bool"},
+		"remove":   {2, 2, []string{"map", "any"}, "bool"},
 
 		// Map + value
 		"contains_value": {2, 2, []string{"map", "any"}, "bool"},
@@ -7889,9 +8294,9 @@ func (tc *TypeChecker) checkDBModuleCall(funcName string, call *ast.CallExpressi
 		"remove":   {2, 2, []string{"Database", "string"}, "bool"},
 		"contains": {2, 2, []string{"Database", "string"}, "bool"},
 		"keys":     {1, 1, []string{"Database"}, "[string]"},
-		"prefix": {2, 2, []string{"Database", "string"}, "[string]"},
-		"count":  {1, 1, []string{"Database"}, "int"},
-		"clear":  {1, 1, []string{"Database"}, "nil"},
+		"prefix":   {2, 2, []string{"Database", "string"}, "[string]"},
+		"count":    {1, 1, []string{"Database"}, "int"},
+		"clear":    {1, 1, []string{"Database"}, "nil"},
 	}
 
 	sig, exists := signatures[funcName]
@@ -7980,8 +8385,6 @@ func (tc *TypeChecker) checkHttpModuleCall(funcName string, call *ast.CallExpres
 
 		"request": {5, 5, []string{"string", "string", "string", "map[string:string]", "int"}, "tuple"},
 
-		"encode_url":  {1, 1, []string{"string"}, "string"},
-		"decode_url":  {1, 1, []string{"string"}, "tuple"},
 		"build_query": {1, 1, []string{"map[string:string]"}, "string"},
 
 		"json_body": {1, 1, []string{"map"}, "string"},
