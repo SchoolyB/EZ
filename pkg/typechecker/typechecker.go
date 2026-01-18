@@ -1469,10 +1469,37 @@ func (tc *TypeChecker) hasReturnStatement(block *ast.BlockStatement) bool {
 			if tc.hasReturnStatement(s.Body) {
 				return true
 			}
+
+		case *ast.WhenStatement:
+			if tc.hasReturnInWhenStatement(s) {
+				return true
+			}
 		}
 	}
 
 	return false
+}
+
+// hasReturnInWhenStatement checks if a when/is/default statement has exhaustive returns
+func (tc *TypeChecker) hasReturnInWhenStatement(whenStmt *ast.WhenStatement) bool {
+	// Must have a default case for exhaustive coverage
+	if whenStmt.Default == nil {
+		return false
+	}
+
+	// Check that default case has a return
+	if !tc.hasReturnStatement(whenStmt.Default) {
+		return false
+	}
+
+	// Check that all cases have returns
+	for _, c := range whenStmt.Cases {
+		if !tc.hasReturnStatement(c.Body) {
+			return false
+		}
+	}
+
+	return true
 }
 
 // hasReturnInIfStatement recursively checks if/or/otherwise chains for return statements
@@ -1517,6 +1544,14 @@ func (tc *TypeChecker) allPathsReturn(block *ast.BlockStatement) bool {
 				return true
 			}
 			// If the if doesn't cover all paths, continue checking subsequent statements
+
+		case *ast.WhenStatement:
+			// For a when statement to guarantee a return on all paths:
+			// 1. It must have a default case
+			// 2. All cases AND the default must all-paths-return
+			if tc.whenAllPathsReturn(s) {
+				return true
+			}
 		}
 		// Loops (for, foreach, while) can't guarantee they execute,
 		// so we can't count returns inside them as covering all paths.
@@ -1550,6 +1585,28 @@ func (tc *TypeChecker) ifAllPathsReturn(ifStmt *ast.IfStatement) bool {
 	}
 
 	return false
+}
+
+// whenAllPathsReturn checks if a when/is/default statement returns on ALL paths
+func (tc *TypeChecker) whenAllPathsReturn(whenStmt *ast.WhenStatement) bool {
+	// Must have a default case for exhaustive coverage
+	if whenStmt.Default == nil {
+		return false
+	}
+
+	// Default must return on all paths
+	if !tc.allPathsReturn(whenStmt.Default) {
+		return false
+	}
+
+	// All cases must return on all paths
+	for _, c := range whenStmt.Cases {
+		if !tc.allPathsReturn(c.Body) {
+			return false
+		}
+	}
+
+	return true
 }
 
 // ============================================================================
