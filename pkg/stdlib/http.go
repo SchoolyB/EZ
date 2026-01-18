@@ -6,6 +6,8 @@ import (
 	"math/big"
 	"net/http"
 	"net/url"
+	"os"
+	"strconv"
 	"time"
 
 	"github.com/marshallburns/ez/pkg/object"
@@ -597,6 +599,305 @@ var HttpBuiltins = map[string]*object.Builtin{
 		},
 	},
 
+	"http.head": {
+		Fn: func(args ...object.Object) object.Object {
+			if len(args) != 1 {
+				return &object.Error{Code: "E7001", Message: "http.head() takes exactly 1 argument"}
+			}
+
+			urlArg, ok := args[0].(*object.String)
+			if !ok {
+				return &object.Error{Code: "E7003", Message: "http.head() requires a string argument"}
+			}
+
+			if _, err := url.ParseRequestURI(urlArg.Value); err != nil {
+				return &object.Error{Code: "E14001", Message: "invalid url"}
+			}
+
+			req, err := http.NewRequest(http.MethodHead, urlArg.Value, nil)
+			if err != nil {
+				return &object.ReturnValue{
+					Values: []object.Object{
+						&object.Nil{},
+						createHttpError("E14002", "request failed"),
+					},
+				}
+			}
+
+			res, err := defaultClient.Do(req)
+			if err != nil {
+				return &object.ReturnValue{
+					Values: []object.Object{
+						&object.Nil{},
+						createHttpError("E14002", "request failed: "+err.Error()),
+					},
+				}
+			}
+			defer res.Body.Close()
+
+			headers := object.NewMap()
+			headers.KeyType = "string"
+			headers.ValueType = "[string]"
+			for key, vals := range res.Header {
+				values := &object.Array{ElementType: "string"}
+				for _, val := range vals {
+					values.Elements = append(values.Elements, &object.String{Value: val})
+				}
+				headers.Set(&object.String{Value: key}, values)
+			}
+
+			return &object.ReturnValue{
+				Values: []object.Object{
+					newHttpResponse(res.StatusCode, "", headers),
+					&object.Nil{},
+				},
+			}
+		},
+	},
+
+	"http.options": {
+		Fn: func(args ...object.Object) object.Object {
+			if len(args) != 1 {
+				return &object.Error{Code: "E7001", Message: "http.options() takes exactly 1 argument"}
+			}
+
+			urlArg, ok := args[0].(*object.String)
+			if !ok {
+				return &object.Error{Code: "E7003", Message: "http.options() requires a string argument"}
+			}
+
+			if _, err := url.ParseRequestURI(urlArg.Value); err != nil {
+				return &object.Error{Code: "E14001", Message: "invalid url"}
+			}
+
+			req, err := http.NewRequest(http.MethodOptions, urlArg.Value, nil)
+			if err != nil {
+				return &object.ReturnValue{
+					Values: []object.Object{
+						&object.Nil{},
+						createHttpError("E14002", "request failed"),
+					},
+				}
+			}
+
+			res, err := defaultClient.Do(req)
+			if err != nil {
+				return &object.ReturnValue{
+					Values: []object.Object{
+						&object.Nil{},
+						createHttpError("E14002", "request failed: "+err.Error()),
+					},
+				}
+			}
+			defer res.Body.Close()
+
+			body, err := io.ReadAll(res.Body)
+			if err != nil {
+				return &object.ReturnValue{
+					Values: []object.Object{
+						&object.Nil{},
+						createHttpError("E14002", "could not read body"),
+					},
+				}
+			}
+
+			headers := object.NewMap()
+			headers.KeyType = "string"
+			headers.ValueType = "[string]"
+			for key, vals := range res.Header {
+				values := &object.Array{ElementType: "string"}
+				for _, val := range vals {
+					values.Elements = append(values.Elements, &object.String{Value: val})
+				}
+				headers.Set(&object.String{Value: key}, values)
+			}
+
+			return &object.ReturnValue{
+				Values: []object.Object{
+					newHttpResponse(res.StatusCode, string(body), headers),
+					&object.Nil{},
+				},
+			}
+		},
+	},
+
+	"http.download": {
+		Fn: func(args ...object.Object) object.Object {
+			if len(args) != 2 {
+				return &object.Error{Code: "E7001", Message: "http.download() takes exactly 2 arguments (url, path)"}
+			}
+
+			urlArg, ok := args[0].(*object.String)
+			if !ok {
+				return &object.Error{Code: "E7003", Message: "http.download() requires a string url as first argument"}
+			}
+
+			pathArg, ok := args[1].(*object.String)
+			if !ok {
+				return &object.Error{Code: "E7003", Message: "http.download() requires a string path as second argument"}
+			}
+
+			if _, err := url.ParseRequestURI(urlArg.Value); err != nil {
+				return &object.Error{Code: "E14001", Message: "invalid url"}
+			}
+
+			req, err := http.NewRequest(http.MethodGet, urlArg.Value, nil)
+			if err != nil {
+				return &object.ReturnValue{
+					Values: []object.Object{
+						&object.Integer{Value: big.NewInt(0)},
+						createHttpError("E14002", "request failed"),
+					},
+				}
+			}
+
+			res, err := defaultClient.Do(req)
+			if err != nil {
+				return &object.ReturnValue{
+					Values: []object.Object{
+						&object.Integer{Value: big.NewInt(0)},
+						createHttpError("E14002", "request failed: "+err.Error()),
+					},
+				}
+			}
+			defer res.Body.Close()
+
+			file, err := createFile(pathArg.Value)
+			if err != nil {
+				return &object.ReturnValue{
+					Values: []object.Object{
+						&object.Integer{Value: big.NewInt(0)},
+						createHttpError("E14003", "could not create file: "+err.Error()),
+					},
+				}
+			}
+			defer file.Close()
+
+			written, err := io.Copy(file, res.Body)
+			if err != nil {
+				return &object.ReturnValue{
+					Values: []object.Object{
+						&object.Integer{Value: big.NewInt(0)},
+						createHttpError("E14003", "could not write file: "+err.Error()),
+					},
+				}
+			}
+
+			return &object.ReturnValue{
+				Values: []object.Object{
+					&object.Integer{Value: big.NewInt(written)},
+					&object.Nil{},
+				},
+			}
+		},
+	},
+
+	"http.parse_url": {
+		Fn: func(args ...object.Object) object.Object {
+			if len(args) != 1 {
+				return &object.Error{Code: "E7001", Message: "http.parse_url() takes exactly 1 argument"}
+			}
+
+			urlArg, ok := args[0].(*object.String)
+			if !ok {
+				return &object.Error{Code: "E7003", Message: "http.parse_url() requires a string argument"}
+			}
+
+			parsed, err := url.Parse(urlArg.Value)
+			if err != nil {
+				return &object.ReturnValue{
+					Values: []object.Object{
+						&object.Nil{},
+						createHttpError("E14001", "invalid url: "+err.Error()),
+					},
+				}
+			}
+
+			port := parsed.Port()
+			var portInt int64 = 0
+			if port != "" {
+				if p, err := parsePort(port); err == nil {
+					portInt = p
+				}
+			}
+
+			return &object.ReturnValue{
+				Values: []object.Object{
+					&object.Struct{
+						TypeName: "URL",
+						Mutable:  false,
+						Fields: map[string]object.Object{
+							"scheme":   &object.String{Value: parsed.Scheme},
+							"host":     &object.String{Value: parsed.Hostname()},
+							"port":     &object.Integer{Value: big.NewInt(portInt)},
+							"path":     &object.String{Value: parsed.Path},
+							"query":    &object.String{Value: parsed.RawQuery},
+							"fragment": &object.String{Value: parsed.Fragment},
+						},
+					},
+					&object.Nil{},
+				},
+			}
+		},
+	},
+
+	"http.build_url": {
+		Fn: func(args ...object.Object) object.Object {
+			if len(args) != 1 {
+				return &object.Error{Code: "E7001", Message: "http.build_url() takes exactly 1 argument"}
+			}
+
+			components, ok := args[0].(*object.Struct)
+			if !ok {
+				return &object.Error{Code: "E7001", Message: "http.build_url() requires a struct argument"}
+			}
+
+			scheme := ""
+			if s, ok := components.Fields["scheme"].(*object.String); ok {
+				scheme = s.Value
+			}
+
+			host := ""
+			if h, ok := components.Fields["host"].(*object.String); ok {
+				host = h.Value
+			}
+
+			port := ""
+			if p, ok := components.Fields["port"].(*object.Integer); ok && p.Value.Int64() > 0 {
+				port = p.Value.String()
+			}
+
+			path := ""
+			if pa, ok := components.Fields["path"].(*object.String); ok {
+				path = pa.Value
+			}
+
+			query := ""
+			if q, ok := components.Fields["query"].(*object.String); ok {
+				query = q.Value
+			}
+
+			fragment := ""
+			if f, ok := components.Fields["fragment"].(*object.String); ok {
+				fragment = f.Value
+			}
+
+			u := &url.URL{
+				Scheme:   scheme,
+				Host:     host,
+				Path:     path,
+				RawQuery: query,
+				Fragment: fragment,
+			}
+
+			if port != "" {
+				u.Host = host + ":" + port
+			}
+
+			return &object.String{Value: u.String()}
+		},
+	},
+
 	// ============================================================================
 	// HTTP Status Code Constants
 	// ============================================================================
@@ -756,4 +1057,16 @@ func newHttpResponse(status int, body string, headers *object.Map) *object.Struc
 			"headers": headers,
 		},
 	}
+}
+
+func createFile(path string) (*os.File, error) {
+	return os.Create(path)
+}
+
+func parsePort(port string) (int64, error) {
+	p, err := strconv.ParseInt(port, 10, 64)
+	if err != nil {
+		return 0, err
+	}
+	return p, nil
 }
