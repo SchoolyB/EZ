@@ -683,16 +683,17 @@ const (
 
 // Environment holds variable bindings
 type Environment struct {
-	store      map[string]Object
-	mutable    map[string]bool
-	visibility map[string]Visibility // Visibility of each binding
-	structDefs map[string]*StructDef
-	outer      *Environment
-	imports    map[string]string        // Legacy: alias -> stdlib module name
-	modules    map[string]*ModuleObject // User modules: alias -> module object
-	using      []string
-	loopDepth  int
+	store       map[string]Object
+	mutable     map[string]bool
+	visibility  map[string]Visibility // Visibility of each binding
+	structDefs  map[string]*StructDef
+	outer       *Environment
+	imports     map[string]string        // Legacy: alias -> stdlib module name
+	modules     map[string]*ModuleObject // User modules: alias -> module object
+	using       []string
+	loopDepth   int
 	ensureStack []*ast.CallExpression // Stack of ensure statements (LIFO order)
+	returnTypes []string              // Expected return types for current function
 }
 
 func NewEnvironment() *Environment {
@@ -796,6 +797,16 @@ func (e *Environment) GetUsing() []string {
 	}
 
 	return deduped
+}
+
+// SetReturnTypes sets the expected return types for the current function
+func (e *Environment) SetReturnTypes(types []string) {
+	e.returnTypes = types
+}
+
+// GetReturnTypes returns the expected return types for the current function
+func (e *Environment) GetReturnTypes() []string {
+	return e.returnTypes
 }
 
 func (e *Environment) Get(name string) (Object, bool) {
