@@ -1,5 +1,26 @@
 # Changelog
 
+## [1.1.0](https://github.com/SchoolyB/EZ/compare/v1.0.2...v1.1.0) (2026-01-18)
+
+
+### Features
+
+* stdlib enhancements, bug fixes, and type system improvements ([2362596](https://github.com/SchoolyB/EZ/commit/2362596910747cccbe7ba80726aa038a22aff045))
+* **stdlib:** add `db.entries()` function ([#1035](https://github.com/SchoolyB/EZ/issues/1035)) ([093742f](https://github.com/SchoolyB/EZ/commit/093742fed2fe3b99a23ba78a02e20b39f08be6e4)), closes [#1025](https://github.com/SchoolyB/EZ/issues/1025)
+* **stdlib:** add arrays.equals() function ([#1033](https://github.com/SchoolyB/EZ/issues/1033)) ([67258bd](https://github.com/SchoolyB/EZ/commit/67258bd0ebf7352f711f94d4254fa72e2701fadf)), closes [#964](https://github.com/SchoolyB/EZ/issues/964)
+* **stdlib:** add db.values() function ([#1032](https://github.com/SchoolyB/EZ/issues/1032)) ([3dd7dd0](https://github.com/SchoolyB/EZ/commit/3dd7dd02a828fbafbe23412a6cdb9f5090d8450e)), closes [#943](https://github.com/SchoolyB/EZ/issues/943)
+* **stdlib:** add http.head, options, download, parse_url, build_url ([#1034](https://github.com/SchoolyB/EZ/issues/1034)) ([e89b899](https://github.com/SchoolyB/EZ/commit/e89b8998304898e4f5d5ff93e58d3b0f8f6aeb2a)), closes [#1022](https://github.com/SchoolyB/EZ/issues/1022)
+
+
+### Bug Fixes
+
+* context-aware return type inference for array literals ([#1008](https://github.com/SchoolyB/EZ/issues/1008)) ([31ed9fa](https://github.com/SchoolyB/EZ/commit/31ed9fa5a077345c569e581952479d98566d6f82))
+* **interpreter:** context-aware return type inference for array literals ([1353cc1](https://github.com/SchoolyB/EZ/commit/1353cc181743ac6a76b45b56fd682efa29277584)), closes [#1008](https://github.com/SchoolyB/EZ/issues/1008)
+* **interpreter:** infer element type for array literals ([45a18dc](https://github.com/SchoolyB/EZ/commit/45a18dc664aa554784f84a57d9015b4f146f1f01)), closes [#1008](https://github.com/SchoolyB/EZ/issues/1008)
+* **typechecker:** context-aware return type validation for array literals ([2920d77](https://github.com/SchoolyB/EZ/commit/2920d77425da7e56c59410bfb32a9a32bef99a48))
+* **typechecker:** recognize when/default as exhaustive return coverage ([9db5c52](https://github.com/SchoolyB/EZ/commit/9db5c521acb273b5f328032f72264eb1fe9d21b1))
+* **typechecker:** recognize when/default as exhaustive return coverage ([978a4d1](https://github.com/SchoolyB/EZ/commit/978a4d1fda24199f9e43775798ebf801b396e337)), closes [#918](https://github.com/SchoolyB/EZ/issues/918)
+
 ## [1.0.2](https://github.com/SchoolyB/EZ/compare/v1.0.1...v1.0.2) (2026-01-17)
 
 
