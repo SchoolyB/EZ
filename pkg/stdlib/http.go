@@ -504,53 +504,6 @@ var HttpBuiltins = map[string]*object.Builtin{
 		},
 	},
 
-	"http.encode_url": {
-		Fn: func(args ...object.Object) object.Object {
-			if len(args) != 1 {
-				return &object.Error{Code: "E7001", Message: "http.encode_url() takes exactly 1 arguments"}
-			}
-
-			s, ok := args[0].(*object.String)
-			if !ok {
-				return &object.Error{Code: "E7003", Message: "http.encode_url() requires a string argument"}
-			}
-
-			encoded := url.QueryEscape(s.Value)
-
-			return &object.String{Value: encoded}
-		},
-	},
-
-	"http.decode_url": {
-		Fn: func(args ...object.Object) object.Object {
-			if len(args) != 1 {
-				return &object.Error{Code: "E7001", Message: "http.decode_url() takes exactly 1 arguments"}
-			}
-
-			s, ok := args[0].(*object.String)
-			if !ok {
-				return &object.Error{Code: "E7003", Message: "http.decode_url() requires a string argument"}
-			}
-
-			decoded, err := url.QueryUnescape(s.Value)
-			if err != nil {
-				return &object.ReturnValue{
-					Values: []object.Object{
-						&object.Nil{},
-						createHttpError("E14005", "URL decode failed"),
-					},
-				}
-			}
-
-			return &object.ReturnValue{
-				Values: []object.Object{
-					&object.String{Value: decoded},
-					&object.Nil{},
-				},
-			}
-		},
-	},
-
 	"http.build_query": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 1 {
