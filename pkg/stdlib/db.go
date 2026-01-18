@@ -305,6 +305,33 @@ var DBBuiltins = map[string]*object.Builtin{
 		},
 	},
 
+	// Alias for db.contains - checks if key exists in database
+	// Returns (bool)
+	"db.has": {
+		Fn: func(args ...object.Object) object.Object {
+			if len(args) != 2 {
+				return &object.Error{Code: "E7001", Message: "db.has() takes exactly 2 arguments"}
+			}
+
+			db, ok := args[0].(*object.Database)
+			if !ok {
+				return &object.Error{Code: "E7001", Message: "db.has() requires type Database as first argument"}
+			}
+
+			if db.IsClosed.Value {
+				return &object.Error{Code: "E17005", Message: "db.has() cannot operate on closed database"}
+			}
+
+			key, ok := args[1].(*object.String)
+			if !ok {
+				return &object.Error{Code: "E7001", Message: "db.has() requires a String as second argument"}
+			}
+
+			_, exists := db.Store.Get(key)
+			return &object.Boolean{Value: exists}
+		},
+	},
+
 	// Fetches array of keys present in database
 	// Returns ([string])
 	"db.keys": {
@@ -356,6 +383,41 @@ var DBBuiltins = map[string]*object.Builtin{
 			}
 
 			return &values
+		},
+	},
+
+	// Fetches all key-value pairs in database
+	// Returns ([{key: string, value: any}])
+	"db.entries": {
+		Fn: func(args ...object.Object) object.Object {
+			if len(args) != 1 {
+				return &object.Error{Code: "E7001", Message: "db.entries() takes exactly 1 argument"}
+			}
+
+			db, ok := args[0].(*object.Database)
+			if !ok {
+				return &object.Error{Code: "E7001", Message: "db.entries() requires type Database as first argument"}
+			}
+
+			if db.IsClosed.Value {
+				return &object.Error{Code: "E17005", Message: "db.entries() cannot operate on closed database"}
+			}
+
+			var entries object.Array
+			entries.ElementType = "Entry"
+			for _, pair := range db.Store.Pairs {
+				entry := &object.Struct{
+					TypeName: "Entry",
+					Mutable:  false,
+					Fields: map[string]object.Object{
+						"key":   pair.Key,
+						"value": pair.Value,
+					},
+				}
+				entries.Elements = append(entries.Elements, entry)
+			}
+
+			return &entries
 		},
 	},
 
