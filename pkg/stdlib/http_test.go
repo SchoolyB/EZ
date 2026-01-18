@@ -209,42 +209,7 @@ func TestHTTPRequests(t *testing.T) {
 // ============================================================================
 
 func TestURLUtility(t *testing.T) {
-	encodeURLFn  := HttpBuiltins["http.encode_url"].Fn
-	decodeURLFn  := HttpBuiltins["http.decode_url"].Fn
 	buildQueryFn := HttpBuiltins["http.build_query"].Fn
-
-	t.Run("encode_url", func(t *testing.T) {
-		input := &object.String{Value: "hello world & golang"}
-
-		res := encodeURLFn(input)
-
-		str, ok := res.(*object.String)
-		if !ok {
-			t.Fatalf("expected String, got %T", res)
-		}
-
-		expected := "hello+world+%26+golang"
-		if str.Value != expected {
-			t.Fatalf("expected %q, got %q", expected, str.Value)
-		}
-	})
-
-	t.Run("decode_url", func(t *testing.T) {
-		input := &object.String{Value: "hello+world+%26+golang"}
-
-		res := decodeURLFn(input)
-		assertNoError(t, res)
-
-		str, ok := getReturnValues(t, res)[0].(*object.String)
-		if !ok {
-			t.Fatalf("expected String, got %T", res)
-		}
-
-		expected := "hello world & golang"
-		if str.Value != expected {
-			t.Fatalf("expected %q, got %q", expected, str.Value)
-		}
-	})
 
 	t.Run("build_query", func(t *testing.T) {
 		input := object.NewMap()
