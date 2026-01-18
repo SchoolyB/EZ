@@ -1093,6 +1093,30 @@ var ArraysBuiltins = map[string]*object.Builtin{
 			return &object.Array{Elements: chunks, Mutable: true, ElementType: "array"}
 		},
 	},
+
+	"arrays.equals": {
+		Fn: func(args ...object.Object) object.Object {
+			if len(args) != 2 {
+				return newError("arrays.equals() takes exactly 2 arguments (array1, array2)")
+			}
+			a1, ok1 := args[0].(*object.Array)
+			a2, ok2 := args[1].(*object.Array)
+			if !ok1 || !ok2 {
+				return &object.Error{Code: "E7002", Message: "arrays.equals() requires two arrays"}
+			}
+			// Check same length
+			if len(a1.Elements) != len(a2.Elements) {
+				return object.FALSE
+			}
+			// Check all elements match
+			for i, elem := range a1.Elements {
+				if !objectsEqual(elem, a2.Elements[i]) {
+					return object.FALSE
+				}
+			}
+			return object.TRUE
+		},
+	},
 }
 
 // Helper functions for arrays
