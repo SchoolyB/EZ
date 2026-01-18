@@ -1575,14 +1575,35 @@ func checkMutableContainerAccess(expr ast.Expression, env *Environment) bool {
 
 func evalReturn(node *ast.ReturnStatement, env *Environment) Object {
 	values := make([]Object, len(node.Values))
+	returnTypes := env.GetReturnTypes()
+
 	for i, v := range node.Values {
-		val := Eval(v, env)
+		// Get expected type for this return value if available
+		expectedType := ""
+		if i < len(returnTypes) {
+			expectedType = returnTypes[i]
+		}
+
+		// Evaluate with expected type context
+		val := evalWithExpectedType(v, expectedType, env)
 		if isError(val) {
 			return val
 		}
 		values[i] = val
 	}
 	return &ReturnValue{Values: values}
+}
+
+// evalWithExpectedType evaluates an expression with an expected type context
+// This allows literals to inherit the expected type from function signatures
+func evalWithExpectedType(expr ast.Expression, expectedType string, env *Environment) Object {
+	// Handle array literals specially when we know the expected type
+	if arrLit, ok := expr.(*ast.ArrayValue); ok && expectedType != "" && len(expectedType) > 2 && expectedType[0] == '[' {
+		return evalArrayLiteralWithType(arrLit, expectedType, env)
+	}
+
+	// For all other cases, use regular evaluation
+	return Eval(expr, env)
 }
 
 func evalEnsure(node *ast.EnsureStatement, env *Environment) Object {
@@ -3313,6 +3334,9 @@ func objectTypeToEZ(obj Object) string {
 func extendFunctionEnv(fn *Function, args []Object) *Environment {
 	env := NewEnclosedEnvironment(fn.Env)
 
+	// Set expected return types for this function's scope
+	env.SetReturnTypes(fn.ReturnTypes)
+
 	for i, param := range fn.Parameters {
 		var value Object
 		if i < len(args) {
@@ -3393,6 +3417,71 @@ func evalInterpolatedString(node *ast.InterpolatedString, env *Environment) Obje
 	}
 
 	return &String{Value: result.String(), Mutable: true}
+}
+
+// evalArrayLiteralWithType evaluates an array literal with a known expected type
+// This allows the array to inherit the correct element type from function return signatures
+func evalArrayLiteralWithType(node *ast.ArrayValue, expectedType string, env *Environment) Object {
+	// Extract element type from array type (e.g., "[u64]" -> "u64", "[int,5]" -> "int")
+	elementType := extractElementType(expectedType)
+
+	// Evaluate all elements
+	elements := make([]Object, 0, len(node.Elements))
+	for _, elemExpr := range node.Elements {
+		elem := Eval(elemExpr, env)
+		if isError(elem) {
+			return elem
+		}
+
+		// Validate element against expected type
+		if elementType != "" {
+			if err := validateElementType(elem, elementType, node.Token.Line, node.Token.Column); err != nil {
+				return err
+			}
+		}
+
+		elements = append(elements, elem)
+	}
+
+	return &Array{Elements: elements, Mutable: true, ElementType: elementType}
+}
+
+// extractElementType extracts the element type from an array type string
+// e.g., "[u64]" -> "u64", "[int,5]" -> "int", "[[u8]]" -> "[u8]"
+func extractElementType(arrayType string) string {
+	if len(arrayType) < 3 || arrayType[0] != '[' {
+		return ""
+	}
+
+	// Remove outer brackets
+	inner := arrayType[1 : len(arrayType)-1]
+
+	// Check for fixed-size array format "[type,size]"
+	if commaIdx := strings.Index(inner, ","); commaIdx != -1 {
+		return strings.TrimSpace(inner[:commaIdx])
+	}
+
+	return inner
+}
+
+// validateElementType checks if an element value is valid for the expected element type
+func validateElementType(elem Object, expectedType string, line, col int) *Error {
+	// Check for negative values to unsigned types
+	if intVal, ok := elem.(*Integer); ok && isUnsignedIntegerType(expectedType) {
+		if intVal.Value.Sign() < 0 {
+			return newErrorWithLocation("E3020", line, col,
+				"cannot use negative value %s in array of type [%s]",
+				intVal.Value.String(), expectedType)
+		}
+		// Check range for the specific unsigned type
+		if checkOverflow(intVal.Value, expectedType) {
+			return newErrorWithLocation("E3036", line, col,
+				"value %s out of range for array element type %s (valid range: %s)",
+				intVal.Value.String(), expectedType, getTypeRangeString(expectedType))
+		}
+	}
+
+	return nil
 }
 
 func evalStructValue(node *ast.StructValue, env *Environment) Object {

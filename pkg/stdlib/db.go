@@ -332,6 +332,68 @@ var DBBuiltins = map[string]*object.Builtin{
 		},
 	},
 
+	// Fetches array of values present in database
+	// Returns ([any])
+	"db.values": {
+		Fn: func(args ...object.Object) object.Object {
+			if len(args) != 1 {
+				return &object.Error{Code: "E7001", Message: "db.values() takes exactly 1 argument"}
+			}
+
+			db, ok := args[0].(*object.Database)
+			if !ok {
+				return &object.Error{Code: "E7001", Message: "db.values() requires type Database as first argument"}
+			}
+
+			if db.IsClosed.Value {
+				return &object.Error{Code: "E17005", Message: "db.values() cannot operate on closed database"}
+			}
+
+			var values object.Array
+			values.ElementType = "any"
+			for _, pair := range db.Store.Pairs {
+				values.Elements = append(values.Elements, pair.Value)
+			}
+
+			return &values
+		},
+	},
+
+	// Fetches all key-value pairs in database
+	// Returns ([{key: string, value: any}])
+	"db.entries": {
+		Fn: func(args ...object.Object) object.Object {
+			if len(args) != 1 {
+				return &object.Error{Code: "E7001", Message: "db.entries() takes exactly 1 argument"}
+			}
+
+			db, ok := args[0].(*object.Database)
+			if !ok {
+				return &object.Error{Code: "E7001", Message: "db.entries() requires type Database as first argument"}
+			}
+
+			if db.IsClosed.Value {
+				return &object.Error{Code: "E17005", Message: "db.entries() cannot operate on closed database"}
+			}
+
+			var entries object.Array
+			entries.ElementType = "Entry"
+			for _, pair := range db.Store.Pairs {
+				entry := &object.Struct{
+					TypeName: "Entry",
+					Mutable:  false,
+					Fields: map[string]object.Object{
+						"key":   pair.Key,
+						"value": pair.Value,
+					},
+				}
+				entries.Elements = append(entries.Elements, entry)
+			}
+
+			return &entries
+		},
+	},
+
 	// Fetches keys with prefix in database
 	// Returns ([string])
 	"db.prefix": {
