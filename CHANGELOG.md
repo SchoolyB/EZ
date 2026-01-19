@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.2.0](https://github.com/SchoolyB/EZ/compare/v1.1.0...v1.2.0) (2026-01-19)
+
+
+### Features
+
+* **lexer:** add \x hex escape sequence support in strings and chars ([#1046](https://github.com/SchoolyB/EZ/issues/1046)) ([3d4eae7](https://github.com/SchoolyB/EZ/commit/3d4eae7764ab4f53c3488357aa70b55dae877674)), closes [#1045](https://github.com/SchoolyB/EZ/issues/1045)
+
 ## [1.1.0](https://github.com/SchoolyB/EZ/compare/v1.0.2...v1.1.0) (2026-01-18)
 
 
