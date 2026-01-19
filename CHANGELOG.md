@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.3.0](https://github.com/SchoolyB/EZ/compare/v1.2.0...v1.3.0) (2026-01-19)
+
+
+### Features
+
+* **stdlib:** Add Unix timestamp functions and date utilities to time module ([#1023](https://github.com/SchoolyB/EZ/issues/1023)) ([#1043](https://github.com/SchoolyB/EZ/issues/1043)) ([bdb24e8](https://github.com/SchoolyB/EZ/commit/bdb24e8bd29ca113ed294330e9eae4c4ad1dc08e))
+
 ## [1.2.0](https://github.com/SchoolyB/EZ/compare/v1.1.0...v1.2.0) (2026-01-19)
 
 
