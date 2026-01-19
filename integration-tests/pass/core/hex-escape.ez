@@ -1,0 +1,102 @@
+/*
+ * hex-escape.ez - Test hex escape sequences in strings and chars
+ */
+
+import @std
+using std
+
+do main() {
+    println("Testing hex escape sequences...")
+    temp passed = 0
+    temp failed = 0
+
+    // Test 1: Hex escape for null byte
+    temp null_byte = "\x00"
+    if len(null_byte) == 1 {
+        println("  [PASS] \\x00 produces single byte")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] \\x00 length incorrect")
+        failed += 1
+    }
+
+    // Test 2: Hex escape for newline (0x0a = 10)
+    temp newline = "\x0a"
+    if newline == "\n" {
+        println("  [PASS] \\x0a equals \\n")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] \\x0a does not equal \\n")
+        failed += 1
+    }
+
+    // Test 3: Hex escape for tab (0x09 = 9)
+    temp tab = "\x09"
+    if tab == "\t" {
+        println("  [PASS] \\x09 equals \\t")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] \\x09 does not equal \\t")
+        failed += 1
+    }
+
+    // Test 4: Hex escape for carriage return (0x0d = 13)
+    temp cr = "\x0d"
+    if cr == "\r" {
+        println("  [PASS] \\x0d equals \\r")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] \\x0d does not equal \\r")
+        failed += 1
+    }
+
+    // Test 5: Uppercase hex digits
+    temp upper = "\x1B"
+    temp lower = "\x1b"
+    if upper == lower {
+        println("  [PASS] \\x1B equals \\x1b (case insensitive)")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] hex digits should be case insensitive")
+        failed += 1
+    }
+
+    // Test 6: Multiple hex escapes in one string
+    temp multi = "\x48\x69"
+    if multi == "Hi" {
+        println("  [PASS] \\x48\\x69 equals 'Hi'")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] \\x48\\x69 should equal 'Hi', got '${multi}'")
+        failed += 1
+    }
+
+    // Test 7: Hex escape mixed with regular text
+    temp mixed = "A\x42C"
+    if mixed == "ABC" {
+        println("  [PASS] 'A\\x42C' equals 'ABC'")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] mixed hex/text failed")
+        failed += 1
+    }
+
+    // Test 8: ANSI escape sequence (ESC = 0x1b = 27)
+    temp esc = "\x1b"
+    if len(esc) == 1 {
+        println("  [PASS] ANSI escape character length is 1")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] ANSI escape character length incorrect")
+        failed += 1
+    }
+
+    // Summary
+    println("")
+    println("Passed: ${passed}")
+    println("Failed: ${failed}")
+
+    if failed > 0 {
+        panic("Some tests failed!")
+    }
+}

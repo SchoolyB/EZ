@@ -1,0 +1,8 @@
+/*
+ * Error Test: E1006 - invalid hex escape
+ * Expected: "hex" or "invalid"
+ */
+
+do main() {
+    temp bad = "\xGG"  // GG is not valid hex
+}

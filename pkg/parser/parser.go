@@ -2809,6 +2809,21 @@ func processEscapeSequences(s string) string {
 			case '0':
 				result.WriteByte(0)
 				i++
+			case 'x':
+				// Hex escape: \xNN where NN are two hex digits
+				if i+3 < len(s) {
+					hexStr := s[i+2 : i+4]
+					if val, err := strconv.ParseUint(hexStr, 16, 8); err == nil {
+						result.WriteByte(byte(val))
+						i += 3 // skip \xNN (we already skip one with the loop increment)
+					} else {
+						// Invalid hex, keep as-is (lexer already reported error)
+						result.WriteByte(s[i])
+					}
+				} else {
+					// Not enough characters, keep as-is
+					result.WriteByte(s[i])
+				}
 			default:
 				// Not a valid escape, keep as-is (lexer already reported error)
 				result.WriteByte(s[i])
@@ -2946,6 +2961,18 @@ func (p *Parser) parseCharValue() Expression {
 			ch = '\''
 		case '0':
 			ch = 0
+		case 'x':
+			// Hex escape: \xNN where NN are two hex digits
+			if len(literal) >= 4 {
+				hexStr := literal[2:4]
+				if val, err := strconv.ParseUint(hexStr, 16, 8); err == nil {
+					ch = rune(val)
+				} else {
+					ch = rune(literal[1])
+				}
+			} else {
+				ch = rune(literal[1])
+			}
 		default:
 			ch = rune(literal[1])
 		}

@@ -627,12 +627,24 @@ func (l *Lexer) readString() (string, bool) {
 			// Check for valid escape sequences
 			next := l.peekChar()
 			validEscapes := map[byte]bool{
-				'n': true, 't': true, 'r': true, '\\': true, '"': true, '\'': true, '0': true,
+				'n': true, 't': true, 'r': true, '\\': true, '"': true, '\'': true, '0': true, 'x': true,
 			}
 			if !validEscapes[next] && next != 0 {
 				l.addError("E1006", "invalid escape sequence '\\"+string(next)+"' in string", l.line, l.column)
 			}
 			l.readChar() // skip escaped character
+
+			// For hex escapes, validate and skip the two hex digits
+			if next == 'x' {
+				for j := 0; j < 2; j++ {
+					hexChar := l.peekChar()
+					if !isHexDigit(hexChar) {
+						l.addError("E1006", "invalid hex escape sequence: expected two hex digits after \\x", l.line, l.column)
+						break
+					}
+					l.readChar()
+				}
+			}
 		}
 	}
 }
@@ -692,12 +704,26 @@ func (l *Lexer) readCharValue() string {
 		l.readChar()
 		// Validate escape sequence
 		validEscapes := map[byte]bool{
-			'n': true, 't': true, 'r': true, '\\': true, '"': true, '\'': true, '0': true,
+			'n': true, 't': true, 'r': true, '\\': true, '"': true, '\'': true, '0': true, 'x': true,
 		}
 		if !validEscapes[l.ch] && l.ch != 0 {
 			l.addError("E1007", "invalid escape sequence '\\"+string(l.ch)+"' in character literal", startLine, startColumn)
 		}
-		ch = "\\" + string(l.ch)
+
+		// For hex escapes, read the two hex digits
+		if l.ch == 'x' {
+			ch = "\\x"
+			for j := 0; j < 2; j++ {
+				l.readChar()
+				if !isHexDigit(l.ch) {
+					l.addError("E1007", "invalid hex escape sequence: expected two hex digits after \\x", startLine, startColumn)
+					break
+				}
+				ch += string(l.ch)
+			}
+		} else {
+			ch = "\\" + string(l.ch)
+		}
 	}
 
 	l.readChar() // move to what should be closing quote
