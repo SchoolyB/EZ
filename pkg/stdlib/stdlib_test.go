@@ -1914,6 +1914,274 @@ func TestTimeNowMs(t *testing.T) {
 }
 
 // ============================================================================
+// Time Module Unix Functions Tests
+// ============================================================================
+
+func TestTimeFromUnix(t *testing.T) {
+	fromUnixFn := TimeBuiltins["time.from_unix"].Fn
+
+	knownUnix := big.NewInt(1577836800)
+	result := fromUnixFn(&object.Integer{Value: knownUnix})
+
+	ts, ok := result.(*object.Integer)
+	if !ok {
+		t.Fatalf("time.from_unix() returned %T, want Integer", result)
+	}
+
+	if ts.Value.Cmp(knownUnix) != 0 {
+		t.Errorf("time.from_unix() = %s, want %s", ts.Value.String(), knownUnix.String())
+	}
+}
+
+func TestTimeFromUnixMs(t *testing.T) {
+	fromUnixMsFn := TimeBuiltins["time.from_unix_ms"].Fn
+	knownUnixMs := big.NewInt(1577836800000)
+	result := fromUnixMsFn(&object.Integer{Value: knownUnixMs})
+
+	ts, ok := result.(*object.Integer)
+	if !ok {
+		t.Fatalf("time.from_unix_ms() returned %T, want Integer", result)
+	}
+	expectedSecond := big.NewInt(1577836800)
+
+	if ts.Value.Cmp(expectedSecond) != 0 {
+		t.Errorf("time.from_unix_ms() = %s, want %s", ts.Value.String(), expectedSecond.String())
+	}
+}
+
+func TestTimeToUnix(t *testing.T) {
+	toUnixFn := TimeBuiltins["time.to_unix"].Fn
+
+	knownUnix := big.NewInt(1577836800)
+	result := toUnixFn(&object.Integer{Value: knownUnix})
+
+	ts, ok := result.(*object.Integer)
+	if !ok {
+		t.Fatalf("time.to_unix() returned %T, want Integer", result)
+	}
+
+	if ts.Value.Cmp(knownUnix) != 0 {
+		t.Errorf("time.to_unix() = %s, want %s", ts.Value.String(), knownUnix.String())
+	}
+}
+
+func TestTimeToUnixMs(t *testing.T) {
+	toUnixMsFn := TimeBuiltins["time.to_unix_ms"].Fn
+
+	knownUnix := big.NewInt(1577836800)
+	result := toUnixMsFn(&object.Integer{Value: knownUnix})
+
+	ms, ok := result.(*object.Integer)
+	if !ok {
+		t.Fatalf("time.to_unix_ms() returned %T, want Integer", result)
+	}
+
+	expectedMs := big.NewInt(1577836800000)
+	if ms.Value.Cmp(expectedMs) != 0 {
+		t.Errorf("time.to_unix_ms() = %s, want %s", ms.Value.String(), expectedMs.String())
+	}
+}
+
+func TestTimeIsWeekend(t *testing.T) {
+	isWeekendFn := TimeBuiltins["time.is_weekend"].Fn
+
+	saturday := big.NewInt(1578096000)
+	result := isWeekendFn(&object.Integer{Value: saturday})
+
+	boolVal, ok := result.(*object.Boolean)
+	if !ok {
+		t.Fatalf("time.is_weekend() returned %T, want Boolean", result)
+	}
+	if !boolVal.Value {
+		t.Errorf("time.is_weekend() returned false, want true")
+	}
+
+	sunday := big.NewInt(1578182400)
+	result = isWeekendFn(&object.Integer{Value: sunday})
+	boolVal, ok = result.(*object.Boolean)
+	if !ok {
+		t.Fatalf("time.is_weekend() returned %T, want Boolean", result)
+	}
+	if !boolVal.Value {
+		t.Errorf("time.is_weekend() returned false, want true")
+	}
+
+	monday := big.NewInt(1578268800)
+	result = isWeekendFn(&object.Integer{Value: monday})
+	boolVal, ok = result.(*object.Boolean)
+	if !ok {
+		t.Fatalf("time.is_weekend() returned %T, want Boolean", result)
+	}
+	if boolVal.Value {
+		t.Errorf("time.is_weekend() returned true, want false")
+	}
+
+}
+func TestTimeIsWeekday(t *testing.T) {
+	isWeekdayFn := TimeBuiltins["time.is_weekday"].Fn
+
+	monday := big.NewInt(1578268800)
+	result := isWeekdayFn(&object.Integer{Value: monday})
+	boolVal, ok := result.(*object.Boolean)
+	if !ok {
+		t.Fatalf("time.is_weekday() returned %T, want Boolean", result)
+	}
+	if !boolVal.Value {
+		t.Errorf("time.is_weekday() returned false, want true")
+	}
+
+	tuesday := big.NewInt(1578355200)
+	result = isWeekdayFn(&object.Integer{Value: tuesday})
+	boolVal, ok = result.(*object.Boolean)
+	if !ok {
+		t.Fatalf("time.is_weekday() returned %T, want Boolean", result)
+	}
+	if !boolVal.Value {
+		t.Errorf("time.is_weekday() returned false, want true")
+	}
+
+	saturday := big.NewInt(1578096000)
+	result = isWeekdayFn(&object.Integer{Value: saturday})
+	boolVal, ok = result.(*object.Boolean)
+	if !ok {
+		t.Fatalf("time.is_weekday() returned %T, want Boolean", result)
+	}
+	if boolVal.Value {
+		t.Errorf("time.is_weekday() returned true, want false")
+	}
+}
+
+func TestTimeIsToday(t *testing.T) {
+	isTodayFn := TimeBuiltins["time.is_today"].Fn
+
+	// Test with current time - should be true
+	now := gotime.Now().Unix()
+	result := isTodayFn(&object.Integer{Value: big.NewInt(now)})
+
+	boolVal, ok := result.(*object.Boolean)
+	if !ok {
+		t.Fatalf("time.is_today() returned %T, want Boolean", result)
+	}
+
+	if !boolVal.Value {
+		t.Errorf("time.is_today() for now = false, want true")
+	}
+
+	// Test with yesterday - should be false
+	yesterday := big.NewInt(now - 86400) // 24 hours ago
+	result = isTodayFn(&object.Integer{Value: yesterday})
+
+	boolVal, ok = result.(*object.Boolean)
+	if !ok {
+		t.Fatalf("time.is_today() returned %T, want Boolean", result)
+	}
+
+	if boolVal.Value {
+		t.Errorf("time.is_today() for yesterday = true, want false")
+	}
+}
+
+func TestTimeIsSameDay(t *testing.T) {
+	isSameDayFn := TimeBuiltins["time.is_same_day"].Fn
+
+	// Test same day (different times)
+	baseTime := big.NewInt(1577836800)
+	laterSameDay := big.NewInt(1577836800 + 3600)
+	result := isSameDayFn(&object.Integer{Value: baseTime}, &object.Integer{Value: laterSameDay})
+
+	boolVal, ok := result.(*object.Boolean)
+	if !ok {
+		t.Fatalf("time.is_same_day() returned %T, want Boolean", result)
+	}
+
+	if !boolVal.Value {
+		t.Errorf("time.is_same_day() for same day = false, want true")
+	}
+
+	// Test different days
+	nextDay := big.NewInt(1577836800 + 86400)
+	result = isSameDayFn(&object.Integer{Value: baseTime}, &object.Integer{Value: nextDay})
+
+	boolVal, ok = result.(*object.Boolean)
+	if !ok {
+		t.Fatalf("time.is_same_day() returned %T, want Boolean", result)
+	}
+
+	if boolVal.Value {
+		t.Errorf("time.is_same_day() for different days = true, want false")
+	}
+}
+
+func TestTimeRelative(t *testing.T) {
+	relativeFn := TimeBuiltins["time.relative"].Fn
+
+	// Test "just now" - within last second
+	now := gotime.Now().Unix()
+	result := relativeFn(&object.Integer{Value: big.NewInt(now)})
+
+	strVal, ok := result.(*object.String)
+	if !ok {
+		t.Fatalf("time.relative() returned %T, want String", result)
+	}
+
+	if strVal.Value != "just now" {
+		t.Errorf("time.relative() for now = %q, want 'just now'", strVal.Value)
+	}
+
+	// Test "X seconds ago"
+	pastSeconds := big.NewInt(now - 30)
+	result = relativeFn(&object.Integer{Value: pastSeconds})
+
+	strVal, ok = result.(*object.String)
+	if !ok {
+		t.Fatalf("time.relative() returned %T, want String", result)
+	}
+
+	if !strings.Contains(strVal.Value, "seconds ago") {
+		t.Errorf("time.relative() for 30 seconds ago = %q, want 'X seconds ago'", strVal.Value)
+	}
+
+	// Test "X minutes ago"
+	pastMinutes := big.NewInt(now - 120) // 2 minutes ago
+	result = relativeFn(&object.Integer{Value: pastMinutes})
+
+	strVal, ok = result.(*object.String)
+	if !ok {
+		t.Fatalf("time.relative() returned %T, want String", result)
+	}
+
+	if !strings.Contains(strVal.Value, "minutes ago") {
+		t.Errorf("time.relative() for 2 minutes ago = %q, want 'X minutes ago'", strVal.Value)
+	}
+
+	// Test "X hours ago"
+	pastHours := big.NewInt(now - 7200) // 2 hours ago
+	result = relativeFn(&object.Integer{Value: pastHours})
+
+	strVal, ok = result.(*object.String)
+	if !ok {
+		t.Fatalf("time.relative() returned %T, want String", result)
+	}
+
+	if !strings.Contains(strVal.Value, "hours ago") {
+		t.Errorf("time.relative() for 2 hours ago = %q, want 'X hours ago'", strVal.Value)
+	}
+
+	// Test "in X seconds" (future)
+	futureSeconds := big.NewInt(now + 30)
+	result = relativeFn(&object.Integer{Value: futureSeconds})
+
+	strVal, ok = result.(*object.String)
+	if !ok {
+		t.Fatalf("time.relative() returned %T, want String", result)
+	}
+
+	if !strings.Contains(strVal.Value, "in") || !strings.Contains(strVal.Value, "seconds") {
+		t.Errorf("time.relative() for 30 seconds future = %q, want 'in X seconds'", strVal.Value)
+	}
+}
+
+// ============================================================================
 // Math Module Tests (more coverage)
 // ============================================================================
 

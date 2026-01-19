@@ -2,7 +2,7 @@
  * time.ez - Test @time standard library with PROPER ASSERTIONS
  */
 
-import @std, @time
+import @std, @time, @strings
 using std
 
 do main() {
@@ -209,6 +209,163 @@ do main() {
         println("  [FAIL] time.week_of_year(): expected 1-53, got ${week}")
         failed += 1
     }
+
+    // ==================== Unix timestamp conversions ====================
+    println("  -- Unix timestamp conversions --")
+
+    // Test 18: from_unix converts Unix seconds to timestamp
+    temp unix_secs int = 1577836800
+    temp ts_from_unix = time.from_unix(unix_secs)
+    if ts_from_unix == unix_secs {
+        println(" [PASS] time.from_unix(${unix_secs}) = ${ts_from_unix}")
+        passed += 1
+    } otherwise {
+        println(" [FAIL] time.from_unix: expected ${unix_secs}, got ${ts_from_unix}")
+        failed += 1
+    }
+
+    // Test 19: from_unix_ms converts Unix milliseconds to timestamp
+    temp unix_ms int = 1577836800000
+    temp ts_from_ms int = time.from_unix_ms(unix_ms)
+    if ts_from_ms == 1577836800 {
+        println("  [PASS] time.from_unix_ms(${unix_ms}) = ${ts_from_ms}")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] time.from_unix_ms: expected 1577836800, got ${ts_from_ms}")
+        failed += 1
+    }
+
+    // Test 20: to_unix converts timestamp to Unix seconds
+    temp test_ts int = 1577836800
+    temp unix_result int = time.to_unix(test_ts)
+    if unix_result == test_ts {
+        println("  [PASS] time.to_unix(${test_ts}) = ${unix_result}")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] time.to_unix: expected ${test_ts}, got ${unix_result}")
+        failed += 1
+    }
+
+    // Test 21: to_unix_ms converts timestamp to Unix milliseconds
+    temp ts_secs int = 1577836800
+    temp ms_result int = time.to_unix_ms(ts_secs)
+    // Should be milliseconds (1577836800000)
+    if ms_result == 1577836800000 {
+        println("  [PASS] time.to_unix_ms(${ts_secs}) = ${ms_result}")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] time.to_unix_ms: expected 1577836800000, got ${ms_result}")
+        failed += 1
+    }
+
+    // ==================== Date checks ====================
+    println("  -- Date checks --")
+
+    // Test 22: is_weekend detects weekends
+    // Jan 4, 2020 (Saturday) = 1578096000
+    temp saturday int = 1578096000
+    temp is_sat bool = time.is_weekend(saturday)
+    if is_sat {
+        println("  [PASS] time.is_weekend(${saturday}) = true (Saturday)")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] time.is_weekend: expected true for Saturday, got false")
+        failed += 1
+    }
+
+    // Test 23: is_weekday detects weekdays
+    // Jan 6, 2020 (Monday) = 1578268800
+    temp monday int = 1578268800
+    temp is_mon bool = time.is_weekday(monday)
+    if is_mon {
+        println("  [PASS] time.is_weekday(${monday}) = true (Monday)")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] time.is_weekday: expected true for Monday, got false")
+        failed += 1
+    }
+
+    // Test 24: is_today checks if timestamp is today
+    temp today_ts int = time.now()
+    temp is_today_result bool = time.is_today(today_ts)
+    if is_today_result {
+        println("  [PASS] time.is_today(${today_ts}) = true")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] time.is_today: expected true for now, got false")
+        failed += 1
+    }
+
+    // Test 25: is_same_day checks if two timestamps are same day
+    temp base_ts int = 1577836800  // Jan 1 2020 00:00:00
+    temp same_day_ts int = 1577836800 + 3600  // Jan 1 2020 01:00:00
+    temp same_day bool = time.is_same_day(base_ts, same_day_ts)
+    if same_day {
+        println("  [PASS] time.is_same_day(${base_ts}, ${same_day_ts}) = true")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] time.is_same_day: expected true for same day, got false")
+        failed += 1
+    }
+
+    // Test 26: is_same_day returns false for different days
+    temp next_day_ts int = 1577836800 + 86400  // Jan 2 2020 00:00:00
+    temp diff_day bool = time.is_same_day(base_ts, next_day_ts)
+    if !diff_day {
+        println("  [PASS] time.is_same_day(${base_ts}, ${next_day_ts}) = false (different days)")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] time.is_same_day: expected false for different days, got true")
+        failed += 1
+    }
+
+    // ==================== Relative time ====================
+    println("  -- Relative time --")
+
+    // Test 27: relative time for "just now"
+    temp just_now_ts int = time.now()
+    temp relative_now string = time.relative(just_now_ts)
+    if relative_now == "just now" {
+        println("  [PASS] time.relative(${just_now_ts}) = '${relative_now}'")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] time.relative for now: expected 'just now', got '${relative_now}'")
+        failed += 1
+    }
+
+    // Test 28: relative time for past seconds
+    temp past_secs int = time.now() - 30
+    temp relative_secs string = time.relative(past_secs)
+    if len(relative_secs) > 0 && strings.contains(relative_secs,"seconds ago") {
+        println("  [PASS] time.relative(${past_secs}) = '${relative_secs}'")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] time.relative for 30s ago: got '${relative_secs}'")
+        failed += 1
+    }
+
+    // Test 29: relative time for past minutes
+    temp past_mins int = time.now() - 120  // 2 minutes ago
+    temp relative_mins string = time.relative(past_mins)
+    if len(relative_mins) > 0 && strings.contains(relative_mins,"minutes ago") {
+        println("  [PASS] time.relative(${past_mins}) = '${relative_mins}'")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] time.relative for 2m ago: got '${relative_mins}'")
+        failed += 1
+    }
+
+    // Test 30: relative time for future
+    temp future_secs int = time.now() + 60
+    temp relative_future string = time.relative(future_secs)
+    if len(relative_future) > 0 && strings.contains(relative_future,"in") {
+        println("  [PASS] time.relative(${future_secs}) = '${relative_future}' (future)")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] time.relative for future: got '${relative_future}'")
+        failed += 1
+    }
+
 
     // Summary
     println("")
