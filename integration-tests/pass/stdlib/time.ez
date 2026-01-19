@@ -220,7 +220,8 @@ do main() {
         println(" [PASS] time.from_unix(${unix_secs}) = ${ts_from_unix}")
         passed += 1
     } otherwise {
-        println(" [FAIL] time.from_unix: expected &{unix_secs}, got ${ts_from_unix}")
+        println(" [FAIL] time.from_unix: expected ${unix_secs}, got ${ts_from_unix}")
+        failed += 1
     }
 
     // Test 19: from_unix_ms converts Unix milliseconds to timestamp

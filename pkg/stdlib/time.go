@@ -817,11 +817,11 @@ var TimeBuiltins = map[string]*object.Builtin{
 	"time.from_unix_ms": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 1 {
-				return &object.Error{Code: "E7001", Message: "time.from_unix_ms takes exactly 1 argument"}
+				return &object.Error{Code: "E7001", Message: "time.from_unix_ms() takes exactly 1 argument"}
 			}
 			ms, ok := args[0].(*object.Integer)
 			if !ok {
-				return &object.Error{Code: "E7004", Message: "time.from_unix_ms requires an integer"}
+				return &object.Error{Code: "E7004", Message: "time.from_unix_ms() requires an integer"}
 			}
 
 			t := time.UnixMilli(ms.Value.Int64())
@@ -832,12 +832,12 @@ var TimeBuiltins = map[string]*object.Builtin{
 	"time.to_unix": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 1 {
-				return &object.Error{Code: "E7001", Message: "time.to_unix takes extacly 1 argument"}
+				return &object.Error{Code: "E7001", Message: "time.to_unix() takes exactly 1 argument"}
 			}
 			ts, ok := args[0].(*object.Integer)
 
 			if !ok {
-				return &object.Error{Code: "E7004", Message: "time.to_unix require an integer timestamp"}
+				return &object.Error{Code: "E7004", Message: "time.to_unix() requires an integer timestamp"}
 			}
 			t := time.Unix(ts.Value.Int64(), 0)
 			return &object.Integer{Value: big.NewInt(t.Unix())}
@@ -847,12 +847,12 @@ var TimeBuiltins = map[string]*object.Builtin{
 	"time.to_unix_ms": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 1 {
-				return &object.Error{Code: "E7001", Message: "time.to_unix_ms takes extacly 1 argument"}
+				return &object.Error{Code: "E7001", Message: "time.to_unix_ms() takes exactly 1 argument"}
 			}
 
 			ts, ok := args[0].(*object.Integer)
 			if !ok {
-				return &object.Error{Code: "E7004", Message: "time.to_unix_ms require an integer timestamp"}
+				return &object.Error{Code: "E7004", Message: "time.to_unix_ms() requires an integer timestamp"}
 			}
 			t := time.Unix(ts.Value.Int64(), 0)
 			return &object.Integer{Value: big.NewInt(t.UnixMilli())}
@@ -885,11 +885,11 @@ var TimeBuiltins = map[string]*object.Builtin{
 	"time.is_today": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 1 {
-				return &object.Error{Code: "E7001", Message: "time.is_today() take exactly 1 argument"}
+				return &object.Error{Code: "E7001", Message: "time.is_today() takes exactly 1 argument"}
 			}
 			ts, ok := args[0].(*object.Integer)
 			if !ok {
-				return &object.Error{Code: "E7004", Message: "time.is_today() require an integer timestamp"}
+				return &object.Error{Code: "E7004", Message: "time.is_today() requires an integer timestamp"}
 			}
 			t := time.Unix(ts.Value.Int64(), 0)
 			now := time.Now()
