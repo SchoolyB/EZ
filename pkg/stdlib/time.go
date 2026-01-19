@@ -5,6 +5,7 @@ package stdlib
 
 import (
 	"math/big"
+	"strconv"
 	"time"
 
 	"github.com/marshallburns/ez/pkg/object"
@@ -797,6 +798,199 @@ var TimeBuiltins = map[string]*object.Builtin{
 			return &object.Integer{Value: big.NewInt(604800)}
 		},
 		IsConstant: true,
+	},
+
+	"time.from_unix": {
+		Fn: func(args ...object.Object) object.Object {
+			if len(args) != 1 {
+				return &object.Error{Code: "E7001", Message: "time.from_unix() takes exactly 1 argument"}
+			}
+			secs, ok := args[0].(*object.Integer)
+			if !ok {
+				return &object.Error{Code: "E7004", Message: "time.from_unix() requires an integer"}
+			}
+			t := time.Unix(secs.Value.Int64(), 0)
+			return &object.Integer{Value: big.NewInt(t.Unix())}
+		},
+	},
+
+	"time.from_unix_ms": {
+		Fn: func(args ...object.Object) object.Object {
+			if len(args) != 1 {
+				return &object.Error{Code: "E7001", Message: "time.from_unix_ms() takes exactly 1 argument"}
+			}
+			ms, ok := args[0].(*object.Integer)
+			if !ok {
+				return &object.Error{Code: "E7004", Message: "time.from_unix_ms() requires an integer"}
+			}
+
+			t := time.UnixMilli(ms.Value.Int64())
+			return &object.Integer{Value: big.NewInt(t.Unix())}
+		},
+	},
+
+	"time.to_unix": {
+		Fn: func(args ...object.Object) object.Object {
+			if len(args) != 1 {
+				return &object.Error{Code: "E7001", Message: "time.to_unix() takes exactly 1 argument"}
+			}
+			ts, ok := args[0].(*object.Integer)
+
+			if !ok {
+				return &object.Error{Code: "E7004", Message: "time.to_unix() requires an integer timestamp"}
+			}
+			t := time.Unix(ts.Value.Int64(), 0)
+			return &object.Integer{Value: big.NewInt(t.Unix())}
+		},
+	},
+
+	"time.to_unix_ms": {
+		Fn: func(args ...object.Object) object.Object {
+			if len(args) != 1 {
+				return &object.Error{Code: "E7001", Message: "time.to_unix_ms() takes exactly 1 argument"}
+			}
+
+			ts, ok := args[0].(*object.Integer)
+			if !ok {
+				return &object.Error{Code: "E7004", Message: "time.to_unix_ms() requires an integer timestamp"}
+			}
+			t := time.Unix(ts.Value.Int64(), 0)
+			return &object.Integer{Value: big.NewInt(t.UnixMilli())}
+		},
+	},
+
+	"time.is_weekend": {
+		Fn: func(args ...object.Object) object.Object {
+			t := getTime(args)
+
+			wd := t.Weekday()
+			if wd == time.Sunday || wd == time.Saturday {
+				return object.TRUE
+			}
+			return object.FALSE
+		},
+	},
+
+	"time.is_weekday": {
+		Fn: func(args ...object.Object) object.Object {
+			t := getTime(args)
+			wd := t.Weekday()
+			if wd >= time.Monday && wd <= time.Friday {
+				return object.TRUE
+			}
+			return object.FALSE
+		},
+	},
+
+	"time.is_today": {
+		Fn: func(args ...object.Object) object.Object {
+			if len(args) != 1 {
+				return &object.Error{Code: "E7001", Message: "time.is_today() takes exactly 1 argument"}
+			}
+			ts, ok := args[0].(*object.Integer)
+			if !ok {
+				return &object.Error{Code: "E7004", Message: "time.is_today() requires an integer timestamp"}
+			}
+			t := time.Unix(ts.Value.Int64(), 0)
+			now := time.Now()
+
+			return &object.Boolean{Value: t.Year() == now.Year() && t.Month() == now.Month() && t.Day() == now.Day()}
+		},
+	},
+
+	"time.is_same_day": {
+		Fn: func(args ...object.Object) object.Object {
+			if len(args) != 2 {
+				return &object.Error{Code: "E7001", Message: "time.is_same_day() takes exactly 2 arguments"}
+			}
+			ts1, ok := args[0].(*object.Integer)
+			if !ok {
+				return &object.Error{Code: "E7004", Message: "time.is_same_day() requires integer timestamps"}
+			}
+			ts2, ok := args[1].(*object.Integer)
+			if !ok {
+				return &object.Error{Code: "E7004", Message: "time.is_same_day() requires integer timestamps"}
+			}
+			t1 := time.Unix(ts1.Value.Int64(), 0)
+			t2 := time.Unix(ts2.Value.Int64(), 0)
+
+			return &object.Boolean{Value: t1.Year() == t2.Year() &&
+				t1.Month() == t2.Month() &&
+				t1.Day() == t2.Day()}
+		},
+	},
+
+	"time.relative": {
+		Fn: func(args ...object.Object) object.Object {
+			if len(args) != 1 {
+				return &object.Error{Code: "E7001", Message: "time.relative() takes exactly 1 argument"}
+			}
+			ts, ok := args[0].(*object.Integer)
+			if !ok {
+				return &object.Error{Code: "E7004", Message: "time.relative() requires an integer timestamp"}
+			}
+			t := time.Unix(ts.Value.Int64(), 0)
+			now := time.Now()
+			diff := now.Sub(t)
+			// Handle future times
+			if diff < 0 {
+				diff = -diff
+				if diff < time.Second {
+					return &object.String{Value: "just now"}
+				} else if diff < time.Minute {
+					secs := int(diff.Seconds())
+					return &object.String{Value: "in " + strconv.Itoa(secs) + " seconds"}
+				} else if diff < time.Hour {
+					mins := int(diff.Minutes())
+					if mins == 1 {
+						return &object.String{Value: "in 1 minute"}
+					}
+					return &object.String{Value: "in " + strconv.Itoa(mins) + " minutes"}
+
+				} else if diff < 24*time.Hour {
+					hours := int(diff.Hours())
+					if hours == 1 {
+						return &object.String{Value: "in 1 hour"}
+					}
+					return &object.String{Value: "in " + strconv.Itoa(hours) + " hours"}
+				} else {
+					days := int(diff.Hours() / 24)
+					if days == 1 {
+						return &object.String{Value: "in 1 day"}
+					}
+					return &object.String{Value: "in " + strconv.Itoa(days) + " days"}
+				}
+			}
+
+			// Handle past time
+			if diff < time.Second {
+				return &object.String{Value: "just now"}
+			} else if diff < time.Minute {
+				secs := int(diff.Seconds())
+				if secs == 1 {
+					return &object.String{Value: "1 second ago"}
+				}
+				return &object.String{Value: strconv.Itoa(secs) + " seconds ago"}
+			} else if diff < time.Hour {
+				mins := int(diff.Minutes())
+				if mins == 1 {
+					return &object.String{Value: "1 minute ago"}
+				}
+				return &object.String{Value: strconv.Itoa(mins) + " minutes ago"}
+			} else if diff < 24*time.Hour {
+				hours := int(diff.Hours())
+				if hours == 1 {
+					return &object.String{Value: "1 hour ago"}
+				}
+				return &object.String{Value: strconv.Itoa(hours) + " hours ago"}
+			} else {
+				days := int(diff.Hours() / 24)
+				if days == 1 {
+					return &object.String{Value: "1 day ago"}
+				}
+				return &object.String{Value: strconv.Itoa(days) + " days ago"}
+			}
+		},
 	},
 }
 

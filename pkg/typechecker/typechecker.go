@@ -6964,7 +6964,9 @@ func (tc *TypeChecker) isTimeFunction(name string) bool {
 		"parse": true, "sleep": true, "sleep_ms": true, "add_seconds": true,
 		"add_minutes": true, "add_hours": true, "add_days": true, "diff": true,
 		"diff_days": true, "is_before": true, "is_after": true, "make": true,
-		"days_in_month": true, "elapsed_ms": true,
+		"days_in_month": true, "elapsed_ms": true, "from_unix": true, "from_unix_ms": true,
+		"to_unix": true, "to_unix_ms": true, "is_weekend": true, "is_weekday": true, "is_today": true,
+		"is_same_day": true, "relative": true,
 	}
 	return timeFuncs[name]
 }
@@ -7922,6 +7924,21 @@ func (tc *TypeChecker) checkTimeModuleCall(funcName string, call *ast.CallExpres
 
 		// elapsed_ms
 		"elapsed_ms": {1, 1, []string{"int"}, "float"},
+
+		// Unix conversions
+		"from_unix":    {1, 1, []string{"int"}, "int"},
+		"from_unix_ms": {1, 1, []string{"int"}, "int"},
+		"to_unix":      {1, 1, []string{"int"}, "int"},
+		"to_unix_ms":   {1, 1, []string{"int"}, "int"},
+
+		// Date checks
+		"is_weekend":  {1, 1, []string{"int"}, "bool"},
+		"is_weekday":  {1, 1, []string{"int"}, "bool"},
+		"is_today":    {1, 1, []string{"int"}, "bool"},
+		"is_same_day": {2, 2, []string{"int", "int"}, "bool"},
+
+		// Relative time
+		"relative": {1, 1, []string{"int"}, "string"},
 	}
 
 	sig, exists := signatures[funcName]
