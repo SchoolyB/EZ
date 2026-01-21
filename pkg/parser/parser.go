@@ -1633,7 +1633,7 @@ func (p *Parser) parseFunctionDeclarationWithAttrs(attrs []*Attribute) *Function
 			}
 			stmt.ReturnTypes = []string{typeName}
 		} else if p.currentTokenMatches(NIL) {
-			// Single retrun type: nil
+			// Single return type: nil
 			stmt.ReturnTypes = []string{"nil"}
 
 		} else {
@@ -1883,7 +1883,7 @@ func (p *Parser) parseReturnTypes() []string {
 			}
 			types = append(types, typeName)
 		} else if p.currentTokenMatches(NIL) {
-			// nill return type
+			// nil return type
 			types = append(types, "nil")
 		} else {
 			msg := fmt.Sprintf("expected type name in return types, got %s", p.currentToken.Type)
