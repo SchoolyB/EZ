@@ -211,6 +211,32 @@ do main() {
         println("  [FAIL] lose_life: expected 2, got ${game.lives}")
         failed += 1
     }
+    
+    // ==================== NIL RETURN TYPE ====================
+    println("  -- Nil Return Type --")
+
+    // Test 17: function with -> nil return type
+    temp nilResult = returnsNil()
+    if nilResult == nil {
+        println(" [PASS] returnsNil() -> nil returns nil")
+        passed += 1
+    } otherwise {
+        println(" [FAIL] returnsNil(): expected nil, got ${nilResult}")
+        failed +=1
+    }
+
+    // Test 18: function with multiple return types including nil
+    temp value int = 0
+    temp getValueResult, err = getValue(value)
+    if value == 42 && getValueResult == 42 && err == nil {
+        println(" [PASS] getValue() -> (int, nil) works")
+        passed +=1
+    } otherwise {
+        println(" [FAIL] getValue: value=${value}, result=${getValueResult}, err=${err}")
+        failed += 1
+    }
+
+
 
     // Summary
     println("")
@@ -281,6 +307,15 @@ do append_world(&s string) {
 do double_point(&p Point) {
     p.x = p.x * 2
     p.y = p.y * 2
+}
+
+do returnsNil() -> nil {
+    return nil
+}
+
+do getValue(&value int) -> (int, nil) {
+    value = 42
+    return value, nil
 }
 
 do double_array_in_place(&arr [int]) {

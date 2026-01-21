@@ -355,8 +355,8 @@ func TestArrayLiterals(t *testing.T) {
 
 func TestMapLiterals(t *testing.T) {
 	tests := []struct {
-		name      string
-		input     string
+		name          string
+		input         string
 		expectedPairs int
 	}{
 		{"non-empty map", `temp m map[string:int] = {"a": 1, "b": 2}`, 2},
@@ -764,6 +764,33 @@ func TestFunctionWithMultipleReturnTypes(t *testing.T) {
 	}
 	if fn.ReturnTypes[0] != "int" || fn.ReturnTypes[1] != "string" {
 		t.Errorf("expected return types (int, string), got (%s, %s)", fn.ReturnTypes[0], fn.ReturnTypes[1])
+	}
+}
+
+func TestFunctionWithNilReturnType(t *testing.T) {
+	input := `do returnsNil() -> nil {
+	return nil
+	}`
+	program := parseProgram(t, input)
+	fn := program.Statements[0].(*FunctionDeclaration)
+
+	if len(fn.ReturnTypes) != 1 || fn.ReturnTypes[0] != "nil" {
+		t.Errorf("expected return type 'nil', got %v", fn.ReturnTypes)
+	}
+}
+
+func TestFunctionWithMultipleReturnTypesIncludingNil(t *testing.T) {
+	input := `do getValue() -> (int,nil) {
+	return 42, nil
+	}`
+	program := parseProgram(t, input)
+	fn := program.Statements[0].(*FunctionDeclaration)
+
+	if len(fn.ReturnTypes) != 2 {
+		t.Fatalf("expected 2 return types got %d", len(fn.ReturnTypes))
+	}
+	if fn.ReturnTypes[0] != "int" || fn.ReturnTypes[1] != "nil" {
+		t.Errorf("expected return types (int, nil), got (%s, %s)", fn.ReturnTypes[0], fn.ReturnTypes[1])
 	}
 }
 

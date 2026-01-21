@@ -1632,6 +1632,10 @@ func (p *Parser) parseFunctionDeclarationWithAttrs(attrs []*Attribute) *Function
 				return nil
 			}
 			stmt.ReturnTypes = []string{typeName}
+		} else if p.currentTokenMatches(NIL) {
+			// Single retrun type: nil
+			stmt.ReturnTypes = []string{"nil"}
+
 		} else {
 			// Invalid token after arrow
 			msg := fmt.Sprintf("expected return type after '->', got %s instead", p.currentToken.Type)
@@ -1878,6 +1882,9 @@ func (p *Parser) parseReturnTypes() []string {
 				return nil
 			}
 			types = append(types, typeName)
+		} else if p.currentTokenMatches(NIL) {
+			// nill return type
+			types = append(types, "nil")
 		} else {
 			msg := fmt.Sprintf("expected type name in return types, got %s", p.currentToken.Type)
 			p.addEZError(errors.E2002, msg, p.currentToken)
