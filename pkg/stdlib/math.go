@@ -162,27 +162,39 @@ var MathBuiltins = map[string]*object.Builtin{
 			if len(args) < 2 {
 				return &object.Error{Code: "E7001", Message: "math.min() takes at least 2 arguments"}
 			}
+			// Check if all arguments are integers for precision-preserving arithmetic
+			allInts := true
+			for _, arg := range args {
+				if !isInteger(arg) {
+					allInts = false
+					break
+				}
+			}
+			if allInts {
+				minVal := args[0].(*object.Integer).Value
+				for i := 1; i < len(args); i++ {
+					val := args[i].(*object.Integer).Value
+					if val.Cmp(minVal) < 0 {
+						minVal = val
+					}
+				}
+				return &object.Integer{Value: new(big.Int).Set(minVal)}
+			}
+			// Fall back to float64 if any floats
 			minVal, err := getNumber(args[0])
 			if err != nil {
 				return err
 			}
-			hasFloat := isFloat(args[0])
 			for i := 1; i < len(args); i++ {
 				val, err := getNumber(args[i])
 				if err != nil {
 					return err
 				}
-				if isFloat(args[i]) {
-					hasFloat = true
-				}
 				if val < minVal {
 					minVal = val
 				}
 			}
-			if hasFloat {
-				return &object.Float{Value: minVal}
-			}
-			return &object.Integer{Value: big.NewInt(int64(minVal))}
+			return &object.Float{Value: minVal}
 		},
 	},
 	"math.max": {
@@ -190,33 +202,59 @@ var MathBuiltins = map[string]*object.Builtin{
 			if len(args) < 2 {
 				return &object.Error{Code: "E7001", Message: "math.max() takes at least 2 arguments"}
 			}
+			// Check if all arguments are integers for precision-preserving arithmetic
+			allInts := true
+			for _, arg := range args {
+				if !isInteger(arg) {
+					allInts = false
+					break
+				}
+			}
+			if allInts {
+				maxVal := args[0].(*object.Integer).Value
+				for i := 1; i < len(args); i++ {
+					val := args[i].(*object.Integer).Value
+					if val.Cmp(maxVal) > 0 {
+						maxVal = val
+					}
+				}
+				return &object.Integer{Value: new(big.Int).Set(maxVal)}
+			}
+			// Fall back to float64 if any floats
 			maxVal, err := getNumber(args[0])
 			if err != nil {
 				return err
 			}
-			hasFloat := isFloat(args[0])
 			for i := 1; i < len(args); i++ {
 				val, err := getNumber(args[i])
 				if err != nil {
 					return err
 				}
-				if isFloat(args[i]) {
-					hasFloat = true
-				}
 				if val > maxVal {
 					maxVal = val
 				}
 			}
-			if hasFloat {
-				return &object.Float{Value: maxVal}
-			}
-			return &object.Integer{Value: big.NewInt(int64(maxVal))}
+			return &object.Float{Value: maxVal}
 		},
 	},
 	"math.clamp": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 3 {
 				return &object.Error{Code: "E7001", Message: "math.clamp() takes exactly 3 arguments (value, min, max)"}
+			}
+			// Use big.Int arithmetic if all arguments are integers
+			if isInteger(args[0]) && isInteger(args[1]) && isInteger(args[2]) {
+				val := args[0].(*object.Integer).Value
+				minVal := args[1].(*object.Integer).Value
+				maxVal := args[2].(*object.Integer).Value
+				result := new(big.Int).Set(val)
+				if result.Cmp(minVal) < 0 {
+					result.Set(minVal)
+				}
+				if result.Cmp(maxVal) > 0 {
+					result.Set(maxVal)
+				}
+				return &object.Integer{Value: result}
 			}
 			val, err := getNumber(args[0])
 			if err != nil {
@@ -231,10 +269,7 @@ var MathBuiltins = map[string]*object.Builtin{
 				return err
 			}
 			result := math.Max(minVal, math.Min(val, maxVal))
-			if isFloat(args[0]) || isFloat(args[1]) || isFloat(args[2]) {
-				return &object.Float{Value: result}
-			}
-			return &object.Integer{Value: big.NewInt(int64(result))}
+			return &object.Float{Value: result}
 		},
 	},
 
@@ -980,6 +1015,11 @@ func getTwoNumbers(args []object.Object) (float64, float64, *object.Error) {
 
 func isFloat(obj object.Object) bool {
 	_, ok := obj.(*object.Float)
+	return ok
+}
+
+func isInteger(obj object.Object) bool {
+	_, ok := obj.(*object.Integer)
 	return ok
 }
 
