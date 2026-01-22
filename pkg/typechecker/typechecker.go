@@ -3129,12 +3129,12 @@ func (tc *TypeChecker) checkInfixExpression(infix *ast.InfixExpression) {
 			)
 		}
 
-	case "in", "!in":
-		// Right side must be array or string
-		if !tc.isArrayType(rightType) && rightType != "string" {
+	case "in", "!in", "not_in":
+		// Right side must be array, string, or map
+		if !tc.isArrayType(rightType) && rightType != "string" && !tc.isMapType(rightType) {
 			tc.addError(
 				errors.E3002,
-				fmt.Sprintf("invalid operand for '%s': %s (expected array or string)", infix.Operator, rightType),
+				fmt.Sprintf("invalid operand for '%s': %s (expected array, string, or map)", infix.Operator, rightType),
 				line,
 				column,
 			)

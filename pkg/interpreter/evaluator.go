@@ -2656,11 +2656,20 @@ func evalInOperator(left, right Object, line, col int) Object {
 		return FALSE
 	}
 
+	// Handle map key membership check
+	if m, ok := right.(*Map); ok {
+		_, exists := m.Get(left)
+		if exists {
+			return TRUE
+		}
+		return FALSE
+	}
+
 	// Handle array membership check
 	arr, ok := right.(*Array)
 	if !ok {
 		return newErrorWithLocation("E3014", line, col,
-			"right operand of 'in' must be array or range, got %s", objectTypeToEZ(right))
+			"right operand of 'in' must be array, map, or range, got %s", objectTypeToEZ(right))
 	}
 
 	for _, elem := range arr.Elements {
