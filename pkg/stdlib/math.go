@@ -20,14 +20,15 @@ var MathBuiltins = map[string]*object.Builtin{
 			if len(args) != 2 {
 				return &object.Error{Code: "E7001", Message: "math.add() takes exactly 2 arguments"}
 			}
+			// Use big.Int arithmetic for integer-only operations to preserve precision
+			if intA, intB := getTwoIntegers(args); intA != nil && intB != nil {
+				return &object.Integer{Value: new(big.Int).Add(intA, intB)}
+			}
 			a, b, err := getTwoNumbers(args)
 			if err != nil {
 				return err
 			}
-			if isFloat(args[0]) || isFloat(args[1]) {
-				return &object.Float{Value: a + b}
-			}
-			return &object.Integer{Value: big.NewInt(int64(a + b))}
+			return &object.Float{Value: a + b}
 		},
 	},
 	"math.sub": {
@@ -35,14 +36,15 @@ var MathBuiltins = map[string]*object.Builtin{
 			if len(args) != 2 {
 				return &object.Error{Code: "E7001", Message: "math.sub() takes exactly 2 arguments"}
 			}
+			// Use big.Int arithmetic for integer-only operations to preserve precision
+			if intA, intB := getTwoIntegers(args); intA != nil && intB != nil {
+				return &object.Integer{Value: new(big.Int).Sub(intA, intB)}
+			}
 			a, b, err := getTwoNumbers(args)
 			if err != nil {
 				return err
 			}
-			if isFloat(args[0]) || isFloat(args[1]) {
-				return &object.Float{Value: a - b}
-			}
-			return &object.Integer{Value: big.NewInt(int64(a - b))}
+			return &object.Float{Value: a - b}
 		},
 	},
 	"math.mul": {
@@ -50,14 +52,15 @@ var MathBuiltins = map[string]*object.Builtin{
 			if len(args) != 2 {
 				return &object.Error{Code: "E7001", Message: "math.mul() takes exactly 2 arguments"}
 			}
+			// Use big.Int arithmetic for integer-only operations to preserve precision
+			if intA, intB := getTwoIntegers(args); intA != nil && intB != nil {
+				return &object.Integer{Value: new(big.Int).Mul(intA, intB)}
+			}
 			a, b, err := getTwoNumbers(args)
 			if err != nil {
 				return err
 			}
-			if isFloat(args[0]) || isFloat(args[1]) {
-				return &object.Float{Value: a * b}
-			}
-			return &object.Integer{Value: big.NewInt(int64(a * b))}
+			return &object.Float{Value: a * b}
 		},
 	},
 	"math.div": {
@@ -79,6 +82,13 @@ var MathBuiltins = map[string]*object.Builtin{
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 2 {
 				return &object.Error{Code: "E7001", Message: "math.mod() takes exactly 2 arguments"}
+			}
+			// Use big.Int arithmetic for integer-only operations to preserve precision
+			if intA, intB := getTwoIntegers(args); intA != nil && intB != nil {
+				if intB.Sign() == 0 {
+					return &object.Error{Code: "E5002", Message: "modulo by zero"}
+				}
+				return &object.Integer{Value: new(big.Int).Mod(intA, intB)}
 			}
 			a, b, err := getTwoNumbers(args)
 			if err != nil {
@@ -971,4 +981,22 @@ func getTwoNumbers(args []object.Object) (float64, float64, *object.Error) {
 func isFloat(obj object.Object) bool {
 	_, ok := obj.(*object.Float)
 	return ok
+}
+
+// getTwoIntegers returns the big.Int values if both args are integers, nil otherwise
+func getTwoIntegers(args []object.Object) (*big.Int, *big.Int) {
+	intA, okA := args[0].(*object.Integer)
+	intB, okB := args[1].(*object.Integer)
+	if okA && okB {
+		return intA.Value, intB.Value
+	}
+	return nil, nil
+}
+
+// getInteger returns the big.Int value if the arg is an integer, nil otherwise
+func getInteger(obj object.Object) *big.Int {
+	if intVal, ok := obj.(*object.Integer); ok {
+		return intVal.Value
+	}
+	return nil
 }
