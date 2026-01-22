@@ -212,6 +212,29 @@ do main() {
         failed += 1
     }
 
+    // ==================== NIL RETURN TYPE ====================
+    println("  -- Nil Return Type --")
+
+    // Test: function with -> nil return type
+    temp nilResult = returnsNil()
+    if nilResult == nil {
+        println("  [PASS] returnsNil() -> nil returns nil")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] returnsNil(): expected nil")
+        failed += 1
+    }
+
+    // Test: function with multiple return types including nil
+    temp val, err = getValueOrNil()
+    if val == 42 && err == nil {
+        println("  [PASS] getValueOrNil() -> (int, nil) works")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] getValueOrNil(): val=${val}, err=${err}")
+        failed += 1
+    }
+
     // Summary
     println("")
     println("Results: ${passed} passed, ${failed} failed")
@@ -307,4 +330,12 @@ do add_score(&state GameState, points int) {
 
 do lose_life(&state GameState) {
     state.lives = state.lives - 1
+}
+
+do returnsNil() -> nil {
+    return nil
+}
+
+do getValueOrNil() -> (int, nil) {
+    return 42, nil
 }
