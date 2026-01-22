@@ -259,6 +259,44 @@ do main() {
         failed += 1
     }
 
+    // ==================== LARGE INTEGER PRECISION ====================
+    println("  -- Large Integer Precision --")
+
+    // Test 24: math.add preserves precision for large integers (> 2^53)
+    temp big1 int = 9007199254740993
+    temp big2 int = 9007199254740993
+    temp native_add = big1 + big2
+    temp math_add_result = math.add(big1, big2)
+    if native_add == math_add_result {
+        println("  [PASS] math.add preserves large int precision")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] math.add precision loss: native=${native_add}, math=${math_add_result}")
+        failed += 1
+    }
+
+    // Test 25: math.mul preserves precision for large integers
+    temp mul_result = math.mul(big1, 2)
+    temp native_mul = big1 * 2
+    if native_mul == mul_result {
+        println("  [PASS] math.mul preserves large int precision")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] math.mul precision loss: native=${native_mul}, math=${mul_result}")
+        failed += 1
+    }
+
+    // Test 26: math.factorial works for n > 20 (was limited before)
+    temp fact_25 = math.factorial(25)
+    temp expected_fact_25 int = 15511210043330985984000000
+    if fact_25 == expected_fact_25 {
+        println("  [PASS] math.factorial(25) = ${fact_25}")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] math.factorial(25): expected ${expected_fact_25}, got ${fact_25}")
+        failed += 1
+    }
+
     // Summary
     println("")
     println("Results: ${passed} passed, ${failed} failed")
