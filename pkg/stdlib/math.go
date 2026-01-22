@@ -125,6 +125,10 @@ var MathBuiltins = map[string]*object.Builtin{
 			if len(args) != 1 {
 				return &object.Error{Code: "E7001", Message: "math.sign() takes exactly 1 argument"}
 			}
+			// Use big.Int.Sign() directly for integers to avoid precision loss
+			if intVal := getInteger(args[0]); intVal != nil {
+				return &object.Integer{Value: big.NewInt(int64(intVal.Sign()))}
+			}
 			val, err := getNumber(args[0])
 			if err != nil {
 				return err
