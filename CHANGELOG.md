@@ -1,5 +1,24 @@
 # Changelog
 
+## [1.4.0](https://github.com/SchoolyB/EZ/compare/v1.3.0...v1.4.0) (2026-01-22)
+
+
+### Features
+
+* **operators:** add map support for in/not_in operators ([#1053](https://github.com/SchoolyB/EZ/issues/1053)) ([4239d20](https://github.com/SchoolyB/EZ/commit/4239d2043a45ed65fede9d1c858aa2f98030687e)), closes [#1007](https://github.com/SchoolyB/EZ/issues/1007)
+
+
+### Bug Fixes
+
+* **parser:** allow nil as function return type ([#1054](https://github.com/SchoolyB/EZ/issues/1054)) ([473b26e](https://github.com/SchoolyB/EZ/commit/473b26eadffe4c2d5d287757b6832a83a8e79989)), closes [#1044](https://github.com/SchoolyB/EZ/issues/1044)
+* **stdlib/math:** preserve precision for add, sub, mul, mod ([45ab8c4](https://github.com/SchoolyB/EZ/commit/45ab8c45337df3554acdc5d91f3b7bf52cd15f9c))
+* **stdlib/math:** preserve precision for factorial, gcd, lcm ([d7dc223](https://github.com/SchoolyB/EZ/commit/d7dc2232997223e678a36b28e26dab85f3d2ceed))
+* **stdlib/math:** preserve precision for large integers ([88187fb](https://github.com/SchoolyB/EZ/commit/88187fb3c4662b83a8cd6944b977223e86e6ca51))
+* **stdlib/math:** preserve precision for min, max, clamp ([b9ba598](https://github.com/SchoolyB/EZ/commit/b9ba5989d851cb63a831e0f74284b352147c3dfe))
+* **stdlib/math:** preserve precision for pow, sum ([e6eada0](https://github.com/SchoolyB/EZ/commit/e6eada0a6f9fc6481dfccdc9126ea5a2cf1b8788))
+* **stdlib/math:** preserve precision for sign ([c7ba2f1](https://github.com/SchoolyB/EZ/commit/c7ba2f18b69049bdb438f5b30f7927662388f2ec))
+* **tests:** remove E17004_db_corrupted test ([#1052](https://github.com/SchoolyB/EZ/issues/1052)) ([275bdb3](https://github.com/SchoolyB/EZ/commit/275bdb352388c5b911cb15e310e6960985b44341)), closes [#1051](https://github.com/SchoolyB/EZ/issues/1051)
+
 ## [1.3.0](https://github.com/SchoolyB/EZ/compare/v1.2.0...v1.3.0) (2026-01-19)
 
 
