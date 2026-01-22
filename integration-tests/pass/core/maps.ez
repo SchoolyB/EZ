@@ -141,6 +141,66 @@ do main() {
         failed += 1
     }
 
+    // ==================== IN/NOT_IN OPERATORS ====================
+    println("  -- in/not_in Operators --")
+
+    temp test_map map[string:int] = {"foo": 1, "bar": 2, "baz": 3}
+
+    // Test 12: 'in' with key that exists
+    if "foo" in test_map {
+        println("  [PASS] \"foo\" in test_map = true")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] \"foo\" in test_map: expected true")
+        failed += 1
+    }
+
+    // Test 13: 'in' with key that doesn't exist
+    if "missing" in test_map {
+        println("  [FAIL] \"missing\" in test_map: expected false")
+        failed += 1
+    } otherwise {
+        println("  [PASS] \"missing\" in test_map = false")
+        passed += 1
+    }
+
+    // Test 14: 'not_in' with key that doesn't exist
+    if "missing" not_in test_map {
+        println("  [PASS] \"missing\" not_in test_map = true")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] \"missing\" not_in test_map: expected true")
+        failed += 1
+    }
+
+    // Test 15: 'not_in' with key that exists
+    if "bar" not_in test_map {
+        println("  [FAIL] \"bar\" not_in test_map: expected false")
+        failed += 1
+    } otherwise {
+        println("  [PASS] \"bar\" not_in test_map = false")
+        passed += 1
+    }
+
+    // Test 16: 'in' with int keys
+    temp int_map map[int:string] = {1: "one", 2: "two", 3: "three"}
+    if 2 in int_map {
+        println("  [PASS] 2 in int_map = true")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] 2 in int_map: expected true")
+        failed += 1
+    }
+
+    // Test 17: 'not_in' with int keys
+    if 99 not_in int_map {
+        println("  [PASS] 99 not_in int_map = true")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] 99 not_in int_map: expected true")
+        failed += 1
+    }
+
     // Summary
     println("")
     println("Results: ${passed} passed, ${failed} failed")
