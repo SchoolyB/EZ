@@ -811,6 +811,18 @@ var MathBuiltins = map[string]*object.Builtin{
 			if len(args) != 1 {
 				return &object.Error{Code: "E7001", Message: "math.factorial() takes exactly 1 argument"}
 			}
+			// Use big.Int for arbitrary precision factorial
+			if intVal := getInteger(args[0]); intVal != nil {
+				if intVal.Sign() < 0 {
+					return &object.Error{Code: "E8004", Message: "math.factorial() requires non-negative integer"}
+				}
+				result := big.NewInt(1)
+				n := intVal.Int64()
+				for i := int64(2); i <= n; i++ {
+					result.Mul(result, big.NewInt(i))
+				}
+				return &object.Integer{Value: result}
+			}
 			val, err := getNumber(args[0])
 			if err != nil {
 				return err
@@ -819,20 +831,24 @@ var MathBuiltins = map[string]*object.Builtin{
 			if n < 0 {
 				return &object.Error{Code: "E8004", Message: "math.factorial() requires non-negative integer"}
 			}
-			if n > 20 {
-				return &object.Error{Code: "E8005", Message: "math.factorial() overflow for n > 20"}
-			}
-			result := int64(1)
+			result := big.NewInt(1)
 			for i := int64(2); i <= n; i++ {
-				result *= i
+				result.Mul(result, big.NewInt(i))
 			}
-			return &object.Integer{Value: big.NewInt(result)}
+			return &object.Integer{Value: result}
 		},
 	},
 	"math.gcd": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 2 {
 				return &object.Error{Code: "E7001", Message: "math.gcd() takes exactly 2 arguments"}
+			}
+			// Use big.Int.GCD for arbitrary precision
+			if intA, intB := getTwoIntegers(args); intA != nil && intB != nil {
+				a := new(big.Int).Abs(intA)
+				b := new(big.Int).Abs(intB)
+				result := new(big.Int).GCD(nil, nil, a, b)
+				return &object.Integer{Value: result}
 			}
 			a, b, err := getTwoNumbers(args)
 			if err != nil {
@@ -849,6 +865,19 @@ var MathBuiltins = map[string]*object.Builtin{
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 2 {
 				return &object.Error{Code: "E7001", Message: "math.lcm() takes exactly 2 arguments"}
+			}
+			// Use big.Int for arbitrary precision: lcm(a,b) = |a*b| / gcd(a,b)
+			if intA, intB := getTwoIntegers(args); intA != nil && intB != nil {
+				a := new(big.Int).Abs(intA)
+				b := new(big.Int).Abs(intB)
+				if a.Sign() == 0 || b.Sign() == 0 {
+					return &object.Integer{Value: big.NewInt(0)}
+				}
+				gcd := new(big.Int).GCD(nil, nil, a, b)
+				// lcm = (a * b) / gcd
+				result := new(big.Int).Mul(a, b)
+				result.Div(result, gcd)
+				return &object.Integer{Value: result}
 			}
 			a, b, err := getTwoNumbers(args)
 			if err != nil {
