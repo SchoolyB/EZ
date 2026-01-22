@@ -333,22 +333,23 @@ var MathBuiltins = map[string]*object.Builtin{
 			if len(args) != 2 {
 				return &object.Error{Code: "E7001", Message: "math.pow() takes exactly 2 arguments"}
 			}
+			// Use big.Int.Exp for integer base and non-negative integer exponent
+			if intBase, intExp := getTwoIntegers(args); intBase != nil && intExp != nil {
+				if intExp.Sign() >= 0 {
+					result := new(big.Int).Exp(intBase, intExp, nil)
+					return &object.Integer{Value: result}
+				}
+				// Negative exponent - fall through to float
+			}
 			base, exp, err := getTwoNumbers(args)
 			if err != nil {
 				return err
 			}
 			result := math.Pow(base, exp)
-			if isFloat(args[0]) || isFloat(args[1]) || exp < 0 {
-				return &object.Float{Value: result}
+			if math.IsInf(result, 0) || math.IsNaN(result) {
+				return &object.Error{Code: "E5004", Message: "math.pow() overflow or invalid result"}
 			}
-			// Check for integer overflow
-			// Use 2^63 as the boundary since float64(math.MaxInt64) loses precision
-			const maxInt64AsFloat = float64(1 << 63)       // 9223372036854775808.0
-			const minInt64AsFloat = float64(math.MinInt64) // -9223372036854775808.0
-			if result >= maxInt64AsFloat || result < minInt64AsFloat || math.IsInf(result, 0) || math.IsNaN(result) {
-				return &object.Error{Code: "E5004", Message: "math.pow() overflow: result exceeds int64 range"}
-			}
-			return &object.Integer{Value: big.NewInt(int64(result))}
+			return &object.Float{Value: result}
 		},
 	},
 	"math.sqrt": {
@@ -762,22 +763,31 @@ var MathBuiltins = map[string]*object.Builtin{
 			if len(args) == 0 {
 				return &object.Integer{Value: big.NewInt(0)}
 			}
+			// Check if all arguments are integers for precision-preserving arithmetic
+			allInts := true
+			for _, arg := range args {
+				if !isInteger(arg) {
+					allInts = false
+					break
+				}
+			}
+			if allInts {
+				sum := big.NewInt(0)
+				for _, arg := range args {
+					sum.Add(sum, arg.(*object.Integer).Value)
+				}
+				return &object.Integer{Value: sum}
+			}
+			// Fall back to float64 if any floats
 			var sum float64
-			hasFloat := false
 			for _, arg := range args {
 				val, err := getNumber(arg)
 				if err != nil {
 					return err
 				}
-				if isFloat(arg) {
-					hasFloat = true
-				}
 				sum += val
 			}
-			if hasFloat {
-				return &object.Float{Value: sum}
-			}
-			return &object.Integer{Value: big.NewInt(int64(sum))}
+			return &object.Float{Value: sum}
 		},
 	},
 	"math.avg": {
