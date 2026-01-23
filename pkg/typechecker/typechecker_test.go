@@ -950,6 +950,15 @@ do main() {
 	assertHasError(t, tc, errors.E3041)
 }
 
+func TestFixedSizeArrayOverflowGlobal(t *testing.T) {
+	input := `
+const arr [int, 3] = {0, 1, 2, 3}
+do main() {}
+`
+	tc := typecheck(t, input)
+	assertHasError(t, tc, errors.E3041)
+}
+
 // ============================================================================
 // Control Flow Tests
 // ============================================================================

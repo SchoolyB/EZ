@@ -1075,6 +1075,36 @@ func (tc *TypeChecker) checkGlobalVariableDeclaration(node *ast.VariableDeclarat
 			continue
 		}
 
+		// Check for fixed-size array size mismatch (W3003, E3041)
+		if node.Value != nil && tc.isArrayType(typeName) {
+			declaredSize := tc.extractArraySize(typeName)
+			if declaredSize > 0 {
+				// Check if the value is an array literal
+				if arrLit, ok := node.Value.(*ast.ArrayValue); ok {
+					actualSize := len(arrLit.Elements)
+					if actualSize < declaredSize {
+						if !tc.isSuppressed("W3003", node.Attributes) {
+							tc.addWarning(
+								errors.W3003,
+								fmt.Sprintf("fixed-size array not fully initialized: declared size %d but only %d element(s) provided",
+									declaredSize, actualSize),
+								name.Token.Line,
+								name.Token.Column,
+							)
+						}
+					} else if actualSize > declaredSize {
+						tc.addError(
+							errors.E3041,
+							fmt.Sprintf("array literal has %d element(s) but declared size is %d",
+								actualSize, declaredSize),
+							name.Token.Line,
+							name.Token.Column,
+						)
+					}
+				}
+			}
+		}
+
 		// Register variable
 		tc.variables[varName] = typeName
 
