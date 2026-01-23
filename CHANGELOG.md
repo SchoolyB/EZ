@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.4.1](https://github.com/SchoolyB/EZ/compare/v1.4.0...v1.4.1) (2026-01-23)
+
+
+### Bug Fixes
+
+* **typechecker:** add E3041 check for global fixed-size array overflow ([#1060](https://github.com/SchoolyB/EZ/issues/1060)) ([56de4f1](https://github.com/SchoolyB/EZ/commit/56de4f1657d2d7bd53187854a39584e08b2640f3)), closes [#1058](https://github.com/SchoolyB/EZ/issues/1058)
+
 ## [1.4.0](https://github.com/SchoolyB/EZ/compare/v1.3.0...v1.4.0) (2026-01-22)
 
 
