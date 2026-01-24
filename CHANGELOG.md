@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.4.2](https://github.com/SchoolyB/EZ/compare/v1.4.1...v1.4.2) (2026-01-24)
+
+
+### Bug Fixes
+
+* **typechecker:** resolve multi-return type inference for stdlib calls via 'using' ([#1062](https://github.com/SchoolyB/EZ/issues/1062)) ([0c21737](https://github.com/SchoolyB/EZ/commit/0c21737f4e3a6b0181aa5d87b330623c7675f0af)), closes [#977](https://github.com/SchoolyB/EZ/issues/977)
+
 ## [1.4.1](https://github.com/SchoolyB/EZ/compare/v1.4.0...v1.4.1) (2026-01-23)
 
 
