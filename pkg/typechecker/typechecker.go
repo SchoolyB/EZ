@@ -2238,6 +2238,23 @@ func (tc *TypeChecker) checkMultiReturnDeclaration(decl *ast.VariableDeclaration
 			return
 		}
 
+		// Check if it's a stdlib function from a 'using' module (#977)
+		for usingModuleName := range tc.fileUsingModules {
+			resolvedModuleName := tc.resolveStdlibModule(usingModuleName)
+			if moduleReturnTypes := tc.getModuleMultiReturnTypes(resolvedModuleName, funcName, callExpr.Arguments); moduleReturnTypes != nil {
+				for i, name := range decl.Names {
+					if name != nil {
+						inferredType := ""
+						if i < len(moduleReturnTypes) {
+							inferredType = moduleReturnTypes[i]
+						}
+						tc.defineVariableWithMutability(name.Value, inferredType, decl.Mutable)
+					}
+				}
+				return
+			}
+		}
+
 		// Function not found - still register variables with unknown types
 		// (undefined function error will be caught elsewhere)
 		for _, name := range decl.Names {
