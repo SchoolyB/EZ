@@ -75,6 +75,24 @@ do main() {
         failed += 1
     }
 
+    // ==================== NESTED MUTABILITY ====================
+    println("  -- Nested Mutability (Array in Struct in Array) --")
+
+    const Box struct {
+        values [int]
+    }
+
+    // Test 18: modify array inside struct inside array (Issue #1066)
+    temp boxes = {Box{values: {1, 2}}, Box{values: {3, 4}}}
+    boxes[0].values[1] = 99
+    if boxes[0].values[1] == 99 {
+        println("  [PASS] nested array modification: boxes[0].values[1] = 99")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] nested array modification: expected 99, got ${boxes[0].values[1]}")
+        failed += 1
+    }
+
     // ==================== FIXED SIZE ARRAYS ====================
     println("  -- Fixed Size Arrays --")
 
