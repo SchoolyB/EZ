@@ -201,6 +201,24 @@ do main() {
         failed += 1
     }
 
+    // ==================== NESTED MUTABILITY ====================
+    println("  -- Nested Mutability (Array in Struct in Map) --")
+
+    const Entry struct {
+        items [int]
+    }
+
+    // Test 18: modify array inside struct inside map (Issue #1065)
+    temp m2 map[string:Entry] = {"key": Entry{items: {1, 2, 3}}}
+    arrays.append(m2["key"].items, 4)
+    if len(m2["key"].items) == 4 && m2["key"].items[3] == 4 {
+        println("  [PASS] nested array modification: arrays.append works")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] nested array modification: expected length 4, got ${len(m2[\"key\"].items)}")
+        failed += 1
+    }
+
     // Summary
     println("")
     println("Results: ${passed} passed, ${failed} failed")
