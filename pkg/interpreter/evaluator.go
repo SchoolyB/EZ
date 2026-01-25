@@ -683,6 +683,18 @@ func Eval(node ast.Node, env *Environment) Object {
 				return newErrorWithLocation("E12003", node.Token.Line, node.Token.Column,
 					"key %s not found in map%s", index.Inspect(), keyList)
 			}
+			switch v := value.(type) {
+			case *Struct:
+				v.Mutable = mapObj.Mutable
+
+			case *Array:
+				v.Mutable = mapObj.Mutable
+
+			case *Map:
+				v.Mutable = mapObj.Mutable
+
+			}
+
 			return value
 		}
 
@@ -707,7 +719,19 @@ func Eval(node ast.Node, env *Environment) Object {
 					"index out of bounds: attempted to access index %s, but valid range is 0-%d",
 					idx.Value.String(), arrLen.Int64()-1)
 			}
-			return obj.Elements[idx.Value.Int64()]
+			value := obj.Elements[idx.Value.Int64()]
+
+			switch v := value.(type) {
+			case *Struct:
+				v.Mutable = obj.Mutable
+
+			case *Array:
+				v.Mutable = obj.Mutable
+
+			case *Map:
+				v.Mutable = obj.Mutable
+			}
+			return value
 
 		case *String:
 			// Convert to runes for proper UTF-8 character indexing

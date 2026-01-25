@@ -1,0 +1,13 @@
+/*
+ * Error Test: E3018 - scalar-to-array-assignment (global variable)
+ * Expected: "array type requires" or "cannot assign"
+ * Tests that global array declarations require array literals
+ */
+
+module test
+
+// Global array with scalar value - should trigger E3018
+const badArray [int] = 42
+
+do main() {
+}
