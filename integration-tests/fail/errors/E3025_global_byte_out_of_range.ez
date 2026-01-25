@@ -1,0 +1,13 @@
+/*
+ * Error Test: E3025 - byte-value-out-of-range (global variable)
+ * Expected: "byte" or "0 and 255"
+ * Tests that global byte declarations check value range
+ */
+
+module test
+
+// Global byte with out of range value - should trigger E3025
+const badByte byte = 300
+
+do main() {
+}
