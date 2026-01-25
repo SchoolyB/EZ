@@ -2,8 +2,12 @@
  * maps.ez - Test map types and operations
  */
 
-import @std, @maps
+import @std, @maps, @arrays
 using std
+
+const Entry struct {
+    items [int]
+}
 
 do main() {
     println("=== Maps Test ===")
@@ -203,10 +207,6 @@ do main() {
 
     // ==================== NESTED MUTABILITY ====================
     println("  -- Nested Mutability (Array in Struct in Map) --")
-
-    const Entry struct {
-        items [int]
-    }
 
     // Test 18: modify array inside struct inside map (Issue #1065)
     temp m2 map[string:Entry] = {"key": Entry{items: {1, 2, 3}}}

@@ -5,6 +5,10 @@
 import @std, @arrays
 using std
 
+const Box struct {
+    values [int]
+}
+
 do main() {
     println("=== Arrays Test ===")
     temp passed int = 0
@@ -77,10 +81,6 @@ do main() {
 
     // ==================== NESTED MUTABILITY ====================
     println("  -- Nested Mutability (Array in Struct in Array) --")
-
-    const Box struct {
-        values [int]
-    }
 
     // Test 18: modify array inside struct inside array (Issue #1066)
     temp boxes = {Box{values: {1, 2}}, Box{values: {3, 4}}}
