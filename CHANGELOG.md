@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.4.3](https://github.com/SchoolyB/EZ/compare/v1.4.2...v1.4.3) (2026-01-25)
+
+
+### Bug Fixes
+
+* apply bug fixes from recent PRs ([979d5e3](https://github.com/SchoolyB/EZ/commit/979d5e32c7e3d70883ade6a054a4eee29686c8d5))
+
 ## [1.4.2](https://github.com/SchoolyB/EZ/compare/v1.4.1...v1.4.2) (2026-01-24)
 
 
