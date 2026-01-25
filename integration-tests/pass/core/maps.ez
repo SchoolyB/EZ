@@ -2,8 +2,12 @@
  * maps.ez - Test map types and operations
  */
 
-import @std, @maps
+import @std, @maps, @arrays
 using std
+
+const Entry struct {
+    items [int]
+}
 
 do main() {
     println("=== Maps Test ===")
@@ -198,6 +202,20 @@ do main() {
         passed += 1
     } otherwise {
         println("  [FAIL] 99 not_in int_map: expected true")
+        failed += 1
+    }
+
+    // ==================== NESTED MUTABILITY ====================
+    println("  -- Nested Mutability (Array in Struct in Map) --")
+
+    // Test 18: modify array inside struct inside map (Issue #1065)
+    temp m2 map[string:Entry] = {"key": Entry{items: {1, 2, 3}}}
+    arrays.append(m2["key"].items, 4)
+    if len(m2["key"].items) == 4 && m2["key"].items[3] == 4 {
+        println("  [PASS] nested array modification: arrays.append works")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] nested array modification: expected length 4, got ${len(m2[\"key\"].items)}")
         failed += 1
     }
 

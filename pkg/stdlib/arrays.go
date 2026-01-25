@@ -53,7 +53,7 @@ var ArraysBuiltins = map[string]*object.Builtin{
 			if !arr.Mutable {
 				return &object.Error{
 					Message: "cannot modify immutable array (declared as const)",
-					Code:    "E4005",
+					Code:    "E5007",
 				}
 			}
 			if err := checkIterating(arr, "arrays.append"); err != nil {
