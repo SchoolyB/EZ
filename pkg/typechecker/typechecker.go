@@ -1038,26 +1038,69 @@ func (tc *TypeChecker) checkGlobalVariableDeclaration(node *ast.VariableDeclarat
 	for _, name := range node.Names {
 		varName := name.Value
 
-		// Determine the type
-		var typeName string
-		if node.TypeName != "" {
-			typeName = node.TypeName
-		} else if node.Value != nil {
-			// Type inference from value
-			if inferredType, ok := tc.inferExpressionType(node.Value); ok {
-				typeName = inferredType
-			} else {
-				continue
-			}
-		} else {
+		// Determine the declared type
+		declaredType := node.TypeName
+
+		// Check if 'void' type is used (not allowed for variables)
+		if declaredType == "void" {
+			tc.addError(
+				errors.E3038,
+				"'void' type cannot be used in variable declarations",
+				name.Token.Line,
+				name.Token.Column,
+			)
 			continue
 		}
 
+		// Check if variable name shadows a type (enum/struct) - #571
+		if t, exists := tc.types[varName]; exists && (t.Kind == EnumType || t.Kind == StructType) {
+			kind := "enum"
+			if t.Kind == StructType {
+				kind = "struct"
+			}
+			tc.addError(
+				errors.E4012,
+				fmt.Sprintf("variable '%s' shadows %s type of the same name", varName, kind),
+				name.Token.Line,
+				name.Token.Column,
+			)
+		}
+
+		// Check if variable name shadows a function - #572
+		if _, exists := tc.functions[varName]; exists {
+			tc.addError(
+				errors.E4013,
+				fmt.Sprintf("variable '%s' shadows function of the same name", varName),
+				name.Token.Line,
+				name.Token.Column,
+			)
+		}
+
+		// Check if variable name shadows an imported module - #579
+		if _, exists := tc.modules[varName]; exists {
+			tc.addError(
+				errors.E4014,
+				fmt.Sprintf("variable '%s' shadows imported module of the same name", varName),
+				name.Token.Line,
+				name.Token.Column,
+			)
+		}
+
+		// Check if variable name shadows a function from a 'used' module - #616
+		if shadowedModule := tc.getUsedModuleShadowingFunction(varName); shadowedModule != "" {
+			tc.addError(
+				errors.E4015,
+				fmt.Sprintf("variable '%s' shadows function '%s.%s' from used module", varName, shadowedModule, varName),
+				name.Token.Line,
+				name.Token.Column,
+			)
+		}
+
 		// Check if type exists (skip for inferred types that might be complex)
-		if typeName != "" && !tc.TypeExists(typeName) && !strings.HasPrefix(typeName, "[") && !strings.HasPrefix(typeName, "map[") {
+		if declaredType != "" && !tc.TypeExists(declaredType) && !strings.HasPrefix(declaredType, "[") && !strings.HasPrefix(declaredType, "map[") {
 			tc.addError(
 				errors.E3002,
-				fmt.Sprintf("undefined type '%s'", typeName),
+				fmt.Sprintf("undefined type '%s'", declaredType),
 				name.Token.Line,
 				name.Token.Column,
 			)
@@ -1065,7 +1108,7 @@ func (tc *TypeChecker) checkGlobalVariableDeclaration(node *ast.VariableDeclarat
 		}
 
 		// Check if 'any' type is used (not allowed for user code)
-		if typeName != "" && tc.containsAnyType(typeName) {
+		if declaredType != "" && tc.containsAnyType(declaredType) {
 			tc.addError(
 				errors.E3034,
 				"'any' type cannot be used in variable declarations",
@@ -1073,6 +1116,202 @@ func (tc *TypeChecker) checkGlobalVariableDeclaration(node *ast.VariableDeclarat
 				name.Token.Column,
 			)
 			continue
+		}
+
+		// Check if 'void' type is used in complex types (not allowed)
+		if declaredType != "" && tc.containsVoidType(declaredType) {
+			tc.addError(
+				errors.E3038,
+				"'void' type cannot be used in variable declarations",
+				name.Token.Line,
+				name.Token.Column,
+			)
+			continue
+		}
+
+		// Check for float-based enum as map key (not allowed)
+		if declaredType != "" && tc.isMapType(declaredType) {
+			keyType := tc.extractMapKeyType(declaredType)
+			if enumType, ok := tc.GetType(keyType); ok && enumType.Kind == EnumType {
+				if enumType.EnumBaseType == "float" {
+					tc.addError(
+						errors.E3029,
+						fmt.Sprintf("float-based enum '%s' cannot be used as map key", keyType),
+						name.Token.Line,
+						name.Token.Column,
+					)
+					continue
+				}
+			}
+		}
+
+		// Determine the final type (declared or inferred)
+		var typeName string
+		if declaredType != "" {
+			typeName = declaredType
+		} else if node.Value != nil {
+			// Type inference from value
+			if inferredType, ok := tc.inferExpressionType(node.Value); ok {
+				typeName = inferredType
+			} else {
+				// Still register with empty type so variable is in scope
+				tc.variables[varName] = ""
+				continue
+			}
+		} else {
+			continue
+		}
+
+		// If there's an initial value, check type compatibility
+		if node.Value != nil {
+			// Check for type/function used as value
+			tc.checkValueExpression(node.Value)
+
+			// Validate the expression itself
+			tc.checkExpression(node.Value)
+
+			// If no declared type, infer from value
+			if declaredType == "" {
+				// Check if it's a multi-return function being assigned to a single variable
+				if tc.isMultiReturnCall(node.Value) {
+					tc.addError(
+						errors.E3040,
+						"cannot assign multi-return function result to single variable; use multiple variables or discard with _",
+						name.Token.Line,
+						name.Token.Column,
+					)
+					continue
+				}
+
+				inferredType, ok := tc.inferExpressionType(node.Value)
+				if ok {
+					if inferredType == "void" {
+						tc.addError(
+							errors.E3038,
+							"cannot assign void function result to a variable",
+							name.Token.Line,
+							name.Token.Column,
+						)
+						continue
+					}
+					typeName = inferredType
+				}
+			} else {
+				// Declared type exists, check compatibility
+				actualType, ok := tc.inferExpressionType(node.Value)
+				if ok {
+					if actualType == "void" {
+						tc.addError(
+							errors.E3038,
+							"cannot assign void function result to a variable",
+							name.Token.Line,
+							name.Token.Column,
+						)
+						continue
+					}
+
+					// Check if it's an array type mismatch (assigning scalar to array)
+					if tc.isArrayType(declaredType) && !tc.isArrayType(actualType) && actualType != "nil" {
+						tc.addError(
+							errors.E3018,
+							fmt.Sprintf("cannot assign %s to array type %s - array type requires value in {} format", actualType, declaredType),
+							name.Token.Line,
+							name.Token.Column,
+						)
+						continue
+					}
+
+					// Check for type mismatch
+					if !tc.typesCompatible(declaredType, actualType) {
+						if declaredType == "char" && actualType == "string" {
+							sourceLine := errors.GetSourceLine(tc.source, name.Token.Line)
+							mismatchError := errors.NewErrorWithHelp(
+								errors.E3001,
+								fmt.Sprintf("type mismatch: cannot assign %s to %s", actualType, declaredType),
+								name.Token.File,
+								name.Token.Line,
+								name.Token.Column,
+								sourceLine,
+								fmt.Sprintf("use single quotes for char literals: '%s'", node.Value.TokenLiteral()),
+							)
+							tc.errors.AddError(mismatchError)
+						} else {
+							tc.addError(
+								errors.E3001,
+								fmt.Sprintf("type mismatch: cannot assign %s to %s", actualType, declaredType),
+								name.Token.Line,
+								name.Token.Column,
+							)
+						}
+						continue
+					}
+
+					// Check byte value range for single byte declaration
+					if declaredType == "byte" {
+						if intLit, ok := node.Value.(*ast.IntegerValue); ok {
+							if intLit.Value.Sign() < 0 || intLit.Value.Cmp(big.NewInt(255)) > 0 {
+								tc.addError(
+									errors.E3025,
+									fmt.Sprintf("byte value %s out of range: must be between 0 and 255", intLit.Value.String()),
+									name.Token.Line,
+									name.Token.Column,
+								)
+								continue
+							}
+						}
+						// Handle negative literals like -5 (parsed as prefix expression)
+						if prefixExpr, ok := node.Value.(*ast.PrefixExpression); ok {
+							if prefixExpr.Operator == "-" {
+								if intLit, ok := prefixExpr.Right.(*ast.IntegerValue); ok {
+									tc.addError(
+										errors.E3025,
+										fmt.Sprintf("byte value -%s out of range: must be between 0 and 255", intLit.Value.String()),
+										name.Token.Line,
+										name.Token.Column,
+									)
+									continue
+								}
+							}
+						}
+					}
+
+					// Check sized integer type ranges (#666)
+					if tc.isSizedIntegerType(declaredType) {
+						tc.checkIntegerLiteralRange(node.Value, declaredType, name.Token.Line, name.Token.Column)
+					}
+
+					// Check byte array element values
+					if declaredType == "[byte]" || strings.HasPrefix(declaredType, "[byte,") {
+						if arrLit, ok := node.Value.(*ast.ArrayValue); ok {
+							for i, elem := range arrLit.Elements {
+								if intLit, ok := elem.(*ast.IntegerValue); ok {
+									if intLit.Value.Sign() < 0 || intLit.Value.Cmp(big.NewInt(255)) > 0 {
+										tc.addError(
+											errors.E3026,
+											fmt.Sprintf("byte array element [%d] value %s out of range: must be between 0 and 255", i, intLit.Value.String()),
+											intLit.Token.Line,
+											intLit.Token.Column,
+										)
+									}
+								}
+								// Handle negative literals like -5 (parsed as prefix expression)
+								if prefixExpr, ok := elem.(*ast.PrefixExpression); ok {
+									if prefixExpr.Operator == "-" {
+										if intLit, ok := prefixExpr.Right.(*ast.IntegerValue); ok {
+											tc.addError(
+												errors.E3026,
+												fmt.Sprintf("byte array element [%d] value -%s out of range: must be between 0 and 255", i, intLit.Value.String()),
+												prefixExpr.Token.Line,
+												prefixExpr.Token.Column,
+											)
+										}
+									}
+								}
+							}
+						}
+					}
+				}
+			}
 		}
 
 		// Check for fixed-size array size mismatch (W3003, E3041)
