@@ -265,18 +265,9 @@ func (p *Parser) declareInScope(name string, token Token) bool {
 	return true
 }
 
-// Returns a pointer to Parser(p)
-// with initialized members
-func New(l *Lexer) *Parser {
-	p := &Parser{
-		l:        l,
-		errors:   []string{},
-		ezErrors: errors.NewErrorList(),
-		source:   "",
-		filename: "<unknown>",
-		scopes:   []map[string]Token{make(map[string]Token)}, // start with global scope
-	}
-
+// registerParseFunctions initializes the prefix and infix parse function maps.
+// Called by both New() and NewWithSource() to avoid code duplication.
+func (p *Parser) registerParseFunctions() {
 	p.prefixParseFns = make(map[TokenType]prefixParseFn)
 	p.setPrefix(IDENT, p.parseIdentifier)
 	p.setPrefix(INT, p.parseIntegerValue)
@@ -316,8 +307,21 @@ func New(l *Lexer) *Parser {
 	p.setInfix(DOT, p.parseMemberExpression)
 	p.setInfix(INCREMENT, p.parsePostfixExpression)
 	p.setInfix(DECREMENT, p.parsePostfixExpression)
+}
 
-	// Read two tokens to initialize currentToken and peekToken
+// Returns a pointer to Parser(p)
+// with initialized members
+func New(l *Lexer) *Parser {
+	p := &Parser{
+		l:        l,
+		errors:   []string{},
+		ezErrors: errors.NewErrorList(),
+		source:   "",
+		filename: "<unknown>",
+		scopes:   []map[string]Token{make(map[string]Token)},
+	}
+
+	p.registerParseFunctions()
 	p.nextToken()
 	p.nextToken()
 
@@ -332,50 +336,10 @@ func NewWithSource(l *Lexer, source, filename string) *Parser {
 		ezErrors: errors.NewErrorList(),
 		source:   source,
 		filename: filename,
-		scopes:   []map[string]Token{make(map[string]Token)}, // start with global scope
+		scopes:   []map[string]Token{make(map[string]Token)},
 	}
 
-	p.prefixParseFns = make(map[TokenType]prefixParseFn)
-	p.setPrefix(IDENT, p.parseIdentifier)
-	p.setPrefix(INT, p.parseIntegerValue)
-	p.setPrefix(FLOAT, p.parseFloatValue)
-	p.setPrefix(STRING, p.parseStringValue)
-	p.setPrefix(RAW_STRING, p.parseRawStringValue)
-	p.setPrefix(CHAR, p.parseCharValue)
-	p.setPrefix(TRUE, p.parseBooleanValue)
-	p.setPrefix(FALSE, p.parseBooleanValue)
-	p.setPrefix(NIL, p.parseNilValue)
-	p.setPrefix(BANG, p.parsePrefixExpression)
-	p.setPrefix(MINUS, p.parsePrefixExpression)
-	p.setPrefix(LPAREN, p.parseGroupedExpression)
-	p.setPrefix(LBRACE, p.parseArrayValue)
-	p.setPrefix(NEW, p.parseNewExpression)
-	p.setPrefix(RANGE, p.parseRangeExpression)
-	p.setPrefix(CAST, p.parseCastExpression)
-
-	p.infixParseFns = make(map[TokenType]infixParseFn)
-	p.setInfix(PLUS, p.parseInfixExpression)
-	p.setInfix(MINUS, p.parseInfixExpression)
-	p.setInfix(ASTERISK, p.parseInfixExpression)
-	p.setInfix(SLASH, p.parseInfixExpression)
-	p.setInfix(PERCENT, p.parseInfixExpression)
-	p.setInfix(EQ, p.parseInfixExpression)
-	p.setInfix(NOT_EQ, p.parseInfixExpression)
-	p.setInfix(LT, p.parseInfixExpression)
-	p.setInfix(GT, p.parseInfixExpression)
-	p.setInfix(LT_EQ, p.parseInfixExpression)
-	p.setInfix(GT_EQ, p.parseInfixExpression)
-	p.setInfix(AND, p.parseInfixExpression)
-	p.setInfix(OR, p.parseInfixExpression)
-	p.setInfix(IN, p.parseInfixExpression)
-	p.setInfix(NOT_IN, p.parseInfixExpression)
-	p.setInfix(LPAREN, p.parseCallExpression)
-	p.setInfix(LBRACKET, p.parseIndexExpression)
-	p.setInfix(DOT, p.parseMemberExpression)
-	p.setInfix(INCREMENT, p.parsePostfixExpression)
-	p.setInfix(DECREMENT, p.parsePostfixExpression)
-
-	// Read two tokens to initialize currentToken and peekToken
+	p.registerParseFunctions()
 	p.nextToken()
 	p.nextToken()
 
@@ -2901,48 +2865,6 @@ func (p *Parser) parseInterpolatedExpression(exprStr string, origToken Token) Ex
 	}
 
 	return expr
-}
-
-// registerParseFunctions sets up all prefix and infix parse functions
-func (p *Parser) registerParseFunctions() {
-	// Prefix parse functions
-	p.setPrefix(IDENT, p.parseIdentifier)
-	p.setPrefix(INT, p.parseIntegerValue)
-	p.setPrefix(FLOAT, p.parseFloatValue)
-	p.setPrefix(STRING, p.parseStringValue)
-	p.setPrefix(CHAR, p.parseCharValue)
-	p.setPrefix(TRUE, p.parseBooleanValue)
-	p.setPrefix(FALSE, p.parseBooleanValue)
-	p.setPrefix(NIL, p.parseNilValue)
-	p.setPrefix(BANG, p.parsePrefixExpression)
-	p.setPrefix(MINUS, p.parsePrefixExpression)
-	p.setPrefix(LPAREN, p.parseGroupedExpression)
-	p.setPrefix(LBRACE, p.parseArrayValue)
-	p.setPrefix(NEW, p.parseNewExpression)
-	p.setPrefix(RANGE, p.parseRangeExpression)
-	p.setPrefix(CAST, p.parseCastExpression)
-
-	// Infix parse functions
-	p.setInfix(PLUS, p.parseInfixExpression)
-	p.setInfix(MINUS, p.parseInfixExpression)
-	p.setInfix(ASTERISK, p.parseInfixExpression)
-	p.setInfix(SLASH, p.parseInfixExpression)
-	p.setInfix(PERCENT, p.parseInfixExpression)
-	p.setInfix(EQ, p.parseInfixExpression)
-	p.setInfix(NOT_EQ, p.parseInfixExpression)
-	p.setInfix(LT, p.parseInfixExpression)
-	p.setInfix(GT, p.parseInfixExpression)
-	p.setInfix(LT_EQ, p.parseInfixExpression)
-	p.setInfix(GT_EQ, p.parseInfixExpression)
-	p.setInfix(AND, p.parseInfixExpression)
-	p.setInfix(OR, p.parseInfixExpression)
-	p.setInfix(IN, p.parseInfixExpression)
-	p.setInfix(NOT_IN, p.parseInfixExpression)
-	p.setInfix(LPAREN, p.parseCallExpression)
-	p.setInfix(LBRACKET, p.parseIndexExpression)
-	p.setInfix(DOT, p.parseMemberExpression)
-	p.setInfix(INCREMENT, p.parsePostfixExpression)
-	p.setInfix(DECREMENT, p.parsePostfixExpression)
 }
 
 func (p *Parser) parseCharValue() Expression {
