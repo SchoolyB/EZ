@@ -34,6 +34,7 @@ type Scope struct {
 	mutability    map[string]bool   // variable name -> is mutable
 	usingModules  map[string]bool   // modules imported via 'using'
 	loopVariables map[string]bool   // loop variable names in this scope
+	nonNilVars    map[string]bool   // variables known to be non-nil in this scope
 }
 
 // NewScope creates a new scope with an optional parent
@@ -44,6 +45,7 @@ func NewScope(parent *Scope) *Scope {
 		mutability:    make(map[string]bool),
 		usingModules:  make(map[string]bool),
 		loopVariables: make(map[string]bool),
+		nonNilVars:    make(map[string]bool),
 	}
 }
 
@@ -145,6 +147,22 @@ func (s *Scope) isLoopVariableInScopeChain(name string) bool {
 	}
 	if s.parent != nil {
 		return s.parent.isLoopVariableInScopeChain(name)
+	}
+	return false
+}
+
+// MarkNonNil marks a variable as known non-nil in this scope
+func (s *Scope) MarkNonNil(name string) {
+	s.nonNilVars[name] = true
+}
+
+// IsKnownNonNil checks if a variable is known to be non-nil in this scope or parent scopes
+func (s *Scope) IsKnownNonNil(name string) bool {
+	if s.nonNilVars[name] {
+		return true
+	}
+	if s.parent != nil {
+		return s.parent.IsKnownNonNil(name)
 	}
 	return false
 }
@@ -2815,15 +2833,20 @@ func (tc *TypeChecker) checkMemberExpression(member *ast.MemberExpression) {
 
 	// Warn about chained member access on nullable struct types (#689)
 	// e.g., p.pos.x where p.pos is a struct that could be nil
+	// Skip warning if variable is known non-nil from flow analysis (#834)
 	if _, isChained := member.Object.(*ast.MemberExpression); isChained {
 		if tc.isNullableType(objType) && objType != "error" && objType != "Error" {
-			line, column := tc.getExpressionPosition(member.Object)
-			tc.addWarning(
-				errors.W2010,
-				fmt.Sprintf("accessing member '%s' on struct type '%s' which may be nil - consider checking for nil first", member.Member.Value, objType),
-				line,
-				column,
-			)
+			// Check if this expression is known to be non-nil
+			exprName := tc.extractVarNameFromExpr(member.Object)
+			if exprName == "" || !tc.currentScope.IsKnownNonNil(exprName) {
+				line, column := tc.getExpressionPosition(member.Object)
+				tc.addWarning(
+					errors.W2010,
+					fmt.Sprintf("accessing member '%s' on struct type '%s' which may be nil - consider checking for nil first", member.Member.Value, objType),
+					line,
+					column,
+				)
+			}
 		}
 	}
 
@@ -4041,8 +4064,15 @@ func (tc *TypeChecker) checkIfStatement(ifStmt *ast.IfStatement, expectedReturnT
 		)
 	}
 
+	// Detect nil-check patterns for flow-sensitive analysis (#834)
+	nonNilInConsequent, nonNilInAlternative := tc.extractNilCheckVars(ifStmt.Condition)
+
 	// Check consequence block
 	tc.enterScope()
+	// Mark variables known non-nil in consequent (e.g., from "x != nil")
+	for _, varName := range nonNilInConsequent {
+		tc.currentScope.MarkNonNil(varName)
+	}
 	tc.checkBlock(ifStmt.Consequence, expectedReturnTypes)
 	tc.exitScope()
 
@@ -4053,10 +4083,81 @@ func (tc *TypeChecker) checkIfStatement(ifStmt *ast.IfStatement, expectedReturnT
 			tc.checkIfStatement(alt, expectedReturnTypes)
 		case *ast.BlockStatement:
 			tc.enterScope()
+			// Mark variables known non-nil in alternative (e.g., from "x == nil" means x is non-nil in else)
+			for _, varName := range nonNilInAlternative {
+				tc.currentScope.MarkNonNil(varName)
+			}
 			tc.checkBlock(alt, expectedReturnTypes)
 			tc.exitScope()
 		}
 	}
+}
+
+// extractNilCheckVars detects nil-check patterns and returns variable names
+// that are known non-nil in the consequent (then) and alternative (else) branches.
+// For "x != nil": x is non-nil in consequent
+// For "x == nil": x is non-nil in alternative
+func (tc *TypeChecker) extractNilCheckVars(cond ast.Expression) (nonNilInConsequent, nonNilInAlternative []string) {
+	infix, ok := cond.(*ast.InfixExpression)
+	if !ok {
+		return nil, nil
+	}
+
+	// Check for != nil or == nil patterns
+	if infix.Operator != "!=" && infix.Operator != "==" {
+		return nil, nil
+	}
+
+	// Check if right side is nil (NilValue AST node)
+	rightIsNil := false
+	if _, ok := infix.Right.(*ast.NilValue); ok {
+		rightIsNil = true
+	}
+	// Check if left side is nil (NilValue AST node)
+	leftIsNil := false
+	if _, ok := infix.Left.(*ast.NilValue); ok {
+		leftIsNil = true
+	}
+
+	if !rightIsNil && !leftIsNil {
+		return nil, nil
+	}
+
+	// Extract variable name from the non-nil side
+	var varExpr ast.Expression
+	if rightIsNil {
+		varExpr = infix.Left
+	} else {
+		varExpr = infix.Right
+	}
+
+	varName := tc.extractVarNameFromExpr(varExpr)
+	if varName == "" {
+		return nil, nil
+	}
+
+	// For "x != nil": x is non-nil in consequent
+	// For "x == nil": x is non-nil in alternative (else branch)
+	if infix.Operator == "!=" {
+		return []string{varName}, nil
+	}
+	return nil, []string{varName}
+}
+
+// extractVarNameFromExpr extracts the variable name from an expression
+// Handles simple identifiers and chained member access (e.g., "outer.inner")
+func (tc *TypeChecker) extractVarNameFromExpr(expr ast.Expression) string {
+	switch e := expr.(type) {
+	case *ast.Label:
+		return e.Value
+	case *ast.MemberExpression:
+		// For chained access like outer.inner, return the full path
+		baseName := tc.extractVarNameFromExpr(e.Object)
+		if baseName != "" {
+			return baseName + "." + e.Member.Value
+		}
+	}
+	return ""
 }
 
 // checkWhenStatement validates a when/is/default statement
