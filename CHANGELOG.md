@@ -1,5 +1,18 @@
 # Changelog
 
+## [1.4.4](https://github.com/SchoolyB/EZ/compare/v1.4.3...v1.4.4) (2026-01-28)
+
+
+### Bug Fixes
+
+* code quality improvements and performance optimizations ([99523bf](https://github.com/SchoolyB/EZ/commit/99523bf016efdf07b9c85d34e918729631547b87))
+
+
+### Performance Improvements
+
+* optimize hot paths and eliminate code duplication ([e88ad38](https://github.com/SchoolyB/EZ/commit/e88ad38ea3405ed24c8745c347e9d84557c3f79c))
+* optimize parser, tokenizer, errors, lineeditor, and db packages ([a52c4b6](https://github.com/SchoolyB/EZ/commit/a52c4b63a47c63fc9c8e4dc20690603ebf7374f8))
+
 ## [1.4.3](https://github.com/SchoolyB/EZ/compare/v1.4.2...v1.4.3) (2026-01-25)
 
 
