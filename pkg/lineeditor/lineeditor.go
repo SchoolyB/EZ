@@ -6,8 +6,15 @@ package lineeditor
 import (
 	"fmt"
 	"os"
+	"strconv"
 	"strings"
 )
+
+// ANSI escape sequence helpers to avoid fmt.Sprintf overhead
+func cursorLeft(n int) string  { return "\033[" + strconv.Itoa(n) + "D" }
+func cursorRight(n int) string { return "\033[" + strconv.Itoa(n) + "C" }
+func cursorUp(n int) string    { return "\033[" + strconv.Itoa(n) + "A" }
+func cursorCol(n int) string   { return "\033[" + strconv.Itoa(n) + "G" }
 
 // Editor provides interactive line editing capabilities
 type Editor struct {
@@ -138,7 +145,7 @@ func (e *Editor) insertChar(ch rune) {
 	e.terminal.WriteString(string(e.buffer[e.cursor-1:]))
 	// Move cursor back to correct position
 	if e.cursor < len(e.buffer) {
-		e.terminal.WriteString(fmt.Sprintf("\033[%dD", len(e.buffer)-e.cursor))
+		e.terminal.WriteString(cursorLeft(len(e.buffer) - e.cursor))
 	}
 }
 
@@ -159,7 +166,7 @@ func (e *Editor) backspace() {
 	e.terminal.WriteString(" \033[D")
 	// Move cursor back to correct position
 	if e.cursor < len(e.buffer) {
-		e.terminal.WriteString(fmt.Sprintf("\033[%dD", len(e.buffer)-e.cursor))
+		e.terminal.WriteString(cursorLeft(len(e.buffer) - e.cursor))
 	}
 }
 
@@ -178,7 +185,7 @@ func (e *Editor) deleteChar() {
 	e.terminal.WriteString(" \033[D")
 	// Move cursor back to correct position
 	if e.cursor < len(e.buffer) {
-		e.terminal.WriteString(fmt.Sprintf("\033[%dD", len(e.buffer)-e.cursor))
+		e.terminal.WriteString(cursorLeft(len(e.buffer) - e.cursor))
 	}
 }
 
@@ -201,7 +208,7 @@ func (e *Editor) moveCursorRight() {
 // moveCursorHome moves the cursor to the beginning of the line
 func (e *Editor) moveCursorHome() {
 	if e.cursor > 0 {
-		e.terminal.WriteString(fmt.Sprintf("\033[%dD", e.cursor))
+		e.terminal.WriteString(cursorLeft(e.cursor))
 		e.cursor = 0
 	}
 }
@@ -209,7 +216,7 @@ func (e *Editor) moveCursorHome() {
 // moveCursorEnd moves the cursor to the end of the line
 func (e *Editor) moveCursorEnd() {
 	if e.cursor < len(e.buffer) {
-		e.terminal.WriteString(fmt.Sprintf("\033[%dC", len(e.buffer)-e.cursor))
+		e.terminal.WriteString(cursorRight(len(e.buffer) - e.cursor))
 		e.cursor = len(e.buffer)
 	}
 }
@@ -234,7 +241,7 @@ func (e *Editor) historyNext() {
 func (e *Editor) replaceLine(s string) {
 	// Move to start of input
 	if e.cursor > 0 {
-		e.terminal.WriteString(fmt.Sprintf("\033[%dD", e.cursor))
+		e.terminal.WriteString(cursorLeft(e.cursor))
 	}
 
 	// Clear to end of line
@@ -253,7 +260,7 @@ func (e *Editor) redrawLine() {
 	e.terminal.WriteString(string(e.buffer))
 	// Move cursor to correct position
 	if e.cursor < len(e.buffer) {
-		e.terminal.WriteString(fmt.Sprintf("\033[%dD", len(e.buffer)-e.cursor))
+		e.terminal.WriteString(cursorLeft(len(e.buffer) - e.cursor))
 	}
 }
 
@@ -413,7 +420,7 @@ func (e *Editor) insertNewLine() {
 
 func (e *Editor) redrawMultiLine() {
 	if e.currentLine > 0 {
-		e.terminal.WriteString(fmt.Sprintf("\033[%dA", e.currentLine))
+		e.terminal.WriteString(cursorUp(e.currentLine))
 	}
 	e.terminal.WriteString("\r")
 
@@ -457,7 +464,7 @@ func (e *Editor) redrawFromCurrentLine() {
 func (e *Editor) positionCursor() {
 	linesToMove := len(e.lines) - 1 - e.currentLine
 	if linesToMove > 0 {
-		e.terminal.WriteString(fmt.Sprintf("\033[%dA", linesToMove))
+		e.terminal.WriteString(cursorUp(linesToMove))
 	}
 
 	e.terminal.WriteString("\r")
@@ -466,7 +473,7 @@ func (e *Editor) positionCursor() {
 		promptLen = len(e.continuePrompt)
 	}
 	if promptLen+e.cursor > 0 {
-		e.terminal.WriteString(fmt.Sprintf("\033[%dC", promptLen+e.cursor))
+		e.terminal.WriteString(cursorRight(promptLen + e.cursor))
 	}
 }
 
@@ -501,7 +508,7 @@ func (e *Editor) moveDownMultiLine() {
 		promptLen = len(e.prompt)
 	}
 
-	e.terminal.WriteString(fmt.Sprintf("\033[B\033[%dG", promptLen+e.cursor+1))
+	e.terminal.WriteString("\033[B" + cursorCol(promptLen+e.cursor+1))
 }
 
 func (e *Editor) insertCharMultiLine(ch rune) {
@@ -515,7 +522,7 @@ func (e *Editor) insertCharMultiLine(ch rune) {
 
 	e.terminal.WriteString(string(e.lines[e.currentLine][e.cursor-1:]))
 	if e.cursor < len(e.lines[e.currentLine]) {
-		e.terminal.WriteString(fmt.Sprintf("\033[%dD", len(e.lines[e.currentLine])-e.cursor))
+		e.terminal.WriteString(cursorLeft(len(e.lines[e.currentLine]) - e.cursor))
 	}
 }
 
@@ -535,7 +542,7 @@ func (e *Editor) backspaceMultiLine() {
 	e.terminal.WriteString(string(e.lines[e.currentLine][e.cursor:]))
 	e.terminal.WriteString(" \033[D")
 	if e.cursor < len(e.lines[e.currentLine]) {
-		e.terminal.WriteString(fmt.Sprintf("\033[%dD", len(e.lines[e.currentLine])-e.cursor))
+		e.terminal.WriteString(cursorLeft(len(e.lines[e.currentLine]) - e.cursor))
 	}
 }
 
@@ -553,7 +560,7 @@ func (e *Editor) deleteCharMultiLine() {
 	e.terminal.WriteString(string(e.lines[e.currentLine][e.cursor:]))
 	e.terminal.WriteString(" \033[D")
 	if e.cursor < len(e.lines[e.currentLine]) {
-		e.terminal.WriteString(fmt.Sprintf("\033[%dD", len(e.lines[e.currentLine])-e.cursor))
+		e.terminal.WriteString(cursorLeft(len(e.lines[e.currentLine]) - e.cursor))
 	}
 }
 
@@ -573,7 +580,7 @@ func (e *Editor) moveCursorRightMultiLine() {
 
 func (e *Editor) moveCursorHomeMultiLine() {
 	if e.cursor > 0 {
-		e.terminal.WriteString(fmt.Sprintf("\033[%dD", e.cursor))
+		e.terminal.WriteString(cursorLeft(e.cursor))
 		e.cursor = 0
 	}
 }
@@ -581,7 +588,7 @@ func (e *Editor) moveCursorHomeMultiLine() {
 func (e *Editor) moveCursorEndMultiLine() {
 	lineLen := len(e.lines[e.currentLine])
 	if e.cursor < lineLen {
-		e.terminal.WriteString(fmt.Sprintf("\033[%dC", lineLen-e.cursor))
+		e.terminal.WriteString(cursorRight(lineLen - e.cursor))
 		e.cursor = lineLen
 	}
 }

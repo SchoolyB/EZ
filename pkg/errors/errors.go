@@ -5,7 +5,6 @@ package errors
 
 import (
 	"fmt"
-	"strings"
 )
 
 // Severity levels
@@ -119,12 +118,35 @@ func (e *EZError) WithSource(source string) *EZError {
 	return e
 }
 
-// GetSourceLines retrieves source lines from file content
-// Returns the specified line and optionally surrounding context
+// GetSourceLine retrieves a specific line from source content.
+// Uses index-based search to avoid splitting the entire source.
 func GetSourceLine(source string, lineNum int) string {
-	lines := strings.Split(source, "\n")
-	if lineNum < 1 || lineNum > len(lines) {
+	if lineNum < 1 || len(source) == 0 {
 		return ""
 	}
-	return lines[lineNum-1]
+
+	currentLine := 1
+	lineStart := 0
+
+	for i := 0; i < len(source); i++ {
+		if currentLine == lineNum {
+			// Found the start of our line, now find the end
+			lineEnd := i
+			for lineEnd < len(source) && source[lineEnd] != '\n' {
+				lineEnd++
+			}
+			return source[i:lineEnd]
+		}
+		if source[i] == '\n' {
+			currentLine++
+			lineStart = i + 1
+		}
+	}
+
+	// Handle last line (no trailing newline)
+	if currentLine == lineNum && lineStart < len(source) {
+		return source[lineStart:]
+	}
+
+	return ""
 }
