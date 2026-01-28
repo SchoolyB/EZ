@@ -914,25 +914,51 @@ func (tc *TypeChecker) checkArrayLiteral(arr *ast.ArrayValue) {
 		tc.checkExpression(elem)
 	}
 
-	// Get the type of the first element
-	firstType, ok := tc.inferExpressionType(arr.Elements[0])
-	if !ok {
-		return // Can't determine type
+	// Find the first non-empty element to determine expected type
+	// This fixes #1064 where empty arrays as first element would ignore type annotations
+	var expectedType string
+	var referenceIdx int
+	for i, elem := range arr.Elements {
+		elemType, ok := tc.inferExpressionType(elem)
+		if !ok {
+			continue
+		}
+		// Skip empty arrays/maps as they don't provide enough type info
+		if elemType == "[]" || elemType == "map[]" {
+			continue
+		}
+		expectedType = elemType
+		referenceIdx = i
+		break
 	}
 
-	// All other elements must have the same type
-	for i := 1; i < len(arr.Elements); i++ {
-		elemType, ok := tc.inferExpressionType(arr.Elements[i])
+	// If all elements are empty, nothing to validate
+	if expectedType == "" {
+		return
+	}
+
+	// All elements must be compatible with the expected type
+	for i, elem := range arr.Elements {
+		if i == referenceIdx {
+			continue // Skip the reference element
+		}
+
+		elemType, ok := tc.inferExpressionType(elem)
 		if !ok {
 			continue
 		}
 
-		if !tc.typesCompatible(firstType, elemType) {
-			line, column := tc.getExpressionPosition(arr.Elements[i])
+		// Empty arrays/maps are compatible with any array/map type
+		if elemType == "[]" || elemType == "map[]" {
+			continue
+		}
+
+		if !tc.typesCompatible(expectedType, elemType) {
+			line, column := tc.getExpressionPosition(elem)
 			tc.addError(
 				errors.E3001,
-				fmt.Sprintf("array element type mismatch: expected %s (from first element), got %s",
-					firstType, elemType),
+				fmt.Sprintf("array element type mismatch: expected %s, got %s",
+					expectedType, elemType),
 				line,
 				column,
 			)
