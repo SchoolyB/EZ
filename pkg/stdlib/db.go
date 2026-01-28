@@ -322,13 +322,15 @@ var DBBuiltins = map[string]*object.Builtin{
 				return &object.Error{Code: "E17005", Message: "db.keys() cannot operate on closed database"}
 			}
 
-			var keys object.Array
-			keys.ElementType = "string"
+			keys := &object.Array{
+				Elements:    make([]object.Object, 0, len(db.Store.Pairs)),
+				ElementType: "string",
+			}
 			for _, pair := range db.Store.Pairs {
 				keys.Elements = append(keys.Elements, pair.Key)
 			}
 
-			return &keys
+			return keys
 		},
 	},
 
@@ -349,13 +351,15 @@ var DBBuiltins = map[string]*object.Builtin{
 				return &object.Error{Code: "E17005", Message: "db.values() cannot operate on closed database"}
 			}
 
-			var values object.Array
-			values.ElementType = "any"
+			values := &object.Array{
+				Elements:    make([]object.Object, 0, len(db.Store.Pairs)),
+				ElementType: "any",
+			}
 			for _, pair := range db.Store.Pairs {
 				values.Elements = append(values.Elements, pair.Value)
 			}
 
-			return &values
+			return values
 		},
 	},
 
@@ -376,8 +380,10 @@ var DBBuiltins = map[string]*object.Builtin{
 				return &object.Error{Code: "E17005", Message: "db.entries() cannot operate on closed database"}
 			}
 
-			var entries object.Array
-			entries.ElementType = "Entry"
+			entries := &object.Array{
+				Elements:    make([]object.Object, 0, len(db.Store.Pairs)),
+				ElementType: "Entry",
+			}
 			for _, pair := range db.Store.Pairs {
 				entry := &object.Struct{
 					TypeName: "Entry",
@@ -390,7 +396,7 @@ var DBBuiltins = map[string]*object.Builtin{
 				entries.Elements = append(entries.Elements, entry)
 			}
 
-			return &entries
+			return entries
 		},
 	},
 
@@ -416,8 +422,10 @@ var DBBuiltins = map[string]*object.Builtin{
 				return &object.Error{Code: "E7003", Message: "db.prefix() requires a String as second argument"}
 			}
 
-			var keys object.Array
-			keys.ElementType = "string"
+			keys := &object.Array{
+				Elements:    make([]object.Object, 0, len(db.Store.Pairs)/4+1),
+				ElementType: "string",
+			}
 			for _, pair := range db.Store.Pairs {
 				key, ok := pair.Key.(*object.String)
 				if ok && strings.HasPrefix(key.Value, prefix.Value) {
@@ -425,7 +433,7 @@ var DBBuiltins = map[string]*object.Builtin{
 				}
 			}
 
-			return &keys
+			return keys
 		},
 	},
 

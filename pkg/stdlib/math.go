@@ -1040,7 +1040,7 @@ func getNumber(obj object.Object) (float64, *object.Error) {
 	case *object.Float:
 		return v.Value, nil
 	default:
-		return 0, &object.Error{Code: "E7005", Message: fmt.Sprintf("expected number, got %s", getEZTypeName(obj))}
+		return 0, &object.Error{Code: "E7005", Message: fmt.Sprintf("expected number, got %s", object.GetEZTypeName(obj))}
 	}
 }
 

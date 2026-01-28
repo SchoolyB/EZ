@@ -41,7 +41,7 @@ var OSBuiltins = map[string]*object.Builtin{
 			if !exists {
 				return &object.ReturnValue{Values: []object.Object{
 					&object.String{Value: ""},
-					createOSError("E7035", fmt.Sprintf("environment variable '%s' is not set", name.Value)),
+					CreateStdlibError("E7035", fmt.Sprintf("environment variable '%s' is not set", name.Value)),
 				}}
 			}
 			return &object.ReturnValue{Values: []object.Object{
@@ -71,7 +71,7 @@ var OSBuiltins = map[string]*object.Builtin{
 			if err != nil {
 				return &object.ReturnValue{Values: []object.Object{
 					object.FALSE,
-					createOSError("E7024", fmt.Sprintf("failed to set environment variable: %s", err.Error())),
+					CreateStdlibError("E7024", fmt.Sprintf("failed to set environment variable: %s", err.Error())),
 				}}
 			}
 
@@ -98,7 +98,7 @@ var OSBuiltins = map[string]*object.Builtin{
 			if err != nil {
 				return &object.ReturnValue{Values: []object.Object{
 					object.FALSE,
-					createOSError("E7024", fmt.Sprintf("failed to unset environment variable: %s", err.Error())),
+					CreateStdlibError("E7024", fmt.Sprintf("failed to unset environment variable: %s", err.Error())),
 				}}
 			}
 
@@ -116,14 +116,8 @@ var OSBuiltins = map[string]*object.Builtin{
 			envMap.KeyType = "string"
 			envMap.ValueType = "string"
 			for _, entry := range os.Environ() {
-				// Find the first = to split key and value
-				for i := 0; i < len(entry); i++ {
-					if entry[i] == '=' {
-						key := entry[:i]
-						value := entry[i+1:]
-						envMap.Set(&object.String{Value: key}, &object.String{Value: value})
-						break
-					}
+				if key, value, found := strings.Cut(entry, "="); found {
+					envMap.Set(&object.String{Value: key}, &object.String{Value: value})
 				}
 			}
 			envMap.Mutable = false
@@ -172,7 +166,7 @@ var OSBuiltins = map[string]*object.Builtin{
 			if err != nil {
 				return &object.ReturnValue{Values: []object.Object{
 					&object.String{Value: ""},
-					createOSError("E7025", fmt.Sprintf("failed to get current directory: %s", err.Error())),
+					CreateStdlibError("E7025", fmt.Sprintf("failed to get current directory: %s", err.Error())),
 				}}
 			}
 			return &object.ReturnValue{Values: []object.Object{
@@ -198,7 +192,7 @@ var OSBuiltins = map[string]*object.Builtin{
 			if err != nil {
 				return &object.ReturnValue{Values: []object.Object{
 					object.FALSE,
-					createOSError("E7026", fmt.Sprintf("failed to change directory: %s", err.Error())),
+					CreateStdlibError("E7026", fmt.Sprintf("failed to change directory: %s", err.Error())),
 				}}
 			}
 
@@ -217,7 +211,7 @@ var OSBuiltins = map[string]*object.Builtin{
 			if err != nil {
 				return &object.ReturnValue{Values: []object.Object{
 					&object.String{Value: ""},
-					createOSError("E7027", fmt.Sprintf("failed to get hostname: %s", err.Error())),
+					CreateStdlibError("E7027", fmt.Sprintf("failed to get hostname: %s", err.Error())),
 				}}
 			}
 			return &object.ReturnValue{Values: []object.Object{
@@ -235,7 +229,7 @@ var OSBuiltins = map[string]*object.Builtin{
 			if err != nil {
 				return &object.ReturnValue{Values: []object.Object{
 					&object.String{Value: ""},
-					createOSError("E7028", fmt.Sprintf("failed to get username: %s", err.Error())),
+					CreateStdlibError("E7028", fmt.Sprintf("failed to get username: %s", err.Error())),
 				}}
 			}
 			return &object.ReturnValue{Values: []object.Object{
@@ -253,7 +247,7 @@ var OSBuiltins = map[string]*object.Builtin{
 			if err != nil {
 				return &object.ReturnValue{Values: []object.Object{
 					&object.String{Value: ""},
-					createOSError("E7029", fmt.Sprintf("failed to get home directory: %s", err.Error())),
+					CreateStdlibError("E7029", fmt.Sprintf("failed to get home directory: %s", err.Error())),
 				}}
 			}
 			return &object.ReturnValue{Values: []object.Object{
@@ -439,13 +433,13 @@ var OSBuiltins = map[string]*object.Builtin{
 					// Command ran but returned non-zero exit code - return error for consistency with os.exec_output
 					return &object.ReturnValue{Values: []object.Object{
 						&object.Integer{Value: big.NewInt(exitCode)},
-						createOSError("E7031", fmt.Sprintf("command exited with code %d", exitCode)),
+						CreateStdlibError("E7031", fmt.Sprintf("command exited with code %d", exitCode)),
 					}}
 				} else {
 					// Command failed to start entirely
 					return &object.ReturnValue{Values: []object.Object{
 						&object.Integer{Value: big.NewInt(-1)},
-						createOSError("E7030", fmt.Sprintf("command failed to execute: %s", err.Error())),
+						CreateStdlibError("E7030", fmt.Sprintf("command failed to execute: %s", err.Error())),
 					}}
 				}
 			}
@@ -487,13 +481,13 @@ var OSBuiltins = map[string]*object.Builtin{
 					// Still return output with error
 					return &object.ReturnValue{Values: []object.Object{
 						&object.String{Value: outputStr},
-						createOSError("E7031", fmt.Sprintf("command exited with error: %s", err.Error())),
+						CreateStdlibError("E7031", fmt.Sprintf("command exited with error: %s", err.Error())),
 					}}
 				}
 				// Command failed to start entirely
 				return &object.ReturnValue{Values: []object.Object{
 					&object.String{Value: ""},
-					createOSError("E7030", fmt.Sprintf("command failed to execute: %s", err.Error())),
+					CreateStdlibError("E7030", fmt.Sprintf("command failed to execute: %s", err.Error())),
 				}}
 			}
 
@@ -505,13 +499,3 @@ var OSBuiltins = map[string]*object.Builtin{
 	},
 }
 
-// createOSError creates an Error struct for OS operations
-func createOSError(code, message string) *object.Struct {
-	return &object.Struct{
-		TypeName: "Error",
-		Fields: map[string]object.Object{
-			"message": &object.String{Value: message},
-			"code":    &object.String{Value: code},
-		},
-	}
-}

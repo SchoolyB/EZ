@@ -24,100 +24,42 @@ var stdinReader = bufio.NewReader(os.Stdin)
 // Track if stdin EOF has been encountered - subsequent reads will exit gracefully
 var stdinEOFReached = false
 
-// getEZTypeName returns the EZ language type name for an object
-// Returns the full type as it would appear in EZ code (e.g., "[int]", "map[string:int]")
-func getEZTypeName(obj object.Object) string {
-	switch v := obj.(type) {
-	case *object.Integer:
-		return v.GetDeclaredType()
-	case *object.Float:
-		return v.GetDeclaredType()
-	case *object.String:
-		return "string"
-	case *object.Boolean:
-		return "bool"
-	case *object.Char:
-		return "char"
-	case *object.Byte:
-		return "byte"
-	case *object.Array:
-		if v.ElementType != "" {
-			return "[" + v.ElementType + "]"
-		}
-		return "array"
-	case *object.Map:
-		if v.KeyType != "" && v.ValueType != "" {
-			return "map[" + v.KeyType + ":" + v.ValueType + "]"
-		}
-		return "map"
-	case *object.Struct:
-		if v.TypeName != "" {
-			return v.TypeName
-		}
-		return "struct"
-	case *object.EnumValue:
-		if v.EnumType != "" {
-			return v.EnumType
-		}
-		return "enum"
-	case *object.Range:
-		return "Range<int>"
-	case *object.FileHandle:
-		return "File"
-	case *object.Database:
-		return "Database"
-	case *object.Reference:
-		// Get the inner type by dereferencing
-		if inner, ok := v.Deref(); ok {
-			return "Ref<" + getEZTypeName(inner) + ">"
-		}
-		return "Ref<unknown>"
-	case *object.Nil:
-		return "nil"
-	case *object.Function:
-		return "function"
-	case *object.ReturnValue:
-		// Handle multi-return values - show tuple type
-		if len(v.Values) == 0 {
-			return "void"
-		}
-		if len(v.Values) == 1 {
-			return getEZTypeName(v.Values[0])
-		}
-		// Multiple values - show as tuple
-		types := make([]string, len(v.Values))
-		for i, val := range v.Values {
-			types[i] = getEZTypeName(val)
-		}
-		return "(" + strings.Join(types, ", ") + ")"
-	default:
-		return string(obj.Type())
+
+// isImmutablePrimitive returns true if the object is an immutable primitive type.
+// These types don't need deep copying - they can be shared safely.
+// Note: Integer is excluded because big.Int is mutable.
+func isImmutablePrimitive(obj object.Object) bool {
+	switch obj.(type) {
+	case *object.Nil, *object.Float, *object.String,
+		*object.Boolean, *object.Char, *object.Byte, *object.EnumValue:
+		return true
 	}
+	return false
 }
 
 // deepCopy creates a deep copy of an object
-// Primitives return themselves (they're immutable)
+// Most primitives return themselves (they're immutable)
+// Integer needs copying because big.Int is mutable
 // Structs, arrays, and maps are recursively copied
 func deepCopy(obj object.Object) object.Object {
 	switch v := obj.(type) {
-	case *object.Nil:
+	case *object.Nil, *object.Float, *object.String,
+		*object.Boolean, *object.Char, *object.Byte:
+		// These primitives are truly immutable - return as-is
 		return v
 	case *object.Integer:
-		return &object.Integer{Value: v.Value, DeclaredType: v.DeclaredType}
-	case *object.Float:
-		return &object.Float{Value: v.Value, DeclaredType: v.DeclaredType}
-	case *object.String:
-		return &object.String{Value: v.Value}
-	case *object.Boolean:
-		return &object.Boolean{Value: v.Value}
-	case *object.Char:
-		return &object.Char{Value: v.Value}
-	case *object.Byte:
-		return &object.Byte{Value: v.Value}
+		// big.Int is mutable, need to copy it
+		newVal := new(big.Int).Set(v.Value)
+		return &object.Integer{Value: newVal, DeclaredType: v.DeclaredType}
 	case *object.Array:
 		newElements := make([]object.Object, len(v.Elements))
 		for i, elem := range v.Elements {
-			newElements[i] = deepCopy(elem)
+			// Skip deep copy for immutable primitives
+			if isImmutablePrimitive(elem) {
+				newElements[i] = elem
+			} else {
+				newElements[i] = deepCopy(elem)
+			}
 		}
 		// Copied arrays are mutable by default to allow modification
 		// (const enforcement happens at variable declaration level)
@@ -129,8 +71,12 @@ func deepCopy(obj object.Object) object.Object {
 	case *object.Map:
 		newMap := object.NewMap()
 		for _, pair := range v.Pairs {
-			// Keys are immutable (hashable), but values may need deep copy
-			newMap.Set(pair.Key, deepCopy(pair.Value))
+			// Keys are immutable (hashable), values may need deep copy
+			if isImmutablePrimitive(pair.Value) {
+				newMap.Set(pair.Key, pair.Value)
+			} else {
+				newMap.Set(pair.Key, deepCopy(pair.Value))
+			}
 		}
 		// Copied maps are mutable by default to allow modification
 		newMap.Mutable = true
@@ -140,7 +86,12 @@ func deepCopy(obj object.Object) object.Object {
 	case *object.Struct:
 		newFields := make(map[string]object.Object)
 		for key, val := range v.Fields {
-			newFields[key] = deepCopy(val)
+			// Skip deep copy for immutable primitives
+			if isImmutablePrimitive(val) {
+				newFields[key] = val
+			} else {
+				newFields[key] = deepCopy(val)
+			}
 		}
 		// Copied structs are mutable by default to allow modification
 		// (const enforcement happens at variable declaration level)
@@ -358,7 +309,7 @@ var StdBuiltins = map[string]*object.Builtin{
 			case *object.Map:
 				return &object.Integer{Value: big.NewInt(int64(len(arg.Pairs)))}
 			default:
-				return &object.Error{Code: "E7015", Message: fmt.Sprintf("len() not supported for %s", getEZTypeName(args[0]))}
+				return &object.Error{Code: "E7015", Message: fmt.Sprintf("len() not supported for %s", object.GetEZTypeName(args[0]))}
 			}
 		},
 	},
@@ -369,7 +320,7 @@ var StdBuiltins = map[string]*object.Builtin{
 			if len(args) != 1 {
 				return &object.Error{Code: "E7001", Message: "typeof() takes exactly 1 argument"}
 			}
-			return &object.String{Value: getEZTypeName(args[0])}
+			return &object.String{Value: object.GetEZTypeName(args[0])}
 		},
 	},
 
@@ -483,7 +434,7 @@ var StdBuiltins = map[string]*object.Builtin{
 							"    len(myArray)  // returns the number of elements",
 					}
 				}
-				return &object.Error{Code: "E7014", Message: fmt.Sprintf("cannot convert %s to int", getEZTypeName(args[0]))}
+				return &object.Error{Code: "E7014", Message: fmt.Sprintf("cannot convert %s to int", object.GetEZTypeName(args[0]))}
 			}
 		},
 	},
@@ -527,7 +478,7 @@ var StdBuiltins = map[string]*object.Builtin{
 							"    len(myArray)  // returns the number of elements",
 					}
 				}
-				return &object.Error{Code: "E7014", Message: fmt.Sprintf("cannot convert %s to float", getEZTypeName(args[0]))}
+				return &object.Error{Code: "E7014", Message: fmt.Sprintf("cannot convert %s to float", object.GetEZTypeName(args[0]))}
 			}
 		},
 	},
@@ -581,7 +532,7 @@ var StdBuiltins = map[string]*object.Builtin{
 				}
 				return &object.Char{Value: runes[0]}
 			default:
-				return &object.Error{Code: "E7014", Message: fmt.Sprintf("cannot convert %s to char", getEZTypeName(args[0]))}
+				return &object.Error{Code: "E7014", Message: fmt.Sprintf("cannot convert %s to char", object.GetEZTypeName(args[0]))}
 			}
 		},
 	},
@@ -645,7 +596,7 @@ var StdBuiltins = map[string]*object.Builtin{
 				}
 				return &object.Byte{Value: uint8(val)}
 			default:
-				return &object.Error{Code: "E7014", Message: fmt.Sprintf("cannot convert %s to byte", getEZTypeName(args[0]))}
+				return &object.Error{Code: "E7014", Message: fmt.Sprintf("cannot convert %s to byte", object.GetEZTypeName(args[0]))}
 			}
 		},
 	},
@@ -981,7 +932,7 @@ var StdBuiltins = map[string]*object.Builtin{
 			}
 			str, ok := args[0].(*object.String)
 			if !ok {
-				return &object.Error{Code: "E7003", Message: fmt.Sprintf("error() argument must be a string, got %s", getEZTypeName(args[0]))}
+				return &object.Error{Code: "E7003", Message: fmt.Sprintf("error() argument must be a string, got %s", object.GetEZTypeName(args[0]))}
 			}
 			// Return an Error struct (not object.Error which is a runtime error)
 			return &object.Struct{
@@ -1022,7 +973,7 @@ var StdBuiltins = map[string]*object.Builtin{
 			}
 			code, ok := args[0].(*object.Integer)
 			if !ok {
-				return &object.Error{Code: "E7004", Message: fmt.Sprintf("exit() argument must be an integer, got %s", getEZTypeName(args[0]))}
+				return &object.Error{Code: "E7004", Message: fmt.Sprintf("exit() argument must be an integer, got %s", object.GetEZTypeName(args[0]))}
 			}
 			os.Exit(int(code.Value.Int64()))
 			return nil // Unreachable, but required by Go's type system
@@ -1037,7 +988,7 @@ var StdBuiltins = map[string]*object.Builtin{
 			}
 			seconds, ok := args[0].(*object.Integer)
 			if !ok {
-				return &object.Error{Code: "E7004", Message: fmt.Sprintf("sleep_seconds() argument must be an integer, got %s", getEZTypeName(args[0]))}
+				return &object.Error{Code: "E7004", Message: fmt.Sprintf("sleep_seconds() argument must be an integer, got %s", object.GetEZTypeName(args[0]))}
 			}
 			if seconds.Value.Sign() < 0 {
 				return &object.Error{Code: "E7032", Message: "sleep_seconds() duration cannot be negative"}
@@ -1055,7 +1006,7 @@ var StdBuiltins = map[string]*object.Builtin{
 			}
 			ms, ok := args[0].(*object.Integer)
 			if !ok {
-				return &object.Error{Code: "E7004", Message: fmt.Sprintf("sleep_milliseconds() argument must be an integer, got %s", getEZTypeName(args[0]))}
+				return &object.Error{Code: "E7004", Message: fmt.Sprintf("sleep_milliseconds() argument must be an integer, got %s", object.GetEZTypeName(args[0]))}
 			}
 			if ms.Value.Sign() < 0 {
 				return &object.Error{Code: "E7032", Message: "sleep_milliseconds() duration cannot be negative"}
@@ -1073,7 +1024,7 @@ var StdBuiltins = map[string]*object.Builtin{
 			}
 			ns, ok := args[0].(*object.Integer)
 			if !ok {
-				return &object.Error{Code: "E7004", Message: fmt.Sprintf("sleep_nanoseconds() argument must be an integer, got %s", getEZTypeName(args[0]))}
+				return &object.Error{Code: "E7004", Message: fmt.Sprintf("sleep_nanoseconds() argument must be an integer, got %s", object.GetEZTypeName(args[0]))}
 			}
 			if ns.Value.Sign() < 0 {
 				return &object.Error{Code: "E7032", Message: "sleep_nanoseconds() duration cannot be negative"}
@@ -1094,7 +1045,7 @@ var StdBuiltins = map[string]*object.Builtin{
 			}
 			msg, ok := args[0].(*object.String)
 			if !ok {
-				return &object.Error{Code: "E7003", Message: fmt.Sprintf("panic() argument must be a string, got %s", getEZTypeName(args[0]))}
+				return &object.Error{Code: "E7003", Message: fmt.Sprintf("panic() argument must be a string, got %s", object.GetEZTypeName(args[0]))}
 			}
 			return &object.Error{Code: "E5021", Message: fmt.Sprintf("panic: %s", msg.Value)}
 		},
@@ -1166,11 +1117,11 @@ var StdBuiltins = map[string]*object.Builtin{
 			}
 			cond, ok := args[0].(*object.Boolean)
 			if !ok {
-				return &object.Error{Code: "E7008", Message: fmt.Sprintf("assert() first argument must be a boolean, got %s", getEZTypeName(args[0]))}
+				return &object.Error{Code: "E7008", Message: fmt.Sprintf("assert() first argument must be a boolean, got %s", object.GetEZTypeName(args[0]))}
 			}
 			msg, ok := args[1].(*object.String)
 			if !ok {
-				return &object.Error{Code: "E7003", Message: fmt.Sprintf("assert() second argument must be a string, got %s", getEZTypeName(args[1]))}
+				return &object.Error{Code: "E7003", Message: fmt.Sprintf("assert() second argument must be a string, got %s", object.GetEZTypeName(args[1]))}
 			}
 			if !cond.Value {
 				return &object.Error{Code: "E5022", Message: fmt.Sprintf("assertion failed: %s", msg.Value)}

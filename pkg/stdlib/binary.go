@@ -12,25 +12,15 @@ import (
 	"github.com/marshallburns/ez/pkg/object"
 )
 
-// createBinaryError creates an Error struct for recoverable errors in tuple returns
-func createBinaryError(code, message string) *object.Struct {
-	return &object.Struct{
-		TypeName: "Error",
-		Fields: map[string]object.Object{
-			"message": &object.String{Value: message},
-			"code":    &object.String{Value: code},
-		},
-	}
-}
 
 // Helper to convert EZ byte array to Go []byte with length validation
 func binaryBytesToSlice(arg object.Object, expected int, funcName string) ([]byte, *object.Struct) {
 	arr, ok := arg.(*object.Array)
 	if !ok {
-		return nil, createBinaryError("E7002", fmt.Sprintf("%s requires a byte array argument", funcName))
+		return nil, CreateStdlibError("E7002", fmt.Sprintf("%s requires a byte array argument", funcName))
 	}
 	if len(arr.Elements) != expected {
-		return nil, createBinaryError("E7010", fmt.Sprintf("%s requires exactly %d bytes, got %d", funcName, expected, len(arr.Elements)))
+		return nil, CreateStdlibError("E7010", fmt.Sprintf("%s requires exactly %d bytes, got %d", funcName, expected, len(arr.Elements)))
 	}
 
 	data := make([]byte, expected)
@@ -41,11 +31,11 @@ func binaryBytesToSlice(arg object.Object, expected int, funcName string) ([]byt
 		case *object.Integer:
 			val := e.Value.Int64()
 			if val < 0 || val > 255 {
-				return nil, createBinaryError("E3022", fmt.Sprintf("%s byte at index %d out of range (0-255)", funcName, i))
+				return nil, CreateStdlibError("E3022", fmt.Sprintf("%s byte at index %d out of range (0-255)", funcName, i))
 			}
 			data[i] = byte(val)
 		default:
-			return nil, createBinaryError("E7002", fmt.Sprintf("%s requires a byte array", funcName))
+			return nil, CreateStdlibError("E7002", fmt.Sprintf("%s requires a byte array", funcName))
 		}
 	}
 	return data, nil
@@ -146,7 +136,7 @@ var BinaryBuiltins = map[string]*object.Builtin{
 			if intVal < -128 || intVal > 127 {
 				return &object.ReturnValue{Values: []object.Object{
 					object.NIL,
-					createBinaryError("E3022", fmt.Sprintf("value %d out of i8 range (-128 to 127)", intVal)),
+					CreateStdlibError("E3022", fmt.Sprintf("value %d out of i8 range (-128 to 127)", intVal)),
 				}}
 			}
 			return &object.ReturnValue{Values: []object.Object{
@@ -188,7 +178,7 @@ var BinaryBuiltins = map[string]*object.Builtin{
 			if intVal < 0 || intVal > 255 {
 				return &object.ReturnValue{Values: []object.Object{
 					object.NIL,
-					createBinaryError("E3022", fmt.Sprintf("value %d out of u8 range (0 to 255)", intVal)),
+					CreateStdlibError("E3022", fmt.Sprintf("value %d out of u8 range (0 to 255)", intVal)),
 				}}
 			}
 			return &object.ReturnValue{Values: []object.Object{
@@ -232,7 +222,7 @@ var BinaryBuiltins = map[string]*object.Builtin{
 			if intVal < -32768 || intVal > 32767 {
 				return &object.ReturnValue{Values: []object.Object{
 					object.NIL,
-					createBinaryError("E3022", fmt.Sprintf("value %d out of i16 range", intVal)),
+					CreateStdlibError("E3022", fmt.Sprintf("value %d out of i16 range", intVal)),
 				}}
 			}
 			buf := make([]byte, 2)
@@ -274,7 +264,7 @@ var BinaryBuiltins = map[string]*object.Builtin{
 			if intVal < 0 || intVal > 65535 {
 				return &object.ReturnValue{Values: []object.Object{
 					object.NIL,
-					createBinaryError("E3022", fmt.Sprintf("value %d out of u16 range", intVal)),
+					CreateStdlibError("E3022", fmt.Sprintf("value %d out of u16 range", intVal)),
 				}}
 			}
 			buf := make([]byte, 2)
@@ -320,7 +310,7 @@ var BinaryBuiltins = map[string]*object.Builtin{
 			if intVal < -32768 || intVal > 32767 {
 				return &object.ReturnValue{Values: []object.Object{
 					object.NIL,
-					createBinaryError("E3022", fmt.Sprintf("value %d out of i16 range", intVal)),
+					CreateStdlibError("E3022", fmt.Sprintf("value %d out of i16 range", intVal)),
 				}}
 			}
 			buf := make([]byte, 2)
@@ -362,7 +352,7 @@ var BinaryBuiltins = map[string]*object.Builtin{
 			if intVal < 0 || intVal > 65535 {
 				return &object.ReturnValue{Values: []object.Object{
 					object.NIL,
-					createBinaryError("E3022", fmt.Sprintf("value %d out of u16 range", intVal)),
+					CreateStdlibError("E3022", fmt.Sprintf("value %d out of u16 range", intVal)),
 				}}
 			}
 			buf := make([]byte, 2)
@@ -408,7 +398,7 @@ var BinaryBuiltins = map[string]*object.Builtin{
 			if intVal < -2147483648 || intVal > 2147483647 {
 				return &object.ReturnValue{Values: []object.Object{
 					object.NIL,
-					createBinaryError("E3022", fmt.Sprintf("value %d out of i32 range", intVal)),
+					CreateStdlibError("E3022", fmt.Sprintf("value %d out of i32 range", intVal)),
 				}}
 			}
 			buf := make([]byte, 4)
@@ -449,7 +439,7 @@ var BinaryBuiltins = map[string]*object.Builtin{
 			if val.Sign() < 0 || val.Cmp(big.NewInt(4294967295)) > 0 {
 				return &object.ReturnValue{Values: []object.Object{
 					object.NIL,
-					createBinaryError("E3022", fmt.Sprintf("value %s out of u32 range", val.String())),
+					CreateStdlibError("E3022", fmt.Sprintf("value %s out of u32 range", val.String())),
 				}}
 			}
 			buf := make([]byte, 4)
@@ -495,7 +485,7 @@ var BinaryBuiltins = map[string]*object.Builtin{
 			if intVal < -2147483648 || intVal > 2147483647 {
 				return &object.ReturnValue{Values: []object.Object{
 					object.NIL,
-					createBinaryError("E3022", fmt.Sprintf("value %d out of i32 range", intVal)),
+					CreateStdlibError("E3022", fmt.Sprintf("value %d out of i32 range", intVal)),
 				}}
 			}
 			buf := make([]byte, 4)
@@ -536,7 +526,7 @@ var BinaryBuiltins = map[string]*object.Builtin{
 			if val.Sign() < 0 || val.Cmp(big.NewInt(4294967295)) > 0 {
 				return &object.ReturnValue{Values: []object.Object{
 					object.NIL,
-					createBinaryError("E3022", fmt.Sprintf("value %s out of u32 range", val.String())),
+					CreateStdlibError("E3022", fmt.Sprintf("value %s out of u32 range", val.String())),
 				}}
 			}
 			buf := make([]byte, 4)
@@ -583,7 +573,7 @@ var BinaryBuiltins = map[string]*object.Builtin{
 			if val.Cmp(minI64) < 0 || val.Cmp(maxI64) > 0 {
 				return &object.ReturnValue{Values: []object.Object{
 					object.NIL,
-					createBinaryError("E3022", fmt.Sprintf("value %s out of i64 range", val.String())),
+					CreateStdlibError("E3022", fmt.Sprintf("value %s out of i64 range", val.String())),
 				}}
 			}
 			buf := make([]byte, 8)
@@ -625,7 +615,7 @@ var BinaryBuiltins = map[string]*object.Builtin{
 			if val.Sign() < 0 || val.Cmp(maxU64) > 0 {
 				return &object.ReturnValue{Values: []object.Object{
 					object.NIL,
-					createBinaryError("E3022", fmt.Sprintf("value %s out of u64 range", val.String())),
+					CreateStdlibError("E3022", fmt.Sprintf("value %s out of u64 range", val.String())),
 				}}
 			}
 			buf := make([]byte, 8)
@@ -672,7 +662,7 @@ var BinaryBuiltins = map[string]*object.Builtin{
 			if val.Cmp(minI64) < 0 || val.Cmp(maxI64) > 0 {
 				return &object.ReturnValue{Values: []object.Object{
 					object.NIL,
-					createBinaryError("E3022", fmt.Sprintf("value %s out of i64 range", val.String())),
+					CreateStdlibError("E3022", fmt.Sprintf("value %s out of i64 range", val.String())),
 				}}
 			}
 			buf := make([]byte, 8)
@@ -714,7 +704,7 @@ var BinaryBuiltins = map[string]*object.Builtin{
 			if val.Sign() < 0 || val.Cmp(maxU64) > 0 {
 				return &object.ReturnValue{Values: []object.Object{
 					object.NIL,
-					createBinaryError("E3022", fmt.Sprintf("value %s out of u64 range", val.String())),
+					CreateStdlibError("E3022", fmt.Sprintf("value %s out of u64 range", val.String())),
 				}}
 			}
 			buf := make([]byte, 8)
@@ -761,7 +751,7 @@ var BinaryBuiltins = map[string]*object.Builtin{
 			if val.Cmp(minI128) < 0 || val.Cmp(maxI128) > 0 {
 				return &object.ReturnValue{Values: []object.Object{
 					object.NIL,
-					createBinaryError("E3022", "value out of i128 range"),
+					CreateStdlibError("E3022", "value out of i128 range"),
 				}}
 			}
 			buf := padBigIntBytesSigned(val, 16)
@@ -810,7 +800,7 @@ var BinaryBuiltins = map[string]*object.Builtin{
 			if val.Sign() < 0 || val.Cmp(maxU128) > 0 {
 				return &object.ReturnValue{Values: []object.Object{
 					object.NIL,
-					createBinaryError("E3022", "value out of u128 range"),
+					CreateStdlibError("E3022", "value out of u128 range"),
 				}}
 			}
 			buf := padBigIntBytesUnsigned(val, 16)
@@ -857,7 +847,7 @@ var BinaryBuiltins = map[string]*object.Builtin{
 			if val.Cmp(minI128) < 0 || val.Cmp(maxI128) > 0 {
 				return &object.ReturnValue{Values: []object.Object{
 					object.NIL,
-					createBinaryError("E3022", "value out of i128 range"),
+					CreateStdlibError("E3022", "value out of i128 range"),
 				}}
 			}
 			buf := padBigIntBytesSigned(val, 16)
@@ -903,7 +893,7 @@ var BinaryBuiltins = map[string]*object.Builtin{
 			if val.Sign() < 0 || val.Cmp(maxU128) > 0 {
 				return &object.ReturnValue{Values: []object.Object{
 					object.NIL,
-					createBinaryError("E3022", "value out of u128 range"),
+					CreateStdlibError("E3022", "value out of u128 range"),
 				}}
 			}
 			buf := padBigIntBytesUnsigned(val, 16)
@@ -949,7 +939,7 @@ var BinaryBuiltins = map[string]*object.Builtin{
 			if val.Cmp(minI256) < 0 || val.Cmp(maxI256) > 0 {
 				return &object.ReturnValue{Values: []object.Object{
 					object.NIL,
-					createBinaryError("E3022", "value out of i256 range"),
+					CreateStdlibError("E3022", "value out of i256 range"),
 				}}
 			}
 			buf := padBigIntBytesSigned(val, 32)
@@ -995,7 +985,7 @@ var BinaryBuiltins = map[string]*object.Builtin{
 			if val.Sign() < 0 || val.Cmp(maxU256) > 0 {
 				return &object.ReturnValue{Values: []object.Object{
 					object.NIL,
-					createBinaryError("E3022", "value out of u256 range"),
+					CreateStdlibError("E3022", "value out of u256 range"),
 				}}
 			}
 			buf := padBigIntBytesUnsigned(val, 32)
@@ -1042,7 +1032,7 @@ var BinaryBuiltins = map[string]*object.Builtin{
 			if val.Cmp(minI256) < 0 || val.Cmp(maxI256) > 0 {
 				return &object.ReturnValue{Values: []object.Object{
 					object.NIL,
-					createBinaryError("E3022", "value out of i256 range"),
+					CreateStdlibError("E3022", "value out of i256 range"),
 				}}
 			}
 			buf := padBigIntBytesSigned(val, 32)
@@ -1087,7 +1077,7 @@ var BinaryBuiltins = map[string]*object.Builtin{
 			if val.Sign() < 0 || val.Cmp(maxU256) > 0 {
 				return &object.ReturnValue{Values: []object.Object{
 					object.NIL,
-					createBinaryError("E3022", "value out of u256 range"),
+					CreateStdlibError("E3022", "value out of u256 range"),
 				}}
 			}
 			buf := padBigIntBytesUnsigned(val, 32)
