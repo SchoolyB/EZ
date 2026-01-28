@@ -67,6 +67,21 @@ var Builtins = []string{
 	"println", "print", "read_int",
 }
 
+// EZ type names
+var Types = []string{
+	"int", "uint", "float", "string", "bool", "char", "byte",
+	"i8", "i16", "i32", "i64", "i128", "i256",
+	"u8", "u16", "u32", "u64", "u128", "u256",
+	"f32", "f64",
+}
+
+// Standard library module names
+var Modules = []string{
+	"std", "math", "strings", "arrays", "maps", "io",
+	"os", "json", "bytes", "time", "encoding", "crypto",
+	"random", "uuid", "db", "binary", "http",
+}
+
 // SuggestKeyword suggests a keyword if the input is close to one
 func SuggestKeyword(input string) string {
 	return findClosest(input, Keywords, 2)
@@ -75,6 +90,16 @@ func SuggestKeyword(input string) string {
 // SuggestBuiltin suggests a builtin function if the input is close to one
 func SuggestBuiltin(input string) string {
 	return findClosest(input, Builtins, 2)
+}
+
+// SuggestType suggests a type name if the input is close to one
+func SuggestType(input string) string {
+	return findClosest(input, Types, 2)
+}
+
+// SuggestModule suggests a module name if the input is close to one
+func SuggestModule(input string) string {
+	return findClosest(input, Modules, 2)
 }
 
 // SuggestFromList finds the closest match from a list
