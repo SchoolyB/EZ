@@ -47,6 +47,74 @@ type Object interface {
 	Inspect() string
 }
 
+// GetEZTypeName returns the EZ language type name for an object.
+// Returns the full type as it would appear in EZ code (e.g., "[int]", "map[string:int]").
+func GetEZTypeName(obj Object) string {
+	switch v := obj.(type) {
+	case *Integer:
+		return v.GetDeclaredType()
+	case *Float:
+		return v.GetDeclaredType()
+	case *String:
+		return "string"
+	case *Boolean:
+		return "bool"
+	case *Char:
+		return "char"
+	case *Byte:
+		return "byte"
+	case *Array:
+		if v.ElementType != "" {
+			return "[" + v.ElementType + "]"
+		}
+		return "array"
+	case *Map:
+		if v.KeyType != "" && v.ValueType != "" {
+			return "map[" + v.KeyType + ":" + v.ValueType + "]"
+		}
+		return "map"
+	case *Struct:
+		if v.TypeName != "" {
+			return v.TypeName
+		}
+		return "struct"
+	case *EnumValue:
+		if v.EnumType != "" {
+			return v.EnumType
+		}
+		return "enum"
+	case *Range:
+		return "Range<int>"
+	case *FileHandle:
+		return "File"
+	case *Database:
+		return "Database"
+	case *Reference:
+		if inner, ok := v.Deref(); ok {
+			return "Ref<" + GetEZTypeName(inner) + ">"
+		}
+		return "Ref<unknown>"
+	case *Nil:
+		return "nil"
+	case *Function:
+		return "function"
+	case *ReturnValue:
+		if len(v.Values) == 0 {
+			return "void"
+		}
+		if len(v.Values) == 1 {
+			return GetEZTypeName(v.Values[0])
+		}
+		types := make([]string, len(v.Values))
+		for i, val := range v.Values {
+			types[i] = GetEZTypeName(val)
+		}
+		return "(" + strings.Join(types, ", ") + ")"
+	default:
+		return string(obj.Type())
+	}
+}
+
 // Integer wraps big.Int for arbitrary precision integer support
 type Integer struct {
 	Value        *big.Int
@@ -691,6 +759,7 @@ type Environment struct {
 	imports     map[string]string        // Legacy: alias -> stdlib module name
 	modules     map[string]*ModuleObject // User modules: alias -> module object
 	using       []string
+	usingCache  []string // Cached result of GetUsing() to avoid repeated allocations
 	loopDepth   int
 	ensureStack []*ast.CallExpression // Stack of ensure statements (LIFO order)
 	returnTypes []string              // Expected return types for current function
@@ -778,16 +847,24 @@ func (e *Environment) HasModule(alias string) bool {
 
 func (e *Environment) Use(alias string) {
 	e.using = append(e.using, alias)
+	e.usingCache = nil // Invalidate cache
 }
 
 func (e *Environment) GetUsing() []string {
+	// Return cached result if available
+	if e.usingCache != nil {
+		return e.usingCache
+	}
+
+	// Build the list: local using + outer using
 	result := make([]string, len(e.using))
 	copy(result, e.using)
 	if e.outer != nil {
 		result = append(result, e.outer.GetUsing()...)
 	}
 
-	seen := make(map[string]bool)
+	// Deduplicate
+	seen := make(map[string]bool, len(result))
 	deduped := make([]string, 0, len(result))
 	for _, module := range result {
 		if !seen[module] {
@@ -796,6 +873,8 @@ func (e *Environment) GetUsing() []string {
 		}
 	}
 
+	// Cache the result
+	e.usingCache = deduped
 	return deduped
 }
 

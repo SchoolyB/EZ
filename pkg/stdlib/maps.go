@@ -37,14 +37,16 @@ var MapsBuiltins = map[string]*object.Builtin{
 				return &object.Error{Code: "E7007", Message: "maps.contains() requires a map as first argument"}
 			}
 			key := args[1]
-			if _, hashOk := object.HashKey(key); !hashOk {
-				return &object.Error{Code: "E12001", Message: "maps.contains() key must be a hashable type (string, int, bool, char)"}
-			}
+			// Get() returns false for both unhashable keys and missing keys
+			// Only check hashability on failure to provide better error message
 			_, exists := m.Get(key)
-			if exists {
-				return object.TRUE
+			if !exists {
+				if _, hashOk := object.HashKey(key); !hashOk {
+					return &object.Error{Code: "E12001", Message: "maps.contains() key must be a hashable type (string, int, bool, char)"}
+				}
+				return object.FALSE
 			}
-			return object.FALSE
+			return object.TRUE
 		},
 	},
 
@@ -58,18 +60,20 @@ var MapsBuiltins = map[string]*object.Builtin{
 				return &object.Error{Code: "E7007", Message: "maps.get() requires a map as first argument"}
 			}
 			key := args[1]
-			if _, hashOk := object.HashKey(key); !hashOk {
-				return &object.Error{Code: "E12001", Message: "maps.get() key must be a hashable type (string, int, bool, char)"}
-			}
+			// Get() returns false for both unhashable keys and missing keys
 			value, exists := m.Get(key)
-			if exists {
-				return value
+			if !exists {
+				// Check hashability only on failure for better error message
+				if _, hashOk := object.HashKey(key); !hashOk {
+					return &object.Error{Code: "E12001", Message: "maps.get() key must be a hashable type (string, int, bool, char)"}
+				}
+				// Return default value if provided, otherwise NIL
+				if len(args) == 3 {
+					return args[2]
+				}
+				return object.NIL
 			}
-			// Return default value if provided, otherwise NIL
-			if len(args) == 3 {
-				return args[2]
-			}
-			return object.NIL
+			return value
 		},
 	},
 
@@ -89,10 +93,10 @@ var MapsBuiltins = map[string]*object.Builtin{
 				}
 			}
 			key := args[1]
-			if _, hashOk := object.HashKey(key); !hashOk {
+			// Set() returns false for unhashable keys
+			if !m.Set(key, args[2]) {
 				return &object.Error{Code: "E12001", Message: "maps.set() key must be a hashable type (string, int, bool, char)"}
 			}
-			m.Set(key, args[2])
 			return object.NIL
 		},
 	},
