@@ -516,6 +516,11 @@ func (tc *TypeChecker) Errors() *errors.EZErrorList {
 
 // addError adds a type error
 func (tc *TypeChecker) addError(code errors.ErrorCode, message string, line, column int) {
+	tc.addErrorWithHelp(code, message, "", line, column)
+}
+
+// addErrorWithHelp adds a type error with an optional help message
+func (tc *TypeChecker) addErrorWithHelp(code errors.ErrorCode, message, help string, line, column int) {
 	sourceLine := ""
 	if tc.source != "" {
 		sourceLine = errors.GetSourceLine(tc.source, line)
@@ -529,6 +534,9 @@ func (tc *TypeChecker) addError(code errors.ErrorCode, message string, line, col
 		column,
 		sourceLine,
 	)
+	if help != "" {
+		err.Help = help
+	}
 	tc.errors.AddError(err)
 }
 
@@ -797,9 +805,14 @@ func (tc *TypeChecker) checkStructDeclaration(node *ast.StructDeclaration) {
 	for _, field := range node.Fields {
 		// Check if field type exists
 		if !tc.TypeExists(field.TypeName) {
-			tc.addError(
+			help := ""
+			if suggestion := errors.SuggestType(field.TypeName); suggestion != "" {
+				help = fmt.Sprintf("did you mean '%s'?", suggestion)
+			}
+			tc.addErrorWithHelp(
 				errors.E3009,
 				fmt.Sprintf("undefined type '%s' in struct '%s'", field.TypeName, node.Name.Value),
+				help,
 				field.Name.Token.Line,
 				field.Name.Token.Column,
 			)
@@ -1098,9 +1111,14 @@ func (tc *TypeChecker) checkGlobalVariableDeclaration(node *ast.VariableDeclarat
 
 		// Check if type exists (skip for inferred types that might be complex)
 		if declaredType != "" && !tc.TypeExists(declaredType) && !strings.HasPrefix(declaredType, "[") && !strings.HasPrefix(declaredType, "map[") {
-			tc.addError(
+			help := ""
+			if suggestion := errors.SuggestType(declaredType); suggestion != "" {
+				help = fmt.Sprintf("did you mean '%s'?", suggestion)
+			}
+			tc.addErrorWithHelp(
 				errors.E3002,
 				fmt.Sprintf("undefined type '%s'", declaredType),
+				help,
 				name.Token.Line,
 				name.Token.Column,
 			)
@@ -1383,9 +1401,14 @@ func (tc *TypeChecker) checkFunctionDeclaration(node *ast.FunctionDeclaration) {
 		}
 
 		if !tc.TypeExists(param.TypeName) {
-			tc.addError(
+			help := ""
+			if suggestion := errors.SuggestType(param.TypeName); suggestion != "" {
+				help = fmt.Sprintf("did you mean '%s'?", suggestion)
+			}
+			tc.addErrorWithHelp(
 				errors.E3010,
 				fmt.Sprintf("undefined type '%s' for parameter '%s'", param.TypeName, param.Name.Value),
+				help,
 				param.Name.Token.Line,
 				param.Name.Token.Column,
 			)
@@ -1437,9 +1460,14 @@ func (tc *TypeChecker) checkFunctionDeclaration(node *ast.FunctionDeclaration) {
 	// Check return types
 	for _, returnType := range node.ReturnTypes {
 		if !tc.TypeExists(returnType) {
-			tc.addError(
+			help := ""
+			if suggestion := errors.SuggestType(returnType); suggestion != "" {
+				help = fmt.Sprintf("did you mean '%s'?", suggestion)
+			}
+			tc.addErrorWithHelp(
 				errors.E3011,
 				fmt.Sprintf("undefined return type '%s' in function '%s'", returnType, node.Name.Value),
+				help,
 				node.Name.Token.Line,
 				node.Name.Token.Column,
 			)
@@ -2076,9 +2104,14 @@ func (tc *TypeChecker) checkVariableDeclaration(decl *ast.VariableDeclaration) {
 
 	// Check if declared type exists
 	if declaredType != "" && !tc.TypeExists(declaredType) {
-		tc.addError(
+		help := ""
+		if suggestion := errors.SuggestType(declaredType); suggestion != "" {
+			help = fmt.Sprintf("did you mean '%s'?", suggestion)
+		}
+		tc.addErrorWithHelp(
 			errors.E3008,
 			fmt.Sprintf("undefined type '%s'", declaredType),
+			help,
 			decl.Name.Token.Line,
 			decl.Name.Token.Column,
 		)
@@ -2587,9 +2620,16 @@ func (tc *TypeChecker) checkAssignment(assign *ast.AssignmentStatement) {
 		_, varExists := tc.lookupVariable(rootVar)
 		if !varExists {
 			line, column := tc.getExpressionPosition(assign.Name)
-			tc.addError(
+			help := ""
+			if suggestion := errors.SuggestKeyword(rootVar); suggestion != "" {
+				help = fmt.Sprintf("did you mean '%s'?", suggestion)
+			} else if suggestion := errors.SuggestBuiltin(rootVar); suggestion != "" {
+				help = fmt.Sprintf("did you mean '%s'?", suggestion)
+			}
+			tc.addErrorWithHelp(
 				errors.E4001,
 				fmt.Sprintf("undefined variable '%s'", rootVar),
+				help,
 				line,
 				column,
 			)
@@ -2837,9 +2877,16 @@ func (tc *TypeChecker) checkReturnStatement(ret *ast.ReturnStatement, expectedTy
 					)
 				} else if _, isFunc := tc.functions[label.Value]; !isFunc {
 					// Not a type and not a function - truly undefined
-					tc.addError(
+					help := ""
+					if suggestion := errors.SuggestKeyword(label.Value); suggestion != "" {
+						help = fmt.Sprintf("did you mean '%s'?", suggestion)
+					} else if suggestion := errors.SuggestBuiltin(label.Value); suggestion != "" {
+						help = fmt.Sprintf("did you mean '%s'?", suggestion)
+					}
+					tc.addErrorWithHelp(
 						errors.E4001,
 						fmt.Sprintf("undefined variable '%s'", label.Value),
+						help,
 						line,
 						column,
 					)
@@ -2972,9 +3019,16 @@ func (tc *TypeChecker) checkExpression(expr ast.Expression) {
 		// Check if the identifier is known (variable, function, type, enum, etc.)
 		if !tc.isKnownIdentifier(e.Value) {
 			line, col := tc.getExpressionPosition(e)
-			tc.addError(
+			help := ""
+			if suggestion := errors.SuggestKeyword(e.Value); suggestion != "" {
+				help = fmt.Sprintf("did you mean '%s'?", suggestion)
+			} else if suggestion := errors.SuggestBuiltin(e.Value); suggestion != "" {
+				help = fmt.Sprintf("did you mean '%s'?", suggestion)
+			}
+			tc.addErrorWithHelp(
 				errors.E4001,
 				fmt.Sprintf("undefined variable '%s'", e.Value),
+				help,
 				line,
 				col,
 			)
@@ -3613,9 +3667,14 @@ func (tc *TypeChecker) checkFunctionCall(call *ast.CallExpression) {
 		}
 		// Function not found anywhere - report error
 		line, column := tc.getExpressionPosition(call.Function)
-		tc.addError(
+		help := ""
+		if suggestion := errors.SuggestBuiltin(funcName); suggestion != "" {
+			help = fmt.Sprintf("did you mean '%s'?", suggestion)
+		}
+		tc.addErrorWithHelp(
 			errors.E4002,
 			fmt.Sprintf("undefined function '%s'", funcName),
+			help,
 			line,
 			column,
 		)
@@ -3655,9 +3714,16 @@ func (tc *TypeChecker) checkFunctionCall(call *ast.CallExpression) {
 				if _, isFunc := tc.functions[label.Value]; !isFunc {
 					if _, isType := tc.types[label.Value]; !isType {
 						line, column := tc.getExpressionPosition(arg)
-						tc.addError(
+						help := ""
+						if suggestion := errors.SuggestKeyword(label.Value); suggestion != "" {
+							help = fmt.Sprintf("did you mean '%s'?", suggestion)
+						} else if suggestion := errors.SuggestBuiltin(label.Value); suggestion != "" {
+							help = fmt.Sprintf("did you mean '%s'?", suggestion)
+						}
+						tc.addErrorWithHelp(
 							errors.E4001,
 							fmt.Sprintf("undefined variable '%s'", label.Value),
+							help,
 							line,
 							column,
 						)
@@ -7553,7 +7619,11 @@ func (tc *TypeChecker) checkStdlibCall(member *ast.MemberExpression, call *ast.C
 	// Check if the module was imported (for standard library modules)
 	stdModules := map[string]bool{"std": true, "math": true, "arrays": true, "strings": true, "time": true, "maps": true, "io": true, "os": true, "bytes": true, "random": true, "json": true, "binary": true, "db": true, "uuid": true, "encoding": true, "crypto": true, "http": true}
 	if stdModules[resolvedModuleName] && !tc.modules[moduleName] && !tc.modules[resolvedModuleName] {
-		tc.addError(errors.E4007, fmt.Sprintf("module '%s' not imported; add 'import @%s'", moduleName, resolvedModuleName), line, column)
+		help := ""
+		if suggestion := errors.SuggestModule(moduleName); suggestion != "" && suggestion != resolvedModuleName {
+			help = fmt.Sprintf("did you mean '%s'?", suggestion)
+		}
+		tc.addErrorWithHelp(errors.E4007, fmt.Sprintf("module '%s' not imported; add 'import @%s'", moduleName, resolvedModuleName), help, line, column)
 		return
 	}
 
@@ -7609,6 +7679,7 @@ func (tc *TypeChecker) checkUserModuleCall(moduleName, funcName string, call *as
 		// Check if the module itself is registered - if so, the function doesn't exist
 		if tc.modules[moduleName] {
 			// Module is registered but function doesn't exist - report error
+			// Note: scope-aware function suggestions would require passing available functions
 			tc.addError(
 				errors.E4002,
 				fmt.Sprintf("undefined function '%s.%s'", moduleName, funcName),
