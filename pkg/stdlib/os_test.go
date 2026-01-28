@@ -577,8 +577,8 @@ func TestOSExitExists(t *testing.T) {
 // Helper function tests
 // ============================================================================
 
-func TestCreateOSError(t *testing.T) {
-	err := createOSError("E9999", "test error message")
+func TestCreateStdlibError(t *testing.T) {
+	err := CreateStdlibError("E9999", "test error message")
 
 	if err.TypeName != "Error" {
 		t.Errorf("Expected TypeName 'Error', got '%s'", err.TypeName)

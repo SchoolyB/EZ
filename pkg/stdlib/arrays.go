@@ -1030,11 +1030,7 @@ var ArraysBuiltins = map[string]*object.Builtin{
 				return &object.String{Value: ""}
 			}
 
-			result := arr.Elements[0].Inspect()
-			for _, el := range arr.Elements[1:] {
-				result += sep.Value + el.Inspect()
-			}
-			return &object.String{Value: result}
+			return &object.String{Value: JoinObjects(arr.Elements, sep.Value)}
 		},
 	},
 
