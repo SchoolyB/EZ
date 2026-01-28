@@ -9,20 +9,11 @@ import (
 	"encoding/hex"
 	"fmt"
 	"math/big"
+	"strings"
 
 	"github.com/marshallburns/ez/pkg/object"
 )
 
-// createBytesError creates an Error struct for recoverable errors in tuple returns
-func createBytesError(code, message string) *object.Struct {
-	return &object.Struct{
-		TypeName: "Error",
-		Fields: map[string]object.Object{
-			"message": &object.String{Value: message},
-			"code":    &object.String{Value: code},
-		},
-	}
-}
 
 // BytesBuiltins contains the bytes module functions for binary data operations
 var BytesBuiltins = map[string]*object.Builtin{
@@ -97,7 +88,7 @@ var BytesBuiltins = map[string]*object.Builtin{
 			if err != nil {
 				return &object.ReturnValue{Values: []object.Object{
 					object.NIL,
-					createBytesError("E7014", fmt.Sprintf("bytes.from_hex() invalid hex string: %s", err.Error())),
+					CreateStdlibError("E7014", fmt.Sprintf("bytes.from_hex() invalid hex string: %s", err.Error())),
 				}}
 			}
 
@@ -128,7 +119,7 @@ var BytesBuiltins = map[string]*object.Builtin{
 			if err != nil {
 				return &object.ReturnValue{Values: []object.Object{
 					object.NIL,
-					createBytesError("E7014", fmt.Sprintf("bytes.from_base64() invalid base64 string: %s", err.Error())),
+					CreateStdlibError("E7014", fmt.Sprintf("bytes.from_base64() invalid base64 string: %s", err.Error())),
 				}}
 			}
 
@@ -229,16 +220,7 @@ var BytesBuiltins = map[string]*object.Builtin{
 			if err != nil {
 				return err
 			}
-			hexStr := hex.EncodeToString(data)
-			upper := ""
-			for _, c := range hexStr {
-				if c >= 'a' && c <= 'f' {
-					upper += string(c - 32)
-				} else {
-					upper += string(c)
-				}
-			}
-			return &object.String{Value: upper}
+			return &object.String{Value: strings.ToUpper(hex.EncodeToString(data))}
 		},
 	},
 
@@ -838,7 +820,7 @@ var BytesBuiltins = map[string]*object.Builtin{
 			if len(data1) != len(data2) {
 				return &object.ReturnValue{Values: []object.Object{
 					object.NIL,
-					createBytesError("E7010", "bytes.and() requires byte arrays of equal length"),
+					CreateStdlibError("E7010", "bytes.and() requires byte arrays of equal length"),
 				}}
 			}
 
@@ -871,7 +853,7 @@ var BytesBuiltins = map[string]*object.Builtin{
 			if len(data1) != len(data2) {
 				return &object.ReturnValue{Values: []object.Object{
 					object.NIL,
-					createBytesError("E7010", "bytes.or() requires byte arrays of equal length"),
+					CreateStdlibError("E7010", "bytes.or() requires byte arrays of equal length"),
 				}}
 			}
 
@@ -904,7 +886,7 @@ var BytesBuiltins = map[string]*object.Builtin{
 			if len(data1) != len(data2) {
 				return &object.ReturnValue{Values: []object.Object{
 					object.NIL,
-					createBytesError("E7010", "bytes.xor() requires byte arrays of equal length"),
+					CreateStdlibError("E7010", "bytes.xor() requires byte arrays of equal length"),
 				}}
 			}
 

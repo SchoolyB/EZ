@@ -165,6 +165,15 @@ var keywords = map[string]TokenType{
 	"ensure":     ENSURE,
 }
 
+// keywordLiterals is a reverse lookup map for O(1) keyword literal retrieval
+var keywordLiterals = func() map[TokenType]string {
+	m := make(map[TokenType]string, len(keywords))
+	for literal, tokType := range keywords {
+		m[tokType] = literal
+	}
+	return m
+}()
+
 // Looks up the passed in identifier(i)
 // if found, returns the TokenType
 // representation of said identifer.
@@ -190,10 +199,8 @@ func IsKeyword(t TokenType) bool {
 
 // KeywordLiteral returns the string literal for a keyword token type
 func KeywordLiteral(t TokenType) string {
-	for literal, tokType := range keywords {
-		if tokType == t {
-			return literal
-		}
+	if literal, ok := keywordLiterals[t]; ok {
+		return literal
 	}
 	return string(t)
 }

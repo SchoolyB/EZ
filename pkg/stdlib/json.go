@@ -26,7 +26,7 @@ var JsonBuiltins = map[string]*object.Builtin{
 			if err != nil {
 				return &object.ReturnValue{Values: []object.Object{
 					object.NIL,
-					createJSONError(err.code, err.message),
+					CreateStdlibError(err.code, err.message),
 				}}
 			}
 
@@ -59,7 +59,7 @@ var JsonBuiltins = map[string]*object.Builtin{
 				if err != nil {
 					return &object.ReturnValue{Values: []object.Object{
 						object.NIL,
-						createJSONError("E13001", fmt.Sprintf("invalid JSON syntax: %s", err.Error())),
+						CreateStdlibError("E13001", fmt.Sprintf("invalid JSON syntax: %s", err.Error())),
 					}}
 				}
 
@@ -83,7 +83,7 @@ var JsonBuiltins = map[string]*object.Builtin{
 			if jsonErr != nil {
 				return &object.ReturnValue{Values: []object.Object{
 					object.NIL,
-					createJSONError(jsonErr.code, jsonErr.message),
+					CreateStdlibError(jsonErr.code, jsonErr.message),
 				}}
 			}
 
@@ -111,7 +111,7 @@ var JsonBuiltins = map[string]*object.Builtin{
 			if err != nil {
 				return &object.ReturnValue{Values: []object.Object{
 					object.NIL,
-					createJSONError(err.code, err.message),
+					CreateStdlibError(err.code, err.message),
 				}}
 			}
 
@@ -149,16 +149,6 @@ type jsonError struct {
 	message string
 }
 
-// createJSONError creates an Error struct for JSON operations
-func createJSONError(code, message string) *object.Struct {
-	return &object.Struct{
-		TypeName: "Error",
-		Fields: map[string]object.Object{
-			"message": &object.String{Value: message},
-			"code":    &object.String{Value: code},
-		},
-	}
-}
 
 // encodeToJSON converts an EZ object to a JSON string
 func encodeToJSON(obj object.Object, seen map[uintptr]bool) (string, *jsonError) {
@@ -238,7 +228,7 @@ func objectToGoValue(obj object.Object, seen map[uintptr]bool) (interface{}, *js
 			if !ok {
 				return nil, &jsonError{
 					code:    "E13003",
-					message: fmt.Sprintf("JSON object keys must be strings, got %s", getEZTypeName(pair.Key)),
+					message: fmt.Sprintf("JSON object keys must be strings, got %s", object.GetEZTypeName(pair.Key)),
 				}
 			}
 			val, err := objectToGoValue(pair.Value, seen)
@@ -297,7 +287,7 @@ func objectToGoValue(obj object.Object, seen map[uintptr]bool) (interface{}, *js
 	default:
 		return nil, &jsonError{
 			code:    "E13002",
-			message: fmt.Sprintf("type %s cannot be converted to JSON", getEZTypeName(obj)),
+			message: fmt.Sprintf("type %s cannot be converted to JSON", object.GetEZTypeName(obj)),
 		}
 	}
 }

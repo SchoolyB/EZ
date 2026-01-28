@@ -36,6 +36,40 @@ const asciiBanner = `
 Programming made EZ
 `
 
+// parsedFile holds a parsed module file for two-pass type checking
+type parsedFile struct {
+	path     string
+	source   string
+	program  *ast.Program
+	parser   *parser.Parser
+	lexer    *lexer.Lexer
+	modPath  string
+	numFiles int
+}
+
+// moduleInternals stores declarations shared across files in a multi-file module
+type moduleInternals struct {
+	types map[string]*typechecker.Type
+	funcs map[string]*typechecker.FunctionSignature
+	vars  map[string]string
+}
+
+// formatLexerErrors converts lexer errors to a formatted error list.
+// Returns nil if there are no errors.
+func formatLexerErrors(l *lexer.Lexer, source, filename string) *errors.EZErrorList {
+	if len(l.Errors()) == 0 {
+		return nil
+	}
+	errList := errors.NewErrorList()
+	for _, lexErr := range l.Errors() {
+		code := errors.LookupErrorCode(lexErr.Code)
+		sourceLine := errors.GetSourceLine(source, lexErr.Line)
+		ezErr := errors.NewErrorWithSource(code, lexErr.Message, filename, lexErr.Line, lexErr.Column, sourceLine)
+		errList.AddError(ezErr)
+	}
+	return errList
+}
+
 func main() {
 	if err := rootCmd.Execute(); err != nil {
 		os.Exit(1)
@@ -104,20 +138,7 @@ func checkFile(filename string) {
 	program := p.ParseProgram()
 
 	// Check for lexer errors
-	if len(l.Errors()) > 0 {
-		errList := errors.NewErrorList()
-		for _, lexErr := range l.Errors() {
-			var code errors.ErrorCode
-			switch lexErr.Code {
-			case "E1005":
-				code = errors.E1005
-			default:
-				code = errors.ErrorCode{Code: lexErr.Code, Name: "lexer-error", Description: "Lexer error"}
-			}
-			sourceLine := errors.GetSourceLine(source, lexErr.Line)
-			ezErr := errors.NewErrorWithSource(code, lexErr.Message, absFile, lexErr.Line, lexErr.Column, sourceLine)
-			errList.AddError(ezErr)
-		}
+	if errList := formatLexerErrors(l, source, absFile); errList != nil {
 		fmt.Print(errors.FormatErrorList(errList))
 		os.Exit(1)
 	}
@@ -165,25 +186,8 @@ func checkFile(filename string) {
 	// Pass 1: Parse ALL files from ALL modules and extract type/function declarations
 	// Pass 2: Full type check with all declarations available
 	// This fixes #851 where nested imports weren't available during type checking
-
-	type parsedFile struct {
-		path     string
-		source   string
-		program  *ast.Program
-		parser   *parser.Parser
-		lexer    *lexer.Lexer
-		modPath  string // The module path this file belongs to
-		numFiles int    // Number of files in the module
-	}
 	var allParsedFiles []parsedFile
-
-	// Module-internal declarations for multi-file modules (shared across files in the same module)
-	type moduleInternals struct {
-		types map[string]*typechecker.Type
-		funcs map[string]*typechecker.FunctionSignature
-		vars  map[string]string
-	}
-	moduleInternalsMap := make(map[string]*moduleInternals) // keyed by modPath
+	moduleInternalsMap := make(map[string]*moduleInternals)
 
 	// Pass 1: Parse all module files and extract declarations
 	for len(modulesToCheck) > 0 {
@@ -233,20 +237,7 @@ func checkFile(filename string) {
 			fileProgram := fileParser.ParseProgram()
 
 			// Check for lexer errors
-			if len(fileLex.Errors()) > 0 {
-				errList := errors.NewErrorList()
-				for _, lexErr := range fileLex.Errors() {
-					var code errors.ErrorCode
-					switch lexErr.Code {
-					case "E1005":
-						code = errors.E1005
-					default:
-						code = errors.ErrorCode{Code: lexErr.Code, Name: "lexer-error", Description: "Lexer error"}
-					}
-					sourceLine := errors.GetSourceLine(fileSource, lexErr.Line)
-					ezErr := errors.NewErrorWithSource(code, lexErr.Message, filePath, lexErr.Line, lexErr.Column, sourceLine)
-					errList.AddError(ezErr)
-				}
+			if errList := formatLexerErrors(fileLex, fileSource, filePath); errList != nil {
 				fmt.Print(errors.FormatErrorList(errList))
 				hasErrors = true
 				continue
@@ -498,20 +489,7 @@ func checkProject(dir string) {
 	program := p.ParseProgram()
 
 	// Check for lexer errors
-	if len(l.Errors()) > 0 {
-		errList := errors.NewErrorList()
-		for _, lexErr := range l.Errors() {
-			var code errors.ErrorCode
-			switch lexErr.Code {
-			case "E1005":
-				code = errors.E1005
-			default:
-				code = errors.ErrorCode{Code: lexErr.Code, Name: "lexer-error", Description: "Lexer error"}
-			}
-			sourceLine := errors.GetSourceLine(source, lexErr.Line)
-			ezErr := errors.NewErrorWithSource(code, lexErr.Message, mainFile, lexErr.Line, lexErr.Column, sourceLine)
-			errList.AddError(ezErr)
-		}
+	if errList := formatLexerErrors(l, source, mainFile); errList != nil {
 		fmt.Print(errors.FormatErrorList(errList))
 		return
 	}
@@ -594,20 +572,7 @@ func checkProject(dir string) {
 			fileProgram := fileParser.ParseProgram()
 
 			// Check for lexer errors
-			if len(fileLex.Errors()) > 0 {
-				errList := errors.NewErrorList()
-				for _, lexErr := range fileLex.Errors() {
-					var code errors.ErrorCode
-					switch lexErr.Code {
-					case "E1005":
-						code = errors.E1005
-					default:
-						code = errors.ErrorCode{Code: lexErr.Code, Name: "lexer-error", Description: "Lexer error"}
-					}
-					sourceLine := errors.GetSourceLine(fileSource, lexErr.Line)
-					ezErr := errors.NewErrorWithSource(code, lexErr.Message, filePath, lexErr.Line, lexErr.Column, sourceLine)
-					errList.AddError(ezErr)
-				}
+			if errList := formatLexerErrors(fileLex, fileSource, filePath); errList != nil {
 				fmt.Print(errors.FormatErrorList(errList))
 				hasErrors = true
 				continue
@@ -666,29 +631,12 @@ type ImportInfo struct {
 
 // collectImports extracts import paths from a program's AST
 func collectImports(program *ast.Program, rootDir string, currentFile string) []string {
-	var imports []string
-
-	for _, stmt := range program.Statements {
-		if importStmt, ok := stmt.(*ast.ImportStatement); ok {
-			for _, item := range importStmt.Imports {
-				// Skip stdlib imports (start with @)
-				if strings.HasPrefix(item.Module, "@") || item.Module != "" {
-					continue
-				}
-				// User module import (has a path)
-				if item.Path != "" {
-					// Resolve the path relative to current file
-					basePath := filepath.Dir(currentFile)
-					absPath, err := filepath.Abs(filepath.Join(basePath, item.Path))
-					if err == nil {
-						imports = append(imports, absPath)
-					}
-				}
-			}
-		}
+	importsWithAliases := collectImportsWithAliases(program, rootDir, currentFile)
+	paths := make([]string, len(importsWithAliases))
+	for i, imp := range importsWithAliases {
+		paths[i] = imp.Path
 	}
-
-	return imports
+	return paths
 }
 
 // collectImportsWithAliases extracts import paths and their aliases from a program's AST
@@ -784,20 +732,7 @@ func runFile(filename string) {
 	program := p.ParseProgram()
 
 	// Check for lexer errors first
-	if len(l.Errors()) > 0 {
-		errList := errors.NewErrorList()
-		for _, lexErr := range l.Errors() {
-			var code errors.ErrorCode
-			switch lexErr.Code {
-			case "E1005":
-				code = errors.E1005
-			default:
-				code = errors.ErrorCode{Code: lexErr.Code, Name: "lexer-error", Description: "Lexer error"}
-			}
-			sourceLine := errors.GetSourceLine(source, lexErr.Line)
-			ezErr := errors.NewErrorWithSource(code, lexErr.Message, filename, lexErr.Line, lexErr.Column, sourceLine)
-			errList.AddError(ezErr)
-		}
+	if errList := formatLexerErrors(l, source, filename); errList != nil {
 		fmt.Print(errors.FormatErrorList(errList))
 		os.Exit(1)
 	}
@@ -838,23 +773,8 @@ func runFile(filename string) {
 	// Pass 1: Parse ALL files from ALL modules and extract type/function declarations
 	// Pass 2: Full type check with all declarations available
 	// This fixes #851 where nested imports weren't available during type checking
-
-	type parsedFile struct {
-		path     string
-		source   string
-		program  *ast.Program
-		modPath  string // The module path this file belongs to
-		numFiles int    // Number of files in the module
-	}
 	var allParsedFiles []parsedFile
-
-	// Module-internal declarations for multi-file modules (shared across files in the same module)
-	type moduleInternals struct {
-		types map[string]*typechecker.Type
-		funcs map[string]*typechecker.FunctionSignature
-		vars  map[string]string
-	}
-	moduleInternalsMap := make(map[string]*moduleInternals) // keyed by modPath
+	moduleInternalsMap := make(map[string]*moduleInternals)
 
 	// Pass 1: Parse all module files and extract declarations
 	for len(modulesToCheck) > 0 {
@@ -904,20 +824,7 @@ func runFile(filename string) {
 			fileProgram := fileParser.ParseProgram()
 
 			// Check for lexer errors in imported module
-			if len(fileLex.Errors()) > 0 {
-				errList := errors.NewErrorList()
-				for _, lexErr := range fileLex.Errors() {
-					var code errors.ErrorCode
-					switch lexErr.Code {
-					case "E1005":
-						code = errors.E1005
-					default:
-						code = errors.ErrorCode{Code: lexErr.Code, Name: "lexer-error", Description: "Lexer error"}
-					}
-					sourceLine := errors.GetSourceLine(fileSource, lexErr.Line)
-					ezErr := errors.NewErrorWithSource(code, lexErr.Message, filePath, lexErr.Line, lexErr.Column, sourceLine)
-					errList.AddError(ezErr)
-				}
+			if errList := formatLexerErrors(fileLex, fileSource, filePath); errList != nil {
 				fmt.Print(errors.FormatErrorList(errList))
 				os.Exit(1)
 			}
@@ -1139,54 +1046,15 @@ func runFile(filename string) {
 func printRuntimeError(errObj *interpreter.Error, source, filename string) {
 	// If we have location info, use formatted output
 	if errObj.Code != "" && errObj.Line > 0 {
-		// Find the error code
+		// Find the error code - special cases for panic/assert, otherwise use lookup
 		var code errors.ErrorCode
 		switch errObj.Code {
-		case "E2001":
-			code = errors.E2001
-		case "E2002":
-			code = errors.E2002
-		case "E2003":
-			code = errors.E2003
-		case "E2004":
-			code = errors.E2004
-		case "E2005":
-			code = errors.E2005
-		case "E3001":
-			code = errors.E3001
-		case "E3002":
-			code = errors.E3002
-		case "E3003":
-			code = errors.E3003
-		case "E3004":
-			code = errors.E3004
-		case "E3005":
-			code = errors.E3005
-		case "E3007":
-			code = errors.E3007
-		case "E4001":
-			code = errors.E4001
-		case "E4002":
-			code = errors.E4002
-		case "E4003":
-			code = errors.E4003
-		case "E4004":
-			code = errors.E4004
-		case "E4005":
-			code = errors.E4005
-		case "E4006":
-			code = errors.E4006
-		case "E4007":
-			code = errors.E4007
 		case "E5021":
-			// Panic - special display
 			code = errors.ErrorCode{Code: "PANIC", Name: "panic", Description: "panicked here"}
 		case "E5022":
-			// Assertion failure - special display
 			code = errors.ErrorCode{Code: "ASSERT", Name: "assertion-failed", Description: "assertion failed here"}
 		default:
-			// Unknown code, use generic
-			code = errors.ErrorCode{Code: errObj.Code, Name: "error", Description: "error occurred here"}
+			code = errors.LookupErrorCode(errObj.Code)
 		}
 
 		// Use error's file if available, otherwise fall back to main file

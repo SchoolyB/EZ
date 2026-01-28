@@ -20,13 +20,13 @@ func validatePath(path string, funcName string) *object.ReturnValue {
 	if path == "" {
 		return &object.ReturnValue{Values: []object.Object{
 			object.NIL,
-			createIOError("E7040", fmt.Sprintf("%s: path cannot be empty", funcName)),
+			CreateStdlibError("E7040", fmt.Sprintf("%s: path cannot be empty", funcName)),
 		}}
 	}
 	if strings.ContainsRune(path, '\x00') {
 		return &object.ReturnValue{Values: []object.Object{
 			object.NIL,
-			createIOError("E7041", fmt.Sprintf("%s: path contains null byte", funcName)),
+			CreateStdlibError("E7041", fmt.Sprintf("%s: path contains null byte", funcName)),
 		}}
 	}
 	return nil
@@ -118,13 +118,13 @@ var IOBuiltins = map[string]*object.Builtin{
 			if statErr == nil && info.IsDir() {
 				return &object.ReturnValue{Values: []object.Object{
 					object.NIL,
-					createIOError("E7042", "io.read_file(): cannot read directory as file"),
+					CreateStdlibError("E7042", "io.read_file(): cannot read directory as file"),
 				}}
 			}
 
 			content, err := os.ReadFile(path.Value)
 			if err != nil {
-				return createIOErrorResult(err, "read")
+				return CreateStdlibErrorResult(err, "read")
 			}
 
 			return &object.ReturnValue{Values: []object.Object{
@@ -156,13 +156,13 @@ var IOBuiltins = map[string]*object.Builtin{
 			if statErr == nil && info.IsDir() {
 				return &object.ReturnValue{Values: []object.Object{
 					object.NIL,
-					createIOError("E7042", "io.read_bytes(): cannot read directory as file"),
+					CreateStdlibError("E7042", "io.read_bytes(): cannot read directory as file"),
 				}}
 			}
 
 			content, err := os.ReadFile(path.Value)
 			if err != nil {
-				return createIOErrorResult(err, "read")
+				return CreateStdlibErrorResult(err, "read")
 			}
 
 			// Convert to byte array
@@ -217,7 +217,7 @@ var IOBuiltins = map[string]*object.Builtin{
 
 			err := atomicWriteFile(path.Value, []byte(content.Value), perms)
 			if err != nil {
-				return createIOErrorResult(err, "write")
+				return CreateStdlibErrorResult(err, "write")
 			}
 
 			return &object.ReturnValue{Values: []object.Object{
@@ -272,7 +272,7 @@ var IOBuiltins = map[string]*object.Builtin{
 
 			err := atomicWriteFile(path.Value, bytes, perms)
 			if err != nil {
-				return createIOErrorResult(err, "write bytes")
+				return CreateStdlibErrorResult(err, "write bytes")
 			}
 
 			return &object.ReturnValue{Values: []object.Object{
@@ -316,17 +316,17 @@ var IOBuiltins = map[string]*object.Builtin{
 
 			f, err := os.OpenFile(path.Value, os.O_APPEND|os.O_CREATE|os.O_WRONLY, perms)
 			if err != nil {
-				return createIOErrorResult(err, "open for append")
+				return CreateStdlibErrorResult(err, "open for append")
 			}
 
 			_, err = f.WriteString(content.Value)
 			if err != nil {
 				_ = f.Close()
-				return createIOErrorResult(err, "append")
+				return CreateStdlibErrorResult(err, "append")
 			}
 
 			if err := f.Close(); err != nil {
-				return createIOErrorResult(err, "close after append")
+				return CreateStdlibErrorResult(err, "close after append")
 			}
 
 			return &object.ReturnValue{Values: []object.Object{
@@ -362,13 +362,13 @@ var IOBuiltins = map[string]*object.Builtin{
 			if err == nil && info.IsDir() {
 				return &object.ReturnValue{Values: []object.Object{
 					object.NIL,
-					createIOError("E7042", "io.read_lines(): cannot read directory as file"),
+					CreateStdlibError("E7042", "io.read_lines(): cannot read directory as file"),
 				}}
 			}
 
 			content, err := os.ReadFile(path.Value)
 			if err != nil {
-				return createIOErrorResult(err, "read")
+				return CreateStdlibErrorResult(err, "read")
 			}
 
 			// Split by newlines, handling both \n and \r\n
@@ -443,7 +443,7 @@ var IOBuiltins = map[string]*object.Builtin{
 
 			f, err := os.OpenFile(path.Value, os.O_APPEND|os.O_CREATE|os.O_WRONLY, perms)
 			if err != nil {
-				return createIOErrorResult(err, "open for append")
+				return CreateStdlibErrorResult(err, "open for append")
 			}
 
 			// Write line with newline, prepending newline if file didn't end with one
@@ -454,11 +454,11 @@ var IOBuiltins = map[string]*object.Builtin{
 			_, err = f.WriteString(content)
 			if err != nil {
 				_ = f.Close()
-				return createIOErrorResult(err, "append line")
+				return CreateStdlibErrorResult(err, "append line")
 			}
 
 			if err := f.Close(); err != nil {
-				return createIOErrorResult(err, "close after append")
+				return CreateStdlibErrorResult(err, "close after append")
 			}
 
 			return &object.ReturnValue{Values: []object.Object{
@@ -488,7 +488,7 @@ var IOBuiltins = map[string]*object.Builtin{
 				if err != nil {
 					return &object.ReturnValue{Values: []object.Object{
 						object.NIL,
-						createIOError("E7029", "io.expand_path(): failed to get home directory"),
+						CreateStdlibError("E7029", "io.expand_path(): failed to get home directory"),
 					}}
 				}
 				result = home + result[1:]
@@ -611,18 +611,18 @@ var IOBuiltins = map[string]*object.Builtin{
 			// Check if it's a directory - if so, don't allow removal with this function
 			info, err := os.Stat(path.Value)
 			if err != nil {
-				return createIOErrorResult(err, "stat")
+				return CreateStdlibErrorResult(err, "stat")
 			}
 			if info.IsDir() {
 				return &object.ReturnValue{Values: []object.Object{
 					object.FALSE,
-					createIOError("E7018", "io.remove() cannot remove directories, use io.remove_dir() instead"),
+					CreateStdlibError("E7018", "io.remove() cannot remove directories, use io.remove_dir() instead"),
 				}}
 			}
 
 			err = os.Remove(path.Value)
 			if err != nil {
-				return createIOErrorResult(err, "remove")
+				return CreateStdlibErrorResult(err, "remove")
 			}
 
 			return &object.ReturnValue{Values: []object.Object{
@@ -652,18 +652,18 @@ var IOBuiltins = map[string]*object.Builtin{
 			// Check if it's actually a directory
 			info, err := os.Stat(path.Value)
 			if err != nil {
-				return createIOErrorResult(err, "stat")
+				return CreateStdlibErrorResult(err, "stat")
 			}
 			if !info.IsDir() {
 				return &object.ReturnValue{Values: []object.Object{
 					object.FALSE,
-					createIOError("E7019", "io.remove_dir() can only remove directories, use io.remove() for files"),
+					CreateStdlibError("E7019", "io.remove_dir() can only remove directories, use io.remove() for files"),
 				}}
 			}
 
 			err = os.Remove(path.Value)
 			if err != nil {
-				return createIOErrorResult(err, "remove directory")
+				return CreateStdlibErrorResult(err, "remove directory")
 			}
 
 			return &object.ReturnValue{Values: []object.Object{
@@ -693,20 +693,20 @@ var IOBuiltins = map[string]*object.Builtin{
 			// Safety check: don't allow removing root or home directory
 			absPath, err := filepath.Abs(path.Value)
 			if err != nil {
-				return createIOErrorResult(err, "resolve path")
+				return CreateStdlibErrorResult(err, "resolve path")
 			}
 
 			// Check for dangerous paths
 			if absPath == "/" || absPath == filepath.Clean(os.Getenv("HOME")) {
 				return &object.ReturnValue{Values: []object.Object{
 					object.FALSE,
-					createIOError("E7020", "io.remove_all() cannot remove root or home directory for safety"),
+					CreateStdlibError("E7020", "io.remove_all() cannot remove root or home directory for safety"),
 				}}
 			}
 
 			err = os.RemoveAll(path.Value)
 			if err != nil {
-				return createIOErrorResult(err, "remove all")
+				return CreateStdlibErrorResult(err, "remove all")
 			}
 
 			return &object.ReturnValue{Values: []object.Object{
@@ -742,7 +742,7 @@ var IOBuiltins = map[string]*object.Builtin{
 
 			err := os.Rename(oldPath.Value, newPath.Value)
 			if err != nil {
-				return createIOErrorResult(err, "rename")
+				return CreateStdlibErrorResult(err, "rename")
 			}
 
 			return &object.ReturnValue{Values: []object.Object{
@@ -781,12 +781,12 @@ var IOBuiltins = map[string]*object.Builtin{
 			// Check source exists and is a file
 			srcInfo, err := os.Stat(srcPath.Value)
 			if err != nil {
-				return createIOErrorResult(err, "stat source")
+				return CreateStdlibErrorResult(err, "stat source")
 			}
 			if srcInfo.IsDir() {
 				return &object.ReturnValue{Values: []object.Object{
 					object.FALSE,
-					createIOError("E7021", "io.copy() cannot copy directories, only files"),
+					CreateStdlibError("E7021", "io.copy() cannot copy directories, only files"),
 				}}
 			}
 
@@ -805,26 +805,26 @@ var IOBuiltins = map[string]*object.Builtin{
 			// Open source file
 			src, err := os.Open(srcPath.Value)
 			if err != nil {
-				return createIOErrorResult(err, "open source")
+				return CreateStdlibErrorResult(err, "open source")
 			}
 			defer src.Close() // Read-only, error on close is not critical
 
 			// Create destination file with proper permissions
 			dst, err := os.OpenFile(dstPath.Value, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, perms)
 			if err != nil {
-				return createIOErrorResult(err, "create destination")
+				return CreateStdlibErrorResult(err, "create destination")
 			}
 
 			// Copy contents
 			_, err = io.Copy(dst, src)
 			if err != nil {
 				dst.Close()
-				return createIOErrorResult(err, "copy contents")
+				return CreateStdlibErrorResult(err, "copy contents")
 			}
 
 			// Close destination and check for write errors
 			if err := dst.Close(); err != nil {
-				return createIOErrorResult(err, "close destination")
+				return CreateStdlibErrorResult(err, "close destination")
 			}
 
 			return &object.ReturnValue{Values: []object.Object{
@@ -868,7 +868,7 @@ var IOBuiltins = map[string]*object.Builtin{
 
 			err := os.Mkdir(path.Value, perms)
 			if err != nil {
-				return createIOErrorResult(err, "mkdir")
+				return CreateStdlibErrorResult(err, "mkdir")
 			}
 
 			return &object.ReturnValue{Values: []object.Object{
@@ -908,7 +908,7 @@ var IOBuiltins = map[string]*object.Builtin{
 
 			err := os.MkdirAll(path.Value, perms)
 			if err != nil {
-				return createIOErrorResult(err, "mkdir_all")
+				return CreateStdlibErrorResult(err, "mkdir_all")
 			}
 
 			return &object.ReturnValue{Values: []object.Object{
@@ -937,7 +937,7 @@ var IOBuiltins = map[string]*object.Builtin{
 
 			entries, err := os.ReadDir(path.Value)
 			if err != nil {
-				return createIOErrorResult(err, "read directory")
+				return CreateStdlibErrorResult(err, "read directory")
 			}
 
 			elements := make([]object.Object, len(entries))
@@ -975,7 +975,7 @@ var IOBuiltins = map[string]*object.Builtin{
 
 			info, err := os.Stat(path.Value)
 			if err != nil {
-				return createIOErrorResult(err, "stat")
+				return CreateStdlibErrorResult(err, "stat")
 			}
 
 			return &object.ReturnValue{Values: []object.Object{
@@ -1004,7 +1004,7 @@ var IOBuiltins = map[string]*object.Builtin{
 
 			info, err := os.Stat(path.Value)
 			if err != nil {
-				return createIOErrorResult(err, "stat")
+				return CreateStdlibErrorResult(err, "stat")
 			}
 
 			return &object.ReturnValue{Values: []object.Object{
@@ -1121,7 +1121,7 @@ var IOBuiltins = map[string]*object.Builtin{
 
 			absPath, err := filepath.Abs(path.Value)
 			if err != nil {
-				return createIOErrorResult(err, "resolve absolute path")
+				return CreateStdlibErrorResult(err, "resolve absolute path")
 			}
 
 			return &object.ReturnValue{Values: []object.Object{
@@ -1270,7 +1270,7 @@ var IOBuiltins = map[string]*object.Builtin{
 
 			file, err := os.OpenFile(path.Value, mode, perms)
 			if err != nil {
-				return createIOErrorResult(err, "open")
+				return CreateStdlibErrorResult(err, "open")
 			}
 
 			return &object.ReturnValue{Values: []object.Object{
@@ -1299,7 +1299,7 @@ var IOBuiltins = map[string]*object.Builtin{
 			if handle.IsClosed {
 				return &object.ReturnValue{Values: []object.Object{
 					object.NIL,
-					createIOError("E7050", "io.read(): file handle is closed"),
+					CreateStdlibError("E7050", "io.read(): file handle is closed"),
 				}}
 			}
 			n, ok := args[1].(*object.Integer)
@@ -1315,7 +1315,7 @@ var IOBuiltins = map[string]*object.Builtin{
 
 			// Handle EOF - not an error, just return what we got
 			if err != nil && err != io.EOF {
-				return createIOErrorResult(err, "read")
+				return CreateStdlibErrorResult(err, "read")
 			}
 
 			// Convert to byte array
@@ -1345,13 +1345,13 @@ var IOBuiltins = map[string]*object.Builtin{
 			if handle.IsClosed {
 				return &object.ReturnValue{Values: []object.Object{
 					object.NIL,
-					createIOError("E7050", "io.read_all(): file handle is closed"),
+					CreateStdlibError("E7050", "io.read_all(): file handle is closed"),
 				}}
 			}
 
 			content, err := io.ReadAll(handle.File)
 			if err != nil {
-				return createIOErrorResult(err, "read all")
+				return CreateStdlibErrorResult(err, "read all")
 			}
 
 			// Convert to byte array
@@ -1381,7 +1381,7 @@ var IOBuiltins = map[string]*object.Builtin{
 			if handle.IsClosed {
 				return &object.ReturnValue{Values: []object.Object{
 					object.NIL,
-					createIOError("E7050", "io.read_string(): file handle is closed"),
+					CreateStdlibError("E7050", "io.read_string(): file handle is closed"),
 				}}
 			}
 			n, ok := args[1].(*object.Integer)
@@ -1397,7 +1397,7 @@ var IOBuiltins = map[string]*object.Builtin{
 
 			// Handle EOF - not an error, just return what we got
 			if err != nil && err != io.EOF {
-				return createIOErrorResult(err, "read string")
+				return CreateStdlibErrorResult(err, "read string")
 			}
 
 			return &object.ReturnValue{Values: []object.Object{
@@ -1422,7 +1422,7 @@ var IOBuiltins = map[string]*object.Builtin{
 			if handle.IsClosed {
 				return &object.ReturnValue{Values: []object.Object{
 					object.NIL,
-					createIOError("E7050", "io.write(): file handle is closed"),
+					CreateStdlibError("E7050", "io.write(): file handle is closed"),
 				}}
 			}
 
@@ -1448,7 +1448,7 @@ var IOBuiltins = map[string]*object.Builtin{
 
 			bytesWritten, err := handle.File.Write(data)
 			if err != nil {
-				return createIOErrorResult(err, "write")
+				return CreateStdlibErrorResult(err, "write")
 			}
 
 			return &object.ReturnValue{Values: []object.Object{
@@ -1472,7 +1472,7 @@ var IOBuiltins = map[string]*object.Builtin{
 			if handle.IsClosed {
 				return &object.ReturnValue{Values: []object.Object{
 					object.NIL,
-					createIOError("E7050", "io.seek(): file handle is closed"),
+					CreateStdlibError("E7050", "io.seek(): file handle is closed"),
 				}}
 			}
 			offset, ok := args[1].(*object.Integer)
@@ -1486,7 +1486,7 @@ var IOBuiltins = map[string]*object.Builtin{
 
 			newPos, err := handle.File.Seek(offset.Value.Int64(), int(whence.Value.Int64()))
 			if err != nil {
-				return createIOErrorResult(err, "seek")
+				return CreateStdlibErrorResult(err, "seek")
 			}
 
 			return &object.ReturnValue{Values: []object.Object{
@@ -1510,14 +1510,14 @@ var IOBuiltins = map[string]*object.Builtin{
 			if handle.IsClosed {
 				return &object.ReturnValue{Values: []object.Object{
 					object.NIL,
-					createIOError("E7050", "io.tell(): file handle is closed"),
+					CreateStdlibError("E7050", "io.tell(): file handle is closed"),
 				}}
 			}
 
 			// Seek with offset 0 from current position to get current position
 			pos, err := handle.File.Seek(0, io.SeekCurrent)
 			if err != nil {
-				return createIOErrorResult(err, "tell")
+				return CreateStdlibErrorResult(err, "tell")
 			}
 
 			return &object.ReturnValue{Values: []object.Object{
@@ -1541,13 +1541,13 @@ var IOBuiltins = map[string]*object.Builtin{
 			if handle.IsClosed {
 				return &object.ReturnValue{Values: []object.Object{
 					object.FALSE,
-					createIOError("E7050", "io.flush(): file handle is closed"),
+					CreateStdlibError("E7050", "io.flush(): file handle is closed"),
 				}}
 			}
 
 			err := handle.File.Sync()
 			if err != nil {
-				return createIOErrorResult(err, "flush")
+				return CreateStdlibErrorResult(err, "flush")
 			}
 
 			return &object.ReturnValue{Values: []object.Object{
@@ -1580,7 +1580,7 @@ var IOBuiltins = map[string]*object.Builtin{
 			handle.IsClosed = true
 
 			if err != nil {
-				return createIOErrorResult(err, "close")
+				return CreateStdlibErrorResult(err, "close")
 			}
 
 			return &object.ReturnValue{Values: []object.Object{
@@ -1610,7 +1610,7 @@ var IOBuiltins = map[string]*object.Builtin{
 			if err != nil {
 				return &object.ReturnValue{Values: []object.Object{
 					object.NIL,
-					createIOError("E7043", fmt.Sprintf("io.glob() invalid pattern: %s", err.Error())),
+					CreateStdlibError("E7043", fmt.Sprintf("io.glob() invalid pattern: %s", err.Error())),
 				}}
 			}
 
@@ -1657,7 +1657,7 @@ var IOBuiltins = map[string]*object.Builtin{
 			})
 
 			if err != nil {
-				return createIOErrorResult(err, "walk")
+				return CreateStdlibErrorResult(err, "walk")
 			}
 
 			// Convert to EZ array
@@ -1700,19 +1700,9 @@ var IOBuiltins = map[string]*object.Builtin{
 	},
 }
 
-// createIOError creates an Error struct for IO operations
-func createIOError(code, message string) *object.Struct {
-	return &object.Struct{
-		TypeName: "Error",
-		Fields: map[string]object.Object{
-			"message": &object.String{Value: message},
-			"code":    &object.String{Value: code},
-		},
-	}
-}
 
-// createIOErrorResult wraps a Go error into an EZ (nil, Error) return tuple
-func createIOErrorResult(err error, operation string) *object.ReturnValue {
+// CreateStdlibErrorResult wraps a Go error into an EZ (nil, Error) return tuple
+func CreateStdlibErrorResult(err error, operation string) *object.ReturnValue {
 	var code string
 	var message string
 
@@ -1736,6 +1726,6 @@ func createIOErrorResult(err error, operation string) *object.ReturnValue {
 
 	return &object.ReturnValue{Values: []object.Object{
 		object.NIL,
-		createIOError(code, message),
+		CreateStdlibError(code, message),
 	}}
 }

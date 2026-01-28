@@ -11,16 +11,6 @@ import (
 	"github.com/marshallburns/ez/pkg/object"
 )
 
-// createEncodingError creates an error struct for encoding operations
-func createEncodingError(code, message string) *object.Struct {
-	return &object.Struct{
-		TypeName: "Error",
-		Fields: map[string]object.Object{
-			"message": &object.String{Value: message},
-			"code":    &object.String{Value: code},
-		},
-	}
-}
 
 // EncodingBuiltins contains the encoding module functions
 var EncodingBuiltins = map[string]*object.Builtin{
@@ -57,7 +47,7 @@ var EncodingBuiltins = map[string]*object.Builtin{
 			if err != nil {
 				return &object.ReturnValue{Values: []object.Object{
 					&object.String{Value: ""},
-					createEncodingError("E16001", "invalid base64 input: "+err.Error()),
+					CreateStdlibError("E16001", "invalid base64 input: "+err.Error()),
 				}}
 			}
 
@@ -101,7 +91,7 @@ var EncodingBuiltins = map[string]*object.Builtin{
 			if err != nil {
 				return &object.ReturnValue{Values: []object.Object{
 					&object.String{Value: ""},
-					createEncodingError("E16002", "invalid hex input: "+err.Error()),
+					CreateStdlibError("E16002", "invalid hex input: "+err.Error()),
 				}}
 			}
 
@@ -145,7 +135,7 @@ var EncodingBuiltins = map[string]*object.Builtin{
 			if err != nil {
 				return &object.ReturnValue{Values: []object.Object{
 					&object.String{Value: ""},
-					createEncodingError("E16003", "invalid URL encoding: "+err.Error()),
+					CreateStdlibError("E16003", "invalid URL encoding: "+err.Error()),
 				}}
 			}
 
