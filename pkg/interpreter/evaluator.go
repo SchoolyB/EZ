@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"math"
 	"math/big"
+	"path/filepath"
 	"strings"
 
 	"github.com/marshallburns/ez/pkg/ast"
@@ -235,20 +236,7 @@ func convertVisibility(vis ast.Visibility) Visibility {
 // extractModuleName extracts the module name from a file path
 // e.g., "./server" -> "server", "../utils" -> "utils", "./src/networking" -> "networking"
 func extractModuleName(path string) string {
-	// Remove leading ./ or ../
-	for strings.HasPrefix(path, "./") || strings.HasPrefix(path, "../") {
-		if strings.HasPrefix(path, "./") {
-			path = path[2:]
-		} else if strings.HasPrefix(path, "../") {
-			path = path[3:]
-		}
-	}
-	// Get the last component
-	parts := strings.Split(path, "/")
-	if len(parts) > 0 {
-		return parts[len(parts)-1]
-	}
-	return path
+	return filepath.Base(filepath.Clean(path))
 }
 
 // SetEvalContext sets the global evaluation context

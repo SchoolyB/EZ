@@ -61,7 +61,7 @@ var HttpBuiltins = map[string]*object.Builtin{
 				return &object.ReturnValue{
 					Values: []object.Object{
 						&object.Nil{},
-						createHttpError("E14002", "request failed"),
+						CreateStdlibError("E14002", "request failed"),
 					},
 				}
 			}
@@ -71,7 +71,7 @@ var HttpBuiltins = map[string]*object.Builtin{
 				return &object.ReturnValue{
 					Values: []object.Object{
 						&object.Nil{},
-						createHttpError("E14002", "request failed: "+err.Error()),
+						CreateStdlibError("E14002", "request failed: "+err.Error()),
 					},
 				}
 			}
@@ -82,7 +82,7 @@ var HttpBuiltins = map[string]*object.Builtin{
 				return &object.ReturnValue{
 					Values: []object.Object{
 						&object.Nil{},
-						createHttpError("E14002", "could not read body"),
+						CreateStdlibError("E14002", "could not read body"),
 					},
 				}
 			}
@@ -132,7 +132,7 @@ var HttpBuiltins = map[string]*object.Builtin{
 				return &object.ReturnValue{
 					Values: []object.Object{
 						&object.Nil{},
-						createHttpError("E14002", "request failed"),
+						CreateStdlibError("E14002", "request failed"),
 					},
 				}
 			}
@@ -142,7 +142,7 @@ var HttpBuiltins = map[string]*object.Builtin{
 				return &object.ReturnValue{
 					Values: []object.Object{
 						&object.Nil{},
-						createHttpError("E14002", "request failed: "+err.Error()),
+						CreateStdlibError("E14002", "request failed: "+err.Error()),
 					},
 				}
 			}
@@ -153,7 +153,7 @@ var HttpBuiltins = map[string]*object.Builtin{
 				return &object.ReturnValue{
 					Values: []object.Object{
 						&object.Nil{},
-						createHttpError("E14002", "could not read body"),
+						CreateStdlibError("E14002", "could not read body"),
 					},
 				}
 			}
@@ -203,7 +203,7 @@ var HttpBuiltins = map[string]*object.Builtin{
 				return &object.ReturnValue{
 					Values: []object.Object{
 						&object.Nil{},
-						createHttpError("E14002", "request failed"),
+						CreateStdlibError("E14002", "request failed"),
 					},
 				}
 			}
@@ -213,7 +213,7 @@ var HttpBuiltins = map[string]*object.Builtin{
 				return &object.ReturnValue{
 					Values: []object.Object{
 						&object.Nil{},
-						createHttpError("E14002", "request failed: "+err.Error()),
+						CreateStdlibError("E14002", "request failed: "+err.Error()),
 					},
 				}
 			}
@@ -224,7 +224,7 @@ var HttpBuiltins = map[string]*object.Builtin{
 				return &object.ReturnValue{
 					Values: []object.Object{
 						&object.Nil{},
-						createHttpError("E14002", "could not read body"),
+						CreateStdlibError("E14002", "could not read body"),
 					},
 				}
 			}
@@ -269,7 +269,7 @@ var HttpBuiltins = map[string]*object.Builtin{
 				return &object.ReturnValue{
 					Values: []object.Object{
 						&object.Nil{},
-						createHttpError("E14002", "request failed"),
+						CreateStdlibError("E14002", "request failed"),
 					},
 				}
 			}
@@ -279,7 +279,7 @@ var HttpBuiltins = map[string]*object.Builtin{
 				return &object.ReturnValue{
 					Values: []object.Object{
 						&object.Nil{},
-						createHttpError("E14002", "request failed: "+err.Error()),
+						CreateStdlibError("E14002", "request failed: "+err.Error()),
 					},
 				}
 			}
@@ -290,7 +290,7 @@ var HttpBuiltins = map[string]*object.Builtin{
 				return &object.ReturnValue{
 					Values: []object.Object{
 						&object.Nil{},
-						createHttpError("E14002", "could not read body"),
+						CreateStdlibError("E14002", "could not read body"),
 					},
 				}
 			}
@@ -340,7 +340,7 @@ var HttpBuiltins = map[string]*object.Builtin{
 				return &object.ReturnValue{
 					Values: []object.Object{
 						&object.Nil{},
-						createHttpError("E14002", "request failed"),
+						CreateStdlibError("E14002", "request failed"),
 					},
 				}
 			}
@@ -350,7 +350,7 @@ var HttpBuiltins = map[string]*object.Builtin{
 				return &object.ReturnValue{
 					Values: []object.Object{
 						&object.Nil{},
-						createHttpError("E14002", "request failed: "+err.Error()),
+						CreateStdlibError("E14002", "request failed: "+err.Error()),
 					},
 				}
 			}
@@ -361,7 +361,7 @@ var HttpBuiltins = map[string]*object.Builtin{
 				return &object.ReturnValue{
 					Values: []object.Object{
 						&object.Nil{},
-						createHttpError("E14002", "could not read body"),
+						CreateStdlibError("E14002", "could not read body"),
 					},
 				}
 			}
@@ -454,7 +454,7 @@ var HttpBuiltins = map[string]*object.Builtin{
 				return &object.ReturnValue{
 					Values: []object.Object{
 						&object.Nil{},
-						createHttpError("E14002", "request failed"),
+						CreateStdlibError("E14002", "request failed"),
 					},
 				}
 			}
@@ -468,7 +468,7 @@ var HttpBuiltins = map[string]*object.Builtin{
 				return &object.ReturnValue{
 					Values: []object.Object{
 						&object.Nil{},
-						createHttpError("E14002", "request failed: "+err.Error()),
+						CreateStdlibError("E14002", "request failed: "+err.Error()),
 					},
 				}
 			}
@@ -479,7 +479,7 @@ var HttpBuiltins = map[string]*object.Builtin{
 				return &object.ReturnValue{
 					Values: []object.Object{
 						&object.Nil{},
-						createHttpError("E14002", "could not read body"),
+						CreateStdlibError("E14002", "could not read body"),
 					},
 				}
 			}
@@ -572,7 +572,7 @@ var HttpBuiltins = map[string]*object.Builtin{
 				return &object.ReturnValue{
 					Values: []object.Object{
 						&object.Nil{},
-						createHttpError("E14002", "request failed"),
+						CreateStdlibError("E14002", "request failed"),
 					},
 				}
 			}
@@ -582,7 +582,7 @@ var HttpBuiltins = map[string]*object.Builtin{
 				return &object.ReturnValue{
 					Values: []object.Object{
 						&object.Nil{},
-						createHttpError("E14002", "request failed: "+err.Error()),
+						CreateStdlibError("E14002", "request failed: "+err.Error()),
 					},
 				}
 			}
@@ -628,7 +628,7 @@ var HttpBuiltins = map[string]*object.Builtin{
 				return &object.ReturnValue{
 					Values: []object.Object{
 						&object.Nil{},
-						createHttpError("E14002", "request failed"),
+						CreateStdlibError("E14002", "request failed"),
 					},
 				}
 			}
@@ -638,7 +638,7 @@ var HttpBuiltins = map[string]*object.Builtin{
 				return &object.ReturnValue{
 					Values: []object.Object{
 						&object.Nil{},
-						createHttpError("E14002", "request failed: "+err.Error()),
+						CreateStdlibError("E14002", "request failed: "+err.Error()),
 					},
 				}
 			}
@@ -649,7 +649,7 @@ var HttpBuiltins = map[string]*object.Builtin{
 				return &object.ReturnValue{
 					Values: []object.Object{
 						&object.Nil{},
-						createHttpError("E14002", "could not read body"),
+						CreateStdlibError("E14002", "could not read body"),
 					},
 				}
 			}
@@ -699,7 +699,7 @@ var HttpBuiltins = map[string]*object.Builtin{
 				return &object.ReturnValue{
 					Values: []object.Object{
 						&object.Integer{Value: big.NewInt(0)},
-						createHttpError("E14002", "request failed"),
+						CreateStdlibError("E14002", "request failed"),
 					},
 				}
 			}
@@ -709,7 +709,7 @@ var HttpBuiltins = map[string]*object.Builtin{
 				return &object.ReturnValue{
 					Values: []object.Object{
 						&object.Integer{Value: big.NewInt(0)},
-						createHttpError("E14002", "request failed: "+err.Error()),
+						CreateStdlibError("E14002", "request failed: "+err.Error()),
 					},
 				}
 			}
@@ -720,7 +720,7 @@ var HttpBuiltins = map[string]*object.Builtin{
 				return &object.ReturnValue{
 					Values: []object.Object{
 						&object.Integer{Value: big.NewInt(0)},
-						createHttpError("E14003", "could not create file: "+err.Error()),
+						CreateStdlibError("E14003", "could not create file: "+err.Error()),
 					},
 				}
 			}
@@ -731,7 +731,7 @@ var HttpBuiltins = map[string]*object.Builtin{
 				return &object.ReturnValue{
 					Values: []object.Object{
 						&object.Integer{Value: big.NewInt(0)},
-						createHttpError("E14003", "could not write file: "+err.Error()),
+						CreateStdlibError("E14003", "could not write file: "+err.Error()),
 					},
 				}
 			}
@@ -761,7 +761,7 @@ var HttpBuiltins = map[string]*object.Builtin{
 				return &object.ReturnValue{
 					Values: []object.Object{
 						&object.Nil{},
-						createHttpError("E14001", "invalid url: "+err.Error()),
+						CreateStdlibError("E14001", "invalid url: "+err.Error()),
 					},
 				}
 			}
@@ -989,16 +989,6 @@ var HttpBuiltins = map[string]*object.Builtin{
 	},
 }
 
-func createHttpError(code, message string) *object.Struct {
-	return &object.Struct{
-		TypeName: "Error",
-		Mutable:  false,
-		Fields: map[string]object.Object{
-			"message": &object.String{Value: message},
-			"code":    &object.String{Value: code},
-		},
-	}
-}
 
 func newHttpResponse(status int, body string, headers *object.Map) *object.Struct {
 	return &object.Struct{
