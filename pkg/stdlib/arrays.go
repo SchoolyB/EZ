@@ -983,7 +983,7 @@ var ArraysBuiltins = map[string]*object.Builtin{
 			for i := 0; i < count; i++ {
 				elements[i] = args[0]
 			}
-			return &object.Array{Elements: elements, ElementType: getEZTypeName(args[0])}
+			return &object.Array{Elements: elements, ElementType: object.GetEZTypeName(args[0])}
 		},
 	},
 

@@ -27,6 +27,12 @@ type LexerError struct {
 	Code    string // Error code like "E1005"
 }
 
+// validEscapes is a module-level lookup for valid escape sequence characters.
+// Defined once to avoid allocating a new map on every string/char literal parse.
+var validEscapes = map[byte]bool{
+	'n': true, 't': true, 'r': true, '\\': true, '"': true, '\'': true, '0': true, 'x': true,
+}
+
 func NewLexer(input string) *Lexer {
 	l := &Lexer{input: input, line: 1, column: 0, errors: []LexerError{}}
 	l.readChar()
@@ -626,9 +632,6 @@ func (l *Lexer) readString() (string, bool) {
 		if l.ch == '\\' {
 			// Check for valid escape sequences
 			next := l.peekChar()
-			validEscapes := map[byte]bool{
-				'n': true, 't': true, 'r': true, '\\': true, '"': true, '\'': true, '0': true, 'x': true,
-			}
 			if !validEscapes[next] && next != 0 {
 				l.addError("E1006", "invalid escape sequence '\\"+string(next)+"' in string", l.line, l.column)
 			}
@@ -702,10 +705,6 @@ func (l *Lexer) readCharValue() string {
 	// Handle escape sequences
 	if l.ch == '\\' {
 		l.readChar()
-		// Validate escape sequence
-		validEscapes := map[byte]bool{
-			'n': true, 't': true, 'r': true, '\\': true, '"': true, '\'': true, '0': true, 'x': true,
-		}
 		if !validEscapes[l.ch] && l.ch != 0 {
 			l.addError("E1007", "invalid escape sequence '\\"+string(l.ch)+"' in character literal", startLine, startColumn)
 		}

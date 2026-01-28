@@ -228,7 +228,7 @@ func objectToGoValue(obj object.Object, seen map[uintptr]bool) (interface{}, *js
 			if !ok {
 				return nil, &jsonError{
 					code:    "E13003",
-					message: fmt.Sprintf("JSON object keys must be strings, got %s", getEZTypeName(pair.Key)),
+					message: fmt.Sprintf("JSON object keys must be strings, got %s", object.GetEZTypeName(pair.Key)),
 				}
 			}
 			val, err := objectToGoValue(pair.Value, seen)
@@ -287,7 +287,7 @@ func objectToGoValue(obj object.Object, seen map[uintptr]bool) (interface{}, *js
 	default:
 		return nil, &jsonError{
 			code:    "E13002",
-			message: fmt.Sprintf("type %s cannot be converted to JSON", getEZTypeName(obj)),
+			message: fmt.Sprintf("type %s cannot be converted to JSON", object.GetEZTypeName(obj)),
 		}
 	}
 }

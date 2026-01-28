@@ -926,7 +926,7 @@ func evalVariableDeclaration(node *ast.VariableDeclaration, env *Environment) Ob
 						"type mismatch: expected array type '%s', got %s\n\n"+
 							"Array values must be enclosed in curly braces {}\n"+
 							"Example: const arr %s = {%s}",
-						node.TypeName, getEZTypeName(val), node.TypeName, val.Inspect())
+						node.TypeName, GetEZTypeName(val), node.TypeName, val.Inspect())
 				}
 				// Set the element type on the array from the declared type
 				// Extract element type from type name (e.g., "[int]" -> "int", "[int,5]" -> "int")
@@ -981,7 +981,7 @@ func evalVariableDeclaration(node *ast.VariableDeclaration, env *Environment) Ob
 							"type mismatch: expected map type '%s', got %s\n\n"+
 								"Map values must use key: value syntax\n"+
 								"Example: temp m %s = {\"key\": value}",
-							node.TypeName, getEZTypeName(val), node.TypeName)
+							node.TypeName, GetEZTypeName(val), node.TypeName)
 					}
 				} else {
 					// Set mutability and type info based on declaration
@@ -1083,7 +1083,7 @@ func validateAndConvertType(val Object, typeName string, mutable bool, line, col
 		if !ok {
 			return nil, newErrorWithLocation("E3018", line, col,
 				"type mismatch: expected array type '%s', got %s",
-				typeName, getEZTypeName(val))
+				typeName, GetEZTypeName(val))
 		}
 		// Extract element type from type name
 		elemType := typeName[1:]
@@ -1113,7 +1113,7 @@ func validateAndConvertType(val Object, typeName string, mutable bool, line, col
 			}
 			return nil, newErrorWithLocation("E3019", line, col,
 				"type mismatch: expected map type '%s', got %s",
-				typeName, getEZTypeName(val))
+				typeName, GetEZTypeName(val))
 		}
 		mapObj.Mutable = mutable
 		mapObj.KeyType = extractMapKeyType(typeName)
@@ -3156,53 +3156,48 @@ func isUnsignedIntegerType(typeName string) bool {
 
 // isIntegerType checks if a type is any integer type (signed or unsigned)
 func isIntegerType(typeName string) bool {
-	return isSignedIntegerType(typeName) || isUnsignedIntegerType(typeName)
+	switch typeName {
+	case "i8", "i16", "i32", "i64", "i128", "i256", "int",
+		"u8", "u16", "u32", "u64", "u128", "u256", "uint":
+		return true
+	}
+	return false
+}
+
+// extractMapTypes extracts both key and value types from "map[keyType:valueType]"
+// Returns empty strings if the format is invalid
+func extractMapTypes(mapType string) (keyType, valueType string) {
+	if !strings.HasPrefix(mapType, "map[") || !strings.HasSuffix(mapType, "]") {
+		return "", ""
+	}
+	inner := mapType[4 : len(mapType)-1] // Extract "keyType:valueType"
+	// Find the colon, respecting nested brackets
+	depth := 0
+	for i := 0; i < len(inner); i++ {
+		switch inner[i] {
+		case '[':
+			depth++
+		case ']':
+			depth--
+		case ':':
+			if depth == 0 {
+				return inner[:i], inner[i+1:]
+			}
+		}
+	}
+	return "", ""
 }
 
 // extractMapKeyType extracts the key type from "map[keyType:valueType]"
 func extractMapKeyType(mapType string) string {
-	if !strings.HasPrefix(mapType, "map[") || !strings.HasSuffix(mapType, "]") {
-		return ""
-	}
-	inner := mapType[4 : len(mapType)-1] // Extract "keyType:valueType"
-	// Find the colon, respecting nested brackets
-	depth := 0
-	for i := 0; i < len(inner); i++ {
-		switch inner[i] {
-		case '[':
-			depth++
-		case ']':
-			depth--
-		case ':':
-			if depth == 0 {
-				return inner[:i]
-			}
-		}
-	}
-	return ""
+	keyType, _ := extractMapTypes(mapType)
+	return keyType
 }
 
 // extractMapValueType extracts the value type from "map[keyType:valueType]"
 func extractMapValueType(mapType string) string {
-	if !strings.HasPrefix(mapType, "map[") || !strings.HasSuffix(mapType, "]") {
-		return ""
-	}
-	inner := mapType[4 : len(mapType)-1] // Extract "keyType:valueType"
-	// Find the colon, respecting nested brackets
-	depth := 0
-	for i := 0; i < len(inner); i++ {
-		switch inner[i] {
-		case '[':
-			depth++
-		case ']':
-			depth--
-		case ':':
-			if depth == 0 {
-				return inner[i+1:]
-			}
-		}
-	}
-	return ""
+	_, valueType := extractMapTypes(mapType)
+	return valueType
 }
 
 // typeMatches checks if an object matches an EZ type name

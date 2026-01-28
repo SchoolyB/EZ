@@ -91,4 +91,5 @@ var (
 	NewEnclosedEnvironment = object.NewEnclosedEnvironment
 	NewMap                 = object.NewMap
 	HashKey                = object.HashKey
+	GetEZTypeName          = object.GetEZTypeName
 )
