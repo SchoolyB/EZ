@@ -1,0 +1,11 @@
+/*
+ * E5007_const_array_modification.ez
+ * Tests that modifying a const array fails with E5007
+ */
+
+import @arrays
+
+do main() {
+    const arr [int, 3] = {1, 2, 3}
+    arrays.append(arr, 4)  // ERROR: cannot modify immutable array
+}
