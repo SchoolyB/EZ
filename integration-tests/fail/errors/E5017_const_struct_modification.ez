@@ -1,0 +1,14 @@
+/*
+ * E5016_const_struct_modification.ez
+ * Tests that modifying a const struct field fails with E5016
+ */
+
+const Point struct {
+    x int
+    y int
+}
+
+do main() {
+    const p = Point{x: 10, y: 20}
+    p.x = 999  // ERROR: cannot modify immutable struct
+}

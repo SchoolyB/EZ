@@ -1,0 +1,12 @@
+/*
+ * E5007_const_ref_modification.ez
+ * Tests that modifying through a const ref fails with E5007
+ */
+
+import @arrays
+
+do main() {
+    temp arr [int] = {1, 2, 3}
+    const r = ref(arr)
+    arrays.append(r, 4)  // ERROR: cannot modify through const ref
+}
