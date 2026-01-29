@@ -847,6 +847,10 @@ func evalVariableDeclaration(node *ast.VariableDeclaration, env *Environment) Ob
 		// UNLESS the value is a Reference (from ref() builtin)
 		val = copyByDefault(val)
 
+		// Sync value mutability with temp/const declaration
+		// This ensures temp gives mutable values, const gives immutable values
+		syncMutability(val, node.Mutable)
+
 		// Handle multiple assignment FIRST: temp result, err = function()
 		// This must happen before single-value type validation (#698)
 		vis := convertVisibility(node.Visibility)
@@ -3892,6 +3896,28 @@ func copyByDefault(val Object) Object {
 		// Primitives and other types are returned as-is
 		return val
 	}
+}
+
+// syncMutability ensures the Object.Mutable field matches the temp/const declaration.
+// This is called after copyByDefault to ensure that temp variables have mutable values
+// and const variables have immutable values, regardless of what the source returned.
+func syncMutability(val Object, mutable bool) Object {
+	switch v := val.(type) {
+	case *Array:
+		v.Mutable = mutable
+	case *Map:
+		v.Mutable = mutable
+	case *Struct:
+		v.Mutable = mutable
+	case *String:
+		v.Mutable = mutable
+	case *ReturnValue:
+		// For multi-return, sync each value
+		for i := range v.Values {
+			syncMutability(v.Values[i], mutable)
+		}
+	}
+	return val
 }
 
 func isError(obj Object) bool {
