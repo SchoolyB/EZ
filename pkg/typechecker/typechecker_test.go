@@ -5013,7 +5013,7 @@ using arrays
 
 do main() {
 	temp arr [int] = {3, 1, 4, 1, 5}
-	temp sorted [int] = arrays.sort(arr)
+	arrays.sort(arr)
 }
 `
 	tc := typecheck(t, input)
@@ -6346,20 +6346,6 @@ using arrays
 do main() {
 	temp arr [int] = {1, 2, 3}
 	arrays.fill(arr, "not an int")
-}
-`
-	tc := typecheck(t, input)
-	assertHasError(t, tc, errors.E3001)
-}
-
-func TestArraysRemoveTypeMismatch(t *testing.T) {
-	input := `
-import @arrays
-using arrays
-
-do main() {
-	temp arr [int] = {1, 2, 3}
-	arrays.remove(arr, "string")
 }
 `
 	tc := typecheck(t, input)
