@@ -6264,7 +6264,7 @@ func (tc *TypeChecker) inferArraysCallType(funcName string, args []ast.Expressio
 		return "bool", true
 	case "join":
 		return "string", true
-	case "append", "unshift", "clear", "remove_at", "set":
+	case "append", "unshift", "clear", "remove_at", "set", "insert", "sort", "sort_desc", "shuffle", "fill", "remove_all":
 		return "void", true
 	case "pop", "shift", "get", "first", "last":
 		// Returns element type - need array type to determine
@@ -7998,11 +7998,11 @@ func (tc *TypeChecker) checkArraysModuleCall(funcName string, call *ast.CallExpr
 		"last":       {1, 1, []string{"array"}, "any"},
 		"pop":        {1, 1, []string{"array"}, "any"},
 		"shift":      {1, 1, []string{"array"}, "any"},
-		"clear":      {1, 1, []string{"array"}, "array"},
+		"clear":      {1, 1, []string{"array"}, "void"},
 		"reverse":    {1, 1, []string{"array"}, "array"},
-		"sort":       {1, 1, []string{"array"}, "array"},
-		"sort_desc":  {1, 1, []string{"array"}, "array"},
-		"shuffle":    {1, 1, []string{"array"}, "array"},
+		"sort":       {1, 1, []string{"array"}, "void"},
+		"sort_desc":  {1, 1, []string{"array"}, "void"},
+		"shuffle":    {1, 1, []string{"array"}, "void"},
 		"unique":     {1, 1, []string{"array"}, "array"},
 		"duplicates": {1, 1, []string{"array"}, "array"},
 		"flatten":    {1, 1, []string{"array"}, "array"},
@@ -8015,17 +8015,16 @@ func (tc *TypeChecker) checkArraysModuleCall(funcName string, call *ast.CallExpr
 
 		// Array + value
 		"append":     {2, -1, []string{"array", "any"}, "void"},
-		"unshift":    {2, -1, []string{"array", "any"}, "array"},
+		"unshift":    {2, -1, []string{"array", "any"}, "void"},
 		"contains":   {2, 2, []string{"array", "any"}, "bool"},
 		"last_index": {2, 2, []string{"array", "any"}, "int"},
 		"count":      {2, 2, []string{"array", "any"}, "int"},
-		"remove":     {2, 2, []string{"array", "any"}, "array"},
-		"remove_all": {2, 2, []string{"array", "any"}, "array"},
-		"fill":       {2, 2, []string{"array", "any"}, "array"},
+		"remove_all": {2, 2, []string{"array", "any"}, "void"},
+		"fill":       {2, 2, []string{"array", "any"}, "void"},
 
 		// Array + int
 		"get":       {2, 2, []string{"array", "int"}, "any"},
-		"remove_at": {2, 2, []string{"array", "int"}, "array"},
+		"remove_at": {2, 2, []string{"array", "int"}, "void"},
 		"take":      {2, 2, []string{"array", "int"}, "array"},
 		"drop":      {2, 2, []string{"array", "int"}, "array"},
 
