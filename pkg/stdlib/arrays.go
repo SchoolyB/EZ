@@ -87,7 +87,7 @@ var ArraysBuiltins = map[string]*object.Builtin{
 			newElements = append(newElements, args[1:]...)
 			newElements = append(newElements, arr.Elements...)
 			arr.Elements = newElements
-			return arr
+			return object.NIL
 		},
 	},
 
@@ -179,6 +179,8 @@ var ArraysBuiltins = map[string]*object.Builtin{
 		},
 	},
 
+	// arrays.remove_at(arr, index) - Removes element at the specified index.
+	// Modifies array in-place, returns NIL.
 	"arrays.remove_at": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 2 {
@@ -188,49 +190,22 @@ var ArraysBuiltins = map[string]*object.Builtin{
 			if !ok {
 				return &object.Error{Code: "E7002", Message: "arrays.remove_at() requires an array"}
 			}
-			idx, ok := args[1].(*object.Integer)
-			if !ok {
-				return &object.Error{Code: "E7004", Message: "arrays.remove_at() requires an integer index"}
-			}
-			index := int(idx.Value.Int64())
-			if index < 0 || index >= len(arr.Elements) {
-				return &object.Error{Code: "E5003", Message: "arrays.remove_at() index out of bounds"}
-			}
-			newElements := make([]object.Object, len(arr.Elements)-1)
-			copy(newElements[:index], arr.Elements[:index])
-			copy(newElements[index:], arr.Elements[index+1:])
-			return &object.Array{Elements: newElements, ElementType: arr.ElementType}
-		},
-	},
-
-	// arrays.remove(arr, index) - Removes element at the specified INDEX (not value!)
-	// Use arrays.remove_value() if you need to remove by value instead.
-	// Modifies array in-place, returns NIL.
-	"arrays.remove": {
-		Fn: func(args ...object.Object) object.Object {
-			if len(args) != 2 {
-				return newError("arrays.remove() takes exactly 2 arguments (array, index)")
-			}
-			arr, ok := args[0].(*object.Array)
-			if !ok {
-				return &object.Error{Code: "E7002", Message: "arrays.remove() requires an array"}
-			}
 			if !arr.Mutable {
 				return &object.Error{
 					Message: "cannot modify immutable array (declared as const)",
 					Code:    "E4005",
 				}
 			}
-			if err := checkIterating(arr, "arrays.remove"); err != nil {
+			if err := checkIterating(arr, "arrays.remove_at"); err != nil {
 				return err
 			}
 			idx, ok := args[1].(*object.Integer)
 			if !ok {
-				return &object.Error{Code: "E7004", Message: "arrays.remove() requires an integer index"}
+				return &object.Error{Code: "E7004", Message: "arrays.remove_at() requires an integer index"}
 			}
 			index := int(idx.Value.Int64())
 			if index < 0 || index >= len(arr.Elements) {
-				return &object.Error{Code: "E9001", Message: fmt.Sprintf("arrays.remove() index out of bounds: %d (array length: %d)", index, len(arr.Elements))}
+				return &object.Error{Code: "E5003", Message: fmt.Sprintf("arrays.remove_at() index out of bounds: %d (array length: %d)", index, len(arr.Elements))}
 			}
 			// Remove element at index by modifying the array in-place
 			arr.Elements = append(arr.Elements[:index], arr.Elements[index+1:]...)
