@@ -34,6 +34,7 @@ type Scope struct {
 	mutability    map[string]bool   // variable name -> is mutable
 	usingModules  map[string]bool   // modules imported via 'using'
 	loopVariables map[string]bool   // loop variable names in this scope
+	nonNilVars    map[string]bool   // variables known to be non-nil in this scope
 }
 
 // NewScope creates a new scope with an optional parent
@@ -44,6 +45,7 @@ func NewScope(parent *Scope) *Scope {
 		mutability:    make(map[string]bool),
 		usingModules:  make(map[string]bool),
 		loopVariables: make(map[string]bool),
+		nonNilVars:    make(map[string]bool),
 	}
 }
 
@@ -145,6 +147,22 @@ func (s *Scope) isLoopVariableInScopeChain(name string) bool {
 	}
 	if s.parent != nil {
 		return s.parent.isLoopVariableInScopeChain(name)
+	}
+	return false
+}
+
+// MarkNonNil marks a variable as known non-nil in this scope
+func (s *Scope) MarkNonNil(name string) {
+	s.nonNilVars[name] = true
+}
+
+// IsKnownNonNil checks if a variable is known to be non-nil in this scope or parent scopes
+func (s *Scope) IsKnownNonNil(name string) bool {
+	if s.nonNilVars[name] {
+		return true
+	}
+	if s.parent != nil {
+		return s.parent.IsKnownNonNil(name)
 	}
 	return false
 }
@@ -516,6 +534,11 @@ func (tc *TypeChecker) Errors() *errors.EZErrorList {
 
 // addError adds a type error
 func (tc *TypeChecker) addError(code errors.ErrorCode, message string, line, column int) {
+	tc.addErrorWithHelp(code, message, "", line, column)
+}
+
+// addErrorWithHelp adds a type error with an optional help message
+func (tc *TypeChecker) addErrorWithHelp(code errors.ErrorCode, message, help string, line, column int) {
 	sourceLine := ""
 	if tc.source != "" {
 		sourceLine = errors.GetSourceLine(tc.source, line)
@@ -529,6 +552,9 @@ func (tc *TypeChecker) addError(code errors.ErrorCode, message string, line, col
 		column,
 		sourceLine,
 	)
+	if help != "" {
+		err.Help = help
+	}
 	tc.errors.AddError(err)
 }
 
@@ -797,9 +823,14 @@ func (tc *TypeChecker) checkStructDeclaration(node *ast.StructDeclaration) {
 	for _, field := range node.Fields {
 		// Check if field type exists
 		if !tc.TypeExists(field.TypeName) {
-			tc.addError(
+			help := ""
+			if suggestion := errors.SuggestType(field.TypeName); suggestion != "" {
+				help = fmt.Sprintf("did you mean '%s'?", suggestion)
+			}
+			tc.addErrorWithHelp(
 				errors.E3009,
 				fmt.Sprintf("undefined type '%s' in struct '%s'", field.TypeName, node.Name.Value),
+				help,
 				field.Name.Token.Line,
 				field.Name.Token.Column,
 			)
@@ -901,25 +932,51 @@ func (tc *TypeChecker) checkArrayLiteral(arr *ast.ArrayValue) {
 		tc.checkExpression(elem)
 	}
 
-	// Get the type of the first element
-	firstType, ok := tc.inferExpressionType(arr.Elements[0])
-	if !ok {
-		return // Can't determine type
+	// Find the first non-empty element to determine expected type
+	// This fixes #1064 where empty arrays as first element would ignore type annotations
+	var expectedType string
+	var referenceIdx int
+	for i, elem := range arr.Elements {
+		elemType, ok := tc.inferExpressionType(elem)
+		if !ok {
+			continue
+		}
+		// Skip empty arrays/maps as they don't provide enough type info
+		if elemType == "[]" || elemType == "map[]" {
+			continue
+		}
+		expectedType = elemType
+		referenceIdx = i
+		break
 	}
 
-	// All other elements must have the same type
-	for i := 1; i < len(arr.Elements); i++ {
-		elemType, ok := tc.inferExpressionType(arr.Elements[i])
+	// If all elements are empty, nothing to validate
+	if expectedType == "" {
+		return
+	}
+
+	// All elements must be compatible with the expected type
+	for i, elem := range arr.Elements {
+		if i == referenceIdx {
+			continue // Skip the reference element
+		}
+
+		elemType, ok := tc.inferExpressionType(elem)
 		if !ok {
 			continue
 		}
 
-		if !tc.typesCompatible(firstType, elemType) {
-			line, column := tc.getExpressionPosition(arr.Elements[i])
+		// Empty arrays/maps are compatible with any array/map type
+		if elemType == "[]" || elemType == "map[]" {
+			continue
+		}
+
+		if !tc.typesCompatible(expectedType, elemType) {
+			line, column := tc.getExpressionPosition(elem)
 			tc.addError(
 				errors.E3001,
-				fmt.Sprintf("array element type mismatch: expected %s (from first element), got %s",
-					firstType, elemType),
+				fmt.Sprintf("array element type mismatch: expected %s, got %s",
+					expectedType, elemType),
 				line,
 				column,
 			)
@@ -1098,9 +1155,14 @@ func (tc *TypeChecker) checkGlobalVariableDeclaration(node *ast.VariableDeclarat
 
 		// Check if type exists (skip for inferred types that might be complex)
 		if declaredType != "" && !tc.TypeExists(declaredType) && !strings.HasPrefix(declaredType, "[") && !strings.HasPrefix(declaredType, "map[") {
-			tc.addError(
+			help := ""
+			if suggestion := errors.SuggestType(declaredType); suggestion != "" {
+				help = fmt.Sprintf("did you mean '%s'?", suggestion)
+			}
+			tc.addErrorWithHelp(
 				errors.E3002,
 				fmt.Sprintf("undefined type '%s'", declaredType),
+				help,
 				name.Token.Line,
 				name.Token.Column,
 			)
@@ -1383,9 +1445,14 @@ func (tc *TypeChecker) checkFunctionDeclaration(node *ast.FunctionDeclaration) {
 		}
 
 		if !tc.TypeExists(param.TypeName) {
-			tc.addError(
+			help := ""
+			if suggestion := errors.SuggestType(param.TypeName); suggestion != "" {
+				help = fmt.Sprintf("did you mean '%s'?", suggestion)
+			}
+			tc.addErrorWithHelp(
 				errors.E3010,
 				fmt.Sprintf("undefined type '%s' for parameter '%s'", param.TypeName, param.Name.Value),
+				help,
 				param.Name.Token.Line,
 				param.Name.Token.Column,
 			)
@@ -1437,9 +1504,14 @@ func (tc *TypeChecker) checkFunctionDeclaration(node *ast.FunctionDeclaration) {
 	// Check return types
 	for _, returnType := range node.ReturnTypes {
 		if !tc.TypeExists(returnType) {
-			tc.addError(
+			help := ""
+			if suggestion := errors.SuggestType(returnType); suggestion != "" {
+				help = fmt.Sprintf("did you mean '%s'?", suggestion)
+			}
+			tc.addErrorWithHelp(
 				errors.E3011,
 				fmt.Sprintf("undefined return type '%s' in function '%s'", returnType, node.Name.Value),
+				help,
 				node.Name.Token.Line,
 				node.Name.Token.Column,
 			)
@@ -2076,9 +2148,14 @@ func (tc *TypeChecker) checkVariableDeclaration(decl *ast.VariableDeclaration) {
 
 	// Check if declared type exists
 	if declaredType != "" && !tc.TypeExists(declaredType) {
-		tc.addError(
+		help := ""
+		if suggestion := errors.SuggestType(declaredType); suggestion != "" {
+			help = fmt.Sprintf("did you mean '%s'?", suggestion)
+		}
+		tc.addErrorWithHelp(
 			errors.E3008,
 			fmt.Sprintf("undefined type '%s'", declaredType),
+			help,
 			decl.Name.Token.Line,
 			decl.Name.Token.Column,
 		)
@@ -2587,9 +2664,16 @@ func (tc *TypeChecker) checkAssignment(assign *ast.AssignmentStatement) {
 		_, varExists := tc.lookupVariable(rootVar)
 		if !varExists {
 			line, column := tc.getExpressionPosition(assign.Name)
-			tc.addError(
+			help := ""
+			if suggestion := errors.SuggestKeyword(rootVar); suggestion != "" {
+				help = fmt.Sprintf("did you mean '%s'?", suggestion)
+			} else if suggestion := errors.SuggestBuiltin(rootVar); suggestion != "" {
+				help = fmt.Sprintf("did you mean '%s'?", suggestion)
+			}
+			tc.addErrorWithHelp(
 				errors.E4001,
 				fmt.Sprintf("undefined variable '%s'", rootVar),
+				help,
 				line,
 				column,
 			)
@@ -2749,15 +2833,20 @@ func (tc *TypeChecker) checkMemberExpression(member *ast.MemberExpression) {
 
 	// Warn about chained member access on nullable struct types (#689)
 	// e.g., p.pos.x where p.pos is a struct that could be nil
+	// Skip warning if variable is known non-nil from flow analysis (#834)
 	if _, isChained := member.Object.(*ast.MemberExpression); isChained {
 		if tc.isNullableType(objType) && objType != "error" && objType != "Error" {
-			line, column := tc.getExpressionPosition(member.Object)
-			tc.addWarning(
-				errors.W2010,
-				fmt.Sprintf("accessing member '%s' on struct type '%s' which may be nil - consider checking for nil first", member.Member.Value, objType),
-				line,
-				column,
-			)
+			// Check if this expression is known to be non-nil
+			exprName := tc.extractVarNameFromExpr(member.Object)
+			if exprName == "" || !tc.currentScope.IsKnownNonNil(exprName) {
+				line, column := tc.getExpressionPosition(member.Object)
+				tc.addWarning(
+					errors.W2010,
+					fmt.Sprintf("accessing member '%s' on struct type '%s' which may be nil - consider checking for nil first", member.Member.Value, objType),
+					line,
+					column,
+				)
+			}
 		}
 	}
 
@@ -2837,9 +2926,16 @@ func (tc *TypeChecker) checkReturnStatement(ret *ast.ReturnStatement, expectedTy
 					)
 				} else if _, isFunc := tc.functions[label.Value]; !isFunc {
 					// Not a type and not a function - truly undefined
-					tc.addError(
+					help := ""
+					if suggestion := errors.SuggestKeyword(label.Value); suggestion != "" {
+						help = fmt.Sprintf("did you mean '%s'?", suggestion)
+					} else if suggestion := errors.SuggestBuiltin(label.Value); suggestion != "" {
+						help = fmt.Sprintf("did you mean '%s'?", suggestion)
+					}
+					tc.addErrorWithHelp(
 						errors.E4001,
 						fmt.Sprintf("undefined variable '%s'", label.Value),
+						help,
 						line,
 						column,
 					)
@@ -2972,9 +3068,16 @@ func (tc *TypeChecker) checkExpression(expr ast.Expression) {
 		// Check if the identifier is known (variable, function, type, enum, etc.)
 		if !tc.isKnownIdentifier(e.Value) {
 			line, col := tc.getExpressionPosition(e)
-			tc.addError(
+			help := ""
+			if suggestion := errors.SuggestKeyword(e.Value); suggestion != "" {
+				help = fmt.Sprintf("did you mean '%s'?", suggestion)
+			} else if suggestion := errors.SuggestBuiltin(e.Value); suggestion != "" {
+				help = fmt.Sprintf("did you mean '%s'?", suggestion)
+			}
+			tc.addErrorWithHelp(
 				errors.E4001,
 				fmt.Sprintf("undefined variable '%s'", e.Value),
+				help,
 				line,
 				col,
 			)
@@ -3613,9 +3716,14 @@ func (tc *TypeChecker) checkFunctionCall(call *ast.CallExpression) {
 		}
 		// Function not found anywhere - report error
 		line, column := tc.getExpressionPosition(call.Function)
-		tc.addError(
+		help := ""
+		if suggestion := errors.SuggestBuiltin(funcName); suggestion != "" {
+			help = fmt.Sprintf("did you mean '%s'?", suggestion)
+		}
+		tc.addErrorWithHelp(
 			errors.E4002,
 			fmt.Sprintf("undefined function '%s'", funcName),
+			help,
 			line,
 			column,
 		)
@@ -3655,9 +3763,16 @@ func (tc *TypeChecker) checkFunctionCall(call *ast.CallExpression) {
 				if _, isFunc := tc.functions[label.Value]; !isFunc {
 					if _, isType := tc.types[label.Value]; !isType {
 						line, column := tc.getExpressionPosition(arg)
-						tc.addError(
+						help := ""
+						if suggestion := errors.SuggestKeyword(label.Value); suggestion != "" {
+							help = fmt.Sprintf("did you mean '%s'?", suggestion)
+						} else if suggestion := errors.SuggestBuiltin(label.Value); suggestion != "" {
+							help = fmt.Sprintf("did you mean '%s'?", suggestion)
+						}
+						tc.addErrorWithHelp(
 							errors.E4001,
 							fmt.Sprintf("undefined variable '%s'", label.Value),
+							help,
 							line,
 							column,
 						)
@@ -3949,8 +4064,15 @@ func (tc *TypeChecker) checkIfStatement(ifStmt *ast.IfStatement, expectedReturnT
 		)
 	}
 
+	// Detect nil-check patterns for flow-sensitive analysis (#834)
+	nonNilInConsequent, nonNilInAlternative := tc.extractNilCheckVars(ifStmt.Condition)
+
 	// Check consequence block
 	tc.enterScope()
+	// Mark variables known non-nil in consequent (e.g., from "x != nil")
+	for _, varName := range nonNilInConsequent {
+		tc.currentScope.MarkNonNil(varName)
+	}
 	tc.checkBlock(ifStmt.Consequence, expectedReturnTypes)
 	tc.exitScope()
 
@@ -3961,10 +4083,81 @@ func (tc *TypeChecker) checkIfStatement(ifStmt *ast.IfStatement, expectedReturnT
 			tc.checkIfStatement(alt, expectedReturnTypes)
 		case *ast.BlockStatement:
 			tc.enterScope()
+			// Mark variables known non-nil in alternative (e.g., from "x == nil" means x is non-nil in else)
+			for _, varName := range nonNilInAlternative {
+				tc.currentScope.MarkNonNil(varName)
+			}
 			tc.checkBlock(alt, expectedReturnTypes)
 			tc.exitScope()
 		}
 	}
+}
+
+// extractNilCheckVars detects nil-check patterns and returns variable names
+// that are known non-nil in the consequent (then) and alternative (else) branches.
+// For "x != nil": x is non-nil in consequent
+// For "x == nil": x is non-nil in alternative
+func (tc *TypeChecker) extractNilCheckVars(cond ast.Expression) (nonNilInConsequent, nonNilInAlternative []string) {
+	infix, ok := cond.(*ast.InfixExpression)
+	if !ok {
+		return nil, nil
+	}
+
+	// Check for != nil or == nil patterns
+	if infix.Operator != "!=" && infix.Operator != "==" {
+		return nil, nil
+	}
+
+	// Check if right side is nil (NilValue AST node)
+	rightIsNil := false
+	if _, ok := infix.Right.(*ast.NilValue); ok {
+		rightIsNil = true
+	}
+	// Check if left side is nil (NilValue AST node)
+	leftIsNil := false
+	if _, ok := infix.Left.(*ast.NilValue); ok {
+		leftIsNil = true
+	}
+
+	if !rightIsNil && !leftIsNil {
+		return nil, nil
+	}
+
+	// Extract variable name from the non-nil side
+	var varExpr ast.Expression
+	if rightIsNil {
+		varExpr = infix.Left
+	} else {
+		varExpr = infix.Right
+	}
+
+	varName := tc.extractVarNameFromExpr(varExpr)
+	if varName == "" {
+		return nil, nil
+	}
+
+	// For "x != nil": x is non-nil in consequent
+	// For "x == nil": x is non-nil in alternative (else branch)
+	if infix.Operator == "!=" {
+		return []string{varName}, nil
+	}
+	return nil, []string{varName}
+}
+
+// extractVarNameFromExpr extracts the variable name from an expression
+// Handles simple identifiers and chained member access (e.g., "outer.inner")
+func (tc *TypeChecker) extractVarNameFromExpr(expr ast.Expression) string {
+	switch e := expr.(type) {
+	case *ast.Label:
+		return e.Value
+	case *ast.MemberExpression:
+		// For chained access like outer.inner, return the full path
+		baseName := tc.extractVarNameFromExpr(e.Object)
+		if baseName != "" {
+			return baseName + "." + e.Member.Value
+		}
+	}
+	return ""
 }
 
 // checkWhenStatement validates a when/is/default statement
@@ -7553,7 +7746,11 @@ func (tc *TypeChecker) checkStdlibCall(member *ast.MemberExpression, call *ast.C
 	// Check if the module was imported (for standard library modules)
 	stdModules := map[string]bool{"std": true, "math": true, "arrays": true, "strings": true, "time": true, "maps": true, "io": true, "os": true, "bytes": true, "random": true, "json": true, "binary": true, "db": true, "uuid": true, "encoding": true, "crypto": true, "http": true}
 	if stdModules[resolvedModuleName] && !tc.modules[moduleName] && !tc.modules[resolvedModuleName] {
-		tc.addError(errors.E4007, fmt.Sprintf("module '%s' not imported; add 'import @%s'", moduleName, resolvedModuleName), line, column)
+		help := ""
+		if suggestion := errors.SuggestModule(moduleName); suggestion != "" && suggestion != resolvedModuleName {
+			help = fmt.Sprintf("did you mean '%s'?", suggestion)
+		}
+		tc.addErrorWithHelp(errors.E4007, fmt.Sprintf("module '%s' not imported; add 'import @%s'", moduleName, resolvedModuleName), help, line, column)
 		return
 	}
 
@@ -7609,6 +7806,7 @@ func (tc *TypeChecker) checkUserModuleCall(moduleName, funcName string, call *as
 		// Check if the module itself is registered - if so, the function doesn't exist
 		if tc.modules[moduleName] {
 			// Module is registered but function doesn't exist - report error
+			// Note: scope-aware function suggestions would require passing available functions
 			tc.addError(
 				errors.E4002,
 				fmt.Sprintf("undefined function '%s.%s'", moduleName, funcName),

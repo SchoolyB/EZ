@@ -1,0 +1,18 @@
+/*
+ * Error Test: E13001 - json-syntax-error
+ * Expected: "invalid JSON syntax"
+ * Note: This error is returned in tuple, so we use panic to propagate it
+ */
+
+import @json
+
+const Dummy struct {
+    x int
+}
+
+do main() {
+    temp result Dummy, err error = json.decode("{ invalid json }", Dummy)
+    if err != nil {
+        panic("${err}")
+    }
+}
