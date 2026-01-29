@@ -1,0 +1,11 @@
+/*
+ * Error Test: E14004 - http-invalid-method
+ * Expected: "invalid HTTP method"
+ */
+
+import @http
+
+do main() {
+    // Invalid HTTP method
+    temp resp, err = http.request("INVALID", "http://example.com", nil, nil)
+}

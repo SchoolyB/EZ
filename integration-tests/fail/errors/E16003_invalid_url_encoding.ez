@@ -1,0 +1,14 @@
+/*
+ * Error Test: E16003 - invalid-url-encoding
+ * Expected: "invalid URL encoding"
+ */
+
+import @encoding
+
+do main() {
+    // Invalid URL encoding (incomplete percent sequence)
+    temp result string, err error = encoding.url_decode("%ZZ")
+    if err != nil {
+        panic("${err}")
+    }
+}

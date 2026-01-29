@@ -1,0 +1,14 @@
+/*
+ * Error Test: E16002 - invalid-hex
+ * Expected: "invalid hex"
+ */
+
+import @encoding
+
+do main() {
+    // Invalid hex string (contains non-hex characters)
+    temp result string, err error = encoding.hex_decode("GHIJ")
+    if err != nil {
+        panic("${err}")
+    }
+}
