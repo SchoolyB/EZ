@@ -773,6 +773,54 @@ func (p *Parser) parseVarableDeclarationOrStruct() Statement {
 		}
 
 		stmt.Names = append(stmt.Names, &Label{Token: nameToken, Value: nameToken.Literal})
+
+		// Check for multiple assignment: const a, b = func()
+		for p.peekTokenMatches(COMMA) {
+			p.nextToken() // consume comma
+			p.nextToken() // move to next identifier or _
+
+			if p.currentTokenMatches(BLANK) {
+				stmt.Names = append(stmt.Names, &Label{Token: p.currentToken, Value: "_"})
+			} else if IsKeyword(p.currentToken.Type) {
+				keyword := KeywordLiteral(p.currentToken.Type)
+				msg := fmt.Sprintf("'%s' is a reserved keyword and cannot be used as a variable name", keyword)
+				p.errors = append(p.errors, msg)
+				p.addEZError(errors.E2020, msg, p.currentToken)
+				return nil
+			} else if p.currentTokenMatches(IDENT) {
+				name := p.currentToken.Literal
+				if isReservedName(name) {
+					msg := fmt.Sprintf("'%s' is a reserved keyword and cannot be used as a variable name", name)
+					p.errors = append(p.errors, msg)
+					p.addEZError(errors.E2020, msg, p.currentToken)
+					return nil
+				}
+				if !p.declareInScope(name, p.currentToken) {
+					msg := fmt.Sprintf("'%s' is already declared in this scope", name)
+					p.errors = append(p.errors, msg)
+					p.addEZError(errors.E2023, msg, p.currentToken)
+					return nil
+				}
+				stmt.Names = append(stmt.Names, &Label{Token: p.currentToken, Value: name})
+			} else {
+				msg := fmt.Sprintf("expected identifier or _ (blank identifier), got %s", p.currentToken.Type)
+				p.errors = append(p.errors, msg)
+				p.addEZError(errors.E2029, msg, p.currentToken)
+				return nil
+			}
+		}
+
+		// If multiple names, expect = directly (type inferred from function return)
+		if len(stmt.Names) > 1 {
+			stmt.Name = stmt.Names[0]
+			if !p.expectPeek(ASSIGN) {
+				return nil
+			}
+			p.nextToken() // move to value
+			stmt.Value = p.parseExpression(LOWEST)
+			return stmt
+		}
+
 		stmt.Name = stmt.Names[0]
 
 		// Check if this is a type-inferred assignment (const x = value)
