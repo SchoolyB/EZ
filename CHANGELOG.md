@@ -1,5 +1,16 @@
 # Changelog
 
+## [1.4.5](https://github.com/SchoolyB/EZ/compare/v1.4.4...v1.4.5) (2026-01-29)
+
+
+### Bug Fixes
+
+* allow empty arrays as elements when type is explicitly declared ([#1076](https://github.com/SchoolyB/EZ/issues/1076)) ([9c7be92](https://github.com/SchoolyB/EZ/commit/9c7be9274dada568d7125af088521f66db3a235b)), closes [#1064](https://github.com/SchoolyB/EZ/issues/1064)
+* bugfixes 1-29-2026 ([8c0980a](https://github.com/SchoolyB/EZ/commit/8c0980aae9ec5931d42c9c98775ff7dae375e98b))
+* expand 'did you mean?' suggestions across typechecker errors ([#1075](https://github.com/SchoolyB/EZ/issues/1075)) ([3dfcee3](https://github.com/SchoolyB/EZ/commit/3dfcee348716261d545cc403d09e036dc91dbc3a))
+* handle file close error explicitly in io.copy ([44ea553](https://github.com/SchoolyB/EZ/commit/44ea55382f4d4eba90562dd4133c84bc697d34fa))
+* suppress W2010 warning when nil-check is present ([#1077](https://github.com/SchoolyB/EZ/issues/1077)) ([82789fb](https://github.com/SchoolyB/EZ/commit/82789fb05c740832bd3029da0ea9b704cdc93683))
+
 ## [1.4.4](https://github.com/SchoolyB/EZ/compare/v1.4.3...v1.4.4) (2026-01-28)
 
 
