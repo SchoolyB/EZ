@@ -1,0 +1,11 @@
+/*
+ * Error Test: E13004 - json-decode-requires-type
+ * Expected: "json.decode() requires a type argument"
+ */
+
+import @json
+
+do main() {
+    // json.decode with typed result requires type argument
+    temp result int, err error = json.decode("{\"x\": 1}")
+}

@@ -1,0 +1,17 @@
+/*
+ * Warning Test: W2009 - nil-dereference-potential
+ * Expected: warning about accessing member on error type which may be nil
+ */
+
+import @std, @json
+using std
+
+const Person struct {
+    name string
+}
+
+do main() {
+    temp p Person, err error = json.decode("{\"name\": \"Alice\"}", Person)
+    // Accessing .code on error which may be nil
+    println(err.code)
+}

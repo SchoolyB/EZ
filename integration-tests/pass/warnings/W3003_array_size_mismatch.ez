@@ -1,0 +1,13 @@
+/*
+ * Warning Test: W3003 - array-size-mismatch
+ * Expected: warning about fixed-size array not fully initialized
+ */
+
+import @std
+using std
+
+do main() {
+    // Declare array with size 5 but only provide 3 elements
+    temp arr [int, 5] = {1, 2, 3}
+    println(arr)
+}

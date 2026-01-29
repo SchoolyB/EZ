@@ -1,0 +1,14 @@
+/*
+ * Warning Test: W2007 - shadows-global
+ * Expected: warning about variable shadowing a global
+ */
+
+import @std
+using std
+
+const MAX int = 100
+
+do main() {
+    temp MAX int = 50  // Shadows the global constant MAX
+    println(MAX)
+}

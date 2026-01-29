@@ -1,0 +1,11 @@
+/*
+ * Error Test: E14001 - http-invalid-url
+ * Expected: "invalid url"
+ */
+
+import @http
+
+do main() {
+    // Invalid URL format
+    temp resp, err = http.get("not a valid url")
+}
