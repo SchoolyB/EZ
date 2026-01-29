@@ -1,0 +1,11 @@
+/*
+ * Warning Test: W1002 - unused-import
+ * Expected: warning about module imported but not used
+ */
+
+import @std
+import @math  // This import is never used
+
+do main() {
+    std.println("hello")
+}

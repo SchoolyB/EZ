@@ -818,7 +818,7 @@ var IOBuiltins = map[string]*object.Builtin{
 			// Copy contents
 			_, err = io.Copy(dst, src)
 			if err != nil {
-				dst.Close()
+				_ = dst.Close() // Explicitly ignore close error; copy error takes precedence
 				return CreateStdlibErrorResult(err, "copy contents")
 			}
 
