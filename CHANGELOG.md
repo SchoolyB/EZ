@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.4.6](https://github.com/SchoolyB/EZ/compare/v1.4.5...v1.4.6) (2026-01-29)
+
+
+### Bug Fixes
+
+* arrays module bugs - remove() deleted, remove_at() now in-place ([#1083](https://github.com/SchoolyB/EZ/issues/1083)) ([92e224e](https://github.com/SchoolyB/EZ/commit/92e224ee1cec5a067f9c105d780c34690bb17b59))
+
 ## [1.4.5](https://github.com/SchoolyB/EZ/compare/v1.4.4...v1.4.5) (2026-01-29)
 
 
