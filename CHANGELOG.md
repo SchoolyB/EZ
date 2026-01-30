@@ -1,5 +1,15 @@
 # Changelog
 
+## [1.4.8](https://github.com/SchoolyB/EZ/compare/v1.4.7...v1.4.8) (2026-01-30)
+
+
+### Bug Fixes
+
+* `range()`, module imports, and error file tracking ([#1093](https://github.com/SchoolyB/EZ/issues/1093), [#1094](https://github.com/SchoolyB/EZ/issues/1094), [#1095](https://github.com/SchoolyB/EZ/issues/1095)) ([331b0b4](https://github.com/SchoolyB/EZ/commit/331b0b4eb0a0c4a1bde7771432c088e85f480953))
+* mark modules as used when referenced in type annotations ([#1093](https://github.com/SchoolyB/EZ/issues/1093)) ([#1096](https://github.com/SchoolyB/EZ/issues/1096)) ([6aa9a24](https://github.com/SchoolyB/EZ/commit/6aa9a2420938b399c7763b65b50ec37e5d94677b))
+* set correct file in runtime errors from builtin functions ([#1094](https://github.com/SchoolyB/EZ/issues/1094)) ([#1097](https://github.com/SchoolyB/EZ/issues/1097)) ([9f41400](https://github.com/SchoolyB/EZ/commit/9f414000683eaec7b106f1c42abdcc36d7437e5f))
+* support negative step in range() for backwards iteration ([#1095](https://github.com/SchoolyB/EZ/issues/1095)) ([#1098](https://github.com/SchoolyB/EZ/issues/1098)) ([b12e474](https://github.com/SchoolyB/EZ/commit/b12e474609feaa47c6751dda4411295db3b30312))
+
 ## [1.4.7](https://github.com/SchoolyB/EZ/compare/v1.4.6...v1.4.7) (2026-01-30)
 
 
