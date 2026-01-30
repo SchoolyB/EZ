@@ -5750,3 +5750,153 @@ temp _ int = track()
 	// but since we're returning an error, we can't check the count.
 	// This test verifies that ensure doesn't prevent error propagation.
 }
+
+// ============================================================================
+// Range with Negative Step Tests (#1095)
+// ============================================================================
+
+func TestRangeWithNegativeStep(t *testing.T) {
+	input := `
+temp sum int = 0
+for i in range(10, 0, -1) {
+    sum = sum + i
+}
+sum
+`
+	evaluated := testEval(input)
+	// 10 + 9 + 8 + 7 + 6 + 5 + 4 + 3 + 2 + 1 = 55
+	testIntegerObject(t, evaluated, 55)
+}
+
+func TestRangeWithNegativeStepBy2(t *testing.T) {
+	input := `
+temp sum int = 0
+for i in range(10, 0, -2) {
+    sum = sum + i
+}
+sum
+`
+	evaluated := testEval(input)
+	// 10 + 8 + 6 + 4 + 2 = 30
+	testIntegerObject(t, evaluated, 30)
+}
+
+func TestRangeNegativeStepCollectsValues(t *testing.T) {
+	input := `
+temp first int = 0
+temp second int = 0
+temp third int = 0
+temp idx int = 0
+for i in range(5, 2, -1) {
+    if idx == 0 { first = i }
+    if idx == 1 { second = i }
+    if idx == 2 { third = i }
+    idx = idx + 1
+}
+first * 100 + second * 10 + third
+`
+	evaluated := testEval(input)
+	// first=5, second=4, third=3 -> 543
+	testIntegerObject(t, evaluated, 543)
+}
+
+func TestRangeNegativeStepMismatchError(t *testing.T) {
+	// Negative step with ascending bounds should error
+	input := `
+for i in range(0, 10, -1) {
+    temp _ int = i
+}
+`
+	evaluated := testEval(input)
+	if !isError(evaluated) {
+		t.Fatalf("expected error for mismatched step direction, got %T", evaluated)
+	}
+	errObj := evaluated.(*Error)
+	if errObj.Code != "E9005" {
+		t.Errorf("expected error code E9005, got %s", errObj.Code)
+	}
+}
+
+func TestRangePositiveStepMismatchError(t *testing.T) {
+	// Positive step (default) with descending bounds should error
+	input := `
+for i in range(10, 0) {
+    temp _ int = i
+}
+`
+	evaluated := testEval(input)
+	if !isError(evaluated) {
+		t.Fatalf("expected error for mismatched step direction, got %T", evaluated)
+	}
+	errObj := evaluated.(*Error)
+	if errObj.Code != "E9005" {
+		t.Errorf("expected error code E9005, got %s", errObj.Code)
+	}
+}
+
+func TestRangeZeroStepError(t *testing.T) {
+	input := `
+for i in range(0, 10, 0) {
+    temp _ int = i
+}
+`
+	evaluated := testEval(input)
+	if !isError(evaluated) {
+		t.Fatalf("expected error for zero step, got %T", evaluated)
+	}
+	errObj := evaluated.(*Error)
+	if errObj.Code != "E9003" {
+		t.Errorf("expected error code E9003, got %s", errObj.Code)
+	}
+}
+
+func TestRangeNegativeStepInOperator(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		expected bool
+	}{
+		{
+			name:     "value in descending range - true",
+			input:    `5 in range(10, 0, -1)`,
+			expected: true,
+		},
+		{
+			name:     "value at start of descending range - true",
+			input:    `10 in range(10, 0, -1)`,
+			expected: true,
+		},
+		{
+			name:     "value at end of descending range - false (exclusive)",
+			input:    `0 in range(10, 0, -1)`,
+			expected: false,
+		},
+		{
+			name:     "value below descending range - false",
+			input:    `-1 in range(10, 0, -1)`,
+			expected: false,
+		},
+		{
+			name:     "value above descending range - false",
+			input:    `15 in range(10, 0, -1)`,
+			expected: false,
+		},
+		{
+			name:     "value in descending range with step -2 - on step",
+			input:    `6 in range(10, 0, -2)`,
+			expected: true,
+		},
+		{
+			name:     "value in descending range with step -2 - off step",
+			input:    `5 in range(10, 0, -2)`,
+			expected: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			evaluated := testEval(tt.input)
+			testBooleanObject(t, evaluated, tt.expected)
+		})
+	}
+}
