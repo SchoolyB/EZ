@@ -1169,6 +1169,11 @@ func (tc *TypeChecker) checkGlobalVariableDeclaration(node *ast.VariableDeclarat
 			continue
 		}
 
+		// Mark module as used if variable type references a module (#1093)
+		if declaredType != "" {
+			tc.markModuleUsedFromType(declaredType)
+		}
+
 		// Check if 'any' type is used (not allowed for user code)
 		if declaredType != "" && tc.containsAnyType(declaredType) {
 			tc.addError(
@@ -1458,6 +1463,9 @@ func (tc *TypeChecker) checkFunctionDeclaration(node *ast.FunctionDeclaration) {
 			)
 		}
 
+		// Mark module as used if parameter type references a module (#1093)
+		tc.markModuleUsedFromType(param.TypeName)
+
 		// Check if 'any' type is used in parameter type (not allowed for user code)
 		if tc.containsAnyType(param.TypeName) {
 			tc.addError(
@@ -1516,6 +1524,8 @@ func (tc *TypeChecker) checkFunctionDeclaration(node *ast.FunctionDeclaration) {
 				node.Name.Token.Column,
 			)
 		}
+		// Mark module as used if return type references a module (#1093)
+		tc.markModuleUsedFromType(returnType)
 		// Check if 'any' type is used in return type (not allowed for user code)
 		if tc.containsAnyType(returnType) {
 			tc.addError(
@@ -1595,6 +1605,49 @@ func (tc *TypeChecker) checkMainFunction() {
 // markModuleUsed marks a module as being used in the code (#639)
 func (tc *TypeChecker) markModuleUsed(moduleName string) {
 	tc.usedModules[moduleName] = true
+}
+
+// markModuleUsedFromType extracts module names from type strings and marks them as used (#1093)
+// This handles qualified types in function signatures, new() expressions, and variable declarations.
+// Supports: lib.ENGINE, [lib.Item], map[string:lib.Value]
+func (tc *TypeChecker) markModuleUsedFromType(typeName string) {
+	// Handle array types: [lib.Item] or [lib.Item, 10]
+	if len(typeName) > 2 && typeName[0] == '[' {
+		closeBracket := strings.LastIndex(typeName, "]")
+		if closeBracket > 0 {
+			inner := typeName[1:closeBracket]
+			// Remove any size suffix (e.g., "lib.Item, 10" -> "lib.Item")
+			if commaIdx := strings.Index(inner, ","); commaIdx > 0 {
+				inner = strings.TrimSpace(inner[:commaIdx])
+			}
+			tc.markModuleUsedFromType(inner) // Recursively check inner type
+		}
+		return
+	}
+
+	// Handle map types: map[string:lib.Value]
+	if strings.HasPrefix(typeName, "map[") && strings.HasSuffix(typeName, "]") {
+		inner := typeName[4 : len(typeName)-1] // Extract keyType:valueType
+		if colonIdx := strings.Index(inner, ":"); colonIdx > 0 {
+			keyType := strings.TrimSpace(inner[:colonIdx])
+			valueType := strings.TrimSpace(inner[colonIdx+1:])
+			tc.markModuleUsedFromType(keyType)
+			tc.markModuleUsedFromType(valueType)
+		}
+		return
+	}
+
+	// Handle qualified types: lib.ENGINE
+	if strings.Contains(typeName, ".") {
+		parts := strings.SplitN(typeName, ".", 2)
+		if len(parts) == 2 {
+			moduleName := parts[0]
+			// Only mark as used if it's actually an imported module
+			if tc.modules[moduleName] {
+				tc.markModuleUsed(moduleName)
+			}
+		}
+	}
 }
 
 // checkUnusedImports warns about imported modules that are never used (#639)
@@ -2160,6 +2213,11 @@ func (tc *TypeChecker) checkVariableDeclaration(decl *ast.VariableDeclaration) {
 			decl.Name.Token.Column,
 		)
 		return
+	}
+
+	// Mark module as used if variable type references a module (#1093)
+	if declaredType != "" {
+		tc.markModuleUsedFromType(declaredType)
 	}
 
 	// Check if 'any' type is used (not allowed for user code)
@@ -3047,6 +3105,12 @@ func (tc *TypeChecker) checkExpression(expr ast.Expression) {
 	case *ast.RangeExpression:
 		tc.checkRangeExpression(e)
 
+	case *ast.NewExpression:
+		// Mark module as used if new() type references a module (#1093)
+		if e.TypeName != nil {
+			tc.markModuleUsedFromType(e.TypeName.Value)
+		}
+
 	case *ast.CastExpression:
 		tc.checkCastExpression(e)
 
@@ -3124,8 +3188,35 @@ func (tc *TypeChecker) checkRangeExpression(rangeExpr *ast.RangeExpression) {
 		}
 	}
 
+	// Check if step is zero (always invalid)
+	if rangeExpr.Step != nil {
+		if stepInt, ok := rangeExpr.Step.(*ast.IntegerValue); ok {
+			if stepInt.Value.Sign() == 0 {
+				tc.addError(
+					errors.E9003,
+					"range() step cannot be zero",
+					rangeExpr.Token.Line,
+					rangeExpr.Token.Column,
+				)
+			}
+		}
+		// Also check for negative literal prefix: -1, -2, etc.
+		if prefixExpr, ok := rangeExpr.Step.(*ast.PrefixExpression); ok && prefixExpr.Operator == "-" {
+			if innerInt, ok := prefixExpr.Right.(*ast.IntegerValue); ok {
+				if innerInt.Value.Sign() == 0 {
+					tc.addError(
+						errors.E9003,
+						"range() step cannot be zero",
+						rangeExpr.Token.Line,
+						rangeExpr.Token.Column,
+					)
+				}
+			}
+		}
+	}
+
 	// Check if both start and end are integer literals
-	// If so, verify start <= end
+	// If so, verify bounds based on step direction (#1095)
 	if rangeExpr.Start == nil {
 		// range(end) form, start defaults to 0
 		// Also check subexpressions
@@ -3140,11 +3231,30 @@ func (tc *TypeChecker) checkRangeExpression(rangeExpr *ast.RangeExpression) {
 	endInt, endOk := rangeExpr.End.(*ast.IntegerValue)
 
 	if startOk && endOk {
-		// Both are literals, we can check at compile time
-		if startInt.Value.Cmp(endInt.Value) > 0 {
+		// Determine step sign (positive by default, or from literal)
+		stepSign := 1
+		if rangeExpr.Step != nil {
+			if stepInt, ok := rangeExpr.Step.(*ast.IntegerValue); ok {
+				stepSign = stepInt.Value.Sign()
+			} else if prefixExpr, ok := rangeExpr.Step.(*ast.PrefixExpression); ok && prefixExpr.Operator == "-" {
+				// Negative step like -1, -2, etc.
+				stepSign = -1
+			}
+		}
+
+		// Validate bounds based on step direction
+		if stepSign > 0 && startInt.Value.Cmp(endInt.Value) > 0 {
 			tc.addError(
 				errors.E9005,
-				fmt.Sprintf("invalid range: start (%s) must be less than or equal to end (%s)",
+				fmt.Sprintf("invalid range: start (%s) must be less than or equal to end (%s) for positive step",
+					startInt.Value.String(), endInt.Value.String()),
+				rangeExpr.Token.Line,
+				rangeExpr.Token.Column,
+			)
+		} else if stepSign < 0 && startInt.Value.Cmp(endInt.Value) < 0 {
+			tc.addError(
+				errors.E9005,
+				fmt.Sprintf("invalid range: start (%s) must be greater than or equal to end (%s) for negative step",
 					startInt.Value.String(), endInt.Value.String()),
 				rangeExpr.Token.Line,
 				rangeExpr.Token.Column,

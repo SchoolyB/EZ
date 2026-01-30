@@ -1833,7 +1833,7 @@ func evalRangeExpression(node *ast.RangeExpression, env *Environment) Object {
 	}
 	end := new(big.Int).Set(endInt.Value)
 
-	// Handle step - defaults to 1 (or -1 for descending ranges)
+	// Handle step - defaults to 1
 	step := big.NewInt(1)
 	if node.Step != nil {
 		stepObj := Eval(node.Step, env)
@@ -1850,9 +1850,18 @@ func evalRangeExpression(node *ast.RangeExpression, env *Environment) Object {
 			return newErrorWithLocation("E9003", line, col,
 				"range step cannot be zero")
 		}
-	} else if start.Cmp(end) > 0 {
-		// Auto-detect descending range when no step is provided
-		step = big.NewInt(-1)
+	}
+
+	// Validate step direction matches bounds (#1095)
+	if step.Sign() > 0 && start.Cmp(end) > 0 {
+		return newErrorWithLocation("E9005", line, col,
+			"invalid range: start (%s) must be <= end (%s) for positive step",
+			start.String(), end.String())
+	}
+	if step.Sign() < 0 && start.Cmp(end) < 0 {
+		return newErrorWithLocation("E9005", line, col,
+			"invalid range: start (%s) must be >= end (%s) for negative step",
+			start.String(), end.String())
 	}
 
 	return &Range{Start: start, End: end, Step: step}
@@ -1919,6 +1928,10 @@ func evalSingleCast(value Object, targetType string, line, col int) Object {
 			errObj.Line = line
 			errObj.Column = col
 		}
+		// Set file from current context if not already set (#1094)
+		if errObj.File == "" && globalEvalContext != nil {
+			errObj.File = globalEvalContext.CurrentFile
+		}
 	}
 	return result
 }
@@ -1966,7 +1979,7 @@ func evalForStatement(node *ast.ForStatement, env *Environment) Object {
 	}
 	end := endInt.Value
 
-	// Handle step - defaults to 1 (or -1 for descending ranges)
+	// Handle step - defaults to 1
 	step := big.NewInt(1)
 	if rangeExpr.Step != nil {
 		stepObj := Eval(rangeExpr.Step, env)
@@ -1983,9 +1996,18 @@ func evalForStatement(node *ast.ForStatement, env *Environment) Object {
 			return newErrorWithLocation("E9003", node.Token.Line, node.Token.Column,
 				"range step cannot be zero")
 		}
-	} else if start.Cmp(end) > 0 {
-		// Auto-detect descending range when no step is provided
-		step = big.NewInt(-1)
+	}
+
+	// Validate step direction matches bounds (#1095)
+	if step.Sign() > 0 && start.Cmp(end) > 0 {
+		return newErrorWithLocation("E9005", node.Token.Line, node.Token.Column,
+			"invalid range: start (%s) must be <= end (%s) for positive step",
+			start.String(), end.String())
+	}
+	if step.Sign() < 0 && start.Cmp(end) < 0 {
+		return newErrorWithLocation("E9005", node.Token.Line, node.Token.Column,
+			"invalid range: start (%s) must be >= end (%s) for negative step",
+			start.String(), end.String())
 	}
 
 	loopEnv := NewEnclosedEnvironment(env)
@@ -2961,6 +2983,10 @@ func evalMemberCall(member *ast.MemberExpression, args []ast.Expression, env *En
 				errObj.Line = member.Token.Line
 				errObj.Column = member.Token.Column
 			}
+			// Set file from current context if not already set (#1094)
+			if errObj.File == "" && globalEvalContext != nil {
+				errObj.File = globalEvalContext.CurrentFile
+			}
 		}
 		return result
 	}
@@ -3077,6 +3103,10 @@ func applyFunction(fn Object, args []Object, line, col int) Object {
 			if errObj.Line == 0 && errObj.Column == 0 {
 				errObj.Line = line
 				errObj.Column = col
+			}
+			// Set file from current context if not already set (#1094)
+			if errObj.File == "" && globalEvalContext != nil {
+				errObj.File = globalEvalContext.CurrentFile
 			}
 		}
 		return result
