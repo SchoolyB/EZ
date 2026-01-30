@@ -847,6 +847,10 @@ func evalVariableDeclaration(node *ast.VariableDeclaration, env *Environment) Ob
 		// UNLESS the value is a Reference (from ref() builtin)
 		val = copyByDefault(val)
 
+		// Sync value mutability with temp/const declaration
+		// This ensures temp gives mutable values, const gives immutable values
+		syncMutability(val, node.Mutable)
+
 		// Handle multiple assignment FIRST: temp result, err = function()
 		// This must happen before single-value type validation (#698)
 		vis := convertVisibility(node.Visibility)
@@ -2177,9 +2181,15 @@ func evalFunctionDeclaration(node *ast.FunctionDeclaration, env *Environment) Ob
 
 func evalIdentifier(node *ast.Label, env *Environment) Object {
 	if val, ok := env.Get(node.Value); ok {
-		// If the value is a Reference (for & params), dereference it
+		// If the value is a Reference (for & params or ref() builtin), dereference it
 		if ref, isRef := val.(*Reference); isRef {
 			if derefVal, ok := ref.Deref(); ok {
+				// If this is a const ref, return an immutable view
+				// This prevents modification through const references while
+				// preserving the original's mutability for direct access
+				if !ref.Mutable {
+					return makeImmutableView(derefVal)
+				}
 				return derefVal
 			}
 		}
@@ -2842,7 +2852,7 @@ func evalArgsWithReferences(argExprs []ast.Expression, params []*ast.Parameter, 
 		if i < len(params) && params[i].Mutable {
 			// Simple variable reference
 			if label, ok := argExpr.(*ast.Label); ok {
-				args[i] = &Reference{Env: env, Name: label.Value}
+				args[i] = &Reference{Env: env, Name: label.Value, Mutable: true}
 				continue
 			}
 
@@ -2866,6 +2876,7 @@ func evalArgsWithReferences(argExprs []ast.Expression, params []*ast.Parameter, 
 					Name:      varName,
 					Container: container,
 					Index:     index,
+					Mutable:   true,
 				}
 				continue
 			}
@@ -2886,6 +2897,7 @@ func evalArgsWithReferences(argExprs []ast.Expression, params []*ast.Parameter, 
 					Name:      varName,
 					Container: container,
 					Field:     memberExpr.Member.Value,
+					Mutable:   true,
 				}
 				continue
 			}
@@ -3890,6 +3902,71 @@ func copyByDefault(val Object) Object {
 		return newMap
 	default:
 		// Primitives and other types are returned as-is
+		return val
+	}
+}
+
+// syncMutability ensures the Object.Mutable field matches the temp/const declaration.
+// This is called after copyByDefault to ensure that temp variables have mutable values
+// and const variables have immutable values, regardless of what the source returned.
+func syncMutability(val Object, mutable bool) Object {
+	switch v := val.(type) {
+	case *Array:
+		v.Mutable = mutable
+	case *Map:
+		v.Mutable = mutable
+	case *Struct:
+		v.Mutable = mutable
+	case *String:
+		v.Mutable = mutable
+	case *Reference:
+		v.Mutable = mutable
+	case *ReturnValue:
+		// For multi-return, sync each value
+		for i := range v.Values {
+			syncMutability(v.Values[i], mutable)
+		}
+	}
+	return val
+}
+
+// makeImmutableView creates an immutable view of an object for const references.
+// Returns a shallow copy with Mutable: false for mutable types.
+// This allows const refs to prevent modification while the original remains mutable.
+func makeImmutableView(val Object) Object {
+	switch v := val.(type) {
+	case *Array:
+		// Shallow copy - same elements, but marked immutable
+		return &Array{
+			Elements:    v.Elements,
+			Mutable:     false,
+			ElementType: v.ElementType,
+		}
+	case *Map:
+		// Shallow copy - same pairs, but marked immutable
+		newMap := &Map{
+			Pairs:     v.Pairs,
+			Index:     v.Index,
+			Mutable:   false,
+			KeyType:   v.KeyType,
+			ValueType: v.ValueType,
+		}
+		return newMap
+	case *Struct:
+		// Shallow copy - same fields, but marked immutable
+		return &Struct{
+			TypeName:  v.TypeName,
+			Fields:    v.Fields,
+			FieldTags: v.FieldTags,
+			Mutable:   false,
+		}
+	case *String:
+		return &String{
+			Value:   v.Value,
+			Mutable: false,
+		}
+	default:
+		// Primitives are immutable by nature
 		return val
 	}
 }

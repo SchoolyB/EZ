@@ -240,8 +240,9 @@ func (fh *FileHandle) Inspect() string {
 // Reference represents a reference to a variable in another environment
 // Used for mutable (&) parameters to allow modifications to persist to the caller
 type Reference struct {
-	Env  *Environment // The environment where the original variable lives
-	Name string       // The variable name in that environment
+	Env     *Environment // The environment where the original variable lives
+	Name    string       // The variable name in that environment
+	Mutable bool         // Whether this reference allows modification (temp=true, const=false)
 
 	// For indexed expressions (arr[i], map[k]) - Container and Index are set
 	Container Object // The array/map object (nil for simple variable references)
