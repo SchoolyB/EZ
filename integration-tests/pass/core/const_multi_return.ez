@@ -1,0 +1,84 @@
+/*
+ * const_multi_return.ez - Test const keyword with multi-return functions
+ *
+ * Tests that:
+ * - const a, b = func() syntax works
+ * - const values from multi-return are immutable
+ * - blank identifier works with const multi-return
+ */
+
+import @std
+using std
+
+do get_pair() -> (int, string) {
+    return 42, "hello"
+}
+
+do get_triple() -> (int, string, bool) {
+    return 1, "two", true
+}
+
+do main() {
+    println("=== Const Multi-Return Tests ===")
+    temp passed int = 0
+    temp failed int = 0
+
+    // Test 1: const with 2-value return
+    const a, b = get_pair()
+    if a == 42 && b == "hello" {
+        println("  [PASS] const a, b = func() works")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] const multi-return 2 values")
+        failed += 1
+    }
+
+    // Test 2: const with 3-value return
+    const x, y, z = get_triple()
+    if x == 1 && y == "two" && z == true {
+        println("  [PASS] const x, y, z = func() works")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] const multi-return 3 values")
+        failed += 1
+    }
+
+    // Test 3: const with blank identifier
+    const val, _ = get_pair()
+    if val == 42 {
+        println("  [PASS] const with blank identifier works")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] const with blank identifier")
+        failed += 1
+    }
+
+    // Test 4: const with multiple blanks
+    const _, middle, _ = get_triple()
+    if middle == "two" {
+        println("  [PASS] const with multiple blank identifiers works")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] const with multiple blanks")
+        failed += 1
+    }
+
+    // Test 5: temp multi-return still works
+    temp ta, tb = get_pair()
+    if ta == 42 && tb == "hello" {
+        println("  [PASS] temp multi-return still works")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] temp multi-return")
+        failed += 1
+    }
+
+    // Summary
+    println("")
+    println("Results: ${passed} passed, ${failed} failed")
+    if failed > 0 {
+        println("SOME TESTS FAILED")
+    } otherwise {
+        println("ALL TESTS PASSED")
+    }
+}
