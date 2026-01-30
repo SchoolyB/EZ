@@ -1,5 +1,15 @@
 # Changelog
 
+## [1.4.7](https://github.com/SchoolyB/EZ/compare/v1.4.6...v1.4.7) (2026-01-30)
+
+
+### Bug Fixes
+
+* const ref now creates read-only view of referenced value ([#1089](https://github.com/SchoolyB/EZ/issues/1089)) ([4b04eed](https://github.com/SchoolyB/EZ/commit/4b04eedf59f422fa1b786c819c9d2920acd4395d))
+* mutability semantics fixes ([b88a35e](https://github.com/SchoolyB/EZ/commit/b88a35ea0be3720e177d8c06dfa173dd2f880014))
+* support const keyword with multi-return function assignment ([#1087](https://github.com/SchoolyB/EZ/issues/1087)) ([2375f3c](https://github.com/SchoolyB/EZ/commit/2375f3c6ada883e8426b9e02d3ff44722f9e8878))
+* sync temp/const mutability with value's Mutable field ([#1085](https://github.com/SchoolyB/EZ/issues/1085)) ([5f0ffb7](https://github.com/SchoolyB/EZ/commit/5f0ffb78b66d794d5da802f3c558e527d0c0c0a4))
+
 ## [1.4.6](https://github.com/SchoolyB/EZ/compare/v1.4.5...v1.4.6) (2026-01-29)
 
 
