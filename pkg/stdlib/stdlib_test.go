@@ -1985,7 +1985,9 @@ func TestTimeToUnixMs(t *testing.T) {
 func TestTimeIsWeekend(t *testing.T) {
 	isWeekendFn := TimeBuiltins["time.is_weekend"].Fn
 
-	saturday := big.NewInt(1578096000)
+	// Use midday UTC timestamps to avoid timezone boundary issues
+	// Saturday, January 4, 2020 12:00:00 UTC
+	saturday := big.NewInt(1578139200)
 	result := isWeekendFn(&object.Integer{Value: saturday})
 
 	boolVal, ok := result.(*object.Boolean)
@@ -1996,7 +1998,8 @@ func TestTimeIsWeekend(t *testing.T) {
 		t.Errorf("time.is_weekend() returned false, want true")
 	}
 
-	sunday := big.NewInt(1578182400)
+	// Sunday, January 5, 2020 12:00:00 UTC
+	sunday := big.NewInt(1578225600)
 	result = isWeekendFn(&object.Integer{Value: sunday})
 	boolVal, ok = result.(*object.Boolean)
 	if !ok {
@@ -2006,7 +2009,8 @@ func TestTimeIsWeekend(t *testing.T) {
 		t.Errorf("time.is_weekend() returned false, want true")
 	}
 
-	monday := big.NewInt(1578268800)
+	// Monday, January 6, 2020 12:00:00 UTC
+	monday := big.NewInt(1578312000)
 	result = isWeekendFn(&object.Integer{Value: monday})
 	boolVal, ok = result.(*object.Boolean)
 	if !ok {
@@ -2020,7 +2024,9 @@ func TestTimeIsWeekend(t *testing.T) {
 func TestTimeIsWeekday(t *testing.T) {
 	isWeekdayFn := TimeBuiltins["time.is_weekday"].Fn
 
-	monday := big.NewInt(1578268800)
+	// Use midday UTC timestamps to avoid timezone boundary issues
+	// Monday, January 6, 2020 12:00:00 UTC
+	monday := big.NewInt(1578312000)
 	result := isWeekdayFn(&object.Integer{Value: monday})
 	boolVal, ok := result.(*object.Boolean)
 	if !ok {
@@ -2030,7 +2036,8 @@ func TestTimeIsWeekday(t *testing.T) {
 		t.Errorf("time.is_weekday() returned false, want true")
 	}
 
-	tuesday := big.NewInt(1578355200)
+	// Tuesday, January 7, 2020 12:00:00 UTC
+	tuesday := big.NewInt(1578398400)
 	result = isWeekdayFn(&object.Integer{Value: tuesday})
 	boolVal, ok = result.(*object.Boolean)
 	if !ok {
@@ -2040,7 +2047,8 @@ func TestTimeIsWeekday(t *testing.T) {
 		t.Errorf("time.is_weekday() returned false, want true")
 	}
 
-	saturday := big.NewInt(1578096000)
+	// Saturday, January 4, 2020 12:00:00 UTC
+	saturday := big.NewInt(1578139200)
 	result = isWeekdayFn(&object.Integer{Value: saturday})
 	boolVal, ok = result.(*object.Boolean)
 	if !ok {
