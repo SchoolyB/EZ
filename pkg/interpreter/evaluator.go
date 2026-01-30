@@ -1919,6 +1919,10 @@ func evalSingleCast(value Object, targetType string, line, col int) Object {
 			errObj.Line = line
 			errObj.Column = col
 		}
+		// Set file from current context if not already set (#1094)
+		if errObj.File == "" && globalEvalContext != nil {
+			errObj.File = globalEvalContext.CurrentFile
+		}
 	}
 	return result
 }
@@ -2961,6 +2965,10 @@ func evalMemberCall(member *ast.MemberExpression, args []ast.Expression, env *En
 				errObj.Line = member.Token.Line
 				errObj.Column = member.Token.Column
 			}
+			// Set file from current context if not already set (#1094)
+			if errObj.File == "" && globalEvalContext != nil {
+				errObj.File = globalEvalContext.CurrentFile
+			}
 		}
 		return result
 	}
@@ -3077,6 +3085,10 @@ func applyFunction(fn Object, args []Object, line, col int) Object {
 			if errObj.Line == 0 && errObj.Column == 0 {
 				errObj.Line = line
 				errObj.Column = col
+			}
+			// Set file from current context if not already set (#1094)
+			if errObj.File == "" && globalEvalContext != nil {
+				errObj.File = globalEvalContext.CurrentFile
 			}
 		}
 		return result
