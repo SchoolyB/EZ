@@ -3188,8 +3188,35 @@ func (tc *TypeChecker) checkRangeExpression(rangeExpr *ast.RangeExpression) {
 		}
 	}
 
+	// Check if step is zero (always invalid)
+	if rangeExpr.Step != nil {
+		if stepInt, ok := rangeExpr.Step.(*ast.IntegerValue); ok {
+			if stepInt.Value.Sign() == 0 {
+				tc.addError(
+					errors.E9003,
+					"range() step cannot be zero",
+					rangeExpr.Token.Line,
+					rangeExpr.Token.Column,
+				)
+			}
+		}
+		// Also check for negative literal prefix: -1, -2, etc.
+		if prefixExpr, ok := rangeExpr.Step.(*ast.PrefixExpression); ok && prefixExpr.Operator == "-" {
+			if innerInt, ok := prefixExpr.Right.(*ast.IntegerValue); ok {
+				if innerInt.Value.Sign() == 0 {
+					tc.addError(
+						errors.E9003,
+						"range() step cannot be zero",
+						rangeExpr.Token.Line,
+						rangeExpr.Token.Column,
+					)
+				}
+			}
+		}
+	}
+
 	// Check if both start and end are integer literals
-	// If so, verify start <= end
+	// If so, verify bounds based on step direction (#1095)
 	if rangeExpr.Start == nil {
 		// range(end) form, start defaults to 0
 		// Also check subexpressions
@@ -3204,11 +3231,30 @@ func (tc *TypeChecker) checkRangeExpression(rangeExpr *ast.RangeExpression) {
 	endInt, endOk := rangeExpr.End.(*ast.IntegerValue)
 
 	if startOk && endOk {
-		// Both are literals, we can check at compile time
-		if startInt.Value.Cmp(endInt.Value) > 0 {
+		// Determine step sign (positive by default, or from literal)
+		stepSign := 1
+		if rangeExpr.Step != nil {
+			if stepInt, ok := rangeExpr.Step.(*ast.IntegerValue); ok {
+				stepSign = stepInt.Value.Sign()
+			} else if prefixExpr, ok := rangeExpr.Step.(*ast.PrefixExpression); ok && prefixExpr.Operator == "-" {
+				// Negative step like -1, -2, etc.
+				stepSign = -1
+			}
+		}
+
+		// Validate bounds based on step direction
+		if stepSign > 0 && startInt.Value.Cmp(endInt.Value) > 0 {
 			tc.addError(
 				errors.E9005,
-				fmt.Sprintf("invalid range: start (%s) must be less than or equal to end (%s)",
+				fmt.Sprintf("invalid range: start (%s) must be less than or equal to end (%s) for positive step",
+					startInt.Value.String(), endInt.Value.String()),
+				rangeExpr.Token.Line,
+				rangeExpr.Token.Column,
+			)
+		} else if stepSign < 0 && startInt.Value.Cmp(endInt.Value) < 0 {
+			tc.addError(
+				errors.E9005,
+				fmt.Sprintf("invalid range: start (%s) must be greater than or equal to end (%s) for negative step",
 					startInt.Value.String(), endInt.Value.String()),
 				rangeExpr.Token.Line,
 				rangeExpr.Token.Column,
