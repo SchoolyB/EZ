@@ -1,9 +1,9 @@
 # The EZ Programming Language Standard
 
-**Version:** 1.0-draft
-**Date:** January 2026
+**Version:** 1.1-draft
+**Date:** January 31, 2026
 **Status:** Working Draft
-**EZ Version:** 1.4.3
+**EZ Version:** 1.4.8
 
 ---
 
@@ -148,7 +148,7 @@ for_each     if          import      in          int
 is           map         module      new         nil
 not_in       or          otherwise   range       return
 string       struct      temp        true        uint
-using        when
+using        when        private
 ```
 
 ### 3.6 Operators and Punctuation
@@ -210,6 +210,7 @@ Escape sequences:
 - `\t` - horizontal tab (U+0009)
 - `\\` - backslash
 - `\"` - double quote
+- `\xNN` - hex byte value (e.g., `\x48` = 'H', `\x0a` = newline)
 
 String interpolation allows embedding expressions within strings:
 
@@ -249,7 +250,7 @@ The literal `nil` represents the absence of a value.
 
 ## 4. Types
 
-EZ is statically typed. Every variable and expression has a type known at compile time.
+EZ is statically typed. Every variable and expression has a type known at check time.
 
 ### 4.1 Primitive Types
 
@@ -271,7 +272,7 @@ temp count uint = 100
 temp big uint = 18446744073709551615  // Max 64-bit unsigned, still valid
 ```
 
-Assigning a negative value to a `uint` produces a compile-time error.
+Assigning a negative value to a `uint` produces a check-time error.
 
 #### 4.1.3 Floating-Point Type (`float`)
 
@@ -319,10 +320,10 @@ The `byte` type represents an 8-bit unsigned integer with values from 0 to 255.
 
 ```ez
 temp b byte = 0xFF  // 255
-temp c byte = byte(128)
+temp c byte = 128   // decimal also works
 ```
 
-Assigning a value outside the range 0-255 to a `byte` is a compile-time error.
+Assigning a value outside the range 0-255 to a `byte` is a check-time error.
 
 #### 4.1.8 Nil Type (`nil`)
 
@@ -379,7 +380,7 @@ temp ages map[string:int] = {
 }
 ```
 
-Keys must be of a hashable type: `int`, `float`, `string`, `bool`, `char`, or `byte`.
+Keys must be of a hashable type: `int`, `uint`, `float`, `string`, `bool`, `char`, or `byte`.
 
 Accessing a key that does not exist produces a runtime error.
 
@@ -511,14 +512,13 @@ temp name string = "Alice"     // Explicit type required
 Explicit type conversions are performed using type constructors:
 
 ```ez
-temp i int = int('A')       // 65
-temp u uint = uint(42)      // 42 (unsigned)
-temp f float = float(42)    // 42.0
-temp s string = string(123) // "123"
-temp b byte = byte(255)     // 255
+temp i int = int('A')       // 65 - char to int (code point)
+temp f float = float(42)    // 42.0 - int to float
+temp s string = string(123) // "123" - int to string
+temp c char = char(65)      // 'A' - int to char
 ```
 
-Conversions that would lose information or are invalid produce compile-time or runtime errors.
+Conversions that would lose information or are invalid produce check-time or runtime errors.
 
 ---
 
@@ -573,12 +573,26 @@ arr[0] = 10  // ERROR: Cannot modify const
 arr = {4, 5, 6}  // ERROR: Cannot reassign const
 ```
 
-The `temp` keyword allows modification:
+The `temp` keyword allows modification and **ensures the value itself is mutable**:
 
 ```ez
 temp arr [int] = {1, 2, 3}
 arr[0] = 10  // OK
 arr = {4, 5, 6}  // OK
+```
+
+When assigning from a function return or other source, `temp` automatically makes the value mutable. There is no need to use `copy()` to obtain a mutable version:
+
+```ez
+do get_data() -> [int] {
+    return {1, 2, 3}
+}
+
+temp arr = get_data()  // arr is mutable
+arrays.append(arr, 4)  // OK - can modify directly
+
+const fixed = get_data()  // fixed is immutable
+arrays.append(fixed, 4)   // ERROR - cannot modify const
 ```
 
 ### 5.4 Scope
@@ -595,6 +609,26 @@ if true {
 }
 // x is 10 here
 ```
+
+### 5.5 Blank Identifier
+
+The blank identifier `_` can be used to discard values that are not needed. This is particularly useful with multiple return values:
+
+```ez
+// Discard the second return value
+temp value, _ = get_pair()
+
+// Discard multiple values
+const _, middle, _ = get_triple()
+
+// Common pattern: ignore error when you know it won't fail
+temp data, _ = json.encode(simple_value)
+```
+
+The blank identifier:
+- Cannot be read from (it discards the value)
+- Can be used multiple times in the same assignment
+- Works with both `temp` and `const` declarations
 
 ---
 
@@ -682,11 +716,13 @@ Logical AND and OR use short-circuit evaluation: the right operand is not evalua
 |----------|-------------|
 | `in` | Membership test |
 | `not_in` | Non-membership test |
+| `!in` | Non-membership test (shorthand for `not_in`) |
 
 ```ez
 if 3 in numbers { ... }
 if "key" not_in map { ... }
 if x in range(0, 10) { ... }
+if 10 !in range(0, 10) { ... }  // Shorthand for not_in
 ```
 
 #### 6.2.5 Assignment Operators
@@ -765,13 +801,19 @@ range_expr = "range" "(" start "," end [ "," step ] ")" .
 ```
 
 ```ez
-range(0, 10)      // 0, 1, 2, ..., 9
-range(0, 10, 2)   // 0, 2, 4, 6, 8
+range(0, 10)       // 0, 1, 2, ..., 9  (increment)
+range(0, 10, 2)    // 0, 2, 4, 6, 8    (increment)
+range(10, 0, -1)   // 10, 9, 8, ..., 1 (decrement)
+range(10, 0, -2)   // 10, 8, 6, 4, 2   (decrement)
 ```
 
 Ranges are inclusive of the start value and exclusive of the end value.
 
-The start must be less than the end. Descending ranges are not supported.
+**Step validation rules:**
+- Positive step (or omitted): start must be ≤ end
+- Negative step: start must be ≥ end (for backwards iteration)
+- Zero step: always produces an error (E9003)
+- Mismatched direction (e.g., `range(0, 10, -1)`) produces an error (E9005)
 
 ---
 
@@ -1228,10 +1270,32 @@ The core module provides fundamental I/O, type conversion, and utility functions
 | `typeof` | `(value) -> string` | Type name as string |
 | `copy` | `(value) -> T` | Create deep copy |
 | `new` | `(Type) -> Type` | Create zero-initialized instance |
+| `ref` | `(value) -> T` | Create reference to value |
 | `error` | `(message string) -> error` | Create error value |
 | `assert` | `(condition bool, message string)` | Assert condition is true |
 | `panic` | `(message string) -> nil` | Terminate with error message |
 | `exit` | `(code int) -> nil` | Exit program with code |
+
+**Reference behavior with `ref()`:**
+
+The `ref()` function creates a reference to an existing value. The mutability of the reference depends on the variable declaration:
+
+```ez
+temp arr [int] = {1, 2, 3}
+
+// temp ref is mutable - can modify through the reference
+temp r1 = ref(arr)
+arrays.append(r1, 4)  // OK - modifies arr
+
+// const ref is read-only - can read but not modify
+const r2 = ref(arr)
+temp val = r2[0]      // OK - can read
+arrays.append(r2, 5)  // ERROR - cannot modify through const ref
+
+// const ref sees changes made to the original
+arrays.append(arr, 6)
+println(r2[4])        // Prints 6 - r2 sees the change
+```
 
 #### Sleep Functions
 
@@ -1899,7 +1963,7 @@ EZ uses automatic memory management via the Go runtime's garbage collector. Prog
 
 ### 12.2 Value Semantics
 
-Primitive types (`int`, `float`, `string`, `bool`, `char`, `byte`) have value semantics. Assignment creates a copy:
+Primitive types (`int`, `uint`, `float`, `string`, `bool`, `char`, `byte`) have value semantics. Assignment creates a copy:
 
 ```ez
 temp a int = 42
@@ -1927,13 +1991,12 @@ The `new()` function creates a zero-initialized instance of a type:
 
 | Type | Zero Value |
 |------|------------|
-| `int` | `0` |
+| `int/uint` | `0` |
 | `float` | `0.0` |
 | `string` | `""` |
 | `bool` | `false` |
 | `char` | `'\0'` |
 | `byte` | `0` |
-| `[T]` | `{}` |
 | `map[K:V]` | `{}` |
 | struct | All fields zero-initialized |
 
@@ -2047,6 +2110,7 @@ block          = "{" { statement } "}" .
 | Version | Date | Changes |
 |---------|------|---------|
 | 1.0-draft | January 2026 | Initial draft |
+| 1.1-draft | January 31, 2026 | Added hex escapes, `!in` operator, blank identifier, `ref()` builtin, negative step `range()`, `temp` mutability; fixed compile-time → check-time terminology; added `uint` to primitive lists |
 
 ---
 
