@@ -249,15 +249,6 @@ func GetEvalContext() *EvalContext {
 	return globalEvalContext
 }
 
-// EvalWithContext evaluates a program with a given context
-func EvalWithContext(node ast.Node, env *Environment, ctx *EvalContext) Object {
-	oldCtx := globalEvalContext
-	globalEvalContext = ctx
-	result := Eval(node, env)
-	globalEvalContext = oldCtx
-	return result
-}
-
 // loadUserModule loads a user module from a file path and returns a ModuleObject
 func loadUserModule(importPath string, line, column int, env *Environment) (*ModuleObject, Object) {
 	if globalEvalContext == nil || globalEvalContext.Loader == nil {
