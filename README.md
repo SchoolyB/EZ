@@ -69,6 +69,7 @@ This will check for new versions, show the changelog, and prompt you to upgrade.
 ## Running Tests
 
 ```bash
+# Running intergration tests
 make intergration-tests
 
 # OR
