@@ -9,8 +9,8 @@
 </p>
 
 <p align="center">
-  <a href="https://schoolyb.github.io/EZ-Language-Webapp">Website</a> •
-  <a href="https://schoolyb.github.io/EZ-Language-Webapp/docs">Documentation</a>
+  <a href="https://schoolyb.github.io/EZ-Language-Webapp/playground/">Try EZ Online</a> •
+  <a href="https://schoolyb.github.io/EZ-Language-Webapp/docs">Learn About EZ</a>
 </p>
 
 <p align="center">
@@ -66,62 +66,13 @@ ez update
 
 This will check for new versions, show the changelog, and prompt you to upgrade. If EZ is installed in a system directory (like `/usr/local/bin`), it will automatically prompt for your password.
 
-### Upgrading from v0.17.1 or earlier
-
-If you're upgrading from **v0.17.1 or earlier**, you'll need to manually update once:
-
-**macOS/Linux:**
-```bash
-# macOS (Apple Silicon)
-curl -L https://github.com/SchoolyB/EZ/releases/latest/download/ez-darwin-arm64.tar.gz | tar xz
-sudo mv ez /usr/local/bin/ez
-
-# macOS (Intel)
-curl -L https://github.com/SchoolyB/EZ/releases/latest/download/ez-darwin-amd64.tar.gz | tar xz
-sudo mv ez /usr/local/bin/ez
-
-# Linux (x86_64)
-curl -L https://github.com/SchoolyB/EZ/releases/latest/download/ez-linux-amd64.tar.gz | tar xz
-sudo mv ez /usr/local/bin/ez
-
-# Linux (ARM64)
-curl -L https://github.com/SchoolyB/EZ/releases/latest/download/ez-linux-arm64.tar.gz | tar xz
-sudo mv ez /usr/local/bin/ez
-```
-
-**Windows (PowerShell as Administrator):**
-```powershell
-# Download and extract
-Invoke-WebRequest -Uri "https://github.com/SchoolyB/EZ/releases/latest/download/ez-windows-amd64.zip" -OutFile ez.zip
-Expand-Archive ez.zip -DestinationPath .
-Remove-Item ez.zip
-
-# Create install directory and move binary
-New-Item -ItemType Directory -Path "$env:ProgramFiles\ez" -Force
-Move-Item ez.exe "$env:ProgramFiles\ez\ez.exe" -Force
-
-# Add to PATH (if not already present)
-$path = [Environment]::GetEnvironmentVariable("Path", "Machine")
-if ($path -notlike "*$env:ProgramFiles\ez*") {
-    [Environment]::SetEnvironmentVariable("Path", "$path;$env:ProgramFiles\ez", "Machine")
-    Write-Host "Added to PATH - restart your terminal for changes to take effect"
-}
-```
-
-Alternatively, if building from source, you can use the install script:
-```powershell
-# Run as Administrator for system-wide install, or as regular user for user-local install
-.\install.ps1
-```
-
-After this one-time manual update, `ez update` will work automatically for all future versions.
-
----
-
 ## Running Tests
 
 ```bash
-# Run integration tests
+make intergration-tests
+
+# OR
+
 ./integration-tests/run_tests.sh
 
 # Run unit tests
@@ -162,3 +113,4 @@ Thank you to everyone who has contributed to EZ!
 <a href="https://github.com/madhav-murali"><img src="https://github.com/madhav-murali.png" width="50" height="50" alt="madhav-murali"/></a>
 <a href="https://github.com/preettrank53"><img src="https://github.com/preettrank53.png" width="50" height="50" alt="preettrank53"/></a>
 <a href="https://github.com/TechLateef"><img src="https://github.com/TechLateef.png" width="50" height="50" alt="TechLateef"/></a>
+<a href="https://github.com/dtee1"><img src="https://github.com/dtee1.png" width="50" height="50" alt="dtee1"/></a>
