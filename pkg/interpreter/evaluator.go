@@ -573,7 +573,11 @@ func Eval(node ast.Node, env *Environment) Object {
 		if len(elements) == 1 && isError(elements[0]) {
 			return elements[0]
 		}
-		return &Array{Elements: elements, Mutable: true}
+		elementType := ""
+		if len(elements) > 0 {
+			elementType = objectTypeToEZ(elements[0])
+		}
+		return &Array{Elements: elements, Mutable: true, ElementType: elementType}
 
 	case *ast.MapValue:
 		return evalMapLiteral(node, env)
