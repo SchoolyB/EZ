@@ -2751,45 +2751,147 @@ func elementsEqual(a, b Object) bool {
 }
 
 func evalPostfixExpression(node *ast.PostfixExpression, env *Environment) Object {
-	ident, ok := node.Left.(*ast.Label)
-	if !ok {
-		return newErrorWithLocation("E5015", node.Token.Line, node.Token.Column,
-			"postfix operator %s requires a variable identifier", node.Operator)
+	switch target := node.Left.(type) {
+	case *ast.Label:
+		val, ok := env.Get(target.Value)
+		if !ok {
+			return newErrorWithLocation("E4001", node.Token.Line, node.Token.Column,
+				"identifier not found: %s", target.Value)
+		}
+		intVal, ok := val.(*Integer)
+		if !ok {
+			return newErrorWithLocation("E5023", node.Token.Line, node.Token.Column,
+				"postfix operator %s requires integer operand, got %s", node.Operator, objectTypeToEZ(val))
+		}
+		newVal := applyPostfixOp(node.Operator, intVal, node.Token.Line, node.Token.Column)
+		if err, ok := newVal.(*Error); ok {
+			return err
+		}
+		env.Update(target.Value, newVal)
+		return intVal
+
+	case *ast.IndexExpression:
+		if ident, ok := target.Left.(*ast.Label); ok {
+			isMutable, exists := env.IsMutable(ident.Value)
+			if exists && !isMutable {
+				return newErrorWithLocation("E5006", node.Token.Line, node.Token.Column,
+					"cannot modify immutable variable '%s' (declared as const)", ident.Value)
+			}
+		}
+		container := Eval(target.Left, env)
+		if isError(container) {
+			return container
+		}
+		idx := Eval(target.Index, env)
+		if isError(idx) {
+			return idx
+		}
+		switch obj := container.(type) {
+		case *Array:
+			if !obj.Mutable {
+				return newErrorWithLocation("E5007", node.Token.Line, node.Token.Column,
+					"cannot modify immutable array (declared as const)")
+			}
+			index, ok := idx.(*Integer)
+			if !ok {
+				return newErrorWithLocation("E3003", node.Token.Line, node.Token.Column,
+					"array index must be integer, got %s", objectTypeToEZ(idx))
+			}
+			arrLen := int64(len(obj.Elements))
+			if index.Value.Sign() < 0 || index.Value.Int64() >= arrLen {
+				return newErrorWithLocation("E9001", node.Token.Line, node.Token.Column,
+					"index out of bounds: %s", index.Value.String())
+			}
+			intVal, ok := obj.Elements[index.Value.Int64()].(*Integer)
+			if !ok {
+				return newErrorWithLocation("E5023", node.Token.Line, node.Token.Column,
+					"postfix operator %s requires integer operand, got %s", node.Operator, objectTypeToEZ(obj.Elements[index.Value.Int64()]))
+			}
+			newVal := applyPostfixOp(node.Operator, intVal, node.Token.Line, node.Token.Column)
+			if err, ok := newVal.(*Error); ok {
+				return err
+			}
+			obj.Elements[index.Value.Int64()] = newVal
+			return intVal
+		case *Map:
+			if !obj.Mutable {
+				return newErrorWithLocation("E5007", node.Token.Line, node.Token.Column,
+					"cannot modify immutable map (declared as const)")
+			}
+			val, exists := obj.Get(idx)
+			if !exists {
+				return newErrorWithLocation("E12001", node.Token.Line, node.Token.Column,
+					"key not found in map")
+			}
+			intVal, ok := val.(*Integer)
+			if !ok {
+				return newErrorWithLocation("E5023", node.Token.Line, node.Token.Column,
+					"postfix operator %s requires integer operand, got %s", node.Operator, objectTypeToEZ(val))
+			}
+			newVal := applyPostfixOp(node.Operator, intVal, node.Token.Line, node.Token.Column)
+			if err, ok := newVal.(*Error); ok {
+				return err
+			}
+			obj.Set(idx, newVal)
+			return intVal
+		}
+
+	case *ast.MemberExpression:
+		obj := Eval(target.Object, env)
+		if isError(obj) {
+			return obj
+		}
+		structObj, ok := obj.(*Struct)
+		if !ok {
+			return newErrorWithLocation("E5015", node.Token.Line, node.Token.Column,
+				"postfix operator %s requires a variable identifier", node.Operator)
+		}
+		if !structObj.Mutable {
+			return newErrorWithLocation("E5017", node.Token.Line, node.Token.Column,
+				"cannot modify field of const struct")
+		}
+		fieldVal, ok := structObj.Fields[target.Member.Value]
+		if !ok {
+			return newErrorWithLocation("E4003", node.Token.Line, node.Token.Column,
+				"field '%s' not found", target.Member.Value)
+		}
+		intVal, ok := fieldVal.(*Integer)
+		if !ok {
+			return newErrorWithLocation("E5023", node.Token.Line, node.Token.Column,
+				"postfix operator %s requires integer operand, got %s", node.Operator, objectTypeToEZ(fieldVal))
+		}
+		newVal := applyPostfixOp(node.Operator, intVal, node.Token.Line, node.Token.Column)
+		if err, ok := newVal.(*Error); ok {
+			return err
+		}
+		structObj.Fields[target.Member.Value] = newVal
+		return intVal
 	}
 
-	val, ok := env.Get(ident.Value)
-	if !ok {
-		return newErrorWithLocation("E4001", node.Token.Line, node.Token.Column,
-			"identifier not found: %s", ident.Value)
-	}
+	return newErrorWithLocation("E5015", node.Token.Line, node.Token.Column,
+		"postfix operator %s requires a variable identifier", node.Operator)
+}
 
-	intVal, ok := val.(*Integer)
-	if !ok {
-		return newErrorWithLocation("E5023", node.Token.Line, node.Token.Column,
-			"postfix operator %s requires integer operand, got %s", node.Operator, objectTypeToEZ(val))
-	}
-
+func applyPostfixOp(op string, intVal *Integer, line, col int) Object {
 	var newVal *big.Int
-	switch node.Operator {
+	switch op {
 	case "++":
 		newVal = new(big.Int).Add(intVal.Value, one)
 		if checkOverflow(newVal, intVal.DeclaredType) {
-			return newErrorWithLocation("E5008", node.Token.Line, node.Token.Column,
+			return newErrorWithLocation("E5008", line, col,
 				"integer overflow: %s++ exceeds %s range", intVal.Value.String(), getTypeRangeName(intVal.DeclaredType))
 		}
 	case "--":
 		newVal = new(big.Int).Sub(intVal.Value, one)
 		if checkOverflow(newVal, intVal.DeclaredType) {
-			return newErrorWithLocation("E5009", node.Token.Line, node.Token.Column,
+			return newErrorWithLocation("E5009", line, col,
 				"integer overflow: %s-- exceeds %s range", intVal.Value.String(), getTypeRangeName(intVal.DeclaredType))
 		}
 	default:
-		return newErrorWithLocation("E3014", node.Token.Line, node.Token.Column,
-			"unknown postfix operator: %s", node.Operator)
+		return newErrorWithLocation("E3014", line, col,
+			"unknown postfix operator: %s", op)
 	}
-
-	env.Update(ident.Value, &Integer{Value: newVal, DeclaredType: intVal.DeclaredType})
-	return intVal // Return old value (postfix behavior)
+	return &Integer{Value: newVal, DeclaredType: intVal.DeclaredType}
 }
 
 func evalCallExpression(node *ast.CallExpression, env *Environment) Object {
