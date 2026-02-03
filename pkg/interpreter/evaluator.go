@@ -3259,7 +3259,7 @@ func createTypeMismatchError(val Object, expectedType string, line, col int) *Er
 	}
 
 	// Generic type mismatch
-	return newErrorWithLocation("E5012", line, col,
+	return newErrorWithLocation("E5024", line, col,
 		"return type mismatch: expected %s, got %s", expectedType, actualType)
 }
 
