@@ -193,6 +193,7 @@ var (
 	E5021 = ErrorCode{"E5021", "panic", "explicit panic called"}
 	E5022 = ErrorCode{"E5022", "assertion-failed", "assertion condition was false"}
 	E5023 = ErrorCode{"E5023", "postfix-requires-integer", "postfix operator needs integer operand"}
+	E5024 = ErrorCode{"E5024", "return-type-mismatch", "return type mismatch"}
 )
 
 // =============================================================================
@@ -464,7 +465,7 @@ var errorCodesByString = map[string]ErrorCode{
 	"E5006": E5006, "E5007": E5007, "E5008": E5008, "E5009": E5009, "E5010": E5010,
 	"E5011": E5011, "E5012": E5012, "E5013": E5013, "E5014": E5014, "E5015": E5015,
 	"E5016": E5016, "E5017": E5017, "E5018": E5018, "E5019": E5019, "E5020": E5020,
-	"E5021": E5021, "E5022": E5022, "E5023": E5023,
+	"E5021": E5021, "E5022": E5022, "E5023": E5023, "E5024": E5024,
 	// Import
 	"E6001": E6001, "E6002": E6002, "E6003": E6003, "E6004": E6004, "E6005": E6005,
 	"E6006": E6006, "E6007": E6007, "E6008": E6008, "E6009": E6009,
