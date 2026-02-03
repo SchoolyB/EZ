@@ -922,6 +922,11 @@ func runFile(filename string) {
 				fileTc.RegisterModuleFunction(modName, funcName, sig)
 			}
 		}
+		for modName, vars := range moduleVariables {
+			for varName, varType := range vars {
+				fileTc.RegisterModuleVariable(modName, varName, varType)
+			}
+		}
 
 		// For multi-file modules, register module-internal types/functions/variables (#722)
 		if pf.numFiles > 1 {
