@@ -6876,6 +6876,9 @@ func (tc *TypeChecker) isNumericType(typeName string) bool {
 		"float", "f32", "f64", "byte":
 		return true
 	default:
+		if t, exists := tc.types[typeName]; exists && t.Kind == EnumType {
+			return t.EnumBaseType == "int" || t.EnumBaseType == "float"
+		}
 		return false
 	}
 }
