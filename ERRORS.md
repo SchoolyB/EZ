@@ -194,6 +194,7 @@ General runtime errors
 | E5021 | panic | explicit panic called |
 | E5022 | assertion-failed | assertion condition was false |
 | E5023 | postfix-requires-integer | postfix operator needs integer operand |
+| E5024 | return-type-mismatch | return type mismatch |
 
 ## Import Errors (E6xxx)
 
@@ -422,4 +423,4 @@ Module-related warnings
 
 ## Summary
 
-**Total:** 265 error/warning codes
+**Total:** 266 error/warning codes
