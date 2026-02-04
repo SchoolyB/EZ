@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.4.9](https://github.com/SchoolyB/EZ/compare/v1.4.8...v1.4.9) (2026-02-04)
+
+
+### Bug Fixes
+
+* multiple bug fixes for type inference and expressions ([f3853dd](https://github.com/SchoolyB/EZ/commit/f3853dde73565115af45f3487ec76a88fcad80ae))
+* multiple bug fixes for type inference and expressions ([0817610](https://github.com/SchoolyB/EZ/commit/081761062e0f02498b38692ac4d98caf717ae7f6))
+
 ## [1.4.8](https://github.com/SchoolyB/EZ/compare/v1.4.7...v1.4.8) (2026-01-30)
 
 
