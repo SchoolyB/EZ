@@ -1006,13 +1006,12 @@ func runFile(filename string) {
 		Loader:      loader,
 		CurrentFile: absPath,
 	}
-	interpreter.SetEvalContext(ctx)
 
 	env := interpreter.NewEnvironment()
-	result := interpreter.Eval(program, env)
+	result := interpreter.Eval(program, env, ctx)
 
 	// Print any module loading warnings
-	if ctx := interpreter.GetEvalContext(); ctx != nil && ctx.Loader != nil {
+	if ctx.Loader != nil {
 		for _, warning := range ctx.Loader.GetWarnings() {
 			fmt.Print(errors.FormatError(warning))
 		}
@@ -1028,12 +1027,12 @@ func runFile(filename string) {
 	if mainFn, ok := env.Get("main"); ok {
 		if fn, ok := mainFn.(*interpreter.Function); ok {
 			fnEnv := interpreter.NewEnclosedEnvironment(env)
-			mainResult := interpreter.Eval(fn.Body, fnEnv)
+			mainResult := interpreter.Eval(fn.Body, fnEnv, ctx)
 
 			// Execute ensure statements before returning (LIFO order)
 			ensures := fnEnv.ExecuteEnsures()
 			for _, ensureCall := range ensures {
-				interpreter.Eval(ensureCall, fnEnv)
+				interpreter.Eval(ensureCall, fnEnv, ctx)
 				// Note: We ignore errors from ensure statements to ensure cleanup always runs
 			}
 			fnEnv.ClearEnsures()

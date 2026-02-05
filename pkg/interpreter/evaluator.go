@@ -144,16 +144,12 @@ var (
 // Call stack depth tracking for recursion limit
 const MAX_CALL_DEPTH = 10000
 
-var callDepth int
-
 // EvalContext holds context for evaluation including the module loader
 type EvalContext struct {
 	Loader      *ModuleLoader
 	CurrentFile string // Current file being evaluated (for relative imports)
+	CallDepth   int    // Current call stack depth (for recursion limit)
 }
-
-// Global eval context (set when running a program)
-var globalEvalContext *EvalContext
 
 // validModules lists all available standard library modules
 var validModules = map[string]bool{
@@ -239,27 +235,17 @@ func extractModuleName(path string) string {
 	return filepath.Base(filepath.Clean(path))
 }
 
-// SetEvalContext sets the global evaluation context
-func SetEvalContext(ctx *EvalContext) {
-	globalEvalContext = ctx
-}
-
-// GetEvalContext returns the global evaluation context
-func GetEvalContext() *EvalContext {
-	return globalEvalContext
-}
-
 // loadUserModule loads a user module from a file path and returns a ModuleObject
-func loadUserModule(importPath string, line, column int, env *Environment) (*ModuleObject, Object) {
-	if globalEvalContext == nil || globalEvalContext.Loader == nil {
+func loadUserModule(importPath string, line, column int, env *Environment, ctx *EvalContext) (*ModuleObject, Object) {
+	if ctx == nil || ctx.Loader == nil {
 		return nil, newErrorWithLocation("E6001", line, column, "module loader not initialized")
 	}
 
 	// Set the current file for relative path resolution
-	globalEvalContext.Loader.SetCurrentFile(globalEvalContext.CurrentFile)
+	ctx.Loader.SetCurrentFile(ctx.CurrentFile)
 
 	// Load the module (this handles parsing and caching)
-	mod, err := globalEvalContext.Loader.Load(importPath)
+	mod, err := ctx.Loader.Load(importPath)
 	if err != nil {
 		// Check if this is a ModuleError with rich parse errors
 		if modErr, ok := err.(*ModuleError); ok && modErr.EZErrors != nil && modErr.EZErrors.HasErrors() {
@@ -298,16 +284,16 @@ func loadUserModule(importPath string, line, column int, env *Environment) (*Mod
 	}
 
 	// Save the current file and set the module file as current
-	oldFile := globalEvalContext.CurrentFile
+	oldFile := ctx.CurrentFile
 	if len(mod.Files) > 0 {
-		globalEvalContext.CurrentFile = mod.Files[0]
+		ctx.CurrentFile = mod.Files[0]
 	}
 
 	// Evaluate the module's AST
-	result := Eval(mod.AST, moduleEnv)
+	result := Eval(mod.AST, moduleEnv, ctx)
 
 	// Restore the current file
-	globalEvalContext.CurrentFile = oldFile
+	ctx.CurrentFile = oldFile
 
 	if isError(result) {
 		return nil, result
@@ -327,15 +313,15 @@ func loadUserModule(importPath string, line, column int, env *Environment) (*Mod
 	return mod.ModuleObj, nil
 }
 
-func Eval(node ast.Node, env *Environment) Object {
+func Eval(node ast.Node, env *Environment, ctx *EvalContext) Object {
 	switch node := node.(type) {
 	// Program
 	case *ast.Program:
-		return evalProgram(node, env)
+		return evalProgram(node, env, ctx)
 
 	// Statements
 	case *ast.ExpressionStatement:
-		result := Eval(node.Expression, env)
+		result := Eval(node.Expression, env, ctx)
 		if isError(result) {
 			return result
 		}
@@ -357,37 +343,37 @@ func Eval(node ast.Node, env *Environment) Object {
 		return result
 
 	case *ast.VariableDeclaration:
-		return evalVariableDeclaration(node, env)
+		return evalVariableDeclaration(node, env, ctx)
 
 	case *ast.AssignmentStatement:
-		return evalAssignment(node, env)
+		return evalAssignment(node, env, ctx)
 
 	case *ast.ReturnStatement:
-		return evalReturn(node, env)
+		return evalReturn(node, env, ctx)
 
 	case *ast.EnsureStatement:
-		return evalEnsure(node, env)
+		return evalEnsure(node, env, ctx)
 
 	case *ast.BlockStatement:
-		return evalBlockStatement(node, env)
+		return evalBlockStatement(node, env, ctx)
 
 	case *ast.IfStatement:
-		return evalIfStatement(node, env)
+		return evalIfStatement(node, env, ctx)
 
 	case *ast.WhenStatement:
-		return evalWhenStatement(node, env)
+		return evalWhenStatement(node, env, ctx)
 
 	case *ast.WhileStatement:
-		return evalWhileStatement(node, env)
+		return evalWhileStatement(node, env, ctx)
 
 	case *ast.LoopStatement:
-		return evalLoopStatement(node, env)
+		return evalLoopStatement(node, env, ctx)
 
 	case *ast.ForStatement:
-		return evalForStatement(node, env)
+		return evalForStatement(node, env, ctx)
 
 	case *ast.ForEachStatement:
-		return evalForEachStatement(node, env)
+		return evalForEachStatement(node, env, ctx)
 
 	case *ast.BreakStatement:
 		if !env.InLoop() {
@@ -404,7 +390,7 @@ func Eval(node ast.Node, env *Environment) Object {
 		return &Continue{}
 
 	case *ast.FunctionDeclaration:
-		return evalFunctionDeclaration(node, env)
+		return evalFunctionDeclaration(node, env, ctx)
 
 	case *ast.StructDeclaration:
 		// Register the struct type definition with visibility
@@ -445,7 +431,7 @@ func Eval(node ast.Node, env *Environment) Object {
 		return NIL
 
 	case *ast.EnumDeclaration:
-		return evalEnumDeclaration(node, env)
+		return evalEnumDeclaration(node, env, ctx)
 
 	case *ast.ImportStatement:
 		// Register the imported module(s) with their aliases
@@ -482,7 +468,7 @@ func Eval(node ast.Node, env *Environment) Object {
 					}
 				} else if item.Path != "" {
 					// User module import - load the module
-					moduleObj, loadErr := loadUserModule(item.Path, node.Token.Line, node.Token.Column, env)
+					moduleObj, loadErr := loadUserModule(item.Path, node.Token.Line, node.Token.Column, env, ctx)
 					if loadErr != nil {
 						return loadErr
 					}
@@ -554,7 +540,7 @@ func Eval(node ast.Node, env *Environment) Object {
 		return &String{Value: node.Value, Mutable: true}
 
 	case *ast.InterpolatedString:
-		return evalInterpolatedString(node, env)
+		return evalInterpolatedString(node, env, ctx)
 
 	case *ast.CharValue:
 		return &Char{Value: node.Value}
@@ -569,7 +555,7 @@ func Eval(node ast.Node, env *Environment) Object {
 		return NIL
 
 	case *ast.ArrayValue:
-		elements := evalExpressions(node.Elements, env)
+		elements := evalExpressions(node.Elements, env, ctx)
 		if len(elements) == 1 && isError(elements[0]) {
 			return elements[0]
 		}
@@ -580,23 +566,23 @@ func Eval(node ast.Node, env *Environment) Object {
 		return &Array{Elements: elements, Mutable: true, ElementType: elementType}
 
 	case *ast.MapValue:
-		return evalMapLiteral(node, env)
+		return evalMapLiteral(node, env, ctx)
 
 	case *ast.StructValue:
-		return evalStructValue(node, env)
+		return evalStructValue(node, env, ctx)
 
 	case *ast.Label:
-		return evalIdentifier(node, env)
+		return evalIdentifier(node, env, ctx)
 
 	case *ast.PrefixExpression:
-		right := Eval(node.Right, env)
+		right := Eval(node.Right, env, ctx)
 		if isError(right) {
 			return right
 		}
 		return evalPrefixExpression(node.Operator, right)
 
 	case *ast.InfixExpression:
-		left := Eval(node.Left, env)
+		left := Eval(node.Left, env, ctx)
 		if isError(left) {
 			return left
 		}
@@ -606,7 +592,7 @@ func Eval(node ast.Node, env *Environment) Object {
 			if !isTruthy(left) {
 				return FALSE // Left is false, don't evaluate right
 			}
-			right := Eval(node.Right, env)
+			right := Eval(node.Right, env, ctx)
 			if isError(right) {
 				return right
 			}
@@ -616,31 +602,31 @@ func Eval(node ast.Node, env *Environment) Object {
 			if isTruthy(left) {
 				return TRUE // Left is true, don't evaluate right
 			}
-			right := Eval(node.Right, env)
+			right := Eval(node.Right, env, ctx)
 			if isError(right) {
 				return right
 			}
 			return nativeBoolToBooleanObject(isTruthy(right))
 		}
 
-		right := Eval(node.Right, env)
+		right := Eval(node.Right, env, ctx)
 		if isError(right) {
 			return right
 		}
 		return evalInfixExpression(node.Operator, left, right, node.Token.Line, node.Token.Column)
 
 	case *ast.PostfixExpression:
-		return evalPostfixExpression(node, env)
+		return evalPostfixExpression(node, env, ctx)
 
 	case *ast.CallExpression:
-		return evalCallExpression(node, env)
+		return evalCallExpression(node, env, ctx)
 
 	case *ast.IndexExpression:
-		left := Eval(node.Left, env)
+		left := Eval(node.Left, env, ctx)
 		if isError(left) {
 			return left
 		}
-		index := Eval(node.Index, env)
+		index := Eval(node.Index, env, ctx)
 		if isError(index) {
 			return index
 		}
@@ -738,28 +724,28 @@ func Eval(node ast.Node, env *Environment) Object {
 		}
 
 	case *ast.MemberExpression:
-		return evalMemberExpression(node, env)
+		return evalMemberExpression(node, env, ctx)
 
 	case *ast.NewExpression:
-		return evalNewExpression(node, env)
+		return evalNewExpression(node, env, ctx)
 
 	case *ast.RangeExpression:
-		return evalRangeExpression(node, env)
+		return evalRangeExpression(node, env, ctx)
 
 	case *ast.CastExpression:
-		return evalCastExpression(node, env)
+		return evalCastExpression(node, env, ctx)
 	}
 
 	return newError("unknown node type: %T", node)
 }
 
-func evalProgram(program *ast.Program, env *Environment) Object {
+func evalProgram(program *ast.Program, env *Environment, ctx *EvalContext) Object {
 	var result Object
 
 	// First, process import statements
 	for _, stmt := range program.Statements {
 		if importStmt, ok := stmt.(*ast.ImportStatement); ok {
-			result = Eval(importStmt, env)
+			result = Eval(importStmt, env, ctx)
 			if isError(result) {
 				return result
 			}
@@ -789,13 +775,13 @@ func evalProgram(program *ast.Program, env *Environment) Object {
 		}
 
 		// Update current file context for accurate error reporting in multi-file modules
-		if globalEvalContext != nil {
+		if ctx != nil {
 			if stmtFile := getStatementFile(stmt); stmtFile != "" {
-				globalEvalContext.CurrentFile = stmtFile
+				ctx.CurrentFile = stmtFile
 			}
 		}
 
-		result = Eval(stmt, env)
+		result = Eval(stmt, env, ctx)
 
 		switch result := result.(type) {
 		case *ReturnValue:
@@ -811,11 +797,11 @@ func evalProgram(program *ast.Program, env *Environment) Object {
 	return result
 }
 
-func evalBlockStatement(block *ast.BlockStatement, env *Environment) Object {
+func evalBlockStatement(block *ast.BlockStatement, env *Environment, ctx *EvalContext) Object {
 	var result Object
 
 	for _, stmt := range block.Statements {
-		result = Eval(stmt, env)
+		result = Eval(stmt, env, ctx)
 
 		if result != nil {
 			rt := result.Type()
@@ -828,11 +814,11 @@ func evalBlockStatement(block *ast.BlockStatement, env *Environment) Object {
 	return result
 }
 
-func evalVariableDeclaration(node *ast.VariableDeclaration, env *Environment) Object {
+func evalVariableDeclaration(node *ast.VariableDeclaration, env *Environment, ctx *EvalContext) Object {
 	var val Object = NIL
 
 	if node.Value != nil {
-		val = Eval(node.Value, env)
+		val = Eval(node.Value, env, ctx)
 		if isError(val) {
 			return val
 		}
@@ -1147,8 +1133,8 @@ func validateAndConvertType(val Object, typeName string, mutable bool, line, col
 	return val, nil
 }
 
-func evalAssignment(node *ast.AssignmentStatement, env *Environment) Object {
-	val := Eval(node.Value, env)
+func evalAssignment(node *ast.AssignmentStatement, env *Environment, ctx *EvalContext) Object {
+	val := Eval(node.Value, env, ctx)
 	if isError(val) {
 		return val
 	}
@@ -1312,11 +1298,11 @@ func evalAssignment(node *ast.AssignmentStatement, env *Environment) Object {
 			}
 		}
 
-		container := Eval(target.Left, env)
+		container := Eval(target.Left, env, ctx)
 		if isError(container) {
 			return container
 		}
-		idx := Eval(target.Index, env)
+		idx := Eval(target.Index, env, ctx)
 		if isError(idx) {
 			return idx
 		}
@@ -1478,7 +1464,7 @@ func evalAssignment(node *ast.AssignmentStatement, env *Environment) Object {
 		}
 
 		// Struct field assignment
-		obj := Eval(target.Object, env)
+		obj := Eval(target.Object, env, ctx)
 		if isError(obj) {
 			return obj
 		}
@@ -1496,7 +1482,7 @@ func evalAssignment(node *ast.AssignmentStatement, env *Environment) Object {
 		if !isMutableAccess {
 			// Check if struct is accessed via mutable container
 			// This needs to handle nested expressions like arr[1].inner.value (#859)
-			isMutableAccess = checkMutableContainerAccess(target.Object, env)
+			isMutableAccess = checkMutableContainerAccess(target.Object, env, ctx)
 		}
 		if !isMutableAccess {
 			return newErrorWithLocation("E5017", node.Token.Line, node.Token.Column,
@@ -1562,11 +1548,11 @@ func evalCompoundAssignment(op string, left, right Object, line, col int) Object
 // checkMutableContainerAccess recursively checks if an expression is accessed
 // via a mutable container (array or map). This handles nested expressions like
 // arr[1].inner.value where we need to check if arr is mutable. (#859)
-func checkMutableContainerAccess(expr ast.Expression, env *Environment) bool {
+func checkMutableContainerAccess(expr ast.Expression, env *Environment, ctx *EvalContext) bool {
 	switch e := expr.(type) {
 	case *ast.IndexExpression:
 		// Found an index expression - check if the container is mutable
-		container := Eval(e.Left, env)
+		container := Eval(e.Left, env, ctx)
 		if !isError(container) {
 			switch c := container.(type) {
 			case *Array:
@@ -1578,13 +1564,13 @@ func checkMutableContainerAccess(expr ast.Expression, env *Environment) bool {
 		return false
 	case *ast.MemberExpression:
 		// Keep traversing up through member expressions
-		return checkMutableContainerAccess(e.Object, env)
+		return checkMutableContainerAccess(e.Object, env, ctx)
 	default:
 		return false
 	}
 }
 
-func evalReturn(node *ast.ReturnStatement, env *Environment) Object {
+func evalReturn(node *ast.ReturnStatement, env *Environment, ctx *EvalContext) Object {
 	values := make([]Object, len(node.Values))
 	returnTypes := env.GetReturnTypes()
 
@@ -1596,7 +1582,7 @@ func evalReturn(node *ast.ReturnStatement, env *Environment) Object {
 		}
 
 		// Evaluate with expected type context
-		val := evalWithExpectedType(v, expectedType, env)
+		val := evalWithExpectedType(v, expectedType, env, ctx)
 		if isError(val) {
 			return val
 		}
@@ -1607,17 +1593,17 @@ func evalReturn(node *ast.ReturnStatement, env *Environment) Object {
 
 // evalWithExpectedType evaluates an expression with an expected type context
 // This allows literals to inherit the expected type from function signatures
-func evalWithExpectedType(expr ast.Expression, expectedType string, env *Environment) Object {
+func evalWithExpectedType(expr ast.Expression, expectedType string, env *Environment, ctx *EvalContext) Object {
 	// Handle array literals specially when we know the expected type
 	if arrLit, ok := expr.(*ast.ArrayValue); ok && expectedType != "" && len(expectedType) > 2 && expectedType[0] == '[' {
-		return evalArrayLiteralWithType(arrLit, expectedType, env)
+		return evalArrayLiteralWithType(arrLit, expectedType, env, ctx)
 	}
 
 	// For all other cases, use regular evaluation
-	return Eval(expr, env)
+	return Eval(expr, env, ctx)
 }
 
-func evalEnsure(node *ast.EnsureStatement, env *Environment) Object {
+func evalEnsure(node *ast.EnsureStatement, env *Environment, ctx *EvalContext) Object {
 	// Validate that it's a call expression
 	if callExpr, ok := node.Expression.(*ast.CallExpression); ok {
 		// Push the call expression onto the ensure stack
@@ -1629,8 +1615,8 @@ func evalEnsure(node *ast.EnsureStatement, env *Environment) Object {
 		"ensure expects a function call")
 }
 
-func evalIfStatement(node *ast.IfStatement, env *Environment) Object {
-	condition := Eval(node.Condition, env)
+func evalIfStatement(node *ast.IfStatement, env *Environment, ctx *EvalContext) Object {
+	condition := Eval(node.Condition, env, ctx)
 	if isError(condition) {
 		return condition
 	}
@@ -1638,19 +1624,19 @@ func evalIfStatement(node *ast.IfStatement, env *Environment) Object {
 	if isTruthy(condition) {
 		// Create a new enclosed environment for the if block to support proper variable shadowing
 		ifEnv := NewEnclosedEnvironment(env)
-		return Eval(node.Consequence, ifEnv)
+		return Eval(node.Consequence, ifEnv, ctx)
 	} else if node.Alternative != nil {
 		// Create a new enclosed environment for the else block to support proper variable shadowing
 		elseEnv := NewEnclosedEnvironment(env)
-		return Eval(node.Alternative, elseEnv)
+		return Eval(node.Alternative, elseEnv, ctx)
 	}
 
 	return NIL
 }
 
-func evalWhenStatement(node *ast.WhenStatement, env *Environment) Object {
+func evalWhenStatement(node *ast.WhenStatement, env *Environment, ctx *EvalContext) Object {
 	// Evaluate the value being matched
-	matchValue := Eval(node.Value, env)
+	matchValue := Eval(node.Value, env, ctx)
 	if isError(matchValue) {
 		return matchValue
 	}
@@ -1669,7 +1655,7 @@ func evalWhenStatement(node *ast.WhenStatement, env *Environment) Object {
 			// Check if this is a range expression
 			if rangeExpr, ok := caseValue.(*ast.RangeExpression); ok {
 				// Evaluate the range expression to get a Range object
-				rangeObj := evalRangeExpression(rangeExpr, env)
+				rangeObj := evalRangeExpression(rangeExpr, env, ctx)
 				if isError(rangeObj) {
 					return rangeObj
 				}
@@ -1687,7 +1673,7 @@ func evalWhenStatement(node *ast.WhenStatement, env *Environment) Object {
 			}
 
 			// Evaluate the case value
-			evalCaseValue := Eval(caseValue, env)
+			evalCaseValue := Eval(caseValue, env, ctx)
 			if isError(evalCaseValue) {
 				return evalCaseValue
 			}
@@ -1706,14 +1692,14 @@ func evalWhenStatement(node *ast.WhenStatement, env *Environment) Object {
 
 		if matched {
 			caseEnv := NewEnclosedEnvironment(env)
-			return Eval(whenCase.Body, caseEnv)
+			return Eval(whenCase.Body, caseEnv, ctx)
 		}
 	}
 
 	// No case matched, execute default if present
 	if node.Default != nil {
 		defaultEnv := NewEnclosedEnvironment(env)
-		return Eval(node.Default, defaultEnv)
+		return Eval(node.Default, defaultEnv, ctx)
 	}
 
 	return NIL
@@ -1746,12 +1732,12 @@ func objectsEqual(a, b Object) bool {
 	return false
 }
 
-func evalWhileStatement(node *ast.WhileStatement, env *Environment) Object {
+func evalWhileStatement(node *ast.WhileStatement, env *Environment, ctx *EvalContext) Object {
 	env.EnterLoop()
 	defer env.ExitLoop()
 
 	for {
-		condition := Eval(node.Condition, env)
+		condition := Eval(node.Condition, env, ctx)
 		if isError(condition) {
 			return condition
 		}
@@ -1762,7 +1748,7 @@ func evalWhileStatement(node *ast.WhileStatement, env *Environment) Object {
 
 		// Create a new enclosed environment for each iteration to support proper variable shadowing
 		whileEnv := NewEnclosedEnvironment(env)
-		result := Eval(node.Body, whileEnv)
+		result := Eval(node.Body, whileEnv, ctx)
 		if result != nil {
 			if result.Type() == RETURN_VALUE_OBJ || result.Type() == ERROR_OBJ {
 				return result
@@ -1777,14 +1763,14 @@ func evalWhileStatement(node *ast.WhileStatement, env *Environment) Object {
 	return NIL
 }
 
-func evalLoopStatement(node *ast.LoopStatement, env *Environment) Object {
+func evalLoopStatement(node *ast.LoopStatement, env *Environment, ctx *EvalContext) Object {
 	env.EnterLoop()
 	defer env.ExitLoop()
 
 	for {
 		// Create a new enclosed environment for each iteration to support proper variable shadowing
 		loopEnv := NewEnclosedEnvironment(env)
-		result := Eval(node.Body, loopEnv)
+		result := Eval(node.Body, loopEnv, ctx)
 		if result != nil {
 			if result.Type() == RETURN_VALUE_OBJ || result.Type() == ERROR_OBJ {
 				return result
@@ -1798,13 +1784,13 @@ func evalLoopStatement(node *ast.LoopStatement, env *Environment) Object {
 	return NIL
 }
 
-func evalRangeExpression(node *ast.RangeExpression, env *Environment) Object {
+func evalRangeExpression(node *ast.RangeExpression, env *Environment, ctx *EvalContext) Object {
 	line, col := node.Token.Line, node.Token.Column
 
 	// Handle start - defaults to 0 if nil (single-argument form)
 	start := big.NewInt(0)
 	if node.Start != nil {
-		startObj := Eval(node.Start, env)
+		startObj := Eval(node.Start, env, ctx)
 		if isError(startObj) {
 			return startObj
 		}
@@ -1817,7 +1803,7 @@ func evalRangeExpression(node *ast.RangeExpression, env *Environment) Object {
 	}
 
 	// Handle end
-	endObj := Eval(node.End, env)
+	endObj := Eval(node.End, env, ctx)
 	if isError(endObj) {
 		return endObj
 	}
@@ -1831,7 +1817,7 @@ func evalRangeExpression(node *ast.RangeExpression, env *Environment) Object {
 	// Handle step - defaults to 1
 	step := big.NewInt(1)
 	if node.Step != nil {
-		stepObj := Eval(node.Step, env)
+		stepObj := Eval(node.Step, env, ctx)
 		if isError(stepObj) {
 			return stepObj
 		}
@@ -1863,26 +1849,26 @@ func evalRangeExpression(node *ast.RangeExpression, env *Environment) Object {
 }
 
 // evalCastExpression evaluates cast(value, type) expressions for type conversion
-func evalCastExpression(node *ast.CastExpression, env *Environment) Object {
+func evalCastExpression(node *ast.CastExpression, env *Environment, ctx *EvalContext) Object {
 	line, col := node.Token.Line, node.Token.Column
 
 	// Evaluate the value expression
-	value := Eval(node.Value, env)
+	value := Eval(node.Value, env, ctx)
 	if isError(value) {
 		return value
 	}
 
 	if node.IsArray {
 		// Array cast: convert each element
-		return evalArrayCast(value, node.ElementType, line, col)
+		return evalArrayCast(value, node.ElementType, line, col, ctx)
 	}
 
 	// Single value cast
-	return evalSingleCast(value, node.TargetType, line, col)
+	return evalSingleCast(value, node.TargetType, line, col, ctx)
 }
 
 // evalArrayCast converts an array to a new array with elements of the target type
-func evalArrayCast(value Object, elementType string, line, col int) Object {
+func evalArrayCast(value Object, elementType string, line, col int, ctx *EvalContext) Object {
 	arr, ok := value.(*Array)
 	if !ok {
 		return newErrorWithLocation("E3001", line, col,
@@ -1891,7 +1877,7 @@ func evalArrayCast(value Object, elementType string, line, col int) Object {
 
 	newElements := make([]Object, len(arr.Elements))
 	for i, elem := range arr.Elements {
-		converted := evalSingleCast(elem, elementType, line, col)
+		converted := evalSingleCast(elem, elementType, line, col, ctx)
 		if isError(converted) {
 			// Add index info to the error
 			errObj := converted.(*Error)
@@ -1909,7 +1895,7 @@ func evalArrayCast(value Object, elementType string, line, col int) Object {
 }
 
 // evalSingleCast converts a single value to the target type
-func evalSingleCast(value Object, targetType string, line, col int) Object {
+func evalSingleCast(value Object, targetType string, line, col int, ctx *EvalContext) Object {
 	// Get the appropriate builtin conversion function
 	builtin, ok := builtins[targetType]
 	if !ok {
@@ -1924,14 +1910,14 @@ func evalSingleCast(value Object, targetType string, line, col int) Object {
 			errObj.Column = col
 		}
 		// Set file from current context if not already set (#1094)
-		if errObj.File == "" && globalEvalContext != nil {
-			errObj.File = globalEvalContext.CurrentFile
+		if errObj.File == "" && ctx != nil {
+			errObj.File = ctx.CurrentFile
 		}
 	}
 	return result
 }
 
-func evalForStatement(node *ast.ForStatement, env *Environment) Object {
+func evalForStatement(node *ast.ForStatement, env *Environment, ctx *EvalContext) Object {
 	env.EnterLoop()
 	defer env.ExitLoop()
 
@@ -1950,7 +1936,7 @@ func evalForStatement(node *ast.ForStatement, env *Environment) Object {
 	// Handle start - defaults to 0 if nil (single-argument form)
 	start := big.NewInt(0)
 	if rangeExpr.Start != nil {
-		startObj := Eval(rangeExpr.Start, env)
+		startObj := Eval(rangeExpr.Start, env, ctx)
 		if isError(startObj) {
 			return startObj
 		}
@@ -1963,7 +1949,7 @@ func evalForStatement(node *ast.ForStatement, env *Environment) Object {
 	}
 
 	// Handle end
-	endObj := Eval(rangeExpr.End, env)
+	endObj := Eval(rangeExpr.End, env, ctx)
 	if isError(endObj) {
 		return endObj
 	}
@@ -1977,7 +1963,7 @@ func evalForStatement(node *ast.ForStatement, env *Environment) Object {
 	// Handle step - defaults to 1
 	step := big.NewInt(1)
 	if rangeExpr.Step != nil {
-		stepObj := Eval(rangeExpr.Step, env)
+		stepObj := Eval(rangeExpr.Step, env, ctx)
 		if isError(stepObj) {
 			return stepObj
 		}
@@ -2012,7 +1998,7 @@ func evalForStatement(node *ast.ForStatement, env *Environment) Object {
 		for i := new(big.Int).Set(start); i.Cmp(end) < 0; i.Add(i, step) {
 			loopEnv.Set(node.Variable.Value, &Integer{Value: new(big.Int).Set(i)}, true)
 
-			result := Eval(node.Body, loopEnv)
+			result := Eval(node.Body, loopEnv, ctx)
 			if result != nil {
 				if result.Type() == RETURN_VALUE_OBJ || result.Type() == ERROR_OBJ {
 					return result
@@ -2027,7 +2013,7 @@ func evalForStatement(node *ast.ForStatement, env *Environment) Object {
 		for i := new(big.Int).Set(start); i.Cmp(end) > 0; i.Add(i, step) {
 			loopEnv.Set(node.Variable.Value, &Integer{Value: new(big.Int).Set(i)}, true)
 
-			result := Eval(node.Body, loopEnv)
+			result := Eval(node.Body, loopEnv, ctx)
 			if result != nil {
 				if result.Type() == RETURN_VALUE_OBJ || result.Type() == ERROR_OBJ {
 					return result
@@ -2042,11 +2028,11 @@ func evalForStatement(node *ast.ForStatement, env *Environment) Object {
 	return NIL
 }
 
-func evalForEachStatement(node *ast.ForEachStatement, env *Environment) Object {
+func evalForEachStatement(node *ast.ForEachStatement, env *Environment, ctx *EvalContext) Object {
 	env.EnterLoop()
 	defer env.ExitLoop()
 
-	collection := Eval(node.Collection, env)
+	collection := Eval(node.Collection, env, ctx)
 	if isError(collection) {
 		return collection
 	}
@@ -2061,7 +2047,7 @@ func evalForEachStatement(node *ast.ForEachStatement, env *Environment) Object {
 		for _, elem := range arr.Elements {
 			loopEnv.Set(node.Variable.Value, elem, true) // loop vars are mutable
 
-			result := Eval(node.Body, loopEnv)
+			result := Eval(node.Body, loopEnv, ctx)
 			if result != nil {
 				if result.Type() == RETURN_VALUE_OBJ || result.Type() == ERROR_OBJ {
 					return result
@@ -2080,7 +2066,7 @@ func evalForEachStatement(node *ast.ForEachStatement, env *Environment) Object {
 			charObj := &Char{Value: ch}
 			loopEnv.Set(node.Variable.Value, charObj, true) // loop vars are mutable
 
-			result := Eval(node.Body, loopEnv)
+			result := Eval(node.Body, loopEnv, ctx)
 			if result != nil {
 				if result.Type() == RETURN_VALUE_OBJ || result.Type() == ERROR_OBJ {
 					return result
@@ -2097,7 +2083,7 @@ func evalForEachStatement(node *ast.ForEachStatement, env *Environment) Object {
 		"for_each requires array or string, got %s", objectTypeToEZ(collection))
 }
 
-func evalEnumDeclaration(node *ast.EnumDeclaration, env *Environment) Object {
+func evalEnumDeclaration(node *ast.EnumDeclaration, env *Environment, ctx *EvalContext) Object {
 	enum := &Enum{
 		Name:   node.Name.Value,
 		Values: make(map[string]Object),
@@ -2120,7 +2106,7 @@ func evalEnumDeclaration(node *ast.EnumDeclaration, env *Environment) Object {
 	for i, enumVal := range node.Values {
 		if enumVal.Value != nil {
 			// Explicit value assignment
-			val := Eval(enumVal.Value, env)
+			val := Eval(enumVal.Value, env, ctx)
 			if isError(val) {
 				return val
 			}
@@ -2178,11 +2164,11 @@ func evalEnumDeclaration(node *ast.EnumDeclaration, env *Environment) Object {
 	return NIL
 }
 
-func evalFunctionDeclaration(node *ast.FunctionDeclaration, env *Environment) Object {
+func evalFunctionDeclaration(node *ast.FunctionDeclaration, env *Environment, ctx *EvalContext) Object {
 	// Get file from token (set by parser for multi-file modules) or from context
 	file := node.Token.File
-	if file == "" && globalEvalContext != nil {
-		file = globalEvalContext.CurrentFile
+	if file == "" && ctx != nil {
+		file = ctx.CurrentFile
 	}
 	fn := &Function{
 		Parameters:  node.Parameters,
@@ -2196,7 +2182,7 @@ func evalFunctionDeclaration(node *ast.FunctionDeclaration, env *Environment) Ob
 	return NIL
 }
 
-func evalIdentifier(node *ast.Label, env *Environment) Object {
+func evalIdentifier(node *ast.Label, env *Environment, ctx *EvalContext) Object {
 	if val, ok := env.Get(node.Value); ok {
 		// If the value is a Reference (for & params or ref() builtin), dereference it
 		if ref, isRef := val.(*Reference); isRef {
@@ -2290,11 +2276,11 @@ func evalIdentifier(node *ast.Label, env *Environment) Object {
 	return err
 }
 
-func evalExpressions(exps []ast.Expression, env *Environment) []Object {
+func evalExpressions(exps []ast.Expression, env *Environment, ctx *EvalContext) []Object {
 	var result []Object
 
 	for _, e := range exps {
-		evaluated := Eval(e, env)
+		evaluated := Eval(e, env, ctx)
 		if isError(evaluated) {
 			return []Object{evaluated}
 		}
@@ -2750,7 +2736,7 @@ func elementsEqual(a, b Object) bool {
 	return a == b
 }
 
-func evalPostfixExpression(node *ast.PostfixExpression, env *Environment) Object {
+func evalPostfixExpression(node *ast.PostfixExpression, env *Environment, ctx *EvalContext) Object {
 	switch target := node.Left.(type) {
 	case *ast.Label:
 		val, ok := env.Get(target.Value)
@@ -2778,11 +2764,11 @@ func evalPostfixExpression(node *ast.PostfixExpression, env *Environment) Object
 					"cannot modify immutable variable '%s' (declared as const)", ident.Value)
 			}
 		}
-		container := Eval(target.Left, env)
+		container := Eval(target.Left, env, ctx)
 		if isError(container) {
 			return container
 		}
-		idx := Eval(target.Index, env)
+		idx := Eval(target.Index, env, ctx)
 		if isError(idx) {
 			return idx
 		}
@@ -2837,7 +2823,7 @@ func evalPostfixExpression(node *ast.PostfixExpression, env *Environment) Object
 		}
 
 	case *ast.MemberExpression:
-		obj := Eval(target.Object, env)
+		obj := Eval(target.Object, env, ctx)
 		if isError(obj) {
 			return obj
 		}
@@ -2894,10 +2880,10 @@ func applyPostfixOp(op string, intVal *Integer, line, col int) Object {
 	return &Integer{Value: newVal, DeclaredType: intVal.DeclaredType}
 }
 
-func evalCallExpression(node *ast.CallExpression, env *Environment) Object {
+func evalCallExpression(node *ast.CallExpression, env *Environment, ctx *EvalContext) Object {
 	// Handle member calls like std.println
 	if member, ok := node.Function.(*ast.MemberExpression); ok {
-		return evalMemberCall(member, node.Arguments, env)
+		return evalMemberCall(member, node.Arguments, env, ctx)
 	}
 
 	// Special handling for ref() builtin - needs access to environment (#661)
@@ -2905,7 +2891,7 @@ func evalCallExpression(node *ast.CallExpression, env *Environment) Object {
 		return evalRefBuiltin(node.Arguments, env, node.Token.Line, node.Token.Column)
 	}
 
-	function := Eval(node.Function, env)
+	function := Eval(node.Function, env, ctx)
 	if isError(function) {
 		// Check if this is an "identifier not found" error and make it more specific
 		if errObj, ok := function.(*Error); ok {
@@ -2922,20 +2908,20 @@ func evalCallExpression(node *ast.CallExpression, env *Environment) Object {
 
 	// For user-defined functions with mutable (&) params, handle references specially
 	if fn, ok := function.(*Function); ok {
-		args := evalArgsWithReferences(node.Arguments, fn.Parameters, env)
+		args := evalArgsWithReferences(node.Arguments, fn.Parameters, env, ctx)
 		if len(args) == 1 && isError(args[0]) {
 			return args[0]
 		}
-		return applyFunction(function, args, node.Token.Line, node.Token.Column)
+		return applyFunction(function, args, node.Token.Line, node.Token.Column, ctx)
 	}
 
 	// For builtins and other callables, evaluate arguments normally
-	args := evalExpressions(node.Arguments, env)
+	args := evalExpressions(node.Arguments, env, ctx)
 	if len(args) == 1 && isError(args[0]) {
 		return args[0]
 	}
 
-	return applyFunction(function, args, node.Token.Line, node.Token.Column)
+	return applyFunction(function, args, node.Token.Line, node.Token.Column, ctx)
 }
 
 // evalRefBuiltin handles the ref() builtin which creates a reference to a variable (#661)
@@ -2963,7 +2949,7 @@ func evalRefBuiltin(args []ast.Expression, env *Environment, line, column int) O
 }
 
 // evalArgsWithReferences evaluates arguments, creating References for mutable (&) params
-func evalArgsWithReferences(argExprs []ast.Expression, params []*ast.Parameter, env *Environment) []Object {
+func evalArgsWithReferences(argExprs []ast.Expression, params []*ast.Parameter, env *Environment, ctx *EvalContext) []Object {
 	args := make([]Object, len(argExprs))
 
 	for i, argExpr := range argExprs {
@@ -2977,11 +2963,11 @@ func evalArgsWithReferences(argExprs []ast.Expression, params []*ast.Parameter, 
 
 			// Indexed expression (arr[i], map[k])
 			if indexExpr, ok := argExpr.(*ast.IndexExpression); ok {
-				container := Eval(indexExpr.Left, env)
+				container := Eval(indexExpr.Left, env, ctx)
 				if isError(container) {
 					return []Object{container}
 				}
-				index := Eval(indexExpr.Index, env)
+				index := Eval(indexExpr.Index, env, ctx)
 				if isError(index) {
 					return []Object{index}
 				}
@@ -3002,7 +2988,7 @@ func evalArgsWithReferences(argExprs []ast.Expression, params []*ast.Parameter, 
 
 			// Member expression (s.field)
 			if memberExpr, ok := argExpr.(*ast.MemberExpression); ok {
-				container := Eval(memberExpr.Object, env)
+				container := Eval(memberExpr.Object, env, ctx)
 				if isError(container) {
 					return []Object{container}
 				}
@@ -3023,7 +3009,7 @@ func evalArgsWithReferences(argExprs []ast.Expression, params []*ast.Parameter, 
 		}
 
 		// Otherwise, evaluate normally
-		evaluated := Eval(argExpr, env)
+		evaluated := Eval(argExpr, env, ctx)
 		if isError(evaluated) {
 			return []Object{evaluated}
 		}
@@ -3033,7 +3019,7 @@ func evalArgsWithReferences(argExprs []ast.Expression, params []*ast.Parameter, 
 	return args
 }
 
-func evalMemberCall(member *ast.MemberExpression, args []ast.Expression, env *Environment) Object {
+func evalMemberCall(member *ast.MemberExpression, args []ast.Expression, env *Environment, ctx *EvalContext) Object {
 	objIdent, ok := member.Object.(*ast.Label)
 	if !ok {
 		return newErrorWithLocation("E3015", member.Token.Line, member.Token.Column,
@@ -3047,12 +3033,12 @@ func evalMemberCall(member *ast.MemberExpression, args []ast.Expression, env *En
 		memberName := member.Member.Value
 		if fn, ok := moduleObj.Get(memberName); ok {
 			// Evaluate arguments
-			evalArgs := evalExpressions(args, env)
+			evalArgs := evalExpressions(args, env, ctx)
 			if len(evalArgs) == 1 && isError(evalArgs[0]) {
 				return evalArgs[0]
 			}
 			// Apply the function
-			return applyFunction(fn, evalArgs, member.Token.Line, member.Token.Column)
+			return applyFunction(fn, evalArgs, member.Token.Line, member.Token.Column, ctx)
 		}
 		return newErrorWithLocation("E4006", member.Token.Line, member.Token.Column,
 			"'%s' not found in module '%s'", memberName, alias)
@@ -3069,7 +3055,7 @@ func evalMemberCall(member *ast.MemberExpression, args []ast.Expression, env *En
 	fullName := moduleName + "." + member.Member.Value
 
 	if builtin, ok := builtins[fullName]; ok {
-		evalArgs := evalExpressions(args, env)
+		evalArgs := evalExpressions(args, env, ctx)
 		if len(evalArgs) == 1 && isError(evalArgs[0]) {
 			return evalArgs[0]
 		}
@@ -3081,8 +3067,8 @@ func evalMemberCall(member *ast.MemberExpression, args []ast.Expression, env *En
 				errObj.Column = member.Token.Column
 			}
 			// Set file from current context if not already set (#1094)
-			if errObj.File == "" && globalEvalContext != nil {
-				errObj.File = globalEvalContext.CurrentFile
+			if errObj.File == "" && ctx != nil {
+				errObj.File = ctx.CurrentFile
 			}
 		}
 		return result
@@ -3108,15 +3094,17 @@ func evalMemberCall(member *ast.MemberExpression, args []ast.Expression, env *En
 		"function not found: %s", fullName)
 }
 
-func applyFunction(fn Object, args []Object, line, col int) Object {
-	// Check recursion depth limit
-	callDepth++
-	if callDepth > MAX_CALL_DEPTH {
-		callDepth = 0 // Reset for future use
-		return newErrorWithLocation("E5018", line, col,
-			"maximum recursion depth exceeded (limit: %d)", MAX_CALL_DEPTH)
+func applyFunction(fn Object, args []Object, line, col int, ctx *EvalContext) Object {
+	// Check recursion depth limit using context
+	if ctx != nil {
+		ctx.CallDepth++
+		if ctx.CallDepth > MAX_CALL_DEPTH {
+			ctx.CallDepth = 0 // Reset for future use
+			return newErrorWithLocation("E5018", line, col,
+				"maximum recursion depth exceeded (limit: %d)", MAX_CALL_DEPTH)
+		}
+		defer func() { ctx.CallDepth-- }()
 	}
-	defer func() { callDepth-- }()
 
 	switch fn := fn.(type) {
 	case *Function:
@@ -3159,28 +3147,28 @@ func applyFunction(fn Object, args []Object, line, col int) Object {
 			}
 		}
 
-		extendedEnv := extendFunctionEnv(fn, args)
+		extendedEnv := extendFunctionEnv(fn, args, ctx)
 
 		// Save current file and set function's file as current for error reporting
 		var oldFile string
-		if globalEvalContext != nil && fn.File != "" {
-			oldFile = globalEvalContext.CurrentFile
-			globalEvalContext.CurrentFile = fn.File
+		if ctx != nil && fn.File != "" {
+			oldFile = ctx.CurrentFile
+			ctx.CurrentFile = fn.File
 		}
 
-		evaluated := Eval(fn.Body, extendedEnv)
+		evaluated := Eval(fn.Body, extendedEnv, ctx)
 
 		// Execute ensure statements before returning (LIFO order)
 		ensures := extendedEnv.ExecuteEnsures()
 		for _, ensureCall := range ensures {
-			Eval(ensureCall, extendedEnv)
+			Eval(ensureCall, extendedEnv, ctx)
 			// Note: We ignore errors from ensure statements to ensure cleanup always runs
 		}
 		extendedEnv.ClearEnsures()
 
 		// Restore current file
-		if globalEvalContext != nil && fn.File != "" {
-			globalEvalContext.CurrentFile = oldFile
+		if ctx != nil && fn.File != "" {
+			ctx.CurrentFile = oldFile
 		}
 
 		result := unwrapReturnValue(evaluated)
@@ -3202,8 +3190,8 @@ func applyFunction(fn Object, args []Object, line, col int) Object {
 				errObj.Column = col
 			}
 			// Set file from current context if not already set (#1094)
-			if errObj.File == "" && globalEvalContext != nil {
-				errObj.File = globalEvalContext.CurrentFile
+			if errObj.File == "" && ctx != nil {
+				errObj.File = ctx.CurrentFile
 			}
 		}
 		return result
@@ -3482,7 +3470,7 @@ func objectTypeToEZ(obj Object) string {
 	}
 }
 
-func extendFunctionEnv(fn *Function, args []Object) *Environment {
+func extendFunctionEnv(fn *Function, args []Object, ctx *EvalContext) *Environment {
 	env := NewEnclosedEnvironment(fn.Env)
 
 	// Set expected return types for this function's scope
@@ -3495,7 +3483,7 @@ func extendFunctionEnv(fn *Function, args []Object) *Environment {
 			value = args[i]
 		} else if param.DefaultValue != nil {
 			// Evaluate default value in the function's closure environment
-			value = Eval(param.DefaultValue, fn.Env)
+			value = Eval(param.DefaultValue, fn.Env, ctx)
 		}
 		if value != nil {
 			// Use parameter's Mutable field: & params are mutable, non-& params are immutable
@@ -3521,11 +3509,11 @@ func unwrapReturnValue(obj Object) Object {
 	return obj
 }
 
-func evalMapLiteral(node *ast.MapValue, env *Environment) Object {
+func evalMapLiteral(node *ast.MapValue, env *Environment, ctx *EvalContext) Object {
 	mapObj := NewMap()
 
 	for _, pair := range node.Pairs {
-		key := Eval(pair.Key, env)
+		key := Eval(pair.Key, env, ctx)
 		if isError(key) {
 			return key
 		}
@@ -3536,7 +3524,7 @@ func evalMapLiteral(node *ast.MapValue, env *Environment) Object {
 				"unusable as map key: %s", objectTypeToEZ(key))
 		}
 
-		value := Eval(pair.Value, env)
+		value := Eval(pair.Value, env, ctx)
 		if isError(value) {
 			return value
 		}
@@ -3547,12 +3535,12 @@ func evalMapLiteral(node *ast.MapValue, env *Environment) Object {
 	return mapObj
 }
 
-func evalInterpolatedString(node *ast.InterpolatedString, env *Environment) Object {
+func evalInterpolatedString(node *ast.InterpolatedString, env *Environment, ctx *EvalContext) Object {
 	var result strings.Builder
 
 	for _, part := range node.Parts {
 		// Evaluate the part
-		val := Eval(part, env)
+		val := Eval(part, env, ctx)
 		if isError(val) {
 			return val
 		}
@@ -3572,14 +3560,14 @@ func evalInterpolatedString(node *ast.InterpolatedString, env *Environment) Obje
 
 // evalArrayLiteralWithType evaluates an array literal with a known expected type
 // This allows the array to inherit the correct element type from function return signatures
-func evalArrayLiteralWithType(node *ast.ArrayValue, expectedType string, env *Environment) Object {
+func evalArrayLiteralWithType(node *ast.ArrayValue, expectedType string, env *Environment, ctx *EvalContext) Object {
 	// Extract element type from array type (e.g., "[u64]" -> "u64", "[int,5]" -> "int")
 	elementType := extractElementType(expectedType)
 
 	// Evaluate all elements
 	elements := make([]Object, 0, len(node.Elements))
 	for _, elemExpr := range node.Elements {
-		elem := Eval(elemExpr, env)
+		elem := Eval(elemExpr, env, ctx)
 		if isError(elem) {
 			return elem
 		}
@@ -3635,7 +3623,7 @@ func validateElementType(elem Object, expectedType string, line, col int) *Error
 	return nil
 }
 
-func evalStructValue(node *ast.StructValue, env *Environment) Object {
+func evalStructValue(node *ast.StructValue, env *Environment, ctx *EvalContext) Object {
 	typeName := node.Name.Value
 	var structDef *StructDef
 	var sourceModule *ModuleObject // Track source module for nested struct lookup
@@ -3705,7 +3693,7 @@ func evalStructValue(node *ast.StructValue, env *Environment) Object {
 
 	// Override with explicitly provided field values
 	for fieldName, fieldExpr := range node.Fields {
-		val := Eval(fieldExpr, env)
+		val := Eval(fieldExpr, env, ctx)
 		if isError(val) {
 			return val
 		}
@@ -3733,7 +3721,7 @@ func evalStructValue(node *ast.StructValue, env *Environment) Object {
 	}
 }
 
-func evalNewExpression(node *ast.NewExpression, env *Environment) Object {
+func evalNewExpression(node *ast.NewExpression, env *Environment, ctx *EvalContext) Object {
 	typeName := node.TypeName.Value
 	var structDef *StructDef
 	var sourceModule *ModuleObject // Track source module for nested struct lookup
@@ -3892,7 +3880,7 @@ func getDefaultValueInternal(typeName string, env *Environment, sourceModule *Mo
 	}
 }
 
-func evalMemberExpression(node *ast.MemberExpression, env *Environment) Object {
+func evalMemberExpression(node *ast.MemberExpression, env *Environment, ctx *EvalContext) Object {
 	// Check if this is a module member access
 	if objIdent, ok := node.Object.(*ast.Label); ok {
 		alias := objIdent.Value
@@ -3918,7 +3906,7 @@ func evalMemberExpression(node *ast.MemberExpression, env *Environment) Object {
 		}
 	}
 
-	obj := Eval(node.Object, env)
+	obj := Eval(node.Object, env, ctx)
 	if isError(obj) {
 		return obj
 	}
@@ -4167,15 +4155,10 @@ func getStatementFile(stmt ast.Statement) string {
 
 // newErrorWithLocation creates an error with line/column info
 func newErrorWithLocation(code string, line, column int, format string, a ...interface{}) *Error {
-	file := ""
-	if globalEvalContext != nil {
-		file = globalEvalContext.CurrentFile
-	}
 	return &Error{
 		Message: fmt.Sprintf(format, a...),
 		Code:    code,
 		Line:    line,
 		Column:  column,
-		File:    file,
 	}
 }
