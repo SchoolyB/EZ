@@ -58,7 +58,7 @@ do main() {
     }
 
     // Test 5: from_hex
-    temp from_hex_result [byte], from_hex_err error = bytes.from_hex("4142")
+    temp from_hex_result [byte], from_hex_err Error = bytes.from_hex("4142")
     if from_hex_err == nil {
         temp from_hex_str string = bytes.to_string(from_hex_result)
         if from_hex_str == "AB" {
@@ -85,7 +85,7 @@ do main() {
     }
 
     // Test 7: from_base64
-    temp from_b64 [byte], from_b64_err error = bytes.from_base64("SGVsbG8=")
+    temp from_b64 [byte], from_b64_err Error = bytes.from_base64("SGVsbG8=")
     if from_b64_err == nil {
         temp from_b64_str string = bytes.to_string(from_b64)
         if from_b64_str == "Hello" {
