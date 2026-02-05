@@ -11,7 +11,7 @@ const Dummy struct {
 }
 
 do main() {
-    temp result Dummy, err error = json.decode("{ invalid json }", Dummy)
+    temp result Dummy, err Error = json.decode("{ invalid json }", Dummy)
     if err != nil {
         panic("${err}")
     }

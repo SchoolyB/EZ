@@ -9,7 +9,7 @@ const User struct {
 }
 
 do main() {
-    temp store Database, err error = db.open("mydb.ezdb")
+    temp store Database, err Error = db.open("mydb.ezdb")
     if err != nil {
         println("Failed: ${err.message}")
         return

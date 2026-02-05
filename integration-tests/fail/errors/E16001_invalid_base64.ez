@@ -7,7 +7,7 @@ import @encoding
 
 do main() {
     // Invalid base64 string (contains invalid characters)
-    temp result string, err error = encoding.base64_decode("not!valid@base64")
+    temp result string, err Error = encoding.base64_decode("not!valid@base64")
     if err != nil {
         panic("${err}")
     }

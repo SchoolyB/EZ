@@ -5,8 +5,8 @@
 import @std
 using std
 
-// Function that can fail - uses error type (lowercase)
-do parse_int(s string) -> (int, error) {
+// Function that can fail - uses Error type
+do parse_int(s string) -> (int, Error) {
     if s == "" {
         return 0, error("empty string")
     }
