@@ -22,7 +22,10 @@ func testEval(input string) Object {
 	p := parser.New(l)
 	program := p.ParseProgram()
 	env := NewEnvironment()
-	return Eval(program, env)
+	ctx := &EvalContext{
+		CurrentFile: "<test>",
+	}
+	return Eval(program, env, ctx)
 }
 
 func testIntegerObject(t *testing.T, obj Object, expected int64) bool {
@@ -4738,26 +4741,6 @@ func TestExtractModuleName(t *testing.T) {
 			}
 		})
 	}
-}
-
-func TestEvalContext(t *testing.T) {
-	// Test SetEvalContext and GetEvalContext
-	ctx := &EvalContext{
-		CurrentFile: "test.ez",
-	}
-
-	SetEvalContext(ctx)
-	retrieved := GetEvalContext()
-
-	if retrieved == nil {
-		t.Fatal("GetEvalContext returned nil")
-	}
-	if retrieved.CurrentFile != "test.ez" {
-		t.Errorf("CurrentFile = %q, want %q", retrieved.CurrentFile, "test.ez")
-	}
-
-	// Clean up
-	SetEvalContext(nil)
 }
 
 // ============================================================================
