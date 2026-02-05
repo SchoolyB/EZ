@@ -30,7 +30,7 @@ do main() {
     println("  -- json.encode --")
 
     // Test 1: encode string
-    temp str_result string, str_err error = json.encode("hello")
+    temp str_result string, str_err Error = json.encode("hello")
     if str_err == nil {
         if str_result == "\"hello\"" {
             println("  [PASS] json.encode(string)")
@@ -45,7 +45,7 @@ do main() {
     }
 
     // Test 2: encode integer
-    temp int_result string, int_err error = json.encode(42)
+    temp int_result string, int_err Error = json.encode(42)
     if int_err == nil {
         if int_result == "42" {
             println("  [PASS] json.encode(int)")
@@ -60,7 +60,7 @@ do main() {
     }
 
     // Test 3: encode float
-    temp float_result string, float_err error = json.encode(3.14)
+    temp float_result string, float_err Error = json.encode(3.14)
     if float_err == nil {
         if float_result == "3.14" {
             println("  [PASS] json.encode(float)")
@@ -75,7 +75,7 @@ do main() {
     }
 
     // Test 4: encode boolean true
-    temp true_result string, true_err error = json.encode(true)
+    temp true_result string, true_err Error = json.encode(true)
     if true_err == nil {
         if true_result == "true" {
             println("  [PASS] json.encode(true)")
@@ -90,7 +90,7 @@ do main() {
     }
 
     // Test 5: encode boolean false
-    temp false_result string, false_err error = json.encode(false)
+    temp false_result string, false_err Error = json.encode(false)
     if false_err == nil {
         if false_result == "false" {
             println("  [PASS] json.encode(false)")
@@ -105,7 +105,7 @@ do main() {
     }
 
     // Test 6: encode nil
-    temp nil_result string, nil_err error = json.encode(nil)
+    temp nil_result string, nil_err Error = json.encode(nil)
     if nil_err == nil {
         if nil_result == "null" {
             println("  [PASS] json.encode(nil)")
@@ -121,7 +121,7 @@ do main() {
 
     // Test 7: encode array
     temp arr [int] = {1, 2, 3}
-    temp arr_result string, arr_err error = json.encode(arr)
+    temp arr_result string, arr_err Error = json.encode(arr)
     if arr_err == nil {
         if arr_result == "[1,2,3]" {
             println("  [PASS] json.encode(array)")
@@ -137,7 +137,7 @@ do main() {
 
     // Test 8: encode struct
     temp person Person = Person{name: "Alice", age: 30}
-    temp person_json string, person_json_err error = json.encode(person)
+    temp person_json string, person_json_err Error = json.encode(person)
     if person_json_err == nil {
         // JSON keys are sorted alphabetically
         if person_json == "{\"age\":30,\"name\":\"Alice\"}" {
@@ -156,7 +156,7 @@ do main() {
     println("  -- json.decode (typed) --")
 
     // Test 9: decode to typed struct
-    temp decoded_person Person, person_err error = json.decode("{\"name\": \"Alice\", \"age\": 30}", Person)
+    temp decoded_person Person, person_err Error = json.decode("{\"name\": \"Alice\", \"age\": 30}", Person)
     if person_err == nil {
         if decoded_person.name == "Alice" {
             if decoded_person.age == 30 {
@@ -176,7 +176,7 @@ do main() {
     }
 
     // Test 10: decode typed struct with missing field (should use zero value)
-    temp person2 Person, person2_err error = json.decode("{\"name\": \"Bob\"}", Person)
+    temp person2 Person, person2_err Error = json.decode("{\"name\": \"Bob\"}", Person)
     if person2_err == nil {
         if person2.age == 0 {
             println("  [PASS] json.decode(typed) missing field uses zero value")
@@ -191,7 +191,7 @@ do main() {
     }
 
     // Test 11: decode typed struct with bool field
-    temp task Task, task_err error = json.decode("{\"title\": \"Test\", \"completed\": true}", Task)
+    temp task Task, task_err Error = json.decode("{\"title\": \"Test\", \"completed\": true}", Task)
     if task_err == nil {
         if task.completed == true {
             println("  [PASS] json.decode(typed) with bool field")
@@ -206,7 +206,7 @@ do main() {
     }
 
     // Test 12: decode invalid JSON returns error
-    temp invalid_person Person, invalid_err error = json.decode("{invalid}", Person)
+    temp invalid_person Person, invalid_err Error = json.decode("{invalid}", Person)
     if invalid_err != nil {
         println("  [PASS] json.decode(invalid) returns error")
         passed += 1
@@ -216,7 +216,7 @@ do main() {
     }
 
     // Test 13: decode with extra fields (should be ignored)
-    temp extra_person Person, extra_err error = json.decode("{\"name\": \"Charlie\", \"age\": 25, \"extra\": \"ignored\"}", Person)
+    temp extra_person Person, extra_err Error = json.decode("{\"name\": \"Charlie\", \"age\": 25, \"extra\": \"ignored\"}", Person)
     if extra_err == nil {
         if extra_person.name == "Charlie" && extra_person.age == 25 {
             println("  [PASS] json.decode(typed) ignores extra fields")
@@ -273,7 +273,7 @@ do main() {
     println("  -- json.pretty --")
 
     // Test 18: pretty print array
-    temp pretty_arr string, pretty_arr_err error = json.pretty({1, 2}, "  ")
+    temp pretty_arr string, pretty_arr_err Error = json.pretty({1, 2}, "  ")
     if pretty_arr_err == nil {
         println("  [PASS] json.pretty(array)")
         passed += 1
