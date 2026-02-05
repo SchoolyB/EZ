@@ -343,7 +343,7 @@ func (tc *TypeChecker) registerBuiltinTypes() {
 		}
 	}
 
-	// Register built-in Error struct (both "Error" and "error" alias)
+	// Register built-in Error struct
 	errorType := &Type{
 		Name: "Error",
 		Kind: StructType,
@@ -353,7 +353,6 @@ func (tc *TypeChecker) registerBuiltinTypes() {
 		},
 	}
 	tc.types["Error"] = errorType
-	tc.types["error"] = errorType // Alias for convenience
 
 	// Built-in HTTP Response struct
 	httpResponseType := &Type{
@@ -2876,8 +2875,8 @@ func (tc *TypeChecker) checkMemberExpression(member *ast.MemberExpression) {
 		return
 	}
 
-	// Warn about member access on error type which is commonly nil (#687)
-	if objType == "error" || objType == "Error" {
+	// Warn about member access on Error type which is commonly nil (#687)
+	if objType == "Error" {
 		if !tc.isSuppressed("W2009", tc.currentFuncAttrs) {
 			line, column := tc.getExpressionPosition(member.Object)
 			tc.addWarning(
@@ -2893,7 +2892,7 @@ func (tc *TypeChecker) checkMemberExpression(member *ast.MemberExpression) {
 	// e.g., p.pos.x where p.pos is a struct that could be nil
 	// Skip warning if variable is known non-nil from flow analysis (#834)
 	if _, isChained := member.Object.(*ast.MemberExpression); isChained {
-		if tc.isNullableType(objType) && objType != "error" && objType != "Error" {
+		if tc.isNullableType(objType) && objType != "Error" {
 			// Check if this expression is known to be non-nil
 			exprName := tc.extractVarNameFromExpr(member.Object)
 			if exprName == "" || !tc.currentScope.IsKnownNonNil(exprName) {
@@ -4884,11 +4883,11 @@ func (tc *TypeChecker) splitMapInnerType(inner string) (string, string, bool) {
 }
 
 // isNullableType checks if a type can accept nil values
-// error type and user-defined struct types can be nil in EZ
+// Error type and user-defined struct types can be nil in EZ
 // Arrays, maps, and primitives cannot be nil
 func (tc *TypeChecker) isNullableType(typeName string) bool {
-	// error type can be nil (for error handling pattern)
-	if typeName == "error" {
+	// Error type can be nil (for error handling pattern)
+	if typeName == "Error" {
 		return true
 	}
 	// User-defined struct types can be nil
@@ -6039,7 +6038,7 @@ func (tc *TypeChecker) inferCallType(call *ast.CallExpression) (string, bool) {
 func (tc *TypeChecker) getBuiltinMultiReturnTypes(name string) []string {
 	switch name {
 	case "read_int":
-		return []string{"int", "error"}
+		return []string{"int", "Error"}
 	default:
 		return nil
 	}
@@ -6058,53 +6057,53 @@ func (tc *TypeChecker) getModuleMultiReturnTypes(moduleName, funcName string, ar
 			// io.read_bytes returns ([byte], error)
 			switch funcName {
 			case "read_file":
-				return []string{"string", "error"}
+				return []string{"string", "Error"}
 			case "read_lines":
-				return []string{"[string]", "error"}
+				return []string{"[string]", "Error"}
 			case "read_bytes":
-				return []string{"[byte]", "error"}
+				return []string{"[byte]", "Error"}
 			}
 		case "write_file", "append_file", "write_bytes":
-			return []string{"bool", "error"}
+			return []string{"bool", "Error"}
 		case "create_dir", "remove", "remove_dir", "rename", "copy_file":
-			return []string{"bool", "error"}
+			return []string{"bool", "Error"}
 		// Note: exists, is_dir, is_file return single bool (not tuple)
 		case "file_size":
-			return []string{"int", "error"}
+			return []string{"int", "Error"}
 		case "list_dir", "read_dir":
-			return []string{"[string]", "error"}
+			return []string{"[string]", "Error"}
 		case "read_stdin":
-			return []string{"string", "error"}
+			return []string{"string", "Error"}
 		case "open", "create":
-			return []string{"File", "error"}
+			return []string{"File", "Error"}
 		case "fread", "fread_line", "fread_all":
-			return []string{"string", "error"}
+			return []string{"string", "Error"}
 		case "fread_bytes":
-			return []string{"[byte]", "error"}
+			return []string{"[byte]", "Error"}
 		case "fwrite", "fwrite_line", "fwrite_bytes":
-			return []string{"int", "error"}
+			return []string{"int", "Error"}
 		case "fseek", "ftell":
-			return []string{"int", "error"}
+			return []string{"int", "Error"}
 		case "fclose", "fflush", "ftruncate":
-			return []string{"bool", "error"}
+			return []string{"bool", "Error"}
 		case "feof":
-			return []string{"bool", "error"}
+			return []string{"bool", "Error"}
 		case "temp_file", "temp_dir":
-			return []string{"string", "error"}
+			return []string{"string", "Error"}
 		case "abs_path", "rel_path":
-			return []string{"string", "error"}
+			return []string{"string", "Error"}
 		case "file_info":
-			return []string{"FileInfo", "error"}
+			return []string{"FileInfo", "Error"}
 		}
 	case "json":
 		switch funcName {
 		case "encode", "pretty":
-			return []string{"string", "error"}
+			return []string{"string", "Error"}
 		case "decode":
 			// Type argument is required - extract the type from the second argument
 			if len(args) >= 2 {
 				if label, ok := args[1].(*ast.Label); ok {
-					return []string{label.Value, "error"}
+					return []string{label.Value, "Error"}
 				}
 			}
 			// If no type argument, return empty (error will be caught by checkJsonModuleCall)
@@ -6113,28 +6112,28 @@ func (tc *TypeChecker) getModuleMultiReturnTypes(moduleName, funcName string, ar
 	case "os":
 		switch funcName {
 		case "get_env":
-			return []string{"string", "error"}
+			return []string{"string", "Error"}
 		case "exec":
-			return []string{"int", "error"}
+			return []string{"int", "Error"}
 		case "exec_output":
-			return []string{"string", "error"}
+			return []string{"string", "Error"}
 		case "set_env", "unset_env":
-			return []string{"bool", "error"}
+			return []string{"bool", "Error"}
 		}
 	case "bytes":
 		switch funcName {
 		case "from_hex", "from_base64":
-			return []string{"[byte]", "error"}
+			return []string{"[byte]", "Error"}
 		case "read_u8", "read_i8":
-			return []string{"int", "error"}
+			return []string{"int", "Error"}
 		case "read_u16", "read_u16_be", "read_i16", "read_i16_be":
-			return []string{"int", "error"}
+			return []string{"int", "Error"}
 		case "read_u32", "read_u32_be", "read_i32", "read_i32_be":
-			return []string{"int", "error"}
+			return []string{"int", "Error"}
 		case "read_u64", "read_u64_be", "read_i64", "read_i64_be":
-			return []string{"int", "error"}
+			return []string{"int", "Error"}
 		case "read_f32", "read_f32_be", "read_f64", "read_f64_be":
-			return []string{"float", "error"}
+			return []string{"float", "Error"}
 		}
 	case "binary":
 		// All binary encode functions return ([byte], error)
@@ -6153,7 +6152,7 @@ func (tc *TypeChecker) getModuleMultiReturnTypes(moduleName, funcName string, ar
 			"encode_i256_to_big_endian", "encode_u256_to_big_endian",
 			"encode_f32_to_little_endian", "encode_f32_to_big_endian",
 			"encode_f64_to_little_endian", "encode_f64_to_big_endian":
-			return []string{"[byte]", "error"}
+			return []string{"[byte]", "Error"}
 		case "decode_i8", "decode_u8",
 			"decode_i16_from_little_endian", "decode_u16_from_little_endian",
 			"decode_i16_from_big_endian", "decode_u16_from_big_endian",
@@ -6165,16 +6164,16 @@ func (tc *TypeChecker) getModuleMultiReturnTypes(moduleName, funcName string, ar
 			"decode_i128_from_big_endian", "decode_u128_from_big_endian",
 			"decode_i256_from_little_endian", "decode_u256_from_little_endian",
 			"decode_i256_from_big_endian", "decode_u256_from_big_endian":
-			return []string{"int", "error"}
+			return []string{"int", "Error"}
 		case "decode_f32_from_little_endian", "decode_f32_from_big_endian",
 			"decode_f64_from_little_endian", "decode_f64_from_big_endian":
-			return []string{"float", "error"}
+			return []string{"float", "Error"}
 		}
 
 	case "db":
 		switch funcName {
 		case "open":
-			return []string{"Database", "error"}
+			return []string{"Database", "Error"}
 		case "get":
 			return []string{"string", "bool"}
 		}
@@ -6182,7 +6181,7 @@ func (tc *TypeChecker) getModuleMultiReturnTypes(moduleName, funcName string, ar
 	case "http":
 		switch funcName {
 		case "get", "post", "put", "delete", "patch", "request":
-			return []string{"HttpResponse", "error"}
+			return []string{"HttpResponse", "Error"}
 		}
 	}
 	return nil
@@ -6248,7 +6247,7 @@ func (tc *TypeChecker) inferBuiltinCallType(name string, args []ast.Expression) 
 		}
 		return "", false
 	case "error":
-		return "error", true
+		return "Error", true
 	case "new":
 		// new() returns an instance of the type passed as argument
 		if len(args) > 0 {
@@ -6693,7 +6692,7 @@ func (tc *TypeChecker) inferDBCallType(funcName string, args []ast.Expression) (
 	case "open":
 		return "Database", true
 	case "close", "save":
-		return "error", true
+		return "Error", true
 	case "set", "clear", "sort":
 		return "void", true
 	case "get":
@@ -7032,10 +7031,6 @@ func (tc *TypeChecker) typesCompatible(declared, actual string) bool {
 		return true
 	}
 
-	// error/Error are interchangeable (error is alias for Error struct)
-	if (declared == "error" && actual == "Error") || (declared == "Error" && actual == "error") {
-		return true
-	}
 
 	// Handle module-prefixed types (e.g., utils.Hero vs Hero, or Hero vs utils.Hero)
 	// Strip module prefix and compare base type names
