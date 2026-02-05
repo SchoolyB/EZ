@@ -1098,7 +1098,7 @@ temp quotient, remainder = divide(17, 5)
 #### 8.3.3 Error Returns
 
 ```ez
-do parse(s string) -> (int, error) {
+do parse(s string) -> (int, Error) {
     if s == "" {
         return 0, error("empty string")
     }
@@ -1241,7 +1241,7 @@ The core module provides fundamental I/O, type conversion, and utility functions
 | Function | Signature | Description |
 |----------|-----------|-------------|
 | `input` | `() -> string` | Read line from stdin |
-| `read_int` | `() -> (int, error)` | Read integer from stdin |
+| `read_int` | `() -> (int, Error)` | Read integer from stdin |
 
 #### Type Conversion Functions
 
@@ -1271,7 +1271,7 @@ The core module provides fundamental I/O, type conversion, and utility functions
 | `copy` | `(value) -> T` | Create deep copy |
 | `new` | `(Type) -> Type` | Create zero-initialized instance |
 | `ref` | `(value) -> T` | Create reference to value |
-| `error` | `(message string) -> error` | Create error value |
+| `error` | `(message string) -> Error` | Create error value |
 | `assert` | `(condition bool, message string)` | Assert condition is true |
 | `panic` | `(message string) -> nil` | Terminate with error message |
 | `exit` | `(code int) -> nil` | Exit program with code |
@@ -1686,10 +1686,10 @@ Durations: `SECOND` (1), `MINUTE` (60), `HOUR` (3600), `DAY` (86400), `WEEK` (60
 
 | Function | Signature | Description |
 |----------|-----------|-------------|
-| `encode` | `(value) -> (string, error)` | Encode to JSON string |
-| `decode` | `(text string) -> (any, error)` | Decode to dynamic type |
-| `decode` | `(text string, Type) -> (Type, error)` | Decode to typed struct |
-| `pretty` | `(value, indent string) -> (string, error)` | Pretty print JSON |
+| `encode` | `(value) -> (string, Error)` | Encode to JSON string |
+| `decode` | `(text string) -> (any, Error)` | Decode to dynamic type |
+| `decode` | `(text string, Type) -> (Type, Error)` | Decode to typed struct |
+| `pretty` | `(value, indent string) -> (string, Error)` | Pretty print JSON |
 | `is_valid` | `(text string) -> bool` | Check if valid JSON |
 
 ### 10.9 IO Module (`@io`)
@@ -1698,16 +1698,16 @@ Durations: `SECOND` (1), `MINUTE` (60), `HOUR` (3600), `DAY` (86400), `WEEK` (60
 
 | Function | Signature | Description |
 |----------|-----------|-------------|
-| `read_file` | `(path string) -> (string, error)` | Read file as string |
-| `read_bytes` | `(path string) -> ([byte], error)` | Read file as bytes |
+| `read_file` | `(path string) -> (string, Error)` | Read file as string |
+| `read_bytes` | `(path string) -> ([byte], Error)` | Read file as bytes |
 
 #### File Writing
 
 | Function | Signature | Description |
 |----------|-----------|-------------|
-| `write_file` | `(path string, content string) -> (bool, error)` | Write file |
-| `write_bytes` | `(path string, data [byte]) -> (bool, error)` | Write bytes |
-| `append_file` | `(path string, content string) -> (bool, error)` | Append to file |
+| `write_file` | `(path string, content string) -> (bool, Error)` | Write file |
+| `write_bytes` | `(path string, data [byte]) -> (bool, Error)` | Write bytes |
+| `append_file` | `(path string, content string) -> (bool, Error)` | Append to file |
 
 #### File Operations
 
@@ -1718,22 +1718,22 @@ Durations: `SECOND` (1), `MINUTE` (60), `HOUR` (3600), `DAY` (86400), `WEEK` (60
 | `is_directory` | `(path string) -> bool` | Check if path is directory |
 | `is_readable` | `(path string) -> bool` | Check if readable |
 | `is_writable` | `(path string) -> bool` | Check if writable |
-| `file_size` | `(path string) -> (int, error)` | Get file size |
+| `file_size` | `(path string) -> (int, Error)` | Get file size |
 | `file_extension` | `(path string) -> string` | Get file extension |
 | `file_name` | `(path string) -> string` | Get file name |
 | `directory_name` | `(path string) -> string` | Get directory path |
-| `absolute_path` | `(path string) -> (string, error)` | Get absolute path |
-| `delete_file` | `(path string) -> (bool, error)` | Delete file |
+| `absolute_path` | `(path string) -> (string, Error)` | Get absolute path |
+| `delete_file` | `(path string) -> (bool, Error)` | Delete file |
 
 #### Directory Operations
 
 | Function | Signature | Description |
 |----------|-----------|-------------|
-| `list_directory` | `(path string) -> ([string], error)` | List directory contents |
-| `create_directory` | `(path string) -> (bool, error)` | Create directory |
-| `create_directories` | `(path string) -> (bool, error)` | Create recursively |
-| `delete_directory` | `(path string) -> (bool, error)` | Delete empty directory |
-| `delete_directory_recursive` | `(path string) -> (bool, error)` | Delete recursively |
+| `list_directory` | `(path string) -> ([string], Error)` | List directory contents |
+| `create_directory` | `(path string) -> (bool, Error)` | Create directory |
+| `create_directories` | `(path string) -> (bool, Error)` | Create recursively |
+| `delete_directory` | `(path string) -> (bool, Error)` | Delete empty directory |
+| `delete_directory_recursive` | `(path string) -> (bool, Error)` | Delete recursively |
 
 #### Path Functions
 
@@ -1748,9 +1748,9 @@ Durations: `SECOND` (1), `MINUTE` (60), `HOUR` (3600), `DAY` (86400), `WEEK` (60
 
 | Function | Signature | Description |
 |----------|-----------|-------------|
-| `get_env` | `(name string) -> (string, error)` | Get environment variable |
-| `set_env` | `(name string, value string) -> (bool, error)` | Set environment variable |
-| `unset_env` | `(name string) -> (bool, error)` | Unset environment variable |
+| `get_env` | `(name string) -> (string, Error)` | Get environment variable |
+| `set_env` | `(name string, value string) -> (bool, Error)` | Set environment variable |
+| `unset_env` | `(name string) -> (bool, Error)` | Unset environment variable |
 | `env` | `() -> map[string:string]` | Get all environment variables |
 
 #### System Information
@@ -1758,11 +1758,11 @@ Durations: `SECOND` (1), `MINUTE` (60), `HOUR` (3600), `DAY` (86400), `WEEK` (60
 | Function | Signature | Description |
 |----------|-----------|-------------|
 | `args` | `() -> [string]` | Get command-line arguments |
-| `cwd` | `() -> (string, error)` | Get current working directory |
-| `chdir` | `(path string) -> (bool, error)` | Change directory |
-| `hostname` | `() -> (string, error)` | Get machine hostname |
-| `username` | `() -> (string, error)` | Get current username |
-| `home_dir` | `() -> (string, error)` | Get home directory |
+| `cwd` | `() -> (string, Error)` | Get current working directory |
+| `chdir` | `(path string) -> (bool, Error)` | Change directory |
+| `hostname` | `() -> (string, Error)` | Get machine hostname |
+| `username` | `() -> (string, Error)` | Get current username |
+| `home_dir` | `() -> (string, Error)` | Get home directory |
 | `temp_dir` | `() -> string` | Get temporary directory |
 | `pid` | `() -> int` | Get process ID |
 | `ppid` | `() -> int` | Get parent process ID |
@@ -1783,12 +1783,12 @@ Durations: `SECOND` (1), `MINUTE` (60), `HOUR` (3600), `DAY` (86400), `WEEK` (60
 
 | Function | Signature | Description |
 |----------|-----------|-------------|
-| `get` | `(url string) -> (Response, error)` | GET request |
-| `post` | `(url string, body string) -> (Response, error)` | POST request |
-| `put` | `(url string, body string) -> (Response, error)` | PUT request |
-| `delete` | `(url string) -> (Response, error)` | DELETE request |
-| `patch` | `(url string, body string) -> (Response, error)` | PATCH request |
-| `head` | `(url string) -> (Response, error)` | HEAD request |
+| `get` | `(url string) -> (Response, Error)` | GET request |
+| `post` | `(url string, body string) -> (Response, Error)` | POST request |
+| `put` | `(url string, body string) -> (Response, Error)` | PUT request |
+| `delete` | `(url string) -> (Response, Error)` | DELETE request |
+| `patch` | `(url string, body string) -> (Response, Error)` | PATCH request |
+| `head` | `(url string) -> (Response, Error)` | HEAD request |
 
 #### Response Type
 
@@ -1816,11 +1816,11 @@ The `Response` struct contains:
 | Function | Signature | Description |
 |----------|-----------|-------------|
 | `base64_encode` | `(s string) -> string` | Encode to base64 |
-| `base64_decode` | `(s string) -> (string, error)` | Decode from base64 |
+| `base64_decode` | `(s string) -> (string, Error)` | Decode from base64 |
 | `hex_encode` | `(s string) -> string` | Encode to hex |
-| `hex_decode` | `(s string) -> (string, error)` | Decode from hex |
+| `hex_decode` | `(s string) -> (string, Error)` | Decode from hex |
 | `url_encode` | `(s string) -> string` | URL percent-encode |
-| `url_decode` | `(s string) -> (string, error)` | URL percent-decode |
+| `url_decode` | `(s string) -> (string, Error)` | URL percent-decode |
 
 ### 10.14 UUID Module (`@uuid`)
 
@@ -1840,8 +1840,8 @@ The `Response` struct contains:
 |----------|-----------|-------------|
 | `from_array` | `(arr [int]) -> [byte]` | Create from integer array |
 | `from_string` | `(s string) -> [byte]` | Create from UTF-8 string |
-| `from_hex` | `(hex string) -> ([byte], error)` | Decode hex string |
-| `from_base64` | `(b64 string) -> ([byte], error)` | Decode base64 string |
+| `from_hex` | `(hex string) -> ([byte], Error)` | Decode hex string |
+| `from_base64` | `(b64 string) -> ([byte], Error)` | Decode base64 string |
 | `to_string` | `(bytes [byte]) -> string` | Convert to UTF-8 string |
 | `to_array` | `(bytes [byte]) -> [int]` | Convert to integer array |
 | `to_hex` | `(bytes [byte]) -> string` | Encode to hex string |
@@ -1892,11 +1892,11 @@ A simple JSON-based key-value database.
 
 | Function | Signature | Description |
 |----------|-----------|-------------|
-| `open` | `(path string) -> (Database, error)` | Open/create database |
-| `close` | `(db Database) -> error` | Close database |
-| `save` | `(db Database) -> error` | Save to disk |
+| `open` | `(path string) -> (Database, Error)` | Open/create database |
+| `close` | `(db Database) -> Error` | Close database |
+| `save` | `(db Database) -> Error` | Save to disk |
 | `set` | `(db Database, key string, value)` | Set key-value pair |
-| `get` | `(db Database, key string) -> (any, error)` | Get value by key |
+| `get` | `(db Database, key string) -> (any, Error)` | Get value by key |
 | `has` | `(db Database, key string) -> bool` | Check if key exists |
 | `delete` | `(db Database, key string) -> bool` | Delete key |
 | `clear` | `(db Database)` | Clear all entries |
@@ -1910,18 +1910,18 @@ A simple JSON-based key-value database.
 
 ### 11.1 Error Type
 
-The `error` type represents an error condition. Errors are created with the `error()` function:
+The `Error` type represents an error condition. Errors are created with the `error()` function:
 
 ```ez
-temp err error = error("something went wrong")
+temp err Error = error("something went wrong")
 ```
 
 ### 11.2 Error Returns
 
-Functions that may fail conventionally return a tuple with the result and an error:
+Functions that may fail conventionally return a tuple with the result and an Error:
 
 ```ez
-do read_file(path string) -> (string, error) {
+do read_file(path string) -> (string, Error) {
     if !file_exists(path) {
         return "", error("file not found")
     }
