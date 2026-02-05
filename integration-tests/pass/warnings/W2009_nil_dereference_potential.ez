@@ -11,7 +11,7 @@ const Person struct {
 }
 
 do main() {
-    temp p Person, err error = json.decode("{\"name\": \"Alice\"}", Person)
+    temp p Person, err Error = json.decode("{\"name\": \"Alice\"}", Person)
     // Accessing .code on error which may be nil
     println(err.code)
 }

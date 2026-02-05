@@ -46,7 +46,7 @@ do main() {
 
     // URL utilities
     temp encoded string = http.encode_url("hello world")  // "hello%20world"
-    temp decoded string, decode_err error = http.decode_url(encoded)
+    temp decoded string, decode_err Error = http.decode_url(encoded)
     if decode_err != nil {
         println("${decode_err}")
         return

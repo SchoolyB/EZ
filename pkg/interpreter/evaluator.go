@@ -3364,10 +3364,6 @@ func typeMatches(obj Object, ezType string) bool {
 		return true
 	}
 
-	// error/Error are interchangeable (error is alias for Error struct)
-	if (actualType == "error" && ezType == "Error") || (actualType == "Error" && ezType == "error") {
-		return true
-	}
 
 	// Handle module-prefixed types (e.g., utils.Hero vs Hero)
 	// Strip module prefix and compare base type names

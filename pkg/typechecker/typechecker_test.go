@@ -6034,7 +6034,7 @@ func TestTypeExistsForBuiltins(t *testing.T) {
 		"u8", "u16", "u32", "u64",
 		"float", "f32", "f64",
 		"string", "bool", "char", "byte",
-		"nil", "error",
+		"nil", "Error",
 	}
 
 	for _, typeName := range builtinTypes {
