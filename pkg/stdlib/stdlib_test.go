@@ -2255,6 +2255,99 @@ func TestMathIsInfFunc(t *testing.T) {
 	}
 }
 
+func TestMathIsNanFunc(t *testing.T) {
+	isnanFn := MathBuiltins["math.is_nan"].Fn
+
+	// Test with NaN
+	result := isnanFn(&object.Float{Value: math.NaN()})
+	boolVal, ok := result.(*object.Boolean)
+	if !ok {
+		t.Fatalf("math.is_nan() returned %T, want Boolean", result)
+	}
+	if !boolVal.Value {
+		t.Errorf("math.is_nan(NaN) returned false, want true")
+	}
+
+	// Test with normal number
+	result = isnanFn(&object.Float{Value: 3.14})
+	boolVal, ok = result.(*object.Boolean)
+	if !ok {
+		t.Fatalf("math.is_nan() returned %T, want Boolean", result)
+	}
+	if boolVal.Value {
+		t.Errorf("math.is_nan(3.14) returned true, want false")
+	}
+}
+
+func TestMathIsFiniteFunc(t *testing.T) {
+	isfiniteFn := MathBuiltins["math.is_finite"].Fn
+
+	// Test with normal number
+	result := isfiniteFn(&object.Float{Value: 3.14})
+	boolVal, ok := result.(*object.Boolean)
+	if !ok {
+		t.Fatalf("math.is_finite() returned %T, want Boolean", result)
+	}
+	if !boolVal.Value {
+		t.Errorf("math.is_finite(3.14) returned false, want true")
+	}
+
+	// Test with infinity
+	result = isfiniteFn(&object.Float{Value: math.Inf(1)})
+	boolVal, ok = result.(*object.Boolean)
+	if !ok {
+		t.Fatalf("math.is_finite() returned %T, want Boolean", result)
+	}
+	if boolVal.Value {
+		t.Errorf("math.is_finite(+Inf) returned true, want false")
+	}
+
+	// Test with NaN
+	result = isfiniteFn(&object.Float{Value: math.NaN()})
+	boolVal, ok = result.(*object.Boolean)
+	if !ok {
+		t.Fatalf("math.is_finite() returned %T, want Boolean", result)
+	}
+	if boolVal.Value {
+		t.Errorf("math.is_finite(NaN) returned true, want false")
+	}
+}
+
+func TestMathNewConstants(t *testing.T) {
+	// EPSILON
+	epsFn := MathBuiltins["math.EPSILON"].Fn
+	epsResult := epsFn()
+	epsFloat, ok := epsResult.(*object.Float)
+	if !ok {
+		t.Fatalf("math.EPSILON returned %T, want Float", epsResult)
+	}
+	if epsFloat.Value <= 0 || epsFloat.Value >= 1e-10 {
+		t.Errorf("math.EPSILON = %v, want small positive value", epsFloat.Value)
+	}
+
+	// MAX_FLOAT
+	maxFn := MathBuiltins["math.MAX_FLOAT"].Fn
+	maxResult := maxFn()
+	maxFloat, ok := maxResult.(*object.Float)
+	if !ok {
+		t.Fatalf("math.MAX_FLOAT returned %T, want Float", maxResult)
+	}
+	if maxFloat.Value != math.MaxFloat64 {
+		t.Errorf("math.MAX_FLOAT = %v, want %v", maxFloat.Value, math.MaxFloat64)
+	}
+
+	// MIN_FLOAT
+	minFn := MathBuiltins["math.MIN_FLOAT"].Fn
+	minResult := minFn()
+	minFloat, ok := minResult.(*object.Float)
+	if !ok {
+		t.Fatalf("math.MIN_FLOAT returned %T, want Float", minResult)
+	}
+	if minFloat.Value != math.SmallestNonzeroFloat64 {
+		t.Errorf("math.MIN_FLOAT = %v, want %v", minFloat.Value, math.SmallestNonzeroFloat64)
+	}
+}
+
 func TestMathIsPrime(t *testing.T) {
 	isprimeFn := MathBuiltins["math.is_prime"].Fn
 
