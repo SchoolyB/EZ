@@ -65,3 +65,4 @@ context/
 !examples/
 !examples/**
 !examples/**/*.ez
+DOCS.md

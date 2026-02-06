@@ -82,6 +82,26 @@ var parseCmd = &cobra.Command{
 	},
 }
 
+var docCmd = &cobra.Command{
+	Use:   "doc <path>",
+	Short: "Generate documentation from #doc attributes",
+	Long: `Generate markdown documentation from #doc attributes in EZ source files.
+
+Examples:
+  ez doc .              Generate docs for current directory (no recursion)
+  ez doc ./...          Generate docs recursively from current directory
+  ez doc ./src          Generate docs for src directory only
+  ez doc ./src/...      Generate docs recursively from src directory
+  ez doc file.ez        Generate docs for a single file
+  ez doc a.ez b.ez      Generate docs for multiple files
+
+Output is written to DOCS.md in the current working directory.`,
+	Args: cobra.MinimumNArgs(1),
+	Run: func(cmd *cobra.Command, args []string) {
+		generateDocs(args)
+	},
+}
+
 var rootCmd = &cobra.Command{
 	Use:     "ez [file.ez]",
 	Short:   "EZ Language Interpreter",
@@ -110,7 +130,7 @@ var rootCmd = &cobra.Command{
 }
 
 func init() {
-	rootCmd.AddCommand(replCmd, updateCmd, checkCmd, lexCmd, parseCmd, versionCmd)
+	rootCmd.AddCommand(replCmd, updateCmd, checkCmd, lexCmd, parseCmd, versionCmd, docCmd)
 	rootCmd.PersistentPreRun = func(cmd *cobra.Command, args []string) {
 		CheckForUpdateAsync()
 	}

@@ -494,7 +494,8 @@ type StructDeclaration struct {
 	Token      Token
 	Name       *Label
 	Fields     []*StructField
-	Visibility Visibility // Public (default), Private, or PrivateModule
+	Attributes []*Attribute // #doc(...) attributes
+	Visibility Visibility   // Public (default), Private, or PrivateModule
 }
 
 func (sd *StructDeclaration) statementNode()       {}
@@ -510,11 +511,12 @@ type StructField struct {
 
 // EnumDeclaration represents const STATUS enum { ... }
 type EnumDeclaration struct {
-	Token      Token
-	Name       *Label
-	Values     []*EnumValue
-	Attributes *EnumAttributes
-	Visibility Visibility // Public (default), Private, or PrivateModule
+	Token        Token
+	Name         *Label
+	Values       []*EnumValue
+	Attributes   *EnumAttributes
+	DocAttribute *Attribute // #doc(...) attribute
+	Visibility   Visibility // Public (default), Private, or PrivateModule
 }
 
 func (ed *EnumDeclaration) statementNode()       {}
