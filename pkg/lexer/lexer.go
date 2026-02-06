@@ -281,6 +281,14 @@ func (l *Lexer) NextToken() tokenizer.Token {
 			}
 			return tok
 		}
+		// Peek ahead to check for #doc
+		if l.peekAheadString(4) == "#doc" {
+			tok = tokenizer.Token{Type: tokenizer.DOC, Literal: "#doc", Line: l.line, Column: l.column}
+			for i := 0; i < 4; i++ {
+				l.readChar()
+			}
+			return tok
+		}
 		// Unknown # usage - treat as illegal
 		tok = newToken(tokenizer.ILLEGAL, l.ch, l.line, l.column)
 	case '"':

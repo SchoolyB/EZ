@@ -564,9 +564,9 @@ func (p *Parser) ParseLine() Statement {
 }
 
 func (p *Parser) parseStatement() Statement {
-	// Check for #suppress, #strict, #enum(...), #flags attributes
+	// Check for #suppress, #strict, #enum(...), #flags, #doc(...) attributes
 	var attrs []*Attribute
-	if p.currentTokenMatches(SUPPRESS) || p.currentTokenMatches(STRICT) || p.currentTokenMatches(ENUM_ATTR) || p.currentTokenMatches(FLAGS) {
+	if p.currentTokenMatches(SUPPRESS) || p.currentTokenMatches(STRICT) || p.currentTokenMatches(ENUM_ATTR) || p.currentTokenMatches(FLAGS) || p.currentTokenMatches(DOC) {
 		attrs = p.parseAttributes()
 		// parseAttributes advances to the declaration token
 	}
@@ -623,9 +623,19 @@ func (p *Parser) parseStatement() Statement {
 				}
 			case *StructDeclaration:
 				s.Visibility = visibility
+				if len(attrs) > 0 {
+					s.Attributes = attrs
+				}
 			case *EnumDeclaration:
 				s.Visibility = visibility
 				if len(attrs) > 0 {
+					// Extract #doc attribute separately
+					for _, attr := range attrs {
+						if attr.Name == "doc" {
+							s.DocAttribute = attr
+							break
+						}
+					}
 					s.Attributes = p.parseEnumAttributes(attrs)
 				}
 			}
@@ -3407,12 +3417,12 @@ func (p *Parser) parseCastExpression() Expression {
 // Attribute Parsing
 // ============================================================================
 
-// parseAttributes parses #suppress(...), #strict, #enum(...), #flags attributes
+// parseAttributes parses #suppress(...), #strict, #enum(...), #flags, #doc(...) attributes
 func (p *Parser) parseAttributes() []*Attribute {
 	attributes := []*Attribute{}
 
-	// Handle #suppress(...), #strict, #enum(...), #flags
-	for p.currentTokenMatches(SUPPRESS) || p.currentTokenMatches(STRICT) || p.currentTokenMatches(ENUM_ATTR) || p.currentTokenMatches(FLAGS) {
+	// Handle #suppress(...), #strict, #enum(...), #flags, #doc(...)
+	for p.currentTokenMatches(SUPPRESS) || p.currentTokenMatches(STRICT) || p.currentTokenMatches(ENUM_ATTR) || p.currentTokenMatches(FLAGS) || p.currentTokenMatches(DOC) {
 		if p.currentTokenMatches(SUPPRESS) {
 			// Handle #suppress(...)
 			attributes = append(attributes, p.parseSuppressAttribute())
@@ -3434,6 +3444,12 @@ func (p *Parser) parseAttributes() []*Attribute {
 		if p.currentTokenMatches(FLAGS) {
 			// Handle #flags - power-of-2 enum attribute
 			attributes = append(attributes, p.parseFlagsAttribute())
+			continue
+		}
+
+		if p.currentTokenMatches(DOC) {
+			// Handle #doc or #doc("description")
+			attributes = append(attributes, p.parseDocAttribute())
 			continue
 		}
 	}
@@ -3568,6 +3584,33 @@ func (p *Parser) parseFlagsAttribute() *Attribute {
 		Token: p.currentToken,
 		Name:  "flags",
 		Args:  []string{},
+	}
+
+	// Move to next token (the declaration that follows)
+	p.nextToken()
+
+	return attr
+}
+
+func (p *Parser) parseDocAttribute() *Attribute {
+	attr := &Attribute{
+		Token: p.currentToken,
+		Name:  "doc",
+		Args:  []string{},
+	}
+
+	// Check for optional description: #doc("description")
+	if p.peekTokenMatches(LPAREN) {
+		p.nextToken() // consume (
+
+		if p.peekTokenMatches(STRING) {
+			p.nextToken() // move to string
+			attr.Args = append(attr.Args, p.currentToken.Literal)
+		}
+
+		if !p.expectPeek(RPAREN) {
+			return attr
+		}
 	}
 
 	// Move to next token (the declaration that follows)
