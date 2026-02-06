@@ -739,6 +739,24 @@ var MathBuiltins = map[string]*object.Builtin{
 		},
 		IsConstant: true,
 	},
+	"math.EPSILON": {
+		Fn: func(args ...object.Object) object.Object {
+			return &object.Float{Value: math.Nextafter(1.0, 2.0) - 1.0}
+		},
+		IsConstant: true,
+	},
+	"math.MAX_FLOAT": {
+		Fn: func(args ...object.Object) object.Object {
+			return &object.Float{Value: math.MaxFloat64}
+		},
+		IsConstant: true,
+	},
+	"math.MIN_FLOAT": {
+		Fn: func(args ...object.Object) object.Object {
+			return &object.Float{Value: math.SmallestNonzeroFloat64}
+		},
+		IsConstant: true,
+	},
 
 	// Special value checks
 	"math.is_inf": {
@@ -751,6 +769,36 @@ var MathBuiltins = map[string]*object.Builtin{
 				return err
 			}
 			if math.IsInf(val, 0) {
+				return object.TRUE
+			}
+			return object.FALSE
+		},
+	},
+	"math.is_nan": {
+		Fn: func(args ...object.Object) object.Object {
+			if len(args) != 1 {
+				return &object.Error{Code: "E7001", Message: "math.is_nan() takes exactly 1 argument"}
+			}
+			val, err := getNumber(args[0])
+			if err != nil {
+				return err
+			}
+			if math.IsNaN(val) {
+				return object.TRUE
+			}
+			return object.FALSE
+		},
+	},
+	"math.is_finite": {
+		Fn: func(args ...object.Object) object.Object {
+			if len(args) != 1 {
+				return &object.Error{Code: "E7001", Message: "math.is_finite() takes exactly 1 argument"}
+			}
+			val, err := getNumber(args[0])
+			if err != nil {
+				return err
+			}
+			if !math.IsNaN(val) && !math.IsInf(val, 0) {
 				return object.TRUE
 			}
 			return object.FALSE

@@ -246,10 +246,67 @@ do main() {
         failed += 1
     }
 
+    // Test 23: is_nan for normal value
+    if math.is_nan(3.14) == false {
+        println("  [PASS] math.is_nan(3.14) = false")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] math.is_nan(3.14): expected false")
+        failed += 1
+    }
+
+    // Test 24: is_finite for normal value
+    if math.is_finite(3.14) == true {
+        println("  [PASS] math.is_finite(3.14) = true")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] math.is_finite(3.14): expected true")
+        failed += 1
+    }
+
+    // Test 25: is_finite for INF
+    if math.is_finite(math.INF) == false {
+        println("  [PASS] math.is_finite(math.INF) = false")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] math.is_finite(math.INF): expected false")
+        failed += 1
+    }
+
+    // ==================== NEW CONSTANTS ====================
+    println("  -- New Constants --")
+
+    // Test 26: EPSILON is positive and very small
+    if math.EPSILON > 0.0 && math.EPSILON < 0.001 {
+        println("  [PASS] math.EPSILON is a small positive value")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] math.EPSILON: got ${math.EPSILON}")
+        failed += 1
+    }
+
+    // Test 27: MAX_FLOAT is very large
+    if math.MAX_FLOAT > 1000000000.0 {
+        println("  [PASS] math.MAX_FLOAT is very large")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] math.MAX_FLOAT: got ${math.MAX_FLOAT}")
+        failed += 1
+    }
+
+    // Test 28: MIN_FLOAT is positive and very small
+    if math.MIN_FLOAT > 0.0 && math.MIN_FLOAT < 0.001 {
+        println("  [PASS] math.MIN_FLOAT is a small positive value")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] math.MIN_FLOAT: got ${math.MIN_FLOAT}")
+        failed += 1
+    }
+
     // ==================== RANDOM ====================
     println("  -- Random --")
 
-    // Test 23: random generates value in range
+    // Test 29: random generates value in range
     temp rand_val int = math.random(100)
     if rand_val >= 0 && rand_val < 100 {
         println("  [PASS] math.random(100) in range [0, 100)")
@@ -262,7 +319,7 @@ do main() {
     // ==================== LARGE INTEGER PRECISION ====================
     println("  -- Large Integer Precision --")
 
-    // Test 24: math.add preserves precision for large integers (> 2^53)
+    // Test 30: math.add preserves precision for large integers (> 2^53)
     temp big1 int = 9007199254740993
     temp big2 int = 9007199254740993
     temp native_add = big1 + big2
@@ -275,7 +332,7 @@ do main() {
         failed += 1
     }
 
-    // Test 25: math.mul preserves precision for large integers
+    // Test 31: math.mul preserves precision for large integers
     temp mul_result = math.mul(big1, 2)
     temp native_mul = big1 * 2
     if native_mul == mul_result {
@@ -286,7 +343,7 @@ do main() {
         failed += 1
     }
 
-    // Test 26: math.factorial works for n > 20 (was limited before)
+    // Test 32: math.factorial works for n > 20 (was limited before)
     temp fact_25 = math.factorial(25)
     temp expected_fact_25 int = 15511210043330985984000000
     if fact_25 == expected_fact_25 {
