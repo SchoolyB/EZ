@@ -16,7 +16,8 @@ import (
 
 // CryptoBuiltins contains the crypto module functions
 var CryptoBuiltins = map[string]*object.Builtin{
-	// crypto.sha256(data) - returns SHA-256 hash as lowercase hex string
+	// sha256 computes the SHA-256 hash of a string.
+	// Takes a string. Returns lowercase hex-encoded hash.
 	"crypto.sha256": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 1 {
@@ -33,7 +34,8 @@ var CryptoBuiltins = map[string]*object.Builtin{
 		},
 	},
 
-	// crypto.sha512(data) - returns SHA-512 hash as lowercase hex string
+	// sha512 computes the SHA-512 hash of a string.
+	// Takes a string. Returns lowercase hex-encoded hash.
 	"crypto.sha512": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 1 {
@@ -50,8 +52,8 @@ var CryptoBuiltins = map[string]*object.Builtin{
 		},
 	},
 
-	// crypto.md5(data) - returns MD5 hash as lowercase hex string
-	// Note: MD5 is cryptographically broken, use only for checksums/legacy
+	// md5 computes the MD5 hash of a string (legacy, not secure).
+	// Takes a string. Returns lowercase hex-encoded hash.
 	"crypto.md5": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 1 {
@@ -68,7 +70,8 @@ var CryptoBuiltins = map[string]*object.Builtin{
 		},
 	},
 
-	// crypto.random_bytes(length) - returns cryptographically secure random bytes
+	// random_bytes generates cryptographically secure random bytes.
+	// Takes length as integer. Returns byte array.
 	"crypto.random_bytes": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 1 {
@@ -103,8 +106,8 @@ var CryptoBuiltins = map[string]*object.Builtin{
 		},
 	},
 
-	// crypto.random_hex(length) - returns cryptographically secure random hex string
-	// length is the number of bytes, output will be 2*length characters
+	// random_hex generates cryptographically secure random hex string.
+	// Takes byte count. Returns hex string (2*length characters).
 	"crypto.random_hex": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 1 {
