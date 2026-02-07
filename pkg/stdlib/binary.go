@@ -12,7 +12,6 @@ import (
 	"github.com/marshallburns/ez/pkg/object"
 )
 
-
 // Helper to convert EZ byte array to Go []byte with length validation
 func binaryBytesToSlice(arg object.Object, expected int, funcName string) ([]byte, *object.Struct) {
 	arr, ok := arg.(*object.Array)
@@ -122,7 +121,8 @@ var BinaryBuiltins = map[string]*object.Builtin{
 	// 8-bit Encoding/Decoding (no endianness needed)
 	// ============================================================================
 
-	// Encodes an i8 to a single byte
+	// encode_i8 encodes a signed 8-bit integer to a byte array.
+	// Takes an i8 value. Returns ([byte], Error) tuple.
 	"binary.encode_i8": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 1 {
@@ -146,7 +146,8 @@ var BinaryBuiltins = map[string]*object.Builtin{
 		},
 	},
 
-	// Decodes a single byte to an i8
+	// decode_i8 decodes a byte array to a signed 8-bit integer.
+	// Takes a 1-byte array. Returns (i8, Error) tuple.
 	"binary.decode_i8": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 1 {
@@ -164,7 +165,8 @@ var BinaryBuiltins = map[string]*object.Builtin{
 		},
 	},
 
-	// Encodes a u8 to a single byte
+	// encode_u8 encodes an unsigned 8-bit integer to a byte array.
+	// Takes a u8 value. Returns ([byte], Error) tuple.
 	"binary.encode_u8": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 1 {
@@ -188,7 +190,8 @@ var BinaryBuiltins = map[string]*object.Builtin{
 		},
 	},
 
-	// Decodes a single byte to a u8
+	// decode_u8 decodes a byte array to an unsigned 8-bit integer.
+	// Takes a 1-byte array. Returns (u8, Error) tuple.
 	"binary.decode_u8": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 1 {
@@ -209,6 +212,8 @@ var BinaryBuiltins = map[string]*object.Builtin{
 	// 16-bit Encoding (Little Endian)
 	// ============================================================================
 
+	// encode_i16_to_little_endian encodes an i16 to little-endian byte array.
+	// Takes an i16 value. Returns ([byte], Error) tuple.
 	"binary.encode_i16_to_little_endian": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 1 {
@@ -234,6 +239,8 @@ var BinaryBuiltins = map[string]*object.Builtin{
 		},
 	},
 
+	// decode_i16_from_little_endian decodes a little-endian byte array to i16.
+	// Takes a 2-byte array. Returns (i16, Error) tuple.
 	"binary.decode_i16_from_little_endian": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 1 {
@@ -251,6 +258,8 @@ var BinaryBuiltins = map[string]*object.Builtin{
 		},
 	},
 
+	// encode_u16_to_little_endian encodes a u16 to little-endian byte array.
+	// Takes a u16 value. Returns ([byte], Error) tuple.
 	"binary.encode_u16_to_little_endian": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 1 {
@@ -276,6 +285,8 @@ var BinaryBuiltins = map[string]*object.Builtin{
 		},
 	},
 
+	// decode_u16_from_little_endian decodes a little-endian byte array to u16.
+	// Takes a 2-byte array. Returns (u16, Error) tuple.
 	"binary.decode_u16_from_little_endian": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 1 {
@@ -297,6 +308,8 @@ var BinaryBuiltins = map[string]*object.Builtin{
 	// 16-bit Encoding (Big Endian)
 	// ============================================================================
 
+	// encode_i16_to_big_endian encodes an i16 to big-endian byte array.
+	// Takes an i16 value. Returns ([byte], Error) tuple.
 	"binary.encode_i16_to_big_endian": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 1 {
@@ -385,6 +398,8 @@ var BinaryBuiltins = map[string]*object.Builtin{
 	// 32-bit Encoding (Little Endian)
 	// ============================================================================
 
+	// encode_i32_to_little_endian encodes an i32 to little-endian byte array.
+	// Takes an i32 value. Returns ([byte], Error) tuple.
 	"binary.encode_i32_to_little_endian": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 1 {
@@ -472,6 +487,8 @@ var BinaryBuiltins = map[string]*object.Builtin{
 	// 32-bit Encoding (Big Endian)
 	// ============================================================================
 
+	// encode_i32_to_big_endian encodes an i32 to big-endian byte array.
+	// Takes an i32 value. Returns ([byte], Error) tuple.
 	"binary.encode_i32_to_big_endian": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 1 {
@@ -559,6 +576,8 @@ var BinaryBuiltins = map[string]*object.Builtin{
 	// 64-bit Encoding (Little Endian)
 	// ============================================================================
 
+	// encode_i64_to_little_endian encodes an i64 to little-endian byte array.
+	// Takes an i64 value. Returns ([byte], Error) tuple.
 	"binary.encode_i64_to_little_endian": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 1 {
@@ -648,6 +667,8 @@ var BinaryBuiltins = map[string]*object.Builtin{
 	// 64-bit Encoding (Big Endian)
 	// ============================================================================
 
+	// encode_i64_to_big_endian encodes an i64 to big-endian byte array.
+	// Takes an i64 value. Returns ([byte], Error) tuple.
 	"binary.encode_i64_to_big_endian": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 1 {
@@ -737,6 +758,8 @@ var BinaryBuiltins = map[string]*object.Builtin{
 	// 128-bit Encoding (Little Endian)
 	// ============================================================================
 
+	// encode_i128_to_little_endian encodes an i128 to little-endian byte array.
+	// Takes an i128 value. Returns ([byte], Error) tuple.
 	"binary.encode_i128_to_little_endian": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 1 {
@@ -833,6 +856,8 @@ var BinaryBuiltins = map[string]*object.Builtin{
 	// 128-bit Encoding (Big Endian)
 	// ============================================================================
 
+	// encode_i128_to_big_endian encodes an i128 to big-endian byte array.
+	// Takes an i128 value. Returns ([byte], Error) tuple.
 	"binary.encode_i128_to_big_endian": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 1 {
@@ -925,6 +950,8 @@ var BinaryBuiltins = map[string]*object.Builtin{
 	// 256-bit Encoding (Little Endian)
 	// ============================================================================
 
+	// encode_i256_to_little_endian encodes an i256 to little-endian byte array.
+	// Takes an i256 value. Returns ([byte], Error) tuple.
 	"binary.encode_i256_to_little_endian": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 1 {
@@ -1018,6 +1045,8 @@ var BinaryBuiltins = map[string]*object.Builtin{
 	// 256-bit Encoding (Big Endian)
 	// ============================================================================
 
+	// encode_i256_to_big_endian encodes an i256 to big-endian byte array.
+	// Takes an i256 value. Returns ([byte], Error) tuple.
 	"binary.encode_i256_to_big_endian": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 1 {
@@ -1109,6 +1138,8 @@ var BinaryBuiltins = map[string]*object.Builtin{
 	// Float Encoding (Little Endian)
 	// ============================================================================
 
+	// encode_f32_to_little_endian encodes an f32 to little-endian byte array.
+	// Takes an f32 value. Returns ([byte], Error) tuple.
 	"binary.encode_f32_to_little_endian": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 1 {
@@ -1199,6 +1230,8 @@ var BinaryBuiltins = map[string]*object.Builtin{
 	// Float Encoding (Big Endian)
 	// ============================================================================
 
+	// encode_f32_to_big_endian encodes an f32 to big-endian byte array.
+	// Takes an f32 value. Returns ([byte], Error) tuple.
 	"binary.encode_f32_to_big_endian": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 1 {
