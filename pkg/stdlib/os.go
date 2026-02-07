@@ -25,8 +25,8 @@ var OSBuiltins = map[string]*object.Builtin{
 	// Environment Variables
 	// ============================================================================
 
-	// Gets an environment variable by name
-	// Returns (value, error) tuple - error is non-nil if variable is not set
+	// get_env retrieves an environment variable by name.
+	// Takes variable name. Returns (string, Error) tuple.
 	"os.get_env": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 1 {
@@ -51,8 +51,8 @@ var OSBuiltins = map[string]*object.Builtin{
 		},
 	},
 
-	// Sets an environment variable (process-scoped only)
-	// Returns true on success, (false, error) on failure
+	// set_env sets an environment variable (process-scoped only).
+	// Takes name and value. Returns (bool, Error) tuple.
 	"os.set_env": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 2 {
@@ -82,8 +82,8 @@ var OSBuiltins = map[string]*object.Builtin{
 		},
 	},
 
-	// Unsets an environment variable
-	// Returns true on success, (false, error) on failure
+	// unset_env removes an environment variable.
+	// Takes variable name. Returns (bool, Error) tuple.
 	"os.unset_env": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 1 {
@@ -109,7 +109,8 @@ var OSBuiltins = map[string]*object.Builtin{
 		},
 	},
 
-	// Returns all environment variables as a map
+	// env returns all environment variables as a map.
+	// Takes no arguments. Returns map[string:string].
 	"os.env": {
 		Fn: func(args ...object.Object) object.Object {
 			envMap := object.NewMap()
@@ -125,8 +126,8 @@ var OSBuiltins = map[string]*object.Builtin{
 		},
 	},
 
-	// Returns command-line arguments as an array
-	// First element is the program name/path
+	// args returns command-line arguments as an array.
+	// Takes no arguments. Returns [string] (first element is program name).
 	"os.args": {
 		Fn: func(args ...object.Object) object.Object {
 			// Use CommandLineArgs if set, otherwise fall back to os.Args
@@ -142,7 +143,8 @@ var OSBuiltins = map[string]*object.Builtin{
 	// Process / System
 	// ============================================================================
 
-	// Exits the program with the given status code
+	// exit terminates the program with a status code.
+	// Takes optional int exit code (default 0). Does not return.
 	"os.exit": {
 		Fn: func(args ...object.Object) object.Object {
 			code := 0
@@ -158,8 +160,8 @@ var OSBuiltins = map[string]*object.Builtin{
 		},
 	},
 
-	// Returns the current working directory
-	// Returns (path, error) tuple
+	// cwd returns the current working directory.
+	// Takes no arguments. Returns (string, Error) tuple.
 	"os.cwd": {
 		Fn: func(args ...object.Object) object.Object {
 			cwd, err := os.Getwd()
@@ -176,8 +178,8 @@ var OSBuiltins = map[string]*object.Builtin{
 		},
 	},
 
-	// Changes the current working directory
-	// Returns (success, error) tuple
+	// chdir changes the current working directory.
+	// Takes path string. Returns (bool, Error) tuple.
 	"os.chdir": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 1 {
@@ -203,8 +205,8 @@ var OSBuiltins = map[string]*object.Builtin{
 		},
 	},
 
-	// Returns the hostname of the machine
-	// Returns (hostname, error) tuple
+	// hostname returns the system's hostname.
+	// Takes no arguments. Returns (string, Error) tuple.
 	"os.hostname": {
 		Fn: func(args ...object.Object) object.Object {
 			hostname, err := os.Hostname()
@@ -221,8 +223,8 @@ var OSBuiltins = map[string]*object.Builtin{
 		},
 	},
 
-	// Returns the current user's username
-	// Returns (username, error) tuple
+	// username returns the current user's name.
+	// Takes no arguments. Returns (string, Error) tuple.
 	"os.username": {
 		Fn: func(args ...object.Object) object.Object {
 			currentUser, err := user.Current()
@@ -239,8 +241,8 @@ var OSBuiltins = map[string]*object.Builtin{
 		},
 	},
 
-	// Returns the current user's home directory
-	// Returns (path, error) tuple
+	// home_dir returns the current user's home directory.
+	// Takes no arguments. Returns (string, Error) tuple.
 	"os.home_dir": {
 		Fn: func(args ...object.Object) object.Object {
 			homeDir, err := os.UserHomeDir()
@@ -257,21 +259,24 @@ var OSBuiltins = map[string]*object.Builtin{
 		},
 	},
 
-	// Returns the system's temporary directory
+	// temp_dir returns the system's temporary directory.
+	// Takes no arguments. Returns path string.
 	"os.temp_dir": {
 		Fn: func(args ...object.Object) object.Object {
 			return &object.String{Value: os.TempDir()}
 		},
 	},
 
-	// Returns the process ID of the current process
+	// pid returns the current process ID.
+	// Takes no arguments. Returns int.
 	"os.pid": {
 		Fn: func(args ...object.Object) object.Object {
 			return &object.Integer{Value: big.NewInt(int64(os.Getpid()))}
 		},
 	},
 
-	// Returns the parent process ID
+	// ppid returns the parent process ID.
+	// Takes no arguments. Returns int.
 	"os.ppid": {
 		Fn: func(args ...object.Object) object.Object {
 			return &object.Integer{Value: big.NewInt(int64(os.Getppid()))}
@@ -280,21 +285,26 @@ var OSBuiltins = map[string]*object.Builtin{
 
 	// ============================================================================
 	// Platform Detection
+	// OS constants: MAC_OS=0, LINUX=1, WINDOWS=2.
 	// ============================================================================
 
-	// OS Constants - use these for comparison with CURRENT_OS
+	// MAC_OS is the constant for macOS (value 0).
 	"os.MAC_OS": {
 		Fn: func(args ...object.Object) object.Object {
 			return &object.Integer{Value: big.NewInt(0)}
 		},
 		IsConstant: true,
 	},
+
+	// LINUX is the constant for Linux (value 1).
 	"os.LINUX": {
 		Fn: func(args ...object.Object) object.Object {
 			return &object.Integer{Value: big.NewInt(1)}
 		},
 		IsConstant: true,
 	},
+
+	// WINDOWS is the constant for Windows (value 2).
 	"os.WINDOWS": {
 		Fn: func(args ...object.Object) object.Object {
 			return &object.Integer{Value: big.NewInt(2)}
@@ -302,7 +312,8 @@ var OSBuiltins = map[string]*object.Builtin{
 		IsConstant: true,
 	},
 
-	// Returns the current OS as a constant (matches os.MAC_OS, os.LINUX, or os.WINDOWS)
+	// CURRENT_OS returns the current OS as a constant.
+	// Compare with MAC_OS, LINUX, or WINDOWS.
 	"os.CURRENT_OS": {
 		Fn: func(args ...object.Object) object.Object {
 			switch runtime.GOOS {
@@ -319,23 +330,24 @@ var OSBuiltins = map[string]*object.Builtin{
 		IsConstant: true,
 	},
 
-	// Returns the operating system name as a string
-	// Possible values: "darwin", "linux", "windows", "freebsd", etc.
+	// platform returns the OS name string (e.g., "darwin", "linux", "windows").
+	// Takes no arguments. Returns string.
 	"os.platform": {
 		Fn: func(args ...object.Object) object.Object {
 			return &object.String{Value: runtime.GOOS}
 		},
 	},
 
-	// Returns the CPU architecture
-	// Possible values: "amd64", "arm64", "386", "arm", etc.
+	// arch returns the CPU architecture (e.g., "amd64", "arm64").
+	// Takes no arguments. Returns string.
 	"os.arch": {
 		Fn: func(args ...object.Object) object.Object {
 			return &object.String{Value: runtime.GOARCH}
 		},
 	},
 
-	// Returns true if running on Windows
+	// is_windows returns true if running on Windows.
+	// Takes no arguments. Returns bool.
 	"os.is_windows": {
 		Fn: func(args ...object.Object) object.Object {
 			if runtime.GOOS == "windows" {
@@ -345,7 +357,8 @@ var OSBuiltins = map[string]*object.Builtin{
 		},
 	},
 
-	// Returns true if running on Linux
+	// is_linux returns true if running on Linux.
+	// Takes no arguments. Returns bool.
 	"os.is_linux": {
 		Fn: func(args ...object.Object) object.Object {
 			if runtime.GOOS == "linux" {
@@ -355,7 +368,8 @@ var OSBuiltins = map[string]*object.Builtin{
 		},
 	},
 
-	// Returns true if running on macOS
+	// is_macos returns true if running on macOS.
+	// Takes no arguments. Returns bool.
 	"os.is_macos": {
 		Fn: func(args ...object.Object) object.Object {
 			if runtime.GOOS == "darwin" {
@@ -365,7 +379,8 @@ var OSBuiltins = map[string]*object.Builtin{
 		},
 	},
 
-	// Returns the number of CPUs available
+	// num_cpu returns the number of available CPUs.
+	// Takes no arguments. Returns int.
 	"os.num_cpu": {
 		Fn: func(args ...object.Object) object.Object {
 			return &object.Integer{Value: big.NewInt(int64(runtime.NumCPU()))}
@@ -376,8 +391,7 @@ var OSBuiltins = map[string]*object.Builtin{
 	// Platform Constants
 	// ============================================================================
 
-	// Returns the line separator for the current platform
-	// "\r\n" on Windows, "\n" on Unix-like systems
+	// line_separator is the platform-specific line ending ("\r\n" or "\n").
 	"os.line_separator": {
 		Fn: func(args ...object.Object) object.Object {
 			if runtime.GOOS == "windows" {
@@ -388,8 +402,7 @@ var OSBuiltins = map[string]*object.Builtin{
 		IsConstant: true,
 	},
 
-	// Returns the null device path for the current platform
-	// "NUL" on Windows, "/dev/null" on Unix-like systems
+	// dev_null is the platform-specific null device ("NUL" or "/dev/null").
 	"os.dev_null": {
 		Fn: func(args ...object.Object) object.Object {
 			if runtime.GOOS == "windows" {
@@ -404,9 +417,8 @@ var OSBuiltins = map[string]*object.Builtin{
 	// Command Execution
 	// ============================================================================
 
-	// Runs a shell command and returns (exit_code, error)
-	// Commands run through the system shell (/bin/sh -c on Unix, cmd /c on Windows)
-	// Note: User input should be sanitized before passing to this function
+	// exec runs a shell command and returns the exit code.
+	// Takes command string. Returns (int, Error) tuple.
 	"os.exec": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 1 {
@@ -451,10 +463,8 @@ var OSBuiltins = map[string]*object.Builtin{
 		},
 	},
 
-	// Runs a shell command and returns (output, error)
-	// Captures both stdout and stderr combined
-	// Output has trailing whitespace trimmed
-	// Note: User input should be sanitized before passing to this function
+	// exec_output runs a shell command and returns its output.
+	// Takes command string. Returns (string, Error) tuple.
 	"os.exec_output": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 1 {
@@ -498,4 +508,3 @@ var OSBuiltins = map[string]*object.Builtin{
 		},
 	},
 }
-
