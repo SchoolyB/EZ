@@ -41,6 +41,8 @@ var defaultClient = &http.Client{
 }
 
 var HttpBuiltins = map[string]*object.Builtin{
+	// get performs an HTTP GET request to the specified URL.
+	// Takes URL string. Returns (HttpResponse, Error) tuple.
 	"http.get": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 1 {
@@ -107,6 +109,8 @@ var HttpBuiltins = map[string]*object.Builtin{
 		},
 	},
 
+	// post performs an HTTP POST request with a request body.
+	// Takes URL string and body string. Returns (HttpResponse, Error) tuple.
 	"http.post": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 2 {
@@ -178,6 +182,8 @@ var HttpBuiltins = map[string]*object.Builtin{
 		},
 	},
 
+	// put performs an HTTP PUT request with a request body.
+	// Takes URL string and body string. Returns (HttpResponse, Error) tuple.
 	"http.put": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 2 {
@@ -249,6 +255,8 @@ var HttpBuiltins = map[string]*object.Builtin{
 		},
 	},
 
+	// delete performs an HTTP DELETE request to the specified URL.
+	// Takes URL string. Returns (HttpResponse, Error) tuple.
 	"http.delete": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 1 {
@@ -315,6 +323,8 @@ var HttpBuiltins = map[string]*object.Builtin{
 		},
 	},
 
+	// patch performs an HTTP PATCH request with a request body.
+	// Takes URL string and body string. Returns (HttpResponse, Error) tuple.
 	"http.patch": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 2 {
@@ -386,6 +396,8 @@ var HttpBuiltins = map[string]*object.Builtin{
 		},
 	},
 
+	// request performs a configurable HTTP request with custom method, headers, and timeout.
+	// Takes method, URL, body, headers map, and timeout (seconds). Returns (HttpResponse, Error) tuple.
 	"http.request": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 5 {
@@ -504,6 +516,8 @@ var HttpBuiltins = map[string]*object.Builtin{
 		},
 	},
 
+	// build_query encodes a map as a URL query string.
+	// Takes map[string:string]. Returns URL-encoded query string.
 	"http.build_query": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 1 {
@@ -532,6 +546,8 @@ var HttpBuiltins = map[string]*object.Builtin{
 		},
 	},
 
+	// json_body encodes a map as a JSON string for use in request bodies.
+	// Takes a map. Returns JSON string.
 	"http.json_body": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 1 {
@@ -552,6 +568,8 @@ var HttpBuiltins = map[string]*object.Builtin{
 		},
 	},
 
+	// head performs an HTTP HEAD request to retrieve headers without body.
+	// Takes URL string. Returns (HttpResponse, Error) tuple with empty body.
 	"http.head": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 1 {
@@ -608,6 +626,8 @@ var HttpBuiltins = map[string]*object.Builtin{
 		},
 	},
 
+	// options performs an HTTP OPTIONS request to query supported methods.
+	// Takes URL string. Returns (HttpResponse, Error) tuple.
 	"http.options": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 1 {
@@ -674,6 +694,8 @@ var HttpBuiltins = map[string]*object.Builtin{
 		},
 	},
 
+	// download fetches a URL and saves the content to a file.
+	// Takes URL string and file path. Returns (bytes_written, Error) tuple.
 	"http.download": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 2 {
@@ -745,6 +767,8 @@ var HttpBuiltins = map[string]*object.Builtin{
 		},
 	},
 
+	// parse_url parses a URL string into its component parts.
+	// Takes URL string. Returns (URL struct, Error) tuple.
 	"http.parse_url": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 1 {
@@ -794,6 +818,8 @@ var HttpBuiltins = map[string]*object.Builtin{
 		},
 	},
 
+	// build_url constructs a URL string from component parts.
+	// Takes URL struct with scheme, host, port, path, query, fragment. Returns URL string.
 	"http.build_url": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 1 {
@@ -853,8 +879,10 @@ var HttpBuiltins = map[string]*object.Builtin{
 
 	// ============================================================================
 	// HTTP Status Code Constants
+	// These constants provide standard HTTP status codes for response handling.
 	// ============================================================================
 
+	// OK is HTTP 200 status code indicating successful request.
 	"http.OK": {
 		Fn: func(args ...object.Object) object.Object {
 			return &object.Integer{Value: big.NewInt(OK)}
@@ -862,6 +890,7 @@ var HttpBuiltins = map[string]*object.Builtin{
 		IsConstant: true,
 	},
 
+	// CREATED is HTTP 201 status code indicating resource was created.
 	"http.CREATED": {
 		Fn: func(args ...object.Object) object.Object {
 			return &object.Integer{Value: big.NewInt(CREATED)}
@@ -869,6 +898,7 @@ var HttpBuiltins = map[string]*object.Builtin{
 		IsConstant: true,
 	},
 
+	// ACCEPTED is HTTP 202 status code indicating request accepted for processing.
 	"http.ACCEPTED": {
 		Fn: func(args ...object.Object) object.Object {
 			return &object.Integer{Value: big.NewInt(ACCEPTED)}
@@ -876,6 +906,7 @@ var HttpBuiltins = map[string]*object.Builtin{
 		IsConstant: true,
 	},
 
+	// NO_CONTENT is HTTP 204 status code indicating success with no response body.
 	"http.NO_CONTENT": {
 		Fn: func(args ...object.Object) object.Object {
 			return &object.Integer{Value: big.NewInt(NO_CONTENT)}
@@ -883,6 +914,7 @@ var HttpBuiltins = map[string]*object.Builtin{
 		IsConstant: true,
 	},
 
+	// MOVED_PERMANENTLY is HTTP 301 status code indicating permanent redirect.
 	"http.MOVED_PERMANENTLY": {
 		Fn: func(args ...object.Object) object.Object {
 			return &object.Integer{Value: big.NewInt(MOVED_PERMANENTLY)}
@@ -890,6 +922,7 @@ var HttpBuiltins = map[string]*object.Builtin{
 		IsConstant: true,
 	},
 
+	// FOUND is HTTP 302 status code indicating temporary redirect.
 	"http.FOUND": {
 		Fn: func(args ...object.Object) object.Object {
 			return &object.Integer{Value: big.NewInt(FOUND)}
@@ -897,6 +930,7 @@ var HttpBuiltins = map[string]*object.Builtin{
 		IsConstant: true,
 	},
 
+	// NOT_MODIFIED is HTTP 304 status code indicating cached version is current.
 	"http.NOT_MODIFIED": {
 		Fn: func(args ...object.Object) object.Object {
 			return &object.Integer{Value: big.NewInt(NOT_MODIFIED)}
@@ -904,6 +938,7 @@ var HttpBuiltins = map[string]*object.Builtin{
 		IsConstant: true,
 	},
 
+	// TEMPORARY_REDIRECT is HTTP 307 status code indicating temporary redirect preserving method.
 	"http.TEMPORARY_REDIRECT": {
 		Fn: func(args ...object.Object) object.Object {
 			return &object.Integer{Value: big.NewInt(TEMPORARY_REDIRECT)}
@@ -911,6 +946,7 @@ var HttpBuiltins = map[string]*object.Builtin{
 		IsConstant: true,
 	},
 
+	// PERMANENT_REDIRECT is HTTP 308 status code indicating permanent redirect preserving method.
 	"http.PERMANENT_REDIRECT": {
 		Fn: func(args ...object.Object) object.Object {
 			return &object.Integer{Value: big.NewInt(PERMANENT_REDIRECT)}
@@ -918,6 +954,7 @@ var HttpBuiltins = map[string]*object.Builtin{
 		IsConstant: true,
 	},
 
+	// BAD_REQUEST is HTTP 400 status code indicating malformed request.
 	"http.BAD_REQUEST": {
 		Fn: func(args ...object.Object) object.Object {
 			return &object.Integer{Value: big.NewInt(BAD_REQUEST)}
@@ -925,6 +962,7 @@ var HttpBuiltins = map[string]*object.Builtin{
 		IsConstant: true,
 	},
 
+	// UNAUTHORIZED is HTTP 401 status code indicating authentication required.
 	"http.UNAUTHORIZED": {
 		Fn: func(args ...object.Object) object.Object {
 			return &object.Integer{Value: big.NewInt(UNAUTHORIZED)}
@@ -932,6 +970,7 @@ var HttpBuiltins = map[string]*object.Builtin{
 		IsConstant: true,
 	},
 
+	// PAYMENT_REQUIRED is HTTP 402 status code reserved for future use.
 	"http.PAYMENT_REQUIRED": {
 		Fn: func(args ...object.Object) object.Object {
 			return &object.Integer{Value: big.NewInt(PAYMENT_REQUIRED)}
@@ -939,6 +978,7 @@ var HttpBuiltins = map[string]*object.Builtin{
 		IsConstant: true,
 	},
 
+	// FORBIDDEN is HTTP 403 status code indicating access denied.
 	"http.FORBIDDEN": {
 		Fn: func(args ...object.Object) object.Object {
 			return &object.Integer{Value: big.NewInt(FORBIDDEN)}
@@ -946,6 +986,7 @@ var HttpBuiltins = map[string]*object.Builtin{
 		IsConstant: true,
 	},
 
+	// NOT_FOUND is HTTP 404 status code indicating resource not found.
 	"http.NOT_FOUND": {
 		Fn: func(args ...object.Object) object.Object {
 			return &object.Integer{Value: big.NewInt(NOT_FOUND)}
@@ -953,6 +994,7 @@ var HttpBuiltins = map[string]*object.Builtin{
 		IsConstant: true,
 	},
 
+	// METHOD_NOT_ALLOWED is HTTP 405 status code indicating method not supported.
 	"http.METHOD_NOT_ALLOWED": {
 		Fn: func(args ...object.Object) object.Object {
 			return &object.Integer{Value: big.NewInt(METHOD_NOT_ALLOWED)}
@@ -960,6 +1002,7 @@ var HttpBuiltins = map[string]*object.Builtin{
 		IsConstant: true,
 	},
 
+	// CONFLICT is HTTP 409 status code indicating request conflicts with server state.
 	"http.CONFLICT": {
 		Fn: func(args ...object.Object) object.Object {
 			return &object.Integer{Value: big.NewInt(CONFLICT)}
@@ -967,6 +1010,7 @@ var HttpBuiltins = map[string]*object.Builtin{
 		IsConstant: true,
 	},
 
+	// INTERNAL_SERVER_ERROR is HTTP 500 status code indicating server error.
 	"http.INTERNAL_SERVER_ERROR": {
 		Fn: func(args ...object.Object) object.Object {
 			return &object.Integer{Value: big.NewInt(INTERNAL_SERVER_ERROR)}
@@ -974,6 +1018,7 @@ var HttpBuiltins = map[string]*object.Builtin{
 		IsConstant: true,
 	},
 
+	// BAD_GATEWAY is HTTP 502 status code indicating invalid upstream response.
 	"http.BAD_GATEWAY": {
 		Fn: func(args ...object.Object) object.Object {
 			return &object.Integer{Value: big.NewInt(BAD_GATEWAY)}
@@ -981,6 +1026,7 @@ var HttpBuiltins = map[string]*object.Builtin{
 		IsConstant: true,
 	},
 
+	// SERVICE_UNAVAILABLE is HTTP 503 status code indicating server temporarily unavailable.
 	"http.SERVICE_UNAVAILABLE": {
 		Fn: func(args ...object.Object) object.Object {
 			return &object.Integer{Value: big.NewInt(SERVICE_UNAVAILABLE)}
@@ -988,7 +1034,6 @@ var HttpBuiltins = map[string]*object.Builtin{
 		IsConstant: true,
 	},
 }
-
 
 func newHttpResponse(status int, body string, headers *object.Map) *object.Struct {
 	return &object.Struct{
