@@ -10,15 +10,14 @@ import (
 	"github.com/marshallburns/ez/pkg/object"
 )
 
-// DBBuiltings contains the db module functions for database operations
+// DBBuiltins contains the db module functions for database operations
 var DBBuiltins = map[string]*object.Builtin{
 	// ============================================================================
 	// Database Management
 	// ============================================================================
 
-	// Opens database using provided path
-	// Creates new database file if it does not exist
-	// Returns (database, error) tuple - error is nil on success
+	// open opens or creates a database file at the given path.
+	// Takes path string (.ezdb). Returns (Database, Error) tuple.
 	"db.open": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 1 {
@@ -112,9 +111,8 @@ var DBBuiltins = map[string]*object.Builtin{
 		},
 	},
 
-	// Closes the database and prevents further actions on the database
-	// Saves state of database to disk when closing
-	// Returns (error) - error is nil on success
+	// close closes a database and saves its state to disk.
+	// Takes Database. Returns nil on success, prevents further operations.
 	"db.close": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 1 {
@@ -146,8 +144,8 @@ var DBBuiltins = map[string]*object.Builtin{
 		},
 	},
 
-	// Manual saving of database to disk
-	// Returns (error) - error is nil on success
+	// save manually persists the database state to disk.
+	// Takes Database. Returns nil on success.
 	"db.save": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 1 {
@@ -181,8 +179,8 @@ var DBBuiltins = map[string]*object.Builtin{
 	// Database Operations
 	// ============================================================================
 
-	// Sets a key value pair in database
-	// Returns nothing
+	// set stores a key-value pair in the database.
+	// Takes Database, key string, value string. Returns nil.
 	"db.set": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 3 {
@@ -214,8 +212,8 @@ var DBBuiltins = map[string]*object.Builtin{
 		},
 	},
 
-	// Returns value associated with key if it exists
-	// Returns (string, bool) - string is empty if key does not exist
+	// get retrieves a value by key from the database.
+	// Takes Database, key. Returns (string, bool) where bool is found status.
 	"db.get": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 2 {
@@ -251,8 +249,8 @@ var DBBuiltins = map[string]*object.Builtin{
 		},
 	},
 
-	// Removes key value pair from database
-	// Returns (bool) - false if key does not exist
+	// remove deletes a key-value pair from the database.
+	// Takes Database, key. Returns true if key existed.
 	"db.remove": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 2 {
@@ -278,8 +276,8 @@ var DBBuiltins = map[string]*object.Builtin{
 		},
 	},
 
-	// Checks if key exists in database
-	// Returns (bool)
+	// contains checks if a key exists in the database.
+	// Takes Database, key. Returns true if key exists.
 	"db.contains": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 2 {
@@ -305,8 +303,8 @@ var DBBuiltins = map[string]*object.Builtin{
 		},
 	},
 
-	// Fetches array of keys present in database
-	// Returns ([string])
+	// keys returns an array of all keys in the database.
+	// Takes Database. Returns [string] array.
 	"db.keys": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 1 {
@@ -334,8 +332,8 @@ var DBBuiltins = map[string]*object.Builtin{
 		},
 	},
 
-	// Fetches array of values present in database
-	// Returns ([any])
+	// values returns an array of all values in the database.
+	// Takes Database. Returns array of values.
 	"db.values": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 1 {
@@ -363,8 +361,8 @@ var DBBuiltins = map[string]*object.Builtin{
 		},
 	},
 
-	// Fetches all key-value pairs in database
-	// Returns ([{key: string, value: any}])
+	// entries returns all key-value pairs as Entry structs.
+	// Takes Database. Returns array of {key, value} structs.
 	"db.entries": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 1 {
@@ -400,8 +398,8 @@ var DBBuiltins = map[string]*object.Builtin{
 		},
 	},
 
-	// Fetches keys with prefix in database
-	// Returns ([string])
+	// prefix returns all keys that start with a given prefix.
+	// Takes Database, prefix string. Returns [string] array.
 	"db.prefix": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 2 {
@@ -437,8 +435,8 @@ var DBBuiltins = map[string]*object.Builtin{
 		},
 	},
 
-	// Number of key value pairs in database
-	// Returns (int)
+	// count returns the number of key-value pairs in the database.
+	// Takes Database. Returns integer count.
 	"db.count": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 1 {
@@ -459,8 +457,8 @@ var DBBuiltins = map[string]*object.Builtin{
 		},
 	},
 
-	// Clears all key value pairs in database
-	// Returns nothing
+	// clear removes all key-value pairs from the database.
+	// Takes Database. Returns nil.
 	"db.clear": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 1 {
@@ -482,8 +480,8 @@ var DBBuiltins = map[string]*object.Builtin{
 		},
 	},
 
-	// Checks if a database file exists at the given path
-	// Returns (bool)
+	// exists checks if a database file exists at the given path.
+	// Takes path string. Returns true if file exists.
 	"db.exists": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 1 {
@@ -504,8 +502,8 @@ var DBBuiltins = map[string]*object.Builtin{
 		},
 	},
 
-	// Renames a key in the database
-	// Returns (bool) - false if old key does not exist
+	// update_key_name renames a key in the database.
+	// Takes Database, old key, new key. Returns true if old key existed.
 	"db.update_key_name": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 3 {
@@ -545,8 +543,8 @@ var DBBuiltins = map[string]*object.Builtin{
 		},
 	},
 
-	// Sorts database keys by specified order
-	// Returns nothing
+	// sort reorders database entries by the specified sort order.
+	// Takes Database, order constant (e.g., db.ALPHA). Returns nil.
 	"db.sort": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 2 {
@@ -656,7 +654,8 @@ var DBBuiltins = map[string]*object.Builtin{
 	// Database Constants
 	// ============================================================================
 
-	// Sort order: keys alphabetically A-Z
+	// ALPHA is a sort order constant for keys alphabetically A-Z.
+	// Use with db.sort().
 	"db.ALPHA": {
 		Fn: func(args ...object.Object) object.Object {
 			return &object.Integer{Value: big.NewInt(0)}
@@ -664,7 +663,8 @@ var DBBuiltins = map[string]*object.Builtin{
 		IsConstant: true,
 	},
 
-	// Sort order: keys alphabetically Z-A
+	// ALPHA_DESC is a sort order constant for keys alphabetically Z-A.
+	// Use with db.sort().
 	"db.ALPHA_DESC": {
 		Fn: func(args ...object.Object) object.Object {
 			return &object.Integer{Value: big.NewInt(1)}
@@ -672,7 +672,8 @@ var DBBuiltins = map[string]*object.Builtin{
 		IsConstant: true,
 	},
 
-	// Sort order: values alphabetically A-Z
+	// VALUE_ALPHA is a sort order constant for values alphabetically A-Z.
+	// Use with db.sort().
 	"db.VALUE_ALPHA": {
 		Fn: func(args ...object.Object) object.Object {
 			return &object.Integer{Value: big.NewInt(2)}
@@ -680,7 +681,8 @@ var DBBuiltins = map[string]*object.Builtin{
 		IsConstant: true,
 	},
 
-	// Sort order: values alphabetically Z-A
+	// VALUE_ALPHA_DESC is a sort order constant for values alphabetically Z-A.
+	// Use with db.sort().
 	"db.VALUE_ALPHA_DESC": {
 		Fn: func(args ...object.Object) object.Object {
 			return &object.Integer{Value: big.NewInt(3)}
@@ -688,7 +690,8 @@ var DBBuiltins = map[string]*object.Builtin{
 		IsConstant: true,
 	},
 
-	// Sort order: shortest keys first
+	// KEY_LEN is a sort order constant for shortest keys first.
+	// Use with db.sort().
 	"db.KEY_LEN": {
 		Fn: func(args ...object.Object) object.Object {
 			return &object.Integer{Value: big.NewInt(4)}
@@ -696,7 +699,8 @@ var DBBuiltins = map[string]*object.Builtin{
 		IsConstant: true,
 	},
 
-	// Sort order: longest keys first
+	// KEY_LEN_DESC is a sort order constant for longest keys first.
+	// Use with db.sort().
 	"db.KEY_LEN_DESC": {
 		Fn: func(args ...object.Object) object.Object {
 			return &object.Integer{Value: big.NewInt(5)}
@@ -704,7 +708,8 @@ var DBBuiltins = map[string]*object.Builtin{
 		IsConstant: true,
 	},
 
-	// Sort order: shortest values first
+	// VALUE_LEN is a sort order constant for shortest values first.
+	// Use with db.sort().
 	"db.VALUE_LEN": {
 		Fn: func(args ...object.Object) object.Object {
 			return &object.Integer{Value: big.NewInt(6)}
@@ -712,7 +717,8 @@ var DBBuiltins = map[string]*object.Builtin{
 		IsConstant: true,
 	},
 
-	// Sort order: longest values first
+	// VALUE_LEN_DESC is a sort order constant for longest values first.
+	// Use with db.sort().
 	"db.VALUE_LEN_DESC": {
 		Fn: func(args ...object.Object) object.Object {
 			return &object.Integer{Value: big.NewInt(7)}
@@ -720,7 +726,8 @@ var DBBuiltins = map[string]*object.Builtin{
 		IsConstant: true,
 	},
 
-	// Sort order: keys numerically ascending
+	// NUMERIC is a sort order constant for keys numerically ascending.
+	// Use with db.sort().
 	"db.NUMERIC": {
 		Fn: func(args ...object.Object) object.Object {
 			return &object.Integer{Value: big.NewInt(8)}
@@ -728,7 +735,8 @@ var DBBuiltins = map[string]*object.Builtin{
 		IsConstant: true,
 	},
 
-	// Sort order: keys numerically descending
+	// NUMERIC_DESC is a sort order constant for keys numerically descending.
+	// Use with db.sort().
 	"db.NUMERIC_DESC": {
 		Fn: func(args ...object.Object) object.Object {
 			return &object.Integer{Value: big.NewInt(9)}

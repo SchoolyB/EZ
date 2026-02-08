@@ -14,14 +14,14 @@ import (
 	"github.com/marshallburns/ez/pkg/object"
 )
 
-
 // BytesBuiltins contains the bytes module functions for binary data operations
 var BytesBuiltins = map[string]*object.Builtin{
 	// ============================================================================
 	// Creation Functions
 	// ============================================================================
 
-	// Creates bytes from an array of integers (0-255)
+	// from_array creates a byte array from an array of integers.
+	// Takes array of integers (0-255). Returns byte array.
 	"bytes.from_array": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 1 {
@@ -52,7 +52,8 @@ var BytesBuiltins = map[string]*object.Builtin{
 		},
 	},
 
-	// Creates bytes from a UTF-8 encoded string
+	// from_string creates a byte array from a UTF-8 encoded string.
+	// Takes a string. Returns byte array with UTF-8 bytes.
 	"bytes.from_string": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 1 {
@@ -72,8 +73,8 @@ var BytesBuiltins = map[string]*object.Builtin{
 		},
 	},
 
-	// Creates bytes from a hexadecimal string
-	// Returns (bytes, error)
+	// from_hex creates a byte array from a hexadecimal string.
+	// Takes hex string. Returns ([byte], Error) tuple.
 	"bytes.from_hex": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 1 {
@@ -103,8 +104,8 @@ var BytesBuiltins = map[string]*object.Builtin{
 		},
 	},
 
-	// Creates bytes from a base64 encoded string
-	// Returns (bytes, error)
+	// from_base64 creates a byte array from a base64 encoded string.
+	// Takes base64 string. Returns ([byte], Error) tuple.
 	"bytes.from_base64": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 1 {
@@ -138,7 +139,8 @@ var BytesBuiltins = map[string]*object.Builtin{
 	// Conversion Functions
 	// ============================================================================
 
-	// Converts bytes to UTF-8 string
+	// to_string converts a byte array to a UTF-8 string.
+	// Takes byte array. Returns string.
 	"bytes.to_string": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 1 {
@@ -170,7 +172,8 @@ var BytesBuiltins = map[string]*object.Builtin{
 		},
 	},
 
-	// Converts bytes to array of integers
+	// to_array converts a byte array to an array of integers.
+	// Takes byte array. Returns integer array.
 	"bytes.to_array": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 1 {
@@ -196,7 +199,8 @@ var BytesBuiltins = map[string]*object.Builtin{
 		},
 	},
 
-	// Converts bytes to lowercase hexadecimal string
+	// to_hex converts a byte array to a lowercase hexadecimal string.
+	// Takes byte array. Returns hex string.
 	"bytes.to_hex": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 1 {
@@ -210,7 +214,8 @@ var BytesBuiltins = map[string]*object.Builtin{
 		},
 	},
 
-	// Converts bytes to uppercase hexadecimal string
+	// to_hex_upper converts a byte array to an uppercase hexadecimal string.
+	// Takes byte array. Returns uppercase hex string.
 	"bytes.to_hex_upper": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 1 {
@@ -224,7 +229,8 @@ var BytesBuiltins = map[string]*object.Builtin{
 		},
 	},
 
-	// Converts bytes to base64 encoded string
+	// to_base64 converts a byte array to a base64 encoded string.
+	// Takes byte array. Returns base64 string.
 	"bytes.to_base64": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 1 {
@@ -242,7 +248,8 @@ var BytesBuiltins = map[string]*object.Builtin{
 	// Operations
 	// ============================================================================
 
-	// Extracts a portion of bytes (end is exclusive, supports negative indices)
+	// slice extracts a portion of bytes from start to end index.
+	// Takes bytes, start, end. Supports negative indices. End is exclusive.
 	"bytes.slice": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 3 {
@@ -290,7 +297,8 @@ var BytesBuiltins = map[string]*object.Builtin{
 		},
 	},
 
-	// Concatenates two byte sequences
+	// concat joins two byte arrays into one.
+	// Takes two byte arrays. Returns combined byte array.
 	"bytes.concat": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 2 {
@@ -312,7 +320,8 @@ var BytesBuiltins = map[string]*object.Builtin{
 		},
 	},
 
-	// Joins array of bytes with separator
+	// join combines multiple byte arrays with a separator.
+	// Takes array of byte arrays and separator. Returns combined bytes.
 	"bytes.join": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 2 {
@@ -346,7 +355,8 @@ var BytesBuiltins = map[string]*object.Builtin{
 		},
 	},
 
-	// Splits bytes by separator
+	// split divides bytes into parts using a separator.
+	// Takes bytes and separator. Returns array of byte arrays.
 	"bytes.split": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 2 {
@@ -374,7 +384,8 @@ var BytesBuiltins = map[string]*object.Builtin{
 		},
 	},
 
-	// Checks if bytes contain a pattern
+	// contains checks if bytes contain a byte pattern.
+	// Takes bytes and pattern. Returns true if found.
 	"bytes.contains": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 2 {
@@ -396,7 +407,8 @@ var BytesBuiltins = map[string]*object.Builtin{
 		},
 	},
 
-	// Finds first index of pattern, or -1 if not found
+	// index finds the first occurrence of a pattern in bytes.
+	// Takes bytes and pattern. Returns index or -1 if not found.
 	"bytes.index": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 2 {
@@ -415,7 +427,8 @@ var BytesBuiltins = map[string]*object.Builtin{
 		},
 	},
 
-	// Finds last index of pattern, or -1 if not found
+	// last_index finds the last occurrence of a pattern in bytes.
+	// Takes bytes and pattern. Returns index or -1 if not found.
 	"bytes.last_index": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 2 {
@@ -434,7 +447,8 @@ var BytesBuiltins = map[string]*object.Builtin{
 		},
 	},
 
-	// Counts non-overlapping occurrences of pattern
+	// count returns the number of non-overlapping pattern occurrences.
+	// Takes bytes and pattern. Returns integer count.
 	"bytes.count": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 2 {
@@ -453,7 +467,8 @@ var BytesBuiltins = map[string]*object.Builtin{
 		},
 	},
 
-	// Lexicographically compares two byte sequences (-1, 0, 1)
+	// compare lexicographically compares two byte arrays.
+	// Takes two byte arrays. Returns -1, 0, or 1.
 	"bytes.compare": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 2 {
@@ -472,7 +487,8 @@ var BytesBuiltins = map[string]*object.Builtin{
 		},
 	},
 
-	// Checks if two byte sequences are equal
+	// equals checks if two byte arrays are identical.
+	// Takes two byte arrays. Returns true if equal.
 	"bytes.equals": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 2 {
@@ -498,7 +514,8 @@ var BytesBuiltins = map[string]*object.Builtin{
 	// Inspection Functions
 	// ============================================================================
 
-	// Checks if bytes are empty (length 0)
+	// is_empty checks if a byte array has no elements.
+	// Takes byte array. Returns true if empty.
 	"bytes.is_empty": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 1 {
@@ -516,7 +533,8 @@ var BytesBuiltins = map[string]*object.Builtin{
 		},
 	},
 
-	// Checks if bytes start with prefix
+	// starts_with checks if bytes begin with a prefix.
+	// Takes bytes and prefix. Returns true if bytes start with prefix.
 	"bytes.starts_with": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 2 {
@@ -538,7 +556,8 @@ var BytesBuiltins = map[string]*object.Builtin{
 		},
 	},
 
-	// Checks if bytes end with suffix
+	// ends_with checks if bytes end with a suffix.
+	// Takes bytes and suffix. Returns true if bytes end with suffix.
 	"bytes.ends_with": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 2 {
@@ -564,7 +583,8 @@ var BytesBuiltins = map[string]*object.Builtin{
 	// Manipulation Functions
 	// ============================================================================
 
-	// Returns reversed copy of bytes
+	// reverse returns a new byte array with elements in reverse order.
+	// Takes byte array. Returns reversed copy.
 	"bytes.reverse": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 1 {
@@ -584,7 +604,8 @@ var BytesBuiltins = map[string]*object.Builtin{
 		},
 	},
 
-	// Repeats bytes N times
+	// repeat creates a new byte array by repeating bytes n times.
+	// Takes bytes and count. Returns repeated bytes.
 	"bytes.repeat": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 2 {
@@ -611,7 +632,8 @@ var BytesBuiltins = map[string]*object.Builtin{
 		},
 	},
 
-	// Replaces all occurrences of old with new
+	// replace replaces all occurrences of old bytes with new bytes.
+	// Takes bytes, old pattern, new pattern. Returns modified bytes.
 	"bytes.replace": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 3 {
@@ -635,7 +657,8 @@ var BytesBuiltins = map[string]*object.Builtin{
 		},
 	},
 
-	// Replaces first N occurrences of old with new
+	// replace_n replaces the first n occurrences of old bytes with new bytes.
+	// Takes bytes, old, new, count. Returns modified bytes.
 	"bytes.replace_n": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 4 {
@@ -663,7 +686,8 @@ var BytesBuiltins = map[string]*object.Builtin{
 		},
 	},
 
-	// Removes leading and trailing bytes that appear in cutset
+	// trim removes leading and trailing bytes that appear in cutset.
+	// Takes bytes and cutset. Returns trimmed bytes.
 	"bytes.trim": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 2 {
@@ -683,7 +707,8 @@ var BytesBuiltins = map[string]*object.Builtin{
 		},
 	},
 
-	// Removes leading bytes that appear in cutset
+	// trim_left removes leading bytes that appear in cutset.
+	// Takes bytes and cutset. Returns left-trimmed bytes.
 	"bytes.trim_left": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 2 {
@@ -703,7 +728,8 @@ var BytesBuiltins = map[string]*object.Builtin{
 		},
 	},
 
-	// Removes trailing bytes that appear in cutset
+	// trim_right removes trailing bytes that appear in cutset.
+	// Takes bytes and cutset. Returns right-trimmed bytes.
 	"bytes.trim_right": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 2 {
@@ -723,7 +749,8 @@ var BytesBuiltins = map[string]*object.Builtin{
 		},
 	},
 
-	// Pads bytes on the left to reach specified length
+	// pad_left pads bytes on the left to reach specified length.
+	// Takes bytes, target length, pad byte. Returns padded bytes.
 	"bytes.pad_left": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 3 {
@@ -761,7 +788,8 @@ var BytesBuiltins = map[string]*object.Builtin{
 		},
 	},
 
-	// Pads bytes on the right to reach specified length
+	// pad_right pads bytes on the right to reach specified length.
+	// Takes bytes, target length, pad byte. Returns padded bytes.
 	"bytes.pad_right": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 3 {
@@ -802,7 +830,8 @@ var BytesBuiltins = map[string]*object.Builtin{
 	// Bitwise Operations
 	// ============================================================================
 
-	// Bitwise AND of two byte sequences (must be same length)
+	// and performs bitwise AND on two equal-length byte arrays.
+	// Takes two byte arrays. Returns ([byte], Error) tuple.
 	"bytes.and": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 2 {
@@ -835,7 +864,8 @@ var BytesBuiltins = map[string]*object.Builtin{
 		},
 	},
 
-	// Bitwise OR of two byte sequences (must be same length)
+	// or performs bitwise OR on two equal-length byte arrays.
+	// Takes two byte arrays. Returns ([byte], Error) tuple.
 	"bytes.or": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 2 {
@@ -868,7 +898,8 @@ var BytesBuiltins = map[string]*object.Builtin{
 		},
 	},
 
-	// Bitwise XOR of two byte sequences (must be same length)
+	// xor performs bitwise XOR on two equal-length byte arrays.
+	// Takes two byte arrays. Returns ([byte], Error) tuple.
 	"bytes.xor": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 2 {
@@ -901,7 +932,8 @@ var BytesBuiltins = map[string]*object.Builtin{
 		},
 	},
 
-	// Bitwise NOT (complement) of bytes
+	// not performs bitwise NOT (complement) on a byte array.
+	// Takes byte array. Returns complemented bytes.
 	"bytes.not": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 1 {
@@ -924,7 +956,8 @@ var BytesBuiltins = map[string]*object.Builtin{
 	// Utility Functions
 	// ============================================================================
 
-	// Fills all bytes with a single value
+	// fill creates a new byte array with all bytes set to a value.
+	// Takes byte array and fill value. Returns filled bytes.
 	"bytes.fill": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 2 {
@@ -947,7 +980,8 @@ var BytesBuiltins = map[string]*object.Builtin{
 		},
 	},
 
-	// Creates a copy of bytes
+	// copy creates a duplicate of a byte array.
+	// Takes byte array. Returns new byte array copy.
 	"bytes.copy": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 1 {
@@ -964,7 +998,8 @@ var BytesBuiltins = map[string]*object.Builtin{
 		},
 	},
 
-	// Fills all bytes with zero (for securely clearing sensitive data)
+	// zero creates a new byte array with all bytes set to zero.
+	// Takes byte array. Returns zeroed bytes (for clearing sensitive data).
 	"bytes.zero": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 1 {

@@ -14,8 +14,8 @@ import (
 
 // JsonBuiltins contains the json module functions
 var JsonBuiltins = map[string]*object.Builtin{
-	// json.encode(value) -> (string, error)
-	// Serializes an EZ value to a JSON string
+	// encode serializes an EZ value to a JSON string.
+	// Takes any value. Returns (string, Error) tuple.
 	"json.encode": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 1 {
@@ -37,11 +37,8 @@ var JsonBuiltins = map[string]*object.Builtin{
 		},
 	},
 
-	// json.decode(text string) -> (any, error)
-	// json.decode(text string, Type) -> (Type, error)
-	// Parses a JSON string into EZ types.
-	// With 1 arg: returns dynamic types (maps, arrays, primitives)
-	// With 2 args: returns a typed struct instance
+	// decode parses a JSON string into EZ types.
+	// Takes JSON string and optional Type. Returns (value, Error) tuple.
 	"json.decode": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) < 1 || len(args) > 2 {
@@ -94,8 +91,8 @@ var JsonBuiltins = map[string]*object.Builtin{
 		},
 	},
 
-	// json.pretty(value, indent string) -> (string, error)
-	// Serializes an EZ value to a formatted JSON string with indentation
+	// pretty serializes a value to formatted JSON with indentation.
+	// Takes value and indent string. Returns (string, Error) tuple.
 	"json.pretty": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 2 {
@@ -122,8 +119,8 @@ var JsonBuiltins = map[string]*object.Builtin{
 		},
 	},
 
-	// json.is_valid(text string) -> bool
-	// Checks if a string is valid JSON (pure function, no error tuple)
+	// is_valid checks if a string is valid JSON syntax.
+	// Takes string. Returns bool.
 	"json.is_valid": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 1 {
@@ -148,7 +145,6 @@ type jsonError struct {
 	code    string
 	message string
 }
-
 
 // encodeToJSON converts an EZ object to a JSON string
 func encodeToJSON(obj object.Object, seen map[uintptr]bool) (string, *jsonError) {

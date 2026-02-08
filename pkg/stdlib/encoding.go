@@ -11,10 +11,10 @@ import (
 	"github.com/marshallburns/ez/pkg/object"
 )
 
-
 // EncodingBuiltins contains the encoding module functions
 var EncodingBuiltins = map[string]*object.Builtin{
-	// encoding.base64_encode(data) - encodes string to base64
+	// base64_encode encodes a string to base64 format.
+	// Takes a string. Returns base64-encoded string.
 	"encoding.base64_encode": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 1 {
@@ -31,7 +31,8 @@ var EncodingBuiltins = map[string]*object.Builtin{
 		},
 	},
 
-	// encoding.base64_decode(data) - decodes base64 to string
+	// base64_decode decodes a base64-encoded string.
+	// Takes base64 string. Returns (string, Error) tuple.
 	"encoding.base64_decode": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 1 {
@@ -58,7 +59,8 @@ var EncodingBuiltins = map[string]*object.Builtin{
 		},
 	},
 
-	// encoding.hex_encode(data) - encodes string to hex
+	// hex_encode encodes a string to hexadecimal format.
+	// Takes a string. Returns hex-encoded string.
 	"encoding.hex_encode": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 1 {
@@ -75,7 +77,8 @@ var EncodingBuiltins = map[string]*object.Builtin{
 		},
 	},
 
-	// encoding.hex_decode(data) - decodes hex to string
+	// hex_decode decodes a hexadecimal-encoded string.
+	// Takes hex string. Returns (string, Error) tuple.
 	"encoding.hex_decode": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 1 {
@@ -102,7 +105,8 @@ var EncodingBuiltins = map[string]*object.Builtin{
 		},
 	},
 
-	// encoding.url_encode(data) - URL percent-encodes a string
+	// url_encode percent-encodes a string for use in URLs.
+	// Takes a string. Returns URL-encoded string.
 	"encoding.url_encode": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 1 {
@@ -119,7 +123,8 @@ var EncodingBuiltins = map[string]*object.Builtin{
 		},
 	},
 
-	// encoding.url_decode(data) - decodes URL percent-encoding
+	// url_decode decodes a URL percent-encoded string.
+	// Takes URL-encoded string. Returns (string, Error) tuple.
 	"encoding.url_decode": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 1 {
