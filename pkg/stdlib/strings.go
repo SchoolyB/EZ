@@ -14,6 +14,12 @@ import (
 
 // StringsBuiltins contains the strings module functions
 var StringsBuiltins = map[string]*object.Builtin{
+	// ============================================================================
+	// Case Conversion
+	// ============================================================================
+
+	// upper converts a string to uppercase.
+	// Takes a string. Returns string.
 	"strings.upper": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 1 {
@@ -27,6 +33,8 @@ var StringsBuiltins = map[string]*object.Builtin{
 		},
 	},
 
+	// lower converts a string to lowercase.
+	// Takes a string. Returns string.
 	"strings.lower": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 1 {
@@ -40,6 +48,12 @@ var StringsBuiltins = map[string]*object.Builtin{
 		},
 	},
 
+	// ============================================================================
+	// Trimming
+	// ============================================================================
+
+	// trim removes leading and trailing whitespace from a string.
+	// Takes a string. Returns string.
 	"strings.trim": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 1 {
@@ -53,6 +67,12 @@ var StringsBuiltins = map[string]*object.Builtin{
 		},
 	},
 
+	// ============================================================================
+	// Search Operations
+	// ============================================================================
+
+	// contains checks if a string contains a substring.
+	// Takes string and substring. Returns bool.
 	"strings.contains": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 2 {
@@ -73,6 +93,12 @@ var StringsBuiltins = map[string]*object.Builtin{
 		},
 	},
 
+	// ============================================================================
+	// String Manipulation
+	// ============================================================================
+
+	// split divides a string into an array by a separator.
+	// Takes string and separator. Returns array of strings.
 	"strings.split": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 2 {
@@ -95,6 +121,8 @@ var StringsBuiltins = map[string]*object.Builtin{
 		},
 	},
 
+	// join concatenates array elements into a string with a separator.
+	// Takes array and separator. Returns string.
 	"strings.join": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 2 {
@@ -121,6 +149,8 @@ var StringsBuiltins = map[string]*object.Builtin{
 		},
 	},
 
+	// replace replaces all occurrences of old with new in a string.
+	// Takes string, old, and new. Returns string.
 	"strings.replace": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 3 {
@@ -142,6 +172,8 @@ var StringsBuiltins = map[string]*object.Builtin{
 		},
 	},
 
+	// index finds the first occurrence of a substring.
+	// Takes string and substring. Returns int (-1 if not found).
 	"strings.index": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 2 {
@@ -159,6 +191,8 @@ var StringsBuiltins = map[string]*object.Builtin{
 		},
 	},
 
+	// starts_with checks if a string starts with a prefix.
+	// Takes string and prefix. Returns bool.
 	"strings.starts_with": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 2 {
@@ -179,6 +213,8 @@ var StringsBuiltins = map[string]*object.Builtin{
 		},
 	},
 
+	// ends_with checks if a string ends with a suffix.
+	// Takes string and suffix. Returns bool.
 	"strings.ends_with": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 2 {
@@ -199,6 +235,8 @@ var StringsBuiltins = map[string]*object.Builtin{
 		},
 	},
 
+	// repeat repeats a string n times.
+	// Takes string and count. Returns string.
 	"strings.repeat": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 2 {
@@ -219,6 +257,8 @@ var StringsBuiltins = map[string]*object.Builtin{
 		},
 	},
 
+	// slice extracts a portion of a string by index.
+	// Takes string, start, and optional end. Returns string.
 	"strings.slice": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) < 2 || len(args) > 3 {
@@ -271,6 +311,8 @@ var StringsBuiltins = map[string]*object.Builtin{
 		},
 	},
 
+	// trim_left removes leading whitespace from a string.
+	// Takes a string. Returns string.
 	"strings.trim_left": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 1 {
@@ -284,6 +326,8 @@ var StringsBuiltins = map[string]*object.Builtin{
 		},
 	},
 
+	// trim_right removes trailing whitespace from a string.
+	// Takes a string. Returns string.
 	"strings.trim_right": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 1 {
@@ -297,6 +341,8 @@ var StringsBuiltins = map[string]*object.Builtin{
 		},
 	},
 
+	// pad_left pads a string on the left to reach a target width.
+	// Takes string, width, and optional pad char. Returns string.
 	"strings.pad_left": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) < 2 || len(args) > 3 {
@@ -333,6 +379,8 @@ var StringsBuiltins = map[string]*object.Builtin{
 		},
 	},
 
+	// pad_right pads a string on the right to reach a target width.
+	// Takes string, width, and optional pad char. Returns string.
 	"strings.pad_right": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) < 2 || len(args) > 3 {
@@ -369,6 +417,8 @@ var StringsBuiltins = map[string]*object.Builtin{
 		},
 	},
 
+	// reverse reverses the characters in a string.
+	// Takes a string. Returns string.
 	"strings.reverse": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 1 {
@@ -386,6 +436,8 @@ var StringsBuiltins = map[string]*object.Builtin{
 		},
 	},
 
+	// count counts non-overlapping occurrences of a substring.
+	// Takes string and substring. Returns int.
 	"strings.count": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 2 {
@@ -403,6 +455,12 @@ var StringsBuiltins = map[string]*object.Builtin{
 		},
 	},
 
+	// ============================================================================
+	// String Checks
+	// ============================================================================
+
+	// is_empty checks if a string is empty or contains only whitespace.
+	// Takes a string. Returns bool.
 	"strings.is_empty": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 1 {
@@ -419,6 +477,12 @@ var StringsBuiltins = map[string]*object.Builtin{
 		},
 	},
 
+	// ============================================================================
+	// Character Operations
+	// ============================================================================
+
+	// chars splits a string into an array of characters.
+	// Takes a string. Returns array of chars.
 	"strings.chars": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 1 {
@@ -437,6 +501,8 @@ var StringsBuiltins = map[string]*object.Builtin{
 		},
 	},
 
+	// from_chars creates a string from an array of characters.
+	// Takes array of chars. Returns string.
 	"strings.from_chars": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 1 {
@@ -463,6 +529,8 @@ var StringsBuiltins = map[string]*object.Builtin{
 		},
 	},
 
+	// last_index finds the last occurrence of a substring.
+	// Takes string and substring. Returns int (-1 if not found).
 	"strings.last_index": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 2 {
@@ -480,6 +548,8 @@ var StringsBuiltins = map[string]*object.Builtin{
 		},
 	},
 
+	// capitalize uppercases the first character of a string.
+	// Takes a string. Returns string.
 	"strings.capitalize": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 1 {
@@ -498,6 +568,8 @@ var StringsBuiltins = map[string]*object.Builtin{
 		},
 	},
 
+	// title converts a string to title case (capitalize each word).
+	// Takes a string. Returns string.
 	"strings.title": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 1 {
@@ -522,6 +594,8 @@ var StringsBuiltins = map[string]*object.Builtin{
 		},
 	},
 
+	// replace_n replaces the first n occurrences of old with new.
+	// Takes string, old, new, and count. Returns string.
 	"strings.replace_n": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 4 {
@@ -547,6 +621,8 @@ var StringsBuiltins = map[string]*object.Builtin{
 		},
 	},
 
+	// is_numeric checks if a string contains only digits.
+	// Takes a string. Returns bool.
 	"strings.is_numeric": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 1 {
@@ -568,6 +644,8 @@ var StringsBuiltins = map[string]*object.Builtin{
 		},
 	},
 
+	// is_alpha checks if a string contains only letters.
+	// Takes a string. Returns bool.
 	"strings.is_alpha": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 1 {
@@ -589,6 +667,8 @@ var StringsBuiltins = map[string]*object.Builtin{
 		},
 	},
 
+	// truncate shortens a string to a max length with a suffix.
+	// Takes string, max length, and suffix. Returns string.
 	"strings.truncate": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 3 {
@@ -629,6 +709,8 @@ var StringsBuiltins = map[string]*object.Builtin{
 		},
 	},
 
+	// compare compares two strings lexicographically.
+	// Takes two strings. Returns int (-1, 0, or 1).
 	"strings.compare": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 2 {
@@ -646,6 +728,12 @@ var StringsBuiltins = map[string]*object.Builtin{
 		},
 	},
 
+	// ============================================================================
+	// Type Conversion
+	// ============================================================================
+
+	// to_int parses a string as an integer.
+	// Takes a string. Returns int or Error.
 	"strings.to_int": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 1 {
@@ -665,6 +753,8 @@ var StringsBuiltins = map[string]*object.Builtin{
 		},
 	},
 
+	// to_float parses a string as a floating-point number.
+	// Takes a string. Returns float or Error.
 	"strings.to_float": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 1 {
@@ -684,6 +774,8 @@ var StringsBuiltins = map[string]*object.Builtin{
 		},
 	},
 
+	// to_bool parses a string as a boolean.
+	// Takes a string ("true"/"false"/"1"/"0"/etc). Returns bool or Error.
 	"strings.to_bool": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 1 {
