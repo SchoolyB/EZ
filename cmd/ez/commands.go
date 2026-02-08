@@ -130,9 +130,13 @@ var rootCmd = &cobra.Command{
 }
 
 func init() {
-	rootCmd.AddCommand(replCmd, updateCmd, checkCmd, lexCmd, parseCmd, versionCmd, docCmd)
+	rootCmd.AddCommand(replCmd, updateCmd, checkCmd, lexCmd, parseCmd, versionCmd, docCmd, pzCmd)
 	rootCmd.PersistentPreRun = func(cmd *cobra.Command, args []string) {
 		CheckForUpdateAsync()
 	}
 	updateCmd.Flags().Bool("confirm", false, "Skip confirmation prompt")
+
+	pzCmd.Flags().StringP("template", "t", "basic", "Template: basic, cli, lib, multi")
+	pzCmd.Flags().BoolP("comments", "c", false, "Include helpful syntax comments")
+	pzCmd.Flags().BoolP("force", "f", false, "Overwrite existing directory")
 }
