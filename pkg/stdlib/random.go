@@ -12,8 +12,8 @@ import (
 
 // RandomBuiltins contains the random module functions
 var RandomBuiltins = map[string]*object.Builtin{
-	// random.float() - returns float [0.0, 1.0)
-	// random.float(min, max) - returns float [min, max)
+	// float generates a random floating-point number.
+	// No args: returns [0.0, 1.0). Two args: returns [min, max).
 	"random.float": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) == 0 {
@@ -36,8 +36,8 @@ var RandomBuiltins = map[string]*object.Builtin{
 		},
 	},
 
-	// random.int(max) - returns int [0, max)
-	// random.int(min, max) - returns int [min, max)
+	// int generates a random integer.
+	// One arg: returns [0, max). Two args: returns [min, max).
 	"random.int": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) == 1 {
@@ -67,7 +67,8 @@ var RandomBuiltins = map[string]*object.Builtin{
 		},
 	},
 
-	// random.bool() - returns true or false with 50/50 probability
+	// bool returns true or false with 50/50 probability.
+	// Takes no arguments. Returns bool.
 	"random.bool": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 0 {
@@ -80,7 +81,8 @@ var RandomBuiltins = map[string]*object.Builtin{
 		},
 	},
 
-	// random.byte() - returns random byte [0, 255]
+	// byte returns a random byte value [0, 255].
+	// Takes no arguments. Returns byte.
 	"random.byte": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 0 {
@@ -90,8 +92,8 @@ var RandomBuiltins = map[string]*object.Builtin{
 		},
 	},
 
-	// random.char() - returns random printable ASCII char [32, 126]
-	// random.char(min, max) - returns random char in given range
+	// char returns a random character.
+	// No args: printable ASCII [32,126]. Two args: char in [min,max].
 	"random.char": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) == 0 {
@@ -130,7 +132,8 @@ var RandomBuiltins = map[string]*object.Builtin{
 		},
 	},
 
-	// random.choice(array) - returns random element from array
+	// choice returns a random element from an array.
+	// Takes an array. Returns random element.
 	"random.choice": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 1 {
@@ -147,7 +150,8 @@ var RandomBuiltins = map[string]*object.Builtin{
 		},
 	},
 
-	// random.shuffle(array) - returns new array with elements in random order
+	// shuffle returns a new array with elements in random order.
+	// Takes an array. Returns new shuffled array.
 	"random.shuffle": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 1 {
@@ -172,7 +176,8 @@ var RandomBuiltins = map[string]*object.Builtin{
 		},
 	},
 
-	// random.sample(array, n) - returns array of n unique random elements
+	// sample returns n unique random elements from an array.
+	// Takes array and count. Returns new array of sampled elements.
 	"random.sample": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 2 {

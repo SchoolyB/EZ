@@ -13,24 +13,40 @@ import (
 
 // TimeBuiltins contains the time module functions
 var TimeBuiltins = map[string]*object.Builtin{
-	// Current time
+	// ============================================================================
+	// Current Time
+	// ============================================================================
+
+	// now returns the current Unix timestamp in seconds.
+	// Takes no arguments. Returns int.
 	"time.now": {
 		Fn: func(args ...object.Object) object.Object {
 			return &object.Integer{Value: big.NewInt(time.Now().Unix())}
 		},
 	},
+
+	// now_ms returns the current Unix timestamp in milliseconds.
+	// Takes no arguments. Returns int.
 	"time.now_ms": {
 		Fn: func(args ...object.Object) object.Object {
 			return &object.Integer{Value: big.NewInt(time.Now().UnixMilli())}
 		},
 	},
+
+	// now_ns returns the current Unix timestamp in nanoseconds.
+	// Takes no arguments. Returns int.
 	"time.now_ns": {
 		Fn: func(args ...object.Object) object.Object {
 			return &object.Integer{Value: big.NewInt(time.Now().UnixNano())}
 		},
 	},
 
-	// Sleep/delay
+	// ============================================================================
+	// Sleep/Delay
+	// ============================================================================
+
+	// sleep pauses execution for the specified number of seconds.
+	// Takes seconds (int or float). Returns nil.
 	"time.sleep": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 1 {
@@ -47,6 +63,8 @@ var TimeBuiltins = map[string]*object.Builtin{
 			return object.NIL
 		},
 	},
+	// sleep_ms pauses execution for the specified number of milliseconds.
+	// Takes milliseconds (int). Returns nil.
 	"time.sleep_ms": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 1 {
@@ -61,61 +79,88 @@ var TimeBuiltins = map[string]*object.Builtin{
 		},
 	},
 
-	// Time components
+	// ============================================================================
+	// Time Components
+	// ============================================================================
+
+	// year extracts the year from a timestamp.
+	// Takes optional timestamp. Returns int.
 	"time.year": {
 		Fn: func(args ...object.Object) object.Object {
 			t := getTime(args)
 			return &object.Integer{Value: big.NewInt(int64(t.Year()))}
 		},
 	},
+	// month extracts the month (1-12) from a timestamp.
+	// Takes optional timestamp. Returns int.
 	"time.month": {
 		Fn: func(args ...object.Object) object.Object {
 			t := getTime(args)
 			return &object.Integer{Value: big.NewInt(int64(t.Month()))}
 		},
 	},
+
+	// day extracts the day of month (1-31) from a timestamp.
+	// Takes optional timestamp. Returns int.
 	"time.day": {
 		Fn: func(args ...object.Object) object.Object {
 			t := getTime(args)
 			return &object.Integer{Value: big.NewInt(int64(t.Day()))}
 		},
 	},
+	// hour extracts the hour (0-23) from a timestamp.
+	// Takes optional timestamp. Returns int.
 	"time.hour": {
 		Fn: func(args ...object.Object) object.Object {
 			t := getTime(args)
 			return &object.Integer{Value: big.NewInt(int64(t.Hour()))}
 		},
 	},
+
+	// minute extracts the minute (0-59) from a timestamp.
+	// Takes optional timestamp. Returns int.
 	"time.minute": {
 		Fn: func(args ...object.Object) object.Object {
 			t := getTime(args)
 			return &object.Integer{Value: big.NewInt(int64(t.Minute()))}
 		},
 	},
+	// second extracts the second (0-59) from a timestamp.
+	// Takes optional timestamp. Returns int.
 	"time.second": {
 		Fn: func(args ...object.Object) object.Object {
 			t := getTime(args)
 			return &object.Integer{Value: big.NewInt(int64(t.Second()))}
 		},
 	},
+
+	// weekday extracts the day of week (0=Sunday, 6=Saturday).
+	// Takes optional timestamp. Returns int.
 	"time.weekday": {
 		Fn: func(args ...object.Object) object.Object {
 			t := getTime(args)
 			return &object.Integer{Value: big.NewInt(int64(t.Weekday()))}
 		},
 	},
+	// weekday_name returns the name of the weekday (e.g., "Monday").
+	// Takes optional timestamp. Returns string.
 	"time.weekday_name": {
 		Fn: func(args ...object.Object) object.Object {
 			t := getTime(args)
 			return &object.String{Value: t.Weekday().String()}
 		},
 	},
+
+	// month_name returns the name of the month (e.g., "January").
+	// Takes optional timestamp. Returns string.
 	"time.month_name": {
 		Fn: func(args ...object.Object) object.Object {
 			t := getTime(args)
 			return &object.String{Value: t.Month().String()}
 		},
 	},
+	// day_of_year extracts the day of year (1-366) from a timestamp.
+	// Takes optional timestamp. Returns int.
 	"time.day_of_year": {
 		Fn: func(args ...object.Object) object.Object {
 			t := getTime(args)
@@ -123,9 +168,12 @@ var TimeBuiltins = map[string]*object.Builtin{
 		},
 	},
 
+	// ============================================================================
 	// Formatting
-	// time.format(format) - formats current time
-	// time.format(format, timestamp) - formats given timestamp
+	// ============================================================================
+
+	// format formats a timestamp using a format string.
+	// Takes format and optional timestamp. Returns string.
 	"time.format": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) < 1 || len(args) > 2 {
@@ -158,18 +206,25 @@ var TimeBuiltins = map[string]*object.Builtin{
 			return &object.String{Value: t.Format(goFormat)}
 		},
 	},
+	// iso formats a timestamp as ISO 8601 (RFC 3339).
+	// Takes optional timestamp. Returns string.
 	"time.iso": {
 		Fn: func(args ...object.Object) object.Object {
 			t := getTime(args)
 			return &object.String{Value: t.Format(time.RFC3339)}
 		},
 	},
+
+	// date formats a timestamp as YYYY-MM-DD.
+	// Takes optional timestamp. Returns string.
 	"time.date": {
 		Fn: func(args ...object.Object) object.Object {
 			t := getTime(args)
 			return &object.String{Value: t.Format("2006-01-02")}
 		},
 	},
+	// clock formats a timestamp as HH:MM:SS.
+	// Takes optional timestamp. Returns string.
 	"time.clock": {
 		Fn: func(args ...object.Object) object.Object {
 			t := getTime(args)
@@ -177,7 +232,12 @@ var TimeBuiltins = map[string]*object.Builtin{
 		},
 	},
 
+	// ============================================================================
 	// Parsing
+	// ============================================================================
+
+	// parse parses a time string into a Unix timestamp.
+	// Takes string and format. Returns int or Error.
 	"time.parse": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 2 {
@@ -201,7 +261,12 @@ var TimeBuiltins = map[string]*object.Builtin{
 		},
 	},
 
-	// Creating timestamps
+	// ============================================================================
+	// Creating Timestamps
+	// ============================================================================
+
+	// make creates a timestamp from year, month, day, and optional time.
+	// Takes year, month, day, and optional hour, minute, second. Returns int.
 	"time.make": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) < 3 || len(args) > 6 {
@@ -250,7 +315,12 @@ var TimeBuiltins = map[string]*object.Builtin{
 		},
 	},
 
+	// ============================================================================
 	// Arithmetic
+	// ============================================================================
+
+	// add_seconds adds seconds to a timestamp.
+	// Takes timestamp and seconds. Returns int.
 	"time.add_seconds": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 2 {
@@ -268,6 +338,8 @@ var TimeBuiltins = map[string]*object.Builtin{
 			return &object.Integer{Value: result}
 		},
 	},
+	// add_minutes adds minutes to a timestamp.
+	// Takes timestamp and minutes. Returns int.
 	"time.add_minutes": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 2 {
@@ -285,6 +357,8 @@ var TimeBuiltins = map[string]*object.Builtin{
 			return &object.Integer{Value: result}
 		},
 	},
+	// add_hours adds hours to a timestamp.
+	// Takes timestamp and hours. Returns int.
 	"time.add_hours": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 2 {
@@ -302,6 +376,8 @@ var TimeBuiltins = map[string]*object.Builtin{
 			return &object.Integer{Value: result}
 		},
 	},
+	// add_days adds days to a timestamp.
+	// Takes timestamp and days. Returns int.
 	"time.add_days": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 2 {
@@ -319,6 +395,8 @@ var TimeBuiltins = map[string]*object.Builtin{
 			return &object.Integer{Value: result}
 		},
 	},
+	// add_weeks adds weeks to a timestamp.
+	// Takes timestamp and weeks. Returns int.
 	"time.add_weeks": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 2 {
@@ -336,6 +414,8 @@ var TimeBuiltins = map[string]*object.Builtin{
 			return &object.Integer{Value: result}
 		},
 	},
+	// add_months adds months to a timestamp (handles month-end correctly).
+	// Takes timestamp and months. Returns int.
 	"time.add_months": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 2 {
@@ -380,6 +460,8 @@ var TimeBuiltins = map[string]*object.Builtin{
 			return &object.Integer{Value: big.NewInt(result.Unix())}
 		},
 	},
+	// add_years adds years to a timestamp.
+	// Takes timestamp and years. Returns int.
 	"time.add_years": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 2 {
@@ -399,7 +481,12 @@ var TimeBuiltins = map[string]*object.Builtin{
 		},
 	},
 
+	// ============================================================================
 	// Differences
+	// ============================================================================
+
+	// diff calculates the difference in seconds between two timestamps.
+	// Takes two timestamps. Returns int.
 	"time.diff": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 2 {
@@ -417,6 +504,8 @@ var TimeBuiltins = map[string]*object.Builtin{
 			return &object.Integer{Value: result}
 		},
 	},
+	// diff_days calculates the difference in days between two timestamps.
+	// Takes two timestamps. Returns int.
 	"time.diff_days": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 2 {
@@ -434,6 +523,8 @@ var TimeBuiltins = map[string]*object.Builtin{
 			return &object.Integer{Value: result}
 		},
 	},
+	// diff_hours calculates the difference in hours between two timestamps.
+	// Takes two timestamps. Returns int.
 	"time.diff_hours": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 2 {
@@ -451,6 +542,8 @@ var TimeBuiltins = map[string]*object.Builtin{
 			return &object.Integer{Value: result}
 		},
 	},
+	// diff_minutes calculates the difference in minutes between two timestamps.
+	// Takes two timestamps. Returns int.
 	"time.diff_minutes": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 2 {
@@ -469,7 +562,12 @@ var TimeBuiltins = map[string]*object.Builtin{
 		},
 	},
 
+	// ============================================================================
 	// Comparisons
+	// ============================================================================
+
+	// is_before checks if the first timestamp is before the second.
+	// Takes two timestamps. Returns bool.
 	"time.is_before": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 2 {
@@ -489,6 +587,8 @@ var TimeBuiltins = map[string]*object.Builtin{
 			return object.FALSE
 		},
 	},
+	// is_after checks if the first timestamp is after the second.
+	// Takes two timestamps. Returns bool.
 	"time.is_after": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 2 {
@@ -509,13 +609,21 @@ var TimeBuiltins = map[string]*object.Builtin{
 		},
 	},
 
+	// ============================================================================
 	// Timezone
+	// ============================================================================
+
+	// timezone returns the local timezone name (e.g., "EST").
+	// Takes no arguments. Returns string.
 	"time.timezone": {
 		Fn: func(args ...object.Object) object.Object {
 			name, _ := time.Now().Zone()
 			return &object.String{Value: name}
 		},
 	},
+
+	// utc_offset returns the local UTC offset in seconds.
+	// Takes no arguments. Returns int.
 	"time.utc_offset": {
 		Fn: func(args ...object.Object) object.Object {
 			_, offset := time.Now().Zone()
@@ -523,7 +631,12 @@ var TimeBuiltins = map[string]*object.Builtin{
 		},
 	},
 
-	// Special checks
+	// ============================================================================
+	// Special Checks
+	// ============================================================================
+
+	// is_leap_year checks if a year is a leap year.
+	// Takes optional year. Returns bool.
 	"time.is_leap_year": {
 		Fn: func(args ...object.Object) object.Object {
 			var year int
@@ -542,6 +655,8 @@ var TimeBuiltins = map[string]*object.Builtin{
 			return object.FALSE
 		},
 	},
+	// days_in_month returns the number of days in a month.
+	// Takes optional year and month. Returns int.
 	"time.days_in_month": {
 		Fn: func(args ...object.Object) object.Object {
 			var year, month int
@@ -569,7 +684,12 @@ var TimeBuiltins = map[string]*object.Builtin{
 		},
 	},
 
-	// Start/end of periods
+	// ============================================================================
+	// Start/End of Periods
+	// ============================================================================
+
+	// start_of_day returns the timestamp for midnight of that day.
+	// Takes optional timestamp. Returns int.
 	"time.start_of_day": {
 		Fn: func(args ...object.Object) object.Object {
 			t := getTime(args)
@@ -577,6 +697,8 @@ var TimeBuiltins = map[string]*object.Builtin{
 			return &object.Integer{Value: big.NewInt(start.Unix())}
 		},
 	},
+	// end_of_day returns the timestamp for 23:59:59 of that day.
+	// Takes optional timestamp. Returns int.
 	"time.end_of_day": {
 		Fn: func(args ...object.Object) object.Object {
 			t := getTime(args)
@@ -584,6 +706,9 @@ var TimeBuiltins = map[string]*object.Builtin{
 			return &object.Integer{Value: big.NewInt(end.Unix())}
 		},
 	},
+
+	// start_of_month returns the timestamp for the first day of the month.
+	// Takes optional timestamp. Returns int.
 	"time.start_of_month": {
 		Fn: func(args ...object.Object) object.Object {
 			t := getTime(args)
@@ -591,6 +716,8 @@ var TimeBuiltins = map[string]*object.Builtin{
 			return &object.Integer{Value: big.NewInt(start.Unix())}
 		},
 	},
+	// end_of_month returns the timestamp for the last day of the month.
+	// Takes optional timestamp. Returns int.
 	"time.end_of_month": {
 		Fn: func(args ...object.Object) object.Object {
 			t := getTime(args)
@@ -598,6 +725,9 @@ var TimeBuiltins = map[string]*object.Builtin{
 			return &object.Integer{Value: big.NewInt(end.Unix())}
 		},
 	},
+
+	// start_of_year returns the timestamp for January 1st of that year.
+	// Takes optional timestamp. Returns int.
 	"time.start_of_year": {
 		Fn: func(args ...object.Object) object.Object {
 			t := getTime(args)
@@ -605,6 +735,8 @@ var TimeBuiltins = map[string]*object.Builtin{
 			return &object.Integer{Value: big.NewInt(start.Unix())}
 		},
 	},
+	// end_of_year returns the timestamp for December 31st of that year.
+	// Takes optional timestamp. Returns int.
 	"time.end_of_year": {
 		Fn: func(args ...object.Object) object.Object {
 			t := getTime(args)
@@ -613,7 +745,12 @@ var TimeBuiltins = map[string]*object.Builtin{
 		},
 	},
 
-	// Calendar utilities
+	// ============================================================================
+	// Calendar Utilities
+	// ============================================================================
+
+	// quarter returns the quarter (1-4) for a timestamp.
+	// Takes optional timestamp. Returns int.
 	"time.quarter": {
 		Fn: func(args ...object.Object) object.Object {
 			t := getTime(args)
@@ -622,6 +759,8 @@ var TimeBuiltins = map[string]*object.Builtin{
 			return &object.Integer{Value: big.NewInt(int64(quarter))}
 		},
 	},
+	// week_of_year returns the ISO week number (1-53).
+	// Takes optional timestamp. Returns int.
 	"time.week_of_year": {
 		Fn: func(args ...object.Object) object.Object {
 			t := getTime(args)
@@ -630,12 +769,19 @@ var TimeBuiltins = map[string]*object.Builtin{
 		},
 	},
 
-	// Timing/benchmarking
+	// ============================================================================
+	// Timing/Benchmarking
+	// ============================================================================
+
+	// tick returns a high-resolution timestamp in nanoseconds for timing.
+	// Takes no arguments. Returns int.
 	"time.tick": {
 		Fn: func(args ...object.Object) object.Object {
 			return &object.Integer{Value: big.NewInt(time.Now().UnixNano())}
 		},
 	},
+	// elapsed_ms calculates elapsed time in milliseconds since a tick.
+	// Takes a start tick. Returns float.
 	"time.elapsed_ms": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 1 {
@@ -650,43 +796,56 @@ var TimeBuiltins = map[string]*object.Builtin{
 		},
 	},
 
+	// ============================================================================
 	// Weekday Constants
+	// ============================================================================
+
+	// SUNDAY weekday constant (0).
 	"time.SUNDAY": {
 		Fn: func(args ...object.Object) object.Object {
 			return &object.Integer{Value: big.NewInt(0)}
 		},
 		IsConstant: true,
 	},
+	// MONDAY weekday constant (1).
 	"time.MONDAY": {
 		Fn: func(args ...object.Object) object.Object {
 			return &object.Integer{Value: big.NewInt(1)}
 		},
 		IsConstant: true,
 	},
+
+	// TUESDAY weekday constant (2).
 	"time.TUESDAY": {
 		Fn: func(args ...object.Object) object.Object {
 			return &object.Integer{Value: big.NewInt(2)}
 		},
 		IsConstant: true,
 	},
+	// WEDNESDAY weekday constant (3).
 	"time.WEDNESDAY": {
 		Fn: func(args ...object.Object) object.Object {
 			return &object.Integer{Value: big.NewInt(3)}
 		},
 		IsConstant: true,
 	},
+
+	// THURSDAY weekday constant (4).
 	"time.THURSDAY": {
 		Fn: func(args ...object.Object) object.Object {
 			return &object.Integer{Value: big.NewInt(4)}
 		},
 		IsConstant: true,
 	},
+	// FRIDAY weekday constant (5).
 	"time.FRIDAY": {
 		Fn: func(args ...object.Object) object.Object {
 			return &object.Integer{Value: big.NewInt(5)}
 		},
 		IsConstant: true,
 	},
+
+	// SATURDAY weekday constant (6).
 	"time.SATURDAY": {
 		Fn: func(args ...object.Object) object.Object {
 			return &object.Integer{Value: big.NewInt(6)}
@@ -694,73 +853,93 @@ var TimeBuiltins = map[string]*object.Builtin{
 		IsConstant: true,
 	},
 
+	// ============================================================================
 	// Month Constants
+	// ============================================================================
+
+	// JANUARY month constant (1).
 	"time.JANUARY": {
 		Fn: func(args ...object.Object) object.Object {
 			return &object.Integer{Value: big.NewInt(1)}
 		},
 		IsConstant: true,
 	},
+	// FEBRUARY month constant (2).
 	"time.FEBRUARY": {
 		Fn: func(args ...object.Object) object.Object {
 			return &object.Integer{Value: big.NewInt(2)}
 		},
 		IsConstant: true,
 	},
+
+	// MARCH month constant (3).
 	"time.MARCH": {
 		Fn: func(args ...object.Object) object.Object {
 			return &object.Integer{Value: big.NewInt(3)}
 		},
 		IsConstant: true,
 	},
+	// APRIL month constant (4).
 	"time.APRIL": {
 		Fn: func(args ...object.Object) object.Object {
 			return &object.Integer{Value: big.NewInt(4)}
 		},
 		IsConstant: true,
 	},
+
+	// MAY month constant (5).
 	"time.MAY": {
 		Fn: func(args ...object.Object) object.Object {
 			return &object.Integer{Value: big.NewInt(5)}
 		},
 		IsConstant: true,
 	},
+	// JUNE month constant (6).
 	"time.JUNE": {
 		Fn: func(args ...object.Object) object.Object {
 			return &object.Integer{Value: big.NewInt(6)}
 		},
 		IsConstant: true,
 	},
+
+	// JULY month constant (7).
 	"time.JULY": {
 		Fn: func(args ...object.Object) object.Object {
 			return &object.Integer{Value: big.NewInt(7)}
 		},
 		IsConstant: true,
 	},
+	// AUGUST month constant (8).
 	"time.AUGUST": {
 		Fn: func(args ...object.Object) object.Object {
 			return &object.Integer{Value: big.NewInt(8)}
 		},
 		IsConstant: true,
 	},
+
+	// SEPTEMBER month constant (9).
 	"time.SEPTEMBER": {
 		Fn: func(args ...object.Object) object.Object {
 			return &object.Integer{Value: big.NewInt(9)}
 		},
 		IsConstant: true,
 	},
+	// OCTOBER month constant (10).
 	"time.OCTOBER": {
 		Fn: func(args ...object.Object) object.Object {
 			return &object.Integer{Value: big.NewInt(10)}
 		},
 		IsConstant: true,
 	},
+
+	// NOVEMBER month constant (11).
 	"time.NOVEMBER": {
 		Fn: func(args ...object.Object) object.Object {
 			return &object.Integer{Value: big.NewInt(11)}
 		},
 		IsConstant: true,
 	},
+	// DECEMBER month constant (12).
 	"time.DECEMBER": {
 		Fn: func(args ...object.Object) object.Object {
 			return &object.Integer{Value: big.NewInt(12)}
@@ -768,31 +947,41 @@ var TimeBuiltins = map[string]*object.Builtin{
 		IsConstant: true,
 	},
 
+	// ============================================================================
 	// Duration Constants (in seconds)
+	// ============================================================================
+
+	// SECOND duration constant (1 second).
 	"time.SECOND": {
 		Fn: func(args ...object.Object) object.Object {
 			return &object.Integer{Value: big.NewInt(1)}
 		},
 		IsConstant: true,
 	},
+	// MINUTE duration constant (60 seconds).
 	"time.MINUTE": {
 		Fn: func(args ...object.Object) object.Object {
 			return &object.Integer{Value: big.NewInt(60)}
 		},
 		IsConstant: true,
 	},
+
+	// HOUR duration constant (3600 seconds).
 	"time.HOUR": {
 		Fn: func(args ...object.Object) object.Object {
 			return &object.Integer{Value: big.NewInt(3600)}
 		},
 		IsConstant: true,
 	},
+	// DAY duration constant (86400 seconds).
 	"time.DAY": {
 		Fn: func(args ...object.Object) object.Object {
 			return &object.Integer{Value: big.NewInt(86400)}
 		},
 		IsConstant: true,
 	},
+
+	// WEEK duration constant (604800 seconds).
 	"time.WEEK": {
 		Fn: func(args ...object.Object) object.Object {
 			return &object.Integer{Value: big.NewInt(604800)}
@@ -800,6 +989,12 @@ var TimeBuiltins = map[string]*object.Builtin{
 		IsConstant: true,
 	},
 
+	// ============================================================================
+	// Unix Conversion
+	// ============================================================================
+
+	// from_unix converts a Unix timestamp (seconds) to a timestamp.
+	// Takes seconds. Returns int.
 	"time.from_unix": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 1 {
@@ -814,6 +1009,8 @@ var TimeBuiltins = map[string]*object.Builtin{
 		},
 	},
 
+	// from_unix_ms converts a Unix timestamp (milliseconds) to a timestamp.
+	// Takes milliseconds. Returns int.
 	"time.from_unix_ms": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 1 {
@@ -829,6 +1026,8 @@ var TimeBuiltins = map[string]*object.Builtin{
 		},
 	},
 
+	// to_unix converts a timestamp to Unix seconds.
+	// Takes timestamp. Returns int.
 	"time.to_unix": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 1 {
@@ -844,6 +1043,8 @@ var TimeBuiltins = map[string]*object.Builtin{
 		},
 	},
 
+	// to_unix_ms converts a timestamp to Unix milliseconds.
+	// Takes timestamp. Returns int.
 	"time.to_unix_ms": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 1 {
@@ -859,6 +1060,12 @@ var TimeBuiltins = map[string]*object.Builtin{
 		},
 	},
 
+	// ============================================================================
+	// Day Checks
+	// ============================================================================
+
+	// is_weekend checks if a timestamp falls on Saturday or Sunday.
+	// Takes optional timestamp. Returns bool.
 	"time.is_weekend": {
 		Fn: func(args ...object.Object) object.Object {
 			t := getTime(args)
@@ -871,6 +1078,8 @@ var TimeBuiltins = map[string]*object.Builtin{
 		},
 	},
 
+	// is_weekday checks if a timestamp falls on Monday through Friday.
+	// Takes optional timestamp. Returns bool.
 	"time.is_weekday": {
 		Fn: func(args ...object.Object) object.Object {
 			t := getTime(args)
@@ -882,6 +1091,8 @@ var TimeBuiltins = map[string]*object.Builtin{
 		},
 	},
 
+	// is_today checks if a timestamp falls on today's date.
+	// Takes timestamp. Returns bool.
 	"time.is_today": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 1 {
@@ -898,6 +1109,8 @@ var TimeBuiltins = map[string]*object.Builtin{
 		},
 	},
 
+	// is_same_day checks if two timestamps fall on the same calendar day.
+	// Takes two timestamps. Returns bool.
 	"time.is_same_day": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 2 {
@@ -920,6 +1133,12 @@ var TimeBuiltins = map[string]*object.Builtin{
 		},
 	},
 
+	// ============================================================================
+	// Relative Time
+	// ============================================================================
+
+	// relative formats a timestamp as a human-readable relative time.
+	// Takes timestamp. Returns string (e.g., "2 hours ago").
 	"time.relative": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 1 {

@@ -17,7 +17,8 @@ var uuidPattern = regexp.MustCompile(`^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]
 
 // UUIDBuiltins contains the uuid module functions
 var UUIDBuiltins = map[string]*object.Builtin{
-	// uuid.create() - generates a new UUID v4 (random)
+	// create generates a new random UUID v4.
+	// Takes no arguments. Returns UUID string (e.g., "550e8400-e29b-41d4-a716-446655440000").
 	"uuid.create": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 0 {
@@ -33,7 +34,8 @@ var UUIDBuiltins = map[string]*object.Builtin{
 		},
 	},
 
-	// uuid.create_compact() - generates a new UUID v4 without hyphens
+	// create_compact generates a new UUID v4 without hyphens.
+	// Takes no arguments. Returns 32-character hex string.
 	"uuid.create_compact": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 0 {
@@ -51,7 +53,8 @@ var UUIDBuiltins = map[string]*object.Builtin{
 		},
 	},
 
-	// uuid.is_valid(str) - checks if a string is a valid UUID
+	// is_valid checks if a string is a valid UUID format.
+	// Takes a string. Returns bool.
 	"uuid.is_valid": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 1 {
@@ -70,7 +73,7 @@ var UUIDBuiltins = map[string]*object.Builtin{
 		},
 	},
 
-	// uuid.NIL - the nil UUID constant
+	// NIL is the nil UUID constant (all zeros).
 	"uuid.NIL": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 0 {

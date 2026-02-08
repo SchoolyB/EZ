@@ -11,6 +11,8 @@ import (
 
 // MapsBuiltins contains the maps module functions
 var MapsBuiltins = map[string]*object.Builtin{
+	// is_empty checks if a map has no entries.
+	// Takes a map. Returns bool.
 	"maps.is_empty": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 1 {
@@ -27,6 +29,8 @@ var MapsBuiltins = map[string]*object.Builtin{
 		},
 	},
 
+	// contains checks if a key exists in the map.
+	// Takes map and key. Returns bool.
 	"maps.contains": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 2 {
@@ -50,6 +54,8 @@ var MapsBuiltins = map[string]*object.Builtin{
 		},
 	},
 
+	// get retrieves a value by key, with optional default.
+	// Takes map, key, and optional default. Returns value or nil/default.
 	"maps.get": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) < 2 || len(args) > 3 {
@@ -77,6 +83,8 @@ var MapsBuiltins = map[string]*object.Builtin{
 		},
 	},
 
+	// set adds or updates a key-value pair in the map.
+	// Takes map, key, and value. Returns nil. Mutates the map.
 	"maps.set": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 3 {
@@ -101,6 +109,8 @@ var MapsBuiltins = map[string]*object.Builtin{
 		},
 	},
 
+	// clear removes all entries from the map.
+	// Takes a map. Returns nil. Mutates the map.
 	"maps.clear": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 1 {
@@ -122,6 +132,8 @@ var MapsBuiltins = map[string]*object.Builtin{
 		},
 	},
 
+	// keys returns an array of all keys in the map.
+	// Takes a map. Returns array of keys.
 	"maps.keys": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 1 {
@@ -139,6 +151,8 @@ var MapsBuiltins = map[string]*object.Builtin{
 		},
 	},
 
+	// values returns an array of all values in the map.
+	// Takes a map. Returns array of values.
 	"maps.values": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 1 {
@@ -156,6 +170,8 @@ var MapsBuiltins = map[string]*object.Builtin{
 		},
 	},
 
+	// merge combines multiple maps into a new map.
+	// Takes two or more maps. Returns new merged map.
 	"maps.merge": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) < 2 {
@@ -181,6 +197,8 @@ var MapsBuiltins = map[string]*object.Builtin{
 		},
 	},
 
+	// contains_value checks if a value exists in the map.
+	// Takes map and value. Returns bool.
 	"maps.contains_value": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 2 {
@@ -200,6 +218,8 @@ var MapsBuiltins = map[string]*object.Builtin{
 		},
 	},
 
+	// equals checks if two maps have identical key-value pairs.
+	// Takes two maps. Returns bool.
 	"maps.equals": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 2 {
@@ -225,6 +245,8 @@ var MapsBuiltins = map[string]*object.Builtin{
 		},
 	},
 
+	// get_or_set returns existing value or sets and returns default.
+	// Takes map, key, and default. Returns value. May mutate the map.
 	"maps.get_or_set": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 3 {
@@ -255,7 +277,8 @@ var MapsBuiltins = map[string]*object.Builtin{
 		},
 	},
 
-	// remove is an alias for delete
+	// remove deletes a key-value pair from the map.
+	// Takes map and key. Returns bool indicating if key existed.
 	"maps.remove": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 2 {
@@ -283,6 +306,8 @@ var MapsBuiltins = map[string]*object.Builtin{
 		},
 	},
 
+	// update merges source maps into target map in-place.
+	// Takes target map and one or more source maps. Returns nil. Mutates target.
 	"maps.update": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) < 2 {
@@ -313,6 +338,8 @@ var MapsBuiltins = map[string]*object.Builtin{
 		},
 	},
 
+	// to_array converts a map to an array of [key, value] pairs.
+	// Takes a map. Returns array of arrays.
 	"maps.to_array": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 1 {
@@ -334,6 +361,8 @@ var MapsBuiltins = map[string]*object.Builtin{
 		},
 	},
 
+	// from_array creates a map from an array of [key, value] pairs.
+	// Takes array of pairs. Returns new map.
 	"maps.from_array": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 1 {
@@ -366,6 +395,8 @@ var MapsBuiltins = map[string]*object.Builtin{
 		},
 	},
 
+	// invert swaps keys and values, creating a new map.
+	// Takes a map. Returns new map with values as keys.
 	"maps.invert": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 1 {
