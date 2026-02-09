@@ -130,7 +130,7 @@ var rootCmd = &cobra.Command{
 }
 
 func init() {
-	rootCmd.AddCommand(replCmd, updateCmd, checkCmd, lexCmd, parseCmd, versionCmd, docCmd, pzCmd)
+	rootCmd.AddCommand(replCmd, updateCmd, checkCmd, lexCmd, parseCmd, versionCmd, docCmd, pzCmd, watchCmd)
 	rootCmd.PersistentPreRun = func(cmd *cobra.Command, args []string) {
 		CheckForUpdateAsync()
 	}
