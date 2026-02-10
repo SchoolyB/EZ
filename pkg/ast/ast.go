@@ -436,13 +436,14 @@ func (c *ContinueStatement) TokenLiteral() string { return c.Token.Literal }
 
 // FunctionDeclaration represents do func_name(params) -> return_type { }
 type FunctionDeclaration struct {
-	Token       Token
-	Name        *Label
-	Parameters  []*Parameter
-	ReturnTypes []string // can be multiple for multi-return
-	Body        *BlockStatement
-	Attributes  []*Attribute // #suppress(...) attributes
-	Visibility  Visibility   // Public (default), Private, or PrivateModule
+	Token        Token
+	Name         *Label
+	Parameters   []*Parameter
+	ReturnTypes  []string       // can be multiple for multi-return
+	ReturnParams []*ReturnParam // named return parameters (nil if using unnamed returns)
+	Body         *BlockStatement
+	Attributes   []*Attribute // #suppress(...) attributes
+	Visibility   Visibility   // Public (default), Private, or PrivateModule
 }
 
 func (f *FunctionDeclaration) statementNode()       {}
@@ -454,6 +455,12 @@ type Parameter struct {
 	TypeName     string
 	Mutable      bool       // true if declared with & prefix
 	DefaultValue Expression // nil if no default value
+}
+
+// ReturnParam represents a named return parameter
+type ReturnParam struct {
+	Name     *Label
+	TypeName string
 }
 
 // ImportItem represents a single module import with optional alias

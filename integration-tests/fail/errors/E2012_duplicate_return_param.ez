@@ -1,0 +1,14 @@
+/* Test: Duplicate return parameter name
+ * Expected: E2012 error - duplicate parameter name
+ */
+
+import & use @std
+
+do getValues() -> (name string, name int) {
+    return "test", 42
+}
+
+do main() {
+    temp n string, i int = getValues()
+    println(n)
+}
