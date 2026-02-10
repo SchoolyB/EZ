@@ -170,6 +170,8 @@ var validModules = map[string]bool{
 	"encoding": true, // Base64, hex, and URL encoding/decoding
 	"crypto":   true, // Cryptographic hashing and secure random
 	"http":     true, // HTTP client for web requests
+	"csv":      true, // CSV parsing and writing
+	"regex":    true, // Regular expression operations
 }
 
 // isValidModule checks if a module name is valid (either standard library or user-created)
@@ -3351,7 +3353,6 @@ func typeMatches(obj Object, ezType string) bool {
 	if actualType == ezType {
 		return true
 	}
-
 
 	// Handle module-prefixed types (e.g., utils.Hero vs Hero)
 	// Strip module prefix and compare base type names

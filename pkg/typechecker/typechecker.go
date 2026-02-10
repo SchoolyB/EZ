@@ -7031,7 +7031,6 @@ func (tc *TypeChecker) typesCompatible(declared, actual string) bool {
 		return true
 	}
 
-
 	// Handle module-prefixed types (e.g., utils.Hero vs Hero, or Hero vs utils.Hero)
 	// Strip module prefix and compare base type names
 	declaredBase := tc.stripModulePrefix(declared)
@@ -7852,7 +7851,7 @@ func (tc *TypeChecker) checkStdlibCall(member *ast.MemberExpression, call *ast.C
 	resolvedModuleName := tc.resolveStdlibModule(moduleName)
 
 	// Check if the module was imported (for standard library modules)
-	stdModules := map[string]bool{"std": true, "math": true, "arrays": true, "strings": true, "time": true, "maps": true, "io": true, "os": true, "bytes": true, "random": true, "json": true, "binary": true, "db": true, "uuid": true, "encoding": true, "crypto": true, "http": true}
+	stdModules := map[string]bool{"std": true, "math": true, "arrays": true, "strings": true, "time": true, "maps": true, "io": true, "os": true, "bytes": true, "random": true, "json": true, "binary": true, "db": true, "uuid": true, "encoding": true, "crypto": true, "http": true, "csv": true, "regex": true}
 	if stdModules[resolvedModuleName] && !tc.modules[moduleName] && !tc.modules[resolvedModuleName] {
 		help := ""
 		if suggestion := errors.SuggestModule(moduleName); suggestion != "" && suggestion != resolvedModuleName {
@@ -7900,6 +7899,10 @@ func (tc *TypeChecker) checkStdlibCall(member *ast.MemberExpression, call *ast.C
 		tc.checkCryptoModuleCall(funcName, call, line, column)
 	case "http":
 		tc.checkHttpModuleCall(funcName, call, line, column)
+	case "csv":
+		tc.checkCsvModuleCall(funcName, call, line, column)
+	case "regex":
+		tc.checkRegexModuleCall(funcName, call, line, column)
 	default:
 		// User-defined module - check if we have type info for it
 		tc.checkUserModuleCall(moduleName, funcName, call, line, column)
@@ -9004,6 +9007,45 @@ func (tc *TypeChecker) checkHttpModuleCall(funcName string, call *ast.CallExpres
 	}
 
 	tc.validateStdlibCall("http", funcName, call, sig, line, column)
+}
+
+func (tc *TypeChecker) checkCsvModuleCall(funcName string, call *ast.CallExpression, line, column int) {
+	signatures := map[string]StdlibFuncSig{
+		"parse":     {1, 1, []string{"string"}, "tuple"},
+		"stringify": {1, 1, []string{"array"}, "tuple"},
+		"read":      {1, 2, []string{"string", "map"}, "tuple"},
+		"write":     {2, 3, []string{"string", "array", "map"}, "tuple"},
+		"headers":   {1, 1, []string{"string"}, "tuple"},
+	}
+
+	sig, exists := signatures[funcName]
+	if !exists {
+		return
+	}
+
+	tc.validateStdlibCall("csv", funcName, call, sig, line, column)
+}
+
+func (tc *TypeChecker) checkRegexModuleCall(funcName string, call *ast.CallExpression, line, column int) {
+	signatures := map[string]StdlibFuncSig{
+		"is_valid":    {1, 1, []string{"string"}, "bool"},
+		"match":       {2, 2, []string{"string", "string"}, "tuple"},
+		"find":        {2, 2, []string{"string", "string"}, "tuple"},
+		"find_all":    {2, 2, []string{"string", "string"}, "tuple"},
+		"find_all_n":  {3, 3, []string{"string", "string", "int"}, "tuple"},
+		"replace":     {3, 3, []string{"string", "string", "string"}, "tuple"},
+		"replace_all": {3, 3, []string{"string", "string", "string"}, "tuple"},
+		"split":       {2, 2, []string{"string", "string"}, "tuple"},
+		"groups":      {2, 2, []string{"string", "string"}, "tuple"},
+		"groups_all":  {2, 2, []string{"string", "string"}, "tuple"},
+	}
+
+	sig, exists := signatures[funcName]
+	if !exists {
+		return
+	}
+
+	tc.validateStdlibCall("regex", funcName, call, sig, line, column)
 }
 
 // validateStdlibCall performs the actual validation of a stdlib call
