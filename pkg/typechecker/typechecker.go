@@ -2303,6 +2303,10 @@ func (tc *TypeChecker) checkVariableDeclaration(decl *ast.VariableDeclaration) {
 					}
 				}
 				tc.defineVariableWithMutability(varName, inferredType, decl.Mutable)
+				// Mark nested struct fields as non-nil if initialized with struct literal
+				if structVal, ok := decl.Value.(*ast.StructValue); ok {
+					tc.markNestedStructFieldsNonNil(varName, structVal)
+				}
 			} else {
 				// Still register with empty type so variable is in scope
 				tc.defineVariableWithMutability(varName, "", decl.Mutable)
@@ -2461,6 +2465,13 @@ func (tc *TypeChecker) checkVariableDeclaration(decl *ast.VariableDeclaration) {
 	// Register variable in current scope with mutability (temp = mutable, const = immutable)
 	if declaredType != "" {
 		tc.defineVariableWithMutability(varName, declaredType, decl.Mutable)
+	}
+
+	// Mark nested struct fields as non-nil if initialized with struct literal
+	if decl.Value != nil {
+		if structVal, ok := decl.Value.(*ast.StructValue); ok {
+			tc.markNestedStructFieldsNonNil(varName, structVal)
+		}
 	}
 }
 
@@ -2785,6 +2796,14 @@ func (tc *TypeChecker) checkAssignment(assign *ast.AssignmentStatement) {
 			line,
 			column,
 		)
+	}
+
+	// Mark nested struct fields as non-nil if assigned a struct literal
+	if structVal, ok := assign.Value.(*ast.StructValue); ok {
+		varName := tc.extractVarNameFromExpr(assign.Name)
+		if varName != "" && tc.currentScope != nil {
+			tc.markNestedStructFieldsNonNil(varName, structVal)
+		}
 	}
 
 	// For index expressions, also validate the index
@@ -4267,6 +4286,38 @@ func (tc *TypeChecker) extractVarNameFromExpr(expr ast.Expression) string {
 		}
 	}
 	return ""
+}
+
+// markNestedStructFieldsNonNil recursively marks explicitly initialized
+// nested struct fields as non-nil in the current scope.
+// This prevents false W2010 warnings on chained member access like wrapper.inner.label
+// when inner was explicitly initialized with a struct literal.
+func (tc *TypeChecker) markNestedStructFieldsNonNil(basePath string, structVal *ast.StructValue) {
+	if structVal.Name == nil || tc.currentScope == nil {
+		return
+	}
+
+	structType, exists := tc.getStructTypeIncludingModules(structVal.Name.Value)
+	if !exists {
+		return
+	}
+
+	for fieldName, fieldValue := range structVal.Fields {
+		fieldType, hasField := structType.Fields[fieldName]
+		if !hasField {
+			continue
+		}
+
+		if tc.isNullableType(fieldType.Name) {
+			fieldPath := basePath + "." + fieldName
+			tc.currentScope.MarkNonNil(fieldPath)
+
+			// Recursively mark nested struct literals
+			if nestedStruct, ok := fieldValue.(*ast.StructValue); ok {
+				tc.markNestedStructFieldsNonNil(fieldPath, nestedStruct)
+			}
+		}
+	}
 }
 
 // checkWhenStatement validates a when/is/default statement

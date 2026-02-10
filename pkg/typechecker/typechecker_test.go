@@ -88,6 +88,15 @@ func assertHasWarning(t *testing.T, tc *TypeChecker, expectedCode errors.ErrorCo
 	t.Errorf("expected warning %s but not found", expectedCode.Code)
 }
 
+func assertNoWarning(t *testing.T, tc *TypeChecker, unexpectedCode errors.ErrorCode) {
+	t.Helper()
+	for _, warn := range tc.Errors().Warnings {
+		if warn.ErrorCode == unexpectedCode {
+			t.Errorf("unexpected warning %s: %s at line %d", warn.ErrorCode.Code, warn.Message, warn.Line)
+		}
+	}
+}
+
 // ============================================================================
 // Scope Tests
 // ============================================================================
@@ -7006,4 +7015,84 @@ do main() {
 `
 	tc := typecheck(t, input)
 	assertNoErrors(t, tc)
+}
+
+// ============================================================================
+// W2010 Nested Struct Initialization Tests (#1107)
+// ============================================================================
+
+func TestW2010_NestedStructLiteralNoFalsePositive(t *testing.T) {
+	// When a nested struct field is explicitly initialized with a struct literal,
+	// W2010 should NOT fire on chained member access
+	input := `
+const Container struct {
+	label string
+}
+
+const Wrapper struct {
+	inner Container
+}
+
+do main() {
+	temp w Wrapper = Wrapper{ inner: Container{ label: "test" } }
+	w.inner.label = "modified"
+	println(w.inner.label)
+}
+`
+	tc := typecheck(t, input)
+	assertNoErrors(t, tc)
+	assertNoWarning(t, tc, errors.W2010)
+}
+
+func TestW2010_DeeplyNestedStructLiteralNoFalsePositive(t *testing.T) {
+	// Test deeply nested struct initialization
+	input := `
+const Inner struct {
+	value string
+}
+
+const Middle struct {
+	nested Inner
+}
+
+const Outer struct {
+	mid Middle
+}
+
+do main() {
+	temp o Outer = Outer{
+		mid: Middle{
+			nested: Inner{ value: "deep" }
+		}
+	}
+	o.mid.nested.value = "modified"
+	println(o.mid.nested.value)
+}
+`
+	tc := typecheck(t, input)
+	assertNoErrors(t, tc)
+	assertNoWarning(t, tc, errors.W2010)
+}
+
+func TestW2010_ReassignmentWithStructLiteral(t *testing.T) {
+	// Test that reassigning a variable with a struct literal also marks nested fields
+	input := `
+const Container struct {
+	label string
+}
+
+const Wrapper struct {
+	inner Container
+}
+
+do main() {
+	temp w Wrapper = Wrapper{}
+	w = Wrapper{ inner: Container{ label: "test" } }
+	w.inner.label = "modified"
+	println(w.inner.label)
+}
+`
+	tc := typecheck(t, input)
+	assertNoErrors(t, tc)
+	assertNoWarning(t, tc, errors.W2010)
 }
