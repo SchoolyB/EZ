@@ -58,6 +58,7 @@ var allWarningCodes = map[string]bool{
 	"W1002": true, // unused-import
 	"W1003": true, // unused-function
 	"W1004": true, // unused-parameter
+	"W1005": true, // typed-blank-identifier
 	// Potential Bug Warnings (W2xxx)
 	"W2001": true, // unreachable-code
 	"W2002": true, // shadowed-variable
@@ -81,6 +82,7 @@ var suppressibleWarnings = map[string]bool{
 	"ALL":   true, // suppress all warnings
 	"W1001": true, // unused-variable
 	"W1004": true, // unused-parameter
+	"W1005": true, // typed-blank-identifier
 	"W2001": true, // unreachable-code
 	"W2002": true, // shadowed-variable
 	"W2003": true, // missing-return
@@ -994,34 +996,37 @@ func (p *Parser) parseVarableDeclaration() *VariableDeclaration {
 		// Initialize TypeNames with the first type
 		stmt.TypeNames = append(stmt.TypeNames, stmt.TypeName)
 
-		// Parse additional (name type) pairs
+		// Parse additional (name type) or (_ type) pairs
 		for p.peekTokenMatches(COMMA) {
 			p.nextToken() // consume comma
-			p.nextToken() // move to next identifier
+			p.nextToken() // move to next identifier or blank
 
-			if !p.currentTokenMatches(IDENT) {
-				msg := fmt.Sprintf("expected identifier, got %s", p.currentToken.Type)
+			if p.currentTokenMatches(BLANK) {
+				// Blank identifier with type annotation
+				stmt.Names = append(stmt.Names, &Label{Token: p.currentToken, Value: "_"})
+			} else if p.currentTokenMatches(IDENT) {
+				name := p.currentToken.Literal
+				// Check for reserved names
+				if isReservedName(name) {
+					msg := fmt.Sprintf("'%s' is a reserved keyword and cannot be used as a variable name", name)
+					p.errors = append(p.errors, msg)
+					p.addEZError(errors.E2020, msg, p.currentToken)
+					return nil
+				}
+				// Check for duplicate declaration
+				if !p.declareInScope(name, p.currentToken) {
+					msg := fmt.Sprintf("'%s' is already declared in this scope", name)
+					p.errors = append(p.errors, msg)
+					p.addEZError(errors.E2023, msg, p.currentToken)
+					return nil
+				}
+				stmt.Names = append(stmt.Names, &Label{Token: p.currentToken, Value: name})
+			} else {
+				msg := fmt.Sprintf("expected identifier or _, got %s", p.currentToken.Type)
 				p.errors = append(p.errors, msg)
 				p.addEZError(errors.E2029, msg, p.currentToken)
 				return nil
 			}
-
-			name := p.currentToken.Literal
-			// Check for reserved names
-			if isReservedName(name) {
-				msg := fmt.Sprintf("'%s' is a reserved keyword and cannot be used as a variable name", name)
-				p.errors = append(p.errors, msg)
-				p.addEZError(errors.E2020, msg, p.currentToken)
-				return nil
-			}
-			// Check for duplicate declaration
-			if !p.declareInScope(name, p.currentToken) {
-				msg := fmt.Sprintf("'%s' is already declared in this scope", name)
-				p.errors = append(p.errors, msg)
-				p.addEZError(errors.E2023, msg, p.currentToken)
-				return nil
-			}
-			stmt.Names = append(stmt.Names, &Label{Token: p.currentToken, Value: name})
 
 			// Parse type for this variable
 			p.nextToken()
