@@ -2171,6 +2171,18 @@ func (tc *TypeChecker) checkVariableDeclaration(decl *ast.VariableDeclaration) {
 	varName := decl.Name.Value
 	declaredType := decl.TypeName
 
+	// Check if blank identifier has unnecessary type annotation
+	if varName == "_" && declaredType != "" {
+		if !tc.isSuppressed("W1005", tc.currentFuncAttrs) {
+			tc.addWarning(
+				errors.W1005,
+				"blank identifier '_' does not require type annotation",
+				decl.Name.Token.Line,
+				decl.Name.Token.Column,
+			)
+		}
+	}
+
 	// Check if 'void' type is used (not allowed for variables)
 	if declaredType == "void" {
 		tc.addError(
@@ -2572,6 +2584,20 @@ func (tc *TypeChecker) isMultiReturnCall(expr ast.Expression) bool {
 // checkMultiReturnDeclaration validates multi-return variable declarations
 // e.g., temp x int, y string = getValues()
 func (tc *TypeChecker) checkMultiReturnDeclaration(decl *ast.VariableDeclaration) {
+	// Check if any blank identifiers have unnecessary type annotations
+	for i, name := range decl.Names {
+		if name != nil && name.Value == "_" && i < len(decl.TypeNames) && decl.TypeNames[i] != "" {
+			if !tc.isSuppressed("W1005", tc.currentFuncAttrs) {
+				tc.addWarning(
+					errors.W1005,
+					"blank identifier '_' does not require type annotation",
+					name.Token.Line,
+					name.Token.Column,
+				)
+			}
+		}
+	}
+
 	// Check for type/function used as value
 	if decl.Value != nil {
 		tc.checkValueExpression(decl.Value)
