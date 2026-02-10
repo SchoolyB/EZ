@@ -121,6 +121,48 @@ var StringsBuiltins = map[string]*object.Builtin{
 		},
 	},
 
+	// lines splits a string by newlines (handles both \n and \r\n).
+	// Takes a string. Returns array of strings.
+	"strings.lines": {
+		Fn: func(args ...object.Object) object.Object {
+			if len(args) != 1 {
+				return &object.Error{Code: "E7001", Message: "strings.lines() takes exactly 1 argument"}
+			}
+			str, ok := args[0].(*object.String)
+			if !ok {
+				return &object.Error{Code: "E7003", Message: "strings.lines() requires a string argument"}
+			}
+			// Normalize \r\n to \n before splitting
+			normalized := strings.ReplaceAll(str.Value, "\r\n", "\n")
+			parts := strings.Split(normalized, "\n")
+			elements := make([]object.Object, len(parts))
+			for i, p := range parts {
+				elements[i] = &object.String{Value: p}
+			}
+			return &object.Array{Elements: elements, ElementType: "string"}
+		},
+	},
+
+	// words splits a string by whitespace.
+	// Takes a string. Returns array of strings (empty words are excluded).
+	"strings.words": {
+		Fn: func(args ...object.Object) object.Object {
+			if len(args) != 1 {
+				return &object.Error{Code: "E7001", Message: "strings.words() takes exactly 1 argument"}
+			}
+			str, ok := args[0].(*object.String)
+			if !ok {
+				return &object.Error{Code: "E7003", Message: "strings.words() requires a string argument"}
+			}
+			parts := strings.Fields(str.Value)
+			elements := make([]object.Object, len(parts))
+			for i, p := range parts {
+				elements[i] = &object.String{Value: p}
+			}
+			return &object.Array{Elements: elements, ElementType: "string"}
+		},
+	},
+
 	// join concatenates array elements into a string with a separator.
 	// Takes array and separator. Returns string.
 	"strings.join": {
@@ -169,6 +211,161 @@ var StringsBuiltins = map[string]*object.Builtin{
 				return &object.Error{Code: "E7003", Message: "strings.replace() requires string arguments"}
 			}
 			return &object.String{Value: strings.ReplaceAll(str.Value, old.Value, newStr.Value)}
+		},
+	},
+
+	// char_at returns the character at the given index.
+	// Takes string and index (supports negative indices, -1 = last char).
+	// Returns string (single character) or error if out of bounds.
+	"strings.char_at": {
+		Fn: func(args ...object.Object) object.Object {
+			if len(args) != 2 {
+				return &object.Error{Code: "E7001", Message: "strings.char_at() takes exactly 2 arguments"}
+			}
+			str, ok := args[0].(*object.String)
+			if !ok {
+				return &object.Error{Code: "E7003", Message: "strings.char_at() requires a string as first argument"}
+			}
+			idx, ok := args[1].(*object.Integer)
+			if !ok {
+				return &object.Error{Code: "E7004", Message: "strings.char_at() requires an integer as second argument"}
+			}
+
+			runes := []rune(str.Value)
+			runeLen := len(runes)
+			index := int(idx.Value.Int64())
+
+			// Handle negative indices
+			if index < 0 {
+				index = runeLen + index
+			}
+
+			// Check bounds
+			if index < 0 || index >= runeLen {
+				return &object.Error{Code: "E7005", Message: "strings.char_at() index out of bounds"}
+			}
+
+			return &object.String{Value: string(runes[index])}
+		},
+	},
+
+	// insert inserts a substring at the given position.
+	// Takes string, position, and substring. Returns string.
+	// Position is clamped to valid range.
+	"strings.insert": {
+		Fn: func(args ...object.Object) object.Object {
+			if len(args) != 3 {
+				return &object.Error{Code: "E7001", Message: "strings.insert() takes exactly 3 arguments (string, position, substring)"}
+			}
+			str, ok := args[0].(*object.String)
+			if !ok {
+				return &object.Error{Code: "E7003", Message: "strings.insert() requires a string as first argument"}
+			}
+			pos, ok := args[1].(*object.Integer)
+			if !ok {
+				return &object.Error{Code: "E7004", Message: "strings.insert() requires an integer as second argument"}
+			}
+			substr, ok := args[2].(*object.String)
+			if !ok {
+				return &object.Error{Code: "E7003", Message: "strings.insert() requires a string as third argument"}
+			}
+
+			runes := []rune(str.Value)
+			runeLen := len(runes)
+			position := int(pos.Value.Int64())
+
+			// Clamp position to valid range
+			if position < 0 {
+				position = 0
+			}
+			if position > runeLen {
+				position = runeLen
+			}
+
+			result := string(runes[:position]) + substr.Value + string(runes[position:])
+			return &object.String{Value: result}
+		},
+	},
+
+	// center pads a string on both sides to center it within the given width.
+	// Takes string, width, and optional pad character (default space).
+	// Returns unchanged string if already wider than target.
+	"strings.center": {
+		Fn: func(args ...object.Object) object.Object {
+			if len(args) < 2 || len(args) > 3 {
+				return &object.Error{Code: "E7001", Message: "strings.center() takes 2 or 3 arguments (string, width, [pad_char])"}
+			}
+			str, ok := args[0].(*object.String)
+			if !ok {
+				return &object.Error{Code: "E7003", Message: "strings.center() requires a string as first argument"}
+			}
+			width, ok := args[1].(*object.Integer)
+			if !ok {
+				return &object.Error{Code: "E7004", Message: "strings.center() requires an integer width"}
+			}
+			padChar := " "
+			if len(args) == 3 {
+				pad, ok := args[2].(*object.String)
+				if !ok {
+					return &object.Error{Code: "E7003", Message: "strings.center() requires a string as pad character"}
+				}
+				if len(pad.Value) > 0 {
+					padRunes := []rune(pad.Value)
+					padChar = string(padRunes[0])
+				}
+			}
+
+			targetWidth := int(width.Value.Int64())
+			strRuneLen := len([]rune(str.Value))
+
+			if strRuneLen >= targetWidth {
+				return str
+			}
+
+			totalPadding := targetWidth - strRuneLen
+			leftPadding := totalPadding / 2
+			rightPadding := totalPadding - leftPadding
+
+			result := strings.Repeat(padChar, leftPadding) + str.Value + strings.Repeat(padChar, rightPadding)
+			return &object.String{Value: result}
+		},
+	},
+
+	// remove removes the first occurrence of a substring.
+	// Takes string and substring. Returns string.
+	"strings.remove": {
+		Fn: func(args ...object.Object) object.Object {
+			if len(args) != 2 {
+				return &object.Error{Code: "E7001", Message: "strings.remove() takes exactly 2 arguments"}
+			}
+			str, ok := args[0].(*object.String)
+			if !ok {
+				return &object.Error{Code: "E7003", Message: "strings.remove() requires string arguments"}
+			}
+			substr, ok := args[1].(*object.String)
+			if !ok {
+				return &object.Error{Code: "E7003", Message: "strings.remove() requires string arguments"}
+			}
+			return &object.String{Value: strings.Replace(str.Value, substr.Value, "", 1)}
+		},
+	},
+
+	// remove_all removes all occurrences of a substring.
+	// Takes string and substring. Returns string.
+	"strings.remove_all": {
+		Fn: func(args ...object.Object) object.Object {
+			if len(args) != 2 {
+				return &object.Error{Code: "E7001", Message: "strings.remove_all() takes exactly 2 arguments"}
+			}
+			str, ok := args[0].(*object.String)
+			if !ok {
+				return &object.Error{Code: "E7003", Message: "strings.remove_all() requires string arguments"}
+			}
+			substr, ok := args[1].(*object.String)
+			if !ok {
+				return &object.Error{Code: "E7003", Message: "strings.remove_all() requires string arguments"}
+			}
+			return &object.String{Value: strings.ReplaceAll(str.Value, substr.Value, "")}
 		},
 	},
 
@@ -458,6 +655,137 @@ var StringsBuiltins = map[string]*object.Builtin{
 	// ============================================================================
 	// String Checks
 	// ============================================================================
+
+	// is_alphanumeric checks if a string contains only letters and digits.
+	// Takes a string. Returns bool.
+	// Empty string returns false.
+	"strings.is_alphanumeric": {
+		Fn: func(args ...object.Object) object.Object {
+			if len(args) != 1 {
+				return &object.Error{Code: "E7001", Message: "strings.is_alphanumeric() takes exactly 1 argument"}
+			}
+			str, ok := args[0].(*object.String)
+			if !ok {
+				return &object.Error{Code: "E7003", Message: "strings.is_alphanumeric() requires a string argument"}
+			}
+			if len(str.Value) == 0 {
+				return object.FALSE
+			}
+			for _, r := range str.Value {
+				if !unicode.IsLetter(r) && !unicode.IsDigit(r) {
+					return object.FALSE
+				}
+			}
+			return object.TRUE
+		},
+	},
+
+	// is_whitespace checks if a string contains only whitespace characters.
+	// Takes a string. Returns bool.
+	// Empty string returns false.
+	"strings.is_whitespace": {
+		Fn: func(args ...object.Object) object.Object {
+			if len(args) != 1 {
+				return &object.Error{Code: "E7001", Message: "strings.is_whitespace() takes exactly 1 argument"}
+			}
+			str, ok := args[0].(*object.String)
+			if !ok {
+				return &object.Error{Code: "E7003", Message: "strings.is_whitespace() requires a string argument"}
+			}
+			if len(str.Value) == 0 {
+				return object.FALSE
+			}
+			for _, r := range str.Value {
+				if !unicode.IsSpace(r) {
+					return object.FALSE
+				}
+			}
+			return object.TRUE
+		},
+	},
+
+	// is_lowercase checks if all letters in the string are lowercase.
+	// Takes a string. Returns bool.
+	// Empty string or string with no letters returns false.
+	"strings.is_lowercase": {
+		Fn: func(args ...object.Object) object.Object {
+			if len(args) != 1 {
+				return &object.Error{Code: "E7001", Message: "strings.is_lowercase() takes exactly 1 argument"}
+			}
+			str, ok := args[0].(*object.String)
+			if !ok {
+				return &object.Error{Code: "E7003", Message: "strings.is_lowercase() requires a string argument"}
+			}
+			if len(str.Value) == 0 {
+				return object.FALSE
+			}
+			hasLetter := false
+			for _, r := range str.Value {
+				if unicode.IsLetter(r) {
+					hasLetter = true
+					if !unicode.IsLower(r) {
+						return object.FALSE
+					}
+				}
+			}
+			if !hasLetter {
+				return object.FALSE
+			}
+			return object.TRUE
+		},
+	},
+
+	// is_uppercase checks if all letters in the string are uppercase.
+	// Takes a string. Returns bool.
+	// Empty string or string with no letters returns false.
+	"strings.is_uppercase": {
+		Fn: func(args ...object.Object) object.Object {
+			if len(args) != 1 {
+				return &object.Error{Code: "E7001", Message: "strings.is_uppercase() takes exactly 1 argument"}
+			}
+			str, ok := args[0].(*object.String)
+			if !ok {
+				return &object.Error{Code: "E7003", Message: "strings.is_uppercase() requires a string argument"}
+			}
+			if len(str.Value) == 0 {
+				return object.FALSE
+			}
+			hasLetter := false
+			for _, r := range str.Value {
+				if unicode.IsLetter(r) {
+					hasLetter = true
+					if !unicode.IsUpper(r) {
+						return object.FALSE
+					}
+				}
+			}
+			if !hasLetter {
+				return object.FALSE
+			}
+			return object.TRUE
+		},
+	},
+
+	// is_ascii checks if all characters in the string are ASCII (0-127).
+	// Takes a string. Returns bool.
+	// Empty string returns true (no non-ASCII chars).
+	"strings.is_ascii": {
+		Fn: func(args ...object.Object) object.Object {
+			if len(args) != 1 {
+				return &object.Error{Code: "E7001", Message: "strings.is_ascii() takes exactly 1 argument"}
+			}
+			str, ok := args[0].(*object.String)
+			if !ok {
+				return &object.Error{Code: "E7003", Message: "strings.is_ascii() requires a string argument"}
+			}
+			for _, r := range str.Value {
+				if r > 127 {
+					return object.FALSE
+				}
+			}
+			return object.TRUE
+		},
+	},
 
 	// is_empty checks if a string is empty or contains only whitespace.
 	// Takes a string. Returns bool.

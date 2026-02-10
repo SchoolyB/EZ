@@ -476,6 +476,366 @@ do main() {
         failed += 1
     }
 
+    // ==================== strings.is_alphanumeric ====================
+    println("  -- strings.is_alphanumeric --")
+
+    // Test 42: is_alphanumeric - true
+    if strings.is_alphanumeric("Hello123") == true {
+        println("  [PASS] strings.is_alphanumeric('Hello123')")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] strings.is_alphanumeric('Hello123'): expected true")
+        failed += 1
+    }
+
+    // Test 43: is_alphanumeric - false with space
+    if strings.is_alphanumeric("Hello 123") == false {
+        println("  [PASS] strings.is_alphanumeric('Hello 123') = false")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] strings.is_alphanumeric('Hello 123'): expected false")
+        failed += 1
+    }
+
+    // Test 44: is_alphanumeric - empty string
+    if strings.is_alphanumeric("") == false {
+        println("  [PASS] strings.is_alphanumeric('') = false")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] strings.is_alphanumeric(''): expected false")
+        failed += 1
+    }
+
+    // ==================== strings.is_whitespace ====================
+    println("  -- strings.is_whitespace --")
+
+    // Test 45: is_whitespace - true
+    if strings.is_whitespace("   \t\n") == true {
+        println("  [PASS] strings.is_whitespace('   \\t\\n')")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] strings.is_whitespace: expected true")
+        failed += 1
+    }
+
+    // Test 46: is_whitespace - false
+    if strings.is_whitespace(" a ") == false {
+        println("  [PASS] strings.is_whitespace(' a ') = false")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] strings.is_whitespace(' a '): expected false")
+        failed += 1
+    }
+
+    // Test 47: is_whitespace - empty string
+    if strings.is_whitespace("") == false {
+        println("  [PASS] strings.is_whitespace('') = false")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] strings.is_whitespace(''): expected false")
+        failed += 1
+    }
+
+    // ==================== strings.is_lowercase ====================
+    println("  -- strings.is_lowercase --")
+
+    // Test 48: is_lowercase - true
+    if strings.is_lowercase("hello") == true {
+        println("  [PASS] strings.is_lowercase('hello')")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] strings.is_lowercase('hello'): expected true")
+        failed += 1
+    }
+
+    // Test 49: is_lowercase - with digits (still true)
+    if strings.is_lowercase("hello123") == true {
+        println("  [PASS] strings.is_lowercase('hello123')")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] strings.is_lowercase('hello123'): expected true")
+        failed += 1
+    }
+
+    // Test 50: is_lowercase - false with uppercase
+    if strings.is_lowercase("Hello") == false {
+        println("  [PASS] strings.is_lowercase('Hello') = false")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] strings.is_lowercase('Hello'): expected false")
+        failed += 1
+    }
+
+    // Test 51: is_lowercase - digits only (no letters)
+    if strings.is_lowercase("12345") == false {
+        println("  [PASS] strings.is_lowercase('12345') = false (no letters)")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] strings.is_lowercase('12345'): expected false")
+        failed += 1
+    }
+
+    // ==================== strings.is_uppercase ====================
+    println("  -- strings.is_uppercase --")
+
+    // Test 52: is_uppercase - true
+    if strings.is_uppercase("HELLO") == true {
+        println("  [PASS] strings.is_uppercase('HELLO')")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] strings.is_uppercase('HELLO'): expected true")
+        failed += 1
+    }
+
+    // Test 53: is_uppercase - with digits (still true)
+    if strings.is_uppercase("HELLO123") == true {
+        println("  [PASS] strings.is_uppercase('HELLO123')")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] strings.is_uppercase('HELLO123'): expected true")
+        failed += 1
+    }
+
+    // Test 54: is_uppercase - false with lowercase
+    if strings.is_uppercase("Hello") == false {
+        println("  [PASS] strings.is_uppercase('Hello') = false")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] strings.is_uppercase('Hello'): expected false")
+        failed += 1
+    }
+
+    // ==================== strings.is_ascii ====================
+    println("  -- strings.is_ascii --")
+
+    // Test 55: is_ascii - true
+    if strings.is_ascii("Hello, World!") == true {
+        println("  [PASS] strings.is_ascii('Hello, World!')")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] strings.is_ascii('Hello, World!'): expected true")
+        failed += 1
+    }
+
+    // Test 56: is_ascii - false with unicode
+    if strings.is_ascii("Hello 世界") == false {
+        println("  [PASS] strings.is_ascii('Hello 世界') = false")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] strings.is_ascii('Hello 世界'): expected false")
+        failed += 1
+    }
+
+    // Test 57: is_ascii - empty string (true)
+    if strings.is_ascii("") == true {
+        println("  [PASS] strings.is_ascii('') = true")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] strings.is_ascii(''): expected true")
+        failed += 1
+    }
+
+    // ==================== strings.lines ====================
+    println("  -- strings.lines --")
+
+    // Test 58: lines - unix newlines
+    temp lines_result [string] = strings.lines("a\nb\nc")
+    if len(lines_result) == 3 && lines_result[0] == "a" && lines_result[1] == "b" && lines_result[2] == "c" {
+        println("  [PASS] strings.lines('a\\nb\\nc')")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] strings.lines: got ${lines_result}")
+        failed += 1
+    }
+
+    // Test 59: lines - single line
+    temp single_line [string] = strings.lines("hello")
+    if len(single_line) == 1 && single_line[0] == "hello" {
+        println("  [PASS] strings.lines('hello') single line")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] strings.lines single line: got ${single_line}")
+        failed += 1
+    }
+
+    // ==================== strings.words ====================
+    println("  -- strings.words --")
+
+    // Test 60: words - simple
+    temp words_result [string] = strings.words("hello world")
+    if len(words_result) == 2 && words_result[0] == "hello" && words_result[1] == "world" {
+        println("  [PASS] strings.words('hello world')")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] strings.words: got ${words_result}")
+        failed += 1
+    }
+
+    // Test 61: words - multiple spaces
+    temp words_multi [string] = strings.words("  foo   bar  ")
+    if len(words_multi) == 2 && words_multi[0] == "foo" && words_multi[1] == "bar" {
+        println("  [PASS] strings.words('  foo   bar  ')")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] strings.words multi-space: got ${words_multi}")
+        failed += 1
+    }
+
+    // Test 62: words - empty string
+    temp words_empty [string] = strings.words("")
+    if len(words_empty) == 0 {
+        println("  [PASS] strings.words('') = []")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] strings.words empty: got ${words_empty}")
+        failed += 1
+    }
+
+    // ==================== strings.char_at ====================
+    println("  -- strings.char_at --")
+
+    // Test 63: char_at - positive index
+    temp char_result string = strings.char_at("hello", 0)
+    if char_result == "h" {
+        println("  [PASS] strings.char_at('hello', 0) = 'h'")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] strings.char_at: expected 'h', got '${char_result}'")
+        failed += 1
+    }
+
+    // Test 64: char_at - negative index
+    temp char_neg string = strings.char_at("hello", -1)
+    if char_neg == "o" {
+        println("  [PASS] strings.char_at('hello', -1) = 'o'")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] strings.char_at negative: expected 'o', got '${char_neg}'")
+        failed += 1
+    }
+
+    // Test 65: char_at - unicode
+    temp char_unicode string = strings.char_at("世界", 1)
+    if char_unicode == "界" {
+        println("  [PASS] strings.char_at('世界', 1) = '界'")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] strings.char_at unicode: expected '界', got '${char_unicode}'")
+        failed += 1
+    }
+
+    // ==================== strings.insert ====================
+    println("  -- strings.insert --")
+
+    // Test 66: insert at beginning
+    temp insert_begin string = strings.insert("world", 0, "hello ")
+    if insert_begin == "hello world" {
+        println("  [PASS] strings.insert('world', 0, 'hello ')")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] strings.insert begin: expected 'hello world', got '${insert_begin}'")
+        failed += 1
+    }
+
+    // Test 67: insert at end
+    temp insert_end string = strings.insert("hello", 5, " world")
+    if insert_end == "hello world" {
+        println("  [PASS] strings.insert('hello', 5, ' world')")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] strings.insert end: expected 'hello world', got '${insert_end}'")
+        failed += 1
+    }
+
+    // Test 68: insert in middle
+    temp insert_mid string = strings.insert("hllo", 1, "e")
+    if insert_mid == "hello" {
+        println("  [PASS] strings.insert('hllo', 1, 'e')")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] strings.insert middle: expected 'hello', got '${insert_mid}'")
+        failed += 1
+    }
+
+    // ==================== strings.center ====================
+    println("  -- strings.center --")
+
+    // Test 69: center with default pad
+    temp center_default string = strings.center("hi", 6)
+    if center_default == "  hi  " {
+        println("  [PASS] strings.center('hi', 6)")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] strings.center default: expected '  hi  ', got '${center_default}'")
+        failed += 1
+    }
+
+    // Test 70: center with custom pad
+    temp center_custom string = strings.center("hi", 10, "*")
+    if center_custom == "****hi****" {
+        println("  [PASS] strings.center('hi', 10, '*')")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] strings.center custom: expected '****hi****', got '${center_custom}'")
+        failed += 1
+    }
+
+    // Test 71: center - already wider
+    temp center_wider string = strings.center("hello", 3)
+    if center_wider == "hello" {
+        println("  [PASS] strings.center('hello', 3) = 'hello' (unchanged)")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] strings.center wider: expected 'hello', got '${center_wider}'")
+        failed += 1
+    }
+
+    // ==================== strings.remove ====================
+    println("  -- strings.remove --")
+
+    // Test 72: remove first occurrence
+    temp remove_first string = strings.remove("hello hello", "hello")
+    if remove_first == " hello" {
+        println("  [PASS] strings.remove('hello hello', 'hello')")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] strings.remove: expected ' hello', got '${remove_first}'")
+        failed += 1
+    }
+
+    // Test 73: remove not found
+    temp remove_none string = strings.remove("hello", "xyz")
+    if remove_none == "hello" {
+        println("  [PASS] strings.remove('hello', 'xyz') = 'hello' (unchanged)")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] strings.remove not found: expected 'hello', got '${remove_none}'")
+        failed += 1
+    }
+
+    // ==================== strings.remove_all ====================
+    println("  -- strings.remove_all --")
+
+    // Test 74: remove all occurrences
+    temp remove_all_result string = strings.remove_all("banana", "a")
+    if remove_all_result == "bnn" {
+        println("  [PASS] strings.remove_all('banana', 'a')")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] strings.remove_all: expected 'bnn', got '${remove_all_result}'")
+        failed += 1
+    }
+
+    // Test 75: remove_all - multiple word occurrences
+    temp remove_all_words string = strings.remove_all("hello hello hello", "hello")
+    if remove_all_words == "  " {
+        println("  [PASS] strings.remove_all('hello hello hello', 'hello')")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] strings.remove_all words: expected '  ', got '${remove_all_words}'")
+        failed += 1
+    }
+
     // Summary
     println("")
     println("Results: ${passed} passed, ${failed} failed")
