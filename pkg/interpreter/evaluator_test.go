@@ -437,6 +437,143 @@ r
 	testIntegerObject(t, evaluated, 120)
 }
 
+func TestNamedReturnBasic(t *testing.T) {
+	input := `
+do getNumber() -> (result int) {
+	result = 42
+	return result
+}
+temp r int = getNumber()
+r
+`
+	evaluated := testEval(input)
+	testIntegerObject(t, evaluated, 42)
+}
+
+func TestNamedReturnZeroValue(t *testing.T) {
+	// Named return variables are auto-initialized to zero values
+	input := `
+do getZero() -> (count int) {
+	return count
+}
+temp r int = getZero()
+r
+`
+	evaluated := testEval(input)
+	testIntegerObject(t, evaluated, 0)
+}
+
+func TestNamedReturnMultiple(t *testing.T) {
+	input := `
+do getPersonInfo() -> (age int, name string) {
+	age = 25
+	name = "Alice"
+	return age, name
+}
+temp a int, n string = getPersonInfo()
+a
+`
+	evaluated := testEval(input)
+	testIntegerObject(t, evaluated, 25)
+}
+
+func TestNamedReturnSharedType(t *testing.T) {
+	input := `
+do getNames() -> (first, last string) {
+	first = "John"
+	last = "Doe"
+	return first, last
+}
+temp f string, l string = getNames()
+f
+`
+	evaluated := testEval(input)
+	testStringObject(t, evaluated, "John")
+}
+
+func TestNamedReturnMixedSharedTypes(t *testing.T) {
+	input := `
+do getFullInfo() -> (name, city string, age int) {
+	name = "Bob"
+	city = "NYC"
+	age = 30
+	return name, city, age
+}
+temp n string, c string, a int = getFullInfo()
+a
+`
+	evaluated := testEval(input)
+	testIntegerObject(t, evaluated, 30)
+}
+
+func TestNamedReturnModification(t *testing.T) {
+	// Named return variables can be modified
+	input := `
+do calculate() -> (result int) {
+	result = 10
+	result = result * 2
+	if result > 15 {
+		result = result + 5
+	}
+	return result
+}
+temp r int = calculate()
+r
+`
+	evaluated := testEval(input)
+	testIntegerObject(t, evaluated, 25)
+}
+
+func TestNamedReturnDifferentVariable(t *testing.T) {
+	// Can return a different variable of the same type (warning emitted but valid)
+	input := `
+do getName() -> (name string) {
+	temp other string = "Hello"
+	return other
+}
+temp r string = getName()
+r
+`
+	evaluated := testEval(input)
+	testStringObject(t, evaluated, "Hello")
+}
+
+func TestNamedReturnStringZeroValue(t *testing.T) {
+	input := `
+do getEmpty() -> (s string) {
+	return s
+}
+temp r string = getEmpty()
+r
+`
+	evaluated := testEval(input)
+	testStringObject(t, evaluated, "")
+}
+
+func TestNamedReturnBoolZeroValue(t *testing.T) {
+	input := `
+do getFalse() -> (b bool) {
+	return b
+}
+temp r bool = getFalse()
+r
+`
+	evaluated := testEval(input)
+	testBooleanObject(t, evaluated, false)
+}
+
+func TestNamedReturnFloatZeroValue(t *testing.T) {
+	input := `
+do getZeroFloat() -> (f float) {
+	return f
+}
+temp r float = getZeroFloat()
+r
+`
+	evaluated := testEval(input)
+	testFloatObject(t, evaluated, 0.0)
+}
+
 // ============================================================================
 // Array Tests
 // ============================================================================
@@ -5545,8 +5682,8 @@ func TestIdentifierEvaluation(t *testing.T) {
 			expected: int64(42),
 		},
 		{
-			name: "nil literal",
-			input: `nil`,
+			name:     "nil literal",
+			input:    `nil`,
 			expected: nil,
 		},
 	}

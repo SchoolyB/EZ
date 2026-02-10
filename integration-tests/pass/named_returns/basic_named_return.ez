@@ -1,0 +1,14 @@
+/* Test: Basic named return variable
+ * Expected: passes with output "Alice"
+ */
+
+import & use @std
+
+do getUserName() -> (name string) {
+    name = "Alice"
+    return name
+}
+
+do main() {
+    println(getUserName())
+}

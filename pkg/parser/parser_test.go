@@ -355,8 +355,8 @@ func TestArrayLiterals(t *testing.T) {
 
 func TestMapLiterals(t *testing.T) {
 	tests := []struct {
-		name      string
-		input     string
+		name          string
+		input         string
 		expectedPairs int
 	}{
 		{"non-empty map", `temp m map[string:int] = {"a": 1, "b": 2}`, 2},
@@ -774,6 +774,126 @@ func TestFunctionWithNoParameters(t *testing.T) {
 
 	if len(fn.Parameters) != 0 {
 		t.Errorf("expected 0 parameters, got %d", len(fn.Parameters))
+	}
+}
+
+func TestFunctionWithNamedReturn(t *testing.T) {
+	input := `do getName() -> (name string) {
+		name = "Alice"
+		return name
+	}`
+	program := parseProgram(t, input)
+	fn := program.Statements[0].(*FunctionDeclaration)
+
+	if len(fn.ReturnTypes) != 1 || fn.ReturnTypes[0] != "string" {
+		t.Errorf("expected return type 'string', got %v", fn.ReturnTypes)
+	}
+	if len(fn.ReturnParams) != 1 {
+		t.Fatalf("expected 1 return param, got %d", len(fn.ReturnParams))
+	}
+	if fn.ReturnParams[0].Name.Value != "name" {
+		t.Errorf("expected return param name 'name', got '%s'", fn.ReturnParams[0].Name.Value)
+	}
+	if fn.ReturnParams[0].TypeName != "string" {
+		t.Errorf("expected return param type 'string', got '%s'", fn.ReturnParams[0].TypeName)
+	}
+}
+
+func TestFunctionWithMultipleNamedReturns(t *testing.T) {
+	input := `do getPersonInfo() -> (age int, name string) {
+		age = 25
+		name = "Bob"
+		return age, name
+	}`
+	program := parseProgram(t, input)
+	fn := program.Statements[0].(*FunctionDeclaration)
+
+	if len(fn.ReturnTypes) != 2 {
+		t.Fatalf("expected 2 return types, got %d", len(fn.ReturnTypes))
+	}
+	if fn.ReturnTypes[0] != "int" || fn.ReturnTypes[1] != "string" {
+		t.Errorf("expected return types (int, string), got (%s, %s)", fn.ReturnTypes[0], fn.ReturnTypes[1])
+	}
+	if len(fn.ReturnParams) != 2 {
+		t.Fatalf("expected 2 return params, got %d", len(fn.ReturnParams))
+	}
+	if fn.ReturnParams[0].Name.Value != "age" || fn.ReturnParams[0].TypeName != "int" {
+		t.Errorf("expected first return param 'age int', got '%s %s'", fn.ReturnParams[0].Name.Value, fn.ReturnParams[0].TypeName)
+	}
+	if fn.ReturnParams[1].Name.Value != "name" || fn.ReturnParams[1].TypeName != "string" {
+		t.Errorf("expected second return param 'name string', got '%s %s'", fn.ReturnParams[1].Name.Value, fn.ReturnParams[1].TypeName)
+	}
+}
+
+func TestFunctionWithSharedTypeNamedReturns(t *testing.T) {
+	input := `do getNames() -> (first, last string) {
+		first = "John"
+		last = "Doe"
+		return first, last
+	}`
+	program := parseProgram(t, input)
+	fn := program.Statements[0].(*FunctionDeclaration)
+
+	if len(fn.ReturnTypes) != 2 {
+		t.Fatalf("expected 2 return types, got %d", len(fn.ReturnTypes))
+	}
+	if fn.ReturnTypes[0] != "string" || fn.ReturnTypes[1] != "string" {
+		t.Errorf("expected return types (string, string), got (%s, %s)", fn.ReturnTypes[0], fn.ReturnTypes[1])
+	}
+	if len(fn.ReturnParams) != 2 {
+		t.Fatalf("expected 2 return params, got %d", len(fn.ReturnParams))
+	}
+	if fn.ReturnParams[0].Name.Value != "first" {
+		t.Errorf("expected first return param name 'first', got '%s'", fn.ReturnParams[0].Name.Value)
+	}
+	if fn.ReturnParams[1].Name.Value != "last" {
+		t.Errorf("expected second return param name 'last', got '%s'", fn.ReturnParams[1].Name.Value)
+	}
+}
+
+func TestFunctionWithMixedSharedTypeNamedReturns(t *testing.T) {
+	input := `do getFullInfo() -> (name, city string, age int) {
+		name = "Alice"
+		city = "NYC"
+		age = 30
+		return name, city, age
+	}`
+	program := parseProgram(t, input)
+	fn := program.Statements[0].(*FunctionDeclaration)
+
+	if len(fn.ReturnTypes) != 3 {
+		t.Fatalf("expected 3 return types, got %d", len(fn.ReturnTypes))
+	}
+	if fn.ReturnTypes[0] != "string" || fn.ReturnTypes[1] != "string" || fn.ReturnTypes[2] != "int" {
+		t.Errorf("expected return types (string, string, int), got (%s, %s, %s)", fn.ReturnTypes[0], fn.ReturnTypes[1], fn.ReturnTypes[2])
+	}
+	if len(fn.ReturnParams) != 3 {
+		t.Fatalf("expected 3 return params, got %d", len(fn.ReturnParams))
+	}
+	if fn.ReturnParams[0].Name.Value != "name" {
+		t.Errorf("expected first return param name 'name', got '%s'", fn.ReturnParams[0].Name.Value)
+	}
+	if fn.ReturnParams[1].Name.Value != "city" {
+		t.Errorf("expected second return param name 'city', got '%s'", fn.ReturnParams[1].Name.Value)
+	}
+	if fn.ReturnParams[2].Name.Value != "age" {
+		t.Errorf("expected third return param name 'age', got '%s'", fn.ReturnParams[2].Name.Value)
+	}
+}
+
+func TestFunctionWithUnnamedReturnsStillWorks(t *testing.T) {
+	// Verify that unnamed returns still work as before
+	input := `do getValues() -> (int, string) {
+		return 1, "hello"
+	}`
+	program := parseProgram(t, input)
+	fn := program.Statements[0].(*FunctionDeclaration)
+
+	if len(fn.ReturnTypes) != 2 {
+		t.Fatalf("expected 2 return types, got %d", len(fn.ReturnTypes))
+	}
+	if fn.ReturnParams != nil {
+		t.Errorf("expected no return params for unnamed returns, got %d", len(fn.ReturnParams))
 	}
 }
 

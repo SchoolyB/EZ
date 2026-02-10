@@ -2173,11 +2173,12 @@ func evalFunctionDeclaration(node *ast.FunctionDeclaration, env *Environment, ct
 		file = ctx.CurrentFile
 	}
 	fn := &Function{
-		Parameters:  node.Parameters,
-		ReturnTypes: node.ReturnTypes,
-		Body:        node.Body,
-		Env:         env,
-		File:        file,
+		Parameters:   node.Parameters,
+		ReturnTypes:  node.ReturnTypes,
+		ReturnParams: node.ReturnParams,
+		Body:         node.Body,
+		Env:          env,
+		File:         file,
 	}
 	vis := convertVisibility(node.Visibility)
 	env.SetWithVisibility(node.Name.Value, fn, false, vis) // functions are immutable
@@ -3477,6 +3478,9 @@ func extendFunctionEnv(fn *Function, args []Object, ctx *EvalContext) *Environme
 	// Set expected return types for this function's scope
 	env.SetReturnTypes(fn.ReturnTypes)
 
+	// Set named return parameters for this function's scope (for typechecker warning)
+	env.SetReturnParams(fn.ReturnParams)
+
 	for i, param := range fn.Parameters {
 		var value Object
 		if i < len(args) {
@@ -3489,6 +3493,15 @@ func extendFunctionEnv(fn *Function, args []Object, ctx *EvalContext) *Environme
 		if value != nil {
 			// Use parameter's Mutable field: & params are mutable, non-& params are immutable
 			env.Set(param.Name.Value, value, param.Mutable)
+		}
+	}
+
+	// Initialize named return parameters with zero values
+	// They are mutable so they can be assigned within the function body
+	if fn.ReturnParams != nil {
+		for _, rp := range fn.ReturnParams {
+			zeroVal := getDefaultValueWithEnv(rp.TypeName, env, nil)
+			env.Set(rp.Name.Value, zeroVal, true) // mutable = true
 		}
 	}
 
