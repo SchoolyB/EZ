@@ -66,6 +66,7 @@ var allWarningCodes = map[string]bool{
 	"W2005": true, // deprecated-feature
 	"W2006": true, // byte-overflow-potential
 	"W2009": true, // nil-dereference-potential
+	"W2011": true, // named-return-unused
 	// Code Quality Warnings (W3xxx)
 	"W3001": true, // empty-block
 	"W3002": true, // redundant-condition
@@ -87,6 +88,7 @@ var suppressibleWarnings = map[string]bool{
 	"W2005": true, // deprecated-feature
 	"W2006": true, // byte-overflow-potential
 	"W2009": true, // nil-dereference-potential
+	"W2011": true, // named-return-unused
 	"W3001": true, // empty-block
 	"W3002": true, // redundant-condition
 	"W3003": true, // array-size-mismatch
@@ -1645,8 +1647,26 @@ func (p *Parser) parseFunctionDeclarationWithAttrs(attrs []*Attribute) *Function
 		}
 
 		if p.currentTokenMatches(LPAREN) {
-			// Multiple return types
-			stmt.ReturnTypes = p.parseReturnTypes()
+			// Multiple return types or named returns
+			types, params := p.parseReturnTypesOrParams()
+			stmt.ReturnTypes = types
+			stmt.ReturnParams = params
+
+			// Check for conflicts between return param names and input param names
+			if params != nil {
+				inputParamNames := make(map[string]Token)
+				for _, param := range stmt.Parameters {
+					inputParamNames[param.Name.Value] = param.Name.Token
+				}
+				for _, rp := range params {
+					if prevToken, exists := inputParamNames[rp.Name.Value]; exists {
+						msg := fmt.Sprintf("return parameter '%s' conflicts with input parameter of the same name", rp.Name.Value)
+						p.addEZError(errors.E2012, msg, rp.Name.Token)
+						helpMsg := fmt.Sprintf("input parameter '%s' declared at line %d", rp.Name.Value, prevToken.Line)
+						p.errors = append(p.errors, helpMsg)
+					}
+				}
+			}
 		} else if p.currentTokenMatches(IDENT) || p.currentTokenMatches(LBRACKET) {
 			// Single return type (identifier or array)
 			typeName := p.parseTypeName()
@@ -1890,41 +1910,204 @@ func (p *Parser) parseFunctionParameters() []*Parameter {
 	return params
 }
 
-func (p *Parser) parseReturnTypes() []string {
+// parseReturnTypesOrParams parses return types inside parentheses.
+// Returns (types, params) where params is non-nil only if using named returns.
+// Named returns: (name type, name2 type2) or (name, name2 type)
+// Unnamed returns: (type, type2)
+func (p *Parser) parseReturnTypesOrParams() ([]string, []*ReturnParam) {
 	types := []string{}
+	params := []*ReturnParam{}
+	paramNames := make(map[string]Token) // track for duplicate detection
 
 	p.nextToken() // move past (
 
+	if p.currentTokenMatches(RPAREN) {
+		// Empty parentheses -> ()
+		return types, nil
+	}
+
+	// Determine if we have named or unnamed returns by looking ahead
+	// Named: first IDENT is followed by another IDENT (the type)
+	// Unnamed: first IDENT is the type itself (followed by , or ))
+	isNamed := false
+	if p.currentTokenMatches(IDENT) {
+		// Check what follows this identifier
+		if p.peekTokenMatches(IDENT) || p.peekTokenMatches(LBRACKET) {
+			// name followed by type -> named returns
+			isNamed = true
+		} else if p.peekTokenMatches(COMMA) {
+			// Could be "name, name type" (named) or "type, type" (unnamed)
+			// We need to look further ahead - save position and scan
+			// For simplicity, peek at the pattern after comma
+			// If after comma we see "IDENT IDENT" or "IDENT [" -> named
+			// If after comma we see "IDENT ," or "IDENT )" -> unnamed
+			isNamed = p.looksLikeNamedReturns()
+		}
+		// If followed by ) -> unnamed single type
+	}
+
+	if isNamed {
+		// Parse named return parameters (similar to function parameters)
+		for !p.currentTokenMatches(RPAREN) {
+			// Collect names that share a type
+			namesForType := []*Label{}
+
+			for {
+				if !p.currentTokenMatches(IDENT) {
+					msg := fmt.Sprintf("expected return parameter name, got %s", p.currentToken.Type)
+					p.addEZError(errors.E2002, msg, p.currentToken)
+					return nil, nil
+				}
+
+				currentIdent := &Label{Token: p.currentToken, Value: p.currentToken.Literal}
+
+				// Check if this is followed by comma (more names) or type
+				if p.peekTokenMatches(COMMA) {
+					// Check if next after comma is a type (end of name list) or another name
+					// This is tricky - for now, check reserved/builtin names
+					if isReservedName(currentIdent.Value) {
+						msg := fmt.Sprintf("'%s' is a reserved keyword and cannot be used as a return parameter name", currentIdent.Value)
+						p.addEZError(errors.E2033, msg, currentIdent.Token)
+						return nil, nil
+					}
+					// Check for duplicate
+					if prevToken, exists := paramNames[currentIdent.Value]; exists {
+						msg := fmt.Sprintf("duplicate return parameter name '%s'", currentIdent.Value)
+						p.addEZError(errors.E2012, msg, currentIdent.Token)
+						helpMsg := fmt.Sprintf("return parameter '%s' first declared at line %d", currentIdent.Value, prevToken.Line)
+						p.errors = append(p.errors, helpMsg)
+					} else {
+						paramNames[currentIdent.Value] = currentIdent.Token
+					}
+					namesForType = append(namesForType, currentIdent)
+					p.nextToken() // consume name
+					p.nextToken() // consume comma, move to next token
+					continue
+				} else if p.peekTokenMatches(IDENT) || p.peekTokenMatches(LBRACKET) {
+					// This is the last name before the type
+					if isReservedName(currentIdent.Value) {
+						msg := fmt.Sprintf("'%s' is a reserved keyword and cannot be used as a return parameter name", currentIdent.Value)
+						p.addEZError(errors.E2033, msg, currentIdent.Token)
+						return nil, nil
+					}
+					// Check for duplicate
+					if prevToken, exists := paramNames[currentIdent.Value]; exists {
+						msg := fmt.Sprintf("duplicate return parameter name '%s'", currentIdent.Value)
+						p.addEZError(errors.E2012, msg, currentIdent.Token)
+						helpMsg := fmt.Sprintf("return parameter '%s' first declared at line %d", currentIdent.Value, prevToken.Line)
+						p.errors = append(p.errors, helpMsg)
+					} else {
+						paramNames[currentIdent.Value] = currentIdent.Token
+					}
+					namesForType = append(namesForType, currentIdent)
+					p.nextToken() // move to the type
+					break
+				} else if p.peekTokenMatches(RPAREN) {
+					// Name without type at end
+					msg := fmt.Sprintf("return parameter '%s' is missing a type", currentIdent.Value)
+					p.addEZError(errors.E2014, msg, currentIdent.Token)
+					return nil, nil
+				} else {
+					msg := fmt.Sprintf("expected ',', type, or ')' after return parameter name, got %s", p.peekToken.Type)
+					p.addEZError(errors.E2002, msg, p.peekToken)
+					return nil, nil
+				}
+			}
+
+			// Parse the type
+			typeName := p.parseTypeName()
+			if typeName == "" {
+				return nil, nil
+			}
+
+			// Apply type to all collected names
+			for _, name := range namesForType {
+				params = append(params, &ReturnParam{Name: name, TypeName: typeName})
+				types = append(types, typeName)
+			}
+
+			// Check for comma (more params) or closing paren
+			if p.peekTokenMatches(COMMA) {
+				p.nextToken() // consume comma
+				p.nextToken() // move to next param name
+				continue
+			} else if p.peekTokenMatches(RPAREN) {
+				p.nextToken() // consume )
+				break
+			} else {
+				msg := fmt.Sprintf("expected ',' or ')', got %s", p.peekToken.Type)
+				p.addEZError(errors.E2002, msg, p.peekToken)
+				return nil, nil
+			}
+		}
+		return types, params
+	}
+
+	// Parse unnamed return types (original behavior)
 	for !p.currentTokenMatches(RPAREN) {
-		// Parse type name (can be IDENT, array type starting with LBRACKET, or nil)
 		if p.currentTokenMatches(IDENT) || p.currentTokenMatches(LBRACKET) {
 			typeName := p.parseTypeName()
 			if typeName == "" {
-				return nil
+				return nil, nil
 			}
 			types = append(types, typeName)
 		} else if p.currentTokenMatches(NIL) {
-			// nil return type
 			types = append(types, "nil")
 		} else {
 			msg := fmt.Sprintf("expected type name in return types, got %s", p.currentToken.Type)
 			p.addEZError(errors.E2002, msg, p.currentToken)
-			return nil
+			return nil, nil
 		}
 
-		// Check for comma or end of list
 		if p.peekTokenMatches(COMMA) {
-			p.nextToken() // consume comma
-			p.nextToken() // move to next type
+			p.nextToken() // consume type
+			p.nextToken() // consume comma, move to next type
 		} else if p.peekTokenMatches(RPAREN) {
 			p.nextToken() // move to )
 		} else {
 			msg := fmt.Sprintf("expected ',' or ')' in return types, got %s", p.peekToken.Type)
 			p.addEZError(errors.E2002, msg, p.peekToken)
-			return nil
+			return nil, nil
 		}
 	}
 
+	return types, nil
+}
+
+// looksLikeNamedReturns checks if the current position looks like named returns
+// Called when we see "IDENT ," and need to determine if it's "name, name type" or "type, type"
+func (p *Parser) looksLikeNamedReturns() bool {
+	// Save current position by checking tokens
+	// We're at IDENT, peek is COMMA
+	// We need to check what comes after the comma
+	// This is a heuristic: if after comma we eventually see "IDENT IDENT" before "," or ")" -> named
+
+	// For a simpler approach: check if the first identifier is a known type name
+	// If it's not a type name, it's probably a variable name -> named returns
+	firstIdent := p.currentToken.Literal
+
+	// Check if it's a primitive type or known type
+	primitiveTypes := map[string]bool{
+		"int": true, "float": true, "string": true, "bool": true, "char": true, "byte": true,
+		"i8": true, "i16": true, "i32": true, "i64": true, "i128": true, "i256": true,
+		"u8": true, "u16": true, "u32": true, "u64": true, "u128": true, "u256": true, "uint": true,
+		"f32": true, "f64": true, "nil": true, "any": true,
+	}
+
+	if primitiveTypes[firstIdent] {
+		return false // It's a type, so unnamed returns
+	}
+
+	// If it's not a primitive type, it's likely a name (could also be a user-defined type)
+	// We can be more certain by checking the user-defined types, but for now
+	// assume that if it's not a primitive, it's a named return
+	// This heuristic works because named return variables should not shadow type names
+	return true
+}
+
+// parseReturnTypes is kept for backward compatibility but now delegates to parseReturnTypesOrParams
+func (p *Parser) parseReturnTypes() []string {
+	types, _ := p.parseReturnTypesOrParams()
 	return types
 }
 

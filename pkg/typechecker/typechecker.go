@@ -218,11 +218,12 @@ type TypeChecker struct {
 	errors               *errors.EZErrorList
 	source               string
 	filename             string
-	skipMainCheck        bool             // Skip main() function requirement (for module files)
-	loopDepth            int              // Track nesting depth of loops for break/continue validation (#603)
-	currentFuncAttrs     []*ast.Attribute // Current function's attributes for #suppress checking
-	fileSuppressWarnings []string         // File-level suppressed warnings (from #suppress at file scope)
-	currentModuleName    string           // Current module name for same-module symbol lookup
+	skipMainCheck        bool               // Skip main() function requirement (for module files)
+	loopDepth            int                // Track nesting depth of loops for break/continue validation (#603)
+	currentFuncAttrs     []*ast.Attribute   // Current function's attributes for #suppress checking
+	fileSuppressWarnings []string           // File-level suppressed warnings (from #suppress at file scope)
+	currentModuleName    string             // Current module name for same-module symbol lookup
+	currentReturnParams  []*ast.ReturnParam // Current function's named return parameters
 }
 
 // NewTypeChecker creates a new type checker
@@ -1545,6 +1546,33 @@ func (tc *TypeChecker) checkFunctionDeclaration(node *ast.FunctionDeclaration) {
 		}
 	}
 
+	// Check named return parameters
+	if node.ReturnParams != nil {
+		for _, rp := range node.ReturnParams {
+			rpName := rp.Name.Value
+
+			// Check if return param name shadows a user-defined type (struct/enum)
+			if _, exists := tc.types[rpName]; exists {
+				tc.addError(
+					errors.E2033,
+					fmt.Sprintf("'%s' is a type name and cannot be used as a return parameter name", rpName),
+					rp.Name.Token.Line,
+					rp.Name.Token.Column,
+				)
+			}
+
+			// Check if return param name shadows a user-defined function
+			if _, exists := tc.functions[rpName]; exists {
+				tc.addError(
+					errors.E2033,
+					fmt.Sprintf("'%s' is a function name and cannot be used as a return parameter name", rpName),
+					rp.Name.Token.Line,
+					rp.Name.Token.Column,
+				)
+			}
+		}
+	}
+
 	tc.RegisterFunction(node.Name.Value, sig)
 }
 
@@ -1559,9 +1587,21 @@ func (tc *TypeChecker) checkFunctionBody(node *ast.FunctionDeclaration) {
 	tc.currentFuncAttrs = node.Attributes
 	defer func() { tc.currentFuncAttrs = prevAttrs }()
 
+	// Track current function's named return parameters
+	prevReturnParams := tc.currentReturnParams
+	tc.currentReturnParams = node.ReturnParams
+	defer func() { tc.currentReturnParams = prevReturnParams }()
+
 	// Add function parameters to scope with their mutability
 	for _, param := range node.Parameters {
 		tc.defineVariableWithMutability(param.Name.Value, param.TypeName, param.Mutable)
+	}
+
+	// Add named return parameters to scope (they are mutable)
+	if node.ReturnParams != nil {
+		for _, rp := range node.ReturnParams {
+			tc.defineVariableWithMutability(rp.Name.Value, rp.TypeName, true)
+		}
 	}
 
 	// Check if function body returns on all code paths (for functions with return types)
@@ -3027,6 +3067,35 @@ func (tc *TypeChecker) checkReturnStatement(ret *ast.ReturnStatement, expectedTy
 				ret.Token.Line,
 				ret.Token.Column,
 			)
+		}
+
+		// Check if returning a different variable than the named return parameter (W2011)
+		if tc.currentReturnParams != nil && i < len(tc.currentReturnParams) {
+			namedParam := tc.currentReturnParams[i]
+			// Check if the return value is a simple identifier
+			if label, isLabel := val.(*ast.Label); isLabel {
+				// If the returned variable is different from the named return param, emit warning
+				if label.Value != namedParam.Name.Value {
+					line, column := tc.getExpressionPosition(val)
+					tc.addWarning(
+						errors.W2011,
+						fmt.Sprintf("returning '%s' instead of named return variable '%s'",
+							label.Value, namedParam.Name.Value),
+						line,
+						column,
+					)
+				}
+			} else {
+				// Returning an expression (not a simple variable) - also warn
+				line, column := tc.getExpressionPosition(val)
+				tc.addWarning(
+					errors.W2011,
+					fmt.Sprintf("returning expression instead of named return variable '%s'",
+						namedParam.Name.Value),
+					line,
+					column,
+				)
+			}
 		}
 	}
 }

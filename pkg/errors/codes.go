@@ -414,6 +414,7 @@ var (
 	W2008 = ErrorCode{"W2008", "integer-overflow-potential", "integer arithmetic may overflow"}
 	W2009 = ErrorCode{"W2009", "nil-dereference-potential", "accessing member on potentially nil value"}
 	W2010 = ErrorCode{"W2010", "chained-nil-access", "chained member access on nullable struct type"}
+	W2011 = ErrorCode{"W2011", "named-return-unused", "function declares named return variable but returns different value"}
 
 	// Code Quality Warnings (W3xxx)
 	W3001 = ErrorCode{"W3001", "empty-block", "block statement is empty"}

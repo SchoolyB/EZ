@@ -7096,3 +7096,166 @@ do main() {
 	assertNoErrors(t, tc)
 	assertNoWarning(t, tc, errors.W2010)
 }
+
+// ============================================================================
+// Named Return Variables Tests (#1131)
+// ============================================================================
+
+func TestNamedReturnBasicNoWarning(t *testing.T) {
+	input := `
+do getName() -> (name string) {
+	name = "Alice"
+	return name
+}
+
+do main() {
+	temp n string = getName()
+	println(n)
+}
+`
+	tc := typecheck(t, input)
+	assertNoErrors(t, tc)
+	assertNoWarning(t, tc, errors.W2011)
+}
+
+func TestNamedReturnDifferentVariableWarning(t *testing.T) {
+	input := `
+do getName() -> (name string) {
+	temp other string = "Hello"
+	return other
+}
+
+do main() {
+	temp n string = getName()
+	println(n)
+}
+`
+	tc := typecheck(t, input)
+	assertNoErrors(t, tc)
+	assertHasWarning(t, tc, errors.W2011)
+}
+
+func TestNamedReturnExpressionWarning(t *testing.T) {
+	input := `
+do getNumber() -> (result int) {
+	return 42
+}
+
+do main() {
+	temp n int = getNumber()
+	println(n)
+}
+`
+	tc := typecheck(t, input)
+	assertNoErrors(t, tc)
+	assertHasWarning(t, tc, errors.W2011)
+}
+
+func TestNamedReturnMultipleCorrect(t *testing.T) {
+	input := `
+do getValues() -> (age int, name string) {
+	age = 25
+	name = "Bob"
+	return age, name
+}
+
+do main() {
+	temp a int, n string = getValues()
+	println(a)
+	println(n)
+}
+`
+	tc := typecheck(t, input)
+	assertNoErrors(t, tc)
+	assertNoWarning(t, tc, errors.W2011)
+}
+
+func TestNamedReturnMultipleOneWrong(t *testing.T) {
+	input := `
+do getValues() -> (age int, name string) {
+	temp other string = "Alice"
+	age = 25
+	return age, other
+}
+
+do main() {
+	temp a int, n string = getValues()
+	println(a)
+	println(n)
+}
+`
+	tc := typecheck(t, input)
+	assertNoErrors(t, tc)
+	assertHasWarning(t, tc, errors.W2011)
+}
+
+func TestNamedReturnSharedType(t *testing.T) {
+	input := `
+do getNames() -> (first, last string) {
+	first = "John"
+	last = "Doe"
+	return first, last
+}
+
+do main() {
+	temp f string, l string = getNames()
+	println(f)
+	println(l)
+}
+`
+	tc := typecheck(t, input)
+	assertNoErrors(t, tc)
+	assertNoWarning(t, tc, errors.W2011)
+}
+
+func TestNamedReturnZeroValueUsage(t *testing.T) {
+	// Using the auto-initialized zero value is valid
+	input := `
+do getZero() -> (count int) {
+	return count
+}
+
+do main() {
+	temp c int = getZero()
+	println(c)
+}
+`
+	tc := typecheck(t, input)
+	assertNoErrors(t, tc)
+	assertNoWarning(t, tc, errors.W2011)
+}
+
+func TestUnnamedReturnNoWarning(t *testing.T) {
+	// Unnamed returns should not trigger W2011
+	input := `
+do getValue() -> int {
+	return 42
+}
+
+do main() {
+	temp v int = getValue()
+	println(v)
+}
+`
+	tc := typecheck(t, input)
+	assertNoErrors(t, tc)
+	assertNoWarning(t, tc, errors.W2011)
+}
+
+func TestUnnamedMultiReturnNoWarning(t *testing.T) {
+	// Unnamed multi-returns should not trigger W2011
+	input := `
+do getValues() -> (int, string) {
+	return 42, "hello"
+}
+
+do main() {
+	temp a int, b string = getValues()
+	println(a)
+	println(b)
+}
+`
+	tc := typecheck(t, input)
+	assertNoErrors(t, tc)
+	assertNoWarning(t, tc, errors.W2011)
+}
