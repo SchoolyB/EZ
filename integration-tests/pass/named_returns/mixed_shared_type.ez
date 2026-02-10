@@ -1,0 +1,19 @@
+/* Test: Mixed shared type named return variables
+ * Expected: passes with output "Alice", "NYC", "30"
+ */
+
+import & use @std
+
+do getFullInfo() -> (name, city string, age int) {
+    name = "Alice"
+    city = "NYC"
+    age = 30
+    return name, city, age
+}
+
+do main() {
+    temp n string, c string, a int = getFullInfo()
+    println(n)
+    println(c)
+    println(a)
+}

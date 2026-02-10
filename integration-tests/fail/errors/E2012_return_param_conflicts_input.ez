@@ -1,0 +1,13 @@
+/* Test: Return parameter conflicts with input parameter
+ * Expected: E2012 error - parameter name already used
+ */
+
+import & use @std
+
+do process(name string) -> (name string) {
+    return name
+}
+
+do main() {
+    println(process("test"))
+}
