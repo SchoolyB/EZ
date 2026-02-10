@@ -1,0 +1,34 @@
+// Test: W1005 typed-blank-identifier warning
+// Typed blank identifiers should trigger W1005 warning but still run successfully
+
+import & use @std
+
+do returnTwo() -> (int, string) {
+    return 42, "hello"
+}
+
+do returnThree() -> (int, string, bool) {
+    return 1, "two", true
+}
+
+do main() {
+    // Test 1: typed blank after named - should warn for the typed blank
+    temp x int, _ string = returnTwo()
+    println(x)
+
+    // Test 2: all typed blanks - should warn for both
+    temp _ int, _ string = returnTwo()
+    println("discarded both")
+
+    // Test 3: typed blank in the middle
+    temp a int, _ string, c bool = returnThree()
+    println(a)
+    println(c)
+
+    // These should NOT warn (untyped blanks):
+    temp y, _ = returnTwo()
+    println(y)
+
+    temp _, z = returnTwo()
+    println(z)
+}

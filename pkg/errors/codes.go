@@ -402,6 +402,7 @@ var (
 	W1002 = ErrorCode{"W1002", "unused-import", "module imported but not used"}
 	W1003 = ErrorCode{"W1003", "unused-function", "function declared but not called"}
 	W1004 = ErrorCode{"W1004", "unused-parameter", "parameter declared but not used"}
+	W1005 = ErrorCode{"W1005", "typed-blank-identifier", "blank identifier does not require type annotation"}
 
 	// Potential Bug Warnings (W2xxx)
 	W2001 = ErrorCode{"W2001", "unreachable-code", "code will never execute"}
