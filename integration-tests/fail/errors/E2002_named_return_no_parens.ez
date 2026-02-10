@@ -1,0 +1,14 @@
+/* Test: Named return without parentheses
+ * Expected: E2002 error - named returns must be enclosed in parentheses
+ */
+
+import & use @std
+
+do getName() -> name string {
+    name = "Alice"
+    return name
+}
+
+do main() {
+    println(getName())
+}
