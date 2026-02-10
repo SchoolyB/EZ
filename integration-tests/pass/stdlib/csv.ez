@@ -1,0 +1,186 @@
+/*
+ * csv.ez - Test @csv standard library
+ */
+
+import @std, @csv, @io
+using std
+
+do main() {
+    println("=== @csv Standard Library Test ===")
+    temp passed int = 0
+    temp failed int = 0
+
+    // ==================== csv.parse ====================
+    println("  -- csv.parse --")
+
+    // Test 1: simple CSV parsing
+    temp csv_data string = "name,age\nAlice,30\nBob,25"
+    temp parsed, parse_err = csv.parse(csv_data)
+    if len(parsed) == 3 && parse_err == nil {
+        println("  [PASS] csv.parse simple CSV")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] csv.parse simple CSV: expected 3 rows")
+        failed += 1
+    }
+
+    // Test 2: single row
+    temp single_row, single_err = csv.parse("a,b,c")
+    if len(single_row) == 1 && single_err == nil {
+        println("  [PASS] csv.parse single row")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] csv.parse single row")
+        failed += 1
+    }
+
+    // Test 3: quoted fields with comma
+    temp quoted, quoted_err = csv.parse("\"hello, world\",test")
+    if len(quoted) == 1 && quoted_err == nil {
+        println("  [PASS] csv.parse quoted fields")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] csv.parse quoted fields")
+        failed += 1
+    }
+
+    // Test 4: empty string
+    temp empty, empty_err = csv.parse("")
+    if len(empty) == 0 && empty_err == nil {
+        println("  [PASS] csv.parse empty string")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] csv.parse empty string")
+        failed += 1
+    }
+
+    // ==================== csv.stringify ====================
+    println("  -- csv.stringify --")
+
+    // Test 5: simple stringify
+    temp data [[string]] = {{"name", "age"}, {"Alice", "30"}}
+    temp str_result, str_err = csv.stringify(data)
+    if str_result == "name,age\nAlice,30\n" && str_err == nil {
+        println("  [PASS] csv.stringify simple")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] csv.stringify simple: got '${str_result}'")
+        failed += 1
+    }
+
+    // Test 6: stringify with special characters
+    temp special_data [[string]] = {{"hello, world", "test"}}
+    temp special_str, special_str_err = csv.stringify(special_data)
+    if special_str_err == nil {
+        println("  [PASS] csv.stringify with commas")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] csv.stringify with commas")
+        failed += 1
+    }
+
+    // Test 7: empty array
+    temp empty_data [[string]] = {}
+    temp empty_str, empty_str_err = csv.stringify(empty_data)
+    if empty_str == "" && empty_str_err == nil {
+        println("  [PASS] csv.stringify empty array")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] csv.stringify empty array")
+        failed += 1
+    }
+
+    // ==================== csv.write and csv.read ====================
+    println("  -- csv.write / csv.read --")
+
+    // Test 8: write CSV file
+    temp test_path string = "/tmp/ez_csv_test.csv"
+    temp write_data [[string]] = {{"id", "name", "value"}, {"1", "foo", "100"}, {"2", "bar", "200"}}
+    temp write_ok, write_err = csv.write(test_path, write_data)
+    if write_ok == true && write_err == nil {
+        println("  [PASS] csv.write file")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] csv.write file")
+        failed += 1
+    }
+
+    // Test 9: read CSV file
+    temp read_data, read_err = csv.read(test_path)
+    if len(read_data) == 3 && read_err == nil {
+        println("  [PASS] csv.read file")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] csv.read file: expected 3 rows, got ${len(read_data)}")
+        failed += 1
+    }
+
+    // ==================== csv.headers ====================
+    println("  -- csv.headers --")
+
+    // Test 10: get headers
+    temp headers, headers_err = csv.headers(test_path)
+    if len(headers) == 3 && headers_err == nil {
+        println("  [PASS] csv.headers")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] csv.headers: expected 3 headers")
+        failed += 1
+    }
+
+    // ==================== Error handling ====================
+    println("  -- Error handling --")
+
+    // Test 11: read nonexistent file
+    temp bad_read, bad_read_err = csv.read("/nonexistent/file.csv")
+    if bad_read_err != nil {
+        println("  [PASS] csv.read nonexistent file returns error")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] csv.read should return error for nonexistent file")
+        failed += 1
+    }
+
+    // Test 12: headers nonexistent file
+    temp bad_headers, bad_headers_err = csv.headers("/nonexistent/file.csv")
+    if bad_headers_err != nil {
+        println("  [PASS] csv.headers nonexistent file returns error")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] csv.headers should return error for nonexistent file")
+        failed += 1
+    }
+
+    // ==================== Round-trip test ====================
+    println("  -- Round-trip test --")
+
+    // Test 13: parse -> stringify round trip
+    temp original string = "a,b\n1,2\n"
+    temp rt_parsed, rt_parse_err = csv.parse(original)
+    if rt_parse_err == nil {
+        temp rt_stringified, rt_str_err = csv.stringify(rt_parsed)
+        if rt_stringified == original && rt_str_err == nil {
+            println("  [PASS] round-trip parse -> stringify")
+            passed += 1
+        } otherwise {
+            println("  [FAIL] round-trip: got '${rt_stringified}', expected '${original}'")
+            failed += 1
+        }
+    } otherwise {
+        println("  [FAIL] round-trip parse failed")
+        failed += 1
+    }
+
+    // Cleanup test file
+    temp _, cleanup_err = io.remove(test_path)
+
+    // Summary
+    println("")
+    println("Results: ${passed} passed, ${failed} failed")
+
+    if failed > 0 {
+        println("SOME TESTS FAILED")
+    } otherwise {
+        println("ALL TESTS PASSED")
+    }
+}
