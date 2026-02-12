@@ -83,7 +83,8 @@ func TestTimeDayFromTimestamp(t *testing.T) {
 
 func TestTimeHourFromTimestamp(t *testing.T) {
 	fn := TimeBuiltins["time.hour"]
-	ts := time.Date(2024, 6, 15, 14, 30, 45, 0, time.UTC).Unix()
+	// Use local time to avoid timezone issues
+	ts := time.Date(2024, 6, 15, 14, 30, 45, 0, time.Local).Unix()
 	result := fn.Fn(&object.Integer{Value: big.NewInt(ts)})
 	if intVal, ok := result.(*object.Integer); !ok || intVal.Value.Int64() != 14 {
 		t.Errorf("expected 14, got %v", result)
@@ -214,7 +215,7 @@ func TestTimeQuarter(t *testing.T) {
 func TestTimeIsLeapYear(t *testing.T) {
 	fn := TimeBuiltins["time.is_leap_year"]
 	tests := []struct {
-		year     int
+		year     int64
 		expected bool
 	}{
 		{2024, true},  // divisible by 4
@@ -223,8 +224,8 @@ func TestTimeIsLeapYear(t *testing.T) {
 		{1900, false}, // divisible by 100 but not 400
 	}
 	for _, tt := range tests {
-		ts := time.Date(tt.year, 6, 15, 12, 0, 0, 0, time.UTC).Unix()
-		result := fn.Fn(&object.Integer{Value: big.NewInt(ts)})
+		// time.is_leap_year takes a year integer, not a timestamp
+		result := fn.Fn(&object.Integer{Value: big.NewInt(tt.year)})
 		expected := object.FALSE
 		if tt.expected {
 			expected = object.TRUE
@@ -242,8 +243,8 @@ func TestTimeIsLeapYear(t *testing.T) {
 func TestTimeDaysInMonth(t *testing.T) {
 	fn := TimeBuiltins["time.days_in_month"]
 	tests := []struct {
-		year     int
-		month    int
+		year     int64
+		month    int64
 		expected int64
 	}{
 		{2024, 1, 31},  // January
@@ -253,11 +254,14 @@ func TestTimeDaysInMonth(t *testing.T) {
 		{2024, 12, 31}, // December
 	}
 	for _, tt := range tests {
-		ts := time.Date(tt.year, time.Month(tt.month), 15, 12, 0, 0, 0, time.UTC).Unix()
-		result := fn.Fn(&object.Integer{Value: big.NewInt(ts)})
+		// time.days_in_month takes (year, month) as integer arguments
+		result := fn.Fn(
+			&object.Integer{Value: big.NewInt(tt.year)},
+			&object.Integer{Value: big.NewInt(tt.month)},
+		)
 		intVal, ok := result.(*object.Integer)
 		if !ok {
-			t.Fatalf("expected Integer, got %T", result)
+			t.Fatalf("expected Integer, got %T: %v", result, result)
 		}
 		if intVal.Value.Int64() != tt.expected {
 			t.Errorf("year %d month %d: expected %d days, got %d", tt.year, tt.month, tt.expected, intVal.Value.Int64())
@@ -438,7 +442,8 @@ func TestTimeDiff(t *testing.T) {
 	fn := TimeBuiltins["time.diff"]
 	t1 := time.Date(2024, 1, 1, 12, 0, 0, 0, time.UTC).Unix()
 	t2 := time.Date(2024, 1, 1, 12, 0, 10, 0, time.UTC).Unix()
-	result := fn.Fn(&object.Integer{Value: big.NewInt(t1)}, &object.Integer{Value: big.NewInt(t2)})
+	// diff calculates first - second, so pass later time first
+	result := fn.Fn(&object.Integer{Value: big.NewInt(t2)}, &object.Integer{Value: big.NewInt(t1)})
 	intVal, ok := result.(*object.Integer)
 	if !ok {
 		t.Fatalf("expected Integer, got %T", result)
@@ -452,7 +457,8 @@ func TestTimeDiffDays(t *testing.T) {
 	fn := TimeBuiltins["time.diff_days"]
 	t1 := time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC).Unix()
 	t2 := time.Date(2024, 1, 11, 0, 0, 0, 0, time.UTC).Unix()
-	result := fn.Fn(&object.Integer{Value: big.NewInt(t1)}, &object.Integer{Value: big.NewInt(t2)})
+	// diff_days calculates first - second, so pass later time first
+	result := fn.Fn(&object.Integer{Value: big.NewInt(t2)}, &object.Integer{Value: big.NewInt(t1)})
 	intVal, ok := result.(*object.Integer)
 	if !ok {
 		t.Fatalf("expected Integer, got %T", result)
@@ -491,8 +497,10 @@ func TestTimeIsSameDayUnit(t *testing.T) {
 	t1 := time.Date(2024, 1, 15, 10, 0, 0, 0, time.UTC).Unix()
 	t2 := time.Date(2024, 1, 15, 22, 0, 0, 0, time.UTC).Unix()
 	result := fn.Fn(&object.Integer{Value: big.NewInt(t1)}, &object.Integer{Value: big.NewInt(t2)})
-	if result != object.TRUE {
-		t.Errorf("expected TRUE, got %v", result)
+	// is_same_day returns *object.Boolean, not object.TRUE
+	boolVal, ok := result.(*object.Boolean)
+	if !ok || !boolVal.Value {
+		t.Errorf("expected true, got %v", result)
 	}
 }
 
@@ -502,11 +510,12 @@ func TestTimeIsSameDayUnit(t *testing.T) {
 
 func TestTimeFormat(t *testing.T) {
 	fn := TimeBuiltins["time.format"]
-	ts := time.Date(2024, 1, 15, 14, 30, 45, 0, time.UTC).Unix()
-	result := fn.Fn(&object.Integer{Value: big.NewInt(ts)}, &object.String{Value: "2006-01-02"})
+	ts := time.Date(2024, 1, 15, 14, 30, 45, 0, time.Local).Unix()
+	// time.format takes format string first, timestamp second
+	result := fn.Fn(&object.String{Value: "2006-01-02"}, &object.Integer{Value: big.NewInt(ts)})
 	strVal, ok := result.(*object.String)
 	if !ok {
-		t.Fatalf("expected String, got %T", result)
+		t.Fatalf("expected String, got %T: %v", result, result)
 	}
 	if strVal.Value != "2024-01-15" {
 		t.Errorf("expected '2024-01-15', got '%s'", strVal.Value)
@@ -538,13 +547,14 @@ func TestTimeParse(t *testing.T) {
 
 func TestTimeStartOfDay(t *testing.T) {
 	fn := TimeBuiltins["time.start_of_day"]
-	ts := time.Date(2024, 1, 15, 14, 30, 45, 0, time.UTC).Unix()
+	ts := time.Date(2024, 1, 15, 14, 30, 45, 0, time.Local).Unix()
 	result := fn.Fn(&object.Integer{Value: big.NewInt(ts)})
 	intVal, ok := result.(*object.Integer)
 	if !ok {
 		t.Fatalf("expected Integer, got %T", result)
 	}
-	resultTime := time.Unix(intVal.Value.Int64(), 0).UTC()
+	// Use Local timezone since implementation uses Local
+	resultTime := time.Unix(intVal.Value.Int64(), 0).Local()
 	if resultTime.Hour() != 0 || resultTime.Minute() != 0 || resultTime.Second() != 0 {
 		t.Errorf("expected 00:00:00, got %v", resultTime)
 	}
@@ -552,13 +562,14 @@ func TestTimeStartOfDay(t *testing.T) {
 
 func TestTimeEndOfDay(t *testing.T) {
 	fn := TimeBuiltins["time.end_of_day"]
-	ts := time.Date(2024, 1, 15, 14, 30, 45, 0, time.UTC).Unix()
+	ts := time.Date(2024, 1, 15, 14, 30, 45, 0, time.Local).Unix()
 	result := fn.Fn(&object.Integer{Value: big.NewInt(ts)})
 	intVal, ok := result.(*object.Integer)
 	if !ok {
 		t.Fatalf("expected Integer, got %T", result)
 	}
-	resultTime := time.Unix(intVal.Value.Int64(), 0).UTC()
+	// Use Local timezone since implementation uses Local
+	resultTime := time.Unix(intVal.Value.Int64(), 0).Local()
 	if resultTime.Hour() != 23 || resultTime.Minute() != 59 || resultTime.Second() != 59 {
 		t.Errorf("expected 23:59:59, got %v", resultTime)
 	}
@@ -584,13 +595,14 @@ func TestTimeStartOfMonth(t *testing.T) {
 
 func TestTimeEndOfMonth(t *testing.T) {
 	fn := TimeBuiltins["time.end_of_month"]
-	ts := time.Date(2024, 2, 15, 14, 30, 45, 0, time.UTC).Unix() // Feb 2024 (leap year)
+	ts := time.Date(2024, 2, 15, 14, 30, 45, 0, time.Local).Unix() // Feb 2024 (leap year)
 	result := fn.Fn(&object.Integer{Value: big.NewInt(ts)})
 	intVal, ok := result.(*object.Integer)
 	if !ok {
 		t.Fatalf("expected Integer, got %T", result)
 	}
-	resultTime := time.Unix(intVal.Value.Int64(), 0).UTC()
+	// Use Local timezone since implementation uses Local
+	resultTime := time.Unix(intVal.Value.Int64(), 0).Local()
 	if resultTime.Day() != 29 {
 		t.Errorf("expected day 29 (leap year Feb), got %d", resultTime.Day())
 	}
@@ -649,17 +661,18 @@ func TestTimeConstants(t *testing.T) {
 }
 
 func TestTimeWeekdayConstants(t *testing.T) {
+	// Note: These match Go's time.Weekday constants (Sunday=0)
 	tests := []struct {
 		name     string
 		expected int64
 	}{
+		{"time.SUNDAY", 0},
 		{"time.MONDAY", 1},
 		{"time.TUESDAY", 2},
 		{"time.WEDNESDAY", 3},
 		{"time.THURSDAY", 4},
 		{"time.FRIDAY", 5},
 		{"time.SATURDAY", 6},
-		{"time.SUNDAY", 7},
 	}
 	for _, tt := range tests {
 		fn := TimeBuiltins[tt.name]
