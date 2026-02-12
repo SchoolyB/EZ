@@ -126,6 +126,27 @@ func hasStrictAttribute(attrs []*Attribute) *Attribute {
 	return nil
 }
 
+// hasDocAttribute checks if attributes contain a #doc attribute
+func hasDocAttribute(attrs []*Attribute) *Attribute {
+	for _, attr := range attrs {
+		if attr.Name == "doc" {
+			return attr
+		}
+	}
+	return nil
+}
+
+// countDocAttributes counts how many #doc attributes exist in the list
+func countDocAttributes(attrs []*Attribute) int {
+	count := 0
+	for _, attr := range attrs {
+		if attr.Name == "doc" {
+			count++
+		}
+	}
+	return count
+}
+
 // parseFileLevelSuppress parses a file-level #suppress(...) and returns the warning codes
 func (p *Parser) parseFileLevelSuppress() []string {
 	var codes []string
@@ -575,6 +596,25 @@ func (p *Parser) parseStatement() Statement {
 		// parseAttributes advances to the declaration token
 	}
 
+	// Check for orphaned #doc (at EOF or before import)
+	if docAttr := hasDocAttribute(attrs); docAttr != nil {
+		if p.currentTokenMatches(EOF) {
+			p.addEZError(errors.E2059, "#doc at end of file must be followed by a declaration", docAttr.Token)
+			return nil
+		}
+		if p.currentTokenMatches(IMPORT) {
+			p.addEZError(errors.E2059, "#doc must be followed by a declaration, not an import statement", docAttr.Token)
+			// Clear #doc and continue to let import be parsed
+			newAttrs := []*Attribute{}
+			for _, attr := range attrs {
+				if attr.Name != "doc" {
+					newAttrs = append(newAttrs, attr)
+				}
+			}
+			attrs = newAttrs
+		}
+	}
+
 	// Check for private modifier
 	visibility := VisibilityPublic
 	if p.currentTokenMatches(PRIVATE) {
@@ -612,6 +652,65 @@ func (p *Parser) parseStatement() Statement {
 		}
 	}
 
+	// Validate #doc is only used on functions, structs, or enums
+	// For DO (functions), we can validate immediately
+	// For CONST, we need to check after parsing if it's struct/enum vs variable
+	// For TEMP and other statements, #doc is definitely invalid
+	if docAttr := hasDocAttribute(attrs); docAttr != nil {
+		if p.currentTokenMatches(TEMP) {
+			p.addEZError(errors.E2058, "#doc can only be applied to functions, structs, or enums", docAttr.Token)
+			// Clear #doc attributes
+			newAttrs := []*Attribute{}
+			for _, attr := range attrs {
+				if attr.Name != "doc" {
+					newAttrs = append(newAttrs, attr)
+				}
+			}
+			attrs = newAttrs
+		} else if !p.currentTokenMatches(DO) && !p.currentTokenMatches(CONST) {
+			// Not a function, not a potential struct/enum, not a variable - invalid
+			p.addEZError(errors.E2058, "#doc can only be applied to functions, structs, or enums", docAttr.Token)
+			newAttrs := []*Attribute{}
+			for _, attr := range attrs {
+				if attr.Name != "doc" {
+					newAttrs = append(newAttrs, attr)
+				}
+			}
+			attrs = newAttrs
+		}
+		// For CONST, validation happens after parsing (see below in switch)
+	}
+
+	// Validate only one #doc attribute per declaration
+	if docCount := countDocAttributes(attrs); docCount > 1 {
+		// Find the second #doc to report the error on
+		count := 0
+		for _, attr := range attrs {
+			if attr.Name == "doc" {
+				count++
+				if count == 2 {
+					p.addEZError(errors.E2060, "only one #doc attribute is allowed per declaration", attr.Token)
+					break
+				}
+			}
+		}
+		// Keep only the first #doc
+		newAttrs := []*Attribute{}
+		foundFirst := false
+		for _, attr := range attrs {
+			if attr.Name == "doc" {
+				if !foundFirst {
+					newAttrs = append(newAttrs, attr)
+					foundFirst = true
+				}
+				// Skip subsequent #doc attributes
+			} else {
+				newAttrs = append(newAttrs, attr)
+			}
+		}
+		attrs = newAttrs
+	}
+
 	switch p.currentToken.Type {
 	case CONST:
 		// For struct declarations like "const Name struct { ... }",
@@ -621,6 +720,18 @@ func (p *Parser) parseStatement() Statement {
 			// Apply visibility and attributes
 			switch s := stmt.(type) {
 			case *VariableDeclaration:
+				// Check if #doc was incorrectly applied to a constant variable
+				if docAttr := hasDocAttribute(attrs); docAttr != nil {
+					p.addEZError(errors.E2058, "#doc can only be applied to functions, structs, or enums", docAttr.Token)
+					// Remove #doc from attributes before applying
+					newAttrs := []*Attribute{}
+					for _, attr := range attrs {
+						if attr.Name != "doc" {
+							newAttrs = append(newAttrs, attr)
+						}
+					}
+					attrs = newAttrs
+				}
 				s.Visibility = visibility
 				if len(attrs) > 0 {
 					s.Attributes = attrs
