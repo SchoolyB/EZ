@@ -622,7 +622,7 @@ func (p *Parser) ParseProgram() *Program {
 				// Validate that all modules in the using statement have been imported
 				for _, module := range usingStmt.Modules {
 					if !importedModules[module.Value] {
-						msg := fmt.Sprintf("cannot use module '%s' before importing it", module.Value)
+						msg := fmt.Sprintf("cannot use module '%s' before importing it", errors.Ident(module.Value))
 						p.addEZError(errors.E2010, msg, usingStmt.Token)
 					}
 				}
@@ -973,7 +973,7 @@ func (p *Parser) parseVarableDeclarationOrStruct() Statement {
 
 		// Check for reserved names
 		if isReservedName(nameToken.Literal) {
-			msg := fmt.Sprintf("'%s' is a reserved keyword and cannot be used as a variable name", nameToken.Literal)
+			msg := fmt.Sprintf("'%s' is a reserved keyword and cannot be used as a variable name", errors.Ident(nameToken.Literal))
 			p.errors = append(p.errors, msg)
 			p.addEZError(errors.E2020, msg, nameToken)
 			return nil
@@ -981,7 +981,7 @@ func (p *Parser) parseVarableDeclarationOrStruct() Statement {
 
 		// Check for duplicate declaration
 		if !p.declareInScope(nameToken.Literal, nameToken) {
-			msg := fmt.Sprintf("'%s' is already declared in this scope", nameToken.Literal)
+			msg := fmt.Sprintf("'%s' is already declared in this scope", errors.Ident(nameToken.Literal))
 			p.errors = append(p.errors, msg)
 			p.addEZError(errors.E2023, msg, nameToken)
 			return nil
@@ -998,20 +998,20 @@ func (p *Parser) parseVarableDeclarationOrStruct() Statement {
 				stmt.Names = append(stmt.Names, &Label{Token: p.currentToken, Value: "_"})
 			} else if IsKeyword(p.currentToken.Type) {
 				keyword := KeywordLiteral(p.currentToken.Type)
-				msg := fmt.Sprintf("'%s' is a reserved keyword and cannot be used as a variable name", keyword)
+				msg := fmt.Sprintf("'%s' is a reserved keyword and cannot be used as a variable name", errors.Ident(keyword))
 				p.errors = append(p.errors, msg)
 				p.addEZError(errors.E2020, msg, p.currentToken)
 				return nil
 			} else if p.currentTokenMatches(IDENT) {
 				name := p.currentToken.Literal
 				if isReservedName(name) {
-					msg := fmt.Sprintf("'%s' is a reserved keyword and cannot be used as a variable name", name)
+					msg := fmt.Sprintf("'%s' is a reserved keyword and cannot be used as a variable name", errors.Ident(name))
 					p.errors = append(p.errors, msg)
 					p.addEZError(errors.E2020, msg, p.currentToken)
 					return nil
 				}
 				if !p.declareInScope(name, p.currentToken) {
-					msg := fmt.Sprintf("'%s' is already declared in this scope", name)
+					msg := fmt.Sprintf("'%s' is already declared in this scope", errors.Ident(name))
 					p.errors = append(p.errors, msg)
 					p.addEZError(errors.E2023, msg, p.currentToken)
 					return nil
@@ -1071,7 +1071,7 @@ func (p *Parser) parseVarableDeclarationOrStruct() Statement {
 			stmt.Value = p.parseExpression(LOWEST)
 		} else if !stmt.Mutable {
 			// const must be initialized
-			msg := fmt.Sprintf("const '%s' must be initialized with a value", stmt.Name.Value)
+			msg := fmt.Sprintf("const '%s' must be initialized with a value", errors.Ident(stmt.Name.Value))
 			p.errors = append(p.errors, msg)
 			p.addEZError(errors.E2011, msg, p.currentToken)
 			return nil
@@ -1099,7 +1099,7 @@ func (p *Parser) parseVarableDeclaration() *VariableDeclaration {
 	} else if IsKeyword(p.peekToken.Type) {
 		// If user tries to use a keyword as variable name, give helpful error
 		keyword := KeywordLiteral(p.peekToken.Type)
-		msg := fmt.Sprintf("'%s' is a reserved keyword and cannot be used as a variable name", keyword)
+		msg := fmt.Sprintf("'%s' is a reserved keyword and cannot be used as a variable name", errors.Ident(keyword))
 		p.errors = append(p.errors, msg)
 		p.addEZError(errors.E2020, msg, p.peekToken)
 		return nil
@@ -1109,14 +1109,14 @@ func (p *Parser) parseVarableDeclaration() *VariableDeclaration {
 		name := p.currentToken.Literal
 		// Check for reserved names
 		if isReservedName(name) {
-			msg := fmt.Sprintf("'%s' is a reserved keyword and cannot be used as a variable name", name)
+			msg := fmt.Sprintf("'%s' is a reserved keyword and cannot be used as a variable name", errors.Ident(name))
 			p.errors = append(p.errors, msg)
 			p.addEZError(errors.E2020, msg, p.currentToken)
 			return nil
 		}
 		// Check for duplicate declaration
 		if !p.declareInScope(name, p.currentToken) {
-			msg := fmt.Sprintf("'%s' is already declared in this scope", name)
+			msg := fmt.Sprintf("'%s' is already declared in this scope", errors.Ident(name))
 			p.errors = append(p.errors, msg)
 			p.addEZError(errors.E2023, msg, p.currentToken)
 			return nil
@@ -1134,7 +1134,7 @@ func (p *Parser) parseVarableDeclaration() *VariableDeclaration {
 		} else if IsKeyword(p.currentToken.Type) {
 			// If user tries to use a keyword as variable name, give helpful error
 			keyword := KeywordLiteral(p.currentToken.Type)
-			msg := fmt.Sprintf("'%s' is a reserved keyword and cannot be used as a variable name", keyword)
+			msg := fmt.Sprintf("'%s' is a reserved keyword and cannot be used as a variable name", errors.Ident(keyword))
 			p.errors = append(p.errors, msg)
 			p.addEZError(errors.E2020, msg, p.currentToken)
 			return nil
@@ -1142,14 +1142,14 @@ func (p *Parser) parseVarableDeclaration() *VariableDeclaration {
 			name := p.currentToken.Literal
 			// Check for reserved names
 			if isReservedName(name) {
-				msg := fmt.Sprintf("'%s' is a reserved keyword and cannot be used as a variable name", name)
+				msg := fmt.Sprintf("'%s' is a reserved keyword and cannot be used as a variable name", errors.Ident(name))
 				p.errors = append(p.errors, msg)
 				p.addEZError(errors.E2020, msg, p.currentToken)
 				return nil
 			}
 			// Check for duplicate declaration
 			if !p.declareInScope(name, p.currentToken) {
-				msg := fmt.Sprintf("'%s' is already declared in this scope", name)
+				msg := fmt.Sprintf("'%s' is already declared in this scope", errors.Ident(name))
 				p.errors = append(p.errors, msg)
 				p.addEZError(errors.E2023, msg, p.currentToken)
 				return nil
@@ -1209,14 +1209,14 @@ func (p *Parser) parseVarableDeclaration() *VariableDeclaration {
 				name := p.currentToken.Literal
 				// Check for reserved names
 				if isReservedName(name) {
-					msg := fmt.Sprintf("'%s' is a reserved keyword and cannot be used as a variable name", name)
+					msg := fmt.Sprintf("'%s' is a reserved keyword and cannot be used as a variable name", errors.Ident(name))
 					p.errors = append(p.errors, msg)
 					p.addEZError(errors.E2020, msg, p.currentToken)
 					return nil
 				}
 				// Check for duplicate declaration
 				if !p.declareInScope(name, p.currentToken) {
-					msg := fmt.Sprintf("'%s' is already declared in this scope", name)
+					msg := fmt.Sprintf("'%s' is already declared in this scope", errors.Ident(name))
 					p.errors = append(p.errors, msg)
 					p.addEZError(errors.E2023, msg, p.currentToken)
 					return nil
@@ -1264,7 +1264,7 @@ func (p *Parser) parseVarableDeclaration() *VariableDeclaration {
 		stmt.Value = p.parseExpression(LOWEST)
 	} else if !stmt.Mutable {
 		// const must be initialized
-		msg := fmt.Sprintf("const '%s' must be initialized with a value", stmt.Name.Value)
+		msg := fmt.Sprintf("const '%s' must be initialized with a value", errors.Ident(stmt.Name.Value))
 		p.errors = append(p.errors, msg)
 		p.addEZError(errors.E2011, msg, p.currentToken)
 		return nil
@@ -1670,7 +1670,7 @@ func (p *Parser) parseForStatement() *ForStatement {
 	} else if IsKeyword(p.peekToken.Type) {
 		// If user tries to use a keyword as loop variable, give helpful error
 		keyword := KeywordLiteral(p.peekToken.Type)
-		msg := fmt.Sprintf("'%s' is a reserved keyword and cannot be used as a variable name", keyword)
+		msg := fmt.Sprintf("'%s' is a reserved keyword and cannot be used as a variable name", errors.Ident(keyword))
 		p.errors = append(p.errors, msg)
 		p.addEZError(errors.E2020, msg, p.peekToken)
 		return nil
@@ -1725,7 +1725,7 @@ func (p *Parser) parseForEachStatement() *ForEachStatement {
 	} else if IsKeyword(p.peekToken.Type) {
 		// If user tries to use a keyword as loop variable, give helpful error
 		keyword := KeywordLiteral(p.peekToken.Type)
-		msg := fmt.Sprintf("'%s' is a reserved keyword and cannot be used as a variable name", keyword)
+		msg := fmt.Sprintf("'%s' is a reserved keyword and cannot be used as a variable name", errors.Ident(keyword))
 		p.errors = append(p.errors, msg)
 		p.addEZError(errors.E2020, msg, p.peekToken)
 		return nil
@@ -1806,7 +1806,7 @@ func (p *Parser) parseFunctionDeclarationWithAttrs(attrs []*Attribute) *Function
 	if IsKeyword(p.peekToken.Type) {
 		// If user tries to use a keyword as function name, give helpful error
 		keyword := KeywordLiteral(p.peekToken.Type)
-		msg := fmt.Sprintf("'%s' is a reserved keyword and cannot be used as a function name", keyword)
+		msg := fmt.Sprintf("'%s' is a reserved keyword and cannot be used as a function name", errors.Ident(keyword))
 		p.errors = append(p.errors, msg)
 		p.addEZError(errors.E2021, msg, p.peekToken)
 		return nil
@@ -1818,14 +1818,14 @@ func (p *Parser) parseFunctionDeclarationWithAttrs(attrs []*Attribute) *Function
 	name := p.currentToken.Literal
 	// Check for reserved names (except 'main' which is special)
 	if isReservedName(name) {
-		msg := fmt.Sprintf("'%s' is a reserved keyword and cannot be used as a function name", name)
+		msg := fmt.Sprintf("'%s' is a reserved keyword and cannot be used as a function name", errors.Ident(name))
 		p.errors = append(p.errors, msg)
 		p.addEZError(errors.E2021, msg, p.currentToken)
 		return nil
 	}
 	// Check for duplicate declaration
 	if !p.declareInScope(name, p.currentToken) {
-		msg := fmt.Sprintf("'%s' is already declared in this scope", name)
+		msg := fmt.Sprintf("'%s' is already declared in this scope", errors.Ident(name))
 		p.errors = append(p.errors, msg)
 		p.addEZError(errors.E2023, msg, p.currentToken)
 		return nil
@@ -1866,9 +1866,9 @@ func (p *Parser) parseFunctionDeclarationWithAttrs(attrs []*Attribute) *Function
 				}
 				for _, rp := range params {
 					if prevToken, exists := inputParamNames[rp.Name.Value]; exists {
-						msg := fmt.Sprintf("return parameter '%s' conflicts with input parameter of the same name", rp.Name.Value)
+						msg := fmt.Sprintf("return parameter '%s' conflicts with input parameter of the same name", errors.Ident(rp.Name.Value))
 						p.addEZError(errors.E2012, msg, rp.Name.Token)
-						helpMsg := fmt.Sprintf("input parameter '%s' declared at line %d", rp.Name.Value, prevToken.Line)
+						helpMsg := fmt.Sprintf("input parameter '%s' declared at line %d", errors.Ident(rp.Name.Value), prevToken.Line)
 						p.errors = append(p.errors, helpMsg)
 					}
 				}
@@ -1951,7 +1951,7 @@ func (p *Parser) parseFunctionParameters() []*Parameter {
 		if IsKeyword(p.currentToken.Type) {
 			// If user tries to use a keyword as parameter name, give helpful error
 			keyword := KeywordLiteral(p.currentToken.Type)
-			msg := fmt.Sprintf("'%s' is a reserved keyword and cannot be used as a parameter name", keyword)
+			msg := fmt.Sprintf("'%s' is a reserved keyword and cannot be used as a parameter name", errors.Ident(keyword))
 			p.errors = append(p.errors, msg)
 			p.addEZError(errors.E2033, msg, p.currentToken)
 			return nil
@@ -1969,7 +1969,7 @@ func (p *Parser) parseFunctionParameters() []*Parameter {
 			if IsKeyword(p.currentToken.Type) {
 				// If user tries to use a keyword as parameter name, give helpful error
 				keyword := KeywordLiteral(p.currentToken.Type)
-				msg := fmt.Sprintf("'%s' is a reserved keyword and cannot be used as a parameter name", keyword)
+				msg := fmt.Sprintf("'%s' is a reserved keyword and cannot be used as a parameter name", errors.Ident(keyword))
 				p.errors = append(p.errors, msg)
 				p.addEZError(errors.E2033, msg, p.currentToken)
 				return nil
@@ -1987,16 +1987,16 @@ func (p *Parser) parseFunctionParameters() []*Parameter {
 				// This IDENT is a parameter name (more names or params follow)
 				// Check for reserved names
 				if isReservedName(currentIdent.Value) {
-					msg := fmt.Sprintf("'%s' is a reserved keyword and cannot be used as a parameter name", currentIdent.Value)
+					msg := fmt.Sprintf("'%s' is a reserved keyword and cannot be used as a parameter name", errors.Ident(currentIdent.Value))
 					p.errors = append(p.errors, msg)
 					p.addEZError(errors.E2033, msg, currentIdent.Token)
 					return nil
 				}
 				// Check for duplicate
 				if prevToken, exists := paramNames[currentIdent.Value]; exists {
-					msg := fmt.Sprintf("duplicate parameter name '%s'", currentIdent.Value)
+					msg := fmt.Sprintf("duplicate parameter name '%s'", errors.Ident(currentIdent.Value))
 					p.addEZError(errors.E2012, msg, currentIdent.Token)
-					helpMsg := fmt.Sprintf("parameter '%s' first declared at line %d", currentIdent.Value, prevToken.Line)
+					helpMsg := fmt.Sprintf("parameter '%s' first declared at line %d", errors.Ident(currentIdent.Value), prevToken.Line)
 					p.errors = append(p.errors, helpMsg)
 				} else {
 					paramNames[currentIdent.Value] = currentIdent.Token
@@ -2016,16 +2016,16 @@ func (p *Parser) parseFunctionParameters() []*Parameter {
 				// This IDENT is a parameter name, and the next token is the type
 				// Check for reserved names
 				if isReservedName(currentIdent.Value) {
-					msg := fmt.Sprintf("'%s' is a reserved keyword and cannot be used as a parameter name", currentIdent.Value)
+					msg := fmt.Sprintf("'%s' is a reserved keyword and cannot be used as a parameter name", errors.Ident(currentIdent.Value))
 					p.errors = append(p.errors, msg)
 					p.addEZError(errors.E2033, msg, currentIdent.Token)
 					return nil
 				}
 				// Check for duplicate
 				if prevToken, exists := paramNames[currentIdent.Value]; exists {
-					msg := fmt.Sprintf("duplicate parameter name '%s'", currentIdent.Value)
+					msg := fmt.Sprintf("duplicate parameter name '%s'", errors.Ident(currentIdent.Value))
 					p.addEZError(errors.E2012, msg, currentIdent.Token)
-					helpMsg := fmt.Sprintf("parameter '%s' first declared at line %d", currentIdent.Value, prevToken.Line)
+					helpMsg := fmt.Sprintf("parameter '%s' first declared at line %d", errors.Ident(currentIdent.Value), prevToken.Line)
 					p.errors = append(p.errors, helpMsg)
 				} else {
 					paramNames[currentIdent.Value] = currentIdent.Token
@@ -2035,7 +2035,7 @@ func (p *Parser) parseFunctionParameters() []*Parameter {
 				break
 			} else if p.peekTokenMatches(RPAREN) {
 				// Incomplete parameter - name without type before closing paren
-				msg := fmt.Sprintf("parameter '%s' is missing a type", currentIdent.Value)
+				msg := fmt.Sprintf("parameter '%s' is missing a type", errors.Ident(currentIdent.Value))
 				p.addEZError(errors.E2014, msg, currentIdent.Token)
 				return nil
 			} else {
@@ -2067,7 +2067,7 @@ func (p *Parser) parseFunctionParameters() []*Parameter {
 			// Check if any parameter in this group is mutable - can't have default on mutable params
 			for _, info := range namesForType {
 				if info.mutable {
-					msg := fmt.Sprintf("mutable parameter '%s' cannot have a default value", info.name.Value)
+					msg := fmt.Sprintf("mutable parameter '%s' cannot have a default value", errors.Ident(info.name.Value))
 					p.addEZError(errors.E2040, msg, info.name.Token)
 					return nil
 				}
@@ -2081,7 +2081,7 @@ func (p *Parser) parseFunctionParameters() []*Parameter {
 			// Required parameter after one with default - error
 			// Get the first param name from this group for the error message
 			paramName := namesForType[0].name.Value
-			msg := fmt.Sprintf("required parameter '%s' cannot follow a parameter with a default value", paramName)
+			msg := fmt.Sprintf("required parameter '%s' cannot follow a parameter with a default value", errors.Ident(paramName))
 			p.addEZError(errors.E2039, msg, namesForType[0].name.Token)
 			return nil
 		}
@@ -2172,15 +2172,15 @@ func (p *Parser) parseReturnTypesOrParams() ([]string, []*ReturnParam) {
 					// Check if next after comma is a type (end of name list) or another name
 					// This is tricky - for now, check reserved/builtin names
 					if isReservedName(currentIdent.Value) {
-						msg := fmt.Sprintf("'%s' is a reserved keyword and cannot be used as a return parameter name", currentIdent.Value)
+						msg := fmt.Sprintf("'%s' is a reserved keyword and cannot be used as a return parameter name", errors.Ident(currentIdent.Value))
 						p.addEZError(errors.E2033, msg, currentIdent.Token)
 						return nil, nil
 					}
 					// Check for duplicate
 					if prevToken, exists := paramNames[currentIdent.Value]; exists {
-						msg := fmt.Sprintf("duplicate return parameter name '%s'", currentIdent.Value)
+						msg := fmt.Sprintf("duplicate return parameter name '%s'", errors.Ident(currentIdent.Value))
 						p.addEZError(errors.E2012, msg, currentIdent.Token)
-						helpMsg := fmt.Sprintf("return parameter '%s' first declared at line %d", currentIdent.Value, prevToken.Line)
+						helpMsg := fmt.Sprintf("return parameter '%s' first declared at line %d", errors.Ident(currentIdent.Value), prevToken.Line)
 						p.errors = append(p.errors, helpMsg)
 					} else {
 						paramNames[currentIdent.Value] = currentIdent.Token
@@ -2192,15 +2192,15 @@ func (p *Parser) parseReturnTypesOrParams() ([]string, []*ReturnParam) {
 				} else if p.peekTokenMatches(IDENT) || p.peekTokenMatches(LBRACKET) {
 					// This is the last name before the type
 					if isReservedName(currentIdent.Value) {
-						msg := fmt.Sprintf("'%s' is a reserved keyword and cannot be used as a return parameter name", currentIdent.Value)
+						msg := fmt.Sprintf("'%s' is a reserved keyword and cannot be used as a return parameter name", errors.Ident(currentIdent.Value))
 						p.addEZError(errors.E2033, msg, currentIdent.Token)
 						return nil, nil
 					}
 					// Check for duplicate
 					if prevToken, exists := paramNames[currentIdent.Value]; exists {
-						msg := fmt.Sprintf("duplicate return parameter name '%s'", currentIdent.Value)
+						msg := fmt.Sprintf("duplicate return parameter name '%s'", errors.Ident(currentIdent.Value))
 						p.addEZError(errors.E2012, msg, currentIdent.Token)
-						helpMsg := fmt.Sprintf("return parameter '%s' first declared at line %d", currentIdent.Value, prevToken.Line)
+						helpMsg := fmt.Sprintf("return parameter '%s' first declared at line %d", errors.Ident(currentIdent.Value), prevToken.Line)
 						p.errors = append(p.errors, helpMsg)
 					} else {
 						paramNames[currentIdent.Value] = currentIdent.Token
@@ -2210,7 +2210,7 @@ func (p *Parser) parseReturnTypesOrParams() ([]string, []*ReturnParam) {
 					break
 				} else if p.peekTokenMatches(RPAREN) {
 					// Name without type at end
-					msg := fmt.Sprintf("return parameter '%s' is missing a type", currentIdent.Value)
+					msg := fmt.Sprintf("return parameter '%s' is missing a type", errors.Ident(currentIdent.Value))
 					p.addEZError(errors.E2014, msg, currentIdent.Token)
 					return nil, nil
 				} else {
@@ -2466,7 +2466,7 @@ func (p *Parser) parseEnumDeclaration() *EnumDeclaration {
 
 	// Check for reserved names
 	if isReservedName(p.currentToken.Literal) {
-		msg := fmt.Sprintf("'%s' is a reserved keyword and cannot be used as an enum name", p.currentToken.Literal)
+		msg := fmt.Sprintf("'%s' is a reserved keyword and cannot be used as an enum name", errors.Ident(p.currentToken.Literal))
 		p.errors = append(p.errors, msg)
 		p.addEZError(errors.E2038, msg, p.currentToken)
 		return nil
@@ -2491,7 +2491,7 @@ func (p *Parser) parseEnumDeclaration() *EnumDeclaration {
 
 		// Validate that type is a primitive (int, float, or string)
 		if typeName != "int" && typeName != "float" && typeName != "string" {
-			msg := fmt.Sprintf("enum type must be a primitive type (int, float, or string), got '%s'", typeName)
+			msg := fmt.Sprintf("enum type must be a primitive type (int, float, or string), got '%s'", errors.TypeGot(typeName))
 			p.addEZError(errors.E2026, msg, p.currentToken)
 			return nil
 		}
@@ -2528,7 +2528,7 @@ func (p *Parser) parseEnumDeclaration() *EnumDeclaration {
 
 		// Check for reserved names
 		if isReservedName(enumValue.Name.Value) {
-			msg := fmt.Sprintf("'%s' is a reserved keyword and cannot be used as an enum value name", enumValue.Name.Value)
+			msg := fmt.Sprintf("'%s' is a reserved keyword and cannot be used as an enum value name", errors.Ident(enumValue.Name.Value))
 			p.errors = append(p.errors, msg)
 			p.addEZError(errors.E2035, msg, enumValue.Name.Token)
 			return nil
@@ -2536,9 +2536,9 @@ func (p *Parser) parseEnumDeclaration() *EnumDeclaration {
 
 		// Check for duplicate value names
 		if prevToken, exists := valueNames[enumValue.Name.Value]; exists {
-			msg := fmt.Sprintf("duplicate value name '%s' in enum '%s'", enumValue.Name.Value, stmt.Name.Value)
+			msg := fmt.Sprintf("duplicate value name '%s' in enum '%s'", errors.Ident(enumValue.Name.Value), errors.Ident(stmt.Name.Value))
 			p.addEZError(errors.E2023, msg, enumValue.Name.Token)
-			helpMsg := fmt.Sprintf("value '%s' first declared at line %d", enumValue.Name.Value, prevToken.Line)
+			helpMsg := fmt.Sprintf("value '%s' first declared at line %d", errors.Ident(enumValue.Name.Value), prevToken.Line)
 			p.errors = append(p.errors, helpMsg)
 		} else {
 			valueNames[enumValue.Name.Value] = enumValue.Name.Token
@@ -2561,7 +2561,7 @@ func (p *Parser) parseEnumDeclaration() *EnumDeclaration {
 	}
 
 	if len(stmt.Values) == 0 {
-		msg := fmt.Sprintf("enum '%s' must have at least one value", stmt.Name.Value)
+		msg := fmt.Sprintf("enum '%s' must have at least one value", errors.Ident(stmt.Name.Value))
 		p.addEZError(errors.E2016, msg, stmt.Token)
 	}
 
@@ -2730,7 +2730,7 @@ func (p *Parser) parseStructDeclaration() *StructDeclaration {
 
 	// Check for reserved names
 	if isReservedName(p.currentToken.Literal) {
-		msg := fmt.Sprintf("'%s' is a reserved keyword and cannot be used as a struct name", p.currentToken.Literal)
+		msg := fmt.Sprintf("'%s' is a reserved keyword and cannot be used as a struct name", errors.Ident(p.currentToken.Literal))
 		p.errors = append(p.errors, msg)
 		p.addEZError(errors.E2037, msg, p.currentToken)
 		return nil
@@ -2759,7 +2759,7 @@ func (p *Parser) parseStructDeclaration() *StructDeclaration {
 		// Validate first field name
 		fieldName := p.currentToken.Literal
 		if isReservedName(fieldName) {
-			msg := fmt.Sprintf("'%s' is a reserved keyword and cannot be used as a struct field name", fieldName)
+			msg := fmt.Sprintf("'%s' is a reserved keyword and cannot be used as a struct field name", errors.Ident(fieldName))
 			p.errors = append(p.errors, msg)
 			p.addEZError(errors.E2034, msg, p.currentToken)
 			return nil
@@ -2778,7 +2778,7 @@ func (p *Parser) parseStructDeclaration() *StructDeclaration {
 			// Validate subsequent field names
 			fieldName := p.currentToken.Literal
 			if isReservedName(fieldName) {
-				msg := fmt.Sprintf("'%s' is a reserved keyword and cannot be used as a struct field name", fieldName)
+				msg := fmt.Sprintf("'%s' is a reserved keyword and cannot be used as a struct field name", errors.Ident(fieldName))
 				p.errors = append(p.errors, msg)
 				p.addEZError(errors.E2034, msg, p.currentToken)
 				return nil
@@ -2806,10 +2806,10 @@ func (p *Parser) parseStructDeclaration() *StructDeclaration {
 		for _, name := range names {
 			// Check for duplicate field names
 			if prevToken, exists := fieldNames[name.Value]; exists {
-				msg := fmt.Sprintf("duplicate field name '%s' in struct '%s'", name.Value, stmt.Name.Value)
+				msg := fmt.Sprintf("duplicate field name '%s' in struct '%s'", errors.Ident(name.Value), errors.Ident(stmt.Name.Value))
 				p.addEZError(errors.E2013, msg, name.Token)
 				// Add help message pointing to first declaration
-				helpMsg := fmt.Sprintf("field '%s' first declared at line %d", name.Value, prevToken.Line)
+				helpMsg := fmt.Sprintf("field '%s' first declared at line %d", errors.Ident(name.Value), prevToken.Line)
 				p.errors = append(p.errors, helpMsg)
 			} else {
 				fieldNames[name.Value] = name.Token
@@ -3944,7 +3944,7 @@ func (p *Parser) parseEnumAttrAttribute() *Attribute {
 			typeName := p.currentToken.Literal
 			// Validate that type is a primitive (int, float, or string)
 			if typeName != "int" && typeName != "float" && typeName != "string" {
-				msg := fmt.Sprintf("#enum type must be int, float, or string, got '%s'", typeName)
+				msg := fmt.Sprintf("#enum type must be int, float, or string, got '%s'", errors.TypeGot(typeName))
 				p.addEZError(errors.E2026, msg, p.currentToken)
 			}
 			attr.Args = append(attr.Args, typeName)

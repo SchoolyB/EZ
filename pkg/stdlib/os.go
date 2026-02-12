@@ -12,6 +12,7 @@ import (
 	"runtime"
 	"strings"
 
+	"github.com/marshallburns/ez/pkg/errors"
 	"github.com/marshallburns/ez/pkg/object"
 )
 
@@ -30,11 +31,11 @@ var OSBuiltins = map[string]*object.Builtin{
 	"os.get_env": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 1 {
-				return &object.Error{Code: "E7001", Message: "os.get_env() takes exactly 1 argument (name)"}
+				return &object.Error{Code: "E7001", Message: fmt.Sprintf("%s takes exactly 1 argument (name)", errors.Ident("os.get_env()"))}
 			}
 			name, ok := args[0].(*object.String)
 			if !ok {
-				return &object.Error{Code: "E7003", Message: "os.get_env() requires a string argument"}
+				return &object.Error{Code: "E7003", Message: fmt.Sprintf("%s requires a %s argument", errors.Ident("os.get_env()"), errors.TypeExpected("string"))}
 			}
 
 			value, exists := os.LookupEnv(name.Value)
@@ -56,15 +57,15 @@ var OSBuiltins = map[string]*object.Builtin{
 	"os.set_env": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 2 {
-				return &object.Error{Code: "E7001", Message: "os.set_env() takes exactly 2 arguments (name, value)"}
+				return &object.Error{Code: "E7001", Message: fmt.Sprintf("%s takes exactly 2 arguments (name, value)", errors.Ident("os.set_env()"))}
 			}
 			name, ok := args[0].(*object.String)
 			if !ok {
-				return &object.Error{Code: "E7003", Message: "os.set_env() requires a string name as first argument"}
+				return &object.Error{Code: "E7003", Message: fmt.Sprintf("%s requires a %s name as first argument", errors.Ident("os.set_env()"), errors.TypeExpected("string"))}
 			}
 			value, ok := args[1].(*object.String)
 			if !ok {
-				return &object.Error{Code: "E7003", Message: "os.set_env() requires a string value as second argument"}
+				return &object.Error{Code: "E7003", Message: fmt.Sprintf("%s requires a %s value as second argument", errors.Ident("os.set_env()"), errors.TypeExpected("string"))}
 			}
 
 			err := os.Setenv(name.Value, value.Value)
@@ -87,11 +88,11 @@ var OSBuiltins = map[string]*object.Builtin{
 	"os.unset_env": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 1 {
-				return &object.Error{Code: "E7001", Message: "os.unset_env() takes exactly 1 argument (name)"}
+				return &object.Error{Code: "E7001", Message: fmt.Sprintf("%s takes exactly 1 argument (name)", errors.Ident("os.unset_env()"))}
 			}
 			name, ok := args[0].(*object.String)
 			if !ok {
-				return &object.Error{Code: "E7003", Message: "os.unset_env() requires a string argument"}
+				return &object.Error{Code: "E7003", Message: fmt.Sprintf("%s requires a %s argument", errors.Ident("os.unset_env()"), errors.TypeExpected("string"))}
 			}
 
 			err := os.Unsetenv(name.Value)
@@ -152,7 +153,7 @@ var OSBuiltins = map[string]*object.Builtin{
 				if codeObj, ok := args[0].(*object.Integer); ok {
 					code = int(codeObj.Value.Int64())
 				} else {
-					return &object.Error{Code: "E7003", Message: "os.exit() requires an integer exit code"}
+					return &object.Error{Code: "E7003", Message: fmt.Sprintf("%s requires an %s exit code", errors.Ident("os.exit()"), errors.TypeExpected("integer"))}
 				}
 			}
 			os.Exit(code)
@@ -183,11 +184,11 @@ var OSBuiltins = map[string]*object.Builtin{
 	"os.chdir": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 1 {
-				return &object.Error{Code: "E7001", Message: "os.chdir() takes exactly 1 argument (path)"}
+				return &object.Error{Code: "E7001", Message: fmt.Sprintf("%s takes exactly 1 argument (path)", errors.Ident("os.chdir()"))}
 			}
 			path, ok := args[0].(*object.String)
 			if !ok {
-				return &object.Error{Code: "E7003", Message: "os.chdir() requires a string path"}
+				return &object.Error{Code: "E7003", Message: fmt.Sprintf("%s requires a %s path", errors.Ident("os.chdir()"), errors.TypeExpected("string"))}
 			}
 
 			err := os.Chdir(path.Value)
@@ -422,11 +423,11 @@ var OSBuiltins = map[string]*object.Builtin{
 	"os.exec": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 1 {
-				return &object.Error{Code: "E7001", Message: "os.exec() takes exactly 1 argument (command)"}
+				return &object.Error{Code: "E7001", Message: fmt.Sprintf("%s takes exactly 1 argument (command)", errors.Ident("os.exec()"))}
 			}
 			cmdStr, ok := args[0].(*object.String)
 			if !ok {
-				return &object.Error{Code: "E7003", Message: "os.exec() requires a string command"}
+				return &object.Error{Code: "E7003", Message: fmt.Sprintf("%s requires a %s command", errors.Ident("os.exec()"), errors.TypeExpected("string"))}
 			}
 
 			var cmd *exec.Cmd
@@ -468,11 +469,11 @@ var OSBuiltins = map[string]*object.Builtin{
 	"os.exec_output": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 1 {
-				return &object.Error{Code: "E7001", Message: "os.exec_output() takes exactly 1 argument (command)"}
+				return &object.Error{Code: "E7001", Message: fmt.Sprintf("%s takes exactly 1 argument (command)", errors.Ident("os.exec_output()"))}
 			}
 			cmdStr, ok := args[0].(*object.String)
 			if !ok {
-				return &object.Error{Code: "E7003", Message: "os.exec_output() requires a string command"}
+				return &object.Error{Code: "E7003", Message: fmt.Sprintf("%s requires a %s command", errors.Ident("os.exec_output()"), errors.TypeExpected("string"))}
 			}
 
 			var cmd *exec.Cmd
