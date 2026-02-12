@@ -6020,3 +6020,1295 @@ func TestRangeNegativeStepInOperator(t *testing.T) {
 		})
 	}
 }
+
+// ============================================================================
+// Postfix and Assignment Coverage Tests
+// ============================================================================
+
+func TestPostfixIncrementUpdatesVariable(t *testing.T) {
+	input := `
+temp x int = 5
+x++
+x
+`
+	evaluated := testEval(input)
+	testIntegerObject(t, evaluated, 6)
+}
+
+func TestPostfixDecrementUpdatesVariable(t *testing.T) {
+	input := `
+temp x int = 5
+x--
+x
+`
+	evaluated := testEval(input)
+	testIntegerObject(t, evaluated, 4)
+}
+
+func TestPostfixIncrementReturnsOriginalValue(t *testing.T) {
+	// The postfix expression x++ should return the value BEFORE incrementing
+	input := `
+do getOriginal() -> int {
+	temp x int = 5
+	return x++
+}
+temp r int = getOriginal()
+r
+`
+	evaluated := testEval(input)
+	testIntegerObject(t, evaluated, 5)
+}
+
+func TestIndexedArrayAssignment(t *testing.T) {
+	input := `
+temp arr [int] = {1, 2, 3}
+arr[0] = 10
+arr[0]
+`
+	evaluated := testEval(input)
+	testIntegerObject(t, evaluated, 10)
+}
+
+func TestMapKeyAssignment(t *testing.T) {
+	input := `
+temp m map[string:int] = {"a": 1}
+m["b"] = 2
+m["b"]
+`
+	evaluated := testEval(input)
+	testIntegerObject(t, evaluated, 2)
+}
+
+func TestCompoundAddAssignment(t *testing.T) {
+	input := `
+temp x int = 10
+x += 5
+x
+`
+	evaluated := testEval(input)
+	testIntegerObject(t, evaluated, 15)
+}
+
+func TestCompoundSubtractAssignment(t *testing.T) {
+	input := `
+temp x int = 10
+x -= 3
+x
+`
+	evaluated := testEval(input)
+	testIntegerObject(t, evaluated, 7)
+}
+
+func TestCompoundMultiplyAssignment(t *testing.T) {
+	input := `
+temp x int = 10
+x *= 2
+x
+`
+	evaluated := testEval(input)
+	testIntegerObject(t, evaluated, 20)
+}
+
+// ============================================================================
+// validateAndConvertType Coverage Tests
+// ============================================================================
+
+func TestValidateAndConvertTypeArrayType(t *testing.T) {
+	// Tests validateAndConvertType with array type parameter
+	input := `
+do getPair() -> ([int], [int]) {
+	return {1, 2}, {3, 4}
+}
+temp a [int], b [int] = getPair()
+a[0] + b[0]
+`
+	evaluated := testEval(input)
+	testIntegerObject(t, evaluated, 4)
+}
+
+func TestValidateAndConvertTypeArrayTypeMismatch(t *testing.T) {
+	// Tests validateAndConvertType with array type mismatch
+	input := `
+do getStuff() -> (int, int) {
+	return 1, 2
+}
+temp a [int], b int = getStuff()
+`
+	evaluated := testEval(input)
+	if !isErrorObject(evaluated) {
+		t.Errorf("expected error for array type mismatch in multi-value return, got %T", evaluated)
+	}
+}
+
+func TestValidateAndConvertTypeMapType(t *testing.T) {
+	// Tests validateAndConvertType with map type via simple declaration
+	input := `
+temp m1 map[string:int] = {"a": 1}
+temp m2 map[string:int] = {"b": 2}
+m1["a"] + m2["b"]
+`
+	evaluated := testEval(input)
+	testIntegerObject(t, evaluated, 3)
+}
+
+func TestValidateAndConvertTypeMapTypeMismatch(t *testing.T) {
+	// Tests validateAndConvertType with map type mismatch
+	input := `temp a map[string:int] = "not a map"`
+	evaluated := testEval(input)
+	if !isErrorObject(evaluated) {
+		t.Errorf("expected error for map type mismatch, got %T", evaluated)
+	}
+}
+
+func TestValidateAndConvertTypeByteConversion(t *testing.T) {
+	// Tests validateAndConvertType byte range conversion in multi-value return
+	input := `
+do getPair() -> (int, int) {
+	return 100, 200
+}
+temp a byte, b byte = getPair()
+a
+`
+	evaluated := testEval(input)
+	testByteObject(t, evaluated, 100)
+}
+
+func TestValidateAndConvertTypeByteOutOfRange(t *testing.T) {
+	// Tests validateAndConvertType byte out of range error
+	input := `
+do getPair() -> (int, int) {
+	return 300, 200
+}
+temp a byte, b byte = getPair()
+`
+	evaluated := testEval(input)
+	if !isErrorObject(evaluated) {
+		t.Errorf("expected error for byte out of range, got %T", evaluated)
+	}
+}
+
+func TestValidateAndConvertTypeUnsignedNegative(t *testing.T) {
+	// Tests validateAndConvertType unsigned integer with negative value
+	input := `
+do getPair() -> (int, int) {
+	return -5, 10
+}
+temp a u8, b int = getPair()
+`
+	evaluated := testEval(input)
+	if !isErrorObject(evaluated) {
+		t.Errorf("expected error for negative value to unsigned type, got %T", evaluated)
+	}
+}
+
+func TestValidateAndConvertTypeNilPassthrough(t *testing.T) {
+	// Tests validateAndConvertType with non-integer/non-array/non-map value
+	// Strings and other primitives should pass through as-is
+	input := `
+do getPair() -> (string, int) {
+	return "hello", 42
+}
+temp a string, b int = getPair()
+a
+`
+	evaluated := testEval(input)
+	testStringObject(t, evaluated, "hello")
+}
+
+func TestValidateAndConvertTypeEmptyArrayToMap(t *testing.T) {
+	// Tests validateAndConvertType where empty {} is assigned to map type
+	input := `
+temp m map[string:int] = {}
+len(m)
+`
+	evaluated := testEval(input)
+	testIntegerObject(t, evaluated, 0)
+}
+
+// ============================================================================
+// evalAssignment Coverage Tests - Tuple Unpacking and Edge Cases
+// ============================================================================
+
+func TestTupleUnpackingReassignment(t *testing.T) {
+	// Tests evalAssignment tuple unpacking with existing variables
+	input := `
+do getPair() -> (int, int) {
+	return 100, 200
+}
+temp a int = 0
+temp b int = 0
+a, b = getPair()
+a + b
+`
+	evaluated := testEval(input)
+	testIntegerObject(t, evaluated, 300)
+}
+
+func TestTupleUnpackingReassignmentWrongCount(t *testing.T) {
+	// Tests evalAssignment tuple unpacking count mismatch
+	input := `
+do getPair() -> (int, int) {
+	return 1, 2
+}
+temp a int = 0
+temp b int = 0
+temp c int = 0
+a, b, c = getPair()
+`
+	evaluated := testEval(input)
+	errObj, ok := evaluated.(*Error)
+	if !ok {
+		t.Fatalf("expected Error, got %T (%+v)", evaluated, evaluated)
+	}
+	if !strings.Contains(errObj.Message, "expected 3 values") {
+		t.Errorf("expected count mismatch error, got: %s", errObj.Message)
+	}
+}
+
+func TestTupleUnpackingSingleValueToMultiple(t *testing.T) {
+	// Tests evalAssignment: single value assigned to multiple variables
+	input := `
+temp a int = 0
+temp b int = 0
+a, b = 42
+`
+	evaluated := testEval(input)
+	errObj, ok := evaluated.(*Error)
+	if !ok {
+		t.Fatalf("expected Error, got %T (%+v)", evaluated, evaluated)
+	}
+	if !strings.Contains(errObj.Message, "expected 2 values") {
+		t.Errorf("expected error about expecting 2 values, got: %s", errObj.Message)
+	}
+}
+
+func TestTupleUnpackingWithBlankInReassignment(t *testing.T) {
+	// Tests evalAssignment with blank identifier in declaration
+	input := `
+do getPair() -> (int, int) {
+	return 10, 20
+}
+temp _, b = getPair()
+b
+`
+	evaluated := testEval(input)
+	testIntegerObject(t, evaluated, 20)
+}
+
+func TestTupleUnpackingReassignmentToUndefined(t *testing.T) {
+	// Tests evalAssignment tuple unpacking to undefined variable
+	input := `
+do getPair() -> (int, int) {
+	return 1, 2
+}
+undefined_a, undefined_b = getPair()
+`
+	evaluated := testEval(input)
+	if !isErrorObject(evaluated) {
+		t.Errorf("expected error for undefined variable in tuple unpacking, got %T", evaluated)
+	}
+}
+
+func TestTupleUnpackingReassignmentToImmutable(t *testing.T) {
+	// Tests evalAssignment tuple unpacking to const variable
+	input := `
+do getPair() -> (int, int) {
+	return 1, 2
+}
+const a int = 0
+temp b int = 0
+a, b = getPair()
+`
+	evaluated := testEval(input)
+	errObj, ok := evaluated.(*Error)
+	if !ok {
+		t.Fatalf("expected Error, got %T (%+v)", evaluated, evaluated)
+	}
+	if !strings.Contains(errObj.Message, "immutable") {
+		t.Errorf("expected immutable variable error, got: %s", errObj.Message)
+	}
+}
+
+func TestMultiValueReturnToSingleVariable(t *testing.T) {
+	// Tests evalAssignment: multi-value return assigned to single variable
+	input := `
+do getPair() -> (int, int) {
+	return 1, 2
+}
+temp x int = 0
+x = getPair()
+`
+	evaluated := testEval(input)
+	if !isErrorObject(evaluated) {
+		t.Errorf("expected error for multi-value to single variable, got %T", evaluated)
+	}
+}
+
+func TestAssignmentIndexOnImmutableMap(t *testing.T) {
+	// Tests evalAssignment on immutable map index
+	input := `
+const m map[string:int] = {"a": 1}
+m["a"] = 99
+`
+	evaluated := testEval(input)
+	errObj, ok := evaluated.(*Error)
+	if !ok {
+		t.Fatalf("expected Error, got %T (%+v)", evaluated, evaluated)
+	}
+	if !strings.Contains(errObj.Message, "immutable") {
+		t.Errorf("expected immutable map error, got: %s", errObj.Message)
+	}
+}
+
+func TestAssignmentMapCompoundAssignment(t *testing.T) {
+	// Tests evalAssignment compound assignment on map key
+	input := `
+temp m map[string:int] = {"a": 10}
+m["a"] += 5
+m["a"]
+`
+	evaluated := testEval(input)
+	testIntegerObject(t, evaluated, 15)
+}
+
+func TestAssignmentStructFieldUndefined(t *testing.T) {
+	// Tests evalAssignment on undefined struct field with compound operator
+	input := `
+const Point struct {
+	x int
+	y int
+}
+temp p Point = Point{x: 1, y: 2}
+p.z += 10
+`
+	evaluated := testEval(input)
+	if !isErrorObject(evaluated) {
+		t.Errorf("expected error for undefined struct field, got %T", evaluated)
+	}
+}
+
+// ============================================================================
+// checkMutableContainerAccess Coverage Tests
+// ============================================================================
+
+func TestMutableContainerAccessArrayElement(t *testing.T) {
+	// Tests checkMutableContainerAccess via array[index].field assignment
+	input := `
+const Point struct {
+	x int
+	y int
+}
+temp arr [Point] = {Point{x: 1, y: 2}, Point{x: 3, y: 4}}
+arr[0].x = 99
+arr[0].x
+`
+	evaluated := testEval(input)
+	testIntegerObject(t, evaluated, 99)
+}
+
+func TestMutableContainerAccessMapElement(t *testing.T) {
+	// Tests checkMutableContainerAccess via map[key].field assignment
+	input := `
+const Point struct {
+	x int
+	y int
+}
+temp m map[string:Point] = {"p": Point{x: 1, y: 2}}
+m["p"].x = 42
+m["p"].x
+`
+	evaluated := testEval(input)
+	testIntegerObject(t, evaluated, 42)
+}
+
+func TestMutableContainerAccessNestedMemberExpression(t *testing.T) {
+	// Tests checkMutableContainerAccess with nested member expressions:
+	// arr[0].inner.value where it needs to traverse the member expressions
+	input := `
+const Inner struct {
+	value int
+}
+const Outer struct {
+	inner Inner
+}
+temp arr [Outer] = {Outer{inner: Inner{value: 10}}}
+arr[0].inner.value = 42
+arr[0].inner.value
+`
+	evaluated := testEval(input)
+	testIntegerObject(t, evaluated, 42)
+}
+
+func TestImmutableContainerAccessDenied(t *testing.T) {
+	// Tests checkMutableContainerAccess with immutable container
+	input := `
+const Point struct {
+	x int
+	y int
+}
+const arr [Point, 1] = {Point{x: 1, y: 2}}
+arr[0].x = 99
+`
+	evaluated := testEval(input)
+	if !isErrorObject(evaluated) {
+		t.Errorf("expected error for immutable container field access, got %T", evaluated)
+	}
+}
+
+// ============================================================================
+// evalIdentifier Coverage Tests - Module and Builtin Lookup
+// ============================================================================
+
+func TestIdentifierBuiltinLen(t *testing.T) {
+	// Tests evalIdentifier via builtin lookup
+	input := `len({1, 2, 3})`
+	evaluated := testEval(input)
+	testIntegerObject(t, evaluated, 3)
+}
+
+func TestIdentifierBuiltinTypeof(t *testing.T) {
+	// Tests evalIdentifier via builtin lookup
+	input := `typeof(42)`
+	evaluated := testEval(input)
+	testStringObject(t, evaluated, "int")
+}
+
+func TestIdentifierStructTypeAsValue(t *testing.T) {
+	// Tests evalIdentifier's struct type lookup path (returns TypeValue)
+	input := `
+const MyStruct struct {
+	name string
+}
+temp t = typeof(MyStruct)
+t
+`
+	evaluated := testEval(input)
+	// typeof on a TypeValue should return "type" or the struct name
+	if isErrorObject(evaluated) {
+		t.Errorf("expected no error for struct as identifier, got: %v", evaluated)
+	}
+}
+
+func TestIdentifierNotFoundSuggestion(t *testing.T) {
+	// Tests evalIdentifier's suggestion mechanism
+	input := `tru`
+	evaluated := testEval(input)
+	errObj, ok := evaluated.(*Error)
+	if !ok {
+		t.Fatalf("expected Error, got %T (%+v)", evaluated, evaluated)
+	}
+	if !strings.Contains(errObj.Message, "not found") && !strings.Contains(errObj.Message, "identifier") {
+		t.Errorf("expected identifier not found error, got: %s", errObj.Message)
+	}
+}
+
+func TestIdentifierUsingModuleFunction(t *testing.T) {
+	// Tests evalIdentifier's using module lookup for stdlib functions
+	input := `
+import @strings
+using strings
+temp result string = upper("hello")
+result
+`
+	evaluated := testEval(input)
+	testStringObject(t, evaluated, "HELLO")
+}
+
+func TestIdentifierUsingModuleFunctionLower(t *testing.T) {
+	// Tests evalIdentifier with different using function
+	input := `
+import @strings
+using strings
+temp result string = lower("HELLO")
+result
+`
+	evaluated := testEval(input)
+	testStringObject(t, evaluated, "hello")
+}
+
+// ============================================================================
+// evalBangOperator Coverage Tests
+// ============================================================================
+
+func TestBangOperatorOnNil(t *testing.T) {
+	// Tests evalBangOperator's nil case - !nil should be true
+	input := `!nil`
+	evaluated := testEval(input)
+	testBooleanObject(t, evaluated, true)
+}
+
+func TestBangOperatorOnInteger(t *testing.T) {
+	// Tests evalBangOperator's default case - !integer should be false
+	input := `!5`
+	evaluated := testEval(input)
+	testBooleanObject(t, evaluated, false)
+}
+
+func TestBangOperatorOnString(t *testing.T) {
+	// Tests evalBangOperator's default case - !string should be false
+	input := `!"hello"`
+	evaluated := testEval(input)
+	testBooleanObject(t, evaluated, false)
+}
+
+func TestBangOperatorOnZero(t *testing.T) {
+	// Tests evalBangOperator's default case - !0 should be false (0 is not boolean)
+	input := `!0`
+	evaluated := testEval(input)
+	testBooleanObject(t, evaluated, false)
+}
+
+func TestDoubleBangOnNil(t *testing.T) {
+	// Tests !!nil should be false (nil is falsey)
+	input := `!!nil`
+	evaluated := testEval(input)
+	testBooleanObject(t, evaluated, false)
+}
+
+// ============================================================================
+// evalRangeExpression Coverage Tests
+// ============================================================================
+
+func TestRangeExpressionStepNotInteger(t *testing.T) {
+	// Tests evalRangeExpression with non-integer step
+	input := `
+for i in range(0, 10, 1.5) {
+	temp _ int = i
+}
+`
+	evaluated := testEval(input)
+	if !isErrorObject(evaluated) {
+		t.Errorf("expected error for non-integer step, got %T", evaluated)
+	}
+}
+
+func TestRangeExpressionEndNotInteger(t *testing.T) {
+	// Tests evalRangeExpression with non-integer end
+	input := `
+for i in range(0, 5.5) {
+	temp _ int = i
+}
+`
+	evaluated := testEval(input)
+	if !isErrorObject(evaluated) {
+		t.Errorf("expected error for non-integer end, got %T", evaluated)
+	}
+}
+
+func TestRangeExpressionStartNotInteger(t *testing.T) {
+	// Tests evalRangeExpression with non-integer start
+	input := `
+for i in range(1.5, 10) {
+	temp _ int = i
+}
+`
+	evaluated := testEval(input)
+	if !isErrorObject(evaluated) {
+		t.Errorf("expected error for non-integer start, got %T", evaluated)
+	}
+}
+
+func TestRangeExpressionSingleElementRange(t *testing.T) {
+	// Tests range with equal start and end (should produce no iterations)
+	input := `
+temp sum int = 0
+for i in range(5, 5) {
+	sum = sum + i
+}
+sum
+`
+	evaluated := testEval(input)
+	testIntegerObject(t, evaluated, 0)
+}
+
+func TestRangeExpressionLargeStep(t *testing.T) {
+	// Tests range with step larger than range
+	input := `
+temp sum int = 0
+for i in range(0, 10, 20) {
+	sum = sum + i
+}
+sum
+`
+	evaluated := testEval(input)
+	// Only 0 is in range (step 20 jumps past 10)
+	testIntegerObject(t, evaluated, 0)
+}
+
+func TestRangeInExpressionContext(t *testing.T) {
+	// Tests range used as expression returning Range object
+	input := `3 in range(0, 5)`
+	evaluated := testEval(input)
+	testBooleanObject(t, evaluated, true)
+}
+
+// ============================================================================
+// evalEnumDeclaration Coverage Tests
+// ============================================================================
+
+func TestEnumWithExplicitIntValues(t *testing.T) {
+	// Tests evalEnumDeclaration with explicit integer values
+	input := `
+const HttpStatus enum {
+	OK = 200
+	NotFound = 404
+	ServerError = 500
+}
+HttpStatus.NotFound
+`
+	evaluated := testEval(input)
+	enumVal, ok := evaluated.(*EnumValue)
+	if !ok {
+		t.Fatalf("expected EnumValue, got %T (%+v)", evaluated, evaluated)
+	}
+	intVal, ok := enumVal.Value.(*Integer)
+	if !ok {
+		t.Fatalf("expected Integer value, got %T", enumVal.Value)
+	}
+	if intVal.Value.Int64() != 404 {
+		t.Errorf("expected 404, got %d", intVal.Value.Int64())
+	}
+}
+
+func TestEnumWithExplicitIntAutoIncrement(t *testing.T) {
+	// Tests evalEnumDeclaration auto-increment after explicit value
+	input := `
+const Level enum {
+	Low = 10
+	Medium
+	High
+}
+Level.High
+`
+	evaluated := testEval(input)
+	enumVal, ok := evaluated.(*EnumValue)
+	if !ok {
+		t.Fatalf("expected EnumValue, got %T (%+v)", evaluated, evaluated)
+	}
+	intVal, ok := enumVal.Value.(*Integer)
+	if !ok {
+		t.Fatalf("expected Integer value, got %T", enumVal.Value)
+	}
+	// Low=10, Medium=11, High=12
+	if intVal.Value.Int64() != 12 {
+		t.Errorf("expected 12, got %d", intVal.Value.Int64())
+	}
+}
+
+func TestEnumWithStringValues(t *testing.T) {
+	// Tests evalEnumDeclaration with string enum values
+	input := `
+#enum(string)
+const Status enum {
+	Active = "active"
+	Inactive = "inactive"
+	Pending = "pending"
+}
+Status.Pending
+`
+	evaluated := testEval(input)
+	enumVal, ok := evaluated.(*EnumValue)
+	if !ok {
+		t.Fatalf("expected EnumValue, got %T (%+v)", evaluated, evaluated)
+	}
+	strVal, ok := enumVal.Value.(*String)
+	if !ok {
+		t.Fatalf("expected String value, got %T", enumVal.Value)
+	}
+	if strVal.Value != "pending" {
+		t.Errorf("expected 'pending', got %s", strVal.Value)
+	}
+}
+
+func TestEnumStringWithoutExplicitValueError(t *testing.T) {
+	// Tests evalEnumDeclaration string enum without explicit values
+	input := `
+#enum(string)
+const Status enum {
+	Active
+}
+`
+	evaluated := testEval(input)
+	errObj, ok := evaluated.(*Error)
+	if !ok {
+		t.Fatalf("expected Error, got %T (%+v)", evaluated, evaluated)
+	}
+	if errObj.Code != "E2031" {
+		t.Errorf("expected error code E2031, got %s: %s", errObj.Code, errObj.Message)
+	}
+}
+
+func TestEnumWithFloatValues(t *testing.T) {
+	// Tests evalEnumDeclaration with float enum values
+	input := `
+#enum(float)
+const Values enum {
+	PI = 3.14
+	E = 2.71
+}
+Values.PI
+`
+	evaluated := testEval(input)
+	enumVal, ok := evaluated.(*EnumValue)
+	if !ok {
+		t.Fatalf("expected EnumValue, got %T (%+v)", evaluated, evaluated)
+	}
+	floatVal, ok := enumVal.Value.(*Float)
+	if !ok {
+		t.Fatalf("expected Float value, got %T", enumVal.Value)
+	}
+	if floatVal.Value != 3.14 {
+		t.Errorf("expected 3.14, got %f", floatVal.Value)
+	}
+}
+
+func TestEnumFloatAutoIncrement(t *testing.T) {
+	// Tests evalEnumDeclaration float auto-increment
+	input := `
+#enum(float)
+const Values enum {
+	A
+	B
+	C
+}
+Values.C
+`
+	evaluated := testEval(input)
+	enumVal, ok := evaluated.(*EnumValue)
+	if !ok {
+		t.Fatalf("expected EnumValue, got %T (%+v)", evaluated, evaluated)
+	}
+	floatVal, ok := enumVal.Value.(*Float)
+	if !ok {
+		t.Fatalf("expected Float value, got %T", enumVal.Value)
+	}
+	// A=0.0, B=1.0, C=2.0
+	if floatVal.Value != 2.0 {
+		t.Errorf("expected 2.0, got %f", floatVal.Value)
+	}
+}
+
+func TestEnumFloatAutoIncrementAfterExplicit(t *testing.T) {
+	// Tests evalEnumDeclaration float auto-increment after explicit value
+	input := `
+#enum(float)
+const Values enum {
+	Start = 5.0
+	Next
+}
+Values.Next
+`
+	evaluated := testEval(input)
+	enumVal, ok := evaluated.(*EnumValue)
+	if !ok {
+		t.Fatalf("expected EnumValue, got %T (%+v)", evaluated, evaluated)
+	}
+	floatVal, ok := enumVal.Value.(*Float)
+	if !ok {
+		t.Fatalf("expected Float value, got %T", enumVal.Value)
+	}
+	// Start=5.0, Next=6.0
+	if floatVal.Value != 6.0 {
+		t.Errorf("expected 6.0, got %f", floatVal.Value)
+	}
+}
+
+func TestEnumFlagsAutoValues(t *testing.T) {
+	// Tests evalEnumDeclaration with @flags auto-assigning power-of-2 values
+	input := `
+#flags
+const Permissions enum {
+	Read
+	Write
+	Execute
+}
+Permissions.Execute
+`
+	evaluated := testEval(input)
+	enumVal, ok := evaluated.(*EnumValue)
+	if !ok {
+		t.Fatalf("expected EnumValue, got %T (%+v)", evaluated, evaluated)
+	}
+	intVal, ok := enumVal.Value.(*Integer)
+	if !ok {
+		t.Fatalf("expected Integer value, got %T", enumVal.Value)
+	}
+	// Read=1, Write=2, Execute=4
+	if intVal.Value.Int64() != 4 {
+		t.Errorf("expected 4, got %d", intVal.Value.Int64())
+	}
+}
+
+func TestEnumFlagsWithExplicitValue(t *testing.T) {
+	// Tests evalEnumDeclaration with @flags and explicit value
+	input := `
+#flags
+const Permissions enum {
+	Read = 1
+	Write = 2
+	Execute = 4
+	All = 7
+}
+Permissions.All
+`
+	evaluated := testEval(input)
+	enumVal, ok := evaluated.(*EnumValue)
+	if !ok {
+		t.Fatalf("expected EnumValue, got %T (%+v)", evaluated, evaluated)
+	}
+	intVal, ok := enumVal.Value.(*Integer)
+	if !ok {
+		t.Fatalf("expected Integer value, got %T", enumVal.Value)
+	}
+	if intVal.Value.Int64() != 7 {
+		t.Errorf("expected 7, got %d", intVal.Value.Int64())
+	}
+}
+
+func TestEnumInWhenStatement(t *testing.T) {
+	// Tests enum usage in when statement pattern matching
+	input := `
+const Color enum {
+	Red
+	Green
+	Blue
+}
+temp c Color = Color.Green
+temp result int = 0
+when c {
+	is Color.Red { result = 1 }
+	is Color.Green { result = 2 }
+	is Color.Blue { result = 3 }
+}
+result
+`
+	evaluated := testEval(input)
+	testIntegerObject(t, evaluated, 2)
+}
+
+// ============================================================================
+// evalRefBuiltin Coverage Tests
+// ============================================================================
+
+func TestRefBuiltinCreatesReference(t *testing.T) {
+	// Tests evalRefBuiltin: ref() creates a shared reference
+	input := `
+temp x int = 10
+temp y = ref(x)
+x = 42
+y
+`
+	evaluated := testEval(input)
+	testIntegerObject(t, evaluated, 42)
+}
+
+func TestRefBuiltinWithArray(t *testing.T) {
+	// Tests evalRefBuiltin with array reference
+	input := `
+temp arr [int] = {1, 2, 3}
+temp arr2 = ref(arr)
+arr[0] = 99
+arr2[0]
+`
+	evaluated := testEval(input)
+	testIntegerObject(t, evaluated, 99)
+}
+
+func TestRefBuiltinWrongArgCount(t *testing.T) {
+	// Tests evalRefBuiltin with wrong number of arguments
+	input := `ref()`
+	evaluated := testEval(input)
+	errObj, ok := evaluated.(*Error)
+	if !ok {
+		t.Fatalf("expected Error, got %T (%+v)", evaluated, evaluated)
+	}
+	if !strings.Contains(errObj.Message, "1 argument") {
+		t.Errorf("expected wrong argument count error, got: %s", errObj.Message)
+	}
+}
+
+func TestRefBuiltinUndefinedVariable(t *testing.T) {
+	// Tests evalRefBuiltin with undefined variable
+	input := `ref(undefined_var)`
+	evaluated := testEval(input)
+	errObj, ok := evaluated.(*Error)
+	if !ok {
+		t.Fatalf("expected Error, got %T (%+v)", evaluated, evaluated)
+	}
+	if !strings.Contains(errObj.Message, "undefined") {
+		t.Errorf("expected undefined variable error, got: %s", errObj.Message)
+	}
+}
+
+func TestRefBuiltinNonVariable(t *testing.T) {
+	// Tests evalRefBuiltin with non-variable argument (e.g., literal)
+	input := `ref(42)`
+	evaluated := testEval(input)
+	errObj, ok := evaluated.(*Error)
+	if !ok {
+		t.Fatalf("expected Error, got %T (%+v)", evaluated, evaluated)
+	}
+	if !strings.Contains(errObj.Message, "must be a variable") {
+		t.Errorf("expected 'must be a variable' error, got: %s", errObj.Message)
+	}
+}
+
+func TestRefBuiltinMultipleReferences(t *testing.T) {
+	// Tests evalRefBuiltin: multiple references to same variable
+	input := `
+temp val int = 10
+temp r1 = ref(val)
+temp r2 = ref(val)
+val = 42
+r1 + r2
+`
+	evaluated := testEval(input)
+	testIntegerObject(t, evaluated, 84) // 42 + 42
+}
+
+// ============================================================================
+// evalVariableDeclaration Coverage Tests - More Edge Cases
+// ============================================================================
+
+func TestVariableDeclarationWithNoValueArrayType(t *testing.T) {
+	// Tests evalVariableDeclaration with array type but no value (defaults to empty array)
+	input := `
+temp arr [int]
+len(arr)
+`
+	evaluated := testEval(input)
+	testIntegerObject(t, evaluated, 0)
+}
+
+func TestVariableDeclarationWithNoValueMapType(t *testing.T) {
+	// Tests evalVariableDeclaration with map type but no value (defaults to empty map)
+	input := `
+temp m map[string:int]
+len(m)
+`
+	evaluated := testEval(input)
+	testIntegerObject(t, evaluated, 0)
+}
+
+func TestVariableDeclarationWithNoValueFloatType(t *testing.T) {
+	// Tests evalVariableDeclaration default float value
+	input := `
+temp x float
+x
+`
+	evaluated := testEval(input)
+	testFloatObject(t, evaluated, 0.0)
+}
+
+func TestVariableDeclarationWithNoValueStringType(t *testing.T) {
+	// Tests evalVariableDeclaration default string value
+	input := `
+temp s string
+s
+`
+	evaluated := testEval(input)
+	testStringObject(t, evaluated, "")
+}
+
+func TestVariableDeclarationWithNoValueBoolType(t *testing.T) {
+	// Tests evalVariableDeclaration default bool value
+	input := `
+temp b bool
+b
+`
+	evaluated := testEval(input)
+	testBooleanObject(t, evaluated, false)
+}
+
+func TestVariableDeclarationWithNoValueByteType(t *testing.T) {
+	// Tests evalVariableDeclaration default byte value
+	input := `
+temp b byte
+b
+`
+	evaluated := testEval(input)
+	testByteObject(t, evaluated, 0)
+}
+
+func TestVariableDeclarationWithNoValueIntType(t *testing.T) {
+	// Tests evalVariableDeclaration default int value
+	input := `
+temp x int
+x
+`
+	evaluated := testEval(input)
+	testIntegerObject(t, evaluated, 0)
+}
+
+func TestVariableDeclarationMapWithEmptyBraces(t *testing.T) {
+	// Tests evalVariableDeclaration where {} is parsed as empty Array but declared as map
+	input := `
+temp m map[string:int] = {}
+len(m)
+`
+	evaluated := testEval(input)
+	testIntegerObject(t, evaluated, 0)
+}
+
+func TestVariableDeclarationMapTypeMismatch(t *testing.T) {
+	// Tests evalVariableDeclaration map type mismatch
+	input := `temp m map[string:int] = "not a map"`
+	evaluated := testEval(input)
+	if !isErrorObject(evaluated) {
+		t.Errorf("expected error for map type mismatch, got %T", evaluated)
+	}
+}
+
+func TestVariableDeclarationByteNegativeOutOfRange(t *testing.T) {
+	// Tests evalVariableDeclaration byte with negative value
+	input := `temp b byte = -1`
+	evaluated := testEval(input)
+	if !isErrorObject(evaluated) {
+		t.Errorf("expected error for negative byte value, got %T", evaluated)
+	}
+}
+
+func TestVariableDeclarationArrayElementWithFixedSize(t *testing.T) {
+	// Tests evalVariableDeclaration with fixed-size array
+	input := `
+const arr [int, 3] = {1, 2, 3}
+arr[2]
+`
+	evaluated := testEval(input)
+	testIntegerObject(t, evaluated, 3)
+}
+
+func TestVariableDeclarationMultiValueWrongCount(t *testing.T) {
+	// Tests evalVariableDeclaration multi-value count mismatch
+	input := `
+do getPair() -> (int, int) {
+	return 1, 2
+}
+temp a, b, c = getPair()
+`
+	evaluated := testEval(input)
+	errObj, ok := evaluated.(*Error)
+	if !ok {
+		t.Fatalf("expected Error, got %T (%+v)", evaluated, evaluated)
+	}
+	if !strings.Contains(errObj.Message, "expected 3 values") {
+		t.Errorf("expected count mismatch error, got: %s", errObj.Message)
+	}
+}
+
+func TestVariableDeclarationMultiValueSingleReturn(t *testing.T) {
+	// Tests evalVariableDeclaration multi-value with single return value
+	input := `
+do getSingle() -> int {
+	return 42
+}
+temp a, b = getSingle()
+`
+	evaluated := testEval(input)
+	errObj, ok := evaluated.(*Error)
+	if !ok {
+		t.Fatalf("expected Error, got %T (%+v)", evaluated, evaluated)
+	}
+	if !strings.Contains(errObj.Message, "expected 2 values") {
+		t.Errorf("expected count mismatch error, got: %s", errObj.Message)
+	}
+}
+
+func TestVariableDeclarationStructMutability(t *testing.T) {
+	// Tests evalVariableDeclaration struct mutability setting
+	input := `
+const Point struct {
+	x int
+	y int
+}
+temp p Point = Point{x: 1, y: 2}
+p.x = 10
+p.x
+`
+	evaluated := testEval(input)
+	testIntegerObject(t, evaluated, 10)
+}
+
+func TestVariableDeclarationConstStruct(t *testing.T) {
+	// Tests evalVariableDeclaration const struct immutability
+	input := `
+const Point struct {
+	x int
+	y int
+}
+const p Point = Point{x: 1, y: 2}
+p.x = 10
+`
+	evaluated := testEval(input)
+	if !isErrorObject(evaluated) {
+		t.Errorf("expected error for modifying const struct, got %T", evaluated)
+	}
+}
+
+func TestVariableDeclarationWithNoValueU8Type(t *testing.T) {
+	// Tests evalVariableDeclaration default u8 value
+	input := `
+temp x u8
+x
+`
+	evaluated := testEval(input)
+	testIntegerObject(t, evaluated, 0)
+}
+
+func TestVariableDeclarationWithNoValueI32Type(t *testing.T) {
+	// Tests evalVariableDeclaration default i32 value
+	input := `
+temp x i32
+x
+`
+	evaluated := testEval(input)
+	testIntegerObject(t, evaluated, 0)
+}
+
+func TestVariableDeclarationWithNoValueCharType(t *testing.T) {
+	// Tests evalVariableDeclaration default char value
+	input := `
+temp c char
+typeof(c)
+`
+	evaluated := testEval(input)
+	testStringObject(t, evaluated, "char")
+}
+
+func TestVariableDeclarationWithNoValueF32Type(t *testing.T) {
+	// Tests evalVariableDeclaration default f32 value
+	input := `
+temp x f32
+x
+`
+	evaluated := testEval(input)
+	testFloatObject(t, evaluated, 0.0)
+}
+
+func TestVariableDeclarationWithNoValueF64Type(t *testing.T) {
+	// Tests evalVariableDeclaration default f64 value
+	input := `
+temp x f64
+x
+`
+	evaluated := testEval(input)
+	testFloatObject(t, evaluated, 0.0)
+}
+
+// ============================================================================
+// Additional Assignment Edge Cases
+// ============================================================================
+
+func TestArrayIndexOutOfBoundsAssignment(t *testing.T) {
+	// Tests evalAssignment array index out of bounds
+	input := `
+temp arr [int] = {1, 2, 3}
+arr[10] = 99
+`
+	evaluated := testEval(input)
+	if !isErrorObject(evaluated) {
+		t.Errorf("expected error for array index out of bounds, got %T", evaluated)
+	}
+}
+
+func TestEmptyArrayAssignment(t *testing.T) {
+	// Tests evalAssignment to empty array
+	input := `
+temp arr [int] = {}
+arr[0] = 99
+`
+	evaluated := testEval(input)
+	if !isErrorObject(evaluated) {
+		t.Errorf("expected error for empty array assignment, got %T", evaluated)
+	}
+}
+
+func TestStringIndexAssignment(t *testing.T) {
+	// Tests evalAssignment string character replacement
+	input := `
+temp s string = "hello"
+s[0] = 'H'
+s
+`
+	evaluated := testEval(input)
+	testStringObject(t, evaluated, "Hello")
+}
+
+func TestAssignmentImmutableStructFieldError(t *testing.T) {
+	// Tests evalAssignment struct field modification on immutable struct
+	input := `
+const Point struct {
+	x int
+	y int
+}
+const p Point = Point{x: 1, y: 2}
+p.x = 99
+`
+	evaluated := testEval(input)
+	errObj, ok := evaluated.(*Error)
+	if !ok {
+		t.Fatalf("expected Error, got %T (%+v)", evaluated, evaluated)
+	}
+	if !strings.Contains(errObj.Message, "immutable") {
+		t.Errorf("expected immutable error, got: %s", errObj.Message)
+	}
+}
+
+func TestAssignmentToImmutableContainerIndex(t *testing.T) {
+	// Tests evalAssignment immutable container via const identifier
+	input := `
+const arr [int, 3] = {1, 2, 3}
+arr[0] = 99
+`
+	evaluated := testEval(input)
+	if !isErrorObject(evaluated) {
+		t.Errorf("expected error for immutable container assignment, got %T", evaluated)
+	}
+}
+
+func TestMapCompoundAssignmentMissingKey(t *testing.T) {
+	// Tests evalAssignment compound assignment on map with missing key
+	input := `
+temp m map[string:int] = {"a": 1}
+m["b"] += 5
+`
+	evaluated := testEval(input)
+	if !isErrorObject(evaluated) {
+		t.Errorf("expected error for compound assign on missing key, got %T", evaluated)
+	}
+}
+
+// ============================================================================
+// TupleUnpackingByteSemantics Coverage Tests
+// ============================================================================
+
+func TestTupleUnpackingByteVariable(t *testing.T) {
+	// Tests evalAssignment tuple unpacking with existing byte variable
+	input := `
+do getPair() -> (int, int) {
+	return 42, 100
+}
+temp a byte = 0
+temp b byte = 0
+a, b = getPair()
+a
+`
+	evaluated := testEval(input)
+	testByteObject(t, evaluated, 42)
+}
+
+func TestTupleUnpackingByteOutOfRange(t *testing.T) {
+	// Tests evalAssignment tuple unpacking with byte out of range
+	input := `
+do getPair() -> (int, int) {
+	return 300, 100
+}
+temp a byte = 0
+temp b byte = 0
+a, b = getPair()
+`
+	evaluated := testEval(input)
+	if !isErrorObject(evaluated) {
+		t.Errorf("expected error for byte out of range in tuple unpacking, got %T", evaluated)
+	}
+}

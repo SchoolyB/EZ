@@ -470,3 +470,173 @@ func TestStringsRemoveAll(t *testing.T) {
 		})
 	}
 }
+
+// ============================================================================
+// Case Manipulation
+// ============================================================================
+
+func TestStringsTitle(t *testing.T) {
+	fn := StringsBuiltins["strings.title"].Fn
+
+	tests := []struct {
+		name     string
+		input    string
+		expected string
+	}{
+		{"simple", "hello world", "Hello World"},
+		{"already title case", "Hello World", "Hello World"},
+		{"all lowercase", "foo bar baz", "Foo Bar Baz"},
+		{"all uppercase", "FOO BAR", "FOO BAR"},
+		{"single word", "hello", "Hello"},
+		{"empty string", "", ""},
+		{"multiple spaces", "hello  world", "Hello  World"},
+		{"with tabs", "hello\tworld", "Hello\tWorld"},
+		{"with newlines", "hello\nworld", "Hello\nWorld"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := fn(makeString(tt.input))
+			str, ok := result.(*object.String)
+			if !ok {
+				t.Fatalf("expected String, got %T", result)
+			}
+			if str.Value != tt.expected {
+				t.Errorf("title(%q) = %q, want %q", tt.input, str.Value, tt.expected)
+			}
+		})
+	}
+
+	// Test wrong argument count
+	t.Run("wrong argument count", func(t *testing.T) {
+		result := fn()
+		if _, ok := result.(*object.Error); !ok {
+			t.Error("expected error for wrong argument count")
+		}
+	})
+
+	// Test wrong type
+	t.Run("wrong type", func(t *testing.T) {
+		result := fn(makeInt(42))
+		if _, ok := result.(*object.Error); !ok {
+			t.Error("expected error for wrong type")
+		}
+	})
+}
+
+// ============================================================================
+// Index / Search Functions
+// ============================================================================
+
+func TestStringsLastIndex(t *testing.T) {
+	fn := StringsBuiltins["strings.last_index"].Fn
+
+	tests := []struct {
+		name     string
+		str      string
+		substr   string
+		expected int64
+	}{
+		{"last occurrence", "hello hello", "hello", 6},
+		{"single occurrence", "hello world", "world", 6},
+		{"not found", "hello world", "xyz", -1},
+		{"empty substr", "hello", "", 5},
+		{"empty string", "", "hello", -1},
+		{"repeated char", "aabaa", "a", 4},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := fn(makeString(tt.str), makeString(tt.substr))
+			intResult, ok := result.(*object.Integer)
+			if !ok {
+				t.Fatalf("expected Integer, got %T", result)
+			}
+			if intResult.Value.Int64() != tt.expected {
+				t.Errorf("last_index(%q, %q) = %d, want %d", tt.str, tt.substr, intResult.Value.Int64(), tt.expected)
+			}
+		})
+	}
+
+	// Test wrong argument count
+	t.Run("wrong argument count", func(t *testing.T) {
+		result := fn(makeString("hello"))
+		if _, ok := result.(*object.Error); !ok {
+			t.Error("expected error for wrong argument count")
+		}
+	})
+
+	// Test wrong types
+	t.Run("wrong type first arg", func(t *testing.T) {
+		result := fn(makeInt(42), makeString("hello"))
+		if _, ok := result.(*object.Error); !ok {
+			t.Error("expected error for wrong type")
+		}
+	})
+
+	t.Run("wrong type second arg", func(t *testing.T) {
+		result := fn(makeString("hello"), makeInt(42))
+		if _, ok := result.(*object.Error); !ok {
+			t.Error("expected error for wrong type")
+		}
+	})
+}
+
+// ============================================================================
+// Count
+// ============================================================================
+
+func TestStringsCount(t *testing.T) {
+	fn := StringsBuiltins["strings.count"].Fn
+
+	tests := []struct {
+		name     string
+		str      string
+		substr   string
+		expected int64
+	}{
+		{"multiple occurrences", "hello hello hello", "hello", 3},
+		{"single occurrence", "hello world", "world", 1},
+		{"no occurrences", "hello world", "xyz", 0},
+		{"overlapping not counted", "aaa", "aa", 1},
+		{"empty substr", "hello", "", 6}, // strings.Count returns len+1 for empty sep
+		{"single char", "banana", "a", 3},
+		{"unicode", "世界世界世", "世", 3},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := fn(makeString(tt.str), makeString(tt.substr))
+			intResult, ok := result.(*object.Integer)
+			if !ok {
+				t.Fatalf("expected Integer, got %T", result)
+			}
+			if intResult.Value.Int64() != tt.expected {
+				t.Errorf("count(%q, %q) = %d, want %d", tt.str, tt.substr, intResult.Value.Int64(), tt.expected)
+			}
+		})
+	}
+
+	// Test wrong argument count
+	t.Run("wrong argument count", func(t *testing.T) {
+		result := fn(makeString("hello"))
+		if _, ok := result.(*object.Error); !ok {
+			t.Error("expected error for wrong argument count")
+		}
+	})
+
+	// Test wrong types
+	t.Run("wrong type first arg", func(t *testing.T) {
+		result := fn(makeInt(42), makeString("hello"))
+		if _, ok := result.(*object.Error); !ok {
+			t.Error("expected error for wrong type")
+		}
+	})
+
+	t.Run("wrong type second arg", func(t *testing.T) {
+		result := fn(makeString("hello"), makeInt(42))
+		if _, ok := result.(*object.Error); !ok {
+			t.Error("expected error for wrong type")
+		}
+	})
+}

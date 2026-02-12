@@ -350,3 +350,450 @@ func TestBinaryWrongArgCount(t *testing.T) {
 		t.Error("encode_i32_to_little_endian() with 2 args should return error")
 	}
 }
+
+func TestBinaryEncodeDecodeI16LE(t *testing.T) {
+	tests := []struct {
+		input int64
+	}{
+		{0}, {1}, {-1}, {32767}, {-32768},
+	}
+	for _, tt := range tests {
+		encodeResult := BinaryBuiltins["binary.encode_i16_to_little_endian"].Fn(&object.Integer{Value: big.NewInt(tt.input)})
+		bytes := extractBytesFromReturn(t, encodeResult)
+		if len(bytes) != 2 {
+			t.Fatalf("encode_i16_to_little_endian(%d): expected 2 bytes, got %d", tt.input, len(bytes))
+		}
+		decodeResult := BinaryBuiltins["binary.decode_i16_from_little_endian"].Fn(makeBinaryByteArray(bytes))
+		val := extractIntFromReturn(t, decodeResult)
+		if val.Int64() != tt.input {
+			t.Errorf("i16 LE round-trip(%d): got %d", tt.input, val.Int64())
+		}
+	}
+}
+
+func TestBinaryEncodeDecodeI16BE(t *testing.T) {
+	tests := []struct {
+		input int64
+	}{
+		{0}, {1}, {-1}, {32767}, {-32768},
+	}
+	for _, tt := range tests {
+		encodeResult := BinaryBuiltins["binary.encode_i16_to_big_endian"].Fn(&object.Integer{Value: big.NewInt(tt.input)})
+		bytes := extractBytesFromReturn(t, encodeResult)
+		if len(bytes) != 2 {
+			t.Fatalf("encode_i16_to_big_endian(%d): expected 2 bytes, got %d", tt.input, len(bytes))
+		}
+		decodeResult := BinaryBuiltins["binary.decode_i16_from_big_endian"].Fn(makeBinaryByteArray(bytes))
+		val := extractIntFromReturn(t, decodeResult)
+		if val.Int64() != tt.input {
+			t.Errorf("i16 BE round-trip(%d): got %d", tt.input, val.Int64())
+		}
+	}
+}
+
+func TestBinaryEncodeDecodeU16LE(t *testing.T) {
+	tests := []uint64{0, 1, 65535}
+	for _, input := range tests {
+		encodeResult := BinaryBuiltins["binary.encode_u16_to_little_endian"].Fn(&object.Integer{Value: new(big.Int).SetUint64(input)})
+		bytes := extractBytesFromReturn(t, encodeResult)
+		if len(bytes) != 2 {
+			t.Fatalf("encode_u16_to_little_endian(%d): expected 2 bytes, got %d", input, len(bytes))
+		}
+		decodeResult := BinaryBuiltins["binary.decode_u16_from_little_endian"].Fn(makeBinaryByteArray(bytes))
+		val := extractIntFromReturn(t, decodeResult)
+		if val.Uint64() != input {
+			t.Errorf("u16 LE round-trip(%d): got %d", input, val.Uint64())
+		}
+	}
+}
+
+func TestBinaryEncodeDecodeU16BE(t *testing.T) {
+	tests := []uint64{0, 1, 65535}
+	for _, input := range tests {
+		encodeResult := BinaryBuiltins["binary.encode_u16_to_big_endian"].Fn(&object.Integer{Value: new(big.Int).SetUint64(input)})
+		bytes := extractBytesFromReturn(t, encodeResult)
+		if len(bytes) != 2 {
+			t.Fatalf("encode_u16_to_big_endian(%d): expected 2 bytes, got %d", input, len(bytes))
+		}
+		decodeResult := BinaryBuiltins["binary.decode_u16_from_big_endian"].Fn(makeBinaryByteArray(bytes))
+		val := extractIntFromReturn(t, decodeResult)
+		if val.Uint64() != input {
+			t.Errorf("u16 BE round-trip(%d): got %d", input, val.Uint64())
+		}
+	}
+}
+
+func TestBinaryEncodeDecodeU32LE(t *testing.T) {
+	tests := []uint64{0, 1, 4294967295}
+	for _, input := range tests {
+		encodeResult := BinaryBuiltins["binary.encode_u32_to_little_endian"].Fn(&object.Integer{Value: new(big.Int).SetUint64(input)})
+		bytes := extractBytesFromReturn(t, encodeResult)
+		if len(bytes) != 4 {
+			t.Fatalf("encode_u32_to_little_endian(%d): expected 4 bytes, got %d", input, len(bytes))
+		}
+		decodeResult := BinaryBuiltins["binary.decode_u32_from_little_endian"].Fn(makeBinaryByteArray(bytes))
+		val := extractIntFromReturn(t, decodeResult)
+		if val.Uint64() != input {
+			t.Errorf("u32 LE round-trip(%d): got %d", input, val.Uint64())
+		}
+	}
+}
+
+func TestBinaryEncodeDecodeU32BE(t *testing.T) {
+	tests := []uint64{0, 1, 4294967295}
+	for _, input := range tests {
+		encodeResult := BinaryBuiltins["binary.encode_u32_to_big_endian"].Fn(&object.Integer{Value: new(big.Int).SetUint64(input)})
+		bytes := extractBytesFromReturn(t, encodeResult)
+		if len(bytes) != 4 {
+			t.Fatalf("encode_u32_to_big_endian(%d): expected 4 bytes, got %d", input, len(bytes))
+		}
+		decodeResult := BinaryBuiltins["binary.decode_u32_from_big_endian"].Fn(makeBinaryByteArray(bytes))
+		val := extractIntFromReturn(t, decodeResult)
+		if val.Uint64() != input {
+			t.Errorf("u32 BE round-trip(%d): got %d", input, val.Uint64())
+		}
+	}
+}
+
+func TestBinaryEncodeDecodeI64LE(t *testing.T) {
+	tests := []int64{0, 1, -1, 9223372036854775807, -9223372036854775808}
+	for _, input := range tests {
+		encodeResult := BinaryBuiltins["binary.encode_i64_to_little_endian"].Fn(&object.Integer{Value: big.NewInt(input)})
+		bytes := extractBytesFromReturn(t, encodeResult)
+		if len(bytes) != 8 {
+			t.Fatalf("encode_i64_to_little_endian(%d): expected 8 bytes, got %d", input, len(bytes))
+		}
+		decodeResult := BinaryBuiltins["binary.decode_i64_from_little_endian"].Fn(makeBinaryByteArray(bytes))
+		val := extractIntFromReturn(t, decodeResult)
+		if val.Int64() != input {
+			t.Errorf("i64 LE round-trip(%d): got %d", input, val.Int64())
+		}
+	}
+}
+
+func TestBinaryEncodeDecodeI64BE(t *testing.T) {
+	tests := []int64{0, 1, -1, 9223372036854775807, -9223372036854775808}
+	for _, input := range tests {
+		encodeResult := BinaryBuiltins["binary.encode_i64_to_big_endian"].Fn(&object.Integer{Value: big.NewInt(input)})
+		bytes := extractBytesFromReturn(t, encodeResult)
+		if len(bytes) != 8 {
+			t.Fatalf("encode_i64_to_big_endian(%d): expected 8 bytes, got %d", input, len(bytes))
+		}
+		decodeResult := BinaryBuiltins["binary.decode_i64_from_big_endian"].Fn(makeBinaryByteArray(bytes))
+		val := extractIntFromReturn(t, decodeResult)
+		if val.Int64() != input {
+			t.Errorf("i64 BE round-trip(%d): got %d", input, val.Int64())
+		}
+	}
+}
+
+func TestBinaryEncodeDecodeU64BE(t *testing.T) {
+	tests := []uint64{0, 1, 18446744073709551615}
+	for _, input := range tests {
+		encodeResult := BinaryBuiltins["binary.encode_u64_to_big_endian"].Fn(&object.Integer{Value: new(big.Int).SetUint64(input)})
+		bytes := extractBytesFromReturn(t, encodeResult)
+		if len(bytes) != 8 {
+			t.Fatalf("encode_u64_to_big_endian(%d): expected 8 bytes, got %d", input, len(bytes))
+		}
+		decodeResult := BinaryBuiltins["binary.decode_u64_from_big_endian"].Fn(makeBinaryByteArray(bytes))
+		val := extractIntFromReturn(t, decodeResult)
+		if val.Uint64() != input {
+			t.Errorf("u64 BE round-trip(%d): got %d", input, val.Uint64())
+		}
+	}
+}
+
+func TestBinaryEncodeDecodeI128BE(t *testing.T) {
+	// Zero
+	encodeResult := BinaryBuiltins["binary.encode_i128_to_big_endian"].Fn(&object.Integer{Value: big.NewInt(0)})
+	bytes := extractBytesFromReturn(t, encodeResult)
+	if len(bytes) != 16 {
+		t.Fatalf("encode_i128_to_big_endian(0): expected 16 bytes, got %d", len(bytes))
+	}
+	decodeResult := BinaryBuiltins["binary.decode_i128_from_big_endian"].Fn(makeBinaryByteArray(bytes))
+	val := extractIntFromReturn(t, decodeResult)
+	if val.Cmp(big.NewInt(0)) != 0 {
+		t.Errorf("i128 BE round-trip(0): got %s", val.String())
+	}
+
+	// Positive
+	posVal := big.NewInt(99999999999999)
+	encodeResult = BinaryBuiltins["binary.encode_i128_to_big_endian"].Fn(&object.Integer{Value: posVal})
+	bytes = extractBytesFromReturn(t, encodeResult)
+	decodeResult = BinaryBuiltins["binary.decode_i128_from_big_endian"].Fn(makeBinaryByteArray(bytes))
+	val = extractIntFromReturn(t, decodeResult)
+	if val.Cmp(posVal) != 0 {
+		t.Errorf("i128 BE round-trip(pos): expected %s, got %s", posVal.String(), val.String())
+	}
+
+	// Negative
+	negVal := big.NewInt(-99999999999999)
+	encodeResult = BinaryBuiltins["binary.encode_i128_to_big_endian"].Fn(&object.Integer{Value: negVal})
+	bytes = extractBytesFromReturn(t, encodeResult)
+	decodeResult = BinaryBuiltins["binary.decode_i128_from_big_endian"].Fn(makeBinaryByteArray(bytes))
+	val = extractIntFromReturn(t, decodeResult)
+	if val.Cmp(negVal) != 0 {
+		t.Errorf("i128 BE round-trip(neg): expected %s, got %s", negVal.String(), val.String())
+	}
+}
+
+func TestBinaryEncodeDecodeU128LE(t *testing.T) {
+	// Zero
+	encodeResult := BinaryBuiltins["binary.encode_u128_to_little_endian"].Fn(&object.Integer{Value: big.NewInt(0)})
+	bytes := extractBytesFromReturn(t, encodeResult)
+	if len(bytes) != 16 {
+		t.Fatalf("encode_u128_to_little_endian(0): expected 16 bytes, got %d", len(bytes))
+	}
+	decodeResult := BinaryBuiltins["binary.decode_u128_from_little_endian"].Fn(makeBinaryByteArray(bytes))
+	val := extractIntFromReturn(t, decodeResult)
+	if val.Cmp(big.NewInt(0)) != 0 {
+		t.Errorf("u128 LE round-trip(0): got %s", val.String())
+	}
+
+	// Large positive
+	posVal := new(big.Int).SetUint64(18446744073709551615)
+	encodeResult = BinaryBuiltins["binary.encode_u128_to_little_endian"].Fn(&object.Integer{Value: posVal})
+	bytes = extractBytesFromReturn(t, encodeResult)
+	decodeResult = BinaryBuiltins["binary.decode_u128_from_little_endian"].Fn(makeBinaryByteArray(bytes))
+	val = extractIntFromReturn(t, decodeResult)
+	if val.Cmp(posVal) != 0 {
+		t.Errorf("u128 LE round-trip(max u64): expected %s, got %s", posVal.String(), val.String())
+	}
+}
+
+func TestBinaryEncodeDecodeU128BE(t *testing.T) {
+	// Zero
+	encodeResult := BinaryBuiltins["binary.encode_u128_to_big_endian"].Fn(&object.Integer{Value: big.NewInt(0)})
+	bytes := extractBytesFromReturn(t, encodeResult)
+	if len(bytes) != 16 {
+		t.Fatalf("encode_u128_to_big_endian(0): expected 16 bytes, got %d", len(bytes))
+	}
+	decodeResult := BinaryBuiltins["binary.decode_u128_from_big_endian"].Fn(makeBinaryByteArray(bytes))
+	val := extractIntFromReturn(t, decodeResult)
+	if val.Cmp(big.NewInt(0)) != 0 {
+		t.Errorf("u128 BE round-trip(0): got %s", val.String())
+	}
+
+	// Large positive
+	posVal := new(big.Int).SetUint64(18446744073709551615)
+	encodeResult = BinaryBuiltins["binary.encode_u128_to_big_endian"].Fn(&object.Integer{Value: posVal})
+	bytes = extractBytesFromReturn(t, encodeResult)
+	decodeResult = BinaryBuiltins["binary.decode_u128_from_big_endian"].Fn(makeBinaryByteArray(bytes))
+	val = extractIntFromReturn(t, decodeResult)
+	if val.Cmp(posVal) != 0 {
+		t.Errorf("u128 BE round-trip(max u64): expected %s, got %s", posVal.String(), val.String())
+	}
+}
+
+func TestBinaryEncodeDecodeI256LE(t *testing.T) {
+	// Zero
+	encodeResult := BinaryBuiltins["binary.encode_i256_to_little_endian"].Fn(&object.Integer{Value: big.NewInt(0)})
+	bytes := extractBytesFromReturn(t, encodeResult)
+	if len(bytes) != 32 {
+		t.Fatalf("encode_i256_to_little_endian(0): expected 32 bytes, got %d", len(bytes))
+	}
+	decodeResult := BinaryBuiltins["binary.decode_i256_from_little_endian"].Fn(makeBinaryByteArray(bytes))
+	val := extractIntFromReturn(t, decodeResult)
+	if val.Cmp(big.NewInt(0)) != 0 {
+		t.Errorf("i256 LE round-trip(0): got %s", val.String())
+	}
+
+	// Positive
+	posVal := big.NewInt(123456789012345)
+	encodeResult = BinaryBuiltins["binary.encode_i256_to_little_endian"].Fn(&object.Integer{Value: posVal})
+	bytes = extractBytesFromReturn(t, encodeResult)
+	decodeResult = BinaryBuiltins["binary.decode_i256_from_little_endian"].Fn(makeBinaryByteArray(bytes))
+	val = extractIntFromReturn(t, decodeResult)
+	if val.Cmp(posVal) != 0 {
+		t.Errorf("i256 LE round-trip(pos): expected %s, got %s", posVal.String(), val.String())
+	}
+
+	// Negative
+	negVal := big.NewInt(-123456789012345)
+	encodeResult = BinaryBuiltins["binary.encode_i256_to_little_endian"].Fn(&object.Integer{Value: negVal})
+	bytes = extractBytesFromReturn(t, encodeResult)
+	decodeResult = BinaryBuiltins["binary.decode_i256_from_little_endian"].Fn(makeBinaryByteArray(bytes))
+	val = extractIntFromReturn(t, decodeResult)
+	if val.Cmp(negVal) != 0 {
+		t.Errorf("i256 LE round-trip(neg): expected %s, got %s", negVal.String(), val.String())
+	}
+}
+
+func TestBinaryEncodeDecodeI256BE(t *testing.T) {
+	// Zero
+	encodeResult := BinaryBuiltins["binary.encode_i256_to_big_endian"].Fn(&object.Integer{Value: big.NewInt(0)})
+	bytes := extractBytesFromReturn(t, encodeResult)
+	if len(bytes) != 32 {
+		t.Fatalf("encode_i256_to_big_endian(0): expected 32 bytes, got %d", len(bytes))
+	}
+	decodeResult := BinaryBuiltins["binary.decode_i256_from_big_endian"].Fn(makeBinaryByteArray(bytes))
+	val := extractIntFromReturn(t, decodeResult)
+	if val.Cmp(big.NewInt(0)) != 0 {
+		t.Errorf("i256 BE round-trip(0): got %s", val.String())
+	}
+
+	// Positive
+	posVal := big.NewInt(123456789012345)
+	encodeResult = BinaryBuiltins["binary.encode_i256_to_big_endian"].Fn(&object.Integer{Value: posVal})
+	bytes = extractBytesFromReturn(t, encodeResult)
+	decodeResult = BinaryBuiltins["binary.decode_i256_from_big_endian"].Fn(makeBinaryByteArray(bytes))
+	val = extractIntFromReturn(t, decodeResult)
+	if val.Cmp(posVal) != 0 {
+		t.Errorf("i256 BE round-trip(pos): expected %s, got %s", posVal.String(), val.String())
+	}
+
+	// Negative
+	negVal := big.NewInt(-123456789012345)
+	encodeResult = BinaryBuiltins["binary.encode_i256_to_big_endian"].Fn(&object.Integer{Value: negVal})
+	bytes = extractBytesFromReturn(t, encodeResult)
+	decodeResult = BinaryBuiltins["binary.decode_i256_from_big_endian"].Fn(makeBinaryByteArray(bytes))
+	val = extractIntFromReturn(t, decodeResult)
+	if val.Cmp(negVal) != 0 {
+		t.Errorf("i256 BE round-trip(neg): expected %s, got %s", negVal.String(), val.String())
+	}
+}
+
+func TestBinaryEncodeDecodeU256LE(t *testing.T) {
+	// Zero
+	encodeResult := BinaryBuiltins["binary.encode_u256_to_little_endian"].Fn(&object.Integer{Value: big.NewInt(0)})
+	bytes := extractBytesFromReturn(t, encodeResult)
+	if len(bytes) != 32 {
+		t.Fatalf("encode_u256_to_little_endian(0): expected 32 bytes, got %d", len(bytes))
+	}
+	decodeResult := BinaryBuiltins["binary.decode_u256_from_little_endian"].Fn(makeBinaryByteArray(bytes))
+	val := extractIntFromReturn(t, decodeResult)
+	if val.Cmp(big.NewInt(0)) != 0 {
+		t.Errorf("u256 LE round-trip(0): got %s", val.String())
+	}
+
+	// Large positive
+	posVal := new(big.Int).SetUint64(18446744073709551615)
+	encodeResult = BinaryBuiltins["binary.encode_u256_to_little_endian"].Fn(&object.Integer{Value: posVal})
+	bytes = extractBytesFromReturn(t, encodeResult)
+	decodeResult = BinaryBuiltins["binary.decode_u256_from_little_endian"].Fn(makeBinaryByteArray(bytes))
+	val = extractIntFromReturn(t, decodeResult)
+	if val.Cmp(posVal) != 0 {
+		t.Errorf("u256 LE round-trip(max u64): expected %s, got %s", posVal.String(), val.String())
+	}
+}
+
+func TestBinaryEncodeDecodeU256BE(t *testing.T) {
+	// Zero
+	encodeResult := BinaryBuiltins["binary.encode_u256_to_big_endian"].Fn(&object.Integer{Value: big.NewInt(0)})
+	bytes := extractBytesFromReturn(t, encodeResult)
+	if len(bytes) != 32 {
+		t.Fatalf("encode_u256_to_big_endian(0): expected 32 bytes, got %d", len(bytes))
+	}
+	decodeResult := BinaryBuiltins["binary.decode_u256_from_big_endian"].Fn(makeBinaryByteArray(bytes))
+	val := extractIntFromReturn(t, decodeResult)
+	if val.Cmp(big.NewInt(0)) != 0 {
+		t.Errorf("u256 BE round-trip(0): got %s", val.String())
+	}
+
+	// Large positive
+	posVal := new(big.Int).SetUint64(18446744073709551615)
+	encodeResult = BinaryBuiltins["binary.encode_u256_to_big_endian"].Fn(&object.Integer{Value: posVal})
+	bytes = extractBytesFromReturn(t, encodeResult)
+	decodeResult = BinaryBuiltins["binary.decode_u256_from_big_endian"].Fn(makeBinaryByteArray(bytes))
+	val = extractIntFromReturn(t, decodeResult)
+	if val.Cmp(posVal) != 0 {
+		t.Errorf("u256 BE round-trip(max u64): expected %s, got %s", posVal.String(), val.String())
+	}
+}
+
+func TestBinaryEncodeDecodeF32BE(t *testing.T) {
+	tests := []float32{0.0, 1.0, -1.0, 3.14159, float32(math.MaxFloat32)}
+	for _, input := range tests {
+		encodeResult := BinaryBuiltins["binary.encode_f32_to_big_endian"].Fn(&object.Float{Value: float64(input)})
+		bytes := extractBytesFromReturn(t, encodeResult)
+		if len(bytes) != 4 {
+			t.Fatalf("encode_f32_to_big_endian(%f): expected 4 bytes, got %d", input, len(bytes))
+		}
+		decodeResult := BinaryBuiltins["binary.decode_f32_from_big_endian"].Fn(makeBinaryByteArray(bytes))
+		val := extractFloatFromReturn(t, decodeResult)
+		if float32(val) != input {
+			t.Errorf("f32 BE round-trip(%f): got %f", input, val)
+		}
+	}
+}
+
+func TestBinaryEncodeDecodeF64BE(t *testing.T) {
+	tests := []float64{0.0, 1.0, -1.0, 3.141592653589793, math.MaxFloat64}
+	for _, input := range tests {
+		encodeResult := BinaryBuiltins["binary.encode_f64_to_big_endian"].Fn(&object.Float{Value: input})
+		bytes := extractBytesFromReturn(t, encodeResult)
+		if len(bytes) != 8 {
+			t.Fatalf("encode_f64_to_big_endian(%f): expected 8 bytes, got %d", input, len(bytes))
+		}
+		decodeResult := BinaryBuiltins["binary.decode_f64_from_big_endian"].Fn(makeBinaryByteArray(bytes))
+		val := extractFloatFromReturn(t, decodeResult)
+		if val != input {
+			t.Errorf("f64 BE round-trip(%f): got %f", input, val)
+		}
+	}
+}
+
+func TestBinaryWrongType(t *testing.T) {
+	wrongArg := &object.String{Value: "not a number"}
+
+	encodeFuncs := []string{
+		"binary.encode_i16_to_little_endian",
+		"binary.encode_u16_to_little_endian",
+		"binary.encode_i32_to_little_endian",
+		"binary.encode_u32_to_little_endian",
+		"binary.encode_i64_to_little_endian",
+		"binary.encode_u64_to_little_endian",
+		"binary.encode_f32_to_little_endian",
+		"binary.encode_f64_to_little_endian",
+	}
+
+	for _, name := range encodeFuncs {
+		result := BinaryBuiltins[name].Fn(wrongArg)
+		// Should return an *object.Error for wrong type
+		if _, ok := result.(*object.Error); !ok {
+			t.Errorf("%s with string arg: expected *object.Error, got %T", name, result)
+		}
+	}
+}
+
+func TestBinaryDecodeWrongLengths(t *testing.T) {
+	oneByteArr := makeBinaryByteArray([]byte{0x00})
+
+	decodeFuncs := []string{
+		"binary.decode_i16_from_little_endian",
+		"binary.decode_u16_from_little_endian",
+		"binary.decode_i16_from_big_endian",
+		"binary.decode_u16_from_big_endian",
+		"binary.decode_i32_from_big_endian",
+		"binary.decode_u32_from_little_endian",
+		"binary.decode_u32_from_big_endian",
+		"binary.decode_i64_from_little_endian",
+		"binary.decode_i64_from_big_endian",
+		"binary.decode_u64_from_little_endian",
+		"binary.decode_u64_from_big_endian",
+		"binary.decode_f32_from_little_endian",
+		"binary.decode_f32_from_big_endian",
+		"binary.decode_f64_from_little_endian",
+		"binary.decode_f64_from_big_endian",
+		"binary.decode_i128_from_little_endian",
+		"binary.decode_i128_from_big_endian",
+		"binary.decode_u128_from_little_endian",
+		"binary.decode_u128_from_big_endian",
+		"binary.decode_i256_from_little_endian",
+		"binary.decode_i256_from_big_endian",
+		"binary.decode_u256_from_little_endian",
+		"binary.decode_u256_from_big_endian",
+	}
+
+	for _, name := range decodeFuncs {
+		result := BinaryBuiltins[name].Fn(oneByteArr)
+		rv, ok := result.(*object.ReturnValue)
+		if !ok {
+			t.Errorf("%s: expected ReturnValue, got %T", name, result)
+			continue
+		}
+		if rv.Values[1] == object.NIL {
+			t.Errorf("%s with 1 byte: expected error in tuple, got nil", name)
+		}
+	}
+}
