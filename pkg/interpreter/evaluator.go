@@ -329,16 +329,26 @@ func Eval(node ast.Node, env *Environment, ctx *EvalContext) Object {
 		}
 		// Check for uncaptured return values from function calls
 		if call, ok := node.Expression.(*ast.CallExpression); ok {
-			if fn, ok := result.(*ReturnValue); ok && len(fn.Values) > 0 {
-				return newErrorWithLocation("E4009", call.Token.Line, call.Token.Column,
-					"return value from function not used (use _ to discard)")
+			if retVal, ok := result.(*ReturnValue); ok && len(retVal.Values) > 0 {
+				if len(retVal.Values) == 1 {
+					return newErrorWithLocation("E5011", call.Token.Line, call.Token.Column,
+						"return value from function not used (use `temp _ = func()` to discard)")
+				}
+				return newErrorWithLocation("E5011", call.Token.Line, call.Token.Column,
+					"return values from function not used (use `temp %s = func()` to discard)",
+					generateBlankPattern(len(retVal.Values)))
 			}
 			// Also check if the function has declared return types but result is not NIL
 			if result != NIL {
 				// Check if it's a user function with return types
 				if fnObj := getFunctionObject(call, env); fnObj != nil && len(fnObj.ReturnTypes) > 0 {
-					return newErrorWithLocation("E4009", call.Token.Line, call.Token.Column,
-						"return value from function not used (use _ to discard)")
+					if len(fnObj.ReturnTypes) == 1 {
+						return newErrorWithLocation("E5011", call.Token.Line, call.Token.Column,
+							"return value from function not used (use `temp _ = func()` to discard)")
+					}
+					return newErrorWithLocation("E5011", call.Token.Line, call.Token.Column,
+						"return values from function not used (use `temp %s = func()` to discard)",
+						generateBlankPattern(len(fnObj.ReturnTypes)))
 				}
 			}
 		}
@@ -4113,6 +4123,18 @@ func getFunctionObject(call *ast.CallExpression, env *Environment) *Function {
 		}
 	}
 	return nil
+}
+
+// generateBlankPattern creates a pattern like "_, _" or "_, _, _" for error messages
+func generateBlankPattern(count int) string {
+	if count <= 0 {
+		return "_"
+	}
+	blanks := make([]string, count)
+	for i := range blanks {
+		blanks[i] = "_"
+	}
+	return strings.Join(blanks, ", ")
 }
 
 func newError(format string, a ...interface{}) *Error {
