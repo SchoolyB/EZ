@@ -1281,7 +1281,7 @@ func (tc *TypeChecker) checkGlobalVariableDeclaration(node *ast.VariableDeclarat
 					if tc.isArrayType(declaredType) && !tc.isArrayType(actualType) && actualType != "nil" {
 						tc.addError(
 							errors.E3018,
-							fmt.Sprintf("cannot assign %s to array type %s - array type requires value in {} format", errors.TypeGot(actualType), errors.TypeExpected(declaredType)),
+							fmt.Sprintf("cannot assign %s to array type %s - array type requires value in {} format", errors.TypeGot(tc.typeOrUnknown(actualType)), errors.TypeExpected(declaredType)),
 							name.Token.Line,
 							name.Token.Column,
 						)
@@ -2437,7 +2437,7 @@ func (tc *TypeChecker) checkVariableDeclaration(decl *ast.VariableDeclaration) {
 			if tc.isArrayType(declaredType) && !tc.isArrayType(actualType) && actualType != "nil" {
 				tc.addError(
 					errors.E3018,
-					fmt.Sprintf("cannot assign %s to array type %s - array type requires value in {} format", errors.TypeGot(actualType), errors.TypeExpected(declaredType)),
+					fmt.Sprintf("cannot assign %s to array type %s - array type requires value in {} format", errors.TypeGot(tc.typeOrUnknown(actualType)), errors.TypeExpected(declaredType)),
 					decl.Name.Token.Line,
 					decl.Name.Token.Column,
 				)
@@ -4870,6 +4870,14 @@ func (tc *TypeChecker) checkLoopStatement(loopStmt *ast.LoopStatement, expectedR
 // isArrayType checks if a type string represents an array type
 func (tc *TypeChecker) isArrayType(typeName string) bool {
 	return len(typeName) >= 2 && typeName[0] == '[' && typeName[len(typeName)-1] == ']'
+}
+
+// typeOrUnknown returns the type name or "unknown" if empty.
+func (tc *TypeChecker) typeOrUnknown(typeName string) string {
+	if typeName == "" {
+		return "unknown"
+	}
+	return typeName
 }
 
 // isMapType checks if a type string represents a map type
@@ -8927,7 +8935,7 @@ func (tc *TypeChecker) checkJsonModuleCall(funcName string, call *ast.CallExpres
 	if funcName == "decode" && len(call.Arguments) == 1 {
 		tc.addError(
 			errors.E13004,
-			"json.decode() requires a type argument: json.decode(text, Type)",
+			"json.decode() requires a struct type as second argument: json.decode(text, StructType)",
 			line,
 			column,
 		)
