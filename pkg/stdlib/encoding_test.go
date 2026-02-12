@@ -325,9 +325,9 @@ func TestURLDecodeInvalid(t *testing.T) {
 	decodeFn := EncodingBuiltins["encoding.url_decode"].Fn
 
 	invalidInputs := []string{
-		"%",    // incomplete escape
-		"%x",   // incomplete escape
-		"%zz",  // invalid hex
+		"%",   // incomplete escape
+		"%x",  // incomplete escape
+		"%zz", // invalid hex
 	}
 
 	for _, input := range invalidInputs {
