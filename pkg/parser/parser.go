@@ -907,7 +907,7 @@ func (p *Parser) parseStatement() Statement {
 			case *Label, *IndexExpression, *MemberExpression:
 				// Valid assignment targets
 			default:
-				msg := fmt.Sprintf("invalid assignment target: cannot assign to %T", expr)
+				msg := fmt.Sprintf("invalid assignment target: cannot assign to %s", describeExpression(expr))
 				p.addEZError(errors.E2008, msg, p.currentToken)
 			}
 
@@ -4050,4 +4050,36 @@ func isNoReturnCall(call *CallExpression) bool {
 	}
 
 	return false
+}
+
+// describeExpression returns a user-friendly description of an expression type
+func describeExpression(expr Expression) string {
+	switch expr.(type) {
+	case *CallExpression:
+		return "function call"
+	case *IntegerValue:
+		return "integer literal"
+	case *FloatValue:
+		return "float literal"
+	case *StringValue:
+		return "string literal"
+	case *BooleanValue:
+		return "boolean literal"
+	case *ArrayValue:
+		return "array literal"
+	case *MapValue:
+		return "map literal"
+	case *StructValue:
+		return "struct literal"
+	case *InfixExpression:
+		return "expression"
+	case *PrefixExpression:
+		return "expression"
+	case *RangeExpression:
+		return "range expression"
+	case *NilValue:
+		return "nil"
+	default:
+		return "expression"
+	}
 }
