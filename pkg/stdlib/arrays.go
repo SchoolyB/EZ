@@ -9,6 +9,7 @@ import (
 	"math/rand"
 	"sort"
 
+	"github.com/marshallburns/ez/pkg/errors"
 	"github.com/marshallburns/ez/pkg/object"
 )
 
@@ -17,7 +18,7 @@ func checkIterating(arr *object.Array, funcName string) *object.Error {
 	if arr.IsIterating() {
 		return &object.Error{
 			Code:    "E9006",
-			Message: fmt.Sprintf("%s() cannot modify array during for_each iteration", funcName),
+			Message: fmt.Sprintf("%s() cannot modify array during for_each iteration", errors.Ident(funcName)),
 		}
 	}
 	return nil
