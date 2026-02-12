@@ -9,6 +9,7 @@ import (
 	"regexp"
 	"strings"
 
+	"github.com/marshallburns/ez/pkg/errors"
 	"github.com/marshallburns/ez/pkg/object"
 )
 
@@ -22,7 +23,7 @@ var UUIDBuiltins = map[string]*object.Builtin{
 	"uuid.create": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 0 {
-				return &object.Error{Code: "E7001", Message: "uuid.create() takes no arguments"}
+				return &object.Error{Code: "E7001", Message: fmt.Sprintf("%s takes no arguments", errors.Ident("uuid.create()"))}
 			}
 
 			uuid, err := generateUUIDv4()
@@ -39,7 +40,7 @@ var UUIDBuiltins = map[string]*object.Builtin{
 	"uuid.create_compact": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 0 {
-				return &object.Error{Code: "E7001", Message: "uuid.create_compact() takes no arguments"}
+				return &object.Error{Code: "E7001", Message: fmt.Sprintf("%s takes no arguments", errors.Ident("uuid.create_compact()"))}
 			}
 
 			uuid, err := generateUUIDv4()
@@ -58,12 +59,12 @@ var UUIDBuiltins = map[string]*object.Builtin{
 	"uuid.is_valid": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 1 {
-				return &object.Error{Code: "E7001", Message: "uuid.is_valid() takes exactly 1 argument"}
+				return &object.Error{Code: "E7001", Message: fmt.Sprintf("%s takes exactly 1 argument", errors.Ident("uuid.is_valid()"))}
 			}
 
 			str, ok := args[0].(*object.String)
 			if !ok {
-				return &object.Error{Code: "E7002", Message: "uuid.is_valid() requires a string argument"}
+				return &object.Error{Code: "E7002", Message: fmt.Sprintf("%s requires a %s argument", errors.Ident("uuid.is_valid()"), errors.TypeExpected("string"))}
 			}
 
 			if uuidPattern.MatchString(str.Value) {
@@ -77,7 +78,7 @@ var UUIDBuiltins = map[string]*object.Builtin{
 	"uuid.NIL": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 0 {
-				return &object.Error{Code: "E7001", Message: "uuid.NIL takes no arguments"}
+				return &object.Error{Code: "E7001", Message: fmt.Sprintf("%s takes no arguments", errors.Ident("uuid.NIL"))}
 			}
 			return &object.String{Value: "00000000-0000-0000-0000-000000000000"}
 		},

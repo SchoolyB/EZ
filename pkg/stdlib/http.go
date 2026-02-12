@@ -2,6 +2,7 @@ package stdlib
 
 import (
 	"bytes"
+	"fmt"
 	"io"
 	"math/big"
 	"net/http"
@@ -10,6 +11,7 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/marshallburns/ez/pkg/errors"
 	"github.com/marshallburns/ez/pkg/object"
 )
 
@@ -46,12 +48,12 @@ var HttpBuiltins = map[string]*object.Builtin{
 	"http.get": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 1 {
-				return &object.Error{Code: "E7001", Message: "http.get() takes exactly 1 argument"}
+				return &object.Error{Code: "E7001", Message: fmt.Sprintf("%s takes exactly 1 argument", errors.Ident("http.get()"))}
 			}
 
 			urlArg, ok := args[0].(*object.String)
 			if !ok {
-				return &object.Error{Code: "E7003", Message: "http.get() requires a string argument"}
+				return &object.Error{Code: "E7003", Message: fmt.Sprintf("%s requires a %s argument", errors.Ident("http.get()"), errors.TypeExpected("string"))}
 			}
 
 			if _, err := url.ParseRequestURI(urlArg.Value); err != nil {
@@ -114,17 +116,17 @@ var HttpBuiltins = map[string]*object.Builtin{
 	"http.post": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 2 {
-				return &object.Error{Code: "E7001", Message: "http.post() takes exactly 2 arguments"}
+				return &object.Error{Code: "E7001", Message: fmt.Sprintf("%s takes exactly 2 arguments", errors.Ident("http.post()"))}
 			}
 
 			urlArg, ok := args[0].(*object.String)
 			if !ok {
-				return &object.Error{Code: "E7003", Message: "http.post() requires a string argument"}
+				return &object.Error{Code: "E7003", Message: fmt.Sprintf("%s requires a %s argument", errors.Ident("http.post()"), errors.TypeExpected("string"))}
 			}
 
 			body, ok := args[1].(*object.String)
 			if !ok {
-				return &object.Error{Code: "E7003", Message: "http.post() requires a string argument"}
+				return &object.Error{Code: "E7003", Message: fmt.Sprintf("%s requires a %s argument", errors.Ident("http.post()"), errors.TypeExpected("string"))}
 			}
 
 			if _, err := url.ParseRequestURI(urlArg.Value); err != nil {
@@ -187,17 +189,17 @@ var HttpBuiltins = map[string]*object.Builtin{
 	"http.put": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 2 {
-				return &object.Error{Code: "E7001", Message: "http.put() takes exactly 2 arguments"}
+				return &object.Error{Code: "E7001", Message: fmt.Sprintf("%s takes exactly 2 arguments", errors.Ident("http.put()"))}
 			}
 
 			urlArg, ok := args[0].(*object.String)
 			if !ok {
-				return &object.Error{Code: "E7003", Message: "http.put() requires a string argument"}
+				return &object.Error{Code: "E7003", Message: fmt.Sprintf("%s requires a %s argument", errors.Ident("http.put()"), errors.TypeExpected("string"))}
 			}
 
 			body, ok := args[1].(*object.String)
 			if !ok {
-				return &object.Error{Code: "E7003", Message: "http.put() requires a string argument"}
+				return &object.Error{Code: "E7003", Message: fmt.Sprintf("%s requires a %s argument", errors.Ident("http.put()"), errors.TypeExpected("string"))}
 			}
 
 			if _, err := url.ParseRequestURI(urlArg.Value); err != nil {
@@ -260,12 +262,12 @@ var HttpBuiltins = map[string]*object.Builtin{
 	"http.delete": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 1 {
-				return &object.Error{Code: "E7001", Message: "http.delete() takes exactly 1 argument"}
+				return &object.Error{Code: "E7001", Message: fmt.Sprintf("%s takes exactly 1 argument", errors.Ident("http.delete()"))}
 			}
 
 			urlArg, ok := args[0].(*object.String)
 			if !ok {
-				return &object.Error{Code: "E7003", Message: "http.delete() requires a string argument"}
+				return &object.Error{Code: "E7003", Message: fmt.Sprintf("%s requires a %s argument", errors.Ident("http.delete()"), errors.TypeExpected("string"))}
 			}
 
 			if _, err := url.ParseRequestURI(urlArg.Value); err != nil {
@@ -328,17 +330,17 @@ var HttpBuiltins = map[string]*object.Builtin{
 	"http.patch": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 2 {
-				return &object.Error{Code: "E7001", Message: "http.patch() takes exactly 2 arguments"}
+				return &object.Error{Code: "E7001", Message: fmt.Sprintf("%s takes exactly 2 arguments", errors.Ident("http.patch()"))}
 			}
 
 			urlArg, ok := args[0].(*object.String)
 			if !ok {
-				return &object.Error{Code: "E7003", Message: "http.patch() requires a string argument"}
+				return &object.Error{Code: "E7003", Message: fmt.Sprintf("%s requires a %s argument", errors.Ident("http.patch()"), errors.TypeExpected("string"))}
 			}
 
 			body, ok := args[1].(*object.String)
 			if !ok {
-				return &object.Error{Code: "E7003", Message: "http.patch() requires a string argument"}
+				return &object.Error{Code: "E7003", Message: fmt.Sprintf("%s requires a %s argument", errors.Ident("http.patch()"), errors.TypeExpected("string"))}
 			}
 
 			if _, err := url.ParseRequestURI(urlArg.Value); err != nil {
@@ -401,32 +403,32 @@ var HttpBuiltins = map[string]*object.Builtin{
 	"http.request": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 5 {
-				return &object.Error{Code: "E7001", Message: "http.request() takes exactly 5 arguments"}
+				return &object.Error{Code: "E7001", Message: fmt.Sprintf("%s takes exactly 5 arguments", errors.Ident("http.request()"))}
 			}
 
 			methodArg, ok := args[0].(*object.String)
 			if !ok {
-				return &object.Error{Code: "E7003", Message: "http.request() requires a string argument"}
+				return &object.Error{Code: "E7003", Message: fmt.Sprintf("%s requires a %s argument", errors.Ident("http.request()"), errors.TypeExpected("string"))}
 			}
 
 			urlArg, ok := args[1].(*object.String)
 			if !ok {
-				return &object.Error{Code: "E7003", Message: "http.request() requires a string argument"}
+				return &object.Error{Code: "E7003", Message: fmt.Sprintf("%s requires a %s argument", errors.Ident("http.request()"), errors.TypeExpected("string"))}
 			}
 
 			bodyArg, ok := args[2].(*object.String)
 			if !ok {
-				return &object.Error{Code: "E7003", Message: "http.request() requires a string argument"}
+				return &object.Error{Code: "E7003", Message: fmt.Sprintf("%s requires a %s argument", errors.Ident("http.request()"), errors.TypeExpected("string"))}
 			}
 
 			headersArg, ok := args[3].(*object.Map)
 			if !ok {
-				return &object.Error{Code: "E7007", Message: "http.request() requires a map argument"}
+				return &object.Error{Code: "E7007", Message: fmt.Sprintf("%s requires a %s argument", errors.Ident("http.request()"), errors.TypeExpected("map"))}
 			}
 
 			timeoutArg, ok := args[4].(*object.Integer)
 			if !ok {
-				return &object.Error{Code: "E7004", Message: "http.request() requires a integer argument"}
+				return &object.Error{Code: "E7004", Message: fmt.Sprintf("%s requires a %s argument", errors.Ident("http.request()"), errors.TypeExpected("integer"))}
 			}
 
 			if _, err := url.ParseRequestURI(urlArg.Value); err != nil {
@@ -521,23 +523,23 @@ var HttpBuiltins = map[string]*object.Builtin{
 	"http.build_query": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 1 {
-				return &object.Error{Code: "E7001", Message: "http.build_query() takes exactly 1 arguments"}
+				return &object.Error{Code: "E7001", Message: fmt.Sprintf("%s takes exactly 1 arguments", errors.Ident("http.build_query()"))}
 			}
 
 			m, ok := args[0].(*object.Map)
 			if !ok {
-				return &object.Error{Code: "E7007", Message: "http.build_query() requires a map argument"}
+				return &object.Error{Code: "E7007", Message: fmt.Sprintf("%s requires a %s argument", errors.Ident("http.build_query()"), errors.TypeExpected("map"))}
 			}
 
 			q := url.Values{}
 			for _, pair := range m.Pairs {
 				key, ok := pair.Key.(*object.String)
 				if !ok {
-					return &object.Error{Code: "E7007", Message: "http.build_query() requires a map[string:string] argument"}
+					return &object.Error{Code: "E7007", Message: fmt.Sprintf("%s requires a %s argument", errors.Ident("http.build_query()"), errors.TypeExpected("map[string:string]"))}
 				}
 				val, ok := pair.Value.(*object.String)
 				if !ok {
-					return &object.Error{Code: "E7007", Message: "http.build_query() requires a map[string:string] argument"}
+					return &object.Error{Code: "E7007", Message: fmt.Sprintf("%s requires a %s argument", errors.Ident("http.build_query()"), errors.TypeExpected("map[string:string]"))}
 				}
 				q.Set(key.Value, val.Value)
 			}
@@ -551,12 +553,12 @@ var HttpBuiltins = map[string]*object.Builtin{
 	"http.json_body": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 1 {
-				return &object.Error{Code: "E7001", Message: "http.json_body() takes exactly 1 arguments"}
+				return &object.Error{Code: "E7001", Message: fmt.Sprintf("%s takes exactly 1 arguments", errors.Ident("http.json_body()"))}
 			}
 
 			m, ok := args[0].(*object.Map)
 			if !ok {
-				return &object.Error{Code: "E7007", Message: "http.json_body() requires a map argument"}
+				return &object.Error{Code: "E7007", Message: fmt.Sprintf("%s requires a %s argument", errors.Ident("http.json_body()"), errors.TypeExpected("map"))}
 			}
 
 			result, err := encodeToJSON(m, make(map[uintptr]bool))
@@ -573,12 +575,12 @@ var HttpBuiltins = map[string]*object.Builtin{
 	"http.head": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 1 {
-				return &object.Error{Code: "E7001", Message: "http.head() takes exactly 1 argument"}
+				return &object.Error{Code: "E7001", Message: fmt.Sprintf("%s takes exactly 1 argument", errors.Ident("http.head()"))}
 			}
 
 			urlArg, ok := args[0].(*object.String)
 			if !ok {
-				return &object.Error{Code: "E7003", Message: "http.head() requires a string argument"}
+				return &object.Error{Code: "E7003", Message: fmt.Sprintf("%s requires a %s argument", errors.Ident("http.head()"), errors.TypeExpected("string"))}
 			}
 
 			if _, err := url.ParseRequestURI(urlArg.Value); err != nil {
@@ -631,12 +633,12 @@ var HttpBuiltins = map[string]*object.Builtin{
 	"http.options": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 1 {
-				return &object.Error{Code: "E7001", Message: "http.options() takes exactly 1 argument"}
+				return &object.Error{Code: "E7001", Message: fmt.Sprintf("%s takes exactly 1 argument", errors.Ident("http.options()"))}
 			}
 
 			urlArg, ok := args[0].(*object.String)
 			if !ok {
-				return &object.Error{Code: "E7003", Message: "http.options() requires a string argument"}
+				return &object.Error{Code: "E7003", Message: fmt.Sprintf("%s requires a %s argument", errors.Ident("http.options()"), errors.TypeExpected("string"))}
 			}
 
 			if _, err := url.ParseRequestURI(urlArg.Value); err != nil {
@@ -699,17 +701,17 @@ var HttpBuiltins = map[string]*object.Builtin{
 	"http.download": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 2 {
-				return &object.Error{Code: "E7001", Message: "http.download() takes exactly 2 arguments (url, path)"}
+				return &object.Error{Code: "E7001", Message: fmt.Sprintf("%s takes exactly 2 arguments (url, path)", errors.Ident("http.download()"))}
 			}
 
 			urlArg, ok := args[0].(*object.String)
 			if !ok {
-				return &object.Error{Code: "E7003", Message: "http.download() requires a string url as first argument"}
+				return &object.Error{Code: "E7003", Message: fmt.Sprintf("%s requires a %s url as first argument", errors.Ident("http.download()"), errors.TypeExpected("string"))}
 			}
 
 			pathArg, ok := args[1].(*object.String)
 			if !ok {
-				return &object.Error{Code: "E7003", Message: "http.download() requires a string path as second argument"}
+				return &object.Error{Code: "E7003", Message: fmt.Sprintf("%s requires a %s path as second argument", errors.Ident("http.download()"), errors.TypeExpected("string"))}
 			}
 
 			if _, err := url.ParseRequestURI(urlArg.Value); err != nil {
@@ -772,12 +774,12 @@ var HttpBuiltins = map[string]*object.Builtin{
 	"http.parse_url": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 1 {
-				return &object.Error{Code: "E7001", Message: "http.parse_url() takes exactly 1 argument"}
+				return &object.Error{Code: "E7001", Message: fmt.Sprintf("%s takes exactly 1 argument", errors.Ident("http.parse_url()"))}
 			}
 
 			urlArg, ok := args[0].(*object.String)
 			if !ok {
-				return &object.Error{Code: "E7003", Message: "http.parse_url() requires a string argument"}
+				return &object.Error{Code: "E7003", Message: fmt.Sprintf("%s requires a %s argument", errors.Ident("http.parse_url()"), errors.TypeExpected("string"))}
 			}
 
 			parsed, err := url.Parse(urlArg.Value)
@@ -823,12 +825,12 @@ var HttpBuiltins = map[string]*object.Builtin{
 	"http.build_url": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 1 {
-				return &object.Error{Code: "E7001", Message: "http.build_url() takes exactly 1 argument"}
+				return &object.Error{Code: "E7001", Message: fmt.Sprintf("%s takes exactly 1 argument", errors.Ident("http.build_url()"))}
 			}
 
 			components, ok := args[0].(*object.Struct)
 			if !ok {
-				return &object.Error{Code: "E7001", Message: "http.build_url() requires a struct argument"}
+				return &object.Error{Code: "E7001", Message: fmt.Sprintf("%s requires a %s argument", errors.Ident("http.build_url()"), errors.TypeExpected("struct"))}
 			}
 
 			scheme := ""
