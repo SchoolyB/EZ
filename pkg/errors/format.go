@@ -27,6 +27,26 @@ const (
 	BoldGreen  = "\033[1;32m"
 )
 
+// Ident formats an identifier (function name, variable, parameter, field) for error messages.
+func Ident(name string) string {
+	return BoldCyan + name + Reset
+}
+
+// TypeExpected formats an expected type for error messages.
+func TypeExpected(t string) string {
+	return BoldGreen + t + Reset
+}
+
+// TypeGot formats an actual/received type for error messages.
+func TypeGot(t string) string {
+	return BoldRed + t + Reset
+}
+
+// Keyword formats a language keyword for error messages.
+func Keyword(k string) string {
+	return Bold + k + Reset
+}
+
 // FormatError formats a single error with colors and context
 func FormatError(err *EZError) string {
 	var sb strings.Builder
