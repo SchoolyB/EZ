@@ -1,0 +1,84 @@
+/*
+ * as_long_as_loop.ez - Test while loop (as_long_as) keyword
+ */
+
+import @std
+using std
+
+do main() {
+    println("=== As Long As Loop Test ===")
+    temp passed int = 0
+    temp failed int = 0
+
+    // Test 1: basic as_long_as loop
+    temp count int = 0
+    as_long_as count < 5 {
+        count++
+    }
+    if count == 5 {
+        println("  [PASS] basic as_long_as loop counts to 5")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] expected 5, got ${count}")
+        failed += 1
+    }
+
+    // Test 2: as_long_as with break
+    temp sum int = 0
+    temp i int = 0
+    as_long_as true {
+        if i >= 10 {
+            break
+        }
+        sum += i
+        i++
+    }
+    if sum == 45 {
+        println("  [PASS] as_long_as with break sums to 45")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] expected 45, got ${sum}")
+        failed += 1
+    }
+
+    // Test 3: as_long_as with continue
+    temp even_sum int = 0
+    temp j int = 0
+    as_long_as j < 10 {
+        j++
+        if j % 2 != 0 {
+            continue
+        }
+        even_sum += j
+    }
+    if even_sum == 30 {
+        println("  [PASS] as_long_as with continue sums evens to 30")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] expected 30, got ${even_sum}")
+        failed += 1
+    }
+
+    // Test 4: as_long_as false never executes
+    temp ran bool = false
+    as_long_as false {
+        ran = true
+    }
+    if !ran {
+        println("  [PASS] as_long_as false never executes")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] as_long_as false executed")
+        failed += 1
+    }
+
+    // Summary
+    println("")
+    println("Results: ${passed} passed, ${failed} failed")
+
+    if failed > 0 {
+        println("SOME TESTS FAILED")
+    } otherwise {
+        println("ALL TESTS PASSED")
+    }
+}
