@@ -1,0 +1,39 @@
+/*
+ * suppress_attribute.ez - Test #suppress attribute for suppressing warnings
+ */
+
+import @std
+using std
+
+// Suppress the unreachable code warning on this function
+#suppress(W2001)
+do helper() -> int {
+    return 42
+    temp x int = 10  // Would normally warn W2001 but is suppressed
+}
+
+do main() {
+    println("=== Suppress Attribute Test ===")
+    temp passed int = 0
+    temp failed int = 0
+
+    // Test 1: suppressed function still works correctly
+    temp val int = helper()
+    if val == 42 {
+        println("  [PASS] suppressed function returns correct value")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] expected 42, got ${val}")
+        failed += 1
+    }
+
+    // Summary
+    println("")
+    println("Results: ${passed} passed, ${failed} failed")
+
+    if failed > 0 {
+        println("SOME TESTS FAILED")
+    } otherwise {
+        println("ALL TESTS PASSED")
+    }
+}

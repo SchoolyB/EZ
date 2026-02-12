@@ -1,0 +1,14 @@
+/*
+ * Warning Test: W2004 - implicit-type-conversion
+ * Expected: warning about implicit type conversion
+ */
+
+import @std
+using std
+
+do main() {
+    temp x byte = 100
+    temp y int = 50
+    temp z int = x + y  // byte implicitly promoted to int
+    println(z)
+}

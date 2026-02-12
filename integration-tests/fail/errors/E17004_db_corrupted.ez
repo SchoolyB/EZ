@@ -1,0 +1,21 @@
+/*
+ * Error Test: E17004 - db-corrupted
+ * Expected: "corrupted" or "invalid"
+ */
+
+import @io, @db
+
+do main() {
+    // Write an invalid JSON file as the database
+    temp ok, werr = io.write_file("ez_test_e17004_corrupted.ezdb", "this is not valid json{{{")
+
+    // Try to open it as a database
+    temp database, err = db.open("ez_test_e17004_corrupted")
+
+    // Clean up
+    temp dok, derr = io.remove("ez_test_e17004_corrupted.ezdb")
+
+    if err != nil {
+        panic("${err}")
+    }
+}

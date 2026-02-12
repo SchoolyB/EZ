@@ -1,0 +1,15 @@
+/*
+ * Error Test: E13002 - json-unsupported-type
+ * Expected: "unsupported value" or "failed to encode"
+ */
+
+import @std, @json, @math
+using std, math
+
+do main() {
+    // Infinity cannot be represented in JSON
+    temp result, err = json.encode(math.INF)
+    if err != nil {
+        panic("${err}")
+    }
+}

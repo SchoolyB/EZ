@@ -1,0 +1,186 @@
+/*
+ * binary.ez - Test @binary standard library
+ */
+
+import @std, @binary
+using std
+
+do main() {
+    println("=== @binary Standard Library Test ===")
+    temp passed int = 0
+    temp failed int = 0
+
+    // ==================== 8-bit ====================
+    println("  -- 8-bit encoding --")
+
+    // Test 1: encode/decode u8
+    temp u8_bytes, u8_err = binary.encode_u8(255)
+    temp u8_val, u8_derr = binary.decode_u8(u8_bytes)
+    if u8_err == nil && u8_derr == nil && u8_val == 255 {
+        println("  [PASS] u8 roundtrip: 255")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] u8 roundtrip: expected 255, got ${u8_val}")
+        failed += 1
+    }
+
+    // Test 2: encode/decode i8
+    temp i8_bytes, i8_err = binary.encode_i8(-42)
+    temp i8_val, i8_derr = binary.decode_i8(i8_bytes)
+    if i8_err == nil && i8_derr == nil && i8_val == -42 {
+        println("  [PASS] i8 roundtrip: -42")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] i8 roundtrip: expected -42, got ${i8_val}")
+        failed += 1
+    }
+
+    // ==================== 16-bit ====================
+    println("  -- 16-bit encoding --")
+
+    // Test 3: encode/decode u16 little-endian
+    temp u16le_bytes, u16le_err = binary.encode_u16_to_little_endian(1000)
+    temp u16le_val, u16le_derr = binary.decode_u16_from_little_endian(u16le_bytes)
+    if u16le_err == nil && u16le_derr == nil && u16le_val == 1000 {
+        println("  [PASS] u16_le roundtrip: 1000")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] u16_le roundtrip: expected 1000, got ${u16le_val}")
+        failed += 1
+    }
+
+    // Test 4: encode/decode i16 big-endian
+    temp i16be_bytes, i16be_err = binary.encode_i16_to_big_endian(-500)
+    temp i16be_val, i16be_derr = binary.decode_i16_from_big_endian(i16be_bytes)
+    if i16be_err == nil && i16be_derr == nil && i16be_val == -500 {
+        println("  [PASS] i16_be roundtrip: -500")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] i16_be roundtrip: expected -500, got ${i16be_val}")
+        failed += 1
+    }
+
+    // ==================== 32-bit ====================
+    println("  -- 32-bit encoding --")
+
+    // Test 5: encode/decode i32 little-endian
+    temp i32le_bytes, i32le_err = binary.encode_i32_to_little_endian(-100000)
+    temp i32le_val, i32le_derr = binary.decode_i32_from_little_endian(i32le_bytes)
+    if i32le_err == nil && i32le_derr == nil && i32le_val == -100000 {
+        println("  [PASS] i32_le roundtrip: -100000")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] i32_le roundtrip: expected -100000, got ${i32le_val}")
+        failed += 1
+    }
+
+    // Test 6: encode/decode u32 big-endian
+    temp u32be_bytes, u32be_err = binary.encode_u32_to_big_endian(3000000)
+    temp u32be_val, u32be_derr = binary.decode_u32_from_big_endian(u32be_bytes)
+    if u32be_err == nil && u32be_derr == nil && u32be_val == 3000000 {
+        println("  [PASS] u32_be roundtrip: 3000000")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] u32_be roundtrip: expected 3000000, got ${u32be_val}")
+        failed += 1
+    }
+
+    // ==================== 64-bit ====================
+    println("  -- 64-bit encoding --")
+
+    // Test 7: encode/decode i64 little-endian
+    temp i64le_bytes, i64le_err = binary.encode_i64_to_little_endian(-9999999)
+    temp i64le_val, i64le_derr = binary.decode_i64_from_little_endian(i64le_bytes)
+    if i64le_err == nil && i64le_derr == nil && i64le_val == -9999999 {
+        println("  [PASS] i64_le roundtrip: -9999999")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] i64_le roundtrip: expected -9999999, got ${i64le_val}")
+        failed += 1
+    }
+
+    // Test 8: encode/decode u64 big-endian
+    temp u64be_bytes, u64be_err = binary.encode_u64_to_big_endian(1234567890)
+    temp u64be_val, u64be_derr = binary.decode_u64_from_big_endian(u64be_bytes)
+    if u64be_err == nil && u64be_derr == nil && u64be_val == 1234567890 {
+        println("  [PASS] u64_be roundtrip: 1234567890")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] u64_be roundtrip: expected 1234567890, got ${u64be_val}")
+        failed += 1
+    }
+
+    // ==================== Floats ====================
+    println("  -- Float encoding --")
+
+    // Test 9: encode/decode f64 little-endian
+    temp f64le_bytes, f64le_err = binary.encode_f64_to_little_endian(3.14159)
+    temp f64le_val, f64le_derr = binary.decode_f64_from_little_endian(f64le_bytes)
+    if f64le_err == nil && f64le_derr == nil && f64le_val > 3.14 && f64le_val < 3.15 {
+        println("  [PASS] f64_le roundtrip: ~3.14159")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] f64_le roundtrip: expected ~3.14159, got ${f64le_val}")
+        failed += 1
+    }
+
+    // Test 10: encode/decode f32 big-endian
+    temp f32be_bytes, f32be_err = binary.encode_f32_to_big_endian(2.5)
+    temp f32be_val, f32be_derr = binary.decode_f32_from_big_endian(f32be_bytes)
+    if f32be_err == nil && f32be_derr == nil && f32be_val > 2.4 && f32be_val < 2.6 {
+        println("  [PASS] f32_be roundtrip: ~2.5")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] f32_be roundtrip: expected ~2.5, got ${f32be_val}")
+        failed += 1
+    }
+
+    // ==================== Byte length checks ====================
+    println("  -- Byte length checks --")
+
+    // Test 11: u8 produces 1 byte
+    if len(u8_bytes) == 1 {
+        println("  [PASS] u8 produces 1 byte")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] u8 produces ${len(u8_bytes)} bytes")
+        failed += 1
+    }
+
+    // Test 12: u16 produces 2 bytes
+    if len(u16le_bytes) == 2 {
+        println("  [PASS] u16 produces 2 bytes")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] u16 produces ${len(u16le_bytes)} bytes")
+        failed += 1
+    }
+
+    // Test 13: u32 produces 4 bytes
+    if len(u32be_bytes) == 4 {
+        println("  [PASS] u32 produces 4 bytes")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] u32 produces ${len(u32be_bytes)} bytes")
+        failed += 1
+    }
+
+    // Test 14: u64 produces 8 bytes
+    if len(u64be_bytes) == 8 {
+        println("  [PASS] u64 produces 8 bytes")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] u64 produces ${len(u64be_bytes)} bytes")
+        failed += 1
+    }
+
+    // Summary
+    println("")
+    println("Results: ${passed} passed, ${failed} failed")
+
+    if failed > 0 {
+        println("SOME TESTS FAILED")
+    } otherwise {
+        println("ALL TESTS PASSED")
+    }
+}

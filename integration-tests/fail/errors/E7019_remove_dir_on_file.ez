@@ -1,0 +1,20 @@
+/*
+ * Error Test: E7019 - cannot-remove-file
+ * Expected: "remove_dir" or "only remove directories" or "use io.remove"
+ */
+
+import @io
+
+do main() {
+    // Create a temp file first
+    temp ok, werr = io.write_file("ez_test_e7019_temp.txt", "test")
+
+    // Try to remove it with remove_dir (should fail - it's a file, not a dir)
+    temp rok, rerr = io.remove_dir("ez_test_e7019_temp.txt")
+    // Clean up
+    temp dok, derr = io.remove("ez_test_e7019_temp.txt")
+
+    if rerr != nil {
+        panic("${rerr}")
+    }
+}
