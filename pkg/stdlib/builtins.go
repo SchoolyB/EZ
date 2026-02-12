@@ -5,7 +5,7 @@ package stdlib
 
 import (
 	"bufio"
-	"errors"
+	stderrors "errors"
 	"fmt"
 	"io"
 	"math"
@@ -15,6 +15,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/marshallburns/ez/pkg/errors"
 	"github.com/marshallburns/ez/pkg/object"
 )
 
@@ -124,13 +125,13 @@ func extractIntValue(arg object.Object, targetType string) (*big.Int, *object.Er
 		if math.IsNaN(v.Value) {
 			return nil, &object.Error{
 				Code:    "E7033",
-				Message: fmt.Sprintf("cannot convert NaN to %s", targetType),
+				Message: fmt.Sprintf("cannot convert NaN to %s", errors.TypeExpected(targetType)),
 			}
 		}
 		if math.IsInf(v.Value, 0) {
 			return nil, &object.Error{
 				Code:    "E7033",
-				Message: fmt.Sprintf("cannot convert Inf to %s", targetType),
+				Message: fmt.Sprintf("cannot convert Inf to %s", errors.TypeExpected(targetType)),
 			}
 		}
 		return big.NewInt(int64(v.Value)), nil
@@ -140,7 +141,7 @@ func extractIntValue(arg object.Object, targetType string) (*big.Int, *object.Er
 		if !ok {
 			return nil, &object.Error{
 				Code:    "E7014",
-				Message: fmt.Sprintf("cannot convert %q to %s: invalid integer format", v.Value, targetType),
+				Message: fmt.Sprintf("cannot convert %q to %s: invalid integer format", v.Value, errors.TypeExpected(targetType)),
 			}
 		}
 		return val, nil
@@ -151,7 +152,7 @@ func extractIntValue(arg object.Object, targetType string) (*big.Int, *object.Er
 	default:
 		return nil, &object.Error{
 			Code:    "E7014",
-			Message: fmt.Sprintf("cannot convert %s to %s", arg.Type(), targetType),
+			Message: fmt.Sprintf("cannot convert %s to %s", errors.TypeGot(string(arg.Type())), errors.TypeExpected(targetType)),
 		}
 	}
 }
@@ -170,7 +171,7 @@ func extractFloatValue(arg object.Object, targetType string) (float64, *object.E
 		if err != nil {
 			return 0, &object.Error{
 				Code:    "E7014",
-				Message: fmt.Sprintf("cannot convert %q to %s: invalid float format", v.Value, targetType),
+				Message: fmt.Sprintf("cannot convert %q to %s: invalid float format", v.Value, errors.TypeExpected(targetType)),
 			}
 		}
 		return val, nil
@@ -181,7 +182,7 @@ func extractFloatValue(arg object.Object, targetType string) (float64, *object.E
 	default:
 		return 0, &object.Error{
 			Code:    "E7014",
-			Message: fmt.Sprintf("cannot convert %s to %s", arg.Type(), targetType),
+			Message: fmt.Sprintf("cannot convert %s to %s", errors.TypeGot(string(arg.Type())), errors.TypeExpected(targetType)),
 		}
 	}
 }
@@ -310,7 +311,7 @@ var StdBuiltins = map[string]*object.Builtin{
 			case *object.Map:
 				return &object.Integer{Value: big.NewInt(int64(len(arg.Pairs)))}
 			default:
-				return &object.Error{Code: "E7015", Message: fmt.Sprintf("len() not supported for %s", object.GetEZTypeName(args[0]))}
+				return &object.Error{Code: "E7015", Message: fmt.Sprintf("%s not supported for %s", errors.Ident("len()"), errors.TypeGot(object.GetEZTypeName(args[0])))}
 			}
 		},
 	},
@@ -363,7 +364,7 @@ var StdBuiltins = map[string]*object.Builtin{
 				val, err := strconv.ParseInt(cleanedValue, 10, 64)
 				if err != nil {
 					// Check if this is a range error (overflow) vs syntax error (invalid format)
-					if errors.Is(err, strconv.ErrRange) {
+					if stderrors.Is(err, strconv.ErrRange) {
 						return &object.Error{
 							Code:    "E7033",
 							Message: fmt.Sprintf("integer overflow: %q exceeds int64 range (-9223372036854775808 to 9223372036854775807)", arg.Value),
@@ -424,7 +425,7 @@ var StdBuiltins = map[string]*object.Builtin{
 				default:
 					return &object.Error{
 						Code:    "E7005",
-						Message: fmt.Sprintf("cannot convert enum %s.%s to int: underlying type %s is not convertible", arg.EnumType, arg.Name, arg.Value.Type()),
+						Message: fmt.Sprintf("cannot convert enum %s.%s to int: underlying type %s is not convertible", errors.Ident(arg.EnumType), errors.Ident(arg.Name), errors.TypeGot(string(arg.Value.Type()))),
 					}
 				}
 			default:
@@ -437,7 +438,7 @@ var StdBuiltins = map[string]*object.Builtin{
 							"    len(myArray)  // returns the number of elements",
 					}
 				}
-				return &object.Error{Code: "E7014", Message: fmt.Sprintf("cannot convert %s to int", object.GetEZTypeName(args[0]))}
+				return &object.Error{Code: "E7014", Message: fmt.Sprintf("cannot convert %s to %s", errors.TypeGot(object.GetEZTypeName(args[0])), errors.TypeExpected("int"))}
 			}
 		},
 	},
@@ -482,7 +483,7 @@ var StdBuiltins = map[string]*object.Builtin{
 							"    len(myArray)  // returns the number of elements",
 					}
 				}
-				return &object.Error{Code: "E7014", Message: fmt.Sprintf("cannot convert %s to float", object.GetEZTypeName(args[0]))}
+				return &object.Error{Code: "E7014", Message: fmt.Sprintf("cannot convert %s to %s", errors.TypeGot(object.GetEZTypeName(args[0])), errors.TypeExpected("float"))}
 			}
 		},
 	},
@@ -552,7 +553,7 @@ var StdBuiltins = map[string]*object.Builtin{
 				}
 				return &object.Char{Value: runes[0]}
 			default:
-				return &object.Error{Code: "E7014", Message: fmt.Sprintf("cannot convert %s to char", object.GetEZTypeName(args[0]))}
+				return &object.Error{Code: "E7014", Message: fmt.Sprintf("cannot convert %s to %s", errors.TypeGot(object.GetEZTypeName(args[0])), errors.TypeExpected("char"))}
 			}
 		},
 	},
@@ -598,7 +599,7 @@ var StdBuiltins = map[string]*object.Builtin{
 				val, err := strconv.ParseInt(cleanedValue, 10, 64)
 				if err != nil {
 					// Check if this is a range error (overflow) vs syntax error (invalid format)
-					if errors.Is(err, strconv.ErrRange) {
+					if stderrors.Is(err, strconv.ErrRange) {
 						return &object.Error{
 							Code:    "E7014",
 							Message: fmt.Sprintf("cannot convert %q to byte: value must be between 0 and 255", arg.Value),
@@ -617,7 +618,7 @@ var StdBuiltins = map[string]*object.Builtin{
 				}
 				return &object.Byte{Value: uint8(val)}
 			default:
-				return &object.Error{Code: "E7014", Message: fmt.Sprintf("cannot convert %s to byte", object.GetEZTypeName(args[0]))}
+				return &object.Error{Code: "E7014", Message: fmt.Sprintf("cannot convert %s to %s", errors.TypeGot(object.GetEZTypeName(args[0])), errors.TypeExpected("byte"))}
 			}
 		},
 	},
@@ -967,7 +968,7 @@ var StdBuiltins = map[string]*object.Builtin{
 			}
 			str, ok := args[0].(*object.String)
 			if !ok {
-				return &object.Error{Code: "E7003", Message: fmt.Sprintf("error() argument must be a string, got %s", object.GetEZTypeName(args[0]))}
+				return &object.Error{Code: "E7003", Message: fmt.Sprintf("%s() argument must be a string, got %s", errors.Ident("error"), errors.TypeGot(object.GetEZTypeName(args[0])))}
 			}
 			// Return an Error struct (not object.Error which is a runtime error)
 			return &object.Struct{
@@ -1007,7 +1008,7 @@ var StdBuiltins = map[string]*object.Builtin{
 			}
 			code, ok := args[0].(*object.Integer)
 			if !ok {
-				return &object.Error{Code: "E7004", Message: fmt.Sprintf("exit() argument must be an integer, got %s", object.GetEZTypeName(args[0]))}
+				return &object.Error{Code: "E7004", Message: fmt.Sprintf("%s() argument must be an integer, got %s", errors.Ident("exit"), errors.TypeGot(object.GetEZTypeName(args[0])))}
 			}
 			os.Exit(int(code.Value.Int64()))
 			return nil // Unreachable, but required by Go's type system
@@ -1023,7 +1024,7 @@ var StdBuiltins = map[string]*object.Builtin{
 			}
 			seconds, ok := args[0].(*object.Integer)
 			if !ok {
-				return &object.Error{Code: "E7004", Message: fmt.Sprintf("sleep_seconds() argument must be an integer, got %s", object.GetEZTypeName(args[0]))}
+				return &object.Error{Code: "E7004", Message: fmt.Sprintf("%s() argument must be an integer, got %s", errors.Ident("sleep_seconds"), errors.TypeGot(object.GetEZTypeName(args[0])))}
 			}
 			if seconds.Value.Sign() < 0 {
 				return &object.Error{Code: "E7032", Message: "sleep_seconds() duration cannot be negative"}
@@ -1042,7 +1043,7 @@ var StdBuiltins = map[string]*object.Builtin{
 			}
 			ms, ok := args[0].(*object.Integer)
 			if !ok {
-				return &object.Error{Code: "E7004", Message: fmt.Sprintf("sleep_milliseconds() argument must be an integer, got %s", object.GetEZTypeName(args[0]))}
+				return &object.Error{Code: "E7004", Message: fmt.Sprintf("%s() argument must be an integer, got %s", errors.Ident("sleep_milliseconds"), errors.TypeGot(object.GetEZTypeName(args[0])))}
 			}
 			if ms.Value.Sign() < 0 {
 				return &object.Error{Code: "E7032", Message: "sleep_milliseconds() duration cannot be negative"}
@@ -1061,7 +1062,7 @@ var StdBuiltins = map[string]*object.Builtin{
 			}
 			ns, ok := args[0].(*object.Integer)
 			if !ok {
-				return &object.Error{Code: "E7004", Message: fmt.Sprintf("sleep_nanoseconds() argument must be an integer, got %s", object.GetEZTypeName(args[0]))}
+				return &object.Error{Code: "E7004", Message: fmt.Sprintf("%s() argument must be an integer, got %s", errors.Ident("sleep_nanoseconds"), errors.TypeGot(object.GetEZTypeName(args[0])))}
 			}
 			if ns.Value.Sign() < 0 {
 				return &object.Error{Code: "E7032", Message: "sleep_nanoseconds() duration cannot be negative"}
@@ -1080,7 +1081,7 @@ var StdBuiltins = map[string]*object.Builtin{
 			}
 			msg, ok := args[0].(*object.String)
 			if !ok {
-				return &object.Error{Code: "E7003", Message: fmt.Sprintf("panic() argument must be a string, got %s", object.GetEZTypeName(args[0]))}
+				return &object.Error{Code: "E7003", Message: fmt.Sprintf("%s() argument must be a string, got %s", errors.Ident("panic"), errors.TypeGot(object.GetEZTypeName(args[0])))}
 			}
 			return &object.Error{Code: "E5021", Message: fmt.Sprintf("panic: %s", msg.Value)}
 		},
@@ -1132,11 +1133,11 @@ var StdBuiltins = map[string]*object.Builtin{
 			}
 			cond, ok := args[0].(*object.Boolean)
 			if !ok {
-				return &object.Error{Code: "E7008", Message: fmt.Sprintf("assert() first argument must be a boolean, got %s", object.GetEZTypeName(args[0]))}
+				return &object.Error{Code: "E7008", Message: fmt.Sprintf("%s() first argument must be a boolean, got %s", errors.Ident("assert"), errors.TypeGot(object.GetEZTypeName(args[0])))}
 			}
 			msg, ok := args[1].(*object.String)
 			if !ok {
-				return &object.Error{Code: "E7003", Message: fmt.Sprintf("assert() second argument must be a string, got %s", object.GetEZTypeName(args[1]))}
+				return &object.Error{Code: "E7003", Message: fmt.Sprintf("%s() second argument must be a string, got %s", errors.Ident("assert"), errors.TypeGot(object.GetEZTypeName(args[1])))}
 			}
 			if !cond.Value {
 				return &object.Error{Code: "E5022", Message: fmt.Sprintf("assertion failed: %s", msg.Value)}

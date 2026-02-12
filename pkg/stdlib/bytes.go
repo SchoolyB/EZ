@@ -11,6 +11,7 @@ import (
 	"math/big"
 	"strings"
 
+	"github.com/marshallburns/ez/pkg/errors"
 	"github.com/marshallburns/ez/pkg/object"
 )
 
@@ -1023,7 +1024,7 @@ var BytesBuiltins = map[string]*object.Builtin{
 func bytesArgToSlice(arg object.Object, funcName string) ([]byte, *object.Error) {
 	arr, ok := arg.(*object.Array)
 	if !ok {
-		return nil, &object.Error{Code: "E7002", Message: fmt.Sprintf("%s requires a byte array argument", funcName)}
+		return nil, &object.Error{Code: "E7002", Message: fmt.Sprintf("%s requires a byte array argument", errors.Ident(funcName))}
 	}
 
 	data := make([]byte, len(arr.Elements))
@@ -1038,7 +1039,7 @@ func bytesArgToSlice(arg object.Object, funcName string) ([]byte, *object.Error)
 			}
 			data[i] = byte(val)
 		default:
-			return nil, &object.Error{Code: "E7002", Message: fmt.Sprintf("%s requires a byte array", funcName)}
+			return nil, &object.Error{Code: "E7002", Message: fmt.Sprintf("%s requires a byte array", errors.Ident(funcName))}
 		}
 	}
 	return data, nil
@@ -1061,10 +1062,10 @@ func getByteValue(arg object.Object, funcName string) (uint8, *object.Error) {
 	case *object.Integer:
 		intVal := v.Value.Int64()
 		if intVal < 0 || intVal > 255 {
-			return 0, &object.Error{Code: "E3021", Message: fmt.Sprintf("%s byte value %s out of range (0-255)", funcName, v.Value.String())}
+			return 0, &object.Error{Code: "E3021", Message: fmt.Sprintf("%s byte value %s out of range (0-255)", errors.Ident(funcName), v.Value.String())}
 		}
 		return uint8(intVal), nil
 	default:
-		return 0, &object.Error{Code: "E7004", Message: fmt.Sprintf("%s requires a byte or integer value", funcName)}
+		return 0, &object.Error{Code: "E7004", Message: fmt.Sprintf("%s requires a byte or integer value", errors.Ident(funcName))}
 	}
 }

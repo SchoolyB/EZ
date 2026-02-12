@@ -468,10 +468,10 @@ func Eval(node ast.Node, env *Environment, ctx *EvalContext) Object {
 					if !isValidModule(item.Module) {
 						if suggestion := suggestModule(item.Module); suggestion != "" {
 							return newErrorWithLocation("E6002", node.Token.Line, node.Token.Column,
-								"module '%s' not found; did you mean @%s?", item.Module, suggestion)
+								"module '%s' not found; did you mean @%s?", errors.Ident(item.Module), errors.Ident(suggestion))
 						}
 						return newErrorWithLocation("E6002", node.Token.Line, node.Token.Column,
-							"module '%s' not found", item.Module)
+							"module '%s' not found", errors.Ident(item.Module))
 					}
 					env.Import(alias, item.Module)
 					// Dual-name access: also register with original module name if alias differs
@@ -486,7 +486,7 @@ func Eval(node ast.Node, env *Environment, ctx *EvalContext) Object {
 					}
 					if moduleObj == nil {
 						return newErrorWithLocation("E6001", node.Token.Line, node.Token.Column,
-							"failed to load module '%s'", item.Path)
+							"failed to load module '%s'", errors.Ident(item.Path))
 					}
 					// Register the module object so it can be accessed via alias.function()
 					env.RegisterModule(alias, moduleObj)
@@ -507,10 +507,10 @@ func Eval(node ast.Node, env *Environment, ctx *EvalContext) Object {
 			if !isValidModule(node.Module) {
 				if suggestion := suggestModule(node.Module); suggestion != "" {
 					return newErrorWithLocation("E6002", node.Token.Line, node.Token.Column,
-						"module '%s' not found; did you mean @%s?", node.Module, suggestion)
+						"module '%s' not found; did you mean @%s?", errors.Ident(node.Module), errors.Ident(suggestion))
 				}
 				return newErrorWithLocation("E6002", node.Token.Line, node.Token.Column,
-					"module '%s' not found", node.Module)
+					"module '%s' not found", errors.Ident(node.Module))
 			}
 
 			alias := node.Alias
@@ -535,7 +535,7 @@ func Eval(node ast.Node, env *Environment, ctx *EvalContext) Object {
 			_, isUserModule := env.GetModule(alias)
 			if !isStdlib && !isUserModule {
 				return newErrorWithLocation("E6004", node.Token.Line, node.Token.Column,
-					"cannot use '%s': module not imported", alias)
+					"cannot use '%s': module not imported", errors.Ident(alias))
 			}
 			env.Use(alias)
 		}
@@ -648,7 +648,7 @@ func Eval(node ast.Node, env *Environment, ctx *EvalContext) Object {
 			// Validate that the key is hashable
 			if _, hashOk := HashKey(index); !hashOk {
 				return newErrorWithLocation("E12001", node.Token.Line, node.Token.Column,
-					"unusable as map key: %s", objectTypeToEZ(index))
+					"unusable as map key: %s", errors.TypeGot(objectTypeToEZ(index)))
 			}
 			value, exists := mapObj.Get(index)
 			if !exists {
@@ -683,7 +683,7 @@ func Eval(node ast.Node, env *Environment, ctx *EvalContext) Object {
 		idx, ok := index.(*Integer)
 		if !ok {
 			return newErrorWithLocation("E9003", node.Token.Line, node.Token.Column,
-				"index must be an integer, got %s", objectTypeToEZ(index))
+				"index must be an integer, got %s", errors.TypeGot(objectTypeToEZ(index)))
 		}
 
 		switch obj := left.(type) {
@@ -732,7 +732,7 @@ func Eval(node ast.Node, env *Environment, ctx *EvalContext) Object {
 
 		default:
 			return newErrorWithLocation("E5015", node.Token.Line, node.Token.Column,
-				"index operator not supported for %s", objectTypeToEZ(left))
+				"index operator not supported for %s", errors.TypeGot(objectTypeToEZ(left)))
 		}
 
 	case *ast.MemberExpression:
@@ -773,7 +773,7 @@ func evalProgram(program *ast.Program, env *Environment, ctx *EvalContext) Objec
 			_, isUserModule := env.GetModule(alias)
 			if !isStdlib && !isUserModule {
 				return newErrorWithLocation("E6004", usingStmt.Token.Line, usingStmt.Token.Column,
-					"cannot use '%s': module not imported", alias)
+					"cannot use '%s': module not imported", errors.Ident(alias))
 			}
 			env.Use(alias)
 		}
@@ -923,7 +923,7 @@ func evalVariableDeclaration(node *ast.VariableDeclaration, env *Environment, ct
 						"type mismatch: expected array type '%s', got %s\n\n"+
 							"Array values must be enclosed in curly braces {}\n"+
 							"Example: const arr %s = {%s}",
-						node.TypeName, GetEZTypeName(val), node.TypeName, val.Inspect())
+						errors.TypeExpected(node.TypeName), errors.TypeGot(GetEZTypeName(val)), errors.TypeExpected(node.TypeName), val.Inspect())
 				}
 				// Set the element type on the array from the declared type
 				// Extract element type from type name (e.g., "[int]" -> "int", "[int,5]" -> "int")
@@ -978,7 +978,7 @@ func evalVariableDeclaration(node *ast.VariableDeclaration, env *Environment, ct
 							"type mismatch: expected map type '%s', got %s\n\n"+
 								"Map values must use key: value syntax\n"+
 								"Example: temp m %s = {\"key\": value}",
-							node.TypeName, GetEZTypeName(val), node.TypeName)
+							errors.TypeExpected(node.TypeName), errors.TypeGot(GetEZTypeName(val)), errors.TypeExpected(node.TypeName))
 					}
 				} else {
 					// Set mutability and type info based on declaration
@@ -1008,13 +1008,13 @@ func evalVariableDeclaration(node *ast.VariableDeclaration, env *Environment, ct
 					if isUnsignedIntegerType(node.TypeName) && intVal.Value.Sign() < 0 {
 						return newErrorWithLocation("E3020", node.Token.Line, node.Token.Column,
 							"cannot assign negative value %s to unsigned type '%s' (valid range: %s)",
-							intVal.Value.String(), node.TypeName, getTypeRangeString(node.TypeName))
+							intVal.Value.String(), errors.TypeExpected(node.TypeName), getTypeRangeString(node.TypeName))
 					}
 					// Check if value fits in target type's range (#962)
 					if checkOverflow(intVal.Value, node.TypeName) {
 						return newErrorWithLocation("E3036", node.Token.Line, node.Token.Column,
 							"value %s out of range for type '%s' (valid range: %s)",
-							intVal.Value.String(), node.TypeName, getTypeRangeString(node.TypeName))
+							intVal.Value.String(), errors.TypeExpected(node.TypeName), getTypeRangeString(node.TypeName))
 					}
 					// Set the declared type on the integer
 					intVal.DeclaredType = node.TypeName
@@ -1080,7 +1080,7 @@ func validateAndConvertType(val Object, typeName string, mutable bool, line, col
 		if !ok {
 			return nil, newErrorWithLocation("E3018", line, col,
 				"type mismatch: expected array type '%s', got %s",
-				typeName, GetEZTypeName(val))
+				errors.TypeExpected(typeName), errors.TypeGot(GetEZTypeName(val)))
 		}
 		// Extract element type from type name
 		elemType := typeName[1:]
@@ -1110,7 +1110,7 @@ func validateAndConvertType(val Object, typeName string, mutable bool, line, col
 			}
 			return nil, newErrorWithLocation("E3019", line, col,
 				"type mismatch: expected map type '%s', got %s",
-				typeName, GetEZTypeName(val))
+				errors.TypeExpected(typeName), errors.TypeGot(GetEZTypeName(val)))
 		}
 		mapObj.Mutable = mutable
 		mapObj.KeyType = extractMapKeyType(typeName)
@@ -1135,7 +1135,7 @@ func validateAndConvertType(val Object, typeName string, mutable bool, line, col
 		}
 		if isUnsignedIntegerType(typeName) && intVal.Value.Sign() < 0 {
 			return nil, newErrorWithLocation("E3020", line, col,
-				"cannot assign negative value %s to unsigned type '%s'", intVal.Value.String(), typeName)
+				"cannot assign negative value %s to unsigned type '%s'", intVal.Value.String(), errors.TypeExpected(typeName))
 		}
 		intVal.DeclaredType = typeName
 		return intVal, nil
@@ -1191,7 +1191,7 @@ func evalAssignment(node *ast.AssignmentStatement, env *Environment, ctx *EvalCo
 						// ok
 					default:
 						return newErrorWithLocation("E3025", node.Token.Line, node.Token.Column,
-							"cannot assign %s to byte variable", objectTypeToEZ(unpackedVal))
+							"cannot assign %s to byte variable", errors.TypeGot(objectTypeToEZ(unpackedVal)))
 					}
 				}
 			}
@@ -1199,11 +1199,11 @@ func evalAssignment(node *ast.AssignmentStatement, env *Environment, ctx *EvalCo
 			found, isMutable := env.Update(name.Value, unpackedVal)
 			if !found {
 				return newErrorWithLocation("E4001", node.Token.Line, node.Token.Column,
-					"undefined variable '%s'", name.Value)
+					"undefined variable '%s'", errors.Ident(name.Value))
 			}
 			if !isMutable {
 				return newErrorWithLocation("E5013", node.Token.Line, node.Token.Column,
-					"cannot assign to immutable variable '%s' (declared as const)", name.Value)
+					"cannot assign to immutable variable '%s' (declared as const)", errors.Ident(name.Value))
 			}
 		}
 		return NIL
@@ -1226,7 +1226,7 @@ func evalAssignment(node *ast.AssignmentStatement, env *Environment, ctx *EvalCo
 					oldVal, ok := ref.Deref()
 					if !ok {
 						return newErrorWithLocation("E4001", node.Token.Line, node.Token.Column,
-							"cannot dereference variable '%s'", target.Value)
+							"cannot dereference variable '%s'", errors.Ident(target.Value))
 					}
 					val = evalCompoundAssignment(node.Operator, oldVal, val, node.Token.Line, node.Token.Column)
 					if isError(val) {
@@ -1248,7 +1248,7 @@ func evalAssignment(node *ast.AssignmentStatement, env *Environment, ctx *EvalCo
 							// ok
 						default:
 							return newErrorWithLocation("E3025", node.Token.Line, node.Token.Column,
-								"cannot assign %s to byte variable", objectTypeToEZ(val))
+								"cannot assign %s to byte variable", errors.TypeGot(objectTypeToEZ(val)))
 						}
 					}
 				}
@@ -1262,7 +1262,7 @@ func evalAssignment(node *ast.AssignmentStatement, env *Environment, ctx *EvalCo
 			oldVal, ok := env.Get(target.Value)
 			if !ok {
 				return newErrorWithLocation("E4001", node.Token.Line, node.Token.Column,
-					"undefined variable '%s'", target.Value)
+					"undefined variable '%s'", errors.Ident(target.Value))
 			}
 			val = evalCompoundAssignment(node.Operator, oldVal, val, node.Token.Line, node.Token.Column)
 			if isError(val) {
@@ -1284,7 +1284,7 @@ func evalAssignment(node *ast.AssignmentStatement, env *Environment, ctx *EvalCo
 					// already a byte - fine
 				default:
 					return newErrorWithLocation("E3025", node.Token.Line, node.Token.Column,
-						"cannot assign %s to byte variable", objectTypeToEZ(val))
+						"cannot assign %s to byte variable", errors.TypeGot(objectTypeToEZ(val)))
 				}
 			}
 		}
@@ -1292,11 +1292,11 @@ func evalAssignment(node *ast.AssignmentStatement, env *Environment, ctx *EvalCo
 		found, isMutable := env.Update(target.Value, val)
 		if !found {
 			return newErrorWithLocation("E4001", node.Token.Line, node.Token.Column,
-				"undefined variable '%s'", target.Value)
+				"undefined variable '%s'", errors.Ident(target.Value))
 		}
 		if !isMutable {
 			return newErrorWithLocation("E5013", node.Token.Line, node.Token.Column,
-				"cannot assign to immutable variable '%s' (declared as const)", target.Value)
+				"cannot assign to immutable variable '%s' (declared as const)", errors.Ident(target.Value))
 		}
 
 	case *ast.IndexExpression:
@@ -1306,7 +1306,7 @@ func evalAssignment(node *ast.AssignmentStatement, env *Environment, ctx *EvalCo
 			isMutable, exists := env.IsMutable(ident.Value)
 			if exists && !isMutable {
 				return newErrorWithLocation("E5006", node.Token.Line, node.Token.Column,
-					"cannot modify immutable variable '%s' (declared as const)", ident.Value)
+					"cannot modify immutable variable '%s' (declared as const)", errors.Ident(ident.Value))
 			}
 		}
 
@@ -1329,7 +1329,7 @@ func evalAssignment(node *ast.AssignmentStatement, env *Environment, ctx *EvalCo
 			index, ok := idx.(*Integer)
 			if !ok {
 				return newErrorWithLocation("E3003", node.Token.Line, node.Token.Column,
-					"array index must be integer, got %s", objectTypeToEZ(idx))
+					"array index must be integer, got %s", errors.TypeGot(objectTypeToEZ(idx)))
 			}
 			arrLen := big.NewInt(int64(len(obj.Elements)))
 			if index.Value.Sign() < 0 || index.Value.Cmp(arrLen) >= 0 {
@@ -1367,7 +1367,7 @@ func evalAssignment(node *ast.AssignmentStatement, env *Environment, ctx *EvalCo
 					// okay
 				default:
 					return newErrorWithLocation("E3026", node.Token.Line, node.Token.Column,
-						"cannot assign %s to byte array element", objectTypeToEZ(val))
+						"cannot assign %s to byte array element", errors.TypeGot(objectTypeToEZ(val)))
 				}
 			}
 
@@ -1377,13 +1377,13 @@ func evalAssignment(node *ast.AssignmentStatement, env *Environment, ctx *EvalCo
 			index, ok := idx.(*Integer)
 			if !ok {
 				return newErrorWithLocation("E3003", node.Token.Line, node.Token.Column,
-					"string index must be integer, got %s", objectTypeToEZ(idx))
+					"string index must be integer, got %s", errors.TypeGot(objectTypeToEZ(idx)))
 			}
 			// String mutation - verify the value is a character
 			charObj, ok := val.(*Char)
 			if !ok {
 				return newErrorWithLocation("E3004", node.Token.Line, node.Token.Column,
-					"can only assign character to string index, got %s", objectTypeToEZ(val))
+					"can only assign character to string index, got %s", errors.TypeGot(objectTypeToEZ(val)))
 			}
 			// Convert string to rune slice for proper UTF-8 character indexing
 			runes := []rune(obj.Value)
@@ -1407,7 +1407,7 @@ func evalAssignment(node *ast.AssignmentStatement, env *Environment, ctx *EvalCo
 			// Validate that the key is hashable
 			if _, ok := HashKey(idx); !ok {
 				return newErrorWithLocation("E12001", node.Token.Line, node.Token.Column,
-					"map key must be a hashable type, got %s", objectTypeToEZ(idx))
+					"map key must be a hashable type, got %s", errors.TypeGot(objectTypeToEZ(idx)))
 			}
 
 			// Check if map is mutable
@@ -1444,7 +1444,7 @@ func evalAssignment(node *ast.AssignmentStatement, env *Environment, ctx *EvalCo
 						// ok
 					default:
 						return newErrorWithLocation("E3026", node.Token.Line, node.Token.Column,
-							"cannot assign %s to byte map element", objectTypeToEZ(val))
+							"cannot assign %s to byte map element", errors.TypeGot(objectTypeToEZ(val)))
 					}
 				}
 			}
@@ -1452,7 +1452,7 @@ func evalAssignment(node *ast.AssignmentStatement, env *Environment, ctx *EvalCo
 
 		default:
 			return newErrorWithLocation("E3016", node.Token.Line, node.Token.Column,
-				"index operator not supported: %s", objectTypeToEZ(container))
+				"index operator not supported: %s", errors.TypeGot(objectTypeToEZ(container)))
 		}
 
 	case *ast.MemberExpression:
@@ -1464,14 +1464,14 @@ func evalAssignment(node *ast.AssignmentStatement, env *Environment, ctx *EvalCo
 				return newErrorWithLocation("E6008", node.Token.Line, node.Token.Column,
 					"cannot assign to module member '%s.%s'\n\n"+
 						"Module exports are read-only and cannot be modified from outside the module.",
-					alias, target.Member.Value)
+					errors.Ident(alias), errors.Ident(target.Member.Value))
 			}
 			// Check if it's a stdlib import
 			if _, ok := env.GetImport(alias); ok {
 				return newErrorWithLocation("E6008", node.Token.Line, node.Token.Column,
 					"cannot assign to module member '%s.%s'\n\n"+
 						"Module exports are read-only and cannot be modified from outside the module.",
-					alias, target.Member.Value)
+					errors.Ident(alias), errors.Ident(target.Member.Value))
 			}
 		}
 
@@ -1483,7 +1483,7 @@ func evalAssignment(node *ast.AssignmentStatement, env *Environment, ctx *EvalCo
 		structObj, ok := obj.(*Struct)
 		if !ok {
 			return newErrorWithLocation("E4011", node.Token.Line, node.Token.Column,
-				"member access not supported: %s", objectTypeToEZ(obj))
+				"member access not supported: %s", errors.TypeGot(objectTypeToEZ(obj)))
 		}
 
 		// Check if struct is mutable
@@ -1506,7 +1506,7 @@ func evalAssignment(node *ast.AssignmentStatement, env *Environment, ctx *EvalCo
 			oldVal, exists := structObj.Fields[target.Member.Value]
 			if !exists {
 				return newErrorWithLocation("E4003", node.Token.Line, node.Token.Column,
-					"field '%s' not found", target.Member.Value)
+					"field '%s' not found", errors.Ident(target.Member.Value))
 			}
 			val = evalCompoundAssignment(node.Operator, oldVal, val, node.Token.Line, node.Token.Column)
 			if isError(val) {
@@ -1529,7 +1529,7 @@ func evalAssignment(node *ast.AssignmentStatement, env *Environment, ctx *EvalCo
 					// ok
 				default:
 					return newErrorWithLocation("E3025", node.Token.Line, node.Token.Column,
-						"cannot assign %s to byte field", objectTypeToEZ(val))
+						"cannot assign %s to byte field", errors.TypeGot(objectTypeToEZ(val)))
 				}
 			}
 		}
@@ -1809,7 +1809,7 @@ func evalRangeExpression(node *ast.RangeExpression, env *Environment, ctx *EvalC
 		startInt, ok := startObj.(*Integer)
 		if !ok {
 			return newErrorWithLocation("E5013", line, col,
-				"range start must be integer, got %s", objectTypeToEZ(startObj))
+				"range start must be integer, got %s", errors.TypeGot(objectTypeToEZ(startObj)))
 		}
 		start = new(big.Int).Set(startInt.Value)
 	}
@@ -1822,7 +1822,7 @@ func evalRangeExpression(node *ast.RangeExpression, env *Environment, ctx *EvalC
 	endInt, ok := endObj.(*Integer)
 	if !ok {
 		return newErrorWithLocation("E5014", line, col,
-			"range end must be integer, got %s", objectTypeToEZ(endObj))
+			"range end must be integer, got %s", errors.TypeGot(objectTypeToEZ(endObj)))
 	}
 	end := new(big.Int).Set(endInt.Value)
 
@@ -1836,7 +1836,7 @@ func evalRangeExpression(node *ast.RangeExpression, env *Environment, ctx *EvalC
 		stepInt, ok := stepObj.(*Integer)
 		if !ok {
 			return newErrorWithLocation("E5019", line, col,
-				"range step must be integer, got %s", objectTypeToEZ(stepObj))
+				"range step must be integer, got %s", errors.TypeGot(objectTypeToEZ(stepObj)))
 		}
 		step = new(big.Int).Set(stepInt.Value)
 		if step.Sign() == 0 {
@@ -1884,7 +1884,7 @@ func evalArrayCast(value Object, elementType string, line, col int, ctx *EvalCon
 	arr, ok := value.(*Array)
 	if !ok {
 		return newErrorWithLocation("E3001", line, col,
-			"cast to array type requires array value, got %s", objectTypeToEZ(value))
+			"cast to array type requires array value, got %s", errors.TypeGot(objectTypeToEZ(value)))
 	}
 
 	newElements := make([]Object, len(arr.Elements))
@@ -1912,7 +1912,7 @@ func evalSingleCast(value Object, targetType string, line, col int, ctx *EvalCon
 	builtin, ok := builtins[targetType]
 	if !ok {
 		return newErrorWithLocation("E3001", line, col,
-			"unknown cast target type: %s", targetType)
+			"unknown cast target type: %s", errors.TypeGot(targetType))
 	}
 
 	result := builtin.Fn(value)
@@ -1955,7 +1955,7 @@ func evalForStatement(node *ast.ForStatement, env *Environment, ctx *EvalContext
 		startInt, ok := startObj.(*Integer)
 		if !ok {
 			return newErrorWithLocation("E5013", node.Token.Line, node.Token.Column,
-				"range start must be integer, got %s", objectTypeToEZ(startObj))
+				"range start must be integer, got %s", errors.TypeGot(objectTypeToEZ(startObj)))
 		}
 		start = new(big.Int).Set(startInt.Value)
 	}
@@ -1968,7 +1968,7 @@ func evalForStatement(node *ast.ForStatement, env *Environment, ctx *EvalContext
 	endInt, ok := endObj.(*Integer)
 	if !ok {
 		return newErrorWithLocation("E5014", node.Token.Line, node.Token.Column,
-			"range end must be integer, got %s", objectTypeToEZ(endObj))
+			"range end must be integer, got %s", errors.TypeGot(objectTypeToEZ(endObj)))
 	}
 	end := endInt.Value
 
@@ -1982,7 +1982,7 @@ func evalForStatement(node *ast.ForStatement, env *Environment, ctx *EvalContext
 		stepInt, ok := stepObj.(*Integer)
 		if !ok {
 			return newErrorWithLocation("E5019", node.Token.Line, node.Token.Column,
-				"range step must be integer, got %s", objectTypeToEZ(stepObj))
+				"range step must be integer, got %s", errors.TypeGot(objectTypeToEZ(stepObj)))
 		}
 		step = new(big.Int).Set(stepInt.Value)
 		if step.Sign() == 0 {
@@ -2092,7 +2092,7 @@ func evalForEachStatement(node *ast.ForEachStatement, env *Environment, ctx *Eva
 	}
 
 	return newErrorWithLocation("E3017", node.Token.Line, node.Token.Column,
-		"for_each requires array or string, got %s", objectTypeToEZ(collection))
+		"for_each requires array or string, got %s", errors.TypeGot(objectTypeToEZ(collection)))
 }
 
 func evalEnumDeclaration(node *ast.EnumDeclaration, env *Environment, ctx *EvalContext) Object {
@@ -2163,9 +2163,9 @@ func evalEnumDeclaration(node *ast.EnumDeclaration, env *Environment, ctx *EvalC
 				return newErrorWithLocation("E2031", enumVal.Name.Token.Line, enumVal.Name.Token.Column,
 					"string enum '%s' requires explicit value for member '%s'\n\n"+
 						"String enums do not auto-increment. Provide an explicit value like:\n"+
-						"  %s = \"%s\"", node.Name.Value, enumVal.Name.Value, enumVal.Name.Value, strings.ToLower(enumVal.Name.Value))
+						"  %s = \"%s\"", errors.Ident(node.Name.Value), errors.Ident(enumVal.Name.Value), errors.Ident(enumVal.Name.Value), strings.ToLower(enumVal.Name.Value))
 			default:
-				return newError("unsupported enum type: %s", typeName)
+				return newError("unsupported enum type: %s", errors.TypeGot(typeName))
 			}
 		}
 	}
@@ -2241,11 +2241,11 @@ func evalIdentifier(node *ast.Label, env *Environment, ctx *EvalContext) Object 
 	// Ambiguity check
 	if len(foundModules) > 1 {
 		err := newErrorWithLocation("E4008", node.Token.Line, node.Token.Column,
-			"function '%s' found in multiple modules", node.Value)
+			"function '%s' found in multiple modules", errors.Ident(node.Value))
 		// Build helpful error message
 		moduleList := strings.Join(foundModules, ", ")
-		err.Help = fmt.Sprintf("use explicit module prefix: %s.%s()", foundModules[0], node.Value)
-		err.Message = fmt.Sprintf("function '%s' found in multiple modules: %s", node.Value, moduleList)
+		err.Help = fmt.Sprintf("use explicit module prefix: %s.%s()", errors.Ident(foundModules[0]), errors.Ident(node.Value))
+		err.Message = fmt.Sprintf("function '%s' found in multiple modules: %s", errors.Ident(node.Value), moduleList)
 		return err
 	}
 
@@ -2277,13 +2277,13 @@ func evalIdentifier(node *ast.Label, env *Environment, ctx *EvalContext) Object 
 
 	// Create error with potential suggestion
 	err := newErrorWithLocation("E4001", node.Token.Line, node.Token.Column,
-		"identifier not found: '%s'", node.Value)
+		"identifier not found: '%s'", errors.Ident(node.Value))
 
 	// Try to suggest a keyword or builtin
 	if suggestion := errors.SuggestKeyword(node.Value); suggestion != "" {
-		err.Help = fmt.Sprintf("did you mean '%s'?", suggestion)
+		err.Help = fmt.Sprintf("did you mean '%s'?", errors.Ident(suggestion))
 	} else if suggestion := errors.SuggestBuiltin(node.Value); suggestion != "" {
-		err.Help = fmt.Sprintf("did you mean '%s'?", suggestion)
+		err.Help = fmt.Sprintf("did you mean '%s'?", errors.Ident(suggestion))
 	}
 
 	return err
@@ -2338,7 +2338,7 @@ func evalMinusPrefixOperator(right Object) Object {
 		// Only check for overflow if a declared type is set
 		// When no type is set, overflow will be checked at assignment time
 		if obj.DeclaredType != "" && checkOverflow(result, obj.DeclaredType) {
-			return newError("integer overflow: negating %s exceeds %s range", obj.Value.String(), getTypeRangeName(obj.DeclaredType))
+			return newError("integer overflow: negating %s exceeds %s range", obj.Value.String(), errors.TypeExpected(getTypeRangeName(obj.DeclaredType)))
 		}
 		return &Integer{Value: result, DeclaredType: obj.DeclaredType}
 	case *Float:
@@ -2427,19 +2427,19 @@ func evalIntegerInfixExpression(operator string, left, right Object, line, col i
 	case "+":
 		result := new(big.Int).Add(leftVal, rightVal)
 		if checkOverflow(result, resultType) {
-			return newErrorWithLocation("E5005", line, col, "integer overflow: %s + %s exceeds %s range", leftVal.String(), rightVal.String(), getTypeRangeName(resultType))
+			return newErrorWithLocation("E5005", line, col, "integer overflow: %s + %s exceeds %s range", leftVal.String(), rightVal.String(), errors.TypeExpected(getTypeRangeName(resultType)))
 		}
 		return &Integer{Value: result, DeclaredType: resultType}
 	case "-":
 		result := new(big.Int).Sub(leftVal, rightVal)
 		if checkOverflow(result, resultType) {
-			return newErrorWithLocation("E5006", line, col, "integer overflow: %s - %s exceeds %s range", leftVal.String(), rightVal.String(), getTypeRangeName(resultType))
+			return newErrorWithLocation("E5006", line, col, "integer overflow: %s - %s exceeds %s range", leftVal.String(), rightVal.String(), errors.TypeExpected(getTypeRangeName(resultType)))
 		}
 		return &Integer{Value: result, DeclaredType: resultType}
 	case "*":
 		result := new(big.Int).Mul(leftVal, rightVal)
 		if checkOverflow(result, resultType) {
-			return newErrorWithLocation("E5007", line, col, "integer overflow: %s * %s exceeds %s range", leftVal.String(), rightVal.String(), getTypeRangeName(resultType))
+			return newErrorWithLocation("E5007", line, col, "integer overflow: %s * %s exceeds %s range", leftVal.String(), rightVal.String(), errors.TypeExpected(getTypeRangeName(resultType)))
 		}
 		return &Integer{Value: result, DeclaredType: resultType}
 	case "/":
@@ -2449,7 +2449,7 @@ func evalIntegerInfixExpression(operator string, left, right Object, line, col i
 		result := new(big.Int).Quo(leftVal, rightVal)
 		// Check for overflow: MinInt / -1 would exceed MaxInt for signed types
 		if checkOverflow(result, resultType) {
-			return newErrorWithLocation("E5007", line, col, "integer overflow: %s / %s exceeds %s range", leftVal.String(), rightVal.String(), getTypeRangeName(resultType))
+			return newErrorWithLocation("E5007", line, col, "integer overflow: %s / %s exceeds %s range", leftVal.String(), rightVal.String(), errors.TypeExpected(getTypeRangeName(resultType)))
 		}
 		return &Integer{Value: result, DeclaredType: resultType}
 	case "%":
@@ -2686,7 +2686,7 @@ func evalInOperator(left, right Object, line, col int) Object {
 		leftInt, ok := left.(*Integer)
 		if !ok {
 			return newErrorWithLocation("E5020", line, col,
-				"left operand of 'in range()' must be integer, got %s", objectTypeToEZ(left))
+				"left operand of 'in range()' must be integer, got %s", errors.TypeGot(objectTypeToEZ(left)))
 		}
 		if r.Contains(leftInt.Value) {
 			return TRUE
@@ -2707,7 +2707,7 @@ func evalInOperator(left, right Object, line, col int) Object {
 	arr, ok := right.(*Array)
 	if !ok {
 		return newErrorWithLocation("E3014", line, col,
-			"right operand of 'in' must be array, map, or range, got %s", objectTypeToEZ(right))
+			"right operand of 'in' must be array, map, or range, got %s", errors.TypeGot(objectTypeToEZ(right)))
 	}
 
 	for _, elem := range arr.Elements {
@@ -2755,12 +2755,12 @@ func evalPostfixExpression(node *ast.PostfixExpression, env *Environment, ctx *E
 		val, ok := env.Get(target.Value)
 		if !ok {
 			return newErrorWithLocation("E4001", node.Token.Line, node.Token.Column,
-				"identifier not found: %s", target.Value)
+				"identifier not found: '%s'", errors.Ident(target.Value))
 		}
 		intVal, ok := val.(*Integer)
 		if !ok {
 			return newErrorWithLocation("E5023", node.Token.Line, node.Token.Column,
-				"postfix operator %s requires integer operand, got %s", node.Operator, objectTypeToEZ(val))
+				"postfix operator %s requires integer operand, got %s", node.Operator, errors.TypeGot(objectTypeToEZ(val)))
 		}
 		newVal := applyPostfixOp(node.Operator, intVal, node.Token.Line, node.Token.Column)
 		if err, ok := newVal.(*Error); ok {
@@ -2774,7 +2774,7 @@ func evalPostfixExpression(node *ast.PostfixExpression, env *Environment, ctx *E
 			isMutable, exists := env.IsMutable(ident.Value)
 			if exists && !isMutable {
 				return newErrorWithLocation("E5006", node.Token.Line, node.Token.Column,
-					"cannot modify immutable variable '%s' (declared as const)", ident.Value)
+					"cannot modify immutable variable '%s' (declared as const)", errors.Ident(ident.Value))
 			}
 		}
 		container := Eval(target.Left, env, ctx)
@@ -2794,7 +2794,7 @@ func evalPostfixExpression(node *ast.PostfixExpression, env *Environment, ctx *E
 			index, ok := idx.(*Integer)
 			if !ok {
 				return newErrorWithLocation("E3003", node.Token.Line, node.Token.Column,
-					"array index must be integer, got %s", objectTypeToEZ(idx))
+					"array index must be integer, got %s", errors.TypeGot(objectTypeToEZ(idx)))
 			}
 			arrLen := int64(len(obj.Elements))
 			if index.Value.Sign() < 0 || index.Value.Int64() >= arrLen {
@@ -2804,7 +2804,7 @@ func evalPostfixExpression(node *ast.PostfixExpression, env *Environment, ctx *E
 			intVal, ok := obj.Elements[index.Value.Int64()].(*Integer)
 			if !ok {
 				return newErrorWithLocation("E5023", node.Token.Line, node.Token.Column,
-					"postfix operator %s requires integer operand, got %s", node.Operator, objectTypeToEZ(obj.Elements[index.Value.Int64()]))
+					"postfix operator %s requires integer operand, got %s", node.Operator, errors.TypeGot(objectTypeToEZ(obj.Elements[index.Value.Int64()])))
 			}
 			newVal := applyPostfixOp(node.Operator, intVal, node.Token.Line, node.Token.Column)
 			if err, ok := newVal.(*Error); ok {
@@ -2825,7 +2825,7 @@ func evalPostfixExpression(node *ast.PostfixExpression, env *Environment, ctx *E
 			intVal, ok := val.(*Integer)
 			if !ok {
 				return newErrorWithLocation("E5023", node.Token.Line, node.Token.Column,
-					"postfix operator %s requires integer operand, got %s", node.Operator, objectTypeToEZ(val))
+					"postfix operator %s requires integer operand, got %s", node.Operator, errors.TypeGot(objectTypeToEZ(val)))
 			}
 			newVal := applyPostfixOp(node.Operator, intVal, node.Token.Line, node.Token.Column)
 			if err, ok := newVal.(*Error); ok {
@@ -2852,12 +2852,12 @@ func evalPostfixExpression(node *ast.PostfixExpression, env *Environment, ctx *E
 		fieldVal, ok := structObj.Fields[target.Member.Value]
 		if !ok {
 			return newErrorWithLocation("E4003", node.Token.Line, node.Token.Column,
-				"field '%s' not found", target.Member.Value)
+				"field '%s' not found", errors.Ident(target.Member.Value))
 		}
 		intVal, ok := fieldVal.(*Integer)
 		if !ok {
 			return newErrorWithLocation("E5023", node.Token.Line, node.Token.Column,
-				"postfix operator %s requires integer operand, got %s", node.Operator, objectTypeToEZ(fieldVal))
+				"postfix operator %s requires integer operand, got %s", node.Operator, errors.TypeGot(objectTypeToEZ(fieldVal)))
 		}
 		newVal := applyPostfixOp(node.Operator, intVal, node.Token.Line, node.Token.Column)
 		if err, ok := newVal.(*Error); ok {
@@ -2878,13 +2878,13 @@ func applyPostfixOp(op string, intVal *Integer, line, col int) Object {
 		newVal = new(big.Int).Add(intVal.Value, one)
 		if checkOverflow(newVal, intVal.DeclaredType) {
 			return newErrorWithLocation("E5008", line, col,
-				"integer overflow: %s++ exceeds %s range", intVal.Value.String(), getTypeRangeName(intVal.DeclaredType))
+				"integer overflow: %s++ exceeds %s range", intVal.Value.String(), errors.TypeExpected(getTypeRangeName(intVal.DeclaredType)))
 		}
 	case "--":
 		newVal = new(big.Int).Sub(intVal.Value, one)
 		if checkOverflow(newVal, intVal.DeclaredType) {
 			return newErrorWithLocation("E5009", line, col,
-				"integer overflow: %s-- exceeds %s range", intVal.Value.String(), getTypeRangeName(intVal.DeclaredType))
+				"integer overflow: %s-- exceeds %s range", intVal.Value.String(), errors.TypeExpected(getTypeRangeName(intVal.DeclaredType)))
 		}
 	default:
 		return newErrorWithLocation("E3014", line, col,
@@ -2912,7 +2912,7 @@ func evalCallExpression(node *ast.CallExpression, env *Environment, ctx *EvalCon
 				// Change to "undefined function" error
 				if label, ok := node.Function.(*ast.Label); ok {
 					return newErrorWithLocation("E4002", label.Token.Line, label.Token.Column,
-						"undefined function: '%s'", label.Value)
+						"undefined function: '%s'", errors.Ident(label.Value))
 				}
 			}
 		}
@@ -2950,7 +2950,7 @@ func evalRefBuiltin(args []ast.Expression, env *Environment, line, column int) O
 		// Verify the variable exists
 		if _, ok := env.Get(label.Value); !ok {
 			return newErrorWithLocation("E4001", label.Token.Line, label.Token.Column,
-				"undefined variable: '%s'", label.Value)
+				"undefined variable: '%s'", errors.Ident(label.Value))
 		}
 		// Create a reference to the variable
 		return &Reference{Env: env, Name: label.Value}
@@ -3054,14 +3054,14 @@ func evalMemberCall(member *ast.MemberExpression, args []ast.Expression, env *En
 			return applyFunction(fn, evalArgs, member.Token.Line, member.Token.Column, ctx)
 		}
 		return newErrorWithLocation("E4006", member.Token.Line, member.Token.Column,
-			"'%s' not found in module '%s'", memberName, alias)
+			"'%s' not found in module '%s'", errors.Ident(memberName), errors.Ident(alias))
 	}
 
 	// Get the actual module name from the alias (stdlib)
 	moduleName, ok := env.GetImport(alias)
 	if !ok {
 		return newErrorWithLocation("E4007", member.Token.Line, member.Token.Column,
-			"module '%s' not imported", alias)
+			"module '%s' not imported", errors.Ident(alias))
 	}
 
 	// Create a compound name like "strings.upper" using the actual module name
@@ -3100,11 +3100,11 @@ func evalMemberCall(member *ast.MemberExpression, args []ast.Expression, env *En
 
 	if suggestion, ok := suggestions[fullName]; ok {
 		return newErrorWithLocation("E4002", member.Token.Line, member.Token.Column,
-			"function not found: %s\n  help: %s", fullName, suggestion)
+			"function not found: %s\n  help: %s", errors.Ident(fullName), suggestion)
 	}
 
 	return newErrorWithLocation("E4002", member.Token.Line, member.Token.Column,
-		"function not found: %s", fullName)
+		"function not found: %s", errors.Ident(fullName))
 }
 
 func applyFunction(fn Object, args []Object, line, col int, ctx *EvalContext) Object {
@@ -3148,13 +3148,13 @@ func applyFunction(fn Object, args []Object, line, col int, ctx *EvalContext) Ob
 					if isUnsignedIntegerType(param.TypeName) && intVal.Value.Sign() < 0 {
 						return newErrorWithLocation("E3020", line, col,
 							"cannot pass negative value %s to unsigned parameter '%s' of type '%s' (valid range: %s)",
-							intVal.Value.String(), param.Name.Value, param.TypeName, getTypeRangeString(param.TypeName))
+							intVal.Value.String(), errors.Ident(param.Name.Value), errors.TypeExpected(param.TypeName), getTypeRangeString(param.TypeName))
 					}
 					// Check if value fits in parameter type's range
 					if checkOverflow(intVal.Value, param.TypeName) {
 						return newErrorWithLocation("E3036", line, col,
 							"value %s out of range for parameter '%s' of type '%s' (valid range: %s)",
-							intVal.Value.String(), param.Name.Value, param.TypeName, getTypeRangeString(param.TypeName))
+							intVal.Value.String(), errors.Ident(param.Name.Value), errors.TypeExpected(param.TypeName), getTypeRangeString(param.TypeName))
 					}
 				}
 			}
@@ -3210,7 +3210,7 @@ func applyFunction(fn Object, args []Object, line, col int, ctx *EvalContext) Ob
 		return result
 
 	default:
-		return newErrorWithLocation("E3015", line, col, "not a function: %s", objectTypeToEZ(fn))
+		return newErrorWithLocation("E3015", line, col, "not a function: %s", errors.TypeGot(objectTypeToEZ(fn)))
 	}
 }
 
@@ -3256,12 +3256,12 @@ func createTypeMismatchError(val Object, expectedType string, line, col int) *Er
 	if isSignedIntegerType(actualType) && isUnsignedIntegerType(expectedType) {
 		return newErrorWithLocation("E3019", line, col,
 			"cannot return signed type '%s' where unsigned type '%s' is expected (signed values may be negative)",
-			actualType, expectedType)
+			errors.TypeGot(actualType), errors.TypeExpected(expectedType))
 	}
 
 	// Generic type mismatch
 	return newErrorWithLocation("E5024", line, col,
-		"return type mismatch: expected %s, got %s", expectedType, actualType)
+		"return type mismatch: expected %s, got %s", errors.TypeExpected(expectedType), errors.TypeGot(actualType))
 }
 
 // checkNegativeToUnsigned checks if a negative value is being returned to an unsigned type
@@ -3270,7 +3270,7 @@ func checkNegativeToUnsigned(val Object, expectedType string, line, col int) *Er
 	if intVal, ok := val.(*Integer); ok {
 		if isUnsignedIntegerType(expectedType) && intVal.Value.Sign() < 0 {
 			return newErrorWithLocation("E3020", line, col,
-				"cannot return negative value %s to unsigned type '%s'", intVal.Value.String(), expectedType)
+				"cannot return negative value %s to unsigned type '%s'", intVal.Value.String(), errors.TypeExpected(expectedType))
 		}
 	}
 	return nil
@@ -3545,7 +3545,7 @@ func evalMapLiteral(node *ast.MapValue, env *Environment, ctx *EvalContext) Obje
 		// Validate that the key is hashable
 		if _, ok := HashKey(key); !ok {
 			return newErrorWithLocation("E12001", node.Token.Line, node.Token.Column,
-				"unusable as map key: %s", objectTypeToEZ(key))
+				"unusable as map key: %s", errors.TypeGot(objectTypeToEZ(key)))
 		}
 
 		value := Eval(pair.Value, env, ctx)
@@ -3634,13 +3634,13 @@ func validateElementType(elem Object, expectedType string, line, col int) *Error
 		if intVal.Value.Sign() < 0 {
 			return newErrorWithLocation("E3020", line, col,
 				"cannot use negative value %s in array of type [%s]",
-				intVal.Value.String(), expectedType)
+				intVal.Value.String(), errors.TypeExpected(expectedType))
 		}
 		// Check range for the specific unsigned type
 		if checkOverflow(intVal.Value, expectedType) {
 			return newErrorWithLocation("E3036", line, col,
 				"value %s out of range for array element type %s (valid range: %s)",
-				intVal.Value.String(), expectedType, getTypeRangeString(expectedType))
+				intVal.Value.String(), errors.TypeExpected(expectedType), getTypeRangeString(expectedType))
 		}
 	}
 
@@ -3664,12 +3664,12 @@ func evalStructValue(node *ast.StructValue, env *Environment, ctx *EvalContext) 
 			structDef, ok = moduleObj.GetStructDef(structName)
 			if !ok {
 				return newErrorWithLocation("E3002", node.Token.Line, node.Token.Column,
-					"undefined type '%s' in module '%s'", structName, moduleName)
+					"undefined type '%s' in module '%s'", errors.TypeGot(structName), errors.Ident(moduleName))
 			}
 			sourceModule = moduleObj // Remember the source module for nested structs
 		} else {
 			return newErrorWithLocation("E4007", node.Token.Line, node.Token.Column,
-				"module '%s' not imported", moduleName)
+				"module '%s' not imported", errors.Ident(moduleName))
 		}
 	} else {
 		// Look up the struct definition in the current environment
@@ -3695,7 +3695,7 @@ func evalStructValue(node *ast.StructValue, env *Environment, ctx *EvalContext) 
 				moduleList := strings.Join(foundModules, ", ")
 				return newErrorWithLocation("E3002", node.Token.Line, node.Token.Column,
 					"type '%s' found in multiple modules: %s; use explicit module prefix: %s.%s",
-					typeName, moduleList, foundModules[0], typeName)
+					errors.Ident(typeName), moduleList, errors.Ident(foundModules[0]), errors.Ident(typeName))
 			}
 
 			// Found in exactly one module
@@ -3704,7 +3704,7 @@ func evalStructValue(node *ast.StructValue, env *Environment, ctx *EvalContext) 
 				sourceModule = foundModule // Remember the source module
 			} else {
 				return newErrorWithLocation("E3002", node.Token.Line, node.Token.Column,
-					"undefined type: '%s'", typeName)
+					"undefined type: '%s'", errors.TypeGot(typeName))
 			}
 		}
 	}
@@ -3762,12 +3762,12 @@ func evalNewExpression(node *ast.NewExpression, env *Environment, ctx *EvalConte
 			structDef, ok = moduleObj.GetStructDef(structName)
 			if !ok {
 				return newErrorWithLocation("E3002", node.Token.Line, node.Token.Column,
-					"undefined type '%s' in module '%s'", structName, moduleName)
+					"undefined type '%s' in module '%s'", errors.TypeGot(structName), errors.Ident(moduleName))
 			}
 			sourceModule = moduleObj // Remember the source module for nested structs
 		} else {
 			return newErrorWithLocation("E4007", node.Token.Line, node.Token.Column,
-				"module '%s' not imported", moduleName)
+				"module '%s' not imported", errors.Ident(moduleName))
 		}
 	} else {
 		// Look up the struct definition in the current environment
@@ -3793,7 +3793,7 @@ func evalNewExpression(node *ast.NewExpression, env *Environment, ctx *EvalConte
 				moduleList := strings.Join(foundModules, ", ")
 				return newErrorWithLocation("E3002", node.Token.Line, node.Token.Column,
 					"type '%s' found in multiple modules: %s; use explicit module prefix: %s.%s",
-					typeName, moduleList, foundModules[0], typeName)
+					errors.Ident(typeName), moduleList, errors.Ident(foundModules[0]), errors.Ident(typeName))
 			}
 
 			// Found in exactly one module
@@ -3802,7 +3802,7 @@ func evalNewExpression(node *ast.NewExpression, env *Environment, ctx *EvalConte
 				sourceModule = foundModule // Remember the source module
 			} else {
 				return newErrorWithLocation("E3002", node.Token.Line, node.Token.Column,
-					"undefined type: '%s'", typeName)
+					"undefined type: '%s'", errors.TypeGot(typeName))
 			}
 		}
 	}
@@ -3915,7 +3915,7 @@ func evalMemberExpression(node *ast.MemberExpression, env *Environment, ctx *Eva
 				return member
 			}
 			return newErrorWithLocation("E4006", node.Token.Line, node.Token.Column,
-				"'%s' not found in module '%s'", node.Member.Value, alias)
+				"'%s' not found in module '%s'", errors.Ident(node.Member.Value), errors.Ident(alias))
 		}
 
 		// Then check stdlib imports
@@ -3926,7 +3926,7 @@ func evalMemberExpression(node *ast.MemberExpression, env *Environment, ctx *Eva
 				return builtin.Fn()
 			}
 			return newErrorWithLocation("E4006", node.Token.Line, node.Token.Column,
-				"'%s' not found in module '%s'", node.Member.Value, alias)
+				"'%s' not found in module '%s'", errors.Ident(node.Member.Value), errors.Ident(alias))
 		}
 	}
 
@@ -3938,7 +3938,7 @@ func evalMemberExpression(node *ast.MemberExpression, env *Environment, ctx *Eva
 	// Check for nil reference
 	if obj.Type() == NIL_OBJ {
 		return newErrorWithLocation("E4010", node.Token.Line, node.Token.Column,
-			"nil reference: cannot access member '%s' of nil", node.Member.Value)
+			"nil reference: cannot access member '%s' of nil", errors.Ident(node.Member.Value))
 	}
 
 	if structObj, ok := obj.(*Struct); ok {
@@ -3954,7 +3954,7 @@ func evalMemberExpression(node *ast.MemberExpression, env *Environment, ctx *Eva
 			return val
 		}
 		return newErrorWithLocation("E4003", node.Token.Line, node.Token.Column,
-			"field '%s' not found", node.Member.Value)
+			"field '%s' not found", errors.Ident(node.Member.Value))
 	}
 
 	// Check for enum value access (e.g., STATUS.ACTIVE)
@@ -3968,11 +3968,11 @@ func evalMemberExpression(node *ast.MemberExpression, env *Environment, ctx *Eva
 			}
 		}
 		return newErrorWithLocation("E4004", node.Token.Line, node.Token.Column,
-			"enum value '%s' not found in enum '%s'", node.Member.Value, enumObj.Name)
+			"enum value '%s' not found in enum '%s'", errors.Ident(node.Member.Value), errors.Ident(enumObj.Name))
 	}
 
 	return newErrorWithLocation("E4011", node.Token.Line, node.Token.Column,
-		"member access not supported on type %s", objectTypeToEZ(obj))
+		"member access not supported on type %s", errors.TypeGot(objectTypeToEZ(obj)))
 }
 
 func nativeBoolToBooleanObject(input bool) *Boolean {

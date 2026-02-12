@@ -9,6 +9,7 @@ import (
 	"math/big"
 	"math/rand"
 
+	"github.com/marshallburns/ez/pkg/errors"
 	"github.com/marshallburns/ez/pkg/object"
 )
 
@@ -1305,7 +1306,7 @@ func getNumber(obj object.Object) (float64, *object.Error) {
 	case *object.Float:
 		return v.Value, nil
 	default:
-		return 0, &object.Error{Code: "E7005", Message: fmt.Sprintf("expected number, got %s", object.GetEZTypeName(obj))}
+		return 0, &object.Error{Code: "E7005", Message: fmt.Sprintf("expected number, got %s", errors.TypeGot(object.GetEZTypeName(obj)))}
 	}
 }
 
