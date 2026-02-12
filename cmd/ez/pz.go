@@ -231,21 +231,31 @@ func getBasicMainContent(comments bool) string {
 		return `// main.ez - Entry point
 //
 // EZ Quick Reference:
-// - Variables: let x = 5 or let x int = 5
-// - Constants: const PI = 3.14
+// - Variables: temp x int = 5 or temp x = 5 (inferred)
+// - Constants: const PI float = 3.14
 // - Functions: do greet(name string) -> string { return "Hi " + name }
-// - Loops: for i in 0..10 { } or for item in items { }
-// - Conditionals: if x > 0 { } otherwise { }
+// - Loops: for i in range(0, 10) { } or for item in items { }
+// - Conditionals: if x > 0 { } or x < 0 { } otherwise { }
+
+module main
+
+import @std
+using std
 
 do main() {
-    show("Hello, World!")
+    println("Hello, World!")
 }
 `
 	}
 	return `// main.ez - Entry point
 
+module main
+
+import @std
+using std
+
 do main() {
-    show("Hello, World!")
+    println("Hello, World!")
 }
 `
 }
@@ -256,79 +266,84 @@ func getCLIMainContent(name string, comments bool) string {
 //
 // Run with: ez main.ez [command] [args...]
 // Example: ez main.ez greet Alice
+//
+// Note: os.args() returns [program, filename, command, args...]
+//       args[0] = "ez", args[1] = "main.ez", args[2] = command
 
-using @std
+module main
 
-import "./commands.ez"
+import @std, @os
+using std
 
 do main() {
-    let args = @std.args()
+    temp args [string] = os.args()
 
-    if len(args) < 2 {
+    if len(args) < 3 {
         showUsage()
         return
     }
 
-    let command = args[1]
+    temp command string = args[2]
 
     // Dispatch to command handlers
     if command == "greet" {
         handleGreet(args)
-    } otherwise if command == "help" {
+    } or command == "help" {
         showUsage()
     } otherwise {
-        show("Unknown command: " + command)
+        println("Unknown command: " + command)
         showUsage()
     }
 }
 
 do showUsage() {
-    show("%s - A CLI application")
-    show("")
-    show("Usage:")
-    show("  ez main.ez <command> [args...]")
-    show("")
-    show("Commands:")
-    show("  greet <name>  Greet someone")
-    show("  help          Show this help")
+    println("%s - A CLI application")
+    println("")
+    println("Usage:")
+    println("  ez main.ez <command> [args...]")
+    println("")
+    println("Commands:")
+    println("  greet <name>  Greet someone")
+    println("  help          Show this help")
 }
 `, name)
 	}
 	return fmt.Sprintf(`// main.ez - CLI application entry point
 
-using @std
+module main
 
-import "./commands.ez"
+import @std, @os
+using std
 
 do main() {
-    let args = @std.args()
+    temp args [string] = os.args()
 
-    if len(args) < 2 {
+    if len(args) < 3 {
         showUsage()
         return
     }
 
-    let command = args[1]
+    temp command string = args[2]
 
     if command == "greet" {
         handleGreet(args)
-    } otherwise if command == "help" {
+    } or command == "help" {
         showUsage()
     } otherwise {
-        show("Unknown command: " + command)
+        println("Unknown command: " + command)
         showUsage()
     }
 }
 
 do showUsage() {
-    show("%s - A CLI application")
-    show("")
-    show("Usage:")
-    show("  ez main.ez <command> [args...]")
-    show("")
-    show("Commands:")
-    show("  greet <name>  Greet someone")
-    show("  help          Show this help")
+    println("%s - A CLI application")
+    println("")
+    println("Usage:")
+    println("  ez main.ez <command> [args...]")
+    println("")
+    println("Commands:")
+    println("  greet <name>  Greet someone")
+    println("  help          Show this help")
 }
 `, name)
 }
@@ -338,33 +353,39 @@ func getCLICommandsContent(comments bool) string {
 		return `// commands.ez - Command implementations
 //
 // Each command handler receives the full args array.
-// args[0] is the program name, args[1] is the command.
+// args[0] = program, args[1] = filename, args[2] = command, args[3+] = arguments
 
-using @std
+module main
 
-do handleGreet(args []string) {
-    if len(args) < 3 {
-        show("Usage: greet <name>")
+import @std
+using std
+
+do handleGreet(args [string]) {
+    if len(args) < 4 {
+        println("Usage: greet <name>")
         return
     }
 
-    let name = args[2]
-    show("Hello, " + name + "!")
+    temp name string = args[3]
+    println("Hello, " + name + "!")
 }
 `
 	}
 	return `// commands.ez - Command implementations
 
-using @std
+module main
 
-do handleGreet(args []string) {
-    if len(args) < 3 {
-        show("Usage: greet <name>")
+import @std
+using std
+
+do handleGreet(args [string]) {
+    if len(args) < 4 {
+        println("Usage: greet <name>")
         return
     }
 
-    let name = args[2]
-    show("Hello, " + name + "!")
+    temp name string = args[3]
+    println("Hello, " + name + "!")
 }
 `
 }
@@ -374,19 +395,21 @@ func getLibMainContent(name string, comments bool) string {
 		return fmt.Sprintf(`// %s.ez - Main library module
 //
 // This is a reusable library. Import it from other projects:
-//   import "../%s/%s.ez"
+//   import "./%s"
 //
 // Public functions should be documented and well-named.
 // Internal helpers go in the internal/ directory.
 
-import "./internal/helpers.ez"
+module %s
 
-// greet returns a greeting message for the given name.
+import "./internal/helpers"
+
+#doc("greet returns a greeting message for the given name.")
 do greet(name string) -> string {
     return formatGreeting(name)
 }
 
-// add returns the sum of two integers.
+#doc("add returns the sum of two integers.")
 do add(a int, b int) -> int {
     return a + b
 }
@@ -394,7 +417,9 @@ do add(a int, b int) -> int {
 	}
 	return fmt.Sprintf(`// %s.ez - Main library module
 
-import "./internal/helpers.ez"
+module %s
+
+import "./internal/helpers"
 
 do greet(name string) -> string {
     return formatGreeting(name)
@@ -403,7 +428,7 @@ do greet(name string) -> string {
 do add(a int, b int) -> int {
     return a + b
 }
-`, name)
+`, name, name)
 }
 
 func getLibHelpersContent(comments bool) string {
@@ -413,12 +438,16 @@ func getLibHelpersContent(comments bool) string {
 // These are implementation details not meant for public use.
 // Keep internal logic here to keep the main module clean.
 
+module helpers
+
 do formatGreeting(name string) -> string {
     return "Hello, " + name + "!"
 }
 `
 	}
 	return `// helpers.ez - Internal helper functions
+
+module helpers
 
 do formatGreeting(name string) -> string {
     return "Hello, " + name + "!"
@@ -436,19 +465,23 @@ func getMultiMainContent(comments bool) string {
 //   src/config.ez   - Configuration handling
 //   internal/       - Internal utilities
 
-import "./src/app.ez"
+module main
+
+import "./src/app"
 
 do main() {
-    run()
+    app.run()
 }
 `
 	}
 	return `// main.ez - Application entry point
 
-import "./src/app.ez"
+module main
+
+import "./src/app"
 
 do main() {
-    run()
+    app.run()
 }
 `
 }
@@ -460,29 +493,37 @@ func getMultiAppContent(comments bool) string {
 // This module contains the main application functionality.
 // Import configuration and utilities as needed.
 
-import "./config.ez"
-import "../internal/utils.ez"
+module app
+
+import @std
+import "./config"
+import "../internal/utils"
+using std
 
 do run() {
-    let cfg = getConfig()
-    show("Starting " + cfg.name + "...")
+    temp cfg config.Config = config.getConfig()
+    println("Starting " + cfg.name + "...")
 
-    let message = formatMessage("Application initialized")
-    show(message)
+    temp message string = utils.formatMessage("Application initialized")
+    println(message)
 }
 `
 	}
 	return `// app.ez - Core application logic
 
-import "./config.ez"
-import "../internal/utils.ez"
+module app
+
+import @std
+import "./config"
+import "../internal/utils"
+using std
 
 do run() {
-    let cfg = getConfig()
-    show("Starting " + cfg.name + "...")
+    temp cfg config.Config = config.getConfig()
+    println("Starting " + cfg.name + "...")
 
-    let message = formatMessage("Application initialized")
-    show(message)
+    temp message string = utils.formatMessage("Application initialized")
+    println(message)
 }
 `
 }
@@ -493,6 +534,8 @@ func getMultiConfigContent(comments bool) string {
 //
 // Define your application configuration here.
 // Consider loading from environment or config files.
+
+module config
 
 const Config struct {
     name string
@@ -510,6 +553,8 @@ do getConfig() -> Config {
 `
 	}
 	return `// config.ez - Configuration handling
+
+module config
 
 const Config struct {
     name string
@@ -534,6 +579,8 @@ func getMultiUtilsContent(comments bool) string {
 // Helper functions used across the application.
 // Keep these generic and reusable.
 
+module utils
+
 do formatMessage(msg string) -> string {
     return "[INFO] " + msg
 }
@@ -544,6 +591,8 @@ do formatError(msg string) -> string {
 `
 	}
 	return `// utils.ez - Internal utilities
+
+module utils
 
 do formatMessage(msg string) -> string {
     return "[INFO] " + msg
