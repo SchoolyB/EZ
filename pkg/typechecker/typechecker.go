@@ -1389,7 +1389,7 @@ func (tc *TypeChecker) checkGlobalVariableDeclaration(node *ast.VariableDeclarat
 				if arrLit, ok := node.Value.(*ast.ArrayValue); ok {
 					actualSize := len(arrLit.Elements)
 					if actualSize < declaredSize {
-						if !tc.isSuppressed("W3003", node.Attributes) {
+						if !tc.isSuppressed("W3003", tc.currentFuncAttrs) {
 							tc.addWarning(
 								errors.W3003,
 								fmt.Sprintf("fixed-size array not fully initialized: declared size %d but only %d element(s) provided",
@@ -2490,7 +2490,7 @@ func (tc *TypeChecker) checkVariableDeclaration(decl *ast.VariableDeclaration) {
 					if arrLit, ok := decl.Value.(*ast.ArrayValue); ok {
 						actualSize := len(arrLit.Elements)
 						if actualSize < declaredSize {
-							if !tc.isSuppressed("W3003", decl.Attributes) {
+							if !tc.isSuppressed("W3003", tc.currentFuncAttrs) {
 								tc.addWarning(
 									errors.W3003,
 									fmt.Sprintf("fixed-size array not fully initialized: declared size %d but only %d element(s) provided",

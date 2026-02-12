@@ -147,6 +147,86 @@ func countDocAttributes(attrs []*Attribute) int {
 	return count
 }
 
+// peekPastSuppress checks if #suppress(...) is followed by a declaration keyword
+// by scanning through the source without consuming tokens
+func (p *Parser) peekPastSuppress() bool {
+	// We're at #suppress, peek is (
+	// We need to scan past the closing ) to see what follows
+	// Use the lexer's source directly to peek ahead
+
+	// Find the position after #suppress(...) in the source
+	// Start from current position and scan for matching parens
+	source := p.source
+	if source == "" {
+		return false
+	}
+
+	// Find the start of current token in source
+	line := p.currentToken.Line
+	col := p.currentToken.Column
+
+	// Find line start
+	lineStart := 0
+	currentLine := 1
+	for i := 0; i < len(source) && currentLine < line; i++ {
+		if source[i] == '\n' {
+			currentLine++
+			lineStart = i + 1
+		}
+	}
+
+	// Position in source
+	pos := lineStart + col - 1 // columns are 1-indexed
+
+	// Skip past #suppress
+	for pos < len(source) && source[pos] != '(' {
+		pos++
+	}
+	if pos >= len(source) {
+		return false
+	}
+
+	// Skip past (...) with paren matching
+	depth := 0
+	for pos < len(source) {
+		if source[pos] == '(' {
+			depth++
+		} else if source[pos] == ')' {
+			depth--
+			if depth == 0 {
+				pos++
+				break
+			}
+		}
+		pos++
+	}
+
+	// Skip whitespace and newlines
+	for pos < len(source) && (source[pos] == ' ' || source[pos] == '\t' || source[pos] == '\n' || source[pos] == '\r') {
+		pos++
+	}
+
+	if pos >= len(source) {
+		return false
+	}
+
+	// Check what keyword follows
+	remaining := source[pos:]
+	return len(remaining) >= 2 && (hasPrefix(remaining, "do") ||
+		hasPrefix(remaining, "const") ||
+		hasPrefix(remaining, "private") ||
+		hasPrefix(remaining, "#doc") ||
+		hasPrefix(remaining, "#suppress"))
+}
+
+// hasPrefix checks if s starts with prefix (case-sensitive)
+func hasPrefix(s, prefix string) bool {
+	if len(s) < len(prefix) {
+		return false
+	}
+	return s[:len(prefix)] == prefix
+}
+
 // parseFileLevelSuppress parses a file-level #suppress(...) and returns the warning codes
 func (p *Parser) parseFileLevelSuppress() []string {
 	var codes []string
@@ -507,14 +587,24 @@ func (p *Parser) ParseProgram() *Program {
 		}
 
 		// Handle file-level #suppress (must come after imports/using, before other declarations)
-		// If we haven't seen other declarations yet, treat #suppress as file-level
-		// If we have seen declarations, treat #suppress as function-level (let parseStatement handle it)
+		// If followed by a declaration (DO, CONST, etc.), let parseStatement handle it
+		// as an attribute on that declaration. Otherwise, treat as file-level suppress.
 		if p.currentTokenMatches(SUPPRESS) && !seenOtherDeclaration {
-			// Parse the #suppress(...) and store in program
-			suppressCodes := p.parseFileLevelSuppress()
-			program.FileSuppressWarnings = append(program.FileSuppressWarnings, suppressCodes...)
-			p.nextToken()
-			continue
+			// Check if this #suppress is followed by a declaration by scanning ahead
+			// We need to look past the #suppress(...) to see what follows
+			isFollowedByDecl := p.peekPastSuppress()
+
+			if isFollowedByDecl {
+				// Let parseStatement handle this as a function/type attribute
+				// Don't consume here - fall through to parseStatement
+				seenOtherDeclaration = true
+			} else {
+				// This is truly file-level suppress (standalone)
+				suppressCodes := p.parseFileLevelSuppress()
+				program.FileSuppressWarnings = append(program.FileSuppressWarnings, suppressCodes...)
+				p.nextToken()
+				continue
+			}
 		}
 
 		// Track what we've seen for placement validation
@@ -1390,7 +1480,7 @@ func (p *Parser) isSuppressed(warningCode string, attrs []*Attribute) bool {
 	for _, attr := range attrs {
 		if attr.Name == "suppress" {
 			for _, arg := range attr.Args {
-				if arg == warningCode {
+				if arg == "ALL" || arg == warningCode {
 					return true
 				}
 			}
@@ -1402,7 +1492,7 @@ func (p *Parser) isSuppressed(warningCode string, attrs []*Attribute) bool {
 		for _, attr := range p.activeSuppressions {
 			if attr.Name == "suppress" {
 				for _, arg := range attr.Args {
-					if arg == warningCode {
+					if arg == "ALL" || arg == warningCode {
 						return true
 					}
 				}
