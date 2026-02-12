@@ -4,8 +4,6 @@ package stdlib
 // Licensed under the MIT License. See LICENSE for details.
 
 import (
-	"fmt"
-
 	"github.com/marshallburns/ez/pkg/object"
 )
 
@@ -18,19 +16,5 @@ func CreateStdlibError(code, message string) *object.Struct {
 			"message": &object.String{Value: message},
 			"code":    &object.String{Value: code},
 		},
-	}
-}
-
-// NewError creates a simple error with a formatted message.
-// Use this for validation errors that halt execution.
-func NewError(format string, args ...interface{}) *object.Error {
-	return &object.Error{Message: fmt.Sprintf(format, args...)}
-}
-
-// NewErrorWithCode creates an error with both code and formatted message.
-func NewErrorWithCode(code, format string, args ...interface{}) *object.Error {
-	return &object.Error{
-		Code:    code,
-		Message: fmt.Sprintf(format, args...),
 	}
 }
