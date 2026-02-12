@@ -494,7 +494,21 @@ var StdBuiltins = map[string]*object.Builtin{
 			if len(args) != 1 {
 				return &object.Error{Code: "E7001", Message: "string() takes exactly 1 argument"}
 			}
-			return &object.String{Value: args[0].Inspect()}
+			// Handle special cases where Inspect() would add unwanted formatting
+			switch v := args[0].(type) {
+			case *object.String:
+				// Return the raw string value, not quoted
+				return &object.String{Value: v.Value}
+			case *object.EnumValue:
+				// For enums, extract the underlying value
+				if strVal, ok := v.Value.(*object.String); ok {
+					return &object.String{Value: strVal.Value}
+				}
+				// For non-string enums (int, float), use Inspect
+				return &object.String{Value: v.Value.Inspect()}
+			default:
+				return &object.String{Value: args[0].Inspect()}
+			}
 		},
 	},
 
