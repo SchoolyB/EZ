@@ -1,0 +1,20 @@
+/*
+ * Error Test: E7021 - cannot-copy-directory
+ * Expected: "copy" or "cannot copy directories"
+ */
+
+import @io
+
+do main() {
+    // Create a temp directory
+    temp ok, merr = io.mkdir("ez_test_e7021_temp_dir")
+
+    // Try to copy it (should fail - can only copy files)
+    temp cok, cerr = io.copy("ez_test_e7021_temp_dir", "ez_test_e7021_dest")
+    // Clean up
+    temp rok, rerr = io.remove_dir("ez_test_e7021_temp_dir")
+
+    if cerr != nil {
+        panic("${cerr}")
+    }
+}

@@ -1,0 +1,13 @@
+/*
+ * Error Test: E7043 - invalid-glob-pattern
+ * Expected: "invalid" or "glob" or "pattern"
+ */
+
+import @io
+
+do main() {
+    temp results, err = io.glob("[invalid")  // ERROR: malformed glob pattern
+    if err != nil {
+        panic("${err}")
+    }
+}
