@@ -70,7 +70,7 @@ var JsonBuiltins = map[string]*object.Builtin{
 			// 2-arg form: return typed struct
 			typeVal, ok := args[1].(*object.TypeValue)
 			if !ok {
-				return &object.Error{Code: "E7003", Message: "json.decode() second argument must be a type"}
+				return &object.Error{Code: "E7003", Message: fmt.Sprintf("%s second argument must be a struct type", errors.Ident("json.decode()"))}
 			}
 
 			if typeVal.Def == nil {

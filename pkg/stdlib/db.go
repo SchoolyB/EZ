@@ -344,7 +344,7 @@ var DBBuiltins = map[string]*object.Builtin{
 
 			db, ok := args[0].(*object.Database)
 			if !ok {
-				return &object.Error{Code: "E7001", Message: fmt.Sprintf("%s requires type %s as first argument", errors.Ident("db.values()"), errors.TypeExpected("Database"))}
+				return &object.Error{Code: "E7001", Message: fmt.Sprintf("%s requires a %s as first argument", errors.Ident("db.values()"), errors.TypeExpected("Database"))}
 			}
 
 			if db.IsClosed.Value {
@@ -373,7 +373,7 @@ var DBBuiltins = map[string]*object.Builtin{
 
 			db, ok := args[0].(*object.Database)
 			if !ok {
-				return &object.Error{Code: "E7001", Message: fmt.Sprintf("%s requires type %s as first argument", errors.Ident("db.entries()"), errors.TypeExpected("Database"))}
+				return &object.Error{Code: "E7001", Message: fmt.Sprintf("%s requires a %s as first argument", errors.Ident("db.entries()"), errors.TypeExpected("Database"))}
 			}
 
 			if db.IsClosed.Value {
