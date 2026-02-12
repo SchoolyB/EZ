@@ -3486,3 +3486,1194 @@ func TestEnsureWithBlockStatement(t *testing.T) {
 		t.Errorf("expected error about block statement, got errors: %v", p.Errors())
 	}
 }
+
+// ============================================================================
+// hasPrefix Tests
+// ============================================================================
+
+func TestHasPrefix(t *testing.T) {
+	tests := []struct {
+		name     string
+		s        string
+		prefix   string
+		expected bool
+	}{
+		{"exact match", "do", "do", true},
+		{"prefix match", "do test()", "do", true},
+		{"const prefix", "const x int = 5", "const", true},
+		{"private prefix", "private do foo() {}", "private", true},
+		{"#doc prefix", "#doc(\"hello\")", "#doc", true},
+		{"#suppress prefix", "#suppress(\"W1001\")", "#suppress", true},
+		{"no match", "temp x int = 5", "do", false},
+		{"empty string", "", "do", false},
+		{"shorter than prefix", "d", "do", false},
+		{"empty prefix", "do test()", "", true},
+		{"both empty", "", "", true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := hasPrefix(tt.s, tt.prefix)
+			if result != tt.expected {
+				t.Errorf("hasPrefix(%q, %q) = %v, want %v", tt.s, tt.prefix, result, tt.expected)
+			}
+		})
+	}
+}
+
+// ============================================================================
+// curPrecedence Tests
+// ============================================================================
+
+func TestCurPrecedence(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		expected int
+	}{
+		// Tokens with known precedence
+		{"plus", "1 + 2", SUM},
+		{"minus", "1 - 2", SUM},
+		{"asterisk", "1 * 2", PRODUCT},
+		{"slash", "1 / 2", PRODUCT},
+		{"percent", "1 % 2", PRODUCT},
+		{"eq", "1 == 2", EQUALS},
+		{"not_eq", "1 != 2", EQUALS},
+		{"lt", "1 < 2", LESSGREATER},
+		{"gt", "1 > 2", LESSGREATER},
+		{"lt_eq", "1 <= 2", LESSGREATER},
+		{"gt_eq", "1 >= 2", LESSGREATER},
+		{"and", "true && false", AND_PREC},
+		{"or", "true || false", OR_PREC},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			l := NewLexer(tt.input)
+			p := New(l)
+			// Advance past the first token (literal) to the operator
+			p.nextToken()
+			prec := p.curPrecedence()
+			if prec != tt.expected {
+				t.Errorf("curPrecedence() = %d, want %d", prec, tt.expected)
+			}
+		})
+	}
+}
+
+func TestCurPrecedenceLowest(t *testing.T) {
+	// Test that tokens not in the priorities map return LOWEST
+	l := NewLexer("temp x int = 5")
+	p := New(l)
+	// currentToken should be "temp" which has no priority
+	prec := p.curPrecedence()
+	if prec != LOWEST {
+		t.Errorf("curPrecedence() for TEMP token = %d, want %d (LOWEST)", prec, LOWEST)
+	}
+}
+
+// ============================================================================
+// parseFileLevelSuppress Tests
+// ============================================================================
+
+func TestParseFileLevelSuppressBasic(t *testing.T) {
+	// File-level #suppress with a valid warning code, not followed by a declaration
+	input := `#suppress(W1001)
+temp x int = 5`
+	l := NewLexer(input)
+	p := NewWithSource(l, input, "test.ez")
+	program := p.ParseProgram()
+
+	if len(program.FileSuppressWarnings) != 1 {
+		t.Fatalf("expected 1 file-level suppress code, got %d", len(program.FileSuppressWarnings))
+	}
+	if program.FileSuppressWarnings[0] != "W1001" {
+		t.Errorf("expected suppress code 'W1001', got %q", program.FileSuppressWarnings[0])
+	}
+}
+
+func TestParseFileLevelSuppressMultipleCodes(t *testing.T) {
+	// File-level #suppress with multiple valid warning codes
+	input := `#suppress(W1001, W2001)
+temp x int = 5`
+	l := NewLexer(input)
+	p := NewWithSource(l, input, "test.ez")
+	program := p.ParseProgram()
+
+	if len(program.FileSuppressWarnings) != 2 {
+		t.Fatalf("expected 2 file-level suppress codes, got %d", len(program.FileSuppressWarnings))
+	}
+	if program.FileSuppressWarnings[0] != "W1001" {
+		t.Errorf("expected first suppress code 'W1001', got %q", program.FileSuppressWarnings[0])
+	}
+	if program.FileSuppressWarnings[1] != "W2001" {
+		t.Errorf("expected second suppress code 'W2001', got %q", program.FileSuppressWarnings[1])
+	}
+}
+
+func TestParseFileLevelSuppressALL(t *testing.T) {
+	input := `#suppress(ALL)
+temp x int = 5`
+	l := NewLexer(input)
+	p := NewWithSource(l, input, "test.ez")
+	program := p.ParseProgram()
+
+	if len(program.FileSuppressWarnings) != 1 {
+		t.Fatalf("expected 1 file-level suppress code, got %d", len(program.FileSuppressWarnings))
+	}
+	if program.FileSuppressWarnings[0] != "ALL" {
+		t.Errorf("expected suppress code 'ALL', got %q", program.FileSuppressWarnings[0])
+	}
+}
+
+func TestParseFileLevelSuppressInvalidCode(t *testing.T) {
+	input := `#suppress(INVALID)
+temp x int = 5`
+	l := NewLexer(input)
+	p := NewWithSource(l, input, "test.ez")
+	p.ParseProgram()
+
+	// Should have an error about invalid warning code
+	if !p.EZErrors().HasErrors() {
+		t.Error("expected error for invalid warning code")
+	}
+
+	foundError := false
+	for _, err := range p.EZErrors().Errors {
+		if err.ErrorCode.Code == "E2052" {
+			foundError = true
+			break
+		}
+	}
+	if !foundError {
+		t.Error("expected E2052 error for invalid warning code")
+	}
+}
+
+func TestParseFileLevelSuppressNonSuppressibleCode(t *testing.T) {
+	// W4001 (module-name-mismatch) is a valid warning code but not suppressible
+	input := `#suppress(W4001)
+temp x int = 5`
+	l := NewLexer(input)
+	p := NewWithSource(l, input, "test.ez")
+	p.ParseProgram()
+
+	// Should have an error about non-suppressible code
+	if !p.EZErrors().HasErrors() {
+		t.Error("expected error for non-suppressible warning code")
+	}
+
+	foundError := false
+	for _, err := range p.EZErrors().Errors {
+		if err.ErrorCode.Code == "E2052" {
+			foundError = true
+			break
+		}
+	}
+	if !foundError {
+		t.Error("expected E2052 error for non-suppressible warning code")
+	}
+}
+
+func TestParseFileLevelSuppressBeforeDeclarationIsAttribute(t *testing.T) {
+	// #suppress followed by a function declaration should be treated as an attribute,
+	// not a file-level suppress
+	input := `#suppress("W2001")
+do test() {
+	return 1
+	x = 2
+}`
+	l := NewLexer(input)
+	p := NewWithSource(l, input, "test.ez")
+	program := p.ParseProgram()
+
+	// Should NOT be a file-level suppress (it's an attribute on the function)
+	if len(program.FileSuppressWarnings) != 0 {
+		t.Errorf("expected 0 file-level suppress codes, got %d", len(program.FileSuppressWarnings))
+	}
+}
+
+// ============================================================================
+// parseTupleAssignment Tests
+// ============================================================================
+
+func TestTupleAssignmentBasic(t *testing.T) {
+	// a, b = getValues() -- this is a tuple unpacking assignment
+	input := `a, b = getValues()`
+	l := NewLexer(input)
+	p := New(l)
+	program := p.ParseProgram()
+	checkParserErrors(t, p)
+
+	if len(program.Statements) != 1 {
+		t.Fatalf("expected 1 statement, got %d", len(program.Statements))
+	}
+
+	stmt, ok := program.Statements[0].(*AssignmentStatement)
+	if !ok {
+		t.Fatalf("expected AssignmentStatement, got %T", program.Statements[0])
+	}
+
+	if len(stmt.Names) != 2 {
+		t.Fatalf("expected 2 names, got %d", len(stmt.Names))
+	}
+	if stmt.Names[0].Value != "a" {
+		t.Errorf("expected first name 'a', got %q", stmt.Names[0].Value)
+	}
+	if stmt.Names[1].Value != "b" {
+		t.Errorf("expected second name 'b', got %q", stmt.Names[1].Value)
+	}
+	if stmt.Operator != "=" {
+		t.Errorf("expected operator '=', got %q", stmt.Operator)
+	}
+	if stmt.Value == nil {
+		t.Error("expected value expression, got nil")
+	}
+}
+
+func TestTupleAssignmentThreeNames(t *testing.T) {
+	input := `a, b, c = getThreeValues()`
+	l := NewLexer(input)
+	p := New(l)
+	program := p.ParseProgram()
+	checkParserErrors(t, p)
+
+	stmt := program.Statements[0].(*AssignmentStatement)
+
+	if len(stmt.Names) != 3 {
+		t.Fatalf("expected 3 names, got %d", len(stmt.Names))
+	}
+	if stmt.Names[0].Value != "a" {
+		t.Errorf("expected first name 'a', got %q", stmt.Names[0].Value)
+	}
+	if stmt.Names[1].Value != "b" {
+		t.Errorf("expected second name 'b', got %q", stmt.Names[1].Value)
+	}
+	if stmt.Names[2].Value != "c" {
+		t.Errorf("expected third name 'c', got %q", stmt.Names[2].Value)
+	}
+}
+
+func TestTupleAssignmentWithCallExpression(t *testing.T) {
+	input := `x, y = getCoords()`
+	l := NewLexer(input)
+	p := New(l)
+	program := p.ParseProgram()
+	checkParserErrors(t, p)
+
+	stmt := program.Statements[0].(*AssignmentStatement)
+	_, ok := stmt.Value.(*CallExpression)
+	if !ok {
+		t.Fatalf("expected CallExpression value, got %T", stmt.Value)
+	}
+}
+
+func TestTupleAssignmentNonIdentError(t *testing.T) {
+	// Tuple assignment with a non-identifier should produce an error
+	input := `a, 5 = getValues()`
+	l := NewLexer(input)
+	p := New(l)
+	p.ParseProgram()
+
+	if len(p.Errors()) == 0 {
+		t.Error("expected error for non-identifier in tuple assignment")
+	}
+}
+
+func TestTupleAssignmentInsideFunction(t *testing.T) {
+	input := `do test() {
+	x, y = getValues()
+}`
+	l := NewLexer(input)
+	p := New(l)
+	program := p.ParseProgram()
+	checkParserErrors(t, p)
+
+	fn := program.Statements[0].(*FunctionDeclaration)
+	stmt, ok := fn.Body.Statements[0].(*AssignmentStatement)
+	if !ok {
+		t.Fatalf("expected AssignmentStatement, got %T", fn.Body.Statements[0])
+	}
+
+	if len(stmt.Names) != 2 {
+		t.Fatalf("expected 2 names, got %d", len(stmt.Names))
+	}
+}
+
+// ============================================================================
+// parseEnsureStatement Additional Coverage Tests
+// ============================================================================
+
+func TestEnsureWithEnumDeclaration(t *testing.T) {
+	input := `do test() {
+	ensure enum
+}`
+	l := NewLexer(input)
+	p := New(l)
+	p.ParseProgram()
+
+	if len(p.Errors()) == 0 {
+		t.Fatal("expected parser errors for ensure with enum declaration")
+	}
+
+	hasError := false
+	for _, err := range p.Errors() {
+		if strings.Contains(err, "ensure cannot be used with enum declarations") {
+			hasError = true
+			break
+		}
+	}
+	if !hasError {
+		t.Errorf("expected error about enum declaration, got errors: %v", p.Errors())
+	}
+}
+
+func TestEnsureWithMethodCall(t *testing.T) {
+	// ensure can be used with method calls (member expression calls)
+	input := `do test() {
+	ensure obj.cleanup()
+}`
+	l := NewLexer(input)
+	p := New(l)
+	program := p.ParseProgram()
+	checkParserErrors(t, p)
+
+	fn := program.Statements[0].(*FunctionDeclaration)
+	ensureStmt, ok := fn.Body.Statements[0].(*EnsureStatement)
+	if !ok {
+		t.Fatalf("expected EnsureStatement, got %T", fn.Body.Statements[0])
+	}
+	if ensureStmt.Expression == nil {
+		t.Error("expected expression in ensure statement")
+	}
+}
+
+func TestEnsureWithCallArguments(t *testing.T) {
+	// ensure with a call that has arguments
+	input := `do test() {
+	ensure close(handle)
+}`
+	l := NewLexer(input)
+	p := New(l)
+	program := p.ParseProgram()
+	checkParserErrors(t, p)
+
+	fn := program.Statements[0].(*FunctionDeclaration)
+	ensureStmt := fn.Body.Statements[0].(*EnsureStatement)
+	callExpr := ensureStmt.Expression.(*CallExpression)
+	if len(callExpr.Arguments) != 1 {
+		t.Errorf("expected 1 argument in ensure call, got %d", len(callExpr.Arguments))
+	}
+}
+
+// ============================================================================
+// parseStatement Additional Coverage Tests
+// ============================================================================
+
+func TestParseStatementWithDocOnTemp(t *testing.T) {
+	// #doc on temp variable should produce E2058 error
+	input := `#doc("this is a variable")
+temp x int = 5`
+	l := NewLexer(input)
+	p := NewWithSource(l, input, "test.ez")
+	p.ParseProgram()
+
+	foundError := false
+	for _, err := range p.EZErrors().Errors {
+		if err.ErrorCode.Code == "E2058" {
+			foundError = true
+			break
+		}
+	}
+	if !foundError {
+		t.Error("expected E2058 error for #doc on temp variable")
+	}
+}
+
+func TestParseStatementWithSuppressOnNonFunction(t *testing.T) {
+	// #suppress on a const variable (not a function) should produce E2051 error
+	input := `#suppress("W1001")
+const x int = 5`
+	l := NewLexer(input)
+	p := NewWithSource(l, input, "test.ez")
+	p.ParseProgram()
+
+	foundError := false
+	for _, err := range p.EZErrors().Errors {
+		if err.ErrorCode.Code == "E2051" {
+			foundError = true
+			break
+		}
+	}
+	if !foundError {
+		t.Error("expected E2051 error for #suppress on non-function declaration")
+	}
+}
+
+func TestParseStatementWithStrictOnNonWhen(t *testing.T) {
+	// #strict on a non-when statement should produce E2055 error
+	input := `#strict
+temp x int = 5`
+	l := NewLexer(input)
+	p := NewWithSource(l, input, "test.ez")
+	p.ParseProgram()
+
+	foundError := false
+	for _, err := range p.EZErrors().Errors {
+		if err.ErrorCode.Code == "E2055" {
+			foundError = true
+			break
+		}
+	}
+	if !foundError {
+		t.Error("expected E2055 error for #strict on non-when statement")
+	}
+}
+
+func TestParseStatementWithDocOnFunction(t *testing.T) {
+	// #doc on a function should be valid
+	input := `#doc("adds two numbers")
+do add(a int, b int) -> int {
+	return a + b
+}`
+	l := NewLexer(input)
+	p := NewWithSource(l, input, "test.ez")
+	program := p.ParseProgram()
+
+	// Should not have E2058 errors
+	for _, err := range p.EZErrors().Errors {
+		if err.ErrorCode.Code == "E2058" {
+			t.Errorf("unexpected E2058 error for #doc on function: %s", err.Message)
+		}
+	}
+
+	fn := program.Statements[0].(*FunctionDeclaration)
+	if fn.Name.Value != "add" {
+		t.Errorf("expected function name 'add', got %q", fn.Name.Value)
+	}
+}
+
+func TestParseStatementWithDocOnConstVariable(t *testing.T) {
+	// #doc on a const variable (not struct/enum) should produce E2058
+	input := `#doc("a constant")
+const x int = 5`
+	l := NewLexer(input)
+	p := NewWithSource(l, input, "test.ez")
+	p.ParseProgram()
+
+	foundError := false
+	for _, err := range p.EZErrors().Errors {
+		if err.ErrorCode.Code == "E2058" {
+			foundError = true
+			break
+		}
+	}
+	if !foundError {
+		t.Error("expected E2058 error for #doc on const variable")
+	}
+}
+
+func TestParseStatementWithDocOnStruct(t *testing.T) {
+	// #doc on a struct should be valid
+	input := `#doc("a point in 2D space")
+const Point struct {
+	x int
+	y int
+}`
+	l := NewLexer(input)
+	p := NewWithSource(l, input, "test.ez")
+	program := p.ParseProgram()
+
+	// Should not have E2058 errors
+	for _, err := range p.EZErrors().Errors {
+		if err.ErrorCode.Code == "E2058" {
+			t.Errorf("unexpected E2058 error for #doc on struct: %s", err.Message)
+		}
+	}
+
+	structDecl := program.Statements[0].(*StructDeclaration)
+	if structDecl.Name.Value != "Point" {
+		t.Errorf("expected struct name 'Point', got %q", structDecl.Name.Value)
+	}
+}
+
+func TestParseStatementWithMultipleDocAttributes(t *testing.T) {
+	// Multiple #doc attributes should produce E2060 error
+	input := `#doc("first doc")
+#doc("second doc")
+do test() {
+	return 0
+}`
+	l := NewLexer(input)
+	p := NewWithSource(l, input, "test.ez")
+	p.ParseProgram()
+
+	foundError := false
+	for _, err := range p.EZErrors().Errors {
+		if err.ErrorCode.Code == "E2060" {
+			foundError = true
+			break
+		}
+	}
+	if !foundError {
+		t.Error("expected E2060 error for multiple #doc attributes")
+	}
+}
+
+func TestParseStatementWithPrivateFunction(t *testing.T) {
+	input := `private do helper() {
+	return 0
+}`
+	program := parseProgram(t, input)
+	fn := program.Statements[0].(*FunctionDeclaration)
+
+	if fn.Visibility != VisibilityPrivate {
+		t.Errorf("expected VisibilityPrivate, got %v", fn.Visibility)
+	}
+	if fn.Name.Value != "helper" {
+		t.Errorf("expected function name 'helper', got %q", fn.Name.Value)
+	}
+}
+
+func TestParseStatementWithPrivateStruct(t *testing.T) {
+	input := `private const Internal struct {
+	data int
+}`
+	program := parseProgram(t, input)
+	structDecl := program.Statements[0].(*StructDeclaration)
+
+	if structDecl.Visibility != VisibilityPrivate {
+		t.Errorf("expected VisibilityPrivate, got %v", structDecl.Visibility)
+	}
+}
+
+func TestParseStatementWithDocOnImport(t *testing.T) {
+	// #doc before import should produce E2059 error
+	input := `#doc("importing stuff")
+import arr@arrays`
+	l := NewLexer(input)
+	p := NewWithSource(l, input, "test.ez")
+	p.ParseProgram()
+
+	foundError := false
+	for _, err := range p.EZErrors().Errors {
+		if err.ErrorCode.Code == "E2059" {
+			foundError = true
+			break
+		}
+	}
+	if !foundError {
+		t.Error("expected E2059 error for #doc before import")
+	}
+}
+
+func TestParseStatementWithDocAtEOF(t *testing.T) {
+	// #doc at end of file should produce E2059 error
+	input := `#doc("orphaned doc")`
+	l := NewLexer(input)
+	p := NewWithSource(l, input, "test.ez")
+	p.ParseProgram()
+
+	foundError := false
+	for _, err := range p.EZErrors().Errors {
+		if err.ErrorCode.Code == "E2059" {
+			foundError = true
+			break
+		}
+	}
+	if !foundError {
+		t.Error("expected E2059 error for #doc at end of file")
+	}
+}
+
+func TestParseStatementWithDocOnNonDeclaration(t *testing.T) {
+	// #doc on a non-declaration statement (e.g., expression) should produce E2058
+	input := `do main() {
+	#doc("a loop")
+	for i in range(0, 10) {
+		println(i)
+	}
+}`
+	l := NewLexer(input)
+	p := NewWithSource(l, input, "test.ez")
+	p.ParseProgram()
+
+	foundError := false
+	for _, err := range p.EZErrors().Errors {
+		if err.ErrorCode.Code == "E2058" {
+			foundError = true
+			break
+		}
+	}
+	if !foundError {
+		t.Error("expected E2058 error for #doc on non-declaration")
+	}
+}
+
+// ============================================================================
+// parseVarableDeclarationOrStruct Additional Coverage Tests
+// ============================================================================
+
+func TestConstStructDeclaration(t *testing.T) {
+	// Test the const Name struct {...} path
+	input := `const Animal struct {
+	name string
+	legs int
+}`
+	program := parseProgram(t, input)
+	structDecl := program.Statements[0].(*StructDeclaration)
+
+	if structDecl.Name.Value != "Animal" {
+		t.Errorf("expected struct name 'Animal', got %q", structDecl.Name.Value)
+	}
+	if len(structDecl.Fields) != 2 {
+		t.Fatalf("expected 2 fields, got %d", len(structDecl.Fields))
+	}
+}
+
+func TestConstEnumDeclaration(t *testing.T) {
+	// Test the const Name enum {...} path
+	input := `const Direction enum {
+	North
+	South
+	East
+	West
+}`
+	program := parseProgram(t, input)
+	enumDecl := program.Statements[0].(*EnumDeclaration)
+
+	if enumDecl.Name.Value != "Direction" {
+		t.Errorf("expected enum name 'Direction', got %q", enumDecl.Name.Value)
+	}
+	if len(enumDecl.Values) != 4 {
+		t.Fatalf("expected 4 values, got %d", len(enumDecl.Values))
+	}
+}
+
+func TestConstVariableDeclaration(t *testing.T) {
+	// Test the const Name type = value path (not struct or enum)
+	input := `const pi float = 3.14`
+	program := parseProgram(t, input)
+	varDecl := program.Statements[0].(*VariableDeclaration)
+
+	if varDecl.Name.Value != "pi" {
+		t.Errorf("expected variable name 'pi', got %q", varDecl.Name.Value)
+	}
+	if varDecl.Mutable {
+		t.Error("expected const to be immutable")
+	}
+	if varDecl.TypeName != "float" {
+		t.Errorf("expected type 'float', got %q", varDecl.TypeName)
+	}
+}
+
+func TestConstTypeInferred(t *testing.T) {
+	// Test const x = value (type-inferred)
+	input := `const maxSize = 100`
+	program := parseProgram(t, input)
+	varDecl := program.Statements[0].(*VariableDeclaration)
+
+	if varDecl.Name.Value != "maxSize" {
+		t.Errorf("expected variable name 'maxSize', got %q", varDecl.Name.Value)
+	}
+	if varDecl.TypeName != "" {
+		t.Errorf("expected empty type name for inferred, got %q", varDecl.TypeName)
+	}
+}
+
+func TestConstMultipleAssignment(t *testing.T) {
+	// Test const a, b = func() -- multiple assignment with const
+	input := `const a, b = getValues()`
+	program := parseProgram(t, input)
+	varDecl := program.Statements[0].(*VariableDeclaration)
+
+	if len(varDecl.Names) != 2 {
+		t.Fatalf("expected 2 names, got %d", len(varDecl.Names))
+	}
+	if varDecl.Names[0].Value != "a" || varDecl.Names[1].Value != "b" {
+		t.Errorf("expected names 'a' and 'b', got %q and %q", varDecl.Names[0].Value, varDecl.Names[1].Value)
+	}
+	if varDecl.Mutable {
+		t.Error("expected const to be immutable")
+	}
+}
+
+func TestConstReservedNameError(t *testing.T) {
+	// Using a reserved keyword as const variable name should error
+	input := `const len int = 5`
+	l := NewLexer(input)
+	p := NewWithSource(l, input, "test.ez")
+	p.ParseProgram()
+
+	if !p.EZErrors().HasErrors() {
+		t.Error("expected error for reserved name in const declaration")
+	}
+
+	foundError := false
+	for _, err := range p.EZErrors().Errors {
+		if err.ErrorCode.Code == "E2020" {
+			foundError = true
+			break
+		}
+	}
+	if !foundError {
+		t.Error("expected E2020 error for reserved keyword as variable name")
+	}
+}
+
+func TestConstDuplicateDeclarationError(t *testing.T) {
+	// Duplicate const declaration should error
+	input := `const x int = 5
+const x int = 10`
+	l := NewLexer(input)
+	p := NewWithSource(l, input, "test.ez")
+	p.ParseProgram()
+
+	if !p.EZErrors().HasErrors() {
+		t.Error("expected error for duplicate const declaration")
+	}
+
+	foundError := false
+	for _, err := range p.EZErrors().Errors {
+		if err.ErrorCode.Code == "E2023" {
+			foundError = true
+			break
+		}
+	}
+	if !foundError {
+		t.Error("expected E2023 error for duplicate declaration")
+	}
+}
+
+func TestConstMultipleAssignmentWithBlank(t *testing.T) {
+	// const _, b = func() -- blank identifier in const multiple assignment
+	input := `const _, b = getValues()`
+	program := parseProgram(t, input)
+	varDecl := program.Statements[0].(*VariableDeclaration)
+
+	if len(varDecl.Names) != 2 {
+		t.Fatalf("expected 2 names, got %d", len(varDecl.Names))
+	}
+	if varDecl.Names[0].Value != "_" {
+		t.Errorf("expected first name '_', got %q", varDecl.Names[0].Value)
+	}
+	if varDecl.Names[1].Value != "b" {
+		t.Errorf("expected second name 'b', got %q", varDecl.Names[1].Value)
+	}
+}
+
+func TestConstIncompleteAssignmentError(t *testing.T) {
+	// const x int = } should produce error
+	input := `const x int = }`
+	l := NewLexer(input)
+	p := NewWithSource(l, input, "test.ez")
+	p.ParseProgram()
+
+	if len(p.Errors()) == 0 {
+		t.Error("expected error for incomplete const assignment")
+	}
+}
+
+// ============================================================================
+// parseVarableDeclaration Additional Coverage Tests
+// ============================================================================
+
+func TestTempWithTypedTupleUnpacking(t *testing.T) {
+	// temp a int, b string = getValues()
+	input := `temp a int, b string = getValues()`
+	program := parseProgram(t, input)
+	varDecl := program.Statements[0].(*VariableDeclaration)
+
+	if len(varDecl.Names) != 2 {
+		t.Fatalf("expected 2 names, got %d", len(varDecl.Names))
+	}
+	if varDecl.Names[0].Value != "a" {
+		t.Errorf("expected first name 'a', got %q", varDecl.Names[0].Value)
+	}
+	if varDecl.Names[1].Value != "b" {
+		t.Errorf("expected second name 'b', got %q", varDecl.Names[1].Value)
+	}
+	if len(varDecl.TypeNames) != 2 {
+		t.Fatalf("expected 2 type names, got %d", len(varDecl.TypeNames))
+	}
+	if varDecl.TypeNames[0] != "int" {
+		t.Errorf("expected first type 'int', got %q", varDecl.TypeNames[0])
+	}
+	if varDecl.TypeNames[1] != "string" {
+		t.Errorf("expected second type 'string', got %q", varDecl.TypeNames[1])
+	}
+}
+
+func TestTempWithTypedTupleUnpackingAndBlank(t *testing.T) {
+	// temp a int, _ string = getValues()
+	input := `temp a int, _ string = getValues()`
+	program := parseProgram(t, input)
+	varDecl := program.Statements[0].(*VariableDeclaration)
+
+	if len(varDecl.Names) != 2 {
+		t.Fatalf("expected 2 names, got %d", len(varDecl.Names))
+	}
+	if varDecl.Names[0].Value != "a" {
+		t.Errorf("expected first name 'a', got %q", varDecl.Names[0].Value)
+	}
+	if varDecl.Names[1].Value != "_" {
+		t.Errorf("expected second name '_', got %q", varDecl.Names[1].Value)
+	}
+}
+
+func TestTempWithBlankIdentifierAndType(t *testing.T) {
+	// temp _ int = 42 should work (typed blank identifier)
+	input := `temp _ int = 42`
+	l := NewLexer(input)
+	p := New(l)
+	program := p.ParseProgram()
+
+	if len(program.Statements) != 1 {
+		t.Fatalf("expected 1 statement, got %d", len(program.Statements))
+	}
+	varDecl := program.Statements[0].(*VariableDeclaration)
+	if varDecl.Names[0].Value != "_" {
+		t.Errorf("expected blank identifier, got %q", varDecl.Names[0].Value)
+	}
+}
+
+func TestTempReservedNameInMultipleAssignment(t *testing.T) {
+	// Using a keyword in multiple assignment should error
+	input := `temp a, return = getValues()`
+	l := NewLexer(input)
+	p := NewWithSource(l, input, "test.ez")
+	p.ParseProgram()
+
+	if len(p.Errors()) == 0 {
+		t.Error("expected error for reserved keyword in multiple assignment")
+	}
+}
+
+func TestTempDuplicateInMultipleAssignment(t *testing.T) {
+	// Duplicate name in multiple assignment should error
+	input := `temp a, a = getValues()`
+	l := NewLexer(input)
+	p := NewWithSource(l, input, "test.ez")
+	p.ParseProgram()
+
+	if len(p.Errors()) == 0 {
+		t.Error("expected error for duplicate name in multiple assignment")
+	}
+
+	foundError := false
+	for _, err := range p.Errors() {
+		if strings.Contains(err, "already declared") {
+			foundError = true
+			break
+		}
+	}
+	if !foundError {
+		t.Errorf("expected 'already declared' error, got: %v", p.Errors())
+	}
+}
+
+func TestTempMapTypeDeclaration(t *testing.T) {
+	input := `temp m map[string:int] = {:}`
+	program := parseProgram(t, input)
+	varDecl := program.Statements[0].(*VariableDeclaration)
+
+	if varDecl.TypeName != "map[string:int]" {
+		t.Errorf("expected type 'map[string:int]', got %q", varDecl.TypeName)
+	}
+}
+
+func TestTempUninitializedDeclaration(t *testing.T) {
+	// temp x int -- without initialization should be valid
+	input := `temp x int`
+	program := parseProgram(t, input)
+	varDecl := program.Statements[0].(*VariableDeclaration)
+
+	if varDecl.Name.Value != "x" {
+		t.Errorf("expected variable name 'x', got %q", varDecl.Name.Value)
+	}
+	if varDecl.Value != nil {
+		t.Errorf("expected nil value for uninitialized declaration, got %T", varDecl.Value)
+	}
+}
+
+func TestTempBuiltinNameError(t *testing.T) {
+	// Using a builtin name like "println" as variable name should error
+	input := `temp println int = 5`
+	l := NewLexer(input)
+	p := NewWithSource(l, input, "test.ez")
+	p.ParseProgram()
+
+	if !p.EZErrors().HasErrors() {
+		t.Error("expected error for builtin name as variable")
+	}
+
+	foundError := false
+	for _, err := range p.EZErrors().Errors {
+		if err.ErrorCode.Code == "E2020" {
+			foundError = true
+			break
+		}
+	}
+	if !foundError {
+		t.Error("expected E2020 error for builtin name as variable")
+	}
+}
+
+// ============================================================================
+// parseStatement Switch Cases - Additional Statement Types
+// ============================================================================
+
+func TestParseStatementEnsureInFunction(t *testing.T) {
+	// Test that parseStatement correctly routes ENSURE token
+	input := `do main() {
+	ensure cleanup()
+	temp x int = 5
+}`
+	program := parseProgram(t, input)
+	fn := program.Statements[0].(*FunctionDeclaration)
+
+	if len(fn.Body.Statements) != 2 {
+		t.Fatalf("expected 2 statements, got %d", len(fn.Body.Statements))
+	}
+
+	_, ok := fn.Body.Statements[0].(*EnsureStatement)
+	if !ok {
+		t.Fatalf("expected EnsureStatement, got %T", fn.Body.Statements[0])
+	}
+}
+
+func TestParseStatementExpressionDefault(t *testing.T) {
+	// When the current token doesn't match any known statement type,
+	// it falls through to parseExpressionStatement
+	input := `5 + 3`
+	program := parseProgram(t, input)
+
+	stmt, ok := program.Statements[0].(*ExpressionStatement)
+	if !ok {
+		t.Fatalf("expected ExpressionStatement, got %T", program.Statements[0])
+	}
+	if stmt.Expression == nil {
+		t.Error("expected expression, got nil")
+	}
+}
+
+func TestParseStatementIdentAssignment(t *testing.T) {
+	// Test assignment through the IDENT case with various operators
+	tests := []struct {
+		name     string
+		input    string
+		operator string
+	}{
+		{"simple assign", "x = 10", "="},
+		{"plus assign", "x += 5", "+="},
+		{"minus assign", "x -= 3", "-="},
+		{"multiply assign", "x *= 2", "*="},
+		{"divide assign", "x /= 4", "/="},
+		{"modulo assign", "x %= 3", "%="},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			program := parseProgram(t, tt.input)
+			stmt, ok := program.Statements[0].(*AssignmentStatement)
+			if !ok {
+				t.Fatalf("expected AssignmentStatement, got %T", program.Statements[0])
+			}
+			if stmt.Operator != tt.operator {
+				t.Errorf("expected operator %q, got %q", tt.operator, stmt.Operator)
+			}
+		})
+	}
+}
+
+func TestParseStatementIdentExpression(t *testing.T) {
+	// When IDENT is followed by something that's not an assignment operator,
+	// it should be treated as an expression statement
+	input := `myFunc()`
+	program := parseProgram(t, input)
+
+	stmt, ok := program.Statements[0].(*ExpressionStatement)
+	if !ok {
+		t.Fatalf("expected ExpressionStatement, got %T", program.Statements[0])
+	}
+	_, ok = stmt.Expression.(*CallExpression)
+	if !ok {
+		t.Fatalf("expected CallExpression, got %T", stmt.Expression)
+	}
+}
+
+func TestParseStatementMemberAssignments(t *testing.T) {
+	// Test member expression assignment through the IDENT case
+	input := `obj.field = 42`
+	program := parseProgram(t, input)
+
+	stmt, ok := program.Statements[0].(*AssignmentStatement)
+	if !ok {
+		t.Fatalf("expected AssignmentStatement, got %T", program.Statements[0])
+	}
+	_, ok = stmt.Name.(*MemberExpression)
+	if !ok {
+		t.Fatalf("expected MemberExpression in Name, got %T", stmt.Name)
+	}
+}
+
+func TestParseStatementIndexAssignments(t *testing.T) {
+	// Test index expression assignment through the IDENT case
+	input := `arr[0] = 42`
+	program := parseProgram(t, input)
+
+	stmt, ok := program.Statements[0].(*AssignmentStatement)
+	if !ok {
+		t.Fatalf("expected AssignmentStatement, got %T", program.Statements[0])
+	}
+	_, ok = stmt.Name.(*IndexExpression)
+	if !ok {
+		t.Fatalf("expected IndexExpression in Name, got %T", stmt.Name)
+	}
+}
+
+// ============================================================================
+// ParseProgram Additional Coverage Tests
+// ============================================================================
+
+func TestParseProgramDuplicateModule(t *testing.T) {
+	// Two module declarations should produce an error
+	input := `module first
+module second`
+	l := NewLexer(input)
+	p := NewWithSource(l, input, "test.ez")
+	p.ParseProgram()
+
+	foundError := false
+	for _, err := range p.EZErrors().Errors {
+		if strings.Contains(err.Message, "duplicate module declaration") {
+			foundError = true
+			break
+		}
+	}
+	if !foundError {
+		t.Error("expected error for duplicate module declaration")
+	}
+}
+
+func TestParseProgramModuleAfterDeclaration(t *testing.T) {
+	// Module declaration after other declarations should error
+	input := `temp x int = 5
+module late`
+	l := NewLexer(input)
+	p := NewWithSource(l, input, "test.ez")
+	p.ParseProgram()
+
+	foundError := false
+	for _, err := range p.EZErrors().Errors {
+		if strings.Contains(err.Message, "module declaration must be the first statement") {
+			foundError = true
+			break
+		}
+	}
+	if !foundError {
+		t.Error("expected error for module declaration after other statements")
+	}
+}
+
+func TestParseProgramUsingAfterDeclaration(t *testing.T) {
+	// Using after declarations should produce E2009
+	input := `import arr@arrays
+temp x int = 5
+using arr`
+	l := NewLexer(input)
+	p := NewWithSource(l, input, "test.ez")
+	p.ParseProgram()
+
+	foundError := false
+	for _, err := range p.EZErrors().Errors {
+		if err.ErrorCode.Code == "E2009" {
+			foundError = true
+			break
+		}
+	}
+	if !foundError {
+		t.Error("expected E2009 error for using after declarations")
+	}
+}
+
+func TestParseProgramImportAfterDeclaration(t *testing.T) {
+	// Import after declarations should produce E2036
+	input := `do main() {
+	return 0
+}
+import arr@arrays`
+	l := NewLexer(input)
+	p := NewWithSource(l, input, "test.ez")
+	p.ParseProgram()
+
+	foundError := false
+	for _, err := range p.EZErrors().Errors {
+		if err.ErrorCode.Code == "E2036" {
+			foundError = true
+			break
+		}
+	}
+	if !foundError {
+		t.Error("expected E2036 error for import after declarations")
+	}
+}
+
+func TestParseProgramUsingWithoutImport(t *testing.T) {
+	// Using a module that hasn't been imported should produce E2010
+	input := `using unknownModule`
+	l := NewLexer(input)
+	p := NewWithSource(l, input, "test.ez")
+	p.ParseProgram()
+
+	foundError := false
+	for _, err := range p.EZErrors().Errors {
+		if err.ErrorCode.Code == "E2010" {
+			foundError = true
+			break
+		}
+	}
+	if !foundError {
+		t.Error("expected E2010 error for using without import")
+	}
+}
+
+// ============================================================================
+// Const Multiple Assignment with Keywords/Invalid Names in parseVarableDeclarationOrStruct
+// ============================================================================
+
+func TestConstMultipleAssignmentWithKeyword(t *testing.T) {
+	// Using a keyword in const multiple assignment (a, return) should error
+	input := `const a, return = getValues()`
+	l := NewLexer(input)
+	p := NewWithSource(l, input, "test.ez")
+	p.ParseProgram()
+
+	if len(p.Errors()) == 0 {
+		t.Error("expected error for keyword in const multiple assignment")
+	}
+}
+
+func TestConstMultipleAssignmentWithDuplicate(t *testing.T) {
+	// Duplicate names in const multiple assignment should error
+	input := `const a, a = getValues()`
+	l := NewLexer(input)
+	p := NewWithSource(l, input, "test.ez")
+	p.ParseProgram()
+
+	if len(p.Errors()) == 0 {
+		t.Error("expected error for duplicate in const multiple assignment")
+	}
+}
+
+func TestConstMultipleAssignmentWithReservedName(t *testing.T) {
+	// Using a reserved identifier like "println" in const multiple assignment
+	input := `const a, println = getValues()`
+	l := NewLexer(input)
+	p := NewWithSource(l, input, "test.ez")
+	p.ParseProgram()
+
+	if !p.EZErrors().HasErrors() {
+		t.Error("expected error for reserved name in const multiple assignment")
+	}
+}
