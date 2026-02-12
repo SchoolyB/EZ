@@ -205,6 +205,38 @@ func TestFormatSimple(t *testing.T) {
 	}
 }
 
+// TestIdent verifies identifier formatting helper
+func TestIdent(t *testing.T) {
+	result := Ident("myVar")
+	if result != BoldCyan+"myVar"+Reset {
+		t.Errorf("Ident() = %q, want %q", result, BoldCyan+"myVar"+Reset)
+	}
+}
+
+// TestTypeExpected verifies expected type formatting helper
+func TestTypeExpected(t *testing.T) {
+	result := TypeExpected("int")
+	if result != BoldGreen+"int"+Reset {
+		t.Errorf("TypeExpected() = %q, want %q", result, BoldGreen+"int"+Reset)
+	}
+}
+
+// TestTypeGot verifies actual type formatting helper
+func TestTypeGot(t *testing.T) {
+	result := TypeGot("string")
+	if result != BoldRed+"string"+Reset {
+		t.Errorf("TypeGot() = %q, want %q", result, BoldRed+"string"+Reset)
+	}
+}
+
+// TestKeyword verifies keyword formatting helper
+func TestKeyword(t *testing.T) {
+	result := Keyword("struct")
+	if result != Bold+"struct"+Reset {
+		t.Errorf("Keyword() = %q, want %q", result, Bold+"struct"+Reset)
+	}
+}
+
 // TestColorConstants verifies ANSI codes are defined
 func TestColorConstants(t *testing.T) {
 	colors := []struct {
