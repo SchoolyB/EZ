@@ -4,9 +4,11 @@ package stdlib
 // Licensed under the MIT License. See LICENSE for details.
 
 import (
+	"fmt"
 	"math/big"
 	"math/rand"
 
+	"github.com/marshallburns/ez/pkg/errors"
 	"github.com/marshallburns/ez/pkg/object"
 )
 
@@ -28,11 +30,11 @@ var RandomBuiltins = map[string]*object.Builtin{
 					return err
 				}
 				if max <= min {
-					return &object.Error{Code: "E8006", Message: "random.float() max must be greater than min"}
+					return &object.Error{Code: "E8006", Message: fmt.Sprintf("%s max must be greater than min", errors.Ident("random.float()"))}
 				}
 				return &object.Float{Value: min + rand.Float64()*(max-min), DeclaredType: "float"}
 			}
-			return &object.Error{Code: "E7001", Message: "random.float() takes 0 or 2 arguments"}
+			return &object.Error{Code: "E7001", Message: fmt.Sprintf("%s takes 0 or 2 arguments", errors.Ident("random.float()"))}
 		},
 	},
 
@@ -46,7 +48,7 @@ var RandomBuiltins = map[string]*object.Builtin{
 					return err
 				}
 				if max <= 0 {
-					return &object.Error{Code: "E8006", Message: "random.int() max must be positive"}
+					return &object.Error{Code: "E8006", Message: fmt.Sprintf("%s max must be positive", errors.Ident("random.int()"))}
 				}
 				return &object.Integer{Value: big.NewInt(int64(rand.Intn(int(max))))}
 			} else if len(args) == 2 {
@@ -59,11 +61,11 @@ var RandomBuiltins = map[string]*object.Builtin{
 					return err
 				}
 				if max <= min {
-					return &object.Error{Code: "E8006", Message: "random.int() max must be greater than min"}
+					return &object.Error{Code: "E8006", Message: fmt.Sprintf("%s max must be greater than min", errors.Ident("random.int()"))}
 				}
 				return &object.Integer{Value: big.NewInt(int64(min) + int64(rand.Intn(int(max-min))))}
 			}
-			return &object.Error{Code: "E7001", Message: "random.int() takes 1 or 2 arguments"}
+			return &object.Error{Code: "E7001", Message: fmt.Sprintf("%s takes 1 or 2 arguments", errors.Ident("random.int()"))}
 		},
 	},
 
@@ -72,7 +74,7 @@ var RandomBuiltins = map[string]*object.Builtin{
 	"random.bool": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 0 {
-				return &object.Error{Code: "E7001", Message: "random.bool() takes no arguments"}
+				return &object.Error{Code: "E7001", Message: fmt.Sprintf("%s takes no arguments", errors.Ident("random.bool()"))}
 			}
 			if rand.Intn(2) == 0 {
 				return object.FALSE
@@ -86,7 +88,7 @@ var RandomBuiltins = map[string]*object.Builtin{
 	"random.byte": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 0 {
-				return &object.Error{Code: "E7001", Message: "random.byte() takes no arguments"}
+				return &object.Error{Code: "E7001", Message: fmt.Sprintf("%s takes no arguments", errors.Ident("random.byte()"))}
 			}
 			return &object.Byte{Value: uint8(rand.Intn(256))}
 		},
@@ -109,7 +111,7 @@ var RandomBuiltins = map[string]*object.Builtin{
 				case *object.Integer:
 					minVal = rune(v.Value.Int64())
 				default:
-					return &object.Error{Code: "E7003", Message: "random.char() requires char or integer arguments"}
+					return &object.Error{Code: "E7003", Message: fmt.Sprintf("%s requires %s or %s arguments", errors.Ident("random.char()"), errors.TypeExpected("char"), errors.TypeExpected("integer"))}
 				}
 
 				// Get max value
@@ -119,16 +121,16 @@ var RandomBuiltins = map[string]*object.Builtin{
 				case *object.Integer:
 					maxVal = rune(v.Value.Int64())
 				default:
-					return &object.Error{Code: "E7003", Message: "random.char() requires char or integer arguments"}
+					return &object.Error{Code: "E7003", Message: fmt.Sprintf("%s requires %s or %s arguments", errors.Ident("random.char()"), errors.TypeExpected("char"), errors.TypeExpected("integer"))}
 				}
 
 				if maxVal <= minVal {
-					return &object.Error{Code: "E8006", Message: "random.char() max must be greater than min"}
+					return &object.Error{Code: "E8006", Message: fmt.Sprintf("%s max must be greater than min", errors.Ident("random.char()"))}
 				}
 
 				return &object.Char{Value: minVal + rune(rand.Intn(int(maxVal-minVal+1)))}
 			}
-			return &object.Error{Code: "E7001", Message: "random.char() takes 0 or 2 arguments"}
+			return &object.Error{Code: "E7001", Message: fmt.Sprintf("%s takes 0 or 2 arguments", errors.Ident("random.char()"))}
 		},
 	},
 
@@ -137,14 +139,14 @@ var RandomBuiltins = map[string]*object.Builtin{
 	"random.choice": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 1 {
-				return &object.Error{Code: "E7001", Message: "random.choice() takes exactly 1 argument"}
+				return &object.Error{Code: "E7001", Message: fmt.Sprintf("%s takes exactly 1 argument", errors.Ident("random.choice()"))}
 			}
 			arr, ok := args[0].(*object.Array)
 			if !ok {
-				return &object.Error{Code: "E7002", Message: "random.choice() requires an array argument"}
+				return &object.Error{Code: "E7002", Message: fmt.Sprintf("%s requires an %s argument", errors.Ident("random.choice()"), errors.TypeExpected("array"))}
 			}
 			if len(arr.Elements) == 0 {
-				return &object.Error{Code: "E9007", Message: "random.choice() cannot select from empty array"}
+				return &object.Error{Code: "E9007", Message: fmt.Sprintf("%s cannot select from empty array", errors.Ident("random.choice()"))}
 			}
 			return arr.Elements[rand.Intn(len(arr.Elements))]
 		},
@@ -155,11 +157,11 @@ var RandomBuiltins = map[string]*object.Builtin{
 	"random.shuffle": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 1 {
-				return &object.Error{Code: "E7001", Message: "random.shuffle() takes exactly 1 argument"}
+				return &object.Error{Code: "E7001", Message: fmt.Sprintf("%s takes exactly 1 argument", errors.Ident("random.shuffle()"))}
 			}
 			arr, ok := args[0].(*object.Array)
 			if !ok {
-				return &object.Error{Code: "E7002", Message: "random.shuffle() requires an array argument"}
+				return &object.Error{Code: "E7002", Message: fmt.Sprintf("%s requires an %s argument", errors.Ident("random.shuffle()"), errors.TypeExpected("array"))}
 			}
 
 			// Create a copy of elements
@@ -181,23 +183,23 @@ var RandomBuiltins = map[string]*object.Builtin{
 	"random.sample": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 2 {
-				return &object.Error{Code: "E7001", Message: "random.sample() takes exactly 2 arguments"}
+				return &object.Error{Code: "E7001", Message: fmt.Sprintf("%s takes exactly 2 arguments", errors.Ident("random.sample()"))}
 			}
 			arr, ok := args[0].(*object.Array)
 			if !ok {
-				return &object.Error{Code: "E7002", Message: "random.sample() requires an array as first argument"}
+				return &object.Error{Code: "E7002", Message: fmt.Sprintf("%s requires an %s as first argument", errors.Ident("random.sample()"), errors.TypeExpected("array"))}
 			}
 			nObj, ok := args[1].(*object.Integer)
 			if !ok {
-				return &object.Error{Code: "E7004", Message: "random.sample() requires an integer as second argument"}
+				return &object.Error{Code: "E7004", Message: fmt.Sprintf("%s requires an %s as second argument", errors.Ident("random.sample()"), errors.TypeExpected("integer"))}
 			}
 			n := int(nObj.Value.Int64())
 
 			if n < 0 {
-				return &object.Error{Code: "E10001", Message: "random.sample() count cannot be negative"}
+				return &object.Error{Code: "E10001", Message: fmt.Sprintf("%s count cannot be negative", errors.Ident("random.sample()"))}
 			}
 			if n > len(arr.Elements) {
-				return &object.Error{Code: "E9008", Message: "random.sample() count exceeds array length"}
+				return &object.Error{Code: "E9008", Message: fmt.Sprintf("%s count exceeds array length", errors.Ident("random.sample()"))}
 			}
 
 			// Create index slice and shuffle it
@@ -231,6 +233,6 @@ func getRandomNumber(obj object.Object) (float64, *object.Error) {
 	case *object.Float:
 		return v.Value, nil
 	default:
-		return 0, &object.Error{Code: "E7005", Message: "expected number argument"}
+		return 0, &object.Error{Code: "E7005", Message: fmt.Sprintf("expected %s argument", errors.TypeExpected("number"))}
 	}
 }

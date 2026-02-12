@@ -9,6 +9,7 @@ import (
 	"os"
 	"strings"
 
+	"github.com/marshallburns/ez/pkg/errors"
 	"github.com/marshallburns/ez/pkg/object"
 )
 
@@ -23,11 +24,11 @@ var CsvBuiltins = map[string]*object.Builtin{
 	"csv.parse": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 1 {
-				return &object.Error{Code: "E7001", Message: "csv.parse() takes exactly 1 argument (csv_string)"}
+				return &object.Error{Code: "E7001", Message: fmt.Sprintf("%s takes exactly 1 argument (csv_string)", errors.Ident("csv.parse()"))}
 			}
 			str, ok := args[0].(*object.String)
 			if !ok {
-				return &object.Error{Code: "E7003", Message: "csv.parse() requires a string argument"}
+				return &object.Error{Code: "E7003", Message: fmt.Sprintf("%s requires a %s argument", errors.Ident("csv.parse()"), errors.TypeExpected("string"))}
 			}
 
 			reader := csv.NewReader(strings.NewReader(str.Value))
@@ -35,7 +36,7 @@ var CsvBuiltins = map[string]*object.Builtin{
 			if err != nil {
 				return &object.ReturnValue{Values: []object.Object{
 					object.NIL,
-					CreateStdlibError("E14001", fmt.Sprintf("csv.parse() failed: %s", err.Error())),
+					CreateStdlibError("E14001", fmt.Sprintf("%s failed: %s", errors.Ident("csv.parse()"), err.Error())),
 				}}
 			}
 
@@ -51,11 +52,11 @@ var CsvBuiltins = map[string]*object.Builtin{
 	"csv.stringify": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 1 {
-				return &object.Error{Code: "E7001", Message: "csv.stringify() takes exactly 1 argument (data)"}
+				return &object.Error{Code: "E7001", Message: fmt.Sprintf("%s takes exactly 1 argument (data)", errors.Ident("csv.stringify()"))}
 			}
 			arr, ok := args[0].(*object.Array)
 			if !ok {
-				return &object.Error{Code: "E7003", Message: "csv.stringify() requires an array argument"}
+				return &object.Error{Code: "E7003", Message: fmt.Sprintf("%s requires an %s argument", errors.Ident("csv.stringify()"), errors.TypeExpected("array"))}
 			}
 
 			rows, convErr := arrayToCsvRows(arr)
@@ -69,7 +70,7 @@ var CsvBuiltins = map[string]*object.Builtin{
 			if err != nil {
 				return &object.ReturnValue{Values: []object.Object{
 					object.NIL,
-					CreateStdlibError("E14002", fmt.Sprintf("csv.stringify() failed: %s", err.Error())),
+					CreateStdlibError("E14002", fmt.Sprintf("%s failed: %s", errors.Ident("csv.stringify()"), err.Error())),
 				}}
 			}
 
@@ -90,11 +91,11 @@ var CsvBuiltins = map[string]*object.Builtin{
 	"csv.read": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) < 1 || len(args) > 2 {
-				return &object.Error{Code: "E7001", Message: "csv.read() takes 1-2 arguments (path, [options])"}
+				return &object.Error{Code: "E7001", Message: fmt.Sprintf("%s takes 1-2 arguments (path, [options])", errors.Ident("csv.read()"))}
 			}
 			path, ok := args[0].(*object.String)
 			if !ok {
-				return &object.Error{Code: "E7003", Message: "csv.read() requires a string path as first argument"}
+				return &object.Error{Code: "E7003", Message: fmt.Sprintf("%s requires a %s path as first argument", errors.Ident("csv.read()"), errors.TypeExpected("string"))}
 			}
 
 			// Validate path
@@ -108,7 +109,7 @@ var CsvBuiltins = map[string]*object.Builtin{
 			if len(args) == 2 {
 				opts, ok := args[1].(*object.Map)
 				if !ok {
-					return &object.Error{Code: "E7003", Message: "csv.read() options must be a map"}
+					return &object.Error{Code: "E7003", Message: fmt.Sprintf("%s options must be a %s", errors.Ident("csv.read()"), errors.TypeExpected("map"))}
 				}
 				delimiter, skipEmpty = getCsvReadOptions(opts)
 			}
@@ -127,7 +128,7 @@ var CsvBuiltins = map[string]*object.Builtin{
 			if err != nil {
 				return &object.ReturnValue{Values: []object.Object{
 					object.NIL,
-					CreateStdlibError("E14001", fmt.Sprintf("csv.read() failed to parse: %s", err.Error())),
+					CreateStdlibError("E14001", fmt.Sprintf("%s failed to parse: %s", errors.Ident("csv.read()"), err.Error())),
 				}}
 			}
 
@@ -148,11 +149,11 @@ var CsvBuiltins = map[string]*object.Builtin{
 	"csv.headers": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 1 {
-				return &object.Error{Code: "E7001", Message: "csv.headers() takes exactly 1 argument (path)"}
+				return &object.Error{Code: "E7001", Message: fmt.Sprintf("%s takes exactly 1 argument (path)", errors.Ident("csv.headers()"))}
 			}
 			path, ok := args[0].(*object.String)
 			if !ok {
-				return &object.Error{Code: "E7003", Message: "csv.headers() requires a string path"}
+				return &object.Error{Code: "E7003", Message: fmt.Sprintf("%s requires a %s path", errors.Ident("csv.headers()"), errors.TypeExpected("string"))}
 			}
 
 			// Validate path
@@ -172,7 +173,7 @@ var CsvBuiltins = map[string]*object.Builtin{
 			if err != nil {
 				return &object.ReturnValue{Values: []object.Object{
 					object.NIL,
-					CreateStdlibError("E14001", fmt.Sprintf("csv.headers() failed: %s", err.Error())),
+					CreateStdlibError("E14001", fmt.Sprintf("%s failed: %s", errors.Ident("csv.headers()"), err.Error())),
 				}}
 			}
 
@@ -199,15 +200,15 @@ var CsvBuiltins = map[string]*object.Builtin{
 	"csv.write": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) < 2 || len(args) > 3 {
-				return &object.Error{Code: "E7001", Message: "csv.write() takes 2-3 arguments (path, data, [options])"}
+				return &object.Error{Code: "E7001", Message: fmt.Sprintf("%s takes 2-3 arguments (path, data, [options])", errors.Ident("csv.write()"))}
 			}
 			path, ok := args[0].(*object.String)
 			if !ok {
-				return &object.Error{Code: "E7003", Message: "csv.write() requires a string path as first argument"}
+				return &object.Error{Code: "E7003", Message: fmt.Sprintf("%s requires a %s path as first argument", errors.Ident("csv.write()"), errors.TypeExpected("string"))}
 			}
 			arr, ok := args[1].(*object.Array)
 			if !ok {
-				return &object.Error{Code: "E7003", Message: "csv.write() requires an array as second argument"}
+				return &object.Error{Code: "E7003", Message: fmt.Sprintf("%s requires an %s as second argument", errors.Ident("csv.write()"), errors.TypeExpected("array"))}
 			}
 
 			// Validate path
@@ -221,7 +222,7 @@ var CsvBuiltins = map[string]*object.Builtin{
 			if len(args) == 3 {
 				opts, ok := args[2].(*object.Map)
 				if !ok {
-					return &object.Error{Code: "E7003", Message: "csv.write() options must be a map"}
+					return &object.Error{Code: "E7003", Message: fmt.Sprintf("%s options must be a %s", errors.Ident("csv.write()"), errors.TypeExpected("map"))}
 				}
 				delimiter, quoteAll = getCsvWriteOptions(opts)
 			}
@@ -248,7 +249,7 @@ var CsvBuiltins = map[string]*object.Builtin{
 			if err != nil {
 				return &object.ReturnValue{Values: []object.Object{
 					object.FALSE,
-					CreateStdlibError("E14002", fmt.Sprintf("csv.write() failed: %s", err.Error())),
+					CreateStdlibError("E14002", fmt.Sprintf("%s failed: %s", errors.Ident("csv.write()"), err.Error())),
 				}}
 			}
 
@@ -285,7 +286,7 @@ func arrayToCsvRows(arr *object.Array) ([][]string, *object.Error) {
 		if !ok {
 			return nil, &object.Error{
 				Code:    "E7003",
-				Message: fmt.Sprintf("csv data row %d must be an array", i),
+				Message: fmt.Sprintf("csv data row %d must be an %s", i, errors.TypeExpected("array")),
 			}
 		}
 		row := make([]string, len(rowArr.Elements))
@@ -294,7 +295,7 @@ func arrayToCsvRows(arr *object.Array) ([][]string, *object.Error) {
 			if !ok {
 				return nil, &object.Error{
 					Code:    "E7003",
-					Message: fmt.Sprintf("csv data field at row %d, column %d must be a string", i, j),
+					Message: fmt.Sprintf("csv data field at row %d, column %d must be a %s", i, j, errors.TypeExpected("string")),
 				}
 			}
 			row[j] = str.Value
