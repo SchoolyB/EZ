@@ -9,6 +9,7 @@ import (
 	"math/big"
 	"sort"
 
+	"github.com/marshallburns/ez/pkg/errors"
 	"github.com/marshallburns/ez/pkg/object"
 )
 
@@ -73,7 +74,7 @@ var JsonBuiltins = map[string]*object.Builtin{
 			}
 
 			if typeVal.Def == nil {
-				return &object.Error{Code: "E13002", Message: fmt.Sprintf("cannot decode JSON to primitive type '%s'", typeVal.TypeName)}
+				return &object.Error{Code: "E13002", Message: fmt.Sprintf("cannot decode JSON to primitive type '%s'", errors.TypeGot(typeVal.TypeName))}
 			}
 
 			result, jsonErr := decodeToStruct(str.Value, typeVal.Def)
@@ -224,7 +225,7 @@ func objectToGoValue(obj object.Object, seen map[uintptr]bool) (interface{}, *js
 			if !ok {
 				return nil, &jsonError{
 					code:    "E13003",
-					message: fmt.Sprintf("JSON object keys must be strings, got %s", object.GetEZTypeName(pair.Key)),
+					message: fmt.Sprintf("JSON object keys must be strings, got %s", errors.TypeGot(object.GetEZTypeName(pair.Key))),
 				}
 			}
 			val, err := objectToGoValue(pair.Value, seen)

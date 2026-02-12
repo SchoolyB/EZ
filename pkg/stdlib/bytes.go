@@ -11,6 +11,7 @@ import (
 	"math/big"
 	"strings"
 
+	"github.com/marshallburns/ez/pkg/errors"
 	"github.com/marshallburns/ez/pkg/object"
 )
 
@@ -25,11 +26,11 @@ var BytesBuiltins = map[string]*object.Builtin{
 	"bytes.from_array": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 1 {
-				return &object.Error{Code: "E7001", Message: "bytes.from_array() takes exactly 1 argument (array)"}
+				return &object.Error{Code: "E7001", Message: fmt.Sprintf("%s takes exactly 1 argument (%s)", errors.Ident("bytes.from_array()"), errors.TypeExpected("array"))}
 			}
 			arr, ok := args[0].(*object.Array)
 			if !ok {
-				return &object.Error{Code: "E7002", Message: "bytes.from_array() requires an array argument"}
+				return &object.Error{Code: "E7002", Message: fmt.Sprintf("%s requires an %s argument", errors.Ident("bytes.from_array()"), errors.TypeExpected("array"))}
 			}
 
 			elements := make([]object.Object, len(arr.Elements))
@@ -41,10 +42,10 @@ var BytesBuiltins = map[string]*object.Builtin{
 				case *object.Byte:
 					val = int64(e.Value)
 				default:
-					return &object.Error{Code: "E7004", Message: fmt.Sprintf("bytes.from_array() element %d must be an integer", i)}
+					return &object.Error{Code: "E7004", Message: fmt.Sprintf("%s element %d must be an %s", errors.Ident("bytes.from_array()"), i, errors.TypeExpected("integer"))}
 				}
 				if val < 0 || val > 255 {
-					return &object.Error{Code: "E3022", Message: fmt.Sprintf("bytes.from_array() element %d value %d out of range (0-255)", i, val)}
+					return &object.Error{Code: "E3022", Message: fmt.Sprintf("%s element %d value %d out of range (0-255)", errors.Ident("bytes.from_array()"), i, val)}
 				}
 				elements[i] = &object.Byte{Value: uint8(val)}
 			}
@@ -57,11 +58,11 @@ var BytesBuiltins = map[string]*object.Builtin{
 	"bytes.from_string": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 1 {
-				return &object.Error{Code: "E7001", Message: "bytes.from_string() takes exactly 1 argument (string)"}
+				return &object.Error{Code: "E7001", Message: fmt.Sprintf("%s takes exactly 1 argument (%s)", errors.Ident("bytes.from_string()"), errors.TypeExpected("string"))}
 			}
 			str, ok := args[0].(*object.String)
 			if !ok {
-				return &object.Error{Code: "E7003", Message: "bytes.from_string() requires a string argument"}
+				return &object.Error{Code: "E7003", Message: fmt.Sprintf("%s requires a %s argument", errors.Ident("bytes.from_string()"), errors.TypeExpected("string"))}
 			}
 
 			data := []byte(str.Value)
@@ -78,18 +79,18 @@ var BytesBuiltins = map[string]*object.Builtin{
 	"bytes.from_hex": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 1 {
-				return &object.Error{Code: "E7001", Message: "bytes.from_hex() takes exactly 1 argument (hex string)"}
+				return &object.Error{Code: "E7001", Message: fmt.Sprintf("%s takes exactly 1 argument (hex %s)", errors.Ident("bytes.from_hex()"), errors.TypeExpected("string"))}
 			}
 			str, ok := args[0].(*object.String)
 			if !ok {
-				return &object.Error{Code: "E7003", Message: "bytes.from_hex() requires a string argument"}
+				return &object.Error{Code: "E7003", Message: fmt.Sprintf("%s requires a %s argument", errors.Ident("bytes.from_hex()"), errors.TypeExpected("string"))}
 			}
 
 			data, err := hex.DecodeString(str.Value)
 			if err != nil {
 				return &object.ReturnValue{Values: []object.Object{
 					object.NIL,
-					CreateStdlibError("E7014", fmt.Sprintf("bytes.from_hex() invalid hex string: %s", err.Error())),
+					CreateStdlibError("E7014", fmt.Sprintf("%s invalid hex string: %s", errors.Ident("bytes.from_hex()"), err.Error())),
 				}}
 			}
 
@@ -109,18 +110,18 @@ var BytesBuiltins = map[string]*object.Builtin{
 	"bytes.from_base64": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 1 {
-				return &object.Error{Code: "E7001", Message: "bytes.from_base64() takes exactly 1 argument (base64 string)"}
+				return &object.Error{Code: "E7001", Message: fmt.Sprintf("%s takes exactly 1 argument (base64 %s)", errors.Ident("bytes.from_base64()"), errors.TypeExpected("string"))}
 			}
 			str, ok := args[0].(*object.String)
 			if !ok {
-				return &object.Error{Code: "E7003", Message: "bytes.from_base64() requires a string argument"}
+				return &object.Error{Code: "E7003", Message: fmt.Sprintf("%s requires a %s argument", errors.Ident("bytes.from_base64()"), errors.TypeExpected("string"))}
 			}
 
 			data, err := base64.StdEncoding.DecodeString(str.Value)
 			if err != nil {
 				return &object.ReturnValue{Values: []object.Object{
 					object.NIL,
-					CreateStdlibError("E7014", fmt.Sprintf("bytes.from_base64() invalid base64 string: %s", err.Error())),
+					CreateStdlibError("E7014", fmt.Sprintf("%s invalid base64 string: %s", errors.Ident("bytes.from_base64()"), err.Error())),
 				}}
 			}
 
@@ -144,11 +145,11 @@ var BytesBuiltins = map[string]*object.Builtin{
 	"bytes.to_string": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 1 {
-				return &object.Error{Code: "E7001", Message: "bytes.to_string() takes exactly 1 argument (bytes)"}
+				return &object.Error{Code: "E7001", Message: fmt.Sprintf("%s takes exactly 1 argument (bytes)", errors.Ident("bytes.to_string()"))}
 			}
 			arr, ok := args[0].(*object.Array)
 			if !ok {
-				return &object.Error{Code: "E7002", Message: "bytes.to_string() requires a byte array argument"}
+				return &object.Error{Code: "E7002", Message: fmt.Sprintf("%s requires a byte array argument", errors.Ident("bytes.to_string()"))}
 			}
 
 			data := make([]byte, len(arr.Elements))
@@ -164,7 +165,7 @@ var BytesBuiltins = map[string]*object.Builtin{
 						data[i] = byte(val)
 						continue
 					}
-					return &object.Error{Code: "E7002", Message: "bytes.to_string() requires a byte array"}
+					return &object.Error{Code: "E7002", Message: fmt.Sprintf("%s requires a byte array", errors.Ident("bytes.to_string()"))}
 				}
 				data[i] = b.Value
 			}
@@ -177,11 +178,11 @@ var BytesBuiltins = map[string]*object.Builtin{
 	"bytes.to_array": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 1 {
-				return &object.Error{Code: "E7001", Message: "bytes.to_array() takes exactly 1 argument (bytes)"}
+				return &object.Error{Code: "E7001", Message: fmt.Sprintf("%s takes exactly 1 argument (bytes)", errors.Ident("bytes.to_array()"))}
 			}
 			arr, ok := args[0].(*object.Array)
 			if !ok {
-				return &object.Error{Code: "E7002", Message: "bytes.to_array() requires a byte array argument"}
+				return &object.Error{Code: "E7002", Message: fmt.Sprintf("%s requires a byte array argument", errors.Ident("bytes.to_array()"))}
 			}
 
 			elements := make([]object.Object, len(arr.Elements))
@@ -192,7 +193,7 @@ var BytesBuiltins = map[string]*object.Builtin{
 				case *object.Integer:
 					elements[i] = e
 				default:
-					return &object.Error{Code: "E7002", Message: "bytes.to_array() requires a byte array"}
+					return &object.Error{Code: "E7002", Message: fmt.Sprintf("%s requires a byte array", errors.Ident("bytes.to_array()"))}
 				}
 			}
 			return &object.Array{Elements: elements, ElementType: "int"}
@@ -204,7 +205,7 @@ var BytesBuiltins = map[string]*object.Builtin{
 	"bytes.to_hex": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 1 {
-				return &object.Error{Code: "E7001", Message: "bytes.to_hex() takes exactly 1 argument (bytes)"}
+				return &object.Error{Code: "E7001", Message: fmt.Sprintf("%s takes exactly 1 argument (bytes)", errors.Ident("bytes.to_hex()"))}
 			}
 			data, err := bytesArgToSlice(args[0], "bytes.to_hex()")
 			if err != nil {
@@ -219,7 +220,7 @@ var BytesBuiltins = map[string]*object.Builtin{
 	"bytes.to_hex_upper": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 1 {
-				return &object.Error{Code: "E7001", Message: "bytes.to_hex_upper() takes exactly 1 argument (bytes)"}
+				return &object.Error{Code: "E7001", Message: fmt.Sprintf("%s takes exactly 1 argument (bytes)", errors.Ident("bytes.to_hex_upper()"))}
 			}
 			data, err := bytesArgToSlice(args[0], "bytes.to_hex_upper()")
 			if err != nil {
@@ -234,7 +235,7 @@ var BytesBuiltins = map[string]*object.Builtin{
 	"bytes.to_base64": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 1 {
-				return &object.Error{Code: "E7001", Message: "bytes.to_base64() takes exactly 1 argument (bytes)"}
+				return &object.Error{Code: "E7001", Message: fmt.Sprintf("%s takes exactly 1 argument (bytes)", errors.Ident("bytes.to_base64()"))}
 			}
 			data, err := bytesArgToSlice(args[0], "bytes.to_base64()")
 			if err != nil {
@@ -253,19 +254,19 @@ var BytesBuiltins = map[string]*object.Builtin{
 	"bytes.slice": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 3 {
-				return &object.Error{Code: "E7001", Message: "bytes.slice() takes exactly 3 arguments (bytes, start, end)"}
+				return &object.Error{Code: "E7001", Message: fmt.Sprintf("%s takes exactly 3 arguments (bytes, start, end)", errors.Ident("bytes.slice()"))}
 			}
 			arr, ok := args[0].(*object.Array)
 			if !ok {
-				return &object.Error{Code: "E7002", Message: "bytes.slice() requires a byte array as first argument"}
+				return &object.Error{Code: "E7002", Message: fmt.Sprintf("%s requires a byte array as first argument", errors.Ident("bytes.slice()"))}
 			}
 			startArg, ok := args[1].(*object.Integer)
 			if !ok {
-				return &object.Error{Code: "E7004", Message: "bytes.slice() requires an integer start index"}
+				return &object.Error{Code: "E7004", Message: fmt.Sprintf("%s requires an %s start index", errors.Ident("bytes.slice()"), errors.TypeExpected("integer"))}
 			}
 			endArg, ok := args[2].(*object.Integer)
 			if !ok {
-				return &object.Error{Code: "E7004", Message: "bytes.slice() requires an integer end index"}
+				return &object.Error{Code: "E7004", Message: fmt.Sprintf("%s requires an %s end index", errors.Ident("bytes.slice()"), errors.TypeExpected("integer"))}
 			}
 
 			length := int64(len(arr.Elements))
@@ -302,15 +303,15 @@ var BytesBuiltins = map[string]*object.Builtin{
 	"bytes.concat": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 2 {
-				return &object.Error{Code: "E7001", Message: "bytes.concat() takes exactly 2 arguments (bytes1, bytes2)"}
+				return &object.Error{Code: "E7001", Message: fmt.Sprintf("%s takes exactly 2 arguments (bytes1, bytes2)", errors.Ident("bytes.concat()"))}
 			}
 			arr1, ok := args[0].(*object.Array)
 			if !ok {
-				return &object.Error{Code: "E7002", Message: "bytes.concat() requires byte arrays"}
+				return &object.Error{Code: "E7002", Message: fmt.Sprintf("%s requires byte arrays", errors.Ident("bytes.concat()"))}
 			}
 			arr2, ok := args[1].(*object.Array)
 			if !ok {
-				return &object.Error{Code: "E7002", Message: "bytes.concat() requires byte arrays"}
+				return &object.Error{Code: "E7002", Message: fmt.Sprintf("%s requires byte arrays", errors.Ident("bytes.concat()"))}
 			}
 
 			elements := make([]object.Object, len(arr1.Elements)+len(arr2.Elements))
@@ -325,15 +326,15 @@ var BytesBuiltins = map[string]*object.Builtin{
 	"bytes.join": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 2 {
-				return &object.Error{Code: "E7001", Message: "bytes.join() takes exactly 2 arguments (array, separator)"}
+				return &object.Error{Code: "E7001", Message: fmt.Sprintf("%s takes exactly 2 arguments (%s, separator)", errors.Ident("bytes.join()"), errors.TypeExpected("array"))}
 			}
 			partsArr, ok := args[0].(*object.Array)
 			if !ok {
-				return &object.Error{Code: "E7002", Message: "bytes.join() requires an array of byte arrays as first argument"}
+				return &object.Error{Code: "E7002", Message: fmt.Sprintf("%s requires an %s of byte arrays as first argument", errors.Ident("bytes.join()"), errors.TypeExpected("array"))}
 			}
 			sep, ok := args[1].(*object.Array)
 			if !ok {
-				return &object.Error{Code: "E7002", Message: "bytes.join() requires a byte array separator"}
+				return &object.Error{Code: "E7002", Message: fmt.Sprintf("%s requires a byte array separator", errors.Ident("bytes.join()"))}
 			}
 
 			if len(partsArr.Elements) == 0 {
@@ -344,7 +345,7 @@ var BytesBuiltins = map[string]*object.Builtin{
 			for i, part := range partsArr.Elements {
 				partArr, ok := part.(*object.Array)
 				if !ok {
-					return &object.Error{Code: "E7002", Message: "bytes.join() array elements must be byte arrays"}
+					return &object.Error{Code: "E7002", Message: fmt.Sprintf("%s array elements must be byte arrays", errors.Ident("bytes.join()"))}
 				}
 				result = append(result, partArr.Elements...)
 				if i < len(partsArr.Elements)-1 {
@@ -360,7 +361,7 @@ var BytesBuiltins = map[string]*object.Builtin{
 	"bytes.split": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 2 {
-				return &object.Error{Code: "E7001", Message: "bytes.split() takes exactly 2 arguments (bytes, separator)"}
+				return &object.Error{Code: "E7001", Message: fmt.Sprintf("%s takes exactly 2 arguments (bytes, separator)", errors.Ident("bytes.split()"))}
 			}
 			data, errObj := bytesArgToSlice(args[0], "bytes.split()")
 			if errObj != nil {
@@ -389,7 +390,7 @@ var BytesBuiltins = map[string]*object.Builtin{
 	"bytes.contains": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 2 {
-				return &object.Error{Code: "E7001", Message: "bytes.contains() takes exactly 2 arguments (bytes, pattern)"}
+				return &object.Error{Code: "E7001", Message: fmt.Sprintf("%s takes exactly 2 arguments (bytes, pattern)", errors.Ident("bytes.contains()"))}
 			}
 			data, errObj := bytesArgToSlice(args[0], "bytes.contains()")
 			if errObj != nil {
@@ -412,7 +413,7 @@ var BytesBuiltins = map[string]*object.Builtin{
 	"bytes.index": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 2 {
-				return &object.Error{Code: "E7001", Message: "bytes.index() takes exactly 2 arguments (bytes, pattern)"}
+				return &object.Error{Code: "E7001", Message: fmt.Sprintf("%s takes exactly 2 arguments (bytes, pattern)", errors.Ident("bytes.index()"))}
 			}
 			data, errObj := bytesArgToSlice(args[0], "bytes.index()")
 			if errObj != nil {
@@ -432,7 +433,7 @@ var BytesBuiltins = map[string]*object.Builtin{
 	"bytes.last_index": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 2 {
-				return &object.Error{Code: "E7001", Message: "bytes.last_index() takes exactly 2 arguments (bytes, pattern)"}
+				return &object.Error{Code: "E7001", Message: fmt.Sprintf("%s takes exactly 2 arguments (bytes, pattern)", errors.Ident("bytes.last_index()"))}
 			}
 			data, errObj := bytesArgToSlice(args[0], "bytes.last_index()")
 			if errObj != nil {
@@ -452,7 +453,7 @@ var BytesBuiltins = map[string]*object.Builtin{
 	"bytes.count": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 2 {
-				return &object.Error{Code: "E7001", Message: "bytes.count() takes exactly 2 arguments (bytes, pattern)"}
+				return &object.Error{Code: "E7001", Message: fmt.Sprintf("%s takes exactly 2 arguments (bytes, pattern)", errors.Ident("bytes.count()"))}
 			}
 			data, errObj := bytesArgToSlice(args[0], "bytes.count()")
 			if errObj != nil {
@@ -472,7 +473,7 @@ var BytesBuiltins = map[string]*object.Builtin{
 	"bytes.compare": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 2 {
-				return &object.Error{Code: "E7001", Message: "bytes.compare() takes exactly 2 arguments (bytes1, bytes2)"}
+				return &object.Error{Code: "E7001", Message: fmt.Sprintf("%s takes exactly 2 arguments (bytes1, bytes2)", errors.Ident("bytes.compare()"))}
 			}
 			data1, errObj := bytesArgToSlice(args[0], "bytes.compare()")
 			if errObj != nil {
@@ -492,7 +493,7 @@ var BytesBuiltins = map[string]*object.Builtin{
 	"bytes.equals": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 2 {
-				return &object.Error{Code: "E7001", Message: "bytes.equals() takes exactly 2 arguments (bytes1, bytes2)"}
+				return &object.Error{Code: "E7001", Message: fmt.Sprintf("%s takes exactly 2 arguments (bytes1, bytes2)", errors.Ident("bytes.equals()"))}
 			}
 			data1, errObj := bytesArgToSlice(args[0], "bytes.equals()")
 			if errObj != nil {
@@ -519,11 +520,11 @@ var BytesBuiltins = map[string]*object.Builtin{
 	"bytes.is_empty": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 1 {
-				return &object.Error{Code: "E7001", Message: "bytes.is_empty() takes exactly 1 argument (bytes)"}
+				return &object.Error{Code: "E7001", Message: fmt.Sprintf("%s takes exactly 1 argument (bytes)", errors.Ident("bytes.is_empty()"))}
 			}
 			arr, ok := args[0].(*object.Array)
 			if !ok {
-				return &object.Error{Code: "E7002", Message: "bytes.is_empty() requires a byte array argument"}
+				return &object.Error{Code: "E7002", Message: fmt.Sprintf("%s requires a byte array argument", errors.Ident("bytes.is_empty()"))}
 			}
 
 			if len(arr.Elements) == 0 {
@@ -538,7 +539,7 @@ var BytesBuiltins = map[string]*object.Builtin{
 	"bytes.starts_with": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 2 {
-				return &object.Error{Code: "E7001", Message: "bytes.starts_with() takes exactly 2 arguments (bytes, prefix)"}
+				return &object.Error{Code: "E7001", Message: fmt.Sprintf("%s takes exactly 2 arguments (bytes, prefix)", errors.Ident("bytes.starts_with()"))}
 			}
 			data, errObj := bytesArgToSlice(args[0], "bytes.starts_with()")
 			if errObj != nil {
@@ -561,7 +562,7 @@ var BytesBuiltins = map[string]*object.Builtin{
 	"bytes.ends_with": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 2 {
-				return &object.Error{Code: "E7001", Message: "bytes.ends_with() takes exactly 2 arguments (bytes, suffix)"}
+				return &object.Error{Code: "E7001", Message: fmt.Sprintf("%s takes exactly 2 arguments (bytes, suffix)", errors.Ident("bytes.ends_with()"))}
 			}
 			data, errObj := bytesArgToSlice(args[0], "bytes.ends_with()")
 			if errObj != nil {
@@ -588,11 +589,11 @@ var BytesBuiltins = map[string]*object.Builtin{
 	"bytes.reverse": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 1 {
-				return &object.Error{Code: "E7001", Message: "bytes.reverse() takes exactly 1 argument (bytes)"}
+				return &object.Error{Code: "E7001", Message: fmt.Sprintf("%s takes exactly 1 argument (bytes)", errors.Ident("bytes.reverse()"))}
 			}
 			arr, ok := args[0].(*object.Array)
 			if !ok {
-				return &object.Error{Code: "E7002", Message: "bytes.reverse() requires a byte array argument"}
+				return &object.Error{Code: "E7002", Message: fmt.Sprintf("%s requires a byte array argument", errors.Ident("bytes.reverse()"))}
 			}
 
 			length := len(arr.Elements)
@@ -609,19 +610,19 @@ var BytesBuiltins = map[string]*object.Builtin{
 	"bytes.repeat": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 2 {
-				return &object.Error{Code: "E7001", Message: "bytes.repeat() takes exactly 2 arguments (bytes, count)"}
+				return &object.Error{Code: "E7001", Message: fmt.Sprintf("%s takes exactly 2 arguments (bytes, count)", errors.Ident("bytes.repeat()"))}
 			}
 			arr, ok := args[0].(*object.Array)
 			if !ok {
-				return &object.Error{Code: "E7002", Message: "bytes.repeat() requires a byte array as first argument"}
+				return &object.Error{Code: "E7002", Message: fmt.Sprintf("%s requires a byte array as first argument", errors.Ident("bytes.repeat()"))}
 			}
 			count, ok := args[1].(*object.Integer)
 			if !ok {
-				return &object.Error{Code: "E7004", Message: "bytes.repeat() requires an integer count"}
+				return &object.Error{Code: "E7004", Message: fmt.Sprintf("%s requires an %s count", errors.Ident("bytes.repeat()"), errors.TypeExpected("integer"))}
 			}
 			countVal := count.Value.Int64()
 			if countVal < 0 {
-				return &object.Error{Code: "E7011", Message: "bytes.repeat() count cannot be negative"}
+				return &object.Error{Code: "E7011", Message: fmt.Sprintf("%s count cannot be negative", errors.Ident("bytes.repeat()"))}
 			}
 
 			elements := make([]object.Object, 0, len(arr.Elements)*int(countVal))
@@ -637,7 +638,7 @@ var BytesBuiltins = map[string]*object.Builtin{
 	"bytes.replace": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 3 {
-				return &object.Error{Code: "E7001", Message: "bytes.replace() takes exactly 3 arguments (bytes, old, new)"}
+				return &object.Error{Code: "E7001", Message: fmt.Sprintf("%s takes exactly 3 arguments (bytes, old, new)", errors.Ident("bytes.replace()"))}
 			}
 			data, errObj := bytesArgToSlice(args[0], "bytes.replace()")
 			if errObj != nil {
@@ -662,7 +663,7 @@ var BytesBuiltins = map[string]*object.Builtin{
 	"bytes.replace_n": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 4 {
-				return &object.Error{Code: "E7001", Message: "bytes.replace_n() takes exactly 4 arguments (bytes, old, new, n)"}
+				return &object.Error{Code: "E7001", Message: fmt.Sprintf("%s takes exactly 4 arguments (bytes, old, new, n)", errors.Ident("bytes.replace_n()"))}
 			}
 			data, errObj := bytesArgToSlice(args[0], "bytes.replace_n()")
 			if errObj != nil {
@@ -678,7 +679,7 @@ var BytesBuiltins = map[string]*object.Builtin{
 			}
 			n, ok := args[3].(*object.Integer)
 			if !ok {
-				return &object.Error{Code: "E7004", Message: "bytes.replace_n() requires an integer count"}
+				return &object.Error{Code: "E7004", Message: fmt.Sprintf("%s requires an %s count", errors.Ident("bytes.replace_n()"), errors.TypeExpected("integer"))}
 			}
 
 			result := bytes.Replace(data, old, newBytes, int(n.Value.Int64()))
@@ -691,7 +692,7 @@ var BytesBuiltins = map[string]*object.Builtin{
 	"bytes.trim": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 2 {
-				return &object.Error{Code: "E7001", Message: "bytes.trim() takes exactly 2 arguments (bytes, cutset)"}
+				return &object.Error{Code: "E7001", Message: fmt.Sprintf("%s takes exactly 2 arguments (bytes, cutset)", errors.Ident("bytes.trim()"))}
 			}
 			data, errObj := bytesArgToSlice(args[0], "bytes.trim()")
 			if errObj != nil {
@@ -712,7 +713,7 @@ var BytesBuiltins = map[string]*object.Builtin{
 	"bytes.trim_left": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 2 {
-				return &object.Error{Code: "E7001", Message: "bytes.trim_left() takes exactly 2 arguments (bytes, cutset)"}
+				return &object.Error{Code: "E7001", Message: fmt.Sprintf("%s takes exactly 2 arguments (bytes, cutset)", errors.Ident("bytes.trim_left()"))}
 			}
 			data, errObj := bytesArgToSlice(args[0], "bytes.trim_left()")
 			if errObj != nil {
@@ -733,7 +734,7 @@ var BytesBuiltins = map[string]*object.Builtin{
 	"bytes.trim_right": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 2 {
-				return &object.Error{Code: "E7001", Message: "bytes.trim_right() takes exactly 2 arguments (bytes, cutset)"}
+				return &object.Error{Code: "E7001", Message: fmt.Sprintf("%s takes exactly 2 arguments (bytes, cutset)", errors.Ident("bytes.trim_right()"))}
 			}
 			data, errObj := bytesArgToSlice(args[0], "bytes.trim_right()")
 			if errObj != nil {
@@ -754,15 +755,15 @@ var BytesBuiltins = map[string]*object.Builtin{
 	"bytes.pad_left": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 3 {
-				return &object.Error{Code: "E7001", Message: "bytes.pad_left() takes exactly 3 arguments (bytes, length, pad_byte)"}
+				return &object.Error{Code: "E7001", Message: fmt.Sprintf("%s takes exactly 3 arguments (bytes, length, pad_byte)", errors.Ident("bytes.pad_left()"))}
 			}
 			arr, ok := args[0].(*object.Array)
 			if !ok {
-				return &object.Error{Code: "E7002", Message: "bytes.pad_left() requires a byte array as first argument"}
+				return &object.Error{Code: "E7002", Message: fmt.Sprintf("%s requires a byte array as first argument", errors.Ident("bytes.pad_left()"))}
 			}
 			length, ok := args[1].(*object.Integer)
 			if !ok {
-				return &object.Error{Code: "E7004", Message: "bytes.pad_left() requires an integer length"}
+				return &object.Error{Code: "E7004", Message: fmt.Sprintf("%s requires an %s length", errors.Ident("bytes.pad_left()"), errors.TypeExpected("integer"))}
 			}
 			padByte, err := getByteValue(args[2], "bytes.pad_left()")
 			if err != nil {
@@ -793,15 +794,15 @@ var BytesBuiltins = map[string]*object.Builtin{
 	"bytes.pad_right": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 3 {
-				return &object.Error{Code: "E7001", Message: "bytes.pad_right() takes exactly 3 arguments (bytes, length, pad_byte)"}
+				return &object.Error{Code: "E7001", Message: fmt.Sprintf("%s takes exactly 3 arguments (bytes, length, pad_byte)", errors.Ident("bytes.pad_right()"))}
 			}
 			arr, ok := args[0].(*object.Array)
 			if !ok {
-				return &object.Error{Code: "E7002", Message: "bytes.pad_right() requires a byte array as first argument"}
+				return &object.Error{Code: "E7002", Message: fmt.Sprintf("%s requires a byte array as first argument", errors.Ident("bytes.pad_right()"))}
 			}
 			length, ok := args[1].(*object.Integer)
 			if !ok {
-				return &object.Error{Code: "E7004", Message: "bytes.pad_right() requires an integer length"}
+				return &object.Error{Code: "E7004", Message: fmt.Sprintf("%s requires an %s length", errors.Ident("bytes.pad_right()"), errors.TypeExpected("integer"))}
 			}
 			padByte, err := getByteValue(args[2], "bytes.pad_right()")
 			if err != nil {
@@ -835,7 +836,7 @@ var BytesBuiltins = map[string]*object.Builtin{
 	"bytes.and": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 2 {
-				return &object.Error{Code: "E7001", Message: "bytes.and() takes exactly 2 arguments (bytes1, bytes2)"}
+				return &object.Error{Code: "E7001", Message: fmt.Sprintf("%s takes exactly 2 arguments (bytes1, bytes2)", errors.Ident("bytes.and()"))}
 			}
 			data1, errObj := bytesArgToSlice(args[0], "bytes.and()")
 			if errObj != nil {
@@ -849,7 +850,7 @@ var BytesBuiltins = map[string]*object.Builtin{
 			if len(data1) != len(data2) {
 				return &object.ReturnValue{Values: []object.Object{
 					object.NIL,
-					CreateStdlibError("E7010", "bytes.and() requires byte arrays of equal length"),
+					CreateStdlibError("E7010", fmt.Sprintf("%s requires byte arrays of equal length", errors.Ident("bytes.and()"))),
 				}}
 			}
 
@@ -869,7 +870,7 @@ var BytesBuiltins = map[string]*object.Builtin{
 	"bytes.or": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 2 {
-				return &object.Error{Code: "E7001", Message: "bytes.or() takes exactly 2 arguments (bytes1, bytes2)"}
+				return &object.Error{Code: "E7001", Message: fmt.Sprintf("%s takes exactly 2 arguments (bytes1, bytes2)", errors.Ident("bytes.or()"))}
 			}
 			data1, errObj := bytesArgToSlice(args[0], "bytes.or()")
 			if errObj != nil {
@@ -883,7 +884,7 @@ var BytesBuiltins = map[string]*object.Builtin{
 			if len(data1) != len(data2) {
 				return &object.ReturnValue{Values: []object.Object{
 					object.NIL,
-					CreateStdlibError("E7010", "bytes.or() requires byte arrays of equal length"),
+					CreateStdlibError("E7010", fmt.Sprintf("%s requires byte arrays of equal length", errors.Ident("bytes.or()"))),
 				}}
 			}
 
@@ -903,7 +904,7 @@ var BytesBuiltins = map[string]*object.Builtin{
 	"bytes.xor": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 2 {
-				return &object.Error{Code: "E7001", Message: "bytes.xor() takes exactly 2 arguments (bytes1, bytes2)"}
+				return &object.Error{Code: "E7001", Message: fmt.Sprintf("%s takes exactly 2 arguments (bytes1, bytes2)", errors.Ident("bytes.xor()"))}
 			}
 			data1, errObj := bytesArgToSlice(args[0], "bytes.xor()")
 			if errObj != nil {
@@ -917,7 +918,7 @@ var BytesBuiltins = map[string]*object.Builtin{
 			if len(data1) != len(data2) {
 				return &object.ReturnValue{Values: []object.Object{
 					object.NIL,
-					CreateStdlibError("E7010", "bytes.xor() requires byte arrays of equal length"),
+					CreateStdlibError("E7010", fmt.Sprintf("%s requires byte arrays of equal length", errors.Ident("bytes.xor()"))),
 				}}
 			}
 
@@ -937,7 +938,7 @@ var BytesBuiltins = map[string]*object.Builtin{
 	"bytes.not": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 1 {
-				return &object.Error{Code: "E7001", Message: "bytes.not() takes exactly 1 argument (bytes)"}
+				return &object.Error{Code: "E7001", Message: fmt.Sprintf("%s takes exactly 1 argument (bytes)", errors.Ident("bytes.not()"))}
 			}
 			data, errObj := bytesArgToSlice(args[0], "bytes.not()")
 			if errObj != nil {
@@ -961,11 +962,11 @@ var BytesBuiltins = map[string]*object.Builtin{
 	"bytes.fill": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 2 {
-				return &object.Error{Code: "E7001", Message: "bytes.fill() takes exactly 2 arguments (bytes, value)"}
+				return &object.Error{Code: "E7001", Message: fmt.Sprintf("%s takes exactly 2 arguments (bytes, value)", errors.Ident("bytes.fill()"))}
 			}
 			arr, ok := args[0].(*object.Array)
 			if !ok {
-				return &object.Error{Code: "E7002", Message: "bytes.fill() requires a byte array as first argument"}
+				return &object.Error{Code: "E7002", Message: fmt.Sprintf("%s requires a byte array as first argument", errors.Ident("bytes.fill()"))}
 			}
 			fillByte, err := getByteValue(args[1], "bytes.fill()")
 			if err != nil {
@@ -985,11 +986,11 @@ var BytesBuiltins = map[string]*object.Builtin{
 	"bytes.copy": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 1 {
-				return &object.Error{Code: "E7001", Message: "bytes.copy() takes exactly 1 argument (bytes)"}
+				return &object.Error{Code: "E7001", Message: fmt.Sprintf("%s takes exactly 1 argument (bytes)", errors.Ident("bytes.copy()"))}
 			}
 			arr, ok := args[0].(*object.Array)
 			if !ok {
-				return &object.Error{Code: "E7002", Message: "bytes.copy() requires a byte array argument"}
+				return &object.Error{Code: "E7002", Message: fmt.Sprintf("%s requires a byte array argument", errors.Ident("bytes.copy()"))}
 			}
 
 			elements := make([]object.Object, len(arr.Elements))
@@ -1003,11 +1004,11 @@ var BytesBuiltins = map[string]*object.Builtin{
 	"bytes.zero": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 1 {
-				return &object.Error{Code: "E7001", Message: "bytes.zero() takes exactly 1 argument (bytes)"}
+				return &object.Error{Code: "E7001", Message: fmt.Sprintf("%s takes exactly 1 argument (bytes)", errors.Ident("bytes.zero()"))}
 			}
 			arr, ok := args[0].(*object.Array)
 			if !ok {
-				return &object.Error{Code: "E7002", Message: "bytes.zero() requires a byte array argument"}
+				return &object.Error{Code: "E7002", Message: fmt.Sprintf("%s requires a byte array argument", errors.Ident("bytes.zero()"))}
 			}
 
 			elements := make([]object.Object, len(arr.Elements))
@@ -1023,7 +1024,7 @@ var BytesBuiltins = map[string]*object.Builtin{
 func bytesArgToSlice(arg object.Object, funcName string) ([]byte, *object.Error) {
 	arr, ok := arg.(*object.Array)
 	if !ok {
-		return nil, &object.Error{Code: "E7002", Message: fmt.Sprintf("%s requires a byte array argument", funcName)}
+		return nil, &object.Error{Code: "E7002", Message: fmt.Sprintf("%s requires a byte array argument", errors.Ident(funcName))}
 	}
 
 	data := make([]byte, len(arr.Elements))
@@ -1038,7 +1039,7 @@ func bytesArgToSlice(arg object.Object, funcName string) ([]byte, *object.Error)
 			}
 			data[i] = byte(val)
 		default:
-			return nil, &object.Error{Code: "E7002", Message: fmt.Sprintf("%s requires a byte array", funcName)}
+			return nil, &object.Error{Code: "E7002", Message: fmt.Sprintf("%s requires a byte array", errors.Ident(funcName))}
 		}
 	}
 	return data, nil
@@ -1061,10 +1062,10 @@ func getByteValue(arg object.Object, funcName string) (uint8, *object.Error) {
 	case *object.Integer:
 		intVal := v.Value.Int64()
 		if intVal < 0 || intVal > 255 {
-			return 0, &object.Error{Code: "E3021", Message: fmt.Sprintf("%s byte value %s out of range (0-255)", funcName, v.Value.String())}
+			return 0, &object.Error{Code: "E3021", Message: fmt.Sprintf("%s byte value %s out of range (0-255)", errors.Ident(funcName), v.Value.String())}
 		}
 		return uint8(intVal), nil
 	default:
-		return 0, &object.Error{Code: "E7004", Message: fmt.Sprintf("%s requires a byte or integer value", funcName)}
+		return 0, &object.Error{Code: "E7004", Message: fmt.Sprintf("%s requires a byte or integer value", errors.Ident(funcName))}
 	}
 }

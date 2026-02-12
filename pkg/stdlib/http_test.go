@@ -16,11 +16,11 @@ import (
 // ============================================================================
 
 func TestHTTPRequests(t *testing.T) {
-	getFn        := HttpBuiltins["http.get"].Fn
-	postFn       := HttpBuiltins["http.post"].Fn
-	putFn        := HttpBuiltins["http.put"].Fn
-	deleteFn     := HttpBuiltins["http.delete"].Fn
-	patchFn      := HttpBuiltins["http.patch"].Fn
+	getFn := HttpBuiltins["http.get"].Fn
+	postFn := HttpBuiltins["http.post"].Fn
+	putFn := HttpBuiltins["http.put"].Fn
+	deleteFn := HttpBuiltins["http.delete"].Fn
+	patchFn := HttpBuiltins["http.patch"].Fn
 	advRequestFn := HttpBuiltins["http.request"].Fn
 
 	serverState := map[string]string{}
@@ -78,9 +78,8 @@ func TestHTTPRequests(t *testing.T) {
 	server := httptest.NewServer(handler)
 	defer server.Close()
 
-
 	t.Run("POST request", func(t *testing.T) {
-		resource := &object.String{Value: server.URL + "?id=1" }
+		resource := &object.String{Value: server.URL + "?id=1"}
 		res := postFn(resource, &object.String{Value: "hello"})
 		assertNoError(t, res)
 
@@ -99,7 +98,7 @@ func TestHTTPRequests(t *testing.T) {
 	})
 
 	t.Run("GET request", func(t *testing.T) {
-		resource := &object.String{Value: server.URL + "?id=1" }
+		resource := &object.String{Value: server.URL + "?id=1"}
 		res := getFn(resource)
 		assertNoError(t, res)
 
@@ -116,7 +115,7 @@ func TestHTTPRequests(t *testing.T) {
 	})
 
 	t.Run("PUT request", func(t *testing.T) {
-		resource := &object.String{Value: server.URL + "?id=1" }
+		resource := &object.String{Value: server.URL + "?id=1"}
 		res := putFn(resource, &object.String{Value: "world"})
 		assertNoError(t, res)
 
@@ -135,7 +134,7 @@ func TestHTTPRequests(t *testing.T) {
 	})
 
 	t.Run("PATCH request", func(t *testing.T) {
-		resource := &object.String{Value: server.URL + "?id=1" }
+		resource := &object.String{Value: server.URL + "?id=1"}
 		res := patchFn(resource, &object.String{Value: "123"})
 		assertNoError(t, res)
 
@@ -155,7 +154,7 @@ func TestHTTPRequests(t *testing.T) {
 
 	t.Run("OPTIONS request", func(t *testing.T) {
 		method := &object.String{Value: "OPTIONS"}
-		resource := &object.String{Value: server.URL }
+		resource := &object.String{Value: server.URL}
 		res := advRequestFn(method, resource, &object.String{Value: ""}, object.NewMap(), &object.Integer{Value: big.NewInt(0)})
 		assertNoError(t, res)
 
@@ -164,7 +163,7 @@ func TestHTTPRequests(t *testing.T) {
 		if status != http.StatusNoContent {
 			t.Fatalf("expected %d, got %d", http.StatusNoContent, status)
 		}
-		
+
 		headerValue, ok := response.Fields["headers"].(*object.Map).Get(&object.String{Value: "Allow"})
 		if !ok {
 			t.Fatalf("expected 'Allow' header field to be set")
@@ -177,7 +176,7 @@ func TestHTTPRequests(t *testing.T) {
 
 	t.Run("HEAD request", func(t *testing.T) {
 		method := &object.String{Value: "HEAD"}
-		resource := &object.String{Value: server.URL }
+		resource := &object.String{Value: server.URL}
 		res := advRequestFn(method, resource, &object.String{Value: ""}, object.NewMap(), &object.Integer{Value: big.NewInt(0)})
 		assertNoError(t, res)
 
@@ -189,7 +188,7 @@ func TestHTTPRequests(t *testing.T) {
 	})
 
 	t.Run("DELETE request", func(t *testing.T) {
-		resource := &object.String{Value: server.URL + "?id=1" }
+		resource := &object.String{Value: server.URL + "?id=1"}
 		res := deleteFn(resource)
 		assertNoError(t, res)
 

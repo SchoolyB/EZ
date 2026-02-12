@@ -11,6 +11,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/marshallburns/ez/pkg/errors"
 	"github.com/marshallburns/ez/pkg/object"
 )
 
@@ -20,13 +21,13 @@ func validatePath(path string, funcName string) *object.ReturnValue {
 	if path == "" {
 		return &object.ReturnValue{Values: []object.Object{
 			object.NIL,
-			CreateStdlibError("E7040", fmt.Sprintf("%s: path cannot be empty", funcName)),
+			CreateStdlibError("E7040", fmt.Sprintf("%s: path cannot be empty", errors.Ident(funcName))),
 		}}
 	}
 	if strings.ContainsRune(path, '\x00') {
 		return &object.ReturnValue{Values: []object.Object{
 			object.NIL,
-			CreateStdlibError("E7041", fmt.Sprintf("%s: path contains null byte", funcName)),
+			CreateStdlibError("E7041", fmt.Sprintf("%s: path contains null byte", errors.Ident(funcName))),
 		}}
 	}
 	return nil

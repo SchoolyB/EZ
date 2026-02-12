@@ -9,6 +9,7 @@ import (
 	"math"
 	"math/big"
 
+	"github.com/marshallburns/ez/pkg/errors"
 	"github.com/marshallburns/ez/pkg/object"
 )
 
@@ -16,10 +17,10 @@ import (
 func binaryBytesToSlice(arg object.Object, expected int, funcName string) ([]byte, *object.Struct) {
 	arr, ok := arg.(*object.Array)
 	if !ok {
-		return nil, CreateStdlibError("E7002", fmt.Sprintf("%s requires a byte array argument", funcName))
+		return nil, CreateStdlibError("E7002", fmt.Sprintf("%s requires a byte array argument", errors.Ident(funcName)))
 	}
 	if len(arr.Elements) != expected {
-		return nil, CreateStdlibError("E7010", fmt.Sprintf("%s requires exactly %d bytes, got %d", funcName, expected, len(arr.Elements)))
+		return nil, CreateStdlibError("E7010", fmt.Sprintf("%s requires exactly %d bytes, got %d", errors.Ident(funcName), expected, len(arr.Elements)))
 	}
 
 	data := make([]byte, expected)
@@ -30,11 +31,11 @@ func binaryBytesToSlice(arg object.Object, expected int, funcName string) ([]byt
 		case *object.Integer:
 			val := e.Value.Int64()
 			if val < 0 || val > 255 {
-				return nil, CreateStdlibError("E3022", fmt.Sprintf("%s byte at index %d out of range (0-255)", funcName, i))
+				return nil, CreateStdlibError("E3022", fmt.Sprintf("%s byte at index %d out of range (0-255)", errors.Ident(funcName), i))
 			}
 			data[i] = byte(val)
 		default:
-			return nil, CreateStdlibError("E7002", fmt.Sprintf("%s requires a byte array", funcName))
+			return nil, CreateStdlibError("E7002", fmt.Sprintf("%s requires a byte array", errors.Ident(funcName)))
 		}
 	}
 	return data, nil
@@ -61,7 +62,7 @@ func extractEncodingInt(arg object.Object, funcName string) (*big.Int, *object.E
 	default:
 		return nil, &object.Error{
 			Code:    "E7004",
-			Message: fmt.Sprintf("%s requires an integer argument", funcName),
+			Message: fmt.Sprintf("%s requires an integer argument", errors.Ident(funcName)),
 		}
 	}
 }

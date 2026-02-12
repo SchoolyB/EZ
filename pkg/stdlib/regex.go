@@ -4,8 +4,10 @@ package stdlib
 // Licensed under the MIT License. See LICENSE for details.
 
 import (
+	"fmt"
 	"regexp"
 
+	"github.com/marshallburns/ez/pkg/errors"
 	"github.com/marshallburns/ez/pkg/object"
 )
 
@@ -20,11 +22,11 @@ var RegexBuiltins = map[string]*object.Builtin{
 	"regex.is_valid": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 1 {
-				return &object.Error{Code: "E7001", Message: "regex.is_valid() takes exactly 1 argument (pattern)"}
+				return &object.Error{Code: "E7001", Message: fmt.Sprintf("%s takes exactly 1 argument (pattern)", errors.Ident("regex.is_valid()"))}
 			}
 			pattern, ok := args[0].(*object.String)
 			if !ok {
-				return &object.Error{Code: "E7003", Message: "regex.is_valid() requires a string pattern"}
+				return &object.Error{Code: "E7003", Message: fmt.Sprintf("%s requires a %s pattern", errors.Ident("regex.is_valid()"), errors.TypeExpected("string"))}
 			}
 
 			_, err := regexp.Compile(pattern.Value)
@@ -44,15 +46,15 @@ var RegexBuiltins = map[string]*object.Builtin{
 	"regex.match": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 2 {
-				return &object.Error{Code: "E7001", Message: "regex.match() takes exactly 2 arguments (pattern, string)"}
+				return &object.Error{Code: "E7001", Message: fmt.Sprintf("%s takes exactly 2 arguments (pattern, string)", errors.Ident("regex.match()"))}
 			}
 			pattern, ok := args[0].(*object.String)
 			if !ok {
-				return &object.Error{Code: "E7003", Message: "regex.match() requires a string pattern as first argument"}
+				return &object.Error{Code: "E7003", Message: fmt.Sprintf("%s requires a %s pattern as first argument", errors.Ident("regex.match()"), errors.TypeExpected("string"))}
 			}
 			str, ok := args[1].(*object.String)
 			if !ok {
-				return &object.Error{Code: "E7003", Message: "regex.match() requires a string as second argument"}
+				return &object.Error{Code: "E7003", Message: fmt.Sprintf("%s requires a %s as second argument", errors.Ident("regex.match()"), errors.TypeExpected("string"))}
 			}
 
 			re, regexErr := compileRegex(pattern.Value)
@@ -85,15 +87,15 @@ var RegexBuiltins = map[string]*object.Builtin{
 	"regex.find": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 2 {
-				return &object.Error{Code: "E7001", Message: "regex.find() takes exactly 2 arguments (pattern, string)"}
+				return &object.Error{Code: "E7001", Message: fmt.Sprintf("%s takes exactly 2 arguments (pattern, string)", errors.Ident("regex.find()"))}
 			}
 			pattern, ok := args[0].(*object.String)
 			if !ok {
-				return &object.Error{Code: "E7003", Message: "regex.find() requires a string pattern as first argument"}
+				return &object.Error{Code: "E7003", Message: fmt.Sprintf("%s requires a %s pattern as first argument", errors.Ident("regex.find()"), errors.TypeExpected("string"))}
 			}
 			str, ok := args[1].(*object.String)
 			if !ok {
-				return &object.Error{Code: "E7003", Message: "regex.find() requires a string as second argument"}
+				return &object.Error{Code: "E7003", Message: fmt.Sprintf("%s requires a %s as second argument", errors.Ident("regex.find()"), errors.TypeExpected("string"))}
 			}
 
 			re, regexErr := compileRegex(pattern.Value)
@@ -124,15 +126,15 @@ var RegexBuiltins = map[string]*object.Builtin{
 	"regex.find_all": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 2 {
-				return &object.Error{Code: "E7001", Message: "regex.find_all() takes exactly 2 arguments (pattern, string)"}
+				return &object.Error{Code: "E7001", Message: fmt.Sprintf("%s takes exactly 2 arguments (pattern, string)", errors.Ident("regex.find_all()"))}
 			}
 			pattern, ok := args[0].(*object.String)
 			if !ok {
-				return &object.Error{Code: "E7003", Message: "regex.find_all() requires a string pattern as first argument"}
+				return &object.Error{Code: "E7003", Message: fmt.Sprintf("%s requires a %s pattern as first argument", errors.Ident("regex.find_all()"), errors.TypeExpected("string"))}
 			}
 			str, ok := args[1].(*object.String)
 			if !ok {
-				return &object.Error{Code: "E7003", Message: "regex.find_all() requires a string as second argument"}
+				return &object.Error{Code: "E7003", Message: fmt.Sprintf("%s requires a %s as second argument", errors.Ident("regex.find_all()"), errors.TypeExpected("string"))}
 			}
 
 			re, regexErr := compileRegex(pattern.Value)
@@ -156,19 +158,19 @@ var RegexBuiltins = map[string]*object.Builtin{
 	"regex.find_all_n": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 3 {
-				return &object.Error{Code: "E7001", Message: "regex.find_all_n() takes exactly 3 arguments (pattern, string, n)"}
+				return &object.Error{Code: "E7001", Message: fmt.Sprintf("%s takes exactly 3 arguments (pattern, string, n)", errors.Ident("regex.find_all_n()"))}
 			}
 			pattern, ok := args[0].(*object.String)
 			if !ok {
-				return &object.Error{Code: "E7003", Message: "regex.find_all_n() requires a string pattern as first argument"}
+				return &object.Error{Code: "E7003", Message: fmt.Sprintf("%s requires a %s pattern as first argument", errors.Ident("regex.find_all_n()"), errors.TypeExpected("string"))}
 			}
 			str, ok := args[1].(*object.String)
 			if !ok {
-				return &object.Error{Code: "E7003", Message: "regex.find_all_n() requires a string as second argument"}
+				return &object.Error{Code: "E7003", Message: fmt.Sprintf("%s requires a %s as second argument", errors.Ident("regex.find_all_n()"), errors.TypeExpected("string"))}
 			}
 			n, ok := args[2].(*object.Integer)
 			if !ok {
-				return &object.Error{Code: "E7004", Message: "regex.find_all_n() requires an integer as third argument"}
+				return &object.Error{Code: "E7004", Message: fmt.Sprintf("%s requires an %s as third argument", errors.Ident("regex.find_all_n()"), errors.TypeExpected("integer"))}
 			}
 
 			re, regexErr := compileRegex(pattern.Value)
@@ -196,19 +198,19 @@ var RegexBuiltins = map[string]*object.Builtin{
 	"regex.replace": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 3 {
-				return &object.Error{Code: "E7001", Message: "regex.replace() takes exactly 3 arguments (pattern, string, replacement)"}
+				return &object.Error{Code: "E7001", Message: fmt.Sprintf("%s takes exactly 3 arguments (pattern, string, replacement)", errors.Ident("regex.replace()"))}
 			}
 			pattern, ok := args[0].(*object.String)
 			if !ok {
-				return &object.Error{Code: "E7003", Message: "regex.replace() requires a string pattern as first argument"}
+				return &object.Error{Code: "E7003", Message: fmt.Sprintf("%s requires a %s pattern as first argument", errors.Ident("regex.replace()"), errors.TypeExpected("string"))}
 			}
 			str, ok := args[1].(*object.String)
 			if !ok {
-				return &object.Error{Code: "E7003", Message: "regex.replace() requires a string as second argument"}
+				return &object.Error{Code: "E7003", Message: fmt.Sprintf("%s requires a %s as second argument", errors.Ident("regex.replace()"), errors.TypeExpected("string"))}
 			}
 			repl, ok := args[2].(*object.String)
 			if !ok {
-				return &object.Error{Code: "E7003", Message: "regex.replace() requires a string replacement as third argument"}
+				return &object.Error{Code: "E7003", Message: fmt.Sprintf("%s requires a %s replacement as third argument", errors.Ident("regex.replace()"), errors.TypeExpected("string"))}
 			}
 
 			re, regexErr := compileRegex(pattern.Value)
@@ -247,19 +249,19 @@ var RegexBuiltins = map[string]*object.Builtin{
 	"regex.replace_all": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 3 {
-				return &object.Error{Code: "E7001", Message: "regex.replace_all() takes exactly 3 arguments (pattern, string, replacement)"}
+				return &object.Error{Code: "E7001", Message: fmt.Sprintf("%s takes exactly 3 arguments (pattern, string, replacement)", errors.Ident("regex.replace_all()"))}
 			}
 			pattern, ok := args[0].(*object.String)
 			if !ok {
-				return &object.Error{Code: "E7003", Message: "regex.replace_all() requires a string pattern as first argument"}
+				return &object.Error{Code: "E7003", Message: fmt.Sprintf("%s requires a %s pattern as first argument", errors.Ident("regex.replace_all()"), errors.TypeExpected("string"))}
 			}
 			str, ok := args[1].(*object.String)
 			if !ok {
-				return &object.Error{Code: "E7003", Message: "regex.replace_all() requires a string as second argument"}
+				return &object.Error{Code: "E7003", Message: fmt.Sprintf("%s requires a %s as second argument", errors.Ident("regex.replace_all()"), errors.TypeExpected("string"))}
 			}
 			repl, ok := args[2].(*object.String)
 			if !ok {
-				return &object.Error{Code: "E7003", Message: "regex.replace_all() requires a string replacement as third argument"}
+				return &object.Error{Code: "E7003", Message: fmt.Sprintf("%s requires a %s replacement as third argument", errors.Ident("regex.replace_all()"), errors.TypeExpected("string"))}
 			}
 
 			re, regexErr := compileRegex(pattern.Value)
@@ -287,15 +289,15 @@ var RegexBuiltins = map[string]*object.Builtin{
 	"regex.split": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 2 {
-				return &object.Error{Code: "E7001", Message: "regex.split() takes exactly 2 arguments (pattern, string)"}
+				return &object.Error{Code: "E7001", Message: fmt.Sprintf("%s takes exactly 2 arguments (pattern, string)", errors.Ident("regex.split()"))}
 			}
 			pattern, ok := args[0].(*object.String)
 			if !ok {
-				return &object.Error{Code: "E7003", Message: "regex.split() requires a string pattern as first argument"}
+				return &object.Error{Code: "E7003", Message: fmt.Sprintf("%s requires a %s pattern as first argument", errors.Ident("regex.split()"), errors.TypeExpected("string"))}
 			}
 			str, ok := args[1].(*object.String)
 			if !ok {
-				return &object.Error{Code: "E7003", Message: "regex.split() requires a string as second argument"}
+				return &object.Error{Code: "E7003", Message: fmt.Sprintf("%s requires a %s as second argument", errors.Ident("regex.split()"), errors.TypeExpected("string"))}
 			}
 
 			re, regexErr := compileRegex(pattern.Value)
@@ -324,15 +326,15 @@ var RegexBuiltins = map[string]*object.Builtin{
 	"regex.groups": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 2 {
-				return &object.Error{Code: "E7001", Message: "regex.groups() takes exactly 2 arguments (pattern, string)"}
+				return &object.Error{Code: "E7001", Message: fmt.Sprintf("%s takes exactly 2 arguments (pattern, string)", errors.Ident("regex.groups()"))}
 			}
 			pattern, ok := args[0].(*object.String)
 			if !ok {
-				return &object.Error{Code: "E7003", Message: "regex.groups() requires a string pattern as first argument"}
+				return &object.Error{Code: "E7003", Message: fmt.Sprintf("%s requires a %s pattern as first argument", errors.Ident("regex.groups()"), errors.TypeExpected("string"))}
 			}
 			str, ok := args[1].(*object.String)
 			if !ok {
-				return &object.Error{Code: "E7003", Message: "regex.groups() requires a string as second argument"}
+				return &object.Error{Code: "E7003", Message: fmt.Sprintf("%s requires a %s as second argument", errors.Ident("regex.groups()"), errors.TypeExpected("string"))}
 			}
 
 			re, regexErr := compileRegex(pattern.Value)
@@ -363,15 +365,15 @@ var RegexBuiltins = map[string]*object.Builtin{
 	"regex.groups_all": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 2 {
-				return &object.Error{Code: "E7001", Message: "regex.groups_all() takes exactly 2 arguments (pattern, string)"}
+				return &object.Error{Code: "E7001", Message: fmt.Sprintf("%s takes exactly 2 arguments (pattern, string)", errors.Ident("regex.groups_all()"))}
 			}
 			pattern, ok := args[0].(*object.String)
 			if !ok {
-				return &object.Error{Code: "E7003", Message: "regex.groups_all() requires a string pattern as first argument"}
+				return &object.Error{Code: "E7003", Message: fmt.Sprintf("%s requires a %s pattern as first argument", errors.Ident("regex.groups_all()"), errors.TypeExpected("string"))}
 			}
 			str, ok := args[1].(*object.String)
 			if !ok {
-				return &object.Error{Code: "E7003", Message: "regex.groups_all() requires a string as second argument"}
+				return &object.Error{Code: "E7003", Message: fmt.Sprintf("%s requires a %s as second argument", errors.Ident("regex.groups_all()"), errors.TypeExpected("string"))}
 			}
 
 			re, regexErr := compileRegex(pattern.Value)

@@ -103,11 +103,11 @@ func TestUUIDIsValid(t *testing.T) {
 		// Invalid UUIDs
 		{"", false},
 		{"not-a-uuid", false},
-		{"550e8400-e29b-41d4-a716", false},                     // too short
-		{"550e8400-e29b-41d4-a716-4466554400001234", false},    // too long
-		{"550e8400e29b41d4a716446655440000", false},            // missing hyphens
-		{"550e8400-e29b-41d4-a716-44665544000g", false},        // invalid char
-		{"550e8400-e29b-41d4-a716_446655440000", false},        // wrong separator
+		{"550e8400-e29b-41d4-a716", false}, // too short
+		{"550e8400-e29b-41d4-a716-4466554400001234", false}, // too long
+		{"550e8400e29b41d4a716446655440000", false},         // missing hyphens
+		{"550e8400-e29b-41d4-a716-44665544000g", false},     // invalid char
+		{"550e8400-e29b-41d4-a716_446655440000", false},     // wrong separator
 	}
 
 	for _, tt := range tests {

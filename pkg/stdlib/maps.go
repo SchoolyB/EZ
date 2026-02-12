@@ -6,6 +6,7 @@ package stdlib
 import (
 	"fmt"
 
+	"github.com/marshallburns/ez/pkg/errors"
 	"github.com/marshallburns/ez/pkg/object"
 )
 
@@ -16,11 +17,11 @@ var MapsBuiltins = map[string]*object.Builtin{
 	"maps.is_empty": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 1 {
-				return newError("maps.is_empty() takes exactly 1 argument")
+				return newError("%s takes exactly 1 argument", errors.Ident("maps.is_empty()"))
 			}
 			m, ok := args[0].(*object.Map)
 			if !ok {
-				return &object.Error{Code: "E7007", Message: "maps.is_empty() requires a map"}
+				return &object.Error{Code: "E7007", Message: fmt.Sprintf("%s requires a %s", errors.Ident("maps.is_empty()"), errors.TypeExpected("map"))}
 			}
 			if len(m.Pairs) == 0 {
 				return object.TRUE
@@ -34,11 +35,11 @@ var MapsBuiltins = map[string]*object.Builtin{
 	"maps.contains": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 2 {
-				return newError("maps.contains() takes exactly 2 arguments (map, key)")
+				return newError("%s takes exactly 2 arguments (%s, key)", errors.Ident("maps.contains()"), errors.TypeExpected("map"))
 			}
 			m, ok := args[0].(*object.Map)
 			if !ok {
-				return &object.Error{Code: "E7007", Message: "maps.contains() requires a map as first argument"}
+				return &object.Error{Code: "E7007", Message: fmt.Sprintf("%s requires a %s as first argument", errors.Ident("maps.contains()"), errors.TypeExpected("map"))}
 			}
 			key := args[1]
 			// Get() returns false for both unhashable keys and missing keys
@@ -46,7 +47,7 @@ var MapsBuiltins = map[string]*object.Builtin{
 			_, exists := m.Get(key)
 			if !exists {
 				if _, hashOk := object.HashKey(key); !hashOk {
-					return &object.Error{Code: "E12001", Message: "maps.contains() key must be a hashable type (string, int, bool, char)"}
+					return &object.Error{Code: "E12001", Message: fmt.Sprintf("%s key must be a %s (string, int, bool, char)", errors.Ident("maps.contains()"), errors.TypeExpected("hashable type"))}
 				}
 				return object.FALSE
 			}
@@ -59,11 +60,11 @@ var MapsBuiltins = map[string]*object.Builtin{
 	"maps.get": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) < 2 || len(args) > 3 {
-				return newError("maps.get() takes 2 or 3 arguments (map, key[, default])")
+				return newError("%s takes 2 or 3 arguments (%s, key[, default])", errors.Ident("maps.get()"), errors.TypeExpected("map"))
 			}
 			m, ok := args[0].(*object.Map)
 			if !ok {
-				return &object.Error{Code: "E7007", Message: "maps.get() requires a map as first argument"}
+				return &object.Error{Code: "E7007", Message: fmt.Sprintf("%s requires a %s as first argument", errors.Ident("maps.get()"), errors.TypeExpected("map"))}
 			}
 			key := args[1]
 			// Get() returns false for both unhashable keys and missing keys
@@ -71,7 +72,7 @@ var MapsBuiltins = map[string]*object.Builtin{
 			if !exists {
 				// Check hashability only on failure for better error message
 				if _, hashOk := object.HashKey(key); !hashOk {
-					return &object.Error{Code: "E12001", Message: "maps.get() key must be a hashable type (string, int, bool, char)"}
+					return &object.Error{Code: "E12001", Message: fmt.Sprintf("%s key must be a %s (string, int, bool, char)", errors.Ident("maps.get()"), errors.TypeExpected("hashable type"))}
 				}
 				// Return default value if provided, otherwise NIL
 				if len(args) == 3 {
@@ -88,11 +89,11 @@ var MapsBuiltins = map[string]*object.Builtin{
 	"maps.set": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 3 {
-				return newError("maps.set() takes exactly 3 arguments (map, key, value)")
+				return newError("%s takes exactly 3 arguments (%s, key, value)", errors.Ident("maps.set()"), errors.TypeExpected("map"))
 			}
 			m, ok := args[0].(*object.Map)
 			if !ok {
-				return &object.Error{Code: "E7007", Message: "maps.set() requires a map as first argument"}
+				return &object.Error{Code: "E7007", Message: fmt.Sprintf("%s requires a %s as first argument", errors.Ident("maps.set()"), errors.TypeExpected("map"))}
 			}
 			if !m.Mutable {
 				return &object.Error{
@@ -103,7 +104,7 @@ var MapsBuiltins = map[string]*object.Builtin{
 			key := args[1]
 			// Set() returns false for unhashable keys
 			if !m.Set(key, args[2]) {
-				return &object.Error{Code: "E12001", Message: "maps.set() key must be a hashable type (string, int, bool, char)"}
+				return &object.Error{Code: "E12001", Message: fmt.Sprintf("%s key must be a %s (string, int, bool, char)", errors.Ident("maps.set()"), errors.TypeExpected("hashable type"))}
 			}
 			return object.NIL
 		},
@@ -114,11 +115,11 @@ var MapsBuiltins = map[string]*object.Builtin{
 	"maps.clear": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 1 {
-				return newError("maps.clear() takes exactly 1 argument")
+				return newError("%s takes exactly 1 argument", errors.Ident("maps.clear()"))
 			}
 			m, ok := args[0].(*object.Map)
 			if !ok {
-				return &object.Error{Code: "E7007", Message: "maps.clear() requires a map"}
+				return &object.Error{Code: "E7007", Message: fmt.Sprintf("%s requires a %s", errors.Ident("maps.clear()"), errors.TypeExpected("map"))}
 			}
 			if !m.Mutable {
 				return &object.Error{
@@ -137,11 +138,11 @@ var MapsBuiltins = map[string]*object.Builtin{
 	"maps.keys": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 1 {
-				return newError("maps.keys() takes exactly 1 argument")
+				return newError("%s takes exactly 1 argument", errors.Ident("maps.keys()"))
 			}
 			m, ok := args[0].(*object.Map)
 			if !ok {
-				return &object.Error{Code: "E7007", Message: "maps.keys() requires a map"}
+				return &object.Error{Code: "E7007", Message: fmt.Sprintf("%s requires a %s", errors.Ident("maps.keys()"), errors.TypeExpected("map"))}
 			}
 			keys := make([]object.Object, len(m.Pairs))
 			for i, pair := range m.Pairs {
@@ -156,11 +157,11 @@ var MapsBuiltins = map[string]*object.Builtin{
 	"maps.values": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 1 {
-				return newError("maps.values() takes exactly 1 argument")
+				return newError("%s takes exactly 1 argument", errors.Ident("maps.values()"))
 			}
 			m, ok := args[0].(*object.Map)
 			if !ok {
-				return &object.Error{Code: "E7007", Message: "maps.values() requires a map"}
+				return &object.Error{Code: "E7007", Message: fmt.Sprintf("%s requires a %s", errors.Ident("maps.values()"), errors.TypeExpected("map"))}
 			}
 			values := make([]object.Object, len(m.Pairs))
 			for i, pair := range m.Pairs {
@@ -175,7 +176,7 @@ var MapsBuiltins = map[string]*object.Builtin{
 	"maps.merge": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) < 2 {
-				return newError("maps.merge() takes at least 2 arguments")
+				return newError("%s takes at least 2 arguments", errors.Ident("maps.merge()"))
 			}
 			// Create a new map with all entries from all input maps (non-destructive)
 			result := object.NewMap()
@@ -187,7 +188,7 @@ var MapsBuiltins = map[string]*object.Builtin{
 			for _, arg := range args {
 				m, ok := arg.(*object.Map)
 				if !ok {
-					return &object.Error{Code: "E7007", Message: "maps.merge() requires maps as arguments"}
+					return &object.Error{Code: "E7007", Message: fmt.Sprintf("%s requires %s as arguments", errors.Ident("maps.merge()"), errors.TypeExpected("maps"))}
 				}
 				for _, pair := range m.Pairs {
 					result.Set(pair.Key, pair.Value)
@@ -202,11 +203,11 @@ var MapsBuiltins = map[string]*object.Builtin{
 	"maps.contains_value": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 2 {
-				return newError("maps.contains_value() takes exactly 2 arguments (map, value)")
+				return newError("%s takes exactly 2 arguments (%s, value)", errors.Ident("maps.contains_value()"), errors.TypeExpected("map"))
 			}
 			m, ok := args[0].(*object.Map)
 			if !ok {
-				return &object.Error{Code: "E7007", Message: "maps.contains_value() requires a map as first argument"}
+				return &object.Error{Code: "E7007", Message: fmt.Sprintf("%s requires a %s as first argument", errors.Ident("maps.contains_value()"), errors.TypeExpected("map"))}
 			}
 			searchValue := args[1]
 			for _, pair := range m.Pairs {
@@ -223,12 +224,12 @@ var MapsBuiltins = map[string]*object.Builtin{
 	"maps.equals": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 2 {
-				return newError("maps.equals() takes exactly 2 arguments")
+				return newError("%s takes exactly 2 arguments", errors.Ident("maps.equals()"))
 			}
 			m1, ok1 := args[0].(*object.Map)
 			m2, ok2 := args[1].(*object.Map)
 			if !ok1 || !ok2 {
-				return &object.Error{Code: "E7007", Message: "maps.equals() requires two maps"}
+				return &object.Error{Code: "E7007", Message: fmt.Sprintf("%s requires two %s", errors.Ident("maps.equals()"), errors.TypeExpected("maps"))}
 			}
 			// Check same length
 			if len(m1.Pairs) != len(m2.Pairs) {
@@ -250,15 +251,15 @@ var MapsBuiltins = map[string]*object.Builtin{
 	"maps.get_or_set": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 3 {
-				return newError("maps.get_or_set() takes exactly 3 arguments (map, key, default)")
+				return newError("%s takes exactly 3 arguments (%s, key, default)", errors.Ident("maps.get_or_set()"), errors.TypeExpected("map"))
 			}
 			m, ok := args[0].(*object.Map)
 			if !ok {
-				return &object.Error{Code: "E7007", Message: "maps.get_or_set() requires a map as first argument"}
+				return &object.Error{Code: "E7007", Message: fmt.Sprintf("%s requires a %s as first argument", errors.Ident("maps.get_or_set()"), errors.TypeExpected("map"))}
 			}
 			key := args[1]
 			if _, hashOk := object.HashKey(key); !hashOk {
-				return &object.Error{Code: "E12001", Message: "maps.get_or_set() key must be a hashable type (string, int, bool, char)"}
+				return &object.Error{Code: "E12001", Message: fmt.Sprintf("%s key must be a %s (string, int, bool, char)", errors.Ident("maps.get_or_set()"), errors.TypeExpected("hashable type"))}
 			}
 			// If key exists, return the value
 			value, exists := m.Get(key)
@@ -282,11 +283,11 @@ var MapsBuiltins = map[string]*object.Builtin{
 	"maps.remove": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 2 {
-				return newError("maps.remove() takes exactly 2 arguments (map, key)")
+				return newError("%s takes exactly 2 arguments (%s, key)", errors.Ident("maps.remove()"), errors.TypeExpected("map"))
 			}
 			m, ok := args[0].(*object.Map)
 			if !ok {
-				return &object.Error{Code: "E7007", Message: "maps.remove() requires a map as first argument"}
+				return &object.Error{Code: "E7007", Message: fmt.Sprintf("%s requires a %s as first argument", errors.Ident("maps.remove()"), errors.TypeExpected("map"))}
 			}
 			if !m.Mutable {
 				return &object.Error{
@@ -296,7 +297,7 @@ var MapsBuiltins = map[string]*object.Builtin{
 			}
 			key := args[1]
 			if _, hashOk := object.HashKey(key); !hashOk {
-				return &object.Error{Code: "E12001", Message: "maps.remove() key must be a hashable type (string, int, bool, char)"}
+				return &object.Error{Code: "E12001", Message: fmt.Sprintf("%s key must be a %s (string, int, bool, char)", errors.Ident("maps.remove()"), errors.TypeExpected("hashable type"))}
 			}
 			deleted := m.Delete(key)
 			if deleted {
@@ -311,12 +312,12 @@ var MapsBuiltins = map[string]*object.Builtin{
 	"maps.update": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) < 2 {
-				return newError("maps.update() takes at least 2 arguments")
+				return newError("%s takes at least 2 arguments", errors.Ident("maps.update()"))
 			}
 			// First argument is the target map (destructive update)
 			target, ok := args[0].(*object.Map)
 			if !ok {
-				return &object.Error{Code: "E7007", Message: "maps.update() requires maps as arguments"}
+				return &object.Error{Code: "E7007", Message: fmt.Sprintf("%s requires %s as arguments", errors.Ident("maps.update()"), errors.TypeExpected("maps"))}
 			}
 			if !target.Mutable {
 				return &object.Error{
@@ -328,7 +329,7 @@ var MapsBuiltins = map[string]*object.Builtin{
 			for i := 1; i < len(args); i++ {
 				source, ok := args[i].(*object.Map)
 				if !ok {
-					return &object.Error{Code: "E7007", Message: "maps.update() requires maps as arguments"}
+					return &object.Error{Code: "E7007", Message: fmt.Sprintf("%s requires %s as arguments", errors.Ident("maps.update()"), errors.TypeExpected("maps"))}
 				}
 				for _, pair := range source.Pairs {
 					target.Set(pair.Key, pair.Value)
@@ -343,11 +344,11 @@ var MapsBuiltins = map[string]*object.Builtin{
 	"maps.to_array": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 1 {
-				return newError("maps.to_array() takes exactly 1 argument")
+				return newError("%s takes exactly 1 argument", errors.Ident("maps.to_array()"))
 			}
 			m, ok := args[0].(*object.Map)
 			if !ok {
-				return &object.Error{Code: "E7007", Message: "maps.to_array() requires a map"}
+				return &object.Error{Code: "E7007", Message: fmt.Sprintf("%s requires a %s", errors.Ident("maps.to_array()"), errors.TypeExpected("map"))}
 			}
 			// Create array of [key, value] pairs
 			pairs := make([]object.Object, len(m.Pairs))
@@ -366,11 +367,11 @@ var MapsBuiltins = map[string]*object.Builtin{
 	"maps.from_array": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 1 {
-				return newError("maps.from_array() takes exactly 1 argument")
+				return newError("%s takes exactly 1 argument", errors.Ident("maps.from_array()"))
 			}
 			arr, ok := args[0].(*object.Array)
 			if !ok {
-				return &object.Error{Code: "E7007", Message: "maps.from_array() requires an array"}
+				return &object.Error{Code: "E7007", Message: fmt.Sprintf("%s requires an %s", errors.Ident("maps.from_array()"), errors.TypeExpected("array"))}
 			}
 			// Each element should be an array of [key, value]
 			result := object.NewMap()
@@ -379,14 +380,14 @@ var MapsBuiltins = map[string]*object.Builtin{
 				if !ok || len(pair.Elements) != 2 {
 					return &object.Error{
 						Code:    "E12004",
-						Message: fmt.Sprintf("maps.from_array() element %d must be a [key, value] pair", i),
+						Message: fmt.Sprintf("%s element %d must be a [key, value] pair", errors.Ident("maps.from_array()"), i),
 					}
 				}
 				key := pair.Elements[0]
 				if _, hashOk := object.HashKey(key); !hashOk {
 					return &object.Error{
 						Code:    "E12002",
-						Message: fmt.Sprintf("maps.from_array() key at index %d must be a hashable type (string, int, bool, char)", i),
+						Message: fmt.Sprintf("%s key at index %d must be a %s (string, int, bool, char)", errors.Ident("maps.from_array()"), i, errors.TypeExpected("hashable type")),
 					}
 				}
 				result.Set(key, pair.Elements[1])
@@ -400,11 +401,11 @@ var MapsBuiltins = map[string]*object.Builtin{
 	"maps.invert": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 1 {
-				return newError("maps.invert() takes exactly 1 argument")
+				return newError("%s takes exactly 1 argument", errors.Ident("maps.invert()"))
 			}
 			m, ok := args[0].(*object.Map)
 			if !ok {
-				return &object.Error{Code: "E7007", Message: "maps.invert() requires a map"}
+				return &object.Error{Code: "E7007", Message: fmt.Sprintf("%s requires a %s", errors.Ident("maps.invert()"), errors.TypeExpected("map"))}
 			}
 			// Create new map with values as keys and keys as values
 			result := object.NewMap()
@@ -416,7 +417,7 @@ var MapsBuiltins = map[string]*object.Builtin{
 				if _, hashOk := object.HashKey(pair.Value); !hashOk {
 					return &object.Error{
 						Code:    "E12005",
-						Message: fmt.Sprintf("maps.invert() value %s is not hashable and cannot become a key", pair.Value.Inspect()),
+						Message: fmt.Sprintf("%s value %s is not hashable and cannot become a key", errors.Ident("maps.invert()"), pair.Value.Inspect()),
 					}
 				}
 				result.Set(pair.Value, pair.Key)
