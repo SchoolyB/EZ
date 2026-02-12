@@ -1,0 +1,8 @@
+// Test: E2058 - #doc inside function body (invalid target)
+import & use @std
+
+do main() {
+    #doc("This should fail - cannot use #doc inside function")
+    temp x int = 5
+    println(x)
+}

@@ -1,0 +1,7 @@
+// Test: E2059 - #doc before import (orphaned)
+#doc("This should fail - must precede a declaration")
+import & use @std
+
+do main() {
+    println("hello")
+}
