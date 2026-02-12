@@ -94,6 +94,9 @@ var (
 	E2055 = ErrorCode{"E2055", "strict-invalid-target", "#strict can only be applied to when statements"}
 	E2056 = ErrorCode{"E2056", "executable-at-file-scope", "executable statement not allowed at file scope"}
 	E2057 = ErrorCode{"E2057", "invalid-interpolation-syntax", "invalid string interpolation syntax"}
+	E2058 = ErrorCode{"E2058", "doc-invalid-target", "#doc can only be applied to functions, structs, or enums"}
+	E2059 = ErrorCode{"E2059", "doc-orphaned", "#doc must be followed by a declaration"}
+	E2060 = ErrorCode{"E2060", "doc-duplicate", "only one #doc attribute is allowed per declaration"}
 )
 
 // =============================================================================
