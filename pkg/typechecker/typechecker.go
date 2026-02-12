@@ -1733,8 +1733,15 @@ func (tc *TypeChecker) checkFileScopeStatements(statements []ast.Statement) {
 			// enum declarations are allowed
 		case *ast.VariableDeclaration:
 			// const/temp declarations are allowed at file scope
-			// However, we might want to disallow mutable variable declarations
-			// For now, allow both const and temp at file scope
+			// However, function calls in initializers are NOT allowed
+			if s.Value != nil && tc.containsFunctionCall(s.Value) {
+				tc.addError(
+					errors.E2056,
+					"function call in variable initializer not allowed at file scope; move it inside a function",
+					s.Token.Line,
+					s.Token.Column,
+				)
+			}
 
 		// Control flow statements - NOT allowed at file scope
 		case *ast.IfStatement:
@@ -1832,6 +1839,54 @@ func (tc *TypeChecker) checkFileScopeStatements(statements []ast.Statement) {
 			)
 		}
 	}
+}
+
+// containsFunctionCall recursively checks if an expression contains any function calls
+func (tc *TypeChecker) containsFunctionCall(expr ast.Expression) bool {
+	if expr == nil {
+		return false
+	}
+
+	switch e := expr.(type) {
+	case *ast.CallExpression:
+		return true
+	case *ast.InfixExpression:
+		return tc.containsFunctionCall(e.Left) || tc.containsFunctionCall(e.Right)
+	case *ast.PrefixExpression:
+		return tc.containsFunctionCall(e.Right)
+	case *ast.PostfixExpression:
+		return tc.containsFunctionCall(e.Left)
+	case *ast.IndexExpression:
+		return tc.containsFunctionCall(e.Left) || tc.containsFunctionCall(e.Index)
+	case *ast.MemberExpression:
+		return tc.containsFunctionCall(e.Object)
+	case *ast.ArrayValue:
+		for _, elem := range e.Elements {
+			if tc.containsFunctionCall(elem) {
+				return true
+			}
+		}
+	case *ast.MapValue:
+		for _, pair := range e.Pairs {
+			if tc.containsFunctionCall(pair.Key) || tc.containsFunctionCall(pair.Value) {
+				return true
+			}
+		}
+	case *ast.StructValue:
+		for _, v := range e.Fields {
+			if tc.containsFunctionCall(v) {
+				return true
+			}
+		}
+	case *ast.CastExpression:
+		return tc.containsFunctionCall(e.Value)
+	case *ast.RangeExpression:
+		return tc.containsFunctionCall(e.Start) ||
+			tc.containsFunctionCall(e.End) ||
+			tc.containsFunctionCall(e.Step)
+	}
+
+	return false
 }
 
 // isSuppressed checks if a warning code is suppressed by function attributes or file-level #suppress
