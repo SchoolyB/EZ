@@ -389,8 +389,10 @@ func (fs *ForStatement) statementNode()       {}
 func (fs *ForStatement) TokenLiteral() string { return fs.Token.Literal }
 
 // ForEachStatement represents for_each item in collection { }
+// or for_each i, item in collection { }
 type ForEachStatement struct {
 	Token      Token
+	Index      *Label // optional index variable
 	Variable   *Label
 	Collection Expression
 	Body       *BlockStatement

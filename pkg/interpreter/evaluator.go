@@ -2065,7 +2065,10 @@ func evalForEachStatement(node *ast.ForEachStatement, env *Environment, ctx *Eva
 		arr.IteratingCount++
 		defer func() { arr.IteratingCount-- }()
 
-		for _, elem := range arr.Elements {
+		for idx, elem := range arr.Elements {
+			if node.Index != nil {
+				loopEnv.Set(node.Index.Value, &Integer{Value: big.NewInt(int64(idx))}, true)
+			}
 			loopEnv.Set(node.Variable.Value, elem, true) // loop vars are mutable
 
 			result := Eval(node.Body, loopEnv, ctx)
@@ -2083,8 +2086,11 @@ func evalForEachStatement(node *ast.ForEachStatement, env *Environment, ctx *Eva
 
 	// Handle strings (iterate over characters)
 	if str, ok := collection.(*String); ok {
-		for _, ch := range str.Value {
+		for idx, ch := range str.Value {
 			charObj := &Char{Value: ch}
+			if node.Index != nil {
+				loopEnv.Set(node.Index.Value, &Integer{Value: big.NewInt(int64(idx))}, true)
+			}
 			loopEnv.Set(node.Variable.Value, charObj, true) // loop vars are mutable
 
 			result := Eval(node.Body, loopEnv, ctx)
