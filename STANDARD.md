@@ -1,9 +1,9 @@
 # The EZ Programming Language Standard
 
-**Version:** 1.1-draft
-**Date:** January 31, 2026
+**Version:** 1.2-draft
+**Date:** February 12, 2026
 **Status:** Working Draft
-**EZ Version:** 1.4.8
+**EZ Version:** 2.0.0
 
 ---
 
@@ -141,14 +141,14 @@ Invalid identifiers: `2fast`, `my-var`, `café`, `_private`
 The following words are reserved and may not be used as identifiers:
 
 ```
-as_long_as   bool        break       byte        char
-const        continue    default     do          ensure
-enum         error       false       float       for
-for_each     if          import      in          int
-is           map         module      new         nil
-not_in       or          otherwise   range       return
-string       struct      temp        true        uint
-using        when        private
+as_long_as   bool        break       byte        cast
+char         const       continue    default     do
+ensure       enum        error       false       float
+for          for_each    if          import      in
+int          is          loop        map         module
+new          nil         not_in      or          otherwise
+private      range       return      string      struct
+temp         true        uint        using       when
 ```
 
 ### 3.6 Operators and Punctuation
@@ -170,10 +170,12 @@ using        when        private
 Integer literals represent integer values.
 
 ```
-int_literal    = decimal_lit | hex_lit .
+int_literal    = decimal_lit | hex_lit | octal_lit .
 decimal_lit    = digit { [ "_" ] digit } .
 hex_lit        = "0" ( "x" | "X" ) hex_digit { [ "_" ] hex_digit } .
 hex_digit      = digit | "A" ... "F" | "a" ... "f" .
+octal_lit      = "0" ( "o" | "O" ) octal_digit { [ "_" ] octal_digit } .
+octal_digit    = "0" ... "7" .
 ```
 
 Underscores may be used for readability but:
@@ -181,7 +183,7 @@ Underscores may be used for readability but:
 - Must not appear consecutively
 - Must not appear adjacent to the decimal point
 
-Examples: `42`, `1_000_000`, `0xFF`, `0xDEAD_BEEF`
+Examples: `42`, `1_000_000`, `0xFF`, `0xDEAD_BEEF`, `0o777`, `0o1_2_3`
 
 #### 3.7.2 Floating-Point Literals
 
@@ -219,7 +221,30 @@ temp name string = "World"
 temp greeting string = "Hello, ${name}!"  // "Hello, World!"
 ```
 
-#### 3.7.4 Character Literals
+#### 3.7.4 Raw String Literals
+
+Raw string literals are enclosed in backticks and do not process escape sequences or string interpolation:
+
+```
+raw_string_literal = "`" { raw_string_char } "`" .
+raw_string_char    = /* any UTF-8 character except "`" */ .
+```
+
+Raw strings:
+- Do not process escape sequences (`\n` is a literal backslash followed by `n`)
+- Do not process string interpolation (`${x}` is literal text)
+- May span multiple lines
+- Cannot contain backticks (no escape mechanism)
+
+```ez
+temp path string = `C:\Users\test\file.txt`
+temp pattern string = `\d+\.\d+`
+temp multi string = `line1
+line2
+line3`
+```
+
+#### 3.7.5 Character Literals
 
 Character literals represent single character values.
 
@@ -232,13 +257,13 @@ Examples: `'A'`, `'\n'`, `'\t'`
 
 Character literals must contain exactly one character (or escape sequence).
 
-#### 3.7.5 Boolean Literals
+#### 3.7.6 Boolean Literals
 
 ```
 bool_literal = "true" | "false" .
 ```
 
-#### 3.7.6 Nil Literal
+#### 3.7.7 Nil Literal
 
 ```
 nil_literal = "nil" .
@@ -519,6 +544,29 @@ temp c char = char(65)      // 'A' - int to char
 ```
 
 Conversions that would lose information or are invalid produce check-time or runtime errors.
+
+#### 4.4.1 The `cast` Keyword
+
+The `cast` keyword provides explicit type conversion for values and arrays:
+
+```
+cast_expr = "cast" "(" expression "," type ")" .
+```
+
+```ez
+temp small u8 = cast(42, u8)
+temp truncated int = cast(3.7, int)     // 3
+temp text string = cast(123, string)    // "123"
+```
+
+For array conversions, `cast` converts each element to the target element type:
+
+```ez
+temp ints [int] = {1, 2, 3}
+temp bytes [u8] = cast(ints, [u8])
+```
+
+Range constraints are enforced at runtime (e.g., `u8` values must be 0-255).
 
 ---
 
@@ -876,7 +924,7 @@ for (i in range(0, 10)) {
 #### 7.3.2 For-Each Loops
 
 ```
-for_each_stmt = "for_each" [ "(" ] identifier "in" expression [ ")" ] block .
+for_each_stmt = "for_each" [ "(" ] [ identifier "," ] identifier "in" expression [ ")" ] block .
 ```
 
 ```ez
@@ -884,6 +932,30 @@ temp items [string] = {"a", "b", "c"}
 for_each item in items {
     println(item)
 }
+```
+
+An optional index variable can precede the value variable, separated by a comma:
+
+```ez
+for_each i, item in items {
+    println("${i}: ${item}")
+}
+// Output: 0: a, 1: b, 2: c
+```
+
+The index variable is always of type `int` and is zero-based. It works with both arrays and strings:
+
+```ez
+for_each i, ch in "hello" {
+    println("${i}: ${ch}")
+}
+```
+
+The blank identifier `_` can be used in either position:
+
+```ez
+for_each _, item in items { ... }   // discard index (same as no index)
+for_each i, _ in items { ... }     // index only, discard value
 ```
 
 #### 7.3.3 While Loops
@@ -896,6 +968,24 @@ while_stmt = "as_long_as" expression block .
 temp count int = 0
 as_long_as count < 10 {
     count++
+}
+```
+
+#### 7.3.4 Infinite Loops
+
+```
+loop_stmt = "loop" block .
+```
+
+The `loop` statement creates an infinite loop that runs until explicitly terminated with `break` or `return`:
+
+```ez
+loop {
+    temp input string = input()
+    if input == "quit" {
+        break
+    }
+    println("You said: ${input}")
 }
 ```
 
@@ -996,7 +1086,9 @@ do process_file() {
 func_decl = "do" identifier "(" [ param_list ] ")" [ "->" return_type ] block .
 param_list = param { "," param } .
 param = [ "&" ] identifier [ "," identifier ]... type [ "=" default_value ] .
-return_type = type | "(" type { "," type } ")" | "nil" | "(" type "," "nil" ")" .
+return_type = type | "(" type { "," type } ")" | "nil" | "(" type "," "nil" ")"
+            | "(" named_return { "," named_return } ")" .
+named_return = identifier [ "," identifier ]... type .
 ```
 
 ```ez
@@ -1111,7 +1203,34 @@ if err != nil {
 }
 ```
 
-#### 8.3.4 Void Functions
+#### 8.3.4 Named Return Variables
+
+Return values can be given names, which declares them as variables within the function body:
+
+```ez
+do divide(a, b int) -> (quotient int, remainder int) {
+    quotient = a / b
+    remainder = a % b
+    return quotient, remainder
+}
+
+temp q, r = divide(17, 5)  // q=3, r=2
+```
+
+Named returns support grouped types (multiple names sharing one type):
+
+```ez
+do get_info() -> (name, city string, age int) {
+    name = "Alice"
+    city = "NYC"
+    age = 30
+    return name, city, age
+}
+```
+
+Named return variables must be enclosed in parentheses. They are regular variables within the function scope and must be explicitly returned.
+
+#### 8.3.5 Void Functions
 
 Functions without a return type return no value:
 
@@ -1121,7 +1240,76 @@ do print_greeting() {
 }
 ```
 
-### 8.4 Function Scope
+### 8.4 Visibility
+
+By default, all functions and constants are public. The `private` keyword restricts access to the declaring module:
+
+```ez
+module mathlib
+
+private const MAX_ITERATIONS int = 1000
+
+private do validate(n int) -> bool {
+    return n > 0
+}
+
+do factorial(n int) -> int {
+    // Can call private members within the same module
+    if !validate(n) { return 1 }
+    // ...
+}
+```
+
+Private members cannot be accessed from other modules:
+
+```ez
+import "./mathlib"
+mathlib.factorial(5)          // OK - public
+// mathlib.validate(5)        // ERROR E4006 - private function
+// mathlib.MAX_ITERATIONS     // ERROR E6009 - private constant
+```
+
+### 8.5 Attributes
+
+Attributes are annotations prefixed with `#` that modify declaration behavior.
+
+#### 8.5.1 `#doc` Attribute
+
+The `#doc` attribute adds documentation metadata to functions, structs, and enums. Used by the `ez doc` command to generate documentation.
+
+```ez
+#doc("Adds two integers and returns the sum")
+do add(a int, b int) -> int {
+    return a + b
+}
+
+#doc("Represents a 2D point")
+const Point struct {
+    x int
+    y int
+}
+```
+
+#### 8.5.2 `#suppress` Attribute
+
+The `#suppress` attribute suppresses specific compiler warnings for a function:
+
+```ez
+#suppress(W1001)
+do helper() {
+    temp unused int = 42  // No unused-variable warning
+}
+
+#suppress(W1001, W2001)
+do another() { ... }      // Suppress multiple warnings
+
+#suppress(ALL)
+do nowarnings() { ... }   // Suppress all warnings
+```
+
+Suppressible warnings include: `W1001` (unused-variable), `W1004` (unused-parameter), `W1005` (typed-blank-identifier), `W2001` (unreachable-code), `W2002` (shadowed-variable), `W2003` (missing-return), `W2004` (implicit-type-conversion), `W2005` (deprecated-feature), `W2006` (byte-overflow-potential), `W2009` (nil-dereference-potential), `W2011` (named-return-unused), `W3001` (empty-block), `W3002` (redundant-condition), `W3003` (array-size-mismatch).
+
+### 8.6 Function Scope
 
 All functions in EZ are declared at the top level. Nested function declarations are not permitted. Anonymous functions (lambdas/closures) are not supported.
 
@@ -1221,7 +1409,7 @@ println("Hello")
 
 ## 10. Standard Library
 
-The EZ standard library consists of 17 modules providing core functionality.
+The EZ standard library consists of 20 modules providing core functionality.
 
 ### 10.1 Core Module (`@std`)
 
@@ -1335,7 +1523,7 @@ println(r2[4])        // Prints 6 - r2 sees the change
 | `set` | `(&arr [T], index int, value T)` | Set element at index |
 | `pop` | `(&arr [T]) -> T` | Remove and return last element |
 | `shift` | `(&arr [T]) -> T` | Remove and return first element |
-| `remove` | `(&arr [T], index int)` | Remove element at index |
+| `remove_at` | `(&arr [T], index int)` | Remove element at index |
 | `remove_value` | `(&arr [T], value T)` | Remove first occurrence |
 | `remove_all` | `(&arr [T], value T)` | Remove all occurrences |
 | `clear` | `(&arr [T])` | Remove all elements |
@@ -1391,6 +1579,11 @@ println(r2[4])        // Prints 6 - r2 sees the change
 | `is_empty` | `(s string) -> bool` | Check if empty (after trim) |
 | `is_numeric` | `(s string) -> bool` | Check if all digits |
 | `is_alpha` | `(s string) -> bool` | Check if all letters |
+| `is_alphanumeric` | `(s string) -> bool` | Check if all alphanumeric |
+| `is_whitespace` | `(s string) -> bool` | Check if whitespace only |
+| `is_lowercase` | `(s string) -> bool` | Check if all letters lowercase |
+| `is_uppercase` | `(s string) -> bool` | Check if all letters uppercase |
+| `is_ascii` | `(s string) -> bool` | Check if all characters are ASCII |
 | `contains` | `(s string, sub string) -> bool` | Check if contains substring |
 | `starts_with` | `(s string, prefix string) -> bool` | Check prefix |
 | `ends_with` | `(s string, suffix string) -> bool` | Check suffix |
@@ -1413,6 +1606,10 @@ println(r2[4])        // Prints 6 - r2 sees the change
 | `truncate` | `(s string, length int, suffix string) -> string` | Truncate with suffix |
 | `pad_left` | `(s string, width int, pad string) -> string` | Left pad |
 | `pad_right` | `(s string, width int, pad string) -> string` | Right pad |
+| `center` | `(s string, width int, pad string) -> string` | Center with padding |
+| `insert` | `(s string, position int, sub string) -> string` | Insert at position |
+| `remove` | `(s string, sub string) -> string` | Remove first occurrence |
+| `remove_all` | `(s string, sub string) -> string` | Remove all occurrences |
 
 #### Conversion Functions
 
@@ -1423,6 +1620,9 @@ println(r2[4])        // Prints 6 - r2 sees the change
 | `chars` | `(s string) -> [char]` | Convert to char array |
 | `from_chars` | `(chars [char]) -> string` | Create from char array |
 | `slice` | `(s string, start int, end int) -> string` | Extract substring |
+| `lines` | `(s string) -> [string]` | Split by newlines |
+| `words` | `(s string) -> [string]` | Split by whitespace |
+| `char_at` | `(s string, index int) -> string` | Character at index |
 | `to_int` | `(s string) -> int` | Parse integer |
 | `to_float` | `(s string) -> float` | Parse float |
 | `to_bool` | `(s string) -> bool` | Parse boolean |
@@ -1544,6 +1744,8 @@ println(r2[4])        // Prints 6 - r2 sees the change
 | `is_even` | `(n int) -> bool` | Check if even |
 | `is_odd` | `(n int) -> bool` | Check if odd |
 | `is_inf` | `(n number) -> bool` | Check if infinite |
+| `is_nan` | `(n number) -> bool` | Check if NaN |
+| `is_finite` | `(n number) -> bool` | Check if finite (not infinite or NaN) |
 
 #### Utility
 
@@ -1564,6 +1766,7 @@ println(r2[4])        // Prints 6 - r2 sees the change
 - `TAU` - Tau (2*Pi)
 - `INF` - Positive infinity
 - `NEG_INF` - Negative infinity
+- `EPSILON` - Smallest representable float difference
 
 ### 10.6 Time Module (`@time`)
 
@@ -1596,6 +1799,10 @@ println(r2[4])        // Prints 6 - r2 sees the change
 | `weekday_name` | `(timestamp int) -> string` | Get day name |
 | `month_name` | `(timestamp int) -> string` | Get month name |
 | `day_of_year` | `(timestamp int) -> int` | Get day of year |
+| `quarter` | `(timestamp int) -> int` | Get quarter (1-4) |
+| `week_of_year` | `(timestamp int) -> int` | Get ISO week number (1-53) |
+| `timezone` | `() -> string` | Get local timezone name |
+| `utc_offset` | `() -> int` | Get local UTC offset in seconds |
 
 #### Formatting
 
@@ -1612,6 +1819,10 @@ println(r2[4])        // Prints 6 - r2 sees the change
 |----------|-----------|-------------|
 | `parse` | `(s string, format string) -> int` | Parse string to timestamp |
 | `make` | `(year, month, day, hour, minute, second int) -> int` | Create timestamp |
+| `from_unix` | `(seconds int) -> int` | Convert Unix seconds to timestamp |
+| `from_unix_ms` | `(milliseconds int) -> int` | Convert Unix milliseconds to timestamp |
+| `to_unix` | `(timestamp int) -> int` | Convert timestamp to Unix seconds |
+| `to_unix_ms` | `(timestamp int) -> int` | Convert timestamp to Unix milliseconds |
 
 #### Arithmetic
 
@@ -1646,6 +1857,7 @@ println(r2[4])        // Prints 6 - r2 sees the change
 | `is_weekday` | `(timestamp int) -> bool` | Check if weekday |
 | `is_today` | `(timestamp int) -> bool` | Check if today |
 | `is_same_day` | `(ts1 int, ts2 int) -> bool` | Check if same day |
+| `relative` | `(timestamp int) -> string` | Human-readable relative time (e.g., "2 hours ago") |
 
 #### Period Boundaries
 
@@ -1657,6 +1869,13 @@ println(r2[4])        // Prints 6 - r2 sees the change
 | `end_of_month` | `(timestamp int) -> int` | End of month |
 | `start_of_year` | `(timestamp int) -> int` | Start of year |
 | `end_of_year` | `(timestamp int) -> int` | End of year |
+
+#### Performance Timing
+
+| Function | Signature | Description |
+|----------|-----------|-------------|
+| `tick` | `() -> int` | High-resolution timestamp in nanoseconds |
+| `elapsed_ms` | `(start_tick int) -> float` | Milliseconds elapsed since a tick |
 
 #### Constants
 
@@ -1789,6 +2008,10 @@ Durations: `SECOND` (1), `MINUTE` (60), `HOUR` (3600), `DAY` (86400), `WEEK` (60
 | `delete` | `(url string) -> (Response, Error)` | DELETE request |
 | `patch` | `(url string, body string) -> (Response, Error)` | PATCH request |
 | `head` | `(url string) -> (Response, Error)` | HEAD request |
+| `options` | `(url string) -> (Response, Error)` | OPTIONS request |
+| `download` | `(url string, path string) -> (int, Error)` | Download file, returns bytes written |
+| `parse_url` | `(url string) -> (URL, Error)` | Parse URL into components |
+| `build_url` | `(components) -> string` | Build URL from components |
 
 #### Response Type
 
@@ -1902,7 +2125,66 @@ A simple JSON-based key-value database.
 | `clear` | `(db Database)` | Clear all entries |
 | `keys` | `(db Database) -> [string]` | Get all keys |
 | `values` | `(db Database) -> [any]` | Get all values |
+| `entries` | `(db Database) -> [Entry]` | Get all key-value pairs as Entry structs |
 | `length` | `(db Database) -> int` | Get number of entries |
+
+### 10.18 Server Module (`@server`)
+
+A simple HTTP server module for building web services.
+
+| Function | Signature | Description |
+|----------|-----------|-------------|
+| `router` | `() -> Router` | Create a new router |
+| `route` | `(router Router, method string, path string, response Response)` | Add a route |
+| `listen` | `(port int, router Router) -> Error` | Start HTTP server on port |
+| `text` | `(status int, body string) -> Response` | Create text/plain response |
+| `json` | `(status int, data) -> Response` | Create application/json response |
+| `html` | `(status int, body string) -> Response` | Create text/html response |
+
+```ez
+import @server
+
+do main() {
+    temp r = server.router()
+    server.route(r, "GET", "/", server.text(200, "Hello!"))
+    server.route(r, "GET", "/data", server.json(200, {"status": "ok"}))
+    server.listen(8080, r)
+}
+```
+
+### 10.19 Regex Module (`@regex`)
+
+Regular expression operations using Go's `regexp` syntax.
+
+| Function | Signature | Description |
+|----------|-----------|-------------|
+| `is_valid` | `(pattern string) -> bool` | Check if pattern is valid |
+| `match` | `(pattern string, s string) -> (bool, Error)` | Check if pattern matches |
+| `find` | `(pattern string, s string) -> (string, Error)` | First match |
+| `find_all` | `(pattern string, s string) -> ([string], Error)` | All matches |
+| `find_all_n` | `(pattern string, s string, n int) -> ([string], Error)` | First n matches |
+| `replace` | `(pattern string, s string, repl string) -> (string, Error)` | Replace first match |
+| `replace_all` | `(pattern string, s string, repl string) -> (string, Error)` | Replace all matches |
+| `split` | `(pattern string, s string) -> ([string], Error)` | Split by pattern |
+| `groups` | `(pattern string, s string) -> ([string], Error)` | Capture groups from first match |
+| `groups_all` | `(pattern string, s string) -> ([[string]], Error)` | Capture groups from all matches |
+
+### 10.20 CSV Module (`@csv`)
+
+Reading and writing CSV (Comma-Separated Values) data.
+
+| Function | Signature | Description |
+|----------|-----------|-------------|
+| `parse` | `(csv_string string) -> ([[string]], Error)` | Parse CSV string to 2D array |
+| `stringify` | `(data [[string]]) -> (string, Error)` | Convert 2D array to CSV string |
+| `read` | `(path string, options map) -> ([[string]], Error)` | Read CSV file |
+| `headers` | `(path string) -> ([string], Error)` | Read first row (headers) |
+| `write` | `(path string, data [[string]], options map) -> (bool, Error)` | Write CSV file |
+
+The `read` and `write` functions accept an optional options map with keys:
+- `delimiter` (string) — field delimiter (default: `","`)
+- `skip_empty` (bool) — skip empty rows (default: `false`, read only)
+- `quote_all` (bool) — quote all fields (default: `false`, write only)
 
 ---
 
@@ -2060,21 +2342,22 @@ import_decl    = "import" [ "&" "use" ] import_path { "," import_path } .
 import_path    = "@" identifier | string_literal .
 using_decl     = "using" identifier { "," identifier } .
 
-func_decl      = "do" identifier "(" [ param_list ] ")" [ "->" return_type ] block .
+func_decl      = [ "private" ] "do" identifier "(" [ param_list ] ")" [ "->" return_type ] block .
 struct_decl    = "const" identifier "struct" "{" { field_decl } "}" .
 enum_decl      = [ "#flags" | "#enum" "(" "int" ")" ] "const" identifier "enum"
                "{" enum_member { enum_member } "}" .
-const_decl     = "const" identifier [ type ] "=" expression .
+const_decl     = [ "private" ] "const" identifier [ type ] "=" expression .
 var_decl       = "temp" identifier type "=" expression .
 
 statement      = var_decl | const_decl | if_stmt | for_stmt | for_each_stmt
-               | while_stmt | when_stmt | return_stmt | break_stmt
+               | while_stmt | loop_stmt | when_stmt | return_stmt | break_stmt
                | continue_stmt | ensure_stmt | expr_stmt .
 
 if_stmt        = "if" expression block { "or" expression block } [ "otherwise" block ] .
 for_stmt       = "for" [ "(" ] identifier [ type ] "in" range_expr [ ")" ] block .
-for_each_stmt  = "for_each" [ "(" ] identifier "in" expression [ ")" ] block .
+for_each_stmt  = "for_each" [ "(" ] [ identifier "," ] identifier "in" expression [ ")" ] block .
 while_stmt     = "as_long_as" expression block .
+loop_stmt      = "loop" block .
 when_stmt      = [ "#strict" ] "when" expression "{" { when_case } [ default_case ] "}" .
 when_case      = "is" pattern { "," pattern } block .
 default_case   = "default" block .
@@ -2111,6 +2394,7 @@ block          = "{" { statement } "}" .
 |---------|------|---------|
 | 1.0-draft | January 2026 | Initial draft |
 | 1.1-draft | January 31, 2026 | Added hex escapes, `!in` operator, blank identifier, `ref()` builtin, negative step `range()`, `temp` mutability; fixed compile-time → check-time terminology; added `uint` to primitive lists |
+| 1.2-draft | February 12, 2026 | Added `for_each` index variable, named return variables, `cast` keyword, raw string literals, octal literals, `private` visibility, `#doc`/`#suppress` attributes; added `@server`, `@regex`, `@csv` modules; updated `@http`, `@db`, `@math`, `@strings`, `@time`, `@arrays` modules; fixed `remove` → `remove_at` in arrays |
 
 ---
 
