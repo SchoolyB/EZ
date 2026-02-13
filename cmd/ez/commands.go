@@ -136,7 +136,8 @@ func init() {
 	}
 	updateCmd.Flags().Bool("confirm", false, "Skip confirmation prompt")
 
-	pzCmd.Flags().StringP("template", "t", "basic", "Template: basic, cli, lib, multi")
+	pzCmd.Flags().StringP("template", "t", "basic", "Template: basic, cli, lib, multi, server, client")
 	pzCmd.Flags().BoolP("comments", "c", false, "Include helpful syntax comments")
 	pzCmd.Flags().BoolP("force", "f", false, "Overwrite existing directory")
+	pzCmd.Flags().StringP("server-type", "s", "normal", "Server template type: minimal, normal")
 }

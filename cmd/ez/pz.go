@@ -28,7 +28,9 @@ Templates:
   basic  - Single file hello world (default)
   cli    - CLI application with arg handling
   lib    - Reusable library module
-  multi  - Multi-module project`,
+  multi  - Multi-module project
+  server - HTTP server (use -s for minimal/normal)
+  client - HTTP client (use -s for minimal/normal)`,
 	Args: cobra.MaximumNArgs(1),
 	Run:  runPz,
 }
@@ -37,6 +39,7 @@ func runPz(cmd *cobra.Command, args []string) {
 	template, _ := cmd.Flags().GetString("template")
 	comments, _ := cmd.Flags().GetBool("comments")
 	force, _ := cmd.Flags().GetBool("force")
+	serverType, _ := cmd.Flags().GetString("server-type")
 
 	var name string
 
@@ -49,9 +52,16 @@ func runPz(cmd *cobra.Command, args []string) {
 		}
 
 		if !cmd.Flags().Changed("template") {
-			template = promptForInput("Template (basic/cli/lib/multi) [basic]: ", "basic")
+			template = promptForInput("Template (basic/cli/lib/multi/server/client) [basic]: ", "basic")
 			if template == "" {
 				template = "basic"
+			}
+		}
+
+		if (template == "server" || template == "client") && !cmd.Flags().Changed("server-type") {
+			serverType = promptForInput("Type (minimal/normal) [normal]: ", "normal")
+			if serverType == "" {
+				serverType = "normal"
 			}
 		}
 
@@ -64,21 +74,40 @@ func runPz(cmd *cobra.Command, args []string) {
 	}
 
 	// Validate template
-	validTemplates := map[string]bool{"basic": true, "cli": true, "lib": true, "multi": true}
+	validTemplates := map[string]bool{"basic": true, "cli": true, "lib": true, "multi": true, "server": true, "client": true}
 	if !validTemplates[template] {
-		fmt.Printf("Invalid template '%s'. Choose from: basic, cli, lib, multi\n", template)
+		fmt.Printf("Invalid template '%s'. Choose from: basic, cli, lib, multi, server, client\n", template)
 		return
 	}
 
+	// Validate sub-type for server/client
+	if template == "server" || template == "client" {
+		validSubTypes := map[string]bool{"minimal": true, "normal": true}
+		if !validSubTypes[serverType] {
+			fmt.Printf("Invalid type '%s'. Choose from: minimal, normal\n", serverType)
+			return
+		}
+	}
+
 	// Create the project
-	if err := createProject(name, template, comments, force); err != nil {
+	if err := createProject(name, template, comments, force, serverType); err != nil {
 		fmt.Printf("Error: %v\n", err)
 		return
 	}
 
 	// Success message
-	fmt.Printf("\nDone! Run your project:\n")
-	fmt.Printf("  cd %s && ez main.ez\n", name)
+	switch template {
+	case "server":
+		fmt.Printf("\nDone! Run your server:\n")
+		fmt.Printf("  cd %s && ez main.ez\n", name)
+		fmt.Printf("  # Then visit http://localhost:8080\n")
+	case "client":
+		fmt.Printf("\nDone! Run your client:\n")
+		fmt.Printf("  cd %s && ez main.ez\n", name)
+	default:
+		fmt.Printf("\nDone! Run your project:\n")
+		fmt.Printf("  cd %s && ez main.ez\n", name)
+	}
 }
 
 func promptForInput(prompt, defaultVal string) string {
@@ -92,7 +121,7 @@ func promptForInput(prompt, defaultVal string) string {
 	return input
 }
 
-func createProject(name, template string, comments, force bool) error {
+func createProject(name, template string, comments, force bool, serverType string) error {
 	// Check if directory exists
 	if _, err := os.Stat(name); err == nil {
 		if !force {
@@ -112,6 +141,10 @@ func createProject(name, template string, comments, force bool) error {
 		return createLibProject(name, comments)
 	case "multi":
 		return createMultiProject(name, comments)
+	case "server":
+		return createServerProject(name, comments, serverType)
+	case "client":
+		return createClientProject(name, comments, serverType)
 	}
 
 	return nil
@@ -600,6 +633,336 @@ do formatMessage(msg string) -> string {
 
 do formatError(msg string) -> string {
     return "[ERROR] " + msg
+}
+`
+}
+
+func createServerProject(name string, comments bool, serverType string) error {
+	if err := os.MkdirAll(name, 0755); err != nil {
+		return err
+	}
+	fmt.Printf("  created %s/\n", name)
+
+	if serverType == "minimal" {
+		content := getServerMinimalContent(comments)
+		return writeProjectFile(filepath.Join(name, "main.ez"), content)
+	}
+
+	// Normal server
+	mainContent := getServerMainContent(comments)
+	if err := writeProjectFile(filepath.Join(name, "main.ez"), mainContent); err != nil {
+		return err
+	}
+
+	routesContent := getServerRoutesContent(comments)
+	return writeProjectFile(filepath.Join(name, "routes.ez"), routesContent)
+}
+
+func getServerMinimalContent(comments bool) string {
+	if comments {
+		return `// main.ez - Minimal HTTP server
+//
+// Run with: ez main.ez
+// Test with: curl http://localhost:8080
+
+module main
+
+import @std, @server
+using std
+
+do main() {
+    temp router Router = server.router()
+    server.route(router, "GET", "/", server.text(200, "Hello, World!"))
+
+    println("Server running on http://localhost:8080")
+    server.listen(8080, router)
+}
+`
+	}
+	return `// main.ez - Minimal HTTP server
+
+module main
+
+import @std, @server
+using std
+
+do main() {
+    temp router Router = server.router()
+    server.route(router, "GET", "/", server.text(200, "Hello, World!"))
+
+    println("Server running on http://localhost:8080")
+    server.listen(8080, router)
+}
+`
+}
+
+func getServerMainContent(comments bool) string {
+	if comments {
+		return `// main.ez - HTTP server entry point
+//
+// Run with: ez main.ez
+// Test with:
+//   curl http://localhost:8080
+//   curl http://localhost:8080/health
+//   curl http://localhost:8080/api/status
+
+module main
+
+import @std, @server
+using std
+
+do main() {
+    temp router Router = server.router()
+    registerRoutes(router)
+
+    println("Server running on http://localhost:8080")
+    server.listen(8080, router)
+}
+`
+	}
+	return `// main.ez - HTTP server entry point
+
+module main
+
+import @std, @server
+using std
+
+do main() {
+    temp router Router = server.router()
+    registerRoutes(router)
+
+    println("Server running on http://localhost:8080")
+    server.listen(8080, router)
+}
+`
+}
+
+func getServerRoutesContent(comments bool) string {
+	if comments {
+		return `// routes.ez - Route definitions
+//
+// Register all routes here. Each route needs:
+//   server.route(router, METHOD, PATH, RESPONSE)
+//
+// Response helpers:
+//   server.text(status, body)  - Plain text response
+//   server.json(status, data)  - JSON response
+//   server.html(status, body)  - HTML response
+
+module main
+
+import @server
+
+do registerRoutes(router Router) {
+    // Home page
+    server.route(router, "GET", "/", server.text(200, "Welcome to EZ!"))
+
+    // Health check endpoint
+    server.route(router, "GET", "/health", server.json(200, {"status": "ok"}))
+
+    // API endpoint
+    server.route(router, "GET", "/api/status", server.json(200, {
+        "version": "1.0.0",
+        "status": "running"
+    }))
+}
+`
+	}
+	return `// routes.ez - Route definitions
+
+module main
+
+import @server
+
+do registerRoutes(router Router) {
+    server.route(router, "GET", "/", server.text(200, "Welcome to EZ!"))
+
+    server.route(router, "GET", "/health", server.json(200, {"status": "ok"}))
+
+    server.route(router, "GET", "/api/status", server.json(200, {
+        "version": "1.0.0",
+        "status": "running"
+    }))
+}
+`
+}
+
+func createClientProject(name string, comments bool, clientType string) error {
+	if err := os.MkdirAll(name, 0755); err != nil {
+		return err
+	}
+	fmt.Printf("  created %s/\n", name)
+
+	if clientType == "minimal" {
+		content := getClientMinimalContent(comments)
+		return writeProjectFile(filepath.Join(name, "main.ez"), content)
+	}
+
+	// Normal client
+	mainContent := getClientMainContent(comments)
+	if err := writeProjectFile(filepath.Join(name, "main.ez"), mainContent); err != nil {
+		return err
+	}
+
+	apiContent := getClientAPIContent(comments)
+	return writeProjectFile(filepath.Join(name, "api.ez"), apiContent)
+}
+
+func getClientMinimalContent(comments bool) string {
+	if comments {
+		return `// main.ez - Minimal HTTP client
+//
+// Run with: ez main.ez
+//
+// http.get(url) returns (Response, Error)
+// Response fields: .status (int), .body (string), .headers (map)
+
+module main
+
+import @std, @http
+using std
+
+do main() {
+    temp resp, err = http.get("https://httpbin.org/get")
+    if err != nil {
+        println("Error: ${err.message}")
+        return
+    }
+    println("Status: ${resp.status}")
+    println("Body: ${resp.body}")
+}
+`
+	}
+	return `// main.ez - Minimal HTTP client
+
+module main
+
+import @std, @http
+using std
+
+do main() {
+    temp resp, err = http.get("https://httpbin.org/get")
+    if err != nil {
+        println("Error: ${err.message}")
+        return
+    }
+    println("Status: ${resp.status}")
+    println("Body: ${resp.body}")
+}
+`
+}
+
+func getClientMainContent(comments bool) string {
+	if comments {
+		return `// main.ez - HTTP client entry point
+//
+// Run with: ez main.ez
+//
+// This project demonstrates GET and POST requests
+// with error handling and JSON payloads.
+
+module main
+
+import @std, @http
+using std
+
+do main() {
+    // GET request
+    temp resp, err = fetchStatus()
+    if err != nil {
+        println("Error: ${err.message}")
+        return
+    }
+    println("GET Status: ${resp.status}")
+    println("GET Body: ${resp.body}")
+
+    // POST request with JSON body
+    temp post_resp, post_err = createPost("Hello from EZ!", "This is a test post.")
+    if post_err != nil {
+        println("Error: ${post_err.message}")
+        return
+    }
+    println("POST Status: ${post_resp.status}")
+    println("POST Body: ${post_resp.body}")
+}
+`
+	}
+	return `// main.ez - HTTP client entry point
+
+module main
+
+import @std, @http
+using std
+
+do main() {
+    temp resp, err = fetchStatus()
+    if err != nil {
+        println("Error: ${err.message}")
+        return
+    }
+    println("GET Status: ${resp.status}")
+    println("GET Body: ${resp.body}")
+
+    temp post_resp, post_err = createPost("Hello from EZ!", "This is a test post.")
+    if post_err != nil {
+        println("Error: ${post_err.message}")
+        return
+    }
+    println("POST Status: ${post_resp.status}")
+    println("POST Body: ${post_resp.body}")
+}
+`
+}
+
+func getClientAPIContent(comments bool) string {
+	if comments {
+		return `// api.ez - API request functions
+//
+// Each function wraps an HTTP call and returns (Response, Error).
+//
+// Available request functions:
+//   http.get(url)                              - GET request
+//   http.post(url, body)                       - POST request
+//   http.put(url, body)                        - PUT request
+//   http.delete(url)                           - DELETE request
+//   http.patch(url, body)                      - PATCH request
+//   http.request(method, url, body, headers, timeout) - Custom request
+//
+// Helpers:
+//   http.json_body(data)                       - Convert map to JSON string
+//   http.build_query(params)                   - Build URL query string
+
+module main
+
+import @http
+
+do fetchStatus() -> (Response, Error) {
+    return http.get("https://httpbin.org/get")
+}
+
+do createPost(title string, body string) -> (Response, Error) {
+    return http.post(
+        "https://httpbin.org/post",
+        http.json_body({"title": title, "body": body})
+    )
+}
+`
+	}
+	return `// api.ez - API request functions
+
+module main
+
+import @http
+
+do fetchStatus() -> (Response, Error) {
+    return http.get("https://httpbin.org/get")
+}
+
+do createPost(title string, body string) -> (Response, Error) {
+    return http.post(
+        "https://httpbin.org/post",
+        http.json_body({"title": title, "body": body})
+    )
 }
 `
 }
