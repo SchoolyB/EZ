@@ -172,6 +172,7 @@ var validModules = map[string]bool{
 	"http":     true, // HTTP client for web requests
 	"csv":      true, // CSV parsing and writing
 	"regex":    true, // Regular expression operations
+	"server":   true, // HTTP server
 }
 
 // isValidModule checks if a module name is valid (either standard library or user-created)

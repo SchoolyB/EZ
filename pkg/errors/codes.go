@@ -397,6 +397,17 @@ var (
 )
 
 // =============================================================================
+// SERVER ERRORS (E18xxx) - HTTP server-specific errors
+// These are errors unique to the HTTP server module
+// =============================================================================
+var (
+	E18001 = ErrorCode{"E18001", "server-listen-failed", "server failed to start"}
+	E18002 = ErrorCode{"E18002", "server-invalid-port", "invalid port number"}
+	E18003 = ErrorCode{"E18003", "server-internal-error", "internal server error"}
+	E18004 = ErrorCode{"E18004", "server-handler-error", "handler returned an error"}
+)
+
+// =============================================================================
 // WARNINGS (W1xxx - W6xxx)
 // =============================================================================
 var (
