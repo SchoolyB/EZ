@@ -1,0 +1,113 @@
+/*
+ * variable_shadowing.ez - Test variable shadowing in nested blocks
+ */
+
+import @std
+using std
+
+do main() {
+    println("=== Variable Shadowing Test ===")
+    temp passed int = 0
+    temp failed int = 0
+
+    // Test 1: Inner block shadows outer variable
+    temp x int = 10
+    if true {
+        temp x int = 20
+        if x == 20 {
+            println("  [PASS] inner x shadows outer: inner x = 20")
+            passed += 1
+        } otherwise {
+            println("  [FAIL] inner x: expected 20, got ${x}")
+            failed += 1
+        }
+    }
+    if x == 10 {
+        println("  [PASS] outer x unchanged after inner scope: x = 10")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] outer x: expected 10, got ${x}")
+        failed += 1
+    }
+
+    // Test 2: Shadowing with different type
+    temp val string = "hello"
+    if true {
+        temp val int = 42
+        if val == 42 {
+            println("  [PASS] shadow with different type: val = 42 (int)")
+            passed += 1
+        } otherwise {
+            println("  [FAIL] shadow with different type: expected 42, got ${val}")
+            failed += 1
+        }
+    }
+    if val == "hello" {
+        println("  [PASS] outer val restored: val = \"hello\" (string)")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] outer val: expected \"hello\", got ${val}")
+        failed += 1
+    }
+
+    // Test 3: Multiple levels of shadowing
+    temp depth int = 1
+    if true {
+        temp depth int = 2
+        if true {
+            temp depth int = 3
+            if depth == 3 {
+                println("  [PASS] depth 3: innermost shadow = 3")
+                passed += 1
+            } otherwise {
+                println("  [FAIL] depth 3: expected 3, got ${depth}")
+                failed += 1
+            }
+        }
+        if depth == 2 {
+            println("  [PASS] depth 2: middle shadow = 2")
+            passed += 1
+        } otherwise {
+            println("  [FAIL] depth 2: expected 2, got ${depth}")
+            failed += 1
+        }
+    }
+    if depth == 1 {
+        println("  [PASS] depth 1: outer variable = 1")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] depth 1: expected 1, got ${depth}")
+        failed += 1
+    }
+
+    // Test 4: Shadow in loop body
+    temp counter int = 100
+    for i in range(0, 3) {
+        temp counter int = i
+        if i == 2 {
+            if counter == 2 {
+                println("  [PASS] loop shadow: counter = 2 inside loop")
+                passed += 1
+            } otherwise {
+                println("  [FAIL] loop shadow: expected 2, got ${counter}")
+                failed += 1
+            }
+        }
+    }
+    if counter == 100 {
+        println("  [PASS] outer counter unchanged after loop: counter = 100")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] outer counter: expected 100, got ${counter}")
+        failed += 1
+    }
+
+    println("")
+    println("Results: ${passed} passed, ${failed} failed")
+
+    if failed > 0 {
+        println("SOME TESTS FAILED")
+    } otherwise {
+        println("ALL TESTS PASSED")
+    }
+}
