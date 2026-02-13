@@ -8,5 +8,5 @@ const int struct {
 }
 
 do main() {
-    println("Should not compile!")
+    println("Should not run!")
 }
