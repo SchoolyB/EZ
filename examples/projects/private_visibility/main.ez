@@ -31,7 +31,7 @@ do main() {
     println("mathlib.VERSION = ${mathlib.VERSION}")
     println("")
 
-    // These would cause compile errors if uncommented:
+    // These would cause errors if uncommented:
     //   mathlib.validate_positive(5)   -> E4006: private function
     //   mathlib.MAX_ITERATIONS         -> E6009: private constant
     println("Private members (validate_positive, MAX_ITERATIONS)")

@@ -80,7 +80,7 @@ do main() {
         println("  ${i}")
     }
 
-    // Note: Descending ranges like range(5, 0) are now compile-time errors (E9005)
+    // Note: Descending ranges like range(5, 0) are now check-time errors (E9005)
     // Use as_long_as with decrement if you need to count backwards:
     println("")
     println("-- Counting backwards --")
