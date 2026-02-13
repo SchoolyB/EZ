@@ -1,0 +1,111 @@
+/*
+ * escape_sequences.ez - Test all string and char escape sequences
+ */
+
+import @std
+using std
+
+do main() {
+    println("=== Escape Sequences Test ===")
+    temp passed int = 0
+    temp failed int = 0
+
+    // Test 1: Newline \n
+    temp nl string = "a\nb"
+    if len(nl) == 3 {
+        println("  [PASS] \"a\\nb\" has length 3 (contains newline)")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] \"a\\nb\": expected length 3, got ${len(nl)}")
+        failed += 1
+    }
+
+    // Test 2: Tab \t
+    temp tb string = "a\tb"
+    if len(tb) == 3 {
+        println("  [PASS] \"a\\tb\" has length 3 (contains tab)")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] \"a\\tb\": expected length 3, got ${len(tb)}")
+        failed += 1
+    }
+
+    // Test 3: Carriage return \r
+    temp cr string = "a\rb"
+    if len(cr) == 3 {
+        println("  [PASS] \"a\\rb\" has length 3 (contains CR)")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] \"a\\rb\": expected length 3, got ${len(cr)}")
+        failed += 1
+    }
+
+    // Test 4: Escaped backslash \\
+    temp bs string = "a\\b"
+    if len(bs) == 3 {
+        println("  [PASS] \"a\\\\b\" has length 3 (contains backslash)")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] \"a\\\\b\": expected length 3, got ${len(bs)}")
+        failed += 1
+    }
+
+    // Test 5: Escaped double quote \"
+    temp dq string = "a\"b"
+    if len(dq) == 3 {
+        println("  [PASS] \"a\\\"b\" has length 3 (contains quote)")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] \"a\\\"b\": expected length 3, got ${len(dq)}")
+        failed += 1
+    }
+
+    // Test 6: Hex escape \x48 = 'H'
+    temp hex string = "\x48\x65\x6c\x6c\x6f"
+    if hex == "Hello" {
+        println("  [PASS] hex escapes spell \"Hello\"")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] hex escapes: expected \"Hello\", got ${hex}")
+        failed += 1
+    }
+
+    // Test 7: Char escape - newline
+    temp nl_char char = '\n'
+    if int(nl_char) == 10 {
+        println("  [PASS] char '\\n' has code point 10")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] char '\\n': expected code point 10, got ${int(nl_char)}")
+        failed += 1
+    }
+
+    // Test 8: Char escape - tab
+    temp tab_char char = '\t'
+    if int(tab_char) == 9 {
+        println("  [PASS] char '\\t' has code point 9")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] char '\\t': expected code point 9, got ${int(tab_char)}")
+        failed += 1
+    }
+
+    // Test 9: Multiple escapes in one string
+    temp multi string = "line1\nline2\ttab"
+    if len(multi) == 15 {
+        println("  [PASS] mixed escapes: \"line1\\nline2\\ttab\" length = 15")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] mixed escapes: expected length 15, got ${len(multi)}")
+        failed += 1
+    }
+
+    println("")
+    println("Results: ${passed} passed, ${failed} failed")
+
+    if failed > 0 {
+        println("SOME TESTS FAILED")
+    } otherwise {
+        println("ALL TESTS PASSED")
+    }
+}
