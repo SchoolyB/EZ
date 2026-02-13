@@ -18,7 +18,7 @@ func GetAllBuiltins() map[string]*object.Builtin {
 		TimeBuiltins, MapsBuiltins, IOBuiltins, OSBuiltins,
 		BytesBuiltins, RandomBuiltins, JsonBuiltins, BinaryBuiltins,
 		DBBuiltins, UUIDBuiltins, EncodingBuiltins, CryptoBuiltins,
-		HttpBuiltins, CsvBuiltins, RegexBuiltins,
+		HttpBuiltins, CsvBuiltins, RegexBuiltins, ServerBuiltins,
 	} {
 		for name, builtin := range module {
 			all[name] = builtin
