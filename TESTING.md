@@ -2,7 +2,7 @@
 
 ## Unit Tests
 
-Unit tests are written in Go and test individual compiler/runtime components. Each package in `pkg/` has corresponding `*_test.go` files.
+Unit tests are written in Go and test individual interpreter/runtime components. Each package in `pkg/` has corresponding `*_test.go` files.
 
 ### Packages with Unit Tests
 
