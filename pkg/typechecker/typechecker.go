@@ -2693,10 +2693,14 @@ func (tc *TypeChecker) checkMultiReturnDeclaration(decl *ast.VariableDeclaration
 	// Get the function call to check return types (needed for both type checking and inference)
 	callExpr, ok := decl.Value.(*ast.CallExpression)
 	if !ok {
-		// Value is not a function call - still register variables with unknown types
-		for _, name := range decl.Names {
+		// Value is not a function call - use explicit type annotations if available
+		for i, name := range decl.Names {
 			if name != nil {
-				tc.defineVariableWithMutability(name.Value, "", decl.Mutable)
+				declaredType := ""
+				if i < len(decl.TypeNames) && decl.TypeNames[i] != "" {
+					declaredType = decl.TypeNames[i]
+				}
+				tc.defineVariableWithMutability(name.Value, declaredType, decl.Mutable)
 			}
 		}
 		return
@@ -2715,10 +2719,14 @@ func (tc *TypeChecker) checkMultiReturnDeclaration(decl *ast.VariableDeclaration
 			moduleName = obj.Value
 		}
 	default:
-		// Still register variables with unknown types
-		for _, name := range decl.Names {
+		// Use explicit type annotations if available
+		for i, name := range decl.Names {
 			if name != nil {
-				tc.defineVariableWithMutability(name.Value, "", decl.Mutable)
+				declaredType := ""
+				if i < len(decl.TypeNames) && decl.TypeNames[i] != "" {
+					declaredType = decl.TypeNames[i]
+				}
+				tc.defineVariableWithMutability(name.Value, declaredType, decl.Mutable)
 			}
 		}
 		return
@@ -2732,12 +2740,15 @@ func (tc *TypeChecker) checkMultiReturnDeclaration(decl *ast.VariableDeclaration
 			resolvedModuleName := tc.resolveStdlibModule(moduleName)
 			moduleReturnTypes := tc.getModuleMultiReturnTypes(resolvedModuleName, funcName, callExpr.Arguments)
 			if moduleReturnTypes != nil {
-				// Register variables with the correct module function return types
+				// Register variables - use inferred types, fall back to explicit annotations
 				for i, name := range decl.Names {
 					if name != nil {
 						inferredType := ""
 						if i < len(moduleReturnTypes) {
 							inferredType = moduleReturnTypes[i]
+						}
+						if inferredType == "" && i < len(decl.TypeNames) && decl.TypeNames[i] != "" {
+							inferredType = decl.TypeNames[i]
 						}
 						tc.defineVariableWithMutability(name.Value, inferredType, decl.Mutable)
 					}
@@ -2761,12 +2772,15 @@ func (tc *TypeChecker) checkMultiReturnDeclaration(decl *ast.VariableDeclaration
 		// Check if it's a builtin function with multiple return values
 		builtinReturnTypes := tc.getBuiltinMultiReturnTypes(funcName)
 		if builtinReturnTypes != nil {
-			// Register variables with the correct builtin return types
+			// Register variables - use inferred types, fall back to explicit annotations
 			for i, name := range decl.Names {
 				if name != nil {
 					inferredType := ""
 					if i < len(builtinReturnTypes) {
 						inferredType = builtinReturnTypes[i]
+					}
+					if inferredType == "" && i < len(decl.TypeNames) && decl.TypeNames[i] != "" {
+						inferredType = decl.TypeNames[i]
 					}
 					tc.defineVariableWithMutability(name.Value, inferredType, decl.Mutable)
 				}
@@ -2784,6 +2798,9 @@ func (tc *TypeChecker) checkMultiReturnDeclaration(decl *ast.VariableDeclaration
 						if i < len(moduleReturnTypes) {
 							inferredType = moduleReturnTypes[i]
 						}
+						if inferredType == "" && i < len(decl.TypeNames) && decl.TypeNames[i] != "" {
+							inferredType = decl.TypeNames[i]
+						}
 						tc.defineVariableWithMutability(name.Value, inferredType, decl.Mutable)
 					}
 				}
@@ -2791,11 +2808,15 @@ func (tc *TypeChecker) checkMultiReturnDeclaration(decl *ast.VariableDeclaration
 			}
 		}
 
-		// Function not found - still register variables with unknown types
+		// Function not found - use explicit type annotations if available
 		// (undefined function error will be caught elsewhere)
-		for _, name := range decl.Names {
+		for i, name := range decl.Names {
 			if name != nil {
-				tc.defineVariableWithMutability(name.Value, "", decl.Mutable)
+				declaredType := ""
+				if i < len(decl.TypeNames) && decl.TypeNames[i] != "" {
+					declaredType = decl.TypeNames[i]
+				}
+				tc.defineVariableWithMutability(name.Value, declaredType, decl.Mutable)
 			}
 		}
 		return
@@ -6422,6 +6443,38 @@ func (tc *TypeChecker) getModuleMultiReturnTypes(moduleName, funcName string, ar
 		switch funcName {
 		case "get", "post", "put", "delete", "patch", "request":
 			return []string{"HttpResponse", "Error"}
+		}
+
+	case "csv":
+		switch funcName {
+		case "parse", "read":
+			return []string{"[[string]]", "Error"}
+		case "stringify":
+			return []string{"string", "Error"}
+		case "headers":
+			return []string{"[string]", "Error"}
+		case "write":
+			return []string{"bool", "Error"}
+		}
+
+	case "regex":
+		switch funcName {
+		case "match":
+			return []string{"bool", "Error"}
+		case "find":
+			return []string{"string", "Error"}
+		case "find_all":
+			return []string{"[string]", "Error"}
+		case "find_all_n":
+			return []string{"[string]", "Error"}
+		case "replace", "replace_all":
+			return []string{"string", "Error"}
+		case "split":
+			return []string{"[string]", "Error"}
+		case "groups":
+			return []string{"[string]", "Error"}
+		case "groups_all":
+			return []string{"[[string]]", "Error"}
 		}
 	}
 	return nil
