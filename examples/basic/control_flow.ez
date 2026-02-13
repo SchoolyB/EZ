@@ -3,13 +3,22 @@
  *
  * EZ uses:
  *   - if / or / otherwise (not else if / else)
+ *   - when / is / default (pattern matching)
  *   - for with range()
  *   - for_each for collections
  *   - as_long_as (like while)
+ *   - loop (infinite loop)
  */
 
 import @std
 using std
+
+const Season enum {
+    SPRING,
+    SUMMER,
+    FALL,
+    WINTER
+}
 
 do main() {
     println("=== Control Flow in EZ ===")
@@ -27,6 +36,40 @@ do main() {
         println("Grade: C")
     } otherwise {
         println("Grade: F")
+    }
+
+    // when/is with default (pattern matching)
+    println("")
+    println("-- When/Is with default --")
+    temp day int = 6
+    when day {
+        is 1, 2, 3, 4, 5 { println("Weekday") }
+        is 6, 7 { println("Weekend!") }
+        default { println("Invalid day") }
+    }
+
+    // when/is with range matching
+    println("")
+    println("-- When/Is with range --")
+    when score {
+        is range(90, 101) { println("Letter grade: A") }
+        is range(80, 90) { println("Letter grade: B") }
+        is range(70, 80) { println("Letter grade: C") }
+        is range(60, 70) { println("Letter grade: D") }
+        default { println("Letter grade: F") }
+    }
+
+    // #strict when/is (must cover all enum values, no default)
+    println("")
+    println("-- Strict When/Is (enum) --")
+    temp current = Season.SUMMER
+
+    #strict
+    when current {
+        is Season.SPRING { println("Flowers blooming") }
+        is Season.SUMMER { println("Sun is shining") }
+        is Season.FALL { println("Leaves falling") }
+        is Season.WINTER { println("Snow is falling") }
     }
 
     // for loop with range
@@ -79,6 +122,18 @@ do main() {
     as_long_as count < 3 {
         println("  count = ${count}")
         count++
+    }
+
+    // loop (infinite loop, use break to exit)
+    println("")
+    println("-- Loop (infinite loop) --")
+    temp x int = 0
+    loop {
+        if x == 3 {
+            break
+        }
+        println("  x = ${x}")
+        x++
     }
 
     // break and continue
