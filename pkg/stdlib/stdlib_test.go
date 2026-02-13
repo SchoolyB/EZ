@@ -4979,9 +4979,8 @@ func TestArraysJoin(t *testing.T) {
 	if !ok {
 		t.Fatalf("expected String, got %T", result)
 	}
-	// The join function includes quotes around string elements
-	if strVal.Value != `"a","b","c"` {
-		t.Errorf("expected '\"a\",\"b\",\"c\"', got '%s'", strVal.Value)
+	if strVal.Value != "a,b,c" {
+		t.Errorf("expected 'a,b,c', got '%s'", strVal.Value)
 	}
 }
 
