@@ -6476,6 +6476,12 @@ func (tc *TypeChecker) getModuleMultiReturnTypes(moduleName, funcName string, ar
 		case "groups_all":
 			return []string{"[[string]]", "Error"}
 		}
+
+	case "encoding":
+		switch funcName {
+		case "base64_decode", "hex_decode", "url_decode":
+			return []string{"string", "Error"}
+		}
 	}
 	return nil
 }
