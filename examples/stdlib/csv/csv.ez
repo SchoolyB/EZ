@@ -1,0 +1,82 @@
+/*
+ * csv.ez - Working with CSV data
+ *
+ * This example shows how to:
+ *   - Read a CSV file
+ *   - Read just the headers
+ *   - Parse CSV strings
+ *   - Write CSV to a file
+ *   - Convert data to CSV strings
+ *
+ * Run with: ez examples/stdlib/csv/csv.ez
+ */
+
+import @std, @csv, @io
+using std
+
+do main() {
+    println("=== Working with CSV in EZ ===")
+    println("")
+
+    // Step 1: Read headers from the CSV file
+    println("Reading headers...")
+    temp headers [string], header_err Error = csv.headers("examples/stdlib/csv/data.csv")
+    if header_err != nil {
+        println("Error reading headers: ${header_err}")
+        return
+    }
+    println("Headers: ${headers}")
+    println("")
+
+    // Step 2: Read the full CSV file
+    println("Reading data.csv...")
+    temp data, read_err = csv.read("examples/stdlib/csv/data.csv")
+    if read_err != nil {
+        println("Error reading file: ${read_err}")
+        return
+    }
+    println("Total rows (including header): ${len(data)}")
+    println("Data: ${data}")
+    println("")
+
+    // Step 3: Parse a CSV string directly
+    println("Parsing CSV string...")
+    temp parsed, parse_err = csv.parse("product,price\nWidget,9.99\nGadget,24.95")
+    if parse_err == nil {
+        println("Parsed ${len(parsed)} rows: ${parsed}")
+    }
+    println("")
+
+    // Step 4: Build data and convert to CSV string
+    println("Creating CSV from data...")
+    temp rows [[string]] = {
+        {"fruit", "color", "count"},
+        {"apple", "red", "12"},
+        {"banana", "yellow", "8"},
+        {"grape", "purple", "30"}
+    }
+    temp csv_string, str_err = csv.stringify(rows)
+    if str_err == nil {
+        println("Generated CSV:")
+        println(csv_string)
+    }
+
+    // Step 5: Write CSV to a file
+    println("Writing CSV to /tmp/ez_csv_output.csv...")
+    temp ok, write_err = csv.write("/tmp/ez_csv_output.csv", rows)
+    if write_err != nil {
+        println("Error writing: ${write_err}")
+        return
+    }
+    println("Written successfully!")
+    println("")
+
+    // Step 6: Read it back to verify
+    println("Reading back the written file...")
+    temp content, _ = io.read_file("/tmp/ez_csv_output.csv")
+    println(content)
+
+    // Cleanup
+    temp _, _ = io.remove("/tmp/ez_csv_output.csv")
+    println("Done!")
+}
