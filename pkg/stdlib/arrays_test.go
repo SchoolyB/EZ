@@ -571,9 +571,7 @@ func TestArraysJoinUnit(t *testing.T) {
 	if !ok {
 		t.Fatalf("expected string, got %T: %v", result, result)
 	}
-	// JoinObjects uses Inspect() which includes quotes for strings
-	// So the result is '"a", "b", "c"' not 'a, b, c'
-	expected := "\"a\", \"b\", \"c\""
+	expected := "a, b, c"
 	if strVal.Value != expected {
 		t.Errorf("expected '%s', got '%s'", expected, strVal.Value)
 	}
