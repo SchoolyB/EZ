@@ -4827,6 +4827,28 @@ func (tc *TypeChecker) checkForEachStatement(forEach *ast.ForEachStatement, expe
 	tc.enterScope()
 	tc.loopDepth++ // Track loop nesting for break/continue validation (#603)
 
+	// If index variable present, register it as int (#1139)
+	if forEach.Index != nil {
+		indexName := forEach.Index.Value
+
+		// Check if this index variable shadows an outer loop variable (#114)
+		if tc.currentScope != nil && tc.currentScope.IsLoopVariableInOuterScope(indexName) {
+			line := forEach.Index.Token.Line
+			column := forEach.Index.Token.Column
+			tc.addError(
+				errors.E4016,
+				fmt.Sprintf("loop variable '%s' shadows outer loop variable", errors.Ident(indexName)),
+				line,
+				column,
+			)
+		}
+
+		tc.defineVariableWithMutability(indexName, "int", false)
+		if tc.currentScope != nil {
+			tc.currentScope.MarkAsLoopVariable(indexName)
+		}
+	}
+
 	// Infer element type from collection and validate it's iterable (#595)
 	if forEach.Variable != nil && forEach.Collection != nil {
 		varName := forEach.Variable.Value

@@ -1673,6 +1673,27 @@ func (p *Parser) parseForEachStatement() *ForEachStatement {
 		stmt.Variable = &Label{Token: p.currentToken, Value: p.currentToken.Literal}
 	}
 
+	// Check if there's a second variable (index, value pattern) (#1139)
+	if p.peekTokenMatches(COMMA) {
+		p.nextToken() // consume ','
+
+		// First variable becomes the index
+		stmt.Index = stmt.Variable
+
+		// Parse the value variable
+		if p.peekTokenMatches(BLANK) {
+			p.nextToken()
+			stmt.Variable = &Label{Token: p.currentToken, Value: "_"}
+		} else if IsKeyword(p.peekToken.Type) {
+			p.reportReservedKeyword(KeywordLiteral(p.peekToken.Type), "a variable name", errors.E2020, p.peekToken)
+			return nil
+		} else if !p.expectPeek(IDENT) {
+			return nil
+		} else {
+			stmt.Variable = &Label{Token: p.currentToken, Value: p.currentToken.Literal}
+		}
+	}
+
 	if !p.expectPeek(IN) {
 		return nil
 	}
