@@ -57,6 +57,14 @@ do main() {
         println("  - ${fruit}")
     }
 
+    // for_each with index
+    println("")
+    println("-- For_each with index --")
+    println("Numbered fruits:")
+    for_each i, fruit in fruits {
+        println("  ${i}: ${fruit}")
+    }
+
     // for_each with string
     println("")
     println("Letters in 'EZ':")
