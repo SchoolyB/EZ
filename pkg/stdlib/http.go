@@ -42,6 +42,72 @@ var defaultClient = &http.Client{
 	Timeout: time.Duration(DEFAULT_TIMEOUT) * time.Second,
 }
 
+// doHTTPRequest performs a standard HTTP request and returns the response as an EZ object.
+// For HEAD requests, the response body is always empty.
+func doHTTPRequest(method, urlStr string, body *string) object.Object {
+	if _, err := url.ParseRequestURI(urlStr); err != nil {
+		return &object.Error{Code: "E14001", Message: "invalid url"}
+	}
+
+	var reqBody io.Reader
+	if body != nil {
+		reqBody = bytes.NewBuffer([]byte(*body))
+	}
+
+	req, err := http.NewRequest(method, urlStr, reqBody)
+	if err != nil {
+		return &object.ReturnValue{
+			Values: []object.Object{
+				&object.Nil{},
+				CreateStdlibError("E14002", "request failed"),
+			},
+		}
+	}
+
+	res, err := defaultClient.Do(req)
+	if err != nil {
+		return &object.ReturnValue{
+			Values: []object.Object{
+				&object.Nil{},
+				CreateStdlibError("E14002", "request failed: "+err.Error()),
+			},
+		}
+	}
+	defer res.Body.Close()
+
+	responseBody := ""
+	if method != http.MethodHead {
+		bodyBytes, err := io.ReadAll(res.Body)
+		if err != nil {
+			return &object.ReturnValue{
+				Values: []object.Object{
+					&object.Nil{},
+					CreateStdlibError("E14002", "could not read body"),
+				},
+			}
+		}
+		responseBody = string(bodyBytes)
+	}
+
+	headers := object.NewMap()
+	headers.KeyType = "string"
+	headers.ValueType = "[string]"
+	for key, vals := range res.Header {
+		values := &object.Array{ElementType: "string"}
+		for _, val := range vals {
+			values.Elements = append(values.Elements, &object.String{Value: val})
+		}
+		headers.Set(&object.String{Value: key}, values)
+	}
+
+	return &object.ReturnValue{
+		Values: []object.Object{
+			newHttpResponse(res.StatusCode, responseBody, headers),
+			&object.Nil{},
+		},
+	}
+}
+
 var HttpBuiltins = map[string]*object.Builtin{
 	// get performs an HTTP GET request to the specified URL.
 	// Takes URL string. Returns (HttpResponse, Error) tuple.
@@ -50,64 +116,11 @@ var HttpBuiltins = map[string]*object.Builtin{
 			if len(args) != 1 {
 				return &object.Error{Code: "E7001", Message: fmt.Sprintf("%s takes exactly 1 argument", errors.Ident("http.get()"))}
 			}
-
 			urlArg, ok := args[0].(*object.String)
 			if !ok {
 				return &object.Error{Code: "E7003", Message: fmt.Sprintf("%s requires a %s argument", errors.Ident("http.get()"), errors.TypeExpected("string"))}
 			}
-
-			if _, err := url.ParseRequestURI(urlArg.Value); err != nil {
-				return &object.Error{Code: "E14001", Message: "invalid url"}
-			}
-
-			req, err := http.NewRequest(http.MethodGet, urlArg.Value, nil)
-			if err != nil {
-				return &object.ReturnValue{
-					Values: []object.Object{
-						&object.Nil{},
-						CreateStdlibError("E14002", "request failed"),
-					},
-				}
-			}
-
-			res, err := defaultClient.Do(req)
-			if err != nil {
-				return &object.ReturnValue{
-					Values: []object.Object{
-						&object.Nil{},
-						CreateStdlibError("E14002", "request failed: "+err.Error()),
-					},
-				}
-			}
-			defer res.Body.Close()
-
-			body, err := io.ReadAll(res.Body)
-			if err != nil {
-				return &object.ReturnValue{
-					Values: []object.Object{
-						&object.Nil{},
-						CreateStdlibError("E14002", "could not read body"),
-					},
-				}
-			}
-
-			headers := object.NewMap()
-			headers.KeyType = "string"
-			headers.ValueType = "[string]"
-			for key, vals := range res.Header {
-				values := &object.Array{ElementType: "string"}
-				for _, val := range vals {
-					values.Elements = append(values.Elements, &object.String{Value: val})
-				}
-				headers.Set(&object.String{Value: key}, values)
-			}
-
-			return &object.ReturnValue{
-				Values: []object.Object{
-					newHttpResponse(res.StatusCode, string(body), headers),
-					&object.Nil{},
-				},
-			}
+			return doHTTPRequest(http.MethodGet, urlArg.Value, nil)
 		},
 	},
 
@@ -118,69 +131,15 @@ var HttpBuiltins = map[string]*object.Builtin{
 			if len(args) != 2 {
 				return &object.Error{Code: "E7001", Message: fmt.Sprintf("%s takes exactly 2 arguments", errors.Ident("http.post()"))}
 			}
-
 			urlArg, ok := args[0].(*object.String)
 			if !ok {
 				return &object.Error{Code: "E7003", Message: fmt.Sprintf("%s requires a %s argument", errors.Ident("http.post()"), errors.TypeExpected("string"))}
 			}
-
 			body, ok := args[1].(*object.String)
 			if !ok {
 				return &object.Error{Code: "E7003", Message: fmt.Sprintf("%s requires a %s argument", errors.Ident("http.post()"), errors.TypeExpected("string"))}
 			}
-
-			if _, err := url.ParseRequestURI(urlArg.Value); err != nil {
-				return &object.Error{Code: "E14001", Message: "invalid url"}
-			}
-
-			req, err := http.NewRequest(http.MethodPost, urlArg.Value, bytes.NewBuffer([]byte(body.Value)))
-			if err != nil {
-				return &object.ReturnValue{
-					Values: []object.Object{
-						&object.Nil{},
-						CreateStdlibError("E14002", "request failed"),
-					},
-				}
-			}
-
-			res, err := defaultClient.Do(req)
-			if err != nil {
-				return &object.ReturnValue{
-					Values: []object.Object{
-						&object.Nil{},
-						CreateStdlibError("E14002", "request failed: "+err.Error()),
-					},
-				}
-			}
-			defer res.Body.Close()
-
-			responseBody, err := io.ReadAll(res.Body)
-			if err != nil {
-				return &object.ReturnValue{
-					Values: []object.Object{
-						&object.Nil{},
-						CreateStdlibError("E14002", "could not read body"),
-					},
-				}
-			}
-
-			headers := object.NewMap()
-			headers.KeyType = "string"
-			headers.ValueType = "[string]"
-			for key, vals := range res.Header {
-				values := &object.Array{ElementType: "string"}
-				for _, val := range vals {
-					values.Elements = append(values.Elements, &object.String{Value: val})
-				}
-				headers.Set(&object.String{Value: key}, values)
-			}
-
-			return &object.ReturnValue{
-				Values: []object.Object{
-					newHttpResponse(res.StatusCode, string(responseBody), headers),
-					&object.Nil{},
-				},
-			}
+			return doHTTPRequest(http.MethodPost, urlArg.Value, &body.Value)
 		},
 	},
 
@@ -191,69 +150,15 @@ var HttpBuiltins = map[string]*object.Builtin{
 			if len(args) != 2 {
 				return &object.Error{Code: "E7001", Message: fmt.Sprintf("%s takes exactly 2 arguments", errors.Ident("http.put()"))}
 			}
-
 			urlArg, ok := args[0].(*object.String)
 			if !ok {
 				return &object.Error{Code: "E7003", Message: fmt.Sprintf("%s requires a %s argument", errors.Ident("http.put()"), errors.TypeExpected("string"))}
 			}
-
 			body, ok := args[1].(*object.String)
 			if !ok {
 				return &object.Error{Code: "E7003", Message: fmt.Sprintf("%s requires a %s argument", errors.Ident("http.put()"), errors.TypeExpected("string"))}
 			}
-
-			if _, err := url.ParseRequestURI(urlArg.Value); err != nil {
-				return &object.Error{Code: "E14001", Message: "invalid url"}
-			}
-
-			req, err := http.NewRequest(http.MethodPut, urlArg.Value, bytes.NewBuffer([]byte(body.Value)))
-			if err != nil {
-				return &object.ReturnValue{
-					Values: []object.Object{
-						&object.Nil{},
-						CreateStdlibError("E14002", "request failed"),
-					},
-				}
-			}
-
-			res, err := defaultClient.Do(req)
-			if err != nil {
-				return &object.ReturnValue{
-					Values: []object.Object{
-						&object.Nil{},
-						CreateStdlibError("E14002", "request failed: "+err.Error()),
-					},
-				}
-			}
-			defer res.Body.Close()
-
-			responseBody, err := io.ReadAll(res.Body)
-			if err != nil {
-				return &object.ReturnValue{
-					Values: []object.Object{
-						&object.Nil{},
-						CreateStdlibError("E14002", "could not read body"),
-					},
-				}
-			}
-
-			headers := object.NewMap()
-			headers.KeyType = "string"
-			headers.ValueType = "[string]"
-			for key, vals := range res.Header {
-				values := &object.Array{ElementType: "string"}
-				for _, val := range vals {
-					values.Elements = append(values.Elements, &object.String{Value: val})
-				}
-				headers.Set(&object.String{Value: key}, values)
-			}
-
-			return &object.ReturnValue{
-				Values: []object.Object{
-					newHttpResponse(res.StatusCode, string(responseBody), headers),
-					&object.Nil{},
-				},
-			}
+			return doHTTPRequest(http.MethodPut, urlArg.Value, &body.Value)
 		},
 	},
 
@@ -264,64 +169,11 @@ var HttpBuiltins = map[string]*object.Builtin{
 			if len(args) != 1 {
 				return &object.Error{Code: "E7001", Message: fmt.Sprintf("%s takes exactly 1 argument", errors.Ident("http.delete()"))}
 			}
-
 			urlArg, ok := args[0].(*object.String)
 			if !ok {
 				return &object.Error{Code: "E7003", Message: fmt.Sprintf("%s requires a %s argument", errors.Ident("http.delete()"), errors.TypeExpected("string"))}
 			}
-
-			if _, err := url.ParseRequestURI(urlArg.Value); err != nil {
-				return &object.Error{Code: "E14001", Message: "invalid url"}
-			}
-
-			req, err := http.NewRequest(http.MethodDelete, urlArg.Value, nil)
-			if err != nil {
-				return &object.ReturnValue{
-					Values: []object.Object{
-						&object.Nil{},
-						CreateStdlibError("E14002", "request failed"),
-					},
-				}
-			}
-
-			res, err := defaultClient.Do(req)
-			if err != nil {
-				return &object.ReturnValue{
-					Values: []object.Object{
-						&object.Nil{},
-						CreateStdlibError("E14002", "request failed: "+err.Error()),
-					},
-				}
-			}
-			defer res.Body.Close()
-
-			body, err := io.ReadAll(res.Body)
-			if err != nil {
-				return &object.ReturnValue{
-					Values: []object.Object{
-						&object.Nil{},
-						CreateStdlibError("E14002", "could not read body"),
-					},
-				}
-			}
-
-			headers := object.NewMap()
-			headers.KeyType = "string"
-			headers.ValueType = "[string]"
-			for key, vals := range res.Header {
-				values := &object.Array{ElementType: "string"}
-				for _, val := range vals {
-					values.Elements = append(values.Elements, &object.String{Value: val})
-				}
-				headers.Set(&object.String{Value: key}, values)
-			}
-
-			return &object.ReturnValue{
-				Values: []object.Object{
-					newHttpResponse(res.StatusCode, string(body), headers),
-					&object.Nil{},
-				},
-			}
+			return doHTTPRequest(http.MethodDelete, urlArg.Value, nil)
 		},
 	},
 
@@ -332,69 +184,15 @@ var HttpBuiltins = map[string]*object.Builtin{
 			if len(args) != 2 {
 				return &object.Error{Code: "E7001", Message: fmt.Sprintf("%s takes exactly 2 arguments", errors.Ident("http.patch()"))}
 			}
-
 			urlArg, ok := args[0].(*object.String)
 			if !ok {
 				return &object.Error{Code: "E7003", Message: fmt.Sprintf("%s requires a %s argument", errors.Ident("http.patch()"), errors.TypeExpected("string"))}
 			}
-
 			body, ok := args[1].(*object.String)
 			if !ok {
 				return &object.Error{Code: "E7003", Message: fmt.Sprintf("%s requires a %s argument", errors.Ident("http.patch()"), errors.TypeExpected("string"))}
 			}
-
-			if _, err := url.ParseRequestURI(urlArg.Value); err != nil {
-				return &object.Error{Code: "E14001", Message: "invalid url"}
-			}
-
-			req, err := http.NewRequest(http.MethodPatch, urlArg.Value, bytes.NewBuffer([]byte(body.Value)))
-			if err != nil {
-				return &object.ReturnValue{
-					Values: []object.Object{
-						&object.Nil{},
-						CreateStdlibError("E14002", "request failed"),
-					},
-				}
-			}
-
-			res, err := defaultClient.Do(req)
-			if err != nil {
-				return &object.ReturnValue{
-					Values: []object.Object{
-						&object.Nil{},
-						CreateStdlibError("E14002", "request failed: "+err.Error()),
-					},
-				}
-			}
-			defer res.Body.Close()
-
-			responseBody, err := io.ReadAll(res.Body)
-			if err != nil {
-				return &object.ReturnValue{
-					Values: []object.Object{
-						&object.Nil{},
-						CreateStdlibError("E14002", "could not read body"),
-					},
-				}
-			}
-
-			headers := object.NewMap()
-			headers.KeyType = "string"
-			headers.ValueType = "[string]"
-			for key, vals := range res.Header {
-				values := &object.Array{ElementType: "string"}
-				for _, val := range vals {
-					values.Elements = append(values.Elements, &object.String{Value: val})
-				}
-				headers.Set(&object.String{Value: key}, values)
-			}
-
-			return &object.ReturnValue{
-				Values: []object.Object{
-					newHttpResponse(res.StatusCode, string(responseBody), headers),
-					&object.Nil{},
-				},
-			}
+			return doHTTPRequest(http.MethodPatch, urlArg.Value, &body.Value)
 		},
 	},
 
@@ -577,54 +375,11 @@ var HttpBuiltins = map[string]*object.Builtin{
 			if len(args) != 1 {
 				return &object.Error{Code: "E7001", Message: fmt.Sprintf("%s takes exactly 1 argument", errors.Ident("http.head()"))}
 			}
-
 			urlArg, ok := args[0].(*object.String)
 			if !ok {
 				return &object.Error{Code: "E7003", Message: fmt.Sprintf("%s requires a %s argument", errors.Ident("http.head()"), errors.TypeExpected("string"))}
 			}
-
-			if _, err := url.ParseRequestURI(urlArg.Value); err != nil {
-				return &object.Error{Code: "E14001", Message: "invalid url"}
-			}
-
-			req, err := http.NewRequest(http.MethodHead, urlArg.Value, nil)
-			if err != nil {
-				return &object.ReturnValue{
-					Values: []object.Object{
-						&object.Nil{},
-						CreateStdlibError("E14002", "request failed"),
-					},
-				}
-			}
-
-			res, err := defaultClient.Do(req)
-			if err != nil {
-				return &object.ReturnValue{
-					Values: []object.Object{
-						&object.Nil{},
-						CreateStdlibError("E14002", "request failed: "+err.Error()),
-					},
-				}
-			}
-			defer res.Body.Close()
-
-			headers := object.NewMap()
-			headers.KeyType = "string"
-			headers.ValueType = "[string]"
-			for key, vals := range res.Header {
-				values := &object.Array{ElementType: "string"}
-				for _, val := range vals {
-					values.Elements = append(values.Elements, &object.String{Value: val})
-				}
-				headers.Set(&object.String{Value: key}, values)
-			}
-
-			return &object.ReturnValue{
-				Values: []object.Object{
-					newHttpResponse(res.StatusCode, "", headers),
-					&object.Nil{},
-				},
-			}
+			return doHTTPRequest(http.MethodHead, urlArg.Value, nil)
 		},
 	},
 
@@ -635,64 +390,11 @@ var HttpBuiltins = map[string]*object.Builtin{
 			if len(args) != 1 {
 				return &object.Error{Code: "E7001", Message: fmt.Sprintf("%s takes exactly 1 argument", errors.Ident("http.options()"))}
 			}
-
 			urlArg, ok := args[0].(*object.String)
 			if !ok {
 				return &object.Error{Code: "E7003", Message: fmt.Sprintf("%s requires a %s argument", errors.Ident("http.options()"), errors.TypeExpected("string"))}
 			}
-
-			if _, err := url.ParseRequestURI(urlArg.Value); err != nil {
-				return &object.Error{Code: "E14001", Message: "invalid url"}
-			}
-
-			req, err := http.NewRequest(http.MethodOptions, urlArg.Value, nil)
-			if err != nil {
-				return &object.ReturnValue{
-					Values: []object.Object{
-						&object.Nil{},
-						CreateStdlibError("E14002", "request failed"),
-					},
-				}
-			}
-
-			res, err := defaultClient.Do(req)
-			if err != nil {
-				return &object.ReturnValue{
-					Values: []object.Object{
-						&object.Nil{},
-						CreateStdlibError("E14002", "request failed: "+err.Error()),
-					},
-				}
-			}
-			defer res.Body.Close()
-
-			body, err := io.ReadAll(res.Body)
-			if err != nil {
-				return &object.ReturnValue{
-					Values: []object.Object{
-						&object.Nil{},
-						CreateStdlibError("E14002", "could not read body"),
-					},
-				}
-			}
-
-			headers := object.NewMap()
-			headers.KeyType = "string"
-			headers.ValueType = "[string]"
-			for key, vals := range res.Header {
-				values := &object.Array{ElementType: "string"}
-				for _, val := range vals {
-					values.Elements = append(values.Elements, &object.String{Value: val})
-				}
-				headers.Set(&object.String{Value: key}, values)
-			}
-
-			return &object.ReturnValue{
-				Values: []object.Object{
-					newHttpResponse(res.StatusCode, string(body), headers),
-					&object.Nil{},
-				},
-			}
+			return doHTTPRequest(http.MethodOptions, urlArg.Value, nil)
 		},
 	},
 

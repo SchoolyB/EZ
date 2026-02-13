@@ -187,45 +187,35 @@ func extractFloatValue(arg object.Object, targetType string) (float64, *object.E
 	}
 }
 
+// printArgs writes args to w, space-separated, with optional trailing newline.
+func printArgs(w io.Writer, args []object.Object, newline bool) {
+	for i, arg := range args {
+		if i > 0 {
+			fmt.Fprint(w, " ")
+		}
+		if str, ok := arg.(*object.String); ok {
+			fmt.Fprint(w, str.Value)
+		} else {
+			fmt.Fprint(w, arg.Inspect())
+		}
+	}
+	if newline {
+		fmt.Fprintln(w)
+	}
+}
+
 // StdBuiltins contains the core standard library functions
 var StdBuiltins = map[string]*object.Builtin{
-	// println prints values to standard output followed by a newline.
-	// Accepts any number of arguments, separated by spaces in output.
 	"std.println": {
 		Fn: func(args ...object.Object) object.Object {
-			for i, arg := range args {
-				if i > 0 {
-					fmt.Print(" ")
-				}
-				// For strings, print raw value without quotes
-				// Other types use Inspect() for proper representation
-				if str, ok := arg.(*object.String); ok {
-					fmt.Print(str.Value)
-				} else {
-					fmt.Print(arg.Inspect())
-				}
-			}
-			fmt.Println()
+			printArgs(os.Stdout, args, true)
 			return object.NIL
 		},
 	},
 
-	// print prints values to standard output without a trailing newline.
-	// Accepts any number of arguments, separated by spaces in output.
 	"std.print": {
 		Fn: func(args ...object.Object) object.Object {
-			for i, arg := range args {
-				if i > 0 {
-					fmt.Print(" ")
-				}
-				// For strings, print raw value without quotes
-				// Other types use Inspect() for proper representation
-				if str, ok := arg.(*object.String); ok {
-					fmt.Print(str.Value)
-				} else {
-					fmt.Print(arg.Inspect())
-				}
-			}
+			printArgs(os.Stdout, args, false)
 			return object.NIL
 		},
 	},
@@ -1087,39 +1077,16 @@ var StdBuiltins = map[string]*object.Builtin{
 		},
 	},
 
-	// eprintln prints values to standard error (stderr) followed by a newline.
-	// Accepts any number of arguments, separated by spaces in output.
 	"std.eprintln": {
 		Fn: func(args ...object.Object) object.Object {
-			for i, arg := range args {
-				if i > 0 {
-					fmt.Fprint(os.Stderr, " ")
-				}
-				if str, ok := arg.(*object.String); ok {
-					fmt.Fprint(os.Stderr, str.Value)
-				} else {
-					fmt.Fprint(os.Stderr, arg.Inspect())
-				}
-			}
-			fmt.Fprintln(os.Stderr)
+			printArgs(os.Stderr, args, true)
 			return object.NIL
 		},
 	},
 
-	// eprint prints values to standard error (stderr) without a trailing newline.
-	// Accepts any number of arguments, separated by spaces in output.
 	"std.eprint": {
 		Fn: func(args ...object.Object) object.Object {
-			for i, arg := range args {
-				if i > 0 {
-					fmt.Fprint(os.Stderr, " ")
-				}
-				if str, ok := arg.(*object.String); ok {
-					fmt.Fprint(os.Stderr, str.Value)
-				} else {
-					fmt.Fprint(os.Stderr, arg.Inspect())
-				}
-			}
+			printArgs(os.Stderr, args, false)
 			return object.NIL
 		},
 	},
