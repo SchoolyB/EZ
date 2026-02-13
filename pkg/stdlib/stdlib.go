@@ -11,68 +11,18 @@ import (
 )
 
 // GetAllBuiltins returns a map of all standard library builtins.
-// This is called by the interpreter to register all stdlib functions.
 func GetAllBuiltins() map[string]*object.Builtin {
 	all := make(map[string]*object.Builtin)
-
-	// Merge all module builtins
-	for name, builtin := range StdBuiltins {
-		all[name] = builtin
+	for _, module := range []map[string]*object.Builtin{
+		StdBuiltins, MathBuiltins, ArraysBuiltins, StringsBuiltins,
+		TimeBuiltins, MapsBuiltins, IOBuiltins, OSBuiltins,
+		BytesBuiltins, RandomBuiltins, JsonBuiltins, BinaryBuiltins,
+		DBBuiltins, UUIDBuiltins, EncodingBuiltins, CryptoBuiltins,
+		HttpBuiltins, CsvBuiltins, RegexBuiltins,
+	} {
+		for name, builtin := range module {
+			all[name] = builtin
+		}
 	}
-	for name, builtin := range MathBuiltins {
-		all[name] = builtin
-	}
-	for name, builtin := range ArraysBuiltins {
-		all[name] = builtin
-	}
-	for name, builtin := range StringsBuiltins {
-		all[name] = builtin
-	}
-	for name, builtin := range TimeBuiltins {
-		all[name] = builtin
-	}
-	for name, builtin := range MapsBuiltins {
-		all[name] = builtin
-	}
-	for name, builtin := range IOBuiltins {
-		all[name] = builtin
-	}
-	for name, builtin := range OSBuiltins {
-		all[name] = builtin
-	}
-	for name, builtin := range BytesBuiltins {
-		all[name] = builtin
-	}
-	for name, builtin := range RandomBuiltins {
-		all[name] = builtin
-	}
-	for name, builtin := range JsonBuiltins {
-		all[name] = builtin
-	}
-	for name, builtin := range BinaryBuiltins {
-		all[name] = builtin
-	}
-	for name, builtin := range DBBuiltins {
-		all[name] = builtin
-	}
-	for name, builtin := range UUIDBuiltins {
-		all[name] = builtin
-	}
-	for name, builtin := range EncodingBuiltins {
-		all[name] = builtin
-	}
-	for name, builtin := range CryptoBuiltins {
-		all[name] = builtin
-	}
-	for name, builtin := range HttpBuiltins {
-		all[name] = builtin
-	}
-	for name, builtin := range CsvBuiltins {
-		all[name] = builtin
-	}
-	for name, builtin := range RegexBuiltins {
-		all[name] = builtin
-	}
-
 	return all
 }

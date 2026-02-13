@@ -1719,29 +1719,37 @@ func evalWhenStatement(node *ast.WhenStatement, env *Environment, ctx *EvalConte
 
 // objectsEqual compares two objects for equality
 func objectsEqual(a, b Object) bool {
-	switch aVal := a.(type) {
+	switch av := a.(type) {
 	case *Integer:
-		if bVal, ok := b.(*Integer); ok {
-			return aVal.Value.Cmp(bVal.Value) == 0
+		if bv, ok := b.(*Integer); ok {
+			return av.Value.Cmp(bv.Value) == 0
+		}
+	case *Float:
+		if bv, ok := b.(*Float); ok {
+			return av.Value == bv.Value
 		}
 	case *String:
-		if bVal, ok := b.(*String); ok {
-			return aVal.Value == bVal.Value
+		if bv, ok := b.(*String); ok {
+			return av.Value == bv.Value
 		}
 	case *Char:
-		if bVal, ok := b.(*Char); ok {
-			return aVal.Value == bVal.Value
+		if bv, ok := b.(*Char); ok {
+			return av.Value == bv.Value
+		}
+	case *Byte:
+		if bv, ok := b.(*Byte); ok {
+			return av.Value == bv.Value
 		}
 	case *Boolean:
-		if bVal, ok := b.(*Boolean); ok {
-			return aVal.Value == bVal.Value
+		if bv, ok := b.(*Boolean); ok {
+			return av.Value == bv.Value
 		}
 	case *EnumValue:
-		if bVal, ok := b.(*EnumValue); ok {
-			return aVal.EnumType == bVal.EnumType && aVal.Name == bVal.Name
+		if bv, ok := b.(*EnumValue); ok {
+			return av.EnumType == bv.EnumType && av.Name == bv.Name
 		}
 	}
-	return false
+	return a == b
 }
 
 func evalWhileStatement(node *ast.WhileStatement, env *Environment, ctx *EvalContext) Object {
@@ -2711,42 +2719,12 @@ func evalInOperator(left, right Object, line, col int) Object {
 	}
 
 	for _, elem := range arr.Elements {
-		if elementsEqual(left, elem) {
+		if objectsEqual(left, elem) {
 			return TRUE
 		}
 	}
 
 	return FALSE
-}
-
-func elementsEqual(a, b Object) bool {
-	switch av := a.(type) {
-	case *Integer:
-		if bv, ok := b.(*Integer); ok {
-			return av.Value.Cmp(bv.Value) == 0
-		}
-	case *String:
-		if bv, ok := b.(*String); ok {
-			return av.Value == bv.Value
-		}
-	case *Boolean:
-		if bv, ok := b.(*Boolean); ok {
-			return av.Value == bv.Value
-		}
-	case *Byte:
-		if bv, ok := b.(*Byte); ok {
-			return av.Value == bv.Value
-		}
-	case *Char:
-		if bv, ok := b.(*Char); ok {
-			return av.Value == bv.Value
-		}
-	case *Float:
-		if bv, ok := b.(*Float); ok {
-			return av.Value == bv.Value
-		}
-	}
-	return a == b
 }
 
 func evalPostfixExpression(node *ast.PostfixExpression, env *Environment, ctx *EvalContext) Object {
