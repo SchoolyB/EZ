@@ -2374,17 +2374,419 @@ block          = "{" { statement } "}" .
 
 ## Appendix B: Error Codes
 
-| Code | Category | Description |
-|------|----------|-------------|
-| E1xxx | Lexer | Lexical analysis errors |
-| E2xxx | Parser | Syntax errors |
-| E3xxx | Type Checker | Type errors |
-| E4xxx | Resolver | Name resolution errors |
-| E5xxx | Runtime | Arithmetic errors |
-| E9xxx | Runtime | Index/bounds errors |
-| E10xxx | Runtime | String operation errors |
-| E11xxx | Runtime | Time operation errors |
-| E12xxx | Runtime | Map operation errors |
+### Overview
+
+| Range | Category | Description |
+|-------|----------|-------------|
+| E1xxx | Lexer | Tokenization and lexical analysis errors |
+| E2xxx | Parser | Syntax and parsing errors |
+| E3xxx | Type Checker | Type system errors |
+| E4xxx | Resolver | Name resolution and reference errors |
+| E5xxx | Runtime | General runtime errors |
+| E6xxx | Import | Module import and loading errors |
+| E7xxx | Stdlib | Standard library argument validation errors |
+| E8xxx | Math | Math module domain errors |
+| E9xxx | Arrays | Array operation errors |
+| E10xxx | Strings | String operation errors |
+| E11xxx | Time | Time module errors |
+| E12xxx | Maps | Map operation errors |
+| E13xxx | JSON | JSON encoding/decoding errors |
+| E14xxx | HTTP | HTTP client errors |
+| E15xxx | Crypto | Cryptography errors |
+| E16xxx | Encoding | Encoding/decoding errors |
+| E17xxx | DB | Database errors |
+| E18xxx | Server | HTTP server errors |
+| W1xxx | Warning | Code style warnings |
+| W2xxx | Warning | Potential bug warnings |
+| W3xxx | Warning | Code quality warnings |
+| W4xxx | Warning | Module warnings |
+
+### E1xxx — Lexer Errors
+
+| Code | Name | Description |
+|------|------|-------------|
+| E1001 | illegal-character | Illegal character in source |
+| E1002 | illegal-or-character | Illegal OR character in source |
+| E1003 | unclosed-comment | Multi-line comment not closed |
+| E1004 | unclosed-string | String literal not closed |
+| E1005 | unclosed-char | Character literal not closed |
+| E1006 | invalid-escape-string | Invalid escape sequence in string |
+| E1007 | invalid-escape-char | Invalid escape sequence in character |
+| E1008 | empty-char-literal | Character literal is empty |
+| E1009 | multi-char-literal | Character literal contains multiple characters |
+| E1010 | invalid-number-format | Invalid numeric literal format |
+| E1011 | number-consecutive-underscores | Consecutive underscores in number |
+| E1012 | number-leading-underscore | Number starts with underscore |
+| E1013 | number-trailing-underscore | Number ends with underscore |
+| E1014 | number-underscore-before-decimal | Underscore before decimal point |
+| E1015 | number-underscore-after-decimal | Underscore after decimal point |
+| E1016 | number-trailing-decimal | Decimal point without digits |
+| E1017 | unclosed-raw-string | Raw string literal not closed |
+
+### E2xxx — Parser Errors
+
+| Code | Name | Description |
+|------|------|-------------|
+| E2001 | unexpected-token | Unexpected token encountered |
+| E2002 | missing-token | Expected token not found |
+| E2003 | missing-expression | Expected expression |
+| E2004 | unclosed-brace | Missing closing brace |
+| E2005 | unclosed-paren | Missing closing parenthesis |
+| E2006 | unclosed-bracket | Missing closing bracket |
+| E2007 | unclosed-interpolation | String interpolation not closed |
+| E2008 | invalid-assignment-target | Cannot assign to this expression |
+| E2009 | using-after-declarations | `using` statement must come before declarations |
+| E2010 | using-before-import | Cannot use module before importing |
+| E2011 | const-requires-value | `const` must be initialized |
+| E2012 | duplicate-parameter | Parameter name already used |
+| E2013 | duplicate-field | Field name already used |
+| E2014 | missing-parameter-type | Parameter missing type annotation |
+| E2015 | missing-return-type | Expected return type after arrow |
+| E2016 | empty-enum | Enum must have at least one value |
+| E2017 | trailing-comma-array | Trailing comma in array literal |
+| E2018 | trailing-comma-call | Trailing comma in function call |
+| E2019 | nested-function | Function inside function not allowed |
+| E2020 | reserved-variable-name | Variable name is reserved |
+| E2021 | reserved-function-name | Function name is reserved |
+| E2022 | reserved-type-name | Type name is reserved |
+| E2023 | duplicate-declaration | Name already declared in scope |
+| E2024 | invalid-type-name | Expected valid type name |
+| E2025 | invalid-array-size | Array size must be integer |
+| E2026 | invalid-enum-type | Enum type must be primitive |
+| E2027 | integer-parse-error | Cannot parse integer literal |
+| E2028 | float-parse-error | Cannot parse float literal |
+| E2029 | expected-identifier | Expected identifier |
+| E2030 | expected-block | Expected block statement |
+| E2031 | string-enum-requires-values | String enum needs explicit values |
+| E2032 | const-array-requires-size | Const array must have fixed size |
+| E2033 | reserved-param-name | Parameter name is reserved |
+| E2034 | invalid-struct-field | Invalid struct field name |
+| E2035 | invalid-enum-value | Invalid enum value name |
+| E2036 | import-inside-block | Import must be at file level |
+| E2037 | reserved-struct-name | Struct name is reserved |
+| E2038 | reserved-enum-name | Enum name is reserved |
+| E2039 | required-after-default | Required parameter after parameter with default |
+| E2040 | mutable-with-default | Mutable parameter cannot have default value |
+| E2041 | when-missing-default | `when` statement requires a `default` case |
+| E2042 | when-strict-has-default | `#strict when` cannot have a `default` case |
+| E2043 | when-duplicate-case | Duplicate case value in `when` statement |
+| E2044 | when-float-not-allowed | Float type not allowed in `when` statement |
+| E2045 | when-strict-non-enum | `#strict` only allowed on enum `when` statements |
+| E2046 | when-strict-missing-case | `#strict when` missing enum case |
+| E2047 | when-type-as-condition | `when` condition must be a value, not a type name |
+| E2048 | when-bool-condition | `when` condition cannot be boolean; use `if`/`otherwise` |
+| E2049 | when-nil-condition | `when` condition cannot be nil |
+| E2050 | when-collection-condition | `when` condition cannot be an array or map |
+| E2051 | suppress-invalid-target | `#suppress` can only be applied at file scope or to functions |
+| E2052 | suppress-invalid-code | Warning code cannot be suppressed |
+| E2053 | type-definition-in-function | Type definitions must be at file level |
+| E2054 | when-strict-non-enum-case | `#strict when` requires explicit enum member values |
+| E2055 | strict-invalid-target | `#strict` can only be applied to `when` statements |
+| E2056 | executable-at-file-scope | Executable statement not allowed at file scope |
+| E2057 | invalid-interpolation-syntax | Invalid string interpolation syntax |
+| E2058 | doc-invalid-target | `#doc` can only be applied to functions, structs, or enums |
+| E2059 | doc-orphaned | `#doc` must be followed by a declaration |
+| E2060 | doc-duplicate | Only one `#doc` attribute allowed per declaration |
+
+### E3xxx — Type Errors
+
+| Code | Name | Description |
+|------|------|-------------|
+| E3001 | type-mismatch | Types do not match |
+| E3002 | invalid-operator-for-type | Operator not valid for type |
+| E3003 | invalid-index-type | Index must be integer |
+| E3004 | invalid-index-assignment-type | Invalid type for index assignment |
+| E3005 | cannot-convert-to-int | Cannot convert value to integer |
+| E3006 | cannot-convert-to-float | Cannot convert value to float |
+| E3007 | cannot-convert-array | Cannot convert array to scalar |
+| E3008 | undefined-type | Type is not defined |
+| E3009 | undefined-type-in-struct | Field type not defined |
+| E3010 | undefined-param-type | Parameter type not defined |
+| E3011 | undefined-return-type | Return type not defined |
+| E3012 | return-type-mismatch | Return type does not match declaration |
+| E3013 | return-count-mismatch | Wrong number of return values |
+| E3014 | incompatible-binary-types | Incompatible types for binary operator |
+| E3015 | not-callable | Value is not callable |
+| E3016 | not-indexable | Value is not indexable |
+| E3017 | not-iterable | Value is not iterable |
+| E3018 | array-literal-required | Array type requires array literal |
+| E3019 | signed-to-unsigned | Cannot assign signed type to unsigned |
+| E3020 | negative-to-unsigned | Cannot assign negative value to unsigned type |
+| E3021 | type-change-not-allowed | Cannot change type of variable after declaration |
+| E3022 | undefined-struct-field | Struct field not found |
+| E3023 | enum-value-not-found | Enum value not found |
+| E3024 | missing-return-statement | Function must return a value |
+| E3025 | byte-value-out-of-range | Byte value must be between 0 and 255 |
+| E3026 | byte-array-element-out-of-range | Byte array element must be between 0 and 255 |
+| E3027 | const-to-mutable-param | Cannot pass immutable variable to mutable parameter |
+| E3028 | enum-mixed-types | Enum members must all have the same type |
+| E3029 | float-enum-map-key | Float-based enum cannot be used as map key |
+| E3030 | type-as-value | Type definition cannot be used as a runtime value |
+| E3031 | function-as-value | Function cannot be used as a value without calling it |
+| E3032 | enum-type-mismatch | Cannot compare values from different enum types |
+| E3033 | duplicate-enum-value | Enum contains duplicate values |
+| E3034 | any-type-not-allowed | `any` type is reserved for internal use |
+| E3035 | not-all-paths-return | Not all code paths return a value |
+| E3036 | integer-out-of-range | Integer literal exceeds type range |
+| E3037 | invalid-private-usage | `private` modifier cannot be used here |
+| E3038 | void-type-not-allowed | `void` is not a valid type |
+| E3039 | ensure-expects-call | `ensure` expects a function call |
+| E3040 | multi-return-to-single-var | Cannot assign multiple return values to single variable |
+| E3041 | array-size-overflow | Array literal has more elements than declared size |
+
+### E4xxx — Reference Errors
+
+| Code | Name | Description |
+|------|------|-------------|
+| E4001 | undefined-variable | Variable not found in scope |
+| E4002 | undefined-function | Function not defined |
+| E4003 | undefined-field | Field does not exist on type |
+| E4004 | undefined-enum-value | Enum value does not exist |
+| E4005 | undefined-module-member | Member not found in module |
+| E4006 | undefined-type-new | Type not found for `new` expression |
+| E4007 | module-not-imported | Module has not been imported |
+| E4008 | ambiguous-function | Function exists in multiple modules |
+| E4009 | no-main-function | Program has no entry point |
+| E4010 | nil-member-access | Cannot access member of nil |
+| E4011 | member-access-invalid-type | Type does not support member access |
+| E4012 | shadows-type | Variable shadows a type definition |
+| E4013 | shadows-function | Variable shadows a function |
+| E4014 | shadows-module | Variable shadows an imported module |
+| E4015 | shadows-used-module-function | Variable shadows a function from a `using` module |
+| E4016 | loop-variable-shadows-loop-variable | Loop variable shadows outer loop variable |
+
+### E5xxx — Runtime Errors
+
+| Code | Name | Description |
+|------|------|-------------|
+| E5001 | division-by-zero | Cannot divide by zero |
+| E5002 | modulo-by-zero | Cannot modulo by zero |
+| E5003 | index-out-of-bounds | Index outside valid range |
+| E5004 | index-empty-collection | Cannot index empty collection |
+| E5005 | nil-operation | Cannot perform operation on nil |
+| E5006 | immutable-variable | Cannot modify `const` variable |
+| E5007 | immutable-array | Cannot modify `const` array |
+| E5008 | wrong-argument-count | Incorrect number of arguments |
+| E5009 | break-outside-loop | `break` not inside loop |
+| E5010 | continue-outside-loop | `continue` not inside loop |
+| E5011 | return-value-unused | Function return value not used |
+| E5012 | multi-assign-count-mismatch | Assignment value count mismatch |
+| E5013 | range-start-not-integer | Range start must be integer |
+| E5014 | range-end-not-integer | Range end must be integer |
+| E5015 | postfix-requires-identifier | Postfix operator needs variable |
+| E5016 | immutable-parameter | Cannot modify read-only parameter |
+| E5017 | immutable-struct | Cannot modify field of `const` struct |
+| E5018 | max-recursion-depth | Maximum recursion depth exceeded |
+| E5019 | range-step-not-integer | Range step must be integer |
+| E5020 | range-in-operand-not-integer | Value checked against range must be integer |
+| E5021 | panic | Explicit `panic()` called |
+| E5022 | assertion-failed | Assertion condition was false |
+| E5023 | postfix-requires-integer | Postfix operator needs integer operand |
+| E5024 | return-type-mismatch | Return type mismatch at runtime |
+
+### E6xxx — Import Errors
+
+| Code | Name | Description |
+|------|------|-------------|
+| E6001 | circular-import | Circular import detected |
+| E6002 | module-not-found | Module file not found |
+| E6003 | invalid-module-format | Module has invalid format |
+| E6004 | module-load-error | Failed to load module |
+| E6005 | module-name-mismatch | Module name does not match directory |
+| E6006 | module-name-conflict | Files in directory declare different module names |
+| E6007 | internal-import-denied | Cannot import from `internal/` directory outside package |
+| E6008 | module-member-readonly | Cannot assign to module member |
+| E6009 | private-access-denied | Cannot access private member from outside module |
+
+### E7xxx — Stdlib Validation Errors
+
+| Code | Name | Description |
+|------|------|-------------|
+| E7001 | stdlib-argument-mismatch | Wrong number of arguments |
+| E7002 | requires-array | Argument must be an array |
+| E7003 | requires-string | Argument must be a string |
+| E7004 | requires-integer | Argument must be an integer |
+| E7005 | requires-number | Argument must be a number |
+| E7006 | requires-function | Argument must be a function |
+| E7007 | requires-map | Argument must be a map |
+| E7008 | requires-boolean | Argument must be a boolean |
+| E7009 | requires-char | Argument must be a char |
+| E7010 | invalid-argument-value | Argument value is invalid |
+| E7011 | negative-not-allowed | Argument cannot be negative |
+| E7012 | zero-not-allowed | Argument cannot be zero |
+| E7013 | empty-not-allowed | Argument cannot be empty |
+| E7014 | type-conversion-failed | Type conversion failed |
+| E7015 | len-unsupported-type | `len()` not supported for type |
+| E7016 | file-not-found | File or directory not found |
+| E7017 | permission-denied | Permission denied |
+| E7018 | cannot-remove-directory | `io.remove()` cannot remove directories |
+| E7019 | cannot-remove-file | `io.remove_dir()` can only remove directories |
+| E7020 | safety-check-failed | Cannot remove root or home directory |
+| E7021 | cannot-copy-directory | `io.copy()` cannot copy directories |
+| E7022 | file-already-exists | File or directory already exists |
+| E7023 | directory-not-empty | Directory not empty |
+| E7024 | env-var-operation-failed | Environment variable operation failed |
+| E7025 | get-cwd-failed | Failed to get current directory |
+| E7026 | chdir-failed | Failed to change directory |
+| E7027 | get-hostname-failed | Failed to get hostname |
+| E7028 | get-username-failed | Failed to get username |
+| E7029 | get-homedir-failed | Failed to get home directory |
+| E7030 | command-not-found | Command or executable not found |
+| E7031 | command-failed | Command execution failed |
+| E7032 | sleep-negative | Sleep duration cannot be negative |
+| E7033 | conversion-overflow | Value exceeds target type range |
+| E7035 | env-var-not-set | Environment variable is not set |
+| E7040 | empty-path | Path cannot be empty |
+| E7041 | path-null-byte | Path contains null byte |
+| E7042 | read-directory-as-file | Cannot read directory as file |
+| E7043 | invalid-glob-pattern | Invalid glob pattern syntax |
+| E7050 | file-handle-closed | File handle is closed |
+| E7099 | io-error | General I/O error |
+
+### E8xxx — Math Errors
+
+| Code | Name | Description |
+|------|------|-------------|
+| E8001 | sqrt-negative | Cannot take square root of negative number |
+| E8002 | log-non-positive | Logarithm requires positive number |
+| E8003 | trig-out-of-range | Trigonometric function input out of valid range |
+| E8004 | factorial-negative | Factorial requires non-negative integer |
+| E8005 | factorial-overflow | Factorial result exceeds maximum value |
+| E8006 | random-invalid-range | Random range is invalid |
+| E8007 | map-range-div-zero | `map_range()` requires `in_min != in_max` |
+
+### E9xxx — Array Errors
+
+| Code | Name | Description |
+|------|------|-------------|
+| E9001 | array-is-empty | Operation requires non-empty array |
+| E9002 | array-non-numeric | Operation requires numeric array |
+| E9003 | range-step-zero | Range step cannot be zero |
+| E9004 | chunk-size-invalid | Chunk size must be greater than zero |
+| E9005 | range-invalid-bounds | Range start must be less than or equal to end |
+| E9006 | array-modified-during-iteration | Cannot modify array during `for_each` iteration |
+| E9007 | empty-array-selection | Cannot select from empty array |
+| E9008 | sample-count-exceeds-length | Sample count exceeds array length |
+
+### E10xxx — String Errors
+
+| Code | Name | Description |
+|------|------|-------------|
+| E10001 | repeat-count-negative | Repeat count cannot be negative |
+| E10003 | string-index-out-of-bounds | String index out of bounds |
+| E10004 | string-empty-index | Cannot index empty string |
+
+### E11xxx — Time Errors
+
+| Code | Name | Description |
+|------|------|-------------|
+| E11001 | time-parse-failed | Failed to parse time string |
+
+### E12xxx — Map Errors
+
+| Code | Name | Description |
+|------|------|-------------|
+| E12001 | map-key-not-hashable | Map key must be a hashable type |
+| E12002 | map-immutable | Cannot modify immutable map |
+| E12003 | map-key-not-found | Key not found in map |
+| E12004 | map-invalid-pair | Map entry must be a `[key, value]` pair |
+| E12005 | map-value-not-hashable | Map value is not hashable and cannot become a key |
+| E12006 | map-duplicate-key | Map literal contains duplicate key |
+
+### E13xxx — JSON Errors
+
+| Code | Name | Description |
+|------|------|-------------|
+| E13001 | json-syntax-error | Invalid JSON syntax |
+| E13002 | json-unsupported-type | Type cannot be converted to JSON |
+| E13003 | json-invalid-map-key | JSON object keys must be strings |
+| E13004 | json-decode-requires-type | `json.decode()` requires a type argument |
+
+### E14xxx — HTTP Errors
+
+| Code | Name | Description |
+|------|------|-------------|
+| E14001 | http-invalid-url | Invalid URL |
+| E14002 | http-failed-request | Request failed (network error) |
+| E14003 | http-timeout | Timeout exceeded |
+| E14004 | http-invalid-method | Invalid HTTP method |
+| E14005 | http-failed-url-decode | URL decode failed |
+| E14006 | http-failed-json-encoding | JSON encoding failed |
+
+### E15xxx — Crypto Errors
+
+| Code | Name | Description |
+|------|------|-------------|
+| E15001 | crypto-random-failed | Cryptographic random generation failed |
+
+### E16xxx — Encoding Errors
+
+| Code | Name | Description |
+|------|------|-------------|
+| E16001 | invalid-base64 | Invalid base64 encoded input |
+| E16002 | invalid-hex | Invalid hexadecimal encoded input |
+| E16003 | invalid-url-encoding | Invalid URL encoded input |
+
+### E17xxx — Database Errors
+
+| Code | Name | Description |
+|------|------|-------------|
+| E17001 | db-open-failed | Failed to open database |
+| E17002 | db-read-failed | Failed to read database file |
+| E17003 | db-write-failed | Failed to write database file |
+| E17004 | db-corrupted | Database file is corrupted |
+| E17005 | db-closed | Operation on closed database |
+
+### E18xxx — Server Errors
+
+| Code | Name | Description |
+|------|------|-------------|
+| E18001 | server-listen-failed | Server failed to start |
+| E18002 | server-invalid-port | Invalid port number |
+| E18003 | server-internal-error | Internal server error |
+| E18004 | server-handler-error | Handler returned an error |
+
+### Warnings
+
+#### W1xxx — Code Style Warnings
+
+| Code | Name | Description |
+|------|------|-------------|
+| W1001 | unused-variable | Variable declared but not used |
+| W1002 | unused-import | Module imported but not used |
+| W1003 | unused-function | Function declared but not called |
+| W1004 | unused-parameter | Parameter declared but not used |
+| W1005 | typed-blank-identifier | Blank identifier does not require type annotation |
+
+#### W2xxx — Potential Bug Warnings
+
+| Code | Name | Description |
+|------|------|-------------|
+| W2001 | unreachable-code | Code will never execute |
+| W2002 | shadowed-variable | Variable shadows outer scope |
+| W2003 | missing-return | Function may not return value |
+| W2004 | implicit-type-conversion | Implicit type conversion occurring |
+| W2005 | deprecated-feature | Using deprecated feature |
+| W2006 | byte-overflow-potential | Byte arithmetic may overflow |
+| W2007 | shadows-global | Variable shadows global variable or constant |
+| W2008 | integer-overflow-potential | Integer arithmetic may overflow |
+| W2009 | nil-dereference-potential | Accessing member on potentially nil value |
+| W2010 | chained-nil-access | Chained member access on nullable struct type |
+| W2011 | named-return-unused | Named return variable declared but returns different value |
+
+#### W3xxx — Code Quality Warnings
+
+| Code | Name | Description |
+|------|------|-------------|
+| W3001 | empty-block | Block statement is empty |
+| W3002 | redundant-condition | Condition is always true/false |
+| W3003 | array-size-mismatch | Fixed-size array not fully initialized |
+
+#### W4xxx — Module Warnings
+
+| Code | Name | Description |
+|------|------|-------------|
+| W4001 | module-name-mismatch | Module name does not match directory name |
 
 ---
 
@@ -2394,7 +2796,7 @@ block          = "{" { statement } "}" .
 |---------|------|---------|
 | 1.0-draft | January 2026 | Initial draft |
 | 1.1-draft | January 31, 2026 | Added hex escapes, `!in` operator, blank identifier, `ref()` builtin, negative step `range()`, `temp` mutability; fixed terminology to use check-time instead of compile-time; added `uint` to primitive lists |
-| 1.2-draft | February 12, 2026 | Added `for_each` index variable, named return variables, `cast` keyword, raw string literals, octal literals, `private` visibility, `#doc`/`#suppress` attributes; added `@server`, `@regex`, `@csv` modules; updated `@http`, `@db`, `@math`, `@strings`, `@time`, `@arrays` modules; fixed `remove` → `remove_at` in arrays |
+| 1.2-draft | February 12, 2026 | Added `for_each` index variable, named return variables, `cast` keyword, raw string literals, octal literals, `private` visibility, `#doc`/`#suppress` attributes; added `@server`, `@regex`, `@csv` modules; updated `@http`, `@db`, `@math`, `@strings`, `@time`, `@arrays` modules; fixed `remove` → `remove_at` in arrays; expanded Appendix B with comprehensive error code reference (181 errors, 14 warnings) |
 
 ---
 
