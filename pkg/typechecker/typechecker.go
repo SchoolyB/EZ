@@ -4651,7 +4651,12 @@ func (tc *TypeChecker) checkWhenStatement(whenStmt *ast.WhenStatement, expectedR
 				// Allow enum type matching
 				if !strings.HasPrefix(caseType, valueType) && !strings.HasSuffix(caseType, "."+valueType) {
 					// Allow int case values when matching against enum types (enums have int underlying values)
-					if !(isEnumType && caseType == "int") {
+					// Also allow enum case values when matching against int (e.g., temp dir int = Direction.SOUTH)
+					caseIsEnumWithIntBase := false
+					if caseEnumInfo, isCaseEnum := tc.GetType(caseType); isCaseEnum && caseEnumInfo.Kind == EnumType {
+						caseIsEnumWithIntBase = caseEnumInfo.EnumBaseType == valueType
+					}
+					if !(isEnumType && caseType == "int") && !caseIsEnumWithIntBase {
 						line, col := tc.getExpressionPosition(caseValue)
 						tc.addError(
 							errors.E3001,
