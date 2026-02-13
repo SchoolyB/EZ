@@ -1292,7 +1292,7 @@ const Point struct {
 
 #### 8.5.2 `#suppress` Attribute
 
-The `#suppress` attribute suppresses specific compiler warnings for a function:
+The `#suppress` attribute suppresses specific typechecker warnings for a function:
 
 ```ez
 #suppress(W1001)
@@ -2393,7 +2393,7 @@ block          = "{" { statement } "}" .
 | Version | Date | Changes |
 |---------|------|---------|
 | 1.0-draft | January 2026 | Initial draft |
-| 1.1-draft | January 31, 2026 | Added hex escapes, `!in` operator, blank identifier, `ref()` builtin, negative step `range()`, `temp` mutability; fixed compile-time → check-time terminology; added `uint` to primitive lists |
+| 1.1-draft | January 31, 2026 | Added hex escapes, `!in` operator, blank identifier, `ref()` builtin, negative step `range()`, `temp` mutability; fixed terminology to use check-time instead of compile-time; added `uint` to primitive lists |
 | 1.2-draft | February 12, 2026 | Added `for_each` index variable, named return variables, `cast` keyword, raw string literals, octal literals, `private` visibility, `#doc`/`#suppress` attributes; added `@server`, `@regex`, `@csv` modules; updated `@http`, `@db`, `@math`, `@strings`, `@time`, `@arrays` modules; fixed `remove` → `remove_at` in arrays |
 
 ---
