@@ -93,6 +93,9 @@ Syntax and parsing errors
 | E2055 | strict-invalid-target | #strict can only be applied to when statements |
 | E2056 | executable-at-file-scope | executable statement not allowed at file scope |
 | E2057 | invalid-interpolation-syntax | invalid string interpolation syntax |
+| E2058 | doc-invalid-target | #doc can only be applied to functions, structs, or enums |
+| E2059 | doc-orphaned | #doc must be followed by a declaration |
+| E2060 | doc-duplicate | only one #doc attribute is allowed per declaration |
 
 ## Type Errors (E3xxx)
 
@@ -383,6 +386,7 @@ Unused declarations
 | W1002 | unused-import | module imported but not used |
 | W1003 | unused-function | function declared but not called |
 | W1004 | unused-parameter | parameter declared but not used |
+| W1005 | typed-blank-identifier | blank identifier does not require type annotation |
 
 ## Potential Bug Warnings (W2xxx)
 
@@ -400,6 +404,7 @@ Possible bugs
 | W2008 | integer-overflow-potential | integer arithmetic may overflow |
 | W2009 | nil-dereference-potential | accessing member on potentially nil value |
 | W2010 | chained-nil-access | chained member access on nullable struct type |
+| W2011 | named-return-unused | function declares named return variable but returns different value |
 
 ## Code Quality Warnings (W3xxx)
 
@@ -423,4 +428,4 @@ Module-related warnings
 
 ## Summary
 
-**Total:** 266 error/warning codes
+**Total:** 275 error/warning codes
