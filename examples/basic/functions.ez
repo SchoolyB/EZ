@@ -3,6 +3,7 @@
  *
  * Functions in EZ use the 'do' keyword.
  * Return types are specified with '->'
+ * Named return variables use '-> (name type)' syntax.
  */
 
 import @std
@@ -34,6 +35,22 @@ do main() {
     // Function returning a string
     temp msg string = get_greeting("World")
     println(msg)
+
+    // Named return variables
+    println("")
+    println("--- Named Returns ---")
+
+    temp area int = rect_area(5, 3)
+    println("rect_area(5, 3) = ${area}")
+
+    temp x int, y int = swap(10, 20)
+    println("swap(10, 20) = ${x}, ${y}")
+
+    temp name string, age int, active bool = get_user()
+    println("get_user() = ${name}, ${age}, ${active}")
+
+    temp min int, max int = min_max(7, 3, 9, 1, 5)
+    println("min_max(7,3,9,1,5) = min:${min}, max:${max}")
 }
 
 // Simple function with no parameters or return
@@ -67,4 +84,40 @@ do factorial(n int) -> int {
 // Function returning a string
 do get_greeting(name string) -> string {
     return "Welcome, ${name}!"
+}
+
+// Named return: single value
+do rect_area(w int, h int) -> (area int) {
+    area = w * h
+    return area
+}
+
+// Named return: multiple values
+do swap(a int, b int) -> (x int, y int) {
+    x = b
+    y = a
+    return x, y
+}
+
+// Named return: mixed types
+do get_user() -> (name string, age int, active bool) {
+    name = "Alice"
+    age = 30
+    active = true
+    return name, age, active
+}
+
+// Named return: shared type shorthand
+do min_max(a int, b int, c int, d int, e int) -> (min, max int) {
+    min = a
+    max = a
+    if b < min { min = b }
+    if c < min { min = c }
+    if d < min { min = d }
+    if e < min { min = e }
+    if b > max { max = b }
+    if c > max { max = c }
+    if d > max { max = d }
+    if e > max { max = e }
+    return min, max
 }

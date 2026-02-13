@@ -1,0 +1,32 @@
+/*
+ * strings.ez - String manipulation
+ *
+ * Run with: ez examples/stdlib/strings.ez
+ */
+
+import @std, @strings
+using std
+
+do main() {
+    temp text string = "  Hello, World!  "
+    println("Original: '${text}'")
+    println("strings.trim() = '${strings.trim(text)}'")
+    println("strings.upper() = '${strings.upper(text)}'")
+    println("strings.lower() = '${strings.lower(text)}'")
+
+    // Split and join
+    temp csv_data string = "apple,banana,cherry"
+    temp parts [string] = strings.split(csv_data, ",")
+    println("strings.split() = ${parts}")
+    println("strings.join() = '${strings.join(parts, " | ")}'")
+
+    // Search and replace
+    temp hello string = "hello world"
+    println("strings.contains('hello world', 'world') = ${strings.contains(hello, "world")}")
+    println("strings.starts_with('hello world', 'he') = ${strings.starts_with(hello, "he")}")
+    println("strings.ends_with('hello world', 'ld') = ${strings.ends_with(hello, "ld")}")
+    println("strings.replace('hello', 'l', 'L') = '${strings.replace("hello", "l", "L")}'")
+    println("strings.index('hello', 'l') = ${strings.index("hello", "l")}")
+    println("strings.repeat('ha', 3) = '${strings.repeat("ha", 3)}'")
+    println("strings.slice('hello world', 0, 5) = '${strings.slice(hello, 0, 5)}'")
+}

@@ -1,0 +1,29 @@
+/*
+ * random.ez - Random number generation
+ *
+ * Run with: ez examples/random.ez
+ */
+
+import @std, @random
+using std
+
+do main() {
+    // Random numbers
+    println("Random int (0-100): " + string(random.int(0, 100)))
+    println("Random float (0-1): " + string(random.float(0.0, 1.0)))
+    println("Random bool: " + string(random.bool()))
+
+    // Random selection from an array
+    temp colors [string] = {"red", "green", "blue", "yellow"}
+    temp pick string = random.choice(colors)
+    println("Random color: ${pick}")
+
+    // Shuffle an array
+    temp nums [int] = {1, 2, 3, 4, 5}
+    temp shuffled [int] = random.shuffle(nums)
+    println("Shuffled: ${shuffled}")
+
+    // Sample (pick N unique elements)
+    temp sampled = random.sample(colors, 2)
+    println("Sample 2: ${sampled}")
+}

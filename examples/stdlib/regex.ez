@@ -1,0 +1,57 @@
+/*
+ * regex.ez - Regular expression operations
+ *
+ * Run with: ez examples/regex.ez
+ */
+
+import @std, @regex
+using std
+
+do main() {
+    temp text string = "Contact us at support@example.com or sales@example.com"
+
+    // Check if a pattern is valid
+    println("Valid pattern: " + string(regex.is_valid("[a-z]+")))
+
+    // Match: check if a string matches a pattern
+    temp matched, match_err = regex.match("^Contact", text)
+    if match_err == nil {
+        println("Starts with 'Contact': " + string(matched))
+    }
+
+    // Find: get the first match
+    temp found, find_err = regex.find("[a-z]+@[a-z]+\\.[a-z]+", text)
+    if find_err == nil {
+        println("First email: ${found}")
+    }
+
+    // Find all matches
+    temp all_emails, all_err = regex.find_all("[a-z]+@[a-z]+\\.[a-z]+", text)
+    if all_err == nil {
+        println("All emails: ${all_emails}")
+    }
+
+    // Replace first occurrence
+    temp replaced, rep_err = regex.replace("[a-z]+@[a-z]+\\.[a-z]+", text, "REDACTED")
+    if rep_err == nil {
+        println("Replace first: ${replaced}")
+    }
+
+    // Replace all occurrences
+    temp replaced_all, rep_all_err = regex.replace_all("[a-z]+@[a-z]+\\.[a-z]+", text, "REDACTED")
+    if rep_all_err == nil {
+        println("Replace all: ${replaced_all}")
+    }
+
+    // Split by pattern
+    temp parts, split_err = regex.split("\\s+", "hello   world   foo")
+    if split_err == nil {
+        println("Split: ${parts}")
+    }
+
+    // Capture groups
+    temp groups, grp_err = regex.groups("(\\w+)@(\\w+)\\.(\\w+)", text)
+    if grp_err == nil {
+        println("Groups: ${groups}")
+    }
+}

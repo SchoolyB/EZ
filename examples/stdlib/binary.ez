@@ -1,0 +1,43 @@
+/*
+ * binary.ez - Binary encoding and decoding
+ *
+ * Run with: ez examples/stdlib/binary.ez
+ */
+
+import @std, @binary, @bytes
+using std
+
+do main() {
+    // 8-bit encoding/decoding
+    temp i8_bytes, _ = binary.encode_i8(-42)
+    temp i8_val, _ = binary.decode_i8(i8_bytes)
+    println("i8: -42 -> ${bytes.to_hex(i8_bytes)} -> ${i8_val}")
+
+    temp u8_bytes, _ = binary.encode_u8(200)
+    temp u8_val, _ = binary.decode_u8(u8_bytes)
+    println("u8: 200 -> ${bytes.to_hex(u8_bytes)} -> ${u8_val}")
+
+    // 16-bit little-endian
+    temp i16_bytes, _ = binary.encode_i16_to_little_endian(1000)
+    temp i16_val, _ = binary.decode_i16_from_little_endian(i16_bytes)
+    println("i16 LE: 1000 -> ${bytes.to_hex(i16_bytes)} -> ${i16_val}")
+
+    // 32-bit big-endian
+    temp u32_bytes, _ = binary.encode_u32_to_big_endian(305419896)
+    temp u32_val, _ = binary.decode_u32_from_big_endian(u32_bytes)
+    println("u32 BE: 305419896 -> ${bytes.to_hex(u32_bytes)} -> ${u32_val}")
+
+    // 64-bit little-endian
+    temp i64_bytes, _ = binary.encode_i64_to_little_endian(-1)
+    temp i64_val, _ = binary.decode_i64_from_little_endian(i64_bytes)
+    println("i64 LE: -1 -> ${bytes.to_hex(i64_bytes)} -> ${i64_val}")
+
+    // Float encoding/decoding
+    temp f32_bytes, _ = binary.encode_f32_to_little_endian(3.14)
+    temp f32_val, _ = binary.decode_f32_from_little_endian(f32_bytes)
+    println("f32 LE: 3.14 -> ${bytes.to_hex(f32_bytes)} -> ${f32_val}")
+
+    temp f64_bytes, _ = binary.encode_f64_to_big_endian(2.718281828)
+    temp f64_val, _ = binary.decode_f64_from_big_endian(f64_bytes)
+    println("f64 BE: 2.718281828 -> ${bytes.to_hex(f64_bytes)} -> ${f64_val}")
+}

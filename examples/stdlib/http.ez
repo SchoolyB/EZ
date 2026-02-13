@@ -1,0 +1,63 @@
+/*
+ * http.ez - HTTP client operations
+ *
+ * Run with: ez examples/http.ez
+ */
+
+import @std, @http, @encoding
+using std
+
+do main() {
+    // Simple GET request
+    temp resp, err = http.get("https://httpbin.org/get")
+    if err != nil {
+        println("Error: ${err.message}")
+        return
+    }
+    println("Status: ${resp.status}")
+    println("Body: ${resp.body}")
+
+    // POST with JSON body
+    temp post_resp, post_err = http.post(
+        "https://httpbin.org/post",
+        http.json_body({"name": "John", "email": "john@example.com"})
+    )
+    if post_err != nil {
+        println("Error: ${post_err.message}")
+        return
+    }
+    println("POST Status: ${post_resp.status}")
+
+    // Advanced request with custom headers
+    temp headers map[string:string] = {
+        "Authorization": "Bearer token123",
+        "Content-Type": "application/json"
+    }
+    temp adv_resp, adv_err = http.request(
+        "POST",
+        "https://httpbin.org/post",
+        http.json_body({"title": "foo", "body": "bar"}),
+        headers,
+        60
+    )
+    if adv_err != nil {
+        println("Error: ${adv_err.message}")
+        return
+    }
+    println("Advanced POST Status: ${adv_resp.status}")
+
+    // URL encoding (from @encoding module)
+    temp encoded string = encoding.url_encode("hello world&foo=bar")
+    println("Encoded: ${encoded}")
+
+    temp decoded, decode_err = encoding.url_decode(encoded)
+    if decode_err != nil {
+        println("Decode error: ${decode_err.message}")
+        return
+    }
+    println("Decoded: ${decoded}")
+
+    // Build query string
+    temp query string = http.build_query({"page": "1", "limit": "10"})
+    println("Query: ${query}")
+}
