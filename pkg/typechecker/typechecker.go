@@ -366,6 +366,37 @@ func (tc *TypeChecker) registerBuiltinTypes() {
 		},
 	}
 	tc.types["HttpResponse"] = httpResponseType
+
+	// Built-in server Router struct
+	tc.types["Router"] = &Type{
+		Name: "Router",
+		Kind: StructType,
+		Fields: map[string]*Type{
+			"routes": {Name: "[Route]", Kind: ArrayType},
+		},
+	}
+
+	// Built-in server Route struct
+	tc.types["Route"] = &Type{
+		Name: "Route",
+		Kind: StructType,
+		Fields: map[string]*Type{
+			"method":   {Name: "string", Kind: PrimitiveType},
+			"path":     {Name: "string", Kind: PrimitiveType},
+			"response": {Name: "Response", Kind: StructType},
+		},
+	}
+
+	// Built-in server Response struct
+	tc.types["Response"] = &Type{
+		Name: "Response",
+		Kind: StructType,
+		Fields: map[string]*Type{
+			"status":  {Name: "int", Kind: PrimitiveType},
+			"body":    {Name: "string", Kind: PrimitiveType},
+			"headers": {Name: "map[string:string]", Kind: MapType},
+		},
+	}
 }
 
 // TypeExists checks if a type name is registered
@@ -6526,6 +6557,8 @@ func (tc *TypeChecker) inferModuleCallType(member *ast.MemberExpression, args []
 		return tc.inferDBCallType(funcName, args)
 	case "binary":
 		return tc.inferBinaryCallType(funcName, args)
+	case "server":
+		return tc.inferServerCallType(funcName, args)
 	default:
 		// Check user-defined modules
 		if sig, ok := tc.GetModuleFunction(moduleName, funcName); ok {
@@ -6955,6 +6988,21 @@ func (tc *TypeChecker) inferBinaryCallType(funcName string, args []ast.Expressio
 	case "decode_f32_from_little_endian", "decode_f32_from_big_endian",
 		"decode_f64_from_little_endian", "decode_f64_from_big_endian":
 		return "float", true
+	default:
+		return "", false
+	}
+}
+
+func (tc *TypeChecker) inferServerCallType(funcName string, args []ast.Expression) (string, bool) {
+	switch funcName {
+	case "router":
+		return "Router", true
+	case "route":
+		return "nil", true
+	case "listen":
+		return "Error", true
+	case "text", "json", "html":
+		return "Response", true
 	default:
 		return "", false
 	}
@@ -7904,6 +7952,13 @@ func (tc *TypeChecker) isHttpFunction(name string) bool {
 	return httpFuncs[name]
 }
 
+func (tc *TypeChecker) isServerFunction(name string) bool {
+	return map[string]bool{
+		"router": true, "route": true, "listen": true,
+		"text": true, "json": true, "html": true,
+	}[name]
+}
+
 // isBytesFunction checks if a function name exists in the bytes module
 func (tc *TypeChecker) isBytesFunction(name string) bool {
 	bytesFuncs := map[string]bool{
@@ -8035,6 +8090,8 @@ func (tc *TypeChecker) isModuleFunction(moduleName, funcName string) bool {
 		return tc.isEncodingFunction(funcName)
 	case "crypto":
 		return tc.isCryptoFunction(funcName)
+	case "server":
+		return tc.isServerFunction(funcName)
 	default:
 		// Check user-defined modules
 		if funcs, ok := tc.moduleFunctions[moduleName]; ok {
@@ -8060,7 +8117,7 @@ func (tc *TypeChecker) checkStdlibCall(member *ast.MemberExpression, call *ast.C
 	resolvedModuleName := tc.resolveStdlibModule(moduleName)
 
 	// Check if the module was imported (for standard library modules)
-	stdModules := map[string]bool{"std": true, "math": true, "arrays": true, "strings": true, "time": true, "maps": true, "io": true, "os": true, "bytes": true, "random": true, "json": true, "binary": true, "db": true, "uuid": true, "encoding": true, "crypto": true, "http": true, "csv": true, "regex": true}
+	stdModules := map[string]bool{"std": true, "math": true, "arrays": true, "strings": true, "time": true, "maps": true, "io": true, "os": true, "bytes": true, "random": true, "json": true, "binary": true, "db": true, "uuid": true, "encoding": true, "crypto": true, "http": true, "csv": true, "regex": true, "server": true}
 	if stdModules[resolvedModuleName] && !tc.modules[moduleName] && !tc.modules[resolvedModuleName] {
 		help := ""
 		if suggestion := errors.SuggestModule(moduleName); suggestion != "" && suggestion != resolvedModuleName {
@@ -8112,6 +8169,8 @@ func (tc *TypeChecker) checkStdlibCall(member *ast.MemberExpression, call *ast.C
 		tc.checkCsvModuleCall(funcName, call, line, column)
 	case "regex":
 		tc.checkRegexModuleCall(funcName, call, line, column)
+	case "server":
+		tc.checkServerModuleCall(funcName, call, line, column)
 	default:
 		// User-defined module - check if we have type info for it
 		tc.checkUserModuleCall(moduleName, funcName, call, line, column)
@@ -9255,6 +9314,24 @@ func (tc *TypeChecker) checkRegexModuleCall(funcName string, call *ast.CallExpre
 	}
 
 	tc.validateStdlibCall("regex", funcName, call, sig, line, column)
+}
+
+func (tc *TypeChecker) checkServerModuleCall(funcName string, call *ast.CallExpression, line, column int) {
+	signatures := map[string]StdlibFuncSig{
+		"router": {0, 0, []string{}, "Router"},
+		"route":  {4, 4, []string{"any", "string", "string", "any"}, "nil"},
+		"listen": {2, 2, []string{"int", "any"}, "Error"},
+		"text":   {2, 2, []string{"int", "string"}, "Response"},
+		"json":   {2, 2, []string{"int", "any"}, "Response"},
+		"html":   {2, 2, []string{"int", "string"}, "Response"},
+	}
+
+	sig, exists := signatures[funcName]
+	if !exists {
+		return
+	}
+
+	tc.validateStdlibCall("server", funcName, call, sig, line, column)
 }
 
 // validateStdlibCall performs the actual validation of a stdlib call
