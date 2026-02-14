@@ -1,0 +1,18 @@
+/*
+ * time.ez - Time functions
+ *
+ * Run with: ez examples/stdlib/time.ez
+ */
+
+import @std, @time
+using std
+
+do main() {
+    println("time.now() = ${time.now()}")
+    println("time.year() = ${time.year()}")
+    println("time.month() = ${time.month()}")
+    println("time.day() = ${time.day()}")
+    println("time.hour() = ${time.hour()}")
+    println("time.minute() = ${time.minute()}")
+    println("time.second() = ${time.second()}")
+}

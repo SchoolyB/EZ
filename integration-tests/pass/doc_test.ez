@@ -1,0 +1,46 @@
+/*
+ * doc_test.ez - Test #doc attribute
+ */
+
+import @std
+using std
+
+#doc("Adds two integers and returns the sum")
+do add(a int, b int) -> int {
+    return a + b
+}
+
+#doc("Multiplies a number by two")
+do double(n int) -> int {
+    return n * 2
+}
+
+#doc
+do helper() {
+    // No description, just marked for docs
+}
+
+#doc("Represents a person with name and age")
+const Person struct {
+    name string
+    age int
+}
+
+#doc("Task status values")
+const Status enum {
+    PENDING
+    ACTIVE
+    DONE
+}
+
+#doc("Permission flags for access control")
+#flags
+const Permissions enum {
+    READ
+    WRITE
+    EXECUTE
+}
+
+do main() {
+    println("Doc test file")
+}

@@ -8,5 +8,5 @@ do bad_default(x int = "hello") -> int {
 }
 
 do main() {
-    println("should not compile")
+    println("should not run")
 }

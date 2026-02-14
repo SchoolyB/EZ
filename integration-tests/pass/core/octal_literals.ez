@@ -1,0 +1,91 @@
+/*
+ * octal_literals.ez - Test octal integer literals with 0o prefix
+ */
+
+import @std
+using std
+
+do main() {
+    println("=== Octal Literals Test ===")
+    temp passed int = 0
+    temp failed int = 0
+
+    // Test 1: Basic octal
+    temp a int = 0o10
+    if a == 8 {
+        println("  [PASS] 0o10 = 8")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] 0o10: expected 8, got ${a}")
+        failed += 1
+    }
+
+    // Test 2: Octal 777
+    temp b int = 0o777
+    if b == 511 {
+        println("  [PASS] 0o777 = 511")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] 0o777: expected 511, got ${b}")
+        failed += 1
+    }
+
+    // Test 3: Octal zero
+    temp c int = 0o0
+    if c == 0 {
+        println("  [PASS] 0o0 = 0")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] 0o0: expected 0, got ${c}")
+        failed += 1
+    }
+
+    // Test 4: Octal single digit
+    temp d int = 0o7
+    if d == 7 {
+        println("  [PASS] 0o7 = 7")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] 0o7: expected 7, got ${d}")
+        failed += 1
+    }
+
+    // Test 5: Capital O variant
+    temp e int = 0O123
+    if e == 83 {
+        println("  [PASS] 0O123 = 83")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] 0O123: expected 83, got ${e}")
+        failed += 1
+    }
+
+    // Test 6: Octal with underscores
+    temp f int = 0o1_2_3
+    if f == 83 {
+        println("  [PASS] 0o1_2_3 = 83")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] 0o1_2_3: expected 83, got ${f}")
+        failed += 1
+    }
+
+    // Test 7: Octal in arithmetic
+    temp g int = 0o10 + 0o10
+    if g == 16 {
+        println("  [PASS] 0o10 + 0o10 = 16")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] 0o10 + 0o10: expected 16, got ${g}")
+        failed += 1
+    }
+
+    println("")
+    println("Results: ${passed} passed, ${failed} failed")
+
+    if failed > 0 {
+        println("SOME TESTS FAILED")
+    } otherwise {
+        println("ALL TESTS PASSED")
+    }
+}

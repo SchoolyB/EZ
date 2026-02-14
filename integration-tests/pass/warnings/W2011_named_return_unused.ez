@@ -1,0 +1,17 @@
+/*
+ * Warning Test: W2011 - named-return-unused
+ * Expected: warning about named return variable not being used in return
+ */
+
+import @std
+using std
+
+do getName() -> (name string) {
+    temp other string = "Alice"
+    return other  // Warning: returning 'other' instead of named return 'name'
+}
+
+do main() {
+    temp result string = getName()
+    println(result)
+}

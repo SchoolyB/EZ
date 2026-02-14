@@ -1,0 +1,13 @@
+/*
+ * Error Test: E7031 - command-failed
+ * Expected: "command" or "failed" or "exit"
+ */
+
+import @os
+
+do main() {
+    temp result, err = os.exec("false")  // 'false' command always exits with code 1
+    if err != nil {
+        panic("${err}")
+    }
+}

@@ -218,11 +218,12 @@ type TypeChecker struct {
 	errors               *errors.EZErrorList
 	source               string
 	filename             string
-	skipMainCheck        bool             // Skip main() function requirement (for module files)
-	loopDepth            int              // Track nesting depth of loops for break/continue validation (#603)
-	currentFuncAttrs     []*ast.Attribute // Current function's attributes for #suppress checking
-	fileSuppressWarnings []string         // File-level suppressed warnings (from #suppress at file scope)
-	currentModuleName    string           // Current module name for same-module symbol lookup
+	skipMainCheck        bool               // Skip main() function requirement (for module files)
+	loopDepth            int                // Track nesting depth of loops for break/continue validation (#603)
+	currentFuncAttrs     []*ast.Attribute   // Current function's attributes for #suppress checking
+	fileSuppressWarnings []string           // File-level suppressed warnings (from #suppress at file scope)
+	currentModuleName    string             // Current module name for same-module symbol lookup
+	currentReturnParams  []*ast.ReturnParam // Current function's named return parameters
 }
 
 // NewTypeChecker creates a new type checker
@@ -343,7 +344,7 @@ func (tc *TypeChecker) registerBuiltinTypes() {
 		}
 	}
 
-	// Register built-in Error struct (both "Error" and "error" alias)
+	// Register built-in Error struct
 	errorType := &Type{
 		Name: "Error",
 		Kind: StructType,
@@ -353,7 +354,6 @@ func (tc *TypeChecker) registerBuiltinTypes() {
 		},
 	}
 	tc.types["Error"] = errorType
-	tc.types["error"] = errorType // Alias for convenience
 
 	// Built-in HTTP Response struct
 	httpResponseType := &Type{
@@ -366,6 +366,37 @@ func (tc *TypeChecker) registerBuiltinTypes() {
 		},
 	}
 	tc.types["HttpResponse"] = httpResponseType
+
+	// Built-in server Router struct
+	tc.types["Router"] = &Type{
+		Name: "Router",
+		Kind: StructType,
+		Fields: map[string]*Type{
+			"routes": {Name: "[Route]", Kind: ArrayType},
+		},
+	}
+
+	// Built-in server Route struct
+	tc.types["Route"] = &Type{
+		Name: "Route",
+		Kind: StructType,
+		Fields: map[string]*Type{
+			"method":   {Name: "string", Kind: PrimitiveType},
+			"path":     {Name: "string", Kind: PrimitiveType},
+			"response": {Name: "Response", Kind: StructType},
+		},
+	}
+
+	// Built-in server Response struct
+	tc.types["Response"] = &Type{
+		Name: "Response",
+		Kind: StructType,
+		Fields: map[string]*Type{
+			"status":  {Name: "int", Kind: PrimitiveType},
+			"body":    {Name: "string", Kind: PrimitiveType},
+			"headers": {Name: "map[string:string]", Kind: MapType},
+		},
+	}
 }
 
 // TypeExists checks if a type name is registered
@@ -825,11 +856,11 @@ func (tc *TypeChecker) checkStructDeclaration(node *ast.StructDeclaration) {
 		if !tc.TypeExists(field.TypeName) {
 			help := ""
 			if suggestion := errors.SuggestType(field.TypeName); suggestion != "" {
-				help = fmt.Sprintf("did you mean '%s'?", suggestion)
+				help = fmt.Sprintf("did you mean '%s'?", errors.Ident(suggestion))
 			}
 			tc.addErrorWithHelp(
 				errors.E3009,
-				fmt.Sprintf("undefined type '%s' in struct '%s'", field.TypeName, node.Name.Value),
+				fmt.Sprintf("undefined type '%s' in struct '%s'", errors.TypeGot(field.TypeName), errors.Ident(node.Name.Value)),
 				help,
 				field.Name.Token.Line,
 				field.Name.Token.Column,
@@ -841,7 +872,7 @@ func (tc *TypeChecker) checkStructDeclaration(node *ast.StructDeclaration) {
 		if tc.containsVoidType(field.TypeName) {
 			tc.addError(
 				errors.E3038,
-				fmt.Sprintf("'void' type cannot be used as struct field type for '%s'", field.Name.Value),
+				fmt.Sprintf("'void' type cannot be used as struct field type for '%s'", errors.Ident(field.Name.Value)),
 				field.Name.Token.Line,
 				field.Name.Token.Column,
 			)
@@ -893,7 +924,7 @@ func (tc *TypeChecker) checkStructLiteral(structVal *ast.StructValue) {
 			line, column := tc.getExpressionPosition(fieldValue)
 			tc.addError(
 				errors.E4003,
-				fmt.Sprintf("struct '%s' has no field '%s'", structName, fieldName),
+				fmt.Sprintf("struct '%s' has no field '%s'", errors.Ident(structName), errors.Ident(fieldName)),
 				line,
 				column,
 			)
@@ -912,7 +943,7 @@ func (tc *TypeChecker) checkStructLiteral(structVal *ast.StructValue) {
 			tc.addError(
 				errors.E3001,
 				fmt.Sprintf("struct field '%s' expects %s, got %s",
-					fieldName, expectedType.Name, actualType),
+					errors.Ident(fieldName), errors.TypeExpected(expectedType.Name), errors.TypeGot(actualType)),
 				line,
 				column,
 			)
@@ -976,7 +1007,7 @@ func (tc *TypeChecker) checkArrayLiteral(arr *ast.ArrayValue) {
 			tc.addError(
 				errors.E3001,
 				fmt.Sprintf("array element type mismatch: expected %s, got %s",
-					expectedType, elemType),
+					errors.TypeExpected(expectedType), errors.TypeGot(elemType)),
 				line,
 				column,
 			)
@@ -1005,7 +1036,7 @@ func (tc *TypeChecker) checkEnumDeclaration(node *ast.EnumDeclaration) {
 				tc.addError(
 					errors.E3028,
 					fmt.Sprintf("enum '%s' has mixed types: member '%s' is %s, but '%s' has no value (defaults to int)",
-						node.Name.Value, firstMemberName, firstType, member.Name.Value),
+						errors.Ident(node.Name.Value), errors.Ident(firstMemberName), errors.TypeGot(firstType), errors.Ident(member.Name.Value)),
 					member.Name.Token.Line,
 					member.Name.Token.Column,
 				)
@@ -1029,7 +1060,7 @@ func (tc *TypeChecker) checkEnumDeclaration(node *ast.EnumDeclaration) {
 			tc.addError(
 				errors.E3028,
 				fmt.Sprintf("enum '%s' has mixed types: member '%s' is %s, but '%s' is %s",
-					node.Name.Value, firstMemberName, firstType, member.Name.Value, memberType),
+					errors.Ident(node.Name.Value), errors.Ident(firstMemberName), errors.TypeGot(firstType), errors.Ident(member.Name.Value), errors.TypeGot(memberType)),
 				member.Name.Token.Line,
 				member.Name.Token.Column,
 			)
@@ -1041,7 +1072,7 @@ func (tc *TypeChecker) checkEnumDeclaration(node *ast.EnumDeclaration) {
 			tc.addError(
 				errors.E3033,
 				fmt.Sprintf("enum '%s' has duplicate value: '%s' and '%s' both have value %s",
-					node.Name.Value, existingMember, member.Name.Value, valueStr),
+					errors.Ident(node.Name.Value), errors.Ident(existingMember), errors.Ident(member.Name.Value), valueStr),
 				member.Name.Token.Line,
 				member.Name.Token.Column,
 			)
@@ -1117,7 +1148,7 @@ func (tc *TypeChecker) checkGlobalVariableDeclaration(node *ast.VariableDeclarat
 			}
 			tc.addError(
 				errors.E4012,
-				fmt.Sprintf("variable '%s' shadows %s type of the same name", varName, kind),
+				fmt.Sprintf("variable '%s' shadows %s type of the same name", errors.Ident(varName), errors.Keyword(kind)),
 				name.Token.Line,
 				name.Token.Column,
 			)
@@ -1127,7 +1158,7 @@ func (tc *TypeChecker) checkGlobalVariableDeclaration(node *ast.VariableDeclarat
 		if _, exists := tc.functions[varName]; exists {
 			tc.addError(
 				errors.E4013,
-				fmt.Sprintf("variable '%s' shadows function of the same name", varName),
+				fmt.Sprintf("variable '%s' shadows function of the same name", errors.Ident(varName)),
 				name.Token.Line,
 				name.Token.Column,
 			)
@@ -1137,7 +1168,7 @@ func (tc *TypeChecker) checkGlobalVariableDeclaration(node *ast.VariableDeclarat
 		if _, exists := tc.modules[varName]; exists {
 			tc.addError(
 				errors.E4014,
-				fmt.Sprintf("variable '%s' shadows imported module of the same name", varName),
+				fmt.Sprintf("variable '%s' shadows imported module of the same name", errors.Ident(varName)),
 				name.Token.Line,
 				name.Token.Column,
 			)
@@ -1147,7 +1178,7 @@ func (tc *TypeChecker) checkGlobalVariableDeclaration(node *ast.VariableDeclarat
 		if shadowedModule := tc.getUsedModuleShadowingFunction(varName); shadowedModule != "" {
 			tc.addError(
 				errors.E4015,
-				fmt.Sprintf("variable '%s' shadows function '%s.%s' from used module", varName, shadowedModule, varName),
+				fmt.Sprintf("variable '%s' shadows function '%s.%s' from used module", errors.Ident(varName), errors.Ident(shadowedModule), errors.Ident(varName)),
 				name.Token.Line,
 				name.Token.Column,
 			)
@@ -1157,11 +1188,11 @@ func (tc *TypeChecker) checkGlobalVariableDeclaration(node *ast.VariableDeclarat
 		if declaredType != "" && !tc.TypeExists(declaredType) && !strings.HasPrefix(declaredType, "[") && !strings.HasPrefix(declaredType, "map[") {
 			help := ""
 			if suggestion := errors.SuggestType(declaredType); suggestion != "" {
-				help = fmt.Sprintf("did you mean '%s'?", suggestion)
+				help = fmt.Sprintf("did you mean '%s'?", errors.Ident(suggestion))
 			}
 			tc.addErrorWithHelp(
 				errors.E3002,
-				fmt.Sprintf("undefined type '%s'", declaredType),
+				fmt.Sprintf("undefined type '%s'", errors.TypeGot(declaredType)),
 				help,
 				name.Token.Line,
 				name.Token.Column,
@@ -1203,7 +1234,7 @@ func (tc *TypeChecker) checkGlobalVariableDeclaration(node *ast.VariableDeclarat
 				if enumType.EnumBaseType == "float" {
 					tc.addError(
 						errors.E3029,
-						fmt.Sprintf("float-based enum '%s' cannot be used as map key", keyType),
+						fmt.Sprintf("float-based enum '%s' cannot be used as map key", errors.Ident(keyType)),
 						name.Token.Line,
 						name.Token.Column,
 					)
@@ -1281,7 +1312,7 @@ func (tc *TypeChecker) checkGlobalVariableDeclaration(node *ast.VariableDeclarat
 					if tc.isArrayType(declaredType) && !tc.isArrayType(actualType) && actualType != "nil" {
 						tc.addError(
 							errors.E3018,
-							fmt.Sprintf("cannot assign %s to array type %s - array type requires value in {} format", actualType, declaredType),
+							fmt.Sprintf("cannot assign %s to array type %s - array type requires value in {} format", errors.TypeGot(tc.typeOrUnknown(actualType)), errors.TypeExpected(declaredType)),
 							name.Token.Line,
 							name.Token.Column,
 						)
@@ -1294,7 +1325,7 @@ func (tc *TypeChecker) checkGlobalVariableDeclaration(node *ast.VariableDeclarat
 							sourceLine := errors.GetSourceLine(tc.source, name.Token.Line)
 							mismatchError := errors.NewErrorWithHelp(
 								errors.E3001,
-								fmt.Sprintf("type mismatch: cannot assign %s to %s", actualType, declaredType),
+								fmt.Sprintf("type mismatch: cannot assign %s to %s", errors.TypeGot(actualType), errors.TypeExpected(declaredType)),
 								name.Token.File,
 								name.Token.Line,
 								name.Token.Column,
@@ -1305,7 +1336,7 @@ func (tc *TypeChecker) checkGlobalVariableDeclaration(node *ast.VariableDeclarat
 						} else {
 							tc.addError(
 								errors.E3001,
-								fmt.Sprintf("type mismatch: cannot assign %s to %s", actualType, declaredType),
+								fmt.Sprintf("type mismatch: cannot assign %s to %s", errors.TypeGot(actualType), errors.TypeExpected(declaredType)),
 								name.Token.Line,
 								name.Token.Column,
 							)
@@ -1389,7 +1420,7 @@ func (tc *TypeChecker) checkGlobalVariableDeclaration(node *ast.VariableDeclarat
 				if arrLit, ok := node.Value.(*ast.ArrayValue); ok {
 					actualSize := len(arrLit.Elements)
 					if actualSize < declaredSize {
-						if !tc.isSuppressed("W3003", node.Attributes) {
+						if !tc.isSuppressed("W3003", tc.currentFuncAttrs) {
 							tc.addWarning(
 								errors.W3003,
 								fmt.Sprintf("fixed-size array not fully initialized: declared size %d but only %d element(s) provided",
@@ -1433,7 +1464,7 @@ func (tc *TypeChecker) checkFunctionDeclaration(node *ast.FunctionDeclaration) {
 		if _, exists := tc.types[paramName]; exists {
 			tc.addError(
 				errors.E2033,
-				fmt.Sprintf("'%s' is a type name and cannot be used as a parameter name", paramName),
+				fmt.Sprintf("'%s' is a type name and cannot be used as a parameter name", errors.Ident(paramName)),
 				param.Name.Token.Line,
 				param.Name.Token.Column,
 			)
@@ -1443,7 +1474,7 @@ func (tc *TypeChecker) checkFunctionDeclaration(node *ast.FunctionDeclaration) {
 		if _, exists := tc.functions[paramName]; exists {
 			tc.addError(
 				errors.E2033,
-				fmt.Sprintf("'%s' is a function name and cannot be used as a parameter name", paramName),
+				fmt.Sprintf("'%s' is a function name and cannot be used as a parameter name", errors.Ident(paramName)),
 				param.Name.Token.Line,
 				param.Name.Token.Column,
 			)
@@ -1452,11 +1483,11 @@ func (tc *TypeChecker) checkFunctionDeclaration(node *ast.FunctionDeclaration) {
 		if !tc.TypeExists(param.TypeName) {
 			help := ""
 			if suggestion := errors.SuggestType(param.TypeName); suggestion != "" {
-				help = fmt.Sprintf("did you mean '%s'?", suggestion)
+				help = fmt.Sprintf("did you mean '%s'?", errors.Ident(suggestion))
 			}
 			tc.addErrorWithHelp(
 				errors.E3010,
-				fmt.Sprintf("undefined type '%s' for parameter '%s'", param.TypeName, param.Name.Value),
+				fmt.Sprintf("undefined type '%s' for parameter '%s'", errors.TypeGot(param.TypeName), errors.Ident(param.Name.Value)),
 				help,
 				param.Name.Token.Line,
 				param.Name.Token.Column,
@@ -1470,7 +1501,7 @@ func (tc *TypeChecker) checkFunctionDeclaration(node *ast.FunctionDeclaration) {
 		if tc.containsAnyType(param.TypeName) {
 			tc.addError(
 				errors.E3034,
-				fmt.Sprintf("'any' type cannot be used as parameter type for '%s'", param.Name.Value),
+				fmt.Sprintf("'any' type cannot be used as parameter type for '%s'", errors.Ident(param.Name.Value)),
 				param.Name.Token.Line,
 				param.Name.Token.Column,
 			)
@@ -1480,7 +1511,7 @@ func (tc *TypeChecker) checkFunctionDeclaration(node *ast.FunctionDeclaration) {
 		if param.TypeName == "void" {
 			tc.addError(
 				errors.E3038,
-				fmt.Sprintf("'void' type cannot be used as parameter type for '%s'", param.Name.Value),
+				fmt.Sprintf("'void' type cannot be used as parameter type for '%s'", errors.Ident(param.Name.Value)),
 				param.Name.Token.Line,
 				param.Name.Token.Column,
 			)
@@ -1494,7 +1525,7 @@ func (tc *TypeChecker) checkFunctionDeclaration(node *ast.FunctionDeclaration) {
 				tc.addError(
 					errors.E3001,
 					fmt.Sprintf("default value type mismatch: parameter '%s' expects %s, got %s",
-						param.Name.Value, param.TypeName, defaultType),
+						errors.Ident(param.Name.Value), errors.TypeExpected(param.TypeName), errors.TypeGot(defaultType)),
 					line,
 					col,
 				)
@@ -1514,11 +1545,11 @@ func (tc *TypeChecker) checkFunctionDeclaration(node *ast.FunctionDeclaration) {
 		if !tc.TypeExists(returnType) {
 			help := ""
 			if suggestion := errors.SuggestType(returnType); suggestion != "" {
-				help = fmt.Sprintf("did you mean '%s'?", suggestion)
+				help = fmt.Sprintf("did you mean '%s'?", errors.Ident(suggestion))
 			}
 			tc.addErrorWithHelp(
 				errors.E3011,
-				fmt.Sprintf("undefined return type '%s' in function '%s'", returnType, node.Name.Value),
+				fmt.Sprintf("undefined return type '%s' in function '%s'", errors.TypeGot(returnType), errors.Ident(node.Name.Value)),
 				help,
 				node.Name.Token.Line,
 				node.Name.Token.Column,
@@ -1530,7 +1561,7 @@ func (tc *TypeChecker) checkFunctionDeclaration(node *ast.FunctionDeclaration) {
 		if tc.containsAnyType(returnType) {
 			tc.addError(
 				errors.E3034,
-				fmt.Sprintf("'any' type cannot be used as return type in function '%s'", node.Name.Value),
+				fmt.Sprintf("'any' type cannot be used as return type in function '%s'", errors.Ident(node.Name.Value)),
 				node.Name.Token.Line,
 				node.Name.Token.Column,
 			)
@@ -1539,10 +1570,37 @@ func (tc *TypeChecker) checkFunctionDeclaration(node *ast.FunctionDeclaration) {
 		if returnType == "void" {
 			tc.addError(
 				errors.E3038,
-				fmt.Sprintf("'void' cannot be used as return type in function '%s'; omit return type for void functions", node.Name.Value),
+				fmt.Sprintf("'void' cannot be used as return type in function '%s'; omit return type for void functions", errors.Ident(node.Name.Value)),
 				node.Name.Token.Line,
 				node.Name.Token.Column,
 			)
+		}
+	}
+
+	// Check named return parameters
+	if node.ReturnParams != nil {
+		for _, rp := range node.ReturnParams {
+			rpName := rp.Name.Value
+
+			// Check if return param name shadows a user-defined type (struct/enum)
+			if _, exists := tc.types[rpName]; exists {
+				tc.addError(
+					errors.E2033,
+					fmt.Sprintf("'%s' is a type name and cannot be used as a return parameter name", errors.Ident(rpName)),
+					rp.Name.Token.Line,
+					rp.Name.Token.Column,
+				)
+			}
+
+			// Check if return param name shadows a user-defined function
+			if _, exists := tc.functions[rpName]; exists {
+				tc.addError(
+					errors.E2033,
+					fmt.Sprintf("'%s' is a function name and cannot be used as a return parameter name", errors.Ident(rpName)),
+					rp.Name.Token.Line,
+					rp.Name.Token.Column,
+				)
+			}
 		}
 	}
 
@@ -1560,9 +1618,21 @@ func (tc *TypeChecker) checkFunctionBody(node *ast.FunctionDeclaration) {
 	tc.currentFuncAttrs = node.Attributes
 	defer func() { tc.currentFuncAttrs = prevAttrs }()
 
+	// Track current function's named return parameters
+	prevReturnParams := tc.currentReturnParams
+	tc.currentReturnParams = node.ReturnParams
+	defer func() { tc.currentReturnParams = prevReturnParams }()
+
 	// Add function parameters to scope with their mutability
 	for _, param := range node.Parameters {
 		tc.defineVariableWithMutability(param.Name.Value, param.TypeName, param.Mutable)
+	}
+
+	// Add named return parameters to scope (they are mutable)
+	if node.ReturnParams != nil {
+		for _, rp := range node.ReturnParams {
+			tc.defineVariableWithMutability(rp.Name.Value, rp.TypeName, true)
+		}
 	}
 
 	// Check if function body returns on all code paths (for functions with return types)
@@ -1571,7 +1641,7 @@ func (tc *TypeChecker) checkFunctionBody(node *ast.FunctionDeclaration) {
 			// No return statement at all
 			tc.addError(
 				errors.E3024,
-				fmt.Sprintf("Function '%s' declares return type(s) but has no return statement", node.Name.Value),
+				fmt.Sprintf("Function '%s' declares return type(s) but has no return statement", errors.Ident(node.Name.Value)),
 				node.Name.Token.Line,
 				node.Name.Token.Column,
 			)
@@ -1579,7 +1649,7 @@ func (tc *TypeChecker) checkFunctionBody(node *ast.FunctionDeclaration) {
 			// Has return statements, but not on all code paths
 			tc.addError(
 				errors.E3035,
-				fmt.Sprintf("Function '%s' does not return a value on all code paths", node.Name.Value),
+				fmt.Sprintf("Function '%s' does not return a value on all code paths", errors.Ident(node.Name.Value)),
 				node.Name.Token.Line,
 				node.Name.Token.Column,
 			)
@@ -1667,7 +1737,7 @@ func (tc *TypeChecker) checkUnusedImports() {
 
 		tc.addWarning(
 			errors.W1002,
-			fmt.Sprintf("imported module '%s' is not used", moduleName),
+			fmt.Sprintf("imported module '%s' is not used", errors.Ident(moduleName)),
 			loc.Line,
 			loc.Column,
 		)
@@ -1694,8 +1764,15 @@ func (tc *TypeChecker) checkFileScopeStatements(statements []ast.Statement) {
 			// enum declarations are allowed
 		case *ast.VariableDeclaration:
 			// const/temp declarations are allowed at file scope
-			// However, we might want to disallow mutable variable declarations
-			// For now, allow both const and temp at file scope
+			// However, function calls in initializers are NOT allowed
+			if s.Value != nil && tc.containsFunctionCall(s.Value) {
+				tc.addError(
+					errors.E2056,
+					"function call in variable initializer not allowed at file scope; move it inside a function",
+					s.Token.Line,
+					s.Token.Column,
+				)
+			}
 
 		// Control flow statements - NOT allowed at file scope
 		case *ast.IfStatement:
@@ -1793,6 +1870,54 @@ func (tc *TypeChecker) checkFileScopeStatements(statements []ast.Statement) {
 			)
 		}
 	}
+}
+
+// containsFunctionCall recursively checks if an expression contains any function calls
+func (tc *TypeChecker) containsFunctionCall(expr ast.Expression) bool {
+	if expr == nil {
+		return false
+	}
+
+	switch e := expr.(type) {
+	case *ast.CallExpression:
+		return true
+	case *ast.InfixExpression:
+		return tc.containsFunctionCall(e.Left) || tc.containsFunctionCall(e.Right)
+	case *ast.PrefixExpression:
+		return tc.containsFunctionCall(e.Right)
+	case *ast.PostfixExpression:
+		return tc.containsFunctionCall(e.Left)
+	case *ast.IndexExpression:
+		return tc.containsFunctionCall(e.Left) || tc.containsFunctionCall(e.Index)
+	case *ast.MemberExpression:
+		return tc.containsFunctionCall(e.Object)
+	case *ast.ArrayValue:
+		for _, elem := range e.Elements {
+			if tc.containsFunctionCall(elem) {
+				return true
+			}
+		}
+	case *ast.MapValue:
+		for _, pair := range e.Pairs {
+			if tc.containsFunctionCall(pair.Key) || tc.containsFunctionCall(pair.Value) {
+				return true
+			}
+		}
+	case *ast.StructValue:
+		for _, v := range e.Fields {
+			if tc.containsFunctionCall(v) {
+				return true
+			}
+		}
+	case *ast.CastExpression:
+		return tc.containsFunctionCall(e.Value)
+	case *ast.RangeExpression:
+		return tc.containsFunctionCall(e.Start) ||
+			tc.containsFunctionCall(e.End) ||
+			tc.containsFunctionCall(e.Step)
+	}
+
+	return false
 }
 
 // isSuppressed checks if a warning code is suppressed by function attributes or file-level #suppress
@@ -2090,7 +2215,7 @@ func (tc *TypeChecker) checkStatement(stmt ast.Statement, expectedReturnTypes []
 		// Structs cannot be declared inside functions - must be at file level
 		tc.addError(
 			errors.E2053,
-			fmt.Sprintf("struct '%s' cannot be declared inside a function; move it to file level", s.Name.Value),
+			fmt.Sprintf("struct '%s' cannot be declared inside a function; move it to file level", errors.Ident(s.Name.Value)),
 			s.Token.Line,
 			s.Token.Column,
 		)
@@ -2099,7 +2224,7 @@ func (tc *TypeChecker) checkStatement(stmt ast.Statement, expectedReturnTypes []
 		// Enums cannot be declared inside functions - must be at file level
 		tc.addError(
 			errors.E2053,
-			fmt.Sprintf("enum '%s' cannot be declared inside a function; move it to file level", s.Name.Value),
+			fmt.Sprintf("enum '%s' cannot be declared inside a function; move it to file level", errors.Ident(s.Name.Value)),
 			s.Token.Line,
 			s.Token.Column,
 		)
@@ -2132,6 +2257,18 @@ func (tc *TypeChecker) checkVariableDeclaration(decl *ast.VariableDeclaration) {
 	varName := decl.Name.Value
 	declaredType := decl.TypeName
 
+	// Check if blank identifier has unnecessary type annotation
+	if varName == "_" && declaredType != "" {
+		if !tc.isSuppressed("W1005", tc.currentFuncAttrs) {
+			tc.addWarning(
+				errors.W1005,
+				"blank identifier '_' does not require type annotation",
+				decl.Name.Token.Line,
+				decl.Name.Token.Column,
+			)
+		}
+	}
+
 	// Check if 'void' type is used (not allowed for variables)
 	if declaredType == "void" {
 		tc.addError(
@@ -2151,7 +2288,7 @@ func (tc *TypeChecker) checkVariableDeclaration(decl *ast.VariableDeclaration) {
 		}
 		tc.addError(
 			errors.E4012,
-			fmt.Sprintf("variable '%s' shadows %s type of the same name", varName, kind),
+			fmt.Sprintf("variable '%s' shadows %s type of the same name", errors.Ident(varName), errors.Keyword(kind)),
 			decl.Name.Token.Line,
 			decl.Name.Token.Column,
 		)
@@ -2161,7 +2298,7 @@ func (tc *TypeChecker) checkVariableDeclaration(decl *ast.VariableDeclaration) {
 	if _, exists := tc.functions[varName]; exists {
 		tc.addError(
 			errors.E4013,
-			fmt.Sprintf("variable '%s' shadows function of the same name", varName),
+			fmt.Sprintf("variable '%s' shadows function of the same name", errors.Ident(varName)),
 			decl.Name.Token.Line,
 			decl.Name.Token.Column,
 		)
@@ -2173,7 +2310,7 @@ func (tc *TypeChecker) checkVariableDeclaration(decl *ast.VariableDeclaration) {
 		// This catches local variables shadowing global constants
 		tc.addWarning(
 			errors.W2007,
-			fmt.Sprintf("variable '%s' shadows global variable/constant of the same name", varName),
+			fmt.Sprintf("variable '%s' shadows global variable/constant of the same name", errors.Ident(varName)),
 			decl.Name.Token.Line,
 			decl.Name.Token.Column,
 		)
@@ -2183,7 +2320,7 @@ func (tc *TypeChecker) checkVariableDeclaration(decl *ast.VariableDeclaration) {
 	if _, exists := tc.modules[varName]; exists {
 		tc.addError(
 			errors.E4014,
-			fmt.Sprintf("variable '%s' shadows imported module of the same name", varName),
+			fmt.Sprintf("variable '%s' shadows imported module of the same name", errors.Ident(varName)),
 			decl.Name.Token.Line,
 			decl.Name.Token.Column,
 		)
@@ -2193,7 +2330,7 @@ func (tc *TypeChecker) checkVariableDeclaration(decl *ast.VariableDeclaration) {
 	if shadowedModule := tc.getUsedModuleShadowingFunction(varName); shadowedModule != "" {
 		tc.addError(
 			errors.E4015,
-			fmt.Sprintf("variable '%s' shadows function '%s.%s' from used module", varName, shadowedModule, varName),
+			fmt.Sprintf("variable '%s' shadows function '%s.%s' from used module", errors.Ident(varName), errors.Ident(shadowedModule), errors.Ident(varName)),
 			decl.Name.Token.Line,
 			decl.Name.Token.Column,
 		)
@@ -2203,11 +2340,11 @@ func (tc *TypeChecker) checkVariableDeclaration(decl *ast.VariableDeclaration) {
 	if declaredType != "" && !tc.TypeExists(declaredType) {
 		help := ""
 		if suggestion := errors.SuggestType(declaredType); suggestion != "" {
-			help = fmt.Sprintf("did you mean '%s'?", suggestion)
+			help = fmt.Sprintf("did you mean '%s'?", errors.Ident(suggestion))
 		}
 		tc.addErrorWithHelp(
 			errors.E3008,
-			fmt.Sprintf("undefined type '%s'", declaredType),
+			fmt.Sprintf("undefined type '%s'", errors.TypeGot(declaredType)),
 			help,
 			decl.Name.Token.Line,
 			decl.Name.Token.Column,
@@ -2249,7 +2386,7 @@ func (tc *TypeChecker) checkVariableDeclaration(decl *ast.VariableDeclaration) {
 			if enumType.EnumBaseType == "float" {
 				tc.addError(
 					errors.E3029,
-					fmt.Sprintf("float-based enum '%s' cannot be used as map key", keyType),
+					fmt.Sprintf("float-based enum '%s' cannot be used as map key", errors.Ident(keyType)),
 					decl.Name.Token.Line,
 					decl.Name.Token.Column,
 				)
@@ -2304,6 +2441,10 @@ func (tc *TypeChecker) checkVariableDeclaration(decl *ast.VariableDeclaration) {
 					}
 				}
 				tc.defineVariableWithMutability(varName, inferredType, decl.Mutable)
+				// Mark nested struct fields as non-nil if initialized with struct literal
+				if structVal, ok := decl.Value.(*ast.StructValue); ok {
+					tc.markNestedStructFieldsNonNil(varName, structVal)
+				}
 			} else {
 				// Still register with empty type so variable is in scope
 				tc.defineVariableWithMutability(varName, "", decl.Mutable)
@@ -2327,7 +2468,7 @@ func (tc *TypeChecker) checkVariableDeclaration(decl *ast.VariableDeclaration) {
 			if tc.isArrayType(declaredType) && !tc.isArrayType(actualType) && actualType != "nil" {
 				tc.addError(
 					errors.E3018,
-					fmt.Sprintf("cannot assign %s to array type %s - array type requires value in {} format", actualType, declaredType),
+					fmt.Sprintf("cannot assign %s to array type %s - array type requires value in {} format", errors.TypeGot(tc.typeOrUnknown(actualType)), errors.TypeExpected(declaredType)),
 					decl.Name.Token.Line,
 					decl.Name.Token.Column,
 				)
@@ -2342,7 +2483,7 @@ func (tc *TypeChecker) checkVariableDeclaration(decl *ast.VariableDeclaration) {
 
 					mismatchError := errors.NewErrorWithHelp(
 						errors.E3001,
-						fmt.Sprintf("type mismatch: cannot assign %s to %s", actualType, declaredType),
+						fmt.Sprintf("type mismatch: cannot assign %s to %s", errors.TypeGot(actualType), errors.TypeExpected(declaredType)),
 						decl.Name.Token.File,
 						decl.Name.Token.Line,
 						decl.Name.Token.Column,
@@ -2353,7 +2494,7 @@ func (tc *TypeChecker) checkVariableDeclaration(decl *ast.VariableDeclaration) {
 				} else {
 					tc.addError(
 						errors.E3001,
-						fmt.Sprintf("type mismatch: cannot assign %s to %s", actualType, declaredType),
+						fmt.Sprintf("type mismatch: cannot assign %s to %s", errors.TypeGot(actualType), errors.TypeExpected(declaredType)),
 						decl.Name.Token.Line,
 						decl.Name.Token.Column,
 					)
@@ -2435,7 +2576,7 @@ func (tc *TypeChecker) checkVariableDeclaration(decl *ast.VariableDeclaration) {
 					if arrLit, ok := decl.Value.(*ast.ArrayValue); ok {
 						actualSize := len(arrLit.Elements)
 						if actualSize < declaredSize {
-							if !tc.isSuppressed("W3003", decl.Attributes) {
+							if !tc.isSuppressed("W3003", tc.currentFuncAttrs) {
 								tc.addWarning(
 									errors.W3003,
 									fmt.Sprintf("fixed-size array not fully initialized: declared size %d but only %d element(s) provided",
@@ -2462,6 +2603,13 @@ func (tc *TypeChecker) checkVariableDeclaration(decl *ast.VariableDeclaration) {
 	// Register variable in current scope with mutability (temp = mutable, const = immutable)
 	if declaredType != "" {
 		tc.defineVariableWithMutability(varName, declaredType, decl.Mutable)
+	}
+
+	// Mark nested struct fields as non-nil if initialized with struct literal
+	if decl.Value != nil {
+		if structVal, ok := decl.Value.(*ast.StructValue); ok {
+			tc.markNestedStructFieldsNonNil(varName, structVal)
+		}
 	}
 }
 
@@ -2522,6 +2670,20 @@ func (tc *TypeChecker) isMultiReturnCall(expr ast.Expression) bool {
 // checkMultiReturnDeclaration validates multi-return variable declarations
 // e.g., temp x int, y string = getValues()
 func (tc *TypeChecker) checkMultiReturnDeclaration(decl *ast.VariableDeclaration) {
+	// Check if any blank identifiers have unnecessary type annotations
+	for i, name := range decl.Names {
+		if name != nil && name.Value == "_" && i < len(decl.TypeNames) && decl.TypeNames[i] != "" {
+			if !tc.isSuppressed("W1005", tc.currentFuncAttrs) {
+				tc.addWarning(
+					errors.W1005,
+					"blank identifier '_' does not require type annotation",
+					name.Token.Line,
+					name.Token.Column,
+				)
+			}
+		}
+	}
+
 	// Check for type/function used as value
 	if decl.Value != nil {
 		tc.checkValueExpression(decl.Value)
@@ -2531,10 +2693,14 @@ func (tc *TypeChecker) checkMultiReturnDeclaration(decl *ast.VariableDeclaration
 	// Get the function call to check return types (needed for both type checking and inference)
 	callExpr, ok := decl.Value.(*ast.CallExpression)
 	if !ok {
-		// Value is not a function call - still register variables with unknown types
-		for _, name := range decl.Names {
+		// Value is not a function call - use explicit type annotations if available
+		for i, name := range decl.Names {
 			if name != nil {
-				tc.defineVariableWithMutability(name.Value, "", decl.Mutable)
+				declaredType := ""
+				if i < len(decl.TypeNames) && decl.TypeNames[i] != "" {
+					declaredType = decl.TypeNames[i]
+				}
+				tc.defineVariableWithMutability(name.Value, declaredType, decl.Mutable)
 			}
 		}
 		return
@@ -2553,10 +2719,14 @@ func (tc *TypeChecker) checkMultiReturnDeclaration(decl *ast.VariableDeclaration
 			moduleName = obj.Value
 		}
 	default:
-		// Still register variables with unknown types
-		for _, name := range decl.Names {
+		// Use explicit type annotations if available
+		for i, name := range decl.Names {
 			if name != nil {
-				tc.defineVariableWithMutability(name.Value, "", decl.Mutable)
+				declaredType := ""
+				if i < len(decl.TypeNames) && decl.TypeNames[i] != "" {
+					declaredType = decl.TypeNames[i]
+				}
+				tc.defineVariableWithMutability(name.Value, declaredType, decl.Mutable)
 			}
 		}
 		return
@@ -2570,12 +2740,15 @@ func (tc *TypeChecker) checkMultiReturnDeclaration(decl *ast.VariableDeclaration
 			resolvedModuleName := tc.resolveStdlibModule(moduleName)
 			moduleReturnTypes := tc.getModuleMultiReturnTypes(resolvedModuleName, funcName, callExpr.Arguments)
 			if moduleReturnTypes != nil {
-				// Register variables with the correct module function return types
+				// Register variables - use inferred types, fall back to explicit annotations
 				for i, name := range decl.Names {
 					if name != nil {
 						inferredType := ""
 						if i < len(moduleReturnTypes) {
 							inferredType = moduleReturnTypes[i]
+						}
+						if inferredType == "" && i < len(decl.TypeNames) && decl.TypeNames[i] != "" {
+							inferredType = decl.TypeNames[i]
 						}
 						tc.defineVariableWithMutability(name.Value, inferredType, decl.Mutable)
 					}
@@ -2599,12 +2772,15 @@ func (tc *TypeChecker) checkMultiReturnDeclaration(decl *ast.VariableDeclaration
 		// Check if it's a builtin function with multiple return values
 		builtinReturnTypes := tc.getBuiltinMultiReturnTypes(funcName)
 		if builtinReturnTypes != nil {
-			// Register variables with the correct builtin return types
+			// Register variables - use inferred types, fall back to explicit annotations
 			for i, name := range decl.Names {
 				if name != nil {
 					inferredType := ""
 					if i < len(builtinReturnTypes) {
 						inferredType = builtinReturnTypes[i]
+					}
+					if inferredType == "" && i < len(decl.TypeNames) && decl.TypeNames[i] != "" {
+						inferredType = decl.TypeNames[i]
 					}
 					tc.defineVariableWithMutability(name.Value, inferredType, decl.Mutable)
 				}
@@ -2622,6 +2798,9 @@ func (tc *TypeChecker) checkMultiReturnDeclaration(decl *ast.VariableDeclaration
 						if i < len(moduleReturnTypes) {
 							inferredType = moduleReturnTypes[i]
 						}
+						if inferredType == "" && i < len(decl.TypeNames) && decl.TypeNames[i] != "" {
+							inferredType = decl.TypeNames[i]
+						}
 						tc.defineVariableWithMutability(name.Value, inferredType, decl.Mutable)
 					}
 				}
@@ -2629,11 +2808,15 @@ func (tc *TypeChecker) checkMultiReturnDeclaration(decl *ast.VariableDeclaration
 			}
 		}
 
-		// Function not found - still register variables with unknown types
+		// Function not found - use explicit type annotations if available
 		// (undefined function error will be caught elsewhere)
-		for _, name := range decl.Names {
+		for i, name := range decl.Names {
 			if name != nil {
-				tc.defineVariableWithMutability(name.Value, "", decl.Mutable)
+				declaredType := ""
+				if i < len(decl.TypeNames) && decl.TypeNames[i] != "" {
+					declaredType = decl.TypeNames[i]
+				}
+				tc.defineVariableWithMutability(name.Value, declaredType, decl.Mutable)
 			}
 		}
 		return
@@ -2696,7 +2879,7 @@ func (tc *TypeChecker) checkMultiReturnDeclaration(decl *ast.VariableDeclaration
 			tc.addError(
 				errors.E3001,
 				fmt.Sprintf("type mismatch in multi-return: variable '%s' declared as %s but function returns %s",
-					varName, declaredType, returnType),
+					errors.Ident(varName), errors.TypeExpected(declaredType), errors.TypeGot(returnType)),
 				line,
 				col,
 			)
@@ -2724,13 +2907,13 @@ func (tc *TypeChecker) checkAssignment(assign *ast.AssignmentStatement) {
 			line, column := tc.getExpressionPosition(assign.Name)
 			help := ""
 			if suggestion := errors.SuggestKeyword(rootVar); suggestion != "" {
-				help = fmt.Sprintf("did you mean '%s'?", suggestion)
+				help = fmt.Sprintf("did you mean '%s'?", errors.Ident(suggestion))
 			} else if suggestion := errors.SuggestBuiltin(rootVar); suggestion != "" {
-				help = fmt.Sprintf("did you mean '%s'?", suggestion)
+				help = fmt.Sprintf("did you mean '%s'?", errors.Ident(suggestion))
 			}
 			tc.addErrorWithHelp(
 				errors.E4001,
-				fmt.Sprintf("undefined variable '%s'", rootVar),
+				fmt.Sprintf("undefined variable '%s'", errors.Ident(rootVar)),
 				help,
 				line,
 				column,
@@ -2746,14 +2929,14 @@ func (tc *TypeChecker) checkAssignment(assign *ast.AssignmentStatement) {
 			if _, isMember := assign.Name.(*ast.MemberExpression); isMember {
 				tc.addError(
 					errors.E5017,
-					fmt.Sprintf("cannot modify field of immutable struct '%s' (declared as const)", rootVar),
+					fmt.Sprintf("cannot modify field of immutable struct '%s' (declared as const)", errors.Ident(rootVar)),
 					line,
 					column,
 				)
 			} else {
 				tc.addError(
 					errors.E5016,
-					fmt.Sprintf("cannot modify immutable variable '%s' (declared as const or as non-& parameter)", rootVar),
+					fmt.Sprintf("cannot modify immutable variable '%s' (declared as const or as non-& parameter)", errors.Ident(rootVar)),
 					line,
 					column,
 				)
@@ -2782,10 +2965,18 @@ func (tc *TypeChecker) checkAssignment(assign *ast.AssignmentStatement) {
 		line, column := tc.getExpressionPosition(assign.Name)
 		tc.addError(
 			errors.E3001,
-			fmt.Sprintf("type mismatch: cannot assign %s to %s", valueType, targetType),
+			fmt.Sprintf("type mismatch: cannot assign %s to %s", errors.TypeGot(valueType), errors.TypeExpected(targetType)),
 			line,
 			column,
 		)
+	}
+
+	// Mark nested struct fields as non-nil if assigned a struct literal
+	if structVal, ok := assign.Value.(*ast.StructValue); ok {
+		varName := tc.extractVarNameFromExpr(assign.Name)
+		if varName != "" && tc.currentScope != nil {
+			tc.markNestedStructFieldsNonNil(varName, structVal)
+		}
 	}
 
 	// For index expressions, also validate the index
@@ -2829,7 +3020,7 @@ func (tc *TypeChecker) checkMemberAssignment(member *ast.MemberExpression, value
 		line, column := tc.getExpressionPosition(member.Member)
 		tc.addError(
 			errors.E4003,
-			fmt.Sprintf("struct '%s' has no field '%s'", objType, member.Member.Value),
+			fmt.Sprintf("struct '%s' has no field '%s'", errors.Ident(objType), errors.Ident(member.Member.Value)),
 			line,
 			column,
 		)
@@ -2848,7 +3039,7 @@ func (tc *TypeChecker) checkMemberAssignment(member *ast.MemberExpression, value
 		tc.addError(
 			errors.E3001,
 			fmt.Sprintf("type mismatch: cannot assign %s to field '%s' of type %s",
-				valueType, member.Member.Value, fieldType.Name),
+				errors.TypeGot(valueType), errors.Ident(member.Member.Value), errors.TypeExpected(fieldType.Name)),
 			line,
 			column,
 		)
@@ -2876,13 +3067,13 @@ func (tc *TypeChecker) checkMemberExpression(member *ast.MemberExpression) {
 		return
 	}
 
-	// Warn about member access on error type which is commonly nil (#687)
-	if objType == "error" || objType == "Error" {
+	// Warn about member access on Error type which is commonly nil (#687)
+	if objType == "Error" {
 		if !tc.isSuppressed("W2009", tc.currentFuncAttrs) {
 			line, column := tc.getExpressionPosition(member.Object)
 			tc.addWarning(
 				errors.W2009,
-				fmt.Sprintf("accessing member '%s' on error type which may be nil - consider checking for nil first", member.Member.Value),
+				fmt.Sprintf("accessing member '%s' on error type which may be nil - consider checking for nil first", errors.Ident(member.Member.Value)),
 				line,
 				column,
 			)
@@ -2893,14 +3084,14 @@ func (tc *TypeChecker) checkMemberExpression(member *ast.MemberExpression) {
 	// e.g., p.pos.x where p.pos is a struct that could be nil
 	// Skip warning if variable is known non-nil from flow analysis (#834)
 	if _, isChained := member.Object.(*ast.MemberExpression); isChained {
-		if tc.isNullableType(objType) && objType != "error" && objType != "Error" {
+		if tc.isNullableType(objType) && objType != "Error" {
 			// Check if this expression is known to be non-nil
 			exprName := tc.extractVarNameFromExpr(member.Object)
 			if exprName == "" || !tc.currentScope.IsKnownNonNil(exprName) {
 				line, column := tc.getExpressionPosition(member.Object)
 				tc.addWarning(
 					errors.W2010,
-					fmt.Sprintf("accessing member '%s' on struct type '%s' which may be nil - consider checking for nil first", member.Member.Value, objType),
+					fmt.Sprintf("accessing member '%s' on struct type '%s' which may be nil - consider checking for nil first", errors.Ident(member.Member.Value), errors.Ident(objType)),
 					line,
 					column,
 				)
@@ -2915,7 +3106,7 @@ func (tc *TypeChecker) checkMemberExpression(member *ast.MemberExpression) {
 		line, column := tc.getExpressionPosition(member.Member)
 		tc.addError(
 			errors.E4011,
-			fmt.Sprintf("cannot access member '%s' on type '%s' (not a struct)", member.Member.Value, objType),
+			fmt.Sprintf("cannot access member '%s' on type '%s' (not a struct)", errors.Ident(member.Member.Value), errors.TypeGot(objType)),
 			line,
 			column,
 		)
@@ -2927,7 +3118,7 @@ func (tc *TypeChecker) checkMemberExpression(member *ast.MemberExpression) {
 		line, column := tc.getExpressionPosition(member.Member)
 		tc.addError(
 			errors.E4003,
-			fmt.Sprintf("struct '%s' has no field '%s'", objType, member.Member.Value),
+			fmt.Sprintf("struct '%s' has no field '%s'", errors.Ident(objType), errors.Ident(member.Member.Value)),
 			line,
 			column,
 		)
@@ -2978,7 +3169,7 @@ func (tc *TypeChecker) checkReturnStatement(ret *ast.ReturnStatement, expectedTy
 				if _, isType := tc.types[label.Value]; isType {
 					tc.addError(
 						errors.E4001,
-						fmt.Sprintf("cannot return type '%s' as a value; did you mean to return a variable?", label.Value),
+						fmt.Sprintf("cannot return type '%s' as a value; did you mean to return a variable?", errors.Ident(label.Value)),
 						line,
 						column,
 					)
@@ -2986,13 +3177,13 @@ func (tc *TypeChecker) checkReturnStatement(ret *ast.ReturnStatement, expectedTy
 					// Not a type and not a function - truly undefined
 					help := ""
 					if suggestion := errors.SuggestKeyword(label.Value); suggestion != "" {
-						help = fmt.Sprintf("did you mean '%s'?", suggestion)
+						help = fmt.Sprintf("did you mean '%s'?", errors.Ident(suggestion))
 					} else if suggestion := errors.SuggestBuiltin(label.Value); suggestion != "" {
-						help = fmt.Sprintf("did you mean '%s'?", suggestion)
+						help = fmt.Sprintf("did you mean '%s'?", errors.Ident(suggestion))
 					}
 					tc.addErrorWithHelp(
 						errors.E4001,
-						fmt.Sprintf("undefined variable '%s'", label.Value),
+						fmt.Sprintf("undefined variable '%s'", errors.Ident(label.Value)),
 						help,
 						line,
 						column,
@@ -3005,10 +3196,39 @@ func (tc *TypeChecker) checkReturnStatement(ret *ast.ReturnStatement, expectedTy
 		if !tc.typesCompatible(expectedType, actualType) {
 			tc.addError(
 				errors.E3012,
-				fmt.Sprintf("return type mismatch: expected %s, got %s", expectedType, actualType),
+				fmt.Sprintf("return type mismatch: expected %s, got %s", errors.TypeExpected(expectedType), errors.TypeGot(actualType)),
 				ret.Token.Line,
 				ret.Token.Column,
 			)
+		}
+
+		// Check if returning a different variable than the named return parameter (W2011)
+		if tc.currentReturnParams != nil && i < len(tc.currentReturnParams) {
+			namedParam := tc.currentReturnParams[i]
+			// Check if the return value is a simple identifier
+			if label, isLabel := val.(*ast.Label); isLabel {
+				// If the returned variable is different from the named return param, emit warning
+				if label.Value != namedParam.Name.Value {
+					line, column := tc.getExpressionPosition(val)
+					tc.addWarning(
+						errors.W2011,
+						fmt.Sprintf("returning '%s' instead of named return variable '%s'",
+							errors.Ident(label.Value), errors.Ident(namedParam.Name.Value)),
+						line,
+						column,
+					)
+				}
+			} else {
+				// Returning an expression (not a simple variable) - also warn
+				line, column := tc.getExpressionPosition(val)
+				tc.addWarning(
+					errors.W2011,
+					fmt.Sprintf("returning expression instead of named return variable '%s'",
+						errors.Ident(namedParam.Name.Value)),
+					line,
+					column,
+				)
+			}
 		}
 	}
 }
@@ -3134,13 +3354,13 @@ func (tc *TypeChecker) checkExpression(expr ast.Expression) {
 			line, col := tc.getExpressionPosition(e)
 			help := ""
 			if suggestion := errors.SuggestKeyword(e.Value); suggestion != "" {
-				help = fmt.Sprintf("did you mean '%s'?", suggestion)
+				help = fmt.Sprintf("did you mean '%s'?", errors.Ident(suggestion))
 			} else if suggestion := errors.SuggestBuiltin(e.Value); suggestion != "" {
-				help = fmt.Sprintf("did you mean '%s'?", suggestion)
+				help = fmt.Sprintf("did you mean '%s'?", errors.Ident(suggestion))
 			}
 			tc.addErrorWithHelp(
 				errors.E4001,
-				fmt.Sprintf("undefined variable '%s'", e.Value),
+				fmt.Sprintf("undefined variable '%s'", errors.Ident(e.Value)),
 				help,
 				line,
 				col,
@@ -3158,7 +3378,7 @@ func (tc *TypeChecker) checkRangeExpression(rangeExpr *ast.RangeExpression) {
 			line, col := tc.getExpressionPosition(rangeExpr.Start)
 			tc.addError(
 				errors.E3001,
-				fmt.Sprintf("range() start must be integer, got %s", startType),
+				fmt.Sprintf("range() start must be integer, got %s", errors.TypeGot(startType)),
 				line, col,
 			)
 		}
@@ -3170,7 +3390,7 @@ func (tc *TypeChecker) checkRangeExpression(rangeExpr *ast.RangeExpression) {
 			line, col := tc.getExpressionPosition(rangeExpr.End)
 			tc.addError(
 				errors.E3001,
-				fmt.Sprintf("range() end must be integer, got %s", endType),
+				fmt.Sprintf("range() end must be integer, got %s", errors.TypeGot(endType)),
 				line, col,
 			)
 		}
@@ -3182,7 +3402,7 @@ func (tc *TypeChecker) checkRangeExpression(rangeExpr *ast.RangeExpression) {
 			line, col := tc.getExpressionPosition(rangeExpr.Step)
 			tc.addError(
 				errors.E3001,
-				fmt.Sprintf("range() step must be integer, got %s", stepType),
+				fmt.Sprintf("range() step must be integer, got %s", errors.TypeGot(stepType)),
 				line, col,
 			)
 		}
@@ -3282,7 +3502,7 @@ func (tc *TypeChecker) checkCastExpression(castExpr *ast.CastExpression) {
 		if !tc.isValidCastTargetType(castExpr.ElementType) {
 			tc.addError(
 				errors.E3001,
-				fmt.Sprintf("invalid cast target type: [%s]", castExpr.ElementType),
+				fmt.Sprintf("invalid cast target type: [%s]", errors.TypeGot(castExpr.ElementType)),
 				castExpr.Token.Line,
 				castExpr.Token.Column,
 			)
@@ -3293,7 +3513,7 @@ func (tc *TypeChecker) checkCastExpression(castExpr *ast.CastExpression) {
 		if !tc.isValidCastTargetType(targetType) {
 			tc.addError(
 				errors.E3001,
-				fmt.Sprintf("invalid cast target type: %s", targetType),
+				fmt.Sprintf("invalid cast target type: %s", errors.TypeGot(targetType)),
 				castExpr.Token.Line,
 				castExpr.Token.Column,
 			)
@@ -3313,7 +3533,7 @@ func (tc *TypeChecker) checkCastExpression(castExpr *ast.CastExpression) {
 		if !tc.isArrayType(sourceType) {
 			tc.addError(
 				errors.E3001,
-				fmt.Sprintf("cannot cast non-array type %s to array type %s", sourceType, targetType),
+				fmt.Sprintf("cannot cast non-array type %s to array type %s", errors.TypeGot(sourceType), errors.TypeExpected(targetType)),
 				castExpr.Token.Line,
 				castExpr.Token.Column,
 			)
@@ -3325,7 +3545,7 @@ func (tc *TypeChecker) checkCastExpression(castExpr *ast.CastExpression) {
 		if sourceElemType != "" && !tc.isValidCastConversion(sourceElemType, castExpr.ElementType) {
 			tc.addWarning(
 				errors.W2004,
-				fmt.Sprintf("cast from [%s] to [%s] may fail at runtime", sourceElemType, castExpr.ElementType),
+				fmt.Sprintf("cast from [%s] to [%s] may fail at runtime", errors.TypeGot(sourceElemType), errors.TypeExpected(castExpr.ElementType)),
 				castExpr.Token.Line,
 				castExpr.Token.Column,
 			)
@@ -3335,7 +3555,7 @@ func (tc *TypeChecker) checkCastExpression(castExpr *ast.CastExpression) {
 		if !tc.isValidCastConversion(sourceType, targetType) {
 			tc.addWarning(
 				errors.W2004,
-				fmt.Sprintf("cast from %s to %s may fail at runtime", sourceType, targetType),
+				fmt.Sprintf("cast from %s to %s may fail at runtime", errors.TypeGot(sourceType), errors.TypeExpected(targetType)),
 				castExpr.Token.Line,
 				castExpr.Token.Column,
 			)
@@ -3409,7 +3629,7 @@ func (tc *TypeChecker) checkPostfixExpression(postfix *ast.PostfixExpression) {
 		line, column := tc.getExpressionPosition(postfix.Left)
 		tc.addError(
 			errors.E3001,
-			fmt.Sprintf("postfix operator %s requires integer operand, got %s", postfix.Operator, operandType),
+			fmt.Sprintf("postfix operator %s requires integer operand, got %s", postfix.Operator, errors.TypeGot(operandType)),
 			line,
 			column,
 		)
@@ -3422,7 +3642,7 @@ func (tc *TypeChecker) checkPostfixExpression(postfix *ast.PostfixExpression) {
 			line, column := tc.getExpressionPosition(postfix.Left)
 			tc.addError(
 				errors.E5016,
-				fmt.Sprintf("cannot modify immutable variable '%s' (declared as const or as non-& parameter)", rootVar),
+				fmt.Sprintf("cannot modify immutable variable '%s' (declared as const or as non-& parameter)", errors.Ident(rootVar)),
 				line,
 				column,
 			)
@@ -3466,7 +3686,7 @@ func (tc *TypeChecker) checkInfixExpression(infix *ast.InfixExpression) {
 				(rightType == "byte" && leftType != "byte" && tc.isNumericType(leftType)) {
 				tc.addWarning(
 					errors.W2004,
-					fmt.Sprintf("implicit type conversion: byte promoted to %s in arithmetic operation", tc.getPromotedType(leftType, rightType)),
+					fmt.Sprintf("implicit type conversion: byte promoted to %s in arithmetic operation", errors.TypeExpected(tc.getPromotedType(leftType, rightType))),
 					line,
 					column,
 				)
@@ -3478,7 +3698,7 @@ func (tc *TypeChecker) checkInfixExpression(infix *ast.InfixExpression) {
 		}
 		tc.addError(
 			errors.E3002,
-			fmt.Sprintf("invalid operands for '+': %s and %s (expected numeric or string)", leftType, rightType),
+			fmt.Sprintf("invalid operands for '+': %s and %s (expected numeric or string)", errors.TypeGot(leftType), errors.TypeGot(rightType)),
 			line,
 			column,
 		)
@@ -3488,7 +3708,7 @@ func (tc *TypeChecker) checkInfixExpression(infix *ast.InfixExpression) {
 		if !tc.isNumericType(leftType) || !tc.isNumericType(rightType) {
 			tc.addError(
 				errors.E3002,
-				fmt.Sprintf("invalid operands for '%s': %s and %s (expected numeric)", infix.Operator, leftType, rightType),
+				fmt.Sprintf("invalid operands for '%s': %s and %s (expected numeric)", infix.Operator, errors.TypeGot(leftType), errors.TypeGot(rightType)),
 				line,
 				column,
 			)
@@ -3517,7 +3737,7 @@ func (tc *TypeChecker) checkInfixExpression(infix *ast.InfixExpression) {
 				(rightType == "byte" && leftType != "byte" && tc.isNumericType(leftType)) {
 				tc.addWarning(
 					errors.W2004,
-					fmt.Sprintf("implicit type conversion: byte promoted to %s in arithmetic operation", tc.getPromotedType(leftType, rightType)),
+					fmt.Sprintf("implicit type conversion: byte promoted to %s in arithmetic operation", errors.TypeExpected(tc.getPromotedType(leftType, rightType))),
 					line,
 					column,
 				)
@@ -3529,7 +3749,7 @@ func (tc *TypeChecker) checkInfixExpression(infix *ast.InfixExpression) {
 		if !tc.isIntegerType(leftType) || !tc.isIntegerType(rightType) {
 			tc.addError(
 				errors.E3002,
-				fmt.Sprintf("invalid operands for '%%': %s and %s (expected integer)", leftType, rightType),
+				fmt.Sprintf("invalid operands for '%%': %s and %s (expected integer)", errors.TypeGot(leftType), errors.TypeGot(rightType)),
 				line,
 				column,
 			)
@@ -3552,7 +3772,7 @@ func (tc *TypeChecker) checkInfixExpression(infix *ast.InfixExpression) {
 		if leftIsEnum && rightIsEnum && leftType != rightType {
 			tc.addError(
 				errors.E3032,
-				fmt.Sprintf("cannot compare different enum types: %s and %s", leftType, rightType),
+				fmt.Sprintf("cannot compare different enum types: %s and %s", errors.TypeGot(leftType), errors.TypeGot(rightType)),
 				line,
 				column,
 			)
@@ -3571,7 +3791,7 @@ func (tc *TypeChecker) checkInfixExpression(infix *ast.InfixExpression) {
 		if !tc.typesCompatible(leftType, rightType) && !tc.typesCompatible(rightType, leftType) {
 			tc.addError(
 				errors.E3002,
-				fmt.Sprintf("cannot compare %s with %s using '%s'", leftType, rightType, infix.Operator),
+				fmt.Sprintf("cannot compare %s with %s using '%s'", errors.TypeGot(leftType), errors.TypeGot(rightType), infix.Operator),
 				line,
 				column,
 			)
@@ -3595,7 +3815,7 @@ func (tc *TypeChecker) checkInfixExpression(infix *ast.InfixExpression) {
 		if !leftComparable {
 			tc.addError(
 				errors.E3002,
-				fmt.Sprintf("invalid operand for '%s': %s (expected numeric)", infix.Operator, leftType),
+				fmt.Sprintf("invalid operand for '%s': %s (expected numeric)", infix.Operator, errors.TypeGot(leftType)),
 				line,
 				column,
 			)
@@ -3603,7 +3823,7 @@ func (tc *TypeChecker) checkInfixExpression(infix *ast.InfixExpression) {
 		if !rightComparable {
 			tc.addError(
 				errors.E3002,
-				fmt.Sprintf("invalid operand for '%s': %s (expected numeric)", infix.Operator, rightType),
+				fmt.Sprintf("invalid operand for '%s': %s (expected numeric)", infix.Operator, errors.TypeGot(rightType)),
 				line,
 				column,
 			)
@@ -3614,7 +3834,7 @@ func (tc *TypeChecker) checkInfixExpression(infix *ast.InfixExpression) {
 		if leftType != "bool" {
 			tc.addError(
 				errors.E3002,
-				fmt.Sprintf("invalid operand for '%s': %s (expected bool)", infix.Operator, leftType),
+				fmt.Sprintf("invalid operand for '%s': %s (expected bool)", infix.Operator, errors.TypeGot(leftType)),
 				line,
 				column,
 			)
@@ -3622,7 +3842,7 @@ func (tc *TypeChecker) checkInfixExpression(infix *ast.InfixExpression) {
 		if rightType != "bool" {
 			tc.addError(
 				errors.E3002,
-				fmt.Sprintf("invalid operand for '%s': %s (expected bool)", infix.Operator, rightType),
+				fmt.Sprintf("invalid operand for '%s': %s (expected bool)", infix.Operator, errors.TypeGot(rightType)),
 				line,
 				column,
 			)
@@ -3633,7 +3853,7 @@ func (tc *TypeChecker) checkInfixExpression(infix *ast.InfixExpression) {
 		if !tc.isArrayType(rightType) && rightType != "string" && !tc.isMapType(rightType) {
 			tc.addError(
 				errors.E3002,
-				fmt.Sprintf("invalid operand for '%s': %s (expected array, string, or map)", infix.Operator, rightType),
+				fmt.Sprintf("invalid operand for '%s': %s (expected array, string, or map)", infix.Operator, errors.TypeGot(rightType)),
 				line,
 				column,
 			)
@@ -3655,7 +3875,7 @@ func (tc *TypeChecker) checkPrefixExpression(prefix *ast.PrefixExpression) {
 		if operandType != "bool" {
 			tc.addError(
 				errors.E3002,
-				fmt.Sprintf("invalid operand for '!': %s (expected bool)", operandType),
+				fmt.Sprintf("invalid operand for '!': %s (expected bool)", errors.TypeGot(operandType)),
 				line,
 				column,
 			)
@@ -3665,7 +3885,7 @@ func (tc *TypeChecker) checkPrefixExpression(prefix *ast.PrefixExpression) {
 		if !tc.isNumericType(operandType) {
 			tc.addError(
 				errors.E3002,
-				fmt.Sprintf("invalid operand for unary '-': %s (expected numeric)", operandType),
+				fmt.Sprintf("invalid operand for unary '-': %s (expected numeric)", errors.TypeGot(operandType)),
 				line,
 				column,
 			)
@@ -3686,7 +3906,7 @@ func (tc *TypeChecker) checkIndexExpression(index *ast.IndexExpression) {
 			line, column := tc.getExpressionPosition(index.Index)
 			tc.addError(
 				errors.E3003,
-				fmt.Sprintf("map key must be a hashable type (string, int, bool, char), got %s", indexType),
+				fmt.Sprintf("map key must be a hashable type (string, int, bool, char), got %s", errors.TypeGot(indexType)),
 				line,
 				column,
 			)
@@ -3698,7 +3918,7 @@ func (tc *TypeChecker) checkIndexExpression(index *ast.IndexExpression) {
 				line, column := tc.getExpressionPosition(index.Index)
 				tc.addError(
 					errors.E3003,
-					fmt.Sprintf("map key type mismatch: expected %s, got %s", mapKeyType, indexType),
+					fmt.Sprintf("map key type mismatch: expected %s, got %s", errors.TypeExpected(mapKeyType), errors.TypeGot(indexType)),
 					line,
 					column,
 				)
@@ -3712,7 +3932,7 @@ func (tc *TypeChecker) checkIndexExpression(index *ast.IndexExpression) {
 		line, column := tc.getExpressionPosition(index.Index)
 		tc.addError(
 			errors.E3003,
-			fmt.Sprintf("index must be an integer, got %s", indexType),
+			fmt.Sprintf("index must be an integer, got %s", errors.TypeGot(indexType)),
 			line,
 			column,
 		)
@@ -3753,7 +3973,7 @@ func (tc *TypeChecker) checkIndexExpression(index *ast.IndexExpression) {
 		line, column := tc.getExpressionPosition(index.Left)
 		tc.addError(
 			errors.E3016,
-			fmt.Sprintf("cannot index into %s (expected array, string, or map)", leftType),
+			fmt.Sprintf("cannot index into %s (expected array, string, or map)", errors.TypeGot(leftType)),
 			line,
 			column,
 		)
@@ -3774,7 +3994,7 @@ func (tc *TypeChecker) checkFunctionCall(call *ast.CallExpression) {
 				line, column := tc.getExpressionPosition(call.Function)
 				tc.addError(
 					errors.E3015,
-					fmt.Sprintf("cannot call non-function value '%s'", funcName),
+					fmt.Sprintf("cannot call non-function value '%s'", errors.Ident(funcName)),
 					line,
 					column,
 				)
@@ -3828,11 +4048,11 @@ func (tc *TypeChecker) checkFunctionCall(call *ast.CallExpression) {
 		line, column := tc.getExpressionPosition(call.Function)
 		help := ""
 		if suggestion := errors.SuggestBuiltin(funcName); suggestion != "" {
-			help = fmt.Sprintf("did you mean '%s'?", suggestion)
+			help = fmt.Sprintf("did you mean '%s'?", errors.Ident(suggestion))
 		}
 		tc.addErrorWithHelp(
 			errors.E4002,
-			fmt.Sprintf("undefined function '%s'", funcName),
+			fmt.Sprintf("undefined function '%s'", errors.Ident(funcName)),
 			help,
 			line,
 			column,
@@ -3854,10 +4074,10 @@ func (tc *TypeChecker) checkFunctionCall(call *ast.CallExpression) {
 		var msg string
 		if minRequired == len(sig.Parameters) {
 			msg = fmt.Sprintf("wrong number of arguments to '%s': expected %d, got %d",
-				funcName, len(sig.Parameters), len(call.Arguments))
+				errors.Ident(funcName), len(sig.Parameters), len(call.Arguments))
 		} else {
 			msg = fmt.Sprintf("wrong number of arguments to '%s': expected %d to %d, got %d",
-				funcName, minRequired, len(sig.Parameters), len(call.Arguments))
+				errors.Ident(funcName), minRequired, len(sig.Parameters), len(call.Arguments))
 		}
 		tc.addError(errors.E5008, msg, line, column)
 		return
@@ -3875,13 +4095,13 @@ func (tc *TypeChecker) checkFunctionCall(call *ast.CallExpression) {
 						line, column := tc.getExpressionPosition(arg)
 						help := ""
 						if suggestion := errors.SuggestKeyword(label.Value); suggestion != "" {
-							help = fmt.Sprintf("did you mean '%s'?", suggestion)
+							help = fmt.Sprintf("did you mean '%s'?", errors.Ident(suggestion))
 						} else if suggestion := errors.SuggestBuiltin(label.Value); suggestion != "" {
-							help = fmt.Sprintf("did you mean '%s'?", suggestion)
+							help = fmt.Sprintf("did you mean '%s'?", errors.Ident(suggestion))
 						}
 						tc.addErrorWithHelp(
 							errors.E4001,
-							fmt.Sprintf("undefined variable '%s'", label.Value),
+							fmt.Sprintf("undefined variable '%s'", errors.Ident(label.Value)),
 							help,
 							line,
 							column,
@@ -3902,7 +4122,7 @@ func (tc *TypeChecker) checkFunctionCall(call *ast.CallExpression) {
 			tc.addError(
 				errors.E3001,
 				fmt.Sprintf("argument type mismatch in call to '%s': parameter '%s' expects %s, got %s",
-					funcName, sig.Parameters[i].Name, expectedType, displayType),
+					errors.Ident(funcName), errors.Ident(sig.Parameters[i].Name), errors.TypeExpected(expectedType), errors.TypeGot(displayType)),
 				line,
 				column,
 			)
@@ -3920,7 +4140,7 @@ func (tc *TypeChecker) checkFunctionCall(call *ast.CallExpression) {
 					tc.addError(
 						errors.E3027,
 						fmt.Sprintf("cannot pass immutable variable '%s' to mutable parameter '&%s' in call to '%s'",
-							label.Value, sig.Parameters[i].Name, funcName),
+							errors.Ident(label.Value), errors.Ident(sig.Parameters[i].Name), errors.Ident(funcName)),
 						line,
 						column,
 					)
@@ -3994,7 +4214,7 @@ func (tc *TypeChecker) checkBuiltinTypeConversion(funcName string, call *ast.Cal
 		if len(call.Arguments) != 1 {
 			line, column := tc.getExpressionPosition(call.Function)
 			tc.addError(errors.E5008,
-				fmt.Sprintf("%s() requires exactly 1 argument, got %d", funcName, len(call.Arguments)),
+				fmt.Sprintf("%s() requires exactly 1 argument, got %d", errors.Ident(funcName), len(call.Arguments)),
 				line, column)
 		}
 		return true
@@ -4004,7 +4224,7 @@ func (tc *TypeChecker) checkBuiltinTypeConversion(funcName string, call *ast.Cal
 		if len(call.Arguments) != 1 {
 			line, column := tc.getExpressionPosition(call.Function)
 			tc.addError(errors.E5008,
-				fmt.Sprintf("len() requires exactly 1 argument, got %d", len(call.Arguments)),
+				fmt.Sprintf("%s() requires exactly 1 argument, got %d", errors.Ident("len"), len(call.Arguments)),
 				line, column)
 			return true
 		}
@@ -4013,7 +4233,7 @@ func (tc *TypeChecker) checkBuiltinTypeConversion(funcName string, call *ast.Cal
 		if ok && argType != "" && argType != "string" && !tc.isArrayType(argType) && !tc.isMapType(argType) {
 			line, column := tc.getExpressionPosition(call.Arguments[0])
 			tc.addError(errors.E3001,
-				fmt.Sprintf("len() argument must be string, array, or map, got %s", argType),
+				fmt.Sprintf("%s() argument must be string, array, or map, got %s", errors.Ident("len"), errors.TypeGot(argType)),
 				line, column)
 		}
 		return true
@@ -4023,7 +4243,7 @@ func (tc *TypeChecker) checkBuiltinTypeConversion(funcName string, call *ast.Cal
 		if len(call.Arguments) != 1 {
 			line, column := tc.getExpressionPosition(call.Function)
 			tc.addError(errors.E5008,
-				fmt.Sprintf("typeof() requires exactly 1 argument, got %d", len(call.Arguments)),
+				fmt.Sprintf("%s() requires exactly 1 argument, got %d", errors.Ident("typeof"), len(call.Arguments)),
 				line, column)
 		} else {
 			// Check if argument is a void function call
@@ -4042,7 +4262,7 @@ func (tc *TypeChecker) checkBuiltinTypeConversion(funcName string, call *ast.Cal
 		if len(call.Arguments) != 0 {
 			line, column := tc.getExpressionPosition(call.Function)
 			tc.addError(errors.E5008,
-				fmt.Sprintf("input() takes 0 arguments, got %d", len(call.Arguments)),
+				fmt.Sprintf("%s() takes 0 arguments, got %d", errors.Ident("input"), len(call.Arguments)),
 				line, column)
 		}
 		return true
@@ -4052,7 +4272,7 @@ func (tc *TypeChecker) checkBuiltinTypeConversion(funcName string, call *ast.Cal
 		if len(call.Arguments) != 0 {
 			line, column := tc.getExpressionPosition(call.Function)
 			tc.addError(errors.E5008,
-				fmt.Sprintf("read_int() takes 0 arguments, got %d", len(call.Arguments)),
+				fmt.Sprintf("%s() takes 0 arguments, got %d", errors.Ident("read_int"), len(call.Arguments)),
 				line, column)
 		}
 		return true
@@ -4062,7 +4282,7 @@ func (tc *TypeChecker) checkBuiltinTypeConversion(funcName string, call *ast.Cal
 		if len(call.Arguments) != 1 {
 			line, column := tc.getExpressionPosition(call.Function)
 			tc.addError(errors.E5008,
-				fmt.Sprintf("copy() requires exactly 1 argument, got %d", len(call.Arguments)),
+				fmt.Sprintf("%s() requires exactly 1 argument, got %d", errors.Ident("copy"), len(call.Arguments)),
 				line, column)
 		}
 		return true
@@ -4072,7 +4292,7 @@ func (tc *TypeChecker) checkBuiltinTypeConversion(funcName string, call *ast.Cal
 		if len(call.Arguments) != 1 {
 			line, column := tc.getExpressionPosition(call.Function)
 			tc.addError(errors.E5008,
-				fmt.Sprintf("error() requires exactly 1 argument, got %d", len(call.Arguments)),
+				fmt.Sprintf("%s() requires exactly 1 argument, got %d", errors.Ident("error"), len(call.Arguments)),
 				line, column)
 		}
 		return true
@@ -4082,7 +4302,7 @@ func (tc *TypeChecker) checkBuiltinTypeConversion(funcName string, call *ast.Cal
 		if len(call.Arguments) < 2 {
 			line, column := tc.getExpressionPosition(call.Function)
 			tc.addError(errors.E5008,
-				fmt.Sprintf("append() requires at least 2 arguments, got %d", len(call.Arguments)),
+				fmt.Sprintf("%s() requires at least 2 arguments, got %d", errors.Ident("append"), len(call.Arguments)),
 				line, column)
 		}
 		return true
@@ -4092,7 +4312,7 @@ func (tc *TypeChecker) checkBuiltinTypeConversion(funcName string, call *ast.Cal
 		if len(call.Arguments) != 1 {
 			line, column := tc.getExpressionPosition(call.Function)
 			tc.addError(errors.E5008,
-				fmt.Sprintf("new() requires exactly 1 argument, got %d", len(call.Arguments)),
+				fmt.Sprintf("%s() requires exactly 1 argument, got %d", errors.Ident("new"), len(call.Arguments)),
 				line, column)
 		}
 		return true
@@ -4102,7 +4322,7 @@ func (tc *TypeChecker) checkBuiltinTypeConversion(funcName string, call *ast.Cal
 		if len(call.Arguments) != 1 {
 			line, column := tc.getExpressionPosition(call.Function)
 			tc.addError(errors.E5008,
-				fmt.Sprintf("ref() requires exactly 1 argument, got %d", len(call.Arguments)),
+				fmt.Sprintf("%s() requires exactly 1 argument, got %d", errors.Ident("ref"), len(call.Arguments)),
 				line, column)
 		}
 		return true
@@ -4112,7 +4332,7 @@ func (tc *TypeChecker) checkBuiltinTypeConversion(funcName string, call *ast.Cal
 		if len(call.Arguments) < 2 || len(call.Arguments) > 3 {
 			line, column := tc.getExpressionPosition(call.Function)
 			tc.addError(errors.E5008,
-				fmt.Sprintf("range() requires 2 or 3 arguments, got %d", len(call.Arguments)),
+				fmt.Sprintf("%s() requires 2 or 3 arguments, got %d", errors.Ident("range"), len(call.Arguments)),
 				line, column)
 		}
 		return true
@@ -4168,7 +4388,7 @@ func (tc *TypeChecker) checkIfStatement(ifStmt *ast.IfStatement, expectedReturnT
 		line, column := tc.getExpressionPosition(ifStmt.Condition)
 		tc.addError(
 			errors.E3001,
-			fmt.Sprintf("if condition must be bool, got %s", condType),
+			fmt.Sprintf("if condition must be bool, got %s", errors.TypeGot(condType)),
 			line,
 			column,
 		)
@@ -4270,6 +4490,38 @@ func (tc *TypeChecker) extractVarNameFromExpr(expr ast.Expression) string {
 	return ""
 }
 
+// markNestedStructFieldsNonNil recursively marks explicitly initialized
+// nested struct fields as non-nil in the current scope.
+// This prevents false W2010 warnings on chained member access like wrapper.inner.label
+// when inner was explicitly initialized with a struct literal.
+func (tc *TypeChecker) markNestedStructFieldsNonNil(basePath string, structVal *ast.StructValue) {
+	if structVal.Name == nil || tc.currentScope == nil {
+		return
+	}
+
+	structType, exists := tc.getStructTypeIncludingModules(structVal.Name.Value)
+	if !exists {
+		return
+	}
+
+	for fieldName, fieldValue := range structVal.Fields {
+		fieldType, hasField := structType.Fields[fieldName]
+		if !hasField {
+			continue
+		}
+
+		if tc.isNullableType(fieldType.Name) {
+			fieldPath := basePath + "." + fieldName
+			tc.currentScope.MarkNonNil(fieldPath)
+
+			// Recursively mark nested struct literals
+			if nestedStruct, ok := fieldValue.(*ast.StructValue); ok {
+				tc.markNestedStructFieldsNonNil(fieldPath, nestedStruct)
+			}
+		}
+	}
+}
+
 // checkWhenStatement validates a when/is/default statement
 func (tc *TypeChecker) checkWhenStatement(whenStmt *ast.WhenStatement, expectedReturnTypes []string) {
 	// Validate the when value expression (check for field access errors, etc.)
@@ -4285,7 +4537,7 @@ func (tc *TypeChecker) checkWhenStatement(whenStmt *ast.WhenStatement, expectedR
 			if _, isLocalType := tc.types[label.Value]; isLocalType {
 				tc.addError(
 					errors.E2047,
-					fmt.Sprintf("when condition must be a value, not a type name '%s'", label.Value),
+					fmt.Sprintf("when condition must be a value, not a type name '%s'", errors.Ident(label.Value)),
 					whenStmt.Token.Line,
 					whenStmt.Token.Column,
 				)
@@ -4320,7 +4572,7 @@ func (tc *TypeChecker) checkWhenStatement(whenStmt *ast.WhenStatement, expectedR
 	if tc.isArrayType(valueType) || tc.isMapType(valueType) {
 		tc.addError(
 			errors.E2050,
-			fmt.Sprintf("when condition cannot be an array or map (got %s)", valueType),
+			fmt.Sprintf("when condition cannot be an array or map (got %s)", errors.TypeGot(valueType)),
 			whenStmt.Token.Line,
 			whenStmt.Token.Column,
 		)
@@ -4399,11 +4651,16 @@ func (tc *TypeChecker) checkWhenStatement(whenStmt *ast.WhenStatement, expectedR
 				// Allow enum type matching
 				if !strings.HasPrefix(caseType, valueType) && !strings.HasSuffix(caseType, "."+valueType) {
 					// Allow int case values when matching against enum types (enums have int underlying values)
-					if !(isEnumType && caseType == "int") {
+					// Also allow enum case values when matching against int (e.g., temp dir int = Direction.SOUTH)
+					caseIsEnumWithIntBase := false
+					if caseEnumInfo, isCaseEnum := tc.GetType(caseType); isCaseEnum && caseEnumInfo.Kind == EnumType {
+						caseIsEnumWithIntBase = caseEnumInfo.EnumBaseType == valueType
+					}
+					if !(isEnumType && caseType == "int") && !caseIsEnumWithIntBase {
 						line, col := tc.getExpressionPosition(caseValue)
 						tc.addError(
 							errors.E3001,
-							fmt.Sprintf("case value type %s does not match when value type %s", caseType, valueType),
+							fmt.Sprintf("case value type %s does not match when value type %s", errors.TypeGot(caseType), errors.TypeExpected(valueType)),
 							line,
 							col,
 						)
@@ -4547,7 +4804,7 @@ func (tc *TypeChecker) checkForStatement(forStmt *ast.ForStatement, expectedRetu
 			column := forStmt.Variable.Token.Column
 			tc.addError(
 				errors.E4016,
-				fmt.Sprintf("loop variable '%s' shadows outer loop variable", varName),
+				fmt.Sprintf("loop variable '%s' shadows outer loop variable", errors.Ident(varName)),
 				line,
 				column,
 			)
@@ -4575,6 +4832,28 @@ func (tc *TypeChecker) checkForEachStatement(forEach *ast.ForEachStatement, expe
 	tc.enterScope()
 	tc.loopDepth++ // Track loop nesting for break/continue validation (#603)
 
+	// If index variable present, register it as int (#1139)
+	if forEach.Index != nil {
+		indexName := forEach.Index.Value
+
+		// Check if this index variable shadows an outer loop variable (#114)
+		if tc.currentScope != nil && tc.currentScope.IsLoopVariableInOuterScope(indexName) {
+			line := forEach.Index.Token.Line
+			column := forEach.Index.Token.Column
+			tc.addError(
+				errors.E4016,
+				fmt.Sprintf("loop variable '%s' shadows outer loop variable", errors.Ident(indexName)),
+				line,
+				column,
+			)
+		}
+
+		tc.defineVariableWithMutability(indexName, "int", false)
+		if tc.currentScope != nil {
+			tc.currentScope.MarkAsLoopVariable(indexName)
+		}
+	}
+
 	// Infer element type from collection and validate it's iterable (#595)
 	if forEach.Variable != nil && forEach.Collection != nil {
 		varName := forEach.Variable.Value
@@ -4585,7 +4864,7 @@ func (tc *TypeChecker) checkForEachStatement(forEach *ast.ForEachStatement, expe
 			column := forEach.Variable.Token.Column
 			tc.addError(
 				errors.E4016,
-				fmt.Sprintf("loop variable '%s' shadows outer loop variable", varName),
+				fmt.Sprintf("loop variable '%s' shadows outer loop variable", errors.Ident(varName)),
 				line,
 				column,
 			)
@@ -4616,7 +4895,7 @@ func (tc *TypeChecker) checkForEachStatement(forEach *ast.ForEachStatement, expe
 				line, column := tc.getExpressionPosition(forEach.Collection)
 				tc.addError(
 					errors.E3017,
-					fmt.Sprintf("for_each requires array or string, got %s", collType),
+					fmt.Sprintf("for_each requires array or string, got %s", errors.TypeGot(collType)),
 					line,
 					column,
 				)
@@ -4645,7 +4924,7 @@ func (tc *TypeChecker) checkWhileStatement(whileStmt *ast.WhileStatement, expect
 		line, column := tc.getExpressionPosition(whileStmt.Condition)
 		tc.addError(
 			errors.E3001,
-			fmt.Sprintf("while condition must be bool, got %s", condType),
+			fmt.Sprintf("while condition must be bool, got %s", errors.TypeGot(condType)),
 			line,
 			column,
 		)
@@ -4670,6 +4949,14 @@ func (tc *TypeChecker) checkLoopStatement(loopStmt *ast.LoopStatement, expectedR
 // isArrayType checks if a type string represents an array type
 func (tc *TypeChecker) isArrayType(typeName string) bool {
 	return len(typeName) >= 2 && typeName[0] == '[' && typeName[len(typeName)-1] == ']'
+}
+
+// typeOrUnknown returns the type name or "unknown" if empty.
+func (tc *TypeChecker) typeOrUnknown(typeName string) string {
+	if typeName == "" {
+		return "unknown"
+	}
+	return typeName
 }
 
 // isMapType checks if a type string represents a map type
@@ -4786,7 +5073,7 @@ func (tc *TypeChecker) checkIntegerLiteralRange(expr ast.Expression, targetType 
 	if value.Cmp(min) < 0 || value.Cmp(max) > 0 {
 		tc.addError(
 			errors.E3036,
-			fmt.Sprintf("value %s out of range for type %s (valid range: %s to %s)", value.String(), targetType, min.String(), max.String()),
+			fmt.Sprintf("value %s out of range for type %s (valid range: %s to %s)", value.String(), errors.TypeExpected(targetType), min.String(), max.String()),
 			line,
 			column,
 		)
@@ -4884,11 +5171,11 @@ func (tc *TypeChecker) splitMapInnerType(inner string) (string, string, bool) {
 }
 
 // isNullableType checks if a type can accept nil values
-// error type and user-defined struct types can be nil in EZ
+// Error type and user-defined struct types can be nil in EZ
 // Arrays, maps, and primitives cannot be nil
 func (tc *TypeChecker) isNullableType(typeName string) bool {
-	// error type can be nil (for error handling pattern)
-	if typeName == "error" {
+	// Error type can be nil (for error handling pattern)
+	if typeName == "Error" {
 		return true
 	}
 	// User-defined struct types can be nil
@@ -5346,7 +5633,7 @@ func (tc *TypeChecker) checkValueExpressionAllowTypes(expr ast.Expression) bool 
 		tc.addError(
 			errors.E3031,
 			fmt.Sprintf("function '%s' cannot be used as a value - functions must be called with ()",
-				label.Value),
+				errors.Ident(label.Value)),
 			line,
 			column,
 		)
@@ -5373,7 +5660,7 @@ func (tc *TypeChecker) checkValueExpression(expr ast.Expression) bool {
 			tc.addError(
 				errors.E3030,
 				fmt.Sprintf("enum type '%s' cannot be used as a value - use a specific enum member like %s.MEMBER",
-					label.Value, label.Value),
+					errors.Ident(label.Value), errors.Ident(label.Value)),
 				line,
 				column,
 			)
@@ -5383,7 +5670,7 @@ func (tc *TypeChecker) checkValueExpression(expr ast.Expression) bool {
 			tc.addError(
 				errors.E3030,
 				fmt.Sprintf("struct type '%s' cannot be used as a value - create an instance with %s { field: value }",
-					label.Value, label.Value),
+					errors.Ident(label.Value), errors.Ident(label.Value)),
 				line,
 				column,
 			)
@@ -5397,7 +5684,7 @@ func (tc *TypeChecker) checkValueExpression(expr ast.Expression) bool {
 		tc.addError(
 			errors.E3031,
 			fmt.Sprintf("function '%s' cannot be used as a value - functions must be called with ()",
-				label.Value),
+				errors.Ident(label.Value)),
 			line,
 			column,
 		)
@@ -5533,7 +5820,7 @@ func (tc *TypeChecker) inferExpressionTypeWithContext(expr ast.Expression, expec
 								line, column := tc.getExpressionPosition(elem)
 								tc.addError(
 									errors.E3020,
-									fmt.Sprintf("cannot use negative value -%s in array of type [%s]", intLit.Value.String(), elementType),
+									fmt.Sprintf("cannot use negative value -%s in array of type [%s]", intLit.Value.String(), errors.TypeExpected(elementType)),
 									line,
 									column,
 								)
@@ -5546,7 +5833,7 @@ func (tc *TypeChecker) inferExpressionTypeWithContext(expr ast.Expression, expec
 								line, column := tc.getExpressionPosition(elem)
 								tc.addError(
 									errors.E3036,
-									fmt.Sprintf("value %s out of range for array element type %s", intLit.Value.String(), elementType),
+									fmt.Sprintf("value %s out of range for array element type %s", intLit.Value.String(), errors.TypeExpected(elementType)),
 									line,
 									column,
 								)
@@ -5564,7 +5851,7 @@ func (tc *TypeChecker) inferExpressionTypeWithContext(expr ast.Expression, expec
 						line, column := tc.getExpressionPosition(elem)
 						tc.addError(
 							errors.E3001,
-							fmt.Sprintf("array element type mismatch: expected %s, got %s", elementType, elemType),
+							fmt.Sprintf("array element type mismatch: expected %s, got %s", errors.TypeExpected(elementType), errors.TypeGot(elemType)),
 							line,
 							column,
 						)
@@ -5597,7 +5884,7 @@ func (tc *TypeChecker) inferExpressionTypeWithContext(expr ast.Expression, expec
 						line, column := tc.getExpressionPosition(pair.Key)
 						tc.addError(
 							errors.E3001,
-							fmt.Sprintf("map key type mismatch: expected %s, got %s", expectedKeyType, keyType),
+							fmt.Sprintf("map key type mismatch: expected %s, got %s", errors.TypeExpected(expectedKeyType), errors.TypeGot(keyType)),
 							line,
 							column,
 						)
@@ -5607,7 +5894,7 @@ func (tc *TypeChecker) inferExpressionTypeWithContext(expr ast.Expression, expec
 						line, column := tc.getExpressionPosition(pair.Value)
 						tc.addError(
 							errors.E3001,
-							fmt.Sprintf("map value type mismatch: expected %s, got %s", expectedValueType, valueType),
+							fmt.Sprintf("map value type mismatch: expected %s, got %s", errors.TypeExpected(expectedValueType), errors.TypeGot(valueType)),
 							line,
 							column,
 						)
@@ -5642,7 +5929,7 @@ func (tc *TypeChecker) inferExpressionTypeWithContext(expr ast.Expression, expec
 				line, column := tc.getExpressionPosition(e)
 				tc.addError(
 					errors.E3012,
-					fmt.Sprintf("return type mismatch: expected %s, got string", expectedType),
+					fmt.Sprintf("return type mismatch: expected %s, got %s", errors.TypeExpected(expectedType), errors.TypeGot("string")),
 					line,
 					column,
 				)
@@ -5659,7 +5946,7 @@ func (tc *TypeChecker) inferExpressionTypeWithContext(expr ast.Expression, expec
 				line, column := tc.getExpressionPosition(e)
 				tc.addError(
 					errors.E3020,
-					fmt.Sprintf("cannot use negative value %s in context expecting %s", e.Value.String(), expectedType),
+					fmt.Sprintf("cannot use negative value %s in context expecting %s", e.Value.String(), errors.TypeExpected(expectedType)),
 					line,
 					column,
 				)
@@ -5670,7 +5957,7 @@ func (tc *TypeChecker) inferExpressionTypeWithContext(expr ast.Expression, expec
 				line, column := tc.getExpressionPosition(e)
 				tc.addError(
 					errors.E3036,
-					fmt.Sprintf("value %s out of range for type %s", e.Value.String(), expectedType),
+					fmt.Sprintf("value %s out of range for type %s", e.Value.String(), errors.TypeExpected(expectedType)),
 					line,
 					column,
 				)
@@ -5688,7 +5975,7 @@ func (tc *TypeChecker) inferExpressionTypeWithContext(expr ast.Expression, expec
 				line, column := tc.getExpressionPosition(e)
 				tc.addError(
 					errors.E3014,
-					fmt.Sprintf("cannot assign float value to integer type %s", expectedType),
+					fmt.Sprintf("cannot assign float value to integer type %s", errors.TypeExpected(expectedType)),
 					line,
 					column,
 				)
@@ -5710,7 +5997,7 @@ func (tc *TypeChecker) inferExpressionTypeWithContext(expr ast.Expression, expec
 						line, column := tc.getExpressionPosition(e)
 						tc.addError(
 							errors.E3020,
-							fmt.Sprintf("cannot use negative value -%s in context expecting %s", intLit.Value.String(), expectedType),
+							fmt.Sprintf("cannot use negative value -%s in context expecting %s", intLit.Value.String(), errors.TypeExpected(expectedType)),
 							line,
 							column,
 						)
@@ -5722,7 +6009,7 @@ func (tc *TypeChecker) inferExpressionTypeWithContext(expr ast.Expression, expec
 						line, column := tc.getExpressionPosition(e)
 						tc.addError(
 							errors.E3036,
-							fmt.Sprintf("value -%s out of range for type %s", intLit.Value.String(), expectedType),
+							fmt.Sprintf("value -%s out of range for type %s", intLit.Value.String(), errors.TypeExpected(expectedType)),
 							line,
 							column,
 						)
@@ -5790,7 +6077,7 @@ func (tc *TypeChecker) validateStructLiteral(structLit *ast.StructValue, expecte
 				line, column := tc.getExpressionPosition(fieldExpr)
 				tc.addError(
 					errors.E3001,
-					fmt.Sprintf("struct field '%s' type mismatch: expected %s, got %s", fieldName, fieldType.Name, fieldValueType),
+					fmt.Sprintf("struct field '%s' type mismatch: expected %s, got %s", errors.Ident(fieldName), errors.TypeExpected(fieldType.Name), errors.TypeGot(fieldValueType)),
 					line,
 					column,
 				)
@@ -5799,7 +6086,7 @@ func (tc *TypeChecker) validateStructLiteral(structLit *ast.StructValue, expecte
 			line, column := tc.getExpressionPosition(structLit)
 			tc.addError(
 				errors.E4003,
-				fmt.Sprintf("missing required field '%s' in struct literal", fieldName),
+				fmt.Sprintf("missing required field '%s' in struct literal", errors.Ident(fieldName)),
 				line,
 				column,
 			)
@@ -5812,7 +6099,7 @@ func (tc *TypeChecker) validateStructLiteral(structLit *ast.StructValue, expecte
 			line, column := tc.getExpressionPosition(structLit)
 			tc.addError(
 				errors.E4003,
-				fmt.Sprintf("struct '%s' has no field '%s'", expectedStruct.Name, fieldName),
+				fmt.Sprintf("struct '%s' has no field '%s'", errors.Ident(expectedStruct.Name), errors.Ident(fieldName)),
 				line,
 				column,
 			)
@@ -6039,7 +6326,7 @@ func (tc *TypeChecker) inferCallType(call *ast.CallExpression) (string, bool) {
 func (tc *TypeChecker) getBuiltinMultiReturnTypes(name string) []string {
 	switch name {
 	case "read_int":
-		return []string{"int", "error"}
+		return []string{"int", "Error"}
 	default:
 		return nil
 	}
@@ -6058,53 +6345,53 @@ func (tc *TypeChecker) getModuleMultiReturnTypes(moduleName, funcName string, ar
 			// io.read_bytes returns ([byte], error)
 			switch funcName {
 			case "read_file":
-				return []string{"string", "error"}
+				return []string{"string", "Error"}
 			case "read_lines":
-				return []string{"[string]", "error"}
+				return []string{"[string]", "Error"}
 			case "read_bytes":
-				return []string{"[byte]", "error"}
+				return []string{"[byte]", "Error"}
 			}
 		case "write_file", "append_file", "write_bytes":
-			return []string{"bool", "error"}
+			return []string{"bool", "Error"}
 		case "create_dir", "remove", "remove_dir", "rename", "copy_file":
-			return []string{"bool", "error"}
+			return []string{"bool", "Error"}
 		// Note: exists, is_dir, is_file return single bool (not tuple)
 		case "file_size":
-			return []string{"int", "error"}
+			return []string{"int", "Error"}
 		case "list_dir", "read_dir":
-			return []string{"[string]", "error"}
+			return []string{"[string]", "Error"}
 		case "read_stdin":
-			return []string{"string", "error"}
+			return []string{"string", "Error"}
 		case "open", "create":
-			return []string{"File", "error"}
+			return []string{"File", "Error"}
 		case "fread", "fread_line", "fread_all":
-			return []string{"string", "error"}
+			return []string{"string", "Error"}
 		case "fread_bytes":
-			return []string{"[byte]", "error"}
+			return []string{"[byte]", "Error"}
 		case "fwrite", "fwrite_line", "fwrite_bytes":
-			return []string{"int", "error"}
+			return []string{"int", "Error"}
 		case "fseek", "ftell":
-			return []string{"int", "error"}
+			return []string{"int", "Error"}
 		case "fclose", "fflush", "ftruncate":
-			return []string{"bool", "error"}
+			return []string{"bool", "Error"}
 		case "feof":
-			return []string{"bool", "error"}
+			return []string{"bool", "Error"}
 		case "temp_file", "temp_dir":
-			return []string{"string", "error"}
+			return []string{"string", "Error"}
 		case "abs_path", "rel_path":
-			return []string{"string", "error"}
+			return []string{"string", "Error"}
 		case "file_info":
-			return []string{"FileInfo", "error"}
+			return []string{"FileInfo", "Error"}
 		}
 	case "json":
 		switch funcName {
 		case "encode", "pretty":
-			return []string{"string", "error"}
+			return []string{"string", "Error"}
 		case "decode":
 			// Type argument is required - extract the type from the second argument
 			if len(args) >= 2 {
 				if label, ok := args[1].(*ast.Label); ok {
-					return []string{label.Value, "error"}
+					return []string{label.Value, "Error"}
 				}
 			}
 			// If no type argument, return empty (error will be caught by checkJsonModuleCall)
@@ -6113,28 +6400,28 @@ func (tc *TypeChecker) getModuleMultiReturnTypes(moduleName, funcName string, ar
 	case "os":
 		switch funcName {
 		case "get_env":
-			return []string{"string", "error"}
+			return []string{"string", "Error"}
 		case "exec":
-			return []string{"int", "error"}
+			return []string{"int", "Error"}
 		case "exec_output":
-			return []string{"string", "error"}
+			return []string{"string", "Error"}
 		case "set_env", "unset_env":
-			return []string{"bool", "error"}
+			return []string{"bool", "Error"}
 		}
 	case "bytes":
 		switch funcName {
 		case "from_hex", "from_base64":
-			return []string{"[byte]", "error"}
+			return []string{"[byte]", "Error"}
 		case "read_u8", "read_i8":
-			return []string{"int", "error"}
+			return []string{"int", "Error"}
 		case "read_u16", "read_u16_be", "read_i16", "read_i16_be":
-			return []string{"int", "error"}
+			return []string{"int", "Error"}
 		case "read_u32", "read_u32_be", "read_i32", "read_i32_be":
-			return []string{"int", "error"}
+			return []string{"int", "Error"}
 		case "read_u64", "read_u64_be", "read_i64", "read_i64_be":
-			return []string{"int", "error"}
+			return []string{"int", "Error"}
 		case "read_f32", "read_f32_be", "read_f64", "read_f64_be":
-			return []string{"float", "error"}
+			return []string{"float", "Error"}
 		}
 	case "binary":
 		// All binary encode functions return ([byte], error)
@@ -6153,7 +6440,7 @@ func (tc *TypeChecker) getModuleMultiReturnTypes(moduleName, funcName string, ar
 			"encode_i256_to_big_endian", "encode_u256_to_big_endian",
 			"encode_f32_to_little_endian", "encode_f32_to_big_endian",
 			"encode_f64_to_little_endian", "encode_f64_to_big_endian":
-			return []string{"[byte]", "error"}
+			return []string{"[byte]", "Error"}
 		case "decode_i8", "decode_u8",
 			"decode_i16_from_little_endian", "decode_u16_from_little_endian",
 			"decode_i16_from_big_endian", "decode_u16_from_big_endian",
@@ -6165,16 +6452,16 @@ func (tc *TypeChecker) getModuleMultiReturnTypes(moduleName, funcName string, ar
 			"decode_i128_from_big_endian", "decode_u128_from_big_endian",
 			"decode_i256_from_little_endian", "decode_u256_from_little_endian",
 			"decode_i256_from_big_endian", "decode_u256_from_big_endian":
-			return []string{"int", "error"}
+			return []string{"int", "Error"}
 		case "decode_f32_from_little_endian", "decode_f32_from_big_endian",
 			"decode_f64_from_little_endian", "decode_f64_from_big_endian":
-			return []string{"float", "error"}
+			return []string{"float", "Error"}
 		}
 
 	case "db":
 		switch funcName {
 		case "open":
-			return []string{"Database", "error"}
+			return []string{"Database", "Error"}
 		case "get":
 			return []string{"string", "bool"}
 		}
@@ -6182,7 +6469,45 @@ func (tc *TypeChecker) getModuleMultiReturnTypes(moduleName, funcName string, ar
 	case "http":
 		switch funcName {
 		case "get", "post", "put", "delete", "patch", "request":
-			return []string{"HttpResponse", "error"}
+			return []string{"HttpResponse", "Error"}
+		}
+
+	case "csv":
+		switch funcName {
+		case "parse", "read":
+			return []string{"[[string]]", "Error"}
+		case "stringify":
+			return []string{"string", "Error"}
+		case "headers":
+			return []string{"[string]", "Error"}
+		case "write":
+			return []string{"bool", "Error"}
+		}
+
+	case "regex":
+		switch funcName {
+		case "match":
+			return []string{"bool", "Error"}
+		case "find":
+			return []string{"string", "Error"}
+		case "find_all":
+			return []string{"[string]", "Error"}
+		case "find_all_n":
+			return []string{"[string]", "Error"}
+		case "replace", "replace_all":
+			return []string{"string", "Error"}
+		case "split":
+			return []string{"[string]", "Error"}
+		case "groups":
+			return []string{"[string]", "Error"}
+		case "groups_all":
+			return []string{"[[string]]", "Error"}
+		}
+
+	case "encoding":
+		switch funcName {
+		case "base64_decode", "hex_decode", "url_decode":
+			return []string{"string", "Error"}
 		}
 	}
 	return nil
@@ -6248,7 +6573,7 @@ func (tc *TypeChecker) inferBuiltinCallType(name string, args []ast.Expression) 
 		}
 		return "", false
 	case "error":
-		return "error", true
+		return "Error", true
 	case "new":
 		// new() returns an instance of the type passed as argument
 		if len(args) > 0 {
@@ -6318,6 +6643,8 @@ func (tc *TypeChecker) inferModuleCallType(member *ast.MemberExpression, args []
 		return tc.inferDBCallType(funcName, args)
 	case "binary":
 		return tc.inferBinaryCallType(funcName, args)
+	case "server":
+		return tc.inferServerCallType(funcName, args)
 	default:
 		// Check user-defined modules
 		if sig, ok := tc.GetModuleFunction(moduleName, funcName); ok {
@@ -6693,7 +7020,7 @@ func (tc *TypeChecker) inferDBCallType(funcName string, args []ast.Expression) (
 	case "open":
 		return "Database", true
 	case "close", "save":
-		return "error", true
+		return "Error", true
 	case "set", "clear", "sort":
 		return "void", true
 	case "get":
@@ -6752,6 +7079,21 @@ func (tc *TypeChecker) inferBinaryCallType(funcName string, args []ast.Expressio
 	}
 }
 
+func (tc *TypeChecker) inferServerCallType(funcName string, args []ast.Expression) (string, bool) {
+	switch funcName {
+	case "router":
+		return "Router", true
+	case "route":
+		return "nil", true
+	case "listen":
+		return "Error", true
+	case "text", "json", "html":
+		return "Response", true
+	default:
+		return "", false
+	}
+}
+
 // inferIndexType infers the type when indexing into an array, string, or map
 func (tc *TypeChecker) inferIndexType(index *ast.IndexExpression) (string, bool) {
 	leftType, ok := tc.inferExpressionType(index.Left)
@@ -6796,7 +7138,7 @@ func (tc *TypeChecker) inferMemberType(member *ast.MemberExpression) (string, bo
 			if enumType.EnumMembers != nil && !enumType.EnumMembers[memberName] {
 				tc.addError(
 					errors.E4004,
-					fmt.Sprintf("enum '%s' has no member '%s'", label.Value, memberName),
+					fmt.Sprintf("enum '%s' has no member '%s'", errors.Ident(label.Value), errors.Ident(memberName)),
 					member.Member.Token.Line,
 					member.Member.Token.Column,
 				)
@@ -6836,7 +7178,7 @@ func (tc *TypeChecker) inferMemberType(member *ast.MemberExpression) (string, bo
 						if enumType.EnumMembers != nil && !enumType.EnumMembers[memberName] {
 							tc.addError(
 								errors.E4004,
-								fmt.Sprintf("enum '%s.%s' has no member '%s'", moduleName, enumName, memberName),
+								fmt.Sprintf("enum '%s.%s' has no member '%s'", errors.Ident(moduleName), errors.Ident(enumName), errors.Ident(memberName)),
 								member.Member.Token.Line,
 								member.Member.Token.Column,
 							)
@@ -7009,7 +7351,7 @@ func (tc *TypeChecker) checkArithmeticOverflow(left, right int64, operator, resu
 
 	if overflows || result > maxVal || result < minVal {
 		return true, fmt.Sprintf("%s arithmetic with values %d %s %d overflows type %s (range %d to %d)",
-			resultType, left, operator, right, resultType, minVal, maxVal)
+			errors.TypeGot(resultType), left, operator, right, errors.TypeExpected(resultType), minVal, maxVal)
 	}
 	return false, ""
 }
@@ -7029,11 +7371,6 @@ func (tc *TypeChecker) promoteNumericTypes(left, right string) string {
 func (tc *TypeChecker) typesCompatible(declared, actual string) bool {
 	// Exact match
 	if declared == actual {
-		return true
-	}
-
-	// error/Error are interchangeable (error is alias for Error struct)
-	if (declared == "error" && actual == "Error") || (declared == "Error" && actual == "error") {
 		return true
 	}
 
@@ -7490,10 +7827,10 @@ func (tc *TypeChecker) validateCallArguments(funcName string, call *ast.CallExpr
 		var msg string
 		if minRequired == len(sig.Parameters) {
 			msg = fmt.Sprintf("wrong number of arguments to '%s': expected %d, got %d",
-				funcName, len(sig.Parameters), len(call.Arguments))
+				errors.Ident(funcName), len(sig.Parameters), len(call.Arguments))
 		} else {
 			msg = fmt.Sprintf("wrong number of arguments to '%s': expected %d to %d, got %d",
-				funcName, minRequired, len(sig.Parameters), len(call.Arguments))
+				errors.Ident(funcName), minRequired, len(sig.Parameters), len(call.Arguments))
 		}
 		tc.addError(errors.E5008, msg, line, column)
 	}
@@ -7701,6 +8038,13 @@ func (tc *TypeChecker) isHttpFunction(name string) bool {
 	return httpFuncs[name]
 }
 
+func (tc *TypeChecker) isServerFunction(name string) bool {
+	return map[string]bool{
+		"router": true, "route": true, "listen": true,
+		"text": true, "json": true, "html": true,
+	}[name]
+}
+
 // isBytesFunction checks if a function name exists in the bytes module
 func (tc *TypeChecker) isBytesFunction(name string) bool {
 	bytesFuncs := map[string]bool{
@@ -7832,6 +8176,8 @@ func (tc *TypeChecker) isModuleFunction(moduleName, funcName string) bool {
 		return tc.isEncodingFunction(funcName)
 	case "crypto":
 		return tc.isCryptoFunction(funcName)
+	case "server":
+		return tc.isServerFunction(funcName)
 	default:
 		// Check user-defined modules
 		if funcs, ok := tc.moduleFunctions[moduleName]; ok {
@@ -7857,13 +8203,13 @@ func (tc *TypeChecker) checkStdlibCall(member *ast.MemberExpression, call *ast.C
 	resolvedModuleName := tc.resolveStdlibModule(moduleName)
 
 	// Check if the module was imported (for standard library modules)
-	stdModules := map[string]bool{"std": true, "math": true, "arrays": true, "strings": true, "time": true, "maps": true, "io": true, "os": true, "bytes": true, "random": true, "json": true, "binary": true, "db": true, "uuid": true, "encoding": true, "crypto": true, "http": true}
+	stdModules := map[string]bool{"std": true, "math": true, "arrays": true, "strings": true, "time": true, "maps": true, "io": true, "os": true, "bytes": true, "random": true, "json": true, "binary": true, "db": true, "uuid": true, "encoding": true, "crypto": true, "http": true, "csv": true, "regex": true, "server": true}
 	if stdModules[resolvedModuleName] && !tc.modules[moduleName] && !tc.modules[resolvedModuleName] {
 		help := ""
 		if suggestion := errors.SuggestModule(moduleName); suggestion != "" && suggestion != resolvedModuleName {
-			help = fmt.Sprintf("did you mean '%s'?", suggestion)
+			help = fmt.Sprintf("did you mean '%s'?", errors.Ident(suggestion))
 		}
-		tc.addErrorWithHelp(errors.E4007, fmt.Sprintf("module '%s' not imported; add 'import @%s'", moduleName, resolvedModuleName), help, line, column)
+		tc.addErrorWithHelp(errors.E4007, fmt.Sprintf("module '%s' not imported; add 'import @%s'", errors.Ident(moduleName), errors.Ident(resolvedModuleName)), help, line, column)
 		return
 	}
 
@@ -7905,6 +8251,12 @@ func (tc *TypeChecker) checkStdlibCall(member *ast.MemberExpression, call *ast.C
 		tc.checkCryptoModuleCall(funcName, call, line, column)
 	case "http":
 		tc.checkHttpModuleCall(funcName, call, line, column)
+	case "csv":
+		tc.checkCsvModuleCall(funcName, call, line, column)
+	case "regex":
+		tc.checkRegexModuleCall(funcName, call, line, column)
+	case "server":
+		tc.checkServerModuleCall(funcName, call, line, column)
 	default:
 		// User-defined module - check if we have type info for it
 		tc.checkUserModuleCall(moduleName, funcName, call, line, column)
@@ -7922,7 +8274,7 @@ func (tc *TypeChecker) checkUserModuleCall(moduleName, funcName string, call *as
 			// Note: scope-aware function suggestions would require passing available functions
 			tc.addError(
 				errors.E4002,
-				fmt.Sprintf("undefined function '%s.%s'", moduleName, funcName),
+				fmt.Sprintf("undefined function '%s.%s'", errors.Ident(moduleName), errors.Ident(funcName)),
 				line,
 				column,
 			)
@@ -7946,10 +8298,10 @@ func (tc *TypeChecker) checkUserModuleCall(moduleName, funcName string, call *as
 		var msg string
 		if minRequired == len(sig.Parameters) {
 			msg = fmt.Sprintf("wrong number of arguments to '%s.%s': expected %d, got %d",
-				moduleName, funcName, len(sig.Parameters), len(call.Arguments))
+				errors.Ident(moduleName), errors.Ident(funcName), len(sig.Parameters), len(call.Arguments))
 		} else {
 			msg = fmt.Sprintf("wrong number of arguments to '%s.%s': expected %d to %d, got %d",
-				moduleName, funcName, minRequired, len(sig.Parameters), len(call.Arguments))
+				errors.Ident(moduleName), errors.Ident(funcName), minRequired, len(sig.Parameters), len(call.Arguments))
 		}
 		tc.addError(errors.E5008, msg, line, column)
 		return
@@ -7976,7 +8328,7 @@ func (tc *TypeChecker) checkUserModuleCall(moduleName, funcName string, call *as
 			tc.addError(
 				errors.E3001,
 				fmt.Sprintf("argument type mismatch in call to '%s.%s': parameter '%s' expects %s, got %s",
-					moduleName, funcName, sig.Parameters[i].Name, expectedType, displayType),
+					errors.Ident(moduleName), errors.Ident(funcName), errors.Ident(sig.Parameters[i].Name), errors.TypeExpected(expectedType), errors.TypeGot(displayType)),
 				argLine,
 				argColumn,
 			)
@@ -7991,7 +8343,7 @@ func (tc *TypeChecker) checkUserModuleCall(moduleName, funcName string, call *as
 					tc.addError(
 						errors.E3027,
 						fmt.Sprintf("cannot pass immutable variable '%s' to mutable parameter '&%s' in call to '%s.%s'",
-							label.Value, sig.Parameters[i].Name, moduleName, funcName),
+							errors.Ident(label.Value), errors.Ident(sig.Parameters[i].Name), errors.Ident(moduleName), errors.Ident(funcName)),
 						argLine,
 						argColumn,
 					)
@@ -8197,7 +8549,7 @@ func (tc *TypeChecker) checkArrayElementTypeCompatibility(funcName string, call 
 				argLine, argCol := tc.getExpressionPosition(call.Arguments[i])
 				tc.addError(errors.E3001,
 					fmt.Sprintf("arrays.%s: element type mismatch - array has element type %s, but got %s",
-						funcName, elementType, argType),
+						errors.Ident(funcName), errors.TypeExpected(elementType), errors.TypeGot(argType)),
 					argLine, argCol)
 			}
 		}
@@ -8221,7 +8573,7 @@ func (tc *TypeChecker) checkArrayElementTypeCompatibility(funcName string, call 
 			argLine, argCol := tc.getExpressionPosition(call.Arguments[2])
 			tc.addError(errors.E3001,
 				fmt.Sprintf("arrays.%s: element type mismatch - array has element type %s, but got %s",
-					funcName, elementType, argType),
+					errors.Ident(funcName), errors.TypeExpected(elementType), errors.TypeGot(argType)),
 				argLine, argCol)
 		}
 
@@ -8243,7 +8595,7 @@ func (tc *TypeChecker) checkArrayElementTypeCompatibility(funcName string, call 
 				argLine, argCol := tc.getExpressionPosition(call.Arguments[i])
 				tc.addError(errors.E3001,
 					fmt.Sprintf("arrays.%s: incompatible array element types - first array has %s, but argument %d has %s",
-						funcName, firstElementType, i+1, argElementType),
+						errors.Ident(funcName), errors.TypeExpected(firstElementType), i+1, errors.TypeGot(argElementType)),
 					argLine, argCol)
 			}
 		}
@@ -8328,7 +8680,7 @@ func (tc *TypeChecker) checkMapKeyValueTypeCompatibility(funcName string, call *
 			argLine, argCol := tc.getExpressionPosition(call.Arguments[1])
 			tc.addError(errors.E3001,
 				fmt.Sprintf("maps.%s: key type mismatch - map has key type %s, but got %s",
-					funcName, keyType, argType),
+					errors.Ident(funcName), errors.TypeExpected(keyType), errors.TypeGot(argType)),
 				argLine, argCol)
 		}
 
@@ -8345,7 +8697,7 @@ func (tc *TypeChecker) checkMapKeyValueTypeCompatibility(funcName string, call *
 			argLine, argCol := tc.getExpressionPosition(call.Arguments[1])
 			tc.addError(errors.E3001,
 				fmt.Sprintf("maps.%s: value type mismatch - map has value type %s, but got %s",
-					funcName, valueType, argType),
+					errors.Ident(funcName), errors.TypeExpected(valueType), errors.TypeGot(argType)),
 				argLine, argCol)
 		}
 
@@ -8359,7 +8711,7 @@ func (tc *TypeChecker) checkMapKeyValueTypeCompatibility(funcName string, call *
 			argLine, argCol := tc.getExpressionPosition(call.Arguments[1])
 			tc.addError(errors.E3001,
 				fmt.Sprintf("maps.%s: key type mismatch - map has key type %s, but got %s",
-					funcName, keyType, keyArgType),
+					errors.Ident(funcName), errors.TypeExpected(keyType), errors.TypeGot(keyArgType)),
 				argLine, argCol)
 		}
 		// Check default value type if provided
@@ -8369,7 +8721,7 @@ func (tc *TypeChecker) checkMapKeyValueTypeCompatibility(funcName string, call *
 				argLine, argCol := tc.getExpressionPosition(call.Arguments[2])
 				tc.addError(errors.E3001,
 					fmt.Sprintf("maps.%s: default value type mismatch - map has value type %s, but got %s",
-						funcName, valueType, defaultArgType),
+						errors.Ident(funcName), errors.TypeExpected(valueType), errors.TypeGot(defaultArgType)),
 					argLine, argCol)
 			}
 		}
@@ -8384,7 +8736,7 @@ func (tc *TypeChecker) checkMapKeyValueTypeCompatibility(funcName string, call *
 			argLine, argCol := tc.getExpressionPosition(call.Arguments[1])
 			tc.addError(errors.E3001,
 				fmt.Sprintf("maps.%s: key type mismatch - map has key type %s, but got %s",
-					funcName, keyType, keyArgType),
+					errors.Ident(funcName), errors.TypeExpected(keyType), errors.TypeGot(keyArgType)),
 				argLine, argCol)
 		}
 		valueArgType, ok := tc.inferExpressionType(call.Arguments[2])
@@ -8392,7 +8744,7 @@ func (tc *TypeChecker) checkMapKeyValueTypeCompatibility(funcName string, call *
 			argLine, argCol := tc.getExpressionPosition(call.Arguments[2])
 			tc.addError(errors.E3001,
 				fmt.Sprintf("maps.%s: value type mismatch - map has value type %s, but got %s",
-					funcName, valueType, valueArgType),
+					errors.Ident(funcName), errors.TypeExpected(valueType), errors.TypeGot(valueArgType)),
 				argLine, argCol)
 		}
 
@@ -8409,14 +8761,14 @@ func (tc *TypeChecker) checkMapKeyValueTypeCompatibility(funcName string, call *
 				argLine, argCol := tc.getExpressionPosition(call.Arguments[i])
 				tc.addError(errors.E3001,
 					fmt.Sprintf("maps.%s: incompatible map key types - first map has %s, but argument %d has %s",
-						funcName, keyType, i+1, argKeyType),
+						errors.Ident(funcName), errors.TypeExpected(keyType), i+1, errors.TypeGot(argKeyType)),
 					argLine, argCol)
 			}
 			if !tc.typesCompatible(valueType, argValueType) {
 				argLine, argCol := tc.getExpressionPosition(call.Arguments[i])
 				tc.addError(errors.E3001,
 					fmt.Sprintf("maps.%s: incompatible map value types - first map has %s, but argument %d has %s",
-						funcName, valueType, i+1, argValueType),
+						errors.Ident(funcName), errors.TypeExpected(valueType), i+1, errors.TypeGot(argValueType)),
 					argLine, argCol)
 			}
 		}
@@ -8728,7 +9080,7 @@ func (tc *TypeChecker) checkJsonModuleCall(funcName string, call *ast.CallExpres
 	if funcName == "decode" && len(call.Arguments) == 1 {
 		tc.addError(
 			errors.E13004,
-			"json.decode() requires a type argument: json.decode(text, Type)",
+			"json.decode() requires a struct type as second argument: json.decode(text, StructType)",
 			line,
 			column,
 		)
@@ -9011,6 +9363,63 @@ func (tc *TypeChecker) checkHttpModuleCall(funcName string, call *ast.CallExpres
 	tc.validateStdlibCall("http", funcName, call, sig, line, column)
 }
 
+func (tc *TypeChecker) checkCsvModuleCall(funcName string, call *ast.CallExpression, line, column int) {
+	signatures := map[string]StdlibFuncSig{
+		"parse":     {1, 1, []string{"string"}, "tuple"},
+		"stringify": {1, 1, []string{"array"}, "tuple"},
+		"read":      {1, 2, []string{"string", "map"}, "tuple"},
+		"write":     {2, 3, []string{"string", "array", "map"}, "tuple"},
+		"headers":   {1, 1, []string{"string"}, "tuple"},
+	}
+
+	sig, exists := signatures[funcName]
+	if !exists {
+		return
+	}
+
+	tc.validateStdlibCall("csv", funcName, call, sig, line, column)
+}
+
+func (tc *TypeChecker) checkRegexModuleCall(funcName string, call *ast.CallExpression, line, column int) {
+	signatures := map[string]StdlibFuncSig{
+		"is_valid":    {1, 1, []string{"string"}, "bool"},
+		"match":       {2, 2, []string{"string", "string"}, "tuple"},
+		"find":        {2, 2, []string{"string", "string"}, "tuple"},
+		"find_all":    {2, 2, []string{"string", "string"}, "tuple"},
+		"find_all_n":  {3, 3, []string{"string", "string", "int"}, "tuple"},
+		"replace":     {3, 3, []string{"string", "string", "string"}, "tuple"},
+		"replace_all": {3, 3, []string{"string", "string", "string"}, "tuple"},
+		"split":       {2, 2, []string{"string", "string"}, "tuple"},
+		"groups":      {2, 2, []string{"string", "string"}, "tuple"},
+		"groups_all":  {2, 2, []string{"string", "string"}, "tuple"},
+	}
+
+	sig, exists := signatures[funcName]
+	if !exists {
+		return
+	}
+
+	tc.validateStdlibCall("regex", funcName, call, sig, line, column)
+}
+
+func (tc *TypeChecker) checkServerModuleCall(funcName string, call *ast.CallExpression, line, column int) {
+	signatures := map[string]StdlibFuncSig{
+		"router": {0, 0, []string{}, "Router"},
+		"route":  {4, 4, []string{"any", "string", "string", "any"}, "nil"},
+		"listen": {2, 2, []string{"int", "any"}, "Error"},
+		"text":   {2, 2, []string{"int", "string"}, "Response"},
+		"json":   {2, 2, []string{"int", "any"}, "Response"},
+		"html":   {2, 2, []string{"int", "string"}, "Response"},
+	}
+
+	sig, exists := signatures[funcName]
+	if !exists {
+		return
+	}
+
+	tc.validateStdlibCall("server", funcName, call, sig, line, column)
+}
+
 // validateStdlibCall performs the actual validation of a stdlib call
 func (tc *TypeChecker) validateStdlibCall(moduleName, funcName string, call *ast.CallExpression, sig StdlibFuncSig, line, column int) {
 	argCount := len(call.Arguments)
@@ -9018,14 +9427,14 @@ func (tc *TypeChecker) validateStdlibCall(moduleName, funcName string, call *ast
 	// Check argument count
 	if argCount < sig.MinArgs {
 		tc.addError(errors.E5008,
-			fmt.Sprintf("%s.%s requires at least %d argument(s), got %d", moduleName, funcName, sig.MinArgs, argCount),
+			fmt.Sprintf("%s.%s requires at least %d argument(s), got %d", errors.Ident(moduleName), errors.Ident(funcName), sig.MinArgs, argCount),
 			line, column)
 		return
 	}
 
 	if sig.MaxArgs >= 0 && argCount > sig.MaxArgs {
 		tc.addError(errors.E5008,
-			fmt.Sprintf("%s.%s accepts at most %d argument(s), got %d", moduleName, funcName, sig.MaxArgs, argCount),
+			fmt.Sprintf("%s.%s accepts at most %d argument(s), got %d", errors.Ident(moduleName), errors.Ident(funcName), sig.MaxArgs, argCount),
 			line, column)
 		return
 	}
@@ -9052,7 +9461,7 @@ func (tc *TypeChecker) validateStdlibCall(moduleName, funcName string, call *ast
 		if !tc.typeMatchesExpected(actualType, expectedType) {
 			argLine, argColumn := tc.getExpressionPosition(arg)
 			tc.addError(errors.E3001,
-				fmt.Sprintf("%s.%s argument %d: expected %s, got %s", moduleName, funcName, i+1, expectedType, actualType),
+				fmt.Sprintf("%s.%s argument %d: expected %s, got %s", errors.Ident(moduleName), errors.Ident(funcName), i+1, errors.TypeExpected(expectedType), errors.TypeGot(actualType)),
 				argLine, argColumn)
 		}
 	}

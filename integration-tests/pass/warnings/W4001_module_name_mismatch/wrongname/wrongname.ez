@@ -1,0 +1,3 @@
+module mismatched_name
+
+const MY_VAL int = 42

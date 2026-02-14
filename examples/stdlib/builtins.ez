@@ -1,0 +1,54 @@
+/*
+ * builtins.ez - Built-in functions (no import needed)
+ *
+ * Run with: ez examples/stdlib/builtins.ez
+ */
+
+import @std
+using std
+
+do main() {
+    // Type conversions
+    println("int('42') = ${int("42")}")
+    println("float('3.14') = ${float("3.14")}")
+    println("string(100) = ${string(100)}")
+    println("char(65) = ${char(65)}")
+    println("byte(255) = ${byte(255)}")
+
+    // typeof
+    println("typeof(42) = ${typeof(42)}")
+    println("typeof('hello') = ${typeof("hello")}")
+    println("typeof(3.14) = ${typeof(3.14)}")
+    println("typeof(true) = ${typeof(true)}")
+    println("typeof(nil) = ${typeof(nil)}")
+
+    // len
+    temp nums [int] = {1, 2, 3, 4, 5}
+    temp name string = "EZ Lang"
+    println("len({1,2,3,4,5}) = ${len(nums)}")
+    println("len('EZ Lang') = ${len(name)}")
+
+    // copy - creates an independent deep copy
+    temp original [int] = {10, 20, 30}
+    temp cloned [int] = copy(original)
+    cloned[0] = 999
+    println("copy: original[0] = ${original[0]}, cloned[0] = ${cloned[0]}")
+
+    // ref - creates a shared reference (changes affect both)
+    temp source [int] = {10, 20, 30}
+    temp alias = ref(source)
+    alias[0] = 999
+    println("ref: source[0] = ${source[0]}, alias[0] = ${alias[0]}")
+
+    // assert (condition, message)
+    assert(1 + 1 == 2, "math should work")
+    println("assert(1 + 1 == 2) passed!")
+
+    // error creates an Error struct
+    temp e Error = error("something went wrong")
+    println("error(): ${e}")
+
+    // print vs println
+    print("print does not add newline -> ")
+    println("println does")
+}

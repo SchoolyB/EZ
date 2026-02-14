@@ -19,7 +19,7 @@ do main() {
     println("  -- Opening --")
 
     // Test 1: opening database
-    temp store Database, err error = db.open("mydb.ezdb")
+    temp store Database, err Error = db.open("mydb.ezdb")
     if err != nil {
         println("   [FAIL] db.open(string): unexpected error")
         failed += 1
@@ -184,7 +184,7 @@ do main() {
     println("  -- db.save --")
     
     // Test 1: Manual save to disk
-		temp save_err error = db.save(store)
+		temp save_err Error = db.save(store)
     if save_err == nil {
         println("   [PASS] db.save(database)")
         passed += 1
@@ -219,7 +219,7 @@ do main() {
     println("  -- db.update_key_name --")
 
     // Reopen the store for rename tests
-    temp rename_store Database, rename_err error = db.open("rename_test.ezdb")
+    temp rename_store Database, rename_err Error = db.open("rename_test.ezdb")
     if rename_err != nil {
         println("   [FAIL] db.update_key_name: could not open test database")
         failed += 1
@@ -270,7 +270,7 @@ do main() {
     println("  -- db.sort --")
 
     // Create a fresh database for sort tests
-    temp sort_store Database, sort_err error = db.open("sort_test.ezdb")
+    temp sort_store Database, sort_err Error = db.open("sort_test.ezdb")
     if sort_err != nil {
         println("   [FAIL] db.sort: could not open test database")
         failed += 1
@@ -372,7 +372,7 @@ do main() {
     // ==================== db.close ====================
     println("  -- db.close --")
 
-    temp close_err error = db.close(store)
+    temp close_err Error = db.close(store)
     if close_err == nil {
         println("   [PASS] db.close(database)")
         passed += 1

@@ -1,0 +1,11 @@
+/*
+ * Error Test: E9008 - sample-count-exceeds-length
+ * Expected: "sample" or "exceeds" or "length"
+ */
+
+import @random
+
+do main() {
+    temp arr [int] = {1, 2, 3}
+    temp sampled = random.sample(arr, 10)  // ERROR: sample count exceeds array length
+}

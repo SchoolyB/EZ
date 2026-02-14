@@ -111,6 +111,7 @@ const (
 	STRICT     TokenType = "STRICT"
 	ENUM_ATTR  TokenType = "ENUM_ATTR" // @enum(type)
 	FLAGS      TokenType = "FLAGS"     // @flags
+	DOC        TokenType = "DOC"       // #doc
 
 	// Module system keywords
 	MODULE  TokenType = "MODULE"

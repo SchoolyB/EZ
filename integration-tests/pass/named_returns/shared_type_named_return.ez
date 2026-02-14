@@ -1,0 +1,17 @@
+/* Test: Named return variables sharing a type
+ * Expected: passes with output "John" and "Doe"
+ */
+
+import & use @std
+
+do getNames() -> (first, last string) {
+    first = "John"
+    last = "Doe"
+    return first, last
+}
+
+do main() {
+    temp f string, l string = getNames()
+    println(f)
+    println(l)
+}

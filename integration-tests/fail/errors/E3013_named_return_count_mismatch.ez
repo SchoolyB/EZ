@@ -1,0 +1,14 @@
+/* Test: Named return with wrong number of values
+ * Expected: E3013 error - wrong number of return values
+ */
+
+import & use @std
+
+do getValues() -> (age int, name string) {
+    return 42
+}
+
+do main() {
+    temp a int, n string = getValues()
+    println(a)
+}

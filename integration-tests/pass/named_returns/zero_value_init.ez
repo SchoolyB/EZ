@@ -1,0 +1,28 @@
+/* Test: Named return zero value initialization
+ * Expected: passes with output "0", "", "false", "0.0"
+ */
+
+import & use @std
+
+do getZeroInt() -> (count int) {
+    return count
+}
+
+do getZeroString() -> (text string) {
+    return text
+}
+
+do getZeroBool() -> (flag bool) {
+    return flag
+}
+
+do getZeroFloat() -> (value float) {
+    return value
+}
+
+do main() {
+    println(getZeroInt())
+    println(getZeroString())
+    println(getZeroBool())
+    println(getZeroFloat())
+}

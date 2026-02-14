@@ -1,0 +1,17 @@
+/*
+ * Warning Test: W2001 - unreachable-code
+ * Expected: warning about code that will never execute
+ */
+
+import @std
+using std
+
+do helper() -> int {
+    return 42
+    temp x int = 10  // This is unreachable
+}
+
+do main() {
+    temp val int = helper()
+    println(val)
+}

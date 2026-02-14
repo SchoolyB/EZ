@@ -5,7 +5,7 @@ package stdlib
 
 import (
 	"bufio"
-	"errors"
+	stderrors "errors"
 	"fmt"
 	"io"
 	"math"
@@ -15,6 +15,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/marshallburns/ez/pkg/errors"
 	"github.com/marshallburns/ez/pkg/object"
 )
 
@@ -23,7 +24,6 @@ var stdinReader = bufio.NewReader(os.Stdin)
 
 // Track if stdin EOF has been encountered - subsequent reads will exit gracefully
 var stdinEOFReached = false
-
 
 // isImmutablePrimitive returns true if the object is an immutable primitive type.
 // These types don't need deep copying - they can be shared safely.
@@ -125,13 +125,13 @@ func extractIntValue(arg object.Object, targetType string) (*big.Int, *object.Er
 		if math.IsNaN(v.Value) {
 			return nil, &object.Error{
 				Code:    "E7033",
-				Message: fmt.Sprintf("cannot convert NaN to %s", targetType),
+				Message: fmt.Sprintf("cannot convert NaN to %s", errors.TypeExpected(targetType)),
 			}
 		}
 		if math.IsInf(v.Value, 0) {
 			return nil, &object.Error{
 				Code:    "E7033",
-				Message: fmt.Sprintf("cannot convert Inf to %s", targetType),
+				Message: fmt.Sprintf("cannot convert Inf to %s", errors.TypeExpected(targetType)),
 			}
 		}
 		return big.NewInt(int64(v.Value)), nil
@@ -141,7 +141,7 @@ func extractIntValue(arg object.Object, targetType string) (*big.Int, *object.Er
 		if !ok {
 			return nil, &object.Error{
 				Code:    "E7014",
-				Message: fmt.Sprintf("cannot convert %q to %s: invalid integer format", v.Value, targetType),
+				Message: fmt.Sprintf("cannot convert %q to %s: invalid integer format", v.Value, errors.TypeExpected(targetType)),
 			}
 		}
 		return val, nil
@@ -152,7 +152,7 @@ func extractIntValue(arg object.Object, targetType string) (*big.Int, *object.Er
 	default:
 		return nil, &object.Error{
 			Code:    "E7014",
-			Message: fmt.Sprintf("cannot convert %s to %s", arg.Type(), targetType),
+			Message: fmt.Sprintf("cannot convert %s to %s", errors.TypeGot(string(arg.Type())), errors.TypeExpected(targetType)),
 		}
 	}
 }
@@ -171,7 +171,7 @@ func extractFloatValue(arg object.Object, targetType string) (float64, *object.E
 		if err != nil {
 			return 0, &object.Error{
 				Code:    "E7014",
-				Message: fmt.Sprintf("cannot convert %q to %s: invalid float format", v.Value, targetType),
+				Message: fmt.Sprintf("cannot convert %q to %s: invalid float format", v.Value, errors.TypeExpected(targetType)),
 			}
 		}
 		return val, nil
@@ -182,54 +182,46 @@ func extractFloatValue(arg object.Object, targetType string) (float64, *object.E
 	default:
 		return 0, &object.Error{
 			Code:    "E7014",
-			Message: fmt.Sprintf("cannot convert %s to %s", arg.Type(), targetType),
+			Message: fmt.Sprintf("cannot convert %s to %s", errors.TypeGot(string(arg.Type())), errors.TypeExpected(targetType)),
 		}
+	}
+}
+
+// printArgs writes args to w, space-separated, with optional trailing newline.
+func printArgs(w io.Writer, args []object.Object, newline bool) {
+	for i, arg := range args {
+		if i > 0 {
+			fmt.Fprint(w, " ")
+		}
+		if str, ok := arg.(*object.String); ok {
+			fmt.Fprint(w, str.Value)
+		} else {
+			fmt.Fprint(w, arg.Inspect())
+		}
+	}
+	if newline {
+		fmt.Fprintln(w)
 	}
 }
 
 // StdBuiltins contains the core standard library functions
 var StdBuiltins = map[string]*object.Builtin{
-	// Prints values to standard output followed by a newline
 	"std.println": {
 		Fn: func(args ...object.Object) object.Object {
-			for i, arg := range args {
-				if i > 0 {
-					fmt.Print(" ")
-				}
-				// For strings, print raw value without quotes
-				// Other types use Inspect() for proper representation
-				if str, ok := arg.(*object.String); ok {
-					fmt.Print(str.Value)
-				} else {
-					fmt.Print(arg.Inspect())
-				}
-			}
-			fmt.Println()
+			printArgs(os.Stdout, args, true)
 			return object.NIL
 		},
 	},
 
-	// Prints values to standard output WITHOUT a newline
-	// User must explicitly add \n for newlines
 	"std.print": {
 		Fn: func(args ...object.Object) object.Object {
-			for i, arg := range args {
-				if i > 0 {
-					fmt.Print(" ")
-				}
-				// For strings, print raw value without quotes
-				// Other types use Inspect() for proper representation
-				if str, ok := arg.(*object.String); ok {
-					fmt.Print(str.Value)
-				} else {
-					fmt.Print(arg.Inspect())
-				}
-			}
+			printArgs(os.Stdout, args, false)
 			return object.NIL
 		},
 	},
 
-	// Reads an integer from standard input
+	// read_int reads an integer from standard input.
+	// Returns (int, Error) tuple where Error is nil on success.
 	"read_int": {
 		Fn: func(args ...object.Object) object.Object {
 			// If EOF was already reached, exit gracefully to prevent infinite loops
@@ -292,8 +284,8 @@ var StdBuiltins = map[string]*object.Builtin{
 		},
 	},
 
-	// Returns the length of a string or array
-	// For strings, returns character count (not byte count) to properly support UTF-8
+	// len returns the length of a string, array, or map.
+	// For strings, returns character count (not byte count) for UTF-8 support.
 	"len": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 1 {
@@ -309,12 +301,13 @@ var StdBuiltins = map[string]*object.Builtin{
 			case *object.Map:
 				return &object.Integer{Value: big.NewInt(int64(len(arg.Pairs)))}
 			default:
-				return &object.Error{Code: "E7015", Message: fmt.Sprintf("len() not supported for %s", object.GetEZTypeName(args[0]))}
+				return &object.Error{Code: "E7015", Message: fmt.Sprintf("%s not supported for %s", errors.Ident("len()"), errors.TypeGot(object.GetEZTypeName(args[0])))}
 			}
 		},
 	},
 
-	// Returns the type of the given object as a string
+	// typeof returns the type of a value as a string.
+	// Takes exactly one argument and returns its type name.
 	"typeof": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 1 {
@@ -324,7 +317,8 @@ var StdBuiltins = map[string]*object.Builtin{
 		},
 	},
 
-	// Converts a value to an integer
+	// int converts a value to an integer.
+	// Accepts int, float, string, char, byte, or enum values.
 	"int": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 1 {
@@ -360,7 +354,7 @@ var StdBuiltins = map[string]*object.Builtin{
 				val, err := strconv.ParseInt(cleanedValue, 10, 64)
 				if err != nil {
 					// Check if this is a range error (overflow) vs syntax error (invalid format)
-					if errors.Is(err, strconv.ErrRange) {
+					if stderrors.Is(err, strconv.ErrRange) {
 						return &object.Error{
 							Code:    "E7033",
 							Message: fmt.Sprintf("integer overflow: %q exceeds int64 range (-9223372036854775808 to 9223372036854775807)", arg.Value),
@@ -421,7 +415,7 @@ var StdBuiltins = map[string]*object.Builtin{
 				default:
 					return &object.Error{
 						Code:    "E7005",
-						Message: fmt.Sprintf("cannot convert enum %s.%s to int: underlying type %s is not convertible", arg.EnumType, arg.Name, arg.Value.Type()),
+						Message: fmt.Sprintf("cannot convert enum %s.%s to int: underlying type %s is not convertible", errors.Ident(arg.EnumType), errors.Ident(arg.Name), errors.TypeGot(string(arg.Value.Type()))),
 					}
 				}
 			default:
@@ -434,12 +428,13 @@ var StdBuiltins = map[string]*object.Builtin{
 							"    len(myArray)  // returns the number of elements",
 					}
 				}
-				return &object.Error{Code: "E7014", Message: fmt.Sprintf("cannot convert %s to int", object.GetEZTypeName(args[0]))}
+				return &object.Error{Code: "E7014", Message: fmt.Sprintf("cannot convert %s to %s", errors.TypeGot(object.GetEZTypeName(args[0])), errors.TypeExpected("int"))}
 			}
 		},
 	},
 
-	// Converts a value to a float
+	// float converts a value to a floating-point number.
+	// Accepts float, int, or string values.
 	"float": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 1 {
@@ -478,22 +473,38 @@ var StdBuiltins = map[string]*object.Builtin{
 							"    len(myArray)  // returns the number of elements",
 					}
 				}
-				return &object.Error{Code: "E7014", Message: fmt.Sprintf("cannot convert %s to float", object.GetEZTypeName(args[0]))}
+				return &object.Error{Code: "E7014", Message: fmt.Sprintf("cannot convert %s to %s", errors.TypeGot(object.GetEZTypeName(args[0])), errors.TypeExpected("float"))}
 			}
 		},
 	},
 
-	// Converts a value to a string
+	// string converts any value to its string representation.
+	// Takes exactly one argument and returns its string form.
 	"string": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 1 {
 				return &object.Error{Code: "E7001", Message: "string() takes exactly 1 argument"}
 			}
-			return &object.String{Value: args[0].Inspect()}
+			// Handle special cases where Inspect() would add unwanted formatting
+			switch v := args[0].(type) {
+			case *object.String:
+				// Return the raw string value, not quoted
+				return &object.String{Value: v.Value}
+			case *object.EnumValue:
+				// For enums, extract the underlying value
+				if strVal, ok := v.Value.(*object.String); ok {
+					return &object.String{Value: strVal.Value}
+				}
+				// For non-string enums (int, float), use Inspect
+				return &object.String{Value: v.Value.Inspect()}
+			default:
+				return &object.String{Value: args[0].Inspect()}
+			}
 		},
 	},
 
-	// Converts a value to a char (Unicode code point)
+	// char converts a value to a character (Unicode code point).
+	// Accepts char, int, float, byte, or single-character string.
 	"char": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 1 {
@@ -532,12 +543,13 @@ var StdBuiltins = map[string]*object.Builtin{
 				}
 				return &object.Char{Value: runes[0]}
 			default:
-				return &object.Error{Code: "E7014", Message: fmt.Sprintf("cannot convert %s to char", object.GetEZTypeName(args[0]))}
+				return &object.Error{Code: "E7014", Message: fmt.Sprintf("cannot convert %s to %s", errors.TypeGot(object.GetEZTypeName(args[0])), errors.TypeExpected("char"))}
 			}
 		},
 	},
 
-	// Converts a value to a byte (0-255)
+	// byte converts a value to a byte (0-255).
+	// Accepts byte, int, float, char, or numeric string.
 	"byte": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 1 {
@@ -577,7 +589,7 @@ var StdBuiltins = map[string]*object.Builtin{
 				val, err := strconv.ParseInt(cleanedValue, 10, 64)
 				if err != nil {
 					// Check if this is a range error (overflow) vs syntax error (invalid format)
-					if errors.Is(err, strconv.ErrRange) {
+					if stderrors.Is(err, strconv.ErrRange) {
 						return &object.Error{
 							Code:    "E7014",
 							Message: fmt.Sprintf("cannot convert %q to byte: value must be between 0 and 255", arg.Value),
@@ -596,7 +608,7 @@ var StdBuiltins = map[string]*object.Builtin{
 				}
 				return &object.Byte{Value: uint8(val)}
 			default:
-				return &object.Error{Code: "E7014", Message: fmt.Sprintf("cannot convert %s to byte", object.GetEZTypeName(args[0]))}
+				return &object.Error{Code: "E7014", Message: fmt.Sprintf("cannot convert %s to %s", errors.TypeGot(object.GetEZTypeName(args[0])), errors.TypeExpected("byte"))}
 			}
 		},
 	},
@@ -605,7 +617,8 @@ var StdBuiltins = map[string]*object.Builtin{
 	// Sized Integer Conversion Functions
 	// ============================================================================
 
-	// Converts a value to an i8 (signed 8-bit integer, -128 to 127)
+	// i8 converts a value to a signed 8-bit integer.
+	// Range: -128 to 127. Returns error if value is out of range.
 	"i8": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 1 {
@@ -625,7 +638,8 @@ var StdBuiltins = map[string]*object.Builtin{
 		},
 	},
 
-	// Converts a value to an i16 (signed 16-bit integer, -32768 to 32767)
+	// i16 converts a value to a signed 16-bit integer.
+	// Range: -32768 to 32767. Returns error if value is out of range.
 	"i16": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 1 {
@@ -645,7 +659,8 @@ var StdBuiltins = map[string]*object.Builtin{
 		},
 	},
 
-	// Converts a value to an i32 (signed 32-bit integer)
+	// i32 converts a value to a signed 32-bit integer.
+	// Range: -2147483648 to 2147483647. Returns error if value is out of range.
 	"i32": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 1 {
@@ -667,7 +682,8 @@ var StdBuiltins = map[string]*object.Builtin{
 		},
 	},
 
-	// Converts a value to an i64 (signed 64-bit integer)
+	// i64 converts a value to a signed 64-bit integer.
+	// Range: -9223372036854775808 to 9223372036854775807.
 	"i64": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 1 {
@@ -689,7 +705,8 @@ var StdBuiltins = map[string]*object.Builtin{
 		},
 	},
 
-	// Converts a value to an i128 (signed 128-bit integer)
+	// i128 converts a value to a signed 128-bit integer.
+	// Range: -2^127 to 2^127-1. Returns error if value is out of range.
 	"i128": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 1 {
@@ -712,7 +729,8 @@ var StdBuiltins = map[string]*object.Builtin{
 		},
 	},
 
-	// Converts a value to an i256 (signed 256-bit integer)
+	// i256 converts a value to a signed 256-bit integer.
+	// Range: -2^255 to 2^255-1. Returns error if value is out of range.
 	"i256": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 1 {
@@ -735,7 +753,8 @@ var StdBuiltins = map[string]*object.Builtin{
 		},
 	},
 
-	// Converts a value to a u8 (unsigned 8-bit integer, 0 to 255)
+	// u8 converts a value to an unsigned 8-bit integer.
+	// Range: 0 to 255. Returns error if value is out of range.
 	"u8": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 1 {
@@ -755,7 +774,8 @@ var StdBuiltins = map[string]*object.Builtin{
 		},
 	},
 
-	// Converts a value to a u16 (unsigned 16-bit integer, 0 to 65535)
+	// u16 converts a value to an unsigned 16-bit integer.
+	// Range: 0 to 65535. Returns error if value is out of range.
 	"u16": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 1 {
@@ -775,7 +795,8 @@ var StdBuiltins = map[string]*object.Builtin{
 		},
 	},
 
-	// Converts a value to a u32 (unsigned 32-bit integer, 0 to 4294967295)
+	// u32 converts a value to an unsigned 32-bit integer.
+	// Range: 0 to 4294967295. Returns error if value is out of range.
 	"u32": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 1 {
@@ -796,7 +817,8 @@ var StdBuiltins = map[string]*object.Builtin{
 		},
 	},
 
-	// Converts a value to a u64 (unsigned 64-bit integer)
+	// u64 converts a value to an unsigned 64-bit integer.
+	// Range: 0 to 18446744073709551615. Returns error if value is out of range.
 	"u64": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 1 {
@@ -817,7 +839,8 @@ var StdBuiltins = map[string]*object.Builtin{
 		},
 	},
 
-	// Converts a value to a u128 (unsigned 128-bit integer)
+	// u128 converts a value to an unsigned 128-bit integer.
+	// Range: 0 to 2^128-1. Returns error if value is out of range.
 	"u128": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 1 {
@@ -839,7 +862,8 @@ var StdBuiltins = map[string]*object.Builtin{
 		},
 	},
 
-	// Converts a value to a u256 (unsigned 256-bit integer)
+	// u256 converts a value to an unsigned 256-bit integer.
+	// Range: 0 to 2^256-1. Returns error if value is out of range.
 	"u256": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 1 {
@@ -861,7 +885,8 @@ var StdBuiltins = map[string]*object.Builtin{
 		},
 	},
 
-	// Converts a value to a float32
+	// f32 converts a value to a 32-bit floating-point number.
+	// Truncates precision to float32 range and precision.
 	"f32": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 1 {
@@ -877,7 +902,8 @@ var StdBuiltins = map[string]*object.Builtin{
 		},
 	},
 
-	// Converts a value to a float64
+	// f64 converts a value to a 64-bit floating-point number.
+	// Provides full double-precision floating-point range.
 	"f64": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 1 {
@@ -891,7 +917,8 @@ var StdBuiltins = map[string]*object.Builtin{
 		},
 	},
 
-	// Reads a line of input from standard input
+	// input reads a line of text from standard input.
+	// Returns the input as a string with trailing newline removed.
 	"input": {
 		Fn: func(args ...object.Object) object.Object {
 			// If EOF was already reached, exit gracefully to prevent infinite loops
@@ -911,8 +938,8 @@ var StdBuiltins = map[string]*object.Builtin{
 		},
 	},
 
-	// Creates a deep copy of a value
-	// Primitives return themselves, structs/arrays/maps are recursively copied
+	// copy creates a deep copy of a value.
+	// Primitives return themselves; structs, arrays, and maps are recursively copied.
 	"copy": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 1 {
@@ -922,9 +949,8 @@ var StdBuiltins = map[string]*object.Builtin{
 		},
 	},
 
-	// Creates a user-defined error with the given message
-	// Returns an Error struct with .message set to the argument and .code set to empty string
-	// This is different from object.Error which is a runtime error that halts execution
+	// error creates a user-defined error with the given message.
+	// Returns an Error struct with .message and .code fields (code is empty string).
 	"error": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 1 {
@@ -932,7 +958,7 @@ var StdBuiltins = map[string]*object.Builtin{
 			}
 			str, ok := args[0].(*object.String)
 			if !ok {
-				return &object.Error{Code: "E7003", Message: fmt.Sprintf("error() argument must be a string, got %s", object.GetEZTypeName(args[0]))}
+				return &object.Error{Code: "E7003", Message: fmt.Sprintf("%s() argument must be a string, got %s", errors.Ident("error"), errors.TypeGot(object.GetEZTypeName(args[0])))}
 			}
 			// Return an Error struct (not object.Error which is a runtime error)
 			return &object.Struct{
@@ -945,7 +971,8 @@ var StdBuiltins = map[string]*object.Builtin{
 		},
 	},
 
-	// EXIT_SUCCESS constant - returns 0 (global builtin, no import needed)
+	// EXIT_SUCCESS is a constant representing successful program termination (0).
+	// Global builtin, no import needed.
 	"EXIT_SUCCESS": {
 		Fn: func(args ...object.Object) object.Object {
 			return &object.Integer{Value: big.NewInt(0)}
@@ -953,7 +980,8 @@ var StdBuiltins = map[string]*object.Builtin{
 		IsConstant: true,
 	},
 
-	// EXIT_FAILURE constant - returns 1 (global builtin, no import needed)
+	// EXIT_FAILURE is a constant representing failed program termination (1).
+	// Global builtin, no import needed.
 	"EXIT_FAILURE": {
 		Fn: func(args ...object.Object) object.Object {
 			return &object.Integer{Value: big.NewInt(1)}
@@ -961,11 +989,8 @@ var StdBuiltins = map[string]*object.Builtin{
 		IsConstant: true,
 	},
 
-	// Exits the program with the given exit code (global builtin, no import needed)
-	// Example:
-	//   exit(0)            // exit successfully
-	//   exit(EXIT_SUCCESS) // same as above
-	//   exit(EXIT_FAILURE) // exit with error code 1
+	// exit terminates the program with the given exit code.
+	// Takes an integer exit code. Global builtin, no import needed.
 	"exit": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 1 {
@@ -973,14 +998,15 @@ var StdBuiltins = map[string]*object.Builtin{
 			}
 			code, ok := args[0].(*object.Integer)
 			if !ok {
-				return &object.Error{Code: "E7004", Message: fmt.Sprintf("exit() argument must be an integer, got %s", object.GetEZTypeName(args[0]))}
+				return &object.Error{Code: "E7004", Message: fmt.Sprintf("%s() argument must be an integer, got %s", errors.Ident("exit"), errors.TypeGot(object.GetEZTypeName(args[0])))}
 			}
 			os.Exit(int(code.Value.Int64()))
 			return nil // Unreachable, but required by Go's type system
 		},
 	},
 
-	// Sleeps for the given number of seconds
+	// sleep_seconds pauses execution for the given number of seconds.
+	// Takes a non-negative integer. Returns nil.
 	"std.sleep_seconds": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 1 {
@@ -988,7 +1014,7 @@ var StdBuiltins = map[string]*object.Builtin{
 			}
 			seconds, ok := args[0].(*object.Integer)
 			if !ok {
-				return &object.Error{Code: "E7004", Message: fmt.Sprintf("sleep_seconds() argument must be an integer, got %s", object.GetEZTypeName(args[0]))}
+				return &object.Error{Code: "E7004", Message: fmt.Sprintf("%s() argument must be an integer, got %s", errors.Ident("sleep_seconds"), errors.TypeGot(object.GetEZTypeName(args[0])))}
 			}
 			if seconds.Value.Sign() < 0 {
 				return &object.Error{Code: "E7032", Message: "sleep_seconds() duration cannot be negative"}
@@ -998,7 +1024,8 @@ var StdBuiltins = map[string]*object.Builtin{
 		},
 	},
 
-	// Sleeps for the given number of milliseconds
+	// sleep_milliseconds pauses execution for the given number of milliseconds.
+	// Takes a non-negative integer. Returns nil.
 	"std.sleep_milliseconds": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 1 {
@@ -1006,7 +1033,7 @@ var StdBuiltins = map[string]*object.Builtin{
 			}
 			ms, ok := args[0].(*object.Integer)
 			if !ok {
-				return &object.Error{Code: "E7004", Message: fmt.Sprintf("sleep_milliseconds() argument must be an integer, got %s", object.GetEZTypeName(args[0]))}
+				return &object.Error{Code: "E7004", Message: fmt.Sprintf("%s() argument must be an integer, got %s", errors.Ident("sleep_milliseconds"), errors.TypeGot(object.GetEZTypeName(args[0])))}
 			}
 			if ms.Value.Sign() < 0 {
 				return &object.Error{Code: "E7032", Message: "sleep_milliseconds() duration cannot be negative"}
@@ -1016,7 +1043,8 @@ var StdBuiltins = map[string]*object.Builtin{
 		},
 	},
 
-	// Sleeps for the given number of nanoseconds
+	// sleep_nanoseconds pauses execution for the given number of nanoseconds.
+	// Takes a non-negative integer. Returns nil.
 	"std.sleep_nanoseconds": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 1 {
@@ -1024,7 +1052,7 @@ var StdBuiltins = map[string]*object.Builtin{
 			}
 			ns, ok := args[0].(*object.Integer)
 			if !ok {
-				return &object.Error{Code: "E7004", Message: fmt.Sprintf("sleep_nanoseconds() argument must be an integer, got %s", object.GetEZTypeName(args[0]))}
+				return &object.Error{Code: "E7004", Message: fmt.Sprintf("%s() argument must be an integer, got %s", errors.Ident("sleep_nanoseconds"), errors.TypeGot(object.GetEZTypeName(args[0])))}
 			}
 			if ns.Value.Sign() < 0 {
 				return &object.Error{Code: "E7032", Message: "sleep_nanoseconds() duration cannot be negative"}
@@ -1034,10 +1062,8 @@ var StdBuiltins = map[string]*object.Builtin{
 		},
 	},
 
-	// Terminates the program with an error message (global builtin, no import needed)
-	// Use panic() when something truly unrecoverable happens.
-	// Example:
-	//   panic("something went terribly wrong")
+	// panic terminates the program with an error message.
+	// Takes a string message. Global builtin, no import needed.
 	"panic": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 1 {
@@ -1045,71 +1071,28 @@ var StdBuiltins = map[string]*object.Builtin{
 			}
 			msg, ok := args[0].(*object.String)
 			if !ok {
-				return &object.Error{Code: "E7003", Message: fmt.Sprintf("panic() argument must be a string, got %s", object.GetEZTypeName(args[0]))}
+				return &object.Error{Code: "E7003", Message: fmt.Sprintf("%s() argument must be a string, got %s", errors.Ident("panic"), errors.TypeGot(object.GetEZTypeName(args[0])))}
 			}
 			return &object.Error{Code: "E5021", Message: fmt.Sprintf("panic: %s", msg.Value)}
 		},
 	},
 
-	// Prints values to standard error (stderr) followed by a newline.
-	//
-	// Why use eprintln() instead of println()?
-	// - println() writes to "stdout" (standard output) - for normal program output
-	// - eprintln() writes to "stderr" (standard error) - for error messages and diagnostics
-	//
-	// Both display in your terminal by default, but they can be separated:
-	//   ./ez myprogram.ez > output.txt    # stdout goes to file, stderr still shows
-	//   ./ez myprogram.ez 2> errors.txt   # stderr goes to file, stdout still shows
-	//
-	// Example:
-	//   eprintln("Error: file not found")
-	//   eprintln("Warning:", "value is", 0)
 	"std.eprintln": {
 		Fn: func(args ...object.Object) object.Object {
-			for i, arg := range args {
-				if i > 0 {
-					fmt.Fprint(os.Stderr, " ")
-				}
-				if str, ok := arg.(*object.String); ok {
-					fmt.Fprint(os.Stderr, str.Value)
-				} else {
-					fmt.Fprint(os.Stderr, arg.Inspect())
-				}
-			}
-			fmt.Fprintln(os.Stderr)
+			printArgs(os.Stderr, args, true)
 			return object.NIL
 		},
 	},
 
-	// Prints values to standard error (stderr) WITHOUT a newline.
-	// Same as eprintln() but doesn't add a newline at the end.
-	// See eprintln() documentation for when to use stderr vs stdout.
-	//
-	// Example:
-	//   eprint("Loading...")
-	//   // do work
-	//   eprintln(" done!")  // Output: "Loading... done!"
 	"std.eprint": {
 		Fn: func(args ...object.Object) object.Object {
-			for i, arg := range args {
-				if i > 0 {
-					fmt.Fprint(os.Stderr, " ")
-				}
-				if str, ok := arg.(*object.String); ok {
-					fmt.Fprint(os.Stderr, str.Value)
-				} else {
-					fmt.Fprint(os.Stderr, arg.Inspect())
-				}
-			}
+			printArgs(os.Stderr, args, false)
 			return object.NIL
 		},
 	},
 
-	// Asserts that a condition is true, otherwise terminates with an error (global builtin, no import needed)
-	// Use assert() to verify assumptions during development and catch bugs early.
-	// Example:
-	//   assert(x > 0, "x must be positive")
-	//   assert(len(items) > 0, "items cannot be empty")
+	// assert verifies a condition is true, otherwise terminates with an error.
+	// Takes a boolean condition and a string message. Global builtin, no import needed.
 	"assert": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 2 {
@@ -1117,11 +1100,11 @@ var StdBuiltins = map[string]*object.Builtin{
 			}
 			cond, ok := args[0].(*object.Boolean)
 			if !ok {
-				return &object.Error{Code: "E7008", Message: fmt.Sprintf("assert() first argument must be a boolean, got %s", object.GetEZTypeName(args[0]))}
+				return &object.Error{Code: "E7008", Message: fmt.Sprintf("%s() first argument must be a boolean, got %s", errors.Ident("assert"), errors.TypeGot(object.GetEZTypeName(args[0])))}
 			}
 			msg, ok := args[1].(*object.String)
 			if !ok {
-				return &object.Error{Code: "E7003", Message: fmt.Sprintf("assert() second argument must be a string, got %s", object.GetEZTypeName(args[1]))}
+				return &object.Error{Code: "E7003", Message: fmt.Sprintf("%s() second argument must be a string, got %s", errors.Ident("assert"), errors.TypeGot(object.GetEZTypeName(args[1])))}
 			}
 			if !cond.Value {
 				return &object.Error{Code: "E5022", Message: fmt.Sprintf("assertion failed: %s", msg.Value)}

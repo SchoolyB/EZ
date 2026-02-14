@@ -2,6 +2,7 @@ package stdlib
 
 import (
 	"bytes"
+	"fmt"
 	"io"
 	"math/big"
 	"net/http"
@@ -10,6 +11,7 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/marshallburns/ez/pkg/errors"
 	"github.com/marshallburns/ez/pkg/object"
 )
 
@@ -40,381 +42,191 @@ var defaultClient = &http.Client{
 	Timeout: time.Duration(DEFAULT_TIMEOUT) * time.Second,
 }
 
+// doHTTPRequest performs a standard HTTP request and returns the response as an EZ object.
+// For HEAD requests, the response body is always empty.
+func doHTTPRequest(method, urlStr string, body *string) object.Object {
+	if _, err := url.ParseRequestURI(urlStr); err != nil {
+		return &object.Error{Code: "E14001", Message: "invalid url"}
+	}
+
+	var reqBody io.Reader
+	if body != nil {
+		reqBody = bytes.NewBuffer([]byte(*body))
+	}
+
+	req, err := http.NewRequest(method, urlStr, reqBody)
+	if err != nil {
+		return &object.ReturnValue{
+			Values: []object.Object{
+				&object.Nil{},
+				CreateStdlibError("E14002", "request failed"),
+			},
+		}
+	}
+
+	res, err := defaultClient.Do(req)
+	if err != nil {
+		return &object.ReturnValue{
+			Values: []object.Object{
+				&object.Nil{},
+				CreateStdlibError("E14002", "request failed: "+err.Error()),
+			},
+		}
+	}
+	defer res.Body.Close()
+
+	responseBody := ""
+	if method != http.MethodHead {
+		bodyBytes, err := io.ReadAll(res.Body)
+		if err != nil {
+			return &object.ReturnValue{
+				Values: []object.Object{
+					&object.Nil{},
+					CreateStdlibError("E14002", "could not read body"),
+				},
+			}
+		}
+		responseBody = string(bodyBytes)
+	}
+
+	headers := object.NewMap()
+	headers.KeyType = "string"
+	headers.ValueType = "[string]"
+	for key, vals := range res.Header {
+		values := &object.Array{ElementType: "string"}
+		for _, val := range vals {
+			values.Elements = append(values.Elements, &object.String{Value: val})
+		}
+		headers.Set(&object.String{Value: key}, values)
+	}
+
+	return &object.ReturnValue{
+		Values: []object.Object{
+			newHttpResponse(res.StatusCode, responseBody, headers),
+			&object.Nil{},
+		},
+	}
+}
+
 var HttpBuiltins = map[string]*object.Builtin{
+	// get performs an HTTP GET request to the specified URL.
+	// Takes URL string. Returns (HttpResponse, Error) tuple.
 	"http.get": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 1 {
-				return &object.Error{Code: "E7001", Message: "http.get() takes exactly 1 argument"}
+				return &object.Error{Code: "E7001", Message: fmt.Sprintf("%s takes exactly 1 argument", errors.Ident("http.get()"))}
 			}
-
 			urlArg, ok := args[0].(*object.String)
 			if !ok {
-				return &object.Error{Code: "E7003", Message: "http.get() requires a string argument"}
+				return &object.Error{Code: "E7003", Message: fmt.Sprintf("%s requires a %s argument", errors.Ident("http.get()"), errors.TypeExpected("string"))}
 			}
-
-			if _, err := url.ParseRequestURI(urlArg.Value); err != nil {
-				return &object.Error{Code: "E14001", Message: "invalid url"}
-			}
-
-			req, err := http.NewRequest(http.MethodGet, urlArg.Value, nil)
-			if err != nil {
-				return &object.ReturnValue{
-					Values: []object.Object{
-						&object.Nil{},
-						CreateStdlibError("E14002", "request failed"),
-					},
-				}
-			}
-
-			res, err := defaultClient.Do(req)
-			if err != nil {
-				return &object.ReturnValue{
-					Values: []object.Object{
-						&object.Nil{},
-						CreateStdlibError("E14002", "request failed: "+err.Error()),
-					},
-				}
-			}
-			defer res.Body.Close()
-
-			body, err := io.ReadAll(res.Body)
-			if err != nil {
-				return &object.ReturnValue{
-					Values: []object.Object{
-						&object.Nil{},
-						CreateStdlibError("E14002", "could not read body"),
-					},
-				}
-			}
-
-			headers := object.NewMap()
-			headers.KeyType = "string"
-			headers.ValueType = "[string]"
-			for key, vals := range res.Header {
-				values := &object.Array{ElementType: "string"}
-				for _, val := range vals {
-					values.Elements = append(values.Elements, &object.String{Value: val})
-				}
-				headers.Set(&object.String{Value: key}, values)
-			}
-
-			return &object.ReturnValue{
-				Values: []object.Object{
-					newHttpResponse(res.StatusCode, string(body), headers),
-					&object.Nil{},
-				},
-			}
+			return doHTTPRequest(http.MethodGet, urlArg.Value, nil)
 		},
 	},
 
+	// post performs an HTTP POST request with a request body.
+	// Takes URL string and body string. Returns (HttpResponse, Error) tuple.
 	"http.post": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 2 {
-				return &object.Error{Code: "E7001", Message: "http.post() takes exactly 2 arguments"}
+				return &object.Error{Code: "E7001", Message: fmt.Sprintf("%s takes exactly 2 arguments", errors.Ident("http.post()"))}
 			}
-
 			urlArg, ok := args[0].(*object.String)
 			if !ok {
-				return &object.Error{Code: "E7003", Message: "http.post() requires a string argument"}
+				return &object.Error{Code: "E7003", Message: fmt.Sprintf("%s requires a %s argument", errors.Ident("http.post()"), errors.TypeExpected("string"))}
 			}
-
 			body, ok := args[1].(*object.String)
 			if !ok {
-				return &object.Error{Code: "E7003", Message: "http.post() requires a string argument"}
+				return &object.Error{Code: "E7003", Message: fmt.Sprintf("%s requires a %s argument", errors.Ident("http.post()"), errors.TypeExpected("string"))}
 			}
-
-			if _, err := url.ParseRequestURI(urlArg.Value); err != nil {
-				return &object.Error{Code: "E14001", Message: "invalid url"}
-			}
-
-			req, err := http.NewRequest(http.MethodPost, urlArg.Value, bytes.NewBuffer([]byte(body.Value)))
-			if err != nil {
-				return &object.ReturnValue{
-					Values: []object.Object{
-						&object.Nil{},
-						CreateStdlibError("E14002", "request failed"),
-					},
-				}
-			}
-
-			res, err := defaultClient.Do(req)
-			if err != nil {
-				return &object.ReturnValue{
-					Values: []object.Object{
-						&object.Nil{},
-						CreateStdlibError("E14002", "request failed: "+err.Error()),
-					},
-				}
-			}
-			defer res.Body.Close()
-
-			responseBody, err := io.ReadAll(res.Body)
-			if err != nil {
-				return &object.ReturnValue{
-					Values: []object.Object{
-						&object.Nil{},
-						CreateStdlibError("E14002", "could not read body"),
-					},
-				}
-			}
-
-			headers := object.NewMap()
-			headers.KeyType = "string"
-			headers.ValueType = "[string]"
-			for key, vals := range res.Header {
-				values := &object.Array{ElementType: "string"}
-				for _, val := range vals {
-					values.Elements = append(values.Elements, &object.String{Value: val})
-				}
-				headers.Set(&object.String{Value: key}, values)
-			}
-
-			return &object.ReturnValue{
-				Values: []object.Object{
-					newHttpResponse(res.StatusCode, string(responseBody), headers),
-					&object.Nil{},
-				},
-			}
+			return doHTTPRequest(http.MethodPost, urlArg.Value, &body.Value)
 		},
 	},
 
+	// put performs an HTTP PUT request with a request body.
+	// Takes URL string and body string. Returns (HttpResponse, Error) tuple.
 	"http.put": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 2 {
-				return &object.Error{Code: "E7001", Message: "http.put() takes exactly 2 arguments"}
+				return &object.Error{Code: "E7001", Message: fmt.Sprintf("%s takes exactly 2 arguments", errors.Ident("http.put()"))}
 			}
-
 			urlArg, ok := args[0].(*object.String)
 			if !ok {
-				return &object.Error{Code: "E7003", Message: "http.put() requires a string argument"}
+				return &object.Error{Code: "E7003", Message: fmt.Sprintf("%s requires a %s argument", errors.Ident("http.put()"), errors.TypeExpected("string"))}
 			}
-
 			body, ok := args[1].(*object.String)
 			if !ok {
-				return &object.Error{Code: "E7003", Message: "http.put() requires a string argument"}
+				return &object.Error{Code: "E7003", Message: fmt.Sprintf("%s requires a %s argument", errors.Ident("http.put()"), errors.TypeExpected("string"))}
 			}
-
-			if _, err := url.ParseRequestURI(urlArg.Value); err != nil {
-				return &object.Error{Code: "E14001", Message: "invalid url"}
-			}
-
-			req, err := http.NewRequest(http.MethodPut, urlArg.Value, bytes.NewBuffer([]byte(body.Value)))
-			if err != nil {
-				return &object.ReturnValue{
-					Values: []object.Object{
-						&object.Nil{},
-						CreateStdlibError("E14002", "request failed"),
-					},
-				}
-			}
-
-			res, err := defaultClient.Do(req)
-			if err != nil {
-				return &object.ReturnValue{
-					Values: []object.Object{
-						&object.Nil{},
-						CreateStdlibError("E14002", "request failed: "+err.Error()),
-					},
-				}
-			}
-			defer res.Body.Close()
-
-			responseBody, err := io.ReadAll(res.Body)
-			if err != nil {
-				return &object.ReturnValue{
-					Values: []object.Object{
-						&object.Nil{},
-						CreateStdlibError("E14002", "could not read body"),
-					},
-				}
-			}
-
-			headers := object.NewMap()
-			headers.KeyType = "string"
-			headers.ValueType = "[string]"
-			for key, vals := range res.Header {
-				values := &object.Array{ElementType: "string"}
-				for _, val := range vals {
-					values.Elements = append(values.Elements, &object.String{Value: val})
-				}
-				headers.Set(&object.String{Value: key}, values)
-			}
-
-			return &object.ReturnValue{
-				Values: []object.Object{
-					newHttpResponse(res.StatusCode, string(responseBody), headers),
-					&object.Nil{},
-				},
-			}
+			return doHTTPRequest(http.MethodPut, urlArg.Value, &body.Value)
 		},
 	},
 
+	// delete performs an HTTP DELETE request to the specified URL.
+	// Takes URL string. Returns (HttpResponse, Error) tuple.
 	"http.delete": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 1 {
-				return &object.Error{Code: "E7001", Message: "http.delete() takes exactly 1 argument"}
+				return &object.Error{Code: "E7001", Message: fmt.Sprintf("%s takes exactly 1 argument", errors.Ident("http.delete()"))}
 			}
-
 			urlArg, ok := args[0].(*object.String)
 			if !ok {
-				return &object.Error{Code: "E7003", Message: "http.delete() requires a string argument"}
+				return &object.Error{Code: "E7003", Message: fmt.Sprintf("%s requires a %s argument", errors.Ident("http.delete()"), errors.TypeExpected("string"))}
 			}
-
-			if _, err := url.ParseRequestURI(urlArg.Value); err != nil {
-				return &object.Error{Code: "E14001", Message: "invalid url"}
-			}
-
-			req, err := http.NewRequest(http.MethodDelete, urlArg.Value, nil)
-			if err != nil {
-				return &object.ReturnValue{
-					Values: []object.Object{
-						&object.Nil{},
-						CreateStdlibError("E14002", "request failed"),
-					},
-				}
-			}
-
-			res, err := defaultClient.Do(req)
-			if err != nil {
-				return &object.ReturnValue{
-					Values: []object.Object{
-						&object.Nil{},
-						CreateStdlibError("E14002", "request failed: "+err.Error()),
-					},
-				}
-			}
-			defer res.Body.Close()
-
-			body, err := io.ReadAll(res.Body)
-			if err != nil {
-				return &object.ReturnValue{
-					Values: []object.Object{
-						&object.Nil{},
-						CreateStdlibError("E14002", "could not read body"),
-					},
-				}
-			}
-
-			headers := object.NewMap()
-			headers.KeyType = "string"
-			headers.ValueType = "[string]"
-			for key, vals := range res.Header {
-				values := &object.Array{ElementType: "string"}
-				for _, val := range vals {
-					values.Elements = append(values.Elements, &object.String{Value: val})
-				}
-				headers.Set(&object.String{Value: key}, values)
-			}
-
-			return &object.ReturnValue{
-				Values: []object.Object{
-					newHttpResponse(res.StatusCode, string(body), headers),
-					&object.Nil{},
-				},
-			}
+			return doHTTPRequest(http.MethodDelete, urlArg.Value, nil)
 		},
 	},
 
+	// patch performs an HTTP PATCH request with a request body.
+	// Takes URL string and body string. Returns (HttpResponse, Error) tuple.
 	"http.patch": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 2 {
-				return &object.Error{Code: "E7001", Message: "http.patch() takes exactly 2 arguments"}
+				return &object.Error{Code: "E7001", Message: fmt.Sprintf("%s takes exactly 2 arguments", errors.Ident("http.patch()"))}
 			}
-
 			urlArg, ok := args[0].(*object.String)
 			if !ok {
-				return &object.Error{Code: "E7003", Message: "http.patch() requires a string argument"}
+				return &object.Error{Code: "E7003", Message: fmt.Sprintf("%s requires a %s argument", errors.Ident("http.patch()"), errors.TypeExpected("string"))}
 			}
-
 			body, ok := args[1].(*object.String)
 			if !ok {
-				return &object.Error{Code: "E7003", Message: "http.patch() requires a string argument"}
+				return &object.Error{Code: "E7003", Message: fmt.Sprintf("%s requires a %s argument", errors.Ident("http.patch()"), errors.TypeExpected("string"))}
 			}
-
-			if _, err := url.ParseRequestURI(urlArg.Value); err != nil {
-				return &object.Error{Code: "E14001", Message: "invalid url"}
-			}
-
-			req, err := http.NewRequest(http.MethodPatch, urlArg.Value, bytes.NewBuffer([]byte(body.Value)))
-			if err != nil {
-				return &object.ReturnValue{
-					Values: []object.Object{
-						&object.Nil{},
-						CreateStdlibError("E14002", "request failed"),
-					},
-				}
-			}
-
-			res, err := defaultClient.Do(req)
-			if err != nil {
-				return &object.ReturnValue{
-					Values: []object.Object{
-						&object.Nil{},
-						CreateStdlibError("E14002", "request failed: "+err.Error()),
-					},
-				}
-			}
-			defer res.Body.Close()
-
-			responseBody, err := io.ReadAll(res.Body)
-			if err != nil {
-				return &object.ReturnValue{
-					Values: []object.Object{
-						&object.Nil{},
-						CreateStdlibError("E14002", "could not read body"),
-					},
-				}
-			}
-
-			headers := object.NewMap()
-			headers.KeyType = "string"
-			headers.ValueType = "[string]"
-			for key, vals := range res.Header {
-				values := &object.Array{ElementType: "string"}
-				for _, val := range vals {
-					values.Elements = append(values.Elements, &object.String{Value: val})
-				}
-				headers.Set(&object.String{Value: key}, values)
-			}
-
-			return &object.ReturnValue{
-				Values: []object.Object{
-					newHttpResponse(res.StatusCode, string(responseBody), headers),
-					&object.Nil{},
-				},
-			}
+			return doHTTPRequest(http.MethodPatch, urlArg.Value, &body.Value)
 		},
 	},
 
+	// request performs a configurable HTTP request with custom method, headers, and timeout.
+	// Takes method, URL, body, headers map, and timeout (seconds). Returns (HttpResponse, Error) tuple.
 	"http.request": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 5 {
-				return &object.Error{Code: "E7001", Message: "http.request() takes exactly 5 arguments"}
+				return &object.Error{Code: "E7001", Message: fmt.Sprintf("%s takes exactly 5 arguments", errors.Ident("http.request()"))}
 			}
 
 			methodArg, ok := args[0].(*object.String)
 			if !ok {
-				return &object.Error{Code: "E7003", Message: "http.request() requires a string argument"}
+				return &object.Error{Code: "E7003", Message: fmt.Sprintf("%s requires a %s argument", errors.Ident("http.request()"), errors.TypeExpected("string"))}
 			}
 
 			urlArg, ok := args[1].(*object.String)
 			if !ok {
-				return &object.Error{Code: "E7003", Message: "http.request() requires a string argument"}
+				return &object.Error{Code: "E7003", Message: fmt.Sprintf("%s requires a %s argument", errors.Ident("http.request()"), errors.TypeExpected("string"))}
 			}
 
 			bodyArg, ok := args[2].(*object.String)
 			if !ok {
-				return &object.Error{Code: "E7003", Message: "http.request() requires a string argument"}
+				return &object.Error{Code: "E7003", Message: fmt.Sprintf("%s requires a %s argument", errors.Ident("http.request()"), errors.TypeExpected("string"))}
 			}
 
 			headersArg, ok := args[3].(*object.Map)
 			if !ok {
-				return &object.Error{Code: "E7007", Message: "http.request() requires a map argument"}
+				return &object.Error{Code: "E7007", Message: fmt.Sprintf("%s requires a %s argument", errors.Ident("http.request()"), errors.TypeExpected("map"))}
 			}
 
 			timeoutArg, ok := args[4].(*object.Integer)
 			if !ok {
-				return &object.Error{Code: "E7004", Message: "http.request() requires a integer argument"}
+				return &object.Error{Code: "E7004", Message: fmt.Sprintf("%s requires a %s argument", errors.Ident("http.request()"), errors.TypeExpected("integer"))}
 			}
 
 			if _, err := url.ParseRequestURI(urlArg.Value); err != nil {
@@ -504,26 +316,28 @@ var HttpBuiltins = map[string]*object.Builtin{
 		},
 	},
 
+	// build_query encodes a map as a URL query string.
+	// Takes map[string:string]. Returns URL-encoded query string.
 	"http.build_query": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 1 {
-				return &object.Error{Code: "E7001", Message: "http.build_query() takes exactly 1 arguments"}
+				return &object.Error{Code: "E7001", Message: fmt.Sprintf("%s takes exactly 1 arguments", errors.Ident("http.build_query()"))}
 			}
 
 			m, ok := args[0].(*object.Map)
 			if !ok {
-				return &object.Error{Code: "E7007", Message: "http.build_query() requires a map argument"}
+				return &object.Error{Code: "E7007", Message: fmt.Sprintf("%s requires a %s argument", errors.Ident("http.build_query()"), errors.TypeExpected("map"))}
 			}
 
 			q := url.Values{}
 			for _, pair := range m.Pairs {
 				key, ok := pair.Key.(*object.String)
 				if !ok {
-					return &object.Error{Code: "E7007", Message: "http.build_query() requires a map[string:string] argument"}
+					return &object.Error{Code: "E7007", Message: fmt.Sprintf("%s requires a %s argument", errors.Ident("http.build_query()"), errors.TypeExpected("map[string:string]"))}
 				}
 				val, ok := pair.Value.(*object.String)
 				if !ok {
-					return &object.Error{Code: "E7007", Message: "http.build_query() requires a map[string:string] argument"}
+					return &object.Error{Code: "E7007", Message: fmt.Sprintf("%s requires a %s argument", errors.Ident("http.build_query()"), errors.TypeExpected("map[string:string]"))}
 				}
 				q.Set(key.Value, val.Value)
 			}
@@ -532,15 +346,17 @@ var HttpBuiltins = map[string]*object.Builtin{
 		},
 	},
 
+	// json_body encodes a map as a JSON string for use in request bodies.
+	// Takes a map. Returns JSON string.
 	"http.json_body": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 1 {
-				return &object.Error{Code: "E7001", Message: "http.json_body() takes exactly 1 arguments"}
+				return &object.Error{Code: "E7001", Message: fmt.Sprintf("%s takes exactly 1 arguments", errors.Ident("http.json_body()"))}
 			}
 
 			m, ok := args[0].(*object.Map)
 			if !ok {
-				return &object.Error{Code: "E7007", Message: "http.json_body() requires a map argument"}
+				return &object.Error{Code: "E7007", Message: fmt.Sprintf("%s requires a %s argument", errors.Ident("http.json_body()"), errors.TypeExpected("map"))}
 			}
 
 			result, err := encodeToJSON(m, make(map[uintptr]bool))
@@ -552,142 +368,52 @@ var HttpBuiltins = map[string]*object.Builtin{
 		},
 	},
 
+	// head performs an HTTP HEAD request to retrieve headers without body.
+	// Takes URL string. Returns (HttpResponse, Error) tuple with empty body.
 	"http.head": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 1 {
-				return &object.Error{Code: "E7001", Message: "http.head() takes exactly 1 argument"}
+				return &object.Error{Code: "E7001", Message: fmt.Sprintf("%s takes exactly 1 argument", errors.Ident("http.head()"))}
 			}
-
 			urlArg, ok := args[0].(*object.String)
 			if !ok {
-				return &object.Error{Code: "E7003", Message: "http.head() requires a string argument"}
+				return &object.Error{Code: "E7003", Message: fmt.Sprintf("%s requires a %s argument", errors.Ident("http.head()"), errors.TypeExpected("string"))}
 			}
-
-			if _, err := url.ParseRequestURI(urlArg.Value); err != nil {
-				return &object.Error{Code: "E14001", Message: "invalid url"}
-			}
-
-			req, err := http.NewRequest(http.MethodHead, urlArg.Value, nil)
-			if err != nil {
-				return &object.ReturnValue{
-					Values: []object.Object{
-						&object.Nil{},
-						CreateStdlibError("E14002", "request failed"),
-					},
-				}
-			}
-
-			res, err := defaultClient.Do(req)
-			if err != nil {
-				return &object.ReturnValue{
-					Values: []object.Object{
-						&object.Nil{},
-						CreateStdlibError("E14002", "request failed: "+err.Error()),
-					},
-				}
-			}
-			defer res.Body.Close()
-
-			headers := object.NewMap()
-			headers.KeyType = "string"
-			headers.ValueType = "[string]"
-			for key, vals := range res.Header {
-				values := &object.Array{ElementType: "string"}
-				for _, val := range vals {
-					values.Elements = append(values.Elements, &object.String{Value: val})
-				}
-				headers.Set(&object.String{Value: key}, values)
-			}
-
-			return &object.ReturnValue{
-				Values: []object.Object{
-					newHttpResponse(res.StatusCode, "", headers),
-					&object.Nil{},
-				},
-			}
+			return doHTTPRequest(http.MethodHead, urlArg.Value, nil)
 		},
 	},
 
+	// options performs an HTTP OPTIONS request to query supported methods.
+	// Takes URL string. Returns (HttpResponse, Error) tuple.
 	"http.options": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 1 {
-				return &object.Error{Code: "E7001", Message: "http.options() takes exactly 1 argument"}
+				return &object.Error{Code: "E7001", Message: fmt.Sprintf("%s takes exactly 1 argument", errors.Ident("http.options()"))}
 			}
-
 			urlArg, ok := args[0].(*object.String)
 			if !ok {
-				return &object.Error{Code: "E7003", Message: "http.options() requires a string argument"}
+				return &object.Error{Code: "E7003", Message: fmt.Sprintf("%s requires a %s argument", errors.Ident("http.options()"), errors.TypeExpected("string"))}
 			}
-
-			if _, err := url.ParseRequestURI(urlArg.Value); err != nil {
-				return &object.Error{Code: "E14001", Message: "invalid url"}
-			}
-
-			req, err := http.NewRequest(http.MethodOptions, urlArg.Value, nil)
-			if err != nil {
-				return &object.ReturnValue{
-					Values: []object.Object{
-						&object.Nil{},
-						CreateStdlibError("E14002", "request failed"),
-					},
-				}
-			}
-
-			res, err := defaultClient.Do(req)
-			if err != nil {
-				return &object.ReturnValue{
-					Values: []object.Object{
-						&object.Nil{},
-						CreateStdlibError("E14002", "request failed: "+err.Error()),
-					},
-				}
-			}
-			defer res.Body.Close()
-
-			body, err := io.ReadAll(res.Body)
-			if err != nil {
-				return &object.ReturnValue{
-					Values: []object.Object{
-						&object.Nil{},
-						CreateStdlibError("E14002", "could not read body"),
-					},
-				}
-			}
-
-			headers := object.NewMap()
-			headers.KeyType = "string"
-			headers.ValueType = "[string]"
-			for key, vals := range res.Header {
-				values := &object.Array{ElementType: "string"}
-				for _, val := range vals {
-					values.Elements = append(values.Elements, &object.String{Value: val})
-				}
-				headers.Set(&object.String{Value: key}, values)
-			}
-
-			return &object.ReturnValue{
-				Values: []object.Object{
-					newHttpResponse(res.StatusCode, string(body), headers),
-					&object.Nil{},
-				},
-			}
+			return doHTTPRequest(http.MethodOptions, urlArg.Value, nil)
 		},
 	},
 
+	// download fetches a URL and saves the content to a file.
+	// Takes URL string and file path. Returns (bytes_written, Error) tuple.
 	"http.download": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 2 {
-				return &object.Error{Code: "E7001", Message: "http.download() takes exactly 2 arguments (url, path)"}
+				return &object.Error{Code: "E7001", Message: fmt.Sprintf("%s takes exactly 2 arguments (url, path)", errors.Ident("http.download()"))}
 			}
 
 			urlArg, ok := args[0].(*object.String)
 			if !ok {
-				return &object.Error{Code: "E7003", Message: "http.download() requires a string url as first argument"}
+				return &object.Error{Code: "E7003", Message: fmt.Sprintf("%s requires a %s url as first argument", errors.Ident("http.download()"), errors.TypeExpected("string"))}
 			}
 
 			pathArg, ok := args[1].(*object.String)
 			if !ok {
-				return &object.Error{Code: "E7003", Message: "http.download() requires a string path as second argument"}
+				return &object.Error{Code: "E7003", Message: fmt.Sprintf("%s requires a %s path as second argument", errors.Ident("http.download()"), errors.TypeExpected("string"))}
 			}
 
 			if _, err := url.ParseRequestURI(urlArg.Value); err != nil {
@@ -745,15 +471,17 @@ var HttpBuiltins = map[string]*object.Builtin{
 		},
 	},
 
+	// parse_url parses a URL string into its component parts.
+	// Takes URL string. Returns (URL struct, Error) tuple.
 	"http.parse_url": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 1 {
-				return &object.Error{Code: "E7001", Message: "http.parse_url() takes exactly 1 argument"}
+				return &object.Error{Code: "E7001", Message: fmt.Sprintf("%s takes exactly 1 argument", errors.Ident("http.parse_url()"))}
 			}
 
 			urlArg, ok := args[0].(*object.String)
 			if !ok {
-				return &object.Error{Code: "E7003", Message: "http.parse_url() requires a string argument"}
+				return &object.Error{Code: "E7003", Message: fmt.Sprintf("%s requires a %s argument", errors.Ident("http.parse_url()"), errors.TypeExpected("string"))}
 			}
 
 			parsed, err := url.Parse(urlArg.Value)
@@ -794,15 +522,17 @@ var HttpBuiltins = map[string]*object.Builtin{
 		},
 	},
 
+	// build_url constructs a URL string from component parts.
+	// Takes URL struct with scheme, host, port, path, query, fragment. Returns URL string.
 	"http.build_url": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 1 {
-				return &object.Error{Code: "E7001", Message: "http.build_url() takes exactly 1 argument"}
+				return &object.Error{Code: "E7001", Message: fmt.Sprintf("%s takes exactly 1 argument", errors.Ident("http.build_url()"))}
 			}
 
 			components, ok := args[0].(*object.Struct)
 			if !ok {
-				return &object.Error{Code: "E7001", Message: "http.build_url() requires a struct argument"}
+				return &object.Error{Code: "E7001", Message: fmt.Sprintf("%s requires a %s argument", errors.Ident("http.build_url()"), errors.TypeExpected("struct"))}
 			}
 
 			scheme := ""
@@ -853,8 +583,10 @@ var HttpBuiltins = map[string]*object.Builtin{
 
 	// ============================================================================
 	// HTTP Status Code Constants
+	// These constants provide standard HTTP status codes for response handling.
 	// ============================================================================
 
+	// OK is HTTP 200 status code indicating successful request.
 	"http.OK": {
 		Fn: func(args ...object.Object) object.Object {
 			return &object.Integer{Value: big.NewInt(OK)}
@@ -862,6 +594,7 @@ var HttpBuiltins = map[string]*object.Builtin{
 		IsConstant: true,
 	},
 
+	// CREATED is HTTP 201 status code indicating resource was created.
 	"http.CREATED": {
 		Fn: func(args ...object.Object) object.Object {
 			return &object.Integer{Value: big.NewInt(CREATED)}
@@ -869,6 +602,7 @@ var HttpBuiltins = map[string]*object.Builtin{
 		IsConstant: true,
 	},
 
+	// ACCEPTED is HTTP 202 status code indicating request accepted for processing.
 	"http.ACCEPTED": {
 		Fn: func(args ...object.Object) object.Object {
 			return &object.Integer{Value: big.NewInt(ACCEPTED)}
@@ -876,6 +610,7 @@ var HttpBuiltins = map[string]*object.Builtin{
 		IsConstant: true,
 	},
 
+	// NO_CONTENT is HTTP 204 status code indicating success with no response body.
 	"http.NO_CONTENT": {
 		Fn: func(args ...object.Object) object.Object {
 			return &object.Integer{Value: big.NewInt(NO_CONTENT)}
@@ -883,6 +618,7 @@ var HttpBuiltins = map[string]*object.Builtin{
 		IsConstant: true,
 	},
 
+	// MOVED_PERMANENTLY is HTTP 301 status code indicating permanent redirect.
 	"http.MOVED_PERMANENTLY": {
 		Fn: func(args ...object.Object) object.Object {
 			return &object.Integer{Value: big.NewInt(MOVED_PERMANENTLY)}
@@ -890,6 +626,7 @@ var HttpBuiltins = map[string]*object.Builtin{
 		IsConstant: true,
 	},
 
+	// FOUND is HTTP 302 status code indicating temporary redirect.
 	"http.FOUND": {
 		Fn: func(args ...object.Object) object.Object {
 			return &object.Integer{Value: big.NewInt(FOUND)}
@@ -897,6 +634,7 @@ var HttpBuiltins = map[string]*object.Builtin{
 		IsConstant: true,
 	},
 
+	// NOT_MODIFIED is HTTP 304 status code indicating cached version is current.
 	"http.NOT_MODIFIED": {
 		Fn: func(args ...object.Object) object.Object {
 			return &object.Integer{Value: big.NewInt(NOT_MODIFIED)}
@@ -904,6 +642,7 @@ var HttpBuiltins = map[string]*object.Builtin{
 		IsConstant: true,
 	},
 
+	// TEMPORARY_REDIRECT is HTTP 307 status code indicating temporary redirect preserving method.
 	"http.TEMPORARY_REDIRECT": {
 		Fn: func(args ...object.Object) object.Object {
 			return &object.Integer{Value: big.NewInt(TEMPORARY_REDIRECT)}
@@ -911,6 +650,7 @@ var HttpBuiltins = map[string]*object.Builtin{
 		IsConstant: true,
 	},
 
+	// PERMANENT_REDIRECT is HTTP 308 status code indicating permanent redirect preserving method.
 	"http.PERMANENT_REDIRECT": {
 		Fn: func(args ...object.Object) object.Object {
 			return &object.Integer{Value: big.NewInt(PERMANENT_REDIRECT)}
@@ -918,6 +658,7 @@ var HttpBuiltins = map[string]*object.Builtin{
 		IsConstant: true,
 	},
 
+	// BAD_REQUEST is HTTP 400 status code indicating malformed request.
 	"http.BAD_REQUEST": {
 		Fn: func(args ...object.Object) object.Object {
 			return &object.Integer{Value: big.NewInt(BAD_REQUEST)}
@@ -925,6 +666,7 @@ var HttpBuiltins = map[string]*object.Builtin{
 		IsConstant: true,
 	},
 
+	// UNAUTHORIZED is HTTP 401 status code indicating authentication required.
 	"http.UNAUTHORIZED": {
 		Fn: func(args ...object.Object) object.Object {
 			return &object.Integer{Value: big.NewInt(UNAUTHORIZED)}
@@ -932,6 +674,7 @@ var HttpBuiltins = map[string]*object.Builtin{
 		IsConstant: true,
 	},
 
+	// PAYMENT_REQUIRED is HTTP 402 status code reserved for future use.
 	"http.PAYMENT_REQUIRED": {
 		Fn: func(args ...object.Object) object.Object {
 			return &object.Integer{Value: big.NewInt(PAYMENT_REQUIRED)}
@@ -939,6 +682,7 @@ var HttpBuiltins = map[string]*object.Builtin{
 		IsConstant: true,
 	},
 
+	// FORBIDDEN is HTTP 403 status code indicating access denied.
 	"http.FORBIDDEN": {
 		Fn: func(args ...object.Object) object.Object {
 			return &object.Integer{Value: big.NewInt(FORBIDDEN)}
@@ -946,6 +690,7 @@ var HttpBuiltins = map[string]*object.Builtin{
 		IsConstant: true,
 	},
 
+	// NOT_FOUND is HTTP 404 status code indicating resource not found.
 	"http.NOT_FOUND": {
 		Fn: func(args ...object.Object) object.Object {
 			return &object.Integer{Value: big.NewInt(NOT_FOUND)}
@@ -953,6 +698,7 @@ var HttpBuiltins = map[string]*object.Builtin{
 		IsConstant: true,
 	},
 
+	// METHOD_NOT_ALLOWED is HTTP 405 status code indicating method not supported.
 	"http.METHOD_NOT_ALLOWED": {
 		Fn: func(args ...object.Object) object.Object {
 			return &object.Integer{Value: big.NewInt(METHOD_NOT_ALLOWED)}
@@ -960,6 +706,7 @@ var HttpBuiltins = map[string]*object.Builtin{
 		IsConstant: true,
 	},
 
+	// CONFLICT is HTTP 409 status code indicating request conflicts with server state.
 	"http.CONFLICT": {
 		Fn: func(args ...object.Object) object.Object {
 			return &object.Integer{Value: big.NewInt(CONFLICT)}
@@ -967,6 +714,7 @@ var HttpBuiltins = map[string]*object.Builtin{
 		IsConstant: true,
 	},
 
+	// INTERNAL_SERVER_ERROR is HTTP 500 status code indicating server error.
 	"http.INTERNAL_SERVER_ERROR": {
 		Fn: func(args ...object.Object) object.Object {
 			return &object.Integer{Value: big.NewInt(INTERNAL_SERVER_ERROR)}
@@ -974,6 +722,7 @@ var HttpBuiltins = map[string]*object.Builtin{
 		IsConstant: true,
 	},
 
+	// BAD_GATEWAY is HTTP 502 status code indicating invalid upstream response.
 	"http.BAD_GATEWAY": {
 		Fn: func(args ...object.Object) object.Object {
 			return &object.Integer{Value: big.NewInt(BAD_GATEWAY)}
@@ -981,6 +730,7 @@ var HttpBuiltins = map[string]*object.Builtin{
 		IsConstant: true,
 	},
 
+	// SERVICE_UNAVAILABLE is HTTP 503 status code indicating server temporarily unavailable.
 	"http.SERVICE_UNAVAILABLE": {
 		Fn: func(args ...object.Object) object.Object {
 			return &object.Integer{Value: big.NewInt(SERVICE_UNAVAILABLE)}
@@ -988,7 +738,6 @@ var HttpBuiltins = map[string]*object.Builtin{
 		IsConstant: true,
 	},
 }
-
 
 func newHttpResponse(status int, body string, headers *object.Map) *object.Struct {
 	return &object.Struct{

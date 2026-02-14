@@ -1,0 +1,25 @@
+/*
+ * uuid.ez - UUID generation and validation
+ *
+ * Run with: ez examples/uuid.ez
+ */
+
+import @std, @uuid
+using std
+
+do main() {
+    // Generate a UUID
+    temp id string = uuid.create()
+    println("UUID: ${id}")
+
+    // Generate a compact UUID (no dashes)
+    temp compact string = uuid.create_compact()
+    println("Compact: ${compact}")
+
+    // Validate UUIDs
+    println("Valid UUID: " + string(uuid.is_valid(id)))
+    println("Valid compact: " + string(uuid.is_valid("not-a-uuid")))
+
+    // Nil UUID constant
+    println("Nil UUID: " + uuid.NIL)
+}

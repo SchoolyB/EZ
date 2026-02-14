@@ -94,6 +94,9 @@ var (
 	E2055 = ErrorCode{"E2055", "strict-invalid-target", "#strict can only be applied to when statements"}
 	E2056 = ErrorCode{"E2056", "executable-at-file-scope", "executable statement not allowed at file scope"}
 	E2057 = ErrorCode{"E2057", "invalid-interpolation-syntax", "invalid string interpolation syntax"}
+	E2058 = ErrorCode{"E2058", "doc-invalid-target", "#doc can only be applied to functions, structs, or enums"}
+	E2059 = ErrorCode{"E2059", "doc-orphaned", "#doc must be followed by a declaration"}
+	E2060 = ErrorCode{"E2060", "doc-duplicate", "only one #doc attribute is allowed per declaration"}
 )
 
 // =============================================================================
@@ -394,6 +397,17 @@ var (
 )
 
 // =============================================================================
+// SERVER ERRORS (E18xxx) - HTTP server-specific errors
+// These are errors unique to the HTTP server module
+// =============================================================================
+var (
+	E18001 = ErrorCode{"E18001", "server-listen-failed", "server failed to start"}
+	E18002 = ErrorCode{"E18002", "server-invalid-port", "invalid port number"}
+	E18003 = ErrorCode{"E18003", "server-internal-error", "internal server error"}
+	E18004 = ErrorCode{"E18004", "server-handler-error", "handler returned an error"}
+)
+
+// =============================================================================
 // WARNINGS (W1xxx - W6xxx)
 // =============================================================================
 var (
@@ -402,6 +416,7 @@ var (
 	W1002 = ErrorCode{"W1002", "unused-import", "module imported but not used"}
 	W1003 = ErrorCode{"W1003", "unused-function", "function declared but not called"}
 	W1004 = ErrorCode{"W1004", "unused-parameter", "parameter declared but not used"}
+	W1005 = ErrorCode{"W1005", "typed-blank-identifier", "blank identifier does not require type annotation"}
 
 	// Potential Bug Warnings (W2xxx)
 	W2001 = ErrorCode{"W2001", "unreachable-code", "code will never execute"}
@@ -414,6 +429,7 @@ var (
 	W2008 = ErrorCode{"W2008", "integer-overflow-potential", "integer arithmetic may overflow"}
 	W2009 = ErrorCode{"W2009", "nil-dereference-potential", "accessing member on potentially nil value"}
 	W2010 = ErrorCode{"W2010", "chained-nil-access", "chained member access on nullable struct type"}
+	W2011 = ErrorCode{"W2011", "named-return-unused", "function declares named return variable but returns different value"}
 
 	// Code Quality Warnings (W3xxx)
 	W3001 = ErrorCode{"W3001", "empty-block", "block statement is empty"}

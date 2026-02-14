@@ -9,6 +9,7 @@ import (
 	"math/rand"
 	"sort"
 
+	"github.com/marshallburns/ez/pkg/errors"
 	"github.com/marshallburns/ez/pkg/object"
 )
 
@@ -17,7 +18,7 @@ func checkIterating(arr *object.Array, funcName string) *object.Error {
 	if arr.IsIterating() {
 		return &object.Error{
 			Code:    "E9006",
-			Message: fmt.Sprintf("%s() cannot modify array during for_each iteration", funcName),
+			Message: fmt.Sprintf("%s() cannot modify array during for_each iteration", errors.Ident(funcName)),
 		}
 	}
 	return nil
@@ -25,6 +26,8 @@ func checkIterating(arr *object.Array, funcName string) *object.Error {
 
 // ArraysBuiltins contains the arrays module functions
 var ArraysBuiltins = map[string]*object.Builtin{
+	// is_empty checks if an array has no elements.
+	// Returns true if the array is empty, false otherwise.
 	"arrays.is_empty": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 1 {
@@ -41,6 +44,8 @@ var ArraysBuiltins = map[string]*object.Builtin{
 		},
 	},
 
+	// append adds one or more elements to the end of an array.
+	// Modifies array in-place. Takes array and values to append.
 	"arrays.append": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) < 2 {
@@ -64,6 +69,8 @@ var ArraysBuiltins = map[string]*object.Builtin{
 		},
 	},
 
+	// unshift adds one or more elements to the beginning of an array.
+	// Modifies array in-place. Takes array and values to prepend.
 	"arrays.unshift": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) < 2 {
@@ -91,6 +98,8 @@ var ArraysBuiltins = map[string]*object.Builtin{
 		},
 	},
 
+	// insert adds an element at a specific index in the array.
+	// Takes array, index, and value. Modifies array in-place.
 	"arrays.insert": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 3 {
@@ -125,6 +134,8 @@ var ArraysBuiltins = map[string]*object.Builtin{
 		},
 	},
 
+	// pop removes and returns the last element of an array.
+	// Modifies array in-place. Returns error if array is empty.
 	"arrays.pop": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 1 {
@@ -152,6 +163,8 @@ var ArraysBuiltins = map[string]*object.Builtin{
 		},
 	},
 
+	// shift removes and returns the first element of an array.
+	// Modifies array in-place. Returns error if array is empty.
 	"arrays.shift": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 1 {
@@ -179,8 +192,8 @@ var ArraysBuiltins = map[string]*object.Builtin{
 		},
 	},
 
-	// arrays.remove_at(arr, index) - Removes element at the specified index.
-	// Modifies array in-place, returns NIL.
+	// remove_at removes the element at a specific index.
+	// Takes array and index. Modifies array in-place.
 	"arrays.remove_at": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 2 {
@@ -213,9 +226,8 @@ var ArraysBuiltins = map[string]*object.Builtin{
 		},
 	},
 
-	// arrays.remove_value(arr, value) - Removes the FIRST occurrence of the specified VALUE.
-	// Use arrays.remove() if you need to remove by index instead.
-	// Modifies array in-place, returns NIL. Does nothing if value not found.
+	// remove_value removes the first occurrence of a value from an array.
+	// Takes array and value. Modifies array in-place, does nothing if not found.
 	"arrays.remove_value": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 2 {
@@ -246,8 +258,8 @@ var ArraysBuiltins = map[string]*object.Builtin{
 		},
 	},
 
-	// arrays.remove_all(arr, value) - Removes ALL occurrences of the specified VALUE.
-	// Modifies array in-place, returns NIL.
+	// remove_all removes all occurrences of a value from an array.
+	// Takes array and value. Modifies array in-place.
 	"arrays.remove_all": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 2 {
@@ -277,6 +289,8 @@ var ArraysBuiltins = map[string]*object.Builtin{
 		},
 	},
 
+	// clear removes all elements from an array.
+	// Takes an array. Modifies array in-place.
 	"arrays.clear": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 1 {
@@ -300,6 +314,8 @@ var ArraysBuiltins = map[string]*object.Builtin{
 		},
 	},
 
+	// get returns the element at a specific index.
+	// Takes array and index. Returns error if index is out of bounds.
 	"arrays.get": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 2 {
@@ -321,6 +337,8 @@ var ArraysBuiltins = map[string]*object.Builtin{
 		},
 	},
 
+	// first returns the first element of an array.
+	// Takes an array. Returns nil if array is empty.
 	"arrays.first": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 1 {
@@ -337,6 +355,8 @@ var ArraysBuiltins = map[string]*object.Builtin{
 		},
 	},
 
+	// last returns the last element of an array.
+	// Takes an array. Returns nil if array is empty.
 	"arrays.last": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 1 {
@@ -353,6 +373,8 @@ var ArraysBuiltins = map[string]*object.Builtin{
 		},
 	},
 
+	// set replaces the element at a specific index with a new value.
+	// Takes array, index, and value. Modifies array in-place.
 	"arrays.set": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 3 {
@@ -384,6 +406,8 @@ var ArraysBuiltins = map[string]*object.Builtin{
 		},
 	},
 
+	// slice returns a new array containing elements from start to end index.
+	// Takes array, start index, and optional end index. Supports negative indices.
 	"arrays.slice": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) < 2 || len(args) > 3 {
@@ -433,6 +457,8 @@ var ArraysBuiltins = map[string]*object.Builtin{
 		},
 	},
 
+	// take returns a new array with the first n elements.
+	// Takes array and count. Returns fewer elements if array is smaller.
 	"arrays.take": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 2 {
@@ -459,6 +485,8 @@ var ArraysBuiltins = map[string]*object.Builtin{
 		},
 	},
 
+	// drop returns a new array with the first n elements removed.
+	// Takes array and count. Returns empty array if count exceeds length.
 	"arrays.drop": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 2 {
@@ -485,6 +513,8 @@ var ArraysBuiltins = map[string]*object.Builtin{
 		},
 	},
 
+	// contains checks if an array contains a specific value.
+	// Takes array and value. Returns true if found, false otherwise.
 	"arrays.contains": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 2 {
@@ -503,6 +533,8 @@ var ArraysBuiltins = map[string]*object.Builtin{
 		},
 	},
 
+	// index returns the index of the first occurrence of a value.
+	// Takes array and value. Returns -1 if not found.
 	"arrays.index": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 2 {
@@ -521,6 +553,8 @@ var ArraysBuiltins = map[string]*object.Builtin{
 		},
 	},
 
+	// last_index returns the index of the last occurrence of a value.
+	// Takes array and value. Returns -1 if not found.
 	"arrays.last_index": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 2 {
@@ -539,6 +573,8 @@ var ArraysBuiltins = map[string]*object.Builtin{
 		},
 	},
 
+	// count returns the number of occurrences of a value in an array.
+	// Takes array and value. Returns integer count.
 	"arrays.count": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 2 {
@@ -558,6 +594,8 @@ var ArraysBuiltins = map[string]*object.Builtin{
 		},
 	},
 
+	// reverse returns a new array with elements in reverse order.
+	// Takes an array. Does not modify the original array.
 	"arrays.reverse": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 1 {
@@ -577,6 +615,8 @@ var ArraysBuiltins = map[string]*object.Builtin{
 		},
 	},
 
+	// sort sorts an array in ascending order.
+	// Takes an array. Modifies array in-place.
 	"arrays.sort": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 1 {
@@ -608,6 +648,8 @@ var ArraysBuiltins = map[string]*object.Builtin{
 		},
 	},
 
+	// sort_desc sorts an array in descending order.
+	// Takes an array. Modifies array in-place.
 	"arrays.sort_desc": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 1 {
@@ -639,6 +681,8 @@ var ArraysBuiltins = map[string]*object.Builtin{
 		},
 	},
 
+	// shuffle randomly reorders the elements of an array.
+	// Takes an array. Modifies array in-place using Fisher-Yates algorithm.
 	"arrays.shuffle": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 1 {
@@ -668,6 +712,8 @@ var ArraysBuiltins = map[string]*object.Builtin{
 		},
 	},
 
+	// concat combines two or more arrays into a new array.
+	// Takes two or more arrays. Returns a new array with all elements.
 	"arrays.concat": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) < 2 {
@@ -689,6 +735,8 @@ var ArraysBuiltins = map[string]*object.Builtin{
 		},
 	},
 
+	// zip combines two arrays into an array of pairs.
+	// Takes two arrays. Returns array of [a, b] pairs up to shorter length.
 	"arrays.zip": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 2 {
@@ -716,6 +764,8 @@ var ArraysBuiltins = map[string]*object.Builtin{
 		},
 	},
 
+	// flatten flattens a nested array by one level.
+	// Takes an array of arrays. Returns a new flat array.
 	"arrays.flatten": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 1 {
@@ -748,6 +798,8 @@ var ArraysBuiltins = map[string]*object.Builtin{
 		},
 	},
 
+	// unique returns a new array with duplicate values removed.
+	// Takes an array. Preserves the order of first occurrences.
 	"arrays.unique": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 1 {
@@ -771,6 +823,8 @@ var ArraysBuiltins = map[string]*object.Builtin{
 		},
 	},
 
+	// duplicates returns a new array containing only values that appear more than once.
+	// Takes an array. Returns one copy of each duplicate value.
 	"arrays.duplicates": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 1 {
@@ -801,6 +855,8 @@ var ArraysBuiltins = map[string]*object.Builtin{
 		},
 	},
 
+	// sum returns the sum of all numeric elements in an array.
+	// Takes a numeric array. Returns int if all integers, float otherwise.
 	"arrays.sum": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 1 {
@@ -832,6 +888,8 @@ var ArraysBuiltins = map[string]*object.Builtin{
 		},
 	},
 
+	// product returns the product of all numeric elements in an array.
+	// Takes a numeric array. Returns 1 for empty arrays.
 	"arrays.product": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 1 {
@@ -866,6 +924,8 @@ var ArraysBuiltins = map[string]*object.Builtin{
 		},
 	},
 
+	// min returns the minimum value in an array.
+	// Takes a non-empty array. Returns error if array is empty.
 	"arrays.min": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 1 {
@@ -889,6 +949,8 @@ var ArraysBuiltins = map[string]*object.Builtin{
 		},
 	},
 
+	// max returns the maximum value in an array.
+	// Takes a non-empty array. Returns error if array is empty.
 	"arrays.max": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 1 {
@@ -912,6 +974,8 @@ var ArraysBuiltins = map[string]*object.Builtin{
 		},
 	},
 
+	// avg returns the average of all numeric elements in an array.
+	// Takes a non-empty numeric array. Returns a float.
 	"arrays.avg": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 1 {
@@ -941,6 +1005,8 @@ var ArraysBuiltins = map[string]*object.Builtin{
 		},
 	},
 
+	// repeat creates a new array with a value repeated n times.
+	// Takes value and count. Returns array with n copies of value.
 	"arrays.repeat": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 2 {
@@ -962,6 +1028,8 @@ var ArraysBuiltins = map[string]*object.Builtin{
 		},
 	},
 
+	// fill replaces all elements in an array with a specified value.
+	// Takes array and value. Modifies array in-place.
 	"arrays.fill": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 2 {
@@ -987,6 +1055,8 @@ var ArraysBuiltins = map[string]*object.Builtin{
 		},
 	},
 
+	// join concatenates array elements into a string with a separator.
+	// Takes array and separator string. Returns combined string.
 	"arrays.join": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 2 {
@@ -1009,6 +1079,8 @@ var ArraysBuiltins = map[string]*object.Builtin{
 		},
 	},
 
+	// all_equal checks if all elements in an array are equal.
+	// Takes an array. Returns true for empty or single-element arrays.
 	"arrays.all_equal": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 1 {
@@ -1031,6 +1103,8 @@ var ArraysBuiltins = map[string]*object.Builtin{
 		},
 	},
 
+	// chunk splits an array into smaller arrays of a specified size.
+	// Takes array and size. Returns array of arrays.
 	"arrays.chunk": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 2 {
@@ -1065,6 +1139,8 @@ var ArraysBuiltins = map[string]*object.Builtin{
 		},
 	},
 
+	// equals checks if two arrays have the same elements in the same order.
+	// Takes two arrays. Returns true if equal, false otherwise.
 	"arrays.equals": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 2 {

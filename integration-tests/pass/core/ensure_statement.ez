@@ -1,0 +1,64 @@
+/*
+ * ensure_statement.ez - Test ensure (deferred cleanup) statement
+ */
+
+import @std, @io
+using std
+
+temp cleanup_ran bool = false
+
+do set_cleanup_flag() {
+    cleanup_ran = true
+}
+
+do process_with_ensure() {
+    ensure set_cleanup_flag()
+    println("  processing...")
+    // ensure runs when function exits
+}
+
+do process_with_early_return() -> int {
+    ensure set_cleanup_flag()
+    if true {
+        return 42  // ensure still runs on early return
+    }
+    return 0
+}
+
+do main() {
+    println("=== Ensure Statement Test ===")
+    temp passed int = 0
+    temp failed int = 0
+
+    // Test 1: ensure runs on normal function exit
+    cleanup_ran = false
+    process_with_ensure()
+    if cleanup_ran {
+        println("  [PASS] ensure runs on normal exit")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] ensure did not run on normal exit")
+        failed += 1
+    }
+
+    // Test 2: ensure runs on early return
+    cleanup_ran = false
+    temp val int = process_with_early_return()
+    if cleanup_ran && val == 42 {
+        println("  [PASS] ensure runs on early return")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] ensure did not run on early return")
+        failed += 1
+    }
+
+    // Summary
+    println("")
+    println("Results: ${passed} passed, ${failed} failed")
+
+    if failed > 0 {
+        println("SOME TESTS FAILED")
+    } otherwise {
+        println("ALL TESTS PASSED")
+    }
+}

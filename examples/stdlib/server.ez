@@ -1,0 +1,17 @@
+/*
+ * server.ez - A minimal HTTP server
+ *
+ * Run with: ez examples/server.ez
+ * Test with: curl http://localhost:8080
+ */
+
+import @std, @server
+using std
+
+do main() {
+    temp router Router = server.router()
+    server.route(router, "GET", "/", server.text(200, "Hello, World!"))
+
+    println("Listening on port 8080...")
+    server.listen(8080, router)
+}

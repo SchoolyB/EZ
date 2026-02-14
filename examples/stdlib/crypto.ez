@@ -1,0 +1,24 @@
+/*
+ * crypto.ez - Cryptographic hashing and secure random
+ *
+ * Run with: ez examples/crypto.ez
+ */
+
+import @std, @crypto
+using std
+
+do main() {
+    temp message string = "Hello, World!"
+
+    // Hash functions
+    println("SHA-256: " + crypto.sha256(message))
+    println("SHA-512: " + crypto.sha512(message))
+    println("MD5:     " + crypto.md5(message))
+
+    // Secure random bytes (returned as hex)
+    temp rand_hex string = crypto.random_hex(16)
+    println("Random hex (16 bytes): ${rand_hex}")
+
+    temp rand_bytes [byte] = crypto.random_bytes(8)
+    println("Random bytes (8): ${rand_bytes}")
+}

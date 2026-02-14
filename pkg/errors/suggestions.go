@@ -79,7 +79,8 @@ var Types = []string{
 var Modules = []string{
 	"std", "math", "strings", "arrays", "maps", "io",
 	"os", "json", "bytes", "time", "encoding", "crypto",
-	"random", "uuid", "db", "binary", "http",
+	"random", "uuid", "db", "binary", "http", "csv", "regex",
+	"server",
 }
 
 // SuggestKeyword suggests a keyword if the input is close to one

@@ -1,0 +1,60 @@
+/*
+ * blank_identifier.ez - Test blank identifier _ for discarding values
+ */
+
+import @std
+using std
+
+do get_pair() -> (int, string) {
+    return 42, "hello"
+}
+
+do get_triple() -> (int, int, int) {
+    return 1, 2, 3
+}
+
+do main() {
+    println("=== Blank Identifier Test ===")
+    temp passed int = 0
+    temp failed int = 0
+
+    // Test 1: discard second return value
+    temp val, _ = get_pair()
+    if val == 42 {
+        println("  [PASS] discard second value with _")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] expected 42, got ${val}")
+        failed += 1
+    }
+
+    // Test 2: discard first return value
+    temp _, str = get_pair()
+    if str == "hello" {
+        println("  [PASS] discard first value with _")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] expected hello, got ${str}")
+        failed += 1
+    }
+
+    // Test 3: discard multiple values
+    temp _, middle, _ = get_triple()
+    if middle == 2 {
+        println("  [PASS] discard first and third with _")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] expected 2, got ${middle}")
+        failed += 1
+    }
+
+    // Summary
+    println("")
+    println("Results: ${passed} passed, ${failed} failed")
+
+    if failed > 0 {
+        println("SOME TESTS FAILED")
+    } otherwise {
+        println("ALL TESTS PASSED")
+    }
+}

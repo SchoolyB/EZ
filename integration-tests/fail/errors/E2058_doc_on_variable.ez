@@ -1,0 +1,9 @@
+// Test: E2058 - #doc on variable (invalid target)
+import & use @std
+
+#doc("This should fail - variables cannot be documented")
+temp globalVar int = 42
+
+do main() {
+    println(globalVar)
+}

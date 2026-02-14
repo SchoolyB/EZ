@@ -1,0 +1,39 @@
+/*
+ * main.ez - Demonstrates the private keyword
+ *
+ * Public functions and constants from mathlib are accessible here.
+ * Private members (validate_positive, MAX_ITERATIONS) are NOT accessible.
+ * Trying to call mathlib.validate_positive() would produce error E4006.
+ *
+ * Run with: ez examples/projects/private_visibility/main.ez
+ */
+
+import @std
+import "./mathlib"
+
+using std
+
+do main() {
+    println("=== Private Visibility ===")
+    println("")
+
+    // Access public functions
+    println("mathlib.factorial(5) = ${mathlib.factorial(5)}")
+    println("mathlib.factorial(10) = ${mathlib.factorial(10)}")
+    println("")
+
+    println("mathlib.is_prime(7) = ${mathlib.is_prime(7)}")
+    println("mathlib.is_prime(10) = ${mathlib.is_prime(10)}")
+    println("mathlib.is_prime(97) = ${mathlib.is_prime(97)}")
+    println("")
+
+    // Access public constant
+    println("mathlib.VERSION = ${mathlib.VERSION}")
+    println("")
+
+    // These would cause errors if uncommented:
+    //   mathlib.validate_positive(5)   -> E4006: private function
+    //   mathlib.MAX_ITERATIONS         -> E6009: private constant
+    println("Private members (validate_positive, MAX_ITERATIONS)")
+    println("are hidden from outside the module.")
+}
