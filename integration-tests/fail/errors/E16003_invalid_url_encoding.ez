@@ -7,7 +7,7 @@ import @encoding
 
 do main() {
     // Invalid URL encoding (incomplete percent sequence)
-    temp result string, err error = encoding.url_decode("%ZZ")
+    temp result string, err Error = encoding.url_decode("%ZZ")
     if err != nil {
         panic("${err}")
     }

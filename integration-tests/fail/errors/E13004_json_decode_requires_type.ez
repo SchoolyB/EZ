@@ -7,5 +7,5 @@ import @json
 
 do main() {
     // json.decode with typed result requires type argument
-    temp result int, err error = json.decode("{\"x\": 1}")
+    temp result int, err Error = json.decode("{\"x\": 1}")
 }

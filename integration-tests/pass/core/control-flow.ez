@@ -77,7 +77,7 @@ do main() {
         failed += 1
     }
 
-    // Note: Descending range like range(5, 0) is now a compile-time error (E9005)
+    // Note: Descending range like range(5, 0) is now a check-time error (E9005)
     // Use a for loop with decrement if you need to count backwards
 
     // Test 5: for with type annotation

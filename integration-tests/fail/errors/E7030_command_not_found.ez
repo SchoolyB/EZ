@@ -1,0 +1,13 @@
+/*
+ * Error Test: E7030 - command-not-found
+ * Expected: "not found" or "command"
+ */
+
+import @os
+
+do main() {
+    temp result, err = os.exec("ez_nonexistent_command_99999")
+    if err != nil {
+        panic("${err}")
+    }
+}

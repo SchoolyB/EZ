@@ -88,6 +88,15 @@ func assertHasWarning(t *testing.T, tc *TypeChecker, expectedCode errors.ErrorCo
 	t.Errorf("expected warning %s but not found", expectedCode.Code)
 }
 
+func assertNoWarning(t *testing.T, tc *TypeChecker, unexpectedCode errors.ErrorCode) {
+	t.Helper()
+	for _, warn := range tc.Errors().Warnings {
+		if warn.ErrorCode == unexpectedCode {
+			t.Errorf("unexpected warning %s: %s at line %d", warn.ErrorCode.Code, warn.Message, warn.Line)
+		}
+	}
+}
+
 // ============================================================================
 // Scope Tests
 // ============================================================================
@@ -6034,7 +6043,7 @@ func TestTypeExistsForBuiltins(t *testing.T) {
 		"u8", "u16", "u32", "u64",
 		"float", "f32", "f64",
 		"string", "bool", "char", "byte",
-		"nil", "error",
+		"nil", "Error",
 	}
 
 	for _, typeName := range builtinTypes {
@@ -7006,4 +7015,247 @@ do main() {
 `
 	tc := typecheck(t, input)
 	assertNoErrors(t, tc)
+}
+
+// ============================================================================
+// W2010 Nested Struct Initialization Tests (#1107)
+// ============================================================================
+
+func TestW2010_NestedStructLiteralNoFalsePositive(t *testing.T) {
+	// When a nested struct field is explicitly initialized with a struct literal,
+	// W2010 should NOT fire on chained member access
+	input := `
+const Container struct {
+	label string
+}
+
+const Wrapper struct {
+	inner Container
+}
+
+do main() {
+	temp w Wrapper = Wrapper{ inner: Container{ label: "test" } }
+	w.inner.label = "modified"
+	println(w.inner.label)
+}
+`
+	tc := typecheck(t, input)
+	assertNoErrors(t, tc)
+	assertNoWarning(t, tc, errors.W2010)
+}
+
+func TestW2010_DeeplyNestedStructLiteralNoFalsePositive(t *testing.T) {
+	// Test deeply nested struct initialization
+	input := `
+const Inner struct {
+	value string
+}
+
+const Middle struct {
+	nested Inner
+}
+
+const Outer struct {
+	mid Middle
+}
+
+do main() {
+	temp o Outer = Outer{
+		mid: Middle{
+			nested: Inner{ value: "deep" }
+		}
+	}
+	o.mid.nested.value = "modified"
+	println(o.mid.nested.value)
+}
+`
+	tc := typecheck(t, input)
+	assertNoErrors(t, tc)
+	assertNoWarning(t, tc, errors.W2010)
+}
+
+func TestW2010_ReassignmentWithStructLiteral(t *testing.T) {
+	// Test that reassigning a variable with a struct literal also marks nested fields
+	input := `
+const Container struct {
+	label string
+}
+
+const Wrapper struct {
+	inner Container
+}
+
+do main() {
+	temp w Wrapper = Wrapper{}
+	w = Wrapper{ inner: Container{ label: "test" } }
+	w.inner.label = "modified"
+	println(w.inner.label)
+}
+`
+	tc := typecheck(t, input)
+	assertNoErrors(t, tc)
+	assertNoWarning(t, tc, errors.W2010)
+}
+
+// ============================================================================
+// Named Return Variables Tests (#1131)
+// ============================================================================
+
+func TestNamedReturnBasicNoWarning(t *testing.T) {
+	input := `
+do getName() -> (name string) {
+	name = "Alice"
+	return name
+}
+
+do main() {
+	temp n string = getName()
+	println(n)
+}
+`
+	tc := typecheck(t, input)
+	assertNoErrors(t, tc)
+	assertNoWarning(t, tc, errors.W2011)
+}
+
+func TestNamedReturnDifferentVariableWarning(t *testing.T) {
+	input := `
+do getName() -> (name string) {
+	temp other string = "Hello"
+	return other
+}
+
+do main() {
+	temp n string = getName()
+	println(n)
+}
+`
+	tc := typecheck(t, input)
+	assertNoErrors(t, tc)
+	assertHasWarning(t, tc, errors.W2011)
+}
+
+func TestNamedReturnExpressionWarning(t *testing.T) {
+	input := `
+do getNumber() -> (result int) {
+	return 42
+}
+
+do main() {
+	temp n int = getNumber()
+	println(n)
+}
+`
+	tc := typecheck(t, input)
+	assertNoErrors(t, tc)
+	assertHasWarning(t, tc, errors.W2011)
+}
+
+func TestNamedReturnMultipleCorrect(t *testing.T) {
+	input := `
+do getValues() -> (age int, name string) {
+	age = 25
+	name = "Bob"
+	return age, name
+}
+
+do main() {
+	temp a int, n string = getValues()
+	println(a)
+	println(n)
+}
+`
+	tc := typecheck(t, input)
+	assertNoErrors(t, tc)
+	assertNoWarning(t, tc, errors.W2011)
+}
+
+func TestNamedReturnMultipleOneWrong(t *testing.T) {
+	input := `
+do getValues() -> (age int, name string) {
+	temp other string = "Alice"
+	age = 25
+	return age, other
+}
+
+do main() {
+	temp a int, n string = getValues()
+	println(a)
+	println(n)
+}
+`
+	tc := typecheck(t, input)
+	assertNoErrors(t, tc)
+	assertHasWarning(t, tc, errors.W2011)
+}
+
+func TestNamedReturnSharedType(t *testing.T) {
+	input := `
+do getNames() -> (first, last string) {
+	first = "John"
+	last = "Doe"
+	return first, last
+}
+
+do main() {
+	temp f string, l string = getNames()
+	println(f)
+	println(l)
+}
+`
+	tc := typecheck(t, input)
+	assertNoErrors(t, tc)
+	assertNoWarning(t, tc, errors.W2011)
+}
+
+func TestNamedReturnZeroValueUsage(t *testing.T) {
+	// Using the auto-initialized zero value is valid
+	input := `
+do getZero() -> (count int) {
+	return count
+}
+
+do main() {
+	temp c int = getZero()
+	println(c)
+}
+`
+	tc := typecheck(t, input)
+	assertNoErrors(t, tc)
+	assertNoWarning(t, tc, errors.W2011)
+}
+
+func TestUnnamedReturnNoWarning(t *testing.T) {
+	// Unnamed returns should not trigger W2011
+	input := `
+do getValue() -> int {
+	return 42
+}
+
+do main() {
+	temp v int = getValue()
+	println(v)
+}
+`
+	tc := typecheck(t, input)
+	assertNoErrors(t, tc)
+	assertNoWarning(t, tc, errors.W2011)
+}
+
+func TestUnnamedMultiReturnNoWarning(t *testing.T) {
+	// Unnamed multi-returns should not trigger W2011
+	input := `
+do getValues() -> (int, string) {
+	return 42, "hello"
+}
+
+do main() {
+	temp a int, b string = getValues()
+	println(a)
+	println(b)
+}
+`
+	tc := typecheck(t, input)
+	assertNoErrors(t, tc)
+	assertNoWarning(t, tc, errors.W2011)
 }

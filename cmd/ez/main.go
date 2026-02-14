@@ -752,6 +752,109 @@ func runFile(filename string) {
 	rootDir := filepath.Dir(absPath)
 	loader := interpreter.NewModuleLoader(rootDir)
 
+	// Multi-file main module support: discover sibling .ez files with same module declaration
+	var siblingFiles []parsedFile
+	var mainModuleInternals *moduleInternals
+	if program.Module != nil && program.Module.Name != nil {
+		mainModuleName := program.Module.Name.Value
+		entries, err := os.ReadDir(rootDir)
+		if err == nil {
+			for _, entry := range entries {
+				if entry.IsDir() || !strings.HasSuffix(entry.Name(), ".ez") {
+					continue
+				}
+				siblingPath := filepath.Join(rootDir, entry.Name())
+				if siblingPath == absPath {
+					continue // Skip the main file itself
+				}
+
+				// Parse sibling file to check its module declaration
+				siblingData, err := os.ReadFile(siblingPath)
+				if err != nil {
+					continue
+				}
+				siblingSource := string(siblingData)
+				siblingLex := lexer.NewLexer(siblingSource)
+				siblingParser := parser.NewWithSource(siblingLex, siblingSource, siblingPath)
+				siblingProgram := siblingParser.ParseProgram()
+
+				// Check for lexer errors in sibling file
+				if errList := formatLexerErrors(siblingLex, siblingSource, siblingPath); errList != nil {
+					fmt.Print(errors.FormatErrorList(errList))
+					os.Exit(1)
+				}
+
+				// Check for parser errors in sibling file
+				if siblingParser.EZErrors().HasErrors() {
+					fmt.Print(errors.FormatErrorList(siblingParser.EZErrors()))
+					os.Exit(1)
+				}
+
+				// Display parser warnings from sibling file
+				if siblingParser.EZErrors().HasWarnings() {
+					fmt.Print(errors.FormatErrorList(siblingParser.EZErrors()))
+				}
+
+				// Check if this file declares the same module
+				if siblingProgram.Module != nil && siblingProgram.Module.Name != nil &&
+					siblingProgram.Module.Name.Value == mainModuleName {
+					siblingFiles = append(siblingFiles, parsedFile{
+						path:    siblingPath,
+						source:  siblingSource,
+						program: siblingProgram,
+					})
+				}
+			}
+		}
+
+		// If we have sibling files, extract their declarations
+		if len(siblingFiles) > 0 {
+			mainModuleInternals = &moduleInternals{
+				types: make(map[string]*typechecker.Type),
+				funcs: make(map[string]*typechecker.FunctionSignature),
+				vars:  make(map[string]string),
+			}
+
+			// First, extract declarations from the main file
+			mainExtractTc := typechecker.NewTypeChecker(source, filename)
+			mainExtractTc.SetSkipMainCheck(true)
+			mainExtractTc.RegisterDeclarations(program)
+			for funcName, sig := range mainExtractTc.GetFunctions() {
+				mainModuleInternals.funcs[funcName] = sig
+			}
+			for typeName, t := range mainExtractTc.GetTypes() {
+				if t.Kind == typechecker.StructType || t.Kind == typechecker.EnumType {
+					mainModuleInternals.types[typeName] = t
+				}
+			}
+			for varName, varType := range mainExtractTc.GetVariables() {
+				mainModuleInternals.vars[varName] = varType
+			}
+
+			// Then extract declarations from sibling files
+			for _, sf := range siblingFiles {
+				sfExtractTc := typechecker.NewTypeChecker(sf.source, sf.path)
+				sfExtractTc.SetSkipMainCheck(true)
+				sfExtractTc.RegisterDeclarations(sf.program)
+				for funcName, sig := range sfExtractTc.GetFunctions() {
+					mainModuleInternals.funcs[funcName] = sig
+				}
+				for typeName, t := range sfExtractTc.GetTypes() {
+					if t.Kind == typechecker.StructType || t.Kind == typechecker.EnumType {
+						mainModuleInternals.types[typeName] = t
+					}
+				}
+				for varName, varType := range sfExtractTc.GetVariables() {
+					mainModuleInternals.vars[varName] = varType
+				}
+
+				// Combine statements from sibling files with main program
+				program.Statements = append(program.Statements, sf.program.Statements...)
+				program.FileUsing = append(program.FileUsing, sf.program.FileUsing...)
+			}
+		}
+	}
+
 	// Load imported modules and extract their type definitions for cross-module type checking
 	importsWithAliases := collectImportsWithAliases(program, rootDir, absPath)
 	pathToAlias := make(map[string]string)
@@ -967,6 +1070,55 @@ func runFile(filename string) {
 		}
 	}
 
+	// Type check sibling files in multi-file main module
+	for _, sf := range siblingFiles {
+		sfTc := typechecker.NewTypeChecker(sf.source, sf.path)
+		sfTc.SetSkipMainCheck(true)
+
+		// Register imported module types
+		for modName, types := range moduleTypes {
+			for typeName, t := range types {
+				sfTc.RegisterModuleType(modName, typeName, t)
+			}
+		}
+		for modName, funcs := range moduleSignatures {
+			for funcName, sig := range funcs {
+				sfTc.RegisterModuleFunction(modName, funcName, sig)
+			}
+		}
+		for modName, vars := range moduleVariables {
+			for varName, varType := range vars {
+				sfTc.RegisterModuleVariable(modName, varName, varType)
+			}
+		}
+
+		// Register main module internals for cross-file visibility
+		if mainModuleInternals != nil {
+			for typeName, t := range mainModuleInternals.types {
+				sfTc.RegisterType(typeName, t)
+			}
+			for funcName, sig := range mainModuleInternals.funcs {
+				sfTc.RegisterFunction(funcName, sig)
+			}
+			for varName, varType := range mainModuleInternals.vars {
+				sfTc.RegisterVariable(varName, varType)
+			}
+		}
+
+		sfTc.CheckProgram(sf.program)
+
+		// Check for type errors in sibling files
+		if sfTc.Errors().HasErrors() {
+			fmt.Print(errors.FormatErrorList(sfTc.Errors()))
+			os.Exit(1)
+		}
+
+		// Display type checker warnings from sibling files
+		if sfTc.Errors().HasWarnings() {
+			fmt.Print(errors.FormatErrorList(sfTc.Errors()))
+		}
+	}
+
 	// Type checking phase with module type information
 	tc := typechecker.NewTypeChecker(source, filename)
 
@@ -988,6 +1140,19 @@ func runFile(filename string) {
 		}
 	}
 
+	// Register main module internals (for multi-file main module support)
+	if mainModuleInternals != nil {
+		for typeName, t := range mainModuleInternals.types {
+			tc.RegisterType(typeName, t)
+		}
+		for funcName, sig := range mainModuleInternals.funcs {
+			tc.RegisterFunction(funcName, sig)
+		}
+		for varName, varType := range mainModuleInternals.vars {
+			tc.RegisterVariable(varName, varType)
+		}
+	}
+
 	tc.CheckProgram(program)
 
 	// Check for type errors
@@ -1006,13 +1171,12 @@ func runFile(filename string) {
 		Loader:      loader,
 		CurrentFile: absPath,
 	}
-	interpreter.SetEvalContext(ctx)
 
 	env := interpreter.NewEnvironment()
-	result := interpreter.Eval(program, env)
+	result := interpreter.Eval(program, env, ctx)
 
 	// Print any module loading warnings
-	if ctx := interpreter.GetEvalContext(); ctx != nil && ctx.Loader != nil {
+	if ctx.Loader != nil {
 		for _, warning := range ctx.Loader.GetWarnings() {
 			fmt.Print(errors.FormatError(warning))
 		}
@@ -1028,12 +1192,12 @@ func runFile(filename string) {
 	if mainFn, ok := env.Get("main"); ok {
 		if fn, ok := mainFn.(*interpreter.Function); ok {
 			fnEnv := interpreter.NewEnclosedEnvironment(env)
-			mainResult := interpreter.Eval(fn.Body, fnEnv)
+			mainResult := interpreter.Eval(fn.Body, fnEnv, ctx)
 
 			// Execute ensure statements before returning (LIFO order)
 			ensures := fnEnv.ExecuteEnsures()
 			for _, ensureCall := range ensures {
-				interpreter.Eval(ensureCall, fnEnv)
+				interpreter.Eval(ensureCall, fnEnv, ctx)
 				// Note: We ignore errors from ensure statements to ensure cleanup always runs
 			}
 			fnEnv.ClearEnsures()

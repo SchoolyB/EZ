@@ -1,0 +1,11 @@
+/*
+ * Error Test: E9007 - empty-array-selection
+ * Expected: "empty array" or "cannot select"
+ */
+
+import @random
+
+do main() {
+    temp arr [int] = {}
+    temp x int = random.choice(arr)  // ERROR: cannot select from empty array
+}

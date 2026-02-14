@@ -1,0 +1,61 @@
+/*
+ * io.ez - File system operations
+ *
+ * Run with: ez examples/stdlib/io.ez
+ */
+
+import @std, @io
+using std
+
+do main() {
+    // Write a file
+    temp ok bool, write_err Error = io.write_file("/tmp/ez_io_example.txt", "Hello from EZ!\nLine two.\nLine three.")
+    if write_err != nil {
+        println("Write error: ${write_err}")
+        return
+    }
+    println("Wrote file: /tmp/ez_io_example.txt")
+
+    // Read a file
+    temp content string, read_err Error = io.read_file("/tmp/ez_io_example.txt")
+    if read_err == nil {
+        println("Content: ${content}")
+    }
+
+    // Read lines
+    temp lines [string], lines_err Error = io.read_lines("/tmp/ez_io_example.txt")
+    if lines_err == nil {
+        println("Lines: ${lines}")
+    }
+
+    // Append to file
+    temp _, _ = io.append_file("/tmp/ez_io_example.txt", "\nLine four.")
+    temp updated, _ = io.read_file("/tmp/ez_io_example.txt")
+    println("After append: ${updated}")
+
+    // File metadata
+    temp size, _ = io.file_size("/tmp/ez_io_example.txt")
+    println("File size: ${size} bytes")
+
+    // Path utilities
+    println("path_base: ${io.path_base("/tmp/ez_io_example.txt")}")
+    println("path_dir: ${io.path_dir("/tmp/ez_io_example.txt")}")
+    println("path_ext: ${io.path_ext("/tmp/ez_io_example.txt")}")
+    println("path_join: ${io.path_join("/tmp", "subdir", "file.txt")}")
+    println("path_separator: '${io.path_separator()}'")
+
+    // Existence checks
+    println("exists: ${io.exists("/tmp/ez_io_example.txt")}")
+    println("is_file: ${io.is_file("/tmp/ez_io_example.txt")}")
+    println("is_dir: ${io.is_dir("/tmp")}")
+
+    // Directory operations
+    temp _, _ = io.mkdir("/tmp/ez_io_test_dir")
+    temp entries, _ = io.read_dir("/tmp/ez_io_test_dir")
+    println("Empty dir entries: ${entries}")
+    temp _, _ = io.remove_dir("/tmp/ez_io_test_dir")
+
+    // Cleanup
+    temp _, _ = io.remove("/tmp/ez_io_example.txt")
+    println("Cleaned up temp files.")
+}

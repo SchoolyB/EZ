@@ -722,3 +722,67 @@ func TestBytesJoin(t *testing.T) {
 		t.Errorf("got %s, want a-b-c", string(got))
 	}
 }
+
+// ============================================================================
+// Additional Tests for Untested Functions
+// ============================================================================
+
+func TestBytesTrimLeft(t *testing.T) {
+	fn := BytesBuiltins["bytes.trim_left"].Fn
+
+	input := makeByteArray([]byte{0, 0, 65, 66, 0, 0})
+	cutset := makeByteArray([]byte{0})
+
+	result := fn(input, cutset)
+	got := getByteSlice(result)
+	expected := []byte{65, 66, 0, 0}
+	if string(got) != string(expected) {
+		t.Errorf("got %v, want %v", got, expected)
+	}
+}
+
+func TestBytesTrimRight(t *testing.T) {
+	fn := BytesBuiltins["bytes.trim_right"].Fn
+
+	input := makeByteArray([]byte{0, 0, 65, 66, 0, 0})
+	cutset := makeByteArray([]byte{0})
+
+	result := fn(input, cutset)
+	got := getByteSlice(result)
+	expected := []byte{0, 0, 65, 66}
+	if string(got) != string(expected) {
+		t.Errorf("got %v, want %v", got, expected)
+	}
+}
+
+func TestBytesOrLengthMismatch(t *testing.T) {
+	fn := BytesBuiltins["bytes.or"].Fn
+
+	a := makeByteArray([]byte{0xFF})
+	b := makeByteArray([]byte{0xF0, 0x0F})
+
+	result := fn(a, b)
+	rv := result.(*object.ReturnValue)
+	if rv.Values[0] != object.NIL {
+		t.Errorf("expected nil for length mismatch")
+	}
+	if _, ok := rv.Values[1].(*object.Struct); !ok {
+		t.Errorf("expected error struct, got %T", rv.Values[1])
+	}
+}
+
+func TestBytesXorLengthMismatch(t *testing.T) {
+	fn := BytesBuiltins["bytes.xor"].Fn
+
+	a := makeByteArray([]byte{0xFF})
+	b := makeByteArray([]byte{0xF0, 0x0F})
+
+	result := fn(a, b)
+	rv := result.(*object.ReturnValue)
+	if rv.Values[0] != object.NIL {
+		t.Errorf("expected nil for length mismatch")
+	}
+	if _, ok := rv.Values[1].(*object.Struct); !ok {
+		t.Errorf("expected error struct, got %T", rv.Values[1])
+	}
+}

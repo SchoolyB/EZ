@@ -1,0 +1,12 @@
+/*
+ * Error Test: E3041 - array-size-overflow
+ * Expected: "array literal has" or "declared size"
+ */
+
+import @std
+using std
+
+do main() {
+    const arr [int, 3] = {1, 2, 3, 4}  // ERROR: 4 elements but declared size is 3
+    println(arr)
+}

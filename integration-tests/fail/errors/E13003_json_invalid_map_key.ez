@@ -9,7 +9,7 @@ do main() {
     // Create a map with integer keys (invalid for JSON)
     temp m map[int:string] = {1: "one", 2: "two"}
 
-    temp result string, err error = json.encode(m)
+    temp result string, err Error = json.encode(m)
     if err != nil {
         panic("${err}")
     }

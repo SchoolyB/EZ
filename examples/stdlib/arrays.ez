@@ -1,0 +1,26 @@
+/*
+ * arrays.ez - Array utility functions
+ *
+ * Run with: ez examples/stdlib/arrays.ez
+ */
+
+import @std, @arrays
+using std
+
+do main() {
+    temp nums [int] = {1, 2, 3, 4, 5}
+    println("nums = ${nums}")
+    println("arrays.first(nums) = ${arrays.first(nums)}")
+    println("arrays.last(nums) = ${arrays.last(nums)}")
+    println("arrays.reverse(nums) = ${arrays.reverse(nums)}")
+    println("arrays.slice(nums, 1, 4) = ${arrays.slice(nums, 1, 4)}")
+    println("arrays.contains(nums, 3) = ${arrays.contains(nums, 3)}")
+    println("arrays.index(nums, 3) = ${arrays.index(nums, 3)}")
+
+    // Append and pop
+    temp grow [int] = {10, 20}
+    arrays.append(grow, 30)
+    println("After arrays.append(grow, 30): ${grow}")
+    temp last int = arrays.pop(grow)
+    println("arrays.pop() returned ${last}, grow = ${grow}")
+}

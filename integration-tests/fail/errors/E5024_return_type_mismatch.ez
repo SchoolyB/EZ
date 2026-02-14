@@ -1,0 +1,17 @@
+/*
+ * Error Test: E5024 - return-type-mismatch (runtime)
+ * Expected: "return type mismatch"
+ */
+
+import @std
+using std
+
+do get_value() -> uint {
+    temp x int = -1
+    return x  // Runtime error: int -1 cannot be returned as uint
+}
+
+do main() {
+    temp val uint = get_value()
+    println(val)
+}

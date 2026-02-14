@@ -1,0 +1,13 @@
+/*
+ * Error Test: E7035 - env-var-not-set
+ * Expected: "not set" or "environment variable"
+ */
+
+import @os
+
+do main() {
+    temp val, err = os.get_env("EZ_NONEXISTENT_VAR_THAT_DOES_NOT_EXIST_99999")
+    if err != nil {
+        panic("${err}")
+    }
+}

@@ -1,0 +1,14 @@
+/*
+ * Error Test: E7020 - safety-check-failed
+ * Expected: "cannot remove root" or "safety"
+ */
+
+import @io
+
+do main() {
+    // Safety check prevents removing root directory
+    temp ok, err = io.remove_all("/")
+    if err != nil {
+        panic("${err}")
+    }
+}

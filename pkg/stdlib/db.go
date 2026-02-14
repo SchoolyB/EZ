@@ -1,52 +1,53 @@
 package stdlib
 
 import (
+	"fmt"
 	"math/big"
 	"os"
 	"sort"
 	"strconv"
 	"strings"
 
+	"github.com/marshallburns/ez/pkg/errors"
 	"github.com/marshallburns/ez/pkg/object"
 )
 
-// DBBuiltings contains the db module functions for database operations
+// DBBuiltins contains the db module functions for database operations
 var DBBuiltins = map[string]*object.Builtin{
 	// ============================================================================
 	// Database Management
 	// ============================================================================
 
-	// Opens database using provided path
-	// Creates new database file if it does not exist
-	// Returns (database, error) tuple - error is nil on success
+	// open opens or creates a database file at the given path.
+	// Takes path string (.ezdb). Returns (Database, Error) tuple.
 	"db.open": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 1 {
-				return &object.Error{Code: "E7001", Message: "db.open() takes exactly 1 argument"}
+				return &object.Error{Code: "E7001", Message: fmt.Sprintf("%s takes exactly 1 argument", errors.Ident("db.open()"))}
 			}
 
 			path, ok := args[0].(*object.String)
 			if !ok {
-				return &object.Error{Code: "E7003", Message: "db.open() requires a string path"}
+				return &object.Error{Code: "E7003", Message: fmt.Sprintf("%s requires a %s path", errors.Ident("db.open()"), errors.TypeExpected("string"))}
 			}
 
 			if err := validatePath(path.Value, "db.open()"); err != nil {
-				return &object.Error{Code: "E17001", Message: "db.open() requires valid path"}
+				return &object.Error{Code: "E17001", Message: fmt.Sprintf("%s requires valid path", errors.Ident("db.open()"))}
 			}
 
 			if !strings.HasSuffix(path.Value, ".ezdb") {
-				return &object.Error{Code: "E17001", Message: "db.open() requires a `.ezdb` file"}
+				return &object.Error{Code: "E17001", Message: fmt.Sprintf("%s requires a `.ezdb` file", errors.Ident("db.open()"))}
 			}
 
 			info, statErr := os.Stat(path.Value)
 			if statErr == nil && info.IsDir() {
-				return &object.Error{Code: "E17002", Message: "db.open(): cannot read directory as file"}
+				return &object.Error{Code: "E17002", Message: fmt.Sprintf("%s cannot read directory as file", errors.Ident("db.open()"))}
 			}
 
 			if os.IsNotExist(statErr) {
 				perms := os.FileMode(0644)
 				if err := atomicWriteFile(path.Value, []byte("{}"), perms); err != nil {
-					return &object.Error{Code: "E17001", Message: "db.open() failed to open database file"}
+					return &object.Error{Code: "E17001", Message: fmt.Sprintf("%s failed to open database file", errors.Ident("db.open()"))}
 				}
 
 				return &object.ReturnValue{Values: []object.Object{
@@ -61,7 +62,7 @@ var DBBuiltins = map[string]*object.Builtin{
 
 			content, err := os.ReadFile(path.Value)
 			if err != nil {
-				return &object.Error{Code: "E17002", Message: "db.open(): could not read database file"}
+				return &object.Error{Code: "E17002", Message: fmt.Sprintf("%s could not read database file", errors.Ident("db.open()"))}
 			}
 
 			// Handle empty files the same as non-existent files - initialize with empty map
@@ -78,15 +79,15 @@ var DBBuiltins = map[string]*object.Builtin{
 
 			result, err := decodeFromJSON(string(content))
 			if err != nil {
-				return &object.Error{Code: "E17004", Message: "db.open(): database file is corrupted"}
+				return &object.Error{Code: "E17004", Message: fmt.Sprintf("%s database file is corrupted", errors.Ident("db.open()"))}
 			}
 
 			dbContent, ok := result.(*object.Map)
 			if !ok {
 				if _, isArray := result.(*object.Array); isArray {
-					return &object.Error{Code: "E17004", Message: "db.open(): database file must contain a JSON object, not an array"}
+					return &object.Error{Code: "E17004", Message: fmt.Sprintf("%s database file must contain a JSON object, not an array", errors.Ident("db.open()"))}
 				}
-				return &object.Error{Code: "E17004", Message: "db.open(): database file is corrupted"}
+				return &object.Error{Code: "E17004", Message: fmt.Sprintf("%s database file is corrupted", errors.Ident("db.open()"))}
 			}
 
 			// Sort keys alphabetically on load for consistent ordering
@@ -112,32 +113,31 @@ var DBBuiltins = map[string]*object.Builtin{
 		},
 	},
 
-	// Closes the database and prevents further actions on the database
-	// Saves state of database to disk when closing
-	// Returns (error) - error is nil on success
+	// close closes a database and saves its state to disk.
+	// Takes Database. Returns nil on success, prevents further operations.
 	"db.close": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 1 {
-				return &object.Error{Code: "E7001", Message: "db.close() takes exactly 1 argument"}
+				return &object.Error{Code: "E7001", Message: fmt.Sprintf("%s takes exactly 1 argument", errors.Ident("db.close()"))}
 			}
 
 			db, ok := args[0].(*object.Database)
 			if !ok {
-				return &object.Error{Code: "E7001", Message: "db.close() requires a Database object as argument"}
+				return &object.Error{Code: "E7001", Message: fmt.Sprintf("%s requires a %s object as argument", errors.Ident("db.close()"), errors.TypeExpected("Database"))}
 			}
 
 			if db.IsClosed.Value {
-				return &object.Error{Code: "E17005", Message: "db.close() cannot operate on closed database"}
+				return &object.Error{Code: "E17005", Message: fmt.Sprintf("%s cannot operate on closed database", errors.Ident("db.close()"))}
 			}
 
 			jsonRes, err := encodeToJSON(&db.Store, make(map[uintptr]bool))
 			if err != nil {
-				return &object.Error{Code: "E17003", Message: "db.close() database contents not json encodable"}
+				return &object.Error{Code: "E17003", Message: fmt.Sprintf("%s database contents not json encodable", errors.Ident("db.close()"))}
 			}
 
 			perms := os.FileMode(0644)
 			if err := atomicWriteFile(db.Path.Value, []byte(jsonRes), perms); err != nil {
-				return &object.Error{Code: "E17003", Message: "db.close() failed to write to database"}
+				return &object.Error{Code: "E17003", Message: fmt.Sprintf("%s failed to write to database", errors.Ident("db.close()"))}
 			}
 
 			db.IsClosed = object.Boolean{Value: true}
@@ -146,31 +146,31 @@ var DBBuiltins = map[string]*object.Builtin{
 		},
 	},
 
-	// Manual saving of database to disk
-	// Returns (error) - error is nil on success
+	// save manually persists the database state to disk.
+	// Takes Database. Returns nil on success.
 	"db.save": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 1 {
-				return &object.Error{Code: "E7001", Message: "db.save() takes exactly 1 argument"}
+				return &object.Error{Code: "E7001", Message: fmt.Sprintf("%s takes exactly 1 argument", errors.Ident("db.save()"))}
 			}
 
 			db, ok := args[0].(*object.Database)
 			if !ok {
-				return &object.Error{Code: "E7001", Message: "db.save() requires a Database object as argument"}
+				return &object.Error{Code: "E7001", Message: fmt.Sprintf("%s requires a %s object as argument", errors.Ident("db.save()"), errors.TypeExpected("Database"))}
 			}
 
 			if db.IsClosed.Value {
-				return &object.Error{Code: "E17005", Message: "db.save() cannot operate on closed database"}
+				return &object.Error{Code: "E17005", Message: fmt.Sprintf("%s cannot operate on closed database", errors.Ident("db.save()"))}
 			}
 
 			jsonRes, err := encodeToJSON(&db.Store, make(map[uintptr]bool))
 			if err != nil {
-				return &object.Error{Code: "E17003", Message: "db.save() database contents not json encodable"}
+				return &object.Error{Code: "E17003", Message: fmt.Sprintf("%s database contents not json encodable", errors.Ident("db.save()"))}
 			}
 
 			perms := os.FileMode(0644)
 			if err := atomicWriteFile(db.Path.Value, []byte(jsonRes), perms); err != nil {
-				return &object.Error{Code: "E17003", Message: "db.save() failed to write to database"}
+				return &object.Error{Code: "E17003", Message: fmt.Sprintf("%s failed to write to database", errors.Ident("db.save()"))}
 			}
 
 			return &object.Nil{}
@@ -181,31 +181,31 @@ var DBBuiltins = map[string]*object.Builtin{
 	// Database Operations
 	// ============================================================================
 
-	// Sets a key value pair in database
-	// Returns nothing
+	// set stores a key-value pair in the database.
+	// Takes Database, key string, value string. Returns nil.
 	"db.set": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 3 {
-				return &object.Error{Code: "E7001", Message: "db.set() takes exactly 3 arguments"}
+				return &object.Error{Code: "E7001", Message: fmt.Sprintf("%s takes exactly 3 arguments", errors.Ident("db.set()"))}
 			}
 
 			db, ok := args[0].(*object.Database)
 			if !ok {
-				return &object.Error{Code: "E7001", Message: "db.set() requires a Database object as first argument"}
+				return &object.Error{Code: "E7001", Message: fmt.Sprintf("%s requires a %s object as first argument", errors.Ident("db.set()"), errors.TypeExpected("Database"))}
 			}
 
 			if db.IsClosed.Value {
-				return &object.Error{Code: "E17005", Message: "db.set() cannot operate on closed database"}
+				return &object.Error{Code: "E17005", Message: fmt.Sprintf("%s cannot operate on closed database", errors.Ident("db.set()"))}
 			}
 
 			key, ok := args[1].(*object.String)
 			if !ok {
-				return &object.Error{Code: "E7001", Message: "db.set() requires a String as second argument"}
+				return &object.Error{Code: "E7001", Message: fmt.Sprintf("%s requires a %s as second argument", errors.Ident("db.set()"), errors.TypeExpected("String"))}
 			}
 
 			val, ok := args[2].(*object.String)
 			if !ok {
-				return &object.Error{Code: "E7001", Message: "db.set() requires a String as third argument"}
+				return &object.Error{Code: "E7001", Message: fmt.Sprintf("%s requires a %s as third argument", errors.Ident("db.set()"), errors.TypeExpected("String"))}
 			}
 
 			db.Store.Set(key, val)
@@ -214,26 +214,26 @@ var DBBuiltins = map[string]*object.Builtin{
 		},
 	},
 
-	// Returns value associated with key if it exists
-	// Returns (string, bool) - string is empty if key does not exist
+	// get retrieves a value by key from the database.
+	// Takes Database, key. Returns (string, bool) where bool is found status.
 	"db.get": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 2 {
-				return &object.Error{Code: "E7001", Message: "db.get() takes exactly 2 arguments"}
+				return &object.Error{Code: "E7001", Message: fmt.Sprintf("%s takes exactly 2 arguments", errors.Ident("db.get()"))}
 			}
 
 			db, ok := args[0].(*object.Database)
 			if !ok {
-				return &object.Error{Code: "E7001", Message: "db.get() requires a Database object as first argument"}
+				return &object.Error{Code: "E7001", Message: fmt.Sprintf("%s requires a %s object as first argument", errors.Ident("db.get()"), errors.TypeExpected("Database"))}
 			}
 
 			if db.IsClosed.Value {
-				return &object.Error{Code: "E17005", Message: "db.get() cannot operate on closed database"}
+				return &object.Error{Code: "E17005", Message: fmt.Sprintf("%s cannot operate on closed database", errors.Ident("db.get()"))}
 			}
 
 			key, ok := args[1].(*object.String)
 			if !ok {
-				return &object.Error{Code: "E7001", Message: "db.get() requires a String as second argument"}
+				return &object.Error{Code: "E7001", Message: fmt.Sprintf("%s requires a %s as second argument", errors.Ident("db.get()"), errors.TypeExpected("String"))}
 			}
 
 			val, exists := db.Store.Get(key)
@@ -251,26 +251,26 @@ var DBBuiltins = map[string]*object.Builtin{
 		},
 	},
 
-	// Removes key value pair from database
-	// Returns (bool) - false if key does not exist
+	// remove deletes a key-value pair from the database.
+	// Takes Database, key. Returns true if key existed.
 	"db.remove": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 2 {
-				return &object.Error{Code: "E7001", Message: "db.remove() takes exactly 2 arguments"}
+				return &object.Error{Code: "E7001", Message: fmt.Sprintf("%s takes exactly 2 arguments", errors.Ident("db.remove()"))}
 			}
 
 			db, ok := args[0].(*object.Database)
 			if !ok {
-				return &object.Error{Code: "E7001", Message: "db.remove() requires a Database object as first argument"}
+				return &object.Error{Code: "E7001", Message: fmt.Sprintf("%s requires a %s object as first argument", errors.Ident("db.remove()"), errors.TypeExpected("Database"))}
 			}
 
 			if db.IsClosed.Value {
-				return &object.Error{Code: "E17005", Message: "db.remove() cannot operate on closed database"}
+				return &object.Error{Code: "E17005", Message: fmt.Sprintf("%s cannot operate on closed database", errors.Ident("db.remove()"))}
 			}
 
 			key, ok := args[1].(*object.String)
 			if !ok {
-				return &object.Error{Code: "E7001", Message: "db.remove() requires a String as second argument"}
+				return &object.Error{Code: "E7001", Message: fmt.Sprintf("%s requires a %s as second argument", errors.Ident("db.remove()"), errors.TypeExpected("String"))}
 			}
 
 			deleted := db.Store.Delete(key)
@@ -278,26 +278,26 @@ var DBBuiltins = map[string]*object.Builtin{
 		},
 	},
 
-	// Checks if key exists in database
-	// Returns (bool)
+	// contains checks if a key exists in the database.
+	// Takes Database, key. Returns true if key exists.
 	"db.contains": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 2 {
-				return &object.Error{Code: "E7001", Message: "db.contains() takes exactly 2 arguments"}
+				return &object.Error{Code: "E7001", Message: fmt.Sprintf("%s takes exactly 2 arguments", errors.Ident("db.contains()"))}
 			}
 
 			db, ok := args[0].(*object.Database)
 			if !ok {
-				return &object.Error{Code: "E7001", Message: "db.contains() requires a Database object as first argument"}
+				return &object.Error{Code: "E7001", Message: fmt.Sprintf("%s requires a %s object as first argument", errors.Ident("db.contains()"), errors.TypeExpected("Database"))}
 			}
 
 			if db.IsClosed.Value {
-				return &object.Error{Code: "E17005", Message: "db.contains() cannot operate on closed database"}
+				return &object.Error{Code: "E17005", Message: fmt.Sprintf("%s cannot operate on closed database", errors.Ident("db.contains()"))}
 			}
 
 			key, ok := args[1].(*object.String)
 			if !ok {
-				return &object.Error{Code: "E7001", Message: "db.contains() requires a String as second argument"}
+				return &object.Error{Code: "E7001", Message: fmt.Sprintf("%s requires a %s as second argument", errors.Ident("db.contains()"), errors.TypeExpected("String"))}
 			}
 
 			_, exists := db.Store.Get(key)
@@ -305,21 +305,21 @@ var DBBuiltins = map[string]*object.Builtin{
 		},
 	},
 
-	// Fetches array of keys present in database
-	// Returns ([string])
+	// keys returns an array of all keys in the database.
+	// Takes Database. Returns [string] array.
 	"db.keys": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 1 {
-				return &object.Error{Code: "E7001", Message: "db.keys() takes exactly 1 arguments"}
+				return &object.Error{Code: "E7001", Message: fmt.Sprintf("%s takes exactly 1 arguments", errors.Ident("db.keys()"))}
 			}
 
 			db, ok := args[0].(*object.Database)
 			if !ok {
-				return &object.Error{Code: "E7001", Message: "db.keys() requires a Database object as first argument"}
+				return &object.Error{Code: "E7001", Message: fmt.Sprintf("%s requires a %s object as first argument", errors.Ident("db.keys()"), errors.TypeExpected("Database"))}
 			}
 
 			if db.IsClosed.Value {
-				return &object.Error{Code: "E17005", Message: "db.keys() cannot operate on closed database"}
+				return &object.Error{Code: "E17005", Message: fmt.Sprintf("%s cannot operate on closed database", errors.Ident("db.keys()"))}
 			}
 
 			keys := &object.Array{
@@ -334,21 +334,21 @@ var DBBuiltins = map[string]*object.Builtin{
 		},
 	},
 
-	// Fetches array of values present in database
-	// Returns ([any])
+	// values returns an array of all values in the database.
+	// Takes Database. Returns array of values.
 	"db.values": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 1 {
-				return &object.Error{Code: "E7001", Message: "db.values() takes exactly 1 argument"}
+				return &object.Error{Code: "E7001", Message: fmt.Sprintf("%s takes exactly 1 argument", errors.Ident("db.values()"))}
 			}
 
 			db, ok := args[0].(*object.Database)
 			if !ok {
-				return &object.Error{Code: "E7001", Message: "db.values() requires type Database as first argument"}
+				return &object.Error{Code: "E7001", Message: fmt.Sprintf("%s requires a %s as first argument", errors.Ident("db.values()"), errors.TypeExpected("Database"))}
 			}
 
 			if db.IsClosed.Value {
-				return &object.Error{Code: "E17005", Message: "db.values() cannot operate on closed database"}
+				return &object.Error{Code: "E17005", Message: fmt.Sprintf("%s cannot operate on closed database", errors.Ident("db.values()"))}
 			}
 
 			values := &object.Array{
@@ -363,21 +363,21 @@ var DBBuiltins = map[string]*object.Builtin{
 		},
 	},
 
-	// Fetches all key-value pairs in database
-	// Returns ([{key: string, value: any}])
+	// entries returns all key-value pairs as Entry structs.
+	// Takes Database. Returns array of {key, value} structs.
 	"db.entries": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 1 {
-				return &object.Error{Code: "E7001", Message: "db.entries() takes exactly 1 argument"}
+				return &object.Error{Code: "E7001", Message: fmt.Sprintf("%s takes exactly 1 argument", errors.Ident("db.entries()"))}
 			}
 
 			db, ok := args[0].(*object.Database)
 			if !ok {
-				return &object.Error{Code: "E7001", Message: "db.entries() requires type Database as first argument"}
+				return &object.Error{Code: "E7001", Message: fmt.Sprintf("%s requires a %s as first argument", errors.Ident("db.entries()"), errors.TypeExpected("Database"))}
 			}
 
 			if db.IsClosed.Value {
-				return &object.Error{Code: "E17005", Message: "db.entries() cannot operate on closed database"}
+				return &object.Error{Code: "E17005", Message: fmt.Sprintf("%s cannot operate on closed database", errors.Ident("db.entries()"))}
 			}
 
 			entries := &object.Array{
@@ -400,26 +400,26 @@ var DBBuiltins = map[string]*object.Builtin{
 		},
 	},
 
-	// Fetches keys with prefix in database
-	// Returns ([string])
+	// prefix returns all keys that start with a given prefix.
+	// Takes Database, prefix string. Returns [string] array.
 	"db.prefix": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 2 {
-				return &object.Error{Code: "E7001", Message: "db.prefix() takes exactly 2 arguments"}
+				return &object.Error{Code: "E7001", Message: fmt.Sprintf("%s takes exactly 2 arguments", errors.Ident("db.prefix()"))}
 			}
 
 			db, ok := args[0].(*object.Database)
 			if !ok {
-				return &object.Error{Code: "E7001", Message: "db.prefix() requires a Database object as first argument"}
+				return &object.Error{Code: "E7001", Message: fmt.Sprintf("%s requires a %s object as first argument", errors.Ident("db.prefix()"), errors.TypeExpected("Database"))}
 			}
 
 			if db.IsClosed.Value {
-				return &object.Error{Code: "E17005", Message: "db.prefix() cannot operate on closed database"}
+				return &object.Error{Code: "E17005", Message: fmt.Sprintf("%s cannot operate on closed database", errors.Ident("db.prefix()"))}
 			}
 
 			prefix, ok := args[1].(*object.String)
 			if !ok {
-				return &object.Error{Code: "E7003", Message: "db.prefix() requires a String as second argument"}
+				return &object.Error{Code: "E7003", Message: fmt.Sprintf("%s requires a %s as second argument", errors.Ident("db.prefix()"), errors.TypeExpected("String"))}
 			}
 
 			keys := &object.Array{
@@ -437,21 +437,21 @@ var DBBuiltins = map[string]*object.Builtin{
 		},
 	},
 
-	// Number of key value pairs in database
-	// Returns (int)
+	// count returns the number of key-value pairs in the database.
+	// Takes Database. Returns integer count.
 	"db.count": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 1 {
-				return &object.Error{Code: "E7001", Message: "db.count() takes exactly 1 arguments"}
+				return &object.Error{Code: "E7001", Message: fmt.Sprintf("%s takes exactly 1 arguments", errors.Ident("db.count()"))}
 			}
 
 			db, ok := args[0].(*object.Database)
 			if !ok {
-				return &object.Error{Code: "E7001", Message: "db.count() requires a Database object as first argument"}
+				return &object.Error{Code: "E7001", Message: fmt.Sprintf("%s requires a %s object as first argument", errors.Ident("db.count()"), errors.TypeExpected("Database"))}
 			}
 
 			if db.IsClosed.Value {
-				return &object.Error{Code: "E17005", Message: "db.count() cannot operate on closed database"}
+				return &object.Error{Code: "E17005", Message: fmt.Sprintf("%s cannot operate on closed database", errors.Ident("db.count()"))}
 			}
 
 			count := len(db.Store.Pairs)
@@ -459,21 +459,21 @@ var DBBuiltins = map[string]*object.Builtin{
 		},
 	},
 
-	// Clears all key value pairs in database
-	// Returns nothing
+	// clear removes all key-value pairs from the database.
+	// Takes Database. Returns nil.
 	"db.clear": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 1 {
-				return &object.Error{Code: "E7001", Message: "db.clear() takes exactly 1 argument"}
+				return &object.Error{Code: "E7001", Message: fmt.Sprintf("%s takes exactly 1 argument", errors.Ident("db.clear()"))}
 			}
 
 			db, ok := args[0].(*object.Database)
 			if !ok {
-				return &object.Error{Code: "E7001", Message: "db.clear() requires a Database object as argument"}
+				return &object.Error{Code: "E7001", Message: fmt.Sprintf("%s requires a %s object as argument", errors.Ident("db.clear()"), errors.TypeExpected("Database"))}
 			}
 
 			if db.IsClosed.Value {
-				return &object.Error{Code: "E17005", Message: "db.clear() cannot operate on closed database"}
+				return &object.Error{Code: "E17005", Message: fmt.Sprintf("%s cannot operate on closed database", errors.Ident("db.clear()"))}
 			}
 
 			db.Store = *object.NewMap()
@@ -482,21 +482,21 @@ var DBBuiltins = map[string]*object.Builtin{
 		},
 	},
 
-	// Checks if a database file exists at the given path
-	// Returns (bool)
+	// exists checks if a database file exists at the given path.
+	// Takes path string. Returns true if file exists.
 	"db.exists": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 1 {
-				return &object.Error{Code: "E7001", Message: "db.exists() takes exactly 1 argument"}
+				return &object.Error{Code: "E7001", Message: fmt.Sprintf("%s takes exactly 1 argument", errors.Ident("db.exists()"))}
 			}
 
 			path, ok := args[0].(*object.String)
 			if !ok {
-				return &object.Error{Code: "E7003", Message: "db.exists() requires a string path"}
+				return &object.Error{Code: "E7003", Message: fmt.Sprintf("%s requires a %s path", errors.Ident("db.exists()"), errors.TypeExpected("string"))}
 			}
 
 			if !strings.HasSuffix(path.Value, ".ezdb") {
-				return &object.Error{Code: "E17001", Message: "db.exists() requires a `.ezdb` file"}
+				return &object.Error{Code: "E17001", Message: fmt.Sprintf("%s requires a `.ezdb` file", errors.Ident("db.exists()"))}
 			}
 
 			_, err := os.Stat(path.Value)
@@ -504,31 +504,31 @@ var DBBuiltins = map[string]*object.Builtin{
 		},
 	},
 
-	// Renames a key in the database
-	// Returns (bool) - false if old key does not exist
+	// update_key_name renames a key in the database.
+	// Takes Database, old key, new key. Returns true if old key existed.
 	"db.update_key_name": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 3 {
-				return &object.Error{Code: "E7001", Message: "db.update_key_name() takes exactly 3 arguments"}
+				return &object.Error{Code: "E7001", Message: fmt.Sprintf("%s takes exactly 3 arguments", errors.Ident("db.update_key_name()"))}
 			}
 
 			db, ok := args[0].(*object.Database)
 			if !ok {
-				return &object.Error{Code: "E7001", Message: "db.update_key_name() requires a Database object as first argument"}
+				return &object.Error{Code: "E7001", Message: fmt.Sprintf("%s requires a %s object as first argument", errors.Ident("db.update_key_name()"), errors.TypeExpected("Database"))}
 			}
 
 			if db.IsClosed.Value {
-				return &object.Error{Code: "E17005", Message: "db.update_key_name() cannot operate on closed database"}
+				return &object.Error{Code: "E17005", Message: fmt.Sprintf("%s cannot operate on closed database", errors.Ident("db.update_key_name()"))}
 			}
 
 			oldKey, ok := args[1].(*object.String)
 			if !ok {
-				return &object.Error{Code: "E7001", Message: "db.update_key_name() requires a String as second argument"}
+				return &object.Error{Code: "E7001", Message: fmt.Sprintf("%s requires a %s as second argument", errors.Ident("db.update_key_name()"), errors.TypeExpected("String"))}
 			}
 
 			newKey, ok := args[2].(*object.String)
 			if !ok {
-				return &object.Error{Code: "E7001", Message: "db.update_key_name() requires a String as third argument"}
+				return &object.Error{Code: "E7001", Message: fmt.Sprintf("%s requires a %s as third argument", errors.Ident("db.update_key_name()"), errors.TypeExpected("String"))}
 			}
 
 			// Get the value for the old key
@@ -545,26 +545,26 @@ var DBBuiltins = map[string]*object.Builtin{
 		},
 	},
 
-	// Sorts database keys by specified order
-	// Returns nothing
+	// sort reorders database entries by the specified sort order.
+	// Takes Database, order constant (e.g., db.ALPHA). Returns nil.
 	"db.sort": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 2 {
-				return &object.Error{Code: "E7001", Message: "db.sort() takes exactly 2 arguments"}
+				return &object.Error{Code: "E7001", Message: fmt.Sprintf("%s takes exactly 2 arguments", errors.Ident("db.sort()"))}
 			}
 
 			db, ok := args[0].(*object.Database)
 			if !ok {
-				return &object.Error{Code: "E7001", Message: "db.sort() requires a Database object as first argument"}
+				return &object.Error{Code: "E7001", Message: fmt.Sprintf("%s requires a %s object as first argument", errors.Ident("db.sort()"), errors.TypeExpected("Database"))}
 			}
 
 			if db.IsClosed.Value {
-				return &object.Error{Code: "E17005", Message: "db.sort() cannot operate on closed database"}
+				return &object.Error{Code: "E17005", Message: fmt.Sprintf("%s cannot operate on closed database", errors.Ident("db.sort()"))}
 			}
 
 			order, ok := args[1].(*object.Integer)
 			if !ok {
-				return &object.Error{Code: "E7001", Message: "db.sort() requires a sort order constant as second argument (e.g., db.ALPHA)"}
+				return &object.Error{Code: "E7001", Message: fmt.Sprintf("%s requires a sort order constant as second argument (e.g., %s)", errors.Ident("db.sort()"), errors.Ident("db.ALPHA"))}
 			}
 
 			switch order.Value.Int64() {
@@ -639,7 +639,7 @@ var DBBuiltins = map[string]*object.Builtin{
 					return numI > numJ
 				})
 			default:
-				return &object.Error{Code: "E7003", Message: "db.sort() invalid order constant"}
+				return &object.Error{Code: "E7003", Message: fmt.Sprintf("%s invalid order constant", errors.Ident("db.sort()"))}
 			}
 
 			// Rebuild index after sorting
@@ -656,7 +656,8 @@ var DBBuiltins = map[string]*object.Builtin{
 	// Database Constants
 	// ============================================================================
 
-	// Sort order: keys alphabetically A-Z
+	// ALPHA is a sort order constant for keys alphabetically A-Z.
+	// Use with db.sort().
 	"db.ALPHA": {
 		Fn: func(args ...object.Object) object.Object {
 			return &object.Integer{Value: big.NewInt(0)}
@@ -664,7 +665,8 @@ var DBBuiltins = map[string]*object.Builtin{
 		IsConstant: true,
 	},
 
-	// Sort order: keys alphabetically Z-A
+	// ALPHA_DESC is a sort order constant for keys alphabetically Z-A.
+	// Use with db.sort().
 	"db.ALPHA_DESC": {
 		Fn: func(args ...object.Object) object.Object {
 			return &object.Integer{Value: big.NewInt(1)}
@@ -672,7 +674,8 @@ var DBBuiltins = map[string]*object.Builtin{
 		IsConstant: true,
 	},
 
-	// Sort order: values alphabetically A-Z
+	// VALUE_ALPHA is a sort order constant for values alphabetically A-Z.
+	// Use with db.sort().
 	"db.VALUE_ALPHA": {
 		Fn: func(args ...object.Object) object.Object {
 			return &object.Integer{Value: big.NewInt(2)}
@@ -680,7 +683,8 @@ var DBBuiltins = map[string]*object.Builtin{
 		IsConstant: true,
 	},
 
-	// Sort order: values alphabetically Z-A
+	// VALUE_ALPHA_DESC is a sort order constant for values alphabetically Z-A.
+	// Use with db.sort().
 	"db.VALUE_ALPHA_DESC": {
 		Fn: func(args ...object.Object) object.Object {
 			return &object.Integer{Value: big.NewInt(3)}
@@ -688,7 +692,8 @@ var DBBuiltins = map[string]*object.Builtin{
 		IsConstant: true,
 	},
 
-	// Sort order: shortest keys first
+	// KEY_LEN is a sort order constant for shortest keys first.
+	// Use with db.sort().
 	"db.KEY_LEN": {
 		Fn: func(args ...object.Object) object.Object {
 			return &object.Integer{Value: big.NewInt(4)}
@@ -696,7 +701,8 @@ var DBBuiltins = map[string]*object.Builtin{
 		IsConstant: true,
 	},
 
-	// Sort order: longest keys first
+	// KEY_LEN_DESC is a sort order constant for longest keys first.
+	// Use with db.sort().
 	"db.KEY_LEN_DESC": {
 		Fn: func(args ...object.Object) object.Object {
 			return &object.Integer{Value: big.NewInt(5)}
@@ -704,7 +710,8 @@ var DBBuiltins = map[string]*object.Builtin{
 		IsConstant: true,
 	},
 
-	// Sort order: shortest values first
+	// VALUE_LEN is a sort order constant for shortest values first.
+	// Use with db.sort().
 	"db.VALUE_LEN": {
 		Fn: func(args ...object.Object) object.Object {
 			return &object.Integer{Value: big.NewInt(6)}
@@ -712,7 +719,8 @@ var DBBuiltins = map[string]*object.Builtin{
 		IsConstant: true,
 	},
 
-	// Sort order: longest values first
+	// VALUE_LEN_DESC is a sort order constant for longest values first.
+	// Use with db.sort().
 	"db.VALUE_LEN_DESC": {
 		Fn: func(args ...object.Object) object.Object {
 			return &object.Integer{Value: big.NewInt(7)}
@@ -720,7 +728,8 @@ var DBBuiltins = map[string]*object.Builtin{
 		IsConstant: true,
 	},
 
-	// Sort order: keys numerically ascending
+	// NUMERIC is a sort order constant for keys numerically ascending.
+	// Use with db.sort().
 	"db.NUMERIC": {
 		Fn: func(args ...object.Object) object.Object {
 			return &object.Integer{Value: big.NewInt(8)}
@@ -728,7 +737,8 @@ var DBBuiltins = map[string]*object.Builtin{
 		IsConstant: true,
 	},
 
-	// Sort order: keys numerically descending
+	// NUMERIC_DESC is a sort order constant for keys numerically descending.
+	// Use with db.sort().
 	"db.NUMERIC_DESC": {
 		Fn: func(args ...object.Object) object.Object {
 			return &object.Integer{Value: big.NewInt(9)}

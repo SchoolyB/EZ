@@ -1,0 +1,23 @@
+/*
+ * Error Test: E7023 - directory-not-empty
+ * Expected: "not empty" or "directory"
+ */
+
+import @io
+
+do main() {
+    // Create a directory with a file in it
+    temp ok1, err1 = io.mkdir("ez_test_e7023_temp_dir")
+    temp ok2, err2 = io.write_file(io.path_join("ez_test_e7023_temp_dir", "file.txt"), "data")
+
+    // Try to remove the non-empty directory (should fail)
+    temp rok, rerr = io.remove_dir("ez_test_e7023_temp_dir")
+
+    // Clean up
+    temp c1, c2 = io.remove(io.path_join("ez_test_e7023_temp_dir", "file.txt"))
+    temp c3, c4 = io.remove_dir("ez_test_e7023_temp_dir")
+
+    if rerr != nil {
+        panic("${rerr}")
+    }
+}

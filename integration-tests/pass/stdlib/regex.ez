@@ -1,0 +1,301 @@
+/*
+ * regex.ez - Test @regex standard library
+ */
+
+import @std, @regex
+using std
+
+do main() {
+    println("=== @regex Standard Library Test ===")
+    temp passed int = 0
+    temp failed int = 0
+
+    // ==================== regex.is_valid ====================
+    println("  -- regex.is_valid --")
+
+    // Test 1: valid simple pattern
+    if regex.is_valid("hello") == true {
+        println("  [PASS] regex.is_valid('hello')")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] regex.is_valid('hello'): expected true")
+        failed += 1
+    }
+
+    // Test 2: valid regex pattern
+    if regex.is_valid("[a-z]+") == true {
+        println("  [PASS] regex.is_valid('[a-z]+')")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] regex.is_valid('[a-z]+'): expected true")
+        failed += 1
+    }
+
+    // Test 3: invalid pattern
+    if regex.is_valid("[") == false {
+        println("  [PASS] regex.is_valid('[') = false")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] regex.is_valid('['): expected false")
+        failed += 1
+    }
+
+    // Test 4: invalid group
+    if regex.is_valid("(") == false {
+        println("  [PASS] regex.is_valid('(') = false")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] regex.is_valid('('): expected false")
+        failed += 1
+    }
+
+    // ==================== regex.match ====================
+    println("  -- regex.match --")
+
+    // Test 5: simple match
+    temp match_result, match_err = regex.match("world", "hello world")
+    if match_result == true && match_err == nil {
+        println("  [PASS] regex.match('world', 'hello world')")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] regex.match: expected true")
+        failed += 1
+    }
+
+    // Test 6: no match
+    temp no_match, no_match_err = regex.match("foo", "hello world")
+    if no_match == false && no_match_err == nil {
+        println("  [PASS] regex.match('foo', 'hello world') = false")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] regex.match no match: expected false")
+        failed += 1
+    }
+
+    // Test 7: regex pattern match
+    temp digit_match, digit_err = regex.match("[0-9]+", "abc123def")
+    if digit_match == true && digit_err == nil {
+        println("  [PASS] regex.match('[0-9]+', 'abc123def')")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] regex.match digit: expected true")
+        failed += 1
+    }
+
+    // Test 8: anchor match
+    temp anchor_match, anchor_err = regex.match("^hello", "hello world")
+    if anchor_match == true && anchor_err == nil {
+        println("  [PASS] regex.match('^hello', 'hello world')")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] regex.match anchor: expected true")
+        failed += 1
+    }
+
+    // ==================== regex.find ====================
+    println("  -- regex.find --")
+
+    // Test 9: simple find
+    temp find_result, find_err = regex.find("world", "hello world")
+    if find_result == "world" && find_err == nil {
+        println("  [PASS] regex.find('world', 'hello world')")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] regex.find: expected 'world', got '${find_result}'")
+        failed += 1
+    }
+
+    // Test 10: regex find first match
+    temp first_num, first_err = regex.find("[0-9]+", "abc123def456")
+    if first_num == "123" && first_err == nil {
+        println("  [PASS] regex.find('[0-9]+', 'abc123def456') = '123'")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] regex.find first: expected '123', got '${first_num}'")
+        failed += 1
+    }
+
+    // Test 11: find no match
+    temp no_find, no_find_err = regex.find("xyz", "hello world")
+    if no_find == nil && no_find_err == nil {
+        println("  [PASS] regex.find('xyz', 'hello world') = nil")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] regex.find no match: expected nil")
+        failed += 1
+    }
+
+    // ==================== regex.find_all ====================
+    println("  -- regex.find_all --")
+
+    // Test 12: find all digits - check count only (type inference limitation)
+    temp all_nums, all_err = regex.find_all("[0-9]+", "a1b22c333")
+    if len(all_nums) == 3 && all_err == nil {
+        println("  [PASS] regex.find_all('[0-9]+', 'a1b22c333') = 3 matches")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] regex.find_all: expected 3 matches, got ${len(all_nums)}")
+        failed += 1
+    }
+
+    // Test 13: find all no matches
+    temp no_all, no_all_err = regex.find_all("xyz", "hello")
+    if len(no_all) == 0 && no_all_err == nil {
+        println("  [PASS] regex.find_all('xyz', 'hello') = []")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] regex.find_all no matches: expected 0, got ${len(no_all)}")
+        failed += 1
+    }
+
+    // ==================== regex.find_all_n ====================
+    println("  -- regex.find_all_n --")
+
+    // Test 14: find first n matches
+    temp first_n, first_n_err = regex.find_all_n("[0-9]+", "a1b2c3d4e5", 3)
+    if len(first_n) == 3 && first_n_err == nil {
+        println("  [PASS] regex.find_all_n('[0-9]+', 'a1b2c3d4e5', 3)")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] regex.find_all_n: expected 3, got ${len(first_n)}")
+        failed += 1
+    }
+
+    // ==================== regex.replace ====================
+    println("  -- regex.replace --")
+
+    // Test 15: simple replace (first only)
+    temp repl_first, repl_err = regex.replace("o", "hello world", "0")
+    if repl_first == "hell0 world" && repl_err == nil {
+        println("  [PASS] regex.replace('o', 'hello world', '0')")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] regex.replace first: expected 'hell0 world', got '${repl_first}'")
+        failed += 1
+    }
+
+    // Test 16: regex replace
+    temp repl_regex, repl_regex_err = regex.replace("[0-9]+", "abc123def", "NUM")
+    if repl_regex == "abcNUMdef" && repl_regex_err == nil {
+        println("  [PASS] regex.replace('[0-9]+', 'abc123def', 'NUM')")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] regex.replace regex: expected 'abcNUMdef', got '${repl_regex}'")
+        failed += 1
+    }
+
+    // ==================== regex.replace_all ====================
+    println("  -- regex.replace_all --")
+
+    // Test 17: replace all occurrences
+    temp repl_all, repl_all_err = regex.replace_all("o", "hello world", "0")
+    if repl_all == "hell0 w0rld" && repl_all_err == nil {
+        println("  [PASS] regex.replace_all('o', 'hello world', '0')")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] regex.replace_all: expected 'hell0 w0rld', got '${repl_all}'")
+        failed += 1
+    }
+
+    // Test 18: replace all digits
+    temp repl_digits, repl_d_err = regex.replace_all("[0-9]", "a1b2c3", "X")
+    if repl_digits == "aXbXcX" && repl_d_err == nil {
+        println("  [PASS] regex.replace_all('[0-9]', 'a1b2c3', 'X')")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] regex.replace_all digits: expected 'aXbXcX', got '${repl_digits}'")
+        failed += 1
+    }
+
+    // ==================== regex.split ====================
+    println("  -- regex.split --")
+
+    // Test 19: split by comma
+    temp split_comma, split_err = regex.split(",", "a,b,c")
+    if len(split_comma) == 3 && split_err == nil {
+        println("  [PASS] regex.split(',', 'a,b,c') = 3 parts")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] regex.split comma: expected 3 parts, got ${len(split_comma)}")
+        failed += 1
+    }
+
+    // Test 20: split by whitespace pattern
+    temp split_ws, split_ws_err = regex.split("\\s+", "hello   world  foo")
+    if len(split_ws) == 3 && split_ws_err == nil {
+        println("  [PASS] regex.split('\\\\s+', 'hello   world  foo') = 3 parts")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] regex.split whitespace: expected 3 parts, got ${len(split_ws)}")
+        failed += 1
+    }
+
+    // ==================== regex.groups ====================
+    println("  -- regex.groups --")
+
+    // Test 21: single capture group
+    temp groups_single, groups_err = regex.groups("([0-9]+)", "abc123def")
+    if len(groups_single) == 2 && groups_err == nil {
+        println("  [PASS] regex.groups('([0-9]+)', 'abc123def') = 2 elements")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] regex.groups single: expected 2 elements, got ${len(groups_single)}")
+        failed += 1
+    }
+
+    // Test 22: multiple capture groups
+    temp groups_multi, groups_m_err = regex.groups("([a-z]+)@([a-z]+)\\.([a-z]+)", "test@example.com")
+    if len(groups_multi) == 4 && groups_m_err == nil {
+        println("  [PASS] regex.groups email pattern = 4 elements")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] regex.groups multi: expected 4 elements, got ${len(groups_multi)}")
+        failed += 1
+    }
+
+    // Test 23: no match returns empty array
+    temp groups_none, groups_n_err = regex.groups("(xyz)", "hello")
+    if len(groups_none) == 0 && groups_n_err == nil {
+        println("  [PASS] regex.groups('(xyz)', 'hello') = []")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] regex.groups no match: expected 0, got ${len(groups_none)}")
+        failed += 1
+    }
+
+    // ==================== regex.groups_all ====================
+    println("  -- regex.groups_all --")
+
+    // Test 24: multiple matches with groups
+    temp groups_all, groups_all_err = regex.groups_all("([0-9]+)-([0-9]+)", "1-2 and 3-4")
+    if len(groups_all) == 2 && groups_all_err == nil {
+        println("  [PASS] regex.groups_all('([0-9]+)-([0-9]+)', '1-2 and 3-4') = 2 matches")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] regex.groups_all: expected 2 matches, got ${len(groups_all)}")
+        failed += 1
+    }
+
+    // ==================== Error handling ====================
+    println("  -- Error handling --")
+
+    // Test 25: invalid pattern returns error
+    temp inv_match, inv_err = regex.match("[", "test")
+    if inv_match == false && inv_err != nil {
+        println("  [PASS] regex.match with invalid pattern returns error")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] regex.match should return error for invalid pattern")
+        failed += 1
+    }
+
+    // Summary
+    println("")
+    println("Results: ${passed} passed, ${failed} failed")
+
+    if failed > 0 {
+        println("SOME TESTS FAILED")
+    } otherwise {
+        println("ALL TESTS PASSED")
+    }
+}

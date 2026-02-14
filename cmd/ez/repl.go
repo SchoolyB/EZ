@@ -29,6 +29,10 @@ func startREPL() {
 	fmt.Println()
 
 	env := interpreter.NewEnvironment()
+	// Create a persistent EvalContext for the REPL session
+	ctx := &interpreter.EvalContext{
+		CurrentFile: REPL_SOURCE,
+	}
 	editor := lineeditor.New(100)
 	defer editor.Close()
 
@@ -54,9 +58,12 @@ func startREPL() {
 		}
 
 		// Handle REPL commands
-		if newEnv, handled := handleReplCommand(line, env); handled {
+		if newEnv, newCtx, handled := handleReplCommand(line, env, ctx); handled {
 			if newEnv != nil {
 				env = newEnv
+			}
+			if newCtx != nil {
+				ctx = newCtx
 			}
 			continue
 		}
@@ -70,23 +77,23 @@ func startREPL() {
 		}
 
 		// Parse and evaluate
-		evaluateLine(line, env)
+		evaluateLine(line, env, ctx)
 	}
 }
 
 // handleReplCommand handles special REPL commands
-// Returns (new environment if reset, whether command was handled)
-func handleReplCommand(line string, env *interpreter.Environment) (*interpreter.Environment, bool) {
+// Returns (new environment if reset, new context if reset, whether command was handled)
+func handleReplCommand(line string, env *interpreter.Environment, ctx *interpreter.EvalContext) (*interpreter.Environment, *interpreter.EvalContext, bool) {
 	switch line {
 	case "exit", "quit":
 		fmt.Println("Goodbye!")
 		os.Exit(0)
-		return nil, true
+		return nil, nil, true
 
 	case "clear":
 		// Clear the terminal screen only
 		fmt.Print("\033[H\033[2J")
-		return nil, true
+		return nil, nil, true
 
 	case "reset":
 		// Clear the terminal screen AND reset the environment
@@ -94,14 +101,17 @@ func handleReplCommand(line string, env *interpreter.Environment) (*interpreter.
 		fmt.Printf("EZ Language REPL %s\n", Version)
 		fmt.Println("Type 'help' for commands, 'exit' or 'quit' to exit")
 		fmt.Println()
-		return interpreter.NewEnvironment(), true
+		newCtx := &interpreter.EvalContext{
+			CurrentFile: REPL_SOURCE,
+		}
+		return interpreter.NewEnvironment(), newCtx, true
 
 	case "help":
 		printReplHelp()
-		return nil, true
+		return nil, nil, true
 	}
 
-	return nil, false
+	return nil, nil, false
 }
 
 // printReplHelp prints REPL help information
@@ -159,7 +169,7 @@ func readMultiLineInputWithEditor(editor *lineeditor.Editor, initial string) str
 }
 
 // evaluateLine parses and evaluates a single line/statement
-func evaluateLine(line string, env *interpreter.Environment) {
+func evaluateLine(line string, env *interpreter.Environment, ctx *interpreter.EvalContext) {
 	// Lexer
 	l := lexer.NewLexer(line)
 
@@ -198,7 +208,7 @@ func evaluateLine(line string, env *interpreter.Environment) {
 	}
 
 	// Evaluate
-	result := interpreter.Eval(stmt, env)
+	result := interpreter.Eval(stmt, env, ctx)
 
 	// Check for runtime errors
 	if errObj, ok := result.(*interpreter.Error); ok {

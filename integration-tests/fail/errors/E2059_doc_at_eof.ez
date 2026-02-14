@@ -1,0 +1,8 @@
+// Test: E2059 - #doc at end of file (orphaned)
+import & use @std
+
+do main() {
+    println("hello")
+}
+
+#doc("This should fail - orphaned at EOF")

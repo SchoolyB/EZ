@@ -1,0 +1,13 @@
+/* Test: Named return with wrong type
+ * Expected: E3012 error - return type mismatch
+ */
+
+import & use @std
+
+do getName() -> (name string) {
+    return 42
+}
+
+do main() {
+    println(getName())
+}

@@ -1088,3 +1088,474 @@ func TestObjectTypeReferenceConstant(t *testing.T) {
 		t.Errorf("REFERENCE_OBJ = %q, want %q", REFERENCE_OBJ, "REFERENCE")
 	}
 }
+
+// ============================================================================
+// GetEZTypeName Tests
+// ============================================================================
+
+func TestGetEZTypeName(t *testing.T) {
+	tests := []struct {
+		name     string
+		obj      Object
+		expected string
+	}{
+		{"Integer", &Integer{Value: big.NewInt(42)}, "int"},
+		{"Float", &Float{Value: 3.14}, "float"},
+		{"String", &String{Value: "hello"}, "string"},
+		{"Boolean", &Boolean{Value: true}, "bool"},
+		{"Char", &Char{Value: 'A'}, "char"},
+		{"Byte", &Byte{Value: 255}, "byte"},
+		{"Array with ElementType", &Array{Elements: []Object{}, ElementType: "int"}, "[int]"},
+		{"Array without ElementType", &Array{Elements: []Object{}}, "array"},
+		{"Map with types", &Map{Pairs: []*MapPair{}, Index: map[string]int{}, KeyType: "string", ValueType: "int"}, "map[string:int]"},
+		{"Map without types", NewMap(), "map"},
+		{"Nil", &Nil{}, "nil"},
+		{"Function", &Function{}, "function"},
+		{"Error falls to default", &Error{Message: "oops"}, "ERROR"},
+		{"EnumValue with type", &EnumValue{EnumType: "Color", Name: "Red", Value: &Integer{Value: big.NewInt(0)}}, "Color"},
+		{"EnumValue without type", &EnumValue{Name: "Unknown", Value: &Integer{Value: big.NewInt(0)}}, "enum"},
+		{"Struct with TypeName", &Struct{TypeName: "Person", Fields: map[string]Object{}}, "Person"},
+		{"Struct without TypeName", &Struct{Fields: map[string]Object{}}, "struct"},
+		{"Range", &Range{Start: big.NewInt(0), End: big.NewInt(10), Step: big.NewInt(1)}, "Range<int>"},
+		{"FileHandle", &FileHandle{Path: "/tmp/test.txt"}, "File"},
+		{"Database", &Database{Path: String{Value: "test.db"}, IsClosed: Boolean{Value: false}}, "Database"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := GetEZTypeName(tt.obj)
+			if result != tt.expected {
+				t.Errorf("GetEZTypeName(%T) = %q, want %q", tt.obj, result, tt.expected)
+			}
+		})
+	}
+}
+
+func TestGetEZTypeNameReturnValueSingle(t *testing.T) {
+	rv := &ReturnValue{
+		Values: []Object{&Integer{Value: big.NewInt(42)}},
+	}
+	result := GetEZTypeName(rv)
+	if result != "int" {
+		t.Errorf("GetEZTypeName(ReturnValue single) = %q, want %q", result, "int")
+	}
+}
+
+func TestGetEZTypeNameReturnValueMultiple(t *testing.T) {
+	rv := &ReturnValue{
+		Values: []Object{
+			&Integer{Value: big.NewInt(1)},
+			&String{Value: "hello"},
+		},
+	}
+	result := GetEZTypeName(rv)
+	expected := "(int, string)"
+	if result != expected {
+		t.Errorf("GetEZTypeName(ReturnValue multi) = %q, want %q", result, expected)
+	}
+}
+
+func TestGetEZTypeNameReturnValueEmpty(t *testing.T) {
+	rv := &ReturnValue{Values: []Object{}}
+	result := GetEZTypeName(rv)
+	if result != "void" {
+		t.Errorf("GetEZTypeName(ReturnValue empty) = %q, want %q", result, "void")
+	}
+}
+
+func TestGetEZTypeNameReference(t *testing.T) {
+	env := NewEnvironment()
+	env.Set("x", &Integer{Value: big.NewInt(42)}, true)
+	ref := &Reference{Env: env, Name: "x"}
+	result := GetEZTypeName(ref)
+	if result != "Ref<int>" {
+		t.Errorf("GetEZTypeName(Reference) = %q, want %q", result, "Ref<int>")
+	}
+}
+
+func TestGetEZTypeNameReferenceUnresolvable(t *testing.T) {
+	env := NewEnvironment()
+	ref := &Reference{Env: env, Name: "nonexistent"}
+	result := GetEZTypeName(ref)
+	if result != "Ref<unknown>" {
+		t.Errorf("GetEZTypeName(Reference unresolvable) = %q, want %q", result, "Ref<unknown>")
+	}
+}
+
+// ============================================================================
+// Reference Deref with Container Tests
+// ============================================================================
+
+func TestReferenceDerefArrayIndex(t *testing.T) {
+	arr := &Array{
+		Elements: []Object{
+			&Integer{Value: big.NewInt(10)},
+			&Integer{Value: big.NewInt(20)},
+			&Integer{Value: big.NewInt(30)},
+		},
+		Mutable: true,
+	}
+
+	ref := &Reference{
+		Env:       NewEnvironment(),
+		Name:      "arr",
+		Container: arr,
+		Index:     &Integer{Value: big.NewInt(1)},
+	}
+
+	val, ok := ref.Deref()
+	if !ok {
+		t.Fatal("Deref() should return true for valid array index")
+	}
+	if val.(*Integer).Value.Cmp(big.NewInt(20)) != 0 {
+		t.Errorf("Deref() value = %s, want 20", val.(*Integer).Value.String())
+	}
+}
+
+func TestReferenceDerefArrayIndexOutOfBounds(t *testing.T) {
+	arr := &Array{
+		Elements: []Object{&Integer{Value: big.NewInt(10)}},
+		Mutable:  true,
+	}
+
+	ref := &Reference{
+		Env:       NewEnvironment(),
+		Name:      "arr",
+		Container: arr,
+		Index:     &Integer{Value: big.NewInt(5)},
+	}
+
+	_, ok := ref.Deref()
+	if ok {
+		t.Error("Deref() should return false for out-of-bounds index")
+	}
+}
+
+func TestReferenceDerefMapKey(t *testing.T) {
+	m := NewMap()
+	m.Set(&String{Value: "name"}, &String{Value: "Alice"})
+	m.Set(&String{Value: "age"}, &Integer{Value: big.NewInt(30)})
+
+	ref := &Reference{
+		Env:       NewEnvironment(),
+		Name:      "m",
+		Container: m,
+		Index:     &String{Value: "name"},
+	}
+
+	val, ok := ref.Deref()
+	if !ok {
+		t.Fatal("Deref() should return true for valid map key")
+	}
+	if val.(*String).Value != "Alice" {
+		t.Errorf("Deref() value = %q, want %q", val.(*String).Value, "Alice")
+	}
+}
+
+func TestReferenceDerefMapKeyMissing(t *testing.T) {
+	m := NewMap()
+	m.Set(&String{Value: "name"}, &String{Value: "Alice"})
+
+	ref := &Reference{
+		Env:       NewEnvironment(),
+		Name:      "m",
+		Container: m,
+		Index:     &String{Value: "nonexistent"},
+	}
+
+	_, ok := ref.Deref()
+	if ok {
+		t.Error("Deref() should return false for missing map key")
+	}
+}
+
+func TestReferenceDerefStructField(t *testing.T) {
+	s := &Struct{
+		TypeName: "Person",
+		Fields: map[string]Object{
+			"name": &String{Value: "Bob"},
+			"age":  &Integer{Value: big.NewInt(25)},
+		},
+	}
+
+	ref := &Reference{
+		Env:       NewEnvironment(),
+		Name:      "s",
+		Container: s,
+		Field:     "name",
+	}
+
+	val, ok := ref.Deref()
+	if !ok {
+		t.Fatal("Deref() should return true for valid struct field")
+	}
+	if val.(*String).Value != "Bob" {
+		t.Errorf("Deref() value = %q, want %q", val.(*String).Value, "Bob")
+	}
+}
+
+func TestReferenceDerefStructFieldMissing(t *testing.T) {
+	s := &Struct{
+		TypeName: "Person",
+		Fields:   map[string]Object{"name": &String{Value: "Bob"}},
+	}
+
+	ref := &Reference{
+		Env:       NewEnvironment(),
+		Name:      "s",
+		Container: s,
+		Field:     "nonexistent",
+	}
+
+	_, ok := ref.Deref()
+	if ok {
+		t.Error("Deref() should return false for missing struct field")
+	}
+}
+
+// ============================================================================
+// Reference SetValue with Container Tests
+// ============================================================================
+
+func TestReferenceSetValueArrayIndex(t *testing.T) {
+	arr := &Array{
+		Elements: []Object{
+			&Integer{Value: big.NewInt(10)},
+			&Integer{Value: big.NewInt(20)},
+			&Integer{Value: big.NewInt(30)},
+		},
+		Mutable: true,
+	}
+
+	ref := &Reference{
+		Env:       NewEnvironment(),
+		Name:      "arr",
+		Container: arr,
+		Index:     &Integer{Value: big.NewInt(1)},
+	}
+
+	ok := ref.SetValue(&Integer{Value: big.NewInt(999)})
+	if !ok {
+		t.Fatal("SetValue() should return true for valid array index")
+	}
+	if arr.Elements[1].(*Integer).Value.Cmp(big.NewInt(999)) != 0 {
+		t.Errorf("After SetValue, arr[1] = %s, want 999", arr.Elements[1].(*Integer).Value.String())
+	}
+}
+
+func TestReferenceSetValueArrayIndexOutOfBounds(t *testing.T) {
+	arr := &Array{
+		Elements: []Object{&Integer{Value: big.NewInt(10)}},
+		Mutable:  true,
+	}
+
+	ref := &Reference{
+		Env:       NewEnvironment(),
+		Name:      "arr",
+		Container: arr,
+		Index:     &Integer{Value: big.NewInt(5)},
+	}
+
+	ok := ref.SetValue(&Integer{Value: big.NewInt(999)})
+	if ok {
+		t.Error("SetValue() should return false for out-of-bounds index")
+	}
+}
+
+func TestReferenceSetValueMapKey(t *testing.T) {
+	m := NewMap()
+	m.Set(&String{Value: "name"}, &String{Value: "Alice"})
+
+	ref := &Reference{
+		Env:       NewEnvironment(),
+		Name:      "m",
+		Container: m,
+		Index:     &String{Value: "name"},
+	}
+
+	ok := ref.SetValue(&String{Value: "Bob"})
+	if !ok {
+		t.Fatal("SetValue() should return true for valid map key")
+	}
+	val, _ := m.Get(&String{Value: "name"})
+	if val.(*String).Value != "Bob" {
+		t.Errorf("After SetValue, m[name] = %q, want %q", val.(*String).Value, "Bob")
+	}
+}
+
+func TestReferenceSetValueMapKeyMissing(t *testing.T) {
+	m := NewMap()
+
+	ref := &Reference{
+		Env:       NewEnvironment(),
+		Name:      "m",
+		Container: m,
+		Index:     &String{Value: "nonexistent"},
+	}
+
+	ok := ref.SetValue(&String{Value: "value"})
+	if ok {
+		t.Error("SetValue() should return false for missing map key")
+	}
+}
+
+func TestReferenceSetValueStructField(t *testing.T) {
+	s := &Struct{
+		TypeName: "Person",
+		Fields: map[string]Object{
+			"name": &String{Value: "Alice"},
+			"age":  &Integer{Value: big.NewInt(30)},
+		},
+	}
+
+	ref := &Reference{
+		Env:       NewEnvironment(),
+		Name:      "s",
+		Container: s,
+		Field:     "name",
+	}
+
+	ok := ref.SetValue(&String{Value: "Charlie"})
+	if !ok {
+		t.Fatal("SetValue() should return true for valid struct field")
+	}
+	if s.Fields["name"].(*String).Value != "Charlie" {
+		t.Errorf("After SetValue, s.name = %q, want %q", s.Fields["name"].(*String).Value, "Charlie")
+	}
+}
+
+func TestReferenceSetValueStructFieldMissing(t *testing.T) {
+	s := &Struct{
+		TypeName: "Person",
+		Fields:   map[string]Object{"name": &String{Value: "Alice"}},
+	}
+
+	ref := &Reference{
+		Env:       NewEnvironment(),
+		Name:      "s",
+		Container: s,
+		Field:     "nonexistent",
+	}
+
+	ok := ref.SetValue(&String{Value: "value"})
+	if ok {
+		t.Error("SetValue() should return false for missing struct field")
+	}
+}
+
+// ============================================================================
+// JSONTag Inspect Tests
+// ============================================================================
+
+func TestJSONTagInspect(t *testing.T) {
+	t.Run("simple tag", func(t *testing.T) {
+		tag := &JSONTag{Name: "username"}
+		result := tag.Inspect()
+		expected := "Tag: `json:\"username\"`"
+		if result != expected {
+			t.Errorf("Inspect() = %q, want %q", result, expected)
+		}
+	})
+
+	t.Run("tag with omitempty", func(t *testing.T) {
+		tag := &JSONTag{Name: "email", OmitEmpty: true}
+		result := tag.Inspect()
+		expected := "Tag: `json:\"email,omitempty\"`"
+		if result != expected {
+			t.Errorf("Inspect() = %q, want %q", result, expected)
+		}
+	})
+
+	t.Run("tag with ignore", func(t *testing.T) {
+		tag := &JSONTag{Ignore: true}
+		result := tag.Inspect()
+		expected := "Tag: `json:\"-\"`"
+		if result != expected {
+			t.Errorf("Inspect() = %q, want %q", result, expected)
+		}
+	})
+
+	t.Run("tag with string encoding", func(t *testing.T) {
+		tag := &JSONTag{Name: "count", EncodeAsString: true}
+		result := tag.Inspect()
+		expected := "Tag: `json:\"count,string\"`"
+		if result != expected {
+			t.Errorf("Inspect() = %q, want %q", result, expected)
+		}
+	})
+
+	t.Run("tag with omitempty and string", func(t *testing.T) {
+		tag := &JSONTag{Name: "value", OmitEmpty: true, EncodeAsString: true}
+		result := tag.Inspect()
+		expected := "Tag: `json:\"value,omitempty,string\"`"
+		if result != expected {
+			t.Errorf("Inspect() = %q, want %q", result, expected)
+		}
+	})
+}
+
+func TestEmptyTagInspect(t *testing.T) {
+	tag := &EmptyTag{}
+	result := tag.Inspect()
+	expected := "Tag: ``\n"
+	if result != expected {
+		t.Errorf("Inspect() = %q, want %q", result, expected)
+	}
+}
+
+// ============================================================================
+// Environment GetPublicStructDefs Tests
+// ============================================================================
+
+func TestEnvironmentGetPublicStructDefs(t *testing.T) {
+	env := NewEnvironment()
+
+	// Register a public struct def (capitalized, default visibility)
+	publicDef := &StructDef{
+		Name:   "Person",
+		Fields: map[string]string{"name": "string", "age": "int"},
+	}
+	env.RegisterStructDef("Person", publicDef)
+
+	// Register a private struct def (lowercase, explicitly private)
+	privateDef := &StructDef{
+		Name:   "helper",
+		Fields: map[string]string{"data": "string"},
+	}
+	env.RegisterStructDefWithVisibility("helper", privateDef, VisibilityPrivate)
+
+	// Register another public struct def (explicit public visibility)
+	anotherPublicDef := &StructDef{
+		Name:   "Address",
+		Fields: map[string]string{"street": "string", "city": "string"},
+	}
+	env.RegisterStructDefWithVisibility("Address", anotherPublicDef, VisibilityPublic)
+
+	result := env.GetPublicStructDefs()
+
+	// Should include Person and Address but not helper or Error
+	if _, ok := result["Person"]; !ok {
+		t.Error("GetPublicStructDefs() should include Person")
+	}
+	if _, ok := result["Address"]; !ok {
+		t.Error("GetPublicStructDefs() should include Address")
+	}
+	if _, ok := result["helper"]; ok {
+		t.Error("GetPublicStructDefs() should not include private helper")
+	}
+	if _, ok := result["Error"]; ok {
+		t.Error("GetPublicStructDefs() should not include built-in Error")
+	}
+	if len(result) != 2 {
+		t.Errorf("GetPublicStructDefs() length = %d, want 2", len(result))
+	}
+}
+
+func TestEnvironmentGetPublicStructDefsEmpty(t *testing.T) {
+	env := NewEnvironment()
+	result := env.GetPublicStructDefs()
+	// Should be empty (Error struct is excluded)
+	if len(result) != 0 {
+		t.Errorf("GetPublicStructDefs() length = %d, want 0", len(result))
+	}
+}

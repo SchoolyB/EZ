@@ -1,0 +1,16 @@
+/*
+ * Error Test: E3040 - multi-return-to-single-var
+ * Expected: "multiple return values" or "single variable"
+ */
+
+import @std
+using std
+
+do get_pair() -> (int, string) {
+    return 1, "hello"
+}
+
+do main() {
+    temp x = get_pair()  // ERROR: cannot assign multiple return values to single variable
+    println(x)
+}

@@ -85,7 +85,10 @@ func execute(source string) bool {
 
 	// Evaluation
 	env := interpreter.NewEnvironment()
-	result := interpreter.Eval(program, env)
+	ctx := &interpreter.EvalContext{
+		CurrentFile: filename,
+	}
+	result := interpreter.Eval(program, env, ctx)
 
 	// Check for evaluation errors
 	if errObj, ok := result.(*interpreter.Error); ok {
@@ -97,12 +100,12 @@ func execute(source string) bool {
 	if mainFn, ok := env.Get("main"); ok {
 		if fn, ok := mainFn.(*interpreter.Function); ok {
 			fnEnv := interpreter.NewEnclosedEnvironment(env)
-			mainResult := interpreter.Eval(fn.Body, fnEnv)
+			mainResult := interpreter.Eval(fn.Body, fnEnv, ctx)
 
 			// Execute ensure statements before returning (LIFO order)
 			ensures := fnEnv.ExecuteEnsures()
 			for _, ensureCall := range ensures {
-				interpreter.Eval(ensureCall, fnEnv)
+				interpreter.Eval(ensureCall, fnEnv, ctx)
 			}
 			fnEnv.ClearEnsures()
 

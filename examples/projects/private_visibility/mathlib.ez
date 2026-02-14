@@ -1,0 +1,46 @@
+/*
+ * mathlib.ez - A module with public and private members
+ *
+ * private functions and constants are only accessible within this file.
+ * Public members are accessible from any file that imports this module.
+ */
+
+module mathlib
+
+// Private helper - NOT accessible from outside
+private do validate_positive(n int) -> bool {
+    return n > 0
+}
+
+// Private constant - NOT accessible from outside
+private const MAX_ITERATIONS int = 1000
+
+// Public function - accessible from main.ez
+do factorial(n int) -> int {
+    if validate_positive(n) == false {
+        return 1
+    }
+    temp result int = 1
+    for i in range(1, n + 1) {
+        result = result * i
+    }
+    return result
+}
+
+// Public function that uses private internals
+do is_prime(n int) -> bool {
+    if n < 2 {
+        return false
+    }
+    temp i int = 2
+    as_long_as i * i <= n {
+        if n % i == 0 {
+            return false
+        }
+        i += 1
+    }
+    return true
+}
+
+// Public constant
+const VERSION string = "1.0.0"

@@ -1,0 +1,37 @@
+/*
+ * encoding.ez - Base64, hex, and URL encoding
+ *
+ * Run with: ez examples/encoding.ez
+ */
+
+import @std, @encoding
+using std
+
+do main() {
+    // Base64
+    temp b64 string = encoding.base64_encode("Hello, World!")
+    println("Base64 encoded: ${b64}")
+
+    temp b64_decoded, b64_err = encoding.base64_decode(b64)
+    if b64_err == nil {
+        println("Base64 decoded: ${b64_decoded}")
+    }
+
+    // Hex
+    temp hex string = encoding.hex_encode("EZ Lang")
+    println("Hex encoded: ${hex}")
+
+    temp hex_decoded, hex_err = encoding.hex_decode(hex)
+    if hex_err == nil {
+        println("Hex decoded: ${hex_decoded}")
+    }
+
+    // URL encoding
+    temp url_enc string = encoding.url_encode("hello world&key=value")
+    println("URL encoded: ${url_enc}")
+
+    temp url_dec, url_err = encoding.url_decode(url_enc)
+    if url_err == nil {
+        println("URL decoded: ${url_dec}")
+    }
+}

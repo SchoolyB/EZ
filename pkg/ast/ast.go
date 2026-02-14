@@ -389,8 +389,10 @@ func (fs *ForStatement) statementNode()       {}
 func (fs *ForStatement) TokenLiteral() string { return fs.Token.Literal }
 
 // ForEachStatement represents for_each item in collection { }
+// or for_each i, item in collection { }
 type ForEachStatement struct {
 	Token      Token
+	Index      *Label // optional index variable
 	Variable   *Label
 	Collection Expression
 	Body       *BlockStatement
@@ -436,13 +438,14 @@ func (c *ContinueStatement) TokenLiteral() string { return c.Token.Literal }
 
 // FunctionDeclaration represents do func_name(params) -> return_type { }
 type FunctionDeclaration struct {
-	Token       Token
-	Name        *Label
-	Parameters  []*Parameter
-	ReturnTypes []string // can be multiple for multi-return
-	Body        *BlockStatement
-	Attributes  []*Attribute // #suppress(...) attributes
-	Visibility  Visibility   // Public (default), Private, or PrivateModule
+	Token        Token
+	Name         *Label
+	Parameters   []*Parameter
+	ReturnTypes  []string       // can be multiple for multi-return
+	ReturnParams []*ReturnParam // named return parameters (nil if using unnamed returns)
+	Body         *BlockStatement
+	Attributes   []*Attribute // #suppress(...) attributes
+	Visibility   Visibility   // Public (default), Private, or PrivateModule
 }
 
 func (f *FunctionDeclaration) statementNode()       {}
@@ -454,6 +457,12 @@ type Parameter struct {
 	TypeName     string
 	Mutable      bool       // true if declared with & prefix
 	DefaultValue Expression // nil if no default value
+}
+
+// ReturnParam represents a named return parameter
+type ReturnParam struct {
+	Name     *Label
+	TypeName string
 }
 
 // ImportItem represents a single module import with optional alias
@@ -494,7 +503,8 @@ type StructDeclaration struct {
 	Token      Token
 	Name       *Label
 	Fields     []*StructField
-	Visibility Visibility // Public (default), Private, or PrivateModule
+	Attributes []*Attribute // #doc(...) attributes
+	Visibility Visibility   // Public (default), Private, or PrivateModule
 }
 
 func (sd *StructDeclaration) statementNode()       {}
@@ -510,11 +520,12 @@ type StructField struct {
 
 // EnumDeclaration represents const STATUS enum { ... }
 type EnumDeclaration struct {
-	Token      Token
-	Name       *Label
-	Values     []*EnumValue
-	Attributes *EnumAttributes
-	Visibility Visibility // Public (default), Private, or PrivateModule
+	Token        Token
+	Name         *Label
+	Values       []*EnumValue
+	Attributes   *EnumAttributes
+	DocAttribute *Attribute // #doc(...) attribute
+	Visibility   Visibility // Public (default), Private, or PrivateModule
 }
 
 func (ed *EnumDeclaration) statementNode()       {}

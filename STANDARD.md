@@ -1,9 +1,9 @@
 # The EZ Programming Language Standard
 
-**Version:** 1.1-draft
-**Date:** January 31, 2026
+**Version:** 1.2-draft
+**Date:** February 12, 2026
 **Status:** Working Draft
-**EZ Version:** 1.4.8
+**EZ Version:** 2.0.0
 
 ---
 
@@ -141,14 +141,14 @@ Invalid identifiers: `2fast`, `my-var`, `café`, `_private`
 The following words are reserved and may not be used as identifiers:
 
 ```
-as_long_as   bool        break       byte        char
-const        continue    default     do          ensure
-enum         error       false       float       for
-for_each     if          import      in          int
-is           map         module      new         nil
-not_in       or          otherwise   range       return
-string       struct      temp        true        uint
-using        when        private
+as_long_as   bool        break       byte        cast
+char         const       continue    default     do
+ensure       enum        error       false       float
+for          for_each    if          import      in
+int          is          loop        map         module
+new          nil         not_in      or          otherwise
+private      range       return      string      struct
+temp         true        uint        using       when
 ```
 
 ### 3.6 Operators and Punctuation
@@ -170,10 +170,12 @@ using        when        private
 Integer literals represent integer values.
 
 ```
-int_literal    = decimal_lit | hex_lit .
+int_literal    = decimal_lit | hex_lit | octal_lit .
 decimal_lit    = digit { [ "_" ] digit } .
 hex_lit        = "0" ( "x" | "X" ) hex_digit { [ "_" ] hex_digit } .
 hex_digit      = digit | "A" ... "F" | "a" ... "f" .
+octal_lit      = "0" ( "o" | "O" ) octal_digit { [ "_" ] octal_digit } .
+octal_digit    = "0" ... "7" .
 ```
 
 Underscores may be used for readability but:
@@ -181,7 +183,7 @@ Underscores may be used for readability but:
 - Must not appear consecutively
 - Must not appear adjacent to the decimal point
 
-Examples: `42`, `1_000_000`, `0xFF`, `0xDEAD_BEEF`
+Examples: `42`, `1_000_000`, `0xFF`, `0xDEAD_BEEF`, `0o777`, `0o1_2_3`
 
 #### 3.7.2 Floating-Point Literals
 
@@ -219,7 +221,30 @@ temp name string = "World"
 temp greeting string = "Hello, ${name}!"  // "Hello, World!"
 ```
 
-#### 3.7.4 Character Literals
+#### 3.7.4 Raw String Literals
+
+Raw string literals are enclosed in backticks and do not process escape sequences or string interpolation:
+
+```
+raw_string_literal = "`" { raw_string_char } "`" .
+raw_string_char    = /* any UTF-8 character except "`" */ .
+```
+
+Raw strings:
+- Do not process escape sequences (`\n` is a literal backslash followed by `n`)
+- Do not process string interpolation (`${x}` is literal text)
+- May span multiple lines
+- Cannot contain backticks (no escape mechanism)
+
+```ez
+temp path string = `C:\Users\test\file.txt`
+temp pattern string = `\d+\.\d+`
+temp multi string = `line1
+line2
+line3`
+```
+
+#### 3.7.5 Character Literals
 
 Character literals represent single character values.
 
@@ -232,13 +257,13 @@ Examples: `'A'`, `'\n'`, `'\t'`
 
 Character literals must contain exactly one character (or escape sequence).
 
-#### 3.7.5 Boolean Literals
+#### 3.7.6 Boolean Literals
 
 ```
 bool_literal = "true" | "false" .
 ```
 
-#### 3.7.6 Nil Literal
+#### 3.7.7 Nil Literal
 
 ```
 nil_literal = "nil" .
@@ -354,6 +379,13 @@ fixed_array_type = "[" type "," size "]" .
 
 ```ez
 const fixed [int, 3] = {10, 20, 30}
+```
+
+Fixed-size arrays must be declared with `const`. Providing fewer values than the declared size is permitted (a `W3003` warning is issued); providing more values than the declared size is an error.
+
+```ez
+const a [int, 5] = {1, 2, 3}           // OK — warning W3003 (3 of 5 slots used)
+const b [int, 5] = {1, 2, 3, 4, 5, 6}  // Error — 6 values exceeds size of 5
 ```
 
 **Multi-dimensional arrays**:
@@ -519,6 +551,29 @@ temp c char = char(65)      // 'A' - int to char
 ```
 
 Conversions that would lose information or are invalid produce check-time or runtime errors.
+
+#### 4.4.1 The `cast` Keyword
+
+The `cast` keyword provides explicit type conversion for values and arrays:
+
+```
+cast_expr = "cast" "(" expression "," type ")" .
+```
+
+```ez
+temp small u8 = cast(42, u8)
+temp truncated int = cast(3.7, int)     // 3
+temp text string = cast(123, string)    // "123"
+```
+
+For array conversions, `cast` converts each element to the target element type:
+
+```ez
+temp ints [int] = {1, 2, 3}
+temp bytes [u8] = cast(ints, [u8])
+```
+
+Range constraints are enforced at runtime (e.g., `u8` values must be 0-255).
 
 ---
 
@@ -876,7 +931,7 @@ for (i in range(0, 10)) {
 #### 7.3.2 For-Each Loops
 
 ```
-for_each_stmt = "for_each" [ "(" ] identifier "in" expression [ ")" ] block .
+for_each_stmt = "for_each" [ "(" ] [ identifier "," ] identifier "in" expression [ ")" ] block .
 ```
 
 ```ez
@@ -884,6 +939,30 @@ temp items [string] = {"a", "b", "c"}
 for_each item in items {
     println(item)
 }
+```
+
+An optional index variable can precede the value variable, separated by a comma:
+
+```ez
+for_each i, item in items {
+    println("${i}: ${item}")
+}
+// Output: 0: a, 1: b, 2: c
+```
+
+The index variable is always of type `int` and is zero-based. It works with both arrays and strings:
+
+```ez
+for_each i, ch in "hello" {
+    println("${i}: ${ch}")
+}
+```
+
+The blank identifier `_` can be used in either position:
+
+```ez
+for_each _, item in items { ... }   // discard index (same as no index)
+for_each i, _ in items { ... }     // index only, discard value
 ```
 
 #### 7.3.3 While Loops
@@ -896,6 +975,24 @@ while_stmt = "as_long_as" expression block .
 temp count int = 0
 as_long_as count < 10 {
     count++
+}
+```
+
+#### 7.3.4 Infinite Loops
+
+```
+loop_stmt = "loop" block .
+```
+
+The `loop` statement creates an infinite loop that runs until explicitly terminated with `break` or `return`:
+
+```ez
+loop {
+    temp input string = input()
+    if input == "quit" {
+        break
+    }
+    println("You said: ${input}")
 }
 ```
 
@@ -996,7 +1093,9 @@ do process_file() {
 func_decl = "do" identifier "(" [ param_list ] ")" [ "->" return_type ] block .
 param_list = param { "," param } .
 param = [ "&" ] identifier [ "," identifier ]... type [ "=" default_value ] .
-return_type = type | "(" type { "," type } ")" | "nil" | "(" type "," "nil" ")" .
+return_type = type | "(" type { "," type } ")" | "nil" | "(" type "," "nil" ")"
+            | "(" named_return { "," named_return } ")" .
+named_return = identifier [ "," identifier ]... type .
 ```
 
 ```ez
@@ -1098,7 +1197,7 @@ temp quotient, remainder = divide(17, 5)
 #### 8.3.3 Error Returns
 
 ```ez
-do parse(s string) -> (int, error) {
+do parse(s string) -> (int, Error) {
     if s == "" {
         return 0, error("empty string")
     }
@@ -1111,7 +1210,34 @@ if err != nil {
 }
 ```
 
-#### 8.3.4 Void Functions
+#### 8.3.4 Named Return Variables
+
+Return values can be given names, which declares them as variables within the function body:
+
+```ez
+do divide(a, b int) -> (quotient int, remainder int) {
+    quotient = a / b
+    remainder = a % b
+    return quotient, remainder
+}
+
+temp q, r = divide(17, 5)  // q=3, r=2
+```
+
+Named returns support grouped types (multiple names sharing one type):
+
+```ez
+do get_info() -> (name, city string, age int) {
+    name = "Alice"
+    city = "NYC"
+    age = 30
+    return name, city, age
+}
+```
+
+Named return variables must be enclosed in parentheses. They are regular variables within the function scope and must be explicitly returned.
+
+#### 8.3.5 Void Functions
 
 Functions without a return type return no value:
 
@@ -1121,7 +1247,76 @@ do print_greeting() {
 }
 ```
 
-### 8.4 Function Scope
+### 8.4 Visibility
+
+By default, all functions and constants are public. The `private` keyword restricts access to the declaring module:
+
+```ez
+module mathlib
+
+private const MAX_ITERATIONS int = 1000
+
+private do validate(n int) -> bool {
+    return n > 0
+}
+
+do factorial(n int) -> int {
+    // Can call private members within the same module
+    if !validate(n) { return 1 }
+    // ...
+}
+```
+
+Private members cannot be accessed from other modules:
+
+```ez
+import "./mathlib"
+mathlib.factorial(5)          // OK - public
+// mathlib.validate(5)        // ERROR E4006 - private function
+// mathlib.MAX_ITERATIONS     // ERROR E6009 - private constant
+```
+
+### 8.5 Attributes
+
+Attributes are annotations prefixed with `#` that modify declaration behavior.
+
+#### 8.5.1 `#doc` Attribute
+
+The `#doc` attribute adds documentation metadata to functions, structs, and enums. Used by the `ez doc` command to generate documentation.
+
+```ez
+#doc("Adds two integers and returns the sum")
+do add(a int, b int) -> int {
+    return a + b
+}
+
+#doc("Represents a 2D point")
+const Point struct {
+    x int
+    y int
+}
+```
+
+#### 8.5.2 `#suppress` Attribute
+
+The `#suppress` attribute suppresses specific typechecker warnings for a function:
+
+```ez
+#suppress(W1001)
+do helper() {
+    temp unused int = 42  // No unused-variable warning
+}
+
+#suppress(W1001, W2001)
+do another() { ... }      // Suppress multiple warnings
+
+#suppress(ALL)
+do nowarnings() { ... }   // Suppress all warnings
+```
+
+Suppressible warnings include: `W1001` (unused-variable), `W1004` (unused-parameter), `W1005` (typed-blank-identifier), `W2001` (unreachable-code), `W2002` (shadowed-variable), `W2003` (missing-return), `W2004` (implicit-type-conversion), `W2005` (deprecated-feature), `W2006` (byte-overflow-potential), `W2009` (nil-dereference-potential), `W2011` (named-return-unused), `W3001` (empty-block), `W3002` (redundant-condition), `W3003` (array-size-mismatch).
+
+### 8.6 Function Scope
 
 All functions in EZ are declared at the top level. Nested function declarations are not permitted. Anonymous functions (lambdas/closures) are not supported.
 
@@ -1221,7 +1416,7 @@ println("Hello")
 
 ## 10. Standard Library
 
-The EZ standard library consists of 17 modules providing core functionality.
+The EZ standard library consists of 20 modules providing core functionality.
 
 ### 10.1 Core Module (`@std`)
 
@@ -1241,7 +1436,7 @@ The core module provides fundamental I/O, type conversion, and utility functions
 | Function | Signature | Description |
 |----------|-----------|-------------|
 | `input` | `() -> string` | Read line from stdin |
-| `read_int` | `() -> (int, error)` | Read integer from stdin |
+| `read_int` | `() -> (int, Error)` | Read integer from stdin |
 
 #### Type Conversion Functions
 
@@ -1271,7 +1466,7 @@ The core module provides fundamental I/O, type conversion, and utility functions
 | `copy` | `(value) -> T` | Create deep copy |
 | `new` | `(Type) -> Type` | Create zero-initialized instance |
 | `ref` | `(value) -> T` | Create reference to value |
-| `error` | `(message string) -> error` | Create error value |
+| `error` | `(message string) -> Error` | Create error value |
 | `assert` | `(condition bool, message string)` | Assert condition is true |
 | `panic` | `(message string) -> nil` | Terminate with error message |
 | `exit` | `(code int) -> nil` | Exit program with code |
@@ -1335,7 +1530,7 @@ println(r2[4])        // Prints 6 - r2 sees the change
 | `set` | `(&arr [T], index int, value T)` | Set element at index |
 | `pop` | `(&arr [T]) -> T` | Remove and return last element |
 | `shift` | `(&arr [T]) -> T` | Remove and return first element |
-| `remove` | `(&arr [T], index int)` | Remove element at index |
+| `remove_at` | `(&arr [T], index int)` | Remove element at index |
 | `remove_value` | `(&arr [T], value T)` | Remove first occurrence |
 | `remove_all` | `(&arr [T], value T)` | Remove all occurrences |
 | `clear` | `(&arr [T])` | Remove all elements |
@@ -1391,6 +1586,11 @@ println(r2[4])        // Prints 6 - r2 sees the change
 | `is_empty` | `(s string) -> bool` | Check if empty (after trim) |
 | `is_numeric` | `(s string) -> bool` | Check if all digits |
 | `is_alpha` | `(s string) -> bool` | Check if all letters |
+| `is_alphanumeric` | `(s string) -> bool` | Check if all alphanumeric |
+| `is_whitespace` | `(s string) -> bool` | Check if whitespace only |
+| `is_lowercase` | `(s string) -> bool` | Check if all letters lowercase |
+| `is_uppercase` | `(s string) -> bool` | Check if all letters uppercase |
+| `is_ascii` | `(s string) -> bool` | Check if all characters are ASCII |
 | `contains` | `(s string, sub string) -> bool` | Check if contains substring |
 | `starts_with` | `(s string, prefix string) -> bool` | Check prefix |
 | `ends_with` | `(s string, suffix string) -> bool` | Check suffix |
@@ -1413,6 +1613,10 @@ println(r2[4])        // Prints 6 - r2 sees the change
 | `truncate` | `(s string, length int, suffix string) -> string` | Truncate with suffix |
 | `pad_left` | `(s string, width int, pad string) -> string` | Left pad |
 | `pad_right` | `(s string, width int, pad string) -> string` | Right pad |
+| `center` | `(s string, width int, pad string) -> string` | Center with padding |
+| `insert` | `(s string, position int, sub string) -> string` | Insert at position |
+| `remove` | `(s string, sub string) -> string` | Remove first occurrence |
+| `remove_all` | `(s string, sub string) -> string` | Remove all occurrences |
 
 #### Conversion Functions
 
@@ -1423,6 +1627,9 @@ println(r2[4])        // Prints 6 - r2 sees the change
 | `chars` | `(s string) -> [char]` | Convert to char array |
 | `from_chars` | `(chars [char]) -> string` | Create from char array |
 | `slice` | `(s string, start int, end int) -> string` | Extract substring |
+| `lines` | `(s string) -> [string]` | Split by newlines |
+| `words` | `(s string) -> [string]` | Split by whitespace |
+| `char_at` | `(s string, index int) -> string` | Character at index |
 | `to_int` | `(s string) -> int` | Parse integer |
 | `to_float` | `(s string) -> float` | Parse float |
 | `to_bool` | `(s string) -> bool` | Parse boolean |
@@ -1544,6 +1751,8 @@ println(r2[4])        // Prints 6 - r2 sees the change
 | `is_even` | `(n int) -> bool` | Check if even |
 | `is_odd` | `(n int) -> bool` | Check if odd |
 | `is_inf` | `(n number) -> bool` | Check if infinite |
+| `is_nan` | `(n number) -> bool` | Check if NaN |
+| `is_finite` | `(n number) -> bool` | Check if finite (not infinite or NaN) |
 
 #### Utility
 
@@ -1564,6 +1773,7 @@ println(r2[4])        // Prints 6 - r2 sees the change
 - `TAU` - Tau (2*Pi)
 - `INF` - Positive infinity
 - `NEG_INF` - Negative infinity
+- `EPSILON` - Smallest representable float difference
 
 ### 10.6 Time Module (`@time`)
 
@@ -1596,6 +1806,10 @@ println(r2[4])        // Prints 6 - r2 sees the change
 | `weekday_name` | `(timestamp int) -> string` | Get day name |
 | `month_name` | `(timestamp int) -> string` | Get month name |
 | `day_of_year` | `(timestamp int) -> int` | Get day of year |
+| `quarter` | `(timestamp int) -> int` | Get quarter (1-4) |
+| `week_of_year` | `(timestamp int) -> int` | Get ISO week number (1-53) |
+| `timezone` | `() -> string` | Get local timezone name |
+| `utc_offset` | `() -> int` | Get local UTC offset in seconds |
 
 #### Formatting
 
@@ -1612,6 +1826,10 @@ println(r2[4])        // Prints 6 - r2 sees the change
 |----------|-----------|-------------|
 | `parse` | `(s string, format string) -> int` | Parse string to timestamp |
 | `make` | `(year, month, day, hour, minute, second int) -> int` | Create timestamp |
+| `from_unix` | `(seconds int) -> int` | Convert Unix seconds to timestamp |
+| `from_unix_ms` | `(milliseconds int) -> int` | Convert Unix milliseconds to timestamp |
+| `to_unix` | `(timestamp int) -> int` | Convert timestamp to Unix seconds |
+| `to_unix_ms` | `(timestamp int) -> int` | Convert timestamp to Unix milliseconds |
 
 #### Arithmetic
 
@@ -1646,6 +1864,7 @@ println(r2[4])        // Prints 6 - r2 sees the change
 | `is_weekday` | `(timestamp int) -> bool` | Check if weekday |
 | `is_today` | `(timestamp int) -> bool` | Check if today |
 | `is_same_day` | `(ts1 int, ts2 int) -> bool` | Check if same day |
+| `relative` | `(timestamp int) -> string` | Human-readable relative time (e.g., "2 hours ago") |
 
 #### Period Boundaries
 
@@ -1657,6 +1876,13 @@ println(r2[4])        // Prints 6 - r2 sees the change
 | `end_of_month` | `(timestamp int) -> int` | End of month |
 | `start_of_year` | `(timestamp int) -> int` | Start of year |
 | `end_of_year` | `(timestamp int) -> int` | End of year |
+
+#### Performance Timing
+
+| Function | Signature | Description |
+|----------|-----------|-------------|
+| `tick` | `() -> int` | High-resolution timestamp in nanoseconds |
+| `elapsed_ms` | `(start_tick int) -> float` | Milliseconds elapsed since a tick |
 
 #### Constants
 
@@ -1686,10 +1912,10 @@ Durations: `SECOND` (1), `MINUTE` (60), `HOUR` (3600), `DAY` (86400), `WEEK` (60
 
 | Function | Signature | Description |
 |----------|-----------|-------------|
-| `encode` | `(value) -> (string, error)` | Encode to JSON string |
-| `decode` | `(text string) -> (any, error)` | Decode to dynamic type |
-| `decode` | `(text string, Type) -> (Type, error)` | Decode to typed struct |
-| `pretty` | `(value, indent string) -> (string, error)` | Pretty print JSON |
+| `encode` | `(value) -> (string, Error)` | Encode to JSON string |
+| `decode` | `(text string) -> (any, Error)` | Decode to dynamic type |
+| `decode` | `(text string, Type) -> (Type, Error)` | Decode to typed struct |
+| `pretty` | `(value, indent string) -> (string, Error)` | Pretty print JSON |
 | `is_valid` | `(text string) -> bool` | Check if valid JSON |
 
 ### 10.9 IO Module (`@io`)
@@ -1698,16 +1924,16 @@ Durations: `SECOND` (1), `MINUTE` (60), `HOUR` (3600), `DAY` (86400), `WEEK` (60
 
 | Function | Signature | Description |
 |----------|-----------|-------------|
-| `read_file` | `(path string) -> (string, error)` | Read file as string |
-| `read_bytes` | `(path string) -> ([byte], error)` | Read file as bytes |
+| `read_file` | `(path string) -> (string, Error)` | Read file as string |
+| `read_bytes` | `(path string) -> ([byte], Error)` | Read file as bytes |
 
 #### File Writing
 
 | Function | Signature | Description |
 |----------|-----------|-------------|
-| `write_file` | `(path string, content string) -> (bool, error)` | Write file |
-| `write_bytes` | `(path string, data [byte]) -> (bool, error)` | Write bytes |
-| `append_file` | `(path string, content string) -> (bool, error)` | Append to file |
+| `write_file` | `(path string, content string) -> (bool, Error)` | Write file |
+| `write_bytes` | `(path string, data [byte]) -> (bool, Error)` | Write bytes |
+| `append_file` | `(path string, content string) -> (bool, Error)` | Append to file |
 
 #### File Operations
 
@@ -1718,22 +1944,22 @@ Durations: `SECOND` (1), `MINUTE` (60), `HOUR` (3600), `DAY` (86400), `WEEK` (60
 | `is_directory` | `(path string) -> bool` | Check if path is directory |
 | `is_readable` | `(path string) -> bool` | Check if readable |
 | `is_writable` | `(path string) -> bool` | Check if writable |
-| `file_size` | `(path string) -> (int, error)` | Get file size |
+| `file_size` | `(path string) -> (int, Error)` | Get file size |
 | `file_extension` | `(path string) -> string` | Get file extension |
 | `file_name` | `(path string) -> string` | Get file name |
 | `directory_name` | `(path string) -> string` | Get directory path |
-| `absolute_path` | `(path string) -> (string, error)` | Get absolute path |
-| `delete_file` | `(path string) -> (bool, error)` | Delete file |
+| `absolute_path` | `(path string) -> (string, Error)` | Get absolute path |
+| `delete_file` | `(path string) -> (bool, Error)` | Delete file |
 
 #### Directory Operations
 
 | Function | Signature | Description |
 |----------|-----------|-------------|
-| `list_directory` | `(path string) -> ([string], error)` | List directory contents |
-| `create_directory` | `(path string) -> (bool, error)` | Create directory |
-| `create_directories` | `(path string) -> (bool, error)` | Create recursively |
-| `delete_directory` | `(path string) -> (bool, error)` | Delete empty directory |
-| `delete_directory_recursive` | `(path string) -> (bool, error)` | Delete recursively |
+| `list_directory` | `(path string) -> ([string], Error)` | List directory contents |
+| `create_directory` | `(path string) -> (bool, Error)` | Create directory |
+| `create_directories` | `(path string) -> (bool, Error)` | Create recursively |
+| `delete_directory` | `(path string) -> (bool, Error)` | Delete empty directory |
+| `delete_directory_recursive` | `(path string) -> (bool, Error)` | Delete recursively |
 
 #### Path Functions
 
@@ -1748,9 +1974,9 @@ Durations: `SECOND` (1), `MINUTE` (60), `HOUR` (3600), `DAY` (86400), `WEEK` (60
 
 | Function | Signature | Description |
 |----------|-----------|-------------|
-| `get_env` | `(name string) -> (string, error)` | Get environment variable |
-| `set_env` | `(name string, value string) -> (bool, error)` | Set environment variable |
-| `unset_env` | `(name string) -> (bool, error)` | Unset environment variable |
+| `get_env` | `(name string) -> (string, Error)` | Get environment variable |
+| `set_env` | `(name string, value string) -> (bool, Error)` | Set environment variable |
+| `unset_env` | `(name string) -> (bool, Error)` | Unset environment variable |
 | `env` | `() -> map[string:string]` | Get all environment variables |
 
 #### System Information
@@ -1758,11 +1984,11 @@ Durations: `SECOND` (1), `MINUTE` (60), `HOUR` (3600), `DAY` (86400), `WEEK` (60
 | Function | Signature | Description |
 |----------|-----------|-------------|
 | `args` | `() -> [string]` | Get command-line arguments |
-| `cwd` | `() -> (string, error)` | Get current working directory |
-| `chdir` | `(path string) -> (bool, error)` | Change directory |
-| `hostname` | `() -> (string, error)` | Get machine hostname |
-| `username` | `() -> (string, error)` | Get current username |
-| `home_dir` | `() -> (string, error)` | Get home directory |
+| `cwd` | `() -> (string, Error)` | Get current working directory |
+| `chdir` | `(path string) -> (bool, Error)` | Change directory |
+| `hostname` | `() -> (string, Error)` | Get machine hostname |
+| `username` | `() -> (string, Error)` | Get current username |
+| `home_dir` | `() -> (string, Error)` | Get home directory |
 | `temp_dir` | `() -> string` | Get temporary directory |
 | `pid` | `() -> int` | Get process ID |
 | `ppid` | `() -> int` | Get parent process ID |
@@ -1783,12 +2009,16 @@ Durations: `SECOND` (1), `MINUTE` (60), `HOUR` (3600), `DAY` (86400), `WEEK` (60
 
 | Function | Signature | Description |
 |----------|-----------|-------------|
-| `get` | `(url string) -> (Response, error)` | GET request |
-| `post` | `(url string, body string) -> (Response, error)` | POST request |
-| `put` | `(url string, body string) -> (Response, error)` | PUT request |
-| `delete` | `(url string) -> (Response, error)` | DELETE request |
-| `patch` | `(url string, body string) -> (Response, error)` | PATCH request |
-| `head` | `(url string) -> (Response, error)` | HEAD request |
+| `get` | `(url string) -> (Response, Error)` | GET request |
+| `post` | `(url string, body string) -> (Response, Error)` | POST request |
+| `put` | `(url string, body string) -> (Response, Error)` | PUT request |
+| `delete` | `(url string) -> (Response, Error)` | DELETE request |
+| `patch` | `(url string, body string) -> (Response, Error)` | PATCH request |
+| `head` | `(url string) -> (Response, Error)` | HEAD request |
+| `options` | `(url string) -> (Response, Error)` | OPTIONS request |
+| `download` | `(url string, path string) -> (int, Error)` | Download file, returns bytes written |
+| `parse_url` | `(url string) -> (URL, Error)` | Parse URL into components |
+| `build_url` | `(components) -> string` | Build URL from components |
 
 #### Response Type
 
@@ -1816,11 +2046,11 @@ The `Response` struct contains:
 | Function | Signature | Description |
 |----------|-----------|-------------|
 | `base64_encode` | `(s string) -> string` | Encode to base64 |
-| `base64_decode` | `(s string) -> (string, error)` | Decode from base64 |
+| `base64_decode` | `(s string) -> (string, Error)` | Decode from base64 |
 | `hex_encode` | `(s string) -> string` | Encode to hex |
-| `hex_decode` | `(s string) -> (string, error)` | Decode from hex |
+| `hex_decode` | `(s string) -> (string, Error)` | Decode from hex |
 | `url_encode` | `(s string) -> string` | URL percent-encode |
-| `url_decode` | `(s string) -> (string, error)` | URL percent-decode |
+| `url_decode` | `(s string) -> (string, Error)` | URL percent-decode |
 
 ### 10.14 UUID Module (`@uuid`)
 
@@ -1840,8 +2070,8 @@ The `Response` struct contains:
 |----------|-----------|-------------|
 | `from_array` | `(arr [int]) -> [byte]` | Create from integer array |
 | `from_string` | `(s string) -> [byte]` | Create from UTF-8 string |
-| `from_hex` | `(hex string) -> ([byte], error)` | Decode hex string |
-| `from_base64` | `(b64 string) -> ([byte], error)` | Decode base64 string |
+| `from_hex` | `(hex string) -> ([byte], Error)` | Decode hex string |
+| `from_base64` | `(b64 string) -> ([byte], Error)` | Decode base64 string |
 | `to_string` | `(bytes [byte]) -> string` | Convert to UTF-8 string |
 | `to_array` | `(bytes [byte]) -> [int]` | Convert to integer array |
 | `to_hex` | `(bytes [byte]) -> string` | Encode to hex string |
@@ -1892,17 +2122,76 @@ A simple JSON-based key-value database.
 
 | Function | Signature | Description |
 |----------|-----------|-------------|
-| `open` | `(path string) -> (Database, error)` | Open/create database |
-| `close` | `(db Database) -> error` | Close database |
-| `save` | `(db Database) -> error` | Save to disk |
+| `open` | `(path string) -> (Database, Error)` | Open/create database |
+| `close` | `(db Database) -> Error` | Close database |
+| `save` | `(db Database) -> Error` | Save to disk |
 | `set` | `(db Database, key string, value)` | Set key-value pair |
-| `get` | `(db Database, key string) -> (any, error)` | Get value by key |
+| `get` | `(db Database, key string) -> (any, Error)` | Get value by key |
 | `has` | `(db Database, key string) -> bool` | Check if key exists |
 | `delete` | `(db Database, key string) -> bool` | Delete key |
 | `clear` | `(db Database)` | Clear all entries |
 | `keys` | `(db Database) -> [string]` | Get all keys |
 | `values` | `(db Database) -> [any]` | Get all values |
+| `entries` | `(db Database) -> [Entry]` | Get all key-value pairs as Entry structs |
 | `length` | `(db Database) -> int` | Get number of entries |
+
+### 10.18 Server Module (`@server`)
+
+A simple HTTP server module for building web services.
+
+| Function | Signature | Description |
+|----------|-----------|-------------|
+| `router` | `() -> Router` | Create a new router |
+| `route` | `(router Router, method string, path string, response Response)` | Add a route |
+| `listen` | `(port int, router Router) -> Error` | Start HTTP server on port |
+| `text` | `(status int, body string) -> Response` | Create text/plain response |
+| `json` | `(status int, data) -> Response` | Create application/json response |
+| `html` | `(status int, body string) -> Response` | Create text/html response |
+
+```ez
+import @server
+
+do main() {
+    temp r = server.router()
+    server.route(r, "GET", "/", server.text(200, "Hello!"))
+    server.route(r, "GET", "/data", server.json(200, {"status": "ok"}))
+    server.listen(8080, r)
+}
+```
+
+### 10.19 Regex Module (`@regex`)
+
+Regular expression operations using Go's `regexp` syntax.
+
+| Function | Signature | Description |
+|----------|-----------|-------------|
+| `is_valid` | `(pattern string) -> bool` | Check if pattern is valid |
+| `match` | `(pattern string, s string) -> (bool, Error)` | Check if pattern matches |
+| `find` | `(pattern string, s string) -> (string, Error)` | First match |
+| `find_all` | `(pattern string, s string) -> ([string], Error)` | All matches |
+| `find_all_n` | `(pattern string, s string, n int) -> ([string], Error)` | First n matches |
+| `replace` | `(pattern string, s string, repl string) -> (string, Error)` | Replace first match |
+| `replace_all` | `(pattern string, s string, repl string) -> (string, Error)` | Replace all matches |
+| `split` | `(pattern string, s string) -> ([string], Error)` | Split by pattern |
+| `groups` | `(pattern string, s string) -> ([string], Error)` | Capture groups from first match |
+| `groups_all` | `(pattern string, s string) -> ([[string]], Error)` | Capture groups from all matches |
+
+### 10.20 CSV Module (`@csv`)
+
+Reading and writing CSV (Comma-Separated Values) data.
+
+| Function | Signature | Description |
+|----------|-----------|-------------|
+| `parse` | `(csv_string string) -> ([[string]], Error)` | Parse CSV string to 2D array |
+| `stringify` | `(data [[string]]) -> (string, Error)` | Convert 2D array to CSV string |
+| `read` | `(path string, options map) -> ([[string]], Error)` | Read CSV file |
+| `headers` | `(path string) -> ([string], Error)` | Read first row (headers) |
+| `write` | `(path string, data [[string]], options map) -> (bool, Error)` | Write CSV file |
+
+The `read` and `write` functions accept an optional options map with keys:
+- `delimiter` (string) — field delimiter (default: `","`)
+- `skip_empty` (bool) — skip empty rows (default: `false`, read only)
+- `quote_all` (bool) — quote all fields (default: `false`, write only)
 
 ---
 
@@ -1910,18 +2199,18 @@ A simple JSON-based key-value database.
 
 ### 11.1 Error Type
 
-The `error` type represents an error condition. Errors are created with the `error()` function:
+The `Error` type represents an error condition. Errors are created with the `error()` function:
 
 ```ez
-temp err error = error("something went wrong")
+temp err Error = error("something went wrong")
 ```
 
 ### 11.2 Error Returns
 
-Functions that may fail conventionally return a tuple with the result and an error:
+Functions that may fail conventionally return a tuple with the result and an Error:
 
 ```ez
-do read_file(path string) -> (string, error) {
+do read_file(path string) -> (string, Error) {
     if !file_exists(path) {
         return "", error("file not found")
     }
@@ -2060,21 +2349,22 @@ import_decl    = "import" [ "&" "use" ] import_path { "," import_path } .
 import_path    = "@" identifier | string_literal .
 using_decl     = "using" identifier { "," identifier } .
 
-func_decl      = "do" identifier "(" [ param_list ] ")" [ "->" return_type ] block .
+func_decl      = [ "private" ] "do" identifier "(" [ param_list ] ")" [ "->" return_type ] block .
 struct_decl    = "const" identifier "struct" "{" { field_decl } "}" .
 enum_decl      = [ "#flags" | "#enum" "(" "int" ")" ] "const" identifier "enum"
                "{" enum_member { enum_member } "}" .
-const_decl     = "const" identifier [ type ] "=" expression .
+const_decl     = [ "private" ] "const" identifier [ type ] "=" expression .
 var_decl       = "temp" identifier type "=" expression .
 
 statement      = var_decl | const_decl | if_stmt | for_stmt | for_each_stmt
-               | while_stmt | when_stmt | return_stmt | break_stmt
+               | while_stmt | loop_stmt | when_stmt | return_stmt | break_stmt
                | continue_stmt | ensure_stmt | expr_stmt .
 
 if_stmt        = "if" expression block { "or" expression block } [ "otherwise" block ] .
 for_stmt       = "for" [ "(" ] identifier [ type ] "in" range_expr [ ")" ] block .
-for_each_stmt  = "for_each" [ "(" ] identifier "in" expression [ ")" ] block .
+for_each_stmt  = "for_each" [ "(" ] [ identifier "," ] identifier "in" expression [ ")" ] block .
 while_stmt     = "as_long_as" expression block .
+loop_stmt      = "loop" block .
 when_stmt      = [ "#strict" ] "when" expression "{" { when_case } [ default_case ] "}" .
 when_case      = "is" pattern { "," pattern } block .
 default_case   = "default" block .
@@ -2091,17 +2381,419 @@ block          = "{" { statement } "}" .
 
 ## Appendix B: Error Codes
 
-| Code | Category | Description |
-|------|----------|-------------|
-| E1xxx | Lexer | Lexical analysis errors |
-| E2xxx | Parser | Syntax errors |
-| E3xxx | Type Checker | Type errors |
-| E4xxx | Resolver | Name resolution errors |
-| E5xxx | Runtime | Arithmetic errors |
-| E9xxx | Runtime | Index/bounds errors |
-| E10xxx | Runtime | String operation errors |
-| E11xxx | Runtime | Time operation errors |
-| E12xxx | Runtime | Map operation errors |
+### Overview
+
+| Range | Category | Description |
+|-------|----------|-------------|
+| E1xxx | Lexer | Tokenization and lexical analysis errors |
+| E2xxx | Parser | Syntax and parsing errors |
+| E3xxx | Type Checker | Type system errors |
+| E4xxx | Resolver | Name resolution and reference errors |
+| E5xxx | Runtime | General runtime errors |
+| E6xxx | Import | Module import and loading errors |
+| E7xxx | Stdlib | Standard library argument validation errors |
+| E8xxx | Math | Math module domain errors |
+| E9xxx | Arrays | Array operation errors |
+| E10xxx | Strings | String operation errors |
+| E11xxx | Time | Time module errors |
+| E12xxx | Maps | Map operation errors |
+| E13xxx | JSON | JSON encoding/decoding errors |
+| E14xxx | HTTP | HTTP client errors |
+| E15xxx | Crypto | Cryptography errors |
+| E16xxx | Encoding | Encoding/decoding errors |
+| E17xxx | DB | Database errors |
+| E18xxx | Server | HTTP server errors |
+| W1xxx | Warning | Code style warnings |
+| W2xxx | Warning | Potential bug warnings |
+| W3xxx | Warning | Code quality warnings |
+| W4xxx | Warning | Module warnings |
+
+### E1xxx — Lexer Errors
+
+| Code | Name | Description |
+|------|------|-------------|
+| E1001 | illegal-character | Illegal character in source |
+| E1002 | illegal-or-character | Illegal OR character in source |
+| E1003 | unclosed-comment | Multi-line comment not closed |
+| E1004 | unclosed-string | String literal not closed |
+| E1005 | unclosed-char | Character literal not closed |
+| E1006 | invalid-escape-string | Invalid escape sequence in string |
+| E1007 | invalid-escape-char | Invalid escape sequence in character |
+| E1008 | empty-char-literal | Character literal is empty |
+| E1009 | multi-char-literal | Character literal contains multiple characters |
+| E1010 | invalid-number-format | Invalid numeric literal format |
+| E1011 | number-consecutive-underscores | Consecutive underscores in number |
+| E1012 | number-leading-underscore | Number starts with underscore |
+| E1013 | number-trailing-underscore | Number ends with underscore |
+| E1014 | number-underscore-before-decimal | Underscore before decimal point |
+| E1015 | number-underscore-after-decimal | Underscore after decimal point |
+| E1016 | number-trailing-decimal | Decimal point without digits |
+| E1017 | unclosed-raw-string | Raw string literal not closed |
+
+### E2xxx — Parser Errors
+
+| Code | Name | Description |
+|------|------|-------------|
+| E2001 | unexpected-token | Unexpected token encountered |
+| E2002 | missing-token | Expected token not found |
+| E2003 | missing-expression | Expected expression |
+| E2004 | unclosed-brace | Missing closing brace |
+| E2005 | unclosed-paren | Missing closing parenthesis |
+| E2006 | unclosed-bracket | Missing closing bracket |
+| E2007 | unclosed-interpolation | String interpolation not closed |
+| E2008 | invalid-assignment-target | Cannot assign to this expression |
+| E2009 | using-after-declarations | `using` statement must come before declarations |
+| E2010 | using-before-import | Cannot use module before importing |
+| E2011 | const-requires-value | `const` must be initialized |
+| E2012 | duplicate-parameter | Parameter name already used |
+| E2013 | duplicate-field | Field name already used |
+| E2014 | missing-parameter-type | Parameter missing type annotation |
+| E2015 | missing-return-type | Expected return type after arrow |
+| E2016 | empty-enum | Enum must have at least one value |
+| E2017 | trailing-comma-array | Trailing comma in array literal |
+| E2018 | trailing-comma-call | Trailing comma in function call |
+| E2019 | nested-function | Function inside function not allowed |
+| E2020 | reserved-variable-name | Variable name is reserved |
+| E2021 | reserved-function-name | Function name is reserved |
+| E2022 | reserved-type-name | Type name is reserved |
+| E2023 | duplicate-declaration | Name already declared in scope |
+| E2024 | invalid-type-name | Expected valid type name |
+| E2025 | invalid-array-size | Array size must be integer |
+| E2026 | invalid-enum-type | Enum type must be primitive |
+| E2027 | integer-parse-error | Cannot parse integer literal |
+| E2028 | float-parse-error | Cannot parse float literal |
+| E2029 | expected-identifier | Expected identifier |
+| E2030 | expected-block | Expected block statement |
+| E2031 | string-enum-requires-values | String enum needs explicit values |
+| E2032 | const-array-requires-size | Const array must have fixed size |
+| E2033 | reserved-param-name | Parameter name is reserved |
+| E2034 | invalid-struct-field | Invalid struct field name |
+| E2035 | invalid-enum-value | Invalid enum value name |
+| E2036 | import-inside-block | Import must be at file level |
+| E2037 | reserved-struct-name | Struct name is reserved |
+| E2038 | reserved-enum-name | Enum name is reserved |
+| E2039 | required-after-default | Required parameter after parameter with default |
+| E2040 | mutable-with-default | Mutable parameter cannot have default value |
+| E2041 | when-missing-default | `when` statement requires a `default` case |
+| E2042 | when-strict-has-default | `#strict when` cannot have a `default` case |
+| E2043 | when-duplicate-case | Duplicate case value in `when` statement |
+| E2044 | when-float-not-allowed | Float type not allowed in `when` statement |
+| E2045 | when-strict-non-enum | `#strict` only allowed on enum `when` statements |
+| E2046 | when-strict-missing-case | `#strict when` missing enum case |
+| E2047 | when-type-as-condition | `when` condition must be a value, not a type name |
+| E2048 | when-bool-condition | `when` condition cannot be boolean; use `if`/`otherwise` |
+| E2049 | when-nil-condition | `when` condition cannot be nil |
+| E2050 | when-collection-condition | `when` condition cannot be an array or map |
+| E2051 | suppress-invalid-target | `#suppress` can only be applied at file scope or to functions |
+| E2052 | suppress-invalid-code | Warning code cannot be suppressed |
+| E2053 | type-definition-in-function | Type definitions must be at file level |
+| E2054 | when-strict-non-enum-case | `#strict when` requires explicit enum member values |
+| E2055 | strict-invalid-target | `#strict` can only be applied to `when` statements |
+| E2056 | executable-at-file-scope | Executable statement not allowed at file scope |
+| E2057 | invalid-interpolation-syntax | Invalid string interpolation syntax |
+| E2058 | doc-invalid-target | `#doc` can only be applied to functions, structs, or enums |
+| E2059 | doc-orphaned | `#doc` must be followed by a declaration |
+| E2060 | doc-duplicate | Only one `#doc` attribute allowed per declaration |
+
+### E3xxx — Type Errors
+
+| Code | Name | Description |
+|------|------|-------------|
+| E3001 | type-mismatch | Types do not match |
+| E3002 | invalid-operator-for-type | Operator not valid for type |
+| E3003 | invalid-index-type | Index must be integer |
+| E3004 | invalid-index-assignment-type | Invalid type for index assignment |
+| E3005 | cannot-convert-to-int | Cannot convert value to integer |
+| E3006 | cannot-convert-to-float | Cannot convert value to float |
+| E3007 | cannot-convert-array | Cannot convert array to scalar |
+| E3008 | undefined-type | Type is not defined |
+| E3009 | undefined-type-in-struct | Field type not defined |
+| E3010 | undefined-param-type | Parameter type not defined |
+| E3011 | undefined-return-type | Return type not defined |
+| E3012 | return-type-mismatch | Return type does not match declaration |
+| E3013 | return-count-mismatch | Wrong number of return values |
+| E3014 | incompatible-binary-types | Incompatible types for binary operator |
+| E3015 | not-callable | Value is not callable |
+| E3016 | not-indexable | Value is not indexable |
+| E3017 | not-iterable | Value is not iterable |
+| E3018 | array-literal-required | Array type requires array literal |
+| E3019 | signed-to-unsigned | Cannot assign signed type to unsigned |
+| E3020 | negative-to-unsigned | Cannot assign negative value to unsigned type |
+| E3021 | type-change-not-allowed | Cannot change type of variable after declaration |
+| E3022 | undefined-struct-field | Struct field not found |
+| E3023 | enum-value-not-found | Enum value not found |
+| E3024 | missing-return-statement | Function must return a value |
+| E3025 | byte-value-out-of-range | Byte value must be between 0 and 255 |
+| E3026 | byte-array-element-out-of-range | Byte array element must be between 0 and 255 |
+| E3027 | const-to-mutable-param | Cannot pass immutable variable to mutable parameter |
+| E3028 | enum-mixed-types | Enum members must all have the same type |
+| E3029 | float-enum-map-key | Float-based enum cannot be used as map key |
+| E3030 | type-as-value | Type definition cannot be used as a runtime value |
+| E3031 | function-as-value | Function cannot be used as a value without calling it |
+| E3032 | enum-type-mismatch | Cannot compare values from different enum types |
+| E3033 | duplicate-enum-value | Enum contains duplicate values |
+| E3034 | any-type-not-allowed | `any` type is reserved for internal use |
+| E3035 | not-all-paths-return | Not all code paths return a value |
+| E3036 | integer-out-of-range | Integer literal exceeds type range |
+| E3037 | invalid-private-usage | `private` modifier cannot be used here |
+| E3038 | void-type-not-allowed | `void` is not a valid type |
+| E3039 | ensure-expects-call | `ensure` expects a function call |
+| E3040 | multi-return-to-single-var | Cannot assign multiple return values to single variable |
+| E3041 | array-size-overflow | Array literal has more elements than declared size |
+
+### E4xxx — Reference Errors
+
+| Code | Name | Description |
+|------|------|-------------|
+| E4001 | undefined-variable | Variable not found in scope |
+| E4002 | undefined-function | Function not defined |
+| E4003 | undefined-field | Field does not exist on type |
+| E4004 | undefined-enum-value | Enum value does not exist |
+| E4005 | undefined-module-member | Member not found in module |
+| E4006 | undefined-type-new | Type not found for `new` expression |
+| E4007 | module-not-imported | Module has not been imported |
+| E4008 | ambiguous-function | Function exists in multiple modules |
+| E4009 | no-main-function | Program has no entry point |
+| E4010 | nil-member-access | Cannot access member of nil |
+| E4011 | member-access-invalid-type | Type does not support member access |
+| E4012 | shadows-type | Variable shadows a type definition |
+| E4013 | shadows-function | Variable shadows a function |
+| E4014 | shadows-module | Variable shadows an imported module |
+| E4015 | shadows-used-module-function | Variable shadows a function from a `using` module |
+| E4016 | loop-variable-shadows-loop-variable | Loop variable shadows outer loop variable |
+
+### E5xxx — Runtime Errors
+
+| Code | Name | Description |
+|------|------|-------------|
+| E5001 | division-by-zero | Cannot divide by zero |
+| E5002 | modulo-by-zero | Cannot modulo by zero |
+| E5003 | index-out-of-bounds | Index outside valid range |
+| E5004 | index-empty-collection | Cannot index empty collection |
+| E5005 | nil-operation | Cannot perform operation on nil |
+| E5006 | immutable-variable | Cannot modify `const` variable |
+| E5007 | immutable-array | Cannot modify `const` array |
+| E5008 | wrong-argument-count | Incorrect number of arguments |
+| E5009 | break-outside-loop | `break` not inside loop |
+| E5010 | continue-outside-loop | `continue` not inside loop |
+| E5011 | return-value-unused | Function return value not used |
+| E5012 | multi-assign-count-mismatch | Assignment value count mismatch |
+| E5013 | range-start-not-integer | Range start must be integer |
+| E5014 | range-end-not-integer | Range end must be integer |
+| E5015 | postfix-requires-identifier | Postfix operator needs variable |
+| E5016 | immutable-parameter | Cannot modify read-only parameter |
+| E5017 | immutable-struct | Cannot modify field of `const` struct |
+| E5018 | max-recursion-depth | Maximum recursion depth exceeded |
+| E5019 | range-step-not-integer | Range step must be integer |
+| E5020 | range-in-operand-not-integer | Value checked against range must be integer |
+| E5021 | panic | Explicit `panic()` called |
+| E5022 | assertion-failed | Assertion condition was false |
+| E5023 | postfix-requires-integer | Postfix operator needs integer operand |
+| E5024 | return-type-mismatch | Return type mismatch at runtime |
+
+### E6xxx — Import Errors
+
+| Code | Name | Description |
+|------|------|-------------|
+| E6001 | circular-import | Circular import detected |
+| E6002 | module-not-found | Module file not found |
+| E6003 | invalid-module-format | Module has invalid format |
+| E6004 | module-load-error | Failed to load module |
+| E6005 | module-name-mismatch | Module name does not match directory |
+| E6006 | module-name-conflict | Files in directory declare different module names |
+| E6007 | internal-import-denied | Cannot import from `internal/` directory outside package |
+| E6008 | module-member-readonly | Cannot assign to module member |
+| E6009 | private-access-denied | Cannot access private member from outside module |
+
+### E7xxx — Stdlib Validation Errors
+
+| Code | Name | Description |
+|------|------|-------------|
+| E7001 | stdlib-argument-mismatch | Wrong number of arguments |
+| E7002 | requires-array | Argument must be an array |
+| E7003 | requires-string | Argument must be a string |
+| E7004 | requires-integer | Argument must be an integer |
+| E7005 | requires-number | Argument must be a number |
+| E7006 | requires-function | Argument must be a function |
+| E7007 | requires-map | Argument must be a map |
+| E7008 | requires-boolean | Argument must be a boolean |
+| E7009 | requires-char | Argument must be a char |
+| E7010 | invalid-argument-value | Argument value is invalid |
+| E7011 | negative-not-allowed | Argument cannot be negative |
+| E7012 | zero-not-allowed | Argument cannot be zero |
+| E7013 | empty-not-allowed | Argument cannot be empty |
+| E7014 | type-conversion-failed | Type conversion failed |
+| E7015 | len-unsupported-type | `len()` not supported for type |
+| E7016 | file-not-found | File or directory not found |
+| E7017 | permission-denied | Permission denied |
+| E7018 | cannot-remove-directory | `io.remove()` cannot remove directories |
+| E7019 | cannot-remove-file | `io.remove_dir()` can only remove directories |
+| E7020 | safety-check-failed | Cannot remove root or home directory |
+| E7021 | cannot-copy-directory | `io.copy()` cannot copy directories |
+| E7022 | file-already-exists | File or directory already exists |
+| E7023 | directory-not-empty | Directory not empty |
+| E7024 | env-var-operation-failed | Environment variable operation failed |
+| E7025 | get-cwd-failed | Failed to get current directory |
+| E7026 | chdir-failed | Failed to change directory |
+| E7027 | get-hostname-failed | Failed to get hostname |
+| E7028 | get-username-failed | Failed to get username |
+| E7029 | get-homedir-failed | Failed to get home directory |
+| E7030 | command-not-found | Command or executable not found |
+| E7031 | command-failed | Command execution failed |
+| E7032 | sleep-negative | Sleep duration cannot be negative |
+| E7033 | conversion-overflow | Value exceeds target type range |
+| E7035 | env-var-not-set | Environment variable is not set |
+| E7040 | empty-path | Path cannot be empty |
+| E7041 | path-null-byte | Path contains null byte |
+| E7042 | read-directory-as-file | Cannot read directory as file |
+| E7043 | invalid-glob-pattern | Invalid glob pattern syntax |
+| E7050 | file-handle-closed | File handle is closed |
+| E7099 | io-error | General I/O error |
+
+### E8xxx — Math Errors
+
+| Code | Name | Description |
+|------|------|-------------|
+| E8001 | sqrt-negative | Cannot take square root of negative number |
+| E8002 | log-non-positive | Logarithm requires positive number |
+| E8003 | trig-out-of-range | Trigonometric function input out of valid range |
+| E8004 | factorial-negative | Factorial requires non-negative integer |
+| E8005 | factorial-overflow | Factorial result exceeds maximum value |
+| E8006 | random-invalid-range | Random range is invalid |
+| E8007 | map-range-div-zero | `map_range()` requires `in_min != in_max` |
+
+### E9xxx — Array Errors
+
+| Code | Name | Description |
+|------|------|-------------|
+| E9001 | array-is-empty | Operation requires non-empty array |
+| E9002 | array-non-numeric | Operation requires numeric array |
+| E9003 | range-step-zero | Range step cannot be zero |
+| E9004 | chunk-size-invalid | Chunk size must be greater than zero |
+| E9005 | range-invalid-bounds | Range start must be less than or equal to end |
+| E9006 | array-modified-during-iteration | Cannot modify array during `for_each` iteration |
+| E9007 | empty-array-selection | Cannot select from empty array |
+| E9008 | sample-count-exceeds-length | Sample count exceeds array length |
+
+### E10xxx — String Errors
+
+| Code | Name | Description |
+|------|------|-------------|
+| E10001 | repeat-count-negative | Repeat count cannot be negative |
+| E10003 | string-index-out-of-bounds | String index out of bounds |
+| E10004 | string-empty-index | Cannot index empty string |
+
+### E11xxx — Time Errors
+
+| Code | Name | Description |
+|------|------|-------------|
+| E11001 | time-parse-failed | Failed to parse time string |
+
+### E12xxx — Map Errors
+
+| Code | Name | Description |
+|------|------|-------------|
+| E12001 | map-key-not-hashable | Map key must be a hashable type |
+| E12002 | map-immutable | Cannot modify immutable map |
+| E12003 | map-key-not-found | Key not found in map |
+| E12004 | map-invalid-pair | Map entry must be a `[key, value]` pair |
+| E12005 | map-value-not-hashable | Map value is not hashable and cannot become a key |
+| E12006 | map-duplicate-key | Map literal contains duplicate key |
+
+### E13xxx — JSON Errors
+
+| Code | Name | Description |
+|------|------|-------------|
+| E13001 | json-syntax-error | Invalid JSON syntax |
+| E13002 | json-unsupported-type | Type cannot be converted to JSON |
+| E13003 | json-invalid-map-key | JSON object keys must be strings |
+| E13004 | json-decode-requires-type | `json.decode()` requires a type argument |
+
+### E14xxx — HTTP Errors
+
+| Code | Name | Description |
+|------|------|-------------|
+| E14001 | http-invalid-url | Invalid URL |
+| E14002 | http-failed-request | Request failed (network error) |
+| E14003 | http-timeout | Timeout exceeded |
+| E14004 | http-invalid-method | Invalid HTTP method |
+| E14005 | http-failed-url-decode | URL decode failed |
+| E14006 | http-failed-json-encoding | JSON encoding failed |
+
+### E15xxx — Crypto Errors
+
+| Code | Name | Description |
+|------|------|-------------|
+| E15001 | crypto-random-failed | Cryptographic random generation failed |
+
+### E16xxx — Encoding Errors
+
+| Code | Name | Description |
+|------|------|-------------|
+| E16001 | invalid-base64 | Invalid base64 encoded input |
+| E16002 | invalid-hex | Invalid hexadecimal encoded input |
+| E16003 | invalid-url-encoding | Invalid URL encoded input |
+
+### E17xxx — Database Errors
+
+| Code | Name | Description |
+|------|------|-------------|
+| E17001 | db-open-failed | Failed to open database |
+| E17002 | db-read-failed | Failed to read database file |
+| E17003 | db-write-failed | Failed to write database file |
+| E17004 | db-corrupted | Database file is corrupted |
+| E17005 | db-closed | Operation on closed database |
+
+### E18xxx — Server Errors
+
+| Code | Name | Description |
+|------|------|-------------|
+| E18001 | server-listen-failed | Server failed to start |
+| E18002 | server-invalid-port | Invalid port number |
+| E18003 | server-internal-error | Internal server error |
+| E18004 | server-handler-error | Handler returned an error |
+
+### Warnings
+
+#### W1xxx — Code Style Warnings
+
+| Code | Name | Description |
+|------|------|-------------|
+| W1001 | unused-variable | Variable declared but not used |
+| W1002 | unused-import | Module imported but not used |
+| W1003 | unused-function | Function declared but not called |
+| W1004 | unused-parameter | Parameter declared but not used |
+| W1005 | typed-blank-identifier | Blank identifier does not require type annotation |
+
+#### W2xxx — Potential Bug Warnings
+
+| Code | Name | Description |
+|------|------|-------------|
+| W2001 | unreachable-code | Code will never execute |
+| W2002 | shadowed-variable | Variable shadows outer scope |
+| W2003 | missing-return | Function may not return value |
+| W2004 | implicit-type-conversion | Implicit type conversion occurring |
+| W2005 | deprecated-feature | Using deprecated feature |
+| W2006 | byte-overflow-potential | Byte arithmetic may overflow |
+| W2007 | shadows-global | Variable shadows global variable or constant |
+| W2008 | integer-overflow-potential | Integer arithmetic may overflow |
+| W2009 | nil-dereference-potential | Accessing member on potentially nil value |
+| W2010 | chained-nil-access | Chained member access on nullable struct type |
+| W2011 | named-return-unused | Named return variable declared but returns different value |
+
+#### W3xxx — Code Quality Warnings
+
+| Code | Name | Description |
+|------|------|-------------|
+| W3001 | empty-block | Block statement is empty |
+| W3002 | redundant-condition | Condition is always true/false |
+| W3003 | array-size-mismatch | Fixed-size array not fully initialized |
+
+#### W4xxx — Module Warnings
+
+| Code | Name | Description |
+|------|------|-------------|
+| W4001 | module-name-mismatch | Module name does not match directory name |
 
 ---
 
@@ -2110,7 +2802,8 @@ block          = "{" { statement } "}" .
 | Version | Date | Changes |
 |---------|------|---------|
 | 1.0-draft | January 2026 | Initial draft |
-| 1.1-draft | January 31, 2026 | Added hex escapes, `!in` operator, blank identifier, `ref()` builtin, negative step `range()`, `temp` mutability; fixed compile-time → check-time terminology; added `uint` to primitive lists |
+| 1.1-draft | January 31, 2026 | Added hex escapes, `!in` operator, blank identifier, `ref()` builtin, negative step `range()`, `temp` mutability; fixed terminology to use check-time instead of compile-time; added `uint` to primitive lists |
+| 1.2-draft | February 12, 2026 | Added `for_each` index variable, named return variables, `cast` keyword, raw string literals, octal literals, `private` visibility, `#doc`/`#suppress` attributes; added `@server`, `@regex`, `@csv` modules; updated `@http`, `@db`, `@math`, `@strings`, `@time`, `@arrays` modules; fixed `remove` → `remove_at` in arrays; expanded Appendix B with comprehensive error code reference (181 errors, 14 warnings) |
 
 ---
 

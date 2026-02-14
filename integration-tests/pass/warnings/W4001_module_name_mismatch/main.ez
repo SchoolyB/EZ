@@ -1,0 +1,12 @@
+/*
+ * Warning Test: W4001 - module-name-mismatch
+ * Expected: warning about module name not matching directory name
+ */
+
+import @std
+import "./wrongname"
+using std
+
+do main() {
+    println("W4001 test")
+}

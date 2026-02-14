@@ -437,11 +437,12 @@ func (e *Error) Inspect() string {
 
 // Function represents a user-defined function
 type Function struct {
-	Parameters  []*ast.Parameter
-	ReturnTypes []string
-	Body        *ast.BlockStatement
-	Env         *Environment
-	File        string // Source file where function was defined
+	Parameters   []*ast.Parameter
+	ReturnTypes  []string
+	ReturnParams []*ast.ReturnParam // Named return parameters (nil if using unnamed returns)
+	Body         *ast.BlockStatement
+	Env          *Environment
+	File         string // Source file where function was defined
 }
 
 func (f *Function) Type() ObjectType { return FUNCTION_OBJ }
@@ -752,31 +753,32 @@ const (
 
 // Environment holds variable bindings
 type Environment struct {
-	store       map[string]Object
-	mutable     map[string]bool
-	visibility  map[string]Visibility // Visibility of each binding
-	structDefs  map[string]*StructDef
-	outer       *Environment
-	imports     map[string]string        // Legacy: alias -> stdlib module name
-	modules     map[string]*ModuleObject // User modules: alias -> module object
-	using       []string
-	usingCache  []string // Cached result of GetUsing() to avoid repeated allocations
-	loopDepth   int
-	ensureStack []*ast.CallExpression // Stack of ensure statements (LIFO order)
-	returnTypes []string              // Expected return types for current function
+	store        map[string]Object
+	mutable      map[string]bool
+	visibility   map[string]Visibility // Visibility of each binding
+	structDefs   map[string]*StructDef
+	outer        *Environment
+	imports      map[string]string        // Legacy: alias -> stdlib module name
+	modules      map[string]*ModuleObject // User modules: alias -> module object
+	using        []string
+	usingCache   []string // Cached result of GetUsing() to avoid repeated allocations
+	loopDepth    int
+	ensureStack  []*ast.CallExpression // Stack of ensure statements (LIFO order)
+	returnTypes  []string              // Expected return types for current function
+	returnParams []*ast.ReturnParam    // Named return parameters for current function
 }
 
 func NewEnvironment() *Environment {
 	env := &Environment{
-		store:      make(map[string]Object),
-		mutable:    make(map[string]bool),
-		visibility: make(map[string]Visibility),
-		structDefs: make(map[string]*StructDef),
-		outer:      nil,
-		imports:    make(map[string]string),
-		modules:    make(map[string]*ModuleObject),
-		using:      []string{},
-		loopDepth:  0,
+		store:       make(map[string]Object),
+		mutable:     make(map[string]bool),
+		visibility:  make(map[string]Visibility),
+		structDefs:  make(map[string]*StructDef),
+		outer:       nil,
+		imports:     make(map[string]string),
+		modules:     make(map[string]*ModuleObject),
+		using:       []string{},
+		loopDepth:   0,
 		ensureStack: []*ast.CallExpression{},
 	}
 
@@ -887,6 +889,16 @@ func (e *Environment) SetReturnTypes(types []string) {
 // GetReturnTypes returns the expected return types for the current function
 func (e *Environment) GetReturnTypes() []string {
 	return e.returnTypes
+}
+
+// SetReturnParams sets the named return parameters for the current function
+func (e *Environment) SetReturnParams(params []*ast.ReturnParam) {
+	e.returnParams = params
+}
+
+// GetReturnParams returns the named return parameters for the current function
+func (e *Environment) GetReturnParams() []*ast.ReturnParam {
+	return e.returnParams
 }
 
 func (e *Environment) Get(name string) (Object, bool) {

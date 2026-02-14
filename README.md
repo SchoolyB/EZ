@@ -22,7 +22,7 @@
 
 ## Developer Quick Start
 
-Want to contribute or build from source?
+Want to contribute or build from source? See the [Contributing Guide](CONTRIBUTING.md) for full details.
 
 **macOS/Linux:**
 ```bash

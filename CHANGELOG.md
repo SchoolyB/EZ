@@ -570,8 +570,8 @@
 
 * **modules:** add type checking for multi-file modules ([#722](https://github.com/SchoolyB/EZ/issues/722)) ([19b5006](https://github.com/SchoolyB/EZ/commit/19b50061bcc9054d653d94bc41e63e2d0cacaeda))
 * **modules:** add type checking for multi-file modules ([#722](https://github.com/SchoolyB/EZ/issues/722)) ([d806280](https://github.com/SchoolyB/EZ/commit/d8062804910fe308d4a8886ac481b9bf45798009))
-* **modules:** report type errors in single-file modules at compile time ([#720](https://github.com/SchoolyB/EZ/issues/720)) ([72ec320](https://github.com/SchoolyB/EZ/commit/72ec320f48bc5ec1cb9b13fd0ab88a8f08de0e15))
-* **modules:** report type errors in single-file modules at compile time ([#720](https://github.com/SchoolyB/EZ/issues/720)) ([efcf797](https://github.com/SchoolyB/EZ/commit/efcf79757eb22c792cce539211c5a842751d756d))
+* **modules:** report type errors in single-file modules at check time ([#720](https://github.com/SchoolyB/EZ/issues/720)) ([72ec320](https://github.com/SchoolyB/EZ/commit/72ec320f48bc5ec1cb9b13fd0ab88a8f08de0e15))
+* **modules:** report type errors in single-file modules at check time ([#720](https://github.com/SchoolyB/EZ/issues/720)) ([efcf797](https://github.com/SchoolyB/EZ/commit/efcf79757eb22c792cce539211c5a842751d756d))
 
 ## [0.27.0](https://github.com/SchoolyB/EZ/compare/v0.26.0...v0.27.0) (2025-12-18)
 
@@ -644,8 +644,8 @@
 * properly type multi-return builtin functions like read_int() ([a88577e](https://github.com/SchoolyB/EZ/commit/a88577e2cac2e8233df18b25345b53fdc3f9a4b2))
 * support module constants via using directive ([#677](https://github.com/SchoolyB/EZ/issues/677)) ([a493e46](https://github.com/SchoolyB/EZ/commit/a493e461198baad719b48c9fe3109dfad183c23d))
 * support module constants via using directive ([#677](https://github.com/SchoolyB/EZ/issues/677)) ([70dbfc3](https://github.com/SchoolyB/EZ/commit/70dbfc362b9948cd10efc08fdcc567b59aa20819))
-* **typechecker:** add compile-time array bounds checking ([#685](https://github.com/SchoolyB/EZ/issues/685)) ([9fb99de](https://github.com/SchoolyB/EZ/commit/9fb99ded85c0e18e6539deccd5cea722e603e3fb))
-* **typechecker:** add compile-time array bounds checking ([#685](https://github.com/SchoolyB/EZ/issues/685)) ([c150246](https://github.com/SchoolyB/EZ/commit/c1502462ea431098d9c6afee0e52dfc5b8a51f26))
+* **typechecker:** add check-time array bounds checking ([#685](https://github.com/SchoolyB/EZ/issues/685)) ([9fb99de](https://github.com/SchoolyB/EZ/commit/9fb99ded85c0e18e6539deccd5cea722e603e3fb))
+* **typechecker:** add check-time array bounds checking ([#685](https://github.com/SchoolyB/EZ/issues/685)) ([c150246](https://github.com/SchoolyB/EZ/commit/c1502462ea431098d9c6afee0e52dfc5b8a51f26))
 * **typechecker:** add warning for member access on error type ([#687](https://github.com/SchoolyB/EZ/issues/687)) ([052ead9](https://github.com/SchoolyB/EZ/commit/052ead9c9159f73d485600ed4cb6e4368800e126))
 * **typechecker:** add warning for member access on error type ([#687](https://github.com/SchoolyB/EZ/issues/687)) ([189a14c](https://github.com/SchoolyB/EZ/commit/189a14c8fb669fb89bb4952ce83eb02e3b153779))
 * **typechecker:** detect undefined variables in assignment targets ([f467bcf](https://github.com/SchoolyB/EZ/commit/f467bcfcf834b3f0c89506decd42d3532b7aa9df))
@@ -710,12 +710,12 @@
 
 ### Bug Fixes
 
-* [@strict](https://github.com/strict) when enforces enum exhaustiveness at compile time ([#629](https://github.com/SchoolyB/EZ/issues/629)) ([f549a3b](https://github.com/SchoolyB/EZ/commit/f549a3bd63c013f13cdb3bb4987f061ff794a0d1))
+* [@strict](https://github.com/strict) when enforces enum exhaustiveness at check time ([#629](https://github.com/SchoolyB/EZ/issues/629)) ([f549a3b](https://github.com/SchoolyB/EZ/commit/f549a3bd63c013f13cdb3bb4987f061ff794a0d1))
 * [@strict](https://github.com/strict) when rejects non-enum expressions ([#628](https://github.com/SchoolyB/EZ/issues/628)) ([c734b18](https://github.com/SchoolyB/EZ/commit/c734b1845b109643f8aa1c5d7acb91fab7e3c232))
 * [@strict](https://github.com/strict) when rejects non-enum expressions in cases ([#628](https://github.com/SchoolyB/EZ/issues/628)) ([799b7a7](https://github.com/SchoolyB/EZ/commit/799b7a7fd3035eae677fb9388d25eef06d09fa1a))
-* `[@strict](https://github.com/strict)` when enforces enum exhaustiveness at compile time ([#629](https://github.com/SchoolyB/EZ/issues/629)) ([be87d59](https://github.com/SchoolyB/EZ/commit/be87d591d8c4357f87f6700196b107976df19e91))
-* duplicate map keys in literal now produce compile-time error ([#641](https://github.com/SchoolyB/EZ/issues/641)) ([06b3f91](https://github.com/SchoolyB/EZ/commit/06b3f91df8e8add8e7a020a50d9bd60cea691482))
-* duplicate map keys in literal now produce compile-time error ([#641](https://github.com/SchoolyB/EZ/issues/641)) ([f011903](https://github.com/SchoolyB/EZ/commit/f0119037c23adb2d7ebd610b347bf10453d7bb88))
+* `[@strict](https://github.com/strict)` when enforces enum exhaustiveness at check time ([#629](https://github.com/SchoolyB/EZ/issues/629)) ([be87d59](https://github.com/SchoolyB/EZ/commit/be87d591d8c4357f87f6700196b107976df19e91))
+* duplicate map keys in literal now produce check-time error ([#641](https://github.com/SchoolyB/EZ/issues/641)) ([06b3f91](https://github.com/SchoolyB/EZ/commit/06b3f91df8e8add8e7a020a50d9bd60cea691482))
+* duplicate map keys in literal now produce check-time error ([#641](https://github.com/SchoolyB/EZ/issues/641)) ([f011903](https://github.com/SchoolyB/EZ/commit/f0119037c23adb2d7ebd610b347bf10453d7bb88))
 * float display now shows actual precision for debugging ([#640](https://github.com/SchoolyB/EZ/issues/640)) ([d2051fb](https://github.com/SchoolyB/EZ/commit/d2051fbce7ab28af8e3016c527766ec0b75bc186))
 * float display now shows actual precision for debugging ([#640](https://github.com/SchoolyB/EZ/issues/640)) ([3ef9314](https://github.com/SchoolyB/EZ/commit/3ef93147f3104321000e65e39ebdaf7f55b7318d))
 * recursively initialize nested struct fields ([#621](https://github.com/SchoolyB/EZ/issues/621)) ([ad4f911](https://github.com/SchoolyB/EZ/commit/ad4f911fbd6308544fcf67970280839baad41089))
@@ -933,7 +933,7 @@
 
 ### Bug Fixes
 
-* detect mixed-type enums at compile time ([#414](https://github.com/SchoolyB/EZ/issues/414)) ([e1b8c63](https://github.com/SchoolyB/EZ/commit/e1b8c63fd7c841d8d3aea2ad48b0d2d31483e6ca)), closes [#410](https://github.com/SchoolyB/EZ/issues/410)
+* detect mixed-type enums at check time ([#414](https://github.com/SchoolyB/EZ/issues/414)) ([e1b8c63](https://github.com/SchoolyB/EZ/commit/e1b8c63fd7c841d8d3aea2ad48b0d2d31483e6ca)), closes [#410](https://github.com/SchoolyB/EZ/issues/410)
 
 ## [0.16.1](https://github.com/SchoolyB/EZ/compare/v0.16.0...v0.16.1) (2025-12-08)
 

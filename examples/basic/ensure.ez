@@ -1,0 +1,71 @@
+/*
+ * ensure.ez - Deferred cleanup with ensure
+ *
+ * ensure schedules a function call to run when the current function
+ * exits, even on early return. Multiple ensures run in LIFO order.
+ *
+ * Run with: ez examples/basic/ensure.ez
+ */
+
+import @std, @io
+using std
+
+do cleanup(name string) {
+    println("  cleaned up: ${name}")
+}
+
+do process_file() {
+    // ensure runs when this function exits
+    ensure cleanup("file handle")
+
+    println("  processing file...")
+    // cleanup("file handle") runs automatically here
+}
+
+do early_return_example() -> int {
+    ensure cleanup("resource A")
+    ensure cleanup("resource B")
+
+    if true {
+        println("  returning early...")
+        return 42
+        // both ensures still run (B first, then A - LIFO order)
+    }
+    return 0
+}
+
+do write_with_cleanup() {
+    temp path string = "/tmp/ez_ensure_example.txt"
+
+    // Write a temp file
+    temp _, _ = io.write_file(path, "temporary data")
+    println("  created: ${path}")
+
+    // Schedule cleanup to delete it when function exits
+    ensure remove_temp(path)
+
+    // Do work with the file...
+    temp content, _ = io.read_file(path)
+    println("  read: ${content}")
+    // remove_temp(path) runs automatically here
+}
+
+do remove_temp(path string) {
+    temp _, _ = io.remove(path)
+    println("  removed: ${path}")
+}
+
+do main() {
+    println("--- Normal exit ---")
+    process_file()
+
+    println("")
+    println("--- Early return (LIFO order) ---")
+    temp val int = early_return_example()
+    println("  returned: ${val}")
+
+    println("")
+    println("--- File cleanup ---")
+    write_with_cleanup()
+    println("  exists after? ${io.exists("/tmp/ez_ensure_example.txt")}")
+}

@@ -9,6 +9,7 @@ import (
 	"regexp"
 	"strings"
 
+	"github.com/marshallburns/ez/pkg/errors"
 	"github.com/marshallburns/ez/pkg/object"
 )
 
@@ -17,11 +18,12 @@ var uuidPattern = regexp.MustCompile(`^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]
 
 // UUIDBuiltins contains the uuid module functions
 var UUIDBuiltins = map[string]*object.Builtin{
-	// uuid.create() - generates a new UUID v4 (random)
+	// create generates a new random UUID v4.
+	// Takes no arguments. Returns UUID string (e.g., "550e8400-e29b-41d4-a716-446655440000").
 	"uuid.create": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 0 {
-				return &object.Error{Code: "E7001", Message: "uuid.create() takes no arguments"}
+				return &object.Error{Code: "E7001", Message: fmt.Sprintf("%s takes no arguments", errors.Ident("uuid.create()"))}
 			}
 
 			uuid, err := generateUUIDv4()
@@ -33,11 +35,12 @@ var UUIDBuiltins = map[string]*object.Builtin{
 		},
 	},
 
-	// uuid.create_compact() - generates a new UUID v4 without hyphens
+	// create_compact generates a new UUID v4 without hyphens.
+	// Takes no arguments. Returns 32-character hex string.
 	"uuid.create_compact": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 0 {
-				return &object.Error{Code: "E7001", Message: "uuid.create_compact() takes no arguments"}
+				return &object.Error{Code: "E7001", Message: fmt.Sprintf("%s takes no arguments", errors.Ident("uuid.create_compact()"))}
 			}
 
 			uuid, err := generateUUIDv4()
@@ -51,16 +54,17 @@ var UUIDBuiltins = map[string]*object.Builtin{
 		},
 	},
 
-	// uuid.is_valid(str) - checks if a string is a valid UUID
+	// is_valid checks if a string is a valid UUID format.
+	// Takes a string. Returns bool.
 	"uuid.is_valid": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 1 {
-				return &object.Error{Code: "E7001", Message: "uuid.is_valid() takes exactly 1 argument"}
+				return &object.Error{Code: "E7001", Message: fmt.Sprintf("%s takes exactly 1 argument", errors.Ident("uuid.is_valid()"))}
 			}
 
 			str, ok := args[0].(*object.String)
 			if !ok {
-				return &object.Error{Code: "E7002", Message: "uuid.is_valid() requires a string argument"}
+				return &object.Error{Code: "E7002", Message: fmt.Sprintf("%s requires a %s argument", errors.Ident("uuid.is_valid()"), errors.TypeExpected("string"))}
 			}
 
 			if uuidPattern.MatchString(str.Value) {
@@ -70,11 +74,11 @@ var UUIDBuiltins = map[string]*object.Builtin{
 		},
 	},
 
-	// uuid.NIL - the nil UUID constant
+	// NIL is the nil UUID constant (all zeros).
 	"uuid.NIL": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 0 {
-				return &object.Error{Code: "E7001", Message: "uuid.NIL takes no arguments"}
+				return &object.Error{Code: "E7001", Message: fmt.Sprintf("%s takes no arguments", errors.Ident("uuid.NIL"))}
 			}
 			return &object.String{Value: "00000000-0000-0000-0000-000000000000"}
 		},

@@ -457,7 +457,14 @@ func TestMathMod(t *testing.T) {
 	modFn := MathBuiltins["math.mod"].Fn
 
 	result := modFn(&object.Integer{Value: big.NewInt(10)}, &object.Integer{Value: big.NewInt(3)})
-	testFloatObject(t, result, 1.0)
+	// math.mod returns Integer for integer inputs
+	intVal, ok := result.(*object.Integer)
+	if !ok {
+		t.Fatalf("expected Integer for integer mod, got %T", result)
+	}
+	if intVal.Value.Int64() != 1 {
+		t.Errorf("expected 1, got %d", intVal.Value.Int64())
+	}
 
 	// Modulo by zero
 	result = modFn(&object.Integer{Value: big.NewInt(10)}, &object.Integer{Value: big.NewInt(0)})
@@ -1413,7 +1420,7 @@ func TestCopyIntegerPreservesDeclaredType(t *testing.T) {
 	if copied.DeclaredType != original.DeclaredType {
 		t.Errorf("copy() did not preserve DeclaredType: got %s, want %s", copied.DeclaredType, original.DeclaredType)
 	}
-	if copied.Value != original.Value {
+	if copied.Value.Cmp(original.Value) != 0 {
 		t.Errorf("copy() changed Value: got %d, want %d", copied.Value, original.Value)
 	}
 }
@@ -1444,7 +1451,7 @@ func TestCopyArray(t *testing.T) {
 	for i, elem := range copied.Elements {
 		origInt := original.Elements[i].(*object.Integer)
 		copiedInt := elem.(*object.Integer)
-		if copiedInt.Value != origInt.Value {
+		if copiedInt.Value.Cmp(origInt.Value) != 0 {
 			t.Errorf("element %d: got %d, want %d", i, copiedInt.Value, origInt.Value)
 		}
 	}
@@ -2252,6 +2259,99 @@ func TestMathIsInfFunc(t *testing.T) {
 
 	if boolVal.Value {
 		t.Errorf("math.is_inf(3.14) returned true, want false")
+	}
+}
+
+func TestMathIsNanFunc(t *testing.T) {
+	isnanFn := MathBuiltins["math.is_nan"].Fn
+
+	// Test with NaN
+	result := isnanFn(&object.Float{Value: math.NaN()})
+	boolVal, ok := result.(*object.Boolean)
+	if !ok {
+		t.Fatalf("math.is_nan() returned %T, want Boolean", result)
+	}
+	if !boolVal.Value {
+		t.Errorf("math.is_nan(NaN) returned false, want true")
+	}
+
+	// Test with normal number
+	result = isnanFn(&object.Float{Value: 3.14})
+	boolVal, ok = result.(*object.Boolean)
+	if !ok {
+		t.Fatalf("math.is_nan() returned %T, want Boolean", result)
+	}
+	if boolVal.Value {
+		t.Errorf("math.is_nan(3.14) returned true, want false")
+	}
+}
+
+func TestMathIsFiniteFunc(t *testing.T) {
+	isfiniteFn := MathBuiltins["math.is_finite"].Fn
+
+	// Test with normal number
+	result := isfiniteFn(&object.Float{Value: 3.14})
+	boolVal, ok := result.(*object.Boolean)
+	if !ok {
+		t.Fatalf("math.is_finite() returned %T, want Boolean", result)
+	}
+	if !boolVal.Value {
+		t.Errorf("math.is_finite(3.14) returned false, want true")
+	}
+
+	// Test with infinity
+	result = isfiniteFn(&object.Float{Value: math.Inf(1)})
+	boolVal, ok = result.(*object.Boolean)
+	if !ok {
+		t.Fatalf("math.is_finite() returned %T, want Boolean", result)
+	}
+	if boolVal.Value {
+		t.Errorf("math.is_finite(+Inf) returned true, want false")
+	}
+
+	// Test with NaN
+	result = isfiniteFn(&object.Float{Value: math.NaN()})
+	boolVal, ok = result.(*object.Boolean)
+	if !ok {
+		t.Fatalf("math.is_finite() returned %T, want Boolean", result)
+	}
+	if boolVal.Value {
+		t.Errorf("math.is_finite(NaN) returned true, want false")
+	}
+}
+
+func TestMathNewConstants(t *testing.T) {
+	// EPSILON
+	epsFn := MathBuiltins["math.EPSILON"].Fn
+	epsResult := epsFn()
+	epsFloat, ok := epsResult.(*object.Float)
+	if !ok {
+		t.Fatalf("math.EPSILON returned %T, want Float", epsResult)
+	}
+	if epsFloat.Value <= 0 || epsFloat.Value >= 1e-10 {
+		t.Errorf("math.EPSILON = %v, want small positive value", epsFloat.Value)
+	}
+
+	// MAX_FLOAT
+	maxFn := MathBuiltins["math.MAX_FLOAT"].Fn
+	maxResult := maxFn()
+	maxFloat, ok := maxResult.(*object.Float)
+	if !ok {
+		t.Fatalf("math.MAX_FLOAT returned %T, want Float", maxResult)
+	}
+	if maxFloat.Value != math.MaxFloat64 {
+		t.Errorf("math.MAX_FLOAT = %v, want %v", maxFloat.Value, math.MaxFloat64)
+	}
+
+	// MIN_FLOAT
+	minFn := MathBuiltins["math.MIN_FLOAT"].Fn
+	minResult := minFn()
+	minFloat, ok := minResult.(*object.Float)
+	if !ok {
+		t.Fatalf("math.MIN_FLOAT returned %T, want Float", minResult)
+	}
+	if minFloat.Value != math.SmallestNonzeroFloat64 {
+		t.Errorf("math.MIN_FLOAT = %v, want %v", minFloat.Value, math.SmallestNonzeroFloat64)
 	}
 }
 
@@ -3274,22 +3374,30 @@ func TestMathNegMinInt64(t *testing.T) {
 	}
 }
 
-// Test for Bug #396 fix: math.pow() overflow detection
-func TestMathPowOverflow(t *testing.T) {
+// Test that math.pow handles large exponents with big.Int (no overflow)
+func TestMathPowLargeExponents(t *testing.T) {
 	powFn := MathBuiltins["math.pow"].Fn
 
-	// 2^63 overflows int64 (max int64 is 2^63 - 1)
+	// 2^63 - big.Int handles this without overflow
 	result := powFn(&object.Integer{Value: big.NewInt(2)}, &object.Integer{Value: big.NewInt(63)})
-
-	if !isErrorObject(result) {
-		t.Errorf("math.pow(2, 63) should return overflow error, got %T: %v", result, result.Inspect())
+	intVal, ok := result.(*object.Integer)
+	if !ok {
+		t.Fatalf("math.pow(2, 63) should return Integer, got %T", result)
+	}
+	expected := new(big.Int).Exp(big.NewInt(2), big.NewInt(63), nil)
+	if intVal.Value.Cmp(expected) != 0 {
+		t.Errorf("math.pow(2, 63) = %s, want %s", intVal.Value.String(), expected.String())
 	}
 
-	// Very large exponent
+	// Very large exponent - big.Int handles this
 	result = powFn(&object.Integer{Value: big.NewInt(10)}, &object.Integer{Value: big.NewInt(100)})
-
-	if !isErrorObject(result) {
-		t.Errorf("math.pow(10, 100) should return overflow error, got %T: %v", result, result.Inspect())
+	intVal, ok = result.(*object.Integer)
+	if !ok {
+		t.Fatalf("math.pow(10, 100) should return Integer, got %T", result)
+	}
+	expected = new(big.Int).Exp(big.NewInt(10), big.NewInt(100), nil)
+	if intVal.Value.Cmp(expected) != 0 {
+		t.Errorf("math.pow(10, 100) = %s, want %s", intVal.Value.String(), expected.String())
 	}
 
 	// Valid power should still work
@@ -4871,9 +4979,8 @@ func TestArraysJoin(t *testing.T) {
 	if !ok {
 		t.Fatalf("expected String, got %T", result)
 	}
-	// The join function includes quotes around string elements
-	if strVal.Value != `"a","b","c"` {
-		t.Errorf("expected '\"a\",\"b\",\"c\"', got '%s'", strVal.Value)
+	if strVal.Value != "a,b,c" {
+		t.Errorf("expected 'a,b,c', got '%s'", strVal.Value)
 	}
 }
 
@@ -6763,13 +6870,14 @@ func TestMathModulo(t *testing.T) {
 	modFn := MathBuiltins["math.mod"].Fn
 
 	result := modFn(&object.Integer{Value: big.NewInt(10)}, &object.Integer{Value: big.NewInt(3)})
-	floatVal, ok := result.(*object.Float)
+	// math.mod returns Integer for integer inputs
+	intVal, ok := result.(*object.Integer)
 	if !ok {
-		t.Fatalf("expected Float, got %T", result)
+		t.Fatalf("expected Integer, got %T", result)
 	}
 
-	if floatVal.Value != 1 {
-		t.Errorf("expected 1, got %f", floatVal.Value)
+	if intVal.Value.Int64() != 1 {
+		t.Errorf("expected 1, got %d", intVal.Value.Int64())
 	}
 }
 

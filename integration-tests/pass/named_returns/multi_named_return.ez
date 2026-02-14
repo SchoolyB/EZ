@@ -1,0 +1,17 @@
+/* Test: Multiple named return variables with different types
+ * Expected: passes with output "25" and "Bob"
+ */
+
+import & use @std
+
+do getPersonInfo() -> (age int, name string) {
+    age = 25
+    name = "Bob"
+    return age, name
+}
+
+do main() {
+    temp a int, n string = getPersonInfo()
+    println(a)
+    println(n)
+}

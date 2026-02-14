@@ -4,37 +4,55 @@ package stdlib
 // Licensed under the MIT License. See LICENSE for details.
 
 import (
+	"fmt"
 	"math/big"
 	"strconv"
 	"time"
 
+	"github.com/marshallburns/ez/pkg/errors"
 	"github.com/marshallburns/ez/pkg/object"
 )
 
 // TimeBuiltins contains the time module functions
 var TimeBuiltins = map[string]*object.Builtin{
-	// Current time
+	// ============================================================================
+	// Current Time
+	// ============================================================================
+
+	// now returns the current Unix timestamp in seconds.
+	// Takes no arguments. Returns int.
 	"time.now": {
 		Fn: func(args ...object.Object) object.Object {
 			return &object.Integer{Value: big.NewInt(time.Now().Unix())}
 		},
 	},
+
+	// now_ms returns the current Unix timestamp in milliseconds.
+	// Takes no arguments. Returns int.
 	"time.now_ms": {
 		Fn: func(args ...object.Object) object.Object {
 			return &object.Integer{Value: big.NewInt(time.Now().UnixMilli())}
 		},
 	},
+
+	// now_ns returns the current Unix timestamp in nanoseconds.
+	// Takes no arguments. Returns int.
 	"time.now_ns": {
 		Fn: func(args ...object.Object) object.Object {
 			return &object.Integer{Value: big.NewInt(time.Now().UnixNano())}
 		},
 	},
 
-	// Sleep/delay
+	// ============================================================================
+	// Sleep/Delay
+	// ============================================================================
+
+	// sleep pauses execution for the specified number of seconds.
+	// Takes seconds (int or float). Returns nil.
 	"time.sleep": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 1 {
-				return &object.Error{Code: "E7001", Message: "time.sleep() takes exactly 1 argument (seconds)"}
+				return &object.Error{Code: "E7001", Message: fmt.Sprintf("%s takes exactly 1 argument (seconds)", errors.Ident("time.sleep()"))}
 			}
 			switch v := args[0].(type) {
 			case *object.Integer:
@@ -42,80 +60,109 @@ var TimeBuiltins = map[string]*object.Builtin{
 			case *object.Float:
 				time.Sleep(time.Duration(v.Value * float64(time.Second)))
 			default:
-				return &object.Error{Code: "E7005", Message: "time.sleep() requires a number"}
+				return &object.Error{Code: "E7005", Message: fmt.Sprintf("%s requires a %s", errors.Ident("time.sleep()"), errors.TypeExpected("number"))}
 			}
 			return object.NIL
 		},
 	},
+	// sleep_ms pauses execution for the specified number of milliseconds.
+	// Takes milliseconds (int). Returns nil.
 	"time.sleep_ms": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 1 {
-				return &object.Error{Code: "E7001", Message: "time.sleep_ms() takes exactly 1 argument (milliseconds)"}
+				return &object.Error{Code: "E7001", Message: fmt.Sprintf("%s takes exactly 1 argument (milliseconds)", errors.Ident("time.sleep_ms()"))}
 			}
 			ms, ok := args[0].(*object.Integer)
 			if !ok {
-				return &object.Error{Code: "E7004", Message: "time.sleep_ms() requires an integer"}
+				return &object.Error{Code: "E7004", Message: fmt.Sprintf("%s requires an %s", errors.Ident("time.sleep_ms()"), errors.TypeExpected("integer"))}
 			}
 			time.Sleep(time.Duration(ms.Value.Int64()) * time.Millisecond)
 			return object.NIL
 		},
 	},
 
-	// Time components
+	// ============================================================================
+	// Time Components
+	// ============================================================================
+
+	// year extracts the year from a timestamp.
+	// Takes optional timestamp. Returns int.
 	"time.year": {
 		Fn: func(args ...object.Object) object.Object {
 			t := getTime(args)
 			return &object.Integer{Value: big.NewInt(int64(t.Year()))}
 		},
 	},
+	// month extracts the month (1-12) from a timestamp.
+	// Takes optional timestamp. Returns int.
 	"time.month": {
 		Fn: func(args ...object.Object) object.Object {
 			t := getTime(args)
 			return &object.Integer{Value: big.NewInt(int64(t.Month()))}
 		},
 	},
+
+	// day extracts the day of month (1-31) from a timestamp.
+	// Takes optional timestamp. Returns int.
 	"time.day": {
 		Fn: func(args ...object.Object) object.Object {
 			t := getTime(args)
 			return &object.Integer{Value: big.NewInt(int64(t.Day()))}
 		},
 	},
+	// hour extracts the hour (0-23) from a timestamp.
+	// Takes optional timestamp. Returns int.
 	"time.hour": {
 		Fn: func(args ...object.Object) object.Object {
 			t := getTime(args)
 			return &object.Integer{Value: big.NewInt(int64(t.Hour()))}
 		},
 	},
+
+	// minute extracts the minute (0-59) from a timestamp.
+	// Takes optional timestamp. Returns int.
 	"time.minute": {
 		Fn: func(args ...object.Object) object.Object {
 			t := getTime(args)
 			return &object.Integer{Value: big.NewInt(int64(t.Minute()))}
 		},
 	},
+	// second extracts the second (0-59) from a timestamp.
+	// Takes optional timestamp. Returns int.
 	"time.second": {
 		Fn: func(args ...object.Object) object.Object {
 			t := getTime(args)
 			return &object.Integer{Value: big.NewInt(int64(t.Second()))}
 		},
 	},
+
+	// weekday extracts the day of week (0=Sunday, 6=Saturday).
+	// Takes optional timestamp. Returns int.
 	"time.weekday": {
 		Fn: func(args ...object.Object) object.Object {
 			t := getTime(args)
 			return &object.Integer{Value: big.NewInt(int64(t.Weekday()))}
 		},
 	},
+	// weekday_name returns the name of the weekday (e.g., "Monday").
+	// Takes optional timestamp. Returns string.
 	"time.weekday_name": {
 		Fn: func(args ...object.Object) object.Object {
 			t := getTime(args)
 			return &object.String{Value: t.Weekday().String()}
 		},
 	},
+
+	// month_name returns the name of the month (e.g., "January").
+	// Takes optional timestamp. Returns string.
 	"time.month_name": {
 		Fn: func(args ...object.Object) object.Object {
 			t := getTime(args)
 			return &object.String{Value: t.Month().String()}
 		},
 	},
+	// day_of_year extracts the day of year (1-366) from a timestamp.
+	// Takes optional timestamp. Returns int.
 	"time.day_of_year": {
 		Fn: func(args ...object.Object) object.Object {
 			t := getTime(args)
@@ -123,13 +170,16 @@ var TimeBuiltins = map[string]*object.Builtin{
 		},
 	},
 
+	// ============================================================================
 	// Formatting
-	// time.format(format) - formats current time
-	// time.format(format, timestamp) - formats given timestamp
+	// ============================================================================
+
+	// format formats a timestamp using a format string.
+	// Takes format and optional timestamp. Returns string.
 	"time.format": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) < 1 || len(args) > 2 {
-				return &object.Error{Code: "E7001", Message: "time.format() takes 1 or 2 arguments: format or format, timestamp"}
+				return &object.Error{Code: "E7001", Message: fmt.Sprintf("%s takes 1 or 2 arguments: format or format, timestamp", errors.Ident("time.format()"))}
 			}
 
 			var t time.Time
@@ -138,7 +188,7 @@ var TimeBuiltins = map[string]*object.Builtin{
 			// First argument is always the format string
 			str, ok := args[0].(*object.String)
 			if !ok {
-				return &object.Error{Code: "E7003", Message: "time.format() requires a string format as first argument"}
+				return &object.Error{Code: "E7003", Message: fmt.Sprintf("%s requires a %s format as first argument", errors.Ident("time.format()"), errors.TypeExpected("string"))}
 			}
 			format = str.Value
 
@@ -149,7 +199,7 @@ var TimeBuiltins = map[string]*object.Builtin{
 				// Second argument is the timestamp
 				ts, ok := args[1].(*object.Integer)
 				if !ok {
-					return &object.Error{Code: "E7004", Message: "time.format() requires an integer timestamp as second argument"}
+					return &object.Error{Code: "E7004", Message: fmt.Sprintf("%s requires an %s timestamp as second argument", errors.Ident("time.format()"), errors.TypeExpected("integer"))}
 				}
 				t = time.Unix(ts.Value.Int64(), 0)
 			}
@@ -158,18 +208,25 @@ var TimeBuiltins = map[string]*object.Builtin{
 			return &object.String{Value: t.Format(goFormat)}
 		},
 	},
+	// iso formats a timestamp as ISO 8601 (RFC 3339).
+	// Takes optional timestamp. Returns string.
 	"time.iso": {
 		Fn: func(args ...object.Object) object.Object {
 			t := getTime(args)
 			return &object.String{Value: t.Format(time.RFC3339)}
 		},
 	},
+
+	// date formats a timestamp as YYYY-MM-DD.
+	// Takes optional timestamp. Returns string.
 	"time.date": {
 		Fn: func(args ...object.Object) object.Object {
 			t := getTime(args)
 			return &object.String{Value: t.Format("2006-01-02")}
 		},
 	},
+	// clock formats a timestamp as HH:MM:SS.
+	// Takes optional timestamp. Returns string.
 	"time.clock": {
 		Fn: func(args ...object.Object) object.Object {
 			t := getTime(args)
@@ -177,69 +234,79 @@ var TimeBuiltins = map[string]*object.Builtin{
 		},
 	},
 
+	// ============================================================================
 	// Parsing
+	// ============================================================================
+
+	// parse parses a time string into a Unix timestamp.
+	// Takes string and format. Returns int or Error.
 	"time.parse": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 2 {
-				return &object.Error{Code: "E7001", Message: "time.parse() takes exactly 2 arguments (string, format)"}
+				return &object.Error{Code: "E7001", Message: fmt.Sprintf("%s takes exactly 2 arguments (string, format)", errors.Ident("time.parse()"))}
 			}
 			str, ok := args[0].(*object.String)
 			if !ok {
-				return &object.Error{Code: "E7003", Message: "time.parse() requires a string"}
+				return &object.Error{Code: "E7003", Message: fmt.Sprintf("%s requires a %s", errors.Ident("time.parse()"), errors.TypeExpected("string"))}
 			}
 			format, ok := args[1].(*object.String)
 			if !ok {
-				return &object.Error{Code: "E7003", Message: "time.parse() requires a format string"}
+				return &object.Error{Code: "E7003", Message: fmt.Sprintf("%s requires a format %s", errors.Ident("time.parse()"), errors.TypeExpected("string"))}
 			}
 
 			goFormat := convertFormat(format.Value)
 			t, err := time.Parse(goFormat, str.Value)
 			if err != nil {
-				return &object.Error{Code: "E11001", Message: "time.parse() failed: " + err.Error()}
+				return &object.Error{Code: "E11001", Message: fmt.Sprintf("%s failed: %s", errors.Ident("time.parse()"), err.Error())}
 			}
 			return &object.Integer{Value: big.NewInt(t.Unix())}
 		},
 	},
 
-	// Creating timestamps
+	// ============================================================================
+	// Creating Timestamps
+	// ============================================================================
+
+	// make creates a timestamp from year, month, day, and optional time.
+	// Takes year, month, day, and optional hour, minute, second. Returns int.
 	"time.make": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) < 3 || len(args) > 6 {
-				return &object.Error{Code: "E7001", Message: "time.make() takes 3 to 6 arguments (year, month, day, [hour, minute, second])"}
+				return &object.Error{Code: "E7001", Message: fmt.Sprintf("%s takes 3 to 6 arguments (year, month, day, [hour, minute, second])", errors.Ident("time.make()"))}
 			}
 
 			year, ok := args[0].(*object.Integer)
 			if !ok {
-				return &object.Error{Code: "E7004", Message: "time.make() requires integer arguments"}
+				return &object.Error{Code: "E7004", Message: fmt.Sprintf("%s requires %s arguments", errors.Ident("time.make()"), errors.TypeExpected("integer"))}
 			}
 			month, ok := args[1].(*object.Integer)
 			if !ok {
-				return &object.Error{Code: "E7004", Message: "time.make() requires integer arguments"}
+				return &object.Error{Code: "E7004", Message: fmt.Sprintf("%s requires %s arguments", errors.Ident("time.make()"), errors.TypeExpected("integer"))}
 			}
 			day, ok := args[2].(*object.Integer)
 			if !ok {
-				return &object.Error{Code: "E7004", Message: "time.make() requires integer arguments"}
+				return &object.Error{Code: "E7004", Message: fmt.Sprintf("%s requires %s arguments", errors.Ident("time.make()"), errors.TypeExpected("integer"))}
 			}
 
 			hour, minute, second := 0, 0, 0
 			if len(args) > 3 {
 				h, ok := args[3].(*object.Integer)
 				if !ok {
-					return &object.Error{Code: "E7004", Message: "time.make() requires integer arguments"}
+					return &object.Error{Code: "E7004", Message: fmt.Sprintf("%s requires %s arguments", errors.Ident("time.make()"), errors.TypeExpected("integer"))}
 				}
 				hour = int(h.Value.Int64())
 			}
 			if len(args) > 4 {
 				m, ok := args[4].(*object.Integer)
 				if !ok {
-					return &object.Error{Code: "E7004", Message: "time.make() requires integer arguments"}
+					return &object.Error{Code: "E7004", Message: fmt.Sprintf("%s requires %s arguments", errors.Ident("time.make()"), errors.TypeExpected("integer"))}
 				}
 				minute = int(m.Value.Int64())
 			}
 			if len(args) > 5 {
 				s, ok := args[5].(*object.Integer)
 				if !ok {
-					return &object.Error{Code: "E7004", Message: "time.make() requires integer arguments"}
+					return &object.Error{Code: "E7004", Message: fmt.Sprintf("%s requires %s arguments", errors.Ident("time.make()"), errors.TypeExpected("integer"))}
 				}
 				second = int(s.Value.Int64())
 			}
@@ -250,104 +317,119 @@ var TimeBuiltins = map[string]*object.Builtin{
 		},
 	},
 
+	// ============================================================================
 	// Arithmetic
+	// ============================================================================
+
+	// add_seconds adds seconds to a timestamp.
+	// Takes timestamp and seconds. Returns int.
 	"time.add_seconds": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 2 {
-				return &object.Error{Code: "E7001", Message: "time.add_seconds() takes exactly 2 arguments"}
+				return &object.Error{Code: "E7001", Message: fmt.Sprintf("%s takes exactly 2 arguments", errors.Ident("time.add_seconds()"))}
 			}
 			ts, ok := args[0].(*object.Integer)
 			if !ok {
-				return &object.Error{Code: "E7004", Message: "time.add_seconds() requires integer timestamp"}
+				return &object.Error{Code: "E7004", Message: fmt.Sprintf("%s requires %s timestamp", errors.Ident("time.add_seconds()"), errors.TypeExpected("integer"))}
 			}
 			secs, ok := args[1].(*object.Integer)
 			if !ok {
-				return &object.Error{Code: "E7004", Message: "time.add_seconds() requires integer seconds"}
+				return &object.Error{Code: "E7004", Message: fmt.Sprintf("%s requires %s seconds", errors.Ident("time.add_seconds()"), errors.TypeExpected("integer"))}
 			}
 			result := new(big.Int).Add(ts.Value, secs.Value)
 			return &object.Integer{Value: result}
 		},
 	},
+	// add_minutes adds minutes to a timestamp.
+	// Takes timestamp and minutes. Returns int.
 	"time.add_minutes": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 2 {
-				return &object.Error{Code: "E7001", Message: "time.add_minutes() takes exactly 2 arguments"}
+				return &object.Error{Code: "E7001", Message: fmt.Sprintf("%s takes exactly 2 arguments", errors.Ident("time.add_minutes()"))}
 			}
 			ts, ok := args[0].(*object.Integer)
 			if !ok {
-				return &object.Error{Code: "E7004", Message: "time.add_minutes() requires integer timestamp"}
+				return &object.Error{Code: "E7004", Message: fmt.Sprintf("%s requires %s timestamp", errors.Ident("time.add_minutes()"), errors.TypeExpected("integer"))}
 			}
 			mins, ok := args[1].(*object.Integer)
 			if !ok {
-				return &object.Error{Code: "E7004", Message: "time.add_minutes() requires integer minutes"}
+				return &object.Error{Code: "E7004", Message: fmt.Sprintf("%s requires %s minutes", errors.Ident("time.add_minutes()"), errors.TypeExpected("integer"))}
 			}
 			result := new(big.Int).Add(ts.Value, new(big.Int).Mul(mins.Value, big.NewInt(60)))
 			return &object.Integer{Value: result}
 		},
 	},
+	// add_hours adds hours to a timestamp.
+	// Takes timestamp and hours. Returns int.
 	"time.add_hours": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 2 {
-				return &object.Error{Code: "E7001", Message: "time.add_hours() takes exactly 2 arguments"}
+				return &object.Error{Code: "E7001", Message: fmt.Sprintf("%s takes exactly 2 arguments", errors.Ident("time.add_hours()"))}
 			}
 			ts, ok := args[0].(*object.Integer)
 			if !ok {
-				return &object.Error{Code: "E7004", Message: "time.add_hours() requires integer timestamp"}
+				return &object.Error{Code: "E7004", Message: fmt.Sprintf("%s requires %s timestamp", errors.Ident("time.add_hours()"), errors.TypeExpected("integer"))}
 			}
 			hours, ok := args[1].(*object.Integer)
 			if !ok {
-				return &object.Error{Code: "E7004", Message: "time.add_hours() requires integer hours"}
+				return &object.Error{Code: "E7004", Message: fmt.Sprintf("%s requires %s hours", errors.Ident("time.add_hours()"), errors.TypeExpected("integer"))}
 			}
 			result := new(big.Int).Add(ts.Value, new(big.Int).Mul(hours.Value, big.NewInt(3600)))
 			return &object.Integer{Value: result}
 		},
 	},
+	// add_days adds days to a timestamp.
+	// Takes timestamp and days. Returns int.
 	"time.add_days": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 2 {
-				return &object.Error{Code: "E7001", Message: "time.add_days() takes exactly 2 arguments"}
+				return &object.Error{Code: "E7001", Message: fmt.Sprintf("%s takes exactly 2 arguments", errors.Ident("time.add_days()"))}
 			}
 			ts, ok := args[0].(*object.Integer)
 			if !ok {
-				return &object.Error{Code: "E7004", Message: "time.add_days() requires integer timestamp"}
+				return &object.Error{Code: "E7004", Message: fmt.Sprintf("%s requires %s timestamp", errors.Ident("time.add_days()"), errors.TypeExpected("integer"))}
 			}
 			days, ok := args[1].(*object.Integer)
 			if !ok {
-				return &object.Error{Code: "E7004", Message: "time.add_days() requires integer days"}
+				return &object.Error{Code: "E7004", Message: fmt.Sprintf("%s requires %s days", errors.Ident("time.add_days()"), errors.TypeExpected("integer"))}
 			}
 			result := new(big.Int).Add(ts.Value, new(big.Int).Mul(days.Value, big.NewInt(86400)))
 			return &object.Integer{Value: result}
 		},
 	},
+	// add_weeks adds weeks to a timestamp.
+	// Takes timestamp and weeks. Returns int.
 	"time.add_weeks": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 2 {
-				return &object.Error{Code: "E7001", Message: "time.add_weeks() takes exactly 2 arguments"}
+				return &object.Error{Code: "E7001", Message: fmt.Sprintf("%s takes exactly 2 arguments", errors.Ident("time.add_weeks()"))}
 			}
 			ts, ok := args[0].(*object.Integer)
 			if !ok {
-				return &object.Error{Code: "E7004", Message: "time.add_weeks() requires integer timestamp"}
+				return &object.Error{Code: "E7004", Message: fmt.Sprintf("%s requires %s timestamp", errors.Ident("time.add_weeks()"), errors.TypeExpected("integer"))}
 			}
 			weeks, ok := args[1].(*object.Integer)
 			if !ok {
-				return &object.Error{Code: "E7004", Message: "time.add_weeks() requires integer weeks"}
+				return &object.Error{Code: "E7004", Message: fmt.Sprintf("%s requires %s weeks", errors.Ident("time.add_weeks()"), errors.TypeExpected("integer"))}
 			}
 			result := new(big.Int).Add(ts.Value, new(big.Int).Mul(weeks.Value, big.NewInt(604800)))
 			return &object.Integer{Value: result}
 		},
 	},
+	// add_months adds months to a timestamp (handles month-end correctly).
+	// Takes timestamp and months. Returns int.
 	"time.add_months": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 2 {
-				return &object.Error{Code: "E7001", Message: "time.add_months() takes exactly 2 arguments"}
+				return &object.Error{Code: "E7001", Message: fmt.Sprintf("%s takes exactly 2 arguments", errors.Ident("time.add_months()"))}
 			}
 			ts, ok := args[0].(*object.Integer)
 			if !ok {
-				return &object.Error{Code: "E7004", Message: "time.add_months() requires integer timestamp"}
+				return &object.Error{Code: "E7004", Message: fmt.Sprintf("%s requires %s timestamp", errors.Ident("time.add_months()"), errors.TypeExpected("integer"))}
 			}
 			months, ok := args[1].(*object.Integer)
 			if !ok {
-				return &object.Error{Code: "E7004", Message: "time.add_months() requires integer months"}
+				return &object.Error{Code: "E7004", Message: fmt.Sprintf("%s requires %s months", errors.Ident("time.add_months()"), errors.TypeExpected("integer"))}
 			}
 			t := time.Unix(ts.Value.Int64(), 0)
 			originalDay := t.Day()
@@ -380,18 +462,20 @@ var TimeBuiltins = map[string]*object.Builtin{
 			return &object.Integer{Value: big.NewInt(result.Unix())}
 		},
 	},
+	// add_years adds years to a timestamp.
+	// Takes timestamp and years. Returns int.
 	"time.add_years": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 2 {
-				return &object.Error{Code: "E7001", Message: "time.add_years() takes exactly 2 arguments"}
+				return &object.Error{Code: "E7001", Message: fmt.Sprintf("%s takes exactly 2 arguments", errors.Ident("time.add_years()"))}
 			}
 			ts, ok := args[0].(*object.Integer)
 			if !ok {
-				return &object.Error{Code: "E7004", Message: "time.add_years() requires integer timestamp"}
+				return &object.Error{Code: "E7004", Message: fmt.Sprintf("%s requires %s timestamp", errors.Ident("time.add_years()"), errors.TypeExpected("integer"))}
 			}
 			years, ok := args[1].(*object.Integer)
 			if !ok {
-				return &object.Error{Code: "E7004", Message: "time.add_years() requires integer years"}
+				return &object.Error{Code: "E7004", Message: fmt.Sprintf("%s requires %s years", errors.Ident("time.add_years()"), errors.TypeExpected("integer"))}
 			}
 			t := time.Unix(ts.Value.Int64(), 0)
 			t = t.AddDate(int(years.Value.Int64()), 0, 0)
@@ -399,89 +483,105 @@ var TimeBuiltins = map[string]*object.Builtin{
 		},
 	},
 
+	// ============================================================================
 	// Differences
+	// ============================================================================
+
+	// diff calculates the difference in seconds between two timestamps.
+	// Takes two timestamps. Returns int.
 	"time.diff": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 2 {
-				return &object.Error{Code: "E7001", Message: "time.diff() takes exactly 2 arguments"}
+				return &object.Error{Code: "E7001", Message: fmt.Sprintf("%s takes exactly 2 arguments", errors.Ident("time.diff()"))}
 			}
 			ts1, ok := args[0].(*object.Integer)
 			if !ok {
-				return &object.Error{Code: "E7004", Message: "time.diff() requires integer timestamps"}
+				return &object.Error{Code: "E7004", Message: fmt.Sprintf("%s requires %s timestamps", errors.Ident("time.diff()"), errors.TypeExpected("integer"))}
 			}
 			ts2, ok := args[1].(*object.Integer)
 			if !ok {
-				return &object.Error{Code: "E7004", Message: "time.diff() requires integer timestamps"}
+				return &object.Error{Code: "E7004", Message: fmt.Sprintf("%s requires %s timestamps", errors.Ident("time.diff()"), errors.TypeExpected("integer"))}
 			}
 			result := new(big.Int).Sub(ts1.Value, ts2.Value)
 			return &object.Integer{Value: result}
 		},
 	},
+	// diff_days calculates the difference in days between two timestamps.
+	// Takes two timestamps. Returns int.
 	"time.diff_days": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 2 {
-				return &object.Error{Code: "E7001", Message: "time.diff_days() takes exactly 2 arguments"}
+				return &object.Error{Code: "E7001", Message: fmt.Sprintf("%s takes exactly 2 arguments", errors.Ident("time.diff_days()"))}
 			}
 			ts1, ok := args[0].(*object.Integer)
 			if !ok {
-				return &object.Error{Code: "E7004", Message: "time.diff_days() requires integer timestamps"}
+				return &object.Error{Code: "E7004", Message: fmt.Sprintf("%s requires %s timestamps", errors.Ident("time.diff_days()"), errors.TypeExpected("integer"))}
 			}
 			ts2, ok := args[1].(*object.Integer)
 			if !ok {
-				return &object.Error{Code: "E7004", Message: "time.diff_days() requires integer timestamps"}
+				return &object.Error{Code: "E7004", Message: fmt.Sprintf("%s requires %s timestamps", errors.Ident("time.diff_days()"), errors.TypeExpected("integer"))}
 			}
 			result := new(big.Int).Quo(new(big.Int).Sub(ts1.Value, ts2.Value), big.NewInt(86400))
 			return &object.Integer{Value: result}
 		},
 	},
+	// diff_hours calculates the difference in hours between two timestamps.
+	// Takes two timestamps. Returns int.
 	"time.diff_hours": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 2 {
-				return &object.Error{Code: "E7001", Message: "time.diff_hours() takes exactly 2 arguments"}
+				return &object.Error{Code: "E7001", Message: fmt.Sprintf("%s takes exactly 2 arguments", errors.Ident("time.diff_hours()"))}
 			}
 			ts1, ok := args[0].(*object.Integer)
 			if !ok {
-				return &object.Error{Code: "E7004", Message: "time.diff_hours() requires integer timestamps"}
+				return &object.Error{Code: "E7004", Message: fmt.Sprintf("%s requires %s timestamps", errors.Ident("time.diff_hours()"), errors.TypeExpected("integer"))}
 			}
 			ts2, ok := args[1].(*object.Integer)
 			if !ok {
-				return &object.Error{Code: "E7004", Message: "time.diff_hours() requires integer timestamps"}
+				return &object.Error{Code: "E7004", Message: fmt.Sprintf("%s requires %s timestamps", errors.Ident("time.diff_hours()"), errors.TypeExpected("integer"))}
 			}
 			result := new(big.Int).Quo(new(big.Int).Sub(ts1.Value, ts2.Value), big.NewInt(3600))
 			return &object.Integer{Value: result}
 		},
 	},
+	// diff_minutes calculates the difference in minutes between two timestamps.
+	// Takes two timestamps. Returns int.
 	"time.diff_minutes": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 2 {
-				return &object.Error{Code: "E7001", Message: "time.diff_minutes() takes exactly 2 arguments"}
+				return &object.Error{Code: "E7001", Message: fmt.Sprintf("%s takes exactly 2 arguments", errors.Ident("time.diff_minutes()"))}
 			}
 			ts1, ok := args[0].(*object.Integer)
 			if !ok {
-				return &object.Error{Code: "E7004", Message: "time.diff_minutes() requires integer timestamps"}
+				return &object.Error{Code: "E7004", Message: fmt.Sprintf("%s requires %s timestamps", errors.Ident("time.diff_minutes()"), errors.TypeExpected("integer"))}
 			}
 			ts2, ok := args[1].(*object.Integer)
 			if !ok {
-				return &object.Error{Code: "E7004", Message: "time.diff_minutes() requires integer timestamps"}
+				return &object.Error{Code: "E7004", Message: fmt.Sprintf("%s requires %s timestamps", errors.Ident("time.diff_minutes()"), errors.TypeExpected("integer"))}
 			}
 			result := new(big.Int).Quo(new(big.Int).Sub(ts1.Value, ts2.Value), big.NewInt(60))
 			return &object.Integer{Value: result}
 		},
 	},
 
+	// ============================================================================
 	// Comparisons
+	// ============================================================================
+
+	// is_before checks if the first timestamp is before the second.
+	// Takes two timestamps. Returns bool.
 	"time.is_before": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 2 {
-				return &object.Error{Code: "E7001", Message: "time.is_before() takes exactly 2 arguments"}
+				return &object.Error{Code: "E7001", Message: fmt.Sprintf("%s takes exactly 2 arguments", errors.Ident("time.is_before()"))}
 			}
 			ts1, ok := args[0].(*object.Integer)
 			if !ok {
-				return &object.Error{Code: "E7004", Message: "time.is_before() requires integer timestamps"}
+				return &object.Error{Code: "E7004", Message: fmt.Sprintf("%s requires %s timestamps", errors.Ident("time.is_before()"), errors.TypeExpected("integer"))}
 			}
 			ts2, ok := args[1].(*object.Integer)
 			if !ok {
-				return &object.Error{Code: "E7004", Message: "time.is_before() requires integer timestamps"}
+				return &object.Error{Code: "E7004", Message: fmt.Sprintf("%s requires %s timestamps", errors.Ident("time.is_before()"), errors.TypeExpected("integer"))}
 			}
 			if ts1.Value.Cmp(ts2.Value) < 0 {
 				return object.TRUE
@@ -489,18 +589,20 @@ var TimeBuiltins = map[string]*object.Builtin{
 			return object.FALSE
 		},
 	},
+	// is_after checks if the first timestamp is after the second.
+	// Takes two timestamps. Returns bool.
 	"time.is_after": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 2 {
-				return &object.Error{Code: "E7001", Message: "time.is_after() takes exactly 2 arguments"}
+				return &object.Error{Code: "E7001", Message: fmt.Sprintf("%s takes exactly 2 arguments", errors.Ident("time.is_after()"))}
 			}
 			ts1, ok := args[0].(*object.Integer)
 			if !ok {
-				return &object.Error{Code: "E7004", Message: "time.is_after() requires integer timestamps"}
+				return &object.Error{Code: "E7004", Message: fmt.Sprintf("%s requires %s timestamps", errors.Ident("time.is_after()"), errors.TypeExpected("integer"))}
 			}
 			ts2, ok := args[1].(*object.Integer)
 			if !ok {
-				return &object.Error{Code: "E7004", Message: "time.is_after() requires integer timestamps"}
+				return &object.Error{Code: "E7004", Message: fmt.Sprintf("%s requires %s timestamps", errors.Ident("time.is_after()"), errors.TypeExpected("integer"))}
 			}
 			if ts1.Value.Cmp(ts2.Value) > 0 {
 				return object.TRUE
@@ -509,13 +611,21 @@ var TimeBuiltins = map[string]*object.Builtin{
 		},
 	},
 
+	// ============================================================================
 	// Timezone
+	// ============================================================================
+
+	// timezone returns the local timezone name (e.g., "EST").
+	// Takes no arguments. Returns string.
 	"time.timezone": {
 		Fn: func(args ...object.Object) object.Object {
 			name, _ := time.Now().Zone()
 			return &object.String{Value: name}
 		},
 	},
+
+	// utc_offset returns the local UTC offset in seconds.
+	// Takes no arguments. Returns int.
 	"time.utc_offset": {
 		Fn: func(args ...object.Object) object.Object {
 			_, offset := time.Now().Zone()
@@ -523,7 +633,12 @@ var TimeBuiltins = map[string]*object.Builtin{
 		},
 	},
 
-	// Special checks
+	// ============================================================================
+	// Special Checks
+	// ============================================================================
+
+	// is_leap_year checks if a year is a leap year.
+	// Takes optional year. Returns bool.
 	"time.is_leap_year": {
 		Fn: func(args ...object.Object) object.Object {
 			var year int
@@ -532,7 +647,7 @@ var TimeBuiltins = map[string]*object.Builtin{
 			} else {
 				y, ok := args[0].(*object.Integer)
 				if !ok {
-					return &object.Error{Code: "E7004", Message: "time.is_leap_year() requires an integer year"}
+					return &object.Error{Code: "E7004", Message: fmt.Sprintf("%s requires an %s year", errors.Ident("time.is_leap_year()"), errors.TypeExpected("integer"))}
 				}
 				year = int(y.Value.Int64())
 			}
@@ -542,6 +657,8 @@ var TimeBuiltins = map[string]*object.Builtin{
 			return object.FALSE
 		},
 	},
+	// days_in_month returns the number of days in a month.
+	// Takes optional year and month. Returns int.
 	"time.days_in_month": {
 		Fn: func(args ...object.Object) object.Object {
 			var year, month int
@@ -552,16 +669,16 @@ var TimeBuiltins = map[string]*object.Builtin{
 			} else if len(args) == 2 {
 				y, ok := args[0].(*object.Integer)
 				if !ok {
-					return &object.Error{Code: "E7004", Message: "time.days_in_month() requires integer arguments"}
+					return &object.Error{Code: "E7004", Message: fmt.Sprintf("%s requires %s arguments", errors.Ident("time.days_in_month()"), errors.TypeExpected("integer"))}
 				}
 				m, ok := args[1].(*object.Integer)
 				if !ok {
-					return &object.Error{Code: "E7004", Message: "time.days_in_month() requires integer arguments"}
+					return &object.Error{Code: "E7004", Message: fmt.Sprintf("%s requires %s arguments", errors.Ident("time.days_in_month()"), errors.TypeExpected("integer"))}
 				}
 				year = int(y.Value.Int64())
 				month = int(m.Value.Int64())
 			} else {
-				return &object.Error{Code: "E7001", Message: "time.days_in_month() takes 0 or 2 arguments"}
+				return &object.Error{Code: "E7001", Message: fmt.Sprintf("%s takes 0 or 2 arguments", errors.Ident("time.days_in_month()"))}
 			}
 
 			t := time.Date(year, time.Month(month+1), 0, 0, 0, 0, 0, time.UTC)
@@ -569,7 +686,12 @@ var TimeBuiltins = map[string]*object.Builtin{
 		},
 	},
 
-	// Start/end of periods
+	// ============================================================================
+	// Start/End of Periods
+	// ============================================================================
+
+	// start_of_day returns the timestamp for midnight of that day.
+	// Takes optional timestamp. Returns int.
 	"time.start_of_day": {
 		Fn: func(args ...object.Object) object.Object {
 			t := getTime(args)
@@ -577,6 +699,8 @@ var TimeBuiltins = map[string]*object.Builtin{
 			return &object.Integer{Value: big.NewInt(start.Unix())}
 		},
 	},
+	// end_of_day returns the timestamp for 23:59:59 of that day.
+	// Takes optional timestamp. Returns int.
 	"time.end_of_day": {
 		Fn: func(args ...object.Object) object.Object {
 			t := getTime(args)
@@ -584,6 +708,9 @@ var TimeBuiltins = map[string]*object.Builtin{
 			return &object.Integer{Value: big.NewInt(end.Unix())}
 		},
 	},
+
+	// start_of_month returns the timestamp for the first day of the month.
+	// Takes optional timestamp. Returns int.
 	"time.start_of_month": {
 		Fn: func(args ...object.Object) object.Object {
 			t := getTime(args)
@@ -591,6 +718,8 @@ var TimeBuiltins = map[string]*object.Builtin{
 			return &object.Integer{Value: big.NewInt(start.Unix())}
 		},
 	},
+	// end_of_month returns the timestamp for the last day of the month.
+	// Takes optional timestamp. Returns int.
 	"time.end_of_month": {
 		Fn: func(args ...object.Object) object.Object {
 			t := getTime(args)
@@ -598,6 +727,9 @@ var TimeBuiltins = map[string]*object.Builtin{
 			return &object.Integer{Value: big.NewInt(end.Unix())}
 		},
 	},
+
+	// start_of_year returns the timestamp for January 1st of that year.
+	// Takes optional timestamp. Returns int.
 	"time.start_of_year": {
 		Fn: func(args ...object.Object) object.Object {
 			t := getTime(args)
@@ -605,6 +737,8 @@ var TimeBuiltins = map[string]*object.Builtin{
 			return &object.Integer{Value: big.NewInt(start.Unix())}
 		},
 	},
+	// end_of_year returns the timestamp for December 31st of that year.
+	// Takes optional timestamp. Returns int.
 	"time.end_of_year": {
 		Fn: func(args ...object.Object) object.Object {
 			t := getTime(args)
@@ -613,7 +747,12 @@ var TimeBuiltins = map[string]*object.Builtin{
 		},
 	},
 
-	// Calendar utilities
+	// ============================================================================
+	// Calendar Utilities
+	// ============================================================================
+
+	// quarter returns the quarter (1-4) for a timestamp.
+	// Takes optional timestamp. Returns int.
 	"time.quarter": {
 		Fn: func(args ...object.Object) object.Object {
 			t := getTime(args)
@@ -622,6 +761,8 @@ var TimeBuiltins = map[string]*object.Builtin{
 			return &object.Integer{Value: big.NewInt(int64(quarter))}
 		},
 	},
+	// week_of_year returns the ISO week number (1-53).
+	// Takes optional timestamp. Returns int.
 	"time.week_of_year": {
 		Fn: func(args ...object.Object) object.Object {
 			t := getTime(args)
@@ -630,63 +771,83 @@ var TimeBuiltins = map[string]*object.Builtin{
 		},
 	},
 
-	// Timing/benchmarking
+	// ============================================================================
+	// Timing/Benchmarking
+	// ============================================================================
+
+	// tick returns a high-resolution timestamp in nanoseconds for timing.
+	// Takes no arguments. Returns int.
 	"time.tick": {
 		Fn: func(args ...object.Object) object.Object {
 			return &object.Integer{Value: big.NewInt(time.Now().UnixNano())}
 		},
 	},
+	// elapsed_ms calculates elapsed time in milliseconds since a tick.
+	// Takes a start tick. Returns float.
 	"time.elapsed_ms": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 1 {
-				return &object.Error{Code: "E7001", Message: "time.elapsed_ms() takes exactly 1 argument (start tick)"}
+				return &object.Error{Code: "E7001", Message: fmt.Sprintf("%s takes exactly 1 argument (start tick)", errors.Ident("time.elapsed_ms()"))}
 			}
 			start, ok := args[0].(*object.Integer)
 			if !ok {
-				return &object.Error{Code: "E7004", Message: "time.elapsed_ms() requires integer tick"}
+				return &object.Error{Code: "E7004", Message: fmt.Sprintf("%s requires %s tick", errors.Ident("time.elapsed_ms()"), errors.TypeExpected("integer"))}
 			}
 			elapsed := time.Now().UnixNano() - start.Value.Int64()
 			return &object.Float{Value: float64(elapsed) / 1e6}
 		},
 	},
 
+	// ============================================================================
 	// Weekday Constants
+	// ============================================================================
+
+	// SUNDAY weekday constant (0).
 	"time.SUNDAY": {
 		Fn: func(args ...object.Object) object.Object {
 			return &object.Integer{Value: big.NewInt(0)}
 		},
 		IsConstant: true,
 	},
+	// MONDAY weekday constant (1).
 	"time.MONDAY": {
 		Fn: func(args ...object.Object) object.Object {
 			return &object.Integer{Value: big.NewInt(1)}
 		},
 		IsConstant: true,
 	},
+
+	// TUESDAY weekday constant (2).
 	"time.TUESDAY": {
 		Fn: func(args ...object.Object) object.Object {
 			return &object.Integer{Value: big.NewInt(2)}
 		},
 		IsConstant: true,
 	},
+	// WEDNESDAY weekday constant (3).
 	"time.WEDNESDAY": {
 		Fn: func(args ...object.Object) object.Object {
 			return &object.Integer{Value: big.NewInt(3)}
 		},
 		IsConstant: true,
 	},
+
+	// THURSDAY weekday constant (4).
 	"time.THURSDAY": {
 		Fn: func(args ...object.Object) object.Object {
 			return &object.Integer{Value: big.NewInt(4)}
 		},
 		IsConstant: true,
 	},
+	// FRIDAY weekday constant (5).
 	"time.FRIDAY": {
 		Fn: func(args ...object.Object) object.Object {
 			return &object.Integer{Value: big.NewInt(5)}
 		},
 		IsConstant: true,
 	},
+
+	// SATURDAY weekday constant (6).
 	"time.SATURDAY": {
 		Fn: func(args ...object.Object) object.Object {
 			return &object.Integer{Value: big.NewInt(6)}
@@ -694,73 +855,93 @@ var TimeBuiltins = map[string]*object.Builtin{
 		IsConstant: true,
 	},
 
+	// ============================================================================
 	// Month Constants
+	// ============================================================================
+
+	// JANUARY month constant (1).
 	"time.JANUARY": {
 		Fn: func(args ...object.Object) object.Object {
 			return &object.Integer{Value: big.NewInt(1)}
 		},
 		IsConstant: true,
 	},
+	// FEBRUARY month constant (2).
 	"time.FEBRUARY": {
 		Fn: func(args ...object.Object) object.Object {
 			return &object.Integer{Value: big.NewInt(2)}
 		},
 		IsConstant: true,
 	},
+
+	// MARCH month constant (3).
 	"time.MARCH": {
 		Fn: func(args ...object.Object) object.Object {
 			return &object.Integer{Value: big.NewInt(3)}
 		},
 		IsConstant: true,
 	},
+	// APRIL month constant (4).
 	"time.APRIL": {
 		Fn: func(args ...object.Object) object.Object {
 			return &object.Integer{Value: big.NewInt(4)}
 		},
 		IsConstant: true,
 	},
+
+	// MAY month constant (5).
 	"time.MAY": {
 		Fn: func(args ...object.Object) object.Object {
 			return &object.Integer{Value: big.NewInt(5)}
 		},
 		IsConstant: true,
 	},
+	// JUNE month constant (6).
 	"time.JUNE": {
 		Fn: func(args ...object.Object) object.Object {
 			return &object.Integer{Value: big.NewInt(6)}
 		},
 		IsConstant: true,
 	},
+
+	// JULY month constant (7).
 	"time.JULY": {
 		Fn: func(args ...object.Object) object.Object {
 			return &object.Integer{Value: big.NewInt(7)}
 		},
 		IsConstant: true,
 	},
+	// AUGUST month constant (8).
 	"time.AUGUST": {
 		Fn: func(args ...object.Object) object.Object {
 			return &object.Integer{Value: big.NewInt(8)}
 		},
 		IsConstant: true,
 	},
+
+	// SEPTEMBER month constant (9).
 	"time.SEPTEMBER": {
 		Fn: func(args ...object.Object) object.Object {
 			return &object.Integer{Value: big.NewInt(9)}
 		},
 		IsConstant: true,
 	},
+	// OCTOBER month constant (10).
 	"time.OCTOBER": {
 		Fn: func(args ...object.Object) object.Object {
 			return &object.Integer{Value: big.NewInt(10)}
 		},
 		IsConstant: true,
 	},
+
+	// NOVEMBER month constant (11).
 	"time.NOVEMBER": {
 		Fn: func(args ...object.Object) object.Object {
 			return &object.Integer{Value: big.NewInt(11)}
 		},
 		IsConstant: true,
 	},
+	// DECEMBER month constant (12).
 	"time.DECEMBER": {
 		Fn: func(args ...object.Object) object.Object {
 			return &object.Integer{Value: big.NewInt(12)}
@@ -768,31 +949,41 @@ var TimeBuiltins = map[string]*object.Builtin{
 		IsConstant: true,
 	},
 
+	// ============================================================================
 	// Duration Constants (in seconds)
+	// ============================================================================
+
+	// SECOND duration constant (1 second).
 	"time.SECOND": {
 		Fn: func(args ...object.Object) object.Object {
 			return &object.Integer{Value: big.NewInt(1)}
 		},
 		IsConstant: true,
 	},
+	// MINUTE duration constant (60 seconds).
 	"time.MINUTE": {
 		Fn: func(args ...object.Object) object.Object {
 			return &object.Integer{Value: big.NewInt(60)}
 		},
 		IsConstant: true,
 	},
+
+	// HOUR duration constant (3600 seconds).
 	"time.HOUR": {
 		Fn: func(args ...object.Object) object.Object {
 			return &object.Integer{Value: big.NewInt(3600)}
 		},
 		IsConstant: true,
 	},
+	// DAY duration constant (86400 seconds).
 	"time.DAY": {
 		Fn: func(args ...object.Object) object.Object {
 			return &object.Integer{Value: big.NewInt(86400)}
 		},
 		IsConstant: true,
 	},
+
+	// WEEK duration constant (604800 seconds).
 	"time.WEEK": {
 		Fn: func(args ...object.Object) object.Object {
 			return &object.Integer{Value: big.NewInt(604800)}
@@ -800,28 +991,36 @@ var TimeBuiltins = map[string]*object.Builtin{
 		IsConstant: true,
 	},
 
+	// ============================================================================
+	// Unix Conversion
+	// ============================================================================
+
+	// from_unix converts a Unix timestamp (seconds) to a timestamp.
+	// Takes seconds. Returns int.
 	"time.from_unix": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 1 {
-				return &object.Error{Code: "E7001", Message: "time.from_unix() takes exactly 1 argument"}
+				return &object.Error{Code: "E7001", Message: fmt.Sprintf("%s takes exactly 1 argument", errors.Ident("time.from_unix()"))}
 			}
 			secs, ok := args[0].(*object.Integer)
 			if !ok {
-				return &object.Error{Code: "E7004", Message: "time.from_unix() requires an integer"}
+				return &object.Error{Code: "E7004", Message: fmt.Sprintf("%s requires an %s", errors.Ident("time.from_unix()"), errors.TypeExpected("integer"))}
 			}
 			t := time.Unix(secs.Value.Int64(), 0)
 			return &object.Integer{Value: big.NewInt(t.Unix())}
 		},
 	},
 
+	// from_unix_ms converts a Unix timestamp (milliseconds) to a timestamp.
+	// Takes milliseconds. Returns int.
 	"time.from_unix_ms": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 1 {
-				return &object.Error{Code: "E7001", Message: "time.from_unix_ms() takes exactly 1 argument"}
+				return &object.Error{Code: "E7001", Message: fmt.Sprintf("%s takes exactly 1 argument", errors.Ident("time.from_unix_ms()"))}
 			}
 			ms, ok := args[0].(*object.Integer)
 			if !ok {
-				return &object.Error{Code: "E7004", Message: "time.from_unix_ms() requires an integer"}
+				return &object.Error{Code: "E7004", Message: fmt.Sprintf("%s requires an %s", errors.Ident("time.from_unix_ms()"), errors.TypeExpected("integer"))}
 			}
 
 			t := time.UnixMilli(ms.Value.Int64())
@@ -829,36 +1028,46 @@ var TimeBuiltins = map[string]*object.Builtin{
 		},
 	},
 
+	// to_unix converts a timestamp to Unix seconds.
+	// Takes timestamp. Returns int.
 	"time.to_unix": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 1 {
-				return &object.Error{Code: "E7001", Message: "time.to_unix() takes exactly 1 argument"}
+				return &object.Error{Code: "E7001", Message: fmt.Sprintf("%s takes exactly 1 argument", errors.Ident("time.to_unix()"))}
 			}
 			ts, ok := args[0].(*object.Integer)
 
 			if !ok {
-				return &object.Error{Code: "E7004", Message: "time.to_unix() requires an integer timestamp"}
+				return &object.Error{Code: "E7004", Message: fmt.Sprintf("%s requires an %s timestamp", errors.Ident("time.to_unix()"), errors.TypeExpected("integer"))}
 			}
 			t := time.Unix(ts.Value.Int64(), 0)
 			return &object.Integer{Value: big.NewInt(t.Unix())}
 		},
 	},
 
+	// to_unix_ms converts a timestamp to Unix milliseconds.
+	// Takes timestamp. Returns int.
 	"time.to_unix_ms": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 1 {
-				return &object.Error{Code: "E7001", Message: "time.to_unix_ms() takes exactly 1 argument"}
+				return &object.Error{Code: "E7001", Message: fmt.Sprintf("%s takes exactly 1 argument", errors.Ident("time.to_unix_ms()"))}
 			}
 
 			ts, ok := args[0].(*object.Integer)
 			if !ok {
-				return &object.Error{Code: "E7004", Message: "time.to_unix_ms() requires an integer timestamp"}
+				return &object.Error{Code: "E7004", Message: fmt.Sprintf("%s requires an %s timestamp", errors.Ident("time.to_unix_ms()"), errors.TypeExpected("integer"))}
 			}
 			t := time.Unix(ts.Value.Int64(), 0)
 			return &object.Integer{Value: big.NewInt(t.UnixMilli())}
 		},
 	},
 
+	// ============================================================================
+	// Day Checks
+	// ============================================================================
+
+	// is_weekend checks if a timestamp falls on Saturday or Sunday.
+	// Takes optional timestamp. Returns bool.
 	"time.is_weekend": {
 		Fn: func(args ...object.Object) object.Object {
 			t := getTime(args)
@@ -871,6 +1080,8 @@ var TimeBuiltins = map[string]*object.Builtin{
 		},
 	},
 
+	// is_weekday checks if a timestamp falls on Monday through Friday.
+	// Takes optional timestamp. Returns bool.
 	"time.is_weekday": {
 		Fn: func(args ...object.Object) object.Object {
 			t := getTime(args)
@@ -882,14 +1093,16 @@ var TimeBuiltins = map[string]*object.Builtin{
 		},
 	},
 
+	// is_today checks if a timestamp falls on today's date.
+	// Takes timestamp. Returns bool.
 	"time.is_today": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 1 {
-				return &object.Error{Code: "E7001", Message: "time.is_today() takes exactly 1 argument"}
+				return &object.Error{Code: "E7001", Message: fmt.Sprintf("%s takes exactly 1 argument", errors.Ident("time.is_today()"))}
 			}
 			ts, ok := args[0].(*object.Integer)
 			if !ok {
-				return &object.Error{Code: "E7004", Message: "time.is_today() requires an integer timestamp"}
+				return &object.Error{Code: "E7004", Message: fmt.Sprintf("%s requires an %s timestamp", errors.Ident("time.is_today()"), errors.TypeExpected("integer"))}
 			}
 			t := time.Unix(ts.Value.Int64(), 0)
 			now := time.Now()
@@ -898,18 +1111,20 @@ var TimeBuiltins = map[string]*object.Builtin{
 		},
 	},
 
+	// is_same_day checks if two timestamps fall on the same calendar day.
+	// Takes two timestamps. Returns bool.
 	"time.is_same_day": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 2 {
-				return &object.Error{Code: "E7001", Message: "time.is_same_day() takes exactly 2 arguments"}
+				return &object.Error{Code: "E7001", Message: fmt.Sprintf("%s takes exactly 2 arguments", errors.Ident("time.is_same_day()"))}
 			}
 			ts1, ok := args[0].(*object.Integer)
 			if !ok {
-				return &object.Error{Code: "E7004", Message: "time.is_same_day() requires integer timestamps"}
+				return &object.Error{Code: "E7004", Message: fmt.Sprintf("%s requires %s timestamps", errors.Ident("time.is_same_day()"), errors.TypeExpected("integer"))}
 			}
 			ts2, ok := args[1].(*object.Integer)
 			if !ok {
-				return &object.Error{Code: "E7004", Message: "time.is_same_day() requires integer timestamps"}
+				return &object.Error{Code: "E7004", Message: fmt.Sprintf("%s requires %s timestamps", errors.Ident("time.is_same_day()"), errors.TypeExpected("integer"))}
 			}
 			t1 := time.Unix(ts1.Value.Int64(), 0)
 			t2 := time.Unix(ts2.Value.Int64(), 0)
@@ -920,14 +1135,20 @@ var TimeBuiltins = map[string]*object.Builtin{
 		},
 	},
 
+	// ============================================================================
+	// Relative Time
+	// ============================================================================
+
+	// relative formats a timestamp as a human-readable relative time.
+	// Takes timestamp. Returns string (e.g., "2 hours ago").
 	"time.relative": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 1 {
-				return &object.Error{Code: "E7001", Message: "time.relative() takes exactly 1 argument"}
+				return &object.Error{Code: "E7001", Message: fmt.Sprintf("%s takes exactly 1 argument", errors.Ident("time.relative()"))}
 			}
 			ts, ok := args[0].(*object.Integer)
 			if !ok {
-				return &object.Error{Code: "E7004", Message: "time.relative() requires an integer timestamp"}
+				return &object.Error{Code: "E7004", Message: fmt.Sprintf("%s requires an %s timestamp", errors.Ident("time.relative()"), errors.TypeExpected("integer"))}
 			}
 			t := time.Unix(ts.Value.Int64(), 0)
 			now := time.Now()

@@ -11,6 +11,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/marshallburns/ez/pkg/errors"
 	"github.com/marshallburns/ez/pkg/object"
 )
 
@@ -20,13 +21,13 @@ func validatePath(path string, funcName string) *object.ReturnValue {
 	if path == "" {
 		return &object.ReturnValue{Values: []object.Object{
 			object.NIL,
-			CreateStdlibError("E7040", fmt.Sprintf("%s: path cannot be empty", funcName)),
+			CreateStdlibError("E7040", fmt.Sprintf("%s: path cannot be empty", errors.Ident(funcName))),
 		}}
 	}
 	if strings.ContainsRune(path, '\x00') {
 		return &object.ReturnValue{Values: []object.Object{
 			object.NIL,
-			CreateStdlibError("E7041", fmt.Sprintf("%s: path contains null byte", funcName)),
+			CreateStdlibError("E7041", fmt.Sprintf("%s: path contains null byte", errors.Ident(funcName))),
 		}}
 	}
 	return nil
@@ -96,8 +97,8 @@ var IOBuiltins = map[string]*object.Builtin{
 	// File Reading
 	// ============================================================================
 
-	// Reads the entire contents of a file as a string
-	// Returns (content, error) tuple - error is nil on success
+	// read_file reads the entire contents of a file as a string.
+	// Takes file path. Returns (content, Error) tuple.
 	"io.read_file": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 1 {
@@ -134,8 +135,8 @@ var IOBuiltins = map[string]*object.Builtin{
 		},
 	},
 
-	// Reads the entire contents of a file as a byte array
-	// Returns (bytes, error) tuple - error is nil on success
+	// read_bytes reads the entire contents of a file as a byte array.
+	// Takes file path. Returns ([byte], Error) tuple.
 	"io.read_bytes": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 1 {
@@ -182,10 +183,8 @@ var IOBuiltins = map[string]*object.Builtin{
 	// File Writing
 	// ============================================================================
 
-	// Writes content to a file atomically, creating it if it doesn't exist or overwriting if it does
-	// Uses temp file + rename to ensure file is never left in a partial state
-	// Takes 2-3 arguments: path, content, and optional permissions (int, default 0644)
-	// Returns (success, error) tuple
+	// write_file writes content to a file atomically, creating or overwriting.
+	// Takes path, content, and optional permissions (default 0644). Returns (bool, Error) tuple.
 	"io.write_file": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) < 2 || len(args) > 3 {
@@ -227,10 +226,8 @@ var IOBuiltins = map[string]*object.Builtin{
 		},
 	},
 
-	// Writes bytes to a file atomically, creating it if it doesn't exist or overwriting if it does
-	// Uses temp file + rename to ensure file is never left in a partial state
-	// Takes 2-3 arguments: path, data (byte array), and optional permissions (int)
-	// Returns (success, error) tuple
+	// write_bytes writes a byte array to a file atomically, creating or overwriting.
+	// Takes path, byte array, and optional permissions. Returns (bool, Error) tuple.
 	"io.write_bytes": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) < 2 || len(args) > 3 {
@@ -282,9 +279,8 @@ var IOBuiltins = map[string]*object.Builtin{
 		},
 	},
 
-	// Appends content to a file, creating it if it doesn't exist
-	// Takes 2-3 arguments: path, content, and optional permissions (int, default 0644)
-	// Returns (success, error) tuple
+	// append_file appends content to a file, creating it if needed.
+	// Takes path, content, and optional permissions. Returns (bool, Error) tuple.
 	"io.append_file": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) < 2 || len(args) > 3 {
@@ -340,8 +336,8 @@ var IOBuiltins = map[string]*object.Builtin{
 	// Convenience Functions
 	// ============================================================================
 
-	// Reads a file and returns its content as an array of lines
-	// Returns (lines, error) tuple where lines is an array of strings
+	// read_lines reads a file and returns its content as an array of lines.
+	// Takes file path. Returns ([string], Error) tuple.
 	"io.read_lines": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 1 {
@@ -393,9 +389,8 @@ var IOBuiltins = map[string]*object.Builtin{
 		},
 	},
 
-	// Appends a line to a file, adding a newline at the end
-	// Takes 2-3 arguments: path, line, and optional permissions (int, default 0644)
-	// Returns (success, error) tuple
+	// append_line appends a line to a file with trailing newline.
+	// Takes path, line, and optional permissions. Returns (bool, Error) tuple.
 	"io.append_line": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) < 2 || len(args) > 3 {
@@ -468,8 +463,8 @@ var IOBuiltins = map[string]*object.Builtin{
 		},
 	},
 
-	// Expands ~ to home directory and cleans the path
-	// Returns the expanded path string
+	// expand_path expands ~ to home directory and cleans the path.
+	// Takes path string. Returns expanded path string.
 	"io.expand_path": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 1 {
@@ -505,7 +500,8 @@ var IOBuiltins = map[string]*object.Builtin{
 	// Path Existence and Type Checks
 	// ============================================================================
 
-	// Checks if a path exists (file or directory)
+	// exists checks if a path exists (file or directory).
+	// Takes path string. Returns bool.
 	"io.exists": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 1 {
@@ -533,7 +529,8 @@ var IOBuiltins = map[string]*object.Builtin{
 		},
 	},
 
-	// Checks if a path is a regular file
+	// is_file checks if a path is a regular file.
+	// Takes path string. Returns bool.
 	"io.is_file": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 1 {
@@ -560,7 +557,8 @@ var IOBuiltins = map[string]*object.Builtin{
 		},
 	},
 
-	// Checks if a path is a directory
+	// is_dir checks if a path is a directory.
+	// Takes path string. Returns bool.
 	"io.is_dir": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 1 {
@@ -591,8 +589,8 @@ var IOBuiltins = map[string]*object.Builtin{
 	// File Operations
 	// ============================================================================
 
-	// Removes a file
-	// Returns (success, error) tuple
+	// remove removes a file (not directories).
+	// Takes file path. Returns (bool, Error) tuple.
 	"io.remove": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 1 {
@@ -632,8 +630,8 @@ var IOBuiltins = map[string]*object.Builtin{
 		},
 	},
 
-	// Removes an empty directory
-	// Returns (success, error) tuple
+	// remove_dir removes an empty directory.
+	// Takes directory path. Returns (bool, Error) tuple.
 	"io.remove_dir": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 1 {
@@ -673,8 +671,8 @@ var IOBuiltins = map[string]*object.Builtin{
 		},
 	},
 
-	// Removes a file or directory recursively (DANGEROUS - use with caution)
-	// Returns (success, error) tuple
+	// remove_all removes a file or directory recursively.
+	// Takes path. Returns (bool, Error) tuple. Use with caution.
 	"io.remove_all": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 1 {
@@ -716,8 +714,8 @@ var IOBuiltins = map[string]*object.Builtin{
 		},
 	},
 
-	// Renames or moves a file or directory
-	// Returns (success, error) tuple
+	// rename renames or moves a file or directory.
+	// Takes old_path and new_path. Returns (bool, Error) tuple.
 	"io.rename": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 2 {
@@ -752,10 +750,8 @@ var IOBuiltins = map[string]*object.Builtin{
 		},
 	},
 
-	// Copies a file from source to destination
-	// Takes 2-3 arguments: source, destination, and optional permissions (int)
-	// If permissions not specified, preserves source file's permissions
-	// Returns (success, error) tuple
+	// copy copies a file from source to destination.
+	// Takes source, destination, and optional permissions. Returns (bool, Error) tuple.
 	"io.copy": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) < 2 || len(args) > 3 {
@@ -838,9 +834,8 @@ var IOBuiltins = map[string]*object.Builtin{
 	// Directory Operations
 	// ============================================================================
 
-	// Creates a directory (parent must exist)
-	// Takes 1-2 arguments: path, and optional permissions (int, default 0755)
-	// Returns (success, error) tuple
+	// mkdir creates a directory (parent must exist).
+	// Takes path and optional permissions (default 0755). Returns (bool, Error) tuple.
 	"io.mkdir": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) < 1 || len(args) > 2 {
@@ -878,9 +873,8 @@ var IOBuiltins = map[string]*object.Builtin{
 		},
 	},
 
-	// Creates a directory and all parent directories as needed
-	// Takes 1-2 arguments: path, and optional permissions (int, default 0755)
-	// Returns (success, error) tuple
+	// mkdir_all creates a directory and all parent directories as needed.
+	// Takes path and optional permissions (default 0755). Returns (bool, Error) tuple.
 	"io.mkdir_all": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) < 1 || len(args) > 2 {
@@ -918,8 +912,8 @@ var IOBuiltins = map[string]*object.Builtin{
 		},
 	},
 
-	// Lists the contents of a directory
-	// Returns (entries, error) tuple where entries is an array of filenames
+	// read_dir lists the contents of a directory.
+	// Takes directory path. Returns ([string], Error) tuple of filenames.
 	"io.read_dir": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 1 {
@@ -956,8 +950,8 @@ var IOBuiltins = map[string]*object.Builtin{
 	// File Metadata
 	// ============================================================================
 
-	// Returns the size of a file in bytes
-	// Returns (size, error) tuple
+	// file_size returns the size of a file in bytes.
+	// Takes file path. Returns (int, Error) tuple.
 	"io.file_size": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 1 {
@@ -985,8 +979,8 @@ var IOBuiltins = map[string]*object.Builtin{
 		},
 	},
 
-	// Returns the modification time of a file as a Unix timestamp
-	// Returns (timestamp, error) tuple
+	// file_mod_time returns the modification time as a Unix timestamp.
+	// Takes file path. Returns (int, Error) tuple.
 	"io.file_mod_time": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 1 {
@@ -1018,7 +1012,8 @@ var IOBuiltins = map[string]*object.Builtin{
 	// Path Utilities
 	// ============================================================================
 
-	// Joins path components using the OS-specific separator
+	// path_join joins path components using OS-specific separator.
+	// Takes one or more path strings. Returns joined path string.
 	"io.path_join": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) < 1 {
@@ -1042,7 +1037,8 @@ var IOBuiltins = map[string]*object.Builtin{
 		},
 	},
 
-	// Returns the last element of a path (filename or directory name)
+	// path_base returns the last element of a path (filename or directory name).
+	// Takes path string. Returns base name string.
 	"io.path_base": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 1 {
@@ -1062,7 +1058,8 @@ var IOBuiltins = map[string]*object.Builtin{
 		},
 	},
 
-	// Returns the directory portion of a path
+	// path_dir returns the directory portion of a path.
+	// Takes path string. Returns directory path string.
 	"io.path_dir": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 1 {
@@ -1082,7 +1079,8 @@ var IOBuiltins = map[string]*object.Builtin{
 		},
 	},
 
-	// Returns the file extension (including the dot)
+	// path_ext returns the file extension including the dot.
+	// Takes path string. Returns extension string (e.g., ".txt").
 	"io.path_ext": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 1 {
@@ -1102,8 +1100,8 @@ var IOBuiltins = map[string]*object.Builtin{
 		},
 	},
 
-	// Returns the absolute path
-	// Returns (abs_path, error) tuple
+	// path_abs returns the absolute path.
+	// Takes path string. Returns (string, Error) tuple.
 	"io.path_abs": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 1 {
@@ -1131,7 +1129,8 @@ var IOBuiltins = map[string]*object.Builtin{
 		},
 	},
 
-	// Cleans a path (removes redundant separators, . and ..)
+	// path_clean cleans a path by removing redundant separators and dots.
+	// Takes path string. Returns cleaned path string.
 	"io.path_clean": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 1 {
@@ -1151,7 +1150,8 @@ var IOBuiltins = map[string]*object.Builtin{
 		},
 	},
 
-	// Returns the OS-specific path separator
+	// path_separator returns the OS-specific path separator.
+	// Takes no arguments. Returns "/" on Unix or "\\" on Windows.
 	"io.path_separator": {
 		Fn: func(args ...object.Object) object.Object {
 			return &object.String{Value: string(filepath.Separator)}
@@ -1160,45 +1160,58 @@ var IOBuiltins = map[string]*object.Builtin{
 
 	// ============================================================================
 	// File Handle Constants
+	// These constants are used with io.open() to specify file access modes.
 	// ============================================================================
 
-	// File open mode constants
+	// READ_ONLY opens a file for reading only.
 	"io.READ_ONLY": {
 		Fn: func(args ...object.Object) object.Object {
 			return &object.Integer{Value: big.NewInt(int64(os.O_RDONLY))}
 		},
 		IsConstant: true,
 	},
+
+	// WRITE_ONLY opens a file for writing only.
 	"io.WRITE_ONLY": {
 		Fn: func(args ...object.Object) object.Object {
 			return &object.Integer{Value: big.NewInt(int64(os.O_WRONLY))}
 		},
 		IsConstant: true,
 	},
+
+	// READ_WRITE opens a file for reading and writing.
 	"io.READ_WRITE": {
 		Fn: func(args ...object.Object) object.Object {
 			return &object.Integer{Value: big.NewInt(int64(os.O_RDWR))}
 		},
 		IsConstant: true,
 	},
+
+	// APPEND opens a file for appending (writes go to end of file).
 	"io.APPEND": {
 		Fn: func(args ...object.Object) object.Object {
 			return &object.Integer{Value: big.NewInt(int64(os.O_APPEND))}
 		},
 		IsConstant: true,
 	},
+
+	// CREATE creates the file if it does not exist.
 	"io.CREATE": {
 		Fn: func(args ...object.Object) object.Object {
 			return &object.Integer{Value: big.NewInt(int64(os.O_CREATE))}
 		},
 		IsConstant: true,
 	},
+
+	// TRUNCATE truncates the file to zero length when opening.
 	"io.TRUNCATE": {
 		Fn: func(args ...object.Object) object.Object {
 			return &object.Integer{Value: big.NewInt(int64(os.O_TRUNC))}
 		},
 		IsConstant: true,
 	},
+
+	// EXCLUSIVE fails if file already exists when used with CREATE.
 	"io.EXCLUSIVE": {
 		Fn: func(args ...object.Object) object.Object {
 			return &object.Integer{Value: big.NewInt(int64(os.O_EXCL))}
@@ -1206,19 +1219,23 @@ var IOBuiltins = map[string]*object.Builtin{
 		IsConstant: true,
 	},
 
-	// Seek whence constants
+	// SEEK_START seeks relative to the start of the file.
 	"io.SEEK_START": {
 		Fn: func(args ...object.Object) object.Object {
 			return &object.Integer{Value: big.NewInt(int64(io.SeekStart))}
 		},
 		IsConstant: true,
 	},
+
+	// SEEK_CURRENT seeks relative to the current file position.
 	"io.SEEK_CURRENT": {
 		Fn: func(args ...object.Object) object.Object {
 			return &object.Integer{Value: big.NewInt(int64(io.SeekCurrent))}
 		},
 		IsConstant: true,
 	},
+
+	// SEEK_END seeks relative to the end of the file.
 	"io.SEEK_END": {
 		Fn: func(args ...object.Object) object.Object {
 			return &object.Integer{Value: big.NewInt(int64(io.SeekEnd))}
@@ -1230,9 +1247,8 @@ var IOBuiltins = map[string]*object.Builtin{
 	// File Handle Operations
 	// ============================================================================
 
-	// Opens a file and returns a file handle
-	// Takes path and mode flags (combine with | operator)
-	// Returns (handle, error) tuple
+	// open opens a file and returns a file handle.
+	// Takes path, optional mode flags, and optional permissions. Returns (FileHandle, Error) tuple.
 	"io.open": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) < 1 || len(args) > 3 {
@@ -1285,8 +1301,8 @@ var IOBuiltins = map[string]*object.Builtin{
 		},
 	},
 
-	// Reads n bytes from a file handle
-	// Returns (bytes, error) tuple
+	// read reads n bytes from a file handle.
+	// Takes handle and byte count. Returns ([byte], Error) tuple.
 	"io.read": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 2 {
@@ -1331,8 +1347,8 @@ var IOBuiltins = map[string]*object.Builtin{
 		},
 	},
 
-	// Reads all remaining bytes from a file handle
-	// Returns (bytes, error) tuple
+	// read_all reads all remaining bytes from a file handle.
+	// Takes handle. Returns ([byte], Error) tuple.
 	"io.read_all": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 1 {
@@ -1367,8 +1383,8 @@ var IOBuiltins = map[string]*object.Builtin{
 		},
 	},
 
-	// Reads n bytes from a file handle as a string
-	// Returns (string, error) tuple
+	// read_string reads n bytes from a file handle as a string.
+	// Takes handle and byte count. Returns (string, Error) tuple.
 	"io.read_string": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 2 {
@@ -1407,9 +1423,8 @@ var IOBuiltins = map[string]*object.Builtin{
 		},
 	},
 
-	// Writes data to a file handle
-	// Data can be a string or byte array
-	// Returns (bytes_written, error) tuple
+	// write writes data (string or byte array) to a file handle.
+	// Takes handle and data. Returns (bytes_written, Error) tuple.
 	"io.write": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 2 {
@@ -1458,8 +1473,8 @@ var IOBuiltins = map[string]*object.Builtin{
 		},
 	},
 
-	// Seeks to a position in the file
-	// Returns (new_position, error) tuple
+	// seek moves the file position to a new location.
+	// Takes handle, offset, and whence (SEEK_START/CURRENT/END). Returns (position, Error) tuple.
 	"io.seek": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 3 {
@@ -1496,8 +1511,8 @@ var IOBuiltins = map[string]*object.Builtin{
 		},
 	},
 
-	// Returns the current position in the file
-	// Returns (position, error) tuple
+	// tell returns the current position in the file.
+	// Takes handle. Returns (position, Error) tuple.
 	"io.tell": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 1 {
@@ -1527,8 +1542,8 @@ var IOBuiltins = map[string]*object.Builtin{
 		},
 	},
 
-	// Flushes any buffered data to the file
-	// Returns (success, error) tuple
+	// flush flushes any buffered data to the file.
+	// Takes handle. Returns (bool, Error) tuple.
 	"io.flush": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 1 {
@@ -1557,8 +1572,8 @@ var IOBuiltins = map[string]*object.Builtin{
 		},
 	},
 
-	// Closes a file handle
-	// Returns (success, error) tuple
+	// close closes a file handle.
+	// Takes handle. Returns (bool, Error) tuple.
 	"io.close": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 1 {
@@ -1594,8 +1609,8 @@ var IOBuiltins = map[string]*object.Builtin{
 	// Filesystem Utilities
 	// ============================================================================
 
-	// Finds files matching a glob pattern
-	// Returns ([string], error) tuple - array of matching paths
+	// glob finds files matching a glob pattern.
+	// Takes pattern string (e.g., "*.txt"). Returns ([string], Error) tuple.
 	"io.glob": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 1 {
@@ -1627,8 +1642,8 @@ var IOBuiltins = map[string]*object.Builtin{
 		},
 	},
 
-	// Recursively walks a directory tree, returning all file paths
-	// Returns ([string], error) tuple - array of all file paths
+	// walk recursively walks a directory tree, returning all file paths.
+	// Takes directory path. Returns ([string], Error) tuple.
 	"io.walk": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 1 {
@@ -1673,8 +1688,8 @@ var IOBuiltins = map[string]*object.Builtin{
 		},
 	},
 
-	// Checks if a path is a symbolic link
-	// Returns bool (false for non-existent paths, not an error)
+	// is_symlink checks if a path is a symbolic link.
+	// Takes path string. Returns bool.
 	"io.is_symlink": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 1 {
@@ -1699,7 +1714,6 @@ var IOBuiltins = map[string]*object.Builtin{
 		},
 	},
 }
-
 
 // CreateStdlibErrorResult wraps a Go error into an EZ (nil, Error) return tuple
 func CreateStdlibErrorResult(err error, operation string) *object.ReturnValue {

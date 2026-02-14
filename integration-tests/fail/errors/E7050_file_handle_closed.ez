@@ -1,0 +1,25 @@
+/*
+ * Error Test: E7050 - file-handle-closed
+ * Expected: "file handle" or "closed"
+ */
+
+import @io
+
+do main() {
+    // Create a temp file
+    temp wok, werr = io.write_file("ez_test_e7050_temp.txt", "test data")
+
+    // Open, close, then try to read
+    temp handle, oerr = io.open("ez_test_e7050_temp.txt")
+    temp cerr = io.close(handle)
+
+    // Try to read from closed handle
+    temp data, rerr = io.read_all(handle)
+
+    // Clean up
+    temp dok, derr = io.remove("ez_test_e7050_temp.txt")
+
+    if rerr != nil {
+        panic("${rerr}")
+    }
+}
