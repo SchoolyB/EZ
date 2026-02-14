@@ -91,6 +91,7 @@ func generateMarkdown(codes []ErrorCode) string {
 		{"E15", "Crypto Errors (E15xxx)", "Cryptography-specific errors"},
 		{"E16", "Encoding Errors (E16xxx)", "Encoding/decoding errors"},
 		{"E17", "DB Errors (E17xxx)", "Database operation errors"},
+		{"E18", "Server Errors (E18xxx)", "HTTP server-specific errors"},
 		{"W1", "Code Style Warnings (W1xxx)", "Unused declarations"},
 		{"W2", "Potential Bug Warnings (W2xxx)", "Possible bugs"},
 		{"W3", "Code Quality Warnings (W3xxx)", "Code quality issues"},
@@ -134,11 +135,11 @@ func filterByPrefix(codes []ErrorCode, prefix string) []ErrorCode {
 }
 
 func matchesPrefix(code, prefix string) bool {
-	// Double-digit prefixes (E10-E17) produce 6-character codes (E1xxxx)
+	// Double-digit prefixes (E10-E18) produce 6-character codes (E1xxxx)
 	// Single-digit prefixes (E1-E9, W1-W4) produce 5-character codes (Exxx, Wxxx)
 
 	if len(prefix) == 3 && prefix[0] == 'E' && prefix[1] >= '1' && prefix[2] >= '0' {
-		// E10xxx - E17xxx codes must be 6 characters AND start with the prefix
+		// E10xxx - E18xxx codes must be 6 characters AND start with the prefix
 		return len(code) == 6 && strings.HasPrefix(code, prefix)
 	}
 
