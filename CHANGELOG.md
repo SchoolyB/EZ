@@ -1,5 +1,67 @@
 # Changelog
 
+## [2.0.0](https://github.com/SchoolyB/EZ/compare/v1.4.9...v2.0.0) (2026-02-14)
+
+
+### ⚠ BREAKING CHANGES
+
+* The lowercase `error` type alias has been removed. Use `Error` (capitalized) for type annotations instead.
+
+### Features
+
+* add [@server](https://github.com/server) HTTP server stdlib module ([#439](https://github.com/SchoolyB/EZ/issues/439)) ([acd7f16](https://github.com/SchoolyB/EZ/commit/acd7f162813fb9b9fbf950f06f291dd810b39a4d))
+* add #doc attribute and ez doc command for documentation generation ([2d26a37](https://github.com/SchoolyB/EZ/commit/2d26a37f7dfc11c689b7b506cb5a77164f9a88b9)), closes [#764](https://github.com/SchoolyB/EZ/issues/764)
+* add `[@server](https://github.com/server)` HTTP server stdlib module ([bc6d815](https://github.com/SchoolyB/EZ/commit/bc6d815dae237dd0e7271a412ad9b7a15c315100))
+* add `ez pz` project scaffolding command ([a422c15](https://github.com/SchoolyB/EZ/commit/a422c15be13cc8b01c084fdd8beee685b219f44f))
+* add `ez pz` project scaffolding command ([a1adcc0](https://github.com/SchoolyB/EZ/commit/a1adcc0f4381a5d6e160ca7c329301aa46608738))
+* Add named return variables support ([#1131](https://github.com/SchoolyB/EZ/issues/1131)) ([6e4d70e](https://github.com/SchoolyB/EZ/commit/6e4d70ee910d6088fddd7d778e5157516a978d23))
+* add optional index variable to `for_each` loops ([#1139](https://github.com/SchoolyB/EZ/issues/1139)) ([7a8a5a2](https://github.com/SchoolyB/EZ/commit/7a8a5a26a41df5343e928bf41c1807a01149bbc6))
+* add optional index variable to for_each loops ([#1139](https://github.com/SchoolyB/EZ/issues/1139)) ([4b0378d](https://github.com/SchoolyB/EZ/commit/4b0378d859fc3c766f74fc235296316f4e2742ef))
+* add server and client templates to ez pz scaffolding ([9f873bf](https://github.com/SchoolyB/EZ/commit/9f873bf51577aceff8834defb5ac093076cf2332))
+* **cmd:** add `ez watch` command for live reloading ([741c279](https://github.com/SchoolyB/EZ/commit/741c2790c981d2619c929542a31433e663058e96))
+* **cmd:** add `ez watch` command for live reloading ([4910b73](https://github.com/SchoolyB/EZ/commit/4910b733e64128046af203ee8ac58b53db29df95)), closes [#871](https://github.com/SchoolyB/EZ/issues/871)
+* **errors:** add color formatting to parser, evaluator, and stdlib error messages ([#810](https://github.com/SchoolyB/EZ/issues/810)) ([cc9748f](https://github.com/SchoolyB/EZ/commit/cc9748f8f2370365b3c8a81ec69e4b9a13969f38))
+* **errors:** add color formatting to remaining stdlib module error messages ([#810](https://github.com/SchoolyB/EZ/issues/810)) ([9b666d1](https://github.com/SchoolyB/EZ/commit/9b666d124d972b12c185c18228e9e337908dd242))
+* **errors:** add color formatting to typechecker error messages ([837c258](https://github.com/SchoolyB/EZ/commit/837c258b4ef31e293b2a12cec549d284a228e7ec))
+* **errors:** add color formatting to typechecker error messages ([#810](https://github.com/SchoolyB/EZ/issues/810)) ([023914a](https://github.com/SchoolyB/EZ/commit/023914a6a4a25dd54ff88f49697ffb8583dcc879))
+* **loader:** add multi-file main module support ([fe0335e](https://github.com/SchoolyB/EZ/commit/fe0335e73e2fd183937876c366a3f8e8288ef0e1))
+* **parser:** add named return variables support ([#1131](https://github.com/SchoolyB/EZ/issues/1131)) ([a1eea1c](https://github.com/SchoolyB/EZ/commit/a1eea1cc81bfe2cd1e826db94c433b4ac6a66d8d))
+* **stdlib/csv:** add [@csv](https://github.com/csv) module for reading and writing CSV files ([4ec274b](https://github.com/SchoolyB/EZ/commit/4ec274b1e0650a2ca2fd2ea7e7f05bcf130000b6))
+* **stdlib/csv:** add [@csv](https://github.com/csv) module for reading and writing CSV files ([d6af096](https://github.com/SchoolyB/EZ/commit/d6af09690cc43a49acc380c8e0efab8a7d204f57)), closes [#965](https://github.com/SchoolyB/EZ/issues/965)
+* **stdlib/math:** add NaN/finite checks and float constants ([#1123](https://github.com/SchoolyB/EZ/issues/1123)) ([b22667b](https://github.com/SchoolyB/EZ/commit/b22667b77687f5045496daaa364e7ab589de307f)), closes [#1024](https://github.com/SchoolyB/EZ/issues/1024)
+* **stdlib/regex:** add [@regex](https://github.com/regex) module for regular expression operations ([de8063c](https://github.com/SchoolyB/EZ/commit/de8063c379cd3d0b873264196d21696714a55105))
+* **stdlib/regex:** add `[@regex](https://github.com/regex)` module for regular expression operations ([931bdcc](https://github.com/SchoolyB/EZ/commit/931bdccd0bcc475db594414762637b2f007e2338))
+* **stdlib/strings:** add 12 new string utility functions ([6cb2a2d](https://github.com/SchoolyB/EZ/commit/6cb2a2df0f166cd041df37f2af47122cbebb18ed))
+* **stdlib/strings:** add 12 new string utility functions ([a4ad38f](https://github.com/SchoolyB/EZ/commit/a4ad38f2bfb8009a0ee4a9ad4afbde0a3264b699)), closes [#1020](https://github.com/SchoolyB/EZ/issues/1020)
+* **typechecker:** add W1005 warning for typed blank identifiers ([b9a4c62](https://github.com/SchoolyB/EZ/commit/b9a4c623844bb089a0520c1f19343942c85e10c9))
+* **typechecker:** add W1005 warning for typed blank identifiers ([df1a334](https://github.com/SchoolyB/EZ/commit/df1a3346653255083b305933df394855587c0b29))
+
+
+### Bug Fixes
+
+* add encoding module to multi-return type inference ([#1138](https://github.com/SchoolyB/EZ/issues/1138)) ([23d806b](https://github.com/SchoolyB/EZ/commit/23d806b4fbb9f800eecb50afe1c19b1f5f508b54))
+* allow enum constants in `when/is` when value is explicitly typed ([#1143](https://github.com/SchoolyB/EZ/issues/1143)) ([03e99d3](https://github.com/SchoolyB/EZ/commit/03e99d3a8c278401430cadb426d6971d5533480a))
+* allow enum constants in when/is when value is explicitly typed ([#1143](https://github.com/SchoolyB/EZ/issues/1143)) ([1832e66](https://github.com/SchoolyB/EZ/commit/1832e66d5106bb109b05b05f3201bc225d6eef93))
+* arrays.join no longer wraps string elements in quotes ([#1144](https://github.com/SchoolyB/EZ/issues/1144)) ([5b9c1a3](https://github.com/SchoolyB/EZ/commit/5b9c1a35df238beafee9b45eb526b517a2e71ae6))
+* clarify misleading error messages in json.decode, db module, and typechecker ([028359b](https://github.com/SchoolyB/EZ/commit/028359bd9a03a82044c9ecb4d2a6d851f7580ae4))
+* complete tuple type inference for all stdlib modules ([#1138](https://github.com/SchoolyB/EZ/issues/1138)) ([2c30882](https://github.com/SchoolyB/EZ/commit/2c30882f4a0c141b4eba85ea44d21f398bb6406f))
+* eliminate race condition by removing global eval state ([#1122](https://github.com/SchoolyB/EZ/issues/1122)) ([e17f686](https://github.com/SchoolyB/EZ/commit/e17f68618a0ca39d8fd58c5ab54e6f24e9e6c26e)), closes [#949](https://github.com/SchoolyB/EZ/issues/949)
+* **interpreter:** use correct error code E5011 for unused return values ([116ba16](https://github.com/SchoolyB/EZ/commit/116ba1652aa9c9a2c68e286831c774fde553d987))
+* **language:** remove extra quotes from string enum casting ([70aeac2](https://github.com/SchoolyB/EZ/commit/70aeac26b2c3c4d5d5b323ba8c812985c4625f82))
+* nested array types in multi-return declarations ([#1137](https://github.com/SchoolyB/EZ/issues/1137)) ([3186097](https://github.com/SchoolyB/EZ/commit/31860970dfe9e314de50f0a1e15b4c9362b6ae0f))
+* **parser,typechecker:** fix #suppress attribute not working ([cb216a2](https://github.com/SchoolyB/EZ/commit/cb216a22dccbc64c4ad31b84798e118e4a33a6a2))
+* **parser:** use user-friendly descriptions in assignment error messages ([e9d8d41](https://github.com/SchoolyB/EZ/commit/e9d8d419faf05410c36076b28c988fae7b8077fd))
+* **parser:** validate #doc attribute placement ([e34198c](https://github.com/SchoolyB/EZ/commit/e34198c21111355d56a751f00c717b00be8eff1d))
+* **parser:** validate `#doc` attribute placement ([01f9ef5](https://github.com/SchoolyB/EZ/commit/01f9ef5a7877c6e9e6a171283c17e716079832b1))
+* **pz:** correct EZ syntax in project scaffolding templates ([ff51760](https://github.com/SchoolyB/EZ/commit/ff5176070553fe1c98f9a1f4cab435905ed6ea21))
+* remove lowercase `error` type alias, keep only `Error` ([cc2c36f](https://github.com/SchoolyB/EZ/commit/cc2c36f0fa57429248f63b5aab5173dd305cd360)), closes [#1039](https://github.com/SchoolyB/EZ/issues/1039)
+* respect explicit type annotations in multi-return declarations ([#1137](https://github.com/SchoolyB/EZ/issues/1137)) ([e3838fc](https://github.com/SchoolyB/EZ/commit/e3838fcde532faba9f18308de3c78b28f801c3e8))
+* **stdlib/arrays:** `arrays.join` no longer wraps string elements in quotes ([#1144](https://github.com/SchoolyB/EZ/issues/1144)) ([333f53e](https://github.com/SchoolyB/EZ/commit/333f53e5868d10bff33db4ebbb414c0c778ceddd))
+* **stdlib:** correct test expectations to match implementation ([58478b3](https://github.com/SchoolyB/EZ/commit/58478b33f45cde3501ef13ff66f85c4cbcca6830))
+* **typechecker:** disallow function calls in file-scope variable initializers ([1d78de8](https://github.com/SchoolyB/EZ/commit/1d78de8ab4f408f2df84d565708940bf720119e1))
+* **typechecker:** prevent W2010 false positive on nested struct initialization ([f7058b0](https://github.com/SchoolyB/EZ/commit/f7058b0d46ce439a8b2bf5855ccd01be42c135b0))
+* **typechecker:** prevent W2010 false positive on nested struct initialization ([7d25b8a](https://github.com/SchoolyB/EZ/commit/7d25b8af31715f7df9e3a9f2ca3ccaea06646d7d)), closes [#1107](https://github.com/SchoolyB/EZ/issues/1107)
+
 ## [1.4.9](https://github.com/SchoolyB/EZ/compare/v1.4.8...v1.4.9) (2026-02-04)
 
 
