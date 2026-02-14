@@ -381,6 +381,13 @@ fixed_array_type = "[" type "," size "]" .
 const fixed [int, 3] = {10, 20, 30}
 ```
 
+Fixed-size arrays must be declared with `const`. Providing fewer values than the declared size is permitted (a `W3003` warning is issued); providing more values than the declared size is an error.
+
+```ez
+const a [int, 5] = {1, 2, 3}           // OK — warning W3003 (3 of 5 slots used)
+const b [int, 5] = {1, 2, 3, 4, 5, 6}  // Error — 6 values exceeds size of 5
+```
+
 **Multi-dimensional arrays**:
 
 ```ez
