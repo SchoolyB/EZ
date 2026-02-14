@@ -376,6 +376,17 @@ Database operation errors
 | E17004 | db-corrupted | database file is corrupted |
 | E17005 | db-closed | operation on closed database |
 
+## Server Errors (E18xxx)
+
+HTTP server-specific errors
+
+| Code | Type | Message |
+|------|------|---------|
+| E18001 | server-listen-failed | server failed to start |
+| E18002 | server-invalid-port | invalid port number |
+| E18003 | server-internal-error | internal server error |
+| E18004 | server-handler-error | handler returned an error |
+
 ## Code Style Warnings (W1xxx)
 
 Unused declarations
