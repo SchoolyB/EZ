@@ -32,6 +32,7 @@ typedef enum {
 static AstNode *parse_statement(Parser *p);
 static AstNode *parse_expression(Parser *p, Precedence prec);
 static AstNode *parse_block_statement(Parser *p);
+static AstNode *parse_struct_literal(Parser *p, const char *name);
 
 /* --- Helpers --- */
 
@@ -254,7 +255,17 @@ static AstNode *parse_grouped_expression(Parser *p) {
 /* Parse prefix expression (the "nud" in Pratt parsing) */
 static AstNode *parse_prefix(Parser *p) {
     switch (p->cur_token.type) {
-    case TOK_IDENT:     return parse_identifier(p);
+    case TOK_IDENT:
+        /* Check for struct literal: Name{ ... } */
+        if (peek_token_is(p, TOK_LBRACE)) {
+            const char *name = p->cur_token.literal;
+            /* Only treat as struct literal if name starts with uppercase */
+            if (name[0] >= 'A' && name[0] <= 'Z') {
+                next_token(p); /* move to { */
+                return parse_struct_literal(p, name);
+            }
+        }
+        return parse_identifier(p);
     case TOK_INT:       return parse_int_literal(p);
     case TOK_FLOAT:     return parse_float_literal(p);
     case TOK_STRING:    return parse_string_literal(p);
@@ -654,6 +665,125 @@ static AstNode *parse_if_statement(Parser *p) {
     return node;
 }
 
+static AstNode *parse_struct_declaration(Parser *p) {
+    /* cur_token is the struct name (IDENT), already consumed by caller */
+    AstNode *node = ast_alloc(p->arena, NODE_STRUCT_DECL, p->cur_token);
+    node->data.struct_decl.name = p->cur_token.literal;
+    node->data.struct_decl.visibility = 0;
+
+    next_token(p); /* skip 'struct' keyword */
+    if (!expect_peek(p, TOK_LBRACE)) return NULL;
+    next_token(p); /* skip { */
+
+    int field_cap = 8;
+    node->data.struct_decl.field_count = 0;
+    node->data.struct_decl.fields = arena_alloc(p->arena, sizeof(StructField) * field_cap);
+
+    while (!cur_token_is(p, TOK_RBRACE) && !cur_token_is(p, TOK_EOF)) {
+        if (node->data.struct_decl.field_count >= field_cap) {
+            field_cap *= 2;
+            StructField *new_fields = arena_alloc(p->arena, sizeof(StructField) * field_cap);
+            memcpy(new_fields, node->data.struct_decl.fields,
+                sizeof(StructField) * node->data.struct_decl.field_count);
+            node->data.struct_decl.fields = new_fields;
+        }
+
+        StructField *field = &node->data.struct_decl.fields[node->data.struct_decl.field_count];
+        field->name = p->cur_token.literal;
+        next_token(p);
+        field->type_name = p->cur_token.literal;
+        node->data.struct_decl.field_count++;
+        next_token(p);
+    }
+
+    return node;
+}
+
+static AstNode *parse_enum_declaration(Parser *p) {
+    /* cur_token is the enum name (IDENT), already consumed by caller */
+    AstNode *node = ast_alloc(p->arena, NODE_ENUM_DECL, p->cur_token);
+    node->data.enum_decl.name = p->cur_token.literal;
+    node->data.enum_decl.visibility = 0;
+    node->data.enum_decl.base_type = "int";
+    node->data.enum_decl.is_flags = false;
+
+    next_token(p); /* skip 'enum' keyword */
+    if (!expect_peek(p, TOK_LBRACE)) return NULL;
+    next_token(p); /* skip { */
+
+    int val_cap = 8;
+    node->data.enum_decl.value_count = 0;
+    node->data.enum_decl.values = arena_alloc(p->arena, sizeof(EnumVal) * val_cap);
+
+    while (!cur_token_is(p, TOK_RBRACE) && !cur_token_is(p, TOK_EOF)) {
+        if (node->data.enum_decl.value_count >= val_cap) {
+            val_cap *= 2;
+            EnumVal *new_vals = arena_alloc(p->arena, sizeof(EnumVal) * val_cap);
+            memcpy(new_vals, node->data.enum_decl.values,
+                sizeof(EnumVal) * node->data.enum_decl.value_count);
+            node->data.enum_decl.values = new_vals;
+        }
+
+        EnumVal *ev = &node->data.enum_decl.values[node->data.enum_decl.value_count];
+        ev->name = p->cur_token.literal;
+        ev->value = NULL;
+
+        /* Check for explicit value: VALUE = expr */
+        if (peek_token_is(p, TOK_ASSIGN)) {
+            next_token(p); /* skip = */
+            next_token(p);
+            ev->value = parse_expression(p, PREC_LOWEST);
+        }
+
+        node->data.enum_decl.value_count++;
+        next_token(p);
+    }
+
+    return node;
+}
+
+/* Parse struct literal: StructName{field: value, ...} */
+static AstNode *parse_struct_literal(Parser *p, const char *name) {
+    AstNode *node = ast_alloc(p->arena, NODE_STRUCT_VALUE, p->cur_token);
+    node->data.struct_value.name = name;
+
+    int cap = 8;
+    node->data.struct_value.count = 0;
+    node->data.struct_value.field_names = arena_alloc(p->arena, sizeof(const char *) * cap);
+    node->data.struct_value.field_values = arena_alloc(p->arena, sizeof(AstNode *) * cap);
+
+    next_token(p); /* skip { */
+
+    while (!cur_token_is(p, TOK_RBRACE) && !cur_token_is(p, TOK_EOF)) {
+        if (node->data.struct_value.count >= cap) {
+            cap *= 2;
+            const char **new_names = arena_alloc(p->arena, sizeof(const char *) * cap);
+            AstNode **new_vals = arena_alloc(p->arena, sizeof(AstNode *) * cap);
+            memcpy(new_names, node->data.struct_value.field_names,
+                sizeof(const char *) * node->data.struct_value.count);
+            memcpy(new_vals, node->data.struct_value.field_values,
+                sizeof(AstNode *) * node->data.struct_value.count);
+            node->data.struct_value.field_names = new_names;
+            node->data.struct_value.field_values = new_vals;
+        }
+
+        node->data.struct_value.field_names[node->data.struct_value.count] = p->cur_token.literal;
+
+        if (!expect_peek(p, TOK_COLON)) return NULL;
+        next_token(p);
+        node->data.struct_value.field_values[node->data.struct_value.count] =
+            parse_expression(p, PREC_LOWEST);
+        node->data.struct_value.count++;
+
+        if (peek_token_is(p, TOK_COMMA)) {
+            next_token(p);
+        }
+        next_token(p);
+    }
+
+    return node;
+}
+
 static AstNode *parse_ensure_statement(Parser *p) {
     AstNode *node = ast_alloc(p->arena, NODE_ENSURE_STMT, p->cur_token);
     next_token(p);
@@ -794,6 +924,22 @@ static AstNode *parse_statement(Parser *p) {
     switch (p->cur_token.type) {
     case TOK_TEMP:
     case TOK_CONST:
+        /* Check if this is a struct or enum declaration: const Name struct { */
+        if (p->cur_token.type == TOK_CONST && peek_token_is(p, TOK_IDENT)) {
+            /* Save state and look ahead */
+            Token saved_cur = p->cur_token;
+            Token saved_peek = p->peek_token;
+            next_token(p); /* now on IDENT (name) */
+            if (peek_token_is(p, TOK_STRUCT)) {
+                return parse_struct_declaration(p);
+            }
+            if (peek_token_is(p, TOK_ENUM)) {
+                return parse_enum_declaration(p);
+            }
+            /* Not struct/enum — restore and parse as var declaration */
+            p->cur_token = saved_cur;
+            p->peek_token = saved_peek;
+        }
         return parse_var_declaration(p);
     case TOK_DO:
         return parse_func_declaration(p);
