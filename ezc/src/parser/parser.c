@@ -36,20 +36,6 @@ static AstNode *parse_struct_literal(Parser *p, const char *name);
 
 /* --- Helpers --- */
 
-static void parser_error(Parser *p, const char *fmt, ...) {
-    char buf[512];
-    va_list args;
-    va_start(args, fmt);
-    vsnprintf(buf, sizeof(buf), fmt, args);
-    va_end(args);
-
-    if (p->error_count >= p->error_cap) {
-        p->error_cap = p->error_cap ? p->error_cap * 2 : 16;
-        p->errors = realloc(p->errors, sizeof(char *) * p->error_cap);
-    }
-    p->errors[p->error_count++] = arena_strdup(p->arena, buf);
-}
-
 static void next_token(Parser *p) {
     p->cur_token = p->peek_token;
     p->peek_token = lexer_next_token(p->lexer);
@@ -68,9 +54,11 @@ static bool expect_peek(Parser *p, TokenType t) {
         next_token(p);
         return true;
     }
-    parser_error(p, "%s:%d:%d: expected '%s', got '%s'",
-        p->file, p->peek_token.line, p->peek_token.column,
+    char buf[256];
+    snprintf(buf, sizeof(buf), "expected '%s', got '%s'",
         token_type_name(t), token_type_name(p->peek_token.type));
+    diag_error(p->diag, "E2001", arena_strdup(p->arena, buf),
+        p->file, p->peek_token.line, p->peek_token.column, 0);
     return false;
 }
 
@@ -188,7 +176,7 @@ static AstNode *parse_interpolated_string(Parser *p, const char *raw) {
 
             char *expr_text = arena_strndup(p->arena, expr_start, s - expr_start);
             Lexer *expr_lexer = lexer_create(p->arena, expr_text, p->file);
-            Parser *expr_parser = parser_create(p->arena, expr_lexer, p->file);
+            Parser *expr_parser = parser_create(p->arena, expr_lexer, p->file, p->diag);
             AstNode *expr = parse_expression(expr_parser, PREC_LOWEST);
             if (expr) parts[count++] = expr;
 
@@ -344,9 +332,13 @@ static AstNode *parse_prefix(Parser *p) {
         return node;
     }
     default:
-        parser_error(p, "%s:%d:%d: unexpected token '%s'",
-            p->file, p->cur_token.line, p->cur_token.column,
+    {
+        char buf[256];
+        snprintf(buf, sizeof(buf), "unexpected token '%s'",
             token_type_name(p->cur_token.type));
+        diag_error(p->diag, "E2002", arena_strdup(p->arena, buf),
+            p->file, p->cur_token.line, p->cur_token.column, 0);
+    }
         return NULL;
     }
 }
@@ -1118,14 +1110,12 @@ static AstNode *parse_statement(Parser *p) {
 
 /* --- Public API --- */
 
-Parser *parser_create(Arena *arena, Lexer *lexer, const char *file) {
+Parser *parser_create(Arena *arena, Lexer *lexer, const char *file, DiagnosticList *diag) {
     Parser *p = arena_alloc(arena, sizeof(Parser));
     p->lexer = lexer;
     p->arena = arena;
     p->file = file;
-    p->errors = NULL;
-    p->error_count = 0;
-    p->error_cap = 0;
+    p->diag = diag;
 
     /* Read two tokens to fill cur and peek */
     next_token(p);
@@ -1164,12 +1154,3 @@ AstNode *parser_parse_program(Parser *p) {
     return program;
 }
 
-bool parser_has_errors(Parser *p) {
-    return p->error_count > 0;
-}
-
-void parser_print_errors(Parser *p) {
-    for (int i = 0; i < p->error_count; i++) {
-        fprintf(stderr, "error: %s\n", p->errors[i]);
-    }
-}
