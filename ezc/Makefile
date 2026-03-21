@@ -23,6 +23,9 @@ SRC = src/main.c \
       src/lexer/lexer.c \
       src/parser/ast.c \
       src/parser/parser.c \
+      src/typechecker/types.c \
+      src/typechecker/scope.c \
+      src/typechecker/typechecker.c \
       src/codegen/codegen.c
 
 OBJ = $(SRC:.c=.o)

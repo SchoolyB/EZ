@@ -17,6 +17,7 @@
 #include "util/error.h"
 #include "lexer/lexer.h"
 #include "parser/parser.h"
+#include "typechecker/typechecker.h"
 #include "codegen/codegen.h"
 
 #define EZC_VERSION "0.1.0"
@@ -194,8 +195,22 @@ int main(int argc, char **argv) {
         return 1;
     }
 
+    /* Type check */
+    TypeChecker *tc = typechecker_create(diag, input_file);
+    typechecker_check(tc, program);
+
+    if (diag_has_errors(diag)) {
+        diag_print_all(diag);
+        diag_print_summary(diag);
+        diag_destroy(diag);
+        arena_destroy(arena);
+        free(source);
+        return 1;
+    }
+
     /* Generate C code */
     CodeGen cg = codegen_create(input_file);
+    cg.type_table = typechecker_get_table(tc);
     codegen_generate(&cg, program);
     const char *c_code = codegen_result(&cg);
 
