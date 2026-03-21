@@ -130,9 +130,99 @@ static AstNode *parse_float_literal(Parser *p) {
     return node;
 }
 
+static bool has_interpolation(const char *s) {
+    for (int i = 0; s[i]; i++) {
+        if (s[i] == '$' && s[i + 1] == '{') return true;
+        if (s[i] == '\\') i++;
+    }
+    return false;
+}
+
+static AstNode *parse_interpolated_string(Parser *p, const char *raw) {
+    AstNode *node = ast_alloc(p->arena, NODE_INTERPOLATED_STRING, p->cur_token);
+
+    int cap = 8;
+    int count = 0;
+    AstNode **parts = arena_alloc(p->arena, sizeof(AstNode *) * cap);
+
+    const char *s = raw;
+    const char *seg_start = s;
+
+    while (*s) {
+        if (*s == '\\' && *(s + 1)) {
+            s += 2;
+            continue;
+        }
+        if (*s == '$' && *(s + 1) == '{') {
+            /* Emit the text segment before ${ */
+            if (s > seg_start) {
+                if (count >= cap) {
+                    cap *= 2;
+                    AstNode **new_parts = arena_alloc(p->arena, sizeof(AstNode *) * cap);
+                    memcpy(new_parts, parts, sizeof(AstNode *) * count);
+                    parts = new_parts;
+                }
+                AstNode *text = ast_alloc(p->arena, NODE_STRING_VALUE, p->cur_token);
+                text->data.string_value.value = arena_strndup(p->arena, seg_start, s - seg_start);
+                parts[count++] = text;
+            }
+
+            /* Find matching } and parse the expression inside */
+            s += 2; /* skip ${ */
+            const char *expr_start = s;
+            int brace_depth = 1;
+            while (*s && brace_depth > 0) {
+                if (*s == '{') brace_depth++;
+                else if (*s == '}') brace_depth--;
+                if (brace_depth > 0) s++;
+            }
+
+            /* Parse the expression text */
+            if (count >= cap) {
+                cap *= 2;
+                AstNode **new_parts = arena_alloc(p->arena, sizeof(AstNode *) * cap);
+                memcpy(new_parts, parts, sizeof(AstNode *) * count);
+                parts = new_parts;
+            }
+
+            char *expr_text = arena_strndup(p->arena, expr_start, s - expr_start);
+            Lexer *expr_lexer = lexer_create(p->arena, expr_text, p->file);
+            Parser *expr_parser = parser_create(p->arena, expr_lexer, p->file);
+            AstNode *expr = parse_expression(expr_parser, PREC_LOWEST);
+            if (expr) parts[count++] = expr;
+
+            if (*s == '}') s++;
+            seg_start = s;
+        } else {
+            s++;
+        }
+    }
+
+    /* Remaining text segment */
+    if (s > seg_start) {
+        if (count >= cap) {
+            cap *= 2;
+            AstNode **new_parts = arena_alloc(p->arena, sizeof(AstNode *) * cap);
+            memcpy(new_parts, parts, sizeof(AstNode *) * count);
+            parts = new_parts;
+        }
+        AstNode *text = ast_alloc(p->arena, NODE_STRING_VALUE, p->cur_token);
+        text->data.string_value.value = arena_strndup(p->arena, seg_start, s - seg_start);
+        parts[count++] = text;
+    }
+
+    node->data.interpolated_string.parts = parts;
+    node->data.interpolated_string.part_count = count;
+    return node;
+}
+
 static AstNode *parse_string_literal(Parser *p) {
+    const char *raw = p->cur_token.literal;
+    if (has_interpolation(raw)) {
+        return parse_interpolated_string(p, raw);
+    }
     AstNode *node = ast_alloc(p->arena, NODE_STRING_VALUE, p->cur_token);
-    node->data.string_value.value = p->cur_token.literal;
+    node->data.string_value.value = raw;
     return node;
 }
 
