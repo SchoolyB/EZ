@@ -227,9 +227,20 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
         }
 
         if (fn_name) {
-            FuncSig *sig = find_func(tc, fn_name);
-            if (sig && sig->return_count > 0) {
-                result = sig->return_types[0];
+            /* Check built-in functions first */
+            if (strcmp(fn_name, "len") == 0 || strcmp(fn_name, "to_int") == 0) {
+                result = &TYPE_INT;
+            } else if (strcmp(fn_name, "to_float") == 0) {
+                result = &TYPE_FLOAT;
+            } else if (strcmp(fn_name, "to_string") == 0 || strcmp(fn_name, "typeof") == 0) {
+                result = &TYPE_STRING;
+            } else if (strcmp(fn_name, "to_bool") == 0) {
+                result = &TYPE_BOOL;
+            } else {
+                FuncSig *sig = find_func(tc, fn_name);
+                if (sig && sig->return_count > 0) {
+                    result = sig->return_types[0];
+                }
             }
         }
         break;
