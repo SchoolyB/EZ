@@ -430,6 +430,17 @@ static void emit_var_declaration(CodeGen *cg, AstNode *node) {
 
     const char *c_type = ez_type_to_c_cg(cg, type_name);
 
+    /* Skip blank identifiers (_) */
+    if (strcmp(node->data.var_decl.name, "_") == 0) {
+        if (node->data.var_decl.value) {
+            emit_indent(cg);
+            emit(cg, "(void)(");
+            emit_expression(cg, node->data.var_decl.value);
+            emit(cg, ");\n");
+        }
+        return;
+    }
+
     /* If no type annotation, try to infer from value */
     if (!type_name && node->data.var_decl.value) {
         AstNode *val = node->data.var_decl.value;
