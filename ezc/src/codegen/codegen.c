@@ -70,7 +70,14 @@ static const char *ez_type_to_c(const char *type_name) {
     if (strcmp(type_name, "byte") == 0)   return "uint8_t";
     if (strcmp(type_name, "string") == 0) return "EzString";
 
-    /* Default: assume it's a struct type */
+    /* If starts with uppercase, it's a struct type */
+    if (type_name[0] >= 'A' && type_name[0] <= 'Z') {
+        /* Return a formatted struct type name */
+        static char buf[256];
+        snprintf(buf, sizeof(buf), "EzStruct_%s", type_name);
+        return buf;
+    }
+
     return type_name;
 }
 
@@ -169,6 +176,17 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
         emit(cg, ")");
         break;
     }
+
+    case NODE_STRUCT_VALUE:
+        /* Struct literal: (EzStruct_Name){.field = value, ...} */
+        emitf(cg, "(EzStruct_%s){", node->data.struct_value.name);
+        for (int i = 0; i < node->data.struct_value.count; i++) {
+            if (i > 0) emit(cg, ", ");
+            emitf(cg, ".%s = ", node->data.struct_value.field_names[i]);
+            emit_expression(cg, node->data.struct_value.field_values[i]);
+        }
+        emit(cg, "}");
+        break;
 
     case NODE_PREFIX_EXPR:
         emit(cg, "(");
@@ -600,6 +618,12 @@ static void emit_statement(CodeGen *cg, AstNode *node) {
         emit_func_declaration(cg, node,
             strcmp(node->data.func_decl.name, "main") == 0);
         break;
+    case NODE_STRUCT_DECL:
+        /* Struct declarations are emitted in the preamble */
+        break;
+    case NODE_ENUM_DECL:
+        /* Enum declarations are emitted in the preamble */
+        break;
     case NODE_IMPORT_STMT:
         /* Imports are handled during the preamble scan */
         break;
@@ -648,6 +672,39 @@ void codegen_generate(CodeGen *cg, AstNode *program) {
         emit(cg, "#include \"ez_std.h\"\n");
     }
     emit(cg, "\n");
+
+    /* Emit struct type definitions */
+    for (int i = 0; i < program->data.program.stmt_count; i++) {
+        AstNode *stmt = program->data.program.stmts[i];
+        if (stmt->kind == NODE_STRUCT_DECL) {
+            emitf(cg, "typedef struct {\n");
+            for (int j = 0; j < stmt->data.struct_decl.field_count; j++) {
+                StructField *f = &stmt->data.struct_decl.fields[j];
+                emitf(cg, "    %s %s;\n", ez_type_to_c(f->type_name), f->name);
+            }
+            emitf(cg, "} EzStruct_%s;\n\n", stmt->data.struct_decl.name);
+        }
+    }
+
+    /* Emit enum type definitions */
+    for (int i = 0; i < program->data.program.stmt_count; i++) {
+        AstNode *stmt = program->data.program.stmts[i];
+        if (stmt->kind == NODE_ENUM_DECL) {
+            emitf(cg, "typedef enum {\n");
+            for (int j = 0; j < stmt->data.enum_decl.value_count; j++) {
+                EnumVal *ev = &stmt->data.enum_decl.values[j];
+                emitf(cg, "    EzEnum_%s_%s", stmt->data.enum_decl.name, ev->name);
+                if (ev->value) {
+                    emit(cg, " = ");
+                    emit_expression(cg, ev->value);
+                } else {
+                    emitf(cg, " = %d", j);
+                }
+                emit(cg, ",\n");
+            }
+            emitf(cg, "} EzEnum_%s;\n\n", stmt->data.enum_decl.name);
+        }
+    }
 
     /* Emit forward declarations for user functions */
     for (int i = 0; i < program->data.program.stmt_count; i++) {
