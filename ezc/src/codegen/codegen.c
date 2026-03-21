@@ -71,6 +71,13 @@ static const char *ez_type_to_c_cg(CodeGen *cg, const char *type_name) {
     if (strcmp(type_name, "byte") == 0)   return "uint8_t";
     if (strcmp(type_name, "string") == 0) return "EzString";
 
+    /* Array type: [T] — for struct fields, use pointer representation */
+    if (type_name[0] == '[') {
+        /* For now, array fields in structs are unsupported in C codegen */
+        /* TODO: Use EzArray or pointer type */
+        return "void *";
+    }
+
     /* If starts with uppercase, it's a user-defined type */
     if (type_name[0] >= 'A' && type_name[0] <= 'Z') {
         static char buf[256];
@@ -371,6 +378,46 @@ static void emit_call_expression(CodeGen *cg, AstNode *node) {
                 emit_expression(cg, arg);
                 emit(cg, ")");
             }
+            return;
+        }
+
+        if (strcmp(func, "len") == 0 && node->data.call.arg_count == 1) {
+            AstNode *arg = node->data.call.args[0];
+            EzType *t = cg->type_table ? typetable_get(cg->type_table, arg) : NULL;
+            if (t && t->kind == TK_STRING) {
+                emit(cg, "(int64_t)(");
+                emit_expression(cg, arg);
+                emit(cg, ").len");
+            } else if (t && t->kind == TK_ARRAY) {
+                emit_expression(cg, arg);
+                emit(cg, "_len");
+            } else {
+                /* Default: try _len suffix for arrays */
+                emit_expression(cg, arg);
+                emit(cg, "_len");
+            }
+            return;
+        }
+
+        if (strcmp(func, "typeof") == 0 && node->data.call.arg_count == 1) {
+            AstNode *arg = node->data.call.args[0];
+            EzType *t = cg->type_table ? typetable_get(cg->type_table, arg) : NULL;
+            const char *tn = t ? type_name(t) : "unknown";
+            emitf(cg, "ez_string_lit(\"%s\")", tn);
+            return;
+        }
+
+        if (strcmp(func, "to_int") == 0 && node->data.call.arg_count == 1) {
+            emit(cg, "(int64_t)(");
+            emit_expression(cg, node->data.call.args[0]);
+            emit(cg, ")");
+            return;
+        }
+
+        if (strcmp(func, "to_float") == 0 && node->data.call.arg_count == 1) {
+            emit(cg, "(double)(");
+            emit_expression(cg, node->data.call.args[0]);
+            emit(cg, ")");
             return;
         }
 

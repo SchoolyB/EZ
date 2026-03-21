@@ -469,9 +469,10 @@ static AstNode *parse_var_declaration(Parser *p) {
     if (peek_token_is(p, TOK_IDENT)) {
         next_token(p);
         node->data.var_decl.type_name = p->cur_token.literal;
+    }
 
-        /* Check for multi-var declaration: temp x int, y int = expr */
-        if (peek_token_is(p, TOK_COMMA)) {
+    /* Check for multi-var declaration: temp x int, y int = expr OR temp _, _ = expr */
+    if (peek_token_is(p, TOK_COMMA)) {
             /* Collect all variable names and types */
             const char *names[16];
             const char *types[16];
@@ -538,7 +539,6 @@ static AstNode *parse_var_declaration(Parser *p) {
             }
 
             return block;
-        }
     } else if (peek_token_is(p, TOK_LBRACKET)) {
         /* Array type: [int], [string], etc. */
         next_token(p); /* skip [ */
@@ -679,9 +679,19 @@ static AstNode *parse_func_declaration(Parser *p) {
         node->data.func_decl.return_types = arena_alloc(p->arena, sizeof(const char *) * ret_cap);
 
         if (cur_token_is(p, TOK_LPAREN)) {
-            /* Multiple return types: -> (int, string) */
+            /* Multiple/named return types: -> (int, string) or -> (x int, y int) */
             next_token(p);
             while (!cur_token_is(p, TOK_RPAREN) && !cur_token_is(p, TOK_EOF)) {
+                if (cur_token_is(p, TOK_IDENT) && peek_token_is(p, TOK_IDENT)) {
+                    /* Named return: name type — skip name, use type */
+                    next_token(p);
+                } else if (cur_token_is(p, TOK_IDENT) && peek_token_is(p, TOK_COMMA)) {
+                    /* Could be shared type: -> (x, y int) — just a name, type comes later */
+                    /* For now, skip the name */
+                    next_token(p); /* skip comma */
+                    next_token(p); /* next name or type */
+                    continue;
+                }
                 node->data.func_decl.return_types[node->data.func_decl.return_type_count++] =
                     p->cur_token.literal;
                 if (peek_token_is(p, TOK_COMMA)) {
@@ -809,7 +819,17 @@ static AstNode *parse_struct_declaration(Parser *p) {
         StructField *field = &node->data.struct_decl.fields[node->data.struct_decl.field_count];
         field->name = p->cur_token.literal;
         next_token(p);
-        field->type_name = p->cur_token.literal;
+        if (cur_token_is(p, TOK_LBRACKET)) {
+            /* Array type: [type] */
+            next_token(p); /* element type */
+            const char *elem = p->cur_token.literal;
+            next_token(p); /* skip ] */
+            char *type_str = arena_alloc(p->arena, strlen(elem) + 3);
+            sprintf(type_str, "[%s]", elem);
+            field->type_name = type_str;
+        } else {
+            field->type_name = p->cur_token.literal;
+        }
         node->data.struct_decl.field_count++;
         next_token(p);
     }
