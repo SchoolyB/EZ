@@ -374,6 +374,46 @@ static void emit_call_expression(CodeGen *cg, AstNode *node) {
             return;
         }
 
+        if (strcmp(func, "len") == 0 && node->data.call.arg_count == 1) {
+            AstNode *arg = node->data.call.args[0];
+            EzType *t = cg->type_table ? typetable_get(cg->type_table, arg) : NULL;
+            if (t && t->kind == TK_STRING) {
+                emit(cg, "(int64_t)(");
+                emit_expression(cg, arg);
+                emit(cg, ").len");
+            } else if (t && t->kind == TK_ARRAY) {
+                emit_expression(cg, arg);
+                emit(cg, "_len");
+            } else {
+                /* Default: try _len suffix for arrays */
+                emit_expression(cg, arg);
+                emit(cg, "_len");
+            }
+            return;
+        }
+
+        if (strcmp(func, "typeof") == 0 && node->data.call.arg_count == 1) {
+            AstNode *arg = node->data.call.args[0];
+            EzType *t = cg->type_table ? typetable_get(cg->type_table, arg) : NULL;
+            const char *tn = t ? type_name(t) : "unknown";
+            emitf(cg, "ez_string_lit(\"%s\")", tn);
+            return;
+        }
+
+        if (strcmp(func, "to_int") == 0 && node->data.call.arg_count == 1) {
+            emit(cg, "(int64_t)(");
+            emit_expression(cg, node->data.call.args[0]);
+            emit(cg, ")");
+            return;
+        }
+
+        if (strcmp(func, "to_float") == 0 && node->data.call.arg_count == 1) {
+            emit(cg, "(double)(");
+            emit_expression(cg, node->data.call.args[0]);
+            emit(cg, ")");
+            return;
+        }
+
         if (strcmp(func, "print") == 0 && node->data.call.arg_count > 0) {
             AstNode *arg = node->data.call.args[0];
             const char *suffix = "_int";
