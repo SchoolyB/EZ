@@ -819,7 +819,17 @@ static AstNode *parse_struct_declaration(Parser *p) {
         StructField *field = &node->data.struct_decl.fields[node->data.struct_decl.field_count];
         field->name = p->cur_token.literal;
         next_token(p);
-        field->type_name = p->cur_token.literal;
+        if (cur_token_is(p, TOK_LBRACKET)) {
+            /* Array type: [type] */
+            next_token(p); /* element type */
+            const char *elem = p->cur_token.literal;
+            next_token(p); /* skip ] */
+            char *type_str = arena_alloc(p->arena, strlen(elem) + 3);
+            sprintf(type_str, "[%s]", elem);
+            field->type_name = type_str;
+        } else {
+            field->type_name = p->cur_token.literal;
+        }
         node->data.struct_decl.field_count++;
         next_token(p);
     }
