@@ -177,13 +177,28 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
         emit(cg, ")");
         break;
 
-    case NODE_INFIX_EXPR:
-        emit(cg, "(");
+    case NODE_INFIX_EXPR: {
+        /* Only wrap in parens if the parent is also an expression.
+         * Skip parens for top-level comparisons to avoid ((x == y)) warnings. */
+        const char *op = node->data.infix.op;
+        bool needs_parens = true;
+        /* Check if both children are simple (no further nesting needed) */
+        if (node->data.infix.left->kind == NODE_LABEL ||
+            node->data.infix.left->kind == NODE_INT_VALUE ||
+            node->data.infix.left->kind == NODE_FLOAT_VALUE) {
+            if (node->data.infix.right->kind == NODE_LABEL ||
+                node->data.infix.right->kind == NODE_INT_VALUE ||
+                node->data.infix.right->kind == NODE_FLOAT_VALUE) {
+                needs_parens = false;
+            }
+        }
+        if (needs_parens) emit(cg, "(");
         emit_expression(cg, node->data.infix.left);
-        emitf(cg, " %s ", node->data.infix.op);
+        emitf(cg, " %s ", op);
         emit_expression(cg, node->data.infix.right);
-        emit(cg, ")");
+        if (needs_parens) emit(cg, ")");
         break;
+    }
 
     case NODE_POSTFIX_EXPR:
         emit_expression(cg, node->data.postfix.left);
