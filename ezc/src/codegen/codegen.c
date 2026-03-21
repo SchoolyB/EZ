@@ -806,6 +806,10 @@ static void emit_statement(CodeGen *cg, AstNode *node) {
         emit_func_declaration(cg, node,
             strcmp(node->data.func_decl.name, "main") == 0);
         break;
+    case NODE_BLOCK_STMT:
+        /* Inline block (e.g., from multi-var declaration expansion) */
+        emit_block(cg, node);
+        break;
     case NODE_ENSURE_STMT:
         /* Ensure is collected and emitted at return/function-exit */
         break;
