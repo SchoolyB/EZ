@@ -679,9 +679,19 @@ static AstNode *parse_func_declaration(Parser *p) {
         node->data.func_decl.return_types = arena_alloc(p->arena, sizeof(const char *) * ret_cap);
 
         if (cur_token_is(p, TOK_LPAREN)) {
-            /* Multiple return types: -> (int, string) */
+            /* Multiple/named return types: -> (int, string) or -> (x int, y int) */
             next_token(p);
             while (!cur_token_is(p, TOK_RPAREN) && !cur_token_is(p, TOK_EOF)) {
+                if (cur_token_is(p, TOK_IDENT) && peek_token_is(p, TOK_IDENT)) {
+                    /* Named return: name type — skip name, use type */
+                    next_token(p);
+                } else if (cur_token_is(p, TOK_IDENT) && peek_token_is(p, TOK_COMMA)) {
+                    /* Could be shared type: -> (x, y int) — just a name, type comes later */
+                    /* For now, skip the name */
+                    next_token(p); /* skip comma */
+                    next_token(p); /* next name or type */
+                    continue;
+                }
                 node->data.func_decl.return_types[node->data.func_decl.return_type_count++] =
                     p->cur_token.literal;
                 if (peek_token_is(p, TOK_COMMA)) {
