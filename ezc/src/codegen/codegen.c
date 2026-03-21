@@ -71,6 +71,13 @@ static const char *ez_type_to_c_cg(CodeGen *cg, const char *type_name) {
     if (strcmp(type_name, "byte") == 0)   return "uint8_t";
     if (strcmp(type_name, "string") == 0) return "EzString";
 
+    /* Array type: [T] — for struct fields, use pointer representation */
+    if (type_name[0] == '[') {
+        /* For now, array fields in structs are unsupported in C codegen */
+        /* TODO: Use EzArray or pointer type */
+        return "void *";
+    }
+
     /* If starts with uppercase, it's a user-defined type */
     if (type_name[0] >= 'A' && type_name[0] <= 'Z') {
         static char buf[256];
