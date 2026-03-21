@@ -46,10 +46,6 @@ static void emit_indent(CodeGen *cg) {
     buf_append_indent(&cg->output, cg->indent);
 }
 
-static void emit_newline(CodeGen *cg) {
-    emit(cg, "\n");
-}
-
 /* Map EZ type name to C type */
 static const char *ez_type_to_c(const char *type_name) {
     if (!type_name) return "int64_t";
@@ -76,10 +72,6 @@ static const char *ez_type_to_c(const char *type_name) {
 
     /* Default: assume it's a struct type */
     return type_name;
-}
-
-static bool is_string_type(const char *type_name) {
-    return type_name && strcmp(type_name, "string") == 0;
 }
 
 /* --- Expression Emission --- */
@@ -112,6 +104,72 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
         emit(cg, "NULL");
         break;
 
+    case NODE_INTERPOLATED_STRING: {
+        /*
+         * For now, emit snprintf-style formatting.
+         * Without a type checker, we use %s for string literals/labels
+         * and %lld for integer expressions. The type checker (Phase 2+)
+         * will provide proper type resolution.
+         */
+        emit(cg, "ez_string_format(ez_default_arena, \"");
+        /* First pass: emit format string */
+        for (int i = 0; i < node->data.interpolated_string.part_count; i++) {
+            AstNode *part = node->data.interpolated_string.parts[i];
+            if (part->kind == NODE_STRING_VALUE) {
+                const char *s = part->data.string_value.value;
+                while (*s) {
+                    if (*s == '%') buf_append(&cg->output, "%%");
+                    else buf_append_char(&cg->output, *s);
+                    s++;
+                }
+            } else if (part->kind == NODE_INT_VALUE ||
+                       part->kind == NODE_INFIX_EXPR ||
+                       part->kind == NODE_PREFIX_EXPR ||
+                       part->kind == NODE_POSTFIX_EXPR ||
+                       part->kind == NODE_CALL_EXPR) {
+                emit(cg, "%lld");
+            } else if (part->kind == NODE_FLOAT_VALUE) {
+                emit(cg, "%g");
+            } else if (part->kind == NODE_BOOL_VALUE) {
+                emit(cg, "%s");
+            } else {
+                /* NODE_LABEL or other — default to int until type checker resolves */
+                emit(cg, "%lld");
+            }
+        }
+        emit(cg, "\"");
+        /* Second pass: emit arguments */
+        for (int i = 0; i < node->data.interpolated_string.part_count; i++) {
+            AstNode *part = node->data.interpolated_string.parts[i];
+            if (part->kind == NODE_STRING_VALUE) continue;
+            emit(cg, ", ");
+            if (part->kind == NODE_BOOL_VALUE) {
+                emit(cg, "(");
+                emit_expression(cg, part);
+                emit(cg, ") ? \"true\" : \"false\"");
+            } else if (part->kind == NODE_INT_VALUE ||
+                       part->kind == NODE_INFIX_EXPR ||
+                       part->kind == NODE_PREFIX_EXPR ||
+                       part->kind == NODE_POSTFIX_EXPR ||
+                       part->kind == NODE_CALL_EXPR) {
+                emit(cg, "(long long)(");
+                emit_expression(cg, part);
+                emit(cg, ")");
+            } else if (part->kind == NODE_FLOAT_VALUE) {
+                emit(cg, "(double)(");
+                emit_expression(cg, part);
+                emit(cg, ")");
+            } else {
+                /* Label/variable — default to int cast until type checker */
+                emit(cg, "(long long)(");
+                emit_expression(cg, part);
+                emit(cg, ")");
+            }
+        }
+        emit(cg, ")");
+        break;
+    }
+
     case NODE_PREFIX_EXPR:
         emit(cg, "(");
         emit(cg, node->data.prefix.op);
@@ -119,13 +177,28 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
         emit(cg, ")");
         break;
 
-    case NODE_INFIX_EXPR:
-        emit(cg, "(");
+    case NODE_INFIX_EXPR: {
+        /* Only wrap in parens if the parent is also an expression.
+         * Skip parens for top-level comparisons to avoid ((x == y)) warnings. */
+        const char *op = node->data.infix.op;
+        bool needs_parens = true;
+        /* Check if both children are simple (no further nesting needed) */
+        if (node->data.infix.left->kind == NODE_LABEL ||
+            node->data.infix.left->kind == NODE_INT_VALUE ||
+            node->data.infix.left->kind == NODE_FLOAT_VALUE) {
+            if (node->data.infix.right->kind == NODE_LABEL ||
+                node->data.infix.right->kind == NODE_INT_VALUE ||
+                node->data.infix.right->kind == NODE_FLOAT_VALUE) {
+                needs_parens = false;
+            }
+        }
+        if (needs_parens) emit(cg, "(");
         emit_expression(cg, node->data.infix.left);
-        emitf(cg, " %s ", node->data.infix.op);
+        emitf(cg, " %s ", op);
         emit_expression(cg, node->data.infix.right);
-        emit(cg, ")");
+        if (needs_parens) emit(cg, ")");
         break;
+    }
 
     case NODE_POSTFIX_EXPR:
         emit_expression(cg, node->data.postfix.left);
@@ -183,40 +256,23 @@ static void emit_call_expression(CodeGen *cg, AstNode *node) {
                 emit(cg, "putchar('\\n')");
             } else {
                 AstNode *arg = node->data.call.args[0];
-                /* For now, assume string argument for println */
-                if (arg->kind == NODE_STRING_VALUE) {
-                    emit(cg, "ez_std_println_str(");
-                    emit_expression(cg, arg);
-                    emit(cg, ")");
-                } else if (arg->kind == NODE_INT_VALUE) {
-                    emit(cg, "ez_std_println_int(");
-                    emit_expression(cg, arg);
-                    emit(cg, ")");
-                } else if (arg->kind == NODE_FLOAT_VALUE) {
-                    emit(cg, "ez_std_println_float(");
-                    emit_expression(cg, arg);
-                    emit(cg, ")");
-                } else if (arg->kind == NODE_BOOL_VALUE) {
-                    emit(cg, "ez_std_println_bool(");
-                    emit_expression(cg, arg);
-                    emit(cg, ")");
-                } else {
-                    /* Default to string for now */
-                    emit(cg, "ez_std_println_str(");
-                    emit_expression(cg, arg);
-                    emit(cg, ")");
-                }
+                const char *suffix = "_int"; /* default */
+                if (arg->kind == NODE_STRING_VALUE ||
+                    arg->kind == NODE_INTERPOLATED_STRING) suffix = "_str";
+                else if (arg->kind == NODE_FLOAT_VALUE) suffix = "_float";
+                else if (arg->kind == NODE_BOOL_VALUE) suffix = "_bool";
+                emitf(cg, "ez_std_println%s(", suffix);
+                emit_expression(cg, arg);
+                emit(cg, ")");
             }
             return;
         }
 
         if (strcmp(func, "print") == 0 && node->data.call.arg_count > 0) {
             AstNode *arg = node->data.call.args[0];
-            if (arg->kind == NODE_STRING_VALUE) {
-                emit(cg, "ez_std_print_str(");
-            } else {
-                emit(cg, "ez_std_print_str(");
-            }
+            const char *suffix = "_int";
+            if (arg->kind == NODE_STRING_VALUE) suffix = "_str";
+            emitf(cg, "ez_std_print%s(", suffix);
             emit_expression(cg, arg);
             emit(cg, ")");
             return;
@@ -295,38 +351,40 @@ static void emit_if_statement(CodeGen *cg, AstNode *node) {
 
     if (node->data.if_stmt.alternative) {
         if (node->data.if_stmt.alternative->kind == NODE_IF_STMT) {
+            /* or (else if) - emit inline */
             emit_indent(cg);
-            emit(cg, "} else ");
-            /* Emit the else-if without indent since we already have "} else " */
-            emit(cg, "if (");
+            emit(cg, "} else if (");
             emit_expression(cg, node->data.if_stmt.alternative->data.if_stmt.condition);
             emit(cg, ") {\n");
             cg->indent++;
             emit_block(cg, node->data.if_stmt.alternative->data.if_stmt.consequence);
             cg->indent--;
-            if (node->data.if_stmt.alternative->data.if_stmt.alternative) {
-                /* Recursively handle further or/otherwise chains */
-                AstNode *alt = node->data.if_stmt.alternative->data.if_stmt.alternative;
+            /* Recurse for further chains */
+            AstNode *alt = node->data.if_stmt.alternative->data.if_stmt.alternative;
+            while (alt) {
                 if (alt->kind == NODE_IF_STMT) {
                     emit_indent(cg);
-                    emit(cg, "} else ");
-                    /* Recurse - but we need to handle this differently */
-                    /* For now, handle one level of else-if */
-                    emit(cg, "{\n");
+                    emit(cg, "} else if (");
+                    emit_expression(cg, alt->data.if_stmt.condition);
+                    emit(cg, ") {\n");
                     cg->indent++;
-                    emit_block(cg, alt);
+                    emit_block(cg, alt->data.if_stmt.consequence);
                     cg->indent--;
+                    alt = alt->data.if_stmt.alternative;
                 } else {
+                    /* otherwise (else) block */
                     emit_indent(cg);
                     emit(cg, "} else {\n");
                     cg->indent++;
                     emit_block(cg, alt);
                     cg->indent--;
+                    break;
                 }
             }
             emit_indent(cg);
             emit(cg, "}\n");
         } else {
+            /* otherwise (else) block */
             emit_indent(cg);
             emit(cg, "} else {\n");
             cg->indent++;
@@ -339,6 +397,73 @@ static void emit_if_statement(CodeGen *cg, AstNode *node) {
         emit_indent(cg);
         emit(cg, "}\n");
     }
+}
+
+static void emit_for_statement(CodeGen *cg, AstNode *node) {
+    emit_indent(cg);
+
+    AstNode *iter = node->data.for_stmt.iterable;
+    if (iter && iter->kind == NODE_RANGE_EXPR) {
+        /* for i in range(start, end) or range(start, end, step) */
+        const char *var = node->data.for_stmt.var_name;
+
+        if (iter->data.range_expr.start) {
+            /* range(start, end) or range(start, end, step) */
+            emitf(cg, "for (int64_t %s = ", var);
+            emit_expression(cg, iter->data.range_expr.start);
+            emitf(cg, "; %s < ", var);
+            emit_expression(cg, iter->data.range_expr.end);
+            emitf(cg, "; %s", var);
+            if (iter->data.range_expr.step) {
+                emit(cg, " += ");
+                emit_expression(cg, iter->data.range_expr.step);
+            } else {
+                emit(cg, "++");
+            }
+        } else {
+            /* range(end) - start at 0 */
+            emitf(cg, "for (int64_t %s = 0; %s < ", var, var);
+            emit_expression(cg, iter->data.range_expr.end);
+            emitf(cg, "; %s++", var);
+        }
+
+        emit(cg, ") {\n");
+    } else {
+        /* Generic for - fallback */
+        emitf(cg, "/* TODO: non-range for loop */\n");
+        emit_indent(cg);
+        emit(cg, "{\n");
+    }
+
+    cg->indent++;
+    emit_block(cg, node->data.for_stmt.body);
+    cg->indent--;
+    emit_indent(cg);
+    emit(cg, "}\n");
+}
+
+static void emit_while_statement(CodeGen *cg, AstNode *node) {
+    emit_indent(cg);
+    emit(cg, "while (");
+    emit_expression(cg, node->data.while_stmt.condition);
+    emit(cg, ") {\n");
+
+    cg->indent++;
+    emit_block(cg, node->data.while_stmt.body);
+    cg->indent--;
+    emit_indent(cg);
+    emit(cg, "}\n");
+}
+
+static void emit_loop_statement(CodeGen *cg, AstNode *node) {
+    emit_indent(cg);
+    emit(cg, "for (;;) {\n");
+
+    cg->indent++;
+    emit_block(cg, node->data.loop_stmt.body);
+    cg->indent--;
+    emit_indent(cg);
+    emit(cg, "}\n");
 }
 
 static void emit_func_declaration(CodeGen *cg, AstNode *node, bool is_main) {
@@ -404,6 +529,73 @@ static void emit_statement(CodeGen *cg, AstNode *node) {
     case NODE_IF_STMT:
         emit_if_statement(cg, node);
         break;
+    case NODE_FOR_STMT:
+        emit_for_statement(cg, node);
+        break;
+    case NODE_WHILE_STMT:
+        emit_while_statement(cg, node);
+        break;
+    case NODE_LOOP_STMT:
+        emit_loop_statement(cg, node);
+        break;
+    case NODE_BREAK_STMT:
+        emit_indent(cg);
+        emit(cg, "break;\n");
+        break;
+    case NODE_CONTINUE_STMT:
+        emit_indent(cg);
+        emit(cg, "continue;\n");
+        break;
+    case NODE_WHEN_STMT: {
+        /* Emit as if-else chain for now (switch requires constant values) */
+        AstNode *val = node->data.when_stmt.value;
+        for (int i = 0; i < node->data.when_stmt.case_count; i++) {
+            WhenCase *wc = &node->data.when_stmt.cases[i];
+            emit_indent(cg);
+            if (i == 0) {
+                emit(cg, "if (");
+            } else {
+                emit(cg, "} else if (");
+            }
+            for (int j = 0; j < wc->value_count; j++) {
+                if (j > 0) emit(cg, " || ");
+                if (wc->is_range && wc->values[j]->kind == NODE_RANGE_EXPR) {
+                    AstNode *r = wc->values[j];
+                    emit(cg, "(");
+                    emit_expression(cg, val);
+                    emit(cg, " >= ");
+                    emit_expression(cg, r->data.range_expr.start);
+                    emit(cg, " && ");
+                    emit_expression(cg, val);
+                    emit(cg, " < ");
+                    emit_expression(cg, r->data.range_expr.end);
+                    emit(cg, ")");
+                } else {
+                    emit_expression(cg, val);
+                    emit(cg, " == ");
+                    emit_expression(cg, wc->values[j]);
+                }
+            }
+            emit(cg, ") {\n");
+            cg->indent++;
+            emit_block(cg, wc->body);
+            cg->indent--;
+        }
+        if (node->data.when_stmt.default_body) {
+            emit_indent(cg);
+            if (node->data.when_stmt.case_count > 0) {
+                emit(cg, "} else {\n");
+            } else {
+                emit(cg, "{\n");
+            }
+            cg->indent++;
+            emit_block(cg, node->data.when_stmt.default_body);
+            cg->indent--;
+        }
+        emit_indent(cg);
+        emit(cg, "}\n");
+        break;
+    }
     case NODE_FUNC_DECL:
         emit_func_declaration(cg, node,
             strcmp(node->data.func_decl.name, "main") == 0);

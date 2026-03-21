@@ -130,9 +130,99 @@ static AstNode *parse_float_literal(Parser *p) {
     return node;
 }
 
+static bool has_interpolation(const char *s) {
+    for (int i = 0; s[i]; i++) {
+        if (s[i] == '$' && s[i + 1] == '{') return true;
+        if (s[i] == '\\') i++;
+    }
+    return false;
+}
+
+static AstNode *parse_interpolated_string(Parser *p, const char *raw) {
+    AstNode *node = ast_alloc(p->arena, NODE_INTERPOLATED_STRING, p->cur_token);
+
+    int cap = 8;
+    int count = 0;
+    AstNode **parts = arena_alloc(p->arena, sizeof(AstNode *) * cap);
+
+    const char *s = raw;
+    const char *seg_start = s;
+
+    while (*s) {
+        if (*s == '\\' && *(s + 1)) {
+            s += 2;
+            continue;
+        }
+        if (*s == '$' && *(s + 1) == '{') {
+            /* Emit the text segment before ${ */
+            if (s > seg_start) {
+                if (count >= cap) {
+                    cap *= 2;
+                    AstNode **new_parts = arena_alloc(p->arena, sizeof(AstNode *) * cap);
+                    memcpy(new_parts, parts, sizeof(AstNode *) * count);
+                    parts = new_parts;
+                }
+                AstNode *text = ast_alloc(p->arena, NODE_STRING_VALUE, p->cur_token);
+                text->data.string_value.value = arena_strndup(p->arena, seg_start, s - seg_start);
+                parts[count++] = text;
+            }
+
+            /* Find matching } and parse the expression inside */
+            s += 2; /* skip ${ */
+            const char *expr_start = s;
+            int brace_depth = 1;
+            while (*s && brace_depth > 0) {
+                if (*s == '{') brace_depth++;
+                else if (*s == '}') brace_depth--;
+                if (brace_depth > 0) s++;
+            }
+
+            /* Parse the expression text */
+            if (count >= cap) {
+                cap *= 2;
+                AstNode **new_parts = arena_alloc(p->arena, sizeof(AstNode *) * cap);
+                memcpy(new_parts, parts, sizeof(AstNode *) * count);
+                parts = new_parts;
+            }
+
+            char *expr_text = arena_strndup(p->arena, expr_start, s - expr_start);
+            Lexer *expr_lexer = lexer_create(p->arena, expr_text, p->file);
+            Parser *expr_parser = parser_create(p->arena, expr_lexer, p->file);
+            AstNode *expr = parse_expression(expr_parser, PREC_LOWEST);
+            if (expr) parts[count++] = expr;
+
+            if (*s == '}') s++;
+            seg_start = s;
+        } else {
+            s++;
+        }
+    }
+
+    /* Remaining text segment */
+    if (s > seg_start) {
+        if (count >= cap) {
+            cap *= 2;
+            AstNode **new_parts = arena_alloc(p->arena, sizeof(AstNode *) * cap);
+            memcpy(new_parts, parts, sizeof(AstNode *) * count);
+            parts = new_parts;
+        }
+        AstNode *text = ast_alloc(p->arena, NODE_STRING_VALUE, p->cur_token);
+        text->data.string_value.value = arena_strndup(p->arena, seg_start, s - seg_start);
+        parts[count++] = text;
+    }
+
+    node->data.interpolated_string.parts = parts;
+    node->data.interpolated_string.part_count = count;
+    return node;
+}
+
 static AstNode *parse_string_literal(Parser *p) {
+    const char *raw = p->cur_token.literal;
+    if (has_interpolation(raw)) {
+        return parse_interpolated_string(p, raw);
+    }
     AstNode *node = ast_alloc(p->arena, NODE_STRING_VALUE, p->cur_token);
-    node->data.string_value.value = p->cur_token.literal;
+    node->data.string_value.value = raw;
     return node;
 }
 
@@ -175,6 +265,32 @@ static AstNode *parse_prefix(Parser *p) {
     case TOK_BANG:
     case TOK_AMPERSAND: return parse_prefix_expression(p);
     case TOK_LPAREN:    return parse_grouped_expression(p);
+    case TOK_RANGE: {
+        /* range(end) or range(start, end) or range(start, end, step) */
+        AstNode *node = ast_alloc(p->arena, NODE_RANGE_EXPR, p->cur_token);
+        node->data.range_expr.start = NULL;
+        node->data.range_expr.end = NULL;
+        node->data.range_expr.step = NULL;
+        if (!expect_peek(p, TOK_LPAREN)) return NULL;
+        next_token(p);
+        AstNode *first = parse_expression(p, PREC_LOWEST);
+        if (peek_token_is(p, TOK_COMMA)) {
+            node->data.range_expr.start = first;
+            next_token(p); /* skip comma */
+            next_token(p);
+            node->data.range_expr.end = parse_expression(p, PREC_LOWEST);
+            if (peek_token_is(p, TOK_COMMA)) {
+                next_token(p); /* skip comma */
+                next_token(p);
+                node->data.range_expr.step = parse_expression(p, PREC_LOWEST);
+            }
+        } else {
+            /* range(end) - start defaults to 0 */
+            node->data.range_expr.end = first;
+        }
+        if (!expect_peek(p, TOK_RPAREN)) return NULL;
+        return node;
+    }
     default:
         parser_error(p, "%s:%d:%d: unexpected token '%s'",
             p->file, p->cur_token.line, p->cur_token.column,
@@ -291,12 +407,6 @@ static AstNode *parse_expression(Parser *p, Precedence prec) {
 }
 
 /* --- Statement Parsing --- */
-
-static AstNode *parse_expression_statement(Parser *p) {
-    AstNode *node = ast_alloc(p->arena, NODE_EXPR_STMT, p->cur_token);
-    node->data.expr_stmt.expr = parse_expression(p, PREC_LOWEST);
-    return node;
-}
 
 static AstNode *parse_var_declaration(Parser *p) {
     AstNode *node = ast_alloc(p->arena, NODE_VAR_DECL, p->cur_token);
@@ -551,6 +661,130 @@ static AstNode *parse_ensure_statement(Parser *p) {
     return node;
 }
 
+static AstNode *parse_for_statement(Parser *p) {
+    AstNode *node = ast_alloc(p->arena, NODE_FOR_STMT, p->cur_token);
+
+    if (!expect_peek(p, TOK_IDENT)) return NULL;
+    node->data.for_stmt.var_name = p->cur_token.literal;
+
+    /* Optional type annotation */
+    node->data.for_stmt.var_type = NULL;
+
+    if (!expect_peek(p, TOK_IN)) return NULL;
+
+    next_token(p);
+    node->data.for_stmt.iterable = parse_expression(p, PREC_LOWEST);
+
+    if (!expect_peek(p, TOK_LBRACE)) return NULL;
+    node->data.for_stmt.body = parse_block_statement(p);
+
+    return node;
+}
+
+static AstNode *parse_for_each_statement(Parser *p) {
+    AstNode *node = ast_alloc(p->arena, NODE_FOR_EACH_STMT, p->cur_token);
+
+    next_token(p);
+    node->data.for_each.index_name = NULL;
+    node->data.for_each.var_name = p->cur_token.literal;
+
+    /* Check for index, value pattern: for_each i, item in collection */
+    if (peek_token_is(p, TOK_COMMA)) {
+        node->data.for_each.index_name = node->data.for_each.var_name;
+        next_token(p); /* skip comma */
+        next_token(p);
+        node->data.for_each.var_name = p->cur_token.literal;
+    }
+
+    if (!expect_peek(p, TOK_IN)) return NULL;
+
+    next_token(p);
+    node->data.for_each.collection = parse_expression(p, PREC_LOWEST);
+
+    if (!expect_peek(p, TOK_LBRACE)) return NULL;
+    node->data.for_each.body = parse_block_statement(p);
+
+    return node;
+}
+
+static AstNode *parse_while_statement(Parser *p) {
+    AstNode *node = ast_alloc(p->arena, NODE_WHILE_STMT, p->cur_token);
+
+    next_token(p);
+    node->data.while_stmt.condition = parse_expression(p, PREC_LOWEST);
+
+    if (!expect_peek(p, TOK_LBRACE)) return NULL;
+    node->data.while_stmt.body = parse_block_statement(p);
+
+    return node;
+}
+
+static AstNode *parse_loop_statement(Parser *p) {
+    AstNode *node = ast_alloc(p->arena, NODE_LOOP_STMT, p->cur_token);
+
+    if (!expect_peek(p, TOK_LBRACE)) return NULL;
+    node->data.loop_stmt.body = parse_block_statement(p);
+
+    return node;
+}
+
+static AstNode *parse_when_statement(Parser *p) {
+    AstNode *node = ast_alloc(p->arena, NODE_WHEN_STMT, p->cur_token);
+
+    next_token(p);
+    node->data.when_stmt.value = parse_expression(p, PREC_LOWEST);
+    node->data.when_stmt.is_strict = false;
+    node->data.when_stmt.default_body = NULL;
+
+    if (!expect_peek(p, TOK_LBRACE)) return NULL;
+    next_token(p); /* skip { */
+
+    int case_cap = 8;
+    node->data.when_stmt.case_count = 0;
+    node->data.when_stmt.cases = arena_alloc(p->arena, sizeof(WhenCase) * case_cap);
+
+    while (!cur_token_is(p, TOK_RBRACE) && !cur_token_is(p, TOK_EOF)) {
+        if (cur_token_is(p, TOK_IS)) {
+            if (node->data.when_stmt.case_count >= case_cap) {
+                case_cap *= 2;
+                WhenCase *new_cases = arena_alloc(p->arena, sizeof(WhenCase) * case_cap);
+                memcpy(new_cases, node->data.when_stmt.cases,
+                    sizeof(WhenCase) * node->data.when_stmt.case_count);
+                node->data.when_stmt.cases = new_cases;
+            }
+
+            WhenCase *wc = &node->data.when_stmt.cases[node->data.when_stmt.case_count];
+            memset(wc, 0, sizeof(WhenCase));
+
+            int val_cap = 4;
+            wc->value_count = 0;
+            wc->values = arena_alloc(p->arena, sizeof(AstNode *) * val_cap);
+            wc->is_range = false;
+
+            /* Parse case values: is 1, 2, 3 { } */
+            do {
+                next_token(p);
+                if (cur_token_is(p, TOK_RANGE)) {
+                    wc->is_range = true;
+                }
+                wc->values[wc->value_count++] = parse_expression(p, PREC_LOWEST);
+            } while (peek_token_is(p, TOK_COMMA) && (next_token(p), 1));
+
+            if (!expect_peek(p, TOK_LBRACE)) return NULL;
+            wc->body = parse_block_statement(p);
+            node->data.when_stmt.case_count++;
+
+        } else if (cur_token_is(p, TOK_DEFAULT)) {
+            if (!expect_peek(p, TOK_LBRACE)) return NULL;
+            node->data.when_stmt.default_body = parse_block_statement(p);
+        }
+
+        next_token(p);
+    }
+
+    return node;
+}
+
 static bool is_assignment_op(TokenType t) {
     return t == TOK_ASSIGN || t == TOK_PLUS_ASSIGN || t == TOK_MINUS_ASSIGN ||
            t == TOK_ASTERISK_ASSIGN || t == TOK_SLASH_ASSIGN || t == TOK_PERCENT_ASSIGN;
@@ -571,6 +805,20 @@ static AstNode *parse_statement(Parser *p) {
         return parse_using_statement(p);
     case TOK_IF:
         return parse_if_statement(p);
+    case TOK_FOR:
+        return parse_for_statement(p);
+    case TOK_FOR_EACH:
+        return parse_for_each_statement(p);
+    case TOK_AS_LONG_AS:
+        return parse_while_statement(p);
+    case TOK_LOOP:
+        return parse_loop_statement(p);
+    case TOK_BREAK:
+        return ast_alloc(p->arena, NODE_BREAK_STMT, p->cur_token);
+    case TOK_CONTINUE:
+        return ast_alloc(p->arena, NODE_CONTINUE_STMT, p->cur_token);
+    case TOK_WHEN:
+        return parse_when_statement(p);
     case TOK_ENSURE:
         return parse_ensure_statement(p);
     default: {
