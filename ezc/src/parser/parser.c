@@ -318,12 +318,6 @@ static AstNode *parse_expression(Parser *p, Precedence prec) {
 
 /* --- Statement Parsing --- */
 
-static AstNode *parse_expression_statement(Parser *p) {
-    AstNode *node = ast_alloc(p->arena, NODE_EXPR_STMT, p->cur_token);
-    node->data.expr_stmt.expr = parse_expression(p, PREC_LOWEST);
-    return node;
-}
-
 static AstNode *parse_var_declaration(Parser *p) {
     AstNode *node = ast_alloc(p->arena, NODE_VAR_DECL, p->cur_token);
     node->data.var_decl.mutable = (p->cur_token.type == TOK_TEMP);
