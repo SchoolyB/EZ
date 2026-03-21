@@ -376,6 +376,21 @@ static void emit_var_declaration(CodeGen *cg, AstNode *node) {
 
     const char *c_type = ez_type_to_c_cg(cg, type_name);
 
+    /* If no type annotation, try to infer from value */
+    if (!type_name && node->data.var_decl.value) {
+        AstNode *val = node->data.var_decl.value;
+        if (val->kind == NODE_STRING_VALUE || val->kind == NODE_INTERPOLATED_STRING) {
+            c_type = "EzString";
+        } else if (val->kind == NODE_FLOAT_VALUE) {
+            c_type = "double";
+        } else if (val->kind == NODE_BOOL_VALUE) {
+            c_type = "bool";
+        } else if (val->kind == NODE_CALL_EXPR) {
+            /* Use __auto_type for function calls to infer multi-return types */
+            c_type = "__auto_type";
+        }
+    }
+
     if (!node->data.var_decl.mutable) {
         emit(cg, "const ");
     }
@@ -400,12 +415,23 @@ static void emit_assign_statement(CodeGen *cg, AstNode *node) {
 
 static void emit_return_statement(CodeGen *cg, AstNode *node) {
     emit_indent(cg);
-    emit(cg, "return");
-    if (node->data.return_stmt.count > 0) {
-        emit(cg, " ");
-        emit_expression(cg, node->data.return_stmt.values[0]);
+
+    if (node->data.return_stmt.count > 1 && cg->current_func) {
+        /* Multi-value return: return (EzMulti_func){v0, v1, ...}; */
+        emitf(cg, "return (EzMulti_%s){", cg->current_func->data.func_decl.name);
+        for (int i = 0; i < node->data.return_stmt.count; i++) {
+            if (i > 0) emit(cg, ", ");
+            emit_expression(cg, node->data.return_stmt.values[i]);
+        }
+        emit(cg, "};\n");
+    } else {
+        emit(cg, "return");
+        if (node->data.return_stmt.count > 0) {
+            emit(cg, " ");
+            emit_expression(cg, node->data.return_stmt.values[0]);
+        }
+        emit(cg, ";\n");
     }
-    emit(cg, ";\n");
 }
 
 static void emit_block(CodeGen *cg, AstNode *node) {
@@ -541,16 +567,32 @@ static void emit_loop_statement(CodeGen *cg, AstNode *node) {
     emit(cg, "}\n");
 }
 
+/* Build a multi-return type name like EzMulti_add */
+static void emit_multi_return_typedef(CodeGen *cg, AstNode *node) {
+    emitf(cg, "typedef struct {\n");
+    for (int i = 0; i < node->data.func_decl.return_type_count; i++) {
+        emitf(cg, "    %s v%d;\n",
+            ez_type_to_c_cg(cg, node->data.func_decl.return_types[i]), i);
+    }
+    emitf(cg, "} EzMulti_%s;\n\n", node->data.func_decl.name);
+}
+
+static const char *func_return_type(CodeGen *cg, AstNode *node) {
+    if (node->data.func_decl.return_type_count == 0) return "void";
+    if (node->data.func_decl.return_type_count == 1) {
+        return ez_type_to_c_cg(cg, node->data.func_decl.return_types[0]);
+    }
+    static char buf[256];
+    snprintf(buf, sizeof(buf), "EzMulti_%s", node->data.func_decl.name);
+    return buf;
+}
+
 static void emit_func_declaration(CodeGen *cg, AstNode *node, bool is_main) {
     /* Return type */
     if (is_main) {
         emit(cg, "static void ez_fn_main(void)");
     } else {
-        if (node->data.func_decl.return_type_count == 0) {
-            emit(cg, "static void ");
-        } else {
-            emitf(cg, "static %s ", ez_type_to_c_cg(cg,node->data.func_decl.return_types[0]));
-        }
+        emitf(cg, "static %s ", func_return_type(cg, node));
         emitf(cg, "ez_fn_%s(", node->data.func_decl.name);
 
         /* Parameters */
@@ -572,9 +614,12 @@ static void emit_func_declaration(CodeGen *cg, AstNode *node, bool is_main) {
 
     emit(cg, " {\n");
     cg->indent++;
+    AstNode *prev_func = cg->current_func;
+    cg->current_func = node;
     if (node->data.func_decl.body) {
         emit_block(cg, node->data.func_decl.body);
     }
+    cg->current_func = prev_func;
     cg->indent--;
     emit(cg, "}\n\n");
 }
@@ -780,6 +825,15 @@ void codegen_generate(CodeGen *cg, AstNode *program) {
         }
     }
 
+    /* Emit multi-return type definitions */
+    for (int i = 0; i < program->data.program.stmt_count; i++) {
+        AstNode *stmt = program->data.program.stmts[i];
+        if (stmt->kind == NODE_FUNC_DECL &&
+            stmt->data.func_decl.return_type_count > 1) {
+            emit_multi_return_typedef(cg, stmt);
+        }
+    }
+
     /* Emit forward declarations for user functions */
     for (int i = 0; i < program->data.program.stmt_count; i++) {
         AstNode *stmt = program->data.program.stmts[i];
@@ -787,12 +841,7 @@ void codegen_generate(CodeGen *cg, AstNode *program) {
             if (strcmp(stmt->data.func_decl.name, "main") == 0) {
                 emit(cg, "static void ez_fn_main(void);\n");
             } else {
-                emit(cg, "static ");
-                if (stmt->data.func_decl.return_type_count == 0) {
-                    emit(cg, "void ");
-                } else {
-                    emitf(cg, "%s ", ez_type_to_c_cg(cg,stmt->data.func_decl.return_types[0]));
-                }
+                emitf(cg, "static %s ", func_return_type(cg, stmt));
                 emitf(cg, "ez_fn_%s(", stmt->data.func_decl.name);
                 for (int j = 0; j < stmt->data.func_decl.param_count; j++) {
                     if (j > 0) emit(cg, ", ");
