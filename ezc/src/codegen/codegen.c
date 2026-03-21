@@ -104,6 +104,72 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
         emit(cg, "NULL");
         break;
 
+    case NODE_INTERPOLATED_STRING: {
+        /*
+         * For now, emit snprintf-style formatting.
+         * Without a type checker, we use %s for string literals/labels
+         * and %lld for integer expressions. The type checker (Phase 2+)
+         * will provide proper type resolution.
+         */
+        emit(cg, "ez_string_format(ez_default_arena, \"");
+        /* First pass: emit format string */
+        for (int i = 0; i < node->data.interpolated_string.part_count; i++) {
+            AstNode *part = node->data.interpolated_string.parts[i];
+            if (part->kind == NODE_STRING_VALUE) {
+                const char *s = part->data.string_value.value;
+                while (*s) {
+                    if (*s == '%') buf_append(&cg->output, "%%");
+                    else buf_append_char(&cg->output, *s);
+                    s++;
+                }
+            } else if (part->kind == NODE_INT_VALUE ||
+                       part->kind == NODE_INFIX_EXPR ||
+                       part->kind == NODE_PREFIX_EXPR ||
+                       part->kind == NODE_POSTFIX_EXPR ||
+                       part->kind == NODE_CALL_EXPR) {
+                emit(cg, "%lld");
+            } else if (part->kind == NODE_FLOAT_VALUE) {
+                emit(cg, "%g");
+            } else if (part->kind == NODE_BOOL_VALUE) {
+                emit(cg, "%s");
+            } else {
+                /* NODE_LABEL or other — default to int until type checker resolves */
+                emit(cg, "%lld");
+            }
+        }
+        emit(cg, "\"");
+        /* Second pass: emit arguments */
+        for (int i = 0; i < node->data.interpolated_string.part_count; i++) {
+            AstNode *part = node->data.interpolated_string.parts[i];
+            if (part->kind == NODE_STRING_VALUE) continue;
+            emit(cg, ", ");
+            if (part->kind == NODE_BOOL_VALUE) {
+                emit(cg, "(");
+                emit_expression(cg, part);
+                emit(cg, ") ? \"true\" : \"false\"");
+            } else if (part->kind == NODE_INT_VALUE ||
+                       part->kind == NODE_INFIX_EXPR ||
+                       part->kind == NODE_PREFIX_EXPR ||
+                       part->kind == NODE_POSTFIX_EXPR ||
+                       part->kind == NODE_CALL_EXPR) {
+                emit(cg, "(long long)(");
+                emit_expression(cg, part);
+                emit(cg, ")");
+            } else if (part->kind == NODE_FLOAT_VALUE) {
+                emit(cg, "(double)(");
+                emit_expression(cg, part);
+                emit(cg, ")");
+            } else {
+                /* Label/variable — default to int cast until type checker */
+                emit(cg, "(long long)(");
+                emit_expression(cg, part);
+                emit(cg, ")");
+            }
+        }
+        emit(cg, ")");
+        break;
+    }
+
     case NODE_PREFIX_EXPR:
         emit(cg, "(");
         emit(cg, node->data.prefix.op);
@@ -176,7 +242,8 @@ static void emit_call_expression(CodeGen *cg, AstNode *node) {
             } else {
                 AstNode *arg = node->data.call.args[0];
                 const char *suffix = "_int"; /* default */
-                if (arg->kind == NODE_STRING_VALUE) suffix = "_str";
+                if (arg->kind == NODE_STRING_VALUE ||
+                    arg->kind == NODE_INTERPOLATED_STRING) suffix = "_str";
                 else if (arg->kind == NODE_FLOAT_VALUE) suffix = "_float";
                 else if (arg->kind == NODE_BOOL_VALUE) suffix = "_bool";
                 emitf(cg, "ez_std_println%s(", suffix);
