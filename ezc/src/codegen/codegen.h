@@ -16,6 +16,11 @@ typedef struct {
     int indent;
     bool has_std;       /* Whether @std was imported */
     const char *file;
+
+    /* Track declared type names for codegen */
+    const char **enum_names;
+    int enum_count;
+    int enum_cap;
 } CodeGen;
 
 CodeGen codegen_create(const char *file);

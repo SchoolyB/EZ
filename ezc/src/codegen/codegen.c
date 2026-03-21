@@ -17,6 +17,7 @@
 static void emit_statement(CodeGen *cg, AstNode *node);
 static void emit_expression(CodeGen *cg, AstNode *node);
 static void emit_call_expression(CodeGen *cg, AstNode *node);
+static bool codegen_is_enum(CodeGen *cg, const char *name);
 
 /* --- Helpers --- */
 
@@ -47,7 +48,7 @@ static void emit_indent(CodeGen *cg) {
 }
 
 /* Map EZ type name to C type */
-static const char *ez_type_to_c(const char *type_name) {
+static const char *ez_type_to_c_cg(CodeGen *cg, const char *type_name) {
     if (!type_name) return "int64_t";
 
     if (strcmp(type_name, "int") == 0)    return "int64_t";
@@ -70,7 +71,17 @@ static const char *ez_type_to_c(const char *type_name) {
     if (strcmp(type_name, "byte") == 0)   return "uint8_t";
     if (strcmp(type_name, "string") == 0) return "EzString";
 
-    /* Default: assume it's a struct type */
+    /* If starts with uppercase, it's a user-defined type */
+    if (type_name[0] >= 'A' && type_name[0] <= 'Z') {
+        static char buf[256];
+        if (cg && codegen_is_enum(cg, type_name)) {
+            snprintf(buf, sizeof(buf), "EzEnum_%s", type_name);
+        } else {
+            snprintf(buf, sizeof(buf), "EzStruct_%s", type_name);
+        }
+        return buf;
+    }
+
     return type_name;
 }
 
@@ -170,6 +181,27 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
         break;
     }
 
+    case NODE_ARRAY_VALUE:
+        /* Array literal: emit as C compound literal */
+        emit(cg, "{");
+        for (int i = 0; i < node->data.array_value.count; i++) {
+            if (i > 0) emit(cg, ", ");
+            emit_expression(cg, node->data.array_value.elements[i]);
+        }
+        emit(cg, "}");
+        break;
+
+    case NODE_STRUCT_VALUE:
+        /* Struct literal: (EzStruct_Name){.field = value, ...} */
+        emitf(cg, "(EzStruct_%s){", node->data.struct_value.name);
+        for (int i = 0; i < node->data.struct_value.count; i++) {
+            if (i > 0) emit(cg, ", ");
+            emitf(cg, ".%s = ", node->data.struct_value.field_names[i]);
+            emit_expression(cg, node->data.struct_value.field_values[i]);
+        }
+        emit(cg, "}");
+        break;
+
     case NODE_PREFIX_EXPR:
         emit(cg, "(");
         emit(cg, node->data.prefix.op);
@@ -183,14 +215,16 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
         const char *op = node->data.infix.op;
         bool needs_parens = true;
         /* Check if both children are simple (no further nesting needed) */
-        if (node->data.infix.left->kind == NODE_LABEL ||
-            node->data.infix.left->kind == NODE_INT_VALUE ||
-            node->data.infix.left->kind == NODE_FLOAT_VALUE) {
-            if (node->data.infix.right->kind == NODE_LABEL ||
-                node->data.infix.right->kind == NODE_INT_VALUE ||
-                node->data.infix.right->kind == NODE_FLOAT_VALUE) {
-                needs_parens = false;
-            }
+        NodeKind lk = node->data.infix.left->kind;
+        NodeKind rk = node->data.infix.right->kind;
+        bool l_simple = (lk == NODE_LABEL || lk == NODE_INT_VALUE ||
+                        lk == NODE_FLOAT_VALUE || lk == NODE_MEMBER_EXPR ||
+                        lk == NODE_CALL_EXPR || lk == NODE_BOOL_VALUE);
+        bool r_simple = (rk == NODE_LABEL || rk == NODE_INT_VALUE ||
+                        rk == NODE_FLOAT_VALUE || rk == NODE_MEMBER_EXPR ||
+                        rk == NODE_CALL_EXPR || rk == NODE_BOOL_VALUE);
+        if (l_simple && r_simple) {
+            needs_parens = false;
         }
         if (needs_parens) emit(cg, "(");
         emit_expression(cg, node->data.infix.left);
@@ -210,6 +244,15 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
         break;
 
     case NODE_MEMBER_EXPR:
+        /* Check if this is an enum access: EnumName.VALUE */
+        if (node->data.member.object->kind == NODE_LABEL) {
+            const char *obj_name = node->data.member.object->data.label.value;
+            if (obj_name[0] >= 'A' && obj_name[0] <= 'Z') {
+                /* Could be enum access — emit as EzEnum_Name_VALUE */
+                emitf(cg, "EzEnum_%s_%s", obj_name, node->data.member.member);
+                break;
+            }
+        }
         emit_expression(cg, node->data.member.object);
         emitf(cg, ".%s", node->data.member.member);
         break;
@@ -296,10 +339,42 @@ static void emit_call_expression(CodeGen *cg, AstNode *node) {
 
 /* --- Statement Emission --- */
 
+static const char *extract_array_elem_type(const char *type_name) {
+    if (!type_name || type_name[0] != '[') return NULL;
+    /* Extract element type from "[int]" -> "int" */
+    static char buf[128];
+    size_t len = strlen(type_name);
+    if (len < 3) return NULL;
+    memcpy(buf, type_name + 1, len - 2);
+    buf[len - 2] = '\0';
+    return buf;
+}
+
 static void emit_var_declaration(CodeGen *cg, AstNode *node) {
     emit_indent(cg);
 
-    const char *c_type = ez_type_to_c(node->data.var_decl.type_name);
+    const char *type_name = node->data.var_decl.type_name;
+    const char *elem_type = extract_array_elem_type(type_name);
+
+    if (elem_type) {
+        /* Array declaration: temp arr [int] = {1, 2, 3} */
+        const char *c_elem_type = ez_type_to_c_cg(cg, elem_type);
+        if (node->data.var_decl.value &&
+            node->data.var_decl.value->kind == NODE_ARRAY_VALUE) {
+            int count = node->data.var_decl.value->data.array_value.count;
+            emitf(cg, "%s %s[%d] = ", c_elem_type, node->data.var_decl.name, count);
+            emit_expression(cg, node->data.var_decl.value);
+            emit(cg, ";\n");
+            /* Emit length tracking variable */
+            emit_indent(cg);
+            emitf(cg, "const int32_t %s_len = %d;\n", node->data.var_decl.name, count);
+        } else {
+            emitf(cg, "%s *%s = NULL;\n", c_elem_type, node->data.var_decl.name);
+        }
+        return;
+    }
+
+    const char *c_type = ez_type_to_c_cg(cg, type_name);
 
     if (!node->data.var_decl.mutable) {
         emit(cg, "const ");
@@ -474,7 +549,7 @@ static void emit_func_declaration(CodeGen *cg, AstNode *node, bool is_main) {
         if (node->data.func_decl.return_type_count == 0) {
             emit(cg, "static void ");
         } else {
-            emitf(cg, "static %s ", ez_type_to_c(node->data.func_decl.return_types[0]));
+            emitf(cg, "static %s ", ez_type_to_c_cg(cg,node->data.func_decl.return_types[0]));
         }
         emitf(cg, "ez_fn_%s(", node->data.func_decl.name);
 
@@ -483,9 +558,9 @@ static void emit_func_declaration(CodeGen *cg, AstNode *node, bool is_main) {
             if (i > 0) emit(cg, ", ");
             Param *param = &node->data.func_decl.params[i];
             if (param->mutable) {
-                emitf(cg, "%s *%s", ez_type_to_c(param->type_name), param->name);
+                emitf(cg, "%s *%s", ez_type_to_c_cg(cg,param->type_name), param->name);
             } else {
-                emitf(cg, "%s %s", ez_type_to_c(param->type_name), param->name);
+                emitf(cg, "%s %s", ez_type_to_c_cg(cg,param->type_name), param->name);
             }
         }
 
@@ -600,6 +675,12 @@ static void emit_statement(CodeGen *cg, AstNode *node) {
         emit_func_declaration(cg, node,
             strcmp(node->data.func_decl.name, "main") == 0);
         break;
+    case NODE_STRUCT_DECL:
+        /* Struct declarations are emitted in the preamble */
+        break;
+    case NODE_ENUM_DECL:
+        /* Enum declarations are emitted in the preamble */
+        break;
     case NODE_IMPORT_STMT:
         /* Imports are handled during the preamble scan */
         break;
@@ -615,12 +696,22 @@ static void emit_statement(CodeGen *cg, AstNode *node) {
 
 /* --- Public API --- */
 
+static bool codegen_is_enum(CodeGen *cg, const char *name) {
+    for (int i = 0; i < cg->enum_count; i++) {
+        if (strcmp(cg->enum_names[i], name) == 0) return true;
+    }
+    return false;
+}
+
 CodeGen codegen_create(const char *file) {
     CodeGen cg;
     cg.output = buf_create(4096);
     cg.indent = 0;
     cg.has_std = false;
     cg.file = file;
+    cg.enum_names = NULL;
+    cg.enum_count = 0;
+    cg.enum_cap = 0;
     return cg;
 }
 
@@ -649,6 +740,46 @@ void codegen_generate(CodeGen *cg, AstNode *program) {
     }
     emit(cg, "\n");
 
+    /* Emit struct type definitions */
+    for (int i = 0; i < program->data.program.stmt_count; i++) {
+        AstNode *stmt = program->data.program.stmts[i];
+        if (stmt->kind == NODE_STRUCT_DECL) {
+            emitf(cg, "typedef struct {\n");
+            for (int j = 0; j < stmt->data.struct_decl.field_count; j++) {
+                StructField *f = &stmt->data.struct_decl.fields[j];
+                emitf(cg, "    %s %s;\n", ez_type_to_c_cg(cg,f->type_name), f->name);
+            }
+            emitf(cg, "} EzStruct_%s;\n\n", stmt->data.struct_decl.name);
+        }
+    }
+
+    /* Collect and emit enum type definitions */
+    for (int i = 0; i < program->data.program.stmt_count; i++) {
+        AstNode *stmt = program->data.program.stmts[i];
+        if (stmt->kind == NODE_ENUM_DECL) {
+            /* Register enum name */
+            if (cg->enum_count >= cg->enum_cap) {
+                cg->enum_cap = cg->enum_cap ? cg->enum_cap * 2 : 8;
+                const char **new_names = realloc(cg->enum_names, sizeof(const char *) * cg->enum_cap);
+                cg->enum_names = new_names;
+            }
+            cg->enum_names[cg->enum_count++] = stmt->data.enum_decl.name;
+            emitf(cg, "typedef enum {\n");
+            for (int j = 0; j < stmt->data.enum_decl.value_count; j++) {
+                EnumVal *ev = &stmt->data.enum_decl.values[j];
+                emitf(cg, "    EzEnum_%s_%s", stmt->data.enum_decl.name, ev->name);
+                if (ev->value) {
+                    emit(cg, " = ");
+                    emit_expression(cg, ev->value);
+                } else {
+                    emitf(cg, " = %d", j);
+                }
+                emit(cg, ",\n");
+            }
+            emitf(cg, "} EzEnum_%s;\n\n", stmt->data.enum_decl.name);
+        }
+    }
+
     /* Emit forward declarations for user functions */
     for (int i = 0; i < program->data.program.stmt_count; i++) {
         AstNode *stmt = program->data.program.stmts[i];
@@ -660,16 +791,16 @@ void codegen_generate(CodeGen *cg, AstNode *program) {
                 if (stmt->data.func_decl.return_type_count == 0) {
                     emit(cg, "void ");
                 } else {
-                    emitf(cg, "%s ", ez_type_to_c(stmt->data.func_decl.return_types[0]));
+                    emitf(cg, "%s ", ez_type_to_c_cg(cg,stmt->data.func_decl.return_types[0]));
                 }
                 emitf(cg, "ez_fn_%s(", stmt->data.func_decl.name);
                 for (int j = 0; j < stmt->data.func_decl.param_count; j++) {
                     if (j > 0) emit(cg, ", ");
                     Param *param = &stmt->data.func_decl.params[j];
                     if (param->mutable) {
-                        emitf(cg, "%s *", ez_type_to_c(param->type_name));
+                        emitf(cg, "%s *", ez_type_to_c_cg(cg,param->type_name));
                     } else {
-                        emit(cg, ez_type_to_c(param->type_name));
+                        emit(cg, ez_type_to_c_cg(cg,param->type_name));
                     }
                 }
                 if (stmt->data.func_decl.param_count == 0) {
