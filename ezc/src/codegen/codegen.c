@@ -186,6 +186,8 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
                 case TK_FLOAT:  emit(cg, "%g"); break;
                 case TK_BOOL:   emit(cg, "%s"); break;
                 case TK_CHAR:   emit(cg, "%c"); break;
+                case TK_ARRAY:  emit(cg, "%s"); break;
+                case TK_ENUM:   emit(cg, "%lld"); break;
                 default:        emit(cg, "%lld"); break;
                 }
             }
@@ -225,6 +227,9 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
                 emit(cg, "(char)(");
                 emit_expression(cg, part);
                 emit(cg, ")");
+                break;
+            case TK_ARRAY:
+                emit(cg, "\"[...]\"");
                 break;
             default:
                 emit(cg, "(long long)(");
