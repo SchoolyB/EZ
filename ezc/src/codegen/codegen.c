@@ -295,38 +295,40 @@ static void emit_if_statement(CodeGen *cg, AstNode *node) {
 
     if (node->data.if_stmt.alternative) {
         if (node->data.if_stmt.alternative->kind == NODE_IF_STMT) {
+            /* or (else if) - emit inline */
             emit_indent(cg);
-            emit(cg, "} else ");
-            /* Emit the else-if without indent since we already have "} else " */
-            emit(cg, "if (");
+            emit(cg, "} else if (");
             emit_expression(cg, node->data.if_stmt.alternative->data.if_stmt.condition);
             emit(cg, ") {\n");
             cg->indent++;
             emit_block(cg, node->data.if_stmt.alternative->data.if_stmt.consequence);
             cg->indent--;
-            if (node->data.if_stmt.alternative->data.if_stmt.alternative) {
-                /* Recursively handle further or/otherwise chains */
-                AstNode *alt = node->data.if_stmt.alternative->data.if_stmt.alternative;
+            /* Recurse for further chains */
+            AstNode *alt = node->data.if_stmt.alternative->data.if_stmt.alternative;
+            while (alt) {
                 if (alt->kind == NODE_IF_STMT) {
                     emit_indent(cg);
-                    emit(cg, "} else ");
-                    /* Recurse - but we need to handle this differently */
-                    /* For now, handle one level of else-if */
-                    emit(cg, "{\n");
+                    emit(cg, "} else if (");
+                    emit_expression(cg, alt->data.if_stmt.condition);
+                    emit(cg, ") {\n");
                     cg->indent++;
-                    emit_block(cg, alt);
+                    emit_block(cg, alt->data.if_stmt.consequence);
                     cg->indent--;
+                    alt = alt->data.if_stmt.alternative;
                 } else {
+                    /* otherwise (else) block */
                     emit_indent(cg);
                     emit(cg, "} else {\n");
                     cg->indent++;
                     emit_block(cg, alt);
                     cg->indent--;
+                    break;
                 }
             }
             emit_indent(cg);
             emit(cg, "}\n");
         } else {
+            /* otherwise (else) block */
             emit_indent(cg);
             emit(cg, "} else {\n");
             cg->indent++;
@@ -339,6 +341,73 @@ static void emit_if_statement(CodeGen *cg, AstNode *node) {
         emit_indent(cg);
         emit(cg, "}\n");
     }
+}
+
+static void emit_for_statement(CodeGen *cg, AstNode *node) {
+    emit_indent(cg);
+
+    AstNode *iter = node->data.for_stmt.iterable;
+    if (iter && iter->kind == NODE_RANGE_EXPR) {
+        /* for i in range(start, end) or range(start, end, step) */
+        const char *var = node->data.for_stmt.var_name;
+
+        if (iter->data.range_expr.start) {
+            /* range(start, end) or range(start, end, step) */
+            emitf(cg, "for (int64_t %s = ", var);
+            emit_expression(cg, iter->data.range_expr.start);
+            emitf(cg, "; %s < ", var);
+            emit_expression(cg, iter->data.range_expr.end);
+            emitf(cg, "; %s", var);
+            if (iter->data.range_expr.step) {
+                emit(cg, " += ");
+                emit_expression(cg, iter->data.range_expr.step);
+            } else {
+                emit(cg, "++");
+            }
+        } else {
+            /* range(end) - start at 0 */
+            emitf(cg, "for (int64_t %s = 0; %s < ", var, var);
+            emit_expression(cg, iter->data.range_expr.end);
+            emitf(cg, "; %s++", var);
+        }
+
+        emit(cg, ") {\n");
+    } else {
+        /* Generic for - fallback */
+        emitf(cg, "/* TODO: non-range for loop */\n");
+        emit_indent(cg);
+        emit(cg, "{\n");
+    }
+
+    cg->indent++;
+    emit_block(cg, node->data.for_stmt.body);
+    cg->indent--;
+    emit_indent(cg);
+    emit(cg, "}\n");
+}
+
+static void emit_while_statement(CodeGen *cg, AstNode *node) {
+    emit_indent(cg);
+    emit(cg, "while (");
+    emit_expression(cg, node->data.while_stmt.condition);
+    emit(cg, ") {\n");
+
+    cg->indent++;
+    emit_block(cg, node->data.while_stmt.body);
+    cg->indent--;
+    emit_indent(cg);
+    emit(cg, "}\n");
+}
+
+static void emit_loop_statement(CodeGen *cg, AstNode *node) {
+    emit_indent(cg);
+    emit(cg, "for (;;) {\n");
+
+    cg->indent++;
+    emit_block(cg, node->data.loop_stmt.body);
+    cg->indent--;
+    emit_indent(cg);
+    emit(cg, "}\n");
 }
 
 static void emit_func_declaration(CodeGen *cg, AstNode *node, bool is_main) {
@@ -403,6 +472,23 @@ static void emit_statement(CodeGen *cg, AstNode *node) {
         break;
     case NODE_IF_STMT:
         emit_if_statement(cg, node);
+        break;
+    case NODE_FOR_STMT:
+        emit_for_statement(cg, node);
+        break;
+    case NODE_WHILE_STMT:
+        emit_while_statement(cg, node);
+        break;
+    case NODE_LOOP_STMT:
+        emit_loop_statement(cg, node);
+        break;
+    case NODE_BREAK_STMT:
+        emit_indent(cg);
+        emit(cg, "break;\n");
+        break;
+    case NODE_CONTINUE_STMT:
+        emit_indent(cg);
+        emit(cg, "continue;\n");
         break;
     case NODE_FUNC_DECL:
         emit_func_declaration(cg, node,
