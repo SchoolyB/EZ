@@ -152,12 +152,6 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
         break;
 
     case NODE_INTERPOLATED_STRING: {
-        /*
-         * For now, emit snprintf-style formatting.
-         * Without a type checker, we use %s for string literals/labels
-         * and %lld for integer expressions. The type checker (Phase 2+)
-         * will provide proper type resolution.
-         */
         emit(cg, "ez_string_format(ez_default_arena, \"");
         /* First pass: emit format string */
         for (int i = 0; i < node->data.interpolated_string.part_count; i++) {
@@ -169,19 +163,26 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
                     else buf_append_char(&cg->output, *s);
                     s++;
                 }
-            } else if (part->kind == NODE_INT_VALUE ||
-                       part->kind == NODE_INFIX_EXPR ||
-                       part->kind == NODE_PREFIX_EXPR ||
-                       part->kind == NODE_POSTFIX_EXPR ||
-                       part->kind == NODE_CALL_EXPR) {
-                emit(cg, "%lld");
-            } else if (part->kind == NODE_FLOAT_VALUE) {
-                emit(cg, "%g");
-            } else if (part->kind == NODE_BOOL_VALUE) {
-                emit(cg, "%s");
             } else {
-                /* NODE_LABEL or other — default to int until type checker resolves */
-                emit(cg, "%lld");
+                /* Use type table to determine format specifier */
+                EzType *t = cg->type_table ? typetable_get(cg->type_table, part) : NULL;
+                TypeKind tk = t ? t->kind : TK_UNKNOWN;
+
+                /* Fall back to AST-based inference if no type info */
+                if (tk == TK_UNKNOWN) {
+                    if (part->kind == NODE_FLOAT_VALUE) tk = TK_FLOAT;
+                    else if (part->kind == NODE_BOOL_VALUE) tk = TK_BOOL;
+                    else if (part->kind == NODE_STRING_VALUE) tk = TK_STRING;
+                    else tk = TK_INT;
+                }
+
+                switch (tk) {
+                case TK_STRING: emit(cg, "%s"); break;
+                case TK_FLOAT:  emit(cg, "%g"); break;
+                case TK_BOOL:   emit(cg, "%s"); break;
+                case TK_CHAR:   emit(cg, "%c"); break;
+                default:        emit(cg, "%lld"); break;
+                }
             }
         }
         emit(cg, "\"");
@@ -190,27 +191,41 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
             AstNode *part = node->data.interpolated_string.parts[i];
             if (part->kind == NODE_STRING_VALUE) continue;
             emit(cg, ", ");
-            if (part->kind == NODE_BOOL_VALUE) {
+
+            EzType *t = cg->type_table ? typetable_get(cg->type_table, part) : NULL;
+            TypeKind tk = t ? t->kind : TK_UNKNOWN;
+            if (tk == TK_UNKNOWN) {
+                if (part->kind == NODE_FLOAT_VALUE) tk = TK_FLOAT;
+                else if (part->kind == NODE_BOOL_VALUE) tk = TK_BOOL;
+                else if (part->kind == NODE_STRING_VALUE) tk = TK_STRING;
+                else tk = TK_INT;
+            }
+
+            switch (tk) {
+            case TK_STRING:
+                emit_expression(cg, part);
+                emit(cg, ".data");
+                break;
+            case TK_BOOL:
                 emit(cg, "(");
                 emit_expression(cg, part);
                 emit(cg, ") ? \"true\" : \"false\"");
-            } else if (part->kind == NODE_INT_VALUE ||
-                       part->kind == NODE_INFIX_EXPR ||
-                       part->kind == NODE_PREFIX_EXPR ||
-                       part->kind == NODE_POSTFIX_EXPR ||
-                       part->kind == NODE_CALL_EXPR) {
-                emit(cg, "(long long)(");
-                emit_expression(cg, part);
-                emit(cg, ")");
-            } else if (part->kind == NODE_FLOAT_VALUE) {
+                break;
+            case TK_FLOAT:
                 emit(cg, "(double)(");
                 emit_expression(cg, part);
                 emit(cg, ")");
-            } else {
-                /* Label/variable — default to int cast until type checker */
+                break;
+            case TK_CHAR:
+                emit(cg, "(char)(");
+                emit_expression(cg, part);
+                emit(cg, ")");
+                break;
+            default:
                 emit(cg, "(long long)(");
                 emit_expression(cg, part);
                 emit(cg, ")");
+                break;
             }
         }
         emit(cg, ")");
@@ -336,10 +351,22 @@ static void emit_call_expression(CodeGen *cg, AstNode *node) {
             } else {
                 AstNode *arg = node->data.call.args[0];
                 const char *suffix = "_int"; /* default */
-                if (arg->kind == NODE_STRING_VALUE ||
-                    arg->kind == NODE_INTERPOLATED_STRING) suffix = "_str";
-                else if (arg->kind == NODE_FLOAT_VALUE) suffix = "_float";
-                else if (arg->kind == NODE_BOOL_VALUE) suffix = "_bool";
+                /* Use type table if available */
+                EzType *arg_type = cg->type_table ? typetable_get(cg->type_table, arg) : NULL;
+                if (arg_type) {
+                    switch (arg_type->kind) {
+                    case TK_STRING: suffix = "_str"; break;
+                    case TK_FLOAT:  suffix = "_float"; break;
+                    case TK_BOOL:   suffix = "_bool"; break;
+                    default: suffix = "_int"; break;
+                    }
+                } else {
+                    /* Fallback to AST-based inference */
+                    if (arg->kind == NODE_STRING_VALUE ||
+                        arg->kind == NODE_INTERPOLATED_STRING) suffix = "_str";
+                    else if (arg->kind == NODE_FLOAT_VALUE) suffix = "_float";
+                    else if (arg->kind == NODE_BOOL_VALUE) suffix = "_bool";
+                }
                 emitf(cg, "ez_std_println%s(", suffix);
                 emit_expression(cg, arg);
                 emit(cg, ")");
@@ -865,6 +892,7 @@ CodeGen codegen_create(const char *file) {
     cg.all_funcs = NULL;
     cg.func_count = 0;
     cg.func_cap = 0;
+    cg.type_table = NULL;
     return cg;
 }
 
