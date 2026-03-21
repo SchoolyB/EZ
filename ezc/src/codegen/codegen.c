@@ -135,6 +135,18 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
         emit(cg, node->data.bool_value.value ? "true" : "false");
         break;
 
+    case NODE_CHAR_VALUE: {
+        char c = node->data.char_value.value;
+        if (c == '\n') emit(cg, "'\\n'");
+        else if (c == '\t') emit(cg, "'\\t'");
+        else if (c == '\r') emit(cg, "'\\r'");
+        else if (c == '\\') emit(cg, "'\\\\'");
+        else if (c == '\'') emit(cg, "'\\''");
+        else if (c == '\0') emit(cg, "'\\0'");
+        else emitf(cg, "'%c'", c);
+        break;
+    }
+
     case NODE_NIL_VALUE:
         emit(cg, "NULL");
         break;

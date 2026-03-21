@@ -272,6 +272,22 @@ static AstNode *parse_prefix(Parser *p) {
     case TOK_TRUE:
     case TOK_FALSE:     return parse_bool_literal(p);
     case TOK_NIL:       return parse_nil_literal(p);
+    case TOK_CHAR: {
+        AstNode *node = ast_alloc(p->arena, NODE_CHAR_VALUE, p->cur_token);
+        node->data.char_value.value = p->cur_token.literal[0];
+        if (p->cur_token.literal[0] == '\\' && p->cur_token.literal[1]) {
+            switch (p->cur_token.literal[1]) {
+            case 'n': node->data.char_value.value = '\n'; break;
+            case 't': node->data.char_value.value = '\t'; break;
+            case 'r': node->data.char_value.value = '\r'; break;
+            case '\\': node->data.char_value.value = '\\'; break;
+            case '\'': node->data.char_value.value = '\''; break;
+            case '0': node->data.char_value.value = '\0'; break;
+            default: node->data.char_value.value = p->cur_token.literal[1]; break;
+            }
+        }
+        return node;
+    }
     case TOK_MINUS:
     case TOK_BANG:
     case TOK_AMPERSAND: return parse_prefix_expression(p);
@@ -656,7 +672,7 @@ static AstNode *parse_import_statement(Parser *p) {
                 sizeof(ImportItem) * node->data.import_stmt.count);
             node->data.import_stmt.items = new_items;
         }
-    } while (peek_token_is(p, TOK_COMMA));
+    } while (peek_token_is(p, TOK_COMMA) && (next_token(p), 1));
 
     return node;
 }
