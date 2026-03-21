@@ -135,6 +135,18 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
         emit(cg, node->data.bool_value.value ? "true" : "false");
         break;
 
+    case NODE_CHAR_VALUE: {
+        char c = node->data.char_value.value;
+        if (c == '\n') emit(cg, "'\\n'");
+        else if (c == '\t') emit(cg, "'\\t'");
+        else if (c == '\r') emit(cg, "'\\r'");
+        else if (c == '\\') emit(cg, "'\\\\'");
+        else if (c == '\'') emit(cg, "'\\''");
+        else if (c == '\0') emit(cg, "'\\0'");
+        else emitf(cg, "'%c'", c);
+        break;
+    }
+
     case NODE_NIL_VALUE:
         emit(cg, "NULL");
         break;
@@ -417,6 +429,17 @@ static void emit_var_declaration(CodeGen *cg, AstNode *node) {
     }
 
     const char *c_type = ez_type_to_c_cg(cg, type_name);
+
+    /* Skip blank identifiers (_) */
+    if (strcmp(node->data.var_decl.name, "_") == 0) {
+        if (node->data.var_decl.value) {
+            emit_indent(cg);
+            emit(cg, "(void)(");
+            emit_expression(cg, node->data.var_decl.value);
+            emit(cg, ");\n");
+        }
+        return;
+    }
 
     /* If no type annotation, try to infer from value */
     if (!type_name && node->data.var_decl.value) {
@@ -793,6 +816,10 @@ static void emit_statement(CodeGen *cg, AstNode *node) {
     case NODE_FUNC_DECL:
         emit_func_declaration(cg, node,
             strcmp(node->data.func_decl.name, "main") == 0);
+        break;
+    case NODE_BLOCK_STMT:
+        /* Inline block (e.g., from multi-var declaration expansion) */
+        emit_block(cg, node);
         break;
     case NODE_ENSURE_STMT:
         /* Ensure is collected and emitted at return/function-exit */
