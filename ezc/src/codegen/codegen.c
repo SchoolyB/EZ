@@ -71,11 +71,9 @@ static const char *ez_type_to_c_cg(CodeGen *cg, const char *type_name) {
     if (strcmp(type_name, "byte") == 0)   return "uint8_t";
     if (strcmp(type_name, "string") == 0) return "EzString";
 
-    /* Array type: [T] — for struct fields, use pointer representation */
+    /* Array type: [T] — use EzArray */
     if (type_name[0] == '[') {
-        /* For now, array fields in structs are unsupported in C codegen */
-        /* TODO: Use EzArray or pointer type */
-        return "void *";
+        return "EzArray";
     }
 
     /* If starts with uppercase, it's a user-defined type */
@@ -188,6 +186,8 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
                 case TK_FLOAT:  emit(cg, "%g"); break;
                 case TK_BOOL:   emit(cg, "%s"); break;
                 case TK_CHAR:   emit(cg, "%c"); break;
+                case TK_ARRAY:  emit(cg, "%s"); break;
+                case TK_ENUM:   emit(cg, "%lld"); break;
                 default:        emit(cg, "%lld"); break;
                 }
             }
@@ -228,6 +228,9 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
                 emit_expression(cg, part);
                 emit(cg, ")");
                 break;
+            case TK_ARRAY:
+                emit(cg, "\"[...]\"");
+                break;
             default:
                 emit(cg, "(long long)(");
                 emit_expression(cg, part);
@@ -239,15 +242,35 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
         break;
     }
 
-    case NODE_ARRAY_VALUE:
-        /* Array literal: emit as C compound literal */
-        emit(cg, "{");
-        for (int i = 0; i < node->data.array_value.count; i++) {
+    case NODE_ARRAY_VALUE: {
+        /* Array literal: emit as EzArray using ez_array_from */
+        int count = node->data.array_value.count;
+        if (count == 0) {
+            emit(cg, "ez_array_new(ez_default_arena, sizeof(int64_t), 4)");
+            break;
+        }
+        /* Determine element type from first element */
+        EzType *elem_t = cg->type_table
+            ? typetable_get(cg->type_table, node->data.array_value.elements[0])
+            : NULL;
+        TypeKind tk = elem_t ? elem_t->kind : TK_INT;
+
+        const char *c_type;
+        switch (tk) {
+        case TK_FLOAT:  c_type = "double"; break;
+        case TK_BOOL:   c_type = "bool"; break;
+        case TK_STRING: c_type = "EzString"; break;
+        default:        c_type = "int64_t"; break;
+        }
+
+        emitf(cg, "ez_array_from(ez_default_arena, (%s[]){", c_type);
+        for (int i = 0; i < count; i++) {
             if (i > 0) emit(cg, ", ");
             emit_expression(cg, node->data.array_value.elements[i]);
         }
-        emit(cg, "}");
+        emitf(cg, "}, sizeof(%s), %d)", c_type, count);
         break;
+    }
 
     case NODE_STRUCT_VALUE:
         /* Struct literal: (EzStruct_Name){.field = value, ...} */
@@ -315,12 +338,36 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
         emitf(cg, ".%s", node->data.member.member);
         break;
 
-    case NODE_INDEX_EXPR:
-        emit_expression(cg, node->data.index_expr.left);
-        emit(cg, "[");
-        emit_expression(cg, node->data.index_expr.index);
-        emit(cg, "]");
+    case NODE_INDEX_EXPR: {
+        /* Check if left side is an array (EzArray) or string */
+        EzType *left_t = cg->type_table
+            ? typetable_get(cg->type_table, node->data.index_expr.left)
+            : NULL;
+        if (left_t && left_t->kind == TK_ARRAY) {
+            /* Determine element C type */
+            const char *c_elem = "int64_t";
+            if (left_t->element_type) {
+                EzType *et = type_from_name(left_t->element_type);
+                if (et->kind == TK_FLOAT) c_elem = "double";
+                else if (et->kind == TK_BOOL) c_elem = "bool";
+                else if (et->kind == TK_STRING) c_elem = "EzString";
+                else if (et->kind == TK_CHAR) c_elem = "int32_t";
+                else if (et->kind == TK_BYTE) c_elem = "uint8_t";
+            }
+            emitf(cg, "EZ_ARRAY_GET(");
+            emit_expression(cg, node->data.index_expr.left);
+            emitf(cg, ", %s, ", c_elem);
+            emit_expression(cg, node->data.index_expr.index);
+            emit(cg, ")");
+        } else {
+            /* String indexing or fallback to C array indexing */
+            emit_expression(cg, node->data.index_expr.left);
+            emit(cg, "[");
+            emit_expression(cg, node->data.index_expr.index);
+            emit(cg, "]");
+        }
         break;
+    }
 
     default:
         emitf(cg, "/* TODO: expression kind %d */", node->kind);
@@ -389,12 +436,14 @@ static void emit_call_expression(CodeGen *cg, AstNode *node) {
                 emit_expression(cg, arg);
                 emit(cg, ").len");
             } else if (t && t->kind == TK_ARRAY) {
+                emit(cg, "(int64_t)(");
                 emit_expression(cg, arg);
-                emit(cg, "_len");
+                emit(cg, ").len");
             } else {
-                /* Default: try _len suffix for arrays */
+                /* Default: try .len for EzArray */
+                emit(cg, "(int64_t)(");
                 emit_expression(cg, arg);
-                emit(cg, "_len");
+                emit(cg, ").len");
             }
             return;
         }
@@ -485,20 +534,15 @@ static void emit_var_declaration(CodeGen *cg, AstNode *node) {
     const char *elem_type = extract_array_elem_type(type_name);
 
     if (elem_type) {
-        /* Array declaration: temp arr [int] = {1, 2, 3} */
-        const char *c_elem_type = ez_type_to_c_cg(cg, elem_type);
-        if (node->data.var_decl.value &&
-            node->data.var_decl.value->kind == NODE_ARRAY_VALUE) {
-            int count = node->data.var_decl.value->data.array_value.count;
-            emitf(cg, "%s %s[%d] = ", c_elem_type, node->data.var_decl.name, count);
+        /* Array declaration: use EzArray */
+        emitf(cg, "EzArray %s = ", node->data.var_decl.name);
+        if (node->data.var_decl.value) {
             emit_expression(cg, node->data.var_decl.value);
-            emit(cg, ";\n");
-            /* Emit length tracking variable */
-            emit_indent(cg);
-            emitf(cg, "const int32_t %s_len = %d;\n", node->data.var_decl.name, count);
         } else {
-            emitf(cg, "%s *%s = NULL;\n", c_elem_type, node->data.var_decl.name);
+            const char *c_elem_type = ez_type_to_c_cg(cg, elem_type);
+            emitf(cg, "ez_array_new(ez_default_arena, sizeof(%s), 4)", c_elem_type);
         }
+        emit(cg, ";\n");
         return;
     }
 
@@ -546,7 +590,31 @@ static void emit_var_declaration(CodeGen *cg, AstNode *node) {
 
 static void emit_assign_statement(CodeGen *cg, AstNode *node) {
     emit_indent(cg);
-    /* For mutable params, the target label already emits (*name) */
+
+    /* Check for array index assignment: arr[i] = value */
+    if (node->data.assign.target->kind == NODE_INDEX_EXPR) {
+        AstNode *left = node->data.assign.target->data.index_expr.left;
+        EzType *left_t = cg->type_table ? typetable_get(cg->type_table, left) : NULL;
+        if (left_t && left_t->kind == TK_ARRAY) {
+            const char *c_elem = "int64_t";
+            if (left_t->element_type) {
+                EzType *et = type_from_name(left_t->element_type);
+                if (et->kind == TK_FLOAT) c_elem = "double";
+                else if (et->kind == TK_BOOL) c_elem = "bool";
+                else if (et->kind == TK_STRING) c_elem = "EzString";
+            }
+            emitf(cg, "EZ_ARRAY_SET(");
+            emit_expression(cg, left);
+            emitf(cg, ", %s, ", c_elem);
+            emit_expression(cg, node->data.assign.target->data.index_expr.index);
+            emit(cg, ", ");
+            emit_expression(cg, node->data.assign.value);
+            emit(cg, ");\n");
+            return;
+        }
+    }
+
+    /* Default assignment */
     emit_expression(cg, node->data.assign.target);
     emitf(cg, " %s ", node->data.assign.op);
     emit_expression(cg, node->data.assign.value);
@@ -823,6 +891,39 @@ static void emit_statement(CodeGen *cg, AstNode *node) {
     case NODE_FOR_STMT:
         emit_for_statement(cg, node);
         break;
+    case NODE_FOR_EACH_STMT: {
+        /* for_each item in collection → for loop over EzArray */
+        emit_indent(cg);
+        AstNode *coll = node->data.for_each.collection;
+        EzType *coll_t = cg->type_table ? typetable_get(cg->type_table, coll) : NULL;
+        const char *c_elem = "int64_t";
+        if (coll_t && coll_t->kind == TK_ARRAY && coll_t->element_type) {
+            EzType *et = type_from_name(coll_t->element_type);
+            if (et->kind == TK_FLOAT) c_elem = "double";
+            else if (et->kind == TK_BOOL) c_elem = "bool";
+            else if (et->kind == TK_STRING) c_elem = "EzString";
+        }
+
+        /* Emit index variable */
+        const char *idx_name = node->data.for_each.index_name;
+        if (!idx_name) idx_name = "_ez_idx";
+        emitf(cg, "for (int32_t %s = 0; %s < ", idx_name, idx_name);
+        emit_expression(cg, coll);
+        emitf(cg, ".len; %s++) {\n", idx_name);
+
+        cg->indent++;
+        /* Declare the item variable */
+        emit_indent(cg);
+        emitf(cg, "%s %s = EZ_ARRAY_GET(", c_elem, node->data.for_each.var_name);
+        emit_expression(cg, coll);
+        emitf(cg, ", %s, %s);\n", c_elem, idx_name);
+
+        emit_block(cg, node->data.for_each.body);
+        cg->indent--;
+        emit_indent(cg);
+        emit(cg, "}\n");
+        break;
+    }
     case NODE_WHILE_STMT:
         emit_while_statement(cg, node);
         break;
@@ -963,6 +1064,7 @@ void codegen_generate(CodeGen *cg, AstNode *program) {
     /* Emit preamble */
     emit(cg, "/* Generated by EZC */\n");
     emit(cg, "#include \"ez_runtime.h\"\n");
+    emit(cg, "#include \"ez_array.h\"\n");
     if (cg->has_std) {
         emit(cg, "#include \"ez_std.h\"\n");
     }
