@@ -464,7 +464,12 @@ static AstNode *parse_var_declaration(Parser *p) {
     AstNode *node = ast_alloc(p->arena, NODE_VAR_DECL, p->cur_token);
     node->data.var_decl.mutable = (p->cur_token.type == TOK_TEMP);
 
-    if (!expect_peek(p, TOK_IDENT)) return NULL;
+    if (peek_token_is(p, TOK_IDENT) || peek_token_is(p, TOK_BLANK)) {
+        next_token(p);
+    } else {
+        expect_peek(p, TOK_IDENT); /* will error */
+        return NULL;
+    }
     node->data.var_decl.name = p->cur_token.literal;
 
     /* Optional type annotation */
@@ -485,8 +490,9 @@ static AstNode *parse_var_declaration(Parser *p) {
 
             while (peek_token_is(p, TOK_COMMA)) {
                 next_token(p); /* skip comma */
-                next_token(p); /* name */
+                next_token(p); /* name (IDENT or _) */
                 names[var_count] = p->cur_token.literal;
+                if (cur_token_is(p, TOK_BLANK)) names[var_count] = "_";
                 if (peek_token_is(p, TOK_IDENT)) {
                     next_token(p); /* type */
                     types[var_count] = p->cur_token.literal;
