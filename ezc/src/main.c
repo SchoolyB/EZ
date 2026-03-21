@@ -14,6 +14,7 @@
 #include <sys/stat.h>
 
 #include "util/arena.h"
+#include "util/error.h"
 #include "lexer/lexer.h"
 #include "parser/parser.h"
 #include "codegen/codegen.h"
@@ -145,6 +146,10 @@ int main(int argc, char **argv) {
             emit_c_only = true;
             continue;
         }
+        if (strcmp(argv[i], "--no-color") == 0) {
+            /* Handled after diag_create */
+            continue;
+        }
         if (argv[i][0] == '-') {
             fprintf(stderr, "ezc: unknown option '%s'\n", argv[i]);
             return 1;
@@ -161,18 +166,29 @@ int main(int argc, char **argv) {
     char *source = read_file(input_file);
     if (!source) return 1;
 
-    /* Create compiler arena */
+    /* Create compiler arena and diagnostics */
     Arena *arena = arena_create(1024 * 1024);
+    DiagnosticList *diag = diag_create();
+    diag_set_source(diag, input_file, source);
+
+    /* Check for --no-color flag */
+    for (int i = 1; i < argc; i++) {
+        if (strcmp(argv[i], "--no-color") == 0) {
+            diag->use_color = false;
+        }
+    }
 
     /* Lex */
     Lexer *lexer = lexer_create(arena, source, input_file);
 
     /* Parse */
-    Parser *parser = parser_create(arena, lexer, input_file);
+    Parser *parser = parser_create(arena, lexer, input_file, diag);
     AstNode *program = parser_parse_program(parser);
 
-    if (parser_has_errors(parser)) {
-        parser_print_errors(parser);
+    if (diag_has_errors(diag)) {
+        diag_print_all(diag);
+        diag_print_summary(diag);
+        diag_destroy(diag);
         arena_destroy(arena);
         free(source);
         return 1;
@@ -248,6 +264,7 @@ int main(int argc, char **argv) {
     }
 
     codegen_destroy(&cg);
+    diag_destroy(diag);
     arena_destroy(arena);
     free(source);
     free(default_output);

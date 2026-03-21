@@ -11,6 +11,7 @@
 #include "ast.h"
 #include "../lexer/lexer.h"
 #include "../util/arena.h"
+#include "../util/error.h"
 
 typedef struct {
     Lexer *lexer;
@@ -18,16 +19,10 @@ typedef struct {
     Token cur_token;
     Token peek_token;
     const char *file;
-
-    /* Error tracking */
-    char **errors;
-    int error_count;
-    int error_cap;
+    DiagnosticList *diag;
 } Parser;
 
-Parser *parser_create(Arena *arena, Lexer *lexer, const char *file);
+Parser *parser_create(Arena *arena, Lexer *lexer, const char *file, DiagnosticList *diag);
 AstNode *parser_parse_program(Parser *p);
-bool parser_has_errors(Parser *p);
-void parser_print_errors(Parser *p);
 
 #endif
