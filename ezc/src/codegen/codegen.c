@@ -85,6 +85,26 @@ static const char *ez_type_to_c_cg(CodeGen *cg, const char *type_name) {
     return type_name;
 }
 
+/* Check if a variable name is a mutable parameter in the current function */
+static bool is_mutable_param(CodeGen *cg, const char *name) {
+    if (!cg->current_func) return false;
+    for (int i = 0; i < cg->current_func->data.func_decl.param_count; i++) {
+        Param *p = &cg->current_func->data.func_decl.params[i];
+        if (p->mutable && strcmp(p->name, name) == 0) return true;
+    }
+    return false;
+}
+
+/* Find a function declaration by name */
+static AstNode *find_func(CodeGen *cg, const char *name) {
+    for (int i = 0; i < cg->func_count; i++) {
+        if (strcmp(cg->all_funcs[i]->data.func_decl.name, name) == 0) {
+            return cg->all_funcs[i];
+        }
+    }
+    return NULL;
+}
+
 /* --- Expression Emission --- */
 
 static void emit_expression(CodeGen *cg, AstNode *node) {
@@ -92,7 +112,11 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
 
     switch (node->kind) {
     case NODE_LABEL:
-        emit(cg, node->data.label.value);
+        if (is_mutable_param(cg, node->data.label.value)) {
+            emitf(cg, "(*%s)", node->data.label.value);
+        } else {
+            emit(cg, node->data.label.value);
+        }
         break;
 
     case NODE_INT_VALUE:
@@ -323,16 +347,34 @@ static void emit_call_expression(CodeGen *cg, AstNode *node) {
     }
 
     /* Generic function call */
-    emit(cg, "ez_fn_");
+    const char *fn_name = NULL;
     if (node->data.call.function->kind == NODE_LABEL) {
-        emit(cg, node->data.call.function->data.label.value);
+        fn_name = node->data.call.function->data.label.value;
+    }
+
+    emit(cg, "ez_fn_");
+    if (fn_name) {
+        emit(cg, fn_name);
     } else {
         emit_expression(cg, node->data.call.function);
     }
+
+    /* Look up function to check for mutable params */
+    AstNode *target_func = fn_name ? find_func(cg, fn_name) : NULL;
+
     emit(cg, "(");
     for (int i = 0; i < node->data.call.arg_count; i++) {
         if (i > 0) emit(cg, ", ");
-        emit_expression(cg, node->data.call.args[i]);
+        /* Pass address for mutable parameters */
+        bool needs_addr = false;
+        if (target_func && i < target_func->data.func_decl.param_count) {
+            needs_addr = target_func->data.func_decl.params[i].mutable;
+        }
+        if (needs_addr && node->data.call.args[i]->kind == NODE_LABEL) {
+            emitf(cg, "&%s", node->data.call.args[i]->data.label.value);
+        } else {
+            emit_expression(cg, node->data.call.args[i]);
+        }
     }
     emit(cg, ")");
 }
@@ -376,6 +418,21 @@ static void emit_var_declaration(CodeGen *cg, AstNode *node) {
 
     const char *c_type = ez_type_to_c_cg(cg, type_name);
 
+    /* If no type annotation, try to infer from value */
+    if (!type_name && node->data.var_decl.value) {
+        AstNode *val = node->data.var_decl.value;
+        if (val->kind == NODE_STRING_VALUE || val->kind == NODE_INTERPOLATED_STRING) {
+            c_type = "EzString";
+        } else if (val->kind == NODE_FLOAT_VALUE) {
+            c_type = "double";
+        } else if (val->kind == NODE_BOOL_VALUE) {
+            c_type = "bool";
+        } else if (val->kind == NODE_CALL_EXPR) {
+            /* Use __auto_type for function calls to infer multi-return types */
+            c_type = "__auto_type";
+        }
+    }
+
     if (!node->data.var_decl.mutable) {
         emit(cg, "const ");
     }
@@ -392,20 +449,61 @@ static void emit_var_declaration(CodeGen *cg, AstNode *node) {
 
 static void emit_assign_statement(CodeGen *cg, AstNode *node) {
     emit_indent(cg);
+    /* For mutable params, the target label already emits (*name) */
     emit_expression(cg, node->data.assign.target);
     emitf(cg, " %s ", node->data.assign.op);
     emit_expression(cg, node->data.assign.value);
     emit(cg, ";\n");
 }
 
-static void emit_return_statement(CodeGen *cg, AstNode *node) {
-    emit_indent(cg);
-    emit(cg, "return");
-    if (node->data.return_stmt.count > 0) {
-        emit(cg, " ");
-        emit_expression(cg, node->data.return_stmt.values[0]);
+/* Collect ensure statements from a block */
+static void collect_ensures(AstNode *block, AstNode **ensures, int *count, int cap) {
+    if (!block || block->kind != NODE_BLOCK_STMT) return;
+    for (int i = 0; i < block->data.block.count; i++) {
+        AstNode *stmt = block->data.block.stmts[i];
+        if (stmt->kind == NODE_ENSURE_STMT && *count < cap) {
+            ensures[(*count)++] = stmt;
+        }
     }
-    emit(cg, ";\n");
+}
+
+/* Emit ensure cleanup calls in LIFO order */
+static void emit_ensure_cleanup(CodeGen *cg) {
+    if (!cg->current_func || !cg->current_func->data.func_decl.body) return;
+
+    AstNode *ensures[32];
+    int ensure_count = 0;
+    collect_ensures(cg->current_func->data.func_decl.body, ensures, &ensure_count, 32);
+
+    /* Emit in reverse (LIFO) order */
+    for (int i = ensure_count - 1; i >= 0; i--) {
+        emit_indent(cg);
+        emit_expression(cg, ensures[i]->data.ensure_stmt.expr);
+        emit(cg, ";\n");
+    }
+}
+
+static void emit_return_statement(CodeGen *cg, AstNode *node) {
+    /* Emit ensure cleanup before return */
+    emit_ensure_cleanup(cg);
+
+    emit_indent(cg);
+
+    if (node->data.return_stmt.count > 1 && cg->current_func) {
+        emitf(cg, "return (EzMulti_%s){", cg->current_func->data.func_decl.name);
+        for (int i = 0; i < node->data.return_stmt.count; i++) {
+            if (i > 0) emit(cg, ", ");
+            emit_expression(cg, node->data.return_stmt.values[i]);
+        }
+        emit(cg, "};\n");
+    } else {
+        emit(cg, "return");
+        if (node->data.return_stmt.count > 0) {
+            emit(cg, " ");
+            emit_expression(cg, node->data.return_stmt.values[0]);
+        }
+        emit(cg, ";\n");
+    }
 }
 
 static void emit_block(CodeGen *cg, AstNode *node) {
@@ -541,16 +639,32 @@ static void emit_loop_statement(CodeGen *cg, AstNode *node) {
     emit(cg, "}\n");
 }
 
+/* Build a multi-return type name like EzMulti_add */
+static void emit_multi_return_typedef(CodeGen *cg, AstNode *node) {
+    emitf(cg, "typedef struct {\n");
+    for (int i = 0; i < node->data.func_decl.return_type_count; i++) {
+        emitf(cg, "    %s v%d;\n",
+            ez_type_to_c_cg(cg, node->data.func_decl.return_types[i]), i);
+    }
+    emitf(cg, "} EzMulti_%s;\n\n", node->data.func_decl.name);
+}
+
+static const char *func_return_type(CodeGen *cg, AstNode *node) {
+    if (node->data.func_decl.return_type_count == 0) return "void";
+    if (node->data.func_decl.return_type_count == 1) {
+        return ez_type_to_c_cg(cg, node->data.func_decl.return_types[0]);
+    }
+    static char buf[256];
+    snprintf(buf, sizeof(buf), "EzMulti_%s", node->data.func_decl.name);
+    return buf;
+}
+
 static void emit_func_declaration(CodeGen *cg, AstNode *node, bool is_main) {
     /* Return type */
     if (is_main) {
         emit(cg, "static void ez_fn_main(void)");
     } else {
-        if (node->data.func_decl.return_type_count == 0) {
-            emit(cg, "static void ");
-        } else {
-            emitf(cg, "static %s ", ez_type_to_c_cg(cg,node->data.func_decl.return_types[0]));
-        }
+        emitf(cg, "static %s ", func_return_type(cg, node));
         emitf(cg, "ez_fn_%s(", node->data.func_decl.name);
 
         /* Parameters */
@@ -572,9 +686,14 @@ static void emit_func_declaration(CodeGen *cg, AstNode *node, bool is_main) {
 
     emit(cg, " {\n");
     cg->indent++;
+    AstNode *prev_func = cg->current_func;
+    cg->current_func = node;
     if (node->data.func_decl.body) {
         emit_block(cg, node->data.func_decl.body);
+        /* Emit ensure cleanup at end of function (for implicit returns) */
+        emit_ensure_cleanup(cg);
     }
+    cg->current_func = prev_func;
     cg->indent--;
     emit(cg, "}\n\n");
 }
@@ -675,6 +794,9 @@ static void emit_statement(CodeGen *cg, AstNode *node) {
         emit_func_declaration(cg, node,
             strcmp(node->data.func_decl.name, "main") == 0);
         break;
+    case NODE_ENSURE_STMT:
+        /* Ensure is collected and emitted at return/function-exit */
+        break;
     case NODE_STRUCT_DECL:
         /* Struct declarations are emitted in the preamble */
         break;
@@ -712,6 +834,10 @@ CodeGen codegen_create(const char *file) {
     cg.enum_names = NULL;
     cg.enum_count = 0;
     cg.enum_cap = 0;
+    cg.current_func = NULL;
+    cg.all_funcs = NULL;
+    cg.func_count = 0;
+    cg.func_cap = 0;
     return cg;
 }
 
@@ -780,6 +906,27 @@ void codegen_generate(CodeGen *cg, AstNode *program) {
         }
     }
 
+    /* Collect all function declarations */
+    for (int i = 0; i < program->data.program.stmt_count; i++) {
+        AstNode *stmt = program->data.program.stmts[i];
+        if (stmt->kind == NODE_FUNC_DECL) {
+            if (cg->func_count >= cg->func_cap) {
+                cg->func_cap = cg->func_cap ? cg->func_cap * 2 : 16;
+                cg->all_funcs = realloc(cg->all_funcs, sizeof(AstNode *) * cg->func_cap);
+            }
+            cg->all_funcs[cg->func_count++] = stmt;
+        }
+    }
+
+    /* Emit multi-return type definitions */
+    for (int i = 0; i < program->data.program.stmt_count; i++) {
+        AstNode *stmt = program->data.program.stmts[i];
+        if (stmt->kind == NODE_FUNC_DECL &&
+            stmt->data.func_decl.return_type_count > 1) {
+            emit_multi_return_typedef(cg, stmt);
+        }
+    }
+
     /* Emit forward declarations for user functions */
     for (int i = 0; i < program->data.program.stmt_count; i++) {
         AstNode *stmt = program->data.program.stmts[i];
@@ -787,12 +934,7 @@ void codegen_generate(CodeGen *cg, AstNode *program) {
             if (strcmp(stmt->data.func_decl.name, "main") == 0) {
                 emit(cg, "static void ez_fn_main(void);\n");
             } else {
-                emit(cg, "static ");
-                if (stmt->data.func_decl.return_type_count == 0) {
-                    emit(cg, "void ");
-                } else {
-                    emitf(cg, "%s ", ez_type_to_c_cg(cg,stmt->data.func_decl.return_types[0]));
-                }
+                emitf(cg, "static %s ", func_return_type(cg, stmt));
                 emitf(cg, "ez_fn_%s(", stmt->data.func_decl.name);
                 for (int j = 0; j < stmt->data.func_decl.param_count; j++) {
                     if (j > 0) emit(cg, ", ");
