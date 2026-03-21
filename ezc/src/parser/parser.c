@@ -728,6 +728,63 @@ static AstNode *parse_loop_statement(Parser *p) {
     return node;
 }
 
+static AstNode *parse_when_statement(Parser *p) {
+    AstNode *node = ast_alloc(p->arena, NODE_WHEN_STMT, p->cur_token);
+
+    next_token(p);
+    node->data.when_stmt.value = parse_expression(p, PREC_LOWEST);
+    node->data.when_stmt.is_strict = false;
+    node->data.when_stmt.default_body = NULL;
+
+    if (!expect_peek(p, TOK_LBRACE)) return NULL;
+    next_token(p); /* skip { */
+
+    int case_cap = 8;
+    node->data.when_stmt.case_count = 0;
+    node->data.when_stmt.cases = arena_alloc(p->arena, sizeof(WhenCase) * case_cap);
+
+    while (!cur_token_is(p, TOK_RBRACE) && !cur_token_is(p, TOK_EOF)) {
+        if (cur_token_is(p, TOK_IS)) {
+            if (node->data.when_stmt.case_count >= case_cap) {
+                case_cap *= 2;
+                WhenCase *new_cases = arena_alloc(p->arena, sizeof(WhenCase) * case_cap);
+                memcpy(new_cases, node->data.when_stmt.cases,
+                    sizeof(WhenCase) * node->data.when_stmt.case_count);
+                node->data.when_stmt.cases = new_cases;
+            }
+
+            WhenCase *wc = &node->data.when_stmt.cases[node->data.when_stmt.case_count];
+            memset(wc, 0, sizeof(WhenCase));
+
+            int val_cap = 4;
+            wc->value_count = 0;
+            wc->values = arena_alloc(p->arena, sizeof(AstNode *) * val_cap);
+            wc->is_range = false;
+
+            /* Parse case values: is 1, 2, 3 { } */
+            do {
+                next_token(p);
+                if (cur_token_is(p, TOK_RANGE)) {
+                    wc->is_range = true;
+                }
+                wc->values[wc->value_count++] = parse_expression(p, PREC_LOWEST);
+            } while (peek_token_is(p, TOK_COMMA) && (next_token(p), 1));
+
+            if (!expect_peek(p, TOK_LBRACE)) return NULL;
+            wc->body = parse_block_statement(p);
+            node->data.when_stmt.case_count++;
+
+        } else if (cur_token_is(p, TOK_DEFAULT)) {
+            if (!expect_peek(p, TOK_LBRACE)) return NULL;
+            node->data.when_stmt.default_body = parse_block_statement(p);
+        }
+
+        next_token(p);
+    }
+
+    return node;
+}
+
 static bool is_assignment_op(TokenType t) {
     return t == TOK_ASSIGN || t == TOK_PLUS_ASSIGN || t == TOK_MINUS_ASSIGN ||
            t == TOK_ASTERISK_ASSIGN || t == TOK_SLASH_ASSIGN || t == TOK_PERCENT_ASSIGN;
@@ -760,6 +817,8 @@ static AstNode *parse_statement(Parser *p) {
         return ast_alloc(p->arena, NODE_BREAK_STMT, p->cur_token);
     case TOK_CONTINUE:
         return ast_alloc(p->arena, NODE_CONTINUE_STMT, p->cur_token);
+    case TOK_WHEN:
+        return parse_when_statement(p);
     case TOK_ENSURE:
         return parse_ensure_statement(p);
     default: {

@@ -531,6 +531,56 @@ static void emit_statement(CodeGen *cg, AstNode *node) {
         emit_indent(cg);
         emit(cg, "continue;\n");
         break;
+    case NODE_WHEN_STMT: {
+        /* Emit as if-else chain for now (switch requires constant values) */
+        AstNode *val = node->data.when_stmt.value;
+        for (int i = 0; i < node->data.when_stmt.case_count; i++) {
+            WhenCase *wc = &node->data.when_stmt.cases[i];
+            emit_indent(cg);
+            if (i == 0) {
+                emit(cg, "if (");
+            } else {
+                emit(cg, "} else if (");
+            }
+            for (int j = 0; j < wc->value_count; j++) {
+                if (j > 0) emit(cg, " || ");
+                if (wc->is_range && wc->values[j]->kind == NODE_RANGE_EXPR) {
+                    AstNode *r = wc->values[j];
+                    emit(cg, "(");
+                    emit_expression(cg, val);
+                    emit(cg, " >= ");
+                    emit_expression(cg, r->data.range_expr.start);
+                    emit(cg, " && ");
+                    emit_expression(cg, val);
+                    emit(cg, " < ");
+                    emit_expression(cg, r->data.range_expr.end);
+                    emit(cg, ")");
+                } else {
+                    emit_expression(cg, val);
+                    emit(cg, " == ");
+                    emit_expression(cg, wc->values[j]);
+                }
+            }
+            emit(cg, ") {\n");
+            cg->indent++;
+            emit_block(cg, wc->body);
+            cg->indent--;
+        }
+        if (node->data.when_stmt.default_body) {
+            emit_indent(cg);
+            if (node->data.when_stmt.case_count > 0) {
+                emit(cg, "} else {\n");
+            } else {
+                emit(cg, "{\n");
+            }
+            cg->indent++;
+            emit_block(cg, node->data.when_stmt.default_body);
+            cg->indent--;
+        }
+        emit_indent(cg);
+        emit(cg, "}\n");
+        break;
+    }
     case NODE_FUNC_DECL:
         emit_func_declaration(cg, node,
             strcmp(node->data.func_decl.name, "main") == 0);
