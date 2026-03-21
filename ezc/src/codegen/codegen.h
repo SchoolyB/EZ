@@ -10,6 +10,7 @@
 
 #include "../parser/ast.h"
 #include "../util/buf.h"
+#include "../typechecker/typechecker.h"
 
 typedef struct {
     Buf output;
@@ -29,6 +30,9 @@ typedef struct {
     AstNode **all_funcs;
     int func_count;
     int func_cap;
+
+    /* Type table from type checker (for type-aware codegen) */
+    TypeTable *type_table;
 } CodeGen;
 
 CodeGen codegen_create(const char *file);
