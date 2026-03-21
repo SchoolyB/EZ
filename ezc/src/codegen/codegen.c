@@ -85,6 +85,26 @@ static const char *ez_type_to_c_cg(CodeGen *cg, const char *type_name) {
     return type_name;
 }
 
+/* Check if a variable name is a mutable parameter in the current function */
+static bool is_mutable_param(CodeGen *cg, const char *name) {
+    if (!cg->current_func) return false;
+    for (int i = 0; i < cg->current_func->data.func_decl.param_count; i++) {
+        Param *p = &cg->current_func->data.func_decl.params[i];
+        if (p->mutable && strcmp(p->name, name) == 0) return true;
+    }
+    return false;
+}
+
+/* Find a function declaration by name */
+static AstNode *find_func(CodeGen *cg, const char *name) {
+    for (int i = 0; i < cg->func_count; i++) {
+        if (strcmp(cg->all_funcs[i]->data.func_decl.name, name) == 0) {
+            return cg->all_funcs[i];
+        }
+    }
+    return NULL;
+}
+
 /* --- Expression Emission --- */
 
 static void emit_expression(CodeGen *cg, AstNode *node) {
@@ -92,7 +112,11 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
 
     switch (node->kind) {
     case NODE_LABEL:
-        emit(cg, node->data.label.value);
+        if (is_mutable_param(cg, node->data.label.value)) {
+            emitf(cg, "(*%s)", node->data.label.value);
+        } else {
+            emit(cg, node->data.label.value);
+        }
         break;
 
     case NODE_INT_VALUE:
@@ -323,16 +347,34 @@ static void emit_call_expression(CodeGen *cg, AstNode *node) {
     }
 
     /* Generic function call */
-    emit(cg, "ez_fn_");
+    const char *fn_name = NULL;
     if (node->data.call.function->kind == NODE_LABEL) {
-        emit(cg, node->data.call.function->data.label.value);
+        fn_name = node->data.call.function->data.label.value;
+    }
+
+    emit(cg, "ez_fn_");
+    if (fn_name) {
+        emit(cg, fn_name);
     } else {
         emit_expression(cg, node->data.call.function);
     }
+
+    /* Look up function to check for mutable params */
+    AstNode *target_func = fn_name ? find_func(cg, fn_name) : NULL;
+
     emit(cg, "(");
     for (int i = 0; i < node->data.call.arg_count; i++) {
         if (i > 0) emit(cg, ", ");
-        emit_expression(cg, node->data.call.args[i]);
+        /* Pass address for mutable parameters */
+        bool needs_addr = false;
+        if (target_func && i < target_func->data.func_decl.param_count) {
+            needs_addr = target_func->data.func_decl.params[i].mutable;
+        }
+        if (needs_addr && node->data.call.args[i]->kind == NODE_LABEL) {
+            emitf(cg, "&%s", node->data.call.args[i]->data.label.value);
+        } else {
+            emit_expression(cg, node->data.call.args[i]);
+        }
     }
     emit(cg, ")");
 }
@@ -407,6 +449,7 @@ static void emit_var_declaration(CodeGen *cg, AstNode *node) {
 
 static void emit_assign_statement(CodeGen *cg, AstNode *node) {
     emit_indent(cg);
+    /* For mutable params, the target label already emits (*name) */
     emit_expression(cg, node->data.assign.target);
     emitf(cg, " %s ", node->data.assign.op);
     emit_expression(cg, node->data.assign.value);
@@ -791,6 +834,10 @@ CodeGen codegen_create(const char *file) {
     cg.enum_names = NULL;
     cg.enum_count = 0;
     cg.enum_cap = 0;
+    cg.current_func = NULL;
+    cg.all_funcs = NULL;
+    cg.func_count = 0;
+    cg.func_cap = 0;
     return cg;
 }
 
@@ -856,6 +903,18 @@ void codegen_generate(CodeGen *cg, AstNode *program) {
                 emit(cg, ",\n");
             }
             emitf(cg, "} EzEnum_%s;\n\n", stmt->data.enum_decl.name);
+        }
+    }
+
+    /* Collect all function declarations */
+    for (int i = 0; i < program->data.program.stmt_count; i++) {
+        AstNode *stmt = program->data.program.stmts[i];
+        if (stmt->kind == NODE_FUNC_DECL) {
+            if (cg->func_count >= cg->func_cap) {
+                cg->func_cap = cg->func_cap ? cg->func_cap * 2 : 16;
+                cg->all_funcs = realloc(cg->all_funcs, sizeof(AstNode *) * cg->func_cap);
+            }
+            cg->all_funcs[cg->func_count++] = stmt;
         }
     }
 
