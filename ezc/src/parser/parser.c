@@ -472,6 +472,75 @@ static AstNode *parse_var_declaration(Parser *p) {
     if (peek_token_is(p, TOK_IDENT)) {
         next_token(p);
         node->data.var_decl.type_name = p->cur_token.literal;
+
+        /* Check for multi-var declaration: temp x int, y int = expr */
+        if (peek_token_is(p, TOK_COMMA)) {
+            /* Collect all variable names and types */
+            const char *names[16];
+            const char *types[16];
+            int var_count = 0;
+            names[var_count] = node->data.var_decl.name;
+            types[var_count] = node->data.var_decl.type_name;
+            var_count++;
+
+            while (peek_token_is(p, TOK_COMMA)) {
+                next_token(p); /* skip comma */
+                next_token(p); /* name */
+                names[var_count] = p->cur_token.literal;
+                if (peek_token_is(p, TOK_IDENT)) {
+                    next_token(p); /* type */
+                    types[var_count] = p->cur_token.literal;
+                } else {
+                    types[var_count] = NULL;
+                }
+                var_count++;
+                if (var_count >= 16) break;
+            }
+
+            /* Expect = expr */
+            if (!expect_peek(p, TOK_ASSIGN)) return NULL;
+            next_token(p);
+            AstNode *value = parse_expression(p, PREC_LOWEST);
+
+            /* Generate unique temp name */
+            static int multi_var_counter = 0;
+            char *tmp_name = arena_alloc(p->arena, 32);
+            snprintf(tmp_name, 32, "_ez_tmp%d", multi_var_counter++);
+
+            /* Create a block with: __auto_type _tmp = expr; type x = _tmp.v0; ... */
+            AstNode *block = ast_alloc(p->arena, NODE_BLOCK_STMT, p->cur_token);
+            block->data.block.cap = var_count + 1;
+            block->data.block.count = 0;
+            block->data.block.stmts = arena_alloc(p->arena, sizeof(AstNode *) * block->data.block.cap);
+
+            /* temp _tmp = value */
+            AstNode *tmp_decl = ast_alloc(p->arena, NODE_VAR_DECL, p->cur_token);
+            tmp_decl->data.var_decl.mutable = true;
+            tmp_decl->data.var_decl.name = tmp_name;
+            tmp_decl->data.var_decl.type_name = NULL;
+            tmp_decl->data.var_decl.value = value;
+            block->data.block.stmts[block->data.block.count++] = tmp_decl;
+
+            /* Individual declarations: type x = _tmp.v0 */
+            for (int i = 0; i < var_count; i++) {
+                AstNode *vd = ast_alloc(p->arena, NODE_VAR_DECL, p->cur_token);
+                vd->data.var_decl.mutable = node->data.var_decl.mutable;
+                vd->data.var_decl.name = names[i];
+                vd->data.var_decl.type_name = types[i];
+                /* Value: _ez_tmp.vN */
+                AstNode *member = ast_alloc(p->arena, NODE_MEMBER_EXPR, p->cur_token);
+                AstNode *label = ast_alloc(p->arena, NODE_LABEL, p->cur_token);
+                label->data.label.value = tmp_name;
+                member->data.member.object = label;
+                char *field = arena_alloc(p->arena, 8);
+                snprintf(field, 8, "v%d", i);
+                member->data.member.member = field;
+                vd->data.var_decl.value = member;
+                block->data.block.stmts[block->data.block.count++] = vd;
+            }
+
+            return block;
+        }
     } else if (peek_token_is(p, TOK_LBRACKET)) {
         /* Array type: [int], [string], etc. */
         next_token(p); /* skip [ */
