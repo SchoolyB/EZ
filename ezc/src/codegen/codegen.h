@@ -21,6 +21,14 @@ typedef struct {
     const char **enum_names;
     int enum_count;
     int enum_cap;
+
+    /* Current function context (for multi-return, ensure) */
+    AstNode *current_func;
+
+    /* All function declarations (for mutable param lookup at call sites) */
+    AstNode **all_funcs;
+    int func_count;
+    int func_cap;
 } CodeGen;
 
 CodeGen codegen_create(const char *file);
