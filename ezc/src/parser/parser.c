@@ -469,9 +469,10 @@ static AstNode *parse_var_declaration(Parser *p) {
     if (peek_token_is(p, TOK_IDENT)) {
         next_token(p);
         node->data.var_decl.type_name = p->cur_token.literal;
+    }
 
-        /* Check for multi-var declaration: temp x int, y int = expr */
-        if (peek_token_is(p, TOK_COMMA)) {
+    /* Check for multi-var declaration: temp x int, y int = expr OR temp _, _ = expr */
+    if (peek_token_is(p, TOK_COMMA)) {
             /* Collect all variable names and types */
             const char *names[16];
             const char *types[16];
@@ -538,7 +539,6 @@ static AstNode *parse_var_declaration(Parser *p) {
             }
 
             return block;
-        }
     } else if (peek_token_is(p, TOK_LBRACKET)) {
         /* Array type: [int], [string], etc. */
         next_token(p); /* skip [ */
