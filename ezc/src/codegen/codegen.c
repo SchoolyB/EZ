@@ -183,40 +183,22 @@ static void emit_call_expression(CodeGen *cg, AstNode *node) {
                 emit(cg, "putchar('\\n')");
             } else {
                 AstNode *arg = node->data.call.args[0];
-                /* For now, assume string argument for println */
-                if (arg->kind == NODE_STRING_VALUE) {
-                    emit(cg, "ez_std_println_str(");
-                    emit_expression(cg, arg);
-                    emit(cg, ")");
-                } else if (arg->kind == NODE_INT_VALUE) {
-                    emit(cg, "ez_std_println_int(");
-                    emit_expression(cg, arg);
-                    emit(cg, ")");
-                } else if (arg->kind == NODE_FLOAT_VALUE) {
-                    emit(cg, "ez_std_println_float(");
-                    emit_expression(cg, arg);
-                    emit(cg, ")");
-                } else if (arg->kind == NODE_BOOL_VALUE) {
-                    emit(cg, "ez_std_println_bool(");
-                    emit_expression(cg, arg);
-                    emit(cg, ")");
-                } else {
-                    /* Default to string for now */
-                    emit(cg, "ez_std_println_str(");
-                    emit_expression(cg, arg);
-                    emit(cg, ")");
-                }
+                const char *suffix = "_int"; /* default */
+                if (arg->kind == NODE_STRING_VALUE) suffix = "_str";
+                else if (arg->kind == NODE_FLOAT_VALUE) suffix = "_float";
+                else if (arg->kind == NODE_BOOL_VALUE) suffix = "_bool";
+                emitf(cg, "ez_std_println%s(", suffix);
+                emit_expression(cg, arg);
+                emit(cg, ")");
             }
             return;
         }
 
         if (strcmp(func, "print") == 0 && node->data.call.arg_count > 0) {
             AstNode *arg = node->data.call.args[0];
-            if (arg->kind == NODE_STRING_VALUE) {
-                emit(cg, "ez_std_print_str(");
-            } else {
-                emit(cg, "ez_std_print_str(");
-            }
+            const char *suffix = "_int";
+            if (arg->kind == NODE_STRING_VALUE) suffix = "_str";
+            emitf(cg, "ez_std_print%s(", suffix);
             emit_expression(cg, arg);
             emit(cg, ")");
             return;
