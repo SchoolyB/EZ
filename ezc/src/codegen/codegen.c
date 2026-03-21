@@ -46,10 +46,6 @@ static void emit_indent(CodeGen *cg) {
     buf_append_indent(&cg->output, cg->indent);
 }
 
-static void emit_newline(CodeGen *cg) {
-    emit(cg, "\n");
-}
-
 /* Map EZ type name to C type */
 static const char *ez_type_to_c(const char *type_name) {
     if (!type_name) return "int64_t";
@@ -76,10 +72,6 @@ static const char *ez_type_to_c(const char *type_name) {
 
     /* Default: assume it's a struct type */
     return type_name;
-}
-
-static bool is_string_type(const char *type_name) {
-    return type_name && strcmp(type_name, "string") == 0;
 }
 
 /* --- Expression Emission --- */
