@@ -413,11 +413,40 @@ static void emit_assign_statement(CodeGen *cg, AstNode *node) {
     emit(cg, ";\n");
 }
 
+/* Collect ensure statements from a block */
+static void collect_ensures(AstNode *block, AstNode **ensures, int *count, int cap) {
+    if (!block || block->kind != NODE_BLOCK_STMT) return;
+    for (int i = 0; i < block->data.block.count; i++) {
+        AstNode *stmt = block->data.block.stmts[i];
+        if (stmt->kind == NODE_ENSURE_STMT && *count < cap) {
+            ensures[(*count)++] = stmt;
+        }
+    }
+}
+
+/* Emit ensure cleanup calls in LIFO order */
+static void emit_ensure_cleanup(CodeGen *cg) {
+    if (!cg->current_func || !cg->current_func->data.func_decl.body) return;
+
+    AstNode *ensures[32];
+    int ensure_count = 0;
+    collect_ensures(cg->current_func->data.func_decl.body, ensures, &ensure_count, 32);
+
+    /* Emit in reverse (LIFO) order */
+    for (int i = ensure_count - 1; i >= 0; i--) {
+        emit_indent(cg);
+        emit_expression(cg, ensures[i]->data.ensure_stmt.expr);
+        emit(cg, ";\n");
+    }
+}
+
 static void emit_return_statement(CodeGen *cg, AstNode *node) {
+    /* Emit ensure cleanup before return */
+    emit_ensure_cleanup(cg);
+
     emit_indent(cg);
 
     if (node->data.return_stmt.count > 1 && cg->current_func) {
-        /* Multi-value return: return (EzMulti_func){v0, v1, ...}; */
         emitf(cg, "return (EzMulti_%s){", cg->current_func->data.func_decl.name);
         for (int i = 0; i < node->data.return_stmt.count; i++) {
             if (i > 0) emit(cg, ", ");
@@ -618,6 +647,8 @@ static void emit_func_declaration(CodeGen *cg, AstNode *node, bool is_main) {
     cg->current_func = node;
     if (node->data.func_decl.body) {
         emit_block(cg, node->data.func_decl.body);
+        /* Emit ensure cleanup at end of function (for implicit returns) */
+        emit_ensure_cleanup(cg);
     }
     cg->current_func = prev_func;
     cg->indent--;
@@ -719,6 +750,9 @@ static void emit_statement(CodeGen *cg, AstNode *node) {
     case NODE_FUNC_DECL:
         emit_func_declaration(cg, node,
             strcmp(node->data.func_decl.name, "main") == 0);
+        break;
+    case NODE_ENSURE_STMT:
+        /* Ensure is collected and emitted at return/function-exit */
         break;
     case NODE_STRUCT_DECL:
         /* Struct declarations are emitted in the preamble */
