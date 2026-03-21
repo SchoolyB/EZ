@@ -181,6 +181,16 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
         break;
     }
 
+    case NODE_ARRAY_VALUE:
+        /* Array literal: emit as C compound literal */
+        emit(cg, "{");
+        for (int i = 0; i < node->data.array_value.count; i++) {
+            if (i > 0) emit(cg, ", ");
+            emit_expression(cg, node->data.array_value.elements[i]);
+        }
+        emit(cg, "}");
+        break;
+
     case NODE_STRUCT_VALUE:
         /* Struct literal: (EzStruct_Name){.field = value, ...} */
         emitf(cg, "(EzStruct_%s){", node->data.struct_value.name);
@@ -329,10 +339,42 @@ static void emit_call_expression(CodeGen *cg, AstNode *node) {
 
 /* --- Statement Emission --- */
 
+static const char *extract_array_elem_type(const char *type_name) {
+    if (!type_name || type_name[0] != '[') return NULL;
+    /* Extract element type from "[int]" -> "int" */
+    static char buf[128];
+    size_t len = strlen(type_name);
+    if (len < 3) return NULL;
+    memcpy(buf, type_name + 1, len - 2);
+    buf[len - 2] = '\0';
+    return buf;
+}
+
 static void emit_var_declaration(CodeGen *cg, AstNode *node) {
     emit_indent(cg);
 
-    const char *c_type = ez_type_to_c_cg(cg,node->data.var_decl.type_name);
+    const char *type_name = node->data.var_decl.type_name;
+    const char *elem_type = extract_array_elem_type(type_name);
+
+    if (elem_type) {
+        /* Array declaration: temp arr [int] = {1, 2, 3} */
+        const char *c_elem_type = ez_type_to_c_cg(cg, elem_type);
+        if (node->data.var_decl.value &&
+            node->data.var_decl.value->kind == NODE_ARRAY_VALUE) {
+            int count = node->data.var_decl.value->data.array_value.count;
+            emitf(cg, "%s %s[%d] = ", c_elem_type, node->data.var_decl.name, count);
+            emit_expression(cg, node->data.var_decl.value);
+            emit(cg, ";\n");
+            /* Emit length tracking variable */
+            emit_indent(cg);
+            emitf(cg, "const int32_t %s_len = %d;\n", node->data.var_decl.name, count);
+        } else {
+            emitf(cg, "%s *%s = NULL;\n", c_elem_type, node->data.var_decl.name);
+        }
+        return;
+    }
+
+    const char *c_type = ez_type_to_c_cg(cg, type_name);
 
     if (!node->data.var_decl.mutable) {
         emit(cg, "const ");

@@ -276,6 +276,31 @@ static AstNode *parse_prefix(Parser *p) {
     case TOK_BANG:
     case TOK_AMPERSAND: return parse_prefix_expression(p);
     case TOK_LPAREN:    return parse_grouped_expression(p);
+    case TOK_LBRACE: {
+        /* Array literal: {1, 2, 3} */
+        AstNode *node = ast_alloc(p->arena, NODE_ARRAY_VALUE, p->cur_token);
+        int cap = 8;
+        node->data.array_value.count = 0;
+        node->data.array_value.elements = arena_alloc(p->arena, sizeof(AstNode *) * cap);
+
+        next_token(p); /* skip { */
+        while (!cur_token_is(p, TOK_RBRACE) && !cur_token_is(p, TOK_EOF)) {
+            if (node->data.array_value.count >= cap) {
+                cap *= 2;
+                AstNode **new_elems = arena_alloc(p->arena, sizeof(AstNode *) * cap);
+                memcpy(new_elems, node->data.array_value.elements,
+                    sizeof(AstNode *) * node->data.array_value.count);
+                node->data.array_value.elements = new_elems;
+            }
+            node->data.array_value.elements[node->data.array_value.count++] =
+                parse_expression(p, PREC_LOWEST);
+            if (peek_token_is(p, TOK_COMMA)) {
+                next_token(p);
+            }
+            next_token(p);
+        }
+        return node;
+    }
     case TOK_RANGE: {
         /* range(end) or range(start, end) or range(start, end, step) */
         AstNode *node = ast_alloc(p->arena, NODE_RANGE_EXPR, p->cur_token);
@@ -428,9 +453,19 @@ static AstNode *parse_var_declaration(Parser *p) {
 
     /* Optional type annotation */
     node->data.var_decl.type_name = NULL;
-    if (peek_token_is(p, TOK_IDENT) || peek_token_is(p, TOK_LBRACKET)) {
+    if (peek_token_is(p, TOK_IDENT)) {
         next_token(p);
         node->data.var_decl.type_name = p->cur_token.literal;
+    } else if (peek_token_is(p, TOK_LBRACKET)) {
+        /* Array type: [int], [string], etc. */
+        next_token(p); /* skip [ */
+        next_token(p); /* element type */
+        const char *elem_type = p->cur_token.literal;
+        if (!expect_peek(p, TOK_RBRACKET)) return NULL;
+        /* Build type string like "[int]" */
+        char *type_str = arena_alloc(p->arena, strlen(elem_type) + 3);
+        sprintf(type_str, "[%s]", elem_type);
+        node->data.var_decl.type_name = type_str;
     }
 
     /* = value */
