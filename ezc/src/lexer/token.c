@@ -1,0 +1,156 @@
+/*
+ * token.c - Token type definitions and keyword lookup
+ *
+ * Copyright (c) 2025-Present Marshall A Burns
+ * Licensed under the MIT License. See LICENSE for details.
+ */
+
+#include "token.h"
+#include <string.h>
+
+typedef struct {
+    const char *keyword;
+    TokenType type;
+} KeywordEntry;
+
+/* Sorted by keyword for binary search */
+static const KeywordEntry keywords[] = {
+    {"_",           TOK_BLANK},
+    {"as_long_as",  TOK_AS_LONG_AS},
+    {"break",       TOK_BREAK},
+    {"cast",        TOK_CAST},
+    {"const",       TOK_CONST},
+    {"continue",    TOK_CONTINUE},
+    {"default",     TOK_DEFAULT},
+    {"do",          TOK_DO},
+    {"ensure",      TOK_ENSURE},
+    {"enum",        TOK_ENUM},
+    {"false",       TOK_FALSE},
+    {"for",         TOK_FOR},
+    {"for_each",    TOK_FOR_EACH},
+    {"if",          TOK_IF},
+    {"import",      TOK_IMPORT},
+    {"in",          TOK_IN},
+    {"is",          TOK_IS},
+    {"loop",        TOK_LOOP},
+    {"module",      TOK_MODULE},
+    {"new",         TOK_NEW},
+    {"nil",         TOK_NIL},
+    {"not_in",      TOK_NOT_IN},
+    {"or",          TOK_OR_KW},
+    {"otherwise",   TOK_OTHERWISE},
+    {"private",     TOK_PRIVATE},
+    {"range",       TOK_RANGE},
+    {"return",      TOK_RETURN},
+    {"struct",      TOK_STRUCT},
+    {"temp",        TOK_TEMP},
+    {"true",        TOK_TRUE},
+    {"use",         TOK_USE},
+    {"using",       TOK_USING},
+    {"when",        TOK_WHEN},
+};
+
+#define KEYWORD_COUNT (sizeof(keywords) / sizeof(keywords[0]))
+
+TokenType token_lookup_ident(const char *ident) {
+    int lo = 0;
+    int hi = KEYWORD_COUNT - 1;
+    while (lo <= hi) {
+        int mid = (lo + hi) / 2;
+        int cmp = strcmp(ident, keywords[mid].keyword);
+        if (cmp == 0) return keywords[mid].type;
+        if (cmp < 0) hi = mid - 1;
+        else lo = mid + 1;
+    }
+    return TOK_IDENT;
+}
+
+const char *token_type_name(TokenType type) {
+    switch (type) {
+    case TOK_ILLEGAL:        return "ILLEGAL";
+    case TOK_EOF:            return "EOF";
+    case TOK_IDENT:          return "IDENT";
+    case TOK_INT:            return "INT";
+    case TOK_FLOAT:          return "FLOAT";
+    case TOK_STRING:         return "STRING";
+    case TOK_RAW_STRING:     return "RAW_STRING";
+    case TOK_CHAR:           return "CHAR";
+    case TOK_ASSIGN:         return "=";
+    case TOK_PLUS:           return "+";
+    case TOK_MINUS:          return "-";
+    case TOK_BANG:           return "!";
+    case TOK_ASTERISK:       return "*";
+    case TOK_SLASH:          return "/";
+    case TOK_PERCENT:        return "%";
+    case TOK_POWER:          return "**";
+    case TOK_LT:             return "<";
+    case TOK_GT:             return ">";
+    case TOK_EQ:             return "==";
+    case TOK_NOT_EQ:         return "!=";
+    case TOK_LT_EQ:          return "<=";
+    case TOK_GT_EQ:          return ">=";
+    case TOK_PLUS_ASSIGN:    return "+=";
+    case TOK_MINUS_ASSIGN:   return "-=";
+    case TOK_ASTERISK_ASSIGN:return "*=";
+    case TOK_SLASH_ASSIGN:   return "/=";
+    case TOK_PERCENT_ASSIGN: return "%=";
+    case TOK_INCREMENT:      return "++";
+    case TOK_DECREMENT:      return "--";
+    case TOK_AND:            return "&&";
+    case TOK_OR:             return "||";
+    case TOK_COMMA:          return ",";
+    case TOK_COLON:          return ":";
+    case TOK_SEMICOLON:      return ";";
+    case TOK_NEWLINE:        return "NEWLINE";
+    case TOK_LPAREN:         return "(";
+    case TOK_RPAREN:         return ")";
+    case TOK_LBRACE:         return "{";
+    case TOK_RBRACE:         return "}";
+    case TOK_LBRACKET:       return "[";
+    case TOK_RBRACKET:       return "]";
+    case TOK_ARROW:          return "->";
+    case TOK_DOT:            return ".";
+    case TOK_AT:             return "@";
+    case TOK_AMPERSAND:      return "&";
+    case TOK_SUPPRESS:       return "#suppress";
+    case TOK_STRICT:         return "#strict";
+    case TOK_FLAGS:          return "#flags";
+    case TOK_ENUM_ATTR:      return "#enum";
+    case TOK_DOC:            return "#doc";
+    case TOK_TEMP:           return "temp";
+    case TOK_CONST:          return "const";
+    case TOK_DO:             return "do";
+    case TOK_RETURN:         return "return";
+    case TOK_IF:             return "if";
+    case TOK_OR_KW:          return "or";
+    case TOK_OTHERWISE:      return "otherwise";
+    case TOK_FOR:            return "for";
+    case TOK_FOR_EACH:       return "for_each";
+    case TOK_AS_LONG_AS:     return "as_long_as";
+    case TOK_LOOP:           return "loop";
+    case TOK_BREAK:          return "break";
+    case TOK_CONTINUE:       return "continue";
+    case TOK_IN:             return "in";
+    case TOK_NOT_IN:         return "not_in";
+    case TOK_RANGE:          return "range";
+    case TOK_IMPORT:         return "import";
+    case TOK_USING:          return "using";
+    case TOK_STRUCT:         return "struct";
+    case TOK_ENUM:           return "enum";
+    case TOK_NIL:            return "nil";
+    case TOK_NEW:            return "new";
+    case TOK_TRUE:           return "true";
+    case TOK_FALSE:          return "false";
+    case TOK_BLANK:          return "_";
+    case TOK_ENSURE:         return "ensure";
+    case TOK_MODULE:         return "module";
+    case TOK_PRIVATE:        return "private";
+    case TOK_USE:            return "use";
+    case TOK_WHEN:           return "when";
+    case TOK_IS:             return "is";
+    case TOK_DEFAULT:        return "default";
+    case TOK_CAST:           return "cast";
+    case TOK_COUNT:          return "COUNT";
+    }
+    return "UNKNOWN";
+}
