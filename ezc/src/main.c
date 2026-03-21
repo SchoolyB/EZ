@@ -262,11 +262,11 @@ int main(int argc, char **argv) {
     snprintf(cmd, sizeof(cmd),
         "cc -std=c11 -O2 -Wall -Wno-unused-function "
         "-I%s/runtime -I%s/stdlib "
-        "-o %s %s %s/runtime/ez_runtime.c %s/stdlib/ez_std.c "
+        "-o %s %s %s/runtime/ez_runtime.c %s/runtime/ez_array.c %s/stdlib/ez_std.c "
         "-lm 2>&1",
         runtime_dir, runtime_dir,
         output_file, c_file,
-        runtime_dir, runtime_dir);
+        runtime_dir, runtime_dir, runtime_dir);
 
     int ret = system(cmd);
     if (ret != 0) {

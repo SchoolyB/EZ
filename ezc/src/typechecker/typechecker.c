@@ -380,6 +380,29 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
         break;
     }
 
+    case NODE_FOR_EACH_STMT: {
+        Scope *loop_scope = scope_create(tc->current_scope);
+        Scope *outer = tc->current_scope;
+        tc->current_scope = loop_scope;
+
+        /* Resolve collection type to determine element type */
+        EzType *coll_t = resolve_expr(tc, node->data.for_each.collection);
+        EzType *elem_t = &TYPE_UNKNOWN;
+        if (coll_t->kind == TK_ARRAY && coll_t->element_type) {
+            elem_t = type_from_name(coll_t->element_type);
+        }
+
+        /* Define iteration variables */
+        if (node->data.for_each.index_name) {
+            scope_define(loop_scope, node->data.for_each.index_name, &TYPE_INT, false);
+        }
+        scope_define(loop_scope, node->data.for_each.var_name, elem_t, false);
+
+        check_block(tc, node->data.for_each.body);
+        tc->current_scope = outer;
+        break;
+    }
+
     case NODE_WHILE_STMT:
         resolve_expr(tc, node->data.while_stmt.condition);
         check_block(tc, node->data.while_stmt.body);
