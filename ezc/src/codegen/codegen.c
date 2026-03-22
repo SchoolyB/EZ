@@ -597,6 +597,44 @@ static void emit_call_expression(CodeGen *cg, AstNode *node) {
                 emit(cg, ")");
                 return;
             }
+            if (strcmp(func, "copy") == 0 && node->data.call.arg_count == 3) {
+                emit(cg, "ez_mem_copy(");
+                emit_expression(cg, node->data.call.args[0]);
+                emit(cg, ", ");
+                emit_expression(cg, node->data.call.args[1]);
+                emit(cg, ", ");
+                emit_expression(cg, node->data.call.args[2]);
+                emit(cg, ")");
+                return;
+            }
+            if (strcmp(func, "zero") == 0 && node->data.call.arg_count == 2) {
+                emit(cg, "ez_mem_zero(");
+                emit_expression(cg, node->data.call.args[0]);
+                emit(cg, ", ");
+                emit_expression(cg, node->data.call.args[1]);
+                emit(cg, ")");
+                return;
+            }
+            if (strcmp(func, "set") == 0 && node->data.call.arg_count == 3) {
+                emit(cg, "ez_mem_set(");
+                emit_expression(cg, node->data.call.args[0]);
+                emit(cg, ", ");
+                emit_expression(cg, node->data.call.args[1]);
+                emit(cg, ", ");
+                emit_expression(cg, node->data.call.args[2]);
+                emit(cg, ")");
+                return;
+            }
+            if (strcmp(func, "size_of") == 0 && node->data.call.arg_count == 1) {
+                /* mem.size_of(Type) → sizeof(C_type) */
+                AstNode *type_arg = node->data.call.args[0];
+                if (type_arg->kind == NODE_LABEL) {
+                    emitf(cg, "(int64_t)sizeof(%s)", ez_type_to_c_cg(cg, type_arg->data.label.value));
+                } else {
+                    emit(cg, "0");
+                }
+                return;
+            }
             if (strcmp(func, "new") == 0 && node->data.call.arg_count == 2) {
                 /* mem.new(arena, Type) — allocate zeroed T, return ^T */
                 AstNode *arena_arg = node->data.call.args[0];
@@ -654,6 +692,96 @@ static void emit_call_expression(CodeGen *cg, AstNode *node) {
                     emit_expression(cg, arena_arg);
                     emit(cg, ", sizeof(_v)); *(__typeof__(_v) *)_p = _v; _v; })");
                 }
+                return;
+            }
+        }
+
+        /* @fmt module functions */
+        if (module && strcmp(module, "fmt") == 0) {
+            if (strcmp(func, "printf") == 0 && node->data.call.arg_count >= 1) {
+                /* fmt.printf(format, args...) → printf(format, args...) */
+                emit(cg, "printf(");
+                /* First arg is the format string — emit as C string */
+                AstNode *fmt_arg = node->data.call.args[0];
+                if (fmt_arg->kind == NODE_STRING_VALUE) {
+                    emitf(cg, "\"%s\"", fmt_arg->data.string_value.value);
+                } else {
+                    emit_expression(cg, fmt_arg);
+                    emit(cg, ".data");
+                }
+                for (int i = 1; i < node->data.call.arg_count; i++) {
+                    emit(cg, ", ");
+                    AstNode *arg = node->data.call.args[i];
+                    EzType *at = cg->type_table ? typetable_get(cg->type_table, arg) : NULL;
+                    if (at && at->kind == TK_STRING) {
+                        emit_expression(cg, arg);
+                        emit(cg, ".data");
+                    } else if (at && at->kind == TK_BOOL) {
+                        emit_expression(cg, arg);
+                        emit(cg, " ? \"true\" : \"false\"");
+                    } else {
+                        emit_expression(cg, arg);
+                    }
+                }
+                emit(cg, ")");
+                return;
+            }
+
+            if (strcmp(func, "sprintf") == 0 && node->data.call.arg_count >= 2) {
+                /* fmt.sprintf(arena, format, args...) → ez_string_format(arena, format, args...) */
+                emit(cg, "ez_string_format(");
+                emit_expression(cg, node->data.call.args[0]); /* arena */
+                emit(cg, ", ");
+                AstNode *fmt_arg = node->data.call.args[1];
+                if (fmt_arg->kind == NODE_STRING_VALUE) {
+                    emitf(cg, "\"%s\"", fmt_arg->data.string_value.value);
+                } else {
+                    emit_expression(cg, fmt_arg);
+                    emit(cg, ".data");
+                }
+                for (int i = 2; i < node->data.call.arg_count; i++) {
+                    emit(cg, ", ");
+                    AstNode *arg = node->data.call.args[i];
+                    EzType *at = cg->type_table ? typetable_get(cg->type_table, arg) : NULL;
+                    if (at && at->kind == TK_STRING) {
+                        emit_expression(cg, arg);
+                        emit(cg, ".data");
+                    } else {
+                        emit_expression(cg, arg);
+                    }
+                }
+                emit(cg, ")");
+                return;
+            }
+
+            if (strcmp(func, "eprintln") == 0) {
+                if (node->data.call.arg_count == 0) {
+                    emit(cg, "fputc('\\n', stderr)");
+                } else {
+                    AstNode *arg = node->data.call.args[0];
+                    EzType *at = cg->type_table ? typetable_get(cg->type_table, arg) : NULL;
+                    const char *suffix = "_int";
+                    if (at) {
+                        switch (at->kind) {
+                        case TK_STRING: suffix = "_str"; break;
+                        case TK_FLOAT: suffix = "_float"; break;
+                        case TK_BOOL: suffix = "_bool"; break;
+                        default: break;
+                        }
+                    } else if (arg->kind == NODE_STRING_VALUE || arg->kind == NODE_INTERPOLATED_STRING) {
+                        suffix = "_str";
+                    }
+                    emitf(cg, "ez_fmt_eprintln%s(", suffix);
+                    emit_expression(cg, arg);
+                    emit(cg, ")");
+                }
+                return;
+            }
+
+            if (strcmp(func, "eprint") == 0 && node->data.call.arg_count > 0) {
+                emit(cg, "ez_fmt_eprint_str(");
+                emit_expression(cg, node->data.call.args[0]);
+                emit(cg, ")");
                 return;
             }
         }
@@ -1287,6 +1415,7 @@ CodeGen codegen_create(const char *file) {
     cg.indent = 0;
     cg.has_std = false;
     cg.has_mem = false;
+    cg.has_fmt = false;
     cg.file = file;
     cg.enum_names = NULL;
     cg.enum_count = 0;
@@ -1311,6 +1440,7 @@ void codegen_generate(CodeGen *cg, AstNode *program) {
                 if (item->is_stdlib && item->module) {
                     if (strcmp(item->module, "std") == 0) cg->has_std = true;
                     if (strcmp(item->module, "mem") == 0) cg->has_mem = true;
+                    if (strcmp(item->module, "fmt") == 0) cg->has_fmt = true;
                 }
             }
         }
@@ -1326,6 +1456,9 @@ void codegen_generate(CodeGen *cg, AstNode *program) {
     }
     if (cg->has_mem) {
         emit(cg, "#include \"ez_mem.h\"\n");
+    }
+    if (cg->has_fmt) {
+        emit(cg, "#include \"ez_fmt.h\"\n");
     }
     emit(cg, "\n");
 
