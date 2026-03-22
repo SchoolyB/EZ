@@ -287,6 +287,10 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
         break;
 
     case NODE_STRUCT_VALUE:
+        /* Resolve field value types */
+        for (int i = 0; i < node->data.struct_value.count; i++) {
+            resolve_expr(tc, node->data.struct_value.field_values[i]);
+        }
         result = type_struct(node->data.struct_value.name);
         break;
 
