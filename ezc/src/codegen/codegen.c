@@ -192,6 +192,7 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
                 case TK_BOOL:   emit(cg, "%s"); break;
                 case TK_CHAR:   emit(cg, "%c"); break;
                 case TK_ARRAY:  emit(cg, "%s"); break;
+                case TK_MAP:    emit(cg, "%s"); break;
                 case TK_ENUM:   emit(cg, "%lld"); break;
                 default:        emit(cg, "%lld"); break;
                 }
@@ -235,6 +236,9 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
                 break;
             case TK_ARRAY:
                 emit(cg, "\"[...]\"");
+                break;
+            case TK_MAP:
+                emit(cg, "\"{...}\"");
                 break;
             default:
                 emit(cg, "(long long)(");
@@ -604,11 +608,28 @@ static void emit_var_declaration(CodeGen *cg, AstNode *node) {
 
     /* Map type: map[K:V] */
     if (type_name && strncmp(type_name, "map[", 4) == 0) {
+        /* Parse K:V from type string to determine C types */
+        EzType *mt = type_from_name(type_name);
+        const char *c_kt = "EzString";
+        const char *c_vt = "int64_t";
+        if (mt && mt->key_type) {
+            EzType *kt = type_from_name(mt->key_type);
+            if (kt->kind == TK_INT) c_kt = "int64_t";
+        }
+        if (mt && mt->value_type) {
+            EzType *vt = type_from_name(mt->value_type);
+            if (vt->kind == TK_FLOAT) c_vt = "double";
+            else if (vt->kind == TK_STRING) c_vt = "EzString";
+            else if (vt->kind == TK_BOOL) c_vt = "bool";
+        }
+
         emitf(cg, "EzMap %s = ", node->data.var_decl.name);
-        if (node->data.var_decl.value) {
+        if (node->data.var_decl.value &&
+            node->data.var_decl.value->kind == NODE_MAP_VALUE) {
             emit_expression(cg, node->data.var_decl.value);
         } else {
-            emit(cg, "ez_map_new(ez_default_arena, sizeof(EzString), sizeof(int64_t), 8)");
+            /* Empty map or no initializer */
+            emitf(cg, "ez_map_new(ez_default_arena, sizeof(%s), sizeof(%s), 8)", c_kt, c_vt);
         }
         emit(cg, ";\n");
         return;
