@@ -221,8 +221,22 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
         if (fn->kind == NODE_LABEL) {
             fn_name = fn->data.label.value;
         } else if (fn->kind == NODE_MEMBER_EXPR && fn->data.member.object->kind == NODE_LABEL) {
-            /* std.println etc — stdlib calls, return void for now */
-            result = &TYPE_VOID;
+            const char *mod = fn->data.member.object->data.label.value;
+            const char *mfn = fn->data.member.member;
+            if (strcmp(mod, "mem") == 0) {
+                if (strcmp(mfn, "arena") == 0) {
+                    result = &TYPE_UNKNOWN; /* arena pointer — opaque */
+                } else if (strcmp(mfn, "usage") == 0) {
+                    result = &TYPE_INT;
+                } else if (strcmp(mfn, "alloc") == 0 && node->data.call.arg_count == 2) {
+                    /* alloc returns the type of its second argument */
+                    result = resolve_expr(tc, node->data.call.args[1]);
+                } else {
+                    result = &TYPE_VOID;
+                }
+            } else {
+                result = &TYPE_VOID;
+            }
             break;
         }
 
