@@ -891,6 +891,15 @@ static AstNode *parse_func_declaration(Parser *p) {
                 }
                 next_token(p);
             }
+        } else if (cur_token_is(p, TOK_LBRACKET)) {
+            /* Array return type: -> [int] */
+            next_token(p);
+            const char *elem = p->cur_token.literal;
+            if (!expect_peek(p, TOK_RBRACKET)) return NULL;
+            char *type_str = arena_alloc(p->arena, strlen(elem) + 3);
+            sprintf(type_str, "[%s]", elem);
+            node->data.func_decl.return_types[0] = type_str;
+            node->data.func_decl.return_type_count = 1;
         } else {
             /* Single return type */
             node->data.func_decl.return_types[0] = p->cur_token.literal;
@@ -1128,6 +1137,10 @@ static AstNode *parse_ensure_statement(Parser *p) {
 static AstNode *parse_for_statement(Parser *p) {
     AstNode *node = ast_alloc(p->arena, NODE_FOR_STMT, p->cur_token);
 
+    /* Optional parentheses: for (i in range(...)) */
+    bool has_parens = peek_token_is(p, TOK_LPAREN);
+    if (has_parens) next_token(p);
+
     if (!expect_peek(p, TOK_IDENT)) return NULL;
     node->data.for_stmt.var_name = p->cur_token.literal;
 
@@ -1138,6 +1151,10 @@ static AstNode *parse_for_statement(Parser *p) {
 
     next_token(p);
     node->data.for_stmt.iterable = parse_expression(p, PREC_LOWEST);
+
+    if (has_parens && peek_token_is(p, TOK_RPAREN)) {
+        next_token(p);
+    }
 
     if (!expect_peek(p, TOK_LBRACE)) return NULL;
     node->data.for_stmt.body = parse_block_statement(p);
