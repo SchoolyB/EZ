@@ -103,10 +103,32 @@ static const char *read_number(Lexer *l, TokenType *type) {
 static const char *read_string(Lexer *l) {
     read_char(l); /* skip opening " */
     int start = l->position;
+    int brace_depth = 0;
 
-    while (l->ch != '"' && l->ch != 0) {
+    while (l->ch != 0) {
         if (l->ch == '\\') {
             read_char(l); /* skip escape char */
+            read_char(l);
+            continue;
+        }
+        if (l->ch == '$' && peek_char(l) == '{') {
+            brace_depth++;
+            read_char(l); /* skip $ */
+            read_char(l); /* skip { */
+            continue;
+        }
+        if (l->ch == '{' && brace_depth > 0) {
+            brace_depth++;
+            read_char(l);
+            continue;
+        }
+        if (l->ch == '}' && brace_depth > 0) {
+            brace_depth--;
+            read_char(l);
+            continue;
+        }
+        if (l->ch == '"' && brace_depth == 0) {
+            break; /* end of string */
         }
         read_char(l);
     }

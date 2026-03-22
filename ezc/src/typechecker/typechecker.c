@@ -249,6 +249,14 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                 } else {
                     result = &TYPE_VOID;
                 }
+            } else if (strcmp(mod, "maps") == 0) {
+                if (strcmp(mfn, "keys") == 0 || strcmp(mfn, "values") == 0) {
+                    result = type_array("string"); /* approximate */
+                } else if (strcmp(mfn, "has_key") == 0 || strcmp(mfn, "contains") == 0) {
+                    result = &TYPE_BOOL;
+                } else {
+                    result = &TYPE_VOID;
+                }
             } else if (strcmp(mod, "io") == 0) {
                 if (strcmp(mfn, "read_file") == 0) {
                     result = &TYPE_STRING;
@@ -300,7 +308,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
 
         if (fn_name) {
             /* Check built-in functions first */
-            if (strcmp(fn_name, "addr") == 0 && node->data.call.arg_count == 1) {
+            if ((strcmp(fn_name, "addr") == 0 || strcmp(fn_name, "ref") == 0) && node->data.call.arg_count == 1) {
                 EzType *arg_t = resolve_expr(tc, node->data.call.args[0]);
                 result = type_pointer(type_name(arg_t));
             } else if (strcmp(fn_name, "len") == 0 || strcmp(fn_name, "to_int") == 0) {
@@ -334,9 +342,10 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
     }
 
     case NODE_MEMBER_EXPR: {
-        /* Resolve object type, then look up field */
+        /* Resolve object type first (sets type table entry for the object) */
         AstNode *obj = node->data.member.object;
         const char *member = node->data.member.member;
+        resolve_expr(tc, obj);
 
         if (obj->kind == NODE_LABEL) {
             const char *obj_name = obj->data.label.value;

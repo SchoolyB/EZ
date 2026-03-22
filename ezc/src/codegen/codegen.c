@@ -462,19 +462,24 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
             emit_expression(cg, node->data.index_expr.index);
             emit(cg, ")");
         } else if (left_t && left_t->kind == TK_MAP) {
-            /* Map key access: *(type *)ez_map_get(&m, &key) */
+            /* Map key access — use temp to handle rvalue keys like literals */
+            const char *c_key = "EzString";
             const char *c_val = "int64_t";
+            if (left_t->key_type) {
+                EzType *kt = type_from_name(left_t->key_type);
+                if (kt->kind == TK_INT) c_key = "int64_t";
+            }
             if (left_t->value_type) {
                 EzType *vt = type_from_name(left_t->value_type);
                 if (vt->kind == TK_FLOAT) c_val = "double";
                 else if (vt->kind == TK_STRING) c_val = "EzString";
                 else if (vt->kind == TK_BOOL) c_val = "bool";
             }
-            emitf(cg, "(*(%s *)ez_map_get(&", c_val);
-            emit_expression(cg, node->data.index_expr.left);
-            emit(cg, ", &(");
+            emitf(cg, "({ %s _mk = ", c_key);
             emit_expression(cg, node->data.index_expr.index);
-            emit(cg, ")))");
+            emitf(cg, "; *(%s *)ez_map_get(&", c_val);
+            emit_expression(cg, node->data.index_expr.left);
+            emit(cg, ", &_mk); })");
         } else {
             /* String indexing or fallback */
             emit_expression(cg, node->data.index_expr.left);
@@ -604,7 +609,7 @@ static void emit_call_expression(CodeGen *cg, AstNode *node) {
             return;
         }
 
-        if (strcmp(func, "addr") == 0 && node->data.call.arg_count == 1) {
+        if ((strcmp(func, "addr") == 0 || strcmp(func, "ref") == 0) && node->data.call.arg_count == 1) {
             emit(cg, "&");
             emit_expression(cg, node->data.call.args[0]);
             return;
@@ -955,6 +960,30 @@ static void emit_call_expression(CodeGen *cg, AstNode *node) {
             }
             emit(cg, ")");
             return;
+        }
+
+        /* @maps module functions */
+        if (module && strcmp(module, "maps") == 0) {
+            if (strcmp(func, "keys") == 0 && node->data.call.arg_count == 1) {
+                emit(cg, "ez_maps_keys(ez_default_arena, &");
+                emit_expression(cg, node->data.call.args[0]);
+                emit(cg, ")");
+                return;
+            }
+            if (strcmp(func, "values") == 0 && node->data.call.arg_count == 1) {
+                emit(cg, "ez_maps_values(ez_default_arena, &");
+                emit_expression(cg, node->data.call.args[0]);
+                emit(cg, ")");
+                return;
+            }
+            if (strcmp(func, "has_key") == 0 || strcmp(func, "contains") == 0) {
+                emit(cg, "ez_maps_has_key(&");
+                emit_expression(cg, node->data.call.args[0]);
+                emit(cg, ", &(");
+                emit_expression(cg, node->data.call.args[1]);
+                emit(cg, "))");
+                return;
+            }
         }
 
         /* @io module functions */
@@ -1759,6 +1788,7 @@ void codegen_generate(CodeGen *cg, AstNode *program) {
     emit(cg, "#include \"ez_math.h\"\n");
     emit(cg, "#include \"ez_strings.h\"\n");
     emit(cg, "#include \"ez_io.h\"\n");
+    emit(cg, "#include \"ez_maps.h\"\n");
     emit(cg, "\n");
 
     /* Emit struct type definitions */
