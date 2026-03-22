@@ -108,6 +108,12 @@ EzType *type_from_name(const char *name) {
     if (strcmp(name, "string") == 0) return &TYPE_STRING;
     if (strcmp(name, "void") == 0)   return &TYPE_VOID;
     if (strcmp(name, "nil") == 0)    return &TYPE_NIL;
+    if (strcmp(name, "Error") == 0) {
+        EzType *t = type_alloc();
+        t->kind = TK_ERROR;
+        t->name = "Error";
+        return t;
+    }
 
     /* Pointer type: ^int, ^Person, etc. */
     if (name[0] == '^') {

@@ -29,4 +29,12 @@ bool ez_io_rename(EzString old_path, EzString new_path);
 #define ez_io_remove ez_io_delete_file
 #define ez_io_exists ez_io_file_exists
 
+/* Tuple-returning versions for (value, Error) pattern */
+typedef struct { EzString v0; EzError *v1; } EzResult_string;
+typedef struct { bool v0; EzError *v1; } EzResult_bool;
+
+EzResult_string ez_io_read_file_result(EzArena *arena, EzString path);
+EzResult_bool ez_io_write_file_result(EzArena *arena, EzString path, EzString content);
+EzResult_bool ez_io_delete_file_result(EzArena *arena, EzString path);
+
 #endif
