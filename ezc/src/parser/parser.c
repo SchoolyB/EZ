@@ -996,6 +996,10 @@ static AstNode *parse_enum_declaration(Parser *p) {
         }
 
         node->data.enum_decl.value_count++;
+        /* Skip optional trailing comma */
+        if (peek_token_is(p, TOK_COMMA)) {
+            next_token(p);
+        }
         next_token(p);
     }
 
@@ -1152,13 +1156,27 @@ static AstNode *parse_when_statement(Parser *p) {
             wc->is_range = false;
 
             /* Parse case values: is 1, 2, 3 { } */
-            do {
-                next_token(p);
+            next_token(p);
+            if (cur_token_is(p, TOK_RANGE)) {
+                wc->is_range = true;
+            }
+            if (wc->value_count < val_cap) {
+                wc->values[wc->value_count++] = parse_expression(p, PREC_LOWEST);
+            }
+            while (peek_token_is(p, TOK_COMMA)) {
+                next_token(p); /* skip comma */
+                next_token(p); /* next value */
+                if (wc->value_count >= val_cap) {
+                    val_cap *= 2;
+                    AstNode **new_vals = arena_alloc(p->arena, sizeof(AstNode *) * val_cap);
+                    memcpy(new_vals, wc->values, sizeof(AstNode *) * wc->value_count);
+                    wc->values = new_vals;
+                }
                 if (cur_token_is(p, TOK_RANGE)) {
                     wc->is_range = true;
                 }
                 wc->values[wc->value_count++] = parse_expression(p, PREC_LOWEST);
-            } while (peek_token_is(p, TOK_COMMA) && (next_token(p), 1));
+            }
 
             if (!expect_peek(p, TOK_LBRACE)) return NULL;
             wc->body = parse_block_statement(p);
@@ -1225,6 +1243,29 @@ static AstNode *parse_statement(Parser *p) {
         return ast_alloc(p->arena, NODE_CONTINUE_STMT, p->cur_token);
     case TOK_WHEN:
         return parse_when_statement(p);
+    case TOK_STRICT:
+        /* #strict — applies to the next when statement */
+        next_token(p);
+        if (cur_token_is(p, TOK_WHEN)) {
+            AstNode *ws = parse_when_statement(p);
+            if (ws) ws->data.when_stmt.is_strict = true;
+            return ws;
+        }
+        /* If not followed by when, just skip */
+        return parse_statement(p);
+    case TOK_SUPPRESS:
+    case TOK_DOC:
+    case TOK_FLAGS:
+    case TOK_ENUM_ATTR:
+        /* Skip attribute tokens — consume args if present */
+        if (peek_token_is(p, TOK_LPAREN)) {
+            next_token(p); /* skip ( */
+            while (!cur_token_is(p, TOK_RPAREN) && !cur_token_is(p, TOK_EOF)) {
+                next_token(p);
+            }
+        }
+        next_token(p);
+        return parse_statement(p);
     case TOK_ENSURE:
         return parse_ensure_statement(p);
     default: {
