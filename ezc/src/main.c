@@ -434,13 +434,13 @@ int main(int argc, char **argv) {
             "cc -std=c11 %s -Wall -Wno-unused-function "
             "-I%s/runtime -I%s/stdlib "
             "-o %s %s %s/runtime/ez_runtime.c %s/runtime/ez_array.c %s/runtime/ez_map.c "
-            "%s/stdlib/ez_std.c %s/stdlib/ez_mem.c %s/stdlib/ez_fmt.c "
+            "%s/stdlib/ez_std.c %s/stdlib/ez_mem.c %s/stdlib/ez_fmt.c %s/stdlib/ez_math.c "
             "-lm 2>&1",
             extra_flags,
             runtime_dir, runtime_dir,
             output_file, c_file,
             runtime_dir, runtime_dir, runtime_dir,
-            runtime_dir, runtime_dir, runtime_dir);
+            runtime_dir, runtime_dir, runtime_dir, runtime_dir);
     }
 
     if (verbose) {
