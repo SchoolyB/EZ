@@ -85,13 +85,33 @@ static const char *read_number(Lexer *l, TokenType *type) {
     int start = l->position;
     *type = TOK_INT;
 
+    /* Check for 0x, 0o, 0b prefixes */
+    if (l->ch == '0') {
+        char next = peek_char(l);
+        if (next == 'x' || next == 'X') {
+            read_char(l); read_char(l);
+            while (isxdigit(l->ch) || l->ch == '_') read_char(l);
+            return arena_strndup(l->arena, l->input + start, l->position - start);
+        }
+        if (next == 'o' || next == 'O') {
+            read_char(l); read_char(l);
+            while ((l->ch >= '0' && l->ch <= '7') || l->ch == '_') read_char(l);
+            return arena_strndup(l->arena, l->input + start, l->position - start);
+        }
+        if (next == 'b' || next == 'B') {
+            read_char(l); read_char(l);
+            while (l->ch == '0' || l->ch == '1' || l->ch == '_') read_char(l);
+            return arena_strndup(l->arena, l->input + start, l->position - start);
+        }
+    }
+
     while (isdigit(l->ch) || l->ch == '_') {
         read_char(l);
     }
 
     if (l->ch == '.' && isdigit(peek_char(l))) {
         *type = TOK_FLOAT;
-        read_char(l); /* skip . */
+        read_char(l);
         while (isdigit(l->ch) || l->ch == '_') {
             read_char(l);
         }
