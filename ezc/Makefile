@@ -120,4 +120,7 @@ test-e2e: build tests/test_codegen
 test-parity: build
 	@./tests/run_parity.sh
 
+test-integration: build
+	@./tests/run_integration.sh
+
 test: test-unit test-e2e test-parity
