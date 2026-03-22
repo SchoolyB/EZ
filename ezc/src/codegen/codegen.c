@@ -129,13 +129,18 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
     if (!node) return;
 
     switch (node->kind) {
-    case NODE_LABEL:
-        if (is_mutable_param(cg, node->data.label.value)) {
-            emitf(cg, "(*%s)", node->data.label.value);
+    case NODE_LABEL: {
+        const char *name = node->data.label.value;
+        /* Check for known stdlib constants (unambiguous names) */
+        if (strcmp(name, "EXIT_SUCCESS") == 0) { emit(cg, "0"); break; }
+        if (strcmp(name, "EXIT_FAILURE") == 0) { emit(cg, "1"); break; }
+        if (is_mutable_param(cg, name)) {
+            emitf(cg, "(*%s)", name);
         } else {
-            emit(cg, node->data.label.value);
+            emit(cg, name);
         }
         break;
+    }
 
     case NODE_INT_VALUE:
         emitf(cg, "%lld", (long long)node->data.int_value.value);
@@ -382,12 +387,42 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
         break;
 
     case NODE_MEMBER_EXPR:
-        /* Check if this is an enum access: EnumName.VALUE */
+        /* Check for module constants first */
         if (node->data.member.object->kind == NODE_LABEL) {
-            const char *obj_name = node->data.member.object->data.label.value;
-            if (obj_name[0] >= 'A' && obj_name[0] <= 'Z') {
-                /* Could be enum access — emit as EzEnum_Name_VALUE */
-                emitf(cg, "EzEnum_%s_%s", obj_name, node->data.member.member);
+            const char *mod = node->data.member.object->data.label.value;
+            const char *mem = node->data.member.member;
+
+            /* @std constants */
+            if (strcmp(mod, "std") == 0) {
+                if (strcmp(mem, "EXIT_SUCCESS") == 0) { emit(cg, "0"); break; }
+                if (strcmp(mem, "EXIT_FAILURE") == 0) { emit(cg, "1"); break; }
+            }
+
+            /* @math constants */
+            if (strcmp(mod, "math") == 0) {
+                if (strcmp(mem, "PI") == 0)      { emit(cg, "3.14159265358979323846"); break; }
+                if (strcmp(mem, "E") == 0)       { emit(cg, "2.71828182845904523536"); break; }
+                if (strcmp(mem, "TAU") == 0)     { emit(cg, "6.28318530717958647692"); break; }
+                if (strcmp(mem, "PHI") == 0)     { emit(cg, "1.61803398874989484820"); break; }
+                if (strcmp(mem, "SQRT2") == 0)   { emit(cg, "1.41421356237309504880"); break; }
+                if (strcmp(mem, "LN2") == 0)     { emit(cg, "0.69314718055994530942"); break; }
+                if (strcmp(mem, "LN10") == 0)    { emit(cg, "2.30258509299404568402"); break; }
+                if (strcmp(mem, "INF") == 0)     { emit(cg, "(1.0/0.0)"); break; }
+                if (strcmp(mem, "NEG_INF") == 0) { emit(cg, "(-1.0/0.0)"); break; }
+                if (strcmp(mem, "EPSILON") == 0) { emit(cg, "2.2204460492503131e-16"); break; }
+            }
+
+            /* @os constants */
+            if (strcmp(mod, "os") == 0) {
+                if (strcmp(mem, "MAC_OS") == 0)  { emit(cg, "0"); break; }
+                if (strcmp(mem, "LINUX") == 0)   { emit(cg, "1"); break; }
+                if (strcmp(mem, "WINDOWS") == 0) { emit(cg, "2"); break; }
+                if (strcmp(mem, "OTHER") == 0)   { emit(cg, "3"); break; }
+            }
+
+            /* Check if this is an enum access: EnumName.VALUE */
+            if (mod[0] >= 'A' && mod[0] <= 'Z') {
+                emitf(cg, "EzEnum_%s_%s", mod, mem);
                 break;
             }
         }
@@ -447,6 +482,20 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
             emit_expression(cg, node->data.index_expr.index);
             emit(cg, "]");
         }
+        break;
+    }
+
+    case NODE_CAST_EXPR:
+        /* cast(value, type) → (C_type)(value) */
+        emitf(cg, "((%s)(", ez_type_to_c_cg(cg, node->data.cast.target_type));
+        emit_expression(cg, node->data.cast.value);
+        emit(cg, "))");
+        break;
+
+    case NODE_NEW_EXPR: {
+        /* new(Type) → zeroed allocation on default arena, returns pointer */
+        const char *c_type = ez_type_to_c_cg(cg, node->data.new_expr.type_name);
+        emitf(cg, "((%s *)ez_arena_alloc(ez_default_arena, sizeof(%s)))", c_type, c_type);
         break;
     }
 
@@ -558,6 +607,174 @@ static void emit_call_expression(CodeGen *cg, AstNode *node) {
         if (strcmp(func, "addr") == 0 && node->data.call.arg_count == 1) {
             emit(cg, "&");
             emit_expression(cg, node->data.call.args[0]);
+            return;
+        }
+
+        if (strcmp(func, "exit") == 0 && node->data.call.arg_count == 1) {
+            emit(cg, "ez_std_exit(");
+            emit_expression(cg, node->data.call.args[0]);
+            emit(cg, ")");
+            return;
+        }
+
+        if (strcmp(func, "panic") == 0 && node->data.call.arg_count == 1) {
+            emit(cg, "ez_std_panic_msg(");
+            emit_expression(cg, node->data.call.args[0]);
+            emit(cg, ")");
+            return;
+        }
+
+        if (strcmp(func, "assert") == 0 && node->data.call.arg_count >= 1) {
+            emit(cg, "ez_std_assert(");
+            emit_expression(cg, node->data.call.args[0]);
+            if (node->data.call.arg_count >= 2) {
+                emit(cg, ", ");
+                emit_expression(cg, node->data.call.args[1]);
+            } else {
+                emit(cg, ", ez_string_lit(\"assertion failed\")");
+            }
+            emitf(cg, ", \"%s\", %d)", cg->file, node->token.line);
+            return;
+        }
+
+        if (strcmp(func, "error") == 0 && node->data.call.arg_count == 1) {
+            emit(cg, "ez_std_error(");
+            emit_expression(cg, node->data.call.args[0]);
+            emit(cg, ")");
+            return;
+        }
+
+        if (strcmp(func, "input") == 0) {
+            emit(cg, "ez_std_input(ez_default_arena)");
+            return;
+        }
+
+        if (strcmp(func, "read_int") == 0) {
+            /* read_int() → reads line from stdin, converts to int */
+            emit(cg, "({ EzString _s = ez_std_input(ez_default_arena); atoll(_s.data); })");
+            return;
+        }
+
+        if (strcmp(func, "eprintln") == 0) {
+            if (node->data.call.arg_count == 0) {
+                emit(cg, "fputc('\\n', stderr)");
+            } else {
+                AstNode *arg = node->data.call.args[0];
+                EzType *at = cg->type_table ? typetable_get(cg->type_table, arg) : NULL;
+                const char *suffix = "_int";
+                if (at && at->kind == TK_STRING) suffix = "_str";
+                else if (arg->kind == NODE_STRING_VALUE || arg->kind == NODE_INTERPOLATED_STRING) suffix = "_str";
+                emitf(cg, "ez_std_eprintln%s(", suffix);
+                emit_expression(cg, arg);
+                emit(cg, ")");
+            }
+            return;
+        }
+
+        if (strcmp(func, "eprint") == 0 && node->data.call.arg_count > 0) {
+            emit(cg, "ez_std_eprint_str(");
+            emit_expression(cg, node->data.call.args[0]);
+            emit(cg, ")");
+            return;
+        }
+
+        if (strcmp(func, "to_string") == 0 && node->data.call.arg_count == 1) {
+            AstNode *arg = node->data.call.args[0];
+            EzType *at = cg->type_table ? typetable_get(cg->type_table, arg) : NULL;
+            if (at && at->kind == TK_FLOAT) {
+                emit(cg, "ez_std_to_string_float(ez_default_arena, ");
+            } else if (at && at->kind == TK_BOOL) {
+                emit(cg, "ez_std_to_string_bool(ez_default_arena, ");
+            } else {
+                emit(cg, "ez_std_to_string_int(ez_default_arena, ");
+            }
+            emit_expression(cg, arg);
+            emit(cg, ")");
+            return;
+        }
+
+        if (strcmp(func, "to_bool") == 0 && node->data.call.arg_count == 1) {
+            emit(cg, "(bool)(");
+            emit_expression(cg, node->data.call.args[0]);
+            emit(cg, ")");
+            return;
+        }
+
+        if (strcmp(func, "sleep_seconds") == 0 && node->data.call.arg_count == 1) {
+            emit(cg, "ez_std_sleep_seconds(");
+            emit_expression(cg, node->data.call.args[0]);
+            emit(cg, ")");
+            return;
+        }
+
+        if (strcmp(func, "sleep_milliseconds") == 0 && node->data.call.arg_count == 1) {
+            emit(cg, "ez_std_sleep_milliseconds(");
+            emit_expression(cg, node->data.call.args[0]);
+            emit(cg, ")");
+            return;
+        }
+
+        if (strcmp(func, "sleep_nanoseconds") == 0 && node->data.call.arg_count == 1) {
+            emit(cg, "ez_std_sleep_nanoseconds(");
+            emit_expression(cg, node->data.call.args[0]);
+            emit(cg, ")");
+            return;
+        }
+
+        /* Sized type conversion functions: i8(), u16(), f32(), etc. */
+        if (node->data.call.arg_count == 1) {
+            const char *cast_type = NULL;
+            if (strcmp(func, "i8") == 0) cast_type = "int8_t";
+            else if (strcmp(func, "i16") == 0) cast_type = "int16_t";
+            else if (strcmp(func, "i32") == 0) cast_type = "int32_t";
+            else if (strcmp(func, "i64") == 0) cast_type = "int64_t";
+            else if (strcmp(func, "u8") == 0) cast_type = "uint8_t";
+            else if (strcmp(func, "u16") == 0) cast_type = "uint16_t";
+            else if (strcmp(func, "u32") == 0) cast_type = "uint32_t";
+            else if (strcmp(func, "u64") == 0) cast_type = "uint64_t";
+            else if (strcmp(func, "f32") == 0) cast_type = "float";
+            else if (strcmp(func, "f64") == 0) cast_type = "double";
+            else if (strcmp(func, "int") == 0) cast_type = "int64_t";
+            else if (strcmp(func, "uint") == 0) cast_type = "uint64_t";
+            else if (strcmp(func, "float") == 0) cast_type = "double";
+            else if (strcmp(func, "string") == 0) cast_type = NULL; /* handled below */
+            else if (strcmp(func, "char") == 0) cast_type = "int32_t";
+            else if (strcmp(func, "byte") == 0) cast_type = "uint8_t";
+            if (cast_type) {
+                emitf(cg, "((%s)(", cast_type);
+                emit_expression(cg, node->data.call.args[0]);
+                emit(cg, "))");
+                return;
+            }
+            /* string() conversion */
+            if (strcmp(func, "string") == 0) {
+                AstNode *arg = node->data.call.args[0];
+                EzType *at = cg->type_table ? typetable_get(cg->type_table, arg) : NULL;
+                if (at && at->kind == TK_FLOAT) {
+                    emit(cg, "ez_std_to_string_float(ez_default_arena, ");
+                } else if (at && at->kind == TK_BOOL) {
+                    emit(cg, "ez_std_to_string_bool(ez_default_arena, ");
+                } else {
+                    emit(cg, "ez_std_to_string_int(ez_default_arena, ");
+                }
+                emit_expression(cg, arg);
+                emit(cg, ")");
+                return;
+            }
+        }
+
+        if (strcmp(func, "copy") == 0 && node->data.call.arg_count == 1) {
+            /* Deep copy — for arrays use ez_array_copy, otherwise value copy */
+            AstNode *arg = node->data.call.args[0];
+            EzType *at = cg->type_table ? typetable_get(cg->type_table, arg) : NULL;
+            if (at && at->kind == TK_ARRAY) {
+                emit(cg, "ez_array_copy(ez_default_arena, &");
+                emit_expression(cg, arg);
+                emit(cg, ")");
+            } else {
+                /* Value types — just copy the value */
+                emit_expression(cg, arg);
+            }
             return;
         }
 
@@ -903,8 +1120,8 @@ static void emit_var_declaration(CodeGen *cg, AstNode *node) {
             c_type = "double";
         } else if (val->kind == NODE_BOOL_VALUE) {
             c_type = "bool";
-        } else if (val->kind == NODE_CALL_EXPR) {
-            /* Use __auto_type for function calls to infer multi-return types */
+        } else if (val->kind == NODE_CALL_EXPR || val->kind == NODE_NEW_EXPR) {
+            /* Use __auto_type for function calls and new() to infer types */
             c_type = "__auto_type";
         }
     }
