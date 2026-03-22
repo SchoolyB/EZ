@@ -17,6 +17,7 @@ typedef struct {
     int indent;
     bool has_std;       /* Whether @std was imported */
     bool has_mem;       /* Whether @mem was imported */
+    bool has_fmt;       /* Whether @fmt was imported */
     const char *file;
 
     /* Track declared type names for codegen */
