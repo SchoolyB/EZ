@@ -913,6 +913,50 @@ static void emit_call_expression(CodeGen *cg, AstNode *node) {
             }
         }
 
+        /* @math module functions — most map directly to ez_math_name() */
+        if (module && strcmp(module, "math") == 0) {
+            /* Handle random() specially (variable arg count) */
+            if (strcmp(func, "random") == 0) {
+                if (node->data.call.arg_count == 0) {
+                    emit(cg, "ez_math_random_float(0.0, 1.0)");
+                } else if (node->data.call.arg_count == 1) {
+                    emit(cg, "ez_math_random_int(0, ");
+                    emit_expression(cg, node->data.call.args[0]);
+                    emit(cg, ")");
+                } else {
+                    emit(cg, "ez_math_random_int(");
+                    emit_expression(cg, node->data.call.args[0]);
+                    emit(cg, ", ");
+                    emit_expression(cg, node->data.call.args[1]);
+                    emit(cg, ")");
+                }
+                return;
+            }
+            /* abs needs int vs float dispatch */
+            if (strcmp(func, "abs") == 0 && node->data.call.arg_count == 1) {
+                EzType *at = cg->type_table ? typetable_get(cg->type_table, node->data.call.args[0]) : NULL;
+                emitf(cg, "ez_math_abs_%s(", (at && at->kind == TK_FLOAT) ? "float" : "int");
+                emit_expression(cg, node->data.call.args[0]);
+                emit(cg, ")");
+                return;
+            }
+            /* neg */
+            if (strcmp(func, "neg") == 0 && node->data.call.arg_count == 1) {
+                emit(cg, "(-(");
+                emit_expression(cg, node->data.call.args[0]);
+                emit(cg, "))");
+                return;
+            }
+            /* Generic: math.func(args...) → ez_math_func(args...) */
+            emitf(cg, "ez_math_%s(", func);
+            for (int i = 0; i < node->data.call.arg_count; i++) {
+                if (i > 0) emit(cg, ", ");
+                emit_expression(cg, node->data.call.args[i]);
+            }
+            emit(cg, ")");
+            return;
+        }
+
         /* @fmt module functions */
         if (module && strcmp(module, "fmt") == 0) {
             if (strcmp(func, "printf") == 0 && node->data.call.arg_count >= 1) {
@@ -1677,6 +1721,8 @@ void codegen_generate(CodeGen *cg, AstNode *program) {
     if (cg->has_fmt) {
         emit(cg, "#include \"ez_fmt.h\"\n");
     }
+    /* Always include math — inline functions are zero-cost if unused */
+    emit(cg, "#include \"ez_math.h\"\n");
     emit(cg, "\n");
 
     /* Emit struct type definitions */

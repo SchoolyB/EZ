@@ -37,7 +37,8 @@ RT_SRC = src/runtime/ez_runtime.c \
          src/runtime/ez_map.c \
          src/stdlib/ez_std.c \
          src/stdlib/ez_mem.c \
-         src/stdlib/ez_fmt.c
+         src/stdlib/ez_fmt.c \
+         src/stdlib/ez_math.c
 RT_OBJ = $(RT_SRC:.c=.o)
 RT_LIB = libezrt.a
 

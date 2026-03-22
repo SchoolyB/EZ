@@ -249,6 +249,21 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                 } else {
                     result = &TYPE_VOID;
                 }
+            } else if (strcmp(mod, "math") == 0) {
+                /* Math functions return types */
+                if (strcmp(mfn, "is_prime") == 0 || strcmp(mfn, "is_even") == 0 ||
+                    strcmp(mfn, "is_odd") == 0 || strcmp(mfn, "is_inf") == 0 ||
+                    strcmp(mfn, "is_nan") == 0 || strcmp(mfn, "is_finite") == 0) {
+                    result = &TYPE_BOOL;
+                } else if (strcmp(mfn, "abs") == 0 || strcmp(mfn, "min") == 0 ||
+                           strcmp(mfn, "max") == 0 || strcmp(mfn, "clamp") == 0 ||
+                           strcmp(mfn, "sign") == 0 || strcmp(mfn, "factorial") == 0 ||
+                           strcmp(mfn, "gcd") == 0 || strcmp(mfn, "lcm") == 0 ||
+                           strcmp(mfn, "random") == 0) {
+                    result = &TYPE_INT;
+                } else {
+                    result = &TYPE_FLOAT;
+                }
             } else {
                 result = &TYPE_VOID;
             }
