@@ -670,13 +670,16 @@ static AstNode *parse_func_declaration(Parser *p) {
     /* Return type(s) */
     node->data.func_decl.return_type_count = 0;
     node->data.func_decl.return_types = NULL;
+    node->data.func_decl.return_names = NULL;
 
     if (peek_token_is(p, TOK_ARROW)) {
         next_token(p); /* skip -> */
         next_token(p);
 
-        int ret_cap = 4;
+        int ret_cap = 8;
         node->data.func_decl.return_types = arena_alloc(p->arena, sizeof(const char *) * ret_cap);
+        node->data.func_decl.return_names = arena_alloc(p->arena, sizeof(const char *) * ret_cap);
+        memset(node->data.func_decl.return_names, 0, sizeof(const char *) * ret_cap);
 
         if (cur_token_is(p, TOK_LPAREN)) {
             /* Multiple/named return types:
@@ -706,31 +709,41 @@ static AstNode *parse_func_declaration(Parser *p) {
                 }
 
                 if (cur_token_is(p, TOK_IDENT) && peek_token_is(p, TOK_IDENT) && !is_type) {
-                    /* Named return: name type — skip name, use type */
+                    /* Named return: name type — store both */
+                    const char *ret_name = p->cur_token.literal;
                     next_token(p);
-                    node->data.func_decl.return_types[node->data.func_decl.return_type_count++] =
-                        p->cur_token.literal;
+                    int idx = node->data.func_decl.return_type_count;
+                    node->data.func_decl.return_names[idx] = ret_name;
+                    node->data.func_decl.return_types[idx] = p->cur_token.literal;
+                    node->data.func_decl.return_type_count++;
                 } else if (cur_token_is(p, TOK_IDENT) && peek_token_is(p, TOK_COMMA) && !is_type) {
-                    /* Shared type: (x, y int) — count names, assign same type to all */
-                    int shared = 1;
+                    /* Shared type: (x, y int) — collect names, assign same type */
+                    const char *names[16];
+                    int shared = 0;
+                    names[shared++] = p->cur_token.literal;
                     while (peek_token_is(p, TOK_COMMA)) {
                         next_token(p); /* skip comma */
                         next_token(p); /* next name */
-                        shared++;
+                        names[shared++] = p->cur_token.literal;
+                        if (shared >= 16) break;
                         if (!peek_token_is(p, TOK_COMMA)) break;
                     }
                     /* cur is last name, peek should be the shared type */
                     if (peek_token_is(p, TOK_IDENT)) {
                         next_token(p);
                         for (int s = 0; s < shared; s++) {
-                            node->data.func_decl.return_types[node->data.func_decl.return_type_count++] =
-                                p->cur_token.literal;
+                            int idx = node->data.func_decl.return_type_count;
+                            node->data.func_decl.return_names[idx] = names[s];
+                            node->data.func_decl.return_types[idx] = p->cur_token.literal;
+                            node->data.func_decl.return_type_count++;
                         }
                     }
                 } else {
-                    /* Plain type */
-                    node->data.func_decl.return_types[node->data.func_decl.return_type_count++] =
-                        p->cur_token.literal;
+                    /* Plain type (no name) */
+                    int idx = node->data.func_decl.return_type_count;
+                    node->data.func_decl.return_names[idx] = NULL;
+                    node->data.func_decl.return_types[idx] = p->cur_token.literal;
+                    node->data.func_decl.return_type_count++;
                 }
                 if (peek_token_is(p, TOK_COMMA)) {
                     next_token(p);

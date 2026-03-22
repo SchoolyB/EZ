@@ -248,6 +248,7 @@ struct AstNode {
             Param *params;
             int param_count;
             const char **return_types;
+            const char **return_names; /* Named return params (NULL if unnamed) */
             int return_type_count;
             AstNode *body;
             int visibility; /* 0 = public, 1 = private */

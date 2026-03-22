@@ -853,6 +853,19 @@ static void emit_func_declaration(CodeGen *cg, AstNode *node, bool is_main) {
     cg->indent++;
     AstNode *prev_func = cg->current_func;
     cg->current_func = node;
+
+    /* Emit named return variable declarations */
+    if (node->data.func_decl.return_names) {
+        for (int i = 0; i < node->data.func_decl.return_type_count; i++) {
+            if (node->data.func_decl.return_names[i]) {
+                emit_indent(cg);
+                emitf(cg, "%s %s;\n",
+                    ez_type_to_c_cg(cg, node->data.func_decl.return_types[i]),
+                    node->data.func_decl.return_names[i]);
+            }
+        }
+    }
+
     if (node->data.func_decl.body) {
         emit_block(cg, node->data.func_decl.body);
         /* Emit ensure cleanup at end of function (for implicit returns) */
