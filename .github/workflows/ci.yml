@@ -5,9 +5,11 @@ on:
     branches:
       - main
       - release
+      - v3.0.0
   pull_request:
     branches:
       - main
+      - v3.0.0
 
 jobs:
   test:
@@ -61,6 +63,36 @@ jobs:
             if ($LASTEXITCODE -ne 0) { exit 1 }
           }
 
+      # ===== EZC Compiler =====
+      - name: Build EZC compiler
+        if: runner.os != 'Windows'
+        run: |
+          cd ezc
+          make clean
+          make build
+
+      - name: Run EZC unit tests
+        if: runner.os != 'Windows'
+        run: |
+          cd ezc
+          make test-unit
+
+      - name: Run EZC end-to-end tests
+        if: runner.os != 'Windows'
+        run: |
+          cd ezc
+          make test-e2e
+
+      - name: Compile all examples with EZC
+        if: runner.os != 'Windows'
+        run: |
+          for file in examples/basic/*.ez; do
+            echo "Compiling $file..."
+            ./ezc/ezc "$file" -o "/tmp/ezc_$(basename $file .ez)" || exit 1
+          done
+          echo "All examples compiled successfully"
+
+      # ===== Interpreter REPL =====
       - name: Test REPL basic functionality (Linux)
         if: runner.os == 'Linux'
         run: |
