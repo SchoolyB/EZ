@@ -12,6 +12,7 @@
 #include <string.h>
 #include <unistd.h>
 #include <sys/stat.h>
+#include <time.h>
 #ifdef __APPLE__
 #include <mach-o/dyld.h>
 #endif
@@ -27,12 +28,19 @@
 
 static void print_usage(void) {
     fprintf(stderr, "EZC - EZ Language Compiler v%s\n", EZC_VERSION);
-    fprintf(stderr, "Usage: ezc <file.ez> [-o output]\n");
+    fprintf(stderr, "Usage: ezc [options] <file.ez>\n");
     fprintf(stderr, "\nOptions:\n");
-    fprintf(stderr, "  -o <file>    Output binary name (default: based on input filename)\n");
-    fprintf(stderr, "  -c           Emit C source only (don't compile)\n");
-    fprintf(stderr, "  --version    Show version\n");
-    fprintf(stderr, "  --help       Show this help\n");
+    fprintf(stderr, "  -o <file>       Output binary name (default: based on input filename)\n");
+    fprintf(stderr, "  -c              Emit C source only (don't compile)\n");
+    fprintf(stderr, "  -O0, -O1, -O2   Optimization level (default: -O2)\n");
+    fprintf(stderr, "  -g              Include debug symbols\n");
+    fprintf(stderr, "  -v, --verbose   Show compilation commands\n");
+    fprintf(stderr, "  --time          Show compilation timing\n");
+    fprintf(stderr, "  --no-color      Disable colored output\n");
+    fprintf(stderr, "  --version       Show version\n");
+    fprintf(stderr, "  -h, --help      Show this help\n");
+    fprintf(stderr, "\nSubcommands:\n");
+    fprintf(stderr, "  check <file>    Type check without compiling\n");
 }
 
 static char *read_file(const char *path) {
@@ -193,6 +201,12 @@ int main(int argc, char **argv) {
     const char *input_file = NULL;
     const char *output_file = NULL;
     bool emit_c_only = false;
+    bool check_only = false;
+    bool verbose = false;
+    bool show_time = false;
+    bool no_color = false;
+    bool debug_symbols = false;
+    const char *opt_level = "-O2";
 
     /* Parse arguments */
     for (int i = 1; i < argc; i++) {
@@ -212,8 +226,28 @@ int main(int argc, char **argv) {
             emit_c_only = true;
             continue;
         }
+        if (strcmp(argv[i], "-O0") == 0) { opt_level = "-O0"; continue; }
+        if (strcmp(argv[i], "-O1") == 0) { opt_level = "-O1"; continue; }
+        if (strcmp(argv[i], "-O2") == 0) { opt_level = "-O2"; continue; }
+        if (strcmp(argv[i], "-O3") == 0) { opt_level = "-O3"; continue; }
+        if (strcmp(argv[i], "-g") == 0) {
+            debug_symbols = true;
+            continue;
+        }
+        if (strcmp(argv[i], "-v") == 0 || strcmp(argv[i], "--verbose") == 0) {
+            verbose = true;
+            continue;
+        }
+        if (strcmp(argv[i], "--time") == 0) {
+            show_time = true;
+            continue;
+        }
         if (strcmp(argv[i], "--no-color") == 0) {
-            /* Handled after diag_create */
+            no_color = true;
+            continue;
+        }
+        if (strcmp(argv[i], "check") == 0 && !input_file) {
+            check_only = true;
             continue;
         }
         if (argv[i][0] == '-') {
@@ -236,13 +270,9 @@ int main(int argc, char **argv) {
     Arena *arena = arena_create(1024 * 1024);
     DiagnosticList *diag = diag_create();
     diag_set_source(diag, input_file, source);
+    if (no_color) diag->use_color = false;
 
-    /* Check for --no-color flag */
-    for (int i = 1; i < argc; i++) {
-        if (strcmp(argv[i], "--no-color") == 0) {
-            diag->use_color = false;
-        }
-    }
+    clock_t t_start = clock();
 
     /* Lex */
     Lexer *lexer = lexer_create(arena, source, input_file);
@@ -271,6 +301,20 @@ int main(int argc, char **argv) {
         arena_destroy(arena);
         free(source);
         return 1;
+    }
+
+    /* Check-only mode: stop after type checking */
+    if (check_only) {
+        clock_t t_end = clock();
+        if (show_time) {
+            double ms = (double)(t_end - t_start) / CLOCKS_PER_SEC * 1000.0;
+            fprintf(stderr, "ezc: check completed in %.1fms\n", ms);
+        }
+        fprintf(stderr, "ezc: %s — no errors\n", input_file);
+        diag_destroy(diag);
+        arena_destroy(arena);
+        free(source);
+        return 0;
     }
 
     /* Generate C code */
@@ -366,37 +410,61 @@ int main(int argc, char **argv) {
         }
     }
 
+    /* Build debug/optimization flags */
+    char extra_flags[128] = "";
+    if (debug_symbols) {
+        snprintf(extra_flags, sizeof(extra_flags), "-g %s", opt_level);
+    } else {
+        snprintf(extra_flags, sizeof(extra_flags), "%s", opt_level);
+    }
+
+    clock_t t_cc_start = clock();
+
     if (has_archive) {
-        /* Fast path: link against pre-compiled archive */
         snprintf(cmd, sizeof(cmd),
-            "cc -std=c11 -O2 -Wall -Wno-unused-function "
+            "cc -std=c11 %s -Wall -Wno-unused-function "
             "-I%s/runtime -I%s/stdlib "
             "-o %s %s %s "
             "-lm 2>&1",
+            extra_flags,
             runtime_dir, runtime_dir,
             output_file, c_file, lib_path);
     } else {
-        /* Slow path: compile runtime from source */
         snprintf(cmd, sizeof(cmd),
-            "cc -std=c11 -O2 -Wall -Wno-unused-function "
+            "cc -std=c11 %s -Wall -Wno-unused-function "
             "-I%s/runtime -I%s/stdlib "
             "-o %s %s %s/runtime/ez_runtime.c %s/runtime/ez_array.c %s/runtime/ez_map.c "
             "%s/stdlib/ez_std.c %s/stdlib/ez_mem.c "
             "-lm 2>&1",
+            extra_flags,
             runtime_dir, runtime_dir,
             output_file, c_file,
             runtime_dir, runtime_dir, runtime_dir,
             runtime_dir, runtime_dir);
     }
 
+    if (verbose) {
+        fprintf(stderr, "ezc: %s\n", cmd);
+    }
+
     int ret = system(cmd);
+
+    clock_t t_cc_end = clock();
+
     if (ret != 0) {
         fprintf(stderr, "ezc: C compilation failed\n");
-        /* Keep the generated .c file for debugging */
         fprintf(stderr, "ezc: generated C source at %s\n", c_file);
     } else {
-        /* Clean up temp file on success */
         unlink(c_file);
+
+        if (show_time) {
+            double frontend_ms = (double)(t_cc_start - t_start) / CLOCKS_PER_SEC * 1000.0;
+            double cc_ms = (double)(t_cc_end - t_cc_start) / CLOCKS_PER_SEC * 1000.0;
+            double total_ms = (double)(t_cc_end - t_start) / CLOCKS_PER_SEC * 1000.0;
+            fprintf(stderr, "ezc: compiled %s → %s (%.0fms)\n", input_file, output_file, total_ms);
+            fprintf(stderr, "  frontend:  %.1fms (lex + parse + typecheck + codegen)\n", frontend_ms);
+            fprintf(stderr, "  cc:        %.1fms (compile + link)\n", cc_ms);
+        }
     }
 
     codegen_destroy(&cg);
