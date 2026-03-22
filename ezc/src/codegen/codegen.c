@@ -957,6 +957,19 @@ static void emit_call_expression(CodeGen *cg, AstNode *node) {
             return;
         }
 
+        /* @io module functions */
+        if (module && strcmp(module, "io") == 0) {
+            bool needs_arena = (strcmp(func, "read_file") == 0);
+            emitf(cg, "ez_io_%s(", func);
+            if (needs_arena) emit(cg, "ez_default_arena, ");
+            for (int i = 0; i < node->data.call.arg_count; i++) {
+                if (i > 0) emit(cg, ", ");
+                emit_expression(cg, node->data.call.args[i]);
+            }
+            emit(cg, ")");
+            return;
+        }
+
         /* @strings module functions */
         if (module && strcmp(module, "strings") == 0) {
             /* Functions that need arena as first arg */
@@ -1745,6 +1758,7 @@ void codegen_generate(CodeGen *cg, AstNode *program) {
     }
     emit(cg, "#include \"ez_math.h\"\n");
     emit(cg, "#include \"ez_strings.h\"\n");
+    emit(cg, "#include \"ez_io.h\"\n");
     emit(cg, "\n");
 
     /* Emit struct type definitions */

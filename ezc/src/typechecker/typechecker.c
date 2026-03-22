@@ -249,6 +249,20 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                 } else {
                     result = &TYPE_VOID;
                 }
+            } else if (strcmp(mod, "io") == 0) {
+                if (strcmp(mfn, "read_file") == 0) {
+                    result = &TYPE_STRING;
+                } else if (strcmp(mfn, "file_exists") == 0 || strcmp(mfn, "exists") == 0 ||
+                           strcmp(mfn, "is_file") == 0 || strcmp(mfn, "is_directory") == 0 ||
+                           strcmp(mfn, "write_file") == 0 || strcmp(mfn, "append_file") == 0 ||
+                           strcmp(mfn, "delete_file") == 0 || strcmp(mfn, "remove") == 0 ||
+                           strcmp(mfn, "rename") == 0) {
+                    result = &TYPE_BOOL;
+                } else if (strcmp(mfn, "file_size") == 0) {
+                    result = &TYPE_INT;
+                } else {
+                    result = &TYPE_VOID;
+                }
             } else if (strcmp(mod, "strings") == 0) {
                 if (strcmp(mfn, "contains") == 0 || strcmp(mfn, "starts_with") == 0 ||
                     strcmp(mfn, "ends_with") == 0 || strcmp(mfn, "is_empty") == 0) {
