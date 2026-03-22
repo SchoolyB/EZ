@@ -1012,36 +1012,52 @@ static void emit_statement(CodeGen *cg, AstNode *node) {
         emit_for_statement(cg, node);
         break;
     case NODE_FOR_EACH_STMT: {
-        /* for_each item in collection → for loop over EzArray */
         emit_indent(cg);
         AstNode *coll = node->data.for_each.collection;
         EzType *coll_t = cg->type_table ? typetable_get(cg->type_table, coll) : NULL;
-        const char *c_elem = "int64_t";
-        if (coll_t && coll_t->kind == TK_ARRAY && coll_t->element_type) {
-            EzType *et = type_from_name(coll_t->element_type);
-            if (et->kind == TK_FLOAT) c_elem = "double";
-            else if (et->kind == TK_BOOL) c_elem = "bool";
-            else if (et->kind == TK_STRING) c_elem = "EzString";
-        }
 
-        /* Emit index variable */
         const char *idx_name = node->data.for_each.index_name;
         if (!idx_name) idx_name = "_ez_idx";
-        emitf(cg, "for (int32_t %s = 0; %s < ", idx_name, idx_name);
-        emit_expression(cg, coll);
-        emitf(cg, ".len; %s++) {\n", idx_name);
 
-        cg->indent++;
-        /* Declare the item variable */
-        emit_indent(cg);
-        emitf(cg, "%s %s = EZ_ARRAY_GET(", c_elem, node->data.for_each.var_name);
-        emit_expression(cg, coll);
-        emitf(cg, ", %s, %s);\n", c_elem, idx_name);
+        if (coll_t && coll_t->kind == TK_STRING) {
+            /* for_each ch in "string" → iterate characters */
+            emitf(cg, "{ EzString _ez_str = ");
+            emit_expression(cg, coll);
+            emit(cg, ";\n");
+            emit_indent(cg);
+            emitf(cg, "for (int32_t %s = 0; %s < _ez_str.len; %s++) {\n", idx_name, idx_name, idx_name);
+            cg->indent++;
+            emit_indent(cg);
+            emitf(cg, "int32_t %s = _ez_str.data[%s];\n", node->data.for_each.var_name, idx_name);
+        } else {
+            /* for_each item in array → iterate EzArray */
+            const char *c_elem = "int64_t";
+            if (coll_t && coll_t->kind == TK_ARRAY && coll_t->element_type) {
+                EzType *et = type_from_name(coll_t->element_type);
+                if (et->kind == TK_FLOAT) c_elem = "double";
+                else if (et->kind == TK_BOOL) c_elem = "bool";
+                else if (et->kind == TK_STRING) c_elem = "EzString";
+            }
+
+            emitf(cg, "for (int32_t %s = 0; %s < ", idx_name, idx_name);
+            emit_expression(cg, coll);
+            emitf(cg, ".len; %s++) {\n", idx_name);
+            cg->indent++;
+            emit_indent(cg);
+            emitf(cg, "%s %s = EZ_ARRAY_GET(", c_elem, node->data.for_each.var_name);
+            emit_expression(cg, coll);
+            emitf(cg, ", %s, %s);\n", c_elem, idx_name);
+        }
 
         emit_block(cg, node->data.for_each.body);
         cg->indent--;
         emit_indent(cg);
         emit(cg, "}\n");
+        /* Close extra scope for string iteration */
+        if (coll_t && coll_t->kind == TK_STRING) {
+            emit_indent(cg);
+            emit(cg, "}\n");
+        }
         break;
     }
     case NODE_WHILE_STMT:
