@@ -281,14 +281,73 @@ static AstNode *parse_prefix(Parser *p) {
     case TOK_AMPERSAND: return parse_prefix_expression(p);
     case TOK_LPAREN:    return parse_grouped_expression(p);
     case TOK_LBRACE: {
-        /* Array literal: {1, 2, 3} */
-        AstNode *node = ast_alloc(p->arena, NODE_ARRAY_VALUE, p->cur_token);
+        /* Could be array literal {1, 2, 3} or map literal {"k": v, ...}
+         * Detect map by checking for colon after first expression */
+        Token brace_tok = p->cur_token;
+        next_token(p); /* skip { */
+
+        /* Empty: {} — treat as empty array (context-dependent) */
+        if (cur_token_is(p, TOK_RBRACE)) {
+            AstNode *node = ast_alloc(p->arena, NODE_ARRAY_VALUE, brace_tok);
+            node->data.array_value.count = 0;
+            node->data.array_value.elements = NULL;
+            return node;
+        }
+
+        /* Parse first expression */
+        AstNode *first = parse_expression(p, PREC_LOWEST);
+
+        if (peek_token_is(p, TOK_COLON)) {
+            /* Map literal: {"key": value, ...} */
+            AstNode *node = ast_alloc(p->arena, NODE_MAP_VALUE, brace_tok);
+            int cap = 8;
+            node->data.map_value.count = 0;
+            node->data.map_value.keys = arena_alloc(p->arena, sizeof(AstNode *) * cap);
+            node->data.map_value.values = arena_alloc(p->arena, sizeof(AstNode *) * cap);
+
+            /* First key already parsed */
+            node->data.map_value.keys[0] = first;
+            next_token(p); /* skip : */
+            next_token(p);
+            node->data.map_value.values[0] = parse_expression(p, PREC_LOWEST);
+            node->data.map_value.count = 1;
+
+            while (peek_token_is(p, TOK_COMMA)) {
+                next_token(p); /* skip , */
+                next_token(p);
+                if (cur_token_is(p, TOK_RBRACE)) break;
+                if (node->data.map_value.count >= cap) {
+                    cap *= 2;
+                    AstNode **nk = arena_alloc(p->arena, sizeof(AstNode *) * cap);
+                    AstNode **nv = arena_alloc(p->arena, sizeof(AstNode *) * cap);
+                    memcpy(nk, node->data.map_value.keys, sizeof(AstNode *) * node->data.map_value.count);
+                    memcpy(nv, node->data.map_value.values, sizeof(AstNode *) * node->data.map_value.count);
+                    node->data.map_value.keys = nk;
+                    node->data.map_value.values = nv;
+                }
+                node->data.map_value.keys[node->data.map_value.count] =
+                    parse_expression(p, PREC_LOWEST);
+                if (!expect_peek(p, TOK_COLON)) return NULL;
+                next_token(p);
+                node->data.map_value.values[node->data.map_value.count] =
+                    parse_expression(p, PREC_LOWEST);
+                node->data.map_value.count++;
+            }
+            if (peek_token_is(p, TOK_RBRACE)) next_token(p);
+            return node;
+        }
+
+        /* Array literal: {expr, expr, ...} */
+        AstNode *node = ast_alloc(p->arena, NODE_ARRAY_VALUE, brace_tok);
         int cap = 8;
         node->data.array_value.count = 0;
         node->data.array_value.elements = arena_alloc(p->arena, sizeof(AstNode *) * cap);
+        node->data.array_value.elements[node->data.array_value.count++] = first;
 
-        next_token(p); /* skip { */
-        while (!cur_token_is(p, TOK_RBRACE) && !cur_token_is(p, TOK_EOF)) {
+        while (peek_token_is(p, TOK_COMMA)) {
+            next_token(p); /* skip , */
+            next_token(p);
+            if (cur_token_is(p, TOK_RBRACE)) break;
             if (node->data.array_value.count >= cap) {
                 cap *= 2;
                 AstNode **new_elems = arena_alloc(p->arena, sizeof(AstNode *) * cap);
@@ -298,11 +357,8 @@ static AstNode *parse_prefix(Parser *p) {
             }
             node->data.array_value.elements[node->data.array_value.count++] =
                 parse_expression(p, PREC_LOWEST);
-            if (peek_token_is(p, TOK_COMMA)) {
-                next_token(p);
-            }
-            next_token(p);
         }
+        if (peek_token_is(p, TOK_RBRACE)) next_token(p);
         return node;
     }
     case TOK_RANGE: {
@@ -540,15 +596,30 @@ static AstNode *parse_var_declaration(Parser *p) {
 
             return block;
     } else if (peek_token_is(p, TOK_LBRACKET)) {
-        /* Array type: [int], [string], etc. */
-        next_token(p); /* skip [ */
-        next_token(p); /* element type */
-        const char *elem_type = p->cur_token.literal;
-        if (!expect_peek(p, TOK_RBRACKET)) return NULL;
-        /* Build type string like "[int]" */
-        char *type_str = arena_alloc(p->arena, strlen(elem_type) + 3);
-        sprintf(type_str, "[%s]", elem_type);
-        node->data.var_decl.type_name = type_str;
+        /* Could be array type [int] or map type annotation already parsed as "map" */
+        if (node->data.var_decl.type_name &&
+            strcmp(node->data.var_decl.type_name, "map") == 0) {
+            /* Map type: map[K:V] */
+            next_token(p); /* skip [ */
+            next_token(p); /* key type */
+            const char *key_type = p->cur_token.literal;
+            if (!expect_peek(p, TOK_COLON)) return NULL;
+            next_token(p); /* value type */
+            const char *val_type = p->cur_token.literal;
+            if (!expect_peek(p, TOK_RBRACKET)) return NULL;
+            char *type_str = arena_alloc(p->arena, strlen(key_type) + strlen(val_type) + 6);
+            sprintf(type_str, "map[%s:%s]", key_type, val_type);
+            node->data.var_decl.type_name = type_str;
+        } else {
+            /* Array type: [int], [string], etc. */
+            next_token(p); /* skip [ */
+            next_token(p); /* element type */
+            const char *elem_type = p->cur_token.literal;
+            if (!expect_peek(p, TOK_RBRACKET)) return NULL;
+            char *type_str = arena_alloc(p->arena, strlen(elem_type) + 3);
+            sprintf(type_str, "[%s]", elem_type);
+            node->data.var_decl.type_name = type_str;
+        }
     }
 
     /* = value */
