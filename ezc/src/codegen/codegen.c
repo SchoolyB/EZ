@@ -450,6 +450,20 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
         break;
     }
 
+    case NODE_CAST_EXPR:
+        /* cast(value, type) → (C_type)(value) */
+        emitf(cg, "((%s)(", ez_type_to_c_cg(cg, node->data.cast.target_type));
+        emit_expression(cg, node->data.cast.value);
+        emit(cg, "))");
+        break;
+
+    case NODE_NEW_EXPR: {
+        /* new(Type) → zeroed allocation on default arena, returns pointer */
+        const char *c_type = ez_type_to_c_cg(cg, node->data.new_expr.type_name);
+        emitf(cg, "((%s *)ez_arena_alloc(ez_default_arena, sizeof(%s)))", c_type, c_type);
+        break;
+    }
+
     default:
         emitf(cg, "/* TODO: expression kind %d */", node->kind);
         break;
@@ -600,6 +614,12 @@ static void emit_call_expression(CodeGen *cg, AstNode *node) {
             return;
         }
 
+        if (strcmp(func, "read_int") == 0) {
+            /* read_int() → reads line from stdin, converts to int */
+            emit(cg, "({ EzString _s = ez_std_input(ez_default_arena); atoll(_s.data); })");
+            return;
+        }
+
         if (strcmp(func, "eprintln") == 0) {
             if (node->data.call.arg_count == 0) {
                 emit(cg, "fputc('\\n', stderr)");
@@ -664,6 +684,48 @@ static void emit_call_expression(CodeGen *cg, AstNode *node) {
             emit_expression(cg, node->data.call.args[0]);
             emit(cg, ")");
             return;
+        }
+
+        /* Sized type conversion functions: i8(), u16(), f32(), etc. */
+        if (node->data.call.arg_count == 1) {
+            const char *cast_type = NULL;
+            if (strcmp(func, "i8") == 0) cast_type = "int8_t";
+            else if (strcmp(func, "i16") == 0) cast_type = "int16_t";
+            else if (strcmp(func, "i32") == 0) cast_type = "int32_t";
+            else if (strcmp(func, "i64") == 0) cast_type = "int64_t";
+            else if (strcmp(func, "u8") == 0) cast_type = "uint8_t";
+            else if (strcmp(func, "u16") == 0) cast_type = "uint16_t";
+            else if (strcmp(func, "u32") == 0) cast_type = "uint32_t";
+            else if (strcmp(func, "u64") == 0) cast_type = "uint64_t";
+            else if (strcmp(func, "f32") == 0) cast_type = "float";
+            else if (strcmp(func, "f64") == 0) cast_type = "double";
+            else if (strcmp(func, "int") == 0) cast_type = "int64_t";
+            else if (strcmp(func, "uint") == 0) cast_type = "uint64_t";
+            else if (strcmp(func, "float") == 0) cast_type = "double";
+            else if (strcmp(func, "string") == 0) cast_type = NULL; /* handled below */
+            else if (strcmp(func, "char") == 0) cast_type = "int32_t";
+            else if (strcmp(func, "byte") == 0) cast_type = "uint8_t";
+            if (cast_type) {
+                emitf(cg, "((%s)(", cast_type);
+                emit_expression(cg, node->data.call.args[0]);
+                emit(cg, "))");
+                return;
+            }
+            /* string() conversion */
+            if (strcmp(func, "string") == 0) {
+                AstNode *arg = node->data.call.args[0];
+                EzType *at = cg->type_table ? typetable_get(cg->type_table, arg) : NULL;
+                if (at && at->kind == TK_FLOAT) {
+                    emit(cg, "ez_std_to_string_float(ez_default_arena, ");
+                } else if (at && at->kind == TK_BOOL) {
+                    emit(cg, "ez_std_to_string_bool(ez_default_arena, ");
+                } else {
+                    emit(cg, "ez_std_to_string_int(ez_default_arena, ");
+                }
+                emit_expression(cg, arg);
+                emit(cg, ")");
+                return;
+            }
         }
 
         if (strcmp(func, "copy") == 0 && node->data.call.arg_count == 1) {
@@ -1023,8 +1085,8 @@ static void emit_var_declaration(CodeGen *cg, AstNode *node) {
             c_type = "double";
         } else if (val->kind == NODE_BOOL_VALUE) {
             c_type = "bool";
-        } else if (val->kind == NODE_CALL_EXPR) {
-            /* Use __auto_type for function calls to infer multi-return types */
+        } else if (val->kind == NODE_CALL_EXPR || val->kind == NODE_NEW_EXPR) {
+            /* Use __auto_type for function calls and new() to infer types */
             c_type = "__auto_type";
         }
     }

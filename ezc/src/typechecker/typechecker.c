@@ -278,6 +278,8 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                 result = &TYPE_VOID;
             } else if (strcmp(fn_name, "copy") == 0 && node->data.call.arg_count == 1) {
                 result = resolve_expr(tc, node->data.call.args[0]);
+            } else if (strcmp(fn_name, "read_int") == 0) {
+                result = &TYPE_INT;
             } else {
                 FuncSig *sig = find_func(tc, fn_name);
                 if (sig && sig->return_count > 0) {
@@ -356,7 +358,16 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
         break;
 
     case NODE_RANGE_EXPR:
-        result = &TYPE_INT; /* range produces ints */
+        result = &TYPE_INT;
+        break;
+
+    case NODE_CAST_EXPR:
+        resolve_expr(tc, node->data.cast.value);
+        result = type_from_name(node->data.cast.target_type);
+        break;
+
+    case NODE_NEW_EXPR:
+        result = type_pointer(node->data.new_expr.type_name);
         break;
 
     default:
