@@ -495,6 +495,17 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
         if (strcmp(node->data.var_decl.name, "_") != 0) {
             scope_define(tc->current_scope, node->data.var_decl.name,
                 declared, node->data.var_decl.mutable);
+
+            /* Mark as transparent ref if assigned from ref() */
+            if (node->data.var_decl.value &&
+                node->data.var_decl.value->kind == NODE_CALL_EXPR) {
+                AstNode *fn = node->data.var_decl.value->data.call.function;
+                if (fn->kind == NODE_LABEL && strcmp(fn->data.label.value, "ref") == 0) {
+                    Symbol *sym = scope_lookup_local(tc->current_scope,
+                        node->data.var_decl.name);
+                    if (sym) sym->is_ref = true;
+                }
+            }
         }
         break;
     }
