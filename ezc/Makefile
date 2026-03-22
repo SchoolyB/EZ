@@ -31,6 +31,15 @@ SRC = src/main.c \
 OBJ = $(SRC:.c=.o)
 BIN = ezc
 
+# Runtime/stdlib files compiled into a static library for fast linking
+RT_SRC = src/runtime/ez_runtime.c \
+         src/runtime/ez_array.c \
+         src/runtime/ez_map.c \
+         src/stdlib/ez_std.c \
+         src/stdlib/ez_mem.c
+RT_OBJ = $(RT_SRC:.c=.o)
+RT_LIB = libezrt.a
+
 # Include paths for compiler source
 INCLUDES = -Isrc
 
@@ -38,16 +47,26 @@ INCLUDES = -Isrc
 
 all: build
 
-build: $(BIN)
+build: $(BIN) $(RT_LIB)
 
 $(BIN): $(OBJ)
 	$(CC) $(CFLAGS) $(INCLUDES) -o $@ $^ $(LDFLAGS)
+
+$(RT_LIB): $(RT_OBJ)
+	ar rcs $@ $^
+
+# Runtime objects need different flags (no -Wpedantic for GCC statement expressions)
+src/runtime/%.o: src/runtime/%.c
+	$(CC) -std=c11 -Wall -Wextra -Wno-unused-parameter -O2 -Isrc -c -o $@ $<
+
+src/stdlib/%.o: src/stdlib/%.c
+	$(CC) -std=c11 -Wall -Wextra -Wno-unused-parameter -O2 -Isrc -c -o $@ $<
 
 %.o: %.c
 	$(CC) $(CFLAGS) $(INCLUDES) -c -o $@ $<
 
 clean:
-	rm -f $(OBJ) $(BIN) tests/test_lexer tests/test_parser tests/test_typechecker tests/test_codegen
+	rm -f $(OBJ) $(RT_OBJ) $(BIN) $(RT_LIB) tests/test_lexer tests/test_parser tests/test_typechecker tests/test_codegen
 
 install: build
 	install -d /usr/local/bin
@@ -55,11 +74,11 @@ install: build
 	install -d /usr/local/lib/ezc/runtime
 	install -d /usr/local/lib/ezc/stdlib
 	install -m 644 src/runtime/ez_runtime.h /usr/local/lib/ezc/runtime/
-	install -m 644 src/runtime/ez_runtime.c /usr/local/lib/ezc/runtime/
 	install -m 644 src/runtime/ez_array.h /usr/local/lib/ezc/runtime/
-	install -m 644 src/runtime/ez_array.c /usr/local/lib/ezc/runtime/
+	install -m 644 src/runtime/ez_map.h /usr/local/lib/ezc/runtime/
 	install -m 644 src/stdlib/ez_std.h /usr/local/lib/ezc/stdlib/
-	install -m 644 src/stdlib/ez_std.c /usr/local/lib/ezc/stdlib/
+	install -m 644 src/stdlib/ez_mem.h /usr/local/lib/ezc/stdlib/
+	install -m 644 $(RT_LIB) /usr/local/lib/ezc/
 
 # Shared objects needed by test binaries (everything except main.o)
 TEST_DEPS = src/util/arena.o src/util/buf.o src/util/error.o \
