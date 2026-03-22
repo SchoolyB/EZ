@@ -72,6 +72,15 @@ EzString ez_string_new(EzArena *arena, const char *s, int32_t len);
 /* String formatting (for interpolation) */
 EzString ez_string_format(EzArena *arena, const char *fmt, ...);
 
+/* String comparison */
+static inline bool ez_string_eq(EzString a, EzString b) {
+    if (a.len != b.len) return false;
+    return memcmp(a.data, b.data, (size_t)a.len) == 0;
+}
+
+/* String concatenation */
+EzString ez_string_concat(EzArena *arena, EzString a, EzString b);
+
 /* --- Runtime Init/Shutdown --- */
 
 void ez_runtime_init(void);
