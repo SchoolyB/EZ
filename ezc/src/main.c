@@ -12,6 +12,9 @@
 #include <string.h>
 #include <unistd.h>
 #include <sys/stat.h>
+#ifdef __APPLE__
+#include <mach-o/dyld.h>
+#endif
 
 #include "util/arena.h"
 #include "util/error.h"
@@ -69,11 +72,48 @@ static bool write_file(const char *path, const char *content) {
     return true;
 }
 
-/* Get the directory where the ezc binary lives (for finding runtime headers) */
-static const char *get_runtime_dir(const char *argv0) {
-    (void)argv0;
-    /* For now, look relative to CWD or use a known path */
-    /* TODO: resolve relative to binary location */
+/* Resolve the directory containing the ezc binary itself */
+static const char *get_self_dir(const char *argv0) {
+    static char buf[1024];
+
+#ifdef __APPLE__
+    /* macOS: use _NSGetExecutablePath */
+    uint32_t size = sizeof(buf);
+    if (_NSGetExecutablePath(buf, &size) == 0) {
+        char *resolved = realpath(buf, NULL);
+        if (resolved) {
+            strncpy(buf, resolved, sizeof(buf) - 1);
+            free(resolved);
+            char *slash = strrchr(buf, '/');
+            if (slash) *slash = '\0';
+            return buf;
+        }
+    }
+#endif
+
+#ifdef __linux__
+    /* Linux: read /proc/self/exe */
+    ssize_t len = readlink("/proc/self/exe", buf, sizeof(buf) - 1);
+    if (len > 0) {
+        buf[len] = '\0';
+        char *slash = strrchr(buf, '/');
+        if (slash) *slash = '\0';
+        return buf;
+    }
+#endif
+
+    /* Fallback: try to resolve argv[0] */
+    if (argv0) {
+        char *resolved = realpath(argv0, NULL);
+        if (resolved) {
+            strncpy(buf, resolved, sizeof(buf) - 1);
+            free(resolved);
+            char *slash = strrchr(buf, '/');
+            if (slash) *slash = '\0';
+            return buf;
+        }
+    }
+
     return NULL;
 }
 
@@ -93,25 +133,50 @@ static char *output_name_from_input(const char *input) {
     return out;
 }
 
-/* Find the runtime source directory */
+/*
+ * Find the runtime directory containing ez_runtime.h and ez_std.h.
+ *
+ * Search order:
+ *   1. EZC_RUNTIME env var (explicit override)
+ *   2. Relative to binary: ../lib/ezc (installed layout)
+ *   3. Relative to binary: src (development layout — binary is in ezc/)
+ *   4. Relative to CWD: ezc/src (running from project root)
+ *   5. /usr/local/lib/ezc (system install)
+ */
 static const char *find_runtime_dir(const char *argv0) {
-    /* Try relative to binary */
     static char path[1024];
 
-    /* Try the source tree layout first (for development) */
-    /* Check if ezc/src/runtime/ez_runtime.h exists relative to CWD */
+    /* 1. Environment variable override */
+    const char *env = getenv("EZC_RUNTIME");
+    if (env && access(env, R_OK) == 0) {
+        snprintf(path, sizeof(path), "%s/runtime/ez_runtime.h", env);
+        if (access(path, R_OK) == 0) return env;
+    }
+
+    /* 2-3. Relative to binary location */
+    const char *self_dir = get_self_dir(argv0);
+    if (self_dir) {
+        /* Installed layout: binary in /usr/local/bin, runtime in /usr/local/lib/ezc */
+        snprintf(path, sizeof(path), "%s/../lib/ezc/runtime/ez_runtime.h", self_dir);
+        if (access(path, R_OK) == 0) {
+            snprintf(path, sizeof(path), "%s/../lib/ezc", self_dir);
+            return path;
+        }
+
+        /* Development layout: binary in ezc/, runtime in ezc/src/runtime */
+        snprintf(path, sizeof(path), "%s/src/runtime/ez_runtime.h", self_dir);
+        if (access(path, R_OK) == 0) {
+            snprintf(path, sizeof(path), "%s/src", self_dir);
+            return path;
+        }
+    }
+
+    /* 4. Relative to CWD (running from project root) */
     if (access("ezc/src/runtime/ez_runtime.h", R_OK) == 0) {
         return "ezc/src";
     }
 
-    /* Check relative to binary location */
-    const char *dir = get_runtime_dir(argv0);
-    if (dir) {
-        snprintf(path, sizeof(path), "%s/../src", dir);
-        return path;
-    }
-
-    /* Fallback: try common install locations */
+    /* 5. System install location */
     if (access("/usr/local/lib/ezc/runtime/ez_runtime.h", R_OK) == 0) {
         return "/usr/local/lib/ezc";
     }
@@ -245,11 +310,31 @@ int main(int argc, char **argv) {
         return 0;
     }
 
+    /* Check that a C compiler is available */
+    if (system("cc --version >/dev/null 2>&1") != 0 &&
+        system("gcc --version >/dev/null 2>&1") != 0 &&
+        system("clang --version >/dev/null 2>&1") != 0) {
+        fprintf(stderr, "ezc: no C compiler found.\n");
+        fprintf(stderr, "  Install gcc or clang to compile EZ programs.\n");
+        fprintf(stderr, "  On macOS: xcode-select --install\n");
+        fprintf(stderr, "  On Ubuntu: sudo apt install gcc\n");
+        codegen_destroy(&cg);
+        arena_destroy(arena);
+        free(source);
+        free(default_output);
+        return 1;
+    }
+
     /* Find runtime directory */
     const char *runtime_dir = find_runtime_dir(argv[0]);
     if (!runtime_dir) {
-        fprintf(stderr, "ezc: cannot find runtime headers. "
-            "Run from the project root or install the runtime.\n");
+        fprintf(stderr, "ezc: cannot find runtime headers.\n");
+        fprintf(stderr, "  Searched:\n");
+        fprintf(stderr, "    - $EZC_RUNTIME environment variable\n");
+        fprintf(stderr, "    - relative to ezc binary\n");
+        fprintf(stderr, "    - ./ezc/src/ (project root)\n");
+        fprintf(stderr, "    - /usr/local/lib/ezc/\n");
+        fprintf(stderr, "  Try: cd <project-root> && make -C ezc install\n");
         codegen_destroy(&cg);
         arena_destroy(arena);
         free(source);

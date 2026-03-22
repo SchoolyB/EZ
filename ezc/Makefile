@@ -56,6 +56,8 @@ install: build
 	install -d /usr/local/lib/ezc/stdlib
 	install -m 644 src/runtime/ez_runtime.h /usr/local/lib/ezc/runtime/
 	install -m 644 src/runtime/ez_runtime.c /usr/local/lib/ezc/runtime/
+	install -m 644 src/runtime/ez_array.h /usr/local/lib/ezc/runtime/
+	install -m 644 src/runtime/ez_array.c /usr/local/lib/ezc/runtime/
 	install -m 644 src/stdlib/ez_std.h /usr/local/lib/ezc/stdlib/
 	install -m 644 src/stdlib/ez_std.c /usr/local/lib/ezc/stdlib/
 
