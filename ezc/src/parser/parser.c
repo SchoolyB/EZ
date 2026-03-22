@@ -84,7 +84,8 @@ static Precedence token_precedence(TokenType t) {
     case TOK_LBRACKET:       return PREC_INDEX;
     case TOK_DOT:            return PREC_INDEX;
     case TOK_INCREMENT:
-    case TOK_DECREMENT:      return PREC_POSTFIX;
+    case TOK_DECREMENT:
+    case TOK_CARET:          return PREC_POSTFIX;
     default:                 return PREC_LOWEST;
     }
 }
@@ -487,6 +488,7 @@ static AstNode *parse_infix(Parser *p, AstNode *left) {
         return parse_index_expression(p, left);
     case TOK_INCREMENT:
     case TOK_DECREMENT:
+    case TOK_CARET:
         return parse_postfix_expression(p, left);
     default:
         return left;
@@ -522,7 +524,14 @@ static AstNode *parse_var_declaration(Parser *p) {
 
     /* Optional type annotation */
     node->data.var_decl.type_name = NULL;
-    if (peek_token_is(p, TOK_IDENT)) {
+    if (peek_token_is(p, TOK_CARET)) {
+        /* Pointer type: ^T */
+        next_token(p); /* skip ^ */
+        next_token(p); /* pointee type */
+        char *type_str = arena_alloc(p->arena, strlen(p->cur_token.literal) + 2);
+        sprintf(type_str, "^%s", p->cur_token.literal);
+        node->data.var_decl.type_name = type_str;
+    } else if (peek_token_is(p, TOK_IDENT)) {
         next_token(p);
         node->data.var_decl.type_name = p->cur_token.literal;
     }
@@ -725,6 +734,13 @@ static AstNode *parse_func_declaration(Parser *p) {
             if (peek_token_is(p, TOK_IDENT)) {
                 next_token(p);
                 param->type_name = p->cur_token.literal;
+            } else if (peek_token_is(p, TOK_CARET)) {
+                /* Pointer type: ^T */
+                next_token(p); /* skip ^ */
+                next_token(p); /* pointee type */
+                char *type_str = arena_alloc(p->arena, strlen(p->cur_token.literal) + 2);
+                sprintf(type_str, "^%s", p->cur_token.literal);
+                param->type_name = type_str;
             }
 
             node->data.func_decl.param_count++;
