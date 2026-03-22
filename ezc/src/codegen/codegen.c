@@ -561,6 +561,126 @@ static void emit_call_expression(CodeGen *cg, AstNode *node) {
             return;
         }
 
+        if (strcmp(func, "exit") == 0 && node->data.call.arg_count == 1) {
+            emit(cg, "ez_std_exit(");
+            emit_expression(cg, node->data.call.args[0]);
+            emit(cg, ")");
+            return;
+        }
+
+        if (strcmp(func, "panic") == 0 && node->data.call.arg_count == 1) {
+            emit(cg, "ez_std_panic_msg(");
+            emit_expression(cg, node->data.call.args[0]);
+            emit(cg, ")");
+            return;
+        }
+
+        if (strcmp(func, "assert") == 0 && node->data.call.arg_count >= 1) {
+            emit(cg, "ez_std_assert(");
+            emit_expression(cg, node->data.call.args[0]);
+            if (node->data.call.arg_count >= 2) {
+                emit(cg, ", ");
+                emit_expression(cg, node->data.call.args[1]);
+            } else {
+                emit(cg, ", ez_string_lit(\"assertion failed\")");
+            }
+            emitf(cg, ", \"%s\", %d)", cg->file, node->token.line);
+            return;
+        }
+
+        if (strcmp(func, "error") == 0 && node->data.call.arg_count == 1) {
+            emit(cg, "ez_std_error(");
+            emit_expression(cg, node->data.call.args[0]);
+            emit(cg, ")");
+            return;
+        }
+
+        if (strcmp(func, "input") == 0) {
+            emit(cg, "ez_std_input(ez_default_arena)");
+            return;
+        }
+
+        if (strcmp(func, "eprintln") == 0) {
+            if (node->data.call.arg_count == 0) {
+                emit(cg, "fputc('\\n', stderr)");
+            } else {
+                AstNode *arg = node->data.call.args[0];
+                EzType *at = cg->type_table ? typetable_get(cg->type_table, arg) : NULL;
+                const char *suffix = "_int";
+                if (at && at->kind == TK_STRING) suffix = "_str";
+                else if (arg->kind == NODE_STRING_VALUE || arg->kind == NODE_INTERPOLATED_STRING) suffix = "_str";
+                emitf(cg, "ez_std_eprintln%s(", suffix);
+                emit_expression(cg, arg);
+                emit(cg, ")");
+            }
+            return;
+        }
+
+        if (strcmp(func, "eprint") == 0 && node->data.call.arg_count > 0) {
+            emit(cg, "ez_std_eprint_str(");
+            emit_expression(cg, node->data.call.args[0]);
+            emit(cg, ")");
+            return;
+        }
+
+        if (strcmp(func, "to_string") == 0 && node->data.call.arg_count == 1) {
+            AstNode *arg = node->data.call.args[0];
+            EzType *at = cg->type_table ? typetable_get(cg->type_table, arg) : NULL;
+            if (at && at->kind == TK_FLOAT) {
+                emit(cg, "ez_std_to_string_float(ez_default_arena, ");
+            } else if (at && at->kind == TK_BOOL) {
+                emit(cg, "ez_std_to_string_bool(ez_default_arena, ");
+            } else {
+                emit(cg, "ez_std_to_string_int(ez_default_arena, ");
+            }
+            emit_expression(cg, arg);
+            emit(cg, ")");
+            return;
+        }
+
+        if (strcmp(func, "to_bool") == 0 && node->data.call.arg_count == 1) {
+            emit(cg, "(bool)(");
+            emit_expression(cg, node->data.call.args[0]);
+            emit(cg, ")");
+            return;
+        }
+
+        if (strcmp(func, "sleep_seconds") == 0 && node->data.call.arg_count == 1) {
+            emit(cg, "ez_std_sleep_seconds(");
+            emit_expression(cg, node->data.call.args[0]);
+            emit(cg, ")");
+            return;
+        }
+
+        if (strcmp(func, "sleep_milliseconds") == 0 && node->data.call.arg_count == 1) {
+            emit(cg, "ez_std_sleep_milliseconds(");
+            emit_expression(cg, node->data.call.args[0]);
+            emit(cg, ")");
+            return;
+        }
+
+        if (strcmp(func, "sleep_nanoseconds") == 0 && node->data.call.arg_count == 1) {
+            emit(cg, "ez_std_sleep_nanoseconds(");
+            emit_expression(cg, node->data.call.args[0]);
+            emit(cg, ")");
+            return;
+        }
+
+        if (strcmp(func, "copy") == 0 && node->data.call.arg_count == 1) {
+            /* Deep copy — for arrays use ez_array_copy, otherwise value copy */
+            AstNode *arg = node->data.call.args[0];
+            EzType *at = cg->type_table ? typetable_get(cg->type_table, arg) : NULL;
+            if (at && at->kind == TK_ARRAY) {
+                emit(cg, "ez_array_copy(ez_default_arena, &");
+                emit_expression(cg, arg);
+                emit(cg, ")");
+            } else {
+                /* Value types — just copy the value */
+                emit_expression(cg, arg);
+            }
+            return;
+        }
+
         if (strcmp(func, "print") == 0 && node->data.call.arg_count > 0) {
             AstNode *arg = node->data.call.args[0];
             const char *suffix = "_int";

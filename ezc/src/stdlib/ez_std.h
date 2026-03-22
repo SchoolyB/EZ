@@ -10,7 +10,7 @@
 
 #include "../runtime/ez_runtime.h"
 
-/* println(value) - print a string followed by newline */
+/* println(value) - print followed by newline */
 void ez_std_println_str(EzString s);
 void ez_std_println_int(int64_t v);
 void ez_std_println_float(double v);
@@ -19,5 +19,39 @@ void ez_std_println_bool(bool v);
 /* print(value) - print without newline */
 void ez_std_print_str(EzString s);
 void ez_std_print_int(int64_t v);
+
+/* eprintln(value) - print to stderr with newline */
+void ez_std_eprintln_str(EzString s);
+void ez_std_eprintln_int(int64_t v);
+
+/* eprint(value) - print to stderr without newline */
+void ez_std_eprint_str(EzString s);
+
+/* input() - read line from stdin */
+EzString ez_std_input(EzArena *arena);
+
+/* assert(condition, message) */
+void ez_std_assert(bool condition, EzString message, const char *file, int line);
+
+/* panic(message) */
+void ez_std_panic_msg(EzString message);
+
+/* exit(code) */
+void ez_std_exit(int64_t code);
+
+/* error(message) - create error string (for now just returns the message) */
+EzString ez_std_error(EzString message);
+
+/* copy(value) - handled by codegen (deep copy) */
+
+/* sleep */
+void ez_std_sleep_seconds(int64_t seconds);
+void ez_std_sleep_milliseconds(int64_t ms);
+void ez_std_sleep_nanoseconds(int64_t ns);
+
+/* to_string */
+EzString ez_std_to_string_int(EzArena *arena, int64_t v);
+EzString ez_std_to_string_float(EzArena *arena, double v);
+EzString ez_std_to_string_bool(EzArena *arena, bool v);
 
 #endif
