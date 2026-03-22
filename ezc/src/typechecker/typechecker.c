@@ -249,6 +249,49 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                 } else {
                     result = &TYPE_VOID;
                 }
+            } else if (strcmp(mod, "io") == 0) {
+                if (strcmp(mfn, "read_file") == 0) {
+                    result = &TYPE_STRING;
+                } else if (strcmp(mfn, "file_exists") == 0 || strcmp(mfn, "exists") == 0 ||
+                           strcmp(mfn, "is_file") == 0 || strcmp(mfn, "is_directory") == 0 ||
+                           strcmp(mfn, "write_file") == 0 || strcmp(mfn, "append_file") == 0 ||
+                           strcmp(mfn, "delete_file") == 0 || strcmp(mfn, "remove") == 0 ||
+                           strcmp(mfn, "rename") == 0) {
+                    result = &TYPE_BOOL;
+                } else if (strcmp(mfn, "file_size") == 0) {
+                    result = &TYPE_INT;
+                } else {
+                    result = &TYPE_VOID;
+                }
+            } else if (strcmp(mod, "strings") == 0) {
+                if (strcmp(mfn, "contains") == 0 || strcmp(mfn, "starts_with") == 0 ||
+                    strcmp(mfn, "ends_with") == 0 || strcmp(mfn, "is_empty") == 0) {
+                    result = &TYPE_BOOL;
+                } else if (strcmp(mfn, "index") == 0 || strcmp(mfn, "count") == 0 ||
+                           strcmp(mfn, "to_int") == 0) {
+                    result = &TYPE_INT;
+                } else if (strcmp(mfn, "to_float") == 0) {
+                    result = &TYPE_FLOAT;
+                } else if (strcmp(mfn, "split") == 0) {
+                    result = type_array("string");
+                } else {
+                    result = &TYPE_STRING;
+                }
+            } else if (strcmp(mod, "math") == 0) {
+                /* Math functions return types */
+                if (strcmp(mfn, "is_prime") == 0 || strcmp(mfn, "is_even") == 0 ||
+                    strcmp(mfn, "is_odd") == 0 || strcmp(mfn, "is_inf") == 0 ||
+                    strcmp(mfn, "is_nan") == 0 || strcmp(mfn, "is_finite") == 0) {
+                    result = &TYPE_BOOL;
+                } else if (strcmp(mfn, "abs") == 0 || strcmp(mfn, "min") == 0 ||
+                           strcmp(mfn, "max") == 0 || strcmp(mfn, "clamp") == 0 ||
+                           strcmp(mfn, "sign") == 0 || strcmp(mfn, "factorial") == 0 ||
+                           strcmp(mfn, "gcd") == 0 || strcmp(mfn, "lcm") == 0 ||
+                           strcmp(mfn, "random") == 0) {
+                    result = &TYPE_INT;
+                } else {
+                    result = &TYPE_FLOAT;
+                }
             } else {
                 result = &TYPE_VOID;
             }
