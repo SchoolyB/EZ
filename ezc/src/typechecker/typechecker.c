@@ -264,10 +264,22 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                 result = &TYPE_INT;
             } else if (strcmp(fn_name, "to_float") == 0) {
                 result = &TYPE_FLOAT;
-            } else if (strcmp(fn_name, "to_string") == 0 || strcmp(fn_name, "typeof") == 0) {
+            } else if (strcmp(fn_name, "to_string") == 0 || strcmp(fn_name, "typeof") == 0 ||
+                       strcmp(fn_name, "input") == 0 || strcmp(fn_name, "error") == 0) {
                 result = &TYPE_STRING;
             } else if (strcmp(fn_name, "to_bool") == 0) {
                 result = &TYPE_BOOL;
+            } else if (strcmp(fn_name, "exit") == 0 || strcmp(fn_name, "panic") == 0 ||
+                       strcmp(fn_name, "assert") == 0 || strcmp(fn_name, "eprintln") == 0 ||
+                       strcmp(fn_name, "eprint") == 0 ||
+                       strcmp(fn_name, "sleep_seconds") == 0 ||
+                       strcmp(fn_name, "sleep_milliseconds") == 0 ||
+                       strcmp(fn_name, "sleep_nanoseconds") == 0) {
+                result = &TYPE_VOID;
+            } else if (strcmp(fn_name, "copy") == 0 && node->data.call.arg_count == 1) {
+                result = resolve_expr(tc, node->data.call.args[0]);
+            } else if (strcmp(fn_name, "read_int") == 0) {
+                result = &TYPE_INT;
             } else {
                 FuncSig *sig = find_func(tc, fn_name);
                 if (sig && sig->return_count > 0) {
@@ -286,9 +298,23 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
         if (obj->kind == NODE_LABEL) {
             const char *obj_name = obj->data.label.value;
 
+            /* Check for module constants */
+            if (strcmp(obj_name, "std") == 0) {
+                result = &TYPE_INT; /* EXIT_SUCCESS, EXIT_FAILURE */
+                break;
+            }
+            if (strcmp(obj_name, "math") == 0) {
+                result = &TYPE_FLOAT; /* PI, E, TAU, etc. */
+                break;
+            }
+            if (strcmp(obj_name, "os") == 0) {
+                result = &TYPE_INT; /* MAC_OS, LINUX, etc. */
+                break;
+            }
+
             /* Check if it's an enum access: Color.RED */
             if (is_enum_name(tc, obj_name)) {
-                result = &TYPE_INT; /* enum values are ints */
+                result = &TYPE_INT;
                 break;
             }
 
@@ -346,7 +372,16 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
         break;
 
     case NODE_RANGE_EXPR:
-        result = &TYPE_INT; /* range produces ints */
+        result = &TYPE_INT;
+        break;
+
+    case NODE_CAST_EXPR:
+        resolve_expr(tc, node->data.cast.value);
+        result = type_from_name(node->data.cast.target_type);
+        break;
+
+    case NODE_NEW_EXPR:
+        result = type_pointer(node->data.new_expr.type_name);
         break;
 
     default:
