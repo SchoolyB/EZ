@@ -356,14 +356,12 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
         resolve_expr(tc, node->data.expr_stmt.expr);
         break;
 
-    case NODE_BLOCK_STMT: {
-        Scope *inner = scope_create(tc->current_scope);
-        Scope *outer = tc->current_scope;
-        tc->current_scope = inner;
+    case NODE_BLOCK_STMT:
+        /* Inline blocks (from multi-var expansion) share parent scope.
+         * Only control flow blocks (if, for, etc.) create new scopes,
+         * and those are handled by their own cases. */
         check_block(tc, node);
-        tc->current_scope = outer;
         break;
-    }
 
     case NODE_IF_STMT:
         resolve_expr(tc, node->data.if_stmt.condition);
@@ -426,6 +424,16 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
             Param *p = &node->data.func_decl.params[i];
             EzType *ptype = p->type_name ? type_from_name(p->type_name) : &TYPE_UNKNOWN;
             scope_define(func_scope, p->name, ptype, p->mutable);
+        }
+
+        /* Define named return variables in function scope */
+        if (node->data.func_decl.return_names) {
+            for (int i = 0; i < node->data.func_decl.return_type_count; i++) {
+                if (node->data.func_decl.return_names[i]) {
+                    EzType *rt = type_from_name(node->data.func_decl.return_types[i]);
+                    scope_define(func_scope, node->data.func_decl.return_names[i], rt, true);
+                }
+            }
         }
 
         check_block(tc, node->data.func_decl.body);
