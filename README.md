@@ -5,7 +5,7 @@
 <h3 align="center">Programming Made EZ</h3>
 
 <p align="center">
-  A simple, interpreted, statically-typed programming language designed for clarity and ease of use.
+  A simple, statically-typed programming language designed for clarity and ease of use.
 </p>
 
 <p align="center">
@@ -20,39 +20,55 @@
 
 ---
 
-## Developer Quick Start
+## Two Ways to Run EZ
 
-Want to contribute or build from source? See the [Contributing Guide](CONTRIBUTING.md) for full details.
+EZ programs can be **interpreted** or **compiled to native binaries**. Same language, same `.ez` files, you choose how to run them.
 
-**macOS/Linux:**
+| | `ez` (interpreter) | `ezc` (compiler) |
+|---|---|---|
+| **Run** | `ez hello.ez` | `ezc hello.ez -o hello && ./hello` |
+| **Speed** | Instant startup | Native performance |
+| **Best for** | Scripting, REPL, learning | Shipping binaries, performance |
+| **Written in** | Go | C |
+
+---
+
+## Quick Start
+
 ```bash
-# Clone the repository
 git clone https://github.com/SchoolyB/EZ.git
 cd EZ
-
-# Build the binary
-make build
-
-# Run a program
-./ez examples/hello.ez
 ```
 
-**Windows (PowerShell):**
-```powershell
-# Clone the repository
-git clone https://github.com/SchoolyB/EZ.git
-cd EZ
+### Interpreter (`ez`)
 
-# Build the binary
-go build -o ez.exe ./cmd/ez
-
-# Run a program
-.\ez.exe examples\hello.ez
+```bash
+make build
+./ez examples/basic/hello.ez
 ```
 
 **Requirements:** Go 1.23.1 or higher
 
-For pre-built binaries and installation instructions, visit the [documentation](https://schoolyb.github.io/EZ-Language-Webapp/docs).
+### Compiler (`ezc`)
+
+```bash
+cd ezc && make build
+./ezc ../examples/basic/hello.ez -o hello
+./hello
+```
+
+**Requirements:** C compiler (gcc or clang)
+
+`ezc` works from any directory — it finds its runtime headers automatically. You can also install it system-wide:
+
+```bash
+sudo make install    # installs to /usr/local/bin/ezc
+ezc hello.ez -o hello
+```
+
+For pre-built binaries and full documentation, visit the [documentation](https://schoolyb.github.io/EZ-Language-Webapp/docs).
+
+Want to contribute or build from source? See the [Contributing Guide](CONTRIBUTING.md).
 
 ---
 
@@ -69,15 +85,15 @@ This will check for new versions, show the changelog, and prompt you to upgrade.
 ## Running Tests
 
 ```bash
-# Running intergration tests
-make intergration-tests
-
-# OR
-
-./integration-tests/run_tests.sh
-
-# Run unit tests
+# Interpreter tests
+make intergration-tests       # or ./integration-tests/run_tests.sh
 go test ./...
+
+# Compiler tests
+cd ezc
+make test-unit                # 35 unit tests (lexer + parser)
+make test-parity              # compare ezc output against ez interpreter
+make test                     # run both
 ```
 
 For more details, see the [Testing Guide](TESTING.md).
