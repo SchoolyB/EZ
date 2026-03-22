@@ -70,6 +70,7 @@ static const char *ez_type_to_c_cg(CodeGen *cg, const char *type_name) {
     if (strcmp(type_name, "char") == 0)   return "int32_t";
     if (strcmp(type_name, "byte") == 0)   return "uint8_t";
     if (strcmp(type_name, "string") == 0) return "EzString";
+    if (strcmp(type_name, "Error") == 0) return "EzError *";
 
     /* Pointer type: ^T — use C pointer */
     if (type_name[0] == '^') {
@@ -206,6 +207,7 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
                 case TK_CHAR:   emit(cg, "%c"); break;
                 case TK_ARRAY:  emit(cg, "%s"); break;
                 case TK_MAP:    emit(cg, "%s"); break;
+                case TK_ERROR:  emit(cg, "%s"); break;
                 case TK_ENUM:   emit(cg, "%lld"); break;
                 default:        emit(cg, "%lld"); break;
                 }
@@ -252,6 +254,13 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
                 break;
             case TK_MAP:
                 emit(cg, "\"{...}\"");
+                break;
+            case TK_ERROR:
+                /* Print error message */
+                emit_expression(cg, part);
+                emit(cg, " ? ");
+                emit_expression(cg, part);
+                emit(cg, "->message.data : \"nil\"");
                 break;
             default:
                 emit(cg, "(long long)(");
@@ -458,7 +467,7 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
             }
 
             emit_expression(cg, node->data.member.object);
-            if (obj_t && obj_t->kind == TK_POINTER) {
+            if (obj_t && (obj_t->kind == TK_POINTER || obj_t->kind == TK_ERROR)) {
                 emitf(cg, "->%s", node->data.member.member);
             } else {
                 emitf(cg, ".%s", node->data.member.member);
@@ -668,8 +677,8 @@ static void emit_call_expression(CodeGen *cg, AstNode *node) {
             return;
         }
 
-        if (strcmp(func, "error") == 0 && node->data.call.arg_count == 1) {
-            emit(cg, "ez_std_error(");
+        if (strcmp(func, "error") == 0 && node->data.call.arg_count >= 1) {
+            emit(cg, "ez_error_new(ez_default_arena, ");
             emit_expression(cg, node->data.call.args[0]);
             emit(cg, ")");
             return;
@@ -1014,9 +1023,23 @@ static void emit_call_expression(CodeGen *cg, AstNode *node) {
 
         /* @io module functions */
         if (module && strcmp(module, "io") == 0) {
-            bool needs_arena = (strcmp(func, "read_file") == 0);
+            /* Fallible functions: use _result version that returns (value, Error) tuple */
+            bool is_fallible = (strcmp(func, "read_file") == 0 ||
+                strcmp(func, "write_file") == 0 ||
+                strcmp(func, "delete_file") == 0 || strcmp(func, "remove") == 0);
+            if (is_fallible) {
+                const char *actual_func = func;
+                if (strcmp(func, "remove") == 0) actual_func = "delete_file";
+                emitf(cg, "ez_io_%s_result(ez_default_arena, ", actual_func);
+                for (int i = 0; i < node->data.call.arg_count; i++) {
+                    if (i > 0) emit(cg, ", ");
+                    emit_expression(cg, node->data.call.args[i]);
+                }
+                emit(cg, ")");
+                return;
+            }
+            /* Non-fallible functions */
             emitf(cg, "ez_io_%s(", func);
-            if (needs_arena) emit(cg, "ez_default_arena, ");
             for (int i = 0; i < node->data.call.arg_count; i++) {
                 if (i > 0) emit(cg, ", ");
                 emit_expression(cg, node->data.call.args[i]);
@@ -1254,8 +1277,10 @@ static void emit_var_declaration(CodeGen *cg, AstNode *node) {
             c_type = "double";
         } else if (val->kind == NODE_BOOL_VALUE) {
             c_type = "bool";
-        } else if (val->kind == NODE_CALL_EXPR || val->kind == NODE_NEW_EXPR) {
-            /* Use __auto_type for function calls and new() to infer types */
+        } else if (val->kind == NODE_CALL_EXPR || val->kind == NODE_NEW_EXPR ||
+                   val->kind == NODE_MEMBER_EXPR) {
+            /* Use __auto_type for function calls, new(), and member access
+             * (needed for multi-var unpacking: temp x = _tmp.v0) */
             c_type = "__auto_type";
         }
     }

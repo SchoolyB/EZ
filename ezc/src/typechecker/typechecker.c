@@ -258,13 +258,18 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                     result = &TYPE_VOID;
                 }
             } else if (strcmp(mod, "io") == 0) {
+                /* Fallible I/O: the type checker returns the primary value type.
+                 * The codegen emits _result() versions that return (T, Error) tuples.
+                 * The .v0 access gets __auto_type in C, but the EZ type system
+                 * sees it as the value type for interpolation purposes. */
                 if (strcmp(mfn, "read_file") == 0) {
                     result = &TYPE_STRING;
+                } else if (strcmp(mfn, "write_file") == 0 ||
+                    strcmp(mfn, "delete_file") == 0 || strcmp(mfn, "remove") == 0) {
+                    result = &TYPE_BOOL;
                 } else if (strcmp(mfn, "file_exists") == 0 || strcmp(mfn, "exists") == 0 ||
                            strcmp(mfn, "is_file") == 0 || strcmp(mfn, "is_directory") == 0 ||
-                           strcmp(mfn, "write_file") == 0 || strcmp(mfn, "append_file") == 0 ||
-                           strcmp(mfn, "delete_file") == 0 || strcmp(mfn, "remove") == 0 ||
-                           strcmp(mfn, "rename") == 0) {
+                           strcmp(mfn, "append_file") == 0 || strcmp(mfn, "rename") == 0) {
                     result = &TYPE_BOOL;
                 } else if (strcmp(mfn, "file_size") == 0) {
                     result = &TYPE_INT;
@@ -316,10 +321,12 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
             } else if (strcmp(fn_name, "to_float") == 0) {
                 result = &TYPE_FLOAT;
             } else if (strcmp(fn_name, "to_string") == 0 || strcmp(fn_name, "typeof") == 0 ||
-                       strcmp(fn_name, "input") == 0 || strcmp(fn_name, "error") == 0) {
+                       strcmp(fn_name, "input") == 0) {
                 result = &TYPE_STRING;
             } else if (strcmp(fn_name, "to_bool") == 0) {
                 result = &TYPE_BOOL;
+            } else if (strcmp(fn_name, "error") == 0) {
+                result = type_from_name("Error");
             } else if (strcmp(fn_name, "exit") == 0 || strcmp(fn_name, "panic") == 0 ||
                        strcmp(fn_name, "assert") == 0 || strcmp(fn_name, "eprintln") == 0 ||
                        strcmp(fn_name, "eprint") == 0 ||
@@ -370,10 +377,20 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                 break;
             }
 
-            /* Otherwise it's a struct field access */
+            /* Otherwise it's a struct field or multi-return access */
             Symbol *sym = scope_lookup(tc->current_scope, obj_name);
             if (sym && sym->type->kind == TK_STRUCT) {
                 result = struct_field_type(tc, sym->type->name, member);
+            } else if (sym && member[0] == 'v' && member[1] >= '0' && member[1] <= '9') {
+                /* Multi-return .v0/.v1 access — .v0 returns the primary type */
+                if (member[1] == '0') {
+                    result = sym->type;
+                } else {
+                    result = type_from_name("Error");
+                }
+            } else if (sym && sym->type->kind == TK_POINTER) {
+                /* Pointer auto-deref field access */
+                result = struct_field_type(tc, sym->type->element_type, member);
             }
         }
         break;

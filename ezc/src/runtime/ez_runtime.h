@@ -48,6 +48,16 @@ typedef struct {
     int32_t len;
 } EzString;
 
+/* --- Error --- */
+
+typedef struct {
+    EzString message;
+    EzString code;
+} EzError;
+
+/* Create an error on the default arena */
+EzError *ez_error_new(EzArena *arena, EzString message);
+
 /* Create a string from a C string literal (no copy, points to static data) */
 static inline EzString ez_string_lit(const char *s) {
     EzString str;

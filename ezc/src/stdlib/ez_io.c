@@ -69,3 +69,52 @@ bool ez_io_delete_file(EzString path) {
 bool ez_io_rename(EzString old_path, EzString new_path) {
     return rename(old_path.data, new_path.data) == 0;
 }
+
+/* Tuple-returning versions */
+
+EzResult_string ez_io_read_file_result(EzArena *arena, EzString path) {
+    EzResult_string r;
+    FILE *f = fopen(path.data, "rb");
+    if (!f) {
+        r.v0 = ez_string_lit("");
+        r.v1 = ez_error_new(arena, ez_string_format(arena, "cannot read '%s'", path.data));
+        return r;
+    }
+    fseek(f, 0, SEEK_END);
+    long size = ftell(f);
+    fseek(f, 0, SEEK_SET);
+    char *buf = ez_arena_alloc(arena, (size_t)size + 1);
+    size_t read = fread(buf, 1, (size_t)size, f);
+    buf[read] = '\0';
+    fclose(f);
+    r.v0 = (EzString){ buf, (int32_t)read };
+    r.v1 = NULL;
+    return r;
+}
+
+EzResult_bool ez_io_write_file_result(EzArena *arena, EzString path, EzString content) {
+    EzResult_bool r;
+    FILE *f = fopen(path.data, "wb");
+    if (!f) {
+        r.v0 = false;
+        r.v1 = ez_error_new(arena, ez_string_format(arena, "cannot write '%s'", path.data));
+        return r;
+    }
+    fwrite(content.data, 1, (size_t)content.len, f);
+    fclose(f);
+    r.v0 = true;
+    r.v1 = NULL;
+    return r;
+}
+
+EzResult_bool ez_io_delete_file_result(EzArena *arena, EzString path) {
+    EzResult_bool r;
+    if (unlink(path.data) == 0) {
+        r.v0 = true;
+        r.v1 = NULL;
+    } else {
+        r.v0 = false;
+        r.v1 = ez_error_new(arena, ez_string_format(arena, "cannot delete '%s'", path.data));
+    }
+    return r;
+}
