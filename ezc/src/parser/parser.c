@@ -362,6 +362,29 @@ static AstNode *parse_prefix(Parser *p) {
         if (peek_token_is(p, TOK_RBRACE)) next_token(p);
         return node;
     }
+    case TOK_CAST: {
+        /* cast(value, type) */
+        AstNode *node = ast_alloc(p->arena, NODE_CAST_EXPR, p->cur_token);
+        node->data.cast.is_array = false;
+        node->data.cast.element_type = NULL;
+        if (!expect_peek(p, TOK_LPAREN)) return NULL;
+        next_token(p);
+        node->data.cast.value = parse_expression(p, PREC_LOWEST);
+        if (!expect_peek(p, TOK_COMMA)) return NULL;
+        next_token(p);
+        node->data.cast.target_type = p->cur_token.literal;
+        if (!expect_peek(p, TOK_RPAREN)) return NULL;
+        return node;
+    }
+    case TOK_NEW: {
+        /* new(Type) — allocate zeroed value on default arena */
+        AstNode *node = ast_alloc(p->arena, NODE_NEW_EXPR, p->cur_token);
+        if (!expect_peek(p, TOK_LPAREN)) return NULL;
+        next_token(p);
+        node->data.new_expr.type_name = p->cur_token.literal;
+        if (!expect_peek(p, TOK_RPAREN)) return NULL;
+        return node;
+    }
     case TOK_RANGE: {
         /* range(end) or range(start, end) or range(start, end, step) */
         AstNode *node = ast_alloc(p->arena, NODE_RANGE_EXPR, p->cur_token);
