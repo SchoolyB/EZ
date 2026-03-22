@@ -126,6 +126,16 @@ EzString ez_string_format(EzArena *arena, const char *fmt, ...) {
     return str;
 }
 
+EzString ez_string_concat(EzArena *arena, EzString a, EzString b) {
+    int32_t new_len = a.len + b.len;
+    char *data = (char *)ez_arena_alloc(arena, (size_t)new_len + 1);
+    memcpy(data, a.data, (size_t)a.len);
+    memcpy(data + a.len, b.data, (size_t)b.len);
+    data[new_len] = '\0';
+    EzString s = { data, new_len };
+    return s;
+}
+
 /* --- Runtime Init/Shutdown --- */
 
 void ez_runtime_init(void) {
