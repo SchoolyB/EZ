@@ -957,6 +957,28 @@ static void emit_call_expression(CodeGen *cg, AstNode *node) {
             return;
         }
 
+        /* @strings module functions */
+        if (module && strcmp(module, "strings") == 0) {
+            /* Functions that need arena as first arg */
+            bool needs_arena = (strcmp(func, "upper") == 0 || strcmp(func, "lower") == 0 ||
+                strcmp(func, "trim") == 0 || strcmp(func, "trim_left") == 0 ||
+                strcmp(func, "trim_right") == 0 || strcmp(func, "replace") == 0 ||
+                strcmp(func, "repeat") == 0 || strcmp(func, "reverse") == 0 ||
+                strcmp(func, "slice") == 0 || strcmp(func, "split") == 0 ||
+                strcmp(func, "join") == 0);
+
+            emitf(cg, "ez_strings_%s(", func);
+            if (needs_arena) {
+                emit(cg, "ez_default_arena, ");
+            }
+            for (int i = 0; i < node->data.call.arg_count; i++) {
+                if (i > 0) emit(cg, ", ");
+                emit_expression(cg, node->data.call.args[i]);
+            }
+            emit(cg, ")");
+            return;
+        }
+
         /* @fmt module functions */
         if (module && strcmp(module, "fmt") == 0) {
             if (strcmp(func, "printf") == 0 && node->data.call.arg_count >= 1) {
@@ -1721,8 +1743,8 @@ void codegen_generate(CodeGen *cg, AstNode *program) {
     if (cg->has_fmt) {
         emit(cg, "#include \"ez_fmt.h\"\n");
     }
-    /* Always include math — inline functions are zero-cost if unused */
     emit(cg, "#include \"ez_math.h\"\n");
+    emit(cg, "#include \"ez_strings.h\"\n");
     emit(cg, "\n");
 
     /* Emit struct type definitions */
