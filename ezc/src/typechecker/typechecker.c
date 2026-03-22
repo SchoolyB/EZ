@@ -204,9 +204,16 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
         break;
     }
 
-    case NODE_POSTFIX_EXPR:
-        result = resolve_expr(tc, node->data.postfix.left);
+    case NODE_POSTFIX_EXPR: {
+        EzType *left_t = resolve_expr(tc, node->data.postfix.left);
+        if (strcmp(node->data.postfix.op, "^") == 0 && left_t->kind == TK_POINTER) {
+            /* Dereference: ^T^ → T */
+            result = type_from_name(left_t->element_type);
+        } else {
+            result = left_t;
+        }
         break;
+    }
 
     case NODE_CALL_EXPR: {
         /* Resolve argument types first */
@@ -228,6 +235,14 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                     result = &TYPE_UNKNOWN; /* arena pointer — opaque */
                 } else if (strcmp(mfn, "usage") == 0) {
                     result = &TYPE_INT;
+                } else if (strcmp(mfn, "new") == 0 && node->data.call.arg_count == 2) {
+                    /* mem.new(arena, Type) returns ^Type */
+                    AstNode *type_arg = node->data.call.args[1];
+                    if (type_arg->kind == NODE_LABEL) {
+                        result = type_pointer(type_arg->data.label.value);
+                    } else {
+                        result = &TYPE_UNKNOWN;
+                    }
                 } else if (strcmp(mfn, "alloc") == 0 && node->data.call.arg_count == 2) {
                     /* alloc returns the type of its second argument */
                     result = resolve_expr(tc, node->data.call.args[1]);
@@ -242,7 +257,10 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
 
         if (fn_name) {
             /* Check built-in functions first */
-            if (strcmp(fn_name, "len") == 0 || strcmp(fn_name, "to_int") == 0) {
+            if (strcmp(fn_name, "addr") == 0 && node->data.call.arg_count == 1) {
+                EzType *arg_t = resolve_expr(tc, node->data.call.args[0]);
+                result = type_pointer(type_name(arg_t));
+            } else if (strcmp(fn_name, "len") == 0 || strcmp(fn_name, "to_int") == 0) {
                 result = &TYPE_INT;
             } else if (strcmp(fn_name, "to_float") == 0) {
                 result = &TYPE_FLOAT;

@@ -111,6 +111,7 @@ const char *token_type_name(TokenType type) {
     case TOK_ARROW:          return "->";
     case TOK_DOT:            return ".";
     case TOK_AT:             return "@";
+    case TOK_CARET:          return "^";
     case TOK_AMPERSAND:      return "&";
     case TOK_SUPPRESS:       return "#suppress";
     case TOK_STRICT:         return "#strict";

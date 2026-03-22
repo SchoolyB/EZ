@@ -71,6 +71,14 @@ static const char *ez_type_to_c_cg(CodeGen *cg, const char *type_name) {
     if (strcmp(type_name, "byte") == 0)   return "uint8_t";
     if (strcmp(type_name, "string") == 0) return "EzString";
 
+    /* Pointer type: ^T — use C pointer */
+    if (type_name[0] == '^') {
+        static char ptrbuf[256];
+        const char *pointee = ez_type_to_c_cg(cg, type_name + 1);
+        snprintf(ptrbuf, sizeof(ptrbuf), "%s *", pointee);
+        return ptrbuf;
+    }
+
     /* Array type: [T] — use EzArray */
     if (type_name[0] == '[') {
         return "EzArray";
@@ -358,8 +366,15 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
     }
 
     case NODE_POSTFIX_EXPR:
-        emit_expression(cg, node->data.postfix.left);
-        emit(cg, node->data.postfix.op);
+        if (strcmp(node->data.postfix.op, "^") == 0) {
+            /* Pointer dereference: p^ → (*p) */
+            emit(cg, "(*");
+            emit_expression(cg, node->data.postfix.left);
+            emit(cg, ")");
+        } else {
+            emit_expression(cg, node->data.postfix.left);
+            emit(cg, node->data.postfix.op);
+        }
         break;
 
     case NODE_CALL_EXPR:
@@ -376,8 +391,18 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
                 break;
             }
         }
-        emit_expression(cg, node->data.member.object);
-        emitf(cg, ".%s", node->data.member.member);
+        /* Check if object is a pointer type — use -> instead of . */
+        {
+            EzType *obj_t = cg->type_table
+                ? typetable_get(cg->type_table, node->data.member.object)
+                : NULL;
+            emit_expression(cg, node->data.member.object);
+            if (obj_t && obj_t->kind == TK_POINTER) {
+                emitf(cg, "->%s", node->data.member.member);
+            } else {
+                emitf(cg, ".%s", node->data.member.member);
+            }
+        }
         break;
 
     case NODE_INDEX_EXPR: {
@@ -530,6 +555,12 @@ static void emit_call_expression(CodeGen *cg, AstNode *node) {
             return;
         }
 
+        if (strcmp(func, "addr") == 0 && node->data.call.arg_count == 1) {
+            emit(cg, "&");
+            emit_expression(cg, node->data.call.args[0]);
+            return;
+        }
+
         if (strcmp(func, "print") == 0 && node->data.call.arg_count > 0) {
             AstNode *arg = node->data.call.args[0];
             const char *suffix = "_int";
@@ -564,6 +595,20 @@ static void emit_call_expression(CodeGen *cg, AstNode *node) {
                 emit(cg, "ez_mem_usage(");
                 emit_expression(cg, node->data.call.args[0]);
                 emit(cg, ")");
+                return;
+            }
+            if (strcmp(func, "new") == 0 && node->data.call.arg_count == 2) {
+                /* mem.new(arena, Type) — allocate zeroed T, return ^T */
+                AstNode *arena_arg = node->data.call.args[0];
+                AstNode *type_arg = node->data.call.args[1];
+                /* Type arg should be a label (type name) */
+                const char *type_name = "int64_t";
+                if (type_arg->kind == NODE_LABEL) {
+                    type_name = ez_type_to_c_cg(cg, type_arg->data.label.value);
+                }
+                emitf(cg, "(%s *)ez_arena_alloc(", type_name);
+                emit_expression(cg, arena_arg);
+                emitf(cg, ", sizeof(%s))", type_name);
                 return;
             }
             if (strcmp(func, "alloc") == 0 && node->data.call.arg_count == 2) {
