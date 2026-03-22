@@ -683,15 +683,34 @@ static AstNode *parse_func_declaration(Parser *p) {
              *   -> (int, string)        plain types
              *   -> (x int, y int)       named returns
              *   -> (x, y int)           shared type
+             *
+             * Disambiguation: if the identifier is a known type name,
+             * it's a plain type list, not names.
              */
             next_token(p);
             while (!cur_token_is(p, TOK_RPAREN) && !cur_token_is(p, TOK_EOF)) {
-                if (cur_token_is(p, TOK_IDENT) && peek_token_is(p, TOK_IDENT)) {
+                /* Check if current ident is a type name (not a variable name) */
+                bool is_type = false;
+                if (cur_token_is(p, TOK_IDENT)) {
+                    const char *lit = p->cur_token.literal;
+                    is_type = (strcmp(lit, "int") == 0 || strcmp(lit, "uint") == 0 ||
+                        strcmp(lit, "i8") == 0 || strcmp(lit, "i16") == 0 ||
+                        strcmp(lit, "i32") == 0 || strcmp(lit, "i64") == 0 ||
+                        strcmp(lit, "u8") == 0 || strcmp(lit, "u16") == 0 ||
+                        strcmp(lit, "u32") == 0 || strcmp(lit, "u64") == 0 ||
+                        strcmp(lit, "float") == 0 || strcmp(lit, "f32") == 0 ||
+                        strcmp(lit, "f64") == 0 || strcmp(lit, "string") == 0 ||
+                        strcmp(lit, "bool") == 0 || strcmp(lit, "char") == 0 ||
+                        strcmp(lit, "byte") == 0 ||
+                        (lit[0] >= 'A' && lit[0] <= 'Z')); /* struct/enum types */
+                }
+
+                if (cur_token_is(p, TOK_IDENT) && peek_token_is(p, TOK_IDENT) && !is_type) {
                     /* Named return: name type — skip name, use type */
                     next_token(p);
                     node->data.func_decl.return_types[node->data.func_decl.return_type_count++] =
                         p->cur_token.literal;
-                } else if (cur_token_is(p, TOK_IDENT) && peek_token_is(p, TOK_COMMA)) {
+                } else if (cur_token_is(p, TOK_IDENT) && peek_token_is(p, TOK_COMMA) && !is_type) {
                     /* Shared type: (x, y int) — count names, assign same type to all */
                     int shared = 1;
                     while (peek_token_is(p, TOK_COMMA)) {
