@@ -679,21 +679,40 @@ static AstNode *parse_func_declaration(Parser *p) {
         node->data.func_decl.return_types = arena_alloc(p->arena, sizeof(const char *) * ret_cap);
 
         if (cur_token_is(p, TOK_LPAREN)) {
-            /* Multiple/named return types: -> (int, string) or -> (x int, y int) */
+            /* Multiple/named return types:
+             *   -> (int, string)        plain types
+             *   -> (x int, y int)       named returns
+             *   -> (x, y int)           shared type
+             */
             next_token(p);
             while (!cur_token_is(p, TOK_RPAREN) && !cur_token_is(p, TOK_EOF)) {
                 if (cur_token_is(p, TOK_IDENT) && peek_token_is(p, TOK_IDENT)) {
                     /* Named return: name type — skip name, use type */
                     next_token(p);
+                    node->data.func_decl.return_types[node->data.func_decl.return_type_count++] =
+                        p->cur_token.literal;
                 } else if (cur_token_is(p, TOK_IDENT) && peek_token_is(p, TOK_COMMA)) {
-                    /* Could be shared type: -> (x, y int) — just a name, type comes later */
-                    /* For now, skip the name */
-                    next_token(p); /* skip comma */
-                    next_token(p); /* next name or type */
-                    continue;
+                    /* Shared type: (x, y int) — count names, assign same type to all */
+                    int shared = 1;
+                    while (peek_token_is(p, TOK_COMMA)) {
+                        next_token(p); /* skip comma */
+                        next_token(p); /* next name */
+                        shared++;
+                        if (!peek_token_is(p, TOK_COMMA)) break;
+                    }
+                    /* cur is last name, peek should be the shared type */
+                    if (peek_token_is(p, TOK_IDENT)) {
+                        next_token(p);
+                        for (int s = 0; s < shared; s++) {
+                            node->data.func_decl.return_types[node->data.func_decl.return_type_count++] =
+                                p->cur_token.literal;
+                        }
+                    }
+                } else {
+                    /* Plain type */
+                    node->data.func_decl.return_types[node->data.func_decl.return_type_count++] =
+                        p->cur_token.literal;
                 }
-                node->data.func_decl.return_types[node->data.func_decl.return_type_count++] =
-                    p->cur_token.literal;
                 if (peek_token_is(p, TOK_COMMA)) {
                     next_token(p);
                 }
