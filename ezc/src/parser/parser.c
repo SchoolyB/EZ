@@ -100,15 +100,44 @@ static AstNode *parse_identifier(Parser *p) {
 
 static AstNode *parse_int_literal(Parser *p) {
     AstNode *node = ast_alloc(p->arena, NODE_INT_VALUE, p->cur_token);
-    /* Parse integer, ignoring underscores */
-    int64_t val = 0;
     const char *s = p->cur_token.literal;
-    while (*s) {
-        if (*s != '_') {
-            val = val * 10 + (*s - '0');
+    int64_t val = 0;
+
+    if (s[0] == '0' && (s[1] == 'x' || s[1] == 'X')) {
+        /* Hex: 0xFF */
+        s += 2;
+        while (*s) {
+            if (*s == '_') { s++; continue; }
+            val = val * 16;
+            if (*s >= '0' && *s <= '9') val += *s - '0';
+            else if (*s >= 'a' && *s <= 'f') val += *s - 'a' + 10;
+            else if (*s >= 'A' && *s <= 'F') val += *s - 'A' + 10;
+            s++;
         }
-        s++;
+    } else if (s[0] == '0' && (s[1] == 'o' || s[1] == 'O')) {
+        /* Octal: 0o77 */
+        s += 2;
+        while (*s) {
+            if (*s == '_') { s++; continue; }
+            val = val * 8 + (*s - '0');
+            s++;
+        }
+    } else if (s[0] == '0' && (s[1] == 'b' || s[1] == 'B')) {
+        /* Binary: 0b1010 */
+        s += 2;
+        while (*s) {
+            if (*s == '_') { s++; continue; }
+            val = val * 2 + (*s - '0');
+            s++;
+        }
+    } else {
+        /* Decimal */
+        while (*s) {
+            if (*s != '_') val = val * 10 + (*s - '0');
+            s++;
+        }
     }
+
     node->data.int_value.value = val;
     node->data.int_value.literal = p->cur_token.literal;
     return node;
@@ -257,7 +286,8 @@ static AstNode *parse_prefix(Parser *p) {
         return parse_identifier(p);
     case TOK_INT:       return parse_int_literal(p);
     case TOK_FLOAT:     return parse_float_literal(p);
-    case TOK_STRING:    return parse_string_literal(p);
+    case TOK_STRING:
+    case TOK_RAW_STRING: return parse_string_literal(p);
     case TOK_TRUE:
     case TOK_FALSE:     return parse_bool_literal(p);
     case TOK_NIL:       return parse_nil_literal(p);
@@ -666,13 +696,14 @@ static AstNode *parse_var_declaration(Parser *p) {
 
 static AstNode *parse_return_statement(Parser *p) {
     AstNode *node = ast_alloc(p->arena, NODE_RETURN_STMT, p->cur_token);
-    next_token(p);
 
     int cap = 4;
     int count = 0;
     AstNode **values = arena_alloc(p->arena, sizeof(AstNode *) * cap);
 
-    if (!cur_token_is(p, TOK_RBRACE) && !cur_token_is(p, TOK_EOF)) {
+    /* Check if there's a value to return (peek, don't consume) */
+    if (!peek_token_is(p, TOK_RBRACE) && !peek_token_is(p, TOK_EOF)) {
+        next_token(p);
         values[count++] = parse_expression(p, PREC_LOWEST);
 
         while (peek_token_is(p, TOK_COMMA)) {
