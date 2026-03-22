@@ -35,6 +35,11 @@ typedef struct {
 
     /* Type table from type checker (for type-aware codegen) */
     TypeTable *type_table;
+
+    /* Ref variables (transparent references from ref()) */
+    const char **ref_vars;
+    int ref_var_count;
+    int ref_var_cap;
 } CodeGen;
 
 CodeGen codegen_create(const char *file);

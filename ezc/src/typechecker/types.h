@@ -23,6 +23,7 @@ typedef enum {
     TK_STRUCT,
     TK_ENUM,
     TK_POINTER,
+    TK_ERROR,
     TK_FUNCTION,
     TK_NIL,
     TK_UNKNOWN,

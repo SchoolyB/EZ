@@ -84,6 +84,15 @@ size_t ez_arena_usage(EzArena *arena) {
     return total;
 }
 
+/* --- Error --- */
+
+EzError *ez_error_new(EzArena *arena, EzString message) {
+    EzError *err = (EzError *)ez_arena_alloc(arena, sizeof(EzError));
+    err->message = ez_string_new(arena, message.data, message.len);
+    err->code = ez_string_lit("");
+    return err;
+}
+
 /* --- String --- */
 
 EzString ez_string_new(EzArena *arena, const char *s, int32_t len) {
