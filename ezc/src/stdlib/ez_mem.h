@@ -32,4 +32,15 @@ int64_t ez_mem_usage(EzArena *arena);
  * ez_default_arena. No C function needed.
  */
 
+/* mem.copy(dest, src, n) — copy n bytes from src to dest (memcpy) */
+void ez_mem_copy(void *dest, const void *src, int64_t n);
+
+/* mem.zero(ptr, n) — zero n bytes starting at ptr (memset 0) */
+void ez_mem_zero(void *ptr, int64_t n);
+
+/* mem.set(ptr, val, n) — set n bytes to val (memset) */
+void ez_mem_set(void *ptr, int64_t val, int64_t n);
+
+/* mem.size_of(Type) — handled by codegen (sizeof) */
+
 #endif
