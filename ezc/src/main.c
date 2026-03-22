@@ -342,16 +342,52 @@ int main(int argc, char **argv) {
         return 1;
     }
 
-    /* Compile the generated C code */
+    /* Compile the generated C code.
+     * Try linking against pre-compiled libezrt.a first (fast path).
+     * Fall back to compiling runtime from source if archive not found. */
     char cmd[4096];
-    snprintf(cmd, sizeof(cmd),
-        "cc -std=c11 -O2 -Wall -Wno-unused-function "
-        "-I%s/runtime -I%s/stdlib "
-        "-o %s %s %s/runtime/ez_runtime.c %s/runtime/ez_array.c %s/runtime/ez_map.c %s/stdlib/ez_std.c %s/stdlib/ez_mem.c "
-        "-lm 2>&1",
-        runtime_dir, runtime_dir,
-        output_file, c_file,
-        runtime_dir, runtime_dir, runtime_dir, runtime_dir, runtime_dir);
+    char lib_path[1024];
+    bool has_archive = false;
+
+    /* Check for libezrt.a relative to binary */
+    snprintf(lib_path, sizeof(lib_path), "%s/../libezrt.a", runtime_dir);
+    if (access(lib_path, R_OK) == 0) {
+        has_archive = true;
+    } else {
+        /* Check in install location */
+        snprintf(lib_path, sizeof(lib_path), "%s/../libezrt.a", runtime_dir);
+        if (access(lib_path, R_OK) != 0) {
+            /* Check next to the runtime dir */
+            const char *self = get_self_dir(NULL);
+            if (self) {
+                snprintf(lib_path, sizeof(lib_path), "%s/libezrt.a", self);
+                if (access(lib_path, R_OK) == 0) has_archive = true;
+            }
+        }
+    }
+
+    if (has_archive) {
+        /* Fast path: link against pre-compiled archive */
+        snprintf(cmd, sizeof(cmd),
+            "cc -std=c11 -O2 -Wall -Wno-unused-function "
+            "-I%s/runtime -I%s/stdlib "
+            "-o %s %s %s "
+            "-lm 2>&1",
+            runtime_dir, runtime_dir,
+            output_file, c_file, lib_path);
+    } else {
+        /* Slow path: compile runtime from source */
+        snprintf(cmd, sizeof(cmd),
+            "cc -std=c11 -O2 -Wall -Wno-unused-function "
+            "-I%s/runtime -I%s/stdlib "
+            "-o %s %s %s/runtime/ez_runtime.c %s/runtime/ez_array.c %s/runtime/ez_map.c "
+            "%s/stdlib/ez_std.c %s/stdlib/ez_mem.c "
+            "-lm 2>&1",
+            runtime_dir, runtime_dir,
+            output_file, c_file,
+            runtime_dir, runtime_dir, runtime_dir,
+            runtime_dir, runtime_dir);
+    }
 
     int ret = system(cmd);
     if (ret != 0) {
