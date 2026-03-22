@@ -271,6 +271,26 @@ static void test_resolve_func_return(void) {
     ASSERT_NOT_NULL(tt);
 }
 
+/* --- Pointer Type Tests --- */
+
+static void test_type_from_name_pointer(void) {
+    EzType *t = type_from_name("^int");
+    ASSERT_EQ(t->kind, TK_POINTER);
+    ASSERT_STR_EQ(t->element_type, "int");
+}
+
+static void test_type_pointer_constructor(void) {
+    EzType *t = type_pointer("Person");
+    ASSERT_EQ(t->kind, TK_POINTER);
+    ASSERT_STR_EQ(t->element_type, "Person");
+}
+
+static void test_resolve_addr(void) {
+    EzType *t = expr_type("addr(42)");
+    ASSERT_NOT_NULL(t);
+    ASSERT_EQ(t->kind, TK_POINTER);
+}
+
 int main(void) {
     arena = arena_create(256 * 1024);
     printf("\n");
@@ -314,6 +334,11 @@ int main(void) {
 
     /* Function tests */
     RUN_TEST(test_resolve_func_return);
+
+    /* Pointer tests */
+    RUN_TEST(test_type_from_name_pointer);
+    RUN_TEST(test_type_pointer_constructor);
+    RUN_TEST(test_resolve_addr);
 
     PRINT_RESULTS();
     return _test_fail > 0 ? 1 : 0;

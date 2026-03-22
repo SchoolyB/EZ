@@ -71,6 +71,14 @@ static const char *ez_type_to_c_cg(CodeGen *cg, const char *type_name) {
     if (strcmp(type_name, "byte") == 0)   return "uint8_t";
     if (strcmp(type_name, "string") == 0) return "EzString";
 
+    /* Pointer type: ^T — use C pointer */
+    if (type_name[0] == '^') {
+        static char ptrbuf[256];
+        const char *pointee = ez_type_to_c_cg(cg, type_name + 1);
+        snprintf(ptrbuf, sizeof(ptrbuf), "%s *", pointee);
+        return ptrbuf;
+    }
+
     /* Array type: [T] — use EzArray */
     if (type_name[0] == '[') {
         return "EzArray";
@@ -358,8 +366,15 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
     }
 
     case NODE_POSTFIX_EXPR:
-        emit_expression(cg, node->data.postfix.left);
-        emit(cg, node->data.postfix.op);
+        if (strcmp(node->data.postfix.op, "^") == 0) {
+            /* Pointer dereference: p^ → (*p) */
+            emit(cg, "(*");
+            emit_expression(cg, node->data.postfix.left);
+            emit(cg, ")");
+        } else {
+            emit_expression(cg, node->data.postfix.left);
+            emit(cg, node->data.postfix.op);
+        }
         break;
 
     case NODE_CALL_EXPR:
@@ -376,8 +391,18 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
                 break;
             }
         }
-        emit_expression(cg, node->data.member.object);
-        emitf(cg, ".%s", node->data.member.member);
+        /* Check if object is a pointer type — use -> instead of . */
+        {
+            EzType *obj_t = cg->type_table
+                ? typetable_get(cg->type_table, node->data.member.object)
+                : NULL;
+            emit_expression(cg, node->data.member.object);
+            if (obj_t && obj_t->kind == TK_POINTER) {
+                emitf(cg, "->%s", node->data.member.member);
+            } else {
+                emitf(cg, ".%s", node->data.member.member);
+            }
+        }
         break;
 
     case NODE_INDEX_EXPR: {
@@ -530,6 +555,12 @@ static void emit_call_expression(CodeGen *cg, AstNode *node) {
             return;
         }
 
+        if (strcmp(func, "addr") == 0 && node->data.call.arg_count == 1) {
+            emit(cg, "&");
+            emit_expression(cg, node->data.call.args[0]);
+            return;
+        }
+
         if (strcmp(func, "print") == 0 && node->data.call.arg_count > 0) {
             AstNode *arg = node->data.call.args[0];
             const char *suffix = "_int";
@@ -538,6 +569,93 @@ static void emit_call_expression(CodeGen *cg, AstNode *node) {
             emit_expression(cg, arg);
             emit(cg, ")");
             return;
+        }
+
+        /* @mem module functions */
+        if (module && strcmp(module, "mem") == 0) {
+            if (strcmp(func, "arena") == 0 && node->data.call.arg_count == 1) {
+                emit(cg, "ez_mem_arena(");
+                emit_expression(cg, node->data.call.args[0]);
+                emit(cg, ")");
+                return;
+            }
+            if (strcmp(func, "destroy") == 0 && node->data.call.arg_count == 1) {
+                emit(cg, "ez_mem_destroy(");
+                emit_expression(cg, node->data.call.args[0]);
+                emit(cg, ")");
+                return;
+            }
+            if (strcmp(func, "reset") == 0 && node->data.call.arg_count == 1) {
+                emit(cg, "ez_mem_reset(");
+                emit_expression(cg, node->data.call.args[0]);
+                emit(cg, ")");
+                return;
+            }
+            if (strcmp(func, "usage") == 0 && node->data.call.arg_count == 1) {
+                emit(cg, "ez_mem_usage(");
+                emit_expression(cg, node->data.call.args[0]);
+                emit(cg, ")");
+                return;
+            }
+            if (strcmp(func, "new") == 0 && node->data.call.arg_count == 2) {
+                /* mem.new(arena, Type) — allocate zeroed T, return ^T */
+                AstNode *arena_arg = node->data.call.args[0];
+                AstNode *type_arg = node->data.call.args[1];
+                /* Type arg should be a label (type name) */
+                const char *type_name = "int64_t";
+                if (type_arg->kind == NODE_LABEL) {
+                    type_name = ez_type_to_c_cg(cg, type_arg->data.label.value);
+                }
+                emitf(cg, "(%s *)ez_arena_alloc(", type_name);
+                emit_expression(cg, arena_arg);
+                emitf(cg, ", sizeof(%s))", type_name);
+                return;
+            }
+            if (strcmp(func, "alloc") == 0 && node->data.call.arg_count == 2) {
+                /* mem.alloc(arena, value) — allocate value on specific arena.
+                 * For strings: ez_string_new(arena, src.data, src.len)
+                 * For arrays: emit array literal with arena instead of ez_default_arena
+                 * For other: ez_arena_alloc + memcpy */
+                AstNode *arena_arg = node->data.call.args[0];
+                AstNode *value_arg = node->data.call.args[1];
+                EzType *vt = cg->type_table ? typetable_get(cg->type_table, value_arg) : NULL;
+
+                if (vt && vt->kind == TK_STRING) {
+                    emit(cg, "({ EzString _s = ");
+                    emit_expression(cg, value_arg);
+                    emit(cg, "; ez_string_new(");
+                    emit_expression(cg, arena_arg);
+                    emit(cg, ", _s.data, _s.len); })");
+                } else if (value_arg->kind == NODE_ARRAY_VALUE) {
+                    /* Emit array literal with custom arena */
+                    int count = value_arg->data.array_value.count;
+                    EzType *elem_t = (count > 0 && cg->type_table)
+                        ? typetable_get(cg->type_table, value_arg->data.array_value.elements[0])
+                        : NULL;
+                    const char *c_type = "int64_t";
+                    if (elem_t) {
+                        if (elem_t->kind == TK_FLOAT) c_type = "double";
+                        else if (elem_t->kind == TK_STRING) c_type = "EzString";
+                        else if (elem_t->kind == TK_BOOL) c_type = "bool";
+                    }
+                    emitf(cg, "ez_array_from(");
+                    emit_expression(cg, arena_arg);
+                    emitf(cg, ", (%s[]){", c_type);
+                    for (int i = 0; i < count; i++) {
+                        if (i > 0) emit(cg, ", ");
+                        emit_expression(cg, value_arg->data.array_value.elements[i]);
+                    }
+                    emitf(cg, "}, sizeof(%s), %d)", c_type, count);
+                } else {
+                    /* Generic: copy value onto arena */
+                    emit(cg, "({ __auto_type _v = ");
+                    emit_expression(cg, value_arg);
+                    emit(cg, "; __auto_type _p = ez_arena_alloc(");
+                    emit_expression(cg, arena_arg);
+                    emit(cg, ", sizeof(_v)); *(__typeof__(_v) *)_p = _v; _v; })");
+                }
+                return;
+            }
         }
     }
 
@@ -1168,6 +1286,7 @@ CodeGen codegen_create(const char *file) {
     cg.output = buf_create(4096);
     cg.indent = 0;
     cg.has_std = false;
+    cg.has_mem = false;
     cg.file = file;
     cg.enum_names = NULL;
     cg.enum_count = 0;
@@ -1189,9 +1308,9 @@ void codegen_generate(CodeGen *cg, AstNode *program) {
         if (stmt->kind == NODE_IMPORT_STMT) {
             for (int j = 0; j < stmt->data.import_stmt.count; j++) {
                 ImportItem *item = &stmt->data.import_stmt.items[j];
-                if (item->is_stdlib && item->module &&
-                    strcmp(item->module, "std") == 0) {
-                    cg->has_std = true;
+                if (item->is_stdlib && item->module) {
+                    if (strcmp(item->module, "std") == 0) cg->has_std = true;
+                    if (strcmp(item->module, "mem") == 0) cg->has_mem = true;
                 }
             }
         }
@@ -1204,6 +1323,9 @@ void codegen_generate(CodeGen *cg, AstNode *program) {
     emit(cg, "#include \"ez_map.h\"\n");
     if (cg->has_std) {
         emit(cg, "#include \"ez_std.h\"\n");
+    }
+    if (cg->has_mem) {
+        emit(cg, "#include \"ez_mem.h\"\n");
     }
     emit(cg, "\n");
 

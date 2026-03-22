@@ -67,6 +67,9 @@ typedef enum {
     TOK_LBRACKET,       /* [ */
     TOK_RBRACKET,       /* ] */
 
+    /* Caret (pointer type) */
+    TOK_CARET,          /* ^ */
+
     /* Arrow */
     TOK_ARROW,          /* -> */
 
