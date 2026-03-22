@@ -51,6 +51,14 @@ EzType *type_enum(const char *name) {
     return t;
 }
 
+EzType *type_pointer(const char *pointee_type) {
+    EzType *t = type_alloc();
+    t->kind = TK_POINTER;
+    t->element_type = pointee_type; /* reuse element_type for pointee */
+    t->name = pointee_type;
+    return t;
+}
+
 bool type_is_numeric(EzType *t) {
     return t->kind == TK_INT || t->kind == TK_FLOAT ||
            t->kind == TK_CHAR || t->kind == TK_BYTE;
@@ -100,6 +108,11 @@ EzType *type_from_name(const char *name) {
     if (strcmp(name, "string") == 0) return &TYPE_STRING;
     if (strcmp(name, "void") == 0)   return &TYPE_VOID;
     if (strcmp(name, "nil") == 0)    return &TYPE_NIL;
+
+    /* Pointer type: ^int, ^Person, etc. */
+    if (name[0] == '^') {
+        return type_pointer(name + 1);
+    }
 
     /* Array type: [int], [string], etc. */
     if (name[0] == '[') {

@@ -54,6 +54,16 @@ void *ez_arena_alloc(EzArena *arena, size_t size) {
     return ptr;
 }
 
+void ez_arena_reset(EzArena *arena) {
+    /* Reset all blocks — reuse memory without freeing */
+    EzArenaBlock *block = arena->first;
+    while (block) {
+        block->used = 0;
+        block = block->next;
+    }
+    arena->current = arena->first;
+}
+
 void ez_arena_destroy(EzArena *arena) {
     EzArenaBlock *block = arena->first;
     while (block) {
@@ -62,6 +72,16 @@ void ez_arena_destroy(EzArena *arena) {
         block = next;
     }
     free(arena);
+}
+
+size_t ez_arena_usage(EzArena *arena) {
+    size_t total = 0;
+    EzArenaBlock *block = arena->first;
+    while (block) {
+        total += block->used;
+        block = block->next;
+    }
+    return total;
 }
 
 /* --- String --- */

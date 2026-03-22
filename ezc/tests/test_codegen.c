@@ -417,6 +417,177 @@ static void test_e2e_blank_ident(void) {
     ASSERT_STR_EQ(out, "99");
 }
 
+/* ===== @mem Module Tests ===== */
+
+static void test_e2e_mem_arena_create_destroy(void) {
+    char *out = compile_and_run(
+        "import @std, @mem\nusing std\n"
+        "do main() {\n"
+        "    temp a = mem.arena(4096)\n"
+        "    println(\"created\")\n"
+        "    mem.destroy(a)\n"
+        "    println(\"destroyed\")\n"
+        "}");
+    ASSERT_NOT_NULL(out);
+    ASSERT_STR_EQ(out, "created\ndestroyed");
+}
+
+static void test_e2e_mem_usage(void) {
+    char *out = compile_and_run(
+        "import @std, @mem\nusing std\n"
+        "do main() {\n"
+        "    temp a = mem.arena(1024)\n"
+        "    println(mem.usage(a))\n"
+        "    temp s string = mem.alloc(a, \"hello\")\n"
+        "    temp used int = mem.usage(a)\n"
+        "    if used > 0 { println(\"allocated\") }\n"
+        "    mem.destroy(a)\n"
+        "}");
+    ASSERT_NOT_NULL(out);
+    ASSERT_STR_EQ(out, "0\nallocated");
+}
+
+static void test_e2e_mem_reset(void) {
+    char *out = compile_and_run(
+        "import @std, @mem\nusing std\n"
+        "do main() {\n"
+        "    temp a = mem.arena(1024)\n"
+        "    temp s string = mem.alloc(a, \"hello\")\n"
+        "    if mem.usage(a) > 0 { println(\"used\") }\n"
+        "    mem.reset(a)\n"
+        "    println(mem.usage(a))\n"
+        "    mem.destroy(a)\n"
+        "}");
+    ASSERT_NOT_NULL(out);
+    ASSERT_STR_EQ(out, "used\n0");
+}
+
+static void test_e2e_mem_alloc_string(void) {
+    char *out = compile_and_run(
+        "import @std, @mem\nusing std\n"
+        "do main() {\n"
+        "    temp a = mem.arena(4096)\n"
+        "    ensure mem.destroy(a)\n"
+        "    temp s string = mem.alloc(a, \"arena string\")\n"
+        "    println(s)\n"
+        "}");
+    ASSERT_NOT_NULL(out);
+    ASSERT_STR_EQ(out, "arena string");
+}
+
+static void test_e2e_mem_alloc_array(void) {
+    char *out = compile_and_run(
+        "import @std, @mem\nusing std\n"
+        "do main() {\n"
+        "    temp a = mem.arena(4096)\n"
+        "    ensure mem.destroy(a)\n"
+        "    temp nums [int] = mem.alloc(a, {10, 20, 30})\n"
+        "    println(nums[0])\n"
+        "    println(nums[1])\n"
+        "    println(nums[2])\n"
+        "    println(len(nums))\n"
+        "}");
+    ASSERT_NOT_NULL(out);
+    ASSERT_STR_EQ(out, "10\n20\n30\n3");
+}
+
+static void test_e2e_mem_ensure_cleanup(void) {
+    char *out = compile_and_run(
+        "import @std, @mem\nusing std\n"
+        "do work() {\n"
+        "    temp a = mem.arena(1024)\n"
+        "    ensure mem.destroy(a)\n"
+        "    temp s string = mem.alloc(a, \"working\")\n"
+        "    println(s)\n"
+        "}\n"
+        "do main() {\n"
+        "    work()\n"
+        "    println(\"done\")\n"
+        "}");
+    ASSERT_NOT_NULL(out);
+    ASSERT_STR_EQ(out, "working\ndone");
+}
+
+/* ===== Pointer Tests ===== */
+
+static void test_e2e_ptr_new_deref(void) {
+    char *out = compile_and_run(
+        "import @std, @mem\nusing std\n"
+        "do main() {\n"
+        "    temp a = mem.arena(4096)\n"
+        "    ensure mem.destroy(a)\n"
+        "    temp p ^int = mem.new(a, int)\n"
+        "    p^ = 42\n"
+        "    println(p^)\n"
+        "}");
+    ASSERT_NOT_NULL(out);
+    ASSERT_STR_EQ(out, "42");
+}
+
+static void test_e2e_ptr_struct(void) {
+    char *out = compile_and_run(
+        "import @std, @mem\nusing std\n"
+        "const Point struct {\n"
+        "    x int\n"
+        "    y int\n"
+        "}\n"
+        "do main() {\n"
+        "    temp a = mem.arena(4096)\n"
+        "    ensure mem.destroy(a)\n"
+        "    temp p ^Point = mem.new(a, Point)\n"
+        "    p^.x = 3\n"
+        "    p^.y = 4\n"
+        "    println(p^.x)\n"
+        "    println(p^.y)\n"
+        "}");
+    ASSERT_NOT_NULL(out);
+    ASSERT_STR_EQ(out, "3\n4");
+}
+
+static void test_e2e_ptr_addr(void) {
+    char *out = compile_and_run(
+        "import @std\nusing std\n"
+        "do main() {\n"
+        "    temp x int = 10\n"
+        "    temp p ^int = addr(x)\n"
+        "    println(p^)\n"
+        "    p^ = 99\n"
+        "    println(x)\n"
+        "}");
+    ASSERT_NOT_NULL(out);
+    ASSERT_STR_EQ(out, "10\n99");
+}
+
+static void test_e2e_ptr_nil(void) {
+    char *out = compile_and_run(
+        "import @std\nusing std\n"
+        "do main() {\n"
+        "    temp p ^int = nil\n"
+        "    if p == nil {\n"
+        "        println(\"null\")\n"
+        "    }\n"
+        "}");
+    ASSERT_NOT_NULL(out);
+    ASSERT_STR_EQ(out, "null");
+}
+
+static void test_e2e_ptr_write_through(void) {
+    char *out = compile_and_run(
+        "import @std, @mem\nusing std\n"
+        "do set_value(p ^int, val int) {\n"
+        "    p^ = val\n"
+        "}\n"
+        "do main() {\n"
+        "    temp a = mem.arena(4096)\n"
+        "    ensure mem.destroy(a)\n"
+        "    temp p ^int = mem.new(a, int)\n"
+        "    set_value(p, 777)\n"
+        "    println(p^)\n"
+        "}");
+    ASSERT_NOT_NULL(out);
+    ASSERT_STR_EQ(out, "777");
+}
+
 int main(void) {
     /* Must run from the ezc/ directory */
     if (access("./ezc", X_OK) != 0) {
@@ -449,6 +620,22 @@ int main(void) {
     RUN_TEST(test_e2e_compound_assign);
     RUN_TEST(test_e2e_char);
     RUN_TEST(test_e2e_blank_ident);
+
+    /* @mem module */
+    RUN_TEST(test_e2e_mem_arena_create_destroy);
+    RUN_TEST(test_e2e_mem_usage);
+    RUN_TEST(test_e2e_mem_reset);
+    RUN_TEST(test_e2e_mem_alloc_string);
+    RUN_TEST(test_e2e_mem_alloc_array);
+    RUN_TEST(test_e2e_mem_ensure_cleanup);
+
+    /* Pointers */
+    RUN_TEST(test_e2e_ptr_new_deref);
+    RUN_TEST(test_e2e_ptr_struct);
+    RUN_TEST(test_e2e_ptr_addr);
+    RUN_TEST(test_e2e_ptr_nil);
+    RUN_TEST(test_e2e_ptr_write_through);
+
     PRINT_RESULTS();
     return _test_fail > 0 ? 1 : 0;
 }

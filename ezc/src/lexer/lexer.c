@@ -314,6 +314,7 @@ Token lexer_next_token(Lexer *l) {
     case ']': tok = make_token(TOK_RBRACKET, "]", tok.line, tok.column); break;
     case '.': tok = make_token(TOK_DOT, ".", tok.line, tok.column); break;
     case '@': tok = make_token(TOK_AT, "@", tok.line, tok.column); break;
+    case '^': tok = make_token(TOK_CARET, "^", tok.line, tok.column); break;
 
     case '#':
         if (match_ahead(l, "#suppress", 9)) {

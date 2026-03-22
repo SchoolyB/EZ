@@ -22,6 +22,7 @@ typedef enum {
     TK_MAP,
     TK_STRUCT,
     TK_ENUM,
+    TK_POINTER,
     TK_FUNCTION,
     TK_NIL,
     TK_UNKNOWN,
@@ -50,6 +51,7 @@ extern EzType TYPE_UNKNOWN;
 EzType *type_array(const char *elem_type);
 EzType *type_struct(const char *name);
 EzType *type_enum(const char *name);
+EzType *type_pointer(const char *pointee_type);
 
 /* Allocate a new type (from internal pool) */
 EzType *type_alloc(void);
