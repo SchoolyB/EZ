@@ -264,10 +264,20 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                 result = &TYPE_INT;
             } else if (strcmp(fn_name, "to_float") == 0) {
                 result = &TYPE_FLOAT;
-            } else if (strcmp(fn_name, "to_string") == 0 || strcmp(fn_name, "typeof") == 0) {
+            } else if (strcmp(fn_name, "to_string") == 0 || strcmp(fn_name, "typeof") == 0 ||
+                       strcmp(fn_name, "input") == 0 || strcmp(fn_name, "error") == 0) {
                 result = &TYPE_STRING;
             } else if (strcmp(fn_name, "to_bool") == 0) {
                 result = &TYPE_BOOL;
+            } else if (strcmp(fn_name, "exit") == 0 || strcmp(fn_name, "panic") == 0 ||
+                       strcmp(fn_name, "assert") == 0 || strcmp(fn_name, "eprintln") == 0 ||
+                       strcmp(fn_name, "eprint") == 0 ||
+                       strcmp(fn_name, "sleep_seconds") == 0 ||
+                       strcmp(fn_name, "sleep_milliseconds") == 0 ||
+                       strcmp(fn_name, "sleep_nanoseconds") == 0) {
+                result = &TYPE_VOID;
+            } else if (strcmp(fn_name, "copy") == 0 && node->data.call.arg_count == 1) {
+                result = resolve_expr(tc, node->data.call.args[0]);
             } else {
                 FuncSig *sig = find_func(tc, fn_name);
                 if (sig && sig->return_count > 0) {
