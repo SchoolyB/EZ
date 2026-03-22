@@ -1243,9 +1243,15 @@ static AstNode *parse_statement(Parser *p) {
     case TOK_CONST:
         /* Check if this is a struct or enum declaration: const Name struct { */
         if (p->cur_token.type == TOK_CONST && peek_token_is(p, TOK_IDENT)) {
-            /* Save state and look ahead */
+            /* Save full parser state for lookahead */
             Token saved_cur = p->cur_token;
             Token saved_peek = p->peek_token;
+            int saved_pos = p->lexer->position;
+            int saved_rpos = p->lexer->read_position;
+            char saved_ch = p->lexer->ch;
+            int saved_line = p->lexer->line;
+            int saved_col = p->lexer->column;
+
             next_token(p); /* now on IDENT (name) */
             if (peek_token_is(p, TOK_STRUCT)) {
                 return parse_struct_declaration(p);
@@ -1253,9 +1259,14 @@ static AstNode *parse_statement(Parser *p) {
             if (peek_token_is(p, TOK_ENUM)) {
                 return parse_enum_declaration(p);
             }
-            /* Not struct/enum — restore and parse as var declaration */
+            /* Not struct/enum — restore full state */
             p->cur_token = saved_cur;
             p->peek_token = saved_peek;
+            p->lexer->position = saved_pos;
+            p->lexer->read_position = saved_rpos;
+            p->lexer->ch = saved_ch;
+            p->lexer->line = saved_line;
+            p->lexer->column = saved_col;
         }
         return parse_var_declaration(p);
     case TOK_DO:
