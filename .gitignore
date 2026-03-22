@@ -8,6 +8,11 @@
 *.a
 /ez
 /ezc/ezc
+/ezc/libezrt.a
+/ezc/tests/test_lexer
+/ezc/tests/test_parser
+/ezc/tests/test_typechecker
+/ezc/tests/test_codegen
 
 # Build directories
 dist/
