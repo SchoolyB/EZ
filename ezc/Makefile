@@ -47,7 +47,7 @@ $(BIN): $(OBJ)
 	$(CC) $(CFLAGS) $(INCLUDES) -c -o $@ $<
 
 clean:
-	rm -f $(OBJ) $(BIN)
+	rm -f $(OBJ) $(BIN) tests/test_lexer tests/test_parser
 
 install: build
 	install -d /usr/local/bin
@@ -59,15 +59,26 @@ install: build
 	install -m 644 src/stdlib/ez_std.h /usr/local/lib/ezc/stdlib/
 	install -m 644 src/stdlib/ez_std.c /usr/local/lib/ezc/stdlib/
 
-test: build
-	@echo "Running hello world test..."
-	@echo 'import @std' > /tmp/ezc_test_hello.ez
-	@echo 'using std' >> /tmp/ezc_test_hello.ez
-	@echo '' >> /tmp/ezc_test_hello.ez
-	@echo 'do main() {' >> /tmp/ezc_test_hello.ez
-	@echo '    println("Hello, World!")' >> /tmp/ezc_test_hello.ez
-	@echo '}' >> /tmp/ezc_test_hello.ez
-	cd .. && ./ezc/ezc /tmp/ezc_test_hello.ez -o /tmp/ezc_test_hello
-	@/tmp/ezc_test_hello
-	@rm -f /tmp/ezc_test_hello /tmp/ezc_test_hello.ez
-	@echo "Test passed!"
+# Shared objects needed by test binaries (everything except main.o)
+TEST_DEPS = src/util/arena.o src/util/buf.o src/util/error.o \
+            src/lexer/token.o src/lexer/lexer.o \
+            src/parser/ast.o src/parser/parser.o \
+            src/typechecker/types.o src/typechecker/scope.o src/typechecker/typechecker.o
+
+tests/test_lexer: tests/test_lexer.c $(TEST_DEPS)
+	$(CC) $(CFLAGS) $(INCLUDES) -o $@ $^ $(LDFLAGS)
+
+tests/test_parser: tests/test_parser.c $(TEST_DEPS)
+	$(CC) $(CFLAGS) $(INCLUDES) -o $@ $^ $(LDFLAGS)
+
+test-unit: $(TEST_DEPS) tests/test_lexer tests/test_parser
+	@echo ""
+	@echo "=== Lexer Tests ==="
+	@./tests/test_lexer
+	@echo "=== Parser Tests ==="
+	@./tests/test_parser
+
+test-parity: build
+	@./tests/run_parity.sh
+
+test: test-unit test-parity
