@@ -1,0 +1,78 @@
+/*
+ * memory.ez - Arena-based memory management (EZC only)
+ *
+ * EZC programs can use the @mem module to control memory lifetimes.
+ * The default arena handles most allocations automatically.
+ * Use explicit arenas for batch processing, scratch buffers,
+ * or any case where you want predictable memory cleanup.
+ *
+ * Run with: ezc examples/basic/memory.ez -o memory && ./memory
+ * Note: This example uses EZC-only features. It will not run
+ * with the EZ interpreter.
+ */
+
+import @std, @mem
+using std
+
+// Process a batch of data on a scratch arena.
+// All temporary allocations are freed when the function exits.
+do process_batch() {
+    temp scratch = mem.arena(4096)
+    ensure mem.destroy(scratch)
+
+    temp items [int] = mem.alloc(scratch, {100, 200, 300, 400, 500})
+
+    temp total int = 0
+    for_each val in items {
+        total += val
+    }
+
+    println("Batch total: ${total}")
+    println("Scratch arena used: ${mem.usage(scratch)} bytes")
+    // scratch arena freed here via ensure
+}
+
+// Demonstrate arena lifecycle: create, use, reset, reuse, destroy
+do arena_lifecycle() {
+    temp a = mem.arena(2048)
+
+    // First pass: allocate some data
+    temp greeting string = mem.alloc(a, "Hello, arena!")
+    println(greeting)
+    println("After first alloc: ${mem.usage(a)} bytes")
+
+    // Reset: all memory reclaimed, arena can be reused
+    mem.reset(a)
+    println("After reset: ${mem.usage(a)} bytes")
+
+    // Second pass: reuse the same arena
+    temp nums [int] = mem.alloc(a, {1, 2, 3, 4, 5})
+    println("After reuse: ${mem.usage(a)} bytes")
+
+    temp sum int = 0
+    for_each n in nums {
+        sum += n
+    }
+    println("Sum: ${sum}")
+
+    mem.destroy(a)
+}
+
+do main() {
+    println("=== EZC Memory Management ===")
+    println("")
+
+    println("-- Arena Lifecycle --")
+    arena_lifecycle()
+
+    println("")
+    println("-- Scratch Arena --")
+    process_batch()
+
+    println("")
+    println("-- Default Arena --")
+    // Regular code still works without @mem
+    temp x int = 42
+    temp name string = "EZC"
+    println("${name} says ${x}")
+}
