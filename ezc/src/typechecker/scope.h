@@ -14,6 +14,7 @@ typedef struct {
     const char *name;
     EzType *type;
     bool mutable;
+    bool is_ref;    /* true if created via ref() — transparent reference */
 } Symbol;
 
 typedef struct Scope {

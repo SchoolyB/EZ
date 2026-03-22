@@ -105,6 +105,21 @@ static const char *ez_type_to_c_cg(CodeGen *cg, const char *type_name) {
 }
 
 /* Check if a variable name is a mutable parameter in the current function */
+static bool is_ref_var(CodeGen *cg, const char *name) {
+    for (int i = 0; i < cg->ref_var_count; i++) {
+        if (strcmp(cg->ref_vars[i], name) == 0) return true;
+    }
+    return false;
+}
+
+static void register_ref_var(CodeGen *cg, const char *name) {
+    if (cg->ref_var_count >= cg->ref_var_cap) {
+        cg->ref_var_cap = cg->ref_var_cap ? cg->ref_var_cap * 2 : 8;
+        cg->ref_vars = realloc(cg->ref_vars, sizeof(const char *) * cg->ref_var_cap);
+    }
+    cg->ref_vars[cg->ref_var_count++] = name;
+}
+
 static bool is_mutable_param(CodeGen *cg, const char *name) {
     if (!cg->current_func) return false;
     for (int i = 0; i < cg->current_func->data.func_decl.param_count; i++) {
@@ -136,6 +151,8 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
         if (strcmp(name, "EXIT_SUCCESS") == 0) { emit(cg, "0"); break; }
         if (strcmp(name, "EXIT_FAILURE") == 0) { emit(cg, "1"); break; }
         if (is_mutable_param(cg, name)) {
+            emitf(cg, "(*%s)", name);
+        } else if (is_ref_var(cg, name)) {
             emitf(cg, "(*%s)", name);
         } else {
             emit(cg, name);
@@ -467,7 +484,10 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
             }
 
             emit_expression(cg, node->data.member.object);
-            if (obj_t && (obj_t->kind == TK_POINTER || obj_t->kind == TK_ERROR)) {
+            /* Ref vars are already dereferenced by label emission — use . not -> */
+            bool obj_is_ref = (node->data.member.object->kind == NODE_LABEL &&
+                is_ref_var(cg, node->data.member.object->data.label.value));
+            if (!obj_is_ref && obj_t && (obj_t->kind == TK_POINTER || obj_t->kind == TK_ERROR)) {
                 emitf(cg, "->%s", node->data.member.member);
             } else {
                 emitf(cg, ".%s", node->data.member.member);
@@ -1285,6 +1305,14 @@ static void emit_var_declaration(CodeGen *cg, AstNode *node) {
         }
     }
 
+    /* Detect ref() assignment — register as transparent reference */
+    if (node->data.var_decl.value && node->data.var_decl.value->kind == NODE_CALL_EXPR) {
+        AstNode *fn = node->data.var_decl.value->data.call.function;
+        if (fn->kind == NODE_LABEL && strcmp(fn->data.label.value, "ref") == 0) {
+            register_ref_var(cg, node->data.var_decl.name);
+        }
+    }
+
     if (!node->data.var_decl.mutable) {
         emit(cg, "const ");
     }
@@ -1801,6 +1829,9 @@ CodeGen codegen_create(const char *file) {
     cg.func_count = 0;
     cg.func_cap = 0;
     cg.type_table = NULL;
+    cg.ref_vars = NULL;
+    cg.ref_var_count = 0;
+    cg.ref_var_cap = 0;
     return cg;
 }
 
