@@ -431,6 +431,32 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
             EzType *obj_t = cg->type_table
                 ? typetable_get(cg->type_table, node->data.member.object)
                 : NULL;
+
+            /* When accessing .v0 on a single-return value (not a multi-return struct),
+             * just emit the value itself (e.g., from temp x, _ = single_return_func()) */
+            /* When accessing .v0 on a single-return value (not a multi-return temp),
+             * just emit the value itself. Skip this for _ez_tmp* variables which
+             * are multi-return unpacking temps. */
+            const char *mem_name = node->data.member.member;
+            if (mem_name[0] == 'v' && mem_name[1] >= '0' && mem_name[1] <= '9' && mem_name[2] == '\0') {
+                bool is_multi_temp = false;
+                if (node->data.member.object->kind == NODE_LABEL) {
+                    const char *oname = node->data.member.object->data.label.value;
+                    if (strncmp(oname, "_ez_tmp", 7) == 0) is_multi_temp = true;
+                }
+                if (!is_multi_temp && obj_t &&
+                    (obj_t->kind == TK_INT || obj_t->kind == TK_FLOAT ||
+                     obj_t->kind == TK_BOOL || obj_t->kind == TK_STRING ||
+                     obj_t->kind == TK_CHAR || obj_t->kind == TK_BYTE)) {
+                    if (mem_name[1] == '0') {
+                        emit_expression(cg, node->data.member.object);
+                    } else {
+                        emit(cg, "0 /* discarded */");
+                    }
+                    break;
+                }
+            }
+
             emit_expression(cg, node->data.member.object);
             if (obj_t && obj_t->kind == TK_POINTER) {
                 emitf(cg, "->%s", node->data.member.member);

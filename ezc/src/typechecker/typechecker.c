@@ -381,8 +381,11 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
 
     case NODE_INDEX_EXPR: {
         EzType *left = resolve_expr(tc, node->data.index_expr.left);
+        resolve_expr(tc, node->data.index_expr.index);
         if (left->kind == TK_ARRAY && left->element_type) {
             result = type_from_name(left->element_type);
+        } else if (left->kind == TK_MAP && left->value_type) {
+            result = type_from_name(left->value_type);
         } else if (left->kind == TK_STRING) {
             result = &TYPE_CHAR;
         }
