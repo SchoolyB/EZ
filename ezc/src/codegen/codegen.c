@@ -913,6 +913,85 @@ static void emit_call_expression(CodeGen *cg, AstNode *node) {
             }
         }
 
+        /* @math module functions — most map directly to ez_math_name() */
+        if (module && strcmp(module, "math") == 0) {
+            /* Handle random() specially (variable arg count) */
+            if (strcmp(func, "random") == 0) {
+                if (node->data.call.arg_count == 0) {
+                    emit(cg, "ez_math_random_float(0.0, 1.0)");
+                } else if (node->data.call.arg_count == 1) {
+                    emit(cg, "ez_math_random_int(0, ");
+                    emit_expression(cg, node->data.call.args[0]);
+                    emit(cg, ")");
+                } else {
+                    emit(cg, "ez_math_random_int(");
+                    emit_expression(cg, node->data.call.args[0]);
+                    emit(cg, ", ");
+                    emit_expression(cg, node->data.call.args[1]);
+                    emit(cg, ")");
+                }
+                return;
+            }
+            /* abs needs int vs float dispatch */
+            if (strcmp(func, "abs") == 0 && node->data.call.arg_count == 1) {
+                EzType *at = cg->type_table ? typetable_get(cg->type_table, node->data.call.args[0]) : NULL;
+                emitf(cg, "ez_math_abs_%s(", (at && at->kind == TK_FLOAT) ? "float" : "int");
+                emit_expression(cg, node->data.call.args[0]);
+                emit(cg, ")");
+                return;
+            }
+            /* neg */
+            if (strcmp(func, "neg") == 0 && node->data.call.arg_count == 1) {
+                emit(cg, "(-(");
+                emit_expression(cg, node->data.call.args[0]);
+                emit(cg, "))");
+                return;
+            }
+            /* Generic: math.func(args...) → ez_math_func(args...) */
+            emitf(cg, "ez_math_%s(", func);
+            for (int i = 0; i < node->data.call.arg_count; i++) {
+                if (i > 0) emit(cg, ", ");
+                emit_expression(cg, node->data.call.args[i]);
+            }
+            emit(cg, ")");
+            return;
+        }
+
+        /* @io module functions */
+        if (module && strcmp(module, "io") == 0) {
+            bool needs_arena = (strcmp(func, "read_file") == 0);
+            emitf(cg, "ez_io_%s(", func);
+            if (needs_arena) emit(cg, "ez_default_arena, ");
+            for (int i = 0; i < node->data.call.arg_count; i++) {
+                if (i > 0) emit(cg, ", ");
+                emit_expression(cg, node->data.call.args[i]);
+            }
+            emit(cg, ")");
+            return;
+        }
+
+        /* @strings module functions */
+        if (module && strcmp(module, "strings") == 0) {
+            /* Functions that need arena as first arg */
+            bool needs_arena = (strcmp(func, "upper") == 0 || strcmp(func, "lower") == 0 ||
+                strcmp(func, "trim") == 0 || strcmp(func, "trim_left") == 0 ||
+                strcmp(func, "trim_right") == 0 || strcmp(func, "replace") == 0 ||
+                strcmp(func, "repeat") == 0 || strcmp(func, "reverse") == 0 ||
+                strcmp(func, "slice") == 0 || strcmp(func, "split") == 0 ||
+                strcmp(func, "join") == 0);
+
+            emitf(cg, "ez_strings_%s(", func);
+            if (needs_arena) {
+                emit(cg, "ez_default_arena, ");
+            }
+            for (int i = 0; i < node->data.call.arg_count; i++) {
+                if (i > 0) emit(cg, ", ");
+                emit_expression(cg, node->data.call.args[i]);
+            }
+            emit(cg, ")");
+            return;
+        }
+
         /* @fmt module functions */
         if (module && strcmp(module, "fmt") == 0) {
             if (strcmp(func, "printf") == 0 && node->data.call.arg_count >= 1) {
@@ -1677,6 +1756,9 @@ void codegen_generate(CodeGen *cg, AstNode *program) {
     if (cg->has_fmt) {
         emit(cg, "#include \"ez_fmt.h\"\n");
     }
+    emit(cg, "#include \"ez_math.h\"\n");
+    emit(cg, "#include \"ez_strings.h\"\n");
+    emit(cg, "#include \"ez_io.h\"\n");
     emit(cg, "\n");
 
     /* Emit struct type definitions */
