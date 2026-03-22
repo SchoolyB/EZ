@@ -129,13 +129,18 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
     if (!node) return;
 
     switch (node->kind) {
-    case NODE_LABEL:
-        if (is_mutable_param(cg, node->data.label.value)) {
-            emitf(cg, "(*%s)", node->data.label.value);
+    case NODE_LABEL: {
+        const char *name = node->data.label.value;
+        /* Check for known stdlib constants (unambiguous names) */
+        if (strcmp(name, "EXIT_SUCCESS") == 0) { emit(cg, "0"); break; }
+        if (strcmp(name, "EXIT_FAILURE") == 0) { emit(cg, "1"); break; }
+        if (is_mutable_param(cg, name)) {
+            emitf(cg, "(*%s)", name);
         } else {
-            emit(cg, node->data.label.value);
+            emit(cg, name);
         }
         break;
+    }
 
     case NODE_INT_VALUE:
         emitf(cg, "%lld", (long long)node->data.int_value.value);
@@ -382,12 +387,42 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
         break;
 
     case NODE_MEMBER_EXPR:
-        /* Check if this is an enum access: EnumName.VALUE */
+        /* Check for module constants first */
         if (node->data.member.object->kind == NODE_LABEL) {
-            const char *obj_name = node->data.member.object->data.label.value;
-            if (obj_name[0] >= 'A' && obj_name[0] <= 'Z') {
-                /* Could be enum access — emit as EzEnum_Name_VALUE */
-                emitf(cg, "EzEnum_%s_%s", obj_name, node->data.member.member);
+            const char *mod = node->data.member.object->data.label.value;
+            const char *mem = node->data.member.member;
+
+            /* @std constants */
+            if (strcmp(mod, "std") == 0) {
+                if (strcmp(mem, "EXIT_SUCCESS") == 0) { emit(cg, "0"); break; }
+                if (strcmp(mem, "EXIT_FAILURE") == 0) { emit(cg, "1"); break; }
+            }
+
+            /* @math constants */
+            if (strcmp(mod, "math") == 0) {
+                if (strcmp(mem, "PI") == 0)      { emit(cg, "3.14159265358979323846"); break; }
+                if (strcmp(mem, "E") == 0)       { emit(cg, "2.71828182845904523536"); break; }
+                if (strcmp(mem, "TAU") == 0)     { emit(cg, "6.28318530717958647692"); break; }
+                if (strcmp(mem, "PHI") == 0)     { emit(cg, "1.61803398874989484820"); break; }
+                if (strcmp(mem, "SQRT2") == 0)   { emit(cg, "1.41421356237309504880"); break; }
+                if (strcmp(mem, "LN2") == 0)     { emit(cg, "0.69314718055994530942"); break; }
+                if (strcmp(mem, "LN10") == 0)    { emit(cg, "2.30258509299404568402"); break; }
+                if (strcmp(mem, "INF") == 0)     { emit(cg, "(1.0/0.0)"); break; }
+                if (strcmp(mem, "NEG_INF") == 0) { emit(cg, "(-1.0/0.0)"); break; }
+                if (strcmp(mem, "EPSILON") == 0) { emit(cg, "2.2204460492503131e-16"); break; }
+            }
+
+            /* @os constants */
+            if (strcmp(mod, "os") == 0) {
+                if (strcmp(mem, "MAC_OS") == 0)  { emit(cg, "0"); break; }
+                if (strcmp(mem, "LINUX") == 0)   { emit(cg, "1"); break; }
+                if (strcmp(mem, "WINDOWS") == 0) { emit(cg, "2"); break; }
+                if (strcmp(mem, "OTHER") == 0)   { emit(cg, "3"); break; }
+            }
+
+            /* Check if this is an enum access: EnumName.VALUE */
+            if (mod[0] >= 'A' && mod[0] <= 'Z') {
+                emitf(cg, "EzEnum_%s_%s", mod, mem);
                 break;
             }
         }

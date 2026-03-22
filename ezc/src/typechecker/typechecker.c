@@ -298,9 +298,23 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
         if (obj->kind == NODE_LABEL) {
             const char *obj_name = obj->data.label.value;
 
+            /* Check for module constants */
+            if (strcmp(obj_name, "std") == 0) {
+                result = &TYPE_INT; /* EXIT_SUCCESS, EXIT_FAILURE */
+                break;
+            }
+            if (strcmp(obj_name, "math") == 0) {
+                result = &TYPE_FLOAT; /* PI, E, TAU, etc. */
+                break;
+            }
+            if (strcmp(obj_name, "os") == 0) {
+                result = &TYPE_INT; /* MAC_OS, LINUX, etc. */
+                break;
+            }
+
             /* Check if it's an enum access: Color.RED */
             if (is_enum_name(tc, obj_name)) {
-                result = &TYPE_INT; /* enum values are ints */
+                result = &TYPE_INT;
                 break;
             }
 
