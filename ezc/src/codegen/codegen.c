@@ -1328,6 +1328,9 @@ static void emit_var_declaration(CodeGen *cg, AstNode *node) {
             c_type = "double";
         } else if (val->kind == NODE_BOOL_VALUE) {
             c_type = "bool";
+        } else if (val->kind == NODE_STRUCT_VALUE) {
+            /* Struct literal — use the struct type */
+            c_type = ez_type_to_c_cg(cg, val->data.struct_value.name);
         } else if (val->kind == NODE_CALL_EXPR || val->kind == NODE_NEW_EXPR ||
                    val->kind == NODE_MEMBER_EXPR) {
             /* Use __auto_type for function calls, new(), and member access
@@ -1758,6 +1761,8 @@ static void emit_statement(CodeGen *cg, AstNode *node) {
     case NODE_WHEN_STMT: {
         /* Emit as if-else chain for now (switch requires constant values) */
         AstNode *val = node->data.when_stmt.value;
+        EzType *when_val_t = cg->type_table ? typetable_get(cg->type_table, val) : NULL;
+        bool when_is_string = (when_val_t && when_val_t->kind == TK_STRING);
         for (int i = 0; i < node->data.when_stmt.case_count; i++) {
             WhenCase *wc = &node->data.when_stmt.cases[i];
             emit_indent(cg);
@@ -1778,6 +1783,12 @@ static void emit_statement(CodeGen *cg, AstNode *node) {
                     emit_expression(cg, val);
                     emit(cg, " < ");
                     emit_expression(cg, r->data.range_expr.end);
+                    emit(cg, ")");
+                } else if (when_is_string) {
+                    emit(cg, "ez_string_eq(");
+                    emit_expression(cg, val);
+                    emit(cg, ", ");
+                    emit_expression(cg, wc->values[j]);
                     emit(cg, ")");
                 } else {
                     emit_expression(cg, val);

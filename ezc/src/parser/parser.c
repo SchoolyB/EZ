@@ -100,15 +100,44 @@ static AstNode *parse_identifier(Parser *p) {
 
 static AstNode *parse_int_literal(Parser *p) {
     AstNode *node = ast_alloc(p->arena, NODE_INT_VALUE, p->cur_token);
-    /* Parse integer, ignoring underscores */
-    int64_t val = 0;
     const char *s = p->cur_token.literal;
-    while (*s) {
-        if (*s != '_') {
-            val = val * 10 + (*s - '0');
+    int64_t val = 0;
+
+    if (s[0] == '0' && (s[1] == 'x' || s[1] == 'X')) {
+        /* Hex: 0xFF */
+        s += 2;
+        while (*s) {
+            if (*s == '_') { s++; continue; }
+            val = val * 16;
+            if (*s >= '0' && *s <= '9') val += *s - '0';
+            else if (*s >= 'a' && *s <= 'f') val += *s - 'a' + 10;
+            else if (*s >= 'A' && *s <= 'F') val += *s - 'A' + 10;
+            s++;
         }
-        s++;
+    } else if (s[0] == '0' && (s[1] == 'o' || s[1] == 'O')) {
+        /* Octal: 0o77 */
+        s += 2;
+        while (*s) {
+            if (*s == '_') { s++; continue; }
+            val = val * 8 + (*s - '0');
+            s++;
+        }
+    } else if (s[0] == '0' && (s[1] == 'b' || s[1] == 'B')) {
+        /* Binary: 0b1010 */
+        s += 2;
+        while (*s) {
+            if (*s == '_') { s++; continue; }
+            val = val * 2 + (*s - '0');
+            s++;
+        }
+    } else {
+        /* Decimal */
+        while (*s) {
+            if (*s != '_') val = val * 10 + (*s - '0');
+            s++;
+        }
     }
+
     node->data.int_value.value = val;
     node->data.int_value.literal = p->cur_token.literal;
     return node;
@@ -257,7 +286,8 @@ static AstNode *parse_prefix(Parser *p) {
         return parse_identifier(p);
     case TOK_INT:       return parse_int_literal(p);
     case TOK_FLOAT:     return parse_float_literal(p);
-    case TOK_STRING:    return parse_string_literal(p);
+    case TOK_STRING:
+    case TOK_RAW_STRING: return parse_string_literal(p);
     case TOK_TRUE:
     case TOK_FALSE:     return parse_bool_literal(p);
     case TOK_NIL:       return parse_nil_literal(p);
@@ -666,13 +696,14 @@ static AstNode *parse_var_declaration(Parser *p) {
 
 static AstNode *parse_return_statement(Parser *p) {
     AstNode *node = ast_alloc(p->arena, NODE_RETURN_STMT, p->cur_token);
-    next_token(p);
 
     int cap = 4;
     int count = 0;
     AstNode **values = arena_alloc(p->arena, sizeof(AstNode *) * cap);
 
-    if (!cur_token_is(p, TOK_RBRACE) && !cur_token_is(p, TOK_EOF)) {
+    /* Check if there's a value to return (peek, don't consume) */
+    if (!peek_token_is(p, TOK_RBRACE) && !peek_token_is(p, TOK_EOF)) {
+        next_token(p);
         values[count++] = parse_expression(p, PREC_LOWEST);
 
         while (peek_token_is(p, TOK_COMMA)) {
@@ -860,6 +891,15 @@ static AstNode *parse_func_declaration(Parser *p) {
                 }
                 next_token(p);
             }
+        } else if (cur_token_is(p, TOK_LBRACKET)) {
+            /* Array return type: -> [int] */
+            next_token(p);
+            const char *elem = p->cur_token.literal;
+            if (!expect_peek(p, TOK_RBRACKET)) return NULL;
+            char *type_str = arena_alloc(p->arena, strlen(elem) + 3);
+            sprintf(type_str, "[%s]", elem);
+            node->data.func_decl.return_types[0] = type_str;
+            node->data.func_decl.return_type_count = 1;
         } else {
             /* Single return type */
             node->data.func_decl.return_types[0] = p->cur_token.literal;
@@ -1097,6 +1137,10 @@ static AstNode *parse_ensure_statement(Parser *p) {
 static AstNode *parse_for_statement(Parser *p) {
     AstNode *node = ast_alloc(p->arena, NODE_FOR_STMT, p->cur_token);
 
+    /* Optional parentheses: for (i in range(...)) */
+    bool has_parens = peek_token_is(p, TOK_LPAREN);
+    if (has_parens) next_token(p);
+
     if (!expect_peek(p, TOK_IDENT)) return NULL;
     node->data.for_stmt.var_name = p->cur_token.literal;
 
@@ -1107,6 +1151,10 @@ static AstNode *parse_for_statement(Parser *p) {
 
     next_token(p);
     node->data.for_stmt.iterable = parse_expression(p, PREC_LOWEST);
+
+    if (has_parens && peek_token_is(p, TOK_RPAREN)) {
+        next_token(p);
+    }
 
     if (!expect_peek(p, TOK_LBRACE)) return NULL;
     node->data.for_stmt.body = parse_block_statement(p);
@@ -1243,9 +1291,15 @@ static AstNode *parse_statement(Parser *p) {
     case TOK_CONST:
         /* Check if this is a struct or enum declaration: const Name struct { */
         if (p->cur_token.type == TOK_CONST && peek_token_is(p, TOK_IDENT)) {
-            /* Save state and look ahead */
+            /* Save full parser state for lookahead */
             Token saved_cur = p->cur_token;
             Token saved_peek = p->peek_token;
+            int saved_pos = p->lexer->position;
+            int saved_rpos = p->lexer->read_position;
+            char saved_ch = p->lexer->ch;
+            int saved_line = p->lexer->line;
+            int saved_col = p->lexer->column;
+
             next_token(p); /* now on IDENT (name) */
             if (peek_token_is(p, TOK_STRUCT)) {
                 return parse_struct_declaration(p);
@@ -1253,9 +1307,14 @@ static AstNode *parse_statement(Parser *p) {
             if (peek_token_is(p, TOK_ENUM)) {
                 return parse_enum_declaration(p);
             }
-            /* Not struct/enum — restore and parse as var declaration */
+            /* Not struct/enum — restore full state */
             p->cur_token = saved_cur;
             p->peek_token = saved_peek;
+            p->lexer->position = saved_pos;
+            p->lexer->read_position = saved_rpos;
+            p->lexer->ch = saved_ch;
+            p->lexer->line = saved_line;
+            p->lexer->column = saved_col;
         }
         return parse_var_declaration(p);
     case TOK_DO:
