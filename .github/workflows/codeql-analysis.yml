@@ -25,13 +25,19 @@ jobs:
       - name: Initialize CodeQL
         uses: github/codeql-action/init@v4
         with:
-          languages: go
+          languages: go, c-cpp
           queries: security-and-quality
 
-      - name: Build and run tests
+      - name: Build Go interpreter
         run: |
           go env
           go test ./... || true
+
+      - name: Build EZC compiler
+        run: |
+          cd ezc
+          make clean
+          make build
 
       - name: Perform CodeQL analysis
         uses: github/codeql-action/analyze@v4
