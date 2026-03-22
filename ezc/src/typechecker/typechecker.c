@@ -286,6 +286,25 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
         }
         break;
 
+    case NODE_MAP_VALUE: {
+        /* Resolve key and value types */
+        for (int i = 0; i < node->data.map_value.count; i++) {
+            resolve_expr(tc, node->data.map_value.keys[i]);
+            resolve_expr(tc, node->data.map_value.values[i]);
+        }
+        EzType *t = type_alloc();
+        t->kind = TK_MAP;
+        t->name = "map";
+        if (node->data.map_value.count > 0) {
+            EzType *kt = typetable_get(tc->type_table, node->data.map_value.keys[0]);
+            EzType *vt = typetable_get(tc->type_table, node->data.map_value.values[0]);
+            t->key_type = kt ? type_name(kt) : "unknown";
+            t->value_type = vt ? type_name(vt) : "unknown";
+        }
+        result = t;
+        break;
+    }
+
     case NODE_STRUCT_VALUE:
         /* Resolve field value types */
         for (int i = 0; i < node->data.struct_value.count; i++) {

@@ -76,6 +76,11 @@ static const char *ez_type_to_c_cg(CodeGen *cg, const char *type_name) {
         return "EzArray";
     }
 
+    /* Map type: map[K:V] — use EzMap */
+    if (strncmp(type_name, "map[", 4) == 0) {
+        return "EzMap";
+    }
+
     /* If starts with uppercase, it's a user-defined type */
     if (type_name[0] >= 'A' && type_name[0] <= 'Z') {
         static char buf[256];
@@ -187,6 +192,7 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
                 case TK_BOOL:   emit(cg, "%s"); break;
                 case TK_CHAR:   emit(cg, "%c"); break;
                 case TK_ARRAY:  emit(cg, "%s"); break;
+                case TK_MAP:    emit(cg, "%s"); break;
                 case TK_ENUM:   emit(cg, "%lld"); break;
                 default:        emit(cg, "%lld"); break;
                 }
@@ -231,6 +237,9 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
             case TK_ARRAY:
                 emit(cg, "\"[...]\"");
                 break;
+            case TK_MAP:
+                emit(cg, "\"{...}\"");
+                break;
             default:
                 emit(cg, "(long long)(");
                 emit_expression(cg, part);
@@ -269,6 +278,39 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
             emit_expression(cg, node->data.array_value.elements[i]);
         }
         emitf(cg, "}, sizeof(%s), %d)", c_type, count);
+        break;
+    }
+
+    case NODE_MAP_VALUE: {
+        /* Map literal: emit inline construction with ez_map_set calls.
+         * We need a temp variable, so wrap in a GCC statement expression. */
+        int count = node->data.map_value.count;
+
+        /* Determine key/value C types from first pair */
+        const char *c_key_type = "EzString";
+        const char *c_val_type = "int64_t";
+        if (count > 0) {
+            EzType *kt = cg->type_table ? typetable_get(cg->type_table, node->data.map_value.keys[0]) : NULL;
+            EzType *vt = cg->type_table ? typetable_get(cg->type_table, node->data.map_value.values[0]) : NULL;
+            if (kt && kt->kind == TK_INT) c_key_type = "int64_t";
+            if (vt && vt->kind == TK_FLOAT) c_val_type = "double";
+            else if (vt && vt->kind == TK_STRING) c_val_type = "EzString";
+            else if (vt && vt->kind == TK_BOOL) c_val_type = "bool";
+        }
+
+        /* Use GCC statement expression: ({ EzMap m = ...; ez_map_set(...); m; }) */
+        static int map_lit_counter = 0;
+        emitf(cg, "({ EzMap _ml%d = ez_map_new(ez_default_arena, sizeof(%s), sizeof(%s), %d); ",
+            map_lit_counter, c_key_type, c_val_type, count > 4 ? count * 2 : 8);
+        for (int i = 0; i < count; i++) {
+            emitf(cg, "{ %s _mk = ", c_key_type);
+            emit_expression(cg, node->data.map_value.keys[i]);
+            emitf(cg, "; %s _mv = ", c_val_type);
+            emit_expression(cg, node->data.map_value.values[i]);
+            emitf(cg, "; ez_map_set(ez_default_arena, &_ml%d, &_mk, &_mv); } ", map_lit_counter);
+        }
+        emitf(cg, "_ml%d; })", map_lit_counter);
+        map_lit_counter++;
         break;
     }
 
@@ -359,8 +401,22 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
             emitf(cg, ", %s, ", c_elem);
             emit_expression(cg, node->data.index_expr.index);
             emit(cg, ")");
+        } else if (left_t && left_t->kind == TK_MAP) {
+            /* Map key access: *(type *)ez_map_get(&m, &key) */
+            const char *c_val = "int64_t";
+            if (left_t->value_type) {
+                EzType *vt = type_from_name(left_t->value_type);
+                if (vt->kind == TK_FLOAT) c_val = "double";
+                else if (vt->kind == TK_STRING) c_val = "EzString";
+                else if (vt->kind == TK_BOOL) c_val = "bool";
+            }
+            emitf(cg, "(*(%s *)ez_map_get(&", c_val);
+            emit_expression(cg, node->data.index_expr.left);
+            emit(cg, ", &(");
+            emit_expression(cg, node->data.index_expr.index);
+            emit(cg, ")))");
         } else {
-            /* String indexing or fallback to C array indexing */
+            /* String indexing or fallback */
             emit_expression(cg, node->data.index_expr.left);
             emit(cg, "[");
             emit_expression(cg, node->data.index_expr.index);
@@ -439,6 +495,10 @@ static void emit_call_expression(CodeGen *cg, AstNode *node) {
                 emit(cg, "(int64_t)(");
                 emit_expression(cg, arg);
                 emit(cg, ").len");
+            } else if (t && t->kind == TK_MAP) {
+                emit(cg, "(int64_t)(");
+                emit_expression(cg, arg);
+                emit(cg, ").count");
             } else {
                 /* Default: try .len for EzArray */
                 emit(cg, "(int64_t)(");
@@ -546,6 +606,35 @@ static void emit_var_declaration(CodeGen *cg, AstNode *node) {
         return;
     }
 
+    /* Map type: map[K:V] */
+    if (type_name && strncmp(type_name, "map[", 4) == 0) {
+        /* Parse K:V from type string to determine C types */
+        EzType *mt = type_from_name(type_name);
+        const char *c_kt = "EzString";
+        const char *c_vt = "int64_t";
+        if (mt && mt->key_type) {
+            EzType *kt = type_from_name(mt->key_type);
+            if (kt->kind == TK_INT) c_kt = "int64_t";
+        }
+        if (mt && mt->value_type) {
+            EzType *vt = type_from_name(mt->value_type);
+            if (vt->kind == TK_FLOAT) c_vt = "double";
+            else if (vt->kind == TK_STRING) c_vt = "EzString";
+            else if (vt->kind == TK_BOOL) c_vt = "bool";
+        }
+
+        emitf(cg, "EzMap %s = ", node->data.var_decl.name);
+        if (node->data.var_decl.value &&
+            node->data.var_decl.value->kind == NODE_MAP_VALUE) {
+            emit_expression(cg, node->data.var_decl.value);
+        } else {
+            /* Empty map or no initializer */
+            emitf(cg, "ez_map_new(ez_default_arena, sizeof(%s), sizeof(%s), 8)", c_kt, c_vt);
+        }
+        emit(cg, ";\n");
+        return;
+    }
+
     const char *c_type = ez_type_to_c_cg(cg, type_name);
 
     /* Skip blank identifiers (_) */
@@ -610,6 +699,24 @@ static void emit_assign_statement(CodeGen *cg, AstNode *node) {
             emit(cg, ", ");
             emit_expression(cg, node->data.assign.value);
             emit(cg, ");\n");
+            return;
+        }
+        if (left_t && left_t->kind == TK_MAP) {
+            /* Map key assignment: ez_map_set(arena, &m, &key, &value) */
+            const char *c_val = "int64_t";
+            if (left_t->value_type) {
+                EzType *vt = type_from_name(left_t->value_type);
+                if (vt->kind == TK_FLOAT) c_val = "double";
+                else if (vt->kind == TK_STRING) c_val = "EzString";
+                else if (vt->kind == TK_BOOL) c_val = "bool";
+            }
+            emitf(cg, "{ %s _mv = ", c_val);
+            emit_expression(cg, node->data.assign.value);
+            emit(cg, "; ez_map_set(ez_default_arena, &");
+            emit_expression(cg, left);
+            emit(cg, ", &(");
+            emit_expression(cg, node->data.assign.target->data.index_expr.index);
+            emit(cg, "), &_mv); }\n");
             return;
         }
     }
@@ -1078,6 +1185,7 @@ void codegen_generate(CodeGen *cg, AstNode *program) {
     emit(cg, "/* Generated by EZC */\n");
     emit(cg, "#include \"ez_runtime.h\"\n");
     emit(cg, "#include \"ez_array.h\"\n");
+    emit(cg, "#include \"ez_map.h\"\n");
     if (cg->has_std) {
         emit(cg, "#include \"ez_std.h\"\n");
     }

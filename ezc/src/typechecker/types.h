@@ -51,6 +51,9 @@ EzType *type_array(const char *elem_type);
 EzType *type_struct(const char *name);
 EzType *type_enum(const char *name);
 
+/* Allocate a new type (from internal pool) */
+EzType *type_alloc(void);
+
 /* Type queries */
 bool type_is_numeric(EzType *t);
 bool type_is_integer(EzType *t);

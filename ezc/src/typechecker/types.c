@@ -24,7 +24,7 @@ EzType TYPE_UNKNOWN = {TK_UNKNOWN,"unknown",NULL, NULL, NULL};
 static EzType type_pool[256];
 static int type_pool_count = 0;
 
-static EzType *type_alloc(void) {
+EzType *type_alloc(void) {
     if (type_pool_count >= 256) return &TYPE_UNKNOWN;
     return &type_pool[type_pool_count++];
 }
@@ -110,6 +110,32 @@ EzType *type_from_name(const char *name) {
             elem[len - 2] = '\0';
             return type_array(elem);
         }
+    }
+
+    /* Map type: map[K:V] */
+    if (strncmp(name, "map[", 4) == 0) {
+        EzType *t = type_alloc();
+        t->kind = TK_MAP;
+        t->name = name;
+        /* Parse key:value types from "map[string:int]" */
+        const char *start = name + 4;
+        const char *colon = strchr(start, ':');
+        if (colon) {
+            size_t klen = (size_t)(colon - start);
+            char *key = malloc(klen + 1);
+            memcpy(key, start, klen);
+            key[klen] = '\0';
+            t->key_type = key;
+
+            const char *vstart = colon + 1;
+            size_t vlen = strlen(vstart);
+            if (vlen > 0 && vstart[vlen - 1] == ']') vlen--;
+            char *val = malloc(vlen + 1);
+            memcpy(val, vstart, vlen);
+            val[vlen] = '\0';
+            t->value_type = val;
+        }
+        return t;
     }
 
     /* Uppercase = struct type */
