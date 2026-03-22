@@ -372,11 +372,42 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
         break;
 
     case NODE_INFIX_EXPR: {
-        /* Only wrap in parens if the parent is also an expression.
-         * Skip parens for top-level comparisons to avoid ((x == y)) warnings. */
         const char *op = node->data.infix.op;
+
+        /* Check if either operand is a string — need special handling */
+        EzType *lt = cg->type_table ? typetable_get(cg->type_table, node->data.infix.left) : NULL;
+        EzType *rt = cg->type_table ? typetable_get(cg->type_table, node->data.infix.right) : NULL;
+        bool left_is_str = (lt && lt->kind == TK_STRING) || node->data.infix.left->kind == NODE_STRING_VALUE;
+        bool right_is_str = (rt && rt->kind == TK_STRING) || node->data.infix.right->kind == NODE_STRING_VALUE;
+
+        if ((left_is_str || right_is_str) && strcmp(op, "+") == 0) {
+            /* String concatenation */
+            emit(cg, "ez_string_concat(ez_default_arena, ");
+            emit_expression(cg, node->data.infix.left);
+            emit(cg, ", ");
+            emit_expression(cg, node->data.infix.right);
+            emit(cg, ")");
+            break;
+        }
+        if ((left_is_str || right_is_str) && strcmp(op, "==") == 0) {
+            emit(cg, "ez_string_eq(");
+            emit_expression(cg, node->data.infix.left);
+            emit(cg, ", ");
+            emit_expression(cg, node->data.infix.right);
+            emit(cg, ")");
+            break;
+        }
+        if ((left_is_str || right_is_str) && strcmp(op, "!=") == 0) {
+            emit(cg, "!ez_string_eq(");
+            emit_expression(cg, node->data.infix.left);
+            emit(cg, ", ");
+            emit_expression(cg, node->data.infix.right);
+            emit(cg, ")");
+            break;
+        }
+
+        /* Normal infix — smart parens */
         bool needs_parens = true;
-        /* Check if both children are simple (no further nesting needed) */
         NodeKind lk = node->data.infix.left->kind;
         NodeKind rk = node->data.infix.right->kind;
         bool l_simple = (lk == NODE_LABEL || lk == NODE_INT_VALUE ||
