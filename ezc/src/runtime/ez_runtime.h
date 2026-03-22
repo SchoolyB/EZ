@@ -34,7 +34,9 @@ typedef struct {
 
 EzArena *ez_arena_create(size_t initial_size);
 void *ez_arena_alloc(EzArena *arena, size_t size);
+void ez_arena_reset(EzArena *arena);
 void ez_arena_destroy(EzArena *arena);
+size_t ez_arena_usage(EzArena *arena);
 
 /* Global default arena */
 extern EzArena *ez_default_arena;
