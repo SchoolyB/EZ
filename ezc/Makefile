@@ -47,7 +47,7 @@ $(BIN): $(OBJ)
 	$(CC) $(CFLAGS) $(INCLUDES) -c -o $@ $<
 
 clean:
-	rm -f $(OBJ) $(BIN) tests/test_lexer tests/test_parser
+	rm -f $(OBJ) $(BIN) tests/test_lexer tests/test_parser tests/test_typechecker tests/test_codegen
 
 install: build
 	install -d /usr/local/bin
@@ -73,14 +73,27 @@ tests/test_lexer: tests/test_lexer.c $(TEST_DEPS)
 tests/test_parser: tests/test_parser.c $(TEST_DEPS)
 	$(CC) $(CFLAGS) $(INCLUDES) -o $@ $^ $(LDFLAGS)
 
-test-unit: $(TEST_DEPS) tests/test_lexer tests/test_parser
+tests/test_typechecker: tests/test_typechecker.c $(TEST_DEPS)
+	$(CC) $(CFLAGS) $(INCLUDES) -o $@ $^ $(LDFLAGS)
+
+tests/test_codegen: tests/test_codegen.c
+	$(CC) $(CFLAGS) $(INCLUDES) -o $@ $< $(LDFLAGS)
+
+test-unit: $(TEST_DEPS) tests/test_lexer tests/test_parser tests/test_typechecker
 	@echo ""
 	@echo "=== Lexer Tests ==="
 	@./tests/test_lexer
 	@echo "=== Parser Tests ==="
 	@./tests/test_parser
+	@echo "=== Type Checker Tests ==="
+	@./tests/test_typechecker
+
+test-e2e: build tests/test_codegen
+	@echo ""
+	@echo "=== End-to-End Codegen Tests ==="
+	@./tests/test_codegen
 
 test-parity: build
 	@./tests/run_parity.sh
 
-test: test-unit test-parity
+test: test-unit test-e2e test-parity
