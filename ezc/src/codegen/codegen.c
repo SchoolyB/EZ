@@ -2024,6 +2024,9 @@ static void emit_statement(CodeGen *cg, AstNode *node) {
     case NODE_ENUM_DECL:
         /* Enum declarations are emitted in the preamble */
         break;
+    case NODE_MODULE_DECL:
+        /* Module declarations are informational only */
+        break;
     case NODE_IMPORT_STMT:
         /* Imports are handled during the preamble scan */
         break;
