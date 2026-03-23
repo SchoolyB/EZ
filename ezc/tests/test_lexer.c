@@ -211,6 +211,24 @@ static void test_hello_world_tokens(void) {
     ASSERT_EQ(next(l).type, TOK_EOF);
 }
 
+static void test_v3_keyword_aliases(void) {
+    /* mut maps to TOK_TEMP, while maps to TOK_AS_LONG_AS */
+    Lexer *l = lex("mut while");
+    ASSERT_EQ(next(l).type, TOK_TEMP);
+    ASSERT_EQ(next(l).type, TOK_AS_LONG_AS);
+}
+
+static void test_v3_keywords_coexist(void) {
+    /* old and new keywords produce the same tokens */
+    Lexer *l = lex("temp mut as_long_as while");
+    Token t1 = next(l);
+    Token t2 = next(l);
+    ASSERT_EQ(t1.type, t2.type);
+    Token t3 = next(l);
+    Token t4 = next(l);
+    ASSERT_EQ(t3.type, t4.type);
+}
+
 int main(void) {
     arena = arena_create(64 * 1024);
     printf("\n");
@@ -232,6 +250,8 @@ int main(void) {
     RUN_TEST(test_line_tracking);
     RUN_TEST(test_hash_attributes);
     RUN_TEST(test_hello_world_tokens);
+    RUN_TEST(test_v3_keyword_aliases);
+    RUN_TEST(test_v3_keywords_coexist);
     PRINT_RESULTS();
     return _test_fail > 0 ? 1 : 0;
 }
