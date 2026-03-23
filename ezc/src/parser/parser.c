@@ -874,6 +874,13 @@ static AstNode *parse_func_declaration(Parser *p) {
                 param->type_name = type_str;
             }
 
+            /* Check for default value: param type = expr */
+            if (peek_token_is(p, TOK_ASSIGN)) {
+                next_token(p); /* skip = */
+                next_token(p);
+                param->default_value = parse_expression(p, PREC_LOWEST);
+            }
+
             node->data.func_decl.param_count++;
 
             if (peek_token_is(p, TOK_COMMA)) {

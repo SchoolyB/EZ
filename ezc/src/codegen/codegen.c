@@ -1373,18 +1373,33 @@ static void emit_call_expression(CodeGen *cg, AstNode *node) {
     /* Look up function to check for mutable params */
     AstNode *target_func = fn_name ? find_func(cg, fn_name) : NULL;
 
+    /* Determine total args: provided + defaults */
+    int total_args = node->data.call.arg_count;
+    int param_count = target_func ? target_func->data.func_decl.param_count : 0;
+    if (total_args < param_count) total_args = param_count;
+
     emit(cg, "(");
-    for (int i = 0; i < node->data.call.arg_count; i++) {
+    for (int i = 0; i < total_args; i++) {
         if (i > 0) emit(cg, ", ");
-        /* Pass address for mutable parameters */
-        bool needs_addr = false;
-        if (target_func && i < target_func->data.func_decl.param_count) {
-            needs_addr = target_func->data.func_decl.params[i].mutable;
-        }
-        if (needs_addr && node->data.call.args[i]->kind == NODE_LABEL) {
-            emitf(cg, "&%s", node->data.call.args[i]->data.label.value);
+
+        if (i < node->data.call.arg_count) {
+            /* Provided argument */
+            bool needs_addr = false;
+            if (target_func && i < param_count) {
+                needs_addr = target_func->data.func_decl.params[i].mutable;
+            }
+            if (needs_addr && node->data.call.args[i]->kind == NODE_LABEL) {
+                emitf(cg, "&%s", node->data.call.args[i]->data.label.value);
+            } else {
+                emit_expression(cg, node->data.call.args[i]);
+            }
+        } else if (target_func && i < param_count &&
+                   target_func->data.func_decl.params[i].default_value) {
+            /* Default value */
+            emit_expression(cg, target_func->data.func_decl.params[i].default_value);
         } else {
-            emit_expression(cg, node->data.call.args[i]);
+            /* No arg and no default — emit zero */
+            emit(cg, "0");
         }
     }
     emit(cg, ")");
