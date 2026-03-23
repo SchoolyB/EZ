@@ -1103,6 +1103,54 @@ static void emit_call_expression(CodeGen *cg, AstNode *node) {
             }
         }
 
+        /* @os module functions */
+        if (module && strcmp(module, "os") == 0) {
+            if (strcmp(func, "args") == 0) {
+                emit(cg, "ez_os_args(ez_default_arena)");
+                return;
+            }
+            if (strcmp(func, "get_env") == 0 || strcmp(func, "getenv") == 0) {
+                emit(cg, "ez_os_get_env(ez_default_arena, ");
+                emit_expression(cg, node->data.call.args[0]);
+                emit(cg, ")");
+                return;
+            }
+            if (strcmp(func, "cwd") == 0) {
+                emit(cg, "ez_os_cwd(ez_default_arena)");
+                return;
+            }
+            if (strcmp(func, "hostname") == 0) {
+                emit(cg, "ez_os_hostname(ez_default_arena)");
+                return;
+            }
+            if (strcmp(func, "current_os") == 0) {
+                emit(cg, "ez_os_current_os()");
+                return;
+            }
+            if (strcmp(func, "arch") == 0) {
+                emit(cg, "ez_os_arch()");
+                return;
+            }
+            if (strcmp(func, "pid") == 0) {
+                emit(cg, "ez_os_pid()");
+                return;
+            }
+            if (strcmp(func, "exit") == 0) {
+                emit(cg, "ez_os_exit(");
+                emit_expression(cg, node->data.call.args[0]);
+                emit(cg, ")");
+                return;
+            }
+            if (strcmp(func, "set_env") == 0 || strcmp(func, "setenv") == 0) {
+                emit(cg, "ez_os_set_env(");
+                emit_expression(cg, node->data.call.args[0]);
+                emit(cg, ", ");
+                emit_expression(cg, node->data.call.args[1]);
+                emit(cg, ")");
+                return;
+            }
+        }
+
         /* @io module functions */
         if (module && strcmp(module, "io") == 0) {
             /* Fallible functions: use _result version that returns (value, Error) tuple */
@@ -1947,6 +1995,7 @@ void codegen_generate(CodeGen *cg, AstNode *program) {
     emit(cg, "#include \"ez_strings.h\"\n");
     emit(cg, "#include \"ez_io.h\"\n");
     emit(cg, "#include \"ez_maps.h\"\n");
+    emit(cg, "#include \"ez_os.h\"\n");
     emit(cg, "\n");
 
     /* Emit struct type definitions */
@@ -2049,6 +2098,7 @@ void codegen_generate(CodeGen *cg, AstNode *program) {
     emit(cg, "int main(int argc, char **argv) {\n");
     emit(cg, "    (void)argc; (void)argv;\n");
     emit(cg, "    ez_runtime_init();\n");
+    emit(cg, "    ez_os_init(argc, argv);\n");
     emit(cg, "    ez_fn_main();\n");
     emit(cg, "    ez_runtime_shutdown();\n");
     emit(cg, "    return 0;\n");
