@@ -19,7 +19,7 @@ import (
 var reservedKeywords = map[string]bool{
 	"mut": true, "const": true, "do": true, "return": true,
 	"if": true, "or": true, "otherwise": true,
-	"for": true, "for_each": true, "as_long_as": true, "loop": true,
+	"for": true, "for_each": true, "as_long_as": true, "while": true, "loop": true,
 	"break": true, "continue": true, "in": true, "not_in": true, "range": true,
 	"import": true, "using": true, "struct": true, "enum": true,
 	"nil": true, "new": true, "true": true, "false": true,

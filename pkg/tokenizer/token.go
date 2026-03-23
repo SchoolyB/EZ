@@ -141,6 +141,7 @@ var keywords = map[string]TokenType{
 	"for":        FOR,
 	"for_each":   FOR_EACH,
 	"as_long_as": AS_LONG_AS,
+	"while":      AS_LONG_AS,
 	"loop":       LOOP,
 	"break":      BREAK,
 	"continue":   CONTINUE,
@@ -166,10 +167,20 @@ var keywords = map[string]TokenType{
 	"ensure":     ENSURE,
 }
 
+// keywordAliases maps alias keywords to their canonical form.
+// When multiple keywords map to the same token (e.g. while -> AS_LONG_AS),
+// the canonical keyword is used for reverse lookups and error messages.
+var keywordAliases = map[string]bool{
+	"while": true,
+}
+
 // keywordLiterals is a reverse lookup map for O(1) keyword literal retrieval
 var keywordLiterals = func() map[TokenType]string {
 	m := make(map[TokenType]string, len(keywords))
 	for literal, tokType := range keywords {
+		if keywordAliases[literal] {
+			continue // skip aliases, keep canonical keywords
+		}
 		m[tokType] = literal
 	}
 	return m
