@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 
 	"github.com/marshallburns/ez/pkg/ast"
@@ -245,6 +246,10 @@ func (l *ModuleLoader) loadDirectoryModule(mod *Module) error {
 			ezFiles = append(ezFiles, filepath.Join(mod.FilePath, entry.Name()))
 		}
 	}
+
+	// Sort files for deterministic loading order across runs and OSes.
+	// os.ReadDir returns filesystem order which is not guaranteed consistent.
+	sort.Strings(ezFiles)
 
 	if len(ezFiles) == 0 {
 		return &ModuleError{
