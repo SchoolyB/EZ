@@ -1405,6 +1405,10 @@ static AstNode *parse_statement(Parser *p) {
         return parse_func_declaration(p);
     case TOK_RETURN:
         return parse_return_statement(p);
+    case TOK_MODULE:
+        /* module <name> — skip the declaration */
+        next_token(p); /* consume module name */
+        return ast_alloc(p->arena, NODE_MODULE_DECL, p->cur_token);
     case TOK_IMPORT:
         return parse_import_statement(p);
     case TOK_USING:
