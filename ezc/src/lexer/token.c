@@ -34,6 +34,7 @@ static const KeywordEntry keywords[] = {
     {"is",          TOK_IS},
     {"loop",        TOK_LOOP},
     {"module",      TOK_MODULE},
+    {"mut",         TOK_TEMP},
     {"new",         TOK_NEW},
     {"nil",         TOK_NIL},
     {"not_in",      TOK_NOT_IN},
@@ -48,6 +49,7 @@ static const KeywordEntry keywords[] = {
     {"use",         TOK_USE},
     {"using",       TOK_USING},
     {"when",        TOK_WHEN},
+    {"while",       TOK_AS_LONG_AS},
 };
 
 #define KEYWORD_COUNT (sizeof(keywords) / sizeof(keywords[0]))
