@@ -261,8 +261,9 @@ func checkFile(filename string) {
 			})
 
 			// Extract types and functions from this file (lightweight pass)
-			if fileProgram.Module != nil && fileProgram.Module.Name != nil {
-				moduleName := fileProgram.Module.Name.Value
+			// Use the module name from the loader (inferred from filesystem)
+			if mod.Name != "" {
+				moduleName := mod.Name
 				if alias, hasAlias := pathToAlias[modPath]; hasAlias {
 					moduleName = alias
 				}
@@ -947,8 +948,9 @@ func runFile(filename string) {
 			})
 
 			// Extract types and functions from this file (lightweight pass)
-			if fileProgram.Module != nil && fileProgram.Module.Name != nil {
-				moduleName := fileProgram.Module.Name.Value
+			// Use the module name from the loader (inferred from filesystem)
+			if mod.Name != "" {
+				moduleName := mod.Name
 				if alias, hasAlias := pathToAlias[modPath]; hasAlias {
 					moduleName = alias
 				}
