@@ -2693,6 +2693,26 @@ func (p *Parser) parseStructDeclaration() *StructDeclaration {
 	p.nextToken() // move into struct body
 
 	for !p.currentTokenMatches(RBRACE) && !p.currentTokenMatches(EOF) {
+		// Check for struct-namespaced function declarations: do func() or private do func()
+		if p.currentTokenMatches(DO) {
+			fn := p.parseFunctionDeclarationWithAttrs(nil)
+			if fn != nil {
+				stmt.Functions = append(stmt.Functions, fn)
+			}
+			p.nextToken()
+			continue
+		}
+		if p.currentTokenMatches(PRIVATE) && p.peekTokenMatches(DO) {
+			p.nextToken() // consume 'private', now on 'do'
+			fn := p.parseFunctionDeclarationWithAttrs(nil)
+			if fn != nil {
+				fn.Visibility = VisibilityPrivate
+				stmt.Functions = append(stmt.Functions, fn)
+			}
+			p.nextToken()
+			continue
+		}
+
 		// Collect all field names (supports "name, email string" syntax)
 		var names []*Label
 

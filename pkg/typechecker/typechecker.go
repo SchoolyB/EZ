@@ -4005,6 +4005,13 @@ func (tc *TypeChecker) checkFunctionCall(call *ast.CallExpression) {
 			}
 		}
 	case *ast.MemberExpression:
+		// Check if this is a struct-namespaced function call (Type.func())
+		if label, ok := fn.Object.(*ast.Label); ok {
+			if t, ok := tc.types[label.Value]; ok && t.Kind == StructType {
+				// Struct-namespaced function call — skip module validation
+				return
+			}
+		}
 		// Module function call - validate stdlib calls
 		tc.checkStdlibCall(fn, call)
 		return
