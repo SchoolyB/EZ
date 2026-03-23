@@ -588,6 +588,54 @@ static void test_e2e_ptr_write_through(void) {
     ASSERT_STR_EQ(out, "777");
 }
 
+/* ===== v3 Keyword Tests ===== */
+
+static void test_e2e_mut_keyword(void) {
+    char *out = compile_and_run(
+        "import @std\nusing std\n"
+        "do main() {\n"
+        "    mut x int = 10\n"
+        "    mut y = 20\n"
+        "    println(x + y)\n"
+        "}");
+    ASSERT_NOT_NULL(out);
+    ASSERT_STR_EQ(out, "30");
+}
+
+static void test_e2e_while_keyword(void) {
+    char *out = compile_and_run(
+        "import @std\nusing std\n"
+        "do main() {\n"
+        "    mut i int = 0\n"
+        "    while i < 3 {\n"
+        "        println(i)\n"
+        "        i++\n"
+        "    }\n"
+        "}");
+    ASSERT_NOT_NULL(out);
+    ASSERT_STR_EQ(out, "0\n1\n2");
+}
+
+static void test_e2e_mut_while_combined(void) {
+    char *out = compile_and_run(
+        "import @std\nusing std\n"
+        "do fib(n int) -> int {\n"
+        "    mut a int = 0\n"
+        "    mut b int = 1\n"
+        "    mut i int = 0\n"
+        "    while i < n {\n"
+        "        mut next int = a + b\n"
+        "        a = b\n"
+        "        b = next\n"
+        "        i++\n"
+        "    }\n"
+        "    return a\n"
+        "}\n"
+        "do main() { println(fib(10)) }");
+    ASSERT_NOT_NULL(out);
+    ASSERT_STR_EQ(out, "55");
+}
+
 int main(void) {
     /* Must run from the ezc/ directory */
     if (access("./ezc", X_OK) != 0) {
@@ -635,6 +683,11 @@ int main(void) {
     RUN_TEST(test_e2e_ptr_addr);
     RUN_TEST(test_e2e_ptr_nil);
     RUN_TEST(test_e2e_ptr_write_through);
+
+    /* v3 keywords */
+    RUN_TEST(test_e2e_mut_keyword);
+    RUN_TEST(test_e2e_while_keyword);
+    RUN_TEST(test_e2e_mut_while_combined);
 
     PRINT_RESULTS();
     return _test_fail > 0 ? 1 : 0;
