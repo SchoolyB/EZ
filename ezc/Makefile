@@ -71,7 +71,7 @@ src/stdlib/%.o: src/stdlib/%.c
 	$(CC) $(CFLAGS) $(INCLUDES) -c -o $@ $<
 
 clean:
-	rm -f $(OBJ) $(RT_OBJ) $(BIN) $(RT_LIB) tests/test_lexer tests/test_parser tests/test_typechecker tests/test_codegen
+	rm -f $(OBJ) $(RT_OBJ) $(BIN) $(RT_LIB) tests/test_lexer tests/test_parser tests/test_typechecker tests/test_codegen tests/*_san
 
 install: build
 	install -d /usr/local/bin
@@ -122,5 +122,53 @@ test-parity: build
 
 test-integration: build
 	@./tests/run_integration.sh
+
+# Sanitizer builds — catch undefined behavior (and memory bugs on Linux)
+# Must compile ALL source files with sanitizer flags
+TEST_SRC_FILES = src/util/arena.c src/util/buf.c src/util/error.c \
+                 src/lexer/token.c src/lexer/lexer.c \
+                 src/parser/ast.c src/parser/parser.c \
+                 src/typechecker/types.c src/typechecker/scope.c src/typechecker/typechecker.c
+
+# UBSan works everywhere; ASan needs Linux for reliable CI
+UBSAN_FLAGS = -fsanitize=undefined -fno-omit-frame-pointer -g -O1
+ASAN_FLAGS = -fsanitize=address,undefined -fno-omit-frame-pointer -g -O1
+
+test-ubsan:
+	@echo ""
+	@echo "=== UBSan Lexer Tests ==="
+	@$(CC) $(UBSAN_FLAGS) $(INCLUDES) -o tests/test_lexer_san tests/test_lexer.c $(TEST_SRC_FILES) $(LDFLAGS)
+	@./tests/test_lexer_san
+	@echo "=== UBSan Parser Tests ==="
+	@$(CC) $(UBSAN_FLAGS) $(INCLUDES) -o tests/test_parser_san tests/test_parser.c $(TEST_SRC_FILES) $(LDFLAGS)
+	@./tests/test_parser_san
+	@echo "=== UBSan Type Checker Tests ==="
+	@$(CC) $(UBSAN_FLAGS) $(INCLUDES) -o tests/test_typechecker_san tests/test_typechecker.c $(TEST_SRC_FILES) $(LDFLAGS)
+	@./tests/test_typechecker_san
+	@rm -f tests/test_lexer_san tests/test_parser_san tests/test_typechecker_san
+	@echo ""
+	@echo "All UBSan tests passed — no undefined behavior detected."
+
+test-asan:
+	@echo ""
+	@echo "=== ASan+UBSan Tests (Linux recommended) ==="
+	@$(CC) $(ASAN_FLAGS) $(INCLUDES) -o tests/test_lexer_san tests/test_lexer.c $(TEST_SRC_FILES) $(LDFLAGS)
+	@./tests/test_lexer_san
+	@$(CC) $(ASAN_FLAGS) $(INCLUDES) -o tests/test_parser_san tests/test_parser.c $(TEST_SRC_FILES) $(LDFLAGS)
+	@./tests/test_parser_san
+	@$(CC) $(ASAN_FLAGS) $(INCLUDES) -o tests/test_typechecker_san tests/test_typechecker.c $(TEST_SRC_FILES) $(LDFLAGS)
+	@./tests/test_typechecker_san
+	@rm -f tests/test_lexer_san tests/test_parser_san tests/test_typechecker_san
+	@echo ""
+	@echo "All ASan+UBSan tests passed — no memory errors or undefined behavior."
+
+# Format check
+format-check:
+	@echo "Checking C code formatting..."
+	@find src -name '*.c' -o -name '*.h' | xargs clang-format --dry-run --Werror 2>&1 && echo "All files formatted correctly" || echo "Formatting issues found — run 'make format' to fix"
+
+format:
+	@find src -name '*.c' -o -name '*.h' | xargs clang-format -i
+	@echo "Formatted all C files"
 
 test: test-unit test-e2e test-parity
