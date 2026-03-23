@@ -575,7 +575,8 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
                 bool is_multi_temp = false;
                 if (node->data.member.object->kind == NODE_LABEL) {
                     const char *oname = node->data.member.object->data.label.value;
-                    if (strncmp(oname, "_ez_tmp", 7) == 0) is_multi_temp = true;
+                    if (strncmp(oname, "_ez_tmp", 7) == 0 ||
+                        strncmp(oname, "_ez_or", 6) == 0) is_multi_temp = true;
                 }
                 if (!is_multi_temp && obj_t &&
                     (obj_t->kind == TK_INT || obj_t->kind == TK_FLOAT ||
@@ -1898,6 +1899,17 @@ static void emit_return_statement(CodeGen *cg, AstNode *node) {
             if (i > 0) emit(cg, ", ");
             emit_expression(cg, node->data.return_stmt.values[i]);
         }
+        emit(cg, "};\n");
+    } else if (node->data.return_stmt.count == 1 && cg->current_func &&
+               cg->current_func->data.func_decl.return_type_count > 1) {
+        /* Single value returned from multi-return function (e.g., or_return error propagation).
+         * Pad with zeros for leading values, put the error last. */
+        int rc = cg->current_func->data.func_decl.return_type_count;
+        emitf(cg, "return (EzMulti_%s){", cg->current_func->data.func_decl.name);
+        for (int i = 0; i < rc - 1; i++) {
+            emit(cg, "{0}, ");
+        }
+        emit_expression(cg, node->data.return_stmt.values[0]);
         emit(cg, "};\n");
     } else {
         emit(cg, "return");
