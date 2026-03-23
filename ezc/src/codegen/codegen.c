@@ -437,6 +437,28 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
             break;
         }
 
+        /* in / not_in — array membership check */
+        if (strcmp(op, "in") == 0 || strcmp(op, "not_in") == 0 || strcmp(op, "!in") == 0) {
+            bool negated = (op[0] == 'n' || op[0] == '!');
+            EzType *arr_t = cg->type_table ? typetable_get(cg->type_table, node->data.infix.right) : NULL;
+            if (negated) emit(cg, "!");
+            if (arr_t && arr_t->kind == TK_ARRAY && arr_t->element_type &&
+                strcmp(arr_t->element_type, "string") == 0) {
+                emit(cg, "ez_arrays_contains_str(&");
+                emit_expression(cg, node->data.infix.right);
+                emit(cg, ", ");
+                emit_expression(cg, node->data.infix.left);
+                emit(cg, ")");
+            } else {
+                emit(cg, "ez_arrays_contains_int(&");
+                emit_expression(cg, node->data.infix.right);
+                emit(cg, ", ");
+                emit_expression(cg, node->data.infix.left);
+                emit(cg, ")");
+            }
+            break;
+        }
+
         /* Normal infix — smart parens */
         bool needs_parens = true;
         NodeKind lk = node->data.infix.left->kind;
