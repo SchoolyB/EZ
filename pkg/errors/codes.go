@@ -197,6 +197,7 @@ var (
 	E5022 = ErrorCode{"E5022", "assertion-failed", "assertion condition was false"}
 	E5023 = ErrorCode{"E5023", "postfix-requires-integer", "postfix operator needs integer operand"}
 	E5024 = ErrorCode{"E5024", "return-type-mismatch", "return type mismatch"}
+	E5025 = ErrorCode{"E5025", "dangling-reference", "reference target no longer exists"}
 )
 
 // =============================================================================
@@ -430,6 +431,7 @@ var (
 	W2009 = ErrorCode{"W2009", "nil-dereference-potential", "accessing member on potentially nil value"}
 	W2010 = ErrorCode{"W2010", "chained-nil-access", "chained member access on nullable struct type"}
 	W2011 = ErrorCode{"W2011", "named-return-unused", "function declares named return variable but returns different value"}
+	W2012 = ErrorCode{"W2012", "float-when-imprecise", "float equality comparison in when statement may be imprecise"}
 
 	// Code Quality Warnings (W3xxx)
 	W3001 = ErrorCode{"W3001", "empty-block", "block statement is empty"}
@@ -481,7 +483,7 @@ var errorCodesByString = map[string]ErrorCode{
 	"E5006": E5006, "E5007": E5007, "E5008": E5008, "E5009": E5009, "E5010": E5010,
 	"E5011": E5011, "E5012": E5012, "E5013": E5013, "E5014": E5014, "E5015": E5015,
 	"E5016": E5016, "E5017": E5017, "E5018": E5018, "E5019": E5019, "E5020": E5020,
-	"E5021": E5021, "E5022": E5022, "E5023": E5023, "E5024": E5024,
+	"E5021": E5021, "E5022": E5022, "E5023": E5023, "E5024": E5024, "E5025": E5025,
 	// Import
 	"E6001": E6001, "E6002": E6002, "E6003": E6003, "E6004": E6004, "E6005": E6005,
 	"E6006": E6006, "E6007": E6007, "E6008": E6008, "E6009": E6009,
@@ -527,7 +529,7 @@ var errorCodesByString = map[string]ErrorCode{
 	// Warnings - Potential Bugs
 	"W2001": W2001, "W2002": W2002, "W2003": W2003, "W2004": W2004, "W2005": W2005,
 	"W2006": W2006, "W2007": W2007, "W2008": W2008, "W2009": W2009, "W2010": W2010,
-	"W2011": W2011,
+	"W2011": W2011, "W2012": W2012,
 	// Warnings - Code Quality
 	"W3001": W3001, "W3002": W3002, "W3003": W3003,
 	// Warnings - Module
