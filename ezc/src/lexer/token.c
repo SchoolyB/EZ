@@ -39,6 +39,7 @@ static const KeywordEntry keywords[] = {
     {"nil",         TOK_NIL},
     {"not_in",      TOK_NOT_IN},
     {"or",          TOK_OR_KW},
+    {"or_return",   TOK_OR_RETURN},
     {"otherwise",   TOK_OTHERWISE},
     {"private",     TOK_PRIVATE},
     {"range",       TOK_RANGE},
@@ -146,6 +147,7 @@ const char *token_type_name(TokenType type) {
     case TOK_FALSE:          return "false";
     case TOK_BLANK:          return "_";
     case TOK_ENSURE:         return "ensure";
+    case TOK_OR_RETURN:      return "or_return";
     case TOK_MODULE:         return "module";
     case TOK_PRIVATE:        return "private";
     case TOK_USE:            return "use";

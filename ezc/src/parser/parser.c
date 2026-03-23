@@ -689,6 +689,83 @@ static AstNode *parse_var_declaration(Parser *p) {
         next_token(p); /* skip = */
         next_token(p);
         node->data.var_decl.value = parse_expression(p, PREC_LOWEST);
+
+        /* Check for or_return: mut x = expr or_return */
+        if (peek_token_is(p, TOK_OR_RETURN)) {
+            next_token(p); /* consume or_return */
+            /*
+             * Expand into:
+             *   __auto_type _tmp = expr
+             *   if (_tmp.v1 != NULL) { return (RetType){0, ..., _tmp.v1}; }
+             *   type x = _tmp.v0
+             */
+            static int or_return_counter = 0;
+            char *tmp_name = arena_alloc(p->arena, 32);
+            snprintf(tmp_name, 32, "_ez_or%d", or_return_counter++);
+
+            AstNode *block = ast_alloc(p->arena, NODE_BLOCK_STMT, p->cur_token);
+            block->data.block.cap = 4;
+            block->data.block.count = 0;
+            block->data.block.stmts = arena_alloc(p->arena, sizeof(AstNode *) * block->data.block.cap);
+
+            /* _tmp = expr */
+            AstNode *tmp_decl = ast_alloc(p->arena, NODE_VAR_DECL, p->cur_token);
+            tmp_decl->data.var_decl.mutable = true;
+            tmp_decl->data.var_decl.name = tmp_name;
+            tmp_decl->data.var_decl.type_name = NULL;
+            tmp_decl->data.var_decl.value = node->data.var_decl.value;
+            block->data.block.stmts[block->data.block.count++] = tmp_decl;
+
+            /* if (_tmp.v1 != nil) { return _tmp.v1 } */
+            AstNode *if_stmt = ast_alloc(p->arena, NODE_IF_STMT, p->cur_token);
+            /* condition: _tmp.v1 != nil */
+            AstNode *err_access = ast_alloc(p->arena, NODE_MEMBER_EXPR, p->cur_token);
+            AstNode *tmp_label = ast_alloc(p->arena, NODE_LABEL, p->cur_token);
+            tmp_label->data.label.value = tmp_name;
+            err_access->data.member.object = tmp_label;
+            err_access->data.member.member = "v1";
+            AstNode *nil_val = ast_alloc(p->arena, NODE_NIL_VALUE, p->cur_token);
+            AstNode *cond = ast_alloc(p->arena, NODE_INFIX_EXPR, p->cur_token);
+            cond->data.infix.left = err_access;
+            cond->data.infix.op = "!=";
+            cond->data.infix.right = nil_val;
+            if_stmt->data.if_stmt.condition = cond;
+
+            /* consequence: return block — just re-return the error */
+            AstNode *ret_block = ast_alloc(p->arena, NODE_BLOCK_STMT, p->cur_token);
+            ret_block->data.block.cap = 1;
+            ret_block->data.block.count = 0;
+            ret_block->data.block.stmts = arena_alloc(p->arena, sizeof(AstNode *));
+            AstNode *ret_stmt = ast_alloc(p->arena, NODE_RETURN_STMT, p->cur_token);
+            /* Return the error as the last value */
+            AstNode *err_access2 = ast_alloc(p->arena, NODE_MEMBER_EXPR, p->cur_token);
+            AstNode *tmp_label2 = ast_alloc(p->arena, NODE_LABEL, p->cur_token);
+            tmp_label2->data.label.value = tmp_name;
+            err_access2->data.member.object = tmp_label2;
+            err_access2->data.member.member = "v1";
+            ret_stmt->data.return_stmt.values = arena_alloc(p->arena, sizeof(AstNode *));
+            ret_stmt->data.return_stmt.values[0] = err_access2;
+            ret_stmt->data.return_stmt.count = 1;
+            ret_block->data.block.stmts[ret_block->data.block.count++] = ret_stmt;
+            if_stmt->data.if_stmt.consequence = ret_block;
+            if_stmt->data.if_stmt.alternative = NULL;
+            block->data.block.stmts[block->data.block.count++] = if_stmt;
+
+            /* x = _tmp.v0 */
+            AstNode *var = ast_alloc(p->arena, NODE_VAR_DECL, p->cur_token);
+            var->data.var_decl.mutable = node->data.var_decl.mutable;
+            var->data.var_decl.name = node->data.var_decl.name;
+            var->data.var_decl.type_name = node->data.var_decl.type_name;
+            AstNode *val_access = ast_alloc(p->arena, NODE_MEMBER_EXPR, p->cur_token);
+            AstNode *tmp_label3 = ast_alloc(p->arena, NODE_LABEL, p->cur_token);
+            tmp_label3->data.label.value = tmp_name;
+            val_access->data.member.object = tmp_label3;
+            val_access->data.member.member = "v0";
+            var->data.var_decl.value = val_access;
+            block->data.block.stmts[block->data.block.count++] = var;
+
+            return block;
+        }
     }
 
     return node;
