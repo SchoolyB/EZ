@@ -6,5 +6,5 @@
 import @arrays
 
 do main() {
-    temp x int = arrays.sum("hello")  // string instead of array
+    mut x int = arrays.sum("hello")  // string instead of array
 }

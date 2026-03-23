@@ -5,6 +5,6 @@
  */
 
 do main() {
-    temp max i128 = 170141183460469231731687303715884105727  // max i128 (2^127 - 1)
-    temp result i128 = max + 1  // Overflow
+    mut max i128 = 170141183460469231731687303715884105727  // max i128 (2^127 - 1)
+    mut result i128 = max + 1  // Overflow
 }

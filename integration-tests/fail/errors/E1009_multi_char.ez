@@ -4,5 +4,5 @@
  */
 
 do main() {
-    temp c char = 'ab'  // Multiple characters in char literal
+    mut c char = 'ab'  // Multiple characters in char literal
 }

@@ -20,8 +20,8 @@ do get_triple() -> (int, string, bool) {
 
 do main() {
     println("=== Const Multi-Return Tests ===")
-    temp passed int = 0
-    temp failed int = 0
+    mut passed int = 0
+    mut failed int = 0
 
     // Test 1: const with 2-value return
     const a, b = get_pair()
@@ -63,13 +63,13 @@ do main() {
         failed += 1
     }
 
-    // Test 5: temp multi-return still works
-    temp ta, tb = get_pair()
+    // Test 5: mut multi-return still works
+    mut ta, tb = get_pair()
     if ta == 42 && tb == "hello" {
-        println("  [PASS] temp multi-return still works")
+        println("  [PASS] mut multi-return still works")
         passed += 1
     } otherwise {
-        println("  [FAIL] temp multi-return")
+        println("  [FAIL] mut multi-return")
         failed += 1
     }
 

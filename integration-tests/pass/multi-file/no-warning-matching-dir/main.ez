@@ -9,11 +9,11 @@ using std
 
 do main() {
     println("=== No Warning Matching Dir Test ===")
-    temp passed int = 0
-    temp failed int = 0
+    mut passed int = 0
+    mut failed int = 0
 
     // Test that module works correctly (no warnings should be shown)
-    temp val = mymod.get_value()
+    mut val = mymod.get_value()
     if val == 42 {
         println("  [PASS] multi-file module works")
         passed += 1

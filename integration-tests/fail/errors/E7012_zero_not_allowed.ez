@@ -6,6 +6,6 @@
 import @arrays
 
 do main() {
-    temp arr [int] = {1, 2, 3, 4, 5, 6}
-    temp chunks = arrays.chunk(arr, 0)  // chunk size cannot be zero
+    mut arr [int] = {1, 2, 3, 4, 5, 6}
+    mut chunks = arrays.chunk(arr, 0)  // chunk size cannot be zero
 }

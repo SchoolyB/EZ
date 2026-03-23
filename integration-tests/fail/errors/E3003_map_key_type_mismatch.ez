@@ -7,6 +7,6 @@ import @std
 using std
 
 do main() {
-    temp m map[string:int] = {"a": 1, "b": 2}
-    temp val = m[123]  // Should fail: int key on string-keyed map
+    mut m map[string:int] = {"a": 1, "b": 2}
+    mut val = m[123]  // Should fail: int key on string-keyed map
 }

@@ -25,8 +25,8 @@ do main() {
     println("")
 
     // Structs are copied
-    temp p1 Point = Point{x: 10, y: 20}
-    temp p2 Point = p1      // p2 is a COPY of p1
+    mut p1 Point = Point{x: 10, y: 20}
+    mut p2 Point = p1      // p2 is a COPY of p1
     p2.x = 999
 
     println("p1 = Point{x: 10, y: 20}")
@@ -38,8 +38,8 @@ do main() {
     println("")
 
     // Arrays are copied too
-    temp arr1 [int] = {1, 2, 3}
-    temp arr2 [int] = arr1  // arr2 is a COPY of arr1
+    mut arr1 [int] = {1, 2, 3}
+    mut arr2 [int] = arr1  // arr2 is a COPY of arr1
     arr2[0] = 999
 
     println("arr1 = {1, 2, 3}")
@@ -56,8 +56,8 @@ do main() {
     println("")
 
     // Create a shared reference to a struct
-    temp p3 Point = Point{x: 100, y: 200}
-    temp p4 = ref(p3)       // p4 SHARES state with p3
+    mut p3 Point = Point{x: 100, y: 200}
+    mut p4 = ref(p3)       // p4 SHARES state with p3
     p4.x = 500
 
     println("p3 = Point{x: 100, y: 200}")
@@ -69,8 +69,8 @@ do main() {
     println("")
 
     // ref() works on primitives too
-    temp counter int = 0
-    temp alias = ref(counter)
+    mut counter int = 0
+    mut alias = ref(counter)
     alias = 42
 
     println("counter = 0")

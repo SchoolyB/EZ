@@ -169,9 +169,34 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
         emitf(cg, "%g", node->data.float_value.value);
         break;
 
-    case NODE_STRING_VALUE:
-        emitf(cg, "ez_string_lit(\"%s\")", node->data.string_value.value);
+    case NODE_STRING_VALUE: {
+        /* Emit string literal, breaking hex escapes to prevent C's greedy \x parsing.
+         * "A\x42C" → "A\x42" "C" (C string concatenation) */
+        const char *s = node->data.string_value.value;
+        emit(cg, "ez_string_lit(\"");
+        while (*s) {
+            if (s[0] == '\\' && s[1] == 'x' && isxdigit(s[2])) {
+                /* Emit \xNN then break the string if followed by a hex digit */
+                buf_append_char(&cg->output, s[0]); /* \ */
+                buf_append_char(&cg->output, s[1]); /* x */
+                buf_append_char(&cg->output, s[2]); /* first hex */
+                s += 3;
+                if (isxdigit(*s)) {
+                    buf_append_char(&cg->output, *s); /* second hex */
+                    s++;
+                }
+                if (isxdigit(*s)) {
+                    /* Next char is also hex — break the string */
+                    emit(cg, "\" \"");
+                }
+            } else {
+                buf_append_char(&cg->output, *s);
+                s++;
+            }
+        }
+        emit(cg, "\")");
         break;
+    }
 
     case NODE_BOOL_VALUE:
         emit(cg, node->data.bool_value.value ? "true" : "false");

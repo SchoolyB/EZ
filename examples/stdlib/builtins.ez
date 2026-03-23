@@ -23,20 +23,20 @@ do main() {
     println("typeof(nil) = ${typeof(nil)}")
 
     // len
-    temp nums [int] = {1, 2, 3, 4, 5}
-    temp name string = "EZ Lang"
+    mut nums [int] = {1, 2, 3, 4, 5}
+    mut name string = "EZ Lang"
     println("len({1,2,3,4,5}) = ${len(nums)}")
     println("len('EZ Lang') = ${len(name)}")
 
     // copy - creates an independent deep copy
-    temp original [int] = {10, 20, 30}
-    temp cloned [int] = copy(original)
+    mut original [int] = {10, 20, 30}
+    mut cloned [int] = copy(original)
     cloned[0] = 999
     println("copy: original[0] = ${original[0]}, cloned[0] = ${cloned[0]}")
 
     // ref - creates a shared reference (changes affect both)
-    temp source [int] = {10, 20, 30}
-    temp alias = ref(source)
+    mut source [int] = {10, 20, 30}
+    mut alias = ref(source)
     alias[0] = 999
     println("ref: source[0] = ${source[0]}, alias[0] = ${alias[0]}")
 
@@ -45,7 +45,7 @@ do main() {
     println("assert(1 + 1 == 2) passed!")
 
     // error creates an Error struct
-    temp e Error = error("something went wrong")
+    mut e Error = error("something went wrong")
     println("error(): ${e}")
 
     // print vs println

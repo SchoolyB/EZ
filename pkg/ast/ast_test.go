@@ -146,11 +146,11 @@ func TestProgramTokenLiteral(t *testing.T) {
 	t.Run("program with statements", func(t *testing.T) {
 		p := &Program{
 			Statements: []Statement{
-				&VariableDeclaration{Token: tok(tokenizer.TEMP, "temp")},
+				&VariableDeclaration{Token: tok(tokenizer.MUT, "mut")},
 			},
 		}
-		if p.TokenLiteral() != "temp" {
-			t.Errorf("TokenLiteral() = %q, want %q", p.TokenLiteral(), "temp")
+		if p.TokenLiteral() != "mut" {
+			t.Errorf("TokenLiteral() = %q, want %q", p.TokenLiteral(), "mut")
 		}
 	})
 }
@@ -261,9 +261,9 @@ func TestMemberExpressionTokenLiteral(t *testing.T) {
 }
 
 func TestVariableDeclarationTokenLiteral(t *testing.T) {
-	v := &VariableDeclaration{Token: tok(tokenizer.TEMP, "temp")}
-	if v.TokenLiteral() != "temp" {
-		t.Errorf("TokenLiteral() = %q, want %q", v.TokenLiteral(), "temp")
+	v := &VariableDeclaration{Token: tok(tokenizer.MUT, "mut")}
+	if v.TokenLiteral() != "mut" {
+		t.Errorf("TokenLiteral() = %q, want %q", v.TokenLiteral(), "mut")
 	}
 }
 
@@ -385,7 +385,7 @@ func TestProgramStructure(t *testing.T) {
 			{Token: tok(tokenizer.USING, "using")},
 		},
 		Statements: []Statement{
-			&VariableDeclaration{Token: tok(tokenizer.TEMP, "temp")},
+			&VariableDeclaration{Token: tok(tokenizer.MUT, "mut")},
 		},
 	}
 
@@ -402,7 +402,7 @@ func TestProgramStructure(t *testing.T) {
 
 func TestVariableDeclarationStructure(t *testing.T) {
 	v := &VariableDeclaration{
-		Token:      tok(tokenizer.TEMP, "temp"),
+		Token:      tok(tokenizer.MUT, "mut"),
 		Name:       &Label{Value: "x"},
 		TypeName:   "int",
 		Value:      &IntegerValue{Value: big.NewInt(42)},

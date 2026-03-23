@@ -4,5 +4,5 @@
  */
 
 do main() {
-    temp x uint = -5  // cannot assign negative to unsigned
+    mut x uint = -5  // cannot assign negative to unsigned
 }

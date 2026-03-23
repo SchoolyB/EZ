@@ -4,7 +4,7 @@
  */
 
 do main() {
-    temp x = voidFunc()  // Should fail: cannot assign void function result
+    mut x = voidFunc()  // Should fail: cannot assign void function result
 }
 
 do voidFunc() {

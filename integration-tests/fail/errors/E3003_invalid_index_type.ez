@@ -4,6 +4,6 @@
  */
 
 do main() {
-    temp arr [int] = {1, 2, 3}
-    temp x int = arr["foo"]  // String index on array
+    mut arr [int] = {1, 2, 3}
+    mut x int = arr["foo"]  // String index on array
 }

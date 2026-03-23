@@ -4,5 +4,5 @@
  */
 
 do main() {
-    temp b byte = 256  // byte must be 0-255
+    mut b byte = 256  // byte must be 0-255
 }

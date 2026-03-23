@@ -10,8 +10,8 @@ const Status enum {
 }
 
 do test_basic_int() {
-    temp x = 2
-    temp result = ""
+    mut x = 2
+    mut result = ""
 
     when x {
         is 1 { result = "one" }
@@ -26,8 +26,8 @@ do test_basic_int() {
 }
 
 do test_multi_value() {
-    temp day = 6
-    temp result = ""
+    mut day = 6
+    mut result = ""
 
     when day {
         is 1, 2, 3, 4, 5 { result = "weekday" }
@@ -41,8 +41,8 @@ do test_multi_value() {
 }
 
 do test_range() {
-    temp score = 85
-    temp grade = ""
+    mut score = 85
+    mut grade = ""
 
     when score {
         is range(0, 60) { grade = "F" }
@@ -59,8 +59,8 @@ do test_range() {
 }
 
 do test_string() {
-    temp color = "green"
-    temp result = ""
+    mut color = "green"
+    mut result = ""
 
     when color {
         is "red" { result = "stop" }
@@ -75,8 +75,8 @@ do test_string() {
 }
 
 do test_default() {
-    temp x = 999
-    temp result = ""
+    mut x = 999
+    mut result = ""
 
     when x {
         is 1 { result = "one" }
@@ -90,8 +90,8 @@ do test_default() {
 }
 
 do test_enum() {
-    temp status = Status.ACTIVE
-    temp result = ""
+    mut status = Status.ACTIVE
+    mut result = ""
 
     when status {
         is Status.PENDING { result = "waiting" }
@@ -106,8 +106,8 @@ do test_enum() {
 }
 
 do test_strict_enum() {
-    temp s = Status.DONE
-    temp result = ""
+    mut s = Status.DONE
+    mut result = ""
 
     #strict
     when s {
@@ -122,9 +122,9 @@ do test_strict_enum() {
 }
 
 do test_nested_when() {
-    temp category = 1
-    temp subcategory = 2
-    temp result = ""
+    mut category = 1
+    mut subcategory = 2
+    mut result = ""
 
     when category {
         is 1 {

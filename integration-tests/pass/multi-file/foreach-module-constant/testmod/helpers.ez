@@ -10,7 +10,7 @@ do print_items() {
 }
 
 do sum_numbers() -> int {
-    temp total int = 0
+    mut total int = 0
     for_each n in NUMBERS {
         total += n
     }

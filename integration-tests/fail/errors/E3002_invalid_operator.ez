@@ -4,5 +4,5 @@
  */
 
 do main() {
-    temp x string = "hello" * "world"  // Can't multiply strings
+    mut x string = "hello" * "world"  // Can't multiply strings
 }

@@ -8,7 +8,7 @@ const Status enum {
 }
 
 do main() {
-    temp s = Status.PENDING
+    mut s = Status.PENDING
 
     #strict
     when s {

@@ -10,6 +10,6 @@ import lib"./mylib"
 using std
 
 do main() {
-    temp h = lib.Hero{name: "Test", hp: 50}
+    mut h = lib.Hero{name: "Test", hp: 50}
     lib.update_hero(h)
 }

@@ -4,5 +4,5 @@ using std
 const Status enum { ACTIVE, INACTIVE }
 
 do main() {
-    temp Status = "shadowed"
+    mut Status = "shadowed"
 }

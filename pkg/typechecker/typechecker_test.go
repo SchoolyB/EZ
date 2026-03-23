@@ -357,9 +357,9 @@ func TestRegisterFunction(t *testing.T) {
 func TestValidProgram(t *testing.T) {
 	input := `
 do main() {
-	temp x int = 5
-	temp y int = 10
-	temp sum int = x + y
+	mut x int = 5
+	mut y int = 10
+	mut sum int = x + y
 }
 `
 	tc := typecheck(t, input)
@@ -369,7 +369,7 @@ do main() {
 func TestMissingMainFunction(t *testing.T) {
 	input := `
 do helper() {
-	temp x int = 5
+	mut x int = 5
 }
 `
 	tc := typecheck(t, input)
@@ -397,23 +397,23 @@ func TestValidVariableDeclarations(t *testing.T) {
 	}{
 		{
 			"integer",
-			`do main() { temp x int = 5 }`,
+			`do main() { mut x int = 5 }`,
 		},
 		{
 			"float",
-			`do main() { temp f float = 3.14 }`,
+			`do main() { mut f float = 3.14 }`,
 		},
 		{
 			"string",
-			`do main() { temp s string = "hello" }`,
+			`do main() { mut s string = "hello" }`,
 		},
 		{
 			"bool",
-			`do main() { temp b bool = true }`,
+			`do main() { mut b bool = true }`,
 		},
 		{
 			"char",
-			`do main() { temp c char = 'a' }`,
+			`do main() { mut c char = 'a' }`,
 		},
 	}
 
@@ -428,7 +428,7 @@ func TestValidVariableDeclarations(t *testing.T) {
 func TestUndefinedType(t *testing.T) {
 	input := `
 do main() {
-	temp x UndefinedType = 5
+	mut x UndefinedType = 5
 }
 `
 	tc := typecheck(t, input)
@@ -438,7 +438,7 @@ do main() {
 func TestTypeMismatchInDeclaration(t *testing.T) {
 	input := `
 do main() {
-	temp x int = "hello"
+	mut x int = "hello"
 }
 `
 	tc := typecheck(t, input)
@@ -457,7 +457,7 @@ const Person struct {
 }
 
 do main() {
-	temp p Person = Person{name: "Alice", age: 30}
+	mut p Person = Person{name: "Alice", age: 30}
 }
 `
 	tc := typecheck(t, input)
@@ -484,7 +484,7 @@ const Person struct {
 }
 
 do main() {
-	temp p Person = Person{name: "", age: 0}
+	mut p Person = Person{name: "", age: 0}
 	p.name = "Alice"
 	p.age = 30
 }
@@ -503,7 +503,7 @@ const Person struct {
 }
 
 do main() {
-	temp p Person = Person{name: "", age: 0}
+	mut p Person = Person{name: "", age: 0}
 	p.name = 123
 }
 `
@@ -521,8 +521,8 @@ const TestResult struct {
 }
 
 do main() {
-	temp r TestResult = TestResult{passed: 1, bugs: {"bug1"}}
-	temp bug_list [string] = r.bugs
+	mut r TestResult = TestResult{passed: 1, bugs: {"bug1"}}
+	mut bug_list [string] = r.bugs
 }
 `
 	tc := typecheck(t, input)
@@ -538,8 +538,8 @@ const Config struct {
 }
 
 do main() {
-	temp c Config = Config{name: "test", settings: {"a": 1}}
-	temp s map[string:int] = c.settings
+	mut c Config = Config{name: "test", settings: {"a": 1}}
+	mut s map[string:int] = c.settings
 }
 `
 	tc := typecheck(t, input)
@@ -554,8 +554,8 @@ const Matrix struct {
 }
 
 do main() {
-	temp m Matrix = Matrix{rows: {{1, 2}, {3, 4}}}
-	temp r [[int]] = m.rows
+	mut m Matrix = Matrix{rows: {{1, 2}, {3, 4}}}
+	mut r [[int]] = m.rows
 }
 `
 	tc := typecheck(t, input)
@@ -591,7 +591,7 @@ do add(a int, b int) -> int {
 }
 
 do main() {
-	temp result int = add(1, 2)
+	mut result int = add(1, 2)
 }
 `
 	tc := typecheck(t, input)
@@ -624,7 +624,7 @@ do main() {}
 func TestFunctionMissingReturnError(t *testing.T) {
 	input := `
 do getValue() -> int {
-	temp x int = 5
+	mut x int = 5
 }
 
 do main() {}
@@ -817,31 +817,31 @@ func TestValidArithmeticOperations(t *testing.T) {
 	}{
 		{
 			"int addition",
-			`do main() { temp r int = 1 + 2 }`,
+			`do main() { mut r int = 1 + 2 }`,
 		},
 		{
 			"float addition",
-			`do main() { temp r float = 1.5 + 2.5 }`,
+			`do main() { mut r float = 1.5 + 2.5 }`,
 		},
 		{
 			"string concatenation",
-			`do main() { temp r string = "a" + "b" }`,
+			`do main() { mut r string = "a" + "b" }`,
 		},
 		{
 			"int subtraction",
-			`do main() { temp r int = 5 - 3 }`,
+			`do main() { mut r int = 5 - 3 }`,
 		},
 		{
 			"int multiplication",
-			`do main() { temp r int = 2 * 3 }`,
+			`do main() { mut r int = 2 * 3 }`,
 		},
 		{
 			"int division",
-			`do main() { temp r int = 6 / 2 }`,
+			`do main() { mut r int = 6 / 2 }`,
 		},
 		{
 			"int modulo",
-			`do main() { temp r int = 7 % 3 }`,
+			`do main() { mut r int = 7 % 3 }`,
 		},
 	}
 
@@ -860,27 +860,27 @@ func TestValidComparisonOperations(t *testing.T) {
 	}{
 		{
 			"int equality",
-			`do main() { temp r bool = 1 == 1 }`,
+			`do main() { mut r bool = 1 == 1 }`,
 		},
 		{
 			"int inequality",
-			`do main() { temp r bool = 1 != 2 }`,
+			`do main() { mut r bool = 1 != 2 }`,
 		},
 		{
 			"int less than",
-			`do main() { temp r bool = 1 < 2 }`,
+			`do main() { mut r bool = 1 < 2 }`,
 		},
 		{
 			"int greater than",
-			`do main() { temp r bool = 2 > 1 }`,
+			`do main() { mut r bool = 2 > 1 }`,
 		},
 		{
 			"int less or equal",
-			`do main() { temp r bool = 1 <= 2 }`,
+			`do main() { mut r bool = 1 <= 2 }`,
 		},
 		{
 			"int greater or equal",
-			`do main() { temp r bool = 2 >= 1 }`,
+			`do main() { mut r bool = 2 >= 1 }`,
 		},
 	}
 
@@ -899,11 +899,11 @@ func TestValidLogicalOperations(t *testing.T) {
 	}{
 		{
 			"logical and",
-			`do main() { temp r bool = true && false }`,
+			`do main() { mut r bool = true && false }`,
 		},
 		{
 			"logical or",
-			`do main() { temp r bool = true || false }`,
+			`do main() { mut r bool = true || false }`,
 		},
 	}
 
@@ -922,7 +922,7 @@ func TestValidLogicalOperations(t *testing.T) {
 func TestValidArrayDeclaration(t *testing.T) {
 	input := `
 do main() {
-	temp arr [int] = {1, 2, 3}
+	mut arr [int] = {1, 2, 3}
 }
 `
 	tc := typecheck(t, input)
@@ -932,7 +932,7 @@ do main() {
 func TestArrayTypeMismatch(t *testing.T) {
 	input := `
 do main() {
-	temp arr [int] = "not an array"
+	mut arr [int] = "not an array"
 }
 `
 	tc := typecheck(t, input)
@@ -942,7 +942,7 @@ do main() {
 func TestFixedSizeArrayWarning(t *testing.T) {
 	input := `
 do main() {
-	temp arr [int, 5] = {1, 2}
+	mut arr [int, 5] = {1, 2}
 }
 `
 	tc := typecheck(t, input)
@@ -975,9 +975,9 @@ do main() {}
 func TestIfStatement(t *testing.T) {
 	input := `
 do main() {
-	temp x int = 5
+	mut x int = 5
 	if x > 0 {
-		temp y int = 10
+		mut y int = 10
 	}
 }
 `
@@ -989,7 +989,7 @@ func TestForLoop(t *testing.T) {
 	input := `
 do main() {
 	for i in range(0, 10) {
-		temp x int = i
+		mut x int = i
 	}
 }
 `
@@ -1000,7 +1000,7 @@ do main() {
 func TestWhileLoop(t *testing.T) {
 	input := `
 do main() {
-	temp x int = 0
+	mut x int = 0
 	as_long_as x < 10 {
 		x = x + 1
 	}
@@ -1017,7 +1017,7 @@ do main() {
 func TestValidAssignment(t *testing.T) {
 	input := `
 do main() {
-	temp x int = 5
+	mut x int = 5
 	x = 10
 }
 `
@@ -1028,7 +1028,7 @@ do main() {
 func TestAssignmentTypeMismatch(t *testing.T) {
 	input := `
 do main() {
-	temp x int = 5
+	mut x int = 5
 	x = "hello"
 }
 `
@@ -1067,14 +1067,14 @@ func TestErrorsMethod(t *testing.T) {
 func TestNumericTypeCompatibility(t *testing.T) {
 	input := `
 do main() {
-	temp i8val i8 = 1
-	temp i16val i16 = 2
-	temp i32val i32 = 3
-	temp i64val i64 = 4
-	temp intval int = 5
-	temp f32val f32 = 1.0
-	temp f64val f64 = 2.0
-	temp floatval float = 3.0
+	mut i8val i8 = 1
+	mut i16val i16 = 2
+	mut i32val i32 = 3
+	mut i64val i64 = 4
+	mut intval int = 5
+	mut f32val f32 = 1.0
+	mut f64val f64 = 2.0
+	mut floatval float = 3.0
 }
 `
 	tc := typecheck(t, input)
@@ -1084,11 +1084,11 @@ do main() {
 func TestUnsignedTypes(t *testing.T) {
 	input := `
 do main() {
-	temp u8val u8 = 1
-	temp u16val u16 = 2
-	temp u32val u32 = 3
-	temp u64val u64 = 4
-	temp uintval uint = 5
+	mut u8val u8 = 1
+	mut u16val u16 = 2
+	mut u32val u32 = 3
+	mut u64val u64 = 4
+	mut uintval uint = 5
 }
 `
 	tc := typecheck(t, input)
@@ -1133,11 +1133,11 @@ func TestEmptyMain(t *testing.T) {
 func TestNestedScopes(t *testing.T) {
 	input := `
 do main() {
-	temp x int = 1
+	mut x int = 1
 	if true {
-		temp y int = 2
+		mut y int = 2
 		if true {
-			temp z int = x + y
+			mut z int = x + y
 		}
 	}
 }
@@ -1177,7 +1177,7 @@ do main() {
 func TestMapDeclaration(t *testing.T) {
 	input := `
 do main() {
-	temp m map[string:int] = {"a": 1, "b": 2}
+	mut m map[string:int] = {"a": 1, "b": 2}
 }
 `
 	tc := typecheck(t, input)
@@ -1191,7 +1191,7 @@ const Person struct {
 }
 
 do main() {
-	temp p Person = nil
+	mut p Person = nil
 }
 `
 	tc := typecheck(t, input)
@@ -1217,15 +1217,15 @@ const Direction enum {
 }
 
 do distance(p1 Point, p2 Point) -> int {
-	temp dx int = p2.x - p1.x
-	temp dy int = p2.y - p1.y
+	mut dx int = p2.x - p1.x
+	mut dy int = p2.y - p1.y
 	return dx + dy
 }
 
 do main() {
-	temp origin Point = Point{x: 0, y: 0}
-	temp target Point = Point{x: 3, y: 4}
-	temp dist int = distance(origin, target)
+	mut origin Point = Point{x: 0, y: 0}
+	mut target Point = Point{x: 3, y: 4}
+	mut dist int = distance(origin, target)
 }
 `
 	tc := typecheck(t, input)
@@ -1243,7 +1243,7 @@ do quadruple(x int) -> int {
 }
 
 do main() {
-	temp result int = quadruple(5)
+	mut result int = quadruple(5)
 }
 `
 	tc := typecheck(t, input)
@@ -1260,7 +1260,7 @@ do factorial(n int) -> int {
 }
 
 do main() {
-	temp result int = factorial(5)
+	mut result int = factorial(5)
 }
 `
 	tc := typecheck(t, input)
@@ -1272,7 +1272,7 @@ do main() {
 // ============================================================================
 
 func TestMutableParameterValid(t *testing.T) {
-	// Test: temp variable passed to & param - should be valid
+	// Test: mut variable passed to & param - should be valid
 	input := `
 const Person struct {
 	name string
@@ -1284,7 +1284,7 @@ do birthday(&p Person) {
 }
 
 do main() {
-	temp bob Person = Person{name: "Bob", age: 30}
+	mut bob Person = Person{name: "Bob", age: 30}
 	birthday(bob)
 }
 `
@@ -1306,7 +1306,7 @@ do getName(p Person) -> string {
 
 do main() {
 	const alice Person = Person{name: "Alice", age: 25}
-	temp name string = getName(alice)
+	mut name string = getName(alice)
 }
 `
 	tc := typecheck(t, input)
@@ -1347,7 +1347,7 @@ do tryModify(p Person) {
 }
 
 do main() {
-	temp bob Person = Person{name: "Bob", age: 30}
+	mut bob Person = Person{name: "Bob", age: 30}
 	tryModify(bob)
 }
 `
@@ -1368,7 +1368,7 @@ do tryModifyField(p Person) {
 }
 
 do main() {
-	temp bob Person = Person{name: "Bob", age: 30}
+	mut bob Person = Person{name: "Bob", age: 30}
 	tryModifyField(bob)
 }
 `
@@ -1384,7 +1384,7 @@ do tryModifyArray(arr [int]) {
 }
 
 do main() {
-	temp nums [int] = {1, 2, 3}
+	mut nums [int] = {1, 2, 3}
 	tryModifyArray(nums)
 }
 `
@@ -1400,7 +1400,7 @@ do modifyArray(&arr [int]) {
 }
 
 do main() {
-	temp nums [int] = {1, 2, 3}
+	mut nums [int] = {1, 2, 3}
 	modifyArray(nums)
 }
 `
@@ -1416,8 +1416,8 @@ do copyFirst(&dest [int], src [int]) {
 }
 
 do main() {
-	temp target [int] = {0, 0, 0}
-	temp source [int] = {1, 2, 3}
+	mut target [int] = {0, 0, 0}
+	mut source [int] = {1, 2, 3}
 	copyFirst(target, source)
 }
 `
@@ -1446,9 +1446,9 @@ func TestFixedSizeArrayIndexType(t *testing.T) {
 	// This was bug #267 - [int,3][0] was returning type "int,3" instead of "int"
 	input := `
 do main() {
-	temp arr [int, 3] = {1, 2, 3}
-	temp x int = arr[0]
-	temp y int = arr[1] + arr[2]
+	mut arr [int, 3] = {1, 2, 3}
+	mut x int = arr[0]
+	mut y int = arr[1] + arr[2]
 }
 `
 	tc := typecheck(t, input)
@@ -1464,8 +1464,8 @@ func TestE4011_MemberAccessOnPrimitive(t *testing.T) {
 	// Fixes #313
 	input := `
 do main() {
-	temp s = "hello"
-	temp x = s.name
+	mut s = "hello"
+	mut x = s.name
 }
 `
 	tc := typecheck(t, input)
@@ -1481,9 +1481,9 @@ const Person struct {
 }
 
 do main() {
-	temp p = Person{name: "Alice", age: 30}
-	temp n = p.name
-	temp a = p.age
+	mut p = Person{name: "Alice", age: 30}
+	mut n = p.name
+	mut a = p.age
 }
 `
 	tc := typecheck(t, input)
@@ -1497,8 +1497,8 @@ do main() {
 func TestForEachStatementArray(t *testing.T) {
 	input := `
 do main() {
-	temp nums [int] = {1, 2, 3}
-	temp sum int = 0
+	mut nums [int] = {1, 2, 3}
+	mut sum int = 0
 	for_each n in nums {
 		sum = sum + n
 	}
@@ -1511,8 +1511,8 @@ do main() {
 func TestForEachStatementString(t *testing.T) {
 	input := `
 do main() {
-	temp str string = "hello"
-	temp count int = 0
+	mut str string = "hello"
+	mut count int = 0
 	for_each c in str {
 		count = count + 1
 	}
@@ -1525,7 +1525,7 @@ do main() {
 func TestForEachStatementMapError(t *testing.T) {
 	input := `
 do main() {
-	temp m map[string:int] = {"a": 1, "b": 2}
+	mut m map[string:int] = {"a": 1, "b": 2}
 	for_each k in m {
 	}
 }
@@ -1541,7 +1541,7 @@ do main() {
 func TestLoopStatement(t *testing.T) {
 	input := `
 do main() {
-	temp count int = 0
+	mut count int = 0
 	loop {
 		count = count + 1
 		if count == 5 {
@@ -1557,7 +1557,7 @@ do main() {
 func TestLoopStatementWithContinue(t *testing.T) {
 	input := `
 do main() {
-	temp count int = 0
+	mut count int = 0
 	loop {
 		count = count + 1
 		if count == 3 {
@@ -1583,9 +1583,9 @@ import @math
 using math
 
 do main() {
-	temp x float = math.sqrt(16.0)
-	temp y float = math.abs(-5.0)
-	temp z float = math.pow(2.0, 3.0)
+	mut x float = math.sqrt(16.0)
+	mut y float = math.abs(-5.0)
+	mut z float = math.pow(2.0, 3.0)
 }
 `
 	tc := typecheck(t, input)
@@ -1598,10 +1598,10 @@ import @arrays
 using arrays
 
 do main() {
-	temp nums [int] = {1, 2, 3}
-	temp first_item int = arrays.first(nums)
-	temp last_item int = arrays.last(nums)
-	temp rev [int] = arrays.reverse(nums)
+	mut nums [int] = {1, 2, 3}
+	mut first_item int = arrays.first(nums)
+	mut last_item int = arrays.last(nums)
+	mut rev [int] = arrays.reverse(nums)
 }
 `
 	tc := typecheck(t, input)
@@ -1613,10 +1613,10 @@ func TestArraysSumPreservesIntType(t *testing.T) {
 import @arrays
 
 do main() {
-	temp nums [int] = {1, 2, 3, 4, 5}
-	temp sum int = arrays.sum(nums)
-	temp min_val int = arrays.min(nums)
-	temp max_val int = arrays.max(nums)
+	mut nums [int] = {1, 2, 3, 4, 5}
+	mut sum int = arrays.sum(nums)
+	mut min_val int = arrays.min(nums)
+	mut max_val int = arrays.max(nums)
 }
 `
 	tc := typecheck(t, input)
@@ -1628,9 +1628,9 @@ func TestMathAbsPreservesIntType(t *testing.T) {
 import @math
 
 do main() {
-	temp abs_val int = math.abs(-5)
-	temp min_val int = math.min(3, 7)
-	temp max_val int = math.max(3, 7)
+	mut abs_val int = math.abs(-5)
+	mut min_val int = math.min(3, 7)
+	mut max_val int = math.max(3, 7)
 }
 `
 	tc := typecheck(t, input)
@@ -1643,10 +1643,10 @@ import @strings
 using strings
 
 do main() {
-	temp s string = "hello"
-	temp upper_str string = strings.upper(s)
-	temp lower_str string = strings.lower(s)
-	temp trimmed string = strings.trim("  hello  ")
+	mut s string = "hello"
+	mut upper_str string = strings.upper(s)
+	mut lower_str string = strings.lower(s)
+	mut trimmed string = strings.trim("  hello  ")
 }
 `
 	tc := typecheck(t, input)
@@ -1659,9 +1659,9 @@ import @time
 using time
 
 do main() {
-	temp cur_year int = time.year()
-	temp cur_month int = time.month()
-	temp cur_day int = time.day()
+	mut cur_year int = time.year()
+	mut cur_month int = time.month()
+	mut cur_day int = time.day()
 }
 `
 	tc := typecheck(t, input)
@@ -1674,10 +1674,10 @@ import @maps
 using maps
 
 do main() {
-	temp m map[string:int] = {"a": 1, "b": 2}
-	temp map_keys [string] = maps.keys(m)
-	temp map_values [int] = maps.values(m)
-	temp key_exists bool = maps.contains(m, "a")
+	mut m map[string:int] = {"a": 1, "b": 2}
+	mut map_keys [string] = maps.keys(m)
+	mut map_values [int] = maps.values(m)
+	mut key_exists bool = maps.contains(m, "a")
 }
 `
 	tc := typecheck(t, input)
@@ -1691,8 +1691,8 @@ func TestVariableShadowsUsedModuleFunction(t *testing.T) {
 import & use @maps
 
 do main() {
-	temp m map[string:int] = {"a": 1}
-	temp values [int] = {1, 2, 3}
+	mut m map[string:int] = {"a": 1}
+	mut values [int] = {1, 2, 3}
 }
 `
 	tc := typecheck(t, input)
@@ -1706,8 +1706,8 @@ import @arrays
 using arrays
 
 do main() {
-	temp nums [int] = {1, 2, 3}
-	temp reverse [int] = {3, 2, 1}
+	mut nums [int] = {1, 2, 3}
+	mut reverse [int] = {3, 2, 1}
 }
 `
 	tc := typecheck(t, input)
@@ -1720,8 +1720,8 @@ func TestNoErrorWhenNotUsingModule(t *testing.T) {
 import @maps
 
 do main() {
-	temp m map[string:int] = {"a": 1}
-	temp values [int] = {1, 2, 3}
+	mut m map[string:int] = {"a": 1}
+	mut values [int] = {1, 2, 3}
 }
 `
 	tc := typecheck(t, input)
@@ -1915,8 +1915,8 @@ do main() {
 func TestPrefixExpressionNot(t *testing.T) {
 	input := `
 do main() {
-	temp flag bool = true
-	temp negated bool = !flag
+	mut flag bool = true
+	mut negated bool = !flag
 }
 `
 	tc := typecheck(t, input)
@@ -1926,8 +1926,8 @@ do main() {
 func TestPrefixExpressionNegation(t *testing.T) {
 	input := `
 do main() {
-	temp x int = 5
-	temp neg int = -x
+	mut x int = 5
+	mut neg int = -x
 }
 `
 	tc := typecheck(t, input)
@@ -1947,7 +1947,7 @@ const Status enum {
 }
 
 do main() {
-	temp s Status = Status.Active
+	mut s Status = Status.Active
 }
 `
 	tc := typecheck(t, input)
@@ -1963,7 +1963,7 @@ const Status enum {
 }
 
 do main() {
-	temp s Status = Status.TODO
+	mut s Status = Status.TODO
 }
 `
 	tc := typecheck(t, input)
@@ -1988,7 +1988,7 @@ do main() {
 func TestNilAssignmentToPrimitiveError(t *testing.T) {
 	input := `
 do main() {
-	temp x int = nil
+	mut x int = nil
 }
 `
 	tc := typecheck(t, input)
@@ -2003,7 +2003,7 @@ const Point struct {
 }
 
 do main() {
-	temp p Point = nil
+	mut p Point = nil
 }
 `
 	tc := typecheck(t, input)
@@ -2017,10 +2017,10 @@ do main() {
 func TestGlobalVariableDeclaration(t *testing.T) {
 	input := `
 const MAX_SIZE int = 100
-temp counter int = 0
+mut counter int = 0
 
 do main() {
-	temp x int = MAX_SIZE
+	mut x int = MAX_SIZE
 }
 `
 	tc := typecheck(t, input)
@@ -2036,7 +2036,7 @@ func TestTypeErrorLocationNilInIfCondition(t *testing.T) {
 	// Fixes #345
 	input := `do main() {
 	if nil {
-		temp x int = 1
+		mut x int = 1
 	}
 }`
 	tc := typecheck(t, input)
@@ -2065,7 +2065,7 @@ func TestTypeErrorLocationMapValue(t *testing.T) {
 	// Test that map value errors report correct location
 	input := `do main() {
 	if {"a": 1} {
-		temp x int = 1
+		mut x int = 1
 	}
 }`
 	tc := typecheck(t, input)
@@ -2097,53 +2097,53 @@ func TestLargeIntegerTypes(t *testing.T) {
 		{
 			"i128 with large positive value",
 			`do main() {
-				temp x i128 = 10000000000000000000
+				mut x i128 = 10000000000000000000
 			}`,
 		},
 		{
 			"i128 with value larger than int64 max",
 			`do main() {
-				temp x i128 = 9223372036854775808
+				mut x i128 = 9223372036854775808
 			}`,
 		},
 		{
 			"u128 with large value",
 			`do main() {
-				temp x u128 = 18446744073709551615
+				mut x u128 = 18446744073709551615
 			}`,
 		},
 		{
 			"u128 with value larger than uint64 max",
 			`do main() {
-				temp x u128 = 18446744073709551616
+				mut x u128 = 18446744073709551616
 			}`,
 		},
 		{
 			"i128 with i128 max value",
 			`do main() {
-				temp x i128 = 170141183460469231731687303715884105727
+				mut x i128 = 170141183460469231731687303715884105727
 			}`,
 		},
 		{
 			"u128 with u128 max value",
 			`do main() {
-				temp x u128 = 340282366920938463463374607431768211455
+				mut x u128 = 340282366920938463463374607431768211455
 			}`,
 		},
 		{
 			"i128 arithmetic",
 			`do main() {
-				temp a i128 = 9223372036854775807
-				temp b i128 = 1
-				temp c i128 = a + b
+				mut a i128 = 9223372036854775807
+				mut b i128 = 1
+				mut c i128 = a + b
 			}`,
 		},
 		{
 			"u128 arithmetic",
 			`do main() {
-				temp a u128 = 18446744073709551615
-				temp b u128 = 1
-				temp c u128 = a + b
+				mut a u128 = 18446744073709551615
+				mut b u128 = 1
+				mut c u128 = a + b
 			}`,
 		},
 	}
@@ -2164,19 +2164,19 @@ func TestLargeIntegerNegativeValues(t *testing.T) {
 		{
 			"i128 with large negative value",
 			`do main() {
-				temp x i128 = -10000000000000000000
+				mut x i128 = -10000000000000000000
 			}`,
 		},
 		{
 			"i128 with value smaller than int64 min",
 			`do main() {
-				temp x i128 = -9223372036854775809
+				mut x i128 = -9223372036854775809
 			}`,
 		},
 		{
 			"i128 with i128 min value",
 			`do main() {
-				temp x i128 = -170141183460469231731687303715884105728
+				mut x i128 = -170141183460469231731687303715884105728
 			}`,
 		},
 	}
@@ -2240,8 +2240,8 @@ func TestDefaultParameterExpressionDefault(t *testing.T) {
 		return mult
 	}
 	do main() {
-		temp a = calc()
-		temp b = calc(10.0)
+		mut a = calc()
+		mut b = calc(10.0)
 	}`
 	tc := typecheck(t, input)
 	assertNoErrors(t, tc)
@@ -2291,8 +2291,8 @@ func TestDefaultParameterWithReturnType(t *testing.T) {
 		return "Hello, ${name}!"
 	}
 	do main() {
-		temp msg1 = greet()
-		temp msg2 = greet("Alice")
+		mut msg1 = greet()
+		mut msg2 = greet("Alice")
 	}`
 	tc := typecheck(t, input)
 	assertNoErrors(t, tc)
@@ -2313,7 +2313,7 @@ func TestStructTypeAsFunctionArgument(t *testing.T) {
 		age int
 	}
 	do main() {
-		temp p Person, err error = json.decode("{}", Person)
+		mut p Person, err error = json.decode("{}", Person)
 	}`
 	tc := typecheck(t, input)
 	assertNoErrors(t, tc)
@@ -2329,7 +2329,7 @@ func TestStructTypeAsArgumentDoesNotErrorE3030(t *testing.T) {
 		completed bool
 	}
 	do main() {
-		temp t Task, err error = json.decode("{}", Task)
+		mut t Task, err error = json.decode("{}", Task)
 	}`
 	tc := typecheck(t, input)
 	// Should not have E3030 error (struct type cannot be used as value)
@@ -2348,7 +2348,7 @@ func TestFunctionAsArgumentStillErrors(t *testing.T) {
 		// Some helper function
 	}
 	do main() {
-		temp x string = helper
+		mut x string = helper
 	}`
 	tc := typecheck(t, input)
 	// Should have E3031 error (function cannot be used as value)
@@ -2362,7 +2362,7 @@ func TestFunctionAsArgumentStillErrors(t *testing.T) {
 func TestAnyTypeNotAllowedInVariableDeclaration(t *testing.T) {
 	input := `
 	do main() {
-		temp x any = "hello"
+		mut x any = "hello"
 	}`
 	tc := typecheck(t, input)
 	assertHasError(t, tc, errors.E3034)
@@ -2392,7 +2392,7 @@ func TestAnyTypeNotAllowedInFunctionParameter(t *testing.T) {
 func TestAnyTypeNotAllowedInArray(t *testing.T) {
 	input := `
 	do main() {
-		temp x [any] = {}
+		mut x [any] = {}
 	}`
 	tc := typecheck(t, input)
 	assertHasError(t, tc, errors.E3034)
@@ -2401,7 +2401,7 @@ func TestAnyTypeNotAllowedInArray(t *testing.T) {
 func TestAnyTypeNotAllowedInMap(t *testing.T) {
 	input := `
 	do main() {
-		temp x map[string:any] = {}
+		mut x map[string:any] = {}
 	}`
 	tc := typecheck(t, input)
 	assertHasError(t, tc, errors.E3034)
@@ -2415,7 +2415,7 @@ func TestStrictWhenRejectsRangeExpression(t *testing.T) {
 	input := `
 const Color enum { RED, GREEN, BLUE }
 do main() {
-	temp c Color = Color.RED
+	mut c Color = Color.RED
 	#strict
 	when c {
 		is range(0, 2) {
@@ -2430,7 +2430,7 @@ func TestStrictWhenRejectsIntegerLiteral(t *testing.T) {
 	input := `
 const Color enum { RED, GREEN, BLUE }
 do main() {
-	temp c Color = Color.RED
+	mut c Color = Color.RED
 	#strict
 	when c {
 		is 0 {
@@ -2445,7 +2445,7 @@ func TestStrictWhenAcceptsEnumMembers(t *testing.T) {
 	input := `
 const Color enum { RED, GREEN, BLUE }
 do main() {
-	temp c Color = Color.RED
+	mut c Color = Color.RED
 	#strict
 	when c {
 		is Color.RED {
@@ -2464,7 +2464,7 @@ func TestStrictWhenMissingEnumCases(t *testing.T) {
 	input := `
 const Color enum { RED, GREEN, BLUE }
 do main() {
-	temp c Color = Color.RED
+	mut c Color = Color.RED
 	#strict
 	when c {
 		is Color.RED {
@@ -2479,7 +2479,7 @@ func TestStrictWhenPartialEnumCases(t *testing.T) {
 	input := `
 const Color enum { RED, GREEN, BLUE }
 do main() {
-	temp c Color = Color.RED
+	mut c Color = Color.RED
 	#strict
 	when c {
 		is Color.RED {
@@ -2597,7 +2597,7 @@ func TestGetTypes(t *testing.T) {
 func TestPostfixIncrementValid(t *testing.T) {
 	input := `
 do main() {
-	temp x int = 0
+	mut x int = 0
 	x++
 }
 `
@@ -2608,7 +2608,7 @@ do main() {
 func TestPostfixDecrementValid(t *testing.T) {
 	input := `
 do main() {
-	temp x int = 10
+	mut x int = 10
 	x--
 }
 `
@@ -2619,7 +2619,7 @@ do main() {
 func TestPostfixOnNonIntegerError(t *testing.T) {
 	input := `
 do main() {
-	temp s string = "hello"
+	mut s string = "hello"
 	s++
 }
 `
@@ -2645,8 +2645,8 @@ do main() {
 func TestLenBuiltinReturnsInt(t *testing.T) {
 	input := `
 do main() {
-	temp arr [int] = {1, 2, 3}
-	temp length int = len(arr)
+	mut arr [int] = {1, 2, 3}
+	mut length int = len(arr)
 }
 `
 	tc := typecheck(t, input)
@@ -2656,8 +2656,8 @@ do main() {
 func TestTypeofBuiltinReturnsString(t *testing.T) {
 	input := `
 do main() {
-	temp x int = 5
-	temp t string = typeof(x)
+	mut x int = 5
+	mut t string = typeof(x)
 }
 `
 	tc := typecheck(t, input)
@@ -2667,8 +2667,8 @@ do main() {
 func TestIntConversionBuiltin(t *testing.T) {
 	input := `
 do main() {
-	temp f float = 3.14
-	temp i int = int(f)
+	mut f float = 3.14
+	mut i int = int(f)
 }
 `
 	tc := typecheck(t, input)
@@ -2678,8 +2678,8 @@ do main() {
 func TestFloatConversionBuiltin(t *testing.T) {
 	input := `
 do main() {
-	temp i int = 42
-	temp f float = float(i)
+	mut i int = 42
+	mut f float = float(i)
 }
 `
 	tc := typecheck(t, input)
@@ -2689,8 +2689,8 @@ do main() {
 func TestStringConversionBuiltin(t *testing.T) {
 	input := `
 do main() {
-	temp i int = 123
-	temp s string = string(i)
+	mut i int = 123
+	mut s string = string(i)
 }
 `
 	tc := typecheck(t, input)
@@ -2700,8 +2700,8 @@ do main() {
 func TestBoolConversionBuiltin(t *testing.T) {
 	input := `
 do main() {
-	temp i int = 1
-	temp b bool = bool(i)
+	mut i int = 1
+	mut b bool = bool(i)
 }
 `
 	tc := typecheck(t, input)
@@ -2711,8 +2711,8 @@ do main() {
 func TestCharConversionBuiltin(t *testing.T) {
 	input := `
 do main() {
-	temp i int = 65
-	temp c char = char(i)
+	mut i int = 65
+	mut c char = char(i)
 }
 `
 	tc := typecheck(t, input)
@@ -2722,8 +2722,8 @@ do main() {
 func TestByteConversionBuiltin(t *testing.T) {
 	input := `
 do main() {
-	temp i int = 255
-	temp b byte = byte(i)
+	mut i int = 255
+	mut b byte = byte(i)
 }
 `
 	tc := typecheck(t, input)
@@ -2740,7 +2740,7 @@ import @std
 using std
 
 do main() {
-	temp name string = std.input("Enter name: ")
+	mut name string = std.input("Enter name: ")
 }
 `
 	tc := typecheck(t, input)
@@ -2797,9 +2797,9 @@ const Priority enum {
 }
 
 do main() {
-	temp p1 Priority = Priority.LOW
-	temp p2 Priority = Priority.HIGH
-	temp result bool = p1 < p2
+	mut p1 Priority = Priority.LOW
+	mut p2 Priority = Priority.HIGH
+	mut result bool = p1 < p2
 }
 `
 	tc := typecheck(t, input)
@@ -2814,9 +2814,9 @@ const Status enum {
 }
 
 do main() {
-	temp s1 Status = Status.OPEN
-	temp s2 Status = Status.CLOSED
-	temp result bool = s1 == s2
+	mut s1 Status = Status.OPEN
+	mut s2 Status = Status.CLOSED
+	mut result bool = s1 == s2
 }
 `
 	tc := typecheck(t, input)
@@ -2830,7 +2830,7 @@ do main() {
 func TestMapWithStringKeyValid(t *testing.T) {
 	input := `
 do main() {
-	temp m map[string:int] = {"a": 1, "b": 2}
+	mut m map[string:int] = {"a": 1, "b": 2}
 }
 `
 	tc := typecheck(t, input)
@@ -2840,7 +2840,7 @@ do main() {
 func TestMapWithIntKeyValid(t *testing.T) {
 	input := `
 do main() {
-	temp m map[int:string] = {1: "one", 2: "two"}
+	mut m map[int:string] = {1: "one", 2: "two"}
 }
 `
 	tc := typecheck(t, input)
@@ -2850,7 +2850,7 @@ do main() {
 func TestMapWithBoolKeyValid(t *testing.T) {
 	input := `
 do main() {
-	temp m map[bool:string] = {true: "yes", false: "no"}
+	mut m map[bool:string] = {true: "yes", false: "no"}
 }
 `
 	tc := typecheck(t, input)
@@ -2860,7 +2860,7 @@ do main() {
 func TestMapWithCharKeyValid(t *testing.T) {
 	input := `
 do main() {
-	temp m map[char:int] = {'a': 1, 'b': 2}
+	mut m map[char:int] = {'a': 1, 'b': 2}
 }
 `
 	tc := typecheck(t, input)
@@ -2874,9 +2874,9 @@ do main() {
 func TestByteWithIntPromotion(t *testing.T) {
 	input := `
 do main() {
-	temp b byte = 255
-	temp i int = 100
-	temp result int = i + int(b)
+	mut b byte = 255
+	mut i int = 100
+	mut result int = i + int(b)
 }
 `
 	tc := typecheck(t, input)
@@ -2890,8 +2890,8 @@ do main() {
 func TestLenOnString(t *testing.T) {
 	input := `
 do main() {
-	temp s string = "hello"
-	temp length int = len(s)
+	mut s string = "hello"
+	mut length int = len(s)
 }
 `
 	tc := typecheck(t, input)
@@ -2901,8 +2901,8 @@ do main() {
 func TestLenOnMap(t *testing.T) {
 	input := `
 do main() {
-	temp m map[string:int] = {"a": 1}
-	temp count int = len(m)
+	mut m map[string:int] = {"a": 1}
+	mut count int = len(m)
 }
 `
 	tc := typecheck(t, input)
@@ -2935,22 +2935,22 @@ func TestPostfixOnUnsignedIntegers(t *testing.T) {
 	}{
 		{
 			"u8 increment",
-			`do main() { temp x u8 = 0
+			`do main() { mut x u8 = 0
 			x++ }`,
 		},
 		{
 			"u16 decrement",
-			`do main() { temp x u16 = 10
+			`do main() { mut x u16 = 10
 			x-- }`,
 		},
 		{
 			"u32 increment",
-			`do main() { temp x u32 = 100
+			`do main() { mut x u32 = 100
 			x++ }`,
 		},
 		{
 			"u64 decrement",
-			`do main() { temp x u64 = 1000
+			`do main() { mut x u64 = 1000
 			x-- }`,
 		},
 	}
@@ -2970,22 +2970,22 @@ func TestPostfixOnSignedIntegers(t *testing.T) {
 	}{
 		{
 			"i8 increment",
-			`do main() { temp x i8 = 0
+			`do main() { mut x i8 = 0
 			x++ }`,
 		},
 		{
 			"i16 decrement",
-			`do main() { temp x i16 = 10
+			`do main() { mut x i16 = 10
 			x-- }`,
 		},
 		{
 			"i32 increment",
-			`do main() { temp x i32 = 100
+			`do main() { mut x i32 = 100
 			x++ }`,
 		},
 		{
 			"i64 decrement",
-			`do main() { temp x i64 = 1000
+			`do main() { mut x i64 = 1000
 			x-- }`,
 		},
 	}
@@ -3008,7 +3008,7 @@ import @io
 using io
 
 do main() {
-	temp content string, err error = io.read_file("test.txt")
+	mut content string, err error = io.read_file("test.txt")
 }
 `
 	tc := typecheck(t, input)
@@ -3021,7 +3021,7 @@ import @io
 using io
 
 do main() {
-	temp success bool, err error = io.write_file("test.txt", "content")
+	mut success bool, err error = io.write_file("test.txt", "content")
 }
 `
 	tc := typecheck(t, input)
@@ -3034,7 +3034,7 @@ import @io
 using io
 
 do main() {
-	temp success bool, err error = io.append_file("test.txt", "more content")
+	mut success bool, err error = io.append_file("test.txt", "more content")
 }
 `
 	tc := typecheck(t, input)
@@ -3047,7 +3047,7 @@ import @io
 using io
 
 do main() {
-	temp file_exists_result bool = io.file_exists("test.txt")
+	mut file_exists_result bool = io.file_exists("test.txt")
 }
 `
 	tc := typecheck(t, input)
@@ -3060,7 +3060,7 @@ import @io
 using io
 
 do main() {
-	temp lines [string], err error = io.read_lines("test.txt")
+	mut lines [string], err error = io.read_lines("test.txt")
 }
 `
 	tc := typecheck(t, input)
@@ -3073,7 +3073,7 @@ import @io
 using io
 
 do main() {
-	temp data [byte], err error = io.read_bytes("test.bin")
+	mut data [byte], err error = io.read_bytes("test.bin")
 }
 `
 	tc := typecheck(t, input)
@@ -3086,8 +3086,8 @@ import @io
 using io
 
 do main() {
-	temp data [byte] = {0x48, 0x65, 0x6c, 0x6c, 0x6f}
-	temp success bool, err error = io.write_bytes("test.bin", data)
+	mut data [byte] = {0x48, 0x65, 0x6c, 0x6c, 0x6f}
+	mut success bool, err error = io.write_bytes("test.bin", data)
 }
 `
 	tc := typecheck(t, input)
@@ -3100,7 +3100,7 @@ import @io
 using io
 
 do main() {
-	temp success bool, err error = io.delete_file("test.txt")
+	mut success bool, err error = io.delete_file("test.txt")
 }
 `
 	tc := typecheck(t, input)
@@ -3113,7 +3113,7 @@ import @io
 using io
 
 do main() {
-	temp success bool, err error = io.copy_file("src.txt", "dst.txt")
+	mut success bool, err error = io.copy_file("src.txt", "dst.txt")
 }
 `
 	tc := typecheck(t, input)
@@ -3126,7 +3126,7 @@ import @io
 using io
 
 do main() {
-	temp success bool, err error = io.move_file("old.txt", "new.txt")
+	mut success bool, err error = io.move_file("old.txt", "new.txt")
 }
 `
 	tc := typecheck(t, input)
@@ -3139,7 +3139,7 @@ import @io
 using io
 
 do main() {
-	temp content string, err error = io.read_file()
+	mut content string, err error = io.read_file()
 }
 `
 	tc := typecheck(t, input)
@@ -3152,7 +3152,7 @@ import @io
 using io
 
 do main() {
-	temp content string, err error = io.read_file(123)
+	mut content string, err error = io.read_file(123)
 }
 `
 	tc := typecheck(t, input)
@@ -3169,7 +3169,7 @@ import @os
 using os
 
 do main() {
-	temp value string, err error = os.get_env("HOME")
+	mut value string, err error = os.get_env("HOME")
 }
 `
 	tc := typecheck(t, input)
@@ -3182,7 +3182,7 @@ import @os
 using os
 
 do main() {
-	temp success bool, err error = os.set_env("MY_VAR", "value")
+	mut success bool, err error = os.set_env("MY_VAR", "value")
 }
 `
 	tc := typecheck(t, input)
@@ -3195,7 +3195,7 @@ import @os
 using os
 
 do main() {
-	temp success bool, err error = os.unset_env("MY_VAR")
+	mut success bool, err error = os.unset_env("MY_VAR")
 }
 `
 	tc := typecheck(t, input)
@@ -3208,7 +3208,7 @@ import @os
 using os
 
 do main() {
-	temp current_dir string = os.get_cwd()
+	mut current_dir string = os.get_cwd()
 }
 `
 	tc := typecheck(t, input)
@@ -3221,7 +3221,7 @@ import @os
 using os
 
 do main() {
-	temp cli_args [string] = os.args()
+	mut cli_args [string] = os.args()
 }
 `
 	tc := typecheck(t, input)
@@ -3247,7 +3247,7 @@ import @os
 using os
 
 do main() {
-	temp value string = os.get_env()
+	mut value string = os.get_env()
 }
 `
 	tc := typecheck(t, input)
@@ -3260,7 +3260,7 @@ import @os
 using os
 
 do main() {
-	temp success bool, err error = os.set_env(123, "value")
+	mut success bool, err error = os.set_env(123, "value")
 }
 `
 	tc := typecheck(t, input)
@@ -3277,7 +3277,7 @@ import @random
 using random
 
 do main() {
-	temp r int = random.int(100)
+	mut r int = random.int(100)
 }
 `
 	tc := typecheck(t, input)
@@ -3290,7 +3290,7 @@ import @random
 using random
 
 do main() {
-	temp r int = random.int(10, 100)
+	mut r int = random.int(10, 100)
 }
 `
 	tc := typecheck(t, input)
@@ -3303,7 +3303,7 @@ import @random
 using random
 
 do main() {
-	temp r float = random.float()
+	mut r float = random.float()
 }
 `
 	tc := typecheck(t, input)
@@ -3316,7 +3316,7 @@ import @random
 using random
 
 do main() {
-	temp r float = random.float(0.0, 1.0)
+	mut r float = random.float(0.0, 1.0)
 }
 `
 	tc := typecheck(t, input)
@@ -3329,7 +3329,7 @@ import @random
 using random
 
 do main() {
-	temp r bool = random.bool()
+	mut r bool = random.bool()
 }
 `
 	tc := typecheck(t, input)
@@ -3342,8 +3342,8 @@ import @random
 using random
 
 do main() {
-	temp arr [int] = {1, 2, 3, 4, 5}
-	temp r int = random.choice(arr)
+	mut arr [int] = {1, 2, 3, 4, 5}
+	mut r int = random.choice(arr)
 }
 `
 	tc := typecheck(t, input)
@@ -3356,8 +3356,8 @@ import @random
 using random
 
 do main() {
-	temp arr [int] = {1, 2, 3, 4, 5}
-	temp shuffled [int] = random.shuffle(arr)
+	mut arr [int] = {1, 2, 3, 4, 5}
+	mut shuffled [int] = random.shuffle(arr)
 }
 `
 	tc := typecheck(t, input)
@@ -3370,7 +3370,7 @@ import @random
 using random
 
 do main() {
-	temp r int = random.int()
+	mut r int = random.int()
 }
 `
 	tc := typecheck(t, input)
@@ -3387,7 +3387,7 @@ import @bytes
 using bytes
 
 do main() {
-	temp b [byte] = bytes.from_string("hello")
+	mut b [byte] = bytes.from_string("hello")
 }
 `
 	tc := typecheck(t, input)
@@ -3400,8 +3400,8 @@ import @bytes
 using bytes
 
 do main() {
-	temp arr [int] = {72, 101, 108, 108, 111}
-	temp b [byte] = bytes.from_array(arr)
+	mut arr [int] = {72, 101, 108, 108, 111}
+	mut b [byte] = bytes.from_array(arr)
 }
 `
 	tc := typecheck(t, input)
@@ -3414,8 +3414,8 @@ import @bytes
 using bytes
 
 do main() {
-	temp b [byte] = {72, 101, 108, 108, 111}
-	temp s string = bytes.to_string(b)
+	mut b [byte] = {72, 101, 108, 108, 111}
+	mut s string = bytes.to_string(b)
 }
 `
 	tc := typecheck(t, input)
@@ -3428,7 +3428,7 @@ import @bytes
 using bytes
 
 do main() {
-	temp b [byte], err error = bytes.from_hex("48656c6c6f")
+	mut b [byte], err error = bytes.from_hex("48656c6c6f")
 }
 `
 	tc := typecheck(t, input)
@@ -3441,8 +3441,8 @@ import @bytes
 using bytes
 
 do main() {
-	temp b [byte] = {72, 101, 108, 108, 111}
-	temp hex string = bytes.to_hex(b)
+	mut b [byte] = {72, 101, 108, 108, 111}
+	mut hex string = bytes.to_hex(b)
 }
 `
 	tc := typecheck(t, input)
@@ -3455,8 +3455,8 @@ import @bytes
 using bytes
 
 do main() {
-	temp b [byte] = {1, 2, 3, 4, 5}
-	temp sliced [byte] = bytes.slice(b, 1, 3)
+	mut b [byte] = {1, 2, 3, 4, 5}
+	mut sliced [byte] = bytes.slice(b, 1, 3)
 }
 `
 	tc := typecheck(t, input)
@@ -3469,9 +3469,9 @@ import @bytes
 using bytes
 
 do main() {
-	temp a [byte] = {1, 2, 3}
-	temp b [byte] = {4, 5, 6}
-	temp c [byte] = bytes.concat(a, b)
+	mut a [byte] = {1, 2, 3}
+	mut b [byte] = {4, 5, 6}
+	mut c [byte] = bytes.concat(a, b)
 }
 `
 	tc := typecheck(t, input)
@@ -3484,7 +3484,7 @@ import @bytes
 using bytes
 
 do main() {
-	temp b [byte] = bytes.from_string(123)
+	mut b [byte] = bytes.from_string(123)
 }
 `
 	tc := typecheck(t, input)
@@ -3501,7 +3501,7 @@ import @binary
 using binary
 
 do main() {
-	temp b [byte], err error = binary.encode_i8(127)
+	mut b [byte], err error = binary.encode_i8(127)
 }
 `
 	tc := typecheck(t, input)
@@ -3514,8 +3514,8 @@ import @binary
 using binary
 
 do main() {
-	temp data [byte] = {127}
-	temp value int, err error = binary.decode_i8(data)
+	mut data [byte] = {127}
+	mut value int, err error = binary.decode_i8(data)
 }
 `
 	tc := typecheck(t, input)
@@ -3528,7 +3528,7 @@ import @binary
 using binary
 
 do main() {
-	temp b [byte], err error = binary.encode_u16_le(65535)
+	mut b [byte], err error = binary.encode_u16_le(65535)
 }
 `
 	tc := typecheck(t, input)
@@ -3541,8 +3541,8 @@ import @binary
 using binary
 
 do main() {
-	temp data [byte] = {0xFF, 0xFF}
-	temp value int, err error = binary.decode_u16_le(data)
+	mut data [byte] = {0xFF, 0xFF}
+	mut value int, err error = binary.decode_u16_le(data)
 }
 `
 	tc := typecheck(t, input)
@@ -3555,7 +3555,7 @@ import @binary
 using binary
 
 do main() {
-	temp b [byte], err error = binary.encode_i32_be(2147483647)
+	mut b [byte], err error = binary.encode_i32_be(2147483647)
 }
 `
 	tc := typecheck(t, input)
@@ -3568,8 +3568,8 @@ import @binary
 using binary
 
 do main() {
-	temp data [byte] = {0x7F, 0xFF, 0xFF, 0xFF}
-	temp value int, err error = binary.decode_i32_be(data)
+	mut data [byte] = {0x7F, 0xFF, 0xFF, 0xFF}
+	mut value int, err error = binary.decode_i32_be(data)
 }
 `
 	tc := typecheck(t, input)
@@ -3582,7 +3582,7 @@ import @binary
 using binary
 
 do main() {
-	temp b [byte], err error = binary.encode_f32_le(3.14)
+	mut b [byte], err error = binary.encode_f32_le(3.14)
 }
 `
 	tc := typecheck(t, input)
@@ -3595,8 +3595,8 @@ import @binary
 using binary
 
 do main() {
-	temp data [byte] = {0xC3, 0xF5, 0x48, 0x40}
-	temp value float, err error = binary.decode_f32_le(data)
+	mut data [byte] = {0xC3, 0xF5, 0x48, 0x40}
+	mut value float, err error = binary.decode_f32_le(data)
 }
 `
 	tc := typecheck(t, input)
@@ -3609,7 +3609,7 @@ import @binary
 using binary
 
 do main() {
-	temp b [byte], err error = binary.encode_f64_be(3.14159265359)
+	mut b [byte], err error = binary.encode_f64_be(3.14159265359)
 }
 `
 	tc := typecheck(t, input)
@@ -3622,8 +3622,8 @@ import @binary
 using binary
 
 do main() {
-	temp data [byte] = {0x40, 0x09, 0x21, 0xFB, 0x54, 0x44, 0x2D, 0x18}
-	temp value float, err error = binary.decode_f64_be(data)
+	mut data [byte] = {0x40, 0x09, 0x21, 0xFB, 0x54, 0x44, 0x2D, 0x18}
+	mut value float, err error = binary.decode_f64_be(data)
 }
 `
 	tc := typecheck(t, input)
@@ -3636,7 +3636,7 @@ import @binary
 using binary
 
 do main() {
-	temp b [byte], err error = binary.encode_i8("not a number")
+	mut b [byte], err error = binary.encode_i8("not a number")
 }
 `
 	tc := typecheck(t, input)
@@ -3649,7 +3649,7 @@ import @binary
 using binary
 
 do main() {
-	temp b [byte], err error = binary.encode_i8()
+	mut b [byte], err error = binary.encode_i8()
 }
 `
 	tc := typecheck(t, input)
@@ -3663,7 +3663,7 @@ do main() {
 func TestArrayElementTypeMismatch(t *testing.T) {
 	input := `
 do main() {
-	temp arr [int] = {1, "two", 3}
+	mut arr [int] = {1, "two", 3}
 }
 `
 	tc := typecheck(t, input)
@@ -3673,7 +3673,7 @@ do main() {
 func TestArrayElementTypeCompatibleIntegers(t *testing.T) {
 	input := `
 do main() {
-	temp arr [int] = {1, 2, 3, 4, 5}
+	mut arr [int] = {1, 2, 3, 4, 5}
 }
 `
 	tc := typecheck(t, input)
@@ -3683,7 +3683,7 @@ do main() {
 func TestArrayElementTypeCompatibleFloats(t *testing.T) {
 	input := `
 do main() {
-	temp arr [float] = {1.1, 2.2, 3.3}
+	mut arr [float] = {1.1, 2.2, 3.3}
 }
 `
 	tc := typecheck(t, input)
@@ -3693,7 +3693,7 @@ do main() {
 func TestArrayElementTypeCompatibleStrings(t *testing.T) {
 	input := `
 do main() {
-	temp arr [string] = {"a", "b", "c"}
+	mut arr [string] = {"a", "b", "c"}
 }
 `
 	tc := typecheck(t, input)
@@ -3703,7 +3703,7 @@ do main() {
 func TestNestedArrayElementTypeMismatch(t *testing.T) {
 	input := `
 do main() {
-	temp arr [[int]] = {{1, 2}, {"a", "b"}}
+	mut arr [[int]] = {{1, 2}, {"a", "b"}}
 }
 `
 	tc := typecheck(t, input)
@@ -3716,8 +3716,8 @@ import @arrays
 using arrays
 
 do main() {
-	temp nums [string] = {"a", "b"}
-	temp sum int = arrays.sum(nums)
+	mut nums [string] = {"a", "b"}
+	mut sum int = arrays.sum(nums)
 }
 `
 	tc := typecheck(t, input)
@@ -3731,7 +3731,7 @@ do main() {
 func TestMapLiteralAcceptsMatchingTypes(t *testing.T) {
 	input := `
 do main() {
-	temp m map[string:int] = {"a": 1, "b": 2}
+	mut m map[string:int] = {"a": 1, "b": 2}
 }
 `
 	tc := typecheck(t, input)
@@ -3741,7 +3741,7 @@ do main() {
 func TestMapKeyValueTypesCompatible(t *testing.T) {
 	input := `
 do main() {
-	temp m map[string:int] = {"a": 1, "b": 2, "c": 3}
+	mut m map[string:int] = {"a": 1, "b": 2, "c": 3}
 }
 `
 	tc := typecheck(t, input)
@@ -3754,8 +3754,8 @@ import @maps
 using maps
 
 do main() {
-	temp m map[int:string] = {1: "one", 2: "two"}
-	temp map_keys [int] = maps.keys(m)
+	mut m map[int:string] = {1: "one", 2: "two"}
+	mut map_keys [int] = maps.keys(m)
 }
 `
 	tc := typecheck(t, input)
@@ -3768,8 +3768,8 @@ import @maps
 using maps
 
 do main() {
-	temp m map[int:string] = {1: "one", 2: "two"}
-	temp map_values [string] = maps.values(m)
+	mut m map[int:string] = {1: "one", 2: "two"}
+	mut map_values [string] = maps.values(m)
 }
 `
 	tc := typecheck(t, input)
@@ -3836,8 +3836,8 @@ const Person struct {
 }
 
 do main() {
-	temp p Person = Person{name: "Alice", age: 30}
-	temp jsonStr string, err error = json.encode(p)
+	mut p Person = Person{name: "Alice", age: 30}
+	mut jsonStr string, err error = json.encode(p)
 }
 `
 	tc := typecheck(t, input)
@@ -3855,7 +3855,7 @@ const Person struct {
 }
 
 do main() {
-	temp p Person, err error = json.decode("{}", Person)
+	mut p Person, err error = json.decode("{}", Person)
 }
 `
 	tc := typecheck(t, input)
@@ -3873,8 +3873,8 @@ const Person struct {
 }
 
 do main() {
-	temp p Person = Person{name: "Alice", age: 30}
-	temp jsonStr string, err error = json.pretty(p, "  ")
+	mut p Person = Person{name: "Alice", age: 30}
+	mut jsonStr string, err error = json.pretty(p, "  ")
 }
 `
 	tc := typecheck(t, input)
@@ -3888,7 +3888,7 @@ import @math
 using math
 
 do main() {
-	temp x float = math.floor(3.7)
+	mut x float = math.floor(3.7)
 }
 `
 	tc := typecheck(t, input)
@@ -3902,9 +3902,9 @@ do main() {
 func TestArrayIndexExpression(t *testing.T) {
 	input := `
 do main() {
-	temp arr [int] = {1, 2, 3}
-	temp x int = arr[0]
-	temp y int = arr[1]
+	mut arr [int] = {1, 2, 3}
+	mut x int = arr[0]
+	mut y int = arr[1]
 }
 `
 	tc := typecheck(t, input)
@@ -3914,8 +3914,8 @@ do main() {
 func TestMapIndexExpression(t *testing.T) {
 	input := `
 do main() {
-	temp m map[string:int] = {"a": 1, "b": 2}
-	temp x int = m["a"]
+	mut m map[string:int] = {"a": 1, "b": 2}
+	mut x int = m["a"]
 }
 `
 	tc := typecheck(t, input)
@@ -3925,8 +3925,8 @@ do main() {
 func TestStringIndexExpression(t *testing.T) {
 	input := `
 do main() {
-	temp s string = "hello"
-	temp c char = s[0]
+	mut s string = "hello"
+	mut c char = s[0]
 }
 `
 	tc := typecheck(t, input)
@@ -3936,8 +3936,8 @@ do main() {
 func TestNestedIndexExpression(t *testing.T) {
 	input := `
 do main() {
-	temp arr [[int]] = {{1, 2}, {3, 4}}
-	temp x int = arr[0][1]
+	mut arr [[int]] = {{1, 2}, {3, 4}}
+	mut x int = arr[0][1]
 }
 `
 	tc := typecheck(t, input)
@@ -3951,7 +3951,7 @@ do main() {
 func TestCastToI8(t *testing.T) {
 	input := `
 do main() {
-	temp x i8 = cast(127, i8)
+	mut x i8 = cast(127, i8)
 }
 `
 	tc := typecheck(t, input)
@@ -3961,7 +3961,7 @@ do main() {
 func TestCastToI16(t *testing.T) {
 	input := `
 do main() {
-	temp x i16 = cast(1000, i16)
+	mut x i16 = cast(1000, i16)
 }
 `
 	tc := typecheck(t, input)
@@ -3971,7 +3971,7 @@ do main() {
 func TestCastToI32(t *testing.T) {
 	input := `
 do main() {
-	temp x i32 = cast(100000, i32)
+	mut x i32 = cast(100000, i32)
 }
 `
 	tc := typecheck(t, input)
@@ -3981,7 +3981,7 @@ do main() {
 func TestCastToU8(t *testing.T) {
 	input := `
 do main() {
-	temp x u8 = cast(255, u8)
+	mut x u8 = cast(255, u8)
 }
 `
 	tc := typecheck(t, input)
@@ -3991,7 +3991,7 @@ do main() {
 func TestCastToU16(t *testing.T) {
 	input := `
 do main() {
-	temp x u16 = cast(65535, u16)
+	mut x u16 = cast(65535, u16)
 }
 `
 	tc := typecheck(t, input)
@@ -4001,7 +4001,7 @@ do main() {
 func TestCastToF32(t *testing.T) {
 	input := `
 do main() {
-	temp x f32 = cast(3.14, f32)
+	mut x f32 = cast(3.14, f32)
 }
 `
 	tc := typecheck(t, input)
@@ -4011,7 +4011,7 @@ do main() {
 func TestCastToF64(t *testing.T) {
 	input := `
 do main() {
-	temp x f64 = cast(3.14159, f64)
+	mut x f64 = cast(3.14159, f64)
 }
 `
 	tc := typecheck(t, input)
@@ -4025,8 +4025,8 @@ do main() {
 func TestI8Bounds(t *testing.T) {
 	input := `
 do main() {
-	temp min i8 = -128
-	temp max i8 = 127
+	mut min i8 = -128
+	mut max i8 = 127
 }
 `
 	tc := typecheck(t, input)
@@ -4036,8 +4036,8 @@ do main() {
 func TestU8Bounds(t *testing.T) {
 	input := `
 do main() {
-	temp min u8 = 0
-	temp max u8 = 255
+	mut min u8 = 0
+	mut max u8 = 255
 }
 `
 	tc := typecheck(t, input)
@@ -4047,8 +4047,8 @@ do main() {
 func TestI16Bounds(t *testing.T) {
 	input := `
 do main() {
-	temp min i16 = -32768
-	temp max i16 = 32767
+	mut min i16 = -32768
+	mut max i16 = 32767
 }
 `
 	tc := typecheck(t, input)
@@ -4058,8 +4058,8 @@ do main() {
 func TestU16Bounds(t *testing.T) {
 	input := `
 do main() {
-	temp min u16 = 0
-	temp max u16 = 65535
+	mut min u16 = 0
+	mut max u16 = 65535
 }
 `
 	tc := typecheck(t, input)
@@ -4076,7 +4076,7 @@ import @strings
 using strings
 
 do main() {
-	temp result bool = strings.contains("hello world", "world")
+	mut result bool = strings.contains("hello world", "world")
 }
 `
 	tc := typecheck(t, input)
@@ -4089,7 +4089,7 @@ import @strings
 using strings
 
 do main() {
-	temp parts [string] = strings.split("a,b,c", ",")
+	mut parts [string] = strings.split("a,b,c", ",")
 }
 `
 	tc := typecheck(t, input)
@@ -4102,8 +4102,8 @@ import @strings
 using strings
 
 do main() {
-	temp parts [string] = {"a", "b", "c"}
-	temp joined string = strings.join(parts, ",")
+	mut parts [string] = {"a", "b", "c"}
+	mut joined string = strings.join(parts, ",")
 }
 `
 	tc := typecheck(t, input)
@@ -4116,7 +4116,7 @@ import @strings
 using strings
 
 do main() {
-	temp result string = strings.replace("hello world", "world", "there")
+	mut result string = strings.replace("hello world", "world", "there")
 }
 `
 	tc := typecheck(t, input)
@@ -4129,7 +4129,7 @@ import @strings
 using strings
 
 do main() {
-	temp sub string = strings.substring("hello", 0, 3)
+	mut sub string = strings.substring("hello", 0, 3)
 }
 `
 	tc := typecheck(t, input)
@@ -4146,7 +4146,7 @@ import @time
 using time
 
 do main() {
-	temp timestamp int = time.now()
+	mut timestamp int = time.now()
 }
 `
 	tc := typecheck(t, input)
@@ -4159,7 +4159,7 @@ import @time
 using time
 
 do main() {
-	temp formatted string = time.format("YYYY-MM-DD", 1234567890)
+	mut formatted string = time.format("YYYY-MM-DD", 1234567890)
 }
 `
 	tc := typecheck(t, input)
@@ -4172,7 +4172,7 @@ import @time
 using time
 
 do main() {
-	temp h int = time.hour()
+	mut h int = time.hour()
 }
 `
 	tc := typecheck(t, input)
@@ -4185,7 +4185,7 @@ import @time
 using time
 
 do main() {
-	temp m int = time.minute()
+	mut m int = time.minute()
 }
 `
 	tc := typecheck(t, input)
@@ -4198,7 +4198,7 @@ import @time
 using time
 
 do main() {
-	temp s int = time.second()
+	mut s int = time.second()
 }
 `
 	tc := typecheck(t, input)
@@ -4215,7 +4215,7 @@ const MAX_VALUE int = 100
 const MIN_VALUE int = 0
 
 do main() {
-	temp x int = MAX_VALUE
+	mut x int = MAX_VALUE
 }
 `
 	tc := typecheck(t, input)
@@ -4224,7 +4224,7 @@ do main() {
 
 func TestGlobalTempDeclaration(t *testing.T) {
 	input := `
-temp counter int = 0
+mut counter int = 0
 
 do main() {
 	counter = counter + 1
@@ -4244,7 +4244,7 @@ import @io
 using io
 
 do main() {
-	temp content string, err error = io.read_file("test.txt")
+	mut content string, err error = io.read_file("test.txt")
 	if err != nil {
 		println("Error reading file")
 	}
@@ -4260,7 +4260,7 @@ import @io
 using io
 
 do main() {
-	temp data string, err error = io.read_file("test.txt")
+	mut data string, err error = io.read_file("test.txt")
 	println(data)
 }
 `
@@ -4281,7 +4281,7 @@ const Priority enum {
 }
 
 do main() {
-	temp p Priority = Priority.HIGH
+	mut p Priority = Priority.HIGH
 }
 `
 	tc := typecheck(t, input)
@@ -4297,7 +4297,7 @@ const Scale enum {
 }
 
 do main() {
-	temp s Scale = Scale.MEDIUM
+	mut s Scale = Scale.MEDIUM
 }
 `
 	tc := typecheck(t, input)
@@ -4314,7 +4314,7 @@ const Direction enum {
 }
 
 do main() {
-	temp d Direction = Direction.NORTH
+	mut d Direction = Direction.NORTH
 }
 `
 	tc := typecheck(t, input)
@@ -4361,8 +4361,8 @@ const Point struct {
 }
 
 do main() {
-	temp p Point = Point{x: 10, y: 20}
-	temp sum int = p.x + p.y
+	mut p Point = Point{x: 10, y: 20}
+	mut sum int = p.x + p.y
 }
 `
 	tc := typecheck(t, input)
@@ -4380,8 +4380,8 @@ const Outer struct {
 }
 
 do main() {
-	temp o Outer = Outer{inner: Inner{value: 42}}
-	temp v int = o.inner.value
+	mut o Outer = Outer{inner: Inner{value: 42}}
+	mut v int = o.inner.value
 }
 `
 	tc := typecheck(t, input)
@@ -4397,8 +4397,8 @@ const Color enum {
 }
 
 do main() {
-	temp c Color = Color.RED
-	temp isRed bool = c == Color.RED
+	mut c Color = Color.RED
+	mut isRed bool = c == Color.RED
 }
 `
 	tc := typecheck(t, input)
@@ -4418,7 +4418,7 @@ const Status enum {
 }
 
 do main() {
-	temp s Status = Status.PENDING
+	mut s Status = Status.PENDING
 	when s {
 		is Status.PENDING {
 			println("pending")
@@ -4439,7 +4439,7 @@ do main() {
 func TestWhenStatementWithInteger(t *testing.T) {
 	input := `
 do main() {
-	temp x int = 5
+	mut x int = 5
 	when x {
 		is 1 {
 			println("one")
@@ -4462,7 +4462,7 @@ const Person struct {
 }
 
 do main() {
-	temp p Person = new(Person)
+	mut p Person = new(Person)
 	p.name = "Alice"
 	p.age = 30
 }
@@ -4474,8 +4474,8 @@ do main() {
 func TestArrayLength(t *testing.T) {
 	input := `
 do main() {
-	temp arr [int] = {1, 2, 3, 4, 5}
-	temp length int = len(arr)
+	mut arr [int] = {1, 2, 3, 4, 5}
+	mut length int = len(arr)
 }
 `
 	tc := typecheck(t, input)
@@ -4485,8 +4485,8 @@ do main() {
 func TestStringLength(t *testing.T) {
 	input := `
 do main() {
-	temp s string = "hello world"
-	temp length int = len(s)
+	mut s string = "hello world"
+	mut length int = len(s)
 }
 `
 	tc := typecheck(t, input)
@@ -4496,7 +4496,7 @@ do main() {
 func TestCompoundAssignment(t *testing.T) {
 	input := `
 do main() {
-	temp x int = 10
+	mut x int = 10
 	x += 5
 	x -= 3
 	x *= 2
@@ -4530,7 +4530,7 @@ func TestNestedLoops(t *testing.T) {
 do main() {
 	for i in range(0, 5) {
 		for j in range(0, 5) {
-			temp product int = i * j
+			mut product int = i * j
 		}
 	}
 }
@@ -4547,7 +4547,7 @@ const Config struct {
 }
 
 do main() {
-	temp c Config = Config{name: "test", timeout: 30}
+	mut c Config = Config{name: "test", timeout: 30}
 }
 `
 	tc := typecheck(t, input)
@@ -4560,8 +4560,8 @@ import @arrays
 using arrays
 
 do main() {
-	temp arr [int] = {1, 2, 3}
-	temp isEmpty bool = arrays.is_empty(arr)
+	mut arr [int] = {1, 2, 3}
+	mut isEmpty bool = arrays.is_empty(arr)
 }
 `
 	tc := typecheck(t, input)
@@ -4574,8 +4574,8 @@ import @arrays
 using arrays
 
 do main() {
-	temp arr [int] = {1, 2, 3}
-	temp firstElement int = arrays.first(arr)
+	mut arr [int] = {1, 2, 3}
+	mut firstElement int = arrays.first(arr)
 }
 `
 	tc := typecheck(t, input)
@@ -4588,9 +4588,9 @@ import @maps
 using maps
 
 do main() {
-	temp m1 map[string:int] = {"a": 1}
-	temp m2 map[string:int] = {"b": 2}
-	temp merged map[string:int] = maps.merge(m1, m2)
+	mut m1 map[string:int] = {"a": 1}
+	mut m2 map[string:int] = {"b": 2}
+	mut merged map[string:int] = maps.merge(m1, m2)
 }
 `
 	tc := typecheck(t, input)
@@ -4606,8 +4606,8 @@ do takeBool(value bool) {
 }
 
 do main() {
-	temp m map[string:int] = {"a": 1, "b": 2}
-	temp removed = maps.remove(m, "a")
+	mut m map[string:int] = {"a": 1, "b": 2}
+	mut removed = maps.remove(m, "a")
 	takeBool(removed)
 }
 `
@@ -4635,17 +4635,17 @@ do takeStrings(value [string]) {
 }
 
 do main() {
-	temp id = uuid.create()
+	mut id = uuid.create()
 	takeString(id)
 
-	temp number = random.int(1, 10)
+	mut number = random.int(1, 10)
 	takeInt(number)
 
-	temp m map[string:int] = {"a": 1, "b": 2}
-	temp keys = maps.keys(m)
+	mut m map[string:int] = {"a": 1, "b": 2}
+	mut keys = maps.keys(m)
 	takeStrings(keys)
 
-	temp valid = json.is_valid("{\"a\": 1}")
+	mut valid = json.is_valid("{\"a\": 1}")
 	takeBool(valid)
 }
 `
@@ -4662,8 +4662,8 @@ do takeBool(value bool) {
 }
 
 do main() {
-	temp m map[string:int] = {"a": 1}
-	temp empty = is_empty(m)
+	mut m map[string:int] = {"a": 1}
+	mut empty = is_empty(m)
 	takeBool(empty)
 }
 `
@@ -4679,8 +4679,8 @@ do takeBool(value bool) {
 }
 
 do main() {
-	temp m0 map[string:int] = {"a": 1}
-	temp empty = m.is_empty(m0)
+	mut m0 map[string:int] = {"a": 1}
+	mut empty = m.is_empty(m0)
 	takeBool(empty)
 }
 `
@@ -4691,8 +4691,8 @@ do main() {
 func TestStringInterpolation(t *testing.T) {
 	input := `
 do main() {
-	temp name string = "world"
-	temp greeting string = "Hello, ${name}!"
+	mut name string = "world"
+	mut greeting string = "Hello, ${name}!"
 }
 `
 	tc := typecheck(t, input)
@@ -4702,7 +4702,7 @@ do main() {
 func TestIfCondition(t *testing.T) {
 	input := `
 do main() {
-	temp x int = 5
+	mut x int = 5
 	if x > 0 {
 		println("positive")
 	}
@@ -4715,11 +4715,11 @@ do main() {
 func TestLogicalOperators(t *testing.T) {
 	input := `
 do main() {
-	temp a bool = true
-	temp b bool = false
-	temp andResult bool = a && b
-	temp orResult bool = a || b
-	temp notResult bool = !a
+	mut a bool = true
+	mut b bool = false
+	mut andResult bool = a && b
+	mut orResult bool = a || b
+	mut notResult bool = !a
 }
 `
 	tc := typecheck(t, input)
@@ -4729,12 +4729,12 @@ do main() {
 func TestComparisonOperators(t *testing.T) {
 	input := `
 do main() {
-	temp a int = 5
-	temp b int = 3
-	temp gt bool = a > b
-	temp lt bool = a < b
-	temp eq bool = a == b
-	temp neq bool = a != b
+	mut a int = 5
+	mut b int = 3
+	mut gt bool = a > b
+	mut lt bool = a < b
+	mut eq bool = a == b
+	mut neq bool = a != b
 }
 `
 	tc := typecheck(t, input)
@@ -4748,7 +4748,7 @@ do main() {
 func TestNestedIfStatements(t *testing.T) {
 	input := `
 do main() {
-	temp x int = 5
+	mut x int = 5
 	if x > 10 {
 		println("big")
 	}
@@ -4764,7 +4764,7 @@ do main() {
 func TestForEachWithArray(t *testing.T) {
 	input := `
 do main() {
-	temp items [string] = {"a", "b", "c"}
+	mut items [string] = {"a", "b", "c"}
 	for_each item in items {
 		println(item)
 	}
@@ -4777,7 +4777,7 @@ do main() {
 func TestForLoopIteration(t *testing.T) {
 	input := `
 do main() {
-	temp sum int = 0
+	mut sum int = 0
 	for i in range(0, 10) {
 		sum = sum + i
 	}
@@ -4794,7 +4794,7 @@ do add(a int, b int) -> int {
 }
 
 do main() {
-	temp sum int = add(5, 3)
+	mut sum int = add(5, 3)
 }
 `
 	tc := typecheck(t, input)
@@ -4823,8 +4823,8 @@ import @arrays
 using arrays
 
 do main() {
-	temp arr [int] = {1, 2, 3}
-	temp reversed [int] = arrays.reverse(arr)
+	mut arr [int] = {1, 2, 3}
+	mut reversed [int] = arrays.reverse(arr)
 }
 `
 	tc := typecheck(t, input)
@@ -4837,8 +4837,8 @@ import @arrays
 using arrays
 
 do main() {
-	temp arr [int] = {1, 2, 3}
-	temp hasTwo bool = arrays.contains(arr, 2)
+	mut arr [int] = {1, 2, 3}
+	mut hasTwo bool = arrays.contains(arr, 2)
 }
 `
 	tc := typecheck(t, input)
@@ -4851,7 +4851,7 @@ import @math
 using math
 
 do main() {
-	temp result float = math.pow(2.0, 10.0)
+	mut result float = math.pow(2.0, 10.0)
 }
 `
 	tc := typecheck(t, input)
@@ -4864,7 +4864,7 @@ import @math
 using math
 
 do main() {
-	temp result float = math.sqrt(16.0)
+	mut result float = math.sqrt(16.0)
 }
 `
 	tc := typecheck(t, input)
@@ -4877,7 +4877,7 @@ import @math
 using math
 
 do main() {
-	temp result float = math.ceil(3.2)
+	mut result float = math.ceil(3.2)
 }
 `
 	tc := typecheck(t, input)
@@ -4890,7 +4890,7 @@ import @math
 using math
 
 do main() {
-	temp result float = math.round(3.7)
+	mut result float = math.round(3.7)
 }
 `
 	tc := typecheck(t, input)
@@ -4903,7 +4903,7 @@ import @strings
 using strings
 
 do main() {
-	temp result string = strings.upper("hello")
+	mut result string = strings.upper("hello")
 }
 `
 	tc := typecheck(t, input)
@@ -4916,7 +4916,7 @@ import @strings
 using strings
 
 do main() {
-	temp result string = strings.lower("HELLO")
+	mut result string = strings.lower("HELLO")
 }
 `
 	tc := typecheck(t, input)
@@ -4929,7 +4929,7 @@ import @strings
 using strings
 
 do main() {
-	temp result string = strings.trim("  hello  ")
+	mut result string = strings.trim("  hello  ")
 }
 `
 	tc := typecheck(t, input)
@@ -4942,7 +4942,7 @@ import @strings
 using strings
 
 do main() {
-	temp result bool = strings.starts_with("hello world", "hello")
+	mut result bool = strings.starts_with("hello world", "hello")
 }
 `
 	tc := typecheck(t, input)
@@ -4955,7 +4955,7 @@ import @strings
 using strings
 
 do main() {
-	temp result bool = strings.ends_with("hello world", "world")
+	mut result bool = strings.ends_with("hello world", "world")
 }
 `
 	tc := typecheck(t, input)
@@ -4968,7 +4968,7 @@ import @strings
 using strings
 
 do main() {
-	temp idx int = strings.index_of("hello world", "world")
+	mut idx int = strings.index_of("hello world", "world")
 }
 `
 	tc := typecheck(t, input)
@@ -4981,7 +4981,7 @@ import @math
 using math
 
 do main() {
-	temp result int = math.min(5, 3)
+	mut result int = math.min(5, 3)
 }
 `
 	tc := typecheck(t, input)
@@ -4994,7 +4994,7 @@ import @math
 using math
 
 do main() {
-	temp result int = math.max(5, 3)
+	mut result int = math.max(5, 3)
 }
 `
 	tc := typecheck(t, input)
@@ -5007,7 +5007,7 @@ import @arrays
 using arrays
 
 do main() {
-	temp arr [int] = {3, 1, 4, 1, 5}
+	mut arr [int] = {3, 1, 4, 1, 5}
 	arrays.sort(arr)
 }
 `
@@ -5021,8 +5021,8 @@ import @arrays
 using arrays
 
 do main() {
-	temp arr [int] = {1, 2, 3, 4, 5}
-	temp total int = arrays.sum(arr)
+	mut arr [int] = {1, 2, 3, 4, 5}
+	mut total int = arrays.sum(arr)
 }
 `
 	tc := typecheck(t, input)
@@ -5035,8 +5035,8 @@ import @maps
 using maps
 
 do main() {
-	temp m map[string:int] = {"a": 1, "b": 2}
-	temp hasKey bool = maps.contains(m, "a")
+	mut m map[string:int] = {"a": 1, "b": 2}
+	mut hasKey bool = maps.contains(m, "a")
 }
 `
 	tc := typecheck(t, input)
@@ -5049,8 +5049,8 @@ import @maps
 using maps
 
 do main() {
-	temp m map[string:int] = {"a": 1, "b": 2}
-	temp mapSize int = maps.len(m)
+	mut m map[string:int] = {"a": 1, "b": 2}
+	mut mapSize int = maps.len(m)
 }
 `
 	tc := typecheck(t, input)
@@ -5064,8 +5064,8 @@ do main() {
 func TestCastIntToFloat(t *testing.T) {
 	input := `
 do main() {
-	temp x int = 42
-	temp f float = cast(x, float)
+	mut x int = 42
+	mut f float = cast(x, float)
 }
 `
 	tc := typecheck(t, input)
@@ -5075,8 +5075,8 @@ do main() {
 func TestCastFloatToInt(t *testing.T) {
 	input := `
 do main() {
-	temp f float = 3.14
-	temp x int = cast(f, int)
+	mut f float = 3.14
+	mut x int = cast(f, int)
 }
 `
 	tc := typecheck(t, input)
@@ -5086,8 +5086,8 @@ do main() {
 func TestCastIntToString(t *testing.T) {
 	input := `
 do main() {
-	temp x int = 42
-	temp s string = cast(x, string)
+	mut x int = 42
+	mut s string = cast(x, string)
 }
 `
 	tc := typecheck(t, input)
@@ -5097,8 +5097,8 @@ do main() {
 func TestCastStringToInt(t *testing.T) {
 	input := `
 do main() {
-	temp s string = "42"
-	temp x int = cast(s, int)
+	mut s string = "42"
+	mut x int = cast(s, int)
 }
 `
 	tc := typecheck(t, input)
@@ -5108,8 +5108,8 @@ do main() {
 func TestCastIntToByte(t *testing.T) {
 	input := `
 do main() {
-	temp x int = 65
-	temp b byte = cast(x, byte)
+	mut x int = 65
+	mut b byte = cast(x, byte)
 }
 `
 	tc := typecheck(t, input)
@@ -5119,8 +5119,8 @@ do main() {
 func TestCastByteToInt(t *testing.T) {
 	input := `
 do main() {
-	temp b byte = 65
-	temp x int = cast(b, int)
+	mut b byte = 65
+	mut x int = cast(b, int)
 }
 `
 	tc := typecheck(t, input)
@@ -5130,8 +5130,8 @@ do main() {
 func TestCastIntToChar(t *testing.T) {
 	input := `
 do main() {
-	temp x int = 65
-	temp c char = cast(x, char)
+	mut x int = 65
+	mut c char = cast(x, char)
 }
 `
 	tc := typecheck(t, input)
@@ -5141,8 +5141,8 @@ do main() {
 func TestCastCharToInt(t *testing.T) {
 	input := `
 do main() {
-	temp c char = 'A'
-	temp x int = cast(c, int)
+	mut c char = 'A'
+	mut x int = cast(c, int)
 }
 `
 	tc := typecheck(t, input)
@@ -5156,8 +5156,8 @@ do main() {
 func TestIntToFloatConversion(t *testing.T) {
 	input := `
 do main() {
-	temp x int = 42
-	temp f float = float(x)
+	mut x int = 42
+	mut f float = float(x)
 }
 `
 	tc := typecheck(t, input)
@@ -5167,8 +5167,8 @@ do main() {
 func TestFloatToIntConversion(t *testing.T) {
 	input := `
 do main() {
-	temp f float = 3.14
-	temp x int = int(f)
+	mut f float = 3.14
+	mut x int = int(f)
 }
 `
 	tc := typecheck(t, input)
@@ -5178,8 +5178,8 @@ do main() {
 func TestIntToStringConversion(t *testing.T) {
 	input := `
 do main() {
-	temp x int = 42
-	temp s string = string(x)
+	mut x int = 42
+	mut s string = string(x)
 }
 `
 	tc := typecheck(t, input)
@@ -5189,8 +5189,8 @@ do main() {
 func TestBoolToStringConversion(t *testing.T) {
 	input := `
 do main() {
-	temp b bool = true
-	temp s string = string(b)
+	mut b bool = true
+	mut s string = string(b)
 }
 `
 	tc := typecheck(t, input)
@@ -5213,7 +5213,7 @@ do makePoint(x int, y int) -> Point {
 }
 
 do main() {
-	temp p Point = makePoint(10, 20)
+	mut p Point = makePoint(10, 20)
 }
 `
 	tc := typecheck(t, input)
@@ -5227,7 +5227,7 @@ do makeNumbers() -> [int] {
 }
 
 do main() {
-	temp nums [int] = makeNumbers()
+	mut nums [int] = makeNumbers()
 }
 `
 	tc := typecheck(t, input)
@@ -5241,7 +5241,7 @@ do isPositive(x int) -> bool {
 }
 
 do main() {
-	temp result bool = isPositive(5)
+	mut result bool = isPositive(5)
 }
 `
 	tc := typecheck(t, input)
@@ -5255,7 +5255,7 @@ do greet(name string) -> string {
 }
 
 do main() {
-	temp msg string = greet("World")
+	mut msg string = greet("World")
 }
 `
 	tc := typecheck(t, input)
@@ -5276,7 +5276,7 @@ do factorial(n int) -> int {
 }
 
 do main() {
-	temp result int = factorial(5)
+	mut result int = factorial(5)
 }
 `
 	tc := typecheck(t, input)
@@ -5290,7 +5290,7 @@ do getZero() -> int {
 }
 
 do main() {
-	temp x int = getZero()
+	mut x int = getZero()
 }
 `
 	tc := typecheck(t, input)
@@ -5305,9 +5305,9 @@ const Person struct {
 }
 
 do main() {
-	temp p Person = Person{name: "Alice", age: 30}
-	temp n string = p.name
-	temp a int = p.age
+	mut p Person = Person{name: "Alice", age: 30}
+	mut n string = p.name
+	mut a int = p.age
 }
 `
 	tc := typecheck(t, input)
@@ -5322,7 +5322,7 @@ const Person struct {
 }
 
 do main() {
-	temp p Person = Person{name: "Alice", age: 30}
+	mut p Person = Person{name: "Alice", age: 30}
 	p.name = "Bob"
 	p.age = 25
 }
@@ -5337,7 +5337,7 @@ import @io
 using io
 
 do main() {
-	temp content string, err error = io.read_file("test.txt")
+	mut content string, err error = io.read_file("test.txt")
 	if err == nil {
 		println("success")
 	}
@@ -5359,7 +5359,7 @@ const Status enum {
 }
 
 do main() {
-	temp s Status = Status.PENDING
+	mut s Status = Status.PENDING
 	if s == Status.PENDING {
 		println("pending")
 	}
@@ -5377,8 +5377,8 @@ const Point struct {
 }
 
 do main() {
-	temp points [Point] = {Point{x: 0, y: 0}, Point{x: 1, y: 1}}
-	temp first Point = points[0]
+	mut points [Point] = {Point{x: 0, y: 0}, Point{x: 1, y: 1}}
+	mut first Point = points[0]
 }
 `
 	tc := typecheck(t, input)
@@ -5393,10 +5393,10 @@ const Person struct {
 }
 
 do main() {
-	temp people map[string:Person] = {
+	mut people map[string:Person] = {
 		"alice": Person{name: "Alice", age: 30}
 	}
-	temp p Person = people["alice"]
+	mut p Person = people["alice"]
 }
 `
 	tc := typecheck(t, input)
@@ -5406,8 +5406,8 @@ do main() {
 func TestCastToI64(t *testing.T) {
 	input := `
 do main() {
-	temp x int = 1000000
-	temp y i64 = cast(x, i64)
+	mut x int = 1000000
+	mut y i64 = cast(x, i64)
 }
 `
 	tc := typecheck(t, input)
@@ -5417,8 +5417,8 @@ do main() {
 func TestCastToU32(t *testing.T) {
 	input := `
 do main() {
-	temp x int = 1000
-	temp y u32 = cast(x, u32)
+	mut x int = 1000
+	mut y u32 = cast(x, u32)
 }
 `
 	tc := typecheck(t, input)
@@ -5428,8 +5428,8 @@ do main() {
 func TestCastToBool(t *testing.T) {
 	input := `
 do main() {
-	temp x int = 1
-	temp b bool = cast(x, bool)
+	mut x int = 1
+	mut b bool = cast(x, bool)
 }
 `
 	tc := typecheck(t, input)
@@ -5439,8 +5439,8 @@ do main() {
 func TestMapWithIntKeys(t *testing.T) {
 	input := `
 do main() {
-	temp m map[int:string] = {1: "one", 2: "two", 3: "three"}
-	temp s string = m[1]
+	mut m map[int:string] = {1: "one", 2: "two", 3: "three"}
+	mut s string = m[1]
 }
 `
 	tc := typecheck(t, input)
@@ -5452,7 +5452,7 @@ func TestNestedForLoops(t *testing.T) {
 do main() {
 	for i in range(0, 3) {
 		for j in range(0, 3) {
-			temp product int = i * j
+			mut product int = i * j
 		}
 	}
 }
@@ -5468,7 +5468,7 @@ do calculate(a int, b int, c int, d int) -> int {
 }
 
 do main() {
-	temp result int = calculate(1, 2, 3, 4)
+	mut result int = calculate(1, 2, 3, 4)
 }
 `
 	tc := typecheck(t, input)
@@ -5485,7 +5485,7 @@ const Record struct {
 }
 
 do main() {
-	temp r Record = Record{id: 1, name: "test", active: true, score: 95.5}
+	mut r Record = Record{id: 1, name: "test", active: true, score: 95.5}
 }
 `
 	tc := typecheck(t, input)
@@ -5498,8 +5498,8 @@ const PI float = 3.14159
 const MAX_SIZE int = 100
 
 do main() {
-	temp area float = PI * 10.0 * 10.0
-	temp size int = MAX_SIZE
+	mut area float = PI * 10.0 * 10.0
+	mut size int = MAX_SIZE
 }
 `
 	tc := typecheck(t, input)
@@ -5524,7 +5524,7 @@ const Rectangle struct {
 }
 
 do main() {
-	temp r Rectangle = Rectangle{origin: Point{x: 0, y: 0}, size: Size{width: 100, height: 50}}
+	mut r Rectangle = Rectangle{origin: Point{x: 0, y: 0}, size: Size{width: 100, height: 50}}
 }
 `
 	tc := typecheck(t, input)
@@ -5540,7 +5540,7 @@ const Color enum {
 }
 
 do main() {
-	temp c Color = Color.RED
+	mut c Color = Color.RED
 	when c {
 		is Color.RED {
 			println("red")
@@ -5558,10 +5558,10 @@ do main() {
 func TestComplexExpression(t *testing.T) {
 	input := `
 do main() {
-	temp a int = 5
-	temp b int = 10
-	temp c int = 3
-	temp result int = (a + b) * c - (b / a)
+	mut a int = 5
+	mut b int = 10
+	mut c int = 3
+	mut result int = (a + b) * c - (b / a)
 }
 `
 	tc := typecheck(t, input)
@@ -5571,10 +5571,10 @@ do main() {
 func TestStringConcatenation(t *testing.T) {
 	input := `
 do main() {
-	temp first string = "Hello"
-	temp second string = " "
-	temp third string = "World"
-	temp result string = first + second + third
+	mut first string = "Hello"
+	mut second string = " "
+	mut third string = "World"
+	mut result string = first + second + third
 }
 `
 	tc := typecheck(t, input)
@@ -5587,11 +5587,11 @@ import @arrays
 using arrays
 
 do main() {
-	temp arr [int] = {5, 3, 8, 1, 9}
-	temp length int = len(arr)
-	temp isEmpty bool = arrays.is_empty(arr)
-	temp firstEl int = arrays.first(arr)
-	temp lastEl int = arrays.last(arr)
+	mut arr [int] = {5, 3, 8, 1, 9}
+	mut length int = len(arr)
+	mut isEmpty bool = arrays.is_empty(arr)
+	mut firstEl int = arrays.first(arr)
+	mut lastEl int = arrays.last(arr)
 }
 `
 	tc := typecheck(t, input)
@@ -5604,9 +5604,9 @@ import @maps
 using maps
 
 do main() {
-	temp m map[string:int] = {"a": 1, "b": 2, "c": 3}
-	temp hasA bool = maps.contains(m, "a")
-	temp mapLen int = maps.len(m)
+	mut m map[string:int] = {"a": 1, "b": 2, "c": 3}
+	mut hasA bool = maps.contains(m, "a")
+	mut mapLen int = maps.len(m)
 }
 `
 	tc := typecheck(t, input)
@@ -5642,8 +5642,8 @@ const Outer struct {
 }
 
 do main() {
-	temp o Outer = Outer{middle: Middle{inner: Inner{value: 42}}}
-	temp v int = o.middle.inner.value
+	mut o Outer = Outer{middle: Middle{inner: Inner{value: 42}}}
+	mut v int = o.middle.inner.value
 }
 `
 	tc := typecheck(t, input)
@@ -5653,8 +5653,8 @@ do main() {
 func TestEmptyArray(t *testing.T) {
 	input := `
 do main() {
-	temp arr [int] = {}
-	temp arrLen int = len(arr)
+	mut arr [int] = {}
+	mut arrLen int = len(arr)
 }
 `
 	tc := typecheck(t, input)
@@ -5664,7 +5664,7 @@ do main() {
 func TestEmptyMap(t *testing.T) {
 	input := `
 do main() {
-	temp m map[string:int] = {}
+	mut m map[string:int] = {}
 }
 `
 	tc := typecheck(t, input)
@@ -5674,9 +5674,9 @@ do main() {
 func TestBooleanExpression(t *testing.T) {
 	input := `
 do main() {
-	temp a bool = true
-	temp b bool = false
-	temp result bool = (a && !b) || (!a && b)
+	mut a bool = true
+	mut b bool = false
+	mut result bool = (a && !b) || (!a && b)
 }
 `
 	tc := typecheck(t, input)
@@ -5686,8 +5686,8 @@ do main() {
 func TestComparisonChain(t *testing.T) {
 	input := `
 do main() {
-	temp x int = 5
-	temp isInRange bool = x > 0 && x < 10
+	mut x int = 5
+	mut isInRange bool = x > 0 && x < 10
 }
 `
 	tc := typecheck(t, input)
@@ -5697,13 +5697,13 @@ do main() {
 func TestMathOperations(t *testing.T) {
 	input := `
 do main() {
-	temp a int = 10
-	temp b int = 3
-	temp sum int = a + b
-	temp diff int = a - b
-	temp prod int = a * b
-	temp quot int = a / b
-	temp rem int = a % b
+	mut a int = 10
+	mut b int = 3
+	mut sum int = a + b
+	mut diff int = a - b
+	mut prod int = a * b
+	mut quot int = a / b
+	mut rem int = a % b
 }
 `
 	tc := typecheck(t, input)
@@ -5713,12 +5713,12 @@ do main() {
 func TestFloatOperations(t *testing.T) {
 	input := `
 do main() {
-	temp a float = 10.5
-	temp b float = 3.2
-	temp sum float = a + b
-	temp diff float = a - b
-	temp prod float = a * b
-	temp quot float = a / b
+	mut a float = 10.5
+	mut b float = 3.2
+	mut sum float = a + b
+	mut diff float = a - b
+	mut prod float = a * b
+	mut quot float = a / b
 }
 `
 	tc := typecheck(t, input)
@@ -5741,10 +5741,10 @@ do main() {
 func TestUnaryOperators(t *testing.T) {
 	input := `
 do main() {
-	temp a int = 5
-	temp neg int = -a
-	temp b bool = true
-	temp notB bool = !b
+	mut a int = 5
+	mut neg int = -a
+	mut b bool = true
+	mut notB bool = !b
 }
 `
 	tc := typecheck(t, input)
@@ -5754,7 +5754,7 @@ do main() {
 func TestLargeArrayLiteral(t *testing.T) {
 	input := `
 do main() {
-	temp arr [int] = {1, 2, 3, 4, 5, 6, 7, 8, 9, 10}
+	mut arr [int] = {1, 2, 3, 4, 5, 6, 7, 8, 9, 10}
 }
 `
 	tc := typecheck(t, input)
@@ -5764,7 +5764,7 @@ do main() {
 func TestLargeMapLiteral(t *testing.T) {
 	input := `
 do main() {
-	temp m map[string:int] = {
+	mut m map[string:int] = {
 		"one": 1,
 		"two": 2,
 		"three": 3,
@@ -5780,7 +5780,7 @@ do main() {
 func TestVariableReassignment(t *testing.T) {
 	input := `
 do main() {
-	temp x int = 5
+	mut x int = 5
 	x = 10
 	x = x + 1
 }
@@ -5794,8 +5794,8 @@ func TestConstVariableUsage(t *testing.T) {
 const MAX int = 100
 
 do main() {
-	temp x int = MAX
-	temp y int = MAX + 1
+	mut x int = MAX
+	mut y int = MAX + 1
 }
 `
 	tc := typecheck(t, input)
@@ -5807,10 +5807,10 @@ do main() {
 func TestHashableMapKeyTypesExtended(t *testing.T) {
 	input := `
 do main() {
-	temp m1 map[int:string] = {1: "one", 2: "two"}
-	temp m2 map[bool:string] = {true: "yes", false: "no"}
-	temp m3 map[char:int] = {'a': 1, 'b': 2}
-	temp m4 map[byte:int] = {}
+	mut m1 map[int:string] = {1: "one", 2: "two"}
+	mut m2 map[bool:string] = {true: "yes", false: "no"}
+	mut m3 map[char:int] = {'a': 1, 'b': 2}
+	mut m4 map[byte:int] = {}
 }
 `
 	tc := typecheck(t, input)
@@ -5820,14 +5820,14 @@ do main() {
 func TestComparisonOperatorsExtended(t *testing.T) {
 	input := `
 do main() {
-	temp a int = 5
-	temp b int = 10
-	temp lt bool = a < b
-	temp gt bool = a > b
-	temp lte bool = a <= b
-	temp gte bool = a >= b
-	temp eq bool = a == b
-	temp neq bool = a != b
+	mut a int = 5
+	mut b int = 10
+	mut lt bool = a < b
+	mut gt bool = a > b
+	mut lte bool = a <= b
+	mut gte bool = a >= b
+	mut eq bool = a == b
+	mut neq bool = a != b
 }
 `
 	tc := typecheck(t, input)
@@ -5837,11 +5837,11 @@ do main() {
 func TestLogicalOperatorsExtended(t *testing.T) {
 	input := `
 do main() {
-	temp a bool = true
-	temp b bool = false
-	temp andResult bool = a && b
-	temp orResult bool = a || b
-	temp complex bool = (a && b) || (!a && !b)
+	mut a bool = true
+	mut b bool = false
+	mut andResult bool = a && b
+	mut orResult bool = a || b
+	mut complex bool = (a && b) || (!a && !b)
 }
 `
 	tc := typecheck(t, input)
@@ -5883,9 +5883,9 @@ const Outer struct {
 }
 
 do main() {
-	temp o Outer = new(Outer)
+	mut o Outer = new(Outer)
 	o.inner.value = 42
-	temp v int = o.inner.value
+	mut v int = o.inner.value
 }
 `
 	tc := typecheck(t, input)
@@ -5899,7 +5899,7 @@ do square(n int) -> int {
 }
 
 do main() {
-	temp result int = square(5)
+	mut result int = square(5)
 }
 `
 	tc := typecheck(t, input)
@@ -5909,9 +5909,9 @@ do main() {
 func TestStringIndexing(t *testing.T) {
 	input := `
 do main() {
-	temp s string = "hello"
-	temp ch char = s[0]
-	temp last char = s[4]
+	mut s string = "hello"
+	mut ch char = s[0]
+	mut last char = s[4]
 }
 `
 	tc := typecheck(t, input)
@@ -5921,9 +5921,9 @@ do main() {
 func TestIndexExpressionOnMapExtended(t *testing.T) {
 	input := `
 do main() {
-	temp m map[string:int] = {"a": 1, "b": 2}
-	temp val int = m["a"]
-	temp val2 int = m["b"]
+	mut m map[string:int] = {"a": 1, "b": 2}
+	mut val int = m["a"]
+	mut val2 int = m["b"]
 }
 `
 	tc := typecheck(t, input)
@@ -5932,12 +5932,12 @@ do main() {
 
 func TestGlobalVariableWithInitialization(t *testing.T) {
 	input := `
-temp GLOBAL_VAL int = 100
+mut GLOBAL_VAL int = 100
 
 do main() {
-	temp x int = GLOBAL_VAL
+	mut x int = GLOBAL_VAL
 	GLOBAL_VAL = 200
-	temp y int = GLOBAL_VAL
+	mut y int = GLOBAL_VAL
 }
 `
 	tc := typecheck(t, input)
@@ -5947,7 +5947,7 @@ do main() {
 func TestWhileLoopExtended(t *testing.T) {
 	input := `
 do main() {
-	temp i int = 0
+	mut i int = 0
 	as_long_as i < 10 {
 		i = i + 1
 	}
@@ -5984,7 +5984,7 @@ do main() {
 func TestConditionalExtended(t *testing.T) {
 	input := `
 do main() {
-	temp x int = 5
+	mut x int = 5
 	if x > 3 {
 		println("greater")
 	}
@@ -6003,9 +6003,9 @@ const Status enum {
 }
 
 do main() {
-	temp s Status = Status.PENDING
-	temp isActive bool = s == Status.ACTIVE
-	temp notDone bool = s != Status.DONE
+	mut s Status = Status.PENDING
+	mut isActive bool = s == Status.ACTIVE
+	mut notDone bool = s != Status.DONE
 }
 `
 	tc := typecheck(t, input)
@@ -6015,8 +6015,8 @@ do main() {
 func TestEmptyArrayLiteral(t *testing.T) {
 	input := `
 do main() {
-	temp arr [int] = {}
-	temp strArr [string] = {}
+	mut arr [int] = {}
+	mut strArr [string] = {}
 }
 `
 	tc := typecheck(t, input)
@@ -6026,8 +6026,8 @@ do main() {
 func TestEmptyMapLiteral(t *testing.T) {
 	input := `
 do main() {
-	temp m map[string:int] = {}
-	temp m2 map[int:bool] = {}
+	mut m map[string:int] = {}
+	mut m2 map[int:bool] = {}
 }
 `
 	tc := typecheck(t, input)
@@ -6070,9 +6070,9 @@ do main() {
 func TestStringConcatenationExtended(t *testing.T) {
 	input := `
 do main() {
-	temp a string = "hello"
-	temp b string = "world"
-	temp c string = a + " " + b
+	mut a string = "hello"
+	mut b string = "world"
+	mut c string = a + " " + b
 }
 `
 	tc := typecheck(t, input)
@@ -6082,12 +6082,12 @@ do main() {
 func TestFloatArithmetic(t *testing.T) {
 	input := `
 do main() {
-	temp a float = 3.14
-	temp b float = 2.71
-	temp sum float = a + b
-	temp diff float = a - b
-	temp prod float = a * b
-	temp quot float = a / b
+	mut a float = 3.14
+	mut b float = 2.71
+	mut sum float = a + b
+	mut diff float = a - b
+	mut prod float = a * b
+	mut quot float = a / b
 }
 `
 	tc := typecheck(t, input)
@@ -6097,13 +6097,13 @@ do main() {
 func TestIntegerArithmeticExtended(t *testing.T) {
 	input := `
 do main() {
-	temp a int = 10
-	temp b int = 3
-	temp sum int = a + b
-	temp diff int = a - b
-	temp prod int = a * b
-	temp quot int = a / b
-	temp mod int = a % b
+	mut a int = 10
+	mut b int = 3
+	mut sum int = a + b
+	mut diff int = a - b
+	mut prod int = a * b
+	mut quot int = a / b
+	mut mod int = a % b
 }
 `
 	tc := typecheck(t, input)
@@ -6113,8 +6113,8 @@ do main() {
 func TestNestedIfStatement(t *testing.T) {
 	input := `
 do main() {
-	temp x int = 5
-	temp y int = 10
+	mut x int = 5
+	mut y int = 10
 	if x > 0 {
 		if y > 5 {
 			println("both positive and y > 5")
@@ -6129,7 +6129,7 @@ do main() {
 func TestForEachWithArrayExtended(t *testing.T) {
 	input := `
 do main() {
-	temp arr [int] = {1, 2, 3, 4, 5}
+	mut arr [int] = {1, 2, 3, 4, 5}
 	for_each item in arr {
 		println(item)
 	}
@@ -6142,7 +6142,7 @@ do main() {
 func TestForEachWithStringExtended(t *testing.T) {
 	input := `
 do main() {
-	temp s string = "hello"
+	mut s string = "hello"
 	for_each ch in s {
 		println(ch)
 	}
@@ -6173,7 +6173,7 @@ do add(a int, b int) -> int {
 }
 
 do main() {
-	temp result int = add(5, 3)
+	mut result int = add(5, 3)
 }
 `
 	tc := typecheck(t, input)
@@ -6189,7 +6189,7 @@ const Rectangle struct {
 }
 
 do main() {
-	temp r Rectangle = new(Rectangle)
+	mut r Rectangle = new(Rectangle)
 	r.w = 10
 	r.h = 20
 	r.n = "test"
@@ -6205,9 +6205,9 @@ import @strings
 using strings
 
 do main() {
-	temp s string = "hello world"
-	temp upperStr string = strings.upper(s)
-	temp lowerStr string = strings.lower(s)
+	mut s string = "hello world"
+	mut upperStr string = strings.upper(s)
+	mut lowerStr string = strings.lower(s)
 }
 `
 	tc := typecheck(t, input)
@@ -6220,9 +6220,9 @@ import @math
 using math
 
 do main() {
-	temp absVal int = math.abs(-5)
-	temp maxVal int = math.max(10, 20)
-	temp minVal int = math.min(10, 20)
+	mut absVal int = math.abs(-5)
+	mut maxVal int = math.max(10, 20)
+	mut minVal int = math.min(10, 20)
 }
 `
 	tc := typecheck(t, input)
@@ -6235,9 +6235,9 @@ import @arrays
 using arrays
 
 do main() {
-	temp arr [int] = {3, 1, 4, 1, 5}
-	temp isEmpty bool = arrays.is_empty(arr)
-	temp length int = len(arr)
+	mut arr [int] = {3, 1, 4, 1, 5}
+	mut isEmpty bool = arrays.is_empty(arr)
+	mut length int = len(arr)
 }
 `
 	tc := typecheck(t, input)
@@ -6254,7 +6254,7 @@ import @arrays
 using arrays
 
 do main() {
-	temp arr [int] = {1, 2, 3}
+	mut arr [int] = {1, 2, 3}
 	arrays.append(arr, "wrong")
 }
 `
@@ -6268,7 +6268,7 @@ import @arrays
 using arrays
 
 do main() {
-	temp arr [string] = {"a", "b"}
+	mut arr [string] = {"a", "b"}
 	arrays.unshift(arr, 123)
 }
 `
@@ -6282,8 +6282,8 @@ import @arrays
 using arrays
 
 do main() {
-	temp arr [int] = {1, 2, 3}
-	temp found bool = arrays.contains(arr, "string")
+	mut arr [int] = {1, 2, 3}
+	mut found bool = arrays.contains(arr, "string")
 }
 `
 	tc := typecheck(t, input)
@@ -6296,7 +6296,7 @@ import @arrays
 using arrays
 
 do main() {
-	temp arr [int] = {1, 2, 3}
+	mut arr [int] = {1, 2, 3}
 	arrays.insert(arr, 0, "wrong type")
 }
 `
@@ -6310,7 +6310,7 @@ import @arrays
 using arrays
 
 do main() {
-	temp arr [bool] = {true, false}
+	mut arr [bool] = {true, false}
 	arrays.set(arr, 0, "not bool")
 }
 `
@@ -6324,9 +6324,9 @@ import @arrays
 using arrays
 
 do main() {
-	temp arr1 [int] = {1, 2}
-	temp arr2 [string] = {"a", "b"}
-	temp result [int] = arrays.concat(arr1, arr2)
+	mut arr1 [int] = {1, 2}
+	mut arr2 [string] = {"a", "b"}
+	mut result [int] = arrays.concat(arr1, arr2)
 }
 `
 	tc := typecheck(t, input)
@@ -6339,7 +6339,7 @@ import @arrays
 using arrays
 
 do main() {
-	temp arr [int] = {1, 2, 3}
+	mut arr [int] = {1, 2, 3}
 	arrays.fill(arr, "not an int")
 }
 `
@@ -6353,7 +6353,7 @@ import @arrays
 using arrays
 
 do main() {
-	temp arr [int] = {1, 2, 3, 2}
+	mut arr [int] = {1, 2, 3, 2}
 	arrays.remove_all(arr, true)
 }
 `
@@ -6367,8 +6367,8 @@ import @arrays
 using arrays
 
 do main() {
-	temp arr [int] = {1, 2, 3, 2}
-	temp idx int = arrays.last_index(arr, 3.14)
+	mut arr [int] = {1, 2, 3, 2}
+	mut idx int = arrays.last_index(arr, 3.14)
 }
 `
 	tc := typecheck(t, input)
@@ -6381,8 +6381,8 @@ import @arrays
 using arrays
 
 do main() {
-	temp arr [string] = {"a", "b", "a"}
-	temp count int = arrays.count(arr, 42)
+	mut arr [string] = {"a", "b", "a"}
+	mut count int = arrays.count(arr, 42)
 }
 `
 	tc := typecheck(t, input)
@@ -6395,7 +6395,7 @@ import @arrays
 using arrays
 
 do main() {
-	temp arr [int] = {1, 2, 3}
+	mut arr [int] = {1, 2, 3}
 	arrays.append(arr, 4)
 }
 `
@@ -6409,7 +6409,7 @@ import @arrays
 using arrays
 
 do main() {
-	temp arr [string] = {"a", "b"}
+	mut arr [string] = {"a", "b"}
 	arrays.insert(arr, 1, "c")
 }
 `
@@ -6423,9 +6423,9 @@ import @arrays
 using arrays
 
 do main() {
-	temp arr1 [int] = {1, 2}
-	temp arr2 [int] = {3, 4}
-	temp result [int] = arrays.concat(arr1, arr2)
+	mut arr1 [int] = {1, 2}
+	mut arr2 [int] = {3, 4}
+	mut result [int] = arrays.concat(arr1, arr2)
 }
 `
 	tc := typecheck(t, input)
@@ -6442,7 +6442,7 @@ import @maps
 using maps
 
 do main() {
-	temp m map[string:int] = {"a": 1}
+	mut m map[string:int] = {"a": 1}
 	maps.set(m, 123, 5)
 }
 `
@@ -6456,7 +6456,7 @@ import @maps
 using maps
 
 do main() {
-	temp m map[string:int] = {"a": 1}
+	mut m map[string:int] = {"a": 1}
 	maps.set(m, "b", "wrong")
 }
 `
@@ -6470,7 +6470,7 @@ import @maps
 using maps
 
 do main() {
-	temp m map[string:int] = {"a": 1}
+	mut m map[string:int] = {"a": 1}
 	maps.get(m, 999)
 }
 `
@@ -6484,7 +6484,7 @@ import @maps
 using maps
 
 do main() {
-	temp m map[int:string] = {1: "one"}
+	mut m map[int:string] = {1: "one"}
 	maps.get_or_set(m, "wrong", "default")
 }
 `
@@ -6498,7 +6498,7 @@ import @maps
 using maps
 
 do main() {
-	temp m map[int:string] = {1: "one"}
+	mut m map[int:string] = {1: "one"}
 	maps.get_or_set(m, 2, 42)
 }
 `
@@ -6512,8 +6512,8 @@ import @maps
 using maps
 
 do main() {
-	temp m map[string:int] = {"a": 1, "b": 2}
-	temp found bool = maps.contains(m, "a")
+	mut m map[string:int] = {"a": 1, "b": 2}
+	mut found bool = maps.contains(m, "a")
 }
 `
 	tc := typecheck(t, input)
@@ -6526,7 +6526,7 @@ import @maps
 using maps
 
 do main() {
-	temp m map[string:int] = {"a": 1}
+	mut m map[string:int] = {"a": 1}
 	maps.set(m, "b", 2)
 }
 `
@@ -6540,7 +6540,7 @@ import @maps
 using maps
 
 do main() {
-	temp m map[string:int] = {"a": 1}
+	mut m map[string:int] = {"a": 1}
 	maps.remove(m, 123)
 }
 `
@@ -6560,7 +6560,7 @@ const Point struct {
 }
 
 do main() {
-	temp p Point = Point{x: 1, y: 2}
+	mut p Point = Point{x: 1, y: 2}
 }
 `
 	tc := typecheck(t, input)
@@ -6584,7 +6584,7 @@ const Outer struct {
 }
 
 do main() {
-	temp o Outer = Outer{inner: Inner{value: 42}}
+	mut o Outer = Outer{inner: Inner{value: 42}}
 }
 `
 	tc := typecheck(t, input)
@@ -6598,8 +6598,8 @@ do main() {
 func TestStringToFloatConversionCoverage(t *testing.T) {
 	input := `
 do main() {
-	temp s string = "3.14"
-	temp f float = float(s)
+	mut s string = "3.14"
+	mut f float = float(s)
 }
 `
 	_ = typecheck(t, input)
@@ -6610,8 +6610,8 @@ do main() {
 func TestCharToIntConversionCoverage(t *testing.T) {
 	input := `
 do main() {
-	temp c char = 'A'
-	temp i int = int(c)
+	mut c char = 'A'
+	mut i int = int(c)
 }
 `
 	tc := typecheck(t, input)
@@ -6621,8 +6621,8 @@ do main() {
 func TestIntToCharConversionCoverage(t *testing.T) {
 	input := `
 do main() {
-	temp i int = 65
-	temp c char = char(i)
+	mut i int = 65
+	mut c char = char(i)
 }
 `
 	tc := typecheck(t, input)
@@ -6632,9 +6632,9 @@ do main() {
 func TestByteConversionsCoverage(t *testing.T) {
 	input := `
 do main() {
-	temp b byte = byte(65)
-	temp i int = int(b)
-	temp c char = char(b)
+	mut b byte = byte(65)
+	mut i int = int(b)
+	mut c char = char(b)
 }
 `
 	tc := typecheck(t, input)
@@ -6648,8 +6648,8 @@ do main() {
 func TestCastIntToI32(t *testing.T) {
 	input := `
 do main() {
-	temp i int = 42
-	temp i32val i32 = i32(i)
+	mut i int = 42
+	mut i32val i32 = i32(i)
 }
 `
 	tc := typecheck(t, input)
@@ -6659,8 +6659,8 @@ do main() {
 func TestCastI64ToInt(t *testing.T) {
 	input := `
 do main() {
-	temp i64val i64 = 42
-	temp i int = int(i64val)
+	mut i64val i64 = 42
+	mut i int = int(i64val)
 }
 `
 	tc := typecheck(t, input)
@@ -6670,8 +6670,8 @@ do main() {
 func TestCastU8ToU16(t *testing.T) {
 	input := `
 do main() {
-	temp u8val u8 = 255
-	temp u16val u16 = u16(u8val)
+	mut u8val u8 = 255
+	mut u16val u16 = u16(u8val)
 }
 `
 	tc := typecheck(t, input)
@@ -6681,8 +6681,8 @@ do main() {
 func TestCastF32ToFloat(t *testing.T) {
 	input := `
 do main() {
-	temp f32val f32 = 3.14
-	temp fval float = float(f32val)
+	mut f32val f32 = 3.14
+	mut fval float = float(f32val)
 }
 `
 	tc := typecheck(t, input)
@@ -6700,7 +6700,7 @@ do getTwo() -> (int, string) {
 }
 
 do main() {
-	temp x, _ = getTwo()
+	mut x, _ = getTwo()
 }
 `
 	tc := typecheck(t, input)
@@ -6714,7 +6714,7 @@ do getThree() -> (int, string, bool) {
 }
 
 do main() {
-	temp _, _, _ = getThree()
+	mut _, _, _ = getThree()
 }
 `
 	tc := typecheck(t, input)
@@ -6728,7 +6728,7 @@ do getTwo() -> (int, string) {
 }
 
 do main() {
-	temp x, y = getTwo()
+	mut x, y = getTwo()
 }
 `
 	tc := typecheck(t, input)
@@ -6742,8 +6742,8 @@ do main() {
 func TestI32BoundsCoverage(t *testing.T) {
 	input := `
 do main() {
-	temp min i32 = -2147483648
-	temp max i32 = 2147483647
+	mut min i32 = -2147483648
+	mut max i32 = 2147483647
 }
 `
 	tc := typecheck(t, input)
@@ -6753,8 +6753,8 @@ do main() {
 func TestU32BoundsCoverage(t *testing.T) {
 	input := `
 do main() {
-	temp min u32 = 0
-	temp max u32 = 4294967295
+	mut min u32 = 0
+	mut max u32 = 4294967295
 }
 `
 	tc := typecheck(t, input)
@@ -6764,7 +6764,7 @@ do main() {
 func TestI64BoundsCoverage(t *testing.T) {
 	input := `
 do main() {
-	temp val i64 = 9223372036854775807
+	mut val i64 = 9223372036854775807
 }
 `
 	tc := typecheck(t, input)
@@ -6774,7 +6774,7 @@ do main() {
 func TestU64BoundsCoverage(t *testing.T) {
 	input := `
 do main() {
-	temp val u64 = 18446744073709551615
+	mut val u64 = 18446744073709551615
 }
 `
 	tc := typecheck(t, input)
@@ -6814,8 +6814,8 @@ do main() {
 func TestInferLenReturnType(t *testing.T) {
 	input := `
 do main() {
-	temp arr [int] = {1, 2, 3}
-	temp length int = len(arr)
+	mut arr [int] = {1, 2, 3}
+	mut length int = len(arr)
 }
 `
 	tc := typecheck(t, input)
@@ -6825,8 +6825,8 @@ do main() {
 func TestInferTypeofReturnType(t *testing.T) {
 	input := `
 do main() {
-	temp x int = 42
-	temp typeName string = typeof(x)
+	mut x int = 42
+	mut typeName string = typeof(x)
 }
 `
 	tc := typecheck(t, input)
@@ -6836,8 +6836,8 @@ do main() {
 func TestInferCopyReturnType(t *testing.T) {
 	input := `
 do main() {
-	temp arr [int] = {1, 2, 3}
-	temp arrCopy [int] = copy(arr)
+	mut arr [int] = {1, 2, 3}
+	mut arrCopy [int] = copy(arr)
 }
 `
 	tc := typecheck(t, input)
@@ -6847,8 +6847,8 @@ do main() {
 func TestInferAppendReturnType(t *testing.T) {
 	input := `
 do main() {
-	temp arr [int] = {1, 2, 3}
-	temp newArr [int] = append(arr, 4)
+	mut arr [int] = {1, 2, 3}
+	mut newArr [int] = append(arr, 4)
 }
 `
 	tc := typecheck(t, input)
@@ -6858,7 +6858,7 @@ do main() {
 func TestInferRangeReturnType(t *testing.T) {
 	input := `
 do main() {
-	temp nums [int] = range(1, 10)
+	mut nums [int] = range(1, 10)
 }
 `
 	tc := typecheck(t, input)
@@ -6873,7 +6873,7 @@ func TestSuppressionComment(t *testing.T) {
 	input := `
 do main() {
 	// @suppress E3002
-	temp x = 42
+	mut x = 42
 }
 `
 	tc := typecheck(t, input)
@@ -6946,8 +6946,8 @@ do main() {
 func TestLoopVariableShadowsOuterLoopVariable_ForEach(t *testing.T) {
 	input := `
 do main() {
-	temp outer [int] = {1, 2}
-	temp inner [int] = {3, 4}
+	mut outer [int] = {1, 2}
+	mut inner [int] = {3, 4}
 	for_each item in outer {
 		for_each item in inner {
 			println(item)
@@ -6962,7 +6962,7 @@ do main() {
 func TestLoopVariableShadowsOuterLoopVariable_Mixed(t *testing.T) {
 	input := `
 do main() {
-	temp arr [int] = {10, 20}
+	mut arr [int] = {10, 20}
 	for i in range(0, 2) {
 		for_each i in arr {
 			println(i)
@@ -6991,7 +6991,7 @@ do main() {
 func TestLoopVariableCanShadowRegularVariable(t *testing.T) {
 	input := `
 do main() {
-	temp i int = 100
+	mut i int = 100
 	for i in range(0, 3) {
 		println(i)
 	}
@@ -7005,9 +7005,9 @@ do main() {
 func TestRegularVariableShadowingStillAllowed(t *testing.T) {
 	input := `
 do main() {
-	temp x int = 10
+	mut x int = 10
 	if true {
-		temp x int = 20
+		mut x int = 20
 		println(x)
 	}
 	println(x)
@@ -7034,7 +7034,7 @@ const Wrapper struct {
 }
 
 do main() {
-	temp w Wrapper = Wrapper{ inner: Container{ label: "test" } }
+	mut w Wrapper = Wrapper{ inner: Container{ label: "test" } }
 	w.inner.label = "modified"
 	println(w.inner.label)
 }
@@ -7060,7 +7060,7 @@ const Outer struct {
 }
 
 do main() {
-	temp o Outer = Outer{
+	mut o Outer = Outer{
 		mid: Middle{
 			nested: Inner{ value: "deep" }
 		}
@@ -7086,7 +7086,7 @@ const Wrapper struct {
 }
 
 do main() {
-	temp w Wrapper = Wrapper{}
+	mut w Wrapper = Wrapper{}
 	w = Wrapper{ inner: Container{ label: "test" } }
 	w.inner.label = "modified"
 	println(w.inner.label)
@@ -7109,7 +7109,7 @@ do getName() -> (name string) {
 }
 
 do main() {
-	temp n string = getName()
+	mut n string = getName()
 	println(n)
 }
 `
@@ -7121,12 +7121,12 @@ do main() {
 func TestNamedReturnDifferentVariableWarning(t *testing.T) {
 	input := `
 do getName() -> (name string) {
-	temp other string = "Hello"
+	mut other string = "Hello"
 	return other
 }
 
 do main() {
-	temp n string = getName()
+	mut n string = getName()
 	println(n)
 }
 `
@@ -7142,7 +7142,7 @@ do getNumber() -> (result int) {
 }
 
 do main() {
-	temp n int = getNumber()
+	mut n int = getNumber()
 	println(n)
 }
 `
@@ -7160,7 +7160,7 @@ do getValues() -> (age int, name string) {
 }
 
 do main() {
-	temp a int, n string = getValues()
+	mut a int, n string = getValues()
 	println(a)
 	println(n)
 }
@@ -7173,13 +7173,13 @@ do main() {
 func TestNamedReturnMultipleOneWrong(t *testing.T) {
 	input := `
 do getValues() -> (age int, name string) {
-	temp other string = "Alice"
+	mut other string = "Alice"
 	age = 25
 	return age, other
 }
 
 do main() {
-	temp a int, n string = getValues()
+	mut a int, n string = getValues()
 	println(a)
 	println(n)
 }
@@ -7198,7 +7198,7 @@ do getNames() -> (first, last string) {
 }
 
 do main() {
-	temp f string, l string = getNames()
+	mut f string, l string = getNames()
 	println(f)
 	println(l)
 }
@@ -7216,7 +7216,7 @@ do getZero() -> (count int) {
 }
 
 do main() {
-	temp c int = getZero()
+	mut c int = getZero()
 	println(c)
 }
 `
@@ -7233,7 +7233,7 @@ do getValue() -> int {
 }
 
 do main() {
-	temp v int = getValue()
+	mut v int = getValue()
 	println(v)
 }
 `
@@ -7250,7 +7250,7 @@ do getValues() -> (int, string) {
 }
 
 do main() {
-	temp a int, b string = getValues()
+	mut a int, b string = getValues()
 	println(a)
 	println(b)
 }

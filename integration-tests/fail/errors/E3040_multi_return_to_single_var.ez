@@ -11,6 +11,6 @@ do get_pair() -> (int, string) {
 }
 
 do main() {
-    temp x = get_pair()  // ERROR: cannot assign multiple return values to single variable
+    mut x = get_pair()  // ERROR: cannot assign multiple return values to single variable
     println(x)
 }

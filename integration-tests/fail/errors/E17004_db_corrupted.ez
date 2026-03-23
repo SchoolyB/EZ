@@ -7,13 +7,13 @@ import @io, @db
 
 do main() {
     // Write an invalid JSON file as the database
-    temp ok, werr = io.write_file("ez_test_e17004_corrupted.ezdb", "this is not valid json{{{")
+    mut ok, werr = io.write_file("ez_test_e17004_corrupted.ezdb", "this is not valid json{{{")
 
     // Try to open it as a database
-    temp database, err = db.open("ez_test_e17004_corrupted")
+    mut database, err = db.open("ez_test_e17004_corrupted")
 
     // Clean up
-    temp dok, derr = io.remove("ez_test_e17004_corrupted.ezdb")
+    mut dok, derr = io.remove("ez_test_e17004_corrupted.ezdb")
 
     if err != nil {
         panic("${err}")

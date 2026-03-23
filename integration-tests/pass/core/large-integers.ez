@@ -8,11 +8,11 @@ using std
 
 do main() {
     println("=== Large Integers Test ===")
-    temp passed int = 0
-    temp failed int = 0
+    mut passed int = 0
+    mut failed int = 0
 
     // Test 1: i128 literal larger than int64 max
-    temp big i128 = 10000000000000000000
+    mut big i128 = 10000000000000000000
     if big == 10000000000000000000 {
         println("  [PASS] i128 literal > int64 max")
         passed += 1
@@ -22,9 +22,9 @@ do main() {
     }
 
     // Test 2: i128 arithmetic beyond int64
-    temp a i128 = 9223372036854775807  // max int64
-    temp b i128 = 1
-    temp sum i128 = a + b
+    mut a i128 = 9223372036854775807  // max int64
+    mut b i128 = 1
+    mut sum i128 = a + b
     if sum == 9223372036854775808 {
         println("  [PASS] i128 addition beyond int64 max")
         passed += 1
@@ -34,7 +34,7 @@ do main() {
     }
 
     // Test 3: u128 large value
-    temp u_big u128 = 18446744073709551615  // max uint64
+    mut u_big u128 = 18446744073709551615  // max uint64
     if u_big == 18446744073709551615 {
         println("  [PASS] u128 literal = uint64 max")
         passed += 1
@@ -44,9 +44,9 @@ do main() {
     }
 
     // Test 4: u128 arithmetic beyond uint64
-    temp u_max u128 = 18446744073709551615
-    temp u_one u128 = 1
-    temp u_sum u128 = u_max + u_one
+    mut u_max u128 = 18446744073709551615
+    mut u_one u128 = 1
+    mut u_sum u128 = u_max + u_one
     if u_sum == 18446744073709551616 {
         println("  [PASS] u128 addition beyond uint64 max")
         passed += 1
@@ -56,9 +56,9 @@ do main() {
     }
 
     // Test 5: i128 multiplication
-    temp x i128 = 10000000000
-    temp y i128 = 10000000000
-    temp product i128 = x * y
+    mut x i128 = 10000000000
+    mut y i128 = 10000000000
+    mut product i128 = x * y
     if product == 100000000000000000000 {
         println("  [PASS] i128 multiplication")
         passed += 1
@@ -68,8 +68,8 @@ do main() {
     }
 
     // Test 6: i128 negative values
-    temp neg i128 = -9223372036854775808  // min int64
-    temp neg_minus i128 = neg - 1
+    mut neg i128 = -9223372036854775808  // min int64
+    mut neg_minus i128 = neg - 1
     if neg_minus == -9223372036854775809 {
         println("  [PASS] i128 subtraction below int64 min")
         passed += 1
@@ -79,7 +79,7 @@ do main() {
     }
 
     // Test 7: i64 at boundary (should work)
-    temp i64_max i64 = 9223372036854775807
+    mut i64_max i64 = 9223372036854775807
     if i64_max == 9223372036854775807 {
         println("  [PASS] i64 max value")
         passed += 1
@@ -89,7 +89,7 @@ do main() {
     }
 
     // Test 8: u64 at boundary (should work)
-    temp u64_max u64 = 18446744073709551615
+    mut u64_max u64 = 18446744073709551615
     if u64_max == 18446744073709551615 {
         println("  [PASS] u64 max value")
         passed += 1
@@ -99,9 +99,9 @@ do main() {
     }
 
     // Test 9: i128 division
-    temp dividend i128 = 100000000000000000000
-    temp divisor i128 = 10000000000
-    temp quotient i128 = dividend / divisor
+    mut dividend i128 = 100000000000000000000
+    mut divisor i128 = 10000000000
+    mut quotient i128 = dividend / divisor
     if quotient == 10000000000 {
         println("  [PASS] i128 division")
         passed += 1
@@ -111,7 +111,7 @@ do main() {
     }
 
     // Test 10: i128 modulo
-    temp mod_result i128 = 100000000000000000001 % 10000000000
+    mut mod_result i128 = 100000000000000000001 % 10000000000
     if mod_result == 1 {
         println("  [PASS] i128 modulo")
         passed += 1

@@ -9,8 +9,8 @@ using std
 
 do main() {
     println("=== For_each Module Constant Test ===")
-    temp passed int = 0
-    temp failed int = 0
+    mut passed int = 0
+    mut failed int = 0
 
     // Test 1: for_each over string array constant
     println("Items:")
@@ -19,7 +19,7 @@ do main() {
     passed += 1
 
     // Test 2: for_each over int array constant with accumulation
-    temp sum = testmod.sum_numbers()
+    mut sum = testmod.sum_numbers()
     if sum == 100 {
         println("  [PASS] for_each over int array (sum=${sum})")
         passed += 1

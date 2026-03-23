@@ -6,7 +6,7 @@
 import @os
 
 do main() {
-    temp result, err = os.exec("ez_nonexistent_command_99999")
+    mut result, err = os.exec("ez_nonexistent_command_99999")
     if err != nil {
         panic("${err}")
     }

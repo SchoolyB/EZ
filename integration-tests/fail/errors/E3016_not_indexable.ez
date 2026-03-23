@@ -4,6 +4,6 @@
  */
 
 do main() {
-    temp x int = 5
+    mut x int = 5
     x[0] = 10  // Trying to index an integer
 }

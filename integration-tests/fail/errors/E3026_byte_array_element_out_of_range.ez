@@ -4,5 +4,5 @@
  */
 
 do main() {
-    temp arr [byte] = {100, 200, 300}  // 300 out of range
+    mut arr [byte] = {100, 200, 300}  // 300 out of range
 }

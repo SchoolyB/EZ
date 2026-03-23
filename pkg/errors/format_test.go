@@ -18,7 +18,7 @@ func TestFormatError(t *testing.T) {
 			Line:       10,
 			Column:     5,
 			EndColumn:  6,
-			SourceLine: "temp @x = 5",
+			SourceLine: "mut @x = 5",
 			Help:       "remove the @ symbol",
 			Severity:   SeverityError,
 		}
@@ -35,7 +35,7 @@ func TestFormatError(t *testing.T) {
 		if !strings.Contains(output, "main.ez:10:5") {
 			t.Error("output should contain file location")
 		}
-		if !strings.Contains(output, "temp @x = 5") {
+		if !strings.Contains(output, "mut @x = 5") {
 			t.Error("output should contain source line")
 		}
 		if !strings.Contains(output, "help") {
@@ -51,7 +51,7 @@ func TestFormatError(t *testing.T) {
 			Line:       5,
 			Column:     10,
 			EndColumn:  11,
-			SourceLine: "temp x int = 42",
+			SourceLine: "mut x int = 42",
 			Severity:   SeverityWarning,
 		}
 

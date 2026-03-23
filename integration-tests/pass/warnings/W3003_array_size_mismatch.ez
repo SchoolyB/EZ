@@ -8,6 +8,6 @@ using std
 
 do main() {
     // Declare array with size 5 but only provide 3 elements
-    temp arr [int, 5] = {1, 2, 3}
+    mut arr [int, 5] = {1, 2, 3}
     println(arr)
 }

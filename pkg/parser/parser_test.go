@@ -138,7 +138,7 @@ func testInfixExpression(t *testing.T, exp Expression, left interface{}, operato
 // ============================================================================
 
 func TestNewParser(t *testing.T) {
-	l := NewLexer("temp x int = 5")
+	l := NewLexer("mut x int = 5")
 	p := New(l)
 
 	if p == nil {
@@ -156,7 +156,7 @@ func TestNewParser(t *testing.T) {
 }
 
 func TestNewWithSource(t *testing.T) {
-	source := "temp x int = 5"
+	source := "mut x int = 5"
 	l := NewLexer(source)
 	p := NewWithSource(l, source, "test.ez")
 
@@ -177,10 +177,10 @@ func TestIntegerLiterals(t *testing.T) {
 		input    string
 		expected int64
 	}{
-		{"temp x int = 5", 5},
-		{"temp x int = 0", 0},
-		{"temp x int = 999", 999},
-		{"temp x int = 1_000_000", 1000000},
+		{"mut x int = 5", 5},
+		{"mut x int = 0", 0},
+		{"mut x int = 999", 999},
+		{"mut x int = 1_000_000", 1000000},
 	}
 
 	for _, tt := range tests {
@@ -204,22 +204,22 @@ func TestIntegerLiteralBases(t *testing.T) {
 		expected int64
 	}{
 		// Hex literals
-		{"temp x int = 0xFF", 255},
-		{"temp x int = 0x10", 16},
-		{"temp x int = 0XFF", 255},
+		{"mut x int = 0xFF", 255},
+		{"mut x int = 0x10", 16},
+		{"mut x int = 0XFF", 255},
 		// Binary literals
-		{"temp x int = 0b1010", 10},
-		{"temp x int = 0B1111", 15},
-		{"temp x int = 0b0", 0},
+		{"mut x int = 0b1010", 10},
+		{"mut x int = 0B1111", 15},
+		{"mut x int = 0b0", 0},
 		// Octal literals with explicit 0o prefix
-		{"temp x int = 0o123", 83},
-		{"temp x int = 0O777", 511},
-		{"temp x int = 0o0", 0},
+		{"mut x int = 0o123", 83},
+		{"mut x int = 0O777", 511},
+		{"mut x int = 0o0", 0},
 		// Leading zeros should be decimal (not octal)
-		{"temp x int = 0123", 123},
-		{"temp x int = 09", 9},
-		{"temp x int = 007", 7},
-		{"temp x int = 00123", 123},
+		{"mut x int = 0123", 123},
+		{"mut x int = 09", 9},
+		{"mut x int = 007", 7},
+		{"mut x int = 00123", 123},
 	}
 
 	for _, tt := range tests {
@@ -242,9 +242,9 @@ func TestFloatLiterals(t *testing.T) {
 		input    string
 		expected float64
 	}{
-		{"temp x float = 3.14", 3.14},
-		{"temp x float = 0.0", 0.0},
-		{"temp x float = 1_234.567_89", 1234.56789},
+		{"mut x float = 3.14", 3.14},
+		{"mut x float = 0.0", 0.0},
+		{"mut x float = 1_234.567_89", 1234.56789},
 	}
 
 	for _, tt := range tests {
@@ -261,11 +261,11 @@ func TestStringLiterals(t *testing.T) {
 		input    string
 		expected string
 	}{
-		{`temp x string = "hello"`, "hello"},
-		{`temp x string = "hello world"`, "hello world"},
-		{`temp x string = ""`, ""},
-		{`temp x string = "line1\nline2"`, "line1\nline2"},
-		{`temp x string = "tab\there"`, "tab\there"},
+		{`mut x string = "hello"`, "hello"},
+		{`mut x string = "hello world"`, "hello world"},
+		{`mut x string = ""`, ""},
+		{`mut x string = "line1\nline2"`, "line1\nline2"},
+		{`mut x string = "tab\there"`, "tab\there"},
 	}
 
 	for _, tt := range tests {
@@ -285,7 +285,7 @@ func TestStringLiterals(t *testing.T) {
 
 func TestCharLiterals(t *testing.T) {
 	// Test simple char literal parsing
-	input := "temp x char = 'a'"
+	input := "mut x char = 'a'"
 	program := parseProgram(t, input)
 	stmt := program.Statements[0].(*VariableDeclaration)
 	charVal, ok := stmt.Value.(*CharValue)
@@ -302,8 +302,8 @@ func TestBooleanLiterals(t *testing.T) {
 		input    string
 		expected bool
 	}{
-		{"temp x bool = true", true},
-		{"temp x bool = false", false},
+		{"mut x bool = true", true},
+		{"mut x bool = false", false},
 	}
 
 	for _, tt := range tests {
@@ -316,7 +316,7 @@ func TestBooleanLiterals(t *testing.T) {
 }
 
 func TestNilLiteral(t *testing.T) {
-	program := parseProgram(t, "temp x int = nil")
+	program := parseProgram(t, "mut x int = nil")
 	stmt := program.Statements[0].(*VariableDeclaration)
 	_, ok := stmt.Value.(*NilValue)
 	if !ok {
@@ -330,9 +330,9 @@ func TestArrayLiterals(t *testing.T) {
 		expectedLen   int
 		expectedFirst interface{}
 	}{
-		{"temp arr [int] = {1, 2, 3}", 3, int64(1)},
-		{"temp arr [string] = {\"a\", \"b\"}", 2, nil}, // string values handled separately
-		{"temp arr [int] = {}", 0, nil},
+		{"mut arr [int] = {1, 2, 3}", 3, int64(1)},
+		{"mut arr [string] = {\"a\", \"b\"}", 2, nil}, // string values handled separately
+		{"mut arr [int] = {}", 0, nil},
 	}
 
 	for _, tt := range tests {
@@ -359,8 +359,8 @@ func TestMapLiterals(t *testing.T) {
 		input         string
 		expectedPairs int
 	}{
-		{"non-empty map", `temp m map[string:int] = {"a": 1, "b": 2}`, 2},
-		{"empty map", `temp m map[string:int] = {:}`, 0},
+		{"non-empty map", `mut m map[string:int] = {"a": 1, "b": 2}`, 2},
+		{"empty map", `mut m map[string:int] = {:}`, 0},
 	}
 
 	for _, tt := range tests {
@@ -389,9 +389,9 @@ func TestPrefixExpressions(t *testing.T) {
 		operator string
 		expected interface{}
 	}{
-		{"temp x int = -5", "-", 5},
-		{"temp x bool = !true", "!", true},
-		{"temp x bool = !false", "!", false},
+		{"mut x int = -5", "-", 5},
+		{"mut x bool = !true", "!", true},
+		{"mut x bool = !false", "!", false},
 	}
 
 	for _, tt := range tests {
@@ -421,19 +421,19 @@ func TestInfixExpressions(t *testing.T) {
 		operator string
 		right    interface{}
 	}{
-		{"temp x int = 5 + 5", 5, "+", 5},
-		{"temp x int = 5 - 5", 5, "-", 5},
-		{"temp x int = 5 * 5", 5, "*", 5},
-		{"temp x int = 5 / 5", 5, "/", 5},
-		{"temp x int = 5 % 3", 5, "%", 3},
-		{"temp x bool = 5 > 5", 5, ">", 5},
-		{"temp x bool = 5 < 5", 5, "<", 5},
-		{"temp x bool = 5 == 5", 5, "==", 5},
-		{"temp x bool = 5 != 5", 5, "!=", 5},
-		{"temp x bool = 5 >= 5", 5, ">=", 5},
-		{"temp x bool = 5 <= 5", 5, "<=", 5},
-		{"temp x bool = true && false", true, "&&", false},
-		{"temp x bool = true || false", true, "||", false},
+		{"mut x int = 5 + 5", 5, "+", 5},
+		{"mut x int = 5 - 5", 5, "-", 5},
+		{"mut x int = 5 * 5", 5, "*", 5},
+		{"mut x int = 5 / 5", 5, "/", 5},
+		{"mut x int = 5 % 3", 5, "%", 3},
+		{"mut x bool = 5 > 5", 5, ">", 5},
+		{"mut x bool = 5 < 5", 5, "<", 5},
+		{"mut x bool = 5 == 5", 5, "==", 5},
+		{"mut x bool = 5 != 5", 5, "!=", 5},
+		{"mut x bool = 5 >= 5", 5, ">=", 5},
+		{"mut x bool = 5 <= 5", 5, "<=", 5},
+		{"mut x bool = true && false", true, "&&", false},
+		{"mut x bool = true || false", true, "||", false},
 	}
 
 	for _, tt := range tests {
@@ -450,8 +450,8 @@ func TestMembershipOperators(t *testing.T) {
 		input    string
 		operator string
 	}{
-		{"temp x bool = 1 in arr", "in"},
-		{"temp x bool = 1 not_in arr", "not_in"},
+		{"mut x bool = 1 in arr", "in"},
+		{"mut x bool = 1 not_in arr", "not_in"},
 	}
 
 	for _, tt := range tests {
@@ -475,7 +475,7 @@ func TestMembershipOperators(t *testing.T) {
 
 func TestOperatorPrecedence(t *testing.T) {
 	// Test that multiplication binds tighter than addition
-	input := "temp x = 1 + 2 * 3"
+	input := "mut x = 1 + 2 * 3"
 	program := parseProgram(t, input)
 	stmt := program.Statements[0].(*VariableDeclaration)
 
@@ -538,14 +538,14 @@ func TestVariableDeclarations(t *testing.T) {
 		mutable      bool
 		typeName     string
 	}{
-		{"temp with type", "temp x int = 5", "x", true, "int"},
-		{"temp inferred", "temp x = 5", "x", true, ""},
+		{"mut with type", "mut x int = 5", "x", true, "int"},
+		{"mut inferred", "mut x = 5", "x", true, ""},
 		{"const with type", "const x int = 5", "x", false, "int"},
 		{"const inferred", "const x = 5", "x", false, ""},
-		{"temp float", "temp f float = 3.14", "f", true, "float"},
-		{"temp string", "temp s string = \"hello\"", "s", true, "string"},
-		{"temp bool", "temp b bool = true", "b", true, "bool"},
-		{"temp array", "temp arr [int] = {1, 2, 3}", "arr", true, "[int]"},
+		{"mut float", "mut f float = 3.14", "f", true, "float"},
+		{"mut string", "mut s string = \"hello\"", "s", true, "string"},
+		{"mut bool", "mut b bool = true", "b", true, "bool"},
+		{"mut array", "mut arr [int] = {1, 2, 3}", "arr", true, "[int]"},
 	}
 
 	for _, tt := range tests {
@@ -569,7 +569,7 @@ func TestVariableDeclarations(t *testing.T) {
 }
 
 func TestMultipleVariableDeclaration(t *testing.T) {
-	input := "temp a, b = getValues()"
+	input := "mut a, b = getValues()"
 	program := parseProgram(t, input)
 	stmt := program.Statements[0].(*VariableDeclaration)
 
@@ -583,7 +583,7 @@ func TestMultipleVariableDeclaration(t *testing.T) {
 
 func TestBlankIdentifierInMultipleDeclaration(t *testing.T) {
 	// Test that _ (blank identifier) works in multiple assignment
-	input := "temp _, b = getValues()"
+	input := "mut _, b = getValues()"
 	program := parseProgram(t, input)
 	stmt := program.Statements[0].(*VariableDeclaration)
 
@@ -600,7 +600,7 @@ func TestBlankIdentifierInMultipleDeclaration(t *testing.T) {
 
 func TestBlankIdentifierAsSecondValue(t *testing.T) {
 	// Test _ as second value in multiple assignment
-	input := "temp a, _ = getValues()"
+	input := "mut a, _ = getValues()"
 	program := parseProgram(t, input)
 	stmt := program.Statements[0].(*VariableDeclaration)
 
@@ -617,7 +617,7 @@ func TestBlankIdentifierAsSecondValue(t *testing.T) {
 
 func TestMultipleBlankIdentifiers(t *testing.T) {
 	// Test multiple _ in a single assignment
-	input := "temp _, _, c = getThreeValues()"
+	input := "mut _, _, c = getThreeValues()"
 	program := parseProgram(t, input)
 	stmt := program.Statements[0].(*VariableDeclaration)
 
@@ -637,7 +637,7 @@ func TestMultipleBlankIdentifiers(t *testing.T) {
 
 func TestBlankIdentifierOnly(t *testing.T) {
 	// Test _ as the only variable (discarding a single return value)
-	input := "temp _ = getSingleValue()"
+	input := "mut _ = getSingleValue()"
 	program := parseProgram(t, input)
 	stmt := program.Statements[0].(*VariableDeclaration)
 
@@ -1400,7 +1400,7 @@ func TestStructDeclaration(t *testing.T) {
 
 func TestNewExpression(t *testing.T) {
 	// new(TypeName) syntax
-	input := `temp p = new(Person)`
+	input := `mut p = new(Person)`
 	program := parseProgram(t, input)
 	stmt := program.Statements[0].(*VariableDeclaration)
 	newExpr, ok := stmt.Value.(*NewExpression)
@@ -1484,7 +1484,7 @@ using arr`
 func TestModuleDeclaration(t *testing.T) {
 	input := `module mymodule
 
-temp x int = 5`
+mut x int = 5`
 	program := parseProgram(t, input)
 
 	if program.Module == nil {
@@ -1546,7 +1546,7 @@ do test() {
 // ============================================================================
 
 func TestGroupedExpressions(t *testing.T) {
-	input := "temp x int = (5 + 5) * 2"
+	input := "mut x int = (5 + 5) * 2"
 	program := parseProgram(t, input)
 	stmt := program.Statements[0].(*VariableDeclaration)
 
@@ -1572,25 +1572,25 @@ func TestReservedKeywordAsVariable(t *testing.T) {
 	}{
 		{
 			name:          "if as variable",
-			input:         "temp if int = 5",
+			input:         "mut if int = 5",
 			expectedCode:  "E2020",
 			expectedIdent: "if",
 		},
 		{
 			name:          "do as variable",
-			input:         "temp do = 1",
+			input:         "mut do = 1",
 			expectedCode:  "E2020",
 			expectedIdent: "do",
 		},
 		{
 			name:          "for as variable",
-			input:         "temp for = 1",
+			input:         "mut for = 1",
 			expectedCode:  "E2020",
 			expectedIdent: "for",
 		},
 		{
 			name:          "return as variable",
-			input:         "temp return = 1",
+			input:         "mut return = 1",
 			expectedCode:  "E2020",
 			expectedIdent: "return",
 		},
@@ -1703,8 +1703,8 @@ func TestReservedKeywordAsParameter(t *testing.T) {
 }
 
 func TestDuplicateDeclaration(t *testing.T) {
-	input := `temp x int = 5
-temp x int = 10`
+	input := `mut x int = 5
+mut x int = 10`
 	l := NewLexer(input)
 	p := NewWithSource(l, input, "test.ez")
 	p.ParseProgram()
@@ -1787,7 +1787,7 @@ import arr@arrays`
 // ============================================================================
 
 func TestScopeManagement(t *testing.T) {
-	l := NewLexer("temp x int = 5")
+	l := NewLexer("mut x int = 5")
 	p := New(l)
 
 	// Initial scope
@@ -1815,7 +1815,7 @@ func TestScopeManagement(t *testing.T) {
 }
 
 func TestDeclareInScope(t *testing.T) {
-	l := NewLexer("temp x int = 5")
+	l := NewLexer("mut x int = 5")
 	p := New(l)
 
 	// First declaration should succeed
@@ -1836,9 +1836,9 @@ func TestDeclareInScope(t *testing.T) {
 
 func TestNestedScopeAllowsSameName(t *testing.T) {
 	input := `do test() {
-		temp x int = 5
+		mut x int = 5
 		if true {
-			temp x int = 10
+			mut x int = 10
 		}
 	}`
 	program := parseProgram(t, input)
@@ -1853,7 +1853,7 @@ func TestNestedScopeAllowsSameName(t *testing.T) {
 // ============================================================================
 
 func TestRangeExpression(t *testing.T) {
-	input := "temp r = range(0, 10)"
+	input := "mut r = range(0, 10)"
 	program := parseProgram(t, input)
 	stmt := program.Statements[0].(*VariableDeclaration)
 	rangeExpr, ok := stmt.Value.(*RangeExpression)
@@ -1865,7 +1865,7 @@ func TestRangeExpression(t *testing.T) {
 }
 
 func TestRangeWithStep(t *testing.T) {
-	input := "temp r = range(0, 10, 2)"
+	input := "mut r = range(0, 10, 2)"
 	program := parseProgram(t, input)
 	stmt := program.Statements[0].(*VariableDeclaration)
 	rangeExpr := stmt.Value.(*RangeExpression)
@@ -1880,7 +1880,7 @@ func TestRangeWithStep(t *testing.T) {
 // ============================================================================
 
 func TestParseLine(t *testing.T) {
-	input := "temp x int = 5"
+	input := "mut x int = 5"
 	l := NewLexer(input)
 	p := New(l)
 
@@ -1946,7 +1946,7 @@ func TestIsReservedName(t *testing.T) {
 		name     string
 		reserved bool
 	}{
-		{"temp", true},
+		{"mut", true},
 		{"const", true},
 		{"if", true},
 		{"for", true},
@@ -1978,12 +1978,12 @@ func TestMatrixTypeParsing(t *testing.T) {
 		expectedName string
 		typeName     string
 	}{
-		{"2D int array", "temp matrix [[int]] = {{1, 2}, {3, 4}}", "matrix", "[[int]]"},
-		{"2D string array", "temp strs [[string]] = {{\"a\", \"b\"}, {\"c\", \"d\"}}", "strs", "[[string]]"},
-		{"2D float array", "temp floats [[float]] = {{1.1, 2.2}, {3.3, 4.4}}", "floats", "[[float]]"},
-		{"2D bool array", "temp flags [[bool]] = {{true, false}, {false, true}}", "flags", "[[bool]]"},
-		{"3D int array", "temp cube [[[int]]] = {{{1, 2}, {3, 4}}, {{5, 6}, {7, 8}}}", "cube", "[[[int]]]"},
-		{"empty 2D array", "temp empty [[int]] = {}", "empty", "[[int]]"},
+		{"2D int array", "mut matrix [[int]] = {{1, 2}, {3, 4}}", "matrix", "[[int]]"},
+		{"2D string array", "mut strs [[string]] = {{\"a\", \"b\"}, {\"c\", \"d\"}}", "strs", "[[string]]"},
+		{"2D float array", "mut floats [[float]] = {{1.1, 2.2}, {3.3, 4.4}}", "floats", "[[float]]"},
+		{"2D bool array", "mut flags [[bool]] = {{true, false}, {false, true}}", "flags", "[[bool]]"},
+		{"3D int array", "mut cube [[[int]]] = {{{1, 2}, {3, 4}}, {{5, 6}, {7, 8}}}", "cube", "[[[int]]]"},
+		{"empty 2D array", "mut empty [[int]] = {}", "empty", "[[int]]"},
 	}
 
 	for _, tt := range tests {
@@ -2120,7 +2120,7 @@ func TestMixedMutableParameters(t *testing.T) {
 func TestMultipleMutableParamsSharedType(t *testing.T) {
 	// Test: &a, &b int - both should be mutable with type int
 	input := `do swap(&a, &b int) {
-		temp t int = a
+		mut t int = a
 		a = b
 		b = t
 	}`
@@ -2288,7 +2288,7 @@ func TestEnumMemberInIfCondition(t *testing.T) {
 	// Fixes #339
 	input := `const Color enum { Red, Green, Blue }
 do main() {
-    temp c Color = Color.Red
+    mut c Color = Color.Red
     if c == Color.Red {
         println("red")
     }
@@ -2310,7 +2310,7 @@ do main() {
 func TestMinInt64Literal(t *testing.T) {
 	// Test: minimum int64 value should parse correctly
 	// Fixes #346
-	input := `temp x int = -9223372036854775808`
+	input := `mut x int = -9223372036854775808`
 	l := NewLexer(input)
 	p := NewWithSource(l, input, "test.ez")
 	program := p.ParseProgram()
@@ -2356,14 +2356,14 @@ func TestParseLargeIntegerLiterals(t *testing.T) {
 		expected string
 	}{
 		// Values larger than int64 max
-		{"temp x i128 = 10000000000000000000", "10000000000000000000"},
-		{"temp x i128 = 9223372036854775808", "9223372036854775808"},                                         // int64 max + 1
-		{"temp x u128 = 18446744073709551615", "18446744073709551615"},                                       // uint64 max
-		{"temp x u128 = 18446744073709551616", "18446744073709551616"},                                       // uint64 max + 1
-		{"temp x i128 = 170141183460469231731687303715884105727", "170141183460469231731687303715884105727"}, // i128 max
-		{"temp x u128 = 340282366920938463463374607431768211455", "340282366920938463463374607431768211455"}, // u128 max
+		{"mut x i128 = 10000000000000000000", "10000000000000000000"},
+		{"mut x i128 = 9223372036854775808", "9223372036854775808"},                                         // int64 max + 1
+		{"mut x u128 = 18446744073709551615", "18446744073709551615"},                                       // uint64 max
+		{"mut x u128 = 18446744073709551616", "18446744073709551616"},                                       // uint64 max + 1
+		{"mut x i128 = 170141183460469231731687303715884105727", "170141183460469231731687303715884105727"}, // i128 max
+		{"mut x u128 = 340282366920938463463374607431768211455", "340282366920938463463374607431768211455"}, // u128 max
 		// Underscores in large numbers
-		{"temp x i128 = 10_000_000_000_000_000_000", "10000000000000000000"},
+		{"mut x i128 = 10_000_000_000_000_000_000", "10000000000000000000"},
 	}
 
 	for _, tt := range tests {
@@ -2398,9 +2398,9 @@ func TestParseLargeNegativeIntegerLiterals(t *testing.T) {
 		input    string
 		expected string
 	}{
-		{"temp x i128 = -10000000000000000000", "-10000000000000000000"},
-		{"temp x i128 = -9223372036854775809", "-9223372036854775809"},                                         // int64 min - 1
-		{"temp x i128 = -170141183460469231731687303715884105728", "-170141183460469231731687303715884105728"}, // i128 min
+		{"mut x i128 = -10000000000000000000", "-10000000000000000000"},
+		{"mut x i128 = -9223372036854775809", "-9223372036854775809"},                                         // int64 min - 1
+		{"mut x i128 = -170141183460469231731687303715884105728", "-170141183460469231731687303715884105728"}, // i128 min
 	}
 
 	for _, tt := range tests {
@@ -2708,7 +2708,7 @@ func TestAllParamsWithDefaults(t *testing.T) {
 
 func TestWhenStatementBasic(t *testing.T) {
 	input := `do main() {
-		temp x int = 1
+		mut x int = 1
 		when x {
 			is 1 { println("one") }
 			is 2 { println("two") }
@@ -2738,7 +2738,7 @@ func TestWhenStatementBasic(t *testing.T) {
 
 func TestWhenStatementMultipleValues(t *testing.T) {
 	input := `do main() {
-		temp x int = 1
+		mut x int = 1
 		when x {
 			is 1, 2, 3 { println("small") }
 			is 4, 5 { println("medium") }
@@ -2762,7 +2762,7 @@ func TestWhenStatementMultipleValues(t *testing.T) {
 func TestWhenStatementStrict(t *testing.T) {
 	input := `const Status enum { ACTIVE, INACTIVE }
 	do main() {
-		temp s Status = Status.ACTIVE
+		mut s Status = Status.ACTIVE
 		#strict
 		when s {
 			is Status.ACTIVE { println("active") }
@@ -2785,7 +2785,7 @@ func TestWhenStatementStrict(t *testing.T) {
 
 func TestWhenStatementMissingDefault(t *testing.T) {
 	input := `do main() {
-		temp x int = 1
+		mut x int = 1
 		when x {
 			is 1 { println("one") }
 		}
@@ -2810,7 +2810,7 @@ func TestWhenStatementMissingDefault(t *testing.T) {
 
 func TestWhenStatementStrictWithDefault(t *testing.T) {
 	input := `do main() {
-		temp x int = 1
+		mut x int = 1
 		#strict
 		when x {
 			is 1 { println("one") }
@@ -2841,7 +2841,7 @@ func TestWhenStatementStrictWithDefault(t *testing.T) {
 
 func TestRawStringLiteral(t *testing.T) {
 	// Test that raw strings are parsed (the lexer handles r"..." prefix)
-	input := `do main() { temp s string = "hello\nworld" }`
+	input := `do main() { mut s string = "hello\nworld" }`
 	program := parseProgram(t, input)
 	fn := program.Statements[0].(*FunctionDeclaration)
 
@@ -2863,8 +2863,8 @@ func TestRawStringLiteral(t *testing.T) {
 
 func TestStringInterpolation(t *testing.T) {
 	input := `do main() {
-		temp name string = "world"
-		temp msg string = "hello ${name}"
+		mut name string = "world"
+		mut msg string = "hello ${name}"
 	}`
 	program := parseProgram(t, input)
 	fn := program.Statements[0].(*FunctionDeclaration)
@@ -2886,9 +2886,9 @@ func TestStringInterpolation(t *testing.T) {
 
 func TestStringInterpolationMultiple(t *testing.T) {
 	input := `do main() {
-		temp a int = 1
-		temp b int = 2
-		temp msg string = "${a} + ${b} = ${a + b}"
+		mut a int = 1
+		mut b int = 2
+		mut msg string = "${a} + ${b} = ${a + b}"
 	}`
 	program := parseProgram(t, input)
 	fn := program.Statements[0].(*FunctionDeclaration)
@@ -2942,7 +2942,7 @@ func TestStructLiteralParsing(t *testing.T) {
 	yPos int
 }
 do main() {
-	temp p Point = Point{xPos: 10, yPos: 20}
+	mut p Point = Point{xPos: 10, yPos: 20}
 }`
 	program := parseProgram(t, input)
 	fn := program.Statements[1].(*FunctionDeclaration)
@@ -3010,7 +3010,7 @@ func TestEnumWithFloatAttribute(t *testing.T) {
 // ============================================================================
 
 func TestBlankIdentifierDeclaration(t *testing.T) {
-	input := `temp _ int = 42`
+	input := `mut _ int = 42`
 	l := NewLexer(input)
 	p := New(l)
 	program := p.ParseProgram()
@@ -3030,7 +3030,7 @@ func TestBlankIdentifierDeclaration(t *testing.T) {
 }
 
 func TestMultipleAssignmentDeclaration(t *testing.T) {
-	input := `temp a, b = getValue()`
+	input := `mut a, b = getValue()`
 	l := NewLexer(input)
 	p := New(l)
 	program := p.ParseProgram()
@@ -3054,7 +3054,7 @@ func TestMultipleAssignmentDeclaration(t *testing.T) {
 }
 
 func TestMultipleAssignmentWithBlank(t *testing.T) {
-	input := `temp result, _ = getValue()`
+	input := `mut result, _ = getValue()`
 	l := NewLexer(input)
 	p := New(l)
 	program := p.ParseProgram()
@@ -3101,8 +3101,8 @@ func TestConstWithoutInitializationError(t *testing.T) {
 
 func TestDuplicateDeclarationError(t *testing.T) {
 	input := `do test() {
-	temp x int = 1
-	temp x int = 2
+	mut x int = 1
+	mut x int = 2
 }`
 	l := NewLexer(input)
 	p := New(l)
@@ -3125,7 +3125,7 @@ func TestDuplicateDeclarationError(t *testing.T) {
 }
 
 func TestKeywordAsVariableNameError(t *testing.T) {
-	input := `temp if int = 1`
+	input := `mut if int = 1`
 	l := NewLexer(input)
 	p := New(l)
 	_ = p.ParseProgram()
@@ -3147,7 +3147,7 @@ func TestKeywordAsVariableNameError(t *testing.T) {
 }
 
 func TestIncompleteAssignmentError(t *testing.T) {
-	input := `temp x int = }`
+	input := `mut x int = }`
 	l := NewLexer(input)
 	p := New(l)
 	_ = p.ParseProgram()
@@ -3158,7 +3158,7 @@ func TestIncompleteAssignmentError(t *testing.T) {
 }
 
 func TestTypeInferredAssignment(t *testing.T) {
-	input := `temp x = 42`
+	input := `mut x = 42`
 	l := NewLexer(input)
 	p := New(l)
 	program := p.ParseProgram()
@@ -3220,7 +3220,7 @@ func TestParserPrecedences(t *testing.T) {
 
 func TestWhenStatementParsingCoverage(t *testing.T) {
 	input := `do test() {
-	temp x int = 1
+	mut x int = 1
 	when x {
 		is 1 { println("one") }
 		is 2 { println("two") }
@@ -3257,7 +3257,7 @@ func TestWhenStatementParsingCoverage(t *testing.T) {
 
 func TestForLoopParsingCoverage(t *testing.T) {
 	input := `for i in range(0, 10) {
-	temp x int = i
+	mut x int = i
 }`
 	l := NewLexer(input)
 	p := New(l)
@@ -3504,7 +3504,7 @@ func TestHasPrefix(t *testing.T) {
 		{"private prefix", "private do foo() {}", "private", true},
 		{"#doc prefix", "#doc(\"hello\")", "#doc", true},
 		{"#suppress prefix", "#suppress(\"W1001\")", "#suppress", true},
-		{"no match", "temp x int = 5", "do", false},
+		{"no match", "mut x int = 5", "do", false},
 		{"empty string", "", "do", false},
 		{"shorter than prefix", "d", "do", false},
 		{"empty prefix", "do test()", "", true},
@@ -3563,9 +3563,9 @@ func TestCurPrecedence(t *testing.T) {
 
 func TestCurPrecedenceLowest(t *testing.T) {
 	// Test that tokens not in the priorities map return LOWEST
-	l := NewLexer("temp x int = 5")
+	l := NewLexer("mut x int = 5")
 	p := New(l)
-	// currentToken should be "temp" which has no priority
+	// currentToken should be "mut" which has no priority
 	prec := p.curPrecedence()
 	if prec != LOWEST {
 		t.Errorf("curPrecedence() for TEMP token = %d, want %d (LOWEST)", prec, LOWEST)
@@ -3579,7 +3579,7 @@ func TestCurPrecedenceLowest(t *testing.T) {
 func TestParseFileLevelSuppressBasic(t *testing.T) {
 	// File-level #suppress with a valid warning code, not followed by a declaration
 	input := `#suppress(W1001)
-temp x int = 5`
+mut x int = 5`
 	l := NewLexer(input)
 	p := NewWithSource(l, input, "test.ez")
 	program := p.ParseProgram()
@@ -3595,7 +3595,7 @@ temp x int = 5`
 func TestParseFileLevelSuppressMultipleCodes(t *testing.T) {
 	// File-level #suppress with multiple valid warning codes
 	input := `#suppress(W1001, W2001)
-temp x int = 5`
+mut x int = 5`
 	l := NewLexer(input)
 	p := NewWithSource(l, input, "test.ez")
 	program := p.ParseProgram()
@@ -3613,7 +3613,7 @@ temp x int = 5`
 
 func TestParseFileLevelSuppressALL(t *testing.T) {
 	input := `#suppress(ALL)
-temp x int = 5`
+mut x int = 5`
 	l := NewLexer(input)
 	p := NewWithSource(l, input, "test.ez")
 	program := p.ParseProgram()
@@ -3628,7 +3628,7 @@ temp x int = 5`
 
 func TestParseFileLevelSuppressInvalidCode(t *testing.T) {
 	input := `#suppress(INVALID)
-temp x int = 5`
+mut x int = 5`
 	l := NewLexer(input)
 	p := NewWithSource(l, input, "test.ez")
 	p.ParseProgram()
@@ -3653,7 +3653,7 @@ temp x int = 5`
 func TestParseFileLevelSuppressNonSuppressibleCode(t *testing.T) {
 	// W4001 (module-name-mismatch) is a valid warning code but not suppressible
 	input := `#suppress(W4001)
-temp x int = 5`
+mut x int = 5`
 	l := NewLexer(input)
 	p := NewWithSource(l, input, "test.ez")
 	p.ParseProgram()
@@ -3871,9 +3871,9 @@ func TestEnsureWithCallArguments(t *testing.T) {
 // ============================================================================
 
 func TestParseStatementWithDocOnTemp(t *testing.T) {
-	// #doc on temp variable should produce E2058 error
+	// #doc on mut variable should produce E2058 error
 	input := `#doc("this is a variable")
-temp x int = 5`
+mut x int = 5`
 	l := NewLexer(input)
 	p := NewWithSource(l, input, "test.ez")
 	p.ParseProgram()
@@ -3886,7 +3886,7 @@ temp x int = 5`
 		}
 	}
 	if !foundError {
-		t.Error("expected E2058 error for #doc on temp variable")
+		t.Error("expected E2058 error for #doc on mut variable")
 	}
 }
 
@@ -3913,7 +3913,7 @@ const x int = 5`
 func TestParseStatementWithStrictOnNonWhen(t *testing.T) {
 	// #strict on a non-when statement should produce E2055 error
 	input := `#strict
-temp x int = 5`
+mut x int = 5`
 	l := NewLexer(input)
 	p := NewWithSource(l, input, "test.ez")
 	p.ParseProgram()
@@ -4279,8 +4279,8 @@ func TestConstIncompleteAssignmentError(t *testing.T) {
 // ============================================================================
 
 func TestTempWithTypedTupleUnpacking(t *testing.T) {
-	// temp a int, b string = getValues()
-	input := `temp a int, b string = getValues()`
+	// mut a int, b string = getValues()
+	input := `mut a int, b string = getValues()`
 	program := parseProgram(t, input)
 	varDecl := program.Statements[0].(*VariableDeclaration)
 
@@ -4305,8 +4305,8 @@ func TestTempWithTypedTupleUnpacking(t *testing.T) {
 }
 
 func TestTempWithTypedTupleUnpackingAndBlank(t *testing.T) {
-	// temp a int, _ string = getValues()
-	input := `temp a int, _ string = getValues()`
+	// mut a int, _ string = getValues()
+	input := `mut a int, _ string = getValues()`
 	program := parseProgram(t, input)
 	varDecl := program.Statements[0].(*VariableDeclaration)
 
@@ -4322,8 +4322,8 @@ func TestTempWithTypedTupleUnpackingAndBlank(t *testing.T) {
 }
 
 func TestTempWithBlankIdentifierAndType(t *testing.T) {
-	// temp _ int = 42 should work (typed blank identifier)
-	input := `temp _ int = 42`
+	// mut _ int = 42 should work (typed blank identifier)
+	input := `mut _ int = 42`
 	l := NewLexer(input)
 	p := New(l)
 	program := p.ParseProgram()
@@ -4339,7 +4339,7 @@ func TestTempWithBlankIdentifierAndType(t *testing.T) {
 
 func TestTempReservedNameInMultipleAssignment(t *testing.T) {
 	// Using a keyword in multiple assignment should error
-	input := `temp a, return = getValues()`
+	input := `mut a, return = getValues()`
 	l := NewLexer(input)
 	p := NewWithSource(l, input, "test.ez")
 	p.ParseProgram()
@@ -4351,7 +4351,7 @@ func TestTempReservedNameInMultipleAssignment(t *testing.T) {
 
 func TestTempDuplicateInMultipleAssignment(t *testing.T) {
 	// Duplicate name in multiple assignment should error
-	input := `temp a, a = getValues()`
+	input := `mut a, a = getValues()`
 	l := NewLexer(input)
 	p := NewWithSource(l, input, "test.ez")
 	p.ParseProgram()
@@ -4373,7 +4373,7 @@ func TestTempDuplicateInMultipleAssignment(t *testing.T) {
 }
 
 func TestTempMapTypeDeclaration(t *testing.T) {
-	input := `temp m map[string:int] = {:}`
+	input := `mut m map[string:int] = {:}`
 	program := parseProgram(t, input)
 	varDecl := program.Statements[0].(*VariableDeclaration)
 
@@ -4383,8 +4383,8 @@ func TestTempMapTypeDeclaration(t *testing.T) {
 }
 
 func TestTempUninitializedDeclaration(t *testing.T) {
-	// temp x int -- without initialization should be valid
-	input := `temp x int`
+	// mut x int -- without initialization should be valid
+	input := `mut x int`
 	program := parseProgram(t, input)
 	varDecl := program.Statements[0].(*VariableDeclaration)
 
@@ -4398,7 +4398,7 @@ func TestTempUninitializedDeclaration(t *testing.T) {
 
 func TestTempBuiltinNameError(t *testing.T) {
 	// Using a builtin name like "println" as variable name should error
-	input := `temp println int = 5`
+	input := `mut println int = 5`
 	l := NewLexer(input)
 	p := NewWithSource(l, input, "test.ez")
 	p.ParseProgram()
@@ -4427,7 +4427,7 @@ func TestParseStatementEnsureInFunction(t *testing.T) {
 	// Test that parseStatement correctly routes ENSURE token
 	input := `do main() {
 	ensure cleanup()
-	temp x int = 5
+	mut x int = 5
 }`
 	program := parseProgram(t, input)
 	fn := program.Statements[0].(*FunctionDeclaration)
@@ -4558,7 +4558,7 @@ module second`
 
 func TestParseProgramModuleAfterDeclaration(t *testing.T) {
 	// Module declaration after other declarations should error
-	input := `temp x int = 5
+	input := `mut x int = 5
 module late`
 	l := NewLexer(input)
 	p := NewWithSource(l, input, "test.ez")
@@ -4579,7 +4579,7 @@ module late`
 func TestParseProgramUsingAfterDeclaration(t *testing.T) {
 	// Using after declarations should produce E2009
 	input := `import arr@arrays
-temp x int = 5
+mut x int = 5
 using arr`
 	l := NewLexer(input)
 	p := NewWithSource(l, input, "test.ez")

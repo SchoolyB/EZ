@@ -12,11 +12,11 @@ const THRESHOLD float = 3.14
 
 do main() {
     println("=== Constant Comparison Test ===")
-    temp passed int = 0
-    temp failed int = 0
+    mut passed int = 0
+    mut failed int = 0
 
     // Test 1: constant on right side of > comparison
-    temp val1 int = 50
+    mut val1 int = 50
     if val1 > MIN_VALUE {
         println("  [PASS] val > MIN_VALUE")
         passed += 1
@@ -53,7 +53,7 @@ do main() {
     }
 
     // Test 5: constant in complex expression
-    temp val2 int = 25
+    mut val2 int = 25
     if val1 + val2 > MIN_VALUE && val1 - val2 < MAX_VALUE {
         println("  [PASS] complex expression with constants")
         passed += 1
@@ -63,7 +63,7 @@ do main() {
     }
 
     // Test 6: float constant comparison
-    temp pi float = 3.0
+    mut pi float = 3.0
     if pi < THRESHOLD {
         println("  [PASS] float constant comparison")
         passed += 1
@@ -73,7 +73,7 @@ do main() {
     }
 
     // Test 7: equality with constant
-    temp exact int = 100
+    mut exact int = 100
     if exact == MAX_VALUE {
         println("  [PASS] equality with constant")
         passed += 1

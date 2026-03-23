@@ -7,11 +7,11 @@ using std
 
 do main() {
     println("=== Raw Strings Test ===")
-    temp passed int = 0
-    temp failed int = 0
+    mut passed int = 0
+    mut failed int = 0
 
     // Test 1: raw string preserves backslashes
-    temp raw1 string = `hello\nworld`
+    mut raw1 string = `hello\nworld`
     if strings.contains(raw1, `\n`) {
         println("  [PASS] raw string preserves \\n literally")
         passed += 1
@@ -21,7 +21,7 @@ do main() {
     }
 
     // Test 2: raw string preserves double quotes
-    temp raw2 string = `she said "hello"`
+    mut raw2 string = `she said "hello"`
     if strings.contains(raw2, "\"hello\"") {
         println("  [PASS] raw string preserves double quotes")
         passed += 1
@@ -31,7 +31,7 @@ do main() {
     }
 
     // Test 3: raw string with path-like content
-    temp raw3 string = `C:\Users\test\file.txt`
+    mut raw3 string = `C:\Users\test\file.txt`
     if strings.contains(raw3, `\Users\`) {
         println("  [PASS] raw string preserves Windows path")
         passed += 1
@@ -41,8 +41,8 @@ do main() {
     }
 
     // Test 4: raw string does not interpolate
-    temp name string = "World"
-    temp raw4 string = `Hello ${name}`
+    mut name string = "World"
+    mut raw4 string = `Hello ${name}`
     if strings.contains(raw4, `${`) {
         println("  [PASS] raw string does not interpolate")
         passed += 1

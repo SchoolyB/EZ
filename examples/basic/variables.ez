@@ -2,7 +2,7 @@
  * variables.ez - Variable declarations and types
  *
  * EZ has two variable keywords:
- *   - temp: mutable (can be changed)
+ *   - mut: mutable (can be changed)
  *   - const: immutable (cannot be changed)
  */
 
@@ -13,12 +13,12 @@ do main() {
     println("=== Variables in EZ ===")
     println("")
 
-    // Mutable variables with 'temp'
-    temp age int = 25
-    temp name string = "Alice"
-    temp score float = 95.5
-    temp active bool = true
-    temp grade char = 'A'
+    // Mutable variables with 'mut'
+    mut age int = 25
+    mut name string = "Alice"
+    mut score float = 95.5
+    mut active bool = true
+    mut grade char = 'A'
 
     println("Initial values:")
     println("  age = ${age}")
@@ -27,7 +27,7 @@ do main() {
     println("  active = ${active}")
     println("  grade = ${grade}")
 
-    // temp variables can be changed
+    // mut variables can be changed
     age = 26
     name = "Bob"
     println("")
@@ -47,8 +47,8 @@ do main() {
     println("  APP_NAME = ${APP_NAME}")
 
     // Numeric separators for readability
-    temp billion int = 1_000_000_000
-    temp precise float = 3.141_592_653
+    mut billion int = 1_000_000_000
+    mut precise float = 3.141_592_653
     println("")
     println("Numeric separators:")
     println("  billion = ${billion}")

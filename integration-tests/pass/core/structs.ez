@@ -34,14 +34,14 @@ const CopyOuter struct {
 
 do main() {
     println("=== Structs Test ===")
-    temp passed int = 0
-    temp failed int = 0
+    mut passed int = 0
+    mut failed int = 0
 
     // ==================== BASIC STRUCTS ====================
     println("  -- Basic Structs --")
 
     // Test 1: struct instantiation
-    temp p Point = Point{x: 10, y: 20}
+    mut p Point = Point{x: 10, y: 20}
     if p.x == 10 && p.y == 20 {
         println("  [PASS] struct instantiation")
         passed += 1
@@ -61,7 +61,7 @@ do main() {
     }
 
     // Test 3: struct with different types
-    temp person Person = Person{
+    mut person Person = Person{
         name: "Alice",
         age: 30,
         active: true
@@ -75,7 +75,7 @@ do main() {
     }
 
     // Test 4: struct with array field
-    temp task Task = Task{
+    mut task Task = Task{
         id: 1,
         title: "Test Task",
         priority: 20,
@@ -94,7 +94,7 @@ do main() {
     println("  -- Array of Structs --")
 
     // Test 5: array of structs
-    temp points [Point] = {}
+    mut points [Point] = {}
     arrays.append(points, Point{x: 0, y: 0})
     arrays.append(points, Point{x: 1, y: 1})
     if len(points) == 2 && points[0].x == 0 && points[1].x == 1 {
@@ -139,7 +139,7 @@ do main() {
     }
 
     // Test 9: new() initializes nested struct fields
-    temp newOuter = new(CopyOuter)
+    mut newOuter = new(CopyOuter)
     if newOuter.inner.val == 0 {
         println("  [PASS] new() initializes nested struct with defaults")
         passed += 1
@@ -159,7 +159,7 @@ do main() {
     }
 
     // Test 11: empty struct literal initializes nested struct
-    temp emptyOuter = CopyOuter{}
+    mut emptyOuter = CopyOuter{}
     if emptyOuter.inner.val == 0 {
         println("  [PASS] empty struct literal initializes nested struct")
         passed += 1
@@ -172,8 +172,8 @@ do main() {
     println("  -- copy() Builtin --")
 
     // Test 12: copy struct - verify deep copy
-    temp a Person = Person{name: "Alice", age: 30, active: true}
-    temp b Person = copy(a)
+    mut a Person = Person{name: "Alice", age: 30, active: true}
+    mut b Person = copy(a)
     b.age = 31
     if a.age == 30 && b.age == 31 {
         println("  [PASS] copy(struct) creates independent copy")
@@ -184,8 +184,8 @@ do main() {
     }
 
     // Test 13: copy nested struct - verify deep copy
-    temp outer1 CopyOuter = CopyOuter{inner: CopyInner{val: 42}}
-    temp outer2 CopyOuter = copy(outer1)
+    mut outer1 CopyOuter = CopyOuter{inner: CopyInner{val: 42}}
+    mut outer2 CopyOuter = copy(outer1)
     outer2.inner.val = 99
     if outer1.inner.val == 42 && outer2.inner.val == 99 {
         println("  [PASS] copy(nested struct) creates deep copy")

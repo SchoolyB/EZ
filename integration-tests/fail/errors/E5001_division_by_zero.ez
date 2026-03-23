@@ -4,5 +4,5 @@
  */
 
 do main() {
-    temp x int = 10 / 0  // Division by zero
+    mut x int = 10 / 0  // Division by zero
 }

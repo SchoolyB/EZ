@@ -4,6 +4,6 @@
  */
 
 do main() {
-    temp f float = 9999999999999999999.9
-    temp i int = int(f)
+    mut f float = 9999999999999999999.9
+    mut i int = int(f)
 }

@@ -32,11 +32,11 @@ do point(x, y int = 0) -> string {
 
 do main() {
     println("=== Default Parameters Test ===")
-    temp passed int = 0
-    temp failed int = 0
+    mut passed int = 0
+    mut failed int = 0
 
     // Test 1: greet with default
-    temp result1 = greet()
+    mut result1 = greet()
     if result1 == "Hello, World!" {
         println("  [PASS] greet() uses default")
         passed += 1
@@ -46,7 +46,7 @@ do main() {
     }
 
     // Test 2: greet with provided value
-    temp result2 = greet("Alice")
+    mut result2 = greet("Alice")
     if result2 == "Hello, Alice!" {
         println("  [PASS] greet('Alice') uses provided value")
         passed += 1
@@ -56,7 +56,7 @@ do main() {
     }
 
     // Test 3: create_player with only required arg
-    temp player1 = create_player("Hero")
+    mut player1 = create_player("Hero")
     if player1 == "Hero: HP=100, MP=50" {
         println("  [PASS] create_player('Hero') uses defaults")
         passed += 1
@@ -66,7 +66,7 @@ do main() {
     }
 
     // Test 4: create_player with health provided
-    temp player2 = create_player("Boss", 200)
+    mut player2 = create_player("Boss", 200)
     if player2 == "Boss: HP=200, MP=50" {
         println("  [PASS] create_player('Boss', 200) uses default for mana")
         passed += 1
@@ -76,7 +76,7 @@ do main() {
     }
 
     // Test 5: create_player with all args
-    temp player3 = create_player("Wizard", 80, 150)
+    mut player3 = create_player("Wizard", 80, 150)
     if player3 == "Wizard: HP=80, MP=150" {
         println("  [PASS] create_player('Wizard', 80, 150) uses all provided")
         passed += 1
@@ -86,7 +86,7 @@ do main() {
     }
 
     // Test 6: all defaults
-    temp cfg1 = config()
+    mut cfg1 = config()
     if cfg1 == "debug=false, verbose=true, level=1" {
         println("  [PASS] config() uses all defaults")
         passed += 1
@@ -96,7 +96,7 @@ do main() {
     }
 
     // Test 7: partial override
-    temp cfg2 = config(true)
+    mut cfg2 = config(true)
     if cfg2 == "debug=true, verbose=true, level=1" {
         println("  [PASS] config(true) overrides first param")
         passed += 1
@@ -106,7 +106,7 @@ do main() {
     }
 
     // Test 8: expression default
-    temp calc1 = calculate()
+    mut calc1 = calculate()
     if calc1 >= 6.28 && calc1 < 6.29 {
         println("  [PASS] calculate() evaluates expression default")
         passed += 1
@@ -116,7 +116,7 @@ do main() {
     }
 
     // Test 9: expression default with provided value
-    temp calc2 = calculate(2.0)
+    mut calc2 = calculate(2.0)
     if calc2 == 2.0 {
         println("  [PASS] calculate(2.0) uses provided value")
         passed += 1
@@ -126,7 +126,7 @@ do main() {
     }
 
     // Test 10: grouped params - x is required, y has default
-    temp pt1 = point(5)
+    mut pt1 = point(5)
     if pt1 == "(5, 0)" {
         println("  [PASS] point(5) uses default for y")
         passed += 1
@@ -136,7 +136,7 @@ do main() {
     }
 
     // Test 11: grouped params - both provided
-    temp pt2 = point(3, 4)
+    mut pt2 = point(3, 4)
     if pt2 == "(3, 4)" {
         println("  [PASS] point(3, 4) uses both provided")
         passed += 1

@@ -4,5 +4,5 @@
  */
 
 do main() {
-    temp x = 10 % 0  // literal modulo by zero
+    mut x = 10 % 0  // literal modulo by zero
 }

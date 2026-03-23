@@ -4,5 +4,5 @@
  */
 
 do main() {
-    temp bad = "\xGG"  // GG is not valid hex
+    mut bad = "\xGG"  // GG is not valid hex
 }

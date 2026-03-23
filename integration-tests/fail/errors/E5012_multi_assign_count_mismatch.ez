@@ -8,5 +8,5 @@ do getTwo() -> (int, int) {
 }
 
 do main() {
-    temp a int, b int, c int = getTwo()  // 3 vars, 2 values
+    mut a int, b int, c int = getTwo()  // 3 vars, 2 values
 }

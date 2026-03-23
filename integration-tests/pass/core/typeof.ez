@@ -14,10 +14,10 @@ const Point struct {
 
 do main() {
     // Primitives
-    temp i int = 42
-    temp f float = 3.14
-    temp s string = "hello"
-    temp b bool = true
+    mut i int = 42
+    mut f float = 3.14
+    mut s string = "hello"
+    mut b bool = true
 
     assert(typeof(i) == "int", "int variable should return 'int'")
     assert(typeof(f) == "float", "float variable should return 'float'")
@@ -32,26 +32,26 @@ do main() {
     assert(typeof(true) == "bool", "bool literal should return 'bool'")
 
     // Arrays with declared type
-    temp arr [int] = {1, 2, 3}
+    mut arr [int] = {1, 2, 3}
     assert(typeof(arr) == "[int]", "array should return '[int]'")
 
-    temp strArr [string] = {"a", "b"}
+    mut strArr [string] = {"a", "b"}
     assert(typeof(strArr) == "[string]", "string array should return '[string]'")
 
     // Maps with declared type
-    temp m map[string:int] = {"a": 1}
+    mut m map[string:int] = {"a": 1}
     assert(typeof(m) == "map[string:int]", "map should return 'map[string:int]'")
 
-    temp m2 map[int:string] = {1: "one"}
+    mut m2 map[int:string] = {1: "one"}
     assert(typeof(m2) == "map[int:string]", "map should return 'map[int:string]'")
 
     // Enums
-    temp c Color = Color.RED
+    mut c Color = Color.RED
     assert(typeof(c) == "Color", "enum variable should return enum type name")
     assert(typeof(Color.GREEN) == "Color", "enum member should return enum type name")
 
     // Structs
-    temp p Point = Point{x: 10, y: 20}
+    mut p Point = Point{x: 10, y: 20}
     assert(typeof(p) == "Point", "struct variable should return struct name")
     assert(typeof(Point{x: 1, y: 2}) == "Point", "struct literal should return struct name")
 

@@ -7,14 +7,14 @@ using std
 
 do main() {
     println("=== Operators Test ===")
-    temp passed int = 0
-    temp failed int = 0
+    mut passed int = 0
+    mut failed int = 0
 
     // ==================== ARITHMETIC ====================
     println("  -- Arithmetic --")
 
     // Test 1: Addition
-    temp add_result int = 10 + 3
+    mut add_result int = 10 + 3
     if add_result == 13 {
         println("  [PASS] 10 + 3 = 13")
         passed += 1
@@ -24,7 +24,7 @@ do main() {
     }
 
     // Test 2: Subtraction
-    temp sub_result int = 10 - 3
+    mut sub_result int = 10 - 3
     if sub_result == 7 {
         println("  [PASS] 10 - 3 = 7")
         passed += 1
@@ -34,7 +34,7 @@ do main() {
     }
 
     // Test 3: Multiplication
-    temp mul_result int = 10 * 3
+    mut mul_result int = 10 * 3
     if mul_result == 30 {
         println("  [PASS] 10 * 3 = 30")
         passed += 1
@@ -44,7 +44,7 @@ do main() {
     }
 
     // Test 4: Integer division
-    temp div_result int = 10 / 3
+    mut div_result int = 10 / 3
     if div_result == 3 {
         println("  [PASS] 10 / 3 = 3 (integer division)")
         passed += 1
@@ -54,7 +54,7 @@ do main() {
     }
 
     // Test 5: Modulo
-    temp mod_result int = 10 % 3
+    mut mod_result int = 10 % 3
     if mod_result == 1 {
         println("  [PASS] 10 % 3 = 1")
         passed += 1
@@ -64,7 +64,7 @@ do main() {
     }
 
     // Test 6: Float division
-    temp float_div float = 10.0 / 3.0
+    mut float_div float = 10.0 / 3.0
     if float_div > 3.33 && float_div < 3.34 {
         println("  [PASS] 10.0 / 3.0 = ~3.333")
         passed += 1
@@ -76,8 +76,8 @@ do main() {
     // ==================== COMPARISON ====================
     println("  -- Comparison --")
 
-    temp a int = 10
-    temp b int = 3
+    mut a int = 10
+    mut b int = 3
 
     // Test 7: Equal
     if (a == 10) == true {
@@ -136,8 +136,8 @@ do main() {
     // ==================== LOGICAL ====================
     println("  -- Logical --")
 
-    temp t bool = true
-    temp f bool = false
+    mut t bool = true
+    mut f bool = false
 
     // Test 13: AND
     if (t && t) == true && (t && f) == false {
@@ -170,7 +170,7 @@ do main() {
     println("  -- Assignment --")
 
     // Test 16: +=
-    temp num int = 10
+    mut num int = 10
     num += 5
     if num == 15 {
         println("  [PASS] += operator")
@@ -211,7 +211,7 @@ do main() {
     }
 
     // Test 20: ++
-    temp counter int = 0
+    mut counter int = 0
     counter++
     if counter == 1 {
         println("  [PASS] ++ operator")
@@ -235,9 +235,9 @@ do main() {
     println("  -- String --")
 
     // Test 22: String concatenation
-    temp str1 string = "Hello"
-    temp str2 string = "World"
-    temp concat string = str1 + " " + str2
+    mut str1 string = "Hello"
+    mut str2 string = "World"
+    mut concat string = str1 + " " + str2
     if concat == "Hello World" {
         println("  [PASS] string concatenation")
         passed += 1

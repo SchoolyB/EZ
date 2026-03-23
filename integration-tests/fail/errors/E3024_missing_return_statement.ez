@@ -4,10 +4,10 @@
  */
 
 do getValue() -> int {
-    temp x int = 5
+    mut x int = 5
     // missing return statement
 }
 
 do main() {
-    temp v int = getValue()
+    mut v int = getValue()
 }

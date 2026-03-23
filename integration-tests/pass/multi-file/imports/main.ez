@@ -25,9 +25,9 @@ do main() {
     println("========================================")
     println("")
 
-    temp total_passed int = 0
-    temp total_failed int = 0
-    temp result TestResult = TestResult{passed: 0, failed: 0}
+    mut total_passed int = 0
+    mut total_failed int = 0
+    mut result TestResult = TestResult{passed: 0, failed: 0}
 
     result = test_auto_use_no_alias()
     total_passed += result.passed
@@ -49,7 +49,7 @@ do main() {
     total_passed += result.passed
     total_failed += result.failed
 
-    temp total int = total_passed + total_failed
+    mut total int = total_passed + total_failed
 
     println("")
     println("========================================")
@@ -73,13 +73,13 @@ do test_auto_use_no_alias() -> TestResult {
     println("------------------------------------------")
     println("  Test: import & use (no alias)")
     println("------------------------------------------")
-    temp passed int = 0
-    temp failed int = 0
+    mut passed int = 0
+    mut failed int = 0
 
     // libA was imported with 'import & use "./libA"'
     // Should be able to call greet() directly without prefix
     println("  Testing unqualified access to libA...")
-    temp greeting string = greet("World")
+    mut greeting string = greet("World")
     println("    greet('World') = '${greeting}'")
     if greeting == "Hello, World" {
         passed += 1
@@ -90,7 +90,7 @@ do test_auto_use_no_alias() -> TestResult {
 
     // Also test qualified access still works
     println("  Testing qualified access libA.add()...")
-    temp sum int = libA.add(10, 20)
+    mut sum int = libA.add(10, 20)
     println("    libA.add(10, 20) = ${sum}")
     if sum == 30 {
         passed += 1
@@ -109,8 +109,8 @@ do test_auto_use_with_alias() -> TestResult {
     println("------------------------------------------")
     println("  Test: import & use alias\"path\"")
     println("------------------------------------------")
-    temp passed int = 0
-    temp failed int = 0
+    mut passed int = 0
+    mut failed int = 0
 
     // We'll test this by using the already imported libA
     // and checking that both alias and original name work
@@ -120,7 +120,7 @@ do test_auto_use_with_alias() -> TestResult {
 
     // Test constant access
     println("  Testing constant access VERSION...")
-    temp ver string = VERSION
+    mut ver string = VERSION
     println("    VERSION = '${ver}'")
     if ver == "1.0.0" {
         passed += 1
@@ -139,8 +139,8 @@ do test_chained_import_use() -> TestResult {
     println("------------------------------------------")
     println("  Test: Chained import & use")
     println("------------------------------------------")
-    temp passed int = 0
-    temp failed int = 0
+    mut passed int = 0
+    mut failed int = 0
 
     // The top of file has: import & use @std, "./libA"
     // Both std functions and libA functions should be available
@@ -150,7 +150,7 @@ do test_chained_import_use() -> TestResult {
     passed += 1
 
     println("  Testing add from libA via chain...")
-    temp result int = add(5, 7)
+    mut result int = add(5, 7)
     println("    add(5, 7) = ${result}")
     if result == 12 {
         passed += 1
@@ -169,12 +169,12 @@ do test_regular_import_alias() -> TestResult {
     println("------------------------------------------")
     println("  Test: Regular import with alias")
     println("------------------------------------------")
-    temp passed int = 0
-    temp failed int = 0
+    mut passed int = 0
+    mut failed int = 0
 
     // Test that qualified access works with libA
     println("  Testing qualified access libA.greet()...")
-    temp msg string = libA.greet("Test")
+    mut msg string = libA.greet("Test")
     println("    libA.greet('Test') = '${msg}'")
     if msg == "Hello, Test" {
         passed += 1
@@ -193,13 +193,13 @@ do test_stdlib_alias() -> TestResult {
     println("------------------------------------------")
     println("  Test: Stdlib with import & use")
     println("------------------------------------------")
-    temp passed int = 0
-    temp failed int = 0
+    mut passed int = 0
+    mut failed int = 0
 
     // @std was imported with import & use
     // Test that stdlib functions work unqualified
     println("  Testing typeof() builtin...")
-    temp t string = typeof(42)
+    mut t string = typeof(42)
     println("    typeof(42) = '${t}'")
     if t == "int" {
         passed += 1
@@ -209,8 +209,8 @@ do test_stdlib_alias() -> TestResult {
     }
 
     println("  Testing len() builtin...")
-    temp arr [int] = {1, 2, 3, 4, 5}
-    temp length int = len(arr)
+    mut arr [int] = {1, 2, 3, 4, 5}
+    mut length int = len(arr)
     println("    len({1,2,3,4,5}) = ${length}")
     if length == 5 {
         passed += 1

@@ -39,8 +39,8 @@ const Priority enum {
 
 do main() {
     println("=== Enums Test ===")
-    temp passed int = 0
-    temp failed int = 0
+    mut passed int = 0
+    mut failed int = 0
 
     // ==================== BASIC INT ENUM ====================
     println("  -- Basic Int Enum --")
@@ -64,7 +64,7 @@ do main() {
     }
 
     // Test 3: store enum in variable
-    temp current int = Direction.SOUTH
+    mut current int = Direction.SOUTH
     if current == 2 {
         println("  [PASS] enum value in variable")
         passed += 1
@@ -125,7 +125,7 @@ do main() {
     }
 
     // Test 9: string enum in variable
-    temp current_status string = Status.IN_PROGRESS
+    mut current_status string = Status.IN_PROGRESS
     if current_status == "in_progress" {
         println("  [PASS] string enum in variable")
         passed += 1
@@ -150,7 +150,7 @@ do main() {
     println("  -- Enum Comparison --")
 
     // Test 11: compare enum values
-    temp priority int = Priority.HIGH
+    mut priority int = Priority.HIGH
     if priority >= Priority.MEDIUM {
         println("  [PASS] enum comparison (HIGH >= MEDIUM)")
         passed += 1

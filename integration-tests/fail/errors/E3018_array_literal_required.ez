@@ -4,5 +4,5 @@
  */
 
 do main() {
-    temp arr [int] = 5  // array type requires array literal
+    mut arr [int] = 5  // array type requires array literal
 }

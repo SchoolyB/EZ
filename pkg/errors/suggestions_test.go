@@ -33,7 +33,7 @@ func TestLevenshteinDistance(t *testing.T) {
 		{"hello", "world", 4},
 
 		// Typos
-		{"tempp", "temp", 1},
+		{"mutt", "mut", 1},
 		{"cosnt", "const", 2},
 		{"fucntion", "function", 2},
 		{"pritn", "print", 2},
@@ -62,7 +62,7 @@ func TestSuggestKeyword(t *testing.T) {
 		expected string
 	}{
 		// Close typos should suggest
-		{"tempp", "temp"},
+		{"mutt", "mut"},
 		{"cosnt", "const"},
 		{"retrun", "return"},
 		{"iff", "if"},
@@ -81,7 +81,7 @@ func TestSuggestKeyword(t *testing.T) {
 		{"function", ""}, // Not a keyword
 
 		// Exact matches shouldn't need suggestion (but will match)
-		{"temp", "temp"},
+		{"mut", "mut"},
 		{"const", "const"},
 	}
 
@@ -177,7 +177,7 @@ func TestKeywordsList(t *testing.T) {
 	}
 
 	// Check some expected keywords exist
-	expected := []string{"temp", "const", "do", "return", "if", "for", "struct", "enum"}
+	expected := []string{"mut", "const", "do", "return", "if", "for", "struct", "enum"}
 	for _, kw := range expected {
 		found := false
 		for _, k := range Keywords {

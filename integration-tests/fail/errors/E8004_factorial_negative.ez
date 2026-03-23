@@ -6,5 +6,5 @@
 import @math
 
 do main() {
-    temp x int = math.factorial(-5)  // factorial requires non-negative
+    mut x int = math.factorial(-5)  // factorial requires non-negative
 }

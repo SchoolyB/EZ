@@ -6,5 +6,5 @@
 import @io
 
 do main() {
-    temp content string = io.read("/tmp")  // cannot read directory as file
+    mut content string = io.read("/tmp")  // cannot read directory as file
 }

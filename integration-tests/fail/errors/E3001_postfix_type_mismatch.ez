@@ -7,6 +7,6 @@ import @std
 using std
 
 do main() {
-    temp s string = "hello"
+    mut s string = "hello"
     s++  // Should fail: increment on string
 }

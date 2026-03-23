@@ -6,5 +6,5 @@
 import @math
 
 do main() {
-    temp x int = math.random_int(10, 5)  // min > max
+    mut x int = math.random_int(10, 5)  // min > max
 }

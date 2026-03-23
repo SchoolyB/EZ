@@ -7,6 +7,6 @@ do main() {
     struct Person {  // type definition inside function
         name string
     }
-    temp p Person = Person{name: "Alice"}
+    mut p Person = Person{name: "Alice"}
 }
 

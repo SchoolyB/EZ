@@ -6,6 +6,6 @@
 import @strings
 
 do main() {
-    temp s string = ""
-    temp c = strings.char_at(s, 0)  // cannot index empty string
+    mut s string = ""
+    mut c = strings.char_at(s, 0)  // cannot index empty string
 }

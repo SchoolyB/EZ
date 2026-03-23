@@ -9,7 +9,7 @@ using std
 
 do main() {
     // Write a file
-    temp ok bool, write_err Error = io.write_file("/tmp/ez_io_example.txt", "Hello from EZ!\nLine two.\nLine three.")
+    mut ok bool, write_err Error = io.write_file("/tmp/ez_io_example.txt", "Hello from EZ!\nLine two.\nLine three.")
     if write_err != nil {
         println("Write error: ${write_err}")
         return
@@ -17,24 +17,24 @@ do main() {
     println("Wrote file: /tmp/ez_io_example.txt")
 
     // Read a file
-    temp content string, read_err Error = io.read_file("/tmp/ez_io_example.txt")
+    mut content string, read_err Error = io.read_file("/tmp/ez_io_example.txt")
     if read_err == nil {
         println("Content: ${content}")
     }
 
     // Read lines
-    temp lines [string], lines_err Error = io.read_lines("/tmp/ez_io_example.txt")
+    mut lines [string], lines_err Error = io.read_lines("/tmp/ez_io_example.txt")
     if lines_err == nil {
         println("Lines: ${lines}")
     }
 
     // Append to file
-    temp _, _ = io.append_file("/tmp/ez_io_example.txt", "\nLine four.")
-    temp updated, _ = io.read_file("/tmp/ez_io_example.txt")
+    mut _, _ = io.append_file("/tmp/ez_io_example.txt", "\nLine four.")
+    mut updated, _ = io.read_file("/tmp/ez_io_example.txt")
     println("After append: ${updated}")
 
     // File metadata
-    temp size, _ = io.file_size("/tmp/ez_io_example.txt")
+    mut size, _ = io.file_size("/tmp/ez_io_example.txt")
     println("File size: ${size} bytes")
 
     // Path utilities
@@ -50,12 +50,12 @@ do main() {
     println("is_dir: ${io.is_dir("/tmp")}")
 
     // Directory operations
-    temp _, _ = io.mkdir("/tmp/ez_io_test_dir")
-    temp entries, _ = io.read_dir("/tmp/ez_io_test_dir")
+    mut _, _ = io.mkdir("/tmp/ez_io_test_dir")
+    mut entries, _ = io.read_dir("/tmp/ez_io_test_dir")
     println("Empty dir entries: ${entries}")
-    temp _, _ = io.remove_dir("/tmp/ez_io_test_dir")
+    mut _, _ = io.remove_dir("/tmp/ez_io_test_dir")
 
     // Cleanup
-    temp _, _ = io.remove("/tmp/ez_io_example.txt")
-    println("Cleaned up temp files.")
+    mut _, _ = io.remove("/tmp/ez_io_example.txt")
+    println("Cleaned up mut files.")
 }

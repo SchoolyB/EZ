@@ -15,11 +15,11 @@ do get_triple() -> (int, int, int) {
 
 do main() {
     println("=== Blank Identifier Test ===")
-    temp passed int = 0
-    temp failed int = 0
+    mut passed int = 0
+    mut failed int = 0
 
     // Test 1: discard second return value
-    temp val, _ = get_pair()
+    mut val, _ = get_pair()
     if val == 42 {
         println("  [PASS] discard second value with _")
         passed += 1
@@ -29,7 +29,7 @@ do main() {
     }
 
     // Test 2: discard first return value
-    temp _, str = get_pair()
+    mut _, str = get_pair()
     if str == "hello" {
         println("  [PASS] discard first value with _")
         passed += 1
@@ -39,7 +39,7 @@ do main() {
     }
 
     // Test 3: discard multiple values
-    temp _, middle, _ = get_triple()
+    mut _, middle, _ = get_triple()
     if middle == 2 {
         println("  [PASS] discard first and third with _")
         passed += 1

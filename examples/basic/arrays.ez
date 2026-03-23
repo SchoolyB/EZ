@@ -14,9 +14,9 @@ do main() {
 
     // Declaring arrays
     println("-- Array basics --")
-    temp numbers [int] = {1, 2, 3, 4, 5}
-    temp names [string] = {"Alice", "Bob", "Charlie"}
-    temp flags [bool] = {true, false, true}
+    mut numbers [int] = {1, 2, 3, 4, 5}
+    mut names [string] = {"Alice", "Bob", "Charlie"}
+    mut flags [bool] = {true, false, true}
 
     println("numbers: ${numbers}")
     println("names: ${names}")
@@ -59,6 +59,6 @@ do main() {
     // Empty array
     println("")
     println("-- Empty array --")
-    temp empty [int] = {}
+    mut empty [int] = {}
     println("Empty array length: ${len(empty)}")
 }

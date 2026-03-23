@@ -9,6 +9,6 @@ struct Person {
 }
 
 do main() {
-    temp p Person = new Person
+    mut p Person = new Person
     p.height = 180  // height field does not exist
 }

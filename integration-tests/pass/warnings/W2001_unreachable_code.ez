@@ -8,10 +8,10 @@ using std
 
 do helper() -> int {
     return 42
-    temp x int = 10  // This is unreachable
+    mut x int = 10  // This is unreachable
 }
 
 do main() {
-    temp val int = helper()
+    mut val int = helper()
     println(val)
 }

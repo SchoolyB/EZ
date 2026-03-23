@@ -1746,7 +1746,7 @@ func (tc *TypeChecker) checkUnusedImports() {
 
 // checkFileScopeStatements validates that only declarations are at file scope (#662)
 // File scope should only allow: import, using, function declarations (do),
-// type declarations (struct, enum), and variable declarations (const, temp).
+// type declarations (struct, enum), and variable declarations (const, mut).
 // Control flow and executable statements should error.
 func (tc *TypeChecker) checkFileScopeStatements(statements []ast.Statement) {
 	for _, stmt := range statements {
@@ -2600,7 +2600,7 @@ func (tc *TypeChecker) checkVariableDeclaration(decl *ast.VariableDeclaration) {
 		}
 	}
 
-	// Register variable in current scope with mutability (temp = mutable, const = immutable)
+	// Register variable in current scope with mutability (mut = mutable, const = immutable)
 	if declaredType != "" {
 		tc.defineVariableWithMutability(varName, declaredType, decl.Mutable)
 	}
@@ -2668,7 +2668,7 @@ func (tc *TypeChecker) isMultiReturnCall(expr ast.Expression) bool {
 }
 
 // checkMultiReturnDeclaration validates multi-return variable declarations
-// e.g., temp x int, y string = getValues()
+// e.g., mut x int, y string = getValues()
 func (tc *TypeChecker) checkMultiReturnDeclaration(decl *ast.VariableDeclaration) {
 	// Check if any blank identifiers have unnecessary type annotations
 	for i, name := range decl.Names {
@@ -4651,7 +4651,7 @@ func (tc *TypeChecker) checkWhenStatement(whenStmt *ast.WhenStatement, expectedR
 				// Allow enum type matching
 				if !strings.HasPrefix(caseType, valueType) && !strings.HasSuffix(caseType, "."+valueType) {
 					// Allow int case values when matching against enum types (enums have int underlying values)
-					// Also allow enum case values when matching against int (e.g., temp dir int = Direction.SOUTH)
+					// Also allow enum case values when matching against int (e.g., mut dir int = Direction.SOUTH)
 					caseIsEnumWithIntBase := false
 					if caseEnumInfo, isCaseEnum := tc.GetType(caseType); isCaseEnum && caseEnumInfo.Kind == EnumType {
 						caseIsEnumWithIntBase = caseEnumInfo.EnumBaseType == valueType

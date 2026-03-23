@@ -35,23 +35,23 @@ do early_return_example() -> int {
 }
 
 do write_with_cleanup() {
-    temp path string = "/tmp/ez_ensure_example.txt"
+    mut path string = "/tmp/ez_ensure_example.txt"
 
-    // Write a temp file
-    temp _, _ = io.write_file(path, "temporary data")
+    // Write a mut file
+    mut _, _ = io.write_file(path, "temporary data")
     println("  created: ${path}")
 
     // Schedule cleanup to delete it when function exits
     ensure remove_temp(path)
 
     // Do work with the file...
-    temp content, _ = io.read_file(path)
+    mut content, _ = io.read_file(path)
     println("  read: ${content}")
     // remove_temp(path) runs automatically here
 }
 
 do remove_temp(path string) {
-    temp _, _ = io.remove(path)
+    mut _, _ = io.remove(path)
     println("  removed: ${path}")
 }
 
@@ -61,7 +61,7 @@ do main() {
 
     println("")
     println("--- Early return (LIFO order) ---")
-    temp val int = early_return_example()
+    mut val int = early_return_example()
     println("  returned: ${val}")
 
     println("")

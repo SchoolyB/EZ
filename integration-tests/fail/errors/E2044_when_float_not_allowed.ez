@@ -4,7 +4,7 @@
  */
 
 do main() {
-    temp x float = 3.14
+    mut x float = 3.14
     when x {
         is 1.0 { println("one") }
         is 2.0 { println("two") }

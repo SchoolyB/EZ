@@ -6,7 +6,7 @@
 import @io
 
 do main() {
-    temp results, err = io.glob("[invalid")  // ERROR: malformed glob pattern
+    mut results, err = io.glob("[invalid")  // ERROR: malformed glob pattern
     if err != nil {
         panic("${err}")
     }

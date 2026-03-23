@@ -14,16 +14,16 @@ do main() {
     println("Random bool: " + string(random.bool()))
 
     // Random selection from an array
-    temp colors [string] = {"red", "green", "blue", "yellow"}
-    temp pick string = random.choice(colors)
+    mut colors [string] = {"red", "green", "blue", "yellow"}
+    mut pick string = random.choice(colors)
     println("Random color: ${pick}")
 
     // Shuffle an array
-    temp nums [int] = {1, 2, 3, 4, 5}
-    temp shuffled [int] = random.shuffle(nums)
+    mut nums [int] = {1, 2, 3, 4, 5}
+    mut shuffled [int] = random.shuffle(nums)
     println("Shuffled: ${shuffled}")
 
     // Sample (pick N unique elements)
-    temp sampled = random.sample(colors, 2)
+    mut sampled = random.sample(colors, 2)
     println("Sample 2: ${sampled}")
 }

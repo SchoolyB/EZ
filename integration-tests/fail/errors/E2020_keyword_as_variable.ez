@@ -4,5 +4,5 @@
  */
 
 do main() {
-    temp if = 5
+    mut if = 5
 }

@@ -10,8 +10,8 @@ using std
 
 do main() {
     println("=== @std Standard Library Test ===")
-    temp passed int = 0
-    temp failed int = 0
+    mut passed int = 0
+    mut failed int = 0
 
     // ==================== EXIT_SUCCESS (global builtin) ====================
     println("  -- EXIT_SUCCESS --")
@@ -97,7 +97,7 @@ do main() {
     passed += 1
 
     // Test: assert with comparison
-    temp x int = 42
+    mut x int = 42
     assert(x == 42, "variable check")
     println("  [PASS] assert(x==42, msg) passed")
     passed += 1

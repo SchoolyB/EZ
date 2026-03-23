@@ -2,7 +2,7 @@
  * const_ref.ez - Test const ref creates read-only view
  *
  * Tests that:
- * - temp ref allows modification (existing behavior)
+ * - mut ref allows modification (existing behavior)
  * - const ref can read the value
  * - const ref sees changes made to original
  * - & parameters work correctly (always mutable)
@@ -26,23 +26,23 @@ do modify_struct(&p Point) {
 
 do main() {
     println("=== Const Ref Tests ===")
-    temp passed int = 0
-    temp failed int = 0
+    mut passed int = 0
+    mut failed int = 0
 
-    // Test 1: temp ref allows modification
-    temp arr1 [int] = {1, 2, 3}
-    temp r1 = ref(arr1)
+    // Test 1: mut ref allows modification
+    mut arr1 [int] = {1, 2, 3}
+    mut r1 = ref(arr1)
     arrays.append(r1, 4)
     if len(arr1) == 4 && arr1[3] == 4 {
-        println("  [PASS] temp ref allows modification")
+        println("  [PASS] mut ref allows modification")
         passed += 1
     } otherwise {
-        println("  [FAIL] temp ref should allow modification")
+        println("  [FAIL] mut ref should allow modification")
         failed += 1
     }
 
     // Test 2: const ref can read value
-    temp arr2 [int] = {10, 20, 30}
+    mut arr2 [int] = {10, 20, 30}
     const r2 = ref(arr2)
     if r2[0] == 10 && r2[1] == 20 && r2[2] == 30 {
         println("  [PASS] const ref can read value")
@@ -53,7 +53,7 @@ do main() {
     }
 
     // Test 3: const ref sees changes to original
-    temp arr3 [int] = {1, 2, 3}
+    mut arr3 [int] = {1, 2, 3}
     const r3 = ref(arr3)
     arrays.append(arr3, 4)  // Modify original directly
     if len(r3) == 4 && r3[3] == 4 {
@@ -65,7 +65,7 @@ do main() {
     }
 
     // Test 4: & parameter works (always mutable)
-    temp arr4 [int] = {1, 2, 3}
+    mut arr4 [int] = {1, 2, 3}
     modify_array(arr4)
     if len(arr4) == 4 && arr4[3] == 999 {
         println("  [PASS] & parameter allows modification")
@@ -76,7 +76,7 @@ do main() {
     }
 
     // Test 5: & parameter with struct
-    temp p1 = Point{x: 10, y: 20}
+    mut p1 = Point{x: 10, y: 20}
     modify_struct(p1)
     if p1.x == 999 {
         println("  [PASS] & parameter works with struct")
@@ -86,15 +86,15 @@ do main() {
         failed += 1
     }
 
-    // Test 6: temp ref to struct allows modification
-    temp p2 = Point{x: 1, y: 2}
-    temp rp = ref(p2)
+    // Test 6: mut ref to struct allows modification
+    mut p2 = Point{x: 1, y: 2}
+    mut rp = ref(p2)
     rp.x = 100
     if p2.x == 100 {
-        println("  [PASS] temp ref to struct allows modification")
+        println("  [PASS] mut ref to struct allows modification")
         passed += 1
     } otherwise {
-        println("  [FAIL] temp ref to struct should allow modification")
+        println("  [FAIL] mut ref to struct should allow modification")
         failed += 1
     }
 

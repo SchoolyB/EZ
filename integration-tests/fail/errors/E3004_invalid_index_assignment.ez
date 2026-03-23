@@ -4,6 +4,6 @@
  */
 
 do main() {
-    temp s string = "hello"
+    mut s string = "hello"
     s[0] = 5  // Assigning int to string index instead of char
 }

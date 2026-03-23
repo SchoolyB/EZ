@@ -6,6 +6,6 @@
 import @db
 
 do main() {
-    temp store, _ = db.open("test.ezdb")
+    mut store, _ = db.open("test.ezdb")
     db.sort(store, "alpha")  // Wrong type - should be db.ALPHA not string
 }

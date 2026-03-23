@@ -4,5 +4,5 @@
  */
 
 do main() {
-    temp x int = 0x  // hex without digits
+    mut x int = 0x  // hex without digits
 }

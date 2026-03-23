@@ -8,5 +8,5 @@ do add(a int, b int) -> int {
 }
 
 do main() {
-    temp x int = add(1)  // Missing second argument
+    mut x int = add(1)  // Missing second argument
 }

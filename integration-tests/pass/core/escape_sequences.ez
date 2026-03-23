@@ -7,11 +7,11 @@ using std
 
 do main() {
     println("=== Escape Sequences Test ===")
-    temp passed int = 0
-    temp failed int = 0
+    mut passed int = 0
+    mut failed int = 0
 
     // Test 1: Newline \n
-    temp nl string = "a\nb"
+    mut nl string = "a\nb"
     if len(nl) == 3 {
         println("  [PASS] \"a\\nb\" has length 3 (contains newline)")
         passed += 1
@@ -21,7 +21,7 @@ do main() {
     }
 
     // Test 2: Tab \t
-    temp tb string = "a\tb"
+    mut tb string = "a\tb"
     if len(tb) == 3 {
         println("  [PASS] \"a\\tb\" has length 3 (contains tab)")
         passed += 1
@@ -31,7 +31,7 @@ do main() {
     }
 
     // Test 3: Carriage return \r
-    temp cr string = "a\rb"
+    mut cr string = "a\rb"
     if len(cr) == 3 {
         println("  [PASS] \"a\\rb\" has length 3 (contains CR)")
         passed += 1
@@ -41,7 +41,7 @@ do main() {
     }
 
     // Test 4: Escaped backslash \\
-    temp bs string = "a\\b"
+    mut bs string = "a\\b"
     if len(bs) == 3 {
         println("  [PASS] \"a\\\\b\" has length 3 (contains backslash)")
         passed += 1
@@ -51,7 +51,7 @@ do main() {
     }
 
     // Test 5: Escaped double quote \"
-    temp dq string = "a\"b"
+    mut dq string = "a\"b"
     if len(dq) == 3 {
         println("  [PASS] \"a\\\"b\" has length 3 (contains quote)")
         passed += 1
@@ -61,7 +61,7 @@ do main() {
     }
 
     // Test 6: Hex escape \x48 = 'H'
-    temp hex string = "\x48\x65\x6c\x6c\x6f"
+    mut hex string = "\x48\x65\x6c\x6c\x6f"
     if hex == "Hello" {
         println("  [PASS] hex escapes spell \"Hello\"")
         passed += 1
@@ -71,7 +71,7 @@ do main() {
     }
 
     // Test 7: Char escape - newline
-    temp nl_char char = '\n'
+    mut nl_char char = '\n'
     if int(nl_char) == 10 {
         println("  [PASS] char '\\n' has code point 10")
         passed += 1
@@ -81,7 +81,7 @@ do main() {
     }
 
     // Test 8: Char escape - tab
-    temp tab_char char = '\t'
+    mut tab_char char = '\t'
     if int(tab_char) == 9 {
         println("  [PASS] char '\\t' has code point 9")
         passed += 1
@@ -91,7 +91,7 @@ do main() {
     }
 
     // Test 9: Multiple escapes in one string
-    temp multi string = "line1\nline2\ttab"
+    mut multi string = "line1\nline2\ttab"
     if len(multi) == 15 {
         println("  [PASS] mixed escapes: \"line1\\nline2\\ttab\" length = 15")
         passed += 1

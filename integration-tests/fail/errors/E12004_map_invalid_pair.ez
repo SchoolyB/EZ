@@ -6,5 +6,5 @@
 import @maps
 
 do main() {
-    temp m = maps.from_pairs({{1, 2, 3}})  // not a valid pair
+    mut m = maps.from_pairs({{1, 2, 3}})  // not a valid pair
 }

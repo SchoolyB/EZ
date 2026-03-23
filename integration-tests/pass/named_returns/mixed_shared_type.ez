@@ -12,7 +12,7 @@ do getFullInfo() -> (name, city string, age int) {
 }
 
 do main() {
-    temp n string, c string, a int = getFullInfo()
+    mut n string, c string, a int = getFullInfo()
     println(n)
     println(c)
     println(a)

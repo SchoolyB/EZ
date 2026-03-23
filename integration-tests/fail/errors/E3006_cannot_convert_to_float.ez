@@ -4,5 +4,5 @@
  */
 
 do main() {
-    temp x float = float("hello")  // cannot convert string to float
+    mut x float = float("hello")  // cannot convert string to float
 }

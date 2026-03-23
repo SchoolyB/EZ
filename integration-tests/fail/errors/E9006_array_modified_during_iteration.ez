@@ -7,7 +7,7 @@ module main
 import & use @std, @arrays
 
 do main() {
-    temp arr [int] = {1, 2, 3, 4, 5}
+    mut arr [int] = {1, 2, 3, 4, 5}
     for_each item in arr {
         println("item: ${item}")
         if item == 2 {

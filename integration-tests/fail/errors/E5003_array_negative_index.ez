@@ -7,7 +7,7 @@ import @std
 using std
 
 do main() {
-    temp arr [int] = {1, 2, 3}
-    temp x = arr[-1]  // Negative index is always invalid
+    mut arr [int] = {1, 2, 3}
+    mut x = arr[-1]  // Negative index is always invalid
     println(x)
 }

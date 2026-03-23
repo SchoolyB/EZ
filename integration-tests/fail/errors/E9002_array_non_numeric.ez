@@ -6,6 +6,6 @@
 import @arrays
 
 do main() {
-    temp arr [string] = {"a", "b", "c"}
-    temp total = arrays.sum(arr)  // sum requires numeric array
+    mut arr [string] = {"a", "b", "c"}
+    mut total = arrays.sum(arr)  // sum requires numeric array
 }

@@ -4,6 +4,6 @@
  */
 
 do main() {
-    temp x int = -5
-    temp y uint = x  // cannot assign signed to unsigned
+    mut x int = -5
+    mut y uint = x  // cannot assign signed to unsigned
 }

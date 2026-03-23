@@ -8,5 +8,5 @@ do foo() -> {  // Arrow without return type
 }
 
 do main() {
-    temp x int = foo()
+    mut x int = foo()
 }

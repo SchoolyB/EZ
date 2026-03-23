@@ -78,7 +78,7 @@ func TestTokenTypeConstants(t *testing.T) {
 		{"AMPERSAND", AMPERSAND, "&"},
 
 		// Keywords
-		{"TEMP", TEMP, "TEMP"},
+		{"MUT", MUT, "MUT"},
 		{"CONST", CONST, "CONST"},
 		{"DO", DO, "DO"},
 		{"RETURN", RETURN, "RETURN"},
@@ -125,7 +125,7 @@ func TestLookupIdentifier(t *testing.T) {
 		expected TokenType
 	}{
 		// All keywords should return their specific token type
-		{"temp", TEMP},
+		{"mut", MUT},
 		{"const", CONST},
 		{"do", DO},
 		{"return", RETURN},
@@ -166,7 +166,7 @@ func TestLookupIdentifier(t *testing.T) {
 		{"with123numbers", IDENT},
 
 		// Case-sensitive: uppercase keywords should be IDENT
-		{"TEMP", IDENT},
+		{"MUT", IDENT},
 		{"Const", IDENT},
 		{"DO", IDENT},
 		{"IF", IDENT},
@@ -215,7 +215,7 @@ func TestKeywordCount(t *testing.T) {
 
 	// Test all known keywords
 	knownKeywords := []string{
-		"temp", "const", "do", "return", "if", "or", "otherwise",
+		"mut", "const", "do", "return", "if", "or", "otherwise",
 		"for", "for_each", "as_long_as", "loop", "break", "continue",
 		"in", "not_in", "range", "import", "using", "struct", "enum",
 		"nil", "new", "true", "false", "_", "module", "private",
@@ -237,7 +237,7 @@ func TestKeywordCount(t *testing.T) {
 func TestIsKeyword(t *testing.T) {
 	// All keyword token types should return true
 	keywordTypes := []TokenType{
-		TEMP, CONST, DO, RETURN, IF, OR_KW, OTHERWISE,
+		MUT, CONST, DO, RETURN, IF, OR_KW, OTHERWISE,
 		FOR, FOR_EACH, AS_LONG_AS, LOOP, BREAK, CONTINUE,
 		IN, NOT_IN, RANGE, IMPORT, USING, STRUCT, ENUM,
 		NIL, NEW, TRUE, FALSE, BLANK, MODULE, PRIVATE, USE,
@@ -278,7 +278,7 @@ func TestKeywordLiteral(t *testing.T) {
 		tokenType TokenType
 		expected  string
 	}{
-		{TEMP, "temp"},
+		{MUT, "mut"},
 		{CONST, "const"},
 		{DO, "do"},
 		{RETURN, "return"},

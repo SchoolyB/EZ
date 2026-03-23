@@ -4,5 +4,5 @@
  */
 
 do main() {
-    temp p = new FooBar  // FooBar type not defined
+    mut p = new FooBar  // FooBar type not defined
 }

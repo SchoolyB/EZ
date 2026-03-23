@@ -4,5 +4,5 @@
  */
 
 do main() {
-    temp x int = "hello"  // Assigning string to int
+    mut x int = "hello"  // Assigning string to int
 }

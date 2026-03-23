@@ -8,5 +8,5 @@ do getData() -> UnknownType {  // Unknown return type
 }
 
 do main() {
-    temp x = getData()
+    mut x = getData()
 }

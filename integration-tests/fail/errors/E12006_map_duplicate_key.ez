@@ -4,7 +4,7 @@
  */
 
 do main() {
-    temp m map[string:int] = {
+    mut m map[string:int] = {
         "a": 1,
         "b": 2,
         "a": 3

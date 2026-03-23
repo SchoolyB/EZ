@@ -8,5 +8,5 @@ do get_number() -> int {
 }
 
 do main() {
-    temp x int = get_number()
+    mut x int = get_number()
 }

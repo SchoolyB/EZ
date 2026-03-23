@@ -6,5 +6,5 @@
 import @strings
 
 do main() {
-    temp s string = strings.repeat("x", -5)  // negative count
+    mut s string = strings.repeat("x", -5)  // negative count
 }

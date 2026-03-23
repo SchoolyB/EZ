@@ -8,11 +8,11 @@ using std
 
 do main() {
     println("=== UUID Module Test ===")
-    temp passed int = 0
-    temp failed int = 0
+    mut passed int = 0
+    mut failed int = 0
 
     // Test 1: Generate a new UUID
-    temp id1 string = uuid.create()
+    mut id1 string = uuid.create()
     if len(id1) == 36 {
         println("  [PASS] uuid.create() returns 36 character string")
         passed += 1
@@ -31,7 +31,7 @@ do main() {
     }
 
     // Test 3: Generate compact UUID (no hyphens)
-    temp compact string = uuid.create_compact()
+    mut compact string = uuid.create_compact()
     if len(compact) == 32 {
         println("  [PASS] uuid.create_compact() returns 32 character string")
         passed += 1
@@ -50,7 +50,7 @@ do main() {
     }
 
     // Test 5: NIL UUID
-    temp nil_uuid string = uuid.NIL()
+    mut nil_uuid string = uuid.NIL()
     if nil_uuid == "00000000-0000-0000-0000-000000000000" {
         println("  [PASS] uuid.NIL() returns nil UUID")
         passed += 1
@@ -87,7 +87,7 @@ do main() {
     }
 
     // Test 9: Two UUIDs should be different
-    temp id2 string = uuid.create()
+    mut id2 string = uuid.create()
     if id1 != id2 {
         println("  [PASS] uuid.create() generates unique UUIDs")
         passed += 1

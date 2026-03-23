@@ -4,7 +4,7 @@
  */
 
 do main() {
-    temp x int = 5
+    mut x int = 5
     for_each item in x {  // Cannot iterate over an integer
         std.println(item)
     }

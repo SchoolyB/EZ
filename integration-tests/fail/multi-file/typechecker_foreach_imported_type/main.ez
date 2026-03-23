@@ -7,7 +7,7 @@ import & use @std, @arrays
 import lib"./lib"
 
 do main() {
-    temp items [lib.Item]
+    mut items [lib.Item]
     arrays.append(items, lib.Item{ name: "Test", value: 100 })
 
     for_each item in items {

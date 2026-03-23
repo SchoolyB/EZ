@@ -2,5 +2,5 @@ import @std
 using std
 
 do main() {
-    temp arr = {1, "two", 3.0}
+    mut arr = {1, "two", 3.0}
 }

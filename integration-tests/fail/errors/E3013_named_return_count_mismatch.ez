@@ -9,6 +9,6 @@ do getValues() -> (age int, name string) {
 }
 
 do main() {
-    temp a int, n string = getValues()
+    mut a int, n string = getValues()
     println(a)
 }

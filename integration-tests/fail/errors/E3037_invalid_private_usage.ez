@@ -4,5 +4,5 @@
  */
 
 do main() {
-    private temp x int = 5  // private not allowed inside functions
+    private mut x int = 5  // private not allowed inside functions
 }

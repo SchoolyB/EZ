@@ -7,14 +7,14 @@ using std
 
 do main() {
     println("=== @time Standard Library Test ===")
-    temp passed int = 0
-    temp failed int = 0
+    mut passed int = 0
+    mut failed int = 0
 
     // ==================== time.now ====================
     println("  -- time.now --")
 
     // Test 1: now returns a reasonable timestamp (after 2024)
-    temp now int = time.now()
+    mut now int = time.now()
     // Unix timestamp for Jan 1 2024 00:00:00 UTC is 1704067200
     if now > 1704067200 {
         println("  [PASS] time.now() returns current timestamp")
@@ -28,7 +28,7 @@ do main() {
     println("  -- time.date --")
 
     // Test 2: date returns non-empty string
-    temp date string = time.date()
+    mut date string = time.date()
     if len(date) > 0 {
         println("  [PASS] time.date() returns '${date}'")
         passed += 1
@@ -41,7 +41,7 @@ do main() {
     println("  -- time.iso --")
 
     // Test 3: iso returns ISO format
-    temp iso string = time.iso()
+    mut iso string = time.iso()
     // ISO format looks like: 2024-12-08T12:34:56Z or similar
     if len(iso) >= 19 {
         println("  [PASS] time.iso() returns '${iso}'")
@@ -55,7 +55,7 @@ do main() {
     println("  -- time.year / month / day --")
 
     // Test 4: year is reasonable
-    temp year int = time.year()
+    mut year int = time.year()
     if year >= 2024 {
         println("  [PASS] time.year() = ${year}")
         passed += 1
@@ -65,7 +65,7 @@ do main() {
     }
 
     // Test 5: month is 1-12
-    temp month int = time.month()
+    mut month int = time.month()
     if month >= 1 && month <= 12 {
         println("  [PASS] time.month() = ${month}")
         passed += 1
@@ -75,7 +75,7 @@ do main() {
     }
 
     // Test 6: day is 1-31
-    temp day int = time.day()
+    mut day int = time.day()
     if day >= 1 && day <= 31 {
         println("  [PASS] time.day() = ${day}")
         passed += 1
@@ -88,7 +88,7 @@ do main() {
     println("  -- time.hour / minute / second --")
 
     // Test 7: hour is 0-23
-    temp hour int = time.hour()
+    mut hour int = time.hour()
     if hour >= 0 && hour <= 23 {
         println("  [PASS] time.hour() = ${hour}")
         passed += 1
@@ -98,7 +98,7 @@ do main() {
     }
 
     // Test 8: minute is 0-59
-    temp minute int = time.minute()
+    mut minute int = time.minute()
     if minute >= 0 && minute <= 59 {
         println("  [PASS] time.minute() = ${minute}")
         passed += 1
@@ -108,7 +108,7 @@ do main() {
     }
 
     // Test 9: second is 0-59
-    temp second int = time.second()
+    mut second int = time.second()
     if second >= 0 && second <= 59 {
         println("  [PASS] time.second() = ${second}")
         passed += 1
@@ -121,7 +121,7 @@ do main() {
     println("  -- time.format --")
 
     // Test 10: format with pattern
-    temp formatted string = time.format("YYYY-MM-DD")
+    mut formatted string = time.format("YYYY-MM-DD")
     // Should return something like "2024-12-08"
     if len(formatted) == 10 {
         println("  [PASS] time.format('YYYY-MM-DD') = '${formatted}'")
@@ -132,7 +132,7 @@ do main() {
     }
 
     // Test 11: format with timestamp
-    temp time_fmt string = time.format("HH:mm:ss", now)
+    mut time_fmt string = time.format("HH:mm:ss", now)
     if len(time_fmt) == 8 {
         println("  [PASS] time.format('HH:mm:ss', now) = '${time_fmt}'")
         passed += 1
@@ -145,8 +145,8 @@ do main() {
     println("  -- time arithmetic --")
 
     // Test 12: add_days
-    temp future int = time.add_days(now, 7)
-    temp diff_days int = (future - now) / 86400
+    mut future int = time.add_days(now, 7)
+    mut diff_days int = (future - now) / 86400
     if diff_days == 7 {
         println("  [PASS] time.add_days(now, 7) adds 7 days")
         passed += 1
@@ -156,8 +156,8 @@ do main() {
     }
 
     // Test 13: add_weeks
-    temp week_later int = time.add_weeks(now, 1)
-    temp week_diff int = time.diff_days(week_later, now)
+    mut week_later int = time.add_weeks(now, 1)
+    mut week_diff int = time.diff_days(week_later, now)
     if week_diff == 7 {
         println("  [PASS] time.add_weeks(now, 1) adds 7 days")
         passed += 1
@@ -167,8 +167,8 @@ do main() {
     }
 
     // Test 14: add_hours / diff_hours
-    temp five_hours int = time.add_hours(now, 5)
-    temp hour_diff int = time.diff_hours(five_hours, now)
+    mut five_hours int = time.add_hours(now, 5)
+    mut hour_diff int = time.diff_hours(five_hours, now)
     if hour_diff == 5 {
         println("  [PASS] time.add_hours(now, 5) / diff_hours = 5")
         passed += 1
@@ -178,7 +178,7 @@ do main() {
     }
 
     // Test 15: diff_minutes
-    temp minute_diff int = time.diff_minutes(five_hours, now)
+    mut minute_diff int = time.diff_minutes(five_hours, now)
     if minute_diff == 300 {
         println("  [PASS] time.diff_minutes for 5 hours = 300")
         passed += 1
@@ -191,7 +191,7 @@ do main() {
     println("  -- calendar utilities --")
 
     // Test 16: quarter is 1-4
-    temp quarter int = time.quarter()
+    mut quarter int = time.quarter()
     if quarter >= 1 && quarter <= 4 {
         println("  [PASS] time.quarter() = Q${quarter}")
         passed += 1
@@ -201,7 +201,7 @@ do main() {
     }
 
     // Test 17: week_of_year is 1-53
-    temp week int = time.week_of_year()
+    mut week int = time.week_of_year()
     if week >= 1 && week <= 53 {
         println("  [PASS] time.week_of_year() = ${week}")
         passed += 1
@@ -214,8 +214,8 @@ do main() {
     println("  -- Unix timestamp conversions --")
 
     // Test 18: from_unix converts Unix seconds to timestamp
-    temp unix_secs int = 1577836800
-    temp ts_from_unix = time.from_unix(unix_secs)
+    mut unix_secs int = 1577836800
+    mut ts_from_unix = time.from_unix(unix_secs)
     if ts_from_unix == unix_secs {
         println(" [PASS] time.from_unix(${unix_secs}) = ${ts_from_unix}")
         passed += 1
@@ -225,8 +225,8 @@ do main() {
     }
 
     // Test 19: from_unix_ms converts Unix milliseconds to timestamp
-    temp unix_ms int = 1577836800000
-    temp ts_from_ms int = time.from_unix_ms(unix_ms)
+    mut unix_ms int = 1577836800000
+    mut ts_from_ms int = time.from_unix_ms(unix_ms)
     if ts_from_ms == 1577836800 {
         println("  [PASS] time.from_unix_ms(${unix_ms}) = ${ts_from_ms}")
         passed += 1
@@ -236,8 +236,8 @@ do main() {
     }
 
     // Test 20: to_unix converts timestamp to Unix seconds
-    temp test_ts int = 1577836800
-    temp unix_result int = time.to_unix(test_ts)
+    mut test_ts int = 1577836800
+    mut unix_result int = time.to_unix(test_ts)
     if unix_result == test_ts {
         println("  [PASS] time.to_unix(${test_ts}) = ${unix_result}")
         passed += 1
@@ -247,8 +247,8 @@ do main() {
     }
 
     // Test 21: to_unix_ms converts timestamp to Unix milliseconds
-    temp ts_secs int = 1577836800
-    temp ms_result int = time.to_unix_ms(ts_secs)
+    mut ts_secs int = 1577836800
+    mut ms_result int = time.to_unix_ms(ts_secs)
     // Should be milliseconds (1577836800000)
     if ms_result == 1577836800000 {
         println("  [PASS] time.to_unix_ms(${ts_secs}) = ${ms_result}")
@@ -263,8 +263,8 @@ do main() {
 
     // Test 22: is_weekend detects weekends
     // Jan 4, 2020 (Saturday) = 1578096000
-    temp saturday int = 1578096000
-    temp is_sat bool = time.is_weekend(saturday)
+    mut saturday int = 1578096000
+    mut is_sat bool = time.is_weekend(saturday)
     if is_sat {
         println("  [PASS] time.is_weekend(${saturday}) = true (Saturday)")
         passed += 1
@@ -275,8 +275,8 @@ do main() {
 
     // Test 23: is_weekday detects weekdays
     // Jan 6, 2020 (Monday) = 1578268800
-    temp monday int = 1578268800
-    temp is_mon bool = time.is_weekday(monday)
+    mut monday int = 1578268800
+    mut is_mon bool = time.is_weekday(monday)
     if is_mon {
         println("  [PASS] time.is_weekday(${monday}) = true (Monday)")
         passed += 1
@@ -286,8 +286,8 @@ do main() {
     }
 
     // Test 24: is_today checks if timestamp is today
-    temp today_ts int = time.now()
-    temp is_today_result bool = time.is_today(today_ts)
+    mut today_ts int = time.now()
+    mut is_today_result bool = time.is_today(today_ts)
     if is_today_result {
         println("  [PASS] time.is_today(${today_ts}) = true")
         passed += 1
@@ -297,9 +297,9 @@ do main() {
     }
 
     // Test 25: is_same_day checks if two timestamps are same day
-    temp base_ts int = 1577836800  // Jan 1 2020 00:00:00
-    temp same_day_ts int = 1577836800 + 3600  // Jan 1 2020 01:00:00
-    temp same_day bool = time.is_same_day(base_ts, same_day_ts)
+    mut base_ts int = 1577836800  // Jan 1 2020 00:00:00
+    mut same_day_ts int = 1577836800 + 3600  // Jan 1 2020 01:00:00
+    mut same_day bool = time.is_same_day(base_ts, same_day_ts)
     if same_day {
         println("  [PASS] time.is_same_day(${base_ts}, ${same_day_ts}) = true")
         passed += 1
@@ -309,8 +309,8 @@ do main() {
     }
 
     // Test 26: is_same_day returns false for different days
-    temp next_day_ts int = 1577836800 + 86400  // Jan 2 2020 00:00:00
-    temp diff_day bool = time.is_same_day(base_ts, next_day_ts)
+    mut next_day_ts int = 1577836800 + 86400  // Jan 2 2020 00:00:00
+    mut diff_day bool = time.is_same_day(base_ts, next_day_ts)
     if !diff_day {
         println("  [PASS] time.is_same_day(${base_ts}, ${next_day_ts}) = false (different days)")
         passed += 1
@@ -323,8 +323,8 @@ do main() {
     println("  -- Relative time --")
 
     // Test 27: relative time for "just now"
-    temp just_now_ts int = time.now()
-    temp relative_now string = time.relative(just_now_ts)
+    mut just_now_ts int = time.now()
+    mut relative_now string = time.relative(just_now_ts)
     if relative_now == "just now" {
         println("  [PASS] time.relative(${just_now_ts}) = '${relative_now}'")
         passed += 1
@@ -334,8 +334,8 @@ do main() {
     }
 
     // Test 28: relative time for past seconds
-    temp past_secs int = time.now() - 30
-    temp relative_secs string = time.relative(past_secs)
+    mut past_secs int = time.now() - 30
+    mut relative_secs string = time.relative(past_secs)
     if len(relative_secs) > 0 && strings.contains(relative_secs,"seconds ago") {
         println("  [PASS] time.relative(${past_secs}) = '${relative_secs}'")
         passed += 1
@@ -345,8 +345,8 @@ do main() {
     }
 
     // Test 29: relative time for past minutes
-    temp past_mins int = time.now() - 120  // 2 minutes ago
-    temp relative_mins string = time.relative(past_mins)
+    mut past_mins int = time.now() - 120  // 2 minutes ago
+    mut relative_mins string = time.relative(past_mins)
     if len(relative_mins) > 0 && strings.contains(relative_mins,"minutes ago") {
         println("  [PASS] time.relative(${past_mins}) = '${relative_mins}'")
         passed += 1
@@ -356,8 +356,8 @@ do main() {
     }
 
     // Test 30: relative time for future
-    temp future_secs int = time.now() + 60
-    temp relative_future string = time.relative(future_secs)
+    mut future_secs int = time.now() + 60
+    mut relative_future string = time.relative(future_secs)
     if len(relative_future) > 0 && strings.contains(relative_future,"in") {
         println("  [PASS] time.relative(${future_secs}) = '${relative_future}' (future)")
         passed += 1

@@ -4,5 +4,5 @@
  */
 
 do main() {
-    temp x u8 = -1  // u8 cannot be negative
+    mut x u8 = -1  // u8 cannot be negative
 }

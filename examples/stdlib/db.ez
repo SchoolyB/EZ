@@ -9,27 +9,27 @@ const User struct {
 }
 
 do main() {
-    temp store Database, err Error = db.open("mydb.ezdb")
+    mut store Database, err Error = db.open("mydb.ezdb")
     if err != nil {
         println("Failed: ${err.message}")
         return
     }
     
     // Write data
-		temp user1 User = User{name: "Alice", age: 30}
-		temp user1data, _ = json.encode(user1)
+		mut user1 User = User{name: "Alice", age: 30}
+		mut user1data, _ = json.encode(user1)
     db.set(store, "user:1", user1data)
 
-		temp user2 User = User{name: "Bob", age: 25}
-		temp user2data, _ = json.encode(user2)
+		mut user2 User = User{name: "Bob", age: 25}
+		mut user2data, _ = json.encode(user2)
     db.set(store, "user:2", user2data)
 
     db.set(store, "config:theme", "dark")
     
     // Read data
-    temp data, found = db.get(store, "user:1")
+    mut data, found = db.get(store, "user:1")
 		if found {
-				temp user, _ = json.decode(data, User)
+				mut user, _ = json.decode(data, User)
 				println("Name: ${user.name}")
 		}
     
@@ -40,19 +40,19 @@ do main() {
         println("User 3 not found")
     }
 
-		temp keys [string] = db.keys(store)
+		mut keys [string] = db.keys(store)
 		println("Keys: ${keys}")
     
     // List keys by prefix
-    temp users [string] = db.prefix(store, "user:")
+    mut users [string] = db.prefix(store, "user:")
     println("User keys: ${users}")
     
     // Stats
     println("Total keys: " + string(db.count(store)))
     
     // Manual save (optional - auto-saves on close)
-		temp _ = db.save(store)
+		mut _ = db.save(store)
 
     // Cleanup
-    temp _ = db.close(store)
+    mut _ = db.close(store)
 }

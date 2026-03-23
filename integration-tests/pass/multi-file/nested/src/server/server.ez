@@ -14,7 +14,7 @@ do start_server(port int) {
 }
 
 do process_request(method string, path string) -> Response {
-    temp req Request = Request{method: method, path: path, body: ""}
+    mut req Request = Request{method: method, path: path, body: ""}
 
     if path == "/" {
         return handle_home(req)

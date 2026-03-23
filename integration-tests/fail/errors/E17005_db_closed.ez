@@ -6,7 +6,7 @@
  import @db
 
  do main() {
-    temp store, _ = db.open("mydb.ezdb")
-    temp _ = db.close(store)
+    mut store, _ = db.open("mydb.ezdb")
+    mut _ = db.close(store)
     db.set(store, "name", "Alice")
  }

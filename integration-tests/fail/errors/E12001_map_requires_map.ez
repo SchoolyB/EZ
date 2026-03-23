@@ -6,6 +6,6 @@
 import @maps
 
 do main() {
-    temp arr [int] = {1, 2, 3}
-    temp keys [int] = maps.keys(arr)  // Passing array to map function
+    mut arr [int] = {1, 2, 3}
+    mut keys [int] = maps.keys(arr)  // Passing array to map function
 }

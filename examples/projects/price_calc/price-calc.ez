@@ -18,9 +18,9 @@ using std
 // Clear the terminal screen using OS command
 do clear_screen() {
     if os.is_windows() {
-        temp _, _ = os.exec("cls")
+        mut _, _ = os.exec("cls")
     } otherwise {
-        temp _, _ = os.exec("clear")
+        mut _, _ = os.exec("clear")
     }
 }
 
@@ -32,7 +32,7 @@ const MARKUP int = 4
 const COST int = 5
 
 do main() {
-    temp running bool = true
+    mut running bool = true
     
     as_long_as running {
         clear_screen()
@@ -40,16 +40,16 @@ do main() {
         
         // Get first choice
         display.show_main_menu()
-        temp first_choice int = input.get_menu_choice()
+        mut first_choice int = input.get_menu_choice()
         
         // Validate first choice// Given Price and Cost, calculate the rest
-        temp valid1 bool = validate.is_valid_choice(first_choice)
+        mut valid1 bool = validate.is_valid_choice(first_choice)
         if valid1 == false {
             display.show_error("Invalid choice. Please enter 1-5.")
             continue
         }
         
-        temp first_label string = input.get_choice_label(first_choice)
+        mut first_label string = input.get_choice_label(first_choice)
         println("")
         println("You selected: ${first_label}")
         println("")
@@ -58,17 +58,17 @@ do main() {
         
         // Get second choice
         display.show_second_menu(first_choice)
-        temp second_choice int = input.get_menu_choice()
+        mut second_choice int = input.get_menu_choice()
         
         // Validate second choice
-        temp valid2 bool = validate.is_valid_choice(second_choice)
+        mut valid2 bool = validate.is_valid_choice(second_choice)
         if valid2 == false {
             display.show_error("Invalid choice. Please enter 1-5.")
             continue
         }
         
         // Validate combination
-        temp valid_combo bool = validate.is_valid_combination(first_choice, second_choice)
+        mut valid_combo bool = validate.is_valid_combination(first_choice, second_choice)
         if valid_combo == false {
             if first_choice == second_choice {
                 display.show_error("You cannot select the same value twice.")
@@ -78,7 +78,7 @@ do main() {
             continue
         }
         
-        temp second_label string = input.get_choice_label(second_choice)
+        mut second_label string = input.get_choice_label(second_choice)
         println("")
         println("You selected: ${second_label}")
         println("")
@@ -86,11 +86,11 @@ do main() {
         println("")
         
         // Get the actual values
-        temp first_value float = input.get_numeric_input(input.get_input_prompt(first_choice))
-        temp second_value float = input.get_numeric_input(input.get_input_prompt(second_choice))
+        mut first_value float = input.get_numeric_input(input.get_input_prompt(first_choice))
+        mut second_value float = input.get_numeric_input(input.get_input_prompt(second_choice))
         
         // Calculate results based on the combination
-        temp price, margin, profit, markup, cost = calculate(first_choice, second_choice, first_value, second_value)
+        mut price, margin, profit, markup, cost = calculate(first_choice, second_choice, first_value, second_value)
         
         // Display results
         display.show_results(price, margin, profit, markup, cost)
@@ -107,10 +107,10 @@ do main() {
 // Route to the appropriate solver based on input choices
 do calculate(choice1, choice2 int, val1, val2 float) -> (float, float, float, float, float) {
     // Sort choices to simplify matching (lower first)
-    temp c1 int = choice1
-    temp c2 int = choice2
-    temp v1 float = val1
-    temp v2 float = val2
+    mut c1 int = choice1
+    mut c2 int = choice2
+    mut v1 float = val1
+    mut v2 float = val2
     
     if choice1 > choice2 {
         c1 = choice2
@@ -120,11 +120,11 @@ do calculate(choice1, choice2 int, val1, val2 float) -> (float, float, float, fl
     }
     
     // Match combinations (c1 is always the lower number)
-    temp price float = 0.0
-    temp margin float = 0.0
-    temp profit float = 0.0
-    temp markup float = 0.0
-    temp cost float = 0.0
+    mut price float = 0.0
+    mut margin float = 0.0
+    mut profit float = 0.0
+    mut markup float = 0.0
+    mut cost float = 0.0
     
     if c1 == PRICE && c2 == MARGIN {
         price, margin, profit, markup, cost = formulas.solve_from_price_and_margin(v1, v2)

@@ -9,5 +9,5 @@ enum Status {
 }
 
 do main() {
-    temp s = Status.PENDING  // PENDING does not exist
+    mut s = Status.PENDING  // PENDING does not exist
 }

@@ -9,6 +9,6 @@ using std
 const MAX int = 100
 
 do main() {
-    temp MAX int = 50  // Shadows the global constant MAX
+    mut MAX int = 50  // Shadows the global constant MAX
     println(MAX)
 }

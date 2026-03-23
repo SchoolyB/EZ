@@ -4,5 +4,5 @@
  */
 
 do main() {
-    temp x int = int("hello")  // cannot convert string to int
+    mut x int = int("hello")  // cannot convert string to int
 }

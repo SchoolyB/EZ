@@ -4,6 +4,6 @@
  */
 
 do main() {
-    temp name string = "world"
-    temp s string = "hello ${name"
+    mut name string = "world"
+    mut s string = "hello ${name"
 }

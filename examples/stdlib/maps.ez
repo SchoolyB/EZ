@@ -8,13 +8,13 @@ import @std, @maps
 using std
 
 do main() {
-    temp scores map[string:int] = {"alice": 95, "bob": 87, "charlie": 92}
+    mut scores map[string:int] = {"alice": 95, "bob": 87, "charlie": 92}
     println("scores = ${scores}")
     println("maps.keys(scores) = ${maps.keys(scores)}")
     println("maps.values(scores) = ${maps.values(scores)}")
 
-    temp alice_key string = "alice"
-    temp diana_key string = "diana"
+    mut alice_key string = "alice"
+    mut diana_key string = "diana"
     println("maps.contains(scores, 'alice') = ${maps.contains(scores, alice_key)}")
     println("maps.contains(scores, 'diana') = ${maps.contains(scores, diana_key)}")
 }

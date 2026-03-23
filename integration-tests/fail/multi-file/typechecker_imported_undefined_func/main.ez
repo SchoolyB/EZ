@@ -8,6 +8,6 @@ import lib"./lib"
 
 do main() {
     // ERROR: 'ad' is not defined in lib (should be 'add')
-    temp sum = lib.ad(10, 20)
+    mut sum = lib.ad(10, 20)
     println(sum)
 }

@@ -7,11 +7,11 @@ using std
 
 do main() {
     println("=== Primitives Test ===")
-    temp passed int = 0
-    temp failed int = 0
+    mut passed int = 0
+    mut failed int = 0
 
     // Test 1: int
-    temp i int = 42
+    mut i int = 42
     if i == 42 {
         println("  [PASS] int literal")
         passed += 1
@@ -21,7 +21,7 @@ do main() {
     }
 
     // Test 2: negative int
-    temp negative_i int = -10
+    mut negative_i int = -10
     if negative_i == -10 {
         println("  [PASS] negative int")
         passed += 1
@@ -31,7 +31,7 @@ do main() {
     }
 
     // Test 3: underscore in numbers
-    temp underscore_num int = 1_000_000
+    mut underscore_num int = 1_000_000
     if underscore_num == 1000000 {
         println("  [PASS] underscore in int literal")
         passed += 1
@@ -41,7 +41,7 @@ do main() {
     }
 
     // Test 4: float
-    temp f float = 3.14159
+    mut f float = 3.14159
     if f > 3.14 && f < 3.15 {
         println("  [PASS] float literal")
         passed += 1
@@ -51,7 +51,7 @@ do main() {
     }
 
     // Test 5: negative float
-    temp negative_f float = -2.5
+    mut negative_f float = -2.5
     if negative_f == -2.5 {
         println("  [PASS] negative float")
         passed += 1
@@ -61,7 +61,7 @@ do main() {
     }
 
     // Test 6: string
-    temp s string = "Hello, World!"
+    mut s string = "Hello, World!"
     if s == "Hello, World!" {
         println("  [PASS] string literal")
         passed += 1
@@ -71,7 +71,7 @@ do main() {
     }
 
     // Test 7: empty string
-    temp empty_s string = ""
+    mut empty_s string = ""
     if len(empty_s) == 0 {
         println("  [PASS] empty string length")
         passed += 1
@@ -81,7 +81,7 @@ do main() {
     }
 
     // Test 8: bool true
-    temp b_true bool = true
+    mut b_true bool = true
     if b_true == true {
         println("  [PASS] bool true")
         passed += 1
@@ -91,7 +91,7 @@ do main() {
     }
 
     // Test 9: bool false
-    temp b_false bool = false
+    mut b_false bool = false
     if b_false == false {
         println("  [PASS] bool false")
         passed += 1
@@ -101,7 +101,7 @@ do main() {
     }
 
     // Test 10: char
-    temp c char = 'A'
+    mut c char = 'A'
     if c == 'A' {
         println("  [PASS] char literal")
         passed += 1
@@ -111,7 +111,7 @@ do main() {
     }
 
     // Test 11: char escape
-    temp newline char = '\n'
+    mut newline char = '\n'
     if int(newline) == 10 {
         println("  [PASS] char newline escape")
         passed += 1
@@ -121,7 +121,7 @@ do main() {
     }
 
     // Test 12: byte
-    temp b byte = 0xFF
+    mut b byte = 0xFF
     if int(b) == 255 {
         println("  [PASS] byte hex literal")
         passed += 1
@@ -131,7 +131,7 @@ do main() {
     }
 
     // Test 13: byte from decimal
-    temp b2 byte = byte(128)
+    mut b2 byte = byte(128)
     if int(b2) == 128 {
         println("  [PASS] byte from decimal")
         passed += 1

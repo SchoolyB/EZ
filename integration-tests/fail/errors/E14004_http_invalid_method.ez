@@ -7,5 +7,5 @@ import @http
 
 do main() {
     // Invalid HTTP method
-    temp resp, err = http.request("INVALID", "http://example.com", nil, nil)
+    mut resp, err = http.request("INVALID", "http://example.com", nil, nil)
 }

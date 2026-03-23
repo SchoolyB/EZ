@@ -4,5 +4,5 @@
  */
 
 do main() {
-    temp x bool = true | false  // Single | is illegal, should be ||
+    mut x bool = true | false  // Single | is illegal, should be ||
 }

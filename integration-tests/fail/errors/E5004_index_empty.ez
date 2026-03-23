@@ -4,6 +4,6 @@
  */
 
 do main() {
-    temp arr [int] = {}
-    temp x int = arr[0]  // Index into empty array
+    mut arr [int] = {}
+    mut x int = arr[0]  // Index into empty array
 }

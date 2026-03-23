@@ -7,11 +7,11 @@ using std
 
 do main() {
     println("=== Loop Statement Test ===")
-    temp passed int = 0
-    temp failed int = 0
+    mut passed int = 0
+    mut failed int = 0
 
     // Test 1: Basic loop with break
-    temp count int = 0
+    mut count int = 0
     loop {
         if count == 5 {
             break
@@ -27,8 +27,8 @@ do main() {
     }
 
     // Test 2: Loop with continue and break
-    temp sum int = 0
-    temp i int = 0
+    mut sum int = 0
+    mut i int = 0
     loop {
         i++
         if i > 10 {
@@ -49,7 +49,7 @@ do main() {
     }
 
     // Test 3: Loop that runs exactly once
-    temp ran_once bool = false
+    mut ran_once bool = false
     loop {
         ran_once = true
         break
@@ -63,13 +63,13 @@ do main() {
     }
 
     // Test 4: Nested loops with break
-    temp outer_count int = 0
-    temp inner_total int = 0
+    mut outer_count int = 0
+    mut inner_total int = 0
     loop {
         if outer_count == 3 {
             break
         }
-        temp inner_count int = 0
+        mut inner_count int = 0
         loop {
             if inner_count == 2 {
                 break
