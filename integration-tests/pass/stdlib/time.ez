@@ -262,11 +262,11 @@ do main() {
     println("  -- Date checks --")
 
     // Test 22: is_weekend detects weekends
-    // Jan 4, 2020 (Saturday) = 1578096000
-    mut saturday int = 1578096000
+    // Jan 4, 2020 12:00:00 UTC (Saturday) — midday to avoid timezone edge cases
+    mut saturday int = 1578139200
     mut is_sat bool = time.is_weekend(saturday)
     if is_sat {
-        println("  [PASS] time.is_weekend(${saturday}) = true (Saturday)")
+        println("  [PASS] time.is_weekend = true (Saturday)")
         passed += 1
     } otherwise {
         println("  [FAIL] time.is_weekend: expected true for Saturday, got false")
@@ -274,11 +274,11 @@ do main() {
     }
 
     // Test 23: is_weekday detects weekdays
-    // Jan 6, 2020 (Monday) = 1578268800
-    mut monday int = 1578268800
+    // Jan 6, 2020 12:00:00 UTC (Monday) — midday to avoid timezone edge cases
+    mut monday int = 1578312000
     mut is_mon bool = time.is_weekday(monday)
     if is_mon {
-        println("  [PASS] time.is_weekday(${monday}) = true (Monday)")
+        println("  [PASS] time.is_weekday = true (Monday)")
         passed += 1
     } otherwise {
         println("  [FAIL] time.is_weekday: expected true for Monday, got false")

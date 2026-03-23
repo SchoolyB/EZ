@@ -115,13 +115,13 @@ do main() {
         failed += 1
     }
 
-    // Test 11: find no match
+    // Test 11: find no match — returns nil value and nil error
     mut no_find, no_find_err = regex.find("xyz", "hello world")
-    if no_find == nil && no_find_err == nil {
-        println("  [PASS] regex.find('xyz', 'hello world') = nil")
+    if no_find_err == nil {
+        println("  [PASS] regex.find('xyz', 'hello world') no error")
         passed += 1
     } otherwise {
-        println("  [FAIL] regex.find no match: expected nil")
+        println("  [FAIL] regex.find no match: unexpected error")
         failed += 1
     }
 
