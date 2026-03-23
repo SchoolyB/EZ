@@ -24,7 +24,7 @@ var reservedKeywords = map[string]bool{
 	"import": true, "using": true, "struct": true, "enum": true,
 	"nil": true, "new": true, "true": true, "false": true,
 	"module": true, "private": true, "from": true, "use": true,
-	"ensure": true,
+	"ensure": true, "or_return": true,
 }
 
 // Builtin function and type names that cannot be redefined
@@ -1137,6 +1137,7 @@ func (p *Parser) parseVarableDeclaration() *VariableDeclaration {
 		}
 		p.nextToken() // move to value
 		stmt.Value = p.parseExpression(LOWEST)
+		// or_return not valid with multi-variable assignment (already unpacks error)
 		return stmt
 	}
 
@@ -1148,6 +1149,11 @@ func (p *Parser) parseVarableDeclaration() *VariableDeclaration {
 		p.nextToken() // consume =
 		p.nextToken() // move to value
 		stmt.Value = p.parseExpression(LOWEST)
+		// Check for or_return: mut x = expr or_return
+		if p.peekTokenMatches(OR_RETURN) {
+			p.nextToken() // consume or_return
+			stmt.OrReturn = true
+		}
 		return stmt
 	}
 
@@ -1222,6 +1228,11 @@ func (p *Parser) parseVarableDeclaration() *VariableDeclaration {
 		}
 
 		stmt.Value = p.parseExpression(LOWEST)
+		// Check for or_return: mut x int = expr or_return
+		if p.peekTokenMatches(OR_RETURN) {
+			p.nextToken() // consume or_return
+			stmt.OrReturn = true
+		}
 	} else if !stmt.Mutable {
 		// const must be initialized
 		msg := fmt.Sprintf("const '%s' must be initialized with a value", errors.Ident(stmt.Name.Value))
