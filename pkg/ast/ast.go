@@ -224,6 +224,15 @@ type MemberExpression struct {
 func (m *MemberExpression) expressionNode()      {}
 func (m *MemberExpression) TokenLiteral() string { return m.Token.Literal }
 
+// FunctionReference represents ()func_name — a reference to a named function
+type FunctionReference struct {
+	Token    Token      // The LPAREN token
+	Function Expression // Can be Label (simple) or MemberExpression (Type.func or module.Type.func)
+}
+
+func (fr *FunctionReference) expressionNode()      {}
+func (fr *FunctionReference) TokenLiteral() string { return fr.Token.Literal }
+
 // NewExpression represents new(Type)
 type NewExpression struct {
 	Token    Token
