@@ -2150,7 +2150,59 @@ static void emit_statement(CodeGen *cg, AstNode *node) {
         const char *idx_name = node->data.for_each.index_name;
         if (!idx_name) idx_name = "_ez_idx";
 
-        if (coll_t && coll_t->kind == TK_STRING) {
+        if (coll_t && coll_t->kind == TK_MAP) {
+            /* for_each on map — iterate occupied slots with internal counter */
+            static int map_iter_counter = 0;
+            char mi_name[32];
+            snprintf(mi_name, sizeof(mi_name), "_ez_mi%d", map_iter_counter++);
+
+            const char *c_key = "EzString";
+            const char *c_val = "int64_t";
+            if (coll_t->key_type) {
+                EzType *kt = type_from_name(coll_t->key_type);
+                if (kt->kind == TK_INT) c_key = "int64_t";
+            }
+            if (coll_t->value_type) {
+                EzType *vt = type_from_name(coll_t->value_type);
+                if (vt->kind == TK_FLOAT) c_val = "double";
+                else if (vt->kind == TK_STRING) c_val = "EzString";
+                else if (vt->kind == TK_BOOL) c_val = "bool";
+            }
+
+            emitf(cg, "for (int32_t %s = 0; %s < ", mi_name, mi_name);
+            emit_expression(cg, coll);
+            emitf(cg, ".capacity; %s++) {\n", mi_name);
+            cg->indent++;
+            emit_indent(cg);
+            emit(cg, "if (");
+            emit_expression(cg, coll);
+            emitf(cg, ".states[%s] != 1) continue;\n", mi_name);
+
+            if (node->data.for_each.index_name) {
+                /* Two-var form: for_each k, v in map */
+                if (strcmp(node->data.for_each.index_name, "_") != 0) {
+                    emit_indent(cg);
+                    emitf(cg, "%s %s = *(%s *)ez_map_key_at(&",
+                        c_key, node->data.for_each.index_name, c_key);
+                    emit_expression(cg, coll);
+                    emitf(cg, ", %s);\n", mi_name);
+                }
+                if (strcmp(node->data.for_each.var_name, "_") != 0) {
+                    emit_indent(cg);
+                    emitf(cg, "%s %s = *(%s *)ez_map_value_at(&",
+                        c_val, node->data.for_each.var_name, c_val);
+                    emit_expression(cg, coll);
+                    emitf(cg, ", %s);\n", mi_name);
+                }
+            } else {
+                /* One-var form: for_each key in map (keys only) */
+                emit_indent(cg);
+                emitf(cg, "%s %s = *(%s *)ez_map_key_at(&",
+                    c_key, node->data.for_each.var_name, c_key);
+                emit_expression(cg, coll);
+                emitf(cg, ", %s);\n", mi_name);
+            }
+        } else if (coll_t && coll_t->kind == TK_STRING) {
             /* for_each ch in "string" → iterate characters */
             emitf(cg, "{ EzString _ez_str = ");
             emit_expression(cg, coll);

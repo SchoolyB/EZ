@@ -634,16 +634,30 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
 
         /* Resolve collection type to determine element type */
         EzType *coll_t = resolve_expr(tc, node->data.for_each.collection);
-        EzType *elem_t = &TYPE_UNKNOWN;
-        if (coll_t->kind == TK_ARRAY && coll_t->element_type) {
-            elem_t = type_from_name(coll_t->element_type);
-        }
 
-        /* Define iteration variables */
-        if (node->data.for_each.index_name) {
-            scope_define(loop_scope, node->data.for_each.index_name, &TYPE_INT, false);
+        if (coll_t->kind == TK_MAP) {
+            /* Map iteration: for_each k, v in map OR for_each key in map */
+            EzType *key_t = coll_t->key_type ? type_from_name(coll_t->key_type) : &TYPE_STRING;
+            EzType *val_t = coll_t->value_type ? type_from_name(coll_t->value_type) : &TYPE_UNKNOWN;
+            if (node->data.for_each.index_name) {
+                /* Two-var: index_name = key, var_name = value */
+                scope_define(loop_scope, node->data.for_each.index_name, key_t, false);
+                scope_define(loop_scope, node->data.for_each.var_name, val_t, false);
+            } else {
+                /* One-var: var_name = key */
+                scope_define(loop_scope, node->data.for_each.var_name, key_t, false);
+            }
+        } else {
+            /* Array/string iteration */
+            EzType *elem_t = &TYPE_UNKNOWN;
+            if (coll_t->kind == TK_ARRAY && coll_t->element_type) {
+                elem_t = type_from_name(coll_t->element_type);
+            }
+            if (node->data.for_each.index_name) {
+                scope_define(loop_scope, node->data.for_each.index_name, &TYPE_INT, false);
+            }
+            scope_define(loop_scope, node->data.for_each.var_name, elem_t, false);
         }
-        scope_define(loop_scope, node->data.for_each.var_name, elem_t, false);
 
         check_block(tc, node->data.for_each.body);
         tc->current_scope = outer;
