@@ -381,9 +381,22 @@ func (tc *TypeChecker) registerBuiltinTypes() {
 		Name: "Route",
 		Kind: StructType,
 		Fields: map[string]*Type{
-			"method":   {Name: "string", Kind: PrimitiveType},
-			"path":     {Name: "string", Kind: PrimitiveType},
-			"response": {Name: "Response", Kind: StructType},
+			"method":  {Name: "string", Kind: PrimitiveType},
+			"path":    {Name: "string", Kind: PrimitiveType},
+			"handler": {Name: "func", Kind: PrimitiveType},
+		},
+	}
+
+	// Built-in server Request struct
+	tc.types["Request"] = &Type{
+		Name: "Request",
+		Kind: StructType,
+		Fields: map[string]*Type{
+			"method":  {Name: "string", Kind: PrimitiveType},
+			"path":    {Name: "string", Kind: PrimitiveType},
+			"query":   {Name: "map[string:string]", Kind: MapType},
+			"headers": {Name: "map[string:string]", Kind: MapType},
+			"body":    {Name: "string", Kind: PrimitiveType},
 		},
 	}
 

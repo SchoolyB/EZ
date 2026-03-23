@@ -8,7 +8,7 @@
  *   curl http://localhost:8080/health
  */
 
-import @std, @server, @json
+import @std, @server
 using std
 
 do home(req Request) -> Response {
