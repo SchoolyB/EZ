@@ -2,8 +2,10 @@ package stdlib
 
 import (
 	"fmt"
+	"io"
 	"math/big"
 	"net/http"
+	"strings"
 
 	"github.com/marshallburns/ez/pkg/errors"
 	"github.com/marshallburns/ez/pkg/object"
@@ -38,7 +40,8 @@ var ServerBuiltins = map[string]*object.Builtin{
 	},
 
 	// route adds a route to an existing Router.
-	// Takes (router Router, method string, path string, response Response).
+	// Takes (router Router, method string, path string, handler Function).
+	// The handler receives a Request struct and must return a Response struct.
 	// Mutates the router's routes array in place. Returns nil.
 	"server.route": {
 		Fn: func(args ...object.Object) object.Object {
@@ -73,11 +76,11 @@ var ServerBuiltins = map[string]*object.Builtin{
 				}
 			}
 
-			response, ok := args[3].(*object.Struct)
-			if !ok || response.TypeName != "Response" {
+			handler, ok := args[3].(*object.Function)
+			if !ok {
 				return &object.Error{
 					Code:    "E7003",
-					Message: fmt.Sprintf("%s requires a %s as the fourth argument", errors.Ident("server.route()"), errors.TypeExpected("Response")),
+					Message: fmt.Sprintf("%s requires a function reference as the fourth argument (use ()handler_name)", errors.Ident("server.route()")),
 				}
 			}
 
@@ -85,9 +88,9 @@ var ServerBuiltins = map[string]*object.Builtin{
 				TypeName: "Route",
 				Mutable:  false,
 				Fields: map[string]object.Object{
-					"method":   method,
-					"path":     path,
-					"response": response,
+					"method":  method,
+					"path":    path,
+					"handler": handler,
 				},
 			}
 
@@ -152,14 +155,32 @@ var ServerBuiltins = map[string]*object.Builtin{
 
 					routeMethod, _ := route.Fields["method"].(*object.String)
 					routePath, _ := route.Fields["path"].(*object.String)
-					routeResp, _ := route.Fields["response"].(*object.Struct)
+					handler, _ := route.Fields["handler"].(*object.Function)
 
-					if routeMethod == nil || routePath == nil || routeResp == nil {
+					if routeMethod == nil || routePath == nil || handler == nil {
 						continue
 					}
 
 					if r.Method == routeMethod.Value && r.URL.Path == routePath.Value {
-						writeHTTPResponse(w, routeResp)
+						// Build Request struct from the incoming HTTP request
+						request := buildRequest(r)
+
+						// Call the handler function with the Request
+						if handler.Call != nil {
+							result := handler.Call([]object.Object{request})
+							if resp, ok := result.(*object.Struct); ok && resp.TypeName == "Response" {
+								writeHTTPResponse(w, resp)
+								return
+							}
+							// If handler returned a ReturnValue, unwrap it
+							if rv, ok := result.(*object.ReturnValue); ok && len(rv.Values) > 0 {
+								if resp, ok := rv.Values[0].(*object.Struct); ok && resp.TypeName == "Response" {
+									writeHTTPResponse(w, resp)
+									return
+								}
+							}
+						}
+						http.Error(w, "Internal Server Error", http.StatusInternalServerError)
 						return
 					}
 				}
@@ -281,6 +302,46 @@ func newServerResponse(status int, body string, contentType string) *object.Stru
 			"status":  &object.Integer{Value: big.NewInt(int64(status))},
 			"body":    &object.String{Value: body},
 			"headers": headers,
+		},
+	}
+}
+
+func buildRequest(r *http.Request) *object.Struct {
+	// Build query map
+	query := object.NewMap()
+	query.KeyType = "string"
+	query.ValueType = "string"
+	for key, values := range r.URL.Query() {
+		query.Set(&object.String{Value: key}, &object.String{Value: strings.Join(values, ",")})
+	}
+
+	// Build headers map
+	headers := object.NewMap()
+	headers.KeyType = "string"
+	headers.ValueType = "string"
+	for key, values := range r.Header {
+		headers.Set(&object.String{Value: strings.ToLower(key)}, &object.String{Value: strings.Join(values, ",")})
+	}
+
+	// Read body
+	bodyStr := ""
+	if r.Body != nil {
+		bodyBytes, err := io.ReadAll(r.Body)
+		if err == nil {
+			bodyStr = string(bodyBytes)
+		}
+		r.Body.Close()
+	}
+
+	return &object.Struct{
+		TypeName: "Request",
+		Mutable:  false,
+		Fields: map[string]object.Object{
+			"method":  &object.String{Value: r.Method},
+			"path":    &object.String{Value: r.URL.Path},
+			"query":   query,
+			"headers": headers,
+			"body":    &object.String{Value: bodyStr},
 		},
 	}
 }

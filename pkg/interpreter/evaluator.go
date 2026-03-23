@@ -451,6 +451,9 @@ func Eval(node ast.Node, env *Environment, ctx *EvalContext) Object {
 				Env:          env,
 				File:         file,
 			}
+			fn.Call = func(args []Object) Object {
+				return applyFunction(fn, args, 0, 0, ctx)
+			}
 			structFuncs[fnDecl.Name.Value] = fn
 			if fnDecl.Visibility == ast.VisibilityPrivate {
 				funcPrivate[fnDecl.Name.Value] = true
@@ -2300,6 +2303,10 @@ func evalFunctionDeclaration(node *ast.FunctionDeclaration, env *Environment, ct
 		Body:         node.Body,
 		Env:          env,
 		File:         file,
+	}
+	// Set the Call field so stdlib code can invoke this function
+	fn.Call = func(args []Object) Object {
+		return applyFunction(fn, args, 0, 0, ctx)
 	}
 	vis := convertVisibility(node.Visibility)
 	env.SetWithVisibility(node.Name.Value, fn, false, vis) // functions are immutable
