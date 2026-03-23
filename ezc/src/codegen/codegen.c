@@ -1148,6 +1148,51 @@ static void emit_call_expression(CodeGen *cg, AstNode *node) {
             }
         }
 
+        /* @time module functions */
+        if (module && strcmp(module, "time") == 0) {
+            bool needs_arena = (strcmp(func, "format") == 0 || strcmp(func, "iso") == 0 ||
+                strcmp(func, "date") == 0 || strcmp(func, "clock") == 0);
+            emitf(cg, "ez_time_%s(", func);
+            if (needs_arena) emit(cg, "ez_default_arena, ");
+            for (int i = 0; i < node->data.call.arg_count; i++) {
+                if (i > 0) emit(cg, ", ");
+                emit_expression(cg, node->data.call.args[i]);
+            }
+            emit(cg, ")");
+            return;
+        }
+
+        /* @uuid module functions */
+        if (module && strcmp(module, "uuid") == 0) {
+            if (strcmp(func, "create") == 0) {
+                emit(cg, "ez_uuid_create(ez_default_arena)"); return;
+            }
+            if (strcmp(func, "create_compact") == 0) {
+                emit(cg, "ez_uuid_create_compact(ez_default_arena)"); return;
+            }
+            if (strcmp(func, "is_valid") == 0) {
+                emit(cg, "ez_uuid_is_valid(");
+                emit_expression(cg, node->data.call.args[0]);
+                emit(cg, ")"); return;
+            }
+        }
+
+        /* @encoding module functions */
+        if (module && strcmp(module, "encoding") == 0) {
+            emitf(cg, "ez_encoding_%s(ez_default_arena, ", func);
+            emit_expression(cg, node->data.call.args[0]);
+            emit(cg, ")");
+            return;
+        }
+
+        /* @crypto module functions */
+        if (module && strcmp(module, "crypto") == 0) {
+            emitf(cg, "ez_crypto_%s(ez_default_arena, ", func);
+            emit_expression(cg, node->data.call.args[0]);
+            emit(cg, ")");
+            return;
+        }
+
         /* @random module functions */
         if (module && strcmp(module, "random") == 0) {
             if (strcmp(func, "float") == 0) {
@@ -2205,6 +2250,10 @@ void codegen_generate(CodeGen *cg, AstNode *program) {
     emit(cg, "#include \"ez_os.h\"\n");
     emit(cg, "#include \"ez_arrays.h\"\n");
     emit(cg, "#include \"ez_random.h\"\n");
+    emit(cg, "#include \"ez_time.h\"\n");
+    emit(cg, "#include \"ez_uuid.h\"\n");
+    emit(cg, "#include \"ez_encoding.h\"\n");
+    emit(cg, "#include \"ez_crypto.h\"\n");
     emit(cg, "\n");
 
     /* Emit struct type definitions */
