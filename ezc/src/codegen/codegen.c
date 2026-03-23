@@ -1128,14 +1128,20 @@ static void emit_call_expression(CodeGen *cg, AstNode *node) {
         /* @arrays module functions */
         if (module && strcmp(module, "arrays") == 0) {
             if (strcmp(func, "append") == 0 && node->data.call.arg_count == 2) {
-                /* arrays.append(&arr, value) — need to pass value by pointer */
-                EzType *arr_t = cg->type_table ? typetable_get(cg->type_table, node->data.call.args[0]) : NULL;
-                const char *c_elem = "int64_t";
-                if (arr_t && arr_t->kind == TK_ARRAY && arr_t->element_type) {
-                    EzType *et = type_from_name(arr_t->element_type);
-                    if (et->kind == TK_STRING) c_elem = "EzString";
-                    else if (et->kind == TK_FLOAT) c_elem = "double";
-                    else if (et->kind == TK_BOOL) c_elem = "bool";
+                /* arrays.append(&arr, value) — determine element type */
+                EzType *val_t = cg->type_table ? typetable_get(cg->type_table, node->data.call.args[1]) : NULL;
+                const char *c_elem = "__auto_type";
+                if (val_t) {
+                    switch (val_t->kind) {
+                    case TK_INT: c_elem = "int64_t"; break;
+                    case TK_FLOAT: c_elem = "double"; break;
+                    case TK_BOOL: c_elem = "bool"; break;
+                    case TK_STRING: c_elem = "EzString"; break;
+                    default: break;
+                    }
+                    if (val_t->kind == TK_STRUCT) {
+                        c_elem = ez_type_to_c_cg(cg, val_t->name);
+                    }
                 }
                 emitf(cg, "{ %s _av = ", c_elem);
                 emit_expression(cg, node->data.call.args[1]);
