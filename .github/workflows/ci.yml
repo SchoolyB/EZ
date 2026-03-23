@@ -37,29 +37,28 @@ jobs:
         run: go build -o ez.exe ./cmd/ez
         if: runner.os == 'Windows'
 
-      - name: Run interpreter tests
-        if: runner.os != 'Windows'
-        run: ./ez tests/comprehensive.ez
+      - name: Run Go unit tests
+        run: go test ./pkg/...
 
-      - name: Run interpreter tests (Windows)
-        if: runner.os == 'Windows'
-        run: .\ez.exe tests\comprehensive.ez
+      - name: Run integration tests
+        if: runner.os != 'Windows'
+        run: bash integration-tests/run_tests.sh
 
       - name: Validate example files
         if: runner.os != 'Windows'
         run: |
-          for file in examples/*.ez; do
+          for file in examples/basic/*.ez; do
             echo "Validating $file..."
-            ./ez build "$file" || exit 1
+            ./ez "$file" || exit 1
           done
 
       - name: Validate example files (Windows)
         if: runner.os == 'Windows'
         shell: pwsh
         run: |
-          Get-ChildItem examples\*.ez | ForEach-Object {
+          Get-ChildItem examples\basic\*.ez | ForEach-Object {
             Write-Host "Validating $_..."
-            & .\ez.exe build $_.FullName
+            & .\ez.exe $_.FullName
             if ($LASTEXITCODE -ne 0) { exit 1 }
           }
 
@@ -97,14 +96,14 @@ jobs:
         if: runner.os == 'Linux'
         run: |
           echo "Testing REPL..."
-          echo -e "temp x int = 5\nx + 10\nexit" | timeout 5 ./ez repl | grep -q "15"
+          echo -e "mut x int = 5\nx + 10\nexit" | timeout 5 ./ez repl | grep -q "15"
 
       - name: Test REPL basic functionality (macOS)
         if: runner.os == 'macOS'
         run: |
           echo "Testing REPL..."
           # macOS doesn't have timeout, use a subshell with background process
-          (echo -e "temp x int = 5\nx + 10\nexit" | ./ez repl > /tmp/repl_output.txt) &
+          (echo -e "mut x int = 5\nx + 10\nexit" | ./ez repl > /tmp/repl_output.txt) &
           pid=$!
           sleep 5
           kill $pid 2>/dev/null || true
@@ -115,4 +114,4 @@ jobs:
         shell: pwsh
         run: |
           Write-Host "Testing REPL..."
-          "temp x int = 5", "x + 10", "exit" | & .\ez.exe repl
+          "mut x int = 5", "x + 10", "exit" | & .\ez.exe repl
