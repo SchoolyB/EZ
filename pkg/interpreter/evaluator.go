@@ -2126,8 +2126,33 @@ func evalForEachStatement(node *ast.ForEachStatement, env *Environment, ctx *Eva
 		return NIL
 	}
 
+	// Handle maps (iterate over key-value pairs)
+	if m, ok := collection.(*Map); ok {
+		for _, pair := range m.Pairs {
+			if node.Index != nil {
+				// Two-variable form: index = key, variable = value
+				loopEnv.Set(node.Index.Value, pair.Key, true)
+				loopEnv.Set(node.Variable.Value, pair.Value, true)
+			} else {
+				// Single-variable form: variable = key
+				loopEnv.Set(node.Variable.Value, pair.Key, true)
+			}
+
+			result := Eval(node.Body, loopEnv, ctx)
+			if result != nil {
+				if result.Type() == RETURN_VALUE_OBJ || result.Type() == ERROR_OBJ {
+					return result
+				}
+				if result.Type() == BREAK_OBJ {
+					break
+				}
+			}
+		}
+		return NIL
+	}
+
 	return newErrorWithLocation("E3017", node.Token.Line, node.Token.Column,
-		"for_each requires array or string, got %s", errors.TypeGot(objectTypeToEZ(collection)))
+		"for_each requires array, string, or map, got %s", errors.TypeGot(objectTypeToEZ(collection)))
 }
 
 func evalEnumDeclaration(node *ast.EnumDeclaration, env *Environment, ctx *EvalContext) Object {
