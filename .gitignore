@@ -13,6 +13,9 @@
 /ezc/tests/test_parser
 /ezc/tests/test_typechecker
 /ezc/tests/test_codegen
+/ezc/tests/*_san
+/ezc/tests/*_asan
+*.dSYM/
 
 # Build directories
 dist/
