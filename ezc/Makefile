@@ -43,7 +43,8 @@ RT_SRC = src/runtime/ez_runtime.c \
          src/stdlib/ez_io.c \
          src/stdlib/ez_maps.c \
          src/stdlib/ez_os.c \
-         src/stdlib/ez_arrays.c
+         src/stdlib/ez_arrays.c \
+         src/stdlib/ez_random.c
 RT_OBJ = $(RT_SRC:.c=.o)
 RT_LIB = libezrt.a
 

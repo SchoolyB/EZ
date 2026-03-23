@@ -290,6 +290,15 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                 } else {
                     result = &TYPE_STRING;
                 }
+            } else if (strcmp(mod, "random") == 0) {
+                if (strcmp(mfn, "float") == 0) result = &TYPE_FLOAT;
+                else if (strcmp(mfn, "int") == 0) result = &TYPE_INT;
+                else if (strcmp(mfn, "bool") == 0) result = &TYPE_BOOL;
+                else if (strcmp(mfn, "byte") == 0) result = &TYPE_BYTE;
+                else if (strcmp(mfn, "char") == 0) result = &TYPE_CHAR;
+                else if (strcmp(mfn, "shuffle") == 0 || strcmp(mfn, "sample") == 0) {
+                    result = type_array("int");
+                } else result = &TYPE_UNKNOWN;
             } else if (strcmp(mod, "arrays") == 0) {
                 if (strcmp(mfn, "is_empty") == 0 || strcmp(mfn, "contains") == 0) {
                     result = &TYPE_BOOL;

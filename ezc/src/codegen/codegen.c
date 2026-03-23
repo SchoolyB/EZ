@@ -1125,6 +1125,73 @@ static void emit_call_expression(CodeGen *cg, AstNode *node) {
             }
         }
 
+        /* @random module functions */
+        if (module && strcmp(module, "random") == 0) {
+            if (strcmp(func, "float") == 0) {
+                if (node->data.call.arg_count == 0) {
+                    emit(cg, "ez_random_float_unit()");
+                } else if (node->data.call.arg_count == 2) {
+                    emit(cg, "ez_random_float_range(");
+                    emit_expression(cg, node->data.call.args[0]);
+                    emit(cg, ", ");
+                    emit_expression(cg, node->data.call.args[1]);
+                    emit(cg, ")");
+                }
+                return;
+            }
+            if (strcmp(func, "int") == 0) {
+                if (node->data.call.arg_count == 1) {
+                    emit(cg, "ez_random_int_max(");
+                    emit_expression(cg, node->data.call.args[0]);
+                    emit(cg, ")");
+                } else if (node->data.call.arg_count == 2) {
+                    emit(cg, "ez_random_int_range(");
+                    emit_expression(cg, node->data.call.args[0]);
+                    emit(cg, ", ");
+                    emit_expression(cg, node->data.call.args[1]);
+                    emit(cg, ")");
+                }
+                return;
+            }
+            if (strcmp(func, "bool") == 0) { emit(cg, "ez_random_bool()"); return; }
+            if (strcmp(func, "byte") == 0) { emit(cg, "ez_random_byte()"); return; }
+            if (strcmp(func, "char") == 0) {
+                if (node->data.call.arg_count == 2) {
+                    emit(cg, "ez_random_char_range(");
+                    emit_expression(cg, node->data.call.args[0]);
+                    emit(cg, ", ");
+                    emit_expression(cg, node->data.call.args[1]);
+                    emit(cg, ")");
+                } else {
+                    emit(cg, "ez_random_char()");
+                }
+                return;
+            }
+            if (strcmp(func, "shuffle") == 0) {
+                emit(cg, "ez_random_shuffle(ez_default_arena, &");
+                emit_expression(cg, node->data.call.args[0]);
+                emit(cg, ")");
+                return;
+            }
+            if (strcmp(func, "sample") == 0) {
+                emit(cg, "ez_random_sample(ez_default_arena, &");
+                emit_expression(cg, node->data.call.args[0]);
+                emit(cg, ", ");
+                emit_expression(cg, node->data.call.args[1]);
+                emit(cg, ")");
+                return;
+            }
+            if (strcmp(func, "choice") == 0) {
+                /* random.choice(arr) — random element */
+                emit(cg, "({ int32_t _ri = ez_random_int_max(");
+                emit_expression(cg, node->data.call.args[0]);
+                emit(cg, ".len); *(__auto_type *)ez_array_get_ptr(&");
+                emit_expression(cg, node->data.call.args[0]);
+                emit(cg, ", _ri, __FILE__, __LINE__); })");
+                return;
+            }
+        }
+
         /* @arrays module functions */
         if (module && strcmp(module, "arrays") == 0) {
             if (strcmp(func, "append") == 0 && node->data.call.arg_count == 2) {
@@ -2114,6 +2181,7 @@ void codegen_generate(CodeGen *cg, AstNode *program) {
     emit(cg, "#include \"ez_maps.h\"\n");
     emit(cg, "#include \"ez_os.h\"\n");
     emit(cg, "#include \"ez_arrays.h\"\n");
+    emit(cg, "#include \"ez_random.h\"\n");
     emit(cg, "\n");
 
     /* Emit struct type definitions */
