@@ -1103,6 +1103,72 @@ static void emit_call_expression(CodeGen *cg, AstNode *node) {
             }
         }
 
+        /* @arrays module functions */
+        if (module && strcmp(module, "arrays") == 0) {
+            if (strcmp(func, "append") == 0 && node->data.call.arg_count == 2) {
+                /* arrays.append(&arr, value) — need to pass value by pointer */
+                EzType *arr_t = cg->type_table ? typetable_get(cg->type_table, node->data.call.args[0]) : NULL;
+                const char *c_elem = "int64_t";
+                if (arr_t && arr_t->kind == TK_ARRAY && arr_t->element_type) {
+                    EzType *et = type_from_name(arr_t->element_type);
+                    if (et->kind == TK_STRING) c_elem = "EzString";
+                    else if (et->kind == TK_FLOAT) c_elem = "double";
+                    else if (et->kind == TK_BOOL) c_elem = "bool";
+                }
+                emitf(cg, "{ %s _av = ", c_elem);
+                emit_expression(cg, node->data.call.args[1]);
+                emit(cg, "; ez_arrays_append(ez_default_arena, &");
+                emit_expression(cg, node->data.call.args[0]);
+                emit(cg, ", &_av); }");
+                return;
+            }
+            if (strcmp(func, "remove_at") == 0 && node->data.call.arg_count == 2) {
+                emit(cg, "ez_arrays_remove_at(&");
+                emit_expression(cg, node->data.call.args[0]);
+                emit(cg, ", ");
+                emit_expression(cg, node->data.call.args[1]);
+                emit(cg, ")");
+                return;
+            }
+            if (strcmp(func, "clear") == 0 && node->data.call.arg_count == 1) {
+                emit(cg, "ez_arrays_clear(&");
+                emit_expression(cg, node->data.call.args[0]);
+                emit(cg, ")");
+                return;
+            }
+            if (strcmp(func, "sort") == 0 && node->data.call.arg_count == 1) {
+                emit(cg, "ez_arrays_sort(&");
+                emit_expression(cg, node->data.call.args[0]);
+                emit(cg, ")");
+                return;
+            }
+            if (strcmp(func, "sort_desc") == 0 && node->data.call.arg_count == 1) {
+                emit(cg, "ez_arrays_sort_desc(&");
+                emit_expression(cg, node->data.call.args[0]);
+                emit(cg, ")");
+                return;
+            }
+            if (strcmp(func, "is_empty") == 0 && node->data.call.arg_count == 1) {
+                emit(cg, "ez_arrays_is_empty(&");
+                emit_expression(cg, node->data.call.args[0]);
+                emit(cg, ")");
+                return;
+            }
+            /* Generic: arrays.func(&arr, ...) */
+            bool needs_arena = (strcmp(func, "reverse") == 0 || strcmp(func, "slice") == 0 ||
+                strcmp(func, "concat") == 0);
+            emitf(cg, "ez_arrays_%s(", func);
+            if (needs_arena) emit(cg, "ez_default_arena, ");
+            emit(cg, "&");
+            emit_expression(cg, node->data.call.args[0]);
+            for (int i = 1; i < node->data.call.arg_count; i++) {
+                emit(cg, ", ");
+                emit_expression(cg, node->data.call.args[i]);
+            }
+            emit(cg, ")");
+            return;
+        }
+
         /* @os module functions */
         if (module && strcmp(module, "os") == 0) {
             if (strcmp(func, "args") == 0) {
@@ -1996,6 +2062,7 @@ void codegen_generate(CodeGen *cg, AstNode *program) {
     emit(cg, "#include \"ez_io.h\"\n");
     emit(cg, "#include \"ez_maps.h\"\n");
     emit(cg, "#include \"ez_os.h\"\n");
+    emit(cg, "#include \"ez_arrays.h\"\n");
     emit(cg, "\n");
 
     /* Emit struct type definitions */
