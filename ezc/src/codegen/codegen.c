@@ -12,6 +12,7 @@
 #include <stdlib.h>
 #include <stdarg.h>
 #include <string.h>
+#include <ctype.h>
 
 /* Forward declarations */
 static void emit_statement(CodeGen *cg, AstNode *node);
