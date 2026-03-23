@@ -12,38 +12,81 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <stdint.h>
 
-/* --- Type Table --- */
+/* --- Type Table (open-addressing hash, pointer keys) --- */
+
+static uint32_t hash_ptr(const void *ptr) {
+    uintptr_t v = (uintptr_t)ptr;
+    /* Fibonacci hashing — good distribution for pointer alignment */
+    v = ((v >> 4) ^ v) * 0x9E3779B9U;
+    return (uint32_t)(v ^ (v >> 16));
+}
 
 TypeTable *typetable_create(void) {
     TypeTable *tt = calloc(1, sizeof(TypeTable));
+    tt->cap = TYPETABLE_INIT_CAP;
+    tt->nodes = calloc((size_t)tt->cap, sizeof(AstNode *));
+    tt->types = calloc((size_t)tt->cap, sizeof(EzType *));
     return tt;
 }
 
-void typetable_set(TypeTable *tt, AstNode *node, EzType *type) {
-    /* Check if already set */
-    for (int i = 0; i < tt->count; i++) {
-        if (tt->nodes[i] == node) {
-            tt->types[i] = type;
-            return;
+static void typetable_grow(TypeTable *tt) {
+    int old_cap = tt->cap;
+    AstNode **old_nodes = tt->nodes;
+    EzType **old_types = tt->types;
+
+    tt->cap = old_cap * 2;
+    tt->nodes = calloc((size_t)tt->cap, sizeof(AstNode *));
+    tt->types = calloc((size_t)tt->cap, sizeof(EzType *));
+    tt->count = 0;
+
+    for (int i = 0; i < old_cap; i++) {
+        if (old_nodes[i]) {
+            typetable_set(tt, old_nodes[i], old_types[i]);
         }
     }
-    if (tt->count >= tt->cap) {
-        tt->cap = tt->cap ? tt->cap * 2 : 64;
-        tt->nodes = realloc(tt->nodes, sizeof(AstNode *) * tt->cap);
-        tt->types = realloc(tt->types, sizeof(EzType *) * tt->cap);
+    free(old_nodes);
+    free(old_types);
+}
+
+void typetable_set(TypeTable *tt, AstNode *node, EzType *type) {
+    /* Grow at 70% load factor */
+    if (tt->count * 10 >= tt->cap * 7) {
+        typetable_grow(tt);
     }
-    tt->nodes[tt->count] = node;
-    tt->types[tt->count] = type;
-    tt->count++;
+
+    uint32_t mask = (uint32_t)(tt->cap - 1);
+    uint32_t idx = hash_ptr(node) & mask;
+
+    for (;;) {
+        if (!tt->nodes[idx]) {
+            /* Empty slot — insert */
+            tt->nodes[idx] = node;
+            tt->types[idx] = type;
+            tt->count++;
+            return;
+        }
+        if (tt->nodes[idx] == node) {
+            /* Already present — update */
+            tt->types[idx] = type;
+            return;
+        }
+        idx = (idx + 1) & mask;
+    }
 }
 
 EzType *typetable_get(TypeTable *tt, AstNode *node) {
-    if (!tt) return NULL;
-    for (int i = 0; i < tt->count; i++) {
-        if (tt->nodes[i] == node) return tt->types[i];
+    if (!tt || !tt->nodes) return NULL;
+
+    uint32_t mask = (uint32_t)(tt->cap - 1);
+    uint32_t idx = hash_ptr(node) & mask;
+
+    for (;;) {
+        if (!tt->nodes[idx]) return NULL;
+        if (tt->nodes[idx] == node) return tt->types[idx];
+        idx = (idx + 1) & mask;
     }
-    return NULL;
 }
 
 /* --- Struct info helpers --- */

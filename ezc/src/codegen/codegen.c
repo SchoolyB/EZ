@@ -692,948 +692,943 @@ static bool is_stdlib_call(AstNode *node, const char **module, const char **func
     return false;
 }
 
+/* --- Stdlib call emission helpers --- */
+
+static const char *resolve_print_suffix(CodeGen *cg, AstNode *arg) {
+    EzType *t = cg->type_table ? typetable_get(cg->type_table, arg) : NULL;
+    if (t) {
+        switch (t->kind) {
+        case TK_STRING: return "_str";
+        case TK_FLOAT:  return "_float";
+        case TK_BOOL:   return "_bool";
+        default:        return "_int";
+        }
+    }
+    if (arg->kind == NODE_STRING_VALUE || arg->kind == NODE_INTERPOLATED_STRING) return "_str";
+    if (arg->kind == NODE_FLOAT_VALUE) return "_float";
+    if (arg->kind == NODE_BOOL_VALUE) return "_bool";
+    return "_int";
+}
+
+static void emit_to_string(CodeGen *cg, AstNode *arg) {
+    EzType *at = cg->type_table ? typetable_get(cg->type_table, arg) : NULL;
+    if (at && at->kind == TK_FLOAT)
+        emit(cg, "ez_std_to_string_float(ez_default_arena, ");
+    else if (at && at->kind == TK_BOOL)
+        emit(cg, "ez_std_to_string_bool(ez_default_arena, ");
+    else
+        emit(cg, "ez_std_to_string_int(ez_default_arena, ");
+    emit_expression(cg, arg);
+    emit(cg, ")");
+}
+
+static void emit_fmt_args(CodeGen *cg, AstNode *node, int start_idx) {
+    for (int i = start_idx; i < node->data.call.arg_count; i++) {
+        emit(cg, ", ");
+        AstNode *arg = node->data.call.args[i];
+        EzType *at = cg->type_table ? typetable_get(cg->type_table, arg) : NULL;
+        if (at && at->kind == TK_STRING) {
+            emit_expression(cg, arg);
+            emit(cg, ".data");
+        } else if (at && at->kind == TK_BOOL) {
+            emit_expression(cg, arg);
+            emit(cg, " ? \"true\" : \"false\"");
+        } else {
+            emit_expression(cg, arg);
+        }
+    }
+}
+
+/* --- Builtin call handler (no-module functions) --- */
+
+static bool emit_builtin_call(CodeGen *cg, AstNode *node, const char *func) {
+    if (strcmp(func, "println") == 0) {
+        if (node->data.call.arg_count == 0) {
+            emit(cg, "putchar('\\n')");
+        } else {
+            AstNode *arg = node->data.call.args[0];
+            emitf(cg, "ez_std_println%s(", resolve_print_suffix(cg, arg));
+            emit_expression(cg, arg);
+            emit(cg, ")");
+        }
+        return true;
+    }
+
+    if (strcmp(func, "len") == 0 && node->data.call.arg_count == 1) {
+        AstNode *arg = node->data.call.args[0];
+        EzType *t = cg->type_table ? typetable_get(cg->type_table, arg) : NULL;
+        if (t && t->kind == TK_MAP) {
+            emit(cg, "(int64_t)(");
+            emit_expression(cg, arg);
+            emit(cg, ").count");
+        } else {
+            emit(cg, "(int64_t)(");
+            emit_expression(cg, arg);
+            emit(cg, ").len");
+        }
+        return true;
+    }
+
+    if (strcmp(func, "typeof") == 0 && node->data.call.arg_count == 1) {
+        AstNode *arg = node->data.call.args[0];
+        EzType *t = cg->type_table ? typetable_get(cg->type_table, arg) : NULL;
+        const char *tn = t ? type_name(t) : "unknown";
+        emitf(cg, "ez_string_lit(\"%s\")", tn);
+        return true;
+    }
+
+    if (strcmp(func, "to_int") == 0 && node->data.call.arg_count == 1) {
+        emit(cg, "(int64_t)(");
+        emit_expression(cg, node->data.call.args[0]);
+        emit(cg, ")");
+        return true;
+    }
+
+    if (strcmp(func, "to_float") == 0 && node->data.call.arg_count == 1) {
+        emit(cg, "(double)(");
+        emit_expression(cg, node->data.call.args[0]);
+        emit(cg, ")");
+        return true;
+    }
+
+    if ((strcmp(func, "addr") == 0 || strcmp(func, "ref") == 0) && node->data.call.arg_count == 1) {
+        emit(cg, "&");
+        emit_expression(cg, node->data.call.args[0]);
+        return true;
+    }
+
+    if (strcmp(func, "exit") == 0 && node->data.call.arg_count == 1) {
+        emit(cg, "ez_std_exit(");
+        emit_expression(cg, node->data.call.args[0]);
+        emit(cg, ")");
+        return true;
+    }
+
+    if (strcmp(func, "panic") == 0 && node->data.call.arg_count == 1) {
+        emit(cg, "ez_std_panic_msg(");
+        emit_expression(cg, node->data.call.args[0]);
+        emit(cg, ")");
+        return true;
+    }
+
+    if (strcmp(func, "assert") == 0 && node->data.call.arg_count >= 1) {
+        emit(cg, "ez_std_assert(");
+        emit_expression(cg, node->data.call.args[0]);
+        if (node->data.call.arg_count >= 2) {
+            emit(cg, ", ");
+            emit_expression(cg, node->data.call.args[1]);
+        } else {
+            emit(cg, ", ez_string_lit(\"assertion failed\")");
+        }
+        emitf(cg, ", \"%s\", %d)", cg->file, node->token.line);
+        return true;
+    }
+
+    if (strcmp(func, "error") == 0 && node->data.call.arg_count >= 1) {
+        emit(cg, "ez_error_new(ez_default_arena, ");
+        emit_expression(cg, node->data.call.args[0]);
+        emit(cg, ")");
+        return true;
+    }
+
+    if (strcmp(func, "input") == 0) {
+        emit(cg, "ez_std_input(ez_default_arena)");
+        return true;
+    }
+
+    if (strcmp(func, "read_int") == 0) {
+        emit(cg, "({ EzString _s = ez_std_input(ez_default_arena); atoll(_s.data); })");
+        return true;
+    }
+
+    if (strcmp(func, "eprintln") == 0) {
+        if (node->data.call.arg_count == 0) {
+            emit(cg, "fputc('\\n', stderr)");
+        } else {
+            AstNode *arg = node->data.call.args[0];
+            emitf(cg, "ez_std_eprintln%s(", resolve_print_suffix(cg, arg));
+            emit_expression(cg, arg);
+            emit(cg, ")");
+        }
+        return true;
+    }
+
+    if (strcmp(func, "eprint") == 0 && node->data.call.arg_count > 0) {
+        emit(cg, "ez_std_eprint_str(");
+        emit_expression(cg, node->data.call.args[0]);
+        emit(cg, ")");
+        return true;
+    }
+
+    if (strcmp(func, "to_string") == 0 && node->data.call.arg_count == 1) {
+        emit_to_string(cg, node->data.call.args[0]);
+        return true;
+    }
+
+    if (strcmp(func, "to_bool") == 0 && node->data.call.arg_count == 1) {
+        emit(cg, "(bool)(");
+        emit_expression(cg, node->data.call.args[0]);
+        emit(cg, ")");
+        return true;
+    }
+
+    if (strcmp(func, "sleep_seconds") == 0 && node->data.call.arg_count == 1) {
+        emit(cg, "ez_std_sleep_seconds(");
+        emit_expression(cg, node->data.call.args[0]);
+        emit(cg, ")");
+        return true;
+    }
+
+    if (strcmp(func, "sleep_milliseconds") == 0 && node->data.call.arg_count == 1) {
+        emit(cg, "ez_std_sleep_milliseconds(");
+        emit_expression(cg, node->data.call.args[0]);
+        emit(cg, ")");
+        return true;
+    }
+
+    if (strcmp(func, "sleep_nanoseconds") == 0 && node->data.call.arg_count == 1) {
+        emit(cg, "ez_std_sleep_nanoseconds(");
+        emit_expression(cg, node->data.call.args[0]);
+        emit(cg, ")");
+        return true;
+    }
+
+    /* Sized type conversion functions: i8(), u16(), f32(), etc. */
+    if (node->data.call.arg_count == 1) {
+        const char *cast_type = NULL;
+        if (strcmp(func, "i8") == 0) cast_type = "int8_t";
+        else if (strcmp(func, "i16") == 0) cast_type = "int16_t";
+        else if (strcmp(func, "i32") == 0) cast_type = "int32_t";
+        else if (strcmp(func, "i64") == 0) cast_type = "int64_t";
+        else if (strcmp(func, "u8") == 0) cast_type = "uint8_t";
+        else if (strcmp(func, "u16") == 0) cast_type = "uint16_t";
+        else if (strcmp(func, "u32") == 0) cast_type = "uint32_t";
+        else if (strcmp(func, "u64") == 0) cast_type = "uint64_t";
+        else if (strcmp(func, "f32") == 0) cast_type = "float";
+        else if (strcmp(func, "f64") == 0) cast_type = "double";
+        else if (strcmp(func, "int") == 0) cast_type = "int64_t";
+        else if (strcmp(func, "uint") == 0) cast_type = "uint64_t";
+        else if (strcmp(func, "float") == 0) cast_type = "double";
+        else if (strcmp(func, "char") == 0) cast_type = "int32_t";
+        else if (strcmp(func, "byte") == 0) cast_type = "uint8_t";
+        if (cast_type) {
+            emitf(cg, "((%s)(", cast_type);
+            emit_expression(cg, node->data.call.args[0]);
+            emit(cg, "))");
+            return true;
+        }
+        /* string() conversion */
+        if (strcmp(func, "string") == 0) {
+            emit_to_string(cg, node->data.call.args[0]);
+            return true;
+        }
+    }
+
+    if (strcmp(func, "copy") == 0 && node->data.call.arg_count == 1) {
+        AstNode *arg = node->data.call.args[0];
+        EzType *at = cg->type_table ? typetable_get(cg->type_table, arg) : NULL;
+        if (at && at->kind == TK_ARRAY) {
+            emit(cg, "ez_array_copy(ez_default_arena, &");
+            emit_expression(cg, arg);
+            emit(cg, ")");
+        } else {
+            emit_expression(cg, arg);
+        }
+        return true;
+    }
+
+    if (strcmp(func, "print") == 0 && node->data.call.arg_count > 0) {
+        AstNode *arg = node->data.call.args[0];
+        const char *suffix = "_int";
+        if (arg->kind == NODE_STRING_VALUE) suffix = "_str";
+        emitf(cg, "ez_std_print%s(", suffix);
+        emit_expression(cg, arg);
+        emit(cg, ")");
+        return true;
+    }
+
+    return false;
+}
+
+/* --- @mem module --- */
+
+static bool emit_mem_call(CodeGen *cg, AstNode *node, const char *func) {
+    if (strcmp(func, "arena") == 0 && node->data.call.arg_count == 1) {
+        emit(cg, "ez_mem_arena(");
+        emit_expression(cg, node->data.call.args[0]);
+        emit(cg, ")");
+        return true;
+    }
+    if (strcmp(func, "destroy") == 0 && node->data.call.arg_count == 1) {
+        emit(cg, "ez_mem_destroy(");
+        emit_expression(cg, node->data.call.args[0]);
+        emit(cg, ")");
+        return true;
+    }
+    if (strcmp(func, "reset") == 0 && node->data.call.arg_count == 1) {
+        emit(cg, "ez_mem_reset(");
+        emit_expression(cg, node->data.call.args[0]);
+        emit(cg, ")");
+        return true;
+    }
+    if (strcmp(func, "usage") == 0 && node->data.call.arg_count == 1) {
+        emit(cg, "ez_mem_usage(");
+        emit_expression(cg, node->data.call.args[0]);
+        emit(cg, ")");
+        return true;
+    }
+    if (strcmp(func, "copy") == 0 && node->data.call.arg_count == 3) {
+        emit(cg, "ez_mem_copy(");
+        emit_expression(cg, node->data.call.args[0]);
+        emit(cg, ", ");
+        emit_expression(cg, node->data.call.args[1]);
+        emit(cg, ", ");
+        emit_expression(cg, node->data.call.args[2]);
+        emit(cg, ")");
+        return true;
+    }
+    if (strcmp(func, "zero") == 0 && node->data.call.arg_count == 2) {
+        emit(cg, "ez_mem_zero(");
+        emit_expression(cg, node->data.call.args[0]);
+        emit(cg, ", ");
+        emit_expression(cg, node->data.call.args[1]);
+        emit(cg, ")");
+        return true;
+    }
+    if (strcmp(func, "set") == 0 && node->data.call.arg_count == 3) {
+        emit(cg, "ez_mem_set(");
+        emit_expression(cg, node->data.call.args[0]);
+        emit(cg, ", ");
+        emit_expression(cg, node->data.call.args[1]);
+        emit(cg, ", ");
+        emit_expression(cg, node->data.call.args[2]);
+        emit(cg, ")");
+        return true;
+    }
+    if (strcmp(func, "size_of") == 0 && node->data.call.arg_count == 1) {
+        AstNode *type_arg = node->data.call.args[0];
+        if (type_arg->kind == NODE_LABEL) {
+            emitf(cg, "(int64_t)sizeof(%s)", ez_type_to_c_cg(cg, type_arg->data.label.value));
+        } else {
+            emit(cg, "0");
+        }
+        return true;
+    }
+    if (strcmp(func, "new") == 0 && node->data.call.arg_count == 2) {
+        AstNode *arena_arg = node->data.call.args[0];
+        AstNode *type_arg = node->data.call.args[1];
+        const char *tn = "int64_t";
+        if (type_arg->kind == NODE_LABEL) {
+            tn = ez_type_to_c_cg(cg, type_arg->data.label.value);
+        }
+        emitf(cg, "(%s *)ez_arena_alloc(", tn);
+        emit_expression(cg, arena_arg);
+        emitf(cg, ", sizeof(%s))", tn);
+        return true;
+    }
+    if (strcmp(func, "alloc") == 0 && node->data.call.arg_count == 2) {
+        AstNode *arena_arg = node->data.call.args[0];
+        AstNode *value_arg = node->data.call.args[1];
+        EzType *vt = cg->type_table ? typetable_get(cg->type_table, value_arg) : NULL;
+
+        if (vt && vt->kind == TK_STRING) {
+            emit(cg, "({ EzString _s = ");
+            emit_expression(cg, value_arg);
+            emit(cg, "; ez_string_new(");
+            emit_expression(cg, arena_arg);
+            emit(cg, ", _s.data, _s.len); })");
+        } else if (value_arg->kind == NODE_ARRAY_VALUE) {
+            int count = value_arg->data.array_value.count;
+            EzType *elem_t = (count > 0 && cg->type_table)
+                ? typetable_get(cg->type_table, value_arg->data.array_value.elements[0])
+                : NULL;
+            const char *c_type = "int64_t";
+            if (elem_t) {
+                if (elem_t->kind == TK_FLOAT) c_type = "double";
+                else if (elem_t->kind == TK_STRING) c_type = "EzString";
+                else if (elem_t->kind == TK_BOOL) c_type = "bool";
+            }
+            emitf(cg, "ez_array_from(");
+            emit_expression(cg, arena_arg);
+            emitf(cg, ", (%s[]){", c_type);
+            for (int i = 0; i < count; i++) {
+                if (i > 0) emit(cg, ", ");
+                emit_expression(cg, value_arg->data.array_value.elements[i]);
+            }
+            emitf(cg, "}, sizeof(%s), %d)", c_type, count);
+        } else {
+            emit(cg, "({ __auto_type _v = ");
+            emit_expression(cg, value_arg);
+            emit(cg, "; __auto_type _p = ez_arena_alloc(");
+            emit_expression(cg, arena_arg);
+            emit(cg, ", sizeof(_v)); *(__typeof__(_v) *)_p = _v; _v; })");
+        }
+        return true;
+    }
+    return false;
+}
+
+/* --- @math module --- */
+
+static bool emit_math_call(CodeGen *cg, AstNode *node, const char *func) {
+    if (strcmp(func, "random") == 0) {
+        if (node->data.call.arg_count == 0) {
+            emit(cg, "ez_math_random_float(0.0, 1.0)");
+        } else if (node->data.call.arg_count == 1) {
+            emit(cg, "ez_math_random_int(0, ");
+            emit_expression(cg, node->data.call.args[0]);
+            emit(cg, ")");
+        } else {
+            emit(cg, "ez_math_random_int(");
+            emit_expression(cg, node->data.call.args[0]);
+            emit(cg, ", ");
+            emit_expression(cg, node->data.call.args[1]);
+            emit(cg, ")");
+        }
+        return true;
+    }
+    if (strcmp(func, "abs") == 0 && node->data.call.arg_count == 1) {
+        EzType *at = cg->type_table ? typetable_get(cg->type_table, node->data.call.args[0]) : NULL;
+        emitf(cg, "ez_math_abs_%s(", (at && at->kind == TK_FLOAT) ? "float" : "int");
+        emit_expression(cg, node->data.call.args[0]);
+        emit(cg, ")");
+        return true;
+    }
+    if (strcmp(func, "neg") == 0 && node->data.call.arg_count == 1) {
+        emit(cg, "(-(");
+        emit_expression(cg, node->data.call.args[0]);
+        emit(cg, "))");
+        return true;
+    }
+    /* Generic: math.func(args...) → ez_math_func(args...) */
+    emitf(cg, "ez_math_%s(", func);
+    for (int i = 0; i < node->data.call.arg_count; i++) {
+        if (i > 0) emit(cg, ", ");
+        emit_expression(cg, node->data.call.args[i]);
+    }
+    emit(cg, ")");
+    return true;
+}
+
+/* --- @maps module --- */
+
+static bool emit_maps_call(CodeGen *cg, AstNode *node, const char *func) {
+    if (strcmp(func, "keys") == 0 && node->data.call.arg_count == 1) {
+        emit(cg, "ez_maps_keys(ez_default_arena, &");
+        emit_expression(cg, node->data.call.args[0]);
+        emit(cg, ")");
+        return true;
+    }
+    if (strcmp(func, "values") == 0 && node->data.call.arg_count == 1) {
+        emit(cg, "ez_maps_values(ez_default_arena, &");
+        emit_expression(cg, node->data.call.args[0]);
+        emit(cg, ")");
+        return true;
+    }
+    if (strcmp(func, "has_key") == 0 || strcmp(func, "contains") == 0) {
+        emit(cg, "ez_maps_has_key(&");
+        emit_expression(cg, node->data.call.args[0]);
+        emit(cg, ", &(");
+        emit_expression(cg, node->data.call.args[1]);
+        emit(cg, "))");
+        return true;
+    }
+    return false;
+}
+
+/* --- @time module --- */
+
+static bool emit_time_call(CodeGen *cg, AstNode *node, const char *func) {
+    bool needs_arena = (strcmp(func, "format") == 0 || strcmp(func, "iso") == 0 ||
+        strcmp(func, "date") == 0 || strcmp(func, "clock") == 0);
+    emitf(cg, "ez_time_%s(", func);
+    if (needs_arena) emit(cg, "ez_default_arena, ");
+    for (int i = 0; i < node->data.call.arg_count; i++) {
+        if (i > 0) emit(cg, ", ");
+        emit_expression(cg, node->data.call.args[i]);
+    }
+    emit(cg, ")");
+    return true;
+}
+
+/* --- @uuid module --- */
+
+static bool emit_uuid_call(CodeGen *cg, AstNode *node, const char *func) {
+    if (strcmp(func, "create") == 0) {
+        emit(cg, "ez_uuid_create(ez_default_arena)"); return true;
+    }
+    if (strcmp(func, "create_compact") == 0) {
+        emit(cg, "ez_uuid_create_compact(ez_default_arena)"); return true;
+    }
+    if (strcmp(func, "is_valid") == 0) {
+        emit(cg, "ez_uuid_is_valid(");
+        emit_expression(cg, node->data.call.args[0]);
+        emit(cg, ")"); return true;
+    }
+    return false;
+}
+
+/* --- @encoding module --- */
+
+static bool emit_encoding_call(CodeGen *cg, AstNode *node, const char *func) {
+    emitf(cg, "ez_encoding_%s(ez_default_arena, ", func);
+    emit_expression(cg, node->data.call.args[0]);
+    emit(cg, ")");
+    return true;
+}
+
+/* --- @crypto module --- */
+
+static bool emit_crypto_call(CodeGen *cg, AstNode *node, const char *func) {
+    emitf(cg, "ez_crypto_%s(ez_default_arena, ", func);
+    emit_expression(cg, node->data.call.args[0]);
+    emit(cg, ")");
+    return true;
+}
+
+/* --- @bytes module --- */
+
+static bool emit_bytes_call(CodeGen *cg, AstNode *node, const char *func) {
+    bool needs_arena = (strcmp(func, "from_string") == 0 || strcmp(func, "from_hex") == 0 ||
+        strcmp(func, "from_base64") == 0);
+    bool needs_arena_ptr = (strcmp(func, "to_string") == 0 || strcmp(func, "to_hex") == 0 ||
+        strcmp(func, "to_base64") == 0);
+    emitf(cg, "ez_bytes_%s(", func);
+    if (needs_arena || needs_arena_ptr) emit(cg, "ez_default_arena, ");
+    if (needs_arena_ptr) {
+        emit(cg, "&");
+        emit_expression(cg, node->data.call.args[0]);
+    } else {
+        emit_expression(cg, node->data.call.args[0]);
+    }
+    emit(cg, ")");
+    return true;
+}
+
+/* --- @binary module --- */
+
+static bool emit_binary_call(CodeGen *cg, AstNode *node, const char *func) {
+    bool is_encode = (strncmp(func, "encode", 6) == 0);
+    bool is_decode = (strncmp(func, "decode", 6) == 0);
+    emitf(cg, "ez_binary_%s(", func);
+    if (is_encode) emit(cg, "ez_default_arena, ");
+    if (is_decode) emit(cg, "&");
+    emit_expression(cg, node->data.call.args[0]);
+    emit(cg, ")");
+    return true;
+}
+
+/* --- @csv module --- */
+
+static bool emit_csv_call(CodeGen *cg, AstNode *node, const char *func) {
+    if (strcmp(func, "parse") == 0 || strcmp(func, "read") == 0) {
+        emitf(cg, "ez_csv_%s(ez_default_arena, ", func);
+        emit_expression(cg, node->data.call.args[0]);
+        emit(cg, ")");
+        return true;
+    }
+    if (strcmp(func, "stringify") == 0) {
+        emit(cg, "ez_csv_stringify(ez_default_arena, &");
+        emit_expression(cg, node->data.call.args[0]);
+        emit(cg, ")");
+        return true;
+    }
+    if (strcmp(func, "write") == 0) {
+        emit(cg, "ez_csv_write(ez_default_arena, ");
+        emit_expression(cg, node->data.call.args[0]);
+        emit(cg, ", &");
+        emit_expression(cg, node->data.call.args[1]);
+        emit(cg, ")");
+        return true;
+    }
+    return false;
+}
+
+/* --- @json module --- */
+
+static bool emit_json_call(CodeGen *cg, AstNode *node, const char *func) {
+    if (strcmp(func, "encode") == 0) {
+        emit(cg, "ez_json_encode_map(ez_default_arena, &");
+        emit_expression(cg, node->data.call.args[0]);
+        emit(cg, ")");
+        return true;
+    }
+    if (strcmp(func, "decode") == 0) {
+        emit(cg, "ez_json_decode(ez_default_arena, ");
+        emit_expression(cg, node->data.call.args[0]);
+        emit(cg, ")");
+        return true;
+    }
+    if (strcmp(func, "is_valid") == 0) {
+        emit(cg, "ez_json_is_valid(");
+        emit_expression(cg, node->data.call.args[0]);
+        emit(cg, ")");
+        return true;
+    }
+    if (strcmp(func, "pretty") == 0) {
+        emit(cg, "ez_json_pretty_map(ez_default_arena, &");
+        emit_expression(cg, node->data.call.args[0]);
+        emit(cg, ", ");
+        emit_expression(cg, node->data.call.args[1]);
+        emit(cg, ")");
+        return true;
+    }
+    return false;
+}
+
+/* --- @sqlite module --- */
+
+static bool emit_sqlite_call(CodeGen *cg, AstNode *node, const char *func) {
+    if (strcmp(func, "open") == 0) {
+        emit(cg, "ez_sqlite_open(ez_default_arena, ");
+        emit_expression(cg, node->data.call.args[0]);
+        emit(cg, ")");
+        return true;
+    }
+    if (strcmp(func, "close") == 0) {
+        emit(cg, "ez_sqlite_close(");
+        emit_expression(cg, node->data.call.args[0]);
+        emit(cg, ")");
+        return true;
+    }
+    if (strcmp(func, "exec") == 0) {
+        emit(cg, "ez_sqlite_exec(");
+        emit_expression(cg, node->data.call.args[0]);
+        emit(cg, ", ");
+        emit_expression(cg, node->data.call.args[1]);
+        emit(cg, ")");
+        return true;
+    }
+    if (strcmp(func, "query") == 0) {
+        emit(cg, "ez_sqlite_query(ez_default_arena, ");
+        emit_expression(cg, node->data.call.args[0]);
+        emit(cg, ", ");
+        emit_expression(cg, node->data.call.args[1]);
+        emit(cg, ")");
+        return true;
+    }
+    return false;
+}
+
+/* --- @random module --- */
+
+static bool emit_random_call(CodeGen *cg, AstNode *node, const char *func) {
+    if (strcmp(func, "float") == 0) {
+        if (node->data.call.arg_count == 0) {
+            emit(cg, "ez_random_float_unit()");
+        } else if (node->data.call.arg_count == 2) {
+            emit(cg, "ez_random_float_range(");
+            emit_expression(cg, node->data.call.args[0]);
+            emit(cg, ", ");
+            emit_expression(cg, node->data.call.args[1]);
+            emit(cg, ")");
+        }
+        return true;
+    }
+    if (strcmp(func, "int") == 0) {
+        if (node->data.call.arg_count == 1) {
+            emit(cg, "ez_random_int_max(");
+            emit_expression(cg, node->data.call.args[0]);
+            emit(cg, ")");
+        } else if (node->data.call.arg_count == 2) {
+            emit(cg, "ez_random_int_range(");
+            emit_expression(cg, node->data.call.args[0]);
+            emit(cg, ", ");
+            emit_expression(cg, node->data.call.args[1]);
+            emit(cg, ")");
+        }
+        return true;
+    }
+    if (strcmp(func, "bool") == 0) { emit(cg, "ez_random_bool()"); return true; }
+    if (strcmp(func, "byte") == 0) { emit(cg, "ez_random_byte()"); return true; }
+    if (strcmp(func, "char") == 0) {
+        if (node->data.call.arg_count == 2) {
+            emit(cg, "ez_random_char_range(");
+            emit_expression(cg, node->data.call.args[0]);
+            emit(cg, ", ");
+            emit_expression(cg, node->data.call.args[1]);
+            emit(cg, ")");
+        } else {
+            emit(cg, "ez_random_char()");
+        }
+        return true;
+    }
+    if (strcmp(func, "shuffle") == 0) {
+        emit(cg, "ez_random_shuffle(ez_default_arena, &");
+        emit_expression(cg, node->data.call.args[0]);
+        emit(cg, ")");
+        return true;
+    }
+    if (strcmp(func, "sample") == 0) {
+        emit(cg, "ez_random_sample(ez_default_arena, &");
+        emit_expression(cg, node->data.call.args[0]);
+        emit(cg, ", ");
+        emit_expression(cg, node->data.call.args[1]);
+        emit(cg, ")");
+        return true;
+    }
+    if (strcmp(func, "choice") == 0) {
+        emit(cg, "({ int32_t _ri = ez_random_int_max(");
+        emit_expression(cg, node->data.call.args[0]);
+        emit(cg, ".len); *(__auto_type *)ez_array_get_ptr(&");
+        emit_expression(cg, node->data.call.args[0]);
+        emit(cg, ", _ri, __FILE__, __LINE__); })");
+        return true;
+    }
+    return false;
+}
+
+/* --- @arrays module --- */
+
+static bool emit_arrays_call(CodeGen *cg, AstNode *node, const char *func) {
+    if (strcmp(func, "append") == 0 && node->data.call.arg_count == 2) {
+        EzType *val_t = cg->type_table ? typetable_get(cg->type_table, node->data.call.args[1]) : NULL;
+        const char *c_elem = "__auto_type";
+        if (val_t) {
+            switch (val_t->kind) {
+            case TK_INT: c_elem = "int64_t"; break;
+            case TK_FLOAT: c_elem = "double"; break;
+            case TK_BOOL: c_elem = "bool"; break;
+            case TK_STRING: c_elem = "EzString"; break;
+            default: break;
+            }
+            if (val_t->kind == TK_STRUCT) {
+                c_elem = ez_type_to_c_cg(cg, val_t->name);
+            }
+        }
+        emitf(cg, "{ %s _av = ", c_elem);
+        emit_expression(cg, node->data.call.args[1]);
+        emit(cg, "; ez_arrays_append(ez_default_arena, &");
+        emit_expression(cg, node->data.call.args[0]);
+        emit(cg, ", &_av); }");
+        return true;
+    }
+    if (strcmp(func, "remove_at") == 0 && node->data.call.arg_count == 2) {
+        emit(cg, "ez_arrays_remove_at(&");
+        emit_expression(cg, node->data.call.args[0]);
+        emit(cg, ", ");
+        emit_expression(cg, node->data.call.args[1]);
+        emit(cg, ")");
+        return true;
+    }
+    if (strcmp(func, "clear") == 0 && node->data.call.arg_count == 1) {
+        emit(cg, "ez_arrays_clear(&");
+        emit_expression(cg, node->data.call.args[0]);
+        emit(cg, ")");
+        return true;
+    }
+    if (strcmp(func, "sort") == 0 && node->data.call.arg_count == 1) {
+        emit(cg, "ez_arrays_sort(&");
+        emit_expression(cg, node->data.call.args[0]);
+        emit(cg, ")");
+        return true;
+    }
+    if (strcmp(func, "sort_desc") == 0 && node->data.call.arg_count == 1) {
+        emit(cg, "ez_arrays_sort_desc(&");
+        emit_expression(cg, node->data.call.args[0]);
+        emit(cg, ")");
+        return true;
+    }
+    if (strcmp(func, "is_empty") == 0 && node->data.call.arg_count == 1) {
+        emit(cg, "ez_arrays_is_empty(&");
+        emit_expression(cg, node->data.call.args[0]);
+        emit(cg, ")");
+        return true;
+    }
+    /* Generic: arrays.func(&arr, ...) */
+    bool needs_arena = (strcmp(func, "reverse") == 0 || strcmp(func, "slice") == 0 ||
+        strcmp(func, "concat") == 0);
+    emitf(cg, "ez_arrays_%s(", func);
+    if (needs_arena) emit(cg, "ez_default_arena, ");
+    emit(cg, "&");
+    emit_expression(cg, node->data.call.args[0]);
+    for (int i = 1; i < node->data.call.arg_count; i++) {
+        emit(cg, ", ");
+        emit_expression(cg, node->data.call.args[i]);
+    }
+    emit(cg, ")");
+    return true;
+}
+
+/* --- @os module --- */
+
+static bool emit_os_call(CodeGen *cg, AstNode *node, const char *func) {
+    if (strcmp(func, "args") == 0) {
+        emit(cg, "ez_os_args(ez_default_arena)"); return true;
+    }
+    if (strcmp(func, "get_env") == 0 || strcmp(func, "getenv") == 0) {
+        emit(cg, "ez_os_get_env(ez_default_arena, ");
+        emit_expression(cg, node->data.call.args[0]);
+        emit(cg, ")");
+        return true;
+    }
+    if (strcmp(func, "cwd") == 0) {
+        emit(cg, "ez_os_cwd(ez_default_arena)"); return true;
+    }
+    if (strcmp(func, "hostname") == 0) {
+        emit(cg, "ez_os_hostname(ez_default_arena)"); return true;
+    }
+    if (strcmp(func, "current_os") == 0) { emit(cg, "ez_os_current_os()"); return true; }
+    if (strcmp(func, "arch") == 0) { emit(cg, "ez_os_arch()"); return true; }
+    if (strcmp(func, "pid") == 0) { emit(cg, "ez_os_pid()"); return true; }
+    if (strcmp(func, "exit") == 0) {
+        emit(cg, "ez_os_exit(");
+        emit_expression(cg, node->data.call.args[0]);
+        emit(cg, ")");
+        return true;
+    }
+    if (strcmp(func, "set_env") == 0 || strcmp(func, "setenv") == 0) {
+        emit(cg, "ez_os_set_env(");
+        emit_expression(cg, node->data.call.args[0]);
+        emit(cg, ", ");
+        emit_expression(cg, node->data.call.args[1]);
+        emit(cg, ")");
+        return true;
+    }
+    return false;
+}
+
+/* --- @io module --- */
+
+static bool emit_io_call(CodeGen *cg, AstNode *node, const char *func) {
+    bool is_fallible = (strcmp(func, "read_file") == 0 ||
+        strcmp(func, "write_file") == 0 ||
+        strcmp(func, "delete_file") == 0 || strcmp(func, "remove") == 0);
+    if (is_fallible) {
+        const char *actual_func = func;
+        if (strcmp(func, "remove") == 0) actual_func = "delete_file";
+        emitf(cg, "ez_io_%s_result(ez_default_arena, ", actual_func);
+        for (int i = 0; i < node->data.call.arg_count; i++) {
+            if (i > 0) emit(cg, ", ");
+            emit_expression(cg, node->data.call.args[i]);
+        }
+        emit(cg, ")");
+        return true;
+    }
+    /* Non-fallible functions */
+    emitf(cg, "ez_io_%s(", func);
+    for (int i = 0; i < node->data.call.arg_count; i++) {
+        if (i > 0) emit(cg, ", ");
+        emit_expression(cg, node->data.call.args[i]);
+    }
+    emit(cg, ")");
+    return true;
+}
+
+/* --- @strings module --- */
+
+static bool emit_strings_call(CodeGen *cg, AstNode *node, const char *func) {
+    bool needs_arena = (strcmp(func, "upper") == 0 || strcmp(func, "lower") == 0 ||
+        strcmp(func, "trim") == 0 || strcmp(func, "trim_left") == 0 ||
+        strcmp(func, "trim_right") == 0 || strcmp(func, "replace") == 0 ||
+        strcmp(func, "repeat") == 0 || strcmp(func, "reverse") == 0 ||
+        strcmp(func, "slice") == 0 || strcmp(func, "split") == 0 ||
+        strcmp(func, "join") == 0);
+
+    emitf(cg, "ez_strings_%s(", func);
+    if (needs_arena) {
+        emit(cg, "ez_default_arena, ");
+    }
+    for (int i = 0; i < node->data.call.arg_count; i++) {
+        if (i > 0) emit(cg, ", ");
+        emit_expression(cg, node->data.call.args[i]);
+    }
+    emit(cg, ")");
+    return true;
+}
+
+/* --- @fmt module --- */
+
+static bool emit_fmt_call(CodeGen *cg, AstNode *node, const char *func) {
+    if (strcmp(func, "printf") == 0 && node->data.call.arg_count >= 1) {
+        emit(cg, "printf(");
+        AstNode *fmt_arg = node->data.call.args[0];
+        if (fmt_arg->kind == NODE_STRING_VALUE) {
+            emitf(cg, "\"%s\"", fmt_arg->data.string_value.value);
+        } else {
+            emit_expression(cg, fmt_arg);
+            emit(cg, ".data");
+        }
+        emit_fmt_args(cg, node, 1);
+        emit(cg, ")");
+        return true;
+    }
+
+    if (strcmp(func, "sprintf") == 0 && node->data.call.arg_count >= 2) {
+        emit(cg, "ez_string_format(");
+        emit_expression(cg, node->data.call.args[0]); /* arena */
+        emit(cg, ", ");
+        AstNode *fmt_arg = node->data.call.args[1];
+        if (fmt_arg->kind == NODE_STRING_VALUE) {
+            emitf(cg, "\"%s\"", fmt_arg->data.string_value.value);
+        } else {
+            emit_expression(cg, fmt_arg);
+            emit(cg, ".data");
+        }
+        emit_fmt_args(cg, node, 2);
+        emit(cg, ")");
+        return true;
+    }
+
+    if (strcmp(func, "eprintln") == 0) {
+        if (node->data.call.arg_count == 0) {
+            emit(cg, "fputc('\\n', stderr)");
+        } else {
+            AstNode *arg = node->data.call.args[0];
+            emitf(cg, "ez_fmt_eprintln%s(", resolve_print_suffix(cg, arg));
+            emit_expression(cg, arg);
+            emit(cg, ")");
+        }
+        return true;
+    }
+
+    if (strcmp(func, "eprint") == 0 && node->data.call.arg_count > 0) {
+        emit(cg, "ez_fmt_eprint_str(");
+        emit_expression(cg, node->data.call.args[0]);
+        emit(cg, ")");
+        return true;
+    }
+    return false;
+}
+
+/* --- Main call dispatcher --- */
+
 static void emit_call_expression(CodeGen *cg, AstNode *node) {
     const char *module = NULL;
     const char *func = NULL;
 
     if (is_stdlib_call(node, &module, &func)) {
-        /* Handle known stdlib functions */
-        if (strcmp(func, "println") == 0) {
-            if (node->data.call.arg_count == 0) {
-                emit(cg, "putchar('\\n')");
-            } else {
-                AstNode *arg = node->data.call.args[0];
-                const char *suffix = "_int"; /* default */
-                /* Use type table if available */
-                EzType *arg_type = cg->type_table ? typetable_get(cg->type_table, arg) : NULL;
-                if (arg_type) {
-                    switch (arg_type->kind) {
-                    case TK_STRING: suffix = "_str"; break;
-                    case TK_FLOAT:  suffix = "_float"; break;
-                    case TK_BOOL:   suffix = "_bool"; break;
-                    default: suffix = "_int"; break;
-                    }
-                } else {
-                    /* Fallback to AST-based inference */
-                    if (arg->kind == NODE_STRING_VALUE ||
-                        arg->kind == NODE_INTERPOLATED_STRING) suffix = "_str";
-                    else if (arg->kind == NODE_FLOAT_VALUE) suffix = "_float";
-                    else if (arg->kind == NODE_BOOL_VALUE) suffix = "_bool";
+        /* No-module builtins (println, len, typeof, etc.) */
+        if (!module && emit_builtin_call(cg, node, func)) return;
+
+        /* Module dispatch table */
+        typedef bool (*ModuleHandler)(CodeGen *, AstNode *, const char *);
+        static const struct { const char *name; ModuleHandler handler; } modules[] = {
+            {"mem",      emit_mem_call},
+            {"math",     emit_math_call},
+            {"maps",     emit_maps_call},
+            {"time",     emit_time_call},
+            {"uuid",     emit_uuid_call},
+            {"encoding", emit_encoding_call},
+            {"crypto",   emit_crypto_call},
+            {"bytes",    emit_bytes_call},
+            {"binary",   emit_binary_call},
+            {"csv",      emit_csv_call},
+            {"json",     emit_json_call},
+            {"sqlite",   emit_sqlite_call},
+            {"random",   emit_random_call},
+            {"arrays",   emit_arrays_call},
+            {"os",       emit_os_call},
+            {"io",       emit_io_call},
+            {"strings",  emit_strings_call},
+            {"fmt",      emit_fmt_call},
+        };
+        if (module) {
+            for (int i = 0; i < (int)(sizeof(modules) / sizeof(modules[0])); i++) {
+                if (strcmp(module, modules[i].name) == 0) {
+                    if (modules[i].handler(cg, node, func)) return;
+                    break;
                 }
-                emitf(cg, "ez_std_println%s(", suffix);
-                emit_expression(cg, arg);
-                emit(cg, ")");
-            }
-            return;
-        }
-
-        if (strcmp(func, "len") == 0 && node->data.call.arg_count == 1) {
-            AstNode *arg = node->data.call.args[0];
-            EzType *t = cg->type_table ? typetable_get(cg->type_table, arg) : NULL;
-            if (t && t->kind == TK_STRING) {
-                emit(cg, "(int64_t)(");
-                emit_expression(cg, arg);
-                emit(cg, ").len");
-            } else if (t && t->kind == TK_ARRAY) {
-                emit(cg, "(int64_t)(");
-                emit_expression(cg, arg);
-                emit(cg, ").len");
-            } else if (t && t->kind == TK_MAP) {
-                emit(cg, "(int64_t)(");
-                emit_expression(cg, arg);
-                emit(cg, ").count");
-            } else {
-                /* Default: try .len for EzArray */
-                emit(cg, "(int64_t)(");
-                emit_expression(cg, arg);
-                emit(cg, ").len");
-            }
-            return;
-        }
-
-        if (strcmp(func, "typeof") == 0 && node->data.call.arg_count == 1) {
-            AstNode *arg = node->data.call.args[0];
-            EzType *t = cg->type_table ? typetable_get(cg->type_table, arg) : NULL;
-            const char *tn = t ? type_name(t) : "unknown";
-            emitf(cg, "ez_string_lit(\"%s\")", tn);
-            return;
-        }
-
-        if (strcmp(func, "to_int") == 0 && node->data.call.arg_count == 1) {
-            emit(cg, "(int64_t)(");
-            emit_expression(cg, node->data.call.args[0]);
-            emit(cg, ")");
-            return;
-        }
-
-        if (strcmp(func, "to_float") == 0 && node->data.call.arg_count == 1) {
-            emit(cg, "(double)(");
-            emit_expression(cg, node->data.call.args[0]);
-            emit(cg, ")");
-            return;
-        }
-
-        if ((strcmp(func, "addr") == 0 || strcmp(func, "ref") == 0) && node->data.call.arg_count == 1) {
-            emit(cg, "&");
-            emit_expression(cg, node->data.call.args[0]);
-            return;
-        }
-
-        if (strcmp(func, "exit") == 0 && node->data.call.arg_count == 1) {
-            emit(cg, "ez_std_exit(");
-            emit_expression(cg, node->data.call.args[0]);
-            emit(cg, ")");
-            return;
-        }
-
-        if (strcmp(func, "panic") == 0 && node->data.call.arg_count == 1) {
-            emit(cg, "ez_std_panic_msg(");
-            emit_expression(cg, node->data.call.args[0]);
-            emit(cg, ")");
-            return;
-        }
-
-        if (strcmp(func, "assert") == 0 && node->data.call.arg_count >= 1) {
-            emit(cg, "ez_std_assert(");
-            emit_expression(cg, node->data.call.args[0]);
-            if (node->data.call.arg_count >= 2) {
-                emit(cg, ", ");
-                emit_expression(cg, node->data.call.args[1]);
-            } else {
-                emit(cg, ", ez_string_lit(\"assertion failed\")");
-            }
-            emitf(cg, ", \"%s\", %d)", cg->file, node->token.line);
-            return;
-        }
-
-        if (strcmp(func, "error") == 0 && node->data.call.arg_count >= 1) {
-            emit(cg, "ez_error_new(ez_default_arena, ");
-            emit_expression(cg, node->data.call.args[0]);
-            emit(cg, ")");
-            return;
-        }
-
-        if (strcmp(func, "input") == 0) {
-            emit(cg, "ez_std_input(ez_default_arena)");
-            return;
-        }
-
-        if (strcmp(func, "read_int") == 0) {
-            /* read_int() → reads line from stdin, converts to int */
-            emit(cg, "({ EzString _s = ez_std_input(ez_default_arena); atoll(_s.data); })");
-            return;
-        }
-
-        if (strcmp(func, "eprintln") == 0) {
-            if (node->data.call.arg_count == 0) {
-                emit(cg, "fputc('\\n', stderr)");
-            } else {
-                AstNode *arg = node->data.call.args[0];
-                EzType *at = cg->type_table ? typetable_get(cg->type_table, arg) : NULL;
-                const char *suffix = "_int";
-                if (at && at->kind == TK_STRING) suffix = "_str";
-                else if (arg->kind == NODE_STRING_VALUE || arg->kind == NODE_INTERPOLATED_STRING) suffix = "_str";
-                emitf(cg, "ez_std_eprintln%s(", suffix);
-                emit_expression(cg, arg);
-                emit(cg, ")");
-            }
-            return;
-        }
-
-        if (strcmp(func, "eprint") == 0 && node->data.call.arg_count > 0) {
-            emit(cg, "ez_std_eprint_str(");
-            emit_expression(cg, node->data.call.args[0]);
-            emit(cg, ")");
-            return;
-        }
-
-        if (strcmp(func, "to_string") == 0 && node->data.call.arg_count == 1) {
-            AstNode *arg = node->data.call.args[0];
-            EzType *at = cg->type_table ? typetable_get(cg->type_table, arg) : NULL;
-            if (at && at->kind == TK_FLOAT) {
-                emit(cg, "ez_std_to_string_float(ez_default_arena, ");
-            } else if (at && at->kind == TK_BOOL) {
-                emit(cg, "ez_std_to_string_bool(ez_default_arena, ");
-            } else {
-                emit(cg, "ez_std_to_string_int(ez_default_arena, ");
-            }
-            emit_expression(cg, arg);
-            emit(cg, ")");
-            return;
-        }
-
-        if (strcmp(func, "to_bool") == 0 && node->data.call.arg_count == 1) {
-            emit(cg, "(bool)(");
-            emit_expression(cg, node->data.call.args[0]);
-            emit(cg, ")");
-            return;
-        }
-
-        if (strcmp(func, "sleep_seconds") == 0 && node->data.call.arg_count == 1) {
-            emit(cg, "ez_std_sleep_seconds(");
-            emit_expression(cg, node->data.call.args[0]);
-            emit(cg, ")");
-            return;
-        }
-
-        if (strcmp(func, "sleep_milliseconds") == 0 && node->data.call.arg_count == 1) {
-            emit(cg, "ez_std_sleep_milliseconds(");
-            emit_expression(cg, node->data.call.args[0]);
-            emit(cg, ")");
-            return;
-        }
-
-        if (strcmp(func, "sleep_nanoseconds") == 0 && node->data.call.arg_count == 1) {
-            emit(cg, "ez_std_sleep_nanoseconds(");
-            emit_expression(cg, node->data.call.args[0]);
-            emit(cg, ")");
-            return;
-        }
-
-        /* Sized type conversion functions: i8(), u16(), f32(), etc. */
-        if (node->data.call.arg_count == 1) {
-            const char *cast_type = NULL;
-            if (strcmp(func, "i8") == 0) cast_type = "int8_t";
-            else if (strcmp(func, "i16") == 0) cast_type = "int16_t";
-            else if (strcmp(func, "i32") == 0) cast_type = "int32_t";
-            else if (strcmp(func, "i64") == 0) cast_type = "int64_t";
-            else if (strcmp(func, "u8") == 0) cast_type = "uint8_t";
-            else if (strcmp(func, "u16") == 0) cast_type = "uint16_t";
-            else if (strcmp(func, "u32") == 0) cast_type = "uint32_t";
-            else if (strcmp(func, "u64") == 0) cast_type = "uint64_t";
-            else if (strcmp(func, "f32") == 0) cast_type = "float";
-            else if (strcmp(func, "f64") == 0) cast_type = "double";
-            else if (strcmp(func, "int") == 0) cast_type = "int64_t";
-            else if (strcmp(func, "uint") == 0) cast_type = "uint64_t";
-            else if (strcmp(func, "float") == 0) cast_type = "double";
-            else if (strcmp(func, "string") == 0) cast_type = NULL; /* handled below */
-            else if (strcmp(func, "char") == 0) cast_type = "int32_t";
-            else if (strcmp(func, "byte") == 0) cast_type = "uint8_t";
-            if (cast_type) {
-                emitf(cg, "((%s)(", cast_type);
-                emit_expression(cg, node->data.call.args[0]);
-                emit(cg, "))");
-                return;
-            }
-            /* string() conversion */
-            if (strcmp(func, "string") == 0) {
-                AstNode *arg = node->data.call.args[0];
-                EzType *at = cg->type_table ? typetable_get(cg->type_table, arg) : NULL;
-                if (at && at->kind == TK_FLOAT) {
-                    emit(cg, "ez_std_to_string_float(ez_default_arena, ");
-                } else if (at && at->kind == TK_BOOL) {
-                    emit(cg, "ez_std_to_string_bool(ez_default_arena, ");
-                } else {
-                    emit(cg, "ez_std_to_string_int(ez_default_arena, ");
-                }
-                emit_expression(cg, arg);
-                emit(cg, ")");
-                return;
-            }
-        }
-
-        if (strcmp(func, "copy") == 0 && node->data.call.arg_count == 1) {
-            /* Deep copy — for arrays use ez_array_copy, otherwise value copy */
-            AstNode *arg = node->data.call.args[0];
-            EzType *at = cg->type_table ? typetable_get(cg->type_table, arg) : NULL;
-            if (at && at->kind == TK_ARRAY) {
-                emit(cg, "ez_array_copy(ez_default_arena, &");
-                emit_expression(cg, arg);
-                emit(cg, ")");
-            } else {
-                /* Value types — just copy the value */
-                emit_expression(cg, arg);
-            }
-            return;
-        }
-
-        if (strcmp(func, "print") == 0 && node->data.call.arg_count > 0) {
-            AstNode *arg = node->data.call.args[0];
-            const char *suffix = "_int";
-            if (arg->kind == NODE_STRING_VALUE) suffix = "_str";
-            emitf(cg, "ez_std_print%s(", suffix);
-            emit_expression(cg, arg);
-            emit(cg, ")");
-            return;
-        }
-
-        /* @mem module functions */
-        if (module && strcmp(module, "mem") == 0) {
-            if (strcmp(func, "arena") == 0 && node->data.call.arg_count == 1) {
-                emit(cg, "ez_mem_arena(");
-                emit_expression(cg, node->data.call.args[0]);
-                emit(cg, ")");
-                return;
-            }
-            if (strcmp(func, "destroy") == 0 && node->data.call.arg_count == 1) {
-                emit(cg, "ez_mem_destroy(");
-                emit_expression(cg, node->data.call.args[0]);
-                emit(cg, ")");
-                return;
-            }
-            if (strcmp(func, "reset") == 0 && node->data.call.arg_count == 1) {
-                emit(cg, "ez_mem_reset(");
-                emit_expression(cg, node->data.call.args[0]);
-                emit(cg, ")");
-                return;
-            }
-            if (strcmp(func, "usage") == 0 && node->data.call.arg_count == 1) {
-                emit(cg, "ez_mem_usage(");
-                emit_expression(cg, node->data.call.args[0]);
-                emit(cg, ")");
-                return;
-            }
-            if (strcmp(func, "copy") == 0 && node->data.call.arg_count == 3) {
-                emit(cg, "ez_mem_copy(");
-                emit_expression(cg, node->data.call.args[0]);
-                emit(cg, ", ");
-                emit_expression(cg, node->data.call.args[1]);
-                emit(cg, ", ");
-                emit_expression(cg, node->data.call.args[2]);
-                emit(cg, ")");
-                return;
-            }
-            if (strcmp(func, "zero") == 0 && node->data.call.arg_count == 2) {
-                emit(cg, "ez_mem_zero(");
-                emit_expression(cg, node->data.call.args[0]);
-                emit(cg, ", ");
-                emit_expression(cg, node->data.call.args[1]);
-                emit(cg, ")");
-                return;
-            }
-            if (strcmp(func, "set") == 0 && node->data.call.arg_count == 3) {
-                emit(cg, "ez_mem_set(");
-                emit_expression(cg, node->data.call.args[0]);
-                emit(cg, ", ");
-                emit_expression(cg, node->data.call.args[1]);
-                emit(cg, ", ");
-                emit_expression(cg, node->data.call.args[2]);
-                emit(cg, ")");
-                return;
-            }
-            if (strcmp(func, "size_of") == 0 && node->data.call.arg_count == 1) {
-                /* mem.size_of(Type) → sizeof(C_type) */
-                AstNode *type_arg = node->data.call.args[0];
-                if (type_arg->kind == NODE_LABEL) {
-                    emitf(cg, "(int64_t)sizeof(%s)", ez_type_to_c_cg(cg, type_arg->data.label.value));
-                } else {
-                    emit(cg, "0");
-                }
-                return;
-            }
-            if (strcmp(func, "new") == 0 && node->data.call.arg_count == 2) {
-                /* mem.new(arena, Type) — allocate zeroed T, return ^T */
-                AstNode *arena_arg = node->data.call.args[0];
-                AstNode *type_arg = node->data.call.args[1];
-                /* Type arg should be a label (type name) */
-                const char *type_name = "int64_t";
-                if (type_arg->kind == NODE_LABEL) {
-                    type_name = ez_type_to_c_cg(cg, type_arg->data.label.value);
-                }
-                emitf(cg, "(%s *)ez_arena_alloc(", type_name);
-                emit_expression(cg, arena_arg);
-                emitf(cg, ", sizeof(%s))", type_name);
-                return;
-            }
-            if (strcmp(func, "alloc") == 0 && node->data.call.arg_count == 2) {
-                /* mem.alloc(arena, value) — allocate value on specific arena.
-                 * For strings: ez_string_new(arena, src.data, src.len)
-                 * For arrays: emit array literal with arena instead of ez_default_arena
-                 * For other: ez_arena_alloc + memcpy */
-                AstNode *arena_arg = node->data.call.args[0];
-                AstNode *value_arg = node->data.call.args[1];
-                EzType *vt = cg->type_table ? typetable_get(cg->type_table, value_arg) : NULL;
-
-                if (vt && vt->kind == TK_STRING) {
-                    emit(cg, "({ EzString _s = ");
-                    emit_expression(cg, value_arg);
-                    emit(cg, "; ez_string_new(");
-                    emit_expression(cg, arena_arg);
-                    emit(cg, ", _s.data, _s.len); })");
-                } else if (value_arg->kind == NODE_ARRAY_VALUE) {
-                    /* Emit array literal with custom arena */
-                    int count = value_arg->data.array_value.count;
-                    EzType *elem_t = (count > 0 && cg->type_table)
-                        ? typetable_get(cg->type_table, value_arg->data.array_value.elements[0])
-                        : NULL;
-                    const char *c_type = "int64_t";
-                    if (elem_t) {
-                        if (elem_t->kind == TK_FLOAT) c_type = "double";
-                        else if (elem_t->kind == TK_STRING) c_type = "EzString";
-                        else if (elem_t->kind == TK_BOOL) c_type = "bool";
-                    }
-                    emitf(cg, "ez_array_from(");
-                    emit_expression(cg, arena_arg);
-                    emitf(cg, ", (%s[]){", c_type);
-                    for (int i = 0; i < count; i++) {
-                        if (i > 0) emit(cg, ", ");
-                        emit_expression(cg, value_arg->data.array_value.elements[i]);
-                    }
-                    emitf(cg, "}, sizeof(%s), %d)", c_type, count);
-                } else {
-                    /* Generic: copy value onto arena */
-                    emit(cg, "({ __auto_type _v = ");
-                    emit_expression(cg, value_arg);
-                    emit(cg, "; __auto_type _p = ez_arena_alloc(");
-                    emit_expression(cg, arena_arg);
-                    emit(cg, ", sizeof(_v)); *(__typeof__(_v) *)_p = _v; _v; })");
-                }
-                return;
-            }
-        }
-
-        /* @math module functions — most map directly to ez_math_name() */
-        if (module && strcmp(module, "math") == 0) {
-            /* Handle random() specially (variable arg count) */
-            if (strcmp(func, "random") == 0) {
-                if (node->data.call.arg_count == 0) {
-                    emit(cg, "ez_math_random_float(0.0, 1.0)");
-                } else if (node->data.call.arg_count == 1) {
-                    emit(cg, "ez_math_random_int(0, ");
-                    emit_expression(cg, node->data.call.args[0]);
-                    emit(cg, ")");
-                } else {
-                    emit(cg, "ez_math_random_int(");
-                    emit_expression(cg, node->data.call.args[0]);
-                    emit(cg, ", ");
-                    emit_expression(cg, node->data.call.args[1]);
-                    emit(cg, ")");
-                }
-                return;
-            }
-            /* abs needs int vs float dispatch */
-            if (strcmp(func, "abs") == 0 && node->data.call.arg_count == 1) {
-                EzType *at = cg->type_table ? typetable_get(cg->type_table, node->data.call.args[0]) : NULL;
-                emitf(cg, "ez_math_abs_%s(", (at && at->kind == TK_FLOAT) ? "float" : "int");
-                emit_expression(cg, node->data.call.args[0]);
-                emit(cg, ")");
-                return;
-            }
-            /* neg */
-            if (strcmp(func, "neg") == 0 && node->data.call.arg_count == 1) {
-                emit(cg, "(-(");
-                emit_expression(cg, node->data.call.args[0]);
-                emit(cg, "))");
-                return;
-            }
-            /* Generic: math.func(args...) → ez_math_func(args...) */
-            emitf(cg, "ez_math_%s(", func);
-            for (int i = 0; i < node->data.call.arg_count; i++) {
-                if (i > 0) emit(cg, ", ");
-                emit_expression(cg, node->data.call.args[i]);
-            }
-            emit(cg, ")");
-            return;
-        }
-
-        /* @maps module functions */
-        if (module && strcmp(module, "maps") == 0) {
-            if (strcmp(func, "keys") == 0 && node->data.call.arg_count == 1) {
-                emit(cg, "ez_maps_keys(ez_default_arena, &");
-                emit_expression(cg, node->data.call.args[0]);
-                emit(cg, ")");
-                return;
-            }
-            if (strcmp(func, "values") == 0 && node->data.call.arg_count == 1) {
-                emit(cg, "ez_maps_values(ez_default_arena, &");
-                emit_expression(cg, node->data.call.args[0]);
-                emit(cg, ")");
-                return;
-            }
-            if (strcmp(func, "has_key") == 0 || strcmp(func, "contains") == 0) {
-                emit(cg, "ez_maps_has_key(&");
-                emit_expression(cg, node->data.call.args[0]);
-                emit(cg, ", &(");
-                emit_expression(cg, node->data.call.args[1]);
-                emit(cg, "))");
-                return;
-            }
-        }
-
-        /* @time module functions */
-        if (module && strcmp(module, "time") == 0) {
-            bool needs_arena = (strcmp(func, "format") == 0 || strcmp(func, "iso") == 0 ||
-                strcmp(func, "date") == 0 || strcmp(func, "clock") == 0);
-            emitf(cg, "ez_time_%s(", func);
-            if (needs_arena) emit(cg, "ez_default_arena, ");
-            for (int i = 0; i < node->data.call.arg_count; i++) {
-                if (i > 0) emit(cg, ", ");
-                emit_expression(cg, node->data.call.args[i]);
-            }
-            emit(cg, ")");
-            return;
-        }
-
-        /* @uuid module functions */
-        if (module && strcmp(module, "uuid") == 0) {
-            if (strcmp(func, "create") == 0) {
-                emit(cg, "ez_uuid_create(ez_default_arena)"); return;
-            }
-            if (strcmp(func, "create_compact") == 0) {
-                emit(cg, "ez_uuid_create_compact(ez_default_arena)"); return;
-            }
-            if (strcmp(func, "is_valid") == 0) {
-                emit(cg, "ez_uuid_is_valid(");
-                emit_expression(cg, node->data.call.args[0]);
-                emit(cg, ")"); return;
-            }
-        }
-
-        /* @encoding module functions */
-        if (module && strcmp(module, "encoding") == 0) {
-            emitf(cg, "ez_encoding_%s(ez_default_arena, ", func);
-            emit_expression(cg, node->data.call.args[0]);
-            emit(cg, ")");
-            return;
-        }
-
-        /* @crypto module functions */
-        if (module && strcmp(module, "crypto") == 0) {
-            emitf(cg, "ez_crypto_%s(ez_default_arena, ", func);
-            emit_expression(cg, node->data.call.args[0]);
-            emit(cg, ")");
-            return;
-        }
-
-        /* @bytes module functions */
-        if (module && strcmp(module, "bytes") == 0) {
-            bool needs_arena = (strcmp(func, "from_string") == 0 || strcmp(func, "from_hex") == 0 ||
-                strcmp(func, "from_base64") == 0);
-            bool needs_arena_ptr = (strcmp(func, "to_string") == 0 || strcmp(func, "to_hex") == 0 ||
-                strcmp(func, "to_base64") == 0);
-            emitf(cg, "ez_bytes_%s(", func);
-            if (needs_arena || needs_arena_ptr) emit(cg, "ez_default_arena, ");
-            if (needs_arena_ptr) {
-                emit(cg, "&");
-                emit_expression(cg, node->data.call.args[0]);
-            } else {
-                emit_expression(cg, node->data.call.args[0]);
-            }
-            emit(cg, ")");
-            return;
-        }
-
-        /* @binary module functions */
-        if (module && strcmp(module, "binary") == 0) {
-            bool is_encode = (strncmp(func, "encode", 6) == 0);
-            bool is_decode = (strncmp(func, "decode", 6) == 0);
-            emitf(cg, "ez_binary_%s(", func);
-            if (is_encode) emit(cg, "ez_default_arena, ");
-            if (is_decode) emit(cg, "&");
-            emit_expression(cg, node->data.call.args[0]);
-            emit(cg, ")");
-            return;
-        }
-
-        /* @csv module functions */
-        if (module && strcmp(module, "csv") == 0) {
-            if (strcmp(func, "parse") == 0 || strcmp(func, "read") == 0) {
-                emitf(cg, "ez_csv_%s(ez_default_arena, ", func);
-                emit_expression(cg, node->data.call.args[0]);
-                emit(cg, ")");
-                return;
-            }
-            if (strcmp(func, "stringify") == 0) {
-                emit(cg, "ez_csv_stringify(ez_default_arena, &");
-                emit_expression(cg, node->data.call.args[0]);
-                emit(cg, ")");
-                return;
-            }
-            if (strcmp(func, "write") == 0) {
-                emit(cg, "ez_csv_write(ez_default_arena, ");
-                emit_expression(cg, node->data.call.args[0]);
-                emit(cg, ", &");
-                emit_expression(cg, node->data.call.args[1]);
-                emit(cg, ")");
-                return;
-            }
-        }
-
-        /* @json module functions */
-        if (module && strcmp(module, "json") == 0) {
-            if (strcmp(func, "encode") == 0) {
-                emit(cg, "ez_json_encode_map(ez_default_arena, &");
-                emit_expression(cg, node->data.call.args[0]);
-                emit(cg, ")");
-                return;
-            }
-            if (strcmp(func, "decode") == 0) {
-                emit(cg, "ez_json_decode(ez_default_arena, ");
-                emit_expression(cg, node->data.call.args[0]);
-                emit(cg, ")");
-                return;
-            }
-            if (strcmp(func, "is_valid") == 0) {
-                emit(cg, "ez_json_is_valid(");
-                emit_expression(cg, node->data.call.args[0]);
-                emit(cg, ")");
-                return;
-            }
-            if (strcmp(func, "pretty") == 0) {
-                emit(cg, "ez_json_pretty_map(ez_default_arena, &");
-                emit_expression(cg, node->data.call.args[0]);
-                emit(cg, ", ");
-                emit_expression(cg, node->data.call.args[1]);
-                emit(cg, ")");
-                return;
-            }
-        }
-
-        /* @sqlite module functions */
-        if (module && strcmp(module, "sqlite") == 0) {
-            if (strcmp(func, "open") == 0) {
-                emit(cg, "ez_sqlite_open(ez_default_arena, ");
-                emit_expression(cg, node->data.call.args[0]);
-                emit(cg, ")");
-                return;
-            }
-            if (strcmp(func, "close") == 0) {
-                emit(cg, "ez_sqlite_close(");
-                emit_expression(cg, node->data.call.args[0]);
-                emit(cg, ")");
-                return;
-            }
-            if (strcmp(func, "exec") == 0) {
-                emit(cg, "ez_sqlite_exec(");
-                emit_expression(cg, node->data.call.args[0]);
-                emit(cg, ", ");
-                emit_expression(cg, node->data.call.args[1]);
-                emit(cg, ")");
-                return;
-            }
-            if (strcmp(func, "query") == 0) {
-                emit(cg, "ez_sqlite_query(ez_default_arena, ");
-                emit_expression(cg, node->data.call.args[0]);
-                emit(cg, ", ");
-                emit_expression(cg, node->data.call.args[1]);
-                emit(cg, ")");
-                return;
-            }
-        }
-
-        /* @random module functions */
-        if (module && strcmp(module, "random") == 0) {
-            if (strcmp(func, "float") == 0) {
-                if (node->data.call.arg_count == 0) {
-                    emit(cg, "ez_random_float_unit()");
-                } else if (node->data.call.arg_count == 2) {
-                    emit(cg, "ez_random_float_range(");
-                    emit_expression(cg, node->data.call.args[0]);
-                    emit(cg, ", ");
-                    emit_expression(cg, node->data.call.args[1]);
-                    emit(cg, ")");
-                }
-                return;
-            }
-            if (strcmp(func, "int") == 0) {
-                if (node->data.call.arg_count == 1) {
-                    emit(cg, "ez_random_int_max(");
-                    emit_expression(cg, node->data.call.args[0]);
-                    emit(cg, ")");
-                } else if (node->data.call.arg_count == 2) {
-                    emit(cg, "ez_random_int_range(");
-                    emit_expression(cg, node->data.call.args[0]);
-                    emit(cg, ", ");
-                    emit_expression(cg, node->data.call.args[1]);
-                    emit(cg, ")");
-                }
-                return;
-            }
-            if (strcmp(func, "bool") == 0) { emit(cg, "ez_random_bool()"); return; }
-            if (strcmp(func, "byte") == 0) { emit(cg, "ez_random_byte()"); return; }
-            if (strcmp(func, "char") == 0) {
-                if (node->data.call.arg_count == 2) {
-                    emit(cg, "ez_random_char_range(");
-                    emit_expression(cg, node->data.call.args[0]);
-                    emit(cg, ", ");
-                    emit_expression(cg, node->data.call.args[1]);
-                    emit(cg, ")");
-                } else {
-                    emit(cg, "ez_random_char()");
-                }
-                return;
-            }
-            if (strcmp(func, "shuffle") == 0) {
-                emit(cg, "ez_random_shuffle(ez_default_arena, &");
-                emit_expression(cg, node->data.call.args[0]);
-                emit(cg, ")");
-                return;
-            }
-            if (strcmp(func, "sample") == 0) {
-                emit(cg, "ez_random_sample(ez_default_arena, &");
-                emit_expression(cg, node->data.call.args[0]);
-                emit(cg, ", ");
-                emit_expression(cg, node->data.call.args[1]);
-                emit(cg, ")");
-                return;
-            }
-            if (strcmp(func, "choice") == 0) {
-                /* random.choice(arr) — random element */
-                emit(cg, "({ int32_t _ri = ez_random_int_max(");
-                emit_expression(cg, node->data.call.args[0]);
-                emit(cg, ".len); *(__auto_type *)ez_array_get_ptr(&");
-                emit_expression(cg, node->data.call.args[0]);
-                emit(cg, ", _ri, __FILE__, __LINE__); })");
-                return;
-            }
-        }
-
-        /* @arrays module functions */
-        if (module && strcmp(module, "arrays") == 0) {
-            if (strcmp(func, "append") == 0 && node->data.call.arg_count == 2) {
-                /* arrays.append(&arr, value) — determine element type */
-                EzType *val_t = cg->type_table ? typetable_get(cg->type_table, node->data.call.args[1]) : NULL;
-                const char *c_elem = "__auto_type";
-                if (val_t) {
-                    switch (val_t->kind) {
-                    case TK_INT: c_elem = "int64_t"; break;
-                    case TK_FLOAT: c_elem = "double"; break;
-                    case TK_BOOL: c_elem = "bool"; break;
-                    case TK_STRING: c_elem = "EzString"; break;
-                    default: break;
-                    }
-                    if (val_t->kind == TK_STRUCT) {
-                        c_elem = ez_type_to_c_cg(cg, val_t->name);
-                    }
-                }
-                emitf(cg, "{ %s _av = ", c_elem);
-                emit_expression(cg, node->data.call.args[1]);
-                emit(cg, "; ez_arrays_append(ez_default_arena, &");
-                emit_expression(cg, node->data.call.args[0]);
-                emit(cg, ", &_av); }");
-                return;
-            }
-            if (strcmp(func, "remove_at") == 0 && node->data.call.arg_count == 2) {
-                emit(cg, "ez_arrays_remove_at(&");
-                emit_expression(cg, node->data.call.args[0]);
-                emit(cg, ", ");
-                emit_expression(cg, node->data.call.args[1]);
-                emit(cg, ")");
-                return;
-            }
-            if (strcmp(func, "clear") == 0 && node->data.call.arg_count == 1) {
-                emit(cg, "ez_arrays_clear(&");
-                emit_expression(cg, node->data.call.args[0]);
-                emit(cg, ")");
-                return;
-            }
-            if (strcmp(func, "sort") == 0 && node->data.call.arg_count == 1) {
-                emit(cg, "ez_arrays_sort(&");
-                emit_expression(cg, node->data.call.args[0]);
-                emit(cg, ")");
-                return;
-            }
-            if (strcmp(func, "sort_desc") == 0 && node->data.call.arg_count == 1) {
-                emit(cg, "ez_arrays_sort_desc(&");
-                emit_expression(cg, node->data.call.args[0]);
-                emit(cg, ")");
-                return;
-            }
-            if (strcmp(func, "is_empty") == 0 && node->data.call.arg_count == 1) {
-                emit(cg, "ez_arrays_is_empty(&");
-                emit_expression(cg, node->data.call.args[0]);
-                emit(cg, ")");
-                return;
-            }
-            /* Generic: arrays.func(&arr, ...) */
-            bool needs_arena = (strcmp(func, "reverse") == 0 || strcmp(func, "slice") == 0 ||
-                strcmp(func, "concat") == 0);
-            emitf(cg, "ez_arrays_%s(", func);
-            if (needs_arena) emit(cg, "ez_default_arena, ");
-            emit(cg, "&");
-            emit_expression(cg, node->data.call.args[0]);
-            for (int i = 1; i < node->data.call.arg_count; i++) {
-                emit(cg, ", ");
-                emit_expression(cg, node->data.call.args[i]);
-            }
-            emit(cg, ")");
-            return;
-        }
-
-        /* @os module functions */
-        if (module && strcmp(module, "os") == 0) {
-            if (strcmp(func, "args") == 0) {
-                emit(cg, "ez_os_args(ez_default_arena)");
-                return;
-            }
-            if (strcmp(func, "get_env") == 0 || strcmp(func, "getenv") == 0) {
-                emit(cg, "ez_os_get_env(ez_default_arena, ");
-                emit_expression(cg, node->data.call.args[0]);
-                emit(cg, ")");
-                return;
-            }
-            if (strcmp(func, "cwd") == 0) {
-                emit(cg, "ez_os_cwd(ez_default_arena)");
-                return;
-            }
-            if (strcmp(func, "hostname") == 0) {
-                emit(cg, "ez_os_hostname(ez_default_arena)");
-                return;
-            }
-            if (strcmp(func, "current_os") == 0) {
-                emit(cg, "ez_os_current_os()");
-                return;
-            }
-            if (strcmp(func, "arch") == 0) {
-                emit(cg, "ez_os_arch()");
-                return;
-            }
-            if (strcmp(func, "pid") == 0) {
-                emit(cg, "ez_os_pid()");
-                return;
-            }
-            if (strcmp(func, "exit") == 0) {
-                emit(cg, "ez_os_exit(");
-                emit_expression(cg, node->data.call.args[0]);
-                emit(cg, ")");
-                return;
-            }
-            if (strcmp(func, "set_env") == 0 || strcmp(func, "setenv") == 0) {
-                emit(cg, "ez_os_set_env(");
-                emit_expression(cg, node->data.call.args[0]);
-                emit(cg, ", ");
-                emit_expression(cg, node->data.call.args[1]);
-                emit(cg, ")");
-                return;
-            }
-        }
-
-        /* @io module functions */
-        if (module && strcmp(module, "io") == 0) {
-            /* Fallible functions: use _result version that returns (value, Error) tuple */
-            bool is_fallible = (strcmp(func, "read_file") == 0 ||
-                strcmp(func, "write_file") == 0 ||
-                strcmp(func, "delete_file") == 0 || strcmp(func, "remove") == 0);
-            if (is_fallible) {
-                const char *actual_func = func;
-                if (strcmp(func, "remove") == 0) actual_func = "delete_file";
-                emitf(cg, "ez_io_%s_result(ez_default_arena, ", actual_func);
-                for (int i = 0; i < node->data.call.arg_count; i++) {
-                    if (i > 0) emit(cg, ", ");
-                    emit_expression(cg, node->data.call.args[i]);
-                }
-                emit(cg, ")");
-                return;
-            }
-            /* Non-fallible functions */
-            emitf(cg, "ez_io_%s(", func);
-            for (int i = 0; i < node->data.call.arg_count; i++) {
-                if (i > 0) emit(cg, ", ");
-                emit_expression(cg, node->data.call.args[i]);
-            }
-            emit(cg, ")");
-            return;
-        }
-
-        /* @strings module functions */
-        if (module && strcmp(module, "strings") == 0) {
-            /* Functions that need arena as first arg */
-            bool needs_arena = (strcmp(func, "upper") == 0 || strcmp(func, "lower") == 0 ||
-                strcmp(func, "trim") == 0 || strcmp(func, "trim_left") == 0 ||
-                strcmp(func, "trim_right") == 0 || strcmp(func, "replace") == 0 ||
-                strcmp(func, "repeat") == 0 || strcmp(func, "reverse") == 0 ||
-                strcmp(func, "slice") == 0 || strcmp(func, "split") == 0 ||
-                strcmp(func, "join") == 0);
-
-            emitf(cg, "ez_strings_%s(", func);
-            if (needs_arena) {
-                emit(cg, "ez_default_arena, ");
-            }
-            for (int i = 0; i < node->data.call.arg_count; i++) {
-                if (i > 0) emit(cg, ", ");
-                emit_expression(cg, node->data.call.args[i]);
-            }
-            emit(cg, ")");
-            return;
-        }
-
-        /* @fmt module functions */
-        if (module && strcmp(module, "fmt") == 0) {
-            if (strcmp(func, "printf") == 0 && node->data.call.arg_count >= 1) {
-                /* fmt.printf(format, args...) → printf(format, args...) */
-                emit(cg, "printf(");
-                /* First arg is the format string — emit as C string */
-                AstNode *fmt_arg = node->data.call.args[0];
-                if (fmt_arg->kind == NODE_STRING_VALUE) {
-                    emitf(cg, "\"%s\"", fmt_arg->data.string_value.value);
-                } else {
-                    emit_expression(cg, fmt_arg);
-                    emit(cg, ".data");
-                }
-                for (int i = 1; i < node->data.call.arg_count; i++) {
-                    emit(cg, ", ");
-                    AstNode *arg = node->data.call.args[i];
-                    EzType *at = cg->type_table ? typetable_get(cg->type_table, arg) : NULL;
-                    if (at && at->kind == TK_STRING) {
-                        emit_expression(cg, arg);
-                        emit(cg, ".data");
-                    } else if (at && at->kind == TK_BOOL) {
-                        emit_expression(cg, arg);
-                        emit(cg, " ? \"true\" : \"false\"");
-                    } else {
-                        emit_expression(cg, arg);
-                    }
-                }
-                emit(cg, ")");
-                return;
-            }
-
-            if (strcmp(func, "sprintf") == 0 && node->data.call.arg_count >= 2) {
-                /* fmt.sprintf(arena, format, args...) → ez_string_format(arena, format, args...) */
-                emit(cg, "ez_string_format(");
-                emit_expression(cg, node->data.call.args[0]); /* arena */
-                emit(cg, ", ");
-                AstNode *fmt_arg = node->data.call.args[1];
-                if (fmt_arg->kind == NODE_STRING_VALUE) {
-                    emitf(cg, "\"%s\"", fmt_arg->data.string_value.value);
-                } else {
-                    emit_expression(cg, fmt_arg);
-                    emit(cg, ".data");
-                }
-                for (int i = 2; i < node->data.call.arg_count; i++) {
-                    emit(cg, ", ");
-                    AstNode *arg = node->data.call.args[i];
-                    EzType *at = cg->type_table ? typetable_get(cg->type_table, arg) : NULL;
-                    if (at && at->kind == TK_STRING) {
-                        emit_expression(cg, arg);
-                        emit(cg, ".data");
-                    } else {
-                        emit_expression(cg, arg);
-                    }
-                }
-                emit(cg, ")");
-                return;
-            }
-
-            if (strcmp(func, "eprintln") == 0) {
-                if (node->data.call.arg_count == 0) {
-                    emit(cg, "fputc('\\n', stderr)");
-                } else {
-                    AstNode *arg = node->data.call.args[0];
-                    EzType *at = cg->type_table ? typetable_get(cg->type_table, arg) : NULL;
-                    const char *suffix = "_int";
-                    if (at) {
-                        switch (at->kind) {
-                        case TK_STRING: suffix = "_str"; break;
-                        case TK_FLOAT: suffix = "_float"; break;
-                        case TK_BOOL: suffix = "_bool"; break;
-                        default: break;
-                        }
-                    } else if (arg->kind == NODE_STRING_VALUE || arg->kind == NODE_INTERPOLATED_STRING) {
-                        suffix = "_str";
-                    }
-                    emitf(cg, "ez_fmt_eprintln%s(", suffix);
-                    emit_expression(cg, arg);
-                    emit(cg, ")");
-                }
-                return;
-            }
-
-            if (strcmp(func, "eprint") == 0 && node->data.call.arg_count > 0) {
-                emit(cg, "ez_fmt_eprint_str(");
-                emit_expression(cg, node->data.call.args[0]);
-                emit(cg, ")");
-                return;
             }
         }
     }
