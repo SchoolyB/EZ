@@ -52,7 +52,9 @@ RT_SRC = src/runtime/ez_runtime.c \
          src/stdlib/ez_bytes.c \
          src/stdlib/ez_binary.c \
          src/stdlib/ez_csv.c \
-         src/stdlib/ez_json.c
+         src/stdlib/ez_json.c \
+         src/stdlib/ez_sqlite.c \
+         src/vendor/sqlite3.c
 RT_OBJ = $(RT_SRC:.c=.o)
 RT_LIB = libezrt.a
 
@@ -77,6 +79,10 @@ src/runtime/%.o: src/runtime/%.c
 
 src/stdlib/%.o: src/stdlib/%.c
 	$(CC) -std=c11 -Wall -Wextra -Wno-unused-parameter -O2 -Isrc -c -o $@ $<
+
+# SQLite amalgamation — relaxed warnings, single-threaded mode
+src/vendor/sqlite3.o: src/vendor/sqlite3.c
+	$(CC) -std=c11 -w -O2 -DSQLITE_THREADSAFE=0 -c -o $@ $<
 
 %.o: %.c
 	$(CC) $(CFLAGS) $(INCLUDES) -c -o $@ $<

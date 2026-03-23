@@ -327,6 +327,11 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                 if (strcmp(mfn, "decode") == 0) result = type_from_name("map[string:string]");
                 else if (strcmp(mfn, "is_valid") == 0) result = &TYPE_BOOL;
                 else result = &TYPE_STRING;
+            } else if (strcmp(mod, "sqlite") == 0) {
+                if (strcmp(mfn, "open") == 0) result = &TYPE_UNKNOWN; /* opaque handle */
+                else if (strcmp(mfn, "exec") == 0) result = &TYPE_BOOL;
+                else if (strcmp(mfn, "query") == 0) result = type_array("map");
+                else result = &TYPE_VOID;
             } else if (strcmp(mod, "random") == 0) {
                 if (strcmp(mfn, "float") == 0) result = &TYPE_FLOAT;
                 else if (strcmp(mfn, "int") == 0) result = &TYPE_INT;
