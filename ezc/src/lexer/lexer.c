@@ -8,6 +8,7 @@
 #include "lexer.h"
 #include <string.h>
 #include <stdbool.h>
+#include <stdint.h>
 #include <ctype.h>
 #include <stdio.h>
 
@@ -210,7 +211,9 @@ static int match_ahead(Lexer *l, const char *s, int len) {
 Lexer *lexer_create(Arena *arena, const char *input, const char *file) {
     Lexer *l = arena_alloc(arena, sizeof(Lexer));
     l->input = input;
-    l->input_len = (int)strlen(input);
+    size_t raw_len = strlen(input);
+    if (raw_len > (size_t)INT32_MAX) raw_len = (size_t)INT32_MAX;
+    l->input_len = (int)raw_len;
     l->position = 0;
     l->read_position = 0;
     l->ch = 0;

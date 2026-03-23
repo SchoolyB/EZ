@@ -11,6 +11,9 @@
 #include <string.h>
 #include <stdarg.h>
 
+#define MAX_MULTI_VARS 16
+#define MAX_SHARED_RETURNS 16
+
 /* Operator precedence levels */
 typedef enum {
     PREC_LOWEST,
@@ -593,8 +596,8 @@ static AstNode *parse_var_declaration(Parser *p) {
     /* Check for multi-var declaration: temp x int, y int = expr OR temp _, _ = expr */
     if (peek_token_is(p, TOK_COMMA)) {
             /* Collect all variable names and types */
-            const char *names[16];
-            const char *types[16];
+            const char *names[MAX_MULTI_VARS];
+            const char *types[MAX_MULTI_VARS];
             int var_count = 0;
             names[var_count] = node->data.var_decl.name;
             types[var_count] = node->data.var_decl.type_name;
@@ -612,7 +615,7 @@ static AstNode *parse_var_declaration(Parser *p) {
                     types[var_count] = NULL;
                 }
                 var_count++;
-                if (var_count >= 16) break;
+                if (var_count >= MAX_MULTI_VARS) break;
             }
 
             /* Expect = expr */
@@ -947,14 +950,14 @@ static AstNode *parse_func_declaration(Parser *p) {
                     node->data.func_decl.return_type_count++;
                 } else if (cur_token_is(p, TOK_IDENT) && peek_token_is(p, TOK_COMMA) && !is_type) {
                     /* Shared type: (x, y int) — collect names, assign same type */
-                    const char *names[16];
+                    const char *names[MAX_SHARED_RETURNS];
                     int shared = 0;
                     names[shared++] = p->cur_token.literal;
                     while (peek_token_is(p, TOK_COMMA)) {
                         next_token(p); /* skip comma */
                         next_token(p); /* next name */
                         names[shared++] = p->cur_token.literal;
-                        if (shared >= 16) break;
+                        if (shared >= MAX_SHARED_RETURNS) break;
                         if (!peek_token_is(p, TOK_COMMA)) break;
                     }
                     /* cur is last name, peek should be the shared type */
