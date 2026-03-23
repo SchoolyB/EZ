@@ -204,26 +204,8 @@ func (l *ModuleLoader) loadFileModule(mod *Module, filePath string) error {
 
 	mod.AST = program
 
-	// Extract module name from declaration or infer from filename
-	fileName := strings.TrimSuffix(filepath.Base(filePath), ".ez")
-	if program.Module != nil {
-		mod.Name = program.Module.Name.Value
-		// Warn if declared name doesn't match filename
-		// But don't warn if the file is in a directory that matches the module name
-		// (this supports multi-file modules where files are in a module directory)
-		parentDir := filepath.Base(filepath.Dir(filePath))
-		if mod.Name != fileName && mod.Name != parentDir {
-			warn := errors.NewError(errors.W4001,
-				fmt.Sprintf("module declares name '%s' but file is named '%s.ez'", mod.Name, fileName),
-				filePath, 1, 1)
-			warn.Severity = errors.SeverityWarning
-			warn.Help = "consider renaming the module or file to match"
-			l.AddWarning(warn)
-		}
-	} else {
-		// Infer from filename
-		mod.Name = fileName
-	}
+	// Module name is always inferred from the filename
+	mod.Name = strings.TrimSuffix(filepath.Base(filePath), ".ez")
 
 	return nil
 }
@@ -261,8 +243,8 @@ func (l *ModuleLoader) loadDirectoryModule(mod *Module) error {
 
 	mod.Files = ezFiles
 
-	// Parse all files and verify they declare the same module name
-	var declaredModuleName string
+	// Parse all files and merge into one namespace
+	// Module declarations are ignored — module name is the directory name
 	var combinedStatements []ast.Statement
 	var combinedFileUsing []*ast.UsingStatement
 
@@ -289,43 +271,13 @@ func (l *ModuleLoader) loadDirectoryModule(mod *Module) error {
 			}
 		}
 
-		// Check module declaration consistency
-		if program.Module != nil {
-			if declaredModuleName == "" {
-				declaredModuleName = program.Module.Name.Value
-			} else if program.Module.Name.Value != declaredModuleName {
-				return &ModuleError{
-					Code: "E6006",
-					Message: "module name mismatch in directory: " + filePath +
-						" declares '" + program.Module.Name.Value +
-						"' but expected '" + declaredModuleName + "'",
-					Path: filePath,
-				}
-			}
-		}
-
 		// Combine statements and file-level using directives
 		combinedStatements = append(combinedStatements, program.Statements...)
 		combinedFileUsing = append(combinedFileUsing, program.FileUsing...)
 	}
 
-	// Set module name and check for mismatch
-	dirName := filepath.Base(mod.FilePath)
-	if declaredModuleName != "" {
-		mod.Name = declaredModuleName
-		// Warn if declared name doesn't match directory name
-		if declaredModuleName != dirName {
-			warn := errors.NewError(errors.W4001,
-				fmt.Sprintf("module declares name '%s' but directory is named '%s'", declaredModuleName, dirName),
-				mod.FilePath, 1, 1)
-			warn.Severity = errors.SeverityWarning
-			warn.Help = "consider renaming the module or directory to match"
-			l.AddWarning(warn)
-		}
-	} else {
-		// Infer from directory name
-		mod.Name = dirName
-	}
+	// Module name is always the directory name
+	mod.Name = filepath.Base(mod.FilePath)
 
 	// Create combined AST
 	mod.AST = &ast.Program{

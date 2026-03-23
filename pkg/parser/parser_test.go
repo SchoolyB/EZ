@@ -1481,17 +1481,19 @@ using arr`
 // Module Declaration Tests
 // ============================================================================
 
-func TestModuleDeclaration(t *testing.T) {
+func TestModuleDeclarationSkipped(t *testing.T) {
+	// Module declarations are silently skipped — not stored, not used
 	input := `module mymodule
 
 mut x int = 5`
 	program := parseProgram(t, input)
 
-	if program.Module == nil {
-		t.Fatal("module is nil")
+	// Module declaration should be nil (skipped, not stored)
+	if program.Module != nil {
+		t.Error("module declaration should be nil (skipped)")
 	}
-	if program.Module.Name.Value != "mymodule" {
-		t.Errorf("expected module name 'mymodule', got %q", program.Module.Name.Value)
+	if len(program.Statements) != 1 {
+		t.Fatalf("expected 1 statement, got %d", len(program.Statements))
 	}
 }
 
@@ -4535,46 +4537,6 @@ func TestParseStatementIndexAssignments(t *testing.T) {
 // ============================================================================
 // ParseProgram Additional Coverage Tests
 // ============================================================================
-
-func TestParseProgramDuplicateModule(t *testing.T) {
-	// Two module declarations should produce an error
-	input := `module first
-module second`
-	l := NewLexer(input)
-	p := NewWithSource(l, input, "test.ez")
-	p.ParseProgram()
-
-	foundError := false
-	for _, err := range p.EZErrors().Errors {
-		if strings.Contains(err.Message, "duplicate module declaration") {
-			foundError = true
-			break
-		}
-	}
-	if !foundError {
-		t.Error("expected error for duplicate module declaration")
-	}
-}
-
-func TestParseProgramModuleAfterDeclaration(t *testing.T) {
-	// Module declaration after other declarations should error
-	input := `mut x int = 5
-module late`
-	l := NewLexer(input)
-	p := NewWithSource(l, input, "test.ez")
-	p.ParseProgram()
-
-	foundError := false
-	for _, err := range p.EZErrors().Errors {
-		if strings.Contains(err.Message, "module declaration must be the first statement") {
-			foundError = true
-			break
-		}
-	}
-	if !foundError {
-		t.Error("expected error for module declaration after other statements")
-	}
-}
 
 func TestParseProgramUsingAfterDeclaration(t *testing.T) {
 	// Using after declarations should produce E2009

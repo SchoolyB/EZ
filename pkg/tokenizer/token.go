@@ -114,7 +114,7 @@ const (
 	DOC        TokenType = "DOC"       // #doc
 
 	// Module system keywords
-	MODULE  TokenType = "MODULE"
+	MODULE  TokenType = "MODULE" // deprecated — silently skipped by parser
 	PRIVATE TokenType = "PRIVATE"
 	USE     TokenType = "USE"
 
