@@ -25,6 +25,8 @@
 #include "codegen/codegen.h"
 
 #define EZC_VERSION "0.1.0"
+#define PATH_BUF_SIZE 2048
+#define CMD_BUF_SIZE 8192
 
 static void print_usage(void) {
     fprintf(stderr, "EZC - EZ Language Compiler v%s\n", EZC_VERSION);
@@ -152,7 +154,7 @@ static char *output_name_from_input(const char *input) {
  *   5. /usr/local/lib/ezc (system install)
  */
 static const char *find_runtime_dir(const char *argv0) {
-    static char path[1024];
+    static char path[PATH_BUF_SIZE];
 
     /* 1. Environment variable override */
     const char *env = getenv("EZC_RUNTIME");
@@ -389,8 +391,8 @@ int main(int argc, char **argv) {
     /* Compile the generated C code.
      * Try linking against pre-compiled libezrt.a first (fast path).
      * Fall back to compiling runtime from source if archive not found. */
-    char cmd[4096];
-    char lib_path[1024];
+    char cmd[CMD_BUF_SIZE];
+    char lib_path[PATH_BUF_SIZE];
     bool has_archive = false;
 
     /* Check for libezrt.a relative to binary */
@@ -446,6 +448,16 @@ int main(int argc, char **argv) {
 
     if (verbose) {
         fprintf(stderr, "ezc: %s\n", cmd);
+    }
+
+    if (strlen(cmd) >= CMD_BUF_SIZE - 1) {
+        fprintf(stderr, "ezc: compile command too long (paths may be too deep)\n");
+        codegen_destroy(&cg);
+        diag_destroy(diag);
+        arena_destroy(arena);
+        free(source);
+        free(default_output);
+        return 1;
     }
 
     int ret = system(cmd);
