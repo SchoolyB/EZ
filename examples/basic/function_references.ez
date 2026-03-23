@@ -1,0 +1,95 @@
+/*
+ * function_references.ez - Passing functions as values
+ *
+ * EZ supports first-class function references using the () prefix.
+ * ()func_name creates a reference to a named function that can be
+ * stored in variables and passed as arguments to other functions.
+ */
+
+import @std, @arrays
+using std
+
+// ---- Functions to reference ----
+
+do is_even(n int) -> bool {
+    return n % 2 == 0
+}
+
+do is_odd(n int) -> bool {
+    return n % 2 != 0
+}
+
+do square(n int) -> int {
+    return n * n
+}
+
+do negate(n int) -> int {
+    return n * -1
+}
+
+// ---- Higher-order functions ----
+
+do filter(arr [int], test func) -> [int] {
+    mut result [int] = {}
+    for_each item in arr {
+        if test(item) {
+            arrays.append(result, item)
+        }
+    }
+    return result
+}
+
+do transform(arr [int], fn func) -> [int] {
+    mut result [int] = {}
+    for_each item in arr {
+        arrays.append(result, fn(item))
+    }
+    return result
+}
+
+// ---- Struct-namespaced functions work too ----
+
+const Validators struct {
+    do is_positive(n int) -> bool {
+        return n > 0
+    }
+
+    do is_in_range(n int) -> bool {
+        return n >= 1 && n <= 10
+    }
+}
+
+// ---- Main ----
+
+do main() {
+    mut numbers = {-5, -2, 0, 1, 3, 6, 8, 11}
+
+    // Store a function reference in a variable
+    mut check = ()is_even
+    println("Is 4 even? ${check(4)}")
+    println("Is 7 even? ${check(7)}")
+
+    // Pass function references as arguments
+    mut evens = filter(numbers, ()is_even)
+    mut odds = filter(numbers, ()is_odd)
+    println("Evens: ${evens}")
+    println("Odds:  ${odds}")
+
+    // Transform with function references
+    mut squared = transform({1, 2, 3, 4, 5}, ()square)
+    mut negated = transform({1, 2, 3}, ()negate)
+    println("Squared: ${squared}")
+    println("Negated: ${negated}")
+
+    // Struct-namespaced function references
+    mut positives = filter(numbers, ()Validators.is_positive)
+    mut in_range = filter(numbers, ()Validators.is_in_range)
+    println("Positives: ${positives}")
+    println("In range [1,10]: ${in_range}")
+
+    // Reassign function references
+    mut fn = ()square
+    println("fn(5) = ${fn(5)}")
+    fn = ()negate
+    println("fn(5) = ${fn(5)}")
+}
