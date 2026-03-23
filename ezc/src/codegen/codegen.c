@@ -1277,6 +1277,38 @@ static void emit_call_expression(CodeGen *cg, AstNode *node) {
             }
         }
 
+        /* @sqlite module functions */
+        if (module && strcmp(module, "sqlite") == 0) {
+            if (strcmp(func, "open") == 0) {
+                emit(cg, "ez_sqlite_open(ez_default_arena, ");
+                emit_expression(cg, node->data.call.args[0]);
+                emit(cg, ")");
+                return;
+            }
+            if (strcmp(func, "close") == 0) {
+                emit(cg, "ez_sqlite_close(");
+                emit_expression(cg, node->data.call.args[0]);
+                emit(cg, ")");
+                return;
+            }
+            if (strcmp(func, "exec") == 0) {
+                emit(cg, "ez_sqlite_exec(");
+                emit_expression(cg, node->data.call.args[0]);
+                emit(cg, ", ");
+                emit_expression(cg, node->data.call.args[1]);
+                emit(cg, ")");
+                return;
+            }
+            if (strcmp(func, "query") == 0) {
+                emit(cg, "ez_sqlite_query(ez_default_arena, ");
+                emit_expression(cg, node->data.call.args[0]);
+                emit(cg, ", ");
+                emit_expression(cg, node->data.call.args[1]);
+                emit(cg, ")");
+                return;
+            }
+        }
+
         /* @random module functions */
         if (module && strcmp(module, "random") == 0) {
             if (strcmp(func, "float") == 0) {
@@ -2342,6 +2374,7 @@ void codegen_generate(CodeGen *cg, AstNode *program) {
     emit(cg, "#include \"ez_binary.h\"\n");
     emit(cg, "#include \"ez_csv.h\"\n");
     emit(cg, "#include \"ez_json.h\"\n");
+    emit(cg, "#include \"ez_sqlite.h\"\n");
     emit(cg, "\n");
 
     /* Emit struct type definitions */
