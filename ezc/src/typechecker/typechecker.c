@@ -290,6 +290,19 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                 } else {
                     result = &TYPE_STRING;
                 }
+            } else if (strcmp(mod, "arrays") == 0) {
+                if (strcmp(mfn, "is_empty") == 0 || strcmp(mfn, "contains") == 0) {
+                    result = &TYPE_BOOL;
+                } else if (strcmp(mfn, "index_of") == 0 || strcmp(mfn, "sum") == 0 ||
+                           strcmp(mfn, "min") == 0 || strcmp(mfn, "max") == 0 ||
+                           strcmp(mfn, "count") == 0) {
+                    result = &TYPE_INT;
+                } else if (strcmp(mfn, "reverse") == 0 || strcmp(mfn, "slice") == 0 ||
+                           strcmp(mfn, "concat") == 0) {
+                    result = type_array("int"); /* approximate */
+                } else {
+                    result = &TYPE_VOID;
+                }
             } else if (strcmp(mod, "os") == 0) {
                 if (strcmp(mfn, "args") == 0) {
                     result = type_array("string");
