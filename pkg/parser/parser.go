@@ -23,7 +23,7 @@ var reservedKeywords = map[string]bool{
 	"break": true, "continue": true, "in": true, "not_in": true, "range": true,
 	"import": true, "using": true, "struct": true, "enum": true,
 	"nil": true, "new": true, "true": true, "false": true,
-	"module": true, "private": true, "from": true, "use": true,
+	"private": true, "from": true, "use": true,
 	"ensure": true, "or_return": true,
 }
 
@@ -556,25 +556,24 @@ func (p *Parser) ParseProgram() *Program {
 	program.Statements = []Statement{}
 
 	seenOtherDeclaration := false
-	seenModuleDecl := false
 	importedModules := make(map[string]bool) // Track imported modules
 
-	// Check for module declaration first (must be first non-comment token)
+	// Skip module declaration if present — module identity comes from the filesystem
+	// Kept as a recognized keyword so existing code doesn't break, but the declaration is ignored
 	if p.currentTokenMatches(MODULE) {
-		program.Module = p.parseModuleDeclaration()
-		seenModuleDecl = true
-		p.nextToken()
+		p.nextToken() // skip 'module'
+		if p.currentTokenMatches(IDENT) {
+			p.nextToken() // skip the module name
+		}
 	}
 
 	for !p.currentTokenMatches(EOF) {
-		// Module declaration must come first if present
+		// Skip any additional module declarations
 		if p.currentTokenMatches(MODULE) {
-			if seenModuleDecl {
-				p.addEZError(errors.E2002, "duplicate module declaration", p.currentToken)
-			} else if seenOtherDeclaration {
-				p.addEZError(errors.E2002, "module declaration must be the first statement in the file", p.currentToken)
+			p.nextToken() // skip 'module'
+			if p.currentTokenMatches(IDENT) {
+				p.nextToken() // skip the module name
 			}
-			p.nextToken()
 			continue
 		}
 
@@ -2381,17 +2380,6 @@ func extractModuleNameFromPath(path string) string {
 }
 
 // parseModuleDeclaration parses "module modulename"
-func (p *Parser) parseModuleDeclaration() *ModuleDeclaration {
-	stmt := &ModuleDeclaration{Token: p.currentToken}
-
-	if !p.expectPeek(IDENT) {
-		return nil
-	}
-
-	stmt.Name = &Label{Token: p.currentToken, Value: p.currentToken.Literal}
-	return stmt
-}
-
 func (p *Parser) parseUsingStatement() *UsingStatement {
 	stmt := &UsingStatement{Token: p.currentToken}
 	stmt.Modules = []*Label{}
@@ -3539,6 +3527,38 @@ func (p *Parser) parsePostfixExpression(left Expression) Expression {
 }
 
 func (p *Parser) parseGroupedExpression() Expression {
+	// Check for function reference: ()identifier or ()Type.func
+	// If the next token is ), this is a ()func_name pattern
+	if p.peekTokenMatches(RPAREN) {
+		token := p.currentToken // save the ( token
+		p.nextToken()           // consume )
+		p.nextToken()           // move to identifier
+
+		// Parse the function name — could be simple (func_name) or qualified (Type.func, module.Type.func)
+		var funcExpr Expression
+		if p.currentTokenMatches(IDENT) {
+			funcExpr = &Label{Token: p.currentToken, Value: p.currentToken.Literal}
+			// Check for dot-qualified: Type.func or module.Type.func
+			for p.peekTokenMatches(DOT) {
+				p.nextToken() // consume .
+				if !p.expectPeek(IDENT) {
+					return nil
+				}
+				funcExpr = &MemberExpression{
+					Token:  p.currentToken,
+					Object: funcExpr,
+					Member: &Label{Token: p.currentToken, Value: p.currentToken.Literal},
+				}
+			}
+		} else {
+			msg := "expected function name after ()"
+			p.addEZError(errors.E2003, msg, p.currentToken)
+			return nil
+		}
+
+		return &FunctionReference{Token: token, Function: funcExpr}
+	}
+
 	p.nextToken()
 
 	exp := p.parseExpression(LOWEST)

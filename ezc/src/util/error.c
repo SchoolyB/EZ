@@ -44,8 +44,8 @@ static const char *read_source_line(const char *source, int line_num) {
     const char *line_end = line_start;
     while (*line_end && *line_end != '\n') line_end++;
 
-    /* Copy line to static buffer */
-    static char buf[1024];
+    /* Copy line to static buffer (single-threaded compiler — safe) */
+    static char buf[2048];
     int len = (int)(line_end - line_start);
     if (len >= (int)sizeof(buf)) len = (int)sizeof(buf) - 1;
     memcpy(buf, line_start, len);

@@ -763,6 +763,9 @@ func Eval(node ast.Node, env *Environment, ctx *EvalContext) Object {
 	case *ast.MemberExpression:
 		return evalMemberExpression(node, env, ctx)
 
+	case *ast.FunctionReference:
+		return evalFunctionReference(node, env, ctx)
+
 	case *ast.NewExpression:
 		return evalNewExpression(node, env, ctx)
 
@@ -2258,6 +2261,30 @@ func evalEnumDeclaration(node *ast.EnumDeclaration, env *Environment, ctx *EvalC
 	vis := convertVisibility(node.Visibility)
 	env.SetWithVisibility(node.Name.Value, enum, false, vis) // enums are immutable
 	return NIL
+}
+
+func evalFunctionReference(node *ast.FunctionReference, env *Environment, ctx *EvalContext) Object {
+	// Resolve the function by evaluating the function expression
+	// For simple names: ()my_func -> look up in env
+	// For qualified names: ()Type.func -> evalMemberExpression handles it
+	// For module-qualified: ()module.Type.func -> evalMemberExpression handles it
+	result := Eval(node.Function, env, ctx)
+	if isError(result) {
+		return result
+	}
+
+	// The result must be a Function object
+	if _, ok := result.(*Function); ok {
+		return result
+	}
+
+	// Also accept builtins
+	if _, ok := result.(*Builtin); ok {
+		return result
+	}
+
+	return newErrorWithLocation("E3031", node.Token.Line, node.Token.Column,
+		"'%s' is not a function", errors.Ident(node.Function.TokenLiteral()))
 }
 
 func evalFunctionDeclaration(node *ast.FunctionDeclaration, env *Environment, ctx *EvalContext) Object {

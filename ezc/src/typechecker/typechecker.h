@@ -13,12 +13,15 @@
 #include "../parser/ast.h"
 #include "../util/error.h"
 
-/* Type annotation table: maps AST node pointers to resolved types */
+/* Type annotation table: maps AST node pointers to resolved types.
+ * Uses open-addressing hash table with pointer hashing for O(1) lookup. */
+#define TYPETABLE_INIT_CAP 256
+
 typedef struct {
-    AstNode **nodes;
-    EzType **types;
-    int count;
-    int cap;
+    AstNode **nodes;    /* hash buckets — NULL = empty slot */
+    EzType **types;     /* parallel type array */
+    int count;          /* number of entries */
+    int cap;            /* always a power of 2 */
 } TypeTable;
 
 typedef struct {
