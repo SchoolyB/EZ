@@ -290,6 +290,18 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                 } else {
                     result = &TYPE_STRING;
                 }
+            } else if (strcmp(mod, "os") == 0) {
+                if (strcmp(mfn, "args") == 0) {
+                    result = type_array("string");
+                } else if (strcmp(mfn, "get_env") == 0 || strcmp(mfn, "getenv") == 0 ||
+                           strcmp(mfn, "cwd") == 0 || strcmp(mfn, "hostname") == 0 ||
+                           strcmp(mfn, "arch") == 0) {
+                    result = &TYPE_STRING;
+                } else if (strcmp(mfn, "current_os") == 0 || strcmp(mfn, "pid") == 0) {
+                    result = &TYPE_INT;
+                } else {
+                    result = &TYPE_VOID;
+                }
             } else if (strcmp(mod, "math") == 0) {
                 /* Math functions return types */
                 if (strcmp(mfn, "is_prime") == 0 || strcmp(mfn, "is_even") == 0 ||
