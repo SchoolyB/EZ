@@ -290,6 +290,20 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                 } else {
                     result = &TYPE_STRING;
                 }
+            } else if (strcmp(mod, "time") == 0) {
+                if (strcmp(mfn, "format") == 0 || strcmp(mfn, "iso") == 0 ||
+                    strcmp(mfn, "date") == 0 || strcmp(mfn, "clock") == 0) {
+                    result = &TYPE_STRING;
+                } else {
+                    result = &TYPE_INT;
+                }
+            } else if (strcmp(mod, "uuid") == 0) {
+                if (strcmp(mfn, "is_valid") == 0) result = &TYPE_BOOL;
+                else result = &TYPE_STRING;
+            } else if (strcmp(mod, "encoding") == 0) {
+                result = &TYPE_STRING;
+            } else if (strcmp(mod, "crypto") == 0) {
+                result = &TYPE_STRING;
             } else if (strcmp(mod, "random") == 0) {
                 if (strcmp(mfn, "float") == 0) result = &TYPE_FLOAT;
                 else if (strcmp(mfn, "int") == 0) result = &TYPE_INT;
