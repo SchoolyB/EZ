@@ -11,6 +11,10 @@
 #include <unistd.h>
 #include <limits.h>
 
+#ifndef PATH_MAX
+#define PATH_MAX 4096
+#endif
+
 static int _os_argc = 0;
 static char **_os_argv = NULL;
 
