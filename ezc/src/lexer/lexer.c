@@ -274,6 +274,14 @@ Token lexer_next_token(Lexer *l) {
         if (peek_char(l) == '=') {
             read_char(l);
             tok = make_token(TOK_NOT_EQ, "!=", tok.line, tok.column);
+        } else if (peek_char(l) == 'i' && l->read_position + 1 < l->input_len &&
+                   l->input[l->read_position + 1] == 'n' &&
+                   (l->read_position + 2 >= l->input_len ||
+                    !isalpha(l->input[l->read_position + 2]))) {
+            /* !in → NOT_IN */
+            read_char(l); /* skip i */
+            read_char(l); /* skip n */
+            tok = make_token(TOK_NOT_IN, "!in", tok.line, tok.column);
         } else {
             tok = make_token(TOK_BANG, "!", tok.line, tok.column);
         }
