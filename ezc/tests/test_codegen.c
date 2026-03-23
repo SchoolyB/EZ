@@ -636,6 +636,96 @@ static void test_e2e_mut_while_combined(void) {
     ASSERT_STR_EQ(out, "55");
 }
 
+/* ===== Default Params, in/not_in, OS, Arrays Tests ===== */
+
+static void test_e2e_default_params(void) {
+    char *out = compile_and_run(
+        "import @std\nusing std\n"
+        "do greet(name string = \"World\") -> string {\n"
+        "    return \"Hello, ${name}!\"\n"
+        "}\n"
+        "do main() {\n"
+        "    println(greet())\n"
+        "    println(greet(\"EZC\"))\n"
+        "}");
+    ASSERT_NOT_NULL(out);
+    ASSERT_STR_EQ(out, "Hello, World!\nHello, EZC!");
+}
+
+static void test_e2e_in_operator(void) {
+    char *out = compile_and_run(
+        "import @std\nusing std\n"
+        "do main() {\n"
+        "    mut nums [int] = {1, 2, 3}\n"
+        "    if 2 in nums { println(\"found\") }\n"
+        "    if 9 !in nums { println(\"not found\") }\n"
+        "}");
+    ASSERT_NOT_NULL(out);
+    ASSERT_STR_EQ(out, "found\nnot found");
+}
+
+static void test_e2e_os_args(void) {
+    char *out = compile_and_run(
+        "import @std, @os\nusing std\n"
+        "do main() {\n"
+        "    println(os.arch())\n"
+        "}");
+    ASSERT_NOT_NULL(out);
+    /* Should be arm64 or x86_64 — just check it's not empty */
+    ASSERT(strlen(out) > 0);
+}
+
+static void test_e2e_arrays_append(void) {
+    char *out = compile_and_run(
+        "import @std, @arrays\nusing std\n"
+        "do main() {\n"
+        "    mut nums [int] = {1, 2}\n"
+        "    arrays.append(nums, 3)\n"
+        "    println(len(nums))\n"
+        "    println(nums[2])\n"
+        "}");
+    ASSERT_NOT_NULL(out);
+    ASSERT_STR_EQ(out, "3\n3");
+}
+
+static void test_e2e_arrays_sort(void) {
+    char *out = compile_and_run(
+        "import @std, @arrays\nusing std\n"
+        "do main() {\n"
+        "    mut nums [int] = {3, 1, 2}\n"
+        "    arrays.sort(nums)\n"
+        "    println(nums[0])\n"
+        "    println(nums[1])\n"
+        "    println(nums[2])\n"
+        "}");
+    ASSERT_NOT_NULL(out);
+    ASSERT_STR_EQ(out, "1\n2\n3");
+}
+
+static void test_e2e_hex_literal(void) {
+    char *out = compile_and_run(
+        "import @std\nusing std\n"
+        "do main() { println(0xFF) }");
+    ASSERT_NOT_NULL(out);
+    ASSERT_STR_EQ(out, "255");
+}
+
+static void test_e2e_octal_literal(void) {
+    char *out = compile_and_run(
+        "import @std\nusing std\n"
+        "do main() { println(0o10) }");
+    ASSERT_NOT_NULL(out);
+    ASSERT_STR_EQ(out, "8");
+}
+
+static void test_e2e_binary_literal(void) {
+    char *out = compile_and_run(
+        "import @std\nusing std\n"
+        "do main() { println(0b1010) }");
+    ASSERT_NOT_NULL(out);
+    ASSERT_STR_EQ(out, "10");
+}
+
 int main(void) {
     /* Must run from the ezc/ directory */
     if (access("./ezc", X_OK) != 0) {
@@ -688,6 +778,16 @@ int main(void) {
     RUN_TEST(test_e2e_mut_keyword);
     RUN_TEST(test_e2e_while_keyword);
     RUN_TEST(test_e2e_mut_while_combined);
+
+    /* New features */
+    RUN_TEST(test_e2e_default_params);
+    RUN_TEST(test_e2e_in_operator);
+    RUN_TEST(test_e2e_os_args);
+    RUN_TEST(test_e2e_arrays_append);
+    RUN_TEST(test_e2e_arrays_sort);
+    RUN_TEST(test_e2e_hex_literal);
+    RUN_TEST(test_e2e_octal_literal);
+    RUN_TEST(test_e2e_binary_literal);
 
     PRINT_RESULTS();
     return _test_fail > 0 ? 1 : 0;

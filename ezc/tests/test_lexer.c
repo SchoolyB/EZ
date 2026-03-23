@@ -229,6 +229,51 @@ static void test_v3_keywords_coexist(void) {
     ASSERT_EQ(t3.type, t4.type);
 }
 
+static void test_not_in_operator(void) {
+    Lexer *l = lex("!in");
+    ASSERT_EQ(next(l).type, TOK_NOT_IN);
+}
+
+static void test_not_in_vs_bang(void) {
+    /* !in should be NOT_IN, !inside should be BANG + IDENT */
+    Lexer *l = lex("!in !inside");
+    ASSERT_EQ(next(l).type, TOK_NOT_IN);
+    ASSERT_EQ(next(l).type, TOK_BANG);
+    ASSERT_EQ(next(l).type, TOK_IDENT);
+}
+
+static void test_hex_literal(void) {
+    Lexer *l = lex("0xFF");
+    Token t = next(l);
+    ASSERT_EQ(t.type, TOK_INT);
+    ASSERT_STR_EQ(t.literal, "0xFF");
+}
+
+static void test_octal_literal(void) {
+    Lexer *l = lex("0o77");
+    Token t = next(l);
+    ASSERT_EQ(t.type, TOK_INT);
+    ASSERT_STR_EQ(t.literal, "0o77");
+}
+
+static void test_binary_literal(void) {
+    Lexer *l = lex("0b1010");
+    Token t = next(l);
+    ASSERT_EQ(t.type, TOK_INT);
+    ASSERT_STR_EQ(t.literal, "0b1010");
+}
+
+static void test_or_return_keyword(void) {
+    Lexer *l = lex("or_return");
+    ASSERT_EQ(next(l).type, TOK_OR_RETURN);
+}
+
+static void test_caret_token(void) {
+    Lexer *l = lex("^int");
+    ASSERT_EQ(next(l).type, TOK_CARET);
+    ASSERT_EQ(next(l).type, TOK_IDENT);
+}
+
 int main(void) {
     arena = arena_create(64 * 1024);
     printf("\n");
@@ -252,6 +297,13 @@ int main(void) {
     RUN_TEST(test_hello_world_tokens);
     RUN_TEST(test_v3_keyword_aliases);
     RUN_TEST(test_v3_keywords_coexist);
+    RUN_TEST(test_not_in_operator);
+    RUN_TEST(test_not_in_vs_bang);
+    RUN_TEST(test_hex_literal);
+    RUN_TEST(test_octal_literal);
+    RUN_TEST(test_binary_literal);
+    RUN_TEST(test_or_return_keyword);
+    RUN_TEST(test_caret_token);
     PRINT_RESULTS();
     return _test_fail > 0 ? 1 : 0;
 }

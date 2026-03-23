@@ -179,6 +179,54 @@ static void test_parse_when(void) {
     ASSERT_NOT_NULL(stmt->data.when_stmt.default_body);
 }
 
+static void test_parse_default_params(void) {
+    AstNode *prog = parse("do greet(name string = \"World\") { }");
+    AstNode *stmt = first_stmt(prog);
+    ASSERT_NOT_NULL(stmt);
+    ASSERT_EQ(stmt->kind, NODE_FUNC_DECL);
+    ASSERT_EQ(stmt->data.func_decl.param_count, 1);
+    ASSERT_NOT_NULL(stmt->data.func_decl.params[0].default_value);
+}
+
+static void test_parse_hex_int(void) {
+    AstNode *prog = parse("temp x int = 0xFF");
+    AstNode *stmt = first_stmt(prog);
+    ASSERT_NOT_NULL(stmt);
+    ASSERT_EQ(stmt->data.var_decl.value->kind, NODE_INT_VALUE);
+    ASSERT_EQ(stmt->data.var_decl.value->data.int_value.value, 255);
+}
+
+static void test_parse_octal_int(void) {
+    AstNode *prog = parse("temp x int = 0o10");
+    AstNode *stmt = first_stmt(prog);
+    ASSERT_NOT_NULL(stmt);
+    ASSERT_EQ(stmt->data.var_decl.value->data.int_value.value, 8);
+}
+
+static void test_parse_binary_int(void) {
+    AstNode *prog = parse("temp x int = 0b1010");
+    AstNode *stmt = first_stmt(prog);
+    ASSERT_NOT_NULL(stmt);
+    ASSERT_EQ(stmt->data.var_decl.value->data.int_value.value, 10);
+}
+
+static void test_parse_mut_keyword(void) {
+    AstNode *prog = parse("mut x int = 42");
+    AstNode *stmt = first_stmt(prog);
+    ASSERT_NOT_NULL(stmt);
+    ASSERT_EQ(stmt->kind, NODE_VAR_DECL);
+    ASSERT(stmt->data.var_decl.mutable);
+}
+
+static void test_parse_array_return_type(void) {
+    AstNode *prog = parse("do get() -> [int] { }");
+    AstNode *stmt = first_stmt(prog);
+    ASSERT_NOT_NULL(stmt);
+    ASSERT_EQ(stmt->kind, NODE_FUNC_DECL);
+    ASSERT_EQ(stmt->data.func_decl.return_type_count, 1);
+    ASSERT_STR_EQ(stmt->data.func_decl.return_types[0], "[int]");
+}
+
 static void test_parse_error_reports(void) {
     AstNode *prog = parse("temp x int =");
     (void)prog;
@@ -204,6 +252,12 @@ int main(void) {
     RUN_TEST(test_parse_array_literal);
     RUN_TEST(test_parse_ensure);
     RUN_TEST(test_parse_when);
+    RUN_TEST(test_parse_default_params);
+    RUN_TEST(test_parse_hex_int);
+    RUN_TEST(test_parse_octal_int);
+    RUN_TEST(test_parse_binary_int);
+    RUN_TEST(test_parse_mut_keyword);
+    RUN_TEST(test_parse_array_return_type);
     RUN_TEST(test_parse_error_reports);
     PRINT_RESULTS();
     return _test_fail > 0 ? 1 : 0;
