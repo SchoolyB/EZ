@@ -730,8 +730,9 @@ static void register_declarations(TypeChecker *tc, AstNode *program) {
 
         if (stmt->kind == NODE_STRUCT_DECL) {
             int fc = stmt->data.struct_decl.field_count;
-            const char **fnames = malloc(sizeof(const char *) * fc);
-            EzType **ftypes = malloc(sizeof(EzType *) * fc);
+            const char **fnames = malloc(sizeof(const char *) * (fc ? fc : 1));
+            EzType **ftypes = malloc(sizeof(EzType *) * (fc ? fc : 1));
+            if (!fnames || !ftypes) { free(fnames); free(ftypes); continue; }
             for (int j = 0; j < fc; j++) {
                 fnames[j] = stmt->data.struct_decl.fields[j].name;
                 ftypes[j] = type_from_name(stmt->data.struct_decl.fields[j].type_name);
@@ -746,12 +747,14 @@ static void register_declarations(TypeChecker *tc, AstNode *program) {
         if (stmt->kind == NODE_FUNC_DECL) {
             int pc = stmt->data.func_decl.param_count;
             EzType **ptypes = malloc(sizeof(EzType *) * (pc ? pc : 1));
+            if (!ptypes) continue;
             for (int j = 0; j < pc; j++) {
                 ptypes[j] = type_from_name(stmt->data.func_decl.params[j].type_name);
             }
 
             int rc = stmt->data.func_decl.return_type_count;
             EzType **rtypes = malloc(sizeof(EzType *) * (rc ? rc : 1));
+            if (!rtypes) { free(ptypes); continue; }
             for (int j = 0; j < rc; j++) {
                 rtypes[j] = type_from_name(stmt->data.func_decl.return_types[j]);
             }

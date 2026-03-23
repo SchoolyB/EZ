@@ -125,6 +125,7 @@ EzType *type_from_name(const char *name) {
         size_t len = strlen(name);
         if (len > 2 && name[len - 1] == ']') {
             char *elem = malloc(len - 1);
+            if (!elem) return &TYPE_UNKNOWN;
             memcpy(elem, name + 1, len - 2);
             elem[len - 2] = '\0';
             return type_array(elem);
@@ -142,6 +143,7 @@ EzType *type_from_name(const char *name) {
         if (colon) {
             size_t klen = (size_t)(colon - start);
             char *key = malloc(klen + 1);
+            if (!key) return &TYPE_UNKNOWN;
             memcpy(key, start, klen);
             key[klen] = '\0';
             t->key_type = key;
@@ -150,6 +152,7 @@ EzType *type_from_name(const char *name) {
             size_t vlen = strlen(vstart);
             if (vlen > 0 && vstart[vlen - 1] == ']') vlen--;
             char *val = malloc(vlen + 1);
+            if (!val) { free(key); return &TYPE_UNKNOWN; }
             memcpy(val, vstart, vlen);
             val[vlen] = '\0';
             t->value_type = val;
