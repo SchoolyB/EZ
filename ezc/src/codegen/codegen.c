@@ -1328,8 +1328,11 @@ static void emit_var_declaration(CodeGen *cg, AstNode *node) {
             c_type = "double";
         } else if (val->kind == NODE_BOOL_VALUE) {
             c_type = "bool";
+        } else if (val->kind == NODE_ARRAY_VALUE) {
+            c_type = "EzArray";
+        } else if (val->kind == NODE_MAP_VALUE) {
+            c_type = "EzMap";
         } else if (val->kind == NODE_STRUCT_VALUE) {
-            /* Struct literal — use the struct type */
             c_type = ez_type_to_c_cg(cg, val->data.struct_value.name);
         } else if (val->kind == NODE_CALL_EXPR || val->kind == NODE_NEW_EXPR ||
                    val->kind == NODE_MEMBER_EXPR) {
