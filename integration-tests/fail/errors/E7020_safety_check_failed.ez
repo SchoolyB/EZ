@@ -7,7 +7,7 @@ import @io
 
 do main() {
     // Safety check prevents removing root directory
-    temp ok, err = io.remove_all("/")
+    mut ok, err = io.remove_all("/")
     if err != nil {
         panic("${err}")
     }

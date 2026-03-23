@@ -3,7 +3,7 @@
  * Expected: "cannot modify field of const struct"
  *
  * This tests that const structs created via new() are immutable.
- * Fix for issue #298: struct mutability now respects temp/const.
+ * Fix for issue #298: struct mutability now respects mut/const.
  */
 
 const Person struct {

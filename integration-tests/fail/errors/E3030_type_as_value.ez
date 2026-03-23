@@ -5,5 +5,5 @@ const Status enum { ACTIVE, INACTIVE }
 
 do main() {
     // Bug: enum type cannot be used as a value
-    temp x = copy(Status)
+    mut x = copy(Status)
 }

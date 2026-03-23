@@ -11,14 +11,14 @@ const Entry struct {
 
 do main() {
     println("=== Maps Test ===")
-    temp passed int = 0
-    temp failed int = 0
+    mut passed int = 0
+    mut failed int = 0
 
     // ==================== MAP LITERALS ====================
     println("  -- Map Literals --")
 
     // Test 1: string:int map
-    temp ages map[string:int] = {
+    mut ages map[string:int] = {
         "alice": 30,
         "bob": 25,
         "charlie": 35
@@ -32,7 +32,7 @@ do main() {
     }
 
     // Test 2: map access
-    temp alice_age int = ages["alice"]
+    mut alice_age int = ages["alice"]
     if alice_age == 30 {
         println("  [PASS] ages[\"alice\"] = 30")
         passed += 1
@@ -65,7 +65,7 @@ do main() {
     println("  -- Int Key Maps --")
 
     // Test 5: int:string map
-    temp lookup map[int:string] = {
+    mut lookup map[int:string] = {
         1: "one",
         2: "two",
         3: "three"
@@ -81,10 +81,10 @@ do main() {
     // ==================== MAP FUNCTIONS ====================
     println("  -- Map Functions --")
 
-    temp m map[string:int] = {"a": 1, "b": 2, "c": 3}
+    mut m map[string:int] = {"a": 1, "b": 2, "c": 3}
 
     // Test 6: maps.keys
-    temp keys [string] = maps.keys(m)
+    mut keys [string] = maps.keys(m)
     if len(keys) == 3 {
         println("  [PASS] maps.keys() returns 3 keys")
         passed += 1
@@ -94,7 +94,7 @@ do main() {
     }
 
     // Test 7: maps.values
-    temp values [int] = maps.values(m)
+    mut values [int] = maps.values(m)
     if len(values) == 3 {
         println("  [PASS] maps.values() returns 3 values")
         passed += 1
@@ -104,7 +104,7 @@ do main() {
     }
 
     // Test 8: maps.contains - key exists
-    temp has_a bool = maps.contains(m, "a")
+    mut has_a bool = maps.contains(m, "a")
     if has_a == true {
         println("  [PASS] maps.contains(m, \"a\") = true")
         passed += 1
@@ -114,7 +114,7 @@ do main() {
     }
 
     // Test 9: maps.contains - key doesn't exist
-    temp has_z bool = maps.contains(m, "z")
+    mut has_z bool = maps.contains(m, "z")
     if has_z == false {
         println("  [PASS] maps.contains(m, \"z\") = false")
         passed += 1
@@ -124,7 +124,7 @@ do main() {
     }
 
     // Test 10: maps.remove
-    temp del_map map[string:int] = {"x": 10, "y": 20}
+    mut del_map map[string:int] = {"x": 10, "y": 20}
     maps.remove(del_map, "x")
     if len(del_map) == 1 && !maps.contains(del_map, "x") {
         println("  [PASS] maps.remove() removed key")
@@ -135,7 +135,7 @@ do main() {
     }
 
     // Test 11: maps.clear
-    temp clear_map map[string:int] = {"a": 1, "b": 2}
+    mut clear_map map[string:int] = {"a": 1, "b": 2}
     maps.clear(clear_map)
     if len(clear_map) == 0 {
         println("  [PASS] maps.clear() empties map")
@@ -148,7 +148,7 @@ do main() {
     // ==================== IN/NOT_IN OPERATORS ====================
     println("  -- in/not_in Operators --")
 
-    temp test_map map[string:int] = {"foo": 1, "bar": 2, "baz": 3}
+    mut test_map map[string:int] = {"foo": 1, "bar": 2, "baz": 3}
 
     // Test 12: 'in' with key that exists
     if "foo" in test_map {
@@ -187,7 +187,7 @@ do main() {
     }
 
     // Test 16: 'in' with int keys
-    temp int_map map[int:string] = {1: "one", 2: "two", 3: "three"}
+    mut int_map map[int:string] = {1: "one", 2: "two", 3: "three"}
     if 2 in int_map {
         println("  [PASS] 2 in int_map = true")
         passed += 1
@@ -209,7 +209,7 @@ do main() {
     println("  -- Nested Mutability (Array in Struct in Map) --")
 
     // Test 18: modify array inside struct inside map (Issue #1065)
-    temp m2 map[string:Entry] = {"key": Entry{items: {1, 2, 3}}}
+    mut m2 map[string:Entry] = {"key": Entry{items: {1, 2, 3}}}
     arrays.append(m2["key"].items, 4)
     if len(m2["key"].items) == 4 && m2["key"].items[3] == 4 {
         println("  [PASS] nested array modification: arrays.append works")

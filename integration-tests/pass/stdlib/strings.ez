@@ -7,15 +7,15 @@ using std
 
 do main() {
     println("=== @strings Standard Library Test ===")
-    temp passed int = 0
-    temp failed int = 0
+    mut passed int = 0
+    mut failed int = 0
 
     // ==================== strings.trim ====================
     println("  -- strings.trim --")
 
     // Test 1: trim both sides
-    temp s string = "  hello world  "
-    temp trimmed string = strings.trim(s)
+    mut s string = "  hello world  "
+    mut trimmed string = strings.trim(s)
     if trimmed == "hello world" {
         println("  [PASS] strings.trim('  hello world  ')")
         passed += 1
@@ -25,7 +25,7 @@ do main() {
     }
 
     // Test 2: trim_left
-    temp left_trimmed string = strings.trim_left(s)
+    mut left_trimmed string = strings.trim_left(s)
     if left_trimmed == "hello world  " {
         println("  [PASS] strings.trim_left")
         passed += 1
@@ -35,7 +35,7 @@ do main() {
     }
 
     // Test 3: trim_right
-    temp right_trimmed string = strings.trim_right(s)
+    mut right_trimmed string = strings.trim_right(s)
     if right_trimmed == "  hello world" {
         println("  [PASS] strings.trim_right")
         passed += 1
@@ -48,7 +48,7 @@ do main() {
     println("  -- strings.upper / strings.lower --")
 
     // Test 4: upper
-    temp upper_result string = strings.upper("Hello World")
+    mut upper_result string = strings.upper("Hello World")
     if upper_result == "HELLO WORLD" {
         println("  [PASS] strings.upper('Hello World')")
         passed += 1
@@ -58,7 +58,7 @@ do main() {
     }
 
     // Test 5: lower
-    temp lower_result string = strings.lower("Hello World")
+    mut lower_result string = strings.lower("Hello World")
     if lower_result == "hello world" {
         println("  [PASS] strings.lower('Hello World')")
         passed += 1
@@ -71,8 +71,8 @@ do main() {
     println("  -- strings.split / strings.join --")
 
     // Test 6: split
-    temp csv string = "apple,banana,cherry"
-    temp parts [string] = strings.split(csv, ",")
+    mut csv string = "apple,banana,cherry"
+    mut parts [string] = strings.split(csv, ",")
     if len(parts) == 3 && parts[0] == "apple" && parts[1] == "banana" && parts[2] == "cherry" {
         println("  [PASS] strings.split('apple,banana,cherry', ',')")
         passed += 1
@@ -82,7 +82,7 @@ do main() {
     }
 
     // Test 7: join
-    temp joined string = strings.join(parts, " | ")
+    mut joined string = strings.join(parts, " | ")
     if joined == "apple | banana | cherry" {
         println("  [PASS] strings.join with ' | '")
         passed += 1
@@ -95,7 +95,7 @@ do main() {
     println("  -- strings.contains --")
 
     // Test 8: contains - found
-    temp hello_world string = "hello world"
+    mut hello_world string = "hello world"
     if strings.contains(hello_world, "world") == true {
         println("  [PASS] strings.contains('hello world', 'world')")
         passed += 1
@@ -147,7 +147,7 @@ do main() {
     println("  -- strings.replace --")
 
     // Test 13: replace
-    temp replace_result string = strings.replace("hello", "l", "L")
+    mut replace_result string = strings.replace("hello", "l", "L")
     if replace_result == "heLLo" {
         println("  [PASS] strings.replace('hello', 'l', 'L')")
         passed += 1
@@ -160,7 +160,7 @@ do main() {
     println("  -- strings.index / strings.last_index --")
 
     // Test 14: index
-    temp idx int = strings.index("hello", "l")
+    mut idx int = strings.index("hello", "l")
     if idx == 2 {
         println("  [PASS] strings.index('hello', 'l') = 2")
         passed += 1
@@ -170,8 +170,8 @@ do main() {
     }
 
     // Test 15: last_index
-    temp repeat_str string = "hello world hello"
-    temp last_idx int = strings.last_index(repeat_str, "hello")
+    mut repeat_str string = "hello world hello"
+    mut last_idx int = strings.last_index(repeat_str, "hello")
     if last_idx == 12 {
         println("  [PASS] strings.last_index('hello world hello', 'hello') = 12")
         passed += 1
@@ -184,7 +184,7 @@ do main() {
     println("  -- strings.slice --")
 
     // Test 16: slice ASCII
-    temp slice_result string = strings.slice("hello world", 0, 5)
+    mut slice_result string = strings.slice("hello world", 0, 5)
     if slice_result == "hello" {
         println("  [PASS] strings.slice('hello world', 0, 5)")
         passed += 1
@@ -194,8 +194,8 @@ do main() {
     }
 
     // Test 17: slice UTF-8
-    temp utf8_str string = "Hello 世界"
-    temp chinese_slice string = strings.slice(utf8_str, 6, 8)
+    mut utf8_str string = "Hello 世界"
+    mut chinese_slice string = strings.slice(utf8_str, 6, 8)
     if chinese_slice == "世界" {
         println("  [PASS] strings.slice UTF-8 ('Hello 世界', 6, 8)")
         passed += 1
@@ -208,7 +208,7 @@ do main() {
     println("  -- strings.reverse --")
 
     // Test 18: reverse
-    temp reversed string = strings.reverse("hello")
+    mut reversed string = strings.reverse("hello")
     if reversed == "olleh" {
         println("  [PASS] strings.reverse('hello')")
         passed += 1
@@ -221,7 +221,7 @@ do main() {
     println("  -- strings.count --")
 
     // Test 19: count occurrences
-    temp count_result int = strings.count("banana", "a")
+    mut count_result int = strings.count("banana", "a")
     if count_result == 3 {
         println("  [PASS] strings.count('banana', 'a') = 3")
         passed += 1
@@ -234,7 +234,7 @@ do main() {
     println("  -- strings.pad_left / strings.pad_right --")
 
     // Test 20: pad_left with spaces
-    temp padded_left string = strings.pad_left("42", 5)
+    mut padded_left string = strings.pad_left("42", 5)
     if padded_left == "   42" && len(padded_left) == 5 {
         println("  [PASS] strings.pad_left('42', 5)")
         passed += 1
@@ -244,7 +244,7 @@ do main() {
     }
 
     // Test 21: pad_left with custom char
-    temp padded_left_zero string = strings.pad_left("42", 5, "0")
+    mut padded_left_zero string = strings.pad_left("42", 5, "0")
     if padded_left_zero == "00042" {
         println("  [PASS] strings.pad_left('42', 5, '0')")
         passed += 1
@@ -254,7 +254,7 @@ do main() {
     }
 
     // Test 22: pad_right
-    temp padded_right string = strings.pad_right("42", 5)
+    mut padded_right string = strings.pad_right("42", 5)
     if padded_right == "42   " && len(padded_right) == 5 {
         println("  [PASS] strings.pad_right('42', 5)")
         passed += 1
@@ -264,8 +264,8 @@ do main() {
     }
 
     // Test 23: pad with UTF-8
-    temp chinese_str string = "世界"
-    temp padded_chinese string = strings.pad_left(chinese_str, 5)
+    mut chinese_str string = "世界"
+    mut padded_chinese string = strings.pad_left(chinese_str, 5)
     if len(padded_chinese) == 5 && strings.ends_with(padded_chinese, "世界") {
         println("  [PASS] strings.pad_left UTF-8")
         passed += 1
@@ -278,7 +278,7 @@ do main() {
     println("  -- strings.repeat --")
 
     // Test 24: repeat
-    temp repeated string = strings.repeat("ab", 3)
+    mut repeated string = strings.repeat("ab", 3)
     if repeated == "ababab" {
         println("  [PASS] strings.repeat('ab', 3)")
         passed += 1
@@ -321,7 +321,7 @@ do main() {
     println("  -- strings.capitalize / strings.title --")
 
     // Test 28: capitalize
-    temp capitalized string = strings.capitalize("hello world")
+    mut capitalized string = strings.capitalize("hello world")
     if capitalized == "Hello world" {
         println("  [PASS] strings.capitalize('hello world')")
         passed += 1
@@ -331,7 +331,7 @@ do main() {
     }
 
     // Test 29: title
-    temp titled string = strings.title("hello world")
+    mut titled string = strings.title("hello world")
     if titled == "Hello World" {
         println("  [PASS] strings.title('hello world')")
         passed += 1
@@ -344,8 +344,8 @@ do main() {
     println("  -- strings.chars / strings.from_chars --")
 
     // Test 30: chars (typechecker thinks [string] but runtime returns [char] - see #433)
-    // Using untyped temp to work around typechecker bug
-    temp char_arr = strings.chars("EZ")
+    // Using untyped mut to work around typechecker bug
+    mut char_arr = strings.chars("EZ")
     if len(char_arr) == 2 && char_arr[0] == 'E' && char_arr[1] == 'Z' {
         println("  [PASS] strings.chars('EZ')")
         passed += 1
@@ -355,8 +355,8 @@ do main() {
     }
 
     // Test 31: from_chars
-    temp from_chars_arr [char] = {'E', 'Z'}
-    temp from_chars_result string = strings.from_chars(from_chars_arr)
+    mut from_chars_arr [char] = {'E', 'Z'}
+    mut from_chars_result string = strings.from_chars(from_chars_arr)
     if from_chars_result == "EZ" {
         println("  [PASS] strings.from_chars({'E', 'Z'})")
         passed += 1
@@ -369,7 +369,7 @@ do main() {
     println("  -- strings.to_int --")
 
     // Test 32: to_int basic
-    temp int_result int = strings.to_int("42")
+    mut int_result int = strings.to_int("42")
     if int_result == 42 {
         println("  [PASS] strings.to_int('42')")
         passed += 1
@@ -379,7 +379,7 @@ do main() {
     }
 
     // Test 33: to_int negative
-    temp neg_int int = strings.to_int("-123")
+    mut neg_int int = strings.to_int("-123")
     if neg_int == -123 {
         println("  [PASS] strings.to_int('-123')")
         passed += 1
@@ -389,7 +389,7 @@ do main() {
     }
 
     // Test 34: to_int with whitespace
-    temp ws_int int = strings.to_int("  55  ")
+    mut ws_int int = strings.to_int("  55  ")
     if ws_int == 55 {
         println("  [PASS] strings.to_int('  55  ')")
         passed += 1
@@ -402,7 +402,7 @@ do main() {
     println("  -- strings.to_float --")
 
     // Test 35: to_float basic
-    temp float_result float = strings.to_float("3.14")
+    mut float_result float = strings.to_float("3.14")
     if float_result == 3.14 {
         println("  [PASS] strings.to_float('3.14')")
         passed += 1
@@ -412,7 +412,7 @@ do main() {
     }
 
     // Test 36: to_float from integer string
-    temp float_from_int float = strings.to_float("42")
+    mut float_from_int float = strings.to_float("42")
     if float_from_int == 42.0 {
         println("  [PASS] strings.to_float('42')")
         passed += 1
@@ -422,7 +422,7 @@ do main() {
     }
 
     // Test 37: to_float negative
-    temp neg_float float = strings.to_float("-2.5")
+    mut neg_float float = strings.to_float("-2.5")
     if neg_float == -2.5 {
         println("  [PASS] strings.to_float('-2.5')")
         passed += 1
@@ -435,7 +435,7 @@ do main() {
     println("  -- strings.to_bool --")
 
     // Test 38: to_bool true
-    temp bool_true bool = strings.to_bool("true")
+    mut bool_true bool = strings.to_bool("true")
     if bool_true == true {
         println("  [PASS] strings.to_bool('true')")
         passed += 1
@@ -445,7 +445,7 @@ do main() {
     }
 
     // Test 39: to_bool false
-    temp bool_false bool = strings.to_bool("false")
+    mut bool_false bool = strings.to_bool("false")
     if bool_false == false {
         println("  [PASS] strings.to_bool('false')")
         passed += 1
@@ -455,8 +455,8 @@ do main() {
     }
 
     // Test 40: to_bool "1" and "0"
-    temp bool_one bool = strings.to_bool("1")
-    temp bool_zero bool = strings.to_bool("0")
+    mut bool_one bool = strings.to_bool("1")
+    mut bool_zero bool = strings.to_bool("0")
     if bool_one == true && bool_zero == false {
         println("  [PASS] strings.to_bool('1') and strings.to_bool('0')")
         passed += 1
@@ -466,8 +466,8 @@ do main() {
     }
 
     // Test 41: to_bool "yes"/"no"
-    temp bool_yes bool = strings.to_bool("yes")
-    temp bool_no bool = strings.to_bool("no")
+    mut bool_yes bool = strings.to_bool("yes")
+    mut bool_no bool = strings.to_bool("no")
     if bool_yes == true && bool_no == false {
         println("  [PASS] strings.to_bool('yes') and strings.to_bool('no')")
         passed += 1
@@ -639,7 +639,7 @@ do main() {
     println("  -- strings.lines --")
 
     // Test 58: lines - unix newlines
-    temp lines_result [string] = strings.lines("a\nb\nc")
+    mut lines_result [string] = strings.lines("a\nb\nc")
     if len(lines_result) == 3 && lines_result[0] == "a" && lines_result[1] == "b" && lines_result[2] == "c" {
         println("  [PASS] strings.lines('a\\nb\\nc')")
         passed += 1
@@ -649,7 +649,7 @@ do main() {
     }
 
     // Test 59: lines - single line
-    temp single_line [string] = strings.lines("hello")
+    mut single_line [string] = strings.lines("hello")
     if len(single_line) == 1 && single_line[0] == "hello" {
         println("  [PASS] strings.lines('hello') single line")
         passed += 1
@@ -662,7 +662,7 @@ do main() {
     println("  -- strings.words --")
 
     // Test 60: words - simple
-    temp words_result [string] = strings.words("hello world")
+    mut words_result [string] = strings.words("hello world")
     if len(words_result) == 2 && words_result[0] == "hello" && words_result[1] == "world" {
         println("  [PASS] strings.words('hello world')")
         passed += 1
@@ -672,7 +672,7 @@ do main() {
     }
 
     // Test 61: words - multiple spaces
-    temp words_multi [string] = strings.words("  foo   bar  ")
+    mut words_multi [string] = strings.words("  foo   bar  ")
     if len(words_multi) == 2 && words_multi[0] == "foo" && words_multi[1] == "bar" {
         println("  [PASS] strings.words('  foo   bar  ')")
         passed += 1
@@ -682,7 +682,7 @@ do main() {
     }
 
     // Test 62: words - empty string
-    temp words_empty [string] = strings.words("")
+    mut words_empty [string] = strings.words("")
     if len(words_empty) == 0 {
         println("  [PASS] strings.words('') = []")
         passed += 1
@@ -695,7 +695,7 @@ do main() {
     println("  -- strings.char_at --")
 
     // Test 63: char_at - positive index
-    temp char_result string = strings.char_at("hello", 0)
+    mut char_result string = strings.char_at("hello", 0)
     if char_result == "h" {
         println("  [PASS] strings.char_at('hello', 0) = 'h'")
         passed += 1
@@ -705,7 +705,7 @@ do main() {
     }
 
     // Test 64: char_at - negative index
-    temp char_neg string = strings.char_at("hello", -1)
+    mut char_neg string = strings.char_at("hello", -1)
     if char_neg == "o" {
         println("  [PASS] strings.char_at('hello', -1) = 'o'")
         passed += 1
@@ -715,7 +715,7 @@ do main() {
     }
 
     // Test 65: char_at - unicode
-    temp char_unicode string = strings.char_at("世界", 1)
+    mut char_unicode string = strings.char_at("世界", 1)
     if char_unicode == "界" {
         println("  [PASS] strings.char_at('世界', 1) = '界'")
         passed += 1
@@ -728,7 +728,7 @@ do main() {
     println("  -- strings.insert --")
 
     // Test 66: insert at beginning
-    temp insert_begin string = strings.insert("world", 0, "hello ")
+    mut insert_begin string = strings.insert("world", 0, "hello ")
     if insert_begin == "hello world" {
         println("  [PASS] strings.insert('world', 0, 'hello ')")
         passed += 1
@@ -738,7 +738,7 @@ do main() {
     }
 
     // Test 67: insert at end
-    temp insert_end string = strings.insert("hello", 5, " world")
+    mut insert_end string = strings.insert("hello", 5, " world")
     if insert_end == "hello world" {
         println("  [PASS] strings.insert('hello', 5, ' world')")
         passed += 1
@@ -748,7 +748,7 @@ do main() {
     }
 
     // Test 68: insert in middle
-    temp insert_mid string = strings.insert("hllo", 1, "e")
+    mut insert_mid string = strings.insert("hllo", 1, "e")
     if insert_mid == "hello" {
         println("  [PASS] strings.insert('hllo', 1, 'e')")
         passed += 1
@@ -761,7 +761,7 @@ do main() {
     println("  -- strings.center --")
 
     // Test 69: center with default pad
-    temp center_default string = strings.center("hi", 6)
+    mut center_default string = strings.center("hi", 6)
     if center_default == "  hi  " {
         println("  [PASS] strings.center('hi', 6)")
         passed += 1
@@ -771,7 +771,7 @@ do main() {
     }
 
     // Test 70: center with custom pad
-    temp center_custom string = strings.center("hi", 10, "*")
+    mut center_custom string = strings.center("hi", 10, "*")
     if center_custom == "****hi****" {
         println("  [PASS] strings.center('hi', 10, '*')")
         passed += 1
@@ -781,7 +781,7 @@ do main() {
     }
 
     // Test 71: center - already wider
-    temp center_wider string = strings.center("hello", 3)
+    mut center_wider string = strings.center("hello", 3)
     if center_wider == "hello" {
         println("  [PASS] strings.center('hello', 3) = 'hello' (unchanged)")
         passed += 1
@@ -794,7 +794,7 @@ do main() {
     println("  -- strings.remove --")
 
     // Test 72: remove first occurrence
-    temp remove_first string = strings.remove("hello hello", "hello")
+    mut remove_first string = strings.remove("hello hello", "hello")
     if remove_first == " hello" {
         println("  [PASS] strings.remove('hello hello', 'hello')")
         passed += 1
@@ -804,7 +804,7 @@ do main() {
     }
 
     // Test 73: remove not found
-    temp remove_none string = strings.remove("hello", "xyz")
+    mut remove_none string = strings.remove("hello", "xyz")
     if remove_none == "hello" {
         println("  [PASS] strings.remove('hello', 'xyz') = 'hello' (unchanged)")
         passed += 1
@@ -817,7 +817,7 @@ do main() {
     println("  -- strings.remove_all --")
 
     // Test 74: remove all occurrences
-    temp remove_all_result string = strings.remove_all("banana", "a")
+    mut remove_all_result string = strings.remove_all("banana", "a")
     if remove_all_result == "bnn" {
         println("  [PASS] strings.remove_all('banana', 'a')")
         passed += 1
@@ -827,7 +827,7 @@ do main() {
     }
 
     // Test 75: remove_all - multiple word occurrences
-    temp remove_all_words string = strings.remove_all("hello hello hello", "hello")
+    mut remove_all_words string = strings.remove_all("hello hello hello", "hello")
     if remove_all_words == "  " {
         println("  [PASS] strings.remove_all('hello hello hello', 'hello')")
         passed += 1

@@ -7,6 +7,6 @@ import @std
 using std
 
 do main() {
-    temp x int = 5
+    mut x int = 5
     ensure x  // ERROR: ensure expects a function call, not an identifier
 }

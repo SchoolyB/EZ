@@ -4,5 +4,5 @@
  */
 
 do main() {
-    temp c char = 'a
+    mut c char = 'a
 }

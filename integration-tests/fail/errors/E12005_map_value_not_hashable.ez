@@ -6,7 +6,7 @@
 import @maps
 
 do main() {
-    temp m = maps.new()
-    temp arr [int] = {1, 2, 3}
+    mut m = maps.new()
+    mut arr [int] = {1, 2, 3}
     maps.set(m, arr, "value")  // array is not hashable
 }

@@ -20,7 +20,7 @@ do main() {
 
     // Sum of first 10
     println("")
-    temp sum int = 0
+    mut sum int = 0
     for i in range(0, 10) {
         sum = sum + fibonacci(i)
     }

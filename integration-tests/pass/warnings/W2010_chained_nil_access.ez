@@ -17,8 +17,8 @@ const Player struct {
 }
 
 do main() {
-    temp p Player
+    mut p Player
     // This should warn: p.pos could be nil, accessing .x on it is risky
-    temp x = p.pos.x
+    mut x = p.pos.x
     println(x)
 }

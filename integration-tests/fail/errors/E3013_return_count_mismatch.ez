@@ -8,5 +8,5 @@ do getValue() -> (int, int) {
 }
 
 do main() {
-    temp a int, b int = getValue()
+    mut a int, b int = getValue()
 }

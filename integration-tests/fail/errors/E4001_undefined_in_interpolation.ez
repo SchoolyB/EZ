@@ -7,6 +7,6 @@ import @std
 using std
 
 do main() {
-    temp s = "${undefined_var}"  // Variable doesn't exist inside interpolation
+    mut s = "${undefined_var}"  // Variable doesn't exist inside interpolation
     println(s)
 }

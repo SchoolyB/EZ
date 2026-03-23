@@ -26,7 +26,7 @@ do main() {
 
     // if / or / otherwise
     println("-- Conditionals --")
-    temp score int = 85
+    mut score int = 85
 
     if score >= 90 {
         println("Grade: A")
@@ -41,7 +41,7 @@ do main() {
     // when/is with default (pattern matching)
     println("")
     println("-- When/Is with default --")
-    temp day int = 6
+    mut day int = 6
     when day {
         is 1, 2, 3, 4, 5 { println("Weekday") }
         is 6, 7 { println("Weekend!") }
@@ -62,7 +62,7 @@ do main() {
     // #strict when/is (must cover all enum values, no default)
     println("")
     println("-- Strict When/Is (enum) --")
-    temp current = Season.SUMMER
+    mut current = Season.SUMMER
 
     #strict
     when current {
@@ -85,7 +85,7 @@ do main() {
     println("")
     println("-- Counting backwards --")
     println("Countdown from 5:")
-    temp n int = 5
+    mut n int = 5
     as_long_as n > 0 {
         println("  ${n}")
         n--
@@ -94,7 +94,7 @@ do main() {
     // for_each loop
     println("")
     println("-- For_each loop --")
-    temp fruits [string] = {"apple", "banana", "cherry"}
+    mut fruits [string] = {"apple", "banana", "cherry"}
     println("Fruits:")
     for_each fruit in fruits {
         println("  - ${fruit}")
@@ -118,7 +118,7 @@ do main() {
     // as_long_as loop (while equivalent)
     println("")
     println("-- As_long_as loop --")
-    temp count int = 0
+    mut count int = 0
     as_long_as count < 3 {
         println("  count = ${count}")
         count++
@@ -127,7 +127,7 @@ do main() {
     // loop (infinite loop, use break to exit)
     println("")
     println("-- Loop (infinite loop) --")
-    temp x int = 0
+    mut x int = 0
     loop {
         if x == 3 {
             break

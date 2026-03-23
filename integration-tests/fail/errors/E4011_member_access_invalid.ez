@@ -4,6 +4,6 @@
  */
 
 do main() {
-    temp x int = 5
-    temp y int = x.value  // Cannot access member on int
+    mut x int = 5
+    mut y int = x.value  // Cannot access member on int
 }

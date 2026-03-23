@@ -242,7 +242,7 @@ func (fh *FileHandle) Inspect() string {
 type Reference struct {
 	Env     *Environment // The environment where the original variable lives
 	Name    string       // The variable name in that environment
-	Mutable bool         // Whether this reference allows modification (temp=true, const=false)
+	Mutable bool         // Whether this reference allows modification (mut=true, const=false)
 
 	// For indexed expressions (arr[i], map[k]) - Container and Index are set
 	Container Object // The array/map object (nil for simple variable references)

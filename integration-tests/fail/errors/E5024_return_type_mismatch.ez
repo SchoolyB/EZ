@@ -7,11 +7,11 @@ import @std
 using std
 
 do get_value() -> uint {
-    temp x int = -1
+    mut x int = -1
     return x  // Runtime error: int -1 cannot be returned as uint
 }
 
 do main() {
-    temp val uint = get_value()
+    mut val uint = get_value()
     println(val)
 }

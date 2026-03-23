@@ -11,7 +11,7 @@ do getNames() -> (first, last string) {
 }
 
 do main() {
-    temp f string, l string = getNames()
+    mut f string, l string = getNames()
     println(f)
     println(l)
 }

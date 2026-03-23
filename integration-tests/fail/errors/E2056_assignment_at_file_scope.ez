@@ -6,7 +6,7 @@
 import @std
 using std
 
-temp x = 5
+mut x = 5
 x += 1  // assignment at file scope
 
 do main() {

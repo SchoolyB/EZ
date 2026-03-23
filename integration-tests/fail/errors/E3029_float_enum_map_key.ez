@@ -9,6 +9,6 @@ enum Status [float] {
 }
 
 do main() {
-    temp m map[Status: string] = {}  // float enum as map key
+    mut m map[Status: string] = {}  // float enum as map key
 }
 

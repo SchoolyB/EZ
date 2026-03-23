@@ -9,5 +9,5 @@ enum Status [string] {
 }
 
 do main() {
-    temp s = Status.ACTIVE
+    mut s = Status.ACTIVE
 }

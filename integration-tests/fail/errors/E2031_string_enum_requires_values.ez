@@ -11,5 +11,5 @@ def Status enum {
 }
 
 do main() {
-    temp s Status = Status.TODO
+    mut s Status = Status.TODO
 }

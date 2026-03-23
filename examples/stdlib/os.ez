@@ -22,28 +22,28 @@ do main() {
     println("temp_dir: ${os.temp_dir()}")
 
     // Current directory and user info
-    temp cwd, _ = os.cwd()
+    mut cwd, _ = os.cwd()
     println("cwd: ${cwd}")
 
-    temp hostname, _ = os.hostname()
+    mut hostname, _ = os.hostname()
     println("hostname: ${hostname}")
 
-    temp username, _ = os.username()
+    mut username, _ = os.username()
     println("username: ${username}")
 
-    temp home, _ = os.home_dir()
+    mut home, _ = os.home_dir()
     println("home_dir: ${home}")
 
     // Environment variables
-    temp path, _ = os.get_env("HOME")
+    mut path, _ = os.get_env("HOME")
     println("HOME: ${path}")
 
-    temp _, _ = os.set_env("EZ_EXAMPLE", "hello")
-    temp val, _ = os.get_env("EZ_EXAMPLE")
+    mut _, _ = os.set_env("EZ_EXAMPLE", "hello")
+    mut val, _ = os.get_env("EZ_EXAMPLE")
     println("set_env/get_env: ${val}")
-    temp _, _ = os.unset_env("EZ_EXAMPLE")
+    mut _, _ = os.unset_env("EZ_EXAMPLE")
 
     // Command execution
-    temp output, _ = os.exec_output("echo 'Hello from shell'")
+    mut output, _ = os.exec_output("echo 'Hello from shell'")
     println("exec_output: ${output}")
 }

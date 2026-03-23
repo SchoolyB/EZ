@@ -11,7 +11,7 @@ do getPersonInfo() -> (age int, name string) {
 }
 
 do main() {
-    temp a int, n string = getPersonInfo()
+    mut a int, n string = getPersonInfo()
     println(a)
     println(n)
 }

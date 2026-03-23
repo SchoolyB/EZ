@@ -5,7 +5,7 @@
 import @std
 using std
 
-temp side_effect_count int = 0
+mut side_effect_count int = 0
 
 do side_effect() -> bool {
     side_effect_count++
@@ -14,8 +14,8 @@ do side_effect() -> bool {
 
 do main() {
     println("=== Short-Circuit Evaluation Test ===")
-    temp passed int = 0
-    temp failed int = 0
+    mut passed int = 0
+    mut failed int = 0
 
     // Test 1: && short-circuits on false (right side NOT evaluated)
     side_effect_count = 0

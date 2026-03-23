@@ -4,5 +4,5 @@
  */
 
 do main() {
-    temp c char = ''  // Empty char literal
+    mut c char = ''  // Empty char literal
 }

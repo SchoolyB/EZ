@@ -4,5 +4,5 @@
  */
 
 do main() {
-    temp x int = _1000  // leading underscore
+    mut x int = _1000  // leading underscore
 }

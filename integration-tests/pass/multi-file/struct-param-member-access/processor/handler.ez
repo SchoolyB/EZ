@@ -8,7 +8,7 @@ import lib"../library"
 using lib
 
 do create_test_struct(v u8, n string) -> TestStruct {
-    temp ts = TestStruct{Value: v, Name: n}
+    mut ts = TestStruct{Value: v, Name: n}
     return ts
 }
 

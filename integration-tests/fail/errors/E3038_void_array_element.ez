@@ -4,5 +4,5 @@
  */
 
 do main() {
-    temp arr [void] = {}  // Should fail: void cannot be array element type
+    mut arr [void] = {}  // Should fail: void cannot be array element type
 }

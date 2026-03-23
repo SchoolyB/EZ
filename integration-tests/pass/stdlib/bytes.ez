@@ -7,15 +7,15 @@ using std
 
 do main() {
     println("=== @bytes Standard Library Test ===")
-    temp passed int = 0
-    temp failed int = 0
+    mut passed int = 0
+    mut failed int = 0
 
     // ==================== bytes.from_string / bytes.to_string ====================
     println("  -- Creation and Conversion --")
 
     // Test 1: from_string and to_string roundtrip
-    temp data [byte] = bytes.from_string("hello")
-    temp back string = bytes.to_string(data)
+    mut data [byte] = bytes.from_string("hello")
+    mut back string = bytes.to_string(data)
     if back == "hello" {
         println("  [PASS] bytes.from_string/to_string roundtrip")
         passed += 1
@@ -25,9 +25,9 @@ do main() {
     }
 
     // Test 2: from_array
-    temp arr [int] = {72, 105}  // "Hi" in ASCII
-    temp from_arr [byte] = bytes.from_array(arr)
-    temp from_arr_str string = bytes.to_string(from_arr)
+    mut arr [int] = {72, 105}  // "Hi" in ASCII
+    mut from_arr [byte] = bytes.from_array(arr)
+    mut from_arr_str string = bytes.to_string(from_arr)
     if from_arr_str == "Hi" {
         println("  [PASS] bytes.from_array")
         passed += 1
@@ -37,8 +37,8 @@ do main() {
     }
 
     // Test 3: to_hex
-    temp hex_data [byte] = bytes.from_string("AB")
-    temp hex_str string = bytes.to_hex(hex_data)
+    mut hex_data [byte] = bytes.from_string("AB")
+    mut hex_str string = bytes.to_hex(hex_data)
     if hex_str == "4142" {
         println("  [PASS] bytes.to_hex")
         passed += 1
@@ -48,7 +48,7 @@ do main() {
     }
 
     // Test 4: to_hex_upper
-    temp hex_upper string = bytes.to_hex_upper(hex_data)
+    mut hex_upper string = bytes.to_hex_upper(hex_data)
     if hex_upper == "4142" {
         println("  [PASS] bytes.to_hex_upper")
         passed += 1
@@ -58,9 +58,9 @@ do main() {
     }
 
     // Test 5: from_hex
-    temp from_hex_result [byte], from_hex_err Error = bytes.from_hex("4142")
+    mut from_hex_result [byte], from_hex_err Error = bytes.from_hex("4142")
     if from_hex_err == nil {
-        temp from_hex_str string = bytes.to_string(from_hex_result)
+        mut from_hex_str string = bytes.to_string(from_hex_result)
         if from_hex_str == "AB" {
             println("  [PASS] bytes.from_hex")
             passed += 1
@@ -74,8 +74,8 @@ do main() {
     }
 
     // Test 6: to_base64
-    temp b64_data [byte] = bytes.from_string("Hello")
-    temp b64_str string = bytes.to_base64(b64_data)
+    mut b64_data [byte] = bytes.from_string("Hello")
+    mut b64_str string = bytes.to_base64(b64_data)
     if b64_str == "SGVsbG8=" {
         println("  [PASS] bytes.to_base64")
         passed += 1
@@ -85,9 +85,9 @@ do main() {
     }
 
     // Test 7: from_base64
-    temp from_b64 [byte], from_b64_err Error = bytes.from_base64("SGVsbG8=")
+    mut from_b64 [byte], from_b64_err Error = bytes.from_base64("SGVsbG8=")
     if from_b64_err == nil {
-        temp from_b64_str string = bytes.to_string(from_b64)
+        mut from_b64_str string = bytes.to_string(from_b64)
         if from_b64_str == "Hello" {
             println("  [PASS] bytes.from_base64")
             passed += 1
@@ -104,9 +104,9 @@ do main() {
     println("  -- Slicing and Combining --")
 
     // Test 8: slice
-    temp slice_data [byte] = bytes.from_string("Hello World")
-    temp sliced [byte] = bytes.slice(slice_data, 0, 5)
-    temp sliced_str string = bytes.to_string(sliced)
+    mut slice_data [byte] = bytes.from_string("Hello World")
+    mut sliced [byte] = bytes.slice(slice_data, 0, 5)
+    mut sliced_str string = bytes.to_string(sliced)
     if sliced_str == "Hello" {
         println("  [PASS] bytes.slice")
         passed += 1
@@ -116,10 +116,10 @@ do main() {
     }
 
     // Test 9: concat
-    temp a [byte] = bytes.from_string("Hello")
-    temp b [byte] = bytes.from_string(" World")
-    temp concat_result [byte] = bytes.concat(a, b)
-    temp concat_str string = bytes.to_string(concat_result)
+    mut a [byte] = bytes.from_string("Hello")
+    mut b [byte] = bytes.from_string(" World")
+    mut concat_result [byte] = bytes.concat(a, b)
+    mut concat_str string = bytes.to_string(concat_result)
     if concat_str == "Hello World" {
         println("  [PASS] bytes.concat")
         passed += 1
@@ -129,9 +129,9 @@ do main() {
     }
 
     // Test 10: copy
-    temp original [byte] = bytes.from_string("test")
-    temp copied [byte] = bytes.copy(original)
-    temp copied_str string = bytes.to_string(copied)
+    mut original [byte] = bytes.from_string("test")
+    mut copied [byte] = bytes.copy(original)
+    mut copied_str string = bytes.to_string(copied)
     if copied_str == "test" {
         println("  [PASS] bytes.copy")
         passed += 1
@@ -144,8 +144,8 @@ do main() {
     println("  -- Search Functions --")
 
     // Test 11: contains
-    temp haystack [byte] = bytes.from_string("Hello World")
-    temp needle [byte] = bytes.from_string("World")
+    mut haystack [byte] = bytes.from_string("Hello World")
+    mut needle [byte] = bytes.from_string("World")
     if bytes.contains(haystack, needle) {
         println("  [PASS] bytes.contains (found)")
         passed += 1
@@ -155,7 +155,7 @@ do main() {
     }
 
     // Test 12: contains (not found)
-    temp not_needle [byte] = bytes.from_string("xyz")
+    mut not_needle [byte] = bytes.from_string("xyz")
     if bytes.contains(haystack, not_needle) == false {
         println("  [PASS] bytes.contains (not found)")
         passed += 1
@@ -165,7 +165,7 @@ do main() {
     }
 
     // Test 13: index
-    temp idx int = bytes.index(haystack, needle)
+    mut idx int = bytes.index(haystack, needle)
     if idx == 6 {
         println("  [PASS] bytes.index")
         passed += 1
@@ -175,9 +175,9 @@ do main() {
     }
 
     // Test 14: count
-    temp count_data [byte] = bytes.from_string("aaa")
-    temp count_pattern [byte] = bytes.from_string("a")
-    temp cnt int = bytes.count(count_data, count_pattern)
+    mut count_data [byte] = bytes.from_string("aaa")
+    mut count_pattern [byte] = bytes.from_string("a")
+    mut cnt int = bytes.count(count_data, count_pattern)
     if cnt == 3 {
         println("  [PASS] bytes.count")
         passed += 1
@@ -190,8 +190,8 @@ do main() {
     println("  -- Comparison Functions --")
 
     // Test 15: equals
-    temp eq1 [byte] = bytes.from_string("test")
-    temp eq2 [byte] = bytes.from_string("test")
+    mut eq1 [byte] = bytes.from_string("test")
+    mut eq2 [byte] = bytes.from_string("test")
     if bytes.equals(eq1, eq2) {
         println("  [PASS] bytes.equals (equal)")
         passed += 1
@@ -201,7 +201,7 @@ do main() {
     }
 
     // Test 16: equals (not equal)
-    temp eq3 [byte] = bytes.from_string("other")
+    mut eq3 [byte] = bytes.from_string("other")
     if bytes.equals(eq1, eq3) == false {
         println("  [PASS] bytes.equals (not equal)")
         passed += 1
@@ -211,7 +211,7 @@ do main() {
     }
 
     // Test 17: is_empty
-    temp empty [byte] = bytes.from_string("")
+    mut empty [byte] = bytes.from_string("")
     if bytes.is_empty(empty) {
         println("  [PASS] bytes.is_empty (empty)")
         passed += 1
@@ -230,8 +230,8 @@ do main() {
     }
 
     // Test 19: starts_with
-    temp sw_data [byte] = bytes.from_string("Hello World")
-    temp sw_prefix [byte] = bytes.from_string("Hello")
+    mut sw_data [byte] = bytes.from_string("Hello World")
+    mut sw_prefix [byte] = bytes.from_string("Hello")
     if bytes.starts_with(sw_data, sw_prefix) {
         println("  [PASS] bytes.starts_with")
         passed += 1
@@ -241,7 +241,7 @@ do main() {
     }
 
     // Test 20: ends_with
-    temp ew_suffix [byte] = bytes.from_string("World")
+    mut ew_suffix [byte] = bytes.from_string("World")
     if bytes.ends_with(sw_data, ew_suffix) {
         println("  [PASS] bytes.ends_with")
         passed += 1
@@ -254,9 +254,9 @@ do main() {
     println("  -- Transformation Functions --")
 
     // Test 21: reverse
-    temp rev_data [byte] = bytes.from_string("abc")
-    temp reversed [byte] = bytes.reverse(rev_data)
-    temp reversed_str string = bytes.to_string(reversed)
+    mut rev_data [byte] = bytes.from_string("abc")
+    mut reversed [byte] = bytes.reverse(rev_data)
+    mut reversed_str string = bytes.to_string(reversed)
     if reversed_str == "cba" {
         println("  [PASS] bytes.reverse")
         passed += 1
@@ -266,9 +266,9 @@ do main() {
     }
 
     // Test 22: repeat
-    temp rep_data [byte] = bytes.from_string("ab")
-    temp repeated [byte] = bytes.repeat(rep_data, 3)
-    temp repeated_str string = bytes.to_string(repeated)
+    mut rep_data [byte] = bytes.from_string("ab")
+    mut repeated [byte] = bytes.repeat(rep_data, 3)
+    mut repeated_str string = bytes.to_string(repeated)
     if repeated_str == "ababab" {
         println("  [PASS] bytes.repeat")
         passed += 1
@@ -278,11 +278,11 @@ do main() {
     }
 
     // Test 23: replace
-    temp repl_data [byte] = bytes.from_string("hello")
-    temp repl_old [byte] = bytes.from_string("l")
-    temp repl_new [byte] = bytes.from_string("L")
-    temp replaced [byte] = bytes.replace(repl_data, repl_old, repl_new)
-    temp replaced_str string = bytes.to_string(replaced)
+    mut repl_data [byte] = bytes.from_string("hello")
+    mut repl_old [byte] = bytes.from_string("l")
+    mut repl_new [byte] = bytes.from_string("L")
+    mut replaced [byte] = bytes.replace(repl_data, repl_old, repl_new)
+    mut replaced_str string = bytes.to_string(replaced)
     if replaced_str == "heLLo" {
         println("  [PASS] bytes.replace")
         passed += 1
@@ -295,9 +295,9 @@ do main() {
     println("  -- Utility Functions --")
 
     // Test 24: zero (zeros out a byte array)
-    temp to_zero [byte] = bytes.from_string("hello")
-    temp zeroed [byte] = bytes.zero(to_zero)
-    temp all_zero bool = true
+    mut to_zero [byte] = bytes.from_string("hello")
+    mut zeroed [byte] = bytes.zero(to_zero)
+    mut all_zero bool = true
     for_each z in zeroed {
         if z != 0x00 {
             all_zero = false

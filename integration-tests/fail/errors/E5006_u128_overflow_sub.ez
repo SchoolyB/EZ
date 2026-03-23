@@ -5,6 +5,6 @@
  */
 
 do main() {
-    temp zero u128 = 0
-    temp result u128 = zero - 1  // Underflow (unsigned can't go negative)
+    mut zero u128 = 0
+    mut result u128 = zero - 1  // Underflow (unsigned can't go negative)
 }

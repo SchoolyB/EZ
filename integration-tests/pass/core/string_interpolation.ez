@@ -11,12 +11,12 @@ do get_name() -> string {
 
 do main() {
     println("=== String Interpolation Test ===")
-    temp passed int = 0
-    temp failed int = 0
+    mut passed int = 0
+    mut failed int = 0
 
     // Test 1: basic variable interpolation
-    temp name string = "EZ"
-    temp greeting string = "Hello, ${name}!"
+    mut name string = "EZ"
+    mut greeting string = "Hello, ${name}!"
     if greeting == "Hello, EZ!" {
         println("  [PASS] basic variable interpolation")
         passed += 1
@@ -26,8 +26,8 @@ do main() {
     }
 
     // Test 2: integer interpolation
-    temp x int = 42
-    temp msg string = "value is ${x}"
+    mut x int = 42
+    mut msg string = "value is ${x}"
     if msg == "value is 42" {
         println("  [PASS] integer interpolation")
         passed += 1
@@ -37,9 +37,9 @@ do main() {
     }
 
     // Test 3: expression in interpolation
-    temp a int = 10
-    temp b int = 20
-    temp result string = "sum is ${a + b}"
+    mut a int = 10
+    mut b int = 20
+    mut result string = "sum is ${a + b}"
     if result == "sum is 30" {
         println("  [PASS] expression interpolation")
         passed += 1
@@ -49,7 +49,7 @@ do main() {
     }
 
     // Test 4: function call in interpolation
-    temp call_result string = "Hello, ${get_name()}!"
+    mut call_result string = "Hello, ${get_name()}!"
     if call_result == "Hello, World!" {
         println("  [PASS] function call interpolation")
         passed += 1
@@ -59,9 +59,9 @@ do main() {
     }
 
     // Test 5: multiple interpolations in one string
-    temp first string = "Jane"
-    temp last string = "Doe"
-    temp full string = "${first} ${last}"
+    mut first string = "Jane"
+    mut last string = "Doe"
+    mut full string = "${first} ${last}"
     if full == "Jane Doe" {
         println("  [PASS] multiple interpolations")
         passed += 1
@@ -71,8 +71,8 @@ do main() {
     }
 
     // Test 6: bool interpolation
-    temp flag bool = true
-    temp bool_str string = "flag is ${flag}"
+    mut flag bool = true
+    mut bool_str string = "flag is ${flag}"
     if bool_str == "flag is true" {
         println("  [PASS] bool interpolation")
         passed += 1

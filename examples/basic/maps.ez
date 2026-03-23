@@ -14,13 +14,13 @@ do main() {
 
     // Declaring maps
     println("-- Map basics --")
-    temp ages map[string:int] = {
+    mut ages map[string:int] = {
         "Alice": 30,
         "Bob": 25,
         "Charlie": 35
     }
 
-    temp scores map[string:float] = {
+    mut scores map[string:float] = {
         "math": 95.5,
         "science": 88.0,
         "history": 92.3
@@ -32,18 +32,18 @@ do main() {
     // Empty maps
     println("")
     println("-- Empty maps --")
-    temp empty_map map[string:int] = {}
+    mut empty_map map[string:int] = {}
     println("Empty map: ${empty_map}")
     println("Empty map length: ${len(empty_map)}")
-    temp key string = "first"
+    mut key string = "first"
     empty_map[key] = 100
     println("After adding entry: ${empty_map}")
 
     // Accessing values
     println("")
     println("-- Accessing values --")
-    temp alice_key string = "Alice"
-    temp math_key string = "math"
+    mut alice_key string = "Alice"
+    mut math_key string = "math"
     println("Alice's age: ${ages[alice_key]}")
     println("Math score: ${scores[math_key]}")
 
@@ -56,7 +56,7 @@ do main() {
     // Adding new entries
     println("")
     println("-- Adding entries --")
-    temp diana_key string = "Diana"
+    mut diana_key string = "Diana"
     ages[diana_key] = 28
     println("Added Diana: ${ages}")
 
@@ -69,7 +69,7 @@ do main() {
     println("")
     println("-- Iterating over maps --")
     println("All ages:")
-    temp keys [string] = maps.keys(ages)
+    mut keys [string] = maps.keys(ages)
     for_each key in keys {
         println("  ${key} is ${ages[key]} years old")
     }
@@ -77,7 +77,7 @@ do main() {
     // Integer keys
     println("")
     println("-- Integer keys --")
-    temp lookup map[int:string] = {
+    mut lookup map[int:string] = {
         1: "one",
         2: "two",
         3: "three"

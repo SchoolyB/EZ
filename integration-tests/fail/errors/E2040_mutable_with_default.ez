@@ -7,6 +7,6 @@ do bad_func(&x int = 10) {
 }
 
 do main() {
-    temp val int = 5
+    mut val int = 5
     bad_func(val)
 }

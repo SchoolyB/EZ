@@ -7,10 +7,10 @@ using std
 
 do main() {
     println("=== Membership Operators Test ===")
-    temp passed int = 0
-    temp failed int = 0
+    mut passed int = 0
+    mut failed int = 0
 
-    temp numbers [int] = {10, 20, 30, 40, 50}
+    mut numbers [int] = {10, 20, 30, 40, 50}
 
     // Test 1: in operator with arrays
     if 30 in numbers {
@@ -67,7 +67,7 @@ do main() {
     }
 
     // Test 7: in with string array
-    temp fruits [string] = {"apple", "banana", "cherry"}
+    mut fruits [string] = {"apple", "banana", "cherry"}
     if "banana" in fruits {
         println("  [PASS] banana in fruits")
         passed += 1

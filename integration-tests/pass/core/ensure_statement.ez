@@ -5,7 +5,7 @@
 import @std, @io
 using std
 
-temp cleanup_ran bool = false
+mut cleanup_ran bool = false
 
 do set_cleanup_flag() {
     cleanup_ran = true
@@ -27,8 +27,8 @@ do process_with_early_return() -> int {
 
 do main() {
     println("=== Ensure Statement Test ===")
-    temp passed int = 0
-    temp failed int = 0
+    mut passed int = 0
+    mut failed int = 0
 
     // Test 1: ensure runs on normal function exit
     cleanup_ran = false
@@ -43,7 +43,7 @@ do main() {
 
     // Test 2: ensure runs on early return
     cleanup_ran = false
-    temp val int = process_with_early_return()
+    mut val int = process_with_early_return()
     if cleanup_ran && val == 42 {
         println("  [PASS] ensure runs on early return")
         passed += 1

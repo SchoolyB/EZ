@@ -81,7 +81,7 @@ const (
 	AT TokenType = "@"
 
 	// Keywords
-	TEMP       TokenType = "TEMP"
+	MUT        TokenType = "MUT"
 	CONST      TokenType = "CONST"
 	DO         TokenType = "DO"
 	RETURN     TokenType = "RETURN"
@@ -131,7 +131,7 @@ const (
 )
 
 var keywords = map[string]TokenType{
-	"temp":       TEMP,
+	"mut":        MUT,
 	"const":      CONST,
 	"do":         DO,
 	"return":     RETURN,
@@ -188,7 +188,7 @@ func LookupIdentifier(ident string) TokenType {
 // IsKeyword returns true if the token type is a keyword
 func IsKeyword(t TokenType) bool {
 	switch t {
-	case TEMP, CONST, DO, RETURN, IF, OR_KW, OTHERWISE,
+	case MUT, CONST, DO, RETURN, IF, OR_KW, OTHERWISE,
 		FOR, FOR_EACH, AS_LONG_AS, LOOP, BREAK, CONTINUE,
 		IN, NOT_IN, RANGE, IMPORT, USING, STRUCT, ENUM,
 		NIL, NEW, TRUE, FALSE, BLANK, MODULE, PRIVATE, USE,

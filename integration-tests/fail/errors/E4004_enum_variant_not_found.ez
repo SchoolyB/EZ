@@ -13,5 +13,5 @@ const Color enum {
 }
 
 do main() {
-    temp c = Color.Yellow  // Should fail: Yellow doesn't exist
+    mut c = Color.Yellow  // Should fail: Yellow doesn't exist
 }

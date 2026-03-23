@@ -7,11 +7,11 @@ import @std
 using std
 
 do getName() -> (name string) {
-    temp other string = "Alice"
+    mut other string = "Alice"
     return other  // Warning: returning 'other' instead of named return 'name'
 }
 
 do main() {
-    temp result string = getName()
+    mut result string = getName()
     println(result)
 }

@@ -4,6 +4,6 @@
  */
 
 do main() {
-    temp file string = "test.ez"
-    temp s string = "$File: something"
+    mut file string = "test.ez"
+    mut s string = "$File: something"
 }

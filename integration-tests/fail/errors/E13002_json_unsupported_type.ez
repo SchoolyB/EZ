@@ -8,7 +8,7 @@ using std, math
 
 do main() {
     // Infinity cannot be represented in JSON
-    temp result, err = json.encode(math.INF)
+    mut result, err = json.encode(math.INF)
     if err != nil {
         panic("${err}")
     }

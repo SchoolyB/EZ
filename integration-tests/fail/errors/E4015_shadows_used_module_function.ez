@@ -6,7 +6,7 @@
 import & use @math
 
 do main() {
-    temp abs int = 5  // shadows math.abs function
+    mut abs int = 5  // shadows math.abs function
     println(abs)
 }
 

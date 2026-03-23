@@ -17,12 +17,12 @@ using std
 // Process a batch of data on a scratch arena.
 // All temporary allocations are freed when the function exits.
 do process_batch() {
-    temp scratch = mem.arena(4096)
+    mut scratch = mem.arena(4096)
     ensure mem.destroy(scratch)
 
-    temp items [int] = mem.alloc(scratch, {100, 200, 300, 400, 500})
+    mut items [int] = mem.alloc(scratch, {100, 200, 300, 400, 500})
 
-    temp total int = 0
+    mut total int = 0
     for_each val in items {
         total += val
     }
@@ -34,10 +34,10 @@ do process_batch() {
 
 // Demonstrate arena lifecycle: create, use, reset, reuse, destroy
 do arena_lifecycle() {
-    temp a = mem.arena(2048)
+    mut a = mem.arena(2048)
 
     // First pass: allocate some data
-    temp greeting string = mem.alloc(a, "Hello, arena!")
+    mut greeting string = mem.alloc(a, "Hello, arena!")
     println(greeting)
     println("After first alloc: ${mem.usage(a)} bytes")
 
@@ -46,10 +46,10 @@ do arena_lifecycle() {
     println("After reset: ${mem.usage(a)} bytes")
 
     // Second pass: reuse the same arena
-    temp nums [int] = mem.alloc(a, {1, 2, 3, 4, 5})
+    mut nums [int] = mem.alloc(a, {1, 2, 3, 4, 5})
     println("After reuse: ${mem.usage(a)} bytes")
 
-    temp sum int = 0
+    mut sum int = 0
     for_each n in nums {
         sum += n
     }
@@ -72,7 +72,7 @@ do main() {
     println("")
     println("-- Default Arena --")
     // Regular code still works without @mem
-    temp x int = 42
-    temp name string = "EZC"
+    mut x int = 42
+    mut name string = "EZC"
     println("${name} says ${x}")
 }

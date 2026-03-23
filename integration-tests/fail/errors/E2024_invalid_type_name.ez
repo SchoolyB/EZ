@@ -4,5 +4,5 @@
  */
 
 do main() {
-    temp x 123 = 5  // number is not valid type name
+    mut x 123 = 5  // number is not valid type name
 }

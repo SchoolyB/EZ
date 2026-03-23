@@ -6,5 +6,5 @@
  import @db
 
  do main() {
-    temp _, err = db.open("db") // opening non valid database file
+    mut _, err = db.open("db") // opening non valid database file
  }

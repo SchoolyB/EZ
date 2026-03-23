@@ -21,9 +21,9 @@ do main() {
     println("========================================")
     println("")
 
-    temp total_passed int = 0
-    temp total_failed int = 0
-    temp result TestResult = TestResult{passed: 0, failed: 0}
+    mut total_passed int = 0
+    mut total_failed int = 0
+    mut result TestResult = TestResult{passed: 0, failed: 0}
 
     result = test_aliased_user_modules()
     total_passed += result.passed
@@ -37,7 +37,7 @@ do main() {
     total_passed += result.passed
     total_failed += result.failed
 
-    temp total int = total_passed + total_failed
+    mut total int = total_passed + total_failed
 
     println("")
     println("========================================")
@@ -56,13 +56,13 @@ do test_aliased_user_modules() -> TestResult {
     println("------------------------------------------")
     println("  Test: Aliased user modules (a, b)")
     println("------------------------------------------")
-    temp passed int = 0
-    temp failed int = 0
+    mut passed int = 0
+    mut failed int = 0
 
     // libA imported as 'a' with auto-use
     println("  Testing a.greet() and unqualified greet()...")
-    temp g1 string = a.greet("Alias")
-    temp g2 string = greet("Direct")
+    mut g1 string = a.greet("Alias")
+    mut g2 string = greet("Direct")
     println("    a.greet('Alias') = '${g1}'")
     println("    greet('Direct') = '${g2}'")
     if g1 == "Hello, Alias" {
@@ -78,8 +78,8 @@ do test_aliased_user_modules() -> TestResult {
 
     // libB imported as 'b' with auto-use
     println("  Testing b.multiply() and unqualified multiply()...")
-    temp m1 int = b.multiply(3, 4)
-    temp m2 int = multiply(5, 6)
+    mut m1 int = b.multiply(3, 4)
+    mut m2 int = multiply(5, 6)
     println("    b.multiply(3, 4) = ${m1}")
     println("    multiply(5, 6) = ${m2}")
     if m1 == 12 {
@@ -102,13 +102,13 @@ do test_aliased_stdlib() -> TestResult {
     println("------------------------------------------")
     println("  Test: Aliased stdlib (m@math)")
     println("------------------------------------------")
-    temp passed int = 0
-    temp failed int = 0
+    mut passed int = 0
+    mut failed int = 0
 
     // math imported as 'm' with auto-use
     println("  Testing m.sqrt() and unqualified sqrt()...")
-    temp s1 float = m.sqrt(16.0)
-    temp s2 float = sqrt(25.0)
+    mut s1 float = m.sqrt(16.0)
+    mut s2 float = sqrt(25.0)
     println("    m.sqrt(16.0) = ${s1}")
     println("    sqrt(25.0) = ${s2}")
     if s1 == 4.0 {
@@ -123,7 +123,7 @@ do test_aliased_stdlib() -> TestResult {
     }
 
     println("  Testing m.abs()...")
-    temp a1 int = m.abs(-42)
+    mut a1 int = m.abs(-42)
     println("    m.abs(-42) = ${a1}")
     if a1 == 42 {
         passed += 1
@@ -140,15 +140,15 @@ do test_mixed_access() -> TestResult {
     println("------------------------------------------")
     println("  Test: Mixed qualified/unqualified access")
     println("------------------------------------------")
-    temp passed int = 0
-    temp failed int = 0
+    mut passed int = 0
+    mut failed int = 0
 
     // Combine functions from different modules
     // Note: add() exists in both libA and math, so use qualified access
     println("  Testing combined operations...")
-    temp sum int = a.add(10, 20)            // from libA via alias (avoids ambiguity with math.add)
-    temp product int = b.multiply(sum, 2)   // from libB via alias
-    temp root float = sqrt(float(product))  // from math via auto-use
+    mut sum int = a.add(10, 20)            // from libA via alias (avoids ambiguity with math.add)
+    mut product int = b.multiply(sum, 2)   // from libB via alias
+    mut root float = sqrt(float(product))  // from math via auto-use
     println("    a.add(10, 20) = ${sum}")
     println("    b.multiply(${sum}, 2) = ${product}")
     println("    sqrt(${product}) = ${root}")
@@ -166,7 +166,7 @@ do test_mixed_access() -> TestResult {
 
     // Test format_number from libB
     println("  Testing format_number from libB...")
-    temp formatted string = format_number(42)
+    mut formatted string = format_number(42)
     println("    format_number(42) = '${formatted}'")
     if formatted == "Number: 42" {
         passed += 1

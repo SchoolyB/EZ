@@ -6,7 +6,7 @@
 import @maps
 
 do main() {
-    temp m = maps.new()
+    mut m = maps.new()
     maps.set(m, "key", "value")
-    temp v = maps.get(m, "nonexistent")  // key not found
+    mut v = maps.get(m, "nonexistent")  // key not found
 }

@@ -23,11 +23,11 @@ const Deep struct {
 
 do main() {
     println("=== Nested Struct Init Test ===")
-    temp passed int = 0
-    temp failed int = 0
+    mut passed int = 0
+    mut failed int = 0
 
     // Test 1: new() initializes nested struct
-    temp o = new(Outer)
+    mut o = new(Outer)
     if o.inner.val == 0 && o.inner.name == "" {
         println("  [PASS] new() initializes nested struct with defaults")
         passed += 1
@@ -47,7 +47,7 @@ do main() {
     }
 
     // Test 3: Deeply nested structs with new()
-    temp d = new(Deep)
+    mut d = new(Deep)
     if d.outer.inner.val == 0 {
         println("  [PASS] deeply nested struct initialized with new()")
         passed += 1
@@ -67,7 +67,7 @@ do main() {
     }
 
     // Test 5: Empty struct literal initializes nested struct
-    temp o2 = Outer{}
+    mut o2 = Outer{}
     if o2.inner.val == 0 && o2.inner.name == "" {
         println("  [PASS] empty struct literal initializes nested struct")
         passed += 1
@@ -77,7 +77,7 @@ do main() {
     }
 
     // Test 6: Partial struct literal initializes unspecified nested struct
-    temp o3 = Outer{count: 5}
+    mut o3 = Outer{count: 5}
     if o3.inner.val == 0 && o3.count == 5 {
         println("  [PASS] partial struct literal initializes nested struct")
         passed += 1

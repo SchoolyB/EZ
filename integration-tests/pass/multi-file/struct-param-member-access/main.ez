@@ -13,11 +13,11 @@ do main() {
     println("=== Struct Parameter Member Access Test ===")
 
     // Create a struct instance using the processor module
-    temp ts = proc.create_test_struct(42, "test")
+    mut ts = proc.create_test_struct(42, "test")
 
     // Call processor function that takes the struct as a parameter
-    temp val = proc.process(ts)
-    temp name = proc.get_name(ts)
+    mut val = proc.process(ts)
+    mut name = proc.get_name(ts)
 
     if val == 42 && name == "test" {
         println("  [PASS] struct parameter member access works")

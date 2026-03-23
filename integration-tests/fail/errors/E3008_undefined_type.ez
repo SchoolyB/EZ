@@ -4,5 +4,5 @@
  */
 
 do main() {
-    temp x FooBar = 5  // FooBar is not defined
+    mut x FooBar = 5  // FooBar is not defined
 }

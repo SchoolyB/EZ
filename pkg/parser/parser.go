@@ -17,7 +17,7 @@ import (
 
 // Reserved keywords that cannot be used as identifiers
 var reservedKeywords = map[string]bool{
-	"temp": true, "const": true, "do": true, "return": true,
+	"mut": true, "const": true, "do": true, "return": true,
 	"if": true, "or": true, "otherwise": true,
 	"for": true, "for_each": true, "as_long_as": true, "loop": true,
 	"break": true, "continue": true, "in": true, "not_in": true, "range": true,
@@ -737,9 +737,9 @@ func (p *Parser) parseStatement() Statement {
 	// Validate #doc is only used on functions, structs, or enums
 	// For DO (functions), we can validate immediately
 	// For CONST, we need to check after parsing if it's struct/enum vs variable
-	// For TEMP and other statements, #doc is definitely invalid
+	// For MUT and other statements, #doc is definitely invalid
 	if docAttr := findAttribute(attrs, "doc"); docAttr != nil {
-		if p.currentTokenMatches(TEMP) {
+		if p.currentTokenMatches(MUT) {
 			p.addEZError(errors.E2058, "#doc can only be applied to functions, structs, or enums", docAttr.Token)
 			// Clear #doc attributes
 			newAttrs := []*Attribute{}
@@ -838,7 +838,7 @@ func (p *Parser) parseStatement() Statement {
 			}
 		}
 		return stmt
-	case TEMP:
+	case MUT:
 		stmt := p.parseVarableDeclaration()
 		if stmt != nil {
 			stmt.Visibility = visibility
@@ -1069,7 +1069,7 @@ func (p *Parser) parseVarableDeclarationOrStruct() Statement {
 
 func (p *Parser) parseVarableDeclaration() *VariableDeclaration {
 	stmt := &VariableDeclaration{Token: p.currentToken}
-	stmt.Mutable = p.currentToken.Type == TEMP
+	stmt.Mutable = p.currentToken.Type == MUT
 
 	// Check for blank identifier (_) or IDENT
 	if p.peekTokenMatches(BLANK) {
@@ -1097,7 +1097,7 @@ func (p *Parser) parseVarableDeclaration() *VariableDeclaration {
 		stmt.Names = append(stmt.Names, &Label{Token: p.currentToken, Value: name})
 	}
 
-	// Check for multiple assignment: temp result, err = ...
+	// Check for multiple assignment: mut result, err = ...
 	for p.peekTokenMatches(COMMA) {
 		p.nextToken() // consume comma
 		p.nextToken() // move to next identifier or _
@@ -1143,7 +1143,7 @@ func (p *Parser) parseVarableDeclaration() *VariableDeclaration {
 	// Single variable declaration - set Name for backward compatibility
 	stmt.Name = stmt.Names[0]
 
-	// Check if this is a type-inferred assignment (temp x = value)
+	// Check if this is a type-inferred assignment (mut x = value)
 	if p.peekTokenMatches(ASSIGN) {
 		p.nextToken() // consume =
 		p.nextToken() // move to value
@@ -1158,7 +1158,7 @@ func (p *Parser) parseVarableDeclaration() *VariableDeclaration {
 		return nil
 	}
 
-	// Check for typed tuple unpacking: temp a int, b string = getValues()
+	// Check for typed tuple unpacking: mut a int, b string = getValues()
 	if p.peekTokenMatches(COMMA) {
 		// Initialize TypeNames with the first type
 		stmt.TypeNames = append(stmt.TypeNames, stmt.TypeName)

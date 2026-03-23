@@ -289,8 +289,8 @@ func TestNegationOperator(t *testing.T) {
 
 func TestNegationWithVariable(t *testing.T) {
 	input := `
-temp x int = 5
-temp y int = -x
+mut x int = 5
+mut y int = -x
 y
 `
 	evaluated := testEval(input)
@@ -336,10 +336,10 @@ func TestReturnStatements(t *testing.T) {
 		input    string
 		expected int64
 	}{
-		{"do test() -> int { return 10 } temp r int = test() r", 10},
-		{"do test() -> int { return 10 return 9 } temp r int = test() r", 10},
-		{"do test() -> int { return 2 * 5 return 9 } temp r int = test() r", 10},
-		{"do test() -> int { 9 return 2 * 5 return 9 } temp r int = test() r", 10},
+		{"do test() -> int { return 10 } mut r int = test() r", 10},
+		{"do test() -> int { return 10 return 9 } mut r int = test() r", 10},
+		{"do test() -> int { return 2 * 5 return 9 } mut r int = test() r", 10},
+		{"do test() -> int { 9 return 2 * 5 return 9 } mut r int = test() r", 10},
 	}
 
 	for _, tt := range tests {
@@ -359,10 +359,10 @@ func TestVariableDeclarations(t *testing.T) {
 		input    string
 		expected int64
 	}{
-		{"temp a int = 5 a", 5},
-		{"temp a int = 5 * 5 a", 25},
-		{"temp a int = 5 temp b int = a b", 5},
-		{"temp a int = 5 temp b int = a temp c int = a + b + 5 c", 15},
+		{"mut a int = 5 a", 5},
+		{"mut a int = 5 * 5 a", 25},
+		{"mut a int = 5 mut b int = a b", 5},
+		{"mut a int = 5 mut b int = a mut c int = a + b + 5 c", 15},
 	}
 
 	for _, tt := range tests {
@@ -398,7 +398,7 @@ func TestFunctionObject(t *testing.T) {
 	// In EZ, function declarations don't return the function object
 	// Functions are registered in the environment and called by name
 	// So we test function existence by calling it
-	input := `do add(x int, y int) -> int { return x + y } temp r int = add(1, 2) r`
+	input := `do add(x int, y int) -> int { return x + y } mut r int = add(1, 2) r`
 	evaluated := testEval(input)
 	testIntegerObject(t, evaluated, 3)
 }
@@ -408,10 +408,10 @@ func TestFunctionApplication(t *testing.T) {
 		input    string
 		expected int64
 	}{
-		{"do identity(x int) -> int { return x } temp r int = identity(5) r", 5},
-		{"do double(x int) -> int { return x * 2 } temp r int = double(5) r", 10},
-		{"do add(x int, y int) -> int { return x + y } temp r int = add(5, 5) r", 10},
-		{"do add(x int, y int) -> int { return x + y } temp r int = add(5 + 5, add(5, 5)) r", 20},
+		{"do identity(x int) -> int { return x } mut r int = identity(5) r", 5},
+		{"do double(x int) -> int { return x * 2 } mut r int = double(5) r", 10},
+		{"do add(x int, y int) -> int { return x + y } mut r int = add(5, 5) r", 10},
+		{"do add(x int, y int) -> int { return x + y } mut r int = add(5 + 5, add(5, 5)) r", 20},
 	}
 
 	for _, tt := range tests {
@@ -430,7 +430,7 @@ do factorial(n int) -> int {
 	}
 	return n * factorial(n - 1)
 }
-temp r int = factorial(5)
+mut r int = factorial(5)
 r
 `
 	evaluated := testEval(input)
@@ -443,7 +443,7 @@ do getNumber() -> (result int) {
 	result = 42
 	return result
 }
-temp r int = getNumber()
+mut r int = getNumber()
 r
 `
 	evaluated := testEval(input)
@@ -456,7 +456,7 @@ func TestNamedReturnZeroValue(t *testing.T) {
 do getZero() -> (count int) {
 	return count
 }
-temp r int = getZero()
+mut r int = getZero()
 r
 `
 	evaluated := testEval(input)
@@ -470,7 +470,7 @@ do getPersonInfo() -> (age int, name string) {
 	name = "Alice"
 	return age, name
 }
-temp a int, n string = getPersonInfo()
+mut a int, n string = getPersonInfo()
 a
 `
 	evaluated := testEval(input)
@@ -484,7 +484,7 @@ do getNames() -> (first, last string) {
 	last = "Doe"
 	return first, last
 }
-temp f string, l string = getNames()
+mut f string, l string = getNames()
 f
 `
 	evaluated := testEval(input)
@@ -499,7 +499,7 @@ do getFullInfo() -> (name, city string, age int) {
 	age = 30
 	return name, city, age
 }
-temp n string, c string, a int = getFullInfo()
+mut n string, c string, a int = getFullInfo()
 a
 `
 	evaluated := testEval(input)
@@ -517,7 +517,7 @@ do calculate() -> (result int) {
 	}
 	return result
 }
-temp r int = calculate()
+mut r int = calculate()
 r
 `
 	evaluated := testEval(input)
@@ -528,10 +528,10 @@ func TestNamedReturnDifferentVariable(t *testing.T) {
 	// Can return a different variable of the same type (warning emitted but valid)
 	input := `
 do getName() -> (name string) {
-	temp other string = "Hello"
+	mut other string = "Hello"
 	return other
 }
-temp r string = getName()
+mut r string = getName()
 r
 `
 	evaluated := testEval(input)
@@ -543,7 +543,7 @@ func TestNamedReturnStringZeroValue(t *testing.T) {
 do getEmpty() -> (s string) {
 	return s
 }
-temp r string = getEmpty()
+mut r string = getEmpty()
 r
 `
 	evaluated := testEval(input)
@@ -555,7 +555,7 @@ func TestNamedReturnBoolZeroValue(t *testing.T) {
 do getFalse() -> (b bool) {
 	return b
 }
-temp r bool = getFalse()
+mut r bool = getFalse()
 r
 `
 	evaluated := testEval(input)
@@ -567,7 +567,7 @@ func TestNamedReturnFloatZeroValue(t *testing.T) {
 do getZeroFloat() -> (f float) {
 	return f
 }
-temp r float = getZeroFloat()
+mut r float = getZeroFloat()
 r
 `
 	evaluated := testEval(input)
@@ -604,11 +604,11 @@ func TestArrayIndexExpressions(t *testing.T) {
 		{"{1, 2, 3}[0]", 1},
 		{"{1, 2, 3}[1]", 2},
 		{"{1, 2, 3}[2]", 3},
-		{"temp i int = 0 {1}[i]", 1},
+		{"mut i int = 0 {1}[i]", 1},
 		{"{1, 2, 3}[1 + 1]", 3},
-		{"temp myArray [int] = {1, 2, 3} myArray[2]", 3},
-		{"temp myArray [int] = {1, 2, 3} myArray[0] + myArray[1] + myArray[2]", 6},
-		{"temp myArray [int] = {1, 2, 3} temp i int = myArray[0] myArray[i]", 2},
+		{"mut myArray [int] = {1, 2, 3} myArray[2]", 3},
+		{"mut myArray [int] = {1, 2, 3} myArray[0] + myArray[1] + myArray[2]", 6},
+		{"mut myArray [int] = {1, 2, 3} mut i int = myArray[0] myArray[i]", 2},
 	}
 
 	for _, tt := range tests {
@@ -646,7 +646,7 @@ func TestMapIndexExpressions(t *testing.T) {
 	}{
 		{`{"one": 1}["one"]`, 1},
 		{`{"two": 2, "one": 1}["two"]`, 2},
-		{`temp key string = "one" {"one": 1}[key]`, 1},
+		{`mut key string = "one" {"one": 1}[key]`, 1},
 	}
 
 	for _, tt := range tests {
@@ -663,7 +663,7 @@ func TestMapIndexExpressions(t *testing.T) {
 
 func TestWhileLoop(t *testing.T) {
 	input := `
-temp counter int = 0
+mut counter int = 0
 as_long_as counter < 5 {
 	counter = counter + 1
 }
@@ -675,7 +675,7 @@ counter
 
 func TestForLoop(t *testing.T) {
 	input := `
-temp sum int = 0
+mut sum int = 0
 for i in range(0, 5) {
 	sum = sum + i
 }
@@ -687,7 +687,7 @@ sum
 
 func TestBreakStatement(t *testing.T) {
 	input := `
-temp counter int = 0
+mut counter int = 0
 as_long_as true {
 	counter = counter + 1
 	if counter == 5 {
@@ -702,7 +702,7 @@ counter
 
 func TestContinueStatement(t *testing.T) {
 	input := `
-temp sum int = 0
+mut sum int = 0
 for i in range(0, 10) {
 	if i % 2 == 0 {
 		continue
@@ -724,8 +724,8 @@ func TestAssignment(t *testing.T) {
 		input    string
 		expected int64
 	}{
-		{"temp x int = 5 x = 10 x", 10},
-		{"temp x int = 5 x = x + 5 x", 10},
+		{"mut x int = 5 x = 10 x", 10},
+		{"mut x int = 5 x = x + 5 x", 10},
 	}
 
 	for _, tt := range tests {
@@ -741,11 +741,11 @@ func TestCompoundAssignment(t *testing.T) {
 		input    string
 		expected int64
 	}{
-		{"temp x int = 10 x += 5 x", 15},
-		{"temp x int = 10 x -= 3 x", 7},
-		{"temp x int = 10 x *= 2 x", 20},
-		{"temp x int = 10 x /= 2 x", 5},
-		{"temp x int = 10 x %= 3 x", 1},
+		{"mut x int = 10 x += 5 x", 15},
+		{"mut x int = 10 x -= 3 x", 7},
+		{"mut x int = 10 x *= 2 x", 20},
+		{"mut x int = 10 x /= 2 x", 5},
+		{"mut x int = 10 x %= 3 x", 1},
 	}
 
 	for _, tt := range tests {
@@ -761,8 +761,8 @@ func TestPostfixOperators(t *testing.T) {
 		input    string
 		expected int64
 	}{
-		{"temp x int = 5 x++ x", 6},
-		{"temp x int = 5 x-- x", 4},
+		{"mut x int = 5 x++ x", 6},
+		{"mut x int = 5 x-- x", 4},
 	}
 
 	for _, tt := range tests {
@@ -848,7 +848,7 @@ const Point struct {
 	x int
 	y int
 }
-temp p Point = Point{x: 5, y: 10}
+mut p Point = Point{x: 5, y: 10}
 p.x + p.y
 `
 	evaluated := testEval(input)
@@ -861,7 +861,7 @@ const Person struct {
 	name string
 	age int
 }
-temp person Person = Person{name: "Alice", age: 30}
+mut person Person = Person{name: "Alice", age: 30}
 person.name
 `
 	evaluated := testEval(input)
@@ -874,7 +874,7 @@ const Point struct {
 	x int
 	y int
 }
-temp p Point = Point{x: 0, y: 0}
+mut p Point = Point{x: 0, y: 0}
 p.x = 5
 p.y = 10
 p.x + p.y
@@ -1025,7 +1025,7 @@ func TestNestedFunctionCalls(t *testing.T) {
 	input := `
 do add(a int, b int) -> int { return a + b }
 do multiply(a int, b int) -> int { return a * b }
-temp r int = add(multiply(2, 3), multiply(4, 5))
+mut r int = add(multiply(2, 3), multiply(4, 5))
 r
 `
 	evaluated := testEval(input)
@@ -1040,7 +1040,7 @@ do max(a int, b int) -> int {
 	}
 	return b
 }
-temp r int = max(max(1, 2), max(3, 4))
+mut r int = max(max(1, 2), max(3, 4))
 r
 `
 	evaluated := testEval(input)
@@ -1055,7 +1055,7 @@ do fib(n int) -> int {
 	}
 	return fib(n - 1) + fib(n - 2)
 }
-temp r int = fib(10)
+mut r int = fib(10)
 r
 `
 	evaluated := testEval(input)
@@ -1078,7 +1078,7 @@ do birthday(&p Person) {
 	p.age = p.age + 1
 }
 
-temp bob Person = Person{name: "Bob", age: 30}
+mut bob Person = Person{name: "Bob", age: 30}
 birthday(bob)
 bob.age
 `
@@ -1100,8 +1100,8 @@ do getName(p Person) -> string {
 	return p.name
 }
 
-temp bob Person = Person{name: "Bob", age: 30}
-temp n string = getName(bob)
+mut bob Person = Person{name: "Bob", age: 30}
+mut n string = getName(bob)
 n
 `
 	evaluated := testEval(input)
@@ -1115,7 +1115,7 @@ do doubleFirst(&arr [int]) {
 	arr[0] = arr[0] * 2
 }
 
-temp nums [int] = {10, 20, 30}
+mut nums [int] = {10, 20, 30}
 doubleFirst(nums)
 nums[0]
 `
@@ -1131,7 +1131,7 @@ do increment(&n int) {
 	n = n + 1
 }
 
-temp counter int = 0
+mut counter int = 0
 increment(counter)
 increment(counter)
 increment(counter)
@@ -1148,7 +1148,7 @@ do addToFirst(&arr [int], value int) {
 	arr[0] = arr[0] + value
 }
 
-temp nums [int] = {100, 200, 300}
+mut nums [int] = {100, 200, 300}
 addToFirst(nums, 50)
 nums[0]
 `
@@ -1173,7 +1173,7 @@ do updateZip(&p Person, newZip int) {
 	p.addr.zip = newZip
 }
 
-temp bob Person = Person{name: "Bob", addr: Address{city: "NYC", zip: 10001}}
+mut bob Person = Person{name: "Bob", addr: Address{city: "NYC", zip: 10001}}
 updateZip(bob, 90210)
 bob.addr.zip
 `
@@ -1186,13 +1186,13 @@ func TestSwapWithMutableParams(t *testing.T) {
 	// Primitives now support true reference semantics with &
 	input := `
 do swap(&a, &b int) {
-	temp t int = a
+	mut t int = a
 	a = b
 	b = t
 }
 
-temp x int = 10
-temp y int = 20
+mut x int = 10
+mut y int = 20
 swap(x, y)
 x + y * 100
 `
@@ -1209,7 +1209,7 @@ do setFloat(&f float) {
 	f = 3.14
 }
 
-temp val float = 0.0
+mut val float = 0.0
 setFloat(val)
 val
 `
@@ -1224,7 +1224,7 @@ do toggle(&b bool) {
 	b = !b
 }
 
-temp flag bool = false
+mut flag bool = false
 toggle(flag)
 flag
 `
@@ -1239,7 +1239,7 @@ do setString(&s string) {
 	s = "modified"
 }
 
-temp str string = "original"
+mut str string = "original"
 setString(str)
 str
 `
@@ -1259,7 +1259,7 @@ do inner(&arr [int]) {
 	arr[0] = 999
 }
 
-temp nums [int] = {1, 2, 3}
+mut nums [int] = {1, 2, 3}
 outer(nums)
 nums[0]
 `
@@ -1282,7 +1282,7 @@ do level3(&n int) {
 	n = 42
 }
 
-temp x int = 0
+mut x int = 0
 level1(x)
 x
 `
@@ -1302,32 +1302,32 @@ func TestInterpolatedString(t *testing.T) {
 	}{
 		{
 			name:     "simple variable interpolation",
-			input:    `temp x int = 42 "value is ${x}"`,
+			input:    `mut x int = 42 "value is ${x}"`,
 			expected: "value is 42",
 		},
 		{
 			name:     "string variable interpolation",
-			input:    `temp name string = "World" "Hello, ${name}!"`,
+			input:    `mut name string = "World" "Hello, ${name}!"`,
 			expected: "Hello, World!",
 		},
 		{
 			name:     "expression interpolation",
-			input:    `temp a int = 5 temp b int = 3 "sum is ${a + b}"`,
+			input:    `mut a int = 5 mut b int = 3 "sum is ${a + b}"`,
 			expected: "sum is 8",
 		},
 		{
 			name:     "multiple interpolations",
-			input:    `temp x int = 1 temp y int = 2 "${x} + ${y} = ${x + y}"`,
+			input:    `mut x int = 1 mut y int = 2 "${x} + ${y} = ${x + y}"`,
 			expected: "1 + 2 = 3",
 		},
 		{
 			name:     "boolean interpolation",
-			input:    `temp flag bool = true "flag is ${flag}"`,
+			input:    `mut flag bool = true "flag is ${flag}"`,
 			expected: "flag is true",
 		},
 		{
 			name:     "float interpolation",
-			input:    `temp pi float = 3.14 "pi is ${pi}"`,
+			input:    `mut pi float = 3.14 "pi is ${pi}"`,
 			expected: "pi is 3.14",
 		},
 	}
@@ -1351,7 +1351,7 @@ const Counter struct {
 	value int
 	name string
 }
-temp c Counter = new(Counter)
+mut c Counter = new(Counter)
 c.value
 `
 	evaluated := testEval(input)
@@ -1364,7 +1364,7 @@ const Counter struct {
 	value int
 	name string
 }
-temp c Counter = new(Counter)
+mut c Counter = new(Counter)
 c.name
 `
 	evaluated := testEval(input)
@@ -1381,7 +1381,7 @@ const Inner struct {
 const Outer struct {
 	inner Inner
 }
-temp o = new(Outer)
+mut o = new(Outer)
 o.inner.val = 42
 o.inner.val
 `
@@ -1400,7 +1400,7 @@ const Outer struct {
 	inner Inner
 	name string
 }
-temp o = Outer{name: "test"}
+mut o = Outer{name: "test"}
 o.inner.val = 99
 o.inner.val
 `
@@ -1415,7 +1415,7 @@ o.inner.val
 func TestLoopStatement(t *testing.T) {
 	// Test loop with break
 	input := `
-temp count int = 0
+mut count int = 0
 loop {
 	count = count + 1
 	if count == 5 {
@@ -1431,8 +1431,8 @@ count
 func TestLoopWithContinue(t *testing.T) {
 	// Test loop with continue
 	input := `
-temp count int = 0
-temp sum int = 0
+mut count int = 0
+mut sum int = 0
 loop {
 	count = count + 1
 	if count == 3 {
@@ -1456,8 +1456,8 @@ sum
 
 func TestForEachArray(t *testing.T) {
 	input := `
-temp nums [int] = {1, 2, 3, 4, 5}
-temp sum int = 0
+mut nums [int] = {1, 2, 3, 4, 5}
+mut sum int = 0
 for_each n in nums {
 	sum = sum + n
 }
@@ -1469,8 +1469,8 @@ sum
 
 func TestForEachString(t *testing.T) {
 	input := `
-temp str string = "abc"
-temp count int = 0
+mut str string = "abc"
+mut count int = 0
 for_each c in str {
 	count = count + 1
 }
@@ -1482,8 +1482,8 @@ count
 
 func TestForEachWithBreak(t *testing.T) {
 	input := `
-temp nums [int] = {1, 2, 3, 4, 5}
-temp sum int = 0
+mut nums [int] = {1, 2, 3, 4, 5}
+mut sum int = 0
 for_each n in nums {
 	if n == 4 {
 		break
@@ -1569,7 +1569,7 @@ func TestCharComparisonOperators(t *testing.T) {
 
 func TestByteLiteral(t *testing.T) {
 	// Bytes are created via byte() conversion or from byte arrays
-	input := `temp b byte = 255 b`
+	input := `mut b byte = 255 b`
 	evaluated := testEval(input)
 	if evaluated == nil {
 		t.Fatal("evaluated is nil")
@@ -1585,17 +1585,17 @@ func TestByteArithmetic(t *testing.T) {
 	}{
 		{
 			name:     "byte addition",
-			input:    `temp a byte = 10 temp b byte = 5 a + b`,
+			input:    `mut a byte = 10 mut b byte = 5 a + b`,
 			expected: 15,
 		},
 		{
 			name:     "byte subtraction",
-			input:    `temp a byte = 10 temp b byte = 3 a - b`,
+			input:    `mut a byte = 10 mut b byte = 3 a - b`,
 			expected: 7,
 		},
 		{
 			name:     "byte multiplication",
-			input:    `temp a byte = 10 temp b byte = 2 a * b`,
+			input:    `mut a byte = 10 mut b byte = 2 a * b`,
 			expected: 20,
 		},
 	}
@@ -1609,7 +1609,7 @@ func TestByteArithmetic(t *testing.T) {
 
 	// Test byte + int mixed operations (may return Integer)
 	t.Run("byte with integer", func(t *testing.T) {
-		input := `temp a byte = 10 temp b int = 5 a + b`
+		input := `mut a byte = 10 mut b int = 5 a + b`
 		evaluated := testEval(input)
 		// Could return byte or int depending on implementation
 		switch result := evaluated.(type) {
@@ -1632,11 +1632,11 @@ func TestByteComparison(t *testing.T) {
 		input    string
 		expected bool
 	}{
-		{`temp a byte = 10 temp b byte = 10 a == b`, true},
-		{`temp a byte = 10 temp b byte = 20 a == b`, false},
-		{`temp a byte = 10 temp b byte = 20 a != b`, true},
-		{`temp a byte = 10 temp b byte = 20 a < b`, true},
-		{`temp a byte = 20 temp b byte = 10 a > b`, true},
+		{`mut a byte = 10 mut b byte = 10 a == b`, true},
+		{`mut a byte = 10 mut b byte = 20 a == b`, false},
+		{`mut a byte = 10 mut b byte = 20 a != b`, true},
+		{`mut a byte = 10 mut b byte = 20 a < b`, true},
+		{`mut a byte = 20 mut b byte = 10 a > b`, true},
 	}
 
 	for _, tt := range tests {
@@ -1659,47 +1659,47 @@ func TestVariableDeclarationTypes(t *testing.T) {
 	}{
 		{
 			name:     "i8 type",
-			input:    `temp x i8 = 127 x`,
+			input:    `mut x i8 = 127 x`,
 			expected: int64(127),
 		},
 		{
 			name:     "i16 type",
-			input:    `temp x i16 = 1000 x`,
+			input:    `mut x i16 = 1000 x`,
 			expected: int64(1000),
 		},
 		{
 			name:     "i32 type",
-			input:    `temp x i32 = 100000 x`,
+			input:    `mut x i32 = 100000 x`,
 			expected: int64(100000),
 		},
 		{
 			name:     "i64 type",
-			input:    `temp x i64 = 1000000 x`,
+			input:    `mut x i64 = 1000000 x`,
 			expected: int64(1000000),
 		},
 		{
 			name:     "u8 type",
-			input:    `temp x u8 = 255 x`,
+			input:    `mut x u8 = 255 x`,
 			expected: int64(255),
 		},
 		{
 			name:     "u16 type",
-			input:    `temp x u16 = 65535 x`,
+			input:    `mut x u16 = 65535 x`,
 			expected: int64(65535),
 		},
 		{
 			name:     "u32 type",
-			input:    `temp x u32 = 100000 x`,
+			input:    `mut x u32 = 100000 x`,
 			expected: int64(100000),
 		},
 		{
 			name:     "f32 type",
-			input:    `temp x f32 = 3.14 x`,
+			input:    `mut x f32 = 3.14 x`,
 			expected: float64(3.14),
 		},
 		{
 			name:     "f64 type",
-			input:    `temp x f64 = 3.14159 x`,
+			input:    `mut x f64 = 3.14159 x`,
 			expected: float64(3.14159),
 		},
 	}
@@ -1735,7 +1735,7 @@ do fib(n int) -> int {
     }
     return fib(n - 1) + fib(n - 2)
 }
-temp result int = fib(10)
+mut result int = fib(10)
 result
 `
 	evaluated := testEval(input)
@@ -1746,7 +1746,7 @@ func TestFunctionWithNoReturnValue(t *testing.T) {
 	// Test that a function without a return type can be called
 	input := `
 do doNothing() {
-    temp x int = 1
+    mut x int = 1
 }
 doNothing()
 `
@@ -1768,7 +1768,7 @@ do checkPositive(n int) -> string {
     }
     return "zero"
 }
-temp result string = checkPositive(-5)
+mut result string = checkPositive(-5)
 result
 `
 	evaluated := testEval(input)
@@ -1787,27 +1787,27 @@ func TestTypeInference(t *testing.T) {
 	}{
 		{
 			name:     "infer int",
-			input:    `temp x = 42 x`,
+			input:    `mut x = 42 x`,
 			expected: int64(42),
 		},
 		{
 			name:     "infer float",
-			input:    `temp x = 3.14 x`,
+			input:    `mut x = 3.14 x`,
 			expected: float64(3.14),
 		},
 		{
 			name:     "infer string",
-			input:    `temp x = "hello" x`,
+			input:    `mut x = "hello" x`,
 			expected: "hello",
 		},
 		{
 			name:     "infer bool",
-			input:    `temp x = true x`,
+			input:    `mut x = true x`,
 			expected: true,
 		},
 		{
 			name:     "infer from expression",
-			input:    `temp x = 1 + 2 x`,
+			input:    `mut x = 1 + 2 x`,
 			expected: int64(3),
 		},
 	}
@@ -1835,7 +1835,7 @@ func TestTypeInference(t *testing.T) {
 
 func TestAsLongAsLoop(t *testing.T) {
 	input := `
-temp count int = 0
+mut count int = 0
 as_long_as count < 5 {
     count = count + 1
 }
@@ -1847,7 +1847,7 @@ count
 
 func TestAsLongAsWithBreak(t *testing.T) {
 	input := `
-temp count int = 0
+mut count int = 0
 as_long_as true {
     count = count + 1
     if count == 3 {
@@ -1866,7 +1866,7 @@ count
 
 func TestRangeInForLoop(t *testing.T) {
 	input := `
-temp sum int = 0
+mut sum int = 0
 for i in range(1, 6) {
     sum = sum + i
 }
@@ -1879,7 +1879,7 @@ sum
 
 func TestRangeWithStep(t *testing.T) {
 	input := `
-temp sum int = 0
+mut sum int = 0
 for i in range(0, 10, 2) {
     sum = sum + i
 }
@@ -1965,8 +1965,8 @@ func TestRangeInWhenStatement(t *testing.T) {
 		{
 			name: "when with range - match first case",
 			input: `
-temp x int = 3
-temp result int = 0
+mut x int = 3
+mut result int = 0
 when x {
     is range(0, 5) {
         result = 1
@@ -1985,8 +1985,8 @@ result
 		{
 			name: "when with range - match second case",
 			input: `
-temp x int = 7
-temp result int = 0
+mut x int = 7
+mut result int = 0
 when x {
     is range(0, 5) {
         result = 1
@@ -2005,8 +2005,8 @@ result
 		{
 			name: "when with range - match default",
 			input: `
-temp x int = 15
-temp result int = 0
+mut x int = 15
+mut result int = 0
 when x {
     is range(0, 5) {
         result = 1
@@ -2025,8 +2025,8 @@ result
 		{
 			name: "when with range and step - on step",
 			input: `
-temp x int = 6
-temp result int = 0
+mut x int = 6
+mut result int = 0
 when x {
     is range(0, 10, 2) {
         result = 1
@@ -2042,8 +2042,8 @@ result
 		{
 			name: "when with range and step - off step",
 			input: `
-temp x int = 5
-temp result int = 0
+mut x int = 5
+mut result int = 0
 when x {
     is range(0, 10, 2) {
         result = 1
@@ -2059,8 +2059,8 @@ result
 		{
 			name: "when with range - boundary at start (inclusive)",
 			input: `
-temp x int = 0
-temp result int = 0
+mut x int = 0
+mut result int = 0
 when x {
     is range(0, 5) {
         result = 1
@@ -2076,8 +2076,8 @@ result
 		{
 			name: "when with range - boundary at end (exclusive)",
 			input: `
-temp x int = 5
-temp result int = 0
+mut x int = 5
+mut result int = 0
 when x {
     is range(0, 5) {
         result = 1
@@ -2109,8 +2109,8 @@ func TestRangeInIfStatement(t *testing.T) {
 		{
 			name: "if with range in - true branch",
 			input: `
-temp x int = 5
-temp result int = 0
+mut x int = 5
+mut result int = 0
 if x in range(0, 10) {
     result = 1
 }
@@ -2121,8 +2121,8 @@ result
 		{
 			name: "if with range in - false (not executed)",
 			input: `
-temp x int = 15
-temp result int = 0
+mut x int = 15
+mut result int = 0
 if x in range(0, 10) {
     result = 1
 }
@@ -2133,8 +2133,8 @@ result
 		{
 			name: "if with range !in - true branch",
 			input: `
-temp x int = 15
-temp result int = 0
+mut x int = 15
+mut result int = 0
 if x !in range(0, 10) {
     result = 1
 }
@@ -2145,8 +2145,8 @@ result
 		{
 			name: "if with range and step",
 			input: `
-temp x int = 4
-temp result int = 0
+mut x int = 4
+mut result int = 0
 if x in range(0, 10, 2) {
     result = 1
 }
@@ -2206,17 +2206,17 @@ func TestIncrementDecrement(t *testing.T) {
 	}{
 		{
 			name:     "increment",
-			input:    `temp x int = 5 x++ x`,
+			input:    `mut x int = 5 x++ x`,
 			expected: 6,
 		},
 		{
 			name:     "decrement",
-			input:    `temp x int = 5 x-- x`,
+			input:    `mut x int = 5 x-- x`,
 			expected: 4,
 		},
 		{
 			name:     "multiple increments",
-			input:    `temp x int = 0 x++ x++ x++ x`,
+			input:    `mut x int = 0 x++ x++ x++ x`,
 			expected: 3,
 		},
 	}
@@ -2246,7 +2246,7 @@ func TestFloatInfixExpressionExtended(t *testing.T) {
 		},
 		{
 			name:     "float variable subtraction",
-			input:    `temp a float = 10.0 temp b float = 4.0 a - b`,
+			input:    `mut a float = 10.0 mut b float = 4.0 a - b`,
 			expected: 6.0,
 		},
 		{
@@ -2363,7 +2363,7 @@ func TestStringConcatenationExtended(t *testing.T) {
 		},
 		{
 			name:     "variable concatenation",
-			input:    `temp a string = "foo" temp b string = "bar" a + b`,
+			input:    `mut a string = "foo" mut b string = "bar" a + b`,
 			expected: "foobar",
 		},
 	}
@@ -2387,19 +2387,19 @@ func TestByteIntegerMixedOperations(t *testing.T) {
 	}{
 		{
 			name:  "byte subtraction from int",
-			input: `temp a byte = 10 temp b int = 3 a - b`,
+			input: `mut a byte = 10 mut b int = 3 a - b`,
 		},
 		{
 			name:  "byte multiplication with int",
-			input: `temp a byte = 10 temp b int = 2 a * b`,
+			input: `mut a byte = 10 mut b int = 2 a * b`,
 		},
 		{
 			name:  "byte division by int",
-			input: `temp a byte = 10 temp b int = 2 a / b`,
+			input: `mut a byte = 10 mut b int = 2 a / b`,
 		},
 		{
 			name:  "int addition with byte",
-			input: `temp a int = 10 temp b byte = 5 a + b`,
+			input: `mut a int = 10 mut b byte = 5 a + b`,
 		},
 	}
 
@@ -2478,8 +2478,8 @@ Color.Red != Color.Blue
 
 func TestWhileLoopBreak(t *testing.T) {
 	input := `
-temp sum int = 0
-temp i int = 0
+mut sum int = 0
+mut i int = 0
 as_long_as i < 10 {
     if i == 5 {
         break
@@ -2496,8 +2496,8 @@ sum
 
 func TestWhileLoopContinue(t *testing.T) {
 	input := `
-temp sum int = 0
-temp i int = 0
+mut sum int = 0
+mut i int = 0
 as_long_as i < 5 {
     i++
     if i == 3 {
@@ -2572,12 +2572,12 @@ func TestSizedIntegerDeclaration(t *testing.T) {
 		name  string
 		input string
 	}{
-		{"i8 variable", `temp x i8 = 127 x`},
-		{"i16 variable", `temp x i16 = 1000 x`},
-		{"i32 variable", `temp x i32 = 100000 x`},
-		{"i64 variable", `temp x i64 = 1000000 x`},
-		{"u8 variable", `temp x u8 = 255 x`},
-		{"u16 variable", `temp x u16 = 65535 x`},
+		{"i8 variable", `mut x i8 = 127 x`},
+		{"i16 variable", `mut x i16 = 1000 x`},
+		{"i32 variable", `mut x i32 = 100000 x`},
+		{"i64 variable", `mut x i64 = 1000000 x`},
+		{"u8 variable", `mut x u8 = 255 x`},
+		{"u16 variable", `mut x u16 = 65535 x`},
 	}
 
 	for _, tt := range tests {
@@ -2604,12 +2604,12 @@ func TestSimpleAssignment(t *testing.T) {
 	}{
 		{
 			name:     "assign to existing variable",
-			input:    `temp x int = 5 x = 10 x`,
+			input:    `mut x int = 5 x = 10 x`,
 			expected: 10,
 		},
 		{
 			name:     "assign expression result",
-			input:    `temp x int = 5 x = x + 5 x`,
+			input:    `mut x int = 5 x = x + 5 x`,
 			expected: 10,
 		},
 	}
@@ -2629,7 +2629,7 @@ func TestSimpleAssignment(t *testing.T) {
 func TestFunctionMultipleParameters(t *testing.T) {
 	input := `
 do add3(a int, b int, c int) -> int { return a + b + c }
-temp r int = add3(1, 2, 3)
+mut r int = add3(1, 2, 3)
 r
 `
 	evaluated := testEval(input)
@@ -2642,8 +2642,8 @@ r
 
 func TestIfOrOtherwiseChain(t *testing.T) {
 	input := `
-temp x int = 5
-temp result int = 0
+mut x int = 5
+mut result int = 0
 if x > 10 {
     result = 1
 } or x > 3 {
@@ -2686,7 +2686,7 @@ func TestNegativeNumbers(t *testing.T) {
 
 func TestIntToFloatCoercion(t *testing.T) {
 	// Test that integers can be used in float context
-	input := `temp x float = 5.0 temp y int = 2 x + 2.0`
+	input := `mut x float = 5.0 mut y int = 2 x + 2.0`
 	evaluated := testEval(input)
 	testFloatObject(t, evaluated, 7.0)
 }
@@ -2835,10 +2835,10 @@ func TestVariableWithTypeInference(t *testing.T) {
 		name  string
 		input string
 	}{
-		{"infer int", `temp x = 42 x`},
-		{"infer float", `temp x = 3.14 x`},
-		{"infer string", `temp x = "hello" x`},
-		{"infer bool", `temp x = true x`},
+		{"infer int", `mut x = 42 x`},
+		{"infer float", `mut x = 3.14 x`},
+		{"infer string", `mut x = "hello" x`},
+		{"infer bool", `mut x = true x`},
 	}
 
 	for _, tt := range tests {
@@ -2899,8 +2899,8 @@ func TestComplexArithmetic(t *testing.T) {
 
 func TestNestedIfStatements(t *testing.T) {
 	input := `
-temp x int = 10
-temp result int = 0
+mut x int = 10
+mut result int = 0
 if x > 5 {
     if x > 8 {
         result = 1
@@ -2918,7 +2918,7 @@ result
 
 func TestLoopWithBreak(t *testing.T) {
 	input := `
-temp count int = 0
+mut count int = 0
 loop {
     count++
     if count >= 5 {
@@ -2965,19 +2965,19 @@ func TestArrayIndexExpression(t *testing.T) {
 		expected int64
 	}{
 		{`
-temp arr [int] = {1, 2, 3}
+mut arr [int] = {1, 2, 3}
 arr[0]
 `, 1},
 		{`
-temp arr [int] = {1, 2, 3}
+mut arr [int] = {1, 2, 3}
 arr[1]
 `, 2},
 		{`
-temp arr [int] = {1, 2, 3}
+mut arr [int] = {1, 2, 3}
 arr[2]
 `, 3},
 		{`
-temp arr [int] = {10, 20, 30, 40, 50}
+mut arr [int] = {10, 20, 30, 40, 50}
 arr[4]
 `, 50},
 	}
@@ -2990,8 +2990,8 @@ arr[4]
 
 func TestArrayIndexWithExpression(t *testing.T) {
 	input := `
-temp arr [int] = {1, 2, 3, 4, 5}
-temp idx int = 2
+mut arr [int] = {1, 2, 3, 4, 5}
+mut idx int = 2
 arr[idx]
 `
 	evaluated := testEval(input)
@@ -3000,7 +3000,7 @@ arr[idx]
 
 func TestArrayIndexOutOfBounds(t *testing.T) {
 	input := `
-temp arr [int] = {1, 2, 3}
+mut arr [int] = {1, 2, 3}
 arr[10]
 `
 	evaluated := testEval(input)
@@ -3019,15 +3019,15 @@ func TestStringIndexExpression(t *testing.T) {
 		expected string
 	}{
 		{`
-temp s string = "hello"
+mut s string = "hello"
 s[0]
 `, "h"},
 		{`
-temp s string = "hello"
+mut s string = "hello"
 s[4]
 `, "o"},
 		{`
-temp s string = "world"
+mut s string = "world"
 s[2]
 `, "r"},
 	}
@@ -3076,7 +3076,7 @@ func TestMapWithStringKeys(t *testing.T) {
 
 func TestForLoopWithStep(t *testing.T) {
 	input := `
-temp sum int = 0
+mut sum int = 0
 for i in range(0, 10, 2) {
     sum = sum + i
 }
@@ -3089,7 +3089,7 @@ sum
 
 func TestForLoopContinue(t *testing.T) {
 	input := `
-temp sum int = 0
+mut sum int = 0
 for i in range(0, 5) {
     if i == 2 {
         continue
@@ -3105,7 +3105,7 @@ sum
 
 func TestForLoopBreak(t *testing.T) {
 	input := `
-temp sum int = 0
+mut sum int = 0
 for i in range(0, 10) {
     if i == 5 {
         break
@@ -3130,7 +3130,7 @@ const Person struct {
     age int
     active bool
 }
-temp p Person = Person{name: "", age: 0, active: false}
+mut p Person = Person{name: "", age: 0, active: false}
 p.active
 `
 	evaluated := testEval(input)
@@ -3143,7 +3143,7 @@ const Point struct {
     x int
     y int
 }
-temp pt Point = Point{x: 0, y: 0}
+mut pt Point = Point{x: 0, y: 0}
 pt.x = 10
 pt.y = 20
 pt.x + pt.y
@@ -3161,7 +3161,7 @@ func TestFunctionWithNoParams(t *testing.T) {
 do getFortyTwo() -> int {
     return 42
 }
-temp result int = getFortyTwo()
+mut result int = getFortyTwo()
 result
 `
 	evaluated := testEval(input)
@@ -3176,7 +3176,7 @@ do double(x int) -> int {
 do addOne(x int) -> int {
     return x + 1
 }
-temp result int = double(addOne(5))
+mut result int = double(addOne(5))
 result
 `
 	evaluated := testEval(input)
@@ -3227,7 +3227,7 @@ func TestNegativeNumbersPrefix(t *testing.T) {
 
 func TestPostfixIncrement(t *testing.T) {
 	input := `
-temp x int = 5
+mut x int = 5
 x++
 x
 `
@@ -3237,7 +3237,7 @@ x
 
 func TestPostfixDecrement(t *testing.T) {
 	input := `
-temp x int = 5
+mut x int = 5
 x--
 x
 `
@@ -3255,28 +3255,28 @@ func TestByteComparisonOperators(t *testing.T) {
 		expected bool
 	}{
 		{`
-temp a byte = 10
-temp c byte = 10
+mut a byte = 10
+mut c byte = 10
 a == c
 `, true},
 		{`
-temp a byte = 10
-temp c byte = 20
+mut a byte = 10
+mut c byte = 20
 a == c
 `, false},
 		{`
-temp a byte = 10
-temp c byte = 20
+mut a byte = 10
+mut c byte = 20
 a != c
 `, true},
 		{`
-temp a byte = 10
-temp c byte = 20
+mut a byte = 10
+mut c byte = 20
 a < c
 `, true},
 		{`
-temp a byte = 20
-temp c byte = 10
+mut a byte = 20
+mut c byte = 10
 a > c
 `, true},
 	}
@@ -3289,8 +3289,8 @@ a > c
 
 func TestByteBitwiseOr(t *testing.T) {
 	input := `
-temp a byte = 15
-temp c byte = 240
+mut a byte = 15
+mut c byte = 240
 a | c
 `
 	evaluated := testEval(input)
@@ -3306,8 +3306,8 @@ a | c
 
 func TestByteBitwiseXor(t *testing.T) {
 	input := `
-temp a byte = 255
-temp c byte = 240
+mut a byte = 255
+mut c byte = 240
 a ^ c
 `
 	evaluated := testEval(input)
@@ -3348,8 +3348,8 @@ func TestInOperatorArray(t *testing.T) {
 
 func TestInterpolatedStringGreeting(t *testing.T) {
 	input := `
-temp name string = "World"
-temp greeting string = "Hello, ${name}!"
+mut name string = "World"
+mut greeting string = "Hello, ${name}!"
 greeting
 `
 	evaluated := testEval(input)
@@ -3358,9 +3358,9 @@ greeting
 
 func TestInterpolatedStringWithExpression(t *testing.T) {
 	input := `
-temp x int = 5
-temp y int = 10
-temp result string = "Sum: ${x + y}"
+mut x int = 5
+mut y int = 10
+mut result string = "Sum: ${x + y}"
 result
 `
 	evaluated := testEval(input)
@@ -3381,7 +3381,7 @@ func TestConstArrayDynamicSizeError(t *testing.T) {
 }
 
 func TestArrayTypeMismatch(t *testing.T) {
-	input := `temp arr [int] = "not an array"`
+	input := `mut arr [int] = "not an array"`
 	evaluated := testEval(input)
 	if !isErrorObject(evaluated) {
 		t.Errorf("expected error for type mismatch, got %T", evaluated)
@@ -3389,7 +3389,7 @@ func TestArrayTypeMismatch(t *testing.T) {
 }
 
 func TestByteArrayValidation(t *testing.T) {
-	input := `temp arr [byte] = {0, 127, 255}`
+	input := `mut arr [byte] = {0, 127, 255}`
 	evaluated := testEval(input)
 	// Should succeed with valid byte values
 	if isErrorObject(evaluated) {
@@ -3398,7 +3398,7 @@ func TestByteArrayValidation(t *testing.T) {
 }
 
 func TestByteArrayOutOfRange(t *testing.T) {
-	input := `temp arr [byte] = {256}`
+	input := `mut arr [byte] = {256}`
 	evaluated := testEval(input)
 	if !isErrorObject(evaluated) {
 		t.Errorf("expected error for byte out of range, got %T", evaluated)
@@ -3438,7 +3438,7 @@ x = 20
 
 func TestMutableAssignment(t *testing.T) {
 	input := `
-temp x int = 10
+mut x int = 10
 x = 20
 x
 `
@@ -3448,7 +3448,7 @@ x
 
 func TestCompoundSubtraction(t *testing.T) {
 	input := `
-temp x int = 10
+mut x int = 10
 x -= 3
 x
 `
@@ -3458,7 +3458,7 @@ x
 
 func TestCompoundMultiplication(t *testing.T) {
 	input := `
-temp x int = 5
+mut x int = 5
 x *= 4
 x
 `
@@ -3468,7 +3468,7 @@ x
 
 func TestCompoundDivision(t *testing.T) {
 	input := `
-temp x int = 20
+mut x int = 20
 x /= 4
 x
 `
@@ -3521,7 +3521,7 @@ func TestFunctionWithMutableParam(t *testing.T) {
 do increment(&x int) {
     x = x + 1
 }
-temp val int = 5
+mut val int = 5
 increment(val)
 val
 `
@@ -3537,7 +3537,7 @@ do factorial(n int) -> int {
     }
     return n * factorial(n - 1)
 }
-temp result int = factorial(5)
+mut result int = factorial(5)
 result
 `
 	evaluated := testEval(input)
@@ -3550,8 +3550,8 @@ result
 
 func TestNestedIfElse(t *testing.T) {
 	input := `
-temp x int = 15
-temp result string = ""
+mut x int = 15
+mut result string = ""
 if x > 20 {
     result = "large"
 } or x > 10 {
@@ -3567,8 +3567,8 @@ result
 
 func TestMultipleOr(t *testing.T) {
 	input := `
-temp x int = 5
-temp result string = ""
+mut x int = 5
+mut result string = ""
 if x > 30 {
     result = "a"
 } or x > 20 {
@@ -3590,8 +3590,8 @@ result
 
 func TestWhileLoopWithCounter(t *testing.T) {
 	input := `
-temp count int = 0
-temp sum int = 0
+mut count int = 0
+mut sum int = 0
 as_long_as count < 5 {
     sum = sum + count
     count++
@@ -3605,8 +3605,8 @@ sum
 
 func TestLoopContinueAndBreak(t *testing.T) {
 	input := `
-temp count int = 0
-temp sum int = 0
+mut count int = 0
+mut sum int = 0
 loop {
     count++
     if count == 3 {
@@ -3626,8 +3626,8 @@ sum
 
 func TestForEachLoop(t *testing.T) {
 	input := `
-temp arr [int] = {1, 2, 3, 4, 5}
-temp sum int = 0
+mut arr [int] = {1, 2, 3, 4, 5}
+mut sum int = 0
 for_each item in arr {
     sum = sum + item
 }
@@ -3643,7 +3643,7 @@ sum
 
 func TestBooleanNot(t *testing.T) {
 	input := `
-temp flag bool = true
+mut flag bool = true
 !flag
 `
 	evaluated := testEval(input)
@@ -3687,12 +3687,12 @@ func TestCharInequality(t *testing.T) {
 func TestShortCircuitAndFalseLeft(t *testing.T) {
 	// false && expr should NOT evaluate expr (short-circuit)
 	input := `
-temp call_count int = 0
+mut call_count int = 0
 do side_effect() -> bool {
     call_count += 1
     return true
 }
-temp result bool = false && side_effect()
+mut result bool = false && side_effect()
 call_count
 `
 	evaluated := testEval(input)
@@ -3703,12 +3703,12 @@ call_count
 func TestShortCircuitOrTrueLeft(t *testing.T) {
 	// true || expr should NOT evaluate expr (short-circuit)
 	input := `
-temp call_count int = 0
+mut call_count int = 0
 do side_effect() -> bool {
     call_count += 1
     return true
 }
-temp result bool = true || side_effect()
+mut result bool = true || side_effect()
 call_count
 `
 	evaluated := testEval(input)
@@ -3719,12 +3719,12 @@ call_count
 func TestShortCircuitAndTrueLeft(t *testing.T) {
 	// true && expr SHOULD evaluate expr
 	input := `
-temp call_count int = 0
+mut call_count int = 0
 do side_effect() -> bool {
     call_count += 1
     return true
 }
-temp result bool = true && side_effect()
+mut result bool = true && side_effect()
 call_count
 `
 	evaluated := testEval(input)
@@ -3735,12 +3735,12 @@ call_count
 func TestShortCircuitOrFalseLeft(t *testing.T) {
 	// false || expr SHOULD evaluate expr
 	input := `
-temp call_count int = 0
+mut call_count int = 0
 do side_effect() -> bool {
     call_count += 1
     return true
 }
-temp result bool = false || side_effect()
+mut result bool = false || side_effect()
 call_count
 `
 	evaluated := testEval(input)
@@ -3801,8 +3801,8 @@ func TestBooleanTruthyInIfCondition(t *testing.T) {
 		// Test with stdlib function returning false - should take else branch
 		{`
 import @strings
-temp s string = "hello"
-temp result string = ""
+mut s string = "hello"
+mut result string = ""
 if strings.contains(s, "xyz") {
     result = "true"
 } otherwise {
@@ -3813,8 +3813,8 @@ result
 		// Test with stdlib function returning true - should take if branch
 		{`
 import @strings
-temp s string = "hello"
-temp result string = ""
+mut s string = "hello"
+mut result string = ""
 if strings.contains(s, "ell") {
     result = "true"
 } otherwise {
@@ -3825,8 +3825,8 @@ result
 		// Test starts_with returning false
 		{`
 import @strings
-temp s string = "hello"
-temp result string = ""
+mut s string = "hello"
+mut result string = ""
 if strings.starts_with(s, "world") {
     result = "true"
 } otherwise {
@@ -3837,8 +3837,8 @@ result
 		// Test ends_with returning false
 		{`
 import @strings
-temp s string = "hello"
-temp result string = ""
+mut s string = "hello"
+mut result string = ""
 if strings.ends_with(s, "world") {
     result = "true"
 } otherwise {
@@ -3860,9 +3860,9 @@ func TestBooleanAssignmentAndCondition(t *testing.T) {
 	// Test that boolean assigned to variable works correctly in if condition
 	input := `
 import @strings
-temp s string = "hello world"
-temp result bool = strings.contains(s, "xyz")
-temp output string = ""
+mut s string = "hello world"
+mut result bool = strings.contains(s, "xyz")
+mut output string = ""
 if result {
     output = "bug"
 } otherwise {
@@ -3884,7 +3884,7 @@ do getTwo() -> (int, int) {
     return 1, 2
 }
 
-temp a, _ = getTwo()
+mut a, _ = getTwo()
 a
 `
 	evaluated := testEval(input)
@@ -3897,7 +3897,7 @@ do getTwo() -> (int, int) {
     return 1, 2
 }
 
-temp _, b = getTwo()
+mut _, b = getTwo()
 b
 `
 	evaluated := testEval(input)
@@ -3910,7 +3910,7 @@ do getThree() -> (int, int, int) {
     return 1, 2, 3
 }
 
-temp _, _, c = getThree()
+mut _, _, c = getThree()
 c
 `
 	evaluated := testEval(input)
@@ -3923,7 +3923,7 @@ do getThree() -> (int, int, int) {
     return 10, 20, 30
 }
 
-temp a, _, c = getThree()
+mut a, _, c = getThree()
 a + c
 `
 	evaluated := testEval(input)
@@ -3986,7 +3986,7 @@ func TestUTF8StringIndexing(t *testing.T) {
 		{
 			name: "access ASCII char in UTF-8 string",
 			input: `
-temp s string = "Hello 世界"
+mut s string = "Hello 世界"
 s[0]
 `,
 			expected: 'H',
@@ -3994,7 +3994,7 @@ s[0]
 		{
 			name: "access first Chinese character",
 			input: `
-temp s string = "Hello 世界"
+mut s string = "Hello 世界"
 s[6]
 `,
 			expected: '世',
@@ -4002,7 +4002,7 @@ s[6]
 		{
 			name: "access second Chinese character",
 			input: `
-temp s string = "Hello 世界"
+mut s string = "Hello 世界"
 s[7]
 `,
 			expected: '界',
@@ -4010,7 +4010,7 @@ s[7]
 		{
 			name: "access emoji",
 			input: `
-temp s string = "Hi 👋 there"
+mut s string = "Hi 👋 there"
 s[3]
 `,
 			expected: '👋',
@@ -4189,7 +4189,7 @@ func TestNegationOverflow(t *testing.T) {
 	}{
 		{
 			name:        "negation overflow - minInt with typed variable",
-			input:       "temp x int = -9223372036854775808\n-x",
+			input:       "mut x int = -9223372036854775808\n-x",
 			expectError: true,
 		},
 		{
@@ -4272,7 +4272,7 @@ func TestPostfixOverflowDetection(t *testing.T) {
 		{
 			name: "increment overflow",
 			input: `
-temp i i64 = 9223372036854775807
+mut i i64 = 9223372036854775807
 i++
 `,
 			expectError: true,
@@ -4281,7 +4281,7 @@ i++
 		{
 			name: "decrement underflow",
 			input: `
-temp i i64 = -9223372036854775808
+mut i i64 = -9223372036854775808
 i--
 `,
 			expectError: true,
@@ -4290,7 +4290,7 @@ i--
 		{
 			name: "normal increment - no overflow",
 			input: `
-temp i int = 100
+mut i int = 100
 i++
 i
 `,
@@ -4299,7 +4299,7 @@ i
 		{
 			name: "normal decrement - no overflow",
 			input: `
-temp i int = 100
+mut i int = 100
 i--
 i
 `,
@@ -4339,42 +4339,42 @@ func TestLargeIntegerArithmetic(t *testing.T) {
 	}{
 		{
 			"i128 addition beyond int64",
-			"temp a i128 = 9223372036854775807\ntemp b i128 = 1\na + b",
+			"mut a i128 = 9223372036854775807\nmut b i128 = 1\na + b",
 			"9223372036854775808",
 		},
 		{
 			"u128 addition beyond uint64",
-			"temp a u128 = 18446744073709551615\ntemp b u128 = 1\na + b",
+			"mut a u128 = 18446744073709551615\nmut b u128 = 1\na + b",
 			"18446744073709551616",
 		},
 		{
 			"i128 multiplication",
-			"temp a i128 = 10000000000\ntemp b i128 = 10000000000\na * b",
+			"mut a i128 = 10000000000\nmut b i128 = 10000000000\na * b",
 			"100000000000000000000",
 		},
 		{
 			"i128 large literal",
-			"temp x i128 = 10000000000000000000\nx",
+			"mut x i128 = 10000000000000000000\nx",
 			"10000000000000000000",
 		},
 		{
 			"u128 large literal",
-			"temp x u128 = 18446744073709551616\nx",
+			"mut x u128 = 18446744073709551616\nx",
 			"18446744073709551616",
 		},
 		{
 			"i128 negative subtraction beyond int64",
-			"temp a i128 = -9223372036854775808\ntemp b i128 = 1\na - b",
+			"mut a i128 = -9223372036854775808\nmut b i128 = 1\na - b",
 			"-9223372036854775809",
 		},
 		{
 			"i128 division",
-			"temp a i128 = 100000000000000000000\ntemp b i128 = 10000000000\na / b",
+			"mut a i128 = 100000000000000000000\nmut b i128 = 10000000000\na / b",
 			"10000000000",
 		},
 		{
 			"i128 modulo",
-			"temp a i128 = 100000000000000000001\ntemp b i128 = 10000000000\na % b",
+			"mut a i128 = 100000000000000000001\nmut b i128 = 10000000000\na % b",
 			"1",
 		},
 	}
@@ -4397,27 +4397,27 @@ func TestLargeIntegerOverflow(t *testing.T) {
 	}{
 		{
 			"i128 overflow on addition",
-			"temp max i128 = 170141183460469231731687303715884105727\ntemp r i128 = max + 1",
+			"mut max i128 = 170141183460469231731687303715884105727\nmut r i128 = max + 1",
 			"E5005",
 		},
 		{
 			"i128 underflow on subtraction",
-			"temp min i128 = -170141183460469231731687303715884105728\ntemp r i128 = min - 1",
+			"mut min i128 = -170141183460469231731687303715884105728\nmut r i128 = min - 1",
 			"E5006",
 		},
 		{
 			"u128 overflow on addition",
-			"temp max u128 = 340282366920938463463374607431768211455\ntemp r u128 = max + 1",
+			"mut max u128 = 340282366920938463463374607431768211455\nmut r u128 = max + 1",
 			"E5005",
 		},
 		{
 			"u128 underflow on subtraction",
-			"temp zero u128 = 0\ntemp r u128 = zero - 1",
+			"mut zero u128 = 0\nmut r u128 = zero - 1",
 			"E5006",
 		},
 		{
 			"i64 overflow still works",
-			"temp max i64 = 9223372036854775807\ntemp r i64 = max + 1",
+			"mut max i64 = 9223372036854775807\nmut r i64 = max + 1",
 			"E5005",
 		},
 	}
@@ -4437,7 +4437,7 @@ func TestLargeIntegerOverflow(t *testing.T) {
 }
 
 func TestNegativeToUnsignedTypeError(t *testing.T) {
-	input := "temp x u128 = -1"
+	input := "mut x u128 = -1"
 	evaluated := testEval(input)
 	err, ok := evaluated.(*Error)
 	if !ok {
@@ -4453,7 +4453,7 @@ func TestNegativeToUnsignedTypeError(t *testing.T) {
 // =============================================================================
 
 func TestDefaultParameterBasicString(t *testing.T) {
-	input := `do greet(name string = "World") -> string { return "Hello, " + name + "!" } temp r string = greet() r`
+	input := `do greet(name string = "World") -> string { return "Hello, " + name + "!" } mut r string = greet() r`
 	evaluated := testEval(input)
 	result, ok := evaluated.(*String)
 	if !ok {
@@ -4465,7 +4465,7 @@ func TestDefaultParameterBasicString(t *testing.T) {
 }
 
 func TestDefaultParameterOverride(t *testing.T) {
-	input := `do greet(name string = "World") -> string { return "Hello, " + name + "!" } temp r string = greet("Alice") r`
+	input := `do greet(name string = "World") -> string { return "Hello, " + name + "!" } mut r string = greet("Alice") r`
 	evaluated := testEval(input)
 	result, ok := evaluated.(*String)
 	if !ok {
@@ -4477,7 +4477,7 @@ func TestDefaultParameterOverride(t *testing.T) {
 }
 
 func TestDefaultParameterNumeric(t *testing.T) {
-	input := `do add(a int, b int = 10) -> int { return a + b } temp r int = add(5) r`
+	input := `do add(a int, b int = 10) -> int { return a + b } mut r int = add(5) r`
 	evaluated := testEval(input)
 	result, ok := evaluated.(*Integer)
 	if !ok {
@@ -4489,7 +4489,7 @@ func TestDefaultParameterNumeric(t *testing.T) {
 }
 
 func TestDefaultParameterNumericOverride(t *testing.T) {
-	input := `do add(a int, b int = 10) -> int { return a + b } temp r int = add(5, 20) r`
+	input := `do add(a int, b int = 10) -> int { return a + b } mut r int = add(5, 20) r`
 	evaluated := testEval(input)
 	result, ok := evaluated.(*Integer)
 	if !ok {
@@ -4501,7 +4501,7 @@ func TestDefaultParameterNumericOverride(t *testing.T) {
 }
 
 func TestDefaultParameterMultiple(t *testing.T) {
-	input := `do calc(a int, b int = 2, c int = 3) -> int { return a * b + c } temp r int = calc(5) r`
+	input := `do calc(a int, b int = 2, c int = 3) -> int { return a * b + c } mut r int = calc(5) r`
 	evaluated := testEval(input)
 	result, ok := evaluated.(*Integer)
 	if !ok {
@@ -4514,7 +4514,7 @@ func TestDefaultParameterMultiple(t *testing.T) {
 }
 
 func TestDefaultParameterPartialOverride(t *testing.T) {
-	input := `do calc(a int, b int = 2, c int = 3) -> int { return a * b + c } temp r int = calc(5, 10) r`
+	input := `do calc(a int, b int = 2, c int = 3) -> int { return a * b + c } mut r int = calc(5, 10) r`
 	evaluated := testEval(input)
 	result, ok := evaluated.(*Integer)
 	if !ok {
@@ -4527,7 +4527,7 @@ func TestDefaultParameterPartialOverride(t *testing.T) {
 }
 
 func TestDefaultParameterAllDefaults(t *testing.T) {
-	input := `do triple(a int = 1, b int = 2, c int = 3) -> int { return a + b + c } temp r int = triple() r`
+	input := `do triple(a int = 1, b int = 2, c int = 3) -> int { return a + b + c } mut r int = triple() r`
 	evaluated := testEval(input)
 	result, ok := evaluated.(*Integer)
 	if !ok {
@@ -4539,7 +4539,7 @@ func TestDefaultParameterAllDefaults(t *testing.T) {
 }
 
 func TestDefaultParameterExpressionDefault(t *testing.T) {
-	input := `do calc(mult float = 3.14 * 2.0) -> float { return mult } temp r float = calc() r`
+	input := `do calc(mult float = 3.14 * 2.0) -> float { return mult } mut r float = calc() r`
 	evaluated := testEval(input)
 	result, ok := evaluated.(*Float)
 	if !ok {
@@ -4553,7 +4553,7 @@ func TestDefaultParameterExpressionDefault(t *testing.T) {
 
 func TestDefaultParameterGroupedParams(t *testing.T) {
 	// x, y int = 0 means x is required, y has default
-	input := `do point(x, y int = 0) -> int { return x + y } temp r int = point(5) r`
+	input := `do point(x, y int = 0) -> int { return x + y } mut r int = point(5) r`
 	evaluated := testEval(input)
 	result, ok := evaluated.(*Integer)
 	if !ok {
@@ -4565,7 +4565,7 @@ func TestDefaultParameterGroupedParams(t *testing.T) {
 }
 
 func TestDefaultParameterGroupedParamsWithOverride(t *testing.T) {
-	input := `do point(x, y int = 0) -> int { return x + y } temp r int = point(3, 4) r`
+	input := `do point(x, y int = 0) -> int { return x + y } mut r int = point(3, 4) r`
 	evaluated := testEval(input)
 	result, ok := evaluated.(*Integer)
 	if !ok {
@@ -4577,7 +4577,7 @@ func TestDefaultParameterGroupedParamsWithOverride(t *testing.T) {
 }
 
 func TestDefaultParameterBoolDefault(t *testing.T) {
-	input := `do toggle(val bool = false) -> bool { return !val } temp r bool = toggle() r`
+	input := `do toggle(val bool = false) -> bool { return !val } mut r bool = toggle() r`
 	evaluated := testEval(input)
 	result, ok := evaluated.(*Boolean)
 	if !ok {
@@ -4628,8 +4628,8 @@ func TestDefaultParameterTooManyArgsError(t *testing.T) {
 
 func TestWhenStatementWithMultipleValues(t *testing.T) {
 	input := `
-	temp x int = 2
-	temp result int = 0
+	mut x int = 2
+	mut result int = 0
 	when x {
 		is 1, 2, 3 {
 			result = 100
@@ -4646,8 +4646,8 @@ func TestWhenStatementWithMultipleValues(t *testing.T) {
 
 func TestWhenStatementDefault(t *testing.T) {
 	input := `
-	temp x int = 99
-	temp result int = 0
+	mut x int = 99
+	mut result int = 0
 	when x {
 		is 1 {
 			result = 1
@@ -4668,8 +4668,8 @@ func TestWhenStatementDefault(t *testing.T) {
 func TestWhenStatementWithEnumValues(t *testing.T) {
 	input := `
 	const Color enum { RED, GREEN, BLUE }
-	temp c Color = Color.GREEN
-	temp result int = 0
+	mut c Color = Color.GREEN
+	mut result int = 0
 	when c {
 		is Color.RED {
 			result = 1
@@ -4694,8 +4694,8 @@ func TestWhenStatementWithEnumValues(t *testing.T) {
 func TestEnumValueEquality(t *testing.T) {
 	input := `
 	const Status enum { OPEN, CLOSED }
-	temp s1 Status = Status.OPEN
-	temp s2 Status = Status.OPEN
+	mut s1 Status = Status.OPEN
+	mut s2 Status = Status.OPEN
 	s1 == s2
 	`
 	evaluated := testEval(input)
@@ -4705,8 +4705,8 @@ func TestEnumValueEquality(t *testing.T) {
 func TestEnumValueInequality(t *testing.T) {
 	input := `
 	const Status enum { OPEN, CLOSED }
-	temp s1 Status = Status.OPEN
-	temp s2 Status = Status.CLOSED
+	mut s1 Status = Status.OPEN
+	mut s2 Status = Status.CLOSED
 	s1 == s2
 	`
 	evaluated := testEval(input)
@@ -4723,7 +4723,7 @@ func TestStructDefaultValues(t *testing.T) {
 		name string
 		age int
 	}
-	temp p Person = new(Person)
+	mut p Person = new(Person)
 	p.age
 	`
 	evaluated := testEval(input)
@@ -4736,7 +4736,7 @@ func TestStructDefaultStringValue(t *testing.T) {
 		name string
 		age int
 	}
-	temp p Person = new(Person)
+	mut p Person = new(Person)
 	p.name
 	`
 	evaluated := testEval(input)
@@ -4767,7 +4767,7 @@ func TestGetEZTypeName(t *testing.T) {
 }
 
 func TestGetEZTypeNameArray(t *testing.T) {
-	input := "temp arr [int] = {1, 2, 3} typeof(arr)"
+	input := "mut arr [int] = {1, 2, 3} typeof(arr)"
 	evaluated := testEval(input)
 	result, ok := evaluated.(*String)
 	if !ok {
@@ -4779,7 +4779,7 @@ func TestGetEZTypeNameArray(t *testing.T) {
 }
 
 func TestGetEZTypeNameMap(t *testing.T) {
-	input := `temp m map[string:int] = {"a": 1} typeof(m)`
+	input := `mut m map[string:int] = {"a": 1} typeof(m)`
 	evaluated := testEval(input)
 	result, ok := evaluated.(*String)
 	if !ok {
@@ -4794,7 +4794,7 @@ func TestGetEZTypeNameMap(t *testing.T) {
 func TestGetEZTypeNameStruct(t *testing.T) {
 	input := `
 	const Point struct { x int y int }
-	temp p Point = Point{x: 1, y: 2}
+	mut p Point = Point{x: 1, y: 2}
 	typeof(p)
 	`
 	evaluated := testEval(input)
@@ -4812,13 +4812,13 @@ func TestGetEZTypeNameStruct(t *testing.T) {
 // ============================================================================
 
 func TestByteTypeAssignment(t *testing.T) {
-	input := "temp b byte = 255 b"
+	input := "mut b byte = 255 b"
 	evaluated := testEval(input)
 	testByteObject(t, evaluated, 255)
 }
 
 func TestByteTypeZero(t *testing.T) {
-	input := "temp b byte = 0 b"
+	input := "mut b byte = 0 b"
 	evaluated := testEval(input)
 	testByteObject(t, evaluated, 0)
 }
@@ -4914,7 +4914,7 @@ func TestNestedStructAccessDeep(t *testing.T) {
 	const Outer struct {
 		inner Inner
 	}
-	temp o Outer = Outer{inner: Inner{value: 42}}
+	mut o Outer = Outer{inner: Inner{value: 42}}
 	o.inner.value
 	`
 	evaluated := testEval(input)
@@ -4924,8 +4924,8 @@ func TestNestedStructAccessDeep(t *testing.T) {
 // Test objectsEqual via when statements with different types
 func TestWhenWithStrings(t *testing.T) {
 	input := `
-	temp s string = "hello"
-	temp result int = 0
+	mut s string = "hello"
+	mut result int = 0
 	when s {
 		is "world" { result = 1 }
 		is "hello" { result = 2 }
@@ -4939,8 +4939,8 @@ func TestWhenWithStrings(t *testing.T) {
 
 func TestWhenWithChars(t *testing.T) {
 	input := `
-	temp c char = 'b'
-	temp result int = 0
+	mut c char = 'b'
+	mut result int = 0
 	when c {
 		is 'a' { result = 1 }
 		is 'b' { result = 2 }
@@ -4954,8 +4954,8 @@ func TestWhenWithChars(t *testing.T) {
 
 func TestWhenWithBooleans(t *testing.T) {
 	input := `
-	temp b bool = false
-	temp result int = 0
+	mut b bool = false
+	mut result int = 0
 	when b {
 		is true { result = 1 }
 		is false { result = 2 }
@@ -4969,7 +4969,7 @@ func TestWhenWithBooleans(t *testing.T) {
 // Test integer overflow detection with different types
 func TestI8OverflowDetection(t *testing.T) {
 	input := `
-	temp x i8 = 127
+	mut x i8 = 127
 	x + 1
 	`
 	evaluated := testEval(input)
@@ -4980,7 +4980,7 @@ func TestI8OverflowDetection(t *testing.T) {
 
 func TestI16OverflowDetection(t *testing.T) {
 	input := `
-	temp x i16 = 32767
+	mut x i16 = 32767
 	x + 1
 	`
 	evaluated := testEval(input)
@@ -4991,7 +4991,7 @@ func TestI16OverflowDetection(t *testing.T) {
 
 func TestU8OverflowDetection(t *testing.T) {
 	input := `
-	temp x u8 = 255
+	mut x u8 = 255
 	x + 1
 	`
 	evaluated := testEval(input)
@@ -5002,7 +5002,7 @@ func TestU8OverflowDetection(t *testing.T) {
 
 func TestU16OverflowDetection(t *testing.T) {
 	input := `
-	temp x u16 = 65535
+	mut x u16 = 65535
 	x + 1
 	`
 	evaluated := testEval(input)
@@ -5014,7 +5014,7 @@ func TestU16OverflowDetection(t *testing.T) {
 // Test unsigned underflow
 func TestU8UnderflowDetection(t *testing.T) {
 	input := `
-	temp x u8 = 0
+	mut x u8 = 0
 	x - 1
 	`
 	evaluated := testEval(input)
@@ -5026,7 +5026,7 @@ func TestU8UnderflowDetection(t *testing.T) {
 // Test i128 and u128 types
 func TestI128Declaration(t *testing.T) {
 	input := `
-	temp x i128 = 1000000000000
+	mut x i128 = 1000000000000
 	x
 	`
 	evaluated := testEval(input)
@@ -5035,7 +5035,7 @@ func TestI128Declaration(t *testing.T) {
 
 func TestU128Declaration(t *testing.T) {
 	input := `
-	temp x u128 = 1000000000000
+	mut x u128 = 1000000000000
 	x
 	`
 	evaluated := testEval(input)
@@ -5045,7 +5045,7 @@ func TestU128Declaration(t *testing.T) {
 // Test assignment expressions
 func TestArrayElementAssignment(t *testing.T) {
 	input := `
-	temp arr [int] = {1, 2, 3}
+	mut arr [int] = {1, 2, 3}
 	arr[1] = 42
 	arr[1]
 	`
@@ -5055,7 +5055,7 @@ func TestArrayElementAssignment(t *testing.T) {
 
 func TestMapElementAssignment(t *testing.T) {
 	input := `
-	temp m map[string:int] = {"a": 1, "b": 2}
+	mut m map[string:int] = {"a": 1, "b": 2}
 	m["a"] = 100
 	m["a"]
 	`
@@ -5069,7 +5069,7 @@ func TestStructFieldMutation(t *testing.T) {
 		x int
 		y int
 	}
-	temp p Point = Point{x: 1, y: 2}
+	mut p Point = Point{x: 1, y: 2}
 	p.x = 10
 	p.x
 	`
@@ -5080,7 +5080,7 @@ func TestStructFieldMutation(t *testing.T) {
 // Test compound assignments with different types
 func TestCompoundAssignI32(t *testing.T) {
 	input := `
-	temp x i32 = 10
+	mut x i32 = 10
 	x += 5
 	x
 	`
@@ -5090,7 +5090,7 @@ func TestCompoundAssignI32(t *testing.T) {
 
 func TestCompoundAssignFloat(t *testing.T) {
 	input := `
-	temp x float = 10.5
+	mut x float = 10.5
 	x += 2.5
 	x
 	`
@@ -5176,8 +5176,8 @@ func TestCastIntToByte(t *testing.T) {
 
 func TestCastArrayIntToU8(t *testing.T) {
 	input := `
-	temp arr [int] = {1, 2, 3}
-	temp result [u8] = cast(arr, [u8])
+	mut arr [int] = {1, 2, 3}
+	mut result [u8] = cast(arr, [u8])
 	result[0]
 	`
 	evaluated := testEval(input)
@@ -5195,8 +5195,8 @@ func TestCastArrayIntToU8(t *testing.T) {
 
 func TestCastArrayByteToU8(t *testing.T) {
 	input := `
-	temp arr [byte] = {72, 101, 108}
-	temp result [u8] = cast(arr, [u8])
+	mut arr [byte] = {72, 101, 108}
+	mut result [u8] = cast(arr, [u8])
 	result[1]
 	`
 	evaluated := testEval(input)
@@ -5211,8 +5211,8 @@ func TestCastArrayByteToU8(t *testing.T) {
 
 func TestCastArrayIntToString(t *testing.T) {
 	input := `
-	temp arr [int] = {1, 2, 3}
-	temp result [string] = cast(arr, [string])
+	mut arr [int] = {1, 2, 3}
+	mut result [string] = cast(arr, [string])
 	result[0]
 	`
 	evaluated := testEval(input)
@@ -5221,8 +5221,8 @@ func TestCastArrayIntToString(t *testing.T) {
 
 func TestCastArrayLength(t *testing.T) {
 	input := `
-	temp arr [int] = {10, 20, 30, 40, 50}
-	temp result [u8] = cast(arr, [u8])
+	mut arr [int] = {10, 20, 30, 40, 50}
+	mut result [u8] = cast(arr, [u8])
 	len(result)
 	`
 	evaluated := testEval(input)
@@ -5255,7 +5255,7 @@ func TestCastI8OutOfRange(t *testing.T) {
 
 func TestCastArrayFailsAtIndex(t *testing.T) {
 	input := `
-	temp arr [int] = {1, 2, 300}
+	mut arr [int] = {1, 2, 300}
 	cast(arr, [u8])
 	`
 	evaluated := testEval(input)
@@ -5282,8 +5282,8 @@ func TestCastNonArrayToArrayType(t *testing.T) {
 
 func TestCastWithExpression(t *testing.T) {
 	input := `
-	temp x int = 10
-	temp y int = 5
+	mut x int = 10
+	mut y int = 5
 	cast(x + y, u8)
 	`
 	evaluated := testEval(input)
@@ -5304,7 +5304,7 @@ func TestCastInFunction(t *testing.T) {
 	do convert(x int) -> u8 {
 		return cast(x, u8)
 	}
-	temp result u8 = convert(42)
+	mut result u8 = convert(42)
 	result
 	`
 	evaluated := testEval(input)
@@ -5333,7 +5333,7 @@ func TestTupleUnpackingWithDeclaration(t *testing.T) {
 do getPair() -> (int, int) {
 	return 10, 20
 }
-temp a, b = getPair()
+mut a, b = getPair()
 a + b
 			`,
 			expected: int64(30),
@@ -5344,7 +5344,7 @@ a + b
 do getTriple() -> (int, int, int) {
 	return 1, 2, 3
 }
-temp a, _, c = getTriple()
+mut a, _, c = getTriple()
 a + c
 			`,
 			expected: int64(4),
@@ -5373,7 +5373,7 @@ func TestMultiValueReturnErrors(t *testing.T) {
 do getPair() -> (int, int) {
 	return 1, 2
 }
-temp a, b, c = getPair()
+mut a, b, c = getPair()
 			`,
 			expectedError: "expected 3 values",
 		},
@@ -5429,7 +5429,7 @@ func TestCompoundAssignmentOperators(t *testing.T) {
 		{
 			name: "add assign",
 			input: `
-				temp x int = 10
+				mut x int = 10
 				x += 5
 				x
 			`,
@@ -5438,7 +5438,7 @@ func TestCompoundAssignmentOperators(t *testing.T) {
 		{
 			name: "subtract assign",
 			input: `
-				temp x int = 10
+				mut x int = 10
 				x -= 3
 				x
 			`,
@@ -5447,7 +5447,7 @@ func TestCompoundAssignmentOperators(t *testing.T) {
 		{
 			name: "multiply assign",
 			input: `
-				temp x int = 10
+				mut x int = 10
 				x *= 4
 				x
 			`,
@@ -5456,7 +5456,7 @@ func TestCompoundAssignmentOperators(t *testing.T) {
 		{
 			name: "divide assign",
 			input: `
-				temp x int = 20
+				mut x int = 20
 				x /= 4
 				x
 			`,
@@ -5465,7 +5465,7 @@ func TestCompoundAssignmentOperators(t *testing.T) {
 		{
 			name: "modulo assign",
 			input: `
-				temp x int = 17
+				mut x int = 17
 				x %= 5
 				x
 			`,
@@ -5506,7 +5506,7 @@ func TestArrayIndexAssignment(t *testing.T) {
 		{
 			name: "simple array index assignment",
 			input: `
-				temp arr [int] = {1, 2, 3}
+				mut arr [int] = {1, 2, 3}
 				arr[1] = 99
 				arr[1]
 			`,
@@ -5515,7 +5515,7 @@ func TestArrayIndexAssignment(t *testing.T) {
 		{
 			name: "compound assignment on array index",
 			input: `
-				temp arr [int] = {10, 20, 30}
+				mut arr [int] = {10, 20, 30}
 				arr[0] += 5
 				arr[0]
 			`,
@@ -5542,7 +5542,7 @@ func TestMapIndexAssignmentCoverage(t *testing.T) {
 		{
 			name: "update existing key",
 			input: `
-temp m map[string:int] = {"a": 1}
+mut m map[string:int] = {"a": 1}
 m["a"] = 100
 m["a"]
 			`,
@@ -5551,7 +5551,7 @@ m["a"]
 		{
 			name: "add new key",
 			input: `
-temp m map[string:int] = {"a": 1}
+mut m map[string:int] = {"a": 1}
 m["b"] = 200
 m["b"]
 			`,
@@ -5594,7 +5594,7 @@ const Point struct {
 	x int
 	y int
 }
-temp p Point = Point{x: 0, y: 0}
+mut p Point = Point{x: 0, y: 0}
 p.x = 10
 p.y = 20
 p.x + p.y
@@ -5608,7 +5608,7 @@ func TestStructFieldCompoundAssignment(t *testing.T) {
 const Counter struct {
 	value int
 }
-temp c Counter = Counter{value: 10}
+mut c Counter = Counter{value: 10}
 c.value += 5
 c.value
 `
@@ -5634,7 +5634,7 @@ const Color enum {
 	Green
 	Blue
 }
-temp c Color = Color.Red
+mut c Color = Color.Red
 c == Color.Red
 `,
 			expected: true,
@@ -5646,7 +5646,7 @@ const Status enum {
 	Active = 1
 	Inactive = 0
 }
-temp s Status = Status.Active
+mut s Status = Status.Active
 s == Status.Active
 `,
 			expected: true,
@@ -5676,7 +5676,7 @@ func TestIdentifierEvaluation(t *testing.T) {
 		{
 			name: "simple variable",
 			input: `
-				temp x int = 42
+				mut x int = 42
 				x
 			`,
 			expected: int64(42),
@@ -5766,7 +5766,7 @@ func TestMinusPrefixCoverage(t *testing.T) {
 
 func TestEnsureStatementExecution(t *testing.T) {
 	input := `
-temp count int = 0
+mut count int = 0
 do cleanup() {
 	count = count + 1
 }
@@ -5782,7 +5782,7 @@ count
 
 func TestEnsureLIFOOrder(t *testing.T) {
 	input := `
-temp count int = 0
+mut count int = 0
 do first() {
 	count = count * 10 + 1
 }
@@ -5807,7 +5807,7 @@ count
 
 func TestEnsureWithEarlyReturn(t *testing.T) {
 	input := `
-temp count int = 0
+mut count int = 0
 do cleanup() {
 	count = count + 1
 }
@@ -5817,7 +5817,7 @@ do track() {
 		return
 	}
 }
-temp _ = track()
+mut _ = track()
 count
 `
 	evaluated := testEval(input)
@@ -5827,8 +5827,8 @@ count
 
 func TestEnsureWithNestedFunctions(t *testing.T) {
 	input := `
-temp innerCount int = 0
-temp outerCount int = 0
+mut innerCount int = 0
+mut outerCount int = 0
 do innerCleanup() {
 	innerCount = innerCount + 1
 }
@@ -5843,7 +5843,7 @@ do outer() {
 	inner()
 }
 outer()
-temp result int = outerCount + innerCount
+mut result int = outerCount + innerCount
 result
 `
 	evaluated := testEval(input)
@@ -5856,10 +5856,10 @@ func TestEnsureWithError(t *testing.T) {
 do track() -> int {
 	ensure println("cleanup")
 	// This will cause an error (division by zero)
-	temp x int = 1 / 0
+	mut x int = 1 / 0
 	return 0
 }
-temp _ int = track()
+mut _ int = track()
 `
 	evaluated := testEval(input)
 	// Should return an error, but ensure should still run
@@ -5877,7 +5877,7 @@ temp _ int = track()
 
 func TestRangeWithNegativeStep(t *testing.T) {
 	input := `
-temp sum int = 0
+mut sum int = 0
 for i in range(10, 0, -1) {
     sum = sum + i
 }
@@ -5890,7 +5890,7 @@ sum
 
 func TestRangeWithNegativeStepBy2(t *testing.T) {
 	input := `
-temp sum int = 0
+mut sum int = 0
 for i in range(10, 0, -2) {
     sum = sum + i
 }
@@ -5903,10 +5903,10 @@ sum
 
 func TestRangeNegativeStepCollectsValues(t *testing.T) {
 	input := `
-temp first int = 0
-temp second int = 0
-temp third int = 0
-temp idx int = 0
+mut first int = 0
+mut second int = 0
+mut third int = 0
+mut idx int = 0
 for i in range(5, 2, -1) {
     if idx == 0 { first = i }
     if idx == 1 { second = i }
@@ -5924,7 +5924,7 @@ func TestRangeNegativeStepMismatchError(t *testing.T) {
 	// Negative step with ascending bounds should error
 	input := `
 for i in range(0, 10, -1) {
-    temp _ int = i
+    mut _ int = i
 }
 `
 	evaluated := testEval(input)
@@ -5941,7 +5941,7 @@ func TestRangePositiveStepMismatchError(t *testing.T) {
 	// Positive step (default) with descending bounds should error
 	input := `
 for i in range(10, 0) {
-    temp _ int = i
+    mut _ int = i
 }
 `
 	evaluated := testEval(input)
@@ -5957,7 +5957,7 @@ for i in range(10, 0) {
 func TestRangeZeroStepError(t *testing.T) {
 	input := `
 for i in range(0, 10, 0) {
-    temp _ int = i
+    mut _ int = i
 }
 `
 	evaluated := testEval(input)
@@ -6027,7 +6027,7 @@ func TestRangeNegativeStepInOperator(t *testing.T) {
 
 func TestPostfixIncrementUpdatesVariable(t *testing.T) {
 	input := `
-temp x int = 5
+mut x int = 5
 x++
 x
 `
@@ -6037,7 +6037,7 @@ x
 
 func TestPostfixDecrementUpdatesVariable(t *testing.T) {
 	input := `
-temp x int = 5
+mut x int = 5
 x--
 x
 `
@@ -6049,10 +6049,10 @@ func TestPostfixIncrementReturnsOriginalValue(t *testing.T) {
 	// The postfix expression x++ should return the value BEFORE incrementing
 	input := `
 do getOriginal() -> int {
-	temp x int = 5
+	mut x int = 5
 	return x++
 }
-temp r int = getOriginal()
+mut r int = getOriginal()
 r
 `
 	evaluated := testEval(input)
@@ -6061,7 +6061,7 @@ r
 
 func TestIndexedArrayAssignment(t *testing.T) {
 	input := `
-temp arr [int] = {1, 2, 3}
+mut arr [int] = {1, 2, 3}
 arr[0] = 10
 arr[0]
 `
@@ -6071,7 +6071,7 @@ arr[0]
 
 func TestMapKeyAssignment(t *testing.T) {
 	input := `
-temp m map[string:int] = {"a": 1}
+mut m map[string:int] = {"a": 1}
 m["b"] = 2
 m["b"]
 `
@@ -6081,7 +6081,7 @@ m["b"]
 
 func TestCompoundAddAssignment(t *testing.T) {
 	input := `
-temp x int = 10
+mut x int = 10
 x += 5
 x
 `
@@ -6091,7 +6091,7 @@ x
 
 func TestCompoundSubtractAssignment(t *testing.T) {
 	input := `
-temp x int = 10
+mut x int = 10
 x -= 3
 x
 `
@@ -6101,7 +6101,7 @@ x
 
 func TestCompoundMultiplyAssignment(t *testing.T) {
 	input := `
-temp x int = 10
+mut x int = 10
 x *= 2
 x
 `
@@ -6119,7 +6119,7 @@ func TestValidateAndConvertTypeArrayType(t *testing.T) {
 do getPair() -> ([int], [int]) {
 	return {1, 2}, {3, 4}
 }
-temp a [int], b [int] = getPair()
+mut a [int], b [int] = getPair()
 a[0] + b[0]
 `
 	evaluated := testEval(input)
@@ -6132,7 +6132,7 @@ func TestValidateAndConvertTypeArrayTypeMismatch(t *testing.T) {
 do getStuff() -> (int, int) {
 	return 1, 2
 }
-temp a [int], b int = getStuff()
+mut a [int], b int = getStuff()
 `
 	evaluated := testEval(input)
 	if !isErrorObject(evaluated) {
@@ -6143,8 +6143,8 @@ temp a [int], b int = getStuff()
 func TestValidateAndConvertTypeMapType(t *testing.T) {
 	// Tests validateAndConvertType with map type via simple declaration
 	input := `
-temp m1 map[string:int] = {"a": 1}
-temp m2 map[string:int] = {"b": 2}
+mut m1 map[string:int] = {"a": 1}
+mut m2 map[string:int] = {"b": 2}
 m1["a"] + m2["b"]
 `
 	evaluated := testEval(input)
@@ -6153,7 +6153,7 @@ m1["a"] + m2["b"]
 
 func TestValidateAndConvertTypeMapTypeMismatch(t *testing.T) {
 	// Tests validateAndConvertType with map type mismatch
-	input := `temp a map[string:int] = "not a map"`
+	input := `mut a map[string:int] = "not a map"`
 	evaluated := testEval(input)
 	if !isErrorObject(evaluated) {
 		t.Errorf("expected error for map type mismatch, got %T", evaluated)
@@ -6166,7 +6166,7 @@ func TestValidateAndConvertTypeByteConversion(t *testing.T) {
 do getPair() -> (int, int) {
 	return 100, 200
 }
-temp a byte, b byte = getPair()
+mut a byte, b byte = getPair()
 a
 `
 	evaluated := testEval(input)
@@ -6179,7 +6179,7 @@ func TestValidateAndConvertTypeByteOutOfRange(t *testing.T) {
 do getPair() -> (int, int) {
 	return 300, 200
 }
-temp a byte, b byte = getPair()
+mut a byte, b byte = getPair()
 `
 	evaluated := testEval(input)
 	if !isErrorObject(evaluated) {
@@ -6193,7 +6193,7 @@ func TestValidateAndConvertTypeUnsignedNegative(t *testing.T) {
 do getPair() -> (int, int) {
 	return -5, 10
 }
-temp a u8, b int = getPair()
+mut a u8, b int = getPair()
 `
 	evaluated := testEval(input)
 	if !isErrorObject(evaluated) {
@@ -6208,7 +6208,7 @@ func TestValidateAndConvertTypeNilPassthrough(t *testing.T) {
 do getPair() -> (string, int) {
 	return "hello", 42
 }
-temp a string, b int = getPair()
+mut a string, b int = getPair()
 a
 `
 	evaluated := testEval(input)
@@ -6218,7 +6218,7 @@ a
 func TestValidateAndConvertTypeEmptyArrayToMap(t *testing.T) {
 	// Tests validateAndConvertType where empty {} is assigned to map type
 	input := `
-temp m map[string:int] = {}
+mut m map[string:int] = {}
 len(m)
 `
 	evaluated := testEval(input)
@@ -6235,8 +6235,8 @@ func TestTupleUnpackingReassignment(t *testing.T) {
 do getPair() -> (int, int) {
 	return 100, 200
 }
-temp a int = 0
-temp b int = 0
+mut a int = 0
+mut b int = 0
 a, b = getPair()
 a + b
 `
@@ -6250,9 +6250,9 @@ func TestTupleUnpackingReassignmentWrongCount(t *testing.T) {
 do getPair() -> (int, int) {
 	return 1, 2
 }
-temp a int = 0
-temp b int = 0
-temp c int = 0
+mut a int = 0
+mut b int = 0
+mut c int = 0
 a, b, c = getPair()
 `
 	evaluated := testEval(input)
@@ -6268,8 +6268,8 @@ a, b, c = getPair()
 func TestTupleUnpackingSingleValueToMultiple(t *testing.T) {
 	// Tests evalAssignment: single value assigned to multiple variables
 	input := `
-temp a int = 0
-temp b int = 0
+mut a int = 0
+mut b int = 0
 a, b = 42
 `
 	evaluated := testEval(input)
@@ -6288,7 +6288,7 @@ func TestTupleUnpackingWithBlankInReassignment(t *testing.T) {
 do getPair() -> (int, int) {
 	return 10, 20
 }
-temp _, b = getPair()
+mut _, b = getPair()
 b
 `
 	evaluated := testEval(input)
@@ -6316,7 +6316,7 @@ do getPair() -> (int, int) {
 	return 1, 2
 }
 const a int = 0
-temp b int = 0
+mut b int = 0
 a, b = getPair()
 `
 	evaluated := testEval(input)
@@ -6335,7 +6335,7 @@ func TestMultiValueReturnToSingleVariable(t *testing.T) {
 do getPair() -> (int, int) {
 	return 1, 2
 }
-temp x int = 0
+mut x int = 0
 x = getPair()
 `
 	evaluated := testEval(input)
@@ -6363,7 +6363,7 @@ m["a"] = 99
 func TestAssignmentMapCompoundAssignment(t *testing.T) {
 	// Tests evalAssignment compound assignment on map key
 	input := `
-temp m map[string:int] = {"a": 10}
+mut m map[string:int] = {"a": 10}
 m["a"] += 5
 m["a"]
 `
@@ -6378,7 +6378,7 @@ const Point struct {
 	x int
 	y int
 }
-temp p Point = Point{x: 1, y: 2}
+mut p Point = Point{x: 1, y: 2}
 p.z += 10
 `
 	evaluated := testEval(input)
@@ -6398,7 +6398,7 @@ const Point struct {
 	x int
 	y int
 }
-temp arr [Point] = {Point{x: 1, y: 2}, Point{x: 3, y: 4}}
+mut arr [Point] = {Point{x: 1, y: 2}, Point{x: 3, y: 4}}
 arr[0].x = 99
 arr[0].x
 `
@@ -6413,7 +6413,7 @@ const Point struct {
 	x int
 	y int
 }
-temp m map[string:Point] = {"p": Point{x: 1, y: 2}}
+mut m map[string:Point] = {"p": Point{x: 1, y: 2}}
 m["p"].x = 42
 m["p"].x
 `
@@ -6431,7 +6431,7 @@ const Inner struct {
 const Outer struct {
 	inner Inner
 }
-temp arr [Outer] = {Outer{inner: Inner{value: 10}}}
+mut arr [Outer] = {Outer{inner: Inner{value: 10}}}
 arr[0].inner.value = 42
 arr[0].inner.value
 `
@@ -6479,7 +6479,7 @@ func TestIdentifierStructTypeAsValue(t *testing.T) {
 const MyStruct struct {
 	name string
 }
-temp t = typeof(MyStruct)
+mut t = typeof(MyStruct)
 t
 `
 	evaluated := testEval(input)
@@ -6507,7 +6507,7 @@ func TestIdentifierUsingModuleFunction(t *testing.T) {
 	input := `
 import @strings
 using strings
-temp result string = upper("hello")
+mut result string = upper("hello")
 result
 `
 	evaluated := testEval(input)
@@ -6519,7 +6519,7 @@ func TestIdentifierUsingModuleFunctionLower(t *testing.T) {
 	input := `
 import @strings
 using strings
-temp result string = lower("HELLO")
+mut result string = lower("HELLO")
 result
 `
 	evaluated := testEval(input)
@@ -6573,7 +6573,7 @@ func TestRangeExpressionStepNotInteger(t *testing.T) {
 	// Tests evalRangeExpression with non-integer step
 	input := `
 for i in range(0, 10, 1.5) {
-	temp _ int = i
+	mut _ int = i
 }
 `
 	evaluated := testEval(input)
@@ -6586,7 +6586,7 @@ func TestRangeExpressionEndNotInteger(t *testing.T) {
 	// Tests evalRangeExpression with non-integer end
 	input := `
 for i in range(0, 5.5) {
-	temp _ int = i
+	mut _ int = i
 }
 `
 	evaluated := testEval(input)
@@ -6599,7 +6599,7 @@ func TestRangeExpressionStartNotInteger(t *testing.T) {
 	// Tests evalRangeExpression with non-integer start
 	input := `
 for i in range(1.5, 10) {
-	temp _ int = i
+	mut _ int = i
 }
 `
 	evaluated := testEval(input)
@@ -6611,7 +6611,7 @@ for i in range(1.5, 10) {
 func TestRangeExpressionSingleElementRange(t *testing.T) {
 	// Tests range with equal start and end (should produce no iterations)
 	input := `
-temp sum int = 0
+mut sum int = 0
 for i in range(5, 5) {
 	sum = sum + i
 }
@@ -6624,7 +6624,7 @@ sum
 func TestRangeExpressionLargeStep(t *testing.T) {
 	// Tests range with step larger than range
 	input := `
-temp sum int = 0
+mut sum int = 0
 for i in range(0, 10, 20) {
 	sum = sum + i
 }
@@ -6873,8 +6873,8 @@ const Color enum {
 	Green
 	Blue
 }
-temp c Color = Color.Green
-temp result int = 0
+mut c Color = Color.Green
+mut result int = 0
 when c {
 	is Color.Red { result = 1 }
 	is Color.Green { result = 2 }
@@ -6893,8 +6893,8 @@ result
 func TestRefBuiltinCreatesReference(t *testing.T) {
 	// Tests evalRefBuiltin: ref() creates a shared reference
 	input := `
-temp x int = 10
-temp y = ref(x)
+mut x int = 10
+mut y = ref(x)
 x = 42
 y
 `
@@ -6905,8 +6905,8 @@ y
 func TestRefBuiltinWithArray(t *testing.T) {
 	// Tests evalRefBuiltin with array reference
 	input := `
-temp arr [int] = {1, 2, 3}
-temp arr2 = ref(arr)
+mut arr [int] = {1, 2, 3}
+mut arr2 = ref(arr)
 arr[0] = 99
 arr2[0]
 `
@@ -6956,9 +6956,9 @@ func TestRefBuiltinNonVariable(t *testing.T) {
 func TestRefBuiltinMultipleReferences(t *testing.T) {
 	// Tests evalRefBuiltin: multiple references to same variable
 	input := `
-temp val int = 10
-temp r1 = ref(val)
-temp r2 = ref(val)
+mut val int = 10
+mut r1 = ref(val)
+mut r2 = ref(val)
 val = 42
 r1 + r2
 `
@@ -6973,7 +6973,7 @@ r1 + r2
 func TestVariableDeclarationWithNoValueArrayType(t *testing.T) {
 	// Tests evalVariableDeclaration with array type but no value (defaults to empty array)
 	input := `
-temp arr [int]
+mut arr [int]
 len(arr)
 `
 	evaluated := testEval(input)
@@ -6983,7 +6983,7 @@ len(arr)
 func TestVariableDeclarationWithNoValueMapType(t *testing.T) {
 	// Tests evalVariableDeclaration with map type but no value (defaults to empty map)
 	input := `
-temp m map[string:int]
+mut m map[string:int]
 len(m)
 `
 	evaluated := testEval(input)
@@ -6993,7 +6993,7 @@ len(m)
 func TestVariableDeclarationWithNoValueFloatType(t *testing.T) {
 	// Tests evalVariableDeclaration default float value
 	input := `
-temp x float
+mut x float
 x
 `
 	evaluated := testEval(input)
@@ -7003,7 +7003,7 @@ x
 func TestVariableDeclarationWithNoValueStringType(t *testing.T) {
 	// Tests evalVariableDeclaration default string value
 	input := `
-temp s string
+mut s string
 s
 `
 	evaluated := testEval(input)
@@ -7013,7 +7013,7 @@ s
 func TestVariableDeclarationWithNoValueBoolType(t *testing.T) {
 	// Tests evalVariableDeclaration default bool value
 	input := `
-temp b bool
+mut b bool
 b
 `
 	evaluated := testEval(input)
@@ -7023,7 +7023,7 @@ b
 func TestVariableDeclarationWithNoValueByteType(t *testing.T) {
 	// Tests evalVariableDeclaration default byte value
 	input := `
-temp b byte
+mut b byte
 b
 `
 	evaluated := testEval(input)
@@ -7033,7 +7033,7 @@ b
 func TestVariableDeclarationWithNoValueIntType(t *testing.T) {
 	// Tests evalVariableDeclaration default int value
 	input := `
-temp x int
+mut x int
 x
 `
 	evaluated := testEval(input)
@@ -7043,7 +7043,7 @@ x
 func TestVariableDeclarationMapWithEmptyBraces(t *testing.T) {
 	// Tests evalVariableDeclaration where {} is parsed as empty Array but declared as map
 	input := `
-temp m map[string:int] = {}
+mut m map[string:int] = {}
 len(m)
 `
 	evaluated := testEval(input)
@@ -7052,7 +7052,7 @@ len(m)
 
 func TestVariableDeclarationMapTypeMismatch(t *testing.T) {
 	// Tests evalVariableDeclaration map type mismatch
-	input := `temp m map[string:int] = "not a map"`
+	input := `mut m map[string:int] = "not a map"`
 	evaluated := testEval(input)
 	if !isErrorObject(evaluated) {
 		t.Errorf("expected error for map type mismatch, got %T", evaluated)
@@ -7061,7 +7061,7 @@ func TestVariableDeclarationMapTypeMismatch(t *testing.T) {
 
 func TestVariableDeclarationByteNegativeOutOfRange(t *testing.T) {
 	// Tests evalVariableDeclaration byte with negative value
-	input := `temp b byte = -1`
+	input := `mut b byte = -1`
 	evaluated := testEval(input)
 	if !isErrorObject(evaluated) {
 		t.Errorf("expected error for negative byte value, got %T", evaluated)
@@ -7084,7 +7084,7 @@ func TestVariableDeclarationMultiValueWrongCount(t *testing.T) {
 do getPair() -> (int, int) {
 	return 1, 2
 }
-temp a, b, c = getPair()
+mut a, b, c = getPair()
 `
 	evaluated := testEval(input)
 	errObj, ok := evaluated.(*Error)
@@ -7102,7 +7102,7 @@ func TestVariableDeclarationMultiValueSingleReturn(t *testing.T) {
 do getSingle() -> int {
 	return 42
 }
-temp a, b = getSingle()
+mut a, b = getSingle()
 `
 	evaluated := testEval(input)
 	errObj, ok := evaluated.(*Error)
@@ -7121,7 +7121,7 @@ const Point struct {
 	x int
 	y int
 }
-temp p Point = Point{x: 1, y: 2}
+mut p Point = Point{x: 1, y: 2}
 p.x = 10
 p.x
 `
@@ -7148,7 +7148,7 @@ p.x = 10
 func TestVariableDeclarationWithNoValueU8Type(t *testing.T) {
 	// Tests evalVariableDeclaration default u8 value
 	input := `
-temp x u8
+mut x u8
 x
 `
 	evaluated := testEval(input)
@@ -7158,7 +7158,7 @@ x
 func TestVariableDeclarationWithNoValueI32Type(t *testing.T) {
 	// Tests evalVariableDeclaration default i32 value
 	input := `
-temp x i32
+mut x i32
 x
 `
 	evaluated := testEval(input)
@@ -7168,7 +7168,7 @@ x
 func TestVariableDeclarationWithNoValueCharType(t *testing.T) {
 	// Tests evalVariableDeclaration default char value
 	input := `
-temp c char
+mut c char
 typeof(c)
 `
 	evaluated := testEval(input)
@@ -7178,7 +7178,7 @@ typeof(c)
 func TestVariableDeclarationWithNoValueF32Type(t *testing.T) {
 	// Tests evalVariableDeclaration default f32 value
 	input := `
-temp x f32
+mut x f32
 x
 `
 	evaluated := testEval(input)
@@ -7188,7 +7188,7 @@ x
 func TestVariableDeclarationWithNoValueF64Type(t *testing.T) {
 	// Tests evalVariableDeclaration default f64 value
 	input := `
-temp x f64
+mut x f64
 x
 `
 	evaluated := testEval(input)
@@ -7202,7 +7202,7 @@ x
 func TestArrayIndexOutOfBoundsAssignment(t *testing.T) {
 	// Tests evalAssignment array index out of bounds
 	input := `
-temp arr [int] = {1, 2, 3}
+mut arr [int] = {1, 2, 3}
 arr[10] = 99
 `
 	evaluated := testEval(input)
@@ -7214,7 +7214,7 @@ arr[10] = 99
 func TestEmptyArrayAssignment(t *testing.T) {
 	// Tests evalAssignment to empty array
 	input := `
-temp arr [int] = {}
+mut arr [int] = {}
 arr[0] = 99
 `
 	evaluated := testEval(input)
@@ -7226,7 +7226,7 @@ arr[0] = 99
 func TestStringIndexAssignment(t *testing.T) {
 	// Tests evalAssignment string character replacement
 	input := `
-temp s string = "hello"
+mut s string = "hello"
 s[0] = 'H'
 s
 `
@@ -7269,7 +7269,7 @@ arr[0] = 99
 func TestMapCompoundAssignmentMissingKey(t *testing.T) {
 	// Tests evalAssignment compound assignment on map with missing key
 	input := `
-temp m map[string:int] = {"a": 1}
+mut m map[string:int] = {"a": 1}
 m["b"] += 5
 `
 	evaluated := testEval(input)
@@ -7288,8 +7288,8 @@ func TestTupleUnpackingByteVariable(t *testing.T) {
 do getPair() -> (int, int) {
 	return 42, 100
 }
-temp a byte = 0
-temp b byte = 0
+mut a byte = 0
+mut b byte = 0
 a, b = getPair()
 a
 `
@@ -7303,8 +7303,8 @@ func TestTupleUnpackingByteOutOfRange(t *testing.T) {
 do getPair() -> (int, int) {
 	return 300, 100
 }
-temp a byte = 0
-temp b byte = 0
+mut a byte = 0
+mut b byte = 0
 a, b = getPair()
 `
 	evaluated := testEval(input)

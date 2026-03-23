@@ -4,5 +4,5 @@
  */
 
 do main() {
-    temp c char = char(-1)  // Negative value cannot convert to char
+    mut c char = char(-1)  // Negative value cannot convert to char
 }

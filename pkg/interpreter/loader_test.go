@@ -68,7 +68,7 @@ func TestModuleLoaderSetCurrentFile(t *testing.T) {
 }
 
 func TestResolveImport(t *testing.T) {
-	// Create a temp directory for testing
+	// Create a mut directory for testing
 	tmpDir, err := os.MkdirTemp("", "ez-test-*")
 	if err != nil {
 		t.Fatal(err)
@@ -130,7 +130,7 @@ func TestResolveImport(t *testing.T) {
 }
 
 func TestLoadFileModule(t *testing.T) {
-	// Create a temp directory
+	// Create a mut directory
 	tmpDir, err := os.MkdirTemp("", "ez-test-*")
 	if err != nil {
 		t.Fatal(err)
@@ -167,7 +167,7 @@ do add(a int, b int) -> int {
 }
 
 func TestLoadDirectoryModule(t *testing.T) {
-	// Create a temp directory structure
+	// Create a mut directory structure
 	tmpDir, err := os.MkdirTemp("", "ez-test-*")
 	if err != nil {
 		t.Fatal(err)

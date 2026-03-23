@@ -18,14 +18,14 @@ const GameState struct {
 
 do main() {
     println("=== Functions Test ===")
-    temp passed int = 0
-    temp failed int = 0
+    mut passed int = 0
+    mut failed int = 0
 
     // ==================== BASIC FUNCTIONS ====================
     println("  -- Basic Functions --")
 
     // Test 1: function with params and return
-    temp sum int = add(5, 3)
+    mut sum int = add(5, 3)
     if sum == 8 {
         println("  [PASS] add(5, 3) = 8")
         passed += 1
@@ -35,7 +35,7 @@ do main() {
     }
 
     // Test 2: function returning struct
-    temp origin Point = make_point(0, 0)
+    mut origin Point = make_point(0, 0)
     if origin.x == 0 && origin.y == 0 {
         println("  [PASS] make_point(0, 0) returns Point")
         passed += 1
@@ -45,8 +45,8 @@ do main() {
     }
 
     // Test 3: function with array param
-    temp numbers [int] = {1, 2, 3, 4, 5}
-    temp total int = sum_array(numbers)
+    mut numbers [int] = {1, 2, 3, 4, 5}
+    mut total int = sum_array(numbers)
     if total == 15 {
         println("  [PASS] sum_array({1,2,3,4,5}) = 15")
         passed += 1
@@ -56,7 +56,7 @@ do main() {
     }
 
     // Test 4: recursive function
-    temp fact int = factorial(5)
+    mut fact int = factorial(5)
     if fact == 120 {
         println("  [PASS] factorial(5) = 120")
         passed += 1
@@ -66,7 +66,7 @@ do main() {
     }
 
     // Test 5: function returning array
-    temp doubled [int] = double_array({1, 2, 3})
+    mut doubled [int] = double_array({1, 2, 3})
     if len(doubled) == 3 && doubled[0] == 2 && doubled[1] == 4 && doubled[2] == 6 {
         println("  [PASS] double_array({1,2,3}) = {2,4,6}")
         passed += 1
@@ -79,7 +79,7 @@ do main() {
     println("  -- Mutable Parameters (&) --")
 
     // Test 6: basic mutable int
-    temp counter int = 0
+    mut counter int = 0
     increment(counter)
     if counter == 1 {
         println("  [PASS] increment(&n int)")
@@ -101,8 +101,8 @@ do main() {
     }
 
     // Test 8: swap values
-    temp x int = 10
-    temp y int = 20
+    mut x int = 10
+    mut y int = 20
     swap_values(x, y)
     if x == 20 && y == 10 {
         println("  [PASS] swap_values(&a, &b int)")
@@ -113,7 +113,7 @@ do main() {
     }
 
     // Test 9: mutable float
-    temp f float = 0.0
+    mut f float = 0.0
     set_to_pi(f)
     if f > 3.14 && f < 3.15 {
         println("  [PASS] set_to_pi(&f float)")
@@ -124,7 +124,7 @@ do main() {
     }
 
     // Test 10: mutable bool
-    temp flag bool = false
+    mut flag bool = false
     toggle_bool(flag)
     if flag == true {
         println("  [PASS] toggle_bool(&b bool)")
@@ -135,7 +135,7 @@ do main() {
     }
 
     // Test 11: mutable string
-    temp message string = "Hello"
+    mut message string = "Hello"
     append_world(message)
     if message == "Hello, World!" {
         println("  [PASS] append_world(&s string)")
@@ -146,7 +146,7 @@ do main() {
     }
 
     // Test 12: mutable struct
-    temp p Point = Point{x: 5, y: 10}
+    mut p Point = Point{x: 5, y: 10}
     double_point(p)
     if p.x == 10 && p.y == 20 {
         println("  [PASS] double_point(&p Point)")
@@ -157,7 +157,7 @@ do main() {
     }
 
     // Test 13: mutable array
-    temp nums [int] = {1, 2, 3, 4, 5}
+    mut nums [int] = {1, 2, 3, 4, 5}
     double_array_in_place(nums)
     if nums[0] == 2 && nums[2] == 6 && nums[4] == 10 {
         println("  [PASS] double_array_in_place(&arr [int])")
@@ -168,7 +168,7 @@ do main() {
     }
 
     // Test 14: mixed mutable and immutable params
-    temp result int = 0
+    mut result int = 0
     add_to_result(result, 15)
     add_to_result(result, 25)
     if result == 40 {
@@ -180,8 +180,8 @@ do main() {
     }
 
     // Test 15: multiple output pattern (quotient and remainder)
-    temp q int = 0
-    temp r int = 0
+    mut q int = 0
+    mut r int = 0
     divide_with_remainder(q, r, 17, 5)
     if q == 3 && r == 2 {
         println("  [PASS] divide_with_remainder: 17/5 = 3 r 2")
@@ -192,7 +192,7 @@ do main() {
     }
 
     // Test 16: state machine pattern
-    temp game GameState = GameState{score: 0, lives: 3, level: 1}
+    mut game GameState = GameState{score: 0, lives: 3, level: 1}
     add_score(game, 50)
     add_score(game, 60)
     if game.score == 110 && game.level == 2 {
@@ -216,7 +216,7 @@ do main() {
     println("  -- Nil Return Type --")
 
     // Test: function with -> nil return type
-    temp nilResult = returnsNil()
+    mut nilResult = returnsNil()
     if nilResult == nil {
         println("  [PASS] returnsNil() -> nil returns nil")
         passed += 1
@@ -226,7 +226,7 @@ do main() {
     }
 
     // Test: function with multiple return types including nil
-    temp val, err = getValueOrNil()
+    mut val, err = getValueOrNil()
     if val == 42 && err == nil {
         println("  [PASS] getValueOrNil() -> (int, nil) works")
         passed += 1
@@ -252,12 +252,12 @@ do add(a int, b int) -> int {
 }
 
 do make_point(x int, y int) -> Point {
-    temp p Point = Point{x: x, y: y}
+    mut p Point = Point{x: x, y: y}
     return p
 }
 
 do sum_array(nums [int]) -> int {
-    temp total int = 0
+    mut total int = 0
     for_each n in nums {
         total += n
     }
@@ -272,7 +272,7 @@ do factorial(n int) -> int {
 }
 
 do double_array(nums [int]) -> [int] {
-    temp result [int] = {}
+    mut result [int] = {}
     for_each n in nums {
         arrays.append(result, n * 2)
     }
@@ -284,7 +284,7 @@ do increment(&n int) {
 }
 
 do swap_values(&a, &b int) {
-    temp t int = a
+    mut t int = a
     a = b
     b = t
 }

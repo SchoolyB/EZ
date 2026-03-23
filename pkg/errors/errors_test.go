@@ -157,10 +157,10 @@ func TestNewError(t *testing.T) {
 
 // TestNewErrorWithSource creates error with source line
 func TestNewErrorWithSource(t *testing.T) {
-	err := NewErrorWithSource(E2001, "unexpected", "main.ez", 5, 3, "temp x int = 42")
+	err := NewErrorWithSource(E2001, "unexpected", "main.ez", 5, 3, "mut x int = 42")
 
-	if err.SourceLine != "temp x int = 42" {
-		t.Errorf("SourceLine = %q, want %q", err.SourceLine, "temp x int = 42")
+	if err.SourceLine != "mut x int = 42" {
+		t.Errorf("SourceLine = %q, want %q", err.SourceLine, "mut x int = 42")
 	}
 	if err.ErrorCode.Code != "E2001" {
 		t.Errorf("ErrorCode.Code = %q, want %q", err.ErrorCode.Code, "E2001")
@@ -169,13 +169,13 @@ func TestNewErrorWithSource(t *testing.T) {
 
 // TestNewErrorWithHelp creates error with help text
 func TestNewErrorWithHelp(t *testing.T) {
-	err := NewErrorWithHelp(E3001, "type mismatch", "main.ez", 5, 3, "temp x int = \"hello\"", "expected int, got string")
+	err := NewErrorWithHelp(E3001, "type mismatch", "main.ez", 5, 3, "mut x int = \"hello\"", "expected int, got string")
 
 	if err.Help != "expected int, got string" {
 		t.Errorf("Help = %q, want %q", err.Help, "expected int, got string")
 	}
-	if err.SourceLine != "temp x int = \"hello\"" {
-		t.Errorf("SourceLine = %q, want %q", err.SourceLine, "temp x int = \"hello\"")
+	if err.SourceLine != "mut x int = \"hello\"" {
+		t.Errorf("SourceLine = %q, want %q", err.SourceLine, "mut x int = \"hello\"")
 	}
 }
 

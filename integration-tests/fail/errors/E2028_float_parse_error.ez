@@ -4,5 +4,5 @@
  */
 
 do main() {
-    temp x float = 1e99999999  // too large exponent
+    mut x float = 1e99999999  // too large exponent
 }

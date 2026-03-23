@@ -13,6 +13,6 @@ do try_modify(p Person) {
 }
 
 do main() {
-    temp bob Person = Person{name: "Bob", age: 30}
+    mut bob Person = Person{name: "Bob", age: 30}
     try_modify(bob)
 }

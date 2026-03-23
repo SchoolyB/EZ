@@ -7,5 +7,5 @@ const Person struct {
 }
 
 do main() {
-    temp p = Person{name: 123, age: "hello"}
+    mut p = Person{name: 123, age: "hello"}
 }

@@ -4,6 +4,6 @@
  */
 
 do main() {
-    temp x any = 42  // 'any' type is reserved
+    mut x any = 42  // 'any' type is reserved
 }
 

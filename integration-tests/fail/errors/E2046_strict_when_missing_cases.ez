@@ -8,7 +8,7 @@ const Color enum {
 }
 
 do main() {
-    temp c Color = Color.RED
+    mut c Color = Color.RED
 
     #strict
     when c {

@@ -48,19 +48,19 @@ do main() {
 }
 
 do basicVoid() {
-    temp x int = 1
+    mut x int = 1
 }
 
 do earlyReturn(shouldReturn bool) {
     if shouldReturn {
         return
     }
-    temp x int = 1
+    mut x int = 1
 }
 
 do withEnsure() {
     ensure cleanup()
-    temp x int = 1
+    mut x int = 1
 }
 
 do ensureWithEarlyReturn(shouldReturn bool) {
@@ -68,7 +68,7 @@ do ensureWithEarlyReturn(shouldReturn bool) {
     if shouldReturn {
         return
     }
-    temp x int = 1
+    mut x int = 1
 }
 
 do returnInLoop() {
@@ -105,7 +105,7 @@ do multipleReturns(path int) {
 }
 
 do returnInWhile() {
-    temp count int = 0
+    mut count int = 0
     as_long_as count < 10 {
         if count == 2 {
             return
@@ -127,5 +127,5 @@ do deeplyNested(flag bool) {
 }
 
 do cleanup() {
-    temp x int = 1
+    mut x int = 1
 }

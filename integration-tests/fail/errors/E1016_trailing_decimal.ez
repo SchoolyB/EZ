@@ -4,5 +4,5 @@
  */
 
 do main() {
-    temp x float = 1.  // trailing decimal
+    mut x float = 1.  // trailing decimal
 }

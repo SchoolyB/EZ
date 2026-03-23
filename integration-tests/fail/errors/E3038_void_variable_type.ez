@@ -4,5 +4,5 @@
  */
 
 do main() {
-    temp x void  // Should fail: void cannot be used as variable type
+    mut x void  // Should fail: void cannot be used as variable type
 }

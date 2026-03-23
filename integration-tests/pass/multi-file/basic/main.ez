@@ -26,9 +26,9 @@ do main() {
     println("========================================")
     println("")
 
-    temp total_passed int = 0
-    temp total_failed int = 0
-    temp result TestResult = TestResult{passed: 0, failed: 0}
+    mut total_passed int = 0
+    mut total_failed int = 0
+    mut result TestResult = TestResult{passed: 0, failed: 0}
 
     result = test_models_module()
     total_passed += result.passed
@@ -42,7 +42,7 @@ do main() {
     total_passed += result.passed
     total_failed += result.failed
 
-    temp total int = total_passed + total_failed
+    mut total int = total_passed + total_failed
 
     println("")
     println("========================================")
@@ -65,12 +65,12 @@ do test_models_module() -> TestResult {
     println("------------------------------------------")
     println("  Test: models module")
     println("------------------------------------------")
-    temp passed int = 0
-    temp failed int = 0
+    mut passed int = 0
+    mut failed int = 0
 
     // Test 1: Create a Task using models.Task
     println("  Creating Task struct...")
-    temp task models.Task = models.Task{
+    mut task models.Task = models.Task{
         id: 1,
         title: "Learn EZ",
         description: "Complete the tutorial",
@@ -84,8 +84,8 @@ do test_models_module() -> TestResult {
 
     // Test 2: Use models functions
     println("  Testing models functions...")
-    temp priority_name string = get_priority_name(task.priority)
-    temp status_display string = get_status_display(task.status)
+    mut priority_name string = get_priority_name(task.priority)
+    mut status_display string = get_status_display(task.status)
     println("  Priority: ${priority_name}")
     println("  Status: ${status_display}")
     passed += 1
@@ -93,7 +93,7 @@ do test_models_module() -> TestResult {
 
     // Test 3: Test with explicit module prefix
     println("  Testing with explicit models. prefix...")
-    temp explicit_priority string = models.get_priority_name(Priority.CRITICAL)
+    mut explicit_priority string = models.get_priority_name(Priority.CRITICAL)
     println("  Critical priority: ${explicit_priority}")
     passed += 1
     println("")
@@ -106,34 +106,34 @@ do test_utils_module() -> TestResult {
     println("------------------------------------------")
     println("  Test: utils module")
     println("------------------------------------------")
-    temp passed int = 0
-    temp failed int = 0
+    mut passed int = 0
+    mut failed int = 0
 
     // Test 1: String utilities
     println("  Testing string utilities...")
-    temp truncated string = utils.truncate("This is a very long string", 15)
+    mut truncated string = utils.truncate("This is a very long string", 15)
     println("  truncate(26 chars, 15) = '${truncated}'")
 
-    temp padded string = utils.pad_right("Hi", 10)
+    mut padded string = utils.pad_right("Hi", 10)
     println("  pad_right('Hi', 10) = '${padded}' (len=${len(padded)})")
     passed += 1
     println("")
 
     // Test 2: Number utilities
     println("  Testing number utilities...")
-    temp clamped int = utils.clamp(150, 0, 100)
+    mut clamped int = utils.clamp(150, 0, 100)
     println("  clamp(150, 0, 100) = ${clamped}")
 
-    temp percentage float = utils.calculate_percentage(75, 100)
+    mut percentage float = utils.calculate_percentage(75, 100)
     println("  calculate_percentage(75, 100) = ${percentage}%")
     passed += 1
     println("")
 
     // Test 3: Array utilities
     println("  Testing array utilities...")
-    temp nums [int] = {10, 20, 30, 40, 50}
-    temp sum int = utils.sum_array(nums)
-    temp avg float = utils.average_array(nums)
+    mut nums [int] = {10, 20, 30, 40, 50}
+    mut sum int = utils.sum_array(nums)
+    mut avg float = utils.average_array(nums)
     println("  sum({10,20,30,40,50}) = ${sum}")
     println("  average({10,20,30,40,50}) = ${avg}")
     passed += 1
@@ -147,12 +147,12 @@ do test_cross_module() -> TestResult {
     println("------------------------------------------")
     println("  Test: Cross-module interaction")
     println("------------------------------------------")
-    temp passed int = 0
-    temp failed int = 0
+    mut passed int = 0
+    mut failed int = 0
 
     // Create tasks and use utils to process them
     println("  Creating multiple tasks...")
-    temp tasks [models.Task] = {}
+    mut tasks [models.Task] = {}
 
     arrays.append(tasks, models.Task{
         id: 1,
@@ -188,8 +188,8 @@ do test_cross_module() -> TestResult {
     println("")
     println("  Task list:")
     for_each task in tasks {
-        temp p_name string = get_priority_name(task.priority)
-        temp s_name string = get_status_display(task.status)
+        mut p_name string = get_priority_name(task.priority)
+        mut s_name string = get_status_display(task.status)
         println("    #${task.id}: ${task.title} [${p_name}] (${s_name})")
     }
     passed += 1

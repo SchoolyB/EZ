@@ -8,5 +8,5 @@ def MyStruct struct
 }
 
 do main() {
-    temp s MyStruct = new MyStruct{}
+    mut s MyStruct = new MyStruct{}
 }

@@ -8,5 +8,5 @@ do add(a int, b int) -> int {
 }
 
 do main() {
-    temp result int = add(1, 2,)  // Trailing comma in call
+    mut result int = add(1, 2,)  // Trailing comma in call
 }

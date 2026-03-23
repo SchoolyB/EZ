@@ -4,5 +4,5 @@
  */
 
 do main() {
-    temp x float = 1._5  // underscore after decimal
+    mut x float = 1._5  // underscore after decimal
 }

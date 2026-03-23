@@ -22,15 +22,15 @@ const Nested struct {
 
 do main() {
     println("=== Copy Semantics Test (#661) ===")
-    temp passed int = 0
-    temp failed int = 0
+    mut passed int = 0
+    mut failed int = 0
 
     // ==================== COPY-BY-DEFAULT ====================
     println("  -- Copy-by-Default --")
 
     // Test 1: struct copy-by-default
-    temp p1 Point = Point{x: 10, y: 20}
-    temp p2 Point = p1
+    mut p1 Point = Point{x: 10, y: 20}
+    mut p2 Point = p1
     p2.x = 999
     if p1.x == 10 && p2.x == 999 {
         println("  [PASS] struct assignment creates copy")
@@ -41,8 +41,8 @@ do main() {
     }
 
     // Test 2: array copy-by-default
-    temp arr1 [int] = {1, 2, 3}
-    temp arr2 [int] = arr1
+    mut arr1 [int] = {1, 2, 3}
+    mut arr2 [int] = arr1
     arr2[0] = 999
     if arr1[0] == 1 && arr2[0] == 999 {
         println("  [PASS] array assignment creates copy")
@@ -53,8 +53,8 @@ do main() {
     }
 
     // Test 3: nested struct copy-by-default
-    temp n1 Nested = Nested{inner: Point{x: 5, y: 10}, value: 100}
-    temp n2 Nested = n1
+    mut n1 Nested = Nested{inner: Point{x: 5, y: 10}, value: 100}
+    mut n2 Nested = n1
     n2.inner.x = 999
     n2.value = 888
     if n1.inner.x == 5 && n1.value == 100 && n2.inner.x == 999 && n2.value == 888 {
@@ -66,8 +66,8 @@ do main() {
     }
 
     // Test 4: reassignment also copies
-    temp p3 Point = Point{x: 1, y: 2}
-    temp p4 Point = Point{x: 0, y: 0}
+    mut p3 Point = Point{x: 1, y: 2}
+    mut p4 Point = Point{x: 0, y: 0}
     p4 = p3
     p4.x = 999
     if p3.x == 1 && p4.x == 999 {
@@ -82,8 +82,8 @@ do main() {
     println("  -- ref() Builtin --")
 
     // Test 5: ref() for struct sharing (use type inference)
-    temp p5 Point = Point{x: 100, y: 200}
-    temp p6 = ref(p5)
+    mut p5 Point = Point{x: 100, y: 200}
+    mut p6 = ref(p5)
     p6.x = 500
     if p5.x == 500 && p6.x == 500 {
         println("  [PASS] ref() creates shared struct reference")
@@ -94,8 +94,8 @@ do main() {
     }
 
     // Test 6: ref() for primitive sharing (use type inference)
-    temp x int = 10
-    temp y = ref(x)
+    mut x int = 10
+    mut y = ref(x)
     y = 99
     if x == 99 && y == 99 {
         println("  [PASS] ref() works on primitives")
@@ -106,8 +106,8 @@ do main() {
     }
 
     // Test 7: ref() for array sharing (use type inference)
-    temp arr3 [int] = {10, 20, 30}
-    temp arr4 = ref(arr3)
+    mut arr3 [int] = {10, 20, 30}
+    mut arr4 = ref(arr3)
     arr4[0] = 999
     if arr3[0] == 999 && arr4[0] == 999 {
         println("  [PASS] ref() creates shared array reference")
@@ -118,9 +118,9 @@ do main() {
     }
 
     // Test 8: multiple refs to same variable (use type inference)
-    temp val int = 42
-    temp ref1 = ref(val)
-    temp ref2 = ref(val)
+    mut val int = 42
+    mut ref1 = ref(val)
+    mut ref2 = ref(val)
     ref1 = 100
     if val == 100 && ref1 == 100 && ref2 == 100 {
         println("  [PASS] multiple refs share same variable")
@@ -134,8 +134,8 @@ do main() {
     println("  -- copy() Builtin --")
 
     // Test 9: explicit copy() still works
-    temp p7 Point = Point{x: 1, y: 2}
-    temp p8 Point = copy(p7)
+    mut p7 Point = Point{x: 1, y: 2}
+    mut p8 Point = copy(p7)
     p8.x = 999
     if p7.x == 1 && p8.x == 999 {
         println("  [PASS] copy() still creates explicit copy")

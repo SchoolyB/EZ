@@ -306,7 +306,7 @@ func TestKeywords(t *testing.T) {
 		input    string
 		expected tokenizer.TokenType
 	}{
-		{"temp", tokenizer.TEMP},
+		{"mut", tokenizer.MUT},
 		{"const", tokenizer.CONST},
 		{"do", tokenizer.DO},
 		{"return", tokenizer.RETURN},
@@ -486,7 +486,7 @@ func TestLineColumnTracking(t *testing.T) {
 // TestCompleteProgram tests tokenizing a complete program
 func TestCompleteProgram(t *testing.T) {
 	input := `do main() {
-    temp x int = 42
+    mut x int = 42
     if x > 0 {
         return true
     }
@@ -495,7 +495,7 @@ func TestCompleteProgram(t *testing.T) {
 
 	expected := []tokenizer.TokenType{
 		tokenizer.DO, tokenizer.IDENT, tokenizer.LPAREN, tokenizer.RPAREN, tokenizer.LBRACE,
-		tokenizer.TEMP, tokenizer.IDENT, tokenizer.IDENT, tokenizer.ASSIGN, tokenizer.INT,
+		tokenizer.MUT, tokenizer.IDENT, tokenizer.IDENT, tokenizer.ASSIGN, tokenizer.INT,
 		tokenizer.IF, tokenizer.IDENT, tokenizer.GT, tokenizer.INT, tokenizer.LBRACE,
 		tokenizer.RETURN, tokenizer.TRUE,
 		tokenizer.RBRACE,

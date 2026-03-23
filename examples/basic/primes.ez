@@ -21,7 +21,7 @@ do main() {
     // Find primes up to 50
     println("")
     println("Prime numbers up to 50:")
-    temp count int = 0
+    mut count int = 0
     for n in range(2, 51) {
         if is_prime(n) {
             println("  ${n}")
@@ -44,7 +44,7 @@ do is_prime(n int) -> bool {
         return false
     }
 
-    temp i int = 3
+    mut i int = 3
     as_long_as i * i <= n {
         if n % i == 0 {
             return false

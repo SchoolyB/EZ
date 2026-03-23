@@ -7,11 +7,11 @@ using std
 
 do main() {
     println("=== As Long As Loop Test ===")
-    temp passed int = 0
-    temp failed int = 0
+    mut passed int = 0
+    mut failed int = 0
 
     // Test 1: basic as_long_as loop
-    temp count int = 0
+    mut count int = 0
     as_long_as count < 5 {
         count++
     }
@@ -24,8 +24,8 @@ do main() {
     }
 
     // Test 2: as_long_as with break
-    temp sum int = 0
-    temp i int = 0
+    mut sum int = 0
+    mut i int = 0
     as_long_as true {
         if i >= 10 {
             break
@@ -42,8 +42,8 @@ do main() {
     }
 
     // Test 3: as_long_as with continue
-    temp even_sum int = 0
-    temp j int = 0
+    mut even_sum int = 0
+    mut j int = 0
     as_long_as j < 10 {
         j++
         if j % 2 != 0 {
@@ -60,7 +60,7 @@ do main() {
     }
 
     // Test 4: as_long_as false never executes
-    temp ran bool = false
+    mut ran bool = false
     as_long_as false {
         ran = true
     }

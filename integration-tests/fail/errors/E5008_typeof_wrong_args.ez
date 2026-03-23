@@ -4,5 +4,5 @@
  */
 
 do main() {
-    temp x = typeof()  // Should fail: no arguments
+    mut x = typeof()  // Should fail: no arguments
 }

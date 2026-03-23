@@ -260,11 +260,11 @@ func (c *CastExpression) TokenLiteral() string { return c.Token.Literal }
 // Statements
 // ============================================================================
 
-// VariableDeclaration represents temp x int = 5 or const y int = 10
-// Also supports multiple assignment: temp result, err = divide(10, 0)
-// And typed tuple unpacking: temp a int, b string = getValues()
+// VariableDeclaration represents mut x int = 5 or const y int = 10
+// Also supports multiple assignment: mut result, err = divide(10, 0)
+// And typed tuple unpacking: mut a int, b string = getValues()
 type VariableDeclaration struct {
-	Token      Token // temp or const
+	Token      Token // mut or const
 	Name       *Label
 	Names      []*Label // for multiple assignment (result, err)
 	TypeName   string

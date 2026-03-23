@@ -4,5 +4,5 @@ using std
 do helper() { println("hi") }
 
 do main() {
-    temp helper = "shadowed"
+    mut helper = "shadowed"
 }

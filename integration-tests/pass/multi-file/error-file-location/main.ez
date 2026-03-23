@@ -9,11 +9,11 @@ using std
 
 do main() {
     println("=== Error File Location Test ===")
-    temp passed int = 0
-    temp failed int = 0
+    mut passed int = 0
+    mut failed int = 0
 
     // Test that multi-file module works correctly
-    temp val = utils.get_value()
+    mut val = utils.get_value()
     if val == 42 {
         println("  [PASS] multi-file module function call")
         passed += 1

@@ -7,6 +7,6 @@ import @std
 using std
 
 do main() {
-    temp s string = string(42)  // testing bool requirement - using assert
+    mut s string = string(42)  // testing bool requirement - using assert
     assert("not a bool")  // string instead of bool
 }

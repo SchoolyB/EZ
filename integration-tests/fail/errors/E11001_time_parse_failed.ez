@@ -6,5 +6,5 @@
 import @time
 
 do main() {
-    temp t = time.parse("not-a-valid-time", "2006-01-02")
+    mut t = time.parse("not-a-valid-time", "2006-01-02")
 }

@@ -8,6 +8,6 @@ import lib"./lib"
 
 do main() {
     // ERROR: 'RUNNING' is not a member of Status enum
-    temp s = lib.Status.RUNNING
+    mut s = lib.Status.RUNNING
     println(s)
 }

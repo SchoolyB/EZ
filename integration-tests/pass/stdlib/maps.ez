@@ -7,16 +7,16 @@ using std
 
 do main() {
     println("=== @maps Standard Library Test ===")
-    temp passed int = 0
-    temp failed int = 0
+    mut passed int = 0
+    mut failed int = 0
 
     // ==================== maps.keys ====================
     println("  -- maps.keys --")
 
-    temp m map[string:int] = {"a": 1, "b": 2, "c": 3}
+    mut m map[string:int] = {"a": 1, "b": 2, "c": 3}
 
     // Test 1: keys returns correct count
-    temp keys [string] = maps.keys(m)
+    mut keys [string] = maps.keys(m)
     if len(keys) == 3 {
         println("  [PASS] maps.keys() returns 3 keys")
         passed += 1
@@ -29,7 +29,7 @@ do main() {
     println("  -- maps.values --")
 
     // Test 2: values returns correct count
-    temp values [int] = maps.values(m)
+    mut values [int] = maps.values(m)
     if len(values) == 3 {
         println("  [PASS] maps.values() returns 3 values")
         passed += 1
@@ -63,8 +63,8 @@ do main() {
     println("  -- maps.remove --")
 
     // Test 5: remove removes key
-    temp del_map map[string:int] = {"x": 10, "y": 20, "z": 30}
-    temp removed bool = maps.remove(del_map, "y")
+    mut del_map map[string:int] = {"x": 10, "y": 20, "z": 30}
+    mut removed bool = maps.remove(del_map, "y")
     if len(del_map) == 2 && !maps.contains(del_map, "y") && removed {
         println("  [PASS] maps.remove() removed key 'y'")
         passed += 1
@@ -86,7 +86,7 @@ do main() {
     println("  -- maps.clear --")
 
     // Test 7: clear empties map
-    temp clear_map map[string:int] = {"a": 1, "b": 2, "c": 3}
+    mut clear_map map[string:int] = {"a": 1, "b": 2, "c": 3}
     maps.clear(clear_map)
     if len(clear_map) == 0 {
         println("  [PASS] maps.clear() empties map")
@@ -100,9 +100,9 @@ do main() {
     println("  -- maps.merge --")
 
     // Test 8: merge two maps
-    temp m1 map[string:int] = {"a": 1, "b": 2}
-    temp m2 map[string:int] = {"c": 3, "d": 4}
-    temp merged map[string:int] = maps.merge(m1, m2)
+    mut m1 map[string:int] = {"a": 1, "b": 2}
+    mut m2 map[string:int] = {"c": 3, "d": 4}
+    mut merged map[string:int] = maps.merge(m1, m2)
     if len(merged) == 4 && merged["a"] == 1 && merged["d"] == 4 {
         println("  [PASS] maps.merge() combines maps")
         passed += 1
@@ -112,8 +112,8 @@ do main() {
     }
 
     // Test 9: merge with overlapping keys (second overwrites)
-    temp m3 map[string:int] = {"a": 100}
-    temp merged_overlap map[string:int] = maps.merge(m1, m3)
+    mut m3 map[string:int] = {"a": 100}
+    mut merged_overlap map[string:int] = maps.merge(m1, m3)
     if merged_overlap["a"] == 100 {
         println("  [PASS] maps.merge() overwrites with second map's value")
         passed += 1
@@ -125,7 +125,7 @@ do main() {
     // ==================== INT KEY MAPS ====================
     println("  -- Int Key Maps --")
 
-    temp int_map map[int:string] = {1: "one", 2: "two", 3: "three"}
+    mut int_map map[int:string] = {1: "one", 2: "two", 3: "three"}
 
     // Test 10: int keys work
     if int_map[2] == "two" {
@@ -148,7 +148,7 @@ do main() {
     // ==================== EMPTY MAP ====================
     println("  -- Empty Map --")
 
-    temp empty_map map[string:int] = {}
+    mut empty_map map[string:int] = {}
 
     // Test 12: empty map has length 0
     if len(empty_map) == 0 {
@@ -160,7 +160,7 @@ do main() {
     }
 
     // Test 13: maps.keys on empty map
-    temp empty_keys [string] = maps.keys(empty_map)
+    mut empty_keys [string] = maps.keys(empty_map)
     if len(empty_keys) == 0 {
         println("  [PASS] maps.keys() on empty map returns []")
         passed += 1

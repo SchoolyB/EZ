@@ -4,7 +4,7 @@
  */
 
 do main() {
-    temp x float = 5.0
+    mut x float = 5.0
     if x in range(0, 10) {  // float cannot be checked against range
         println("in range")
     }

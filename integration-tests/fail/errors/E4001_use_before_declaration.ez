@@ -8,6 +8,6 @@ using std
 
 do main() {
     y = 10          // assigning to y before declaration
-    temp y = 5
+    mut y = 5
     println(y)
 }

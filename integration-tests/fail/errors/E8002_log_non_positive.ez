@@ -6,5 +6,5 @@
 import @math
 
 do main() {
-    temp x float = math.log(-5.0)  // log requires positive number
+    mut x float = math.log(-5.0)  // log requires positive number
 }

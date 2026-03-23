@@ -4,5 +4,5 @@
  */
 
 do main() {
-    temp s string = "hello\q"  // \q is not valid escape
+    mut s string = "hello\q"  // \q is not valid escape
 }

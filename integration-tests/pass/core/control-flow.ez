@@ -7,15 +7,15 @@ using std
 
 do main() {
     println("=== Control Flow Test ===")
-    temp passed int = 0
-    temp failed int = 0
+    mut passed int = 0
+    mut failed int = 0
 
     // ==================== IF/OR/OTHERWISE ====================
     println("  -- if/or/otherwise --")
 
     // Test 1: Simple if
-    temp val int = 15
-    temp result string = ""
+    mut val int = 15
+    mut result string = ""
     if val < 10 {
         result = "small"
     } or val < 20 {
@@ -32,7 +32,7 @@ do main() {
     }
 
     // Test 2: if with parentheses
-    temp result2 string = ""
+    mut result2 string = ""
     if (val < 10) {
         result2 = "small"
     } or (val < 20) {
@@ -52,7 +52,7 @@ do main() {
     println("  -- for loop --")
 
     // Test 3: for with range
-    temp sum int = 0
+    mut sum int = 0
     for i in range(0, 5) {
         sum += i
     }
@@ -65,7 +65,7 @@ do main() {
     }
 
     // Test 4: for with parentheses
-    temp sum2 int = 0
+    mut sum2 int = 0
     for (i in range(0, 5)) {
         sum2 += i
     }
@@ -81,7 +81,7 @@ do main() {
     // Use a for loop with decrement if you need to count backwards
 
     // Test 5: for with type annotation
-    temp sum3 int = 0
+    mut sum3 int = 0
     for i int in range(0, 3) {
         sum3 += i
     }
@@ -97,7 +97,7 @@ do main() {
     println("  -- as_long_as (while) --")
 
     // Test 7: as_long_as basic
-    temp w int = 0
+    mut w int = 0
     as_long_as w < 3 {
         w += 1
     }
@@ -110,7 +110,7 @@ do main() {
     }
 
     // Test 8: as_long_as with parentheses
-    temp w2 int = 0
+    mut w2 int = 0
     as_long_as (w2 < 3) {
         w2 += 1
     }
@@ -126,8 +126,8 @@ do main() {
     println("  -- for_each --")
 
     // Test 9: for_each basic
-    temp items [string] = {"a", "b", "c"}
-    temp concat string = ""
+    mut items [string] = {"a", "b", "c"}
+    mut concat string = ""
     for_each item in items {
         concat = "${concat}${item}"
     }
@@ -140,7 +140,7 @@ do main() {
     }
 
     // Test 10: for_each with parentheses
-    temp concat2 string = ""
+    mut concat2 string = ""
     for_each (item in items) {
         concat2 = "${concat2}${item}"
     }
@@ -156,7 +156,7 @@ do main() {
     println("  -- break --")
 
     // Test 11: break in for loop
-    temp break_sum int = 0
+    mut break_sum int = 0
     for i in range(0, 10) {
         if i == 3 {
             break
@@ -172,7 +172,7 @@ do main() {
     }
 
     // Test 12: break in as_long_as
-    temp break_count int = 0
+    mut break_count int = 0
     as_long_as (break_count < 100) {
         if (break_count == 5) {
             break
@@ -191,7 +191,7 @@ do main() {
     println("  -- continue --")
 
     // Test 13: continue in for loop
-    temp cont_sum int = 0
+    mut cont_sum int = 0
     for i in range(0, 5) {
         if i == 2 {
             continue
@@ -207,8 +207,8 @@ do main() {
     }
 
     // Test 14: continue in for_each
-    temp nums [int] = {1, 2, 3, 4, 5}
-    temp skip_sum int = 0
+    mut nums [int] = {1, 2, 3, 4, 5}
+    mut skip_sum int = 0
     for_each (n in nums) {
         if (n == 3) {
             continue
@@ -227,7 +227,7 @@ do main() {
     println("  -- nested loops --")
 
     // Test 15: nested for loops
-    temp nested_sum int = 0
+    mut nested_sum int = 0
     for (i in range(0, 3)) {
         for (j in range(0, 2)) {
             nested_sum += 1
@@ -242,7 +242,7 @@ do main() {
     }
 
     // Test 16: for with if inside
-    temp even_sum int = 0
+    mut even_sum int = 0
     for (i in range(0, 6)) {
         if (i % 2 == 0) {
             even_sum += i

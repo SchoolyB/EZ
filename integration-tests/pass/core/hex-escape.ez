@@ -7,11 +7,11 @@ using std
 
 do main() {
     println("Testing hex escape sequences...")
-    temp passed = 0
-    temp failed = 0
+    mut passed = 0
+    mut failed = 0
 
     // Test 1: Hex escape for null byte
-    temp null_byte = "\x00"
+    mut null_byte = "\x00"
     if len(null_byte) == 1 {
         println("  [PASS] \\x00 produces single byte")
         passed += 1
@@ -21,7 +21,7 @@ do main() {
     }
 
     // Test 2: Hex escape for newline (0x0a = 10)
-    temp newline = "\x0a"
+    mut newline = "\x0a"
     if newline == "\n" {
         println("  [PASS] \\x0a equals \\n")
         passed += 1
@@ -31,7 +31,7 @@ do main() {
     }
 
     // Test 3: Hex escape for tab (0x09 = 9)
-    temp tab = "\x09"
+    mut tab = "\x09"
     if tab == "\t" {
         println("  [PASS] \\x09 equals \\t")
         passed += 1
@@ -41,7 +41,7 @@ do main() {
     }
 
     // Test 4: Hex escape for carriage return (0x0d = 13)
-    temp cr = "\x0d"
+    mut cr = "\x0d"
     if cr == "\r" {
         println("  [PASS] \\x0d equals \\r")
         passed += 1
@@ -51,8 +51,8 @@ do main() {
     }
 
     // Test 5: Uppercase hex digits
-    temp upper = "\x1B"
-    temp lower = "\x1b"
+    mut upper = "\x1B"
+    mut lower = "\x1b"
     if upper == lower {
         println("  [PASS] \\x1B equals \\x1b (case insensitive)")
         passed += 1
@@ -62,7 +62,7 @@ do main() {
     }
 
     // Test 6: Multiple hex escapes in one string
-    temp multi = "\x48\x69"
+    mut multi = "\x48\x69"
     if multi == "Hi" {
         println("  [PASS] \\x48\\x69 equals 'Hi'")
         passed += 1
@@ -72,7 +72,7 @@ do main() {
     }
 
     // Test 7: Hex escape mixed with regular text
-    temp mixed = "A\x42C"
+    mut mixed = "A\x42C"
     if mixed == "ABC" {
         println("  [PASS] 'A\\x42C' equals 'ABC'")
         passed += 1
@@ -82,7 +82,7 @@ do main() {
     }
 
     // Test 8: ANSI escape sequence (ESC = 0x1b = 27)
-    temp esc = "\x1b"
+    mut esc = "\x1b"
     if len(esc) == 1 {
         println("  [PASS] ANSI escape character length is 1")
         passed += 1

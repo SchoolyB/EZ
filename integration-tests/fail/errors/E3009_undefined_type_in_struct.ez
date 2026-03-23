@@ -9,5 +9,5 @@ def Person struct {
 }
 
 do main() {
-    temp p Person = new Person{}
+    mut p Person = new Person{}
 }

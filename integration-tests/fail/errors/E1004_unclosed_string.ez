@@ -4,5 +4,5 @@
  */
 
 do main() {
-    temp s string = "this string never ends
+    mut s string = "this string never ends
 }

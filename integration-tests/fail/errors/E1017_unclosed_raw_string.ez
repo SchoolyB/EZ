@@ -4,6 +4,6 @@
  */
 
 do main() {
-    temp s string = `this raw string never ends
+    mut s string = `this raw string never ends
 }
 

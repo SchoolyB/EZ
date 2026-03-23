@@ -9,7 +9,7 @@ using std
 
 do main() {
     // Simple GET request
-    temp resp, err = http.get("https://httpbin.org/get")
+    mut resp, err = http.get("https://httpbin.org/get")
     if err != nil {
         println("Error: ${err.message}")
         return
@@ -18,7 +18,7 @@ do main() {
     println("Body: ${resp.body}")
 
     // POST with JSON body
-    temp post_resp, post_err = http.post(
+    mut post_resp, post_err = http.post(
         "https://httpbin.org/post",
         http.json_body({"name": "John", "email": "john@example.com"})
     )
@@ -29,11 +29,11 @@ do main() {
     println("POST Status: ${post_resp.status}")
 
     // Advanced request with custom headers
-    temp headers map[string:string] = {
+    mut headers map[string:string] = {
         "Authorization": "Bearer token123",
         "Content-Type": "application/json"
     }
-    temp adv_resp, adv_err = http.request(
+    mut adv_resp, adv_err = http.request(
         "POST",
         "https://httpbin.org/post",
         http.json_body({"title": "foo", "body": "bar"}),
@@ -47,10 +47,10 @@ do main() {
     println("Advanced POST Status: ${adv_resp.status}")
 
     // URL encoding (from @encoding module)
-    temp encoded string = encoding.url_encode("hello world&foo=bar")
+    mut encoded string = encoding.url_encode("hello world&foo=bar")
     println("Encoded: ${encoded}")
 
-    temp decoded, decode_err = encoding.url_decode(encoded)
+    mut decoded, decode_err = encoding.url_decode(encoded)
     if decode_err != nil {
         println("Decode error: ${decode_err.message}")
         return
@@ -58,6 +58,6 @@ do main() {
     println("Decoded: ${decoded}")
 
     // Build query string
-    temp query string = http.build_query({"page": "1", "limit": "10"})
+    mut query string = http.build_query({"page": "1", "limit": "10"})
     println("Query: ${query}")
 }

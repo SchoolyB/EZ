@@ -21,35 +21,35 @@ do main() {
     greet_person("Bob")
 
     // Function with return value
-    temp sum int = add(5, 3)
+    mut sum int = add(5, 3)
     println("add(5, 3) = ${sum}")
 
     // Function with multiple parameters
-    temp result float = calculate(10.0, 5.0, 2.0)
+    mut result float = calculate(10.0, 5.0, 2.0)
     println("calculate(10, 5, 2) = ${result}")
 
     // Recursive function
-    temp fact int = factorial(5)
+    mut fact int = factorial(5)
     println("factorial(5) = ${fact}")
 
     // Function returning a string
-    temp msg string = get_greeting("World")
+    mut msg string = get_greeting("World")
     println(msg)
 
     // Named return variables
     println("")
     println("--- Named Returns ---")
 
-    temp area int = rect_area(5, 3)
+    mut area int = rect_area(5, 3)
     println("rect_area(5, 3) = ${area}")
 
-    temp x int, y int = swap(10, 20)
+    mut x int, y int = swap(10, 20)
     println("swap(10, 20) = ${x}, ${y}")
 
-    temp name string, age int, active bool = get_user()
+    mut name string, age int, active bool = get_user()
     println("get_user() = ${name}, ${age}, ${active}")
 
-    temp min int, max int = min_max(7, 3, 9, 1, 5)
+    mut min int, max int = min_max(7, 3, 9, 1, 5)
     println("min_max(7,3,9,1,5) = min:${min}, max:${max}")
 }
 

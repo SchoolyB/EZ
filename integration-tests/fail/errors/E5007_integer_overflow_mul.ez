@@ -4,6 +4,6 @@
  */
 
 do main() {
-    temp max i64 = 9223372036854775807  // max i64
-    temp result i64 = max * 2  // Overflow
+    mut max i64 = 9223372036854775807  // max i64
+    mut result i64 = max * 2  // Overflow
 }

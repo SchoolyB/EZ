@@ -333,10 +333,10 @@ func Eval(node ast.Node, env *Environment, ctx *EvalContext) Object {
 			if retVal, ok := result.(*ReturnValue); ok && len(retVal.Values) > 0 {
 				if len(retVal.Values) == 1 {
 					return newErrorWithLocation("E5011", call.Token.Line, call.Token.Column,
-						"return value from function not used (use `temp _ = func()` to discard)")
+						"return value from function not used (use `mut _ = func()` to discard)")
 				}
 				return newErrorWithLocation("E5011", call.Token.Line, call.Token.Column,
-					"return values from function not used (use `temp %s = func()` to discard)",
+					"return values from function not used (use `mut %s = func()` to discard)",
 					generateBlankPattern(len(retVal.Values)))
 			}
 			// Also check if the function has declared return types but result is not NIL
@@ -345,10 +345,10 @@ func Eval(node ast.Node, env *Environment, ctx *EvalContext) Object {
 				if fnObj := getFunctionObject(call, env); fnObj != nil && len(fnObj.ReturnTypes) > 0 {
 					if len(fnObj.ReturnTypes) == 1 {
 						return newErrorWithLocation("E5011", call.Token.Line, call.Token.Column,
-							"return value from function not used (use `temp _ = func()` to discard)")
+							"return value from function not used (use `mut _ = func()` to discard)")
 					}
 					return newErrorWithLocation("E5011", call.Token.Line, call.Token.Column,
-						"return values from function not used (use `temp %s = func()` to discard)",
+						"return values from function not used (use `mut %s = func()` to discard)",
 						generateBlankPattern(len(fnObj.ReturnTypes)))
 				}
 			}
@@ -845,7 +845,7 @@ func evalVariableDeclaration(node *ast.VariableDeclaration, env *Environment, ct
 		// This ensures temp gives mutable values, const gives immutable values
 		syncMutability(val, node.Mutable)
 
-		// Handle multiple assignment FIRST: temp result, err = function()
+		// Handle multiple assignment FIRST: mut result, err = function()
 		// This must happen before single-value type validation (#698)
 		vis := convertVisibility(node.Visibility)
 		if len(node.Names) > 1 {
@@ -978,7 +978,7 @@ func evalVariableDeclaration(node *ast.VariableDeclaration, env *Environment, ct
 						return newErrorWithLocation("E3019", node.Token.Line, node.Token.Column,
 							"type mismatch: expected map type '%s', got %s\n\n"+
 								"Map values must use key: value syntax\n"+
-								"Example: temp m %s = {\"key\": value}",
+								"Example: mut m %s = {\"key\": value}",
 							errors.TypeExpected(node.TypeName), errors.TypeGot(GetEZTypeName(val)), errors.TypeExpected(node.TypeName))
 					}
 				} else {

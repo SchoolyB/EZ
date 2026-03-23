@@ -8,7 +8,7 @@ import @std, @crypto
 using std
 
 do main() {
-    temp message string = "Hello, World!"
+    mut message string = "Hello, World!"
 
     // Hash functions
     println("SHA-256: " + crypto.sha256(message))
@@ -16,9 +16,9 @@ do main() {
     println("MD5:     " + crypto.md5(message))
 
     // Secure random bytes (returned as hex)
-    temp rand_hex string = crypto.random_hex(16)
+    mut rand_hex string = crypto.random_hex(16)
     println("Random hex (16 bytes): ${rand_hex}")
 
-    temp rand_bytes [byte] = crypto.random_bytes(8)
+    mut rand_bytes [byte] = crypto.random_bytes(8)
     println("Random bytes (8): ${rand_bytes}")
 }

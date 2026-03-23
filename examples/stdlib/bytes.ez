@@ -9,7 +9,7 @@ using std
 
 do main() {
     // Create bytes from a string
-    temp data [byte] = bytes.from_string("Hello")
+    mut data [byte] = bytes.from_string("Hello")
     println("from_string('Hello'): ${data}")
 
     // Convert back to string
@@ -18,36 +18,36 @@ do main() {
     // Hex encoding/decoding
     println("to_hex: ${bytes.to_hex(data)}")
     println("to_hex_upper: ${bytes.to_hex_upper(data)}")
-    temp decoded, _ = bytes.from_hex("48656c6c6f")
+    mut decoded, _ = bytes.from_hex("48656c6c6f")
     println("from_hex: ${bytes.to_string(decoded)}")
 
     // Base64 encoding/decoding
     println("to_base64: ${bytes.to_base64(data)}")
-    temp b64_decoded, _ = bytes.from_base64("SGVsbG8=")
+    mut b64_decoded, _ = bytes.from_base64("SGVsbG8=")
     println("from_base64: ${bytes.to_string(b64_decoded)}")
 
     // Integer array conversion
-    temp ints [int] = bytes.to_array(data)
+    mut ints [int] = bytes.to_array(data)
     println("to_array: ${ints}")
 
     // Operations
-    temp a [byte] = bytes.from_string("Hello")
-    temp b [byte] = bytes.from_string(" World")
-    temp combined [byte] = bytes.concat(a, b)
+    mut a [byte] = bytes.from_string("Hello")
+    mut b [byte] = bytes.from_string(" World")
+    mut combined [byte] = bytes.concat(a, b)
     println("concat: ${bytes.to_string(combined)}")
 
     // Slice
-    temp sliced [byte] = bytes.slice(combined, 0, 5)
+    mut sliced [byte] = bytes.slice(combined, 0, 5)
     println("slice(0, 5): ${bytes.to_string(sliced)}")
 
     // Search
-    temp pattern [byte] = bytes.from_string("World")
+    mut pattern [byte] = bytes.from_string("World")
     println("contains 'World': ${bytes.contains(combined, pattern)}")
     println("index of 'World': ${bytes.index(combined, pattern)}")
 
     // Comparison
-    temp x [byte] = bytes.from_string("abc")
-    temp y [byte] = bytes.from_string("abc")
+    mut x [byte] = bytes.from_string("abc")
+    mut y [byte] = bytes.from_string("abc")
     println("equals: ${bytes.equals(x, y)}")
 
     // Reverse

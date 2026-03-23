@@ -6,6 +6,6 @@
 import @maps
 
 do main() {
-    temp m map[string:int] = {"a": 1, "b": 2}
+    mut m map[string:int] = {"a": 1, "b": 2}
     maps.get(m, 123)  // Should fail: int key for string key map
 }

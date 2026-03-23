@@ -10,5 +10,5 @@ enum Color {
 }
 
 do main() {
-    temp c = Color.YELLOW  // YELLOW does not exist
+    mut c = Color.YELLOW  // YELLOW does not exist
 }

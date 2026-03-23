@@ -6,6 +6,6 @@
  import @db, @io
 
  do main() {
-    temp _, _ = io.write_file("mydb.ezdb", "{}", io.WRITE_ONLY)
-    temp _, err = db.open("mydb.ezdb") // trying to read a write only file
+    mut _, _ = io.write_file("mydb.ezdb", "{}", io.WRITE_ONLY)
+    mut _, err = db.open("mydb.ezdb") // trying to read a write only file
  }

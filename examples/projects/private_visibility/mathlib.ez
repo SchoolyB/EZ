@@ -20,7 +20,7 @@ do factorial(n int) -> int {
     if validate_positive(n) == false {
         return 1
     }
-    temp result int = 1
+    mut result int = 1
     for i in range(1, n + 1) {
         result = result * i
     }
@@ -32,7 +32,7 @@ do is_prime(n int) -> bool {
     if n < 2 {
         return false
     }
-    temp i int = 2
+    mut i int = 2
     as_long_as i * i <= n {
         if n % i == 0 {
             return false

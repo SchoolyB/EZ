@@ -3,7 +3,7 @@ import @std
 using std
 
 do main() {
-    temp x = 1
+    mut x = 1
     #strict
     when x {
         is 1 { println("one") }

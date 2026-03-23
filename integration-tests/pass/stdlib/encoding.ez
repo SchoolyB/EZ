@@ -8,14 +8,14 @@ using std
 
 do main() {
     println("=== Encoding Module Test ===")
-    temp passed int = 0
-    temp failed int = 0
+    mut passed int = 0
+    mut failed int = 0
 
     // ==================== BASE64 ====================
     println("  -- base64 --")
 
     // Test 1: base64 encode
-    temp b64_encoded string = encoding.base64_encode("Hello, World!")
+    mut b64_encoded string = encoding.base64_encode("Hello, World!")
     if b64_encoded == "SGVsbG8sIFdvcmxkIQ==" {
         println("  [PASS] base64_encode('Hello, World!')")
         passed += 1
@@ -25,7 +25,7 @@ do main() {
     }
 
     // Test 2: base64 decode
-    temp b64_decoded, b64_err = encoding.base64_decode("SGVsbG8sIFdvcmxkIQ==")
+    mut b64_decoded, b64_err = encoding.base64_decode("SGVsbG8sIFdvcmxkIQ==")
     if b64_err == nil {
         if b64_decoded == "Hello, World!" {
             println("  [PASS] base64_decode() decodes correctly")
@@ -40,7 +40,7 @@ do main() {
     }
 
     // Test 3: base64 decode invalid
-    temp _, b64_bad_err = encoding.base64_decode("not valid!!!")
+    mut _, b64_bad_err = encoding.base64_decode("not valid!!!")
     if b64_bad_err != nil {
         println("  [PASS] base64_decode() rejects invalid input")
         passed += 1
@@ -53,7 +53,7 @@ do main() {
     println("  -- hex --")
 
     // Test 4: hex encode
-    temp hex_encoded string = encoding.hex_encode("AB")
+    mut hex_encoded string = encoding.hex_encode("AB")
     if hex_encoded == "4142" {
         println("  [PASS] hex_encode('AB')")
         passed += 1
@@ -63,7 +63,7 @@ do main() {
     }
 
     // Test 5: hex decode
-    temp hex_decoded, hex_err = encoding.hex_decode("4142")
+    mut hex_decoded, hex_err = encoding.hex_decode("4142")
     if hex_err == nil {
         if hex_decoded == "AB" {
             println("  [PASS] hex_decode() decodes correctly")
@@ -78,7 +78,7 @@ do main() {
     }
 
     // Test 6: hex decode invalid
-    temp _, hex_bad_err = encoding.hex_decode("ZZZZ")
+    mut _, hex_bad_err = encoding.hex_decode("ZZZZ")
     if hex_bad_err != nil {
         println("  [PASS] hex_decode() rejects invalid input")
         passed += 1
@@ -91,7 +91,7 @@ do main() {
     println("  -- url --")
 
     // Test 7: url encode
-    temp url_encoded string = encoding.url_encode("hello world&foo=bar")
+    mut url_encoded string = encoding.url_encode("hello world&foo=bar")
     if url_encoded == "hello+world%26foo%3Dbar" {
         println("  [PASS] url_encode('hello world&foo=bar')")
         passed += 1
@@ -101,7 +101,7 @@ do main() {
     }
 
     // Test 8: url decode
-    temp url_decoded, url_err = encoding.url_decode("hello+world%26foo%3Dbar")
+    mut url_decoded, url_err = encoding.url_decode("hello+world%26foo%3Dbar")
     if url_err == nil {
         if url_decoded == "hello world&foo=bar" {
             println("  [PASS] url_decode() decodes correctly")
@@ -116,7 +116,7 @@ do main() {
     }
 
     // Test 9: url decode invalid
-    temp _, url_bad_err = encoding.url_decode("%ZZ")
+    mut _, url_bad_err = encoding.url_decode("%ZZ")
     if url_bad_err != nil {
         println("  [PASS] url_decode() rejects invalid input")
         passed += 1

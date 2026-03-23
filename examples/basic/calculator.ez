@@ -12,8 +12,8 @@ do main() {
     println("")
 
     // Demo calculations
-    temp a float = 10.0
-    temp b float = 3.0
+    mut a float = 10.0
+    mut b float = 3.0
 
     println("a = ${a}")
     println("b = ${b}")
@@ -37,7 +37,7 @@ do main() {
     // Chained calculations
     println("")
     println("-- Chained Calculations --")
-    temp result float = add(multiply(2.0, 3.0), 4.0)
+    mut result float = add(multiply(2.0, 3.0), 4.0)
     println("(2 * 3) + 4 = ${result}")
 
     result = divide(subtract(20.0, 8.0), 3.0)
@@ -70,7 +70,7 @@ do power(base int, exp int) -> int {
     if exp == 0 {
         return 1
     }
-    temp result int = 1
+    mut result int = 1
     for i in range(0, exp) {
         result = result * base
     }

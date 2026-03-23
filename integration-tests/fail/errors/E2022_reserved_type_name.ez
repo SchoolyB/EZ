@@ -8,5 +8,5 @@ struct int {  // int is reserved
 }
 
 do main() {
-    temp x int = 5
+    mut x int = 5
 }

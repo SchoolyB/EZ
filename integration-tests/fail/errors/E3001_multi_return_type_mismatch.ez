@@ -9,5 +9,5 @@ do get_pair() -> (int, string) {
 
 do main() {
     // Types reversed - should fail
-    temp x string, y int = get_pair()
+    mut x string, y int = get_pair()
 }

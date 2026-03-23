@@ -25,8 +25,8 @@ do truncate(s string, max_len int) -> string {
     if max_len <= 3 {
         return "..."
     }
-    temp cut int = max_len - 3
-    temp result string = ""
+    mut cut int = max_len - 3
+    mut result string = ""
     for i in range(0, cut) {
         result = "${result}${s[i]}"
     }
@@ -36,12 +36,12 @@ do truncate(s string, max_len int) -> string {
 /* pad_right - Pads string on the right to target length */
 /* NOTE: strings.repeat not yet available - using manual loop */
 do pad_right(s string, target_len int) -> string {
-    temp current_len int = len(s)
+    mut current_len int = len(s)
     if current_len >= target_len {
         return s
     }
-    temp result string = s
-    temp padding int = target_len - current_len
+    mut result string = s
+    mut padding int = target_len - current_len
     for i in range(0, padding) {
         result = "${result} "
     }
@@ -51,12 +51,12 @@ do pad_right(s string, target_len int) -> string {
 /* pad_left - Pads string on the left to target length */
 /* NOTE: strings.repeat not yet available - using manual loop */
 do pad_left(s string, target_len int) -> string {
-    temp current_len int = len(s)
+    mut current_len int = len(s)
     if current_len >= target_len {
         return s
     }
-    temp result string = ""
-    temp padding int = target_len - current_len
+    mut result string = ""
+    mut padding int = target_len - current_len
     for i in range(0, padding) {
         result = "${result} "
     }
@@ -65,7 +65,7 @@ do pad_left(s string, target_len int) -> string {
 
 /* is_empty - Checks if string is empty or whitespace only */
 do is_empty(s string) -> bool {
-    temp trimmed string = strings.trim(s)
+    mut trimmed string = strings.trim(s)
     return len(trimmed) == 0
 }
 
@@ -125,7 +125,7 @@ do max_int(a int, b int) -> int {
 
 /* sum_array - Sums an array of integers */
 do sum_array(arr [int]) -> int {
-    temp total int = 0
+    mut total int = 0
     for_each n in arr {
         total += n
     }
@@ -137,7 +137,7 @@ do average_array(arr [int]) -> float {
     if len(arr) == 0 {
         return 0.0
     }
-    temp total int = sum_array(arr)
+    mut total int = sum_array(arr)
     return float(total) / float(len(arr))
 }
 

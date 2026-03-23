@@ -5,6 +5,6 @@
  */
 
 do main() {
-    temp min i128 = -170141183460469231731687303715884105728  // min i128 (-2^127)
-    temp result i128 = min - 1  // Underflow
+    mut min i128 = -170141183460469231731687303715884105728  // min i128 (-2^127)
+    mut result i128 = min - 1  // Underflow
 }

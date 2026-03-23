@@ -27,17 +27,17 @@ do main() {
     println("")
 
     // Test 1: Type inference from user module function returning u64
-    temp val = lib.get_value()  // Type should be inferred as u64
+    mut val = lib.get_value()  // Type should be inferred as u64
     needs_u64(val)              // Should work without explicit type
     println("Test 1 PASSED: u64 type inference")
 
     // Test 2: Type inference from user module function returning string
-    temp str = lib.get_string()  // Type should be inferred as string
+    mut str = lib.get_string()  // Type should be inferred as string
     needs_string(str)
     println("Test 2 PASSED: string type inference")
 
     // Test 3: Type inference from user module function returning float
-    temp flt = lib.get_float()  // Type should be inferred as float
+    mut flt = lib.get_float()  // Type should be inferred as float
     needs_float(flt)
     println("Test 3 PASSED: float type inference")
 

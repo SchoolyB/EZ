@@ -8,6 +8,6 @@ import lib"./lib"
 
 do main() {
     // ERROR: 'valu' is not a valid field of Item (typo)
-    temp item = lib.Item{ name: "Test", valu: 100 }
+    mut item = lib.Item{ name: "Test", valu: 100 }
     println(item.name)
 }

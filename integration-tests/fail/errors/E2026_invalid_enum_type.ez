@@ -13,5 +13,5 @@ struct Person {
 }
 
 do main() {
-    temp c = Colors.RED
+    mut c = Colors.RED
 }

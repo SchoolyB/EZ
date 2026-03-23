@@ -6,5 +6,5 @@
 import @io
 
 do main() {
-    temp content string = io.read("test\x00file.txt")  // null byte in path
+    mut content string = io.read("test\x00file.txt")  // null byte in path
 }

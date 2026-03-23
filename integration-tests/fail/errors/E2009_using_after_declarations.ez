@@ -5,7 +5,7 @@
 
 import @std
 
-temp x int = 5  // declaration before using
+mut x int = 5  // declaration before using
 
 using std
 

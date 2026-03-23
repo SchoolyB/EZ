@@ -7,5 +7,5 @@ do helper() {
 
 do main() {
     // Bug: function cannot be used as a value without calling it
-    temp x = copy(helper)
+    mut x = copy(helper)
 }

@@ -33,13 +33,13 @@ do main() {
 
     // Creating struct instances
     println("-- Creating structs --")
-    temp alice Person = Person{
+    mut alice Person = Person{
         name: "Alice",
         age: 30,
         active: true
     }
 
-    temp bob Person = Person{
+    mut bob Person = Person{
         name: "Bob",
         age: 25,
         active: false
@@ -63,15 +63,15 @@ do main() {
     // Using Point struct
     println("")
     println("-- Point struct --")
-    temp origin Point = Point{x: 0.0, y: 0.0}
-    temp target Point = Point{x: 3.0, y: 4.0}
+    mut origin Point = Point{x: 0.0, y: 0.0}
+    mut target Point = Point{x: 3.0, y: 4.0}
     println("origin: (${origin.x}, ${origin.y})")
     println("target: (${target.x}, ${target.y})")
 
     // Struct with array
     println("")
     println("-- Struct with array --")
-    temp devTeam Team = Team{
+    mut devTeam Team = Team{
         name: "Developers",
         members: {"Alice", "Bob", "Charlie"}
     }

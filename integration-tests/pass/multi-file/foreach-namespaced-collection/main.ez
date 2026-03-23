@@ -12,12 +12,12 @@ using std
 
 do main() {
     println("=== For_each Namespaced Collection Test ===")
-    temp passed int = 0
-    temp failed int = 0
+    mut passed int = 0
+    mut failed int = 0
 
     // Test 1: for_each over namespaced string array
     println("Items from lib.Items:")
-    temp item_count int = 0
+    mut item_count int = 0
     for_each item in lib.Items {
         println("  ${item}")
         item_count += 1
@@ -31,7 +31,7 @@ do main() {
     }
 
     // Test 2: for_each over namespaced int array with accumulation
-    temp sum int = 0
+    mut sum int = 0
     for_each n in lib.Numbers {
         sum += n
     }

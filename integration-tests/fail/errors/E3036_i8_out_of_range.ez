@@ -4,5 +4,5 @@
  */
 
 do main() {
-    temp x i8 = 200  // i8 range is -128 to 127
+    mut x i8 = 200  // i8 range is -128 to 127
 }

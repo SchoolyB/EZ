@@ -7,6 +7,6 @@ import @std
 using std
 
 do main() {
-    temp x i8 = 20 * 10  // 200 exceeds i8 max of 127
+    mut x i8 = 20 * 10  // 200 exceeds i8 max of 127
     println(x)
 }

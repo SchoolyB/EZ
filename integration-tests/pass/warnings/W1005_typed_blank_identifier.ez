@@ -13,22 +13,22 @@ do returnThree() -> (int, string, bool) {
 
 do main() {
     // Test 1: typed blank after named - should warn for the typed blank
-    temp x int, _ string = returnTwo()
+    mut x int, _ string = returnTwo()
     println(x)
 
     // Test 2: all typed blanks - should warn for both
-    temp _ int, _ string = returnTwo()
+    mut _ int, _ string = returnTwo()
     println("discarded both")
 
     // Test 3: typed blank in the middle
-    temp a int, _ string, c bool = returnThree()
+    mut a int, _ string, c bool = returnThree()
     println(a)
     println(c)
 
     // These should NOT warn (untyped blanks):
-    temp y, _ = returnTwo()
+    mut y, _ = returnTwo()
     println(y)
 
-    temp _, z = returnTwo()
+    mut _, z = returnTwo()
     println(z)
 }

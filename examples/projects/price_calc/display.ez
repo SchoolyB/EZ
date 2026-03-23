@@ -23,11 +23,11 @@ do show_header() {
 
 // Display all calculated results
 do show_results(price, margin, profit, markup, cost float) {
-    temp str_price = strings.pad_left(format_decimal(price), 7, " ")
-    temp str_margin = strings.pad_left(format_decimal(margin), 7, " ")
-    temp str_profit = strings.pad_left(format_decimal(profit), 7, " ")
-    temp str_markup = strings.pad_left(format_decimal(markup), 7, " ")
-    temp str_cost = strings.pad_left(format_decimal(cost), 7, " ")
+    mut str_price = strings.pad_left(format_decimal(price), 7, " ")
+    mut str_margin = strings.pad_left(format_decimal(margin), 7, " ")
+    mut str_profit = strings.pad_left(format_decimal(profit), 7, " ")
+    mut str_markup = strings.pad_left(format_decimal(markup), 7, " ")
+    mut str_cost = strings.pad_left(format_decimal(cost), 7, " ")
                     
     println("")
     println("┌──────────────────────────────────────────┐")
@@ -50,11 +50,11 @@ do show_separator() {
 // Helper to format a float to a string with exactly 2 decimal places
 do format_decimal(val float) -> string {
     // Round to 2 decimal places
-    temp rounded = math.round(val * 100.0) / 100.0
-    temp str = string(rounded)
+    mut rounded = math.round(val * 100.0) / 100.0
+    mut str = string(rounded)
     
     // Check if string contains a decimal point
-    temp dot_index = strings.index(str, ".")
+    mut dot_index = strings.index(str, ".")
     
     if dot_index == -1 {
         // No decimal point, add ".00"
@@ -62,8 +62,8 @@ do format_decimal(val float) -> string {
     }
     
     // Count decimal places (characters after the dot)
-    temp decimal_part = strings.slice(str, dot_index + 1)
-    temp decimal_len = len(decimal_part)
+    mut decimal_part = strings.slice(str, dot_index + 1)
+    mut decimal_len = len(decimal_part)
     
     if decimal_len == 1 {
         // Only one decimal place, add a zero

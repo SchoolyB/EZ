@@ -14,10 +14,10 @@ using std
 
 do main() {
     println("=== Private Visibility Test ===")
-    temp passed int = 0
+    mut passed int = 0
 
     // Test 1: Access public function
-    temp greeting string = lib.get_greeting("World")
+    mut greeting string = lib.get_greeting("World")
     if greeting == "internal: Hello, World" {
         println("  [PASS] public function accessible")
         passed += 1

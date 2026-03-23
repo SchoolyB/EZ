@@ -10,14 +10,14 @@ using std
 
 do main() {
     println("=== @arrays Standard Library Test ===")
-    temp passed int = 0
-    temp failed int = 0
+    mut passed int = 0
+    mut failed int = 0
 
     // ==================== arrays.append ====================
     println("  -- arrays.append --")
 
     // Test 1: append to array
-    temp push_arr [int] = {1, 2, 3}
+    mut push_arr [int] = {1, 2, 3}
     arrays.append(push_arr, 4)
     if len(push_arr) == 4 && push_arr[3] == 4 {
         println("  [PASS] arrays.append({1,2,3}, 4)")
@@ -28,7 +28,7 @@ do main() {
     }
 
     // Test 2: append to empty array
-    temp empty_arr [int] = {}
+    mut empty_arr [int] = {}
     arrays.append(empty_arr, 42)
     if len(empty_arr) == 1 && empty_arr[0] == 42 {
         println("  [PASS] arrays.append to empty array")
@@ -42,8 +42,8 @@ do main() {
     println("  -- arrays.pop --")
 
     // Test 3: pop from array
-    temp pop_arr [int] = {1, 2, 3, 4}
-    temp popped int = arrays.pop(pop_arr)
+    mut pop_arr [int] = {1, 2, 3, 4}
+    mut popped int = arrays.pop(pop_arr)
     if popped == 4 && len(pop_arr) == 3 {
         println("  [PASS] arrays.pop() returns 4, array is now {1,2,3}")
         passed += 1
@@ -56,8 +56,8 @@ do main() {
     println("  -- arrays.first / arrays.last --")
 
     // Test 4: first element
-    temp arr [int] = {10, 20, 30, 40}
-    temp first int = arrays.first(arr)
+    mut arr [int] = {10, 20, 30, 40}
+    mut first int = arrays.first(arr)
     if first == 10 {
         println("  [PASS] arrays.first({10,20,30,40}) = 10")
         passed += 1
@@ -67,7 +67,7 @@ do main() {
     }
 
     // Test 5: last element
-    temp last int = arrays.last(arr)
+    mut last int = arrays.last(arr)
     if last == 40 {
         println("  [PASS] arrays.last({10,20,30,40}) = 40")
         passed += 1
@@ -80,8 +80,8 @@ do main() {
     println("  -- arrays.reverse --")
 
     // Test 6: reverse array (THE CRITICAL BUG TEST)
-    temp to_reverse [int] = {1, 2, 3}
-    temp reversed [int] = arrays.reverse(to_reverse)
+    mut to_reverse [int] = {1, 2, 3}
+    mut reversed [int] = arrays.reverse(to_reverse)
     if len(reversed) == 3 && reversed[0] == 3 && reversed[1] == 2 && reversed[2] == 1 {
         println("  [PASS] arrays.reverse({1,2,3}) = {3,2,1}")
         passed += 1
@@ -91,8 +91,8 @@ do main() {
     }
 
     // Test 7: reverse single element
-    temp single [int] = {42}
-    temp reversed_single [int] = arrays.reverse(single)
+    mut single [int] = {42}
+    mut reversed_single [int] = arrays.reverse(single)
     if len(reversed_single) == 1 && reversed_single[0] == 42 {
         println("  [PASS] arrays.reverse({42}) = {42}")
         passed += 1
@@ -102,8 +102,8 @@ do main() {
     }
 
     // Test 8: reverse empty array
-    temp empty [int] = {}
-    temp reversed_empty [int] = arrays.reverse(empty)
+    mut empty [int] = {}
+    mut reversed_empty [int] = arrays.reverse(empty)
     if len(reversed_empty) == 0 {
         println("  [PASS] arrays.reverse({}) = {}")
         passed += 1
@@ -116,8 +116,8 @@ do main() {
     println("  -- arrays.slice --")
 
     // Test 9: slice middle
-    temp slice_arr [int] = {0, 1, 2, 3, 4, 5}
-    temp sliced [int] = arrays.slice(slice_arr, 2, 5)
+    mut slice_arr [int] = {0, 1, 2, 3, 4, 5}
+    mut sliced [int] = arrays.slice(slice_arr, 2, 5)
     if len(sliced) == 3 && sliced[0] == 2 && sliced[1] == 3 && sliced[2] == 4 {
         println("  [PASS] arrays.slice({0,1,2,3,4,5}, 2, 5) = {2,3,4}")
         passed += 1
@@ -127,7 +127,7 @@ do main() {
     }
 
     // Test 10: slice from start
-    temp sliced_start [int] = arrays.slice(slice_arr, 0, 3)
+    mut sliced_start [int] = arrays.slice(slice_arr, 0, 3)
     if len(sliced_start) == 3 && sliced_start[0] == 0 && sliced_start[2] == 2 {
         println("  [PASS] arrays.slice from start")
         passed += 1
@@ -140,7 +140,7 @@ do main() {
     println("  -- arrays.contains --")
 
     // Test 11: contains - found
-    temp contains_arr [int] = {1, 2, 3, 4, 5}
+    mut contains_arr [int] = {1, 2, 3, 4, 5}
     if arrays.contains(contains_arr, 3) == true {
         println("  [PASS] arrays.contains({1,2,3,4,5}, 3) = true")
         passed += 1
@@ -162,7 +162,7 @@ do main() {
     println("  -- arrays.clear --")
 
     // Test 15: clear array
-    temp clear_arr [int] = {1, 2, 3, 4, 5}
+    mut clear_arr [int] = {1, 2, 3, 4, 5}
     arrays.clear(clear_arr)
     if len(clear_arr) == 0 {
         println("  [PASS] arrays.clear() empties array")
@@ -176,7 +176,7 @@ do main() {
     println("  -- arrays.fill --")
 
     // Test 16: fill array
-    temp fill_arr [int] = {1, 2, 3}
+    mut fill_arr [int] = {1, 2, 3}
     arrays.fill(fill_arr, 0)
     if fill_arr[0] == 0 && fill_arr[1] == 0 && fill_arr[2] == 0 {
         println("  [PASS] arrays.fill({1,2,3}, 0) = {0,0,0}")
@@ -190,7 +190,7 @@ do main() {
     println("  -- arrays.set --")
 
     // Test: set element at index
-    temp set_arr [int] = {1, 2, 3}
+    mut set_arr [int] = {1, 2, 3}
     arrays.set(set_arr, 1, 99)
     if set_arr[0] == 1 && set_arr[1] == 99 && set_arr[2] == 3 {
         println("  [PASS] arrays.set({1,2,3}, 1, 99) = {1,99,3}")
@@ -201,7 +201,7 @@ do main() {
     }
 
     // Test: set first element
-    temp set_first [int] = {10, 20, 30}
+    mut set_first [int] = {10, 20, 30}
     arrays.set(set_first, 0, 99)
     if set_first[0] == 99 && set_first[1] == 20 {
         println("  [PASS] arrays.set at index 0")
@@ -212,7 +212,7 @@ do main() {
     }
 
     // Test: set last element
-    temp set_last [int] = {10, 20, 30}
+    mut set_last [int] = {10, 20, 30}
     arrays.set(set_last, 2, 99)
     if set_last[2] == 99 && set_last[1] == 20 {
         println("  [PASS] arrays.set at last index")
@@ -226,8 +226,8 @@ do main() {
     println("  -- arrays.shift --")
 
     // Test 17: shift (remove first)
-    temp shift_arr [int] = {10, 20, 30}
-    temp shifted int = arrays.shift(shift_arr)
+    mut shift_arr [int] = {10, 20, 30}
+    mut shifted int = arrays.shift(shift_arr)
     if shifted == 10 && len(shift_arr) == 2 && shift_arr[0] == 20 {
         println("  [PASS] arrays.shift() returns 10, array is {20,30}")
         passed += 1
@@ -240,7 +240,7 @@ do main() {
     println("  -- arrays.unshift --")
 
     // Test 18: unshift (add to front)
-    temp unshift_arr [int] = {2, 3}
+    mut unshift_arr [int] = {2, 3}
     arrays.unshift(unshift_arr, 1)
     if len(unshift_arr) == 3 && unshift_arr[0] == 1 && unshift_arr[1] == 2 {
         println("  [PASS] arrays.unshift({2,3}, 1) = {1,2,3}")
@@ -254,8 +254,8 @@ do main() {
     println("  -- arrays.chunk --")
 
     // Test 19: chunk array
-    temp to_chunk [int] = {1, 2, 3, 4, 5, 6, 7}
-    temp chunked [[int]] = arrays.chunk(to_chunk, 3)
+    mut to_chunk [int] = {1, 2, 3, 4, 5, 6, 7}
+    mut chunked [[int]] = arrays.chunk(to_chunk, 3)
     if len(chunked) == 3 && len(chunked[0]) == 3 && len(chunked[2]) == 1 {
         println("  [PASS] arrays.chunk({1..7}, 3) creates 3 chunks")
         passed += 1
@@ -277,8 +277,8 @@ do main() {
     println("  -- arrays.flatten --")
 
     // Test 21: flatten 2D array
-    temp nested [[int]] = {{10, 20}, {30, 40}}
-    temp flattened [int] = arrays.flatten(nested)
+    mut nested [[int]] = {{10, 20}, {30, 40}}
+    mut flattened [int] = arrays.flatten(nested)
     if len(flattened) == 4 && flattened[0] == 10 && flattened[3] == 40 {
         println("  [PASS] arrays.flatten({{10,20},{30,40}}) = {10,20,30,40}")
         passed += 1
@@ -291,7 +291,7 @@ do main() {
     println("  -- arrays.zip --")
 
     // Test 22: zip two arrays
-    temp zipped [[int]] = arrays.zip({1, 2}, {3, 4})
+    mut zipped [[int]] = arrays.zip({1, 2}, {3, 4})
     if len(zipped) == 2 && zipped[0][0] == 1 && zipped[0][1] == 3 {
         println("  [PASS] arrays.zip({1,2}, {3,4})")
         passed += 1
@@ -304,7 +304,7 @@ do main() {
     println("  -- arrays.concat --")
 
     // Test 23: concat arrays
-    temp concat_result [int] = arrays.concat({1, 2}, {3, 4})
+    mut concat_result [int] = arrays.concat({1, 2}, {3, 4})
     if len(concat_result) == 4 && concat_result[0] == 1 && concat_result[3] == 4 {
         println("  [PASS] arrays.concat({1,2}, {3,4}) = {1,2,3,4}")
         passed += 1
@@ -317,8 +317,8 @@ do main() {
     println("  -- arrays.unique --")
 
     // Test 24: unique removes duplicates
-    temp with_dups [int] = {1, 2, 2, 3, 3, 3, 4}
-    temp unique_arr [int] = arrays.unique(with_dups)
+    mut with_dups [int] = {1, 2, 2, 3, 3, 3, 4}
+    mut unique_arr [int] = arrays.unique(with_dups)
     if len(unique_arr) == 4 {
         println("  [PASS] arrays.unique removes duplicates (len=4)")
         passed += 1
@@ -331,8 +331,8 @@ do main() {
     println("  -- arrays.count --")
 
     // Test 25: count occurrences
-    temp count_arr [int] = {1, 2, 2, 3, 2, 4, 2}
-    temp count int = arrays.count(count_arr, 2)
+    mut count_arr [int] = {1, 2, 2, 3, 2, 4, 2}
+    mut count int = arrays.count(count_arr, 2)
     if count == 4 {
         println("  [PASS] arrays.count({1,2,2,3,2,4,2}, 2) = 4")
         passed += 1
@@ -345,7 +345,7 @@ do main() {
     println("  -- arrays.sum --")
 
     // Test 26: sum of ints
-    temp sum int = arrays.sum({1, 2, 3, 4, 5})
+    mut sum int = arrays.sum({1, 2, 3, 4, 5})
     if sum == 15 {
         println("  [PASS] arrays.sum({1,2,3,4,5}) = 15")
         passed += 1
@@ -358,8 +358,8 @@ do main() {
     println("  -- arrays.min / arrays.max --")
 
     // Test 27: min
-    temp minmax_arr [int] = {5, 2, 8, 1, 9, 3}
-    temp min_val int = arrays.min(minmax_arr)
+    mut minmax_arr [int] = {5, 2, 8, 1, 9, 3}
+    mut min_val int = arrays.min(minmax_arr)
     if min_val == 1 {
         println("  [PASS] arrays.min({5,2,8,1,9,3}) = 1")
         passed += 1
@@ -369,7 +369,7 @@ do main() {
     }
 
     // Test 28: max
-    temp max_val int = arrays.max(minmax_arr)
+    mut max_val int = arrays.max(minmax_arr)
     if max_val == 9 {
         println("  [PASS] arrays.max({5,2,8,1,9,3}) = 9")
         passed += 1

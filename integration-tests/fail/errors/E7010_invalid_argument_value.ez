@@ -6,5 +6,5 @@
 import @time
 
 do main() {
-    temp t = time.parse("invalid-date-format", "not-a-format")
+    mut t = time.parse("invalid-date-format", "not-a-format")
 }

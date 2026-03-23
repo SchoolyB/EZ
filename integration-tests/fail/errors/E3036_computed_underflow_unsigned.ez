@@ -7,6 +7,6 @@ import @std
 using std
 
 do main() {
-    temp x u8 = 10 - 20  // -10 is below u8 min of 0
+    mut x u8 = 10 - 20  // -10 is below u8 min of 0
     println(x)
 }

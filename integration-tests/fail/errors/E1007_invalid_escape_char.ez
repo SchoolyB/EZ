@@ -4,5 +4,5 @@
  */
 
 do main() {
-    temp c char = '\q'  // \q is not valid escape
+    mut c char = '\q'  // \q is not valid escape
 }
