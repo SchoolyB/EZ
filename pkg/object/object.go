@@ -317,7 +317,11 @@ func (r *Reference) Deref() (Object, bool) {
 	// Handle simple variable references
 	val, ok := r.Env.Get(r.Name)
 	if !ok {
-		return nil, false
+		// Dangling reference — the original variable no longer exists
+		return &Error{
+			Message: fmt.Sprintf("dangling reference: target variable '%s' no longer exists", r.Name),
+			Code:    "E5025",
+		}, false
 	}
 	// Chase through nested references
 	if ref, isRef := val.(*Reference); isRef {
