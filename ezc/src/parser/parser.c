@@ -581,8 +581,9 @@ static AstNode *parse_var_declaration(Parser *p) {
         /* Pointer type: ^T */
         next_token(p); /* skip ^ */
         next_token(p); /* pointee type */
-        char *type_str = arena_alloc(p->arena, strlen(p->cur_token.literal) + 2);
-        sprintf(type_str, "^%s", p->cur_token.literal);
+        size_t ts_len = strlen(p->cur_token.literal) + 2;
+        char *type_str = arena_alloc(p->arena, ts_len);
+        snprintf(type_str, ts_len, "^%s", p->cur_token.literal);
         node->data.var_decl.type_name = type_str;
     } else if (peek_token_is(p, TOK_IDENT)) {
         next_token(p);
@@ -669,8 +670,9 @@ static AstNode *parse_var_declaration(Parser *p) {
             next_token(p); /* value type */
             const char *val_type = p->cur_token.literal;
             if (!expect_peek(p, TOK_RBRACKET)) return NULL;
-            char *type_str = arena_alloc(p->arena, strlen(key_type) + strlen(val_type) + 6);
-            sprintf(type_str, "map[%s:%s]", key_type, val_type);
+            size_t ts_len = strlen(key_type) + strlen(val_type) + 6;
+            char *type_str = arena_alloc(p->arena, ts_len);
+            snprintf(type_str, ts_len, "map[%s:%s]", key_type, val_type);
             node->data.var_decl.type_name = type_str;
         } else {
             /* Array type: [int], [string], etc. */
@@ -678,8 +680,9 @@ static AstNode *parse_var_declaration(Parser *p) {
             next_token(p); /* element type */
             const char *elem_type = p->cur_token.literal;
             if (!expect_peek(p, TOK_RBRACKET)) return NULL;
-            char *type_str = arena_alloc(p->arena, strlen(elem_type) + 3);
-            sprintf(type_str, "[%s]", elem_type);
+            size_t ts_len = strlen(elem_type) + 3;
+            char *type_str = arena_alloc(p->arena, ts_len);
+            snprintf(type_str, ts_len, "[%s]", elem_type);
             node->data.var_decl.type_name = type_str;
         }
     }
@@ -869,8 +872,9 @@ static AstNode *parse_func_declaration(Parser *p) {
                 /* Pointer type: ^T */
                 next_token(p); /* skip ^ */
                 next_token(p); /* pointee type */
-                char *type_str = arena_alloc(p->arena, strlen(p->cur_token.literal) + 2);
-                sprintf(type_str, "^%s", p->cur_token.literal);
+                size_t ts_len = strlen(p->cur_token.literal) + 2;
+                char *type_str = arena_alloc(p->arena, ts_len);
+                snprintf(type_str, ts_len, "^%s", p->cur_token.literal);
                 param->type_name = type_str;
             }
 
@@ -980,8 +984,9 @@ static AstNode *parse_func_declaration(Parser *p) {
             next_token(p);
             const char *elem = p->cur_token.literal;
             if (!expect_peek(p, TOK_RBRACKET)) return NULL;
-            char *type_str = arena_alloc(p->arena, strlen(elem) + 3);
-            sprintf(type_str, "[%s]", elem);
+            size_t ts_len = strlen(elem) + 3;
+            char *type_str = arena_alloc(p->arena, ts_len);
+            snprintf(type_str, ts_len, "[%s]", elem);
             node->data.func_decl.return_types[0] = type_str;
             node->data.func_decl.return_type_count = 1;
         } else {
@@ -1109,8 +1114,9 @@ static AstNode *parse_struct_declaration(Parser *p) {
             next_token(p); /* element type */
             const char *elem = p->cur_token.literal;
             next_token(p); /* skip ] */
-            char *type_str = arena_alloc(p->arena, strlen(elem) + 3);
-            sprintf(type_str, "[%s]", elem);
+            size_t ts_len = strlen(elem) + 3;
+            char *type_str = arena_alloc(p->arena, ts_len);
+            snprintf(type_str, ts_len, "[%s]", elem);
             field->type_name = type_str;
         } else {
             field->type_name = p->cur_token.literal;
