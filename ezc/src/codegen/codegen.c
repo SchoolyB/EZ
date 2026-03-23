@@ -1193,6 +1193,90 @@ static void emit_call_expression(CodeGen *cg, AstNode *node) {
             return;
         }
 
+        /* @bytes module functions */
+        if (module && strcmp(module, "bytes") == 0) {
+            bool needs_arena = (strcmp(func, "from_string") == 0 || strcmp(func, "from_hex") == 0 ||
+                strcmp(func, "from_base64") == 0);
+            bool needs_arena_ptr = (strcmp(func, "to_string") == 0 || strcmp(func, "to_hex") == 0 ||
+                strcmp(func, "to_base64") == 0);
+            emitf(cg, "ez_bytes_%s(", func);
+            if (needs_arena || needs_arena_ptr) emit(cg, "ez_default_arena, ");
+            if (needs_arena_ptr) {
+                emit(cg, "&");
+                emit_expression(cg, node->data.call.args[0]);
+            } else {
+                emit_expression(cg, node->data.call.args[0]);
+            }
+            emit(cg, ")");
+            return;
+        }
+
+        /* @binary module functions */
+        if (module && strcmp(module, "binary") == 0) {
+            bool is_encode = (strncmp(func, "encode", 6) == 0);
+            bool is_decode = (strncmp(func, "decode", 6) == 0);
+            emitf(cg, "ez_binary_%s(", func);
+            if (is_encode) emit(cg, "ez_default_arena, ");
+            if (is_decode) emit(cg, "&");
+            emit_expression(cg, node->data.call.args[0]);
+            emit(cg, ")");
+            return;
+        }
+
+        /* @csv module functions */
+        if (module && strcmp(module, "csv") == 0) {
+            if (strcmp(func, "parse") == 0 || strcmp(func, "read") == 0) {
+                emitf(cg, "ez_csv_%s(ez_default_arena, ", func);
+                emit_expression(cg, node->data.call.args[0]);
+                emit(cg, ")");
+                return;
+            }
+            if (strcmp(func, "stringify") == 0) {
+                emit(cg, "ez_csv_stringify(ez_default_arena, &");
+                emit_expression(cg, node->data.call.args[0]);
+                emit(cg, ")");
+                return;
+            }
+            if (strcmp(func, "write") == 0) {
+                emit(cg, "ez_csv_write(ez_default_arena, ");
+                emit_expression(cg, node->data.call.args[0]);
+                emit(cg, ", &");
+                emit_expression(cg, node->data.call.args[1]);
+                emit(cg, ")");
+                return;
+            }
+        }
+
+        /* @json module functions */
+        if (module && strcmp(module, "json") == 0) {
+            if (strcmp(func, "encode") == 0) {
+                emit(cg, "ez_json_encode_map(ez_default_arena, &");
+                emit_expression(cg, node->data.call.args[0]);
+                emit(cg, ")");
+                return;
+            }
+            if (strcmp(func, "decode") == 0) {
+                emit(cg, "ez_json_decode(ez_default_arena, ");
+                emit_expression(cg, node->data.call.args[0]);
+                emit(cg, ")");
+                return;
+            }
+            if (strcmp(func, "is_valid") == 0) {
+                emit(cg, "ez_json_is_valid(");
+                emit_expression(cg, node->data.call.args[0]);
+                emit(cg, ")");
+                return;
+            }
+            if (strcmp(func, "pretty") == 0) {
+                emit(cg, "ez_json_pretty_map(ez_default_arena, &");
+                emit_expression(cg, node->data.call.args[0]);
+                emit(cg, ", ");
+                emit_expression(cg, node->data.call.args[1]);
+                emit(cg, ")");
+                return;
+            }
+        }
+
         /* @random module functions */
         if (module && strcmp(module, "random") == 0) {
             if (strcmp(func, "float") == 0) {
@@ -2254,6 +2338,10 @@ void codegen_generate(CodeGen *cg, AstNode *program) {
     emit(cg, "#include \"ez_uuid.h\"\n");
     emit(cg, "#include \"ez_encoding.h\"\n");
     emit(cg, "#include \"ez_crypto.h\"\n");
+    emit(cg, "#include \"ez_bytes.h\"\n");
+    emit(cg, "#include \"ez_binary.h\"\n");
+    emit(cg, "#include \"ez_csv.h\"\n");
+    emit(cg, "#include \"ez_json.h\"\n");
     emit(cg, "\n");
 
     /* Emit struct type definitions */

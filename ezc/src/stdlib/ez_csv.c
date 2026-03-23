@@ -1,0 +1,115 @@
+/*
+ * ez_csv.c - @csv module implementation
+ *
+ * Simple RFC 4180 compliant CSV parser.
+ *
+ * Copyright (c) 2025-Present Marshall A Burns
+ * Licensed under the MIT License. See LICENSE for details.
+ */
+
+#include "ez_csv.h"
+#include <string.h>
+#include <stdio.h>
+
+EzArray ez_csv_parse(EzArena *arena, EzString csv_string) {
+    EzArray rows = ez_array_new(arena, sizeof(EzArray), 8);
+    const char *s = csv_string.data;
+    const char *end = s + csv_string.len;
+
+    while (s < end) {
+        EzArray row = ez_array_new(arena, sizeof(EzString), 8);
+        while (s < end && *s != '\n' && *s != '\r') {
+            const char *field_start;
+            int32_t field_len;
+
+            if (*s == '"') {
+                /* Quoted field */
+                s++;
+                field_start = s;
+                while (s < end && !(*s == '"' && (s + 1 >= end || *(s + 1) != '"'))) {
+                    if (*s == '"' && *(s + 1) == '"') s += 2;
+                    else s++;
+                }
+                field_len = (int32_t)(s - field_start);
+                if (s < end) s++; /* skip closing quote */
+            } else {
+                /* Unquoted field */
+                field_start = s;
+                while (s < end && *s != ',' && *s != '\n' && *s != '\r') s++;
+                field_len = (int32_t)(s - field_start);
+            }
+
+            EzString field = ez_string_new(arena, field_start, field_len);
+            ez_array_push(arena, &row, &field);
+
+            if (s < end && *s == ',') s++;
+        }
+        ez_array_push(arena, &rows, &row);
+
+        /* Skip line ending */
+        if (s < end && *s == '\r') s++;
+        if (s < end && *s == '\n') s++;
+    }
+    return rows;
+}
+
+EzString ez_csv_stringify(EzArena *arena, EzArray *data) {
+    /* Estimate size */
+    int32_t est = data->len * 64;
+    char *buf = ez_arena_alloc(arena, (size_t)est);
+    int32_t pos = 0;
+
+    for (int32_t i = 0; i < data->len; i++) {
+        EzArray *row = (EzArray *)((char *)data->data + (size_t)i * sizeof(EzArray));
+        for (int32_t j = 0; j < row->len; j++) {
+            if (j > 0) buf[pos++] = ',';
+            EzString *field = (EzString *)((char *)row->data + (size_t)j * sizeof(EzString));
+            /* Check if quoting needed */
+            bool needs_quote = false;
+            for (int32_t k = 0; k < field->len; k++) {
+                if (field->data[k] == ',' || field->data[k] == '"' || field->data[k] == '\n') {
+                    needs_quote = true;
+                    break;
+                }
+            }
+            if (needs_quote) {
+                buf[pos++] = '"';
+                for (int32_t k = 0; k < field->len; k++) {
+                    if (field->data[k] == '"') buf[pos++] = '"';
+                    buf[pos++] = field->data[k];
+                }
+                buf[pos++] = '"';
+            } else {
+                memcpy(buf + pos, field->data, (size_t)field->len);
+                pos += field->len;
+            }
+        }
+        buf[pos++] = '\n';
+    }
+    buf[pos] = '\0';
+    EzString r = { buf, pos };
+    return r;
+}
+
+EzArray ez_csv_read(EzArena *arena, EzString path) {
+    FILE *f = fopen(path.data, "rb");
+    if (!f) return ez_array_new(arena, sizeof(EzArray), 1);
+    fseek(f, 0, SEEK_END);
+    long size = ftell(f);
+    fseek(f, 0, SEEK_SET);
+    char *content = ez_arena_alloc(arena, (size_t)size + 1);
+    size_t read = fread(content, 1, (size_t)size, f);
+    content[read] = '\0';
+    fclose(f);
+    EzString s = { content, (int32_t)read };
+    return ez_csv_parse(arena, s);
+}
+
+bool ez_csv_write(EzArena *arena, EzString path, EzArray *data) {
+    EzString csv = ez_csv_stringify(arena, data);
+    FILE *f = fopen(path.data, "wb");
+    if (!f) return false;
+    fwrite(csv.data, 1, (size_t)csv.len, f);
+    fclose(f);
+    return true;
+}

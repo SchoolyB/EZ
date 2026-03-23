@@ -304,6 +304,29 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                 result = &TYPE_STRING;
             } else if (strcmp(mod, "crypto") == 0) {
                 result = &TYPE_STRING;
+            } else if (strcmp(mod, "bytes") == 0) {
+                if (strcmp(mfn, "from_string") == 0 || strcmp(mfn, "from_hex") == 0 ||
+                    strcmp(mfn, "from_base64") == 0) {
+                    result = type_array("byte");
+                } else {
+                    result = &TYPE_STRING;
+                }
+            } else if (strcmp(mod, "binary") == 0) {
+                if (strncmp(mfn, "encode", 6) == 0) result = type_array("byte");
+                else if (strncmp(mfn, "decode_f", 8) == 0) result = &TYPE_FLOAT;
+                else result = &TYPE_INT;
+            } else if (strcmp(mod, "csv") == 0) {
+                if (strcmp(mfn, "parse") == 0 || strcmp(mfn, "read") == 0) {
+                    result = type_array("array");
+                } else if (strcmp(mfn, "write") == 0) {
+                    result = &TYPE_BOOL;
+                } else {
+                    result = &TYPE_STRING;
+                }
+            } else if (strcmp(mod, "json") == 0) {
+                if (strcmp(mfn, "decode") == 0) result = type_from_name("map[string:string]");
+                else if (strcmp(mfn, "is_valid") == 0) result = &TYPE_BOOL;
+                else result = &TYPE_STRING;
             } else if (strcmp(mod, "random") == 0) {
                 if (strcmp(mfn, "float") == 0) result = &TYPE_FLOAT;
                 else if (strcmp(mfn, "int") == 0) result = &TYPE_INT;
