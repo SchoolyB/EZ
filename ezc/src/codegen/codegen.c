@@ -1585,13 +1585,18 @@ static void emit_assign_statement(CodeGen *cg, AstNode *node) {
                 else if (vt->kind == TK_STRING) c_val = "EzString";
                 else if (vt->kind == TK_BOOL) c_val = "bool";
             }
-            emitf(cg, "{ %s _mv = ", c_val);
+            const char *c_key = "EzString";
+            if (left_t->key_type) {
+                EzType *kt = type_from_name(left_t->key_type);
+                if (kt->kind == TK_INT) c_key = "int64_t";
+            }
+            emitf(cg, "{ %s _mk = ", c_key);
+            emit_expression(cg, node->data.assign.target->data.index_expr.index);
+            emitf(cg, "; %s _mv = ", c_val);
             emit_expression(cg, node->data.assign.value);
             emit(cg, "; ez_map_set(ez_default_arena, &");
             emit_expression(cg, left);
-            emit(cg, ", &(");
-            emit_expression(cg, node->data.assign.target->data.index_expr.index);
-            emit(cg, "), &_mv); }\n");
+            emit(cg, ", &_mk, &_mv); }\n");
             return;
         }
     }
