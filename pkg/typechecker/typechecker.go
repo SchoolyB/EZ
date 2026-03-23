@@ -4547,25 +4547,15 @@ func (tc *TypeChecker) checkWhenStatement(whenStmt *ast.WhenStatement, expectedR
 	}
 
 	// Check that value type is allowed
-	// Disallowed: bool, nil, arrays, maps
-	if valueType == "bool" {
-		tc.addError(
-			errors.E2048,
-			"when condition cannot be a boolean; use if/or/otherwise instead",
+	// Disallowed: arrays, maps
+	// Allowed (with warning): floats
+	if valueType == "float" {
+		tc.addWarning(
+			errors.W2012,
+			"float equality comparison in when statement may be imprecise",
 			whenStmt.Token.Line,
 			whenStmt.Token.Column,
 		)
-		return
-	}
-
-	if valueType == "nil" {
-		tc.addError(
-			errors.E2049,
-			"when condition cannot be nil; use if/otherwise to check for nil",
-			whenStmt.Token.Line,
-			whenStmt.Token.Column,
-		)
-		return
 	}
 
 	// Check for array or map types
