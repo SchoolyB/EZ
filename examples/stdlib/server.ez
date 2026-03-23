@@ -1,17 +1,35 @@
 /*
- * server.ez - A minimal HTTP server
+ * server.ez - A minimal HTTP server with dynamic handlers
  *
- * Run with: ez examples/server.ez
- * Test with: curl http://localhost:8080
+ * Run with: ez examples/stdlib/server.ez
+ * Test with:
+ *   curl http://localhost:8080/
+ *   curl http://localhost:8080/greet?name=World
+ *   curl http://localhost:8080/health
  */
 
-import @std, @server
+import @std, @server, @json
 using std
 
-do main() {
-    mut router Router = server.router()
-    server.route(router, "GET", "/", server.text(200, "Hello, World!"))
+do home(req Request) -> Response {
+    return server.text(200, "Welcome to EZ!")
+}
 
-    println("Listening on port 8080...")
+do greet(req Request) -> Response {
+    mut name = req.query["name"]
+    return server.text(200, "Hello, ${name}!")
+}
+
+do health(req Request) -> Response {
+    return server.json(200, {"status": "ok"})
+}
+
+do main() {
+    mut router = server.router()
+    server.route(router, "GET", "/", ()home)
+    server.route(router, "GET", "/greet", ()greet)
+    server.route(router, "GET", "/health", ()health)
+
+    println("Server running on http://localhost:8080")
     server.listen(8080, router)
 }
