@@ -210,13 +210,13 @@ func TestTokenStruct(t *testing.T) {
 // TestKeywordCount verifies the expected number of keywords
 func TestKeywordCount(t *testing.T) {
 	// Count keywords in the map (including _)
-	expectedCount := 28
+	expectedCount := 29
 	actualCount := 0
 
 	// Test all known keywords
 	knownKeywords := []string{
 		"mut", "const", "do", "return", "if", "or", "otherwise",
-		"for", "for_each", "as_long_as", "loop", "break", "continue",
+		"for", "for_each", "as_long_as", "while", "loop", "break", "continue",
 		"in", "not_in", "range", "import", "using", "struct", "enum",
 		"nil", "new", "true", "false", "_", "module", "private",
 		"use",

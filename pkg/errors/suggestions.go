@@ -56,7 +56,7 @@ func min(a, b, c int) int {
 // EZ language keywords
 var Keywords = []string{
 	"mut", "const", "do", "return", "if", "or", "otherwise",
-	"for", "for_each", "as_long_as", "loop", "break", "continue",
+	"for", "for_each", "as_long_as", "while", "loop", "break", "continue",
 	"in", "not_in", "range", "import", "using", "struct", "enum",
 	"nil", "new", "true", "false",
 }
