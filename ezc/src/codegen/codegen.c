@@ -668,7 +668,8 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
     }
 
     default:
-        emitf(cg, "/* TODO: expression kind %d */", node->kind);
+        emitf(cg, "0 /* ezc: unhandled expression kind %d at %s:%d */",
+            node->kind, cg->file, node->token.line);
         break;
     }
 }
@@ -2018,7 +2019,7 @@ static void emit_for_statement(CodeGen *cg, AstNode *node) {
         emit(cg, ") {\n");
     } else {
         /* Generic for - fallback */
-        emitf(cg, "/* TODO: non-range for loop */\n");
+        emitf(cg, "/* ezc: non-range for loop not yet supported */\n");
         emit_indent(cg);
         emit(cg, "{\n");
     }
@@ -2355,7 +2356,8 @@ static void emit_statement(CodeGen *cg, AstNode *node) {
         break;
     default:
         emit_indent(cg);
-        emitf(cg, "/* TODO: statement kind %d */\n", node->kind);
+        emitf(cg, "/* ezc: unhandled statement kind %d at %s:%d */\n",
+            node->kind, cg->file, node->token.line);
         break;
     }
 }

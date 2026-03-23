@@ -20,12 +20,14 @@ EzType TYPE_STRING  = {TK_STRING, "string", NULL, NULL, NULL};
 EzType TYPE_NIL     = {TK_NIL,    "nil",    NULL, NULL, NULL};
 EzType TYPE_UNKNOWN = {TK_UNKNOWN,"unknown",NULL, NULL, NULL};
 
+#define TYPE_POOL_CAPACITY 256
+
 /* Pool for dynamically created types (leak on exit, fine for a compiler) */
-static EzType type_pool[256];
+static EzType type_pool[TYPE_POOL_CAPACITY];
 static int type_pool_count = 0;
 
 EzType *type_alloc(void) {
-    if (type_pool_count >= 256) return &TYPE_UNKNOWN;
+    if (type_pool_count >= TYPE_POOL_CAPACITY) return &TYPE_UNKNOWN;
     return &type_pool[type_pool_count++];
 }
 
