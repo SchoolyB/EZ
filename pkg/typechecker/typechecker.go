@@ -4883,12 +4883,26 @@ func (tc *TypeChecker) checkForEachStatement(forEach *ast.ForEachStatement, expe
 			} else if collType == "string" {
 				// Iterating over string gives char
 				tc.defineVariableWithMutability(varName, "char", collectionMutable)
+			} else if tc.isMapType(collType) {
+				// Iterating over map: single var = keys, two vars = key, value
+				if forEach.Index != nil {
+					// Two-variable form: index = key, variable = value
+					// Override the index type from int to the map's key type
+					keyType := tc.extractMapKeyType(collType)
+					tc.defineVariableWithMutability(forEach.Index.Value, keyType, false)
+					valueType := tc.extractMapValueType(collType)
+					tc.defineVariableWithMutability(varName, valueType, collectionMutable)
+				} else {
+					// Single-variable form: variable = key
+					keyType := tc.extractMapKeyType(collType)
+					tc.defineVariableWithMutability(varName, keyType, false)
+				}
 			} else {
 				// Not an iterable type - produce error
 				line, column := tc.getExpressionPosition(forEach.Collection)
 				tc.addError(
 					errors.E3017,
-					fmt.Sprintf("for_each requires array or string, got %s", errors.TypeGot(collType)),
+					fmt.Sprintf("for_each requires array, string, or map, got %s", errors.TypeGot(collType)),
 					line,
 					column,
 				)

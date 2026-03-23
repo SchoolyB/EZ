@@ -1522,7 +1522,7 @@ do main() {
 	assertNoErrors(t, tc)
 }
 
-func TestForEachStatementMapError(t *testing.T) {
+func TestForEachStatementMap(t *testing.T) {
 	input := `
 do main() {
 	mut m map[string:int] = {"a": 1, "b": 2}
@@ -1531,7 +1531,19 @@ do main() {
 }
 `
 	tc := typecheck(t, input)
-	assertHasError(t, tc, errors.E3017) // for_each on map should be an error (#595)
+	assertNoErrors(t, tc) // for_each on map is valid — iterates over keys
+}
+
+func TestForEachStatementMapKeyValue(t *testing.T) {
+	input := `
+do main() {
+	mut m map[string:int] = {"a": 1, "b": 2}
+	for_each k, v in m {
+	}
+}
+`
+	tc := typecheck(t, input)
+	assertNoErrors(t, tc) // for_each k, v on map is valid — iterates key-value pairs
 }
 
 // ============================================================================
