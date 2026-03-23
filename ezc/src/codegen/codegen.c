@@ -437,9 +437,32 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
             break;
         }
 
-        /* in / not_in — array membership check */
+        /* in / not_in — array or range membership check */
         if (strcmp(op, "in") == 0 || strcmp(op, "not_in") == 0 || strcmp(op, "!in") == 0) {
             bool negated = (op[0] == 'n' || op[0] == '!');
+
+            /* Check if right side is a range expression: x in range(a, b) */
+            if (node->data.infix.right->kind == NODE_RANGE_EXPR) {
+                AstNode *r = node->data.infix.right;
+                if (negated) emit(cg, "!(");
+                emit(cg, "(");
+                emit_expression(cg, node->data.infix.left);
+                emit(cg, " >= ");
+                if (r->data.range_expr.start) {
+                    emit_expression(cg, r->data.range_expr.start);
+                } else {
+                    emit(cg, "0");
+                }
+                emit(cg, " && ");
+                emit_expression(cg, node->data.infix.left);
+                emit(cg, " < ");
+                emit_expression(cg, r->data.range_expr.end);
+                emit(cg, ")");
+                if (negated) emit(cg, ")");
+                break;
+            }
+
+            /* Array membership */
             EzType *arr_t = cg->type_table ? typetable_get(cg->type_table, node->data.infix.right) : NULL;
             if (negated) emit(cg, "!");
             if (arr_t && arr_t->kind == TK_ARRAY && arr_t->element_type &&
