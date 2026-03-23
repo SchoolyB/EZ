@@ -5,7 +5,6 @@
  * Public members are accessible from any file that imports this module.
  */
 
-module mathlib
 
 // Private helper - NOT accessible from outside
 private do validate_positive(n int) -> bool {
