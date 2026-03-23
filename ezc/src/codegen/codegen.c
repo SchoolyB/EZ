@@ -2231,19 +2231,56 @@ void codegen_generate(CodeGen *cg, AstNode *program) {
                 cg->enum_names = new_names;
             }
             cg->enum_names[cg->enum_count++] = stmt->data.enum_decl.name;
-            emitf(cg, "typedef enum {\n");
-            for (int j = 0; j < stmt->data.enum_decl.value_count; j++) {
-                EnumVal *ev = &stmt->data.enum_decl.values[j];
-                emitf(cg, "    EzEnum_%s_%s", stmt->data.enum_decl.name, ev->name);
-                if (ev->value) {
-                    emit(cg, " = ");
-                    emit_expression(cg, ev->value);
-                } else {
-                    emitf(cg, " = %d", j);
+
+            /* Check if this is a string enum */
+            bool is_string_enum = false;
+            if (stmt->data.enum_decl.base_type &&
+                strcmp(stmt->data.enum_decl.base_type, "string") == 0) {
+                is_string_enum = true;
+            } else {
+                /* Also detect by checking if any value is a string literal */
+                for (int j = 0; j < stmt->data.enum_decl.value_count; j++) {
+                    if (stmt->data.enum_decl.values[j].value &&
+                        stmt->data.enum_decl.values[j].value->kind == NODE_STRING_VALUE) {
+                        is_string_enum = true;
+                        break;
+                    }
                 }
-                emit(cg, ",\n");
             }
-            emitf(cg, "} EzEnum_%s;\n\n", stmt->data.enum_decl.name);
+
+            if (is_string_enum) {
+                /* String enum: emit as EzString constants */
+                emitf(cg, "typedef EzString EzEnum_%s;\n", stmt->data.enum_decl.name);
+                for (int j = 0; j < stmt->data.enum_decl.value_count; j++) {
+                    EnumVal *ev = &stmt->data.enum_decl.values[j];
+                    emitf(cg, "static const EzString EzEnum_%s_%s = ",
+                        stmt->data.enum_decl.name, ev->name);
+                    if (ev->value) {
+                        emit_expression(cg, ev->value);
+                    } else {
+                        /* Default: lowercase name as string */
+                        emitf(cg, "{ \"%s\", %d }",
+                            ev->name, (int)strlen(ev->name));
+                    }
+                    emit(cg, ";\n");
+                }
+                emit(cg, "\n");
+            } else {
+                /* Integer enum */
+                emitf(cg, "typedef enum {\n");
+                for (int j = 0; j < stmt->data.enum_decl.value_count; j++) {
+                    EnumVal *ev = &stmt->data.enum_decl.values[j];
+                    emitf(cg, "    EzEnum_%s_%s", stmt->data.enum_decl.name, ev->name);
+                    if (ev->value) {
+                        emit(cg, " = ");
+                        emit_expression(cg, ev->value);
+                    } else {
+                        emitf(cg, " = %d", j);
+                    }
+                    emit(cg, ",\n");
+                }
+                emitf(cg, "} EzEnum_%s;\n\n", stmt->data.enum_decl.name);
+            }
         }
     }
 
