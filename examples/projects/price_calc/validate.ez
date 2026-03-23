@@ -1,4 +1,3 @@
-module validate
 
 const MARGIN int = 2
 const MARKUP int = 4

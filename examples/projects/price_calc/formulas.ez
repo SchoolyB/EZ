@@ -1,4 +1,3 @@
-module formulas
 
 // Given Price and Cost, calculate the rest
 do solve_from_price_and_cost(price, cost float) -> (float, float, float, float, float) {

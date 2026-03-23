@@ -1,4 +1,3 @@
-module display
 
 import @std, @math, @strings
 using std
