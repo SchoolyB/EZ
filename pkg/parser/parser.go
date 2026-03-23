@@ -3527,6 +3527,38 @@ func (p *Parser) parsePostfixExpression(left Expression) Expression {
 }
 
 func (p *Parser) parseGroupedExpression() Expression {
+	// Check for function reference: ()identifier or ()Type.func
+	// If the next token is ), this is a ()func_name pattern
+	if p.peekTokenMatches(RPAREN) {
+		token := p.currentToken // save the ( token
+		p.nextToken()           // consume )
+		p.nextToken()           // move to identifier
+
+		// Parse the function name — could be simple (func_name) or qualified (Type.func, module.Type.func)
+		var funcExpr Expression
+		if p.currentTokenMatches(IDENT) {
+			funcExpr = &Label{Token: p.currentToken, Value: p.currentToken.Literal}
+			// Check for dot-qualified: Type.func or module.Type.func
+			for p.peekTokenMatches(DOT) {
+				p.nextToken() // consume .
+				if !p.expectPeek(IDENT) {
+					return nil
+				}
+				funcExpr = &MemberExpression{
+					Token:  p.currentToken,
+					Object: funcExpr,
+					Member: &Label{Token: p.currentToken, Value: p.currentToken.Literal},
+				}
+			}
+		} else {
+			msg := "expected function name after ()"
+			p.addEZError(errors.E2003, msg, p.currentToken)
+			return nil
+		}
+
+		return &FunctionReference{Token: token, Function: funcExpr}
+	}
+
 	p.nextToken()
 
 	exp := p.parseExpression(LOWEST)

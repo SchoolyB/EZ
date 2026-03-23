@@ -3328,6 +3328,10 @@ func (tc *TypeChecker) checkExpression(expr ast.Expression) {
 	case *ast.RangeExpression:
 		tc.checkRangeExpression(e)
 
+	case *ast.FunctionReference:
+		// Function references ()func_name are valid — no additional check needed
+		// The evaluator resolves the function at runtime
+
 	case *ast.NewExpression:
 		// Mark module as used if new() type references a module (#1093)
 		if e.TypeName != nil {
@@ -3991,7 +3995,11 @@ func (tc *TypeChecker) checkFunctionCall(call *ast.CallExpression) {
 	case *ast.Label:
 		funcName = fn.Value
 		// Check if this is a variable being called as a function (#602)
-		if _, isVar := tc.lookupVariable(funcName); isVar {
+		if varType, isVar := tc.lookupVariable(funcName); isVar {
+			// Allow calling variables that hold function references (type "func")
+			if varType == "func" {
+				return // valid — calling a function reference
+			}
 			// It's a variable, not a function - error
 			if _, isFunc := tc.functions[funcName]; !isFunc {
 				line, column := tc.getExpressionPosition(call.Function)
@@ -5806,6 +5814,9 @@ func (tc *TypeChecker) inferExpressionType(expr ast.Expression) (string, bool) {
 
 	case *ast.BlankIdentifier:
 		return "void", true
+
+	case *ast.FunctionReference:
+		return "func", true
 
 	default:
 		return "", false
