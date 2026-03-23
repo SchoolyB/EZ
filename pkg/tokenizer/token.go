@@ -126,6 +126,9 @@ const (
 	// Type conversion
 	CAST TokenType = "CAST"
 
+	// Error propagation
+	OR_RETURN TokenType = "OR_RETURN"
+
 	// Ampersand (for import & use syntax)
 	AMPERSAND TokenType = "&"
 )
@@ -164,6 +167,7 @@ var keywords = map[string]TokenType{
 	"is":         IS,
 	"default":    DEFAULT,
 	"cast":       CAST,
+	"or_return":  OR_RETURN,
 	"ensure":     ENSURE,
 }
 
@@ -203,7 +207,7 @@ func IsKeyword(t TokenType) bool {
 		FOR, FOR_EACH, AS_LONG_AS, LOOP, BREAK, CONTINUE,
 		IN, NOT_IN, RANGE, IMPORT, USING, STRUCT, ENUM,
 		NIL, NEW, TRUE, FALSE, BLANK, MODULE, PRIVATE, USE,
-		WHEN, IS, DEFAULT, CAST, ENSURE:
+		WHEN, IS, DEFAULT, CAST, OR_RETURN, ENSURE:
 		return true
 	}
 	return false

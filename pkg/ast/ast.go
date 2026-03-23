@@ -263,6 +263,7 @@ func (c *CastExpression) TokenLiteral() string { return c.Token.Literal }
 // VariableDeclaration represents mut x int = 5 or const y int = 10
 // Also supports multiple assignment: mut result, err = divide(10, 0)
 // And typed tuple unpacking: mut a int, b string = getValues()
+// With or_return: mut x = fallible_call() or_return
 type VariableDeclaration struct {
 	Token      Token // mut or const
 	Name       *Label
@@ -271,6 +272,7 @@ type VariableDeclaration struct {
 	TypeNames  []string // for typed tuple unpacking (int, string)
 	Value      Expression
 	Mutable    bool
+	OrReturn   bool         // true if or_return was used for error propagation
 	Attributes []*Attribute // #suppress(...) attributes
 	Visibility Visibility   // Public (default), Private, or PrivateModule
 }

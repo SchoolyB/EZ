@@ -1271,7 +1271,8 @@ func (tc *TypeChecker) checkGlobalVariableDeclaration(node *ast.VariableDeclarat
 			// If no declared type, infer from value
 			if declaredType == "" {
 				// Check if it's a multi-return function being assigned to a single variable
-				if tc.isMultiReturnCall(node.Value) {
+				// or_return is exempt: it strips the error from the tuple at runtime
+				if tc.isMultiReturnCall(node.Value) && !node.OrReturn {
 					tc.addError(
 						errors.E3040,
 						"cannot assign multi-return function result to single variable; use multiple variables or discard with _",
@@ -2407,7 +2408,8 @@ func (tc *TypeChecker) checkVariableDeclaration(decl *ast.VariableDeclaration) {
 		if declaredType == "" {
 			// Check if it's a multi-return function being assigned to a single variable
 			// Must check BEFORE type inference since inferCallType returns first type for multi-return
-			if tc.isMultiReturnCall(decl.Value) {
+			// or_return is exempt: it strips the error from the tuple at runtime
+			if tc.isMultiReturnCall(decl.Value) && !decl.OrReturn {
 				tc.addError(
 					errors.E3040,
 					"cannot assign multi-return function result to single variable; use multiple variables or discard with _",
@@ -2430,7 +2432,8 @@ func (tc *TypeChecker) checkVariableDeclaration(decl *ast.VariableDeclaration) {
 				}
 				if inferredType == "" {
 					// Check if it's a multi-return function being assigned to a single variable
-					if tc.isMultiReturnCall(decl.Value) {
+					// or_return is exempt: it strips the error from the tuple at runtime
+					if tc.isMultiReturnCall(decl.Value) && !decl.OrReturn {
 						tc.addError(
 							errors.E3040,
 							"cannot assign multi-return function result to single variable; use multiple variables or discard with _",

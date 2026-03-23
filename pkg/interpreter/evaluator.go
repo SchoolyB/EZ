@@ -836,12 +836,32 @@ func evalVariableDeclaration(node *ast.VariableDeclaration, env *Environment, ct
 			return val
 		}
 
+		// Handle or_return: mut x = fallible_call() or_return
+		// If the call returns (value, error) and error is non-nil, propagate the error
+		// by returning a ReturnValue containing the error (causes the enclosing function to return)
+		if node.OrReturn {
+			if returnVal, ok := val.(*ReturnValue); ok && len(returnVal.Values) >= 2 {
+				lastVal := returnVal.Values[len(returnVal.Values)-1]
+				if lastVal != NIL && lastVal.Type() != "NIL" {
+					// Error is non-nil — propagate the entire tuple as a return value
+					// The original function already set proper zero values for non-error slots
+					return &ReturnValue{Values: returnVal.Values}
+				}
+				// Error is nil — extract the non-error value(s)
+				if len(returnVal.Values) == 2 {
+					val = returnVal.Values[0]
+				} else {
+					val = &ReturnValue{Values: returnVal.Values[:len(returnVal.Values)-1]}
+				}
+			}
+		}
+
 		// Copy-by-default for complex types (#661)
 		// When assigning from another variable, deep copy structs/arrays/maps
 		// UNLESS the value is a Reference (from ref() builtin)
 		val = copyByDefault(val)
 
-		// Sync value mutability with temp/const declaration
+		// Sync value mutability with mut/const declaration
 		// This ensures temp gives mutable values, const gives immutable values
 		syncMutability(val, node.Mutable)
 
