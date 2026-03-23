@@ -435,11 +435,35 @@ func Eval(node ast.Node, env *Environment, ctx *EvalContext) Object {
 				tags[field.Name.Value] = &EmptyTag{}
 			}
 		}
+		// Register struct-namespaced functions
+		structFuncs := make(map[string]*Function)
+		funcPrivate := make(map[string]bool)
+		for _, fnDecl := range node.Functions {
+			file := fnDecl.Token.File
+			if file == "" && ctx != nil {
+				file = ctx.CurrentFile
+			}
+			fn := &Function{
+				Parameters:   fnDecl.Parameters,
+				ReturnTypes:  fnDecl.ReturnTypes,
+				ReturnParams: fnDecl.ReturnParams,
+				Body:         fnDecl.Body,
+				Env:          env,
+				File:         file,
+			}
+			structFuncs[fnDecl.Name.Value] = fn
+			if fnDecl.Visibility == ast.VisibilityPrivate {
+				funcPrivate[fnDecl.Name.Value] = true
+			}
+		}
+
 		vis := convertVisibility(node.Visibility)
 		env.RegisterStructDefWithVisibility(node.Name.Value, &StructDef{
 			Name:      node.Name.Value,
-			Fields:    fields,
-			FieldTags: tags,
+			Fields:      fields,
+			FieldTags:   tags,
+			Functions:   structFuncs,
+			FuncPrivate: funcPrivate,
 		}, vis)
 		return NIL
 
@@ -3063,6 +3087,32 @@ func evalArgsWithReferences(argExprs []ast.Expression, params []*ast.Parameter, 
 }
 
 func evalMemberCall(member *ast.MemberExpression, args []ast.Expression, env *Environment, ctx *EvalContext) Object {
+	// Handle chained member calls: module.Struct.func()
+	// Pattern: MemberExpression(module.Struct).func(args)
+	if innerMember, ok := member.Object.(*ast.MemberExpression); ok {
+		if moduleLabel, ok := innerMember.Object.(*ast.Label); ok {
+			moduleName := moduleLabel.Value
+			structName := innerMember.Member.Value
+			funcName := member.Member.Value
+
+			// Check if it's a user module containing a struct with namespaced functions
+			if moduleObj, ok := env.GetModule(moduleName); ok {
+				if structDef, ok := moduleObj.GetStructDef(structName); ok && structDef.Functions != nil {
+					if fn, ok := structDef.Functions[funcName]; ok {
+						evalArgs := evalExpressions(args, env, ctx)
+						if len(evalArgs) == 1 && isError(evalArgs[0]) {
+							return evalArgs[0]
+						}
+						return applyFunction(fn, evalArgs, member.Token.Line, member.Token.Column, ctx)
+					}
+				}
+			}
+		}
+		// Fall through — might be a chained method call on a value
+		return newErrorWithLocation("E3015", member.Token.Line, member.Token.Column,
+			"'%s' is not callable", errors.Ident(member.Member.Value))
+	}
+
 	objIdent, ok := member.Object.(*ast.Label)
 	if !ok {
 		return newErrorWithLocation("E3015", member.Token.Line, member.Token.Column,
@@ -3085,6 +3135,18 @@ func evalMemberCall(member *ast.MemberExpression, args []ast.Expression, env *En
 		}
 		return newErrorWithLocation("E4006", member.Token.Line, member.Token.Column,
 			"'%s' not found in module '%s'", errors.Ident(memberName), errors.Ident(alias))
+	}
+
+	// Check if it's a struct-namespaced function call: Type.func()
+	if structDef, ok := env.GetStructDef(alias); ok && structDef.Functions != nil {
+		memberName := member.Member.Value
+		if fn, ok := structDef.Functions[memberName]; ok {
+			evalArgs := evalExpressions(args, env, ctx)
+			if len(evalArgs) == 1 && isError(evalArgs[0]) {
+				return evalArgs[0]
+			}
+			return applyFunction(fn, evalArgs, member.Token.Line, member.Token.Column, ctx)
+		}
 	}
 
 	// Get the actual module name from the alias (stdlib)
@@ -3957,6 +4019,13 @@ func evalMemberExpression(node *ast.MemberExpression, env *Environment, ctx *Eva
 			}
 			return newErrorWithLocation("E4006", node.Token.Line, node.Token.Column,
 				"'%s' not found in module '%s'", errors.Ident(node.Member.Value), errors.Ident(alias))
+		}
+
+		// Check if it's a struct-namespaced function: Type.func()
+		if structDef, ok := env.GetStructDef(alias); ok && structDef.Functions != nil {
+			if fn, ok := structDef.Functions[node.Member.Value]; ok {
+				return fn
+			}
 		}
 	}
 

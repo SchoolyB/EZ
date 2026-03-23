@@ -661,9 +661,11 @@ func (c *Continue) Inspect() string  { return "continue" }
 
 // StructDef holds the definition of a struct type
 type StructDef struct {
-	Name      string
-	Fields    map[string]string
-	FieldTags map[string]StructFieldTags
+	Name        string
+	Fields      map[string]string
+	FieldTags   map[string]StructFieldTags
+	Functions   map[string]*Function   // struct-namespaced free functions
+	FuncPrivate map[string]bool        // true if the function is private
 }
 
 // TypeValue represents a type as a first-class value (for passing types to functions)

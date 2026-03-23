@@ -1,0 +1,36 @@
+/*
+ * geometry.ez - Module with struct-namespaced functions
+ */
+
+module geometry
+
+import @math
+
+const Vec2 struct {
+    x float
+    y float
+
+    do create(x float, y float) -> Vec2 {
+        return Vec2{x: x, y: y}
+    }
+
+    do add(a Vec2, b Vec2) -> Vec2 {
+        return Vec2{x: a.x + b.x, y: a.y + b.y}
+    }
+
+    do magnitude(v Vec2) -> float {
+        return math.sqrt(v.x * v.x + v.y * v.y)
+    }
+
+    private do normalize_internal(v Vec2, mag float) -> Vec2 {
+        return Vec2{x: v.x / mag, y: v.y / mag}
+    }
+
+    do normalize(v Vec2) -> Vec2 {
+        mut mag = Vec2.magnitude(v)
+        if mag == 0.0 {
+            return Vec2{x: 0.0, y: 0.0}
+        }
+        return Vec2.normalize_internal(v, mag)
+    }
+}

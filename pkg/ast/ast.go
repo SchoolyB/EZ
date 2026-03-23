@@ -505,8 +505,9 @@ type StructDeclaration struct {
 	Token      Token
 	Name       *Label
 	Fields     []*StructField
-	Attributes []*Attribute // #doc(...) attributes
-	Visibility Visibility   // Public (default), Private, or PrivateModule
+	Functions  []*FunctionDeclaration // struct-namespaced free functions
+	Attributes []*Attribute           // #doc(...) attributes
+	Visibility Visibility             // Public (default), Private, or PrivateModule
 }
 
 func (sd *StructDeclaration) statementNode()       {}

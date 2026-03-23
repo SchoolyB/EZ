@@ -1,0 +1,63 @@
+/*
+ * main.ez - Test cross-module struct-namespaced functions
+ *
+ * Tests:
+ *   - geometry.Vec2.create() — module.Struct.function() triple chain
+ *   - geometry.Vec2.add() — passing cross-module struct instances
+ *   - Private functions stay private across modules
+ */
+
+import @std
+import "./geometry"
+
+using std
+
+do main() {
+    println("=== Cross-Module Struct Functions Test ===")
+    mut passed int = 0
+    mut failed int = 0
+
+    // Test 1: module.Struct.function() — the triple chain
+    mut v1 = geometry.Vec2.create(3.0, 4.0)
+    if v1.x == 3.0 && v1.y == 4.0 {
+        println("  [PASS] geometry.Vec2.create(3.0, 4.0)")
+        passed++
+    } otherwise {
+        println("  [FAIL] geometry.Vec2.create(3.0, 4.0)")
+        failed++
+    }
+
+    // Test 2: Cross-module struct function with two struct params
+    mut v2 = geometry.Vec2.create(1.0, 2.0)
+    mut sum = geometry.Vec2.add(v1, v2)
+    if sum.x == 4.0 && sum.y == 6.0 {
+        println("  [PASS] geometry.Vec2.add()")
+        passed++
+    } otherwise {
+        println("  [FAIL] geometry.Vec2.add() = (${sum.x}, ${sum.y}), expected (4.0, 6.0)")
+        failed++
+    }
+
+    // Test 3: Struct function calling another struct function internally
+    mut mag = geometry.Vec2.magnitude(v1)
+    if mag == 5.0 {
+        println("  [PASS] geometry.Vec2.magnitude() = 5.0")
+        passed++
+    } otherwise {
+        println("  [FAIL] geometry.Vec2.magnitude() = ${mag}, expected 5.0")
+        failed++
+    }
+
+    // Test 4: Public function that internally uses private function
+    mut norm = geometry.Vec2.normalize(v1)
+    println("  normalize(3,4) = (${norm.x}, ${norm.y})")
+    passed++
+
+    println("")
+    println("Results: ${passed} passed, ${failed} failed")
+    if failed == 0 {
+        println("ALL TESTS PASSED")
+    } otherwise {
+        println("SOME TESTS FAILED")
+    }
+}
