@@ -367,6 +367,11 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
     case NODE_PREFIX_EXPR:
         emit(cg, "(");
         emit(cg, node->data.prefix.op);
+        /* Space after - to prevent -- ambiguity with large literals */
+        if (strcmp(node->data.prefix.op, "-") == 0 &&
+            node->data.prefix.right->kind == NODE_INT_VALUE) {
+            emit(cg, " ");
+        }
         emit_expression(cg, node->data.prefix.right);
         emit(cg, ")");
         break;
