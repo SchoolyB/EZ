@@ -2718,24 +2718,23 @@ void codegen_generate(CodeGen *cg, AstNode *program) {
             }
 
             if (is_string_enum) {
-                /* String enum: emit as EzString constants */
+                /* String enum: emit as EzString constants using struct literals
+                 * (compile-time safe, no function call initializers) */
                 emitf(cg, "typedef EzString EzEnum_%s;\n", stmt->data.enum_decl.name);
                 for (int j = 0; j < stmt->data.enum_decl.value_count; j++) {
                     EnumVal *ev = &stmt->data.enum_decl.values[j];
-                    emitf(cg, "static const EzString EzEnum_%s_%s = ",
-                        stmt->data.enum_decl.name, ev->name);
-                    if (ev->value) {
-                        emit_expression(cg, ev->value);
-                    } else {
-                        /* Default: lowercase name as string */
-                        emitf(cg, "{ \"%s\", %d }",
-                            ev->name, (int)strlen(ev->name));
+                    const char *str_val = ev->name; /* default: member name */
+                    if (ev->value && ev->value->kind == NODE_STRING_VALUE) {
+                        str_val = ev->value->data.string_value.value;
                     }
-                    emit(cg, ";\n");
+                    emitf(cg, "#define EzEnum_%s_%s ((EzString){ \"%s\", %d })\n",
+                        stmt->data.enum_decl.name, ev->name,
+                        str_val, (int)strlen(str_val));
                 }
                 emit(cg, "\n");
             } else {
-                /* Integer enum */
+                /* Integer enum (or flags enum) */
+                bool is_flags = stmt->data.enum_decl.is_flags;
                 emitf(cg, "typedef enum {\n");
                 for (int j = 0; j < stmt->data.enum_decl.value_count; j++) {
                     EnumVal *ev = &stmt->data.enum_decl.values[j];
@@ -2743,6 +2742,9 @@ void codegen_generate(CodeGen *cg, AstNode *program) {
                     if (ev->value) {
                         emit(cg, " = ");
                         emit_expression(cg, ev->value);
+                    } else if (is_flags) {
+                        /* Powers of 2: 1, 2, 4, 8, ... */
+                        emitf(cg, " = %d", 1 << j);
                     } else {
                         emitf(cg, " = %d", j);
                     }

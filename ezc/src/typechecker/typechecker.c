@@ -149,12 +149,15 @@ static FuncSig *find_func(TypeChecker *tc, const char *name) {
 
 /* --- Enum helpers --- */
 
-static void register_enum(TypeChecker *tc, const char *name) {
+static void register_enum(TypeChecker *tc, const char *name, bool is_string) {
     if (tc->enum_count >= tc->enum_cap) {
         tc->enum_cap = tc->enum_cap ? tc->enum_cap * 2 : 8;
         tc->enum_names = realloc(tc->enum_names, sizeof(const char *) * tc->enum_cap);
+        tc->enum_is_string = realloc(tc->enum_is_string, sizeof(bool) * tc->enum_cap);
     }
-    tc->enum_names[tc->enum_count++] = name;
+    tc->enum_names[tc->enum_count] = name;
+    tc->enum_is_string[tc->enum_count] = is_string;
+    tc->enum_count++;
 }
 
 static bool is_enum_name(TypeChecker *tc, const char *name) {
@@ -492,7 +495,15 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
 
             /* Check if it's an enum access: Color.RED */
             if (is_enum_name(tc, obj_name)) {
-                result = &TYPE_INT;
+                /* Check if this is a string enum */
+                bool is_str_enum = false;
+                for (int ei = 0; ei < tc->enum_count; ei++) {
+                    if (strcmp(tc->enum_names[ei], obj_name) == 0) {
+                        is_str_enum = tc->enum_is_string[ei];
+                        break;
+                    }
+                }
+                result = is_str_enum ? &TYPE_STRING : &TYPE_INT;
                 break;
             }
 
@@ -799,7 +810,21 @@ static void register_declarations(TypeChecker *tc, AstNode *program) {
         }
 
         if (stmt->kind == NODE_ENUM_DECL) {
-            register_enum(tc, stmt->data.enum_decl.name);
+            /* Detect string enum: has explicit base_type "string" or string literal values */
+            bool is_str = false;
+            if (stmt->data.enum_decl.base_type &&
+                strcmp(stmt->data.enum_decl.base_type, "string") == 0) {
+                is_str = true;
+            } else {
+                for (int j = 0; j < stmt->data.enum_decl.value_count; j++) {
+                    if (stmt->data.enum_decl.values[j].value &&
+                        stmt->data.enum_decl.values[j].value->kind == NODE_STRING_VALUE) {
+                        is_str = true;
+                        break;
+                    }
+                }
+            }
+            register_enum(tc, stmt->data.enum_decl.name, is_str);
         }
 
         if (stmt->kind == NODE_FUNC_DECL) {
