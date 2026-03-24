@@ -396,6 +396,7 @@ func (tc *TypeChecker) registerBuiltinTypes() {
 			"path":    {Name: "string", Kind: PrimitiveType},
 			"query":   {Name: "map[string:string]", Kind: MapType},
 			"headers": {Name: "map[string:string]", Kind: MapType},
+			"params":  {Name: "map[string:string]", Kind: MapType},
 			"body":    {Name: "string", Kind: PrimitiveType},
 		},
 	}
