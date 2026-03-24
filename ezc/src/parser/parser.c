@@ -267,6 +267,34 @@ static AstNode *parse_prefix_expression(Parser *p) {
 }
 
 static AstNode *parse_grouped_expression(Parser *p) {
+    /* Check for function reference: ()func_name or ()Type.func */
+    if (peek_token_is(p, TOK_RPAREN)) {
+        Token ref_tok = p->cur_token;
+        next_token(p); /* consume ) */
+        next_token(p); /* move to identifier */
+
+        if (p->cur_token.type != TOK_IDENT) {
+            return NULL;
+        }
+
+        /* Parse the function name — may be qualified with dots */
+        AstNode *func_expr = ast_alloc(p->arena, NODE_LABEL, p->cur_token);
+        func_expr->data.label.value = p->cur_token.literal;
+
+        while (peek_token_is(p, TOK_DOT)) {
+            next_token(p); /* consume . */
+            next_token(p); /* move to member */
+            AstNode *member = ast_alloc(p->arena, NODE_MEMBER_EXPR, p->cur_token);
+            member->data.member.object = func_expr;
+            member->data.member.member = p->cur_token.literal;
+            func_expr = member;
+        }
+
+        AstNode *ref = ast_alloc(p->arena, NODE_FUNC_REF, ref_tok);
+        ref->data.func_ref.function = func_expr;
+        return ref;
+    }
+
     next_token(p);
     AstNode *expr = parse_expression(p, PREC_LOWEST);
     if (!expect_peek(p, TOK_RPAREN)) return NULL;
@@ -1097,10 +1125,47 @@ static AstNode *parse_struct_declaration(Parser *p) {
     next_token(p); /* skip { */
 
     int field_cap = 8;
+    int func_cap = 4;
     node->data.struct_decl.field_count = 0;
     node->data.struct_decl.fields = arena_alloc(p->arena, sizeof(StructField) * field_cap);
+    node->data.struct_decl.func_count = 0;
+    node->data.struct_decl.funcs = arena_alloc(p->arena, sizeof(StructFunc) * func_cap);
 
     while (!cur_token_is(p, TOK_RBRACE) && !cur_token_is(p, TOK_EOF)) {
+        /* Check for struct-namespaced function: do func() or private do func() */
+        if (cur_token_is(p, TOK_DO)) {
+            AstNode *fn = parse_func_declaration(p);
+            if (fn) {
+                if (node->data.struct_decl.func_count >= func_cap) {
+                    func_cap *= 2;
+                    StructFunc *new_funcs = arena_alloc(p->arena, sizeof(StructFunc) * func_cap);
+                    memcpy(new_funcs, node->data.struct_decl.funcs,
+                        sizeof(StructFunc) * node->data.struct_decl.func_count);
+                    node->data.struct_decl.funcs = new_funcs;
+                }
+                node->data.struct_decl.funcs[node->data.struct_decl.func_count++].func_decl = fn;
+            }
+            next_token(p);
+            continue;
+        }
+        if (cur_token_is(p, TOK_PRIVATE) && peek_token_is(p, TOK_DO)) {
+            next_token(p); /* consume 'private' */
+            AstNode *fn = parse_func_declaration(p);
+            if (fn) {
+                fn->data.func_decl.visibility = 1; /* private */
+                if (node->data.struct_decl.func_count >= func_cap) {
+                    func_cap *= 2;
+                    StructFunc *new_funcs = arena_alloc(p->arena, sizeof(StructFunc) * func_cap);
+                    memcpy(new_funcs, node->data.struct_decl.funcs,
+                        sizeof(StructFunc) * node->data.struct_decl.func_count);
+                    node->data.struct_decl.funcs = new_funcs;
+                }
+                node->data.struct_decl.funcs[node->data.struct_decl.func_count++].func_decl = fn;
+            }
+            next_token(p);
+            continue;
+        }
+
         if (node->data.struct_decl.field_count >= field_cap) {
             field_cap *= 2;
             StructField *new_fields = arena_alloc(p->arena, sizeof(StructField) * field_cap);

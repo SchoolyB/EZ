@@ -1,17 +1,70 @@
 /*
- * server.ez - A minimal HTTP server
+ * server.ez - HTTP server with dynamic handlers, path params, middleware, and CORS
  *
- * Run with: ez examples/server.ez
- * Test with: curl http://localhost:8080
+ * Run with: ez examples/stdlib/server.ez
+ * Test with:
+ *   curl http://localhost:8080/
+ *   curl http://localhost:8080/users/42
+ *   curl -X POST http://localhost:8080/echo -d '{"message":"hello"}'
+ *   curl http://localhost:8080/health
+ *   curl http://localhost:8080/redirect
  */
 
 import @std, @server
 using std
 
-do main() {
-    mut router Router = server.router()
-    server.route(router, "GET", "/", server.text(200, "Hello, World!"))
+// ---- Middleware ----
 
-    println("Listening on port 8080...")
+do logger(req Request) -> nil {
+    println("[${req.method}] ${req.path}")
+    return nil
+}
+
+// ---- Handlers ----
+
+do home(req Request) -> Response {
+    return server.html(200, "<h1>Welcome to EZ Server</h1><p>Try /users/:id or /health</p>")
+}
+
+do get_user(req Request) -> Response {
+    mut id = req.params["id"]
+    return server.json(200, {"id": id, "name": "User ${id}"})
+}
+
+do echo(req Request) -> Response {
+    mut body = server.parse_json(req)
+    if body == nil {
+        return server.json(400, {"error": "invalid JSON body"})
+    }
+    return server.json(200, body)
+}
+
+do health(req Request) -> Response {
+    return server.json(200, {"status": "ok"})
+}
+
+do redirect_home(req Request) -> Response {
+    return server.redirect(302, "/")
+}
+
+// ---- Main ----
+
+do main() {
+    mut router = server.router()
+
+    // Enable CORS for all origins
+    server.cors(router, "*")
+
+    // Add logging middleware
+    server.use(router, ()logger)
+
+    // Register routes
+    server.route(router, "GET", "/", ()home)
+    server.route(router, "GET", "/users/:id", ()get_user)
+    server.route(router, "POST", "/echo", ()echo)
+    server.route(router, "GET", "/health", ()health)
+    server.route(router, "GET", "/redirect", ()redirect_home)
+
+    println("Server running on http://localhost:8080")
     server.listen(8080, router)
 }

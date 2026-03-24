@@ -93,15 +93,28 @@ func TestServerRouterWrongArgCount(t *testing.T) {
 // server.route tests
 // ============================================================================
 
+func serverMakeHandler() *object.Function {
+	return &object.Function{
+		Call: func(args []object.Object) object.Object {
+			return &object.Struct{
+				TypeName: "Response",
+				Fields: map[string]object.Object{
+					"status": serverMakeInt(200),
+					"body":   serverMakeStr("ok"),
+				},
+			}
+		},
+	}
+}
+
 func TestServerRoute(t *testing.T) {
 	routerFn := ServerBuiltins["server.router"].Fn
 	routeFn := ServerBuiltins["server.route"].Fn
-	textFn := ServerBuiltins["server.text"].Fn
 
 	router := routerFn()
-	resp := textFn(serverMakeInt(200), serverMakeStr("hello"))
+	handler := serverMakeHandler()
 
-	result := routeFn(router, serverMakeStr("GET"), serverMakeStr("/"), resp)
+	result := routeFn(router, serverMakeStr("GET"), serverMakeStr("/"), handler)
 	if _, ok := result.(*object.Nil); !ok {
 		t.Fatalf("expected Nil return, got %T", result)
 	}
@@ -126,12 +139,11 @@ func TestServerRoute(t *testing.T) {
 func TestServerRouteMultiple(t *testing.T) {
 	routerFn := ServerBuiltins["server.router"].Fn
 	routeFn := ServerBuiltins["server.route"].Fn
-	textFn := ServerBuiltins["server.text"].Fn
 
 	router := routerFn()
-	routeFn(router, serverMakeStr("GET"), serverMakeStr("/"), textFn(serverMakeInt(200), serverMakeStr("home")))
-	routeFn(router, serverMakeStr("POST"), serverMakeStr("/api"), textFn(serverMakeInt(201), serverMakeStr("created")))
-	routeFn(router, serverMakeStr("DELETE"), serverMakeStr("/item"), textFn(serverMakeInt(204), serverMakeStr("")))
+	routeFn(router, serverMakeStr("GET"), serverMakeStr("/"), serverMakeHandler())
+	routeFn(router, serverMakeStr("POST"), serverMakeStr("/api"), serverMakeHandler())
+	routeFn(router, serverMakeStr("DELETE"), serverMakeStr("/item"), serverMakeHandler())
 
 	routes := router.(*object.Struct).Fields["routes"].(*object.Array)
 	if len(routes.Elements) != 3 {
@@ -173,20 +185,19 @@ func TestServerRouteWrongArgCount(t *testing.T) {
 
 func TestServerRouteWrongArgTypes(t *testing.T) {
 	routeFn := ServerBuiltins["server.route"].Fn
-	textFn := ServerBuiltins["server.text"].Fn
 	routerFn := ServerBuiltins["server.router"].Fn
 
 	router := routerFn()
-	resp := textFn(serverMakeInt(200), serverMakeStr("ok"))
+	handler := serverMakeHandler()
 
 	tests := []struct {
 		name string
 		args []object.Object
 	}{
-		{"wrong router type", []object.Object{serverMakeStr("not-router"), serverMakeStr("GET"), serverMakeStr("/"), resp}},
-		{"wrong method type", []object.Object{router, serverMakeInt(1), serverMakeStr("/"), resp}},
-		{"wrong path type", []object.Object{router, serverMakeStr("GET"), serverMakeInt(1), resp}},
-		{"wrong response type", []object.Object{router, serverMakeStr("GET"), serverMakeStr("/"), serverMakeStr("not-resp")}},
+		{"wrong router type", []object.Object{serverMakeStr("not-router"), serverMakeStr("GET"), serverMakeStr("/"), handler}},
+		{"wrong method type", []object.Object{router, serverMakeInt(1), serverMakeStr("/"), handler}},
+		{"wrong path type", []object.Object{router, serverMakeStr("GET"), serverMakeInt(1), handler}},
+		{"wrong handler type", []object.Object{router, serverMakeStr("GET"), serverMakeStr("/"), serverMakeStr("not-fn")}},
 	}
 
 	for _, tt := range tests {

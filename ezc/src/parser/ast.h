@@ -36,6 +36,7 @@ typedef enum {
     NODE_RANGE_EXPR,
     NODE_CAST_EXPR,
     NODE_BLANK_IDENT,
+    NODE_FUNC_REF,
 
     /* Statements */
     NODE_VAR_DECL,
@@ -77,6 +78,11 @@ typedef struct {
     const char *name;
     const char *type_name;
 } StructField;
+
+/* Function in struct declaration (namespaced free function) */
+typedef struct {
+    AstNode *func_decl; /* NODE_FUNC_DECL */
+} StructFunc;
 
 /* Enum value */
 typedef struct {
@@ -177,6 +183,9 @@ struct AstNode {
             const char *element_type;
         } cast;
 
+        /* NODE_FUNC_REF — ()func_name */
+        struct { AstNode *function; } func_ref;
+
         /* NODE_VAR_DECL */
         struct {
             const char *name;
@@ -272,6 +281,8 @@ struct AstNode {
             const char *name;
             StructField *fields;
             int field_count;
+            StructFunc *funcs;
+            int func_count;
             int visibility;
         } struct_decl;
 
