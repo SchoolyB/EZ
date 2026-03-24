@@ -368,6 +368,16 @@ static AstNode *parse_prefix(Parser *p) {
             return node;
         }
 
+        /* Empty map: {:} */
+        if (cur_token_is(p, TOK_COLON) && peek_token_is(p, TOK_RBRACE)) {
+            next_token(p); /* skip } */
+            AstNode *node = ast_alloc(p->arena, NODE_MAP_VALUE, brace_tok);
+            node->data.map_value.count = 0;
+            node->data.map_value.keys = NULL;
+            node->data.map_value.values = NULL;
+            return node;
+        }
+
         /* Parse first expression */
         AstNode *first = parse_expression(p, PREC_LOWEST);
 
