@@ -79,6 +79,11 @@ typedef struct {
     const char *type_name;
 } StructField;
 
+/* Function in struct declaration (namespaced free function) */
+typedef struct {
+    AstNode *func_decl; /* NODE_FUNC_DECL */
+} StructFunc;
+
 /* Enum value */
 typedef struct {
     const char *name;
@@ -276,6 +281,8 @@ struct AstNode {
             const char *name;
             StructField *fields;
             int field_count;
+            StructFunc *funcs;
+            int func_count;
             int visibility;
         } struct_decl;
 

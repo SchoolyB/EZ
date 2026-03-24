@@ -1643,6 +1643,28 @@ static void emit_call_expression(CodeGen *cg, AstNode *node) {
         }
     }
 
+    /* Check for struct-namespaced function call: StructName.func() */
+    if (node->data.call.function->kind == NODE_MEMBER_EXPR) {
+        AstNode *obj = node->data.call.function->data.member.object;
+        const char *member = node->data.call.function->data.member.member;
+        if (obj->kind == NODE_LABEL) {
+            const char *struct_name = obj->data.label.value;
+            /* Try to find as a struct-namespaced function: StructName_func */
+            char ns_name[256];
+            snprintf(ns_name, sizeof(ns_name), "%s_%s", struct_name, member);
+            AstNode *ns_func = find_func(cg, ns_name);
+            if (ns_func) {
+                emitf(cg, "ez_fn_%s_%s(", struct_name, member);
+                for (int i = 0; i < node->data.call.arg_count; i++) {
+                    if (i > 0) emit(cg, ", ");
+                    emit_expression(cg, node->data.call.args[i]);
+                }
+                emit(cg, ")");
+                return;
+            }
+        }
+    }
+
     /* Generic function call */
     const char *fn_name = NULL;
     if (node->data.call.function->kind == NODE_LABEL) {
@@ -2532,7 +2554,7 @@ void codegen_generate(CodeGen *cg, AstNode *program) {
         }
     }
 
-    /* Collect all function declarations */
+    /* Collect all function declarations (including struct-namespaced) */
     for (int i = 0; i < program->data.program.stmt_count; i++) {
         AstNode *stmt = program->data.program.stmts[i];
         if (stmt->kind == NODE_FUNC_DECL) {
@@ -2541,6 +2563,26 @@ void codegen_generate(CodeGen *cg, AstNode *program) {
                 cg->all_funcs = realloc(cg->all_funcs, sizeof(AstNode *) * cg->func_cap);
             }
             cg->all_funcs[cg->func_count++] = stmt;
+        }
+        /* Collect struct-namespaced functions with prefixed names */
+        if (stmt->kind == NODE_STRUCT_DECL) {
+            for (int j = 0; j < stmt->data.struct_decl.func_count; j++) {
+                AstNode *fn = stmt->data.struct_decl.funcs[j].func_decl;
+                if (fn && fn->kind == NODE_FUNC_DECL) {
+                    const char *sn = stmt->data.struct_decl.name;
+                    const char *fn_name = fn->data.func_decl.name;
+                    size_t ns_len = strlen(sn) + 1 + strlen(fn_name) + 1;
+                    char *ns_name = malloc(ns_len);
+                    snprintf(ns_name, ns_len, "%s_%s", sn, fn_name);
+                    fn->data.func_decl.name = ns_name;
+
+                    if (cg->func_count >= cg->func_cap) {
+                        cg->func_cap = cg->func_cap ? cg->func_cap * 2 : 16;
+                        cg->all_funcs = realloc(cg->all_funcs, sizeof(AstNode *) * cg->func_cap);
+                    }
+                    cg->all_funcs[cg->func_count++] = fn;
+                }
+            }
         }
     }
 
@@ -2553,9 +2595,9 @@ void codegen_generate(CodeGen *cg, AstNode *program) {
         }
     }
 
-    /* Emit forward declarations for user functions */
-    for (int i = 0; i < program->data.program.stmt_count; i++) {
-        AstNode *stmt = program->data.program.stmts[i];
+    /* Emit forward declarations for all functions (including struct-namespaced) */
+    for (int i = 0; i < cg->func_count; i++) {
+        AstNode *stmt = cg->all_funcs[i];
         if (stmt->kind == NODE_FUNC_DECL) {
             if (strcmp(stmt->data.func_decl.name, "main") == 0) {
                 emit(cg, "static void ez_fn_main(void);\n");
@@ -2580,11 +2622,24 @@ void codegen_generate(CodeGen *cg, AstNode *program) {
     }
     emit(cg, "\n");
 
-    /* Emit function definitions */
+    /* Emit function definitions (top-level statements) */
     for (int i = 0; i < program->data.program.stmt_count; i++) {
         AstNode *stmt = program->data.program.stmts[i];
         if (stmt->kind != NODE_IMPORT_STMT && stmt->kind != NODE_USING_STMT) {
             emit_statement(cg, stmt);
+        }
+    }
+
+    /* Emit struct-namespaced function definitions */
+    for (int i = 0; i < program->data.program.stmt_count; i++) {
+        AstNode *stmt = program->data.program.stmts[i];
+        if (stmt->kind == NODE_STRUCT_DECL) {
+            for (int j = 0; j < stmt->data.struct_decl.func_count; j++) {
+                AstNode *fn = stmt->data.struct_decl.funcs[j].func_decl;
+                if (fn && fn->kind == NODE_FUNC_DECL) {
+                    emit_statement(cg, fn);
+                }
+            }
         }
     }
 
