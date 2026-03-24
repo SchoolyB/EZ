@@ -148,7 +148,19 @@ static AstNode *parse_int_literal(Parser *p) {
 
 static AstNode *parse_float_literal(Parser *p) {
     AstNode *node = ast_alloc(p->arena, NODE_FLOAT_VALUE, p->cur_token);
-    node->data.float_value.value = atof(p->cur_token.literal);
+    /* Strip underscores before parsing — atof stops at _ */
+    const char *lit = p->cur_token.literal;
+    if (strchr(lit, '_')) {
+        char buf[128];
+        int j = 0;
+        for (int i = 0; lit[i] && j < (int)sizeof(buf) - 1; i++) {
+            if (lit[i] != '_') buf[j++] = lit[i];
+        }
+        buf[j] = '\0';
+        node->data.float_value.value = atof(buf);
+    } else {
+        node->data.float_value.value = atof(lit);
+    }
     return node;
 }
 

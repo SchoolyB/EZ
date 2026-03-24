@@ -166,7 +166,7 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
         break;
 
     case NODE_FLOAT_VALUE:
-        emitf(cg, "%g", node->data.float_value.value);
+        emitf(cg, "%.15g", node->data.float_value.value);
         break;
 
     case NODE_STRING_VALUE: {
@@ -245,7 +245,7 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
 
                 switch (tk) {
                 case TK_STRING: emit(cg, "%s"); break;
-                case TK_FLOAT:  emit(cg, "%g"); break;
+                case TK_FLOAT:  emit(cg, "%.15g"); break;
                 case TK_BOOL:   emit(cg, "%s"); break;
                 case TK_CHAR:   emit(cg, "%c"); break;
                 case TK_ARRAY:  emit(cg, "%s"); break;
