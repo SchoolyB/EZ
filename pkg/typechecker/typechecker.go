@@ -3273,10 +3273,17 @@ func (tc *TypeChecker) checkExpression(expr ast.Expression) {
 	switch e := expr.(type) {
 	case *ast.CallExpression:
 		tc.checkFunctionCall(e)
+		// Check if this is ref() — ref() accepts function names as arguments for function references
+		isRefCall := false
+		if label, ok := e.Function.(*ast.Label); ok && label.Value == "ref" {
+			isRefCall = true
+		}
 		// Also check arguments
 		allowsTypeArgs := tc.functionAllowsTypeArguments(e)
 		for _, arg := range e.Arguments {
-			if allowsTypeArgs {
+			if isRefCall {
+				// ref() accepts both variables and function names — skip value check
+			} else if allowsTypeArgs {
 				// Functions like json.decode accept type arguments
 				tc.checkValueExpressionAllowTypes(arg) // Catch function used as argument (but allow types)
 			} else {
@@ -6603,9 +6610,23 @@ func (tc *TypeChecker) inferBuiltinCallType(name string, args []ast.Expression) 
 		return "string", true
 	case "read_int":
 		return "int", true
-	case "copy", "ref":
-		// copy() and ref() return the same type as their argument
+	case "copy":
+		// copy() returns the same type as its argument
 		if len(args) > 0 {
+			if argType, ok := tc.inferExpressionType(args[0]); ok {
+				return argType, true
+			}
+		}
+		return "", false
+	case "ref":
+		// ref() on a function name returns "func" (function reference)
+		// ref() on a variable returns the same type as the variable
+		if len(args) > 0 {
+			if label, ok := args[0].(*ast.Label); ok {
+				if _, isFunc := tc.functions[label.Value]; isFunc {
+					return "func", true
+				}
+			}
 			if argType, ok := tc.inferExpressionType(args[0]); ok {
 				return argType, true
 			}

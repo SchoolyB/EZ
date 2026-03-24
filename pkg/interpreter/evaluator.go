@@ -3027,26 +3027,37 @@ func evalCallExpression(node *ast.CallExpression, env *Environment, ctx *EvalCon
 
 // evalRefBuiltin handles the ref() builtin which creates a reference to a variable (#661)
 // ref() allows explicit reference creation for shared state
+// ref() also works as an explicit alternative to ()func_name for function references
 func evalRefBuiltin(args []ast.Expression, env *Environment, line, column int) Object {
 	if len(args) != 1 {
 		return newErrorWithLocation("E7001", line, column,
 			"ref() takes exactly 1 argument, got %d", len(args))
 	}
 
-	// The argument must be a variable (Label) to create a reference
+	// The argument must be a variable or function name (Label)
 	if label, ok := args[0].(*ast.Label); ok {
-		// Verify the variable exists
+		// Check if it's a function — return as function reference
+		if val, ok := env.Get(label.Value); ok {
+			if _, isFunc := val.(*Function); isFunc {
+				return val
+			}
+		}
+
+		// Check struct-namespaced functions won't be reached here since
+		// those use MemberExpression, not Label
+
+		// Verify the variable exists for variable references
 		if _, ok := env.Get(label.Value); !ok {
 			return newErrorWithLocation("E4001", label.Token.Line, label.Token.Column,
-				"undefined variable: '%s'", errors.Ident(label.Value))
+				"undefined variable or function: '%s'", errors.Ident(label.Value))
 		}
 		// Create a reference to the variable
 		return &Reference{Env: env, Name: label.Value}
 	}
 
-	// ref() requires a variable
+	// ref() requires a variable or function name
 	return newErrorWithLocation("E7003", line, column,
-		"ref() argument must be a variable")
+		"ref() argument must be a variable or function name")
 }
 
 // evalArgsWithReferences evaluates arguments, creating References for mutable (&) params
