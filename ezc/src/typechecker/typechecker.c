@@ -350,9 +350,21 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
 
     case NODE_POSTFIX_EXPR: {
         EzType *left_t = resolve_expr(tc, node->data.postfix.left);
-        if (strcmp(node->data.postfix.op, "^") == 0 && left_t->kind == TK_POINTER) {
-            /* Dereference: ^T^ → T */
-            result = type_from_name(left_t->element_type);
+        if (strcmp(node->data.postfix.op, "^") == 0) {
+            if (left_t->kind == TK_POINTER) {
+                /* Dereference: ^T^ → T */
+                result = type_from_name(left_t->element_type);
+            } else if (left_t->kind != TK_UNKNOWN) {
+                char msg[256];
+                snprintf(msg, sizeof(msg),
+                    "cannot dereference non-pointer type '%s' — only ^T types can use ^",
+                    type_name(left_t));
+                diag_error(tc->diag, "E3016", strdup(msg),
+                    tc->file, node->token.line, node->token.column, 0);
+                result = left_t;
+            } else {
+                result = left_t;
+            }
         } else {
             result = left_t;
         }
@@ -524,6 +536,57 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                     result = &TYPE_INT;
                 } else {
                     result = &TYPE_FLOAT;
+                }
+            } else if (strcmp(mod, "threads") == 0) {
+                if (strcmp(mfn, "spawn") == 0) {
+                    /* Validate first arg is a function reference */
+                    if (node->data.call.arg_count >= 1) {
+                        AstNode *arg0 = node->data.call.args[0];
+                        if (arg0->kind != NODE_FUNC_REF &&
+                            !(arg0->kind == NODE_CALL_EXPR &&
+                              arg0->data.call.function->kind == NODE_LABEL &&
+                              strcmp(arg0->data.call.function->data.label.value, "ref") == 0)) {
+                            diag_error(tc->diag, "E7006",
+                                strdup("threads.spawn() requires a function reference — use ()func_name or ref(func_name)"),
+                                tc->file, node->token.line, node->token.column, 0);
+                        }
+                    }
+                    result = &TYPE_UNKNOWN; /* EzThread — opaque */
+                } else if (strcmp(mfn, "recv") == 0) {
+                    result = &TYPE_INT;
+                } else if (strcmp(mfn, "id") == 0) {
+                    result = &TYPE_INT;
+                } else if (strcmp(mfn, "mutex") == 0) {
+                    result = &TYPE_UNKNOWN; /* EzMutex — opaque */
+                } else if (strcmp(mfn, "channel") == 0) {
+                    result = &TYPE_UNKNOWN; /* EzChannel — opaque */
+                } else {
+                    result = &TYPE_VOID;
+                }
+            } else if (strcmp(mod, "mem") == 0) {
+                if (strcmp(mfn, "make") == 0 && node->data.call.arg_count == 2) {
+                    AstNode *type_arg = node->data.call.args[1];
+                    if (type_arg->kind == NODE_LABEL) {
+                        result = type_pointer(type_arg->data.label.value);
+                    } else {
+                        result = &TYPE_UNKNOWN;
+                    }
+                } else if (strcmp(mfn, "arena") == 0) {
+                    result = &TYPE_UNKNOWN;
+                } else if (strcmp(mfn, "usage") == 0) {
+                    result = &TYPE_INT;
+                } else {
+                    result = &TYPE_VOID;
+                }
+            } else if (strcmp(mod, "sqlite") == 0) {
+                if (strcmp(mfn, "open") == 0) {
+                    result = &TYPE_UNKNOWN;
+                } else if (strcmp(mfn, "exec") == 0) {
+                    result = &TYPE_BOOL;
+                } else if (strcmp(mfn, "query") == 0) {
+                    result = type_array("map");
+                } else {
+                    result = &TYPE_VOID;
                 }
             } else {
                 result = &TYPE_VOID;
