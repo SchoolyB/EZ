@@ -7626,6 +7626,38 @@ func (tc *TypeChecker) checkDirectStdlibCall(funcName string, call *ast.CallExpr
 		return true // These are handled by runtime
 	}
 
+	// Ambiguity pre-check: count how many using modules provide this function
+	type modCheck struct {
+		name string
+		has  func(string) bool
+	}
+	stdlibModules := []modCheck{
+		{"math", tc.isMathFunction}, {"arrays", tc.isArraysFunction},
+		{"strings", tc.isStringsFunction}, {"maps", tc.isMapsFunction},
+		{"time", tc.isTimeFunction}, {"io", tc.isIoFunction},
+		{"os", tc.isOsFunction}, {"bytes", tc.isBytesFunction},
+		{"binary", tc.isBinaryFunction}, {"db", tc.isDBFunction},
+		{"uuid", tc.isUuidFunction}, {"encoding", tc.isEncodingFunction},
+		{"crypto", tc.isCryptoFunction}, {"random", tc.isRandomFunction},
+		{"json", tc.isJsonFunction},
+	}
+	var ambiguousModules []string
+	for _, mod := range stdlibModules {
+		if tc.hasUsingStdlibModule(mod.name) && mod.has(funcName) {
+			ambiguousModules = append(ambiguousModules, mod.name)
+		}
+	}
+	if len(ambiguousModules) > 1 {
+		tc.addError(
+			errors.E4008,
+			fmt.Sprintf("ambiguous function '%s' — found in modules: %s. Use explicit prefix: %s.%s()",
+				errors.Ident(funcName), strings.Join(ambiguousModules, ", "),
+				errors.Ident(ambiguousModules[0]), errors.Ident(funcName)),
+			line, column,
+		)
+		return true
+	}
+
 	// Check math module
 	if tc.hasUsingStdlibModule("math") {
 		if tc.isMathFunction(funcName) {
