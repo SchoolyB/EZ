@@ -7312,3 +7312,192 @@ a, b = getPair()
 		t.Errorf("expected error for byte out of range in tuple unpacking, got %T", evaluated)
 	}
 }
+
+// ============================================================================
+// EZ 3.0 Feature Tests
+// ============================================================================
+
+func TestOrReturnSuccess(t *testing.T) {
+	input := `
+do fallible(ok bool) -> (string, Error) {
+	if ok { return "yes", nil }
+	return "", error("no")
+}
+do wrapper() -> (string, Error) {
+	mut val = fallible(true) or_return
+	return val, nil
+}
+mut r, e = wrapper()
+r`
+	evaluated := testEval(input)
+	testStringObject(t, evaluated, "yes")
+}
+
+func TestOrReturnPropagatesError(t *testing.T) {
+	input := `
+do fallible(ok bool) -> (string, Error) {
+	if ok { return "yes", nil }
+	return "", error("no")
+}
+do wrapper() -> (string, Error) {
+	mut val = fallible(false) or_return
+	return val, nil
+}
+mut r, e = wrapper()
+e`
+	evaluated := testEval(input)
+	if evaluated == nil || evaluated.Type() == "NIL" {
+		t.Error("expected error to be propagated, got nil")
+	}
+}
+
+func TestFunctionReferenceBasic(t *testing.T) {
+	input := `
+do double(n int) -> int { return n * 2 }
+mut fn = ()double
+mut result = fn(21)
+result`
+	testIntegerObject(t, testEval(input), 42)
+}
+
+func TestFunctionReferenceReassign(t *testing.T) {
+	input := `
+do add1(n int) -> int { return n + 1 }
+do add10(n int) -> int { return n + 10 }
+mut fn = ()add1
+fn = ()add10
+mut result = fn(5)
+result`
+	testIntegerObject(t, testEval(input), 15)
+}
+
+func TestFunctionReferenceAsArgument(t *testing.T) {
+	input := `
+do is_positive(n int) -> bool { return n > 0 }
+do check(n int, test func) -> bool { return test(n) }
+mut result = check(5, ()is_positive)
+result`
+	evaluated := testEval(input)
+	testBooleanObject(t, evaluated, true)
+}
+
+func TestRefFunctionReference(t *testing.T) {
+	input := `
+do negate(n int) -> int { return n * -1 }
+mut fn = ref(negate)
+mut result = fn(7)
+result`
+	testIntegerObject(t, testEval(input), -7)
+}
+
+func TestStructNamespacedFunction(t *testing.T) {
+	input := `
+const Counter struct {
+	value int
+	do make(v int) -> Counter { return Counter{value: v} }
+	do inc(c Counter) -> Counter { return Counter{value: c.value + 1} }
+}
+mut c = Counter.make(0)
+c = Counter.inc(c)
+c = Counter.inc(c)
+c.value`
+	testIntegerObject(t, testEval(input), 2)
+}
+
+func TestMapIterationForEach(t *testing.T) {
+	input := `
+mut m map[string:int] = {"a": 10, "b": 20}
+mut total int = 0
+for_each _, v in m {
+	total += v
+}
+total`
+	testIntegerObject(t, testEval(input), 30)
+}
+
+func TestMapIterationKeysOnly(t *testing.T) {
+	input := `
+mut m map[string:int] = {"x": 1}
+mut count int = 0
+for_each key in m {
+	count++
+}
+count`
+	testIntegerObject(t, testEval(input), 1)
+}
+
+func TestDanglingRefError(t *testing.T) {
+	input := `
+do make_ref() -> int {
+	mut x int = 42
+	mut r = ref(x)
+	return r
+}
+make_ref()`
+	// The ref should either work (returning the value) or error —
+	// it should NOT silently return nil
+	evaluated := testEval(input)
+	if evaluated == nil {
+		t.Error("expected non-nil result from ref, got nil")
+	}
+}
+
+func TestWhenWithBool(t *testing.T) {
+	input := `
+mut flag bool = true
+mut result int = 0
+when flag {
+	is true { result = 1 }
+	is false { result = 2 }
+}
+result`
+	testIntegerObject(t, testEval(input), 1)
+}
+
+func TestWhenWithNil(t *testing.T) {
+	input := `
+mut val = nil
+mut result int = 0
+when val {
+	is nil { result = 1 }
+	default { result = 2 }
+}
+result`
+	testIntegerObject(t, testEval(input), 1)
+}
+
+func TestWhileAlias(t *testing.T) {
+	input := `
+mut count int = 0
+while count < 5 { count++ }
+count`
+	testIntegerObject(t, testEval(input), 5)
+}
+
+func TestLiteralTypeInference(t *testing.T) {
+	tests := []struct {
+		input    string
+		expected interface{}
+	}{
+		{"mut x = 42 x", int64(42)},
+		{"mut x = 3.14 x", 3.14},
+		{"mut x = true x", true},
+		{`mut x = "hello" x`, "hello"},
+	}
+
+	for _, tt := range tests {
+		evaluated := testEval(tt.input)
+		switch expected := tt.expected.(type) {
+		case int64:
+			testIntegerObject(t, evaluated, expected)
+		case float64:
+			if f, ok := evaluated.(*Float); !ok || f.Value != expected {
+				t.Errorf("expected float %f, got %v", expected, evaluated)
+			}
+		case bool:
+			testBooleanObject(t, evaluated, expected)
+		case string:
+			testStringObject(t, evaluated, expected)
+		}
+	}
+}
