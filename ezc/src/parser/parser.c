@@ -1539,10 +1539,33 @@ static AstNode *parse_statement(Parser *p) {
         }
         /* If not followed by when, just skip */
         return parse_statement(p);
+    case TOK_FLAGS: {
+        /* #flags — applies to the next enum declaration */
+        next_token(p); /* skip #flags */
+        AstNode *stmt = parse_statement(p);
+        if (stmt && stmt->kind == NODE_ENUM_DECL) {
+            stmt->data.enum_decl.is_flags = true;
+        }
+        return stmt;
+    }
+    case TOK_ENUM_ATTR: {
+        /* #enum(type) — applies to the next enum declaration */
+        const char *base_type = NULL;
+        if (peek_token_is(p, TOK_LPAREN)) {
+            next_token(p); /* skip ( */
+            next_token(p); /* type name */
+            base_type = p->cur_token.literal;
+            if (!expect_peek(p, TOK_RPAREN)) return NULL;
+        }
+        next_token(p);
+        AstNode *stmt = parse_statement(p);
+        if (stmt && stmt->kind == NODE_ENUM_DECL && base_type) {
+            stmt->data.enum_decl.base_type = base_type;
+        }
+        return stmt;
+    }
     case TOK_SUPPRESS:
     case TOK_DOC:
-    case TOK_FLAGS:
-    case TOK_ENUM_ATTR:
         /* Skip attribute tokens — consume args if present */
         if (peek_token_is(p, TOK_LPAREN)) {
             next_token(p); /* skip ( */
