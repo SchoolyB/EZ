@@ -5,7 +5,7 @@
 <h3 align="center">Programming Made EZ</h3>
 
 <p align="center">
-  A simple, statically-typed programming language designed for clarity and ease of use.
+  A statically-typed programming language that runs interpreted or compiles to native binaries.
 </p>
 
 <p align="center">
@@ -30,6 +30,7 @@ EZ programs can be **interpreted** or **compiled to native binaries**. Same lang
 | **Speed** | Instant startup | Native performance |
 | **Best for** | Scripting, REPL, learning | Shipping binaries, performance |
 | **Written in** | Go | C |
+| **Extras** | HTTP server, REPL | Pointers, threads, arenas, SQLite |
 
 ---
 
@@ -47,7 +48,7 @@ make build
 ./ez examples/basic/hello.ez
 ```
 
-**Requirements:** Go 1.23.1 or higher
+**Requirements:** Go 1.21 or higher
 
 ### Compiler (`ezc`)
 
@@ -85,15 +86,15 @@ This will check for new versions, show the changelog, and prompt you to upgrade.
 ## Running Tests
 
 ```bash
-# Interpreter tests
-make intergration-tests       # or ./integration-tests/run_tests.sh
-go test ./...
+# Interpreter
+go test ./pkg/...                         # unit tests
+bash integration-tests/run_tests.sh       # 404 integration tests
 
-# Compiler tests
+# Compiler
 cd ezc
-make test-unit                # 35 unit tests (lexer + parser)
-make test-parity              # compare ezc output against ez interpreter
-make test                     # run both
+make test-unit                            # 98 unit tests
+make test-e2e                             # 64 end-to-end tests
+make test-ubsan                           # undefined behavior sanitizer
 ```
 
 For more details, see the [Testing Guide](TESTING.md).
