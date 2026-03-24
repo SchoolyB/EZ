@@ -7271,3 +7271,108 @@ do main() {
 	assertNoErrors(t, tc)
 	assertNoWarning(t, tc, errors.W2011)
 }
+
+// ============================================================================
+// EZ 3.0 Feature Tests
+// ============================================================================
+
+func TestFunctionReferenceType(t *testing.T) {
+	input := `
+do double(n int) -> int { return n * 2 }
+do main() {
+	mut fn = ()double
+	mut result = fn(5)
+}
+`
+	tc := typecheck(t, input)
+	assertNoErrors(t, tc)
+}
+
+func TestRefFunctionReferenceType(t *testing.T) {
+	input := `
+do negate(n int) -> int { return n * -1 }
+do main() {
+	mut fn = ref(negate)
+	mut result = fn(5)
+}
+`
+	tc := typecheck(t, input)
+	assertNoErrors(t, tc)
+}
+
+func TestOrReturnTypecheck(t *testing.T) {
+	input := `
+do fallible() -> (string, Error) {
+	return "ok", nil
+}
+do wrapper() -> (string, Error) {
+	mut val = fallible() or_return
+	return val, nil
+}
+do main() {
+	mut v, e = wrapper()
+}
+`
+	tc := typecheck(t, input)
+	assertNoErrors(t, tc)
+}
+
+func TestMapForEachTypecheck(t *testing.T) {
+	input := `
+import @std
+using std
+do main() {
+	mut m map[string:int] = {"a": 1}
+	for_each k, v in m {
+		println(k)
+	}
+}
+`
+	tc := typecheck(t, input)
+	assertNoErrors(t, tc)
+}
+
+func TestStructNamespacedFuncTypecheck(t *testing.T) {
+	input := `
+const Point struct {
+	x int
+	y int
+	do create(x int, y int) -> Point {
+		return Point{x: x, y: y}
+	}
+}
+do main() {
+	mut p = Point.create(3, 4)
+}
+`
+	tc := typecheck(t, input)
+	assertNoErrors(t, tc)
+}
+
+func TestWhenBoolAllowed(t *testing.T) {
+	input := `
+do main() {
+	mut flag bool = true
+	when flag {
+		is true { }
+		is false { }
+	}
+}
+`
+	tc := typecheck(t, input)
+	assertNoErrors(t, tc)
+}
+
+func TestWhenNilAllowed(t *testing.T) {
+	input := `
+do main() {
+	mut val = nil
+	when val {
+		is nil { }
+		default { }
+	}
+}
+`
+	tc := typecheck(t, input)
+	assertNoErrors(t, tc)
+}
