@@ -816,6 +816,17 @@ static bool emit_builtin_call(CodeGen *cg, AstNode *node, const char *func) {
     }
 
     if ((strcmp(func, "addr") == 0 || strcmp(func, "ref") == 0) && node->data.call.arg_count == 1) {
+        /* Check if argument is a function name — emit as function pointer */
+        if (node->data.call.args[0]->kind == NODE_LABEL) {
+            const char *arg_name = node->data.call.args[0]->data.label.value;
+            AstNode *target = find_func(cg, arg_name);
+            if (target) {
+                /* Function reference: emit ez_fn_name (function pointer) */
+                emitf(cg, "ez_fn_%s", arg_name);
+                return true;
+            }
+        }
+        /* Variable reference: emit &var */
         emit(cg, "&");
         emit_expression(cg, node->data.call.args[0]);
         return true;
@@ -1980,11 +1991,17 @@ static void emit_var_declaration(CodeGen *cg, AstNode *node) {
         }
     }
 
-    /* Detect ref() assignment — register as transparent reference */
+    /* Detect ref() assignment — register as transparent reference (but not for function refs) */
     if (node->data.var_decl.value && node->data.var_decl.value->kind == NODE_CALL_EXPR) {
         AstNode *fn = node->data.var_decl.value->data.call.function;
         if (fn->kind == NODE_LABEL && strcmp(fn->data.label.value, "ref") == 0) {
-            register_ref_var(cg, node->data.var_decl.name);
+            /* Only register as ref if the argument is a variable, not a function */
+            if (node->data.var_decl.value->data.call.arg_count == 1) {
+                AstNode *arg = node->data.var_decl.value->data.call.args[0];
+                if (arg->kind == NODE_LABEL && !find_func(cg, arg->data.label.value)) {
+                    register_ref_var(cg, node->data.var_decl.name);
+                }
+            }
         }
     }
 
