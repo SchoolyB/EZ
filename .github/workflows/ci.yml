@@ -82,6 +82,18 @@ jobs:
           cd ezc
           make test-e2e
 
+      - name: Run EZC UBSan tests
+        if: runner.os != 'Windows'
+        run: |
+          cd ezc
+          make test-ubsan
+
+      - name: Run EZC ASan tests (Linux only)
+        if: runner.os == 'Linux'
+        run: |
+          cd ezc
+          make test-asan
+
       - name: Compile all examples with EZC
         if: runner.os != 'Windows'
         run: |
