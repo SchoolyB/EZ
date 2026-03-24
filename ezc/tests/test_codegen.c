@@ -799,6 +799,247 @@ static void test_e2e_threads_sleep(void) {
     ASSERT_STR_EQ(out, "awake");
 }
 
+/* ===== Function Reference Tests ===== */
+
+static void test_e2e_func_ref_basic(void) {
+    char *out = compile_and_run(
+        "import @std\nusing std\n"
+        "do double(n int) -> int { return n * 2 }\n"
+        "do main() {\n"
+        "  mut fn = ()double\n"
+        "  println(fn(21))\n"
+        "}");
+    ASSERT_NOT_NULL(out);
+    ASSERT_STR_EQ(out, "42");
+}
+
+static void test_e2e_func_ref_ref(void) {
+    char *out = compile_and_run(
+        "import @std\nusing std\n"
+        "do negate(n int) -> int { return n * -1 }\n"
+        "do main() {\n"
+        "  mut fn = ref(negate)\n"
+        "  println(fn(5))\n"
+        "}");
+    ASSERT_NOT_NULL(out);
+    ASSERT_STR_EQ(out, "-5");
+}
+
+static void test_e2e_func_ref_reassign(void) {
+    char *out = compile_and_run(
+        "import @std\nusing std\n"
+        "do add1(n int) -> int { return n + 1 }\n"
+        "do add10(n int) -> int { return n + 10 }\n"
+        "do main() {\n"
+        "  mut fn = ()add1\n"
+        "  println(fn(5))\n"
+        "  fn = ()add10\n"
+        "  println(fn(5))\n"
+        "}");
+    ASSERT_NOT_NULL(out);
+    ASSERT_STR_EQ(out, "6\n15");
+}
+
+/* ===== Struct-Namespaced Functions ===== */
+
+static void test_e2e_struct_func(void) {
+    char *out = compile_and_run(
+        "import @std\nusing std\n"
+        "const Counter struct {\n"
+        "  value int\n"
+        "  do make(v int) -> Counter { return Counter{value: v} }\n"
+        "  do inc(c Counter) -> Counter { return Counter{value: c.value + 1} }\n"
+        "}\n"
+        "do main() {\n"
+        "  mut c = Counter.make(0)\n"
+        "  c = Counter.inc(c)\n"
+        "  c = Counter.inc(c)\n"
+        "  println(c.value)\n"
+        "}");
+    ASSERT_NOT_NULL(out);
+    ASSERT_STR_EQ(out, "2");
+}
+
+/* ===== or_return ===== */
+
+static void test_e2e_or_return(void) {
+    char *out = compile_and_run(
+        "import @std\nusing std\n"
+        "do fallible(ok bool) -> (string, Error) {\n"
+        "  if ok { return \"success\", nil }\n"
+        "  return \"\", error(\"failed\")\n"
+        "}\n"
+        "do wrapper() -> (string, Error) {\n"
+        "  mut val = fallible(true) or_return\n"
+        "  return val, nil\n"
+        "}\n"
+        "do main() {\n"
+        "  mut v, e = wrapper()\n"
+        "  println(v)\n"
+        "}");
+    ASSERT_NOT_NULL(out);
+    ASSERT_STR_EQ(out, "success");
+}
+
+/* ===== Enum Attributes ===== */
+
+static void test_e2e_flags_enum(void) {
+    char *out = compile_and_run(
+        "import @std\nusing std\n"
+        "#flags\n"
+        "const Perms enum { READ\n WRITE\n EXEC }\n"
+        "do main() {\n"
+        "  println(Perms.READ)\n"
+        "  println(Perms.WRITE)\n"
+        "  println(Perms.EXEC)\n"
+        "}");
+    ASSERT_NOT_NULL(out);
+    ASSERT_STR_EQ(out, "1\n2\n4");
+}
+
+static void test_e2e_string_enum(void) {
+    char *out = compile_and_run(
+        "import @std\nusing std\n"
+        "const Status enum {\n"
+        "  TODO = \"todo\"\n"
+        "  DONE = \"done\"\n"
+        "}\n"
+        "do main() {\n"
+        "  println(Status.TODO)\n"
+        "  println(Status.DONE)\n"
+        "}");
+    ASSERT_NOT_NULL(out);
+    ASSERT_STR_EQ(out, "todo\ndone");
+}
+
+/* ===== Named Returns ===== */
+
+static void test_e2e_named_return(void) {
+    char *out = compile_and_run(
+        "import @std\nusing std\n"
+        "do divide(a int, b int) -> (q int, r int) {\n"
+        "  q = a / b\n"
+        "  r = a % b\n"
+        "  return q, r\n"
+        "}\n"
+        "do main() {\n"
+        "  mut q, r = divide(17, 5)\n"
+        "  println(\"${q},${r}\")\n"
+        "}");
+    ASSERT_NOT_NULL(out);
+    ASSERT_STR_EQ(out, "3,2");
+}
+
+/* ===== Mutable Indexed/Member Params ===== */
+
+static void test_e2e_mutable_indexed_param(void) {
+    char *out = compile_and_run(
+        "import @std\nusing std\n"
+        "do inc(&n int) { n = n + 1 }\n"
+        "do main() {\n"
+        "  mut arr [int] = {10, 20, 30}\n"
+        "  inc(arr[1])\n"
+        "  println(arr[1])\n"
+        "}");
+    ASSERT_NOT_NULL(out);
+    ASSERT_STR_EQ(out, "21");
+}
+
+static void test_e2e_mutable_member_param(void) {
+    char *out = compile_and_run(
+        "import @std\nusing std\n"
+        "const P struct { x int }\n"
+        "do inc(&n int) { n = n + 1 }\n"
+        "do main() {\n"
+        "  mut p = P{x: 5}\n"
+        "  inc(p.x)\n"
+        "  println(p.x)\n"
+        "}");
+    ASSERT_NOT_NULL(out);
+    ASSERT_STR_EQ(out, "6");
+}
+
+/* ===== Map Operations ===== */
+
+static void test_e2e_map_basic(void) {
+    char *out = compile_and_run(
+        "import @std\nusing std\n"
+        "do main() {\n"
+        "  mut m map[string:int] = {\"a\": 1, \"b\": 2}\n"
+        "  println(m[\"a\"])\n"
+        "  println(m[\"b\"])\n"
+        "}");
+    ASSERT_NOT_NULL(out);
+    ASSERT_STR_EQ(out, "1\n2");
+}
+
+static void test_e2e_map_foreach(void) {
+    char *out = compile_and_run(
+        "import @std\nusing std\n"
+        "do main() {\n"
+        "  mut m map[string:int] = {\"x\": 10}\n"
+        "  mut total int = 0\n"
+        "  for_each _, v in m {\n"
+        "    total = total + v\n"
+        "  }\n"
+        "  println(total)\n"
+        "}");
+    ASSERT_NOT_NULL(out);
+    ASSERT_STR_EQ(out, "10");
+}
+
+/* ===== Division by Zero ===== */
+
+static void test_e2e_div_zero(void) {
+    /* Compile and run — should panic, not crash silently */
+    test_num++;
+    char ez_file[128], bin_file[128];
+    snprintf(ez_file, sizeof(ez_file), "/tmp/ezc_e2e_%d.ez", test_num);
+    snprintf(bin_file, sizeof(bin_file), "/tmp/ezc_e2e_%d", test_num);
+
+    const char *src =
+        "import @std\nusing std\n"
+        "do main() {\n"
+        "  mut x int = 10\n"
+        "  mut y int = 0\n"
+        "  println(x / y)\n"
+        "}";
+
+    FILE *f = fopen(ez_file, "w");
+    if (!f) { _test_fail++; printf("  FAIL %s: cannot write\n", __func__); return; }
+    fputs(src, f);
+    fclose(f);
+
+    char cmd[1024];
+    snprintf(cmd, sizeof(cmd), "./ezc %s -o %s 2>/dev/null", ez_file, bin_file);
+    if (system(cmd) != 0) {
+        unlink(ez_file);
+        _test_fail++;
+        printf("  FAIL %s: compile failed\n", __func__);
+        return;
+    }
+
+    char run_cmd[256];
+    snprintf(run_cmd, sizeof(run_cmd), "%s 2>&1", bin_file);
+    FILE *p = popen(run_cmd, "r");
+    char output[4096] = {0};
+    if (p) {
+        fread(output, 1, sizeof(output) - 1, p);
+        pclose(p);
+    }
+
+    unlink(ez_file);
+    unlink(bin_file);
+
+    if (strstr(output, "division by zero")) {
+        _test_pass++;
+        printf("  PASS %s\n", __func__);
+    } else {
+        _test_fail++;
+        printf("  FAIL %s: expected 'division by zero' in output\n", __func__);
+    }
+}
+
 int main(void) {
     /* Must run from the ezc/ directory */
     if (access("./ezc", X_OK) != 0) {
@@ -870,6 +1111,35 @@ int main(void) {
     RUN_TEST(test_e2e_threads_spawn_join);
     RUN_TEST(test_e2e_threads_channel);
     RUN_TEST(test_e2e_threads_sleep);
+
+    /* Function references */
+    RUN_TEST(test_e2e_func_ref_basic);
+    RUN_TEST(test_e2e_func_ref_ref);
+    RUN_TEST(test_e2e_func_ref_reassign);
+
+    /* Struct-namespaced functions */
+    RUN_TEST(test_e2e_struct_func);
+
+    /* or_return */
+    RUN_TEST(test_e2e_or_return);
+
+    /* Enum attributes */
+    RUN_TEST(test_e2e_flags_enum);
+    RUN_TEST(test_e2e_string_enum);
+
+    /* Named returns */
+    RUN_TEST(test_e2e_named_return);
+
+    /* Mutable indexed/member params */
+    RUN_TEST(test_e2e_mutable_indexed_param);
+    RUN_TEST(test_e2e_mutable_member_param);
+
+    /* Map operations */
+    RUN_TEST(test_e2e_map_basic);
+    RUN_TEST(test_e2e_map_foreach);
+
+    /* Division by zero */
+    RUN_TEST(test_e2e_div_zero);
 
     PRINT_RESULTS();
     return _test_fail > 0 ? 1 : 0;
