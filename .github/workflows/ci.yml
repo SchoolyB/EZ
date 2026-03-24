@@ -89,6 +89,10 @@ jobs:
             echo "Compiling $file..."
             ./ezc/ezc "$file" -o "/tmp/ezc_$(basename $file .ez)" || exit 1
           done
+          for file in examples/ezc/*.ez; do
+            echo "Compiling EZC-only $file..."
+            ./ezc/ezc "$file" -o "/tmp/ezc_$(basename $file .ez)" || exit 1
+          done
           echo "All examples compiled successfully"
 
       # ===== Interpreter REPL =====
