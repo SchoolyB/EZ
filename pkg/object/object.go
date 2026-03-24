@@ -447,6 +447,7 @@ type Function struct {
 	Body         *ast.BlockStatement
 	Env          *Environment
 	File         string // Source file where function was defined
+	Call         func(args []Object) Object // Set by evaluator — allows stdlib to invoke EZ functions
 }
 
 func (f *Function) Type() ObjectType { return FUNCTION_OBJ }

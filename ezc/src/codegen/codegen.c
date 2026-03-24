@@ -515,6 +515,16 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
         }
         break;
 
+    case NODE_FUNC_REF:
+        /* ()func_name — emit as C function pointer with ez_fn_ prefix */
+        if (node->data.func_ref.function->kind == NODE_LABEL) {
+            emit(cg, "ez_fn_");
+            emit(cg, node->data.func_ref.function->data.label.value);
+        } else {
+            emit_expression(cg, node->data.func_ref.function);
+        }
+        break;
+
     case NODE_CALL_EXPR:
         emit_call_expression(cg, node);
         break;
@@ -1591,6 +1601,83 @@ static bool emit_fmt_call(CodeGen *cg, AstNode *node, const char *func) {
     return false;
 }
 
+static bool emit_threads_call(CodeGen *cg, AstNode *node, const char *func) {
+    if (strcmp(func, "spawn") == 0 && node->data.call.arg_count >= 1) {
+        /* threads.spawn(()func) or threads.spawn(()func, arg) */
+        if (node->data.call.arg_count == 1) {
+            emit(cg, "ez_threads_spawn(");
+            emit_expression(cg, node->data.call.args[0]);
+            emit(cg, ")");
+        } else {
+            emit(cg, "ez_threads_spawn_arg(");
+            emit_expression(cg, node->data.call.args[0]);
+            emit(cg, ", ");
+            emit_expression(cg, node->data.call.args[1]);
+            emit(cg, ")");
+        }
+        return true;
+    }
+    if (strcmp(func, "join") == 0) {
+        emit(cg, "ez_threads_join(");
+        emit_expression(cg, node->data.call.args[0]);
+        emit(cg, ")");
+        return true;
+    }
+    if (strcmp(func, "sleep_ms") == 0) {
+        emit(cg, "ez_threads_sleep_ms(");
+        emit_expression(cg, node->data.call.args[0]);
+        emit(cg, ")");
+        return true;
+    }
+    if (strcmp(func, "id") == 0) {
+        emit(cg, "ez_threads_id()");
+        return true;
+    }
+    if (strcmp(func, "mutex") == 0) {
+        emit(cg, "ez_threads_mutex()");
+        return true;
+    }
+    if (strcmp(func, "lock") == 0) {
+        emit(cg, "ez_threads_lock(");
+        emit_expression(cg, node->data.call.args[0]);
+        emit(cg, ")");
+        return true;
+    }
+    if (strcmp(func, "unlock") == 0) {
+        emit(cg, "ez_threads_unlock(");
+        emit_expression(cg, node->data.call.args[0]);
+        emit(cg, ")");
+        return true;
+    }
+    if (strcmp(func, "channel") == 0) {
+        emit(cg, "ez_threads_channel(");
+        emit_expression(cg, node->data.call.args[0]);
+        emit(cg, ")");
+        return true;
+    }
+    if (strcmp(func, "send") == 0) {
+        emit(cg, "ez_threads_send(");
+        emit_expression(cg, node->data.call.args[0]);
+        emit(cg, ", ");
+        emit_expression(cg, node->data.call.args[1]);
+        emit(cg, ")");
+        return true;
+    }
+    if (strcmp(func, "recv") == 0) {
+        emit(cg, "ez_threads_recv(");
+        emit_expression(cg, node->data.call.args[0]);
+        emit(cg, ")");
+        return true;
+    }
+    if (strcmp(func, "close") == 0) {
+        emit(cg, "ez_threads_channel_close(");
+        emit_expression(cg, node->data.call.args[0]);
+        emit(cg, ")");
+        return true;
+    }
+    return false;
+}
+
 /* --- Main call dispatcher --- */
 
 static void emit_call_expression(CodeGen *cg, AstNode *node) {
@@ -1617,6 +1704,7 @@ static void emit_call_expression(CodeGen *cg, AstNode *node) {
             {"json",     emit_json_call},
             {"sqlite",   emit_sqlite_call},
             {"random",   emit_random_call},
+            {"threads",  emit_threads_call},
             {"arrays",   emit_arrays_call},
             {"os",       emit_os_call},
             {"io",       emit_io_call},
@@ -1633,21 +1721,47 @@ static void emit_call_expression(CodeGen *cg, AstNode *node) {
         }
     }
 
+    /* Check for struct-namespaced function call: StructName.func() */
+    if (node->data.call.function->kind == NODE_MEMBER_EXPR) {
+        AstNode *obj = node->data.call.function->data.member.object;
+        const char *member = node->data.call.function->data.member.member;
+        if (obj->kind == NODE_LABEL) {
+            const char *struct_name = obj->data.label.value;
+            /* Try to find as a struct-namespaced function: StructName_func */
+            char ns_name[256];
+            snprintf(ns_name, sizeof(ns_name), "%s_%s", struct_name, member);
+            AstNode *ns_func = find_func(cg, ns_name);
+            if (ns_func) {
+                emitf(cg, "ez_fn_%s_%s(", struct_name, member);
+                for (int i = 0; i < node->data.call.arg_count; i++) {
+                    if (i > 0) emit(cg, ", ");
+                    emit_expression(cg, node->data.call.args[i]);
+                }
+                emit(cg, ")");
+                return;
+            }
+        }
+    }
+
     /* Generic function call */
     const char *fn_name = NULL;
     if (node->data.call.function->kind == NODE_LABEL) {
         fn_name = node->data.call.function->data.label.value;
     }
 
-    emit(cg, "ez_fn_");
-    if (fn_name) {
+    /* Look up function to check if it's a known function or a variable (function pointer) */
+    AstNode *target_func = fn_name ? find_func(cg, fn_name) : NULL;
+
+    if (fn_name && target_func) {
+        /* Known function — use ez_fn_ prefix */
+        emit(cg, "ez_fn_");
+        emit(cg, fn_name);
+    } else if (fn_name) {
+        /* Not a known function — likely a variable holding a function pointer */
         emit(cg, fn_name);
     } else {
         emit_expression(cg, node->data.call.function);
     }
-
-    /* Look up function to check for mutable params */
-    AstNode *target_func = fn_name ? find_func(cg, fn_name) : NULL;
 
     /* Determine total args: provided + defaults */
     int total_args = node->data.call.arg_count;
@@ -1774,6 +1888,9 @@ static void emit_var_declaration(CodeGen *cg, AstNode *node) {
                    val->kind == NODE_MEMBER_EXPR) {
             /* Use __auto_type for function calls, new(), and member access
              * (needed for multi-var unpacking: temp x = _tmp.v0) */
+            c_type = "__auto_type";
+        } else if (val->kind == NODE_FUNC_REF) {
+            /* Function reference — use __auto_type to capture the pointer type */
             c_type = "__auto_type";
         }
     }
@@ -2436,6 +2553,7 @@ void codegen_generate(CodeGen *cg, AstNode *program) {
     emit(cg, "#include \"ez_csv.h\"\n");
     emit(cg, "#include \"ez_json.h\"\n");
     emit(cg, "#include \"ez_sqlite.h\"\n");
+    emit(cg, "#include \"ez_threads.h\"\n");
     emit(cg, "\n");
 
     /* Emit struct type definitions */
@@ -2515,7 +2633,7 @@ void codegen_generate(CodeGen *cg, AstNode *program) {
         }
     }
 
-    /* Collect all function declarations */
+    /* Collect all function declarations (including struct-namespaced) */
     for (int i = 0; i < program->data.program.stmt_count; i++) {
         AstNode *stmt = program->data.program.stmts[i];
         if (stmt->kind == NODE_FUNC_DECL) {
@@ -2524,6 +2642,26 @@ void codegen_generate(CodeGen *cg, AstNode *program) {
                 cg->all_funcs = realloc(cg->all_funcs, sizeof(AstNode *) * cg->func_cap);
             }
             cg->all_funcs[cg->func_count++] = stmt;
+        }
+        /* Collect struct-namespaced functions with prefixed names */
+        if (stmt->kind == NODE_STRUCT_DECL) {
+            for (int j = 0; j < stmt->data.struct_decl.func_count; j++) {
+                AstNode *fn = stmt->data.struct_decl.funcs[j].func_decl;
+                if (fn && fn->kind == NODE_FUNC_DECL) {
+                    const char *sn = stmt->data.struct_decl.name;
+                    const char *fn_name = fn->data.func_decl.name;
+                    size_t ns_len = strlen(sn) + 1 + strlen(fn_name) + 1;
+                    char *ns_name = malloc(ns_len);
+                    snprintf(ns_name, ns_len, "%s_%s", sn, fn_name);
+                    fn->data.func_decl.name = ns_name;
+
+                    if (cg->func_count >= cg->func_cap) {
+                        cg->func_cap = cg->func_cap ? cg->func_cap * 2 : 16;
+                        cg->all_funcs = realloc(cg->all_funcs, sizeof(AstNode *) * cg->func_cap);
+                    }
+                    cg->all_funcs[cg->func_count++] = fn;
+                }
+            }
         }
     }
 
@@ -2536,9 +2674,9 @@ void codegen_generate(CodeGen *cg, AstNode *program) {
         }
     }
 
-    /* Emit forward declarations for user functions */
-    for (int i = 0; i < program->data.program.stmt_count; i++) {
-        AstNode *stmt = program->data.program.stmts[i];
+    /* Emit forward declarations for all functions (including struct-namespaced) */
+    for (int i = 0; i < cg->func_count; i++) {
+        AstNode *stmt = cg->all_funcs[i];
         if (stmt->kind == NODE_FUNC_DECL) {
             if (strcmp(stmt->data.func_decl.name, "main") == 0) {
                 emit(cg, "static void ez_fn_main(void);\n");
@@ -2563,11 +2701,24 @@ void codegen_generate(CodeGen *cg, AstNode *program) {
     }
     emit(cg, "\n");
 
-    /* Emit function definitions */
+    /* Emit function definitions (top-level statements) */
     for (int i = 0; i < program->data.program.stmt_count; i++) {
         AstNode *stmt = program->data.program.stmts[i];
         if (stmt->kind != NODE_IMPORT_STMT && stmt->kind != NODE_USING_STMT) {
             emit_statement(cg, stmt);
+        }
+    }
+
+    /* Emit struct-namespaced function definitions */
+    for (int i = 0; i < program->data.program.stmt_count; i++) {
+        AstNode *stmt = program->data.program.stmts[i];
+        if (stmt->kind == NODE_STRUCT_DECL) {
+            for (int j = 0; j < stmt->data.struct_decl.func_count; j++) {
+                AstNode *fn = stmt->data.struct_decl.funcs[j].func_decl;
+                if (fn && fn->kind == NODE_FUNC_DECL) {
+                    emit_statement(cg, fn);
+                }
+            }
         }
     }
 
