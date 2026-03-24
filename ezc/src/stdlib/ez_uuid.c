@@ -13,7 +13,7 @@
 
 static bool _seeded = false;
 
-EzString ez_uuid_create(EzArena *arena) {
+EzString ez_uuid_generate(EzArena *arena) {
     if (!_seeded) { srand((unsigned)time(NULL)); _seeded = true; }
     uint8_t bytes[16];
     for (int i = 0; i < 16; i++) bytes[i] = (uint8_t)(rand() % 256);
@@ -29,7 +29,7 @@ EzString ez_uuid_create(EzArena *arena) {
     return ez_string_new(arena, buf, 36);
 }
 
-EzString ez_uuid_create_compact(EzArena *arena) {
+EzString ez_uuid_generate_compact(EzArena *arena) {
     if (!_seeded) { srand((unsigned)time(NULL)); _seeded = true; }
     uint8_t bytes[16];
     for (int i = 0; i < 16; i++) bytes[i] = (uint8_t)(rand() % 256);

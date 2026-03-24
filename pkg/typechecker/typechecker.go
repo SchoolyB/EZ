@@ -6828,7 +6828,7 @@ func (tc *TypeChecker) inferStringsCallType(funcName string, args []ast.Expressi
 // inferTimeCallType infers return types for @time functions
 func (tc *TypeChecker) inferTimeCallType(funcName string, args []ast.Expression) (string, bool) {
 	switch funcName {
-	case "now", "now_ms", "tick", "make", "add_seconds", "add_minutes",
+	case "now", "now_ms", "tick", "timestamp", "add_seconds", "add_minutes",
 		"add_hours", "add_days", "add_months", "add_years", "diff":
 		return "int", true
 	case "format", "format_date", "format_time":
@@ -7065,7 +7065,7 @@ func (tc *TypeChecker) inferRandomCallType(funcName string, args []ast.Expressio
 // inferUUIDCallType infers return types for @uuid functions
 func (tc *TypeChecker) inferUUIDCallType(funcName string, args []ast.Expression) (string, bool) {
 	switch funcName {
-	case "create", "create_compact", "NIL":
+	case "generate", "generate_compact", "NIL":
 		return "string", true
 	case "is_valid":
 		return "bool", true
@@ -7984,7 +7984,7 @@ func (tc *TypeChecker) isTimeFunction(name string) bool {
 		"end_of_year": true, "iso": true, "date": true, "clock": true, "format": true,
 		"parse": true, "sleep": true, "sleep_ms": true, "add_seconds": true,
 		"add_minutes": true, "add_hours": true, "add_days": true, "diff": true,
-		"diff_days": true, "is_before": true, "is_after": true, "make": true,
+		"diff_days": true, "is_before": true, "is_after": true, "timestamp": true,
 		"days_in_month": true, "elapsed_ms": true, "from_unix": true, "from_unix_ms": true,
 		"to_unix": true, "to_unix_ms": true, "is_weekend": true, "is_weekday": true, "is_today": true,
 		"is_same_day": true, "relative": true,
@@ -8080,7 +8080,7 @@ func (tc *TypeChecker) isJsonFunction(name string) bool {
 
 func (tc *TypeChecker) isUuidFunction(name string) bool {
 	uuidFuncs := map[string]bool{
-		"create": true, "create_compact": true, "NIL": true, "is_valid": true,
+		"generate": true, "generate_compact": true, "NIL": true, "is_valid": true,
 	}
 	return uuidFuncs[name]
 }
@@ -8957,7 +8957,7 @@ func (tc *TypeChecker) checkTimeModuleCall(funcName string, call *ast.CallExpres
 		"is_after":  {2, 2, []string{"int", "int"}, "bool"},
 
 		// Creation
-		"make": {3, 6, []string{"int", "int", "int", "int", "int", "int"}, "int"},
+		"timestamp": {3, 6, []string{"int", "int", "int", "int", "int", "int"}, "int"},
 
 		// days_in_month (0-2 args)
 		"days_in_month": {0, 2, []string{"int", "int"}, "int"},
@@ -9367,10 +9367,10 @@ func (tc *TypeChecker) checkDBModuleCall(funcName string, call *ast.CallExpressi
 // checkUuidModuleCall validates uuid module function calls
 func (tc *TypeChecker) checkUuidModuleCall(funcName string, call *ast.CallExpression, line, column int) {
 	signatures := map[string]StdlibFuncSig{
-		// uuid.create() - generates a new UUID v4
-		"create": {0, 0, []string{}, "string"},
+		// uuid.generate() - generates a new UUID v4
+		"generate": {0, 0, []string{}, "string"},
 		// uuid.create_compact() - generates a new UUID v4 without hyphens
-		"create_compact": {0, 0, []string{}, "string"},
+		"generate_compact": {0, 0, []string{}, "string"},
 		// uuid.is_valid(str) - checks if a string is a valid UUID
 		"is_valid": {1, 1, []string{"string"}, "bool"},
 		// uuid.NIL - the nil UUID constant

@@ -269,7 +269,7 @@ var TimeBuiltins = map[string]*object.Builtin{
 
 	// make creates a timestamp from year, month, day, and optional time.
 	// Takes year, month, day, and optional hour, minute, second. Returns int.
-	"time.make": {
+	"time.timestamp": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) < 3 || len(args) > 6 {
 				return &object.Error{Code: "E7001", Message: fmt.Sprintf("%s takes 3 to 6 arguments (year, month, day, [hour, minute, second])", errors.Ident("time.make()"))}

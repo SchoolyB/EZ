@@ -9,11 +9,11 @@ using std
 
 do main() {
     // Generate a UUID
-    mut id string = uuid.create()
+    mut id string = uuid.generate()
     println("UUID: ${id}")
 
     // Generate a compact UUID (no dashes)
-    mut compact string = uuid.create_compact()
+    mut compact string = uuid.generate_compact()
     println("Compact: ${compact}")
 
     // Validate UUIDs

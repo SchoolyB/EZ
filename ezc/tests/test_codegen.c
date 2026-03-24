@@ -516,7 +516,7 @@ static void test_e2e_ptr_new_deref(void) {
         "do main() {\n"
         "    temp a = mem.arena(4096)\n"
         "    ensure mem.destroy(a)\n"
-        "    temp p ^int = mem.new(a, int)\n"
+        "    temp p ^int = mem.make(a, int)\n"
         "    p^ = 42\n"
         "    println(p^)\n"
         "}");
@@ -534,7 +534,7 @@ static void test_e2e_ptr_struct(void) {
         "do main() {\n"
         "    temp a = mem.arena(4096)\n"
         "    ensure mem.destroy(a)\n"
-        "    temp p ^Point = mem.new(a, Point)\n"
+        "    temp p ^Point = mem.make(a, Point)\n"
         "    p^.x = 3\n"
         "    p^.y = 4\n"
         "    println(p^.x)\n"
@@ -580,7 +580,7 @@ static void test_e2e_ptr_write_through(void) {
         "do main() {\n"
         "    temp a = mem.arena(4096)\n"
         "    ensure mem.destroy(a)\n"
-        "    temp p ^int = mem.new(a, int)\n"
+        "    temp p ^int = mem.make(a, int)\n"
         "    set_value(p, 777)\n"
         "    println(p^)\n"
         "}");
