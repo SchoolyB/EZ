@@ -110,6 +110,12 @@ EzType *type_from_name(const char *name) {
     if (strcmp(name, "string") == 0) return &TYPE_STRING;
     if (strcmp(name, "void") == 0)   return &TYPE_VOID;
     if (strcmp(name, "nil") == 0)    return &TYPE_NIL;
+    if (strcmp(name, "func") == 0) {
+        EzType *t = type_alloc();
+        t->kind = TK_UNKNOWN;
+        t->name = "func";
+        return t;
+    }
     if (strcmp(name, "Error") == 0) {
         EzType *t = type_alloc();
         t->kind = TK_ERROR;

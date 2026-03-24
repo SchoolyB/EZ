@@ -72,6 +72,7 @@ static const char *ez_type_to_c_cg(CodeGen *cg, const char *type_name) {
     if (strcmp(type_name, "byte") == 0)   return "uint8_t";
     if (strcmp(type_name, "string") == 0) return "EzString";
     if (strcmp(type_name, "Error") == 0) return "EzError *";
+    if (strcmp(type_name, "func") == 0)  return "void *"; /* generic fn ptr — cast at call site */
 
     /* Pointer type: ^T — use C pointer */
     if (type_name[0] == '^') {
@@ -1806,8 +1807,18 @@ static void emit_call_expression(CodeGen *cg, AstNode *node) {
         emit(cg, "ez_fn_");
         emit(cg, fn_name);
     } else if (fn_name) {
-        /* Not a known function — likely a variable holding a function pointer */
+        /* Not a known function — variable holding a function pointer (void *).
+         * Cast to appropriate function pointer type based on arg count. */
+        int nargs = node->data.call.arg_count;
+        emit(cg, "((int64_t (*)(");
+        for (int i = 0; i < nargs; i++) {
+            if (i > 0) emit(cg, ", ");
+            emit(cg, "int64_t");
+        }
+        if (nargs == 0) emit(cg, "void");
+        emit(cg, "))");
         emit(cg, fn_name);
+        emit(cg, ")");
     } else {
         emit_expression(cg, node->data.call.function);
     }
