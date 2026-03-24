@@ -101,7 +101,22 @@ jobs:
   build-release:
     needs: release-please
     if: ${{ needs.release-please.outputs.release_created }}
-    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-latest
+            goos: linux
+            goarch: amd64
+            ezc_arch: linux-amd64
+          - os: macos-latest
+            goos: darwin
+            goarch: arm64
+            ezc_arch: darwin-arm64
+          - os: windows-latest
+            goos: windows
+            goarch: amd64
+            ezc_arch: windows-amd64
+    runs-on: ${{ matrix.os }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -111,21 +126,48 @@ jobs:
         with:
           go-version: '1.21'
 
-      - name: Build release binaries
-        run: make release VERSION=${{ needs.release-please.outputs.tag_name }}
+      - name: Build EZ interpreter
+        env:
+          GOOS: ${{ matrix.goos }}
+          GOARCH: ${{ matrix.goarch }}
+        run: |
+          EXT=""
+          if [ "${{ matrix.goos }}" = "windows" ]; then EXT=".exe"; fi
+          go build -o ez${EXT} ./cmd/ez
+        shell: bash
+
+      - name: Build EZC compiler
+        if: runner.os != 'Windows'
+        run: |
+          cd ezc
+          make clean
+          make build
+
+      - name: Package release
+        shell: bash
+        run: |
+          TAG="${{ needs.release-please.outputs.tag_name }}"
+          ARCH="${{ matrix.ezc_arch }}"
+          mkdir -p dist
+
+          if [ "${{ matrix.goos }}" = "windows" ]; then
+            zip -r "dist/ez-${ARCH}.zip" ez.exe
+          else
+            tar czf "dist/ez-${ARCH}.tar.gz" ez
+            if [ -f ezc/ezc ]; then
+              tar czf "dist/ezc-${ARCH}.tar.gz" -C ezc ezc libezrt.a
+            fi
+          fi
 
       - name: Upload release assets
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAG_NAME: ${{ needs.release-please.outputs.tag_name }}
+        shell: bash
         run: |
-          gh release upload $TAG_NAME \
-            dist/ez-darwin-amd64.tar.gz \
-            dist/ez-darwin-arm64.tar.gz \
-            dist/ez-linux-amd64.tar.gz \
-            dist/ez-linux-arm64.tar.gz \
-            dist/ez-windows-amd64.zip \
-            dist/checksums.txt
+          for f in dist/*.tar.gz dist/*.zip; do
+            [ -f "$f" ] && gh release upload "$TAG_NAME" "$f" --clobber
+          done
 
   # Update playground WASM in website repo
   update-playground:
