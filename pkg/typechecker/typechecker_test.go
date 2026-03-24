@@ -4158,7 +4158,7 @@ import @time
 using time
 
 do main() {
-	mut timestamp int = time.now()
+	mut ts int = time.now()
 }
 `
 	tc := typecheck(t, input)
@@ -4647,7 +4647,7 @@ do takeStrings(value [string]) {
 }
 
 do main() {
-	mut id = uuid.create()
+	mut id = uuid.generate()
 	takeString(id)
 
 	mut number = random.int(1, 10)

@@ -10,8 +10,8 @@
 
 #include "../runtime/ez_runtime.h"
 
-EzString ez_uuid_create(EzArena *arena);
-EzString ez_uuid_create_compact(EzArena *arena);
+EzString ez_uuid_generate(EzArena *arena);
+EzString ez_uuid_generate_compact(EzArena *arena);
 bool ez_uuid_is_valid(EzString s);
 
 #endif

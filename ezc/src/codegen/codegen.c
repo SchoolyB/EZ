@@ -1062,7 +1062,7 @@ static bool emit_mem_call(CodeGen *cg, AstNode *node, const char *func) {
         }
         return true;
     }
-    if (strcmp(func, "new") == 0 && node->data.call.arg_count == 2) {
+    if (strcmp(func, "make") == 0 && node->data.call.arg_count == 2) {
         AstNode *arena_arg = node->data.call.args[0];
         AstNode *type_arg = node->data.call.args[1];
         const char *tn = "int64_t";
@@ -1202,11 +1202,11 @@ static bool emit_time_call(CodeGen *cg, AstNode *node, const char *func) {
 /* --- @uuid module --- */
 
 static bool emit_uuid_call(CodeGen *cg, AstNode *node, const char *func) {
-    if (strcmp(func, "create") == 0) {
-        emit(cg, "ez_uuid_create(ez_default_arena)"); return true;
+    if (strcmp(func, "generate") == 0) {
+        emit(cg, "ez_uuid_generate(ez_default_arena)"); return true;
     }
-    if (strcmp(func, "create_compact") == 0) {
-        emit(cg, "ez_uuid_create_compact(ez_default_arena)"); return true;
+    if (strcmp(func, "generate_compact") == 0) {
+        emit(cg, "ez_uuid_generate_compact(ez_default_arena)"); return true;
     }
     if (strcmp(func, "is_valid") == 0) {
         emit(cg, "ez_uuid_is_valid(");

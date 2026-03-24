@@ -612,8 +612,8 @@ func TestTimeEndOfMonth(t *testing.T) {
 // time.make
 // ============================================================================
 
-func TestTimeMake(t *testing.T) {
-	fn := TimeBuiltins["time.make"]
+func TestTimeTimestamp(t *testing.T) {
+	fn := TimeBuiltins["time.timestamp"]
 	result := fn.Fn(
 		&object.Integer{Value: big.NewInt(2024)},
 		&object.Integer{Value: big.NewInt(6)},

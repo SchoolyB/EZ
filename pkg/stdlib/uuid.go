@@ -20,10 +20,10 @@ var uuidPattern = regexp.MustCompile(`^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]
 var UUIDBuiltins = map[string]*object.Builtin{
 	// create generates a new random UUID v4.
 	// Takes no arguments. Returns UUID string (e.g., "550e8400-e29b-41d4-a716-446655440000").
-	"uuid.create": {
+	"uuid.generate": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 0 {
-				return &object.Error{Code: "E7001", Message: fmt.Sprintf("%s takes no arguments", errors.Ident("uuid.create()"))}
+				return &object.Error{Code: "E7001", Message: fmt.Sprintf("%s takes no arguments", errors.Ident("uuid.generate()"))}
 			}
 
 			uuid, err := generateUUIDv4()
@@ -37,10 +37,10 @@ var UUIDBuiltins = map[string]*object.Builtin{
 
 	// create_compact generates a new UUID v4 without hyphens.
 	// Takes no arguments. Returns 32-character hex string.
-	"uuid.create_compact": {
+	"uuid.generate_compact": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 0 {
-				return &object.Error{Code: "E7001", Message: fmt.Sprintf("%s takes no arguments", errors.Ident("uuid.create_compact()"))}
+				return &object.Error{Code: "E7001", Message: fmt.Sprintf("%s takes no arguments", errors.Ident("uuid.generate_compact()"))}
 			}
 
 			uuid, err := generateUUIDv4()

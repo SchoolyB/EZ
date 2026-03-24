@@ -13,8 +13,8 @@ import (
 var uuidRegex = regexp.MustCompile(`^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$`)
 var compactUUIDRegex = regexp.MustCompile(`^[0-9a-f]{32}$`)
 
-func TestUUIDCreate(t *testing.T) {
-	createFn := UUIDBuiltins["uuid.create"].Fn
+func TestUUIDGenerate(t *testing.T) {
+	createFn := UUIDBuiltins["uuid.generate"].Fn
 
 	// Generate multiple UUIDs and verify format
 	seen := make(map[string]bool)
@@ -22,34 +22,34 @@ func TestUUIDCreate(t *testing.T) {
 		result := createFn()
 		str, ok := result.(*object.String)
 		if !ok {
-			t.Fatalf("uuid.create() returned %T, want String", result)
+			t.Fatalf("uuid.generate() returned %T, want String", result)
 		}
 
 		// Verify UUID v4 format
 		if !uuidRegex.MatchString(str.Value) {
-			t.Errorf("uuid.create() = %s, not a valid UUID v4 format", str.Value)
+			t.Errorf("uuid.generate() = %s, not a valid UUID v4 format", str.Value)
 		}
 
 		// Check uniqueness
 		if seen[str.Value] {
-			t.Errorf("uuid.create() produced duplicate: %s", str.Value)
+			t.Errorf("uuid.generate() produced duplicate: %s", str.Value)
 		}
 		seen[str.Value] = true
 	}
 }
 
-func TestUUIDCreateErrors(t *testing.T) {
-	createFn := UUIDBuiltins["uuid.create"].Fn
+func TestUUIDGenerateErrors(t *testing.T) {
+	createFn := UUIDBuiltins["uuid.generate"].Fn
 
 	// Should error with arguments
 	result := createFn(&object.String{Value: "arg"})
 	if !isErrorObject(result) {
-		t.Error("expected error when passing arguments to uuid.create()")
+		t.Error("expected error when passing arguments to uuid.generate()")
 	}
 }
 
-func TestUUIDCreateCompact(t *testing.T) {
-	compactFn := UUIDBuiltins["uuid.create_compact"].Fn
+func TestUUIDGenerateCompact(t *testing.T) {
+	compactFn := UUIDBuiltins["uuid.generate_compact"].Fn
 
 	// Generate multiple compact UUIDs
 	seen := make(map[string]bool)
@@ -57,34 +57,34 @@ func TestUUIDCreateCompact(t *testing.T) {
 		result := compactFn()
 		str, ok := result.(*object.String)
 		if !ok {
-			t.Fatalf("uuid.create_compact() returned %T, want String", result)
+			t.Fatalf("uuid.generate_compact() returned %T, want String", result)
 		}
 
 		// Verify compact format (32 hex chars, no hyphens)
 		if !compactUUIDRegex.MatchString(str.Value) {
-			t.Errorf("uuid.create_compact() = %s, not a valid compact UUID format", str.Value)
+			t.Errorf("uuid.generate_compact() = %s, not a valid compact UUID format", str.Value)
 		}
 
 		// Should be 32 characters
 		if len(str.Value) != 32 {
-			t.Errorf("uuid.create_compact() length = %d, want 32", len(str.Value))
+			t.Errorf("uuid.generate_compact() length = %d, want 32", len(str.Value))
 		}
 
 		// Check uniqueness
 		if seen[str.Value] {
-			t.Errorf("uuid.create_compact() produced duplicate: %s", str.Value)
+			t.Errorf("uuid.generate_compact() produced duplicate: %s", str.Value)
 		}
 		seen[str.Value] = true
 	}
 }
 
-func TestUUIDCreateCompactErrors(t *testing.T) {
-	compactFn := UUIDBuiltins["uuid.create_compact"].Fn
+func TestUUIDGenerateCompactErrors(t *testing.T) {
+	compactFn := UUIDBuiltins["uuid.generate_compact"].Fn
 
 	// Should error with arguments
 	result := compactFn(&object.String{Value: "arg"})
 	if !isErrorObject(result) {
-		t.Error("expected error when passing arguments to uuid.create_compact()")
+		t.Error("expected error when passing arguments to uuid.generate_compact()")
 	}
 }
 
