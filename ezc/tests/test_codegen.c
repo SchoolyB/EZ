@@ -726,6 +726,32 @@ static void test_e2e_binary_literal(void) {
     ASSERT_STR_EQ(out, "10");
 }
 
+/* ===== Fixed-size and Multi-dimensional Array Tests ===== */
+
+static void test_e2e_fixed_array(void) {
+    char *out = compile_and_run(
+        "import @std\nusing std\n"
+        "do main() {\n"
+        "  const arr [int, 3] = {10, 20, 30}\n"
+        "  println(\"${arr[0]},${arr[1]},${arr[2]}\")\n"
+        "}");
+    ASSERT_NOT_NULL(out);
+    ASSERT_STR_EQ(out, "10,20,30");
+}
+
+static void test_e2e_nested_array(void) {
+    char *out = compile_and_run(
+        "import @std\nusing std\n"
+        "do main() {\n"
+        "  mut m [[int]] = {{1, 2}, {3, 4}}\n"
+        "  mut r0 = m[0]\n"
+        "  mut r1 = m[1]\n"
+        "  println(\"${r0[0]},${r0[1]},${r1[0]},${r1[1]}\")\n"
+        "}");
+    ASSERT_NOT_NULL(out);
+    ASSERT_STR_EQ(out, "1,2,3,4");
+}
+
 /* ===== Threads Tests ===== */
 
 static void test_e2e_threads_spawn_join(void) {
@@ -835,6 +861,10 @@ int main(void) {
     RUN_TEST(test_e2e_hex_literal);
     RUN_TEST(test_e2e_octal_literal);
     RUN_TEST(test_e2e_binary_literal);
+
+    /* Fixed-size and multi-dimensional arrays */
+    RUN_TEST(test_e2e_fixed_array);
+    RUN_TEST(test_e2e_nested_array);
 
     /* Threads */
     RUN_TEST(test_e2e_threads_spawn_join);

@@ -706,15 +706,41 @@ static AstNode *parse_var_declaration(Parser *p) {
             snprintf(type_str, ts_len, "map[%s:%s]", key_type, val_type);
             node->data.var_decl.type_name = type_str;
         } else {
-            /* Array type: [int], [string], etc. */
+            /* Array type: [int], [int, 3], or [[int]] */
             next_token(p); /* skip [ */
-            next_token(p); /* element type */
-            const char *elem_type = p->cur_token.literal;
-            if (!expect_peek(p, TOK_RBRACKET)) return NULL;
-            size_t ts_len = strlen(elem_type) + 3;
-            char *type_str = arena_alloc(p->arena, ts_len);
-            snprintf(type_str, ts_len, "[%s]", elem_type);
-            node->data.var_decl.type_name = type_str;
+            next_token(p); /* element type or nested [ */
+
+            if (cur_token_is(p, TOK_LBRACKET)) {
+                /* Nested array type: [[int]] */
+                next_token(p); /* inner element type */
+                const char *inner_elem = p->cur_token.literal;
+                if (!expect_peek(p, TOK_RBRACKET)) return NULL; /* inner ] */
+                if (!expect_peek(p, TOK_RBRACKET)) return NULL; /* outer ] */
+                size_t ts_len = strlen(inner_elem) + 5;
+                char *type_str = arena_alloc(p->arena, ts_len);
+                snprintf(type_str, ts_len, "[[%s]]", inner_elem);
+                node->data.var_decl.type_name = type_str;
+            } else {
+                const char *elem_type = p->cur_token.literal;
+                if (peek_token_is(p, TOK_COMMA)) {
+                    /* Fixed-size array: [int, 3] */
+                    next_token(p); /* skip , */
+                    next_token(p); /* size */
+                    const char *size_str = p->cur_token.literal;
+                    if (!expect_peek(p, TOK_RBRACKET)) return NULL;
+                    size_t ts_len = strlen(elem_type) + strlen(size_str) + 4;
+                    char *type_str = arena_alloc(p->arena, ts_len);
+                    snprintf(type_str, ts_len, "[%s,%s]", elem_type, size_str);
+                    node->data.var_decl.type_name = type_str;
+                } else {
+                    /* Dynamic array: [int] */
+                    if (!expect_peek(p, TOK_RBRACKET)) return NULL;
+                    size_t ts_len = strlen(elem_type) + 3;
+                    char *type_str = arena_alloc(p->arena, ts_len);
+                    snprintf(type_str, ts_len, "[%s]", elem_type);
+                    node->data.var_decl.type_name = type_str;
+                }
+            }
         }
     }
 
