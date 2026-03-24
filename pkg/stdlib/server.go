@@ -1,10 +1,13 @@
 package stdlib
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 	"math/big"
 	"net/http"
+	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/marshallburns/ez/pkg/errors"
@@ -13,7 +16,6 @@ import (
 
 var ServerBuiltins = map[string]*object.Builtin{
 	// router creates a new empty Router struct.
-	// Returns a Router with an empty routes array.
 	"server.router": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 0 {
@@ -23,26 +25,27 @@ var ServerBuiltins = map[string]*object.Builtin{
 				}
 			}
 
-			routes := &object.Array{
-				Elements:    []object.Object{},
-				Mutable:     true,
-				ElementType: "Route",
-			}
-
 			return &object.Struct{
 				TypeName: "Router",
 				Mutable:  true,
 				Fields: map[string]object.Object{
-					"routes": routes,
+					"routes": &object.Array{
+						Elements:    []object.Object{},
+						Mutable:     true,
+						ElementType: "Route",
+					},
+					"middleware": &object.Array{
+						Elements:    []object.Object{},
+						Mutable:     true,
+						ElementType: "func",
+					},
 				},
 			}
 		},
 	},
 
 	// route adds a route to an existing Router.
-	// Takes (router Router, method string, path string, handler Function).
-	// The handler receives a Request struct and must return a Response struct.
-	// Mutates the router's routes array in place. Returns nil.
+	// Supports path parameters: "/users/:id" — matched segments populate req.params
 	"server.route": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 4 {
@@ -101,9 +104,240 @@ var ServerBuiltins = map[string]*object.Builtin{
 		},
 	},
 
+	// use adds middleware to the router.
+	// Middleware functions receive (req Request) and return a Response or nil.
+	// If middleware returns a Response, the chain stops and that response is sent.
+	// If middleware returns nil, the next middleware/handler runs.
+	"server.use": {
+		Fn: func(args ...object.Object) object.Object {
+			if len(args) != 2 {
+				return &object.Error{
+					Code:    "E7001",
+					Message: fmt.Sprintf("%s takes exactly 2 arguments", errors.Ident("server.use()")),
+				}
+			}
+
+			router, ok := args[0].(*object.Struct)
+			if !ok || router.TypeName != "Router" {
+				return &object.Error{
+					Code:    "E7003",
+					Message: fmt.Sprintf("%s requires a %s as the first argument", errors.Ident("server.use()"), errors.TypeExpected("Router")),
+				}
+			}
+
+			middleware, ok := args[1].(*object.Function)
+			if !ok {
+				return &object.Error{
+					Code:    "E7003",
+					Message: fmt.Sprintf("%s requires a function reference as the second argument", errors.Ident("server.use()")),
+				}
+			}
+
+			mw := router.Fields["middleware"].(*object.Array)
+			mw.Elements = append(mw.Elements, middleware)
+
+			return &object.Nil{}
+		},
+	},
+
+	// static serves static files from a directory.
+	// server.static(router, "/public", "./static")
+	"server.static": {
+		Fn: func(args ...object.Object) object.Object {
+			if len(args) != 3 {
+				return &object.Error{
+					Code:    "E7001",
+					Message: fmt.Sprintf("%s takes exactly 3 arguments", errors.Ident("server.static()")),
+				}
+			}
+
+			router, ok := args[0].(*object.Struct)
+			if !ok || router.TypeName != "Router" {
+				return &object.Error{
+					Code:    "E7003",
+					Message: fmt.Sprintf("%s requires a %s as the first argument", errors.Ident("server.static()"), errors.TypeExpected("Router")),
+				}
+			}
+
+			urlPrefix, ok := args[1].(*object.String)
+			if !ok {
+				return &object.Error{
+					Code:    "E7003",
+					Message: fmt.Sprintf("%s requires a %s as the second argument", errors.Ident("server.static()"), errors.TypeExpected("string")),
+				}
+			}
+
+			dirPath, ok := args[2].(*object.String)
+			if !ok {
+				return &object.Error{
+					Code:    "E7003",
+					Message: fmt.Sprintf("%s requires a %s as the third argument", errors.Ident("server.static()"), errors.TypeExpected("string")),
+				}
+			}
+
+			// Store as a special static route
+			route := &object.Struct{
+				TypeName: "Route",
+				Mutable:  false,
+				Fields: map[string]object.Object{
+					"method":     &object.String{Value: "GET"},
+					"path":       urlPrefix,
+					"handler":    &object.Nil{},
+					"static_dir": dirPath,
+				},
+			}
+
+			routes := router.Fields["routes"].(*object.Array)
+			routes.Elements = append(routes.Elements, route)
+
+			return &object.Nil{}
+		},
+	},
+
+	// parse_json parses the request body as JSON and returns a map.
+	"server.parse_json": {
+		Fn: func(args ...object.Object) object.Object {
+			if len(args) != 1 {
+				return &object.Error{
+					Code:    "E7001",
+					Message: fmt.Sprintf("%s takes exactly 1 argument", errors.Ident("server.parse_json()")),
+				}
+			}
+
+			req, ok := args[0].(*object.Struct)
+			if !ok || req.TypeName != "Request" {
+				return &object.Error{
+					Code:    "E7003",
+					Message: fmt.Sprintf("%s requires a %s as the argument", errors.Ident("server.parse_json()"), errors.TypeExpected("Request")),
+				}
+			}
+
+			bodyObj, ok := req.Fields["body"].(*object.String)
+			if !ok || bodyObj.Value == "" {
+				return &object.Nil{}
+			}
+
+			var raw map[string]interface{}
+			if err := json.Unmarshal([]byte(bodyObj.Value), &raw); err != nil {
+				return &object.Error{
+					Code:    errors.E18003.Code,
+					Message: fmt.Sprintf("failed to parse JSON body: %s", err.Error()),
+				}
+			}
+
+			return jsonToEZMap(raw)
+		},
+	},
+
+	// set_header returns a new Response with an additional header set.
+	"server.set_header": {
+		Fn: func(args ...object.Object) object.Object {
+			if len(args) != 3 {
+				return &object.Error{
+					Code:    "E7001",
+					Message: fmt.Sprintf("%s takes exactly 3 arguments", errors.Ident("server.set_header()")),
+				}
+			}
+
+			resp, ok := args[0].(*object.Struct)
+			if !ok || resp.TypeName != "Response" {
+				return &object.Error{
+					Code:    "E7003",
+					Message: fmt.Sprintf("%s requires a %s as the first argument", errors.Ident("server.set_header()"), errors.TypeExpected("Response")),
+				}
+			}
+
+			key, ok := args[1].(*object.String)
+			if !ok {
+				return &object.Error{
+					Code:    "E7003",
+					Message: fmt.Sprintf("%s requires a %s as the second argument", errors.Ident("server.set_header()"), errors.TypeExpected("string")),
+				}
+			}
+
+			val, ok := args[2].(*object.String)
+			if !ok {
+				return &object.Error{
+					Code:    "E7003",
+					Message: fmt.Sprintf("%s requires a %s as the third argument", errors.Ident("server.set_header()"), errors.TypeExpected("string")),
+				}
+			}
+
+			headers := resp.Fields["headers"].(*object.Map)
+			headers.Set(&object.String{Value: strings.ToLower(key.Value)}, val)
+
+			return resp
+		},
+	},
+
+	// redirect creates a redirect Response.
+	"server.redirect": {
+		Fn: func(args ...object.Object) object.Object {
+			if len(args) != 2 {
+				return &object.Error{
+					Code:    "E7001",
+					Message: fmt.Sprintf("%s takes exactly 2 arguments", errors.Ident("server.redirect()")),
+				}
+			}
+
+			status, ok := args[0].(*object.Integer)
+			if !ok {
+				return &object.Error{
+					Code:    "E7003",
+					Message: fmt.Sprintf("%s requires an %s as the first argument", errors.Ident("server.redirect()"), errors.TypeExpected("int")),
+				}
+			}
+
+			url, ok := args[1].(*object.String)
+			if !ok {
+				return &object.Error{
+					Code:    "E7003",
+					Message: fmt.Sprintf("%s requires a %s as the second argument", errors.Ident("server.redirect()"), errors.TypeExpected("string")),
+				}
+			}
+
+			resp := newServerResponse(int(status.Value.Int64()), "", "text/plain")
+			headers := resp.Fields["headers"].(*object.Map)
+			headers.Set(&object.String{Value: "location"}, url)
+			return resp
+		},
+	},
+
+	// cors adds CORS headers to the router via middleware.
+	// server.cors(router, "*") or server.cors(router, "https://example.com")
+	"server.cors": {
+		Fn: func(args ...object.Object) object.Object {
+			if len(args) != 2 {
+				return &object.Error{
+					Code:    "E7001",
+					Message: fmt.Sprintf("%s takes exactly 2 arguments", errors.Ident("server.cors()")),
+				}
+			}
+
+			router, ok := args[0].(*object.Struct)
+			if !ok || router.TypeName != "Router" {
+				return &object.Error{
+					Code:    "E7003",
+					Message: fmt.Sprintf("%s requires a %s as the first argument", errors.Ident("server.cors()"), errors.TypeExpected("Router")),
+				}
+			}
+
+			origin, ok := args[1].(*object.String)
+			if !ok {
+				return &object.Error{
+					Code:    "E7003",
+					Message: fmt.Sprintf("%s requires a %s as the second argument", errors.Ident("server.cors()"), errors.TypeExpected("string")),
+				}
+			}
+
+			// Store CORS origin on the router for the listen handler to use
+			router.Fields["cors_origin"] = origin
+
+			return &object.Nil{}
+		},
+	},
+
 	// listen starts an HTTP server on the given port using the given router.
-	// Blocks until the server encounters an error.
-	// Returns Error on failure, nil on clean shutdown.
 	"server.listen": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 2 {
@@ -145,8 +379,54 @@ var ServerBuiltins = map[string]*object.Builtin{
 				}
 			}
 
+			middleware, _ := router.Fields["middleware"].(*object.Array)
+
+			// Check for CORS origin
+			var corsOrigin string
+			if originObj, ok := router.Fields["cors_origin"].(*object.String); ok {
+				corsOrigin = originObj.Value
+			}
+
 			mux := http.NewServeMux()
 			mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+				// Apply CORS headers if configured
+				if corsOrigin != "" {
+					w.Header().Set("Access-Control-Allow-Origin", corsOrigin)
+					w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, PATCH, OPTIONS")
+					w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
+					if r.Method == "OPTIONS" {
+						w.WriteHeader(http.StatusNoContent)
+						return
+					}
+				}
+
+				// Build the request struct
+				request := buildRequest(r)
+
+				// Run middleware chain
+				if middleware != nil {
+					for _, mwElem := range middleware.Elements {
+						mwFn, ok := mwElem.(*object.Function)
+						if !ok || mwFn.Call == nil {
+							continue
+						}
+						result := mwFn.Call([]object.Object{request})
+						// If middleware returns a Response, short-circuit
+						if resp, ok := result.(*object.Struct); ok && resp.TypeName == "Response" {
+							writeHTTPResponse(w, resp)
+							return
+						}
+						if rv, ok := result.(*object.ReturnValue); ok && len(rv.Values) > 0 {
+							if resp, ok := rv.Values[0].(*object.Struct); ok && resp.TypeName == "Response" {
+								writeHTTPResponse(w, resp)
+								return
+							}
+						}
+						// nil return = continue to next middleware/handler
+					}
+				}
+
+				// Match routes
 				for _, elem := range routes.Elements {
 					route, ok := elem.(*object.Struct)
 					if !ok || route.TypeName != "Route" {
@@ -155,34 +435,52 @@ var ServerBuiltins = map[string]*object.Builtin{
 
 					routeMethod, _ := route.Fields["method"].(*object.String)
 					routePath, _ := route.Fields["path"].(*object.String)
-					handler, _ := route.Fields["handler"].(*object.Function)
 
-					if routeMethod == nil || routePath == nil || handler == nil {
+					if routeMethod == nil || routePath == nil {
 						continue
 					}
 
-					if r.Method == routeMethod.Value && r.URL.Path == routePath.Value {
-						// Build Request struct from the incoming HTTP request
-						request := buildRequest(r)
+					if r.Method != routeMethod.Value {
+						continue
+					}
 
-						// Call the handler function with the Request
-						if handler.Call != nil {
-							result := handler.Call([]object.Object{request})
-							if resp, ok := result.(*object.Struct); ok && resp.TypeName == "Response" {
-								writeHTTPResponse(w, resp)
-								return
-							}
-							// If handler returned a ReturnValue, unwrap it
-							if rv, ok := result.(*object.ReturnValue); ok && len(rv.Values) > 0 {
-								if resp, ok := rv.Values[0].(*object.Struct); ok && resp.TypeName == "Response" {
-									writeHTTPResponse(w, resp)
-									return
-								}
-							}
+					// Check for static file route
+					if staticDir, ok := route.Fields["static_dir"].(*object.String); ok {
+						prefix := routePath.Value
+						if strings.HasPrefix(r.URL.Path, prefix) {
+							serveStaticFile(w, r, prefix, staticDir.Value)
+							return
 						}
-						http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+						continue
+					}
+
+					// Match path with parameters
+					params, matched := matchPath(routePath.Value, r.URL.Path)
+					if !matched {
+						continue
+					}
+
+					// Set params on request
+					request.Fields["params"] = params
+
+					handler, _ := route.Fields["handler"].(*object.Function)
+					if handler == nil || handler.Call == nil {
+						continue
+					}
+
+					result := handler.Call([]object.Object{request})
+					if resp, ok := result.(*object.Struct); ok && resp.TypeName == "Response" {
+						writeHTTPResponse(w, resp)
 						return
 					}
+					if rv, ok := result.(*object.ReturnValue); ok && len(rv.Values) > 0 {
+						if resp, ok := rv.Values[0].(*object.Struct); ok && resp.TypeName == "Response" {
+							writeHTTPResponse(w, resp)
+							return
+						}
+					}
+					http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+					return
 				}
 
 				http.Error(w, "Not Found", http.StatusNotFound)
@@ -206,7 +504,6 @@ var ServerBuiltins = map[string]*object.Builtin{
 					Message: fmt.Sprintf("%s takes exactly 2 arguments", errors.Ident("server.text()")),
 				}
 			}
-
 			status, ok := args[0].(*object.Integer)
 			if !ok {
 				return &object.Error{
@@ -214,7 +511,6 @@ var ServerBuiltins = map[string]*object.Builtin{
 					Message: fmt.Sprintf("%s requires an %s as the first argument", errors.Ident("server.text()"), errors.TypeExpected("int")),
 				}
 			}
-
 			body, ok := args[1].(*object.String)
 			if !ok {
 				return &object.Error{
@@ -222,13 +518,11 @@ var ServerBuiltins = map[string]*object.Builtin{
 					Message: fmt.Sprintf("%s requires a %s as the second argument", errors.Ident("server.text()"), errors.TypeExpected("string")),
 				}
 			}
-
 			return newServerResponse(int(status.Value.Int64()), body.Value, "text/plain")
 		},
 	},
 
 	// json creates a Response struct with application/json Content-Type.
-	// Automatically encodes the data argument to JSON.
 	"server.json": {
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 2 {
@@ -237,7 +531,6 @@ var ServerBuiltins = map[string]*object.Builtin{
 					Message: fmt.Sprintf("%s takes exactly 2 arguments", errors.Ident("server.json()")),
 				}
 			}
-
 			status, ok := args[0].(*object.Integer)
 			if !ok {
 				return &object.Error{
@@ -245,7 +538,6 @@ var ServerBuiltins = map[string]*object.Builtin{
 					Message: fmt.Sprintf("%s requires an %s as the first argument", errors.Ident("server.json()"), errors.TypeExpected("int")),
 				}
 			}
-
 			jsonStr, jsonErr := encodeToJSON(args[1], make(map[uintptr]bool))
 			if jsonErr != nil {
 				return &object.Error{
@@ -253,7 +545,6 @@ var ServerBuiltins = map[string]*object.Builtin{
 					Message: fmt.Sprintf("failed to encode response body to JSON: %s", jsonErr.message),
 				}
 			}
-
 			return newServerResponse(int(status.Value.Int64()), jsonStr, "application/json")
 		},
 	},
@@ -267,7 +558,6 @@ var ServerBuiltins = map[string]*object.Builtin{
 					Message: fmt.Sprintf("%s takes exactly 2 arguments", errors.Ident("server.html()")),
 				}
 			}
-
 			status, ok := args[0].(*object.Integer)
 			if !ok {
 				return &object.Error{
@@ -275,7 +565,6 @@ var ServerBuiltins = map[string]*object.Builtin{
 					Message: fmt.Sprintf("%s requires an %s as the first argument", errors.Ident("server.html()"), errors.TypeExpected("int")),
 				}
 			}
-
 			body, ok := args[1].(*object.String)
 			if !ok {
 				return &object.Error{
@@ -283,11 +572,14 @@ var ServerBuiltins = map[string]*object.Builtin{
 					Message: fmt.Sprintf("%s requires a %s as the second argument", errors.Ident("server.html()"), errors.TypeExpected("string")),
 				}
 			}
-
 			return newServerResponse(int(status.Value.Int64()), body.Value, "text/html")
 		},
 	},
 }
+
+// ============================================================================
+// Helpers
+// ============================================================================
 
 func newServerResponse(status int, body string, contentType string) *object.Struct {
 	headers := object.NewMap()
@@ -307,7 +599,6 @@ func newServerResponse(status int, body string, contentType string) *object.Stru
 }
 
 func buildRequest(r *http.Request) *object.Struct {
-	// Build query map
 	query := object.NewMap()
 	query.KeyType = "string"
 	query.ValueType = "string"
@@ -315,7 +606,6 @@ func buildRequest(r *http.Request) *object.Struct {
 		query.Set(&object.String{Value: key}, &object.String{Value: strings.Join(values, ",")})
 	}
 
-	// Build headers map
 	headers := object.NewMap()
 	headers.KeyType = "string"
 	headers.ValueType = "string"
@@ -323,7 +613,10 @@ func buildRequest(r *http.Request) *object.Struct {
 		headers.Set(&object.String{Value: strings.ToLower(key)}, &object.String{Value: strings.Join(values, ",")})
 	}
 
-	// Read body
+	params := object.NewMap()
+	params.KeyType = "string"
+	params.ValueType = "string"
+
 	bodyStr := ""
 	if r.Body != nil {
 		bodyBytes, err := io.ReadAll(r.Body)
@@ -335,15 +628,71 @@ func buildRequest(r *http.Request) *object.Struct {
 
 	return &object.Struct{
 		TypeName: "Request",
-		Mutable:  false,
+		Mutable:  true,
 		Fields: map[string]object.Object{
 			"method":  &object.String{Value: r.Method},
 			"path":    &object.String{Value: r.URL.Path},
 			"query":   query,
 			"headers": headers,
+			"params":  params,
 			"body":    &object.String{Value: bodyStr},
 		},
 	}
+}
+
+// matchPath matches a route pattern against a request path.
+// Supports :param segments. Returns (params map, matched bool).
+func matchPath(pattern, requestPath string) (*object.Map, bool) {
+	params := object.NewMap()
+	params.KeyType = "string"
+	params.ValueType = "string"
+
+	patternParts := strings.Split(strings.Trim(pattern, "/"), "/")
+	requestParts := strings.Split(strings.Trim(requestPath, "/"), "/")
+
+	if len(patternParts) != len(requestParts) {
+		return params, false
+	}
+
+	for i, part := range patternParts {
+		if strings.HasPrefix(part, ":") {
+			// Parameter segment — capture value
+			paramName := part[1:]
+			params.Set(&object.String{Value: paramName}, &object.String{Value: requestParts[i]})
+		} else if part != requestParts[i] {
+			return params, false
+		}
+	}
+
+	return params, true
+}
+
+func serveStaticFile(w http.ResponseWriter, r *http.Request, prefix, dir string) {
+	// Strip the prefix to get the relative file path
+	relPath := strings.TrimPrefix(r.URL.Path, prefix)
+	relPath = strings.TrimPrefix(relPath, "/")
+
+	if relPath == "" {
+		relPath = "index.html"
+	}
+
+	// Prevent directory traversal
+	cleanPath := filepath.Clean(relPath)
+	if strings.Contains(cleanPath, "..") {
+		http.Error(w, "Forbidden", http.StatusForbidden)
+		return
+	}
+
+	fullPath := filepath.Join(dir, cleanPath)
+
+	// Check if file exists
+	info, err := os.Stat(fullPath)
+	if err != nil || info.IsDir() {
+		http.Error(w, "Not Found", http.StatusNotFound)
+		return
+	}
+
+	http.ServeFile(w, r, fullPath)
 }
 
 func writeHTTPResponse(w http.ResponseWriter, resp *object.Struct) {
@@ -369,4 +718,35 @@ func writeHTTPResponse(w http.ResponseWriter, resp *object.Struct) {
 
 	w.WriteHeader(statusCode)
 	fmt.Fprint(w, bodyStr)
+}
+
+// jsonToEZMap converts a Go map from json.Unmarshal to an EZ Map object.
+func jsonToEZMap(raw map[string]interface{}) *object.Map {
+	m := object.NewMap()
+	m.KeyType = "string"
+	m.ValueType = "any"
+
+	for key, val := range raw {
+		k := &object.String{Value: key}
+		switch v := val.(type) {
+		case string:
+			m.Set(k, &object.String{Value: v})
+		case float64:
+			if v == float64(int64(v)) {
+				m.Set(k, &object.Integer{Value: big.NewInt(int64(v))})
+			} else {
+				m.Set(k, &object.Float{Value: v})
+			}
+		case bool:
+			m.Set(k, &object.Boolean{Value: v})
+		case nil:
+			m.Set(k, &object.Nil{})
+		case map[string]interface{}:
+			m.Set(k, jsonToEZMap(v))
+		default:
+			m.Set(k, &object.String{Value: fmt.Sprintf("%v", v)})
+		}
+	}
+
+	return m
 }
