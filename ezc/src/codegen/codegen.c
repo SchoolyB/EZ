@@ -2139,6 +2139,11 @@ static void emit_return_statement(CodeGen *cg, AstNode *node) {
         }
         emit_expression(cg, node->data.return_stmt.values[0]);
         emit(cg, "};\n");
+    } else if (cg->current_func &&
+               cg->current_func->data.func_decl.return_type_count == 0) {
+        /* Void function — return without value (e.g. or_return in main) */
+        emit(cg, "return;\n");
+        return;
     } else {
         emit(cg, "return");
         if (node->data.return_stmt.count > 0) {
