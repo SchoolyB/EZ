@@ -323,6 +323,19 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
             emit(cg, "ez_array_new(ez_default_arena, sizeof(int64_t), 4)");
             break;
         }
+
+        /* Check if this is a nested array (elements are arrays) */
+        if (node->data.array_value.elements[0]->kind == NODE_ARRAY_VALUE) {
+            /* Nested array: each element is an EzArray */
+            emitf(cg, "ez_array_from(ez_default_arena, (EzArray[]){");
+            for (int i = 0; i < count; i++) {
+                if (i > 0) emit(cg, ", ");
+                emit_expression(cg, node->data.array_value.elements[i]);
+            }
+            emitf(cg, "}, sizeof(EzArray), %d)", count);
+            break;
+        }
+
         /* Determine element type from first element */
         EzType *elem_t = cg->type_table
             ? typetable_get(cg->type_table, node->data.array_value.elements[0])
@@ -628,6 +641,7 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
                 else if (et->kind == TK_STRING) c_elem = "EzString";
                 else if (et->kind == TK_CHAR) c_elem = "int32_t";
                 else if (et->kind == TK_BYTE) c_elem = "uint8_t";
+                else if (et->kind == TK_ARRAY) c_elem = "EzArray";
             }
             emitf(cg, "EZ_ARRAY_GET(");
             emit_expression(cg, node->data.index_expr.left);
@@ -1799,13 +1813,40 @@ static void emit_call_expression(CodeGen *cg, AstNode *node) {
 
 static const char *extract_array_elem_type(const char *type_name) {
     if (!type_name || type_name[0] != '[') return NULL;
-    /* Extract element type from "[int]" -> "int" */
     static char buf[128];
     size_t len = strlen(type_name);
     if (len < 3) return NULL;
-    memcpy(buf, type_name + 1, len - 2);
-    buf[len - 2] = '\0';
+    /* Dynamic array "[int]" -> "int" */
+    /* Fixed-size "[int,3]" -> "int" (strip size) */
+    /* Nested "[[int]]" -> "[int]" */
+    const char *start = type_name + 1;
+    const char *end = type_name + len - 1;
+    /* Find the comma for fixed-size, or just strip brackets */
+    for (size_t i = 1; i < len - 1; i++) {
+        if (type_name[i] == ',') {
+            size_t elen = i - 1;
+            memcpy(buf, start, elen);
+            buf[elen] = '\0';
+            return buf;
+        }
+    }
+    size_t elen = (size_t)(end - start);
+    memcpy(buf, start, elen);
+    buf[elen] = '\0';
     return buf;
+}
+
+/* Extract size from fixed-size array type "[int,3]" -> 3, returns 0 if dynamic */
+static int extract_array_size(const char *type_name) {
+    if (!type_name || type_name[0] != '[') return 0;
+    const char *comma = strchr(type_name, ',');
+    if (!comma) return 0;
+    return atoi(comma + 1);
+}
+
+/* Check if type is a nested array "[[...]]" */
+static bool is_nested_array_type(const char *type_name) {
+    return type_name && type_name[0] == '[' && type_name[1] == '[';
 }
 
 static void emit_var_declaration(CodeGen *cg, AstNode *node) {
@@ -1815,7 +1856,33 @@ static void emit_var_declaration(CodeGen *cg, AstNode *node) {
     const char *elem_type = extract_array_elem_type(type_name);
 
     if (elem_type) {
-        /* Array declaration: use EzArray */
+        int fixed_size = extract_array_size(type_name);
+        if (fixed_size > 0) {
+            /* Fixed-size array: use EzArray but initialized with exact capacity */
+            emitf(cg, "EzArray %s = ", node->data.var_decl.name);
+            if (node->data.var_decl.value) {
+                emit_expression(cg, node->data.var_decl.value);
+            } else {
+                const char *c_elem_type = ez_type_to_c_cg(cg, elem_type);
+                emitf(cg, "ez_array_new(ez_default_arena, sizeof(%s), %d)", c_elem_type, fixed_size);
+            }
+            emit(cg, ";\n");
+            return;
+        }
+
+        if (is_nested_array_type(type_name)) {
+            /* Nested array [[int]]: EzArray of EzArrays */
+            emitf(cg, "EzArray %s = ", node->data.var_decl.name);
+            if (node->data.var_decl.value) {
+                emit_expression(cg, node->data.var_decl.value);
+            } else {
+                emitf(cg, "ez_array_new(ez_default_arena, sizeof(EzArray), 4)");
+            }
+            emit(cg, ";\n");
+            return;
+        }
+
+        /* Dynamic array: use EzArray */
         emitf(cg, "EzArray %s = ", node->data.var_decl.name);
         if (node->data.var_decl.value) {
             emit_expression(cg, node->data.var_decl.value);
@@ -1885,9 +1952,9 @@ static void emit_var_declaration(CodeGen *cg, AstNode *node) {
         } else if (val->kind == NODE_STRUCT_VALUE) {
             c_type = ez_type_to_c_cg(cg, val->data.struct_value.name);
         } else if (val->kind == NODE_CALL_EXPR || val->kind == NODE_NEW_EXPR ||
-                   val->kind == NODE_MEMBER_EXPR) {
-            /* Use __auto_type for function calls, new(), and member access
-             * (needed for multi-var unpacking: temp x = _tmp.v0) */
+                   val->kind == NODE_MEMBER_EXPR || val->kind == NODE_INDEX_EXPR) {
+            /* Use __auto_type for function calls, new(), member access, and index
+             * (needed for multi-var unpacking and nested array element extraction) */
             c_type = "__auto_type";
         } else if (val->kind == NODE_FUNC_REF) {
             /* Function reference — use __auto_type to capture the pointer type */
