@@ -76,10 +76,10 @@ $(RT_LIB): $(RT_OBJ)
 
 # Runtime objects need different flags (no -Wpedantic for GCC statement expressions)
 src/runtime/%.o: src/runtime/%.c
-	$(CC) -std=c11 -Wall -Wextra -Wno-unused-parameter -O2 -Isrc -c -o $@ $<
+	$(CC) -std=c11 -D_POSIX_C_SOURCE=200809L -Wall -Wextra -Wno-unused-parameter -O2 -Isrc -c -o $@ $<
 
 src/stdlib/%.o: src/stdlib/%.c
-	$(CC) -std=c11 -Wall -Wextra -Wno-unused-parameter -O2 -Isrc -c -o $@ $<
+	$(CC) -std=c11 -D_POSIX_C_SOURCE=200809L -Wall -Wextra -Wno-unused-parameter -O2 -Isrc -c -o $@ $<
 
 # SQLite amalgamation — relaxed warnings, single-threaded mode
 src/vendor/sqlite3.o: src/vendor/sqlite3.c
