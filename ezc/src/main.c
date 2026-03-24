@@ -24,13 +24,18 @@
 #include "typechecker/typechecker.h"
 #include "codegen/codegen.h"
 
-#define EZC_VERSION "0.1.0"
+#define EZC_VERSION "3.0.0"
 #define PATH_BUF_SIZE 2048
 #define CMD_BUF_SIZE 8192
 
 static void print_usage(void) {
     fprintf(stderr, "EZC - EZ Language Compiler v%s\n", EZC_VERSION);
-    fprintf(stderr, "Usage: ezc [options] <file.ez>\n");
+    fprintf(stderr, "\nUsage:\n");
+    fprintf(stderr, "  ezc <file.ez> [options]         Compile to binary (default)\n");
+    fprintf(stderr, "  ezc build <file.ez> [options]   Compile to binary\n");
+    fprintf(stderr, "  ezc run <file.ez> [options]     Compile and run (temp binary)\n");
+    fprintf(stderr, "  ezc check <file.ez>             Type check only\n");
+    fprintf(stderr, "  ezc version                     Show version\n");
     fprintf(stderr, "\nOptions:\n");
     fprintf(stderr, "  -o <file>       Output binary name (default: based on input filename)\n");
     fprintf(stderr, "  -c              Emit C source only (don't compile)\n");
@@ -39,10 +44,7 @@ static void print_usage(void) {
     fprintf(stderr, "  -v, --verbose   Show compilation commands\n");
     fprintf(stderr, "  --time          Show compilation timing\n");
     fprintf(stderr, "  --no-color      Disable colored output\n");
-    fprintf(stderr, "  --version       Show version\n");
     fprintf(stderr, "  -h, --help      Show this help\n");
-    fprintf(stderr, "\nSubcommands:\n");
-    fprintf(stderr, "  check <file>    Type check without compiling\n");
 }
 
 static char *read_file(const char *path) {
@@ -204,6 +206,7 @@ int main(int argc, char **argv) {
     const char *output_file = NULL;
     bool emit_c_only = false;
     bool check_only = false;
+    bool run_mode = false;
     bool verbose = false;
     bool show_time = false;
     bool no_color = false;
@@ -212,7 +215,7 @@ int main(int argc, char **argv) {
 
     /* Parse arguments */
     for (int i = 1; i < argc; i++) {
-        if (strcmp(argv[i], "--version") == 0) {
+        if (strcmp(argv[i], "version") == 0 || strcmp(argv[i], "--version") == 0) {
             printf("ezc %s\n", EZC_VERSION);
             return 0;
         }
@@ -248,8 +251,17 @@ int main(int argc, char **argv) {
             no_color = true;
             continue;
         }
+        /* Subcommands */
         if (strcmp(argv[i], "check") == 0 && !input_file) {
             check_only = true;
+            continue;
+        }
+        if (strcmp(argv[i], "build") == 0 && !input_file) {
+            /* build is the default — just skip the keyword */
+            continue;
+        }
+        if (strcmp(argv[i], "run") == 0 && !input_file) {
+            run_mode = true;
             continue;
         }
         if (argv[i][0] == '-') {
@@ -327,7 +339,12 @@ int main(int argc, char **argv) {
 
     /* Determine output name */
     char *default_output = NULL;
-    if (!output_file) {
+    if (run_mode && !output_file) {
+        /* Run mode: use temp file */
+        default_output = malloc(PATH_BUF_SIZE);
+        snprintf(default_output, PATH_BUF_SIZE, "/tmp/ezc_run_%d", (int)getpid());
+        output_file = default_output;
+    } else if (!output_file) {
         default_output = output_name_from_input(input_file);
         output_file = default_output;
     }
@@ -478,6 +495,14 @@ int main(int argc, char **argv) {
             fprintf(stderr, "  frontend:  %.1fms (lex + parse + typecheck + codegen)\n", frontend_ms);
             fprintf(stderr, "  cc:        %.1fms (compile + link)\n", cc_ms);
         }
+    }
+
+    /* Run mode: execute the binary and clean up */
+    if (ret == 0 && run_mode) {
+        char run_cmd[CMD_BUF_SIZE];
+        snprintf(run_cmd, sizeof(run_cmd), "%s", output_file);
+        ret = system(run_cmd);
+        unlink(output_file);
     }
 
     codegen_destroy(&cg);
