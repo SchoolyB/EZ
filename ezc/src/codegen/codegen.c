@@ -404,9 +404,22 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
         break;
 
     case NODE_PREFIX_EXPR:
+        /* For negation of int literals that are already negative (e.g. parser
+         * stored -9223372036854775808 as the literal), emit directly.
+         * Special case INT64_MIN to avoid C literal overflow warning. */
+        if (strcmp(node->data.prefix.op, "-") == 0 &&
+            node->data.prefix.right->kind == NODE_INT_VALUE &&
+            node->data.prefix.right->data.int_value.value < 0) {
+            int64_t v = node->data.prefix.right->data.int_value.value;
+            if (v == INT64_MIN) {
+                emit(cg, "(-9223372036854775807LL - 1)");
+            } else {
+                emitf(cg, "(%lldLL)", (long long)v);
+            }
+            break;
+        }
         emit(cg, "(");
         emit(cg, node->data.prefix.op);
-        /* Space after - to prevent -- ambiguity with large literals */
         if (strcmp(node->data.prefix.op, "-") == 0 &&
             node->data.prefix.right->kind == NODE_INT_VALUE) {
             emit(cg, " ");
