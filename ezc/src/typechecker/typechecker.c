@@ -652,17 +652,21 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                     if (sig->return_count > 0) {
                         result = sig->return_types[0];
                     }
-                } else if (!tc_is_builtin(fn_name)) {
-                    /* Only report if we have a suggestion — avoids false
-                     * positives from using-module functions the typechecker
-                     * doesn't track */
-                    const char *suggestion = suggest_name(tc, fn_name);
-                    if (suggestion) {
-                        char msg[256], help[256];
-                        snprintf(msg, sizeof(msg), "undefined function '%s'", fn_name);
-                        snprintf(help, sizeof(help), "did you mean '%s'?", suggestion);
-                        diag_error_help(tc->diag, "E4002", strdup(msg),
-                            tc->file, node->token.line, node->token.column, 0, strdup(help));
+                } else {
+                    /* Check if it's a variable holding a function reference */
+                    Symbol *fn_sym = scope_lookup(tc->current_scope, fn_name);
+                    if (fn_sym && fn_sym->type && strcmp(type_name(fn_sym->type), "func") == 0) {
+                        result = &TYPE_UNKNOWN; /* callable func ref — return type unknown */
+                    } else if (!tc_is_builtin(fn_name)) {
+                        /* Only report if we have a suggestion */
+                        const char *suggestion = suggest_name(tc, fn_name);
+                        if (suggestion) {
+                            char msg[256], help[256];
+                            snprintf(msg, sizeof(msg), "undefined function '%s'", fn_name);
+                            snprintf(help, sizeof(help), "did you mean '%s'?", suggestion);
+                            diag_error_help(tc->diag, "E4002", strdup(msg),
+                                tc->file, node->token.line, node->token.column, 0, strdup(help));
+                        }
                     }
                 }
             }
