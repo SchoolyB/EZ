@@ -397,7 +397,12 @@ func TestIORemoveAll(t *testing.T) {
 	})
 
 	t.Run("safety check for root", func(t *testing.T) {
-		result := removeAllFn(&object.String{Value: "/"})
+		// Use platform-appropriate root path
+		rootPath := "/"
+		if runtime.GOOS == "windows" {
+			rootPath = `C:\`
+		}
+		result := removeAllFn(&object.String{Value: rootPath})
 		errStruct := assertHasError(t, result)
 
 		code, _ := errStruct.Fields["code"].(*object.String)
