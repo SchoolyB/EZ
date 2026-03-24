@@ -1,9 +1,9 @@
 # The EZ Programming Language Standard
 
-**Version:** 1.2-draft
-**Date:** February 12, 2026
+**Version:** 2.0-draft
+**Date:** March 24, 2026
 **Status:** Working Draft
-**EZ Version:** 2.0.0
+**EZ Version:** 3.0.0
 
 ---
 
@@ -105,7 +105,7 @@ EZ supports two forms of comments:
 
 ```ez
 // This is a single-line comment
-temp x int = 42  // inline comment
+mut x int = 42  // inline comment
 ```
 
 **Multi-line comments** begin with `/*` and end with `*/`:
@@ -145,11 +145,14 @@ as_long_as   bool        break       byte        cast
 char         const       continue    default     do
 ensure       enum        error       false       float
 for          for_each    if          import      in
-int          is          loop        map         module
-new          nil         not_in      or          otherwise
-private      range       return      string      struct
-temp         true        uint        using       when
+int          is          loop        map         mut
+new          nil         not_in      or          or_return
+otherwise    private     range       return      string
+struct       true        uint        using       when
+while
 ```
+
+Note: `module` is no longer a reserved keyword in 3.0. Module identity is determined by the filesystem.
 
 ### 3.6 Operators and Punctuation
 
@@ -217,8 +220,8 @@ Escape sequences:
 String interpolation allows embedding expressions within strings:
 
 ```ez
-temp name string = "World"
-temp greeting string = "Hello, ${name}!"  // "Hello, World!"
+mut name string = "World"
+mut greeting string = "Hello, ${name}!"  // "Hello, World!"
 ```
 
 #### 3.7.4 Raw String Literals
@@ -237,9 +240,9 @@ Raw strings:
 - Cannot contain backticks (no escape mechanism)
 
 ```ez
-temp path string = `C:\Users\test\file.txt`
-temp pattern string = `\d+\.\d+`
-temp multi string = `line1
+mut path string = `C:\Users\test\file.txt`
+mut pattern string = `\d+\.\d+`
+mut multi string = `line1
 line2
 line3`
 ```
@@ -284,8 +287,8 @@ EZ is statically typed. Every variable and expression has a type known at check 
 The `int` type represents arbitrary-precision signed integers. There is no overflow or underflow; integers grow as needed to accommodate any value.
 
 ```ez
-temp small int = 42
-temp large int = 9223372036854775808  // Exceeds 64-bit, still valid
+mut small int = 42
+mut large int = 9223372036854775808  // Exceeds 64-bit, still valid
 ```
 
 #### 4.1.2 Unsigned Integer Type (`uint`)
@@ -293,8 +296,8 @@ temp large int = 9223372036854775808  // Exceeds 64-bit, still valid
 The `uint` type represents arbitrary-precision unsigned (non-negative) integers. Like `int`, there is no overflow; values grow as needed.
 
 ```ez
-temp count uint = 100
-temp big uint = 18446744073709551615  // Max 64-bit unsigned, still valid
+mut count uint = 100
+mut big uint = 18446744073709551615  // Max 64-bit unsigned, still valid
 ```
 
 Assigning a negative value to a `uint` produces a check-time error.
@@ -306,8 +309,8 @@ The `float` type represents 64-bit IEEE 754 double-precision floating-point numb
 Division by zero with floating-point operands produces a runtime error (not IEEE 754 infinity or NaN).
 
 ```ez
-temp pi float = 3.14159
-temp negative float = -2.5
+mut pi float = 3.14159
+mut negative float = -2.5
 ```
 
 #### 4.1.4 String Type (`string`)
@@ -315,8 +318,8 @@ temp negative float = -2.5
 The `string` type represents a sequence of characters. Strings are UTF-8 encoded and are treated as arrays of `char` values.
 
 ```ez
-temp greeting string = "Hello, World!"
-temp first_char char = greeting[0]  // 'H'
+mut greeting string = "Hello, World!"
+mut first_char char = greeting[0]  // 'H'
 ```
 
 #### 4.1.5 Boolean Type (`bool`)
@@ -324,8 +327,8 @@ temp first_char char = greeting[0]  // 'H'
 The `bool` type has exactly two values: `true` and `false`.
 
 ```ez
-temp flag bool = true
-temp result bool = 10 > 5  // true
+mut flag bool = true
+mut result bool = 10 > 5  // true
 ```
 
 #### 4.1.6 Character Type (`char`)
@@ -333,8 +336,8 @@ temp result bool = 10 > 5  // true
 The `char` type represents a single character.
 
 ```ez
-temp letter char = 'A'
-temp newline char = '\n'
+mut letter char = 'A'
+mut newline char = '\n'
 ```
 
 Characters can be converted to their integer code point using `int()`.
@@ -344,8 +347,8 @@ Characters can be converted to their integer code point using `int()`.
 The `byte` type represents an 8-bit unsigned integer with values from 0 to 255.
 
 ```ez
-temp b byte = 0xFF  // 255
-temp c byte = 128   // decimal also works
+mut b byte = 0xFF  // 255
+mut c byte = 128   // decimal also works
 ```
 
 Assigning a value outside the range 0-255 to a `byte` is a check-time error.
@@ -367,8 +370,8 @@ array_type = "[" type "]" .
 ```
 
 ```ez
-temp numbers [int] = {1, 2, 3, 4, 5}
-temp empty [string] = {}
+mut numbers [int] = {1, 2, 3, 4, 5}
+mut empty [string] = {}
 ```
 
 **Fixed-size arrays** have a length specified at declaration:
@@ -391,8 +394,8 @@ const b [int, 5] = {1, 2, 3, 4, 5, 6}  // Error — 6 values exceeds size of 5
 **Multi-dimensional arrays**:
 
 ```ez
-temp matrix [[int]] = {{1, 2}, {3, 4}}
-temp cube [[[int]]] = {{{1, 2}, {3, 4}}, {{5, 6}, {7, 8}}}
+mut matrix [[int]] = {{1, 2}, {3, 4}}
+mut cube [[[int]]] = {{{1, 2}, {3, 4}}, {{5, 6}, {7, 8}}}
 ```
 
 Array indexing is zero-based. Accessing an index outside the valid range produces a runtime error.
@@ -406,7 +409,7 @@ map_type = "map" "[" key_type ":" value_type "]" .
 ```
 
 ```ez
-temp ages map[string:int] = {
+mut ages map[string:int] = {
     "alice": 30,
     "bob": 25
 }
@@ -441,15 +444,15 @@ const Person struct {
 Struct instantiation uses named field syntax:
 
 ```ez
-temp origin Point = Point{x: 0, y: 0}
-temp p Point = Point{}  // Zero-initialized: x=0, y=0
+mut origin Point = Point{x: 0, y: 0}
+mut p Point = Point{}  // Zero-initialized: x=0, y=0
 ```
 
 Fields are accessed using dot notation:
 
 ```ez
-temp x_value int = origin.x
-origin.x = 10  // Modification (if variable is temp)
+mut x_value int = origin.x
+origin.x = 10  // Modification (if variable is mut)
 ```
 
 #### 4.2.4 Enums
@@ -492,8 +495,8 @@ const Status enum {
 Enum values are accessed using dot notation:
 
 ```ez
-temp dir int = Direction.NORTH
-temp status string = Status.TODO
+mut dir int = Direction.NORTH
+mut status string = Status.TODO
 ```
 
 ### 4.3 Type Inference
@@ -512,31 +515,31 @@ Type inference is permitted when assigning from:
 do sum(a int, b int) -> int {
     return a + b
 }
-temp result = sum(1, 2)        // Inferred: int
+mut result = sum(1, 2)        // Inferred: int
 println(typeof(result))        // Output: int
 
 // Inferred from struct literal
 const p = Point{x: 1, y: 2}    // Inferred: Point
 
 // Inferred from built-in constructors
-temp val = new(Person)         // Inferred: Person
-temp dup = copy(val)           // Inferred: Person
+mut val = new(Person)         // Inferred: Person
+mut dup = copy(val)           // Inferred: Person
 
 // Inferred from array literal
-temp arr = {1, 2, 3}           // Inferred: [int]
+mut arr = {1, 2, 3}           // Inferred: [int]
 
 // Multiple return values
 do divide(a, b int) -> (int, int) {
     return a / b, a % b
 }
-temp quotient, remainder = divide(10, 3)  // Both inferred: int
+mut quotient, remainder = divide(10, 3)  // Both inferred: int
 ```
 
 **Note:** Type inference does not apply to standalone literals without context. Explicit types are required when the type cannot be determined:
 
 ```ez
-temp x int = 42                // Explicit type required for standalone literal
-temp name string = "Alice"     // Explicit type required
+mut x int = 42                // Explicit type required for standalone literal
+mut name string = "Alice"     // Explicit type required
 ```
 
 ### 4.4 Type Conversions
@@ -544,10 +547,10 @@ temp name string = "Alice"     // Explicit type required
 Explicit type conversions are performed using type constructors:
 
 ```ez
-temp i int = int('A')       // 65 - char to int (code point)
-temp f float = float(42)    // 42.0 - int to float
-temp s string = string(123) // "123" - int to string
-temp c char = char(65)      // 'A' - int to char
+mut i int = int('A')       // 65 - char to int (code point)
+mut f float = float(42)    // 42.0 - int to float
+mut s string = string(123) // "123" - int to string
+mut c char = char(65)      // 'A' - int to char
 ```
 
 Conversions that would lose information or are invalid produce check-time or runtime errors.
@@ -561,16 +564,16 @@ cast_expr = "cast" "(" expression "," type ")" .
 ```
 
 ```ez
-temp small u8 = cast(42, u8)
-temp truncated int = cast(3.7, int)     // 3
-temp text string = cast(123, string)    // "123"
+mut small u8 = cast(42, u8)
+mut truncated int = cast(3.7, int)     // 3
+mut text string = cast(123, string)    // "123"
 ```
 
 For array conversions, `cast` converts each element to the target element type:
 
 ```ez
-temp ints [int] = {1, 2, 3}
-temp bytes [u8] = cast(ints, [u8])
+mut ints [int] = {1, 2, 3}
+mut bytes [u8] = cast(ints, [u8])
 ```
 
 Range constraints are enforced at runtime (e.g., `u8` values must be 0-255).
@@ -581,19 +584,19 @@ Range constraints are enforced at runtime (e.g., `u8` values must be 0-255).
 
 ### 5.1 Variable Declarations
 
-Variables are declared using the `temp` keyword:
+Variables are declared using the `mut` keyword:
 
 ```
-var_decl = "temp" identifier type "=" expression .
+var_decl = "mut" identifier type "=" expression .
 ```
 
 ```ez
-temp count int = 0
-temp name string = "Alice"
-temp items [int] = {1, 2, 3}
+mut count int = 0
+mut name string = "Alice"
+mut items [int] = {1, 2, 3}
 ```
 
-Variables declared with `temp`:
+Variables declared with `mut`:
 - Must be initialized at declaration
 - Can be reassigned after declaration
 - Are scoped to their containing block
@@ -628,22 +631,22 @@ arr[0] = 10  // ERROR: Cannot modify const
 arr = {4, 5, 6}  // ERROR: Cannot reassign const
 ```
 
-The `temp` keyword allows modification and **ensures the value itself is mutable**:
+The `mut` keyword allows modification and **ensures the value itself is mutable**:
 
 ```ez
-temp arr [int] = {1, 2, 3}
+mut arr [int] = {1, 2, 3}
 arr[0] = 10  // OK
 arr = {4, 5, 6}  // OK
 ```
 
-When assigning from a function return or other source, `temp` automatically makes the value mutable. There is no need to use `copy()` to obtain a mutable version:
+When assigning from a function return or other source, `mut` automatically makes the value mutable. There is no need to use `copy()` to obtain a mutable version:
 
 ```ez
 do get_data() -> [int] {
     return {1, 2, 3}
 }
 
-temp arr = get_data()  // arr is mutable
+mut arr = get_data()  // arr is mutable
 arrays.append(arr, 4)  // OK - can modify directly
 
 const fixed = get_data()  // fixed is immutable
@@ -657,9 +660,9 @@ Variables and constants are block-scoped. A block is delimited by braces `{}`.
 Inner scopes may declare variables that shadow outer scope variables:
 
 ```ez
-temp x int = 10
+mut x int = 10
 if true {
-    temp x int = 20  // Shadows outer x
+    mut x int = 20  // Shadows outer x
     // x is 20 here
 }
 // x is 10 here
@@ -671,19 +674,19 @@ The blank identifier `_` can be used to discard values that are not needed. This
 
 ```ez
 // Discard the second return value
-temp value, _ = get_pair()
+mut value, _ = get_pair()
 
 // Discard multiple values
 const _, middle, _ = get_triple()
 
 // Common pattern: ignore error when you know it won't fail
-temp data, _ = json.encode(simple_value)
+mut data, _ = json.encode(simple_value)
 ```
 
 The blank identifier:
 - Cannot be read from (it discards the value)
 - Can be used multiple times in the same assignment
-- Works with both `temp` and `const` declarations
+- Works with both `mut` and `const` declarations
 
 ---
 
@@ -798,7 +801,7 @@ if 10 !in range(0, 10) { ... }  // Shorthand for not_in
 | `--` | Post-decrement |
 
 ```ez
-temp x int = 5
+mut x int = 5
 x++  // x is now 6
 x--  // x is now 5
 ```
@@ -820,32 +823,32 @@ From highest to lowest precedence:
 ### 6.4 Index Expressions
 
 ```ez
-temp arr [int] = {10, 20, 30}
-temp val int = arr[1]  // 20
+mut arr [int] = {10, 20, 30}
+mut val int = arr[1]  // 20
 arr[0] = 100  // Modification
 
-temp str string = "hello"
-temp c char = str[0]  // 'h'
+mut str string = "hello"
+mut c char = str[0]  // 'h'
 
-temp m map[string:int] = {"a": 1}
-temp v int = m["a"]  // 1
+mut m map[string:int] = {"a": 1}
+mut v int = m["a"]  // 1
 ```
 
 ### 6.5 Member Expressions
 
 ```ez
-temp p Point = Point{x: 10, y: 20}
-temp x int = p.x  // 10
+mut p Point = Point{x: 10, y: 20}
+mut x int = p.x  // 10
 p.y = 30  // Modification
 
-temp status int = Direction.NORTH  // Enum access
+mut status int = Direction.NORTH  // Enum access
 ```
 
 ### 6.6 Call Expressions
 
 ```ez
-temp sum int = add(1, 2)
-temp greeting string = greet("World")
+mut sum int = add(1, 2)
+mut greeting string = greet("World")
 println("Hello!")
 ```
 
@@ -935,7 +938,7 @@ for_each_stmt = "for_each" [ "(" ] [ identifier "," ] identifier "in" expression
 ```
 
 ```ez
-temp items [string] = {"a", "b", "c"}
+mut items [string] = {"a", "b", "c"}
 for_each item in items {
     println(item)
 }
@@ -965,15 +968,38 @@ for_each _, item in items { ... }   // discard index (same as no index)
 for_each i, _ in items { ... }     // index only, discard value
 ```
 
+**Map iteration** is also supported. With two variables, the first is the key and the second is the value:
+
+```ez
+mut ages map[string:int] = {"alice": 30, "bob": 25}
+for_each k, v in ages {
+    println("${k}: ${v}")
+}
+
+// Single variable iterates keys only
+for_each key in ages {
+    println(key)
+}
+```
+
+Map iteration order is undefined (maps are unordered).
+
 #### 7.3.3 While Loops
 
 ```
-while_stmt = "as_long_as" expression block .
+while_stmt = ( "as_long_as" | "while" ) expression block .
 ```
 
+`while` is an alias for `as_long_as`. Both are valid — user's choice.
+
 ```ez
-temp count int = 0
+mut count int = 0
 as_long_as count < 10 {
+    count++
+}
+
+// Equivalent:
+while count < 10 {
     count++
 }
 ```
@@ -988,7 +1014,7 @@ The `loop` statement creates an infinite loop that runs until explicitly termina
 
 ```ez
 loop {
-    temp input string = input()
+    mut input string = input()
     if input == "quit" {
         break
     }
@@ -1056,6 +1082,8 @@ when x {
 }
 ```
 
+**Allowed condition types:** `int`, `uint`, `string`, `char`, `byte`, `bool`, `float`, `nil`, and enum types. Float conditions emit a W2012 warning about imprecision. Collection types (arrays, maps) are not allowed.
+
 **Strict mode** requires all possible values to be handled:
 
 ```ez
@@ -1082,6 +1110,28 @@ do process_file() {
     // cleanup() will be called when function ends
 }
 ```
+
+### 7.7 Or-Return Statement
+
+The `or_return` keyword provides error propagation shorthand for functions that return `(T, Error)` tuples:
+
+```
+or_return_stmt = var_decl "or_return" [ expression { "," expression } ] .
+```
+
+```ez
+do load() -> (string, Error) {
+    // Bare or_return: propagates the error with zero values
+    mut content = read_file("data.txt") or_return
+    mut parsed = json.decode(content) or_return
+    return parsed, nil
+}
+
+// With custom fallback values:
+mut content = read_file("data.txt") or_return "", error("failed to load")
+```
+
+When the call returns a non-nil error, `or_return` immediately returns from the enclosing function. The bare form returns zero values for non-error slots plus the original error. The enclosing function must have `Error` as its last return type.
 
 ---
 
@@ -1133,7 +1183,7 @@ do increment(&n int) {
     n = n + 1
 }
 
-temp count int = 0
+mut count int = 0
 increment(count)  // count is now 1
 ```
 
@@ -1153,7 +1203,7 @@ do add(a, b int) -> int {
 }
 
 do swap(&a, &b int) {
-    temp t int = a
+    mut t int = a
     a = b
     b = t
 }
@@ -1191,7 +1241,7 @@ do divide(a, b int) -> (int, int) {
     return a / b, a % b
 }
 
-temp quotient, remainder = divide(17, 5)
+mut quotient, remainder = divide(17, 5)
 ```
 
 #### 8.3.3 Error Returns
@@ -1204,7 +1254,7 @@ do parse(s string) -> (int, Error) {
     return 42, nil
 }
 
-temp value, err = parse("test")
+mut value, err = parse("test")
 if err != nil {
     // Handle error
 }
@@ -1221,7 +1271,7 @@ do divide(a, b int) -> (quotient int, remainder int) {
     return quotient, remainder
 }
 
-temp q, r = divide(17, 5)  // q=3, r=2
+mut q, r = divide(17, 5)  // q=3, r=2
 ```
 
 Named returns support grouped types (multiple names sharing one type):
@@ -1252,7 +1302,7 @@ do print_greeting() {
 By default, all functions and constants are public. The `private` keyword restricts access to the declaring module:
 
 ```ez
-module mathlib
+// mathlib/mathlib.ez — module name comes from directory
 
 private const MAX_ITERATIONS int = 1000
 
@@ -1304,7 +1354,7 @@ The `#suppress` attribute suppresses specific typechecker warnings for a functio
 ```ez
 #suppress(W1001)
 do helper() {
-    temp unused int = 42  // No unused-variable warning
+    mut unused int = 42  // No unused-variable warning
 }
 
 #suppress(W1001, W2001)
@@ -1316,31 +1366,96 @@ do nowarnings() { ... }   // Suppress all warnings
 
 Suppressible warnings include: `W1001` (unused-variable), `W1004` (unused-parameter), `W1005` (typed-blank-identifier), `W2001` (unreachable-code), `W2002` (shadowed-variable), `W2003` (missing-return), `W2004` (implicit-type-conversion), `W2005` (deprecated-feature), `W2006` (byte-overflow-potential), `W2009` (nil-dereference-potential), `W2011` (named-return-unused), `W3001` (empty-block), `W3002` (redundant-condition), `W3003` (array-size-mismatch).
 
-### 8.6 Function Scope
+### 8.6 Function References
 
-All functions in EZ are declared at the top level. Nested function declarations are not permitted. Anonymous functions (lambdas/closures) are not supported.
+Functions can be passed as values using the `()` prefix syntax or the `ref()` builtin:
+
+```ez
+do is_positive(n int) -> bool { return n > 0 }
+
+// ()func_name — implicit syntax
+mut check = ()is_positive
+
+// ref(func_name) — explicit syntax
+mut check = ref(is_positive)
+
+// Call through the reference
+check(5)  // true
+
+// Pass as argument
+do filter(arr [int], test func) -> [int] { ... }
+mut positives = filter(numbers, ()is_positive)
+```
+
+Function references:
+- `()func_name` is the implicit form (shorter)
+- `ref(func_name)` is the explicit form (more readable)
+- Both produce identical results
+- No anonymous functions or lambdas — every reference points to a named function
+- The `func` type is used for parameters that accept function references
+- References work with top-level and struct-namespaced functions
+
+### 8.7 Struct-Namespaced Functions
+
+Functions can be declared inside struct blocks as namespaced free functions:
+
+```ez
+const Point struct {
+    x int
+    y int
+
+    do create(x int, y int) -> Point {
+        return Point{x: x, y: y}
+    }
+
+    do distance(a Point, b Point) -> float {
+        return math.sqrt(math.pow(float(a.x - b.x), 2) + math.pow(float(a.y - b.y), 2))
+    }
+
+    private do validate(p Point) -> bool {
+        return p.x >= 0 && p.y >= 0
+    }
+}
+
+// Called as Type.func()
+mut p = Point.create(3, 4)
+mut d = Point.distance(p1, p2)
+```
+
+Rules:
+- No implicit `self` or `this` — every parameter is explicit
+- `private` restricts access to other functions in the same struct
+- Called as `StructName.func_name(args...)`
+- Cross-module: `module.StructName.func_name(args...)`
+
+### 8.8 Function Scope
+
+All functions in EZ are declared at the top level or inside struct blocks. Nested function declarations inside other functions are not permitted. Anonymous functions (lambdas/closures) are not supported.
 
 ---
 
 ## 9. Modules
 
-### 9.1 Module Declaration
+### 9.1 Module Identity
+
+Module identity is determined by the filesystem — there are no `module` declarations. A file's module name is its filename (minus `.ez`). A directory's module name is its directory name.
 
 ```
-module_decl = "module" identifier .
+project/
+  main.ez              ← entry point
+  helpers.ez           ← module "helpers" (import "./helpers")
+  models/
+    types.ez           ← these merge into module "models"
+    functions.ez       ← (import "./models")
 ```
 
-A source file may declare its module at the top of the file:
-
-```ez
-module utils
-```
+Directory imports merge all top-level `.ez` files into one namespace. Subdirectories are separate modules.
 
 ### 9.2 Imports
 
 ```
 import_decl = "import" [ "&" "use" ] import_path { "," import_path } .
-import_path = "@" identifier | string_literal .
+import_path = [ alias ] ( "@" identifier | string_literal ) .
 ```
 
 Standard library modules are prefixed with `@`:
@@ -1350,12 +1465,23 @@ import @std
 import @arrays, @maps, @strings
 ```
 
-Local modules use relative paths:
+Local modules use relative paths. A `.ez` extension imports a single file; no extension imports a directory:
 
 ```ez
-import "./models"
-import "./utils/helpers"
+import "./helpers"          // helpers.ez (file) or helpers/ (directory)
+import "./models"           // models/ directory — all .ez files merge
 ```
+
+Import aliasing:
+
+```ez
+import myhelp @std          // alias "myhelp" for @std
+import mymod "./server"     // alias "mymod" for local module
+```
+
+**Collision detection:** If two imports resolve to the same alias without explicit aliasing, it is an error (E6010). The user must alias one.
+
+**Double-import prevention:** Importing a file that is already included via a parent directory import is an error (E6011).
 
 ### 9.3 Combined Import and Use
 
@@ -1476,15 +1602,15 @@ The core module provides fundamental I/O, type conversion, and utility functions
 The `ref()` function creates a reference to an existing value. The mutability of the reference depends on the variable declaration:
 
 ```ez
-temp arr [int] = {1, 2, 3}
+mut arr [int] = {1, 2, 3}
 
-// temp ref is mutable - can modify through the reference
-temp r1 = ref(arr)
+// mut ref is mutable - can modify through the reference
+mut r1 = ref(arr)
 arrays.append(r1, 4)  // OK - modifies arr
 
 // const ref is read-only - can read but not modify
 const r2 = ref(arr)
-temp val = r2[0]      // OK - can read
+mut val = r2[0]      // OK - can read
 arrays.append(r2, 5)  // ERROR - cannot modify through const ref
 
 // const ref sees changes made to the original
@@ -1825,7 +1951,7 @@ println(r2[4])        // Prints 6 - r2 sees the change
 | Function | Signature | Description |
 |----------|-----------|-------------|
 | `parse` | `(s string, format string) -> int` | Parse string to timestamp |
-| `make` | `(year, month, day, hour, minute, second int) -> int` | Create timestamp |
+| `timestamp` | `(year, month, day, hour, minute, second int) -> int` | Create timestamp |
 | `from_unix` | `(seconds int) -> int` | Convert Unix seconds to timestamp |
 | `from_unix_ms` | `(milliseconds int) -> int` | Convert Unix milliseconds to timestamp |
 | `to_unix` | `(timestamp int) -> int` | Convert timestamp to Unix seconds |
@@ -2056,8 +2182,8 @@ The `Response` struct contains:
 
 | Function | Signature | Description |
 |----------|-----------|-------------|
-| `create` | `() -> string` | Generate UUID v4 with hyphens |
-| `create_compact` | `() -> string` | Generate UUID v4 without hyphens |
+| `generate` | `() -> string` | Generate UUID v4 with hyphens |
+| `generate_compact` | `() -> string` | Generate UUID v4 without hyphens |
 | `is_valid` | `(s string) -> bool` | Validate UUID format |
 
 #### Constants
@@ -2137,24 +2263,65 @@ A simple JSON-based key-value database.
 
 ### 10.18 Server Module (`@server`)
 
-A simple HTTP server module for building web services.
+An HTTP server module with dynamic handlers, path parameters, middleware, and CORS.
+
+#### Routing
 
 | Function | Signature | Description |
 |----------|-----------|-------------|
 | `router` | `() -> Router` | Create a new router |
-| `route` | `(router Router, method string, path string, response Response)` | Add a route |
+| `route` | `(router Router, method string, path string, ()handler)` | Add a route with handler function |
+| `use` | `(router Router, ()middleware)` | Add middleware |
 | `listen` | `(port int, router Router) -> Error` | Start HTTP server on port |
+
+#### Response Builders
+
+| Function | Signature | Description |
+|----------|-----------|-------------|
 | `text` | `(status int, body string) -> Response` | Create text/plain response |
 | `json` | `(status int, data) -> Response` | Create application/json response |
 | `html` | `(status int, body string) -> Response` | Create text/html response |
+| `redirect` | `(status int, url string) -> Response` | Create redirect response |
+| `set_header` | `(response Response, key string, value string) -> Response` | Add header |
+
+#### Request Handling
+
+| Function | Signature | Description |
+|----------|-----------|-------------|
+| `parse_json` | `(req Request) -> map` | Parse request body as JSON |
+| `cors` | `(router Router, origin string)` | Enable CORS headers |
+| `static` | `(router Router, url_prefix string, dir_path string)` | Serve static files |
+
+#### Request Type
+
+Every handler receives a `Request` struct:
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `method` | `string` | HTTP method (GET, POST, etc.) |
+| `path` | `string` | Request path |
+| `query` | `map[string:string]` | Query parameters |
+| `headers` | `map[string:string]` | Request headers |
+| `params` | `map[string:string]` | Path parameters (from `:param` segments) |
+| `body` | `string` | Raw request body |
 
 ```ez
 import @server
 
+do home(req Request) -> Response {
+    return server.text(200, "Welcome!")
+}
+
+do get_user(req Request) -> Response {
+    mut id = req.params["id"]
+    return server.json(200, {"id": id})
+}
+
 do main() {
-    temp r = server.router()
-    server.route(r, "GET", "/", server.text(200, "Hello!"))
-    server.route(r, "GET", "/data", server.json(200, {"status": "ok"}))
+    mut r = server.router()
+    server.cors(r, "*")
+    server.route(r, "GET", "/", ()home)
+    server.route(r, "GET", "/users/:id", ()get_user)
     server.listen(8080, r)
 }
 ```
@@ -2202,7 +2369,7 @@ The `read` and `write` functions accept an optional options map with keys:
 The `Error` type represents an error condition. Errors are created with the `error()` function:
 
 ```ez
-temp err Error = error("something went wrong")
+mut err Error = error("something went wrong")
 ```
 
 ### 11.2 Error Returns
@@ -2223,7 +2390,7 @@ do read_file(path string) -> (string, Error) {
 Errors are checked by comparing to `nil`:
 
 ```ez
-temp content, err = read_file("data.txt")
+mut content, err = read_file("data.txt")
 if err != nil {
     println("Error: ${err}")
     return
@@ -2255,8 +2422,8 @@ EZ uses automatic memory management via the Go runtime's garbage collector. Prog
 Primitive types (`int`, `uint`, `float`, `string`, `bool`, `char`, `byte`) have value semantics. Assignment creates a copy:
 
 ```ez
-temp a int = 42
-temp b int = a  // b is a copy of a
+mut a int = 42
+mut b int = a  // b is a copy of a
 b = 100         // a is still 42
 ```
 
@@ -2269,8 +2436,8 @@ Composite types (arrays, maps) have reference semantics for assignment but value
 The `copy()` function creates a deep copy of any value, including nested structures:
 
 ```ez
-temp original = Person{name: "Alice", age: 30}
-temp duplicate = copy(original)
+mut original = Person{name: "Alice", age: 30}
+mut duplicate = copy(original)
 duplicate.age = 31  // original.age is still 30
 ```
 
@@ -2341,12 +2508,11 @@ A program terminates when:
 
 ```ebnf
 program        = { declaration } .
-declaration    = module_decl | import_decl | using_decl | func_decl
+declaration    = import_decl | using_decl | func_decl
                | struct_decl | enum_decl | const_decl .
 
-module_decl    = "module" identifier .
 import_decl    = "import" [ "&" "use" ] import_path { "," import_path } .
-import_path    = "@" identifier | string_literal .
+import_path    = [ identifier ] ( "@" identifier | string_literal ) .
 using_decl     = "using" identifier { "," identifier } .
 
 func_decl      = [ "private" ] "do" identifier "(" [ param_list ] ")" [ "->" return_type ] block .
@@ -2354,7 +2520,7 @@ struct_decl    = "const" identifier "struct" "{" { field_decl } "}" .
 enum_decl      = [ "#flags" | "#enum" "(" "int" ")" ] "const" identifier "enum"
                "{" enum_member { enum_member } "}" .
 const_decl     = [ "private" ] "const" identifier [ type ] "=" expression .
-var_decl       = "temp" identifier type "=" expression .
+var_decl       = "mut" identifier [ type ] "=" expression [ "or_return" ] .
 
 statement      = var_decl | const_decl | if_stmt | for_stmt | for_each_stmt
                | while_stmt | loop_stmt | when_stmt | return_stmt | break_stmt
@@ -2363,7 +2529,7 @@ statement      = var_decl | const_decl | if_stmt | for_stmt | for_each_stmt
 if_stmt        = "if" expression block { "or" expression block } [ "otherwise" block ] .
 for_stmt       = "for" [ "(" ] identifier [ type ] "in" range_expr [ ")" ] block .
 for_each_stmt  = "for_each" [ "(" ] [ identifier "," ] identifier "in" expression [ ")" ] block .
-while_stmt     = "as_long_as" expression block .
+while_stmt     = ( "as_long_as" | "while" ) expression block .
 loop_stmt      = "loop" block .
 when_stmt      = [ "#strict" ] "when" expression "{" { when_case } [ default_case ] "}" .
 when_case      = "is" pattern { "," pattern } block .
@@ -2372,6 +2538,7 @@ return_stmt    = "return" [ expression { "," expression } ] .
 break_stmt     = "break" .
 continue_stmt  = "continue" .
 ensure_stmt    = "ensure" call_expr .
+func_ref       = "()" identifier { "." identifier } .
 
 expression     = /* standard expression grammar with operators */ .
 block          = "{" { statement } "}" .
@@ -2590,6 +2757,7 @@ block          = "{" { statement } "}" .
 | E5022 | assertion-failed | Assertion condition was false |
 | E5023 | postfix-requires-integer | Postfix operator needs integer operand |
 | E5024 | return-type-mismatch | Return type mismatch at runtime |
+| E5025 | dangling-reference | Reference target no longer exists |
 
 ### E6xxx — Import Errors
 
@@ -2604,6 +2772,8 @@ block          = "{" { statement } "}" .
 | E6007 | internal-import-denied | Cannot import from `internal/` directory outside package |
 | E6008 | module-member-readonly | Cannot assign to module member |
 | E6009 | private-access-denied | Cannot access private member from outside module |
+| E6010 | import-alias-collision | Import alias conflicts with an existing import |
+| E6011 | double-import | File is already included via a directory import |
 
 ### E7xxx — Stdlib Validation Errors
 
@@ -2780,6 +2950,7 @@ block          = "{" { statement } "}" .
 | W2009 | nil-dereference-potential | Accessing member on potentially nil value |
 | W2010 | chained-nil-access | Chained member access on nullable struct type |
 | W2011 | named-return-unused | Named return variable declared but returns different value |
+| W2012 | float-when-imprecise | Float equality comparison in `when` may be imprecise |
 
 #### W3xxx — Code Quality Warnings
 
@@ -2802,8 +2973,9 @@ block          = "{" { statement } "}" .
 | Version | Date | Changes |
 |---------|------|---------|
 | 1.0-draft | January 2026 | Initial draft |
-| 1.1-draft | January 31, 2026 | Added hex escapes, `!in` operator, blank identifier, `ref()` builtin, negative step `range()`, `temp` mutability; fixed terminology to use check-time instead of compile-time; added `uint` to primitive lists |
+| 1.1-draft | January 31, 2026 | Added hex escapes, `!in` operator, blank identifier, `ref()` builtin, negative step `range()`, `mut` mutability; fixed terminology to use check-time instead of compile-time; added `uint` to primitive lists |
 | 1.2-draft | February 12, 2026 | Added `for_each` index variable, named return variables, `cast` keyword, raw string literals, octal literals, `private` visibility, `#doc`/`#suppress` attributes; added `@server`, `@regex`, `@csv` modules; updated `@http`, `@db`, `@math`, `@strings`, `@time`, `@arrays` modules; fixed `remove` → `remove_at` in arrays; expanded Appendix B with comprehensive error code reference (181 errors, 14 warnings) |
+| 2.0-draft | March 24, 2026 | **EZ 3.0 release.** Renamed `temp` → `mut`; added `while` alias for `as_long_as`; added `or_return` error propagation; added function references `()func_name` and `ref(func_name)`; added struct-namespaced functions; added map iteration via `for_each`; lifted `when`/`is` restrictions for bools, nil, floats; overhauled module system (filesystem-based identity, no `module` declarations, collision detection E6010, double-import prevention E6011); redesigned `@server` module with FCF handlers, path params, middleware, CORS, JSON parsing, static files; renamed `time.make` → `time.timestamp`, `uuid.create` → `uuid.generate`; added ambiguity detection E4008 for `using` conflicts; added E5025 dangling-reference, W2012 float-when-imprecise; removed E2044, E2048, E2049, E6005, E6006, W4001 |
 
 ---
 
