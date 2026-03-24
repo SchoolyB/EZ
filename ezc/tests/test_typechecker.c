@@ -307,6 +307,7 @@ static void test_error_type_mismatch(void) {
     DiagnosticList *d = check_diag(
         "do main() { mut x string = 42 }");
     ASSERT(diag_has_errors(d));
+    diag_destroy(d);
 }
 
 static void test_error_wrong_arg_count(void) {
@@ -314,12 +315,14 @@ static void test_error_wrong_arg_count(void) {
         "do add(a int, b int) -> int { return a + b }\n"
         "do main() { add(1, 2, 3) }");
     ASSERT(diag_has_errors(d));
+    diag_destroy(d);
 }
 
 static void test_error_deref_non_pointer(void) {
     DiagnosticList *d = check_diag(
         "do main() { mut x int = 42\n mut y = x^ }");
     ASSERT(diag_has_errors(d));
+    diag_destroy(d);
 }
 
 static void test_resolve_map_type(void) {
