@@ -166,7 +166,7 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
         break;
 
     case NODE_FLOAT_VALUE:
-        emitf(cg, "%.15g", node->data.float_value.value);
+        emitf(cg, "%.16g", node->data.float_value.value);
         break;
 
     case NODE_STRING_VALUE: {
@@ -245,7 +245,7 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
 
                 switch (tk) {
                 case TK_STRING: emit(cg, "%s"); break;
-                case TK_FLOAT:  emit(cg, "%.15g"); break;
+                case TK_FLOAT:  emit(cg, "%s"); break; /* uses ez_std_format_float */
                 case TK_BOOL:   emit(cg, "%s"); break;
                 case TK_CHAR:   emit(cg, "%c"); break;
                 case TK_ARRAY:  emit(cg, "%s"); break;
@@ -283,9 +283,9 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
                 emit(cg, ") ? \"true\" : \"false\"");
                 break;
             case TK_FLOAT:
-                emit(cg, "(double)(");
+                emit(cg, "ez_std_format_float(ez_default_arena, ");
                 emit_expression(cg, part);
-                emit(cg, ")");
+                emit(cg, ").data");
                 break;
             case TK_CHAR:
                 emit(cg, "(char)(");
