@@ -119,7 +119,7 @@ tests/test_typechecker: tests/test_typechecker.c $(TEST_DEPS)
 	$(CC) $(CFLAGS) $(INCLUDES) -o $@ $^ $(LDFLAGS)
 
 tests/test_codegen: tests/test_codegen.c
-	$(CC) $(CFLAGS) $(INCLUDES) -o $@ $< $(LDFLAGS)
+	$(CC) $(CFLAGS) -D_POSIX_C_SOURCE=200809L $(INCLUDES) -o $@ $< $(LDFLAGS)
 
 test-unit: $(TEST_DEPS) tests/test_lexer tests/test_parser tests/test_typechecker
 	@echo ""
