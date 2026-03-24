@@ -267,6 +267,34 @@ static AstNode *parse_prefix_expression(Parser *p) {
 }
 
 static AstNode *parse_grouped_expression(Parser *p) {
+    /* Check for function reference: ()func_name or ()Type.func */
+    if (peek_token_is(p, TOK_RPAREN)) {
+        Token ref_tok = p->cur_token;
+        next_token(p); /* consume ) */
+        next_token(p); /* move to identifier */
+
+        if (p->cur_token.type != TOK_IDENT) {
+            return NULL;
+        }
+
+        /* Parse the function name — may be qualified with dots */
+        AstNode *func_expr = ast_alloc(p->arena, NODE_LABEL, p->cur_token);
+        func_expr->data.label.value = p->cur_token.literal;
+
+        while (peek_token_is(p, TOK_DOT)) {
+            next_token(p); /* consume . */
+            next_token(p); /* move to member */
+            AstNode *member = ast_alloc(p->arena, NODE_MEMBER_EXPR, p->cur_token);
+            member->data.member.object = func_expr;
+            member->data.member.member = p->cur_token.literal;
+            func_expr = member;
+        }
+
+        AstNode *ref = ast_alloc(p->arena, NODE_FUNC_REF, ref_tok);
+        ref->data.func_ref.function = func_expr;
+        return ref;
+    }
+
     next_token(p);
     AstNode *expr = parse_expression(p, PREC_LOWEST);
     if (!expect_peek(p, TOK_RPAREN)) return NULL;

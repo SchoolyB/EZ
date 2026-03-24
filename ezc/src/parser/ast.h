@@ -36,6 +36,7 @@ typedef enum {
     NODE_RANGE_EXPR,
     NODE_CAST_EXPR,
     NODE_BLANK_IDENT,
+    NODE_FUNC_REF,
 
     /* Statements */
     NODE_VAR_DECL,
@@ -176,6 +177,9 @@ struct AstNode {
             bool is_array;
             const char *element_type;
         } cast;
+
+        /* NODE_FUNC_REF — ()func_name */
+        struct { AstNode *function; } func_ref;
 
         /* NODE_VAR_DECL */
         struct {

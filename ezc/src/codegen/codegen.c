@@ -515,6 +515,16 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
         }
         break;
 
+    case NODE_FUNC_REF:
+        /* ()func_name — emit as C function pointer with ez_fn_ prefix */
+        if (node->data.func_ref.function->kind == NODE_LABEL) {
+            emit(cg, "ez_fn_");
+            emit(cg, node->data.func_ref.function->data.label.value);
+        } else {
+            emit_expression(cg, node->data.func_ref.function);
+        }
+        break;
+
     case NODE_CALL_EXPR:
         emit_call_expression(cg, node);
         break;
@@ -1639,15 +1649,19 @@ static void emit_call_expression(CodeGen *cg, AstNode *node) {
         fn_name = node->data.call.function->data.label.value;
     }
 
-    emit(cg, "ez_fn_");
-    if (fn_name) {
+    /* Look up function to check if it's a known function or a variable (function pointer) */
+    AstNode *target_func = fn_name ? find_func(cg, fn_name) : NULL;
+
+    if (fn_name && target_func) {
+        /* Known function — use ez_fn_ prefix */
+        emit(cg, "ez_fn_");
+        emit(cg, fn_name);
+    } else if (fn_name) {
+        /* Not a known function — likely a variable holding a function pointer */
         emit(cg, fn_name);
     } else {
         emit_expression(cg, node->data.call.function);
     }
-
-    /* Look up function to check for mutable params */
-    AstNode *target_func = fn_name ? find_func(cg, fn_name) : NULL;
 
     /* Determine total args: provided + defaults */
     int total_args = node->data.call.arg_count;
@@ -1774,6 +1788,9 @@ static void emit_var_declaration(CodeGen *cg, AstNode *node) {
                    val->kind == NODE_MEMBER_EXPR) {
             /* Use __auto_type for function calls, new(), and member access
              * (needed for multi-var unpacking: temp x = _tmp.v0) */
+            c_type = "__auto_type";
+        } else if (val->kind == NODE_FUNC_REF) {
+            /* Function reference — use __auto_type to capture the pointer type */
             c_type = "__auto_type";
         }
     }
