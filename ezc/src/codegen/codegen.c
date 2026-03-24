@@ -508,6 +508,17 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
             break;
         }
 
+        /* Runtime division/modulo by zero check */
+        if (strcmp(op, "/") == 0 || strcmp(op, "%") == 0) {
+            emit(cg, "({ __auto_type _dv = ");
+            emit_expression(cg, node->data.infix.right);
+            emitf(cg, "; if (!_dv) ez_panic(__FILE__, %d, \"division by zero\"); ",
+                node->token.line);
+            emit_expression(cg, node->data.infix.left);
+            emitf(cg, " %s _dv; })", op);
+            break;
+        }
+
         /* Normal infix — smart parens */
         bool needs_parens = true;
         NodeKind lk = node->data.infix.left->kind;
