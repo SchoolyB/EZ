@@ -501,11 +501,14 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
             if (sym && sym->type->kind == TK_STRUCT) {
                 result = struct_field_type(tc, sym->type->name, member);
             } else if (sym && member[0] == 'v' && member[1] >= '0' && member[1] <= '9') {
-                /* Multi-return .v0/.v1 access — .v0 returns the primary type */
-                if (member[1] == '0') {
+                /* Multi-return .v0/.v1/.v2 access — use stored return types */
+                int idx = member[1] - '0';
+                if (sym->ret_types && idx < sym->ret_count) {
+                    result = sym->ret_types[idx];
+                } else if (idx == 0) {
                     result = sym->type;
                 } else {
-                    result = type_from_name("Error");
+                    result = type_from_name("Error"); /* fallback for (T, Error) pattern */
                 }
             } else if (sym && sym->type->kind == TK_POINTER) {
                 /* Pointer auto-deref field access */
@@ -623,6 +626,18 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
                     Symbol *sym = scope_lookup_local(tc->current_scope,
                         node->data.var_decl.name);
                     if (sym) sym->is_ref = true;
+                }
+                /* Store multi-return types for temp variables from calls */
+                if (fn->kind == NODE_LABEL) {
+                    FuncSig *sig = find_func(tc, fn->data.label.value);
+                    if (sig && sig->return_count > 1) {
+                        Symbol *sym = scope_lookup_local(tc->current_scope,
+                            node->data.var_decl.name);
+                        if (sym) {
+                            sym->ret_types = sig->return_types;
+                            sym->ret_count = sig->return_count;
+                        }
+                    }
                 }
             }
         }
