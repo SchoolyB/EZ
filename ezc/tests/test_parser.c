@@ -233,6 +233,106 @@ static void test_parse_error_reports(void) {
     ASSERT(diag_has_errors(diag));
 }
 
+static void test_parse_func_ref(void) {
+    AstNode *prog = parse("do main() { mut fn = ()double }");
+    AstNode *stmt = first_stmt(prog);
+    ASSERT_NOT_NULL(stmt);
+    ASSERT_EQ(stmt->kind, NODE_FUNC_DECL);
+}
+
+static void test_parse_struct_func(void) {
+    AstNode *prog = parse(
+        "const Point struct {\n"
+        "  x int\n"
+        "  do create(x int) -> Point { return Point{x: x} }\n"
+        "}");
+    AstNode *stmt = first_stmt(prog);
+    ASSERT_NOT_NULL(stmt);
+    ASSERT_EQ(stmt->kind, NODE_STRUCT_DECL);
+    ASSERT_EQ(stmt->data.struct_decl.field_count, 1);
+    ASSERT_EQ(stmt->data.struct_decl.func_count, 1);
+}
+
+static void test_parse_or_return(void) {
+    AstNode *prog = parse(
+        "do wrapper() -> (string, Error) {\n"
+        "  mut val = fallible() or_return\n"
+        "  return val, nil\n"
+        "}");
+    AstNode *stmt = first_stmt(prog);
+    ASSERT_NOT_NULL(stmt);
+    ASSERT_EQ(stmt->kind, NODE_FUNC_DECL);
+}
+
+static void test_parse_flags_enum(void) {
+    AstNode *prog = parse(
+        "#flags\n"
+        "const Perms enum { READ\n WRITE\n EXEC }");
+    AstNode *stmt = first_stmt(prog);
+    ASSERT_NOT_NULL(stmt);
+    ASSERT_EQ(stmt->kind, NODE_ENUM_DECL);
+    ASSERT(stmt->data.enum_decl.is_flags);
+}
+
+static void test_parse_string_enum(void) {
+    AstNode *prog = parse(
+        "const Status enum {\n"
+        "  TODO = \"todo\"\n"
+        "  DONE = \"done\"\n"
+        "}");
+    AstNode *stmt = first_stmt(prog);
+    ASSERT_NOT_NULL(stmt);
+    ASSERT_EQ(stmt->kind, NODE_ENUM_DECL);
+    ASSERT_EQ(stmt->data.enum_decl.value_count, 2);
+}
+
+static void test_parse_map_type(void) {
+    AstNode *prog = parse("mut m map[string:int] = {:}");
+    AstNode *stmt = first_stmt(prog);
+    ASSERT_NOT_NULL(stmt);
+    ASSERT_EQ(stmt->kind, NODE_VAR_DECL);
+    ASSERT(strstr(stmt->data.var_decl.type_name, "map") != NULL);
+}
+
+static void test_parse_fixed_array(void) {
+    AstNode *prog = parse("const arr [int, 3] = {1, 2, 3}");
+    AstNode *stmt = first_stmt(prog);
+    ASSERT_NOT_NULL(stmt);
+    ASSERT_EQ(stmt->kind, NODE_VAR_DECL);
+    ASSERT(strstr(stmt->data.var_decl.type_name, "int,3") != NULL);
+}
+
+static void test_parse_nested_array(void) {
+    AstNode *prog = parse("mut m [[int]] = {{1}, {2}}");
+    AstNode *stmt = first_stmt(prog);
+    ASSERT_NOT_NULL(stmt);
+    ASSERT_EQ(stmt->kind, NODE_VAR_DECL);
+    ASSERT(strstr(stmt->data.var_decl.type_name, "[[int]]") != NULL);
+}
+
+static void test_parse_private_struct_func(void) {
+    /* Private functions inside structs */
+    AstNode *prog = parse(
+        "const Foo struct {\n"
+        "  private do secret() -> int { return 42 }\n"
+        "}");
+    AstNode *stmt = first_stmt(prog);
+    ASSERT_NOT_NULL(stmt);
+    ASSERT_EQ(stmt->kind, NODE_STRUCT_DECL);
+    ASSERT_EQ(stmt->data.struct_decl.func_count, 1);
+    ASSERT_EQ(stmt->data.struct_decl.funcs[0].func_decl->data.func_decl.visibility, 1);
+}
+
+static void test_parse_for_each_index(void) {
+    AstNode *prog = parse(
+        "do main() {\n"
+        "  for_each i, item in arr { }\n"
+        "}");
+    AstNode *stmt = first_stmt(prog);
+    ASSERT_NOT_NULL(stmt);
+    ASSERT_EQ(stmt->kind, NODE_FUNC_DECL);
+}
+
 int main(void) {
     arena = arena_create(256 * 1024);
     printf("\n");
@@ -259,6 +359,16 @@ int main(void) {
     RUN_TEST(test_parse_mut_keyword);
     RUN_TEST(test_parse_array_return_type);
     RUN_TEST(test_parse_error_reports);
+    RUN_TEST(test_parse_func_ref);
+    RUN_TEST(test_parse_struct_func);
+    RUN_TEST(test_parse_or_return);
+    RUN_TEST(test_parse_flags_enum);
+    RUN_TEST(test_parse_string_enum);
+    RUN_TEST(test_parse_map_type);
+    RUN_TEST(test_parse_fixed_array);
+    RUN_TEST(test_parse_nested_array);
+    RUN_TEST(test_parse_private_struct_func);
+    RUN_TEST(test_parse_for_each_index);
     PRINT_RESULTS();
     return _test_fail > 0 ? 1 : 0;
 }

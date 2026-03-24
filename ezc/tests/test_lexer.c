@@ -274,6 +274,29 @@ static void test_caret_token(void) {
     ASSERT_EQ(next(l).type, TOK_IDENT);
 }
 
+static void test_float_with_underscores(void) {
+    Lexer *l = lex("3.141_592_653");
+    Token t = next(l);
+    ASSERT_EQ(t.type, TOK_FLOAT);
+    ASSERT_STR_EQ(t.literal, "3.141_592_653");
+}
+
+static void test_interpolation_tokens(void) {
+    /* Interpolated string starts as a string token */
+    Lexer *l = lex("\"hello ${name}\"");
+    Token t = next(l);
+    ASSERT_EQ(t.type, TOK_STRING);
+}
+
+static void test_bang_in_vs_bang(void) {
+    /* !in should be NOT_IN, ! alone should be BANG */
+    Lexer *l = lex("!in x !y");
+    ASSERT_EQ(next(l).type, TOK_NOT_IN);
+    ASSERT_EQ(next(l).type, TOK_IDENT); /* x */
+    ASSERT_EQ(next(l).type, TOK_BANG);
+    ASSERT_EQ(next(l).type, TOK_IDENT); /* y */
+}
+
 int main(void) {
     arena = arena_create(64 * 1024);
     printf("\n");
@@ -304,6 +327,9 @@ int main(void) {
     RUN_TEST(test_binary_literal);
     RUN_TEST(test_or_return_keyword);
     RUN_TEST(test_caret_token);
+    RUN_TEST(test_float_with_underscores);
+    RUN_TEST(test_interpolation_tokens);
+    RUN_TEST(test_bang_in_vs_bang);
     PRINT_RESULTS();
     return _test_fail > 0 ? 1 : 0;
 }
