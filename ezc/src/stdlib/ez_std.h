@@ -54,4 +54,7 @@ EzString ez_std_to_string_int(EzArena *arena, int64_t v);
 EzString ez_std_to_string_float(EzArena *arena, double v);
 EzString ez_std_to_string_bool(EzArena *arena, bool v);
 
+/* Format float for interpolation — always shows decimal point */
+EzString ez_std_format_float(EzArena *arena, double v);
+
 #endif
