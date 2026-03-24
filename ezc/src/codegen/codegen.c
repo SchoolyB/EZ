@@ -1793,7 +1793,25 @@ static void emit_call_expression(CodeGen *cg, AstNode *node) {
                 needs_addr = target_func->data.func_decl.params[i].mutable;
             }
             if (needs_addr && node->data.call.args[i]->kind == NODE_LABEL) {
-                emitf(cg, "&%s", node->data.call.args[i]->data.label.value);
+                const char *var_name = node->data.call.args[i]->data.label.value;
+                if (is_mutable_param(cg, var_name)) {
+                    /* Already a pointer — pass through */
+                    emit(cg, var_name);
+                } else {
+                    emitf(cg, "&%s", var_name);
+                }
+            } else if (needs_addr && node->data.call.args[i]->kind == NODE_INDEX_EXPR) {
+                /* Mutable param on array element: pass pointer to element */
+                AstNode *idx_node = node->data.call.args[i];
+                emit(cg, "(int64_t *)ez_array_get_ptr(&");
+                emit_expression(cg, idx_node->data.index_expr.left);
+                emit(cg, ", ");
+                emit_expression(cg, idx_node->data.index_expr.index);
+                emit(cg, ", __FILE__, __LINE__)");
+            } else if (needs_addr && node->data.call.args[i]->kind == NODE_MEMBER_EXPR) {
+                /* Mutable param on struct field: pass address of field */
+                emit(cg, "&");
+                emit_expression(cg, node->data.call.args[i]);
             } else {
                 emit_expression(cg, node->data.call.args[i]);
             }
