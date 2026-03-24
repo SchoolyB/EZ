@@ -472,7 +472,7 @@ import @mem
 mut arena = mem.arena(4096)
 ensure mem.destroy(arena)
 
-mut p ^int = mem.new(arena, int)
+mut p ^int = mem.make(arena, int)
 p^ = 42
 println(mem.usage(arena))  // bytes used
 mem.reset(arena)           // reuse without freeing
@@ -491,6 +491,32 @@ mem.reset(arena)           // reuse without freeing
 
 ---
 
+## Renamed Stdlib Functions
+
+| Old Name | New Name | Reason |
+|----------|----------|--------|
+| `time.make()` | `time.timestamp()` | Clearer — creates a timestamp from year/month/day components |
+| `uuid.create()` | `uuid.generate()` | Describes what it does |
+| `uuid.create_compact()` | `uuid.generate_compact()` | Same |
+| `mem.new()` | `mem.make()` | Avoids collision with global `new()` builtin. Pairs with `mem.destroy()` |
+
+## Ambiguity Detection (E4008)
+
+When multiple modules brought in via `using` export the same function name, calling it unqualified is now an error:
+
+```ez
+import @arrays, @strings
+using arrays, strings
+
+// ERROR: ambiguous function 'contains' — found in modules: arrays, strings
+// Use explicit prefix: arrays.contains() or strings.contains()
+contains(my_arr, "hello")
+```
+
+The fix is always to qualify with the module prefix: `arrays.contains(my_arr, "hello")`.
+
+---
+
 ## Removed / Deprecated
 
 | Item | Status |
@@ -505,3 +531,7 @@ mem.reset(arena)           // reuse without freeing
 | E2049 (when-nil-condition) | **Removed** — nil now allowed in `when` |
 | `@db` module (interpreter) | **Being replaced** by `@sqlite` |
 | Static `server.route()` API | **Replaced** by function reference handlers |
+| `time.make()` | **Renamed** to `time.timestamp()` |
+| `uuid.create()` | **Renamed** to `uuid.generate()` |
+| `uuid.create_compact()` | **Renamed** to `uuid.generate_compact()` |
+| `mem.new()` (EZC) | **Renamed** to `mem.make()` |
