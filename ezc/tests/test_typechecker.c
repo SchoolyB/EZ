@@ -291,6 +291,57 @@ static void test_resolve_addr(void) {
     ASSERT_EQ(t->kind, TK_POINTER);
 }
 
+/* Helper: parse and typecheck, return diagnostics */
+static DiagnosticList *check_diag(const char *input) {
+    DiagnosticList *d = diag_create();
+    d->use_color = false;
+    Lexer *l = lexer_create(arena, input, "test.ez");
+    Parser *p = parser_create(arena, l, "test.ez", d);
+    AstNode *prog = parser_parse_program(p);
+    TypeChecker *tc = typechecker_create(d, "test.ez");
+    typechecker_check(tc, prog);
+    return d;
+}
+
+static void test_error_type_mismatch(void) {
+    DiagnosticList *d = check_diag(
+        "do main() { mut x string = 42 }");
+    ASSERT(diag_has_errors(d));
+}
+
+static void test_error_wrong_arg_count(void) {
+    DiagnosticList *d = check_diag(
+        "do add(a int, b int) -> int { return a + b }\n"
+        "do main() { add(1, 2, 3) }");
+    ASSERT(diag_has_errors(d));
+}
+
+static void test_error_deref_non_pointer(void) {
+    DiagnosticList *d = check_diag(
+        "do main() { mut x int = 42\n mut y = x^ }");
+    ASSERT(diag_has_errors(d));
+}
+
+static void test_resolve_map_type(void) {
+    EzType *t = expr_type("{\"a\": 1}");
+    ASSERT_NOT_NULL(t);
+    ASSERT_EQ(t->kind, TK_MAP);
+}
+
+static void test_resolve_string_enum(void) {
+    TypeTable *tt = check(
+        "const Status enum { TODO = \"todo\" DONE = \"done\" }\n"
+        "do main() { mut s = Status.TODO }");
+    (void)tt;
+    /* Should not crash — string enum member resolves correctly */
+}
+
+static void test_type_from_name_map(void) {
+    EzType *t = type_from_name("map[string:int]");
+    ASSERT_NOT_NULL(t);
+    ASSERT_EQ(t->kind, TK_MAP);
+}
+
 int main(void) {
     arena = arena_create(256 * 1024);
     printf("\n");
@@ -339,6 +390,16 @@ int main(void) {
     RUN_TEST(test_type_from_name_pointer);
     RUN_TEST(test_type_pointer_constructor);
     RUN_TEST(test_resolve_addr);
+
+    /* Error detection tests */
+    RUN_TEST(test_error_type_mismatch);
+    RUN_TEST(test_error_wrong_arg_count);
+    RUN_TEST(test_error_deref_non_pointer);
+
+    /* Map/enum type tests */
+    RUN_TEST(test_resolve_map_type);
+    RUN_TEST(test_resolve_string_enum);
+    RUN_TEST(test_type_from_name_map);
 
     PRINT_RESULTS();
     return _test_fail > 0 ? 1 : 0;
