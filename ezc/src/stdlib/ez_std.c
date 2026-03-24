@@ -24,7 +24,17 @@ void ez_std_println_int(int64_t v) {
 }
 
 void ez_std_println_float(double v) {
-    printf("%g\n", v);
+    /* Match interpreter: print full precision, always show decimal point */
+    char buf[64];
+    snprintf(buf, sizeof(buf), "%.15g", v);
+    /* Ensure there's always a decimal point for whole-number floats */
+    if (!strchr(buf, '.') && !strchr(buf, 'e')) {
+        size_t len = strlen(buf);
+        buf[len] = '.';
+        buf[len+1] = '0';
+        buf[len+2] = '\0';
+    }
+    printf("%s\n", buf);
 }
 
 void ez_std_println_bool(bool v) {
@@ -135,7 +145,13 @@ EzString ez_std_to_string_int(EzArena *arena, int64_t v) {
 
 EzString ez_std_to_string_float(EzArena *arena, double v) {
     char buf[64];
-    int len = snprintf(buf, sizeof(buf), "%g", v);
+    int len = snprintf(buf, sizeof(buf), "%.15g", v);
+    /* Ensure decimal point for whole-number floats */
+    if (!strchr(buf, '.') && !strchr(buf, 'e')) {
+        buf[len++] = '.';
+        buf[len++] = '0';
+        buf[len] = '\0';
+    }
     return ez_string_new(arena, buf, (int32_t)len);
 }
 

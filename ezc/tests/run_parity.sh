@@ -36,14 +36,9 @@ SKIP=0
 COMPILE_FAIL=0
 TOTAL=0
 
-# Examples that use features not yet implemented in EZC
+# Examples that use features not yet fully working in EZC
 SKIP_LIST=(
-    "control_flow"   # #strict attribute
-    "ensure"         # @io stdlib
-    "functions"      # named return var initialization
-    "maps"           # map type
-    "references"     # ref() builtin
-    "structs"        # array-typed struct fields
+    "function_references" # arrays.append inside FCF causes OOM in codegen
 )
 
 should_skip() {
