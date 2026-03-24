@@ -726,6 +726,53 @@ static void test_e2e_binary_literal(void) {
     ASSERT_STR_EQ(out, "10");
 }
 
+/* ===== Threads Tests ===== */
+
+static void test_e2e_threads_spawn_join(void) {
+    char *out = compile_and_run(
+        "import @std, @threads\nusing std\n"
+        "do worker(id int) { println(\"w${id}\") }\n"
+        "do main() {\n"
+        "  mut t1 = threads.spawn(()worker, 1)\n"
+        "  mut t2 = threads.spawn(()worker, 2)\n"
+        "  threads.join(t1)\n"
+        "  threads.join(t2)\n"
+        "  println(\"done\")\n"
+        "}");
+    ASSERT_NOT_NULL(out);
+    /* Output order may vary due to threading, but "done" must be last */
+    ASSERT(strstr(out, "done") != NULL);
+    ASSERT(strstr(out, "w1") != NULL);
+    ASSERT(strstr(out, "w2") != NULL);
+}
+
+static void test_e2e_threads_channel(void) {
+    char *out = compile_and_run(
+        "import @std, @threads\nusing std\n"
+        "do main() {\n"
+        "  mut ch = threads.channel(4)\n"
+        "  threads.send(ch, 42)\n"
+        "  threads.send(ch, 100)\n"
+        "  mut a = threads.recv(ch)\n"
+        "  mut b = threads.recv(ch)\n"
+        "  println(\"${a},${b}\")\n"
+        "  threads.close(ch)\n"
+        "}");
+    ASSERT_NOT_NULL(out);
+    ASSERT_STR_EQ(out, "42,100");
+}
+
+static void test_e2e_threads_sleep(void) {
+    char *out = compile_and_run(
+        "import @std, @threads\nusing std\n"
+        "do main() {\n"
+        "  threads.sleep_ms(10)\n"
+        "  println(\"awake\")\n"
+        "}");
+    ASSERT_NOT_NULL(out);
+    ASSERT_STR_EQ(out, "awake");
+}
+
 int main(void) {
     /* Must run from the ezc/ directory */
     if (access("./ezc", X_OK) != 0) {
@@ -788,6 +835,11 @@ int main(void) {
     RUN_TEST(test_e2e_hex_literal);
     RUN_TEST(test_e2e_octal_literal);
     RUN_TEST(test_e2e_binary_literal);
+
+    /* Threads */
+    RUN_TEST(test_e2e_threads_spawn_join);
+    RUN_TEST(test_e2e_threads_channel);
+    RUN_TEST(test_e2e_threads_sleep);
 
     PRINT_RESULTS();
     return _test_fail > 0 ? 1 : 0;

@@ -1601,6 +1601,83 @@ static bool emit_fmt_call(CodeGen *cg, AstNode *node, const char *func) {
     return false;
 }
 
+static bool emit_threads_call(CodeGen *cg, AstNode *node, const char *func) {
+    if (strcmp(func, "spawn") == 0 && node->data.call.arg_count >= 1) {
+        /* threads.spawn(()func) or threads.spawn(()func, arg) */
+        if (node->data.call.arg_count == 1) {
+            emit(cg, "ez_threads_spawn(");
+            emit_expression(cg, node->data.call.args[0]);
+            emit(cg, ")");
+        } else {
+            emit(cg, "ez_threads_spawn_arg(");
+            emit_expression(cg, node->data.call.args[0]);
+            emit(cg, ", ");
+            emit_expression(cg, node->data.call.args[1]);
+            emit(cg, ")");
+        }
+        return true;
+    }
+    if (strcmp(func, "join") == 0) {
+        emit(cg, "ez_threads_join(");
+        emit_expression(cg, node->data.call.args[0]);
+        emit(cg, ")");
+        return true;
+    }
+    if (strcmp(func, "sleep_ms") == 0) {
+        emit(cg, "ez_threads_sleep_ms(");
+        emit_expression(cg, node->data.call.args[0]);
+        emit(cg, ")");
+        return true;
+    }
+    if (strcmp(func, "id") == 0) {
+        emit(cg, "ez_threads_id()");
+        return true;
+    }
+    if (strcmp(func, "mutex") == 0) {
+        emit(cg, "ez_threads_mutex()");
+        return true;
+    }
+    if (strcmp(func, "lock") == 0) {
+        emit(cg, "ez_threads_lock(");
+        emit_expression(cg, node->data.call.args[0]);
+        emit(cg, ")");
+        return true;
+    }
+    if (strcmp(func, "unlock") == 0) {
+        emit(cg, "ez_threads_unlock(");
+        emit_expression(cg, node->data.call.args[0]);
+        emit(cg, ")");
+        return true;
+    }
+    if (strcmp(func, "channel") == 0) {
+        emit(cg, "ez_threads_channel(");
+        emit_expression(cg, node->data.call.args[0]);
+        emit(cg, ")");
+        return true;
+    }
+    if (strcmp(func, "send") == 0) {
+        emit(cg, "ez_threads_send(");
+        emit_expression(cg, node->data.call.args[0]);
+        emit(cg, ", ");
+        emit_expression(cg, node->data.call.args[1]);
+        emit(cg, ")");
+        return true;
+    }
+    if (strcmp(func, "recv") == 0) {
+        emit(cg, "ez_threads_recv(");
+        emit_expression(cg, node->data.call.args[0]);
+        emit(cg, ")");
+        return true;
+    }
+    if (strcmp(func, "close") == 0) {
+        emit(cg, "ez_threads_channel_close(");
+        emit_expression(cg, node->data.call.args[0]);
+        emit(cg, ")");
+        return true;
+    }
+    return false;
+}
+
 /* --- Main call dispatcher --- */
 
 static void emit_call_expression(CodeGen *cg, AstNode *node) {
@@ -1627,6 +1704,7 @@ static void emit_call_expression(CodeGen *cg, AstNode *node) {
             {"json",     emit_json_call},
             {"sqlite",   emit_sqlite_call},
             {"random",   emit_random_call},
+            {"threads",  emit_threads_call},
             {"arrays",   emit_arrays_call},
             {"os",       emit_os_call},
             {"io",       emit_io_call},
@@ -2475,6 +2553,7 @@ void codegen_generate(CodeGen *cg, AstNode *program) {
     emit(cg, "#include \"ez_csv.h\"\n");
     emit(cg, "#include \"ez_json.h\"\n");
     emit(cg, "#include \"ez_sqlite.h\"\n");
+    emit(cg, "#include \"ez_threads.h\"\n");
     emit(cg, "\n");
 
     /* Emit struct type definitions */
