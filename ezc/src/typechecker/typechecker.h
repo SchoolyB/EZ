@@ -57,6 +57,9 @@ typedef struct {
     int func_count;
     int func_cap;
 
+    /* Program AST (for default param lookup) */
+    AstNode *program;
+
     /* Registered enum names */
     const char **enum_names;
     bool *enum_is_string; /* parallel array: true if string enum */

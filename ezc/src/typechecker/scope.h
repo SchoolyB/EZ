@@ -15,6 +15,9 @@ typedef struct {
     EzType *type;
     bool mutable;
     bool is_ref;         /* true if created via ref() — transparent reference */
+    bool used;           /* true if variable was read */
+    int def_line;        /* line where variable was defined */
+    int def_column;      /* column where variable was defined */
     EzType **ret_types;  /* for multi-return temps: all return types */
     int ret_count;       /* number of return types */
 } Symbol;

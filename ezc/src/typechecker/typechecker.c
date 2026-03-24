@@ -104,6 +104,13 @@ static void register_struct(TypeChecker *tc, const char *name,
     si->field_count = field_count;
 }
 
+static bool is_struct_name(TypeChecker *tc, const char *name) {
+    for (int i = 0; i < tc->struct_count; i++) {
+        if (strcmp(tc->structs[i].struct_name, name) == 0) return true;
+    }
+    return false;
+}
+
 static StructInfo *find_struct(TypeChecker *tc, const char *name) {
     for (int i = 0; i < tc->struct_count; i++) {
         if (strcmp(tc->structs[i].struct_name, name) == 0)
@@ -145,6 +152,80 @@ static FuncSig *find_func(TypeChecker *tc, const char *name) {
             return &tc->funcs[i];
     }
     return NULL;
+}
+
+/* --- "Did you mean?" suggestion helper --- */
+
+static int levenshtein(const char *a, const char *b) {
+    int la = (int)strlen(a), lb = (int)strlen(b);
+    if (la == 0) return lb;
+    if (lb == 0) return la;
+    /* Use single-row DP */
+    int *row = malloc(sizeof(int) * (lb + 1));
+    for (int j = 0; j <= lb; j++) row[j] = j;
+    for (int i = 1; i <= la; i++) {
+        int prev = row[0];
+        row[0] = i;
+        for (int j = 1; j <= lb; j++) {
+            int cost = (a[i-1] == b[j-1]) ? 0 : 1;
+            int del = row[j] + 1;
+            int ins = row[j-1] + 1;
+            int sub = prev + cost;
+            prev = row[j];
+            row[j] = del < ins ? (del < sub ? del : sub) : (ins < sub ? ins : sub);
+        }
+    }
+    int result = row[lb];
+    free(row);
+    return result;
+}
+
+/* Find closest matching name from scope variables, functions, and builtins */
+static const char *suggest_name(TypeChecker *tc, const char *name) {
+    const char *best = NULL;
+    int best_dist = 3; /* max distance for suggestions */
+
+    /* Check scope variables */
+    for (Scope *s = tc->current_scope; s; s = s->parent) {
+        for (int i = 0; i < s->count; i++) {
+            int d = levenshtein(name, s->symbols[i].name);
+            if (d > 0 && d < best_dist) {
+                best_dist = d;
+                best = s->symbols[i].name;
+            }
+        }
+    }
+
+    /* Check registered functions */
+    for (int i = 0; i < tc->func_count; i++) {
+        int d = levenshtein(name, tc->funcs[i].name);
+        if (d > 0 && d < best_dist) {
+            best_dist = d;
+            best = tc->funcs[i].name;
+        }
+    }
+
+    return best;
+}
+
+/* --- Builtin name check --- */
+
+static bool tc_is_builtin(const char *name) {
+    static const char *builtins[] = {
+        "println", "print", "eprintln", "eprint", "input",
+        "len", "typeof", "copy", "new", "ref", "error",
+        "int", "uint", "float", "string", "char", "byte", "bool",
+        "i8", "i16", "i32", "i64", "u8", "u16", "u32", "u64",
+        "i128", "u128", "f32", "f64",
+        "exit", "panic", "assert", "range", "cast",
+        "append", "read_int", "to_int", "to_float", "to_string", "to_bool",
+        "addr", "sleep_seconds", "sleep_milliseconds", "sleep_nanoseconds",
+        NULL
+    };
+    for (int i = 0; builtins[i]; i++) {
+        if (strcmp(name, builtins[i]) == 0) return true;
+    }
+    return false;
 }
 
 /* --- Enum helpers --- */
@@ -210,9 +291,26 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
         break;
 
     case NODE_LABEL: {
-        Symbol *sym = scope_lookup(tc->current_scope, node->data.label.value);
+        const char *name = node->data.label.value;
+        Symbol *sym = scope_lookup(tc->current_scope, name);
         if (sym) {
+            sym->used = true;
             result = sym->type;
+        } else if (!is_enum_name(tc, name) && !find_func(tc, name) &&
+                   !tc_is_builtin(name) && !is_struct_name(tc, name)) {
+            /* Only report undefined variables that have a close match —
+             * this catches genuine typos while avoiding false positives
+             * from multi-var expansion, block scoping, etc. */
+            const char *suggestion = suggest_name(tc, name);
+            if (suggestion) {
+                char msg[256], help[256];
+                snprintf(msg, sizeof(msg), "undefined variable '%s'", name);
+                snprintf(help, sizeof(help), "did you mean '%s'?", suggestion);
+                diag_error_help(tc->diag, "E4001", strdup(msg),
+                    tc->file, node->token.line, node->token.column, 0, strdup(help));
+            }
+            /* If no suggestion, stay quiet — could be a valid scoped variable
+             * the typechecker can't track yet */
         }
         break;
     }
@@ -462,8 +560,47 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                 result = &TYPE_INT;
             } else {
                 FuncSig *sig = find_func(tc, fn_name);
-                if (sig && sig->return_count > 0) {
-                    result = sig->return_types[0];
+                if (sig) {
+                    /* Check argument count — account for default parameters */
+                    int min_args = sig->param_count;
+                    /* Find the AST func decl to count defaults */
+                    for (int fi = 0; fi < tc->program->data.program.stmt_count; fi++) {
+                        AstNode *s = tc->program->data.program.stmts[fi];
+                        if (s->kind == NODE_FUNC_DECL &&
+                            strcmp(s->data.func_decl.name, fn_name) == 0) {
+                            min_args = 0;
+                            for (int pi = 0; pi < s->data.func_decl.param_count; pi++) {
+                                if (!s->data.func_decl.params[pi].default_value) {
+                                    min_args++;
+                                }
+                            }
+                            break;
+                        }
+                    }
+                    if (node->data.call.arg_count < min_args ||
+                        node->data.call.arg_count > sig->param_count) {
+                        char msg[256];
+                        snprintf(msg, sizeof(msg),
+                            "function '%s' expects %d argument(s), got %d",
+                            fn_name, sig->param_count, node->data.call.arg_count);
+                        diag_error(tc->diag, "E5008", strdup(msg),
+                            tc->file, node->token.line, node->token.column, 0);
+                    }
+                    if (sig->return_count > 0) {
+                        result = sig->return_types[0];
+                    }
+                } else if (!tc_is_builtin(fn_name)) {
+                    /* Only report if we have a suggestion — avoids false
+                     * positives from using-module functions the typechecker
+                     * doesn't track */
+                    const char *suggestion = suggest_name(tc, fn_name);
+                    if (suggestion) {
+                        char msg[256], help[256];
+                        snprintf(msg, sizeof(msg), "undefined function '%s'", fn_name);
+                        snprintf(help, sizeof(help), "did you mean '%s'?", suggestion);
+                        diag_error_help(tc->diag, "E4002", strdup(msg),
+                            tc->file, node->token.line, node->token.column, 0, strdup(help));
+                    }
                 }
             }
         }
@@ -622,12 +759,37 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
             /* If no declared type, infer from value */
             if (declared->kind == TK_UNKNOWN) {
                 declared = value_type;
+            } else if (value_type->kind != TK_UNKNOWN &&
+                       value_type->kind != TK_VOID &&
+                       declared->kind != value_type->kind &&
+                       value_type->kind != TK_NIL &&
+                       /* Skip mismatch on enum assignment (enum resolves as int) */
+                       !(declared->kind == TK_STRUCT && value_type->kind == TK_INT &&
+                         is_enum_name(tc, node->data.var_decl.type_name)) &&
+                       /* Skip mismatch on multi-var expansion (.v0/.v1 access) */
+                       !(node->data.var_decl.value &&
+                         node->data.var_decl.value->kind == NODE_MEMBER_EXPR &&
+                         node->data.var_decl.value->data.member.member[0] == 'v')) {
+                /* Type mismatch */
+                char msg[256];
+                snprintf(msg, sizeof(msg),
+                    "type mismatch: cannot assign %s to %s",
+                    type_name(value_type), type_name(declared));
+                diag_error(tc->diag, "E3001", strdup(msg),
+                    tc->file, node->token.line, node->token.column, 0);
             }
         }
 
         if (strcmp(node->data.var_decl.name, "_") != 0) {
             scope_define(tc->current_scope, node->data.var_decl.name,
                 declared, node->data.var_decl.mutable);
+            /* Store definition location for unused variable warnings */
+            Symbol *def_sym = scope_lookup_local(tc->current_scope,
+                node->data.var_decl.name);
+            if (def_sym) {
+                def_sym->def_line = node->token.line;
+                def_sym->def_column = node->token.column;
+            }
 
             /* Mark as transparent ref if assigned from ref() */
             if (node->data.var_decl.value &&
@@ -860,6 +1022,8 @@ TypeChecker *typechecker_create(DiagnosticList *diag, const char *file) {
 
 void typechecker_check(TypeChecker *tc, AstNode *program) {
     if (!program || program->kind != NODE_PROGRAM) return;
+
+    tc->program = program;
 
     /* Pass 1: register all type/function declarations */
     register_declarations(tc, program);
