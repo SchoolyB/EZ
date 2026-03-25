@@ -9,6 +9,8 @@
 #define EZ_STD_H
 
 #include "../runtime/ez_runtime.h"
+#include "../runtime/ez_array.h"
+#include "../runtime/ez_map.h"
 
 /* println(value) - print followed by newline */
 void ez_std_println_str(EzString s);
@@ -56,5 +58,9 @@ EzString ez_std_to_string_bool(EzArena *arena, bool v);
 
 /* Format float for interpolation — always shows decimal point */
 EzString ez_std_format_float(EzArena *arena, double v);
+
+/* Composite type to string */
+EzString ez_std_array_to_string(EzArena *arena, EzArray *arr, int elem_kind);
+EzString ez_std_map_to_string(EzArena *arena, EzMap *m, int val_kind);
 
 #endif

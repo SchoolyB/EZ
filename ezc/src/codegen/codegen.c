@@ -304,12 +304,34 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
                 emit_expression(cg, part);
                 emit(cg, ")");
                 break;
-            case TK_ARRAY:
-                emit(cg, "\"[...]\"");
+            case TK_ARRAY: {
+                /* Determine element kind: 0=int, 1=float, 2=string, 3=bool */
+                int ek = 0;
+                if (t && t->element_type) {
+                    EzType *et = type_from_name(t->element_type);
+                    if (et->kind == TK_FLOAT) ek = 1;
+                    else if (et->kind == TK_STRING) ek = 2;
+                    else if (et->kind == TK_BOOL) ek = 3;
+                }
+                emitf(cg, "ez_std_array_to_string(ez_default_arena, &");
+                emit_expression(cg, part);
+                emitf(cg, ", %d).data", ek);
                 break;
-            case TK_MAP:
-                emit(cg, "\"{...}\"");
+            }
+            case TK_MAP: {
+                /* Determine value kind: 0=int, 1=float, 2=string, 3=bool */
+                int vk = 0;
+                if (t && t->value_type) {
+                    EzType *vt = type_from_name(t->value_type);
+                    if (vt->kind == TK_FLOAT) vk = 1;
+                    else if (vt->kind == TK_STRING) vk = 2;
+                    else if (vt->kind == TK_BOOL) vk = 3;
+                }
+                emitf(cg, "ez_std_map_to_string(ez_default_arena, &");
+                emit_expression(cg, part);
+                emitf(cg, ", %d).data", vk);
                 break;
+            }
             case TK_ERROR:
                 /* Print error message */
                 emit_expression(cg, part);
