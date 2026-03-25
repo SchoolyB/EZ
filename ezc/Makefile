@@ -55,6 +55,7 @@ RT_SRC = src/runtime/ez_runtime.c \
          src/stdlib/ez_json.c \
          src/stdlib/ez_sqlite.c \
          src/stdlib/ez_threads.c \
+         src/stdlib/ez_regex.c \
          src/vendor/sqlite3.c
 RT_OBJ = $(RT_SRC:.c=.o)
 RT_LIB = libezrt.a

@@ -576,6 +576,16 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                 } else {
                     result = &TYPE_VOID;
                 }
+            } else if (strcmp(mod, "regex") == 0) {
+                if (strcmp(mfn, "match") == 0) {
+                    result = &TYPE_BOOL;
+                } else if (strcmp(mfn, "find") == 0 || strcmp(mfn, "replace") == 0) {
+                    result = &TYPE_STRING;
+                } else if (strcmp(mfn, "find_all") == 0 || strcmp(mfn, "split") == 0) {
+                    result = type_array("string");
+                } else {
+                    result = &TYPE_UNKNOWN;
+                }
             } else if (strcmp(mod, "mem") == 0) {
                 if (strcmp(mfn, "make") == 0 && node->data.call.arg_count == 2) {
                     AstNode *type_arg = node->data.call.args[1];
