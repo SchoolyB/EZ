@@ -1199,8 +1199,9 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
             diag_error(tc->diag, "E3006",
                 strdup("missing return value — function expects a return value"),
                 tc->file, node->token.line, node->token.column, 0);
-        } else if (tc->current_return_count > 0 && node->data.return_stmt.count > 0) {
-            /* Check first return value type */
+        } else if (tc->current_return_count > 0 && node->data.return_stmt.count > 0 &&
+                   node->data.return_stmt.count == tc->current_return_count) {
+            /* Check first return value type (skip for or_return synthetic returns) */
             EzType *ret_t = resolve_expr(tc, node->data.return_stmt.values[0]);
             EzType *expected = tc->current_return_types[0];
             if (ret_t->kind != TK_UNKNOWN && expected->kind != TK_UNKNOWN &&
