@@ -700,9 +700,11 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
             }
             emitf(cg, "({ %s _mk = ", c_key);
             emit_expression(cg, node->data.index_expr.index);
-            emitf(cg, "; *(%s *)ez_map_get(&", c_val);
+            emitf(cg, "; void *_mv = ez_map_get(&");
             emit_expression(cg, node->data.index_expr.left);
-            emit(cg, ", &_mk); })");
+            emitf(cg, ", &_mk); if (!_mv) { fflush(stdout); ez_panic(__FILE__, %d, \"key not found in map\"); } ",
+                node->token.line);
+            emitf(cg, "*(%s *)_mv; })", c_val);
         } else {
             /* String indexing or fallback */
             emit_expression(cg, node->data.index_expr.left);
