@@ -10,9 +10,11 @@
 
 EzArray ez_maps_keys(EzArena *arena, EzMap *m) {
     EzArray arr = ez_array_new(arena, m->key_size, m->count > 0 ? m->count : 4);
-    for (int32_t i = 0; i < m->capacity; i++) {
-        if (m->states[i] == 1) {
-            void *key = (char *)m->keys + (size_t)i * (size_t)m->key_size;
+    /* Iterate in insertion order */
+    for (int32_t oi = 0; oi < m->order_len; oi++) {
+        int32_t slot = m->order[oi];
+        if (m->states[slot] == 1) {
+            void *key = (char *)m->keys + (size_t)slot * (size_t)m->key_size;
             ez_array_push(arena, &arr, key);
         }
     }
@@ -21,9 +23,11 @@ EzArray ez_maps_keys(EzArena *arena, EzMap *m) {
 
 EzArray ez_maps_values(EzArena *arena, EzMap *m) {
     EzArray arr = ez_array_new(arena, m->value_size, m->count > 0 ? m->count : 4);
-    for (int32_t i = 0; i < m->capacity; i++) {
-        if (m->states[i] == 1) {
-            void *val = (char *)m->values + (size_t)i * (size_t)m->value_size;
+    /* Iterate in insertion order */
+    for (int32_t oi = 0; oi < m->order_len; oi++) {
+        int32_t slot = m->order[oi];
+        if (m->states[slot] == 1) {
+            void *val = (char *)m->values + (size_t)slot * (size_t)m->value_size;
             ez_array_push(arena, &arr, val);
         }
     }

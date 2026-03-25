@@ -54,9 +54,11 @@ EzMap ez_map_new(EzArena *arena, int32_t key_size, int32_t value_size, int32_t i
     m.value_size = value_size;
     m.count = 0;
     m.capacity = initial_cap;
+    m.order_len = 0;
     m.keys = ez_arena_alloc(arena, (size_t)initial_cap * (size_t)key_size);
     m.values = ez_arena_alloc(arena, (size_t)initial_cap * (size_t)value_size);
     m.states = ez_arena_alloc(arena, (size_t)initial_cap);
+    m.order = ez_arena_alloc(arena, (size_t)initial_cap * sizeof(int32_t));
     memset(m.states, 0, (size_t)initial_cap);
     return m;
 }
@@ -79,19 +81,25 @@ static void rehash(EzArena *arena, EzMap *m) {
     void *old_keys = m->keys;
     void *old_values = m->values;
     uint8_t *old_states = m->states;
+    int32_t *old_order = m->order;
+    int32_t old_order_len = m->order_len;
 
     m->capacity = old_cap * 2;
     m->keys = ez_arena_alloc(arena, (size_t)m->capacity * (size_t)m->key_size);
     m->values = ez_arena_alloc(arena, (size_t)m->capacity * (size_t)m->value_size);
     m->states = ez_arena_alloc(arena, (size_t)m->capacity);
+    m->order = ez_arena_alloc(arena, (size_t)m->capacity * sizeof(int32_t));
     memset(m->states, 0, (size_t)m->capacity);
     m->count = 0;
+    m->order_len = 0;
 
-    for (int32_t i = 0; i < old_cap; i++) {
-        if (old_states[i] == 1) {
+    /* Re-insert in original insertion order to preserve it */
+    for (int32_t i = 0; i < old_order_len; i++) {
+        int32_t slot = old_order[i];
+        if (old_states[slot] == 1) {
             ez_map_set(arena, m,
-                (char *)old_keys + (size_t)i * (size_t)m->key_size,
-                (char *)old_values + (size_t)i * (size_t)m->value_size);
+                (char *)old_keys + (size_t)slot * (size_t)m->key_size,
+                (char *)old_values + (size_t)slot * (size_t)m->value_size);
         }
     }
 }
@@ -117,6 +125,7 @@ void ez_map_set(EzArena *arena, EzMap *m, const void *key, const void *value) {
             memcpy(key_ptr(m, probe), key, (size_t)m->key_size);
             memcpy(val_ptr(m, probe), value, (size_t)m->value_size);
             m->states[probe] = 1;
+            if (m->order) m->order[m->order_len++] = probe;
             m->count++;
             return;
         }
@@ -137,6 +146,17 @@ bool ez_map_remove(EzMap *m, const void *key) {
     if (idx < 0) return false;
     m->states[idx] = 2; /* tombstone */
     m->count--;
+    /* Remove from order array */
+    if (m->order) {
+        for (int32_t i = 0; i < m->order_len; i++) {
+            if (m->order[i] == idx) {
+                memmove(&m->order[i], &m->order[i+1],
+                    (size_t)(m->order_len - i - 1) * sizeof(int32_t));
+                m->order_len--;
+                break;
+            }
+        }
+    }
     return true;
 }
 
