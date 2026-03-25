@@ -365,6 +365,17 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
             break;
         }
 
+        /* String + non-string: only string + string is valid for concat */
+        if (strcmp(op, "+") == 0 &&
+            ((left->kind == TK_STRING && right->kind != TK_STRING && right->kind != TK_UNKNOWN) ||
+             (right->kind == TK_STRING && left->kind != TK_STRING && left->kind != TK_UNKNOWN))) {
+            char msg[256];
+            snprintf(msg, sizeof(msg),
+                "cannot add %s and %s — use to_string() to convert", type_name(left), type_name(right));
+            diag_error(tc->diag, "E3002", strdup(msg),
+                tc->file, node->token.line, node->token.column, 0);
+        }
+
         /* Arithmetic on strings (other than + for concat) */
         if ((left->kind == TK_STRING || right->kind == TK_STRING) &&
             strcmp(op, "+") != 0 && strcmp(op, "==") != 0 && strcmp(op, "!=") != 0 &&
@@ -428,7 +439,18 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
             }
         } else if (strcmp(node->data.postfix.op, "++") == 0 ||
                    strcmp(node->data.postfix.op, "--") == 0) {
-            /* ++ and -- only valid on numeric types */
+            /* ++ and -- only valid on mutable numeric types */
+            if (node->data.postfix.left->kind == NODE_LABEL) {
+                Symbol *sym = scope_lookup(tc->current_scope, node->data.postfix.left->data.label.value);
+                if (sym && !sym->mutable) {
+                    char msg[256];
+                    snprintf(msg, sizeof(msg),
+                        "cannot modify constant '%s' — declare with 'mut' to make it mutable",
+                        node->data.postfix.left->data.label.value);
+                    diag_error(tc->diag, "E3005", strdup(msg),
+                        tc->file, node->token.line, node->token.column, 0);
+                }
+            }
             if (left_t->kind != TK_UNKNOWN && !type_is_numeric(left_t)) {
                 char msg[256];
                 snprintf(msg, sizeof(msg),
@@ -1094,23 +1116,33 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
         EzType *target_t = resolve_expr(tc, node->data.assign.target);
         EzType *value_t = resolve_expr(tc, node->data.assign.value);
 
-        /* Check for assignment to const variable */
+        /* Check for assignment to const variable (direct, index, or field) */
         AstNode *target = node->data.assign.target;
+        const char *const_name = NULL;
         if (target->kind == NODE_LABEL) {
             Symbol *sym = scope_lookup(tc->current_scope, target->data.label.value);
-            if (sym && !sym->mutable) {
-                char msg[256];
-                snprintf(msg, sizeof(msg),
-                    "cannot assign to constant '%s' — declare with 'mut' to make it mutable",
-                    target->data.label.value);
-                diag_error(tc->diag, "E3005", strdup(msg),
-                    tc->file, node->token.line, node->token.column, 0);
-            }
-            /* Check type mismatch on assignment */
+            if (sym && !sym->mutable) const_name = target->data.label.value;
+        } else if (target->kind == NODE_INDEX_EXPR && target->data.index_expr.left->kind == NODE_LABEL) {
+            Symbol *sym = scope_lookup(tc->current_scope, target->data.index_expr.left->data.label.value);
+            if (sym && !sym->mutable) const_name = target->data.index_expr.left->data.label.value;
+        } else if (target->kind == NODE_MEMBER_EXPR && target->data.member.object->kind == NODE_LABEL) {
+            Symbol *sym = scope_lookup(tc->current_scope, target->data.member.object->data.label.value);
+            if (sym && !sym->mutable) const_name = target->data.member.object->data.label.value;
+        }
+        if (const_name) {
+            char msg[256];
+            snprintf(msg, sizeof(msg),
+                "cannot modify constant '%s' — declare with 'mut' to make it mutable",
+                const_name);
+            diag_error(tc->diag, "E3005", strdup(msg),
+                tc->file, node->token.line, node->token.column, 0);
+        }
+        /* Check type mismatch on assignment (only for direct variable targets) */
+        if (target->kind == NODE_LABEL) {
+            Symbol *sym = scope_lookup(tc->current_scope, target->data.label.value);
             if (sym && sym->type->kind != TK_UNKNOWN && value_t->kind != TK_UNKNOWN &&
                 target_t->kind != TK_UNKNOWN &&
                 target_t->kind != value_t->kind &&
-                !(target_t->kind == TK_INT && value_t->kind == TK_BOOL) &&
                 !(target_t->kind == TK_ENUM && value_t->kind == TK_INT) &&
                 !(target_t->kind == TK_INT && value_t->kind == TK_ENUM) &&
                 !(target_t->kind == TK_STRUCT && value_t->kind == TK_INT)) {
@@ -1120,6 +1152,24 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
                     type_name(value_t), type_name(target_t), target->data.label.value);
                 diag_error(tc->diag, "E3001", strdup(msg),
                     tc->file, node->token.line, node->token.column, 0);
+            }
+        }
+        /* Check type mismatch on struct field assignment */
+        if (target->kind == NODE_MEMBER_EXPR && target->data.member.object->kind == NODE_LABEL) {
+            Symbol *sym = scope_lookup(tc->current_scope, target->data.member.object->data.label.value);
+            if (sym && sym->type->kind == TK_STRUCT) {
+                EzType *field_t = struct_field_type(tc, sym->type->name, target->data.member.member);
+                if (field_t->kind != TK_UNKNOWN && value_t->kind != TK_UNKNOWN &&
+                    field_t->kind != value_t->kind &&
+                    !(field_t->kind == TK_INT && value_t->kind == TK_ENUM) &&
+                    !(field_t->kind == TK_FLOAT && value_t->kind == TK_INT)) {
+                    char msg[256];
+                    snprintf(msg, sizeof(msg),
+                        "type mismatch: cannot assign %s to %s field '%s'",
+                        type_name(value_t), type_name(field_t), target->data.member.member);
+                    diag_error(tc->diag, "E3001", strdup(msg),
+                        tc->file, node->token.line, node->token.column, 0);
+                }
             }
         }
         break;
@@ -1133,6 +1183,11 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
         if (tc->current_return_count == 0 && node->data.return_stmt.count > 0) {
             /* Returning a value from a void function */
             diag_error(tc->diag, "E3006", strdup("cannot return a value from a void function"),
+                tc->file, node->token.line, node->token.column, 0);
+        } else if (tc->current_return_count > 0 && node->data.return_stmt.count == 0) {
+            /* Bare return in non-void function */
+            diag_error(tc->diag, "E3006",
+                strdup("missing return value — function expects a return value"),
                 tc->file, node->token.line, node->token.column, 0);
         } else if (tc->current_return_count > 0 && node->data.return_stmt.count > 0) {
             /* Check first return value type */
