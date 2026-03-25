@@ -13,6 +13,25 @@ func filterEzFiles(cmd *cobra.Command, args []string, toComplete string) ([]cobr
 	return []cobra.Completion{"ez"}, cobra.ShellCompDirectiveFilterFileExt
 }
 
+var runCmd = &cobra.Command{
+	Use:               "run [file.ez]",
+	Short:             "Compile and run an EZ source file",
+	Args:              cobra.MinimumNArgs(1),
+	ValidArgsFunction: filterEzFiles,
+	Run: func(cmd *cobra.Command, args []string) {
+		var extraArgs []string
+		if len(args) > 1 {
+			extraArgs = args[1:]
+		}
+		code, err := ezc.Run(args[0], extraArgs)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "error: %v\n", err)
+			os.Exit(1)
+		}
+		os.Exit(code)
+	},
+}
+
 var checkCmd = &cobra.Command{
 	Use:               "check [file.ez | directory]",
 	Short:             "Type-check a file or project without compiling",
@@ -136,7 +155,7 @@ var rootCmd = &cobra.Command{
 }
 
 func init() {
-	rootCmd.AddCommand(replCmd, updateCmd, checkCmd, buildCmd, versionCmd, docCmd, pzCmd, watchCmd)
+	rootCmd.AddCommand(runCmd, replCmd, updateCmd, checkCmd, buildCmd, versionCmd, docCmd, pzCmd, watchCmd)
 	rootCmd.PersistentPreRun = func(cmd *cobra.Command, args []string) {
 		CheckForUpdateAsync()
 	}
