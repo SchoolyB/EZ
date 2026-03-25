@@ -1267,6 +1267,54 @@ static bool emit_uuid_call(CodeGen *cg, AstNode *node, const char *func) {
     return false;
 }
 
+/* --- @regex module --- */
+
+static bool emit_regex_call(CodeGen *cg, AstNode *node, const char *func) {
+    if (strcmp(func, "match") == 0 && node->data.call.arg_count == 2) {
+        emit(cg, "ez_regex_match(");
+        emit_expression(cg, node->data.call.args[0]);
+        emit(cg, ", ");
+        emit_expression(cg, node->data.call.args[1]);
+        emit(cg, ")");
+        return true;
+    }
+    if (strcmp(func, "find") == 0 && node->data.call.arg_count == 2) {
+        emit(cg, "ez_regex_find(ez_default_arena, ");
+        emit_expression(cg, node->data.call.args[0]);
+        emit(cg, ", ");
+        emit_expression(cg, node->data.call.args[1]);
+        emit(cg, ")");
+        return true;
+    }
+    if (strcmp(func, "find_all") == 0 && node->data.call.arg_count == 2) {
+        emit(cg, "ez_regex_find_all(ez_default_arena, ");
+        emit_expression(cg, node->data.call.args[0]);
+        emit(cg, ", ");
+        emit_expression(cg, node->data.call.args[1]);
+        emit(cg, ")");
+        return true;
+    }
+    if (strcmp(func, "replace") == 0 && node->data.call.arg_count == 3) {
+        emit(cg, "ez_regex_replace(ez_default_arena, ");
+        emit_expression(cg, node->data.call.args[0]);
+        emit(cg, ", ");
+        emit_expression(cg, node->data.call.args[1]);
+        emit(cg, ", ");
+        emit_expression(cg, node->data.call.args[2]);
+        emit(cg, ")");
+        return true;
+    }
+    if (strcmp(func, "split") == 0 && node->data.call.arg_count == 2) {
+        emit(cg, "ez_regex_split(ez_default_arena, ");
+        emit_expression(cg, node->data.call.args[0]);
+        emit(cg, ", ");
+        emit_expression(cg, node->data.call.args[1]);
+        emit(cg, ")");
+        return true;
+    }
+    return false;
+}
+
 /* --- @encoding module --- */
 
 static bool emit_encoding_call(CodeGen *cg, AstNode *node, const char *func) {
@@ -1800,6 +1848,7 @@ static void emit_call_expression(CodeGen *cg, AstNode *node) {
             {"io",       emit_io_call},
             {"strings",  emit_strings_call},
             {"fmt",      emit_fmt_call},
+            {"regex",    emit_regex_call},
         };
         if (module) {
             for (int i = 0; i < (int)(sizeof(modules) / sizeof(modules[0])); i++) {
@@ -2774,6 +2823,7 @@ void codegen_generate(CodeGen *cg, AstNode *program) {
     emit(cg, "#include \"ez_json.h\"\n");
     emit(cg, "#include \"ez_sqlite.h\"\n");
     emit(cg, "#include \"ez_threads.h\"\n");
+    emit(cg, "#include \"ez_regex.h\"\n");
     emit(cg, "\n");
 
     /* Emit struct type definitions */
