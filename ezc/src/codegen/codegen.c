@@ -532,24 +532,18 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
             break;
         }
 
-        /* Normal infix — smart parens */
-        bool needs_parens = true;
-        NodeKind lk = node->data.infix.left->kind;
-        NodeKind rk = node->data.infix.right->kind;
-        bool l_simple = (lk == NODE_LABEL || lk == NODE_INT_VALUE ||
-                        lk == NODE_FLOAT_VALUE || lk == NODE_MEMBER_EXPR ||
-                        lk == NODE_CALL_EXPR || lk == NODE_BOOL_VALUE);
-        bool r_simple = (rk == NODE_LABEL || rk == NODE_INT_VALUE ||
-                        rk == NODE_FLOAT_VALUE || rk == NODE_MEMBER_EXPR ||
-                        rk == NODE_CALL_EXPR || rk == NODE_BOOL_VALUE);
-        if (l_simple && r_simple) {
-            needs_parens = false;
-        }
-        if (needs_parens) emit(cg, "(");
+        /* Normal infix — always wrap sub-infix expressions in parens to
+         * preserve the precedence the parser established via the AST shape.
+         * Without this, (x + y) * z would emit as x + y * z. */
+        bool l_infix = (node->data.infix.left->kind == NODE_INFIX_EXPR);
+        bool r_infix = (node->data.infix.right->kind == NODE_INFIX_EXPR);
+        if (l_infix) emit(cg, "(");
         emit_expression(cg, node->data.infix.left);
+        if (l_infix) emit(cg, ")");
         emitf(cg, " %s ", op);
+        if (r_infix) emit(cg, "(");
         emit_expression(cg, node->data.infix.right);
-        if (needs_parens) emit(cg, ")");
+        if (r_infix) emit(cg, ")");
         break;
     }
 
