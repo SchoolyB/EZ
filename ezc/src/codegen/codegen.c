@@ -554,10 +554,11 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
 
     case NODE_POSTFIX_EXPR:
         if (strcmp(node->data.postfix.op, "^") == 0) {
-            /* Pointer dereference: p^ → (*p) */
-            emit(cg, "(*");
+            /* Pointer dereference: p^ → (*p) with nil check */
+            emit(cg, "({ __auto_type _dp = ");
             emit_expression(cg, node->data.postfix.left);
-            emit(cg, ")");
+            emitf(cg, "; if (!_dp) { fflush(stdout); ez_panic(__FILE__, %d, "
+                "\"nil pointer dereference\"); } *_dp; })", node->token.line);
         } else {
             emit_expression(cg, node->data.postfix.left);
             emit(cg, node->data.postfix.op);
@@ -2135,6 +2136,19 @@ static void emit_assign_statement(CodeGen *cg, AstNode *node) {
             emit(cg, ", &_mk, &_mv); }\n");
             return;
         }
+    }
+
+    /* Pointer dereference assignment: p^ = value → nil check + *p = value */
+    if (node->data.assign.target->kind == NODE_POSTFIX_EXPR &&
+        strcmp(node->data.assign.target->data.postfix.op, "^") == 0) {
+        emit(cg, "{ __auto_type _dp = ");
+        emit_expression(cg, node->data.assign.target->data.postfix.left);
+        emitf(cg, "; if (!_dp) { fflush(stdout); ez_panic(__FILE__, %d, "
+            "\"nil pointer dereference\"); } *_dp", node->token.line);
+        emitf(cg, " %s ", node->data.assign.op);
+        emit_expression(cg, node->data.assign.value);
+        emit(cg, "; }\n");
+        return;
     }
 
     /* Default assignment */
