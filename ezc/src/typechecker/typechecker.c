@@ -292,6 +292,19 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
 
     case NODE_LABEL: {
         const char *name = node->data.label.value;
+
+        /* Check if a type name is being used as a value */
+        if (strcmp(name, "int") == 0 || strcmp(name, "uint") == 0 ||
+            strcmp(name, "float") == 0 || strcmp(name, "string") == 0 ||
+            strcmp(name, "bool") == 0 || strcmp(name, "char") == 0 ||
+            strcmp(name, "byte") == 0 || strcmp(name, "void") == 0) {
+            char msg[256];
+            snprintf(msg, sizeof(msg),
+                "'%s' is a type, not a value — did you mean to declare a variable?", name);
+            diag_error(tc->diag, "E3011", strdup(msg),
+                tc->file, node->token.line, node->token.column, 0);
+        }
+
         Symbol *sym = scope_lookup(tc->current_scope, name);
         if (sym) {
             sym->used = true;
@@ -319,6 +332,14 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
         if (strcmp(node->data.prefix.op, "!") == 0) {
             result = &TYPE_BOOL;
         } else if (strcmp(node->data.prefix.op, "-") == 0) {
+            if (right->kind != TK_UNKNOWN && !type_is_numeric(right)) {
+                char msg[256];
+                snprintf(msg, sizeof(msg),
+                    "cannot negate type '%s' — only numeric types support negation",
+                    type_name(right));
+                diag_error(tc->diag, "E3007", strdup(msg),
+                    tc->file, node->token.line, node->token.column, 0);
+            }
             result = right;
         } else {
             result = right;
@@ -342,6 +363,34 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                 tc->file, node->token.line, node->token.column, 0);
             result = &TYPE_BOOL;
             break;
+        }
+
+        /* Arithmetic on strings (other than + for concat) */
+        if ((left->kind == TK_STRING || right->kind == TK_STRING) &&
+            strcmp(op, "+") != 0 && strcmp(op, "==") != 0 && strcmp(op, "!=") != 0 &&
+            strcmp(op, "in") != 0 && strcmp(op, "not_in") != 0 && strcmp(op, "!in") != 0) {
+            char msg[256];
+            snprintf(msg, sizeof(msg),
+                "cannot use '%s' on string type", op);
+            diag_error(tc->diag, "E3002", strdup(msg),
+                tc->file, node->token.line, node->token.column, 0);
+        }
+
+        /* Comparison of incompatible types (e.g., int == string) */
+        if ((strcmp(op, "==") == 0 || strcmp(op, "!=") == 0) &&
+            left->kind != TK_UNKNOWN && right->kind != TK_UNKNOWN &&
+            left->kind != right->kind && left->kind != TK_NIL && right->kind != TK_NIL &&
+            !(left->kind == TK_INT && right->kind == TK_ENUM) &&
+            !(left->kind == TK_ENUM && right->kind == TK_INT) &&
+            !(left->kind == TK_STRUCT && right->kind == TK_INT) &&
+            !(left->kind == TK_INT && right->kind == TK_STRUCT) &&
+            !(left->kind == TK_INT && right->kind == TK_BOOL) &&
+            !(left->kind == TK_BOOL && right->kind == TK_INT)) {
+            char msg[256];
+            snprintf(msg, sizeof(msg),
+                "cannot compare %s with %s", type_name(left), type_name(right));
+            diag_error(tc->diag, "E3001", strdup(msg),
+                tc->file, node->token.line, node->token.column, 0);
         }
 
         if (strcmp(op, "==") == 0 || strcmp(op, "!=") == 0 ||
@@ -655,7 +704,16 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
         if (fn_name) {
             /* Check built-in functions first */
             if ((strcmp(fn_name, "addr") == 0 || strcmp(fn_name, "ref") == 0) && node->data.call.arg_count == 1) {
-                EzType *arg_t = resolve_expr(tc, node->data.call.args[0]);
+                AstNode *arg = node->data.call.args[0];
+                /* addr() requires an lvalue (variable, field, index) */
+                if (strcmp(fn_name, "addr") == 0 &&
+                    arg->kind != NODE_LABEL && arg->kind != NODE_MEMBER_EXPR &&
+                    arg->kind != NODE_INDEX_EXPR) {
+                    diag_error(tc->diag, "E3012",
+                        strdup("addr() requires a variable, field, or index expression — cannot take address of a literal or expression"),
+                        tc->file, node->token.line, node->token.column, 0);
+                }
+                EzType *arg_t = resolve_expr(tc, arg);
                 result = type_pointer(type_name(arg_t));
             } else if (strcmp(fn_name, "len") == 0 || strcmp(fn_name, "to_int") == 0) {
                 result = &TYPE_INT;
@@ -798,6 +856,13 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
             Symbol *sym = scope_lookup(tc->current_scope, obj_name);
             if (sym && sym->type->kind == TK_STRUCT) {
                 result = struct_field_type(tc, sym->type->name, member);
+                if (result->kind == TK_UNKNOWN && member[0] != 'v') {
+                    char msg[256];
+                    snprintf(msg, sizeof(msg),
+                        "struct '%s' has no field '%s'", sym->type->name, member);
+                    diag_error(tc->diag, "E3010", strdup(msg),
+                        tc->file, node->token.line, node->token.column, 0);
+                }
             } else if (sym && member[0] == 'v' && member[1] >= '0' && member[1] <= '9') {
                 /* Multi-return .v0/.v1/.v2 access — use stored return types */
                 int idx = member[1] - '0';
@@ -832,6 +897,13 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
             result = type_from_name(left->value_type);
         } else if (left->kind == TK_STRING) {
             result = &TYPE_CHAR;
+        } else if (left->kind != TK_UNKNOWN) {
+            char msg[256];
+            snprintf(msg, sizeof(msg),
+                "type '%s' does not support indexing — only arrays, maps, and strings can be indexed",
+                type_name(left));
+            diag_error(tc->diag, "E3008", strdup(msg),
+                tc->file, node->token.line, node->token.column, 0);
         }
         break;
     }
@@ -862,13 +934,46 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
         break;
     }
 
-    case NODE_STRUCT_VALUE:
-        /* Resolve field value types */
+    case NODE_STRUCT_VALUE: {
+        const char *sname = node->data.struct_value.name;
+        StructInfo *si = find_struct(tc, sname);
         for (int i = 0; i < node->data.struct_value.count; i++) {
-            resolve_expr(tc, node->data.struct_value.field_values[i]);
+            EzType *val_t = resolve_expr(tc, node->data.struct_value.field_values[i]);
+            /* Validate field exists */
+            if (si && node->data.struct_value.field_names[i]) {
+                const char *fname = node->data.struct_value.field_names[i];
+                bool found = false;
+                EzType *expected_t = NULL;
+                for (int j = 0; j < si->field_count; j++) {
+                    if (strcmp(si->field_names[j], fname) == 0) {
+                        found = true;
+                        expected_t = si->field_types[j];
+                        break;
+                    }
+                }
+                if (!found) {
+                    char msg[256];
+                    snprintf(msg, sizeof(msg),
+                        "struct '%s' has no field '%s'", sname, fname);
+                    diag_error(tc->diag, "E3010", strdup(msg),
+                        tc->file, node->token.line, node->token.column, 0);
+                } else if (expected_t && val_t->kind != TK_UNKNOWN &&
+                           expected_t->kind != TK_UNKNOWN &&
+                           expected_t->kind != val_t->kind &&
+                           !(expected_t->kind == TK_INT && val_t->kind == TK_ENUM) &&
+                           !(expected_t->kind == TK_FLOAT && val_t->kind == TK_INT)) {
+                    char msg[256];
+                    snprintf(msg, sizeof(msg),
+                        "field '%s' of struct '%s': expected %s, got %s",
+                        fname, sname, type_name(expected_t), type_name(val_t));
+                    diag_error(tc->diag, "E3001", strdup(msg),
+                        tc->file, node->token.line, node->token.column, 0);
+                }
+            }
         }
-        result = type_struct(node->data.struct_value.name);
+        result = type_struct(sname);
         break;
+    }
 
     case NODE_RANGE_EXPR:
         result = &TYPE_INT;
@@ -1087,6 +1192,17 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
         /* Resolve collection type to determine element type */
         EzType *coll_t = resolve_expr(tc, node->data.for_each.collection);
 
+        /* Check that collection is iterable */
+        if (coll_t->kind != TK_UNKNOWN && coll_t->kind != TK_ARRAY &&
+            coll_t->kind != TK_MAP && coll_t->kind != TK_STRING) {
+            char msg[256];
+            snprintf(msg, sizeof(msg),
+                "cannot iterate over type '%s' — for_each requires an array, map, or string",
+                type_name(coll_t));
+            diag_error(tc->diag, "E3009", strdup(msg),
+                tc->file, node->token.line, node->token.column, 0);
+        }
+
         if (coll_t->kind == TK_MAP) {
             /* Map iteration: for_each k, v in map OR for_each key in map */
             EzType *key_t = coll_t->key_type ? type_from_name(coll_t->key_type) : &TYPE_STRING;
@@ -1225,7 +1341,38 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
 
 /* --- Registration pass --- */
 
+/* Known stdlib module names */
+static bool is_valid_module(const char *name) {
+    static const char *modules[] = {
+        "std", "math", "strings", "arrays", "maps", "io", "os", "time",
+        "random", "json", "csv", "encoding", "crypto", "uuid", "bytes",
+        "binary", "fmt", "http", "server", "regex", "net", "threads",
+        "mem", "sqlite", "errors", "db", NULL
+    };
+    for (int i = 0; modules[i]; i++) {
+        if (strcmp(name, modules[i]) == 0) return true;
+    }
+    return false;
+}
+
 static void register_declarations(TypeChecker *tc, AstNode *program) {
+    /* Validate imports first */
+    for (int i = 0; i < program->data.program.stmt_count; i++) {
+        AstNode *stmt = program->data.program.stmts[i];
+        if (stmt->kind == NODE_IMPORT_STMT) {
+            for (int j = 0; j < stmt->data.import_stmt.count; j++) {
+                ImportItem *item = &stmt->data.import_stmt.items[j];
+                if (item->is_stdlib && item->module && !is_valid_module(item->module)) {
+                    char msg[256];
+                    snprintf(msg, sizeof(msg),
+                        "unknown module '@%s'", item->module);
+                    diag_error(tc->diag, "E6001", strdup(msg),
+                        tc->file, stmt->token.line, stmt->token.column, 0);
+                }
+            }
+        }
+    }
+
     for (int i = 0; i < program->data.program.stmt_count; i++) {
         AstNode *stmt = program->data.program.stmts[i];
 
