@@ -576,6 +576,10 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                 } else {
                     result = &TYPE_VOID;
                 }
+            } else if (strcmp(mod, "http") == 0) {
+                /* All http methods return EzHttpResponse struct
+                 * with .status (int), .body (string), .headers (map) */
+                result = &TYPE_UNKNOWN; /* opaque struct — member access via __auto_type */
             } else if (strcmp(mod, "net") == 0) {
                 if (strcmp(mfn, "dial") == 0 || strcmp(mfn, "listen") == 0 ||
                     strcmp(mfn, "accept") == 0) {
