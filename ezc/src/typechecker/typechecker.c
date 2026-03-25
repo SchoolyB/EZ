@@ -898,6 +898,16 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
             } else if (sym && sym->type->kind == TK_POINTER) {
                 /* Pointer auto-deref field access */
                 result = struct_field_type(tc, sym->type->element_type, member);
+            } else if (sym && sym->type->kind != TK_UNKNOWN &&
+                       sym->type->kind != TK_STRUCT && sym->type->kind != TK_ENUM &&
+                       sym->type->kind != TK_POINTER &&
+                       !(member[0] == 'v' && member[1] >= '0' && member[1] <= '9')) {
+                char msg[256];
+                snprintf(msg, sizeof(msg),
+                    "type '%s' has no fields — only structs support field access",
+                    type_name(sym->type));
+                diag_error(tc->diag, "E3013", strdup(msg),
+                    tc->file, node->token.line, node->token.column, 0);
             }
         } else if (obj->kind == NODE_MEMBER_EXPR) {
             /* Nested member access: a.b.c — resolve a.b first, then look up .c */
