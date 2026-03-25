@@ -1,11 +1,11 @@
 package main
 
 import (
+	"fmt"
 	"os"
-	"slices"
 	"strings"
 
-	"github.com/marshallburns/ez/pkg/stdlib"
+	"github.com/marshallburns/ez/internal/ezc"
 	"github.com/spf13/cobra"
 )
 
@@ -15,17 +15,40 @@ func filterEzFiles(cmd *cobra.Command, args []string, toComplete string) ([]cobr
 
 var checkCmd = &cobra.Command{
 	Use:               "check [file.ez | directory]",
-	Aliases:           []string{"build"},
-	Short:             "Check syntax and types for a file or directory",
+	Short:             "Type-check a file or project without compiling",
 	Args:              cobra.ExactArgs(1),
 	ValidArgsFunction: filterEzFiles,
 	Run: func(cmd *cobra.Command, args []string) {
-		arg := args[0]
-		if strings.HasSuffix(arg, ".ez") {
-			checkFile(arg)
-		} else {
-			checkProject(arg)
+		code, err := ezc.Check(args[0])
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "error: %v\n", err)
+			os.Exit(1)
 		}
+		os.Exit(code)
+	},
+}
+
+var buildCmd = &cobra.Command{
+	Use:               "build [file.ez]",
+	Short:             "Compile an EZ source file to a native binary",
+	Args:              cobra.ExactArgs(1),
+	ValidArgsFunction: filterEzFiles,
+	Run: func(cmd *cobra.Command, args []string) {
+		output, _ := cmd.Flags().GetString("output")
+		verbose, _ := cmd.Flags().GetBool("verbose")
+		emitC, _ := cmd.Flags().GetBool("emit-c")
+
+		opts := ezc.BuildOpts{
+			Output:  output,
+			Verbose: verbose,
+			EmitC:   emitC,
+		}
+		code, err := ezc.Build(args[0], opts)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "error: %v\n", err)
+			os.Exit(1)
+		}
+		os.Exit(code)
 	},
 }
 
@@ -60,28 +83,6 @@ var versionCmd = &cobra.Command{
 	},
 }
 
-var lexCmd = &cobra.Command{
-	Use:               "lex [file]",
-	Short:             "Tokenize a file",
-	Args:              cobra.ExactArgs(1),
-	ValidArgsFunction: filterEzFiles,
-	Hidden:            true,
-	Run: func(cmd *cobra.Command, args []string) {
-		lexFile(args[0])
-	},
-}
-
-var parseCmd = &cobra.Command{
-	Use:               "parse [file]",
-	Short:             "Parse a file",
-	Args:              cobra.ExactArgs(1),
-	ValidArgsFunction: filterEzFiles,
-	Hidden:            true,
-	Run: func(cmd *cobra.Command, args []string) {
-		parse_file(args[0])
-	},
-}
-
 var docCmd = &cobra.Command{
 	Use:   "doc <path>",
 	Short: "Generate documentation from #doc attributes",
@@ -104,8 +105,8 @@ Output is written to DOCS.md in the current working directory.`,
 
 var rootCmd = &cobra.Command{
 	Use:     "ez [file.ez]",
-	Short:   "EZ Language Interpreter",
-	Long:    "A simple, interpreted, statically-typed programming language designed for clarity and ease of use.",
+	Short:   "EZ Programming Language",
+	Long:    "A statically-typed programming language that compiles to native binaries.",
 	Args:    cobra.ArbitraryArgs,
 	Version: getVersionString(),
 	RunE: func(cmd *cobra.Command, args []string) error {
@@ -116,25 +117,34 @@ var rootCmd = &cobra.Command{
 			return cmd.Help()
 		}
 
-		programArgs := []string{os.Args[0], args[0]}
+		// Pass extra args through to the compiled program
+		var extraArgs []string
 		if cmd.ArgsLenAtDash() > 0 {
-			programArgs = slices.Concat(programArgs, args[cmd.ArgsLenAtDash():])
+			extraArgs = args[cmd.ArgsLenAtDash():]
 		} else if len(args) > 1 {
-			programArgs = slices.Concat(programArgs, args[1:])
+			extraArgs = args[1:]
 		}
-		stdlib.CommandLineArgs = programArgs
 
-		runFile(args[0])
+		code, err := ezc.Run(args[0], extraArgs)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "error: %v\n", err)
+			os.Exit(1)
+		}
+		os.Exit(code)
 		return nil
 	},
 }
 
 func init() {
-	rootCmd.AddCommand(replCmd, updateCmd, checkCmd, lexCmd, parseCmd, versionCmd, docCmd, pzCmd, watchCmd)
+	rootCmd.AddCommand(replCmd, updateCmd, checkCmd, buildCmd, versionCmd, docCmd, pzCmd, watchCmd)
 	rootCmd.PersistentPreRun = func(cmd *cobra.Command, args []string) {
 		CheckForUpdateAsync()
 	}
 	updateCmd.Flags().Bool("confirm", false, "Skip confirmation prompt")
+
+	buildCmd.Flags().StringP("output", "o", "", "Output binary name")
+	buildCmd.Flags().BoolP("verbose", "v", false, "Show compilation commands")
+	buildCmd.Flags().Bool("emit-c", false, "Emit generated C source only")
 
 	pzCmd.Flags().StringP("template", "t", "basic", "Template: basic, cli, lib, multi, server, client")
 	pzCmd.Flags().BoolP("comments", "c", false, "Include helpful syntax comments")
