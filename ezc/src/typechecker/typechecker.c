@@ -377,6 +377,18 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
             } else {
                 result = left_t;
             }
+        } else if (strcmp(node->data.postfix.op, "++") == 0 ||
+                   strcmp(node->data.postfix.op, "--") == 0) {
+            /* ++ and -- only valid on numeric types */
+            if (left_t->kind != TK_UNKNOWN && !type_is_numeric(left_t)) {
+                char msg[256];
+                snprintf(msg, sizeof(msg),
+                    "cannot use '%s' on type '%s' — only numeric types support increment/decrement",
+                    node->data.postfix.op, type_name(left_t));
+                diag_error(tc->diag, "E3007", strdup(msg),
+                    tc->file, node->token.line, node->token.column, 0);
+            }
+            result = left_t;
         } else {
             result = left_t;
         }
@@ -695,6 +707,28 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                         diag_error(tc->diag, "E5008", strdup(msg),
                             tc->file, node->token.line, node->token.column, 0);
                     }
+                    /* Check argument types */
+                    int check_count = node->data.call.arg_count < sig->param_count
+                        ? node->data.call.arg_count : sig->param_count;
+                    for (int ai = 0; ai < check_count; ai++) {
+                        EzType *arg_t = resolve_expr(tc, node->data.call.args[ai]);
+                        EzType *param_t = sig->param_types[ai];
+                        if (arg_t->kind != TK_UNKNOWN && param_t->kind != TK_UNKNOWN &&
+                            arg_t->kind != param_t->kind &&
+                            !(param_t->kind == TK_INT && arg_t->kind == TK_ENUM) &&
+                            !(param_t->kind == TK_ENUM && arg_t->kind == TK_INT) &&
+                            !(param_t->kind == TK_STRUCT && arg_t->kind == TK_INT) &&
+                            !(param_t->kind == TK_INT && arg_t->kind == TK_BOOL) &&
+                            !(param_t->kind == TK_FLOAT && arg_t->kind == TK_INT)) {
+                            char msg[256];
+                            snprintf(msg, sizeof(msg),
+                                "argument %d of '%s': expected %s, got %s",
+                                ai + 1, fn_name, type_name(param_t), type_name(arg_t));
+                            diag_error(tc->diag, "E3001", strdup(msg),
+                                tc->file, node->data.call.args[ai]->token.line,
+                                node->data.call.args[ai]->token.column, 0);
+                        }
+                    }
                     if (sig->return_count > 0) {
                         result = sig->return_types[0];
                     }
@@ -990,6 +1024,27 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
         for (int i = 0; i < node->data.return_stmt.count; i++) {
             resolve_expr(tc, node->data.return_stmt.values[i]);
         }
+        /* Check return type matches function signature */
+        if (tc->current_return_count == 0 && node->data.return_stmt.count > 0) {
+            /* Returning a value from a void function */
+            diag_error(tc->diag, "E3006", strdup("cannot return a value from a void function"),
+                tc->file, node->token.line, node->token.column, 0);
+        } else if (tc->current_return_count > 0 && node->data.return_stmt.count > 0) {
+            /* Check first return value type */
+            EzType *ret_t = resolve_expr(tc, node->data.return_stmt.values[0]);
+            EzType *expected = tc->current_return_types[0];
+            if (ret_t->kind != TK_UNKNOWN && expected->kind != TK_UNKNOWN &&
+                ret_t->kind != expected->kind && ret_t->kind != TK_NIL &&
+                !(expected->kind == TK_INT && ret_t->kind == TK_ENUM) &&
+                !(expected->kind == TK_FLOAT && ret_t->kind == TK_INT)) {
+                char msg[256];
+                snprintf(msg, sizeof(msg),
+                    "return type mismatch: expected %s, got %s",
+                    type_name(expected), type_name(ret_t));
+                diag_error(tc->diag, "E3001", strdup(msg),
+                    tc->file, node->token.line, node->token.column, 0);
+            }
+        }
         break;
 
     case NODE_EXPR_STMT:
@@ -1017,7 +1072,9 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
         tc->current_scope = loop_scope;
         scope_define(loop_scope, node->data.for_stmt.var_name, &TYPE_INT, false);
         resolve_expr(tc, node->data.for_stmt.iterable);
+        tc->loop_depth++;
         check_block(tc, node->data.for_stmt.body);
+        tc->loop_depth--;
         tc->current_scope = outer;
         break;
     }
@@ -1056,24 +1113,52 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
             scope_define(loop_scope, node->data.for_each.var_name, elem_t, false);
         }
 
+        tc->loop_depth++;
         check_block(tc, node->data.for_each.body);
+        tc->loop_depth--;
         tc->current_scope = outer;
         break;
     }
 
     case NODE_WHILE_STMT:
         resolve_expr(tc, node->data.while_stmt.condition);
+        tc->loop_depth++;
         check_block(tc, node->data.while_stmt.body);
+        tc->loop_depth--;
         break;
 
     case NODE_LOOP_STMT:
+        tc->loop_depth++;
         check_block(tc, node->data.loop_stmt.body);
+        tc->loop_depth--;
+        break;
+
+    case NODE_BREAK_STMT:
+    case NODE_CONTINUE_STMT:
+        if (tc->loop_depth == 0) {
+            const char *kw = (node->kind == NODE_BREAK_STMT) ? "break" : "continue";
+            char msg[128];
+            snprintf(msg, sizeof(msg), "'%s' can only be used inside a loop", kw);
+            diag_error(tc->diag, "E2050", strdup(msg),
+                tc->file, node->token.line, node->token.column, 0);
+        }
         break;
 
     case NODE_FUNC_DECL: {
+        /* Check for nested function declarations */
+        if (tc->func_depth > 0) {
+            char msg[256];
+            snprintf(msg, sizeof(msg),
+                "nested function declarations are not allowed — define '%s' at the top level",
+                node->data.func_decl.name);
+            diag_error(tc->diag, "E2051", strdup(msg),
+                tc->file, node->token.line, node->token.column, 0);
+        }
+
         Scope *func_scope = scope_create(tc->current_scope);
         Scope *outer = tc->current_scope;
         tc->current_scope = func_scope;
+        tc->func_depth++;
 
         /* Define parameters in function scope */
         for (int i = 0; i < node->data.func_decl.param_count; i++) {
@@ -1092,7 +1177,26 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
             }
         }
 
+        /* Track current function return types for return statement checking */
+        EzType **prev_ret = tc->current_return_types;
+        int prev_ret_count = tc->current_return_count;
+        if (node->data.func_decl.return_type_count > 0) {
+            tc->current_return_types = malloc(sizeof(EzType *) * node->data.func_decl.return_type_count);
+            tc->current_return_count = node->data.func_decl.return_type_count;
+            for (int i = 0; i < node->data.func_decl.return_type_count; i++) {
+                tc->current_return_types[i] = type_from_name(node->data.func_decl.return_types[i]);
+            }
+        } else {
+            tc->current_return_types = NULL;
+            tc->current_return_count = 0;
+        }
+
         check_block(tc, node->data.func_decl.body);
+
+        if (tc->current_return_types) free(tc->current_return_types);
+        tc->current_return_types = prev_ret;
+        tc->current_return_count = prev_ret_count;
+        tc->func_depth--;
         tc->current_scope = outer;
         break;
     }
