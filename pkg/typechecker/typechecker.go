@@ -4676,7 +4676,7 @@ func (tc *TypeChecker) checkWhenStatement(whenStmt *ast.WhenStatement, expectedR
 
 			// Type check the case value matches the when value type
 			caseType, ok := tc.inferExpressionType(caseValue)
-			if ok && caseType != valueType && caseType != "unknown" && valueType != "unknown" {
+			if ok && caseType != valueType && caseType != "unknown" && valueType != "unknown" && caseType != "nil" {
 				// Allow enum type matching
 				if !strings.HasPrefix(caseType, valueType) && !strings.HasSuffix(caseType, "."+valueType) {
 					// Allow int case values when matching against enum types (enums have int underlying values)
