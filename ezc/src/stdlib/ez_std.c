@@ -22,8 +22,10 @@ static int fmt_shortest_float(char *buf, size_t bufsz, double v) {
         double rt;
         if (sscanf(buf, "%lf", &rt) == 1 && rt == v) break;
     }
-    /* Ensure decimal point for whole-number floats (e.g. "88" → "88.0") */
-    if (!strchr(buf, '.') && !strchr(buf, 'e') && n + 2 < (int)bufsz) {
+    /* Ensure decimal point for whole-number floats (e.g. "88" → "88.0")
+     * but NOT for special values like inf, -inf, nan */
+    if (!strchr(buf, '.') && !strchr(buf, 'e') && !strchr(buf, 'i') &&
+        !strchr(buf, 'n') && n + 2 < (int)bufsz) {
         buf[n++] = '.';
         buf[n++] = '0';
         buf[n] = '\0';
