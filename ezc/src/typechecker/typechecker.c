@@ -1512,6 +1512,13 @@ void typechecker_check(TypeChecker *tc, AstNode *program) {
     for (int i = 0; i < program->data.program.stmt_count; i++) {
         check_statement(tc, program->data.program.stmts[i]);
     }
+
+    /* Verify main() exists */
+    if (!find_func(tc, "main")) {
+        diag_error(tc->diag, "E4005",
+            strdup("program has no main() function — every EZ program needs 'do main() { }'"),
+            tc->file, 1, 1, 0);
+    }
 }
 
 TypeTable *typechecker_get_table(TypeChecker *tc) {

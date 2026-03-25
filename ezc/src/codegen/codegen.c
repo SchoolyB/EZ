@@ -543,15 +543,20 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
             break;
         }
 
-        /* Runtime division/modulo by zero check */
+        /* Runtime division/modulo by zero check (skip for floats — IEEE 754 Inf) */
         if (strcmp(op, "/") == 0 || strcmp(op, "%") == 0) {
-            emit(cg, "({ __auto_type _dv = ");
-            emit_expression(cg, node->data.infix.right);
-            emitf(cg, "; if (!_dv) ez_panic(__FILE__, %d, \"division by zero\"); ",
-                node->token.line);
-            emit_expression(cg, node->data.infix.left);
-            emitf(cg, " %s _dv; })", op);
-            break;
+            bool is_float_div = (lt && lt->kind == TK_FLOAT) || (rt && rt->kind == TK_FLOAT);
+            if (is_float_div) {
+                /* Float division: let IEEE 754 handle it (Inf, -Inf, NaN) */
+            } else {
+                emit(cg, "({ __auto_type _dv = ");
+                emit_expression(cg, node->data.infix.right);
+                emitf(cg, "; if (!_dv) { fflush(stdout); ez_panic(__FILE__, %d, \"division by zero\"); } ",
+                    node->token.line);
+                emit_expression(cg, node->data.infix.left);
+                emitf(cg, " %s _dv; })", op);
+                break;
+            }
         }
 
         /* Normal infix — always wrap sub-infix expressions in parens to
