@@ -1208,6 +1208,14 @@ static bool emit_maps_call(CodeGen *cg, AstNode *node, const char *func) {
         emit(cg, "))");
         return true;
     }
+    if (strcmp(func, "remove") == 0 && node->data.call.arg_count == 2) {
+        emit(cg, "({ __auto_type _rk = ");
+        emit_expression(cg, node->data.call.args[1]);
+        emit(cg, "; ez_map_remove(&");
+        emit_expression(cg, node->data.call.args[0]);
+        emit(cg, ", &_rk); })");
+        return true;
+    }
     return false;
 }
 
