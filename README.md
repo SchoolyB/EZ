@@ -5,7 +5,7 @@
 <h3 align="center">Programming Made EZ</h3>
 
 <p align="center">
-  A statically-typed programming language that runs interpreted or compiles to native binaries.
+  A statically-typed programming language that compiles to fast native binaries.
 </p>
 
 <p align="center">
@@ -20,81 +20,102 @@
 
 ---
 
-## Two Ways to Run EZ
-
-EZ programs can be **interpreted** or **compiled to native binaries**. Same language, same `.ez` files, you choose how to run them.
-
-| | `ez` (interpreter) | `ezc` (compiler) |
-|---|---|---|
-| **Run** | `ez hello.ez` | `ezc hello.ez -o hello && ./hello` |
-| **Speed** | Instant startup | Native performance |
-| **Best for** | Scripting, REPL, learning | Shipping binaries, performance |
-| **Written in** | Go | C |
-| **Extras** | HTTP server, REPL | Pointers, threads, arenas, SQLite |
-
----
-
 ## Quick Start
 
 ```bash
 git clone https://github.com/SchoolyB/EZ.git
 cd EZ
+make build          # builds the ez toolchain
+cd ezc && make build  # builds the compiler
 ```
-
-### Interpreter (`ez`)
 
 ```bash
-make build
-./ez examples/basic/hello.ez
+ez run examples/basic/hello.ez
 ```
 
-**Requirements:** Go 1.21 or higher
+That's it. `ez run` compiles your code to a native binary, executes it, and cleans up.
 
-### Compiler (`ezc`)
+**Requirements:** Go 1.21+ (for the `ez` CLI) and a C compiler (gcc or clang)
 
-```bash
-cd ezc && make build
-./ezc ../examples/basic/hello.ez -o hello
-./hello
+---
+
+## Commands
+
+```
+ez run <file.ez>          Compile and run
+ez build <file.ez> -o app Compile to a distributable binary
+ez check <file.ez>        Type check without compiling
+ez repl                   Interactive REPL
+ez watch <file.ez>        Watch for changes, re-run on save
+ez doc ./...              Generate docs from #doc attributes
+ez pz <name>              Scaffold a new project
+ez update                 Update to the latest version
+ez version                Show version info
 ```
 
-**Requirements:** C compiler (gcc or clang)
+---
 
-`ezc` works from any directory — it finds its runtime headers automatically. You can also install it system-wide:
+## What EZ Looks Like
 
-```bash
-sudo make install    # installs to /usr/local/bin/ezc
-ezc hello.ez -o hello
+```ez
+import @std
+using std
+
+const Person struct {
+    name string
+    age int
+}
+
+do greet(p Person) -> string {
+    return "Hello, ${p.name}! You are ${p.age} years old."
+}
+
+do main() {
+    mut p = Person{name: "Alice", age: 30}
+    println(greet(p))
+}
 ```
 
-For pre-built binaries and full documentation, visit the [documentation](https://schoolyb.github.io/EZ-Language-Webapp/docs).
+---
 
-Want to contribute or build from source? See the [Contributing Guide](CONTRIBUTING.md).
+## Features
+
+- **24 stdlib modules** — strings, math, arrays, maps, JSON, HTTP, regex, crypto, SQLite, threads, and more
+- **Pointers** — `^Type`, `addr()`, and `p^` dereference with nil safety
+- **Threads** — spawn, join, mutexes, and channels via `@threads`
+- **Arena memory** — manual memory control when you need it via `@mem`
+- **Function references** — `()func_name` for callbacks and higher-order functions
+- **Struct-namespaced functions** — organize code without classes or OOP
+- **Pattern matching** — `when`/`is` with ranges, enums, and exhaustiveness checking
+- **Error propagation** — `or_return` for clean error handling
+- **HTTP server** — route handlers with path params via `@server`
+- **HTTP client** — GET/POST/PUT/DELETE via `@http`
+- **SQLite** — embedded database via `@sqlite`
+- **Native binaries** — compiles to fast executables via C
 
 ---
 
 ## Updating
 
-EZ includes a built-in update command:
-
 ```bash
 ez update
 ```
 
-This will check for new versions, show the changelog, and prompt you to upgrade. If EZ is installed in a system directory (like `/usr/local/bin`), it will automatically prompt for your password.
+Checks for new versions, shows the changelog, and upgrades both the `ez` CLI and the compiler.
+
+---
 
 ## Running Tests
 
 ```bash
-# Interpreter
-go test ./pkg/...                         # unit tests
-bash integration-tests/run_tests.sh       # 404 integration tests
-
-# Compiler
+# Compiler tests
 cd ezc
-make test-unit                            # 98 unit tests
-make test-e2e                             # 64 end-to-end tests
-make test-ubsan                           # undefined behavior sanitizer
+make test-unit    # unit tests
+make test-e2e     # end-to-end tests
+make test-parity  # output parity tests
+
+# CLI/tooling tests
+go test ./pkg/errors/... ./pkg/lineeditor/...
 ```
 
 For more details, see the [Testing Guide](TESTING.md).
