@@ -947,6 +947,20 @@ static AstNode *parse_func_declaration(Parser *p) {
             if (peek_token_is(p, TOK_IDENT)) {
                 next_token(p);
                 param->type_name = p->cur_token.literal;
+                /* Check for map[K:V] type */
+                if (strcmp(param->type_name, "map") == 0 && peek_token_is(p, TOK_LBRACKET)) {
+                    next_token(p); /* skip [ */
+                    next_token(p); /* key type */
+                    const char *key_type = p->cur_token.literal;
+                    if (!expect_peek(p, TOK_COLON)) return NULL;
+                    next_token(p); /* value type */
+                    const char *val_type = p->cur_token.literal;
+                    if (!expect_peek(p, TOK_RBRACKET)) return NULL;
+                    size_t ts_len = strlen(key_type) + strlen(val_type) + 6;
+                    char *type_str = arena_alloc(p->arena, ts_len);
+                    snprintf(type_str, ts_len, "map[%s:%s]", key_type, val_type);
+                    param->type_name = type_str;
+                }
             } else if (peek_token_is(p, TOK_CARET)) {
                 /* Pointer type: ^T */
                 next_token(p); /* skip ^ */
@@ -955,6 +969,49 @@ static AstNode *parse_func_declaration(Parser *p) {
                 char *type_str = arena_alloc(p->arena, ts_len);
                 snprintf(type_str, ts_len, "^%s", p->cur_token.literal);
                 param->type_name = type_str;
+            } else if (peek_token_is(p, TOK_LBRACKET)) {
+                /* Array type: [int], [int, 3], [[int]] */
+                next_token(p); /* now on [ */
+                next_token(p); /* element type or nested [ */
+                if (cur_token_is(p, TOK_LBRACKET)) {
+                    /* Nested array type: [[int]] */
+                    next_token(p); /* inner element type */
+                    const char *inner = p->cur_token.literal;
+                    if (!expect_peek(p, TOK_RBRACKET)) return NULL;
+                    if (!expect_peek(p, TOK_RBRACKET)) return NULL;
+                    size_t ts_len = strlen(inner) + 5;
+                    char *type_str = arena_alloc(p->arena, ts_len);
+                    snprintf(type_str, ts_len, "[[%s]]", inner);
+                    param->type_name = type_str;
+                } else {
+                    const char *elem = p->cur_token.literal;
+                    if (peek_token_is(p, TOK_COMMA)) {
+                        /* Fixed-size: [int, 3] */
+                        next_token(p); /* skip , */
+                        next_token(p); /* size */
+                        const char *sz = p->cur_token.literal;
+                        if (!expect_peek(p, TOK_RBRACKET)) return NULL;
+                        size_t ts_len = strlen(elem) + strlen(sz) + 4;
+                        char *type_str = arena_alloc(p->arena, ts_len);
+                        snprintf(type_str, ts_len, "[%s,%s]", elem, sz);
+                        param->type_name = type_str;
+                    } else if (peek_token_is(p, TOK_COLON)) {
+                        /* Map type inside brackets: handled if name is "map" */
+                        /* For now treat as dynamic array */
+                        if (!expect_peek(p, TOK_RBRACKET)) return NULL;
+                        size_t ts_len = strlen(elem) + 3;
+                        char *type_str = arena_alloc(p->arena, ts_len);
+                        snprintf(type_str, ts_len, "[%s]", elem);
+                        param->type_name = type_str;
+                    } else {
+                        /* Dynamic array: [int] */
+                        if (!expect_peek(p, TOK_RBRACKET)) return NULL;
+                        size_t ts_len = strlen(elem) + 3;
+                        char *type_str = arena_alloc(p->arena, ts_len);
+                        snprintf(type_str, ts_len, "[%s]", elem);
+                        param->type_name = type_str;
+                    }
+                }
             }
 
             /* Check for default value: param type = expr */
