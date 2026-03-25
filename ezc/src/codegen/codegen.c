@@ -1315,6 +1315,68 @@ static bool emit_regex_call(CodeGen *cg, AstNode *node, const char *func) {
     return false;
 }
 
+/* --- @server module --- */
+
+static bool emit_server_call(CodeGen *cg, AstNode *node, const char *func) {
+    if (strcmp(func, "router") == 0) {
+        emit(cg, "ez_server_router()");
+        return true;
+    }
+    if (strcmp(func, "route") == 0 && node->data.call.arg_count == 4) {
+        emit(cg, "ez_server_route(&");
+        emit_expression(cg, node->data.call.args[0]);
+        emit(cg, ", ");
+        emit_expression(cg, node->data.call.args[1]);
+        emit(cg, ", ");
+        emit_expression(cg, node->data.call.args[2]);
+        emit(cg, ", (EzResponse (*)(EzRequest))");
+        emit_expression(cg, node->data.call.args[3]);
+        emit(cg, ")");
+        return true;
+    }
+    if (strcmp(func, "listen") == 0 && node->data.call.arg_count == 2) {
+        emit(cg, "ez_server_listen(");
+        emit_expression(cg, node->data.call.args[0]);
+        emit(cg, ", &");
+        emit_expression(cg, node->data.call.args[1]);
+        emit(cg, ")");
+        return true;
+    }
+    if (strcmp(func, "text") == 0 && node->data.call.arg_count == 2) {
+        emit(cg, "ez_server_text(");
+        emit_expression(cg, node->data.call.args[0]);
+        emit(cg, ", ");
+        emit_expression(cg, node->data.call.args[1]);
+        emit(cg, ")");
+        return true;
+    }
+    if (strcmp(func, "json") == 0 && node->data.call.arg_count == 2) {
+        emit(cg, "ez_server_json(");
+        emit_expression(cg, node->data.call.args[0]);
+        emit(cg, ", ");
+        emit_expression(cg, node->data.call.args[1]);
+        emit(cg, ")");
+        return true;
+    }
+    if (strcmp(func, "html") == 0 && node->data.call.arg_count == 2) {
+        emit(cg, "ez_server_html(");
+        emit_expression(cg, node->data.call.args[0]);
+        emit(cg, ", ");
+        emit_expression(cg, node->data.call.args[1]);
+        emit(cg, ")");
+        return true;
+    }
+    if (strcmp(func, "redirect") == 0 && node->data.call.arg_count == 2) {
+        emit(cg, "ez_server_redirect(");
+        emit_expression(cg, node->data.call.args[0]);
+        emit(cg, ", ");
+        emit_expression(cg, node->data.call.args[1]);
+        emit(cg, ")");
+        return true;
+    }
+    return false;
+}
+
 /* --- @http module --- */
 
 static bool emit_http_call(CodeGen *cg, AstNode *node, const char *func) {
@@ -1953,6 +2015,7 @@ static void emit_call_expression(CodeGen *cg, AstNode *node) {
             {"regex",    emit_regex_call},
             {"net",      emit_net_call},
             {"http",     emit_http_call},
+            {"server",   emit_server_call},
         };
         if (module) {
             for (int i = 0; i < (int)(sizeof(modules) / sizeof(modules[0])); i++) {
@@ -2930,6 +2993,7 @@ void codegen_generate(CodeGen *cg, AstNode *program) {
     emit(cg, "#include \"ez_regex.h\"\n");
     emit(cg, "#include \"ez_net.h\"\n");
     emit(cg, "#include \"ez_http.h\"\n");
+    emit(cg, "#include \"ez_server.h\"\n");
     emit(cg, "\n");
 
     /* Emit struct type definitions */

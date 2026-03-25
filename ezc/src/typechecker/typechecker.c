@@ -576,6 +576,15 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                 } else {
                     result = &TYPE_VOID;
                 }
+            } else if (strcmp(mod, "server") == 0) {
+                if (strcmp(mfn, "router") == 0) {
+                    result = &TYPE_UNKNOWN; /* EzRouter — opaque */
+                } else if (strcmp(mfn, "text") == 0 || strcmp(mfn, "json") == 0 ||
+                           strcmp(mfn, "html") == 0 || strcmp(mfn, "redirect") == 0) {
+                    result = &TYPE_UNKNOWN; /* EzResponse */
+                } else {
+                    result = &TYPE_VOID;
+                }
             } else if (strcmp(mod, "http") == 0) {
                 /* All http methods return EzHttpResponse struct
                  * with .status (int), .body (string), .headers (map) */
