@@ -2072,6 +2072,15 @@ static void emit_var_declaration(CodeGen *cg, AstNode *node) {
     if (node->data.var_decl.value) {
         emit(cg, " = ");
         emit_expression(cg, node->data.var_decl.value);
+    } else {
+        /* Zero-initialize when no value is provided */
+        if (strcmp(c_type, "int64_t") == 0) emit(cg, " = 0");
+        else if (strcmp(c_type, "double") == 0) emit(cg, " = 0.0");
+        else if (strcmp(c_type, "bool") == 0) emit(cg, " = false");
+        else if (strcmp(c_type, "EzString") == 0) emit(cg, " = (EzString){\"\", 0}");
+        else if (strcmp(c_type, "EzArray") == 0) emit(cg, " = (EzArray){0}");
+        else if (strcmp(c_type, "EzMap") == 0) emit(cg, " = (EzMap){0}");
+        else emit(cg, " = {0}");
     }
 
     emit(cg, ";\n");
