@@ -359,6 +359,7 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
         case TK_FLOAT:  c_type = "double"; break;
         case TK_BOOL:   c_type = "bool"; break;
         case TK_STRING: c_type = "EzString"; break;
+        case TK_STRUCT: c_type = ez_type_to_c_cg(cg, elem_t->name); break;
         default:        c_type = "int64_t"; break;
         }
 
@@ -2535,6 +2536,7 @@ static void emit_statement(CodeGen *cg, AstNode *node) {
                 if (et->kind == TK_FLOAT) c_elem = "double";
                 else if (et->kind == TK_BOOL) c_elem = "bool";
                 else if (et->kind == TK_STRING) c_elem = "EzString";
+                else if (et->kind == TK_STRUCT) c_elem = ez_type_to_c_cg(cg, coll_t->element_type);
             }
 
             emitf(cg, "for (int32_t %s = 0; %s < ", idx_name, idx_name);
