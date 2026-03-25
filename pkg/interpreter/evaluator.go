@@ -871,6 +871,27 @@ func evalVariableDeclaration(node *ast.VariableDeclaration, env *Environment, ct
 		// If the call returns (value, error) and error is non-nil, propagate the error
 		// by returning a ReturnValue containing the error (causes the enclosing function to return)
 		if node.OrReturn {
+			// Handle single Error return: do f() -> Error
+			if returnVal, ok := val.(*ReturnValue); ok && len(returnVal.Values) == 1 {
+				singleVal := returnVal.Values[0]
+				if singleVal != NIL && singleVal.Type() != "NIL" && singleVal.Type() == "ERROR" {
+					enclosingRetTypes := env.GetReturnTypes()
+					if len(enclosingRetTypes) > 0 {
+						retVals := make([]Object, len(enclosingRetTypes))
+						for i, rt := range enclosingRetTypes {
+							if i == len(enclosingRetTypes)-1 {
+								retVals[i] = singleVal
+							} else {
+								retVals[i] = zeroValueForType(rt)
+							}
+						}
+						return &ReturnValue{Values: retVals}
+					}
+					return &ReturnValue{Values: []Object{singleVal}}
+				}
+				// Error is nil — no value to extract, set val to nil
+				val = NIL
+			}
 			if returnVal, ok := val.(*ReturnValue); ok && len(returnVal.Values) >= 2 {
 				lastVal := returnVal.Values[len(returnVal.Values)-1]
 				if lastVal != NIL && lastVal.Type() != "NIL" {
