@@ -6,234 +6,205 @@ package main
 import (
 	"fmt"
 	"os"
+	"os/exec"
+	"path/filepath"
 	"strings"
 
-	"github.com/marshallburns/ez/pkg/ast"
-	"github.com/marshallburns/ez/pkg/errors"
-	"github.com/marshallburns/ez/pkg/interpreter"
-	"github.com/marshallburns/ez/pkg/lexer"
+	"github.com/marshallburns/ez/internal/ezc"
 	"github.com/marshallburns/ez/pkg/lineeditor"
-	"github.com/marshallburns/ez/pkg/parser"
 )
 
 const (
 	PROMPT      = ">> "
-	CONTINUE    = ".. "
-	REPL_SOURCE = "<repl>"
+	MULTI_LINE  = ".. "
+	REPL_BANNER = "EZ REPL (compiler-backed) — type 'exit' to quit, 'help' for commands"
 )
 
-// startREPL starts the interactive REPL
+// replState holds the accumulated source across REPL turns
+type replState struct {
+	imports      []string // import lines
+	declarations []string // function/struct/enum declarations
+	statements   []string // statements inside main()
+}
+
+func (s *replState) buildSource() string {
+	var b strings.Builder
+
+	// Imports
+	for _, imp := range s.imports {
+		b.WriteString(imp)
+		b.WriteString("\n")
+	}
+	b.WriteString("\n")
+
+	// Top-level declarations
+	for _, decl := range s.declarations {
+		b.WriteString(decl)
+		b.WriteString("\n")
+	}
+
+	// Wrap statements in main()
+	b.WriteString("do main() {\n")
+	for _, stmt := range s.statements {
+		b.WriteString("    ")
+		b.WriteString(stmt)
+		b.WriteString("\n")
+	}
+	b.WriteString("}\n")
+
+	return b.String()
+}
+
 func startREPL() {
-	fmt.Printf("EZ Language REPL %s\n", Version)
-	fmt.Println("Type 'help' for commands, 'exit' or 'quit' to exit")
+	fmt.Println(REPL_BANNER)
 	fmt.Println()
 
-	env := interpreter.NewEnvironment()
-	// Create a persistent EvalContext for the REPL session
-	ctx := &interpreter.EvalContext{
-		CurrentFile: REPL_SOURCE,
-	}
 	editor := lineeditor.New(100)
-	defer editor.Close()
+	state := &replState{
+		imports: []string{"import @std", "using std"},
+	}
+
+	// Create a temp directory for REPL files
+	tmpDir, err := os.MkdirTemp("", "ez-repl-*")
+	if err != nil {
+		fmt.Printf("Error creating temp directory: %v\n", err)
+		return
+	}
+	defer os.RemoveAll(tmpDir)
+
+	tmpFile := filepath.Join(tmpDir, "repl.ez")
 
 	for {
 		line, err := editor.ReadLine(PROMPT)
 		if err != nil {
-			if err == lineeditor.ErrInterrupted {
-				continue // Ctrl+C just cancels current line
-			}
-			if err == lineeditor.ErrEOF {
-				fmt.Println("Goodbye!")
-				break
-			}
-			fmt.Fprintf(os.Stderr, "Error reading input: %v\n", err)
+			fmt.Println()
 			break
 		}
 
 		line = strings.TrimSpace(line)
-
-		// Handle empty lines
 		if line == "" {
 			continue
 		}
 
 		// Handle REPL commands
-		if newEnv, newCtx, handled := handleReplCommand(line, env, ctx); handled {
-			if newEnv != nil {
-				env = newEnv
+		switch line {
+		case "exit", "quit":
+			fmt.Println("Goodbye!")
+			return
+		case "clear":
+			fmt.Print("\033[H\033[2J")
+			continue
+		case "reset":
+			state = &replState{
+				imports: []string{"import @std", "using std"},
 			}
-			if newCtx != nil {
-				ctx = newCtx
-			}
+			fmt.Println("Session reset.")
+			continue
+		case "help":
+			printReplHelp()
 			continue
 		}
 
-		// Check if we need multi-line input
+		// Multi-line input: if the line ends with { and braces are unbalanced
 		if needsMoreInput(line) {
-			line = readMultiLineInputWithEditor(editor, line)
-			if line == "" {
-				continue // User cancelled or error
+			for {
+				more, err := editor.ReadLine(MULTI_LINE)
+				if err != nil {
+					break
+				}
+				line += "\n" + more
+				if !needsMoreInput(line) {
+					break
+				}
 			}
 		}
 
-		// Parse and evaluate
-		evaluateLine(line, env, ctx)
-	}
-}
+		// Classify the input and try adding it
+		category := classifyInput(line)
 
-// handleReplCommand handles special REPL commands
-// Returns (new environment if reset, new context if reset, whether command was handled)
-func handleReplCommand(line string, env *interpreter.Environment, ctx *interpreter.EvalContext) (*interpreter.Environment, *interpreter.EvalContext, bool) {
-	switch line {
-	case "exit", "quit":
-		fmt.Println("Goodbye!")
-		os.Exit(0)
-		return nil, nil, true
+		// Save state for rollback
+		prevImports := make([]string, len(state.imports))
+		copy(prevImports, state.imports)
+		prevDecls := make([]string, len(state.declarations))
+		copy(prevDecls, state.declarations)
+		prevStmts := make([]string, len(state.statements))
+		copy(prevStmts, state.statements)
 
-	case "clear":
-		// Clear the terminal screen only
-		fmt.Print("\033[H\033[2J")
-		return nil, nil, true
-
-	case "reset":
-		// Clear the terminal screen AND reset the environment
-		fmt.Print("\033[H\033[2J")
-		fmt.Printf("EZ Language REPL %s\n", Version)
-		fmt.Println("Type 'help' for commands, 'exit' or 'quit' to exit")
-		fmt.Println()
-		newCtx := &interpreter.EvalContext{
-			CurrentFile: REPL_SOURCE,
+		switch category {
+		case "import":
+			state.imports = append(state.imports, line)
+		case "declaration":
+			state.declarations = append(state.declarations, line)
+		default:
+			state.statements = append(state.statements, line)
 		}
-		return interpreter.NewEnvironment(), newCtx, true
 
-	case "help":
-		printReplHelp()
-		return nil, nil, true
+		// Write and compile
+		source := state.buildSource()
+		if err := os.WriteFile(tmpFile, []byte(source), 0644); err != nil {
+			fmt.Printf("Error writing temp file: %v\n", err)
+			continue
+		}
+
+		ezcPath, err := ezc.Find()
+		if err != nil {
+			fmt.Printf("Error: %v\n", err)
+			return
+		}
+
+		cmd := exec.Command(ezcPath, "run", tmpFile)
+		output, err := cmd.CombinedOutput()
+		outStr := string(output)
+
+		if err != nil {
+			// Compilation or runtime error — rollback and show error
+			state.imports = prevImports
+			state.declarations = prevDecls
+			state.statements = prevStmts
+
+			// Show a cleaned-up error (strip the temp file path)
+			cleaned := strings.ReplaceAll(outStr, tmpFile, "<repl>")
+			fmt.Print(cleaned)
+		} else if outStr != "" {
+			fmt.Print(outStr)
+		}
 	}
-
-	return nil, nil, false
 }
 
-// printReplHelp prints REPL help information
+// classifyInput determines if input is an import, declaration, or statement
+func classifyInput(line string) string {
+	trimmed := strings.TrimSpace(line)
+	if strings.HasPrefix(trimmed, "import ") || strings.HasPrefix(trimmed, "using ") {
+		return "import"
+	}
+	if strings.HasPrefix(trimmed, "do ") ||
+		strings.HasPrefix(trimmed, "private do ") ||
+		strings.HasPrefix(trimmed, "const ") && (strings.Contains(trimmed, " struct ") || strings.Contains(trimmed, " enum ")) {
+		return "declaration"
+	}
+	return "statement"
+}
+
+// needsMoreInput checks if braces are unbalanced
+func needsMoreInput(input string) bool {
+	depth := 0
+	for _, ch := range input {
+		if ch == '{' {
+			depth++
+		} else if ch == '}' {
+			depth--
+		}
+	}
+	return depth > 0
+}
+
 func printReplHelp() {
 	fmt.Println("REPL Commands:")
-	fmt.Println("  exit, quit    Exit the REPL")
-	fmt.Println("  clear         Clear the terminal screen")
-	fmt.Println("  reset         Clear screen and reset environment")
-	fmt.Println("  help          Show this help message")
+	fmt.Println("  exit, quit  — Exit the REPL")
+	fmt.Println("  clear       — Clear the screen")
+	fmt.Println("  reset       — Reset session (clear all variables and imports)")
+	fmt.Println("  help        — Show this help message")
 	fmt.Println()
-	fmt.Println("Usage:")
-	fmt.Println("  - Type any EZ expression or statement")
-	fmt.Println("  - Expressions are automatically printed")
-	fmt.Println("  - Variables and functions persist across lines")
-	fmt.Println("  - Use imports like: import @std")
-	fmt.Println()
-	fmt.Println("Examples:")
-	fmt.Println("  >> temp x int = 5")
-	fmt.Println("  >> x + 10")
-	fmt.Println("  15")
-	fmt.Println("  >> import @std")
-	fmt.Println("  >> std.println(\"Hello, REPL!\")")
-	fmt.Println("  Hello, REPL!")
-}
-
-// needsMoreInput checks if the line needs continuation
-// (for function definitions, blocks, etc.)
-func needsMoreInput(line string) bool {
-	// Simple heuristic: if line starts with 'do' and doesn't have closing }
-	// or if it has unmatched braces
-	if strings.HasPrefix(line, "do ") {
-		openBraces := strings.Count(line, "{")
-		closeBraces := strings.Count(line, "}")
-		return openBraces > closeBraces
-	}
-
-	// Check for other statements that might need continuation
-	if strings.HasPrefix(line, "if ") || strings.HasPrefix(line, "for ") ||
-		strings.HasPrefix(line, "for_each ") || strings.HasPrefix(line, "as_long_as ") {
-		openBraces := strings.Count(line, "{")
-		closeBraces := strings.Count(line, "}")
-		return openBraces > closeBraces
-	}
-
-	return false
-}
-
-// readMultiLineInputWithEditor continues reading input for multi-line statements using the line editor
-func readMultiLineInputWithEditor(editor *lineeditor.Editor, initial string) string {
-	result, err := editor.ReadMultiLine(PROMPT, CONTINUE, initial)
-	if err != nil {
-		return "" // EOF, interrupt, or error
-	}
-	return result
-}
-
-// evaluateLine parses and evaluates a single line/statement
-func evaluateLine(line string, env *interpreter.Environment, ctx *interpreter.EvalContext) {
-	// Lexer
-	l := lexer.NewLexer(line)
-
-	// Parser
-	p := parser.NewWithSource(l, line, REPL_SOURCE)
-	stmt := p.ParseLine()
-
-	// Check for lexer errors
-	if len(l.Errors()) > 0 {
-		errList := errors.NewErrorList()
-		for _, lexErr := range l.Errors() {
-			var code errors.ErrorCode
-			switch lexErr.Code {
-			case "E1005":
-				code = errors.E1005
-			default:
-				code = errors.ErrorCode{Code: lexErr.Code, Name: "lexer-error", Description: "Lexer error"}
-			}
-			sourceLine := errors.GetSourceLine(line, lexErr.Line)
-			ezErr := errors.NewErrorWithSource(code, lexErr.Message, REPL_SOURCE, lexErr.Line, lexErr.Column, sourceLine)
-			errList.AddError(ezErr)
-		}
-		fmt.Print(errors.FormatErrorList(errList))
-		return
-	}
-
-	// Check for parser errors
-	if p.EZErrors().HasErrors() {
-		fmt.Print(errors.FormatErrorList(p.EZErrors()))
-		return
-	}
-
-	// No statement parsed (comment or empty)
-	if stmt == nil {
-		return
-	}
-
-	// Evaluate
-	result := interpreter.Eval(stmt, env, ctx)
-
-	// Check for runtime errors
-	if errObj, ok := result.(*interpreter.Error); ok {
-		printRuntimeError(errObj, line, REPL_SOURCE)
-		return
-	}
-
-	// Display result if it's an expression
-	if shouldDisplayResult(stmt, result) {
-		fmt.Println(result.Inspect())
-	}
-}
-
-// shouldDisplayResult determines if we should print the result
-func shouldDisplayResult(stmt ast.Statement, result interpreter.Object) bool {
-	// Don't display nil
-	if result == interpreter.NIL {
-		return false
-	}
-
-	// Display expression statements (like "x + 5", "foo()")
-	if _, ok := stmt.(*ast.ExpressionStatement); ok {
-		return true
-	}
-
-	// Don't display declarations
-	return false
+	fmt.Println("You can define variables, functions, structs, and enums.")
+	fmt.Println("Each line is compiled and executed via the EZ compiler.")
 }
