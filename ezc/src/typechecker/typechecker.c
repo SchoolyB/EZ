@@ -293,17 +293,9 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
     case NODE_LABEL: {
         const char *name = node->data.label.value;
 
-        /* Check if a type name is being used as a value */
-        if (strcmp(name, "int") == 0 || strcmp(name, "uint") == 0 ||
-            strcmp(name, "float") == 0 || strcmp(name, "string") == 0 ||
-            strcmp(name, "bool") == 0 || strcmp(name, "char") == 0 ||
-            strcmp(name, "byte") == 0 || strcmp(name, "void") == 0) {
-            char msg[256];
-            snprintf(msg, sizeof(msg),
-                "'%s' is a type, not a value — did you mean to declare a variable?", name);
-            diag_error(tc->diag, "E3011", strdup(msg),
-                tc->file, node->token.line, node->token.column, 0);
-        }
+        /* Type names used as values are caught downstream — they won't match
+         * any variable in scope, and functions like new(), mem.make(), and casts
+         * legitimately take type names as arguments. */
 
         Symbol *sym = scope_lookup(tc->current_scope, name);
         if (sym) {
@@ -1059,6 +1051,23 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
 
     switch (node->kind) {
     case NODE_VAR_DECL: {
+        /* Check for type keyword used as value: mut x = int */
+        if (node->data.var_decl.value && node->data.var_decl.value->kind == NODE_LABEL) {
+            const char *vname = node->data.var_decl.value->data.label.value;
+            if (strcmp(vname, "int") == 0 || strcmp(vname, "uint") == 0 ||
+                strcmp(vname, "float") == 0 || strcmp(vname, "string") == 0 ||
+                strcmp(vname, "bool") == 0 || strcmp(vname, "char") == 0 ||
+                strcmp(vname, "byte") == 0 || strcmp(vname, "void") == 0) {
+                char msg[256];
+                snprintf(msg, sizeof(msg),
+                    "'%s' is a type, not a value — did you mean to declare a type? (e.g., mut x %s = ...)",
+                    vname, vname);
+                diag_error(tc->diag, "E3011", strdup(msg),
+                    tc->file, node->data.var_decl.value->token.line,
+                    node->data.var_decl.value->token.column, 0);
+            }
+        }
+
         EzType *declared = node->data.var_decl.type_name
             ? type_from_name(node->data.var_decl.type_name)
             : &TYPE_UNKNOWN;
