@@ -298,19 +298,18 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
             result = sym->type;
         } else if (!is_enum_name(tc, name) && !find_func(tc, name) &&
                    !tc_is_builtin(name) && !is_struct_name(tc, name)) {
-            /* Only report undefined variables that have a close match —
-             * this catches genuine typos while avoiding false positives
-             * from multi-var expansion, block scoping, etc. */
+            char msg[256];
+            snprintf(msg, sizeof(msg), "undefined variable '%s'", name);
             const char *suggestion = suggest_name(tc, name);
             if (suggestion) {
-                char msg[256], help[256];
-                snprintf(msg, sizeof(msg), "undefined variable '%s'", name);
+                char help[256];
                 snprintf(help, sizeof(help), "did you mean '%s'?", suggestion);
                 diag_error_help(tc->diag, "E4001", strdup(msg),
                     tc->file, node->token.line, node->token.column, 0, strdup(help));
+            } else {
+                diag_error(tc->diag, "E4001", strdup(msg),
+                    tc->file, node->token.line, node->token.column, 0);
             }
-            /* If no suggestion, stay quiet — could be a valid scoped variable
-             * the typechecker can't track yet */
         }
         break;
     }
@@ -938,10 +937,25 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
         break;
     }
 
-    case NODE_ASSIGN_STMT:
+    case NODE_ASSIGN_STMT: {
         resolve_expr(tc, node->data.assign.target);
         resolve_expr(tc, node->data.assign.value);
+
+        /* Check for assignment to const variable */
+        AstNode *target = node->data.assign.target;
+        if (target->kind == NODE_LABEL) {
+            Symbol *sym = scope_lookup(tc->current_scope, target->data.label.value);
+            if (sym && !sym->mutable) {
+                char msg[256];
+                snprintf(msg, sizeof(msg),
+                    "cannot assign to constant '%s' — declare with 'mut' to make it mutable",
+                    target->data.label.value);
+                diag_error(tc->diag, "E3005", strdup(msg),
+                    tc->file, node->token.line, node->token.column, 0);
+            }
+        }
         break;
+    }
 
     case NODE_RETURN_STMT:
         for (int i = 0; i < node->data.return_stmt.count; i++) {

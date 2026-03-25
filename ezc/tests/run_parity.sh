@@ -23,6 +23,7 @@ RESET='\033[0m'
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 ROOT_DIR="$(cd "$SCRIPT_DIR/../.." && pwd)"
 EZC="$ROOT_DIR/ezc/ezc"
+export EZC_PATH="$EZC"
 EZ="go run $ROOT_DIR/cmd/ez/..."
 TMP_DIR="/tmp/ezc_parity_$$"
 
