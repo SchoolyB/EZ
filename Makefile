@@ -1,5 +1,5 @@
 # EZ Language Build System
-.PHONY: build install uninstall clean test integration-test help
+.PHONY: build install uninstall clean test help
 
 BINARY_NAME=ez
 INSTALL_PATH=/usr/local/bin
@@ -14,18 +14,23 @@ help:
 	@echo "EZ Language Build System"
 	@echo ""
 	@echo "Available targets:"
-	@echo "  make build            - Build the ez binary"
-	@echo "  make install          - Install ez to $(INSTALL_PATH)"
-	@echo "  make uninstall        - Remove ez from $(INSTALL_PATH)"
-	@echo "  make clean            - Remove built binaries and test artifacts"
-	@echo "  make test             - Run Go unit tests"
-	@echo "  make integration-test - Run integration test suite"
-	@echo "  make release          - Build for multiple platforms"
+	@echo "  make build     - Build ez CLI + ezc compiler"
+	@echo "  make install   - Install both to $(INSTALL_PATH)"
+	@echo "  make uninstall - Remove ez and ezc from $(INSTALL_PATH)"
+	@echo "  make clean     - Remove built binaries"
+	@echo "  make test      - Run all tests"
 
 build:
-	@echo "Building EZ..."
+	@echo "Building ez CLI..."
 	$(GO) build $(LDFLAGS) -o $(BINARY_NAME) ./cmd/ez
-	@echo "Build complete! Binary: ./$(BINARY_NAME)"
+	@echo "Building ezc compiler..."
+	@$(MAKE) -C ezc build
+	@echo ""
+	@echo "Build complete!"
+	@echo "  CLI:      ./$(BINARY_NAME)"
+	@echo "  Compiler: ./ezc/ezc"
+	@echo ""
+	@echo "Run with: EZC_PATH=./ezc/ezc ./ez run <file.ez>"
 
 install: build
 	@echo "Installing EZ to $(INSTALL_PATH)..."
@@ -33,55 +38,42 @@ install: build
 		mkdir -p $(INSTALL_PATH); \
 		cp $(BINARY_NAME) $(INSTALL_PATH)/$(BINARY_NAME); \
 		chmod +x $(INSTALL_PATH)/$(BINARY_NAME); \
+		cp ezc/ezc $(INSTALL_PATH)/ezc; \
+		chmod +x $(INSTALL_PATH)/ezc; \
 	else \
 		echo "Need sudo permissions to install to $(INSTALL_PATH)"; \
 		sudo mkdir -p $(INSTALL_PATH); \
 		sudo cp $(BINARY_NAME) $(INSTALL_PATH)/$(BINARY_NAME); \
 		sudo chmod +x $(INSTALL_PATH)/$(BINARY_NAME); \
+		sudo cp ezc/ezc $(INSTALL_PATH)/ezc; \
+		sudo chmod +x $(INSTALL_PATH)/ezc; \
 	fi
+	@echo ""
 	@echo "EZ installed successfully!"
-	@echo "Try: ez help"
+	@echo "Try: ez run examples/basic/hello.ez"
 
 uninstall:
 	@echo "Uninstalling EZ..."
 	@rm -f $(INSTALL_PATH)/$(BINARY_NAME)
+	@rm -f $(INSTALL_PATH)/ezc
 	@echo "EZ uninstalled"
 
 clean:
 	@echo "Cleaning build artifacts..."
 	@rm -f $(BINARY_NAME)
 	@rm -rf dist/
-	@rm -f *.ezdb
+	@$(MAKE) -C ezc clean
 	@echo "Clean complete"
 
 test:
-	$(GO) test ./... -v
-
-integration-test: build
-	./integration-tests/run_tests.sh
-
-# Build for multiple platforms
-release:
-	@echo "Building releases for version $(VERSION)..."
-	@mkdir -p dist
-	@# Build binaries
-	GOOS=darwin GOARCH=amd64 $(GO) build $(LDFLAGS) -o dist/$(BINARY_NAME) ./cmd/ez && \
-		tar -czf dist/$(BINARY_NAME)-darwin-amd64.tar.gz -C dist $(BINARY_NAME) && \
-		rm dist/$(BINARY_NAME)
-	GOOS=darwin GOARCH=arm64 $(GO) build $(LDFLAGS) -o dist/$(BINARY_NAME) ./cmd/ez && \
-		tar -czf dist/$(BINARY_NAME)-darwin-arm64.tar.gz -C dist $(BINARY_NAME) && \
-		rm dist/$(BINARY_NAME)
-	GOOS=linux GOARCH=amd64 $(GO) build $(LDFLAGS) -o dist/$(BINARY_NAME) ./cmd/ez && \
-		tar -czf dist/$(BINARY_NAME)-linux-amd64.tar.gz -C dist $(BINARY_NAME) && \
-		rm dist/$(BINARY_NAME)
-	GOOS=linux GOARCH=arm64 $(GO) build $(LDFLAGS) -o dist/$(BINARY_NAME) ./cmd/ez && \
-		tar -czf dist/$(BINARY_NAME)-linux-arm64.tar.gz -C dist $(BINARY_NAME) && \
-		rm dist/$(BINARY_NAME)
-	GOOS=windows GOARCH=amd64 $(GO) build $(LDFLAGS) -o dist/$(BINARY_NAME).exe ./cmd/ez && \
-		zip -j dist/$(BINARY_NAME)-windows-amd64.zip dist/$(BINARY_NAME).exe && \
-		rm dist/$(BINARY_NAME).exe
-	@# Generate checksums
-	@echo "Generating checksums..."
-	@cd dist && shasum -a 256 *.tar.gz *.zip > checksums.txt
-	@echo "Release builds complete in dist/"
-	@cat dist/checksums.txt
+	@echo "=== CLI/tooling tests ==="
+	$(GO) test ./pkg/errors/... ./pkg/lineeditor/...
+	@echo ""
+	@echo "=== Compiler unit tests ==="
+	@$(MAKE) -C ezc test-unit
+	@echo ""
+	@echo "=== Compiler e2e tests ==="
+	@$(MAKE) -C ezc test-e2e
+	@echo ""
+	@echo "=== Parity tests ==="
+	@$(MAKE) -C ezc test-parity
