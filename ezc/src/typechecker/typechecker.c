@@ -970,6 +970,8 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
             EzType *elem_t = &TYPE_UNKNOWN;
             if (coll_t->kind == TK_ARRAY && coll_t->element_type) {
                 elem_t = type_from_name(coll_t->element_type);
+            } else if (coll_t->kind == TK_STRING) {
+                elem_t = &TYPE_CHAR;
             }
             if (node->data.for_each.index_name) {
                 scope_define(loop_scope, node->data.for_each.index_name, &TYPE_INT, false);
