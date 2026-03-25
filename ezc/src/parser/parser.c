@@ -1125,6 +1125,14 @@ static AstNode *parse_func_declaration(Parser *p) {
             snprintf(type_str, ts_len, "[%s]", elem);
             node->data.func_decl.return_types[0] = type_str;
             node->data.func_decl.return_type_count = 1;
+        } else if (cur_token_is(p, TOK_CARET)) {
+            /* Pointer return type: -> ^Type */
+            next_token(p); /* pointee type */
+            size_t ts_len = strlen(p->cur_token.literal) + 2;
+            char *type_str = arena_alloc(p->arena, ts_len);
+            snprintf(type_str, ts_len, "^%s", p->cur_token.literal);
+            node->data.func_decl.return_types[0] = type_str;
+            node->data.func_decl.return_type_count = 1;
         } else {
             /* Single return type */
             node->data.func_decl.return_types[0] = p->cur_token.literal;
