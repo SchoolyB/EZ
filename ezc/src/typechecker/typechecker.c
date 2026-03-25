@@ -332,6 +332,19 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
         EzType *right = resolve_expr(tc, node->data.infix.right);
         const char *op = node->data.infix.op;
 
+        /* String ordering operators not supported — use strings.compare() */
+        if ((left->kind == TK_STRING || right->kind == TK_STRING) &&
+            (strcmp(op, "<") == 0 || strcmp(op, ">") == 0 ||
+             strcmp(op, "<=") == 0 || strcmp(op, ">=") == 0)) {
+            char msg[256];
+            snprintf(msg, sizeof(msg),
+                "cannot use '%s' on strings; use strings.compare() instead", op);
+            diag_error(tc->diag, "E3002", strdup(msg),
+                tc->file, node->token.line, node->token.column, 0);
+            result = &TYPE_BOOL;
+            break;
+        }
+
         if (strcmp(op, "==") == 0 || strcmp(op, "!=") == 0 ||
             strcmp(op, "<") == 0 || strcmp(op, ">") == 0 ||
             strcmp(op, "<=") == 0 || strcmp(op, ">=") == 0 ||
