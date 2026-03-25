@@ -1218,13 +1218,19 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
         check_block(tc, node);
         break;
 
-    case NODE_IF_STMT:
+    case NODE_IF_STMT: {
         resolve_expr(tc, node->data.if_stmt.condition);
+        Scope *if_outer = tc->current_scope;
+        tc->current_scope = scope_create(if_outer);
         check_block(tc, node->data.if_stmt.consequence);
+        tc->current_scope = if_outer;
         if (node->data.if_stmt.alternative) {
+            tc->current_scope = scope_create(if_outer);
             check_statement(tc, node->data.if_stmt.alternative);
+            tc->current_scope = if_outer;
         }
         break;
+    }
 
     case NODE_FOR_STMT: {
         Scope *loop_scope = scope_create(tc->current_scope);
