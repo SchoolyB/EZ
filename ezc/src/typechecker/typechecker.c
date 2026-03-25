@@ -742,6 +742,13 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                 /* Pointer auto-deref field access */
                 result = struct_field_type(tc, sym->type->element_type, member);
             }
+        } else if (obj->kind == NODE_MEMBER_EXPR) {
+            /* Nested member access: a.b.c — resolve a.b first, then look up .c */
+            EzType *obj_t = typetable_get(tc->type_table, obj);
+            if (!obj_t) obj_t = resolve_expr(tc, obj);
+            if (obj_t && obj_t->kind == TK_STRUCT) {
+                result = struct_field_type(tc, obj_t->name, member);
+            }
         }
         break;
     }
