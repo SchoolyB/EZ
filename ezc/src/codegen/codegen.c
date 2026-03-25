@@ -1315,6 +1315,46 @@ static bool emit_regex_call(CodeGen *cg, AstNode *node, const char *func) {
     return false;
 }
 
+/* --- @http module --- */
+
+static bool emit_http_call(CodeGen *cg, AstNode *node, const char *func) {
+    if (strcmp(func, "get") == 0 && node->data.call.arg_count == 1) {
+        emit(cg, "ez_http_get(ez_default_arena, ");
+        emit_expression(cg, node->data.call.args[0]);
+        emit(cg, ")");
+        return true;
+    }
+    if (strcmp(func, "post") == 0 && node->data.call.arg_count == 2) {
+        emit(cg, "ez_http_post(ez_default_arena, ");
+        emit_expression(cg, node->data.call.args[0]);
+        emit(cg, ", ");
+        emit_expression(cg, node->data.call.args[1]);
+        emit(cg, ")");
+        return true;
+    }
+    if (strcmp(func, "put") == 0 && node->data.call.arg_count == 2) {
+        emit(cg, "ez_http_put(ez_default_arena, ");
+        emit_expression(cg, node->data.call.args[0]);
+        emit(cg, ", ");
+        emit_expression(cg, node->data.call.args[1]);
+        emit(cg, ")");
+        return true;
+    }
+    if (strcmp(func, "delete") == 0 && node->data.call.arg_count == 1) {
+        emit(cg, "ez_http_delete(ez_default_arena, ");
+        emit_expression(cg, node->data.call.args[0]);
+        emit(cg, ")");
+        return true;
+    }
+    if (strcmp(func, "head") == 0 && node->data.call.arg_count == 1) {
+        emit(cg, "ez_http_head(ez_default_arena, ");
+        emit_expression(cg, node->data.call.args[0]);
+        emit(cg, ")");
+        return true;
+    }
+    return false;
+}
+
 /* --- @net module --- */
 
 static bool emit_net_call(CodeGen *cg, AstNode *node, const char *func) {
@@ -1912,6 +1952,7 @@ static void emit_call_expression(CodeGen *cg, AstNode *node) {
             {"fmt",      emit_fmt_call},
             {"regex",    emit_regex_call},
             {"net",      emit_net_call},
+            {"http",     emit_http_call},
         };
         if (module) {
             for (int i = 0; i < (int)(sizeof(modules) / sizeof(modules[0])); i++) {
@@ -2888,6 +2929,7 @@ void codegen_generate(CodeGen *cg, AstNode *program) {
     emit(cg, "#include \"ez_threads.h\"\n");
     emit(cg, "#include \"ez_regex.h\"\n");
     emit(cg, "#include \"ez_net.h\"\n");
+    emit(cg, "#include \"ez_http.h\"\n");
     emit(cg, "\n");
 
     /* Emit struct type definitions */
