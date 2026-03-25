@@ -1550,9 +1550,25 @@ func (p *Parser) parseWhenStatement(attrs []*Attribute) *WhenStatement {
 		}
 	}
 
-	// Validate: default is required unless #strict
+	// Validate: default is required unless #strict or bool-exhaustive
 	if stmt.Default == nil && !stmt.IsStrict {
-		p.addEZError(errors.E2041, "when statement requires a 'default' case", stmt.Token)
+		// Check if all bool cases are covered (true + false = exhaustive)
+		hasTrue, hasFalse := false, false
+		for _, c := range stmt.Cases {
+			for _, v := range c.Values {
+				if bl, ok := v.(*BooleanValue); ok {
+					if bl.Value {
+						hasTrue = true
+					} else {
+						hasFalse = true
+					}
+				}
+			}
+		}
+		boolExhaustive := hasTrue && hasFalse
+		if !boolExhaustive {
+			p.addEZError(errors.E2041, "when statement requires a 'default' case", stmt.Token)
+		}
 	}
 
 	// Validate: #strict cannot have default

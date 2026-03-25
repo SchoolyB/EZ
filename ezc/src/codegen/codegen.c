@@ -166,9 +166,20 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
         emitf(cg, "%lld", (long long)node->data.int_value.value);
         break;
 
-    case NODE_FLOAT_VALUE:
-        emitf(cg, "%.16g", node->data.float_value.value);
+    case NODE_FLOAT_VALUE: {
+        /* Emit float with enough precision, ensuring a decimal point so C
+         * treats it as double (e.g. 1.0 must emit "1.0", not "1") */
+        char fbuf[64];
+        snprintf(fbuf, sizeof(fbuf), "%.16g", node->data.float_value.value);
+        if (!strchr(fbuf, '.') && !strchr(fbuf, 'e')) {
+            size_t flen = strlen(fbuf);
+            fbuf[flen] = '.';
+            fbuf[flen+1] = '0';
+            fbuf[flen+2] = '\0';
+        }
+        emit(cg, fbuf);
         break;
+    }
 
     case NODE_STRING_VALUE: {
         /* Emit string literal, breaking hex escapes to prevent C's greedy \x parsing.

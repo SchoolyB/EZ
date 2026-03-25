@@ -873,8 +873,21 @@ func evalVariableDeclaration(node *ast.VariableDeclaration, env *Environment, ct
 			if returnVal, ok := val.(*ReturnValue); ok && len(returnVal.Values) >= 2 {
 				lastVal := returnVal.Values[len(returnVal.Values)-1]
 				if lastVal != NIL && lastVal.Type() != "NIL" {
-					// Error is non-nil — propagate the entire tuple as a return value
-					// The original function already set proper zero values for non-error slots
+					// Error is non-nil — build return values matching enclosing function's signature
+					// with zero values for all non-error slots + the error as last value
+					enclosingRetTypes := env.GetReturnTypes()
+					if len(enclosingRetTypes) > 0 {
+						retVals := make([]Object, len(enclosingRetTypes))
+						for i, rt := range enclosingRetTypes {
+							if i == len(enclosingRetTypes)-1 {
+								// Last slot = the error
+								retVals[i] = lastVal
+							} else {
+								retVals[i] = zeroValueForType(rt)
+							}
+						}
+						return &ReturnValue{Values: retVals}
+					}
 					return &ReturnValue{Values: returnVal.Values}
 				}
 				// Error is nil — extract the non-error value(s)
@@ -3953,6 +3966,25 @@ func evalNewExpression(node *ast.NewExpression, env *Environment, ctx *EvalConte
 	return &Struct{
 		TypeName: structDef.Name,
 		Fields:   fields,
+	}
+}
+
+// zeroValueForType returns the zero value for a type name (no env needed).
+func zeroValueForType(typeName string) Object {
+	switch typeName {
+	case "int", "i8", "i16", "i32", "i64", "i128", "i256",
+		"uint", "u8", "u16", "u32", "u64", "u128", "u256", "byte":
+		return &Integer{Value: big.NewInt(0)}
+	case "float", "f32", "f64":
+		return &Float{Value: 0.0}
+	case "string":
+		return &String{Value: "", Mutable: true}
+	case "bool":
+		return FALSE
+	case "char":
+		return &Char{Value: '\x00'}
+	default:
+		return NIL
 	}
 }
 
