@@ -136,6 +136,9 @@ EzString ez_string_concat(EzArena *arena, EzString a, EzString b) {
     return s;
 }
 
+/* --- Stack depth guard --- */
+int ez_call_depth = 0;
+
 /* --- Runtime Init/Shutdown --- */
 
 void ez_runtime_init(void) {

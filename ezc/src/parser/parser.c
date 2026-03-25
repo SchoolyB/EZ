@@ -1184,6 +1184,14 @@ static AstNode *parse_import_statement(Parser *p) {
             /* import & use syntax */
             node->data.import_stmt.auto_use = true;
             continue;
+        } else if (cur_token_is(p, TOK_IDENT) || cur_token_is(p, TOK_IMPORT)) {
+            char buf[256];
+            snprintf(buf, sizeof(buf),
+                "expected @module or \"path\" after import, got '%s'",
+                p->cur_token.literal);
+            diag_error(p->diag, "E2002", arena_strdup(p->arena, buf),
+                p->file, p->cur_token.line, p->cur_token.column, 0);
+            return node;
         }
 
         node->data.import_stmt.count++;

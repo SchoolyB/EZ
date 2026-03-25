@@ -1028,6 +1028,21 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
     return result;
 }
 
+/* Check if a name uses a reserved prefix that would collide with generated C.
+ * Skip names starting with _ez_ as those are compiler-generated temporaries. */
+static void check_reserved_name(TypeChecker *tc, const char *name, int line, int col) {
+    if (!name) return;
+    /* Skip compiler-generated temps (_ez_tmp, _ez_or, _ez_idx, etc.) */
+    if (strncmp(name, "_ez_", 4) == 0) return;
+    if (strncmp(name, "ez_", 3) == 0 || strncmp(name, "Ez", 2) == 0) {
+        char msg[256];
+        snprintf(msg, sizeof(msg),
+            "name '%s' uses reserved prefix (ez_, _ez_, Ez) — these are reserved for the compiler",
+            name);
+        diag_error(tc->diag, "E4006", strdup(msg), tc->file, line, col, 0);
+    }
+}
+
 /* --- Statement checking --- */
 
 static void check_statement(TypeChecker *tc, AstNode *node);
@@ -1075,6 +1090,9 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
         }
 
         if (strcmp(node->data.var_decl.name, "_") != 0) {
+            /* Check for reserved prefix */
+            check_reserved_name(tc, node->data.var_decl.name,
+                node->token.line, node->token.column);
             /* Check for redeclaration in same scope */
             Symbol *existing = scope_lookup_local(tc->current_scope,
                 node->data.var_decl.name);
@@ -1381,6 +1399,38 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
 
         check_block(tc, node->data.func_decl.body);
 
+        /* Check for missing return in non-void function (simple: check last statement) */
+        if (tc->current_return_count > 0 && node->data.func_decl.body &&
+            node->data.func_decl.body->kind == NODE_BLOCK_STMT) {
+            AstNode *body = node->data.func_decl.body;
+            bool has_return = false;
+            /* Check if any top-level statement in the body is a return */
+            for (int i = 0; i < body->data.block.count; i++) {
+                if (body->data.block.stmts[i]->kind == NODE_RETURN_STMT) {
+                    has_return = true;
+                    break;
+                }
+            }
+            /* Also check named returns (if return names are set, implicit return is OK) */
+            bool has_named_returns = false;
+            if (node->data.func_decl.return_names) {
+                for (int i = 0; i < node->data.func_decl.return_type_count; i++) {
+                    if (node->data.func_decl.return_names[i]) {
+                        has_named_returns = true;
+                        break;
+                    }
+                }
+            }
+            if (!has_return && !has_named_returns) {
+                char msg[256];
+                snprintf(msg, sizeof(msg),
+                    "function '%s' may not return a value on all paths",
+                    node->data.func_decl.name);
+                diag_warning(tc->diag, "W3001", strdup(msg),
+                    tc->file, node->token.line, node->token.column, 0);
+            }
+        }
+
         if (tc->current_return_types) free(tc->current_return_types);
         tc->current_return_types = prev_ret;
         tc->current_return_count = prev_ret_count;
@@ -1493,6 +1543,9 @@ static void register_declarations(TypeChecker *tc, AstNode *program) {
                 rtypes[j] = type_from_name(stmt->data.func_decl.return_types[j]);
             }
 
+            /* Check for reserved prefix */
+            check_reserved_name(tc, stmt->data.func_decl.name,
+                stmt->token.line, stmt->token.column);
             /* Check for duplicate function names */
             if (find_func(tc, stmt->data.func_decl.name)) {
                 char msg[256];
