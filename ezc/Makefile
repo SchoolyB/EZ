@@ -71,6 +71,7 @@ INCLUDES = -Isrc
 all: build
 
 build: $(BIN) $(RT_LIB)
+	@echo "ezc: build complete ($(BIN) + $(RT_LIB))"
 
 $(BIN): $(OBJ)
 	$(CC) $(CFLAGS) $(INCLUDES) -o $@ $^ $(LDFLAGS)
