@@ -2436,6 +2436,9 @@ static void emit_return_statement(CodeGen *cg, AstNode *node) {
     /* Emit ensure cleanup before return */
     emit_ensure_cleanup(cg);
 
+    /* Stack depth guard */
+    emit_indent(cg);
+    emit(cg, "ez_exit_func();\n");
     emit_indent(cg);
 
     if (node->data.return_stmt.count > 1 && cg->current_func) {
@@ -2667,9 +2670,14 @@ static void emit_func_declaration(CodeGen *cg, AstNode *node, bool is_main) {
     }
 
     if (node->data.func_decl.body) {
+        /* Stack depth guard */
+        emit_indent(cg);
+        emitf(cg, "ez_enter_func(__FILE__, %d);\n", node->token.line);
         emit_block(cg, node->data.func_decl.body);
         /* Emit ensure cleanup at end of function (for implicit returns) */
         emit_ensure_cleanup(cg);
+        emit_indent(cg);
+        emit(cg, "ez_exit_func();\n");
     }
     cg->current_func = prev_func;
     cg->indent--;

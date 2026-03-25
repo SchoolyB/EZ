@@ -86,6 +86,24 @@ EzString ez_string_concat(EzArena *arena, EzString a, EzString b);
 void ez_runtime_init(void);
 void ez_runtime_shutdown(void);
 
+/* --- Stack depth guard --- */
+
+#define EZ_MAX_CALL_DEPTH 10000
+extern int ez_call_depth;
+
+static inline void ez_enter_func(const char *file, int line) {
+    if (++ez_call_depth > EZ_MAX_CALL_DEPTH) {
+        fflush(stdout);
+        fprintf(stderr, "panic at %s:%d: stack overflow (recursion depth exceeded %d)\n",
+            file, line, EZ_MAX_CALL_DEPTH);
+        exit(1);
+    }
+}
+
+static inline void ez_exit_func(void) {
+    ez_call_depth--;
+}
+
 /* --- Panic --- */
 
 void ez_panic(const char *file, int line, const char *fmt, ...)
