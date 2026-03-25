@@ -85,6 +85,15 @@ if [ -d "$ROOT_DIR/integration-tests/pass/named_returns" ]; then
     done
 fi
 
+# Stdlib tests (compiler-specific _c.ez files)
+echo ""
+printf "${BOLD}Stdlib Tests:${RESET}\n"
+if [ -d "$ROOT_DIR/integration-tests/pass/stdlib" ]; then
+    for file in "$ROOT_DIR"/integration-tests/pass/stdlib/*_c.ez; do
+        [ -f "$file" ] && run_test "$file"
+    done
+fi
+
 # Summary
 echo ""
 printf "${BOLD}Results:${RESET} "
