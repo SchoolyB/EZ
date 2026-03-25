@@ -576,6 +576,17 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                 } else {
                     result = &TYPE_VOID;
                 }
+            } else if (strcmp(mod, "net") == 0) {
+                if (strcmp(mfn, "dial") == 0 || strcmp(mfn, "listen") == 0 ||
+                    strcmp(mfn, "accept") == 0) {
+                    result = &TYPE_UNKNOWN; /* EzSocket — opaque */
+                } else if (strcmp(mfn, "send") == 0) {
+                    result = &TYPE_INT;
+                } else if (strcmp(mfn, "recv") == 0 || strcmp(mfn, "resolve") == 0) {
+                    result = &TYPE_STRING;
+                } else {
+                    result = &TYPE_VOID;
+                }
             } else if (strcmp(mod, "regex") == 0) {
                 if (strcmp(mfn, "match") == 0) {
                     result = &TYPE_BOOL;

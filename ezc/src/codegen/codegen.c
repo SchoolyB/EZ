@@ -1315,6 +1315,68 @@ static bool emit_regex_call(CodeGen *cg, AstNode *node, const char *func) {
     return false;
 }
 
+/* --- @net module --- */
+
+static bool emit_net_call(CodeGen *cg, AstNode *node, const char *func) {
+    if (strcmp(func, "dial") == 0 && node->data.call.arg_count == 2) {
+        emit(cg, "ez_net_dial(ez_default_arena, ");
+        emit_expression(cg, node->data.call.args[0]);
+        emit(cg, ", ");
+        emit_expression(cg, node->data.call.args[1]);
+        emit(cg, ")");
+        return true;
+    }
+    if (strcmp(func, "close") == 0 && node->data.call.arg_count == 1) {
+        emit(cg, "ez_net_close(");
+        emit_expression(cg, node->data.call.args[0]);
+        emit(cg, ")");
+        return true;
+    }
+    if (strcmp(func, "send") == 0 && node->data.call.arg_count == 2) {
+        emit(cg, "ez_net_send(");
+        emit_expression(cg, node->data.call.args[0]);
+        emit(cg, ", ");
+        emit_expression(cg, node->data.call.args[1]);
+        emit(cg, ")");
+        return true;
+    }
+    if (strcmp(func, "recv") == 0 && node->data.call.arg_count == 2) {
+        emit(cg, "ez_net_recv(ez_default_arena, ");
+        emit_expression(cg, node->data.call.args[0]);
+        emit(cg, ", ");
+        emit_expression(cg, node->data.call.args[1]);
+        emit(cg, ")");
+        return true;
+    }
+    if (strcmp(func, "listen") == 0 && node->data.call.arg_count == 1) {
+        emit(cg, "ez_net_listen(ez_default_arena, ");
+        emit_expression(cg, node->data.call.args[0]);
+        emit(cg, ")");
+        return true;
+    }
+    if (strcmp(func, "accept") == 0 && node->data.call.arg_count == 1) {
+        emit(cg, "ez_net_accept(ez_default_arena, ");
+        emit_expression(cg, node->data.call.args[0]);
+        emit(cg, ")");
+        return true;
+    }
+    if (strcmp(func, "set_timeout") == 0 && node->data.call.arg_count == 2) {
+        emit(cg, "ez_net_set_timeout(");
+        emit_expression(cg, node->data.call.args[0]);
+        emit(cg, ", ");
+        emit_expression(cg, node->data.call.args[1]);
+        emit(cg, ")");
+        return true;
+    }
+    if (strcmp(func, "resolve") == 0 && node->data.call.arg_count == 1) {
+        emit(cg, "ez_net_resolve(ez_default_arena, ");
+        emit_expression(cg, node->data.call.args[0]);
+        emit(cg, ")");
+        return true;
+    }
+    return false;
+}
+
 /* --- @encoding module --- */
 
 static bool emit_encoding_call(CodeGen *cg, AstNode *node, const char *func) {
@@ -1849,6 +1911,7 @@ static void emit_call_expression(CodeGen *cg, AstNode *node) {
             {"strings",  emit_strings_call},
             {"fmt",      emit_fmt_call},
             {"regex",    emit_regex_call},
+            {"net",      emit_net_call},
         };
         if (module) {
             for (int i = 0; i < (int)(sizeof(modules) / sizeof(modules[0])); i++) {
@@ -2824,6 +2887,7 @@ void codegen_generate(CodeGen *cg, AstNode *program) {
     emit(cg, "#include \"ez_sqlite.h\"\n");
     emit(cg, "#include \"ez_threads.h\"\n");
     emit(cg, "#include \"ez_regex.h\"\n");
+    emit(cg, "#include \"ez_net.h\"\n");
     emit(cg, "\n");
 
     /* Emit struct type definitions */
