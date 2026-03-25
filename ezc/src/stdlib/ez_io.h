@@ -25,7 +25,7 @@ bool ez_io_append_file(EzString path, EzString content);
 bool ez_io_delete_file(EzString path);
 bool ez_io_rename(EzString old_path, EzString new_path);
 
-/* Aliases used by interpreter: remove = delete_file, exists = file_exists */
+/* Convenience aliases */
 #define ez_io_remove ez_io_delete_file
 #define ez_io_exists ez_io_file_exists
 

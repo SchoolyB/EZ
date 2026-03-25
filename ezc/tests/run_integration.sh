@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-# run_integration.sh - Run EZC against the interpreter's integration test suite
+# run_integration.sh - Run EZC against the integration test suite
 #
 # Usage: ./ezc/tests/run_integration.sh [--verbose]
 #
@@ -61,7 +61,7 @@ run_test() {
 
 echo ""
 printf "${BOLD}EZC Integration Tests${RESET}\n"
-echo "Running EZC against the interpreter's test suite"
+echo "Running EZC against the integration test suite"
 echo ""
 
 # Build if needed

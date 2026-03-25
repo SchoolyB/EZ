@@ -7,7 +7,7 @@ Thanks for your interest in contributing to EZ! This guide will help you get sta
 - [Getting Started](#getting-started)
 - [Installing Go](#installing-go)
 - [Building from Source](#building-from-source)
-- [How the Interpreter Works](#how-the-interpreter-works)
+- [How the Compiler Works](#how-the-compiler-works)
 - [Making Changes](#making-changes)
 - [Project Structure](#project-structure)
 - [Running Tests](#running-tests)
@@ -25,7 +25,8 @@ Thanks for your interest in contributing to EZ! This guide will help you get sta
 
 ### Prerequisites
 
-- **Go 1.23.1 or higher** ([Installation Guide](#installing-go))
+- **Go 1.21 or higher** (for the `ez` CLI tooling)
+- **C compiler** (gcc or clang)
 - Git
 
 ### Fork and Clone the Repository
@@ -112,21 +113,27 @@ make build
 
 ---
 
-## How the Interpreter Works
+## How the Compiler Works
 
-EZ processes source code through a pipeline of stages. Understanding this helps you know which files to touch for different kinds of changes.
+EZ compiles source code to native binaries through a pipeline of stages. Understanding this helps you know which files to touch for different kinds of changes.
 
 ```
-Source Code → Lexer → Parser → Type Checker → Interpreter
-  (.ez)      tokens    AST     validated AST    output
+Source Code → Lexer → Parser → Type Checker → Code Gen → C Compiler → Binary
+  (.ez)      tokens    AST     validated AST    .c file    cc/gcc       native
 ```
 
-1. **Lexer** (`pkg/lexer/`) — Reads source text and produces tokens. Keywords and token types are defined in `pkg/tokenizer/`.
-2. **Parser** (`pkg/parser/`) — Turns tokens into an Abstract Syntax Tree (AST). Node types are defined in `pkg/ast/`.
-3. **Type Checker** (`pkg/typechecker/`) — Walks the AST and validates types, catches errors before runtime.
-4. **Interpreter** (`pkg/interpreter/`) — Evaluates the AST and runs the program. Runtime object types live in `pkg/object/`.
+All compiler stages live in `ezc/src/`:
 
-**What this means in practice:** If you're adding a new language feature (like a new statement or operator), you'll typically need to touch all four stages — define the AST node, parse it, type-check it, and evaluate it. If you're adding a stdlib function, you only need `pkg/stdlib/`.
+1. **Lexer** (`ezc/src/lexer/`) — Reads source text and produces tokens.
+2. **Parser** (`ezc/src/parser/`) — Turns tokens into an Abstract Syntax Tree (AST).
+3. **Type Checker** (`ezc/src/typechecker/`) — Walks the AST and validates types, catches errors before compilation.
+4. **Code Generator** (`ezc/src/codegen/`) — Translates the AST into C source code.
+5. **Runtime** (`ezc/src/runtime/`) — Core types (strings, arrays, maps, arenas) linked into every binary.
+6. **Stdlib** (`ezc/src/stdlib/`) — Standard library modules (24 modules) compiled into `libezrt.a`.
+
+The `ez` CLI (`cmd/ez/`) is a Go tooling wrapper that invokes `ezc` for compilation. It provides the REPL, watch mode, doc generation, project scaffolding, and self-update.
+
+**What this means in practice:** If you're adding a new language feature, you'll touch the C compiler stages (lexer → parser → typechecker → codegen). If you're adding a stdlib function, you add it to `ezc/src/stdlib/` and wire it into the codegen. If you're improving developer tooling (REPL, watch, etc.), you work in the Go code under `cmd/ez/`.
 
 ---
 
@@ -135,16 +142,16 @@ Source Code → Lexer → Parser → Type Checker → Interpreter
 The fastest way to iterate on a change:
 
 ```bash
-# 1. Edit a file (e.g., pkg/stdlib/strings.go)
+# 1. Edit a file (e.g., ezc/src/stdlib/ez_strings.c)
 
 # 2. Rebuild
 make build
 
-# 3. Test with the REPL
-./ez repl
+# 3. Test with a quick .ez file
+EZC_PATH=./ezc/ezc ./ez run examples/basic/hello.ez
 
-# Or test with a quick .ez file
-./ez examples/hello.ez
+# Or test with the REPL
+EZC_PATH=./ezc/ezc ./ez repl
 ```
 
 This is a great way to quickly validate your change while developing. When your feature is working, make sure to add proper tests before submitting your PR (see [Writing Tests](#writing-tests)).
@@ -155,39 +162,44 @@ This is a great way to quickly validate your change while developing. When your 
 
 ```
 EZ/
-├── cmd/ez/              # CLI entry point
-│   ├── main.go          # Command handling
-│   ├── repl.go          # Interactive REPL
-│   └── update.go        # Self-update feature
-├── pkg/                 # Core language implementation
-│   ├── ast/             # Abstract Syntax Tree node definitions
+├── cmd/ez/              # Go CLI tooling wrapper
+│   ├── main.go          # Entry point, version
+│   ├── commands.go      # Subcommand definitions
+│   ├── repl.go          # Interactive REPL (backed by ezc)
+│   ├── watch.go         # File watcher
+│   ├── doc.go           # Documentation generator
+│   ├── pz.go            # Project scaffolding
+│   └── update.go        # Self-update
+├── internal/ezc/        # Go wrapper for invoking ezc binary
+├── pkg/                 # Go packages (tooling only)
 │   ├── errors/          # Error codes and formatting
-│   ├── interpreter/     # Runtime evaluation
-│   ├── lexer/           # Tokenization (source → tokens)
-│   ├── lineeditor/      # REPL line editor
-│   ├── object/          # Runtime object system
-│   ├── parser/          # Parsing (tokens → AST)
-│   ├── stdlib/          # Standard library modules
-│   ├── tokenizer/       # Token types and keywords
-│   └── typechecker/     # Static type checking
+│   └── lineeditor/      # REPL line editor
+├── ezc/                 # EZC compiler (C)
+│   ├── src/lexer/       # Tokenization
+│   ├── src/parser/      # Parsing (tokens → AST)
+│   ├── src/typechecker/ # Static type checking
+│   ├── src/codegen/     # Code generation (AST → C)
+│   ├── src/runtime/     # Runtime (strings, arrays, maps, arenas)
+│   ├── src/stdlib/      # Standard library (24 modules)
+│   └── tests/           # Unit, e2e, parity, integration tests
 ├── examples/            # Example EZ programs
 ├── integration-tests/   # End-to-end test suite
 ├── STANDARD.md          # Language specification
-├── TESTING.md           # Testing guide
-└── Makefile             # Build commands
+└── Makefile             # Build commands (builds both ez + ezc)
 ```
 
 ### Key Files for Common Tasks
 
 | Task | Where to Look |
 |------|---------------|
-| Add a stdlib function | `pkg/stdlib/*.go` |
-| Change syntax/grammar | `pkg/ast/ast.go` + `pkg/parser/parser.go` |
-| Add a new keyword/token | `pkg/tokenizer/token.go` + `pkg/lexer/lexer.go` |
-| Modify type checking | `pkg/typechecker/typechecker.go` |
-| Change runtime behavior | `pkg/interpreter/evaluator.go` |
-| Add/modify error codes | `pkg/errors/codes.go` |
-| Add a new language feature | All of the above (AST → Parser → Typechecker → Evaluator) |
+| Add a stdlib function | `ezc/src/stdlib/` + wire in `ezc/src/codegen/codegen.c` |
+| Change syntax/grammar | `ezc/src/parser/parser.c` + `ezc/src/parser/ast.h` |
+| Add a new keyword/token | `ezc/src/lexer/lexer.c` + `ezc/src/lexer/token.h` |
+| Modify type checking | `ezc/src/typechecker/typechecker.c` |
+| Change code generation | `ezc/src/codegen/codegen.c` |
+| Add/modify error codes | `pkg/errors/codes.go` (Go) or `ezc/src/util/error.c` (C) |
+| Improve CLI tooling | `cmd/ez/*.go` |
+| Add a new language feature | Parser → Typechecker → Codegen (all in `ezc/src/`) |
 
 ---
 
@@ -196,35 +208,23 @@ EZ/
 ### Unit Tests
 
 ```bash
-# Run all unit tests
+# Run all tests (CLI + compiler)
 make test
-# or
-go test ./...
 
-# Run with verbose output
-go test -v ./...
+# Compiler tests only
+cd ezc
+make test-unit     # unit tests
+make test-e2e      # end-to-end tests
+make test-parity   # output parity tests
 
-# Run tests for a specific package
-go test ./pkg/parser/...
-go test ./pkg/interpreter/...
+# CLI/tooling tests only
+go test ./pkg/errors/... ./pkg/lineeditor/...
 ```
 
 ### Integration Tests
 
 ```bash
-make integration-test
-# or
-./integration-tests/run_tests.sh
-```
-
-### Test Coverage
-
-```bash
-# Generate coverage report
-go test ./pkg/... -coverprofile=coverage.out
-
-# View in browser
-go tool cover -html=coverage.out
+bash ezc/tests/run_integration.sh
 ```
 
 ---
@@ -233,13 +233,14 @@ go tool cover -html=coverage.out
 
 New features and bug fixes should include tests. The type of test depends on what you're changing.
 
-### Unit Tests (Go)
+### Unit Tests (C)
 
-For internal logic in the Go packages. These live alongside the code in `*_test.go` files:
+For compiler internals. Run from `ezc/`:
 
 ```bash
-go test ./pkg/parser/...
-go test ./pkg/interpreter/...
+cd ezc
+make test-unit          # lexer, parser, typechecker tests
+make test-e2e           # full compilation pipeline tests
 ```
 
 ### Integration Tests (EZ)
