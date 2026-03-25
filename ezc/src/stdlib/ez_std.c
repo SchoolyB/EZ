@@ -12,6 +12,19 @@
 #include <unistd.h>
 #include <time.h>
 
+/* Format a double using the shortest representation that round-trips,
+ * matching Go's strconv.FormatFloat(v, 'g', -1, 64) behavior. */
+static int fmt_shortest_float(char *buf, size_t bufsz, double v) {
+    /* Try increasing precision until the round-trip matches */
+    for (int prec = 15; prec <= 17; prec++) {
+        int n = snprintf(buf, bufsz, "%.*g", prec, v);
+        double rt;
+        if (sscanf(buf, "%lf", &rt) == 1 && rt == v) return n;
+    }
+    /* Fallback: full 17-digit precision */
+    return snprintf(buf, bufsz, "%.17g", v);
+}
+
 /* --- println --- */
 
 void ez_std_println_str(EzString s) {
@@ -24,9 +37,9 @@ void ez_std_println_int(int64_t v) {
 }
 
 void ez_std_println_float(double v) {
-    /* Match interpreter: print full precision, always show decimal point */
+    /* Match interpreter: shortest round-trip representation */
     char buf[64];
-    snprintf(buf, sizeof(buf), "%.16g", v);
+    fmt_shortest_float(buf, sizeof(buf), v);
     /* Ensure there's always a decimal point for whole-number floats */
     if (!strchr(buf, '.') && !strchr(buf, 'e')) {
         size_t len = strlen(buf);
@@ -145,7 +158,7 @@ EzString ez_std_to_string_int(EzArena *arena, int64_t v) {
 
 EzString ez_std_to_string_float(EzArena *arena, double v) {
     char buf[64];
-    int len = snprintf(buf, sizeof(buf), "%.16g", v);
+    int len = fmt_shortest_float(buf, sizeof(buf), v);
     /* Ensure decimal point for whole-number floats */
     if (!strchr(buf, '.') && !strchr(buf, 'e')) {
         buf[len++] = '.';
