@@ -2015,6 +2015,18 @@ static void emit_var_declaration(CodeGen *cg, AstNode *node) {
             c_type = "EzMap";
         } else if (val->kind == NODE_STRUCT_VALUE) {
             c_type = ez_type_to_c_cg(cg, val->data.struct_value.name);
+        } else if (val->kind == NODE_INFIX_EXPR) {
+            /* Check type table for infix result type */
+            EzType *infix_t = cg->type_table ? typetable_get(cg->type_table, val) : NULL;
+            if (infix_t && infix_t->kind == TK_STRING) {
+                c_type = "EzString";
+            } else if (infix_t && infix_t->kind == TK_FLOAT) {
+                c_type = "double";
+            } else if (infix_t && infix_t->kind == TK_BOOL) {
+                c_type = "bool";
+            } else {
+                c_type = "__auto_type";
+            }
         } else if (val->kind == NODE_CALL_EXPR || val->kind == NODE_NEW_EXPR ||
                    val->kind == NODE_MEMBER_EXPR || val->kind == NODE_INDEX_EXPR) {
             /* Use __auto_type for function calls, new(), member access, and index
