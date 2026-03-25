@@ -170,7 +170,7 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
         /* Emit float with enough precision, ensuring a decimal point so C
          * treats it as double (e.g. 1.0 must emit "1.0", not "1") */
         char fbuf[64];
-        snprintf(fbuf, sizeof(fbuf), "%.16g", node->data.float_value.value);
+        snprintf(fbuf, sizeof(fbuf), "%.17g", node->data.float_value.value);
         if (!strchr(fbuf, '.') && !strchr(fbuf, 'e')) {
             size_t flen = strlen(fbuf);
             fbuf[flen] = '.';
