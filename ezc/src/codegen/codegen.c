@@ -2510,14 +2510,17 @@ static void emit_statement(CodeGen *cg, AstNode *node) {
                 else if (vt->kind == TK_BOOL) c_val = "bool";
             }
 
+            /* Iterate in insertion order using the order array */
+            char slot_name[32];
+            snprintf(slot_name, sizeof(slot_name), "_ez_sl%d", map_iter_counter - 1);
             emitf(cg, "for (int32_t %s = 0; %s < ", mi_name, mi_name);
             emit_expression(cg, coll);
-            emitf(cg, ".capacity; %s++) {\n", mi_name);
+            emitf(cg, ".order_len; %s++) {\n", mi_name);
             cg->indent++;
             emit_indent(cg);
-            emit(cg, "if (");
+            emitf(cg, "int32_t %s = ", slot_name);
             emit_expression(cg, coll);
-            emitf(cg, ".states[%s] != 1) continue;\n", mi_name);
+            emitf(cg, ".order[%s];\n", mi_name);
 
             if (node->data.for_each.index_name) {
                 /* Two-var form: for_each k, v in map */
@@ -2526,14 +2529,14 @@ static void emit_statement(CodeGen *cg, AstNode *node) {
                     emitf(cg, "%s %s = *(%s *)ez_map_key_at(&",
                         c_key, node->data.for_each.index_name, c_key);
                     emit_expression(cg, coll);
-                    emitf(cg, ", %s);\n", mi_name);
+                    emitf(cg, ", %s);\n", slot_name);
                 }
                 if (strcmp(node->data.for_each.var_name, "_") != 0) {
                     emit_indent(cg);
                     emitf(cg, "%s %s = *(%s *)ez_map_value_at(&",
                         c_val, node->data.for_each.var_name, c_val);
                     emit_expression(cg, coll);
-                    emitf(cg, ", %s);\n", mi_name);
+                    emitf(cg, ", %s);\n", slot_name);
                 }
             } else {
                 /* One-var form: for_each key in map (keys only) */
@@ -2541,7 +2544,7 @@ static void emit_statement(CodeGen *cg, AstNode *node) {
                 emitf(cg, "%s %s = *(%s *)ez_map_key_at(&",
                     c_key, node->data.for_each.var_name, c_key);
                 emit_expression(cg, coll);
-                emitf(cg, ", %s);\n", mi_name);
+                emitf(cg, ", %s);\n", slot_name);
             }
         } else if (coll_t && coll_t->kind == TK_STRING) {
             /* for_each ch in "string" → iterate characters */

@@ -210,11 +210,11 @@ EzString ez_std_map_to_string(EzArena *arena, EzMap *m, int val_kind) {
     char buf[4096];
     int pos = 0;
     buf[pos++] = '{';
-    bool first = true;
-    for (int32_t i = 0; i < m->capacity && pos < 4000; i++) {
+    /* Iterate in insertion order */
+    for (int32_t oi = 0; oi < m->order_len && pos < 4000; oi++) {
+        int32_t i = m->order[oi];
         if (m->states[i] != 1) continue;
-        if (!first) { buf[pos++] = ','; buf[pos++] = ' '; }
-        first = false;
+        if (oi > 0) { buf[pos++] = ','; buf[pos++] = ' '; }
         /* Key (assume string for now — most common) */
         EzString *kp = (EzString *)((char *)m->keys + (size_t)i * m->key_size);
         pos += snprintf(buf + pos, sizeof(buf) - pos, "\"%.*s\": ",

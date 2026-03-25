@@ -17,10 +17,12 @@ typedef struct {
     void *keys;
     void *values;
     uint8_t *states;        /* 0=empty, 1=occupied, 2=tombstone */
+    int32_t *order;         /* insertion-order slot indices */
     int32_t count;
     int32_t capacity;
     int32_t key_size;
     int32_t value_size;
+    int32_t order_len;      /* number of entries in order array */
 } EzMap;
 
 /* Create an empty map */
