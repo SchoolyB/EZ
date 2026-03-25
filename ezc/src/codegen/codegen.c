@@ -1751,7 +1751,8 @@ static void emit_call_expression(CodeGen *cg, AstNode *node) {
 
     if (is_stdlib_call(node, &module, &func)) {
         /* No-module builtins (println, len, typeof, etc.) */
-        if (!module && emit_builtin_call(cg, node, func)) return;
+        /* Also handle std.println() — std module functions are builtins */
+        if ((!module || strcmp(module, "std") == 0) && emit_builtin_call(cg, node, func)) return;
 
         /* Module dispatch table */
         typedef bool (*ModuleHandler)(CodeGen *, AstNode *, const char *);
