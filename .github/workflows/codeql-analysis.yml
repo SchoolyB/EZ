@@ -28,7 +28,7 @@ jobs:
           languages: go, c-cpp
           queries: security-and-quality
 
-      - name: Build Go interpreter
+      - name: Build Go CLI
         run: |
           go env
           go test ./... || true

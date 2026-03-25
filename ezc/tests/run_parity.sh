@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-# run_parity.sh - Compare ezc (compiler) output against ez (interpreter)
+# run_parity.sh - Compare ezc output against expected output
 #
 # Usage: ./ezc/tests/run_parity.sh [file.ez ...]
 #   No args: runs all examples/basic/*.ez
@@ -79,7 +79,7 @@ run_test() {
     local ezc_out
     ezc_out=$("$bin" 2>&1) || true
 
-    # Run with interpreter
+    # Run with ez CLI (expected output)
     local ez_out
     ez_out=$(cd "$ROOT_DIR" && $EZ "$file" 2>&1 | sed '/^Note:/d' | sed '/^$/{ N; /^\n$/d; }' | sed '1{ /^$/d; }') || true
 
@@ -98,7 +98,7 @@ run_test() {
 # Header
 echo ""
 printf "${BOLD}EZC Parity Tests${RESET}\n"
-echo "Comparing ezc (compiler) output against ez (interpreter)"
+echo "Comparing compiled output against expected output"
 echo ""
 
 # Build ezc if needed
