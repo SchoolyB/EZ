@@ -704,14 +704,17 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                     if (fn_sym && fn_sym->type && strcmp(type_name(fn_sym->type), "func") == 0) {
                         result = &TYPE_UNKNOWN; /* callable func ref — return type unknown */
                     } else if (!tc_is_builtin(fn_name)) {
-                        /* Only report if we have a suggestion */
+                        char msg[256];
+                        snprintf(msg, sizeof(msg), "undefined function '%s'", fn_name);
                         const char *suggestion = suggest_name(tc, fn_name);
                         if (suggestion) {
-                            char msg[256], help[256];
-                            snprintf(msg, sizeof(msg), "undefined function '%s'", fn_name);
+                            char help[256];
                             snprintf(help, sizeof(help), "did you mean '%s'?", suggestion);
                             diag_error_help(tc->diag, "E4002", strdup(msg),
                                 tc->file, node->token.line, node->token.column, 0, strdup(help));
+                        } else {
+                            diag_error(tc->diag, "E4002", strdup(msg),
+                                tc->file, node->token.line, node->token.column, 0);
                         }
                     }
                 }
@@ -901,6 +904,17 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
         }
 
         if (strcmp(node->data.var_decl.name, "_") != 0) {
+            /* Check for redeclaration in same scope */
+            Symbol *existing = scope_lookup_local(tc->current_scope,
+                node->data.var_decl.name);
+            if (existing) {
+                char msg[256];
+                snprintf(msg, sizeof(msg),
+                    "variable '%s' already declared in this scope (line %d)",
+                    node->data.var_decl.name, existing->def_line);
+                diag_error(tc->diag, "E4003", strdup(msg),
+                    tc->file, node->token.line, node->token.column, 0);
+            }
             scope_define(tc->current_scope, node->data.var_decl.name,
                 declared, node->data.var_decl.mutable);
             /* Store definition location for unused variable warnings */
@@ -938,8 +952,8 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
     }
 
     case NODE_ASSIGN_STMT: {
-        resolve_expr(tc, node->data.assign.target);
-        resolve_expr(tc, node->data.assign.value);
+        EzType *target_t = resolve_expr(tc, node->data.assign.target);
+        EzType *value_t = resolve_expr(tc, node->data.assign.value);
 
         /* Check for assignment to const variable */
         AstNode *target = node->data.assign.target;
@@ -951,6 +965,21 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
                     "cannot assign to constant '%s' — declare with 'mut' to make it mutable",
                     target->data.label.value);
                 diag_error(tc->diag, "E3005", strdup(msg),
+                    tc->file, node->token.line, node->token.column, 0);
+            }
+            /* Check type mismatch on assignment */
+            if (sym && sym->type->kind != TK_UNKNOWN && value_t->kind != TK_UNKNOWN &&
+                target_t->kind != TK_UNKNOWN &&
+                target_t->kind != value_t->kind &&
+                !(target_t->kind == TK_INT && value_t->kind == TK_BOOL) &&
+                !(target_t->kind == TK_ENUM && value_t->kind == TK_INT) &&
+                !(target_t->kind == TK_INT && value_t->kind == TK_ENUM) &&
+                !(target_t->kind == TK_STRUCT && value_t->kind == TK_INT)) {
+                char msg[256];
+                snprintf(msg, sizeof(msg),
+                    "type mismatch: cannot assign %s to %s variable '%s'",
+                    type_name(value_t), type_name(target_t), target->data.label.value);
+                diag_error(tc->diag, "E3001", strdup(msg),
                     tc->file, node->token.line, node->token.column, 0);
             }
         }
@@ -1141,6 +1170,14 @@ static void register_declarations(TypeChecker *tc, AstNode *program) {
                 rtypes[j] = type_from_name(stmt->data.func_decl.return_types[j]);
             }
 
+            /* Check for duplicate function names */
+            if (find_func(tc, stmt->data.func_decl.name)) {
+                char msg[256];
+                snprintf(msg, sizeof(msg),
+                    "function '%s' already declared", stmt->data.func_decl.name);
+                diag_error(tc->diag, "E4004", strdup(msg),
+                    tc->file, stmt->token.line, stmt->token.column, 0);
+            }
             register_func(tc, stmt->data.func_decl.name, ptypes, pc, rtypes, rc);
         }
     }
