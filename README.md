@@ -25,8 +25,8 @@
 ```bash
 git clone https://github.com/SchoolyB/EZ.git
 cd EZ
-make build          # builds the ez toolchain
-cd ezc && make build  # builds the compiler
+make build
+make install
 ```
 
 ```bash
@@ -35,7 +35,7 @@ ez run examples/basic/hello.ez
 
 That's it. `ez run` compiles your code to a native binary, executes it, and cleans up.
 
-**Requirements:** Go 1.21+ (for the `ez` CLI) and a C compiler (gcc or clang)
+**Requirements:** Go 1.21+ and a C compiler (gcc or clang)
 
 ---
 
