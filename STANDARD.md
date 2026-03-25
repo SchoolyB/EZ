@@ -2512,6 +2512,31 @@ The `new()` function creates a zero-initialized instance of a type:
 | `map[K:V]` | `{}` |
 | struct | All fields zero-initialized |
 
+### 12.6 Memory Safety
+
+EZ compiles to C and is **not memory safe** in the way that Rust or similar languages are. However, the language provides runtime safety checks that prevent the most common classes of memory errors:
+
+**Runtime-checked (safe by default):**
+
+| Hazard | EZ Behavior |
+|--------|-------------|
+| Nil pointer dereference | Runtime panic |
+| Array out-of-bounds | Runtime panic |
+| Map key not found | Runtime panic |
+| Division by zero | Runtime panic |
+| Stack overflow (deep recursion) | Detected and reported |
+
+**Not checked (programmer responsibility):**
+
+| Hazard | When It Can Happen |
+|--------|-------------------|
+| Use-after-free | Holding a pointer to arena memory after `mem.destroy()` |
+| Dangling pointer | Returning `addr()` of a local variable |
+| Data races | Multiple threads accessing shared data without `threads.lock()` |
+| Pointer arithmetic | Not supported in the language (disallowed by design) |
+
+For most EZ programs — those that don't use `@mem` arenas, raw pointers, or `@threads` — the runtime checks provide practical safety. Programs using low-level features should follow the same discipline as C: don't hold pointers past their lifetime, and protect shared state with mutexes.
+
 ---
 
 ## 13. Program Execution
