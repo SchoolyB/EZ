@@ -3001,16 +3001,62 @@ void codegen_generate(CodeGen *cg, AstNode *program) {
     emit(cg, "#include \"ez_server.h\"\n");
     emit(cg, "\n");
 
-    /* Emit struct type definitions */
-    for (int i = 0; i < program->data.program.stmt_count; i++) {
-        AstNode *stmt = program->data.program.stmts[i];
-        if (stmt->kind == NODE_STRUCT_DECL) {
-            emitf(cg, "typedef struct {\n");
-            for (int j = 0; j < stmt->data.struct_decl.field_count; j++) {
-                StructField *f = &stmt->data.struct_decl.fields[j];
-                emitf(cg, "    %s %s;\n", ez_type_to_c_cg(cg,f->type_name), f->name);
+    /* Collect struct declarations and emit in dependency order (topological sort).
+     * Structs that reference other structs as value fields must come after them. */
+    {
+        int struct_count = 0;
+        AstNode *structs[256];
+        for (int i = 0; i < program->data.program.stmt_count; i++) {
+            if (program->data.program.stmts[i]->kind == NODE_STRUCT_DECL &&
+                struct_count < 256) {
+                structs[struct_count++] = program->data.program.stmts[i];
             }
-            emitf(cg, "} EzStruct_%s;\n\n", stmt->data.struct_decl.name);
+        }
+
+        /* Simple topological sort: repeatedly emit structs with no unresolved deps */
+        bool emitted[256] = {false};
+        int emit_count = 0;
+        for (int pass = 0; pass < struct_count && emit_count < struct_count; pass++) {
+            for (int i = 0; i < struct_count; i++) {
+                if (emitted[i]) continue;
+                AstNode *s = structs[i];
+                bool deps_met = true;
+                for (int j = 0; j < s->data.struct_decl.field_count; j++) {
+                    const char *ft = s->data.struct_decl.fields[j].type_name;
+                    if (!ft) continue;
+                    /* Check if this field type is another user struct */
+                    for (int k = 0; k < struct_count; k++) {
+                        if (k != i && !emitted[k] &&
+                            strcmp(structs[k]->data.struct_decl.name, ft) == 0) {
+                            deps_met = false;
+                            break;
+                        }
+                    }
+                    if (!deps_met) break;
+                }
+                if (deps_met) {
+                    emitted[i] = true;
+                    emit_count++;
+                    emitf(cg, "typedef struct {\n");
+                    for (int j = 0; j < s->data.struct_decl.field_count; j++) {
+                        StructField *f = &s->data.struct_decl.fields[j];
+                        emitf(cg, "    %s %s;\n", ez_type_to_c_cg(cg, f->type_name), f->name);
+                    }
+                    emitf(cg, "} EzStruct_%s;\n\n", s->data.struct_decl.name);
+                }
+            }
+        }
+        /* If any structs couldn't be emitted (circular deps), emit them anyway */
+        for (int i = 0; i < struct_count; i++) {
+            if (!emitted[i]) {
+                AstNode *s = structs[i];
+                emitf(cg, "typedef struct {\n");
+                for (int j = 0; j < s->data.struct_decl.field_count; j++) {
+                    StructField *f = &s->data.struct_decl.fields[j];
+                    emitf(cg, "    %s %s;\n", ez_type_to_c_cg(cg, f->type_name), f->name);
+                }
+                emitf(cg, "} EzStruct_%s;\n\n", s->data.struct_decl.name);
+            }
         }
     }
 

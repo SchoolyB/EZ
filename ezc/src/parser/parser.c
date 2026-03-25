@@ -134,10 +134,22 @@ static AstNode *parse_int_literal(Parser *p) {
             s++;
         }
     } else {
-        /* Decimal */
+        /* Decimal — use manual parsing with overflow detection */
+        bool overflow = false;
         while (*s) {
-            if (*s != '_') val = val * 10 + (*s - '0');
+            if (*s != '_') {
+                int64_t digit = *s - '0';
+                if (val > (INT64_MAX - digit) / 10) {
+                    overflow = true;
+                }
+                val = val * 10 + digit;
+            }
             s++;
+        }
+        if (overflow) {
+            diag_error(p->diag, "E1010",
+                strdup("integer literal overflows 64-bit integer — max value is 9223372036854775807"),
+                p->file, p->cur_token.line, p->cur_token.column, 0);
         }
     }
 
