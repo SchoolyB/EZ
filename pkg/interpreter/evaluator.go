@@ -146,9 +146,10 @@ const MAX_CALL_DEPTH = 10000
 
 // EvalContext holds context for evaluation including the module loader
 type EvalContext struct {
-	Loader      *ModuleLoader
-	CurrentFile string // Current file being evaluated (for relative imports)
-	CallDepth   int    // Current call stack depth (for recursion limit)
+	Loader        *ModuleLoader
+	CurrentFile   string // Current file being evaluated (for relative imports)
+	CallDepth     int    // Current call stack depth (for recursion limit)
+	CurrentStruct string // Struct name when executing a struct-namespaced function (for private access)
 }
 
 // validModules lists all available standard library modules
@@ -3157,11 +3158,19 @@ func evalMemberCall(member *ast.MemberExpression, args []ast.Expression, env *En
 			if moduleObj, ok := env.GetModule(moduleName); ok {
 				if structDef, ok := moduleObj.GetStructDef(structName); ok && structDef.Functions != nil {
 					if fn, ok := structDef.Functions[funcName]; ok {
+						if structDef.FuncPrivate[funcName] && ctx.CurrentStruct != structName {
+							return newErrorWithLocation("E4009", member.Token.Line, member.Token.Column,
+								"'%s' is a private function of struct '%s'", errors.Ident(funcName), errors.Ident(structName))
+						}
 						evalArgs := evalExpressions(args, env, ctx)
 						if len(evalArgs) == 1 && isError(evalArgs[0]) {
 							return evalArgs[0]
 						}
-						return applyFunction(fn, evalArgs, member.Token.Line, member.Token.Column, ctx)
+						prevStruct := ctx.CurrentStruct
+						ctx.CurrentStruct = structName
+						result := applyFunction(fn, evalArgs, member.Token.Line, member.Token.Column, ctx)
+						ctx.CurrentStruct = prevStruct
+						return result
 					}
 				}
 			}
@@ -3199,11 +3208,20 @@ func evalMemberCall(member *ast.MemberExpression, args []ast.Expression, env *En
 	if structDef, ok := env.GetStructDef(alias); ok && structDef.Functions != nil {
 		memberName := member.Member.Value
 		if fn, ok := structDef.Functions[memberName]; ok {
+			// Enforce private access: only callable from within the same struct
+			if structDef.FuncPrivate[memberName] && ctx.CurrentStruct != alias {
+				return newErrorWithLocation("E4009", member.Token.Line, member.Token.Column,
+					"'%s' is a private function of struct '%s'", errors.Ident(memberName), errors.Ident(alias))
+			}
 			evalArgs := evalExpressions(args, env, ctx)
 			if len(evalArgs) == 1 && isError(evalArgs[0]) {
 				return evalArgs[0]
 			}
-			return applyFunction(fn, evalArgs, member.Token.Line, member.Token.Column, ctx)
+			prevStruct := ctx.CurrentStruct
+			ctx.CurrentStruct = alias
+			result := applyFunction(fn, evalArgs, member.Token.Line, member.Token.Column, ctx)
+			ctx.CurrentStruct = prevStruct
+			return result
 		}
 	}
 
