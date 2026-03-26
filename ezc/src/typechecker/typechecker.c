@@ -1176,6 +1176,26 @@ static void check_block(TypeChecker *tc, AstNode *node) {
 static void check_statement(TypeChecker *tc, AstNode *node) {
     if (!node) return;
 
+    /* E2056: executable statements not allowed at file scope */
+    if (tc->func_depth == 0) {
+        bool is_executable = (node->kind == NODE_ASSIGN_STMT ||
+                              node->kind == NODE_IF_STMT ||
+                              node->kind == NODE_FOR_STMT ||
+                              node->kind == NODE_FOR_EACH_STMT ||
+                              node->kind == NODE_WHILE_STMT ||
+                              node->kind == NODE_LOOP_STMT ||
+                              node->kind == NODE_EXPR_STMT ||
+                              node->kind == NODE_RETURN_STMT ||
+                              node->kind == NODE_BREAK_STMT ||
+                              node->kind == NODE_CONTINUE_STMT ||
+                              node->kind == NODE_WHEN_STMT);
+        if (is_executable) {
+            diag_error(tc->diag, "E2056",
+                strdup("executable statements are not allowed at file scope — put this inside a function"),
+                tc->file, node->token.line, node->token.column, 0);
+        }
+    }
+
     switch (node->kind) {
     case NODE_VAR_DECL: {
         /* E3038: void cannot be used as variable type */
