@@ -95,6 +95,21 @@ static Precedence token_precedence(TokenType t) {
 
 /* --- Expression Parsing --- */
 
+/* Read a type name: simple (int, Person) or qualified (models.Task).
+ * Assumes current token is the first identifier. Returns arena-allocated string. */
+static const char *read_type_name(Parser *p) {
+    const char *name = p->cur_token.literal;
+    if (peek_token_is(p, TOK_DOT)) {
+        next_token(p); /* skip . */
+        next_token(p); /* qualified part */
+        size_t len = strlen(name) + strlen(p->cur_token.literal) + 2;
+        char *qualified = arena_alloc(p->arena, len);
+        snprintf(qualified, len, "%s.%s", name, p->cur_token.literal);
+        return qualified;
+    }
+    return name;
+}
+
 static AstNode *parse_identifier(Parser *p) {
     AstNode *node = ast_alloc(p->arena, NODE_LABEL, p->cur_token);
     node->data.label.value = p->cur_token.literal;
@@ -489,7 +504,7 @@ static AstNode *parse_prefix(Parser *p) {
         AstNode *node = ast_alloc(p->arena, NODE_NEW_EXPR, p->cur_token);
         if (!expect_peek(p, TOK_LPAREN)) return NULL;
         next_token(p);
-        node->data.new_expr.type_name = p->cur_token.literal;
+        node->data.new_expr.type_name = read_type_name(p);
         if (!expect_peek(p, TOK_RPAREN)) return NULL;
         return node;
     }
@@ -665,7 +680,7 @@ static AstNode *parse_var_declaration(Parser *p) {
         node->data.var_decl.type_name = type_str;
     } else if (peek_token_is(p, TOK_IDENT)) {
         next_token(p);
-        node->data.var_decl.type_name = p->cur_token.literal;
+        node->data.var_decl.type_name = read_type_name(p);
     }
 
     /* Check for multi-var declaration: temp x int, y int = expr OR temp _, _ = expr */
@@ -985,7 +1000,7 @@ static AstNode *parse_func_declaration(Parser *p) {
             /* Type name follows (unless next param or closing paren) */
             if (peek_token_is(p, TOK_IDENT)) {
                 next_token(p);
-                param->type_name = p->cur_token.literal;
+                param->type_name = read_type_name(p);
                 /* Check for map[K:V] type */
                 if (strcmp(param->type_name, "map") == 0 && peek_token_is(p, TOK_LBRACKET)) {
                     next_token(p); /* skip [ */
@@ -1118,7 +1133,7 @@ static AstNode *parse_func_declaration(Parser *p) {
                     next_token(p);
                     int idx = node->data.func_decl.return_type_count;
                     node->data.func_decl.return_names[idx] = ret_name;
-                    node->data.func_decl.return_types[idx] = p->cur_token.literal;
+                    node->data.func_decl.return_types[idx] = read_type_name(p);
                     node->data.func_decl.return_type_count++;
                 } else if (cur_token_is(p, TOK_IDENT) && peek_token_is(p, TOK_COMMA) && !is_type) {
                     /* Shared type: (x, y int) — collect names, assign same type */
@@ -1138,7 +1153,7 @@ static AstNode *parse_func_declaration(Parser *p) {
                         for (int s = 0; s < shared; s++) {
                             int idx = node->data.func_decl.return_type_count;
                             node->data.func_decl.return_names[idx] = names[s];
-                            node->data.func_decl.return_types[idx] = p->cur_token.literal;
+                            node->data.func_decl.return_types[idx] = read_type_name(p);
                             node->data.func_decl.return_type_count++;
                         }
                     }
@@ -1146,7 +1161,7 @@ static AstNode *parse_func_declaration(Parser *p) {
                     /* Plain type (no name) */
                     int idx = node->data.func_decl.return_type_count;
                     node->data.func_decl.return_names[idx] = NULL;
-                    node->data.func_decl.return_types[idx] = p->cur_token.literal;
+                    node->data.func_decl.return_types[idx] = read_type_name(p);
                     node->data.func_decl.return_type_count++;
                 }
                 if (peek_token_is(p, TOK_COMMA)) {
@@ -1174,7 +1189,7 @@ static AstNode *parse_func_declaration(Parser *p) {
             node->data.func_decl.return_type_count = 1;
         } else {
             /* Single return type */
-            node->data.func_decl.return_types[0] = p->cur_token.literal;
+            node->data.func_decl.return_types[0] = read_type_name(p);
             node->data.func_decl.return_type_count = 1;
         }
     }
@@ -1368,7 +1383,7 @@ static AstNode *parse_struct_declaration(Parser *p) {
             snprintf(type_str, ts_len, "^%s", p->cur_token.literal);
             field->type_name = type_str;
         } else {
-            field->type_name = p->cur_token.literal;
+            field->type_name = read_type_name(p);
         }
         node->data.struct_decl.field_count++;
         next_token(p);
