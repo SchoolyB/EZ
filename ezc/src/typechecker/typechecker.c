@@ -998,6 +998,9 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                            expected_t->kind != TK_UNKNOWN &&
                            expected_t->kind != val_t->kind &&
                            !(expected_t->kind == TK_INT && val_t->kind == TK_ENUM) &&
+                           !(expected_t->kind == TK_ENUM && val_t->kind == TK_INT) &&
+                           !(expected_t->kind == TK_STRUCT && val_t->kind == TK_INT) &&
+                           !(expected_t->kind == TK_INT && val_t->kind == TK_STRUCT) &&
                            !(expected_t->kind == TK_FLOAT && val_t->kind == TK_INT)) {
                     char msg[256];
                     snprintf(msg, sizeof(msg),
