@@ -1156,6 +1156,23 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
 
         if (node->data.var_decl.value) {
             EzType *value_type = resolve_expr(tc, node->data.var_decl.value);
+            /* Check for multi-return to single variable
+             * (skip if this is part of a multi-var expansion — the value will be a .v0 access) */
+            if (node->data.var_decl.value->kind == NODE_CALL_EXPR &&
+                node->data.var_decl.value->data.call.function->kind == NODE_LABEL &&
+                strncmp(node->data.var_decl.name, "_ez_tmp", 7) != 0 &&
+                strncmp(node->data.var_decl.name, "_ez_or", 6) != 0) {
+                const char *call_name = node->data.var_decl.value->data.call.function->data.label.value;
+                FuncSig *sig = find_func(tc, call_name);
+                if (sig && sig->return_count > 1) {
+                    char msg[256];
+                    snprintf(msg, sizeof(msg),
+                        "'%s' returns %d values — use mut a, b = %s() to capture all of them",
+                        call_name, sig->return_count, call_name);
+                    diag_error(tc->diag, "E3040", strdup(msg),
+                        tc->file, node->token.line, node->token.column, 0);
+                }
+            }
             /* If no declared type, infer from value */
             if (declared->kind == TK_UNKNOWN) {
                 declared = value_type;
@@ -1460,9 +1477,20 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
         tc->current_scope = func_scope;
         tc->func_depth++;
 
-        /* Define parameters in function scope */
+        /* Define parameters in function scope, check for duplicates */
         for (int i = 0; i < node->data.func_decl.param_count; i++) {
             Param *p = &node->data.func_decl.params[i];
+            /* Check for duplicate parameter name */
+            for (int j = 0; j < i; j++) {
+                if (strcmp(node->data.func_decl.params[j].name, p->name) == 0) {
+                    char msg[256];
+                    snprintf(msg, sizeof(msg),
+                        "duplicate parameter name '%s'", p->name);
+                    diag_error(tc->diag, "E2012", strdup(msg),
+                        tc->file, node->token.line, node->token.column, 0);
+                    break;
+                }
+            }
             EzType *ptype = p->type_name ? type_from_name(p->type_name) : &TYPE_UNKNOWN;
             scope_define(func_scope, p->name, ptype, p->mutable);
         }
@@ -1651,6 +1679,18 @@ static void register_declarations(TypeChecker *tc, AstNode *program) {
             for (int j = 0; j < fc; j++) {
                 fnames[j] = stmt->data.struct_decl.fields[j].name;
                 ftypes[j] = type_from_name(stmt->data.struct_decl.fields[j].type_name);
+                /* Check for duplicate field names */
+                for (int k = 0; k < j; k++) {
+                    if (strcmp(fnames[k], fnames[j]) == 0) {
+                        char msg[256];
+                        snprintf(msg, sizeof(msg),
+                            "duplicate field name '%s' in struct '%s'",
+                            fnames[j], stmt->data.struct_decl.name);
+                        diag_error(tc->diag, "E2013", strdup(msg),
+                            tc->file, stmt->token.line, stmt->token.column, 0);
+                        break;
+                    }
+                }
             }
             register_struct(tc, stmt->data.struct_decl.name, fnames, ftypes, fc);
 
