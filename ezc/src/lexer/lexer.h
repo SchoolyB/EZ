@@ -23,6 +23,8 @@ typedef struct {
     const char *file;
     Arena *arena;   /* For allocating token literals */
     bool unterminated_string;
+    const char *error_code; /* Set by lexer on error (E1003, E1004, etc.) */
+    const char *error_msg;  /* Human-readable error message */
 } Lexer;
 
 Lexer *lexer_create(Arena *arena, const char *input, const char *file);

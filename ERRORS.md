@@ -3,7 +3,7 @@
 > Auto-generated from `ezc/src/util/error_codes.h`. Do not edit manually.
 > Run `./scripts/generate_errors.sh` to regenerate.
 
-**Total: 34 codes** (32 errors, 2 warnings)
+**Total: 54 codes** (49 errors, 5 warnings)
 
 ---
 
@@ -11,11 +11,23 @@
 
 | Code | Category | Description |
 |------|----------|-------------|
+| `E1003` | syntax | multi-line comment was never closed — add */ to close it |
+| `E1004` | syntax | string literal was never closed — add a closing quote |
+| `E1005` | syntax | character literal was never closed — add a closing single quote |
+| `E1006` | syntax | invalid escape sequence in string — valid escapes are \\n \\t \\\\ \\\ |
 | `E1010` | syntax | number is too large — the maximum integer value is 9223372036854775807 |
 | `E2001` | syntax | unexpected symbol — the compiler found something it did not expect here |
 | `E2002` | syntax | missing symbol — a bracket, parenthesis, or keyword is missing |
+| `E2008` | syntax | invalid assignment target — you can only assign to variables, fields, or array elements |
+| `E2011` | syntax | constants must have a value — add = followed by a value after the type |
+| `E2012` | syntax | duplicate parameter name — each parameter must have a unique name |
+| `E2013` | syntax | duplicate struct field name — each field must have a unique name |
+| `E2016` | syntax | empty enum — an enum must have at least one value |
+| `E2036` | syntax | imports must be at the top of the file, not inside a function |
+| `E2043` | syntax | duplicate case value in when statement — each case must be unique |
 | `E2050` | syntax | break and continue can only be used inside a loop |
 | `E2051` | syntax | functions cannot be defined inside other functions — move it to the top level |
+| `E2053` | syntax | structs and enums must be defined at the top level, not inside a function |
 | `E3001` | types | wrong type — you are using a value of one type where a different type is expected |
 | `E3002` | types | this operator does not work on this type — for example, you cannot subtract strings |
 | `E3005` | types | cannot change a constant — use mut instead of const if you need to modify this value |
@@ -27,7 +39,12 @@
 | `E3011` | types | a type name like int or string cannot be used as a value — did you forget to declare a variable? |
 | `E3012` | types | addr() needs a variable, field, or array element — you cannot take the address of a literal like 42 |
 | `E3013` | types | only structs have fields — you cannot use .field on a number, string, or bool |
+| `E3015` | types | this value is not a function and cannot be called |
 | `E3016` | types | only pointers can be dereferenced with ^ — this value is not a pointer |
+| `E3024` | types | this function must return a value but the body has no return statement |
+| `E3027` | types | cannot pass a constant to a mutable parameter — the function wants to modify this value |
+| `E3039` | types | ensure expects a function call — for example: ensure close(file) |
+| `E3040` | types | this function returns multiple values but you are assigning to a single variable — use mut a, b = func() |
 | `E4001` | names | this variable does not exist — check the spelling or make sure it is declared above this line |
 | `E4002` | names | this function does not exist — check the spelling or make sure it is defined |
 | `E4003` | names | a variable with this name already exists in this scope — use a different name |
@@ -50,7 +67,10 @@
 
 | Code | Category | Description |
 |------|----------|-------------|
+| `W1001` | cleanup | variable is declared but never used — remove it or use it |
+| `W1003` | cleanup | function is declared but never called — remove it or call it |
 | `W2001` | cleanup | this module is imported but never used — remove the import or use the module |
+| `W2002` | safety | this variable shadows a variable with the same name in an outer scope |
 | `W3001` | safety | this function might not always return a value — make sure all paths through the function end with a return |
 
 ---
@@ -71,4 +91,4 @@
 
 ---
 
-*Generated on 2026-03-26 03:02:56 UTC*
+*Generated on 2026-03-26 03:18:21 UTC*

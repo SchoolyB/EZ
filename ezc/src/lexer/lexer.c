@@ -56,6 +56,9 @@ static void skip_block_comment(Lexer *l) {
         }
         read_char(l);
     }
+    /* EOF reached — unclosed comment */
+    l->error_code = "E1003";
+    l->error_msg = "unclosed multi-line comment";
 }
 
 static void skip_whitespace_and_comments(Lexer *l) {
@@ -192,6 +195,9 @@ static const char *read_char_literal(Lexer *l) {
     const char *str = arena_strndup(l->arena, l->input + start, l->position - start);
     if (l->ch == '\'') {
         read_char(l); /* skip closing ' */
+    } else {
+        l->error_code = "E1005";
+        l->error_msg = "unclosed character literal";
     }
     return str;
 }
@@ -229,7 +235,14 @@ Lexer *lexer_create(Arena *arena, const char *input, const char *file) {
 
 Token lexer_next_token(Lexer *l) {
     Token tok;
+    l->error_code = NULL;
     skip_whitespace_and_comments(l);
+
+    /* Check for lexer errors from comment/whitespace skipping */
+    if (l->error_code) {
+        tok = make_token(TOK_ILLEGAL, l->error_msg, l->line, l->column);
+        return tok;
+    }
 
     tok.line = l->line;
     tok.column = l->column;
@@ -407,8 +420,10 @@ Token lexer_next_token(Lexer *l) {
         return tok;
 
     case '\'':
+        l->error_code = NULL;
         tok.literal = read_char_literal(l);
-        tok.type = TOK_CHAR;
+        tok.type = l->error_code ? TOK_ILLEGAL : TOK_CHAR;
+        if (l->error_code) tok.literal = l->error_msg;
         return tok;
 
     default:
