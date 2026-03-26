@@ -28,6 +28,7 @@ import @io
 import @os
 import @random
 import @net
+import @sqlite
 using std
 
 // ==================== Constants ====================
@@ -625,6 +626,20 @@ do main() {
     println("--- Net ---")
     mut ip = net.resolve("localhost")
     println("localhost = ${ip}")
+    println("")
+
+    // --- SQLite ---
+    println("--- SQLite ---")
+    mut db = sqlite.open("/tmp/ez_stress.db")
+    sqlite.exec(db, "CREATE TABLE IF NOT EXISTS test (id INTEGER, name TEXT)")
+    sqlite.exec(db, "DELETE FROM test")
+    sqlite.exec(db, "INSERT INTO test VALUES (1, 'Alice')")
+    sqlite.exec(db, "INSERT INTO test VALUES (2, 'Bob')")
+    mut rows = sqlite.query(db, "SELECT * FROM test")
+    println("Rows: ${len(rows)}")
+    sqlite.close(db)
+    io.delete_file("/tmp/ez_stress.db")
+    println("SQLite test complete")
     println("")
 
     // --- Summary ---
