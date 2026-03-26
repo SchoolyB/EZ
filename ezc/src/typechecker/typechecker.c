@@ -1012,7 +1012,16 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
 
     case NODE_INDEX_EXPR: {
         EzType *left = resolve_expr(tc, node->data.index_expr.left);
-        resolve_expr(tc, node->data.index_expr.index);
+        EzType *idx_t = resolve_expr(tc, node->data.index_expr.index);
+        /* E3003: array index must be integer */
+        if (left->kind == TK_ARRAY && idx_t->kind != TK_UNKNOWN &&
+            idx_t->kind != TK_INT && idx_t->kind != TK_BYTE) {
+            char msg[256];
+            snprintf(msg, sizeof(msg),
+                "array index must be an integer, got %s", type_name(idx_t));
+            diag_error(tc->diag, "E3003", strdup(msg),
+                tc->file, node->token.line, node->token.column, 0);
+        }
         if (left->kind == TK_ARRAY && left->element_type) {
             result = type_from_name(left->element_type);
         } else if (left->kind == TK_MAP && left->value_type) {
@@ -1470,6 +1479,28 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
             diag_error(tc->diag, "E3006",
                 strdup("missing return value — function expects a return value"),
                 tc->file, node->token.line, node->token.column, 0);
+        } else if (tc->current_return_count > 0 && node->data.return_stmt.count > 0 &&
+                   node->data.return_stmt.count != tc->current_return_count &&
+                   node->data.return_stmt.count < tc->current_return_count) {
+            /* E3013: wrong number of return values (skip or_return synthetic returns
+             * which have count=1 but the function expects more — that's handled by codegen) */
+            /* Only error if user explicitly returns fewer values */
+            bool is_or_return_synthetic = false;
+            if (node->data.return_stmt.count == 1 &&
+                node->data.return_stmt.values[0]->kind == NODE_MEMBER_EXPR) {
+                AstNode *obj = node->data.return_stmt.values[0]->data.member.object;
+                if (obj->kind == NODE_LABEL && strncmp(obj->data.label.value, "_ez_or", 6) == 0) {
+                    is_or_return_synthetic = true;
+                }
+            }
+            if (!is_or_return_synthetic) {
+                char msg[256];
+                snprintf(msg, sizeof(msg),
+                    "function expects %d return value(s), got %d",
+                    tc->current_return_count, node->data.return_stmt.count);
+                diag_error(tc->diag, "E3013", strdup(msg),
+                    tc->file, node->token.line, node->token.column, 0);
+            }
         } else if (tc->current_return_count > 0 && node->data.return_stmt.count > 0 &&
                    node->data.return_stmt.count == tc->current_return_count) {
             /* Check first return value type (skip for or_return synthetic returns) */
