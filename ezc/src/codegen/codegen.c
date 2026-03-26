@@ -701,6 +701,7 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
                 else if (et->kind == TK_CHAR) c_elem = "int32_t";
                 else if (et->kind == TK_BYTE) c_elem = "uint8_t";
                 else if (et->kind == TK_ARRAY) c_elem = "EzArray";
+                else if (et->kind == TK_STRUCT) c_elem = ez_type_to_c_cg(cg, left_t->element_type);
             }
             emitf(cg, "EZ_ARRAY_GET(");
             emit_expression(cg, node->data.index_expr.left);
