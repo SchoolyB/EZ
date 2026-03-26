@@ -1161,6 +1161,36 @@ static void check_reserved_name(TypeChecker *tc, const char *name, int line, int
 
 static void check_statement(TypeChecker *tc, AstNode *node);
 
+/* Check if ALL paths through a block end in a return statement */
+static bool all_paths_return(AstNode *node) {
+    if (!node) return false;
+    if (node->kind == NODE_RETURN_STMT) return true;
+    if (node->kind == NODE_BLOCK_STMT) {
+        /* Last statement must be a return or all-paths-return construct */
+        if (node->data.block.count == 0) return false;
+        for (int i = 0; i < node->data.block.count; i++) {
+            if (node->data.block.stmts[i]->kind == NODE_RETURN_STMT) return true;
+        }
+        AstNode *last = node->data.block.stmts[node->data.block.count - 1];
+        return all_paths_return(last);
+    }
+    if (node->kind == NODE_IF_STMT) {
+        /* Both branches must return */
+        if (!node->data.if_stmt.alternative) return false;
+        return all_paths_return(node->data.if_stmt.consequence) &&
+               all_paths_return(node->data.if_stmt.alternative);
+    }
+    if (node->kind == NODE_WHEN_STMT) {
+        if (!node->data.when_stmt.default_body) return false;
+        if (!all_paths_return(node->data.when_stmt.default_body)) return false;
+        for (int i = 0; i < node->data.when_stmt.case_count; i++) {
+            if (!all_paths_return(node->data.when_stmt.cases[i].body)) return false;
+        }
+        return true;
+    }
+    return false;
+}
+
 /* Recursively check if an AST node or its children contain a return statement */
 static bool block_has_return(AstNode *node) {
     if (!node) return false;
@@ -1751,6 +1781,14 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
                     "function '%s' must return a value but has no return statement",
                     node->data.func_decl.name);
                 diag_error(tc->diag, "E3024", strdup(msg),
+                    tc->file, node->token.line, node->token.column, 0);
+            } else if (has_return && !has_named_returns &&
+                       !all_paths_return(node->data.func_decl.body)) {
+                char msg[256];
+                snprintf(msg, sizeof(msg),
+                    "not all code paths in '%s' return a value",
+                    node->data.func_decl.name);
+                diag_error(tc->diag, "E3035", strdup(msg),
                     tc->file, node->token.line, node->token.column, 0);
             }
         }
