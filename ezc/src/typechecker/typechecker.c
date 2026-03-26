@@ -370,6 +370,14 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                 tc->file, node->token.line, node->token.column, 0);
         }
 
+        /* E3002: modulo on float */
+        if (strcmp(op, "%") == 0 &&
+            (left->kind == TK_FLOAT || right->kind == TK_FLOAT)) {
+            diag_error(tc->diag, "E3002",
+                strdup("modulo (%) only works on integers, not floats"),
+                tc->file, node->token.line, node->token.column, 0);
+        }
+
         /* Arithmetic on strings (other than + for concat) */
         if ((left->kind == TK_STRING || right->kind == TK_STRING) &&
             strcmp(op, "+") != 0 && strcmp(op, "==") != 0 && strcmp(op, "!=") != 0 &&
@@ -1166,6 +1174,12 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
         if (node->data.var_decl.type_name && strcmp(node->data.var_decl.type_name, "void") == 0) {
             diag_error(tc->diag, "E3038",
                 strdup("'void' cannot be used as a variable type"),
+                tc->file, node->token.line, node->token.column, 0);
+        }
+        /* E3034: 'any' type is reserved */
+        if (node->data.var_decl.type_name && strcmp(node->data.var_decl.type_name, "any") == 0) {
+            diag_error(tc->diag, "E3034",
+                strdup("'any' type is reserved for internal use and cannot be used in declarations"),
                 tc->file, node->token.line, node->token.column, 0);
         }
         /* const must have a value */
