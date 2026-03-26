@@ -1504,6 +1504,16 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
         resolve_expr(tc, node->data.ensure_stmt.expr);
         break;
 
+    case NODE_STRUCT_DECL:
+        /* Type-check struct-namespaced function bodies */
+        for (int i = 0; i < node->data.struct_decl.func_count; i++) {
+            AstNode *fn = node->data.struct_decl.funcs[i].func_decl;
+            if (fn && fn->kind == NODE_FUNC_DECL) {
+                check_statement(tc, fn);
+            }
+        }
+        break;
+
     case NODE_WHEN_STMT:
         resolve_expr(tc, node->data.when_stmt.value);
         for (int i = 0; i < node->data.when_stmt.case_count; i++) {
