@@ -1804,6 +1804,20 @@ static void register_declarations(TypeChecker *tc, AstNode *program) {
             for (int j = 0; j < stmt->data.struct_decl.func_count; j++) {
                 AstNode *fn = stmt->data.struct_decl.funcs[j].func_decl;
                 if (!fn || fn->kind != NODE_FUNC_DECL) continue;
+                /* E2037: check for duplicate function names in struct */
+                for (int k = 0; k < j; k++) {
+                    AstNode *prev = stmt->data.struct_decl.funcs[k].func_decl;
+                    if (prev && prev->kind == NODE_FUNC_DECL &&
+                        strcmp(prev->data.func_decl.name, fn->data.func_decl.name) == 0) {
+                        char msg[256];
+                        snprintf(msg, sizeof(msg),
+                            "duplicate function '%s' in struct '%s'",
+                            fn->data.func_decl.name, stmt->data.struct_decl.name);
+                        diag_error(tc->diag, "E2037", strdup(msg),
+                            tc->file, fn->token.line, fn->token.column, 0);
+                        break;
+                    }
+                }
                 int pc = fn->data.func_decl.param_count;
                 EzType **ptypes = malloc(sizeof(EzType *) * (pc ? pc : 1));
                 if (!ptypes) continue;
