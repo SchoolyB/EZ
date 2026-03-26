@@ -461,12 +461,12 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                         tc->file, node->token.line, node->token.column, 0);
                 }
             }
-            if (left_t->kind != TK_UNKNOWN && !type_is_numeric(left_t)) {
+            if (left_t->kind != TK_UNKNOWN && !type_is_integer(left_t)) {
                 char msg[256];
                 snprintf(msg, sizeof(msg),
-                    "cannot use '%s' on type '%s' — only numeric types support increment/decrement",
+                    "cannot use '%s' on type '%s' — only integer types support increment/decrement",
                     node->data.postfix.op, type_name(left_t));
-                diag_error(tc->diag, "E3007", strdup(msg),
+                diag_error(tc->diag, "E5023", strdup(msg),
                     tc->file, node->token.line, node->token.column, 0);
             }
             result = left_t;
@@ -1748,9 +1748,9 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
             if (!has_return && !has_named_returns) {
                 char msg[256];
                 snprintf(msg, sizeof(msg),
-                    "function '%s' may not return a value on all paths",
+                    "function '%s' must return a value but has no return statement",
                     node->data.func_decl.name);
-                diag_warning(tc->diag, "W3001", strdup(msg),
+                diag_error(tc->diag, "E3024", strdup(msg),
                     tc->file, node->token.line, node->token.column, 0);
             }
         }
