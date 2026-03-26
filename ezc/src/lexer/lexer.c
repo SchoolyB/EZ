@@ -121,7 +121,36 @@ static const char *read_number(Lexer *l, TokenType *type) {
         }
     }
 
-    return arena_strndup(l->arena, l->input + start, l->position - start);
+    const char *num = arena_strndup(l->arena, l->input + start, l->position - start);
+
+    /* Validate number literal format */
+    if (num && !l->error_code) {
+        const char *s = num;
+        /* Skip 0x/0o/0b prefix */
+        if (s[0] == '0' && (s[1] == 'x' || s[1] == 'X' || s[1] == 'o' || s[1] == 'O' || s[1] == 'b' || s[1] == 'B'))
+            s += 2;
+        int len = (int)strlen(s);
+        if (len > 0) {
+            /* E1013: trailing underscore */
+            if (s[len-1] == '_') { l->error_code = "E1013"; l->error_msg = "number cannot end with underscore"; }
+            /* E1011: consecutive underscores */
+            for (int i = 0; s[i] && s[i+1]; i++) {
+                if (s[i] == '_' && s[i+1] == '_') { l->error_code = "E1011"; l->error_msg = "number cannot have consecutive underscores"; break; }
+            }
+            /* E1014/E1015: underscore adjacent to decimal point */
+            for (int i = 0; s[i]; i++) {
+                if (s[i] == '.') {
+                    if (i > 0 && s[i-1] == '_') { l->error_code = "E1014"; l->error_msg = "underscore cannot appear before decimal point"; }
+                    if (s[i+1] == '_') { l->error_code = "E1015"; l->error_msg = "underscore cannot appear after decimal point"; }
+                    /* E1016: trailing decimal */
+                    if (!s[i+1] || (!isdigit(s[i+1]) && s[i+1] != '_')) { l->error_code = "E1016"; l->error_msg = "number cannot end with decimal point"; }
+                    break;
+                }
+            }
+        }
+    }
+
+    return num;
 }
 
 static const char *read_string(Lexer *l) {
@@ -133,8 +162,18 @@ static const char *read_string(Lexer *l) {
         if (l->ch == '\\') {
             read_char(l); /* move to escape char */
             /* Validate escape sequence */
-            if (l->ch != 'n' && l->ch != 't' && l->ch != 'r' && l->ch != '\\' &&
-                l->ch != '"' && l->ch != '\'' && l->ch != '0' && l->ch != 'x' &&
+            if (l->ch == 'x') {
+                /* Hex escape: \xNN — validate hex digits follow */
+                read_char(l);
+                if (!isxdigit(l->ch)) {
+                    l->error_code = "E1006";
+                    l->error_msg = "invalid hex escape sequence — \\x must be followed by hex digits";
+                }
+                /* Skip hex digits */
+                while (isxdigit(l->ch)) read_char(l);
+                continue;
+            } else if (l->ch != 'n' && l->ch != 't' && l->ch != 'r' && l->ch != '\\' &&
+                l->ch != '"' && l->ch != '\'' && l->ch != '0' &&
                 l->ch != 'a' && l->ch != 'b' && l->ch != 'f' && l->ch != 'v' &&
                 l->ch != '$' && l->ch != 0) {
                 l->error_code = "E1006";
@@ -197,7 +236,13 @@ static const char *read_char_literal(Lexer *l) {
     int start = l->position;
 
     if (l->ch == '\\') {
-        read_char(l); /* skip backslash */
+        read_char(l); /* move to escape char */
+        /* E1007: validate escape in char literal */
+        if (l->ch != 'n' && l->ch != 't' && l->ch != 'r' && l->ch != '\\' &&
+            l->ch != '\'' && l->ch != '0' && l->ch != 'x' && l->ch != 0) {
+            l->error_code = "E1007";
+            l->error_msg = "invalid escape sequence in character literal";
+        }
         read_char(l); /* skip escaped char */
     } else {
         read_char(l); /* skip the char */
@@ -451,7 +496,12 @@ Token lexer_next_token(Lexer *l) {
         } else if (isdigit(l->ch)) {
             TokenType num_type;
             tok.literal = read_number(l, &num_type);
-            tok.type = num_type;
+            if (l->error_code) {
+                tok.type = TOK_ILLEGAL;
+                tok.literal = l->error_msg;
+            } else {
+                tok.type = num_type;
+            }
             return tok;
         } else {
             char buf[2] = {l->ch, 0};
