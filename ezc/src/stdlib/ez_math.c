@@ -29,6 +29,7 @@ double ez_math_random_float(double min, double max) {
 }
 
 int64_t ez_math_factorial(int64_t n) {
+    if (n < 0) { fflush(stdout); fprintf(stderr, "panic: math.factorial() requires a non-negative integer, got %lld\n", (long long)n); exit(1); }
     if (n <= 1) return 1;
     int64_t result = 1;
     for (int64_t i = 2; i <= n; i++) result *= i;

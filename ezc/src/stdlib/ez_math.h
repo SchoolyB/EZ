@@ -32,24 +32,42 @@ static inline double ez_math_trunc(double n) { return trunc(n); }
 
 /* Powers/Roots */
 static inline double ez_math_pow(double b, double e) { return pow(b, e); }
-static inline double ez_math_sqrt(double n) { return sqrt(n); }
+static inline double ez_math_sqrt(double n) {
+    if (n < 0) { fflush(stdout); fprintf(stderr, "panic: math.sqrt() requires a non-negative number, got %g\n", n); exit(1); }
+    return sqrt(n);
+}
 static inline double ez_math_cbrt(double n) { return cbrt(n); }
 static inline double ez_math_hypot(double x, double y) { return hypot(x, y); }
 static inline double ez_math_exp(double n) { return exp(n); }
 static inline double ez_math_exp2(double n) { return exp2(n); }
 
 /* Logarithms */
-static inline double ez_math_log(double n) { return log(n); }
-static inline double ez_math_log2(double n) { return log2(n); }
-static inline double ez_math_log10(double n) { return log10(n); }
+static inline double ez_math_log(double n) {
+    if (n <= 0) { fflush(stdout); fprintf(stderr, "panic: math.log() requires a positive number, got %g\n", n); exit(1); }
+    return log(n);
+}
+static inline double ez_math_log2(double n) {
+    if (n <= 0) { fflush(stdout); fprintf(stderr, "panic: math.log2() requires a positive number, got %g\n", n); exit(1); }
+    return log2(n);
+}
+static inline double ez_math_log10(double n) {
+    if (n <= 0) { fflush(stdout); fprintf(stderr, "panic: math.log10() requires a positive number, got %g\n", n); exit(1); }
+    return log10(n);
+}
 static inline double ez_math_log_base(double v, double b) { return log(v) / log(b); }
 
 /* Trigonometry */
 static inline double ez_math_sin(double r) { return sin(r); }
 static inline double ez_math_cos(double r) { return cos(r); }
 static inline double ez_math_tan(double r) { return tan(r); }
-static inline double ez_math_asin(double n) { return asin(n); }
-static inline double ez_math_acos(double n) { return acos(n); }
+static inline double ez_math_asin(double n) {
+    if (n < -1.0 || n > 1.0) { fflush(stdout); fprintf(stderr, "panic: math.asin() requires value in [-1, 1], got %g\n", n); exit(1); }
+    return asin(n);
+}
+static inline double ez_math_acos(double n) {
+    if (n < -1.0 || n > 1.0) { fflush(stdout); fprintf(stderr, "panic: math.acos() requires value in [-1, 1], got %g\n", n); exit(1); }
+    return acos(n);
+}
 static inline double ez_math_atan(double n) { return atan(n); }
 static inline double ez_math_atan2(double y, double x) { return atan2(y, x); }
 static inline double ez_math_sinh(double n) { return sinh(n); }
