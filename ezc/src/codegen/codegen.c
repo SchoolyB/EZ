@@ -354,7 +354,17 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
         /* Array literal: emit as EzArray using ez_array_from */
         int count = node->data.array_value.count;
         if (count == 0) {
-            emit(cg, "ez_array_new(ez_default_arena, sizeof(int64_t), 4)");
+            /* Empty array — check type table for element type */
+            EzType *arr_t = cg->type_table ? typetable_get(cg->type_table, node) : NULL;
+            const char *elem_sz = "int64_t";
+            if (arr_t && arr_t->kind == TK_ARRAY && arr_t->element_type) {
+                EzType *et = type_from_name(arr_t->element_type);
+                if (et->kind == TK_FLOAT) elem_sz = "double";
+                else if (et->kind == TK_BOOL) elem_sz = "bool";
+                else if (et->kind == TK_STRING) elem_sz = "EzString";
+                else if (et->kind == TK_STRUCT) elem_sz = ez_type_to_c_cg(cg, arr_t->element_type);
+            }
+            emitf(cg, "ez_array_new(ez_default_arena, sizeof(%s), 4)", elem_sz);
             break;
         }
 
@@ -2209,11 +2219,16 @@ static void emit_var_declaration(CodeGen *cg, AstNode *node) {
         }
 
         /* Dynamic array: use EzArray */
+        const char *c_elem_type = ez_type_to_c_cg(cg, elem_type);
         emitf(cg, "EzArray %s = ", node->data.var_decl.name);
-        if (node->data.var_decl.value) {
+        if (node->data.var_decl.value &&
+            node->data.var_decl.value->kind == NODE_ARRAY_VALUE &&
+            node->data.var_decl.value->data.array_value.count == 0) {
+            /* Empty array literal with type annotation — use correct elem size */
+            emitf(cg, "ez_array_new(ez_default_arena, sizeof(%s), 4)", c_elem_type);
+        } else if (node->data.var_decl.value) {
             emit_expression(cg, node->data.var_decl.value);
         } else {
-            const char *c_elem_type = ez_type_to_c_cg(cg, elem_type);
             emitf(cg, "ez_array_new(ez_default_arena, sizeof(%s), 4)", c_elem_type);
         }
         emit(cg, ";\n");
