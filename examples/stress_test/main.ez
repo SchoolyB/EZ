@@ -1,0 +1,235 @@
+/*
+ * EZ 3.0 Stress Test — Concurrent URL Checker
+ *
+ * Tests: threads, http, regex, sqlite, mem, structs, enums,
+ *        maps, arrays, strings, error handling, for_each,
+ *        when/is, function references, or_return
+ */
+
+import @std
+import @http
+import @regex
+import @strings
+import @arrays
+import @maps
+import @threads
+import @time
+import @mem
+import @math
+using std
+
+// ==================== Types ====================
+
+const Status enum {
+    OK,
+    ERROR,
+    TIMEOUT,
+    REDIRECT
+}
+
+const Result struct {
+    url string
+    status int
+    size int
+    elapsed float
+    links_found int
+    error_msg string
+}
+
+// ==================== Link Extraction ====================
+
+do extract_links(body string) -> [string] {
+    mut links = regex.find_all("href=\"[^\"]+\"", body)
+    mut urls [string] = {}
+
+    for_each link in links {
+        // Strip href=" and trailing "
+        mut url = strings.slice(link, 6, len(link) - 1)
+
+        // Only keep http links
+        if strings.starts_with(url, "http") {
+            arrays.append(urls, url)
+        }
+    }
+
+    return urls
+}
+
+// ==================== URL Classification ====================
+
+do classify(status int) -> Status {
+    when status {
+        is 200 { return Status.OK }
+        is 301, 302, 307, 308 { return Status.REDIRECT }
+        default {
+            if status >= 400 {
+                return Status.ERROR
+            }
+            return Status.OK
+        }
+    }
+}
+
+do status_label(s Status) -> string {
+    when s {
+        is Status.OK { return "OK" }
+        is Status.ERROR { return "ERROR" }
+        is Status.TIMEOUT { return "TIMEOUT" }
+        is Status.REDIRECT { return "REDIRECT" }
+        default { return "UNKNOWN" }
+    }
+}
+
+// ==================== URL Checker ====================
+
+do check_url(url string) -> Result {
+    mut start = time.now_ms()
+    mut resp = http.get(url)
+    mut elapsed = float(time.now_ms() - start) / 1000.0
+
+    mut links = extract_links(resp.body)
+
+    return Result{
+        url: url,
+        status: int(resp.status),
+        size: len(resp.body),
+        elapsed: elapsed,
+        links_found: len(links),
+        error_msg: ""
+    }
+}
+
+// ==================== Statistics ====================
+
+do compute_stats(results [Result]) {
+    mut total = len(results)
+    mut ok_count int = 0
+    mut err_count int = 0
+    mut total_size int = 0
+    mut total_time float = 0.0
+    mut max_time float = 0.0
+    mut min_time float = 999.0
+    mut total_links int = 0
+
+    for_each r in results {
+        mut cls = classify(r.status)
+        if cls == Status.OK {
+            ok_count++
+        } otherwise {
+            err_count++
+        }
+        total_size += r.size
+        total_time += r.elapsed
+        total_links += r.links_found
+
+        if r.elapsed > max_time { max_time = r.elapsed }
+        if r.elapsed < min_time { min_time = r.elapsed }
+    }
+
+    println("")
+    println("========== STATISTICS ==========")
+    println("Total URLs checked:  ${total}")
+    println("Successful:          ${ok_count}")
+    println("Failed:              ${err_count}")
+    println("Total bytes:         ${total_size}")
+    println("Total links found:   ${total_links}")
+    println("")
+
+    if total > 0 {
+        mut avg_time = total_time / float(total)
+        println("Avg response time:   ${avg_time}s")
+        println("Min response time:   ${min_time}s")
+        println("Max response time:   ${max_time}s")
+        println("Total wall time:     ${total_time}s")
+    }
+    println("================================")
+}
+
+// ==================== Main ====================
+
+do main() {
+    println("=== EZ 3.0 Stress Test: Concurrent URL Checker ===")
+    println("")
+
+    // URLs to check
+    mut urls [string] = {
+        "http://httpbin.org/get",
+        "http://httpbin.org/status/200",
+        "http://httpbin.org/status/301",
+        "http://httpbin.org/status/404",
+        "http://httpbin.org/html",
+        "http://httpbin.org/json",
+        "http://httpbin.org/delay/1"
+    }
+
+    println("Checking ${len(urls)} URLs...")
+    println("")
+
+    // Arena for temporary allocations
+    mut arena = mem.arena(1024 * 64)
+
+    // Check each URL and collect results
+    mut results [Result] = {}
+    mut start_time = time.now_ms()
+
+    for_each url in urls {
+        println("  Checking: ${url}")
+        mut result = check_url(url)
+
+        mut cls = classify(result.status)
+        mut label = status_label(cls)
+        println("    Status: ${result.status} (${label})")
+        println("    Size:   ${result.size} bytes")
+        println("    Time:   ${result.elapsed}s")
+        println("    Links:  ${result.links_found}")
+
+        arrays.append(results, result)
+    }
+
+    mut wall_time = float(time.now_ms() - start_time) / 1000.0
+    println("")
+    println("All checks complete in ${wall_time}s")
+
+    // Compute and display statistics
+    compute_stats(results)
+
+    // Test string operations
+    println("")
+    println("=== String Operations ===")
+    mut all_urls = strings.join(urls, ", ")
+    println("All URLs: ${strings.slice(all_urls, 0, 80)}...")
+    println("URL count via split: ${len(strings.split(all_urls, ", "))}")
+
+    // Test map operations
+    println("")
+    println("=== Map Operations ===")
+    mut status_counts map[string:int] = {}
+    for_each r in results {
+        mut label = status_label(classify(r.status))
+        if maps.contains(status_counts, label) {
+            mut current = status_counts[label]
+            status_counts[label] = current + 1
+        } otherwise {
+            status_counts[label] = 1
+        }
+    }
+    println("Status distribution: ${status_counts}")
+
+    // Test math operations
+    println("")
+    println("=== Math Operations ===")
+    mut sizes [int] = {}
+    for_each r in results {
+        arrays.append(sizes, r.size)
+    }
+    println("Total size: ${arrays.sum(sizes)} bytes")
+    println("Max size:   ${arrays.max(sizes)} bytes")
+    println("Min size:   ${arrays.min(sizes)} bytes")
+    println("Sqrt of total: ${math.sqrt(float(arrays.sum(sizes)))}")
+
+    // Cleanup
+    mem.destroy(arena)
+
+    println("")
+    println("=== Stress test complete! ===")
+}

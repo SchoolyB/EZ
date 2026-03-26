@@ -1056,6 +1056,28 @@ static void check_reserved_name(TypeChecker *tc, const char *name, int line, int
 
 static void check_statement(TypeChecker *tc, AstNode *node);
 
+/* Recursively check if an AST node or its children contain a return statement */
+static bool block_has_return(AstNode *node) {
+    if (!node) return false;
+    if (node->kind == NODE_RETURN_STMT) return true;
+    if (node->kind == NODE_BLOCK_STMT) {
+        for (int i = 0; i < node->data.block.count; i++) {
+            if (block_has_return(node->data.block.stmts[i])) return true;
+        }
+    }
+    if (node->kind == NODE_IF_STMT) {
+        if (block_has_return(node->data.if_stmt.consequence)) return true;
+        if (block_has_return(node->data.if_stmt.alternative)) return true;
+    }
+    if (node->kind == NODE_WHEN_STMT) {
+        for (int i = 0; i < node->data.when_stmt.case_count; i++) {
+            if (block_has_return(node->data.when_stmt.cases[i].body)) return true;
+        }
+        if (block_has_return(node->data.when_stmt.default_body)) return true;
+    }
+    return false;
+}
+
 static void check_block(TypeChecker *tc, AstNode *node) {
     if (!node || node->kind != NODE_BLOCK_STMT) return;
     for (int i = 0; i < node->data.block.count; i++) {
@@ -1251,6 +1273,9 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
             if (ret_t->kind != TK_UNKNOWN && expected->kind != TK_UNKNOWN &&
                 ret_t->kind != expected->kind && ret_t->kind != TK_NIL &&
                 !(expected->kind == TK_INT && ret_t->kind == TK_ENUM) &&
+                !(expected->kind == TK_ENUM && ret_t->kind == TK_INT) &&
+                !(expected->kind == TK_STRUCT && ret_t->kind == TK_INT) &&
+                !(expected->kind == TK_INT && ret_t->kind == TK_STRUCT) &&
                 !(expected->kind == TK_FLOAT && ret_t->kind == TK_INT)) {
                 char msg[256];
                 snprintf(msg, sizeof(msg),
@@ -1430,9 +1455,9 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
             node->data.func_decl.body->kind == NODE_BLOCK_STMT) {
             AstNode *body = node->data.func_decl.body;
             bool has_return = false;
-            /* Check if any top-level statement in the body is a return */
+            /* Recursively check if any statement in the body is a return */
             for (int i = 0; i < body->data.block.count; i++) {
-                if (body->data.block.stmts[i]->kind == NODE_RETURN_STMT) {
+                if (block_has_return(body->data.block.stmts[i])) {
                     has_return = true;
                     break;
                 }
