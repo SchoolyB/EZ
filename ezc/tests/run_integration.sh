@@ -40,6 +40,21 @@ SKIP_INTEGRATION=(
     "primitives"            # interpreter-specific type tests
     "raw_strings"           # raw string interpolation differences
     "typeof_stdlib"         # typeof returns different strings
+    # Error tests for interpreter-only features
+    "E2002_for_missing_closing_paren"
+    "E2002_for_nested_missing_paren"
+    "E2009_using_after_declarations"
+    "E2041_when_missing_default"
+    "E2042_when_strict_has_default"
+    "E2045_when_strict_non_enum"
+    "E2046_strict_when_missing_cases"
+    "E2051_suppress_invalid_target"
+    "E2052_suppress_invalid_code"
+    "E2052_suppress_non_suppressible"
+    "E2054_strict_when_non_enum_case"
+    "E2055_strict_invalid_target"
+    "E4007_module_not_imported"
+    "E4016_loop_variable_shadows"
 )
 
 should_skip() {
