@@ -131,7 +131,15 @@ static const char *read_string(Lexer *l) {
 
     while (l->ch != 0) {
         if (l->ch == '\\') {
-            read_char(l); /* skip escape char */
+            read_char(l); /* move to escape char */
+            /* Validate escape sequence */
+            if (l->ch != 'n' && l->ch != 't' && l->ch != 'r' && l->ch != '\\' &&
+                l->ch != '"' && l->ch != '\'' && l->ch != '0' && l->ch != 'x' &&
+                l->ch != 'a' && l->ch != 'b' && l->ch != 'f' && l->ch != 'v' &&
+                l->ch != '$' && l->ch != 0) {
+                l->error_code = "E1006";
+                l->error_msg = "invalid escape sequence in string";
+            }
             read_char(l);
             continue;
         }
@@ -408,9 +416,14 @@ Token lexer_next_token(Lexer *l) {
     case '"':
         l->unterminated_string = false;
         tok.literal = read_string(l);
-        tok.type = l->unterminated_string ? TOK_ILLEGAL : TOK_STRING;
         if (l->unterminated_string) {
+            tok.type = TOK_ILLEGAL;
             tok.literal = "unterminated string literal";
+        } else if (l->error_code) {
+            tok.type = TOK_ILLEGAL;
+            tok.literal = l->error_msg;
+        } else {
+            tok.type = TOK_STRING;
         }
         return tok;
 

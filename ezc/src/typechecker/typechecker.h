@@ -39,6 +39,8 @@ typedef struct {
     int param_count;
     EzType **return_types;
     int return_count;
+    bool used;          /* true if function was called */
+    int def_line;       /* line where function was declared */
 } FuncSig;
 
 typedef struct {

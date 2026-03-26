@@ -144,6 +144,8 @@ static void register_func(TypeChecker *tc, const char *name,
     fs->param_count = param_count;
     fs->return_types = return_types;
     fs->return_count = return_count;
+    fs->used = false;
+    fs->def_line = 0;
 }
 
 static FuncSig *find_func(TypeChecker *tc, const char *name) {
@@ -786,6 +788,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
             } else {
                 FuncSig *sig = find_func(tc, fn_name);
                 if (sig) {
+                    sig->used = true;
                     /* Check argument count — account for default parameters */
                     int min_args = sig->param_count;
                     /* Find the AST func decl to count defaults */
@@ -1243,6 +1246,19 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
                 diag_error(tc->diag, "E4003", strdup(msg),
                     tc->file, node->token.line, node->token.column, 0);
             }
+            /* W2002: check if variable shadows outer scope */
+            if (!existing && tc->current_scope->parent) {
+                Symbol *outer_sym = scope_lookup(tc->current_scope->parent,
+                    node->data.var_decl.name);
+                if (outer_sym && outer_sym->def_line > 0) {
+                    char msg[256];
+                    snprintf(msg, sizeof(msg),
+                        "variable '%s' shadows a variable declared on line %d",
+                        node->data.var_decl.name, outer_sym->def_line);
+                    diag_warning(tc->diag, "W2002", strdup(msg),
+                        tc->file, node->token.line, node->token.column, 0);
+                }
+            }
             scope_define(tc->current_scope, node->data.var_decl.name,
                 declared, node->data.var_decl.mutable);
             /* Store definition location for unused variable warnings */
@@ -1651,11 +1667,30 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
         }
         break;
 
-    case NODE_WHEN_STMT:
+    case NODE_WHEN_STMT: {
         resolve_expr(tc, node->data.when_stmt.value);
+        /* E2043: check for duplicate case values */
         for (int i = 0; i < node->data.when_stmt.case_count; i++) {
             for (int j = 0; j < node->data.when_stmt.cases[i].value_count; j++) {
-                resolve_expr(tc, node->data.when_stmt.cases[i].values[j]);
+                AstNode *val_i = node->data.when_stmt.cases[i].values[j];
+                resolve_expr(tc, val_i);
+                /* Compare against all previous case values */
+                for (int pi = 0; pi < i; pi++) {
+                    for (int pj = 0; pj < node->data.when_stmt.cases[pi].value_count; pj++) {
+                        AstNode *val_p = node->data.when_stmt.cases[pi].values[pj];
+                        bool dup = false;
+                        if (val_i->kind == NODE_INT_VALUE && val_p->kind == NODE_INT_VALUE &&
+                            val_i->data.int_value.value == val_p->data.int_value.value) dup = true;
+                        if (val_i->kind == NODE_STRING_VALUE && val_p->kind == NODE_STRING_VALUE &&
+                            strcmp(val_i->data.string_value.value, val_p->data.string_value.value) == 0) dup = true;
+                        if (dup) {
+                            char msg[256];
+                            snprintf(msg, sizeof(msg), "duplicate case value in when statement");
+                            diag_error(tc->diag, "E2043", strdup(msg),
+                                tc->file, val_i->token.line, val_i->token.column, 0);
+                        }
+                    }
+                }
             }
             check_block(tc, node->data.when_stmt.cases[i].body);
         }
@@ -1663,6 +1698,7 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
             check_block(tc, node->data.when_stmt.default_body);
         }
         break;
+    }
 
     default:
         break;
@@ -1820,6 +1856,8 @@ static void register_declarations(TypeChecker *tc, AstNode *program) {
                     tc->file, stmt->token.line, stmt->token.column, 0);
             }
             register_func(tc, stmt->data.func_decl.name, ptypes, pc, rtypes, rc);
+            /* Store line for unused function warning */
+            tc->funcs[tc->func_count - 1].def_line = stmt->token.line;
         }
     }
 }
@@ -1864,6 +1902,20 @@ void typechecker_check(TypeChecker *tc, AstNode *program) {
                 tc->imported_modules[i]);
             diag_warning(tc->diag, "W2001", strdup(msg),
                 tc->file, tc->import_lines[i], 1, 0);
+        }
+    }
+
+    /* Warn about unused functions (skip main and struct-namespaced) */
+    for (int i = 0; i < tc->func_count; i++) {
+        FuncSig *fs = &tc->funcs[i];
+        if (!fs->used && fs->def_line > 0 &&
+            strcmp(fs->name, "main") != 0 &&
+            !(fs->name[0] >= 'A' && fs->name[0] <= 'Z' && strchr(fs->name, '_'))) {
+            char msg[256];
+            snprintf(msg, sizeof(msg),
+                "function '%s' is declared but never called", fs->name);
+            diag_warning(tc->diag, "W1003", strdup(msg),
+                tc->file, fs->def_line, 1, 0);
         }
     }
 }
