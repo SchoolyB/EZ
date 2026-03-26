@@ -54,41 +54,42 @@ EzArray ez_csv_parse(EzArena *arena, EzString csv_string) {
 }
 
 EzString ez_csv_stringify(EzArena *arena, EzArray *data) {
-    /* Estimate size */
+    /* Accept [string] — each string is a pre-formatted CSV row.
+     * Join with newlines. */
+    if (data->elem_size == (int32_t)sizeof(EzString)) {
+        int32_t total = 0;
+        for (int32_t i = 0; i < data->len; i++) {
+            EzString s = EZ_ARRAY_GET(*data, EzString, i);
+            total += s.len + 1;
+        }
+        char *buf = ez_arena_alloc(arena, (size_t)total + 1);
+        int32_t pos = 0;
+        for (int32_t i = 0; i < data->len; i++) {
+            EzString s = EZ_ARRAY_GET(*data, EzString, i);
+            memcpy(buf + pos, s.data, (size_t)s.len);
+            pos += s.len;
+            if (i < data->len - 1) buf[pos++] = '\n';
+        }
+        buf[pos] = '\0';
+        return (EzString){ buf, pos };
+    }
+
+    /* Fallback: array of arrays (original behavior) */
     int32_t est = data->len * 64;
     char *buf = ez_arena_alloc(arena, (size_t)est);
     int32_t pos = 0;
-
     for (int32_t i = 0; i < data->len; i++) {
         EzArray *row = (EzArray *)((char *)data->data + (size_t)i * sizeof(EzArray));
         for (int32_t j = 0; j < row->len; j++) {
             if (j > 0) buf[pos++] = ',';
             EzString *field = (EzString *)((char *)row->data + (size_t)j * sizeof(EzString));
-            /* Check if quoting needed */
-            bool needs_quote = false;
-            for (int32_t k = 0; k < field->len; k++) {
-                if (field->data[k] == ',' || field->data[k] == '"' || field->data[k] == '\n') {
-                    needs_quote = true;
-                    break;
-                }
-            }
-            if (needs_quote) {
-                buf[pos++] = '"';
-                for (int32_t k = 0; k < field->len; k++) {
-                    if (field->data[k] == '"') buf[pos++] = '"';
-                    buf[pos++] = field->data[k];
-                }
-                buf[pos++] = '"';
-            } else {
-                memcpy(buf + pos, field->data, (size_t)field->len);
-                pos += field->len;
-            }
+            memcpy(buf + pos, field->data, (size_t)field->len);
+            pos += field->len;
         }
         buf[pos++] = '\n';
     }
     buf[pos] = '\0';
-    EzString r = { buf, pos };
-    return r;
+    return (EzString){ buf, pos };
 }
 
 EzArray ez_csv_read(EzArena *arena, EzString path) {

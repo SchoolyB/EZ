@@ -29,6 +29,8 @@ import @os
 import @random
 import @net
 import @sqlite
+import @binary
+import @csv
 using std
 
 // ==================== Constants ====================
@@ -626,6 +628,22 @@ do main() {
     println("--- Net ---")
     mut ip = net.resolve("localhost")
     println("localhost = ${ip}")
+    println("")
+
+    // --- Binary ---
+    println("--- Binary ---")
+    mut encoded_bin = binary.encode_i32(12345)
+    println("encode_i32(12345): ${len(encoded_bin)} bytes")
+    mut decoded_bin = binary.decode_i32(encoded_bin)
+    println("decode_i32: ${decoded_bin}")
+    println("")
+
+    // --- CSV ---
+    println("--- CSV ---")
+    mut csv_rows [string] = {"name,age,city", "Alice,30,NYC", "Bob,25,LA"}
+    mut csv_out = csv.stringify(csv_rows)
+    println("CSV output:")
+    println(csv_out)
     println("")
 
     // --- SQLite ---

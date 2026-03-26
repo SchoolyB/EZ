@@ -1562,7 +1562,15 @@ static bool emit_bytes_call(CodeGen *cg, AstNode *node, const char *func) {
 static bool emit_binary_call(CodeGen *cg, AstNode *node, const char *func) {
     bool is_encode = (strncmp(func, "encode", 6) == 0);
     bool is_decode = (strncmp(func, "decode", 6) == 0);
-    emitf(cg, "ez_binary_%s(", func);
+    /* Append _le for default little-endian if no endian suffix present */
+    bool has_endian = strstr(func, "_le") || strstr(func, "_be");
+    if (has_endian || strcmp(func, "encode_u8") == 0) {
+        emitf(cg, "ez_binary_%s(", func);
+    } else if (is_encode || is_decode) {
+        emitf(cg, "ez_binary_%s_le(", func);
+    } else {
+        emitf(cg, "ez_binary_%s(", func);
+    }
     if (is_encode) emit(cg, "ez_default_arena, ");
     if (is_decode) emit(cg, "&");
     emit_expression(cg, node->data.call.args[0]);
@@ -1580,17 +1588,17 @@ static bool emit_csv_call(CodeGen *cg, AstNode *node, const char *func) {
         return true;
     }
     if (strcmp(func, "stringify") == 0) {
-        emit(cg, "ez_csv_stringify(ez_default_arena, &");
+        emit(cg, "({ EzArray _csv_a = ");
         emit_expression(cg, node->data.call.args[0]);
-        emit(cg, ")");
+        emit(cg, "; ez_csv_stringify(ez_default_arena, &_csv_a); })");
         return true;
     }
     if (strcmp(func, "write") == 0) {
-        emit(cg, "ez_csv_write(ez_default_arena, ");
-        emit_expression(cg, node->data.call.args[0]);
-        emit(cg, ", &");
+        emit(cg, "({ EzArray _csv_a = ");
         emit_expression(cg, node->data.call.args[1]);
-        emit(cg, ")");
+        emit(cg, "; ez_csv_write(ez_default_arena, ");
+        emit_expression(cg, node->data.call.args[0]);
+        emit(cg, ", &_csv_a); })");
         return true;
     }
     return false;
