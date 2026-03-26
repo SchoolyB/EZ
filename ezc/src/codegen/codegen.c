@@ -599,11 +599,23 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
         break;
 
     case NODE_FUNC_REF:
-        /* ()func_name — emit as C function pointer with ez_fn_ prefix */
+        /* ()func_name or ()Type.func — emit as C function pointer */
         if (node->data.func_ref.function->kind == NODE_LABEL) {
             emit(cg, "ez_fn_");
             emit(cg, node->data.func_ref.function->data.label.value);
+        } else if (node->data.func_ref.function->kind == NODE_MEMBER_EXPR) {
+            /* ()StructName.funcName → ez_fn_StructName_funcName */
+            AstNode *mem = node->data.func_ref.function;
+            if (mem->data.member.object->kind == NODE_LABEL) {
+                emitf(cg, "ez_fn_%s_%s",
+                    mem->data.member.object->data.label.value,
+                    mem->data.member.member);
+            } else {
+                emit(cg, "ez_fn_");
+                emit_expression(cg, node->data.func_ref.function);
+            }
         } else {
+            emit(cg, "ez_fn_");
             emit_expression(cg, node->data.func_ref.function);
         }
         break;
