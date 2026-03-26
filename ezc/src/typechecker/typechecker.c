@@ -441,6 +441,14 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
             }
         } else if (strcmp(node->data.postfix.op, "++") == 0 ||
                    strcmp(node->data.postfix.op, "--") == 0) {
+            /* E5015: ++ and -- require a variable, not a literal */
+            if (node->data.postfix.left->kind != NODE_LABEL &&
+                node->data.postfix.left->kind != NODE_INDEX_EXPR &&
+                node->data.postfix.left->kind != NODE_MEMBER_EXPR) {
+                diag_error(tc->diag, "E5015",
+                    strdup("++ and -- require a variable — you cannot increment a literal or expression"),
+                    tc->file, node->token.line, node->token.column, 0);
+            }
             /* ++ and -- only valid on mutable numeric types */
             if (node->data.postfix.left->kind == NODE_LABEL) {
                 Symbol *sym = scope_lookup(tc->current_scope, node->data.postfix.left->data.label.value);
