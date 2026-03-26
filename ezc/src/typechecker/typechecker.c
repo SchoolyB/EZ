@@ -503,6 +503,14 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                     } else {
                         result = &TYPE_UNKNOWN;
                     }
+                } else if (strcmp(mfn, "make") == 0 && node->data.call.arg_count == 2) {
+                    /* mem.make(arena, Type) returns ^Type */
+                    AstNode *type_arg = node->data.call.args[1];
+                    if (type_arg->kind == NODE_LABEL) {
+                        result = type_pointer(type_arg->data.label.value);
+                    } else {
+                        result = &TYPE_UNKNOWN;
+                    }
                 } else if (strcmp(mfn, "alloc") == 0 && node->data.call.arg_count == 2) {
                     /* alloc returns the type of its second argument */
                     result = resolve_expr(tc, node->data.call.args[1]);
@@ -1176,6 +1184,15 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
                 strdup("'void' cannot be used as a variable type"),
                 tc->file, node->token.line, node->token.column, 0);
         }
+        /* E3038: void in array/map types */
+        if (node->data.var_decl.type_name) {
+            const char *tn = node->data.var_decl.type_name;
+            if (strstr(tn, "void") != NULL && strcmp(tn, "void") != 0) {
+                diag_error(tc->diag, "E3038",
+                    strdup("'void' cannot be used as an element type in arrays or maps"),
+                    tc->file, node->token.line, node->token.column, 0);
+            }
+        }
         /* E3034: 'any' type is reserved */
         if (node->data.var_decl.type_name && strcmp(node->data.var_decl.type_name, "any") == 0) {
             diag_error(tc->diag, "E3034",
@@ -1214,6 +1231,12 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
 
         if (node->data.var_decl.value) {
             EzType *value_type = resolve_expr(tc, node->data.var_decl.value);
+            /* E3038: cannot assign void function result */
+            if (value_type->kind == TK_VOID) {
+                diag_error(tc->diag, "E3038",
+                    strdup("cannot assign the result of a void function to a variable"),
+                    tc->file, node->token.line, node->token.column, 0);
+            }
             /* Check for multi-return to single variable
              * (skip if this is part of a multi-var expansion — the value will be a .v0 access) */
             if (node->data.var_decl.value->kind == NODE_CALL_EXPR &&
