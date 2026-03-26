@@ -1941,6 +1941,17 @@ static void register_declarations(TypeChecker *tc, AstNode *program) {
                     }
                 }
             }
+            /* E2037/E2038: reserved name check for structs */
+            const char *sn = stmt->data.struct_decl.name;
+            if (strcmp(sn, "int") == 0 || strcmp(sn, "uint") == 0 ||
+                strcmp(sn, "float") == 0 || strcmp(sn, "string") == 0 ||
+                strcmp(sn, "bool") == 0 || strcmp(sn, "char") == 0 ||
+                strcmp(sn, "byte") == 0 || strcmp(sn, "void") == 0 ||
+                strcmp(sn, "Error") == 0 || strcmp(sn, "nil") == 0) {
+                char msg[256];
+                snprintf(msg, sizeof(msg), "'%s' is a reserved type name and cannot be used as a struct name", sn);
+                diag_error(tc->diag, "E2037", strdup(msg), tc->file, stmt->token.line, stmt->token.column, 0);
+            }
             register_struct(tc, stmt->data.struct_decl.name, fnames, ftypes, fc);
 
             /* Register struct-namespaced functions as StructName_funcName */
@@ -1982,6 +1993,17 @@ static void register_declarations(TypeChecker *tc, AstNode *program) {
         }
 
         if (stmt->kind == NODE_ENUM_DECL) {
+            /* E2038: reserved name for enums */
+            const char *en = stmt->data.enum_decl.name;
+            if (strcmp(en, "int") == 0 || strcmp(en, "uint") == 0 ||
+                strcmp(en, "float") == 0 || strcmp(en, "string") == 0 ||
+                strcmp(en, "bool") == 0 || strcmp(en, "char") == 0 ||
+                strcmp(en, "byte") == 0 || strcmp(en, "void") == 0 ||
+                strcmp(en, "Error") == 0 || strcmp(en, "nil") == 0) {
+                char msg[256];
+                snprintf(msg, sizeof(msg), "'%s' is a reserved type name and cannot be used as an enum name", en);
+                diag_error(tc->diag, "E2038", strdup(msg), tc->file, stmt->token.line, stmt->token.column, 0);
+            }
             /* E2016: empty enum */
             if (stmt->data.enum_decl.value_count == 0) {
                 char msg[256];
