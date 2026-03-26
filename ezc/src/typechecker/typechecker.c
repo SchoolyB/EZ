@@ -1124,6 +1124,15 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
 
     switch (node->kind) {
     case NODE_VAR_DECL: {
+        /* const must have a value */
+        if (!node->data.var_decl.mutable && !node->data.var_decl.value) {
+            char msg[256];
+            snprintf(msg, sizeof(msg),
+                "constant '%s' must have a value — add = followed by a value",
+                node->data.var_decl.name);
+            diag_error(tc->diag, "E2011", strdup(msg),
+                tc->file, node->token.line, node->token.column, 0);
+        }
         /* Check for type keyword used as value: mut x = int */
         if (node->data.var_decl.value && node->data.var_decl.value->kind == NODE_LABEL) {
             const char *vname = node->data.var_decl.value->data.label.value;
@@ -1516,6 +1525,28 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
             }
         }
 
+        /* Warn about unused variables in this function scope */
+        for (int si = 0; si < func_scope->count; si++) {
+            Symbol *s = &func_scope->symbols[si];
+            if (!s->used && s->name[0] != '_' && s->def_line > 0) {
+                /* Skip function parameters (they have def_line == 0 or from param list) */
+                bool is_param = false;
+                for (int pi = 0; pi < node->data.func_decl.param_count; pi++) {
+                    if (strcmp(node->data.func_decl.params[pi].name, s->name) == 0) {
+                        is_param = true;
+                        break;
+                    }
+                }
+                if (!is_param) {
+                    char msg[256];
+                    snprintf(msg, sizeof(msg),
+                        "variable '%s' is declared but never used", s->name);
+                    diag_warning(tc->diag, "W1001", strdup(msg),
+                        tc->file, s->def_line, s->def_column, 0);
+                }
+            }
+        }
+
         if (tc->current_return_types) free(tc->current_return_types);
         tc->current_return_types = prev_ret;
         tc->current_return_count = prev_ret_count;
@@ -1526,6 +1557,12 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
 
     case NODE_ENSURE_STMT:
         resolve_expr(tc, node->data.ensure_stmt.expr);
+        if (node->data.ensure_stmt.expr &&
+            node->data.ensure_stmt.expr->kind != NODE_CALL_EXPR) {
+            diag_error(tc->diag, "E3039",
+                strdup("ensure expects a function call — for example: ensure close(file)"),
+                tc->file, node->token.line, node->token.column, 0);
+        }
         break;
 
     case NODE_STRUCT_DECL:
