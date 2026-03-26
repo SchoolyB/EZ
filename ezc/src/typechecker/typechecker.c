@@ -1542,6 +1542,24 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
                     break;
                 }
             }
+            /* E2039: required param after param with default value */
+            if (i > 0 && !p->default_value) {
+                bool prev_has_default = false;
+                for (int k = 0; k < i; k++) {
+                    if (node->data.func_decl.params[k].default_value) {
+                        prev_has_default = true;
+                        break;
+                    }
+                }
+                if (prev_has_default) {
+                    char msg[256];
+                    snprintf(msg, sizeof(msg),
+                        "required parameter '%s' cannot come after a parameter with a default value",
+                        p->name);
+                    diag_error(tc->diag, "E2039", strdup(msg),
+                        tc->file, node->token.line, node->token.column, 0);
+                }
+            }
             EzType *ptype = p->type_name ? type_from_name(p->type_name) : &TYPE_UNKNOWN;
             scope_define(func_scope, p->name, ptype, p->mutable);
         }
