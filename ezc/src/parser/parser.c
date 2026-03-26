@@ -467,7 +467,20 @@ static AstNode *parse_prefix(Parser *p) {
         node->data.cast.value = parse_expression(p, PREC_LOWEST);
         if (!expect_peek(p, TOK_COMMA)) return NULL;
         next_token(p);
-        node->data.cast.target_type = p->cur_token.literal;
+        if (cur_token_is(p, TOK_LBRACKET)) {
+            /* Array type: cast(value, [type]) */
+            next_token(p); /* element type */
+            const char *elem = p->cur_token.literal;
+            if (!expect_peek(p, TOK_RBRACKET)) return NULL;
+            size_t ts_len = strlen(elem) + 3;
+            char *type_str = arena_alloc(p->arena, ts_len);
+            snprintf(type_str, ts_len, "[%s]", elem);
+            node->data.cast.target_type = type_str;
+            node->data.cast.is_array = true;
+            node->data.cast.element_type = elem;
+        } else {
+            node->data.cast.target_type = p->cur_token.literal;
+        }
         if (!expect_peek(p, TOK_RPAREN)) return NULL;
         return node;
     }
