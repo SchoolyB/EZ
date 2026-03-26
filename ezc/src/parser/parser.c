@@ -740,19 +740,33 @@ static AstNode *parse_var_declaration(Parser *p) {
             snprintf(type_str, ts_len, "map[%s:%s]", key_type, val_type);
             node->data.var_decl.type_name = type_str;
         } else {
-            /* Array type: [int], [int, 3], or [[int]] */
+            /* Array type: [int], [int, 3], or nested [[int]], [[[int]]], etc. */
             next_token(p); /* skip [ */
             next_token(p); /* element type or nested [ */
 
             if (cur_token_is(p, TOK_LBRACKET)) {
-                /* Nested array type: [[int]] */
-                next_token(p); /* inner element type */
+                /* Nested array type: count depth of [ brackets.
+                 * First [ was consumed by next_token above.
+                 * Current token is the second [. Count it and any more. */
+                int depth = 1; /* first [ already consumed */
+                while (cur_token_is(p, TOK_LBRACKET)) {
+                    depth++;
+                    next_token(p);
+                }
                 const char *inner_elem = p->cur_token.literal;
-                if (!expect_peek(p, TOK_RBRACKET)) return NULL; /* inner ] */
-                if (!expect_peek(p, TOK_RBRACKET)) return NULL; /* outer ] */
-                size_t ts_len = strlen(inner_elem) + 5;
+                /* Consume matching ] brackets */
+                for (int d = 0; d < depth; d++) {
+                    if (!expect_peek(p, TOK_RBRACKET)) return NULL;
+                }
+                /* Build type string: [[[elem]]] */
+                size_t ts_len = strlen(inner_elem) + (size_t)depth * 2 + 1;
                 char *type_str = arena_alloc(p->arena, ts_len);
-                snprintf(type_str, ts_len, "[[%s]]", inner_elem);
+                int pos = 0;
+                for (int d = 0; d < depth; d++) type_str[pos++] = '[';
+                memcpy(type_str + pos, inner_elem, strlen(inner_elem));
+                pos += (int)strlen(inner_elem);
+                for (int d = 0; d < depth; d++) type_str[pos++] = ']';
+                type_str[pos] = '\0';
                 node->data.var_decl.type_name = type_str;
             } else {
                 const char *elem_type = p->cur_token.literal;
