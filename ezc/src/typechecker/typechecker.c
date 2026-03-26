@@ -710,8 +710,15 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                     result = &TYPE_VOID;
                 }
             } else if (is_struct_name(tc, mod)) {
-                /* Struct-namespaced function call: Type.func() */
-                result = &TYPE_UNKNOWN;
+                /* Struct-namespaced function call: Type.func() — look up return type */
+                char prefixed[256];
+                snprintf(prefixed, sizeof(prefixed), "%s_%s", mod, mfn);
+                FuncSig *sig = find_func(tc, prefixed);
+                if (sig && sig->return_count > 0) {
+                    result = sig->return_types[0];
+                } else {
+                    result = &TYPE_UNKNOWN;
+                }
             } else {
                 result = &TYPE_VOID;
             }
@@ -1562,6 +1569,29 @@ static void register_declarations(TypeChecker *tc, AstNode *program) {
                 ftypes[j] = type_from_name(stmt->data.struct_decl.fields[j].type_name);
             }
             register_struct(tc, stmt->data.struct_decl.name, fnames, ftypes, fc);
+
+            /* Register struct-namespaced functions as StructName_funcName */
+            for (int j = 0; j < stmt->data.struct_decl.func_count; j++) {
+                AstNode *fn = stmt->data.struct_decl.funcs[j].func_decl;
+                if (!fn || fn->kind != NODE_FUNC_DECL) continue;
+                int pc = fn->data.func_decl.param_count;
+                EzType **ptypes = malloc(sizeof(EzType *) * (pc ? pc : 1));
+                if (!ptypes) continue;
+                for (int k = 0; k < pc; k++) {
+                    ptypes[k] = type_from_name(fn->data.func_decl.params[k].type_name);
+                }
+                int rc = fn->data.func_decl.return_type_count;
+                EzType **rtypes = malloc(sizeof(EzType *) * (rc ? rc : 1));
+                if (!rtypes) { free(ptypes); continue; }
+                for (int k = 0; k < rc; k++) {
+                    rtypes[k] = type_from_name(fn->data.func_decl.return_types[k]);
+                }
+                /* Register with prefixed name: StructName_funcName */
+                char *prefixed = malloc(strlen(stmt->data.struct_decl.name) +
+                    strlen(fn->data.func_decl.name) + 2);
+                sprintf(prefixed, "%s_%s", stmt->data.struct_decl.name, fn->data.func_decl.name);
+                register_func(tc, prefixed, ptypes, pc, rtypes, rc);
+            }
         }
 
         if (stmt->kind == NODE_ENUM_DECL) {

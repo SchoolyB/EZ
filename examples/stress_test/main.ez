@@ -1,235 +1,492 @@
 /*
- * EZ 3.0 Stress Test — Concurrent URL Checker
+ * EZ 3.0 Stress Test — Full Language Exercise
  *
- * Tests: threads, http, regex, sqlite, mem, structs, enums,
- *        maps, arrays, strings, error handling, for_each,
- *        when/is, function references, or_return
+ * Tests every major feature: structs, enums, struct functions,
+ * nested structs, constants, arrays of structs, maps, threads,
+ * pointers, arenas, regex, http, string ops, math, error handling,
+ * or_return, function references, when/is, for_each, while loops,
+ * ensure cleanup, type inference, and more.
  */
 
 import @std
-import @http
-import @regex
 import @strings
 import @arrays
 import @maps
-import @threads
+import @math
 import @time
 import @mem
-import @math
+import @regex
+import @http
+import @threads
+import @crypto
+import @encoding
 using std
 
-// ==================== Types ====================
+// ==================== Constants ====================
 
-const Status enum {
-    OK,
-    ERROR,
-    TIMEOUT,
-    REDIRECT
+const MAX_RETRIES int = 3
+const TIMEOUT_MS int = 5000
+const VERSION string = "3.0.0"
+const PI float = 3.14159265358979
+
+// ==================== Enums ====================
+
+const Priority enum {
+    LOW,
+    MEDIUM,
+    HIGH,
+    CRITICAL
 }
 
-const Result struct {
-    url string
-    status int
-    size int
-    elapsed float
-    links_found int
-    error_msg string
+const TaskState enum {
+    PENDING,
+    RUNNING,
+    DONE,
+    FAILED
 }
 
-// ==================== Link Extraction ====================
+#enum(string)
+const HttpMethod enum {
+    GET = "GET",
+    POST = "POST",
+    PUT = "PUT",
+    DELETE = "DELETE"
+}
 
-do extract_links(body string) -> [string] {
-    mut links = regex.find_all("href=\"[^\"]+\"", body)
-    mut urls [string] = {}
+// ==================== Nested Structs ====================
 
-    for_each link in links {
-        // Strip href=" and trailing "
-        mut url = strings.slice(link, 6, len(link) - 1)
+const Address struct {
+    street string
+    city string
+    zip string
+}
 
-        // Only keep http links
-        if strings.starts_with(url, "http") {
-            arrays.append(urls, url)
+const Contact struct {
+    email string
+    phone string
+}
+
+const Person struct {
+    name string
+    age int
+    address Address
+    contact Contact
+
+    do create(name string, age int) -> Person {
+        return Person{
+            name: name,
+            age: age,
+            address: Address{street: "", city: "", zip: ""},
+            contact: Contact{email: "", phone: ""}
         }
     }
 
-    return urls
-}
-
-// ==================== URL Classification ====================
-
-do classify(status int) -> Status {
-    when status {
-        is 200 { return Status.OK }
-        is 301, 302, 307, 308 { return Status.REDIRECT }
-        default {
-            if status >= 400 {
-                return Status.ERROR
-            }
-            return Status.OK
+    do with_address(p Person, street string, city string, zip string) -> Person {
+        return Person{
+            name: p.name,
+            age: p.age,
+            address: Address{street: street, city: city, zip: zip},
+            contact: p.contact
         }
     }
-}
 
-do status_label(s Status) -> string {
-    when s {
-        is Status.OK { return "OK" }
-        is Status.ERROR { return "ERROR" }
-        is Status.TIMEOUT { return "TIMEOUT" }
-        is Status.REDIRECT { return "REDIRECT" }
-        default { return "UNKNOWN" }
-    }
-}
-
-// ==================== URL Checker ====================
-
-do check_url(url string) -> Result {
-    mut start = time.now_ms()
-    mut resp = http.get(url)
-    mut elapsed = float(time.now_ms() - start) / 1000.0
-
-    mut links = extract_links(resp.body)
-
-    return Result{
-        url: url,
-        status: int(resp.status),
-        size: len(resp.body),
-        elapsed: elapsed,
-        links_found: len(links),
-        error_msg: ""
-    }
-}
-
-// ==================== Statistics ====================
-
-do compute_stats(results [Result]) {
-    mut total = len(results)
-    mut ok_count int = 0
-    mut err_count int = 0
-    mut total_size int = 0
-    mut total_time float = 0.0
-    mut max_time float = 0.0
-    mut min_time float = 999.0
-    mut total_links int = 0
-
-    for_each r in results {
-        mut cls = classify(r.status)
-        if cls == Status.OK {
-            ok_count++
-        } otherwise {
-            err_count++
+    do with_contact(p Person, email string, phone string) -> Person {
+        return Person{
+            name: p.name,
+            age: p.age,
+            address: p.address,
+            contact: Contact{email: email, phone: phone}
         }
-        total_size += r.size
-        total_time += r.elapsed
-        total_links += r.links_found
-
-        if r.elapsed > max_time { max_time = r.elapsed }
-        if r.elapsed < min_time { min_time = r.elapsed }
     }
 
-    println("")
-    println("========== STATISTICS ==========")
-    println("Total URLs checked:  ${total}")
-    println("Successful:          ${ok_count}")
-    println("Failed:              ${err_count}")
-    println("Total bytes:         ${total_size}")
-    println("Total links found:   ${total_links}")
-    println("")
-
-    if total > 0 {
-        mut avg_time = total_time / float(total)
-        println("Avg response time:   ${avg_time}s")
-        println("Min response time:   ${min_time}s")
-        println("Max response time:   ${max_time}s")
-        println("Total wall time:     ${total_time}s")
+    do display(p Person) -> string {
+        return "${p.name} (age ${p.age}) — ${p.address.city}, ${p.contact.email}"
     }
-    println("================================")
+
+    private do validate_age(age int) -> bool {
+        return age >= 0 && age <= 150
+    }
+
+    do is_valid(p Person) -> bool {
+        return Person.validate_age(p.age) && len(p.name) > 0
+    }
+}
+
+// ==================== Task System ====================
+
+const Task struct {
+    id int
+    title string
+    priority Priority
+    state TaskState
+    assignee string
+    tags [string]
+
+    do create(id int, title string, priority Priority) -> Task {
+        return Task{
+            id: id,
+            title: title,
+            priority: priority,
+            state: TaskState.PENDING,
+            assignee: "",
+            tags: {}
+        }
+    }
+
+    do assign(t Task, person string) -> Task {
+        return Task{
+            id: t.id,
+            title: t.title,
+            priority: t.priority,
+            state: TaskState.RUNNING,
+            assignee: person,
+            tags: t.tags
+        }
+    }
+
+    do complete(t Task) -> Task {
+        return Task{
+            id: t.id,
+            title: t.title,
+            priority: t.priority,
+            state: TaskState.DONE,
+            assignee: t.assignee,
+            tags: t.tags
+        }
+    }
+
+    do summary(t Task) -> string {
+        mut state_str = "pending"
+        when t.state {
+            is TaskState.RUNNING { state_str = "running" }
+            is TaskState.DONE { state_str = "done" }
+            is TaskState.FAILED { state_str = "failed" }
+            default { state_str = "pending" }
+        }
+        return "[#${t.id}] ${t.title} (${state_str}) -> ${t.assignee}"
+    }
+}
+
+// ==================== Math Utilities ====================
+
+const Vec2 struct {
+    x float
+    y float
+
+    do create(x float, y float) -> Vec2 {
+        return Vec2{x: x, y: y}
+    }
+
+    do add(a Vec2, b Vec2) -> Vec2 {
+        return Vec2{x: a.x + b.x, y: a.y + b.y}
+    }
+
+    do scale(v Vec2, s float) -> Vec2 {
+        return Vec2{x: v.x * s, y: v.y * s}
+    }
+
+    do magnitude(v Vec2) -> float {
+        return math.sqrt(v.x * v.x + v.y * v.y)
+    }
+
+    do distance(a Vec2, b Vec2) -> float {
+        mut dx = a.x - b.x
+        mut dy = a.y - b.y
+        return math.sqrt(dx * dx + dy * dy)
+    }
+
+    do to_string(v Vec2) -> string {
+        return "(${v.x}, ${v.y})"
+    }
+}
+
+// ==================== Higher-Order Functions ====================
+
+do is_even(n int) -> bool {
+    return n % 2 == 0
+}
+
+do is_positive(n int) -> bool {
+    return n > 0
+}
+
+do double(n int) -> int {
+    return n * 2
+}
+
+do apply_to_all(arr [int], transform func) -> [int] {
+    mut result [int] = {}
+    for_each n in arr {
+        arrays.append(result, transform(n))
+    }
+    return result
+}
+
+do filter_by(arr [int], predicate func) -> [int] {
+    mut result [int] = {}
+    for_each n in arr {
+        if predicate(n) {
+            arrays.append(result, n)
+        }
+    }
+    return result
+}
+
+// ==================== Error Handling ====================
+
+do divide(a float, b float) -> (float, Error) {
+    if b == 0.0 {
+        return 0.0, error("division by zero")
+    }
+    return a / b, nil
+}
+
+do safe_divide_chain(x float, y float, z float) -> (float, Error) {
+    mut r1 = divide(x, y) or_return
+    mut r2 = divide(r1, z) or_return
+    return r2, nil
+}
+
+// ==================== Thread Work ====================
+
+do worker(id int) {
+    threads.sleep_ms(10)
 }
 
 // ==================== Main ====================
 
 do main() {
-    println("=== EZ 3.0 Stress Test: Concurrent URL Checker ===")
+    mut start = time.now_ms()
+    println("=== EZ 3.0 Full Stress Test ===")
+    println("Version: ${VERSION}")
     println("")
 
-    // URLs to check
-    mut urls [string] = {
-        "http://httpbin.org/get",
-        "http://httpbin.org/status/200",
-        "http://httpbin.org/status/301",
-        "http://httpbin.org/status/404",
-        "http://httpbin.org/html",
-        "http://httpbin.org/json",
-        "http://httpbin.org/delay/1"
+    // --- Constants ---
+    println("--- Constants ---")
+    println("MAX_RETRIES: ${MAX_RETRIES}")
+    println("TIMEOUT_MS: ${TIMEOUT_MS}")
+    println("PI: ${PI}")
+    println("")
+
+    // --- Enums ---
+    println("--- Enums ---")
+    mut priority = Priority.HIGH
+    println("Priority: ${priority}")
+    when priority {
+        is Priority.LOW { println("  -> low") }
+        is Priority.MEDIUM { println("  -> medium") }
+        is Priority.HIGH { println("  -> high") }
+        is Priority.CRITICAL { println("  -> critical") }
+        default { println("  -> unknown") }
+    }
+    println("")
+
+    // --- Nested Structs with Functions ---
+    println("--- Nested Structs ---")
+    mut alice = Person.create("Alice", 30)
+    alice = Person.with_address(alice, "123 Main St", "Springfield", "62704")
+    alice = Person.with_contact(alice, "alice@example.com", "555-1234")
+    println(Person.display(alice))
+    println("Valid: ${Person.is_valid(alice)}")
+
+    mut bob = Person.create("Bob", 25)
+    bob = Person.with_address(bob, "456 Oak Ave", "Portland", "97201")
+    println(Person.display(bob))
+    println("")
+
+    // --- Task System ---
+    println("--- Task System ---")
+    mut tasks [Task] = {}
+    arrays.append(tasks, Task.create(1, "Design API", Priority.HIGH))
+    arrays.append(tasks, Task.create(2, "Write tests", Priority.MEDIUM))
+    arrays.append(tasks, Task.create(3, "Fix bug #42", Priority.CRITICAL))
+    arrays.append(tasks, Task.create(4, "Update docs", Priority.LOW))
+
+    // Assign and complete some tasks
+    mut t0 = tasks[0]
+    t0 = Task.assign(t0, "Alice")
+    t0 = Task.complete(t0)
+
+    mut t1 = tasks[1]
+    t1 = Task.assign(t1, "Bob")
+
+    println(Task.summary(t0))
+    println(Task.summary(t1))
+    println(Task.summary(tasks[2]))
+    println(Task.summary(tasks[3]))
+    println("")
+
+    // --- Vec2 Math ---
+    println("--- Vector Math ---")
+    mut a = Vec2.create(3.0, 4.0)
+    mut b = Vec2.create(1.0, 2.0)
+    mut c = Vec2.add(a, b)
+    mut scaled = Vec2.scale(a, 2.5)
+    println("a = ${Vec2.to_string(a)}")
+    println("b = ${Vec2.to_string(b)}")
+    println("a + b = ${Vec2.to_string(c)}")
+    println("a * 2.5 = ${Vec2.to_string(scaled)}")
+    println("|a| = ${Vec2.magnitude(a)}")
+    println("dist(a, b) = ${Vec2.distance(a, b)}")
+    println("")
+
+    // --- Function References ---
+    println("--- Function References ---")
+    mut nums [int] = {1, -2, 3, -4, 5, -6, 7, -8, 9, -10}
+    mut doubled = apply_to_all(nums, ()double)
+    mut positives = filter_by(nums, ()is_positive)
+    mut evens = filter_by(nums, ()is_even)
+    println("Original: ${nums}")
+    println("Doubled:  ${doubled}")
+    println("Positive: ${positives}")
+    println("Even:     ${evens}")
+    println("")
+
+    // --- Error Handling + or_return ---
+    println("--- Error Handling ---")
+    mut result, err = divide(10.0, 3.0)
+    if err == nil {
+        println("10 / 3 = ${result}")
     }
 
-    println("Checking ${len(urls)} URLs...")
-    println("")
-
-    // Arena for temporary allocations
-    mut arena = mem.arena(1024 * 64)
-
-    // Check each URL and collect results
-    mut results [Result] = {}
-    mut start_time = time.now_ms()
-
-    for_each url in urls {
-        println("  Checking: ${url}")
-        mut result = check_url(url)
-
-        mut cls = classify(result.status)
-        mut label = status_label(cls)
-        println("    Status: ${result.status} (${label})")
-        println("    Size:   ${result.size} bytes")
-        println("    Time:   ${result.elapsed}s")
-        println("    Links:  ${result.links_found}")
-
-        arrays.append(results, result)
+    mut _, err2 = divide(5.0, 0.0)
+    if err2 != nil {
+        println("5 / 0 = error: ${err2}")
     }
 
-    mut wall_time = float(time.now_ms() - start_time) / 1000.0
-    println("")
-    println("All checks complete in ${wall_time}s")
-
-    // Compute and display statistics
-    compute_stats(results)
-
-    // Test string operations
-    println("")
-    println("=== String Operations ===")
-    mut all_urls = strings.join(urls, ", ")
-    println("All URLs: ${strings.slice(all_urls, 0, 80)}...")
-    println("URL count via split: ${len(strings.split(all_urls, ", "))}")
-
-    // Test map operations
-    println("")
-    println("=== Map Operations ===")
-    mut status_counts map[string:int] = {}
-    for_each r in results {
-        mut label = status_label(classify(r.status))
-        if maps.contains(status_counts, label) {
-            mut current = status_counts[label]
-            status_counts[label] = current + 1
-        } otherwise {
-            status_counts[label] = 1
-        }
+    mut chain_result, chain_err = safe_divide_chain(100.0, 5.0, 2.0)
+    if chain_err == nil {
+        println("100 / 5 / 2 = ${chain_result}")
     }
-    println("Status distribution: ${status_counts}")
 
-    // Test math operations
-    println("")
-    println("=== Math Operations ===")
-    mut sizes [int] = {}
-    for_each r in results {
-        arrays.append(sizes, r.size)
+    mut _, chain_err2 = safe_divide_chain(100.0, 0.0, 2.0)
+    if chain_err2 != nil {
+        println("100 / 0 / 2 = error: ${chain_err2}")
     }
-    println("Total size: ${arrays.sum(sizes)} bytes")
-    println("Max size:   ${arrays.max(sizes)} bytes")
-    println("Min size:   ${arrays.min(sizes)} bytes")
-    println("Sqrt of total: ${math.sqrt(float(arrays.sum(sizes)))}")
+    println("")
 
-    // Cleanup
+    // --- String Operations ---
+    println("--- String Operations ---")
+    mut text = "  Hello, World!  "
+    println("Original: '${text}'")
+    println("Trimmed:  '${strings.trim(text)}'")
+    println("Upper:    '${strings.upper(text)}'")
+    println("Lower:    '${strings.lower(text)}'")
+    println("Contains: ${strings.contains(text, "World")}")
+    println("Replace:  '${strings.replace(text, "World", "EZ")}'")
+    mut parts = strings.split("a,b,c,d,e", ",")
+    println("Split:    ${parts}")
+    println("Join:     '${strings.join(parts, " | ")}'")
+    println("")
+
+    // --- Regex ---
+    println("--- Regex ---")
+    mut emails = "Contact us at alice@test.com or bob@example.org for info"
+    mut found = regex.find_all("[a-zA-Z0-9.]+@[a-zA-Z0-9]+\\.[a-z]+", emails)
+    println("Found ${len(found)} emails:")
+    for_each email in found {
+        println("  ${email}")
+    }
+    println("Has digits: ${regex.match("[0-9]+", "abc123")}")
+    mut cleaned = regex.replace("[^a-zA-Z ]", "H3ll0 W0rld!", "")
+    println("Cleaned: '${cleaned}'")
+    println("")
+
+    // --- Maps ---
+    println("--- Maps ---")
+    mut scores map[string:int] = {
+        "Alice": 95,
+        "Bob": 87,
+        "Charlie": 92
+    }
+    mut dk = "Diana"
+    scores[dk] = 88
+    println("Scores: ${scores}")
+    mut keys = maps.keys(scores)
+    for_each k in keys {
+        println("  ${k}: ${scores[k]}")
+    }
+    println("")
+
+    // --- Crypto & Encoding ---
+    println("--- Crypto & Encoding ---")
+    mut hash = crypto.sha256("hello world")
+    println("SHA256('hello world'): ${strings.slice(hash, 0, 16)}...")
+    mut encoded = encoding.base64_encode("EZ Language 3.0")
+    println("Base64: ${encoded}")
+    println("")
+
+    // --- Threads ---
+    println("--- Threads ---")
+    mut t_start = time.now_ms()
+    mut t1_h = threads.spawn(()worker, 1)
+    mut t2_h = threads.spawn(()worker, 2)
+    mut t3_h = threads.spawn(()worker, 3)
+    threads.join(t1_h)
+    threads.join(t2_h)
+    threads.join(t3_h)
+    mut t_elapsed = time.now_ms() - t_start
+    println("3 threads completed in ${t_elapsed}ms")
+    println("")
+
+    // --- Arena Memory ---
+    println("--- Arena Memory ---")
+    mut arena = mem.arena(1024 * 16)
+    println("Arena created (16KB)")
+    println("Usage: ${mem.usage(arena)} bytes")
+    mem.reset(arena)
+    println("After reset: ${mem.usage(arena)} bytes")
     mem.destroy(arena)
-
+    println("Arena destroyed")
     println("")
-    println("=== Stress test complete! ===")
+
+    // --- HTTP ---
+    println("--- HTTP ---")
+    mut resp = http.get("http://httpbin.org/get")
+    println("GET httpbin.org/get: status ${resp.status}, ${len(resp.body)} bytes")
+    println("")
+
+    // --- Math ---
+    println("--- Math ---")
+    println("sqrt(144) = ${math.sqrt(144.0)}")
+    println("pow(2, 10) = ${math.pow(2.0, 10.0)}")
+    println("abs(-42) = ${math.abs(-42)}")
+    println("min(5, 3) = ${math.min(5, 3)}")
+    println("max(5, 3) = ${math.max(5, 3)}")
+    println("PI = ${PI}")
+    println("")
+
+    // --- While Loop ---
+    println("--- While Loop ---")
+    mut fib1 int = 0
+    mut fib2 int = 1
+    mut fib_count int = 0
+    mut fibs [int] = {}
+    while fib_count < 10 {
+        arrays.append(fibs, fib1)
+        mut next = fib1 + fib2
+        fib1 = fib2
+        fib2 = next
+        fib_count++
+    }
+    println("First 10 Fibonacci: ${fibs}")
+    println("")
+
+    // --- Ensure (defer) ---
+    println("--- Ensure ---")
+    test_ensure()
+    println("")
+
+    // --- Summary ---
+    mut elapsed = time.now_ms() - start
+    println("========================================")
+    println("  Stress test complete in ${elapsed}ms")
+    println("  All features exercised successfully")
+    println("========================================")
+}
+
+do test_ensure() {
+    ensure println("  [ensure] cleanup ran!")
+    println("  [ensure] doing work...")
+    println("  [ensure] work done, returning")
 }

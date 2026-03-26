@@ -793,7 +793,7 @@ static bool is_stdlib_call(AstNode *node, const char **module, const char **func
 
 static const char *resolve_print_suffix(CodeGen *cg, AstNode *arg) {
     EzType *t = cg->type_table ? typetable_get(cg->type_table, arg) : NULL;
-    if (t) {
+    if (t && t->kind != TK_UNKNOWN) {
         switch (t->kind) {
         case TK_STRING: return "_str";
         case TK_FLOAT:  return "_float";
@@ -804,6 +804,30 @@ static const char *resolve_print_suffix(CodeGen *cg, AstNode *arg) {
     if (arg->kind == NODE_STRING_VALUE || arg->kind == NODE_INTERPOLATED_STRING) return "_str";
     if (arg->kind == NODE_FLOAT_VALUE) return "_float";
     if (arg->kind == NODE_BOOL_VALUE) return "_bool";
+    /* For call expressions, check the return type of the called function */
+    if (arg->kind == NODE_CALL_EXPR && arg->data.call.function->kind == NODE_MEMBER_EXPR) {
+        AstNode *fn = arg->data.call.function;
+        if (fn->data.member.object->kind == NODE_LABEL) {
+            const char *obj = fn->data.member.object->data.label.value;
+            const char *mem = fn->data.member.member;
+            /* Check if it's a known stdlib module function that returns string */
+            if ((strcmp(obj, "strings") == 0) ||
+                (strcmp(obj, "encoding") == 0) ||
+                (strcmp(obj, "crypto") == 0) ||
+                (strcmp(obj, "uuid") == 0)) return "_str";
+            /* Check if it's a struct-namespaced function */
+            if (codegen_is_enum(cg, obj) || (obj[0] >= 'A' && obj[0] <= 'Z')) {
+                /* Look up forward declaration to determine return type */
+                /* For now, check if the generated C declaration returns EzString */
+                (void)mem; /* TODO: proper return type lookup */
+            }
+        }
+    }
+    if (arg->kind == NODE_CALL_EXPR && arg->data.call.function->kind == NODE_LABEL) {
+        const char *fn = arg->data.call.function->data.label.value;
+        if (strcmp(fn, "input") == 0 || strcmp(fn, "to_string") == 0 ||
+            strcmp(fn, "typeof") == 0) return "_str";
+    }
     return "_int";
 }
 
