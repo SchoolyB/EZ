@@ -20,6 +20,14 @@ import @http
 import @threads
 import @crypto
 import @encoding
+import @uuid
+import @bytes
+import @binary
+import @json
+import @io
+import @os
+import @random
+import @net
 using std
 
 // ==================== Constants ====================
@@ -51,6 +59,13 @@ const HttpMethod enum {
     POST = "POST",
     PUT = "PUT",
     DELETE = "DELETE"
+}
+
+#flags
+const Permission enum {
+    READ,
+    WRITE,
+    EXECUTE
 }
 
 // ==================== Nested Structs ====================
@@ -475,6 +490,141 @@ do main() {
     // --- Ensure (defer) ---
     println("--- Ensure ---")
     test_ensure()
+    println("")
+
+    // --- Pointers ---
+    println("--- Pointers ---")
+    mut val int = 42
+    mut ptr = addr(val)
+    println("val = ${val}")
+    println("*ptr = ${ptr^}")
+    ptr^ = 99
+    println("After ptr^ = 99: val = ${val}")
+    println("")
+
+    // --- new() ---
+    println("--- new() ---")
+    mut fresh = new(Person)
+    println("new Person: name='${fresh.name}' age=${fresh.age}")
+    println("")
+
+    // --- ref() ---
+    println("--- ref() ---")
+    mut fn_ref = ref(double)
+    println("ref(double)(7) = ${fn_ref(7)}")
+    println("")
+
+    // --- as_long_as (alias for while) ---
+    println("--- as_long_as ---")
+    mut count int = 0
+    as_long_as count < 5 {
+        count++
+    }
+    println("Counted to ${count}")
+    println("")
+
+    // --- loop + break + continue ---
+    println("--- loop/break/continue ---")
+    mut sum int = 0
+    mut i int = 0
+    loop {
+        i++
+        if i > 10 { break }
+        if i % 2 == 0 { continue }
+        sum += i
+    }
+    println("Sum of odd 1-10: ${sum}")
+    println("")
+
+    // --- not_in / !in ---
+    println("--- Membership ---")
+    mut colors [int] = {1, 2, 3, 4, 5}
+    if 3 in colors { println("3 is in colors") }
+    if 99 not_in colors { println("99 not_in colors") }
+    if 88 !in colors { println("88 !in colors") }
+    println("")
+
+    // --- #strict when ---
+    println("--- #strict when ---")
+    mut prio = Priority.HIGH
+    #strict
+    when prio {
+        is Priority.LOW { println("low") }
+        is Priority.MEDIUM { println("medium") }
+        is Priority.HIGH { println("high") }
+        is Priority.CRITICAL { println("critical") }
+    }
+    println("")
+
+    // --- #flags enum ---
+    println("--- #flags enum ---")
+    mut perms = Permission.READ + Permission.WRITE
+    println("READ + WRITE = ${perms}")
+    println("")
+
+    // --- for_each with index ---
+    println("--- for_each with index ---")
+    mut names [string] = {"alpha", "beta", "gamma"}
+    for_each idx, name in names {
+        println("  [${idx}] ${name}")
+    }
+    println("")
+
+    // --- UUID ---
+    println("--- UUID ---")
+    mut id = uuid.generate()
+    println("UUID: ${id}")
+    println("Valid: ${uuid.is_valid(id)}")
+    println("")
+
+    // --- Bytes ---
+    println("--- Bytes ---")
+    mut byt = bytes.from_string("EZ")
+    println("bytes.from_string('EZ'): ${byt}")
+    mut back = bytes.to_string(byt)
+    println("bytes.to_string: ${back}")
+    println("")
+
+    // --- JSON ---
+    println("--- JSON ---")
+    mut json_input = "{\"name\": \"EZ\", \"version\": \"3.0\"}"
+    println("JSON input: ${json_input}")
+    println("Valid: ${json.is_valid(json_input)}")
+    println("")
+
+    // --- OS ---
+    println("--- OS ---")
+    mut cwd = os.cwd()
+    println("CWD: ${cwd}")
+    mut hostname = os.hostname()
+    println("Host: ${hostname}")
+    println("")
+
+    // --- Random ---
+    println("--- Random ---")
+    mut rand_int = random.int(1, 100)
+    println("Random int [1,100]: ${rand_int}")
+    mut rand_float = random.float(0.0, 1.0)
+    println("Random float [0,1]: ${rand_float}")
+    mut rand_bool = random.bool()
+    println("Random bool: ${rand_bool}")
+    println("")
+
+    // --- IO (write + read + delete) ---
+    println("--- IO ---")
+    mut tmp_path = "/tmp/ez_stress_test.txt"
+    io.write_file(tmp_path, "Hello from EZ stress test!")
+    if io.file_exists(tmp_path) {
+        println("File written successfully")
+    }
+    io.delete_file(tmp_path)
+    println("File cleaned up")
+    println("")
+
+    // --- Net ---
+    println("--- Net ---")
+    mut ip = net.resolve("localhost")
+    println("localhost = ${ip}")
     println("")
 
     // --- Summary ---
