@@ -832,6 +832,29 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                                 tc->file, node->data.call.args[ai]->token.line,
                                 node->data.call.args[ai]->token.column, 0);
                         }
+                        /* E3027: const variable passed to mutable param */
+                        if (node->data.call.args[ai]->kind == NODE_LABEL) {
+                            Symbol *arg_sym = scope_lookup(tc->current_scope,
+                                node->data.call.args[ai]->data.label.value);
+                            /* Find the func decl to check param mutability */
+                            for (int fi = 0; fi < tc->program->data.program.stmt_count; fi++) {
+                                AstNode *s = tc->program->data.program.stmts[fi];
+                                if (s->kind == NODE_FUNC_DECL &&
+                                    strcmp(s->data.func_decl.name, fn_name) == 0 &&
+                                    ai < s->data.func_decl.param_count &&
+                                    s->data.func_decl.params[ai].mutable &&
+                                    arg_sym && !arg_sym->mutable) {
+                                    char msg[256];
+                                    snprintf(msg, sizeof(msg),
+                                        "cannot pass constant '%s' to mutable parameter '%s' of '%s'",
+                                        arg_sym->name, s->data.func_decl.params[ai].name, fn_name);
+                                    diag_error(tc->diag, "E3027", strdup(msg),
+                                        tc->file, node->data.call.args[ai]->token.line,
+                                        node->data.call.args[ai]->token.column, 0);
+                                    break;
+                                }
+                            }
+                        }
                     }
                     if (sig->return_count > 0) {
                         result = sig->return_types[0];
@@ -841,6 +864,14 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                     Symbol *fn_sym = scope_lookup(tc->current_scope, fn_name);
                     if (fn_sym && fn_sym->type && strcmp(type_name(fn_sym->type), "func") == 0) {
                         result = &TYPE_UNKNOWN; /* callable func ref — return type unknown */
+                    } else if (fn_sym && fn_sym->type) {
+                        /* Variable exists but is not a function */
+                        char msg[256];
+                        snprintf(msg, sizeof(msg),
+                            "'%s' is a %s, not a function — it cannot be called",
+                            fn_name, type_name(fn_sym->type));
+                        diag_error(tc->diag, "E3015", strdup(msg),
+                            tc->file, node->token.line, node->token.column, 0);
                     } else if (!tc_is_builtin(fn_name)) {
                         char msg[256];
                         snprintf(msg, sizeof(msg), "undefined function '%s'", fn_name);
@@ -1583,6 +1614,14 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
         break;
     }
 
+    case NODE_IMPORT_STMT:
+        if (tc->func_depth > 0) {
+            diag_error(tc->diag, "E2036",
+                strdup("imports must be at the top of the file, not inside a function"),
+                tc->file, node->token.line, node->token.column, 0);
+        }
+        break;
+
     case NODE_ENSURE_STMT:
         resolve_expr(tc, node->data.ensure_stmt.expr);
         if (node->data.ensure_stmt.expr &&
@@ -1594,6 +1633,15 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
         break;
 
     case NODE_STRUCT_DECL:
+        /* E2053: struct inside function */
+        if (tc->func_depth > 0) {
+            char msg[256];
+            snprintf(msg, sizeof(msg),
+                "struct '%s' must be defined at the top level, not inside a function",
+                node->data.struct_decl.name);
+            diag_error(tc->diag, "E2053", strdup(msg),
+                tc->file, node->token.line, node->token.column, 0);
+        }
         /* Type-check struct-namespaced function bodies */
         for (int i = 0; i < node->data.struct_decl.func_count; i++) {
             AstNode *fn = node->data.struct_decl.funcs[i].func_decl;
@@ -1719,6 +1767,15 @@ static void register_declarations(TypeChecker *tc, AstNode *program) {
         }
 
         if (stmt->kind == NODE_ENUM_DECL) {
+            /* E2016: empty enum */
+            if (stmt->data.enum_decl.value_count == 0) {
+                char msg[256];
+                snprintf(msg, sizeof(msg),
+                    "enum '%s' has no values — an enum must have at least one value",
+                    stmt->data.enum_decl.name);
+                diag_error(tc->diag, "E2016", strdup(msg),
+                    tc->file, stmt->token.line, stmt->token.column, 0);
+            }
             /* Detect string enum: has explicit base_type "string" or string literal values */
             bool is_str = false;
             if (stmt->data.enum_decl.base_type &&
