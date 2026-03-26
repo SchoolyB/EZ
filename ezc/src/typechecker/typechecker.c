@@ -1162,6 +1162,12 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
 
     switch (node->kind) {
     case NODE_VAR_DECL: {
+        /* E3038: void cannot be used as variable type */
+        if (node->data.var_decl.type_name && strcmp(node->data.var_decl.type_name, "void") == 0) {
+            diag_error(tc->diag, "E3038",
+                strdup("'void' cannot be used as a variable type"),
+                tc->file, node->token.line, node->token.column, 0);
+        }
         /* const must have a value */
         if (!node->data.var_decl.mutable && !node->data.var_decl.value) {
             char msg[256];
@@ -1785,6 +1791,16 @@ static void register_declarations(TypeChecker *tc, AstNode *program) {
             for (int j = 0; j < fc; j++) {
                 fnames[j] = stmt->data.struct_decl.fields[j].name;
                 ftypes[j] = type_from_name(stmt->data.struct_decl.fields[j].type_name);
+                /* E3038: void field type */
+                if (stmt->data.struct_decl.fields[j].type_name &&
+                    strcmp(stmt->data.struct_decl.fields[j].type_name, "void") == 0) {
+                    char msg[256];
+                    snprintf(msg, sizeof(msg),
+                        "'void' cannot be used as a struct field type (field '%s')",
+                        fnames[j]);
+                    diag_error(tc->diag, "E3038", strdup(msg),
+                        tc->file, stmt->token.line, stmt->token.column, 0);
+                }
                 /* Check for duplicate field names */
                 for (int k = 0; k < j; k++) {
                     if (strcmp(fnames[k], fnames[j]) == 0) {
@@ -1847,6 +1863,27 @@ static void register_declarations(TypeChecker *tc, AstNode *program) {
                     stmt->data.enum_decl.name);
                 diag_error(tc->diag, "E2016", strdup(msg),
                     tc->file, stmt->token.line, stmt->token.column, 0);
+            }
+            /* E3033: check for duplicate enum values */
+            for (int j = 0; j < stmt->data.enum_decl.value_count; j++) {
+                if (!stmt->data.enum_decl.values[j].value) continue;
+                for (int k = 0; k < j; k++) {
+                    if (!stmt->data.enum_decl.values[k].value) continue;
+                    if (stmt->data.enum_decl.values[j].value->kind == NODE_INT_VALUE &&
+                        stmt->data.enum_decl.values[k].value->kind == NODE_INT_VALUE &&
+                        stmt->data.enum_decl.values[j].value->data.int_value.value ==
+                        stmt->data.enum_decl.values[k].value->data.int_value.value) {
+                        char msg[256];
+                        snprintf(msg, sizeof(msg),
+                            "duplicate value in enum '%s': '%s' and '%s' both have the same value",
+                            stmt->data.enum_decl.name,
+                            stmt->data.enum_decl.values[k].name,
+                            stmt->data.enum_decl.values[j].name);
+                        diag_error(tc->diag, "E3033", strdup(msg),
+                            tc->file, stmt->token.line, stmt->token.column, 0);
+                        break;
+                    }
+                }
             }
             /* Detect string enum: has explicit base_type "string" or string literal values */
             bool is_str = false;

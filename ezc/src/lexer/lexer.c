@@ -185,6 +185,9 @@ static const char *read_raw_string(Lexer *l) {
     const char *str = arena_strndup(l->arena, l->input + start, l->position - start);
     if (l->ch == '`') {
         read_char(l); /* skip closing ` */
+    } else {
+        l->error_code = "E1017";
+        l->error_msg = "unclosed raw string literal";
     }
     return str;
 }
@@ -429,7 +432,8 @@ Token lexer_next_token(Lexer *l) {
 
     case '`':
         tok.literal = read_raw_string(l);
-        tok.type = TOK_RAW_STRING;
+        tok.type = l->error_code ? TOK_ILLEGAL : TOK_RAW_STRING;
+        if (l->error_code) tok.literal = l->error_msg;
         return tok;
 
     case '\'':
