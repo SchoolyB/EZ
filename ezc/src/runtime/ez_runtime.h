@@ -66,6 +66,9 @@ static inline EzString ez_string_lit(const char *s) {
     return str;
 }
 
+/* Compile-time string literal — works at file scope (C11 compliant) */
+#define EZ_STRING_LIT(s) ((EzString){ (s), sizeof(s) - 1 })
+
 /* Create a string with a copy on the arena */
 EzString ez_string_new(EzArena *arena, const char *s, int32_t len);
 

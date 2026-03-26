@@ -185,7 +185,8 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
         /* Emit string literal, breaking hex escapes to prevent C's greedy \x parsing.
          * "A\x42C" → "A\x42" "C" (C string concatenation) */
         const char *s = node->data.string_value.value;
-        emit(cg, "ez_string_lit(\"");
+        /* Use macro form for file-scope compatibility */
+        emit(cg, (cg->indent == 0) ? "EZ_STRING_LIT(\"" : "ez_string_lit(\"");
         while (*s) {
             if (s[0] == '\\' && s[1] == 'x' && isxdigit(s[2])) {
                 /* Emit \xNN then break the string if followed by a hex digit */
