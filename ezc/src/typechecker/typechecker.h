@@ -71,6 +71,13 @@ typedef struct {
     int func_depth;               /* >0 means inside a function body */
     EzType **current_return_types; /* expected return types of current function */
     int current_return_count;
+
+    /* Import tracking for unused import warnings */
+    const char **imported_modules;
+    int *import_lines;
+    bool *import_used;
+    int import_count;
+    int import_cap;
 } TypeChecker;
 
 /* Create and run the type checker */

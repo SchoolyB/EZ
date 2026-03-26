@@ -76,17 +76,17 @@ cat >> "$OUTPUT" << FOOTER
 
 ## Error Code Ranges
 
-| Range | Category |
-|-------|----------|
-| E1xxx | Lexer errors |
-| E2xxx | Parser errors |
-| E3xxx | Type errors |
-| E4xxx | Reference/name errors |
-| E5xxx | Runtime errors |
-| E6xxx | Import errors |
-| E7xxx | Stdlib validation errors |
-| W2xxx | Unused code warnings |
-| W3xxx | Type warnings |
+| Range | What It Means |
+|-------|---------------|
+| E1xxx | Problems reading your code (invalid characters, numbers too large) |
+| E2xxx | Problems understanding your code (missing brackets, unexpected symbols) |
+| E3xxx | Type problems (wrong types, invalid operations) |
+| E4xxx | Name problems (undefined variables, duplicate names) |
+| E5xxx | Usage problems (wrong number of arguments) |
+| E6xxx | Import problems (unknown modules) |
+| E7xxx | Standard library problems (wrong usage of built-in functions) |
+| W2xxx | Cleanup suggestions (unused imports) |
+| W3xxx | Safety warnings (possible missing return values) |
 
 ---
 

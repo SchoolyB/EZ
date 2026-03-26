@@ -473,6 +473,13 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
         } else if (fn->kind == NODE_MEMBER_EXPR && fn->data.member.object->kind == NODE_LABEL) {
             const char *mod = fn->data.member.object->data.label.value;
             const char *mfn = fn->data.member.member;
+            /* Mark module as used */
+            for (int mi = 0; mi < tc->import_count; mi++) {
+                if (strcmp(tc->imported_modules[mi], mod) == 0) {
+                    tc->import_used[mi] = true;
+                    break;
+                }
+            }
             if (strcmp(mod, "mem") == 0) {
                 if (strcmp(mfn, "arena") == 0) {
                     result = &TYPE_UNKNOWN; /* arena pointer — opaque */
@@ -726,6 +733,15 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
         }
 
         if (fn_name) {
+            /* If calling a builtin, mark @std as used */
+            if (tc_is_builtin(fn_name)) {
+                for (int mi = 0; mi < tc->import_count; mi++) {
+                    if (strcmp(tc->imported_modules[mi], "std") == 0) {
+                        tc->import_used[mi] = true;
+                        break;
+                    }
+                }
+            }
             /* Check built-in functions first */
             if ((strcmp(fn_name, "addr") == 0 || strcmp(fn_name, "ref") == 0) && node->data.call.arg_count == 1) {
                 AstNode *arg = node->data.call.args[0];
@@ -853,6 +869,14 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
 
         if (obj->kind == NODE_LABEL) {
             const char *obj_name = obj->data.label.value;
+
+            /* Mark module as used (for member access like math.PI) */
+            for (int mi = 0; mi < tc->import_count; mi++) {
+                if (strcmp(tc->imported_modules[mi], obj_name) == 0) {
+                    tc->import_used[mi] = true;
+                    break;
+                }
+            }
 
             /* Check for module constants */
             if (strcmp(obj_name, "std") == 0) {
@@ -1549,7 +1573,7 @@ static bool is_valid_module(const char *name) {
 }
 
 static void register_declarations(TypeChecker *tc, AstNode *program) {
-    /* Validate imports first */
+    /* Validate and record imports */
     for (int i = 0; i < program->data.program.stmt_count; i++) {
         AstNode *stmt = program->data.program.stmts[i];
         if (stmt->kind == NODE_IMPORT_STMT) {
@@ -1561,6 +1585,19 @@ static void register_declarations(TypeChecker *tc, AstNode *program) {
                         "unknown module '@%s'", item->module);
                     diag_error(tc->diag, "E6001", strdup(msg),
                         tc->file, stmt->token.line, stmt->token.column, 0);
+                }
+                /* Record import for unused-import tracking */
+                if (item->is_stdlib && item->module) {
+                    if (tc->import_count >= tc->import_cap) {
+                        tc->import_cap = tc->import_cap ? tc->import_cap * 2 : 16;
+                        tc->imported_modules = realloc(tc->imported_modules, sizeof(const char *) * tc->import_cap);
+                        tc->import_lines = realloc(tc->import_lines, sizeof(int) * tc->import_cap);
+                        tc->import_used = realloc(tc->import_used, sizeof(bool) * tc->import_cap);
+                    }
+                    tc->imported_modules[tc->import_count] = item->module;
+                    tc->import_lines[tc->import_count] = stmt->token.line;
+                    tc->import_used[tc->import_count] = false;
+                    tc->import_count++;
                 }
             }
         }
@@ -1682,6 +1719,18 @@ void typechecker_check(TypeChecker *tc, AstNode *program) {
         diag_error(tc->diag, "E4005",
             strdup("program has no main() function — every EZ program needs 'do main() { }'"),
             tc->file, 1, 1, 0);
+    }
+
+    /* Warn about unused imports */
+    for (int i = 0; i < tc->import_count; i++) {
+        if (!tc->import_used[i]) {
+            char msg[256];
+            snprintf(msg, sizeof(msg),
+                "module '%s' is imported but never used — remove the import or use the module",
+                tc->imported_modules[i]);
+            diag_warning(tc->diag, "W2001", strdup(msg),
+                tc->file, tc->import_lines[i], 1, 0);
+        }
     }
 }
 

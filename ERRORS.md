@@ -3,7 +3,7 @@
 > Auto-generated from `ezc/src/util/error_codes.h`. Do not edit manually.
 > Run `./scripts/generate_errors.sh` to regenerate.
 
-**Total: 29 codes** (27 errors, 2 warnings)
+**Total: 34 codes** (32 errors, 2 warnings)
 
 ---
 
@@ -11,33 +11,38 @@
 
 | Code | Category | Description |
 |------|----------|-------------|
-| `E1010` | lexer | integer literal overflows 64-bit integer |
-| `E2001` | parser | unexpected token in expression or statement |
-| `E2002` | parser | expected token not found (missing brace, paren, etc.) |
-| `E2050` | parser | break or continue used outside of a loop |
-| `E2051` | parser | nested function declarations are not allowed |
-| `E3001` | type | type mismatch (assignment, argument, return, comparison, struct field) |
-| `E3002` | type | invalid operator on type (string arithmetic, ordering) |
-| `E3005` | type | cannot modify a constant (const reassignment, index, field, ++) |
-| `E3006` | type | return value issue (value in void function, bare return in non-void) |
-| `E3007` | type | operator on incompatible type (++/-- or negation on non-numeric) |
-| `E3008` | type | indexing a non-indexable type (only arrays, maps, strings) |
-| `E3009` | type | for_each on non-iterable type (only arrays, maps, strings) |
-| `E3010` | type | struct has no such field (literal or access) |
-| `E3011` | type | type keyword used as a value (mut x = int) |
-| `E3012` | type | addr() requires an lvalue (variable, field, or index) |
-| `E3013` | type | field access on non-struct type |
-| `E3016` | type | cannot dereference non-pointer type |
-| `E3018` | type | cannot use module before importing it |
-| `E4001` | reference | undefined variable |
-| `E4002` | reference | undefined function |
-| `E4003` | reference | variable already declared in this scope |
-| `E4004` | reference | function already declared |
-| `E4005` | reference | program has no main() function |
-| `E4006` | reference | name uses reserved compiler prefix (ez_, _ez_, Ez) |
-| `E5008` | runtime | wrong number of function arguments |
-| `E6001` | import | unknown standard library module |
-| `E7006` | stdlib | threads.spawn() requires a function reference |
+| `E1010` | syntax | number is too large — the maximum integer value is 9223372036854775807 |
+| `E2001` | syntax | unexpected symbol — the compiler found something it did not expect here |
+| `E2002` | syntax | missing symbol — a bracket, parenthesis, or keyword is missing |
+| `E2050` | syntax | break and continue can only be used inside a loop |
+| `E2051` | syntax | functions cannot be defined inside other functions — move it to the top level |
+| `E3001` | types | wrong type — you are using a value of one type where a different type is expected |
+| `E3002` | types | this operator does not work on this type — for example, you cannot subtract strings |
+| `E3005` | types | cannot change a constant — use mut instead of const if you need to modify this value |
+| `E3006` | types | return value problem — either returning a value from a function that should not return one, or missing a return value |
+| `E3007` | types | ++ and -- only work on numbers — you cannot increment or negate a non-number |
+| `E3008` | types | cannot use [] on this type — only arrays, maps, and strings support indexing |
+| `E3009` | types | cannot loop over this type — for_each only works with arrays, maps, and strings |
+| `E3010` | types | this struct does not have a field with that name |
+| `E3011` | types | a type name like int or string cannot be used as a value — did you forget to declare a variable? |
+| `E3012` | types | addr() needs a variable, field, or array element — you cannot take the address of a literal like 42 |
+| `E3013` | types | only structs have fields — you cannot use .field on a number, string, or bool |
+| `E3016` | types | only pointers can be dereferenced with ^ — this value is not a pointer |
+| `E4001` | names | this variable does not exist — check the spelling or make sure it is declared above this line |
+| `E4002` | names | this function does not exist — check the spelling or make sure it is defined |
+| `E4003` | names | a variable with this name already exists in this scope — use a different name |
+| `E4004` | names | a function with this name already exists — each function must have a unique name |
+| `E4005` | names | no main() function found — every EZ program needs a do main() { } function |
+| `E4006` | names | this name is reserved by the compiler — choose a different name that does not start with ez_ or Ez |
+| `E5008` | arguments | wrong number of arguments — the function expects a different number of values than you provided |
+| `R5001` | runtime | nil pointer dereference — you tried to use a pointer that has no value (nil) |
+| `R5002` | runtime | array index out of bounds — you tried to access an element that does not exist |
+| `R5003` | runtime | division by zero — you cannot divide a number by zero |
+| `R5004` | runtime | key not found in map — the key you are looking for does not exist |
+| `R5005` | runtime | stack overflow — too many nested function calls (possible infinite recursion) |
+| `R5006` | runtime | assertion failed — a condition checked with assert() was false |
+| `E6001` | imports | unknown module — this is not a built-in EZ module. Check the spelling or see the docs for available modules |
+| `E7006` | stdlib | threads.spawn() needs a function reference — use ()function_name to pass a function |
 
 ---
 
@@ -45,25 +50,25 @@
 
 | Code | Category | Description |
 |------|----------|-------------|
-| `W2001` | unused | imported module is not used |
-| `W3001` | type | function may not return a value on all paths |
+| `W2001` | cleanup | this module is imported but never used — remove the import or use the module |
+| `W3001` | safety | this function might not always return a value — make sure all paths through the function end with a return |
 
 ---
 
 ## Error Code Ranges
 
-| Range | Category |
-|-------|----------|
-| E1xxx | Lexer errors |
-| E2xxx | Parser errors |
-| E3xxx | Type errors |
-| E4xxx | Reference/name errors |
-| E5xxx | Runtime errors |
-| E6xxx | Import errors |
-| E7xxx | Stdlib validation errors |
-| W2xxx | Unused code warnings |
-| W3xxx | Type warnings |
+| Range | What It Means |
+|-------|---------------|
+| E1xxx | Problems reading your code (invalid characters, numbers too large) |
+| E2xxx | Problems understanding your code (missing brackets, unexpected symbols) |
+| E3xxx | Type problems (wrong types, invalid operations) |
+| E4xxx | Name problems (undefined variables, duplicate names) |
+| E5xxx | Usage problems (wrong number of arguments) |
+| E6xxx | Import problems (unknown modules) |
+| E7xxx | Standard library problems (wrong usage of built-in functions) |
+| W2xxx | Cleanup suggestions (unused imports) |
+| W3xxx | Safety warnings (possible missing return values) |
 
 ---
 
-*Generated on 2026-03-26 02:50:16 UTC*
+*Generated on 2026-03-26 03:02:56 UTC*
