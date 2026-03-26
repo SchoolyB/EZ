@@ -1326,6 +1326,37 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
                         tc->file, node->token.line, node->token.column, 0);
                 }
             }
+            /* E4012: shadows a type */
+            if (is_struct_name(tc, node->data.var_decl.name) ||
+                is_enum_name(tc, node->data.var_decl.name)) {
+                char msg[256];
+                snprintf(msg, sizeof(msg),
+                    "variable '%s' shadows a type definition with the same name",
+                    node->data.var_decl.name);
+                diag_error(tc->diag, "E4012", strdup(msg),
+                    tc->file, node->token.line, node->token.column, 0);
+            }
+            /* E4013: shadows a function */
+            if (find_func(tc, node->data.var_decl.name)) {
+                char msg[256];
+                snprintf(msg, sizeof(msg),
+                    "variable '%s' shadows a function with the same name",
+                    node->data.var_decl.name);
+                diag_error(tc->diag, "E4013", strdup(msg),
+                    tc->file, node->token.line, node->token.column, 0);
+            }
+            /* E4014: shadows an imported module */
+            for (int mi = 0; mi < tc->import_count; mi++) {
+                if (strcmp(tc->imported_modules[mi], node->data.var_decl.name) == 0) {
+                    char msg[256];
+                    snprintf(msg, sizeof(msg),
+                        "variable '%s' shadows an imported module with the same name",
+                        node->data.var_decl.name);
+                    diag_error(tc->diag, "E4014", strdup(msg),
+                        tc->file, node->token.line, node->token.column, 0);
+                    break;
+                }
+            }
             scope_define(tc->current_scope, node->data.var_decl.name,
                 declared, node->data.var_decl.mutable);
             /* Store definition location for unused variable warnings */
