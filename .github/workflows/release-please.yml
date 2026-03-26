@@ -126,7 +126,7 @@ jobs:
         with:
           go-version: '1.21'
 
-      - name: Build EZ interpreter
+      - name: Build EZ CLI (Go tooling wrapper)
         env:
           GOOS: ${{ matrix.goos }}
           GOARCH: ${{ matrix.goarch }}
@@ -143,20 +143,23 @@ jobs:
           make clean
           make build
 
-      - name: Package release
+      - name: Package combined release
         shell: bash
         run: |
           TAG="${{ needs.release-please.outputs.tag_name }}"
           ARCH="${{ matrix.ezc_arch }}"
-          mkdir -p dist
+          mkdir -p staging dist
 
           if [ "${{ matrix.goos }}" = "windows" ]; then
-            zip -r "dist/ez-${ARCH}.zip" ez.exe
+            cp ez.exe staging/
+            zip -j "dist/ez-${ARCH}.zip" staging/ez.exe
           else
-            tar czf "dist/ez-${ARCH}.tar.gz" ez
+            cp ez staging/
             if [ -f ezc/ezc ]; then
-              tar czf "dist/ezc-${ARCH}.tar.gz" -C ezc ezc libezrt.a
+              cp ezc/ezc staging/
+              cp ezc/libezrt.a staging/
             fi
+            tar czf "dist/ez-${ARCH}.tar.gz" -C staging .
           fi
 
       - name: Upload release assets
@@ -169,59 +172,6 @@ jobs:
             [ -f "$f" ] && gh release upload "$TAG_NAME" "$f" --clobber
           done
 
-  # Update playground WASM in website repo
-  update-playground:
-    needs: release-please
-    if: ${{ needs.release-please.outputs.release_created }}
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout EZ repo
-        uses: actions/checkout@v4
-
-      - name: Set up Go
-        uses: actions/setup-go@v5
-        with:
-          go-version: '1.21'
-
-      - name: Build WASM
-        run: |
-          echo "Building EZ WASM..."
-          GOOS=js GOARCH=wasm go build -o cmd/wasm/ez.wasm ./cmd/wasm
-          echo "WASM build complete"
-
-      - name: Checkout website repo
-        uses: actions/checkout@v4
-        with:
-          repository: SchoolyB/language.ez
-          token: ${{ secrets.EZ_DOCS_SYNC }}
-          path: website
-
-      - name: Update WASM files
-        run: |
-          mkdir -p website/public/wasm
-          cp cmd/wasm/ez.wasm website/public/wasm/
-          cp cmd/wasm/wasm_exec.js website/public/wasm/
-
-      - name: Create Pull Request
-        env:
-          GITHUB_TOKEN: ${{ secrets.EZ_DOCS_SYNC }}
-          TAG_NAME: ${{ needs.release-please.outputs.tag_name }}
-        run: |
-          cd website
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-
-          BRANCH="update-wasm-${TAG_NAME}"
-          git checkout -b "$BRANCH"
-          git add public/wasm/
-          git commit -m "chore: update playground WASM to ${TAG_NAME}"
-          git push origin "$BRANCH"
-
-          PR_URL=$(gh pr create \
-            --title "chore: update playground WASM to ${TAG_NAME}" \
-            --body "Automated PR to update the playground WASM binary to EZ ${TAG_NAME}." \
-            --base main \
-            --head "$BRANCH")
-
-          echo "Created PR: $PR_URL"
-          gh pr merge "$PR_URL" --auto --squash
+  # WASM playground update is disabled — the interpreter has been removed.
+  # The playground will be ported to Emscripten (ezc + TCC compiled to WASM)
+  # in a future release. The pre-built ez.wasm from v2.x still works.

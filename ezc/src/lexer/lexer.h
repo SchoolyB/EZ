@@ -10,6 +10,7 @@
 
 #include "token.h"
 #include "../util/arena.h"
+#include <stdbool.h>
 
 typedef struct {
     const char *input;
@@ -21,6 +22,7 @@ typedef struct {
     int column;
     const char *file;
     Arena *arena;   /* For allocating token literals */
+    bool unterminated_string;
 } Lexer;
 
 Lexer *lexer_create(Arena *arena, const char *input, const char *file);

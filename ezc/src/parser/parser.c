@@ -134,10 +134,22 @@ static AstNode *parse_int_literal(Parser *p) {
             s++;
         }
     } else {
-        /* Decimal */
+        /* Decimal — use manual parsing with overflow detection */
+        bool overflow = false;
         while (*s) {
-            if (*s != '_') val = val * 10 + (*s - '0');
+            if (*s != '_') {
+                int64_t digit = *s - '0';
+                if (val > (INT64_MAX - digit) / 10) {
+                    overflow = true;
+                }
+                val = val * 10 + digit;
+            }
             s++;
+        }
+        if (overflow) {
+            diag_error(p->diag, "E1010",
+                strdup("integer literal overflows 64-bit integer — max value is 9223372036854775807"),
+                p->file, p->cur_token.line, p->cur_token.column, 0);
         }
     }
 
@@ -947,6 +959,20 @@ static AstNode *parse_func_declaration(Parser *p) {
             if (peek_token_is(p, TOK_IDENT)) {
                 next_token(p);
                 param->type_name = p->cur_token.literal;
+                /* Check for map[K:V] type */
+                if (strcmp(param->type_name, "map") == 0 && peek_token_is(p, TOK_LBRACKET)) {
+                    next_token(p); /* skip [ */
+                    next_token(p); /* key type */
+                    const char *key_type = p->cur_token.literal;
+                    if (!expect_peek(p, TOK_COLON)) return NULL;
+                    next_token(p); /* value type */
+                    const char *val_type = p->cur_token.literal;
+                    if (!expect_peek(p, TOK_RBRACKET)) return NULL;
+                    size_t ts_len = strlen(key_type) + strlen(val_type) + 6;
+                    char *type_str = arena_alloc(p->arena, ts_len);
+                    snprintf(type_str, ts_len, "map[%s:%s]", key_type, val_type);
+                    param->type_name = type_str;
+                }
             } else if (peek_token_is(p, TOK_CARET)) {
                 /* Pointer type: ^T */
                 next_token(p); /* skip ^ */
@@ -955,6 +981,49 @@ static AstNode *parse_func_declaration(Parser *p) {
                 char *type_str = arena_alloc(p->arena, ts_len);
                 snprintf(type_str, ts_len, "^%s", p->cur_token.literal);
                 param->type_name = type_str;
+            } else if (peek_token_is(p, TOK_LBRACKET)) {
+                /* Array type: [int], [int, 3], [[int]] */
+                next_token(p); /* now on [ */
+                next_token(p); /* element type or nested [ */
+                if (cur_token_is(p, TOK_LBRACKET)) {
+                    /* Nested array type: [[int]] */
+                    next_token(p); /* inner element type */
+                    const char *inner = p->cur_token.literal;
+                    if (!expect_peek(p, TOK_RBRACKET)) return NULL;
+                    if (!expect_peek(p, TOK_RBRACKET)) return NULL;
+                    size_t ts_len = strlen(inner) + 5;
+                    char *type_str = arena_alloc(p->arena, ts_len);
+                    snprintf(type_str, ts_len, "[[%s]]", inner);
+                    param->type_name = type_str;
+                } else {
+                    const char *elem = p->cur_token.literal;
+                    if (peek_token_is(p, TOK_COMMA)) {
+                        /* Fixed-size: [int, 3] */
+                        next_token(p); /* skip , */
+                        next_token(p); /* size */
+                        const char *sz = p->cur_token.literal;
+                        if (!expect_peek(p, TOK_RBRACKET)) return NULL;
+                        size_t ts_len = strlen(elem) + strlen(sz) + 4;
+                        char *type_str = arena_alloc(p->arena, ts_len);
+                        snprintf(type_str, ts_len, "[%s,%s]", elem, sz);
+                        param->type_name = type_str;
+                    } else if (peek_token_is(p, TOK_COLON)) {
+                        /* Map type inside brackets: handled if name is "map" */
+                        /* For now treat as dynamic array */
+                        if (!expect_peek(p, TOK_RBRACKET)) return NULL;
+                        size_t ts_len = strlen(elem) + 3;
+                        char *type_str = arena_alloc(p->arena, ts_len);
+                        snprintf(type_str, ts_len, "[%s]", elem);
+                        param->type_name = type_str;
+                    } else {
+                        /* Dynamic array: [int] */
+                        if (!expect_peek(p, TOK_RBRACKET)) return NULL;
+                        size_t ts_len = strlen(elem) + 3;
+                        char *type_str = arena_alloc(p->arena, ts_len);
+                        snprintf(type_str, ts_len, "[%s]", elem);
+                        param->type_name = type_str;
+                    }
+                }
             }
 
             /* Check for default value: param type = expr */
@@ -1068,6 +1137,14 @@ static AstNode *parse_func_declaration(Parser *p) {
             snprintf(type_str, ts_len, "[%s]", elem);
             node->data.func_decl.return_types[0] = type_str;
             node->data.func_decl.return_type_count = 1;
+        } else if (cur_token_is(p, TOK_CARET)) {
+            /* Pointer return type: -> ^Type */
+            next_token(p); /* pointee type */
+            size_t ts_len = strlen(p->cur_token.literal) + 2;
+            char *type_str = arena_alloc(p->arena, ts_len);
+            snprintf(type_str, ts_len, "^%s", p->cur_token.literal);
+            node->data.func_decl.return_types[0] = type_str;
+            node->data.func_decl.return_type_count = 1;
         } else {
             /* Single return type */
             node->data.func_decl.return_types[0] = p->cur_token.literal;
@@ -1107,6 +1184,14 @@ static AstNode *parse_import_statement(Parser *p) {
             /* import & use syntax */
             node->data.import_stmt.auto_use = true;
             continue;
+        } else if (cur_token_is(p, TOK_IDENT) || cur_token_is(p, TOK_IMPORT)) {
+            char buf[256];
+            snprintf(buf, sizeof(buf),
+                "expected @module or \"path\" after import, got '%s'",
+                p->cur_token.literal);
+            diag_error(p->diag, "E2002", arena_strdup(p->arena, buf),
+                p->file, p->cur_token.line, p->cur_token.column, 0);
+            return node;
         }
 
         node->data.import_stmt.count++;
@@ -1233,6 +1318,27 @@ static AstNode *parse_struct_declaration(Parser *p) {
             size_t ts_len = strlen(elem) + 3;
             char *type_str = arena_alloc(p->arena, ts_len);
             snprintf(type_str, ts_len, "[%s]", elem);
+            field->type_name = type_str;
+        } else if (cur_token_is(p, TOK_IDENT) && strcmp(p->cur_token.literal, "map") == 0 &&
+                   peek_token_is(p, TOK_LBRACKET)) {
+            /* Map type: map[K:V] */
+            next_token(p); /* skip [ */
+            next_token(p); /* key type */
+            const char *key_type = p->cur_token.literal;
+            if (!expect_peek(p, TOK_COLON)) return NULL;
+            next_token(p); /* value type */
+            const char *val_type = p->cur_token.literal;
+            if (!expect_peek(p, TOK_RBRACKET)) return NULL;
+            size_t ts_len = strlen(key_type) + strlen(val_type) + 6;
+            char *type_str = arena_alloc(p->arena, ts_len);
+            snprintf(type_str, ts_len, "map[%s:%s]", key_type, val_type);
+            field->type_name = type_str;
+        } else if (cur_token_is(p, TOK_CARET)) {
+            /* Pointer type: ^T */
+            next_token(p); /* pointee type */
+            size_t ts_len = strlen(p->cur_token.literal) + 2;
+            char *type_str = arena_alloc(p->arena, ts_len);
+            snprintf(type_str, ts_len, "^%s", p->cur_token.literal);
             field->type_name = type_str;
         } else {
             field->type_name = p->cur_token.literal;

@@ -88,6 +88,9 @@ static void diag_add(DiagnosticList *dl, Severity sev, const char *code,
     const char *message, const char *file, int line, int col_start,
     int end_col, const char *help) {
 
+    /* Cap errors at 20 to avoid flooding output */
+    if (sev == SEV_ERROR && diag_error_count(dl) >= 20) return;
+
     if (dl->count >= dl->cap) {
         dl->cap = dl->cap ? dl->cap * 2 : 16;
         dl->items = realloc(dl->items, sizeof(Diagnostic) * dl->cap);

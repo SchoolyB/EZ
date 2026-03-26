@@ -65,6 +65,12 @@ typedef struct {
     bool *enum_is_string; /* parallel array: true if string enum */
     int enum_count;
     int enum_cap;
+
+    /* Control flow tracking */
+    int loop_depth;               /* >0 means inside a loop */
+    int func_depth;               /* >0 means inside a function body */
+    EzType **current_return_types; /* expected return types of current function */
+    int current_return_count;
 } TypeChecker;
 
 /* Create and run the type checker */

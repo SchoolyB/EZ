@@ -1,8 +1,7 @@
 /*
  * ez_mem.h - @mem module for EZC (memory management)
  *
- * This is an EZC-only module. The EZ interpreter does not need it
- * because it uses Go's garbage collector.
+ * Manual memory management via arena allocation.
  *
  * Copyright (c) 2025-Present Marshall A Burns
  * Licensed under the MIT License. See LICENSE for details.

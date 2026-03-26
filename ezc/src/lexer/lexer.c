@@ -157,6 +157,8 @@ static const char *read_string(Lexer *l) {
     const char *str = arena_strndup(l->arena, l->input + start, l->position - start);
     if (l->ch == '"') {
         read_char(l); /* skip closing " */
+    } else {
+        l->unterminated_string = true;
     }
     return str;
 }
@@ -391,8 +393,12 @@ Token lexer_next_token(Lexer *l) {
         break;
 
     case '"':
+        l->unterminated_string = false;
         tok.literal = read_string(l);
-        tok.type = TOK_STRING;
+        tok.type = l->unterminated_string ? TOK_ILLEGAL : TOK_STRING;
+        if (l->unterminated_string) {
+            tok.literal = "unterminated string literal";
+        }
         return tok;
 
     case '`':

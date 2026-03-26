@@ -12,6 +12,27 @@
 #include <unistd.h>
 #include <time.h>
 
+/* Format a double using the shortest representation that round-trips,
+ * matching Go's strconv.FormatFloat(v, 'g', -1, 64) behavior. */
+static int fmt_shortest_float(char *buf, size_t bufsz, double v) {
+    /* Try increasing precision until the round-trip matches */
+    int n = 0;
+    for (int prec = 15; prec <= 17; prec++) {
+        n = snprintf(buf, bufsz, "%.*g", prec, v);
+        double rt;
+        if (sscanf(buf, "%lf", &rt) == 1 && rt == v) break;
+    }
+    /* Ensure decimal point for whole-number floats (e.g. "88" → "88.0")
+     * but NOT for special values like inf, -inf, nan */
+    if (!strchr(buf, '.') && !strchr(buf, 'e') && !strchr(buf, 'i') &&
+        !strchr(buf, 'n') && n + 2 < (int)bufsz) {
+        buf[n++] = '.';
+        buf[n++] = '0';
+        buf[n] = '\0';
+    }
+    return n;
+}
+
 /* --- println --- */
 
 void ez_std_println_str(EzString s) {
@@ -24,16 +45,8 @@ void ez_std_println_int(int64_t v) {
 }
 
 void ez_std_println_float(double v) {
-    /* Match interpreter: print full precision, always show decimal point */
     char buf[64];
-    snprintf(buf, sizeof(buf), "%.16g", v);
-    /* Ensure there's always a decimal point for whole-number floats */
-    if (!strchr(buf, '.') && !strchr(buf, 'e')) {
-        size_t len = strlen(buf);
-        buf[len] = '.';
-        buf[len+1] = '0';
-        buf[len+2] = '\0';
-    }
+    fmt_shortest_float(buf, sizeof(buf), v);
     printf("%s\n", buf);
 }
 
@@ -145,13 +158,7 @@ EzString ez_std_to_string_int(EzArena *arena, int64_t v) {
 
 EzString ez_std_to_string_float(EzArena *arena, double v) {
     char buf[64];
-    int len = snprintf(buf, sizeof(buf), "%.16g", v);
-    /* Ensure decimal point for whole-number floats */
-    if (!strchr(buf, '.') && !strchr(buf, 'e')) {
-        buf[len++] = '.';
-        buf[len++] = '0';
-        buf[len] = '\0';
-    }
+    int len = fmt_shortest_float(buf, sizeof(buf), v);
     return ez_string_new(arena, buf, (int32_t)len);
 }
 
@@ -161,4 +168,81 @@ EzString ez_std_format_float(EzArena *arena, double v) {
 
 EzString ez_std_to_string_bool(EzArena *arena, bool v) {
     return v ? ez_string_lit("true") : ez_string_lit("false");
+}
+
+/* Array to string: {elem1, elem2, ...}
+ * elem_kind: 0=int, 1=float, 2=string, 3=bool */
+EzString ez_std_array_to_string(EzArena *arena, EzArray *arr, int elem_kind) {
+    char buf[4096];
+    int pos = 0;
+    buf[pos++] = '{';
+    for (int32_t i = 0; i < arr->len && pos < 4000; i++) {
+        if (i > 0) { buf[pos++] = ','; buf[pos++] = ' '; }
+        switch (elem_kind) {
+        case 0: /* int */
+            pos += snprintf(buf + pos, sizeof(buf) - pos, "%" PRId64,
+                EZ_ARRAY_GET(*arr, int64_t, i));
+            break;
+        case 1: { /* float */
+            char fbuf[64];
+            fmt_shortest_float(fbuf, sizeof(fbuf), EZ_ARRAY_GET(*arr, double, i));
+            pos += snprintf(buf + pos, sizeof(buf) - pos, "%s", fbuf);
+            break;
+        }
+        case 2: { /* string */
+            EzString s = EZ_ARRAY_GET(*arr, EzString, i);
+            pos += snprintf(buf + pos, sizeof(buf) - pos, "\"%.*s\"",
+                (int)s.len, s.data ? s.data : "");
+            break;
+        }
+        case 3: /* bool */
+            pos += snprintf(buf + pos, sizeof(buf) - pos, "%s",
+                EZ_ARRAY_GET(*arr, bool, i) ? "true" : "false");
+            break;
+        }
+    }
+    buf[pos++] = '}';
+    buf[pos] = '\0';
+    return ez_string_new(arena, buf, (int32_t)pos);
+}
+
+/* Map to string: {"key1": val1, "key2": val2, ...}
+ * val_kind: 0=int, 1=float, 2=string, 3=bool */
+EzString ez_std_map_to_string(EzArena *arena, EzMap *m, int val_kind) {
+    char buf[4096];
+    int pos = 0;
+    buf[pos++] = '{';
+    /* Iterate in insertion order */
+    for (int32_t oi = 0; oi < m->order_len && pos < 4000; oi++) {
+        int32_t i = m->order[oi];
+        if (m->states[i] != 1) continue;
+        if (oi > 0) { buf[pos++] = ','; buf[pos++] = ' '; }
+        /* Key (assume string for now — most common) */
+        EzString *kp = (EzString *)((char *)m->keys + (size_t)i * m->key_size);
+        pos += snprintf(buf + pos, sizeof(buf) - pos, "\"%.*s\": ",
+            (int)kp->len, kp->data ? kp->data : "");
+        /* Value */
+        void *vp = (char *)m->values + (size_t)i * m->value_size;
+        switch (val_kind) {
+        case 0: pos += snprintf(buf + pos, sizeof(buf) - pos, "%" PRId64, *(int64_t *)vp); break;
+        case 1: {
+            char fbuf[64];
+            fmt_shortest_float(fbuf, sizeof(fbuf), *(double *)vp);
+            pos += snprintf(buf + pos, sizeof(buf) - pos, "%s", fbuf);
+            break;
+        }
+        case 2: {
+            EzString *sp = (EzString *)vp;
+            pos += snprintf(buf + pos, sizeof(buf) - pos, "\"%.*s\"",
+                (int)sp->len, sp->data ? sp->data : "");
+            break;
+        }
+        case 3: pos += snprintf(buf + pos, sizeof(buf) - pos, "%s",
+            *(bool *)vp ? "true" : "false"); break;
+        }
+    }
+    if (m->count == 0) { /* empty map */ }
+    buf[pos++] = '}';
+    buf[pos] = '\0';
+    return ez_string_new(arena, buf, (int32_t)pos);
 }

@@ -30,11 +30,11 @@ jobs:
         with:
           go-version: ${{ matrix.go-version }}
 
-      - name: Build interpreter
+      - name: Build ez CLI
         run: go build -o ez ./cmd/ez
         if: runner.os != 'Windows'
 
-      - name: Build interpreter (Windows)
+      - name: Build ez CLI (Windows)
         run: go build -o ez.exe ./cmd/ez
         if: runner.os == 'Windows'
 

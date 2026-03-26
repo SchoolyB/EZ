@@ -43,7 +43,7 @@ This document defines the EZ programming language. It serves as the authoritativ
 
 ### 1.2 Overview
 
-EZ is a statically-typed, interpreted programming language designed for clarity and ease of use. The language emphasizes:
+EZ is a statically-typed programming language that compiles to native binaries via the `ezc` compiler. The language emphasizes:
 
 - **Simplicity**: A minimal set of orthogonal features
 - **Clarity**: Explicit syntax that reads naturally
@@ -356,6 +356,27 @@ Assigning a value outside the range 0-255 to a `byte` is a check-time error.
 #### 4.1.8 Nil Type (`nil`)
 
 The `nil` type has a single value, also written `nil`. It represents the absence of a value and is used in error handling.
+
+#### 4.1.9 Pointer Type (`^Type`)
+
+The pointer type `^Type` represents a memory address pointing to a value of `Type`.
+
+| Syntax | Meaning |
+|--------|---------|
+| `^int` | Pointer to an `int` |
+| `^MyStruct` | Pointer to a `MyStruct` |
+| `addr(x)` | Get the address of `x` |
+| `p^` | Dereference pointer `p` |
+
+```ez
+mut x int = 42
+mut p ^int = addr(x)
+println(p^)  // 42
+p^ = 100
+println(x)   // 100
+```
+
+Dereferencing a `nil` pointer causes a runtime panic.
 
 ### 4.2 Composite Types
 
@@ -2131,31 +2152,24 @@ Durations: `SECOND` (1), `MINUTE` (60), `HOUR` (3600), `DAY` (86400), `WEEK` (60
 
 ### 10.11 HTTP Module (`@http`)
 
+HTTP client for making requests. Currently supports HTTP only; TLS (HTTPS) is planned.
+
 #### Request Functions
 
 | Function | Signature | Description |
 |----------|-----------|-------------|
-| `get` | `(url string) -> (Response, Error)` | GET request |
-| `post` | `(url string, body string) -> (Response, Error)` | POST request |
-| `put` | `(url string, body string) -> (Response, Error)` | PUT request |
-| `delete` | `(url string) -> (Response, Error)` | DELETE request |
-| `patch` | `(url string, body string) -> (Response, Error)` | PATCH request |
-| `head` | `(url string) -> (Response, Error)` | HEAD request |
-| `options` | `(url string) -> (Response, Error)` | OPTIONS request |
-| `download` | `(url string, path string) -> (int, Error)` | Download file, returns bytes written |
-| `parse_url` | `(url string) -> (URL, Error)` | Parse URL into components |
-| `build_url` | `(components) -> string` | Build URL from components |
+| `get` | `(url string) -> Response` | GET request |
+| `post` | `(url string, body string) -> Response` | POST request |
+| `put` | `(url string, body string) -> Response` | PUT request |
+| `delete` | `(url string) -> Response` | DELETE request |
+| `head` | `(url string) -> Response` | HEAD request |
 
 #### Response Type
 
 The `Response` struct contains:
 - `status int` - HTTP status code
 - `body string` - Response body
-- `headers map[string:[string]]` - Response headers
-
-#### Status Constants
-
-`OK` (200), `CREATED` (201), `ACCEPTED` (202), `NO_CONTENT` (204), `MOVED_PERMANENTLY` (301), `FOUND` (302), `NOT_MODIFIED` (304), `BAD_REQUEST` (400), `UNAUTHORIZED` (401), `FORBIDDEN` (403), `NOT_FOUND` (404), `METHOD_NOT_ALLOWED` (405), `CONFLICT` (409), `INTERNAL_SERVER_ERROR` (500), `BAD_GATEWAY` (502), `SERVICE_UNAVAILABLE` (503)
+- `headers map` - Response headers
 
 ### 10.12 Crypto Module (`@crypto`)
 
@@ -2242,24 +2256,16 @@ Binary encoding/decoding for integers and floats in little-endian (le) and big-e
 | `encode_f32_le`, `encode_f32_be`, `decode_f32_le`, `decode_f32_be` | 32-bit float |
 | `encode_f64_le`, `encode_f64_be`, `decode_f64_le`, `decode_f64_be` | 64-bit float |
 
-### 10.17 Database Module (`@db`)
+### 10.17 SQLite Module (`@sqlite`)
 
-A simple JSON-based key-value database.
+SQLite database access for persistent storage.
 
 | Function | Signature | Description |
 |----------|-----------|-------------|
-| `open` | `(path string) -> (Database, Error)` | Open/create database |
-| `close` | `(db Database) -> Error` | Close database |
-| `save` | `(db Database) -> Error` | Save to disk |
-| `set` | `(db Database, key string, value)` | Set key-value pair |
-| `get` | `(db Database, key string) -> (any, Error)` | Get value by key |
-| `has` | `(db Database, key string) -> bool` | Check if key exists |
-| `delete` | `(db Database, key string) -> bool` | Delete key |
-| `clear` | `(db Database)` | Clear all entries |
-| `keys` | `(db Database) -> [string]` | Get all keys |
-| `values` | `(db Database) -> [any]` | Get all values |
-| `entries` | `(db Database) -> [Entry]` | Get all key-value pairs as Entry structs |
-| `length` | `(db Database) -> int` | Get number of entries |
+| `open` | `(path string) -> Database` | Open or create a SQLite database |
+| `close` | `(db Database)` | Close database connection |
+| `exec` | `(db Database, sql string)` | Execute a SQL statement (no result) |
+| `query` | `(db Database, sql string) -> [map]` | Execute a SQL query, returns array of row maps |
 
 ### 10.18 Server Module (`@server`)
 
@@ -2328,20 +2334,15 @@ do main() {
 
 ### 10.19 Regex Module (`@regex`)
 
-Regular expression operations using Go's `regexp` syntax.
+Regular expression operations using POSIX extended regex syntax.
 
 | Function | Signature | Description |
 |----------|-----------|-------------|
-| `is_valid` | `(pattern string) -> bool` | Check if pattern is valid |
-| `match` | `(pattern string, s string) -> (bool, Error)` | Check if pattern matches |
-| `find` | `(pattern string, s string) -> (string, Error)` | First match |
-| `find_all` | `(pattern string, s string) -> ([string], Error)` | All matches |
-| `find_all_n` | `(pattern string, s string, n int) -> ([string], Error)` | First n matches |
-| `replace` | `(pattern string, s string, repl string) -> (string, Error)` | Replace first match |
-| `replace_all` | `(pattern string, s string, repl string) -> (string, Error)` | Replace all matches |
-| `split` | `(pattern string, s string) -> ([string], Error)` | Split by pattern |
-| `groups` | `(pattern string, s string) -> ([string], Error)` | Capture groups from first match |
-| `groups_all` | `(pattern string, s string) -> ([[string]], Error)` | Capture groups from all matches |
+| `match` | `(pattern string, text string) -> bool` | Check if pattern matches text |
+| `find` | `(pattern string, text string) -> string` | First match |
+| `find_all` | `(pattern string, text string) -> [string]` | All matches |
+| `replace` | `(pattern string, text string, replacement string) -> string` | Replace matches |
+| `split` | `(pattern string, text string) -> [string]` | Split by pattern |
 
 ### 10.20 CSV Module (`@csv`)
 
@@ -2359,6 +2360,51 @@ The `read` and `write` functions accept an optional options map with keys:
 - `delimiter` (string) — field delimiter (default: `","`)
 - `skip_empty` (bool) — skip empty rows (default: `false`, read only)
 - `quote_all` (bool) — quote all fields (default: `false`, write only)
+
+### 10.21 Net Module (`@net`)
+
+TCP sockets and DNS resolution.
+
+| Function | Signature | Description |
+|----------|-----------|-------------|
+| `dial` | `(host string, port int) -> Socket` | Connect to a remote host |
+| `listen` | `(port int) -> Listener` | Listen for incoming connections on a port |
+| `accept` | `(listener Listener) -> Socket` | Accept an incoming connection |
+| `send` | `(sock Socket, data string)` | Send data over a socket |
+| `recv` | `(sock Socket, max int) -> string` | Receive up to `max` bytes from a socket |
+| `close` | `(sock Socket)` | Close a socket or listener |
+| `set_timeout` | `(sock Socket, ms int)` | Set read/write timeout in milliseconds |
+| `resolve` | `(hostname string) -> string` | Resolve a hostname to an IP address |
+
+### 10.22 Threads Module (`@threads`)
+
+Thread-based concurrency primitives. Compiler-only feature; requires POSIX threads.
+
+| Function | Signature | Description |
+|----------|-----------|-------------|
+| `spawn` | `(()func) -> Thread` | Spawn a new thread running `func` |
+| `join` | `(t Thread)` | Wait for a thread to finish |
+| `sleep_ms` | `(ms int)` | Sleep the current thread for `ms` milliseconds |
+| `id` | `() -> int` | Get the current thread's ID |
+| `mutex` | `() -> Mutex` | Create a new mutex |
+| `lock` | `(m Mutex)` | Acquire a mutex |
+| `unlock` | `(m Mutex)` | Release a mutex |
+| `channel` | `(capacity int) -> Channel` | Create a buffered channel |
+| `send` | `(ch Channel, value)` | Send a value into a channel |
+| `recv` | `(ch Channel) -> any` | Receive a value from a channel |
+| `channel_close` | `(ch Channel)` | Close a channel |
+
+### 10.23 Memory Module (`@mem`)
+
+Arena-based memory allocation. Compiler-only feature.
+
+| Function | Signature | Description |
+|----------|-----------|-------------|
+| `arena` | `(size int) -> Arena` | Create an arena with the given byte capacity |
+| `destroy` | `(arena Arena)` | Destroy an arena and free its memory |
+| `reset` | `(arena Arena)` | Reset an arena, reclaiming all allocations without freeing |
+| `usage` | `(arena Arena) -> int` | Return the number of bytes currently used |
+| `make` | `(arena Arena, Type) -> ^Type` | Allocate a zero-initialized value of `Type` in the arena |
 
 ---
 
@@ -2413,9 +2459,19 @@ Runtime errors include location information (file, line, column).
 
 ## 12. Memory Model
 
-### 12.1 Garbage Collection
+### 12.1 Memory Management
 
-EZ uses automatic memory management via the Go runtime's garbage collector. Programmers do not manually allocate or free memory.
+EZ compiles to native code and uses arena-based memory management by default. Memory allocated within an arena is released automatically when the arena is destroyed or reset. For most programs, this provides automatic cleanup without manual `free` calls.
+
+For fine-grained control, the `@mem` module exposes arena operations directly:
+
+| Function | Description |
+|----------|-------------|
+| `mem.arena(size)` | Create an arena with the given byte capacity |
+| `mem.destroy(a)` | Destroy arena `a` and free all its memory |
+| `mem.reset(a)` | Reset arena `a`, reclaiming allocations without freeing |
+| `mem.usage(a)` | Return bytes currently used in arena `a` |
+| `mem.make(a, Type)` | Allocate a zero-initialized `Type` in arena `a` |
 
 ### 12.2 Value Semantics
 
@@ -2429,7 +2485,7 @@ b = 100         // a is still 42
 
 ### 12.3 Reference Semantics
 
-Composite types (arrays, maps) have reference semantics for assignment but value semantics for function parameters (unless using mutable parameters).
+Composite types (arrays, maps) have reference semantics for assignment but value semantics for function parameters (unless the parameter is declared mutable).
 
 ### 12.4 Deep Copy
 
@@ -2456,13 +2512,38 @@ The `new()` function creates a zero-initialized instance of a type:
 | `map[K:V]` | `{}` |
 | struct | All fields zero-initialized |
 
+### 12.6 Memory Safety
+
+EZ compiles to C and is **not memory safe** in the way that Rust or similar languages are. However, the language provides runtime safety checks that prevent the most common classes of memory errors:
+
+**Runtime-checked (safe by default):**
+
+| Hazard | EZ Behavior |
+|--------|-------------|
+| Nil pointer dereference | Runtime panic |
+| Array out-of-bounds | Runtime panic |
+| Map key not found | Runtime panic |
+| Division by zero | Runtime panic |
+| Stack overflow (deep recursion) | Detected and reported |
+
+**Not checked (programmer responsibility):**
+
+| Hazard | When It Can Happen |
+|--------|-------------------|
+| Use-after-free | Holding a pointer to arena memory after `mem.destroy()` |
+| Dangling pointer | Returning `addr()` of a local variable |
+| Data races | Multiple threads accessing shared data without `threads.lock()` |
+| Pointer arithmetic | Not supported in the language (disallowed by design) |
+
+For most EZ programs — those that don't use `@mem` arenas, raw pointers, or `@threads` — the runtime checks provide practical safety. Programs using low-level features should follow the same discipline as C: don't hold pointers past their lifetime, and protect shared state with mutexes.
+
 ---
 
 ## 13. Program Execution
 
 ### 13.1 Program Structure
 
-An EZ program consists of one or more source files. Each file may contain:
+An EZ program consists of one or more source files that are compiled to a native binary by the `ezc` compiler. Each file may contain:
 
 1. Module declaration (optional)
 2. Import declarations
