@@ -709,6 +709,9 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                 } else {
                     result = &TYPE_VOID;
                 }
+            } else if (is_struct_name(tc, mod)) {
+                /* Struct-namespaced function call: Type.func() */
+                result = &TYPE_UNKNOWN;
             } else {
                 result = &TYPE_VOID;
             }
@@ -728,7 +731,13 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                         tc->file, node->token.line, node->token.column, 0);
                 }
                 EzType *arg_t = resolve_expr(tc, arg);
-                result = type_pointer(type_name(arg_t));
+                /* ref(func_name) returns func type, ref(var) returns pointer */
+                if (strcmp(fn_name, "ref") == 0 && arg->kind == NODE_LABEL &&
+                    find_func(tc, arg->data.label.value)) {
+                    result = type_from_name("func");
+                } else {
+                    result = type_pointer(type_name(arg_t));
+                }
             } else if (strcmp(fn_name, "len") == 0 || strcmp(fn_name, "to_int") == 0) {
                 result = &TYPE_INT;
             } else if (strcmp(fn_name, "to_float") == 0) {
@@ -901,6 +910,10 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                 diag_error(tc->diag, "E3013", strdup(msg),
                     tc->file, node->token.line, node->token.column, 0);
             }
+            /* Struct-namespaced function or enum access: Type.func() / Type.MEMBER */
+            if (!sym && is_struct_name(tc, obj_name)) {
+                result = &TYPE_UNKNOWN;
+            }
         } else if (obj->kind == NODE_MEMBER_EXPR) {
             /* Nested member access: a.b.c — resolve a.b first, then look up .c */
             EzType *obj_t = typetable_get(tc->type_table, obj);
@@ -1010,6 +1023,10 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
 
     case NODE_NEW_EXPR:
         result = type_pointer(node->data.new_expr.type_name);
+        break;
+
+    case NODE_FUNC_REF:
+        result = type_from_name("func");
         break;
 
     default:

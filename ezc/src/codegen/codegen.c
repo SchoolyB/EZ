@@ -2397,6 +2397,21 @@ static void emit_assign_statement(CodeGen *cg, AstNode *node) {
         emit(cg, "; }\n");
         return;
     }
+    /* Pointer deref field assignment: p^.field = value → nil check + p->field = value */
+    if (node->data.assign.target->kind == NODE_MEMBER_EXPR &&
+        node->data.assign.target->data.member.object->kind == NODE_POSTFIX_EXPR &&
+        strcmp(node->data.assign.target->data.member.object->data.postfix.op, "^") == 0) {
+        AstNode *ptr = node->data.assign.target->data.member.object->data.postfix.left;
+        const char *field = node->data.assign.target->data.member.member;
+        emit(cg, "{ __auto_type _dp = ");
+        emit_expression(cg, ptr);
+        emitf(cg, "; if (!_dp) { fflush(stdout); ez_panic(__FILE__, %d, "
+            "\"nil pointer dereference\"); } _dp->%s", node->token.line, field);
+        emitf(cg, " %s ", node->data.assign.op);
+        emit_expression(cg, node->data.assign.value);
+        emit(cg, "; }\n");
+        return;
+    }
 
     /* Default assignment */
     emit_expression(cg, node->data.assign.target);
