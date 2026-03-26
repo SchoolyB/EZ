@@ -529,6 +529,20 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
                 emit_expression(cg, node->data.infix.left);
                 emit(cg, " < ");
                 emit_expression(cg, r->data.range_expr.end);
+                /* Step check: value must be at a step interval from start */
+                if (r->data.range_expr.step) {
+                    emit(cg, " && (");
+                    emit_expression(cg, node->data.infix.left);
+                    emit(cg, " - ");
+                    if (r->data.range_expr.start) {
+                        emit_expression(cg, r->data.range_expr.start);
+                    } else {
+                        emit(cg, "0");
+                    }
+                    emit(cg, ") % ");
+                    emit_expression(cg, r->data.range_expr.step);
+                    emit(cg, " == 0");
+                }
                 emit(cg, ")");
                 if (negated) emit(cg, ")");
                 break;

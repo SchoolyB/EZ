@@ -530,15 +530,19 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                 }
             } else if (strcmp(mod, "strings") == 0) {
                 if (strcmp(mfn, "contains") == 0 || strcmp(mfn, "starts_with") == 0 ||
-                    strcmp(mfn, "ends_with") == 0 || strcmp(mfn, "is_empty") == 0) {
+                    strcmp(mfn, "ends_with") == 0 || strcmp(mfn, "is_empty") == 0 ||
+                    strcmp(mfn, "to_bool") == 0) {
                     result = &TYPE_BOOL;
-                } else if (strcmp(mfn, "index") == 0 || strcmp(mfn, "count") == 0 ||
-                           strcmp(mfn, "to_int") == 0) {
+                } else if (strcmp(mfn, "index") == 0 || strcmp(mfn, "last_index") == 0 ||
+                           strcmp(mfn, "count") == 0 || strcmp(mfn, "to_int") == 0 ||
+                           strcmp(mfn, "len") == 0) {
                     result = &TYPE_INT;
                 } else if (strcmp(mfn, "to_float") == 0) {
                     result = &TYPE_FLOAT;
-                } else if (strcmp(mfn, "split") == 0) {
+                } else if (strcmp(mfn, "split") == 0 || strcmp(mfn, "chars") == 0) {
                     result = type_array("string");
+                } else if (strcmp(mfn, "to_bytes") == 0) {
+                    result = type_array("byte");
                 } else {
                     result = &TYPE_STRING;
                 }
