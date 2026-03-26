@@ -112,7 +112,8 @@ EzString ez_strings_replace(EzArena *arena, EzString s, EzString old_s, EzString
 }
 
 EzString ez_strings_repeat(EzArena *arena, EzString s, int64_t count) {
-    if (count <= 0) return ez_string_lit("");
+    if (count < 0) { fflush(stdout); fprintf(stderr, "panic: strings.repeat() count cannot be negative (%lld)\n", (long long)count); exit(1); }
+    if (count == 0) return ez_string_lit("");
     int32_t new_len = s.len * (int32_t)count;
     char *buf = ez_arena_alloc(arena, (size_t)new_len + 1);
     for (int64_t i = 0; i < count; i++) {

@@ -1592,6 +1592,24 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
         tc->current_scope = loop_scope;
         scope_define(loop_scope, node->data.for_stmt.var_name, &TYPE_INT, false);
         resolve_expr(tc, node->data.for_stmt.iterable);
+        /* E9005: check range bounds when both are literals */
+        if (node->data.for_stmt.iterable &&
+            node->data.for_stmt.iterable->kind == NODE_RANGE_EXPR) {
+            AstNode *r = node->data.for_stmt.iterable;
+            if (r->data.range_expr.start && r->data.range_expr.end &&
+                r->data.range_expr.start->kind == NODE_INT_VALUE &&
+                r->data.range_expr.end->kind == NODE_INT_VALUE &&
+                r->data.range_expr.start->data.int_value.value >=
+                r->data.range_expr.end->data.int_value.value) {
+                char msg[256];
+                snprintf(msg, sizeof(msg),
+                    "invalid range: start (%lld) must be less than end (%lld)",
+                    (long long)r->data.range_expr.start->data.int_value.value,
+                    (long long)r->data.range_expr.end->data.int_value.value);
+                diag_error(tc->diag, "E9005", strdup(msg),
+                    tc->file, node->token.line, node->token.column, 0);
+            }
+        }
         tc->loop_depth++;
         check_block(tc, node->data.for_stmt.body);
         tc->loop_depth--;
