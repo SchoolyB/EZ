@@ -160,6 +160,12 @@ bool ez_map_remove(EzMap *m, const void *key) {
     return true;
 }
 
+void ez_map_clear(EzMap *m) {
+    if (m->states) memset(m->states, 0, sizeof(uint8_t) * (size_t)m->capacity);
+    m->count = 0;
+    m->order_len = 0;
+}
+
 void *ez_map_get_str(EzMap *m, EzString key) {
     return ez_map_get(m, &key);
 }

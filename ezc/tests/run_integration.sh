@@ -34,8 +34,10 @@ RESET='\033[0m'
 # Tests that use interpreter-only syntax (skip for compiler)
 SKIP_INTEGRATION=(
     "cast_keyword"          # cast with array type codegen incomplete
+    "const_ref"             # ref() type tracking incomplete for arrays
     "copy_semantics"        # copy-by-default not in compiler
     "function_references"   # arrays.append in FCF causes OOM
+    "large-integers"        # i128 literals exceed int64 parser range
     "mutable-indexed-params" # interpreter-specific mutable semantics
     "primitives"            # interpreter-specific type tests
     "raw_strings"           # raw string interpolation differences

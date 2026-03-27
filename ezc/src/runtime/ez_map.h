@@ -40,6 +40,9 @@ bool ez_map_has(EzMap *m, const void *key);
 /* Remove a key */
 bool ez_map_remove(EzMap *m, const void *key);
 
+/* Clear all entries */
+void ez_map_clear(EzMap *m);
+
 /* String-keyed convenience functions */
 void *ez_map_get_str(EzMap *m, EzString key);
 void ez_map_set_str(EzArena *arena, EzMap *m, EzString key, const void *value);

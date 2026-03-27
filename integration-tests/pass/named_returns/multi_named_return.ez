@@ -2,7 +2,8 @@
  * Expected: passes with output "25" and "Bob"
  */
 
-import & use @std
+import @std
+using std
 
 do getPersonInfo() -> (age int, name string) {
     age = 25

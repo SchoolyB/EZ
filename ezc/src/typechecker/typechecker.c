@@ -1059,6 +1059,14 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                         fn_name, lit_val);
                 }
                 result = &TYPE_INT;
+            } else if (strcmp(fn_name, "string") == 0 && node->data.call.arg_count == 1) {
+                result = &TYPE_STRING;
+            } else if (strcmp(fn_name, "float") == 0 && node->data.call.arg_count == 1) {
+                result = &TYPE_FLOAT;
+            } else if (strcmp(fn_name, "bool") == 0 && node->data.call.arg_count == 1) {
+                result = &TYPE_BOOL;
+            } else if (strcmp(fn_name, "byte") == 0 && node->data.call.arg_count == 1) {
+                result = &TYPE_BYTE;
             } else {
                 FuncSig *sig = find_func(tc, fn_name);
                 if (sig) {

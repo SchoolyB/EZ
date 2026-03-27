@@ -548,8 +548,18 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
                 break;
             }
 
-            /* Array membership */
+            /* Map or array membership */
             EzType *arr_t = cg->type_table ? typetable_get(cg->type_table, node->data.infix.right) : NULL;
+            /* Map membership: key in map → ez_maps_has_key */
+            if (arr_t && arr_t->kind == TK_MAP) {
+                if (negated) emit(cg, "!");
+                emit(cg, "({ __auto_type _ik = ");
+                emit_expression(cg, node->data.infix.left);
+                emit(cg, "; ez_maps_has_key(&");
+                emit_expression(cg, node->data.infix.right);
+                emit(cg, ", &_ik); })");
+                break;
+            }
             if (negated) emit(cg, "!");
             if (arr_t && arr_t->kind == TK_ARRAY && arr_t->element_type &&
                 strcmp(arr_t->element_type, "string") == 0) {
@@ -965,8 +975,36 @@ static bool emit_builtin_call(CodeGen *cg, AstNode *node, const char *func) {
     if (strcmp(func, "typeof") == 0 && node->data.call.arg_count == 1) {
         AstNode *arg = node->data.call.args[0];
         EzType *t = cg->type_table ? typetable_get(cg->type_table, arg) : NULL;
-        const char *tn = t ? type_name(t) : "unknown";
-        emitf(cg, "ez_string_lit(\"%s\")", tn);
+        /* Range expression: typeof(range(0, 5)) → "Range<int>" */
+        if (arg->kind == NODE_RANGE_EXPR ||
+            (arg->kind == NODE_CALL_EXPR && arg->data.call.function->kind == NODE_LABEL &&
+             strcmp(arg->data.call.function->data.label.value, "range") == 0)) {
+            emitf(cg, "ez_string_lit(\"Range<int>\")");
+            return true;
+        }
+        /* Enum member access: typeof(Color.RED) → "Color" */
+        if (arg->kind == NODE_MEMBER_EXPR && arg->data.member.object->kind == NODE_LABEL &&
+            t && (t->kind == TK_INT || t->kind == TK_UINT || t->kind == TK_STRING)) {
+            const char *obj_name = arg->data.member.object->data.label.value;
+            if (obj_name[0] >= 'A' && obj_name[0] <= 'Z' &&
+                strcmp(obj_name, "std") != 0 && strcmp(obj_name, "math") != 0 &&
+                strcmp(obj_name, "os") != 0) {
+                emitf(cg, "ez_string_lit(\"%s\")", obj_name);
+                return true;
+            }
+        }
+        if (t && t->kind == TK_ARRAY && t->element_type) {
+            emitf(cg, "ez_string_lit(\"[%s]\")", t->element_type);
+        } else if (t && t->kind == TK_MAP) {
+            const char *kt = t->key_type ? t->key_type : "unknown";
+            const char *vt = t->value_type ? t->value_type : "unknown";
+            emitf(cg, "ez_string_lit(\"map[%s:%s]\")", kt, vt);
+        } else if (t && t->kind == TK_POINTER && t->element_type) {
+            emitf(cg, "ez_string_lit(\"^%s\")", t->element_type);
+        } else {
+            const char *tn = t ? type_name(t) : "unknown";
+            emitf(cg, "ez_string_lit(\"%s\")", tn);
+        }
         return true;
     }
 
@@ -1345,11 +1383,11 @@ static bool emit_maps_call(CodeGen *cg, AstNode *node, const char *func) {
         return true;
     }
     if (strcmp(func, "has_key") == 0 || strcmp(func, "contains") == 0) {
-        emit(cg, "ez_maps_has_key(&");
-        emit_expression(cg, node->data.call.args[0]);
-        emit(cg, ", &(");
+        emit(cg, "({ __auto_type _hk = ");
         emit_expression(cg, node->data.call.args[1]);
-        emit(cg, "))");
+        emit(cg, "; ez_maps_has_key(&");
+        emit_expression(cg, node->data.call.args[0]);
+        emit(cg, ", &_hk); })");
         return true;
     }
     if (strcmp(func, "remove") == 0 && node->data.call.arg_count == 2) {
@@ -1358,6 +1396,12 @@ static bool emit_maps_call(CodeGen *cg, AstNode *node, const char *func) {
         emit(cg, "; ez_map_remove(&");
         emit_expression(cg, node->data.call.args[0]);
         emit(cg, ", &_rk); })");
+        return true;
+    }
+    if (strcmp(func, "clear") == 0 && node->data.call.arg_count == 1) {
+        emit(cg, "ez_map_clear(&");
+        emit_expression(cg, node->data.call.args[0]);
+        emit(cg, ")");
         return true;
     }
     return false;
@@ -1880,6 +1924,20 @@ static bool emit_arrays_call(CodeGen *cg, AstNode *node, const char *func) {
     if (strcmp(func, "is_empty") == 0 && node->data.call.arg_count == 1) {
         emit(cg, "ez_arrays_is_empty(&");
         emit_expression(cg, node->data.call.args[0]);
+        emit(cg, ")");
+        return true;
+    }
+    if (strcmp(func, "contains") == 0 && node->data.call.arg_count == 2) {
+        EzType *arr_t = cg->type_table ? typetable_get(cg->type_table, node->data.call.args[0]) : NULL;
+        if (arr_t && arr_t->kind == TK_ARRAY && arr_t->element_type &&
+            strcmp(arr_t->element_type, "string") == 0) {
+            emit(cg, "ez_arrays_contains_str(&");
+        } else {
+            emit(cg, "ez_arrays_contains_int(&");
+        }
+        emit_expression(cg, node->data.call.args[0]);
+        emit(cg, ", ");
+        emit_expression(cg, node->data.call.args[1]);
         emit(cg, ")");
         return true;
     }
@@ -2809,14 +2867,22 @@ static void emit_func_declaration(CodeGen *cg, AstNode *node, bool is_main) {
     AstNode *prev_func = cg->current_func;
     cg->current_func = node;
 
-    /* Emit named return variable declarations */
+    /* Emit named return variable declarations (zero-initialized) */
     if (node->data.func_decl.return_names) {
         for (int i = 0; i < node->data.func_decl.return_type_count; i++) {
             if (node->data.func_decl.return_names[i]) {
+                const char *c_t = ez_type_to_c_cg(cg, node->data.func_decl.return_types[i]);
                 emit_indent(cg);
-                emitf(cg, "%s %s;\n",
-                    ez_type_to_c_cg(cg, node->data.func_decl.return_types[i]),
-                    node->data.func_decl.return_names[i]);
+                if (strcmp(c_t, "EzString") == 0) {
+                    emitf(cg, "EzString %s = ez_string_lit(\"\");\n",
+                        node->data.func_decl.return_names[i]);
+                } else if (strncmp(c_t, "EzStruct_", 9) == 0 || strncmp(c_t, "EzEnum_", 7) == 0) {
+                    emitf(cg, "%s %s = {0};\n", c_t,
+                        node->data.func_decl.return_names[i]);
+                } else {
+                    emitf(cg, "%s %s = 0;\n", c_t,
+                        node->data.func_decl.return_names[i]);
+                }
             }
         }
     }

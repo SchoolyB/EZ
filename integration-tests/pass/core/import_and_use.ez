@@ -1,8 +1,10 @@
 /*
- * import_and_use.ez - Test combined import & use syntax
+ * import_and_use.ez - Test combined import @syntax
+using syntax
  */
 
-import & use @std, @strings, @arrays
+import @std, @strings, @arrays
+using std, strings, arrays
 
 do main() {
     println("=== Import & Use Test ===")

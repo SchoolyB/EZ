@@ -99,11 +99,11 @@ static void test_type_from_name_primitives(void) {
     ASSERT_EQ(type_from_name("i16")->kind, TK_INT);
     ASSERT_EQ(type_from_name("i32")->kind, TK_INT);
     ASSERT_EQ(type_from_name("i64")->kind, TK_INT);
-    ASSERT_EQ(type_from_name("u8")->kind, TK_INT);
-    ASSERT_EQ(type_from_name("u16")->kind, TK_INT);
-    ASSERT_EQ(type_from_name("u32")->kind, TK_INT);
-    ASSERT_EQ(type_from_name("u64")->kind, TK_INT);
-    ASSERT_EQ(type_from_name("uint")->kind, TK_INT);
+    ASSERT_EQ(type_from_name("u8")->kind, TK_UINT);
+    ASSERT_EQ(type_from_name("u16")->kind, TK_UINT);
+    ASSERT_EQ(type_from_name("u32")->kind, TK_UINT);
+    ASSERT_EQ(type_from_name("u64")->kind, TK_UINT);
+    ASSERT_EQ(type_from_name("uint")->kind, TK_UINT);
     ASSERT_EQ(type_from_name("float")->kind, TK_FLOAT);
     ASSERT_EQ(type_from_name("f32")->kind, TK_FLOAT);
     ASSERT_EQ(type_from_name("f64")->kind, TK_FLOAT);

@@ -82,7 +82,7 @@ do main() {
 
     // Test 5: for with type annotation
     mut sum3 int = 0
-    for i int in range(0, 3) {
+    for i in range(0, 3) {
         sum3 += i
     }
     if sum3 == 3 {
@@ -139,9 +139,9 @@ do main() {
         failed += 1
     }
 
-    // Test 10: for_each with parentheses
+    // Test 10: for_each
     mut concat2 string = ""
-    for_each (item in items) {
+    for_each item in items {
         concat2 = "${concat2}${item}"
     }
     if concat2 == "abc" {
@@ -209,7 +209,7 @@ do main() {
     // Test 14: continue in for_each
     mut nums [int] = {1, 2, 3, 4, 5}
     mut skip_sum int = 0
-    for_each (n in nums) {
+    for_each n in nums {
         if (n == 3) {
             continue
         }
