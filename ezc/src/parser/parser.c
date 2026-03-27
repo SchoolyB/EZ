@@ -10,6 +10,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdarg.h>
+#include <ctype.h>
 
 #define MAX_MULTI_VARS 16
 #define MAX_SHARED_RETURNS 16
@@ -281,6 +282,17 @@ static AstNode *parse_string_literal(Parser *p) {
     const char *raw = p->cur_token.literal;
     if (has_interpolation(raw)) {
         return parse_interpolated_string(p, raw);
+    }
+    /* E2057: check for bare $identifier (missing braces) */
+    for (int i = 0; raw[i]; i++) {
+        if (raw[i] == '\\') { i++; continue; }
+        if (raw[i] == '$' && raw[i + 1] != '{' && raw[i + 1] != '\0' &&
+            (isalpha(raw[i + 1]) || raw[i + 1] == '_')) {
+            diag_error(p->diag, "E2057",
+                arena_strdup(p->arena, "invalid interpolation syntax — use ${variable} instead of $variable"),
+                p->file, p->cur_token.line, p->cur_token.column, 0);
+            break;
+        }
     }
     AstNode *node = ast_alloc(p->arena, NODE_STRING_VALUE, p->cur_token);
     node->data.string_value.value = raw;
@@ -786,7 +798,7 @@ static AstNode *parse_var_declaration(Parser *p) {
                     depth++;
                     next_token(p);
                 }
-                const char *inner_elem = p->cur_token.literal;
+                const char *inner_elem = read_type_name(p);
                 /* Consume matching ] brackets */
                 for (int d = 0; d < depth; d++) {
                     if (!expect_peek(p, TOK_RBRACKET)) return NULL;
@@ -802,7 +814,7 @@ static AstNode *parse_var_declaration(Parser *p) {
                 type_str[pos] = '\0';
                 node->data.var_decl.type_name = type_str;
             } else {
-                const char *elem_type = p->cur_token.literal;
+                const char *elem_type = read_type_name(p);
                 if (peek_token_is(p, TOK_COMMA)) {
                     /* Fixed-size array: [int, 3] */
                     next_token(p); /* skip , */
@@ -1038,17 +1050,27 @@ static AstNode *parse_func_declaration(Parser *p) {
                 next_token(p); /* now on [ */
                 next_token(p); /* element type or nested [ */
                 if (cur_token_is(p, TOK_LBRACKET)) {
-                    /* Nested array type: [[int]] */
-                    next_token(p); /* inner element type */
-                    const char *inner = p->cur_token.literal;
-                    if (!expect_peek(p, TOK_RBRACKET)) return NULL;
-                    if (!expect_peek(p, TOK_RBRACKET)) return NULL;
-                    size_t ts_len = strlen(inner) + 5;
+                    /* Nested array type: [[int]], [[[int]]], etc. */
+                    int depth = 1; /* first [ already consumed */
+                    while (cur_token_is(p, TOK_LBRACKET)) {
+                        depth++;
+                        next_token(p);
+                    }
+                    const char *inner = read_type_name(p);
+                    for (int d = 0; d < depth; d++) {
+                        if (!expect_peek(p, TOK_RBRACKET)) return NULL;
+                    }
+                    size_t ts_len = strlen(inner) + (size_t)depth * 2 + 1;
                     char *type_str = arena_alloc(p->arena, ts_len);
-                    snprintf(type_str, ts_len, "[[%s]]", inner);
+                    int pos = 0;
+                    for (int d = 0; d < depth; d++) type_str[pos++] = '[';
+                    memcpy(type_str + pos, inner, strlen(inner));
+                    pos += (int)strlen(inner);
+                    for (int d = 0; d < depth; d++) type_str[pos++] = ']';
+                    type_str[pos] = '\0';
                     param->type_name = type_str;
                 } else {
-                    const char *elem = p->cur_token.literal;
+                    const char *elem = read_type_name(p);
                     if (peek_token_is(p, TOK_COMMA)) {
                         /* Fixed-size: [int, 3] */
                         next_token(p); /* skip , */
@@ -1180,14 +1202,36 @@ static AstNode *parse_func_declaration(Parser *p) {
                 next_token(p);
             }
         } else if (cur_token_is(p, TOK_LBRACKET)) {
-            /* Array return type: -> [int] */
-            next_token(p);
-            const char *elem = p->cur_token.literal;
-            if (!expect_peek(p, TOK_RBRACKET)) return NULL;
-            size_t ts_len = strlen(elem) + 3;
-            char *type_str = arena_alloc(p->arena, ts_len);
-            snprintf(type_str, ts_len, "[%s]", elem);
-            node->data.func_decl.return_types[0] = type_str;
+            /* Array return type: -> [int], [[int]], [models.Task], etc. */
+            next_token(p); /* element type or nested [ */
+            if (cur_token_is(p, TOK_LBRACKET)) {
+                /* Nested: [[int]], [[[int]]], etc. */
+                int depth = 1;
+                while (cur_token_is(p, TOK_LBRACKET)) {
+                    depth++;
+                    next_token(p);
+                }
+                const char *inner = read_type_name(p);
+                for (int d = 0; d < depth; d++) {
+                    if (!expect_peek(p, TOK_RBRACKET)) return NULL;
+                }
+                size_t ts_len = strlen(inner) + (size_t)depth * 2 + 1;
+                char *type_str = arena_alloc(p->arena, ts_len);
+                int pos = 0;
+                for (int d = 0; d < depth; d++) type_str[pos++] = '[';
+                memcpy(type_str + pos, inner, strlen(inner));
+                pos += (int)strlen(inner);
+                for (int d = 0; d < depth; d++) type_str[pos++] = ']';
+                type_str[pos] = '\0';
+                node->data.func_decl.return_types[0] = type_str;
+            } else {
+                const char *elem = read_type_name(p);
+                if (!expect_peek(p, TOK_RBRACKET)) return NULL;
+                size_t ts_len = strlen(elem) + 3;
+                char *type_str = arena_alloc(p->arena, ts_len);
+                snprintf(type_str, ts_len, "[%s]", elem);
+                node->data.func_decl.return_types[0] = type_str;
+            }
             node->data.func_decl.return_type_count = 1;
         } else if (cur_token_is(p, TOK_CARET)) {
             /* Pointer return type: -> ^Type */
@@ -1363,14 +1407,36 @@ static AstNode *parse_struct_declaration(Parser *p) {
         field->name = p->cur_token.literal;
         next_token(p);
         if (cur_token_is(p, TOK_LBRACKET)) {
-            /* Array type: [type] */
-            next_token(p); /* element type */
-            const char *elem = p->cur_token.literal;
-            next_token(p); /* skip ] */
-            size_t ts_len = strlen(elem) + 3;
-            char *type_str = arena_alloc(p->arena, ts_len);
-            snprintf(type_str, ts_len, "[%s]", elem);
-            field->type_name = type_str;
+            /* Array type: [type], [[type]], [models.Task], etc. */
+            next_token(p); /* element type or nested [ */
+            if (cur_token_is(p, TOK_LBRACKET)) {
+                /* Nested: [[type]], [[[type]]], etc. */
+                int depth = 1;
+                while (cur_token_is(p, TOK_LBRACKET)) {
+                    depth++;
+                    next_token(p);
+                }
+                const char *inner = read_type_name(p);
+                for (int d = 0; d < depth; d++) {
+                    if (!expect_peek(p, TOK_RBRACKET)) return NULL;
+                }
+                size_t ts_len = strlen(inner) + (size_t)depth * 2 + 1;
+                char *type_str = arena_alloc(p->arena, ts_len);
+                int pos = 0;
+                for (int d = 0; d < depth; d++) type_str[pos++] = '[';
+                memcpy(type_str + pos, inner, strlen(inner));
+                pos += (int)strlen(inner);
+                for (int d = 0; d < depth; d++) type_str[pos++] = ']';
+                type_str[pos] = '\0';
+                field->type_name = type_str;
+            } else {
+                const char *elem = read_type_name(p);
+                next_token(p); /* skip ] */
+                size_t ts_len = strlen(elem) + 3;
+                char *type_str = arena_alloc(p->arena, ts_len);
+                snprintf(type_str, ts_len, "[%s]", elem);
+                field->type_name = type_str;
+            }
         } else if (cur_token_is(p, TOK_IDENT) && strcmp(p->cur_token.literal, "map") == 0 &&
                    peek_token_is(p, TOK_LBRACKET)) {
             /* Map type: map[K:V] */

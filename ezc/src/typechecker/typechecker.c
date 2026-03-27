@@ -468,6 +468,25 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                 tc->file, node->token.line, node->token.column, 0);
         }
 
+        /* E3032: different enum types in comparison */
+        if ((strcmp(op, "==") == 0 || strcmp(op, "!=") == 0) &&
+            node->data.infix.left->kind == NODE_MEMBER_EXPR &&
+            node->data.infix.right->kind == NODE_MEMBER_EXPR &&
+            node->data.infix.left->data.member.object->kind == NODE_LABEL &&
+            node->data.infix.right->data.member.object->kind == NODE_LABEL) {
+            const char *lname = node->data.infix.left->data.member.object->data.label.value;
+            const char *rname = node->data.infix.right->data.member.object->data.label.value;
+            if (is_enum_name(tc, lname) && is_enum_name(tc, rname) &&
+                strcmp(lname, rname) != 0) {
+                char msg[256];
+                snprintf(msg, sizeof(msg),
+                    "cannot compare enum '%s' with enum '%s' — different enum types are never equal",
+                    lname, rname);
+                diag_error(tc->diag, "E3032", strdup(msg),
+                    tc->file, node->token.line, node->token.column, 0);
+            }
+        }
+
         /* Comparison of incompatible types (e.g., int == string) */
         if ((strcmp(op, "==") == 0 || strcmp(op, "!=") == 0) &&
             left->kind != TK_UNKNOWN && right->kind != TK_UNKNOWN &&
@@ -612,6 +631,18 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                 } else {
                     result = &TYPE_VOID;
                 }
+                /* E12001: maps functions require map argument */
+                if (node->data.call.arg_count > 0) {
+                    AstNode *arg0 = node->data.call.args[0];
+                    EzType *arg0_t = typetable_get(tc->type_table, arg0);
+                    if (arg0_t && arg0_t->kind == TK_ARRAY) {
+                        char msg[256];
+                        snprintf(msg, sizeof(msg),
+                            "maps.%s() requires a map argument, got an array", mfn);
+                        diag_error(tc->diag, "E12001", strdup(msg),
+                            tc->file, arg0->token.line, arg0->token.column, 0);
+                    }
+                }
             } else if (strcmp(mod, "io") == 0) {
                 /* Fallible I/O: the type checker returns the primary value type.
                  * The codegen emits _result() versions that return (T, Error) tuples.
@@ -750,6 +781,42 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                                 arg0->data.label.value);
                             diag_error(tc->diag, "E5007", strdup(msg),
                                 tc->file, node->token.line, node->token.column, 0);
+                        }
+                    }
+                }
+                /* E3001: arrays.append element type mismatch */
+                if (strcmp(mfn, "append") == 0 && node->data.call.arg_count >= 2) {
+                    AstNode *arg0 = node->data.call.args[0];
+                    AstNode *arg1 = node->data.call.args[1];
+                    EzType *arr_t = typetable_get(tc->type_table, arg0);
+                    EzType *val_t = typetable_get(tc->type_table, arg1);
+                    if (arr_t && arr_t->kind == TK_ARRAY && arr_t->element_type &&
+                        val_t && val_t->kind != TK_UNKNOWN) {
+                        EzType *elem_t = type_from_name(arr_t->element_type);
+                        if (elem_t->kind != TK_UNKNOWN && elem_t->kind != val_t->kind) {
+                            char msg[256];
+                            snprintf(msg, sizeof(msg),
+                                "type mismatch: cannot append %s to array of %s",
+                                type_name(val_t), arr_t->element_type);
+                            diag_error(tc->diag, "E3001", strdup(msg),
+                                tc->file, arg1->token.line, arg1->token.column, 0);
+                        }
+                    }
+                }
+                /* E9002: arrays.sum/min/max require numeric array */
+                if ((strcmp(mfn, "sum") == 0 || strcmp(mfn, "min") == 0 ||
+                     strcmp(mfn, "max") == 0) && node->data.call.arg_count > 0) {
+                    AstNode *arg0 = node->data.call.args[0];
+                    EzType *arr_t = typetable_get(tc->type_table, arg0);
+                    if (arr_t && arr_t->kind == TK_ARRAY && arr_t->element_type) {
+                        EzType *elem_t = type_from_name(arr_t->element_type);
+                        if (elem_t->kind == TK_STRING || elem_t->kind == TK_BOOL) {
+                            char msg[256];
+                            snprintf(msg, sizeof(msg),
+                                "arrays.%s() requires a numeric array, got array of %s",
+                                mfn, arr_t->element_type);
+                            diag_error(tc->diag, "E9002", strdup(msg),
+                                tc->file, arg0->token.line, arg0->token.column, 0);
                         }
                     }
                 }

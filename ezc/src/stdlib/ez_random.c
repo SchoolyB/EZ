@@ -73,8 +73,18 @@ EzArray ez_random_shuffle(EzArena *arena, EzArray *arr) {
 }
 
 EzArray ez_random_sample(EzArena *arena, EzArray *arr, int32_t n) {
+    if (n > arr->len) {
+        fflush(stdout);
+        fprintf(stderr, "panic: random.sample() count %d exceeds array length %d\n",
+            (int)n, (int)arr->len);
+        exit(1);
+    }
+    if (n < 0) {
+        fflush(stdout);
+        fprintf(stderr, "panic: random.sample() count cannot be negative (%d)\n", (int)n);
+        exit(1);
+    }
     EzArray shuffled = ez_random_shuffle(arena, arr);
-    if (n > shuffled.len) n = shuffled.len;
     shuffled.len = n;
     return shuffled;
 }
