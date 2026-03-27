@@ -1,0 +1,53 @@
+/*
+ * threads_c.ez - Integration test for @threads (compiler)
+ */
+
+import @std
+import @threads
+using std
+
+do worker() {
+    // simple worker function
+}
+
+do main() {
+    println("=== Threads Module Test ===")
+    mut passed int = 0
+    mut failed int = 0
+
+    // spawn and join
+    mut t = threads.spawn(()worker)
+    threads.join(t)
+    println("  [PASS] spawn + join")
+    passed += 1
+
+    // sleep_ms (short sleep, just verify no crash)
+    threads.sleep_ms(1)
+    println("  [PASS] sleep_ms")
+    passed += 1
+
+    // mutex create, lock, unlock
+    mut m = threads.mutex()
+    threads.lock(m)
+    threads.unlock(m)
+    println("  [PASS] mutex lock/unlock")
+    passed += 1
+
+    // channel send/recv
+    mut ch = threads.channel(1)
+    threads.send(ch, 42)
+    mut val int = threads.recv(ch)
+    if val == 42 {
+        println("  [PASS] channel send/recv")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] channel: expected 42, got ${val}")
+        failed += 1
+    }
+
+    println("")
+    println("Results: ${passed} passed, ${failed} failed")
+    if failed > 0 {
+        panic("Some tests failed!")
+    }
+}
