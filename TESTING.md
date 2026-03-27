@@ -37,10 +37,7 @@ Unit tests validate individual compiler components:
 - Type resolution (primitives including signed/unsigned, arrays, structs, maps, pointers)
 - Expression type inference (literals, arithmetic, comparison, logical)
 - Built-in function return types (`len`, `typeof`, `to_float`, `addr`)
-- Error detection:
-  - E3001: type mismatch on variable declarations
-  - E5008: wrong argument count on function calls
-  - E3016: dereference of non-pointer type
+- Error detection (E3001 type mismatch, E5008 wrong arg count, E3016 deref non-pointer)
 - String enum member type resolution
 - Map type from name parsing
 
@@ -51,7 +48,6 @@ E2E tests compile EZ programs, run them, and verify output:
 - Basic: hello world, variables, arithmetic, strings, booleans
 - Control flow: if/else, for, while, loop/break, when/is
 - Functions: calls, recursion, multi-return, named returns, default params, mutable params
-- Mutable params: simple variables, array elements (`arr[i]`), struct fields (`s.x`)
 - Data structures: arrays, fixed-size arrays, nested arrays, maps, structs, enums
 - String features: interpolation, char literals, hex/octal/binary literals
 - Function references: `()func`, `ref(func)`, reassignment
@@ -59,9 +55,7 @@ E2E tests compile EZ programs, run them, and verify output:
 - `or_return` error propagation
 - Enum attributes: `#flags` (powers of 2), string enums
 - Map operations: literal creation, key access, `for_each` iteration
-- `@mem` module: arena create/destroy, alloc, usage, reset
 - Pointers: `addr()`, dereference (`p^`), nil check, write-through, struct pointers
-- `@threads` module: spawn/join, channels, sleep
 - Runtime checks: division by zero panic
 
 **Running:**
@@ -82,15 +76,23 @@ make test-e2e
 ./tests/test_codegen
 ```
 
-### Integration Pass Tests (42 tests)
+### Integration Tests (65 pass + 24 stdlib + 291 error = 380 tests)
 
 Integration tests compile and run `.ez` programs end-to-end through the full compiler pipeline.
 
 **Structure:**
 
-- `integration-tests/pass/core/` — Core language features (arrays, control flow, structs, enums, maps, typeof, etc.)
-- `integration-tests/pass/named_returns/` — Named return value tests
-- `integration-tests/pass/stdlib/` — Stdlib module tests (http, net, regex)
+- `integration-tests/pass/core/` — Core language features (arrays, control flow, structs, enums, maps, typeof, named returns, etc.)
+- `integration-tests/pass/stdlib/` — All 24 stdlib module tests (`*_c.ez` files)
+- `integration-tests/fail/errors/` — 305 error detection tests (14 skipped as interpreter-only)
+
+**What's tested:**
+
+- 65 passing programs covering all core language features
+- 24 stdlib modules: std, strings, math, arrays, maps, io, os, time, encoding, crypto, json, csv, uuid, bytes, binary, mem, fmt, random, regex, http, net, server, sqlite, threads
+- 269 compile-time errors (typechecker, parser, lexer)
+- 22 runtime panics (division by zero, nil deref, overflow, bounds, stack overflow)
+- Covers all 81 error and warning codes
 
 **Running:**
 
@@ -99,27 +101,6 @@ bash ezc/tests/run_integration.sh
 
 # With verbose output on failures
 bash ezc/tests/run_integration.sh --verbose
-```
-
-### Error Detection Tests (291 tests — 100% coverage)
-
-Every error test is an `.ez` file that **must** be rejected by the compiler or runtime. Tests are named by error code (e.g., `E3001_type_mismatch.ez`).
-
-**Structure:**
-
-- `integration-tests/fail/errors/` — 305 total tests (14 skipped as interpreter-only)
-- Each test has a comment header with the expected error code and message pattern
-
-**What's tested:**
-
-- 269 compile-time errors (typechecker, parser, lexer)
-- 22 runtime panics (division by zero, nil deref, overflow, bounds, stack overflow)
-- Covers all 92 error and warning codes in `error_codes.h`
-
-**Running:**
-
-```bash
-bash ezc/tests/run_integration.sh   # includes error tests
 ```
 
 ### Sanitizer Tests
@@ -136,19 +117,11 @@ make test-ubsan
 make test-asan
 ```
 
-### Parity Tests
-
-Compares EZC compiler output against expected results for basic examples.
-
-```bash
-bash ezc/tests/run_parity.sh
-```
-
 ---
 
 ## Go Tooling Tests
 
-The Go CLI (`ez`) has unit tests for the packages it still uses:
+The Go CLI (`ez`) has unit tests for the packages it uses:
 
 - `pkg/errors` — Error handling and formatting
 - `pkg/lineeditor` — REPL line editing
@@ -178,5 +151,6 @@ All tests run automatically on push to `main` and `v3.0.0` via GitHub Actions:
 |----------|:--------:|:----------:|:----------:|
 | Ubuntu   | unit + e2e + integration | UBSan + ASan | errors + lineeditor |
 | macOS    | unit + e2e + integration | UBSan | errors + lineeditor |
+| Windows  | — | — | errors |
 
 CI workflow: `.github/workflows/ci.yml`

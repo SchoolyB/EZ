@@ -140,19 +140,39 @@ Invalid identifiers: `2fast`, `my-var`, `café`, `_private`
 
 The following words are reserved and may not be used as identifiers:
 
+**Control flow:**
 ```
-as_long_as   bool        break       byte        cast
-char         const       continue    default     do
-ensure       enum        error       false       float
-for          for_each    if          import      in
-int          is          loop        map         mut
-new          nil         not_in      or          or_return
-otherwise    private     range       return      string
-struct       true        uint        using       when
-while
+as_long_as   break       continue    default     do
+ensure       for         for_each    if          is
+loop         or          or_return   otherwise   return
+when         while
 ```
 
-Note: `module` is no longer a reserved keyword in 3.0. Module identity is determined by the filesystem.
+**Declarations:**
+```
+const        enum        import      mut         new
+private      struct      use         using
+```
+
+**Types (reserved names):**
+```
+bool         byte        char        error       float
+func         int         map         nil         string
+uint
+```
+
+**Sized types (reserved names):**
+```
+i8    i16    i32    i64    i128
+u8    u16    u32    u64    u128
+f32   f64
+```
+
+**Operators and values:**
+```
+cast         false       in          not_in      range
+true
+```
 
 ### 3.6 Operators and Punctuation
 
@@ -162,9 +182,15 @@ Note: `module` is no longer a reserved keyword in 3.0. Module identity is determ
 &&   ||   !
 =    +=   -=   *=   /=
 ++   --
+^    &    @    #
 (    )    {    }    [    ]
-,    :    .    ->   &
+,    :    .    ->
 ```
+
+- `^` — pointer type prefix and dereference postfix (`^Type`, `ptr^`)
+- `&` — address-of (used internally)
+- `@` — module prefix in imports (`import @std`)
+- `#` — attribute prefix (`#doc`, `#flags`, `#suppress`)
 
 ### 3.7 Literals
 
@@ -2405,6 +2431,17 @@ Arena-based memory allocation. Compiler-only feature.
 | `reset` | `(arena Arena)` | Reset an arena, reclaiming all allocations without freeing |
 | `usage` | `(arena Arena) -> int` | Return the number of bytes currently used |
 | `make` | `(arena Arena, Type) -> ^Type` | Allocate a zero-initialized value of `Type` in the arena |
+
+### 10.24 Fmt Module (`@fmt`)
+
+Formatted error output.
+
+| Function | Signature | Description |
+|----------|-----------|-------------|
+| `eprintln` | `(value) -> void` | Print a value to stderr followed by a newline |
+| `eprint` | `(value) -> void` | Print a value to stderr without a newline |
+
+Accepts `string`, `int`, `float`, and `bool` arguments.
 
 ---
 
