@@ -80,7 +80,8 @@ do main() {
 
 ## Features
 
-- **24 stdlib modules** — strings, math, arrays, maps, JSON, HTTP, regex, crypto, SQLite, threads, and more
+- **26 stdlib modules** — strings, math, arrays, maps, JSON, HTTP, regex, crypto, SQLite, threads, networking, and more
+- **Signed and unsigned integers** — `int`, `uint`, `i8`–`i128`, `u8`–`u128` with overflow detection
 - **Pointers** — `^Type`, `addr()`, and `p^` dereference with nil safety
 - **Threads** — spawn, join, mutexes, and channels via `@threads`
 - **Arena memory** — manual memory control when you need it via `@mem`
@@ -90,8 +91,10 @@ do main() {
 - **Error propagation** — `or_return` for clean error handling
 - **HTTP server** — route handlers with path params via `@server`
 - **HTTP client** — GET/POST/PUT/DELETE via `@http`
+- **Regex** — pattern matching, find, replace, split via `@regex`
 - **SQLite** — embedded database via `@sqlite`
 - **Native binaries** — compiles to fast executables via C
+- **92 error codes** — every error has a code, beginner-friendly message, and source location
 
 ---
 
@@ -108,13 +111,13 @@ Checks for new versions, shows the changelog, and upgrades both the `ez` CLI and
 ## Running Tests
 
 ```bash
-# Compiler tests
-cd ezc
-make test-unit    # unit tests
-make test-e2e     # end-to-end tests
-make test-parity  # output parity tests
+# Compiler unit + e2e tests (163 tests)
+cd ezc && make test-unit && make test-e2e && cd ..
 
-# CLI/tooling tests
+# Integration tests — 42 pass tests + 291 error detection tests (100% coverage)
+bash ezc/tests/run_integration.sh
+
+# Go tooling tests
 go test ./pkg/errors/... ./pkg/lineeditor/...
 ```
 

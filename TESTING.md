@@ -1,82 +1,10 @@
 # EZ Language Testing Guide
 
-## Interpreter Tests
+## Compiler Tests (EZC)
 
-### Go Unit Tests
+The EZC compiler has a comprehensive test suite written in C, located in `ezc/tests/`.
 
-Unit tests are written in Go and test individual interpreter/runtime components. Each package in `pkg/` has corresponding `*_test.go` files.
-
-**Packages with Unit Tests:**
-
-- `pkg/ast` — Abstract syntax tree nodes
-- `pkg/errors` — Error handling and formatting
-- `pkg/interpreter` — Runtime evaluation (380+ tests including 3.0 features)
-- `pkg/lexer` — Tokenization
-- `pkg/lineeditor` — REPL line editing
-- `pkg/object` — Runtime object system
-- `pkg/parser` — Syntax parsing (210+ tests)
-- `pkg/stdlib` — Standard library functions
-- `pkg/tokenizer` — Token definitions
-- `pkg/typechecker` — Static type checking (465+ tests including 3.0 features)
-
-**Running:**
-
-```bash
-# Run all unit tests
-go test ./pkg/...
-
-# Run with verbose output
-go test -v ./pkg/...
-
-# Run tests for a specific package
-go test ./pkg/interpreter/...
-go test ./pkg/typechecker/...
-
-# Run a specific test
-go test ./pkg/interpreter/ -run TestFunctionReferenceBasic
-```
-
-### Integration Tests
-
-Integration tests are `.ez` files that test the language end-to-end. Located in `integration-tests/` (404 tests).
-
-**Structure:**
-
-- `integration-tests/pass/` — Tests that should execute successfully
-  - `core/` — Core language features (control flow, structs, enums, function references, struct-namespaced functions, map iteration, etc.)
-  - `stdlib/` — Standard library modules
-  - `multi-file/` — Multi-file project tests (imports, modules, cross-module struct access, struct-namespaced functions)
-  - `named_returns/` — Named return value tests
-  - `warnings/` — Warning detection tests
-- `integration-tests/fail/` — Tests that should fail with expected errors
-  - `errors/` — Error detection tests (named by error code)
-  - `multi-file/` — Multi-file error tests
-
-**Running:**
-
-```bash
-# Run all integration tests
-bash integration-tests/run_tests.sh
-```
-
-### Test Coverage
-
-```bash
-# Generate coverage report
-go test ./pkg/... -coverprofile=coverage.out
-go tool cover -func=coverage.out
-
-# View in browser
-go tool cover -html=coverage.out
-```
-
----
-
-## EZC Compiler Tests
-
-The EZC compiler has its own test suite written in C, located in `ezc/tests/`.
-
-### Unit Tests (98 tests)
+### Unit Tests (163 tests)
 
 Unit tests validate individual compiler components:
 
@@ -106,7 +34,7 @@ Unit tests validate individual compiler components:
 
 **Typechecker Tests** (`ezc/tests/test_typechecker.c` — 35 tests):
 - Scope management (define, lookup, nested, shadow)
-- Type resolution (primitives, arrays, structs, maps, pointers)
+- Type resolution (primitives including signed/unsigned, arrays, structs, maps, pointers)
 - Expression type inference (literals, arithmetic, comparison, logical)
 - Built-in function return types (`len`, `typeof`, `to_float`, `addr`)
 - Error detection:
@@ -116,31 +44,16 @@ Unit tests validate individual compiler components:
 - String enum member type resolution
 - Map type from name parsing
 
-**Running:**
+**End-to-End Tests** (`ezc/tests/test_codegen.c` — 65 tests):
 
-```bash
-cd ezc
+E2E tests compile EZ programs, run them, and verify output:
 
-# Run all unit tests (lexer + parser + typechecker)
-make test-unit
-
-# Individual test suites
-./tests/test_lexer
-./tests/test_parser
-./tests/test_typechecker
-```
-
-### End-to-End Tests (64 tests)
-
-E2e tests compile EZ programs, run them, and verify output. Located in `ezc/tests/test_codegen.c`.
-
-**Coverage areas:**
 - Basic: hello world, variables, arithmetic, strings, booleans
 - Control flow: if/else, for, while, loop/break, when/is
 - Functions: calls, recursion, multi-return, named returns, default params, mutable params
 - Mutable params: simple variables, array elements (`arr[i]`), struct fields (`s.x`)
 - Data structures: arrays, fixed-size arrays, nested arrays, maps, structs, enums
-- String features: interpolation, char literals, raw strings, hex/octal/binary literals
+- String features: interpolation, char literals, hex/octal/binary literals
 - Function references: `()func`, `ref(func)`, reassignment
 - Struct-namespaced functions: `Type.func()` calls
 - `or_return` error propagation
@@ -156,8 +69,57 @@ E2e tests compile EZ programs, run them, and verify output. Located in `ezc/test
 ```bash
 cd ezc
 
+# Run all unit tests (lexer + parser + typechecker)
+make test-unit
+
 # Run all e2e tests
 make test-e2e
+
+# Individual test suites
+./tests/test_lexer
+./tests/test_parser
+./tests/test_typechecker
+./tests/test_codegen
+```
+
+### Integration Pass Tests (42 tests)
+
+Integration tests compile and run `.ez` programs end-to-end through the full compiler pipeline.
+
+**Structure:**
+
+- `integration-tests/pass/core/` — Core language features (arrays, control flow, structs, enums, maps, typeof, etc.)
+- `integration-tests/pass/named_returns/` — Named return value tests
+- `integration-tests/pass/stdlib/` — Stdlib module tests (http, net, regex)
+
+**Running:**
+
+```bash
+bash ezc/tests/run_integration.sh
+
+# With verbose output on failures
+bash ezc/tests/run_integration.sh --verbose
+```
+
+### Error Detection Tests (291 tests — 100% coverage)
+
+Every error test is an `.ez` file that **must** be rejected by the compiler or runtime. Tests are named by error code (e.g., `E3001_type_mismatch.ez`).
+
+**Structure:**
+
+- `integration-tests/fail/errors/` — 305 total tests (14 skipped as interpreter-only)
+- Each test has a comment header with the expected error code and message pattern
+
+**What's tested:**
+
+- 269 compile-time errors (typechecker, parser, lexer)
+- 22 runtime panics (division by zero, nil deref, overflow, bounds, stack overflow)
+- Covers all 92 error and warning codes in `error_codes.h`
+
+**Running:**
+
+```bash
+bash ezc/tests/run_integration.sh   # includes error tests
 ```
 
 ### Sanitizer Tests
@@ -176,22 +138,34 @@ make test-asan
 
 ### Parity Tests
 
-Compares EZC compiler output against the EZ interpreter to verify identical behavior.
+Compares EZC compiler output against expected results for basic examples.
 
 ```bash
-# Run from project root
 bash ezc/tests/run_parity.sh
 ```
 
-Current parity: 7/15 basic examples pass. Known differences: float rounding (IEEE 754 ULP), array/map printing format, reference semantics.
+---
 
-**Running all compiler tests:**
+## Go Tooling Tests
+
+The Go CLI (`ez`) has unit tests for the packages it still uses:
+
+- `pkg/errors` — Error handling and formatting
+- `pkg/lineeditor` — REPL line editing
 
 ```bash
-cd ezc
+go test ./pkg/errors/... ./pkg/lineeditor/...
+```
 
-# Everything
-make test-unit && make test-e2e && make test-ubsan
+---
+
+## Running Everything
+
+```bash
+# Full test suite
+cd ezc && make test-unit && make test-e2e && cd ..
+bash ezc/tests/run_integration.sh
+go test ./pkg/errors/... ./pkg/lineeditor/...
 ```
 
 ---
@@ -200,10 +174,9 @@ make test-unit && make test-e2e && make test-ubsan
 
 All tests run automatically on push to `main` and `v3.0.0` via GitHub Actions:
 
-| Platform | Interpreter | Compiler | Sanitizers |
-|----------|:-----------:|:--------:|:----------:|
-| Ubuntu | ✅ unit + integration | ✅ unit + e2e | ✅ UBSan + ASan |
-| macOS | ✅ unit + integration | ✅ unit + e2e | ✅ UBSan |
-| Windows | ✅ unit (skip lineeditor) | — | — |
+| Platform | Compiler | Sanitizers | Go Tooling |
+|----------|:--------:|:----------:|:----------:|
+| Ubuntu   | unit + e2e + integration | UBSan + ASan | errors + lineeditor |
+| macOS    | unit + e2e + integration | UBSan | errors + lineeditor |
 
 CI workflow: `.github/workflows/ci.yml`
