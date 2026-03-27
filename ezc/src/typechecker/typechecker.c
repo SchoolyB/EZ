@@ -250,6 +250,23 @@ static bool is_enum_name(TypeChecker *tc, const char *name) {
     return false;
 }
 
+/* --- Type signedness helpers --- */
+
+static bool is_unsigned_type(const char *tn) {
+    if (!tn) return false;
+    return strcmp(tn, "uint") == 0 || strcmp(tn, "u8") == 0 ||
+           strcmp(tn, "u16") == 0 || strcmp(tn, "u32") == 0 ||
+           strcmp(tn, "u64") == 0 || strcmp(tn, "u128") == 0 ||
+           strcmp(tn, "byte") == 0;
+}
+
+static bool is_signed_int_type(const char *tn) {
+    if (!tn) return false;
+    return strcmp(tn, "int") == 0 || strcmp(tn, "i8") == 0 ||
+           strcmp(tn, "i16") == 0 || strcmp(tn, "i32") == 0 ||
+           strcmp(tn, "i64") == 0 || strcmp(tn, "i128") == 0;
+}
+
 /* --- Literal value extraction --- */
 
 /* Try to extract a compile-time integer value from a literal expression.
@@ -1629,6 +1646,23 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
                     }
                 }
             }
+            /* E3019: signed-to-unsigned assignment from variable */
+            if (node->data.var_decl.type_name &&
+                is_unsigned_type(node->data.var_decl.type_name) &&
+                node->data.var_decl.value &&
+                node->data.var_decl.value->kind == NODE_LABEL) {
+                const char *src_name = node->data.var_decl.value->data.label.value;
+                Symbol *src_sym = scope_lookup(tc->current_scope, src_name);
+                if (src_sym && src_sym->declared_type &&
+                    is_signed_int_type(src_sym->declared_type)) {
+                    char msg[256];
+                    snprintf(msg, sizeof(msg),
+                        "cannot assign signed type '%s' to unsigned type '%s' — value may be negative",
+                        src_sym->declared_type, node->data.var_decl.type_name);
+                    diag_error(tc->diag, "E3019", strdup(msg),
+                        tc->file, node->token.line, node->token.column, 0);
+                }
+            }
         }
 
         if (strcmp(node->data.var_decl.name, "_") != 0) {
@@ -1692,10 +1726,11 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
             }
             scope_define(tc->current_scope, node->data.var_decl.name,
                 declared, node->data.var_decl.mutable);
-            /* Store definition location for unused variable warnings */
+            /* Store definition location and declared type for unused/signedness warnings */
             Symbol *def_sym = scope_lookup_local(tc->current_scope,
                 node->data.var_decl.name);
             if (def_sym) {
+                def_sym->declared_type = node->data.var_decl.type_name;
                 def_sym->def_line = node->token.line;
                 def_sym->def_column = node->token.column;
             }
@@ -1843,6 +1878,22 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
                     type_name(expected), type_name(ret_t));
                 diag_error(tc->diag, "E3001", strdup(msg),
                     tc->file, node->token.line, node->token.column, 0);
+            }
+            /* E5024: signed-to-unsigned return type mismatch */
+            if (tc->current_return_type_names && tc->current_return_type_names[0] &&
+                is_unsigned_type(tc->current_return_type_names[0]) &&
+                node->data.return_stmt.values[0]->kind == NODE_LABEL) {
+                const char *src_name = node->data.return_stmt.values[0]->data.label.value;
+                Symbol *src_sym = scope_lookup(tc->current_scope, src_name);
+                if (src_sym && src_sym->declared_type &&
+                    is_signed_int_type(src_sym->declared_type)) {
+                    char msg[256];
+                    snprintf(msg, sizeof(msg),
+                        "return type mismatch: cannot return signed '%s' as unsigned '%s'",
+                        src_sym->declared_type, tc->current_return_type_names[0]);
+                    diag_error(tc->diag, "E5024", strdup(msg),
+                        tc->file, node->token.line, node->token.column, 0);
+                }
             }
         }
         break;
@@ -2069,15 +2120,19 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
 
         /* Track current function return types for return statement checking */
         EzType **prev_ret = tc->current_return_types;
+        const char **prev_ret_names = tc->current_return_type_names;
         int prev_ret_count = tc->current_return_count;
         if (node->data.func_decl.return_type_count > 0) {
             tc->current_return_types = malloc(sizeof(EzType *) * node->data.func_decl.return_type_count);
+            tc->current_return_type_names = malloc(sizeof(const char *) * node->data.func_decl.return_type_count);
             tc->current_return_count = node->data.func_decl.return_type_count;
             for (int i = 0; i < node->data.func_decl.return_type_count; i++) {
                 tc->current_return_types[i] = type_from_name(node->data.func_decl.return_types[i]);
+                tc->current_return_type_names[i] = node->data.func_decl.return_types[i];
             }
         } else {
             tc->current_return_types = NULL;
+            tc->current_return_type_names = NULL;
             tc->current_return_count = 0;
         }
 
@@ -2146,7 +2201,9 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
         }
 
         if (tc->current_return_types) free(tc->current_return_types);
+        if (tc->current_return_type_names) free(tc->current_return_type_names);
         tc->current_return_types = prev_ret;
+        tc->current_return_type_names = prev_ret_names;
         tc->current_return_count = prev_ret_count;
         tc->func_depth--;
         tc->current_scope = outer;

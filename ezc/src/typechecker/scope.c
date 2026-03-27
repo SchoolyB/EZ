@@ -32,6 +32,7 @@ void scope_define(Scope *s, const char *name, EzType *type, bool mutable) {
     }
 
     Symbol *sym = &s->symbols[s->count++];
+    memset(sym, 0, sizeof(Symbol));
     sym->name = name;
     sym->type = type;
     sym->mutable = mutable;

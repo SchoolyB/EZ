@@ -13,6 +13,7 @@
 typedef struct {
     const char *name;
     EzType *type;
+    const char *declared_type; /* original declared type name (e.g., "uint", "i8") */
     bool mutable;
     bool is_ref;         /* true if created via ref() — transparent reference */
     bool used;           /* true if variable was read */

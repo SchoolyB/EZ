@@ -72,6 +72,7 @@ typedef struct {
     int loop_depth;               /* >0 means inside a loop */
     int func_depth;               /* >0 means inside a function body */
     EzType **current_return_types; /* expected return types of current function */
+    const char **current_return_type_names; /* raw declared return type names */
     int current_return_count;
 
     /* Import tracking for unused import warnings */
