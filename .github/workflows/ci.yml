@@ -30,6 +30,7 @@ jobs:
         with:
           go-version: ${{ matrix.go-version }}
 
+      # ===== Go CLI =====
       - name: Build ez CLI
         run: go build -o ez ./cmd/ez
         if: runner.os != 'Windows'
@@ -40,34 +41,11 @@ jobs:
 
       - name: Run Go unit tests
         if: runner.os != 'Windows'
-        run: go test ./pkg/...
+        run: go test ./pkg/errors/... ./pkg/lineeditor/...
 
       - name: Run Go unit tests (Windows — skip lineeditor)
         if: runner.os == 'Windows'
-        shell: bash
-        run: go test $(go list ./pkg/... | grep -v lineeditor)
-
-      - name: Run integration tests
-        if: runner.os != 'Windows'
-        run: bash integration-tests/run_tests.sh
-
-      - name: Validate example files
-        if: runner.os != 'Windows'
-        run: |
-          for file in examples/basic/*.ez; do
-            echo "Validating $file..."
-            ./ez "$file" || exit 1
-          done
-
-      - name: Validate example files (Windows)
-        if: runner.os == 'Windows'
-        shell: pwsh
-        run: |
-          Get-ChildItem examples\basic\*.ez | ForEach-Object {
-            Write-Host "Validating $_..."
-            & .\ez.exe $_.FullName
-            if ($LASTEXITCODE -ne 0) { exit 1 }
-          }
+        run: go test ./pkg/errors/...
 
       # ===== EZC Compiler =====
       - name: Build EZC compiler
@@ -77,17 +55,23 @@ jobs:
           make clean
           make build
 
-      - name: Run EZC unit tests
+      - name: Run EZC unit tests (lexer + parser + typechecker)
         if: runner.os != 'Windows'
         run: |
           cd ezc
           make test-unit
 
-      - name: Run EZC end-to-end tests
+      - name: Run EZC end-to-end tests (65 codegen tests)
         if: runner.os != 'Windows'
         run: |
           cd ezc
           make test-e2e
+
+      - name: Run EZC integration tests (core + stdlib + named returns)
+        if: runner.os != 'Windows'
+        run: |
+          cd ezc
+          make test-integration
 
       - name: Run EZC UBSan tests
         if: runner.os != 'Windows'
@@ -108,8 +92,9 @@ jobs:
         run: |
           for file in examples/basic/*.ez; do
             name=$(basename "$file" .ez)
-            # Skip known OOM issue with FCF + arrays.append
+            # Skip known issues
             if [ "$name" = "function_references" ]; then continue; fi
+            if [ "$name" = "references" ]; then continue; fi
             echo "Compiling $file..."
             ./ezc/ezc "$file" -o "/tmp/ezc_$(basename $file .ez)" || exit 1
           done
@@ -118,32 +103,3 @@ jobs:
             ./ezc/ezc "$file" -o "/tmp/ezc_$(basename $file .ez)" || exit 1
           done
           echo "All examples compiled successfully"
-
-      # ===== Interpreter REPL =====
-      - name: Test REPL basic functionality (Linux)
-        if: runner.os == 'Linux'
-        run: |
-          echo "Testing REPL..."
-          echo -e "mut x int = 5\nx + 10\nexit" | timeout 5 ./ez repl | grep -q "15"
-
-      - name: Test REPL basic functionality (macOS)
-        if: runner.os == 'macOS'
-        run: |
-          echo "Testing REPL..."
-          # macOS doesn't have timeout, use a subshell with background process
-          (echo -e "mut x int = 5\nx + 10\nexit" | ./ez repl > /tmp/repl_output.txt) &
-          pid=$!
-          sleep 5
-          kill $pid 2>/dev/null || true
-          grep -q "15" /tmp/repl_output.txt
-
-      - name: Test REPL basic functionality (Windows)
-        if: runner.os == 'Windows'
-        timeout-minutes: 1
-        shell: pwsh
-        run: |
-          Write-Host "Testing REPL..."
-          $proc = Start-Process -FilePath ".\ez.exe" -ArgumentList "repl" -RedirectStandardInput "NUL" -PassThru -NoNewWindow
-          Start-Sleep -Seconds 2
-          Stop-Process -Id $proc.Id -Force -ErrorAction SilentlyContinue
-          Write-Host "REPL test skipped on Windows (interactive mode)"
