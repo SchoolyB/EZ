@@ -458,7 +458,12 @@ static AstNode *parse_prefix(Parser *p) {
         while (peek_token_is(p, TOK_COMMA)) {
             next_token(p); /* skip , */
             next_token(p);
-            if (cur_token_is(p, TOK_RBRACE)) break;
+            if (cur_token_is(p, TOK_RBRACE)) {
+                diag_error(p->diag, "E2017",
+                    arena_strdup(p->arena, "trailing comma in array literal — remove the extra comma before '}'"),
+                    p->file, p->cur_token.line, p->cur_token.column, 0);
+                break;
+            }
             if (node->data.array_value.count >= cap) {
                 cap *= 2;
                 AstNode **new_elems = arena_alloc(p->arena, sizeof(AstNode *) * cap);
@@ -802,6 +807,11 @@ static AstNode *parse_var_declaration(Parser *p) {
                     /* Fixed-size array: [int, 3] */
                     next_token(p); /* skip , */
                     next_token(p); /* size */
+                    if (!cur_token_is(p, TOK_INT)) {
+                        diag_error(p->diag, "E2025",
+                            arena_strdup(p->arena, "expected integer for array size — the second value in [type, size] must be a positive integer"),
+                            p->file, p->cur_token.line, p->cur_token.column, 0);
+                    }
                     const char *size_str = p->cur_token.literal;
                     if (!expect_peek(p, TOK_RBRACKET)) return NULL;
                     size_t ts_len = strlen(elem_type) + strlen(size_str) + 4;

@@ -94,17 +94,32 @@ static const char *read_number(Lexer *l, TokenType *type) {
         char next = peek_char(l);
         if (next == 'x' || next == 'X') {
             read_char(l); read_char(l);
+            int dstart = l->position;
             while (isxdigit(l->ch) || l->ch == '_') read_char(l);
+            if (l->position == dstart) {
+                l->error_code = "E1010";
+                l->error_msg = "invalid number format: '0x' must be followed by hex digits (0-9, a-f)";
+            }
             return arena_strndup(l->arena, l->input + start, l->position - start);
         }
         if (next == 'o' || next == 'O') {
             read_char(l); read_char(l);
+            int dstart = l->position;
             while ((l->ch >= '0' && l->ch <= '7') || l->ch == '_') read_char(l);
+            if (l->position == dstart) {
+                l->error_code = "E1010";
+                l->error_msg = "invalid number format: '0o' must be followed by octal digits (0-7)";
+            }
             return arena_strndup(l->arena, l->input + start, l->position - start);
         }
         if (next == 'b' || next == 'B') {
             read_char(l); read_char(l);
+            int dstart = l->position;
             while (l->ch == '0' || l->ch == '1' || l->ch == '_') read_char(l);
+            if (l->position == dstart) {
+                l->error_code = "E1010";
+                l->error_msg = "invalid number format: '0b' must be followed by binary digits (0-1)";
+            }
             return arena_strndup(l->arena, l->input + start, l->position - start);
         }
     }

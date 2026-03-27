@@ -250,6 +250,71 @@ static bool is_enum_name(TypeChecker *tc, const char *name) {
     return false;
 }
 
+/* --- Literal value extraction --- */
+
+/* Try to extract a compile-time integer value from a literal expression.
+ * Handles: NODE_INT_VALUE, PREFIX(-) NODE_INT_VALUE, and simple constant
+ * binary expressions on literals. Returns true if a value was extracted. */
+static bool try_get_literal_int(AstNode *node, int64_t *out) {
+    if (!node) return false;
+    if (node->kind == NODE_INT_VALUE) {
+        *out = node->data.int_value.value;
+        return true;
+    }
+    if (node->kind == NODE_PREFIX_EXPR && strcmp(node->data.prefix.op, "-") == 0 &&
+        node->data.prefix.right && node->data.prefix.right->kind == NODE_INT_VALUE) {
+        *out = -node->data.prefix.right->data.int_value.value;
+        return true;
+    }
+    /* Simple constant folding for literal +, -, * */
+    if (node->kind == NODE_INFIX_EXPR) {
+        int64_t lv, rv;
+        if (try_get_literal_int(node->data.infix.left, &lv) &&
+            try_get_literal_int(node->data.infix.right, &rv)) {
+            if (strcmp(node->data.infix.op, "+") == 0) { *out = lv + rv; return true; }
+            if (strcmp(node->data.infix.op, "-") == 0) { *out = lv - rv; return true; }
+            if (strcmp(node->data.infix.op, "*") == 0) { *out = lv * rv; return true; }
+            if (strcmp(node->data.infix.op, "/") == 0 && rv != 0) { *out = lv / rv; return true; }
+        }
+    }
+    return false;
+}
+
+/* Check if a literal integer value fits in the declared sized type.
+ * Returns true if an error was emitted. */
+static bool check_integer_range(DiagnosticList *diag, const char *file,
+    int line, int col, const char *type_name_str, int64_t value) {
+    int64_t min_val = 0, max_val = 0;
+    bool is_unsigned = false;
+
+    if (strcmp(type_name_str, "i8") == 0)        { min_val = -128; max_val = 127; }
+    else if (strcmp(type_name_str, "i16") == 0)   { min_val = -32768; max_val = 32767; }
+    else if (strcmp(type_name_str, "i32") == 0)   { min_val = -2147483648LL; max_val = 2147483647; }
+    else if (strcmp(type_name_str, "u8") == 0)    { min_val = 0; max_val = 255; is_unsigned = true; }
+    else if (strcmp(type_name_str, "u16") == 0)   { min_val = 0; max_val = 65535; is_unsigned = true; }
+    else if (strcmp(type_name_str, "u32") == 0)   { min_val = 0; max_val = 4294967295LL; is_unsigned = true; }
+    else if (strcmp(type_name_str, "u64") == 0)   { min_val = 0; max_val = INT64_MAX; is_unsigned = true; }
+    else if (strcmp(type_name_str, "uint") == 0)  { min_val = 0; max_val = INT64_MAX; is_unsigned = true; }
+    else if (strcmp(type_name_str, "byte") == 0)  { min_val = 0; max_val = 255; is_unsigned = true; }
+    else return false; /* not a range-checked type */
+
+    if (value < min_val || value > max_val) {
+        char msg[256];
+        if (is_unsigned && value < 0) {
+            snprintf(msg, sizeof(msg),
+                "value %lld is out of range for type '%s' — unsigned types cannot hold negative values (valid range: %lld to %lld)",
+                (long long)value, type_name_str, (long long)min_val, (long long)max_val);
+        } else {
+            snprintf(msg, sizeof(msg),
+                "value %lld is out of range for type '%s' (valid range: %lld to %lld)",
+                (long long)value, type_name_str, (long long)min_val, (long long)max_val);
+        }
+        diag_error(diag, "E3036", strdup(msg), file, line, col, 0);
+        return true;
+    }
+    return false;
+}
+
 /* --- Expression type resolution --- */
 
 static EzType *resolve_expr(TypeChecker *tc, AstNode *node);
@@ -375,6 +440,20 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
             (left->kind == TK_FLOAT || right->kind == TK_FLOAT)) {
             diag_error(tc->diag, "E3002",
                 strdup("modulo (%) only works on integers, not floats"),
+                tc->file, node->token.line, node->token.column, 0);
+        }
+
+        /* E3002: bool used in arithmetic (e.g., 1 + true) */
+        if ((left->kind == TK_BOOL || right->kind == TK_BOOL) &&
+            (strcmp(op, "+") == 0 || strcmp(op, "-") == 0 ||
+             strcmp(op, "*") == 0 || strcmp(op, "/") == 0 ||
+             strcmp(op, "%") == 0) &&
+            left->kind != TK_UNKNOWN && right->kind != TK_UNKNOWN) {
+            char msg[256];
+            snprintf(msg, sizeof(msg),
+                "invalid operands: cannot use '%s' with %s and %s",
+                op, type_name(left), type_name(right));
+            diag_error(tc->diag, "E3002", strdup(msg),
                 tc->file, node->token.line, node->token.column, 0);
         }
 
@@ -570,6 +649,28 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                 } else {
                     result = &TYPE_STRING;
                 }
+                /* E7004: strings.repeat() second arg must be integer */
+                if (strcmp(mfn, "repeat") == 0 && node->data.call.arg_count >= 2) {
+                    EzType *count_t = typetable_get(tc->type_table, node->data.call.args[1]);
+                    if (count_t && count_t->kind == TK_FLOAT) {
+                        diag_error(tc->diag, "E7004",
+                            strdup("strings.repeat() count must be an integer, not a float"),
+                            tc->file, node->data.call.args[1]->token.line,
+                            node->data.call.args[1]->token.column, 0);
+                    }
+                }
+                /* E7004: strings.slice() bounds must be integers */
+                if (strcmp(mfn, "slice") == 0 && node->data.call.arg_count >= 3) {
+                    for (int si = 1; si <= 2 && si < node->data.call.arg_count; si++) {
+                        EzType *bt = typetable_get(tc->type_table, node->data.call.args[si]);
+                        if (bt && bt->kind == TK_FLOAT) {
+                            diag_error(tc->diag, "E7004",
+                                strdup("strings.slice() bounds must be integers, not floats"),
+                                tc->file, node->data.call.args[si]->token.line,
+                                node->data.call.args[si]->token.column, 0);
+                        }
+                    }
+                }
             } else if (strcmp(mod, "time") == 0) {
                 if (strcmp(mfn, "format") == 0 || strcmp(mfn, "iso") == 0 ||
                     strcmp(mfn, "date") == 0 || strcmp(mfn, "clock") == 0) {
@@ -633,6 +734,24 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                     result = type_array("int"); /* approximate */
                 } else {
                     result = &TYPE_VOID;
+                }
+                /* E5007: arrays.append/insert/remove/pop on const array */
+                if ((strcmp(mfn, "append") == 0 || strcmp(mfn, "insert") == 0 ||
+                     strcmp(mfn, "remove") == 0 || strcmp(mfn, "pop") == 0 ||
+                     strcmp(mfn, "sort") == 0 || strcmp(mfn, "clear") == 0) &&
+                    node->data.call.arg_count > 0) {
+                    AstNode *arg0 = node->data.call.args[0];
+                    if (arg0->kind == NODE_LABEL) {
+                        Symbol *sym = scope_lookup(tc->current_scope, arg0->data.label.value);
+                        if (sym && !sym->mutable) {
+                            char msg[256];
+                            snprintf(msg, sizeof(msg),
+                                "cannot modify immutable array '%s' — declare with 'mut' to allow modification",
+                                arg0->data.label.value);
+                            diag_error(tc->diag, "E5007", strdup(msg),
+                                tc->file, node->token.line, node->token.column, 0);
+                        }
+                    }
                 }
             } else if (strcmp(mod, "os") == 0) {
                 if (strcmp(mfn, "args") == 0) {
@@ -795,7 +914,18 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                 result = &TYPE_INT;
             } else if (strcmp(fn_name, "to_float") == 0) {
                 result = &TYPE_FLOAT;
-            } else if (strcmp(fn_name, "to_string") == 0 || strcmp(fn_name, "typeof") == 0 ||
+            } else if (strcmp(fn_name, "typeof") == 0) {
+                /* E3038: typeof() on void function result */
+                if (node->data.call.arg_count > 0) {
+                    EzType *arg_t = resolve_expr(tc, node->data.call.args[0]);
+                    if (arg_t->kind == TK_VOID) {
+                        diag_error(tc->diag, "E3038",
+                            strdup("cannot use typeof() on a void function — the function does not return a value"),
+                            tc->file, node->token.line, node->token.column, 0);
+                    }
+                }
+                result = &TYPE_STRING;
+            } else if (strcmp(fn_name, "to_string") == 0 ||
                        strcmp(fn_name, "input") == 0) {
                 result = &TYPE_STRING;
             } else if (strcmp(fn_name, "to_bool") == 0) {
@@ -812,6 +942,33 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
             } else if (strcmp(fn_name, "copy") == 0 && node->data.call.arg_count == 1) {
                 result = resolve_expr(tc, node->data.call.args[0]);
             } else if (strcmp(fn_name, "read_int") == 0) {
+                result = &TYPE_INT;
+            } else if (strcmp(fn_name, "char") == 0 && node->data.call.arg_count == 1) {
+                /* E7014: char() with negative integer */
+                int64_t lit_val;
+                if (try_get_literal_int(node->data.call.args[0], &lit_val) && lit_val < 0) {
+                    char msg[256];
+                    snprintf(msg, sizeof(msg),
+                        "cannot convert %lld to char — value must be a valid Unicode code point (0 or greater)",
+                        (long long)lit_val);
+                    diag_error(tc->diag, "E7014", strdup(msg),
+                        tc->file, node->token.line, node->token.column, 0);
+                }
+                result = &TYPE_CHAR;
+            } else if ((strcmp(fn_name, "int") == 0 || strcmp(fn_name, "i8") == 0 ||
+                        strcmp(fn_name, "i16") == 0 || strcmp(fn_name, "i32") == 0 ||
+                        strcmp(fn_name, "i64") == 0 || strcmp(fn_name, "u8") == 0 ||
+                        strcmp(fn_name, "u16") == 0 || strcmp(fn_name, "u32") == 0 ||
+                        strcmp(fn_name, "u64") == 0 || strcmp(fn_name, "uint") == 0 ||
+                        strcmp(fn_name, "byte") == 0) &&
+                       node->data.call.arg_count == 1) {
+                /* Range check for sized type conversion with literal */
+                int64_t lit_val;
+                if (try_get_literal_int(node->data.call.args[0], &lit_val)) {
+                    check_integer_range(tc->diag, tc->file,
+                        node->token.line, node->token.column,
+                        fn_name, lit_val);
+                }
                 result = &TYPE_INT;
             } else {
                 FuncSig *sig = find_func(tc, fn_name);
@@ -889,6 +1046,8 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                     }
                     if (sig->return_count > 0) {
                         result = sig->return_types[0];
+                    } else {
+                        result = &TYPE_VOID;
                     }
                 } else {
                     /* Check if it's a variable holding a function reference */
@@ -1059,6 +1218,27 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
         for (int i = 0; i < node->data.map_value.count; i++) {
             resolve_expr(tc, node->data.map_value.keys[i]);
             resolve_expr(tc, node->data.map_value.values[i]);
+        }
+        /* E12006: Check for duplicate keys in map literal */
+        for (int i = 0; i < node->data.map_value.count; i++) {
+            AstNode *ki = node->data.map_value.keys[i];
+            for (int j = i + 1; j < node->data.map_value.count; j++) {
+                AstNode *kj = node->data.map_value.keys[j];
+                bool dup = false;
+                if (ki->kind == NODE_STRING_VALUE && kj->kind == NODE_STRING_VALUE &&
+                    strcmp(ki->data.string_value.value, kj->data.string_value.value) == 0) {
+                    dup = true;
+                } else if (ki->kind == NODE_INT_VALUE && kj->kind == NODE_INT_VALUE &&
+                    ki->data.int_value.value == kj->data.int_value.value) {
+                    dup = true;
+                }
+                if (dup) {
+                    char msg[256];
+                    snprintf(msg, sizeof(msg), "duplicate key in map literal");
+                    diag_error(tc->diag, "E12006", strdup(msg),
+                        tc->file, kj->token.line, kj->token.column, 0);
+                }
+            }
         }
         EzType *t = type_alloc();
         t->kind = TK_MAP;
@@ -1342,6 +1522,45 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
                     type_name(value_type), type_name(declared));
                 diag_error(tc->diag, "E3001", strdup(msg),
                     tc->file, node->token.line, node->token.column, 0);
+            }
+            /* E3036: Check literal value fits in sized integer type */
+            if (node->data.var_decl.type_name && node->data.var_decl.value) {
+                int64_t lit_val;
+                if (try_get_literal_int(node->data.var_decl.value, &lit_val)) {
+                    check_integer_range(tc->diag, tc->file,
+                        node->token.line, node->token.column,
+                        node->data.var_decl.type_name, lit_val);
+                }
+                /* E3026/E3036: Check array literal elements fit in sized element type */
+                const char *tn = node->data.var_decl.type_name;
+                if (tn[0] == '[' && node->data.var_decl.value->kind == NODE_ARRAY_VALUE) {
+                    /* Extract element type name from "[byte]", "[i8]", "[u8, 3]", etc. */
+                    char elem_type[64] = {0};
+                    const char *start = tn + 1;
+                    const char *end = strchr(start, ']');
+                    const char *comma = strchr(start, ',');
+                    if (end) {
+                        int elen = (int)((comma && comma < end ? comma : end) - start);
+                        if (elen > 0 && elen < (int)sizeof(elem_type)) {
+                            /* trim whitespace */
+                            while (elen > 0 && start[elen-1] == ' ') elen--;
+                            memcpy(elem_type, start, (size_t)elen);
+                            elem_type[elen] = '\0';
+                        }
+                    }
+                    if (elem_type[0]) {
+                        AstNode *arr = node->data.var_decl.value;
+                        for (int ei = 0; ei < arr->data.array_value.count; ei++) {
+                            int64_t ev;
+                            if (try_get_literal_int(arr->data.array_value.elements[ei], &ev)) {
+                                check_integer_range(tc->diag, tc->file,
+                                    arr->data.array_value.elements[ei]->token.line,
+                                    arr->data.array_value.elements[ei]->token.column,
+                                    elem_type, ev);
+                            }
+                        }
+                    }
+                }
             }
         }
 
