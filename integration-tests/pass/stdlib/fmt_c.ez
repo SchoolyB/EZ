@@ -1,0 +1,35 @@
+/*
+ * fmt_c.ez - Integration test for @fmt (compiler)
+ * fmt module ONLY has eprintln(s) and eprint(s) — no sprintf.
+ */
+
+import @std
+import @fmt
+using std
+
+do main() {
+    println("=== Fmt Module Test ===")
+    mut passed int = 0
+    mut failed int = 0
+
+    // eprintln doesn't crash (writes to stderr)
+    fmt.eprintln("test message to stderr")
+    println("  [PASS] eprintln")
+    passed += 1
+
+    // eprint doesn't crash (writes to stderr, no newline)
+    fmt.eprint("test stderr no newline")
+    println("  [PASS] eprint")
+    passed += 1
+
+    // eprintln with empty string
+    fmt.eprintln("")
+    println("  [PASS] eprintln empty")
+    passed += 1
+
+    println("")
+    println("Results: ${passed} passed, ${failed} failed")
+    if failed > 0 {
+        panic("Some tests failed!")
+    }
+}

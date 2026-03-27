@@ -1,0 +1,76 @@
+/*
+ * uuid_c.ez - Integration test for @uuid (compiler)
+ */
+
+import @std
+import @uuid
+using std
+
+do main() {
+    println("=== UUID Module Test ===")
+    mut passed int = 0
+    mut failed int = 0
+
+    // generate returns 36-char string (8-4-4-4-12 with dashes)
+    mut id1 string = uuid.generate()
+    if len(id1) == 36 {
+        println("  [PASS] generate length")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] generate length: expected 36, got ${len(id1)}")
+        failed += 1
+    }
+
+    // generated UUID is valid
+    if uuid.is_valid(id1) == true {
+        println("  [PASS] generate produces valid UUID")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] generate produces valid UUID")
+        failed += 1
+    }
+
+    // two UUIDs are different
+    mut id2 string = uuid.generate()
+    if id1 != id2 {
+        println("  [PASS] generate unique")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] generate unique")
+        failed += 1
+    }
+
+    // compact UUID is 32 chars (no dashes)
+    mut compact string = uuid.generate_compact()
+    if len(compact) == 32 {
+        println("  [PASS] generate_compact length")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] generate_compact length: expected 32, got ${len(compact)}")
+        failed += 1
+    }
+
+    // invalid string rejected
+    if uuid.is_valid("not-a-uuid") == false {
+        println("  [PASS] is_valid rejects invalid")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] is_valid rejects invalid")
+        failed += 1
+    }
+
+    // empty string rejected
+    if uuid.is_valid("") == false {
+        println("  [PASS] is_valid rejects empty")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] is_valid rejects empty")
+        failed += 1
+    }
+
+    println("")
+    println("Results: ${passed} passed, ${failed} failed")
+    if failed > 0 {
+        panic("Some tests failed!")
+    }
+}

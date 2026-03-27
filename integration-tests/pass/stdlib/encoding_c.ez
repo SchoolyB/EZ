@@ -1,0 +1,79 @@
+/*
+ * encoding_c.ez - Integration test for @encoding (compiler)
+ */
+
+import @std
+import @encoding
+using std
+
+do main() {
+    println("=== Encoding Module Test ===")
+    mut passed int = 0
+    mut failed int = 0
+
+    // base64 encode
+    mut b64 string = encoding.base64_encode("Hello, World!")
+    if b64 == "SGVsbG8sIFdvcmxkIQ==" {
+        println("  [PASS] base64_encode")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] base64_encode: got ${b64}")
+        failed += 1
+    }
+
+    // base64 decode (returns string directly, NOT tuple)
+    mut b64_dec string = encoding.base64_decode(b64)
+    if b64_dec == "Hello, World!" {
+        println("  [PASS] base64_decode")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] base64_decode: got ${b64_dec}")
+        failed += 1
+    }
+
+    // hex encode
+    mut hex string = encoding.hex_encode("AB")
+    if hex == "4142" {
+        println("  [PASS] hex_encode")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] hex_encode: got ${hex}")
+        failed += 1
+    }
+
+    // hex decode (returns string directly)
+    mut hex_dec string = encoding.hex_decode(hex)
+    if hex_dec == "AB" {
+        println("  [PASS] hex_decode")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] hex_decode: got ${hex_dec}")
+        failed += 1
+    }
+
+    // url encode
+    mut url string = encoding.url_encode("hello world&foo=bar")
+    if len(url) > 0 {
+        println("  [PASS] url_encode (${url})")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] url_encode")
+        failed += 1
+    }
+
+    // url decode (returns string directly)
+    mut url_dec string = encoding.url_decode(url)
+    if url_dec == "hello world&foo=bar" {
+        println("  [PASS] url_decode")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] url_decode: got ${url_dec}")
+        failed += 1
+    }
+
+    println("")
+    println("Results: ${passed} passed, ${failed} failed")
+    if failed > 0 {
+        panic("Some tests failed!")
+    }
+}

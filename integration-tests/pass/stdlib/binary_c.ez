@@ -1,0 +1,90 @@
+/*
+ * binary_c.ez - Integration test for @binary (compiler)
+ */
+
+import @std
+import @binary
+using std
+
+do main() {
+    println("=== Binary Module Test ===")
+    mut passed int = 0
+    mut failed int = 0
+
+    // u8 round-trip (encode returns byte_array, decode returns int)
+    mut u8_bytes [byte] = binary.encode_u8(255)
+    mut u8_val int = binary.decode_u8(u8_bytes)
+    if u8_val == 255 {
+        println("  [PASS] u8 round-trip")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] u8 round-trip: expected 255, got ${u8_val}")
+        failed += 1
+    }
+
+    // u8 byte length
+    if len(u8_bytes) == 1 {
+        println("  [PASS] u8 byte length")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] u8 byte length: expected 1, got ${len(u8_bytes)}")
+        failed += 1
+    }
+
+    // i16 little-endian round-trip
+    mut i16_bytes [byte] = binary.encode_i16_le(-500)
+    mut i16_val int = binary.decode_i16_le(i16_bytes)
+    if i16_val == -500 {
+        println("  [PASS] i16_le round-trip")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] i16_le round-trip: expected -500, got ${i16_val}")
+        failed += 1
+    }
+
+    // i16 byte length
+    if len(i16_bytes) == 2 {
+        println("  [PASS] i16 byte length")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] i16 byte length: expected 2, got ${len(i16_bytes)}")
+        failed += 1
+    }
+
+    // i32 little-endian round-trip
+    mut i32_bytes [byte] = binary.encode_i32_le(-100000)
+    mut i32_val int = binary.decode_i32_le(i32_bytes)
+    if i32_val == -100000 {
+        println("  [PASS] i32_le round-trip")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] i32_le round-trip: expected -100000, got ${i32_val}")
+        failed += 1
+    }
+
+    // i32 byte length
+    if len(i32_bytes) == 4 {
+        println("  [PASS] i32 byte length")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] i32 byte length: expected 4, got ${len(i32_bytes)}")
+        failed += 1
+    }
+
+    // u8 encode 0 round-trip
+    mut zero_bytes [byte] = binary.encode_u8(0)
+    mut zero_val int = binary.decode_u8(zero_bytes)
+    if zero_val == 0 {
+        println("  [PASS] u8 zero round-trip")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] u8 zero round-trip: expected 0, got ${zero_val}")
+        failed += 1
+    }
+
+    println("")
+    println("Results: ${passed} passed, ${failed} failed")
+    if failed > 0 {
+        panic("Some tests failed!")
+    }
+}

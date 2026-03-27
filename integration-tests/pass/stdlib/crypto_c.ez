@@ -1,0 +1,89 @@
+/*
+ * crypto_c.ez - Integration test for @crypto (compiler)
+ */
+
+import @std
+import @crypto
+using std
+
+do main() {
+    println("=== Crypto Module Test ===")
+    mut passed int = 0
+    mut failed int = 0
+
+    // sha256 produces 64 hex chars
+    mut h256 string = crypto.sha256("hello")
+    if len(h256) == 64 {
+        println("  [PASS] sha256 length")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] sha256 length: expected 64, got ${len(h256)}")
+        failed += 1
+    }
+
+    // sha256 is deterministic
+    mut h256b string = crypto.sha256("hello")
+    if h256 == h256b {
+        println("  [PASS] sha256 deterministic")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] sha256 deterministic")
+        failed += 1
+    }
+
+    // sha256 different input -> different hash
+    mut h256c string = crypto.sha256("world")
+    if h256 != h256c {
+        println("  [PASS] sha256 different inputs")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] sha256 different inputs")
+        failed += 1
+    }
+
+    // md5 produces 32 hex chars
+    mut hmd5 string = crypto.md5("hello")
+    if len(hmd5) == 32 {
+        println("  [PASS] md5 length")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] md5 length: expected 32, got ${len(hmd5)}")
+        failed += 1
+    }
+
+    // md5 is deterministic
+    mut hmd5b string = crypto.md5("hello")
+    if hmd5 == hmd5b {
+        println("  [PASS] md5 deterministic")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] md5 deterministic")
+        failed += 1
+    }
+
+    // random_hex returns correct length
+    mut rh string = crypto.random_hex(16)
+    if len(rh) == 16 {
+        println("  [PASS] random_hex length")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] random_hex length: expected 32, got ${len(rh)}")
+        failed += 1
+    }
+
+    // random_hex produces unique values
+    mut rh2 string = crypto.random_hex(16)
+    if rh != rh2 {
+        println("  [PASS] random_hex unique")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] random_hex unique")
+        failed += 1
+    }
+
+    println("")
+    println("Results: ${passed} passed, ${failed} failed")
+    if failed > 0 {
+        panic("Some tests failed!")
+    }
+}

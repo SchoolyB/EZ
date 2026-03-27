@@ -41,9 +41,6 @@ void ez_std_panic_msg(EzString message);
 /* exit(code) */
 void ez_std_exit(int64_t code);
 
-/* error(message) - create error string (for now just returns the message) */
-EzString ez_std_error(EzString message);
-
 /* copy(value) - handled by codegen (deep copy) */
 
 /* sleep */

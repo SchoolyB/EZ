@@ -1,0 +1,40 @@
+/*
+ * csv_c.ez - Integration test for @csv (compiler)
+ */
+
+import @std
+import @csv
+import @strings
+using std
+
+do main() {
+    println("=== CSV Module Test ===")
+    mut passed int = 0
+    mut failed int = 0
+
+    // stringify a simple string array
+    mut row [string] = {"Alice", "30", "NYC"}
+    mut csv_str string = csv.stringify(row)
+    if len(csv_str) > 0 {
+        println("  [PASS] stringify")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] stringify: empty result")
+        failed += 1
+    }
+
+    // stringify contains expected values
+    if strings.contains(csv_str, "Alice") {
+        println("  [PASS] stringify contains data")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] stringify missing data")
+        failed += 1
+    }
+
+    println("")
+    println("Results: ${passed} passed, ${failed} failed")
+    if failed > 0 {
+        panic("Some tests failed!")
+    }
+}

@@ -212,6 +212,13 @@ static const char *suggest_name(TypeChecker *tc, const char *name) {
 
 /* --- Builtin name check --- */
 
+static bool tc_is_imported_module(TypeChecker *tc, const char *name) {
+    for (int i = 0; i < tc->import_count; i++) {
+        if (strcmp(tc->imported_modules[i], name) == 0) return true;
+    }
+    return false;
+}
+
 static bool tc_is_builtin(const char *name) {
     static const char *builtins[] = {
         "println", "print", "eprintln", "eprint", "input",
@@ -391,7 +398,8 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
             sym->used = true;
             result = sym->type;
         } else if (!is_enum_name(tc, name) && !find_func(tc, name) &&
-                   !tc_is_builtin(name) && !is_struct_name(tc, name)) {
+                   !tc_is_builtin(name) && !is_struct_name(tc, name) &&
+                   !tc_is_imported_module(tc, name)) {
             char msg[256];
             snprintf(msg, sizeof(msg), "undefined variable '%s'", name);
             const char *suggestion = suggest_name(tc, name);
@@ -840,6 +848,23 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                             diag_error(tc->diag, "E9002", strdup(msg),
                                 tc->file, arg0->token.line, arg0->token.column, 0);
                         }
+                    }
+                }
+                /* E3001: arrays.concat element type mismatch */
+                if (strcmp(mfn, "concat") == 0 && node->data.call.arg_count >= 2) {
+                    AstNode *a0 = node->data.call.args[0];
+                    AstNode *a1 = node->data.call.args[1];
+                    EzType *t0 = typetable_get(tc->type_table, a0);
+                    EzType *t1 = typetable_get(tc->type_table, a1);
+                    if (t0 && t1 && t0->kind == TK_ARRAY && t1->kind == TK_ARRAY &&
+                        t0->element_type && t1->element_type &&
+                        strcmp(t0->element_type, t1->element_type) != 0) {
+                        char msg[256];
+                        snprintf(msg, sizeof(msg),
+                            "type mismatch: cannot concat array of %s with array of %s",
+                            t0->element_type, t1->element_type);
+                        diag_error(tc->diag, "E3001", strdup(msg),
+                            tc->file, a1->token.line, a1->token.column, 0);
                     }
                 }
             } else if (strcmp(mod, "os") == 0) {

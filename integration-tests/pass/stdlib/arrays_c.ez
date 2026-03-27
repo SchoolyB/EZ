@@ -1,0 +1,162 @@
+/*
+ * arrays_c.ez - Integration test for @arrays (compiler)
+ */
+
+import @std
+import @arrays
+using std
+
+do main() {
+    println("=== Arrays Module Test ===")
+    mut passed int = 0
+    mut failed int = 0
+
+    // append (void)
+    mut arr [int] = {1, 2, 3}
+    arrays.append(arr, 4)
+    if len(arr) == 4 && arr[3] == 4 {
+        println("  [PASS] append")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] append")
+        failed += 1
+    }
+
+    // remove_at (void) — verify side effect
+    mut rm_arr [int] = {10, 20, 30, 40}
+    arrays.remove_at(rm_arr, 1)
+    if len(rm_arr) == 3 && rm_arr[1] == 30 {
+        println("  [PASS] remove_at")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] remove_at: got ${rm_arr}")
+        failed += 1
+    }
+
+    // is_empty
+    mut empty_arr [int] = {}
+    mut nonempty_arr [int] = {1}
+    if arrays.is_empty(empty_arr) == true && arrays.is_empty(nonempty_arr) == false {
+        println("  [PASS] is_empty")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] is_empty")
+        failed += 1
+    }
+
+    // contains
+    mut has_arr [int] = {1, 2, 3, 4, 5}
+    if arrays.contains(has_arr, 3) == true && arrays.contains(has_arr, 99) == false {
+        println("  [PASS] contains")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] contains")
+        failed += 1
+    }
+
+    // sort (void) — modifies in place
+    mut unsorted [int] = {5, 3, 1, 4, 2}
+    arrays.sort(unsorted)
+    if unsorted[0] == 1 && unsorted[1] == 2 && unsorted[4] == 5 {
+        println("  [PASS] sort")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] sort: got ${unsorted}")
+        failed += 1
+    }
+
+    // reverse
+    mut to_rev [int] = {1, 2, 3}
+    mut rev [int] = arrays.reverse(to_rev)
+    if rev[0] == 3 && rev[1] == 2 && rev[2] == 1 {
+        println("  [PASS] reverse")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] reverse: got ${rev}")
+        failed += 1
+    }
+
+    // slice
+    mut sl_arr [int] = {0, 1, 2, 3, 4, 5}
+    mut sliced [int] = arrays.slice(sl_arr, 2, 5)
+    if len(sliced) == 3 && sliced[0] == 2 && sliced[2] == 4 {
+        println("  [PASS] slice")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] slice: got ${sliced}")
+        failed += 1
+    }
+
+    // concat
+    mut ca [int] = {1, 2}
+    mut cb [int] = {3, 4}
+    mut cat [int] = arrays.concat(ca, cb)
+    if len(cat) == 4 && cat[0] == 1 && cat[3] == 4 {
+        println("  [PASS] concat")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] concat: got ${cat}")
+        failed += 1
+    }
+
+    // index_of
+    mut idx_arr [int] = {10, 20, 30, 40}
+    mut idx int = arrays.index_of(idx_arr, 30)
+    if idx == 2 {
+        println("  [PASS] index_of")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] index_of: expected 2, got ${idx}")
+        failed += 1
+    }
+
+    // sum
+    mut sum_arr [int] = {1, 2, 3, 4, 5}
+    mut total int = arrays.sum(sum_arr)
+    if total == 15 {
+        println("  [PASS] sum")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] sum: expected 15, got ${total}")
+        failed += 1
+    }
+
+    // min
+    mut min_arr [int] = {5, 2, 8, 1, 9}
+    mut min_val int = arrays.min(min_arr)
+    if min_val == 1 {
+        println("  [PASS] min")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] min: expected 1, got ${min_val}")
+        failed += 1
+    }
+
+    // max
+    mut max_arr [int] = {5, 2, 8, 1, 9}
+    mut max_val int = arrays.max(max_arr)
+    if max_val == 9 {
+        println("  [PASS] max")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] max: expected 9, got ${max_val}")
+        failed += 1
+    }
+
+    // clear (void)
+    mut cl_arr [int] = {1, 2, 3}
+    arrays.clear(cl_arr)
+    if len(cl_arr) == 0 {
+        println("  [PASS] clear")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] clear: expected len 0, got ${len(cl_arr)}")
+        failed += 1
+    }
+
+    println("")
+    println("Results: ${passed} passed, ${failed} failed")
+    if failed > 0 {
+        panic("Some tests failed!")
+    }
+}

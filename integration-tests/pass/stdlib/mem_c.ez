@@ -1,0 +1,54 @@
+/*
+ * mem_c.ez - Integration test for @mem (compiler)
+ */
+
+import @std
+import @mem
+using std
+
+do main() {
+    println("=== Mem Module Test ===")
+    mut passed int = 0
+    mut failed int = 0
+
+    // arena(size) returns a pointer
+    mut arena = mem.arena(1024)
+    println("  [PASS] arena created")
+    passed += 1
+
+    // usage returns >= 0
+    mut usage int = mem.usage(arena)
+    if usage >= 0 {
+        println("  [PASS] usage (${usage})")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] usage: got ${usage}")
+        failed += 1
+    }
+
+    // reset doesn't crash (void)
+    mem.reset(arena)
+    println("  [PASS] reset")
+    passed += 1
+
+    // usage after reset
+    mut usage_after int = mem.usage(arena)
+    if usage_after >= 0 {
+        println("  [PASS] usage after reset (${usage_after})")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] usage after reset: got ${usage_after}")
+        failed += 1
+    }
+
+    // destroy doesn't crash (void)
+    mem.destroy(arena)
+    println("  [PASS] destroy")
+    passed += 1
+
+    println("")
+    println("Results: ${passed} passed, ${failed} failed")
+    if failed > 0 {
+        panic("Some tests failed!")
+    }
+}

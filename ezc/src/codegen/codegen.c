@@ -1695,7 +1695,7 @@ static bool emit_binary_call(CodeGen *cg, AstNode *node, const char *func) {
     bool is_decode = (strncmp(func, "decode", 6) == 0);
     /* Append _le for default little-endian if no endian suffix present */
     bool has_endian = strstr(func, "_le") || strstr(func, "_be");
-    if (has_endian || strcmp(func, "encode_u8") == 0) {
+    if (has_endian || strcmp(func, "encode_u8") == 0 || strcmp(func, "decode_u8") == 0) {
         emitf(cg, "ez_binary_%s(", func);
     } else if (is_encode || is_decode) {
         emitf(cg, "ez_binary_%s_le(", func);
@@ -1941,6 +1941,20 @@ static bool emit_arrays_call(CodeGen *cg, AstNode *node, const char *func) {
         emit(cg, ")");
         return true;
     }
+    if (strcmp(func, "index_of") == 0 && node->data.call.arg_count == 2) {
+        EzType *arr_t = cg->type_table ? typetable_get(cg->type_table, node->data.call.args[0]) : NULL;
+        if (arr_t && arr_t->kind == TK_ARRAY && arr_t->element_type &&
+            strcmp(arr_t->element_type, "string") == 0) {
+            emit(cg, "ez_arrays_index_of_str(&");
+        } else {
+            emit(cg, "ez_arrays_index_of_int(&");
+        }
+        emit_expression(cg, node->data.call.args[0]);
+        emit(cg, ", ");
+        emit_expression(cg, node->data.call.args[1]);
+        emit(cg, ")");
+        return true;
+    }
     /* Generic: arrays.func(&arr, ...) */
     bool needs_arena = (strcmp(func, "reverse") == 0 || strcmp(func, "slice") == 0 ||
         strcmp(func, "concat") == 0);
@@ -1950,6 +1964,8 @@ static bool emit_arrays_call(CodeGen *cg, AstNode *node, const char *func) {
     emit_expression(cg, node->data.call.args[0]);
     for (int i = 1; i < node->data.call.arg_count; i++) {
         emit(cg, ", ");
+        /* concat needs & on all array args */
+        if (strcmp(func, "concat") == 0) emit(cg, "&");
         emit_expression(cg, node->data.call.args[i]);
     }
     emit(cg, ")");

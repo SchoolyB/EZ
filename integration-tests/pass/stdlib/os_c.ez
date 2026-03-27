@@ -1,0 +1,89 @@
+/*
+ * os_c.ez - Integration test for @os (compiler)
+ */
+
+import @std
+import @os
+using std
+
+do main() {
+    println("=== OS Module Test ===")
+    mut passed int = 0
+    mut failed int = 0
+
+    // args returns an array
+    mut args [string] = os.args()
+    if len(args) >= 0 {
+        println("  [PASS] args (${len(args)} entries)")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] args")
+        failed += 1
+    }
+
+    // cwd returns a non-empty string
+    mut cwd string = os.cwd()
+    if len(cwd) > 0 {
+        println("  [PASS] cwd (${cwd})")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] cwd")
+        failed += 1
+    }
+
+    // get_env — PATH exists on all systems
+    mut path_val string = os.get_env("PATH")
+    if len(path_val) > 0 {
+        println("  [PASS] get_env PATH")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] get_env PATH")
+        failed += 1
+    }
+
+    // hostname returns a non-empty string
+    mut host string = os.hostname()
+    if len(host) > 0 {
+        println("  [PASS] hostname (${host})")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] hostname")
+        failed += 1
+    }
+
+    // current_os returns an int
+    mut os_val int = os.current_os()
+    if os_val >= 0 {
+        println("  [PASS] current_os (${os_val})")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] current_os: got ${os_val}")
+        failed += 1
+    }
+
+    // arch returns a non-empty string
+    mut arch_val string = os.arch()
+    if len(arch_val) > 0 {
+        println("  [PASS] arch (${arch_val})")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] arch")
+        failed += 1
+    }
+
+    // pid returns a positive int
+    mut pid_val int = os.pid()
+    if pid_val > 0 {
+        println("  [PASS] pid (${pid_val})")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] pid: got ${pid_val}")
+        failed += 1
+    }
+
+    println("")
+    println("Results: ${passed} passed, ${failed} failed")
+    if failed > 0 {
+        panic("Some tests failed!")
+    }
+}

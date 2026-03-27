@@ -118,12 +118,6 @@ void ez_std_exit(int64_t code) {
     exit((int)code);
 }
 
-/* --- error --- */
-
-EzString ez_std_error(EzString message) {
-    return message;
-}
-
 /* --- sleep --- */
 
 void ez_std_sleep_seconds(int64_t seconds) {
