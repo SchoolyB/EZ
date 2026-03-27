@@ -117,6 +117,48 @@ make test-ubsan
 make test-asan
 ```
 
+### Fuzz Testing
+
+A Python fuzzer generates random EZ programs and feeds them to the compiler, looking for crashes, segfaults, and hangs. The compiler should never crash on any input — it should always produce a clean error or compile successfully.
+
+**Generators (4 categories, 23 generators):**
+
+| Category | What it generates |
+|----------|-------------------|
+| `valid` | Correct programs — random structs, enums, control flow, arrays, maps, function refs, string interpolation |
+| `edge` | Stress tests — empty files, very long strings, deep nesting, many parameters, many variables |
+| `garbage` | Random bytes, random token sequences, broken strings, type mismatches, malformed imports |
+| `mutation` | Takes a valid program and randomly corrupts it — character deletions, insertions, swaps, truncation |
+
+**Running:**
+
+```bash
+# Basic run (500 iterations, random seed)
+python3 scripts/fuzz.py
+
+# More iterations
+python3 scripts/fuzz.py -n 2000
+
+# Reproducible run (same seed = same programs every time)
+python3 scripts/fuzz.py --seed 42
+
+# Only test a specific category
+python3 scripts/fuzz.py --mode garbage
+
+# Save every generated program to fuzz_output/ for inspection
+python3 scripts/fuzz.py --save-all
+
+# Point to a specific ezc binary
+python3 scripts/fuzz.py --ezc ./ezc/ezc
+
+# Clean up all crash files and saved output
+python3 scripts/fuzz.py --clean
+```
+
+**What it checks:** Any crash (segfault, abort, signal), hang (exceeds 10s timeout), or internal compiler error is a failure. Clean error messages on invalid input are expected and count as passes.
+
+**When a crash is found:** The offending program is saved to `fuzz_crash_NNN_generator.ez` in the working directory. Rerun with the same `--seed` to reproduce.
+
 ---
 
 ## Go Tooling Tests
