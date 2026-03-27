@@ -4,6 +4,9 @@
  * This is the SINGLE SOURCE OF TRUTH for all error and warning codes.
  * The scripts/generate_errors.sh script reads this file to produce ERRORS.md.
  *
+ * IMPORTANT: Every code listed here MUST be emitted somewhere in the compiler
+ * source. Do not add codes that are not actually used.
+ *
  * Format: EZ_ERROR(code, category, description)
  *         EZ_WARNING(code, category, description)
  *
@@ -17,7 +20,6 @@
 /* --- E1xxx: Reading Your Code (Lexer) --- */
 #define EZ_LEXER_ERRORS \
     EZ_ERROR("E1003", "syntax", "multi-line comment was never closed — add */ to close it") \
-    EZ_ERROR("E1004", "syntax", "string literal was never closed — add a closing quote") \
     EZ_ERROR("E1005", "syntax", "character literal was never closed — add a closing single quote") \
     EZ_ERROR("E1006", "syntax", "invalid escape sequence in string — valid escapes are \\n \\t \\\\ \\\" and \\x") \
     EZ_ERROR("E1007", "syntax", "invalid escape sequence in character literal") \
@@ -33,7 +35,6 @@
 #define EZ_PARSER_ERRORS \
     EZ_ERROR("E2001", "syntax", "unexpected symbol — the compiler found something it did not expect here") \
     EZ_ERROR("E2002", "syntax", "missing symbol — a bracket, parenthesis, or keyword is missing") \
-    EZ_ERROR("E2008", "syntax", "invalid assignment target — you can only assign to variables, fields, or array elements") \
     EZ_ERROR("E2011", "syntax", "constants must have a value — add = followed by a value after the type") \
     EZ_ERROR("E2012", "syntax", "duplicate parameter name — each parameter must have a unique name") \
     EZ_ERROR("E2013", "syntax", "duplicate struct field name — each field must have a unique name") \
@@ -100,22 +101,11 @@
     EZ_ERROR("E5023", "usage", "++ and -- only work on integer types, not floats") \
     EZ_ERROR("E5024", "usage", "return type mismatch — cannot return a signed value as an unsigned type")
 
-/* --- Runtime Errors (panics) --- */
-#define EZ_RUNTIME_ERRORS \
-    EZ_ERROR("R5001", "runtime", "nil pointer dereference — you tried to use a pointer that has no value (nil)") \
-    EZ_ERROR("R5002", "runtime", "array index out of bounds — you tried to access an element that does not exist") \
-    EZ_ERROR("R5003", "runtime", "division by zero — you cannot divide a number by zero") \
-    EZ_ERROR("R5004", "runtime", "key not found in map — the key you are looking for does not exist") \
-    EZ_ERROR("R5005", "runtime", "stack overflow — too many nested function calls (possible infinite recursion)") \
-    EZ_ERROR("R5006", "runtime", "assertion failed — a condition checked with assert() was false") \
-    EZ_ERROR("R5007", "runtime", "integer overflow — arithmetic result exceeds the range of the integer type") \
-    EZ_ERROR("R5008", "runtime", "conversion overflow — float value exceeds the range of the target integer type")
-
 /* --- E6xxx: Import Problems --- */
 #define EZ_IMPORT_ERRORS \
     EZ_ERROR("E6001", "imports", "unknown module — this is not a built-in EZ module. Check the spelling or see the docs for available modules")
 
-/* --- E7xxx: Standard Library --- */
+/* --- E7xxx+: Standard Library --- */
 #define EZ_STDLIB_ERRORS \
     EZ_ERROR("E7004", "stdlib", "function argument must be an integer, not a float") \
     EZ_ERROR("E7006", "stdlib", "threads.spawn() needs a function reference — use ()function_name to pass a function") \
@@ -130,7 +120,6 @@
     EZ_WARNING("W1001", "cleanup", "variable is declared but never used — remove it or use it") \
     EZ_WARNING("W1003", "cleanup", "function is declared but never called — remove it or call it") \
     EZ_WARNING("W2001", "cleanup", "this module is imported but never used — remove the import or use the module") \
-    EZ_WARNING("W2002", "safety", "this variable shadows a variable with the same name in an outer scope") \
-    EZ_WARNING("W3001", "safety", "this function might not always return a value — make sure all paths through the function end with a return")
+    EZ_WARNING("W2002", "safety", "this variable shadows a variable with the same name in an outer scope")
 
 #endif

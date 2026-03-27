@@ -3,7 +3,7 @@
 > Auto-generated from `ezc/src/util/error_codes.h`. Do not edit manually.
 > Run `./scripts/generate_errors.sh` to regenerate.
 
-**Total: 92 codes** (87 errors, 5 warnings)
+**Total: 81 codes** (77 errors, 4 warnings)
 
 ---
 
@@ -12,7 +12,6 @@
 | Code | Category | Description |
 |------|----------|-------------|
 | `E1003` | syntax | multi-line comment was never closed — add */ to close it |
-| `E1004` | syntax | string literal was never closed — add a closing quote |
 | `E1005` | syntax | character literal was never closed — add a closing single quote |
 | `E1006` | syntax | invalid escape sequence in string — valid escapes are \\n \\t \\\\ \\\ |
 | `E1007` | syntax | invalid escape sequence in character literal |
@@ -25,7 +24,6 @@
 | `E1017` | syntax | raw string literal was never closed — add a closing backtick |
 | `E2001` | syntax | unexpected symbol — the compiler found something it did not expect here |
 | `E2002` | syntax | missing symbol — a bracket, parenthesis, or keyword is missing |
-| `E2008` | syntax | invalid assignment target — you can only assign to variables, fields, or array elements |
 | `E2011` | syntax | constants must have a value — add = followed by a value after the type |
 | `E2012` | syntax | duplicate parameter name — each parameter must have a unique name |
 | `E2013` | syntax | duplicate struct field name — each field must have a unique name |
@@ -82,14 +80,6 @@
 | `E5015` | usage | postfix ++ and -- require a variable, not a literal or expression |
 | `E5023` | usage | ++ and -- only work on integer types, not floats |
 | `E5024` | usage | return type mismatch — cannot return a signed value as an unsigned type |
-| `R5001` | runtime | nil pointer dereference — you tried to use a pointer that has no value (nil) |
-| `R5002` | runtime | array index out of bounds — you tried to access an element that does not exist |
-| `R5003` | runtime | division by zero — you cannot divide a number by zero |
-| `R5004` | runtime | key not found in map — the key you are looking for does not exist |
-| `R5005` | runtime | stack overflow — too many nested function calls (possible infinite recursion) |
-| `R5006` | runtime | assertion failed — a condition checked with assert() was false |
-| `R5007` | runtime | integer overflow — arithmetic result exceeds the range of the integer type |
-| `R5008` | runtime | conversion overflow — float value exceeds the range of the target integer type |
 | `E6001` | imports | unknown module — this is not a built-in EZ module. Check the spelling or see the docs for available modules |
 | `E7004` | stdlib | function argument must be an integer, not a float |
 | `E7006` | stdlib | threads.spawn() needs a function reference — use ()function_name to pass a function |
@@ -109,7 +99,6 @@
 | `W1003` | cleanup | function is declared but never called — remove it or call it |
 | `W2001` | cleanup | this module is imported but never used — remove the import or use the module |
 | `W2002` | safety | this variable shadows a variable with the same name in an outer scope |
-| `W3001` | safety | this function might not always return a value — make sure all paths through the function end with a return |
 
 ---
 
@@ -129,4 +118,4 @@
 
 ---
 
-*Generated on 2026-03-27 03:16:49 UTC*
+*Generated on 2026-03-27 03:22:11 UTC*
