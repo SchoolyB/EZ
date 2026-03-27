@@ -1070,9 +1070,24 @@ static bool emit_builtin_call(CodeGen *cg, AstNode *node, const char *func) {
         else if (strcmp(func, "char") == 0) cast_type = "int32_t";
         else if (strcmp(func, "byte") == 0) cast_type = "uint8_t";
         if (cast_type) {
-            emitf(cg, "((%s)(", cast_type);
-            emit_expression(cg, node->data.call.args[0]);
-            emit(cg, "))");
+            /* Use overflow-safe conversion for float→int casts */
+            AstNode *carg = node->data.call.args[0];
+            bool use_safe_float = false;
+            if ((strcmp(func, "int") == 0 || strcmp(func, "i64") == 0 ||
+                 strcmp(func, "i32") == 0 || strcmp(func, "i16") == 0 ||
+                 strcmp(func, "i8") == 0) &&
+                (carg->kind == NODE_FLOAT_VALUE || carg->kind == NODE_LABEL)) {
+                use_safe_float = true;
+            }
+            if (use_safe_float) {
+                emitf(cg, "ez_float_to_int((double)(");
+                emit_expression(cg, carg);
+                emitf(cg, "), __FILE__, __LINE__)");
+            } else {
+                emitf(cg, "((%s)(", cast_type);
+                emit_expression(cg, carg);
+                emit(cg, "))");
+            }
             return true;
         }
         /* string() conversion */
@@ -2946,6 +2961,15 @@ static void emit_statement(CodeGen *cg, AstNode *node) {
                     emit_expression(cg, val);
                     emit(cg, " < ");
                     emit_expression(cg, r->data.range_expr.end);
+                    if (r->data.range_expr.step) {
+                        emit(cg, " && (");
+                        emit_expression(cg, val);
+                        emit(cg, " - ");
+                        emit_expression(cg, r->data.range_expr.start);
+                        emit(cg, ") % ");
+                        emit_expression(cg, r->data.range_expr.step);
+                        emit(cg, " == 0");
+                    }
                     emit(cg, ")");
                 } else if (when_is_string) {
                     emit(cg, "ez_string_eq(");

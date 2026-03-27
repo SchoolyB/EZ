@@ -1847,9 +1847,35 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
         }
         break;
 
-    case NODE_EXPR_STMT:
-        resolve_expr(tc, node->data.expr_stmt.expr);
+    case NODE_EXPR_STMT: {
+        EzType *expr_t = resolve_expr(tc, node->data.expr_stmt.expr);
+        /* E5011: warn about unused return value from function call */
+        AstNode *expr = node->data.expr_stmt.expr;
+        if (expr && expr->kind == NODE_CALL_EXPR && expr_t &&
+            expr_t->kind != TK_VOID && expr_t->kind != TK_UNKNOWN) {
+            AstNode *fn = expr->data.call.function;
+            const char *fn_name = NULL;
+            if (fn->kind == NODE_LABEL) fn_name = fn->data.label.value;
+            /* Don't warn for known side-effect functions */
+            bool is_side_effect = fn_name && (
+                strcmp(fn_name, "println") == 0 || strcmp(fn_name, "print") == 0 ||
+                strcmp(fn_name, "eprintln") == 0 || strcmp(fn_name, "eprint") == 0 ||
+                strcmp(fn_name, "panic") == 0 || strcmp(fn_name, "assert") == 0 ||
+                strcmp(fn_name, "exit") == 0 || strcmp(fn_name, "sleep_seconds") == 0 ||
+                strcmp(fn_name, "sleep_milliseconds") == 0 || strcmp(fn_name, "sleep_nanoseconds") == 0);
+            /* Don't warn for module calls that are commonly used for side effects */
+            if (fn->kind == NODE_MEMBER_EXPR) is_side_effect = true;
+            if (!is_side_effect && fn_name) {
+                char msg[256];
+                snprintf(msg, sizeof(msg),
+                    "return value of '%s()' is not used — assign it to a variable or use '_' to discard",
+                    fn_name);
+                diag_error(tc->diag, "E5011", strdup(msg),
+                    tc->file, node->token.line, node->token.column, 0);
+            }
+        }
         break;
+    }
 
     case NODE_BLOCK_STMT:
         /* Inline blocks (from multi-var expansion) share parent scope.

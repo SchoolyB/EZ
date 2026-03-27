@@ -112,4 +112,15 @@ static inline void ez_exit_func(void) {
 void ez_panic(const char *file, int line, const char *fmt, ...)
     __attribute__((format(printf, 3, 4), noreturn));
 
+/* Safe float-to-int conversion with overflow check */
+static inline int64_t ez_float_to_int(double v, const char *file, int line) {
+    if (v > 9.223372036854775e+18 || v < -9.223372036854775e+18 ||
+        v != v /* NaN */) {
+        fflush(stdout);
+        fprintf(stderr, "panic at %s:%d: conversion overflow — float value exceeds integer range\n", file, line);
+        exit(1);
+    }
+    return (int64_t)v;
+}
+
 #endif
