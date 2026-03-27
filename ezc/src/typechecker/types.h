@@ -13,6 +13,7 @@
 typedef enum {
     TK_VOID,
     TK_INT,
+    TK_UINT,    /* unsigned integer types: uint, u8, u16, u32, u64, u128 */
     TK_FLOAT,
     TK_BOOL,
     TK_CHAR,
@@ -40,6 +41,7 @@ typedef struct EzType {
 /* Built-in type singletons */
 extern EzType TYPE_VOID;
 extern EzType TYPE_INT;
+extern EzType TYPE_UINT;
 extern EzType TYPE_FLOAT;
 extern EzType TYPE_BOOL;
 extern EzType TYPE_CHAR;

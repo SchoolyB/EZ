@@ -151,6 +151,36 @@ static inline int64_t ez_dec_check(int64_t a, const char *file, int line) {
     return ez_sub_check(a, 1, file, line);
 }
 
+/* Overflow-checked unsigned integer arithmetic */
+static inline uint64_t ez_uadd_check(uint64_t a, uint64_t b, const char *file, int line) {
+    uint64_t result;
+    if (__builtin_add_overflow(a, b, &result)) {
+        fflush(stdout);
+        fprintf(stderr, "panic at %s:%d: unsigned integer overflow in addition\n", file, line);
+        exit(1);
+    }
+    return result;
+}
+
+static inline uint64_t ez_usub_check(uint64_t a, uint64_t b, const char *file, int line) {
+    if (b > a) {
+        fflush(stdout);
+        fprintf(stderr, "panic at %s:%d: unsigned integer underflow in subtraction\n", file, line);
+        exit(1);
+    }
+    return a - b;
+}
+
+static inline uint64_t ez_umul_check(uint64_t a, uint64_t b, const char *file, int line) {
+    uint64_t result;
+    if (__builtin_mul_overflow(a, b, &result)) {
+        fflush(stdout);
+        fprintf(stderr, "panic at %s:%d: unsigned integer overflow in multiplication\n", file, line);
+        exit(1);
+    }
+    return result;
+}
+
 /* Safe float-to-int conversion with overflow check */
 static inline int64_t ez_float_to_int(double v, const char *file, int line) {
     if (v > 9.223372036854775e+18 || v < -9.223372036854775e+18 ||

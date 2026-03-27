@@ -252,6 +252,11 @@ static bool is_enum_name(TypeChecker *tc, const char *name) {
 
 /* --- Type signedness helpers --- */
 
+/* Check if a TypeKind is any integer type (signed or unsigned) */
+static bool is_int_kind(TypeKind k) {
+    return k == TK_INT || k == TK_UINT;
+}
+
 static bool is_unsigned_type(const char *tn) {
     if (!tn) return false;
     return strcmp(tn, "uint") == 0 || strcmp(tn, "u8") == 0 ||
@@ -508,12 +513,12 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
         if ((strcmp(op, "==") == 0 || strcmp(op, "!=") == 0) &&
             left->kind != TK_UNKNOWN && right->kind != TK_UNKNOWN &&
             left->kind != right->kind && left->kind != TK_NIL && right->kind != TK_NIL &&
-            !(left->kind == TK_INT && right->kind == TK_ENUM) &&
-            !(left->kind == TK_ENUM && right->kind == TK_INT) &&
-            !(left->kind == TK_STRUCT && right->kind == TK_INT) &&
-            !(left->kind == TK_INT && right->kind == TK_STRUCT) &&
-            !(left->kind == TK_INT && right->kind == TK_BOOL) &&
-            !(left->kind == TK_BOOL && right->kind == TK_INT)) {
+            !(is_int_kind(left->kind) && right->kind == TK_ENUM) &&
+            !(left->kind == TK_ENUM && is_int_kind(right->kind)) &&
+            !(left->kind == TK_STRUCT && is_int_kind(right->kind)) &&
+            !(is_int_kind(left->kind) && right->kind == TK_STRUCT) &&
+            !(is_int_kind(left->kind) && right->kind == TK_BOOL) &&
+            !(left->kind == TK_BOOL && is_int_kind(right->kind))) {
             char msg[256];
             snprintf(msg, sizeof(msg),
                 "cannot compare %s with %s", type_name(left), type_name(right));
@@ -1091,11 +1096,11 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                         EzType *param_t = sig->param_types[ai];
                         if (arg_t->kind != TK_UNKNOWN && param_t->kind != TK_UNKNOWN &&
                             arg_t->kind != param_t->kind &&
-                            !(param_t->kind == TK_INT && arg_t->kind == TK_ENUM) &&
-                            !(param_t->kind == TK_ENUM && arg_t->kind == TK_INT) &&
-                            !(param_t->kind == TK_STRUCT && arg_t->kind == TK_INT) &&
-                            !(param_t->kind == TK_INT && arg_t->kind == TK_BOOL) &&
-                            !(param_t->kind == TK_FLOAT && arg_t->kind == TK_INT)) {
+                            !(is_int_kind(param_t->kind) && arg_t->kind == TK_ENUM) &&
+                            !(param_t->kind == TK_ENUM && is_int_kind(arg_t->kind)) &&
+                            !(param_t->kind == TK_STRUCT && is_int_kind(arg_t->kind)) &&
+                            !(is_int_kind(param_t->kind) && arg_t->kind == TK_BOOL) &&
+                            !(param_t->kind == TK_FLOAT && is_int_kind(arg_t->kind))) {
                             char msg[256];
                             snprintf(msg, sizeof(msg),
                                 "argument %d of '%s': expected %s, got %s",
@@ -1266,7 +1271,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
         EzType *idx_t = resolve_expr(tc, node->data.index_expr.index);
         /* E3003: array index must be integer */
         if (left->kind == TK_ARRAY && idx_t->kind != TK_UNKNOWN &&
-            idx_t->kind != TK_INT && idx_t->kind != TK_BYTE) {
+            !is_int_kind(idx_t->kind) && idx_t->kind != TK_BYTE) {
             char msg[256];
             snprintf(msg, sizeof(msg),
                 "array index must be an integer, got %s", type_name(idx_t));
@@ -1363,11 +1368,11 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                 } else if (expected_t && val_t->kind != TK_UNKNOWN &&
                            expected_t->kind != TK_UNKNOWN &&
                            expected_t->kind != val_t->kind &&
-                           !(expected_t->kind == TK_INT && val_t->kind == TK_ENUM) &&
-                           !(expected_t->kind == TK_ENUM && val_t->kind == TK_INT) &&
-                           !(expected_t->kind == TK_STRUCT && val_t->kind == TK_INT) &&
-                           !(expected_t->kind == TK_INT && val_t->kind == TK_STRUCT) &&
-                           !(expected_t->kind == TK_FLOAT && val_t->kind == TK_INT)) {
+                           !(is_int_kind(expected_t->kind) && val_t->kind == TK_ENUM) &&
+                           !(expected_t->kind == TK_ENUM && is_int_kind(val_t->kind)) &&
+                           !(expected_t->kind == TK_STRUCT && is_int_kind(val_t->kind)) &&
+                           !(is_int_kind(expected_t->kind) && val_t->kind == TK_STRUCT) &&
+                           !(expected_t->kind == TK_FLOAT && is_int_kind(val_t->kind))) {
                     char msg[256];
                     snprintf(msg, sizeof(msg),
                         "field '%s' of struct '%s': expected %s, got %s",
@@ -1592,8 +1597,10 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
                        value_type->kind != TK_VOID &&
                        declared->kind != value_type->kind &&
                        value_type->kind != TK_NIL &&
+                       /* Skip mismatch between int/uint (handled by E3019) */
+                       !(is_int_kind(declared->kind) && is_int_kind(value_type->kind)) &&
                        /* Skip mismatch on enum assignment (enum resolves as int) */
-                       !(declared->kind == TK_STRUCT && value_type->kind == TK_INT &&
+                       !(declared->kind == TK_STRUCT && is_int_kind(value_type->kind) &&
                          is_enum_name(tc, node->data.var_decl.type_name)) &&
                        /* Skip mismatch on multi-var expansion (.v0/.v1 access) */
                        !(node->data.var_decl.value &&
@@ -1792,9 +1799,9 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
             if (sym && sym->type->kind != TK_UNKNOWN && value_t->kind != TK_UNKNOWN &&
                 target_t->kind != TK_UNKNOWN &&
                 target_t->kind != value_t->kind &&
-                !(target_t->kind == TK_ENUM && value_t->kind == TK_INT) &&
-                !(target_t->kind == TK_INT && value_t->kind == TK_ENUM) &&
-                !(target_t->kind == TK_STRUCT && value_t->kind == TK_INT)) {
+                !(target_t->kind == TK_ENUM && is_int_kind(value_t->kind)) &&
+                !(is_int_kind(target_t->kind) && value_t->kind == TK_ENUM) &&
+                !(target_t->kind == TK_STRUCT && is_int_kind(value_t->kind))) {
                 char msg[256];
                 snprintf(msg, sizeof(msg),
                     "type mismatch: cannot assign %s to %s variable '%s'",
@@ -1810,8 +1817,8 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
                 EzType *field_t = struct_field_type(tc, sym->type->name, target->data.member.member);
                 if (field_t->kind != TK_UNKNOWN && value_t->kind != TK_UNKNOWN &&
                     field_t->kind != value_t->kind &&
-                    !(field_t->kind == TK_INT && value_t->kind == TK_ENUM) &&
-                    !(field_t->kind == TK_FLOAT && value_t->kind == TK_INT)) {
+                    !(is_int_kind(field_t->kind) && value_t->kind == TK_ENUM) &&
+                    !(field_t->kind == TK_FLOAT && is_int_kind(value_t->kind))) {
                     char msg[256];
                     snprintf(msg, sizeof(msg),
                         "type mismatch: cannot assign %s to %s field '%s'",
@@ -1867,11 +1874,13 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
             EzType *expected = tc->current_return_types[0];
             if (ret_t->kind != TK_UNKNOWN && expected->kind != TK_UNKNOWN &&
                 ret_t->kind != expected->kind && ret_t->kind != TK_NIL &&
-                !(expected->kind == TK_INT && ret_t->kind == TK_ENUM) &&
-                !(expected->kind == TK_ENUM && ret_t->kind == TK_INT) &&
-                !(expected->kind == TK_STRUCT && ret_t->kind == TK_INT) &&
-                !(expected->kind == TK_INT && ret_t->kind == TK_STRUCT) &&
-                !(expected->kind == TK_FLOAT && ret_t->kind == TK_INT)) {
+                /* int/uint are compatible at kind level (E5024 checks signedness) */
+                !(is_int_kind(expected->kind) && is_int_kind(ret_t->kind)) &&
+                !(is_int_kind(expected->kind) && ret_t->kind == TK_ENUM) &&
+                !(expected->kind == TK_ENUM && is_int_kind(ret_t->kind)) &&
+                !(expected->kind == TK_STRUCT && is_int_kind(ret_t->kind)) &&
+                !(is_int_kind(expected->kind) && ret_t->kind == TK_STRUCT) &&
+                !(expected->kind == TK_FLOAT && is_int_kind(ret_t->kind))) {
                 char msg[256];
                 snprintf(msg, sizeof(msg),
                     "return type mismatch: expected %s, got %s",

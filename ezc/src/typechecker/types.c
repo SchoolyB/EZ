@@ -12,6 +12,7 @@
 /* Built-in type singletons */
 EzType TYPE_VOID    = {TK_VOID,   "void",   NULL, NULL, NULL};
 EzType TYPE_INT     = {TK_INT,    "int",    NULL, NULL, NULL};
+EzType TYPE_UINT    = {TK_UINT,   "uint",   NULL, NULL, NULL};
 EzType TYPE_FLOAT   = {TK_FLOAT,  "float",  NULL, NULL, NULL};
 EzType TYPE_BOOL    = {TK_BOOL,   "bool",   NULL, NULL, NULL};
 EzType TYPE_CHAR    = {TK_CHAR,   "char",   NULL, NULL, NULL};
@@ -62,12 +63,13 @@ EzType *type_pointer(const char *pointee_type) {
 }
 
 bool type_is_numeric(EzType *t) {
-    return t->kind == TK_INT || t->kind == TK_FLOAT ||
+    return t->kind == TK_INT || t->kind == TK_UINT || t->kind == TK_FLOAT ||
            t->kind == TK_CHAR || t->kind == TK_BYTE;
 }
 
 bool type_is_integer(EzType *t) {
-    return t->kind == TK_INT || t->kind == TK_CHAR || t->kind == TK_BYTE;
+    return t->kind == TK_INT || t->kind == TK_UINT ||
+           t->kind == TK_CHAR || t->kind == TK_BYTE;
 }
 
 bool type_eq(EzType *a, EzType *b) {
@@ -90,17 +92,17 @@ EzType *type_from_name(const char *name) {
     if (!name) return &TYPE_UNKNOWN;
 
     if (strcmp(name, "int") == 0)    return &TYPE_INT;
-    if (strcmp(name, "uint") == 0)   return &TYPE_INT;
     if (strcmp(name, "i8") == 0)     return &TYPE_INT;
     if (strcmp(name, "i16") == 0)    return &TYPE_INT;
     if (strcmp(name, "i32") == 0)    return &TYPE_INT;
     if (strcmp(name, "i64") == 0)    return &TYPE_INT;
     if (strcmp(name, "i128") == 0)   return &TYPE_INT;
-    if (strcmp(name, "u8") == 0)     return &TYPE_INT;
-    if (strcmp(name, "u16") == 0)    return &TYPE_INT;
-    if (strcmp(name, "u32") == 0)    return &TYPE_INT;
-    if (strcmp(name, "u64") == 0)    return &TYPE_INT;
-    if (strcmp(name, "u128") == 0)   return &TYPE_INT;
+    if (strcmp(name, "uint") == 0)   return &TYPE_UINT;
+    if (strcmp(name, "u8") == 0)     return &TYPE_UINT;
+    if (strcmp(name, "u16") == 0)    return &TYPE_UINT;
+    if (strcmp(name, "u32") == 0)    return &TYPE_UINT;
+    if (strcmp(name, "u64") == 0)    return &TYPE_UINT;
+    if (strcmp(name, "u128") == 0)   return &TYPE_UINT;
     if (strcmp(name, "float") == 0)  return &TYPE_FLOAT;
     if (strcmp(name, "f32") == 0)    return &TYPE_FLOAT;
     if (strcmp(name, "f64") == 0)    return &TYPE_FLOAT;

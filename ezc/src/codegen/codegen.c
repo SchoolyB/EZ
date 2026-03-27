@@ -253,7 +253,7 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
                     if (part->kind == NODE_FLOAT_VALUE) tk = TK_FLOAT;
                     else if (part->kind == NODE_BOOL_VALUE) tk = TK_BOOL;
                     else if (part->kind == NODE_STRING_VALUE) tk = TK_STRING;
-                    else tk = TK_INT;
+                    else tk = TK_INT; /* default integer kind */
                 }
 
                 switch (tk) {
@@ -282,7 +282,7 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
                 if (part->kind == NODE_FLOAT_VALUE) tk = TK_FLOAT;
                 else if (part->kind == NODE_BOOL_VALUE) tk = TK_BOOL;
                 else if (part->kind == NODE_STRING_VALUE) tk = TK_STRING;
-                else tk = TK_INT;
+                else tk = TK_INT; /* default integer kind */
             }
 
             switch (tk) {
@@ -416,7 +416,7 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
         if (count > 0) {
             EzType *kt = cg->type_table ? typetable_get(cg->type_table, node->data.map_value.keys[0]) : NULL;
             EzType *vt = cg->type_table ? typetable_get(cg->type_table, node->data.map_value.values[0]) : NULL;
-            if (kt && kt->kind == TK_INT) c_key_type = "int64_t";
+            if (kt && (kt->kind == TK_INT || kt->kind == TK_UINT)) c_key_type = "int64_t";
             if (vt && vt->kind == TK_FLOAT) c_val_type = "double";
             else if (vt && vt->kind == TK_STRING) c_val_type = "EzString";
             else if (vt && vt->kind == TK_BOOL) c_val_type = "bool";
@@ -586,17 +586,25 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
 
         /* Overflow-checked integer arithmetic for +, -, * */
         {
-            bool left_is_int = (lt && (lt->kind == TK_INT || lt->kind == TK_BYTE || lt->kind == TK_CHAR));
-            bool right_is_int = (rt && (rt->kind == TK_INT || rt->kind == TK_BYTE || rt->kind == TK_CHAR));
+            bool left_is_int = (lt && (lt->kind == TK_INT || lt->kind == TK_UINT || lt->kind == TK_BYTE || lt->kind == TK_CHAR));
+            bool right_is_int = (rt && (rt->kind == TK_INT || rt->kind == TK_UINT || rt->kind == TK_BYTE || rt->kind == TK_CHAR));
             bool left_is_float = (lt && lt->kind == TK_FLOAT);
             bool right_is_float = (rt && rt->kind == TK_FLOAT);
             bool is_arith = (strcmp(op, "+") == 0 || strcmp(op, "-") == 0 || strcmp(op, "*") == 0);
 
             if (is_arith && left_is_int && right_is_int && !left_is_float && !right_is_float) {
+                /* Use unsigned-safe variants when either operand is unsigned */
+                bool is_unsigned = (lt && lt->kind == TK_UINT) || (rt && rt->kind == TK_UINT);
                 const char *fn = NULL;
-                if (strcmp(op, "+") == 0) fn = "ez_add_check";
-                else if (strcmp(op, "-") == 0) fn = "ez_sub_check";
-                else if (strcmp(op, "*") == 0) fn = "ez_mul_check";
+                if (is_unsigned) {
+                    if (strcmp(op, "+") == 0) fn = "ez_uadd_check";
+                    else if (strcmp(op, "-") == 0) fn = "ez_usub_check";
+                    else if (strcmp(op, "*") == 0) fn = "ez_umul_check";
+                } else {
+                    if (strcmp(op, "+") == 0) fn = "ez_add_check";
+                    else if (strcmp(op, "-") == 0) fn = "ez_sub_check";
+                    else if (strcmp(op, "*") == 0) fn = "ez_mul_check";
+                }
                 if (fn) {
                     emitf(cg, "%s(", fn);
                     emit_expression(cg, node->data.infix.left);
@@ -736,7 +744,7 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
                         strncmp(oname, "_ez_or", 6) == 0) is_multi_temp = true;
                 }
                 if (!is_multi_temp && obj_t &&
-                    (obj_t->kind == TK_INT || obj_t->kind == TK_FLOAT ||
+                    (obj_t->kind == TK_INT || obj_t->kind == TK_UINT || obj_t->kind == TK_FLOAT ||
                      obj_t->kind == TK_BOOL || obj_t->kind == TK_STRING ||
                      obj_t->kind == TK_CHAR || obj_t->kind == TK_BYTE)) {
                     if (mem_name[1] == '0') {
@@ -789,7 +797,7 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
             const char *c_val = "int64_t";
             if (left_t->key_type) {
                 EzType *kt = type_from_name(left_t->key_type);
-                if (kt->kind == TK_INT) c_key = "int64_t";
+                if (kt->kind == TK_INT || kt->kind == TK_UINT) c_key = "int64_t";
             }
             if (left_t->value_type) {
                 EzType *vt = type_from_name(left_t->value_type);
@@ -1826,6 +1834,7 @@ static bool emit_arrays_call(CodeGen *cg, AstNode *node, const char *func) {
         if (val_t) {
             switch (val_t->kind) {
             case TK_INT: c_elem = "int64_t"; break;
+            case TK_UINT: c_elem = "uint64_t"; break;
             case TK_FLOAT: c_elem = "double"; break;
             case TK_BOOL: c_elem = "bool"; break;
             case TK_STRING: c_elem = "EzString"; break;
@@ -2355,7 +2364,7 @@ static void emit_var_declaration(CodeGen *cg, AstNode *node) {
         const char *c_vt = "int64_t";
         if (mt && mt->key_type) {
             EzType *kt = type_from_name(mt->key_type);
-            if (kt->kind == TK_INT) c_kt = "int64_t";
+            if (kt->kind == TK_INT || kt->kind == TK_UINT) c_kt = "int64_t";
         }
         if (mt && mt->value_type) {
             EzType *vt = type_from_name(mt->value_type);
@@ -2500,7 +2509,7 @@ static void emit_assign_statement(CodeGen *cg, AstNode *node) {
             const char *c_key = "EzString";
             if (left_t->key_type) {
                 EzType *kt = type_from_name(left_t->key_type);
-                if (kt->kind == TK_INT) c_key = "int64_t";
+                if (kt->kind == TK_INT || kt->kind == TK_UINT) c_key = "int64_t";
             }
             emitf(cg, "{ %s _mk = ", c_key);
             emit_expression(cg, node->data.assign.target->data.index_expr.index);
@@ -2873,7 +2882,7 @@ static void emit_statement(CodeGen *cg, AstNode *node) {
             const char *c_val = "int64_t";
             if (coll_t->key_type) {
                 EzType *kt = type_from_name(coll_t->key_type);
-                if (kt->kind == TK_INT) c_key = "int64_t";
+                if (kt->kind == TK_INT || kt->kind == TK_UINT) c_key = "int64_t";
             }
             if (coll_t->value_type) {
                 EzType *vt = type_from_name(coll_t->value_type);
