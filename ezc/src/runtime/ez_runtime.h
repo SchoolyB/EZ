@@ -112,6 +112,45 @@ static inline void ez_exit_func(void) {
 void ez_panic(const char *file, int line, const char *fmt, ...)
     __attribute__((format(printf, 3, 4), noreturn));
 
+/* Overflow-checked integer arithmetic */
+static inline int64_t ez_add_check(int64_t a, int64_t b, const char *file, int line) {
+    int64_t result;
+    if (__builtin_add_overflow(a, b, &result)) {
+        fflush(stdout);
+        fprintf(stderr, "panic at %s:%d: integer overflow in addition\n", file, line);
+        exit(1);
+    }
+    return result;
+}
+
+static inline int64_t ez_sub_check(int64_t a, int64_t b, const char *file, int line) {
+    int64_t result;
+    if (__builtin_sub_overflow(a, b, &result)) {
+        fflush(stdout);
+        fprintf(stderr, "panic at %s:%d: integer overflow in subtraction\n", file, line);
+        exit(1);
+    }
+    return result;
+}
+
+static inline int64_t ez_mul_check(int64_t a, int64_t b, const char *file, int line) {
+    int64_t result;
+    if (__builtin_mul_overflow(a, b, &result)) {
+        fflush(stdout);
+        fprintf(stderr, "panic at %s:%d: integer overflow in multiplication\n", file, line);
+        exit(1);
+    }
+    return result;
+}
+
+static inline int64_t ez_inc_check(int64_t a, const char *file, int line) {
+    return ez_add_check(a, 1, file, line);
+}
+
+static inline int64_t ez_dec_check(int64_t a, const char *file, int line) {
+    return ez_sub_check(a, 1, file, line);
+}
+
 /* Safe float-to-int conversion with overflow check */
 static inline int64_t ez_float_to_int(double v, const char *file, int line) {
     if (v > 9.223372036854775e+18 || v < -9.223372036854775e+18 ||

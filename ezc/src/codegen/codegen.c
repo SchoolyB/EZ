@@ -584,6 +584,30 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
             }
         }
 
+        /* Overflow-checked integer arithmetic for +, -, * */
+        {
+            bool left_is_int = (lt && (lt->kind == TK_INT || lt->kind == TK_BYTE || lt->kind == TK_CHAR));
+            bool right_is_int = (rt && (rt->kind == TK_INT || rt->kind == TK_BYTE || rt->kind == TK_CHAR));
+            bool left_is_float = (lt && lt->kind == TK_FLOAT);
+            bool right_is_float = (rt && rt->kind == TK_FLOAT);
+            bool is_arith = (strcmp(op, "+") == 0 || strcmp(op, "-") == 0 || strcmp(op, "*") == 0);
+
+            if (is_arith && left_is_int && right_is_int && !left_is_float && !right_is_float) {
+                const char *fn = NULL;
+                if (strcmp(op, "+") == 0) fn = "ez_add_check";
+                else if (strcmp(op, "-") == 0) fn = "ez_sub_check";
+                else if (strcmp(op, "*") == 0) fn = "ez_mul_check";
+                if (fn) {
+                    emitf(cg, "%s(", fn);
+                    emit_expression(cg, node->data.infix.left);
+                    emit(cg, ", ");
+                    emit_expression(cg, node->data.infix.right);
+                    emitf(cg, ", __FILE__, %d)", node->token.line);
+                    break;
+                }
+            }
+        }
+
         /* Normal infix — always wrap sub-infix expressions in parens to
          * preserve the precedence the parser established via the AST shape.
          * Without this, (x + y) * z would emit as x + y * z. */
@@ -606,6 +630,20 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
             emit_expression(cg, node->data.postfix.left);
             emitf(cg, "; if (!_dp) { fflush(stdout); ez_panic(__FILE__, %d, "
                 "\"nil pointer dereference\"); } *_dp; })", node->token.line);
+        } else if (strcmp(node->data.postfix.op, "++") == 0) {
+            /* Overflow-checked increment */
+            emit(cg, "(");
+            emit_expression(cg, node->data.postfix.left);
+            emitf(cg, " = ez_add_check(");
+            emit_expression(cg, node->data.postfix.left);
+            emitf(cg, ", 1, __FILE__, %d))", node->token.line);
+        } else if (strcmp(node->data.postfix.op, "--") == 0) {
+            /* Overflow-checked decrement */
+            emit(cg, "(");
+            emit_expression(cg, node->data.postfix.left);
+            emitf(cg, " = ez_sub_check(");
+            emit_expression(cg, node->data.postfix.left);
+            emitf(cg, ", 1, __FILE__, %d))", node->token.line);
         } else {
             emit_expression(cg, node->data.postfix.left);
             emit(cg, node->data.postfix.op);
