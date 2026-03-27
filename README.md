@@ -81,7 +81,6 @@ do main() {
 ## Features
 
 - **26 stdlib modules** — strings, math, arrays, maps, JSON, HTTP, regex, crypto, SQLite, threads, networking, and more
-- **Signed and unsigned integers** — `int`, `uint`, `i8`–`i128`, `u8`–`u128` with overflow detection
 - **Pointers** — `^Type`, `addr()`, and `p^` dereference with nil safety
 - **Threads** — spawn, join, mutexes, and channels via `@threads`
 - **Arena memory** — manual memory control when you need it via `@mem`
