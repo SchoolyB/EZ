@@ -631,14 +631,6 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                     result = type_struct("Arena"); /* arena pointer — opaque */
                 } else if (strcmp(mfn, "usage") == 0) {
                     result = &TYPE_INT;
-                } else if (strcmp(mfn, "new") == 0 && node->data.call.arg_count == 2) {
-                    /* mem.new(arena, Type) returns ^Type */
-                    AstNode *type_arg = node->data.call.args[1];
-                    if (type_arg->kind == NODE_LABEL) {
-                        result = type_pointer(type_arg->data.label.value);
-                    } else {
-                        result = &TYPE_UNKNOWN;
-                    }
                 } else if (strcmp(mfn, "make") == 0 && node->data.call.arg_count == 2) {
                     /* mem.make(arena, Type) returns ^Type */
                     AstNode *type_arg = node->data.call.args[1];

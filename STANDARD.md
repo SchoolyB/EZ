@@ -2509,6 +2509,7 @@ For fine-grained control, the `@mem` module exposes arena operations directly:
 | `mem.reset(a)` | Reset arena `a`, reclaiming allocations without freeing |
 | `mem.usage(a)` | Return bytes currently used in arena `a` |
 | `mem.make(a, Type)` | Allocate a zero-initialized `Type` in arena `a` |
+| `mem.alloc(a, value)` | Allocate a copy of `value` in arena `a` |
 
 ### 12.2 Value Semantics
 
