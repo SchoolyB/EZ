@@ -1455,22 +1455,6 @@ static bool emit_mem_call(CodeGen *cg, AstNode *node, const char *func) {
 /* --- @math module --- */
 
 static bool emit_math_call(CodeGen *cg, AstNode *node, const char *func) {
-    if (strcmp(func, "random") == 0) {
-        if (node->data.call.arg_count == 0) {
-            emit(cg, "ez_math_random_float(0.0, 1.0)");
-        } else if (node->data.call.arg_count == 1) {
-            emit(cg, "ez_math_random_int(0, ");
-            emit_expression(cg, node->data.call.args[0]);
-            emit(cg, ")");
-        } else {
-            emit(cg, "ez_math_random_int(");
-            emit_expression(cg, node->data.call.args[0]);
-            emit(cg, ", ");
-            emit_expression(cg, node->data.call.args[1]);
-            emit(cg, ")");
-        }
-        return true;
-    }
     if (strcmp(func, "abs") == 0 && node->data.call.arg_count == 1) {
         EzType *at = cg->type_table ? typetable_get(cg->type_table, node->data.call.args[0]) : NULL;
         emitf(cg, "ez_math_abs_%s(", (at && at->kind == TK_FLOAT) ? "float" : "int");

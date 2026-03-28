@@ -229,20 +229,20 @@ do main() {
     println("  -- Special Values --")
 
     // Test 21: is_inf for INF
-    if math.is_inf(math.INF) == true {
-        println("  [PASS] math.is_inf(math.INF)")
+    if math.is_infinite(math.INF) == true {
+        println("  [PASS] math.is_infinite(math.INF)")
         passed += 1
     } otherwise {
-        println("  [FAIL] math.is_inf(math.INF): expected true")
+        println("  [FAIL] math.is_infinite(math.INF): expected true")
         failed += 1
     }
 
     // Test 22: is_inf for normal value
-    if math.is_inf(3.14) == false {
-        println("  [PASS] math.is_inf(3.14) = false")
+    if math.is_infinite(3.14) == false {
+        println("  [PASS] math.is_infinite(3.14) = false")
         passed += 1
     } otherwise {
-        println("  [FAIL] math.is_inf(3.14): expected false")
+        println("  [FAIL] math.is_infinite(3.14): expected false")
         failed += 1
     }
 
@@ -300,19 +300,6 @@ do main() {
         passed += 1
     } otherwise {
         println("  [FAIL] math.MIN_FLOAT: got ${math.MIN_FLOAT}")
-        failed += 1
-    }
-
-    // ==================== RANDOM ====================
-    println("  -- Random --")
-
-    // Test 29: random generates value in range
-    mut rand_val int = math.random(100)
-    if rand_val >= 0 && rand_val < 100 {
-        println("  [PASS] math.random(100) in range [0, 100)")
-        passed += 1
-    } otherwise {
-        println("  [FAIL] math.random(100): got ${rand_val} (out of range)")
         failed += 1
     }
 

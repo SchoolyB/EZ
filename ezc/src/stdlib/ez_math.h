@@ -79,7 +79,7 @@ static inline double ez_math_rad_to_deg(double r) { return r * 180.0 / 3.1415926
 /* Properties */
 static inline bool ez_math_is_even(int64_t n) { return n % 2 == 0; }
 static inline bool ez_math_is_odd(int64_t n) { return n % 2 != 0; }
-static inline bool ez_math_is_inf(double n) { return isinf(n); }
+static inline bool ez_math_is_infinite(double n) { return isinf(n); }
 static inline bool ez_math_is_nan(double n) { return isnan(n); }
 static inline bool ez_math_is_finite(double n) { return isfinite(n); }
 

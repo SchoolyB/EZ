@@ -16,5 +16,4 @@ do main() {
     println("math.floor(3.7) = ${math.floor(3.7)}")
     println("math.ceil(3.2) = ${math.ceil(3.2)}")
     println("math.round(3.5) = ${math.round(3.5)}")
-    println("math.random(100) = ${math.random(100)}")
 }
