@@ -792,7 +792,7 @@ static void test_e2e_threads_sleep(void) {
     char *out = compile_and_run(
         "import @std\nusing std\n"
         "do main() {\n"
-        "  sleep_milliseconds(10)\n"
+        "  sleep_ms(10)\n"
         "  println(\"awake\")\n"
         "}");
     ASSERT_NOT_NULL(out);

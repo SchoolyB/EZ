@@ -173,12 +173,12 @@ void ez_std_exit(int64_t code) {
 
 /* --- sleep --- */
 
-void ez_std_sleep_seconds(int64_t seconds) {
+void ez_std_sleep_s(int64_t seconds) {
     if (seconds < 0) { fflush(stdout); fprintf(stderr, "panic: sleep duration cannot be negative (%lld)\n", (long long)seconds); exit(1); }
     if (seconds > 0) sleep((unsigned int)seconds);
 }
 
-void ez_std_sleep_milliseconds(int64_t ms) {
+void ez_std_sleep_ms(int64_t ms) {
     if (ms < 0) { fflush(stdout); fprintf(stderr, "panic: sleep duration cannot be negative (%lld ms)\n", (long long)ms); exit(1); }
     if (ms > 0) {
         struct timespec ts;
@@ -188,7 +188,7 @@ void ez_std_sleep_milliseconds(int64_t ms) {
     }
 }
 
-void ez_std_sleep_nanoseconds(int64_t ns) {
+void ez_std_sleep_ns(int64_t ns) {
     if (ns > 0) {
         struct timespec ts;
         ts.tv_sec = ns / 1000000000;

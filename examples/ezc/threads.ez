@@ -15,7 +15,7 @@ using std
 
 do worker(id int) {
     println("[Thread ${id}] Starting work...")
-    sleep_milliseconds(200)
+    sleep_ms(200)
     println("[Thread ${id}] Done!")
 }
 

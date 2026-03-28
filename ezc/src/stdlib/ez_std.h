@@ -52,9 +52,9 @@ void ez_std_exit(int64_t code);
 /* copy(value) - handled by codegen (deep copy) */
 
 /* sleep */
-void ez_std_sleep_seconds(int64_t seconds);
-void ez_std_sleep_milliseconds(int64_t ms);
-void ez_std_sleep_nanoseconds(int64_t ns);
+void ez_std_sleep_s(int64_t seconds);
+void ez_std_sleep_ms(int64_t ms);
+void ez_std_sleep_ns(int64_t ns);
 
 /* to_string */
 EzString ez_std_to_string_int(EzArena *arena, int64_t v);

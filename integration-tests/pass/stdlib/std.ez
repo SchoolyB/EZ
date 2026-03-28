@@ -13,30 +13,30 @@ do main() {
     mut passed int = 0
     mut failed int = 0
 
-    // ==================== sleep_milliseconds (@std) ====================
-    println("  -- sleep_milliseconds --")
+    // ==================== sleep_ms (@std) ====================
+    println("  -- sleep_ms --")
 
     // Test: sleep 0 milliseconds (should succeed immediately)
-    sleep_milliseconds(0)
-    println("  [PASS] sleep_milliseconds(0) completed")
+    sleep_ms(0)
+    println("  [PASS] sleep_ms(0) completed")
     passed += 1
 
     // Test: sleep 1 millisecond (quick test)
-    sleep_milliseconds(1)
-    println("  [PASS] sleep_milliseconds(1) completed")
+    sleep_ms(1)
+    println("  [PASS] sleep_ms(1) completed")
     passed += 1
 
-    // ==================== sleep_nanoseconds (@std) ====================
-    println("  -- sleep_nanoseconds --")
+    // ==================== sleep_ns (@std) ====================
+    println("  -- sleep_ns --")
 
     // Test: sleep 0 nanoseconds
-    sleep_nanoseconds(0)
-    println("  [PASS] sleep_nanoseconds(0) completed")
+    sleep_ns(0)
+    println("  [PASS] sleep_ns(0) completed")
     passed += 1
 
     // Test: sleep 1000 nanoseconds (1 microsecond)
-    sleep_nanoseconds(1000)
-    println("  [PASS] sleep_nanoseconds(1000) completed")
+    sleep_ns(1000)
+    println("  [PASS] sleep_ns(1000) completed")
     passed += 1
 
     // ==================== eprintln (@std) ====================

@@ -226,7 +226,7 @@ static bool tc_is_builtin(const char *name) {
         "int", "uint", "float", "string", "char", "byte", "bool",
         "i128", "i256", "u128", "u256",
         "exit", "panic", "assert", "range", "cast",
-        "sleep_seconds", "sleep_milliseconds", "sleep_nanoseconds",
+        "sleep_s", "sleep_ms", "sleep_ns",
         NULL
     };
     for (int i = 0; builtins[i]; i++) {
@@ -1062,9 +1062,9 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                 result = &TYPE_VOID;
             } else if (strcmp(fn_name, "exit") == 0 || strcmp(fn_name, "panic") == 0 ||
                        strcmp(fn_name, "assert") == 0 ||
-                       strcmp(fn_name, "sleep_seconds") == 0 ||
-                       strcmp(fn_name, "sleep_milliseconds") == 0 ||
-                       strcmp(fn_name, "sleep_nanoseconds") == 0) {
+                       strcmp(fn_name, "sleep_s") == 0 ||
+                       strcmp(fn_name, "sleep_ms") == 0 ||
+                       strcmp(fn_name, "sleep_ns") == 0) {
                 result = &TYPE_VOID;
             } else if (strcmp(fn_name, "copy") == 0 && node->data.call.arg_count == 1) {
                 result = resolve_expr(tc, node->data.call.args[0]);
@@ -1965,8 +1965,8 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
                 strcmp(fn_name, "println") == 0 || strcmp(fn_name, "print") == 0 ||
                 strcmp(fn_name, "eprintln") == 0 || strcmp(fn_name, "eprint") == 0 ||
                 strcmp(fn_name, "panic") == 0 || strcmp(fn_name, "assert") == 0 ||
-                strcmp(fn_name, "exit") == 0 || strcmp(fn_name, "sleep_seconds") == 0 ||
-                strcmp(fn_name, "sleep_milliseconds") == 0 || strcmp(fn_name, "sleep_nanoseconds") == 0);
+                strcmp(fn_name, "exit") == 0 || strcmp(fn_name, "sleep_s") == 0 ||
+                strcmp(fn_name, "sleep_ms") == 0 || strcmp(fn_name, "sleep_ns") == 0);
             /* Don't warn for module calls that are commonly used for side effects */
             if (fn->kind == NODE_MEMBER_EXPR) is_side_effect = true;
             if (!is_side_effect && fn_name) {

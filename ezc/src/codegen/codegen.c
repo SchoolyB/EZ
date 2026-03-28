@@ -1225,22 +1225,22 @@ static bool emit_builtin_call(CodeGen *cg, AstNode *node, const char *func) {
         return true;
     }
 
-    if (strcmp(func, "sleep_seconds") == 0 && node->data.call.arg_count == 1) {
-        emit(cg, "ez_std_sleep_seconds(");
+    if (strcmp(func, "sleep_s") == 0 && node->data.call.arg_count == 1) {
+        emit(cg, "ez_std_sleep_s(");
         emit_expression(cg, node->data.call.args[0]);
         emit(cg, ")");
         return true;
     }
 
-    if (strcmp(func, "sleep_milliseconds") == 0 && node->data.call.arg_count == 1) {
-        emit(cg, "ez_std_sleep_milliseconds(");
+    if (strcmp(func, "sleep_ms") == 0 && node->data.call.arg_count == 1) {
+        emit(cg, "ez_std_sleep_ms(");
         emit_expression(cg, node->data.call.args[0]);
         emit(cg, ")");
         return true;
     }
 
-    if (strcmp(func, "sleep_nanoseconds") == 0 && node->data.call.arg_count == 1) {
-        emit(cg, "ez_std_sleep_nanoseconds(");
+    if (strcmp(func, "sleep_ns") == 0 && node->data.call.arg_count == 1) {
+        emit(cg, "ez_std_sleep_ns(");
         emit_expression(cg, node->data.call.args[0]);
         emit(cg, ")");
         return true;

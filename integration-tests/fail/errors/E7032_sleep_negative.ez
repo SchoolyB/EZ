@@ -7,5 +7,5 @@ import @std
 using std
 
 do main() {
-    sleep_seconds(-5)  // negative duration
+    sleep_s(-5)  // negative duration
 }
