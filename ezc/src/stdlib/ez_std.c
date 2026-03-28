@@ -78,6 +78,10 @@ void ez_std_println_char(int32_t c) {
     putchar('\n');
 }
 
+void ez_std_println_addr(uintptr_t v) {
+    printf("0x%" PRIxPTR "\n", v);
+}
+
 /* --- print --- */
 
 void ez_std_print_str(EzString s) {
@@ -90,6 +94,10 @@ void ez_std_print_int(int64_t v) {
 
 void ez_std_print_char(int32_t c) {
     fput_utf8(c, stdout);
+}
+
+void ez_std_print_addr(uintptr_t v) {
+    printf("0x%" PRIxPTR, v);
 }
 
 /* --- eprintln / eprint --- */
@@ -108,12 +116,20 @@ void ez_std_eprintln_char(int32_t c) {
     fputc('\n', stderr);
 }
 
+void ez_std_eprintln_addr(uintptr_t v) {
+    fprintf(stderr, "0x%" PRIxPTR "\n", v);
+}
+
 void ez_std_eprint_str(EzString s) {
     fwrite(s.data, 1, (size_t)s.len, stderr);
 }
 
 void ez_std_eprint_char(int32_t c) {
     fput_utf8(c, stderr);
+}
+
+void ez_std_eprint_addr(uintptr_t v) {
+    fprintf(stderr, "0x%" PRIxPTR, v);
 }
 
 /* --- input --- */

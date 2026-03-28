@@ -18,20 +18,24 @@ void ez_std_println_int(int64_t v);
 void ez_std_println_float(double v);
 void ez_std_println_bool(bool v);
 void ez_std_println_char(int32_t c);
+void ez_std_println_addr(uintptr_t v);
 
 /* print(value) - print without newline */
 void ez_std_print_str(EzString s);
 void ez_std_print_int(int64_t v);
 void ez_std_print_char(int32_t c);
+void ez_std_print_addr(uintptr_t v);
 
 /* eprintln(value) - print to stderr with newline */
 void ez_std_eprintln_str(EzString s);
 void ez_std_eprintln_int(int64_t v);
 void ez_std_eprintln_char(int32_t c);
+void ez_std_eprintln_addr(uintptr_t v);
 
 /* eprint(value) - print to stderr without newline */
 void ez_std_eprint_str(EzString s);
 void ez_std_eprint_char(int32_t c);
+void ez_std_eprint_addr(uintptr_t v);
 
 /* input() - read line from stdin */
 EzString ez_std_input(EzArena *arena);

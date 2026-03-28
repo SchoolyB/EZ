@@ -1005,8 +1005,8 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                         strdup("addr() requires a variable, field, or index expression — cannot take address of a literal or expression"),
                         tc->file, node->token.line, node->token.column, 0);
                 }
-                EzType *arg_t = resolve_expr(tc, arg);
-                result = type_pointer(type_name(arg_t));
+                resolve_expr(tc, arg);
+                result = &TYPE_UINT;
             } else if (strcmp(fn_name, "ref") == 0 && node->data.call.arg_count == 1) {
                 AstNode *arg = node->data.call.args[0];
                 EzType *arg_t = resolve_expr(tc, arg);

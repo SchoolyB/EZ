@@ -973,6 +973,9 @@ static bool is_stdlib_call(AstNode *node, const char **module, const char **func
 /* --- Stdlib call emission helpers --- */
 
 static const char *resolve_print_suffix(CodeGen *cg, AstNode *arg) {
+    /* addr() calls always print in hex format */
+    if (arg->kind == NODE_CALL_EXPR && arg->data.call.function->kind == NODE_LABEL &&
+        strcmp(arg->data.call.function->data.label.value, "addr") == 0) return "_addr";
     EzType *t = cg->type_table ? typetable_get(cg->type_table, arg) : NULL;
     if (t && t->kind != TK_UNKNOWN) {
         switch (t->kind) {
@@ -1009,6 +1012,7 @@ static const char *resolve_print_suffix(CodeGen *cg, AstNode *arg) {
     if (arg->kind == NODE_CALL_EXPR && arg->data.call.function->kind == NODE_LABEL) {
         const char *fn = arg->data.call.function->data.label.value;
         if (strcmp(fn, "input") == 0 || strcmp(fn, "type_of") == 0) return "_str";
+        if (strcmp(fn, "addr") == 0) return "_addr";
     }
     return "_int";
 }
@@ -1140,8 +1144,8 @@ static bool emit_builtin_call(CodeGen *cg, AstNode *node, const char *func) {
     }
 
     if (strcmp(func, "addr") == 0 && node->data.call.arg_count == 1) {
-        /* addr() returns the raw memory address of a variable */
-        emit(cg, "&");
+        /* addr() returns the raw numeric memory address */
+        emit(cg, "(uintptr_t)&");
         emit_expression(cg, node->data.call.args[0]);
         return true;
     }
