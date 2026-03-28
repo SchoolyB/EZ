@@ -88,6 +88,3 @@ int64_t ez_os_pid(void) {
     return (int64_t)getpid();
 }
 
-void ez_os_exit(int64_t code) {
-    exit((int)code);
-}

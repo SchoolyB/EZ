@@ -2104,12 +2104,6 @@ static bool emit_os_call(CodeGen *cg, AstNode *node, const char *func) {
     if (strcmp(func, "current_os") == 0) { emit(cg, "ez_os_current_os()"); return true; }
     if (strcmp(func, "arch") == 0) { emit(cg, "ez_os_arch()"); return true; }
     if (strcmp(func, "pid") == 0) { emit(cg, "ez_os_pid()"); return true; }
-    if (strcmp(func, "exit") == 0) {
-        emit(cg, "ez_os_exit(");
-        emit_expression(cg, node->data.call.args[0]);
-        emit(cg, ")");
-        return true;
-    }
     if (strcmp(func, "set_env") == 0) {
         emit(cg, "ez_os_set_env(");
         emit_expression(cg, node->data.call.args[0]);

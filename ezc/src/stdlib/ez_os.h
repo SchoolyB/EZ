@@ -35,9 +35,6 @@ EzString ez_os_arch(void);
 /* os.pid() */
 int64_t ez_os_pid(void);
 
-/* os.exit(code) */
-void ez_os_exit(int64_t code);
-
 /* Store argc/argv from main for os.args() */
 void ez_os_init(int argc, char **argv);
 
