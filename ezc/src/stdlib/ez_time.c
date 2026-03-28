@@ -24,15 +24,6 @@ int64_t ez_time_now_ns(void) {
     return (int64_t)ts.tv_sec * 1000000000 + (int64_t)ts.tv_nsec;
 }
 
-void ez_time_sleep(int64_t seconds) { if (seconds > 0) sleep((unsigned)seconds); }
-
-void ez_time_sleep_ms(int64_t ms) {
-    if (ms > 0) {
-        struct timespec ts = { ms / 1000, (ms % 1000) * 1000000 };
-        nanosleep(&ts, NULL);
-    }
-}
-
 static struct tm *get_tm(int64_t ts) {
     time_t t = (time_t)ts;
     return localtime(&t);

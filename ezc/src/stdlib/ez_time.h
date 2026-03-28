@@ -15,10 +15,6 @@ int64_t ez_time_now(void);        /* Unix timestamp (seconds) */
 int64_t ez_time_now_ms(void);     /* Milliseconds since epoch */
 int64_t ez_time_now_ns(void);     /* Nanoseconds since epoch */
 
-/* Sleep */
-void ez_time_sleep(int64_t seconds);
-void ez_time_sleep_ms(int64_t ms);
-
 /* Components */
 int64_t ez_time_year(int64_t ts);
 int64_t ez_time_month(int64_t ts);
