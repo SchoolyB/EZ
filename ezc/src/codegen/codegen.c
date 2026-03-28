@@ -208,8 +208,6 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
     case NODE_LABEL: {
         const char *name = node->data.label.value;
         /* Check for known stdlib constants (unambiguous names) */
-        if (strcmp(name, "EXIT_SUCCESS") == 0) { emit(cg, "0"); break; }
-        if (strcmp(name, "EXIT_FAILURE") == 0) { emit(cg, "1"); break; }
         if (is_mutable_param(cg, name)) {
             emitf(cg, "(*%s)", name);
         } else if (is_ref_var(cg, name)) {
@@ -798,12 +796,6 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
         if (node->data.member.object->kind == NODE_LABEL) {
             const char *mod = node->data.member.object->data.label.value;
             const char *mem = node->data.member.member;
-
-            /* @std constants */
-            if (strcmp(mod, "std") == 0) {
-                if (strcmp(mem, "EXIT_SUCCESS") == 0) { emit(cg, "0"); break; }
-                if (strcmp(mem, "EXIT_FAILURE") == 0) { emit(cg, "1"); break; }
-            }
 
             /* @math constants */
             if (strcmp(mod, "math") == 0) {

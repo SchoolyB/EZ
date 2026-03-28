@@ -1,7 +1,7 @@
 /*
  * std.ez - Test @std standard library expanded functions
  *
- * Global builtins (no import needed): exit, EXIT_SUCCESS, EXIT_FAILURE, panic, assert
+ * Global builtins (no import needed): exit, panic, assert
  * @std module functions (require import): println, print, sleep_*, eprintln, eprint
  */
 
@@ -12,28 +12,6 @@ do main() {
     println("=== @std Standard Library Test ===")
     mut passed int = 0
     mut failed int = 0
-
-    // ==================== EXIT_SUCCESS (global builtin) ====================
-    println("  -- EXIT_SUCCESS --")
-
-    if EXIT_SUCCESS == 0 {
-        println("  [PASS] EXIT_SUCCESS = 0")
-        passed += 1
-    } otherwise {
-        println("  [FAIL] EXIT_SUCCESS: expected 0, got ${EXIT_SUCCESS}")
-        failed += 1
-    }
-
-    // ==================== EXIT_FAILURE (global builtin) ====================
-    println("  -- EXIT_FAILURE --")
-
-    if EXIT_FAILURE == 1 {
-        println("  [PASS] EXIT_FAILURE = 1")
-        passed += 1
-    } otherwise {
-        println("  [FAIL] EXIT_FAILURE: expected 1, got ${EXIT_FAILURE}")
-        failed += 1
-    }
 
     // ==================== sleep_milliseconds (@std) ====================
     println("  -- sleep_milliseconds --")
@@ -109,6 +87,6 @@ do main() {
     println("Failed: ${failed}")
 
     if failed > 0 {
-        exit(EXIT_FAILURE)
+        exit(1)
     }
 }

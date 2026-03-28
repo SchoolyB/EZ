@@ -1247,10 +1247,6 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
             }
 
             /* Check for module constants */
-            if (strcmp(obj_name, "std") == 0) {
-                result = &TYPE_INT; /* EXIT_SUCCESS, EXIT_FAILURE */
-                break;
-            }
             if (strcmp(obj_name, "math") == 0) {
                 result = &TYPE_FLOAT; /* PI, E, TAU, etc. */
                 break;
