@@ -1395,6 +1395,27 @@ static AstNode *parse_struct_declaration(Parser *p) {
             continue;
         }
 
+        /* E2058: nested struct/enum declaration */
+        if (cur_token_is(p, TOK_CONST)) {
+            char msg[256];
+            snprintf(msg, sizeof(msg),
+                "cannot declare a struct or enum inside struct '%s' — define it at the file scope",
+                node->data.struct_decl.name);
+            diag_error(p->diag, "E2058", arena_strdup(p->arena, msg),
+                p->file, p->cur_token.line, p->cur_token.column, 0);
+            /* Skip to the end of the nested declaration to avoid cascading errors */
+            int depth = 0;
+            while (!cur_token_is(p, TOK_EOF)) {
+                if (cur_token_is(p, TOK_LBRACE)) depth++;
+                if (cur_token_is(p, TOK_RBRACE)) {
+                    if (depth <= 1) { next_token(p); break; }
+                    depth--;
+                }
+                next_token(p);
+            }
+            continue;
+        }
+
         if (node->data.struct_decl.field_count >= field_cap) {
             field_cap *= 2;
             StructField *new_fields = arena_alloc(p->arena, sizeof(StructField) * field_cap);
@@ -1491,6 +1512,27 @@ static AstNode *parse_enum_declaration(Parser *p) {
             memcpy(new_vals, node->data.enum_decl.values,
                 sizeof(EnumVal) * node->data.enum_decl.value_count);
             node->data.enum_decl.values = new_vals;
+        }
+
+        /* E2058: nested struct/enum declaration */
+        if (cur_token_is(p, TOK_CONST)) {
+            char msg[256];
+            snprintf(msg, sizeof(msg),
+                "cannot declare a struct or enum inside enum '%s' — define it at the file scope",
+                node->data.enum_decl.name);
+            diag_error(p->diag, "E2058", arena_strdup(p->arena, msg),
+                p->file, p->cur_token.line, p->cur_token.column, 0);
+            /* Skip to the end of the nested declaration to avoid cascading errors */
+            int depth = 0;
+            while (!cur_token_is(p, TOK_EOF)) {
+                if (cur_token_is(p, TOK_LBRACE)) depth++;
+                if (cur_token_is(p, TOK_RBRACE)) {
+                    if (depth <= 1) { next_token(p); break; }
+                    depth--;
+                }
+                next_token(p);
+            }
+            continue;
         }
 
         EnumVal *ev = &node->data.enum_decl.values[node->data.enum_decl.value_count];

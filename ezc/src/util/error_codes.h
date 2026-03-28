@@ -50,7 +50,8 @@
     EZ_ERROR("E2051", "syntax", "functions cannot be defined inside other functions — move it to the top level") \
     EZ_ERROR("E2053", "syntax", "structs and enums must be defined at the file scope, not inside a function") \
     EZ_ERROR("E2056", "syntax", "executable statements are not allowed at file scope — put code inside do main() { }") \
-    EZ_ERROR("E2057", "syntax", "invalid interpolation syntax — use ${variable} instead of $variable")
+    EZ_ERROR("E2057", "syntax", "invalid interpolation syntax — use ${variable} instead of $variable") \
+    EZ_ERROR("E2058", "syntax", "nested type declarations are not allowed — structs and enums must be defined at the file scope")
 
 /* --- E3xxx: Type Problems (Typechecker) --- */
 #define EZ_TYPE_ERRORS \

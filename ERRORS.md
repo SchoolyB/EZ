@@ -3,7 +3,7 @@
 > Auto-generated from `ezc/src/util/error_codes.h`. Do not edit manually.
 > Run `./scripts/generate_errors.sh` to regenerate.
 
-**Total: 81 codes** (77 errors, 4 warnings)
+**Total: 82 codes** (78 errors, 4 warnings)
 
 ---
 
@@ -40,6 +40,7 @@
 | `E2053` | syntax | structs and enums must be defined at the file scope, not inside a function |
 | `E2056` | syntax | executable statements are not allowed at file scope — put code inside do main() { } |
 | `E2057` | syntax | invalid interpolation syntax — use ${variable} instead of $variable |
+| `E2058` | syntax | nested type declarations are not allowed — structs and enums must be defined at the file scope |
 | `E3001` | types | wrong type — you are using a value of one type where a different type is expected |
 | `E3002` | types | this operator does not work on this type — for example, you cannot subtract strings |
 | `E3003` | types | invalid array index type — array indices must be integers |
@@ -118,4 +119,4 @@
 
 ---
 
-*Generated on 2026-03-27 03:22:11 UTC*
+*Generated on 2026-03-28 06:29:10 UTC*
