@@ -37,7 +37,7 @@
 | `E2043` | syntax | duplicate case value in when statement — each case must be unique |
 | `E2050` | syntax | break and continue can only be used inside a loop |
 | `E2051` | syntax | functions cannot be defined inside other functions — move it to the top level |
-| `E2053` | syntax | structs and enums must be defined at the top level, not inside a function |
+| `E2053` | syntax | structs and enums must be defined at the file scope, not inside a function |
 | `E2056` | syntax | executable statements are not allowed at file scope — put code inside do main() { } |
 | `E2057` | syntax | invalid interpolation syntax — use ${variable} instead of $variable |
 | `E3001` | types | wrong type — you are using a value of one type where a different type is expected |

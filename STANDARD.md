@@ -163,8 +163,8 @@ uint
 
 **Sized types (reserved names):**
 ```
-i8    i16    i32    i64    i128
-u8    u16    u32    u64    u128
+i8    i16    i32    i64
+u8    u16    u32    u64
 f32   f64
 ```
 
@@ -554,7 +554,7 @@ Type inference is permitted when assigning from:
 
 1. **Function return values** - The variable's type is inferred from the function's return type
 2. **Struct literals** - The type is known from the struct name
-3. **Built-in constructors** - `new(Type)` and `copy(value)`
+3. **Built-in constructors** - `new(Type)` (returns `^Type`) and `copy(value)`
 4. **Array literals** - When element types are consistent
 
 ```ez
@@ -563,13 +563,13 @@ do sum(a int, b int) -> int {
     return a + b
 }
 mut result = sum(1, 2)        // Inferred: int
-println(typeof(result))        // Output: int
+println(type_of(result))        // Output: int
 
 // Inferred from struct literal
 const p = Point{x: 1, y: 2}    // Inferred: Point
 
 // Inferred from built-in constructors
-mut val = new(Person)         // Inferred: Person
+mut val = new(Person)         // Inferred: ^Person (pointer)
 mut dup = copy(val)           // Inferred: Person
 
 // Inferred from array literal
@@ -1619,6 +1619,7 @@ The core module provides fundamental I/O, type conversion, and utility functions
 | `uint` | `(value) -> uint` | Convert to uint |
 | `float` | `(value) -> float` | Convert to float |
 | `string` | `(value) -> string` | Convert to string |
+| `bool` | `(value) -> bool` | Convert to bool |
 | `char` | `(value) -> char` | Convert to char |
 | `byte` | `(value) -> byte` | Convert to byte |
 
@@ -1626,8 +1627,8 @@ The core module provides fundamental I/O, type conversion, and utility functions
 
 | Function | Description |
 |----------|-------------|
-| `i8`, `i16`, `i32`, `i64`, `i128`, `i256` | Convert to signed integers |
-| `u8`, `u16`, `u32`, `u64`, `u128`, `u256` | Convert to unsigned integers |
+| `i8`, `i16`, `i32`, `i64` | Convert to signed integers |
+| `u8`, `u16`, `u32`, `u64` | Convert to unsigned integers |
 | `f32`, `f64` | Convert to sized floats |
 
 #### Utility Functions
@@ -1635,14 +1636,18 @@ The core module provides fundamental I/O, type conversion, and utility functions
 | Function | Signature | Description |
 |----------|-----------|-------------|
 | `len` | `(collection) -> int` | Length of array, string, or map |
-| `typeof` | `(value) -> string` | Type name as string |
+| `type_of` | `(value) -> string` | Type name as string |
+| `size_of` | `(Type) -> int` | Size of type in bytes |
 | `copy` | `(value) -> T` | Create deep copy |
-| `new` | `(Type) -> Type` | Create zero-initialized instance |
+| `new` | `(Type) -> ^Type` | Allocate zero-initialized struct on arena |
 | `ref` | `(value) -> T` | Create reference to value |
+| `addr` | `(variable) -> ^T` | Get memory address of a variable |
 | `error` | `(message string) -> Error` | Create error value |
 | `assert` | `(condition bool, message string)` | Assert condition is true |
 | `panic` | `(message string) -> nil` | Terminate with error message |
 | `exit` | `(code int) -> nil` | Exit program with code |
+| `range` | `(start int, end int [, step int]) -> Range` | Create integer range |
+| `cast` | `(value, Type) -> Type` | Explicit type conversion |
 
 **Reference behavior with `ref()`:**
 
@@ -1685,32 +1690,19 @@ println(r2[4])        // Prints 6 - r2 sees the change
 | Function | Signature | Description |
 |----------|-----------|-------------|
 | `is_empty` | `(arr [T]) -> bool` | Check if array is empty |
-| `get` | `(arr [T], index int) -> T` | Get element at index |
-| `first` | `(arr [T]) -> T` | Get first element |
-| `last` | `(arr [T]) -> T` | Get last element |
 | `contains` | `(arr [T], value T) -> bool` | Check if value exists |
-| `index` | `(arr [T], value T) -> int` | First index of value (-1 if not found) |
-| `last_index` | `(arr [T], value T) -> int` | Last index of value |
-| `count` | `(arr [T], value T) -> int` | Count occurrences |
+| `index_of` | `(arr [T], value T) -> int` | First index of value (-1 if not found) |
 
 #### Modification Functions
 
 | Function | Signature | Description |
 |----------|-----------|-------------|
 | `append` | `(&arr [T], ...values T)` | Append elements |
-| `unshift` | `(&arr [T], ...values T) -> [T]` | Prepend elements |
 | `insert` | `(&arr [T], index int, value T)` | Insert at index |
-| `set` | `(&arr [T], index int, value T)` | Set element at index |
-| `pop` | `(&arr [T]) -> T` | Remove and return last element |
-| `shift` | `(&arr [T]) -> T` | Remove and return first element |
 | `remove_at` | `(&arr [T], index int)` | Remove element at index |
-| `remove_value` | `(&arr [T], value T)` | Remove first occurrence |
-| `remove_all` | `(&arr [T], value T)` | Remove all occurrences |
 | `clear` | `(&arr [T])` | Remove all elements |
 | `sort` | `(&arr [T])` | Sort ascending in-place |
 | `sort_desc` | `(&arr [T])` | Sort descending in-place |
-| `shuffle` | `(&arr [T])` | Shuffle in-place |
-| `fill` | `(&arr [T], value T)` | Fill all elements with value |
 
 #### Transformation Functions
 
@@ -1718,28 +1710,15 @@ println(r2[4])        // Prints 6 - r2 sees the change
 |----------|-----------|-------------|
 | `reverse` | `(arr [T]) -> [T]` | Return reversed copy |
 | `slice` | `(arr [T], start int, end int) -> [T]` | Return slice |
-| `take` | `(arr [T], n int) -> [T]` | Return first n elements |
-| `drop` | `(arr [T], n int) -> [T]` | Drop first n elements |
 | `concat` | `(...arrs [T]) -> [T]` | Concatenate arrays |
-| `zip` | `(arr1 [T], arr2 [U]) -> [[T,U]]` | Zip two arrays |
-| `flatten` | `(arr [[T]]) -> [T]` | Flatten nested arrays |
-| `unique` | `(arr [T]) -> [T]` | Return unique elements |
-| `duplicates` | `(arr [T]) -> [T]` | Return duplicate elements |
-| `repeat` | `(value T, count int) -> [T]` | Create array with repeated value |
-| `join` | `(arr [T], sep string) -> string` | Join with separator |
-| `chunk` | `(arr [T], size int) -> [[T]]` | Split into chunks |
 
 #### Computation Functions
 
 | Function | Signature | Description |
 |----------|-----------|-------------|
 | `sum` | `(arr [number]) -> number` | Sum all elements |
-| `product` | `(arr [number]) -> number` | Multiply all elements |
 | `min` | `(arr [T]) -> T` | Minimum element |
 | `max` | `(arr [T]) -> T` | Maximum element |
-| `avg` | `(arr [number]) -> float` | Average |
-| `all_equal` | `(arr [T]) -> bool` | Check if all elements equal |
-| `equals` | `(arr1 [T], arr2 [T]) -> bool` | Compare two arrays |
 
 ### 10.3 Strings Module (`@strings`)
 
@@ -1749,28 +1728,17 @@ println(r2[4])        // Prints 6 - r2 sees the change
 |----------|-----------|-------------|
 | `upper` | `(s string) -> string` | Convert to uppercase |
 | `lower` | `(s string) -> string` | Convert to lowercase |
-| `capitalize` | `(s string) -> string` | Capitalize first letter |
-| `title` | `(s string) -> string` | Convert to title case |
 
 #### Query Functions
 
 | Function | Signature | Description |
 |----------|-----------|-------------|
 | `is_empty` | `(s string) -> bool` | Check if empty (after trim) |
-| `is_numeric` | `(s string) -> bool` | Check if all digits |
-| `is_alpha` | `(s string) -> bool` | Check if all letters |
-| `is_alphanumeric` | `(s string) -> bool` | Check if all alphanumeric |
-| `is_whitespace` | `(s string) -> bool` | Check if whitespace only |
-| `is_lowercase` | `(s string) -> bool` | Check if all letters lowercase |
-| `is_uppercase` | `(s string) -> bool` | Check if all letters uppercase |
-| `is_ascii` | `(s string) -> bool` | Check if all characters are ASCII |
 | `contains` | `(s string, sub string) -> bool` | Check if contains substring |
 | `starts_with` | `(s string, prefix string) -> bool` | Check prefix |
 | `ends_with` | `(s string, suffix string) -> bool` | Check suffix |
 | `index` | `(s string, sub string) -> int` | First index of substring |
-| `last_index` | `(s string, sub string) -> int` | Last index of substring |
 | `count` | `(s string, sub string) -> int` | Count occurrences |
-| `compare` | `(s1 string, s2 string) -> int` | Compare strings (-1, 0, 1) |
 
 #### Transformation Functions
 
@@ -1780,16 +1748,8 @@ println(r2[4])        // Prints 6 - r2 sees the change
 | `trim_left` | `(s string) -> string` | Trim left whitespace |
 | `trim_right` | `(s string) -> string` | Trim right whitespace |
 | `replace` | `(s string, old string, new string) -> string` | Replace all occurrences |
-| `replace_n` | `(s string, old string, new string, n int) -> string` | Replace first n |
 | `repeat` | `(s string, count int) -> string` | Repeat string |
 | `reverse` | `(s string) -> string` | Reverse string |
-| `truncate` | `(s string, length int, suffix string) -> string` | Truncate with suffix |
-| `pad_left` | `(s string, width int, pad string) -> string` | Left pad |
-| `pad_right` | `(s string, width int, pad string) -> string` | Right pad |
-| `center` | `(s string, width int, pad string) -> string` | Center with padding |
-| `insert` | `(s string, position int, sub string) -> string` | Insert at position |
-| `remove` | `(s string, sub string) -> string` | Remove first occurrence |
-| `remove_all` | `(s string, sub string) -> string` | Remove all occurrences |
 
 #### Conversion Functions
 
@@ -1797,36 +1757,19 @@ println(r2[4])        // Prints 6 - r2 sees the change
 |----------|-----------|-------------|
 | `split` | `(s string, sep string) -> [string]` | Split into array |
 | `join` | `(arr [string], sep string) -> string` | Join array |
-| `chars` | `(s string) -> [char]` | Convert to char array |
-| `from_chars` | `(chars [char]) -> string` | Create from char array |
 | `slice` | `(s string, start int, end int) -> string` | Extract substring |
-| `lines` | `(s string) -> [string]` | Split by newlines |
-| `words` | `(s string) -> [string]` | Split by whitespace |
-| `char_at` | `(s string, index int) -> string` | Character at index |
 | `to_int` | `(s string) -> int` | Parse integer |
 | `to_float` | `(s string) -> float` | Parse float |
-| `to_bool` | `(s string) -> bool` | Parse boolean |
 
 ### 10.4 Maps Module (`@maps`)
 
 | Function | Signature | Description |
 |----------|-----------|-------------|
-| `is_empty` | `(m map[K:V]) -> bool` | Check if empty |
-| `contains` | `(m map[K:V], key K) -> bool` | Check if key exists |
-| `contains_value` | `(m map[K:V], value V) -> bool` | Check if value exists |
-| `get` | `(m map[K:V], key K, default V) -> V` | Get value or default |
-| `set` | `(&m map[K:V], key K, value V)` | Set key-value pair |
-| `remove` | `(&m map[K:V], key K) -> bool` | Remove key |
-| `clear` | `(&m map[K:V])` | Remove all entries |
-| `get_or_set` | `(&m map[K:V], key K, default V) -> V` | Get or set default |
-| `update` | `(&m map[K:V], ...maps map[K:V])` | Update with other maps |
-| `merge` | `(...maps map[K:V]) -> map[K:V]` | Merge maps (non-destructive) |
+| `has_key` | `(m map[K:V], key K) -> bool` | Check if key exists |
 | `keys` | `(m map[K:V]) -> [K]` | Get all keys |
 | `values` | `(m map[K:V]) -> [V]` | Get all values |
-| `invert` | `(m map[K:V]) -> map[V:K]` | Swap keys and values |
-| `equals` | `(m1 map[K:V], m2 map[K:V]) -> bool` | Compare maps |
-| `to_array` | `(m map[K:V]) -> [[K,V]]` | Convert to array of pairs |
-| `from_array` | `(pairs [[K,V]]) -> map[K:V]` | Create from pairs |
+| `remove` | `(&m map[K:V], key K) -> bool` | Remove key |
+| `clear` | `(&m map[K:V])` | Remove all entries |
 
 ### 10.5 Math Module (`@math`)
 
@@ -1834,11 +1777,6 @@ println(r2[4])        // Prints 6 - r2 sees the change
 
 | Function | Signature | Description |
 |----------|-----------|-------------|
-| `add` | `(a number, b number) -> number` | Addition |
-| `sub` | `(a number, b number) -> number` | Subtraction |
-| `mul` | `(a number, b number) -> number` | Multiplication |
-| `div` | `(a number, b number) -> float` | Division |
-| `mod` | `(a number, b number) -> number` | Modulo |
 | `abs` | `(n number) -> number` | Absolute value |
 | `neg` | `(n number) -> number` | Negation |
 | `sign` | `(n number) -> int` | Sign (-1, 0, 1) |
@@ -1904,14 +1842,11 @@ println(r2[4])        // Prints 6 - r2 sees the change
 | `random` | `() -> float` | Random float [0, 1) |
 | `random` | `(max int) -> int` | Random int [0, max) |
 | `random` | `(min int, max int) -> int` | Random int [min, max) |
-| `random_float` | `(min number, max number) -> float` | Random float [min, max) |
 
 #### Statistical
 
 | Function | Signature | Description |
 |----------|-----------|-------------|
-| `sum` | `(...numbers) -> number` | Sum |
-| `avg` | `(...numbers) -> float` | Average |
 | `factorial` | `(n int) -> int` | Factorial |
 | `gcd` | `(a int, b int) -> int` | Greatest common divisor |
 | `lcm` | `(a int, b int) -> int` | Least common multiple |
@@ -1932,7 +1867,6 @@ println(r2[4])        // Prints 6 - r2 sees the change
 | Function | Signature | Description |
 |----------|-----------|-------------|
 | `lerp` | `(a number, b number, t number) -> float` | Linear interpolation |
-| `map_range` | `(value, in_min, in_max, out_min, out_max) -> float` | Map to new range |
 | `distance` | `(x1, y1, x2, y2 number) -> float` | Euclidean distance |
 
 #### Constants
@@ -1976,13 +1910,6 @@ println(r2[4])        // Prints 6 - r2 sees the change
 | `minute` | `(timestamp int) -> int` | Get minute |
 | `second` | `(timestamp int) -> int` | Get second |
 | `weekday` | `(timestamp int) -> int` | Get day of week (0=Sunday) |
-| `weekday_name` | `(timestamp int) -> string` | Get day name |
-| `month_name` | `(timestamp int) -> string` | Get month name |
-| `day_of_year` | `(timestamp int) -> int` | Get day of year |
-| `quarter` | `(timestamp int) -> int` | Get quarter (1-4) |
-| `week_of_year` | `(timestamp int) -> int` | Get ISO week number (1-53) |
-| `timezone` | `() -> string` | Get local timezone name |
-| `utc_offset` | `() -> int` | Get local UTC offset in seconds |
 
 #### Formatting
 
@@ -1993,77 +1920,12 @@ println(r2[4])        // Prints 6 - r2 sees the change
 | `date` | `(timestamp int) -> string` | Date (YYYY-MM-DD) |
 | `clock` | `(timestamp int) -> string` | Time (HH:MM:SS) |
 
-#### Parsing and Creation
-
-| Function | Signature | Description |
-|----------|-----------|-------------|
-| `parse` | `(s string, format string) -> int` | Parse string to timestamp |
-| `timestamp` | `(year, month, day, hour, minute, second int) -> int` | Create timestamp |
-| `from_unix` | `(seconds int) -> int` | Convert Unix seconds to timestamp |
-| `from_unix_ms` | `(milliseconds int) -> int` | Convert Unix milliseconds to timestamp |
-| `to_unix` | `(timestamp int) -> int` | Convert timestamp to Unix seconds |
-| `to_unix_ms` | `(timestamp int) -> int` | Convert timestamp to Unix milliseconds |
-
-#### Arithmetic
-
-| Function | Signature | Description |
-|----------|-----------|-------------|
-| `add_seconds` | `(timestamp int, seconds int) -> int` | Add seconds |
-| `add_minutes` | `(timestamp int, minutes int) -> int` | Add minutes |
-| `add_hours` | `(timestamp int, hours int) -> int` | Add hours |
-| `add_days` | `(timestamp int, days int) -> int` | Add days |
-| `add_weeks` | `(timestamp int, weeks int) -> int` | Add weeks |
-| `add_months` | `(timestamp int, months int) -> int` | Add months |
-| `add_years` | `(timestamp int, years int) -> int` | Add years |
-
-#### Differences
-
-| Function | Signature | Description |
-|----------|-----------|-------------|
-| `diff` | `(ts1 int, ts2 int) -> int` | Difference in seconds |
-| `diff_days` | `(ts1 int, ts2 int) -> int` | Difference in days |
-| `diff_hours` | `(ts1 int, ts2 int) -> int` | Difference in hours |
-| `diff_minutes` | `(ts1 int, ts2 int) -> int` | Difference in minutes |
-
-#### Comparisons
-
-| Function | Signature | Description |
-|----------|-----------|-------------|
-| `is_before` | `(ts1 int, ts2 int) -> bool` | Check if ts1 < ts2 |
-| `is_after` | `(ts1 int, ts2 int) -> bool` | Check if ts1 > ts2 |
-| `is_leap_year` | `(year int) -> bool` | Check if leap year |
-| `days_in_month` | `(year int, month int) -> int` | Days in month |
-| `is_weekend` | `(timestamp int) -> bool` | Check if weekend |
-| `is_weekday` | `(timestamp int) -> bool` | Check if weekday |
-| `is_today` | `(timestamp int) -> bool` | Check if today |
-| `is_same_day` | `(ts1 int, ts2 int) -> bool` | Check if same day |
-| `relative` | `(timestamp int) -> string` | Human-readable relative time (e.g., "2 hours ago") |
-
-#### Period Boundaries
-
-| Function | Signature | Description |
-|----------|-----------|-------------|
-| `start_of_day` | `(timestamp int) -> int` | Start of day |
-| `end_of_day` | `(timestamp int) -> int` | End of day |
-| `start_of_month` | `(timestamp int) -> int` | Start of month |
-| `end_of_month` | `(timestamp int) -> int` | End of month |
-| `start_of_year` | `(timestamp int) -> int` | Start of year |
-| `end_of_year` | `(timestamp int) -> int` | End of year |
-
 #### Performance Timing
 
 | Function | Signature | Description |
 |----------|-----------|-------------|
 | `tick` | `() -> int` | High-resolution timestamp in nanoseconds |
 | `elapsed_ms` | `(start_tick int) -> float` | Milliseconds elapsed since a tick |
-
-#### Constants
-
-Weekdays: `SUNDAY` (0) through `SATURDAY` (6)
-
-Months: `JANUARY` (1) through `DECEMBER` (12)
-
-Durations: `SECOND` (1), `MINUTE` (60), `HOUR` (3600), `DAY` (86400), `WEEK` (604800)
 
 ### 10.7 Random Module (`@random`)
 
@@ -2088,7 +1950,7 @@ Durations: `SECOND` (1), `MINUTE` (60), `HOUR` (3600), `DAY` (86400), `WEEK` (60
 | `encode` | `(value) -> (string, Error)` | Encode to JSON string |
 | `decode` | `(text string) -> (any, Error)` | Decode to dynamic type |
 | `decode` | `(text string, Type) -> (Type, Error)` | Decode to typed struct |
-| `pretty` | `(value, indent string) -> (string, Error)` | Pretty print JSON |
+| `pretty` | `(value, indent int) -> (string, Error)` | Pretty print JSON |
 | `is_valid` | `(text string) -> bool` | Check if valid JSON |
 
 ### 10.9 IO Module (`@io`)
@@ -2098,14 +1960,12 @@ Durations: `SECOND` (1), `MINUTE` (60), `HOUR` (3600), `DAY` (86400), `WEEK` (60
 | Function | Signature | Description |
 |----------|-----------|-------------|
 | `read_file` | `(path string) -> (string, Error)` | Read file as string |
-| `read_bytes` | `(path string) -> ([byte], Error)` | Read file as bytes |
 
 #### File Writing
 
 | Function | Signature | Description |
 |----------|-----------|-------------|
 | `write_file` | `(path string, content string) -> (bool, Error)` | Write file |
-| `write_bytes` | `(path string, data [byte]) -> (bool, Error)` | Write bytes |
 | `append_file` | `(path string, content string) -> (bool, Error)` | Append to file |
 
 #### File Operations
@@ -2115,31 +1975,9 @@ Durations: `SECOND` (1), `MINUTE` (60), `HOUR` (3600), `DAY` (86400), `WEEK` (60
 | `file_exists` | `(path string) -> bool` | Check if file exists |
 | `is_file` | `(path string) -> bool` | Check if path is file |
 | `is_directory` | `(path string) -> bool` | Check if path is directory |
-| `is_readable` | `(path string) -> bool` | Check if readable |
-| `is_writable` | `(path string) -> bool` | Check if writable |
 | `file_size` | `(path string) -> (int, Error)` | Get file size |
-| `file_extension` | `(path string) -> string` | Get file extension |
-| `file_name` | `(path string) -> string` | Get file name |
-| `directory_name` | `(path string) -> string` | Get directory path |
-| `absolute_path` | `(path string) -> (string, Error)` | Get absolute path |
 | `delete_file` | `(path string) -> (bool, Error)` | Delete file |
-
-#### Directory Operations
-
-| Function | Signature | Description |
-|----------|-----------|-------------|
-| `list_directory` | `(path string) -> ([string], Error)` | List directory contents |
-| `create_directory` | `(path string) -> (bool, Error)` | Create directory |
-| `create_directories` | `(path string) -> (bool, Error)` | Create recursively |
-| `delete_directory` | `(path string) -> (bool, Error)` | Delete empty directory |
-| `delete_directory_recursive` | `(path string) -> (bool, Error)` | Delete recursively |
-
-#### Path Functions
-
-| Function | Signature | Description |
-|----------|-----------|-------------|
-| `join_path` | `(...parts string) -> string` | Join path components |
-| `normalize_path` | `(path string) -> string` | Normalize path |
+| `rename` | `(old_path string, new_path string) -> (bool, Error)` | Rename file |
 
 ### 10.10 OS Module (`@os`)
 
@@ -2149,8 +1987,6 @@ Durations: `SECOND` (1), `MINUTE` (60), `HOUR` (3600), `DAY` (86400), `WEEK` (60
 |----------|-----------|-------------|
 | `get_env` | `(name string) -> (string, Error)` | Get environment variable |
 | `set_env` | `(name string, value string) -> (bool, Error)` | Set environment variable |
-| `unset_env` | `(name string) -> (bool, Error)` | Unset environment variable |
-| `env` | `() -> map[string:string]` | Get all environment variables |
 
 #### System Information
 
@@ -2158,13 +1994,8 @@ Durations: `SECOND` (1), `MINUTE` (60), `HOUR` (3600), `DAY` (86400), `WEEK` (60
 |----------|-----------|-------------|
 | `args` | `() -> [string]` | Get command-line arguments |
 | `cwd` | `() -> (string, Error)` | Get current working directory |
-| `chdir` | `(path string) -> (bool, Error)` | Change directory |
 | `hostname` | `() -> (string, Error)` | Get machine hostname |
-| `username` | `() -> (string, Error)` | Get current username |
-| `home_dir` | `() -> (string, Error)` | Get home directory |
-| `temp_dir` | `() -> string` | Get temporary directory |
 | `pid` | `() -> int` | Get process ID |
-| `ppid` | `() -> int` | Get parent process ID |
 | `current_os` | `() -> int` | Get current OS |
 | `arch` | `() -> string` | Get CPU architecture |
 | `exit` | `(code int)` | Exit program |
@@ -2184,15 +2015,15 @@ HTTP client for making requests. Currently supports HTTP only; TLS (HTTPS) is pl
 
 | Function | Signature | Description |
 |----------|-----------|-------------|
-| `get` | `(url string) -> Response` | GET request |
-| `post` | `(url string, body string) -> Response` | POST request |
-| `put` | `(url string, body string) -> Response` | PUT request |
-| `delete` | `(url string) -> Response` | DELETE request |
-| `head` | `(url string) -> Response` | HEAD request |
+| `get` | `(url string) -> Http_Response` | GET request |
+| `post` | `(url string, body string) -> Http_Response` | POST request |
+| `put` | `(url string, body string) -> Http_Response` | PUT request |
+| `delete` | `(url string) -> Http_Response` | DELETE request |
+| `head` | `(url string) -> Http_Response` | HEAD request |
 
-#### Response Type
+#### Http_Response Type
 
-The `Response` struct contains:
+The `Http_Response` struct contains:
 - `status int` - HTTP status code
 - `body string` - Response body
 - `headers map` - Response headers
@@ -2202,9 +2033,7 @@ The `Response` struct contains:
 | Function | Signature | Description |
 |----------|-----------|-------------|
 | `sha256` | `(data string) -> string` | SHA-256 hash (hex) |
-| `sha512` | `(data string) -> string` | SHA-512 hash (hex) |
 | `md5` | `(data string) -> string` | MD5 hash (hex) |
-| `random_bytes` | `(length int) -> [byte]` | Cryptographically secure random bytes |
 | `random_hex` | `(length int) -> string` | Cryptographically secure random hex |
 
 ### 10.13 Encoding Module (`@encoding`)
@@ -2226,20 +2055,14 @@ The `Response` struct contains:
 | `generate_compact` | `() -> string` | Generate UUID v4 without hyphens |
 | `is_valid` | `(s string) -> bool` | Validate UUID format |
 
-#### Constants
-
-- `NIL` - Nil UUID (00000000-0000-0000-0000-000000000000)
-
 ### 10.15 Bytes Module (`@bytes`)
 
 | Function | Signature | Description |
 |----------|-----------|-------------|
-| `from_array` | `(arr [int]) -> [byte]` | Create from integer array |
 | `from_string` | `(s string) -> [byte]` | Create from UTF-8 string |
 | `from_hex` | `(hex string) -> ([byte], Error)` | Decode hex string |
 | `from_base64` | `(b64 string) -> ([byte], Error)` | Decode base64 string |
 | `to_string` | `(bytes [byte]) -> string` | Convert to UTF-8 string |
-| `to_array` | `(bytes [byte]) -> [int]` | Convert to integer array |
 | `to_hex` | `(bytes [byte]) -> string` | Encode to hex string |
 | `to_base64` | `(bytes [byte]) -> string` | Encode to base64 string |
 
@@ -2295,7 +2118,7 @@ SQLite database access for persistent storage.
 
 ### 10.18 Server Module (`@server`)
 
-An HTTP server module with dynamic handlers, path parameters, middleware, and CORS.
+An HTTP server module with dynamic handlers and path parameters.
 
 #### Routing
 
@@ -2303,26 +2126,16 @@ An HTTP server module with dynamic handlers, path parameters, middleware, and CO
 |----------|-----------|-------------|
 | `router` | `() -> Router` | Create a new router |
 | `route` | `(router Router, method string, path string, ()handler)` | Add a route with handler function |
-| `use` | `(router Router, ()middleware)` | Add middleware |
 | `listen` | `(port int, router Router) -> Error` | Start HTTP server on port |
 
 #### Response Builders
 
 | Function | Signature | Description |
 |----------|-----------|-------------|
-| `text` | `(status int, body string) -> Response` | Create text/plain response |
-| `json` | `(status int, data) -> Response` | Create application/json response |
-| `html` | `(status int, body string) -> Response` | Create text/html response |
-| `redirect` | `(status int, url string) -> Response` | Create redirect response |
-| `set_header` | `(response Response, key string, value string) -> Response` | Add header |
-
-#### Request Handling
-
-| Function | Signature | Description |
-|----------|-----------|-------------|
-| `parse_json` | `(req Request) -> map` | Parse request body as JSON |
-| `cors` | `(router Router, origin string)` | Enable CORS headers |
-| `static` | `(router Router, url_prefix string, dir_path string)` | Serve static files |
+| `text` | `(status int, body string) -> Http_Response` | Create text/plain response |
+| `json` | `(status int, data) -> Http_Response` | Create application/json response |
+| `html` | `(status int, body string) -> Http_Response` | Create text/html response |
+| `redirect` | `(status int, url string) -> Http_Response` | Create redirect response |
 
 #### Request Type
 
@@ -2340,18 +2153,17 @@ Every handler receives a `Request` struct:
 ```ez
 import @server
 
-do home(req Request) -> Response {
+do home(req Request) -> Http_Response {
     return server.text(200, "Welcome!")
 }
 
-do get_user(req Request) -> Response {
+do get_user(req Request) -> Http_Response {
     mut id = req.params["id"]
     return server.json(200, {"id": id})
 }
 
 do main() {
     mut r = server.router()
-    server.cors(r, "*")
     server.route(r, "GET", "/", ()home)
     server.route(r, "GET", "/users/:id", ()get_user)
     server.listen(8080, r)
@@ -2379,7 +2191,6 @@ Reading and writing CSV (Comma-Separated Values) data.
 | `parse` | `(csv_string string) -> ([[string]], Error)` | Parse CSV string to 2D array |
 | `stringify` | `(data [[string]]) -> (string, Error)` | Convert 2D array to CSV string |
 | `read` | `(path string, options map) -> ([[string]], Error)` | Read CSV file |
-| `headers` | `(path string) -> ([string], Error)` | Read first row (headers) |
 | `write` | `(path string, data [[string]], options map) -> (bool, Error)` | Write CSV file |
 
 The `read` and `write` functions accept an optional options map with keys:
@@ -2419,6 +2230,7 @@ Thread-based concurrency primitives. Compiler-only feature; requires POSIX threa
 | `send` | `(ch Channel, value)` | Send a value into a channel |
 | `recv` | `(ch Channel) -> any` | Receive a value from a channel |
 | `channel_close` | `(ch Channel)` | Close a channel |
+| `mutex_destroy` | `(m Mutex)` | Destroy a mutex |
 
 ### 10.23 Memory Module (`@mem`)
 
@@ -2431,17 +2243,23 @@ Arena-based memory allocation. Compiler-only feature.
 | `reset` | `(arena Arena)` | Reset an arena, reclaiming all allocations without freeing |
 | `usage` | `(arena Arena) -> int` | Return the number of bytes currently used |
 | `make` | `(arena Arena, Type) -> ^Type` | Allocate a zero-initialized value of `Type` in the arena |
+| `alloc` | `(arena Arena, value) -> T` | Allocate a copy of `value` in the arena |
+| `copy` | `(dest, src, n int)` | Copy `n` bytes from `src` to `dest` |
+| `zero` | `(ptr, n int)` | Zero out `n` bytes at `ptr` |
+| `set` | `(ptr, value int, n int)` | Set `n` bytes at `ptr` to `value` |
 
 ### 10.24 Fmt Module (`@fmt`)
 
-Formatted error output.
+Formatted output functions.
 
 | Function | Signature | Description |
 |----------|-----------|-------------|
-| `eprintln` | `(value) -> void` | Print a value to stderr followed by a newline |
-| `eprint` | `(value) -> void` | Print a value to stderr without a newline |
+| `printf` | `(format string, ...args)` | Print formatted string to stdout |
+| `sprintf` | `(format string, ...args) -> string` | Return formatted string |
 
 Accepts `string`, `int`, `float`, and `bool` arguments.
+
+> **Note:** For stderr output, use the builtin `eprintln()` and `eprint()` functions directly — no `@fmt` import needed.
 
 ---
 
@@ -2510,6 +2328,9 @@ For fine-grained control, the `@mem` module exposes arena operations directly:
 | `mem.usage(a)` | Return bytes currently used in arena `a` |
 | `mem.make(a, Type)` | Allocate a zero-initialized `Type` in arena `a` |
 | `mem.alloc(a, value)` | Allocate a copy of `value` in arena `a` |
+| `mem.copy(dest, src, n)` | Copy `n` bytes from `src` to `dest` |
+| `mem.zero(ptr, n)` | Zero out `n` bytes at `ptr` |
+| `mem.set(ptr, val, n)` | Set `n` bytes at `ptr` to `val` |
 
 ### 12.2 Value Semantics
 
@@ -2537,7 +2358,7 @@ duplicate.age = 31  // original.age is still 30
 
 ### 12.5 Zero Values
 
-The `new()` function creates a zero-initialized instance of a type:
+The `new()` function allocates a zero-initialized struct on the default arena and returns a pointer to it:
 
 | Type | Zero Value |
 |------|------------|
@@ -2825,7 +2646,7 @@ block          = "{" { statement } "}" .
 | E3038 | void-type-not-allowed | `void` is not a valid type |
 | E3039 | ensure-expects-call | `ensure` expects a function call |
 | E3040 | multi-return-to-single-var | Cannot assign multiple return values to single variable |
-| E3041 | array-size-overflow | Array literal has more elements than declared size |
+| E3041 | new-requires-struct | `new()` argument must be a defined struct type |
 
 ### E4xxx — Reference Errors
 
