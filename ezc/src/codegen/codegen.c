@@ -1198,10 +1198,6 @@ static bool emit_builtin_call(CodeGen *cg, AstNode *node, const char *func) {
         return true;
     }
 
-    if (strcmp(func, "read_int") == 0) {
-        emit(cg, "({ EzString _s = ez_std_input(ez_default_arena); atoll(_s.data); })");
-        return true;
-    }
 
     if (strcmp(func, "eprintln") == 0) {
         if (node->data.call.arg_count == 0) {

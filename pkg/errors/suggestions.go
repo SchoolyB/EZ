@@ -64,7 +64,7 @@ var Keywords = []string{
 // Common builtin functions
 var Builtins = []string{
 	"len", "typeof", "input", "int", "float", "string", "new",
-	"println", "print", "read_int",
+	"println", "print",
 }
 
 // EZ type names

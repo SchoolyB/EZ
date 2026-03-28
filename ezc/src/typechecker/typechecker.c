@@ -228,7 +228,7 @@ static bool tc_is_builtin(const char *name) {
         "u8", "u16", "u32", "u64", "u128", "u256",
         "f32", "f64",
         "exit", "panic", "assert", "range", "cast",
-        "read_int", "sleep_seconds", "sleep_milliseconds", "sleep_nanoseconds",
+        "sleep_seconds", "sleep_milliseconds", "sleep_nanoseconds",
         NULL
     };
     for (int i = 0; builtins[i]; i++) {
@@ -1072,8 +1072,6 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                 result = &TYPE_VOID;
             } else if (strcmp(fn_name, "copy") == 0 && node->data.call.arg_count == 1) {
                 result = resolve_expr(tc, node->data.call.args[0]);
-            } else if (strcmp(fn_name, "read_int") == 0) {
-                result = &TYPE_INT;
             } else if (strcmp(fn_name, "char") == 0 && node->data.call.arg_count == 1) {
                 /* E7014: char() with negative integer */
                 int64_t lit_val;
