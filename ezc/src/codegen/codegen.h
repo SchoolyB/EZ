@@ -40,6 +40,12 @@ typedef struct {
     const char **ref_vars;
     int ref_var_count;
     int ref_var_cap;
+
+    /* Track declared bigint variable types (name → type_name) */
+    const char **bigint_var_names;
+    const char **bigint_var_types;
+    int bigint_var_count;
+    int bigint_var_cap;
 } CodeGen;
 
 CodeGen codegen_create(const char *file);

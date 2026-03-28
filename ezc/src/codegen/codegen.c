@@ -62,8 +62,10 @@ static const char *ez_type_to_c_cg(CodeGen *cg, const char *type_name) {
     if (strcmp(type_name, "u16") == 0)    return "uint16_t";
     if (strcmp(type_name, "u32") == 0)    return "uint32_t";
     if (strcmp(type_name, "u64") == 0)    return "uint64_t";
-    if (strcmp(type_name, "i128") == 0)   return "__int128";
-    if (strcmp(type_name, "u128") == 0)   return "unsigned __int128";
+    if (strcmp(type_name, "i128") == 0)   return "ez_i128";
+    if (strcmp(type_name, "u128") == 0)   return "ez_u128";
+    if (strcmp(type_name, "i256") == 0)   return "ez_i256";
+    if (strcmp(type_name, "u256") == 0)   return "ez_u256";
     if (strcmp(type_name, "float") == 0)  return "double";
     if (strcmp(type_name, "f32") == 0)    return "float";
     if (strcmp(type_name, "f64") == 0)    return "double";
@@ -120,6 +122,62 @@ static void register_ref_var(CodeGen *cg, const char *name) {
         cg->ref_vars = realloc(cg->ref_vars, sizeof(const char *) * cg->ref_var_cap);
     }
     cg->ref_vars[cg->ref_var_count++] = name;
+}
+
+/* Check if a type name is a wide integer type (i128/u128/i256/u256) */
+static bool is_bigint_type(const char *tn) {
+    if (!tn) return false;
+    return strcmp(tn, "i128") == 0 || strcmp(tn, "u128") == 0 ||
+           strcmp(tn, "i256") == 0 || strcmp(tn, "u256") == 0;
+}
+
+/* Register a bigint variable's declared type name */
+static void register_bigint_var(CodeGen *cg, const char *name, const char *type_name) {
+    if (cg->bigint_var_count >= cg->bigint_var_cap) {
+        cg->bigint_var_cap = cg->bigint_var_cap ? cg->bigint_var_cap * 2 : 8;
+        cg->bigint_var_names = realloc(cg->bigint_var_names, sizeof(const char *) * cg->bigint_var_cap);
+        cg->bigint_var_types = realloc(cg->bigint_var_types, sizeof(const char *) * cg->bigint_var_cap);
+    }
+    cg->bigint_var_names[cg->bigint_var_count] = name;
+    cg->bigint_var_types[cg->bigint_var_count] = type_name;
+    cg->bigint_var_count++;
+}
+
+/* Look up a variable's bigint type name, or NULL if not bigint */
+static const char *lookup_bigint_var(CodeGen *cg, const char *name) {
+    for (int i = cg->bigint_var_count - 1; i >= 0; i--) {
+        if (strcmp(cg->bigint_var_names[i], name) == 0) return cg->bigint_var_types[i];
+    }
+    return NULL;
+}
+
+/* Get the bigint type prefix for a given type name (e.g., "i128" → "ez_i128") */
+static const char *bigint_prefix(const char *tn) {
+    if (strcmp(tn, "i128") == 0) return "ez_i128";
+    if (strcmp(tn, "u128") == 0) return "ez_u128";
+    if (strcmp(tn, "i256") == 0) return "ez_i256";
+    if (strcmp(tn, "u256") == 0) return "ez_u256";
+    return NULL;
+}
+
+/* Resolve the bigint type name for an expression (checks labels against tracked vars) */
+static const char *resolve_bigint_type(CodeGen *cg, AstNode *node) {
+    if (!node) return NULL;
+    if (node->kind == NODE_LABEL) {
+        return lookup_bigint_var(cg, node->data.label.value);
+    }
+    /* If the node is a call to a bigint cast function */
+    if (node->kind == NODE_CALL_EXPR && node->data.call.function->kind == NODE_LABEL) {
+        const char *fn = node->data.call.function->data.label.value;
+        if (is_bigint_type(fn)) return fn;
+    }
+    /* If this is an infix expression, check left operand */
+    if (node->kind == NODE_INFIX_EXPR) {
+        const char *lt = resolve_bigint_type(cg, node->data.infix.left);
+        if (lt) return lt;
+        return resolve_bigint_type(cg, node->data.infix.right);
+    }
+    return NULL;
 }
 
 static bool is_mutable_param(CodeGen *cg, const char *name) {
@@ -464,6 +522,16 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
             }
             break;
         }
+        /* Bigint negation */
+        if (strcmp(node->data.prefix.op, "-") == 0) {
+            const char *bi_type = resolve_bigint_type(cg, node->data.prefix.right);
+            if (bi_type && (strcmp(bi_type, "i128") == 0 || strcmp(bi_type, "i256") == 0)) {
+                emitf(cg, "%s_neg(", bigint_prefix(bi_type));
+                emit_expression(cg, node->data.prefix.right);
+                emit(cg, ")");
+                break;
+            }
+        }
         emit(cg, "(");
         emit(cg, node->data.prefix.op);
         if (strcmp(node->data.prefix.op, "-") == 0 &&
@@ -576,6 +644,37 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
                 emit(cg, ")");
             }
             break;
+        }
+
+        /* Bigint infix — emit function calls instead of C operators.
+         * Must come before overflow-check and div-by-zero handlers since
+         * bigint types share TK_INT/TK_UINT kind. */
+        {
+            const char *bi_type = resolve_bigint_type(cg, node->data.infix.left);
+            if (!bi_type) bi_type = resolve_bigint_type(cg, node->data.infix.right);
+            if (bi_type) {
+                const char *pfx = bigint_prefix(bi_type);
+                const char *fn_op = NULL;
+                if (strcmp(op, "+") == 0) fn_op = "add";
+                else if (strcmp(op, "-") == 0) fn_op = "sub";
+                else if (strcmp(op, "*") == 0) fn_op = "mul";
+                else if (strcmp(op, "/") == 0) fn_op = "div";
+                else if (strcmp(op, "%") == 0) fn_op = "mod";
+                else if (strcmp(op, "==") == 0) fn_op = "eq";
+                else if (strcmp(op, "!=") == 0) fn_op = "ne";
+                else if (strcmp(op, "<") == 0) fn_op = "lt";
+                else if (strcmp(op, ">") == 0) fn_op = "gt";
+                else if (strcmp(op, "<=") == 0) fn_op = "le";
+                else if (strcmp(op, ">=") == 0) fn_op = "ge";
+                if (fn_op) {
+                    emitf(cg, "%s_%s(", pfx, fn_op);
+                    emit_expression(cg, node->data.infix.left);
+                    emit(cg, ", ");
+                    emit_expression(cg, node->data.infix.right);
+                    emit(cg, ")");
+                    break;
+                }
+            }
         }
 
         /* Runtime division/modulo by zero check (skip for floats — IEEE 754 Inf) */
@@ -913,6 +1012,14 @@ static const char *resolve_print_suffix(CodeGen *cg, AstNode *arg) {
 }
 
 static void emit_to_string(CodeGen *cg, AstNode *arg) {
+    /* Bigint to_string */
+    const char *bi_type = resolve_bigint_type(cg, arg);
+    if (bi_type) {
+        emitf(cg, "%s_to_string(ez_default_arena, ", bigint_prefix(bi_type));
+        emit_expression(cg, arg);
+        emit(cg, ")");
+        return;
+    }
     EzType *at = cg->type_table ? typetable_get(cg->type_table, arg) : NULL;
     if (at && at->kind == TK_FLOAT)
         emit(cg, "ez_std_to_string_float(ez_default_arena, ");
@@ -949,9 +1056,16 @@ static bool emit_builtin_call(CodeGen *cg, AstNode *node, const char *func) {
             emit(cg, "putchar('\\n')");
         } else {
             AstNode *arg = node->data.call.args[0];
-            emitf(cg, "ez_std_println%s(", resolve_print_suffix(cg, arg));
-            emit_expression(cg, arg);
-            emit(cg, ")");
+            const char *bi_type = resolve_bigint_type(cg, arg);
+            if (bi_type) {
+                emitf(cg, "ez_std_println_str(%s_to_string(ez_default_arena, ", bigint_prefix(bi_type));
+                emit_expression(cg, arg);
+                emit(cg, "))");
+            } else {
+                emitf(cg, "ez_std_println%s(", resolve_print_suffix(cg, arg));
+                emit_expression(cg, arg);
+                emit(cg, ")");
+            }
         }
         return true;
     }
@@ -973,6 +1087,12 @@ static bool emit_builtin_call(CodeGen *cg, AstNode *node, const char *func) {
 
     if (strcmp(func, "type_of") == 0 && node->data.call.arg_count == 1) {
         AstNode *arg = node->data.call.args[0];
+        /* Bigint type_of: return the exact type name */
+        const char *bi_type = resolve_bigint_type(cg, arg);
+        if (bi_type) {
+            emitf(cg, "ez_string_lit(\"%s\")", bi_type);
+            return true;
+        }
         EzType *t = cg->type_table ? typetable_get(cg->type_table, arg) : NULL;
         /* Range expression: type_of(range(0, 5)) → "Range<int>" */
         if (arg->kind == NODE_RANGE_EXPR ||
@@ -1090,9 +1210,16 @@ static bool emit_builtin_call(CodeGen *cg, AstNode *node, const char *func) {
             emit(cg, "fputc('\\n', stderr)");
         } else {
             AstNode *arg = node->data.call.args[0];
-            emitf(cg, "ez_std_eprintln%s(", resolve_print_suffix(cg, arg));
-            emit_expression(cg, arg);
-            emit(cg, ")");
+            const char *bi_type = resolve_bigint_type(cg, arg);
+            if (bi_type) {
+                emitf(cg, "ez_std_eprintln_str(%s_to_string(ez_default_arena, ", bigint_prefix(bi_type));
+                emit_expression(cg, arg);
+                emit(cg, "))");
+            } else {
+                emitf(cg, "ez_std_eprintln%s(", resolve_print_suffix(cg, arg));
+                emit_expression(cg, arg);
+                emit(cg, ")");
+            }
         }
         return true;
     }
@@ -1125,6 +1252,26 @@ static bool emit_builtin_call(CodeGen *cg, AstNode *node, const char *func) {
         return true;
     }
 
+    /* Bigint conversion functions: i128(), u128(), i256(), u256() */
+    if (node->data.call.arg_count == 1 && is_bigint_type(func)) {
+        AstNode *carg = node->data.call.args[0];
+        const char *src_bi = resolve_bigint_type(cg, carg);
+        const char *pfx = bigint_prefix(func);
+        if (src_bi) {
+            /* Bigint→bigint cast */
+            emitf(cg, "%s_from_%s(", pfx, src_bi);
+            emit_expression(cg, carg);
+            emit(cg, ")");
+        } else {
+            /* Scalar→bigint: e.g., ez_i128_from_i64(x) */
+            const char *from_suffix = (strcmp(func, "u128") == 0 || strcmp(func, "u256") == 0) ? "u64" : "i64";
+            emitf(cg, "%s_from_%s(", pfx, from_suffix);
+            emit_expression(cg, carg);
+            emit(cg, ")");
+        }
+        return true;
+    }
+
     /* Sized type conversion functions: i8(), u16(), f32(), etc. */
     if (node->data.call.arg_count == 1) {
         const char *cast_type = NULL;
@@ -1144,8 +1291,18 @@ static bool emit_builtin_call(CodeGen *cg, AstNode *node, const char *func) {
         else if (strcmp(func, "char") == 0) cast_type = "int32_t";
         else if (strcmp(func, "byte") == 0) cast_type = "uint8_t";
         if (cast_type) {
-            /* Use overflow-safe conversion for float→int casts */
             AstNode *carg = node->data.call.args[0];
+            /* Bigint→scalar: e.g., int(x128) → ez_i128_to_i64(x128) */
+            const char *src_bi = resolve_bigint_type(cg, carg);
+            if (src_bi) {
+                const char *src_pfx = bigint_prefix(src_bi);
+                const char *to_suffix = (strcmp(src_bi, "u128") == 0 || strcmp(src_bi, "u256") == 0) ? "u64" : "i64";
+                emitf(cg, "((%s)%s_to_%s(", cast_type, src_pfx, to_suffix);
+                emit_expression(cg, carg);
+                emit(cg, "))");
+                return true;
+            }
+            /* Use overflow-safe conversion for float→int casts */
             bool use_safe_float = false;
             if ((strcmp(func, "int") == 0 || strcmp(func, "i64") == 0 ||
                  strcmp(func, "i32") == 0 || strcmp(func, "i16") == 0 ||
@@ -1186,11 +1343,18 @@ static bool emit_builtin_call(CodeGen *cg, AstNode *node, const char *func) {
 
     if (strcmp(func, "print") == 0 && node->data.call.arg_count > 0) {
         AstNode *arg = node->data.call.args[0];
-        const char *suffix = "_int";
-        if (arg->kind == NODE_STRING_VALUE) suffix = "_str";
-        emitf(cg, "ez_std_print%s(", suffix);
-        emit_expression(cg, arg);
-        emit(cg, ")");
+        const char *bi_type = resolve_bigint_type(cg, arg);
+        if (bi_type) {
+            emitf(cg, "ez_std_print_str(%s_to_string(ez_default_arena, ", bigint_prefix(bi_type));
+            emit_expression(cg, arg);
+            emit(cg, "))");
+        } else {
+            const char *suffix = "_int";
+            if (arg->kind == NODE_STRING_VALUE) suffix = "_str";
+            emitf(cg, "ez_std_print%s(", suffix);
+            emit_expression(cg, arg);
+            emit(cg, ")");
+        }
         return true;
     }
 
@@ -2440,6 +2604,11 @@ static void emit_var_declaration(CodeGen *cg, AstNode *node) {
 
     const char *c_type = ez_type_to_c_cg(cg, type_name);
 
+    /* Register bigint variable for type tracking */
+    if (type_name && is_bigint_type(type_name)) {
+        register_bigint_var(cg, node->data.var_decl.name, type_name);
+    }
+
     /* Skip blank identifiers (_) */
     if (strcmp(node->data.var_decl.name, "_") == 0) {
         if (node->data.var_decl.value) {
@@ -2511,7 +2680,24 @@ static void emit_var_declaration(CodeGen *cg, AstNode *node) {
 
     if (node->data.var_decl.value) {
         emit(cg, " = ");
-        emit_expression(cg, node->data.var_decl.value);
+        /* Bigint literal zero: emit zero constant instead of plain 0 */
+        if (type_name && is_bigint_type(type_name) &&
+            node->data.var_decl.value->kind == NODE_INT_VALUE &&
+            node->data.var_decl.value->data.int_value.value == 0) {
+            if (strcmp(type_name, "i128") == 0) emit(cg, "EZ_I128_ZERO");
+            else if (strcmp(type_name, "u128") == 0) emit(cg, "EZ_U128_ZERO");
+            else if (strcmp(type_name, "i256") == 0) emit(cg, "EZ_I256_ZERO");
+            else if (strcmp(type_name, "u256") == 0) emit(cg, "EZ_U256_ZERO");
+        } else if (type_name && is_bigint_type(type_name) &&
+                   node->data.var_decl.value->kind == NODE_INT_VALUE) {
+            /* Non-zero integer literal: use constructor */
+            int64_t v = node->data.var_decl.value->data.int_value.value;
+            const char *pfx = bigint_prefix(type_name);
+            const char *from_suffix = (strcmp(type_name, "u128") == 0 || strcmp(type_name, "u256") == 0) ? "u64" : "i64";
+            emitf(cg, "%s_from_%s(%lldLL)", pfx, from_suffix, (long long)v);
+        } else {
+            emit_expression(cg, node->data.var_decl.value);
+        }
     } else {
         /* Zero-initialize when no value is provided */
         if (strcmp(c_type, "int64_t") == 0) emit(cg, " = 0");
@@ -2520,6 +2706,10 @@ static void emit_var_declaration(CodeGen *cg, AstNode *node) {
         else if (strcmp(c_type, "EzString") == 0) emit(cg, " = (EzString){\"\", 0}");
         else if (strcmp(c_type, "EzArray") == 0) emit(cg, " = (EzArray){0}");
         else if (strcmp(c_type, "EzMap") == 0) emit(cg, " = (EzMap){0}");
+        else if (strcmp(c_type, "ez_i128") == 0) emit(cg, " = EZ_I128_ZERO");
+        else if (strcmp(c_type, "ez_u128") == 0) emit(cg, " = EZ_U128_ZERO");
+        else if (strcmp(c_type, "ez_i256") == 0) emit(cg, " = EZ_I256_ZERO");
+        else if (strcmp(c_type, "ez_u256") == 0) emit(cg, " = EZ_U256_ZERO");
         else emit(cg, " = {0}");
     }
 
@@ -2862,6 +3052,14 @@ static void emit_func_declaration(CodeGen *cg, AstNode *node, bool is_main) {
     AstNode *prev_func = cg->current_func;
     cg->current_func = node;
 
+    /* Register bigint parameters for type tracking */
+    for (int i = 0; i < node->data.func_decl.param_count; i++) {
+        Param *param = &node->data.func_decl.params[i];
+        if (param->type_name && is_bigint_type(param->type_name)) {
+            register_bigint_var(cg, param->name, param->type_name);
+        }
+    }
+
     /* Emit named return variable declarations (zero-initialized) */
     if (node->data.func_decl.return_names) {
         for (int i = 0; i < node->data.func_decl.return_type_count; i++) {
@@ -3173,6 +3371,10 @@ CodeGen codegen_create(const char *file) {
     cg.ref_vars = NULL;
     cg.ref_var_count = 0;
     cg.ref_var_cap = 0;
+    cg.bigint_var_names = NULL;
+    cg.bigint_var_types = NULL;
+    cg.bigint_var_count = 0;
+    cg.bigint_var_cap = 0;
     return cg;
 }
 
@@ -3229,6 +3431,7 @@ void codegen_generate(CodeGen *cg, AstNode *program) {
     emit(cg, "#include \"ez_net.h\"\n");
     emit(cg, "#include \"ez_http.h\"\n");
     emit(cg, "#include \"ez_server.h\"\n");
+    emit(cg, "#include \"ez_bigint.h\"\n");
     emit(cg, "\n");
 
     /* Emit enum type definitions FIRST (before structs, since structs may reference enums) */

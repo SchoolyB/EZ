@@ -163,8 +163,8 @@ uint
 
 **Sized types (reserved names):**
 ```
-i8    i16    i32    i64
-u8    u16    u32    u64
+i8    i16    i32    i64    i128    i256
+u8    u16    u32    u64    u128    u256
 f32   f64
 ```
 
@@ -379,7 +379,51 @@ mut c byte = 128   // decimal also works
 
 Assigning a value outside the range 0-255 to a `byte` is a check-time error.
 
-#### 4.1.8 Nil Type (`nil`)
+#### 4.1.8 Sized Integer Types
+
+EZ provides fixed-width integer types for precise control over integer size:
+
+| Type | Width | Signed | Range |
+|------|-------|--------|-------|
+| `i8` | 8-bit | yes | -128 to 127 |
+| `i16` | 16-bit | yes | -32,768 to 32,767 |
+| `i32` | 32-bit | yes | -2^31 to 2^31-1 |
+| `i64` | 64-bit | yes | -2^63 to 2^63-1 |
+| `u8` | 8-bit | no | 0 to 255 |
+| `u16` | 16-bit | no | 0 to 65,535 |
+| `u32` | 32-bit | no | 0 to 2^32-1 |
+| `u64` | 64-bit | no | 0 to 2^64-1 |
+
+Use sized type names as cast functions: `i32(value)`, `u16(value)`.
+
+#### 4.1.9 Wide Integer Types (`i128`, `u128`, `i256`, `u256`)
+
+EZ provides portable wide integer types backed by struct-based arithmetic (no compiler extensions required):
+
+| Type | Width | Signed | `size_of` |
+|------|-------|--------|-----------|
+| `i128` | 128-bit | yes | 16 |
+| `u128` | 128-bit | no | 16 |
+| `i256` | 256-bit | yes | 32 |
+| `u256` | 256-bit | no | 32 |
+
+Wide integers support all standard arithmetic (`+`, `-`, `*`, `/`, `%`) and comparison operators (`==`, `!=`, `<`, `>`, `<=`, `>=`). Values are constructed using the type name as a function:
+
+```ez
+mut a i128 = i128(42)
+mut b i128 = i128(100)
+mut c i128 = a + b          // i128 addition
+println(c)                   // prints "142"
+println(type_of(c))          // "i128"
+println(size_of(i128))       // 16
+
+mut x int = int(c)           // cast back to int
+mut s string = string(c)     // convert to string
+```
+
+Wide integers do not use overflow-checked arithmetic — they wrap on overflow like C unsigned types.
+
+#### 4.1.10 Nil Type (`nil`)
 
 The `nil` type has a single value, also written `nil`. It represents the absence of a value and is used in error handling.
 
@@ -1628,7 +1672,9 @@ The core module provides fundamental I/O, type conversion, and utility functions
 | Function | Description |
 |----------|-------------|
 | `i8`, `i16`, `i32`, `i64` | Convert to signed integers |
+| `i128`, `i256` | Convert to wide signed integers (struct-based, 128/256-bit) |
 | `u8`, `u16`, `u32`, `u64` | Convert to unsigned integers |
+| `u128`, `u256` | Convert to wide unsigned integers (struct-based, 128/256-bit) |
 | `f32`, `f64` | Convert to sized floats |
 
 #### Utility Functions

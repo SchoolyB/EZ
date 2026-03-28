@@ -97,12 +97,14 @@ EzType *type_from_name(const char *name) {
     if (strcmp(name, "i32") == 0)    return &TYPE_INT;
     if (strcmp(name, "i64") == 0)    return &TYPE_INT;
     if (strcmp(name, "i128") == 0)   return &TYPE_INT;
+    if (strcmp(name, "i256") == 0)   return &TYPE_INT;
     if (strcmp(name, "uint") == 0)   return &TYPE_UINT;
     if (strcmp(name, "u8") == 0)     return &TYPE_UINT;
     if (strcmp(name, "u16") == 0)    return &TYPE_UINT;
     if (strcmp(name, "u32") == 0)    return &TYPE_UINT;
     if (strcmp(name, "u64") == 0)    return &TYPE_UINT;
     if (strcmp(name, "u128") == 0)   return &TYPE_UINT;
+    if (strcmp(name, "u256") == 0)   return &TYPE_UINT;
     if (strcmp(name, "float") == 0)  return &TYPE_FLOAT;
     if (strcmp(name, "f32") == 0)    return &TYPE_FLOAT;
     if (strcmp(name, "f64") == 0)    return &TYPE_FLOAT;
