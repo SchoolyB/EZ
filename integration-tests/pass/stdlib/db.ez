@@ -385,9 +385,9 @@ do main() {
     println("  -- Cleanup --")
 
     // Clean up test database files created during tests
-    mut _, _ = io.remove("mydb.ezdb")
-    mut _, _ = io.remove("rename_test.ezdb")
-    mut _, _ = io.remove("sort_test.ezdb")
+    mut _, _ = io.delete_file("mydb.ezdb")
+    mut _, _ = io.delete_file("rename_test.ezdb")
+    mut _, _ = io.delete_file("sort_test.ezdb")
     println("   [INFO] Cleaned up test database files")
 
     // ==================== Summary ====================

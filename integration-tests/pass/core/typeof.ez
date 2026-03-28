@@ -1,6 +1,6 @@
 /*
- * Test: typeof() builtin function
- * Tests that typeof() returns correct EZ type names
+ * Test: type_of() builtin function
+ * Tests that type_of() returns correct EZ type names
  */
 
 import @std
@@ -20,71 +20,71 @@ do main() {
     mut s string = "hello"
     mut b bool = true
 
-    assert(typeof(i) == "int", "int variable should return 'int'")
-    assert(typeof(f) == "float", "float variable should return 'float'")
-    assert(typeof(s) == "string", "string variable should return 'string'")
-    assert(typeof(b) == "bool", "bool variable should return 'bool'")
-    assert(typeof(nil) == "nil", "nil should return 'nil'")
+    assert(type_of(i) == "int", "int variable should return 'int'")
+    assert(type_of(f) == "float", "float variable should return 'float'")
+    assert(type_of(s) == "string", "string variable should return 'string'")
+    assert(type_of(b) == "bool", "bool variable should return 'bool'")
+    assert(type_of(nil) == "nil", "nil should return 'nil'")
 
     // Literals
-    assert(typeof(42) == "int", "int literal should return 'int'")
-    assert(typeof(3.14) == "float", "float literal should return 'float'")
-    assert(typeof("test") == "string", "string literal should return 'string'")
-    assert(typeof(true) == "bool", "bool literal should return 'bool'")
+    assert(type_of(42) == "int", "int literal should return 'int'")
+    assert(type_of(3.14) == "float", "float literal should return 'float'")
+    assert(type_of("test") == "string", "string literal should return 'string'")
+    assert(type_of(true) == "bool", "bool literal should return 'bool'")
 
     // Arrays with declared type
     mut arr [int] = {1, 2, 3}
-    assert(typeof(arr) == "[int]", "array should return '[int]'")
+    assert(type_of(arr) == "[int]", "array should return '[int]'")
 
     mut strArr [string] = {"a", "b"}
-    assert(typeof(strArr) == "[string]", "string array should return '[string]'")
+    assert(type_of(strArr) == "[string]", "string array should return '[string]'")
 
     // Maps with declared type
     mut m map[string:int] = {"a": 1}
-    assert(typeof(m) == "map[string:int]", "map should return 'map[string:int]'")
+    assert(type_of(m) == "map[string:int]", "map should return 'map[string:int]'")
 
     mut m2 map[int:string] = {1: "one"}
-    assert(typeof(m2) == "map[int:string]", "map should return 'map[int:string]'")
+    assert(type_of(m2) == "map[int:string]", "map should return 'map[int:string]'")
 
     // Enums
     mut c Color = Color.RED
-    assert(typeof(c) == "Color", "enum variable should return enum type name")
-    assert(typeof(Color.GREEN) == "Color", "enum member should return enum type name")
+    assert(type_of(c) == "Color", "enum variable should return enum type name")
+    assert(type_of(Color.GREEN) == "Color", "enum member should return enum type name")
 
     // Structs
     mut p Point = Point{x: 10, y: 20}
-    assert(typeof(p) == "Point", "struct variable should return struct name")
-    assert(typeof(Point{x: 1, y: 2}) == "Point", "struct literal should return struct name")
+    assert(type_of(p) == "Point", "struct variable should return struct name")
+    assert(type_of(Point{x: 1, y: 2}) == "Point", "struct literal should return struct name")
 
     // Range
-    assert(typeof(range(0, 5)) == "Range<int>", "range should return 'Range<int>'")
+    assert(type_of(range(0, 5)) == "Range<int>", "range should return 'Range<int>'")
 
     // Function returns
-    assert(typeof(returnsInt()) == "int", "function returning int")
-    assert(typeof(returnsString()) == "string", "function returning string")
-    assert(typeof(returnsBool()) == "bool", "function returning bool")
-    assert(typeof(returnsStruct()) == "Point", "function returning struct")
+    assert(type_of(returnsInt()) == "int", "function returning int")
+    assert(type_of(returnsString()) == "string", "function returning string")
+    assert(type_of(returnsBool()) == "bool", "function returning bool")
+    assert(type_of(returnsStruct()) == "Point", "function returning struct")
 
     // Built-in returns
-    assert(typeof(len(arr)) == "int", "len() should return int")
-    assert(typeof(typeof(i)) == "string", "typeof() should return string")
-    assert(typeof(string(42)) == "string", "string() should return string")
-    assert(typeof(int("42")) == "int", "int() should return int")
-    assert(typeof(float(42)) == "float", "float() should return float")
+    assert(type_of(len(arr)) == "int", "len() should return int")
+    assert(type_of(type_of(i)) == "string", "type_of() should return string")
+    assert(type_of(string(42)) == "string", "string() should return string")
+    assert(type_of(int("42")) == "int", "int() should return int")
+    assert(type_of(float(42)) == "float", "float() should return float")
 
     // Expressions
-    assert(typeof(1 + 2) == "int", "arithmetic should return int")
-    assert(typeof(1 < 2) == "bool", "comparison should return bool")
-    assert(typeof("a" + "b") == "string", "string concat should return string")
-    assert(typeof(arr[0]) == "int", "array index should return element type")
-    assert(typeof(m["a"]) == "int", "map index should return value type")
-    assert(typeof(p.x) == "int", "struct field should return field type")
+    assert(type_of(1 + 2) == "int", "arithmetic should return int")
+    assert(type_of(1 < 2) == "bool", "comparison should return bool")
+    assert(type_of("a" + "b") == "string", "string concat should return string")
+    assert(type_of(arr[0]) == "int", "array index should return element type")
+    assert(type_of(m["a"]) == "int", "map index should return value type")
+    assert(type_of(p.x) == "int", "struct field should return field type")
 
     // Opaque stdlib types
     mut a = mem.arena(1024)
-    assert(typeof(a) == "Arena", "mem.arena() should return 'Arena'")
+    assert(type_of(a) == "Arena", "mem.arena() should return 'Arena'")
 
-    println("PASS: typeof")
+    println("PASS: type_of")
 }
 
 do returnsInt() -> int { return 42 }

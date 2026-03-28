@@ -360,15 +360,15 @@ static void test_e2e_len_string(void) {
     ASSERT_STR_EQ(out, "5");
 }
 
-/* --- Typeof builtin --- */
+/* --- type_of builtin --- */
 
-static void test_e2e_typeof(void) {
+static void test_e2e_type_of(void) {
     char *out = compile_and_run(
         "import @std\nusing std\n"
         "do main() {\n"
-        "    println(typeof(42))\n"
-        "    println(typeof(\"hi\"))\n"
-        "    println(typeof(true))\n"
+        "    println(type_of(42))\n"
+        "    println(type_of(\"hi\"))\n"
+        "    println(type_of(true))\n"
         "}");
     ASSERT_NOT_NULL(out);
     ASSERT_STR_EQ(out, "int\nstring\nbool");
@@ -1068,7 +1068,7 @@ int main(void) {
     RUN_TEST(test_e2e_for_each);
     RUN_TEST(test_e2e_when);
     RUN_TEST(test_e2e_len_string);
-    RUN_TEST(test_e2e_typeof);
+    RUN_TEST(test_e2e_type_of);
     RUN_TEST(test_e2e_compound_assign);
     RUN_TEST(test_e2e_char);
     RUN_TEST(test_e2e_blank_ident);

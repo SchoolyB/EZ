@@ -172,7 +172,7 @@ do main() {
     }
 
     // Cleanup test file
-    mut _, cleanup_err = io.remove(test_path)
+    mut _, cleanup_err = io.delete_file(test_path)
 
     // Summary
     println("")

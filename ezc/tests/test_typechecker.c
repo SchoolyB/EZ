@@ -231,14 +231,14 @@ static void test_resolve_len(void) {
     ASSERT_EQ(t->kind, TK_INT);
 }
 
-static void test_resolve_typeof(void) {
-    EzType *t = expr_type("typeof(42)");
+static void test_resolve_type_of(void) {
+    EzType *t = expr_type("type_of(42)");
     ASSERT_NOT_NULL(t);
     ASSERT_EQ(t->kind, TK_STRING);
 }
 
 static void test_resolve_to_float(void) {
-    EzType *t = expr_type("to_float(42)");
+    EzType *t = expr_type("float(42)");
     ASSERT_NOT_NULL(t);
     ASSERT_EQ(t->kind, TK_FLOAT);
 }
@@ -380,7 +380,7 @@ int main(void) {
 
     /* Builtin tests */
     RUN_TEST(test_resolve_len);
-    RUN_TEST(test_resolve_typeof);
+    RUN_TEST(test_resolve_type_of);
     RUN_TEST(test_resolve_to_float);
 
     /* Struct tests */

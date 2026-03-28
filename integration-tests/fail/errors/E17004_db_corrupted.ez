@@ -13,7 +13,7 @@ do main() {
     mut database, err = db.open("ez_test_e17004_corrupted")
 
     // Clean up
-    mut dok, derr = io.remove("ez_test_e17004_corrupted.ezdb")
+    mut dok, derr = io.delete_file("ez_test_e17004_corrupted.ezdb")
 
     if err != nil {
         panic("${err}")

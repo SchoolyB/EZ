@@ -222,13 +222,12 @@ static bool tc_is_imported_module(TypeChecker *tc, const char *name) {
 static bool tc_is_builtin(const char *name) {
     static const char *builtins[] = {
         "println", "print", "eprintln", "eprint", "input",
-        "len", "typeof", "copy", "new", "ref", "error",
+        "len", "type_of", "size_of", "copy", "new", "ref", "addr", "error",
         "int", "uint", "float", "string", "char", "byte", "bool",
         "i8", "i16", "i32", "i64", "u8", "u16", "u32", "u64",
-        "i128", "u128", "f32", "f64",
+        "f32", "f64",
         "exit", "panic", "assert", "range", "cast",
-        "append", "read_int", "to_int", "to_float", "to_string", "to_bool",
-        "addr", "sleep_seconds", "sleep_milliseconds", "sleep_nanoseconds",
+        "read_int", "sleep_seconds", "sleep_milliseconds", "sleep_nanoseconds",
         NULL
     };
     for (int i = 0; builtins[i]; i++) {
@@ -648,7 +647,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
             } else if (strcmp(mod, "maps") == 0) {
                 if (strcmp(mfn, "keys") == 0 || strcmp(mfn, "values") == 0) {
                     result = type_array("string"); /* approximate */
-                } else if (strcmp(mfn, "has_key") == 0 || strcmp(mfn, "contains") == 0) {
+                } else if (strcmp(mfn, "has_key") == 0) {
                     result = &TYPE_BOOL;
                 } else {
                     result = &TYPE_VOID;
@@ -673,9 +672,9 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                 if (strcmp(mfn, "read_file") == 0) {
                     result = &TYPE_STRING;
                 } else if (strcmp(mfn, "write_file") == 0 ||
-                    strcmp(mfn, "delete_file") == 0 || strcmp(mfn, "remove") == 0) {
+                    strcmp(mfn, "delete_file") == 0) {
                     result = &TYPE_BOOL;
-                } else if (strcmp(mfn, "file_exists") == 0 || strcmp(mfn, "exists") == 0 ||
+                } else if (strcmp(mfn, "file_exists") == 0 ||
                            strcmp(mfn, "is_file") == 0 || strcmp(mfn, "is_directory") == 0 ||
                            strcmp(mfn, "append_file") == 0 || strcmp(mfn, "rename") == 0) {
                     result = &TYPE_BOOL;
@@ -686,19 +685,15 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                 }
             } else if (strcmp(mod, "strings") == 0) {
                 if (strcmp(mfn, "contains") == 0 || strcmp(mfn, "starts_with") == 0 ||
-                    strcmp(mfn, "ends_with") == 0 || strcmp(mfn, "is_empty") == 0 ||
-                    strcmp(mfn, "to_bool") == 0) {
+                    strcmp(mfn, "ends_with") == 0 || strcmp(mfn, "is_empty") == 0) {
                     result = &TYPE_BOOL;
-                } else if (strcmp(mfn, "index") == 0 || strcmp(mfn, "last_index") == 0 ||
-                           strcmp(mfn, "count") == 0 || strcmp(mfn, "to_int") == 0 ||
-                           strcmp(mfn, "len") == 0) {
+                } else if (strcmp(mfn, "index") == 0 ||
+                           strcmp(mfn, "count") == 0 || strcmp(mfn, "to_int") == 0) {
                     result = &TYPE_INT;
                 } else if (strcmp(mfn, "to_float") == 0) {
                     result = &TYPE_FLOAT;
-                } else if (strcmp(mfn, "split") == 0 || strcmp(mfn, "chars") == 0) {
+                } else if (strcmp(mfn, "split") == 0) {
                     result = type_array("string");
-                } else if (strcmp(mfn, "to_bytes") == 0) {
-                    result = type_array("byte");
                 } else {
                     result = &TYPE_STRING;
                 }
@@ -862,7 +857,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
             } else if (strcmp(mod, "os") == 0) {
                 if (strcmp(mfn, "args") == 0) {
                     result = type_array("string");
-                } else if (strcmp(mfn, "get_env") == 0 || strcmp(mfn, "getenv") == 0 ||
+                } else if (strcmp(mfn, "get_env") == 0 ||
                            strcmp(mfn, "cwd") == 0 || strcmp(mfn, "hostname") == 0 ||
                            strcmp(mfn, "arch") == 0) {
                     result = &TYPE_STRING;
@@ -999,44 +994,44 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                 }
             }
             /* Check built-in functions first */
-            if ((strcmp(fn_name, "addr") == 0 || strcmp(fn_name, "ref") == 0) && node->data.call.arg_count == 1) {
+            if (strcmp(fn_name, "addr") == 0 && node->data.call.arg_count == 1) {
                 AstNode *arg = node->data.call.args[0];
                 /* addr() requires an lvalue (variable, field, index) */
-                if (strcmp(fn_name, "addr") == 0 &&
-                    arg->kind != NODE_LABEL && arg->kind != NODE_MEMBER_EXPR &&
+                if (arg->kind != NODE_LABEL && arg->kind != NODE_MEMBER_EXPR &&
                     arg->kind != NODE_INDEX_EXPR) {
                     diag_error(tc->diag, "E3012",
                         strdup("addr() requires a variable, field, or index expression — cannot take address of a literal or expression"),
                         tc->file, node->token.line, node->token.column, 0);
                 }
                 EzType *arg_t = resolve_expr(tc, arg);
+                result = type_pointer(type_name(arg_t));
+            } else if (strcmp(fn_name, "ref") == 0 && node->data.call.arg_count == 1) {
+                AstNode *arg = node->data.call.args[0];
+                EzType *arg_t = resolve_expr(tc, arg);
                 /* ref(func_name) returns func type, ref(var) returns pointer */
-                if (strcmp(fn_name, "ref") == 0 && arg->kind == NODE_LABEL &&
+                if (arg->kind == NODE_LABEL &&
                     find_func(tc, arg->data.label.value)) {
                     result = type_from_name("func");
                 } else {
                     result = type_pointer(type_name(arg_t));
                 }
-            } else if (strcmp(fn_name, "len") == 0 || strcmp(fn_name, "to_int") == 0) {
+            } else if (strcmp(fn_name, "len") == 0) {
                 result = &TYPE_INT;
-            } else if (strcmp(fn_name, "to_float") == 0) {
-                result = &TYPE_FLOAT;
-            } else if (strcmp(fn_name, "typeof") == 0) {
-                /* E3038: typeof() on void function result */
+            } else if (strcmp(fn_name, "type_of") == 0) {
+                /* E3038: type_of() on void function result */
                 if (node->data.call.arg_count > 0) {
                     EzType *arg_t = resolve_expr(tc, node->data.call.args[0]);
                     if (arg_t->kind == TK_VOID) {
                         diag_error(tc->diag, "E3038",
-                            strdup("cannot use typeof() on a void function — the function does not return a value"),
+                            strdup("cannot use type_of() on a void function — the function does not return a value"),
                             tc->file, node->token.line, node->token.column, 0);
                     }
                 }
                 result = &TYPE_STRING;
-            } else if (strcmp(fn_name, "to_string") == 0 ||
-                       strcmp(fn_name, "input") == 0) {
+            } else if (strcmp(fn_name, "size_of") == 0) {
+                result = &TYPE_INT;
+            } else if (strcmp(fn_name, "input") == 0) {
                 result = &TYPE_STRING;
-            } else if (strcmp(fn_name, "to_bool") == 0) {
-                result = &TYPE_BOOL;
             } else if (strcmp(fn_name, "error") == 0) {
                 result = type_from_name("Error");
             } else if (strcmp(fn_name, "exit") == 0 || strcmp(fn_name, "panic") == 0 ||
@@ -1422,6 +1417,14 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
         break;
 
     case NODE_NEW_EXPR:
+        if (!is_struct_name(tc, node->data.new_expr.type_name)) {
+            char msg[256];
+            snprintf(msg, sizeof(msg),
+                "new() requires a struct type, but '%s' is not a struct",
+                node->data.new_expr.type_name);
+            diag_error(tc->diag, "E3041", strdup(msg),
+                tc->file, node->token.line, node->token.column, 0);
+        }
         result = type_pointer(node->data.new_expr.type_name);
         break;
 
@@ -2268,7 +2271,7 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
         if (tc->func_depth > 0) {
             char msg[256];
             snprintf(msg, sizeof(msg),
-                "struct '%s' must be defined at the top level, not inside a function",
+                "struct '%s' must be defined at the file scope, not inside a function",
                 node->data.struct_decl.name);
             diag_error(tc->diag, "E2053", strdup(msg),
                 tc->file, node->token.line, node->token.column, 0);

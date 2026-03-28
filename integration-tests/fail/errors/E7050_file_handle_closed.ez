@@ -17,7 +17,7 @@ do main() {
     mut data, rerr = io.read_all(handle)
 
     // Clean up
-    mut dok, derr = io.remove("ez_test_e7050_temp.txt")
+    mut dok, derr = io.delete_file("ez_test_e7050_temp.txt")
 
     if rerr != nil {
         panic("${rerr}")

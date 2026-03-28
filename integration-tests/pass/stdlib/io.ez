@@ -31,9 +31,9 @@ do main() {
     println("  -- io.exists --")
 
     // Test 2: exists for created directory
-    mut dir_exists bool = io.exists(test_dir)
+    mut dir_exists bool = io.file_exists(test_dir)
     if dir_exists == true {
-        println("  [PASS] io.exists('${test_dir}') = true")
+        println("  [PASS] io.file_exists('${test_dir}') = true")
         passed += 1
     } otherwise {
         println("  [FAIL] io.exists: expected true")
@@ -41,9 +41,9 @@ do main() {
     }
 
     // Test 3: exists for non-existent
-    mut fake_exists bool = io.exists("./nonexistent_12345")
+    mut fake_exists bool = io.file_exists("./nonexistent_12345")
     if fake_exists == false {
-        println("  [PASS] io.exists('./nonexistent') = false")
+        println("  [PASS] io.file_exists('./nonexistent') = false")
         passed += 1
     } otherwise {
         println("  [FAIL] io.exists nonexistent: expected false")
@@ -158,7 +158,7 @@ do main() {
     // Test 12: copy file
     mut copy_dest string = io.path_join(test_dir, "copy.txt")
     mut copy_ok, copy_err = io.copy(test_file, copy_dest)
-    if copy_err == nil && io.exists(copy_dest) {
+    if copy_err == nil && io.file_exists(copy_dest) {
         println("  [PASS] io.copy()")
         passed += 1
     } otherwise {
@@ -172,7 +172,7 @@ do main() {
     // Test 13: rename file
     mut rename_dest string = io.path_join(test_dir, "renamed.txt")
     mut rename_ok, rename_err = io.rename(copy_dest, rename_dest)
-    if rename_err == nil && io.exists(rename_dest) && !io.exists(copy_dest) {
+    if rename_err == nil && io.file_exists(rename_dest) && !io.file_exists(copy_dest) {
         println("  [PASS] io.rename()")
         passed += 1
     } otherwise {
@@ -186,7 +186,7 @@ do main() {
     // Test 14: mkdir_all (nested)
     mut nested_dir string = io.path_join(test_dir, "a", "b", "c")
     mut mkdirall_ok, mkdirall_err = io.mkdir_all(nested_dir)
-    if mkdirall_err == nil && io.exists(nested_dir) {
+    if mkdirall_err == nil && io.file_exists(nested_dir) {
         println("  [PASS] io.mkdir_all('${nested_dir}')")
         passed += 1
     } otherwise {
@@ -279,8 +279,8 @@ do main() {
     println("  -- Cleanup --")
 
     // Clean up test files
-    mut rm1_ok, rm1_err = io.remove(test_file)
-    mut rm2_ok, rm2_err = io.remove(rename_dest)
+    mut rm1_ok, rm1_err = io.delete_file(test_file)
+    mut rm2_ok, rm2_err = io.delete_file(rename_dest)
 
     // Test 22: remove_all
     mut rmall_ok, rmall_err = io.remove_all(test_dir)
@@ -293,7 +293,7 @@ do main() {
     }
 
     // Test 23: verify cleanup
-    mut still_exists bool = io.exists(test_dir)
+    mut still_exists bool = io.file_exists(test_dir)
     if !still_exists {
         println("  [PASS] cleanup verified - directory removed")
         passed += 1

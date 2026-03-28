@@ -1,0 +1,8 @@
+/*
+ * Error Test: E5008 - type_of wrong argument count
+ * Expected: "type_of" and "1 argument"
+ */
+
+do main() {
+    mut x = type_of()  // Should fail: no arguments
+}

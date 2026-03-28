@@ -14,7 +14,7 @@ do main() {
     mut rok, rerr = io.remove_dir("ez_test_e7023_temp_dir")
 
     // Clean up
-    mut c1, c2 = io.remove(io.path_join("ez_test_e7023_temp_dir", "file.txt"))
+    mut c1, c2 = io.delete_file(io.path_join("ez_test_e7023_temp_dir", "file.txt"))
     mut c3, c4 = io.remove_dir("ez_test_e7023_temp_dir")
 
     if rerr != nil {

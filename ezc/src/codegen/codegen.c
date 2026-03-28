@@ -907,8 +907,7 @@ static const char *resolve_print_suffix(CodeGen *cg, AstNode *arg) {
     }
     if (arg->kind == NODE_CALL_EXPR && arg->data.call.function->kind == NODE_LABEL) {
         const char *fn = arg->data.call.function->data.label.value;
-        if (strcmp(fn, "input") == 0 || strcmp(fn, "to_string") == 0 ||
-            strcmp(fn, "typeof") == 0) return "_str";
+        if (strcmp(fn, "input") == 0 || strcmp(fn, "type_of") == 0) return "_str";
     }
     return "_int";
 }
@@ -972,17 +971,17 @@ static bool emit_builtin_call(CodeGen *cg, AstNode *node, const char *func) {
         return true;
     }
 
-    if (strcmp(func, "typeof") == 0 && node->data.call.arg_count == 1) {
+    if (strcmp(func, "type_of") == 0 && node->data.call.arg_count == 1) {
         AstNode *arg = node->data.call.args[0];
         EzType *t = cg->type_table ? typetable_get(cg->type_table, arg) : NULL;
-        /* Range expression: typeof(range(0, 5)) → "Range<int>" */
+        /* Range expression: type_of(range(0, 5)) → "Range<int>" */
         if (arg->kind == NODE_RANGE_EXPR ||
             (arg->kind == NODE_CALL_EXPR && arg->data.call.function->kind == NODE_LABEL &&
              strcmp(arg->data.call.function->data.label.value, "range") == 0)) {
             emitf(cg, "ez_string_lit(\"Range<int>\")");
             return true;
         }
-        /* Enum member access: typeof(Color.RED) → "Color" */
+        /* Enum member access: type_of(Color.RED) → "Color" */
         if (arg->kind == NODE_MEMBER_EXPR && arg->data.member.object->kind == NODE_LABEL &&
             t && (t->kind == TK_INT || t->kind == TK_UINT || t->kind == TK_STRING)) {
             const char *obj_name = arg->data.member.object->data.label.value;
@@ -1008,21 +1007,24 @@ static bool emit_builtin_call(CodeGen *cg, AstNode *node, const char *func) {
         return true;
     }
 
-    if (strcmp(func, "to_int") == 0 && node->data.call.arg_count == 1) {
-        emit(cg, "(int64_t)(");
-        emit_expression(cg, node->data.call.args[0]);
-        emit(cg, ")");
+    if (strcmp(func, "size_of") == 0 && node->data.call.arg_count == 1) {
+        AstNode *type_arg = node->data.call.args[0];
+        if (type_arg->kind == NODE_LABEL) {
+            emitf(cg, "(int64_t)sizeof(%s)", ez_type_to_c_cg(cg, type_arg->data.label.value));
+        } else {
+            emit(cg, "0");
+        }
         return true;
     }
 
-    if (strcmp(func, "to_float") == 0 && node->data.call.arg_count == 1) {
-        emit(cg, "(double)(");
+    if (strcmp(func, "addr") == 0 && node->data.call.arg_count == 1) {
+        /* addr() returns the raw memory address of a variable */
+        emit(cg, "&");
         emit_expression(cg, node->data.call.args[0]);
-        emit(cg, ")");
         return true;
     }
 
-    if ((strcmp(func, "addr") == 0 || strcmp(func, "ref") == 0) && node->data.call.arg_count == 1) {
+    if (strcmp(func, "ref") == 0 && node->data.call.arg_count == 1) {
         /* Check if argument is a function name — emit as function pointer */
         if (node->data.call.args[0]->kind == NODE_LABEL) {
             const char *arg_name = node->data.call.args[0]->data.label.value;
@@ -1097,18 +1099,6 @@ static bool emit_builtin_call(CodeGen *cg, AstNode *node, const char *func) {
 
     if (strcmp(func, "eprint") == 0 && node->data.call.arg_count > 0) {
         emit(cg, "ez_std_eprint_str(");
-        emit_expression(cg, node->data.call.args[0]);
-        emit(cg, ")");
-        return true;
-    }
-
-    if (strcmp(func, "to_string") == 0 && node->data.call.arg_count == 1) {
-        emit_to_string(cg, node->data.call.args[0]);
-        return true;
-    }
-
-    if (strcmp(func, "to_bool") == 0 && node->data.call.arg_count == 1) {
-        emit(cg, "(bool)(");
         emit_expression(cg, node->data.call.args[0]);
         emit(cg, ")");
         return true;
@@ -1262,15 +1252,6 @@ static bool emit_mem_call(CodeGen *cg, AstNode *node, const char *func) {
         emit(cg, ")");
         return true;
     }
-    if (strcmp(func, "size_of") == 0 && node->data.call.arg_count == 1) {
-        AstNode *type_arg = node->data.call.args[0];
-        if (type_arg->kind == NODE_LABEL) {
-            emitf(cg, "(int64_t)sizeof(%s)", ez_type_to_c_cg(cg, type_arg->data.label.value));
-        } else {
-            emit(cg, "0");
-        }
-        return true;
-    }
     if (strcmp(func, "make") == 0 && node->data.call.arg_count == 2) {
         AstNode *arena_arg = node->data.call.args[0];
         AstNode *type_arg = node->data.call.args[1];
@@ -1382,7 +1363,7 @@ static bool emit_maps_call(CodeGen *cg, AstNode *node, const char *func) {
         emit(cg, ")");
         return true;
     }
-    if (strcmp(func, "has_key") == 0 || strcmp(func, "contains") == 0) {
+    if (strcmp(func, "has_key") == 0) {
         emit(cg, "({ __auto_type _hk = ");
         emit_expression(cg, node->data.call.args[1]);
         emit(cg, "; ez_maps_has_key(&");
@@ -1978,7 +1959,7 @@ static bool emit_os_call(CodeGen *cg, AstNode *node, const char *func) {
     if (strcmp(func, "args") == 0) {
         emit(cg, "ez_os_args(ez_default_arena)"); return true;
     }
-    if (strcmp(func, "get_env") == 0 || strcmp(func, "getenv") == 0) {
+    if (strcmp(func, "get_env") == 0) {
         emit(cg, "ez_os_get_env(ez_default_arena, ");
         emit_expression(cg, node->data.call.args[0]);
         emit(cg, ")");
@@ -1999,7 +1980,7 @@ static bool emit_os_call(CodeGen *cg, AstNode *node, const char *func) {
         emit(cg, ")");
         return true;
     }
-    if (strcmp(func, "set_env") == 0 || strcmp(func, "setenv") == 0) {
+    if (strcmp(func, "set_env") == 0) {
         emit(cg, "ez_os_set_env(");
         emit_expression(cg, node->data.call.args[0]);
         emit(cg, ", ");
@@ -2015,11 +1996,9 @@ static bool emit_os_call(CodeGen *cg, AstNode *node, const char *func) {
 static bool emit_io_call(CodeGen *cg, AstNode *node, const char *func) {
     bool is_fallible = (strcmp(func, "read_file") == 0 ||
         strcmp(func, "write_file") == 0 ||
-        strcmp(func, "delete_file") == 0 || strcmp(func, "remove") == 0);
+        strcmp(func, "delete_file") == 0);
     if (is_fallible) {
-        const char *actual_func = func;
-        if (strcmp(func, "remove") == 0) actual_func = "delete_file";
-        emitf(cg, "ez_io_%s_result(ez_default_arena, ", actual_func);
+        emitf(cg, "ez_io_%s_result(ez_default_arena, ", func);
         for (int i = 0; i < node->data.call.arg_count; i++) {
             if (i > 0) emit(cg, ", ");
             emit_expression(cg, node->data.call.args[i]);
@@ -2197,7 +2176,7 @@ static void emit_call_expression(CodeGen *cg, AstNode *node) {
     const char *func = NULL;
 
     if (is_stdlib_call(node, &module, &func)) {
-        /* No-module builtins (println, len, typeof, etc.) */
+        /* No-module builtins (println, len, type_of, etc.) */
         /* Also handle std.println() — std module functions are builtins */
         if ((!module || strcmp(module, "std") == 0) && emit_builtin_call(cg, node, func)) return;
 

@@ -45,7 +45,7 @@ do main() {
     println("path_separator: '${io.path_separator()}'")
 
     // Existence checks
-    println("exists: ${io.exists("/tmp/ez_io_example.txt")}")
+    println("exists: ${io.file_exists("/tmp/ez_io_example.txt")}")
     println("is_file: ${io.is_file("/tmp/ez_io_example.txt")}")
     println("is_dir: ${io.is_dir("/tmp")}")
 
@@ -56,6 +56,6 @@ do main() {
     mut _, _ = io.remove_dir("/tmp/ez_io_test_dir")
 
     // Cleanup
-    mut _, _ = io.remove("/tmp/ez_io_example.txt")
+    mut _, _ = io.delete_file("/tmp/ez_io_example.txt")
     println("Cleaned up mut files.")
 }

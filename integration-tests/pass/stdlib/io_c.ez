@@ -64,7 +64,7 @@ do main() {
     }
 
     // remove
-    io.remove(renamed)
+    io.delete_file(renamed)
     if io.file_exists(renamed) == false {
         println("  [PASS] remove")
         passed += 1

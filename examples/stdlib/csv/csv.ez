@@ -77,6 +77,6 @@ do main() {
     println(content)
 
     // Cleanup
-    mut _, _ = io.remove("/tmp/ez_csv_output.csv")
+    mut _, _ = io.delete_file("/tmp/ez_csv_output.csv")
     println("Done!")
 }

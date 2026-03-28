@@ -48,12 +48,12 @@ func Find() (string, error) {
 
 // BuildOpts configures a build invocation.
 type BuildOpts struct {
-	Output    string
-	OptLevel  string // "O0", "O1", "O2", "O3"
-	Debug     bool
-	Verbose   bool
-	EmitC     bool
-	NoColor   bool
+	Output   string
+	OptLevel string // "O0", "O1", "O2", "O3"
+	Debug    bool
+	Verbose  bool
+	EmitC    bool
+	NoColor  bool
 }
 
 // Run compiles and executes an EZ source file via ezc run.

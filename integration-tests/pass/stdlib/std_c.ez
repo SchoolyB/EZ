@@ -49,13 +49,13 @@ do main() {
     println("  [PASS] assert(true)")
     passed += 1
 
-    // typeof
-    mut t1 string = typeof(42)
+    // type_of
+    mut t1 string = type_of(42)
     if t1 == "int" {
-        println("  [PASS] typeof(int)")
+        println("  [PASS] type_of(int)")
         passed += 1
     } otherwise {
-        println("  [FAIL] typeof(int): got ${t1}")
+        println("  [FAIL] type_of(int): got ${t1}")
         failed += 1
     }
 

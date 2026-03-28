@@ -1,5 +1,5 @@
 /*
- * Test: typeof() for stdlib return types
+ * Test: type_of() for stdlib return types
  * Tests that stdlib functions return correct EZ type names
  * Related to issue #900: Internal type representation fix
  */
@@ -14,59 +14,59 @@ using std
 do main() {
     // Test random module types
     mut rf float = random.float()
-    assert(typeof(rf) == "float", "random.float() should return 'float'")
+    assert(type_of(rf) == "float", "random.float() should return 'float'")
 
     mut ri int = random.int(100)
-    assert(typeof(ri) == "int", "random.int() should return 'int'")
+    assert(type_of(ri) == "int", "random.int() should return 'int'")
 
     mut rb bool = random.bool()
-    assert(typeof(rb) == "bool", "random.bool() should return 'bool'")
+    assert(type_of(rb) == "bool", "random.bool() should return 'bool'")
 
     mut rc byte = random.byte()
-    assert(typeof(rc) == "byte", "random.byte() should return 'byte'")
+    assert(type_of(rc) == "byte", "random.byte() should return 'byte'")
 
     mut rchar char = random.char()
-    assert(typeof(rchar) == "char", "random.char() should return 'char'")
+    assert(type_of(rchar) == "char", "random.char() should return 'char'")
 
     // Test random array functions preserve element types
     mut arr [int] = {1, 2, 3, 4, 5}
     mut shuffled = random.shuffle(arr)
-    assert(typeof(shuffled) == "[int]", "random.shuffle() should preserve '[int]' type")
+    assert(type_of(shuffled) == "[int]", "random.shuffle() should preserve '[int]' type")
 
     mut sampled = random.sample(arr, 2)
-    assert(typeof(sampled) == "[int]", "random.sample() should preserve '[int]' type")
+    assert(type_of(sampled) == "[int]", "random.sample() should preserve '[int]' type")
 
     mut choice = random.choice(arr)
-    assert(typeof(choice) == "int", "random.choice() should return element type 'int'")
+    assert(type_of(choice) == "int", "random.choice() should return element type 'int'")
 
     // Test with string array
     mut strArr [string] = {"a", "b", "c"}
     mut strShuffled = random.shuffle(strArr)
-    assert(typeof(strShuffled) == "[string]", "random.shuffle() should preserve '[string]' type")
+    assert(type_of(strShuffled) == "[string]", "random.shuffle() should preserve '[string]' type")
 
     // Test Range type
     mut r = range(0, 10)
-    assert(typeof(r) == "Range<int>", "range() should return 'Range<int>'")
+    assert(type_of(r) == "Range<int>", "range() should return 'Range<int>'")
 
     // Test string array from split
     mut parts = strings.split("a,b,c", ",")
-    assert(typeof(parts) == "[string]", "strings.split() should return '[string]'")
+    assert(type_of(parts) == "[string]", "strings.split() should return '[string]'")
 
     // Test map types
     mut m map[string:int] = {"a": 1, "b": 2}
     mut keys = maps.keys(m)
-    assert(typeof(keys) == "[string]", "maps.keys() should return '[string]'")
+    assert(type_of(keys) == "[string]", "maps.keys() should return '[string]'")
 
     mut values = maps.values(m)
-    assert(typeof(values) == "[int]", "maps.values() should return '[int]'")
+    assert(type_of(values) == "[int]", "maps.values() should return '[int]'")
 
     // Test with different map types
     mut m2 map[int:string] = {1: "one", 2: "two"}
     mut keys2 = maps.keys(m2)
-    assert(typeof(keys2) == "[int]", "maps.keys() should return '[int]' for int keys")
+    assert(type_of(keys2) == "[int]", "maps.keys() should return '[int]' for int keys")
 
     mut values2 = maps.values(m2)
-    assert(typeof(values2) == "[string]", "maps.values() should return '[string]' for string values")
+    assert(type_of(values2) == "[string]", "maps.values() should return '[string]' for string values")
 
-    println("PASS: typeof_stdlib")
+    println("PASS: type_of_stdlib")
 }

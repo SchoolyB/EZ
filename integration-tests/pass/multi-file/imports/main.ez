@@ -198,9 +198,9 @@ do test_stdlib_alias() -> TestResult {
 
     // @std was imported with import & use
     // Test that stdlib functions work unqualified
-    println("  Testing typeof() builtin...")
-    mut t string = typeof(42)
-    println("    typeof(42) = '${t}'")
+    println("  Testing type_of() builtin...")
+    mut t string = type_of(42)
+    println("    type_of(42) = '${t}'")
     if t == "int" {
         passed += 1
     } otherwise {

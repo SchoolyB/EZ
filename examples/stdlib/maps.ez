@@ -15,6 +15,6 @@ do main() {
 
     mut alice_key string = "alice"
     mut diana_key string = "diana"
-    println("maps.contains(scores, 'alice') = ${maps.contains(scores, alice_key)}")
-    println("maps.contains(scores, 'diana') = ${maps.contains(scores, diana_key)}")
+    println("maps.has_key(scores, 'alice') = ${maps.has_key(scores, alice_key)}")
+    println("maps.has_key(scores, 'diana') = ${maps.has_key(scores, diana_key)}")
 }

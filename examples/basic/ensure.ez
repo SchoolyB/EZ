@@ -51,7 +51,7 @@ do write_with_cleanup() {
 }
 
 do remove_temp(path string) {
-    mut _, _ = io.remove(path)
+    mut _, _ = io.delete_file(path)
     println("  removed: ${path}")
 }
 
@@ -67,5 +67,5 @@ do main() {
     println("")
     println("--- File cleanup ---")
     write_with_cleanup()
-    println("  exists after? ${io.exists("/tmp/ez_ensure_example.txt")}")
+    println("  exists after? ${io.file_exists("/tmp/ez_ensure_example.txt")}")
 }

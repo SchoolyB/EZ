@@ -15,12 +15,12 @@ do main() {
     println("char(65) = ${char(65)}")
     println("byte(255) = ${byte(255)}")
 
-    // typeof
-    println("typeof(42) = ${typeof(42)}")
-    println("typeof('hello') = ${typeof("hello")}")
-    println("typeof(3.14) = ${typeof(3.14)}")
-    println("typeof(true) = ${typeof(true)}")
-    println("typeof(nil) = ${typeof(nil)}")
+    // type_of
+    println("type_of(42) = ${type_of(42)}")
+    println("type_of('hello') = ${type_of("hello")}")
+    println("type_of(3.14) = ${type_of(3.14)}")
+    println("type_of(true) = ${type_of(true)}")
+    println("type_of(nil) = ${type_of(nil)}")
 
     // len
     mut nums [int] = {1, 2, 3, 4, 5}

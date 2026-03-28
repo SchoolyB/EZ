@@ -41,7 +41,7 @@ SKIP_INTEGRATION=(
     "mutable-indexed-params" # interpreter-specific mutable semantics
     "primitives"            # interpreter-specific type tests
     "raw_strings"           # raw string interpolation differences
-    "typeof_stdlib"         # typeof returns different strings
+    "typeof_stdlib"         # type_of returns different strings
     # Error tests for interpreter-only features
     "E2002_for_missing_closing_paren"
     "E2002_for_nested_missing_paren"

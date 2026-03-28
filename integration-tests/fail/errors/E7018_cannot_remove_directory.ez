@@ -6,5 +6,5 @@
 import @io
 
 do main() {
-    io.remove("/tmp")  // io.remove cannot remove directories
+    io.delete_file("/tmp")  // io.delete_file cannot remove directories
 }
