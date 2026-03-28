@@ -6,5 +6,5 @@
 import @strings
 
 do main() {
-    mut s string = strings.upper()  // missing required argument
+    mut s string = strings.to_upper()  // missing required argument
 }

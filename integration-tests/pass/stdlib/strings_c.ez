@@ -12,7 +12,7 @@ do main() {
     mut failed int = 0
 
     // upper
-    if strings.upper("hello") == "HELLO" {
+    if strings.to_upper("hello") == "HELLO" {
         println("  [PASS] upper")
         passed += 1
     } otherwise {
@@ -21,7 +21,7 @@ do main() {
     }
 
     // lower
-    if strings.lower("HELLO") == "hello" {
+    if strings.to_lower("HELLO") == "hello" {
         println("  [PASS] lower")
         passed += 1
     } otherwise {
@@ -93,7 +93,7 @@ do main() {
     }
 
     // index
-    mut idx int = strings.index("hello", "l")
+    mut idx int = strings.index_of("hello", "l")
     if idx == 2 {
         println("  [PASS] index")
         passed += 1

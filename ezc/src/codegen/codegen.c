@@ -2143,7 +2143,7 @@ static bool emit_io_call(CodeGen *cg, AstNode *node, const char *func) {
 /* --- @strings module --- */
 
 static bool emit_strings_call(CodeGen *cg, AstNode *node, const char *func) {
-    bool needs_arena = (strcmp(func, "upper") == 0 || strcmp(func, "lower") == 0 ||
+    bool needs_arena = (strcmp(func, "to_upper") == 0 || strcmp(func, "to_lower") == 0 ||
         strcmp(func, "trim") == 0 || strcmp(func, "trim_left") == 0 ||
         strcmp(func, "trim_right") == 0 || strcmp(func, "replace") == 0 ||
         strcmp(func, "repeat") == 0 || strcmp(func, "reverse") == 0 ||

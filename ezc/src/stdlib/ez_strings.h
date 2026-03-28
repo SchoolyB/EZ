@@ -14,8 +14,8 @@
 #include "../runtime/ez_array.h"
 
 /* Case */
-EzString ez_strings_upper(EzArena *arena, EzString s);
-EzString ez_strings_lower(EzArena *arena, EzString s);
+EzString ez_strings_to_upper(EzArena *arena, EzString s);
+EzString ez_strings_to_lower(EzArena *arena, EzString s);
 
 /* Trim */
 EzString ez_strings_trim(EzArena *arena, EzString s);
@@ -26,7 +26,7 @@ EzString ez_strings_trim_right(EzArena *arena, EzString s);
 bool ez_strings_contains(EzString s, EzString sub);
 bool ez_strings_starts_with(EzString s, EzString prefix);
 bool ez_strings_ends_with(EzString s, EzString suffix);
-int64_t ez_strings_index(EzString s, EzString sub);
+int64_t ez_strings_index_of(EzString s, EzString sub);
 int64_t ez_strings_count(EzString s, EzString sub);
 bool ez_strings_is_empty(EzString s);
 

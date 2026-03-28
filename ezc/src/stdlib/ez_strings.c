@@ -10,7 +10,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-EzString ez_strings_upper(EzArena *arena, EzString s) {
+EzString ez_strings_to_upper(EzArena *arena, EzString s) {
     char *buf = ez_arena_alloc(arena, (size_t)s.len + 1);
     for (int32_t i = 0; i < s.len; i++) buf[i] = (char)toupper(s.data[i]);
     buf[s.len] = '\0';
@@ -18,7 +18,7 @@ EzString ez_strings_upper(EzArena *arena, EzString s) {
     return r;
 }
 
-EzString ez_strings_lower(EzArena *arena, EzString s) {
+EzString ez_strings_to_lower(EzArena *arena, EzString s) {
     char *buf = ez_arena_alloc(arena, (size_t)s.len + 1);
     for (int32_t i = 0; i < s.len; i++) buf[i] = (char)tolower(s.data[i]);
     buf[s.len] = '\0';
@@ -64,7 +64,7 @@ bool ez_strings_ends_with(EzString s, EzString suffix) {
     return memcmp(s.data + s.len - suffix.len, suffix.data, (size_t)suffix.len) == 0;
 }
 
-int64_t ez_strings_index(EzString s, EzString sub) {
+int64_t ez_strings_index_of(EzString s, EzString sub) {
     if (sub.len == 0) return 0;
     if (sub.len > s.len) return -1;
     for (int32_t i = 0; i <= s.len - sub.len; i++) {

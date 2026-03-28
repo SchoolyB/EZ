@@ -11,8 +11,8 @@ do main() {
     mut text string = "  Hello, World!  "
     println("Original: '${text}'")
     println("strings.trim() = '${strings.trim(text)}'")
-    println("strings.upper() = '${strings.upper(text)}'")
-    println("strings.lower() = '${strings.lower(text)}'")
+    println("strings.to_upper() = '${strings.to_upper(text)}'")
+    println("strings.to_lower() = '${strings.to_lower(text)}'")
 
     // Split and join
     mut csv_data string = "apple,banana,cherry"
@@ -26,7 +26,7 @@ do main() {
     println("strings.starts_with('hello world', 'he') = ${strings.starts_with(hello, "he")}")
     println("strings.ends_with('hello world', 'ld') = ${strings.ends_with(hello, "ld")}")
     println("strings.replace('hello', 'l', 'L') = '${strings.replace("hello", "l", "L")}'")
-    println("strings.index('hello', 'l') = ${strings.index("hello", "l")}")
+    println("strings.index_of('hello', 'l') = ${strings.index_of("hello", "l")}")
     println("strings.repeat('ha', 3) = '${strings.repeat("ha", 3)}'")
     println("strings.slice('hello world', 0, 5) = '${strings.slice(hello, 0, 5)}'")
 }

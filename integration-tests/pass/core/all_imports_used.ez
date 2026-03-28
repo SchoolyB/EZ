@@ -6,5 +6,5 @@ import @std, @strings
 
 do main() {
     // Both std and strings modules are used
-    std.println(strings.upper("hello"))
+    std.println(strings.to_upper("hello"))
 }

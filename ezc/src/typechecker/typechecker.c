@@ -687,7 +687,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                 if (strcmp(mfn, "contains") == 0 || strcmp(mfn, "starts_with") == 0 ||
                     strcmp(mfn, "ends_with") == 0 || strcmp(mfn, "is_empty") == 0) {
                     result = &TYPE_BOOL;
-                } else if (strcmp(mfn, "index") == 0 ||
+                } else if (strcmp(mfn, "index_of") == 0 ||
                            strcmp(mfn, "count") == 0) {
                     result = &TYPE_INT;
                 } else if (strcmp(mfn, "split") == 0) {

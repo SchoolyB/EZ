@@ -44,26 +44,26 @@ do main() {
         failed += 1
     }
 
-    // ==================== strings.upper / strings.lower ====================
-    println("  -- strings.upper / strings.lower --")
+    // ==================== strings.to_upper / strings.to_lower ====================
+    println("  -- strings.to_upper / strings.to_lower --")
 
     // Test 4: upper
-    mut upper_result string = strings.upper("Hello World")
+    mut upper_result string = strings.to_upper("Hello World")
     if upper_result == "HELLO WORLD" {
-        println("  [PASS] strings.upper('Hello World')")
+        println("  [PASS] strings.to_upper('Hello World')")
         passed += 1
     } otherwise {
-        println("  [FAIL] strings.upper: expected 'HELLO WORLD', got '${upper_result}'")
+        println("  [FAIL] strings.to_upper: expected 'HELLO WORLD', got '${upper_result}'")
         failed += 1
     }
 
     // Test 5: lower
-    mut lower_result string = strings.lower("Hello World")
+    mut lower_result string = strings.to_lower("Hello World")
     if lower_result == "hello world" {
-        println("  [PASS] strings.lower('Hello World')")
+        println("  [PASS] strings.to_lower('Hello World')")
         passed += 1
     } otherwise {
-        println("  [FAIL] strings.lower: expected 'hello world', got '${lower_result}'")
+        println("  [FAIL] strings.to_lower: expected 'hello world', got '${lower_result}'")
         failed += 1
     }
 
@@ -156,16 +156,16 @@ do main() {
         failed += 1
     }
 
-    // ==================== strings.index / strings.last_index ====================
-    println("  -- strings.index / strings.last_index --")
+    // ==================== strings.index_of / strings.last_index ====================
+    println("  -- strings.index_of / strings.last_index --")
 
     // Test 14: index
-    mut idx int = strings.index("hello", "l")
+    mut idx int = strings.index_of("hello", "l")
     if idx == 2 {
-        println("  [PASS] strings.index('hello', 'l') = 2")
+        println("  [PASS] strings.index_of('hello', 'l') = 2")
         passed += 1
     } otherwise {
-        println("  [FAIL] strings.index: expected 2, got ${idx}")
+        println("  [FAIL] strings.index_of: expected 2, got ${idx}")
         failed += 1
     }
 
