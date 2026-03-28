@@ -1,0 +1,14 @@
+// Test: E2058 - nested enum declaration inside struct
+// Expected: "cannot declare a struct or enum inside struct"
+
+const Wrapper struct {
+    name string
+    const Status enum {
+        Active
+        Inactive
+    }
+}
+
+do main() {
+    println("should not compile")
+}

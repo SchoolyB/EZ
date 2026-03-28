@@ -169,6 +169,38 @@ do main() {
         failed += 1
     }
 
+    // ==================== maps.is_empty ====================
+    println("  -- maps.is_empty --")
+
+    // Test 14: is_empty on non-empty map
+    if maps.is_empty(m) == false {
+        println("  [PASS] maps.is_empty(m) = false")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] maps.is_empty(m): expected false")
+        failed += 1
+    }
+
+    // Test 15: is_empty on empty map
+    if maps.is_empty(empty_map) == true {
+        println("  [PASS] maps.is_empty(empty_map) = true")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] maps.is_empty(empty_map): expected true")
+        failed += 1
+    }
+
+    // Test 16: is_empty after clear
+    mut cleared map[string:int] = {"a": 1, "b": 2}
+    maps.clear(cleared)
+    if maps.is_empty(cleared) == true {
+        println("  [PASS] maps.is_empty() after clear = true")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] maps.is_empty() after clear: expected true")
+        failed += 1
+    }
+
     // Summary
     println("")
     println("Results: ${passed} passed, ${failed} failed")

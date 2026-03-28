@@ -1,0 +1,13 @@
+// Test: E2058 - nested struct declaration inside struct
+// Expected: "cannot declare a struct or enum inside struct"
+
+const Outer struct {
+    x int
+    const Inner struct {
+        y int
+    }
+}
+
+do main() {
+    println("should not compile")
+}

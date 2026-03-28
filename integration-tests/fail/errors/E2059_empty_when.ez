@@ -1,0 +1,8 @@
+// Test: E2059 - empty when block
+// Expected: "when block is empty"
+
+do main() {
+    mut x int = 5
+    when x {
+    }
+}

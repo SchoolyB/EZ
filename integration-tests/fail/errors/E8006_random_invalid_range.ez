@@ -3,8 +3,8 @@
  * Expected: "random" or "invalid range"
  */
 
-import @math
+import @random
 
 do main() {
-    mut x int = math.random_int(10, 5)  // min > max
+    mut x int = random.rand_int(10, 5)  // min > max
 }

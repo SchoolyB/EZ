@@ -1,0 +1,13 @@
+// Test: E2058 - nested struct declaration inside enum
+// Expected: "cannot declare a struct or enum"
+
+const Color enum {
+    Red
+    const Point struct {
+        x int
+    }
+}
+
+do main() {
+    println("should not compile")
+}
