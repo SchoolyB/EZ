@@ -54,6 +54,30 @@ void ez_std_println_bool(bool v) {
     printf("%s\n", v ? "true" : "false");
 }
 
+/* Write a Unicode code point as UTF-8 to a FILE stream */
+static void fput_utf8(int32_t c, FILE *f) {
+    if (c < 0x80) {
+        fputc(c, f);
+    } else if (c < 0x800) {
+        fputc(0xC0 | (c >> 6), f);
+        fputc(0x80 | (c & 0x3F), f);
+    } else if (c < 0x10000) {
+        fputc(0xE0 | (c >> 12), f);
+        fputc(0x80 | ((c >> 6) & 0x3F), f);
+        fputc(0x80 | (c & 0x3F), f);
+    } else if (c < 0x110000) {
+        fputc(0xF0 | (c >> 18), f);
+        fputc(0x80 | ((c >> 12) & 0x3F), f);
+        fputc(0x80 | ((c >> 6) & 0x3F), f);
+        fputc(0x80 | (c & 0x3F), f);
+    }
+}
+
+void ez_std_println_char(int32_t c) {
+    fput_utf8(c, stdout);
+    putchar('\n');
+}
+
 /* --- print --- */
 
 void ez_std_print_str(EzString s) {
@@ -62,6 +86,10 @@ void ez_std_print_str(EzString s) {
 
 void ez_std_print_int(int64_t v) {
     printf("%" PRId64, v);
+}
+
+void ez_std_print_char(int32_t c) {
+    fput_utf8(c, stdout);
 }
 
 /* --- eprintln / eprint --- */
@@ -75,8 +103,17 @@ void ez_std_eprintln_int(int64_t v) {
     fprintf(stderr, "%" PRId64 "\n", v);
 }
 
+void ez_std_eprintln_char(int32_t c) {
+    fput_utf8(c, stderr);
+    fputc('\n', stderr);
+}
+
 void ez_std_eprint_str(EzString s) {
     fwrite(s.data, 1, (size_t)s.len, stderr);
+}
+
+void ez_std_eprint_char(int32_t c) {
+    fput_utf8(c, stderr);
 }
 
 /* --- input --- */

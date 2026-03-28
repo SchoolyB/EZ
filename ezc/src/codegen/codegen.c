@@ -979,12 +979,14 @@ static const char *resolve_print_suffix(CodeGen *cg, AstNode *arg) {
         case TK_STRING: return "_str";
         case TK_FLOAT:  return "_float";
         case TK_BOOL:   return "_bool";
+        case TK_CHAR:   return "_char";
         default:        return "_int";
         }
     }
     if (arg->kind == NODE_STRING_VALUE || arg->kind == NODE_INTERPOLATED_STRING) return "_str";
     if (arg->kind == NODE_FLOAT_VALUE) return "_float";
     if (arg->kind == NODE_BOOL_VALUE) return "_bool";
+    if (arg->kind == NODE_CHAR_VALUE) return "_char";
     /* For call expressions, check the return type of the called function */
     if (arg->kind == NODE_CALL_EXPR && arg->data.call.function->kind == NODE_MEMBER_EXPR) {
         AstNode *fn = arg->data.call.function;
