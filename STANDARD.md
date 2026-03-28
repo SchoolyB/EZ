@@ -1302,7 +1302,7 @@ do swap(&a, &b int) {
 
 #### 8.2.4 Default Parameters
 
-Parameters can have default values:
+Parameters can have default values. Default values are supported for all primitive types (`int`, `uint`, `float`, `string`, `bool`, `char`):
 
 ```ez
 do greet(name string = "World") -> string {
@@ -1313,7 +1313,26 @@ greet()         // "Hello, World!"
 greet("Alice")  // "Hello, Alice!"
 ```
 
-Default parameters must appear after non-default parameters.
+Multiple parameters may have defaults. When calling, arguments fill left-to-right and any remaining parameters use their defaults:
+
+```ez
+do connect(host string, port int = 8080, verbose bool = false) {
+    if verbose {
+        println("Connecting to ${host}:${port}")
+    }
+}
+
+connect("localhost")              // port=8080, verbose=false
+connect("localhost", 3000)        // port=3000, verbose=false
+connect("localhost", 3000, true)  // port=3000, verbose=true
+```
+
+Default parameters must appear after non-default parameters. A required parameter cannot follow a parameter with a default value:
+
+```ez
+do foo(a int = 10, b int) {}   // Error E2039: required parameter after default
+do bar(a int, b int = 10) {}   // OK: required first, then default
+```
 
 ### 8.3 Return Types
 
