@@ -688,10 +688,8 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                     strcmp(mfn, "ends_with") == 0 || strcmp(mfn, "is_empty") == 0) {
                     result = &TYPE_BOOL;
                 } else if (strcmp(mfn, "index") == 0 ||
-                           strcmp(mfn, "count") == 0 || strcmp(mfn, "to_int") == 0) {
+                           strcmp(mfn, "count") == 0) {
                     result = &TYPE_INT;
-                } else if (strcmp(mfn, "to_float") == 0) {
-                    result = &TYPE_FLOAT;
                 } else if (strcmp(mfn, "split") == 0) {
                     result = type_array("string");
                 } else {

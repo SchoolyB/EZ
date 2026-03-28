@@ -181,10 +181,3 @@ EzString ez_strings_join(EzArena *arena, EzArray arr, EzString sep) {
     return r;
 }
 
-int64_t ez_strings_to_int(EzString s) {
-    return atoll(s.data);
-}
-
-double ez_strings_to_float(EzString s) {
-    return atof(s.data);
-}

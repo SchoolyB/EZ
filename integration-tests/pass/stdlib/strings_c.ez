@@ -172,26 +172,6 @@ do main() {
         failed += 1
     }
 
-    // to_int
-    mut int_val int = strings.to_int("42")
-    if int_val == 42 {
-        println("  [PASS] to_int")
-        passed += 1
-    } otherwise {
-        println("  [FAIL] to_int: expected 42, got ${int_val}")
-        failed += 1
-    }
-
-    // to_float
-    mut float_val float = strings.to_float("3.14")
-    if float_val == 3.14 {
-        println("  [PASS] to_float")
-        passed += 1
-    } otherwise {
-        println("  [FAIL] to_float: expected 3.14, got ${float_val}")
-        failed += 1
-    }
-
     println("Results: ${passed} passed, ${failed} failed")
     if failed > 0 { std.exit(1) }
 }

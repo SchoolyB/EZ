@@ -40,8 +40,4 @@ EzString ez_strings_slice(EzArena *arena, EzString s, int64_t start, int64_t end
 EzArray ez_strings_split(EzArena *arena, EzString s, EzString sep);
 EzString ez_strings_join(EzArena *arena, EzArray arr, EzString sep);
 
-/* Conversion */
-int64_t ez_strings_to_int(EzString s);
-double ez_strings_to_float(EzString s);
-
 #endif
