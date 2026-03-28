@@ -1269,17 +1269,7 @@ static bool emit_builtin_call(CodeGen *cg, AstNode *node, const char *func) {
     /* Sized type conversion functions: i8(), u16(), f32(), etc. */
     if (node->data.call.arg_count == 1) {
         const char *cast_type = NULL;
-        if (strcmp(func, "i8") == 0) cast_type = "int8_t";
-        else if (strcmp(func, "i16") == 0) cast_type = "int16_t";
-        else if (strcmp(func, "i32") == 0) cast_type = "int32_t";
-        else if (strcmp(func, "i64") == 0) cast_type = "int64_t";
-        else if (strcmp(func, "u8") == 0) cast_type = "uint8_t";
-        else if (strcmp(func, "u16") == 0) cast_type = "uint16_t";
-        else if (strcmp(func, "u32") == 0) cast_type = "uint32_t";
-        else if (strcmp(func, "u64") == 0) cast_type = "uint64_t";
-        else if (strcmp(func, "f32") == 0) cast_type = "float";
-        else if (strcmp(func, "f64") == 0) cast_type = "double";
-        else if (strcmp(func, "int") == 0) cast_type = "int64_t";
+        if (strcmp(func, "int") == 0) cast_type = "int64_t";
         else if (strcmp(func, "uint") == 0) cast_type = "uint64_t";
         else if (strcmp(func, "float") == 0) cast_type = "double";
         else if (strcmp(func, "char") == 0) cast_type = "int32_t";
@@ -1298,9 +1288,7 @@ static bool emit_builtin_call(CodeGen *cg, AstNode *node, const char *func) {
             }
             /* Use overflow-safe conversion for float→int casts */
             bool use_safe_float = false;
-            if ((strcmp(func, "int") == 0 || strcmp(func, "i64") == 0 ||
-                 strcmp(func, "i32") == 0 || strcmp(func, "i16") == 0 ||
-                 strcmp(func, "i8") == 0) &&
+            if (strcmp(func, "int") == 0 &&
                 (carg->kind == NODE_FLOAT_VALUE || carg->kind == NODE_LABEL)) {
                 use_safe_float = true;
             }

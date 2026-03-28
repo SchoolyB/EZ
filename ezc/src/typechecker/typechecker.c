@@ -224,9 +224,7 @@ static bool tc_is_builtin(const char *name) {
         "println", "print", "eprintln", "eprint", "input",
         "len", "type_of", "size_of", "copy", "new", "ref", "addr", "error",
         "int", "uint", "float", "string", "char", "byte", "bool",
-        "i8", "i16", "i32", "i64", "i128", "i256",
-        "u8", "u16", "u32", "u64", "u128", "u256",
-        "f32", "f64",
+        "i128", "i256", "u128", "u256",
         "exit", "panic", "assert", "range", "cast",
         "sleep_seconds", "sleep_milliseconds", "sleep_nanoseconds",
         NULL
@@ -1084,25 +1082,13 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                         tc->file, node->token.line, node->token.column, 0);
                 }
                 result = &TYPE_CHAR;
-            } else if ((strcmp(fn_name, "int") == 0 || strcmp(fn_name, "i8") == 0 ||
-                        strcmp(fn_name, "i16") == 0 || strcmp(fn_name, "i32") == 0 ||
-                        strcmp(fn_name, "i64") == 0 || strcmp(fn_name, "i128") == 0 ||
-                        strcmp(fn_name, "i256") == 0 || strcmp(fn_name, "u8") == 0 ||
-                        strcmp(fn_name, "u16") == 0 || strcmp(fn_name, "u32") == 0 ||
-                        strcmp(fn_name, "u64") == 0 || strcmp(fn_name, "u128") == 0 ||
+            } else if ((strcmp(fn_name, "int") == 0 ||
+                        strcmp(fn_name, "i128") == 0 ||
+                        strcmp(fn_name, "i256") == 0 ||
+                        strcmp(fn_name, "u128") == 0 ||
                         strcmp(fn_name, "u256") == 0 || strcmp(fn_name, "uint") == 0 ||
                         strcmp(fn_name, "byte") == 0) &&
                        node->data.call.arg_count == 1) {
-                /* Range check for sized type conversion with literal
-                 * (skip for 128/256-bit types — can't validate with int64_t) */
-                int64_t lit_val;
-                if (try_get_literal_int(node->data.call.args[0], &lit_val) &&
-                    strcmp(fn_name, "i128") != 0 && strcmp(fn_name, "u128") != 0 &&
-                    strcmp(fn_name, "i256") != 0 && strcmp(fn_name, "u256") != 0) {
-                    check_integer_range(tc->diag, tc->file,
-                        node->token.line, node->token.column,
-                        fn_name, lit_val);
-                }
                 if (is_unsigned_type(fn_name))
                     result = &TYPE_UINT;
                 else
