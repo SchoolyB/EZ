@@ -790,9 +790,9 @@ static void test_e2e_threads_channel(void) {
 
 static void test_e2e_threads_sleep(void) {
     char *out = compile_and_run(
-        "import @std, @threads\nusing std\n"
+        "import @std\nusing std\n"
         "do main() {\n"
-        "  threads.sleep_ms(10)\n"
+        "  sleep_milliseconds(10)\n"
         "  println(\"awake\")\n"
         "}");
     ASSERT_NOT_NULL(out);

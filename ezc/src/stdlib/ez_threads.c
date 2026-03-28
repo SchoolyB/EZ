@@ -72,14 +72,6 @@ void ez_threads_join(EzThread t) {
     }
 }
 
-void ez_threads_sleep_ms(int64_t ms) {
-    if (ms <= 0) return;
-    struct timespec ts;
-    ts.tv_sec = ms / 1000;
-    ts.tv_nsec = (ms % 1000) * 1000000L;
-    nanosleep(&ts, NULL);
-}
-
 int64_t ez_threads_id(void) {
     /* pthread_self() returns pthread_t which varies by platform.
      * Cast to int64_t for a unique-ish thread identifier. */

@@ -21,11 +21,6 @@ do main() {
     println("  [PASS] spawn + join")
     passed += 1
 
-    // sleep_ms (short sleep, just verify no crash)
-    threads.sleep_ms(1)
-    println("  [PASS] sleep_ms")
-    passed += 1
-
     // mutex create, lock, unlock
     mut m = threads.mutex()
     threads.lock(m)

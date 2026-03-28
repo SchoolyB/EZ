@@ -2238,12 +2238,6 @@ static bool emit_threads_call(CodeGen *cg, AstNode *node, const char *func) {
         emit(cg, ")");
         return true;
     }
-    if (strcmp(func, "sleep_ms") == 0) {
-        emit(cg, "ez_threads_sleep_ms(");
-        emit_expression(cg, node->data.call.args[0]);
-        emit(cg, ")");
-        return true;
-    }
     if (strcmp(func, "id") == 0) {
         emit(cg, "ez_threads_id()");
         return true;

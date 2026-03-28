@@ -30,9 +30,6 @@ EzThread ez_threads_spawn_arg(void (*fn)(int64_t), int64_t arg);
 /* Wait for a thread to finish. */
 void ez_threads_join(EzThread t);
 
-/* Sleep the current thread for milliseconds. */
-void ez_threads_sleep_ms(int64_t ms);
-
 /* Get current thread ID (for debugging). */
 int64_t ez_threads_id(void);
 
