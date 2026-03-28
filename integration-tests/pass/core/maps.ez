@@ -123,14 +123,14 @@ do main() {
         failed += 1
     }
 
-    // Test 10: maps.remove
+    // Test 10: maps.remove_key
     mut del_map map[string:int] = {"x": 10, "y": 20}
-    maps.remove(del_map, "x")
+    maps.remove_key(del_map, "x")
     if len(del_map) == 1 && !maps.has_key(del_map, "x") {
-        println("  [PASS] maps.remove() removed key")
+        println("  [PASS] maps.remove_key() removed key")
         passed += 1
     } otherwise {
-        println("  [FAIL] maps.remove()")
+        println("  [FAIL] maps.remove_key()")
         failed += 1
     }
 

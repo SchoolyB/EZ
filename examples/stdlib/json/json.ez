@@ -79,7 +79,7 @@ do main() {
 
     // Step 6: Pretty print with indentation
     println("Pretty printing...")
-    mut pretty string, pretty_err Error = json.pretty(user, "    ")
+    mut pretty string, pretty_err Error = json.pretty_print(user, "    ")
     if pretty_err == nil {
         println(pretty)
     }

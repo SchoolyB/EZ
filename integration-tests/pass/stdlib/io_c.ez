@@ -54,7 +54,7 @@ do main() {
 
     // rename
     mut renamed string = "/tmp/ez_io_c_test_renamed.txt"
-    io.rename(test_file, renamed)
+    io.rename_file(test_file, renamed)
     if io.file_exists(renamed) {
         println("  [PASS] rename")
         passed += 1

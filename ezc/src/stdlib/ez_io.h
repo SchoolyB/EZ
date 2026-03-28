@@ -23,7 +23,7 @@ bool ez_io_append_file(EzString path, EzString content);
 
 /* File operations */
 bool ez_io_delete_file(EzString path);
-bool ez_io_rename(EzString old_path, EzString new_path);
+bool ez_io_rename_file(EzString old_path, EzString new_path);
 
 /* Tuple-returning versions for (value, Error) pattern */
 typedef struct { EzString v0; EzError *v1; } EzResult_string;

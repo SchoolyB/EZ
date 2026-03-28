@@ -10,117 +10,117 @@ do main() {
     mut passed int = 0
     mut failed int = 0
 
-    // ==================== random.float ====================
-    println("  -- random.float --")
+    // ==================== random.rand_float ====================
+    println("  -- random.rand_float --")
 
-    // Test 1: random.float() returns value in [0, 1)
-    mut f1 float = random.float()
+    // Test 1: random.rand_float() returns value in [0, 1)
+    mut f1 float = random.rand_float()
     if f1 >= 0.0 && f1 < 1.0 {
-        println("  [PASS] random.float() in range [0, 1)")
+        println("  [PASS] random.rand_float() in range [0, 1)")
         passed += 1
     } otherwise {
-        println("  [FAIL] random.float(): got ${f1}, expected [0, 1)")
+        println("  [FAIL] random.rand_float(): got ${f1}, expected [0, 1)")
         failed += 1
     }
 
-    // Test 2: random.float(min, max) returns value in [min, max)
-    mut f2 float = random.float(10.0, 20.0)
+    // Test 2: random.rand_float(min, max) returns value in [min, max)
+    mut f2 float = random.rand_float(10.0, 20.0)
     if f2 >= 10.0 && f2 < 20.0 {
-        println("  [PASS] random.float(10, 20) in range")
+        println("  [PASS] random.rand_float(10, 20) in range")
         passed += 1
     } otherwise {
-        println("  [FAIL] random.float(10, 20): got ${f2}")
+        println("  [FAIL] random.rand_float(10, 20): got ${f2}")
         failed += 1
     }
 
-    // ==================== random.int ====================
-    println("  -- random.int --")
+    // ==================== random.rand_int ====================
+    println("  -- random.rand_int --")
 
-    // Test 3: random.int(max) returns value in [0, max)
-    mut i1 int = random.int(100)
+    // Test 3: random.rand_int(max) returns value in [0, max)
+    mut i1 int = random.rand_int(100)
     if i1 >= 0 && i1 < 100 {
-        println("  [PASS] random.int(100) in range [0, 100)")
+        println("  [PASS] random.rand_int(100) in range [0, 100)")
         passed += 1
     } otherwise {
-        println("  [FAIL] random.int(100): got ${i1}")
+        println("  [FAIL] random.rand_int(100): got ${i1}")
         failed += 1
     }
 
-    // Test 4: random.int(min, max) returns value in [min, max)
-    mut i2 int = random.int(50, 60)
+    // Test 4: random.rand_int(min, max) returns value in [min, max)
+    mut i2 int = random.rand_int(50, 60)
     if i2 >= 50 && i2 < 60 {
-        println("  [PASS] random.int(50, 60) in range")
+        println("  [PASS] random.rand_int(50, 60) in range")
         passed += 1
     } otherwise {
-        println("  [FAIL] random.int(50, 60): got ${i2}")
+        println("  [FAIL] random.rand_int(50, 60): got ${i2}")
         failed += 1
     }
 
-    // ==================== random.bool ====================
-    println("  -- random.bool --")
+    // ==================== random.rand_bool ====================
+    println("  -- random.rand_bool --")
 
-    // Test 5: random.bool() returns boolean
-    mut b bool = random.bool()
+    // Test 5: random.rand_bool() returns boolean
+    mut b bool = random.rand_bool()
     if b == true || b == false {
-        println("  [PASS] random.bool() returns boolean")
+        println("  [PASS] random.rand_bool() returns boolean")
         passed += 1
     } otherwise {
-        println("  [FAIL] random.bool(): not a boolean")
+        println("  [FAIL] random.rand_bool(): not a boolean")
         failed += 1
     }
 
-    // Test 6: random.bool() produces both values (statistical test)
+    // Test 6: random.rand_bool() produces both values (statistical test)
     mut true_count int = 0
     mut false_count int = 0
     for i in range(100) {
-        if random.bool() {
+        if random.rand_bool() {
             true_count += 1
         } otherwise {
             false_count += 1
         }
     }
     if true_count > 0 && false_count > 0 {
-        println("  [PASS] random.bool() produces both true and false")
+        println("  [PASS] random.rand_bool() produces both true and false")
         passed += 1
     } otherwise {
-        println("  [FAIL] random.bool(): only produced one value in 100 tries")
+        println("  [FAIL] random.rand_bool(): only produced one value in 100 tries")
         failed += 1
     }
 
-    // ==================== random.byte ====================
-    println("  -- random.byte --")
+    // ==================== random.rand_byte ====================
+    println("  -- random.rand_byte --")
 
-    // Test 7: random.byte() returns value in [0, 255]
-    mut by byte = random.byte()
+    // Test 7: random.rand_byte() returns value in [0, 255]
+    mut by byte = random.rand_byte()
     if by >= 0 && by <= 255 {
-        println("  [PASS] random.byte() in range [0, 255]")
+        println("  [PASS] random.rand_byte() in range [0, 255]")
         passed += 1
     } otherwise {
-        println("  [FAIL] random.byte(): got ${by}")
+        println("  [FAIL] random.rand_byte(): got ${by}")
         failed += 1
     }
 
-    // ==================== random.char ====================
-    println("  -- random.char --")
+    // ==================== random.rand_char ====================
+    println("  -- random.rand_char --")
 
-    // Test 8: random.char() returns printable ASCII
-    mut c1 char = random.char()
+    // Test 8: random.rand_char() returns printable ASCII
+    mut c1 char = random.rand_char()
     mut c1_int int = int(c1)
     if c1_int >= 32 && c1_int <= 126 {
-        println("  [PASS] random.char() in printable ASCII range")
+        println("  [PASS] random.rand_char() in printable ASCII range")
         passed += 1
     } otherwise {
-        println("  [FAIL] random.char(): got ${c1} (${c1_int})")
+        println("  [FAIL] random.rand_char(): got ${c1} (${c1_int})")
         failed += 1
     }
 
-    // Test 9: random.char(min, max) returns char in range
-    mut c2 char = random.char('A', 'Z')
+    // Test 9: random.rand_char(min, max) returns char in range
+    mut c2 char = random.rand_char('A', 'Z')
     if c2 >= 'A' && c2 <= 'Z' {
-        println("  [PASS] random.char('A', 'Z') in range")
+        println("  [PASS] random.rand_char('A', 'Z') in range")
         passed += 1
     } otherwise {
-        println("  [FAIL] random.char('A', 'Z'): got '${c2}'")
+        println("  [FAIL] random.rand_char('A', 'Z'): got '${c2}'")
         failed += 1
     }
 

@@ -11,13 +11,13 @@ do main() {
     mut passed int = 0
     mut failed int = 0
 
-    // Test 1: Generate a new UUID
-    mut id1 string = uuid.generate()
+    // Test 1: Generate a hyphenated UUID
+    mut id1 string = uuid.generate_hyphenated()
     if len(id1) == 36 {
-        println("  [PASS] uuid.generate() returns 36 character string")
+        println("  [PASS] uuid.generate_hyphenated() returns 36 character string")
         passed += 1
     } otherwise {
-        println("  [FAIL] uuid.generate() length: expected 36, got ${len(id1)}")
+        println("  [FAIL] uuid.generate_hyphenated() length: expected 36, got ${len(id1)}")
         failed += 1
     }
 
@@ -31,12 +31,12 @@ do main() {
     }
 
     // Test 3: Generate compact UUID (no hyphens)
-    mut compact string = uuid.generate_compact()
+    mut compact string = uuid.generate()
     if len(compact) == 32 {
-        println("  [PASS] uuid.generate_compact() returns 32 character string")
+        println("  [PASS] uuid.generate() returns 32 character string")
         passed += 1
     } otherwise {
-        println("  [FAIL] uuid.generate_compact() length: expected 32, got ${len(compact)}")
+        println("  [FAIL] uuid.generate() length: expected 32, got ${len(compact)}")
         failed += 1
     }
 
@@ -87,12 +87,12 @@ do main() {
     }
 
     // Test 9: Two UUIDs should be different
-    mut id2 string = uuid.generate()
+    mut id2 string = uuid.generate_hyphenated()
     if id1 != id2 {
-        println("  [PASS] uuid.generate() generates unique UUIDs")
+        println("  [PASS] uuid.generate_hyphenated() generates unique UUIDs")
         passed += 1
     } otherwise {
-        println("  [FAIL] uuid.generate() should generate unique UUIDs")
+        println("  [FAIL] uuid.generate_hyphenated() should generate unique UUIDs")
         failed += 1
     }
 

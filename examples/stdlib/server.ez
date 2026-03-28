@@ -50,7 +50,7 @@ do redirect_home(req Request) -> Response {
 // ---- Main ----
 
 do main() {
-    mut router = server.router()
+    mut router = server.add_router()
 
     // Enable CORS for all origins
     server.cors(router, "*")
@@ -59,11 +59,11 @@ do main() {
     server.use(router, ()logger)
 
     // Register routes
-    server.route(router, "GET", "/", ()home)
-    server.route(router, "GET", "/users/:id", ()get_user)
-    server.route(router, "POST", "/echo", ()echo)
-    server.route(router, "GET", "/health", ()health)
-    server.route(router, "GET", "/redirect", ()redirect_home)
+    server.add_route(router, "GET", "/", ()home)
+    server.add_route(router, "GET", "/users/:id", ()get_user)
+    server.add_route(router, "POST", "/echo", ()echo)
+    server.add_route(router, "GET", "/health", ()health)
+    server.add_route(router, "GET", "/redirect", ()redirect_home)
 
     println("Server running on http://localhost:8080")
     server.listen(8080, router)

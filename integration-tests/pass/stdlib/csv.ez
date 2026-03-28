@@ -10,108 +10,108 @@ do main() {
     mut passed int = 0
     mut failed int = 0
 
-    // ==================== csv.parse ====================
-    println("  -- csv.parse --")
+    // ==================== csv.decode ====================
+    println("  -- csv.decode --")
 
     // Test 1: simple CSV parsing
     mut csv_data string = "name,age\nAlice,30\nBob,25"
-    mut parsed, parse_err = csv.parse(csv_data)
+    mut parsed, parse_err = csv.decode(csv_data)
     if len(parsed) == 3 && parse_err == nil {
-        println("  [PASS] csv.parse simple CSV")
+        println("  [PASS] csv.decode simple CSV")
         passed += 1
     } otherwise {
-        println("  [FAIL] csv.parse simple CSV: expected 3 rows")
+        println("  [FAIL] csv.decode simple CSV: expected 3 rows")
         failed += 1
     }
 
     // Test 2: single row
-    mut single_row, single_err = csv.parse("a,b,c")
+    mut single_row, single_err = csv.decode("a,b,c")
     if len(single_row) == 1 && single_err == nil {
-        println("  [PASS] csv.parse single row")
+        println("  [PASS] csv.decode single row")
         passed += 1
     } otherwise {
-        println("  [FAIL] csv.parse single row")
+        println("  [FAIL] csv.decode single row")
         failed += 1
     }
 
     // Test 3: quoted fields with comma
-    mut quoted, quoted_err = csv.parse("\"hello, world\",test")
+    mut quoted, quoted_err = csv.decode("\"hello, world\",test")
     if len(quoted) == 1 && quoted_err == nil {
-        println("  [PASS] csv.parse quoted fields")
+        println("  [PASS] csv.decode quoted fields")
         passed += 1
     } otherwise {
-        println("  [FAIL] csv.parse quoted fields")
+        println("  [FAIL] csv.decode quoted fields")
         failed += 1
     }
 
     // Test 4: empty string
-    mut empty, empty_err = csv.parse("")
+    mut empty, empty_err = csv.decode("")
     if len(empty) == 0 && empty_err == nil {
-        println("  [PASS] csv.parse empty string")
+        println("  [PASS] csv.decode empty string")
         passed += 1
     } otherwise {
-        println("  [FAIL] csv.parse empty string")
+        println("  [FAIL] csv.decode empty string")
         failed += 1
     }
 
-    // ==================== csv.stringify ====================
-    println("  -- csv.stringify --")
+    // ==================== csv.encode ====================
+    println("  -- csv.encode --")
 
     // Test 5: simple stringify
     mut data [[string]] = {{"name", "age"}, {"Alice", "30"}}
-    mut str_result, str_err = csv.stringify(data)
+    mut str_result, str_err = csv.encode(data)
     if str_result == "name,age\nAlice,30\n" && str_err == nil {
-        println("  [PASS] csv.stringify simple")
+        println("  [PASS] csv.encode simple")
         passed += 1
     } otherwise {
-        println("  [FAIL] csv.stringify simple: got '${str_result}'")
+        println("  [FAIL] csv.encode simple: got '${str_result}'")
         failed += 1
     }
 
     // Test 6: stringify with special characters
     mut special_data [[string]] = {{"hello, world", "test"}}
-    mut special_str, special_str_err = csv.stringify(special_data)
+    mut special_str, special_str_err = csv.encode(special_data)
     if special_str_err == nil {
-        println("  [PASS] csv.stringify with commas")
+        println("  [PASS] csv.encode with commas")
         passed += 1
     } otherwise {
-        println("  [FAIL] csv.stringify with commas")
+        println("  [FAIL] csv.encode with commas")
         failed += 1
     }
 
     // Test 7: empty array
     mut empty_data [[string]] = {}
-    mut empty_str, empty_str_err = csv.stringify(empty_data)
+    mut empty_str, empty_str_err = csv.encode(empty_data)
     if empty_str == "" && empty_str_err == nil {
-        println("  [PASS] csv.stringify empty array")
+        println("  [PASS] csv.encode empty array")
         passed += 1
     } otherwise {
-        println("  [FAIL] csv.stringify empty array")
+        println("  [FAIL] csv.encode empty array")
         failed += 1
     }
 
-    // ==================== csv.write and csv.read ====================
-    println("  -- csv.write / csv.read --")
+    // ==================== csv.write_file and csv.read_file ====================
+    println("  -- csv.write_file / csv.read_file --")
 
     // Test 8: write CSV file
     mut test_path string = "/tmp/ez_csv_test.csv"
     mut write_data [[string]] = {{"id", "name", "value"}, {"1", "foo", "100"}, {"2", "bar", "200"}}
-    mut write_ok, write_err = csv.write(test_path, write_data)
+    mut write_ok, write_err = csv.write_file(test_path, write_data)
     if write_ok == true && write_err == nil {
-        println("  [PASS] csv.write file")
+        println("  [PASS] csv.write_file file")
         passed += 1
     } otherwise {
-        println("  [FAIL] csv.write file")
+        println("  [FAIL] csv.write_file file")
         failed += 1
     }
 
     // Test 9: read CSV file
-    mut read_data, read_err = csv.read(test_path)
+    mut read_data, read_err = csv.read_file(test_path)
     if len(read_data) == 3 && read_err == nil {
-        println("  [PASS] csv.read file")
+        println("  [PASS] csv.read_file file")
         passed += 1
     } otherwise {
-        println("  [FAIL] csv.read file: expected 3 rows, got ${len(read_data)}")
+        println("  [FAIL] csv.read_file file: expected 3 rows, got ${len(read_data)}")
         failed += 1
     }
 
@@ -132,12 +132,12 @@ do main() {
     println("  -- Error handling --")
 
     // Test 11: read nonexistent file
-    mut bad_read, bad_read_err = csv.read("/nonexistent/file.csv")
+    mut bad_read, bad_read_err = csv.read_file("/nonexistent/file.csv")
     if bad_read_err != nil {
-        println("  [PASS] csv.read nonexistent file returns error")
+        println("  [PASS] csv.read_file nonexistent file returns error")
         passed += 1
     } otherwise {
-        println("  [FAIL] csv.read should return error for nonexistent file")
+        println("  [FAIL] csv.read_file should return error for nonexistent file")
         failed += 1
     }
 
@@ -156,9 +156,9 @@ do main() {
 
     // Test 13: parse -> stringify round trip
     mut original string = "a,b\n1,2\n"
-    mut rt_parsed, rt_parse_err = csv.parse(original)
+    mut rt_parsed, rt_parse_err = csv.decode(original)
     if rt_parse_err == nil {
-        mut rt_stringified, rt_str_err = csv.stringify(rt_parsed)
+        mut rt_stringified, rt_str_err = csv.encode(rt_parsed)
         if rt_stringified == original && rt_str_err == nil {
             println("  [PASS] round-trip parse -> stringify")
             passed += 1

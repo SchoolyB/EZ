@@ -8,12 +8,12 @@ import @std, @uuid
 using std
 
 do main() {
-    // Generate a UUID
-    mut id string = uuid.generate()
+    // Generate a hyphenated UUID
+    mut id string = uuid.generate_hyphenated()
     println("UUID: ${id}")
 
     // Generate a compact UUID (no dashes)
-    mut compact string = uuid.generate_compact()
+    mut compact string = uuid.generate()
     println("Compact: ${compact}")
 
     // Validate UUIDs

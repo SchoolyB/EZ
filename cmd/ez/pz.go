@@ -671,8 +671,8 @@ import @std, @server
 using std
 
 do main() {
-    temp router Router = server.router()
-    server.route(router, "GET", "/", server.text(200, "Hello, World!"))
+    temp router Router = server.add_router()
+    server.add_route(router, "GET", "/", server.text(200, "Hello, World!"))
 
     println("Server running on http://localhost:8080")
     server.listen(8080, router)
@@ -687,8 +687,8 @@ import @std, @server
 using std
 
 do main() {
-    temp router Router = server.router()
-    server.route(router, "GET", "/", server.text(200, "Hello, World!"))
+    temp router Router = server.add_router()
+    server.add_route(router, "GET", "/", server.text(200, "Hello, World!"))
 
     println("Server running on http://localhost:8080")
     server.listen(8080, router)
@@ -712,7 +712,7 @@ import @std, @server
 using std
 
 do main() {
-    temp router Router = server.router()
+    temp router Router = server.add_router()
     registerRoutes(router)
 
     println("Server running on http://localhost:8080")
@@ -728,7 +728,7 @@ import @std, @server
 using std
 
 do main() {
-    temp router Router = server.router()
+    temp router Router = server.add_router()
     registerRoutes(router)
 
     println("Server running on http://localhost:8080")
@@ -742,7 +742,7 @@ func getServerRoutesContent(comments bool) string {
 		return `// routes.ez - Route definitions
 //
 // Register all routes here. Each route needs:
-//   server.route(router, METHOD, PATH, RESPONSE)
+//   server.add_route(router, METHOD, PATH, RESPONSE)
 //
 // Response helpers:
 //   server.text(status, body)  - Plain text response
@@ -755,13 +755,13 @@ import @server
 
 do registerRoutes(router Router) {
     // Home page
-    server.route(router, "GET", "/", server.text(200, "Welcome to EZ!"))
+    server.add_route(router, "GET", "/", server.text(200, "Welcome to EZ!"))
 
     // Health check endpoint
-    server.route(router, "GET", "/health", server.json(200, {"status": "ok"}))
+    server.add_route(router, "GET", "/health", server.json(200, {"status": "ok"}))
 
     // API endpoint
-    server.route(router, "GET", "/api/status", server.json(200, {
+    server.add_route(router, "GET", "/api/status", server.json(200, {
         "version": "1.0.0",
         "status": "running"
     }))
@@ -775,11 +775,11 @@ module main
 import @server
 
 do registerRoutes(router Router) {
-    server.route(router, "GET", "/", server.text(200, "Welcome to EZ!"))
+    server.add_route(router, "GET", "/", server.text(200, "Welcome to EZ!"))
 
-    server.route(router, "GET", "/health", server.json(200, {"status": "ok"}))
+    server.add_route(router, "GET", "/health", server.json(200, {"status": "ok"}))
 
-    server.route(router, "GET", "/api/status", server.json(200, {
+    server.add_route(router, "GET", "/api/status", server.json(200, {
         "version": "1.0.0",
         "status": "running"
     }))

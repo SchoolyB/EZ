@@ -31,7 +31,7 @@ do main() {
     // channel send/recv
     mut ch = threads.channel(1)
     threads.send(ch, 42)
-    mut val int = threads.recv(ch)
+    mut val int = threads.receive(ch)
     if val == 42 {
         println("  [PASS] channel send/recv")
         passed += 1

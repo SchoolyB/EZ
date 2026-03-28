@@ -53,7 +53,7 @@ do main() {
 
     // remove (void) — verify side effect
     mut rm_map map[string:int] = {"x": 10, "y": 20, "z": 30}
-    maps.remove(rm_map, "y")
+    maps.remove_key(rm_map, "y")
     if len(rm_map) == 2 {
         println("  [PASS] remove")
         passed += 1

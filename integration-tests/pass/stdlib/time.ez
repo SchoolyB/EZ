@@ -37,17 +37,17 @@ do main() {
         failed += 1
     }
 
-    // ==================== time.iso ====================
-    println("  -- time.iso --")
+    // ==================== time.to_iso ====================
+    println("  -- time.to_iso --")
 
     // Test 3: iso returns ISO format
-    mut iso string = time.iso()
+    mut iso string = time.to_iso()
     // ISO format looks like: 2024-12-08T12:34:56Z or similar
     if len(iso) >= 19 {
-        println("  [PASS] time.iso() returns '${iso}'")
+        println("  [PASS] time.to_iso() returns '${iso}'")
         passed += 1
     } otherwise {
-        println("  [FAIL] time.iso(): got '${iso}'")
+        println("  [FAIL] time.to_iso(): got '${iso}'")
         failed += 1
     }
 

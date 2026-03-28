@@ -37,12 +37,12 @@ do main() {
     ensure mem.destroy(a)
 
     // Allocate an int on the arena
-    mut n ^int = mem.make(a, int)
+    mut n ^int = mem.init(a, int)
     n^ = 7
     println("Arena int: ${n^}")
 
     // Allocate a struct on the arena
-    mut pt ^Point = mem.make(a, Point)
+    mut pt ^Point = mem.init(a, Point)
     pt^.x = 3
     pt^.y = 4
     println("Arena point: (${pt^.x}, ${pt^.y})")

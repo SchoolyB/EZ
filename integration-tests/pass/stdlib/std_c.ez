@@ -15,32 +15,32 @@ do main() {
     passed += 1
 
     // to_string int
-    mut s1 string = to_string(42)
+    mut s1 string = string(42)
     if s1 == "42" {
-        println("  [PASS] to_string(int)")
+        println("  [PASS] string(int)")
         passed += 1
     } otherwise {
-        println("  [FAIL] to_string(int): got ${s1}")
+        println("  [FAIL] string(int): got ${s1}")
         failed += 1
     }
 
     // to_string bool
-    mut s2 string = to_string(true)
+    mut s2 string = string(true)
     if s2 == "true" {
-        println("  [PASS] to_string(bool)")
+        println("  [PASS] string(bool)")
         passed += 1
     } otherwise {
-        println("  [FAIL] to_string(bool): got ${s2}")
+        println("  [FAIL] string(bool): got ${s2}")
         failed += 1
     }
 
     // to_string float
-    mut s3 string = to_string(3.14)
+    mut s3 string = string(3.14)
     if len(s3) > 0 {
-        println("  [PASS] to_string(float)")
+        println("  [PASS] string(float)")
         passed += 1
     } otherwise {
-        println("  [FAIL] to_string(float): empty")
+        println("  [FAIL] string(float): empty")
         failed += 1
     }
 

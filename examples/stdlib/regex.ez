@@ -14,7 +14,7 @@ do main() {
     println("Valid pattern: " + string(regex.is_valid("[a-z]+")))
 
     // Match: check if a string matches a pattern
-    mut matched, match_err = regex.match("^Contact", text)
+    mut matched, match_err = regex.is_match("^Contact", text)
     if match_err == nil {
         println("Starts with 'Contact': " + string(matched))
     }

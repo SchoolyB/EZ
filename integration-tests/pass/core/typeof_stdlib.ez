@@ -13,20 +13,20 @@ using std
 
 do main() {
     // Test random module types
-    mut rf float = random.float()
-    assert(type_of(rf) == "float", "random.float() should return 'float'")
+    mut rf float = random.rand_float()
+    assert(type_of(rf) == "float", "random.rand_float() should return 'float'")
 
-    mut ri int = random.int(100)
-    assert(type_of(ri) == "int", "random.int() should return 'int'")
+    mut ri int = random.rand_int(100)
+    assert(type_of(ri) == "int", "random.rand_int() should return 'int'")
 
-    mut rb bool = random.bool()
-    assert(type_of(rb) == "bool", "random.bool() should return 'bool'")
+    mut rb bool = random.rand_bool()
+    assert(type_of(rb) == "bool", "random.rand_bool() should return 'bool'")
 
-    mut rc byte = random.byte()
-    assert(type_of(rc) == "byte", "random.byte() should return 'byte'")
+    mut rc byte = random.rand_byte()
+    assert(type_of(rc) == "byte", "random.rand_byte() should return 'byte'")
 
-    mut rchar char = random.char()
-    assert(type_of(rchar) == "char", "random.char() should return 'char'")
+    mut rchar char = random.rand_char()
+    assert(type_of(rchar) == "char", "random.rand_char() should return 'char'")
 
     // Test random array functions preserve element types
     mut arr [int] = {1, 2, 3, 4, 5}

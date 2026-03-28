@@ -49,46 +49,46 @@ do main() {
         failed += 1
     }
 
-    // ==================== regex.match ====================
-    println("  -- regex.match --")
+    // ==================== regex.is_match ====================
+    println("  -- regex.is_match --")
 
     // Test 5: simple match
-    mut match_result, match_err = regex.match("world", "hello world")
+    mut match_result, match_err = regex.is_match("world", "hello world")
     if match_result == true && match_err == nil {
-        println("  [PASS] regex.match('world', 'hello world')")
+        println("  [PASS] regex.is_match('world', 'hello world')")
         passed += 1
     } otherwise {
-        println("  [FAIL] regex.match: expected true")
+        println("  [FAIL] regex.is_match: expected true")
         failed += 1
     }
 
     // Test 6: no match
-    mut no_match, no_match_err = regex.match("foo", "hello world")
+    mut no_match, no_match_err = regex.is_match("foo", "hello world")
     if no_match == false && no_match_err == nil {
-        println("  [PASS] regex.match('foo', 'hello world') = false")
+        println("  [PASS] regex.is_match('foo', 'hello world') = false")
         passed += 1
     } otherwise {
-        println("  [FAIL] regex.match no match: expected false")
+        println("  [FAIL] regex.is_match no match: expected false")
         failed += 1
     }
 
     // Test 7: regex pattern match
-    mut digit_match, digit_err = regex.match("[0-9]+", "abc123def")
+    mut digit_match, digit_err = regex.is_match("[0-9]+", "abc123def")
     if digit_match == true && digit_err == nil {
-        println("  [PASS] regex.match('[0-9]+', 'abc123def')")
+        println("  [PASS] regex.is_match('[0-9]+', 'abc123def')")
         passed += 1
     } otherwise {
-        println("  [FAIL] regex.match digit: expected true")
+        println("  [FAIL] regex.is_match digit: expected true")
         failed += 1
     }
 
     // Test 8: anchor match
-    mut anchor_match, anchor_err = regex.match("^hello", "hello world")
+    mut anchor_match, anchor_err = regex.is_match("^hello", "hello world")
     if anchor_match == true && anchor_err == nil {
-        println("  [PASS] regex.match('^hello', 'hello world')")
+        println("  [PASS] regex.is_match('^hello', 'hello world')")
         passed += 1
     } otherwise {
-        println("  [FAIL] regex.match anchor: expected true")
+        println("  [FAIL] regex.is_match anchor: expected true")
         failed += 1
     }
 
@@ -280,12 +280,12 @@ do main() {
     println("  -- Error handling --")
 
     // Test 25: invalid pattern returns error
-    mut inv_match, inv_err = regex.match("[", "test")
+    mut inv_match, inv_err = regex.is_match("[", "test")
     if inv_match == false && inv_err != nil {
-        println("  [PASS] regex.match with invalid pattern returns error")
+        println("  [PASS] regex.is_match with invalid pattern returns error")
         passed += 1
     } otherwise {
-        println("  [FAIL] regex.match should return error for invalid pattern")
+        println("  [FAIL] regex.is_match should return error for invalid pattern")
         failed += 1
     }
 

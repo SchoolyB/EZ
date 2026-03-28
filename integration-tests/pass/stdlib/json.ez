@@ -269,16 +269,16 @@ do main() {
         failed += 1
     }
 
-    // ==================== json.pretty ====================
-    println("  -- json.pretty --")
+    // ==================== json.pretty_print ====================
+    println("  -- json.pretty_print --")
 
     // Test 18: pretty print array
-    mut pretty_arr string, pretty_arr_err Error = json.pretty({1, 2}, "  ")
+    mut pretty_arr string, pretty_arr_err Error = json.pretty_print({1, 2}, "  ")
     if pretty_arr_err == nil {
-        println("  [PASS] json.pretty(array)")
+        println("  [PASS] json.pretty_print(array)")
         passed += 1
     } otherwise {
-        println("  [FAIL] json.pretty(array): unexpected error")
+        println("  [FAIL] json.pretty_print(array): unexpected error")
         failed += 1
     }
 

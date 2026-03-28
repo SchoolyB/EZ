@@ -87,13 +87,13 @@ do main() {
     // ==================== PROCESS / SYSTEM ====================
     println("  -- Process / System --")
 
-    // Test 8: os.cwd
-    mut cwd, cwd_err = os.cwd()
+    // Test 8: os.current_dir
+    mut cwd, cwd_err = os.current_dir()
     if cwd_err == nil && len(cwd) > 0 {
-        println("  [PASS] os.cwd() = '${cwd}'")
+        println("  [PASS] os.current_dir() = '${cwd}'")
         passed += 1
     } otherwise {
-        println("  [FAIL] os.cwd()")
+        println("  [FAIL] os.current_dir()")
         failed += 1
     }
 
@@ -278,12 +278,12 @@ do main() {
     println("  -- Directory Operations --")
 
     // Test 25: chdir and restore
-    mut original_dir, _ = os.cwd()
+    mut original_dir, _ = os.current_dir()
     mut target_dir string = os.temp_dir()
 
     mut chdir_ok, chdir_err = os.chdir(target_dir)
     if chdir_err == nil {
-        mut new_cwd, _ = os.cwd()
+        mut new_cwd, _ = os.current_dir()
         println("  [PASS] os.chdir('${target_dir}')")
         passed += 1
 

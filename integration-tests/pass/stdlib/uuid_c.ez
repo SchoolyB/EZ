@@ -11,8 +11,8 @@ do main() {
     mut passed int = 0
     mut failed int = 0
 
-    // generate returns 36-char string (8-4-4-4-12 with dashes)
-    mut id1 string = uuid.generate()
+    // generate_hyphenated returns 36-char string (8-4-4-4-12 with dashes)
+    mut id1 string = uuid.generate_hyphenated()
     if len(id1) == 36 {
         println("  [PASS] generate length")
         passed += 1
@@ -31,7 +31,7 @@ do main() {
     }
 
     // two UUIDs are different
-    mut id2 string = uuid.generate()
+    mut id2 string = uuid.generate_hyphenated()
     if id1 != id2 {
         println("  [PASS] generate unique")
         passed += 1
@@ -41,7 +41,7 @@ do main() {
     }
 
     // compact UUID is 32 chars (no dashes)
-    mut compact string = uuid.generate_compact()
+    mut compact string = uuid.generate()
     if len(compact) == 32 {
         println("  [PASS] generate_compact length")
         passed += 1

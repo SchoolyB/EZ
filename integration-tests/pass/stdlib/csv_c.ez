@@ -14,7 +14,7 @@ do main() {
 
     // stringify a simple string array
     mut row [string] = {"Alice", "30", "NYC"}
-    mut csv_str string = csv.stringify(row)
+    mut csv_str string = csv.encode(row)
     if len(csv_str) > 0 {
         println("  [PASS] stringify")
         passed += 1

@@ -30,7 +30,7 @@ do main() {
 
     // Step 2: Read the full CSV file
     println("Reading data.csv...")
-    mut data, read_err = csv.read("examples/stdlib/csv/data.csv")
+    mut data, read_err = csv.read_file("examples/stdlib/csv/data.csv")
     if read_err != nil {
         println("Error reading file: ${read_err}")
         return
@@ -41,7 +41,7 @@ do main() {
 
     // Step 3: Parse a CSV string directly
     println("Parsing CSV string...")
-    mut parsed, parse_err = csv.parse("product,price\nWidget,9.99\nGadget,24.95")
+    mut parsed, parse_err = csv.decode("product,price\nWidget,9.99\nGadget,24.95")
     if parse_err == nil {
         println("Parsed ${len(parsed)} rows: ${parsed}")
     }
@@ -55,7 +55,7 @@ do main() {
         {"banana", "yellow", "8"},
         {"grape", "purple", "30"}
     }
-    mut csv_string, str_err = csv.stringify(rows)
+    mut csv_string, str_err = csv.encode(rows)
     if str_err == nil {
         println("Generated CSV:")
         println(csv_string)
@@ -63,7 +63,7 @@ do main() {
 
     // Step 5: Write CSV to a file
     println("Writing CSV to /tmp/ez_csv_output.csv...")
-    mut ok, write_err = csv.write("/tmp/ez_csv_output.csv", rows)
+    mut ok, write_err = csv.write_file("/tmp/ez_csv_output.csv", rows)
     if write_err != nil {
         println("Error writing: ${write_err}")
         return

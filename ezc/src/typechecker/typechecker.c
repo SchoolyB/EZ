@@ -630,8 +630,8 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                     result = type_struct("Arena"); /* arena pointer — opaque */
                 } else if (strcmp(mfn, "usage") == 0) {
                     result = &TYPE_INT;
-                } else if (strcmp(mfn, "make") == 0 && node->data.call.arg_count == 2) {
-                    /* mem.make(arena, Type) returns ^Type */
+                } else if (strcmp(mfn, "init") == 0 && node->data.call.arg_count == 2) {
+                    /* mem.init(arena, Type) returns ^Type */
                     AstNode *type_arg = node->data.call.args[1];
                     if (type_arg->kind == NODE_LABEL) {
                         result = type_pointer(type_arg->data.label.value);
@@ -676,7 +676,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                     result = &TYPE_BOOL;
                 } else if (strcmp(mfn, "file_exists") == 0 ||
                            strcmp(mfn, "is_file") == 0 || strcmp(mfn, "is_directory") == 0 ||
-                           strcmp(mfn, "append_file") == 0 || strcmp(mfn, "rename") == 0) {
+                           strcmp(mfn, "append_file") == 0 || strcmp(mfn, "rename_file") == 0) {
                     result = &TYPE_BOOL;
                 } else if (strcmp(mfn, "file_size") == 0) {
                     result = &TYPE_INT;
@@ -718,8 +718,8 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                     }
                 }
             } else if (strcmp(mod, "time") == 0) {
-                if (strcmp(mfn, "format") == 0 || strcmp(mfn, "iso") == 0 ||
-                    strcmp(mfn, "date") == 0 || strcmp(mfn, "clock") == 0) {
+                if (strcmp(mfn, "format") == 0 || strcmp(mfn, "to_iso") == 0 ||
+                    strcmp(mfn, "date") == 0 || strcmp(mfn, "to_time") == 0) {
                     result = &TYPE_STRING;
                 } else {
                     result = &TYPE_INT;
@@ -760,11 +760,11 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                 else if (strcmp(mfn, "query") == 0) result = type_array("map");
                 else result = &TYPE_VOID;
             } else if (strcmp(mod, "random") == 0) {
-                if (strcmp(mfn, "float") == 0) result = &TYPE_FLOAT;
-                else if (strcmp(mfn, "int") == 0) result = &TYPE_INT;
-                else if (strcmp(mfn, "bool") == 0) result = &TYPE_BOOL;
-                else if (strcmp(mfn, "byte") == 0) result = &TYPE_BYTE;
-                else if (strcmp(mfn, "char") == 0) result = &TYPE_CHAR;
+                if (strcmp(mfn, "rand_float") == 0) result = &TYPE_FLOAT;
+                else if (strcmp(mfn, "rand_int") == 0) result = &TYPE_INT;
+                else if (strcmp(mfn, "rand_bool") == 0) result = &TYPE_BOOL;
+                else if (strcmp(mfn, "rand_byte") == 0) result = &TYPE_BYTE;
+                else if (strcmp(mfn, "rand_char") == 0) result = &TYPE_CHAR;
                 else if (strcmp(mfn, "shuffle") == 0 || strcmp(mfn, "sample") == 0) {
                     result = type_array("int");
                 } else result = &TYPE_UNKNOWN;
@@ -856,7 +856,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                 if (strcmp(mfn, "args") == 0) {
                     result = type_array("string");
                 } else if (strcmp(mfn, "get_env") == 0 ||
-                           strcmp(mfn, "cwd") == 0 || strcmp(mfn, "hostname") == 0 ||
+                           strcmp(mfn, "current_dir") == 0 || strcmp(mfn, "hostname") == 0 ||
                            strcmp(mfn, "arch") == 0) {
                     result = &TYPE_STRING;
                 } else if (strcmp(mfn, "current_os") == 0 || strcmp(mfn, "pid") == 0) {
@@ -894,9 +894,9 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                         }
                     }
                     result = type_struct("Thread"); /* EzThread — opaque */
-                } else if (strcmp(mfn, "recv") == 0) {
+                } else if (strcmp(mfn, "receive") == 0) {
                     result = &TYPE_INT;
-                } else if (strcmp(mfn, "id") == 0) {
+                } else if (strcmp(mfn, "get_id") == 0) {
                     result = &TYPE_INT;
                 } else if (strcmp(mfn, "mutex") == 0) {
                     result = type_struct("Mutex"); /* EzMutex — opaque */
@@ -906,32 +906,32 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                     result = &TYPE_VOID;
                 }
             } else if (strcmp(mod, "server") == 0) {
-                if (strcmp(mfn, "router") == 0) {
+                if (strcmp(mfn, "add_router") == 0) {
                     result = type_struct("Router"); /* EzRouter — opaque */
                 } else if (strcmp(mfn, "text") == 0 || strcmp(mfn, "json") == 0 ||
                            strcmp(mfn, "html") == 0 || strcmp(mfn, "redirect") == 0) {
-                    result = type_struct("Http_Response"); /* EzResponse */
+                    result = type_struct("HttpResponse"); /* EzResponse */
                 } else {
                     result = &TYPE_VOID;
                 }
             } else if (strcmp(mod, "http") == 0) {
                 /* All http methods return EzHttpResponse struct
                  * with .status (int), .body (string), .headers (map) */
-                result = type_struct("Http_Response"); /* opaque struct — member access via __auto_type */
+                result = type_struct("HttpResponse"); /* opaque struct — member access via __auto_type */
             } else if (strcmp(mod, "net") == 0) {
                 if (strcmp(mfn, "listen") == 0) {
                     result = type_struct("Listener"); /* EzSocket — opaque */
-                } else if (strcmp(mfn, "dial") == 0 || strcmp(mfn, "accept") == 0) {
+                } else if (strcmp(mfn, "connect") == 0 || strcmp(mfn, "accept") == 0) {
                     result = type_struct("Socket"); /* EzSocket — opaque */
                 } else if (strcmp(mfn, "send") == 0) {
                     result = &TYPE_INT;
-                } else if (strcmp(mfn, "recv") == 0 || strcmp(mfn, "resolve") == 0) {
+                } else if (strcmp(mfn, "receive") == 0 || strcmp(mfn, "resolve") == 0) {
                     result = &TYPE_STRING;
                 } else {
                     result = &TYPE_VOID;
                 }
             } else if (strcmp(mod, "regex") == 0) {
-                if (strcmp(mfn, "match") == 0) {
+                if (strcmp(mfn, "is_match") == 0) {
                     result = &TYPE_BOOL;
                 } else if (strcmp(mfn, "find") == 0 || strcmp(mfn, "replace") == 0) {
                     result = &TYPE_STRING;

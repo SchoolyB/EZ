@@ -22,7 +22,7 @@ do main() {
     println("temp_dir: ${os.temp_dir()}")
 
     // Current directory and user info
-    mut cwd, _ = os.cwd()
+    mut cwd, _ = os.current_dir()
     println("cwd: ${cwd}")
 
     mut hostname, _ = os.hostname()

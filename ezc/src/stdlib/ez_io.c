@@ -72,7 +72,7 @@ bool ez_io_delete_file(EzString path) {
     return unlink(path.data) == 0;
 }
 
-bool ez_io_rename(EzString old_path, EzString new_path) {
+bool ez_io_rename_file(EzString old_path, EzString new_path) {
     return rename(old_path.data, new_path.data) == 0;
 }
 

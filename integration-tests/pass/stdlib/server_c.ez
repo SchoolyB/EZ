@@ -18,12 +18,12 @@ do main() {
     mut failed int = 0
 
     // router creation
-    mut r = server.router()
+    mut r = server.add_router()
     println("  [PASS] router()")
     passed += 1
 
     // route registration (does not start server)
-    server.route(r, "GET", "/test", ()handler)
+    server.add_route(r, "GET", "/test", ()handler)
     println("  [PASS] route()")
     passed += 1
 

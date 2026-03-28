@@ -22,7 +22,7 @@ do main() {
     }
 
     // cwd returns a non-empty string
-    mut cwd string = os.cwd()
+    mut cwd string = os.current_dir()
     if len(cwd) > 0 {
         println("  [PASS] cwd (${cwd})")
         passed += 1

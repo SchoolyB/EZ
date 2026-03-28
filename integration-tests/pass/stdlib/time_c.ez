@@ -71,8 +71,8 @@ do main() {
         failed += 1
     }
 
-    // time.iso(ts)
-    mut iso string = time.iso(now)
+    // time.to_iso(ts)
+    mut iso string = time.to_iso(now)
     if len(iso) >= 19 {
         println("  [PASS] iso")
         passed += 1
@@ -91,8 +91,8 @@ do main() {
         failed += 1
     }
 
-    // time.clock(ts)
-    mut clock string = time.clock(now)
+    // time.to_time(ts)
+    mut clock string = time.to_time(now)
     if len(clock) > 0 {
         println("  [PASS] clock (${clock})")
         passed += 1

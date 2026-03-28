@@ -51,9 +51,9 @@ do main() {
     threads.send(ch, 7)
 
     // Receive them
-    mut a = threads.recv(ch)
-    mut b = threads.recv(ch)
-    mut c = threads.recv(ch)
+    mut a = threads.receive(ch)
+    mut b = threads.receive(ch)
+    mut c = threads.receive(ch)
     println("Channel received: ${a}, ${b}, ${c}")
 
     threads.close(ch)

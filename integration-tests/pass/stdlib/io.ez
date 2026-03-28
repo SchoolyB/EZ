@@ -166,17 +166,17 @@ do main() {
         failed += 1
     }
 
-    // ==================== io.rename ====================
-    println("  -- io.rename --")
+    // ==================== io.rename_file ====================
+    println("  -- io.rename_file --")
 
     // Test 13: rename file
     mut rename_dest string = io.path_join(test_dir, "renamed.txt")
-    mut rename_ok, rename_err = io.rename(copy_dest, rename_dest)
+    mut rename_ok, rename_err = io.rename_file(copy_dest, rename_dest)
     if rename_err == nil && io.file_exists(rename_dest) && !io.file_exists(copy_dest) {
-        println("  [PASS] io.rename()")
+        println("  [PASS] io.rename_file()")
         passed += 1
     } otherwise {
-        println("  [FAIL] io.rename()")
+        println("  [FAIL] io.rename_file()")
         failed += 1
     }
 

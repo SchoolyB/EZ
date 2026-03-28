@@ -59,17 +59,17 @@ do main() {
         failed += 1
     }
 
-    // ==================== maps.remove ====================
-    println("  -- maps.remove --")
+    // ==================== maps.remove_key ====================
+    println("  -- maps.remove_key --")
 
     // Test 5: remove removes key
     mut del_map map[string:int] = {"x": 10, "y": 20, "z": 30}
-    mut removed bool = maps.remove(del_map, "y")
+    mut removed bool = maps.remove_key(del_map, "y")
     if len(del_map) == 2 && !maps.has_key(del_map, "y") && removed {
-        println("  [PASS] maps.remove() removed key 'y'")
+        println("  [PASS] maps.remove_key() removed key 'y'")
         passed += 1
     } otherwise {
-        println("  [FAIL] maps.remove: len=${len(del_map)}, contains_y=${maps.has_key(del_map, "y")}, removed=${removed}")
+        println("  [FAIL] maps.remove_key: len=${len(del_map)}, contains_y=${maps.has_key(del_map, "y")}, removed=${removed}")
         failed += 1
     }
 

@@ -44,7 +44,7 @@ EzString ez_time_format(EzArena *arena, EzString fmt, int64_t ts) {
     return ez_string_new(arena, buf, len);
 }
 
-EzString ez_time_iso(EzArena *arena, int64_t ts) {
+EzString ez_time_to_iso(EzArena *arena, int64_t ts) {
     return ez_time_format(arena, ez_string_lit("%Y-%m-%dT%H:%M:%S"), ts);
 }
 
@@ -52,7 +52,7 @@ EzString ez_time_date(EzArena *arena, int64_t ts) {
     return ez_time_format(arena, ez_string_lit("%Y-%m-%d"), ts);
 }
 
-EzString ez_time_clock(EzArena *arena, int64_t ts) {
+EzString ez_time_to_time(EzArena *arena, int64_t ts) {
     return ez_time_format(arena, ez_string_lit("%H:%M:%S"), ts);
 }
 

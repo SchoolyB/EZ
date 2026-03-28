@@ -11,9 +11,9 @@ do main() {
     mut fail int = 0
 
     // match
-    if regex.match("[0-9]+", "abc123") { pass += 1 } otherwise { fail += 1 }
-    if !regex.match("^[0-9]+$", "abc") { pass += 1 } otherwise { fail += 1 }
-    if regex.match("^hello$", "hello") { pass += 1 } otherwise { fail += 1 }
+    if regex.is_match("[0-9]+", "abc123") { pass += 1 } otherwise { fail += 1 }
+    if !regex.is_match("^[0-9]+$", "abc") { pass += 1 } otherwise { fail += 1 }
+    if regex.is_match("^hello$", "hello") { pass += 1 } otherwise { fail += 1 }
 
     // find
     mut found = regex.find("[0-9]+", "abc 42 def")
