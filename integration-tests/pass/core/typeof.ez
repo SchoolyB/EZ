@@ -4,6 +4,7 @@
  */
 
 import @std
+import @mem
 using std
 
 const Color enum { RED, GREEN, BLUE }
@@ -78,6 +79,10 @@ do main() {
     assert(typeof(arr[0]) == "int", "array index should return element type")
     assert(typeof(m["a"]) == "int", "map index should return value type")
     assert(typeof(p.x) == "int", "struct field should return field type")
+
+    // Opaque stdlib types
+    mut a = mem.arena(1024)
+    assert(typeof(a) == "Arena", "mem.arena() should return 'Arena'")
 
     println("PASS: typeof")
 }

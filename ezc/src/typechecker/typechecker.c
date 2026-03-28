@@ -628,7 +628,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
             }
             if (strcmp(mod, "mem") == 0) {
                 if (strcmp(mfn, "arena") == 0) {
-                    result = &TYPE_UNKNOWN; /* arena pointer — opaque */
+                    result = type_struct("Arena"); /* arena pointer — opaque */
                 } else if (strcmp(mfn, "usage") == 0) {
                     result = &TYPE_INT;
                 } else if (strcmp(mfn, "new") == 0 && node->data.call.arg_count == 2) {
@@ -908,35 +908,36 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                                 tc->file, node->token.line, node->token.column, 0);
                         }
                     }
-                    result = &TYPE_UNKNOWN; /* EzThread — opaque */
+                    result = type_struct("Thread"); /* EzThread — opaque */
                 } else if (strcmp(mfn, "recv") == 0) {
                     result = &TYPE_INT;
                 } else if (strcmp(mfn, "id") == 0) {
                     result = &TYPE_INT;
                 } else if (strcmp(mfn, "mutex") == 0) {
-                    result = &TYPE_UNKNOWN; /* EzMutex — opaque */
+                    result = type_struct("Mutex"); /* EzMutex — opaque */
                 } else if (strcmp(mfn, "channel") == 0) {
-                    result = &TYPE_UNKNOWN; /* EzChannel — opaque */
+                    result = type_struct("Channel"); /* EzChannel — opaque */
                 } else {
                     result = &TYPE_VOID;
                 }
             } else if (strcmp(mod, "server") == 0) {
                 if (strcmp(mfn, "router") == 0) {
-                    result = &TYPE_UNKNOWN; /* EzRouter — opaque */
+                    result = type_struct("Router"); /* EzRouter — opaque */
                 } else if (strcmp(mfn, "text") == 0 || strcmp(mfn, "json") == 0 ||
                            strcmp(mfn, "html") == 0 || strcmp(mfn, "redirect") == 0) {
-                    result = &TYPE_UNKNOWN; /* EzResponse */
+                    result = type_struct("Http_Response"); /* EzResponse */
                 } else {
                     result = &TYPE_VOID;
                 }
             } else if (strcmp(mod, "http") == 0) {
                 /* All http methods return EzHttpResponse struct
                  * with .status (int), .body (string), .headers (map) */
-                result = &TYPE_UNKNOWN; /* opaque struct — member access via __auto_type */
+                result = type_struct("Http_Response"); /* opaque struct — member access via __auto_type */
             } else if (strcmp(mod, "net") == 0) {
-                if (strcmp(mfn, "dial") == 0 || strcmp(mfn, "listen") == 0 ||
-                    strcmp(mfn, "accept") == 0) {
-                    result = &TYPE_UNKNOWN; /* EzSocket — opaque */
+                if (strcmp(mfn, "listen") == 0) {
+                    result = type_struct("Listener"); /* EzSocket — opaque */
+                } else if (strcmp(mfn, "dial") == 0 || strcmp(mfn, "accept") == 0) {
+                    result = type_struct("Socket"); /* EzSocket — opaque */
                 } else if (strcmp(mfn, "send") == 0) {
                     result = &TYPE_INT;
                 } else if (strcmp(mfn, "recv") == 0 || strcmp(mfn, "resolve") == 0) {
@@ -963,7 +964,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                         result = &TYPE_UNKNOWN;
                     }
                 } else if (strcmp(mfn, "arena") == 0) {
-                    result = &TYPE_UNKNOWN;
+                    result = type_struct("Arena");
                 } else if (strcmp(mfn, "usage") == 0) {
                     result = &TYPE_INT;
                 } else {
@@ -971,7 +972,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                 }
             } else if (strcmp(mod, "sqlite") == 0) {
                 if (strcmp(mfn, "open") == 0) {
-                    result = &TYPE_UNKNOWN;
+                    result = type_struct("Database");
                 } else if (strcmp(mfn, "exec") == 0) {
                     result = &TYPE_BOOL;
                 } else if (strcmp(mfn, "query") == 0) {
@@ -987,7 +988,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                 if (sig && sig->return_count > 0) {
                     result = sig->return_types[0];
                 } else {
-                    result = &TYPE_UNKNOWN;
+                    result = &TYPE_VOID;
                 }
             } else {
                 result = &TYPE_VOID;
