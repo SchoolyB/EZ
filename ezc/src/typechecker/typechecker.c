@@ -895,14 +895,22 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                         }
                     }
                     result = type_struct("Thread"); /* EzThread — opaque */
-                } else if (strcmp(mfn, "receive") == 0) {
-                    result = &TYPE_INT;
                 } else if (strcmp(mfn, "get_id") == 0) {
                     result = &TYPE_INT;
-                } else if (strcmp(mfn, "mutex") == 0) {
+                } else {
+                    result = &TYPE_VOID;
+                }
+            } else if (strcmp(mod, "sync") == 0) {
+                if (strcmp(mfn, "mutex") == 0) {
                     result = type_struct("Mutex"); /* EzMutex — opaque */
-                } else if (strcmp(mfn, "channel") == 0) {
+                } else {
+                    result = &TYPE_VOID;
+                }
+            } else if (strcmp(mod, "channels") == 0) {
+                if (strcmp(mfn, "open") == 0) {
                     result = type_struct("Channel"); /* EzChannel — opaque */
+                } else if (strcmp(mfn, "receive") == 0) {
+                    result = &TYPE_INT;
                 } else {
                     result = &TYPE_VOID;
                 }
@@ -2347,7 +2355,7 @@ static bool is_valid_module(const char *name) {
         "std", "math", "strings", "arrays", "maps", "io", "os", "time",
         "random", "json", "csv", "encoding", "crypto", "uuid", "bytes",
         "binary", "fmt", "http", "server", "regex", "net", "threads",
-        "mem", "sqlite", "errors", "db", NULL
+        "sync", "channels", "mem", "sqlite", "errors", "db", NULL
     };
     for (int i = 0; modules[i]; i++) {
         if (strcmp(name, modules[i]) == 0) return true;

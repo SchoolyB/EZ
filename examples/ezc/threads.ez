@@ -1,14 +1,14 @@
 /*
  * threads.ez - Threading with spawn, join, mutex, and channels
  *
- * Compile with: ezc examples/basic/threads.ez -o threads
+ * Compile with: ezc examples/ezc/threads.ez -o threads
  * Run with: ./threads
  *
  * NOTE: This example requires the EZC compiler (not the interpreter).
- * The @threads module is EZC-only.
+ * The @threads, @sync, and @channels modules are EZC-only.
  */
 
-import @std, @threads
+import @std, @threads, @sync, @channels
 using std
 
 // ---- Worker function that runs on its own thread ----
@@ -43,20 +43,20 @@ do main() {
     // Channel demo — send values between threads
     println("")
     println("--- Channel Demo ---")
-    mut ch = threads.channel(8)
+    mut ch = channels.open(8)
 
     // Send some values
-    threads.send(ch, 42)
-    threads.send(ch, 100)
-    threads.send(ch, 7)
+    channels.send(ch, 42)
+    channels.send(ch, 100)
+    channels.send(ch, 7)
 
     // Receive them
-    mut a = threads.receive(ch)
-    mut b = threads.receive(ch)
-    mut c = threads.receive(ch)
+    mut a = channels.receive(ch)
+    mut b = channels.receive(ch)
+    mut c = channels.receive(ch)
     println("Channel received: ${a}, ${b}, ${c}")
 
-    threads.close(ch)
+    channels.close(ch)
     println("")
     println("Done.")
 }

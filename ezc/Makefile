@@ -55,6 +55,8 @@ RT_SRC = src/runtime/ez_runtime.c \
          src/stdlib/ez_json.c \
          src/stdlib/ez_sqlite.c \
          src/stdlib/ez_threads.c \
+         src/stdlib/ez_sync.c \
+         src/stdlib/ez_channels.c \
          src/stdlib/ez_regex.c \
          src/stdlib/ez_net.c \
          src/stdlib/ez_http.c \

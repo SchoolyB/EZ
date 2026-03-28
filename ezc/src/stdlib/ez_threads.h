@@ -1,8 +1,8 @@
 /*
  * ez_threads.h - @threads module for EZC
  *
- * Provides threading primitives: spawn, join, mutex, and channels.
- * Built on POSIX pthreads.
+ * Thread spawning and joining. Built on POSIX pthreads.
+ * See @sync for mutexes, @channels for message passing.
  *
  * Copyright (c) 2025-Present Marshall A Burns
  * Licensed under the MIT License. See LICENSE for details.
@@ -14,8 +14,6 @@
 #include "../runtime/ez_runtime.h"
 #include <stdint.h>
 #include <stdbool.h>
-
-/* ---- Thread Handle ---- */
 
 typedef struct {
     void *_internal; /* pthread_t stored as opaque pointer */
@@ -32,34 +30,5 @@ void ez_threads_join(EzThread t);
 
 /* Get current thread ID (for debugging). */
 int64_t ez_threads_id(void);
-
-/* ---- Mutex ---- */
-
-typedef struct {
-    void *_internal; /* pthread_mutex_t* */
-} EzMutex;
-
-EzMutex ez_threads_mutex(void);
-void ez_threads_lock(EzMutex m);
-void ez_threads_unlock(EzMutex m);
-void ez_threads_mutex_destroy(EzMutex m);
-
-/* ---- Channel (typed as int64_t for simplicity) ---- */
-
-typedef struct {
-    void *_internal; /* EzChannelInternal* */
-} EzChannel;
-
-/* Create a buffered channel with given capacity. */
-EzChannel ez_threads_channel(int64_t capacity);
-
-/* Send a value into the channel. Blocks if full. */
-void ez_threads_send(EzChannel ch, int64_t value);
-
-/* Receive a value from the channel. Blocks if empty. */
-int64_t ez_threads_recv(EzChannel ch);
-
-/* Close a channel and free resources. */
-void ez_threads_channel_close(EzChannel ch);
 
 #endif

@@ -4,6 +4,8 @@
 
 import @std
 import @threads
+import @sync
+import @channels
 using std
 
 do worker() {
@@ -22,16 +24,16 @@ do main() {
     passed += 1
 
     // mutex create, lock, unlock
-    mut m = threads.mutex()
-    threads.lock(m)
-    threads.unlock(m)
+    mut m = sync.mutex()
+    sync.lock(m)
+    sync.unlock(m)
     println("  [PASS] mutex lock/unlock")
     passed += 1
 
     // channel send/recv
-    mut ch = threads.channel(1)
-    threads.send(ch, 42)
-    mut val int = threads.receive(ch)
+    mut ch = channels.open(1)
+    channels.send(ch, 42)
+    mut val int = channels.receive(ch)
     if val == 42 {
         println("  [PASS] channel send/recv")
         passed += 1

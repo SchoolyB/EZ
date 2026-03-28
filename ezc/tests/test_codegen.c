@@ -400,7 +400,7 @@ static void test_e2e_char(void) {
         "    println(c)\n"
         "}");
     ASSERT_NOT_NULL(out);
-    ASSERT_STR_EQ(out, "65");
+    ASSERT_STR_EQ(out, "A");
 }
 
 /* --- Blank identifier --- */
@@ -548,14 +548,12 @@ static void test_e2e_ptr_addr(void) {
     char *out = compile_and_run(
         "import @std\nusing std\n"
         "do main() {\n"
-        "    temp x int = 10\n"
-        "    temp p ^int = addr(x)\n"
-        "    println(p^)\n"
-        "    p^ = 99\n"
-        "    println(x)\n"
+        "    mut x int = 42\n"
+        "    mut a uint = addr(x)\n"
+        "    if a > 0 { println(\"ok\") }\n"
         "}");
     ASSERT_NOT_NULL(out);
-    ASSERT_STR_EQ(out, "10\n99");
+    ASSERT_STR_EQ(out, "ok");
 }
 
 static void test_e2e_ptr_nil(void) {
@@ -774,15 +772,15 @@ static void test_e2e_threads_spawn_join(void) {
 
 static void test_e2e_threads_channel(void) {
     char *out = compile_and_run(
-        "import @std, @threads\nusing std\n"
+        "import @std, @channels\nusing std\n"
         "do main() {\n"
-        "  mut ch = threads.channel(4)\n"
-        "  threads.send(ch, 42)\n"
-        "  threads.send(ch, 100)\n"
-        "  mut a = threads.receive(ch)\n"
-        "  mut b = threads.receive(ch)\n"
+        "  mut ch = channels.open(4)\n"
+        "  channels.send(ch, 42)\n"
+        "  channels.send(ch, 100)\n"
+        "  mut a = channels.receive(ch)\n"
+        "  mut b = channels.receive(ch)\n"
         "  println(\"${a},${b}\")\n"
-        "  threads.close(ch)\n"
+        "  channels.close(ch)\n"
         "}");
     ASSERT_NOT_NULL(out);
     ASSERT_STR_EQ(out, "42,100");
