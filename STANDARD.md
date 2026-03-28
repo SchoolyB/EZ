@@ -394,7 +394,7 @@ EZ provides fixed-width integer types for precise control over integer size:
 | `u32` | 32-bit | no | 0 to 2^32-1 |
 | `u64` | 64-bit | no | 0 to 2^64-1 |
 
-Use sized type names as cast functions: `i32(value)`, `u16(value)`.
+Use `cast` for sized type conversions: `cast(value, i32)`, `cast(value, u16)`.
 
 #### 4.1.9 Wide Integer Types (`i128`, `u128`, `i256`, `u256`)
 
@@ -1652,7 +1652,7 @@ println("Hello")
 
 ## 10. Standard Library
 
-The EZ standard library consists of 20 modules providing core functionality.
+The EZ standard library consists of 22 modules providing core functionality.
 
 ### 10.1 Core Module (`@std`)
 
@@ -1672,29 +1672,13 @@ The core module provides fundamental I/O, type conversion, and utility functions
 | Function | Signature | Description |
 |----------|-----------|-------------|
 | `input` | `() -> string` | Read line from stdin |
-| `read_int` | `() -> (int, Error)` | Read integer from stdin |
 
-#### Type Conversion Functions
-
-| Function | Signature | Description |
-|----------|-----------|-------------|
-| `int` | `(value) -> int` | Convert to int |
-| `uint` | `(value) -> uint` | Convert to uint |
-| `float` | `(value) -> float` | Convert to float |
-| `string` | `(value) -> string` | Convert to string |
-| `bool` | `(value) -> bool` | Convert to bool |
-| `char` | `(value) -> char` | Convert to char |
-| `byte` | `(value) -> byte` | Convert to byte |
-
-#### Sized Integer Conversions
+#### Wide Integer Conversions
 
 | Function | Description |
 |----------|-------------|
-| `i8`, `i16`, `i32`, `i64` | Convert to signed integers |
 | `i128`, `i256` | Convert to wide signed integers (struct-based, 128/256-bit) |
-| `u8`, `u16`, `u32`, `u64` | Convert to unsigned integers |
 | `u128`, `u256` | Convert to wide unsigned integers (struct-based, 128/256-bit) |
-| `f32`, `f64` | Convert to sized floats |
 
 #### Utility Functions
 
@@ -1739,14 +1723,9 @@ println(r2[4])        // Prints 6 - r2 sees the change
 
 | Function | Signature | Description |
 |----------|-----------|-------------|
-| `sleep_seconds` | `(seconds int) -> nil` | Sleep for seconds |
-| `sleep_milliseconds` | `(ms int) -> nil` | Sleep for milliseconds |
-| `sleep_nanoseconds` | `(ns int) -> nil` | Sleep for nanoseconds |
-
-#### Constants
-
-- `EXIT_SUCCESS` = 0
-- `EXIT_FAILURE` = 1
+| `sleep_s` | `(seconds int) -> nil` | Sleep for seconds |
+| `sleep_ms` | `(ms int) -> nil` | Sleep for milliseconds |
+| `sleep_ns` | `(ns int) -> nil` | Sleep for nanoseconds |
 
 ### 10.2 Arrays Module (`@arrays`)
 
@@ -1791,8 +1770,8 @@ println(r2[4])        // Prints 6 - r2 sees the change
 
 | Function | Signature | Description |
 |----------|-----------|-------------|
-| `upper` | `(s string) -> string` | Convert to uppercase |
-| `lower` | `(s string) -> string` | Convert to lowercase |
+| `to_upper` | `(s string) -> string` | Convert to uppercase |
+| `to_lower` | `(s string) -> string` | Convert to lowercase |
 
 #### Query Functions
 
@@ -1802,7 +1781,7 @@ println(r2[4])        // Prints 6 - r2 sees the change
 | `contains` | `(s string, sub string) -> bool` | Check if contains substring |
 | `starts_with` | `(s string, prefix string) -> bool` | Check prefix |
 | `ends_with` | `(s string, suffix string) -> bool` | Check suffix |
-| `index` | `(s string, sub string) -> int` | First index of substring |
+| `index_of` | `(s string, sub string) -> int` | First index of substring |
 | `count` | `(s string, sub string) -> int` | Count occurrences |
 
 #### Transformation Functions
@@ -1823,17 +1802,16 @@ println(r2[4])        // Prints 6 - r2 sees the change
 | `split` | `(s string, sep string) -> [string]` | Split into array |
 | `join` | `(arr [string], sep string) -> string` | Join array |
 | `slice` | `(s string, start int, end int) -> string` | Extract substring |
-| `to_int` | `(s string) -> int` | Parse integer |
-| `to_float` | `(s string) -> float` | Parse float |
 
 ### 10.4 Maps Module (`@maps`)
 
 | Function | Signature | Description |
 |----------|-----------|-------------|
+| `is_empty` | `(m map[K:V]) -> bool` | Check if map is empty |
 | `has_key` | `(m map[K:V], key K) -> bool` | Check if key exists |
 | `keys` | `(m map[K:V]) -> [K]` | Get all keys |
 | `values` | `(m map[K:V]) -> [V]` | Get all values |
-| `remove` | `(&m map[K:V], key K) -> bool` | Remove key |
+| `remove_key` | `(&m map[K:V], key K) -> bool` | Remove key |
 | `clear` | `(&m map[K:V])` | Remove all entries |
 
 ### 10.5 Math Module (`@math`)
@@ -1900,14 +1878,6 @@ println(r2[4])        // Prints 6 - r2 sees the change
 | `deg_to_rad` | `(deg number) -> float` | Degrees to radians |
 | `rad_to_deg` | `(rad number) -> float` | Radians to degrees |
 
-#### Random
-
-| Function | Signature | Description |
-|----------|-----------|-------------|
-| `random` | `() -> float` | Random float [0, 1) |
-| `random` | `(max int) -> int` | Random int [0, max) |
-| `random` | `(min int, max int) -> int` | Random int [min, max) |
-
 #### Statistical
 
 | Function | Signature | Description |
@@ -1923,7 +1893,7 @@ println(r2[4])        // Prints 6 - r2 sees the change
 | `is_prime` | `(n int) -> bool` | Check if prime |
 | `is_even` | `(n int) -> bool` | Check if even |
 | `is_odd` | `(n int) -> bool` | Check if odd |
-| `is_inf` | `(n number) -> bool` | Check if infinite |
+| `is_infinite` | `(n number) -> bool` | Check if infinite |
 | `is_nan` | `(n number) -> bool` | Check if NaN |
 | `is_finite` | `(n number) -> bool` | Check if finite (not infinite or NaN) |
 
@@ -1957,13 +1927,6 @@ println(r2[4])        // Prints 6 - r2 sees the change
 | `now_ms` | `() -> int` | Current Unix timestamp (milliseconds) |
 | `now_ns` | `() -> int` | Current Unix timestamp (nanoseconds) |
 
-#### Sleep
-
-| Function | Signature | Description |
-|----------|-----------|-------------|
-| `sleep` | `(seconds number)` | Sleep for seconds |
-| `sleep_ms` | `(ms int)` | Sleep for milliseconds |
-
 #### Time Components
 
 | Function | Signature | Description |
@@ -1981,9 +1944,9 @@ println(r2[4])        // Prints 6 - r2 sees the change
 | Function | Signature | Description |
 |----------|-----------|-------------|
 | `format` | `(format string, timestamp int) -> string` | Format time |
-| `iso` | `(timestamp int) -> string` | ISO 8601 string |
+| `to_iso` | `(timestamp int) -> string` | ISO 8601 string |
 | `date` | `(timestamp int) -> string` | Date (YYYY-MM-DD) |
-| `clock` | `(timestamp int) -> string` | Time (HH:MM:SS) |
+| `to_time` | `(timestamp int) -> string` | Time (HH:MM:SS) |
 
 #### Performance Timing
 
@@ -1996,14 +1959,15 @@ println(r2[4])        // Prints 6 - r2 sees the change
 
 | Function | Signature | Description |
 |----------|-----------|-------------|
-| `float` | `() -> float` | Random float [0.0, 1.0) |
-| `float` | `(min number, max number) -> float` | Random float [min, max) |
-| `int` | `(max int) -> int` | Random int [0, max) |
-| `int` | `(min int, max int) -> int` | Random int [min, max) |
-| `bool` | `() -> bool` | Random boolean |
-| `byte` | `() -> byte` | Random byte [0, 255] |
-| `char` | `() -> char` | Random printable char |
-| `char` | `(min, max) -> char` | Random char in range |
+| `rand_float` | `() -> float` | Random float [0.0, 1.0) |
+| `rand_float` | `(min number, max number) -> float` | Random float [min, max) |
+| `rand_int` | `(max int) -> int` | Random int [0, max) |
+| `rand_int` | `(min int, max int) -> int` | Random int [min, max) |
+| `rand_bool` | `() -> bool` | Random boolean |
+| `rand_byte` | `() -> byte` | Random byte [0, 255] |
+| `rand_char` | `() -> char` | Random printable char |
+| `rand_char` | `(min, max) -> char` | Random char in range |
+| `random_hex` | `(length int) -> string` | Cryptographically secure random hex |
 | `choice` | `(arr [T]) -> T` | Random element from array |
 | `shuffle` | `(arr [T]) -> [T]` | Return shuffled copy |
 | `sample` | `(arr [T], n int) -> [T]` | Return n unique random elements |
@@ -2015,7 +1979,7 @@ println(r2[4])        // Prints 6 - r2 sees the change
 | `encode` | `(value) -> (string, Error)` | Encode to JSON string |
 | `decode` | `(text string) -> (any, Error)` | Decode to dynamic type |
 | `decode` | `(text string, Type) -> (Type, Error)` | Decode to typed struct |
-| `pretty` | `(value, indent int) -> (string, Error)` | Pretty print JSON |
+| `pretty_print` | `(value, indent int) -> (string, Error)` | Pretty print JSON |
 | `is_valid` | `(text string) -> bool` | Check if valid JSON |
 
 ### 10.9 IO Module (`@io`)
@@ -2042,7 +2006,7 @@ println(r2[4])        // Prints 6 - r2 sees the change
 | `is_directory` | `(path string) -> bool` | Check if path is directory |
 | `file_size` | `(path string) -> (int, Error)` | Get file size |
 | `delete_file` | `(path string) -> (bool, Error)` | Delete file |
-| `rename` | `(old_path string, new_path string) -> (bool, Error)` | Rename file |
+| `rename_file` | `(old_path string, new_path string) -> (bool, Error)` | Rename file |
 
 ### 10.10 OS Module (`@os`)
 
@@ -2058,12 +2022,11 @@ println(r2[4])        // Prints 6 - r2 sees the change
 | Function | Signature | Description |
 |----------|-----------|-------------|
 | `args` | `() -> [string]` | Get command-line arguments |
-| `cwd` | `() -> (string, Error)` | Get current working directory |
+| `current_dir` | `() -> (string, Error)` | Get current working directory |
 | `hostname` | `() -> (string, Error)` | Get machine hostname |
 | `pid` | `() -> int` | Get process ID |
 | `current_os` | `() -> int` | Get current OS |
 | `arch` | `() -> string` | Get CPU architecture |
-| `exit` | `(code int)` | Exit program |
 
 #### Constants
 
@@ -2080,15 +2043,16 @@ HTTP client for making requests. Currently supports HTTP only; TLS (HTTPS) is pl
 
 | Function | Signature | Description |
 |----------|-----------|-------------|
-| `get` | `(url string) -> Http_Response` | GET request |
-| `post` | `(url string, body string) -> Http_Response` | POST request |
-| `put` | `(url string, body string) -> Http_Response` | PUT request |
-| `delete` | `(url string) -> Http_Response` | DELETE request |
-| `head` | `(url string) -> Http_Response` | HEAD request |
+| `get` | `(url string) -> HttpResponse` | GET request |
+| `post` | `(url string, body string) -> HttpResponse` | POST request |
+| `put` | `(url string, body string) -> HttpResponse` | PUT request |
+| `patch` | `(url string, body string) -> HttpResponse` | PATCH request |
+| `delete` | `(url string) -> HttpResponse` | DELETE request |
+| `head` | `(url string) -> HttpResponse` | HEAD request |
 
-#### Http_Response Type
+#### HttpResponse Type
 
-The `Http_Response` struct contains:
+The `HttpResponse` struct contains:
 - `status int` - HTTP status code
 - `body string` - Response body
 - `headers map` - Response headers
@@ -2099,7 +2063,6 @@ The `Http_Response` struct contains:
 |----------|-----------|-------------|
 | `sha256` | `(data string) -> string` | SHA-256 hash (hex) |
 | `md5` | `(data string) -> string` | MD5 hash (hex) |
-| `random_hex` | `(length int) -> string` | Cryptographically secure random hex |
 
 ### 10.13 Encoding Module (`@encoding`)
 
@@ -2116,8 +2079,8 @@ The `Http_Response` struct contains:
 
 | Function | Signature | Description |
 |----------|-----------|-------------|
-| `generate` | `() -> string` | Generate UUID v4 with hyphens |
-| `generate_compact` | `() -> string` | Generate UUID v4 without hyphens |
+| `generate` | `() -> string` | Generate UUID v4 without hyphens |
+| `generate_hyphenated` | `() -> string` | Generate UUID v4 with hyphens |
 | `is_valid` | `(s string) -> bool` | Validate UUID format |
 
 ### 10.15 Bytes Module (`@bytes`)
@@ -2163,6 +2126,20 @@ Binary encoding/decoding for integers and floats in little-endian (le) and big-e
 | `encode_i64_le`, `encode_i64_be`, `decode_i64_le`, `decode_i64_be` | Signed 64-bit |
 | `encode_u64_le`, `encode_u64_be`, `decode_u64_le`, `decode_u64_be` | Unsigned 64-bit |
 
+#### 128-bit
+
+| Function | Description |
+|----------|-------------|
+| `encode_i128_le`, `encode_i128_be`, `decode_i128_le`, `decode_i128_be` | Signed 128-bit |
+| `encode_u128_le`, `encode_u128_be`, `decode_u128_le`, `decode_u128_be` | Unsigned 128-bit |
+
+#### 256-bit
+
+| Function | Description |
+|----------|-------------|
+| `encode_i256_le`, `encode_i256_be`, `decode_i256_le`, `decode_i256_be` | Signed 256-bit |
+| `encode_u256_le`, `encode_u256_be`, `decode_u256_le`, `decode_u256_be` | Unsigned 256-bit |
+
 #### Floats
 
 | Function | Description |
@@ -2178,8 +2155,39 @@ SQLite database access for persistent storage.
 |----------|-----------|-------------|
 | `open` | `(path string) -> Database` | Open or create a SQLite database |
 | `close` | `(db Database)` | Close database connection |
-| `exec` | `(db Database, sql string)` | Execute a SQL statement (no result) |
-| `query` | `(db Database, sql string) -> [map]` | Execute a SQL query, returns array of row maps |
+| `exec` | `(db Database, sql string, ...params)` | Execute a SQL statement with optional parameters (no result) |
+| `query` | `(db Database, sql string, ...params) -> [map]` | Execute a parameterized SQL query, returns array of row maps |
+| `prepare` | `(db Database, sql string) -> Statement` | Prepare a SQL statement for repeated execution |
+| `step` | `(stmt Statement, ...params) -> [map]` | Execute a prepared statement with parameters |
+| `finalize` | `(stmt Statement)` | Release a prepared statement |
+| `begin` | `(db Database)` | Begin a transaction |
+| `commit` | `(db Database)` | Commit the current transaction |
+| `rollback` | `(db Database)` | Roll back the current transaction |
+
+Parameterized queries use `?` placeholders to prevent SQL injection:
+
+```ez
+sqlite.exec(db, "INSERT INTO users VALUES (?, ?)", name, age)
+mut rows = sqlite.query(db, "SELECT * FROM users WHERE age > ?", 18)
+```
+
+Prepared statements allow reuse for repeated execution:
+
+```ez
+mut stmt = sqlite.prepare(db, "INSERT INTO users VALUES (?, ?)")
+sqlite.step(stmt, "Alice", 30)
+sqlite.step(stmt, "Bob", 25)
+sqlite.finalize(stmt)
+```
+
+Transactions group operations atomically:
+
+```ez
+sqlite.begin(db)
+sqlite.exec(db, "INSERT INTO users VALUES (?, ?)", "Alice", 30)
+sqlite.exec(db, "INSERT INTO users VALUES (?, ?)", "Bob", 25)
+sqlite.commit(db)
+```
 
 ### 10.18 Server Module (`@server`)
 
@@ -2190,17 +2198,17 @@ An HTTP server module with dynamic handlers and path parameters.
 | Function | Signature | Description |
 |----------|-----------|-------------|
 | `router` | `() -> Router` | Create a new router |
-| `route` | `(router Router, method string, path string, ()handler)` | Add a route with handler function |
+| `add_route` | `(router Router, method string, path string, ()handler)` | Add a route with handler function |
 | `listen` | `(port int, router Router) -> Error` | Start HTTP server on port |
 
 #### Response Builders
 
 | Function | Signature | Description |
 |----------|-----------|-------------|
-| `text` | `(status int, body string) -> Http_Response` | Create text/plain response |
-| `json` | `(status int, data) -> Http_Response` | Create application/json response |
-| `html` | `(status int, body string) -> Http_Response` | Create text/html response |
-| `redirect` | `(status int, url string) -> Http_Response` | Create redirect response |
+| `text` | `(status int, body string) -> HttpResponse` | Create text/plain response |
+| `json` | `(status int, data) -> HttpResponse` | Create application/json response |
+| `html` | `(status int, body string) -> HttpResponse` | Create text/html response |
+| `redirect` | `(status int, url string) -> HttpResponse` | Create redirect response |
 
 #### Request Type
 
@@ -2218,19 +2226,19 @@ Every handler receives a `Request` struct:
 ```ez
 import @server
 
-do home(req Request) -> Http_Response {
+do home(req Request) -> HttpResponse {
     return server.text(200, "Welcome!")
 }
 
-do get_user(req Request) -> Http_Response {
+do get_user(req Request) -> HttpResponse {
     mut id = req.params["id"]
     return server.json(200, {"id": id})
 }
 
 do main() {
     mut r = server.router()
-    server.route(r, "GET", "/", ()home)
-    server.route(r, "GET", "/users/:id", ()get_user)
+    server.add_route(r, "GET", "/", ()home)
+    server.add_route(r, "GET", "/users/:id", ()get_user)
     server.listen(8080, r)
 }
 ```
@@ -2241,7 +2249,7 @@ Regular expression operations using POSIX extended regex syntax.
 
 | Function | Signature | Description |
 |----------|-----------|-------------|
-| `match` | `(pattern string, text string) -> bool` | Check if pattern matches text |
+| `is_match` | `(pattern string, text string) -> bool` | Check if pattern matches text |
 | `find` | `(pattern string, text string) -> string` | First match |
 | `find_all` | `(pattern string, text string) -> [string]` | All matches |
 | `replace` | `(pattern string, text string, replacement string) -> string` | Replace matches |
@@ -2253,12 +2261,12 @@ Reading and writing CSV (Comma-Separated Values) data.
 
 | Function | Signature | Description |
 |----------|-----------|-------------|
-| `parse` | `(csv_string string) -> ([[string]], Error)` | Parse CSV string to 2D array |
-| `stringify` | `(data [[string]]) -> (string, Error)` | Convert 2D array to CSV string |
-| `read` | `(path string, options map) -> ([[string]], Error)` | Read CSV file |
-| `write` | `(path string, data [[string]], options map) -> (bool, Error)` | Write CSV file |
+| `decode` | `(csv_string string) -> ([[string]], Error)` | Decode CSV string to 2D array |
+| `encode` | `(data [[string]]) -> (string, Error)` | Encode 2D array to CSV string |
+| `read_file` | `(path string, options map) -> ([[string]], Error)` | Read CSV file |
+| `write_file` | `(path string, data [[string]], options map) -> (bool, Error)` | Write CSV file |
 
-The `read` and `write` functions accept an optional options map with keys:
+The `read_file` and `write_file` functions accept an optional options map with keys:
 - `delimiter` (string) — field delimiter (default: `","`)
 - `skip_empty` (bool) — skip empty rows (default: `false`, read only)
 - `quote_all` (bool) — quote all fields (default: `false`, write only)
@@ -2269,35 +2277,48 @@ TCP sockets and DNS resolution.
 
 | Function | Signature | Description |
 |----------|-----------|-------------|
-| `dial` | `(host string, port int) -> Socket` | Connect to a remote host |
+| `connect` | `(host string, port int) -> Socket` | Connect to a remote host |
 | `listen` | `(port int) -> Listener` | Listen for incoming connections on a port |
 | `accept` | `(listener Listener) -> Socket` | Accept an incoming connection |
 | `send` | `(sock Socket, data string)` | Send data over a socket |
-| `recv` | `(sock Socket, max int) -> string` | Receive up to `max` bytes from a socket |
+| `receive` | `(sock Socket, max int) -> string` | Receive up to `max` bytes from a socket |
 | `close` | `(sock Socket)` | Close a socket or listener |
 | `set_timeout` | `(sock Socket, ms int)` | Set read/write timeout in milliseconds |
 | `resolve` | `(hostname string) -> string` | Resolve a hostname to an IP address |
 
 ### 10.22 Threads Module (`@threads`)
 
-Thread-based concurrency primitives. Compiler-only feature; requires POSIX threads.
+Thread lifecycle management. Compiler-only feature; requires POSIX threads.
 
 | Function | Signature | Description |
 |----------|-----------|-------------|
 | `spawn` | `(()func) -> Thread` | Spawn a new thread running `func` |
 | `join` | `(t Thread)` | Wait for a thread to finish |
-| `sleep_ms` | `(ms int)` | Sleep the current thread for `ms` milliseconds |
-| `id` | `() -> int` | Get the current thread's ID |
-| `mutex` | `() -> Mutex` | Create a new mutex |
+| `get_id` | `() -> int` | Get the current thread's ID |
+
+### 10.23 Sync Module (`@sync`)
+
+Synchronization primitives for thread-safe access to shared data. Compiler-only feature; requires POSIX threads.
+
+| Function | Signature | Description |
+|----------|-----------|-------------|
+| `create_mutex` | `() -> Mutex` | Create a new mutex |
 | `lock` | `(m Mutex)` | Acquire a mutex |
 | `unlock` | `(m Mutex)` | Release a mutex |
-| `channel` | `(capacity int) -> Channel` | Create a buffered channel |
-| `send` | `(ch Channel, value)` | Send a value into a channel |
-| `recv` | `(ch Channel) -> any` | Receive a value from a channel |
-| `channel_close` | `(ch Channel)` | Close a channel |
-| `mutex_destroy` | `(m Mutex)` | Destroy a mutex |
+| `destroy_mutex` | `(m Mutex)` | Destroy a mutex |
 
-### 10.23 Memory Module (`@mem`)
+### 10.24 Channels Module (`@channels`)
+
+Message passing between threads. Compiler-only feature; requires POSIX threads.
+
+| Function | Signature | Description |
+|----------|-----------|-------------|
+| `open_channel` | `(capacity int) -> Channel` | Create a buffered channel |
+| `send` | `(ch Channel, value)` | Send a value into a channel |
+| `receive` | `(ch Channel) -> any` | Receive a value from a channel |
+| `close_channel` | `(ch Channel)` | Close a channel |
+
+### 10.25 Memory Module (`@mem`)
 
 Arena-based memory allocation. Compiler-only feature.
 
@@ -2307,13 +2328,13 @@ Arena-based memory allocation. Compiler-only feature.
 | `destroy` | `(arena Arena)` | Destroy an arena and free its memory |
 | `reset` | `(arena Arena)` | Reset an arena, reclaiming all allocations without freeing |
 | `usage` | `(arena Arena) -> int` | Return the number of bytes currently used |
-| `make` | `(arena Arena, Type) -> ^Type` | Allocate a zero-initialized value of `Type` in the arena |
+| `init` | `(arena Arena, Type) -> ^Type` | Allocate a zero-initialized value of `Type` in the arena |
 | `alloc` | `(arena Arena, value) -> T` | Allocate a copy of `value` in the arena |
-| `copy` | `(dest, src, n int)` | Copy `n` bytes from `src` to `dest` |
+| `raw_copy` | `(dest, src, n int)` | Copy `n` bytes from `src` to `dest` |
 | `zero` | `(ptr, n int)` | Zero out `n` bytes at `ptr` |
-| `set` | `(ptr, value int, n int)` | Set `n` bytes at `ptr` to `value` |
+| `fill` | `(ptr, value int, n int)` | Fill `n` bytes at `ptr` with `value` |
 
-### 10.24 Fmt Module (`@fmt`)
+### 10.26 Fmt Module (`@fmt`)
 
 Formatted output functions.
 
@@ -2391,11 +2412,11 @@ For fine-grained control, the `@mem` module exposes arena operations directly:
 | `mem.destroy(a)` | Destroy arena `a` and free all its memory |
 | `mem.reset(a)` | Reset arena `a`, reclaiming allocations without freeing |
 | `mem.usage(a)` | Return bytes currently used in arena `a` |
-| `mem.make(a, Type)` | Allocate a zero-initialized `Type` in arena `a` |
+| `mem.init(a, Type)` | Allocate a zero-initialized `Type` in arena `a` |
 | `mem.alloc(a, value)` | Allocate a copy of `value` in arena `a` |
-| `mem.copy(dest, src, n)` | Copy `n` bytes from `src` to `dest` |
+| `mem.raw_copy(dest, src, n)` | Copy `n` bytes from `src` to `dest` |
 | `mem.zero(ptr, n)` | Zero out `n` bytes at `ptr` |
-| `mem.set(ptr, val, n)` | Set `n` bytes at `ptr` to `val` |
+| `mem.fill(ptr, val, n)` | Fill `n` bytes at `ptr` with `val` |
 
 ### 12.2 Value Semantics
 
@@ -2456,10 +2477,10 @@ EZ compiles to C and is **not memory safe** in the way that Rust or similar lang
 |--------|-------------------|
 | Use-after-free | Holding a pointer to arena memory after `mem.destroy()` |
 | Dangling pointer | Returning `addr()` of a local variable |
-| Data races | Multiple threads accessing shared data without `threads.lock()` |
+| Data races | Multiple threads accessing shared data without `sync.lock()` |
 | Pointer arithmetic | Not supported in the language (disallowed by design) |
 
-For most EZ programs — those that don't use `@mem` arenas, raw pointers, or `@threads` — the runtime checks provide practical safety. Programs using low-level features should follow the same discipline as C: don't hold pointers past their lifetime, and protect shared state with mutexes.
+For most EZ programs — those that don't use `@mem` arenas, raw pointers, or `@threads`/`@sync`/`@channels` — the runtime checks provide practical safety. Programs using low-level features should follow the same discipline as C: don't hold pointers past their lifetime, and protect shared state with mutexes.
 
 ---
 
@@ -2981,6 +3002,7 @@ block          = "{" { statement } "}" .
 | 1.1-draft | January 31, 2026 | Added hex escapes, `!in` operator, blank identifier, `ref()` builtin, negative step `range()`, `mut` mutability; fixed terminology to use check-time instead of compile-time; added `uint` to primitive lists |
 | 1.2-draft | February 12, 2026 | Added `for_each` index variable, named return variables, `cast` keyword, raw string literals, octal literals, `private` visibility, `#doc`/`#suppress` attributes; added `@server`, `@regex`, `@csv` modules; updated `@http`, `@db`, `@math`, `@strings`, `@time`, `@arrays` modules; fixed `remove` → `remove_at` in arrays; expanded Appendix B with comprehensive error code reference (181 errors, 14 warnings) |
 | 2.0-draft | March 24, 2026 | **EZ 3.0 release.** Renamed `temp` → `mut`; added `while` alias for `as_long_as`; added `or_return` error propagation; added function references `()func_name` and `ref(func_name)`; added struct-namespaced functions; added map iteration via `for_each`; lifted `when`/`is` restrictions for bools, nil, floats; overhauled module system (filesystem-based identity, no `module` declarations, collision detection E6010, double-import prevention E6011); redesigned `@server` module with FCF handlers, path params, middleware, CORS, JSON parsing, static files; renamed `time.make` → `time.timestamp`, `uuid.create` → `uuid.generate`; added ambiguity detection E4008 for `using` conflicts; added E5025 dangling-reference, W2012 float-when-imprecise; removed E2044, E2048, E2049, E6005, E6006, W4001 |
+| 2.1-draft | March 28, 2026 | **API naming overhaul.** Renamed builtin sleep functions to shorthand (`sleep_s`, `sleep_ms`, `sleep_ns`); removed sized type conversion builtins (`u8()`, `i32()`, etc. — use `cast` instead); removed `read_int`, `EXIT_SUCCESS`/`EXIT_FAILURE`. **@strings:** `upper`→`to_upper`, `lower`→`to_lower`, `index`→`index_of`; removed `to_int`/`to_float`. **@maps:** `remove`→`remove_key`; added `is_empty`. **@time:** `iso`→`to_iso`, `clock`→`to_time`; removed sleep functions (live in `@std` only). **@math:** `is_inf`→`is_infinite`; removed `math.random` (live in `@random` only). **@random:** renamed type-name functions to `rand_int`, `rand_float`, `rand_bool`, `rand_byte`, `rand_char`; absorbed `random_hex` from `@crypto`. **@json:** `pretty`→`pretty_print`. **@io:** `rename`→`rename_file`. **@os:** `cwd`→`current_dir`; removed `exit` (builtin only). **@http:** `Http_Response`→`HttpResponse`; added `patch`. **@uuid:** swapped defaults — `generate` now returns no hyphens, added `generate_hyphenated`. **@binary:** added 128/256-bit encode/decode variants. **@sqlite:** added parameterized queries, prepared statements (`prepare`/`step`/`finalize`), transactions (`begin`/`commit`/`rollback`). **@server:** `route`→`add_route`; `Http_Response`→`HttpResponse`. **@regex:** `match`→`is_match`. **@csv:** `parse`→`decode`, `stringify`→`encode`, `read`→`read_file`, `write`→`write_file`. **@net:** `dial`→`connect`, `recv`→`receive`. **@threads split** into `@threads` (spawn/join/get_id), `@sync` (create_mutex/lock/unlock/destroy_mutex), `@channels` (open_channel/send/receive/close_channel). **@mem:** `make`→`init`, `copy`→`raw_copy`, `set`→`fill`. Removed `sleep_ms` from threads, `exit` from `@os`, `random_hex` from `@crypto`. |
 
 ---
 
