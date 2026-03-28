@@ -1150,8 +1150,10 @@ static AstNode *parse_func_declaration(Parser *p) {
                     is_type = (strcmp(lit, "int") == 0 || strcmp(lit, "uint") == 0 ||
                         strcmp(lit, "i8") == 0 || strcmp(lit, "i16") == 0 ||
                         strcmp(lit, "i32") == 0 || strcmp(lit, "i64") == 0 ||
+                        strcmp(lit, "i128") == 0 || strcmp(lit, "i256") == 0 ||
                         strcmp(lit, "u8") == 0 || strcmp(lit, "u16") == 0 ||
                         strcmp(lit, "u32") == 0 || strcmp(lit, "u64") == 0 ||
+                        strcmp(lit, "u128") == 0 || strcmp(lit, "u256") == 0 ||
                         strcmp(lit, "float") == 0 || strcmp(lit, "f32") == 0 ||
                         strcmp(lit, "f64") == 0 || strcmp(lit, "string") == 0 ||
                         strcmp(lit, "bool") == 0 || strcmp(lit, "char") == 0 ||
@@ -1747,6 +1749,13 @@ static AstNode *parse_when_statement(Parser *p) {
         }
 
         next_token(p);
+    }
+
+    /* E2059: empty when block */
+    if (node->data.when_stmt.case_count == 0 && node->data.when_stmt.default_body == NULL) {
+        diag_error(p->diag, "E2059",
+            arena_strdup(p->arena, "'when' block is empty — add at least one 'is' branch"),
+            p->file, node->token.line, node->token.column, 0);
     }
 
     return node;
