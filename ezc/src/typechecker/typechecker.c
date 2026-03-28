@@ -1036,9 +1036,36 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                 result = &TYPE_STRING;
             } else if (strcmp(fn_name, "error") == 0) {
                 result = type_from_name("Error");
+            } else if (strcmp(fn_name, "println") == 0 || strcmp(fn_name, "eprintln") == 0) {
+                /* println/eprintln accept 0 or 1 arguments */
+                if (node->data.call.arg_count > 1) {
+                    char msg[256];
+                    snprintf(msg, sizeof(msg),
+                        "%s() expects 0 or 1 argument(s), got %d",
+                        fn_name, node->data.call.arg_count);
+                    diag_error(tc->diag, "E5008", strdup(msg),
+                        tc->file, node->token.line, node->token.column, 0);
+                }
+                if (node->data.call.arg_count >= 1) {
+                    resolve_expr(tc, node->data.call.args[0]);
+                }
+                result = &TYPE_VOID;
+            } else if (strcmp(fn_name, "print") == 0 || strcmp(fn_name, "eprint") == 0) {
+                /* print/eprint accept exactly 1 argument */
+                if (node->data.call.arg_count != 1) {
+                    char msg[256];
+                    snprintf(msg, sizeof(msg),
+                        "%s() expects 1 argument, got %d",
+                        fn_name, node->data.call.arg_count);
+                    diag_error(tc->diag, "E5008", strdup(msg),
+                        tc->file, node->token.line, node->token.column, 0);
+                }
+                if (node->data.call.arg_count >= 1) {
+                    resolve_expr(tc, node->data.call.args[0]);
+                }
+                result = &TYPE_VOID;
             } else if (strcmp(fn_name, "exit") == 0 || strcmp(fn_name, "panic") == 0 ||
-                       strcmp(fn_name, "assert") == 0 || strcmp(fn_name, "eprintln") == 0 ||
-                       strcmp(fn_name, "eprint") == 0 ||
+                       strcmp(fn_name, "assert") == 0 ||
                        strcmp(fn_name, "sleep_seconds") == 0 ||
                        strcmp(fn_name, "sleep_milliseconds") == 0 ||
                        strcmp(fn_name, "sleep_nanoseconds") == 0) {
