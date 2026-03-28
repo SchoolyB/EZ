@@ -30,10 +30,10 @@ make install
 ```
 
 ```bash
-ez run examples/basic/hello.ez
+ez examples/basic/hello.ez
 ```
 
-That's it. `ez run` compiles your code to a native binary, executes it, and cleans up.
+That's it. EZ compiles your code to a native binary, executes it, and cleans up.
 
 **Requirements:** Go 1.21+ and a C compiler (gcc or clang)
 
@@ -42,7 +42,8 @@ That's it. `ez run` compiles your code to a native binary, executes it, and clea
 ## Commands
 
 ```
-ez run <file.ez>          Compile and run
+ez <file.ez>              Compile and run
+ez run <file.ez>          Compile and run (alias)
 ez build <file.ez> -o app Compile to a distributable binary
 ez check <file.ez>        Type check without compiling
 ez repl                   Interactive REPL
@@ -78,25 +79,6 @@ do main() {
 
 ---
 
-## Features
-
-- **26 stdlib modules** — strings, math, arrays, maps, JSON, HTTP, regex, crypto, SQLite, threads, networking, and more
-- **Pointers** — `^Type`, `addr()`, and `p^` dereference with nil safety
-- **Threads** — spawn, join, mutexes, and channels via `@threads`
-- **Arena memory** — manual memory control when you need it via `@mem`
-- **Function references** — `()func_name` for callbacks and higher-order functions
-- **Struct-namespaced functions** — organize code without classes or OOP
-- **Pattern matching** — `when`/`is` with ranges, enums, and exhaustiveness checking
-- **Error propagation** — `or_return` for clean error handling
-- **HTTP server** — route handlers with path params via `@server`
-- **HTTP client** — GET/POST/PUT/DELETE via `@http`
-- **Regex** — pattern matching, find, replace, split via `@regex`
-- **SQLite** — embedded database via `@sqlite`
-- **Native binaries** — compiles to fast executables via C
-- **92 error codes** — every error has a code, beginner-friendly message, and source location
-
----
-
 ## Updating
 
 ```bash
@@ -104,23 +86,6 @@ ez update
 ```
 
 Checks for new versions, shows the changelog, and upgrades both the `ez` CLI and the compiler.
-
----
-
-## Running Tests
-
-```bash
-# Compiler unit + e2e tests (163 tests)
-cd ezc && make test-unit && make test-e2e && cd ..
-
-# Integration tests — 42 pass tests + 291 error detection tests (100% coverage)
-bash ezc/tests/run_integration.sh
-
-# Go tooling tests
-go test ./pkg/errors/... ./pkg/lineeditor/...
-```
-
-For more details, see the [Testing Guide](TESTING.md).
 
 ---
 
