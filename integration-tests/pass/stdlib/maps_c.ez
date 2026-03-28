@@ -73,6 +73,25 @@ do main() {
         failed += 1
     }
 
+    // is_empty (false)
+    if maps.is_empty(m) == false {
+        println("  [PASS] is_empty (non-empty)")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] is_empty (non-empty)")
+        failed += 1
+    }
+
+    // is_empty (true)
+    mut empty_map map[string:int] = {}
+    if maps.is_empty(empty_map) == true {
+        println("  [PASS] is_empty (empty)")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] is_empty (empty)")
+        failed += 1
+    }
+
     // keys returns array
     mut iter_map map[string:int] = {"a": 1, "b": 2, "c": 3}
     mut ks [string] = maps.keys(iter_map)

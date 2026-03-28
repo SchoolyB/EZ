@@ -217,3 +217,7 @@ EzHttpResponse ez_http_delete(EzArena *arena, EzString url) {
 EzHttpResponse ez_http_head(EzArena *arena, EzString url) {
     return do_request(arena, "HEAD", url, (EzString){"", 0});
 }
+
+EzHttpResponse ez_http_patch(EzArena *arena, EzString url, EzString body) {
+    return do_request(arena, "PATCH", url, body);
+}

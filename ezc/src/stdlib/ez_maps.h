@@ -21,4 +21,7 @@ EzArray ez_maps_values(EzArena *arena, EzMap *m);
 /* maps.has_key(m, key) — check if key exists */
 bool ez_maps_has_key(EzMap *m, const void *key);
 
+/* maps.is_empty(m) — true if map has no entries */
+bool ez_maps_is_empty(EzMap *m);
+
 #endif

@@ -37,3 +37,7 @@ EzArray ez_maps_values(EzArena *arena, EzMap *m) {
 bool ez_maps_has_key(EzMap *m, const void *key) {
     return ez_map_has(m, key);
 }
+
+bool ez_maps_is_empty(EzMap *m) {
+    return m->count == 0;
+}

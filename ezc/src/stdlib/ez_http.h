@@ -26,5 +26,6 @@ EzHttpResponse ez_http_post(EzArena *arena, EzString url, EzString body);
 EzHttpResponse ez_http_put(EzArena *arena, EzString url, EzString body);
 EzHttpResponse ez_http_delete(EzArena *arena, EzString url);
 EzHttpResponse ez_http_head(EzArena *arena, EzString url);
+EzHttpResponse ez_http_patch(EzArena *arena, EzString url, EzString body);
 
 #endif

@@ -647,7 +647,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
             } else if (strcmp(mod, "maps") == 0) {
                 if (strcmp(mfn, "keys") == 0 || strcmp(mfn, "values") == 0) {
                     result = type_array("string"); /* approximate */
-                } else if (strcmp(mfn, "has_key") == 0) {
+                } else if (strcmp(mfn, "has_key") == 0 || strcmp(mfn, "is_empty") == 0) {
                     result = &TYPE_BOOL;
                 } else {
                     result = &TYPE_VOID;
@@ -767,7 +767,8 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                 else if (strcmp(mfn, "rand_char") == 0) result = &TYPE_CHAR;
                 else if (strcmp(mfn, "shuffle") == 0 || strcmp(mfn, "sample") == 0) {
                     result = type_array("int");
-                } else result = &TYPE_UNKNOWN;
+                } else if (strcmp(mfn, "random_hex") == 0) result = &TYPE_STRING;
+                else result = &TYPE_UNKNOWN;
             } else if (strcmp(mod, "arrays") == 0) {
                 if (strcmp(mfn, "is_empty") == 0 || strcmp(mfn, "contains") == 0) {
                     result = &TYPE_BOOL;

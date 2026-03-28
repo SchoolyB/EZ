@@ -52,6 +52,10 @@ do main() {
     mut empty_sample = random.sample(pool, 0)
     if len(empty_sample) == 0 { pass += 1 } otherwise { fail += 1 }
 
+    // random.random_hex returns correct length
+    mut hex string = random.random_hex(16)
+    if len(hex) == 16 { pass += 1 } otherwise { fail += 1 }
+
     println("random: ${pass} passed, ${fail} failed")
     if fail > 0 { std.exit(1) }
 }

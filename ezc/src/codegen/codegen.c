@@ -1515,6 +1515,12 @@ static bool emit_maps_call(CodeGen *cg, AstNode *node, const char *func) {
         emit(cg, ")");
         return true;
     }
+    if (strcmp(func, "is_empty") == 0 && node->data.call.arg_count == 1) {
+        emit(cg, "ez_maps_is_empty(&");
+        emit_expression(cg, node->data.call.args[0]);
+        emit(cg, ")");
+        return true;
+    }
     return false;
 }
 
@@ -1694,6 +1700,14 @@ static bool emit_http_call(CodeGen *cg, AstNode *node, const char *func) {
     if (strcmp(func, "head") == 0 && node->data.call.arg_count == 1) {
         emit(cg, "ez_http_head(ez_default_arena, ");
         emit_expression(cg, node->data.call.args[0]);
+        emit(cg, ")");
+        return true;
+    }
+    if (strcmp(func, "patch") == 0 && node->data.call.arg_count == 2) {
+        emit(cg, "ez_http_patch(ez_default_arena, ");
+        emit_expression(cg, node->data.call.args[0]);
+        emit(cg, ", ");
+        emit_expression(cg, node->data.call.args[1]);
         emit(cg, ")");
         return true;
     }
@@ -1981,6 +1995,12 @@ static bool emit_random_call(CodeGen *cg, AstNode *node, const char *func) {
         emit(cg, ".len); *(__auto_type *)ez_array_get_ptr(&");
         emit_expression(cg, node->data.call.args[0]);
         emit(cg, ", _ri, __FILE__, __LINE__); })");
+        return true;
+    }
+    if (strcmp(func, "random_hex") == 0 && node->data.call.arg_count == 1) {
+        emit(cg, "ez_random_hex(ez_default_arena, ");
+        emit_expression(cg, node->data.call.args[0]);
+        emit(cg, ")");
         return true;
     }
     return false;
