@@ -1374,8 +1374,28 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
 
     case NODE_ARRAY_VALUE:
         if (node->data.array_value.count > 0) {
-            EzType *elem = resolve_expr(tc, node->data.array_value.elements[0]);
-            result = type_array(type_name(elem));
+            EzType *first = resolve_expr(tc, node->data.array_value.elements[0]);
+            result = type_array(type_name(first));
+            /* Validate all elements have the same type */
+            for (int i = 1; i < node->data.array_value.count; i++) {
+                EzType *ei = resolve_expr(tc, node->data.array_value.elements[i]);
+                if (!ei || ei->kind == TK_UNKNOWN || !first || first->kind == TK_UNKNOWN)
+                    continue;
+                bool compatible = (ei->kind == first->kind) ||
+                    (is_int_kind(ei->kind) && is_int_kind(first->kind)) ||
+                    (ei->kind == TK_BYTE && is_int_kind(first->kind)) ||
+                    (is_int_kind(ei->kind) && first->kind == TK_BYTE);
+                if (!compatible) {
+                    char msg[256];
+                    snprintf(msg, sizeof(msg),
+                        "array elements must all be the same type — element %d is '%s' but the array is '%s'",
+                        i, type_name(ei), type_name(first));
+                    diag_error(tc->diag, "E3001", strdup(msg),
+                        tc->file, node->data.array_value.elements[i]->token.line,
+                        node->data.array_value.elements[i]->token.column, 0);
+                    break;
+                }
+            }
         }
         break;
 
