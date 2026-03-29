@@ -3778,6 +3778,14 @@ void codegen_generate(CodeGen *cg, AstNode *program) {
             }
         }
 
+        /* Emit forward declarations so pointer fields can reference any struct */
+        for (int i = 0; i < struct_count; i++) {
+            emitf(cg, "typedef struct EzStruct_%s EzStruct_%s;\n",
+                structs[i]->data.struct_decl.name,
+                structs[i]->data.struct_decl.name);
+        }
+        if (struct_count > 0) emit(cg, "\n");
+
         /* Simple topological sort: repeatedly emit structs with no unresolved deps */
         bool emitted[256] = {false};
         int emit_count = 0;
@@ -3802,12 +3810,12 @@ void codegen_generate(CodeGen *cg, AstNode *program) {
                 if (deps_met) {
                     emitted[i] = true;
                     emit_count++;
-                    emitf(cg, "typedef struct {\n");
+                    emitf(cg, "struct EzStruct_%s {\n", s->data.struct_decl.name);
                     for (int j = 0; j < s->data.struct_decl.field_count; j++) {
                         StructField *f = &s->data.struct_decl.fields[j];
                         emitf(cg, "    %s %s;\n", ez_type_to_c_cg(cg, f->type_name), f->name);
                     }
-                    emitf(cg, "} EzStruct_%s;\n\n", s->data.struct_decl.name);
+                    emit(cg, "};\n\n");
                 }
             }
         }
@@ -3815,12 +3823,12 @@ void codegen_generate(CodeGen *cg, AstNode *program) {
         for (int i = 0; i < struct_count; i++) {
             if (!emitted[i]) {
                 AstNode *s = structs[i];
-                emitf(cg, "typedef struct {\n");
+                emitf(cg, "struct EzStruct_%s {\n", s->data.struct_decl.name);
                 for (int j = 0; j < s->data.struct_decl.field_count; j++) {
                     StructField *f = &s->data.struct_decl.fields[j];
                     emitf(cg, "    %s %s;\n", ez_type_to_c_cg(cg, f->type_name), f->name);
                 }
-                emitf(cg, "} EzStruct_%s;\n\n", s->data.struct_decl.name);
+                emit(cg, "};\n\n");
             }
         }
     }
