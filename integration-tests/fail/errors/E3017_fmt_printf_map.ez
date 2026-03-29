@@ -1,0 +1,11 @@
+/*
+ * Error Test: E3017 - fmt.printf cannot format map
+ * Expected: "cannot format value of type"
+ */
+
+import @fmt
+
+do main() {
+    mut m map[string:int] = {"a": 1, "b": 2}
+    fmt.printf("%s", m)
+}

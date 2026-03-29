@@ -1,0 +1,11 @@
+/*
+ * Error Test: E3017 - fmt.printf cannot format array
+ * Expected: "cannot format value of type"
+ */
+
+import @fmt
+
+do main() {
+    mut nums [int] = {1, 2, 3}
+    fmt.printf("%s", nums)
+}

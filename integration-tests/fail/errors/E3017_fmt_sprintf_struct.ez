@@ -1,0 +1,20 @@
+/*
+ * Error Test: E3017 - fmt.sprintf cannot format struct
+ * Expected: "cannot format value of type"
+ */
+
+import @std
+import @fmt
+using std
+
+const Color struct {
+    r int
+    g int
+    b int
+}
+
+do main() {
+    mut c Color = Color{r: 255, g: 0, b: 0}
+    mut s string = fmt.sprintf("color: %s", c)
+    println(s)
+}
