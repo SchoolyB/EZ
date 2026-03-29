@@ -368,7 +368,25 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
     case NODE_INTERPOLATED_STRING:
         /* Resolve types of all interpolation parts */
         for (int i = 0; i < node->data.interpolated_string.part_count; i++) {
-            resolve_expr(tc, node->data.interpolated_string.parts[i]);
+            AstNode *part = node->data.interpolated_string.parts[i];
+            EzType *pt = resolve_expr(tc, part);
+            /* Only check non-literal parts (the ${expr} expressions) */
+            if (part->kind != NODE_STRING_VALUE && pt && pt->kind == TK_VOID) {
+                /* Try to get a meaningful source location from the expression */
+                int line = node->token.line;
+                int col = node->token.column;
+                if (part->kind == NODE_CALL_EXPR && part->data.call.function &&
+                    part->data.call.function->token.line > 0) {
+                    line = part->data.call.function->token.line;
+                    col = part->data.call.function->token.column;
+                } else if (part->token.line > 0) {
+                    line = part->token.line;
+                    col = part->token.column;
+                }
+                diag_error(tc->diag, "E3001",
+                    strdup("cannot interpolate void expression — the function does not return a value"),
+                    tc->file, line, col, 0);
+            }
         }
         result = &TYPE_STRING;
         break;
