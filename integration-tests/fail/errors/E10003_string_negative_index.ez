@@ -1,0 +1,10 @@
+/*
+ * Error Test: E10003 - string negative index
+ * Expected: "string index" and "out of bounds"
+ */
+
+do main() {
+    mut s string = "hello"
+    mut neg int = -1
+    mut c char = s[neg]
+}

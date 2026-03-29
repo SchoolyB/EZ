@@ -1,0 +1,61 @@
+/*
+ * string_indexing.ez - Test direct string indexing with s[i] syntax
+ */
+
+import @std
+using std
+
+do main() {
+    println("=== String Indexing Test ===")
+    mut passed int = 0
+    mut failed int = 0
+
+    mut s string = "hello"
+
+    // Test 1: First character
+    mut c0 char = s[0]
+    if c0 == 'h' {
+        println("  [PASS] s[0] == 'h'")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] s[0] expected 'h'")
+        failed += 1
+    }
+
+    // Test 2: Last character
+    mut c4 char = s[4]
+    if c4 == 'o' {
+        println("  [PASS] s[4] == 'o'")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] s[4] expected 'o'")
+        failed += 1
+    }
+
+    // Test 3: Middle character
+    mut c2 char = s[2]
+    if c2 == 'l' {
+        println("  [PASS] s[2] == 'l'")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] s[2] expected 'l'")
+        failed += 1
+    }
+
+    // Test 4: Index with variable
+    mut idx int = 1
+    mut c1 char = s[idx]
+    if c1 == 'e' {
+        println("  [PASS] s[idx] == 'e' where idx=1")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] s[idx] expected 'e'")
+        failed += 1
+    }
+
+    println("")
+    println("Results: ${passed} passed, ${failed} failed")
+    if failed > 0 {
+        panic("SOME TESTS FAILED")
+    }
+}

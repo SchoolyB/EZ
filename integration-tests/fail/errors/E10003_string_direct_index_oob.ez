@@ -1,0 +1,9 @@
+/*
+ * Error Test: E10003 - string direct index out of bounds
+ * Expected: "string index" and "out of bounds"
+ */
+
+do main() {
+    mut s string = "hello"
+    mut c char = s[100]
+}
