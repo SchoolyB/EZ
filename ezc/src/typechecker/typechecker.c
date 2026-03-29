@@ -974,6 +974,38 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                 } else {
                     result = &TYPE_VOID;
                 }
+            } else if (strcmp(mod, "fmt") == 0) {
+                if (strcmp(mfn, "sprintf") == 0) {
+                    result = &TYPE_STRING;
+                } else {
+                    result = &TYPE_VOID;
+                }
+                /* Validate that non-format args are primitive types */
+                for (int ai = 1; ai < node->data.call.arg_count; ai++) {
+                    EzType *arg_t = resolve_expr(tc, node->data.call.args[ai]);
+                    if (arg_t && (arg_t->kind == TK_STRUCT || arg_t->kind == TK_ARRAY ||
+                                  arg_t->kind == TK_MAP || arg_t->kind == TK_POINTER)) {
+                        /* Build a readable type name */
+                        char tn[128];
+                        if (arg_t->kind == TK_ARRAY && arg_t->element_type)
+                            snprintf(tn, sizeof(tn), "[%s]", arg_t->element_type);
+                        else if (arg_t->kind == TK_MAP)
+                            snprintf(tn, sizeof(tn), "map[%s:%s]",
+                                arg_t->key_type ? arg_t->key_type : "?",
+                                arg_t->value_type ? arg_t->value_type : "?");
+                        else if (arg_t->kind == TK_POINTER && arg_t->element_type)
+                            snprintf(tn, sizeof(tn), "^%s", arg_t->element_type);
+                        else
+                            snprintf(tn, sizeof(tn), "%s", type_name(arg_t));
+                        char msg[256];
+                        snprintf(msg, sizeof(msg),
+                            "fmt.%s() cannot format value of type '%s' — use println() for composite types, or access individual fields",
+                            mfn, tn);
+                        diag_error(tc->diag, "E3017", strdup(msg),
+                            tc->file, node->data.call.args[ai]->token.line,
+                            node->data.call.args[ai]->token.column, 0);
+                    }
+                }
             } else if (is_struct_name(tc, mod)) {
                 /* Struct-namespaced function call: Type.func() — look up return type */
                 char prefixed[256];

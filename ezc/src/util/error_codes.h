@@ -70,6 +70,7 @@
     EZ_ERROR("E3013", "types", "only structs have fields — you cannot use .field on a number, string, or bool") \
     EZ_ERROR("E3015", "types", "this value is not a function and cannot be called") \
     EZ_ERROR("E3016", "types", "only pointers can be dereferenced with ^ — this value is not a pointer") \
+    EZ_ERROR("E3017", "types", "fmt.printf/sprintf cannot format composite types — use println() or access individual fields") \
     EZ_ERROR("E3019", "types", "cannot assign a signed integer to an unsigned type — the value may be negative") \
     EZ_ERROR("E3024", "types", "this function must return a value but the body has no return statement") \
     EZ_ERROR("E3027", "types", "cannot pass a constant to a mutable parameter — the function wants to modify this value") \
