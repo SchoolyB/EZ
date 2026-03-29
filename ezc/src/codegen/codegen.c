@@ -887,11 +887,21 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
                 else if (et->kind == TK_ARRAY) c_elem = "EzArray";
                 else if (et->kind == TK_STRUCT) c_elem = ez_type_to_c_cg(cg, left_t->element_type);
             }
-            emitf(cg, "EZ_ARRAY_GET(");
-            emit_expression(cg, node->data.index_expr.left);
-            emitf(cg, ", %s, ", c_elem);
-            emit_expression(cg, node->data.index_expr.index);
-            emit(cg, ")");
+            /* If left is an rvalue (function call), store in temp first —
+             * EZ_ARRAY_GET takes &arr which requires an lvalue */
+            if (node->data.index_expr.left->kind == NODE_CALL_EXPR) {
+                emitf(cg, "({ EzArray _ea = ");
+                emit_expression(cg, node->data.index_expr.left);
+                emitf(cg, "; EZ_ARRAY_GET(_ea, %s, ", c_elem);
+                emit_expression(cg, node->data.index_expr.index);
+                emit(cg, "); })");
+            } else {
+                emitf(cg, "EZ_ARRAY_GET(");
+                emit_expression(cg, node->data.index_expr.left);
+                emitf(cg, ", %s, ", c_elem);
+                emit_expression(cg, node->data.index_expr.index);
+                emit(cg, ")");
+            }
         } else if (left_t && left_t->kind == TK_MAP) {
             /* Map key access — use temp to handle rvalue keys like literals */
             const char *c_key = "EzString";
