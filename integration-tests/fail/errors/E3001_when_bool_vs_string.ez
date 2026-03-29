@@ -1,0 +1,12 @@
+/*
+ * Error Test: E3001 - when/is type mismatch bool vs string
+ * Expected: "type mismatch in 'when'"
+ */
+
+do main() {
+    mut b bool = true
+    when b {
+        is "yes" { }
+        default { }
+    }
+}
