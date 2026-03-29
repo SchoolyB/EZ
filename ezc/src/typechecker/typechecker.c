@@ -2362,12 +2362,33 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
         break;
 
     case NODE_WHEN_STMT: {
-        resolve_expr(tc, node->data.when_stmt.value);
-        /* E2043: check for duplicate case values */
+        EzType *when_t = resolve_expr(tc, node->data.when_stmt.value);
+        /* E2043: check for duplicate case values, E3001: check type match */
         for (int i = 0; i < node->data.when_stmt.case_count; i++) {
             for (int j = 0; j < node->data.when_stmt.cases[i].value_count; j++) {
                 AstNode *val_i = node->data.when_stmt.cases[i].values[j];
-                resolve_expr(tc, val_i);
+                EzType *case_t = resolve_expr(tc, val_i);
+                /* Check case value type matches scrutinee — skip range exprs and unknowns */
+                if (when_t && case_t &&
+                    when_t->kind != TK_UNKNOWN && case_t->kind != TK_UNKNOWN &&
+                    val_i->kind != NODE_RANGE_EXPR &&
+                    !(val_i->kind == NODE_CALL_EXPR && val_i->data.call.function->kind == NODE_LABEL &&
+                      strcmp(val_i->data.call.function->data.label.value, "range") == 0)) {
+                    bool compat = (when_t->kind == case_t->kind) ||
+                        (is_int_kind(when_t->kind) && is_int_kind(case_t->kind)) ||
+                        (is_int_kind(when_t->kind) && case_t->kind == TK_ENUM) ||
+                        (when_t->kind == TK_ENUM && is_int_kind(case_t->kind)) ||
+                        (is_int_kind(when_t->kind) && case_t->kind == TK_BYTE) ||
+                        (when_t->kind == TK_BYTE && is_int_kind(case_t->kind));
+                    if (!compat) {
+                        char msg[256];
+                        snprintf(msg, sizeof(msg),
+                            "type mismatch in 'when' — comparing '%s' with '%s'",
+                            type_name(when_t), type_name(case_t));
+                        diag_error(tc->diag, "E3001", strdup(msg),
+                            tc->file, val_i->token.line, val_i->token.column, 0);
+                    }
+                }
                 /* Compare against all previous case values */
                 for (int pi = 0; pi < i; pi++) {
                     for (int pj = 0; pj < node->data.when_stmt.cases[pi].value_count; pj++) {
