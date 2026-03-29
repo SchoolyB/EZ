@@ -46,6 +46,11 @@ typedef struct {
     const char **bigint_var_types;
     int bigint_var_count;
     int bigint_var_cap;
+
+    /* Struct declarations for composite printing */
+    AstNode **struct_decls;
+    int struct_decl_count;
+    int struct_decl_cap;
 } CodeGen;
 
 CodeGen codegen_create(const char *file);

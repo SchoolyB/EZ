@@ -1046,6 +1046,252 @@ static void emit_fmt_args(CodeGen *cg, AstNode *node, int start_idx) {
     }
 }
 
+/* --- Composite type printing --- */
+
+/* Global counter for unique print variable names */
+static int _ez_print_uid = 0;
+
+/* Look up a struct declaration by name */
+static AstNode *find_struct_decl(CodeGen *cg, const char *name) {
+    if (!name) return NULL;
+    for (int i = 0; i < cg->struct_decl_count; i++) {
+        if (strcmp(cg->struct_decls[i]->data.struct_decl.name, name) == 0) {
+            return cg->struct_decls[i];
+        }
+    }
+    return NULL;
+}
+
+/* Emit C statements that print the value of c_expr (of type t) to stream.
+ * stream is "stdout" or "stderr". Handles all types recursively. */
+static void emit_value_print(CodeGen *cg, const char *c_expr, EzType *t, const char *stream) {
+    if (!t || t->kind == TK_UNKNOWN) {
+        emit_indent(cg);
+        emitf(cg, "fprintf(%s, \"%%lld\", (long long)(%s));\n", stream, c_expr);
+        return;
+    }
+
+    switch (t->kind) {
+    case TK_INT: case TK_UINT: case TK_BYTE: case TK_ENUM:
+        emit_indent(cg);
+        emitf(cg, "fprintf(%s, \"%%lld\", (long long)(%s));\n", stream, c_expr);
+        break;
+    case TK_FLOAT:
+        emit_indent(cg);
+        emitf(cg, "fprintf(%s, \"%%g\", (double)(%s));\n", stream, c_expr);
+        break;
+    case TK_STRING:
+        emit_indent(cg);
+        emitf(cg, "fprintf(%s, \"%%.*s\", (int)(%s).len, (%s).data);\n",
+               stream, c_expr, c_expr);
+        break;
+    case TK_BOOL:
+        emit_indent(cg);
+        emitf(cg, "fprintf(%s, \"%%s\", (%s) ? \"true\" : \"false\");\n",
+               stream, c_expr);
+        break;
+    case TK_CHAR:
+        emit_indent(cg);
+        emitf(cg, "fprintf(%s, \"%%c\", (char)(%s));\n", stream, c_expr);
+        break;
+    case TK_NIL:
+        emit_indent(cg);
+        emitf(cg, "fprintf(%s, \"nil\");\n", stream);
+        break;
+    case TK_ARRAY: {
+        int uid = _ez_print_uid++;
+        const char *elem_tn = t->element_type ? t->element_type : "int";
+        EzType *elem_t = type_from_name(elem_tn);
+        char c_elem[128];
+        snprintf(c_elem, sizeof(c_elem), "%s", ez_type_to_c_cg(cg, elem_tn));
+
+        emit_indent(cg);
+        emitf(cg, "fprintf(%s, \"{\");\n", stream);
+        emit_indent(cg);
+        emitf(cg, "for (int32_t _ez_pi%d = 0; _ez_pi%d < (%s).len; _ez_pi%d++) {\n",
+               uid, uid, c_expr, uid);
+        cg->indent++;
+        emit_indent(cg);
+        emitf(cg, "if (_ez_pi%d > 0) fprintf(%s, \", \");\n", uid, stream);
+
+        /* For composite element types, capture in temp var */
+        char elem_expr[256];
+        if (elem_t->kind == TK_STRUCT || elem_t->kind == TK_ARRAY ||
+            elem_t->kind == TK_MAP || elem_t->kind == TK_POINTER) {
+            int euid = _ez_print_uid++;
+            emit_indent(cg);
+            emitf(cg, "%s _ez_pv%d = EZ_ARRAY_GET((%s), %s, _ez_pi%d);\n",
+                   c_elem, euid, c_expr, c_elem, uid);
+            snprintf(elem_expr, sizeof(elem_expr), "_ez_pv%d", euid);
+        } else {
+            snprintf(elem_expr, sizeof(elem_expr),
+                     "EZ_ARRAY_GET((%s), %s, _ez_pi%d)", c_expr, c_elem, uid);
+        }
+
+        emit_value_print(cg, elem_expr, elem_t, stream);
+
+        cg->indent--;
+        emit_indent(cg);
+        emit(cg, "}\n");
+        emit_indent(cg);
+        emitf(cg, "fprintf(%s, \"}\");\n", stream);
+        break;
+    }
+    case TK_MAP: {
+        int uid = _ez_print_uid++;
+        const char *key_tn = t->key_type ? t->key_type : "string";
+        const char *val_tn = t->value_type ? t->value_type : "int";
+        EzType *key_t = type_from_name(key_tn);
+        EzType *val_t = type_from_name(val_tn);
+        char c_key[128], c_val[128];
+        snprintf(c_key, sizeof(c_key), "%s", ez_type_to_c_cg(cg, key_tn));
+        snprintf(c_val, sizeof(c_val), "%s", ez_type_to_c_cg(cg, val_tn));
+
+        char mi[32], sl[32];
+        snprintf(mi, sizeof(mi), "_ez_mi%d", uid);
+        snprintf(sl, sizeof(sl), "_ez_sl%d", uid);
+
+        emit_indent(cg);
+        emitf(cg, "fprintf(%s, \"{\");\n", stream);
+        emit_indent(cg);
+        emitf(cg, "for (int32_t %s = 0; %s < (%s).order_len; %s++) {\n",
+               mi, mi, c_expr, mi);
+        cg->indent++;
+        emit_indent(cg);
+        emitf(cg, "int32_t %s = (%s).order[%s];\n", sl, c_expr, mi);
+        emit_indent(cg);
+        emitf(cg, "if (%s > 0) fprintf(%s, \", \");\n", mi, stream);
+
+        /* Print key */
+        char key_expr[256];
+        snprintf(key_expr, sizeof(key_expr),
+                 "*(%s *)ez_map_key_at(&(%s), %s)", c_key, c_expr, sl);
+        emit_value_print(cg, key_expr, key_t, stream);
+
+        emit_indent(cg);
+        emitf(cg, "fprintf(%s, \": \");\n", stream);
+
+        /* Print value */
+        char val_expr[256];
+        snprintf(val_expr, sizeof(val_expr),
+                 "*(%s *)ez_map_value_at(&(%s), %s)", c_val, c_expr, sl);
+        emit_value_print(cg, val_expr, val_t, stream);
+
+        cg->indent--;
+        emit_indent(cg);
+        emit(cg, "}\n");
+        emit_indent(cg);
+        emitf(cg, "fprintf(%s, \"}\");\n", stream);
+        break;
+    }
+    case TK_STRUCT: {
+        const char *struct_name = t->name;
+        AstNode *sdecl = find_struct_decl(cg, struct_name);
+
+        emit_indent(cg);
+        emitf(cg, "fprintf(%s, \"%s{\");\n", stream, struct_name);
+
+        if (sdecl) {
+            for (int i = 0; i < sdecl->data.struct_decl.field_count; i++) {
+                StructField *f = &sdecl->data.struct_decl.fields[i];
+                if (i > 0) {
+                    emit_indent(cg);
+                    emitf(cg, "fprintf(%s, \", \");\n", stream);
+                }
+                emit_indent(cg);
+                emitf(cg, "fprintf(%s, \"%s: \");\n", stream, f->name);
+
+                char field_expr[256];
+                snprintf(field_expr, sizeof(field_expr), "(%s).%s", c_expr, f->name);
+                EzType *ft = type_from_name(f->type_name);
+                emit_value_print(cg, field_expr, ft, stream);
+            }
+        }
+
+        emit_indent(cg);
+        emitf(cg, "fprintf(%s, \"}\");\n", stream);
+        break;
+    }
+    case TK_POINTER: {
+        const char *pointee_tn = t->element_type ? t->element_type : "int";
+        EzType *pointee_t = type_from_name(pointee_tn);
+
+        emit_indent(cg);
+        emitf(cg, "if ((%s) == NULL) {\n", c_expr);
+        cg->indent++;
+        emit_indent(cg);
+        emitf(cg, "fprintf(%s, \"nil\");\n", stream);
+        cg->indent--;
+        emit_indent(cg);
+        emit(cg, "} else {\n");
+        cg->indent++;
+
+        char deref_expr[256];
+        snprintf(deref_expr, sizeof(deref_expr), "*(%s)", c_expr);
+        emit_value_print(cg, deref_expr, pointee_t, stream);
+
+        cg->indent--;
+        emit_indent(cg);
+        emit(cg, "}\n");
+        break;
+    }
+    default:
+        emit_indent(cg);
+        emitf(cg, "fprintf(%s, \"%%lld\", (long long)(%s));\n", stream, c_expr);
+        break;
+    }
+}
+
+/* Try to emit a composite type print. Returns true if handled. */
+static bool emit_composite_print(CodeGen *cg, AstNode *node,
+                                  const char *stream, bool newline) {
+    if (node->data.call.arg_count < 1) return false;
+
+    AstNode *arg = node->data.call.args[0];
+    EzType *t = cg->type_table ? typetable_get(cg->type_table, arg) : NULL;
+    if (!t) return false;
+    if (t->kind != TK_STRUCT && t->kind != TK_ARRAY &&
+        t->kind != TK_MAP && t->kind != TK_POINTER) return false;
+
+    /* Emit a block to scope temp variables */
+    emit(cg, "{\n");
+    cg->indent++;
+
+    /* Capture expression in temp var to evaluate only once */
+    int uid = _ez_print_uid++;
+    char c_type[128];
+    if (t->kind == TK_ARRAY) snprintf(c_type, sizeof(c_type), "EzArray");
+    else if (t->kind == TK_MAP) snprintf(c_type, sizeof(c_type), "EzMap");
+    else if (t->kind == TK_POINTER) {
+        const char *pointee_tn = t->element_type ? t->element_type : "int";
+        snprintf(c_type, sizeof(c_type), "%s *", ez_type_to_c_cg(cg, pointee_tn));
+    }
+    else snprintf(c_type, sizeof(c_type), "%s", ez_type_to_c_cg(cg, type_name(t)));
+
+    emit_indent(cg);
+    emitf(cg, "%s _ez_pv%d = ", c_type, uid);
+    emit_expression(cg, arg);
+    emit(cg, ";\n");
+
+    char var[32];
+    snprintf(var, sizeof(var), "_ez_pv%d", uid);
+
+    emit_value_print(cg, var, t, stream);
+
+    if (newline) {
+        emit_indent(cg);
+        emitf(cg, "fprintf(%s, \"\\n\");\n", stream);
+    }
+
+    cg->indent--;
+    emit_indent(cg);
+    emit(cg, "}\n");
+    emit_indent(cg);
+    emit(cg, "(void)0"); /* Absorb trailing ;\n from emit_expression_statement */
+
+    return true;
+}
+
 /* --- Builtin call handler (no-module functions) --- */
 
 static bool emit_builtin_call(CodeGen *cg, AstNode *node, const char *func) {
@@ -1053,6 +1299,7 @@ static bool emit_builtin_call(CodeGen *cg, AstNode *node, const char *func) {
         if (node->data.call.arg_count == 0) {
             emit(cg, "putchar('\\n')");
         } else {
+            if (emit_composite_print(cg, node, "stdout", true)) return true;
             AstNode *arg = node->data.call.args[0];
             const char *bi_type = resolve_bigint_type(cg, arg);
             if (bi_type) {
@@ -1203,6 +1450,7 @@ static bool emit_builtin_call(CodeGen *cg, AstNode *node, const char *func) {
         if (node->data.call.arg_count == 0) {
             emit(cg, "fputc('\\n', stderr)");
         } else {
+            if (emit_composite_print(cg, node, "stderr", true)) return true;
             AstNode *arg = node->data.call.args[0];
             const char *bi_type = resolve_bigint_type(cg, arg);
             if (bi_type) {
@@ -1219,6 +1467,7 @@ static bool emit_builtin_call(CodeGen *cg, AstNode *node, const char *func) {
     }
 
     if (strcmp(func, "eprint") == 0 && node->data.call.arg_count > 0) {
+        if (emit_composite_print(cg, node, "stderr", false)) return true;
         emit(cg, "ez_std_eprint_str(");
         emit_expression(cg, node->data.call.args[0]);
         emit(cg, ")");
@@ -1324,6 +1573,7 @@ static bool emit_builtin_call(CodeGen *cg, AstNode *node, const char *func) {
     }
 
     if (strcmp(func, "print") == 0 && node->data.call.arg_count > 0) {
+        if (emit_composite_print(cg, node, "stdout", false)) return true;
         AstNode *arg = node->data.call.args[0];
         const char *bi_type = resolve_bigint_type(cg, arg);
         if (bi_type) {
@@ -3374,13 +3624,16 @@ CodeGen codegen_create(const char *file) {
     cg.bigint_var_types = NULL;
     cg.bigint_var_count = 0;
     cg.bigint_var_cap = 0;
+    cg.struct_decls = NULL;
+    cg.struct_decl_count = 0;
+    cg.struct_decl_cap = 0;
     return cg;
 }
 
 void codegen_generate(CodeGen *cg, AstNode *program) {
     if (program->kind != NODE_PROGRAM) return;
 
-    /* First pass: scan for imports */
+    /* First pass: scan for imports and collect struct declarations */
     for (int i = 0; i < program->data.program.stmt_count; i++) {
         AstNode *stmt = program->data.program.stmts[i];
         if (stmt->kind == NODE_IMPORT_STMT) {
@@ -3392,6 +3645,14 @@ void codegen_generate(CodeGen *cg, AstNode *program) {
                     if (strcmp(item->module, "fmt") == 0) cg->has_fmt = true;
                 }
             }
+        }
+        if (stmt->kind == NODE_STRUCT_DECL) {
+            if (cg->struct_decl_count >= cg->struct_decl_cap) {
+                cg->struct_decl_cap = cg->struct_decl_cap ? cg->struct_decl_cap * 2 : 16;
+                cg->struct_decls = realloc(cg->struct_decls,
+                    sizeof(AstNode *) * (size_t)cg->struct_decl_cap);
+            }
+            cg->struct_decls[cg->struct_decl_count++] = stmt;
         }
     }
 

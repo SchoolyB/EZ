@@ -1,0 +1,94 @@
+/*
+ * print_composite.ez - Test printing composite types (arrays, maps, structs, pointers)
+ */
+
+import @std
+using std
+
+const Point struct {
+    x int
+    y int
+}
+
+const Person struct {
+    name string
+    age int
+}
+
+const Team struct {
+    name string
+    scores [int]
+}
+
+do main() {
+    println("=== Print Composite Types Test ===")
+    mut passed int = 0
+    mut failed int = 0
+
+    // Test 1: println on [int] array
+    mut nums [int] = {1, 2, 3}
+    println(nums)
+    println("  [PASS] println array [int]")
+    passed += 1
+
+    // Test 2: println on map[string:int]
+    mut ages map[string:int] = {"alice": 30, "bob": 25}
+    println(ages)
+    println("  [PASS] println map[string:int]")
+    passed += 1
+
+    // Test 3: println on struct
+    mut p Point = Point{x: 10, y: 20}
+    println(p)
+    println("  [PASS] println struct")
+    passed += 1
+
+    // Test 4: println on pointer (dereferences)
+    mut f = new(Point)
+    f^.x = 5
+    f^.y = 15
+    println(f)
+    println("  [PASS] println pointer")
+    passed += 1
+
+    // Test 5: println on nested [[int]]
+    mut matrix [[int]] = {{1, 2}, {3, 4}}
+    println(matrix)
+    println("  [PASS] println nested array")
+    passed += 1
+
+    // Test 6: println on struct with string field
+    mut person = Person{name: "Alice", age: 30}
+    println(person)
+    println("  [PASS] println struct with string field")
+    passed += 1
+
+    // Test 7: println on struct with array field
+    mut team = Team{name: "Eagles", scores: {90, 85, 92}}
+    println(team)
+    println("  [PASS] println struct with array field")
+    passed += 1
+
+    // Test 8: print (no newline) with array
+    mut arr [int] = {10, 20}
+    print(arr)
+    println("")
+    println("  [PASS] print array (no newline)")
+    passed += 1
+
+    // Test 9: empty array
+    mut empty [int] = {}
+    println(empty)
+    println("  [PASS] println empty array")
+    passed += 1
+
+    // Summary
+    println("")
+    println("Results: ${passed} passed, ${failed} failed")
+
+    if failed > 0 {
+        println("SOME TESTS FAILED")
+    } otherwise {
+        println("ALL TESTS PASSED")
+    }
+}

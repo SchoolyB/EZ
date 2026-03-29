@@ -1052,17 +1052,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                         tc->file, node->token.line, node->token.column, 0);
                 }
                 if (node->data.call.arg_count >= 1) {
-                    EzType *arg_t = resolve_expr(tc, node->data.call.args[0]);
-                    if (arg_t && (arg_t->kind == TK_STRUCT || arg_t->kind == TK_ARRAY ||
-                                  arg_t->kind == TK_MAP || arg_t->kind == TK_POINTER)) {
-                        char msg[256];
-                        snprintf(msg, sizeof(msg),
-                            "cannot print value of type '%s' — use field access or convert to a printable type",
-                            type_name(arg_t));
-                        diag_error(tc->diag, "E3017", strdup(msg),
-                            tc->file, node->data.call.args[0]->token.line,
-                            node->data.call.args[0]->token.column, 0);
-                    }
+                    resolve_expr(tc, node->data.call.args[0]);
                 }
                 result = &TYPE_VOID;
             } else if (strcmp(fn_name, "print") == 0 || strcmp(fn_name, "eprint") == 0) {
@@ -1076,17 +1066,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                         tc->file, node->token.line, node->token.column, 0);
                 }
                 if (node->data.call.arg_count >= 1) {
-                    EzType *arg_t = resolve_expr(tc, node->data.call.args[0]);
-                    if (arg_t && (arg_t->kind == TK_STRUCT || arg_t->kind == TK_ARRAY ||
-                                  arg_t->kind == TK_MAP || arg_t->kind == TK_POINTER)) {
-                        char msg[256];
-                        snprintf(msg, sizeof(msg),
-                            "cannot print value of type '%s' — use field access or convert to a printable type",
-                            type_name(arg_t));
-                        diag_error(tc->diag, "E3017", strdup(msg),
-                            tc->file, node->data.call.args[0]->token.line,
-                            node->data.call.args[0]->token.column, 0);
-                    }
+                    resolve_expr(tc, node->data.call.args[0]);
                 }
                 result = &TYPE_VOID;
             } else if (strcmp(fn_name, "exit") == 0 || strcmp(fn_name, "panic") == 0 ||
