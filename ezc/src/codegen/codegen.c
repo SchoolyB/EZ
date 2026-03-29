@@ -913,8 +913,18 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
             emitf(cg, ", &_mk); if (!_mv) { fflush(stdout); ez_panic(__FILE__, %d, \"key not found in map\"); } ",
                 node->token.line);
             emitf(cg, "*(%s *)_mv; })", c_val);
+        } else if (left_t && left_t->kind == TK_STRING) {
+            /* String indexing with bounds check: s.data[i] */
+            emitf(cg, "({ EzString _es = ");
+            emit_expression(cg, node->data.index_expr.left);
+            emitf(cg, "; int32_t _ei = (int32_t)(");
+            emit_expression(cg, node->data.index_expr.index);
+            emitf(cg, "); if (_ei < 0 || _ei >= _es.len) { fflush(stdout); ez_panic(__FILE__, %d, ",
+                node->token.line);
+            emit(cg, "\"string index %d out of bounds (length %d)\", _ei, _es.len); } ");
+            emit(cg, "(int32_t)(unsigned char)_es.data[_ei]; })");
         } else {
-            /* String indexing or fallback */
+            /* Fallback */
             emit_expression(cg, node->data.index_expr.left);
             emit(cg, "[");
             emit_expression(cg, node->data.index_expr.index);
