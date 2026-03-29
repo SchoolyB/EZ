@@ -1,5 +1,5 @@
 /*
- * Error Test: E3001 - when/is type mismatch int vs string
+ * Error Test: E3018 - when/is type mismatch int vs string
  * Expected: "type mismatch in 'when'"
  */
 

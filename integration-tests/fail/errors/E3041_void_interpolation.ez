@@ -1,0 +1,16 @@
+/*
+ * Error Test: E3041 - void expression in string interpolation
+ * Expected: "cannot interpolate void expression"
+ */
+
+import @std
+using std
+
+do say_hello() {
+    println("hello")
+}
+
+do main() {
+    mut s string = "result: ${say_hello()}"
+    println(s)
+}
