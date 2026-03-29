@@ -3,7 +3,7 @@
 > Auto-generated from `ezc/src/util/error_codes.h`. Do not edit manually.
 > Run `./scripts/generate_errors.sh` to regenerate.
 
-**Total: 83 codes** (79 errors, 4 warnings)
+**Total: 84 codes** (80 errors, 4 warnings)
 
 ---
 
@@ -56,6 +56,7 @@
 | `E3013` | types | only structs have fields — you cannot use .field on a number, string, or bool |
 | `E3015` | types | this value is not a function and cannot be called |
 | `E3016` | types | only pointers can be dereferenced with ^ — this value is not a pointer |
+| `E3017` | types | cannot print this type directly — use field access or convert to a printable type |
 | `E3019` | types | cannot assign a signed integer to an unsigned type — the value may be negative |
 | `E3024` | types | this function must return a value but the body has no return statement |
 | `E3027` | types | cannot pass a constant to a mutable parameter — the function wants to modify this value |
@@ -120,4 +121,4 @@
 
 ---
 
-*Generated on 2026-03-28 15:41:47 UTC*
+*Generated on 2026-03-29 05:06:29 UTC*
