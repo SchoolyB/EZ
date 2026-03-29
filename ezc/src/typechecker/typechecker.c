@@ -383,7 +383,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                     line = part->token.line;
                     col = part->token.column;
                 }
-                diag_error(tc->diag, "E3001",
+                diag_error(tc->diag, "E3041",
                     strdup("cannot interpolate void expression — the function does not return a value"),
                     tc->file, line, col, 0);
             }
@@ -2403,7 +2403,7 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
                         snprintf(msg, sizeof(msg),
                             "type mismatch in 'when' — comparing '%s' with '%s'",
                             type_name(when_t), type_name(case_t));
-                        diag_error(tc->diag, "E3001", strdup(msg),
+                        diag_error(tc->diag, "E3018", strdup(msg),
                             tc->file, val_i->token.line, val_i->token.column, 0);
                     }
                 }

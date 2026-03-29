@@ -71,6 +71,7 @@
     EZ_ERROR("E3015", "types", "this value is not a function and cannot be called") \
     EZ_ERROR("E3016", "types", "only pointers can be dereferenced with ^ — this value is not a pointer") \
     EZ_ERROR("E3017", "types", "fmt.printf/sprintf cannot format composite types — use println() or access individual fields") \
+    EZ_ERROR("E3018", "types", "type mismatch in when/is — the case value type does not match the scrutinee type") \
     EZ_ERROR("E3019", "types", "cannot assign a signed integer to an unsigned type — the value may be negative") \
     EZ_ERROR("E3024", "types", "this function must return a value but the body has no return statement") \
     EZ_ERROR("E3027", "types", "cannot pass a constant to a mutable parameter — the function wants to modify this value") \
@@ -81,7 +82,8 @@
     EZ_ERROR("E3036", "types", "value is out of range for this type — for example, 200 does not fit in an i8 (-128 to 127)") \
     EZ_ERROR("E3038", "types", "'void' cannot be used as a variable type or in expressions like typeof()") \
     EZ_ERROR("E3039", "types", "ensure expects a function call — for example: ensure close(file)") \
-    EZ_ERROR("E3040", "types", "this function returns multiple values but you are assigning to a single variable — use mut a, b = func()")
+    EZ_ERROR("E3040", "types", "this function returns multiple values but you are assigning to a single variable — use mut a, b = func()") \
+    EZ_ERROR("E3041", "types", "cannot interpolate void expression — the function does not return a value")
 
 /* --- E4xxx: Name Problems (References) --- */
 #define EZ_REFERENCE_ERRORS \

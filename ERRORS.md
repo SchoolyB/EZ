@@ -3,7 +3,7 @@
 > Auto-generated from `ezc/src/util/error_codes.h`. Do not edit manually.
 > Run `./scripts/generate_errors.sh` to regenerate.
 
-**Total: 84 codes** (80 errors, 4 warnings)
+**Total: 86 codes** (82 errors, 4 warnings)
 
 ---
 
@@ -57,6 +57,7 @@
 | `E3015` | types | this value is not a function and cannot be called |
 | `E3016` | types | only pointers can be dereferenced with ^ — this value is not a pointer |
 | `E3017` | types | fmt.printf/sprintf cannot format composite types — use println() or access individual fields |
+| `E3018` | types | type mismatch in when/is — the case value type does not match the scrutinee type |
 | `E3019` | types | cannot assign a signed integer to an unsigned type — the value may be negative |
 | `E3024` | types | this function must return a value but the body has no return statement |
 | `E3027` | types | cannot pass a constant to a mutable parameter — the function wants to modify this value |
@@ -68,6 +69,7 @@
 | `E3038` | types | 'void' cannot be used as a variable type or in expressions like typeof() |
 | `E3039` | types | ensure expects a function call — for example: ensure close(file) |
 | `E3040` | types | this function returns multiple values but you are assigning to a single variable — use mut a, b = func() |
+| `E3041` | types | cannot interpolate void expression — the function does not return a value |
 | `E4001` | names | this variable does not exist — check the spelling or make sure it is declared above this line |
 | `E4002` | names | this function does not exist — check the spelling or make sure it is defined |
 | `E4003` | names | a variable with this name already exists in this scope — use a different name |
@@ -121,4 +123,4 @@
 
 ---
 
-*Generated on 2026-03-29 05:56:01 UTC*
+*Generated on 2026-03-29 23:42:28 UTC*
