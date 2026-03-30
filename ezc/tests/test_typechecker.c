@@ -763,6 +763,204 @@ static void test_error_E12006_duplicate_map_key(void) {
     diag_destroy(d);
 }
 
+/* --- E2xxx: Additional parser-level errors in typechecker --- */
+
+static void test_error_E2011_const_no_value(void) {
+    DiagnosticList *d = check_diag(
+        "do main() { const x int }");
+    ASSERT(has_code(d, "E2011"));
+    diag_destroy(d);
+}
+
+static void test_error_E2036_import_in_func(void) {
+    DiagnosticList *d = check_diag(
+        "do main() { import @std }");
+    ASSERT(has_code(d, "E2036"));
+    diag_destroy(d);
+}
+
+static void test_error_E2038_reserved_enum_name(void) {
+    DiagnosticList *d = check_diag(
+        "const int enum { A\n B }\n"
+        "do main() { }");
+    ASSERT(has_code(d, "E2038"));
+    diag_destroy(d);
+}
+
+static void test_error_E2039_required_after_default_param(void) {
+    DiagnosticList *d = check_diag(
+        "do foo(a int = 1, b int) { }\n"
+        "do main() { foo(1, 2) }");
+    ASSERT(has_code(d, "E2039"));
+    diag_destroy(d);
+}
+
+static void test_error_E2056_stmt_at_file_scope(void) {
+    DiagnosticList *d = check_diag(
+        "if true { }\n"
+        "do main() { }");
+    ASSERT(has_code(d, "E2056"));
+    diag_destroy(d);
+}
+
+/* --- E3xxx: Additional type errors --- */
+
+static void test_error_E3017_fmt_struct(void) {
+    DiagnosticList *d = check_diag(
+        "import @fmt\n"
+        "const Point struct { x int\n y int }\n"
+        "do main() {\n"
+        "    mut p Point = Point{x: 1, y: 2}\n"
+        "    fmt.printf(\"%s\", p)\n"
+        "}");
+    ASSERT(has_code(d, "E3017"));
+    diag_destroy(d);
+}
+
+static void test_error_E3033_duplicate_enum_value(void) {
+    DiagnosticList *d = check_diag(
+        "const Color enum { RED = 1\n BLUE = 1 }\n"
+        "do main() { }");
+    ASSERT(has_code(d, "E3033"));
+    diag_destroy(d);
+}
+
+static void test_error_E3041_new_non_struct(void) {
+    DiagnosticList *d = check_diag(
+        "do main() { mut p = new(int) }");
+    ASSERT(has_code(d, "E3041"));
+    diag_destroy(d);
+}
+
+static void test_error_E3041_interpolate_void(void) {
+    DiagnosticList *d = check_diag(
+        "do noop() { }\n"
+        "do main() { mut s string = \"result: ${noop()}\" }");
+    ASSERT(has_code(d, "E3041"));
+    diag_destroy(d);
+}
+
+static void test_error_E3043_invalid_cast(void) {
+    DiagnosticList *d = check_diag(
+        "const Point struct { x int\n y int }\n"
+        "do main() {\n"
+        "    mut p Point = Point{x: 1, y: 2}\n"
+        "    mut x = cast(p, int)\n"
+        "}");
+    ASSERT(has_code(d, "E3043"));
+    diag_destroy(d);
+}
+
+static void test_error_E3045_or_return_no_error(void) {
+    DiagnosticList *d = check_diag(
+        "do get() -> int { return 42 }\n"
+        "do main() { mut x = get() or_return }");
+    ASSERT(has_code(d, "E3045"));
+    diag_destroy(d);
+}
+
+/* --- E4xxx: Additional name errors --- */
+
+static void test_error_E4014_shadow_module(void) {
+    DiagnosticList *d = check_diag(
+        "import @math\n"
+        "do main() { mut math int = 5 }");
+    ASSERT(has_code(d, "E4014"));
+    diag_destroy(d);
+}
+
+/* --- E5xxx: Additional usage errors --- */
+
+static void test_error_E5024_signed_return_as_unsigned(void) {
+    DiagnosticList *d = check_diag(
+        "do foo() -> uint {\n"
+        "    mut x int = -5\n"
+        "    return x\n"
+        "}\n"
+        "do main() { foo() }");
+    ASSERT(has_code(d, "E5024"));
+    diag_destroy(d);
+}
+
+/* --- E6xxx: Module errors --- */
+
+static void test_error_E6001_unknown_module(void) {
+    DiagnosticList *d = check_diag(
+        "import @nonexistent\n"
+        "do main() { }");
+    ASSERT(has_code(d, "E6001"));
+    diag_destroy(d);
+}
+
+/* --- Stdlib type errors in typechecker --- */
+
+static void test_error_E7004_repeat_float_count(void) {
+    DiagnosticList *d = check_diag(
+        "import @strings\n"
+        "do main() { mut s = strings.repeat(\"ha\", 3.5) }");
+    ASSERT(has_code(d, "E7004"));
+    diag_destroy(d);
+}
+
+static void test_error_E9002_sum_non_numeric(void) {
+    DiagnosticList *d = check_diag(
+        "import @arrays\n"
+        "do main() { mut a [string] = {\"a\", \"b\"}\n arrays.sum(a) }");
+    ASSERT(has_code(d, "E9002"));
+    diag_destroy(d);
+}
+
+static void test_error_E9005_invalid_range(void) {
+    DiagnosticList *d = check_diag(
+        "do main() { for i in range(10, 1) { } }");
+    ASSERT(has_code(d, "E9005"));
+    diag_destroy(d);
+}
+
+static void test_error_E12001_map_func_on_array(void) {
+    DiagnosticList *d = check_diag(
+        "import @maps\n"
+        "do main() { mut a [int] = {1, 2}\n maps.keys(a) }");
+    ASSERT(has_code(d, "E12001"));
+    diag_destroy(d);
+}
+
+/* --- Additional Warnings --- */
+
+static void test_warning_W1005_typed_blank(void) {
+    DiagnosticList *d = check_diag(
+        "do pair() -> (int, int) { return 1, 2 }\n"
+        "do main() { mut x int, _ int = pair() }");
+    ASSERT(has_code(d, "W1005"));
+    diag_destroy(d);
+}
+
+static void test_warning_W2001_unused_import(void) {
+    DiagnosticList *d = check_diag(
+        "import @math\n"
+        "do main() { }");
+    ASSERT(has_code(d, "W2001"));
+    diag_destroy(d);
+}
+
+static void test_warning_W2011_named_return_unused(void) {
+    DiagnosticList *d = check_diag(
+        "do foo() -> (name string) {\n"
+        "    mut other string = \"hi\"\n"
+        "    return other\n"
+        "}\n"
+        "do main() { mut s string = foo()\n println(s) }");
+    ASSERT(has_code(d, "W2011"));
+    diag_destroy(d);
+}
+
+static void test_warning_W3003_partial_array_init(void) {
+    DiagnosticList *d = check_diag(
+        "do main() { mut a [int, 5] = {1, 2} }");
+    ASSERT(has_code(d, "W3003"));
+    diag_destroy(d);
+}
+
 int main(void) {
     arena = arena_create(256 * 1024);
     printf("\n");
@@ -891,6 +1089,42 @@ int main(void) {
 
     /* Stdlib errors in typechecker */
     RUN_TEST(test_error_E12006_duplicate_map_key);
+
+    /* E2xxx: Additional parser-level errors in typechecker */
+    RUN_TEST(test_error_E2011_const_no_value);
+    RUN_TEST(test_error_E2036_import_in_func);
+    RUN_TEST(test_error_E2038_reserved_enum_name);
+    RUN_TEST(test_error_E2039_required_after_default_param);
+    RUN_TEST(test_error_E2056_stmt_at_file_scope);
+
+    /* E3xxx: Additional type errors */
+    RUN_TEST(test_error_E3017_fmt_struct);
+    RUN_TEST(test_error_E3033_duplicate_enum_value);
+    RUN_TEST(test_error_E3041_new_non_struct);
+    RUN_TEST(test_error_E3041_interpolate_void);
+    RUN_TEST(test_error_E3043_invalid_cast);
+    RUN_TEST(test_error_E3045_or_return_no_error);
+
+    /* E4xxx: Additional name errors */
+    RUN_TEST(test_error_E4014_shadow_module);
+
+    /* E5xxx: Additional usage errors */
+    RUN_TEST(test_error_E5024_signed_return_as_unsigned);
+
+    /* E6xxx: Module errors */
+    RUN_TEST(test_error_E6001_unknown_module);
+
+    /* Stdlib type errors */
+    RUN_TEST(test_error_E7004_repeat_float_count);
+    RUN_TEST(test_error_E9002_sum_non_numeric);
+    RUN_TEST(test_error_E9005_invalid_range);
+    RUN_TEST(test_error_E12001_map_func_on_array);
+
+    /* Additional warnings */
+    RUN_TEST(test_warning_W1005_typed_blank);
+    RUN_TEST(test_warning_W2001_unused_import);
+    RUN_TEST(test_warning_W2011_named_return_unused);
+    RUN_TEST(test_warning_W3003_partial_array_init);
 
     PRINT_RESULTS();
     return _test_fail > 0 ? 1 : 0;
