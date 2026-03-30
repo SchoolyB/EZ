@@ -2128,8 +2128,32 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
                 strcmp(fn_name, "panic") == 0 || strcmp(fn_name, "assert") == 0 ||
                 strcmp(fn_name, "exit") == 0 || strcmp(fn_name, "sleep_s") == 0 ||
                 strcmp(fn_name, "sleep_ms") == 0 || strcmp(fn_name, "sleep_ns") == 0);
-            /* Don't warn for module calls that are commonly used for side effects */
-            if (fn->kind == NODE_MEMBER_EXPR) is_side_effect = true;
+            /* For member expression calls, check if the return type is void —
+             * only warn about non-void return values being discarded */
+            if (fn->kind == NODE_MEMBER_EXPR) {
+                /* expr_t is already the resolved return type from resolve_expr above.
+                 * If it's void or unknown, this is a side-effect call — no warning needed. */
+                if (expr_t->kind == TK_VOID || expr_t->kind == TK_UNKNOWN) {
+                    is_side_effect = true;
+                } else {
+                    /* Build display name for the error message */
+                    const char *obj_name = NULL;
+                    const char *mem_name = NULL;
+                    if (fn->data.member.object->kind == NODE_LABEL) {
+                        obj_name = fn->data.member.object->data.label.value;
+                        mem_name = fn->data.member.member;
+                    }
+                    if (obj_name && mem_name && !is_side_effect) {
+                        char msg[256];
+                        snprintf(msg, sizeof(msg),
+                            "return value of '%s.%s()' is not used — assign it to a variable or use '_' to discard",
+                            obj_name, mem_name);
+                        diag_error(tc->diag, "E5011", strdup(msg),
+                            tc->file, node->token.line, node->token.column, 0);
+                    }
+                    is_side_effect = true; /* already handled */
+                }
+            }
             if (!is_side_effect && fn_name) {
                 char msg[256];
                 snprintf(msg, sizeof(msg),
