@@ -1,0 +1,16 @@
+/*
+ * Error Test: E5011 - unused return value from struct function
+ * Expected: "return value of" and "is not used"
+ */
+
+const Math struct {
+    x int
+}
+
+do Math.add(a int, b int) -> int {
+    return a + b
+}
+
+do main() {
+    Math.add(1, 2)
+}

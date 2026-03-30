@@ -1,0 +1,16 @@
+/*
+ * Error Test: E5011 - unused string return from struct function
+ * Expected: "return value of" and "is not used"
+ */
+
+const Greeter struct {
+    name string
+}
+
+do Greeter.hello() -> string {
+    return "hello"
+}
+
+do main() {
+    Greeter.hello()
+}
