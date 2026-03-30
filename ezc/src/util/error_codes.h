@@ -52,7 +52,8 @@
     EZ_ERROR("E2056", "syntax", "executable statements are not allowed at file scope — put code inside do main() { }") \
     EZ_ERROR("E2057", "syntax", "invalid interpolation syntax — use ${variable} instead of $variable") \
     EZ_ERROR("E2058", "syntax", "nested type declarations are not allowed — structs and enums must be defined at the file scope") \
-    EZ_ERROR("E2059", "syntax", "empty when block — a when statement must have at least one 'is' branch")
+    EZ_ERROR("E2059", "syntax", "empty when block — a when statement must have at least one 'is' branch") \
+    EZ_ERROR("E2060", "syntax", "too many return values — a function can return at most 16 values")
 
 /* --- E3xxx: Type Problems (Typechecker) --- */
 #define EZ_TYPE_ERRORS \

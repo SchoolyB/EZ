@@ -1127,7 +1127,7 @@ static AstNode *parse_func_declaration(Parser *p) {
         next_token(p); /* skip -> */
         next_token(p);
 
-        int ret_cap = 8;
+        int ret_cap = 16;
         node->data.func_decl.return_types = arena_alloc(p->arena, sizeof(const char *) * ret_cap);
         node->data.func_decl.return_names = arena_alloc(p->arena, sizeof(const char *) * ret_cap);
         memset(node->data.func_decl.return_names, 0, sizeof(const char *) * ret_cap);
@@ -1166,6 +1166,12 @@ static AstNode *parse_func_declaration(Parser *p) {
                     const char *ret_name = p->cur_token.literal;
                     next_token(p);
                     int idx = node->data.func_decl.return_type_count;
+                    if (idx >= ret_cap) {
+                        diag_error(p->diag, "E2060",
+                            "a function can return at most 16 values",
+                            p->file, p->cur_token.line, p->cur_token.column, 0);
+                        return NULL;
+                    }
                     node->data.func_decl.return_names[idx] = ret_name;
                     node->data.func_decl.return_types[idx] = read_type_name(p);
                     node->data.func_decl.return_type_count++;
@@ -1186,6 +1192,12 @@ static AstNode *parse_func_declaration(Parser *p) {
                         next_token(p);
                         for (int s = 0; s < shared; s++) {
                             int idx = node->data.func_decl.return_type_count;
+                            if (idx >= ret_cap) {
+                                diag_error(p->diag, "E2060",
+                                    "a function can return at most 16 values",
+                                    p->file, p->cur_token.line, p->cur_token.column, 0);
+                                return NULL;
+                            }
                             node->data.func_decl.return_names[idx] = names[s];
                             node->data.func_decl.return_types[idx] = read_type_name(p);
                             node->data.func_decl.return_type_count++;
@@ -1194,6 +1206,12 @@ static AstNode *parse_func_declaration(Parser *p) {
                 } else {
                     /* Plain type (no name) */
                     int idx = node->data.func_decl.return_type_count;
+                    if (idx >= ret_cap) {
+                        diag_error(p->diag, "E2060",
+                            "a function can return at most 16 values",
+                            p->file, p->cur_token.line, p->cur_token.column, 0);
+                        return NULL;
+                    }
                     node->data.func_decl.return_names[idx] = NULL;
                     node->data.func_decl.return_types[idx] = read_type_name(p);
                     node->data.func_decl.return_type_count++;
