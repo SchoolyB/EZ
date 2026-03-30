@@ -3529,13 +3529,17 @@ static void emit_statement(CodeGen *cg, AstNode *node) {
                 if (j > 0) emit(cg, " || ");
                 if (wc->is_range && wc->values[j]->kind == NODE_RANGE_EXPR) {
                     AstNode *r = wc->values[j];
+                    /* Check if step is a negative literal to reverse comparison direction */
+                    bool neg_step = (r->data.range_expr.step &&
+                        r->data.range_expr.step->kind == NODE_PREFIX_EXPR &&
+                        strcmp(r->data.range_expr.step->data.prefix.op, "-") == 0);
                     emit(cg, "(");
                     emit_expression(cg, val);
-                    emit(cg, " >= ");
+                    emit(cg, neg_step ? " <= " : " >= ");
                     emit_expression(cg, r->data.range_expr.start);
                     emit(cg, " && ");
                     emit_expression(cg, val);
-                    emit(cg, " < ");
+                    emit(cg, neg_step ? " > " : " < ");
                     emit_expression(cg, r->data.range_expr.end);
                     if (r->data.range_expr.step) {
                         emit(cg, " && (");
