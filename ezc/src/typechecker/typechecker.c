@@ -1035,6 +1035,17 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                     result = &TYPE_VOID;
                 }
             } else {
+                /* Check if 'mod' is a variable with a struct type —
+                 * user likely wrote instance.func() instead of Type.func() */
+                Symbol *sym = scope_lookup(tc->current_scope, mod);
+                if (sym && sym->type && sym->type->kind == TK_STRUCT) {
+                    char msg[256];
+                    snprintf(msg, sizeof(msg),
+                        "struct functions must be called on the type — use '%s.%s()' instead of '%s.%s()'",
+                        sym->type->name, mfn, mod, mfn);
+                    diag_error(tc->diag, "E3042", strdup(msg),
+                        tc->file, fn->token.line, fn->token.column, 0);
+                }
                 result = &TYPE_VOID;
             }
             break;
