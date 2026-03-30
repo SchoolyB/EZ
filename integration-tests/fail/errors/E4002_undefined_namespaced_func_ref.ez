@@ -1,0 +1,17 @@
+/* Test: E4002 — undefined namespaced function in function reference
+ * Expected: compiler error E4002
+ */
+
+import @std
+using std
+
+const MyStruct struct {
+    do real_method(n int) -> int {
+        return n
+    }
+}
+
+do main() {
+    mut fn = ()MyStruct.fake_method
+    println(fn(5))
+}

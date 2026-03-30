@@ -1,0 +1,11 @@
+/* Test: E4002 — undefined function in function reference
+ * Expected: compiler error E4002
+ */
+
+import @std
+using std
+
+do main() {
+    mut fn = ()nonexistent_function
+    println(fn(5))
+}
