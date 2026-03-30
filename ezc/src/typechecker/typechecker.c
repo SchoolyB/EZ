@@ -2058,6 +2058,20 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
                             }
                         }
                     }
+                    /* W3003: fixed-size array not fully initialized */
+                    if (comma && comma < end) {
+                        int fixed_size = atoi(comma + 1);
+                        AstNode *arr = node->data.var_decl.value;
+                        if (fixed_size > 0 && arr->data.array_value.count < fixed_size) {
+                            char msg[256];
+                            snprintf(msg, sizeof(msg),
+                                "fixed-size array [%s, %d] initialized with only %d of %d elements — remaining will be zero-valued",
+                                elem_type[0] ? elem_type : "?", fixed_size,
+                                arr->data.array_value.count, fixed_size);
+                            diag_warning(tc->diag, "W3003", strdup(msg),
+                                tc->file, node->token.line, node->token.column, 0);
+                        }
+                    }
                 }
             }
             /* E3019: signed-to-unsigned assignment from variable */
@@ -2077,6 +2091,13 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
                         tc->file, node->token.line, node->token.column, 0);
                 }
             }
+        }
+
+        /* W1005: typed blank identifier — _ with explicit type annotation */
+        if (strcmp(node->data.var_decl.name, "_") == 0 && node->data.var_decl.type_name) {
+            diag_warning(tc->diag, "W1005",
+                strdup("typed blank identifier — adding a type to '_' is unnecessary, use plain '_' instead"),
+                tc->file, node->token.line, node->token.column, 0);
         }
 
         if (strcmp(node->data.var_decl.name, "_") != 0) {
@@ -2310,6 +2331,22 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
                         src_sym->declared_type, tc->current_return_type_names[0]);
                     diag_error(tc->diag, "E5024", strdup(msg),
                         tc->file, node->token.line, node->token.column, 0);
+                }
+            }
+            /* W2011: named return variable not used in explicit return */
+            if (tc->current_has_named_returns && tc->current_return_names) {
+                for (int i = 0; i < node->data.return_stmt.count && i < tc->current_return_count; i++) {
+                    if (!tc->current_return_names[i]) continue;
+                    AstNode *rv = node->data.return_stmt.values[i];
+                    if (rv->kind == NODE_LABEL &&
+                        strcmp(rv->data.label.value, tc->current_return_names[i]) != 0) {
+                        char msg[256];
+                        snprintf(msg, sizeof(msg),
+                            "returning '%s' instead of named return variable '%s'",
+                            rv->data.label.value, tc->current_return_names[i]);
+                        diag_warning(tc->diag, "W2011", strdup(msg),
+                            tc->file, rv->token.line, rv->token.column, 0);
+                    }
                 }
             }
         }
@@ -2566,7 +2603,9 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
         bool prev_named = tc->current_has_named_returns;
 
         /* Detect named return values */
+        const char **prev_return_names = tc->current_return_names;
         tc->current_has_named_returns = false;
+        tc->current_return_names = node->data.func_decl.return_names;
         if (node->data.func_decl.return_names) {
             for (int i = 0; i < node->data.func_decl.return_type_count; i++) {
                 if (node->data.func_decl.return_names[i]) {
@@ -2660,6 +2699,7 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
         tc->current_return_type_names = prev_ret_names;
         tc->current_return_count = prev_ret_count;
         tc->current_has_named_returns = prev_named;
+        tc->current_return_names = prev_return_names;
         tc->func_depth--;
         tc->current_scope = outer;
         break;

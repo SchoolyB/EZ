@@ -129,7 +129,10 @@
 #define EZ_WARNINGS \
     EZ_WARNING("W1001", "cleanup", "variable is declared but never used — remove it or use it") \
     EZ_WARNING("W1003", "cleanup", "function is declared but never called — remove it or call it") \
+    EZ_WARNING("W1005", "cleanup", "typed blank identifier — adding a type to _ is unnecessary, use plain _ instead") \
     EZ_WARNING("W2001", "cleanup", "this module is imported but never used — remove the import or use the module") \
-    EZ_WARNING("W2002", "safety", "this variable shadows a variable with the same name in an outer scope")
+    EZ_WARNING("W2002", "safety", "this variable shadows a variable with the same name in an outer scope") \
+    EZ_WARNING("W2011", "safety", "named return variable is not used in return — the returned value may not match the named variable") \
+    EZ_WARNING("W3003", "safety", "fixed-size array is not fully initialized — remaining elements will be zero-valued")
 
 #endif

@@ -75,6 +75,7 @@ typedef struct {
     const char **current_return_type_names; /* raw declared return type names */
     int current_return_count;
     bool current_has_named_returns; /* true if current function uses named return values */
+    const char **current_return_names; /* named return variable names (NULL entries for unnamed) */
 
     /* Import tracking for unused import warnings */
     const char **imported_modules;
