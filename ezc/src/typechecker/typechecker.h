@@ -81,6 +81,11 @@ typedef struct {
     bool *import_used;
     int import_count;
     int import_cap;
+
+    /* Modules brought into scope via 'using' or 'import & use' */
+    const char **using_modules;
+    int using_module_count;
+    int using_module_cap;
 } TypeChecker;
 
 /* Create and run the type checker */

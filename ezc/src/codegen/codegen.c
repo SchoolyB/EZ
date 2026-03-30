@@ -2660,6 +2660,68 @@ static void emit_call_expression(CodeGen *cg, AstNode *node) {
                 }
             }
         }
+        /* Unqualified call not handled by builtins — try 'using' modules.
+         * We must verify the function name belongs to the module before calling
+         * the handler, since some handlers emit code for any function name. */
+        if (!module) {
+            /* Map function names to their module. Only includes functions that
+             * differ from builtins (std builtins are already handled above). */
+            static const struct { const char *func; const char *mod; } func_to_mod[] = {
+                /* strings */
+                {"to_upper","strings"},{"to_lower","strings"},{"trim","strings"},
+                {"trim_left","strings"},{"trim_right","strings"},{"replace","strings"},
+                {"repeat","strings"},{"starts_with","strings"},{"ends_with","strings"},
+                /* math */
+                {"abs","math"},{"neg","math"},{"sign","math"},{"min","math"},{"max","math"},
+                {"clamp","math"},{"floor","math"},{"ceil","math"},{"round","math"},{"trunc","math"},
+                {"pow","math"},{"sqrt","math"},{"cbrt","math"},{"hypot","math"},{"exp","math"},
+                {"exp2","math"},{"log","math"},{"log2","math"},{"log10","math"},{"log_base","math"},
+                {"sin","math"},{"cos","math"},{"tan","math"},{"asin","math"},{"acos","math"},
+                {"atan","math"},{"atan2","math"},{"sinh","math"},{"cosh","math"},{"tanh","math"},
+                {"deg_to_rad","math"},{"rad_to_deg","math"},{"factorial","math"},{"gcd","math"},
+                {"lcm","math"},{"is_prime","math"},{"is_even","math"},{"is_odd","math"},
+                {"is_infinite","math"},{"is_nan","math"},{"is_finite","math"},{"lerp","math"},
+                {"distance","math"},
+                /* arrays */
+                {"append","arrays"},{"insert","arrays"},{"remove_at","arrays"},{"sort","arrays"},
+                {"sort_desc","arrays"},{"concat","arrays"},{"sum","arrays"},
+                /* maps */
+                {"has_key","maps"},{"keys","maps"},{"values","maps"},{"remove_key","maps"},
+                /* random */
+                {"rand_float","random"},{"rand_int","random"},{"rand_bool","random"},
+                {"rand_byte","random"},{"rand_char","random"},{"random_hex","random"},
+                {"choice","random"},{"shuffle","random"},{"sample","random"},
+                /* encoding */
+                {"base64_encode","encoding"},{"base64_decode","encoding"},
+                {"hex_encode","encoding"},{"hex_decode","encoding"},
+                {"url_encode","encoding"},{"url_decode","encoding"},
+                /* crypto */
+                {"sha256","crypto"},{"md5","crypto"},
+                /* regex */
+                {"is_match","regex"},{"find_all","regex"},
+                {NULL,NULL}
+            };
+            for (int ui = 0; ui < cg->using_module_count; ui++) {
+                const char *umod = cg->using_modules[ui];
+                /* Check if func belongs to this using module */
+                bool found = false;
+                for (int fi = 0; func_to_mod[fi].func; fi++) {
+                    if (strcmp(func, func_to_mod[fi].func) == 0 &&
+                        strcmp(umod, func_to_mod[fi].mod) == 0) {
+                        found = true;
+                        break;
+                    }
+                }
+                if (!found) continue;
+                /* Dispatch to the module handler */
+                for (int mi = 0; mi < (int)(sizeof(modules) / sizeof(modules[0])); mi++) {
+                    if (strcmp(umod, modules[mi].name) == 0) {
+                        if (modules[mi].handler(cg, node, func)) return;
+                        break;
+                    }
+                }
+            }
+        }
     }
 
     /* Check for struct-namespaced function call: StructName.func() */
@@ -3652,13 +3714,16 @@ CodeGen codegen_create(const char *file) {
     cg.struct_decls = NULL;
     cg.struct_decl_count = 0;
     cg.struct_decl_cap = 0;
+    cg.using_modules = NULL;
+    cg.using_module_count = 0;
+    cg.using_module_cap = 0;
     return cg;
 }
 
 void codegen_generate(CodeGen *cg, AstNode *program) {
     if (program->kind != NODE_PROGRAM) return;
 
-    /* First pass: scan for imports and collect struct declarations */
+    /* First pass: scan for imports, using declarations, and struct declarations */
     for (int i = 0; i < program->data.program.stmt_count; i++) {
         AstNode *stmt = program->data.program.stmts[i];
         if (stmt->kind == NODE_IMPORT_STMT) {
@@ -3669,6 +3734,30 @@ void codegen_generate(CodeGen *cg, AstNode *program) {
                     if (strcmp(item->module, "mem") == 0) cg->has_mem = true;
                     if (strcmp(item->module, "fmt") == 0) cg->has_fmt = true;
                 }
+            }
+            /* import & use — register all modules for using */
+            if (stmt->data.import_stmt.auto_use) {
+                for (int j = 0; j < stmt->data.import_stmt.count; j++) {
+                    ImportItem *item = &stmt->data.import_stmt.items[j];
+                    if (item->module) {
+                        if (cg->using_module_count >= cg->using_module_cap) {
+                            cg->using_module_cap = cg->using_module_cap ? cg->using_module_cap * 2 : 8;
+                            cg->using_modules = realloc(cg->using_modules,
+                                sizeof(const char *) * (size_t)cg->using_module_cap);
+                        }
+                        cg->using_modules[cg->using_module_count++] = item->module;
+                    }
+                }
+            }
+        }
+        if (stmt->kind == NODE_USING_STMT) {
+            for (int j = 0; j < stmt->data.using_stmt.count; j++) {
+                if (cg->using_module_count >= cg->using_module_cap) {
+                    cg->using_module_cap = cg->using_module_cap ? cg->using_module_cap * 2 : 8;
+                    cg->using_modules = realloc(cg->using_modules,
+                        sizeof(const char *) * (size_t)cg->using_module_cap);
+                }
+                cg->using_modules[cg->using_module_count++] = stmt->data.using_stmt.modules[j];
             }
         }
         if (stmt->kind == NODE_STRUCT_DECL) {

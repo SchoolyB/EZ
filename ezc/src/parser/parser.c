@@ -1279,9 +1279,21 @@ static AstNode *parse_import_statement(Parser *p) {
             item->is_stdlib = false;
             item->path = p->cur_token.literal;
         } else if (cur_token_is(p, TOK_AMPERSAND)) {
-            /* import & use syntax */
+            /* import & use syntax — consume '&' then 'use', then re-read next token */
             node->data.import_stmt.auto_use = true;
-            continue;
+            next_token(p); /* consume 'use' */
+            next_token(p); /* advance to first module (@std etc.) */
+            if (cur_token_is(p, TOK_AT)) {
+                item->is_stdlib = true;
+                next_token(p);
+                item->module = p->cur_token.literal;
+                item->alias = p->cur_token.literal;
+            } else if (cur_token_is(p, TOK_STRING)) {
+                item->is_stdlib = false;
+                item->path = p->cur_token.literal;
+            } else {
+                continue;
+            }
         } else if (cur_token_is(p, TOK_IDENT) || cur_token_is(p, TOK_IMPORT)) {
             char buf[256];
             snprintf(buf, sizeof(buf),

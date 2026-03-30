@@ -1284,17 +1284,89 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                         diag_error(tc->diag, "E3015", strdup(msg),
                             tc->file, node->token.line, node->token.column, 0);
                     } else if (!tc_is_builtin(fn_name)) {
-                        char msg[256];
-                        snprintf(msg, sizeof(msg), "undefined function '%s'", fn_name);
-                        const char *suggestion = suggest_name(tc, fn_name);
-                        if (suggestion) {
-                            char help[256];
-                            snprintf(help, sizeof(help), "did you mean '%s'?", suggestion);
-                            diag_error_help(tc->diag, "E4002", strdup(msg),
-                                tc->file, node->token.line, node->token.column, 0, strdup(help));
+                        /* Check if it's a function from a 'using' module */
+                        bool found_in_using = false;
+                        /* Map function names to module + return type */
+                        static const struct { const char *func; const char *mod; TypeKind ret; } using_funcs[] = {
+                            {"to_upper","strings",TK_STRING},{"to_lower","strings",TK_STRING},
+                            {"trim","strings",TK_STRING},{"trim_left","strings",TK_STRING},
+                            {"trim_right","strings",TK_STRING},{"replace","strings",TK_STRING},
+                            {"repeat","strings",TK_STRING},{"reverse","strings",TK_STRING},
+                            {"slice","strings",TK_STRING},{"join","strings",TK_STRING},
+                            {"contains","strings",TK_BOOL},{"starts_with","strings",TK_BOOL},
+                            {"ends_with","strings",TK_BOOL},{"is_empty","strings",TK_BOOL},
+                            {"index_of","strings",TK_INT},{"count","strings",TK_INT},
+                            {"split","strings",TK_ARRAY},
+                            {"abs","math",TK_INT},{"neg","math",TK_INT},{"sign","math",TK_INT},
+                            {"min","math",TK_INT},{"max","math",TK_INT},{"clamp","math",TK_INT},
+                            {"floor","math",TK_INT},{"ceil","math",TK_INT},{"round","math",TK_INT},
+                            {"trunc","math",TK_INT},{"factorial","math",TK_INT},{"gcd","math",TK_INT},
+                            {"lcm","math",TK_INT},
+                            {"pow","math",TK_FLOAT},{"sqrt","math",TK_FLOAT},{"cbrt","math",TK_FLOAT},
+                            {"hypot","math",TK_FLOAT},{"exp","math",TK_FLOAT},{"exp2","math",TK_FLOAT},
+                            {"log","math",TK_FLOAT},{"log2","math",TK_FLOAT},{"log10","math",TK_FLOAT},
+                            {"log_base","math",TK_FLOAT},{"sin","math",TK_FLOAT},{"cos","math",TK_FLOAT},
+                            {"tan","math",TK_FLOAT},{"asin","math",TK_FLOAT},{"acos","math",TK_FLOAT},
+                            {"atan","math",TK_FLOAT},{"atan2","math",TK_FLOAT},
+                            {"deg_to_rad","math",TK_FLOAT},{"rad_to_deg","math",TK_FLOAT},
+                            {"lerp","math",TK_FLOAT},{"distance","math",TK_FLOAT},
+                            {"is_prime","math",TK_BOOL},{"is_even","math",TK_BOOL},
+                            {"is_odd","math",TK_BOOL},{"is_infinite","math",TK_BOOL},
+                            {"is_nan","math",TK_BOOL},{"is_finite","math",TK_BOOL},
+                            {"append","arrays",TK_VOID},{"insert","arrays",TK_VOID},
+                            {"remove_at","arrays",TK_VOID},{"sort","arrays",TK_VOID},
+                            {"sort_desc","arrays",TK_VOID},{"clear","arrays",TK_VOID},
+                            {"concat","arrays",TK_ARRAY},{"sum","arrays",TK_INT},
+                            {"has_key","maps",TK_BOOL},{"keys","maps",TK_ARRAY},
+                            {"values","maps",TK_ARRAY},{"remove_key","maps",TK_BOOL},
+                            {"rand_float","random",TK_FLOAT},{"rand_int","random",TK_INT},
+                            {"rand_bool","random",TK_BOOL},{"random_hex","random",TK_STRING},
+                            {"sha256","crypto",TK_STRING},{"md5","crypto",TK_STRING},
+                            {"base64_encode","encoding",TK_STRING},{"hex_encode","encoding",TK_STRING},
+                            {"url_encode","encoding",TK_STRING},
+                            {"is_match","regex",TK_BOOL},{"find","regex",TK_STRING},
+                            {NULL,NULL,TK_UNKNOWN}
+                        };
+                        for (int ui = 0; ui < tc->using_module_count && !found_in_using; ui++) {
+                            const char *umod = tc->using_modules[ui];
+                            for (int fi = 0; using_funcs[fi].func; fi++) {
+                                if (strcmp(fn_name, using_funcs[fi].func) == 0 &&
+                                    strcmp(umod, using_funcs[fi].mod) == 0) {
+                                    found_in_using = true;
+                                    switch (using_funcs[fi].ret) {
+                                    case TK_STRING: result = &TYPE_STRING; break;
+                                    case TK_FLOAT:  result = &TYPE_FLOAT; break;
+                                    case TK_BOOL:   result = &TYPE_BOOL; break;
+                                    case TK_INT:    result = &TYPE_INT; break;
+                                    case TK_VOID:   result = &TYPE_VOID; break;
+                                    default:        result = &TYPE_UNKNOWN; break;
+                                    }
+                                    /* Mark module as used */
+                                    for (int mi = 0; mi < tc->import_count; mi++) {
+                                        if (strcmp(tc->imported_modules[mi], umod) == 0) {
+                                            tc->import_used[mi] = true;
+                                            break;
+                                        }
+                                    }
+                                    break;
+                                }
+                            }
+                        }
+                        if (found_in_using) {
+                            /* Type already set above */
                         } else {
-                            diag_error(tc->diag, "E4002", strdup(msg),
-                                tc->file, node->token.line, node->token.column, 0);
+                            char msg[256];
+                            snprintf(msg, sizeof(msg), "undefined function '%s'", fn_name);
+                            const char *suggestion = suggest_name(tc, fn_name);
+                            if (suggestion) {
+                                char help[256];
+                                snprintf(help, sizeof(help), "did you mean '%s'?", suggestion);
+                                diag_error_help(tc->diag, "E4002", strdup(msg),
+                                    tc->file, node->token.line, node->token.column, 0, strdup(help));
+                            } else {
+                                diag_error(tc->diag, "E4002", strdup(msg),
+                                    tc->file, node->token.line, node->token.column, 0);
+                            }
                         }
                     }
                 }
@@ -2815,6 +2887,41 @@ void typechecker_check(TypeChecker *tc, AstNode *program) {
 
     /* Pass 1: register all type/function declarations */
     register_declarations(tc, program);
+
+    /* Collect 'using' and 'import & use' module names */
+    for (int i = 0; i < program->data.program.stmt_count; i++) {
+        AstNode *stmt = program->data.program.stmts[i];
+        if (stmt->kind == NODE_USING_STMT) {
+            for (int j = 0; j < stmt->data.using_stmt.count; j++) {
+                if (tc->using_module_count >= tc->using_module_cap) {
+                    tc->using_module_cap = tc->using_module_cap ? tc->using_module_cap * 2 : 8;
+                    tc->using_modules = realloc(tc->using_modules,
+                        sizeof(const char *) * (size_t)tc->using_module_cap);
+                }
+                tc->using_modules[tc->using_module_count++] = stmt->data.using_stmt.modules[j];
+                /* Mark the module as used */
+                for (int mi = 0; mi < tc->import_count; mi++) {
+                    if (strcmp(tc->imported_modules[mi], stmt->data.using_stmt.modules[j]) == 0) {
+                        tc->import_used[mi] = true;
+                        break;
+                    }
+                }
+            }
+        }
+        if (stmt->kind == NODE_IMPORT_STMT && stmt->data.import_stmt.auto_use) {
+            for (int j = 0; j < stmt->data.import_stmt.count; j++) {
+                ImportItem *item = &stmt->data.import_stmt.items[j];
+                if (item->module) {
+                    if (tc->using_module_count >= tc->using_module_cap) {
+                        tc->using_module_cap = tc->using_module_cap ? tc->using_module_cap * 2 : 8;
+                        tc->using_modules = realloc(tc->using_modules,
+                            sizeof(const char *) * (size_t)tc->using_module_cap);
+                    }
+                    tc->using_modules[tc->using_module_count++] = item->module;
+                }
+            }
+        }
+    }
 
     /* Pass 2: check all statements */
     for (int i = 0; i < program->data.program.stmt_count; i++) {
