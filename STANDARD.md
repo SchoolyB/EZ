@@ -802,6 +802,12 @@ primary_expr = identifier
 {}  // Empty array
 ```
 
+All elements in an array literal must be the same type. Mixed-type literals are rejected at compile time (E3001):
+
+```ez
+{1, "two", 3}   // error[E3001]: mixed types in array literal
+```
+
 #### 6.1.2 Map Literals
 
 ```ez
@@ -1537,6 +1543,7 @@ Rules:
 - `private` restricts access to other functions in the same struct
 - Called as `StructName.func_name(args...)`
 - Cross-module: `module.StructName.func_name(args...)`
+- Module-qualified types can be used in variable declarations, parameters, and return types: `mut p module.Point`
 
 ### 8.8 Function Scope
 
@@ -1667,6 +1674,8 @@ The core module provides fundamental I/O, type conversion, and utility functions
 | `eprintln` | `(...values) -> nil` | Print to stderr with newline |
 | `eprint` | `(...values) -> nil` | Print to stderr without newline |
 
+All types are printable: `string`, `int`, `float`, `bool`, arrays, maps, structs, and pointers.
+
 #### Input Functions
 
 | Function | Signature | Description |
@@ -1685,7 +1694,7 @@ The core module provides fundamental I/O, type conversion, and utility functions
 | Function | Signature | Description |
 |----------|-----------|-------------|
 | `len` | `(collection) -> int` | Length of array, string, or map |
-| `type_of` | `(value) -> string` | Type name as string |
+| `type_of` | `(value) -> string` | Type name as string (returns sized names, e.g. `"i32"`, `"u8"`) |
 | `size_of` | `(Type) -> int` | Size of type in bytes |
 | `copy` | `(value) -> T` | Create deep copy |
 | `new` | `(Type) -> ^Type` | Allocate zero-initialized struct on arena |
@@ -2343,7 +2352,7 @@ Formatted output functions.
 | `printf` | `(format string, ...args)` | Print formatted string to stdout |
 | `sprintf` | `(format string, ...args) -> string` | Return formatted string |
 
-Accepts `string`, `int`, `float`, and `bool` arguments.
+Accepts `string`, `int`, `float`, and `bool` arguments. Composite types (structs, arrays, maps) are not supported and are rejected at compile time (E3017). Use `println` for printing composite types.
 
 > **Note:** For stderr output, use the builtin `eprintln()` and `eprint()` functions directly — no `@fmt` import needed.
 
@@ -2635,8 +2644,8 @@ block          = "{" { statement } "}" .
 | E2006 | unclosed-bracket | Missing closing bracket |
 | E2007 | unclosed-interpolation | String interpolation not closed |
 | E2008 | invalid-assignment-target | Cannot assign to this expression |
-| E2009 | using-after-declarations | `using` statement must come before declarations |
-| E2010 | using-before-import | Cannot use module before importing |
+| E2009 | using-after-declarations | `using` statement must come before declarations | *(planned)* |
+| E2010 | using-before-import | Cannot use module before importing | *(planned)* |
 | E2011 | const-requires-value | `const` must be initialized |
 | E2012 | duplicate-parameter | Parameter name already used |
 | E2013 | duplicate-field | Field name already used |
@@ -2752,7 +2761,7 @@ block          = "{" { statement } "}" .
 | E4012 | shadows-type | Variable shadows a type definition |
 | E4013 | shadows-function | Variable shadows a function |
 | E4014 | shadows-module | Variable shadows an imported module |
-| E4015 | shadows-used-module-function | Variable shadows a function from a `using` module |
+| E4015 | shadows-used-module-function | Variable shadows a function from a `using` module | *(planned)* |
 | E4016 | loop-variable-shadows-loop-variable | Loop variable shadows outer loop variable |
 
 ### E5xxx — Runtime Errors
