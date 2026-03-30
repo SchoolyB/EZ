@@ -387,6 +387,110 @@ static void test_error_E1010_bad_binary(void) {
     ASSERT_STR_EQ(l->error_code, "E1010");
 }
 
+/* --- Single-character operator tokens --- */
+
+static void test_single_operators(void) {
+    Lexer *l = lex("+ - * / % < > =");
+    ASSERT_EQ(next(l).type, TOK_PLUS);
+    ASSERT_EQ(next(l).type, TOK_MINUS);
+    ASSERT_EQ(next(l).type, TOK_ASTERISK);
+    ASSERT_EQ(next(l).type, TOK_SLASH);
+    ASSERT_EQ(next(l).type, TOK_PERCENT);
+    ASSERT_EQ(next(l).type, TOK_LT);
+    ASSERT_EQ(next(l).type, TOK_GT);
+    ASSERT_EQ(next(l).type, TOK_ASSIGN);
+}
+
+static void test_power_operator(void) {
+    Lexer *l = lex("**");
+    ASSERT_EQ(next(l).type, TOK_POWER);
+}
+
+static void test_percent_assign(void) {
+    Lexer *l = lex("%=");
+    ASSERT_EQ(next(l).type, TOK_PERCENT_ASSIGN);
+}
+
+static void test_ampersand(void) {
+    Lexer *l = lex("&x");
+    ASSERT_EQ(next(l).type, TOK_AMPERSAND);
+    ASSERT_EQ(next(l).type, TOK_IDENT);
+}
+
+static void test_semicolon(void) {
+    Lexer *l = lex(";");
+    ASSERT_EQ(next(l).type, TOK_SEMICOLON);
+}
+
+/* --- Missing keyword tokens --- */
+
+static void test_keyword_in(void) {
+    Lexer *l = lex("in");
+    ASSERT_EQ(next(l).type, TOK_IN);
+}
+
+static void test_keyword_range(void) {
+    Lexer *l = lex("range");
+    ASSERT_EQ(next(l).type, TOK_RANGE);
+}
+
+static void test_keyword_use(void) {
+    Lexer *l = lex("use");
+    ASSERT_EQ(next(l).type, TOK_USE);
+}
+
+static void test_keyword_blank(void) {
+    Lexer *l = lex("_");
+    ASSERT_EQ(next(l).type, TOK_BLANK);
+}
+
+static void test_hash_enum_attr(void) {
+    Lexer *l = lex("#enum");
+    ASSERT_EQ(next(l).type, TOK_ENUM_ATTR);
+}
+
+/* --- Column tracking --- */
+
+static void test_column_tracking(void) {
+    Lexer *l = lex("ab cd");
+    Token t1 = next(l);
+    ASSERT_EQ(t1.column, 1);
+    Token t2 = next(l);
+    ASSERT_EQ(t2.column, 4);
+}
+
+static void test_column_resets_on_newline(void) {
+    Lexer *l = lex("ab\ncd");
+    Token t1 = next(l);
+    ASSERT_EQ(t1.line, 1);
+    ASSERT_EQ(t1.column, 1);
+    Token t2 = next(l);
+    ASSERT_EQ(t2.line, 2);
+    ASSERT_EQ(t2.column, 1);
+}
+
+/* --- Remaining lexer error paths --- */
+
+/* Note: E1015 (underscore after decimal) and E1016 (trailing decimal) are
+ * unreachable — read_number() only consumes the decimal point when followed
+ * by a digit, so these validation checks are dead code. */
+
+/* --- Char escape sequences --- */
+
+static void test_char_escape_newline(void) {
+    Lexer *l = lex("'\\n'");
+    Token t = next(l);
+    ASSERT_EQ(t.type, TOK_CHAR);
+    ASSERT_STR_EQ(t.literal, "\\n");
+}
+
+static void test_char_escape_tab(void) {
+    Lexer *l = lex("'\\t'");
+    Token t = next(l);
+    ASSERT_EQ(t.type, TOK_CHAR);
+    ASSERT_STR_EQ(t.literal, "\\t");
+}
+
 int main(void) {
     arena = arena_create(64 * 1024);
     printf("\n");
@@ -421,6 +525,28 @@ int main(void) {
     RUN_TEST(test_interpolation_tokens);
     RUN_TEST(test_bang_in_vs_bang);
 
+    /* Single-character operators */
+    RUN_TEST(test_single_operators);
+    RUN_TEST(test_power_operator);
+    RUN_TEST(test_percent_assign);
+    RUN_TEST(test_ampersand);
+    RUN_TEST(test_semicolon);
+
+    /* Missing keywords */
+    RUN_TEST(test_keyword_in);
+    RUN_TEST(test_keyword_range);
+    RUN_TEST(test_keyword_use);
+    RUN_TEST(test_keyword_blank);
+    RUN_TEST(test_hash_enum_attr);
+
+    /* Column tracking */
+    RUN_TEST(test_column_tracking);
+    RUN_TEST(test_column_resets_on_newline);
+
+    /* Char escape sequences */
+    RUN_TEST(test_char_escape_newline);
+    RUN_TEST(test_char_escape_tab);
+
     /* Lexer error path tests */
     RUN_TEST(test_error_E1003_unclosed_comment);
     RUN_TEST(test_error_E1005_unclosed_char);
@@ -430,6 +556,7 @@ int main(void) {
     RUN_TEST(test_error_E1011_consecutive_underscores);
     RUN_TEST(test_error_E1013_trailing_underscore);
     RUN_TEST(test_error_E1014_underscore_before_decimal);
+    /* E1015 and E1016 are unreachable (see comment above) */
     RUN_TEST(test_error_E1017_unclosed_raw_string);
     RUN_TEST(test_error_E1010_bad_octal);
     RUN_TEST(test_error_E1010_bad_binary);
