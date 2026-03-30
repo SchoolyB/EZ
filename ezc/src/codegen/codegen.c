@@ -127,6 +127,14 @@ static const char *ez_map_elem_c_type(CodeGen *cg, const char *ez_tn) {
     }
 }
 
+/* Resolve an import alias to the actual module name, or return the name itself */
+static const char *resolve_alias(CodeGen *cg, const char *name) {
+    for (int i = 0; i < cg->alias_count; i++) {
+        if (strcmp(cg->alias_names[i], name) == 0) return cg->alias_modules[i];
+    }
+    return name;
+}
+
 /* Check if a variable name is a mutable parameter in the current function */
 static bool is_ref_var(CodeGen *cg, const char *name) {
     for (int i = 0; i < cg->ref_var_count; i++) {
@@ -2619,6 +2627,9 @@ static void emit_call_expression(CodeGen *cg, AstNode *node) {
     const char *func = NULL;
 
     if (is_stdlib_call(node, &module, &func)) {
+        /* Resolve import aliases: io@std → io.println maps to std.println */
+        if (module) module = resolve_alias(cg, module);
+
         /* No-module builtins (println, len, type_of, etc.) */
         /* Also handle std.println() — std module functions are builtins */
         if ((!module || strcmp(module, "std") == 0) && emit_builtin_call(cg, node, func)) return;
@@ -3717,6 +3728,10 @@ CodeGen codegen_create(const char *file) {
     cg.using_modules = NULL;
     cg.using_module_count = 0;
     cg.using_module_cap = 0;
+    cg.alias_names = NULL;
+    cg.alias_modules = NULL;
+    cg.alias_count = 0;
+    cg.alias_cap = 0;
     return cg;
 }
 
@@ -3733,6 +3748,19 @@ void codegen_generate(CodeGen *cg, AstNode *program) {
                     if (strcmp(item->module, "std") == 0) cg->has_std = true;
                     if (strcmp(item->module, "mem") == 0) cg->has_mem = true;
                     if (strcmp(item->module, "fmt") == 0) cg->has_fmt = true;
+                }
+                /* Track alias → module mapping */
+                if (item->alias && item->module && strcmp(item->alias, item->module) != 0) {
+                    if (cg->alias_count >= cg->alias_cap) {
+                        cg->alias_cap = cg->alias_cap ? cg->alias_cap * 2 : 8;
+                        cg->alias_names = realloc(cg->alias_names,
+                            sizeof(const char *) * (size_t)cg->alias_cap);
+                        cg->alias_modules = realloc(cg->alias_modules,
+                            sizeof(const char *) * (size_t)cg->alias_cap);
+                    }
+                    cg->alias_names[cg->alias_count] = item->alias;
+                    cg->alias_modules[cg->alias_count] = item->module;
+                    cg->alias_count++;
                 }
             }
             /* import & use — register all modules for using */

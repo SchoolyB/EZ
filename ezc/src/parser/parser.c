@@ -1270,31 +1270,31 @@ static AstNode *parse_import_statement(Parser *p) {
         ImportItem *item = &node->data.import_stmt.items[node->data.import_stmt.count];
         memset(item, 0, sizeof(ImportItem));
 
+        if (cur_token_is(p, TOK_AMPERSAND)) {
+            /* import & use syntax — consume '&' then 'use' */
+            node->data.import_stmt.auto_use = true;
+            next_token(p); /* consume 'use' */
+            next_token(p); /* advance to alias or @module */
+        }
+
+        /* Check for alias: identifier followed by @ or string */
+        if (cur_token_is(p, TOK_IDENT) && peek_token_is(p, TOK_AT)) {
+            item->alias = p->cur_token.literal;
+            next_token(p); /* consume alias, now on @ */
+        } else if (cur_token_is(p, TOK_IDENT) && peek_token_is(p, TOK_STRING)) {
+            item->alias = p->cur_token.literal;
+            next_token(p); /* consume alias, now on string */
+        }
+
         if (cur_token_is(p, TOK_AT)) {
             item->is_stdlib = true;
             next_token(p);
             item->module = p->cur_token.literal;
-            item->alias = p->cur_token.literal;
+            if (!item->alias) item->alias = p->cur_token.literal;
         } else if (cur_token_is(p, TOK_STRING)) {
             item->is_stdlib = false;
             item->path = p->cur_token.literal;
-        } else if (cur_token_is(p, TOK_AMPERSAND)) {
-            /* import & use syntax — consume '&' then 'use', then re-read next token */
-            node->data.import_stmt.auto_use = true;
-            next_token(p); /* consume 'use' */
-            next_token(p); /* advance to first module (@std etc.) */
-            if (cur_token_is(p, TOK_AT)) {
-                item->is_stdlib = true;
-                next_token(p);
-                item->module = p->cur_token.literal;
-                item->alias = p->cur_token.literal;
-            } else if (cur_token_is(p, TOK_STRING)) {
-                item->is_stdlib = false;
-                item->path = p->cur_token.literal;
-            } else {
-                continue;
-            }
-        } else if (cur_token_is(p, TOK_IDENT) || cur_token_is(p, TOK_IMPORT)) {
+        } else if (cur_token_is(p, TOK_IDENT)) {
             char buf[256];
             snprintf(buf, sizeof(buf),
                 "expected @module or \"path\" after import, got '%s'",

@@ -104,6 +104,14 @@ static void register_struct(TypeChecker *tc, const char *name,
     si->field_count = field_count;
 }
 
+/* Resolve an import alias to the actual module name */
+static const char *tc_resolve_alias(TypeChecker *tc, const char *name) {
+    for (int i = 0; i < tc->alias_count; i++) {
+        if (strcmp(tc->alias_names[i], name) == 0) return tc->alias_modules[i];
+    }
+    return name;
+}
+
 static bool is_struct_name(TypeChecker *tc, const char *name) {
     for (int i = 0; i < tc->struct_count; i++) {
         if (strcmp(tc->structs[i].struct_name, name) == 0) return true;
@@ -634,11 +642,13 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
         if (fn->kind == NODE_LABEL) {
             fn_name = fn->data.label.value;
         } else if (fn->kind == NODE_MEMBER_EXPR && fn->data.member.object->kind == NODE_LABEL) {
-            const char *mod = fn->data.member.object->data.label.value;
+            const char *mod_raw = fn->data.member.object->data.label.value;
+            const char *mod = tc_resolve_alias(tc, mod_raw);
             const char *mfn = fn->data.member.member;
-            /* Mark module as used */
+            /* Mark module as used (by alias or original name) */
             for (int mi = 0; mi < tc->import_count; mi++) {
-                if (strcmp(tc->imported_modules[mi], mod) == 0) {
+                if (strcmp(tc->imported_modules[mi], mod_raw) == 0 ||
+                    strcmp(tc->imported_modules[mi], mod) == 0) {
                     tc->import_used[mi] = true;
                     break;
                 }
@@ -2675,7 +2685,8 @@ static void register_declarations(TypeChecker *tc, AstNode *program) {
                     diag_error(tc->diag, "E6001", strdup(msg),
                         tc->file, stmt->token.line, stmt->token.column, 0);
                 }
-                /* Record import for unused-import tracking */
+                /* Record import for unused-import tracking.
+                 * Store the ALIAS as the import name (so using/dot notation uses the alias). */
                 if (item->is_stdlib && item->module) {
                     if (tc->import_count >= tc->import_cap) {
                         tc->import_cap = tc->import_cap ? tc->import_cap * 2 : 16;
@@ -2683,10 +2694,21 @@ static void register_declarations(TypeChecker *tc, AstNode *program) {
                         tc->import_lines = realloc(tc->import_lines, sizeof(int) * tc->import_cap);
                         tc->import_used = realloc(tc->import_used, sizeof(bool) * tc->import_cap);
                     }
-                    tc->imported_modules[tc->import_count] = item->module;
+                    tc->imported_modules[tc->import_count] = item->alias ? item->alias : item->module;
                     tc->import_lines[tc->import_count] = stmt->token.line;
                     tc->import_used[tc->import_count] = false;
                     tc->import_count++;
+                }
+                /* Track alias → module mapping */
+                if (item->alias && item->module && strcmp(item->alias, item->module) != 0) {
+                    if (tc->alias_count >= tc->alias_cap) {
+                        tc->alias_cap = tc->alias_cap ? tc->alias_cap * 2 : 8;
+                        tc->alias_names = realloc(tc->alias_names, sizeof(const char *) * tc->alias_cap);
+                        tc->alias_modules = realloc(tc->alias_modules, sizeof(const char *) * tc->alias_cap);
+                    }
+                    tc->alias_names[tc->alias_count] = item->alias;
+                    tc->alias_modules[tc->alias_count] = item->module;
+                    tc->alias_count++;
                 }
             }
         }
