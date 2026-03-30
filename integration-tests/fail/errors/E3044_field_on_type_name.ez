@@ -1,0 +1,13 @@
+/*
+ * Error Test: E3044 - field access on struct type name
+ * Expected: "cannot access field" and "use an instance variable"
+ */
+
+const Point struct {
+    x int
+    y int
+}
+
+do main() {
+    mut val int = Point.x
+}
