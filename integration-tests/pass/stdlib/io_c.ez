@@ -14,8 +14,8 @@ do main() {
     mut test_file string = "/tmp/ez_io_c_test.txt"
     mut content string = "Hello from EZ compiler test!"
 
-    // write_file (just call it, don't capture result — fallible call)
-    io.write_file(test_file, content)
+    // write_file
+    mut _, _ = io.write_file(test_file, content)
     if io.file_exists(test_file) {
         println("  [PASS] write_file + file_exists")
         passed += 1
@@ -54,7 +54,7 @@ do main() {
 
     // rename
     mut renamed string = "/tmp/ez_io_c_test_renamed.txt"
-    io.rename_file(test_file, renamed)
+    mut _, _ = io.rename_file(test_file, renamed)
     if io.file_exists(renamed) {
         println("  [PASS] rename")
         passed += 1
@@ -64,7 +64,7 @@ do main() {
     }
 
     // remove
-    io.delete_file(renamed)
+    mut _, _ = io.delete_file(renamed)
     if io.file_exists(renamed) == false {
         println("  [PASS] remove")
         passed += 1
