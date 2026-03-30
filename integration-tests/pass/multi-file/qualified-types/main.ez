@@ -1,0 +1,49 @@
+/*
+ * main.ez - Test qualified type names (module.Type) in return types and declarations
+ */
+
+import @std
+import "./shapes"
+using std
+
+do main() {
+    println("=== Qualified Type Names Test ===")
+    mut passed int = 0
+    mut failed int = 0
+
+    // Test 1: Function returning module.Type
+    mut c = shapes.make_circle(5.0)
+    if c.radius == 5.0 {
+        println("  [PASS] shapes.make_circle returns Circle with radius 5.0")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] expected radius 5.0")
+        failed += 1
+    }
+
+    // Test 2: Another qualified return type
+    mut r = shapes.make_rect(10, 20)
+    if r.width == 10 {
+        println("  [PASS] shapes.make_rect returns Rect with width 10")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] expected width 10")
+        failed += 1
+    }
+
+    // Test 3: Pass module type to module function
+    mut a int = shapes.area(r)
+    if a == 200 {
+        println("  [PASS] shapes.area(rect) == 200")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] expected area 200, got ${a}")
+        failed += 1
+    }
+
+    println("")
+    println("Results: ${passed} passed, ${failed} failed")
+    if failed > 0 {
+        panic("SOME TESTS FAILED")
+    }
+}

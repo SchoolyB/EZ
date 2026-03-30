@@ -1,0 +1,22 @@
+module shapes
+
+const Circle struct {
+    radius float
+}
+
+const Rect struct {
+    width int
+    height int
+}
+
+do make_circle(r float) -> shapes.Circle {
+    return Circle{radius: r}
+}
+
+do make_rect(w int, h int) -> shapes.Rect {
+    return Rect{width: w, height: h}
+}
+
+do area(r Rect) -> int {
+    return r.width * r.height
+}
