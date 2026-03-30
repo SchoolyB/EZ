@@ -1321,6 +1321,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                     /* Check if it's a variable holding a function reference */
                     Symbol *fn_sym = scope_lookup(tc->current_scope, fn_name);
                     if (fn_sym && fn_sym->type && strcmp(type_name(fn_sym->type), "func") == 0) {
+                        fn_sym->used = true;
                         result = &TYPE_UNKNOWN; /* callable func ref — return type unknown */
                     } else if (fn_sym && fn_sym->type) {
                         /* Variable exists but is not a function */
@@ -1754,7 +1755,10 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                 ref_name = prefixed;
             }
         }
-        if (ref_name && !find_func(tc, ref_name) && !tc_is_builtin(ref_name)) {
+        FuncSig *ref_sig = ref_name ? find_func(tc, ref_name) : NULL;
+        if (ref_sig) {
+            ref_sig->used = true;
+        } else if (ref_name && !tc_is_builtin(ref_name)) {
             char msg[256];
             snprintf(msg, sizeof(msg), "undefined function '%s' in function reference", ref_name);
             const char *suggestion = suggest_name(tc, ref_name);
