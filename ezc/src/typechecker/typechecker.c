@@ -419,6 +419,28 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
          * legitimately take type names as arguments. */
 
         Symbol *sym = scope_lookup(tc->current_scope, name);
+        /* Try using-module-prefixed name if not found */
+        if (!sym) {
+            for (int ui = 0; ui < tc->using_module_count; ui++) {
+                const char *umod = tc_resolve_alias(tc, tc->using_modules[ui]);
+                char prefixed[256];
+                snprintf(prefixed, sizeof(prefixed), "%s_%s", umod, name);
+                sym = scope_lookup(tc->current_scope, prefixed);
+                if (sym) {
+                    /* Rewrite the label to the prefixed name so codegen finds it */
+                    node->data.label.value = strdup(prefixed);
+                    /* Mark module as used */
+                    for (int mi = 0; mi < tc->import_count; mi++) {
+                        if (strcmp(tc->imported_modules[mi], tc->using_modules[ui]) == 0 ||
+                            strcmp(tc->imported_modules[mi], umod) == 0) {
+                            tc->import_used[mi] = true;
+                            break;
+                        }
+                    }
+                    break;
+                }
+            }
+        }
         if (sym) {
             sym->used = true;
             result = sym->type;

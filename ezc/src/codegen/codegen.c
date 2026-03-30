@@ -2752,18 +2752,19 @@ static void emit_call_expression(CodeGen *cg, AstNode *node) {
         }
     }
 
-    /* Check for struct-namespaced function call: StructName.func() */
+    /* Check for struct-namespaced or user-module function call: Name.func() */
     if (node->data.call.function->kind == NODE_MEMBER_EXPR) {
         AstNode *obj = node->data.call.function->data.member.object;
         const char *member = node->data.call.function->data.member.member;
         if (obj->kind == NODE_LABEL) {
-            const char *struct_name = obj->data.label.value;
-            /* Try to find as a struct-namespaced function: StructName_func */
+            const char *raw_name = obj->data.label.value;
+            const char *resolved_name = resolve_alias(cg, raw_name);
+            /* Try to find as a namespaced function: Name_func or ResolvedAlias_func */
             char ns_name[256];
-            snprintf(ns_name, sizeof(ns_name), "%s_%s", struct_name, member);
+            snprintf(ns_name, sizeof(ns_name), "%s_%s", resolved_name, member);
             AstNode *ns_func = find_func(cg, ns_name);
             if (ns_func) {
-                emitf(cg, "ez_fn_%s_%s(", struct_name, member);
+                emitf(cg, "ez_fn_%s_%s(", resolved_name, member);
                 for (int i = 0; i < node->data.call.arg_count; i++) {
                     if (i > 0) emit(cg, ", ");
                     emit_expression(cg, node->data.call.args[i]);

@@ -304,6 +304,110 @@ int main(int argc, char **argv) {
         return 1;
     }
 
+    /* Resolve local imports: parse imported .ez files and merge declarations */
+    {
+        /* Determine the directory of the input file */
+        char input_dir[PATH_BUF_SIZE];
+        strncpy(input_dir, input_file, sizeof(input_dir) - 1);
+        input_dir[sizeof(input_dir) - 1] = '\0';
+        char *last_slash = strrchr(input_dir, '/');
+        if (last_slash) *(last_slash + 1) = '\0';
+        else strcpy(input_dir, "./");
+
+        for (int si = 0; si < program->data.program.stmt_count; si++) {
+            AstNode *stmt = program->data.program.stmts[si];
+            if (stmt->kind != NODE_IMPORT_STMT) continue;
+
+            for (int ii = 0; ii < stmt->data.import_stmt.count; ii++) {
+                ImportItem *item = &stmt->data.import_stmt.items[ii];
+                if (item->is_stdlib || !item->path) continue;
+
+                /* Resolve path relative to input file directory */
+                char import_path[PATH_BUF_SIZE];
+                snprintf(import_path, sizeof(import_path), "%s%s", input_dir, item->path);
+                /* Strip leading ./ if present in the import path */
+                const char *rel = item->path;
+                if (rel[0] == '.' && rel[1] == '/') rel += 2;
+                snprintf(import_path, sizeof(import_path), "%s%s.ez", input_dir, rel);
+
+                /* Derive module name from filename (strip directory and .ez) */
+                const char *mod_name = rel;
+                const char *slash = strrchr(rel, '/');
+                if (slash) mod_name = slash + 1;
+
+                /* Set the alias if not already set */
+                if (!item->alias) item->alias = mod_name;
+                if (!item->module) item->module = mod_name;
+
+                /* Read and parse the imported file */
+                char *imp_source = read_file(import_path);
+                if (!imp_source) {
+                    fprintf(stderr, "ezc: cannot open imported file '%s'\n", import_path);
+                    continue;
+                }
+
+                Lexer *imp_lexer = lexer_create(arena, imp_source, import_path);
+                Parser *imp_parser = parser_create(arena, imp_lexer, import_path, diag);
+                AstNode *imp_program = parser_parse_program(imp_parser);
+
+                if (!imp_program || diag_has_errors(diag)) continue;
+
+                /* Merge imported declarations into main program.
+                 * Prefix function names with the module name. */
+                for (int mi = 0; mi < imp_program->data.program.stmt_count; mi++) {
+                    AstNode *imp_stmt = imp_program->data.program.stmts[mi];
+                    /* Skip import/using/module declarations from imported file */
+                    if (imp_stmt->kind == NODE_IMPORT_STMT ||
+                        imp_stmt->kind == NODE_USING_STMT ||
+                        imp_stmt->kind == NODE_MODULE_DECL) continue;
+
+                    /* Prefix function names with module name */
+                    if (imp_stmt->kind == NODE_FUNC_DECL) {
+                        char *prefixed = arena_alloc(arena, 256);
+                        snprintf(prefixed, 256, "%s_%s", mod_name, imp_stmt->data.func_decl.name);
+                        imp_stmt->data.func_decl.name = prefixed;
+                    }
+
+                    /* Prefix constant names with module name */
+                    if (imp_stmt->kind == NODE_VAR_DECL && !imp_stmt->data.var_decl.mutable) {
+                        char *prefixed = arena_alloc(arena, 256);
+                        snprintf(prefixed, 256, "%s_%s", mod_name, imp_stmt->data.var_decl.name);
+                        imp_stmt->data.var_decl.name = prefixed;
+                    }
+
+                    /* Insert into main program BEFORE existing declarations.
+                     * This ensures imported constants/functions are visible to all code. */
+                    if (program->data.program.stmt_count >= program->data.program.stmt_cap) {
+                        int new_cap = program->data.program.stmt_cap * 2;
+                        AstNode **new_stmts = arena_alloc(arena, sizeof(AstNode *) * new_cap);
+                        memcpy(new_stmts, program->data.program.stmts,
+                               sizeof(AstNode *) * program->data.program.stmt_count);
+                        program->data.program.stmts = new_stmts;
+                        program->data.program.stmt_cap = new_cap;
+                    }
+                    /* Find insertion point: after imports/using, before other declarations */
+                    int insert_at = 0;
+                    for (int k = 0; k < program->data.program.stmt_count; k++) {
+                        if (program->data.program.stmts[k]->kind == NODE_IMPORT_STMT ||
+                            program->data.program.stmts[k]->kind == NODE_USING_STMT) {
+                            insert_at = k + 1;
+                        } else {
+                            break;
+                        }
+                    }
+                    /* Shift existing stmts to make room */
+                    memmove(&program->data.program.stmts[insert_at + 1],
+                            &program->data.program.stmts[insert_at],
+                            sizeof(AstNode *) * (program->data.program.stmt_count - insert_at));
+                    program->data.program.stmts[insert_at] = imp_stmt;
+                    program->data.program.stmt_count++;
+                    /* Adjust si since we shifted statements */
+                    si++;
+                }
+            }
+        }
+    }
+
     /* Type check */
     TypeChecker *tc = typechecker_create(diag, input_file);
     typechecker_check(tc, program);
