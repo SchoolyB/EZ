@@ -1,0 +1,13 @@
+/*
+ * Error Test: E3045 - or_return on function that doesn't return error
+ * Expected: "or_return requires a function that returns (T, Error)"
+ */
+
+do get_value() -> int {
+    return 42
+}
+
+do main() -> (int, Error) {
+    mut v = get_value() or_return
+    return v, nil
+}
