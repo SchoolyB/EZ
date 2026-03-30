@@ -1051,6 +1051,22 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
             break;
         }
 
+        /* Member call on expression result: foo().bar() */
+        if (fn->kind == NODE_MEMBER_EXPR && fn->data.member.object->kind != NODE_LABEL) {
+            EzType *obj_t = resolve_expr(tc, fn->data.member.object);
+            if (obj_t && obj_t->kind != TK_STRUCT && obj_t->kind != TK_UNKNOWN &&
+                obj_t->kind != TK_VOID) {
+                char msg[256];
+                snprintf(msg, sizeof(msg),
+                    "type '%s' has no methods — only structs support method calls",
+                    type_name(obj_t));
+                diag_error(tc->diag, "E3013", strdup(msg),
+                    tc->file, fn->token.line, fn->token.column, 0);
+            }
+            result = &TYPE_UNKNOWN;
+            break;
+        }
+
         if (fn_name) {
             /* If calling a builtin, mark @std as used */
             if (tc_is_builtin(fn_name)) {
@@ -1383,6 +1399,19 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
             if (!obj_t) obj_t = resolve_expr(tc, obj);
             if (obj_t && obj_t->kind == TK_STRUCT) {
                 result = struct_field_type(tc, obj_t->name, member);
+            }
+        } else {
+            /* Object is an expression (e.g. foo().bar) — resolve its type */
+            EzType *obj_t = resolve_expr(tc, obj);
+            if (obj_t && obj_t->kind == TK_STRUCT) {
+                result = struct_field_type(tc, obj_t->name, member);
+            } else if (obj_t && obj_t->kind != TK_UNKNOWN && obj_t->kind != TK_VOID) {
+                char msg[256];
+                snprintf(msg, sizeof(msg),
+                    "type '%s' has no fields or methods — only structs support member access",
+                    type_name(obj_t));
+                diag_error(tc->diag, "E3013", strdup(msg),
+                    tc->file, node->token.line, node->token.column, 0);
             }
         }
         break;
