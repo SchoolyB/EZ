@@ -1359,6 +1359,16 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
             }
             /* Struct-namespaced function or enum access: Type.func() / Type.MEMBER */
             if (!sym && is_struct_name(tc, obj_name)) {
+                /* Check if member is a field — can't access fields on the type itself */
+                EzType *ft = struct_field_type(tc, obj_name, member);
+                if (ft && ft->kind != TK_UNKNOWN) {
+                    char msg[256];
+                    snprintf(msg, sizeof(msg),
+                        "cannot access field '%s' on type '%s' — use an instance variable instead",
+                        member, obj_name);
+                    diag_error(tc->diag, "E3044", strdup(msg),
+                        tc->file, node->token.line, node->token.column, 0);
+                }
                 result = &TYPE_UNKNOWN;
             }
         } else if (obj->kind == NODE_MEMBER_EXPR) {
