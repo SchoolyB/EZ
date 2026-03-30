@@ -192,6 +192,15 @@ EzType *type_from_name(const char *name) {
         return t;
     }
 
+    /* Qualified type: module.Type → use the base name */
+    const char *dot = strchr(name, '.');
+    if (dot) {
+        const char *base = dot + 1;
+        if (base[0] >= 'A' && base[0] <= 'Z') {
+            return type_struct(base);
+        }
+    }
+
     /* Uppercase = struct type */
     if (name[0] >= 'A' && name[0] <= 'Z') {
         return type_struct(name);

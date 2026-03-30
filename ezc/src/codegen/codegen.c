@@ -94,6 +94,19 @@ static const char *ez_type_to_c_cg(CodeGen *cg, const char *type_name) {
         return "EzMap";
     }
 
+    /* Qualified type name: module.Type → strip module prefix */
+    const char *dot = strchr(type_name, '.');
+    if (dot) {
+        const char *base = dot + 1;
+        static char buf[256];
+        if (cg && codegen_is_enum(cg, base)) {
+            snprintf(buf, sizeof(buf), "EzEnum_%s", base);
+        } else {
+            snprintf(buf, sizeof(buf), "EzStruct_%s", base);
+        }
+        return buf;
+    }
+
     /* If starts with uppercase, it's a user-defined type */
     if (type_name[0] >= 'A' && type_name[0] <= 'Z') {
         static char buf[256];
