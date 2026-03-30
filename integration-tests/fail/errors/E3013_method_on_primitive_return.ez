@@ -1,0 +1,15 @@
+/*
+ * Error Test: E3013 - method call on non-struct return value
+ * Expected: "has no methods" or "has no fields"
+ */
+
+import @std
+using std
+
+do get_num() -> int {
+    return 42
+}
+
+do main() {
+    mut x = get_num().something()
+}

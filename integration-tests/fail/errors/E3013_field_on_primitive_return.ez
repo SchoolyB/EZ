@@ -1,0 +1,15 @@
+/*
+ * Error Test: E3013 - field access on non-struct return value
+ * Expected: "has no fields or methods"
+ */
+
+import @std
+using std
+
+do get_name() -> string {
+    return "hello"
+}
+
+do main() {
+    mut x = get_name().length
+}
