@@ -1516,10 +1516,31 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
         result = &TYPE_INT;
         break;
 
-    case NODE_CAST_EXPR:
-        resolve_expr(tc, node->data.cast.value);
-        result = type_from_name(node->data.cast.target_type);
+    case NODE_CAST_EXPR: {
+        EzType *src_t = resolve_expr(tc, node->data.cast.value);
+        EzType *dst_t = type_from_name(node->data.cast.target_type);
+        /* Reject casting composite types to/from incompatible types */
+        if (src_t && src_t->kind != TK_UNKNOWN && dst_t && dst_t->kind != TK_UNKNOWN) {
+            bool src_composite = (src_t->kind == TK_STRUCT || src_t->kind == TK_MAP ||
+                                  (src_t->kind == TK_ARRAY && dst_t->kind != TK_ARRAY));
+            bool dst_composite = (dst_t->kind == TK_STRUCT || dst_t->kind == TK_MAP);
+            if (src_composite || dst_composite) {
+                char tn[128];
+                if (src_t->kind == TK_ARRAY && src_t->element_type)
+                    snprintf(tn, sizeof(tn), "[%s]", src_t->element_type);
+                else
+                    snprintf(tn, sizeof(tn), "%s", type_name(src_t));
+                char msg[256];
+                snprintf(msg, sizeof(msg),
+                    "cannot cast '%s' to '%s'",
+                    tn, node->data.cast.target_type);
+                diag_error(tc->diag, "E3043", strdup(msg),
+                    tc->file, node->token.line, node->token.column, 0);
+            }
+        }
+        result = dst_t;
         break;
+    }
 
     case NODE_NEW_EXPR:
         if (!is_struct_name(tc, node->data.new_expr.type_name)) {
