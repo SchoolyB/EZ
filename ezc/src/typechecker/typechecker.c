@@ -1739,9 +1739,38 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
         result = type_pointer(node->data.new_expr.type_name);
         break;
 
-    case NODE_FUNC_REF:
+    case NODE_FUNC_REF: {
+        /* Validate that the referenced function exists */
+        const char *ref_name = NULL;
+        if (node->data.func_ref.function->kind == NODE_LABEL) {
+            ref_name = node->data.func_ref.function->data.label.value;
+        } else if (node->data.func_ref.function->kind == NODE_MEMBER_EXPR) {
+            /* Struct.method → lookup as Struct_method */
+            AstNode *obj = node->data.func_ref.function->data.member.object;
+            const char *member = node->data.func_ref.function->data.member.member;
+            if (obj->kind == NODE_LABEL) {
+                char *prefixed = malloc(strlen(obj->data.label.value) + strlen(member) + 2);
+                sprintf(prefixed, "%s_%s", obj->data.label.value, member);
+                ref_name = prefixed;
+            }
+        }
+        if (ref_name && !find_func(tc, ref_name) && !tc_is_builtin(ref_name)) {
+            char msg[256];
+            snprintf(msg, sizeof(msg), "undefined function '%s' in function reference", ref_name);
+            const char *suggestion = suggest_name(tc, ref_name);
+            if (suggestion) {
+                char help[256];
+                snprintf(help, sizeof(help), "did you mean '%s'?", suggestion);
+                diag_error_help(tc->diag, "E4002", strdup(msg),
+                    tc->file, node->token.line, node->token.column, 0, strdup(help));
+            } else {
+                diag_error(tc->diag, "E4002", strdup(msg),
+                    tc->file, node->token.line, node->token.column, 0);
+            }
+        }
         result = type_from_name("func");
         break;
+    }
 
     default:
         break;
