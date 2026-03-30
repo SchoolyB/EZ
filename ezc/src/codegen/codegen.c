@@ -108,6 +108,25 @@ static const char *ez_type_to_c_cg(CodeGen *cg, const char *type_name) {
     return type_name;
 }
 
+/* Resolve an EZ type to its C type for map key/value storage.
+ * Uses ez_type_to_c_cg for struct/array/map types, hardcoded for primitives. */
+static const char *ez_map_elem_c_type(CodeGen *cg, const char *ez_tn) {
+    if (!ez_tn) return "int64_t";
+    EzType *t = type_from_name(ez_tn);
+    switch (t->kind) {
+    case TK_FLOAT:   return "double";
+    case TK_STRING:  return "EzString";
+    case TK_BOOL:    return "bool";
+    case TK_CHAR:    return "int32_t";
+    case TK_BYTE:    return "uint8_t";
+    case TK_ARRAY:   return "EzArray";
+    case TK_MAP:     return "EzMap";
+    case TK_STRUCT:  return ez_type_to_c_cg(cg, ez_tn);
+    case TK_POINTER: return ez_type_to_c_cg(cg, ez_tn);
+    default:         return "int64_t";
+    }
+}
+
 /* Check if a variable name is a mutable parameter in the current function */
 static bool is_ref_var(CodeGen *cg, const char *name) {
     for (int i = 0; i < cg->ref_var_count; i++) {
@@ -473,9 +492,7 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
             EzType *kt = cg->type_table ? typetable_get(cg->type_table, node->data.map_value.keys[0]) : NULL;
             EzType *vt = cg->type_table ? typetable_get(cg->type_table, node->data.map_value.values[0]) : NULL;
             if (kt && (kt->kind == TK_INT || kt->kind == TK_UINT)) c_key_type = "int64_t";
-            if (vt && vt->kind == TK_FLOAT) c_val_type = "double";
-            else if (vt && vt->kind == TK_STRING) c_val_type = "EzString";
-            else if (vt && vt->kind == TK_BOOL) c_val_type = "bool";
+            if (vt) c_val_type = ez_map_elem_c_type(cg, type_name(vt));
         }
 
         /* Use GCC statement expression: ({ EzMap m = ...; ez_map_set(...); m; }) */
@@ -910,12 +927,7 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
                 EzType *kt = type_from_name(left_t->key_type);
                 if (kt->kind == TK_INT || kt->kind == TK_UINT) c_key = "int64_t";
             }
-            if (left_t->value_type) {
-                EzType *vt = type_from_name(left_t->value_type);
-                if (vt->kind == TK_FLOAT) c_val = "double";
-                else if (vt->kind == TK_STRING) c_val = "EzString";
-                else if (vt->kind == TK_BOOL) c_val = "bool";
-            }
+            if (left_t->value_type) c_val = ez_map_elem_c_type(cg, left_t->value_type);
             emitf(cg, "({ %s _mk = ", c_key);
             emit_expression(cg, node->data.index_expr.index);
             emitf(cg, "; void *_mv = ez_map_get(&");
@@ -2852,12 +2864,7 @@ static void emit_var_declaration(CodeGen *cg, AstNode *node) {
             EzType *kt = type_from_name(mt->key_type);
             if (kt->kind == TK_INT || kt->kind == TK_UINT) c_kt = "int64_t";
         }
-        if (mt && mt->value_type) {
-            EzType *vt = type_from_name(mt->value_type);
-            if (vt->kind == TK_FLOAT) c_vt = "double";
-            else if (vt->kind == TK_STRING) c_vt = "EzString";
-            else if (vt->kind == TK_BOOL) c_vt = "bool";
-        }
+        if (mt && mt->value_type) c_vt = ez_map_elem_c_type(cg, mt->value_type);
 
         emitf(cg, "EzMap %s = ", node->data.var_decl.name);
         if (node->data.var_decl.value &&
@@ -3012,12 +3019,7 @@ static void emit_assign_statement(CodeGen *cg, AstNode *node) {
         if (left_t && left_t->kind == TK_MAP) {
             /* Map key assignment: ez_map_set(arena, &m, &key, &value) */
             const char *c_val = "int64_t";
-            if (left_t->value_type) {
-                EzType *vt = type_from_name(left_t->value_type);
-                if (vt->kind == TK_FLOAT) c_val = "double";
-                else if (vt->kind == TK_STRING) c_val = "EzString";
-                else if (vt->kind == TK_BOOL) c_val = "bool";
-            }
+            if (left_t->value_type) c_val = ez_map_elem_c_type(cg, left_t->value_type);
             const char *c_key = "EzString";
             if (left_t->key_type) {
                 EzType *kt = type_from_name(left_t->key_type);
@@ -3412,12 +3414,7 @@ static void emit_statement(CodeGen *cg, AstNode *node) {
                 EzType *kt = type_from_name(coll_t->key_type);
                 if (kt->kind == TK_INT || kt->kind == TK_UINT) c_key = "int64_t";
             }
-            if (coll_t->value_type) {
-                EzType *vt = type_from_name(coll_t->value_type);
-                if (vt->kind == TK_FLOAT) c_val = "double";
-                else if (vt->kind == TK_STRING) c_val = "EzString";
-                else if (vt->kind == TK_BOOL) c_val = "bool";
-            }
+            if (coll_t->value_type) c_val = ez_map_elem_c_type(cg, coll_t->value_type);
 
             /* Iterate in insertion order using the order array */
             char slot_name[32];
