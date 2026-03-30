@@ -1038,6 +1038,144 @@ static void test_e2e_div_zero(void) {
     }
 }
 
+/* ===== Sized Integer Types ===== */
+
+static void test_e2e_sized_int_i8(void) {
+    char *out = compile_and_run(
+        "import @std\nusing std\n"
+        "do main() {\n"
+        "  mut x i8 = 127\n"
+        "  println(x)\n"
+        "  println(type_of(x))\n"
+        "}");
+    ASSERT_NOT_NULL(out);
+    ASSERT_STR_EQ(out, "127\ni8");
+}
+
+static void test_e2e_sized_int_u8(void) {
+    char *out = compile_and_run(
+        "import @std\nusing std\n"
+        "do main() {\n"
+        "  mut x u8 = 255\n"
+        "  println(x)\n"
+        "  println(type_of(x))\n"
+        "}");
+    ASSERT_NOT_NULL(out);
+    ASSERT_STR_EQ(out, "255\nu8");
+}
+
+static void test_e2e_sized_int_i32(void) {
+    char *out = compile_and_run(
+        "import @std\nusing std\n"
+        "do main() {\n"
+        "  mut x i32 = 100000\n"
+        "  mut y i32 = 200000\n"
+        "  println(x + y)\n"
+        "}");
+    ASSERT_NOT_NULL(out);
+    ASSERT_STR_EQ(out, "300000");
+}
+
+static void test_e2e_sized_int_u64(void) {
+    char *out = compile_and_run(
+        "import @std\nusing std\n"
+        "do main() {\n"
+        "  mut x u64 = 1000000\n"
+        "  println(x)\n"
+        "  println(type_of(x))\n"
+        "}");
+    ASSERT_NOT_NULL(out);
+    ASSERT_STR_EQ(out, "1000000\nu64");
+}
+
+static void test_e2e_sized_float_f32(void) {
+    char *out = compile_and_run(
+        "import @std\nusing std\n"
+        "do main() {\n"
+        "  mut x f32 = 3.14\n"
+        "  println(type_of(x))\n"
+        "}");
+    ASSERT_NOT_NULL(out);
+    ASSERT_STR_EQ(out, "f32");
+}
+
+static void test_e2e_byte_type(void) {
+    char *out = compile_and_run(
+        "import @std\nusing std\n"
+        "do main() {\n"
+        "  mut b byte = cast(255, byte)\n"
+        "  println(b)\n"
+        "  println(type_of(b))\n"
+        "}");
+    ASSERT_NOT_NULL(out);
+    ASSERT_STR_EQ(out, "255\nbyte");
+}
+
+/* ===== Cast Expression ===== */
+
+static void test_e2e_cast(void) {
+    char *out = compile_and_run(
+        "import @std\nusing std\n"
+        "do main() {\n"
+        "  mut x int = 42\n"
+        "  mut y u8 = cast(x, u8)\n"
+        "  println(y)\n"
+        "  mut f float = 3.7\n"
+        "  mut i int = cast(f, int)\n"
+        "  println(i)\n"
+        "}");
+    ASSERT_NOT_NULL(out);
+    ASSERT_STR_EQ(out, "42\n3");
+}
+
+/* ===== Continue in Loop ===== */
+
+static void test_e2e_continue(void) {
+    char *out = compile_and_run(
+        "import @std\nusing std\n"
+        "do main() {\n"
+        "  mut result int = 0\n"
+        "  for i in range(0, 10) {\n"
+        "    if i % 2 == 0 { continue }\n"
+        "    result += i\n"
+        "  }\n"
+        "  println(result)\n"
+        "}");
+    ASSERT_NOT_NULL(out);
+    /* sum of odd numbers 1+3+5+7+9 = 25 */
+    ASSERT_STR_EQ(out, "25");
+}
+
+/* ===== Modulo/Divide Compound Assign ===== */
+
+static void test_e2e_mod_div_assign(void) {
+    char *out = compile_and_run(
+        "import @std\nusing std\n"
+        "do main() {\n"
+        "  mut x int = 20\n"
+        "  x /= 4\n"
+        "  println(x)\n"
+        "}");
+    ASSERT_NOT_NULL(out);
+    ASSERT_STR_EQ(out, "5");
+}
+
+/* ===== Nested Structs ===== */
+
+static void test_e2e_nested_struct(void) {
+    char *out = compile_and_run(
+        "import @std\nusing std\n"
+        "const Point struct { x int\n y int }\n"
+        "const Rect struct { origin Point\n size Point }\n"
+        "do main() {\n"
+        "  mut r = Rect{origin: Point{x: 1, y: 2}, size: Point{x: 10, y: 20}}\n"
+        "  println(r.origin.x)\n"
+        "  println(r.size.y)\n"
+        "}");
+    ASSERT_NOT_NULL(out);
+    ASSERT_STR_EQ(out, "1\n20");
+}
+
 int main(void) {
     /* Must run from the ezc/ directory */
     if (access("./ezc", X_OK) != 0) {
@@ -1138,6 +1276,26 @@ int main(void) {
 
     /* Division by zero */
     RUN_TEST(test_e2e_div_zero);
+
+    /* Sized integer types */
+    RUN_TEST(test_e2e_sized_int_i8);
+    RUN_TEST(test_e2e_sized_int_u8);
+    RUN_TEST(test_e2e_sized_int_i32);
+    RUN_TEST(test_e2e_sized_int_u64);
+    RUN_TEST(test_e2e_sized_float_f32);
+    RUN_TEST(test_e2e_byte_type);
+
+    /* Cast expression */
+    RUN_TEST(test_e2e_cast);
+
+    /* Continue */
+    RUN_TEST(test_e2e_continue);
+
+    /* Compound assign */
+    RUN_TEST(test_e2e_mod_div_assign);
+
+    /* Nested structs */
+    RUN_TEST(test_e2e_nested_struct);
 
     PRINT_RESULTS();
     return _test_fail > 0 ? 1 : 0;
