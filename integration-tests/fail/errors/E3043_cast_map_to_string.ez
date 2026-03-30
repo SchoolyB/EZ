@@ -1,0 +1,9 @@
+/*
+ * Error Test: E3043 - cannot cast map to string
+ * Expected: "cannot cast"
+ */
+
+do main() {
+    mut m map[string:int] = {"a": 1}
+    mut s string = cast(m, string)
+}
