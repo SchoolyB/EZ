@@ -2714,21 +2714,38 @@ static void emit_call_expression(CodeGen *cg, AstNode *node) {
             };
             for (int ui = 0; ui < cg->using_module_count; ui++) {
                 const char *umod = cg->using_modules[ui];
-                /* Check if func belongs to this using module */
+                const char *real_mod = resolve_alias(cg, umod);
+                /* 1) Check stdlib table */
                 bool found = false;
                 for (int fi = 0; func_to_mod[fi].func; fi++) {
                     if (strcmp(func, func_to_mod[fi].func) == 0 &&
-                        strcmp(umod, func_to_mod[fi].mod) == 0) {
+                        strcmp(real_mod, func_to_mod[fi].mod) == 0) {
                         found = true;
                         break;
                     }
                 }
-                if (!found) continue;
-                /* Dispatch to the module handler */
-                for (int mi = 0; mi < (int)(sizeof(modules) / sizeof(modules[0])); mi++) {
-                    if (strcmp(umod, modules[mi].name) == 0) {
-                        if (modules[mi].handler(cg, node, func)) return;
-                        break;
+                if (found) {
+                    /* Dispatch to the stdlib module handler */
+                    for (int mi = 0; mi < (int)(sizeof(modules) / sizeof(modules[0])); mi++) {
+                        if (strcmp(real_mod, modules[mi].name) == 0) {
+                            if (modules[mi].handler(cg, node, func)) return;
+                            break;
+                        }
+                    }
+                }
+                /* 2) Try user-defined module: <module>_<func> */
+                if (!found) {
+                    char prefixed[256];
+                    snprintf(prefixed, sizeof(prefixed), "%s_%s", real_mod, func);
+                    AstNode *uf = find_func(cg, prefixed);
+                    if (uf) {
+                        emitf(cg, "ez_fn_%s_%s(", real_mod, func);
+                        for (int i = 0; i < node->data.call.arg_count; i++) {
+                            if (i > 0) emit(cg, ", ");
+                            emit_expression(cg, node->data.call.args[i]);
+                        }
+                        emit(cg, ")");
+                        return;
                     }
                 }
             }

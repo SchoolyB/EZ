@@ -1045,18 +1045,31 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                     result = &TYPE_VOID;
                 }
             } else {
-                /* Check if 'mod' is a variable with a struct type —
-                 * user likely wrote instance.func() instead of Type.func() */
-                Symbol *sym = scope_lookup(tc->current_scope, mod);
-                if (sym && sym->type && sym->type->kind == TK_STRUCT) {
-                    char msg[256];
-                    snprintf(msg, sizeof(msg),
-                        "struct functions must be called on the type — use '%s.%s()' instead of '%s.%s()'",
-                        sym->type->name, mfn, mod, mfn);
-                    diag_error(tc->diag, "E3042", strdup(msg),
-                        tc->file, fn->token.line, fn->token.column, 0);
+                /* Try user-defined module: look up <module>_<func> in function registry */
+                char prefixed[256];
+                snprintf(prefixed, sizeof(prefixed), "%s_%s", mod, mfn);
+                FuncSig *sig = find_func(tc, prefixed);
+                if (sig) {
+                    sig->used = true;
+                    if (sig->return_count > 0) {
+                        result = sig->return_types[0];
+                    } else {
+                        result = &TYPE_VOID;
+                    }
+                } else {
+                    /* Check if 'mod' is a variable with a struct type —
+                     * user likely wrote instance.func() instead of Type.func() */
+                    Symbol *sym = scope_lookup(tc->current_scope, mod_raw);
+                    if (sym && sym->type && sym->type->kind == TK_STRUCT) {
+                        char msg[256];
+                        snprintf(msg, sizeof(msg),
+                            "struct functions must be called on the type — use '%s.%s()' instead of '%s.%s()'",
+                            sym->type->name, mfn, mod_raw, mfn);
+                        diag_error(tc->diag, "E3042", strdup(msg),
+                            tc->file, fn->token.line, fn->token.column, 0);
+                    }
+                    result = &TYPE_VOID;
                 }
-                result = &TYPE_VOID;
             }
             break;
         }
@@ -1078,10 +1091,12 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
         }
 
         if (fn_name) {
-            /* If calling a builtin, mark @std as used */
+            /* If calling a builtin, mark @std as used (including aliases for std) */
             if (tc_is_builtin(fn_name)) {
                 for (int mi = 0; mi < tc->import_count; mi++) {
-                    if (strcmp(tc->imported_modules[mi], "std") == 0) {
+                    const char *resolved = tc_resolve_alias(tc, tc->imported_modules[mi]);
+                    if (strcmp(tc->imported_modules[mi], "std") == 0 ||
+                        strcmp(resolved, "std") == 0) {
                         tc->import_used[mi] = true;
                         break;
                     }
@@ -1339,9 +1354,12 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                         };
                         for (int ui = 0; ui < tc->using_module_count && !found_in_using; ui++) {
                             const char *umod = tc->using_modules[ui];
+                            /* Resolve alias to actual module name */
+                            const char *real_mod = tc_resolve_alias(tc, umod);
+                            /* 1) Try hardcoded stdlib table */
                             for (int fi = 0; using_funcs[fi].func; fi++) {
                                 if (strcmp(fn_name, using_funcs[fi].func) == 0 &&
-                                    strcmp(umod, using_funcs[fi].mod) == 0) {
+                                    strcmp(real_mod, using_funcs[fi].mod) == 0) {
                                     found_in_using = true;
                                     switch (using_funcs[fi].ret) {
                                     case TK_STRING: result = &TYPE_STRING; break;
@@ -1351,14 +1369,32 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                                     case TK_VOID:   result = &TYPE_VOID; break;
                                     default:        result = &TYPE_UNKNOWN; break;
                                     }
-                                    /* Mark module as used */
-                                    for (int mi = 0; mi < tc->import_count; mi++) {
-                                        if (strcmp(tc->imported_modules[mi], umod) == 0) {
-                                            tc->import_used[mi] = true;
-                                            break;
-                                        }
-                                    }
                                     break;
+                                }
+                            }
+                            /* 2) Try user-defined module: look up <module>_<func> */
+                            if (!found_in_using) {
+                                char prefixed[256];
+                                snprintf(prefixed, sizeof(prefixed), "%s_%s", real_mod, fn_name);
+                                FuncSig *sig = find_func(tc, prefixed);
+                                if (sig) {
+                                    found_in_using = true;
+                                    if (sig->return_count > 0) {
+                                        result = sig->return_types[0];
+                                    } else {
+                                        result = &TYPE_VOID;
+                                    }
+                                    sig->used = true;
+                                }
+                            }
+                            if (found_in_using) {
+                                /* Mark module as used */
+                                for (int mi = 0; mi < tc->import_count; mi++) {
+                                    if (strcmp(tc->imported_modules[mi], umod) == 0 ||
+                                        strcmp(tc->imported_modules[mi], real_mod) == 0) {
+                                        tc->import_used[mi] = true;
+                                        break;
+                                    }
                                 }
                             }
                         }
