@@ -92,22 +92,42 @@ EzType *type_from_name(const char *name) {
     if (!name) return &TYPE_UNKNOWN;
 
     if (strcmp(name, "int") == 0)    return &TYPE_INT;
-    if (strcmp(name, "i8") == 0)     return &TYPE_INT;
-    if (strcmp(name, "i16") == 0)    return &TYPE_INT;
-    if (strcmp(name, "i32") == 0)    return &TYPE_INT;
-    if (strcmp(name, "i64") == 0)    return &TYPE_INT;
-    if (strcmp(name, "i128") == 0)   return &TYPE_INT;
-    if (strcmp(name, "i256") == 0)   return &TYPE_INT;
     if (strcmp(name, "uint") == 0)   return &TYPE_UINT;
-    if (strcmp(name, "u8") == 0)     return &TYPE_UINT;
-    if (strcmp(name, "u16") == 0)    return &TYPE_UINT;
-    if (strcmp(name, "u32") == 0)    return &TYPE_UINT;
-    if (strcmp(name, "u64") == 0)    return &TYPE_UINT;
-    if (strcmp(name, "u128") == 0)   return &TYPE_UINT;
-    if (strcmp(name, "u256") == 0)   return &TYPE_UINT;
     if (strcmp(name, "float") == 0)  return &TYPE_FLOAT;
-    if (strcmp(name, "f32") == 0)    return &TYPE_FLOAT;
-    if (strcmp(name, "f64") == 0)    return &TYPE_FLOAT;
+
+    /* Sized integer and float types: same kind as parent but preserve name */
+    if (strcmp(name, "i8") == 0 || strcmp(name, "i16") == 0 ||
+        strcmp(name, "i32") == 0 || strcmp(name, "i64") == 0) {
+        EzType *t = type_alloc();
+        t->kind = TK_INT;
+        t->name = name;
+        return t;
+    }
+    if (strcmp(name, "i128") == 0 || strcmp(name, "i256") == 0) {
+        EzType *t = type_alloc();
+        t->kind = TK_INT;
+        t->name = name;
+        return t;
+    }
+    if (strcmp(name, "u8") == 0 || strcmp(name, "u16") == 0 ||
+        strcmp(name, "u32") == 0 || strcmp(name, "u64") == 0) {
+        EzType *t = type_alloc();
+        t->kind = TK_UINT;
+        t->name = name;
+        return t;
+    }
+    if (strcmp(name, "u128") == 0 || strcmp(name, "u256") == 0) {
+        EzType *t = type_alloc();
+        t->kind = TK_UINT;
+        t->name = name;
+        return t;
+    }
+    if (strcmp(name, "f32") == 0 || strcmp(name, "f64") == 0) {
+        EzType *t = type_alloc();
+        t->kind = TK_FLOAT;
+        t->name = name;
+        return t;
+    }
     if (strcmp(name, "bool") == 0)   return &TYPE_BOOL;
     if (strcmp(name, "char") == 0)   return &TYPE_CHAR;
     if (strcmp(name, "byte") == 0)   return &TYPE_BYTE;
