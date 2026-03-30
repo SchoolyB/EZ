@@ -333,6 +333,227 @@ static void test_parse_for_each_index(void) {
     ASSERT_EQ(stmt->kind, NODE_FUNC_DECL);
 }
 
+/* Helper: get the first statement inside main()'s body */
+static AstNode *body_stmt(AstNode *prog, int index) {
+    AstNode *fn = first_stmt(prog);
+    if (!fn || fn->kind != NODE_FUNC_DECL) return NULL;
+    AstNode *body = fn->data.func_decl.body;
+    if (!body || body->kind != NODE_BLOCK_STMT) return NULL;
+    if (index >= body->data.block.count) return NULL;
+    return body->data.block.stmts[index];
+}
+
+/* Helper: get the value expression from first var decl in main */
+static AstNode *var_value(AstNode *prog) {
+    AstNode *stmt = body_stmt(prog, 0);
+    if (!stmt || stmt->kind != NODE_VAR_DECL) return NULL;
+    return stmt->data.var_decl.value;
+}
+
+/* --- Expression AST Tests --- */
+
+static void test_parse_infix_expr(void) {
+    AstNode *prog = parse("do main() { mut x = 1 + 2 * 3 }");
+    AstNode *val = var_value(prog);
+    ASSERT_NOT_NULL(val);
+    ASSERT_EQ(val->kind, NODE_INFIX_EXPR);
+    /* 1 + (2 * 3) — left is 1, right is 2*3 */
+    ASSERT_STR_EQ(val->data.infix.op, "+");
+    ASSERT_EQ(val->data.infix.left->kind, NODE_INT_VALUE);
+    ASSERT_EQ(val->data.infix.right->kind, NODE_INFIX_EXPR);
+    ASSERT_STR_EQ(val->data.infix.right->data.infix.op, "*");
+}
+
+static void test_parse_prefix_expr(void) {
+    AstNode *prog = parse("do main() { mut x = -42 }");
+    AstNode *val = var_value(prog);
+    ASSERT_NOT_NULL(val);
+    ASSERT_EQ(val->kind, NODE_PREFIX_EXPR);
+    ASSERT_STR_EQ(val->data.prefix.op, "-");
+    ASSERT_EQ(val->data.prefix.right->kind, NODE_INT_VALUE);
+}
+
+static void test_parse_not_expr(void) {
+    AstNode *prog = parse("do main() { mut x = !true }");
+    AstNode *val = var_value(prog);
+    ASSERT_NOT_NULL(val);
+    ASSERT_EQ(val->kind, NODE_PREFIX_EXPR);
+    ASSERT_STR_EQ(val->data.prefix.op, "!");
+    ASSERT_EQ(val->data.prefix.right->kind, NODE_BOOL_VALUE);
+}
+
+static void test_parse_postfix_expr(void) {
+    AstNode *prog = parse("do main() { mut x int = 0\n x++ }");
+    AstNode *stmt = body_stmt(prog, 1);
+    ASSERT_NOT_NULL(stmt);
+    ASSERT_EQ(stmt->kind, NODE_EXPR_STMT);
+    ASSERT_EQ(stmt->data.expr_stmt.expr->kind, NODE_POSTFIX_EXPR);
+    ASSERT_STR_EQ(stmt->data.expr_stmt.expr->data.postfix.op, "++");
+}
+
+static void test_parse_index_expr(void) {
+    AstNode *prog = parse("do main() { mut a [int] = {1,2,3}\n mut x = a[1] }");
+    AstNode *val = body_stmt(prog, 1);
+    ASSERT_NOT_NULL(val);
+    ASSERT_EQ(val->kind, NODE_VAR_DECL);
+    ASSERT_EQ(val->data.var_decl.value->kind, NODE_INDEX_EXPR);
+}
+
+static void test_parse_member_expr(void) {
+    AstNode *prog = parse(
+        "const P struct { x int }\n"
+        "do main() { mut p P = P{x: 1}\n mut v = p.x }");
+    /* main is stmt[1] (after struct) */
+    AstNode *fn = prog->data.program.stmts[1];
+    ASSERT_NOT_NULL(fn);
+    ASSERT_EQ(fn->kind, NODE_FUNC_DECL);
+    AstNode *vdecl = fn->data.func_decl.body->data.block.stmts[1];
+    ASSERT_EQ(vdecl->data.var_decl.value->kind, NODE_MEMBER_EXPR);
+}
+
+static void test_parse_call_expr(void) {
+    AstNode *prog = parse("do foo() -> int { return 1 }\n do main() { mut x = foo() }");
+    AstNode *fn = prog->data.program.stmts[1];
+    AstNode *vdecl = fn->data.func_decl.body->data.block.stmts[0];
+    ASSERT_NOT_NULL(vdecl);
+    ASSERT_EQ(vdecl->data.var_decl.value->kind, NODE_CALL_EXPR);
+}
+
+static void test_parse_cast_expr(void) {
+    AstNode *prog = parse("do main() { mut x = cast(42, u8) }");
+    AstNode *val = var_value(prog);
+    ASSERT_NOT_NULL(val);
+    ASSERT_EQ(val->kind, NODE_CAST_EXPR);
+    ASSERT_STR_EQ(val->data.cast.target_type, "u8");
+}
+
+static void test_parse_new_expr(void) {
+    AstNode *prog = parse(
+        "const Foo struct { x int }\n"
+        "do main() { mut p = new(Foo) }");
+    AstNode *fn = prog->data.program.stmts[1];
+    AstNode *vdecl = fn->data.func_decl.body->data.block.stmts[0];
+    ASSERT_NOT_NULL(vdecl);
+    ASSERT_EQ(vdecl->data.var_decl.value->kind, NODE_NEW_EXPR);
+    ASSERT_STR_EQ(vdecl->data.var_decl.value->data.new_expr.type_name, "Foo");
+}
+
+static void test_parse_comparison_operators(void) {
+    AstNode *prog = parse("do main() { mut x = 1 < 2 }");
+    AstNode *val = var_value(prog);
+    ASSERT_NOT_NULL(val);
+    ASSERT_EQ(val->kind, NODE_INFIX_EXPR);
+    ASSERT_STR_EQ(val->data.infix.op, "<");
+}
+
+static void test_parse_logical_and_or(void) {
+    AstNode *prog = parse("do main() { mut x = true && false || true }");
+    AstNode *val = var_value(prog);
+    ASSERT_NOT_NULL(val);
+    ASSERT_EQ(val->kind, NODE_INFIX_EXPR);
+    /* || has lower precedence than && */
+    ASSERT_STR_EQ(val->data.infix.op, "||");
+}
+
+/* --- Literal AST Tests --- */
+
+static void test_parse_bool_literal(void) {
+    AstNode *prog = parse("do main() { mut x = true }");
+    AstNode *val = var_value(prog);
+    ASSERT_NOT_NULL(val);
+    ASSERT_EQ(val->kind, NODE_BOOL_VALUE);
+}
+
+static void test_parse_float_literal(void) {
+    AstNode *prog = parse("do main() { mut x = 3.14 }");
+    AstNode *val = var_value(prog);
+    ASSERT_NOT_NULL(val);
+    ASSERT_EQ(val->kind, NODE_FLOAT_VALUE);
+}
+
+static void test_parse_string_literal(void) {
+    AstNode *prog = parse("do main() { mut x = \"hello\" }");
+    AstNode *val = var_value(prog);
+    ASSERT_NOT_NULL(val);
+    ASSERT_EQ(val->kind, NODE_STRING_VALUE);
+}
+
+static void test_parse_char_literal(void) {
+    AstNode *prog = parse("do main() { mut x = 'A' }");
+    AstNode *val = var_value(prog);
+    ASSERT_NOT_NULL(val);
+    ASSERT_EQ(val->kind, NODE_CHAR_VALUE);
+}
+
+static void test_parse_nil_literal(void) {
+    AstNode *prog = parse("do main() { mut x = nil }");
+    AstNode *val = var_value(prog);
+    ASSERT_NOT_NULL(val);
+    ASSERT_EQ(val->kind, NODE_NIL_VALUE);
+}
+
+/* --- Statement AST Tests --- */
+
+static void test_parse_assign_stmt(void) {
+    AstNode *prog = parse("do main() { mut x int = 1\n x = 2 }");
+    AstNode *stmt = body_stmt(prog, 1);
+    ASSERT_NOT_NULL(stmt);
+    ASSERT_EQ(stmt->kind, NODE_ASSIGN_STMT);
+}
+
+static void test_parse_compound_assign(void) {
+    AstNode *prog = parse("do main() { mut x int = 1\n x += 5 }");
+    AstNode *stmt = body_stmt(prog, 1);
+    ASSERT_NOT_NULL(stmt);
+    ASSERT_EQ(stmt->kind, NODE_ASSIGN_STMT);
+}
+
+static void test_parse_break_continue(void) {
+    AstNode *prog = parse("do main() { loop { break } }");
+    AstNode *loop = body_stmt(prog, 0);
+    ASSERT_NOT_NULL(loop);
+    ASSERT_EQ(loop->kind, NODE_LOOP_STMT);
+    AstNode *brk = loop->data.loop_stmt.body->data.block.stmts[0];
+    ASSERT_EQ(brk->kind, NODE_BREAK_STMT);
+}
+
+static void test_parse_continue_stmt(void) {
+    AstNode *prog = parse("do main() { loop { continue } }");
+    AstNode *loop = body_stmt(prog, 0);
+    AstNode *cont = loop->data.loop_stmt.body->data.block.stmts[0];
+    ASSERT_EQ(cont->kind, NODE_CONTINUE_STMT);
+}
+
+static void test_parse_map_literal(void) {
+    AstNode *prog = parse("do main() { mut m = {\"a\": 1, \"b\": 2} }");
+    AstNode *val = var_value(prog);
+    ASSERT_NOT_NULL(val);
+    ASSERT_EQ(val->kind, NODE_MAP_VALUE);
+}
+
+static void test_parse_multi_return(void) {
+    AstNode *prog = parse("do pair() -> (int, int) { return 1, 2 }");
+    AstNode *fn = first_stmt(prog);
+    ASSERT_NOT_NULL(fn);
+    ASSERT_EQ(fn->kind, NODE_FUNC_DECL);
+    ASSERT_EQ(fn->data.func_decl.return_type_count, 2);
+}
+
+static void test_parse_using_stmt(void) {
+    AstNode *prog = parse("import @std\n using std");
+    /* using should be stmt[1] */
+    ASSERT(prog->data.program.stmt_count >= 2);
+    ASSERT_EQ(prog->data.program.stmts[1]->kind, NODE_USING_STMT);
+}
+
+static void test_parse_blank_ident(void) {
+    AstNode *prog = parse("do pair() -> (int, int) { return 1, 2 }\n do main() { mut _, b = pair() }");
+    AstNode *fn = prog->data.program.stmts[1];
+    /* Just check it parses without crashing */
+    ASSERT_NOT_NULL(fn);
+    ASSERT_EQ(fn->kind, NODE_FUNC_DECL);
+}
+
 int main(void) {
     arena = arena_create(256 * 1024);
     printf("\n");
@@ -369,6 +590,37 @@ int main(void) {
     RUN_TEST(test_parse_nested_array);
     RUN_TEST(test_parse_private_struct_func);
     RUN_TEST(test_parse_for_each_index);
+
+    /* Expression AST tests */
+    RUN_TEST(test_parse_infix_expr);
+    RUN_TEST(test_parse_prefix_expr);
+    RUN_TEST(test_parse_not_expr);
+    RUN_TEST(test_parse_postfix_expr);
+    RUN_TEST(test_parse_index_expr);
+    RUN_TEST(test_parse_member_expr);
+    RUN_TEST(test_parse_call_expr);
+    RUN_TEST(test_parse_cast_expr);
+    RUN_TEST(test_parse_new_expr);
+    RUN_TEST(test_parse_comparison_operators);
+    RUN_TEST(test_parse_logical_and_or);
+
+    /* Literal AST tests */
+    RUN_TEST(test_parse_bool_literal);
+    RUN_TEST(test_parse_float_literal);
+    RUN_TEST(test_parse_string_literal);
+    RUN_TEST(test_parse_char_literal);
+    RUN_TEST(test_parse_nil_literal);
+
+    /* Statement AST tests */
+    RUN_TEST(test_parse_assign_stmt);
+    RUN_TEST(test_parse_compound_assign);
+    RUN_TEST(test_parse_break_continue);
+    RUN_TEST(test_parse_continue_stmt);
+    RUN_TEST(test_parse_map_literal);
+    RUN_TEST(test_parse_multi_return);
+    RUN_TEST(test_parse_using_stmt);
+    RUN_TEST(test_parse_blank_ident);
+
     PRINT_RESULTS();
     return _test_fail > 0 ? 1 : 0;
 }
