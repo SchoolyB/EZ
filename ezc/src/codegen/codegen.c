@@ -3075,6 +3075,12 @@ static void emit_var_declaration(CodeGen *cg, AstNode *node) {
             const char *pfx = bigint_prefix(type_name);
             const char *from_suffix = (strcmp(type_name, "u128") == 0 || strcmp(type_name, "u256") == 0) ? "u64" : "i64";
             emitf(cg, "%s_from_%s(%lldLL)", pfx, from_suffix, (long long)v);
+        } else if (type_name && type_name[0] == '^' &&
+                   node->data.var_decl.value->kind == NODE_LABEL &&
+                   is_ref_var(cg, node->data.var_decl.value->data.label.value)) {
+            /* Assigning a ref variable to a ^T pointer — pass the pointer through
+             * without auto-dereferencing */
+            emit(cg, node->data.var_decl.value->data.label.value);
         } else {
             emit_expression(cg, node->data.var_decl.value);
         }
@@ -3168,10 +3174,20 @@ static void emit_assign_statement(CodeGen *cg, AstNode *node) {
         return;
     }
 
-    /* Default assignment */
+    /* Default assignment — suppress ref auto-deref when assigning to a pointer target */
     emit_expression(cg, node->data.assign.target);
     emitf(cg, " %s ", node->data.assign.op);
-    emit_expression(cg, node->data.assign.value);
+    if (node->data.assign.value->kind == NODE_LABEL &&
+        is_ref_var(cg, node->data.assign.value->data.label.value)) {
+        EzType *tgt_t = cg->type_table ? typetable_get(cg->type_table, node->data.assign.target) : NULL;
+        if (tgt_t && tgt_t->kind == TK_POINTER) {
+            emit(cg, node->data.assign.value->data.label.value);
+        } else {
+            emit_expression(cg, node->data.assign.value);
+        }
+    } else {
+        emit_expression(cg, node->data.assign.value);
+    }
     emit(cg, ";\n");
 }
 
