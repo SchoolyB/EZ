@@ -74,6 +74,7 @@ typedef struct {
     EzType **current_return_types; /* expected return types of current function */
     const char **current_return_type_names; /* raw declared return type names */
     int current_return_count;
+    bool current_has_named_returns; /* true if current function uses named return values */
 
     /* Import tracking for unused import warnings */
     const char **imported_modules;

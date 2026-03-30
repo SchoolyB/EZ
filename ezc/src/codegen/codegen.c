@@ -73,7 +73,7 @@ static const char *ez_type_to_c_cg(CodeGen *cg, const char *type_name) {
     if (strcmp(type_name, "char") == 0)   return "int32_t";
     if (strcmp(type_name, "byte") == 0)   return "uint8_t";
     if (strcmp(type_name, "string") == 0) return "EzString";
-    if (strcmp(type_name, "Error") == 0) return "EzError *";
+    if (strcmp(type_name, "Error") == 0 || strcmp(type_name, "error") == 0) return "EzError *";
     if (strcmp(type_name, "func") == 0)  return "void *"; /* generic fn ptr — cast at call site */
 
     /* Pointer type: ^T — use C pointer */
@@ -3241,6 +3241,30 @@ static void emit_return_statement(CodeGen *cg, AstNode *node) {
         emit(cg, "{ __auto_type _ret = ");
         emit_expression(cg, node->data.return_stmt.values[0]);
         emit(cg, "; ez_exit_func(); return _ret; }\n");
+    } else if (node->data.return_stmt.count == 0 && cg->current_func &&
+               cg->current_func->data.func_decl.return_names &&
+               cg->current_func->data.func_decl.return_type_count > 0) {
+        /* Bare return in function with named return values — collect named vars */
+        int rc = cg->current_func->data.func_decl.return_type_count;
+        if (rc == 1 && cg->current_func->data.func_decl.return_names[0]) {
+            emit_indent(cg);
+            emitf(cg, "{ __auto_type _ret = %s; ez_exit_func(); return _ret; }\n",
+                cg->current_func->data.func_decl.return_names[0]);
+        } else {
+            emit_indent(cg);
+            emitf(cg, "{ EzMulti_%s _ret = (EzMulti_%s){",
+                cg->current_func->data.func_decl.name,
+                cg->current_func->data.func_decl.name);
+            for (int i = 0; i < rc; i++) {
+                if (i > 0) emit(cg, ", ");
+                if (cg->current_func->data.func_decl.return_names[i]) {
+                    emitf(cg, "%s", cg->current_func->data.func_decl.return_names[i]);
+                } else {
+                    emit(cg, "0");
+                }
+            }
+            emit(cg, "}; ez_exit_func(); return _ret; }\n");
+        }
     } else {
         /* Bare return (no value, non-void — shouldn't happen but handle gracefully) */
         emit_indent(cg);
@@ -3468,6 +3492,33 @@ static void emit_func_declaration(CodeGen *cg, AstNode *node, bool is_main) {
         emit_ensure_cleanup(cg);
         emit_indent(cg);
         emit(cg, "ez_exit_func();\n");
+
+        /* Implicit return for named return values (fall-through without explicit return) */
+        if (node->data.func_decl.return_names &&
+            node->data.func_decl.return_type_count > 0) {
+            bool has_named = false;
+            for (int i = 0; i < node->data.func_decl.return_type_count; i++) {
+                if (node->data.func_decl.return_names[i]) { has_named = true; break; }
+            }
+            if (has_named) {
+                int rc = node->data.func_decl.return_type_count;
+                emit_indent(cg);
+                if (rc == 1 && node->data.func_decl.return_names[0]) {
+                    emitf(cg, "return %s;\n", node->data.func_decl.return_names[0]);
+                } else {
+                    emitf(cg, "return (EzMulti_%s){", node->data.func_decl.name);
+                    for (int i = 0; i < rc; i++) {
+                        if (i > 0) emit(cg, ", ");
+                        if (node->data.func_decl.return_names[i]) {
+                            emitf(cg, "%s", node->data.func_decl.return_names[i]);
+                        } else {
+                            emit(cg, "0");
+                        }
+                    }
+                    emit(cg, "};\n");
+                }
+            }
+        }
     }
     cg->current_func = prev_func;
     cg->indent--;

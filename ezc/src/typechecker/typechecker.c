@@ -2214,8 +2214,9 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
             /* Returning a value from a void function */
             diag_error(tc->diag, "E3006", strdup("cannot return a value from a void function"),
                 tc->file, node->token.line, node->token.column, 0);
-        } else if (tc->current_return_count > 0 && node->data.return_stmt.count == 0) {
-            /* Bare return in non-void function */
+        } else if (tc->current_return_count > 0 && node->data.return_stmt.count == 0 &&
+                   !tc->current_has_named_returns) {
+            /* Bare return in non-void function (without named returns) */
             diag_error(tc->diag, "E3006",
                 strdup("missing return value — function expects a return value"),
                 tc->file, node->token.line, node->token.column, 0);
@@ -2529,6 +2530,19 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
         EzType **prev_ret = tc->current_return_types;
         const char **prev_ret_names = tc->current_return_type_names;
         int prev_ret_count = tc->current_return_count;
+        bool prev_named = tc->current_has_named_returns;
+
+        /* Detect named return values */
+        tc->current_has_named_returns = false;
+        if (node->data.func_decl.return_names) {
+            for (int i = 0; i < node->data.func_decl.return_type_count; i++) {
+                if (node->data.func_decl.return_names[i]) {
+                    tc->current_has_named_returns = true;
+                    break;
+                }
+            }
+        }
+
         if (node->data.func_decl.return_type_count > 0) {
             tc->current_return_types = malloc(sizeof(EzType *) * node->data.func_decl.return_type_count);
             tc->current_return_type_names = malloc(sizeof(const char *) * node->data.func_decl.return_type_count);
@@ -2612,6 +2626,7 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
         tc->current_return_types = prev_ret;
         tc->current_return_type_names = prev_ret_names;
         tc->current_return_count = prev_ret_count;
+        tc->current_has_named_returns = prev_named;
         tc->func_depth--;
         tc->current_scope = outer;
         break;
