@@ -1,0 +1,81 @@
+# Auto-label PRs based on paths changed
+# Used by .github/workflows/auto-label.yml
+
+# Compiler components
+ezc:
+  - changed-files:
+      - any-glob-to-any-file: "ezc/**"
+
+lexer:
+  - changed-files:
+      - any-glob-to-any-file: "ezc/src/lexer/**"
+
+parser:
+  - changed-files:
+      - any-glob-to-any-file: "ezc/src/parser/**"
+
+typechecker:
+  - changed-files:
+      - any-glob-to-any-file: "ezc/src/typechecker/**"
+
+stdlib:
+  - changed-files:
+      - any-glob-to-any-file:
+          - "ezc/src/stdlib/**"
+          - "pkg/stdlib/**"
+
+error-messages:
+  - changed-files:
+      - any-glob-to-any-file:
+          - "ezc/src/util/error_codes.h"
+          - "ERRORS.md"
+
+# Go CLI
+cli:
+  - changed-files:
+      - any-glob-to-any-file:
+          - "cmd/**"
+          - "pkg/**"
+          - "main.go"
+
+# Tests
+tests:
+  - changed-files:
+      - any-glob-to-any-file:
+          - "ezc/tests/**"
+          - "integration-tests/**"
+          - "**/*_test.go"
+
+# Documentation
+documentation:
+  - changed-files:
+      - any-glob-to-any-file:
+          - "*.md"
+          - "docs/**"
+
+# CI/CD
+CI/CD:
+  - changed-files:
+      - any-glob-to-any-file:
+          - ".github/workflows/**"
+          - ".github/labeler.yml"
+          - "Makefile"
+
+# WASM
+wasm:
+  - changed-files:
+      - any-glob-to-any-file: "cmd/wasm/**"
+
+# Module system
+module-system:
+  - changed-files:
+      - any-glob-to-any-file:
+          - "pkg/modules/**"
+          - "ezc/src/stdlib/**"
+
+# Dependencies
+dependencies:
+  - changed-files:
+      - any-glob-to-any-file:
+          - "go.mod"
+          - "go.sum"
