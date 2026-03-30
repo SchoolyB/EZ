@@ -1,0 +1,19 @@
+/*
+ * Error Test: E3042 - struct function with args called on instance
+ * Expected: "struct functions must be called on the type"
+ */
+
+const Point struct {
+    x int
+    y int
+}
+
+do Point.add(a Point, b Point) -> Point {
+    return Point{x: a.x + b.x, y: a.y + b.y}
+}
+
+do main() {
+    mut p Point = Point{x: 1, y: 2}
+    mut q Point = Point{x: 3, y: 4}
+    mut r Point = p.add(p, q)
+}

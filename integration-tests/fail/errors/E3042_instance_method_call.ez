@@ -1,0 +1,17 @@
+/*
+ * Error Test: E3042 - struct function called on instance
+ * Expected: "struct functions must be called on the type"
+ */
+
+const Foo struct {
+    value int
+}
+
+do Foo.bar() -> int {
+    return 42
+}
+
+do main() {
+    mut f Foo = Foo{value: 1}
+    mut result int = f.bar()
+}
