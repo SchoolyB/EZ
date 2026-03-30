@@ -1,0 +1,130 @@
+/*
+ * typeof_sized_types.ez - Test type_of() returns sized type names
+ */
+
+import @std
+using std
+
+do main() {
+    println("=== Typeof Sized Types Test ===")
+    mut passed int = 0
+    mut failed int = 0
+
+    // Signed integers
+    mut a i8 = 1
+    if type_of(a) == "i8" {
+        println("  [PASS] type_of(i8) == \"i8\"")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] type_of(i8) got \"${type_of(a)}\"")
+        failed += 1
+    }
+
+    mut b i16 = 2
+    if type_of(b) == "i16" {
+        println("  [PASS] type_of(i16) == \"i16\"")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] type_of(i16) got \"${type_of(b)}\"")
+        failed += 1
+    }
+
+    mut c i32 = 3
+    if type_of(c) == "i32" {
+        println("  [PASS] type_of(i32) == \"i32\"")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] type_of(i32) got \"${type_of(c)}\"")
+        failed += 1
+    }
+
+    mut d i64 = 4
+    if type_of(d) == "i64" {
+        println("  [PASS] type_of(i64) == \"i64\"")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] type_of(i64) got \"${type_of(d)}\"")
+        failed += 1
+    }
+
+    // Unsigned integers
+    mut e u8 = 5
+    if type_of(e) == "u8" {
+        println("  [PASS] type_of(u8) == \"u8\"")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] type_of(u8) got \"${type_of(e)}\"")
+        failed += 1
+    }
+
+    mut f u16 = 6
+    if type_of(f) == "u16" {
+        println("  [PASS] type_of(u16) == \"u16\"")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] type_of(u16) got \"${type_of(f)}\"")
+        failed += 1
+    }
+
+    mut g u32 = 7
+    if type_of(g) == "u32" {
+        println("  [PASS] type_of(u32) == \"u32\"")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] type_of(u32) got \"${type_of(g)}\"")
+        failed += 1
+    }
+
+    mut h u64 = 8
+    if type_of(h) == "u64" {
+        println("  [PASS] type_of(u64) == \"u64\"")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] type_of(u64) got \"${type_of(h)}\"")
+        failed += 1
+    }
+
+    // Floats
+    mut i f32 = 1.0
+    if type_of(i) == "f32" {
+        println("  [PASS] type_of(f32) == \"f32\"")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] type_of(f32) got \"${type_of(i)}\"")
+        failed += 1
+    }
+
+    mut j f64 = 2.0
+    if type_of(j) == "f64" {
+        println("  [PASS] type_of(f64) == \"f64\"")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] type_of(f64) got \"${type_of(j)}\"")
+        failed += 1
+    }
+
+    // Parent types still work
+    mut k int = 42
+    if type_of(k) == "int" {
+        println("  [PASS] type_of(int) == \"int\"")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] type_of(int) got \"${type_of(k)}\"")
+        failed += 1
+    }
+
+    mut l float = 3.14
+    if type_of(l) == "float" {
+        println("  [PASS] type_of(float) == \"float\"")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] type_of(float) got \"${type_of(l)}\"")
+        failed += 1
+    }
+
+    println("")
+    println("Results: ${passed} passed, ${failed} failed")
+    if failed > 0 {
+        panic("SOME TESTS FAILED")
+    }
+}
