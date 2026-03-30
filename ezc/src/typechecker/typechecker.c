@@ -1192,9 +1192,15 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                     if (node->data.call.arg_count < min_args ||
                         node->data.call.arg_count > sig->param_count) {
                         char msg[256];
-                        snprintf(msg, sizeof(msg),
-                            "function '%s' expects %d argument(s), got %d",
-                            fn_name, sig->param_count, node->data.call.arg_count);
+                        if (min_args == sig->param_count) {
+                            snprintf(msg, sizeof(msg),
+                                "function '%s' expects %d argument(s), got %d",
+                                fn_name, sig->param_count, node->data.call.arg_count);
+                        } else {
+                            snprintf(msg, sizeof(msg),
+                                "function '%s' expects %d-%d argument(s), got %d",
+                                fn_name, min_args, sig->param_count, node->data.call.arg_count);
+                        }
                         diag_error(tc->diag, "E5008", strdup(msg),
                             tc->file, node->token.line, node->token.column, 0);
                     }
