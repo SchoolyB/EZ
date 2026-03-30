@@ -1,0 +1,69 @@
+/* Test: Named return variable with different variable returned
+ * Related to #1238 (W2011) — verifies that returning a different
+ * variable than the named return still produces correct output.
+ * Expected: all tests pass (W2011 warnings are expected)
+ */
+
+import @std
+using std
+
+do get_value() -> (result int) {
+    mut other int = 99
+    return other
+}
+
+do get_pair() -> (name string, age int) {
+    mut n string = "Bob"
+    mut a int = 25
+    return n, a
+}
+
+do get_proper() -> (name string) {
+    name = "Alice"
+    return name
+}
+
+do main() {
+    println("=== Named Return Mismatch Tests ===")
+    mut passed int = 0
+    mut failed int = 0
+
+    // Test 1: returning different var than named — value is correct
+    mut v int = get_value()
+    if v == 99 {
+        println("  [PASS] returning other var produces correct value")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] returning other var")
+        failed += 1
+    }
+
+    // Test 2: multi-return with different vars — values correct
+    mut n string, a int = get_pair()
+    if n == "Bob" && a == 25 {
+        println("  [PASS] multi-return with different vars correct")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] multi-return with different vars")
+        failed += 1
+    }
+
+    // Test 3: proper named return — no warning, correct value
+    mut proper string = get_proper()
+    if proper == "Alice" {
+        println("  [PASS] proper named return — correct value")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] proper named return")
+        failed += 1
+    }
+
+    // Summary
+    println("")
+    println("Results: ${passed} passed, ${failed} failed")
+    if failed > 0 {
+        println("SOME TESTS FAILED")
+    } otherwise {
+        println("ALL TESTS PASSED")
+    }
+}
