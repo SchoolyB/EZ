@@ -3,7 +3,7 @@
 > Auto-generated from `ezc/src/util/error_codes.h`. Do not edit manually.
 > Run `./scripts/generate_errors.sh` to regenerate.
 
-**Total: 89 codes** (85 errors, 4 warnings)
+**Total: 90 codes** (86 errors, 4 warnings)
 
 ---
 
@@ -73,6 +73,7 @@
 | `E3042` | types | struct functions must be called on the type, not an instance — use Type.func() instead of variable.func() |
 | `E3043` | types | cannot cast between incompatible types — structs and maps cannot be cast to primitives |
 | `E3044` | types | cannot access a field on a struct type — use an instance variable instead |
+| `E3045` | types | or_return requires a function that returns (T, Error) — the called function does not return an error |
 | `E4001` | names | this variable does not exist — check the spelling or make sure it is declared above this line |
 | `E4002` | names | this function does not exist — check the spelling or make sure it is defined |
 | `E4003` | names | a variable with this name already exists in this scope — use a different name |
@@ -126,4 +127,4 @@
 
 ---
 
-*Generated on 2026-03-30 00:18:17 UTC*
+*Generated on 2026-03-30 00:22:46 UTC*

@@ -1700,6 +1700,40 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
                 strdup("'any' type is reserved for internal use and cannot be used in declarations"),
                 tc->file, node->token.line, node->token.column, 0);
         }
+        /* E3045: or_return on non-error-returning function */
+        if (strncmp(node->data.var_decl.name, "_ez_or", 6) == 0 &&
+            node->data.var_decl.value && node->data.var_decl.value->kind == NODE_CALL_EXPR) {
+            AstNode *call_fn = node->data.var_decl.value->data.call.function;
+            const char *call_name = NULL;
+            if (call_fn->kind == NODE_LABEL) call_name = call_fn->data.label.value;
+            else if (call_fn->kind == NODE_MEMBER_EXPR && call_fn->data.member.object->kind == NODE_LABEL) {
+                /* module.func() or Type.func() — construct prefixed name */
+                static char prefixed[256];
+                snprintf(prefixed, sizeof(prefixed), "%s_%s",
+                    call_fn->data.member.object->data.label.value, call_fn->data.member.member);
+                call_name = prefixed;
+            }
+            if (call_name) {
+                FuncSig *sig = find_func(tc, call_name);
+                if (sig && (sig->return_count < 2 ||
+                    sig->return_types[sig->return_count - 1]->kind != TK_ERROR)) {
+                    char display[256];
+                    if (call_fn->kind == NODE_MEMBER_EXPR)
+                        snprintf(display, sizeof(display), "%s.%s",
+                            call_fn->data.member.object->data.label.value,
+                            call_fn->data.member.member);
+                    else
+                        snprintf(display, sizeof(display), "%s", call_name);
+                    char msg[256];
+                    snprintf(msg, sizeof(msg),
+                        "'or_return' requires a function that returns (T, Error) — '%s()' does not return an error",
+                        display);
+                    diag_error(tc->diag, "E3045", strdup(msg),
+                        tc->file, node->data.var_decl.value->token.line,
+                        node->data.var_decl.value->token.column, 0);
+                }
+            }
+        }
         /* const must have a value */
         if (!node->data.var_decl.mutable && !node->data.var_decl.value) {
             char msg[256];
