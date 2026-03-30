@@ -1,0 +1,12 @@
+/*
+ * Error Test: E5008 - too many args for function with default params
+ * Expected: "expects 1-2 argument(s), got 3"
+ */
+
+do greet(name string, greeting string = "Hello") -> string {
+    return "${greeting}, ${name}!"
+}
+
+do main() {
+    mut s string = greet("Alice", "Hi", "extra")
+}
