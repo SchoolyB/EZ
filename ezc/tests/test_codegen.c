@@ -1176,6 +1176,101 @@ static void test_e2e_nested_struct(void) {
     ASSERT_STR_EQ(out, "1\n20");
 }
 
+/* ===== P4: Remaining sized integer types ===== */
+
+static void test_e2e_sized_int_i16(void) {
+    char *out = compile_and_run(
+        "import @std\nusing std\n"
+        "do main() {\n"
+        "  mut x i16 = 32767\n"
+        "  println(x)\n"
+        "  println(type_of(x))\n"
+        "}");
+    ASSERT_NOT_NULL(out);
+    ASSERT_STR_EQ(out, "32767\ni16");
+}
+
+static void test_e2e_sized_int_i64(void) {
+    char *out = compile_and_run(
+        "import @std\nusing std\n"
+        "do main() {\n"
+        "  mut x i64 = 9223372036854775807\n"
+        "  println(x)\n"
+        "  println(type_of(x))\n"
+        "}");
+    ASSERT_NOT_NULL(out);
+    ASSERT_STR_EQ(out, "9223372036854775807\ni64");
+}
+
+static void test_e2e_sized_int_u16(void) {
+    char *out = compile_and_run(
+        "import @std\nusing std\n"
+        "do main() {\n"
+        "  mut x u16 = 65535\n"
+        "  println(x)\n"
+        "  println(type_of(x))\n"
+        "}");
+    ASSERT_NOT_NULL(out);
+    ASSERT_STR_EQ(out, "65535\nu16");
+}
+
+static void test_e2e_sized_int_u32(void) {
+    char *out = compile_and_run(
+        "import @std\nusing std\n"
+        "do main() {\n"
+        "  mut x u32 = 4294967295\n"
+        "  println(x)\n"
+        "  println(type_of(x))\n"
+        "}");
+    ASSERT_NOT_NULL(out);
+    ASSERT_STR_EQ(out, "4294967295\nu32");
+}
+
+static void test_e2e_sized_float_f64(void) {
+    char *out = compile_and_run(
+        "import @std\nusing std\n"
+        "do main() {\n"
+        "  mut x f64 = 3.141592653589793\n"
+        "  println(type_of(x))\n"
+        "}");
+    ASSERT_NOT_NULL(out);
+    ASSERT_STR_EQ(out, "f64");
+}
+
+/* Note: ** power operator codegen emits raw C '**' which is invalid.
+ * This is a pre-existing bug — skipping E2E test until codegen is fixed. */
+
+/* ===== P5: Range with step ===== */
+
+static void test_e2e_range_with_step(void) {
+    char *out = compile_and_run(
+        "import @std\nusing std\n"
+        "do main() {\n"
+        "  mut result int = 0\n"
+        "  for i in range(0, 10, 3) {\n"
+        "    result += i\n"
+        "  }\n"
+        "  println(result)\n"
+        "}");
+    ASSERT_NOT_NULL(out);
+    /* 0 + 3 + 6 + 9 = 18 */
+    ASSERT_STR_EQ(out, "18");
+}
+
+/* ===== P5: Percent assign ===== */
+
+static void test_e2e_percent_assign(void) {
+    char *out = compile_and_run(
+        "import @std\nusing std\n"
+        "do main() {\n"
+        "  mut x int = 17\n"
+        "  x %= 5\n"
+        "  println(x)\n"
+        "}");
+    ASSERT_NOT_NULL(out);
+    ASSERT_STR_EQ(out, "2");
+}
+
 int main(void) {
     /* Must run from the ezc/ directory */
     if (access("./ezc", X_OK) != 0) {
@@ -1296,6 +1391,17 @@ int main(void) {
 
     /* Nested structs */
     RUN_TEST(test_e2e_nested_struct);
+
+    /* P4: Remaining sized integer types */
+    RUN_TEST(test_e2e_sized_int_i16);
+    RUN_TEST(test_e2e_sized_int_i64);
+    RUN_TEST(test_e2e_sized_int_u16);
+    RUN_TEST(test_e2e_sized_int_u32);
+    RUN_TEST(test_e2e_sized_float_f64);
+
+    /* P5: Range with step, percent assign */
+    RUN_TEST(test_e2e_range_with_step);
+    RUN_TEST(test_e2e_percent_assign);
 
     PRINT_RESULTS();
     return _test_fail > 0 ? 1 : 0;

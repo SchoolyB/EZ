@@ -554,6 +554,105 @@ static void test_parse_blank_ident(void) {
     ASSERT_EQ(fn->kind, NODE_FUNC_DECL);
 }
 
+/* --- P3: Remaining parser coverage gaps --- */
+
+static void test_parse_range_with_step(void) {
+    AstNode *prog = parse("for i in range(0, 10, 2) { }");
+    AstNode *stmt = first_stmt(prog);
+    ASSERT_NOT_NULL(stmt);
+    ASSERT_EQ(stmt->kind, NODE_FOR_STMT);
+    AstNode *r = stmt->data.for_stmt.iterable;
+    ASSERT_EQ(r->kind, NODE_RANGE_EXPR);
+    ASSERT_NOT_NULL(r->data.range_expr.start);
+    ASSERT_NOT_NULL(r->data.range_expr.end);
+    ASSERT_NOT_NULL(r->data.range_expr.step);
+    ASSERT_EQ(r->data.range_expr.step->kind, NODE_INT_VALUE);
+    ASSERT_EQ(r->data.range_expr.step->data.int_value.value, 2);
+}
+
+static void test_parse_pointer_deref(void) {
+    AstNode *prog = parse(
+        "const Node struct { val int }\n"
+        "do main() { mut p = new(Node)\n mut v = p^.val }");
+    AstNode *fn = prog->data.program.stmts[1];
+    AstNode *vdecl = fn->data.func_decl.body->data.block.stmts[1];
+    ASSERT_NOT_NULL(vdecl);
+    /* p^.val — should parse as member access on a deref */
+    ASSERT_EQ(vdecl->data.var_decl.value->kind, NODE_MEMBER_EXPR);
+}
+
+static void test_parse_module_decl(void) {
+    AstNode *prog = parse("module mymod");
+    AstNode *stmt = first_stmt(prog);
+    ASSERT_NOT_NULL(stmt);
+    ASSERT_EQ(stmt->kind, NODE_MODULE_DECL);
+}
+
+static void test_parse_local_import(void) {
+    AstNode *prog = parse("import \"./mylib\"");
+    AstNode *stmt = first_stmt(prog);
+    ASSERT_NOT_NULL(stmt);
+    ASSERT_EQ(stmt->kind, NODE_IMPORT_STMT);
+    ASSERT(!stmt->data.import_stmt.items[0].is_stdlib);
+    ASSERT_STR_EQ(stmt->data.import_stmt.items[0].path, "./mylib");
+}
+
+static void test_parse_power_expr(void) {
+    AstNode *prog = parse("do main() { mut x = 2 ** 3 }");
+    AstNode *val = var_value(prog);
+    ASSERT_NOT_NULL(val);
+    ASSERT_EQ(val->kind, NODE_INFIX_EXPR);
+    ASSERT_STR_EQ(val->data.infix.op, "**");
+}
+
+static void test_parse_precedence_add_mul(void) {
+    /* 1 + 2 * 3 should parse as 1 + (2 * 3) */
+    AstNode *prog = parse("do main() { mut x = 1 + 2 * 3 }");
+    AstNode *val = var_value(prog);
+    ASSERT_NOT_NULL(val);
+    ASSERT_EQ(val->kind, NODE_INFIX_EXPR);
+    ASSERT_STR_EQ(val->data.infix.op, "+");
+    ASSERT_EQ(val->data.infix.left->kind, NODE_INT_VALUE);
+    ASSERT_EQ(val->data.infix.left->data.int_value.value, 1);
+    ASSERT_EQ(val->data.infix.right->kind, NODE_INFIX_EXPR);
+    ASSERT_STR_EQ(val->data.infix.right->data.infix.op, "*");
+}
+
+static void test_parse_precedence_comparison_logical(void) {
+    /* a > 0 && b < 10 should parse as (a > 0) && (b < 10) */
+    AstNode *prog = parse("do main() { mut x = 1 > 0 && 2 < 10 }");
+    AstNode *val = var_value(prog);
+    ASSERT_NOT_NULL(val);
+    ASSERT_EQ(val->kind, NODE_INFIX_EXPR);
+    ASSERT_STR_EQ(val->data.infix.op, "&&");
+    ASSERT_EQ(val->data.infix.left->kind, NODE_INFIX_EXPR);
+    ASSERT_STR_EQ(val->data.infix.left->data.infix.op, ">");
+    ASSERT_EQ(val->data.infix.right->kind, NODE_INFIX_EXPR);
+    ASSERT_STR_EQ(val->data.infix.right->data.infix.op, "<");
+}
+
+static void test_parse_named_return(void) {
+    AstNode *prog = parse("do foo() -> (name string, age int) { }");
+    AstNode *fn = first_stmt(prog);
+    ASSERT_NOT_NULL(fn);
+    ASSERT_EQ(fn->kind, NODE_FUNC_DECL);
+    ASSERT_EQ(fn->data.func_decl.return_type_count, 2);
+    ASSERT_STR_EQ(fn->data.func_decl.return_names[0], "name");
+    ASSERT_STR_EQ(fn->data.func_decl.return_names[1], "age");
+}
+
+static void test_parse_error_bad_var_decl(void) {
+    AstNode *prog = parse("mut = 42");
+    (void)prog;
+    ASSERT(diag_has_errors(diag));
+}
+
+static void test_parse_error_unexpected_token(void) {
+    AstNode *prog = parse("do 42() { }");
+    (void)prog;
+    ASSERT(diag_has_errors(diag));
+}
+
 int main(void) {
     arena = arena_create(256 * 1024);
     printf("\n");
@@ -620,6 +719,18 @@ int main(void) {
     RUN_TEST(test_parse_multi_return);
     RUN_TEST(test_parse_using_stmt);
     RUN_TEST(test_parse_blank_ident);
+
+    /* P3: Remaining parser coverage */
+    RUN_TEST(test_parse_range_with_step);
+    RUN_TEST(test_parse_pointer_deref);
+    RUN_TEST(test_parse_module_decl);
+    RUN_TEST(test_parse_local_import);
+    RUN_TEST(test_parse_power_expr);
+    RUN_TEST(test_parse_precedence_add_mul);
+    RUN_TEST(test_parse_precedence_comparison_logical);
+    RUN_TEST(test_parse_named_return);
+    RUN_TEST(test_parse_error_bad_var_decl);
+    RUN_TEST(test_parse_error_unexpected_token);
 
     PRINT_RESULTS();
     return _test_fail > 0 ? 1 : 0;
