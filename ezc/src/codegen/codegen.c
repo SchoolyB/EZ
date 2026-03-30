@@ -3102,41 +3102,45 @@ static void emit_return_statement(CodeGen *cg, AstNode *node) {
     /* Emit ensure cleanup before return */
     emit_ensure_cleanup(cg);
 
-    /* Stack depth guard */
-    emit_indent(cg);
-    emit(cg, "ez_exit_func();\n");
-    emit_indent(cg);
-
     if (node->data.return_stmt.count > 1 && cg->current_func) {
-        emitf(cg, "return (EzMulti_%s){", cg->current_func->data.func_decl.name);
+        /* Multi-return: evaluate into temp, then exit and return */
+        emit_indent(cg);
+        emitf(cg, "{ EzMulti_%s _ret = (EzMulti_%s){",
+            cg->current_func->data.func_decl.name,
+            cg->current_func->data.func_decl.name);
         for (int i = 0; i < node->data.return_stmt.count; i++) {
             if (i > 0) emit(cg, ", ");
             emit_expression(cg, node->data.return_stmt.values[i]);
         }
-        emit(cg, "};\n");
+        emit(cg, "}; ez_exit_func(); return _ret; }\n");
     } else if (node->data.return_stmt.count == 1 && cg->current_func &&
                cg->current_func->data.func_decl.return_type_count > 1) {
-        /* Single value returned from multi-return function (e.g., or_return error propagation).
-         * Pad with zeros for leading values, put the error last. */
+        /* Single value returned from multi-return function (or_return propagation) */
         int rc = cg->current_func->data.func_decl.return_type_count;
-        emitf(cg, "return (EzMulti_%s){", cg->current_func->data.func_decl.name);
+        emit_indent(cg);
+        emitf(cg, "{ EzMulti_%s _ret = (EzMulti_%s){",
+            cg->current_func->data.func_decl.name,
+            cg->current_func->data.func_decl.name);
         for (int i = 0; i < rc - 1; i++) {
             emit(cg, "{0}, ");
         }
         emit_expression(cg, node->data.return_stmt.values[0]);
-        emit(cg, "};\n");
+        emit(cg, "}; ez_exit_func(); return _ret; }\n");
     } else if (cg->current_func &&
                cg->current_func->data.func_decl.return_type_count == 0) {
-        /* Void function — return without value (e.g. or_return in main) */
-        emit(cg, "return;\n");
-        return;
+        /* Void function */
+        emit_indent(cg);
+        emit(cg, "ez_exit_func(); return;\n");
+    } else if (node->data.return_stmt.count == 1) {
+        /* Single return value: evaluate into temp, then exit and return */
+        emit_indent(cg);
+        emit(cg, "{ __auto_type _ret = ");
+        emit_expression(cg, node->data.return_stmt.values[0]);
+        emit(cg, "; ez_exit_func(); return _ret; }\n");
     } else {
-        emit(cg, "return");
-        if (node->data.return_stmt.count > 0) {
-            emit(cg, " ");
-            emit_expression(cg, node->data.return_stmt.values[0]);
-        }
-        emit(cg, ";\n");
+        /* Bare return (no value, non-void — shouldn't happen but handle gracefully) */
+        emit_indent(cg);
+        emit(cg, "ez_exit_func(); return;\n");
     }
 }
 
