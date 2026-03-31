@@ -2034,7 +2034,7 @@ println(r2[4])        // Prints 6 - r2 sees the change
 | `current_dir` | `() -> (string, Error)` | Get current working directory |
 | `hostname` | `() -> (string, Error)` | Get machine hostname |
 | `pid` | `() -> int` | Get process ID |
-| `current_os` | `() -> int` | Get current OS |
+| `current_os` | `() -> int` | Get current OS as an int matching the constants below (`MAC_OS`, `LINUX`, `WINDOWS`, `OTHER`) |
 | `arch` | `() -> string` | Get CPU architecture |
 
 #### Constants
