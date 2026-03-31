@@ -2958,16 +2958,25 @@ static void emit_call_expression(CodeGen *cg, AstNode *node) {
         emit(cg, fn_name);
     } else if (fn_name) {
         /* Not a known function — variable holding a function pointer (void *).
-         * Cast to appropriate function pointer type based on arg count. */
+         * Cast to appropriate function pointer type based on arg types. */
         int nargs = node->data.call.arg_count;
-        emit(cg, "((int64_t (*)(");
+        /* Determine return type from the call expression's type table entry */
+        EzType *ret_t = cg->type_table ? typetable_get(cg->type_table, node) : NULL;
+        const char *c_ret = (ret_t && ret_t->kind != TK_UNKNOWN) ? ez_type_to_c_cg(cg, type_name(ret_t)) : "int64_t";
+        if (ret_t && ret_t->kind == TK_VOID) c_ret = "void";
+        emitf(cg, "((%s (*)(", c_ret);
         for (int i = 0; i < nargs; i++) {
             if (i > 0) emit(cg, ", ");
-            emit(cg, "int64_t");
+            EzType *arg_t = cg->type_table ? typetable_get(cg->type_table, node->data.call.args[i]) : NULL;
+            if (arg_t && arg_t->kind != TK_UNKNOWN) {
+                emit(cg, ez_type_to_c_cg(cg, type_name(arg_t)));
+            } else {
+                emit(cg, "int64_t");
+            }
         }
         if (nargs == 0) emit(cg, "void");
         emit(cg, "))");
-        emit(cg, fn_name);
+        emit(cg, safe_name(fn_name));
         emit(cg, ")");
     } else {
         emit_expression(cg, node->data.call.function);
