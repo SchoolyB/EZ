@@ -85,6 +85,26 @@ do main() {
         failed += 1
     }
 
+    // Test 9: !in result assigned to bool variable
+    mut notFound bool = 99 !in numbers
+    if notFound == true {
+        println("  [PASS] !in result assigned to bool (true)")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] !in result assigned to bool (true)")
+        failed += 1
+    }
+
+    // Test 10: !in result assigned to bool variable (false case)
+    mut found bool = 30 !in numbers
+    if found == false {
+        println("  [PASS] !in result assigned to bool (false)")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] !in result assigned to bool (false)")
+        failed += 1
+    }
+
     // Summary
     println("")
     println("Results: ${passed} passed, ${failed} failed")
