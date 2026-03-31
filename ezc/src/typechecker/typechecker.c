@@ -267,7 +267,7 @@ static bool is_enum_name(TypeChecker *tc, const char *name) {
 
 /* Check if a TypeKind is any integer type (signed or unsigned) */
 static bool is_int_kind(TypeKind k) {
-    return k == TK_INT || k == TK_UINT;
+    return k == TK_INT || k == TK_UINT || k == TK_BYTE;
 }
 
 static bool is_unsigned_type(const char *tn) {
