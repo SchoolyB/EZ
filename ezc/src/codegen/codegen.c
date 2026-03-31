@@ -2335,6 +2335,31 @@ static bool emit_arrays_call(CodeGen *cg, AstNode *node, const char *func) {
         emit(cg, ", &_av); }");
         return true;
     }
+    if (strcmp(func, "insert") == 0 && node->data.call.arg_count == 3) {
+        EzType *val_t = cg->type_table ? typetable_get(cg->type_table, node->data.call.args[2]) : NULL;
+        const char *c_elem = "__auto_type";
+        if (val_t) {
+            switch (val_t->kind) {
+            case TK_INT: c_elem = "int64_t"; break;
+            case TK_UINT: c_elem = "uint64_t"; break;
+            case TK_FLOAT: c_elem = "double"; break;
+            case TK_BOOL: c_elem = "bool"; break;
+            case TK_STRING: c_elem = "EzString"; break;
+            default: break;
+            }
+            if (val_t->kind == TK_STRUCT) {
+                c_elem = ez_type_to_c_cg(cg, val_t->name);
+            }
+        }
+        emitf(cg, "{ %s _iv = ", c_elem);
+        emit_expression(cg, node->data.call.args[2]);
+        emit(cg, "; ez_arrays_insert(ez_default_arena, &");
+        emit_expression(cg, node->data.call.args[0]);
+        emit(cg, ", ");
+        emit_expression(cg, node->data.call.args[1]);
+        emit(cg, ", &_iv); }");
+        return true;
+    }
     if (strcmp(func, "remove_at") == 0 && node->data.call.arg_count == 2) {
         emit(cg, "ez_arrays_remove_at(&");
         emit_expression(cg, node->data.call.args[0]);
