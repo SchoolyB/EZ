@@ -48,6 +48,34 @@ static void emit_indent(CodeGen *cg) {
     buf_append_indent(&cg->output, cg->indent);
 }
 
+/* Check if a name collides with a C keyword and mangle it if so.
+ * Uses a rotating pool of static buffers so multiple calls can appear
+ * in one format string (up to 4 simultaneous uses). */
+static bool is_c_keyword(const char *name) {
+    static const char *keywords[] = {
+        "auto", "break", "case", "char", "const", "continue", "default",
+        "do", "double", "else", "enum", "extern", "float", "for", "goto",
+        "if", "inline", "int", "long", "register", "restrict", "return",
+        "short", "signed", "sizeof", "static", "struct", "switch",
+        "typedef", "union", "unsigned", "void", "volatile", "while",
+        "bool", "true", "false", "NULL",
+        NULL
+    };
+    for (const char **kw = keywords; *kw; kw++) {
+        if (strcmp(name, *kw) == 0) return true;
+    }
+    return false;
+}
+
+static const char *safe_name(const char *name) {
+    if (!name || !is_c_keyword(name)) return name;
+    static char bufs[4][256];
+    static int idx = 0;
+    int i = idx++ & 3;
+    snprintf(bufs[i], sizeof(bufs[i]), "_ez_%s", name);
+    return bufs[i];
+}
+
 /* Map EZ type name to C type */
 static const char *ez_type_to_c_cg(CodeGen *cg, const char *type_name) {
     if (!type_name) return "int64_t";
@@ -246,11 +274,11 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
 
     switch (node->kind) {
     case NODE_LABEL: {
-        const char *name = node->data.label.value;
+        const char *name = safe_name(node->data.label.value);
         /* Check for known stdlib constants (unambiguous names) */
-        if (is_mutable_param(cg, name)) {
+        if (is_mutable_param(cg, node->data.label.value)) {
             emitf(cg, "(*%s)", name);
-        } else if (is_ref_var(cg, name)) {
+        } else if (is_ref_var(cg, node->data.label.value)) {
             emitf(cg, "(*%s)", name);
         } else {
             emit(cg, name);
@@ -537,7 +565,7 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
         emitf(cg, "(EzStruct_%s){", node->data.struct_value.name);
         for (int i = 0; i < node->data.struct_value.count; i++) {
             if (i > 0) emit(cg, ", ");
-            emitf(cg, ".%s = ", node->data.struct_value.field_names[i]);
+            emitf(cg, ".%s = ", safe_name(node->data.struct_value.field_names[i]));
             emit_expression(cg, node->data.struct_value.field_values[i]);
         }
         emit(cg, "}");
@@ -900,9 +928,9 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
             bool obj_is_ref = (node->data.member.object->kind == NODE_LABEL &&
                 is_ref_var(cg, node->data.member.object->data.label.value));
             if (!obj_is_ref && obj_t && (obj_t->kind == TK_POINTER || obj_t->kind == TK_ERROR)) {
-                emitf(cg, "->%s", node->data.member.member);
+                emitf(cg, "->%s", safe_name(node->data.member.member));
             } else {
-                emitf(cg, ".%s", node->data.member.member);
+                emitf(cg, ".%s", safe_name(node->data.member.member));
             }
         }
         break;
@@ -2943,7 +2971,7 @@ static void emit_var_declaration(CodeGen *cg, AstNode *node) {
         int fixed_size = extract_array_size(type_name);
         if (fixed_size > 0) {
             /* Fixed-size array: use EzArray but initialized with exact capacity */
-            emitf(cg, "EzArray %s = ", node->data.var_decl.name);
+            emitf(cg, "EzArray %s = ", safe_name(node->data.var_decl.name));
             if (node->data.var_decl.value) {
                 emit_expression(cg, node->data.var_decl.value);
             } else {
@@ -2956,7 +2984,7 @@ static void emit_var_declaration(CodeGen *cg, AstNode *node) {
 
         if (is_nested_array_type(type_name)) {
             /* Nested array [[int]]: EzArray of EzArrays */
-            emitf(cg, "EzArray %s = ", node->data.var_decl.name);
+            emitf(cg, "EzArray %s = ", safe_name(node->data.var_decl.name));
             if (node->data.var_decl.value) {
                 emit_expression(cg, node->data.var_decl.value);
             } else {
@@ -2968,7 +2996,7 @@ static void emit_var_declaration(CodeGen *cg, AstNode *node) {
 
         /* Dynamic array: use EzArray */
         const char *c_elem_type = ez_type_to_c_cg(cg, elem_type);
-        emitf(cg, "EzArray %s = ", node->data.var_decl.name);
+        emitf(cg, "EzArray %s = ", safe_name(node->data.var_decl.name));
         if (node->data.var_decl.value &&
             node->data.var_decl.value->kind == NODE_ARRAY_VALUE &&
             node->data.var_decl.value->data.array_value.count == 0) {
@@ -2995,7 +3023,7 @@ static void emit_var_declaration(CodeGen *cg, AstNode *node) {
         }
         if (mt && mt->value_type) c_vt = ez_map_elem_c_type(cg, mt->value_type);
 
-        emitf(cg, "EzMap %s = ", node->data.var_decl.name);
+        emitf(cg, "EzMap %s = ", safe_name(node->data.var_decl.name));
         if (node->data.var_decl.value &&
             node->data.var_decl.value->kind == NODE_MAP_VALUE) {
             emit_expression(cg, node->data.var_decl.value);
@@ -3081,7 +3109,7 @@ static void emit_var_declaration(CodeGen *cg, AstNode *node) {
         emit(cg, "const ");
     }
 
-    emitf(cg, "%s %s", c_type, node->data.var_decl.name);
+    emitf(cg, "%s %s", c_type, safe_name(node->data.var_decl.name));
 
     if (node->data.var_decl.value) {
         emit(cg, " = ");
@@ -3290,7 +3318,7 @@ static void emit_return_statement(CodeGen *cg, AstNode *node) {
         if (rc == 1 && cg->current_func->data.func_decl.return_names[0]) {
             emit_indent(cg);
             emitf(cg, "{ __auto_type _ret = %s; ez_exit_func(); return _ret; }\n",
-                cg->current_func->data.func_decl.return_names[0]);
+                safe_name(cg->current_func->data.func_decl.return_names[0]));
         } else {
             emit_indent(cg);
             emitf(cg, "{ EzMulti_%s _ret = (EzMulti_%s){",
@@ -3299,7 +3327,7 @@ static void emit_return_statement(CodeGen *cg, AstNode *node) {
             for (int i = 0; i < rc; i++) {
                 if (i > 0) emit(cg, ", ");
                 if (cg->current_func->data.func_decl.return_names[i]) {
-                    emitf(cg, "%s", cg->current_func->data.func_decl.return_names[i]);
+                    emitf(cg, "%s", safe_name(cg->current_func->data.func_decl.return_names[i]));
                 } else {
                     emit(cg, "0");
                 }
@@ -3385,7 +3413,7 @@ static void emit_for_statement(CodeGen *cg, AstNode *node) {
     AstNode *iter = node->data.for_stmt.iterable;
     if (iter && iter->kind == NODE_RANGE_EXPR) {
         /* for i in range(start, end) or range(start, end, step) */
-        const char *var = node->data.for_stmt.var_name;
+        const char *var = safe_name(node->data.for_stmt.var_name);
 
         if (iter->data.range_expr.start) {
             /* range(start, end) or range(start, end, step) */
@@ -3479,9 +3507,9 @@ static void emit_func_declaration(CodeGen *cg, AstNode *node, bool is_main) {
             if (i > 0) emit(cg, ", ");
             Param *param = &node->data.func_decl.params[i];
             if (param->mutable) {
-                emitf(cg, "%s *%s", ez_type_to_c_cg(cg,param->type_name), param->name);
+                emitf(cg, "%s *%s", ez_type_to_c_cg(cg,param->type_name), safe_name(param->name));
             } else {
-                emitf(cg, "%s %s", ez_type_to_c_cg(cg,param->type_name), param->name);
+                emitf(cg, "%s %s", ez_type_to_c_cg(cg,param->type_name), safe_name(param->name));
             }
         }
 
@@ -3512,13 +3540,13 @@ static void emit_func_declaration(CodeGen *cg, AstNode *node, bool is_main) {
                 emit_indent(cg);
                 if (strcmp(c_t, "EzString") == 0) {
                     emitf(cg, "EzString %s = ez_string_lit(\"\");\n",
-                        node->data.func_decl.return_names[i]);
+                        safe_name(node->data.func_decl.return_names[i]));
                 } else if (strncmp(c_t, "EzStruct_", 9) == 0 || strncmp(c_t, "EzEnum_", 7) == 0) {
                     emitf(cg, "%s %s = {0};\n", c_t,
-                        node->data.func_decl.return_names[i]);
+                        safe_name(node->data.func_decl.return_names[i]));
                 } else {
                     emitf(cg, "%s %s = 0;\n", c_t,
-                        node->data.func_decl.return_names[i]);
+                        safe_name(node->data.func_decl.return_names[i]));
                 }
             }
         }
@@ -3545,13 +3573,13 @@ static void emit_func_declaration(CodeGen *cg, AstNode *node, bool is_main) {
                 int rc = node->data.func_decl.return_type_count;
                 emit_indent(cg);
                 if (rc == 1 && node->data.func_decl.return_names[0]) {
-                    emitf(cg, "return %s;\n", node->data.func_decl.return_names[0]);
+                    emitf(cg, "return %s;\n", safe_name(node->data.func_decl.return_names[0]));
                 } else {
                     emitf(cg, "return (EzMulti_%s){", node->data.func_decl.name);
                     for (int i = 0; i < rc; i++) {
                         if (i > 0) emit(cg, ", ");
                         if (node->data.func_decl.return_names[i]) {
-                            emitf(cg, "%s", node->data.func_decl.return_names[i]);
+                            emitf(cg, "%s", safe_name(node->data.func_decl.return_names[i]));
                         } else {
                             emit(cg, "0");
                         }
@@ -3633,14 +3661,14 @@ static void emit_statement(CodeGen *cg, AstNode *node) {
                 if (strcmp(node->data.for_each.index_name, "_") != 0) {
                     emit_indent(cg);
                     emitf(cg, "%s %s = *(%s *)ez_map_key_at(&",
-                        c_key, node->data.for_each.index_name, c_key);
+                        c_key, safe_name(node->data.for_each.index_name), c_key);
                     emit_expression(cg, coll);
                     emitf(cg, ", %s);\n", slot_name);
                 }
                 if (strcmp(node->data.for_each.var_name, "_") != 0) {
                     emit_indent(cg);
                     emitf(cg, "%s %s = *(%s *)ez_map_value_at(&",
-                        c_val, node->data.for_each.var_name, c_val);
+                        c_val, safe_name(node->data.for_each.var_name), c_val);
                     emit_expression(cg, coll);
                     emitf(cg, ", %s);\n", slot_name);
                 }
@@ -3648,7 +3676,7 @@ static void emit_statement(CodeGen *cg, AstNode *node) {
                 /* One-var form: for_each key in map (keys only) */
                 emit_indent(cg);
                 emitf(cg, "%s %s = *(%s *)ez_map_key_at(&",
-                    c_key, node->data.for_each.var_name, c_key);
+                    c_key, safe_name(node->data.for_each.var_name), c_key);
                 emit_expression(cg, coll);
                 emitf(cg, ", %s);\n", slot_name);
             }
@@ -3661,7 +3689,7 @@ static void emit_statement(CodeGen *cg, AstNode *node) {
             emitf(cg, "for (int32_t %s = 0; %s < _ez_str.len; %s++) {\n", idx_name, idx_name, idx_name);
             cg->indent++;
             emit_indent(cg);
-            emitf(cg, "int32_t %s = _ez_str.data[%s];\n", node->data.for_each.var_name, idx_name);
+            emitf(cg, "int32_t %s = _ez_str.data[%s];\n", safe_name(node->data.for_each.var_name), idx_name);
         } else {
             /* for_each item in array → iterate EzArray */
             const char *c_elem = "int64_t";
@@ -3678,7 +3706,7 @@ static void emit_statement(CodeGen *cg, AstNode *node) {
             emitf(cg, ".len; %s++) {\n", idx_name);
             cg->indent++;
             emit_indent(cg);
-            emitf(cg, "%s %s = EZ_ARRAY_GET(", c_elem, node->data.for_each.var_name);
+            emitf(cg, "%s %s = EZ_ARRAY_GET(", c_elem, safe_name(node->data.for_each.var_name));
             emit_expression(cg, coll);
             emitf(cg, ", %s, %s);\n", c_elem, idx_name);
         }
@@ -4068,7 +4096,7 @@ void codegen_generate(CodeGen *cg, AstNode *program) {
                     emitf(cg, "struct EzStruct_%s {\n", s->data.struct_decl.name);
                     for (int j = 0; j < s->data.struct_decl.field_count; j++) {
                         StructField *f = &s->data.struct_decl.fields[j];
-                        emitf(cg, "    %s %s;\n", ez_type_to_c_cg(cg, f->type_name), f->name);
+                        emitf(cg, "    %s %s;\n", ez_type_to_c_cg(cg, f->type_name), safe_name(f->name));
                     }
                     emit(cg, "};\n\n");
                 }
@@ -4081,7 +4109,7 @@ void codegen_generate(CodeGen *cg, AstNode *program) {
                 emitf(cg, "struct EzStruct_%s {\n", s->data.struct_decl.name);
                 for (int j = 0; j < s->data.struct_decl.field_count; j++) {
                     StructField *f = &s->data.struct_decl.fields[j];
-                    emitf(cg, "    %s %s;\n", ez_type_to_c_cg(cg, f->type_name), f->name);
+                    emitf(cg, "    %s %s;\n", ez_type_to_c_cg(cg, f->type_name), safe_name(f->name));
                 }
                 emit(cg, "};\n\n");
             }
