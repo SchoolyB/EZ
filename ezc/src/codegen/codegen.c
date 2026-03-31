@@ -766,7 +766,46 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
             bool is_arith = (strcmp(op, "+") == 0 || strcmp(op, "-") == 0 || strcmp(op, "*") == 0);
 
             if (is_arith && left_is_int && right_is_int && !left_is_float && !right_is_float) {
-                /* Use unsigned-safe variants when either operand is unsigned */
+                /* Check for sized types that need bounds-checked arithmetic */
+                const char *sized_name = (lt && lt->name) ? lt->name : ((rt && rt->name) ? rt->name : NULL);
+                const char *sized_min = NULL, *sized_max = NULL;
+                bool sized_unsigned = false;
+                if (sized_name) {
+                    if (strcmp(sized_name, "i8") == 0) { sized_min = "-128"; sized_max = "127"; }
+                    else if (strcmp(sized_name, "i16") == 0) { sized_min = "-32768"; sized_max = "32767"; }
+                    else if (strcmp(sized_name, "i32") == 0) { sized_min = "-2147483648LL"; sized_max = "2147483647LL"; }
+                    else if (strcmp(sized_name, "u8") == 0 || strcmp(sized_name, "byte") == 0) { sized_unsigned = true; sized_max = "255"; }
+                    else if (strcmp(sized_name, "u16") == 0) { sized_unsigned = true; sized_max = "65535"; }
+                    else if (strcmp(sized_name, "u32") == 0) { sized_unsigned = true; sized_max = "4294967295ULL"; }
+                }
+
+                if (sized_max) {
+                    /* Sized type — use bounds-checked arithmetic */
+                    const char *op_fn = NULL;
+                    if (sized_unsigned) {
+                        if (strcmp(op, "+") == 0) op_fn = "ez_usized_add_check";
+                        else if (strcmp(op, "-") == 0) op_fn = "ez_usized_sub_check";
+                        else if (strcmp(op, "*") == 0) op_fn = "ez_usized_mul_check";
+                    } else {
+                        if (strcmp(op, "+") == 0) op_fn = "ez_sized_add_check";
+                        else if (strcmp(op, "-") == 0) op_fn = "ez_sized_sub_check";
+                        else if (strcmp(op, "*") == 0) op_fn = "ez_sized_mul_check";
+                    }
+                    if (op_fn) {
+                        emitf(cg, "%s(", op_fn);
+                        emit_expression(cg, node->data.infix.left);
+                        emit(cg, ", ");
+                        emit_expression(cg, node->data.infix.right);
+                        if (sized_unsigned) {
+                            emitf(cg, ", %s, \"%s\", __FILE__, %d)", sized_max, sized_name, node->token.line);
+                        } else {
+                            emitf(cg, ", %s, %s, \"%s\", __FILE__, %d)", sized_min, sized_max, sized_name, node->token.line);
+                        }
+                        break;
+                    }
+                }
+
+                /* 64-bit overflow checks for int/uint/i64/u64 */
                 bool is_unsigned = (lt && lt->kind == TK_UINT) || (rt && rt->kind == TK_UINT);
                 const char *fn = NULL;
                 if (is_unsigned) {
@@ -812,19 +851,67 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
             emitf(cg, "; if (!_dp) { fflush(stdout); ez_panic(__FILE__, %d, "
                 "\"nil pointer dereference\"); } *_dp; })", node->token.line);
         } else if (strcmp(node->data.postfix.op, "++") == 0) {
-            /* Overflow-checked increment */
+            /* Overflow-checked increment — sized types need bounds check */
+            EzType *pt = cg->type_table ? typetable_get(cg->type_table, node->data.postfix.left) : NULL;
+            const char *sn = (pt && pt->name) ? pt->name : NULL;
+            const char *smin = NULL, *smax = NULL;
+            bool su = false;
+            if (sn) {
+                if (strcmp(sn, "i8") == 0) { smin = "-128"; smax = "127"; }
+                else if (strcmp(sn, "i16") == 0) { smin = "-32768"; smax = "32767"; }
+                else if (strcmp(sn, "i32") == 0) { smin = "-2147483648LL"; smax = "2147483647LL"; }
+                else if (strcmp(sn, "u8") == 0 || strcmp(sn, "byte") == 0) { su = true; smax = "255"; }
+                else if (strcmp(sn, "u16") == 0) { su = true; smax = "65535"; }
+                else if (strcmp(sn, "u32") == 0) { su = true; smax = "4294967295ULL"; }
+            }
             emit(cg, "(");
             emit_expression(cg, node->data.postfix.left);
-            emitf(cg, " = ez_add_check(");
-            emit_expression(cg, node->data.postfix.left);
-            emitf(cg, ", 1, __FILE__, %d))", node->token.line);
+            if (smax) {
+                if (su) {
+                    emit(cg, " = ez_usized_add_check(");
+                    emit_expression(cg, node->data.postfix.left);
+                    emitf(cg, ", 1, %s, \"%s\", __FILE__, %d))", smax, sn, node->token.line);
+                } else {
+                    emit(cg, " = ez_sized_add_check(");
+                    emit_expression(cg, node->data.postfix.left);
+                    emitf(cg, ", 1, %s, %s, \"%s\", __FILE__, %d))", smin, smax, sn, node->token.line);
+                }
+            } else {
+                emitf(cg, " = ez_add_check(");
+                emit_expression(cg, node->data.postfix.left);
+                emitf(cg, ", 1, __FILE__, %d))", node->token.line);
+            }
         } else if (strcmp(node->data.postfix.op, "--") == 0) {
-            /* Overflow-checked decrement */
+            /* Overflow-checked decrement — sized types need bounds check */
+            EzType *pt = cg->type_table ? typetable_get(cg->type_table, node->data.postfix.left) : NULL;
+            const char *sn = (pt && pt->name) ? pt->name : NULL;
+            const char *smin = NULL, *smax = NULL;
+            bool su = false;
+            if (sn) {
+                if (strcmp(sn, "i8") == 0) { smin = "-128"; smax = "127"; }
+                else if (strcmp(sn, "i16") == 0) { smin = "-32768"; smax = "32767"; }
+                else if (strcmp(sn, "i32") == 0) { smin = "-2147483648LL"; smax = "2147483647LL"; }
+                else if (strcmp(sn, "u8") == 0 || strcmp(sn, "byte") == 0) { su = true; smax = "255"; }
+                else if (strcmp(sn, "u16") == 0) { su = true; smax = "65535"; }
+                else if (strcmp(sn, "u32") == 0) { su = true; smax = "4294967295ULL"; }
+            }
             emit(cg, "(");
             emit_expression(cg, node->data.postfix.left);
-            emitf(cg, " = ez_sub_check(");
-            emit_expression(cg, node->data.postfix.left);
-            emitf(cg, ", 1, __FILE__, %d))", node->token.line);
+            if (smax) {
+                if (su) {
+                    emit(cg, " = ez_usized_sub_check(");
+                    emit_expression(cg, node->data.postfix.left);
+                    emitf(cg, ", 1, %s, \"%s\", __FILE__, %d))", smax, sn, node->token.line);
+                } else {
+                    emit(cg, " = ez_sized_sub_check(");
+                    emit_expression(cg, node->data.postfix.left);
+                    emitf(cg, ", 1, %s, %s, \"%s\", __FILE__, %d))", smin, smax, sn, node->token.line);
+                }
+            } else {
+                emitf(cg, " = ez_sub_check(");
+                emit_expression(cg, node->data.postfix.left);
+                emitf(cg, ", 1, __FILE__, %d))", node->token.line);
+            }
         } else {
             emit_expression(cg, node->data.postfix.left);
             emit(cg, node->data.postfix.op);
@@ -3225,6 +3312,52 @@ static void emit_assign_statement(CodeGen *cg, AstNode *node) {
         emit_expression(cg, node->data.assign.value);
         emit(cg, "; }\n");
         return;
+    }
+
+    /* Compound assignment with sized-type overflow check */
+    {
+        const char *aop = node->data.assign.op;
+        bool is_compound = (strcmp(aop, "+=") == 0 || strcmp(aop, "-=") == 0 || strcmp(aop, "*=") == 0);
+        if (is_compound) {
+            EzType *tgt_t = cg->type_table ? typetable_get(cg->type_table, node->data.assign.target) : NULL;
+            const char *sn = (tgt_t && tgt_t->name) ? tgt_t->name : NULL;
+            const char *smin = NULL, *smax = NULL;
+            bool su = false;
+            if (sn) {
+                if (strcmp(sn, "i8") == 0) { smin = "-128"; smax = "127"; }
+                else if (strcmp(sn, "i16") == 0) { smin = "-32768"; smax = "32767"; }
+                else if (strcmp(sn, "i32") == 0) { smin = "-2147483648LL"; smax = "2147483647LL"; }
+                else if (strcmp(sn, "u8") == 0 || strcmp(sn, "byte") == 0) { su = true; smax = "255"; }
+                else if (strcmp(sn, "u16") == 0) { su = true; smax = "65535"; }
+                else if (strcmp(sn, "u32") == 0) { su = true; smax = "4294967295ULL"; }
+            }
+            if (smax) {
+                /* Rewrite x += y as x = ez_sized_add_check(x, y, ...) */
+                const char *fn = NULL;
+                if (su) {
+                    if (strcmp(aop, "+=") == 0) fn = "ez_usized_add_check";
+                    else if (strcmp(aop, "-=") == 0) fn = "ez_usized_sub_check";
+                    else if (strcmp(aop, "*=") == 0) fn = "ez_usized_mul_check";
+                } else {
+                    if (strcmp(aop, "+=") == 0) fn = "ez_sized_add_check";
+                    else if (strcmp(aop, "-=") == 0) fn = "ez_sized_sub_check";
+                    else if (strcmp(aop, "*=") == 0) fn = "ez_sized_mul_check";
+                }
+                if (fn) {
+                    emit_expression(cg, node->data.assign.target);
+                    emitf(cg, " = %s(", fn);
+                    emit_expression(cg, node->data.assign.target);
+                    emit(cg, ", ");
+                    emit_expression(cg, node->data.assign.value);
+                    if (su) {
+                        emitf(cg, ", %s, \"%s\", __FILE__, %d);\n", smax, sn, node->token.line);
+                    } else {
+                        emitf(cg, ", %s, %s, \"%s\", __FILE__, %d);\n", smin, smax, sn, node->token.line);
+                    }
+                    return;
+                }
+            }
+        }
     }
 
     /* Default assignment — suppress ref auto-deref when assigning to a pointer target */

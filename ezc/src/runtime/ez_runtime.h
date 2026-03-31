@@ -181,6 +181,73 @@ static inline uint64_t ez_umul_check(uint64_t a, uint64_t b, const char *file, i
     return result;
 }
 
+/* Sized signed integer overflow checks (i8, i16, i32) */
+static inline int64_t ez_sized_add_check(int64_t a, int64_t b, int64_t min_val, int64_t max_val,
+    const char *type_name, const char *file, int line) {
+    int64_t result = a + b;
+    if (result < min_val || result > max_val) {
+        fflush(stdout);
+        fprintf(stderr, "panic at %s:%d: %s integer overflow in addition\n", file, line, type_name);
+        exit(1);
+    }
+    return result;
+}
+
+static inline int64_t ez_sized_sub_check(int64_t a, int64_t b, int64_t min_val, int64_t max_val,
+    const char *type_name, const char *file, int line) {
+    int64_t result = a - b;
+    if (result < min_val || result > max_val) {
+        fflush(stdout);
+        fprintf(stderr, "panic at %s:%d: %s integer overflow in subtraction\n", file, line, type_name);
+        exit(1);
+    }
+    return result;
+}
+
+static inline int64_t ez_sized_mul_check(int64_t a, int64_t b, int64_t min_val, int64_t max_val,
+    const char *type_name, const char *file, int line) {
+    int64_t result = a * b;
+    if (result < min_val || result > max_val) {
+        fflush(stdout);
+        fprintf(stderr, "panic at %s:%d: %s integer overflow in multiplication\n", file, line, type_name);
+        exit(1);
+    }
+    return result;
+}
+
+/* Sized unsigned integer overflow checks (u8, u16, u32, byte) */
+static inline uint64_t ez_usized_add_check(uint64_t a, uint64_t b, uint64_t max_val,
+    const char *type_name, const char *file, int line) {
+    uint64_t result = a + b;
+    if (result > max_val) {
+        fflush(stdout);
+        fprintf(stderr, "panic at %s:%d: %s integer overflow in addition\n", file, line, type_name);
+        exit(1);
+    }
+    return result;
+}
+
+static inline uint64_t ez_usized_sub_check(uint64_t a, uint64_t b, uint64_t max_val,
+    const char *type_name, const char *file, int line) {
+    if (b > a) {
+        fflush(stdout);
+        fprintf(stderr, "panic at %s:%d: %s integer underflow in subtraction\n", file, line, type_name);
+        exit(1);
+    }
+    return a - b;
+}
+
+static inline uint64_t ez_usized_mul_check(uint64_t a, uint64_t b, uint64_t max_val,
+    const char *type_name, const char *file, int line) {
+    uint64_t result = a * b;
+    if (result > max_val) {
+        fflush(stdout);
+        fprintf(stderr, "panic at %s:%d: %s integer overflow in multiplication\n", file, line, type_name);
+        exit(1);
+    }
+    return result;
+}
+
 /* Safe float-to-int conversion with overflow check */
 static inline int64_t ez_float_to_int(double v, const char *file, int line) {
     if (v > 9.223372036854775e+18 || v < -9.223372036854775e+18 ||
