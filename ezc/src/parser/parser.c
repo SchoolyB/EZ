@@ -280,22 +280,26 @@ static AstNode *parse_interpolated_string(Parser *p, const char *raw) {
 
 static AstNode *parse_string_literal(Parser *p) {
     const char *raw = p->cur_token.literal;
-    if (has_interpolation(raw)) {
+    bool is_raw = (p->cur_token.type == TOK_RAW_STRING);
+    if (!is_raw && has_interpolation(raw)) {
         return parse_interpolated_string(p, raw);
     }
-    /* E2057: check for bare $identifier (missing braces) */
-    for (int i = 0; raw[i]; i++) {
-        if (raw[i] == '\\') { i++; continue; }
-        if (raw[i] == '$' && raw[i + 1] != '{' && raw[i + 1] != '\0' &&
-            (isalpha(raw[i + 1]) || raw[i + 1] == '_')) {
-            diag_error(p->diag, "E2057",
-                arena_strdup(p->arena, "invalid interpolation syntax — use ${variable} instead of $variable"),
-                p->file, p->cur_token.line, p->cur_token.column, 0);
-            break;
+    if (!is_raw) {
+        /* E2057: check for bare $identifier (missing braces) */
+        for (int i = 0; raw[i]; i++) {
+            if (raw[i] == '\\') { i++; continue; }
+            if (raw[i] == '$' && raw[i + 1] != '{' && raw[i + 1] != '\0' &&
+                (isalpha(raw[i + 1]) || raw[i + 1] == '_')) {
+                diag_error(p->diag, "E2057",
+                    arena_strdup(p->arena, "invalid interpolation syntax — use ${variable} instead of $variable"),
+                    p->file, p->cur_token.line, p->cur_token.column, 0);
+                break;
+            }
         }
     }
     AstNode *node = ast_alloc(p->arena, NODE_STRING_VALUE, p->cur_token);
     node->data.string_value.value = raw;
+    node->data.string_value.is_raw = is_raw;
     return node;
 }
 

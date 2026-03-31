@@ -311,24 +311,39 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
         const char *s = node->data.string_value.value;
         /* Use macro form for file-scope compatibility */
         emit(cg, (cg->indent == 0) ? "EZ_STRING_LIT(\"" : "ez_string_lit(\"");
-        while (*s) {
-            if (s[0] == '\\' && s[1] == 'x' && isxdigit(s[2])) {
-                /* Emit \xNN then break the string if followed by a hex digit */
-                buf_append_char(&cg->output, s[0]); /* \ */
-                buf_append_char(&cg->output, s[1]); /* x */
-                buf_append_char(&cg->output, s[2]); /* first hex */
-                s += 3;
-                if (isxdigit(*s)) {
-                    buf_append_char(&cg->output, *s); /* second hex */
+        if (node->data.string_value.is_raw) {
+            /* Raw string — escape backslashes and double quotes for C output
+             * so that \n stays as literal \n, not a newline character */
+            while (*s) {
+                if (*s == '\\') {
+                    emit(cg, "\\\\");
+                } else if (*s == '"') {
+                    emit(cg, "\\\"");
+                } else {
+                    buf_append_char(&cg->output, *s);
+                }
+                s++;
+            }
+        } else {
+            while (*s) {
+                if (s[0] == '\\' && s[1] == 'x' && isxdigit(s[2])) {
+                    /* Emit \xNN then break the string if followed by a hex digit */
+                    buf_append_char(&cg->output, s[0]); /* \ */
+                    buf_append_char(&cg->output, s[1]); /* x */
+                    buf_append_char(&cg->output, s[2]); /* first hex */
+                    s += 3;
+                    if (isxdigit(*s)) {
+                        buf_append_char(&cg->output, *s); /* second hex */
+                        s++;
+                    }
+                    if (isxdigit(*s)) {
+                        /* Next char is also hex — break the string */
+                        emit(cg, "\" \"");
+                    }
+                } else {
+                    buf_append_char(&cg->output, *s);
                     s++;
                 }
-                if (isxdigit(*s)) {
-                    /* Next char is also hex — break the string */
-                    emit(cg, "\" \"");
-                }
-            } else {
-                buf_append_char(&cg->output, *s);
-                s++;
             }
         }
         emit(cg, "\")");

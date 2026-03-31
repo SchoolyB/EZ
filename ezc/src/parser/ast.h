@@ -122,7 +122,7 @@ struct AstNode {
         struct { double value; } float_value;
 
         /* NODE_STRING_VALUE */
-        struct { const char *value; } string_value;
+        struct { const char *value; bool is_raw; } string_value;
 
         /* NODE_INTERPOLATED_STRING */
         struct { AstNode **parts; int part_count; } interpolated_string;
