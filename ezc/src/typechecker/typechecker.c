@@ -586,7 +586,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
             strcmp(op, "<") == 0 || strcmp(op, ">") == 0 ||
             strcmp(op, "<=") == 0 || strcmp(op, ">=") == 0 ||
             strcmp(op, "&&") == 0 || strcmp(op, "||") == 0 ||
-            strcmp(op, "in") == 0 || strcmp(op, "not_in") == 0) {
+            strcmp(op, "in") == 0 || strcmp(op, "not_in") == 0 || strcmp(op, "!in") == 0) {
             result = &TYPE_BOOL;
         } else if (left->kind == TK_FLOAT || right->kind == TK_FLOAT) {
             result = &TYPE_FLOAT;
