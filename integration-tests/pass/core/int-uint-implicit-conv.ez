@@ -72,6 +72,38 @@ do main() {
         failed += 1
     }
 
+    // Test 6: Assign int literal to byte variable (#1321)
+    mut h byte = 65
+    if h == 65 {
+        println("  [PASS] assign int literal to byte var")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] assign int literal to byte var")
+        failed += 1
+    }
+
+    // Test 7: Equality comparison between byte and int
+    mut i int = 65
+    if h == i {
+        println("  [PASS] byte == int comparison")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] byte == int comparison")
+        failed += 1
+    }
+
+    // Test 8: Assign int value to byte variable
+    mut j byte = 0
+    mut k int = 100
+    j = k
+    if j == 100 {
+        println("  [PASS] assign int value to byte var")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] assign int value to byte var")
+        failed += 1
+    }
+
     // Summary
     println("")
     println("Results: ${passed} passed, ${failed} failed")
