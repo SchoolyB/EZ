@@ -1,0 +1,64 @@
+/*
+ * typed-func-pointers.ez - Test function pointer calls with properly
+ * typed arguments (#1324).
+ */
+
+import @std
+using std
+
+do double_it(n int) -> int {
+    return n * 2
+}
+
+do add(a int, b int) -> int {
+    return a + b
+}
+
+do main() {
+    println("=== Typed Function Pointers ===")
+    mut passed int = 0
+    mut failed int = 0
+
+    // Test 1: Function pointer with int arg and int return
+    mut fn_dbl = ()double_it
+    mut result int = fn_dbl(21)
+    if result == 42 {
+        println("  [PASS] func ptr with int arg and return")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] func ptr with int arg and return")
+        failed += 1
+    }
+
+    // Test 2: Function pointer with multiple args
+    mut fn_add = ()add
+    mut sum int = fn_add(17, 25)
+    if sum == 42 {
+        println("  [PASS] func ptr with multiple int args")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] func ptr with multiple int args")
+        failed += 1
+    }
+
+    // Test 3: Call function pointer stored in variable
+    mut fn_ref = ()add
+    mut val int = fn_ref(3, 7)
+    if val == 10 {
+        println("  [PASS] func ptr call from variable")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] func ptr call from variable")
+        failed += 1
+    }
+
+    // Summary
+    println("")
+    println("Results: ${passed} passed, ${failed} failed")
+
+    if failed > 0 {
+        println("SOME TESTS FAILED")
+    } otherwise {
+        println("ALL TESTS PASSED")
+    }
+}
