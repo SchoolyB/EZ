@@ -1,0 +1,88 @@
+/* Stress test: Enums exhaustive (Section 7.4)
+ * Expected: all tests pass
+ */
+
+import @std
+using std
+
+const Color enum {
+    RED
+    GREEN
+    BLUE
+}
+
+#flags
+const Perms enum {
+    READ
+    WRITE
+    EXEC
+}
+
+const Status enum {
+    TODO = "todo"
+    IN_PROGRESS = "in_progress"
+    DONE = "done"
+}
+
+do get_color() -> Color {
+    return Color.GREEN
+}
+
+do main() {
+    println("=== Stress: Enums ===")
+    mut passed int = 0
+    mut failed int = 0
+
+    // Basic int enum access
+    mut c = Color.RED
+    if c == Color.RED {
+        println("  [PASS] int enum access")
+        passed += 1
+    } otherwise { println("  [FAIL] int enum") failed += 1 }
+
+    // Enum comparison
+    if Color.RED != Color.BLUE {
+        println("  [PASS] enum comparison !=")
+        passed += 1
+    } otherwise { println("  [FAIL] enum comparison") failed += 1 }
+
+    // String enum
+    mut s = Status.DONE
+    if s == Status.DONE {
+        println("  [PASS] string enum access")
+        passed += 1
+    } otherwise { println("  [FAIL] string enum") failed += 1 }
+
+    // Enum from function return
+    mut ret = get_color()
+    if ret == Color.GREEN {
+        println("  [PASS] enum from function return")
+        passed += 1
+    } otherwise { println("  [FAIL] enum return") failed += 1 }
+
+    // Enum in when statement
+    mut label string = ""
+    mut test_color = Color.BLUE
+    when test_color {
+        is Color.RED { label = "red" }
+        is Color.GREEN { label = "green" }
+        is Color.BLUE { label = "blue" }
+        default { label = "unknown" }
+    }
+    if label == "blue" {
+        println("  [PASS] enum in when statement")
+        passed += 1
+    } otherwise { println("  [FAIL] enum in when — got ${label}") failed += 1 }
+
+    // Enum in array
+    mut colors [Color] = {Color.RED, Color.GREEN, Color.BLUE}
+    if len(colors) == 3 {
+        println("  [PASS] array of enums")
+        passed += 1
+    } otherwise { println("  [FAIL] array of enums") failed += 1 }
+
+    // Summary
+    println("")
+    println("Results: ${passed} passed, ${failed} failed")
+    if failed > 0 { println("SOME TESTS FAILED") } otherwise { println("ALL TESTS PASSED") }
+}

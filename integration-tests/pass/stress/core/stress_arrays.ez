@@ -1,0 +1,106 @@
+/* Stress test: Arrays exhaustive (Section 7.1)
+ * Expected: all tests pass
+ */
+
+import @std, @arrays
+using std
+
+do main() {
+    println("=== Stress: Arrays ===")
+    mut passed int = 0
+    mut failed int = 0
+
+    // Empty array
+    mut empty [int] = {}
+    if len(empty) == 0 {
+        println("  [PASS] empty array")
+        passed += 1
+    } otherwise { println("  [FAIL] empty array") failed += 1 }
+
+    // Single element
+    mut single [int] = {42}
+    if len(single) == 1 && single[0] == 42 {
+        println("  [PASS] single element array")
+        passed += 1
+    } otherwise { println("  [FAIL] single element") failed += 1 }
+
+    // Append many elements
+    mut big [int] = {}
+    for i in range(0, 100) {
+        arrays.append(big, i)
+    }
+    if len(big) == 100 && big[0] == 0 && big[99] == 99 {
+        println("  [PASS] append 100 elements")
+        passed += 1
+    } otherwise { println("  [FAIL] append 100") failed += 1 }
+
+    // Nested arrays
+    mut nested [[int]] = {{1, 2}, {3, 4}, {5, 6}}
+    if len(nested) == 3 && nested[1][0] == 3 {
+        println("  [PASS] nested arrays [[int]]")
+        passed += 1
+    } otherwise { println("  [FAIL] nested arrays") failed += 1 }
+
+    // Fixed-size arrays
+    mut fixed [int, 3] = {10, 20, 30}
+    if len(fixed) == 3 && fixed[2] == 30 {
+        println("  [PASS] fixed-size array [int, 3]")
+        passed += 1
+    } otherwise { println("  [FAIL] fixed-size array") failed += 1 }
+
+    // arrays.contains
+    mut haystack [int] = {1, 2, 3, 4, 5}
+    if arrays.contains(haystack, 3) && !arrays.contains(haystack, 99) {
+        println("  [PASS] arrays.contains")
+        passed += 1
+    } otherwise { println("  [FAIL] arrays.contains") failed += 1 }
+
+    // arrays.index_of
+    mut idx int = arrays.index_of(haystack, 3)
+    if idx == 2 {
+        println("  [PASS] arrays.index_of")
+        passed += 1
+    } otherwise { println("  [FAIL] arrays.index_of — got ${idx}") failed += 1 }
+
+    // arrays.reverse
+    mut rev [int] = {1, 2, 3}
+    rev = arrays.reverse(rev)
+    if rev[0] == 3 && rev[2] == 1 {
+        println("  [PASS] arrays.reverse")
+        passed += 1
+    } otherwise { println("  [FAIL] arrays.reverse") failed += 1 }
+
+    // arrays.sort
+    mut unsorted [int] = {5, 3, 1, 4, 2}
+    arrays.sort(unsorted)
+    if unsorted[0] == 1 && unsorted[4] == 5 {
+        println("  [PASS] arrays.sort")
+        passed += 1
+    } otherwise { println("  [FAIL] arrays.sort") failed += 1 }
+
+    // arrays.sum, min, max
+    mut nums [int] = {10, 20, 30}
+    if arrays.sum(nums) == 60 && arrays.min(nums) == 10 && arrays.max(nums) == 30 {
+        println("  [PASS] arrays.sum/min/max")
+        passed += 1
+    } otherwise { println("  [FAIL] arrays.sum/min/max") failed += 1 }
+
+    // arrays.is_empty
+    if arrays.is_empty(empty) && !arrays.is_empty(nums) {
+        println("  [PASS] arrays.is_empty")
+        passed += 1
+    } otherwise { println("  [FAIL] arrays.is_empty") failed += 1 }
+
+    // arrays.slice
+    mut full [int] = {0, 1, 2, 3, 4, 5}
+    mut sliced [int] = arrays.slice(full, 1, 4)
+    if len(sliced) == 3 && sliced[0] == 1 && sliced[2] == 3 {
+        println("  [PASS] arrays.slice")
+        passed += 1
+    } otherwise { println("  [FAIL] arrays.slice") failed += 1 }
+
+    // Summary
+    println("")
+    println("Results: ${passed} passed, ${failed} failed")
+    if failed > 0 { println("SOME TESTS FAILED") } otherwise { println("ALL TESTS PASSED") }
+}

@@ -1,0 +1,111 @@
+/* Stress test: String literal edge cases (Section 1.3)
+ * Expected: all tests pass
+ */
+
+import @std, @strings
+using std
+
+do get_name() -> string {
+    return "World"
+}
+
+do main() {
+    println("=== Stress: String Literals ===")
+    mut passed int = 0
+    mut failed int = 0
+
+    // Empty string
+    mut empty string = ""
+    if len(empty) == 0 {
+        println("  [PASS] empty string")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] empty string")
+        failed += 1
+    }
+
+    // Escape sequences
+    mut nl string = "a\nb"
+    mut tab string = "a\tb"
+    mut cr string = "a\rb"
+    mut bs string = "a\\b"
+    mut qt string = "a\"b"
+    if len(nl) == 3 && len(tab) == 3 && len(bs) == 3 && len(qt) == 3 {
+        println("  [PASS] escape sequences produce correct lengths")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] escape sequences")
+        failed += 1
+    }
+
+    // Hex escape
+    mut hexH string = "\x48"
+    if hexH == "H" {
+        println("  [PASS] hex escape \\x48 == H")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] hex escape")
+        failed += 1
+    }
+
+    // String interpolation with variable
+    mut name string = "Alice"
+    mut greeting string = "Hello, ${name}!"
+    if greeting == "Hello, Alice!" {
+        println("  [PASS] interpolation with variable")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] interpolation with variable")
+        failed += 1
+    }
+
+    // String interpolation with expression
+    mut x int = 10
+    mut expr string = "result: ${x + 5}"
+    if expr == "result: 15" {
+        println("  [PASS] interpolation with expression")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] interpolation with expression")
+        failed += 1
+    }
+
+    // String interpolation with function call
+    mut fcall string = "Hello, ${get_name()}!"
+    if fcall == "Hello, World!" {
+        println("  [PASS] interpolation with function call")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] interpolation with function call")
+        failed += 1
+    }
+
+    // Combined escapes in one string
+    mut combo string = "tab:\there\nnewline\\"
+    if strings.contains(combo, "tab:") && strings.contains(combo, "here") {
+        println("  [PASS] combined escapes")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] combined escapes")
+        failed += 1
+    }
+
+    // Long string
+    mut big_str string = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
+    if len(big_str) == 124 {
+        println("  [PASS] long string (124 chars)")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] long string — got len ${len(big_str)}")
+        failed += 1
+    }
+
+    // Summary
+    println("")
+    println("Results: ${passed} passed, ${failed} failed")
+    if failed > 0 {
+        println("SOME TESTS FAILED")
+    } otherwise {
+        println("ALL TESTS PASSED")
+    }
+}

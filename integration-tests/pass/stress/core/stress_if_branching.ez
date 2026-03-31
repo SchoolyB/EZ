@@ -1,0 +1,81 @@
+/* Stress test: If/or/otherwise branching (Section 5.1)
+ * Expected: all tests pass
+ */
+
+import @std
+using std
+
+do main() {
+    println("=== Stress: If/Or/Otherwise ===")
+    mut passed int = 0
+    mut failed int = 0
+
+    // Simple if true
+    mut r1 int = 0
+    if true { r1 = 1 }
+    if r1 == 1 {
+        println("  [PASS] simple if true")
+        passed += 1
+    } otherwise { println("  [FAIL] simple if true") failed += 1 }
+
+    // Simple if false (no effect)
+    mut r2 int = 0
+    if false { r2 = 1 }
+    if r2 == 0 {
+        println("  [PASS] simple if false")
+        passed += 1
+    } otherwise { println("  [FAIL] simple if false") failed += 1 }
+
+    // if/otherwise
+    mut r3 string = ""
+    if false { r3 = "yes" } otherwise { r3 = "no" }
+    if r3 == "no" {
+        println("  [PASS] if/otherwise")
+        passed += 1
+    } otherwise { println("  [FAIL] if/otherwise") failed += 1 }
+
+    // if/or/otherwise with 3 branches
+    mut val int = 2
+    mut r4 string = ""
+    if val == 1 { r4 = "one" } or val == 2 { r4 = "two" } otherwise { r4 = "other" }
+    if r4 == "two" {
+        println("  [PASS] if/or/otherwise 3 branches")
+        passed += 1
+    } otherwise { println("  [FAIL] 3 branches") failed += 1 }
+
+    // 5 branches
+    mut v5 int = 4
+    mut r5 string = ""
+    if v5 == 1 { r5 = "a" } or v5 == 2 { r5 = "b" } or v5 == 3 { r5 = "c" } or v5 == 4 { r5 = "d" } otherwise { r5 = "e" }
+    if r5 == "d" {
+        println("  [PASS] 5 branches")
+        passed += 1
+    } otherwise { println("  [FAIL] 5 branches") failed += 1 }
+
+    // Nested if
+    mut r6 string = ""
+    if true {
+        if false {
+            r6 = "inner-if"
+        } otherwise {
+            r6 = "inner-otherwise"
+        }
+    }
+    if r6 == "inner-otherwise" {
+        println("  [PASS] nested if")
+        passed += 1
+    } otherwise { println("  [FAIL] nested if") failed += 1 }
+
+    // Complex condition
+    mut a int = 5
+    mut b int = 10
+    if a > 0 && b > 0 && a < b {
+        println("  [PASS] complex condition")
+        passed += 1
+    } otherwise { println("  [FAIL] complex condition") failed += 1 }
+
+    // Summary
+    println("")
+    println("Results: ${passed} passed, ${failed} failed")
+    if failed > 0 { println("SOME TESTS FAILED") } otherwise { println("ALL TESTS PASSED") }
+}

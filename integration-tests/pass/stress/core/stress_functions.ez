@@ -1,0 +1,82 @@
+/* Stress test: Functions and recursion (Section 6.1)
+ * Expected: all tests pass
+ */
+
+import @std
+using std
+
+do void_func() { }
+
+do return_int() -> int { return 42 }
+do return_str() -> string { return "hello" }
+do return_bool() -> bool { return true }
+
+do no_params() -> int { return 1 }
+do one_param(x int) -> int { return x * 2 }
+do five_params(a int, b int, c int, d int, e int) -> int { return a + b + c + d + e }
+
+do factorial(n int) -> int {
+    if n <= 1 { return 1 }
+    return n * factorial(n - 1)
+}
+
+do fib(n int) -> int {
+    if n <= 1 { return n }
+    return fib(n - 1) + fib(n - 2)
+}
+
+do is_even(n int) -> bool {
+    if n == 0 { return true }
+    return is_odd(n - 1)
+}
+
+do is_odd(n int) -> bool {
+    if n == 0 { return false }
+    return is_even(n - 1)
+}
+
+do main() {
+    println("=== Stress: Functions ===")
+    mut passed int = 0
+    mut failed int = 0
+
+    // Void function
+    void_func()
+    println("  [PASS] void function call")
+    passed += 1
+
+    // Return types
+    if return_int() == 42 && return_str() == "hello" && return_bool() == true {
+        println("  [PASS] various return types")
+        passed += 1
+    } otherwise { println("  [FAIL] return types") failed += 1 }
+
+    // Param counts
+    if no_params() == 1 && one_param(5) == 10 && five_params(1, 2, 3, 4, 5) == 15 {
+        println("  [PASS] 0, 1, 5 parameters")
+        passed += 1
+    } otherwise { println("  [FAIL] param counts") failed += 1 }
+
+    // Recursive factorial
+    if factorial(0) == 1 && factorial(1) == 1 && factorial(5) == 120 && factorial(10) == 3628800 {
+        println("  [PASS] factorial recursion")
+        passed += 1
+    } otherwise { println("  [FAIL] factorial") failed += 1 }
+
+    // Fibonacci
+    if fib(0) == 0 && fib(1) == 1 && fib(10) == 55 {
+        println("  [PASS] fibonacci recursion")
+        passed += 1
+    } otherwise { println("  [FAIL] fibonacci") failed += 1 }
+
+    // Mutual recursion
+    if is_even(10) == true && is_odd(7) == true && is_even(3) == false {
+        println("  [PASS] mutual recursion (is_even/is_odd)")
+        passed += 1
+    } otherwise { println("  [FAIL] mutual recursion") failed += 1 }
+
+    // Summary
+    println("")
+    println("Results: ${passed} passed, ${failed} failed")
+    if failed > 0 { println("SOME TESTS FAILED") } otherwise { println("ALL TESTS PASSED") }
+}

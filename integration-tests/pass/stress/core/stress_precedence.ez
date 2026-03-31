@@ -1,0 +1,85 @@
+/* Stress test: Operator precedence (Section 4.5)
+ * Expected: all tests pass
+ */
+
+import @std
+using std
+
+do main() {
+    println("=== Stress: Operator Precedence ===")
+    mut passed int = 0
+    mut failed int = 0
+
+    // Multiplication before addition
+    if 2 + 3 * 4 == 14 {
+        println("  [PASS] 2 + 3 * 4 == 14")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] mul before add — got ${2 + 3 * 4}")
+        failed += 1
+    }
+
+    // Parentheses override
+    if (2 + 3) * 4 == 20 {
+        println("  [PASS] (2 + 3) * 4 == 20")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] parens override")
+        failed += 1
+    }
+
+    // Division and modulo same precedence as multiplication
+    if 10 - 6 / 2 == 7 {
+        println("  [PASS] 10 - 6 / 2 == 7")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] div precedence — got ${10 - 6 / 2}")
+        failed += 1
+    }
+
+    // Comparison before logical
+    if true && 3 > 2 {
+        println("  [PASS] comparison before logical")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] comparison before logical")
+        failed += 1
+    }
+
+    // && before ||
+    if false && true || true {
+        println("  [PASS] && before || (false && true || true == true)")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] && before ||")
+        failed += 1
+    }
+
+    // Unary negation highest
+    if -2 + 3 == 1 {
+        println("  [PASS] unary negation highest precedence")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] unary negation — got ${-2 + 3}")
+        failed += 1
+    }
+
+    // Complex chain
+    mut result int = (1 + 2) * (3 + 4) - 5
+    if result == 16 {
+        println("  [PASS] (1+2)*(3+4)-5 == 16")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] complex chain — got ${result}")
+        failed += 1
+    }
+
+    // Summary
+    println("")
+    println("Results: ${passed} passed, ${failed} failed")
+    if failed > 0 {
+        println("SOME TESTS FAILED")
+    } otherwise {
+        println("ALL TESTS PASSED")
+    }
+}

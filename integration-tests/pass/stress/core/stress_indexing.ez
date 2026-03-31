@@ -1,0 +1,105 @@
+/* Stress test: Index and range expressions (Section 4.6-4.7)
+ * Expected: all tests pass
+ */
+
+import @std
+using std
+
+do main() {
+    println("=== Stress: Indexing & Ranges ===")
+    mut passed int = 0
+    mut failed int = 0
+
+    // Array indexing: first, middle, last
+    mut arr [int] = {10, 20, 30, 40, 50}
+    if arr[0] == 10 && arr[2] == 30 && arr[4] == 50 {
+        println("  [PASS] array indexing first/middle/last")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] array indexing")
+        failed += 1
+    }
+
+    // Index assignment
+    arr[2] = 99
+    if arr[2] == 99 {
+        println("  [PASS] index assignment")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] index assignment")
+        failed += 1
+    }
+
+    // String indexing
+    mut s string = "hello"
+    mut ch char = s[0]
+    if ch == 'h' {
+        println("  [PASS] string indexing returns char")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] string indexing")
+        failed += 1
+    }
+
+    // Nested array indexing
+    mut matrix [[int]] = {{1, 2}, {3, 4}, {5, 6}}
+    if matrix[0][0] == 1 && matrix[1][1] == 4 && matrix[2][0] == 5 {
+        println("  [PASS] nested array indexing (2D)")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] nested array indexing")
+        failed += 1
+    }
+
+    // Range: standard
+    mut sum1 int = 0
+    for i in range(0, 5) {
+        sum1 += i
+    }
+    if sum1 == 10 {
+        println("  [PASS] range(0, 5) sums to 10")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] range(0,5) — got ${sum1}")
+        failed += 1
+    }
+
+    // Range with step
+    mut sum2 int = 0
+    for i in range(0, 10, 2) {
+        sum2 += i
+    }
+    if sum2 == 20 {
+        println("  [PASS] range(0, 10, 2) sums to 20")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] range with step — got ${sum2}")
+        failed += 1
+    }
+
+    // Range: single element
+    mut count int = 0
+    for i in range(5, 6) {
+        count += 1
+    }
+    if count == 1 {
+        println("  [PASS] range(5, 6) yields 1 element")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] single element range — got ${count}")
+        failed += 1
+    }
+
+    // Note: range(5, 0, -1) and range(0, 0) are rejected by typechecker
+    // with E9005 (start must be < end). Reverse ranges are tested in
+    // integration-tests/pass/core/when_range_negative_step.ez
+
+    // Summary
+    println("")
+    println("Results: ${passed} passed, ${failed} failed")
+    if failed > 0 {
+        println("SOME TESTS FAILED")
+    } otherwise {
+        println("ALL TESTS PASSED")
+    }
+}

@@ -1,0 +1,121 @@
+/* Stress test: While and loop statements (Section 5.4-5.5)
+ * Expected: all tests pass
+ */
+
+import @std
+using std
+
+do loop_return() -> int {
+    mut i int = 0
+    loop {
+        i += 1
+        if i == 10 { return i }
+    }
+    return -1
+}
+
+do main() {
+    println("=== Stress: While & Loop ===")
+    mut passed int = 0
+    mut failed int = 0
+
+    // while basic
+    mut count int = 0
+    while count < 5 {
+        count += 1
+    }
+    if count == 5 {
+        println("  [PASS] while basic")
+        passed += 1
+    } otherwise { println("  [FAIL] while basic — got ${count}") failed += 1 }
+
+    // as_long_as (alias)
+    mut count2 int = 0
+    as_long_as count2 < 3 {
+        count2 += 1
+    }
+    if count2 == 3 {
+        println("  [PASS] as_long_as alias")
+        passed += 1
+    } otherwise { println("  [FAIL] as_long_as") failed += 1 }
+
+    // while runs 0 times
+    mut zero_runs int = 0
+    while false {
+        zero_runs += 1
+    }
+    if zero_runs == 0 {
+        println("  [PASS] while false runs 0 times")
+        passed += 1
+    } otherwise { println("  [FAIL] while 0 times") failed += 1 }
+
+    // while exactly once
+    mut once int = 0
+    mut flag bool = true
+    while flag {
+        once += 1
+        flag = false
+    }
+    if once == 1 {
+        println("  [PASS] while exactly once")
+        passed += 1
+    } otherwise { println("  [FAIL] while once") failed += 1 }
+
+    // break in while
+    mut break_count int = 0
+    while true {
+        break_count += 1
+        if break_count == 7 { break }
+    }
+    if break_count == 7 {
+        println("  [PASS] break in while")
+        passed += 1
+    } otherwise { println("  [FAIL] break in while") failed += 1 }
+
+    // continue in while
+    mut skip int = 0
+    mut wi int = 0
+    while wi < 10 {
+        wi += 1
+        if wi % 2 == 0 { continue }
+        skip += wi
+    }
+    if skip == 25 {
+        println("  [PASS] continue in while (odd sum = 25)")
+        passed += 1
+    } otherwise { println("  [FAIL] continue in while — got ${skip}") failed += 1 }
+
+    // loop with immediate break
+    mut loop_ran bool = false
+    loop {
+        loop_ran = true
+        break
+    }
+    if loop_ran {
+        println("  [PASS] loop { break } runs body once")
+        passed += 1
+    } otherwise { println("  [FAIL] loop break") failed += 1 }
+
+    // loop with counter
+    mut lc int = 0
+    loop {
+        lc += 1
+        if lc >= 100 { break }
+    }
+    if lc == 100 {
+        println("  [PASS] loop with counter to 100")
+        passed += 1
+    } otherwise { println("  [FAIL] loop counter — got ${lc}") failed += 1 }
+
+    // loop with return
+    mut lr int = loop_return()
+    if lr == 10 {
+        println("  [PASS] loop with return")
+        passed += 1
+    } otherwise { println("  [FAIL] loop return — got ${lr}") failed += 1 }
+
+    // Summary
+    println("")
+    println("Results: ${passed} passed, ${failed} failed")
+    if failed > 0 { println("SOME TESTS FAILED") } otherwise { println("ALL TESTS PASSED") }
+}

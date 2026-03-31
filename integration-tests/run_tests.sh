@@ -106,6 +106,60 @@ for dir in "$SCRIPT_DIR"/pass/multi-file/*/; do
     fi
 done
 
+# Stress tests — core
+if [ -d "$SCRIPT_DIR/pass/stress/core" ]; then
+    echo ""
+    echo "Running STRESS tests (core)..."
+    echo "----------------------------------------"
+
+    for test_file in "$SCRIPT_DIR"/pass/stress/core/*.ez; do
+        if [ -f "$test_file" ]; then
+            test_name=$(basename "$test_file" .ez)
+            printf "  stress/core/%s... " "$test_name"
+
+            if output=$("$EZ_BIN" "$test_file" 2>&1); then
+                if echo "$output" | grep -q "SOME TESTS FAILED"; then
+                    echo -e "${RED}FAIL${NC} (test assertions failed)"
+                    ((++FAIL_COUNT))
+                else
+                    echo -e "${GREEN}PASS${NC}"
+                    ((++PASS_COUNT))
+                fi
+            else
+                echo -e "${RED}FAIL${NC} (execution error)"
+                ((++FAIL_COUNT))
+            fi
+        fi
+    done
+fi
+
+# Stress tests — stdlib
+if [ -d "$SCRIPT_DIR/pass/stress/stdlib" ]; then
+    echo ""
+    echo "Running STRESS tests (stdlib)..."
+    echo "----------------------------------------"
+
+    for test_file in "$SCRIPT_DIR"/pass/stress/stdlib/*.ez; do
+        if [ -f "$test_file" ]; then
+            test_name=$(basename "$test_file" .ez)
+            printf "  stress/stdlib/%s... " "$test_name"
+
+            if output=$("$EZ_BIN" "$test_file" 2>&1); then
+                if echo "$output" | grep -q "SOME TESTS FAILED"; then
+                    echo -e "${RED}FAIL${NC} (test assertions failed)"
+                    ((++FAIL_COUNT))
+                else
+                    echo -e "${GREEN}PASS${NC}"
+                    ((++PASS_COUNT))
+                fi
+            else
+                echo -e "${RED}FAIL${NC} (execution error)"
+                ((++FAIL_COUNT))
+            fi
+        fi
+    done
+fi
+
 # Warning tests (should produce specific warnings when checked)
 if [ -d "$SCRIPT_DIR/pass/warnings" ]; then
     echo ""

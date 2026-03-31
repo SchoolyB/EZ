@@ -1,0 +1,88 @@
+/* Stress test: Pointer types exhaustive (Section 2.4)
+ * Expected: all tests pass
+ */
+
+import @std
+using std
+
+const Point struct {
+    x int
+    y int
+}
+
+const Node struct {
+    val int
+    next ^Node
+}
+
+do main() {
+    println("=== Stress: Pointers ===")
+    mut passed int = 0
+    mut failed int = 0
+
+    // new(Type) returns ^Type, zero-initialized
+    mut p = new(Point)
+    if p^.x == 0 && p^.y == 0 {
+        println("  [PASS] new(Point) zero-initialized")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] new(Point) zero-init")
+        failed += 1
+    }
+
+    // Modify through pointer
+    p^.x = 10
+    p^.y = 20
+    if p^.x == 10 && p^.y == 20 {
+        println("  [PASS] modify struct through pointer")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] modify struct through pointer")
+        failed += 1
+    }
+
+    // Pointer reassignment
+    mut q = new(Point)
+    q^.x = 99
+    p = q
+    if p^.x == 99 {
+        println("  [PASS] pointer reassignment")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] pointer reassignment")
+        failed += 1
+    }
+
+    // Pointer comparison with nil
+    mut n ^Point = nil
+    if n == nil {
+        println("  [PASS] pointer nil comparison")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] pointer nil comparison")
+        failed += 1
+    }
+
+    // Linked structure via pointers
+    mut a = new(Node)
+    mut b_node = new(Node)
+    a^.val = 1
+    b_node^.val = 2
+    b_node^.next = a
+    if b_node^.next^.val == 1 {
+        println("  [PASS] linked structure through pointers")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] linked structure")
+        failed += 1
+    }
+
+    // Summary
+    println("")
+    println("Results: ${passed} passed, ${failed} failed")
+    if failed > 0 {
+        println("SOME TESTS FAILED")
+    } otherwise {
+        println("ALL TESTS PASSED")
+    }
+}

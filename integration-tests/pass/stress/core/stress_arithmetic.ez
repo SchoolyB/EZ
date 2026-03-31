@@ -1,0 +1,117 @@
+/* Stress test: Arithmetic operators (Section 4.1)
+ * Expected: all tests pass
+ */
+
+import @std
+using std
+
+do main() {
+    println("=== Stress: Arithmetic ===")
+    mut passed int = 0
+    mut failed int = 0
+
+    // Basic operators with int
+    if 2 + 3 == 5 && 10 - 4 == 6 && 3 * 7 == 21 && 20 / 4 == 5 && 17 % 5 == 2 {
+        println("  [PASS] int arithmetic basics")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] int arithmetic basics")
+        failed += 1
+    }
+
+    // Float arithmetic
+    if 1.5 + 2.5 == 4.0 && 10.0 - 3.5 == 6.5 && 2.0 * 3.0 == 6.0 {
+        println("  [PASS] float arithmetic basics")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] float arithmetic basics")
+        failed += 1
+    }
+
+    // String concatenation
+    mut s string = "hello" + " " + "world"
+    if s == "hello world" {
+        println("  [PASS] string concatenation")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] string concatenation")
+        failed += 1
+    }
+
+    // Integer division truncation
+    if 7 / 2 == 3 && 1 / 3 == 0 {
+        println("  [PASS] integer division truncation")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] integer division truncation")
+        failed += 1
+    }
+
+    // Negative division and modulo
+    if -7 / 2 == -3 && -7 % 2 == -1 {
+        println("  [PASS] negative division and modulo")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] negative division/modulo")
+        failed += 1
+    }
+
+    // Compound assignment
+    mut x int = 10
+    x += 5
+    x -= 3
+    x *= 2
+    x /= 4
+    if x == 6 {
+        println("  [PASS] compound assignment +=, -=, *=, /=")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] compound assignment — got ${x}")
+        failed += 1
+    }
+
+    // Percent assign
+    mut m int = 17
+    m %= 5
+    if m == 2 {
+        println("  [PASS] %= compound assignment")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] %= — got ${m}")
+        failed += 1
+    }
+
+    // Increment/decrement
+    mut c int = 0
+    c++
+    c++
+    c++
+    c--
+    if c == 2 {
+        println("  [PASS] increment/decrement")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] increment/decrement — got ${c}")
+        failed += 1
+    }
+
+    // Chain of operations
+    mut result int = 2 + 3 * 4 - 8 / 2 % 3
+    // 2 + 12 - (4 % 3) = 2 + 12 - 1 = 13
+    if result == 13 {
+        println("  [PASS] chained operations with precedence")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] chained operations — got ${result}")
+        failed += 1
+    }
+
+    // Summary
+    println("")
+    println("Results: ${passed} passed, ${failed} failed")
+    if failed > 0 {
+        println("SOME TESTS FAILED")
+    } otherwise {
+        println("ALL TESTS PASSED")
+    }
+}

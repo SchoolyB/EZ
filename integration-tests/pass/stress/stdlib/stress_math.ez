@@ -1,0 +1,84 @@
+/* Stress test: @math — edge cases and known values
+ * Expected: all tests pass
+ */
+
+import @std, @math
+using std
+
+do main() {
+    println("=== Stress: @math Edge Cases ===")
+    mut passed int = 0
+    mut failed int = 0
+
+    // abs int
+    if math.abs(-5) == 5 && math.abs(0) == 0 && math.abs(3) == 3 {
+        println("  [PASS] abs on int")
+        passed += 1
+    } otherwise { println("  [FAIL] abs int") failed += 1 }
+
+    // abs float
+    mut af = math.abs(-3.14)
+    if af > 3.13 && af < 3.15 {
+        println("  [PASS] abs on float")
+        passed += 1
+    } otherwise { println("  [FAIL] abs float") failed += 1 }
+
+    // sqrt
+    mut s4 = math.sqrt(4.0)
+    mut s0 = math.sqrt(0.0)
+    if s4 == 2.0 && s0 == 0.0 {
+        println("  [PASS] sqrt(4)=2, sqrt(0)=0")
+        passed += 1
+    } otherwise { println("  [FAIL] sqrt") failed += 1 }
+
+    // pow
+    mut p1 = math.pow(2.0, 10.0)
+    mut p2 = math.pow(2.0, 0.0)
+    if p1 == 1024.0 && p2 == 1.0 {
+        println("  [PASS] pow(2,10)=1024, pow(2,0)=1")
+        passed += 1
+    } otherwise { println("  [FAIL] pow") failed += 1 }
+
+    // sin/cos at 0
+    mut sin0 = math.sin(0.0)
+    mut cos0 = math.cos(0.0)
+    if sin0 == 0.0 && cos0 == 1.0 {
+        println("  [PASS] sin(0)=0, cos(0)=1")
+        passed += 1
+    } otherwise { println("  [FAIL] trig at 0") failed += 1 }
+
+    // PI
+    if math.PI > 3.14 && math.PI < 3.15 {
+        println("  [PASS] math.PI in range")
+        passed += 1
+    } otherwise { println("  [FAIL] PI") failed += 1 }
+
+    // floor/ceil
+    mut fl = math.floor(3.7)
+    mut ce = math.ceil(3.2)
+    if fl == 3.0 && ce == 4.0 {
+        println("  [PASS] floor/ceil")
+        passed += 1
+    } otherwise { println("  [FAIL] floor/ceil") failed += 1 }
+
+    // min/max (use int to avoid int/float comparison issues)
+    mut mn = math.min(3, 5)
+    mut mx = math.max(3, 5)
+    if mn == 3 && mx == 5 {
+        println("  [PASS] min/max")
+        passed += 1
+    } otherwise { println("  [FAIL] min/max") failed += 1 }
+
+    // factorial (returns float, compare with float)
+    mut f0 = math.factorial(0)
+    mut f5 = math.factorial(5)
+    if f0 > 0.9 && f0 < 1.1 && f5 > 119.9 && f5 < 120.1 {
+        println("  [PASS] factorial(0,5)")
+        passed += 1
+    } otherwise { println("  [FAIL] factorial") failed += 1 }
+
+    // Summary
+    println("")
+    println("Results: ${passed} passed, ${failed} failed")
+    if failed > 0 { println("SOME TESTS FAILED") } otherwise { println("ALL TESTS PASSED") }
+}

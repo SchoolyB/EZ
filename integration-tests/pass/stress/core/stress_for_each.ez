@@ -1,0 +1,106 @@
+/* Stress test: For-each loops (Section 5.3)
+ * Expected: all tests pass
+ */
+
+import @std
+using std
+
+do main() {
+    println("=== Stress: For-Each Loops ===")
+    mut passed int = 0
+    mut failed int = 0
+
+    // for_each item in int array
+    mut sum int = 0
+    mut arr [int] = {10, 20, 30}
+    for_each item in arr {
+        sum += item
+    }
+    if sum == 60 {
+        println("  [PASS] for_each int array")
+        passed += 1
+    } otherwise { println("  [FAIL] for_each int — got ${sum}") failed += 1 }
+
+    // for_each with index
+    mut idx_sum int = 0
+    for_each i, item in arr {
+        idx_sum += i
+    }
+    if idx_sum == 3 {
+        println("  [PASS] for_each with index (0+1+2=3)")
+        passed += 1
+    } otherwise { println("  [FAIL] for_each index — got ${idx_sum}") failed += 1 }
+
+    // for_each discard index
+    mut val_sum int = 0
+    for_each _, item in arr {
+        val_sum += item
+    }
+    if val_sum == 60 {
+        println("  [PASS] for_each _, item (discard index)")
+        passed += 1
+    } otherwise { println("  [FAIL] for_each discard index") failed += 1 }
+
+    // for_each on string array
+    mut concat string = ""
+    mut names [string] = {"a", "b", "c"}
+    for_each name in names {
+        concat = concat + name
+    }
+    if concat == "abc" {
+        println("  [PASS] for_each string array")
+        passed += 1
+    } otherwise { println("  [FAIL] for_each string — got ${concat}") failed += 1 }
+
+    // for_each characters in string
+    mut char_count int = 0
+    for_each ch in "hello" {
+        char_count += 1
+    }
+    if char_count == 5 {
+        println("  [PASS] for_each chars in string")
+        passed += 1
+    } otherwise { println("  [FAIL] for_each chars — got ${char_count}") failed += 1 }
+
+    // for_each with break
+    mut break_count int = 0
+    mut big [int] = {1, 2, 3, 4, 5, 6, 7, 8, 9, 10}
+    for_each item in big {
+        if item == 5 { break }
+        break_count += 1
+    }
+    if break_count == 4 {
+        println("  [PASS] for_each with break")
+        passed += 1
+    } otherwise { println("  [FAIL] for_each break — got ${break_count}") failed += 1 }
+
+    // for_each with continue
+    mut skip_sum int = 0
+    for_each item in big {
+        if item % 2 == 0 { continue }
+        skip_sum += item
+    }
+    if skip_sum == 25 {
+        println("  [PASS] for_each with continue (odd sum = 25)")
+        passed += 1
+    } otherwise { println("  [FAIL] for_each continue — got ${skip_sum}") failed += 1 }
+
+    // Nested for_each
+    mut nested_count int = 0
+    mut m1 [int] = {1, 2}
+    mut m2 [int] = {3, 4}
+    for_each a in m1 {
+        for_each b_val in m2 {
+            nested_count += 1
+        }
+    }
+    if nested_count == 4 {
+        println("  [PASS] nested for_each (2x2=4)")
+        passed += 1
+    } otherwise { println("  [FAIL] nested for_each — got ${nested_count}") failed += 1 }
+
+    // Summary
+    println("")
+    println("Results: ${passed} passed, ${failed} failed")
+    if failed > 0 { println("SOME TESTS FAILED") } otherwise { println("ALL TESTS PASSED") }
+}

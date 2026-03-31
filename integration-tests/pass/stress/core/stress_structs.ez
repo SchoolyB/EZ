@@ -1,0 +1,105 @@
+/* Stress test: Structs exhaustive (Section 7.3)
+ * Expected: all tests pass
+ */
+
+import @std
+using std
+
+const Person struct {
+    name string
+    age int
+}
+
+const Address struct {
+    city string
+    zip int
+}
+
+const Employee struct {
+    person Person
+    addr Address
+    active bool
+}
+
+do get_person() -> Person {
+    return Person{name: "Bob", age: 25}
+}
+
+do main() {
+    println("=== Stress: Structs ===")
+    mut passed int = 0
+    mut failed int = 0
+
+    // Basic struct
+    mut p = Person{name: "Alice", age: 30}
+    if p.name == "Alice" && p.age == 30 {
+        println("  [PASS] basic struct creation")
+        passed += 1
+    } otherwise { println("  [FAIL] basic struct") failed += 1 }
+
+    // Modify fields
+    p.name = "Bob"
+    p.age = 25
+    if p.name == "Bob" && p.age == 25 {
+        println("  [PASS] modify struct fields")
+        passed += 1
+    } otherwise { println("  [FAIL] modify fields") failed += 1 }
+
+    // Nested struct
+    mut emp = Employee{
+        person: Person{name: "Carol", age: 35},
+        addr: Address{city: "NYC", zip: 10001},
+        active: true
+    }
+    if emp.person.name == "Carol" && emp.addr.city == "NYC" && emp.active == true {
+        println("  [PASS] nested struct access")
+        passed += 1
+    } otherwise { println("  [FAIL] nested struct") failed += 1 }
+
+    // Zero-initialization
+    mut zero = Person{name: "", age: 0}
+    if zero.name == "" && zero.age == 0 {
+        println("  [PASS] zero-initialized struct")
+        passed += 1
+    } otherwise { println("  [FAIL] zero-init struct") failed += 1 }
+
+    // new(Type) — pointer, zero-init
+    mut ptr = new(Person)
+    if ptr^.name == "" && ptr^.age == 0 {
+        println("  [PASS] new(Person) zero-initialized pointer")
+        passed += 1
+    } otherwise { println("  [FAIL] new(Person)") failed += 1 }
+
+    // copy() — deep copy independence
+    mut orig = Person{name: "Dave", age: 40}
+    mut dup = copy(orig)
+    dup.name = "Eve"
+    dup.age = 50
+    if orig.name == "Dave" && orig.age == 40 && dup.name == "Eve" {
+        println("  [PASS] copy() deep copy independence")
+        passed += 1
+    } otherwise { println("  [FAIL] copy() independence") failed += 1 }
+
+    // Struct from function return
+    mut ret = get_person()
+    if ret.name == "Bob" && ret.age == 25 {
+        println("  [PASS] struct from function return")
+        passed += 1
+    } otherwise { println("  [FAIL] struct return") failed += 1 }
+
+    // Array of structs
+    mut people [Person] = {
+        Person{name: "A", age: 1},
+        Person{name: "B", age: 2},
+        Person{name: "C", age: 3}
+    }
+    if len(people) == 3 && people[1].name == "B" {
+        println("  [PASS] array of structs")
+        passed += 1
+    } otherwise { println("  [FAIL] array of structs") failed += 1 }
+
+    // Summary
+    println("")
+    println("Results: ${passed} passed, ${failed} failed")
+    if failed > 0 { println("SOME TESTS FAILED") } otherwise { println("ALL TESTS PASSED") }
+}

@@ -1,0 +1,112 @@
+/* Stress test: Multiple and named return values (Section 6.2-6.3)
+ * Expected: all tests pass
+ */
+
+import @std
+using std
+
+do two() -> (int, string) { return 42, "hello" }
+do three() -> (int, string, bool) { return 1, "two", true }
+do five() -> (int, int, int, int, int) { return 10, 20, 30, 40, 50 }
+do eight() -> (int, int, int, int, int, int, int, int) { return 1, 2, 3, 4, 5, 6, 7, 8 }
+
+// Named returns
+do named_single() -> (result int) {
+    result = 42
+    return result
+}
+
+do named_multi() -> (name string, age int) {
+    name = "Alice"
+    age = 30
+    return name, age
+}
+
+// Bare return with named values
+do bare_return() -> (x int, y int) {
+    x = 10
+    y = 20
+    return
+}
+
+// Grouped type named returns
+do grouped() -> (a, b int, c string) {
+    a = 1
+    b = 2
+    c = "three"
+    return a, b, c
+}
+
+do main() {
+    println("=== Stress: Multi & Named Returns ===")
+    mut passed int = 0
+    mut failed int = 0
+
+    // 2 returns
+    mut a, b = two()
+    if a == 42 && b == "hello" {
+        println("  [PASS] 2 return values")
+        passed += 1
+    } otherwise { println("  [FAIL] 2 returns") failed += 1 }
+
+    // 3 returns
+    mut c, d, e = three()
+    if c == 1 && d == "two" && e == true {
+        println("  [PASS] 3 return values")
+        passed += 1
+    } otherwise { println("  [FAIL] 3 returns") failed += 1 }
+
+    // 5 returns
+    mut f1, f2, f3, f4, f5 = five()
+    if f1 == 10 && f3 == 30 && f5 == 50 {
+        println("  [PASS] 5 return values")
+        passed += 1
+    } otherwise { println("  [FAIL] 5 returns") failed += 1 }
+
+    // 8 returns
+    mut g1, g2, g3, g4, g5, g6, g7, g8 = eight()
+    if g1 == 1 && g4 == 4 && g8 == 8 {
+        println("  [PASS] 8 return values")
+        passed += 1
+    } otherwise { println("  [FAIL] 8 returns") failed += 1 }
+
+    // Discard with _
+    mut val, _ = two()
+    if val == 42 {
+        println("  [PASS] discard with _")
+        passed += 1
+    } otherwise { println("  [FAIL] discard") failed += 1 }
+
+    // Named single return
+    mut ns int = named_single()
+    if ns == 42 {
+        println("  [PASS] named single return")
+        passed += 1
+    } otherwise { println("  [FAIL] named single") failed += 1 }
+
+    // Named multi return
+    mut nm_name string, nm_age int = named_multi()
+    if nm_name == "Alice" && nm_age == 30 {
+        println("  [PASS] named multi return")
+        passed += 1
+    } otherwise { println("  [FAIL] named multi") failed += 1 }
+
+    // Bare return
+    mut bx int, by int = bare_return()
+    if bx == 10 && by == 20 {
+        println("  [PASS] bare return with named values")
+        passed += 1
+    } otherwise { println("  [FAIL] bare return") failed += 1 }
+
+    // Grouped type return
+    mut ga int, gb int, gc string = grouped()
+    if ga == 1 && gb == 2 && gc == "three" {
+        println("  [PASS] grouped type named return")
+        passed += 1
+    } otherwise { println("  [FAIL] grouped return") failed += 1 }
+
+    // Summary
+    println("")
+    println("Results: ${passed} passed, ${failed} failed")
+    if failed > 0 { println("SOME TESTS FAILED") } otherwise { println("ALL TESTS PASSED") }
+}

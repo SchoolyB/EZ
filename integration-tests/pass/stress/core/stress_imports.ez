@@ -1,0 +1,47 @@
+/* Stress test: Import and using declarations (Section 8.1-8.2)
+ * Expected: all tests pass
+ */
+
+import @std, @arrays, @strings, @math
+using std
+
+do main() {
+    println("=== Stress: Imports & Using ===")
+    mut passed int = 0
+    mut failed int = 0
+
+    // Multiple stdlib imports work
+    mut arr [int] = {3, 1, 2}
+    arrays.sort(arr)
+    if arr[0] == 1 {
+        println("  [PASS] @arrays import and use")
+        passed += 1
+    } otherwise { println("  [FAIL] @arrays") failed += 1 }
+
+    // @strings
+    mut upper string = strings.to_upper("hello")
+    if upper == "HELLO" {
+        println("  [PASS] @strings import and use")
+        passed += 1
+    } otherwise { println("  [FAIL] @strings") failed += 1 }
+
+    // @math
+    mut abs_val = math.abs(-5.0)
+    if abs_val > 4.9 && abs_val < 5.1 {
+        println("  [PASS] @math import and use")
+        passed += 1
+    } otherwise { println("  [FAIL] @math") failed += 1 }
+
+    // using std — unqualified println already works (used throughout)
+    println("  [PASS] using std — unqualified access")
+    passed += 1
+
+    // Qualified access still works alongside using
+    std.println("  [PASS] qualified std.println alongside using")
+    passed += 1
+
+    // Summary
+    println("")
+    println("Results: ${passed} passed, ${failed} failed")
+    if failed > 0 { println("SOME TESTS FAILED") } otherwise { println("ALL TESTS PASSED") }
+}

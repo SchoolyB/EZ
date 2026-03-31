@@ -1,0 +1,74 @@
+/* Stress test: Blank identifier (Section 3.3)
+ * Expected: all tests pass
+ */
+
+import @std
+using std
+
+do two() -> (int, string) { return 42, "hello" }
+do three() -> (int, string, bool) { return 1, "two", true }
+
+do main() {
+    println("=== Stress: Blank Identifier ===")
+    mut passed int = 0
+    mut failed int = 0
+
+    // Discard second value
+    mut val, _ = two()
+    if val == 42 {
+        println("  [PASS] mut val, _ = two()")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] discard second")
+        failed += 1
+    }
+
+    // Discard first value
+    mut _, name = two()
+    if name == "hello" {
+        println("  [PASS] mut _, name = two()")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] discard first")
+        failed += 1
+    }
+
+    // Discard first and last
+    mut _, middle, _ = three()
+    if middle == "two" {
+        println("  [PASS] _, middle, _ = three()")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] discard first and last")
+        failed += 1
+    }
+
+    // const with blank
+    const cv, _ = two()
+    if cv == 42 {
+        println("  [PASS] const val, _ = two()")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] const with blank")
+        failed += 1
+    }
+
+    // Multiple blanks
+    mut _, _, flag = three()
+    if flag == true {
+        println("  [PASS] _, _, flag = three()")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] multiple blanks")
+        failed += 1
+    }
+
+    // Summary
+    println("")
+    println("Results: ${passed} passed, ${failed} failed")
+    if failed > 0 {
+        println("SOME TESTS FAILED")
+    } otherwise {
+        println("ALL TESTS PASSED")
+    }
+}

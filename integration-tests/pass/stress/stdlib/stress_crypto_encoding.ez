@@ -1,0 +1,63 @@
+/* Stress test: @crypto and @encoding — known values and round-trips
+ * Expected: all tests pass
+ */
+
+import @std, @crypto, @encoding
+using std
+
+do main() {
+    println("=== Stress: @crypto & @encoding ===")
+    mut passed int = 0
+    mut failed int = 0
+
+    // sha256 known value
+    mut h string = crypto.sha256("hello")
+    if h == "2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824" {
+        println("  [PASS] sha256('hello') matches known hash")
+        passed += 1
+    } otherwise { println("  [FAIL] sha256 — got '${h}'") failed += 1 }
+
+    // md5 known value
+    mut m string = crypto.md5("hello")
+    if m == "5d41402abc4b2a76b9719d911017c592" {
+        println("  [PASS] md5('hello') matches known hash")
+        passed += 1
+    } otherwise { println("  [FAIL] md5 — got '${m}'") failed += 1 }
+
+    // empty string hashes
+    mut empty_sha string = crypto.sha256("")
+    mut empty_md5 string = crypto.md5("")
+    if len(empty_sha) == 64 && len(empty_md5) == 32 {
+        println("  [PASS] hashes of empty string have correct lengths")
+        passed += 1
+    } otherwise { println("  [FAIL] empty hashes") failed += 1 }
+
+    // base64 round-trip
+    mut b64 string = encoding.base64_encode("Hello, World!")
+    mut decoded string = encoding.base64_decode(b64)
+    if decoded == "Hello, World!" {
+        println("  [PASS] base64 encode/decode round-trip")
+        passed += 1
+    } otherwise { println("  [FAIL] base64 round-trip — got '${decoded}'") failed += 1 }
+
+    // hex round-trip
+    mut hex string = encoding.hex_encode("ABC")
+    mut hex_decoded string = encoding.hex_decode(hex)
+    if hex_decoded == "ABC" {
+        println("  [PASS] hex encode/decode round-trip")
+        passed += 1
+    } otherwise { println("  [FAIL] hex round-trip") failed += 1 }
+
+    // url round-trip
+    mut url string = encoding.url_encode("hello world&foo=bar")
+    mut url_decoded string = encoding.url_decode(url)
+    if url_decoded == "hello world&foo=bar" {
+        println("  [PASS] url encode/decode round-trip")
+        passed += 1
+    } otherwise { println("  [FAIL] url round-trip") failed += 1 }
+
+    // Summary
+    println("")
+    println("Results: ${passed} passed, ${failed} failed")
+    if failed > 0 { println("SOME TESTS FAILED") } otherwise { println("ALL TESTS PASSED") }
+}

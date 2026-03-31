@@ -1,0 +1,61 @@
+/* Stress test: @random — range validation over many calls
+ * Expected: all tests pass
+ */
+
+import @std, @random
+using std
+
+do main() {
+    println("=== Stress: @random ===")
+    mut passed int = 0
+    mut failed int = 0
+
+    // rand_int in range over 100 calls
+    mut all_in_range bool = true
+    for i in range(0, 100) {
+        mut r int = random.rand_int(0, 100)
+        if r < 0 || r > 100 {
+            all_in_range = false
+            break
+        }
+    }
+    if all_in_range {
+        println("  [PASS] rand_int(0,100) in range over 100 calls")
+        passed += 1
+    } otherwise { println("  [FAIL] rand_int out of range") failed += 1 }
+
+    // rand_float in range
+    mut float_ok bool = true
+    for i in range(0, 100) {
+        mut r float = random.rand_float(0.0, 1.0)
+        if r < 0.0 || r > 1.0 {
+            float_ok = false
+            break
+        }
+    }
+    if float_ok {
+        println("  [PASS] rand_float(0,1) in range over 100 calls")
+        passed += 1
+    } otherwise { println("  [FAIL] rand_float out of range") failed += 1 }
+
+    // rand_bool — should get at least one true and one false in 100 calls
+    mut got_true bool = false
+    mut got_false bool = false
+    for i in range(0, 100) {
+        mut b bool = random.rand_bool()
+        if b { got_true = true }
+        if !b { got_false = true }
+    }
+    if got_true && got_false {
+        println("  [PASS] rand_bool() produces both values")
+        passed += 1
+    } otherwise { println("  [FAIL] rand_bool — didn't get both") failed += 1 }
+
+    // Note: random.choice() generates invalid C (__auto_type in expression
+    // context). Logged as bug. Skipping until fixed.
+
+    // Summary
+    println("")
+    println("Results: ${passed} passed, ${failed} failed")
+    if failed > 0 { println("SOME TESTS FAILED") } otherwise { println("ALL TESTS PASSED") }
+}

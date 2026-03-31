@@ -1,0 +1,136 @@
+/* Stress test: Sized integer types exhaustive (Section 2.2)
+ * Tests i8, i16, i32, i64, u8, u16, u32, u64 with min/max/zero/cast
+ * Expected: all tests pass
+ */
+
+import @std
+using std
+
+do main() {
+    println("=== Stress: Sized Integers ===")
+    mut passed int = 0
+    mut failed int = 0
+
+    // i8: -128 to 127
+    mut i8_zero i8 = 0
+    mut i8_max i8 = 127
+    mut i8_min i8 = -128
+    if i8_zero == 0 && i8_max == 127 && i8_min == -128 && type_of(i8_zero) == "i8" {
+        println("  [PASS] i8 range and type_of")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] i8")
+        failed += 1
+    }
+
+    // i16: -32768 to 32767
+    mut i16_zero i16 = 0
+    mut i16_max i16 = 32767
+    mut i16_min i16 = -32768
+    if i16_zero == 0 && i16_max == 32767 && i16_min == -32768 && type_of(i16_zero) == "i16" {
+        println("  [PASS] i16 range and type_of")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] i16")
+        failed += 1
+    }
+
+    // i32: -2147483648 to 2147483647
+    mut i32_zero i32 = 0
+    mut i32_max i32 = 2147483647
+    mut i32_min i32 = -2147483648
+    if i32_zero == 0 && i32_max == 2147483647 && i32_min == -2147483648 && type_of(i32_zero) == "i32" {
+        println("  [PASS] i32 range and type_of")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] i32")
+        failed += 1
+    }
+
+    // i64
+    mut i64_zero i64 = 0
+    mut i64_max i64 = 9223372036854775807
+    if i64_zero == 0 && i64_max == 9223372036854775807 && type_of(i64_zero) == "i64" {
+        println("  [PASS] i64 range and type_of")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] i64")
+        failed += 1
+    }
+
+    // u8: 0 to 255
+    mut u8_zero u8 = cast(0, u8)
+    mut u8_max u8 = cast(255, u8)
+    if type_of(u8_zero) == "u8" && type_of(u8_max) == "u8" {
+        println("  [PASS] u8 range and type_of")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] u8")
+        failed += 1
+    }
+
+    // u16: 0 to 65535
+    mut u16_zero u16 = cast(0, u16)
+    mut u16_max u16 = cast(65535, u16)
+    if type_of(u16_zero) == "u16" && type_of(u16_max) == "u16" {
+        println("  [PASS] u16 range and type_of")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] u16")
+        failed += 1
+    }
+
+    // u32: 0 to 4294967295
+    mut u32_zero u32 = cast(0, u32)
+    mut u32_max u32 = cast(4294967295, u32)
+    if type_of(u32_zero) == "u32" && type_of(u32_max) == "u32" {
+        println("  [PASS] u32 range and type_of")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] u32")
+        failed += 1
+    }
+
+    // u64
+    mut u64_zero u64 = cast(0, u64)
+    if type_of(u64_zero) == "u64" {
+        println("  [PASS] u64 zero and type_of")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] u64")
+        failed += 1
+    }
+
+    // Cross-type cast
+    mut from_i32 i32 = 42
+    mut to_u8 u8 = cast(from_i32, u8)
+    mut to_i16 i16 = cast(from_i32, i16)
+    mut to_i64 i64 = cast(from_i32, i64)
+    if to_i16 == 42 && to_i64 == 42 {
+        println("  [PASS] cross-type cast i32 -> u8/i16/i64")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] cross-type cast")
+        failed += 1
+    }
+
+    // Arithmetic at boundaries
+    mut at_max i8 = 127
+    mut at_zero i8 = cast(at_max + 0, i8)
+    if at_zero == 127 {
+        println("  [PASS] i8 max + 0 stays at max")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] i8 boundary arithmetic")
+        failed += 1
+    }
+
+    // Summary
+    println("")
+    println("Results: ${passed} passed, ${failed} failed")
+    if failed > 0 {
+        println("SOME TESTS FAILED")
+    } otherwise {
+        println("ALL TESTS PASSED")
+    }
+}

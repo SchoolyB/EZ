@@ -1,0 +1,108 @@
+/* Stress test: Scope and shadowing (Section 3.2)
+ * Expected: all tests pass
+ */
+
+import @std
+using std
+
+do main() {
+    println("=== Stress: Scope & Shadowing ===")
+    mut passed int = 0
+    mut failed int = 0
+
+    // Block scoping: inner not visible outside
+    mut outer int = 1
+    if true {
+        mut inner int = 2
+        if inner == 2 {
+            println("  [PASS] inner block variable visible inside")
+            passed += 1
+        } otherwise {
+            println("  [FAIL] inner block variable")
+            failed += 1
+        }
+    }
+    // inner is not accessible here — verified by the fact this compiles
+    if outer == 1 {
+        println("  [PASS] outer survives after inner block")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] outer survives")
+        failed += 1
+    }
+
+    // Shadowing: inner scope shadows outer
+    mut x int = 10
+    if true {
+        mut x int = 20
+        if x == 20 {
+            println("  [PASS] shadowing: inner x == 20")
+            passed += 1
+        } otherwise {
+            println("  [FAIL] shadowing inner")
+            failed += 1
+        }
+    }
+    if x == 10 {
+        println("  [PASS] shadowing: outer x survives == 10")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] shadowing outer survives")
+        failed += 1
+    }
+
+    // Shadowing in loops
+    mut val int = 100
+    for i in range(0, 3) {
+        mut val int = i
+        if i == 2 && val == 2 {
+            println("  [PASS] loop shadowing")
+            passed += 1
+        }
+    }
+    if val == 100 {
+        println("  [PASS] outer val survives loop shadowing")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] outer val after loop")
+        failed += 1
+    }
+
+    // Deep nesting: 5 levels
+    mut depth int = 0
+    if true {
+        mut depth int = 1
+        if true {
+            mut depth int = 2
+            if true {
+                mut depth int = 3
+                if true {
+                    mut depth int = 4
+                    if true {
+                        mut depth int = 5
+                        if depth == 5 {
+                            println("  [PASS] 5 levels deep shadowing")
+                            passed += 1
+                        }
+                    }
+                }
+            }
+        }
+    }
+    if depth == 0 {
+        println("  [PASS] outermost depth survives")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] outermost depth")
+        failed += 1
+    }
+
+    // Summary
+    println("")
+    println("Results: ${passed} passed, ${failed} failed")
+    if failed > 0 {
+        println("SOME TESTS FAILED")
+    } otherwise {
+        println("ALL TESTS PASSED")
+    }
+}

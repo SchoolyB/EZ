@@ -1,0 +1,132 @@
+/* Stress test: Comparison, logical, membership operators (Section 4.2-4.4)
+ * Expected: all tests pass
+ */
+
+import @std
+using std
+
+mut side_effect_called bool = false
+
+do side_effect() -> bool {
+    side_effect_called = true
+    return true
+}
+
+do main() {
+    println("=== Stress: Comparison & Logical ===")
+    mut passed int = 0
+    mut failed int = 0
+
+    // Comparison operators with int
+    if 1 < 2 && 2 > 1 && 1 <= 1 && 2 >= 2 && 1 == 1 && 1 != 2 {
+        println("  [PASS] int comparisons")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] int comparisons")
+        failed += 1
+    }
+
+    // Comparison with float
+    if 1.0 < 2.0 && 3.14 > 3.13 && 1.5 == 1.5 && 1.0 != 2.0 {
+        println("  [PASS] float comparisons")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] float comparisons")
+        failed += 1
+    }
+
+    // Comparison with string (== and != only; <, > require strings.compare)
+    if "hello" == "hello" && "a" != "b" {
+        println("  [PASS] string equality comparisons")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] string comparisons")
+        failed += 1
+    }
+
+    // Boolean negation
+    if !true == false && !false == true {
+        println("  [PASS] boolean negation")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] boolean negation")
+        failed += 1
+    }
+
+    // && short circuit: false && side_effect() should not call side_effect
+    side_effect_called = false
+    mut r1 bool = false && side_effect()
+    if r1 == false && side_effect_called == false {
+        println("  [PASS] && short circuit")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] && short circuit")
+        failed += 1
+    }
+
+    // || short circuit: true || side_effect() should not call side_effect
+    side_effect_called = false
+    mut r2 bool = true || side_effect()
+    if r2 == true && side_effect_called == false {
+        println("  [PASS] || short circuit")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] || short circuit")
+        failed += 1
+    }
+
+    // Complex logical
+    mut la bool = true
+    mut lb bool = false
+    mut lc bool = true
+    if (la && lc) || lb {
+        println("  [PASS] complex logical (a && c) || b")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] complex logical")
+        failed += 1
+    }
+
+    // Membership: in with arrays
+    mut nums [int] = {1, 2, 3, 4, 5}
+    if 3 in nums {
+        if 6 !in nums {
+            println("  [PASS] in / !in with int arrays")
+            passed += 1
+        } otherwise {
+            println("  [FAIL] !in")
+            failed += 1
+        }
+    } otherwise {
+        println("  [FAIL] in with int arrays")
+        failed += 1
+    }
+
+    // Membership: in with string array
+    mut names [string] = {"alice", "bob"}
+    if "alice" in names {
+        println("  [PASS] in with string arrays")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] in with string arrays")
+        failed += 1
+    }
+
+    // Boundary comparisons
+    if 0 == 0 && 0 <= 0 && 0 >= 0 {
+        println("  [PASS] boundary: 0 == 0")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] boundary comparisons")
+        failed += 1
+    }
+
+    // Summary
+    println("")
+    println("Results: ${passed} passed, ${failed} failed")
+    if failed > 0 {
+        println("SOME TESTS FAILED")
+    } otherwise {
+        println("ALL TESTS PASSED")
+    }
+}

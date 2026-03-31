@@ -1,0 +1,77 @@
+/* Stress test: @maps — all functions
+ * Expected: all tests pass
+ */
+
+import @std, @maps
+using std
+
+do main() {
+    println("=== Stress: @maps ===")
+    mut passed int = 0
+    mut failed int = 0
+
+    // Empty map
+    mut empty = {"_placeholder_": 0}
+    maps.remove_key(empty, "_placeholder_")
+    if maps.is_empty(empty) {
+        println("  [PASS] is_empty on empty map")
+        passed += 1
+    } otherwise { println("  [FAIL] is_empty") failed += 1 }
+
+    // has_key
+    mut m = {"a": 1, "b": 2, "c": 3}
+    if maps.has_key(m, "a") {
+        println("  [PASS] has_key found")
+        passed += 1
+    } otherwise { println("  [FAIL] has_key") failed += 1 }
+
+    // has_key not found
+    mut hk = maps.has_key(m, "z")
+    if !hk {
+        println("  [PASS] has_key not found")
+        passed += 1
+    } otherwise { println("  [FAIL] has_key not found") failed += 1 }
+
+    // keys
+    mut ks [string] = maps.keys(m)
+    if len(ks) == 3 {
+        println("  [PASS] keys() returns 3 keys")
+        passed += 1
+    } otherwise { println("  [FAIL] keys — got ${len(ks)}") failed += 1 }
+
+    // values
+    mut vs [int] = maps.values(m)
+    if len(vs) == 3 {
+        println("  [PASS] values() returns 3 values")
+        passed += 1
+    } otherwise { println("  [FAIL] values — got ${len(vs)}") failed += 1 }
+
+    // remove_key
+    maps.remove_key(m, "b")
+    if len(maps.keys(m)) == 2 {
+        println("  [PASS] remove_key reduces size")
+        passed += 1
+    } otherwise { println("  [FAIL] remove_key") failed += 1 }
+
+    // clear
+    maps.clear(m)
+    if maps.is_empty(m) {
+        println("  [PASS] clear empties map")
+        passed += 1
+    } otherwise { println("  [FAIL] clear") failed += 1 }
+
+    // Map with many entries
+    mut big map[string:int] = {"seed": 0}
+    for i in range(1, 50) {
+        big["key_${i}"] = i
+    }
+    if len(maps.keys(big)) == 50 {
+        println("  [PASS] map with 50 entries")
+        passed += 1
+    } otherwise { println("  [FAIL] 50 entries — got ${len(maps.keys(big))}") failed += 1 }
+
+    // Summary
+    println("")
+    println("Results: ${passed} passed, ${failed} failed")
+    if failed > 0 { println("SOME TESTS FAILED") } otherwise { println("ALL TESTS PASSED") }
+}

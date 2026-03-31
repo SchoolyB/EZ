@@ -1,0 +1,85 @@
+/* Stress test: Mutability rules (Section 3.1)
+ * Expected: all tests pass
+ */
+
+import @std, @arrays
+using std
+
+const Item struct {
+    name string
+    count int
+}
+
+do get_value() -> int { return 99 }
+
+do main() {
+    println("=== Stress: Mutability ===")
+    mut passed int = 0
+    mut failed int = 0
+
+    // mut variables: assign, reassign
+    mut x int = 1
+    x = 2
+    x = 3
+    if x == 3 {
+        println("  [PASS] mut reassign")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] mut reassign")
+        failed += 1
+    }
+
+    // mut array: modify contents
+    mut arr [int] = {1, 2, 3}
+    arr[0] = 99
+    arrays.append(arr, 4)
+    if arr[0] == 99 && len(arr) == 4 {
+        println("  [PASS] mut array modification")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] mut array modification")
+        failed += 1
+    }
+
+    // mut struct fields
+    mut item = Item{name: "apple", count: 5}
+    item.name = "banana"
+    item.count = 10
+    if item.name == "banana" && item.count == 10 {
+        println("  [PASS] mut struct field modification")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] mut struct field modification")
+        failed += 1
+    }
+
+    // mut from function return is mutable
+    mut val = get_value()
+    val = val + 1
+    if val == 100 {
+        println("  [PASS] mut from function return")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] mut from function return")
+        failed += 1
+    }
+
+    // const cannot be reassigned (tested via fail tests elsewhere)
+    const pi float = 3.14
+    if pi == 3.14 {
+        println("  [PASS] const holds value")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] const holds value")
+        failed += 1
+    }
+
+    // Summary
+    println("")
+    println("Results: ${passed} passed, ${failed} failed")
+    if failed > 0 {
+        println("SOME TESTS FAILED")
+    } otherwise {
+        println("ALL TESTS PASSED")
+    }
+}

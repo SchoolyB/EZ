@@ -1,0 +1,119 @@
+/* Stress test: Primitive types exhaustive (Section 2.1)
+ * Tests int, uint, float, string, bool, char, byte
+ * Expected: all tests pass
+ */
+
+import @std
+using std
+
+do return_int() -> int { return 42 }
+do return_uint() -> uint { return 100 }
+do return_float() -> float { return 3.14 }
+do return_string() -> string { return "hello" }
+do return_bool() -> bool { return true }
+do return_char() -> char { return 'A' }
+do return_byte() -> byte { return cast(255, byte) }
+
+do main() {
+    println("=== Stress: Primitive Types ===")
+    mut passed int = 0
+    mut failed int = 0
+
+    // int: declare, assign, reassign, print, interpolate
+    mut i int = 0
+    i = 42
+    if i == 42 && type_of(i) == "int" && return_int() == 42 {
+        println("  [PASS] int basics")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] int basics")
+        failed += 1
+    }
+
+    // int edge values
+    mut neg_i int = -9223372036854775807
+    mut big_i int = 9223372036854775807
+    if neg_i < 0 && big_i > 0 {
+        println("  [PASS] int edge values")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] int edge values")
+        failed += 1
+    }
+
+    // uint
+    mut u uint = cast(0, uint)
+    u = cast(100, uint)
+    if type_of(u) == "uint" {
+        println("  [PASS] uint basics")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] uint basics")
+        failed += 1
+    }
+
+    // float
+    mut f float = 0.0
+    f = 3.14
+    if f == 3.14 && type_of(f) == "float" && return_float() == 3.14 {
+        println("  [PASS] float basics")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] float basics")
+        failed += 1
+    }
+
+    // string
+    mut s string = ""
+    s = "hello"
+    mut interp string = "val: ${s}"
+    if s == "hello" && type_of(s) == "string" && return_string() == "hello" && interp == "val: hello" {
+        println("  [PASS] string basics")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] string basics")
+        failed += 1
+    }
+
+    // bool
+    mut b bool = false
+    b = true
+    if b == true && type_of(b) == "bool" && return_bool() == true {
+        println("  [PASS] bool basics")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] bool basics")
+        failed += 1
+    }
+
+    // char
+    mut c char = 'z'
+    c = 'A'
+    if c == 'A' && type_of(c) == "char" && return_char() == 'A' {
+        println("  [PASS] char basics")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] char basics")
+        failed += 1
+    }
+
+    // byte
+    mut by byte = cast(0, byte)
+    by = cast(255, byte)
+    if by == cast(255, byte) && type_of(by) == "byte" {
+        println("  [PASS] byte basics")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] byte basics")
+        failed += 1
+    }
+
+    // Summary
+    println("")
+    println("Results: ${passed} passed, ${failed} failed")
+    if failed > 0 {
+        println("SOME TESTS FAILED")
+    } otherwise {
+        println("ALL TESTS PASSED")
+    }
+}

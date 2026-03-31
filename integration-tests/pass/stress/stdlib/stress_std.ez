@@ -1,0 +1,78 @@
+/* Stress test: @std core functions — edge cases
+ * Expected: all tests pass
+ */
+
+import @std
+using std
+
+do main() {
+    println("=== Stress: @std Core ===")
+    mut passed int = 0
+    mut failed int = 0
+
+    // len() on empty collections
+    mut empty_arr [int] = {}
+    mut empty_str string = ""
+    if len(empty_arr) == 0 && len(empty_str) == 0 {
+        println("  [PASS] len() on empty collections")
+        passed += 1
+    } otherwise { println("  [FAIL] len() empty") failed += 1 }
+
+    // type_of() exhaustive
+    if type_of(42) == "int" && type_of(3.14) == "float" && type_of("hi") == "string" && type_of(true) == "bool" && type_of('A') == "char" {
+        println("  [PASS] type_of() on primitives")
+        passed += 1
+    } otherwise { println("  [FAIL] type_of()") failed += 1 }
+
+    // type_of() on sized types
+    mut si8 i8 = 1
+    mut si32 i32 = 1
+    mut su16 u16 = cast(1, u16)
+    mut sf32 f32 = 1.0
+    if type_of(si8) == "i8" && type_of(si32) == "i32" && type_of(su16) == "u16" && type_of(sf32) == "f32" {
+        println("  [PASS] type_of() on sized types")
+        passed += 1
+    } otherwise { println("  [FAIL] type_of() sized") failed += 1 }
+
+    // copy() deep independence — array
+    mut orig [int] = {1, 2, 3}
+    mut dup [int] = copy(orig)
+    dup[0] = 99
+    if orig[0] == 1 && dup[0] == 99 {
+        println("  [PASS] copy() array deep independence")
+        passed += 1
+    } otherwise { println("  [FAIL] copy() array") failed += 1 }
+
+    // error() and nil
+    mut e Error = error("test error")
+    if e != nil {
+        println("  [PASS] error() creates non-nil error")
+        passed += 1
+    } otherwise { println("  [FAIL] error()") failed += 1 }
+
+    // assert() passing
+    assert(true, "this should not fail")
+    println("  [PASS] assert(true) does not panic")
+    passed += 1
+
+    // cast() between types
+    mut f float = 3.7
+    mut i int = cast(f, int)
+    if i == 3 {
+        println("  [PASS] cast(float, int) truncates")
+        passed += 1
+    } otherwise { println("  [FAIL] cast float->int — got ${i}") failed += 1 }
+
+    // println with all types (just verify no crash)
+    println("  int: ${42}")
+    println("  float: ${3.14}")
+    println("  bool: ${true}")
+    println("  char: ${'A'}")
+    println("  [PASS] println with all types in interpolation")
+    passed += 1
+
+    // Summary
+    println("")
+    println("Results: ${passed} passed, ${failed} failed")
+    if failed > 0 { println("SOME TESTS FAILED") } otherwise { println("ALL TESTS PASSED") }
+}

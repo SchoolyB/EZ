@@ -1,0 +1,106 @@
+/* Stress test: When statements (Section 5.6)
+ * Expected: all tests pass
+ */
+
+import @std
+using std
+
+const Direction enum {
+    NORTH
+    SOUTH
+    EAST
+    WEST
+}
+
+do main() {
+    println("=== Stress: When Statements ===")
+    mut passed int = 0
+    mut failed int = 0
+
+    // when on int with default
+    mut x int = 3
+    mut r1 string = ""
+    when x {
+        is 1 { r1 = "one" }
+        is 2 { r1 = "two" }
+        is 3 { r1 = "three" }
+        default { r1 = "other" }
+    }
+    if r1 == "three" {
+        println("  [PASS] when int match")
+        passed += 1
+    } otherwise { println("  [FAIL] when int") failed += 1 }
+
+    // when default case
+    mut y int = 99
+    mut r2 string = ""
+    when y {
+        is 1 { r2 = "one" }
+        default { r2 = "default" }
+    }
+    if r2 == "default" {
+        println("  [PASS] when default case")
+        passed += 1
+    } otherwise { println("  [FAIL] when default") failed += 1 }
+
+    // when with multiple values per is
+    mut z int = 5
+    mut r3 string = ""
+    when z {
+        is 1, 2, 3 { r3 = "low" }
+        is 4, 5, 6 { r3 = "mid" }
+        is 7, 8, 9 { r3 = "high" }
+        default { r3 = "other" }
+    }
+    if r3 == "mid" {
+        println("  [PASS] when multiple values per is")
+        passed += 1
+    } otherwise { println("  [FAIL] when multi-value") failed += 1 }
+
+    // when on bool
+    mut flag bool = true
+    mut r4 string = ""
+    when flag {
+        is true { r4 = "yes" }
+        is false { r4 = "no" }
+        default { r4 = "?" }
+    }
+    if r4 == "yes" {
+        println("  [PASS] when on bool")
+        passed += 1
+    } otherwise { println("  [FAIL] when bool") failed += 1 }
+
+    // when on char
+    mut ch char = 'B'
+    mut r5 string = ""
+    when ch {
+        is 'A' { r5 = "alpha" }
+        is 'B' { r5 = "bravo" }
+        default { r5 = "other" }
+    }
+    if r5 == "bravo" {
+        println("  [PASS] when on char")
+        passed += 1
+    } otherwise { println("  [FAIL] when char") failed += 1 }
+
+    // when inside loop with break
+    mut found int = -1
+    for i in range(0, 10) {
+        when i {
+            is 7 {
+                found = i
+                break
+            }
+            default { }
+        }
+    }
+    if found == 7 {
+        println("  [PASS] when inside loop with break")
+        passed += 1
+    } otherwise { println("  [FAIL] when in loop — got ${found}") failed += 1 }
+
+    // Summary
+    println("")
+    println("Results: ${passed} passed, ${failed} failed")
+    if failed > 0 { println("SOME TESTS FAILED") } otherwise { println("ALL TESTS PASSED") }
+}
