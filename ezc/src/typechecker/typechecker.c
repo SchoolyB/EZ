@@ -568,6 +568,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
         if ((strcmp(op, "==") == 0 || strcmp(op, "!=") == 0) &&
             left->kind != TK_UNKNOWN && right->kind != TK_UNKNOWN &&
             left->kind != right->kind && left->kind != TK_NIL && right->kind != TK_NIL &&
+            !(is_int_kind(left->kind) && is_int_kind(right->kind)) &&
             !(is_int_kind(left->kind) && right->kind == TK_ENUM) &&
             !(left->kind == TK_ENUM && is_int_kind(right->kind)) &&
             !(left->kind == TK_STRUCT && is_int_kind(right->kind)) &&
@@ -2227,6 +2228,7 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
             if (sym && sym->type->kind != TK_UNKNOWN && value_t->kind != TK_UNKNOWN &&
                 target_t->kind != TK_UNKNOWN &&
                 target_t->kind != value_t->kind &&
+                !(is_int_kind(target_t->kind) && is_int_kind(value_t->kind)) &&
                 !(target_t->kind == TK_ENUM && is_int_kind(value_t->kind)) &&
                 !(is_int_kind(target_t->kind) && value_t->kind == TK_ENUM) &&
                 !(target_t->kind == TK_STRUCT && is_int_kind(value_t->kind))) {
@@ -2245,6 +2247,7 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
                 EzType *field_t = struct_field_type(tc, sym->type->name, target->data.member.member);
                 if (field_t->kind != TK_UNKNOWN && value_t->kind != TK_UNKNOWN &&
                     field_t->kind != value_t->kind &&
+                    !(is_int_kind(field_t->kind) && is_int_kind(value_t->kind)) &&
                     !(is_int_kind(field_t->kind) && value_t->kind == TK_ENUM) &&
                     !(field_t->kind == TK_FLOAT && is_int_kind(value_t->kind))) {
                     char msg[256];
