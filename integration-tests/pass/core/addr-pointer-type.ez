@@ -1,0 +1,70 @@
+/*
+ * addr-pointer-type.ez - Test that addr() returns a proper pointer type
+ * that can be assigned to ^T variables and dereferenced (#1299).
+ */
+
+import @std
+using std
+
+const Point struct {
+    x int
+    y int
+}
+
+do main() {
+    println("=== addr() Pointer Type ===")
+    mut passed int = 0
+    mut failed int = 0
+
+    // Test 1: addr() of int assigned to ^int pointer
+    mut val int = 42
+    mut ptr ^int = addr(val)
+    if ptr^ == 42 {
+        println("  [PASS] addr(int) to ^int pointer")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] addr(int) to ^int pointer")
+        failed += 1
+    }
+
+    // Test 2: modify through addr() pointer
+    ptr^ = 99
+    if val == 99 {
+        println("  [PASS] modify through addr() pointer updates original")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] modify through addr() pointer updates original")
+        failed += 1
+    }
+
+    // Test 3: addr() of struct assigned to ^Struct pointer
+    mut pt Point = Point { x: 10, y: 20 }
+    mut ptp ^Point = addr(pt)
+    if ptp^.x == 10 && ptp^.y == 20 {
+        println("  [PASS] addr(struct) to ^Struct pointer")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] addr(struct) to ^Struct pointer")
+        failed += 1
+    }
+
+    // Test 4: modify struct field through addr() pointer
+    ptp^.x = 500
+    if pt.x == 500 {
+        println("  [PASS] modify struct field through addr() pointer")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] modify struct field through addr() pointer")
+        failed += 1
+    }
+
+    // Summary
+    println("")
+    println("Results: ${passed} passed, ${failed} failed")
+
+    if failed > 0 {
+        println("SOME TESTS FAILED")
+    } otherwise {
+        println("ALL TESTS PASSED")
+    }
+}
