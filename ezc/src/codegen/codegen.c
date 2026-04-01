@@ -746,11 +746,20 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
                 else if (strcmp(op, "<=") == 0) fn_op = "le";
                 else if (strcmp(op, ">=") == 0) fn_op = "ge";
                 if (fn_op) {
-                    emitf(cg, "%s_%s(", pfx, fn_op);
+                    bool is_checked = (strcmp(fn_op, "add") == 0 || strcmp(fn_op, "sub") == 0 || strcmp(fn_op, "mul") == 0);
+                    if (is_checked) {
+                        emitf(cg, "%s_%s_checked(", pfx, fn_op);
+                    } else {
+                        emitf(cg, "%s_%s(", pfx, fn_op);
+                    }
                     emit_expression(cg, node->data.infix.left);
                     emit(cg, ", ");
                     emit_expression(cg, node->data.infix.right);
-                    emit(cg, ")");
+                    if (is_checked) {
+                        emitf(cg, ", __FILE__, %d)", node->token.line);
+                    } else {
+                        emit(cg, ")");
+                    }
                     break;
                 }
             }

@@ -548,6 +548,152 @@ static inline bool ez_u256_gt(ez_u256 a, ez_u256 b) { return ez_u256_lt(b, a); }
 static inline bool ez_u256_le(ez_u256 a, ez_u256 b) { return !ez_u256_gt(a, b); }
 static inline bool ez_u256_ge(ez_u256 a, ez_u256 b) { return !ez_u256_lt(a, b); }
 
+/* --- Overflow-Checked Arithmetic --- */
+
+static inline ez_i128 ez_i128_add_checked(ez_i128 a, ez_i128 b, const char *file, int line) {
+    ez_i128 r = ez_i128_add(a, b);
+    if ((a.hi >= 0 && b.hi >= 0 && r.hi < 0) || (a.hi < 0 && b.hi < 0 && r.hi >= 0)) {
+        fflush(stdout);
+        fprintf(stderr, "panic at %s:%d: i128 integer overflow in addition\n", file, line);
+        exit(1);
+    }
+    return r;
+}
+
+static inline ez_i128 ez_i128_sub_checked(ez_i128 a, ez_i128 b, const char *file, int line) {
+    ez_i128 r = ez_i128_sub(a, b);
+    if ((a.hi >= 0 && b.hi < 0 && r.hi < 0) || (a.hi < 0 && b.hi >= 0 && r.hi >= 0)) {
+        fflush(stdout);
+        fprintf(stderr, "panic at %s:%d: i128 integer overflow in subtraction\n", file, line);
+        exit(1);
+    }
+    return r;
+}
+
+static inline ez_i128 ez_i128_mul_checked(ez_i128 a, ez_i128 b, const char *file, int line) {
+    ez_i128 r = ez_i128_mul(a, b);
+    bool a_zero = (a.hi == 0 && a.lo == 0);
+    bool b_zero = (b.hi == 0 && b.lo == 0);
+    if (!a_zero && !b_zero) {
+        ez_i128 check = ez_i128_div(r, b);
+        if (!ez_i128_eq(check, a)) {
+            fflush(stdout);
+            fprintf(stderr, "panic at %s:%d: i128 integer overflow in multiplication\n", file, line);
+            exit(1);
+        }
+    }
+    return r;
+}
+
+static inline ez_u128 ez_u128_add_checked(ez_u128 a, ez_u128 b, const char *file, int line) {
+    ez_u128 r = ez_u128_add(a, b);
+    if (ez_u128_lt(r, a)) {
+        fflush(stdout);
+        fprintf(stderr, "panic at %s:%d: u128 integer overflow in addition\n", file, line);
+        exit(1);
+    }
+    return r;
+}
+
+static inline ez_u128 ez_u128_sub_checked(ez_u128 a, ez_u128 b, const char *file, int line) {
+    if (ez_u128_lt(a, b)) {
+        fflush(stdout);
+        fprintf(stderr, "panic at %s:%d: u128 integer underflow in subtraction\n", file, line);
+        exit(1);
+    }
+    return ez_u128_sub(a, b);
+}
+
+static inline ez_u128 ez_u128_mul_checked(ez_u128 a, ez_u128 b, const char *file, int line) {
+    ez_u128 r = ez_u128_mul(a, b);
+    bool a_zero = (a.hi == 0 && a.lo == 0);
+    bool b_zero = (b.hi == 0 && b.lo == 0);
+    if (!a_zero && !b_zero) {
+        ez_u128 check = ez_u128_div(r, b);
+        if (!ez_u128_eq(check, a)) {
+            fflush(stdout);
+            fprintf(stderr, "panic at %s:%d: u128 integer overflow in multiplication\n", file, line);
+            exit(1);
+        }
+    }
+    return r;
+}
+
+static inline ez_i256 ez_i256_add_checked(ez_i256 a, ez_i256 b, const char *file, int line) {
+    ez_i256 r = ez_i256_add(a, b);
+    bool a_neg = ez_i256_is_neg(a);
+    bool b_neg = ez_i256_is_neg(b);
+    bool r_neg = ez_i256_is_neg(r);
+    if ((!a_neg && !b_neg && r_neg) || (a_neg && b_neg && !r_neg)) {
+        fflush(stdout);
+        fprintf(stderr, "panic at %s:%d: i256 integer overflow in addition\n", file, line);
+        exit(1);
+    }
+    return r;
+}
+
+static inline ez_i256 ez_i256_sub_checked(ez_i256 a, ez_i256 b, const char *file, int line) {
+    ez_i256 r = ez_i256_sub(a, b);
+    bool a_neg = ez_i256_is_neg(a);
+    bool b_neg = ez_i256_is_neg(b);
+    bool r_neg = ez_i256_is_neg(r);
+    if ((!a_neg && b_neg && r_neg) || (a_neg && !b_neg && !r_neg)) {
+        fflush(stdout);
+        fprintf(stderr, "panic at %s:%d: i256 integer overflow in subtraction\n", file, line);
+        exit(1);
+    }
+    return r;
+}
+
+static inline ez_i256 ez_i256_mul_checked(ez_i256 a, ez_i256 b, const char *file, int line) {
+    ez_i256 r = ez_i256_mul(a, b);
+    bool a_zero = (a.w[0] == 0 && a.w[1] == 0 && a.w[2] == 0 && a.w[3] == 0);
+    bool b_zero = (b.w[0] == 0 && b.w[1] == 0 && b.w[2] == 0 && b.w[3] == 0);
+    if (!a_zero && !b_zero) {
+        ez_i256 check = ez_i256_div(r, b);
+        if (!ez_i256_eq(check, a)) {
+            fflush(stdout);
+            fprintf(stderr, "panic at %s:%d: i256 integer overflow in multiplication\n", file, line);
+            exit(1);
+        }
+    }
+    return r;
+}
+
+static inline ez_u256 ez_u256_add_checked(ez_u256 a, ez_u256 b, const char *file, int line) {
+    ez_u256 r = ez_u256_add(a, b);
+    if (ez_u256_lt(r, a)) {
+        fflush(stdout);
+        fprintf(stderr, "panic at %s:%d: u256 integer overflow in addition\n", file, line);
+        exit(1);
+    }
+    return r;
+}
+
+static inline ez_u256 ez_u256_sub_checked(ez_u256 a, ez_u256 b, const char *file, int line) {
+    if (ez_u256_lt(a, b)) {
+        fflush(stdout);
+        fprintf(stderr, "panic at %s:%d: u256 integer underflow in subtraction\n", file, line);
+        exit(1);
+    }
+    return ez_u256_sub(a, b);
+}
+
+static inline ez_u256 ez_u256_mul_checked(ez_u256 a, ez_u256 b, const char *file, int line) {
+    ez_u256 r = ez_u256_mul(a, b);
+    bool a_zero = (a.w[0] == 0 && a.w[1] == 0 && a.w[2] == 0 && a.w[3] == 0);
+    bool b_zero = (b.w[0] == 0 && b.w[1] == 0 && b.w[2] == 0 && b.w[3] == 0);
+    if (!a_zero && !b_zero) {
+        ez_u256 check = ez_u256_div(r, b);
+        if (!ez_u256_eq(check, a)) {
+            fflush(stdout);
+            fprintf(stderr, "panic at %s:%d: u256 integer overflow in multiplication\n", file, line);
+            exit(1);
+        }
+    }
+    return r;
+}
+
 /* --- Printing (to_string) --- */
 
 /* Helper: convert unsigned 128-bit to decimal string */
