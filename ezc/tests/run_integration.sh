@@ -33,7 +33,7 @@ RESET='\033[0m'
 
 # Tests that use interpreter-only syntax (skip for compiler)
 SKIP_INTEGRATION=(
-    "cast_keyword"          # cast with array type codegen incomplete
+    # cast_keyword — unskipped, conversion functions added (#1329)
     # const_ref — unskipped, ref() type tracking fixed (#1330)
     "copy_semantics"        # copy-by-default not in compiler
 "large-integers"        # i128 literals exceed int64 parser range
