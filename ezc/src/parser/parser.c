@@ -1684,6 +1684,11 @@ static AstNode *parse_for_each_statement(Parser *p) {
     AstNode *node = ast_alloc(p->arena, NODE_FOR_EACH_STMT, p->cur_token);
 
     next_token(p);
+
+    /* Optional parentheses: for_each (val in arr) {} */
+    bool has_paren = cur_token_is(p, TOK_LPAREN);
+    if (has_paren) next_token(p);
+
     node->data.for_each.index_name = NULL;
     node->data.for_each.var_name = p->cur_token.literal;
 
@@ -1699,6 +1704,10 @@ static AstNode *parse_for_each_statement(Parser *p) {
 
     next_token(p);
     node->data.for_each.collection = parse_expression(p, PREC_LOWEST);
+
+    if (has_paren) {
+        if (!expect_peek(p, TOK_RPAREN)) return NULL;
+    }
 
     if (!expect_peek(p, TOK_LBRACE)) return NULL;
     node->data.for_each.body = parse_block_statement(p);
