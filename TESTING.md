@@ -103,23 +103,12 @@ bash scripts/run_integration.sh
 bash scripts/run_integration.sh --verbose
 ```
 
-### Interpreter Integration Tests
+### CLI Integration Tests
 
-Runs all integration tests against the EZ interpreter (the `ez` CLI):
+Runs all integration tests via the `ez` CLI:
 
 ```bash
 bash scripts/run_tests.sh
-```
-
-### Parity Tests
-
-Compares EZC compiled output against the EZ interpreter to verify identical behavior:
-
-```bash
-bash scripts/run_parity.sh
-
-# Run specific files only
-bash scripts/run_parity.sh examples/basic/hello.ez
 ```
 
 ### Sanitizer Tests
@@ -200,7 +189,6 @@ go test ./pkg/errors/... ./pkg/lineeditor/...
 cd ezc && make test-unit && make test-e2e && cd ..
 bash scripts/run_integration.sh
 bash scripts/run_tests.sh
-bash scripts/run_parity.sh
 go test ./pkg/errors/... ./pkg/lineeditor/...
 ```
 
