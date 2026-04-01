@@ -627,7 +627,11 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
             node->data.prefix.right->kind == NODE_INT_VALUE) {
             emit(cg, " ");
         }
+        /* Wrap infix operands in parens so !(a && b) emits as (!(a && b)) not (!a && b) */
+        bool wrap = (node->data.prefix.right->kind == NODE_INFIX_EXPR);
+        if (wrap) emit(cg, "(");
         emit_expression(cg, node->data.prefix.right);
+        if (wrap) emit(cg, ")");
         emit(cg, ")");
         break;
 
