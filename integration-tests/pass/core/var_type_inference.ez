@@ -1,0 +1,152 @@
+/*
+ * var_type_inference.ez - Test variable-to-variable type inference (#1322)
+ *
+ * Verifies that declaring a variable via another variable (e.g. mut p2 = p)
+ * correctly propagates the source type instead of defaulting to int.
+ */
+
+import @std
+using std
+
+const Point struct {
+    x int
+    y int
+}
+
+const Color struct {
+    r int
+    g int
+    b int
+}
+
+do make_point(x int, y int) -> Point {
+    return Point{x: x, y: y}
+}
+
+do main() {
+    println("=== Variable-to-Variable Type Inference ===")
+    mut passed int = 0
+    mut failed int = 0
+
+    // Test 1: infer int from variable
+    mut a int = 42
+    mut b = a
+    if b == 42 {
+        println("  [PASS] infer int from variable")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] infer int from variable")
+        failed += 1
+    }
+
+    // Test 2: infer string from variable
+    mut s1 string = "hello"
+    mut s2 = s1
+    if s2 == "hello" {
+        println("  [PASS] infer string from variable")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] infer string from variable")
+        failed += 1
+    }
+
+    // Test 3: infer bool from variable
+    mut flag bool = true
+    mut flag2 = flag
+    if flag2 == true {
+        println("  [PASS] infer bool from variable")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] infer bool from variable")
+        failed += 1
+    }
+
+    // Test 4: infer float from variable
+    mut f1 float = 3.14
+    mut f2 = f1
+    if f2 > 3.13 && f2 < 3.15 {
+        println("  [PASS] infer float from variable")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] infer float from variable")
+        failed += 1
+    }
+
+    // Test 5: infer struct from variable (the core bug case)
+    mut p1 = Point{x: 10, y: 20}
+    mut p2 = p1
+    if p2.x == 10 && p2.y == 20 {
+        println("  [PASS] infer struct from variable")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] infer struct from variable")
+        failed += 1
+    }
+
+    // Test 6: infer struct from function return, then from variable
+    mut p3 = make_point(5, 15)
+    mut p4 = p3
+    if p4.x == 5 && p4.y == 15 {
+        println("  [PASS] infer struct from variable (via function return)")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] infer struct from variable (via function return)")
+        failed += 1
+    }
+
+    // Test 7: mutate inferred variable independently
+    mut c int = 100
+    mut d = c
+    d = 200
+    if c == 100 && d == 200 {
+        println("  [PASS] inferred variable is independent copy")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] inferred variable is independent copy")
+        failed += 1
+    }
+
+    // Test 8: infer from const variable
+    const MAX int = 255
+    mut limit = MAX
+    if limit == 255 {
+        println("  [PASS] infer from const variable")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] infer from const variable")
+        failed += 1
+    }
+
+    // Test 9: chain of inferences
+    mut x int = 7
+    mut y = x
+    mut z = y
+    if z == 7 {
+        println("  [PASS] chain of type inferences")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] chain of type inferences")
+        failed += 1
+    }
+
+    // Test 10: infer different struct type
+    mut color = Color{r: 255, g: 128, b: 0}
+    mut color2 = color
+    if color2.r == 255 && color2.g == 128 && color2.b == 0 {
+        println("  [PASS] infer different struct type")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] infer different struct type")
+        failed += 1
+    }
+
+    // Summary
+    println("")
+    println("Results: ${passed} passed, ${failed} failed")
+
+    if failed > 0 {
+        println("SOME TESTS FAILED")
+    } otherwise {
+        println("ALL TESTS PASSED")
+    }
+}
