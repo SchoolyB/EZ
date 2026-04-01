@@ -3007,6 +3007,16 @@ static void emit_call_expression(CodeGen *cg, AstNode *node) {
         emit(cg, "))");
         emit(cg, safe_name(fn_name));
         emit(cg, ")");
+    } else if (node->data.call.function->kind == NODE_MEMBER_EXPR) {
+        /* Module-qualified call fallback: module.func() → ez_module_func() */
+        AstNode *obj = node->data.call.function->data.member.object;
+        const char *member = node->data.call.function->data.member.member;
+        if (obj->kind == NODE_LABEL) {
+            const char *mod_name = resolve_alias(cg, obj->data.label.value);
+            emitf(cg, "ez_%s_%s", mod_name, member);
+        } else {
+            emit_expression(cg, node->data.call.function);
+        }
     } else {
         emit_expression(cg, node->data.call.function);
     }
