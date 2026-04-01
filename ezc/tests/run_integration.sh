@@ -34,11 +34,10 @@ RESET='\033[0m'
 # Tests that use interpreter-only syntax (skip for compiler)
 SKIP_INTEGRATION=(
     "cast_keyword"          # cast with array type codegen incomplete
-    "const_ref"             # ref() type tracking incomplete for arrays
+    # const_ref — unskipped, ref() type tracking fixed (#1330)
     "copy_semantics"        # copy-by-default not in compiler
 "large-integers"        # i128 literals exceed int64 parser range
     "mutable-indexed-params" # interpreter-specific mutable semantics
-    "primitives"            # interpreter-specific type tests
 "typeof_stdlib"         # type_of returns different strings
     # Error tests for interpreter-only features
     "E2002_for_missing_closing_paren"

@@ -1,0 +1,107 @@
+/*
+ * ref_type_preservation.ez - Test ref() preserves array/map types (#1330)
+ *
+ * Verifies that ref() on arrays and maps preserves the full type so
+ * indexing, len(), and comparison work on the reference variable.
+ */
+
+import @std
+using std
+
+const Point struct {
+    x int
+    y int
+}
+
+do main() {
+    println("=== ref() Type Preservation Tests ===")
+    mut passed int = 0
+    mut failed int = 0
+
+    // Test 1: ref() on int array — indexing works
+    mut arr [int] = {10, 20, 30}
+    mut r = ref(arr)
+    if r[0] == 10 && r[1] == 20 && r[2] == 30 {
+        println("  [PASS] ref([int]) indexing works")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] ref([int]) indexing broken")
+        failed += 1
+    }
+
+    // Test 2: ref() on int array — len() works
+    if len(r) == 3 {
+        println("  [PASS] len(ref([int])) == 3")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] len(ref([int])) broken")
+        failed += 1
+    }
+
+    // Test 3: ref() on string array — indexing works
+    mut names [string] = {"Alice", "Bob"}
+    mut rn = ref(names)
+    if rn[0] == "Alice" && rn[1] == "Bob" {
+        println("  [PASS] ref([string]) indexing works")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] ref([string]) indexing broken")
+        failed += 1
+    }
+
+    // Test 4: mutation through ref is visible in original
+    mut nums [int] = {1, 2, 3}
+    mut rr = ref(nums)
+    rr[0] = 99
+    if nums[0] == 99 {
+        println("  [PASS] mutation through ref visible in original")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] mutation through ref not visible")
+        failed += 1
+    }
+
+    // Test 5: original mutation visible through ref
+    mut data [int] = {5, 10, 15}
+    mut rd = ref(data)
+    data[2] = 100
+    if rd[2] == 100 {
+        println("  [PASS] original mutation visible through ref")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] original mutation not visible through ref")
+        failed += 1
+    }
+
+    // Test 6: ref() on struct — field access works
+    mut p = Point{x: 3, y: 7}
+    mut rp = ref(p)
+    if rp.x == 3 && rp.y == 7 {
+        println("  [PASS] ref(struct) field access works")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] ref(struct) field access broken")
+        failed += 1
+    }
+
+    // Test 7: ref() on int — basic usage
+    mut val int = 42
+    mut rv = ref(val)
+    if rv == 42 {
+        println("  [PASS] ref(int) comparison works")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] ref(int) comparison broken")
+        failed += 1
+    }
+
+    // Summary
+    println("")
+    println("Results: ${passed} passed, ${failed} failed")
+
+    if failed > 0 {
+        println("SOME TESTS FAILED")
+    } otherwise {
+        println("ALL TESTS PASSED")
+    }
+}
