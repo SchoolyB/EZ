@@ -2442,16 +2442,31 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
             AstNode *r = node->data.for_stmt.iterable;
             if (r->data.range_expr.start && r->data.range_expr.end &&
                 r->data.range_expr.start->kind == NODE_INT_VALUE &&
-                r->data.range_expr.end->kind == NODE_INT_VALUE &&
-                r->data.range_expr.start->data.int_value.value >=
-                r->data.range_expr.end->data.int_value.value) {
-                char msg[256];
-                snprintf(msg, sizeof(msg),
-                    "invalid range: start (%lld) must be less than end (%lld)",
-                    (long long)r->data.range_expr.start->data.int_value.value,
-                    (long long)r->data.range_expr.end->data.int_value.value);
-                diag_error(tc->diag, "E9005", strdup(msg),
-                    tc->file, node->token.line, node->token.column, 0);
+                r->data.range_expr.end->kind == NODE_INT_VALUE) {
+                int64_t start_val = r->data.range_expr.start->data.int_value.value;
+                int64_t end_val = r->data.range_expr.end->data.int_value.value;
+                bool has_neg_step = r->data.range_expr.step &&
+                    r->data.range_expr.step->kind == NODE_INT_VALUE &&
+                    r->data.range_expr.step->data.int_value.value < 0;
+                bool has_neg_prefix = r->data.range_expr.step &&
+                    r->data.range_expr.step->kind == NODE_PREFIX_EXPR &&
+                    strcmp(r->data.range_expr.step->data.prefix.op, "-") == 0;
+                bool negative_step = has_neg_step || has_neg_prefix;
+                bool invalid = negative_step ? (start_val < end_val) : (start_val >= end_val);
+                if (invalid) {
+                    char msg[256];
+                    if (negative_step) {
+                        snprintf(msg, sizeof(msg),
+                            "invalid range: start (%lld) must be greater than or equal to end (%lld) for negative step",
+                            (long long)start_val, (long long)end_val);
+                    } else {
+                        snprintf(msg, sizeof(msg),
+                            "invalid range: start (%lld) must be less than end (%lld)",
+                            (long long)start_val, (long long)end_val);
+                    }
+                    diag_error(tc->diag, "E9005", strdup(msg),
+                        tc->file, node->token.line, node->token.column, 0);
+                }
             }
         }
         tc->loop_depth++;

@@ -3596,9 +3596,18 @@ static void emit_for_statement(CodeGen *cg, AstNode *node) {
 
         if (iter->data.range_expr.start) {
             /* range(start, end) or range(start, end, step) */
+            /* Determine comparison direction based on step sign */
+            bool neg_step = false;
+            if (iter->data.range_expr.step) {
+                AstNode *s = iter->data.range_expr.step;
+                if (s->kind == NODE_INT_VALUE && s->data.int_value.value < 0)
+                    neg_step = true;
+                else if (s->kind == NODE_PREFIX_EXPR && strcmp(s->data.prefix.op, "-") == 0)
+                    neg_step = true;
+            }
             emitf(cg, "for (int64_t %s = ", var);
             emit_expression(cg, iter->data.range_expr.start);
-            emitf(cg, "; %s < ", var);
+            emitf(cg, "; %s %s ", var, neg_step ? ">" : "<");
             emit_expression(cg, iter->data.range_expr.end);
             emitf(cg, "; %s", var);
             if (iter->data.range_expr.step) {
