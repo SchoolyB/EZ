@@ -128,11 +128,17 @@ static const char *read_number(Lexer *l, TokenType *type) {
         read_char(l);
     }
 
-    if (l->ch == '.' && isdigit(peek_char(l))) {
-        *type = TOK_FLOAT;
-        read_char(l);
-        while (isdigit(l->ch) || l->ch == '_') {
+    if (l->ch == '.') {
+        char next = peek_char(l);
+        if (isdigit(next) || next == '_' || next == 0 || next == '\n' ||
+            next == ' ' || next == ')' || next == '}' || next == ',' ||
+            next == ';') {
+            /* Consume decimal point — validation below will catch errors */
+            *type = TOK_FLOAT;
             read_char(l);
+            while (isdigit(l->ch) || l->ch == '_') {
+                read_char(l);
+            }
         }
     }
 
