@@ -36,7 +36,7 @@ SKIP_INTEGRATION=(
     # cast_keyword — unskipped, conversion functions added (#1329)
     # const_ref — unskipped, ref() type tracking fixed (#1330)
     "copy_semantics"        # copy-by-default not in compiler
-"large-integers"        # i128 literals exceed int64 parser range
+    # large-integers — unskipped, bigint literal parsing added (#1331)
     "mutable-indexed-params" # interpreter-specific mutable semantics
 "typeof_stdlib"         # type_of returns different strings
     # Error tests for interpreter-only features
