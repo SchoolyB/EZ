@@ -1454,6 +1454,8 @@ static bool emit_composite_print(CodeGen *cg, AstNode *node,
     if (!t) return false;
     if (t->kind != TK_STRUCT && t->kind != TK_ARRAY &&
         t->kind != TK_MAP && t->kind != TK_POINTER) return false;
+    /* Enum types are stored as TK_STRUCT but should print as integers */
+    if (t->kind == TK_STRUCT && t->name && codegen_is_enum(cg, t->name)) return false;
 
     /* Emit a block to scope temp variables */
     emit(cg, "{\n");
