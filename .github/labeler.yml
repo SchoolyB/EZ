@@ -61,11 +61,6 @@ CI/CD:
           - ".github/labeler.yml"
           - "Makefile"
 
-# WASM
-wasm:
-  - changed-files:
-      - any-glob-to-any-file: "cmd/wasm/**"
-
 # Module system
 module-system:
   - changed-files:

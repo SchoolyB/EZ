@@ -224,7 +224,7 @@ go test ./pkg/errors/... ./pkg/lineeditor/...
 ### Integration Tests
 
 ```bash
-bash ezc/tests/run_integration.sh
+bash scripts/run_integration.sh
 ```
 
 ---

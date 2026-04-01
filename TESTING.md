@@ -97,10 +97,10 @@ Integration tests compile and run `.ez` programs end-to-end through the full com
 **Running:**
 
 ```bash
-bash ezc/tests/run_integration.sh
+bash scripts/run_integration.sh
 
 # With verbose output on failures
-bash ezc/tests/run_integration.sh --verbose
+bash scripts/run_integration.sh --verbose
 ```
 
 ### Sanitizer Tests
@@ -179,7 +179,7 @@ go test ./pkg/errors/... ./pkg/lineeditor/...
 ```bash
 # Full test suite
 cd ezc && make test-unit && make test-e2e && cd ..
-bash ezc/tests/run_integration.sh
+bash scripts/run_integration.sh
 go test ./pkg/errors/... ./pkg/lineeditor/...
 ```
 
