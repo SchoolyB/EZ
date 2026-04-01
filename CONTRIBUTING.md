@@ -385,8 +385,7 @@ Keep the description short (under ~72 characters), lowercase, no period at the e
 ### Bug Reports
 
 When reporting a bug, please include:
-- EZ version (`ez version`)
-- Operating system
+- System info from `ez report` (paste the full output)
 - Minimal code example that reproduces the issue
 - Expected vs actual behavior
 

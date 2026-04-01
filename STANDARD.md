@@ -2539,6 +2539,53 @@ A program terminates when:
 
 ---
 
+## 14. CLI Commands
+
+The `ez` command-line tool provides the following commands:
+
+| Command | Description |
+|---------|-------------|
+| `ez <file.ez>` | Compile and run a source file |
+| `ez run <file.ez>` | Compile and run (explicit) |
+| `ez build <file.ez> -o <name>` | Compile to a distributable binary |
+| `ez check <file.ez>` | Type-check without compiling |
+| `ez repl` | Start interactive REPL mode |
+| `ez watch <file.ez>` | Watch for changes and re-run on save |
+| `ez doc <path>` | Generate documentation from `#doc` attributes |
+| `ez pz <name>` | Scaffold a new project |
+| `ez test` | Run the full test suite |
+| `ez report` | Print system info for bug reports |
+| `ez update` | Check for updates and upgrade |
+| `ez version` | Show version information |
+
+### 14.1 `ez report`
+
+Prints system information for filing bug reports:
+
+```
+EZ Bug Report Info
+==================
+EZ Version:  v3.0.0
+Commit:      abc1234
+Compiler:    ezc 3.0.0
+OS:          darwin/arm64
+RAM:         16 GB
+```
+
+### 14.2 `ez test`
+
+Runs all test suites in sequence:
+
+1. Go tooling tests
+2. Compiler unit tests
+3. Compiler end-to-end tests
+4. Compiler integration tests
+5. CLI integration tests
+
+Exits with status 1 if any suite fails.
+
+---
+
 ## Appendix A: Grammar Summary
 
 ```ebnf

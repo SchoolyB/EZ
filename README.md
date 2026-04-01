@@ -50,6 +50,8 @@ ez repl                   Interactive REPL
 ez watch <file.ez>        Watch for changes, re-run on save
 ez doc ./...              Generate docs from #doc attributes
 ez pz <name>              Scaffold a new project
+ez test                   Run the full test suite
+ez report                 Print system info for bug reports
 ez update                 Update to the latest version
 ez version                Show version info
 ```
@@ -86,6 +88,28 @@ ez update
 ```
 
 Checks for new versions, shows the changelog, and upgrades both the `ez` CLI and the compiler.
+
+---
+
+## Bug Reports
+
+Found a bug? Run `ez report` to gather your system info, then open an issue at [github.com/SchoolyB/EZ/issues](https://github.com/SchoolyB/EZ/issues) and paste the output:
+
+```bash
+ez report
+```
+
+```
+EZ Bug Report Info
+==================
+EZ Version:  v3.0.0
+Commit:      abc1234
+Compiler:    ezc 3.0.0
+OS:          darwin/arm64
+RAM:         16 GB
+```
+
+Include this output along with a description of the bug, the EZ code that triggers it, and what you expected to happen.
 
 ---
 
