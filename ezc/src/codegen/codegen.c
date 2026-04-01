@@ -395,7 +395,11 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
                     else tk = TK_INT; /* default integer kind */
                 }
 
-                switch (tk) {
+                /* Check for bigint types — format as %s (use to_string) */
+                const char *bi_interp = resolve_bigint_type(cg, part);
+                if (bi_interp) {
+                    emit(cg, "%s");
+                } else switch (tk) {
                 case TK_STRING: emit(cg, "%s"); break;
                 case TK_FLOAT:  emit(cg, "%s"); break; /* uses ez_std_format_float */
                 case TK_BOOL:   emit(cg, "%s"); break;
@@ -424,7 +428,13 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
                 else tk = TK_INT; /* default integer kind */
             }
 
-            switch (tk) {
+            /* Check for bigint types — use to_string */
+            const char *bi_arg = resolve_bigint_type(cg, part);
+            if (bi_arg) {
+                emitf(cg, "%s_to_string(ez_default_arena, ", bigint_prefix(bi_arg));
+                emit_expression(cg, part);
+                emit(cg, ").data");
+            } else switch (tk) {
             case TK_STRING:
                 emit_expression(cg, part);
                 emit(cg, ".data");
