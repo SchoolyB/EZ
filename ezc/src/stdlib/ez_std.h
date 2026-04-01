@@ -23,6 +23,8 @@ void ez_std_println_addr(uintptr_t v);
 /* print(value) - print without newline */
 void ez_std_print_str(EzString s);
 void ez_std_print_int(int64_t v);
+void ez_std_print_float(double v);
+void ez_std_print_bool(bool v);
 void ez_std_print_char(int32_t c);
 void ez_std_print_addr(uintptr_t v);
 

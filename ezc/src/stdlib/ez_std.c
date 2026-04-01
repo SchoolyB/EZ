@@ -92,6 +92,16 @@ void ez_std_print_int(int64_t v) {
     printf("%" PRId64, v);
 }
 
+void ez_std_print_float(double v) {
+    char buf[64];
+    fmt_shortest_float(buf, sizeof(buf), v);
+    printf("%s", buf);
+}
+
+void ez_std_print_bool(bool v) {
+    printf("%s", v ? "true" : "false");
+}
+
 void ez_std_print_char(int32_t c) {
     fput_utf8(c, stdout);
 }

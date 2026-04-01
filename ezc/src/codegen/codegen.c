@@ -1785,9 +1785,7 @@ static bool emit_builtin_call(CodeGen *cg, AstNode *node, const char *func) {
             emit_expression(cg, arg);
             emit(cg, "))");
         } else {
-            const char *suffix = "_int";
-            if (arg->kind == NODE_STRING_VALUE) suffix = "_str";
-            emitf(cg, "ez_std_print%s(", suffix);
+            emitf(cg, "ez_std_print%s(", resolve_print_suffix(cg, arg));
             emit_expression(cg, arg);
             emit(cg, ")");
         }
