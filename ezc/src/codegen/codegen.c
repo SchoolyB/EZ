@@ -3218,6 +3218,9 @@ static void emit_var_declaration(CodeGen *cg, AstNode *node) {
         } else if (val->kind == NODE_FUNC_REF) {
             /* Function reference — use __auto_type to capture the pointer type */
             c_type = "__auto_type";
+        } else if (val->kind == NODE_LABEL) {
+            /* Variable reference — use __auto_type to propagate the source type */
+            c_type = "__auto_type";
         }
     }
 
