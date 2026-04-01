@@ -2015,6 +2015,12 @@ static bool emit_uuid_call(CodeGen *cg, AstNode *node, const char *func) {
 /* --- @regex module --- */
 
 static bool emit_regex_call(CodeGen *cg, AstNode *node, const char *func) {
+    if (strcmp(func, "is_valid") == 0 && node->data.call.arg_count == 1) {
+        emit(cg, "ez_regex_is_valid(");
+        emit_expression(cg, node->data.call.args[0]);
+        emit(cg, ")");
+        return true;
+    }
     if (strcmp(func, "is_match") == 0 && node->data.call.arg_count == 2) {
         emit(cg, "ez_regex_match(");
         emit_expression(cg, node->data.call.args[0]);
@@ -2900,7 +2906,7 @@ static void emit_call_expression(CodeGen *cg, AstNode *node) {
                 /* crypto */
                 {"sha256","crypto"},{"md5","crypto"},
                 /* regex */
-                {"is_match","regex"},{"find_all","regex"},
+                {"is_valid","regex"},{"is_match","regex"},{"find_all","regex"},
                 {NULL,NULL}
             };
             for (int ui = 0; ui < cg->using_module_count; ui++) {

@@ -13,6 +13,9 @@
 #include "../runtime/ez_runtime.h"
 #include "../runtime/ez_array.h"
 
+/* regex.is_valid(pattern) -> bool */
+bool ez_regex_is_valid(EzString pattern);
+
 /* regex.match(pattern, text) -> bool */
 bool ez_regex_match(EzString pattern, EzString text);
 

@@ -32,6 +32,13 @@ static const char *to_cstr(EzString s, char *buf, size_t bufsz) {
     return buf;
 }
 
+bool ez_regex_is_valid(EzString pattern) {
+    regex_t re;
+    if (compile_pattern(pattern, &re, REG_EXTENDED | REG_NOSUB) != 0) return false;
+    regfree(&re);
+    return true;
+}
+
 bool ez_regex_match(EzString pattern, EzString text) {
     regex_t re;
     if (compile_pattern(pattern, &re, REG_NOSUB) != 0) return false;
