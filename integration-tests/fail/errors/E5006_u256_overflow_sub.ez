@@ -1,0 +1,10 @@
+/*
+ * Error Test: E5006 - integer-overflow (u256 subtraction)
+ * Expected: "integer overflow"
+ * Tests that u256 underflows (goes negative)
+ */
+
+do main() {
+    mut zero u256 = u256(0)
+    mut result u256 = zero - u256(1)  // Underflow (unsigned can't go negative)
+}

@@ -1,0 +1,17 @@
+/*
+ * Error Test: E5005 - integer-overflow (u256 addition)
+ * Expected: "integer overflow"
+ * Tests that u256 overflows on addition beyond bounds
+ */
+
+do main() {
+    // Build max u256 by setting all bits: (2^256 - 1)
+    mut max u256 = u256(1)
+    mut i int = 0
+    as_long_as i < 256 {
+        max = max * u256(2)
+        i += 1
+    }
+    max = max - u256(1)  // 2^256 - 1 = max u256
+    mut result u256 = max + u256(1)  // Overflow
+}

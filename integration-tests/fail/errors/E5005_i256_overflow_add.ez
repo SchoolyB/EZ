@@ -1,0 +1,18 @@
+/*
+ * Error Test: E5005 - integer-overflow (i256 addition)
+ * Expected: "integer overflow"
+ * Tests that i256 overflows at the correct bound
+ */
+
+do main() {
+    // Build a large i256 by repeated doubling to approach max
+    mut big i256 = i256(1)
+    mut i int = 0
+    as_long_as i < 254 {
+        big = big * i256(2)
+        i += 1
+    }
+    // big is now 2^254, close to max i256 (2^255 - 1)
+    // Adding big to itself overflows
+    mut result i256 = big + big  // Overflow: 2^255 exceeds max i256
+}

@@ -1,0 +1,10 @@
+/*
+ * Error Test: E5007 - integer-overflow (u128 multiplication)
+ * Expected: "integer overflow"
+ * Tests that u128 overflows on multiplication beyond bounds
+ */
+
+do main() {
+    mut big u128 = 340282366920938463463374607431768211455  // max u128 (2^128 - 1)
+    mut result u128 = big * 2  // Overflow
+}

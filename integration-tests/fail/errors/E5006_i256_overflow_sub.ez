@@ -1,0 +1,17 @@
+/*
+ * Error Test: E5006 - integer-overflow (i256 subtraction)
+ * Expected: "integer overflow"
+ * Tests that i256 underflows at the correct bound
+ */
+
+do main() {
+    // Build min i256 by negating 2^255
+    mut big i256 = i256(1)
+    mut i int = 0
+    as_long_as i < 255 {
+        big = big * i256(2)
+        i += 1
+    }
+    mut min i256 = i256(0) - big  // -2^255 = min i256
+    mut result i256 = min - i256(1)  // Underflow
+}

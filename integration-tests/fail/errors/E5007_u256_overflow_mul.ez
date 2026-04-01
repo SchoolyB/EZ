@@ -1,0 +1,17 @@
+/*
+ * Error Test: E5007 - integer-overflow (u256 multiplication)
+ * Expected: "integer overflow"
+ * Tests that u256 overflows on multiplication beyond bounds
+ */
+
+do main() {
+    // Build a large u256 via repeated doubling
+    mut big u256 = u256(1)
+    mut i int = 0
+    as_long_as i < 255 {
+        big = big * u256(2)
+        i += 1
+    }
+    // big is 2^255, multiplying by 4 gives 2^257 which exceeds max u256
+    mut result u256 = big * u256(4)  // Overflow
+}
