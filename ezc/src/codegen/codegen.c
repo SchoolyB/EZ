@@ -1817,13 +1817,21 @@ static bool emit_builtin_call(CodeGen *cg, AstNode *node, const char *func) {
                 emit(cg, "))");
                 return true;
             }
-            /* Use overflow-safe conversion for float→int casts */
-            bool use_safe_float = false;
-            if (strcmp(func, "int") == 0 &&
-                (carg->kind == NODE_FLOAT_VALUE || carg->kind == NODE_LABEL)) {
-                use_safe_float = true;
-            }
-            if (use_safe_float) {
+            /* String→numeric conversion */
+            EzType *carg_t = cg->type_table ? typetable_get(cg->type_table, carg) : NULL;
+            bool is_string_src = (carg->kind == NODE_STRING_VALUE || carg->kind == NODE_INTERPOLATED_STRING ||
+                                  (carg_t && carg_t->kind == TK_STRING));
+            if (is_string_src && (strcmp(func, "int") == 0 || strcmp(func, "uint") == 0)) {
+                emit(cg, "ez_std_string_to_int(");
+                emit_expression(cg, carg);
+                emit(cg, ")");
+            } else if (is_string_src && strcmp(func, "float") == 0) {
+                emit(cg, "ez_std_string_to_float(");
+                emit_expression(cg, carg);
+                emit(cg, ")");
+            } else if (strcmp(func, "int") == 0 &&
+                (carg->kind == NODE_FLOAT_VALUE || (carg_t && carg_t->kind == TK_FLOAT))) {
+                /* Use overflow-safe conversion for float→int */
                 emitf(cg, "ez_float_to_int((double)(");
                 emit_expression(cg, carg);
                 emitf(cg, "), __FILE__, __LINE__)");
