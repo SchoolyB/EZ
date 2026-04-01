@@ -1389,7 +1389,6 @@ static AstNode *parse_struct_declaration(Parser *p) {
     /* cur_token is the struct name (IDENT), already consumed by caller */
     AstNode *node = ast_alloc(p->arena, NODE_STRUCT_DECL, p->cur_token);
     node->data.struct_decl.name = p->cur_token.literal;
-    node->data.struct_decl.visibility = 0;
 
     next_token(p); /* skip 'struct' keyword */
     if (!expect_peek(p, TOK_LBRACE)) return NULL;
@@ -1423,7 +1422,6 @@ static AstNode *parse_struct_declaration(Parser *p) {
             next_token(p); /* consume 'private' */
             AstNode *fn = parse_func_declaration(p);
             if (fn) {
-                fn->data.func_decl.visibility = 1; /* private */
                 if (node->data.struct_decl.func_count >= func_cap) {
                     func_cap *= 2;
                     StructFunc *new_funcs = arena_alloc(p->arena, sizeof(StructFunc) * func_cap);
@@ -1535,7 +1533,6 @@ static AstNode *parse_enum_declaration(Parser *p) {
     /* cur_token is the enum name (IDENT), already consumed by caller */
     AstNode *node = ast_alloc(p->arena, NODE_ENUM_DECL, p->cur_token);
     node->data.enum_decl.name = p->cur_token.literal;
-    node->data.enum_decl.visibility = 0;
     node->data.enum_decl.base_type = "int";
     node->data.enum_decl.is_flags = false;
 

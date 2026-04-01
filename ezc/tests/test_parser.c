@@ -320,7 +320,6 @@ static void test_parse_private_struct_func(void) {
     ASSERT_NOT_NULL(stmt);
     ASSERT_EQ(stmt->kind, NODE_STRUCT_DECL);
     ASSERT_EQ(stmt->data.struct_decl.func_count, 1);
-    ASSERT_EQ(stmt->data.struct_decl.funcs[0].func_decl->data.func_decl.visibility, 1);
 }
 
 static void test_parse_for_each_index(void) {

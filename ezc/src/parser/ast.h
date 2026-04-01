@@ -260,7 +260,6 @@ struct AstNode {
             const char **return_names; /* Named return params (NULL if unnamed) */
             int return_type_count;
             AstNode *body;
-            int visibility; /* 0 = public, 1 = private */
         } func_decl;
 
         /* NODE_IMPORT_STMT */
@@ -283,7 +282,6 @@ struct AstNode {
             int field_count;
             StructFunc *funcs;
             int func_count;
-            int visibility;
         } struct_decl;
 
         /* NODE_ENUM_DECL */
@@ -293,7 +291,6 @@ struct AstNode {
             int value_count;
             const char *base_type; /* "int", "string", etc. */
             bool is_flags;
-            int visibility;
         } enum_decl;
 
         /* NODE_MODULE_DECL */
