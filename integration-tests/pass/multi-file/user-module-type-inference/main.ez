@@ -5,8 +5,8 @@
  */
 module main
 
-import & use @std
-import & use lib"./mylib"
+import and use @std
+import and use lib"./mylib"
 
 do needs_u64(v u64) {
     println("Got u64: ${v}")

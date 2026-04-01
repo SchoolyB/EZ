@@ -4,7 +4,7 @@
  */
 module main
 
-import & use @std, @arrays
+import and use @std, @arrays
 
 do main() {
     mut arr [int] = {1, 2, 3, 4, 5}

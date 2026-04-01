@@ -3,7 +3,7 @@ module main
 // Test: Undefined function in imported module
 // Expected: E4002 - undefined function 'lib.ad'
 
-import & use @std
+import and use @std
 import lib"./lib"
 
 do main() {

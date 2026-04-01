@@ -3059,7 +3059,7 @@ void typechecker_check(TypeChecker *tc, AstNode *program) {
     /* Pass 1: register all type/function declarations */
     register_declarations(tc, program);
 
-    /* Collect 'using' and 'import & use' module names */
+    /* Collect 'using' and 'import and use' module names */
     for (int i = 0; i < program->data.program.stmt_count; i++) {
         AstNode *stmt = program->data.program.stmts[i];
         if (stmt->kind == NODE_USING_STMT) {

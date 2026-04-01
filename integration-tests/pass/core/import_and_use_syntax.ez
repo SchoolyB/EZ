@@ -1,22 +1,22 @@
 /*
- * import_and_use_syntax.ez - Test 'import & use @module' syntax
+ * import_and_use_syntax.ez - Test 'import and use @module' syntax
  */
 
-import & use @std, @strings, @math
+import and use @std, @strings, @math
 
 do main() {
-    println("=== Import & Use Syntax Test ===")
+    println("=== Import and Use Syntax Test ===")
     mut passed int = 0
     mut failed int = 0
 
     // Test 1: std println works
-    println("  [PASS] println works via import & use")
+    println("  [PASS] println works via import and use")
     passed += 1
 
     // Test 2: strings function unqualified
     mut result string = to_upper("test")
     if result == "TEST" {
-        println("  [PASS] to_upper via import & use")
+        println("  [PASS] to_upper via import and use")
         passed += 1
     } otherwise {
         println("  [FAIL] to_upper expected \"TEST\", got ${result}")
@@ -26,7 +26,7 @@ do main() {
     // Test 3: math function unqualified
     mut v int = abs(-10)
     if v == 10 {
-        println("  [PASS] abs via import & use")
+        println("  [PASS] abs via import and use")
         passed += 1
     } otherwise {
         println("  [FAIL] abs expected 10, got ${v}")

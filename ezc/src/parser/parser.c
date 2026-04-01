@@ -1292,8 +1292,8 @@ static AstNode *parse_import_statement(Parser *p) {
         ImportItem *item = &node->data.import_stmt.items[node->data.import_stmt.count];
         memset(item, 0, sizeof(ImportItem));
 
-        if (cur_token_is(p, TOK_AMPERSAND)) {
-            /* import & use syntax — consume '&' then 'use' */
+        if (cur_token_is(p, TOK_IDENT) && strcmp(p->cur_token.literal, "and") == 0) {
+            /* import and use syntax — consume 'and' then 'use' */
             node->data.import_stmt.auto_use = true;
             next_token(p); /* consume 'use' */
             next_token(p); /* advance to alias or @module */

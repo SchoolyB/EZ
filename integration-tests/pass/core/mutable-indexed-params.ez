@@ -4,7 +4,7 @@
  */
 module main
 
-import & use @std
+import and use @std
 
 const Point struct {
     x int

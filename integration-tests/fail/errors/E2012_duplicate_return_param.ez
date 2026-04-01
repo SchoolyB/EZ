@@ -2,7 +2,7 @@
  * Expected: E2012 error - duplicate parameter name
  */
 
-import & use @std
+import and use @std
 
 do getValues() -> (name string, name int) {
     return "test", 42

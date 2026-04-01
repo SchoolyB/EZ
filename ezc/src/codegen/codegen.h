@@ -52,7 +52,7 @@ typedef struct {
     int struct_decl_count;
     int struct_decl_cap;
 
-    /* Modules brought into scope via 'using' or 'import & use' */
+    /* Modules brought into scope via 'using' or 'import and use' */
     const char **using_modules;
     int using_module_count;
     int using_module_cap;

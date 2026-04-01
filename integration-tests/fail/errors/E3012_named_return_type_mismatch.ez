@@ -2,7 +2,7 @@
  * Expected: E3012 error - return type mismatch
  */
 
-import & use @std
+import and use @std
 
 do getName() -> (name string) {
     return 42

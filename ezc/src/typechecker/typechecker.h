@@ -84,7 +84,7 @@ typedef struct {
     int import_count;
     int import_cap;
 
-    /* Modules brought into scope via 'using' or 'import & use' */
+    /* Modules brought into scope via 'using' or 'import and use' */
     const char **using_modules;
     int using_module_count;
     int using_module_cap;

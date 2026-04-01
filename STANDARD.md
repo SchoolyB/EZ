@@ -1602,10 +1602,10 @@ import mymod "./server"     // alias "mymod" for local module
 
 ### 9.3 Combined Import and Use
 
-The `import & use` syntax combines importing and using in a single statement:
+The `import and use` syntax combines importing and using in a single statement:
 
 ```ez
-import & use @std
+import and use @std
 ```
 
 This is equivalent to:
@@ -1618,7 +1618,7 @@ using std
 Multiple modules can be combined:
 
 ```ez
-import & use @std, @arrays, @strings
+import and use @std, @arrays, @strings
 ```
 
 ### 9.5 Using Declaration

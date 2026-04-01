@@ -1,5 +1,5 @@
 // Test: E2058 - #doc on variable (invalid target)
-import & use @std
+import and use @std
 
 #doc("This should fail - variables cannot be documented")
 mut globalVar int = 42

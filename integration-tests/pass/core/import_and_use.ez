@@ -7,19 +7,19 @@ import @std, @strings, @arrays
 using std, strings, arrays
 
 do main() {
-    println("=== Import & Use Test ===")
+    println("=== Import and Use Test ===")
     mut passed int = 0
     mut failed int = 0
 
     // Test 1: std functions available without prefix
     mut msg string = "hello world"
-    println("  testing println via import & use...")
+    println("  testing println via import and use...")
     passed += 1
 
     // Test 2: strings functions available without prefix
     mut up_msg string = strings.to_upper(msg)
     if up_msg == "HELLO WORLD" {
-        println("  [PASS] strings.to_upper via import & use")
+        println("  [PASS] strings.to_upper via import and use")
         passed += 1
     } otherwise {
         println("  [FAIL] strings.to_upper: got ${up_msg}")
@@ -30,7 +30,7 @@ do main() {
     mut arr [int] = {3, 1, 2}
     mut has_one bool = arrays.contains(arr, 1)
     if has_one {
-        println("  [PASS] arrays.contains via import & use")
+        println("  [PASS] arrays.contains via import and use")
         passed += 1
     } otherwise {
         println("  [FAIL] arrays.contains failed")

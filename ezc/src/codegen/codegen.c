@@ -4071,7 +4071,7 @@ void codegen_generate(CodeGen *cg, AstNode *program) {
                     cg->alias_count++;
                 }
             }
-            /* import & use — register all modules for using */
+            /* import and use — register all modules for using */
             if (stmt->data.import_stmt.auto_use) {
                 for (int j = 0; j < stmt->data.import_stmt.count; j++) {
                     ImportItem *item = &stmt->data.import_stmt.items[j];

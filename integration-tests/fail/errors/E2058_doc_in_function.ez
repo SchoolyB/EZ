@@ -1,5 +1,5 @@
 // Test: E2058 - #doc inside function body (invalid target)
-import & use @std
+import and use @std
 
 do main() {
     #doc("This should fail - cannot use #doc inside function")

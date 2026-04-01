@@ -3,7 +3,7 @@
  * Expected: "shadows a function from a used module"
  */
 
-import & use @math
+import and use @math
 
 do main() {
     mut abs int = 5  // shadows math.abs function

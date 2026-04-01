@@ -2,9 +2,9 @@
  * Error Test: E2036 - import-inside-block
  * Expected: "import"
  */
-import & use @std
+import and use @std
 
 do main() {
-    import & use @math  // imports not allowed inside blocks
+    import and use @math  // imports not allowed inside blocks
     println("test")
 }

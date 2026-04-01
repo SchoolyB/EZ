@@ -1,14 +1,14 @@
 /*
- * alias_test.ez - Test aliased import & use syntax
+ * alias_test.ez - Test aliased import and use syntax
  *
  * Tests:
- *   - import & use alias"./path" syntax
- *   - import & use alias@stdlib syntax
+ *   - import and use alias"./path" syntax
+ *   - import and use alias@stdlib syntax
  *   - Chained with mixed aliases
  */
 
 // Use aliased imports for everything
-import & use io@std, a"./libA", b"./libB", m@math
+import and use io@std, a"./libA", b"./libB", m@math
 
 const TestResult struct {
     passed int
@@ -17,7 +17,7 @@ const TestResult struct {
 
 do main() {
     println("========================================")
-    println("  Aliased Import & Use Test")
+    println("  Aliased Import and Use Test")
     println("========================================")
     println("")
 
