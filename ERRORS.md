@@ -3,7 +3,7 @@
 > Auto-generated from `ezc/src/util/error_codes.h`. Do not edit manually.
 > Run `./scripts/generate_errors.sh` to regenerate.
 
-**Total: 96 codes** (89 errors, 7 warnings)
+**Total: 99 codes** (92 errors, 7 warnings)
 
 ---
 
@@ -24,6 +24,9 @@
 | `E1017` | syntax | raw string literal was never closed — add a closing backtick |
 | `E1018` | syntax | char literal must contain exactly one character — use a string for multiple characters |
 | `E1019` | syntax | unexpected '#' character — use '//' for comments |
+| `E1020` | syntax | unexpected '|' character — use '||' for logical OR |
+| `E1021` | syntax | string literal was never closed — add a closing double quote |
+| `E1022` | syntax | unexpected character |
 | `E2001` | syntax | unexpected symbol — the compiler found something it did not expect here |
 | `E2002` | syntax | missing symbol — a bracket, parenthesis, or keyword is missing |
 | `E2011` | syntax | constants must have a value — add = followed by a value after the type |
@@ -133,4 +136,4 @@
 
 ---
 
-*Generated on 2026-04-01 17:35:54 UTC*
+*Generated on 2026-04-01 17:40:13 UTC*

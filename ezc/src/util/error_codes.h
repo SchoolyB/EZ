@@ -31,7 +31,10 @@
     EZ_ERROR("E1016", "syntax", "number cannot end with a trailing decimal point — add a digit after the dot") \
     EZ_ERROR("E1017", "syntax", "raw string literal was never closed — add a closing backtick") \
     EZ_ERROR("E1018", "syntax", "char literal must contain exactly one character — use a string for multiple characters") \
-    EZ_ERROR("E1019", "syntax", "unexpected '#' character — use '//' for comments")
+    EZ_ERROR("E1019", "syntax", "unexpected '#' character — use '//' for comments") \
+    EZ_ERROR("E1020", "syntax", "unexpected '|' character — use '||' for logical OR") \
+    EZ_ERROR("E1021", "syntax", "string literal was never closed — add a closing double quote") \
+    EZ_ERROR("E1022", "syntax", "unexpected character")
 
 /* --- E2xxx: Understanding Your Code (Parser) --- */
 #define EZ_PARSER_ERRORS \

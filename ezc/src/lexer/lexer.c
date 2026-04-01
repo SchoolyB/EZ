@@ -448,7 +448,9 @@ Token lexer_next_token(Lexer *l) {
             read_char(l);
             tok = make_token(TOK_OR, "||", tok.line, tok.column);
         } else {
-            tok = make_token(TOK_ILLEGAL, "|", tok.line, tok.column);
+            l->error_code = "E1020";
+            l->error_msg = "unexpected character '|' — use '||' for logical OR";
+            tok = make_token(TOK_ILLEGAL, l->error_msg, tok.line, tok.column);
         }
         break;
 
@@ -492,8 +494,10 @@ Token lexer_next_token(Lexer *l) {
         l->unterminated_string = false;
         tok.literal = read_string(l);
         if (l->unterminated_string) {
+            l->error_code = "E1021";
+            l->error_msg = "string literal was never closed — add a closing double quote";
             tok.type = TOK_ILLEGAL;
-            tok.literal = "unterminated string literal";
+            tok.literal = l->error_msg;
         } else if (l->error_code) {
             tok.type = TOK_ILLEGAL;
             tok.literal = l->error_msg;
@@ -531,8 +535,11 @@ Token lexer_next_token(Lexer *l) {
             }
             return tok;
         } else {
-            char buf[2] = {l->ch, 0};
-            tok = make_token(TOK_ILLEGAL, arena_strdup(l->arena, buf), tok.line, tok.column);
+            char msg[64];
+            snprintf(msg, sizeof(msg), "unexpected character '%c'", l->ch);
+            l->error_code = "E1022";
+            l->error_msg = arena_strdup(l->arena, msg);
+            tok = make_token(TOK_ILLEGAL, l->error_msg, tok.line, tok.column);
         }
         break;
     }
