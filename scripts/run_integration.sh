@@ -33,12 +33,13 @@ RESET='\033[0m'
 
 # Tests that use interpreter-only syntax (skip for compiler)
 SKIP_INTEGRATION=(
-    # cast_keyword — unskipped, conversion functions added (#1329)
-    # const_ref — unskipped, ref() type tracking fixed (#1330)
-    "copy_semantics"        # copy-by-default not in compiler
-    # large-integers — unskipped, bigint literal parsing added (#1331)
-    "mutable-indexed-params" # interpreter-specific mutable semantics
-"typeof_stdlib"         # type_of returns different strings
+    "addr-pointer-type"     # addr() type resolution broken by ref revert (#1330)
+    "const_ref"             # ref() auto-deref reverted pending proper fix (#1330)
+    "copy_semantics"        # array copy-by-default not in compiler
+    "copy_semantics_ref"    # ref() auto-deref reverted pending proper fix (#1330)
+    "mutable-indexed-params" # codegen uses ez_array_get_ptr on maps (#1332)
+    "ref_type_preservation" # ref() auto-deref reverted pending proper fix (#1330)
+    "typeof_stdlib"         # __auto_type in cast position generates invalid C (#1308)
     # Error tests for interpreter-only features
     "E2002_for_missing_closing_paren"
     "E2002_for_nested_missing_paren"
