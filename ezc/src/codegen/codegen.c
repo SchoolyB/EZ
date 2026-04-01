@@ -1665,8 +1665,8 @@ static bool emit_builtin_call(CodeGen *cg, AstNode *node, const char *func) {
     }
 
     if (strcmp(func, "addr") == 0 && node->data.call.arg_count == 1) {
-        /* addr() returns a pointer to the argument */
-        emit(cg, "&");
+        /* addr() returns the address as uintptr_t */
+        emit(cg, "(uintptr_t)&");
         emit_expression(cg, node->data.call.args[0]);
         return true;
     }
