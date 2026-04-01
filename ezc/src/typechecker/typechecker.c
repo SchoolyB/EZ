@@ -2037,10 +2037,27 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
                 diag_error(tc->diag, "E3001", strdup(msg),
                     tc->file, node->token.line, node->token.column, 0);
             }
-            /* E3036: Check literal value fits in sized integer type */
+            /* E1010: Check for overflowed int literal assigned to non-bigint type */
+            if (node->data.var_decl.value &&
+                node->data.var_decl.value->kind == NODE_INT_VALUE &&
+                node->data.var_decl.value->data.int_value.overflow) {
+                const char *tn = node->data.var_decl.type_name;
+                bool is_bigint = tn && (strcmp(tn, "i128") == 0 || strcmp(tn, "u128") == 0 ||
+                                        strcmp(tn, "i256") == 0 || strcmp(tn, "u256") == 0 ||
+                                        strcmp(tn, "u64") == 0 || strcmp(tn, "uint") == 0);
+                if (!is_bigint) {
+                    diag_error(tc->diag, "E1010",
+                        strdup("integer literal overflows 64-bit integer — max value is 9223372036854775807"),
+                        tc->file, node->data.var_decl.value->token.line,
+                        node->data.var_decl.value->token.column, 0);
+                }
+            }
+            /* E3036: Check literal value fits in sized integer type (skip overflowed literals) */
             if (node->data.var_decl.type_name && node->data.var_decl.value) {
+                bool val_overflowed = (node->data.var_decl.value->kind == NODE_INT_VALUE &&
+                    node->data.var_decl.value->data.int_value.overflow);
                 int64_t lit_val;
-                if (try_get_literal_int(node->data.var_decl.value, &lit_val)) {
+                if (!val_overflowed && try_get_literal_int(node->data.var_decl.value, &lit_val)) {
                     check_integer_range(tc->diag, tc->file,
                         node->token.line, node->token.column,
                         node->data.var_decl.type_name, lit_val);

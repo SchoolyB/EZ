@@ -116,7 +116,7 @@ struct AstNode {
         struct { const char *value; } label;
 
         /* NODE_INT_VALUE */
-        struct { int64_t value; const char *literal; } int_value;
+        struct { int64_t value; const char *literal; bool overflow; } int_value;
 
         /* NODE_FLOAT_VALUE */
         struct { double value; } float_value;

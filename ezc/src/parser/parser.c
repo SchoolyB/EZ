@@ -128,6 +128,7 @@ static AstNode *parse_int_literal(Parser *p) {
     AstNode *node = ast_alloc(p->arena, NODE_INT_VALUE, p->cur_token);
     const char *s = p->cur_token.literal;
     int64_t val = 0;
+    bool overflow = false;
 
     if (s[0] == '0' && (s[1] == 'x' || s[1] == 'X')) {
         /* Hex: 0xFF */
@@ -158,7 +159,6 @@ static AstNode *parse_int_literal(Parser *p) {
         }
     } else {
         /* Decimal — use manual parsing with overflow detection */
-        bool overflow = false;
         while (*s) {
             if (*s != '_') {
                 int64_t digit = *s - '0';
@@ -169,15 +169,11 @@ static AstNode *parse_int_literal(Parser *p) {
             }
             s++;
         }
-        if (overflow) {
-            diag_error(p->diag, "E1010",
-                strdup("integer literal overflows 64-bit integer — max value is 9223372036854775807"),
-                p->file, p->cur_token.line, p->cur_token.column, 0);
-        }
     }
 
     node->data.int_value.value = val;
     node->data.int_value.literal = p->cur_token.literal;
+    node->data.int_value.overflow = overflow;
     return node;
 }
 

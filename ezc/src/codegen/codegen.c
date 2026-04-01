@@ -288,7 +288,20 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
     }
 
     case NODE_INT_VALUE:
-        emitf(cg, "%lld", (long long)node->data.int_value.value);
+        if (node->data.int_value.overflow) {
+            /* Overflowed literal — check if we're in a bigint context */
+            const char *bi_ctx = resolve_bigint_type(cg, node);
+            if (!bi_ctx) {
+                /* Check parent context: look for bigint var assignment */
+                /* For non-bigint contexts, emit as ULL (valid for u64/uint) */
+                emitf(cg, "%sULL", node->data.int_value.literal);
+            } else {
+                emitf(cg, "%s_from_decimal(\"%s\")", bigint_prefix(bi_ctx),
+                    node->data.int_value.literal);
+            }
+        } else {
+            emitf(cg, "%lld", (long long)node->data.int_value.value);
+        }
         break;
 
     case NODE_FLOAT_VALUE: {
@@ -740,6 +753,30 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
             break;
         }
 
+        /* Helper: emit an operand in bigint context, wrapping int literals */
+        #define EMIT_BIGINT_OPERAND(cg, operand, pfx, bi_type) do { \
+            if ((operand)->kind == NODE_INT_VALUE) { \
+                if ((operand)->data.int_value.overflow) { \
+                    emitf((cg), "%s_from_decimal(\"%s\")", (pfx), (operand)->data.int_value.literal); \
+                } else { \
+                    const char *_sfx = (strcmp((bi_type), "u128") == 0 || strcmp((bi_type), "u256") == 0) ? "u64" : "i64"; \
+                    emitf((cg), "%s_from_%s(%lldLL)", (pfx), _sfx, (long long)(operand)->data.int_value.value); \
+                } \
+            } else if ((operand)->kind == NODE_PREFIX_EXPR && \
+                       strcmp((operand)->data.prefix.op, "-") == 0 && \
+                       (operand)->data.prefix.right->kind == NODE_INT_VALUE) { \
+                if ((operand)->data.prefix.right->data.int_value.overflow) { \
+                    emitf((cg), "%s_from_decimal(\"-%s\")", (pfx), \
+                        (operand)->data.prefix.right->data.int_value.literal); \
+                } else { \
+                    emitf((cg), "%s_from_i64(%lldLL)", (pfx), \
+                        -(long long)(operand)->data.prefix.right->data.int_value.value); \
+                } \
+            } else { \
+                emit_expression((cg), (operand)); \
+            } \
+        } while(0)
+
         /* Bigint infix — emit function calls instead of C operators.
          * Must come before overflow-check and div-by-zero handlers since
          * bigint types share TK_INT/TK_UINT kind. */
@@ -767,9 +804,9 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
                     } else {
                         emitf(cg, "%s_%s(", pfx, fn_op);
                     }
-                    emit_expression(cg, node->data.infix.left);
+                    EMIT_BIGINT_OPERAND(cg, node->data.infix.left, pfx, bi_type);
                     emit(cg, ", ");
-                    emit_expression(cg, node->data.infix.right);
+                    EMIT_BIGINT_OPERAND(cg, node->data.infix.right, pfx, bi_type);
                     if (is_checked) {
                         emitf(cg, ", __FILE__, %d)", node->token.line);
                     } else {
@@ -3313,11 +3350,61 @@ static void emit_var_declaration(CodeGen *cg, AstNode *node) {
             else if (strcmp(type_name, "u256") == 0) emit(cg, "EZ_U256_ZERO");
         } else if (type_name && is_bigint_type(type_name) &&
                    node->data.var_decl.value->kind == NODE_INT_VALUE) {
-            /* Non-zero integer literal: use constructor */
-            int64_t v = node->data.var_decl.value->data.int_value.value;
+            /* Integer literal for bigint type */
             const char *pfx = bigint_prefix(type_name);
-            const char *from_suffix = (strcmp(type_name, "u128") == 0 || strcmp(type_name, "u256") == 0) ? "u64" : "i64";
-            emitf(cg, "%s_from_%s(%lldLL)", pfx, from_suffix, (long long)v);
+            if (node->data.var_decl.value->data.int_value.overflow) {
+                /* Overflowed literal: parse from decimal string at runtime */
+                emitf(cg, "%s_from_decimal(\"%s\")", pfx,
+                    node->data.var_decl.value->data.int_value.literal);
+            } else {
+                /* Fits in 64-bit: use direct constructor */
+                int64_t v = node->data.var_decl.value->data.int_value.value;
+                const char *from_suffix = (strcmp(type_name, "u128") == 0 || strcmp(type_name, "u256") == 0) ? "u64" : "i64";
+                emitf(cg, "%s_from_%s(%lldLL)", pfx, from_suffix, (long long)v);
+            }
+        } else if (type_name && is_bigint_type(type_name) &&
+                   node->data.var_decl.value->kind == NODE_PREFIX_EXPR &&
+                   strcmp(node->data.var_decl.value->data.prefix.op, "-") == 0 &&
+                   node->data.var_decl.value->data.prefix.right->kind == NODE_INT_VALUE) {
+            /* Negated integer literal for bigint: -N → from_i64(-N) or from_decimal("-N") */
+            const char *pfx = bigint_prefix(type_name);
+            AstNode *inner = node->data.var_decl.value->data.prefix.right;
+            if (inner->data.int_value.overflow) {
+                emitf(cg, "%s_from_decimal(\"-%s\")", pfx, inner->data.int_value.literal);
+            } else {
+                emitf(cg, "%s_from_i64(%lldLL)", pfx,
+                    -(long long)inner->data.int_value.value);
+            }
+        } else if (type_name && is_bigint_type(type_name) &&
+                   node->data.var_decl.value->kind == NODE_INFIX_EXPR) {
+            /* Infix expression assigned to bigint — use bigint operations.
+             * Emit the infix manually with bigint operand wrapping since
+             * resolve_bigint_type won't detect raw literals as bigint. */
+            AstNode *infix = node->data.var_decl.value;
+            const char *pfx = bigint_prefix(type_name);
+            const char *op = infix->data.infix.op;
+            const char *fn_op = NULL;
+            if (strcmp(op, "+") == 0) fn_op = "add";
+            else if (strcmp(op, "-") == 0) fn_op = "sub";
+            else if (strcmp(op, "*") == 0) fn_op = "mul";
+            else if (strcmp(op, "/") == 0) fn_op = "div";
+            else if (strcmp(op, "%") == 0) fn_op = "mod";
+            if (fn_op) {
+                bool is_checked = (strcmp(fn_op, "add") == 0 || strcmp(fn_op, "sub") == 0 || strcmp(fn_op, "mul") == 0);
+                if (is_checked)
+                    emitf(cg, "%s_%s_checked(", pfx, fn_op);
+                else
+                    emitf(cg, "%s_%s(", pfx, fn_op);
+                EMIT_BIGINT_OPERAND(cg, infix->data.infix.left, pfx, type_name);
+                emit(cg, ", ");
+                EMIT_BIGINT_OPERAND(cg, infix->data.infix.right, pfx, type_name);
+                if (is_checked)
+                    emitf(cg, ", __FILE__, %d)", node->token.line);
+                else
+                    emit(cg, ")");
+            } else {
+                emit_expression(cg, node->data.var_decl.value);
+            }
         } else if (type_name && type_name[0] == '^' &&
                    node->data.var_decl.value->kind == NODE_LABEL &&
                    is_ref_var(cg, node->data.var_decl.value->data.label.value)) {

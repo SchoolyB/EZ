@@ -548,6 +548,55 @@ static inline bool ez_u256_gt(ez_u256 a, ez_u256 b) { return ez_u256_lt(b, a); }
 static inline bool ez_u256_le(ez_u256 a, ez_u256 b) { return !ez_u256_gt(a, b); }
 static inline bool ez_u256_ge(ez_u256 a, ez_u256 b) { return !ez_u256_lt(a, b); }
 
+/* --- Decimal String Constructors --- */
+
+static inline ez_u128 ez_u128_from_decimal(const char *s) {
+    ez_u128 result = EZ_U128_ZERO;
+    ez_u128 ten = {10, 0};
+    while (*s) {
+        if (*s == '_') { s++; continue; }
+        result = ez_u128_mul(result, ten);
+        ez_u128 digit = {(uint64_t)(*s - '0'), 0};
+        result = ez_u128_add(result, digit);
+        s++;
+    }
+    return result;
+}
+
+static inline ez_i128 ez_i128_from_decimal(const char *s) {
+    bool neg = false;
+    if (*s == '-') { neg = true; s++; }
+    ez_u128 u = ez_u128_from_decimal(s);
+    ez_i128 r;
+    r.lo = u.lo;
+    r.hi = (int64_t)u.hi;
+    return neg ? ez_i128_neg(r) : r;
+}
+
+static inline ez_u256 ez_u256_from_decimal(const char *s) {
+    ez_u256 result = EZ_U256_ZERO;
+    ez_u256 ten = EZ_U256_ZERO;
+    ten.w[0] = 10;
+    while (*s) {
+        if (*s == '_') { s++; continue; }
+        result = ez_u256_mul(result, ten);
+        ez_u256 digit = EZ_U256_ZERO;
+        digit.w[0] = (uint64_t)(*s - '0');
+        result = ez_u256_add(result, digit);
+        s++;
+    }
+    return result;
+}
+
+static inline ez_i256 ez_i256_from_decimal(const char *s) {
+    bool neg = false;
+    if (*s == '-') { neg = true; s++; }
+    ez_u256 u = ez_u256_from_decimal(s);
+    ez_i256 r;
+    memcpy(&r, &u, sizeof(r));
+    return neg ? ez_i256_neg(r) : r;
+}
+
 /* --- Overflow-Checked Arithmetic --- */
 
 static inline ez_i128 ez_i128_add_checked(ez_i128 a, ez_i128 b, const char *file, int line) {
