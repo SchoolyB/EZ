@@ -3,6 +3,8 @@ package main
 import (
 	"fmt"
 	"os"
+	"os/exec"
+	"path/filepath"
 	"strings"
 
 	"github.com/marshallburns/ez/internal/ezc"
@@ -122,6 +124,66 @@ Output is written to DOCS.md in the current working directory.`,
 	},
 }
 
+var testCmd = &cobra.Command{
+	Use:   "test",
+	Short: "Run the full EZ test suite",
+	Long: `Run all tests: Go tooling tests, compiler unit tests, compiler e2e tests,
+compiler integration tests, and CLI integration tests.`,
+	Run: func(cmd *cobra.Command, args []string) {
+		// Find project root relative to the ez binary
+		exePath, err := os.Executable()
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "error: cannot locate ez binary: %v\n", err)
+			os.Exit(1)
+		}
+		root := filepath.Dir(exePath)
+
+		// Verify we're in the project root by checking for scripts/
+		if _, err := os.Stat(filepath.Join(root, "scripts")); os.IsNotExist(err) {
+			// Fall back to current working directory
+			root, _ = os.Getwd()
+			if _, err := os.Stat(filepath.Join(root, "scripts")); os.IsNotExist(err) {
+				fmt.Fprintf(os.Stderr, "error: cannot find project root — run from the EZ project directory\n")
+				os.Exit(1)
+			}
+		}
+
+		failed := false
+
+		steps := []struct {
+			name string
+			cmd  string
+			args []string
+			dir  string
+		}{
+			{"Go tooling tests", "go", []string{"test", "./pkg/errors/...", "./pkg/lineeditor/..."}, root},
+			{"Compiler unit tests", "make", []string{"test-unit"}, filepath.Join(root, "ezc")},
+			{"Compiler e2e tests", "make", []string{"test-e2e"}, filepath.Join(root, "ezc")},
+			{"Compiler integration tests", "bash", []string{filepath.Join(root, "scripts", "run_integration.sh")}, root},
+			{"CLI integration tests", "bash", []string{filepath.Join(root, "scripts", "run_tests.sh")}, root},
+		}
+
+		for _, step := range steps {
+			fmt.Printf("\n=== %s ===\n", step.name)
+			c := exec.Command(step.cmd, step.args...)
+			c.Dir = step.dir
+			c.Stdout = os.Stdout
+			c.Stderr = os.Stderr
+			if err := c.Run(); err != nil {
+				fmt.Fprintf(os.Stderr, "\n%s FAILED\n", step.name)
+				failed = true
+			}
+		}
+
+		fmt.Println()
+		if failed {
+			fmt.Println("SOME TEST SUITES FAILED")
+			os.Exit(1)
+		}
+		fmt.Println("ALL TEST SUITES PASSED")
+	},
+}
+
 var rootCmd = &cobra.Command{
 	Use:     "ez [file.ez]",
 	Short:   "EZ Programming Language",
@@ -155,7 +217,7 @@ var rootCmd = &cobra.Command{
 }
 
 func init() {
-	rootCmd.AddCommand(runCmd, replCmd, updateCmd, checkCmd, buildCmd, versionCmd, docCmd, pzCmd, watchCmd)
+	rootCmd.AddCommand(runCmd, replCmd, updateCmd, checkCmd, buildCmd, testCmd, versionCmd, docCmd, pzCmd, watchCmd)
 	rootCmd.PersistentPreRun = func(cmd *cobra.Command, args []string) {
 		CheckForUpdateAsync()
 	}
