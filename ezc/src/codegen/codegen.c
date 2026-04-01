@@ -19,6 +19,7 @@ static void emit_statement(CodeGen *cg, AstNode *node);
 static void emit_expression(CodeGen *cg, AstNode *node);
 static void emit_call_expression(CodeGen *cg, AstNode *node);
 static bool codegen_is_enum(CodeGen *cg, const char *name);
+static void emit_to_string(CodeGen *cg, AstNode *arg);
 
 /* --- Helpers --- */
 
@@ -1129,12 +1130,48 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
         break;
     }
 
-    case NODE_CAST_EXPR:
-        /* cast(value, type) → (C_type)(value) */
-        emitf(cg, "((%s)(", ez_type_to_c_cg(cg, node->data.cast.target_type));
-        emit_expression(cg, node->data.cast.value);
-        emit(cg, "))");
+    case NODE_CAST_EXPR: {
+        /* cast(value, type) — dispatch to conversion functions for non-trivial casts */
+        const char *target = node->data.cast.target_type;
+        AstNode *val = node->data.cast.value;
+        EzType *val_t = cg->type_table ? typetable_get(cg->type_table, val) : NULL;
+        TypeKind val_kind = val_t ? val_t->kind : TK_UNKNOWN;
+
+        /* Infer kind from AST if type table has no info */
+        if (val_kind == TK_UNKNOWN) {
+            if (val->kind == NODE_STRING_VALUE || val->kind == NODE_INTERPOLATED_STRING)
+                val_kind = TK_STRING;
+            else if (val->kind == NODE_BOOL_VALUE) val_kind = TK_BOOL;
+            else if (val->kind == NODE_FLOAT_VALUE) val_kind = TK_FLOAT;
+            else if (val->kind == NODE_INT_VALUE) val_kind = TK_INT;
+        }
+
+        if (strcmp(target, "string") == 0) {
+            /* any → string: use to_string functions */
+            emit_to_string(cg, val);
+        } else if ((strcmp(target, "int") == 0 || strcmp(target, "i64") == 0) && val_kind == TK_STRING) {
+            /* string → int */
+            emit(cg, "ez_std_string_to_int(");
+            emit_expression(cg, val);
+            emit(cg, ")");
+        } else if ((strcmp(target, "float") == 0 || strcmp(target, "f64") == 0) && val_kind == TK_STRING) {
+            /* string → float */
+            emit(cg, "ez_std_string_to_float(");
+            emit_expression(cg, val);
+            emit(cg, ")");
+        } else if ((strcmp(target, "int") == 0 || strcmp(target, "i64") == 0) && val_kind == TK_FLOAT) {
+            /* float → int: overflow-safe */
+            emit(cg, "ez_float_to_int((double)(");
+            emit_expression(cg, val);
+            emit(cg, "), __FILE__, __LINE__)");
+        } else {
+            /* Numeric casts: raw C cast */
+            emitf(cg, "((%s)(", ez_type_to_c_cg(cg, target));
+            emit_expression(cg, val);
+            emit(cg, "))");
+        }
         break;
+    }
 
     case NODE_NEW_EXPR: {
         /* new(Type) → zeroed allocation on default arena, returns pointer */

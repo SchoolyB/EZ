@@ -229,6 +229,22 @@ EzString ez_std_to_string_bool(EzArena *arena, bool v) {
     return v ? ez_string_lit("true") : ez_string_lit("false");
 }
 
+int64_t ez_std_string_to_int(EzString s) {
+    char buf[64];
+    int len = s.len < (int32_t)sizeof(buf) - 1 ? s.len : (int32_t)sizeof(buf) - 1;
+    memcpy(buf, s.data, (size_t)len);
+    buf[len] = '\0';
+    return strtoll(buf, NULL, 10);
+}
+
+double ez_std_string_to_float(EzString s) {
+    char buf[64];
+    int len = s.len < (int32_t)sizeof(buf) - 1 ? s.len : (int32_t)sizeof(buf) - 1;
+    memcpy(buf, s.data, (size_t)len);
+    buf[len] = '\0';
+    return strtod(buf, NULL);
+}
+
 /* Array to string: {elem1, elem2, ...}
  * elem_kind: 0=int, 1=float, 2=string, 3=bool */
 EzString ez_std_array_to_string(EzArena *arena, EzArray *arr, int elem_kind) {

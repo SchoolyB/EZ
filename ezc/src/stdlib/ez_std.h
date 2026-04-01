@@ -63,6 +63,10 @@ EzString ez_std_to_string_int(EzArena *arena, int64_t v);
 EzString ez_std_to_string_float(EzArena *arena, double v);
 EzString ez_std_to_string_bool(EzArena *arena, bool v);
 
+/* from_string */
+int64_t ez_std_string_to_int(EzString s);
+double ez_std_string_to_float(EzString s);
+
 /* Format float for interpolation — always shows decimal point */
 EzString ez_std_format_float(EzArena *arena, double v);
 
