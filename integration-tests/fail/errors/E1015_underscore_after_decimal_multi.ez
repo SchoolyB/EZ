@@ -1,0 +1,9 @@
+/*
+ * Error Test: E1015 - underscore after decimal (multiple digits before)
+ * Expected: "underscore" or "decimal"
+ * Tests that 123._456 is caught
+ */
+
+do main() {
+    mut x float = 123._456  // underscore after decimal
+}

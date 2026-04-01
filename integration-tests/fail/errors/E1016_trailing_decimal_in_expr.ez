@@ -1,0 +1,9 @@
+/*
+ * Error Test: E1016 - trailing decimal in expression context
+ * Expected: "decimal point" or "trailing"
+ * Tests that 42. in an expression is caught
+ */
+
+do main() {
+    mut x float = 42. + 1.0  // trailing decimal before operator
+}
