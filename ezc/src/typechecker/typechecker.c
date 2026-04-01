@@ -444,10 +444,6 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
         if (sym) {
             sym->used = true;
             result = sym->type;
-            /* Transparent ref: unwrap pointer to expose underlying type */
-            if (sym->is_ref && result->kind == TK_POINTER && result->element_type) {
-                result = type_from_name(result->element_type);
-            }
         } else if (!is_enum_name(tc, name) && !find_func(tc, name) &&
                    !tc_is_builtin(name) && !is_struct_name(tc, name) &&
                    !tc_is_imported_module(tc, name)) {
@@ -1601,6 +1597,12 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
 
     case NODE_INDEX_EXPR: {
         EzType *left = resolve_expr(tc, node->data.index_expr.left);
+        /* Auto-deref ref pointers for indexing */
+        if (left->kind == TK_POINTER && left->element_type &&
+            node->data.index_expr.left->kind == NODE_LABEL) {
+            Symbol *s = scope_lookup(tc->current_scope, node->data.index_expr.left->data.label.value);
+            if (s && s->is_ref) left = type_from_name(left->element_type);
+        }
         EzType *idx_t = resolve_expr(tc, node->data.index_expr.index);
         /* E3003: array index must be integer */
         if (left->kind == TK_ARRAY && idx_t->kind != TK_UNKNOWN &&
