@@ -1,0 +1,11 @@
+/*
+ * Error Test: E9005 - invalid range with negative step
+ * Expected: "invalid range"
+ * Tests that range(0, 10, -1) is rejected when start < end with negative step
+ */
+
+do main() {
+    for i in range(0, 10, -1) {
+        // start < end with negative step is invalid
+    }
+}
