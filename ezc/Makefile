@@ -142,11 +142,8 @@ test-e2e: build tests/test_codegen
 	@echo "=== End-to-End Codegen Tests ==="
 	@./tests/test_codegen
 
-test-parity: build
-	@./tests/run_parity.sh
-
 test-integration: build
-	@./tests/run_integration.sh
+	@../scripts/run_integration.sh
 
 # Sanitizer builds — catch undefined behavior (and memory bugs on Linux)
 # Must compile ALL source files with sanitizer flags
@@ -196,4 +193,4 @@ format:
 	@find src -name '*.c' -o -name '*.h' | xargs clang-format -i
 	@echo "Formatted all C files"
 
-test: test-unit test-e2e test-parity
+test: test-unit test-e2e

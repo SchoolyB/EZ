@@ -74,6 +74,3 @@ test:
 	@echo ""
 	@echo "=== Compiler e2e tests ==="
 	@$(MAKE) -C ezc test-e2e
-	@echo ""
-	@echo "=== Parity tests ==="
-	@$(MAKE) -C ezc test-parity

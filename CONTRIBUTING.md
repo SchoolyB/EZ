@@ -181,7 +181,7 @@ EZ/
 │   ├── src/codegen/     # Code generation (AST → C)
 │   ├── src/runtime/     # Runtime (strings, arrays, maps, arenas)
 │   ├── src/stdlib/      # Standard library (24 modules)
-│   └── tests/           # Unit, e2e, parity, integration tests
+│   └── tests/           # Unit, e2e, integration tests
 ├── examples/            # Example EZ programs
 ├── integration-tests/   # End-to-end test suite
 ├── STANDARD.md          # Language specification
@@ -215,7 +215,6 @@ make test
 cd ezc
 make test-unit     # unit tests
 make test-e2e      # end-to-end tests
-make test-parity   # output parity tests
 
 # CLI/tooling tests only
 go test ./pkg/errors/... ./pkg/lineeditor/...
