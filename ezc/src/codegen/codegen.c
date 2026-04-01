@@ -1998,6 +1998,26 @@ static bool emit_math_call(CodeGen *cg, AstNode *node, const char *func) {
         emit(cg, "))");
         return true;
     }
+    if ((strcmp(func, "min") == 0 || strcmp(func, "max") == 0) && node->data.call.arg_count == 2) {
+        EzType *at = cg->type_table ? typetable_get(cg->type_table, node->data.call.args[0]) : NULL;
+        emitf(cg, "ez_math_%s_%s(", func, (at && at->kind == TK_FLOAT) ? "float" : "int");
+        emit_expression(cg, node->data.call.args[0]);
+        emit(cg, ", ");
+        emit_expression(cg, node->data.call.args[1]);
+        emit(cg, ")");
+        return true;
+    }
+    if (strcmp(func, "clamp") == 0 && node->data.call.arg_count == 3) {
+        EzType *at = cg->type_table ? typetable_get(cg->type_table, node->data.call.args[0]) : NULL;
+        emitf(cg, "ez_math_clamp_%s(", (at && at->kind == TK_FLOAT) ? "float" : "int");
+        emit_expression(cg, node->data.call.args[0]);
+        emit(cg, ", ");
+        emit_expression(cg, node->data.call.args[1]);
+        emit(cg, ", ");
+        emit_expression(cg, node->data.call.args[2]);
+        emit(cg, ")");
+        return true;
+    }
     /* Generic: math.func(args...) → ez_math_func(args...) */
     emitf(cg, "ez_math_%s(", func);
     for (int i = 0; i < node->data.call.arg_count; i++) {

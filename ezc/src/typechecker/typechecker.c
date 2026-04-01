@@ -927,9 +927,17 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                     strcmp(mfn, "is_nan") == 0 || strcmp(mfn, "is_finite") == 0 ||
                     strcmp(mfn, "is_infinite") == 0) {
                     result = &TYPE_BOOL;
-                } else if (strcmp(mfn, "abs") == 0 || strcmp(mfn, "min") == 0 ||
-                           strcmp(mfn, "max") == 0 || strcmp(mfn, "clamp") == 0 ||
-                           strcmp(mfn, "sign") == 0 || strcmp(mfn, "factorial") == 0 ||
+                } else if (strcmp(mfn, "abs") == 0 || strcmp(mfn, "neg") == 0 ||
+                           strcmp(mfn, "min") == 0 || strcmp(mfn, "max") == 0 ||
+                           strcmp(mfn, "clamp") == 0) {
+                    /* Return type matches argument type — float in, float out */
+                    if (node->data.call.arg_count > 0) {
+                        EzType *arg_t = resolve_expr(tc, node->data.call.args[0]);
+                        result = (arg_t && arg_t->kind == TK_FLOAT) ? &TYPE_FLOAT : &TYPE_INT;
+                    } else {
+                        result = &TYPE_INT;
+                    }
+                } else if (strcmp(mfn, "sign") == 0 || strcmp(mfn, "factorial") == 0 ||
                            strcmp(mfn, "gcd") == 0 || strcmp(mfn, "lcm") == 0) {
                     result = &TYPE_INT;
                 } else {
@@ -1361,8 +1369,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                             {"ends_with","strings",TK_BOOL},{"is_empty","strings",TK_BOOL},
                             {"index_of","strings",TK_INT},{"count","strings",TK_INT},
                             {"split","strings",TK_ARRAY},
-                            {"abs","math",TK_INT},{"neg","math",TK_INT},{"sign","math",TK_INT},
-                            {"min","math",TK_INT},{"max","math",TK_INT},{"clamp","math",TK_INT},
+                            {"sign","math",TK_INT},
                             {"floor","math",TK_INT},{"ceil","math",TK_INT},{"round","math",TK_INT},
                             {"trunc","math",TK_INT},{"factorial","math",TK_INT},{"gcd","math",TK_INT},
                             {"lcm","math",TK_INT},
@@ -1391,6 +1398,24 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                             {"is_match","regex",TK_BOOL},{"find","regex",TK_STRING},
                             {NULL,NULL,TK_UNKNOWN}
                         };
+                        /* Check for math functions whose return type depends on argument */
+                        if (!found_in_using && (strcmp(fn_name, "abs") == 0 || strcmp(fn_name, "neg") == 0 ||
+                            strcmp(fn_name, "min") == 0 || strcmp(fn_name, "max") == 0 ||
+                            strcmp(fn_name, "clamp") == 0)) {
+                            for (int ui = 0; ui < tc->using_module_count; ui++) {
+                                const char *real_mod = tc_resolve_alias(tc, tc->using_modules[ui]);
+                                if (strcmp(real_mod, "math") == 0) {
+                                    found_in_using = true;
+                                    if (node->data.call.arg_count > 0) {
+                                        EzType *arg_t = resolve_expr(tc, node->data.call.args[0]);
+                                        result = (arg_t && arg_t->kind == TK_FLOAT) ? &TYPE_FLOAT : &TYPE_INT;
+                                    } else {
+                                        result = &TYPE_INT;
+                                    }
+                                    break;
+                                }
+                            }
+                        }
                         for (int ui = 0; ui < tc->using_module_count && !found_in_using; ui++) {
                             const char *umod = tc->using_modules[ui];
                             /* Resolve alias to actual module name */
