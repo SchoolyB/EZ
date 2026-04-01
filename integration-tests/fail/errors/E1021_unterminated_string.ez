@@ -1,0 +1,9 @@
+/*
+ * Error Test: E1021 - unterminated string literal
+ * Expected: "unterminated" or "never closed"
+ * Tests that an unclosed string gets a specific diagnostic
+ */
+
+do main() {
+    mut s string = "this string is never closed
+}

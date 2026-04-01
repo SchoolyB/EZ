@@ -1,0 +1,9 @@
+/*
+ * Error Test: E1020 - unexpected '|' character
+ * Expected: "unexpected" or "|"
+ * Tests that a bare '|' is rejected with a diagnostic
+ */
+
+do main() {
+    mut a bool = true | false  // bare pipe, should be ||
+}

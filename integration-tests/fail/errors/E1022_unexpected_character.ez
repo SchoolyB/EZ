@@ -1,0 +1,9 @@
+/*
+ * Error Test: E1022 - unexpected character
+ * Expected: "unexpected character"
+ * Tests that an unknown character gets a specific diagnostic
+ */
+
+do main() {
+    mut x int = 42 ~ 3  // tilde is not a valid operator
+}
