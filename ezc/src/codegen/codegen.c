@@ -1665,8 +1665,8 @@ static bool emit_builtin_call(CodeGen *cg, AstNode *node, const char *func) {
     }
 
     if (strcmp(func, "addr") == 0 && node->data.call.arg_count == 1) {
-        /* addr() returns the address as uintptr_t */
-        emit(cg, "(uintptr_t)&");
+        /* addr() returns a pointer to the argument */
+        emit(cg, "&");
         emit_expression(cg, node->data.call.args[0]);
         return true;
     }
@@ -3439,6 +3439,14 @@ static void emit_var_declaration(CodeGen *cg, AstNode *node) {
             /* Assigning a ref variable to a ^T pointer — pass the pointer through
              * without auto-dereferencing */
             emit(cg, node->data.var_decl.value->data.label.value);
+        } else if (node->data.var_decl.value->kind == NODE_CALL_EXPR &&
+                   node->data.var_decl.value->data.call.function->kind == NODE_LABEL &&
+                   strcmp(node->data.var_decl.value->data.call.function->data.label.value, "addr") == 0 &&
+                   type_name && (strcmp(type_name, "uint") == 0 || strcmp(type_name, "int") == 0 ||
+                                 strcmp(type_name, "u64") == 0 || strcmp(type_name, "i64") == 0)) {
+            /* addr() assigned to integer type — cast pointer to uintptr_t */
+            emit(cg, "(uintptr_t)");
+            emit_expression(cg, node->data.var_decl.value);
         } else {
             emit_expression(cg, node->data.var_decl.value);
         }

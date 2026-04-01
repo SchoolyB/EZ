@@ -444,6 +444,12 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
         if (sym) {
             sym->used = true;
             result = sym->type;
+            /* Transparent ref: unwrap pointer to expose underlying type.
+             * The codegen auto-derefs ref vars, so the typechecker must
+             * see the dereferenced type for indexing, comparison, etc. */
+            if (sym->is_ref && result->kind == TK_POINTER && result->element_type) {
+                result = type_from_name(result->element_type);
+            }
         } else if (!is_enum_name(tc, name) && !find_func(tc, name) &&
                    !tc_is_builtin(name) && !is_struct_name(tc, name) &&
                    !tc_is_imported_module(tc, name)) {
@@ -1143,8 +1149,8 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                         strdup("addr() requires a variable, field, or index expression — cannot take address of a literal or expression"),
                         tc->file, node->token.line, node->token.column, 0);
                 }
-                resolve_expr(tc, arg);
-                result = &TYPE_UINT;
+                EzType *arg_t = resolve_expr(tc, arg);
+                result = type_pointer(type_name(arg_t));
             } else if (strcmp(fn_name, "ref") == 0 && node->data.call.arg_count == 1) {
                 AstNode *arg = node->data.call.args[0];
                 EzType *arg_t = resolve_expr(tc, arg);
@@ -1597,12 +1603,6 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
 
     case NODE_INDEX_EXPR: {
         EzType *left = resolve_expr(tc, node->data.index_expr.left);
-        /* Auto-deref ref pointers for indexing */
-        if (left->kind == TK_POINTER && left->element_type &&
-            node->data.index_expr.left->kind == NODE_LABEL) {
-            Symbol *s = scope_lookup(tc->current_scope, node->data.index_expr.left->data.label.value);
-            if (s && s->is_ref) left = type_from_name(left->element_type);
-        }
         EzType *idx_t = resolve_expr(tc, node->data.index_expr.index);
         /* E3003: array index must be integer */
         if (left->kind == TK_ARRAY && idx_t->kind != TK_UNKNOWN &&
@@ -2055,7 +2055,16 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
                        /* Skip mismatch on multi-var expansion (.v0/.v1 access) */
                        !(node->data.var_decl.value &&
                          node->data.var_decl.value->kind == NODE_MEMBER_EXPR &&
-                         node->data.var_decl.value->data.member.member[0] == 'v')) {
+                         node->data.var_decl.value->data.member.member[0] == 'v') &&
+                       /* Skip mismatch when assigning ref var to ^T pointer */
+                       !(declared->kind == TK_POINTER && node->data.var_decl.value &&
+                         node->data.var_decl.value->kind == NODE_LABEL &&
+                         scope_lookup(tc->current_scope, node->data.var_decl.value->data.label.value) &&
+                         scope_lookup(tc->current_scope, node->data.var_decl.value->data.label.value)->is_ref) &&
+                       /* Skip mismatch when assigning pointer (addr) to uint */
+                       !(is_int_kind(declared->kind) && value_type->kind == TK_POINTER) &&
+                       /* Skip mismatch when assigning pointer (addr) to ^T */
+                       !(declared->kind == TK_POINTER && value_type->kind == TK_POINTER)) {
                 /* Type mismatch */
                 char msg[256];
                 snprintf(msg, sizeof(msg),
