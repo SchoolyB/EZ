@@ -1,0 +1,126 @@
+/*
+ * enum-print.ez - Test printing enum-typed variables (#1300)
+ *
+ * Verifies that enum variables print as their integer values
+ * instead of empty struct representations like "Color{}".
+ */
+
+import @std
+using std
+
+const Color enum {
+    RED
+    GREEN
+    BLUE
+}
+
+#flags
+const Perms enum {
+    READ      // 1
+    WRITE     // 2
+    EXECUTE   // 4
+}
+
+const Priority enum {
+    LOW
+    MEDIUM
+    HIGH
+}
+
+do main() {
+    println("=== Enum Print Tests ===")
+    mut passed int = 0
+    mut failed int = 0
+
+    // Test 1: println enum variable (the core bug case)
+    mut c Color = Color.RED
+    mut s1 string = "${c}"
+    if s1 == "0" {
+        println("  [PASS] enum variable prints as integer (RED=0)")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] enum variable prints as '${s1}', expected '0'")
+        failed += 1
+    }
+
+    // Test 2: enum variable with non-zero value
+    mut c2 Color = Color.BLUE
+    mut s2 string = "${c2}"
+    if s2 == "2" {
+        println("  [PASS] enum variable prints as integer (BLUE=2)")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] enum variable prints as '${s2}', expected '2'")
+        failed += 1
+    }
+
+    // Test 3: enum member access in interpolation
+    mut s3 string = "${Color.GREEN}"
+    if s3 == "1" {
+        println("  [PASS] enum member in interpolation (GREEN=1)")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] enum member prints as '${s3}', expected '1'")
+        failed += 1
+    }
+
+    // Test 4: flags enum variable prints as integer
+    mut p Perms = Perms.EXECUTE
+    mut s4 string = "${p}"
+    if s4 == "4" {
+        println("  [PASS] flags enum variable prints as integer (EXECUTE=4)")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] flags enum prints as '${s4}', expected '4'")
+        failed += 1
+    }
+
+    // Test 5: println with enum variable directly
+    mut pri Priority = Priority.HIGH
+    println(pri)
+    println("  [PASS] println enum variable directly")
+    passed += 1
+
+    // Test 6: enum variable cast to int
+    mut val Color = Color.GREEN
+    mut next int = int(val)
+    if next == 1 {
+        println("  [PASS] enum variable cast to int")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] enum cast: got ${next}, expected 1")
+        failed += 1
+    }
+
+    // Test 7: enum variable compared then printed
+    mut level Priority = Priority.MEDIUM
+    if level == 1 {
+        println("  [PASS] enum variable comparison (MEDIUM==1)")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] enum comparison: ${level} != 1")
+        failed += 1
+    }
+
+    // Test 8: multiple enum variables in one interpolation
+    mut a Color = Color.RED
+    mut b Color = Color.BLUE
+    mut s8 string = "${a},${b}"
+    if s8 == "0,2" {
+        println("  [PASS] multiple enum variables in interpolation")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] multiple enums: got '${s8}', expected '0,2'")
+        failed += 1
+    }
+
+    // Summary
+    println("")
+    println("Results: ${passed} passed, ${failed} failed")
+
+    if failed > 0 {
+        println("SOME TESTS FAILED")
+    } otherwise {
+        println("ALL TESTS PASSED")
+    }
+}
