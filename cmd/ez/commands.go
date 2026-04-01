@@ -5,6 +5,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strings"
 
 	"github.com/marshallburns/ez/internal/ezc"
@@ -124,6 +125,57 @@ Output is written to DOCS.md in the current working directory.`,
 	},
 }
 
+var reportCmd = &cobra.Command{
+	Use:   "report",
+	Short: "Print system info for bug reports",
+	Run: func(cmd *cobra.Command, args []string) {
+		fmt.Println("EZ Bug Report Info")
+		fmt.Println("==================")
+
+		// EZ version
+		fmt.Printf("EZ Version:  %s\n", Version)
+
+		// Commit
+		// Version string from ldflags contains the commit hash (e.g., v2.0.0-425-gabcdef1)
+		commit := "unknown"
+		// Version format: v2.0.0-NNN-gabcdef1 or v2.0.0-NNN-gabcdef1-dirty
+		cleanVer := strings.TrimSuffix(Version, "-dirty")
+		parts := strings.Split(cleanVer, "-")
+		if len(parts) >= 3 {
+			hash := parts[len(parts)-1]
+			if len(hash) > 1 && hash[0] == 'g' {
+				commit = hash[1:]
+			}
+		}
+		fmt.Printf("Commit:      %s\n", commit)
+
+		// Compiler version
+		if ezcVer, err := ezc.Version(); err == nil {
+			fmt.Printf("Compiler:    %s\n", ezcVer)
+		} else {
+			fmt.Printf("Compiler:    not found\n")
+		}
+
+		// OS and architecture
+		fmt.Printf("OS:          %s/%s\n", runtime.GOOS, runtime.GOARCH)
+
+		// RAM
+		memCmd := exec.Command("sysctl", "-n", "hw.memsize")
+		if runtime.GOOS == "linux" {
+			memCmd = exec.Command("sh", "-c", "grep MemTotal /proc/meminfo | awk '{print $2 * 1024}'")
+		}
+		if out, err := memCmd.Output(); err == nil {
+			s := strings.TrimSpace(string(out))
+			var bytes uint64
+			fmt.Sscanf(s, "%d", &bytes)
+			gb := float64(bytes) / (1024 * 1024 * 1024)
+			fmt.Printf("RAM:         %.0f GB\n", gb)
+		} else {
+			fmt.Printf("RAM:         unknown\n")
+		}
+	},
+}
+
 var testCmd = &cobra.Command{
 	Use:   "test",
 	Short: "Run the full EZ test suite",
@@ -217,7 +269,7 @@ var rootCmd = &cobra.Command{
 }
 
 func init() {
-	rootCmd.AddCommand(runCmd, replCmd, updateCmd, checkCmd, buildCmd, testCmd, versionCmd, docCmd, pzCmd, watchCmd)
+	rootCmd.AddCommand(runCmd, replCmd, updateCmd, checkCmd, buildCmd, testCmd, reportCmd, versionCmd, docCmd, pzCmd, watchCmd)
 	rootCmd.PersistentPreRun = func(cmd *cobra.Command, args []string) {
 		CheckForUpdateAsync()
 	}
