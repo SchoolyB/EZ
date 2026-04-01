@@ -29,7 +29,9 @@
     EZ_ERROR("E1014", "syntax", "number cannot have an underscore before the decimal point") \
     EZ_ERROR("E1015", "syntax", "number cannot have an underscore after the decimal point") \
     EZ_ERROR("E1016", "syntax", "number cannot end with a trailing decimal point — add a digit after the dot") \
-    EZ_ERROR("E1017", "syntax", "raw string literal was never closed — add a closing backtick")
+    EZ_ERROR("E1017", "syntax", "raw string literal was never closed — add a closing backtick") \
+    EZ_ERROR("E1018", "syntax", "char literal must contain exactly one character — use a string for multiple characters") \
+    EZ_ERROR("E1019", "syntax", "unexpected '#' character — use '//' for comments")
 
 /* --- E2xxx: Understanding Your Code (Parser) --- */
 #define EZ_PARSER_ERRORS \

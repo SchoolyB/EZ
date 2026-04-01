@@ -43,6 +43,13 @@ static AstNode *parse_struct_literal(Parser *p, const char *name);
 static void next_token(Parser *p) {
     p->cur_token = p->peek_token;
     p->peek_token = lexer_next_token(p->lexer);
+    /* Surface lexer errors immediately with their specific error code */
+    if (p->peek_token.type == TOK_ILLEGAL && p->lexer->error_code) {
+        diag_error(p->diag, p->lexer->error_code,
+            arena_strdup(p->arena, p->lexer->error_msg),
+            p->file, p->peek_token.line, p->peek_token.column, 0);
+        p->lexer->error_code = NULL;
+    }
 }
 
 static bool cur_token_is(Parser *p, TokenType t) {
@@ -557,11 +564,14 @@ static AstNode *parse_prefix(Parser *p) {
     }
     default:
     {
-        char buf[256];
-        snprintf(buf, sizeof(buf), "unexpected token '%s'",
-            token_type_name(p->cur_token.type));
-        diag_error(p->diag, "E2002", arena_strdup(p->arena, buf),
-            p->file, p->cur_token.line, p->cur_token.column, 0);
+        /* Skip generic error for ILLEGAL tokens — the lexer already emitted a specific diagnostic */
+        if (p->cur_token.type != TOK_ILLEGAL) {
+            char buf[256];
+            snprintf(buf, sizeof(buf), "unexpected token '%s'",
+                token_type_name(p->cur_token.type));
+            diag_error(p->diag, "E2002", arena_strdup(p->arena, buf),
+                p->file, p->cur_token.line, p->cur_token.column, 0);
+        }
     }
         return NULL;
     }

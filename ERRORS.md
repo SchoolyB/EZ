@@ -3,7 +3,7 @@
 > Auto-generated from `ezc/src/util/error_codes.h`. Do not edit manually.
 > Run `./scripts/generate_errors.sh` to regenerate.
 
-**Total: 94 codes** (87 errors, 7 warnings)
+**Total: 96 codes** (89 errors, 7 warnings)
 
 ---
 
@@ -22,6 +22,8 @@
 | `E1015` | syntax | number cannot have an underscore after the decimal point |
 | `E1016` | syntax | number cannot end with a trailing decimal point — add a digit after the dot |
 | `E1017` | syntax | raw string literal was never closed — add a closing backtick |
+| `E1018` | syntax | char literal must contain exactly one character — use a string for multiple characters |
+| `E1019` | syntax | unexpected '#' character — use '//' for comments |
 | `E2001` | syntax | unexpected symbol — the compiler found something it did not expect here |
 | `E2002` | syntax | missing symbol — a bracket, parenthesis, or keyword is missing |
 | `E2011` | syntax | constants must have a value — add = followed by a value after the type |
@@ -131,4 +133,4 @@
 
 ---
 
-*Generated on 2026-03-30 20:14:16 UTC*
+*Generated on 2026-04-01 17:35:54 UTC*

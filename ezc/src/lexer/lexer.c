@@ -263,10 +263,20 @@ static const char *read_char_literal(Lexer *l) {
         read_char(l); /* skip the char */
     }
 
+    /* Check for multi-character char literal */
+    if (l->ch != '\'' && l->ch != 0 && !l->error_code) {
+        /* Consume remaining characters until closing quote or end */
+        while (l->ch != '\'' && l->ch != 0 && l->ch != '\n') {
+            read_char(l);
+        }
+        l->error_code = "E1018";
+        l->error_msg = "char literal must contain exactly one character — use a string for multiple characters";
+    }
+
     const char *str = arena_strndup(l->arena, l->input + start, l->position - start);
     if (l->ch == '\'') {
         read_char(l); /* skip closing ' */
-    } else {
+    } else if (!l->error_code) {
         l->error_code = "E1005";
         l->error_msg = "unclosed character literal";
     }
@@ -472,7 +482,9 @@ Token lexer_next_token(Lexer *l) {
             tok = make_token(TOK_DOC, "#doc", tok.line, tok.column);
             for (int i = 0; i < 3; i++) read_char(l);
         } else {
-            tok = make_token(TOK_ILLEGAL, "#", tok.line, tok.column);
+            l->error_code = "E1019";
+            l->error_msg = "unexpected character '#' — use '//' for comments, or '#suppress', '#strict', '#flags', '#enum', '#doc' for attributes";
+            tok = make_token(TOK_ILLEGAL, l->error_msg, tok.line, tok.column);
         }
         break;
 
