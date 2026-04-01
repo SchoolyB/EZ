@@ -444,6 +444,10 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
         if (sym) {
             sym->used = true;
             result = sym->type;
+            /* Transparent ref: unwrap pointer to expose underlying type */
+            if (sym->is_ref && result->kind == TK_POINTER && result->element_type) {
+                result = type_from_name(result->element_type);
+            }
         } else if (!is_enum_name(tc, name) && !find_func(tc, name) &&
                    !tc_is_builtin(name) && !is_struct_name(tc, name) &&
                    !tc_is_imported_module(tc, name)) {
@@ -1145,7 +1149,18 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                     find_func(tc, arg->data.label.value)) {
                     result = type_from_name("func");
                 } else {
-                    result = type_pointer(type_name(arg_t));
+                    /* Build a pointer type that preserves the full source type.
+                     * For arrays, type_name returns the element type ("int"),
+                     * so reconstruct the full name ("[int]"). */
+                    const char *pointee_name = type_name(arg_t);
+                    if (arg_t->kind == TK_ARRAY) {
+                        char buf[256];
+                        snprintf(buf, sizeof(buf), "[%s]", arg_t->element_type);
+                        pointee_name = strdup(buf);
+                    } else if (arg_t->kind == TK_MAP) {
+                        pointee_name = strdup(arg_t->name);
+                    }
+                    result = type_pointer(pointee_name);
                 }
             } else if (strcmp(fn_name, "len") == 0) {
                 result = &TYPE_INT;
