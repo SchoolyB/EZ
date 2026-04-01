@@ -3130,6 +3130,16 @@ void typechecker_check(TypeChecker *tc, AstNode *program) {
 
     tc->program = program;
 
+    /* Register built-in stdlib struct types */
+    {
+        static const char *http_fields[] = {"status", "body", "headers"};
+        static EzType *http_types[3];
+        http_types[0] = &TYPE_INT;
+        http_types[1] = &TYPE_STRING;
+        http_types[2] = type_from_name("map[string:string]");
+        register_struct(tc, "HttpResponse", http_fields, http_types, 3);
+    }
+
     /* Pass 1: register all type/function declarations */
     register_declarations(tc, program);
 
