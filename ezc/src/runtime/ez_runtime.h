@@ -257,6 +257,29 @@ static inline uint64_t ez_usized_mul_check(uint64_t a, uint64_t b, uint64_t max_
     return result;
 }
 
+/* Safe narrowing cast with overflow check */
+static inline int64_t ez_cast_check(int64_t v, int64_t min_val, int64_t max_val,
+    const char *type_name, const char *file, int line) {
+    if (v < min_val || v > max_val) {
+        fflush(stdout);
+        fprintf(stderr, "panic at %s:%d: cast to %s failed — value %lld is outside the valid range (%lld to %lld)\n",
+            file, line, type_name, (long long)v, (long long)min_val, (long long)max_val);
+        exit(1);
+    }
+    return v;
+}
+
+static inline uint64_t ez_ucast_check(int64_t v, uint64_t max_val,
+    const char *type_name, const char *file, int line) {
+    if (v < 0 || (uint64_t)v > max_val) {
+        fflush(stdout);
+        fprintf(stderr, "panic at %s:%d: cast to %s failed — value %lld is outside the valid range (0 to %llu)\n",
+            file, line, type_name, (long long)v, (unsigned long long)max_val);
+        exit(1);
+    }
+    return (uint64_t)v;
+}
+
 /* Safe float-to-int conversion with overflow check */
 static inline int64_t ez_float_to_int(double v, const char *file, int line) {
     if (v > 9.223372036854775e+18 || v < -9.223372036854775e+18 ||

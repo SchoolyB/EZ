@@ -1230,10 +1230,29 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
             emit_expression(cg, val);
             emit(cg, "), __FILE__, __LINE__)");
         } else {
-            /* Numeric casts: raw C cast */
-            emitf(cg, "((%s)(", ez_type_to_c_cg(cg, target));
-            emit_expression(cg, val);
-            emit(cg, "))");
+            /* Numeric casts: range-checked for narrowing, raw for widening */
+            const char *smin = NULL, *smax = NULL;
+            bool is_unsigned = false;
+            if (strcmp(target, "i8") == 0) { smin = "-128"; smax = "127"; }
+            else if (strcmp(target, "i16") == 0) { smin = "-32768"; smax = "32767"; }
+            else if (strcmp(target, "i32") == 0) { smin = "-2147483648LL"; smax = "2147483647LL"; }
+            else if (strcmp(target, "u8") == 0 || strcmp(target, "byte") == 0) { is_unsigned = true; smax = "255"; }
+            else if (strcmp(target, "u16") == 0) { is_unsigned = true; smax = "65535"; }
+            else if (strcmp(target, "u32") == 0) { is_unsigned = true; smax = "4294967295ULL"; }
+
+            if (smax && is_unsigned) {
+                emitf(cg, "(%s)ez_ucast_check(", ez_type_to_c_cg(cg, target));
+                emit_expression(cg, val);
+                emitf(cg, ", %s, \"%s\", __FILE__, %d)", smax, target, node->token.line);
+            } else if (smax) {
+                emitf(cg, "(%s)ez_cast_check(", ez_type_to_c_cg(cg, target));
+                emit_expression(cg, val);
+                emitf(cg, ", %s, %s, \"%s\", __FILE__, %d)", smin, smax, target, node->token.line);
+            } else {
+                emitf(cg, "((%s)(", ez_type_to_c_cg(cg, target));
+                emit_expression(cg, val);
+                emit(cg, "))");
+            }
         }
         break;
     }
