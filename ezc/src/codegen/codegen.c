@@ -2554,9 +2554,22 @@ static bool emit_random_call(CodeGen *cg, AstNode *node, const char *func) {
         return true;
     }
     if (strcmp(func, "choice") == 0) {
+        /* Determine element C type from the array's type info */
+        const char *c_elem = "int64_t";
+        EzType *arr_t = cg->type_table
+            ? typetable_get(cg->type_table, node->data.call.args[0]) : NULL;
+        if (arr_t && arr_t->kind == TK_ARRAY && arr_t->element_type) {
+            EzType *et = type_from_name(arr_t->element_type);
+            if (et->kind == TK_FLOAT) c_elem = "double";
+            else if (et->kind == TK_BOOL) c_elem = "bool";
+            else if (et->kind == TK_STRING) c_elem = "EzString";
+            else if (et->kind == TK_CHAR) c_elem = "int32_t";
+            else if (et->kind == TK_BYTE) c_elem = "uint8_t";
+            else if (et->kind == TK_STRUCT) c_elem = ez_type_to_c_cg(cg, arr_t->element_type);
+        }
         emit(cg, "({ int32_t _ri = ez_random_int_max(");
         emit_expression(cg, node->data.call.args[0]);
-        emit(cg, ".len); *(__auto_type *)ez_array_get_ptr(&");
+        emitf(cg, ".len); *(%s *)ez_array_get_ptr(&", c_elem);
         emit_expression(cg, node->data.call.args[0]);
         emit(cg, ", _ri, __FILE__, __LINE__); })");
         return true;
