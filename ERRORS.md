@@ -133,9 +133,16 @@
 | E5xxx | Usage problems (wrong number of arguments) |
 | E6xxx | Import problems (unknown modules) |
 | E7xxx | Standard library problems (wrong usage of built-in functions) |
-| W2xxx | Cleanup suggestions (unused imports) |
-| W3xxx | Safety warnings (possible missing return values) |
+| E8xxx | Math errors (sqrt of negative, log of non-positive) |
+| E9xxx | Array errors (empty array ops, invalid ranges) |
+| E10xxx | String errors (index out of bounds, repeat count) |
+| E11xxx | Time errors (parsing failures) |
+| E12xxx | Map errors (unhashable keys, immutable maps) |
+| E13xxx | JSON errors (syntax, unsupported types) |
+| W1xxx | Cleanup suggestions (unused variables, functions) |
+| W2xxx | Safety warnings (shadowing, unused imports) |
+| W3xxx | Quality warnings (empty blocks) |
 
 ---
 
-*Generated on 2026-04-02 04:42:16 UTC*
+*Generated on 2026-04-02 15:10:44 UTC*

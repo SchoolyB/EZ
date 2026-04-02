@@ -35,7 +35,7 @@ ez examples/basic/hello.ez
 
 That's it. EZ compiles your code to a native binary, executes it, and cleans up.
 
-**Requirements:** Go 1.21+ and a C compiler (gcc or clang)
+**Requirements:** Go 1.23+ and a C compiler (gcc or clang)
 
 ---
 
@@ -102,7 +102,6 @@ EZ Bug Report Info
 ==================
 EZ Version:  v3.0.0
 Commit:      abc1234
-Compiler:    ezc 3.0.0
 OS:          darwin/arm64
 RAM:         16 GB
 ```

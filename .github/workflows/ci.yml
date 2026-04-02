@@ -19,7 +19,7 @@ jobs:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, macos-latest, windows-latest]
-        go-version: ['1.21']
+        go-version: ['1.23']
 
     steps:
       - name: Checkout code
@@ -47,39 +47,39 @@ jobs:
         if: runner.os == 'Windows'
         run: go test ./pkg/errors/...
 
-      # ===== EZC Compiler =====
-      - name: Build EZC compiler
+      # ===== EZ Compiler =====
+      - name: Build EZ compiler
         if: runner.os != 'Windows'
         run: |
           cd ezc
           make clean
           make build
 
-      - name: Run EZC unit tests (lexer + parser + typechecker)
+      - name: Run EZ unit tests (lexer + parser + typechecker)
         if: runner.os != 'Windows'
         run: |
           cd ezc
           make test-unit
 
-      - name: Run EZC end-to-end tests (65 codegen tests)
+      - name: Run EZ end-to-end tests
         if: runner.os != 'Windows'
         run: |
           cd ezc
           make test-e2e
 
-      - name: Run EZC integration tests (core + stdlib + named returns)
+      - name: Run EZ integration tests (core + stdlib + named returns)
         if: runner.os != 'Windows'
         run: |
           cd ezc
           make test-integration
 
-      - name: Run EZC UBSan tests
+      - name: Run EZ UBSan tests
         if: runner.os != 'Windows'
         run: |
           cd ezc
           make test-ubsan
 
-      - name: Run EZC ASan tests (Linux only)
+      - name: Run EZ ASan tests (Linux only)
         if: runner.os == 'Linux'
         env:
           ASAN_OPTIONS: detect_leaks=0
@@ -87,7 +87,7 @@ jobs:
           cd ezc
           make test-asan
 
-      - name: Compile all examples with EZC
+      - name: Compile all examples
         if: runner.os != 'Windows'
         run: |
           for file in examples/basic/*.ez; do
@@ -99,7 +99,7 @@ jobs:
             ./ezc/ezc "$file" -o "/tmp/ezc_$(basename $file .ez)" || exit 1
           done
           for file in examples/ezc/*.ez; do
-            echo "Compiling EZC-only $file..."
+            echo "Compiling $file..."
             ./ezc/ezc "$file" -o "/tmp/ezc_$(basename $file .ez)" || exit 1
           done
           echo "All examples compiled successfully"

@@ -25,7 +25,7 @@ Thanks for your interest in contributing to EZ! This guide will help you get sta
 
 ### Prerequisites
 
-- **Go 1.21 or higher** (for the `ez` CLI tooling)
+- **Go 1.23 or higher** (for the `ez` CLI tooling)
 - **C compiler** (gcc or clang)
 - Git
 
@@ -129,9 +129,9 @@ All compiler stages live in `ezc/src/`:
 3. **Type Checker** (`ezc/src/typechecker/`) — Walks the AST and validates types, catches errors before compilation.
 4. **Code Generator** (`ezc/src/codegen/`) — Translates the AST into C source code.
 5. **Runtime** (`ezc/src/runtime/`) — Core types (strings, arrays, maps, arenas) linked into every binary.
-6. **Stdlib** (`ezc/src/stdlib/`) — Standard library modules (24 modules) compiled into `libezrt.a`.
+6. **Stdlib** (`ezc/src/stdlib/`) — Standard library modules (26 modules) compiled into `libezrt.a`.
 
-The `ez` CLI (`cmd/ez/`) is a Go tooling wrapper that invokes `ezc` for compilation. It provides the REPL, watch mode, doc generation, project scaffolding, and self-update.
+The `ez` CLI (`cmd/ez/`) is a Go tooling wrapper that invokes the compiler for compilation. It provides the REPL, watch mode, doc generation, project scaffolding, and self-update.
 
 **What this means in practice:** If you're adding a new language feature, you'll touch the C compiler stages (lexer → parser → typechecker → codegen). If you're adding a stdlib function, you add it to `ezc/src/stdlib/` and wire it into the codegen. If you're improving developer tooling (REPL, watch, etc.), you work in the Go code under `cmd/ez/`.
 
@@ -174,13 +174,13 @@ EZ/
 ├── pkg/                 # Go packages (tooling only)
 │   ├── errors/          # Error codes and formatting
 │   └── lineeditor/      # REPL line editor
-├── ezc/                 # EZC compiler (C)
+├── ezc/                 # EZ compiler (C)
 │   ├── src/lexer/       # Tokenization
 │   ├── src/parser/      # Parsing (tokens → AST)
 │   ├── src/typechecker/ # Static type checking
 │   ├── src/codegen/     # Code generation (AST → C)
 │   ├── src/runtime/     # Runtime (strings, arrays, maps, arenas)
-│   ├── src/stdlib/      # Standard library (24 modules)
+│   ├── src/stdlib/      # Standard library (26 modules)
 │   └── tests/           # Unit, e2e, integration tests
 ├── examples/            # Example EZ programs
 ├── integration-tests/   # End-to-end test suite
@@ -197,7 +197,7 @@ EZ/
 | Add a new keyword/token | `ezc/src/lexer/lexer.c` + `ezc/src/lexer/token.h` |
 | Modify type checking | `ezc/src/typechecker/typechecker.c` |
 | Change code generation | `ezc/src/codegen/codegen.c` |
-| Add/modify error codes | `pkg/errors/codes.go` (Go) or `ezc/src/util/error.c` (C) |
+| Add/modify error codes | `ezc/src/util/error_codes.h` |
 | Improve CLI tooling | `cmd/ez/*.go` |
 | Add a new language feature | Parser → Typechecker → Codegen (all in `ezc/src/`) |
 
@@ -251,11 +251,11 @@ For end-to-end behavior — verifying that EZ programs produce the right output.
 ```ez
 
 do main() {
-    temp passed int = 0
-    temp failed int = 0
+    mut passed int = 0
+    mut failed int = 0
 
     // Test 1: description
-    temp result int = 1 + 1
+    mut result int = 1 + 1
     if result == 2 {
         println("  [PASS] 1 + 1 = 2")
         passed += 1
@@ -284,7 +284,7 @@ The test runner checks for `SOME TESTS FAILED` in the output — if it's present
  */
 
 do main() {
-    temp x int = "hello"  // Should produce E3001
+    mut x int = "hello"  // Should produce E3001
 }
 ```
 
@@ -302,7 +302,7 @@ For more details, see `TESTING.md`.
 - Follow standard Go conventions
 - Keep functions focused and readable
 - Add comments for non-obvious logic
-- When adding error codes, register them in `pkg/errors/codes.go`
+- When adding error codes, register them in `ezc/src/util/error_codes.h`
 
 ---
 

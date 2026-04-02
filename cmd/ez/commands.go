@@ -129,9 +129,9 @@ var reportCmd = &cobra.Command{
 		fmt.Printf("EZ Version:  %s\n", Version)
 
 		// Commit
-		// Version string from ldflags contains the commit hash (e.g., v2.0.0-425-gabcdef1)
+		// Version string from ldflags contains the commit hash (e.g., v3.0.0-425-gabcdef1)
 		commit := "unknown"
-		// Version format: v2.0.0-NNN-gabcdef1 or v2.0.0-NNN-gabcdef1-dirty
+		// Version format: v3.0.0-NNN-gabcdef1 or v3.0.0-NNN-gabcdef1-dirty
 		cleanVer := strings.TrimSuffix(Version, "-dirty")
 		parts := strings.Split(cleanVer, "-")
 		if len(parts) >= 3 {

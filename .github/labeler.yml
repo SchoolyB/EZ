@@ -22,7 +22,6 @@ stdlib:
   - changed-files:
       - any-glob-to-any-file:
           - "ezc/src/stdlib/**"
-          - "pkg/stdlib/**"
 
 error-messages:
   - changed-files:
@@ -36,7 +35,6 @@ cli:
       - any-glob-to-any-file:
           - "cmd/**"
           - "pkg/**"
-          - "main.go"
 
 # Tests
 tests:
@@ -65,7 +63,6 @@ CI/CD:
 module-system:
   - changed-files:
       - any-glob-to-any-file:
-          - "pkg/modules/**"
           - "ezc/src/stdlib/**"
 
 # Dependencies

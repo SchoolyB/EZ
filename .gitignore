@@ -55,6 +55,15 @@ tmp/
 *.pem
 *.key
 
+# Compiled test output at repo root (extensionless binaries from manual testing)
+/maps_c
+/random_c
+/server_c
+/std_c
+/threads_c
+/time_c
+/test_*
+
 # Project specific
 context/
 *.txt

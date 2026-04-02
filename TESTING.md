@@ -1,8 +1,8 @@
 # EZ Language Testing Guide
 
-## Compiler Tests (EZC)
+## Compiler Tests
 
-The EZC compiler has a comprehensive test suite written in C, located in `ezc/tests/`.
+The EZ compiler has a comprehensive test suite written in C, located in `ezc/tests/`.
 
 ### Unit Tests (163 tests)
 
@@ -76,23 +76,20 @@ make test-e2e
 ./tests/test_codegen
 ```
 
-### Integration Tests (65 pass + 24 stdlib + 291 error = 380 tests)
+### Integration Tests
 
 Integration tests compile and run `.ez` programs end-to-end through the full compiler pipeline.
 
 **Structure:**
 
 - `integration-tests/pass/core/` — Core language features (arrays, control flow, structs, enums, maps, typeof, named returns, etc.)
-- `integration-tests/pass/stdlib/` — All 24 stdlib module tests (`*_c.ez` files)
+- `integration-tests/pass/stdlib/` — All 26 stdlib module tests (`*_c.ez` files)
 - `integration-tests/fail/errors/` — 305 error detection tests (14 skipped as interpreter-only)
 
 **What's tested:**
 
 - 65 passing programs covering all core language features
-- 24 stdlib modules: std, strings, math, arrays, maps, io, os, time, encoding, crypto, json, csv, uuid, bytes, binary, mem, fmt, random, regex, http, net, server, sqlite, threads
-- 269 compile-time errors (typechecker, parser, lexer)
-- 22 runtime panics (division by zero, nil deref, overflow, bounds, stack overflow)
-- Covers all 81 error and warning codes
+- 26 stdlib modules: strings, math, arrays, maps, io, os, time, encoding, crypto, json, csv, uuid, bytes, binary, mem, fmt, random, regex, http, net, server, sqlite, threads, sync, channels, bigint
 
 **Running:**
 

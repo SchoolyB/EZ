@@ -1,8 +1,8 @@
 # The EZ Programming Language Standard
 
-**Version:** 2.0-draft
-**Date:** March 24, 2026
-**Status:** Working Draft
+**Version:** 3.0.0
+**Date:** April 2, 2026
+**Status:** Release
 **EZ Version:** 3.0.0
 
 ---
@@ -43,7 +43,7 @@ This document defines the EZ programming language. It serves as the authoritativ
 
 ### 1.2 Overview
 
-EZ is a statically-typed programming language that compiles to native binaries via the `ezc` compiler. The language emphasizes:
+EZ is a statically-typed programming language that compiles to native binaries via the EZ compiler. The language emphasizes:
 
 - **Simplicity**: A minimal set of orthogonal features
 - **Clarity**: Explicit syntax that reads naturally
@@ -427,7 +427,7 @@ Wide integers do not use overflow-checked arithmetic — they wrap on overflow l
 
 The `nil` type has a single value, also written `nil`. It represents the absence of a value and is used in error handling.
 
-#### 4.1.9 Pointer Type (`^Type`)
+#### 4.1.11 Pointer Type (`^Type`)
 
 The pointer type `^Type` represents a memory address pointing to a value of `Type`.
 
@@ -1480,7 +1480,7 @@ do another() { ... }      // Suppress multiple warnings
 do nowarnings() { ... }   // Suppress all warnings
 ```
 
-Suppressible warnings include: `W1001` (unused-variable), `W1004` (unused-parameter), `W1005` (typed-blank-identifier), `W2001` (unreachable-code), `W2002` (shadowed-variable), `W2003` (missing-return), `W2004` (implicit-type-conversion), `W2005` (deprecated-feature), `W2006` (byte-overflow-potential), `W2009` (nil-dereference-potential), `W2011` (named-return-unused), `W3001` (empty-block), `W3002` (redundant-condition), `W3003` (array-size-mismatch).
+Suppressible warnings include: `W1001` (unused-variable), `W1003` (unused-function), `W1005` (typed-blank-identifier), `W2001` (unused-import), `W2002` (shadowed-variable), `W2011` (named-return-unused), `W3003` (array-size-mismatch), or `ALL` to suppress all warnings.
 
 ### 8.6 Function References
 
@@ -1571,7 +1571,7 @@ Directory imports merge all top-level `.ez` files into one namespace. Subdirecto
 ### 9.2 Imports
 
 ```
-import_decl = "import" [ "&" "use" ] import_path { "," import_path } .
+import_decl = "import" [ "and" "use" ] import_path { "," import_path } .
 import_path = [ alias ] ( "@" identifier | string_literal ) .
 ```
 
@@ -1620,7 +1620,7 @@ Multiple modules can be combined:
 import and use @arrays, @strings
 ```
 
-### 9.5 Using Declaration
+### 9.4 Using Declaration
 
 The `using` declaration brings module members into scope for unqualified access:
 
@@ -1637,7 +1637,7 @@ Multiple modules can be listed:
 using arrays, strings
 ```
 
-### 9.6 Module Member Access
+### 9.5 Module Member Access
 
 Without `using`, module members are accessed with dot notation:
 
@@ -1658,7 +1658,7 @@ sqrt(16.0)
 
 ## 10. Standard Library
 
-The EZ standard library consists of 22 modules providing core functionality.
+The EZ standard library consists of 26 modules providing core functionality.
 
 ### 10.1 Core Module (`@std`)
 
@@ -2338,9 +2338,9 @@ Arena-based memory allocation. Compiler-only feature.
 | `usage` | `(arena Arena) -> int` | Return the number of bytes currently used |
 | `init` | `(arena Arena, Type) -> ^Type` | Allocate a zero-initialized value of `Type` in the arena |
 | `alloc` | `(arena Arena, value) -> T` | Allocate a copy of `value` in the arena |
-| `raw_copy` | `(dest, src, n int)` | Copy `n` bytes from `src` to `dest` |
+| `copy` | `(dest, src, n int)` | Copy `n` bytes from `src` to `dest` |
 | `zero` | `(ptr, n int)` | Zero out `n` bytes at `ptr` |
-| `fill` | `(ptr, value int, n int)` | Fill `n` bytes at `ptr` with `value` |
+| `set` | `(ptr, value int, n int)` | Set `n` bytes at `ptr` to `value` |
 
 ### 10.26 Fmt Module (`@fmt`)
 
@@ -2422,9 +2422,9 @@ For fine-grained control, the `@mem` module exposes arena operations directly:
 | `mem.usage(a)` | Return bytes currently used in arena `a` |
 | `mem.init(a, Type)` | Allocate a zero-initialized `Type` in arena `a` |
 | `mem.alloc(a, value)` | Allocate a copy of `value` in arena `a` |
-| `mem.raw_copy(dest, src, n)` | Copy `n` bytes from `src` to `dest` |
+| `mem.copy(dest, src, n)` | Copy `n` bytes from `src` to `dest` |
 | `mem.zero(ptr, n)` | Zero out `n` bytes at `ptr` |
-| `mem.fill(ptr, val, n)` | Fill `n` bytes at `ptr` with `val` |
+| `mem.set(ptr, val, n)` | Set `n` bytes at `ptr` to `val` |
 
 ### 12.2 Value Semantics
 
@@ -2496,12 +2496,11 @@ For most EZ programs — those that don't use `@mem` arenas, raw pointers, or `@
 
 ### 13.1 Program Structure
 
-An EZ program consists of one or more source files that are compiled to a native binary by the `ezc` compiler. Each file may contain:
+An EZ program consists of one or more source files that are compiled to a native binary by the EZ compiler. Each file may contain:
 
-1. Module declaration (optional)
-2. Import declarations
-3. Using declarations
-4. Top-level declarations (functions, structs, enums, constants)
+1. Import declarations
+2. Using declarations
+3. Top-level declarations (functions, structs, enums, constants)
 
 ### 13.2 Entry Point
 
@@ -2566,7 +2565,6 @@ EZ Bug Report Info
 ==================
 EZ Version:  v3.0.0
 Commit:      abc1234
-Compiler:    ezc 3.0.0
 OS:          darwin/arm64
 RAM:         16 GB
 ```
@@ -2725,12 +2723,9 @@ block          = "{" { statement } "}" .
 | E2041 | when-missing-default | `when` statement requires a `default` case |
 | E2042 | when-strict-has-default | `#strict when` cannot have a `default` case |
 | E2043 | when-duplicate-case | Duplicate case value in `when` statement |
-| E2044 | when-float-not-allowed | Float type not allowed in `when` statement |
 | E2045 | when-strict-non-enum | `#strict` only allowed on enum `when` statements |
 | E2046 | when-strict-missing-case | `#strict when` missing enum case |
 | E2047 | when-type-as-condition | `when` condition must be a value, not a type name |
-| E2048 | when-bool-condition | `when` condition cannot be boolean; use `if`/`otherwise` |
-| E2049 | when-nil-condition | `when` condition cannot be nil |
 | E2050 | when-collection-condition | `when` condition cannot be an array or map |
 | E2051 | suppress-invalid-target | `#suppress` can only be applied at file scope or to functions |
 | E2052 | suppress-invalid-code | Warning code cannot be suppressed |
@@ -3040,12 +3035,6 @@ block          = "{" { statement } "}" .
 | W3001 | empty-block | Block statement is empty |
 | W3002 | redundant-condition | Condition is always true/false |
 | W3003 | array-size-mismatch | Fixed-size array not fully initialized |
-
-#### W4xxx — Module Warnings
-
-| Code | Name | Description |
-|------|------|-------------|
-| W4001 | module-name-mismatch | Module name does not match directory name |
 
 ---
 
