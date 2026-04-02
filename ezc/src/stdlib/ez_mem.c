@@ -12,8 +12,8 @@ EzArena *ez_mem_arena(int64_t size) {
     return ez_arena_create((size_t)size);
 }
 
-void ez_mem_destroy(EzArena *arena) {
-    if (arena) ez_arena_destroy(arena);
+void ez_mem_destroy(EzArena *arena, const char *file, int line) {
+    if (arena) ez_arena_destroy(arena, file, line);
 }
 
 void ez_mem_reset(EzArena *arena) {

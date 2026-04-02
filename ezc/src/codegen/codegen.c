@@ -1921,7 +1921,7 @@ static bool emit_mem_call(CodeGen *cg, AstNode *node, const char *func) {
     if (strcmp(func, "destroy") == 0 && node->data.call.arg_count == 1) {
         emit(cg, "ez_mem_destroy(");
         emit_expression(cg, node->data.call.args[0]);
-        emit(cg, ")");
+        emitf(cg, ", __FILE__, %d)", node->token.line);
         return true;
     }
     if (strcmp(func, "reset") == 0 && node->data.call.arg_count == 1) {

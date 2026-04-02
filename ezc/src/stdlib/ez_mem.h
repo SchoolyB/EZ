@@ -17,7 +17,7 @@
 EzArena *ez_mem_arena(int64_t size);
 
 /* mem.destroy(arena) — destroy an arena and free all its memory */
-void ez_mem_destroy(EzArena *arena);
+void ez_mem_destroy(EzArena *arena, const char *file, int line);
 
 /* mem.reset(arena) — reset arena for reuse (keeps allocated blocks) */
 void ez_mem_reset(EzArena *arena);

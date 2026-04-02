@@ -44,7 +44,7 @@ EzArena *ez_arena_create(size_t initial_size) {
 void *ez_arena_alloc(EzArena *arena, size_t size) {
     if (arena->destroyed) {
         fflush(stdout);
-        fprintf(stderr, "panic: use-after-free — arena already destroyed\n");
+        fprintf(stderr, "panic: cannot allocate from a destroyed arena — mem.destroy() was already called on this arena\n");
         exit(1);
     }
     size = ALIGN_UP(size, 8);
@@ -70,11 +70,11 @@ void ez_arena_reset(EzArena *arena) {
     arena->current = arena->first;
 }
 
-void ez_arena_destroy(EzArena *arena) {
+void ez_arena_destroy(EzArena *arena, const char *file, int line) {
     if (!arena) return;
     if (arena->destroyed) {
         fflush(stdout);
-        fprintf(stderr, "panic: double-free — arena already destroyed\n");
+        fprintf(stderr, "panic at %s:%d: mem.destroy() called on an arena that was already destroyed — each arena can only be destroyed once\n", file, line);
         exit(1);
     }
     EzArenaBlock *block = arena->first;
@@ -164,7 +164,7 @@ void ez_runtime_init(void) {
 
 void ez_runtime_shutdown(void) {
     if (ez_default_arena) {
-        ez_arena_destroy(ez_default_arena);
+        ez_arena_destroy(ez_default_arena, __FILE__, __LINE__);
         ez_default_arena = NULL;
     }
 }
