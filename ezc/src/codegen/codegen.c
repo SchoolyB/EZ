@@ -4714,4 +4714,13 @@ const char *codegen_result(CodeGen *cg) {
 
 void codegen_destroy(CodeGen *cg) {
     buf_destroy(&cg->output);
+    free(cg->enum_names);
+    free(cg->all_funcs);
+    free(cg->ref_vars);
+    free(cg->bigint_var_names);
+    free(cg->bigint_var_types);
+    free(cg->struct_decls);
+    free(cg->using_modules);
+    free(cg->alias_names);
+    free(cg->alias_modules);
 }
