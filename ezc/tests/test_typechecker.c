@@ -774,7 +774,7 @@ static void test_error_E2011_const_no_value(void) {
 
 static void test_error_E2036_import_in_func(void) {
     DiagnosticList *d = check_diag(
-        "do main() { import @std }");
+        "do main() { import @math }");
     ASSERT(has_code(d, "E2036"));
     diag_destroy(d);
 }

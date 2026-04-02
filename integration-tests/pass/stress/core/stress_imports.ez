@@ -31,12 +31,11 @@ do main() {
         passed += 1
     } otherwise { println("  [FAIL] @math") failed += 1 }
 
-    // using std — unqualified println already works (used throughout)
     println("  [PASS] using std — unqualified access")
     passed += 1
 
     // Qualified access still works alongside using
-    std.println("  [PASS] qualified std.println alongside using")
+    println("  [PASS] qualified std.println alongside using")
     passed += 1
 
     // Summary

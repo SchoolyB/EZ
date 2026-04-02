@@ -189,7 +189,7 @@ true
 
 - `^` — pointer type prefix and dereference postfix (`^Type`, `ptr^`)
 - `&` — address-of (used internally)
-- `@` — module prefix in imports (`import @std`)
+- `@` — module prefix in imports (`import @math`)
 - `#` — attribute prefix (`#doc`, `#flags`, `#suppress`)
 
 ### 3.7 Literals
@@ -1578,7 +1578,6 @@ import_path = [ alias ] ( "@" identifier | string_literal ) .
 Standard library modules are prefixed with `@`:
 
 ```ez
-import @std
 import @arrays, @maps, @strings
 ```
 
@@ -1592,7 +1591,7 @@ import "./models"           // models/ directory — all .ez files merge
 Import aliasing:
 
 ```ez
-import myhelp @std          // alias "myhelp" for @std
+import m @math              // alias "m" for @math
 import mymod "./server"     // alias "mymod" for local module
 ```
 
@@ -1605,20 +1604,20 @@ import mymod "./server"     // alias "mymod" for local module
 The `import and use` syntax combines importing and using in a single statement:
 
 ```ez
-import and use @std
+import and use @arrays
 ```
 
 This is equivalent to:
 
 ```ez
-import @std
-using std
+import @arrays
+using arrays
 ```
 
 Multiple modules can be combined:
 
 ```ez
-import and use @std, @arrays, @strings
+import and use @arrays, @strings
 ```
 
 ### 9.5 Using Declaration
@@ -1626,16 +1625,16 @@ import and use @std, @arrays, @strings
 The `using` declaration brings module members into scope for unqualified access:
 
 ```ez
-import @std
-using std
+import @strings
+using strings
 
-println("Hello")  // Instead of std.println
+to_upper("hello")  // Instead of strings.to_upper
 ```
 
 Multiple modules can be listed:
 
 ```ez
-using std, arrays, strings
+using arrays, strings
 ```
 
 ### 9.6 Module Member Access
@@ -1643,16 +1642,16 @@ using std, arrays, strings
 Without `using`, module members are accessed with dot notation:
 
 ```ez
-import @std
-std.println("Hello")
+import @math
+math.sqrt(16.0)
 ```
 
 With `using`:
 
 ```ez
-import @std
-using std
-println("Hello")
+import @math
+using math
+sqrt(16.0)
 ```
 
 ---

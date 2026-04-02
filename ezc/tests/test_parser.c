@@ -71,7 +71,7 @@ static void test_parse_func_no_return(void) {
 }
 
 static void test_parse_import_single(void) {
-    AstNode *prog = parse("import @std");
+    AstNode *prog = parse("import @math");
     AstNode *stmt = first_stmt(prog);
     ASSERT_NOT_NULL(stmt);
     ASSERT_EQ(stmt->kind, NODE_IMPORT_STMT);
@@ -81,7 +81,7 @@ static void test_parse_import_single(void) {
 }
 
 static void test_parse_import_multi(void) {
-    AstNode *prog = parse("import @std, @math");
+    AstNode *prog = parse("import @math, @strings");
     AstNode *stmt = first_stmt(prog);
     ASSERT_NOT_NULL(stmt);
     ASSERT_EQ(stmt->kind, NODE_IMPORT_STMT);
@@ -539,7 +539,7 @@ static void test_parse_multi_return(void) {
 }
 
 static void test_parse_using_stmt(void) {
-    AstNode *prog = parse("import @std\n using std");
+    AstNode *prog = parse("import @math\n using math");
     /* using should be stmt[1] */
     ASSERT(prog->data.program.stmt_count >= 2);
     ASSERT_EQ(prog->data.program.stmts[1]->kind, NODE_USING_STMT);

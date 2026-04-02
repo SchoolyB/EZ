@@ -6,5 +6,5 @@
 import @math  // This import is never used
 
 do main() {
-    std.println("hello")
+    println("hello")
 }

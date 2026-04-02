@@ -4,7 +4,7 @@
  */
 
 do foo(x) {  // Parameter without type
-    std.println(x)
+    println(x)
 }
 
 do main() {

@@ -249,8 +249,6 @@ For end-to-end behavior — verifying that EZ programs produce the right output.
 **Pass tests** (`integration-tests/pass/core/`) should run successfully and verify results:
 
 ```ez
-import @std
-using std
 
 do main() {
     temp passed int = 0

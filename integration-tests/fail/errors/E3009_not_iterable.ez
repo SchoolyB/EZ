@@ -6,6 +6,6 @@
 do main() {
     mut x int = 5
     for_each item in x {  // Cannot iterate over an integer
-        std.println(item)
+        println(item)
     }
 }

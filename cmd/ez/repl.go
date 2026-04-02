@@ -61,7 +61,7 @@ func startREPL() {
 
 	editor := lineeditor.New(100)
 	state := &replState{
-		imports: []string{"import @std", "using std"},
+		imports: []string{},
 	}
 
 	// Create a temp directory for REPL files
@@ -96,7 +96,7 @@ func startREPL() {
 			continue
 		case "reset":
 			state = &replState{
-				imports: []string{"import @std", "using std"},
+				imports: []string{},
 			}
 			fmt.Println("Session reset.")
 			continue

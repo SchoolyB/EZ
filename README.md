@@ -61,8 +61,6 @@ ez version                Show version info
 ## What EZ Looks Like
 
 ```ez
-import @std
-using std
 
 const Person struct {
     name string

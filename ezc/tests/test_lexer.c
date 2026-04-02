@@ -192,7 +192,7 @@ static void test_hash_attributes(void) {
 }
 
 static void test_hello_world_tokens(void) {
-    Lexer *l = lex("import @std\nusing std\n\ndo main() {\n    println(\"Hello\")\n}");
+    Lexer *l = lex("do main() {\n    println(\"Hello\")\n}");
     ASSERT_EQ(next(l).type, TOK_IMPORT);
     ASSERT_EQ(next(l).type, TOK_AT);
     ASSERT_EQ(next(l).type, TOK_IDENT);  /* std */

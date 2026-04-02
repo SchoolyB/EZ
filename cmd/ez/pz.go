@@ -272,8 +272,6 @@ func getBasicMainContent(comments bool) string {
 
 module main
 
-import @std
-using std
 
 do main() {
     println("Hello, World!")
@@ -284,8 +282,6 @@ do main() {
 
 module main
 
-import @std
-using std
 
 do main() {
     println("Hello, World!")
@@ -305,8 +301,7 @@ func getCLIMainContent(name string, comments bool) string {
 
 module main
 
-import @std, @os
-using std
+import @os
 
 do main() {
     temp args [string] = os.args()
@@ -345,8 +340,7 @@ do showUsage() {
 
 module main
 
-import @std, @os
-using std
+import @os
 
 do main() {
     temp args [string] = os.args()
@@ -390,8 +384,6 @@ func getCLICommandsContent(comments bool) string {
 
 module main
 
-import @std
-using std
 
 do handleGreet(args [string]) {
     if len(args) < 4 {
@@ -408,8 +400,6 @@ do handleGreet(args [string]) {
 
 module main
 
-import @std
-using std
 
 do handleGreet(args [string]) {
     if len(args) < 4 {
@@ -528,10 +518,8 @@ func getMultiAppContent(comments bool) string {
 
 module app
 
-import @std
 import "./config"
 import "../internal/utils"
-using std
 
 do run() {
     temp cfg config.Config = config.getConfig()
@@ -546,10 +534,8 @@ do run() {
 
 module app
 
-import @std
 import "./config"
 import "../internal/utils"
-using std
 
 do run() {
     temp cfg config.Config = config.getConfig()
@@ -667,8 +653,7 @@ func getServerMinimalContent(comments bool) string {
 
 module main
 
-import @std, @server
-using std
+import @server
 
 do main() {
     temp router Router = server.add_router()
@@ -683,8 +668,7 @@ do main() {
 
 module main
 
-import @std, @server
-using std
+import @server
 
 do main() {
     temp router Router = server.add_router()
@@ -708,8 +692,7 @@ func getServerMainContent(comments bool) string {
 
 module main
 
-import @std, @server
-using std
+import @server
 
 do main() {
     temp router Router = server.add_router()
@@ -724,8 +707,7 @@ do main() {
 
 module main
 
-import @std, @server
-using std
+import @server
 
 do main() {
     temp router Router = server.add_router()
@@ -819,8 +801,7 @@ func getClientMinimalContent(comments bool) string {
 
 module main
 
-import @std, @http
-using std
+import @http
 
 do main() {
     temp resp, err = http.get("https://httpbin.org/get")
@@ -837,8 +818,7 @@ do main() {
 
 module main
 
-import @std, @http
-using std
+import @http
 
 do main() {
     temp resp, err = http.get("https://httpbin.org/get")
@@ -863,8 +843,7 @@ func getClientMainContent(comments bool) string {
 
 module main
 
-import @std, @http
-using std
+import @http
 
 do main() {
     // GET request
@@ -891,8 +870,7 @@ do main() {
 
 module main
 
-import @std, @http
-using std
+import @http
 
 do main() {
     temp resp, err = fetchStatus()

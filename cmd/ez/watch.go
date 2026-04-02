@@ -234,7 +234,7 @@ func scanImports(filePath string) []string {
 		if !strings.HasPrefix(line, "import ") {
 			continue
 		}
-		// import @std, @math, ./mymodule
+		// import @math, ./mymodule
 		rest := strings.TrimPrefix(line, "import ")
 		// Strip "using ..." suffix
 		if idx := strings.Index(rest, " using "); idx >= 0 {
