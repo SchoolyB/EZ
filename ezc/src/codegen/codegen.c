@@ -2030,7 +2030,7 @@ static bool emit_mem_call(CodeGen *cg, AstNode *node, const char *func) {
             emit_expression(cg, value_arg);
             emit(cg, "; __auto_type _p = ez_arena_alloc(");
             emit_expression(cg, arena_arg);
-            emit(cg, ", sizeof(_v)); *(__typeof__(_v) *)_p = _v; _v; })");
+            emit(cg, ", sizeof(_v)); *(__typeof__(_v) *)_p = _v; (__typeof__(_v) *)_p; })");
         }
         return true;
     }

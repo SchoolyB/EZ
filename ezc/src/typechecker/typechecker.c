@@ -698,8 +698,9 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                         result = &TYPE_UNKNOWN;
                     }
                 } else if (strcmp(mfn, "alloc") == 0 && node->data.call.arg_count == 2) {
-                    /* alloc returns the type of its second argument */
-                    result = resolve_expr(tc, node->data.call.args[1]);
+                    /* alloc returns a pointer to the type of its second argument */
+                    EzType *val_t = resolve_expr(tc, node->data.call.args[1]);
+                    result = type_pointer(type_name(val_t));
                 } else {
                     result = &TYPE_VOID;
                 }
@@ -1052,6 +1053,9 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                     } else {
                         result = &TYPE_UNKNOWN;
                     }
+                } else if (strcmp(mfn, "alloc") == 0 && node->data.call.arg_count == 2) {
+                    EzType *val_t = resolve_expr(tc, node->data.call.args[1]);
+                    result = type_pointer(type_name(val_t));
                 } else if (strcmp(mfn, "arena") == 0) {
                     result = type_struct("Arena");
                 } else if (strcmp(mfn, "usage") == 0) {
