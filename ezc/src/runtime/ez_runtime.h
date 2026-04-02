@@ -30,6 +30,7 @@ typedef struct {
     EzArenaBlock *first;
     EzArenaBlock *current;
     size_t default_block_size;
+    bool destroyed;
 } EzArena;
 
 EzArena *ez_arena_create(size_t initial_size);
@@ -63,6 +64,14 @@ static inline EzString ez_string_lit(const char *s) {
     EzString str;
     str.data = s;
     str.len = (int32_t)strlen(s);
+    return str;
+}
+
+/* String literal with explicit length — for strings containing null bytes */
+static inline EzString ez_string_lit_len(const char *s, int32_t len) {
+    EzString str;
+    str.data = s;
+    str.len = len;
     return str;
 }
 

@@ -323,8 +323,32 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
         /* Emit string literal, breaking hex escapes to prevent C's greedy \x parsing.
          * "A\x42C" → "A\x42" "C" (C string concatenation) */
         const char *s = node->data.string_value.value;
+        /* Check for null bytes — if present, use ez_string_lit_len with explicit length
+         * since strlen() would truncate at the null */
+        bool has_null = false;
+        int str_len = 0;
+        for (const char *p = s; *p; p++) {
+            if (p[0] == '\\' && p[1] == 'x' && p[2] == '0' && p[3] == '0') {
+                has_null = true;
+                str_len++; /* \x00 = 1 byte */
+                p += 3;
+            } else if (p[0] == '\\' && p[1] == '0') {
+                has_null = true;
+                str_len++; /* \0 = 1 byte */
+                p += 1;
+            } else if (p[0] == '\\' && p[1]) {
+                str_len++; /* other escape = 1 byte */
+                p += 1;
+            } else {
+                str_len++;
+            }
+        }
         /* Use macro form for file-scope compatibility */
-        emit(cg, (cg->indent == 0) ? "EZ_STRING_LIT(\"" : "ez_string_lit(\"");
+        if (has_null && cg->indent > 0) {
+            emitf(cg, "ez_string_lit_len(\"");
+        } else {
+            emit(cg, (cg->indent == 0) ? "EZ_STRING_LIT(\"" : "ez_string_lit(\"");
+        }
         if (node->data.string_value.is_raw) {
             /* Raw string — escape backslashes and double quotes for C output
              * so that \n stays as literal \n, not a newline character */
@@ -360,7 +384,11 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
                 }
             }
         }
-        emit(cg, "\")");
+        if (has_null && cg->indent > 0) {
+            emitf(cg, "\", %d)", str_len);
+        } else {
+            emit(cg, "\")");
+        }
         break;
     }
 

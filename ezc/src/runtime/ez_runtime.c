@@ -37,10 +37,16 @@ EzArena *ez_arena_create(size_t initial_size) {
     arena->default_block_size = initial_size;
     arena->first = ez_arena_block_create(initial_size);
     arena->current = arena->first;
+    arena->destroyed = false;
     return arena;
 }
 
 void *ez_arena_alloc(EzArena *arena, size_t size) {
+    if (arena->destroyed) {
+        fflush(stdout);
+        fprintf(stderr, "panic: use-after-free — arena already destroyed\n");
+        exit(1);
+    }
     size = ALIGN_UP(size, 8);
     if (arena->current->used + size > arena->current->size) {
         size_t block_size = arena->default_block_size;
@@ -65,13 +71,24 @@ void ez_arena_reset(EzArena *arena) {
 }
 
 void ez_arena_destroy(EzArena *arena) {
+    if (!arena) return;
+    if (arena->destroyed) {
+        fflush(stdout);
+        fprintf(stderr, "panic: double-free — arena already destroyed\n");
+        exit(1);
+    }
     EzArenaBlock *block = arena->first;
     while (block) {
         EzArenaBlock *next = block->next;
         free(block);
         block = next;
     }
-    free(arena);
+    arena->first = NULL;
+    arena->current = NULL;
+    arena->destroyed = true;
+    /* Don't free the arena struct — keep it alive so the destroyed flag
+     * can be checked if the user calls destroy again. It will be cleaned
+     * up at process exit. */
 }
 
 size_t ez_arena_usage(EzArena *arena) {
