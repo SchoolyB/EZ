@@ -37,6 +37,8 @@ That's it. EZ compiles your code to a native binary, executes it, and cleans up.
 
 **Requirements:** Go 1.23+ and a C compiler (gcc or clang)
 
+> **Note:** EZ currently supports **macOS** and **Linux** only. Windows is not supported in v3.0.0.
+
 ---
 
 ## Commands
