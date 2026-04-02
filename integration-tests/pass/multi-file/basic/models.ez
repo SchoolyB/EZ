@@ -4,7 +4,6 @@
  * Defines core data structures and enums for the multi-file test.
  */
 
-module models
 
 import @std
 

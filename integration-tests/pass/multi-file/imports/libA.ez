@@ -1,7 +1,6 @@
 /*
  * libA.ez - Test module A
  */
-module libA
 
 do greet(name string) -> string {
     return "Hello, " + name

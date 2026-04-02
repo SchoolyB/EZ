@@ -1,4 +1,3 @@
-module module_a
 
 import "../module_b"
 

@@ -1,7 +1,6 @@
 /*
  * mylib.ez - Library with private variable
  */
-module mylib
 
 private mut private_var int = 42
 

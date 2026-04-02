@@ -1,4 +1,3 @@
-module main
 import @std
 using std
 

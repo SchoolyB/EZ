@@ -1,4 +1,3 @@
-module utils
 
 do addNumbers(a int, b int) -> int {
     return a + b

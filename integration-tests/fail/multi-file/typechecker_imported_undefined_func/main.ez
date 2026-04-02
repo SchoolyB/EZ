@@ -1,4 +1,3 @@
-module main
 
 // Test: Undefined function in imported module
 // Expected: E4002 - undefined function 'lib.ad'

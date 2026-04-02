@@ -3,7 +3,6 @@
  * Expected: "is not a valid warning code"
  */
 
-module main
 
 #suppress(W9999)
 do foo() {

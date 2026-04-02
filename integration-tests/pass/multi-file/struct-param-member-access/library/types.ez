@@ -2,7 +2,6 @@
  * types.ez - Defines TestStruct type
  * Regression test for issue #851 - struct parameter member access bug
  */
-module library
 
 const TestStruct struct {
     Value u8

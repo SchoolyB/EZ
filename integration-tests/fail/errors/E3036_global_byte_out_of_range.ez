@@ -4,7 +4,6 @@
  * Tests that global byte declarations check value range
  */
 
-module test
 
 // Global byte with out of range value - should trigger E3025
 const badByte byte = 300

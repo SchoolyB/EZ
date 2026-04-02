@@ -2,7 +2,6 @@
  * lib.ez - Library with private and public functions
  * Tests that private functions are not exported
  */
-module lib
 
 // Private function - should NOT be accessible from main.ez
 private do internal_helper() -> string {

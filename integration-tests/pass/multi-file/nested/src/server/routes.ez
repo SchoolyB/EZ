@@ -3,7 +3,6 @@
  * Part of the 'server' module - no imports needed for sibling files
  */
 
-module server
 
 import @std
 using std

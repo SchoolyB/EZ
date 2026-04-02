@@ -3,7 +3,6 @@
  * Part of the 'server' module
  */
 
-module server
 
 const Request struct {
     method string

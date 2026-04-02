@@ -2,7 +2,6 @@
  * geometry.ez - Module with struct-namespaced functions
  */
 
-module geometry
 
 import @math
 

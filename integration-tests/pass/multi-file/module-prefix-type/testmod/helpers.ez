@@ -2,7 +2,6 @@
  * helpers.ez - Helper functions with module-prefixed return types
  * Regression test for bug #463
  */
-module testmod
 
 do make_hero() -> testmod.Hero {
     mut h = new(Hero)

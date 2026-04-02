@@ -3,7 +3,6 @@
  * Expected: "#suppress can only be applied at file scope or to function declarations"
  */
 
-module main
 
 import @std
 using std

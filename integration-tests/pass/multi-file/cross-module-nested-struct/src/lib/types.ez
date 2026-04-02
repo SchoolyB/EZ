@@ -3,7 +3,6 @@
  * Regression test for issue #621/#649 - cross-module nested struct init
  */
 
-module lib
 
 const Inner struct {
     value int

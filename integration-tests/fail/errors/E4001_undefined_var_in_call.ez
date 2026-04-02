@@ -6,7 +6,6 @@
 import @std
 using std
 
-module main
 
 do greet(name string) {
     println(name)

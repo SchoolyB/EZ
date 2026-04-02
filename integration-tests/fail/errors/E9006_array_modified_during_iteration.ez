@@ -2,7 +2,6 @@
  * Test: E9006 - Cannot modify array during for_each iteration
  * Expected: Runtime error when trying to modify array during iteration
  */
-module main
 
 import and use @std, @arrays
 

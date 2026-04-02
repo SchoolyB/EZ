@@ -2,7 +2,6 @@
  * checks.ez - User module with bool-returning functions
  */
 
-module checks
 
 do is_positive(n int) -> bool {
     return n > 0

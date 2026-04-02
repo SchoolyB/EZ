@@ -7,7 +7,6 @@
  * "member access not supported: NIL" errors.
  */
 
-module main
 
 import @std
 import lib"../src/lib"

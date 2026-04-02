@@ -1,4 +1,3 @@
-module main
 
 // Test: Invalid struct field access with imported type
 // Expected: E4003 - struct has no field 'valu'

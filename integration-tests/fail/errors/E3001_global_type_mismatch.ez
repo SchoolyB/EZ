@@ -4,7 +4,6 @@
  * Tests that global variable declarations check type compatibility
  */
 
-module test
 
 // Global variable with type mismatch - should trigger E3001
 const badGlobal int = "hello"

@@ -1849,9 +1849,11 @@ static AstNode *parse_statement(Parser *p) {
     case TOK_RETURN:
         return parse_return_statement(p);
     case TOK_MODULE:
-        /* module <name> — skip the declaration */
+        diag_error(p->diag, "E2061",
+            strdup("'module' declarations are not supported in EZ 3.0 — imported files are identified by their file path"),
+            p->file, p->cur_token.line, p->cur_token.column, 0);
         next_token(p); /* consume module name */
-        return ast_alloc(p->arena, NODE_MODULE_DECL, p->cur_token);
+        return NULL;
     case TOK_IMPORT:
         return parse_import_statement(p);
     case TOK_USING:

@@ -3,7 +3,6 @@
  * Expected: "warning code W1002 cannot be suppressed"
  */
 
-module main
 
 #suppress(W1002)
 do foo() {

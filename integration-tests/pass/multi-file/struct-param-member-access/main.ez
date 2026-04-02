@@ -2,7 +2,6 @@
  * main.ez - Test struct parameter member access across modules
  * Regression test for issue #851 - struct parameter member access bug
  */
-module main
 
 import @std
 import proc"./processor"

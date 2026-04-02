@@ -1,4 +1,3 @@
-module main
 
 // Test: Invalid field access in for_each with imported type
 // Expected: E4003 - struct has no field 'valu'

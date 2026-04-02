@@ -4,7 +4,6 @@
  * Provides general-purpose utility functions.
  */
 
-module utils
 
 import @std
 import @strings

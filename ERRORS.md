@@ -3,7 +3,7 @@
 > Auto-generated from `ezc/src/util/error_codes.h`. Do not edit manually.
 > Run `./scripts/generate_errors.sh` to regenerate.
 
-**Total: 99 codes** (92 errors, 7 warnings)
+**Total: 100 codes** (93 errors, 7 warnings)
 
 ---
 
@@ -48,6 +48,7 @@
 | `E2058` | syntax | nested type declarations are not allowed — structs and enums must be defined at the file scope |
 | `E2059` | syntax | empty when block — a when statement must have at least one 'is' branch |
 | `E2060` | syntax | too many return values — a function can return at most 16 values |
+| `E2061` | syntax | 'module' declarations are not supported in EZ 3.0 — imported files are identified by their file path |
 | `E3001` | types | wrong type — you are using a value of one type where a different type is expected |
 | `E3002` | types | this operator does not work on this type — for example, you cannot subtract strings |
 | `E3003` | types | invalid array index type — array indices must be integers |
@@ -136,4 +137,4 @@
 
 ---
 
-*Generated on 2026-04-01 20:31:31 UTC*
+*Generated on 2026-04-02 03:48:58 UTC*

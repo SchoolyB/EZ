@@ -2,7 +2,6 @@
  * handler.ez - Processes structs from another module
  * Regression test for issue #851 - struct parameter member access bug
  */
-module processor
 
 import lib"../library"
 using lib

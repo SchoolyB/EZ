@@ -1,7 +1,6 @@
 /*
  * lib.ez - Library with private function
  */
-module lib
 
 private do secret() -> string {
     return "secret value"
