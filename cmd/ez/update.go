@@ -780,7 +780,7 @@ func sanitizeArchivePath(destDir, filename string) (string, error) {
 	return destPath, nil
 }
 
-// extractTarGz extracts the ez binary from a .tar.gz archive
+// extractTarGz extracts ez, ezc, and libezrt.a from a .tar.gz archive
 func extractTarGz(archivePath, destDir string) (string, error) {
 	file, err := os.Open(archivePath)
 	if err != nil {
@@ -795,6 +795,8 @@ func extractTarGz(archivePath, destDir string) (string, error) {
 	defer gzr.Close()
 
 	tr := tar.NewReader(gzr)
+	wantFiles := map[string]bool{"ez": true, "ez.exe": true, "ezc": true, "libezrt.a": true}
+	var ezBinaryPath string
 
 	for {
 		header, err := tr.Next()
@@ -805,32 +807,38 @@ func extractTarGz(archivePath, destDir string) (string, error) {
 			return "", err
 		}
 
-		// Look for the ez binary (might be "ez" or in a subdirectory)
 		name := filepath.Base(header.Name)
-		if name == "ez" || name == "ez.exe" {
-			// Validate the destination path to prevent path traversal attacks
-			destPath, err := sanitizeArchivePath(destDir, name)
-			if err != nil {
-				return "", err
-			}
+		if !wantFiles[name] {
+			continue
+		}
 
-			outFile, err := os.Create(destPath)
-			if err != nil {
-				return "", err
-			}
-			if _, err := io.Copy(outFile, tr); err != nil {
-				outFile.Close()
-				return "", err
-			}
+		destPath, err := sanitizeArchivePath(destDir, name)
+		if err != nil {
+			return "", err
+		}
+
+		outFile, err := os.Create(destPath)
+		if err != nil {
+			return "", err
+		}
+		if _, err := io.Copy(outFile, tr); err != nil {
 			outFile.Close()
-			return destPath, nil
+			return "", err
+		}
+		outFile.Close()
+
+		if name == "ez" || name == "ez.exe" {
+			ezBinaryPath = destPath
 		}
 	}
 
-	return "", fmt.Errorf("ez binary not found in archive")
+	if ezBinaryPath == "" {
+		return "", fmt.Errorf("ez binary not found in archive")
+	}
+	return ezBinaryPath, nil
 }
 
-// extractZip extracts the ez binary from a .zip archive
+// extractZip extracts ez, ezc, and libezrt.a from a .zip archive
 func extractZip(archivePath, destDir string) (string, error) {
 	r, err := zip.OpenReader(archivePath)
 	if err != nil {
@@ -838,37 +846,47 @@ func extractZip(archivePath, destDir string) (string, error) {
 	}
 	defer r.Close()
 
+	wantFiles := map[string]bool{"ez": true, "ez.exe": true, "ezc": true, "libezrt.a": true}
+	var ezBinaryPath string
+
 	for _, f := range r.File {
 		name := filepath.Base(f.Name)
-		if name == "ez" || name == "ez.exe" {
-			// Validate the destination path to prevent path traversal attacks
-			destPath, err := sanitizeArchivePath(destDir, name)
-			if err != nil {
-				return "", err
-			}
+		if !wantFiles[name] {
+			continue
+		}
 
-			rc, err := f.Open()
-			if err != nil {
-				return "", err
-			}
+		destPath, err := sanitizeArchivePath(destDir, name)
+		if err != nil {
+			return "", err
+		}
 
-			outFile, err := os.Create(destPath)
-			if err != nil {
-				rc.Close()
-				return "", err
-			}
+		rc, err := f.Open()
+		if err != nil {
+			return "", err
+		}
 
-			_, err = io.Copy(outFile, rc)
-			outFile.Close()
+		outFile, err := os.Create(destPath)
+		if err != nil {
 			rc.Close()
-			if err != nil {
-				return "", err
-			}
-			return destPath, nil
+			return "", err
+		}
+
+		_, err = io.Copy(outFile, rc)
+		outFile.Close()
+		rc.Close()
+		if err != nil {
+			return "", err
+		}
+
+		if name == "ez" || name == "ez.exe" {
+			ezBinaryPath = destPath
 		}
 	}
 
-	return "", fmt.Errorf("ez binary not found in archive")
+	if ezBinaryPath == "" {
+		return "", fmt.Errorf("ez binary not found in archive")
+	}
+	return ezBinaryPath, nil
 }
 
 // copyFile copies a file from src to dst
