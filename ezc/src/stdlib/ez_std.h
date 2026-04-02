@@ -39,24 +39,7 @@ void ez_std_eprint_str(EzString s);
 void ez_std_eprint_char(int32_t c);
 void ez_std_eprint_addr(uintptr_t v);
 
-/* input() - read line from stdin */
-EzString ez_std_input(EzArena *arena);
-
-/* assert(condition, message) */
-void ez_std_assert(bool condition, EzString message, const char *file, int line);
-
-/* panic(message) */
-void ez_std_panic_msg(EzString message);
-
-/* exit(code) */
-void ez_std_exit(int64_t code);
-
 /* copy(value) - handled by codegen (deep copy) */
-
-/* sleep */
-void ez_std_sleep_s(int64_t seconds);
-void ez_std_sleep_ms(int64_t ms);
-void ez_std_sleep_ns(int64_t ns);
 
 /* to_string */
 EzString ez_std_to_string_int(EzArena *arena, int64_t v);

@@ -230,7 +230,7 @@ static bool tc_is_imported_module(TypeChecker *tc, const char *name) {
 
 static bool tc_is_builtin(const char *name) {
     static const char *builtins[] = {
-        "println", "print", "eprintln", "eprint", "input",
+        "input",
         "len", "type_of", "size_of", "copy", "new", "ref", "addr", "error",
         "int", "uint", "float", "string", "char", "byte", "bool",
         "i128", "i256", "u128", "u256",

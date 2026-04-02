@@ -1736,21 +1736,21 @@ static bool emit_builtin_call(CodeGen *cg, AstNode *node, const char *func) {
     }
 
     if (strcmp(func, "exit") == 0 && node->data.call.arg_count == 1) {
-        emit(cg, "ez_std_exit(");
+        emit(cg, "ez_builtin_exit(");
         emit_expression(cg, node->data.call.args[0]);
         emit(cg, ")");
         return true;
     }
 
     if (strcmp(func, "panic") == 0 && node->data.call.arg_count == 1) {
-        emit(cg, "ez_std_panic_msg(");
+        emit(cg, "ez_builtin_panic_msg(");
         emit_expression(cg, node->data.call.args[0]);
         emit(cg, ")");
         return true;
     }
 
     if (strcmp(func, "assert") == 0 && node->data.call.arg_count >= 1) {
-        emit(cg, "ez_std_assert(");
+        emit(cg, "ez_builtin_assert(");
         emit_expression(cg, node->data.call.args[0]);
         if (node->data.call.arg_count >= 2) {
             emit(cg, ", ");
@@ -1770,7 +1770,7 @@ static bool emit_builtin_call(CodeGen *cg, AstNode *node, const char *func) {
     }
 
     if (strcmp(func, "input") == 0) {
-        emit(cg, "ez_std_input(ez_default_arena)");
+        emit(cg, "ez_builtin_input(ez_default_arena)");
         return true;
     }
 
@@ -1804,21 +1804,21 @@ static bool emit_builtin_call(CodeGen *cg, AstNode *node, const char *func) {
     }
 
     if (strcmp(func, "sleep_s") == 0 && node->data.call.arg_count == 1) {
-        emit(cg, "ez_std_sleep_s(");
+        emit(cg, "ez_builtin_sleep_s(");
         emit_expression(cg, node->data.call.args[0]);
         emit(cg, ")");
         return true;
     }
 
     if (strcmp(func, "sleep_ms") == 0 && node->data.call.arg_count == 1) {
-        emit(cg, "ez_std_sleep_ms(");
+        emit(cg, "ez_builtin_sleep_ms(");
         emit_expression(cg, node->data.call.args[0]);
         emit(cg, ")");
         return true;
     }
 
     if (strcmp(func, "sleep_ns") == 0 && node->data.call.arg_count == 1) {
-        emit(cg, "ez_std_sleep_ns(");
+        emit(cg, "ez_builtin_sleep_ns(");
         emit_expression(cg, node->data.call.args[0]);
         emit(cg, ")");
         return true;
@@ -4448,6 +4448,7 @@ void codegen_generate(CodeGen *cg, AstNode *program) {
     emit(cg, "#include \"ez_runtime.h\"\n");
     emit(cg, "#include \"ez_array.h\"\n");
     emit(cg, "#include \"ez_map.h\"\n");
+    emit(cg, "#include \"ez_builtins.h\"\n");
     if (cg->has_std) {
         emit(cg, "#include \"ez_std.h\"\n");
     }

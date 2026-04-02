@@ -35,6 +35,7 @@ BIN = ezc
 RT_SRC = src/runtime/ez_runtime.c \
          src/runtime/ez_array.c \
          src/runtime/ez_map.c \
+         src/stdlib/ez_builtins.c \
          src/stdlib/ez_std.c \
          src/stdlib/ez_mem.c \
          src/stdlib/ez_fmt.c \
