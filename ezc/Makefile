@@ -143,7 +143,7 @@ test-e2e: build tests/test_codegen
 	@./tests/test_codegen
 
 test-integration: build
-	@../scripts/run_integration.sh
+	@../scripts/run_tests.sh
 
 # Sanitizer builds — catch undefined behavior (and memory bugs on Linux)
 # Must compile ALL source files with sanitizer flags

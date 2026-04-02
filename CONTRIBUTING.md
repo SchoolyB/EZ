@@ -223,7 +223,7 @@ go test ./pkg/errors/... ./pkg/lineeditor/...
 ### Integration Tests
 
 ```bash
-bash scripts/run_integration.sh
+bash scripts/run_tests.sh
 ```
 
 ---

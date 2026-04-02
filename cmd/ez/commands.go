@@ -206,8 +206,7 @@ compiler integration tests, and CLI integration tests.`,
 			{"Go tooling tests", "go", []string{"test", "./pkg/errors/...", "./pkg/lineeditor/..."}, root},
 			{"Compiler unit tests", "make", []string{"test-unit"}, filepath.Join(root, "ezc")},
 			{"Compiler e2e tests", "make", []string{"test-e2e"}, filepath.Join(root, "ezc")},
-			{"Compiler integration tests", "bash", []string{filepath.Join(root, "scripts", "run_integration.sh")}, root},
-			{"CLI integration tests", "bash", []string{filepath.Join(root, "scripts", "run_tests.sh")}, root},
+			{"Integration tests", "bash", []string{filepath.Join(root, "scripts", "run_tests.sh")}, root},
 		}
 
 		for _, step := range steps {
