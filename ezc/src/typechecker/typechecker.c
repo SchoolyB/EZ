@@ -154,6 +154,7 @@ static void register_func(TypeChecker *tc, const char *name,
     fs->return_count = return_count;
     fs->used = false;
     fs->def_line = 0;
+    fs->is_private = false;
 }
 
 static FuncSig *find_func(TypeChecker *tc, const char *name) {
@@ -1114,7 +1115,13 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                 char prefixed[256];
                 snprintf(prefixed, sizeof(prefixed), "%s_%s", mod, mfn);
                 FuncSig *sig = find_func(tc, prefixed);
-                if (sig) {
+                if (sig && sig->is_private) {
+                    char pmsg[256];
+                    snprintf(pmsg, sizeof(pmsg),
+                        "'%s' is private and cannot be accessed from outside its file", mfn);
+                    diag_error(tc->diag, "E4015", strdup(pmsg),
+                        tc->file, node->token.line, node->token.column, 0);
+                } else if (sig) {
                     sig->used = true;
                     if (sig->return_count > 0) {
                         result = sig->return_types[0];
@@ -1511,13 +1518,23 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                                 snprintf(prefixed, sizeof(prefixed), "%s_%s", real_mod, fn_name);
                                 FuncSig *sig = find_func(tc, prefixed);
                                 if (sig) {
-                                    found_in_using = true;
-                                    if (sig->return_count > 0) {
-                                        result = sig->return_types[0];
+                                    if (sig->is_private) {
+                                        char pmsg[256];
+                                        snprintf(pmsg, sizeof(pmsg),
+                                            "'%s' is private and cannot be accessed from outside its file",
+                                            fn_name);
+                                        diag_error(tc->diag, "E4015", strdup(pmsg),
+                                            tc->file, node->token.line, node->token.column, 0);
+                                        found_in_using = true;
                                     } else {
-                                        result = &TYPE_VOID;
+                                        found_in_using = true;
+                                        if (sig->return_count > 0) {
+                                            result = sig->return_types[0];
+                                        } else {
+                                            result = &TYPE_VOID;
+                                        }
+                                        sig->used = true;
                                     }
-                                    sig->used = true;
                                 }
                             }
                             if (found_in_using) {
@@ -3099,6 +3116,7 @@ static void register_declarations(TypeChecker *tc, AstNode *program) {
                     strlen(fn->data.func_decl.name) + 2);
                 sprintf(prefixed, "%s_%s", stmt->data.struct_decl.name, fn->data.func_decl.name);
                 register_func(tc, prefixed, ptypes, pc, rtypes, rc);
+                tc->funcs[tc->func_count - 1].is_private = fn->data.func_decl.is_private;
             }
         }
 
@@ -3188,6 +3206,7 @@ static void register_declarations(TypeChecker *tc, AstNode *program) {
                     tc->file, stmt->token.line, stmt->token.column, 0);
             }
             register_func(tc, stmt->data.func_decl.name, ptypes, pc, rtypes, rc);
+            tc->funcs[tc->func_count - 1].is_private = stmt->data.func_decl.is_private;
             /* Store line for unused function warning */
             tc->funcs[tc->func_count - 1].def_line = stmt->token.line;
         }
@@ -3287,6 +3306,7 @@ void typechecker_check(TypeChecker *tc, AstNode *program) {
         FuncSig *fs = &tc->funcs[i];
         if (!fs->used && fs->def_line > 0 &&
             strcmp(fs->name, "main") != 0 &&
+            !fs->is_private &&
             !(fs->name[0] >= 'A' && fs->name[0] <= 'Z' && strchr(fs->name, '_'))) {
             char msg[256];
             snprintf(msg, sizeof(msg),

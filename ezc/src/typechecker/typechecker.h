@@ -41,6 +41,7 @@ typedef struct {
     int return_count;
     bool used;          /* true if function was called */
     int def_line;       /* line where function was declared */
+    bool is_private;    /* true if declared with 'private' keyword */
 } FuncSig;
 
 typedef struct {

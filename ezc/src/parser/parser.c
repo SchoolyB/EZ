@@ -1432,6 +1432,7 @@ static AstNode *parse_struct_declaration(Parser *p) {
             next_token(p); /* consume 'private' */
             AstNode *fn = parse_func_declaration(p);
             if (fn) {
+                fn->data.func_decl.is_private = true;
                 if (node->data.struct_decl.func_count >= func_cap) {
                     func_cap *= 2;
                     StructFunc *new_funcs = arena_alloc(p->arena, sizeof(StructFunc) * func_cap);
@@ -1439,7 +1440,9 @@ static AstNode *parse_struct_declaration(Parser *p) {
                         sizeof(StructFunc) * node->data.struct_decl.func_count);
                     node->data.struct_decl.funcs = new_funcs;
                 }
-                node->data.struct_decl.funcs[node->data.struct_decl.func_count++].func_decl = fn;
+                int idx = node->data.struct_decl.func_count++;
+                node->data.struct_decl.funcs[idx].func_decl = fn;
+                node->data.struct_decl.funcs[idx].is_private = true;
             }
             next_token(p);
             continue;
@@ -1824,6 +1827,19 @@ static bool is_assignment_op(TokenType t) {
 
 static AstNode *parse_statement(Parser *p) {
     switch (p->cur_token.type) {
+    case TOK_PRIVATE: {
+        /* private do / private const / private mut — consume and set flag */
+        next_token(p);
+        AstNode *stmt = parse_statement(p);
+        if (stmt) {
+            if (stmt->kind == NODE_FUNC_DECL) {
+                stmt->data.func_decl.is_private = true;
+            } else if (stmt->kind == NODE_VAR_DECL) {
+                stmt->data.var_decl.is_private = true;
+            }
+        }
+        return stmt;
+    }
     case TOK_TEMP:
     case TOK_CONST:
         /* Check if this is a struct or enum declaration: const Name struct { */

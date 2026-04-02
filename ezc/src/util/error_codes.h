@@ -106,7 +106,8 @@
     EZ_ERROR("E4006", "names", "this name is reserved by the compiler — choose a different name that does not start with ez_ or Ez") \
     EZ_ERROR("E4012", "names", "variable shadows a type definition with the same name") \
     EZ_ERROR("E4013", "names", "variable shadows a function with the same name") \
-    EZ_ERROR("E4014", "names", "variable shadows an imported module name")
+    EZ_ERROR("E4014", "names", "variable shadows an imported module name") \
+    EZ_ERROR("E4015", "names", "cannot access a private function or constant from outside its file")
 
 /* --- E5xxx: Usage Problems --- */
 #define EZ_USAGE_ERRORS \

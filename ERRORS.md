@@ -3,7 +3,7 @@
 > Auto-generated from `ezc/src/util/error_codes.h`. Do not edit manually.
 > Run `./scripts/generate_errors.sh` to regenerate.
 
-**Total: 100 codes** (93 errors, 7 warnings)
+**Total: 101 codes** (94 errors, 7 warnings)
 
 ---
 
@@ -90,6 +90,7 @@
 | `E4012` | names | variable shadows a type definition with the same name |
 | `E4013` | names | variable shadows a function with the same name |
 | `E4014` | names | variable shadows an imported module name |
+| `E4015` | names | cannot access a private function or constant from outside its file |
 | `E5007` | usage | cannot modify an immutable value — declare with mut to allow modification |
 | `E5008` | arguments | wrong number of arguments — the function expects a different number of values than you provided |
 | `E5011` | usage | return value of function is not used — assign it to a variable or use _ to discard |
@@ -137,4 +138,4 @@
 
 ---
 
-*Generated on 2026-04-02 03:51:01 UTC*
+*Generated on 2026-04-02 04:42:16 UTC*

@@ -82,6 +82,7 @@ typedef struct {
 /* Function in struct declaration (namespaced free function) */
 typedef struct {
     AstNode *func_decl; /* NODE_FUNC_DECL */
+    bool is_private;
 } StructFunc;
 
 /* Enum value */
@@ -192,6 +193,7 @@ struct AstNode {
             const char *type_name;
             AstNode *value;
             bool mutable;
+            bool is_private;
         } var_decl;
 
         /* NODE_ASSIGN_STMT */
@@ -260,6 +262,7 @@ struct AstNode {
             const char **return_names; /* Named return params (NULL if unnamed) */
             int return_type_count;
             AstNode *body;
+            bool is_private;
         } func_decl;
 
         /* NODE_IMPORT_STMT */
