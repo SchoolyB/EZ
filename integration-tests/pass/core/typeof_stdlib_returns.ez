@@ -1,0 +1,90 @@
+/*
+ * typeof_stdlib_returns.ez - Test type_of() for stdlib function returns
+ *
+ * Verifies that random.choice(), maps.keys/values, and range()
+ * return correctly resolved types for type_of().
+ */
+
+import @std
+import @random
+import @maps
+using std
+
+do main() {
+    println("=== type_of() Stdlib Return Types ===")
+    mut passed int = 0
+    mut failed int = 0
+
+    // Test 1: random.choice([int]) returns int
+    mut nums [int] = {10, 20, 30}
+    mut pick = random.choice(nums)
+    if type_of(pick) == "int" {
+        println("  [PASS] type_of(random.choice([int])) == 'int'")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] got '${type_of(pick)}'")
+        failed += 1
+    }
+
+    // Test 2: random.choice([string]) returns string
+    mut names [string] = {"Alice", "Bob"}
+    mut name = random.choice(names)
+    if type_of(name) == "string" {
+        println("  [PASS] type_of(random.choice([string])) == 'string'")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] got '${type_of(name)}'")
+        failed += 1
+    }
+
+    // Test 3: random.shuffle preserves array type
+    mut arr [int] = {1, 2, 3}
+    mut shuffled = random.shuffle(arr)
+    if type_of(shuffled) == "[int]" {
+        println("  [PASS] type_of(random.shuffle([int])) == '[int]'")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] got '${type_of(shuffled)}'")
+        failed += 1
+    }
+
+    // Test 4: maps.keys returns array typed to key type
+    mut m map[string:int] = {"a": 1, "b": 2}
+    mut k = maps.keys(m)
+    if type_of(k) == "[string]" {
+        println("  [PASS] type_of(maps.keys(map[string:int])) == '[string]'")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] got '${type_of(k)}'")
+        failed += 1
+    }
+
+    // Test 5: maps.values returns array typed to value type
+    mut v = maps.values(m)
+    if type_of(v) == "[int]" {
+        println("  [PASS] type_of(maps.values(map[string:int])) == '[int]'")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] got '${type_of(v)}'")
+        failed += 1
+    }
+
+    // Test 6: range() returns Range<int>
+    if type_of(range(0, 5)) == "Range<int>" {
+        println("  [PASS] type_of(range(0, 5)) == 'Range<int>'")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] got '${type_of(range(0, 5))}'")
+        failed += 1
+    }
+
+    // Summary
+    println("")
+    println("Results: ${passed} passed, ${failed} failed")
+
+    if failed > 0 {
+        println("SOME TESTS FAILED")
+    } otherwise {
+        println("ALL TESTS PASSED")
+    }
+}
