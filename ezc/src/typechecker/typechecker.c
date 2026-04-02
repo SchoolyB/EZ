@@ -702,8 +702,16 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                     result = &TYPE_VOID;
                 }
             } else if (strcmp(mod, "maps") == 0) {
-                if (strcmp(mfn, "keys") == 0 || strcmp(mfn, "values") == 0) {
-                    result = type_array("string"); /* approximate */
+                if (strcmp(mfn, "keys") == 0) {
+                    if (node->data.call.arg_count > 0) {
+                        EzType *map_t = resolve_expr(tc, node->data.call.args[0]);
+                        result = type_array(map_t && map_t->key_type ? map_t->key_type : "string");
+                    } else result = type_array("string");
+                } else if (strcmp(mfn, "values") == 0) {
+                    if (node->data.call.arg_count > 0) {
+                        EzType *map_t = resolve_expr(tc, node->data.call.args[0]);
+                        result = type_array(map_t && map_t->value_type ? map_t->value_type : "string");
+                    } else result = type_array("string");
                 } else if (strcmp(mfn, "has_key") == 0 || strcmp(mfn, "is_empty") == 0) {
                     result = &TYPE_BOOL;
                 } else {
@@ -823,7 +831,27 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                 else if (strcmp(mfn, "rand_byte") == 0) result = &TYPE_BYTE;
                 else if (strcmp(mfn, "rand_char") == 0) result = &TYPE_CHAR;
                 else if (strcmp(mfn, "shuffle") == 0 || strcmp(mfn, "sample") == 0) {
-                    result = type_array("int");
+                    /* Preserve input array's element type */
+                    if (node->data.call.arg_count > 0) {
+                        EzType *arr_t = resolve_expr(tc, node->data.call.args[0]);
+                        if (arr_t && arr_t->kind == TK_ARRAY && arr_t->element_type)
+                            result = type_array(arr_t->element_type);
+                        else
+                            result = type_array("int");
+                    } else {
+                        result = type_array("int");
+                    }
+                } else if (strcmp(mfn, "choice") == 0) {
+                    /* Return element type of the array argument */
+                    if (node->data.call.arg_count > 0) {
+                        EzType *arr_t = resolve_expr(tc, node->data.call.args[0]);
+                        if (arr_t && arr_t->kind == TK_ARRAY && arr_t->element_type)
+                            result = type_from_name(arr_t->element_type);
+                        else
+                            result = &TYPE_INT;
+                    } else {
+                        result = &TYPE_INT;
+                    }
                 } else if (strcmp(mfn, "random_hex") == 0) result = &TYPE_STRING;
                 else result = &TYPE_UNKNOWN;
             } else if (strcmp(mod, "arrays") == 0) {
@@ -1390,8 +1418,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                             {"remove_at","arrays",TK_VOID},{"sort","arrays",TK_VOID},
                             {"sort_desc","arrays",TK_VOID},{"clear","arrays",TK_VOID},
                             {"concat","arrays",TK_ARRAY},{"sum","arrays",TK_INT},
-                            {"has_key","maps",TK_BOOL},{"keys","maps",TK_ARRAY},
-                            {"values","maps",TK_ARRAY},{"remove_key","maps",TK_BOOL},
+                            {"has_key","maps",TK_BOOL},{"remove_key","maps",TK_BOOL},
                             {"rand_float","random",TK_FLOAT},{"rand_int","random",TK_INT},
                             {"rand_bool","random",TK_BOOL},{"random_hex","random",TK_STRING},
                             {"sha256","crypto",TK_STRING},{"md5","crypto",TK_STRING},
@@ -1413,6 +1440,46 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                                         result = (arg_t && arg_t->kind == TK_FLOAT) ? &TYPE_FLOAT : &TYPE_INT;
                                     } else {
                                         result = &TYPE_INT;
+                                    }
+                                    break;
+                                }
+                            }
+                        }
+                        /* Random functions whose return type depends on argument */
+                        if (!found_in_using && (strcmp(fn_name, "choice") == 0 ||
+                            strcmp(fn_name, "shuffle") == 0 || strcmp(fn_name, "sample") == 0)) {
+                            for (int ui = 0; ui < tc->using_module_count; ui++) {
+                                const char *real_mod = tc_resolve_alias(tc, tc->using_modules[ui]);
+                                if (strcmp(real_mod, "random") == 0) {
+                                    found_in_using = true;
+                                    if (node->data.call.arg_count > 0) {
+                                        EzType *arr_t = resolve_expr(tc, node->data.call.args[0]);
+                                        if (strcmp(fn_name, "choice") == 0) {
+                                            result = (arr_t && arr_t->element_type) ? type_from_name(arr_t->element_type) : &TYPE_INT;
+                                        } else {
+                                            result = (arr_t && arr_t->element_type) ? type_array(arr_t->element_type) : type_array("int");
+                                        }
+                                    } else {
+                                        result = (strcmp(fn_name, "choice") == 0) ? &TYPE_INT : type_array("int");
+                                    }
+                                    break;
+                                }
+                            }
+                        }
+                        /* Maps functions whose return type depends on map key/value types */
+                        if (!found_in_using && (strcmp(fn_name, "keys") == 0 || strcmp(fn_name, "values") == 0)) {
+                            for (int ui = 0; ui < tc->using_module_count; ui++) {
+                                const char *real_mod = tc_resolve_alias(tc, tc->using_modules[ui]);
+                                if (strcmp(real_mod, "maps") == 0) {
+                                    found_in_using = true;
+                                    if (node->data.call.arg_count > 0) {
+                                        EzType *map_t = resolve_expr(tc, node->data.call.args[0]);
+                                        if (strcmp(fn_name, "keys") == 0)
+                                            result = type_array(map_t && map_t->key_type ? map_t->key_type : "string");
+                                        else
+                                            result = type_array(map_t && map_t->value_type ? map_t->value_type : "string");
+                                    } else {
+                                        result = type_array("string");
                                     }
                                     break;
                                 }
@@ -1741,9 +1808,13 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
         break;
     }
 
-    case NODE_RANGE_EXPR:
-        result = &TYPE_INT;
+    case NODE_RANGE_EXPR: {
+        EzType *rt = type_alloc();
+        rt->kind = TK_INT;
+        rt->name = "Range<int>";
+        result = rt;
         break;
+    }
 
     case NODE_CAST_EXPR: {
         EzType *src_t = resolve_expr(tc, node->data.cast.value);

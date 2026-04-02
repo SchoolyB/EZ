@@ -34,7 +34,6 @@ RESET='\033[0m'
 # Tests that use interpreter-only syntax (skip for compiler)
 SKIP_INTEGRATION=(
     "copy_semantics"        # array copy-by-default not in compiler
-    "typeof_stdlib"         # __auto_type in cast position generates invalid C (#1308)
     # Error tests for interpreter-only features
     "E2002_for_missing_closing_paren"
     "E2002_for_nested_missing_paren"
