@@ -3309,6 +3309,12 @@ static void emit_var_declaration(CodeGen *cg, AstNode *node) {
             node->data.var_decl.value->data.array_value.count == 0) {
             /* Empty array literal with type annotation — use correct elem size */
             emitf(cg, "ez_array_new(ez_default_arena, sizeof(%s), 4)", c_elem_type);
+        } else if (node->data.var_decl.value &&
+                   node->data.var_decl.value->kind == NODE_LABEL) {
+            /* Copy-by-default: deep copy when assigning from another variable */
+            emit(cg, "ez_array_copy(ez_default_arena, &");
+            emit_expression(cg, node->data.var_decl.value);
+            emit(cg, ")");
         } else if (node->data.var_decl.value) {
             emit_expression(cg, node->data.var_decl.value);
         } else {
@@ -3642,6 +3648,19 @@ static void emit_assign_statement(CodeGen *cg, AstNode *node) {
                     return;
                 }
             }
+        }
+    }
+
+    /* Array copy-by-default: arr2 = arr1 deep-copies the array */
+    if (strcmp(node->data.assign.op, "=") == 0 &&
+        node->data.assign.value->kind == NODE_LABEL) {
+        EzType *tgt_t = cg->type_table ? typetable_get(cg->type_table, node->data.assign.target) : NULL;
+        if (tgt_t && tgt_t->kind == TK_ARRAY) {
+            emit_expression(cg, node->data.assign.target);
+            emit(cg, " = ez_array_copy(ez_default_arena, &");
+            emit_expression(cg, node->data.assign.value);
+            emit(cg, ");\n");
+            return;
         }
     }
 
