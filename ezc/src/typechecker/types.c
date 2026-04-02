@@ -6,8 +6,9 @@
  */
 
 #include "types.h"
-#include <string.h>
+#include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 /* Built-in type singletons */
 EzType TYPE_VOID    = {TK_VOID,   "void",   NULL, NULL, NULL};
@@ -21,14 +22,17 @@ EzType TYPE_STRING  = {TK_STRING, "string", NULL, NULL, NULL};
 EzType TYPE_NIL     = {TK_NIL,    "nil",    NULL, NULL, NULL};
 EzType TYPE_UNKNOWN = {TK_UNKNOWN,"unknown",NULL, NULL, NULL};
 
-#define TYPE_POOL_CAPACITY 256
+#define TYPE_POOL_CAPACITY 1024
 
 /* Pool for dynamically created types (leak on exit, fine for a compiler) */
 static EzType type_pool[TYPE_POOL_CAPACITY];
 static int type_pool_count = 0;
 
 EzType *type_alloc(void) {
-    if (type_pool_count >= TYPE_POOL_CAPACITY) return &TYPE_UNKNOWN;
+    if (type_pool_count >= TYPE_POOL_CAPACITY) {
+        fprintf(stderr, "error: type pool exhausted (%d types) — please report this bug\n", TYPE_POOL_CAPACITY);
+        exit(1);
+    }
     return &type_pool[type_pool_count++];
 }
 
