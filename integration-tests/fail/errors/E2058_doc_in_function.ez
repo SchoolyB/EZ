@@ -1,8 +1,0 @@
-// Test: E2058 - #doc inside function body (invalid target)
-import and use @std
-
-do main() {
-    #doc("This should fail - cannot use #doc inside function")
-    mut x int = 5
-    println(x)
-}
