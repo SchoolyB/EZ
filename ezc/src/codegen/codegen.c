@@ -2737,7 +2737,15 @@ static bool emit_io_call(CodeGen *cg, AstNode *node, const char *func) {
         strcmp(func, "write_file") == 0 ||
         strcmp(func, "delete_file") == 0);
     if (is_fallible) {
-        emitf(cg, "ez_io_%s_result(ez_default_arena, ", func);
+        /* Use _result version for multi-var destructuring (assigns to _ez_tmp),
+         * non-result version for single-var assignment */
+        bool use_result = cg->current_var_name &&
+            strncmp(cg->current_var_name, "_ez_tmp", 7) == 0;
+        if (use_result) {
+            emitf(cg, "ez_io_%s_result(ez_default_arena, ", func);
+        } else {
+            emitf(cg, "ez_io_%s(ez_default_arena, ", func);
+        }
         for (int i = 0; i < node->data.call.arg_count; i++) {
             if (i > 0) emit(cg, ", ");
             emit_expression(cg, node->data.call.args[i]);
@@ -3368,6 +3376,7 @@ static void emit_var_declaration(CodeGen *cg, AstNode *node) {
 
     if (node->data.var_decl.value) {
         emit(cg, " = ");
+        cg->current_var_name = node->data.var_decl.name;
         /* Bigint literal zero: emit zero constant instead of plain 0 */
         if (type_name && is_bigint_type(type_name) &&
             node->data.var_decl.value->kind == NODE_INT_VALUE &&
@@ -3450,6 +3459,7 @@ static void emit_var_declaration(CodeGen *cg, AstNode *node) {
         } else {
             emit_expression(cg, node->data.var_decl.value);
         }
+        cg->current_var_name = NULL;
     } else {
         /* Zero-initialize when no value is provided */
         if (strcmp(c_type, "int64_t") == 0) emit(cg, " = 0");

@@ -36,6 +36,9 @@ typedef struct {
     /* Type table from type checker (for type-aware codegen) */
     TypeTable *type_table;
 
+    /* Current var decl name (for context-aware call emission) */
+    const char *current_var_name;
+
     /* Ref variables (transparent references from ref()) */
     const char **ref_vars;
     int ref_var_count;
