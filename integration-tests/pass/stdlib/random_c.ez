@@ -55,5 +55,5 @@ do main() {
     if len(hex) == 16 { pass += 1 } otherwise { fail += 1 }
 
     println("random: ${pass} passed, ${fail} failed")
-    if fail > 0 { std.exit(1) }
+    if fail > 0 { exit(1) }
 }

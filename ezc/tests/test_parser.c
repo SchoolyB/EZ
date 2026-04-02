@@ -77,7 +77,7 @@ static void test_parse_import_single(void) {
     ASSERT_EQ(stmt->kind, NODE_IMPORT_STMT);
     ASSERT_EQ(stmt->data.import_stmt.count, 1);
     ASSERT(stmt->data.import_stmt.items[0].is_stdlib);
-    ASSERT_STR_EQ(stmt->data.import_stmt.items[0].module, "std");
+    ASSERT_STR_EQ(stmt->data.import_stmt.items[0].module, "math");
 }
 
 static void test_parse_import_multi(void) {
@@ -86,8 +86,8 @@ static void test_parse_import_multi(void) {
     ASSERT_NOT_NULL(stmt);
     ASSERT_EQ(stmt->kind, NODE_IMPORT_STMT);
     ASSERT_EQ(stmt->data.import_stmt.count, 2);
-    ASSERT_STR_EQ(stmt->data.import_stmt.items[0].module, "std");
-    ASSERT_STR_EQ(stmt->data.import_stmt.items[1].module, "math");
+    ASSERT_STR_EQ(stmt->data.import_stmt.items[0].module, "math");
+    ASSERT_STR_EQ(stmt->data.import_stmt.items[1].module, "strings");
 }
 
 static void test_parse_if_or_otherwise(void) {
@@ -580,12 +580,7 @@ static void test_parse_pointer_deref(void) {
     ASSERT_EQ(vdecl->data.var_decl.value->kind, NODE_MEMBER_EXPR);
 }
 
-static void test_parse_module_decl(void) {
-    AstNode *prog = parse("module mymod");
-    AstNode *stmt = first_stmt(prog);
-    ASSERT_NOT_NULL(stmt);
-    ASSERT_EQ(stmt->kind, NODE_MODULE_DECL);
-}
+/* module keyword removed in v3.0 — test removed */
 
 static void test_parse_local_import(void) {
     AstNode *prog = parse("import \"./mylib\"");
@@ -722,7 +717,7 @@ int main(void) {
     /* P3: Remaining parser coverage */
     RUN_TEST(test_parse_range_with_step);
     RUN_TEST(test_parse_pointer_deref);
-    RUN_TEST(test_parse_module_decl);
+    /* test_parse_module_decl removed — module keyword removed in v3.0 */
     RUN_TEST(test_parse_local_import);
     RUN_TEST(test_parse_power_expr);
     RUN_TEST(test_parse_precedence_add_mul);

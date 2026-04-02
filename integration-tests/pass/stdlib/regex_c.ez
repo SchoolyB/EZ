@@ -33,5 +33,5 @@ do main() {
     if len(parts) == 4 { pass += 1 } otherwise { fail += 1 }
 
     println("regex: ${pass} passed, ${fail} failed")
-    if fail > 0 { std.exit(1) }
+    if fail > 0 { exit(1) }
 }

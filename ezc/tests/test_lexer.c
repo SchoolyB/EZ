@@ -193,11 +193,6 @@ static void test_hash_attributes(void) {
 
 static void test_hello_world_tokens(void) {
     Lexer *l = lex("do main() {\n    println(\"Hello\")\n}");
-    ASSERT_EQ(next(l).type, TOK_IMPORT);
-    ASSERT_EQ(next(l).type, TOK_AT);
-    ASSERT_EQ(next(l).type, TOK_IDENT);  /* std */
-    ASSERT_EQ(next(l).type, TOK_USING);
-    ASSERT_EQ(next(l).type, TOK_IDENT);  /* std */
     ASSERT_EQ(next(l).type, TOK_DO);
     ASSERT_EQ(next(l).type, TOK_IDENT);  /* main */
     ASSERT_EQ(next(l).type, TOK_LPAREN);

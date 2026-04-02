@@ -171,5 +171,5 @@ do main() {
     }
 
     println("Results: ${passed} passed, ${failed} failed")
-    if failed > 0 { std.exit(1) }
+    if failed > 0 { exit(1) }
 }

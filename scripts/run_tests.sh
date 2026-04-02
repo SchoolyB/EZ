@@ -16,13 +16,19 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 TEST_DIR="$PROJECT_ROOT/integration-tests"
 EZ_BIN="$PROJECT_ROOT/ez"
+EZC_BIN="$PROJECT_ROOT/ezc/ezc"
 
-# Check if ez binary exists
-if [ ! -f "$EZ_BIN" ]; then
-    echo "EZ binary not found, building..."
-    cd "$PROJECT_ROOT"
-    go build -o ez ./cmd/ez
-fi
+# Always rebuild to ensure we test current code
+echo "Building ezc..."
+(cd "$PROJECT_ROOT/ezc" && make build) || { echo "ezc build failed"; exit 1; }
+
+echo "Building ez CLI..."
+(cd "$PROJECT_ROOT" && go build -o ez ./cmd/ez) || { echo "ez build failed"; exit 1; }
+
+# Point ez at the local ezc binary
+export EZC_PATH="$PROJECT_ROOT/ezc/ezc"
+
+echo ""
 
 # Colors for output
 RED='\033[0;31m'

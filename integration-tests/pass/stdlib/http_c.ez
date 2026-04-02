@@ -27,5 +27,5 @@ do main() {
     if not_found.status == 404 { pass += 1 } otherwise { fail += 1 }
 
     println("http: ${pass} passed, ${fail} failed")
-    if fail > 0 { std.exit(1) }
+    if fail > 0 { exit(1) }
 }
