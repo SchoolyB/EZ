@@ -7,8 +7,17 @@
 
 #include "ez_mem.h"
 
+/* Maximum arena size: 1 GB */
+#define EZ_MAX_ARENA_SIZE (1024LL * 1024 * 1024)
+
 EzArena *ez_mem_arena(int64_t size) {
     if (size <= 0) size = 4096;
+    if (size > EZ_MAX_ARENA_SIZE) {
+        fflush(stdout);
+        fprintf(stderr, "panic: mem.arena() size %lld bytes exceeds the maximum allowed size of 1 GB\n",
+            (long long)size);
+        exit(1);
+    }
     return ez_arena_create((size_t)size);
 }
 

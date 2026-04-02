@@ -669,15 +669,25 @@ static AstNode *parse_infix(Parser *p, AstNode *left) {
 }
 
 static AstNode *parse_expression(Parser *p, Precedence prec) {
+    p->depth++;
+    if (p->depth > EZ_MAX_PARSE_DEPTH) {
+        diag_error(p->diag, "E2001",
+            strdup("expression is nested too deeply — maximum depth is 256"),
+            p->file, p->cur_token.line, p->cur_token.column, 0);
+        p->depth--;
+        return NULL;
+    }
+
     AstNode *left = parse_prefix(p);
-    if (!left) return NULL;
+    if (!left) { p->depth--; return NULL; }
 
     while (!peek_token_is(p, TOK_EOF) && prec < token_precedence(p->peek_token.type)) {
         next_token(p);
         left = parse_infix(p, left);
-        if (!left) return NULL;
+        if (!left) { p->depth--; return NULL; }
     }
 
+    p->depth--;
     return left;
 }
 
@@ -1953,6 +1963,7 @@ Parser *parser_create(Arena *arena, Lexer *lexer, const char *file, DiagnosticLi
     p->arena = arena;
     p->file = file;
     p->diag = diag;
+    p->depth = 0;
 
     /* Read two tokens to fill cur and peek */
     next_token(p);
