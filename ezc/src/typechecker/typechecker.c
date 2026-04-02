@@ -233,6 +233,7 @@ static bool tc_is_builtin(const char *name) {
         "input",
         "len", "type_of", "size_of", "copy", "new", "ref", "addr", "error",
         "int", "uint", "float", "string", "char", "byte", "bool",
+        "i8", "i16", "i32", "i64", "u8", "u16", "u32", "u64", "f32", "f64",
         "i128", "i256", "u128", "u256",
         "exit", "panic", "assert", "range", "cast",
         "sleep_s", "sleep_ms", "sleep_ns",
