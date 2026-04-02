@@ -56,6 +56,7 @@ RT_SRC = src/runtime/ez_runtime.c \
          src/stdlib/ez_sqlite.c \
          src/stdlib/ez_threads.c \
          src/stdlib/ez_sync.c \
+         src/stdlib/ez_atomic.c \
          src/stdlib/ez_channels.c \
          src/stdlib/ez_regex.c \
          src/stdlib/ez_net.c \
@@ -64,6 +65,21 @@ RT_SRC = src/runtime/ez_runtime.c \
          src/vendor/sqlite3.c
 RT_OBJ = $(RT_SRC:.c=.o)
 RT_LIB = libezrt.a
+
+# Architecture-specific assembly (atomic operations)
+UNAME_M := $(shell uname -m)
+ifeq ($(UNAME_M),arm64)
+  ATOMIC_ARCH = arm64
+else ifeq ($(UNAME_M),aarch64)
+  ATOMIC_ARCH = arm64
+else ifeq ($(UNAME_M),x86_64)
+  ATOMIC_ARCH = x86_64
+endif
+
+ifdef ATOMIC_ARCH
+  ATOMIC_SRC = src/runtime/arch/$(ATOMIC_ARCH)/atomic.s
+  ATOMIC_OBJ = src/runtime/arch/$(ATOMIC_ARCH)/atomic.o
+endif
 
 # Include paths for compiler source
 INCLUDES = -Isrc
@@ -78,8 +94,14 @@ build: $(BIN) $(RT_LIB)
 $(BIN): $(OBJ)
 	$(CC) $(CFLAGS) $(INCLUDES) -o $@ $^ $(LDFLAGS)
 
-$(RT_LIB): $(RT_OBJ)
+$(RT_LIB): $(RT_OBJ) $(ATOMIC_OBJ)
 	ar rcs $@ $^
+
+# Assembly rule for arch-specific atomic operations
+ifdef ATOMIC_ARCH
+$(ATOMIC_OBJ): $(ATOMIC_SRC)
+	$(CC) -c -o $@ $<
+endif
 
 # Runtime objects need different flags (no -Wpedantic for GCC statement expressions)
 src/runtime/%.o: src/runtime/%.c
@@ -96,7 +118,7 @@ src/vendor/sqlite3.o: src/vendor/sqlite3.c
 	$(CC) $(CFLAGS) $(INCLUDES) -c -o $@ $<
 
 clean:
-	rm -f $(OBJ) $(RT_OBJ) $(BIN) $(RT_LIB) tests/test_lexer tests/test_parser tests/test_typechecker tests/test_codegen tests/*_san
+	rm -f $(OBJ) $(RT_OBJ) $(ATOMIC_OBJ) $(BIN) $(RT_LIB) tests/test_lexer tests/test_parser tests/test_typechecker tests/test_codegen tests/*_san
 
 install: build
 	install -d /usr/local/bin

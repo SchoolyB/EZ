@@ -2970,6 +2970,55 @@ static bool emit_sync_call(CodeGen *cg, AstNode *node, const char *func) {
     return false;
 }
 
+/* --- @atomic module --- */
+
+static bool emit_atomic_call(CodeGen *cg, AstNode *node, const char *func) {
+    if (strcmp(func, "spinlock") == 0) {
+        emit(cg, "ez_atomic_mod_spinlock()");
+        return true;
+    }
+    if (strcmp(func, "fence") == 0) {
+        emit(cg, "ez_atomic_mod_fence()");
+        return true;
+    }
+    /* Single-argument functions: load, spin_lock, spin_unlock, spin_trylock */
+    if (node->data.call.arg_count == 1) {
+        if (strcmp(func, "load") == 0 || strcmp(func, "spin_lock") == 0 ||
+            strcmp(func, "spin_trylock") == 0 || strcmp(func, "spin_unlock") == 0) {
+            emitf(cg, "ez_atomic_mod_%s(", func);
+            emit_expression(cg, node->data.call.args[0]);
+            emit(cg, ")");
+            return true;
+        }
+    }
+    /* Two-argument functions: store, add, sub, exchange, and, or, xor */
+    if (node->data.call.arg_count == 2) {
+        if (strcmp(func, "store") == 0 || strcmp(func, "add") == 0 ||
+            strcmp(func, "sub") == 0 || strcmp(func, "exchange") == 0 ||
+            strcmp(func, "and") == 0 || strcmp(func, "or") == 0 ||
+            strcmp(func, "xor") == 0) {
+            emitf(cg, "ez_atomic_mod_%s(", func);
+            emit_expression(cg, node->data.call.args[0]);
+            emit(cg, ", ");
+            emit_expression(cg, node->data.call.args[1]);
+            emit(cg, ")");
+            return true;
+        }
+    }
+    /* Three-argument: cas */
+    if (strcmp(func, "cas") == 0 && node->data.call.arg_count == 3) {
+        emit(cg, "ez_atomic_mod_cas(");
+        emit_expression(cg, node->data.call.args[0]);
+        emit(cg, ", ");
+        emit_expression(cg, node->data.call.args[1]);
+        emit(cg, ", ");
+        emit_expression(cg, node->data.call.args[2]);
+        emit(cg, ")");
+        return true;
+    }
+    return false;
+}
+
 /* --- @channels module --- */
 
 static bool emit_channels_call(CodeGen *cg, AstNode *node, const char *func) {
@@ -3034,6 +3083,7 @@ static void emit_call_expression(CodeGen *cg, AstNode *node) {
             {"random",   emit_random_call},
             {"threads",  emit_threads_call},
             {"sync",     emit_sync_call},
+            {"atomic",   emit_atomic_call},
             {"channels", emit_channels_call},
             {"arrays",   emit_arrays_call},
             {"os",       emit_os_call},
@@ -4471,6 +4521,7 @@ void codegen_generate(CodeGen *cg, AstNode *program) {
     emit(cg, "#include \"ez_sqlite.h\"\n");
     emit(cg, "#include \"ez_threads.h\"\n");
     emit(cg, "#include \"ez_sync.h\"\n");
+    emit(cg, "#include \"ez_atomic.h\"\n");
     emit(cg, "#include \"ez_channels.h\"\n");
     emit(cg, "#include \"ez_regex.h\"\n");
     emit(cg, "#include \"ez_net.h\"\n");

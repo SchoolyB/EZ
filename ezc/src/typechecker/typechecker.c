@@ -1002,6 +1002,19 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                 } else {
                     result = &TYPE_VOID;
                 }
+            } else if (strcmp(mod, "atomic") == 0) {
+                if (strcmp(mfn, "load") == 0 || strcmp(mfn, "add") == 0 ||
+                    strcmp(mfn, "sub") == 0 || strcmp(mfn, "exchange") == 0 ||
+                    strcmp(mfn, "and") == 0 || strcmp(mfn, "or") == 0 ||
+                    strcmp(mfn, "xor") == 0) {
+                    result = &TYPE_INT;
+                } else if (strcmp(mfn, "cas") == 0 || strcmp(mfn, "spin_trylock") == 0) {
+                    result = &TYPE_BOOL;
+                } else if (strcmp(mfn, "spinlock") == 0) {
+                    result = type_struct("SpinLock"); /* EzSpinLock — opaque */
+                } else {
+                    result = &TYPE_VOID;
+                }
             } else if (strcmp(mod, "channels") == 0) {
                 if (strcmp(mfn, "open") == 0) {
                     result = type_struct("Channel"); /* EzChannel — opaque */
@@ -2979,7 +2992,7 @@ static bool is_valid_module(const char *name) {
         "math", "strings", "arrays", "maps", "io", "os", "time",
         "random", "json", "csv", "encoding", "crypto", "uuid", "bytes",
         "binary", "fmt", "http", "server", "regex", "net", "threads",
-        "sync", "channels", "mem", "sqlite", "errors", "db", NULL
+        "sync", "atomic", "channels", "mem", "sqlite", "errors", "db", NULL
     };
     for (int i = 0; modules[i]; i++) {
         if (strcmp(name, modules[i]) == 0) return true;
