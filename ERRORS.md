@@ -3,7 +3,7 @@
 > Auto-generated from `ezc/src/util/error_codes.h`. Do not edit manually.
 > Run `./scripts/generate_errors.sh` to regenerate.
 
-**Total: 102 codes** (95 errors, 7 warnings)
+**Total: 103 codes** (96 errors, 7 warnings)
 
 ---
 
@@ -49,6 +49,7 @@
 | `E2059` | syntax | empty when block — a when statement must have at least one 'is' branch |
 | `E2060` | syntax | too many return values — a function can return at most 16 values |
 | `E2061` | syntax | 'module' declarations are not supported — imported files are identified by their file path |
+| `E2062` | syntax | too many variables in multi-variable declaration — maximum is 16 |
 | `E3001` | types | wrong type — you are using a value of one type where a different type is expected |
 | `E3002` | types | this operator does not work on this type — for example, you cannot subtract strings |
 | `E3003` | types | invalid array index type — array indices must be integers |
@@ -146,4 +147,4 @@
 
 ---
 
-*Generated on 2026-04-02 15:15:12 UTC*
+*Generated on 2026-04-02 16:15:53 UTC*

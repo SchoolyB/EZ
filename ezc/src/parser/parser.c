@@ -742,7 +742,15 @@ static AstNode *parse_var_declaration(Parser *p) {
                     types[var_count] = NULL;
                 }
                 var_count++;
-                if (var_count >= MAX_MULTI_VARS) break;
+                if (var_count >= MAX_MULTI_VARS) {
+                    char buf[128];
+                    snprintf(buf, sizeof(buf),
+                             "too many variables in multi-variable declaration — maximum is %d",
+                             MAX_MULTI_VARS);
+                    diag_error(p->diag, "E2062", arena_strdup(p->arena, buf),
+                               p->file, p->cur_token.line, p->cur_token.column, 0);
+                    return NULL;
+                }
             }
 
             /* Expect = expr */
