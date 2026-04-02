@@ -558,18 +558,36 @@ int main(int argc, char **argv) {
             runtime_dir, runtime_dir,
             output_file, c_file, lib_path);
     } else {
+        /* Build source list from all runtime and stdlib .c files */
+        static const char *runtime_srcs[] = {
+            "runtime/ez_runtime.c", "runtime/ez_array.c", "runtime/ez_map.c",
+        };
+        static const char *stdlib_srcs[] = {
+            "stdlib/ez_arrays.c",   "stdlib/ez_binary.c",   "stdlib/ez_builtins.c",
+            "stdlib/ez_bytes.c",    "stdlib/ez_channels.c", "stdlib/ez_crypto.c",
+            "stdlib/ez_csv.c",      "stdlib/ez_encoding.c", "stdlib/ez_fmt.c",
+            "stdlib/ez_http.c",     "stdlib/ez_io.c",       "stdlib/ez_json.c",
+            "stdlib/ez_maps.c",     "stdlib/ez_math.c",     "stdlib/ez_mem.c",
+            "stdlib/ez_net.c",      "stdlib/ez_os.c",       "stdlib/ez_random.c",
+            "stdlib/ez_regex.c",    "stdlib/ez_server.c",   "stdlib/ez_sqlite.c",
+            "stdlib/ez_strings.c",  "stdlib/ez_sync.c",     "stdlib/ez_threads.c",
+            "stdlib/ez_time.c",     "stdlib/ez_uuid.c",
+        };
+        char srcs[CMD_BUF_SIZE];
+        int off = 0;
+        for (int i = 0; i < (int)(sizeof(runtime_srcs)/sizeof(runtime_srcs[0])); i++)
+            off += snprintf(srcs + off, sizeof(srcs) - (size_t)off, "%s/%s ", runtime_dir, runtime_srcs[i]);
+        for (int i = 0; i < (int)(sizeof(stdlib_srcs)/sizeof(stdlib_srcs[0])); i++)
+            off += snprintf(srcs + off, sizeof(srcs) - (size_t)off, "%s/%s ", runtime_dir, stdlib_srcs[i]);
+
         snprintf(cmd, sizeof(cmd),
             "cc -std=c11 %s -Wall -Wno-unused-function -Wno-unused-variable "
             "-I%s/runtime -I%s/stdlib "
-            "-o %s %s %s/runtime/ez_runtime.c %s/runtime/ez_array.c %s/runtime/ez_map.c "
-            "%s/stdlib/ez_std.c %s/stdlib/ez_mem.c %s/stdlib/ez_fmt.c %s/stdlib/ez_math.c %s/stdlib/ez_strings.c %s/stdlib/ez_io.c %s/stdlib/ez_os.c %s/stdlib/ez_arrays.c %s/stdlib/ez_random.c "
+            "-o %s %s %s"
             "-lm -lpthread 2>&1",
             extra_flags,
             runtime_dir, runtime_dir,
-            output_file, c_file,
-            runtime_dir, runtime_dir, runtime_dir,
-            runtime_dir, runtime_dir, runtime_dir, runtime_dir, runtime_dir, runtime_dir,
-            runtime_dir, runtime_dir, runtime_dir);
+            output_file, c_file, srcs);
     }
 
     if (verbose) {
