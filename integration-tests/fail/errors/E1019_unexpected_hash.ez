@@ -1,0 +1,10 @@
+/*
+ * Error Test: E1019 - unexpected '#' character
+ * Expected: "unexpected character '#'"
+ */
+
+#foo
+
+do main() {
+    println("hello")
+}

@@ -1,0 +1,8 @@
+/*
+ * Error Test: E3011 - type name used as value
+ * Expected: "is a type, not a value"
+ */
+
+do main() {
+    mut x = int
+}

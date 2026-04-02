@@ -1,0 +1,9 @@
+/*
+ * Error Test: E3016 - dereference non-pointer
+ * Expected: "cannot dereference non-pointer type"
+ */
+
+do main() {
+    mut x int = 42
+    mut y int = x^
+}

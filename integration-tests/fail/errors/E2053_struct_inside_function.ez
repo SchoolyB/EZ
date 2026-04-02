@@ -1,0 +1,10 @@
+/*
+ * Error Test: E2053 - struct defined inside function
+ * Expected: "must be defined at the file scope"
+ */
+
+do main() {
+    struct Inner {
+        x int,
+    }
+}

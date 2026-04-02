@@ -1,0 +1,15 @@
+/*
+ * Error Test: E7006 - threads.spawn needs function reference
+ * Expected: "threads.spawn() requires a function reference"
+ */
+
+import @threads
+using threads
+
+do worker() {
+    println("working")
+}
+
+do main() {
+    mut t Thread = threads.spawn(worker)
+}
