@@ -3,7 +3,7 @@
 > Auto-generated from `ezc/src/util/error_codes.h`. Do not edit manually.
 > Run `./scripts/generate_errors.sh` to regenerate.
 
-**Total: 101 codes** (94 errors, 7 warnings)
+**Total: 102 codes** (95 errors, 7 warnings)
 
 ---
 
@@ -81,6 +81,7 @@
 | `E3043` | types | cannot cast between incompatible types — structs and maps cannot be cast to primitives |
 | `E3044` | types | cannot access a field on a struct type — use an instance variable instead |
 | `E3045` | types | or_return requires a function that returns (T, Error) — the called function does not return an error |
+| `E3046` | types | integer literal overflows 64-bit integer — max value is 9223372036854775807 |
 | `E4001` | names | this variable does not exist — check the spelling or make sure it is declared above this line |
 | `E4002` | names | this function does not exist — check the spelling or make sure it is defined |
 | `E4003` | names | a variable with this name already exists in this scope — use a different name |
@@ -145,4 +146,4 @@
 
 ---
 
-*Generated on 2026-04-02 15:10:44 UTC*
+*Generated on 2026-04-02 15:15:12 UTC*

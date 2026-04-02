@@ -2166,7 +2166,7 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
                                         strcmp(tn, "i256") == 0 || strcmp(tn, "u256") == 0 ||
                                         strcmp(tn, "u64") == 0 || strcmp(tn, "uint") == 0);
                 if (!is_bigint) {
-                    diag_error(tc->diag, "E1010",
+                    diag_error(tc->diag, "E3046",
                         strdup("integer literal overflows 64-bit integer — max value is 9223372036854775807"),
                         tc->file, node->data.var_decl.value->token.line,
                         node->data.var_decl.value->token.column, 0);
