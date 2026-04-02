@@ -276,9 +276,9 @@ var rootCmd = &cobra.Command{
 
 func init() {
 	rootCmd.AddCommand(runCmd, replCmd, updateCmd, checkCmd, buildCmd, testCmd, reportCmd, versionCmd, docCmd, pzCmd, watchCmd)
+	rootCmd.CompletionOptions.DisableDefaultCmd = true
 	rootCmd.PersistentPreRun = func(cmd *cobra.Command, args []string) {
 		CheckForUpdateAsync()
-		ensureCompletionInstalled()
 	}
 	updateCmd.Flags().Bool("confirm", false, "Skip confirmation prompt")
 
