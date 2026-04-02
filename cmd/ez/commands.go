@@ -200,7 +200,16 @@ compiler integration tests, and CLI integration tests.`,
 			}
 		}
 
+		const (
+			green = "\033[0;32m"
+			red   = "\033[0;31m"
+			bold  = "\033[1m"
+			reset = "\033[0m"
+		)
+
 		failed := false
+		passed := 0
+		total := 0
 
 		steps := []struct {
 			name string
@@ -216,23 +225,27 @@ compiler integration tests, and CLI integration tests.`,
 		}
 
 		for _, step := range steps {
-			fmt.Printf("\n=== %s ===\n", step.name)
+			total++
+			fmt.Printf("\n%s=== %s ===%s\n", bold, step.name, reset)
 			c := exec.Command(step.cmd, step.args...)
 			c.Dir = step.dir
 			c.Stdout = os.Stdout
 			c.Stderr = os.Stderr
 			if err := c.Run(); err != nil {
-				fmt.Fprintf(os.Stderr, "\n%s FAILED\n", step.name)
+				fmt.Fprintf(os.Stderr, "  %s%sFAIL%s  %s\n", bold, red, reset, step.name)
 				failed = true
+			} else {
+				fmt.Printf("  %s%sPASS%s  %s\n", bold, green, reset, step.name)
+				passed++
 			}
 		}
 
 		fmt.Println()
 		if failed {
-			fmt.Println("SOME TEST SUITES FAILED")
+			fmt.Printf("%s%sSOME TEST SUITES FAILED%s (%d/%d passed)\n", bold, red, reset, passed, total)
 			os.Exit(1)
 		}
-		fmt.Println("ALL TEST SUITES PASSED")
+		fmt.Printf("%s%sALL TEST SUITES PASSED%s (%d/%d)\n", bold, green, reset, passed, total)
 	},
 }
 

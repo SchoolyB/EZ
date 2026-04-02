@@ -71,7 +71,7 @@ static char *compile_and_run(const char *ez_source) {
 
 static void test_e2e_hello(void) {
     char *out = compile_and_run(
-        ""
+        "import @std\nusing std\n"
         "do main() { println(\"Hello, World!\") }");
     ASSERT_NOT_NULL(out);
     ASSERT_STR_EQ(out, "Hello, World!");
@@ -81,7 +81,7 @@ static void test_e2e_hello(void) {
 
 static void test_e2e_arithmetic(void) {
     char *out = compile_and_run(
-        ""
+        "import @std\nusing std\n"
         "do main() {\n"
         "    println(2 + 3)\n"
         "    println(10 - 4)\n"
@@ -97,7 +97,7 @@ static void test_e2e_arithmetic(void) {
 
 static void test_e2e_variables(void) {
     char *out = compile_and_run(
-        ""
+        "import @std\nusing std\n"
         "do main() {\n"
         "    temp x int = 10\n"
         "    temp y int = 20\n"
@@ -111,7 +111,7 @@ static void test_e2e_variables(void) {
 
 static void test_e2e_interpolation(void) {
     char *out = compile_and_run(
-        ""
+        "import @std\nusing std\n"
         "do main() {\n"
         "    temp name string = \"Alice\"\n"
         "    temp age int = 30\n"
@@ -125,7 +125,7 @@ static void test_e2e_interpolation(void) {
 
 static void test_e2e_if_else(void) {
     char *out = compile_and_run(
-        ""
+        "import @std\nusing std\n"
         "do main() {\n"
         "    temp x int = 5\n"
         "    if x > 10 {\n"
@@ -144,7 +144,7 @@ static void test_e2e_if_else(void) {
 
 static void test_e2e_for_range(void) {
     char *out = compile_and_run(
-        ""
+        "import @std\nusing std\n"
         "do main() {\n"
         "    for i in range(1, 4) {\n"
         "        println(i)\n"
@@ -158,7 +158,7 @@ static void test_e2e_for_range(void) {
 
 static void test_e2e_while(void) {
     char *out = compile_and_run(
-        ""
+        "import @std\nusing std\n"
         "do main() {\n"
         "    temp i int = 0\n"
         "    as_long_as i < 3 {\n"
@@ -174,7 +174,7 @@ static void test_e2e_while(void) {
 
 static void test_e2e_loop_break(void) {
     char *out = compile_and_run(
-        ""
+        "import @std\nusing std\n"
         "do main() {\n"
         "    temp i int = 0\n"
         "    loop {\n"
@@ -191,7 +191,7 @@ static void test_e2e_loop_break(void) {
 
 static void test_e2e_function_call(void) {
     char *out = compile_and_run(
-        ""
+        "import @std\nusing std\n"
         "do add(a int, b int) -> int { return a + b }\n"
         "do main() { println(add(3, 4)) }");
     ASSERT_NOT_NULL(out);
@@ -202,7 +202,7 @@ static void test_e2e_function_call(void) {
 
 static void test_e2e_recursion(void) {
     char *out = compile_and_run(
-        ""
+        "import @std\nusing std\n"
         "do fib(n int) -> int {\n"
         "    if n <= 1 { return n }\n"
         "    return fib(n - 1) + fib(n - 2)\n"
@@ -216,7 +216,7 @@ static void test_e2e_recursion(void) {
 
 static void test_e2e_multi_return(void) {
     char *out = compile_and_run(
-        ""
+        "import @std\nusing std\n"
         "do swap(a int, b int) -> (int, int) { return b, a }\n"
         "do main() {\n"
         "    temp x int, y int = swap(10, 20)\n"
@@ -231,7 +231,7 @@ static void test_e2e_multi_return(void) {
 
 static void test_e2e_mutable_param(void) {
     char *out = compile_and_run(
-        ""
+        "import @std\nusing std\n"
         "do inc(&n int) { n = n + 1 }\n"
         "do main() {\n"
         "    temp x int = 5\n"
@@ -246,7 +246,7 @@ static void test_e2e_mutable_param(void) {
 
 static void test_e2e_ensure(void) {
     char *out = compile_and_run(
-        ""
+        "import @std\nusing std\n"
         "do cleanup() { println(\"cleaned\") }\n"
         "do work() {\n"
         "    ensure cleanup()\n"
@@ -261,7 +261,7 @@ static void test_e2e_ensure(void) {
 
 static void test_e2e_struct(void) {
     char *out = compile_and_run(
-        ""
+        "import @std\nusing std\n"
         "const Point struct {\n"
         "    x int\n"
         "    y int\n"
@@ -279,7 +279,7 @@ static void test_e2e_struct(void) {
 
 static void test_e2e_enum(void) {
     char *out = compile_and_run(
-        ""
+        "import @std\nusing std\n"
         "const Color enum { RED\n GREEN\n BLUE }\n"
         "do main() {\n"
         "    temp c Color = Color.GREEN\n"
@@ -293,7 +293,7 @@ static void test_e2e_enum(void) {
 
 static void test_e2e_array(void) {
     char *out = compile_and_run(
-        ""
+        "import @std\nusing std\n"
         "do main() {\n"
         "    temp nums [int] = {10, 20, 30}\n"
         "    println(nums[0])\n"
@@ -308,7 +308,7 @@ static void test_e2e_array(void) {
 
 static void test_e2e_array_set(void) {
     char *out = compile_and_run(
-        ""
+        "import @std\nusing std\n"
         "do main() {\n"
         "    temp nums [int] = {1, 2, 3}\n"
         "    nums[1] = 99\n"
@@ -322,7 +322,7 @@ static void test_e2e_array_set(void) {
 
 static void test_e2e_for_each(void) {
     char *out = compile_and_run(
-        ""
+        "import @std\nusing std\n"
         "do main() {\n"
         "    temp names [string] = {\"a\", \"b\", \"c\"}\n"
         "    for_each name in names {\n"
@@ -337,7 +337,7 @@ static void test_e2e_for_each(void) {
 
 static void test_e2e_when(void) {
     char *out = compile_and_run(
-        ""
+        "import @std\nusing std\n"
         "do main() {\n"
         "    temp x int = 2\n"
         "    when x {\n"
@@ -354,7 +354,7 @@ static void test_e2e_when(void) {
 
 static void test_e2e_len_string(void) {
     char *out = compile_and_run(
-        ""
+        "import @std\nusing std\n"
         "do main() { println(len(\"hello\")) }");
     ASSERT_NOT_NULL(out);
     ASSERT_STR_EQ(out, "5");
@@ -364,7 +364,7 @@ static void test_e2e_len_string(void) {
 
 static void test_e2e_type_of(void) {
     char *out = compile_and_run(
-        ""
+        "import @std\nusing std\n"
         "do main() {\n"
         "    println(type_of(42))\n"
         "    println(type_of(\"hi\"))\n"
@@ -378,7 +378,7 @@ static void test_e2e_type_of(void) {
 
 static void test_e2e_compound_assign(void) {
     char *out = compile_and_run(
-        ""
+        "import @std\nusing std\n"
         "do main() {\n"
         "    temp x int = 10\n"
         "    x += 5\n"
@@ -394,7 +394,7 @@ static void test_e2e_compound_assign(void) {
 
 static void test_e2e_char(void) {
     char *out = compile_and_run(
-        ""
+        "import @std\nusing std\n"
         "do main() {\n"
         "    temp c char = 'A'\n"
         "    println(c)\n"
@@ -407,7 +407,7 @@ static void test_e2e_char(void) {
 
 static void test_e2e_blank_ident(void) {
     char *out = compile_and_run(
-        ""
+        "import @std\nusing std\n"
         "do pair() -> (int, int) { return 42, 99 }\n"
         "do main() {\n"
         "    temp _, b int = pair()\n"
@@ -421,7 +421,7 @@ static void test_e2e_blank_ident(void) {
 
 static void test_e2e_mem_arena_create_destroy(void) {
     char *out = compile_and_run(
-        "import \1\\n"
+        "import @std, @mem\nusing std\n"
         "do main() {\n"
         "    temp a = mem.arena(4096)\n"
         "    println(\"created\")\n"
@@ -434,7 +434,7 @@ static void test_e2e_mem_arena_create_destroy(void) {
 
 static void test_e2e_mem_usage(void) {
     char *out = compile_and_run(
-        "import \1\\n"
+        "import @std, @mem\nusing std\n"
         "do main() {\n"
         "    temp a = mem.arena(1024)\n"
         "    println(mem.usage(a))\n"
@@ -449,7 +449,7 @@ static void test_e2e_mem_usage(void) {
 
 static void test_e2e_mem_reset(void) {
     char *out = compile_and_run(
-        "import \1\\n"
+        "import @std, @mem\nusing std\n"
         "do main() {\n"
         "    temp a = mem.arena(1024)\n"
         "    temp s string = mem.alloc(a, \"hello\")\n"
@@ -464,7 +464,7 @@ static void test_e2e_mem_reset(void) {
 
 static void test_e2e_mem_alloc_string(void) {
     char *out = compile_and_run(
-        "import \1\\n"
+        "import @std, @mem\nusing std\n"
         "do main() {\n"
         "    temp a = mem.arena(4096)\n"
         "    ensure mem.destroy(a)\n"
@@ -477,7 +477,7 @@ static void test_e2e_mem_alloc_string(void) {
 
 static void test_e2e_mem_alloc_array(void) {
     char *out = compile_and_run(
-        "import \1\\n"
+        "import @std, @mem\nusing std\n"
         "do main() {\n"
         "    temp a = mem.arena(4096)\n"
         "    ensure mem.destroy(a)\n"
@@ -493,7 +493,7 @@ static void test_e2e_mem_alloc_array(void) {
 
 static void test_e2e_mem_ensure_cleanup(void) {
     char *out = compile_and_run(
-        "import \1\\n"
+        "import @std, @mem\nusing std\n"
         "do work() {\n"
         "    temp a = mem.arena(1024)\n"
         "    ensure mem.destroy(a)\n"
@@ -512,7 +512,7 @@ static void test_e2e_mem_ensure_cleanup(void) {
 
 static void test_e2e_ptr_new_deref(void) {
     char *out = compile_and_run(
-        "import \1\\n"
+        "import @std, @mem\nusing std\n"
         "do main() {\n"
         "    temp a = mem.arena(4096)\n"
         "    ensure mem.destroy(a)\n"
@@ -526,7 +526,7 @@ static void test_e2e_ptr_new_deref(void) {
 
 static void test_e2e_ptr_struct(void) {
     char *out = compile_and_run(
-        "import \1\\n"
+        "import @std, @mem\nusing std\n"
         "const Point struct {\n"
         "    x int\n"
         "    y int\n"
@@ -546,7 +546,7 @@ static void test_e2e_ptr_struct(void) {
 
 static void test_e2e_ptr_addr(void) {
     char *out = compile_and_run(
-        ""
+        "import @std\nusing std\n"
         "do main() {\n"
         "    mut x int = 42\n"
         "    mut a uint = addr(x)\n"
@@ -558,7 +558,7 @@ static void test_e2e_ptr_addr(void) {
 
 static void test_e2e_ptr_nil(void) {
     char *out = compile_and_run(
-        ""
+        "import @std\nusing std\n"
         "do main() {\n"
         "    temp p ^int = nil\n"
         "    if p == nil {\n"
@@ -571,7 +571,7 @@ static void test_e2e_ptr_nil(void) {
 
 static void test_e2e_ptr_write_through(void) {
     char *out = compile_and_run(
-        "import \1\\n"
+        "import @std, @mem\nusing std\n"
         "do set_value(p ^int, val int) {\n"
         "    p^ = val\n"
         "}\n"
@@ -590,7 +590,7 @@ static void test_e2e_ptr_write_through(void) {
 
 static void test_e2e_mut_keyword(void) {
     char *out = compile_and_run(
-        ""
+        "import @std\nusing std\n"
         "do main() {\n"
         "    mut x int = 10\n"
         "    mut y = 20\n"
@@ -602,7 +602,7 @@ static void test_e2e_mut_keyword(void) {
 
 static void test_e2e_while_keyword(void) {
     char *out = compile_and_run(
-        ""
+        "import @std\nusing std\n"
         "do main() {\n"
         "    mut i int = 0\n"
         "    while i < 3 {\n"
@@ -616,7 +616,7 @@ static void test_e2e_while_keyword(void) {
 
 static void test_e2e_mut_while_combined(void) {
     char *out = compile_and_run(
-        ""
+        "import @std\nusing std\n"
         "do fib(n int) -> int {\n"
         "    mut a int = 0\n"
         "    mut b int = 1\n"
@@ -638,7 +638,7 @@ static void test_e2e_mut_while_combined(void) {
 
 static void test_e2e_default_params(void) {
     char *out = compile_and_run(
-        ""
+        "import @std\nusing std\n"
         "do greet(name string = \"World\") -> string {\n"
         "    return \"Hello, ${name}!\"\n"
         "}\n"
@@ -652,7 +652,7 @@ static void test_e2e_default_params(void) {
 
 static void test_e2e_in_operator(void) {
     char *out = compile_and_run(
-        ""
+        "import @std\nusing std\n"
         "do main() {\n"
         "    mut nums [int] = {1, 2, 3}\n"
         "    if 2 in nums { println(\"found\") }\n"
@@ -664,7 +664,7 @@ static void test_e2e_in_operator(void) {
 
 static void test_e2e_os_args(void) {
     char *out = compile_and_run(
-        "import \1\\n"
+        "import @std, @os\nusing std\n"
         "do main() {\n"
         "    println(os.arch())\n"
         "}");
@@ -675,7 +675,7 @@ static void test_e2e_os_args(void) {
 
 static void test_e2e_arrays_append(void) {
     char *out = compile_and_run(
-        "import \1\\n"
+        "import @std, @arrays\nusing std\n"
         "do main() {\n"
         "    mut nums [int] = {1, 2}\n"
         "    arrays.append(nums, 3)\n"
@@ -688,7 +688,7 @@ static void test_e2e_arrays_append(void) {
 
 static void test_e2e_arrays_sort(void) {
     char *out = compile_and_run(
-        "import \1\\n"
+        "import @std, @arrays\nusing std\n"
         "do main() {\n"
         "    mut nums [int] = {3, 1, 2}\n"
         "    arrays.sort(nums)\n"
@@ -702,7 +702,7 @@ static void test_e2e_arrays_sort(void) {
 
 static void test_e2e_hex_literal(void) {
     char *out = compile_and_run(
-        ""
+        "import @std\nusing std\n"
         "do main() { println(0xFF) }");
     ASSERT_NOT_NULL(out);
     ASSERT_STR_EQ(out, "255");
@@ -710,7 +710,7 @@ static void test_e2e_hex_literal(void) {
 
 static void test_e2e_octal_literal(void) {
     char *out = compile_and_run(
-        ""
+        "import @std\nusing std\n"
         "do main() { println(0o10) }");
     ASSERT_NOT_NULL(out);
     ASSERT_STR_EQ(out, "8");
@@ -718,7 +718,7 @@ static void test_e2e_octal_literal(void) {
 
 static void test_e2e_binary_literal(void) {
     char *out = compile_and_run(
-        ""
+        "import @std\nusing std\n"
         "do main() { println(0b1010) }");
     ASSERT_NOT_NULL(out);
     ASSERT_STR_EQ(out, "10");
@@ -728,7 +728,7 @@ static void test_e2e_binary_literal(void) {
 
 static void test_e2e_fixed_array(void) {
     char *out = compile_and_run(
-        ""
+        "import @std\nusing std\n"
         "do main() {\n"
         "  const arr [int, 3] = {10, 20, 30}\n"
         "  println(\"${arr[0]},${arr[1]},${arr[2]}\")\n"
@@ -739,7 +739,7 @@ static void test_e2e_fixed_array(void) {
 
 static void test_e2e_nested_array(void) {
     char *out = compile_and_run(
-        ""
+        "import @std\nusing std\n"
         "do main() {\n"
         "  mut m [[int]] = {{1, 2}, {3, 4}}\n"
         "  mut r0 = m[0]\n"
@@ -754,7 +754,7 @@ static void test_e2e_nested_array(void) {
 
 static void test_e2e_threads_spawn_join(void) {
     char *out = compile_and_run(
-        "import \1\\n"
+        "import @std, @threads\nusing std\n"
         "do worker(id int) { println(\"w${id}\") }\n"
         "do main() {\n"
         "  mut t1 = threads.spawn(()worker, 1)\n"
@@ -772,7 +772,7 @@ static void test_e2e_threads_spawn_join(void) {
 
 static void test_e2e_threads_channel(void) {
     char *out = compile_and_run(
-        "import \1\\n"
+        "import @std, @channels\nusing std\n"
         "do main() {\n"
         "  mut ch = channels.open(4)\n"
         "  channels.send(ch, 42)\n"
@@ -788,7 +788,7 @@ static void test_e2e_threads_channel(void) {
 
 static void test_e2e_threads_sleep(void) {
     char *out = compile_and_run(
-        ""
+        "import @std\nusing std\n"
         "do main() {\n"
         "  sleep_ms(10)\n"
         "  println(\"awake\")\n"
@@ -801,7 +801,7 @@ static void test_e2e_threads_sleep(void) {
 
 static void test_e2e_func_ref_basic(void) {
     char *out = compile_and_run(
-        ""
+        "import @std\nusing std\n"
         "do double(n int) -> int { return n * 2 }\n"
         "do main() {\n"
         "  mut fn = ()double\n"
@@ -813,7 +813,7 @@ static void test_e2e_func_ref_basic(void) {
 
 static void test_e2e_func_ref_ref(void) {
     char *out = compile_and_run(
-        ""
+        "import @std\nusing std\n"
         "do negate(n int) -> int { return n * -1 }\n"
         "do main() {\n"
         "  mut fn = ref(negate)\n"
@@ -825,7 +825,7 @@ static void test_e2e_func_ref_ref(void) {
 
 static void test_e2e_func_ref_reassign(void) {
     char *out = compile_and_run(
-        ""
+        "import @std\nusing std\n"
         "do add1(n int) -> int { return n + 1 }\n"
         "do add10(n int) -> int { return n + 10 }\n"
         "do main() {\n"
@@ -842,7 +842,7 @@ static void test_e2e_func_ref_reassign(void) {
 
 static void test_e2e_struct_func(void) {
     char *out = compile_and_run(
-        ""
+        "import @std\nusing std\n"
         "const Counter struct {\n"
         "  value int\n"
         "  do make(v int) -> Counter { return Counter{value: v} }\n"
@@ -862,7 +862,7 @@ static void test_e2e_struct_func(void) {
 
 static void test_e2e_or_return(void) {
     char *out = compile_and_run(
-        ""
+        "import @std\nusing std\n"
         "do fallible(ok bool) -> (string, Error) {\n"
         "  if ok { return \"success\", nil }\n"
         "  return \"\", error(\"failed\")\n"
@@ -883,7 +883,7 @@ static void test_e2e_or_return(void) {
 
 static void test_e2e_flags_enum(void) {
     char *out = compile_and_run(
-        ""
+        "import @std\nusing std\n"
         "#flags\n"
         "const Perms enum { READ\n WRITE\n EXEC }\n"
         "do main() {\n"
@@ -897,7 +897,7 @@ static void test_e2e_flags_enum(void) {
 
 static void test_e2e_string_enum(void) {
     char *out = compile_and_run(
-        ""
+        "import @std\nusing std\n"
         "const Status enum {\n"
         "  TODO = \"todo\"\n"
         "  DONE = \"done\"\n"
@@ -914,7 +914,7 @@ static void test_e2e_string_enum(void) {
 
 static void test_e2e_named_return(void) {
     char *out = compile_and_run(
-        ""
+        "import @std\nusing std\n"
         "do divide(a int, b int) -> (q int, r int) {\n"
         "  q = a / b\n"
         "  r = a % b\n"
@@ -932,7 +932,7 @@ static void test_e2e_named_return(void) {
 
 static void test_e2e_mutable_indexed_param(void) {
     char *out = compile_and_run(
-        ""
+        "import @std\nusing std\n"
         "do inc(&n int) { n = n + 1 }\n"
         "do main() {\n"
         "  mut arr [int] = {10, 20, 30}\n"
@@ -945,7 +945,7 @@ static void test_e2e_mutable_indexed_param(void) {
 
 static void test_e2e_mutable_member_param(void) {
     char *out = compile_and_run(
-        ""
+        "import @std\nusing std\n"
         "const P struct { x int }\n"
         "do inc(&n int) { n = n + 1 }\n"
         "do main() {\n"
@@ -961,7 +961,7 @@ static void test_e2e_mutable_member_param(void) {
 
 static void test_e2e_map_basic(void) {
     char *out = compile_and_run(
-        ""
+        "import @std\nusing std\n"
         "do main() {\n"
         "  mut m map[string:int] = {\"a\": 1, \"b\": 2}\n"
         "  println(m[\"a\"])\n"
@@ -973,7 +973,7 @@ static void test_e2e_map_basic(void) {
 
 static void test_e2e_map_foreach(void) {
     char *out = compile_and_run(
-        ""
+        "import @std\nusing std\n"
         "do main() {\n"
         "  mut m map[string:int] = {\"x\": 10}\n"
         "  mut total int = 0\n"
@@ -996,7 +996,7 @@ static void test_e2e_div_zero(void) {
     snprintf(bin_file, sizeof(bin_file), "/tmp/ezc_e2e_%d", test_num);
 
     const char *src =
-        ""
+        "import @std\nusing std\n"
         "do main() {\n"
         "  mut x int = 10\n"
         "  mut y int = 0\n"
@@ -1042,7 +1042,7 @@ static void test_e2e_div_zero(void) {
 
 static void test_e2e_sized_int_i8(void) {
     char *out = compile_and_run(
-        ""
+        "import @std\nusing std\n"
         "do main() {\n"
         "  mut x i8 = 127\n"
         "  println(x)\n"
@@ -1054,7 +1054,7 @@ static void test_e2e_sized_int_i8(void) {
 
 static void test_e2e_sized_int_u8(void) {
     char *out = compile_and_run(
-        ""
+        "import @std\nusing std\n"
         "do main() {\n"
         "  mut x u8 = 255\n"
         "  println(x)\n"
@@ -1066,7 +1066,7 @@ static void test_e2e_sized_int_u8(void) {
 
 static void test_e2e_sized_int_i32(void) {
     char *out = compile_and_run(
-        ""
+        "import @std\nusing std\n"
         "do main() {\n"
         "  mut x i32 = 100000\n"
         "  mut y i32 = 200000\n"
@@ -1078,7 +1078,7 @@ static void test_e2e_sized_int_i32(void) {
 
 static void test_e2e_sized_int_u64(void) {
     char *out = compile_and_run(
-        ""
+        "import @std\nusing std\n"
         "do main() {\n"
         "  mut x u64 = 1000000\n"
         "  println(x)\n"
@@ -1090,7 +1090,7 @@ static void test_e2e_sized_int_u64(void) {
 
 static void test_e2e_sized_float_f32(void) {
     char *out = compile_and_run(
-        ""
+        "import @std\nusing std\n"
         "do main() {\n"
         "  mut x f32 = 3.14\n"
         "  println(type_of(x))\n"
@@ -1101,7 +1101,7 @@ static void test_e2e_sized_float_f32(void) {
 
 static void test_e2e_byte_type(void) {
     char *out = compile_and_run(
-        ""
+        "import @std\nusing std\n"
         "do main() {\n"
         "  mut b byte = cast(255, byte)\n"
         "  println(b)\n"
@@ -1115,7 +1115,7 @@ static void test_e2e_byte_type(void) {
 
 static void test_e2e_cast(void) {
     char *out = compile_and_run(
-        ""
+        "import @std\nusing std\n"
         "do main() {\n"
         "  mut x int = 42\n"
         "  mut y u8 = cast(x, u8)\n"
@@ -1132,7 +1132,7 @@ static void test_e2e_cast(void) {
 
 static void test_e2e_continue(void) {
     char *out = compile_and_run(
-        ""
+        "import @std\nusing std\n"
         "do main() {\n"
         "  mut result int = 0\n"
         "  for i in range(0, 10) {\n"
@@ -1150,7 +1150,7 @@ static void test_e2e_continue(void) {
 
 static void test_e2e_mod_div_assign(void) {
     char *out = compile_and_run(
-        ""
+        "import @std\nusing std\n"
         "do main() {\n"
         "  mut x int = 20\n"
         "  x /= 4\n"
@@ -1164,7 +1164,7 @@ static void test_e2e_mod_div_assign(void) {
 
 static void test_e2e_nested_struct(void) {
     char *out = compile_and_run(
-        ""
+        "import @std\nusing std\n"
         "const Point struct { x int\n y int }\n"
         "const Rect struct { origin Point\n size Point }\n"
         "do main() {\n"
@@ -1180,7 +1180,7 @@ static void test_e2e_nested_struct(void) {
 
 static void test_e2e_sized_int_i16(void) {
     char *out = compile_and_run(
-        ""
+        "import @std\nusing std\n"
         "do main() {\n"
         "  mut x i16 = 32767\n"
         "  println(x)\n"
@@ -1192,7 +1192,7 @@ static void test_e2e_sized_int_i16(void) {
 
 static void test_e2e_sized_int_i64(void) {
     char *out = compile_and_run(
-        ""
+        "import @std\nusing std\n"
         "do main() {\n"
         "  mut x i64 = 9223372036854775807\n"
         "  println(x)\n"
@@ -1204,7 +1204,7 @@ static void test_e2e_sized_int_i64(void) {
 
 static void test_e2e_sized_int_u16(void) {
     char *out = compile_and_run(
-        ""
+        "import @std\nusing std\n"
         "do main() {\n"
         "  mut x u16 = 65535\n"
         "  println(x)\n"
@@ -1216,7 +1216,7 @@ static void test_e2e_sized_int_u16(void) {
 
 static void test_e2e_sized_int_u32(void) {
     char *out = compile_and_run(
-        ""
+        "import @std\nusing std\n"
         "do main() {\n"
         "  mut x u32 = 4294967295\n"
         "  println(x)\n"
@@ -1228,7 +1228,7 @@ static void test_e2e_sized_int_u32(void) {
 
 static void test_e2e_sized_float_f64(void) {
     char *out = compile_and_run(
-        ""
+        "import @std\nusing std\n"
         "do main() {\n"
         "  mut x f64 = 3.141592653589793\n"
         "  println(type_of(x))\n"
@@ -1244,7 +1244,7 @@ static void test_e2e_sized_float_f64(void) {
 
 static void test_e2e_range_with_step(void) {
     char *out = compile_and_run(
-        ""
+        "import @std\nusing std\n"
         "do main() {\n"
         "  mut result int = 0\n"
         "  for i in range(0, 10, 3) {\n"
@@ -1261,7 +1261,7 @@ static void test_e2e_range_with_step(void) {
 
 static void test_e2e_percent_assign(void) {
     char *out = compile_and_run(
-        ""
+        "import @std\nusing std\n"
         "do main() {\n"
         "  mut x int = 17\n"
         "  x %= 5\n"
