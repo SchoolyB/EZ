@@ -183,7 +183,7 @@ static void *handle_connection(void *arg) {
     if (n <= 0) {
         close(ctx->client_fd);
         free(ctx);
-        ez_arena_destroy(arena);
+        ez_arena_destroy(arena, __FILE__, __LINE__);
         return NULL;
     }
     buf[n] = '\0';
@@ -235,7 +235,7 @@ static void *handle_connection(void *arg) {
     send(ctx->client_fd, resp_buf, resp_len, 0);
     close(ctx->client_fd);
     free(ctx);
-    ez_arena_destroy(arena);
+    ez_arena_destroy(arena, __FILE__, __LINE__);
     return NULL;
 }
 
