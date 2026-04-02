@@ -66,7 +66,7 @@ bool ez_io_delete_file(EzString path) {
     struct stat st;
     if (stat(path.data, &st) == 0 && S_ISDIR(st.st_mode)) {
         fflush(stdout);
-        fprintf(stderr, "panic: io.remove() cannot remove directories — use io.remove_dir() instead\n");
+        fprintf(stderr, "panic: io.delete_file() cannot delete a directory — use io.delete_dir() for directories\n");
         exit(1);
     }
     return unlink(path.data) == 0;
@@ -118,7 +118,7 @@ EzResult_bool ez_io_delete_file_result(EzArena *arena, EzString path) {
     struct stat st;
     if (stat(path.data, &st) == 0 && S_ISDIR(st.st_mode)) {
         fflush(stdout);
-        fprintf(stderr, "panic: io.remove() cannot remove directories — use io.remove_dir() instead\n");
+        fprintf(stderr, "panic: io.delete_file() cannot delete a directory — use io.delete_dir() for directories\n");
         exit(1);
     }
     if (unlink(path.data) == 0) {

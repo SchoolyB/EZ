@@ -106,7 +106,7 @@ extern int ez_call_depth;
 static inline void ez_enter_func(const char *file, int line) {
     if (++ez_call_depth > EZ_MAX_CALL_DEPTH) {
         fflush(stdout);
-        fprintf(stderr, "panic at %s:%d: stack overflow (recursion depth exceeded %d)\n",
+        fprintf(stderr, "panic at %s:%d: maximum recursion depth exceeded (%d calls deep) — your function is calling itself too many times\n",
             file, line, EZ_MAX_CALL_DEPTH);
         exit(1);
     }
@@ -126,7 +126,7 @@ static inline int64_t ez_add_check(int64_t a, int64_t b, const char *file, int l
     int64_t result;
     if (__builtin_add_overflow(a, b, &result)) {
         fflush(stdout);
-        fprintf(stderr, "panic at %s:%d: integer overflow in addition\n", file, line);
+        fprintf(stderr, "panic at %s:%d: addition result is too large — value exceeds the range of this type\n", file, line);
         exit(1);
     }
     return result;
@@ -136,7 +136,7 @@ static inline int64_t ez_sub_check(int64_t a, int64_t b, const char *file, int l
     int64_t result;
     if (__builtin_sub_overflow(a, b, &result)) {
         fflush(stdout);
-        fprintf(stderr, "panic at %s:%d: integer overflow in subtraction\n", file, line);
+        fprintf(stderr, "panic at %s:%d: subtraction result is too large — value exceeds the range of this type\n", file, line);
         exit(1);
     }
     return result;
@@ -146,7 +146,7 @@ static inline int64_t ez_mul_check(int64_t a, int64_t b, const char *file, int l
     int64_t result;
     if (__builtin_mul_overflow(a, b, &result)) {
         fflush(stdout);
-        fprintf(stderr, "panic at %s:%d: integer overflow in multiplication\n", file, line);
+        fprintf(stderr, "panic at %s:%d: multiplication result is too large — value exceeds the range of this type\n", file, line);
         exit(1);
     }
     return result;
@@ -165,7 +165,7 @@ static inline uint64_t ez_uadd_check(uint64_t a, uint64_t b, const char *file, i
     uint64_t result;
     if (__builtin_add_overflow(a, b, &result)) {
         fflush(stdout);
-        fprintf(stderr, "panic at %s:%d: unsigned integer overflow in addition\n", file, line);
+        fprintf(stderr, "panic at %s:%d: unsigned addition result is too large — value exceeds the range of this type\n", file, line);
         exit(1);
     }
     return result;
@@ -174,7 +174,7 @@ static inline uint64_t ez_uadd_check(uint64_t a, uint64_t b, const char *file, i
 static inline uint64_t ez_usub_check(uint64_t a, uint64_t b, const char *file, int line) {
     if (b > a) {
         fflush(stdout);
-        fprintf(stderr, "panic at %s:%d: unsigned integer underflow in subtraction\n", file, line);
+        fprintf(stderr, "panic at %s:%d: subtraction result is negative, but uint cannot hold negative values\n", file, line);
         exit(1);
     }
     return a - b;
@@ -184,7 +184,7 @@ static inline uint64_t ez_umul_check(uint64_t a, uint64_t b, const char *file, i
     uint64_t result;
     if (__builtin_mul_overflow(a, b, &result)) {
         fflush(stdout);
-        fprintf(stderr, "panic at %s:%d: unsigned integer overflow in multiplication\n", file, line);
+        fprintf(stderr, "panic at %s:%d: unsigned multiplication result is too large — value exceeds the range of this type\n", file, line);
         exit(1);
     }
     return result;
@@ -196,7 +196,7 @@ static inline int64_t ez_sized_add_check(int64_t a, int64_t b, int64_t min_val, 
     int64_t result = a + b;
     if (result < min_val || result > max_val) {
         fflush(stdout);
-        fprintf(stderr, "panic at %s:%d: %s integer overflow in addition\n", file, line, type_name);
+        fprintf(stderr, "panic at %s:%d: %s addition result is too large — value exceeds the range of this type\n", file, line, type_name);
         exit(1);
     }
     return result;
@@ -207,7 +207,7 @@ static inline int64_t ez_sized_sub_check(int64_t a, int64_t b, int64_t min_val, 
     int64_t result = a - b;
     if (result < min_val || result > max_val) {
         fflush(stdout);
-        fprintf(stderr, "panic at %s:%d: %s integer overflow in subtraction\n", file, line, type_name);
+        fprintf(stderr, "panic at %s:%d: %s subtraction result is too large — value exceeds the range of this type\n", file, line, type_name);
         exit(1);
     }
     return result;
@@ -218,7 +218,7 @@ static inline int64_t ez_sized_mul_check(int64_t a, int64_t b, int64_t min_val, 
     int64_t result = a * b;
     if (result < min_val || result > max_val) {
         fflush(stdout);
-        fprintf(stderr, "panic at %s:%d: %s integer overflow in multiplication\n", file, line, type_name);
+        fprintf(stderr, "panic at %s:%d: %s multiplication result is too large — value exceeds the range of this type\n", file, line, type_name);
         exit(1);
     }
     return result;
@@ -230,7 +230,7 @@ static inline uint64_t ez_usized_add_check(uint64_t a, uint64_t b, uint64_t max_
     uint64_t result = a + b;
     if (result > max_val) {
         fflush(stdout);
-        fprintf(stderr, "panic at %s:%d: %s integer overflow in addition\n", file, line, type_name);
+        fprintf(stderr, "panic at %s:%d: %s addition result is too large — value exceeds the range of this type\n", file, line, type_name);
         exit(1);
     }
     return result;
@@ -240,7 +240,7 @@ static inline uint64_t ez_usized_sub_check(uint64_t a, uint64_t b, uint64_t max_
     const char *type_name, const char *file, int line) {
     if (b > a) {
         fflush(stdout);
-        fprintf(stderr, "panic at %s:%d: %s integer underflow in subtraction\n", file, line, type_name);
+        fprintf(stderr, "panic at %s:%d: %s subtraction result is negative, but this unsigned type cannot hold negative values\n", file, line, type_name);
         exit(1);
     }
     return a - b;
@@ -251,7 +251,7 @@ static inline uint64_t ez_usized_mul_check(uint64_t a, uint64_t b, uint64_t max_
     uint64_t result = a * b;
     if (result > max_val) {
         fflush(stdout);
-        fprintf(stderr, "panic at %s:%d: %s integer overflow in multiplication\n", file, line, type_name);
+        fprintf(stderr, "panic at %s:%d: %s multiplication result is too large — value exceeds the range of this type\n", file, line, type_name);
         exit(1);
     }
     return result;
@@ -262,7 +262,7 @@ static inline int64_t ez_float_to_int(double v, const char *file, int line) {
     if (v > 9.223372036854775e+18 || v < -9.223372036854775e+18 ||
         v != v /* NaN */) {
         fflush(stdout);
-        fprintf(stderr, "panic at %s:%d: conversion overflow — float value exceeds integer range\n", file, line);
+        fprintf(stderr, "panic at %s:%d: cannot convert float to int — the value is too large, too small, or NaN\n", file, line);
         exit(1);
     }
     return (int64_t)v;

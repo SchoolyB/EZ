@@ -31,14 +31,14 @@ EzArray ez_array_from(EzArena *arena, const void *data, int32_t elem_size, int32
 
 void *ez_array_get_ptr(EzArray *arr, int32_t index, const char *file, int line) {
     if (index < 0 || index >= arr->len) {
-        ez_panic(file, line, "index out of bounds: index %d, length %d", index, arr->len);
+        ez_panic(file, line, "array index out of bounds — tried to access index %d but the array only has %d elements", index, arr->len);
     }
     return (char *)arr->data + (size_t)index * (size_t)arr->elem_size;
 }
 
 void ez_array_set(EzArray *arr, int32_t index, const void *value, const char *file, int line) {
     if (index < 0 || index >= arr->len) {
-        ez_panic(file, line, "index out of bounds: index %d, length %d", index, arr->len);
+        ez_panic(file, line, "array index out of bounds — tried to access index %d but the array only has %d elements", index, arr->len);
     }
     memcpy((char *)arr->data + (size_t)index * (size_t)arr->elem_size,
            value, (size_t)arr->elem_size);
