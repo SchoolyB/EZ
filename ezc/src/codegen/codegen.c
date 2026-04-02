@@ -3170,13 +3170,32 @@ static void emit_call_expression(CodeGen *cg, AstNode *node) {
                     emitf(cg, "&%s", var_name);
                 }
             } else if (needs_addr && node->data.call.args[i]->kind == NODE_INDEX_EXPR) {
-                /* Mutable param on array element: pass pointer to element */
+                /* Mutable param on indexed element: array or map */
                 AstNode *idx_node = node->data.call.args[i];
-                emit(cg, "(int64_t *)ez_array_get_ptr(&");
-                emit_expression(cg, idx_node->data.index_expr.left);
-                emit(cg, ", ");
-                emit_expression(cg, idx_node->data.index_expr.index);
-                emit(cg, ", __FILE__, __LINE__)");
+                EzType *left_t = cg->type_table
+                    ? typetable_get(cg->type_table, idx_node->data.index_expr.left) : NULL;
+                if (left_t && left_t->kind == TK_MAP) {
+                    /* Map: get pointer to value via ez_map_get */
+                    const char *c_key = "EzString";
+                    if (left_t->key_type) {
+                        EzType *kt = type_from_name(left_t->key_type);
+                        if (kt->kind == TK_INT || kt->kind == TK_UINT) c_key = "int64_t";
+                    }
+                    emitf(cg, "({ %s _mk = ", c_key);
+                    emit_expression(cg, idx_node->data.index_expr.index);
+                    emit(cg, "; void *_mv = ez_map_get(&");
+                    emit_expression(cg, idx_node->data.index_expr.left);
+                    emitf(cg, ", &_mk); if (!_mv) { fflush(stdout); ez_panic(__FILE__, %d, \"key not found in map\"); } ",
+                        idx_node->token.line);
+                    emit(cg, "(int64_t *)_mv; })");
+                } else {
+                    /* Array: pass pointer to element */
+                    emit(cg, "(int64_t *)ez_array_get_ptr(&");
+                    emit_expression(cg, idx_node->data.index_expr.left);
+                    emit(cg, ", ");
+                    emit_expression(cg, idx_node->data.index_expr.index);
+                    emit(cg, ", __FILE__, __LINE__)");
+                }
             } else if (needs_addr && node->data.call.args[i]->kind == NODE_MEMBER_EXPR) {
                 /* Mutable param on struct field: pass address of field */
                 emit(cg, "&");
