@@ -10,7 +10,6 @@ import (
 	"os"
 	"time"
 
-	"github.com/marshallburns/ez/internal/ezc"
 	"github.com/marshallburns/ez/pkg/errors"
 )
 
@@ -38,15 +37,8 @@ func main() {
 func getVersionString() string {
 	buf := bytes.Buffer{}
 	buf.WriteString(asciiBanner)
-	fmt.Fprintf(&buf, "\n%sez %s%s (tooling)\n", errors.Bold, Version, errors.Reset)
+	fmt.Fprintf(&buf, "\n%sEZ %s%s\n", errors.Bold, Version, errors.Reset)
 	fmt.Fprintf(&buf, "Built: %s\n", BuildTime)
-
-	// Show compiler version
-	if ezcVer, err := ezc.Version(); err == nil {
-		fmt.Fprintf(&buf, "Compiler: %s\n", ezcVer)
-	} else {
-		fmt.Fprintf(&buf, "Compiler: not found\n")
-	}
 
 	// Always fetch fresh version info when user explicitly runs 'ez version'
 	var latestVersion string

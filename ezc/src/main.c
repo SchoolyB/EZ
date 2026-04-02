@@ -24,18 +24,18 @@
 #include "typechecker/typechecker.h"
 #include "codegen/codegen.h"
 
-#define EZC_VERSION "3.0.0"
+#define EZ_VERSION "3.0.0"
 #define PATH_BUF_SIZE 2048
 #define CMD_BUF_SIZE 8192
 
 static void print_usage(void) {
-    fprintf(stderr, "EZC - EZ Language Compiler v%s\n", EZC_VERSION);
+    fprintf(stderr, "EZ Programming Language v%s\n", EZ_VERSION);
     fprintf(stderr, "\nUsage:\n");
-    fprintf(stderr, "  ezc <file.ez> [options]         Compile to binary (default)\n");
-    fprintf(stderr, "  ezc build <file.ez> [options]   Compile to binary\n");
-    fprintf(stderr, "  ezc run <file.ez> [options]     Compile and run (temp binary)\n");
-    fprintf(stderr, "  ezc check <file.ez>             Type check only\n");
-    fprintf(stderr, "  ezc version                     Show version\n");
+    fprintf(stderr, "  ez <file.ez> [options]         Compile to binary (default)\n");
+    fprintf(stderr, "  ez build <file.ez> [options]   Compile to binary\n");
+    fprintf(stderr, "  ez run <file.ez> [options]     Compile and run (temp binary)\n");
+    fprintf(stderr, "  ez check <file.ez>             Type check only\n");
+    fprintf(stderr, "  ez version                     Show version\n");
     fprintf(stderr, "\nOptions:\n");
     fprintf(stderr, "  -o <file>       Output binary name (default: based on input filename)\n");
     fprintf(stderr, "  -c              Emit C source only (don't compile)\n");
@@ -50,7 +50,7 @@ static void print_usage(void) {
 static char *read_file(const char *path) {
     FILE *f = fopen(path, "rb");
     if (!f) {
-        fprintf(stderr, "ezc: cannot open '%s': ", path);
+        fprintf(stderr, "ez: cannot open '%s': ", path);
         perror("");
         return NULL;
     }
@@ -61,7 +61,7 @@ static char *read_file(const char *path) {
 
     char *buf = malloc((size_t)size + 1);
     if (!buf) {
-        fprintf(stderr, "ezc: out of memory\n");
+        fprintf(stderr, "ez: out of memory\n");
         fclose(f);
         return NULL;
     }
@@ -75,7 +75,7 @@ static char *read_file(const char *path) {
 static bool write_file(const char *path, const char *content) {
     FILE *f = fopen(path, "w");
     if (!f) {
-        fprintf(stderr, "ezc: cannot write '%s': ", path);
+        fprintf(stderr, "ez: cannot write '%s': ", path);
         perror("");
         return false;
     }
@@ -216,7 +216,7 @@ int main(int argc, char **argv) {
     /* Parse arguments */
     for (int i = 1; i < argc; i++) {
         if (strcmp(argv[i], "version") == 0 || strcmp(argv[i], "--version") == 0) {
-            printf("ezc %s\n", EZC_VERSION);
+            printf("ez %s\n", EZ_VERSION);
             return 0;
         }
         if (strcmp(argv[i], "--help") == 0 || strcmp(argv[i], "-h") == 0) {
@@ -265,14 +265,14 @@ int main(int argc, char **argv) {
             continue;
         }
         if (argv[i][0] == '-') {
-            fprintf(stderr, "ezc: unknown option '%s'\n", argv[i]);
+            fprintf(stderr, "ez: unknown option '%s'\n", argv[i]);
             return 1;
         }
         input_file = argv[i];
     }
 
     if (!input_file) {
-        fprintf(stderr, "ezc: no input file\n");
+        fprintf(stderr, "ez: no input file\n");
         return 1;
     }
 
@@ -342,7 +342,7 @@ int main(int argc, char **argv) {
                 /* Read and parse the imported file */
                 char *imp_source = read_file(import_path);
                 if (!imp_source) {
-                    fprintf(stderr, "ezc: cannot open imported file '%s'\n", import_path);
+                    fprintf(stderr, "ez: cannot open imported file '%s'\n", import_path);
                     continue;
                 }
 
@@ -431,9 +431,9 @@ int main(int argc, char **argv) {
         clock_t t_end = clock();
         if (show_time) {
             double ms = (double)(t_end - t_start) / CLOCKS_PER_SEC * 1000.0;
-            fprintf(stderr, "ezc: check completed in %.1fms\n", ms);
+            fprintf(stderr, "ez: check completed in %.1fms\n", ms);
         }
-        fprintf(stderr, "ezc: %s — no errors\n", input_file);
+        fprintf(stderr, "ez: %s — no errors\n", input_file);
         diag_destroy(diag);
         arena_destroy(arena);
         free(source);
@@ -486,7 +486,7 @@ int main(int argc, char **argv) {
     if (system("cc --version >/dev/null 2>&1") != 0 &&
         system("gcc --version >/dev/null 2>&1") != 0 &&
         system("clang --version >/dev/null 2>&1") != 0) {
-        fprintf(stderr, "ezc: no C compiler found.\n");
+        fprintf(stderr, "ez: no C compiler found.\n");
         fprintf(stderr, "  Install gcc or clang to compile EZ programs.\n");
         fprintf(stderr, "  On macOS: xcode-select --install\n");
         fprintf(stderr, "  On Ubuntu: sudo apt install gcc\n");
@@ -500,10 +500,10 @@ int main(int argc, char **argv) {
     /* Find runtime directory */
     const char *runtime_dir = find_runtime_dir(argv[0]);
     if (!runtime_dir) {
-        fprintf(stderr, "ezc: cannot find runtime headers.\n");
+        fprintf(stderr, "ez: cannot find runtime headers.\n");
         fprintf(stderr, "  Searched:\n");
         fprintf(stderr, "    - $EZC_RUNTIME environment variable\n");
-        fprintf(stderr, "    - relative to ezc binary\n");
+        fprintf(stderr, "    - relative to ez binary\n");
         fprintf(stderr, "    - ./ezc/src/ (project root)\n");
         fprintf(stderr, "    - /usr/local/lib/ezc/\n");
         fprintf(stderr, "  Try: cd <project-root> && make -C ezc install\n");
@@ -573,11 +573,11 @@ int main(int argc, char **argv) {
     }
 
     if (verbose) {
-        fprintf(stderr, "ezc: %s\n", cmd);
+        fprintf(stderr, "ez: %s\n", cmd);
     }
 
     if (strlen(cmd) >= CMD_BUF_SIZE - 1) {
-        fprintf(stderr, "ezc: compile command too long (paths may be too deep)\n");
+        fprintf(stderr, "ez: compile command too long (paths may be too deep)\n");
         codegen_destroy(&cg);
         diag_destroy(diag);
         arena_destroy(arena);
@@ -591,8 +591,8 @@ int main(int argc, char **argv) {
     clock_t t_cc_end = clock();
 
     if (ret != 0) {
-        fprintf(stderr, "ezc: C compilation failed\n");
-        fprintf(stderr, "ezc: generated C source at %s\n", c_file);
+        fprintf(stderr, "ez: C compilation failed\n");
+        fprintf(stderr, "ez: generated C source at %s\n", c_file);
     } else {
         unlink(c_file);
 
@@ -600,7 +600,7 @@ int main(int argc, char **argv) {
             double frontend_ms = (double)(t_cc_start - t_start) / CLOCKS_PER_SEC * 1000.0;
             double cc_ms = (double)(t_cc_end - t_cc_start) / CLOCKS_PER_SEC * 1000.0;
             double total_ms = (double)(t_cc_end - t_start) / CLOCKS_PER_SEC * 1000.0;
-            fprintf(stderr, "ezc: compiled %s → %s (%.0fms)\n", input_file, output_file, total_ms);
+            fprintf(stderr, "ez: compiled %s → %s (%.0fms)\n", input_file, output_file, total_ms);
             fprintf(stderr, "  frontend:  %.1fms (lex + parse + typecheck + codegen)\n", frontend_ms);
             fprintf(stderr, "  cc:        %.1fms (compile + link)\n", cc_ms);
         }

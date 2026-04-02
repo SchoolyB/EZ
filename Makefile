@@ -23,7 +23,7 @@ help:
 build:
 	@echo "Building ez CLI..."
 	$(GO) build $(LDFLAGS) -o $(BINARY_NAME) ./cmd/ez
-	@echo "Building ezc compiler..."
+	@echo "Building compiler..."
 	@$(MAKE) -C ezc build
 	@echo ""
 	@echo "Build complete!"

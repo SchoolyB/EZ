@@ -260,7 +260,7 @@ void diag_print_summary(DiagnosticList *dl) {
 
     if (errors == 0 && warnings == 0) return;
 
-    fprintf(stderr, "%sezc:%s ", col(dl, COL_BOLD), col(dl, COL_RESET));
+    fprintf(stderr, "%sez:%s ", col(dl, COL_BOLD), col(dl, COL_RESET));
 
     if (errors > 0) {
         fprintf(stderr, "%s%s%d error%s%s",

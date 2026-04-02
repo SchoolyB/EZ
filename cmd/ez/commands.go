@@ -130,7 +130,7 @@ var reportCmd = &cobra.Command{
 	Short: "Print system info for bug reports",
 	Run: func(cmd *cobra.Command, args []string) {
 		fmt.Println("EZ Bug Report Info")
-		fmt.Println("==================")
+		fmt.Println("======================")
 
 		// EZ version
 		fmt.Printf("EZ Version:  %s\n", Version)
@@ -148,13 +148,6 @@ var reportCmd = &cobra.Command{
 			}
 		}
 		fmt.Printf("Commit:      %s\n", commit)
-
-		// Compiler version
-		if ezcVer, err := ezc.Version(); err == nil {
-			fmt.Printf("Compiler:    %s\n", ezcVer)
-		} else {
-			fmt.Printf("Compiler:    not found\n")
-		}
 
 		// OS and architecture
 		fmt.Printf("OS:          %s/%s\n", runtime.GOOS, runtime.GOARCH)
