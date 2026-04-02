@@ -59,7 +59,7 @@
     EZ_ERROR("E2058", "syntax", "nested type declarations are not allowed — structs and enums must be defined at the file scope") \
     EZ_ERROR("E2059", "syntax", "empty when block — a when statement must have at least one 'is' branch") \
     EZ_ERROR("E2060", "syntax", "too many return values — a function can return at most 16 values") \
-    EZ_ERROR("E2061", "syntax", "'module' declarations are not supported in EZ 3.0 — imported files are identified by their file path")
+    EZ_ERROR("E2061", "syntax", "'module' declarations are not supported — imported files are identified by their file path")
 
 /* --- E3xxx: Type Problems (Typechecker) --- */
 #define EZ_TYPE_ERRORS \
@@ -102,7 +102,7 @@
     EZ_ERROR("E4002", "names", "this function does not exist — check the spelling or make sure it is defined") \
     EZ_ERROR("E4003", "names", "a variable with this name already exists in this scope — use a different name") \
     EZ_ERROR("E4004", "names", "a function with this name already exists — each function must have a unique name") \
-    EZ_ERROR("E4005", "names", "no main() function found — every EZ program needs a do main() { } function") \
+    EZ_ERROR("E4005", "names", "no main() function found — every program needs a do main() { } function") \
     EZ_ERROR("E4006", "names", "this name is reserved by the compiler — choose a different name that does not start with ez_ or Ez") \
     EZ_ERROR("E4012", "names", "variable shadows a type definition with the same name") \
     EZ_ERROR("E4013", "names", "variable shadows a function with the same name") \
@@ -119,7 +119,7 @@
 
 /* --- E6xxx: Import Problems --- */
 #define EZ_IMPORT_ERRORS \
-    EZ_ERROR("E6001", "imports", "unknown module — this is not a built-in EZ module. Check the spelling or see the docs for available modules")
+    EZ_ERROR("E6001", "imports", "unknown module — this is not a built-in module. Check the spelling or see the docs for available modules")
 
 /* --- E7xxx+: Standard Library --- */
 #define EZ_STDLIB_ERRORS \

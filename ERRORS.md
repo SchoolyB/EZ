@@ -48,7 +48,7 @@
 | `E2058` | syntax | nested type declarations are not allowed — structs and enums must be defined at the file scope |
 | `E2059` | syntax | empty when block — a when statement must have at least one 'is' branch |
 | `E2060` | syntax | too many return values — a function can return at most 16 values |
-| `E2061` | syntax | 'module' declarations are not supported in EZ 3.0 — imported files are identified by their file path |
+| `E2061` | syntax | 'module' declarations are not supported — imported files are identified by their file path |
 | `E3001` | types | wrong type — you are using a value of one type where a different type is expected |
 | `E3002` | types | this operator does not work on this type — for example, you cannot subtract strings |
 | `E3003` | types | invalid array index type — array indices must be integers |
@@ -85,7 +85,7 @@
 | `E4002` | names | this function does not exist — check the spelling or make sure it is defined |
 | `E4003` | names | a variable with this name already exists in this scope — use a different name |
 | `E4004` | names | a function with this name already exists — each function must have a unique name |
-| `E4005` | names | no main() function found — every EZ program needs a do main() { } function |
+| `E4005` | names | no main() function found — every program needs a do main() { } function |
 | `E4006` | names | this name is reserved by the compiler — choose a different name that does not start with ez_ or Ez |
 | `E4012` | names | variable shadows a type definition with the same name |
 | `E4013` | names | variable shadows a function with the same name |
@@ -96,7 +96,7 @@
 | `E5015` | usage | postfix ++ and -- require a variable, not a literal or expression |
 | `E5023` | usage | ++ and -- only work on integer types, not floats |
 | `E5024` | usage | return type mismatch — cannot return a signed value as an unsigned type |
-| `E6001` | imports | unknown module — this is not a built-in EZ module. Check the spelling or see the docs for available modules |
+| `E6001` | imports | unknown module — this is not a built-in module. Check the spelling or see the docs for available modules |
 | `E7004` | stdlib | function argument must be an integer, not a float |
 | `E7006` | stdlib | threads.spawn() needs a function reference — use ()function_name to pass a function |
 | `E7014` | stdlib | cannot convert negative value to char — must be a valid Unicode code point |
@@ -137,4 +137,4 @@
 
 ---
 
-*Generated on 2026-04-02 03:48:58 UTC*
+*Generated on 2026-04-02 03:51:01 UTC*

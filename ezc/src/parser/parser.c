@@ -1850,7 +1850,7 @@ static AstNode *parse_statement(Parser *p) {
         return parse_return_statement(p);
     case TOK_MODULE:
         diag_error(p->diag, "E2061",
-            strdup("'module' declarations are not supported in EZ 3.0 — imported files are identified by their file path"),
+            strdup("'module' declarations are not supported — imported files are identified by their file path"),
             p->file, p->cur_token.line, p->cur_token.column, 0);
         next_token(p); /* consume module name */
         return NULL;
