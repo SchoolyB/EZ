@@ -133,4 +133,4 @@ fi
 printf " (%d total)\n" "$((TOTAL + SKIP))"
 echo ""
 
-exit 0
+exit $FAIL
