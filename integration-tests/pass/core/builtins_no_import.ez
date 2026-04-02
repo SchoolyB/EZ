@@ -1,0 +1,44 @@
+/*
+ * builtins_no_import.ez - Test builtins work without any imports
+ *
+ * Verifies that true builtins (exit, panic, assert, sleep, input,
+ * len, type_of, size_of, copy, new, ref, addr, range, cast)
+ * compile and run without importing any module.
+ */
+
+do main() {
+    // assert - true condition (no crash)
+    assert(1 == 1, "math works")
+
+    // len on string literal
+    assert(len("hello") == 5, "len works")
+
+    // type_of
+    mut x int = 42
+    assert(type_of(x) == "int", "type_of works")
+
+    // size_of
+    assert(size_of(int) == 8, "size_of works")
+
+    // range in for loop
+    mut sum int = 0
+    for i in range(0, 5) {
+        sum += i
+    }
+    assert(sum == 10, "range works")
+
+    // cast
+    mut f float = cast(42, float)
+    assert(f > 41.0, "cast works")
+
+    // ref and addr
+    mut val int = 99
+    mut r = ref(val)
+    assert(r == 99, "ref works")
+
+    mut p ^int = addr(val)
+    assert(p^ == 99, "addr works")
+
+    // exit last — confirms everything above ran
+    exit(0)
+}
