@@ -19,7 +19,6 @@ EZ_BIN="$PROJECT_ROOT/ez"
 
 # Check if ez binary exists
 if [ ! -f "$EZ_BIN" ]; then
-    # Try building it
     echo "EZ binary not found, building..."
     cd "$PROJECT_ROOT"
     go build -o ez ./cmd/ez
@@ -29,11 +28,15 @@ fi
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[0;33m'
-NC='\033[0m' # No Color
+BOLD='\033[1m'
+NC='\033[0m'
 
 PASS_COUNT=0
 FAIL_COUNT=0
 SKIP_COUNT=0
+
+pass() { printf "  ${GREEN}PASS${NC}  %s\n" "$1"; ((++PASS_COUNT)); }
+fail() { printf "  ${RED}FAIL${NC}  %s %s\n" "$1" "$2"; ((++FAIL_COUNT)); }
 
 echo "========================================"
 echo "  EZ Integration Test Suite"
@@ -41,26 +44,20 @@ echo "========================================"
 echo ""
 
 # Run pass tests (should succeed)
-echo "Running PASS tests..."
-echo "----------------------------------------"
+printf "${BOLD}PASS tests:${NC}\n"
 
 # Core tests
 for test_file in "$TEST_DIR"/pass/core/*.ez; do
     if [ -f "$test_file" ]; then
         test_name=$(basename "$test_file" .ez)
-        printf "  core/%s... " "$test_name"
-
         if output=$("$EZ_BIN" "$test_file" 2>&1); then
             if echo "$output" | grep -q "SOME TESTS FAILED"; then
-                echo -e "${RED}FAIL${NC} (test assertions failed)"
-                ((++FAIL_COUNT))
+                fail "core/$test_name" "(assertions failed)"
             else
-                echo -e "${GREEN}PASS${NC}"
-                ((++PASS_COUNT))
+                pass "core/$test_name"
             fi
         else
-            echo -e "${RED}FAIL${NC} (execution error)"
-            ((++FAIL_COUNT))
+            fail "core/$test_name" "(execution error)"
         fi
     fi
 done
@@ -69,19 +66,14 @@ done
 for test_file in "$TEST_DIR"/pass/stdlib/*.ez; do
     if [ -f "$test_file" ]; then
         test_name=$(basename "$test_file" .ez)
-        printf "  stdlib/%s... " "$test_name"
-
         if output=$("$EZ_BIN" "$test_file" 2>&1); then
             if echo "$output" | grep -q "SOME TESTS FAILED"; then
-                echo -e "${RED}FAIL${NC} (test assertions failed)"
-                ((++FAIL_COUNT))
+                fail "stdlib/$test_name" "(assertions failed)"
             else
-                echo -e "${GREEN}PASS${NC}"
-                ((++PASS_COUNT))
+                pass "stdlib/$test_name"
             fi
         else
-            echo -e "${RED}FAIL${NC} (execution error)"
-            ((++FAIL_COUNT))
+            fail "stdlib/$test_name" "(execution error)"
         fi
     fi
 done
@@ -90,18 +82,12 @@ done
 for dir in "$TEST_DIR"/pass/multi-file/*/; do
     if [ -d "$dir" ]; then
         dir_name=$(basename "$dir")
-        # Find main.ez in the directory (may be nested)
         main_file=$(find "$dir" -name "main.ez" | head -1)
-
         if [ -n "$main_file" ]; then
-            printf "  multi-file/%s... " "$dir_name"
-
             if output=$("$EZ_BIN" "$main_file" 2>&1); then
-                echo -e "${GREEN}PASS${NC}"
-                ((++PASS_COUNT))
+                pass "multi-file/$dir_name"
             else
-                echo -e "${RED}FAIL${NC} (execution error)"
-                ((++FAIL_COUNT))
+                fail "multi-file/$dir_name" "(execution error)"
             fi
         fi
     fi
@@ -110,25 +96,18 @@ done
 # Stress tests — core
 if [ -d "$TEST_DIR/pass/stress/core" ]; then
     echo ""
-    echo "Running STRESS tests (core)..."
-    echo "----------------------------------------"
-
+    printf "${BOLD}STRESS tests:${NC}\n"
     for test_file in "$TEST_DIR"/pass/stress/core/*.ez; do
         if [ -f "$test_file" ]; then
             test_name=$(basename "$test_file" .ez)
-            printf "  stress/core/%s... " "$test_name"
-
             if output=$("$EZ_BIN" "$test_file" 2>&1); then
                 if echo "$output" | grep -q "SOME TESTS FAILED"; then
-                    echo -e "${RED}FAIL${NC} (test assertions failed)"
-                    ((++FAIL_COUNT))
+                    fail "stress/core/$test_name" "(assertions failed)"
                 else
-                    echo -e "${GREEN}PASS${NC}"
-                    ((++PASS_COUNT))
+                    pass "stress/core/$test_name"
                 fi
             else
-                echo -e "${RED}FAIL${NC} (execution error)"
-                ((++FAIL_COUNT))
+                fail "stress/core/$test_name" "(execution error)"
             fi
         fi
     done
@@ -136,93 +115,66 @@ fi
 
 # Stress tests — stdlib
 if [ -d "$TEST_DIR/pass/stress/stdlib" ]; then
-    echo ""
-    echo "Running STRESS tests (stdlib)..."
-    echo "----------------------------------------"
-
     for test_file in "$TEST_DIR"/pass/stress/stdlib/*.ez; do
         if [ -f "$test_file" ]; then
             test_name=$(basename "$test_file" .ez)
-            printf "  stress/stdlib/%s... " "$test_name"
-
             if output=$("$EZ_BIN" "$test_file" 2>&1); then
                 if echo "$output" | grep -q "SOME TESTS FAILED"; then
-                    echo -e "${RED}FAIL${NC} (test assertions failed)"
-                    ((++FAIL_COUNT))
+                    fail "stress/stdlib/$test_name" "(assertions failed)"
                 else
-                    echo -e "${GREEN}PASS${NC}"
-                    ((++PASS_COUNT))
+                    pass "stress/stdlib/$test_name"
                 fi
             else
-                echo -e "${RED}FAIL${NC} (execution error)"
-                ((++FAIL_COUNT))
+                fail "stress/stdlib/$test_name" "(execution error)"
             fi
         fi
     done
 fi
 
-# Warning tests (should produce specific warnings when checked)
+# Warning tests
 if [ -d "$TEST_DIR/pass/warnings" ]; then
     echo ""
-    echo "Running WARNING tests (expecting specific warnings)..."
-    echo "----------------------------------------"
-
+    printf "${BOLD}WARNING tests:${NC}\n"
     for test_file in "$TEST_DIR"/pass/warnings/*.ez; do
         if [ -f "$test_file" ]; then
             test_name=$(basename "$test_file" .ez)
-            # Extract expected warning code from filename (e.g., W2010_something.ez -> W2010)
             expected_warning=$(echo "$test_name" | grep -oE '^W[0-9]+')
-            printf "  warnings/%s... " "$test_name"
-
-            # Run ez check (not full execution) to get warnings
             output=$("$EZ_BIN" check "$test_file" 2>&1) || true
-
             if echo "$output" | grep -q "warning\[$expected_warning\]"; then
-                echo -e "${GREEN}PASS${NC}"
-                ((++PASS_COUNT))
+                pass "warnings/$test_name"
             else
-                echo -e "${RED}FAIL${NC} (expected warning $expected_warning not found)"
-                ((++FAIL_COUNT))
+                fail "warnings/$test_name" "(expected $expected_warning)"
             fi
         fi
     done
 fi
 
 echo ""
-echo "Running FAIL tests (expecting errors)..."
-echo "----------------------------------------"
+printf "${BOLD}FAIL tests (expecting errors):${NC}\n"
 
 # Error tests (should fail)
 for test_file in "$TEST_DIR"/fail/errors/*.ez; do
     if [ -f "$test_file" ]; then
         test_name=$(basename "$test_file" .ez)
-        printf "  errors/%s... " "$test_name"
-
         if "$EZ_BIN" "$test_file" >/dev/null 2>&1; then
-            echo -e "${RED}FAIL${NC} (expected error, got success)"
-            ((++FAIL_COUNT))
+            fail "errors/$test_name" "(expected error, got success)"
         else
-            echo -e "${GREEN}PASS${NC}"
-            ((++PASS_COUNT))
+            pass "errors/$test_name"
         fi
     fi
 done
 
-# Cleanup any .ezdb files created by error tests (they are created in cwd, not the test directory)
+# Cleanup any .ezdb files
 rm -f ./*.ezdb
 
 # Multi-file error tests (single files)
 for test_file in "$TEST_DIR"/fail/multi-file/*.ez; do
     if [ -f "$test_file" ]; then
         test_name=$(basename "$test_file" .ez)
-        printf "  multi-file/%s... " "$test_name"
-
         if "$EZ_BIN" "$test_file" >/dev/null 2>&1; then
-            echo -e "${RED}FAIL${NC} (expected error, got success)"
-            ((++FAIL_COUNT))
+            fail "multi-file/$test_name" "(expected error, got success)"
         else
-            echo -e "${GREEN}PASS${NC}"
-            ((++PASS_COUNT))
+            pass "multi-file/$test_name"
         fi
     fi
 done
@@ -232,16 +184,11 @@ for dir in "$TEST_DIR"/fail/multi-file/*/; do
     if [ -d "$dir" ]; then
         dir_name=$(basename "$dir")
         main_file=$(find "$dir" -name "main.ez" | head -1)
-
         if [ -n "$main_file" ]; then
-            printf "  multi-file/%s... " "$dir_name"
-
             if "$EZ_BIN" "$main_file" >/dev/null 2>&1; then
-                echo -e "${RED}FAIL${NC} (expected error, got success)"
-                ((++FAIL_COUNT))
+                fail "multi-file/$dir_name" "(expected error, got success)"
             else
-                echo -e "${GREEN}PASS${NC}"
-                ((++PASS_COUNT))
+                pass "multi-file/$dir_name"
             fi
         fi
     fi
@@ -253,14 +200,14 @@ echo "========================================"
 echo "  Test Summary"
 echo "========================================"
 echo ""
-echo -e "  ${GREEN}Passed:${NC}  $PASS_COUNT"
-echo -e "  ${RED}Failed:${NC}  $FAIL_COUNT"
+printf "  ${GREEN}Passed:${NC}  $PASS_COUNT\n"
+printf "  ${RED}Failed:${NC}  $FAIL_COUNT\n"
 echo ""
 
 if [ $FAIL_COUNT -eq 0 ]; then
-    echo -e "  ${GREEN}ALL TESTS PASSED!${NC}"
+    printf "  ${BOLD}${GREEN}ALL TESTS PASSED!${NC}\n"
     exit 0
 else
-    echo -e "  ${RED}SOME TESTS FAILED${NC}"
+    printf "  ${BOLD}${RED}SOME TESTS FAILED${NC}\n"
     exit 1
 fi
