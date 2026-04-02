@@ -2,8 +2,6 @@
  * variables.ez - Test variable declarations (var, const, mut)
  */
 
-import @std
-using std
 
 const TestResult struct {
     passed int

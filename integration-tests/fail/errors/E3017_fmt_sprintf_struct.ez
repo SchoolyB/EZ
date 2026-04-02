@@ -3,9 +3,7 @@
  * Expected: "cannot format value of type"
  */
 
-import @std
 import @fmt
-using std
 
 const Color struct {
     r int

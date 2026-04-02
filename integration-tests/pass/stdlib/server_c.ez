@@ -4,9 +4,7 @@
  * Tests router creation and response helpers only.
  */
 
-import @std
 import @server
-using std
 
 do handler() {
     // placeholder handler

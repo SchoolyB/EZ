@@ -5,10 +5,9 @@
  * variants) work through 'using' without module prefix.
  */
 
-import @std
 import @math
 import @regex
-using std, math, regex
+using math, regex
 
 do main() {
     println("=== Using Directive with New Stdlib Functions ===")

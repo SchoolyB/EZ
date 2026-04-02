@@ -4,8 +4,6 @@
  * Run with: ez examples/hello.ez
  */
 
-import @std
-using std
 
 do main() {
     println("Hello, World!")

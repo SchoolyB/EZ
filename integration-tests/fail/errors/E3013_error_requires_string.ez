@@ -6,7 +6,6 @@
  * Passing other types should produce this error.
  */
 
-import and use @std
 
 do main() {
     mut err = error(42)  // ERROR: must be a string

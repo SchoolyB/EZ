@@ -3,9 +3,7 @@
  * Requires network access to httpbin.org
  */
 
-import @std
 import @http
-using std
 
 do main() {
     mut pass int = 0

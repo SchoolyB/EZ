@@ -2,7 +2,6 @@
  * Expected: E2012 error - parameter name already used
  */
 
-import and use @std
 
 do process(name string) -> (name string) {
     return name

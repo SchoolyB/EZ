@@ -5,9 +5,7 @@
  * assignment (mut content string = io.read_file(...)).
  */
 
-import @std
 import @io
-using std
 
 do main() {
     println("=== IO Single-Var Assignment Tests ===")

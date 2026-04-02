@@ -2,8 +2,6 @@
  * Expected: passes with output "Alice", "NYC", "30"
  */
 
-import @std
-using std
 
 do getFullInfo() -> (name, city string, age int) {
     name = "Alice"

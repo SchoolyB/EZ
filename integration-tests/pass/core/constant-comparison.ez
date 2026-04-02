@@ -3,8 +3,6 @@
  * Regression test for bug #462
  */
 
-import @std
-using std
 
 const max_value int = 100
 const min_value int = 0

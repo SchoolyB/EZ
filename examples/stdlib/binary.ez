@@ -4,8 +4,7 @@
  * Run with: ez examples/stdlib/binary.ez
  */
 
-import @std, @binary, @bytes
-using std
+import @binary, @bytes
 
 do main() {
     // 8-bit encoding/decoding

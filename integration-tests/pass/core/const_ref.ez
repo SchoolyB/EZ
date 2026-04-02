@@ -8,8 +8,7 @@
  * - & parameters work correctly (always mutable)
  */
 
-import @std, @arrays
-using std
+import @arrays
 
 const Point struct {
     x int

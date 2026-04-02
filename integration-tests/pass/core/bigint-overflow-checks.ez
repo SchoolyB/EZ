@@ -6,8 +6,6 @@
  * produce correct results when values are within valid range.
  */
 
-import @std
-using std
 
 do main() {
     println("=== BigInt Overflow Checks (Within Bounds) ===")

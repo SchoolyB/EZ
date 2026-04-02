@@ -2,7 +2,7 @@
 // Test: Invalid field access in for_each with imported type
 // Expected: E4003 - struct has no field 'valu'
 
-import and use @std, @arrays
+import and use @arrays
 import lib"./lib"
 
 do main() {

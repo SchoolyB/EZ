@@ -1,6 +1,4 @@
 // E2042: #strict when statement cannot have a default case
-import @std
-using std
 
 const Status enum {
     PENDING,

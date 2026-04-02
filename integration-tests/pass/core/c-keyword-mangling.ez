@@ -3,8 +3,6 @@
  * after C keywords compile and work correctly (#1302).
  */
 
-import @std
-using std
 
 const Register struct {
     auto int

@@ -3,11 +3,9 @@
  * Expected: "using" or "must come first"
  */
 
-import @std
 
 mut x int = 5  // declaration before using
 
-using std
 
 do main() {
     println(x)

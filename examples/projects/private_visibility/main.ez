@@ -8,10 +8,8 @@
  * Run with: ez examples/projects/private_visibility/main.ez
  */
 
-import @std
 import "./mathlib"
 
-using std
 
 do main() {
     println("=== Private Visibility ===")

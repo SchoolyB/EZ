@@ -3,8 +3,6 @@
  * Expected: "negative"
  */
 
-import @std
-using std
 
 do main() {
     mut arr [int] = {1, 2, 3}

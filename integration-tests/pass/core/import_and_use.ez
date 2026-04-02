@@ -3,8 +3,8 @@
 using syntax
  */
 
-import @std, @strings, @arrays
-using std, strings, arrays
+import @strings, @arrays
+using strings, arrays
 
 do main() {
     println("=== Import and Use Test ===")

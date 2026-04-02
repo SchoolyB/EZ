@@ -2,8 +2,6 @@
  * enums.ez - Test enum definitions and usage
  */
 
-import @std
-using std
 
 /* Basic int enum (auto-incremented 0, 1, 2, 3) */
 const Direction enum {

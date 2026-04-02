@@ -2,8 +2,6 @@
  * range-expressions.ez - Test range() in various contexts (for, if/in, when/is)
  */
 
-import @std
-using std
 
 do main() {
     println("=== Range Expressions Test ===")

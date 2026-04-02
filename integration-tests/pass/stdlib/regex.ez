@@ -2,8 +2,7 @@
  * regex.ez - Test @regex standard library
  */
 
-import @std, @regex
-using std
+import @regex
 
 do main() {
     println("=== @regex Standard Library Test ===")

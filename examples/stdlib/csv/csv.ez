@@ -11,8 +11,7 @@
  * Run with: ez examples/stdlib/csv/csv.ez
  */
 
-import @std, @csv, @io
-using std
+import @csv, @io
 
 do main() {
     println("=== Working with CSV in EZ ===")

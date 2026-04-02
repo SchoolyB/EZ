@@ -3,8 +3,6 @@
  * Expected: "key" and "type"
  */
 
-import @std
-using std
 
 do main() {
     mut m map[string:int] = {"a": 1, "b": 2}

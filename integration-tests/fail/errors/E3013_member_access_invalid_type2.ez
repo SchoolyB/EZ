@@ -2,7 +2,6 @@
  * Error Test: E4011 - member-access-invalid-type
  * Expected: "not a struct"
  */
-import and use @std
 
 do main() {
     mut s = "hello"

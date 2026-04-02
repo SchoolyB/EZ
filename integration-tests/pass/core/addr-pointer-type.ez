@@ -3,8 +3,6 @@
  * that can be assigned to ^T variables and dereferenced (#1299).
  */
 
-import @std
-using std
 
 const Point struct {
     x int

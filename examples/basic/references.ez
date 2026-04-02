@@ -7,8 +7,6 @@
  * - Use copy() for explicit copying when intent needs to be clear
  */
 
-import @std
-using std
 
 const Point struct {
     x int

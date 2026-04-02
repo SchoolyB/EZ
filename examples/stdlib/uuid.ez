@@ -4,8 +4,7 @@
  * Run with: ez examples/uuid.ez
  */
 
-import @std, @uuid
-using std
+import @uuid
 
 do main() {
     // Generate a hyphenated UUID

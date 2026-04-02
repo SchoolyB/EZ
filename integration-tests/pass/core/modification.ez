@@ -2,8 +2,6 @@
  * Expected: passes with output "25"
  */
 
-import @std
-using std
 
 do calculate() -> (result int) {
     result = 10

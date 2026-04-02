@@ -2,8 +2,7 @@
  * Expected: all tests pass
  */
 
-import @std, @crypto, @encoding
-using std
+import @crypto, @encoding
 
 do main() {
     println("=== Stress: @crypto & @encoding ===")

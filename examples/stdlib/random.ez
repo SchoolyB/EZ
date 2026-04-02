@@ -4,8 +4,7 @@
  * Run with: ez examples/random.ez
  */
 
-import @std, @random
-using std
+import @random
 
 do main() {
     // Random numbers

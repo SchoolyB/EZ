@@ -2,9 +2,7 @@
  * uuid_c.ez - Integration test for @uuid (compiler)
  */
 
-import @std
 import @uuid
-using std
 
 do main() {
     println("=== UUID Module Test ===")

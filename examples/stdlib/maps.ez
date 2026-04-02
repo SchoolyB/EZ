@@ -4,8 +4,7 @@
  * Run with: ez examples/stdlib/maps.ez
  */
 
-import @std, @maps
-using std
+import @maps
 
 do main() {
     mut scores map[string:int] = {"alice": 95, "bob": 87, "charlie": 92}

@@ -1,5 +1,4 @@
 // Test: E2060 - multiple #doc on same declaration
-import and use @std
 
 #doc("First doc")
 #doc("Second doc - this should fail")

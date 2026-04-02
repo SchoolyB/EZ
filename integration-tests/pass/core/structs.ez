@@ -2,8 +2,7 @@
  * structs.ez - Test struct definitions and usage
  */
 
-import @std, @arrays
-using std
+import @arrays
 
 const Point struct {
     x int

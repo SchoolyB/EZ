@@ -6,8 +6,6 @@
  *   - const: immutable (cannot be changed)
  */
 
-import @std
-using std
 
 do main() {
     println("=== Variables in EZ ===")

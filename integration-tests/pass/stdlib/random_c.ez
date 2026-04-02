@@ -2,9 +2,7 @@
  * random_c.ez - Integration test for @random (compiler)
  */
 
-import @std
 import @random
-using std
 
 do main() {
     mut pass int = 0

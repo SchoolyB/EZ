@@ -5,9 +5,7 @@
  * given float arguments instead of truncating to int.
  */
 
-import @std
 import @math
-using std
 
 do main() {
     println("=== Math Float Return Type Tests ===")

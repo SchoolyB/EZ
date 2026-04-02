@@ -2,8 +2,6 @@
  * membership_operators.ez - Test in, not_in, and !in operators
  */
 
-import @std
-using std
 
 do main() {
     println("=== Membership Operators Test ===")

@@ -1,6 +1,4 @@
 
-import @std
-using std
 
 do print_items() {
     for_each item in ITEMS {

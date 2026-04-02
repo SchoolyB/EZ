@@ -4,8 +4,7 @@
  * Run with: ez examples/stdlib/os.ez
  */
 
-import @std, @os
-using std
+import @os
 
 do main() {
     // Platform detection

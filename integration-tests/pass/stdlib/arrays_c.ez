@@ -2,9 +2,7 @@
  * arrays_c.ez - Integration test for @arrays (compiler)
  */
 
-import @std
 import @arrays
-using std
 
 do main() {
     println("=== Arrays Module Test ===")

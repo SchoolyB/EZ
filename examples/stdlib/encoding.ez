@@ -4,8 +4,7 @@
  * Run with: ez examples/encoding.ez
  */
 
-import @std, @encoding
-using std
+import @encoding
 
 do main() {
     // Base64

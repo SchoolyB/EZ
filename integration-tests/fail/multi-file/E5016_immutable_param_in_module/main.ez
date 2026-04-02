@@ -4,10 +4,8 @@
  * Regression test for bug #535
  */
 
-import @std
 import lib"./mylib"
 
-using std
 
 do main() {
     mut h = lib.Hero{name: "Test", hp: 50}

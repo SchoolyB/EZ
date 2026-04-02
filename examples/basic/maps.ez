@@ -5,8 +5,7 @@
  * Syntax: map[key_type:value_type]
  */
 
-import @std, @maps
-using std
+import @maps
 
 do main() {
     println("=== Maps in EZ ===")

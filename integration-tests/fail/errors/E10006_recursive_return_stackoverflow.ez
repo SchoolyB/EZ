@@ -3,8 +3,6 @@
  * Expected: "stack overflow" or "maximum recursion"
  */
 
-import @std
-using std
 
 do recurse(n int) -> int {
     return recurse(n + 1)

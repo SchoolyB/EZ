@@ -2,8 +2,7 @@
  * strings.ez - Test @strings standard library with PROPER ASSERTIONS
  */
 
-import @std, @strings
-using std
+import @strings
 
 do main() {
     println("=== @strings Standard Library Test ===")

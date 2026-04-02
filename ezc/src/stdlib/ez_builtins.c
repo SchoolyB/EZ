@@ -8,8 +8,136 @@
 #include "ez_builtins.h"
 #include <stdio.h>
 #include <string.h>
+#include <stdlib.h>
+#include <inttypes.h>
 #include <unistd.h>
 #include <time.h>
+
+/* Format a double using the shortest representation that round-trips */
+static int fmt_shortest_float(char *buf, size_t bufsz, double v) {
+    int n = 0;
+    for (int prec = 15; prec <= 17; prec++) {
+        n = snprintf(buf, bufsz, "%.*g", prec, v);
+        double rt;
+        if (sscanf(buf, "%lf", &rt) == 1 && rt == v) break;
+    }
+    if (!strchr(buf, '.') && !strchr(buf, 'e') && !strchr(buf, 'i') &&
+        !strchr(buf, 'n') && n + 2 < (int)bufsz) {
+        buf[n++] = '.';
+        buf[n++] = '0';
+        buf[n] = '\0';
+    }
+    return n;
+}
+
+/* Write a Unicode code point as UTF-8 to a FILE stream */
+static void fput_utf8(int32_t c, FILE *f) {
+    if (c < 0x80) {
+        fputc(c, f);
+    } else if (c < 0x800) {
+        fputc(0xC0 | (c >> 6), f);
+        fputc(0x80 | (c & 0x3F), f);
+    } else if (c < 0x10000) {
+        fputc(0xE0 | (c >> 12), f);
+        fputc(0x80 | ((c >> 6) & 0x3F), f);
+        fputc(0x80 | (c & 0x3F), f);
+    } else if (c < 0x110000) {
+        fputc(0xF0 | (c >> 18), f);
+        fputc(0x80 | ((c >> 12) & 0x3F), f);
+        fputc(0x80 | ((c >> 6) & 0x3F), f);
+        fputc(0x80 | (c & 0x3F), f);
+    }
+}
+
+/* --- println --- */
+
+void ez_builtin_println_str(EzString s) {
+    fwrite(s.data, 1, (size_t)s.len, stdout);
+    putchar('\n');
+}
+
+void ez_builtin_println_int(int64_t v) {
+    printf("%" PRId64 "\n", v);
+}
+
+void ez_builtin_println_float(double v) {
+    char buf[64];
+    fmt_shortest_float(buf, sizeof(buf), v);
+    printf("%s\n", buf);
+}
+
+void ez_builtin_println_bool(bool v) {
+    printf("%s\n", v ? "true" : "false");
+}
+
+void ez_builtin_println_char(int32_t c) {
+    fput_utf8(c, stdout);
+    putchar('\n');
+}
+
+void ez_builtin_println_addr(uintptr_t v) {
+    printf("0x%" PRIxPTR "\n", v);
+}
+
+/* --- print --- */
+
+void ez_builtin_print_str(EzString s) {
+    fwrite(s.data, 1, (size_t)s.len, stdout);
+}
+
+void ez_builtin_print_int(int64_t v) {
+    printf("%" PRId64, v);
+}
+
+void ez_builtin_print_float(double v) {
+    char buf[64];
+    fmt_shortest_float(buf, sizeof(buf), v);
+    printf("%s", buf);
+}
+
+void ez_builtin_print_bool(bool v) {
+    printf("%s", v ? "true" : "false");
+}
+
+void ez_builtin_print_char(int32_t c) {
+    fput_utf8(c, stdout);
+}
+
+void ez_builtin_print_addr(uintptr_t v) {
+    printf("0x%" PRIxPTR, v);
+}
+
+/* --- eprintln / eprint --- */
+
+void ez_builtin_eprintln_str(EzString s) {
+    fwrite(s.data, 1, (size_t)s.len, stderr);
+    fputc('\n', stderr);
+}
+
+void ez_builtin_eprintln_int(int64_t v) {
+    fprintf(stderr, "%" PRId64 "\n", v);
+}
+
+void ez_builtin_eprintln_char(int32_t c) {
+    fput_utf8(c, stderr);
+    fputc('\n', stderr);
+}
+
+void ez_builtin_eprintln_addr(uintptr_t v) {
+    fprintf(stderr, "0x%" PRIxPTR "\n", v);
+}
+
+void ez_builtin_eprint_str(EzString s) {
+    fwrite(s.data, 1, (size_t)s.len, stderr);
+}
+
+void ez_builtin_eprint_char(int32_t c) {
+    fput_utf8(c, stderr);
+}
+
+void ez_builtin_eprint_addr(uintptr_t v) {
+    fprintf(stderr, "0x%" PRIxPTR, v);
+}
 
 /* --- input --- */
 
@@ -18,7 +146,6 @@ EzString ez_builtin_input(EzArena *arena) {
     if (fgets(buf, sizeof(buf), stdin) == NULL) {
         return ez_string_lit("");
     }
-    /* Strip trailing newline */
     size_t len = strlen(buf);
     if (len > 0 && buf[len - 1] == '\n') len--;
     return ez_string_new(arena, buf, (int32_t)len);
@@ -74,4 +201,116 @@ void ez_builtin_sleep_ns(int64_t ns) {
         ts.tv_nsec = ns % 1000000000;
         nanosleep(&ts, NULL);
     }
+}
+
+/* --- to_string --- */
+
+EzString ez_builtin_to_string_int(EzArena *arena, int64_t v) {
+    char buf[32];
+    int len = snprintf(buf, sizeof(buf), "%" PRId64, v);
+    return ez_string_new(arena, buf, (int32_t)len);
+}
+
+EzString ez_builtin_to_string_float(EzArena *arena, double v) {
+    char buf[64];
+    int len = fmt_shortest_float(buf, sizeof(buf), v);
+    return ez_string_new(arena, buf, (int32_t)len);
+}
+
+EzString ez_builtin_format_float(EzArena *arena, double v) {
+    return ez_builtin_to_string_float(arena, v);
+}
+
+EzString ez_builtin_to_string_bool(EzArena *arena, bool v) {
+    return v ? ez_string_lit("true") : ez_string_lit("false");
+}
+
+/* --- from_string --- */
+
+int64_t ez_builtin_string_to_int(EzString s) {
+    char buf[64];
+    int len = s.len < (int32_t)sizeof(buf) - 1 ? s.len : (int32_t)sizeof(buf) - 1;
+    memcpy(buf, s.data, (size_t)len);
+    buf[len] = '\0';
+    return strtoll(buf, NULL, 10);
+}
+
+double ez_builtin_string_to_float(EzString s) {
+    char buf[64];
+    int len = s.len < (int32_t)sizeof(buf) - 1 ? s.len : (int32_t)sizeof(buf) - 1;
+    memcpy(buf, s.data, (size_t)len);
+    buf[len] = '\0';
+    return strtod(buf, NULL);
+}
+
+/* --- composite to_string --- */
+
+EzString ez_builtin_array_to_string(EzArena *arena, EzArray *arr, int elem_kind) {
+    char buf[4096];
+    int pos = 0;
+    buf[pos++] = '{';
+    for (int32_t i = 0; i < arr->len && pos < 4000; i++) {
+        if (i > 0) { buf[pos++] = ','; buf[pos++] = ' '; }
+        switch (elem_kind) {
+        case 0:
+            pos += snprintf(buf + pos, sizeof(buf) - pos, "%" PRId64,
+                EZ_ARRAY_GET(*arr, int64_t, i));
+            break;
+        case 1: {
+            char fbuf[64];
+            fmt_shortest_float(fbuf, sizeof(fbuf), EZ_ARRAY_GET(*arr, double, i));
+            pos += snprintf(buf + pos, sizeof(buf) - pos, "%s", fbuf);
+            break;
+        }
+        case 2: {
+            EzString s = EZ_ARRAY_GET(*arr, EzString, i);
+            pos += snprintf(buf + pos, sizeof(buf) - pos, "\"%.*s\"",
+                (int)s.len, s.data ? s.data : "");
+            break;
+        }
+        case 3:
+            pos += snprintf(buf + pos, sizeof(buf) - pos, "%s",
+                EZ_ARRAY_GET(*arr, bool, i) ? "true" : "false");
+            break;
+        }
+    }
+    buf[pos++] = '}';
+    buf[pos] = '\0';
+    return ez_string_new(arena, buf, (int32_t)pos);
+}
+
+EzString ez_builtin_map_to_string(EzArena *arena, EzMap *m, int val_kind) {
+    char buf[4096];
+    int pos = 0;
+    buf[pos++] = '{';
+    for (int32_t oi = 0; oi < m->order_len && pos < 4000; oi++) {
+        int32_t i = m->order[oi];
+        if (m->states[i] != 1) continue;
+        if (oi > 0) { buf[pos++] = ','; buf[pos++] = ' '; }
+        EzString *kp = (EzString *)((char *)m->keys + (size_t)i * m->key_size);
+        pos += snprintf(buf + pos, sizeof(buf) - pos, "\"%.*s\": ",
+            (int)kp->len, kp->data ? kp->data : "");
+        void *vp = (char *)m->values + (size_t)i * m->value_size;
+        switch (val_kind) {
+        case 0: pos += snprintf(buf + pos, sizeof(buf) - pos, "%" PRId64, *(int64_t *)vp); break;
+        case 1: {
+            char fbuf[64];
+            fmt_shortest_float(fbuf, sizeof(fbuf), *(double *)vp);
+            pos += snprintf(buf + pos, sizeof(buf) - pos, "%s", fbuf);
+            break;
+        }
+        case 2: {
+            EzString *sp = (EzString *)vp;
+            pos += snprintf(buf + pos, sizeof(buf) - pos, "\"%.*s\"",
+                (int)sp->len, sp->data ? sp->data : "");
+            break;
+        }
+        case 3: pos += snprintf(buf + pos, sizeof(buf) - pos, "%s",
+            *(bool *)vp ? "true" : "false"); break;
+        }
+    }
+    if (m->count == 0) { /* empty map */ }
+    buf[pos++] = '}';
+    buf[pos] = '\0';
+    return ez_string_new(arena, buf, (int32_t)pos);
 }

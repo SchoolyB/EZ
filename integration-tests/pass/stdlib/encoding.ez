@@ -2,9 +2,7 @@
  * encoding.ez - Test encoding module functions
  */
 
-import @std
 import @encoding
-using std
 
 do main() {
     println("=== Encoding Module Test ===")

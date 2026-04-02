@@ -2,9 +2,7 @@
  * strings_c.ez - Integration test for @strings (compiler)
  */
 
-import @std
 import @strings
-using std
 
 do main() {
     println("=== Strings Module Test ===")

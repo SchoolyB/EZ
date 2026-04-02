@@ -1,6 +1,4 @@
 
-import @std
-using std
 
 do get_value() -> int {
     return VALUE

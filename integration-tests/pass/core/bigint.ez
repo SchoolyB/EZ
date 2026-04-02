@@ -2,8 +2,6 @@
  * bigint.ez - Test i128, u128, i256, u256 wide integer types
  */
 
-import @std
-using std
 
 do main() {
     println("=== Big Integer Types Test ===")

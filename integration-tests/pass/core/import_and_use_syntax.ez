@@ -2,7 +2,7 @@
  * import_and_use_syntax.ez - Test 'import and use @module' syntax
  */
 
-import and use @std, @strings, @math
+import and use @strings, @math
 
 do main() {
     println("=== Import and Use Syntax Test ===")

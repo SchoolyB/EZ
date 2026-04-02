@@ -2,8 +2,6 @@
  * as_long_as_loop.ez - Test while loop (as_long_as) keyword
  */
 
-import @std
-using std
 
 do main() {
     println("=== As Long As Loop Test ===")

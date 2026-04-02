@@ -2,8 +2,7 @@
  * time.ez - Test @time standard library with PROPER ASSERTIONS
  */
 
-import @std, @time, @strings
-using std
+import @time, @strings
 
 do main() {
     println("=== @time Standard Library Test ===")

@@ -2,10 +2,8 @@
  * Test for_each with same-module array constants
  * Regression test for bug #465
  */
-import @std
 import "./testmod"
 
-using std
 
 do main() {
     println("=== For_each Module Constant Test ===")

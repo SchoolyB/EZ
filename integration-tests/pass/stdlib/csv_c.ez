@@ -2,10 +2,8 @@
  * csv_c.ez - Integration test for @csv (compiler)
  */
 
-import @std
 import @csv
 import @strings
-using std
 
 do main() {
     println("=== CSV Module Test ===")

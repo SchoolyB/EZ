@@ -2,8 +2,7 @@
  * crypto.ez - Test @crypto standard library
  */
 
-import @std, @crypto, @strings
-using std
+import @crypto, @strings
 
 do main() {
     println("=== @crypto Standard Library Test ===")

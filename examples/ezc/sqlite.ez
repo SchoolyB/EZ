@@ -8,8 +8,7 @@
  * The @sqlite module is EZC-only.
  */
 
-import @std, @sqlite
-using std
+import @sqlite
 
 do main() {
     println("=== SQLite Demo ===")

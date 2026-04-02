@@ -2,9 +2,7 @@
  * maps_c.ez - Integration test for @maps (compiler)
  */
 
-import @std
 import @maps
-using std
 
 do main() {
     println("=== Maps Module Test ===")

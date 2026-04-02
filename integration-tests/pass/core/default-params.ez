@@ -2,8 +2,6 @@
  * default-params.ez - Test default parameter values for functions
  */
 
-import @std
-using std
 
 // Test basic default parameter
 do greet(name string = "World") -> string {

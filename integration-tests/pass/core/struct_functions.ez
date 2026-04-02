@@ -8,8 +8,7 @@
  *   - No self/this — all parameters explicit
  */
 
-import @std, @math
-using std
+import @math
 
 const Point struct {
     x int

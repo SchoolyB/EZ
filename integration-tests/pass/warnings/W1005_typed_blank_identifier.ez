@@ -1,7 +1,6 @@
 // Test: W1005 typed-blank-identifier warning
 // Typed blank identifiers should trigger W1005 warning but still run successfully
 
-import and use @std
 
 do returnTwo() -> (int, string) {
     return 42, "hello"

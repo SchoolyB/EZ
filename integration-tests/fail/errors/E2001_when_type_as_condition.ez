@@ -1,6 +1,4 @@
 // E2047: when condition must be a value, not a type name
-import @std
-using std
 
 const COLOR enum {
     RED

@@ -2,8 +2,6 @@
  * primitives.ez - Test primitive types (int, float, string, bool, char, byte)
  */
 
-import @std
-using std
 
 do main() {
     println("=== Primitives Test ===")

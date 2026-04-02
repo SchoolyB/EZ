@@ -2,8 +2,7 @@
  * functions.ez - Test function definitions, parameters, returns, mutable params
  */
 
-import @std, @arrays
-using std
+import @arrays
 
 const Point struct {
     x int

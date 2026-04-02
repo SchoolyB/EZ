@@ -2,10 +2,8 @@
  * main.ez - Entry point that imports a directory module
  */
 
-import @std
 import "../src/server"
 
-using std
 
 /* Test result tracking */
 const TestResult struct {

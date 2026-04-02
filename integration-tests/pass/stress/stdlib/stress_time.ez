@@ -2,8 +2,7 @@
  * Expected: all tests pass
  */
 
-import @std, @time
-using std
+import @time
 
 do main() {
     println("=== Stress: @time ===")

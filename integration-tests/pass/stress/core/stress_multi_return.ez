@@ -2,8 +2,6 @@
  * Expected: all tests pass
  */
 
-import @std
-using std
 
 do two() -> (int, string) { return 42, "hello" }
 do three() -> (int, string, bool) { return 1, "two", true }

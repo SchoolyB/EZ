@@ -2,10 +2,8 @@
  * Test that no W4001 warning is shown for files in matching directory
  * Regression test for bug #464
  */
-import @std
 import "./mymod"
 
-using std
 
 do main() {
     println("=== No Warning Matching Dir Test ===")

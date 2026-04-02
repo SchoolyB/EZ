@@ -4,8 +4,6 @@
  * Expected: all tests pass with no warnings
  */
 
-import @std
-using std
 
 do main() {
     println("=== Fixed Array Init Tests ===")

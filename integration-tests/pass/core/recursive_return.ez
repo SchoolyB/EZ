@@ -2,8 +2,6 @@
  * recursive_return.ez - Test recursion in return position works correctly
  */
 
-import @std
-using std
 
 do factorial(n int) -> int {
     if n <= 1 {

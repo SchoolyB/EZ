@@ -5,8 +5,6 @@
  * correctly propagates the source type instead of defaulting to int.
  */
 
-import @std
-using std
 
 const Point struct {
     x int

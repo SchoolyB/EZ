@@ -2,9 +2,7 @@
  * crypto_c.ez - Integration test for @crypto (compiler)
  */
 
-import @std
 import @crypto
-using std
 
 do main() {
     println("=== Crypto Module Test ===")

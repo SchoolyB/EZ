@@ -2,9 +2,7 @@
  * os_c.ez - Integration test for @os (compiler)
  */
 
-import @std
 import @os
-using std
 
 do main() {
     println("=== OS Module Test ===")

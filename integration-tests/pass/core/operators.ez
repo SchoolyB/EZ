@@ -2,8 +2,6 @@
  * operators.ez - Test all operators (arithmetic, comparison, logical, assignment)
  */
 
-import @std
-using std
 
 do main() {
     println("=== Operators Test ===")

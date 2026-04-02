@@ -11,8 +11,7 @@
  * with the EZ interpreter.
  */
 
-import @std, @mem
-using std
+import @mem
 
 // Process a batch of data on a scratch arena.
 // All temporary allocations are freed when the function exits.

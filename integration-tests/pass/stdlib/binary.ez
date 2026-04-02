@@ -2,8 +2,7 @@
  * binary.ez - Test @binary standard library
  */
 
-import @std, @binary
-using std
+import @binary
 
 do main() {
     println("=== @binary Standard Library Test ===")

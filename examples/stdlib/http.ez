@@ -4,8 +4,7 @@
  * Run with: ez examples/http.ez
  */
 
-import @std, @http, @encoding
-using std
+import @http, @encoding
 
 do main() {
     // Simple GET request

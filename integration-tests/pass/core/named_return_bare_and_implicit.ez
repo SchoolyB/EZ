@@ -4,8 +4,6 @@
  * Expected: all tests pass
  */
 
-import @std
-using std
 
 // Single named return with bare return
 do get_answer() -> (result int) {

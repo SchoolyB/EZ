@@ -2,8 +2,7 @@
  * math.ez - Test @math standard library with PROPER ASSERTIONS
  */
 
-import @std, @math
-using std
+import @math
 
 do main() {
     println("=== @math Standard Library Test ===")

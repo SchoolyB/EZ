@@ -4,8 +4,7 @@
  * Run with: ez examples/regex.ez
  */
 
-import @std, @regex
-using std
+import @regex
 
 do main() {
     mut text string = "Contact us at support@example.com or sales@example.com"

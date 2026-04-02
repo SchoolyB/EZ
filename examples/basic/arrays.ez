@@ -5,8 +5,6 @@
  * Syntax: [type] for the type, {values} for literals
  */
 
-import @std
-using std
 
 do main() {
     println("=== Arrays in EZ ===")

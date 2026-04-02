@@ -3,8 +3,6 @@
  * Expected: "invalid operands"
  */
 
-import @std
-using std
 
 do main() {
     mut s = "${1 + true}"  // Cannot add int and bool

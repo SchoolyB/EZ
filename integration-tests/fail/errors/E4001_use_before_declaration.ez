@@ -3,8 +3,6 @@
  * Expected: "undefined variable"
  */
 
-import @std
-using std
 
 do main() {
     y = 10          // assigning to y before declaration

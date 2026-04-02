@@ -4,8 +4,7 @@
  *       tuple destructuring issues — tested via existing os.ez instead.
  */
 
-import @std, @os
-using std
+import @os
 
 do main() {
     println("=== Stress: @os ===")

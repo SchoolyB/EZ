@@ -2,9 +2,7 @@
  * uuid.ez - Test uuid module functions
  */
 
-import @std
 import @uuid
-using std
 
 do main() {
     println("=== UUID Module Test ===")

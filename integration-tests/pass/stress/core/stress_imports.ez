@@ -2,8 +2,7 @@
  * Expected: all tests pass
  */
 
-import @std, @arrays, @strings, @math
-using std
+import @arrays, @strings, @math
 
 do main() {
     println("=== Stress: Imports & Using ===")

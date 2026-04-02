@@ -5,8 +5,6 @@
  * including struct-level private functions called by public ones.
  */
 
-import @std
-using std
 
 // Private top-level function
 private do secret_value() -> int {

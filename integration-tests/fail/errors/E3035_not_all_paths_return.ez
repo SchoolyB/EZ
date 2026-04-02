@@ -4,8 +4,6 @@
  * Functions with return types must return a value on ALL code paths.
  * This function only returns in the if branch, not the fallthrough.
  */
-import @std
-using std
 
 do maybe_return(x int) -> int {
     if x > 0 {

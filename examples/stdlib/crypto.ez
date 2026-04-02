@@ -4,8 +4,7 @@
  * Run with: ez examples/crypto.ez
  */
 
-import @std, @crypto
-using std
+import @crypto
 
 do main() {
     mut message string = "Hello, World!"

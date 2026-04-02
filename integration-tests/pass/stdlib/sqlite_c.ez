@@ -2,9 +2,7 @@
  * sqlite_c.ez - Integration test for @sqlite (compiler)
  */
 
-import @std
 import @sqlite
-using std
 
 do main() {
     println("=== SQLite Module Test ===")

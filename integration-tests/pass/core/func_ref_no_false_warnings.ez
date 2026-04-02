@@ -5,8 +5,6 @@
  * Expected: all tests pass with no warnings
  */
 
-import @std
-using std
 
 // This function is ONLY used via ()ref — should not trigger W1003
 do square(n int) -> int {

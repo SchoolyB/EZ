@@ -2,8 +2,6 @@
  * hex-escape.ez - Test hex escape sequences in strings and chars
  */
 
-import @std
-using std
 
 do main() {
     println("Testing hex escape sequences...")

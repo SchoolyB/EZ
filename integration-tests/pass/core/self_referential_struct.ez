@@ -3,8 +3,6 @@
  * Verifies forward declarations allow linked list / tree patterns
  */
 
-import @std
-using std
 
 const Node struct {
     value int

@@ -5,8 +5,6 @@
  * uses the map accessor instead of the array accessor.
  */
 
-import @std
-using std
 
 do increment(&val int) {
     val += 1

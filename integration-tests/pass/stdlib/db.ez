@@ -2,8 +2,7 @@
  * db.ez - Test @db standard library with PROPER ASSERTIONS
  */
 
-import @std, @db, @json, @io
-using std
+import @db, @json, @io
 
 const User struct {
 	name string

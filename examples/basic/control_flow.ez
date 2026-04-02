@@ -10,8 +10,6 @@
  *   - loop (infinite loop)
  */
 
-import @std
-using std
 
 const Season enum {
     SPRING,

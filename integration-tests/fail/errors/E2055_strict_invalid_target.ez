@@ -1,5 +1,3 @@
-import @std
-using std
 
 #strict
 do main() {

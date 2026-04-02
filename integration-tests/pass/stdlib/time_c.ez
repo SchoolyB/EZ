@@ -2,9 +2,7 @@
  * time_c.ez - Integration test for @time (compiler)
  */
 
-import @std
 import @time
-using std
 
 do main() {
     println("=== Time Module Test ===")

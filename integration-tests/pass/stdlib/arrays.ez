@@ -5,8 +5,7 @@
  * Every test now compares expected vs actual values.
  */
 
-import @std, @arrays
-using std
+import @arrays
 
 do main() {
     println("=== @arrays Standard Library Test ===")

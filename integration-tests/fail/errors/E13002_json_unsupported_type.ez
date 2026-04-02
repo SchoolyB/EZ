@@ -3,8 +3,8 @@
  * Expected: "unsupported value" or "failed to encode"
  */
 
-import @std, @json, @math
-using std, math
+import @json, @math
+using math
 
 do main() {
     // Infinity cannot be represented in JSON

@@ -2,8 +2,6 @@
  * control-flow.ez - Test control flow (if/or/otherwise, for, while, for_each, range)
  */
 
-import @std
-using std
 
 do main() {
     println("=== Control Flow Test ===")

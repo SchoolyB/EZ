@@ -4,8 +4,6 @@
  * Demonstrates functions for basic math operations.
  */
 
-import @std
-using std
 
 do main() {
     println("=== Simple Calculator ===")

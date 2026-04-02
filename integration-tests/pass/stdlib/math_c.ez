@@ -2,9 +2,7 @@
  * math_c.ez - Integration test for @math (compiler)
  */
 
-import @std
 import @math
-using std
 
 do main() {
     println("=== Math Module Test ===")

@@ -3,8 +3,6 @@
  * Expected: "has no fields or methods"
  */
 
-import @std
-using std
 
 do get_name() -> string {
     return "hello"

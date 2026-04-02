@@ -5,10 +5,8 @@
  * return correctly resolved types for type_of().
  */
 
-import @std
 import @random
 import @maps
-using std
 
 do main() {
     println("=== type_of() Stdlib Return Types ===")

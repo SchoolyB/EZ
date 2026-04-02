@@ -3,8 +3,6 @@
  * Expected: warning about accessing member on struct that may be nil
  */
 
-import @std
-using std
 
 const Position struct {
     x int

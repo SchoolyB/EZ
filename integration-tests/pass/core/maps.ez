@@ -2,8 +2,7 @@
  * maps.ez - Test map types and operations
  */
 
-import @std, @maps
-using std
+import @maps
 
 const Entry struct {
     items [int]

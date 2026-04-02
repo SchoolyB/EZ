@@ -3,7 +3,7 @@
  * Expected: Runtime error when trying to modify array during iteration
  */
 
-import and use @std, @arrays
+import and use @arrays
 
 do main() {
     mut arr [int] = {1, 2, 3, 4, 5}

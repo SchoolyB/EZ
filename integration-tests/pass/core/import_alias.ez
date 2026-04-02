@@ -2,19 +2,14 @@
  * import_alias.ez - Test import aliasing with alias@module syntax
  */
 
-import s@std, str@strings, m@math
-using s
+import str@strings, m@math
 
 do main() {
     println("=== Import Alias Test ===")
     mut passed int = 0
     mut failed int = 0
 
-    // Test 1: alias for std works via using
-    println("  [PASS] println via using aliased std")
-    passed += 1
-
-    // Test 2: dot notation with alias
+    // Test 1: dot notation with alias
     mut upper string = str.to_upper("hello")
     if upper == "HELLO" {
         println("  [PASS] str.to_upper via alias")
@@ -24,7 +19,7 @@ do main() {
         failed += 1
     }
 
-    // Test 3: math via alias
+    // Test 2: math via alias
     mut a int = m.abs(-99)
     if a == 99 {
         println("  [PASS] m.abs(-99) via alias")
@@ -34,7 +29,7 @@ do main() {
         failed += 1
     }
 
-    // Test 4: using with alias name
+    // Test 3: using with alias name
     mut lower string = str.to_lower("WORLD")
     if lower == "world" {
         println("  [PASS] str.to_lower via alias")

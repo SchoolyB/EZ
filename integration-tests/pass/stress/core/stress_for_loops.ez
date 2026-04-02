@@ -2,8 +2,6 @@
  * Expected: all tests pass
  */
 
-import @std
-using std
 
 do early_return() -> int {
     for i in range(0, 100) {

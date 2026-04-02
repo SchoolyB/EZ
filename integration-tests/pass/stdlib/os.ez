@@ -2,8 +2,7 @@
  * os.ez - Test @os standard library with PROPER ASSERTIONS
  */
 
-import @std, @os
-using std
+import @os
 
 do main() {
     println("=== @os Standard Library Test ===")

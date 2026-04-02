@@ -2,8 +2,6 @@
  * index_function_return.ez - Test indexing arrays returned directly from functions
  */
 
-import @std
-using std
 
 do get_numbers() -> [int] {
     return {10, 20, 30}

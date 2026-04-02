@@ -2,8 +2,6 @@
  * octal_literals.ez - Test octal integer literals with 0o prefix
  */
 
-import @std
-using std
 
 do main() {
     println("=== Octal Literals Test ===")

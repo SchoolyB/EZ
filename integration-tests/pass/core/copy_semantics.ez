@@ -7,8 +7,6 @@
  * - ref() works on primitives
  */
 
-import @std
-using std
 
 const Point struct {
     x int

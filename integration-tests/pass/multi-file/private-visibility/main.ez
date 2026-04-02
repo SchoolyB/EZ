@@ -7,10 +7,8 @@
  *   - Private functions/constants are NOT exported (tested separately in fail tests)
  */
 
-import @std
 import "./lib"
 
-using std
 
 do main() {
     println("=== Private Visibility Test ===")

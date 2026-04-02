@@ -7,10 +7,8 @@
  *   - Private functions stay private across modules
  */
 
-import @std
 import "./geometry"
 
-using std
 
 do main() {
     println("=== Cross-Module Struct Functions Test ===")

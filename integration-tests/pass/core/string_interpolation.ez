@@ -2,8 +2,6 @@
  * string_interpolation.ez - Test string interpolation edge cases
  */
 
-import @std
-using std
 
 do get_name() -> string {
     return "World"

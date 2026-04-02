@@ -2,9 +2,7 @@
  * mem_c.ez - Integration test for @mem (compiler)
  */
 
-import @std
 import @mem
-using std
 
 do main() {
     println("=== Mem Module Test ===")

@@ -2,9 +2,7 @@
  * regex_c.ez - Integration test for @regex (compiler)
  */
 
-import @std
 import @regex
-using std
 
 do main() {
     mut pass int = 0

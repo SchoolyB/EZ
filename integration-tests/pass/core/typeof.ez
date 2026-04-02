@@ -3,9 +3,7 @@
  * Tests that type_of() returns correct EZ type names
  */
 
-import @std
 import @mem
-using std
 
 const Color enum { RED, GREEN, BLUE }
 const Point struct {

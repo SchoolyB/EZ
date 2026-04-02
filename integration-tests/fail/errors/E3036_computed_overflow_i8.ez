@@ -3,8 +3,6 @@
  * Expected: "out of range"
  */
 
-import @std
-using std
 
 do main() {
     mut x i8 = 100 + 50  // 150 exceeds i8 max of 127

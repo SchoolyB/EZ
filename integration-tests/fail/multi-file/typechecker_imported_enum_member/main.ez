@@ -2,7 +2,6 @@
 // Test: Invalid enum member access with imported enum
 // Expected: E4004 - enum has no member 'RUNNING'
 
-import and use @std
 import lib"./lib"
 
 do main() {

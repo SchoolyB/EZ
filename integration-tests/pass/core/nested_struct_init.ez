@@ -3,8 +3,6 @@
  * Regression test for bug #621
  */
 
-import @std
-using std
 
 const Inner struct {
     val int

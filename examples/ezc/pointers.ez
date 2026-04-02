@@ -8,8 +8,7 @@
  * Pointers (^Type) and @mem are EZC-only features.
  */
 
-import @std, @mem
-using std
+import @mem
 
 const Point struct {
     x int

@@ -8,8 +8,7 @@
  * The @threads, @sync, and @channels modules are EZC-only.
  */
 
-import @std, @threads, @sync, @channels
-using std
+import @threads, @sync, @channels
 
 // ---- Worker function that runs on its own thread ----
 

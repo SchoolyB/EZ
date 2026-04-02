@@ -4,8 +4,6 @@
  * A prime number is only divisible by 1 and itself.
  */
 
-import @std
-using std
 
 do main() {
     println("=== Prime Numbers ===")

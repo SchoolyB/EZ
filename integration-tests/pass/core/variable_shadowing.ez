@@ -2,8 +2,6 @@
  * variable_shadowing.ez - Test variable shadowing in nested blocks
  */
 
-import @std
-using std
 
 do main() {
     println("=== Variable Shadowing Test ===")

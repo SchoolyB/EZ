@@ -10,8 +10,7 @@
  *   curl http://localhost:8080/redirect
  */
 
-import @std, @server
-using std
+import @server
 
 // ---- Middleware ----
 

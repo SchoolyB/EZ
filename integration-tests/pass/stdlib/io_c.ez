@@ -2,9 +2,7 @@
  * io_c.ez - Integration test for @io (compiler)
  */
 
-import @std
 import @io
-using std
 
 do main() {
     println("=== IO Module Test ===")

@@ -2,10 +2,8 @@
  * Test that errors in multi-file modules show correct file location
  * Regression test for bug #466
  */
-import @std
 import "./utils"
 
-using std
 
 do main() {
     println("=== Error File Location Test ===")

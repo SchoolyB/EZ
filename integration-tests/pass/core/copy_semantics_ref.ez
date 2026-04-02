@@ -6,8 +6,6 @@
  * requires copy-by-default semantics not yet in the compiler.
  */
 
-import @std
-using std
 
 const Point struct {
     x int

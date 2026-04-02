@@ -3,8 +3,6 @@
  * Expected: "has no methods" or "has no fields"
  */
 
-import @std
-using std
 
 do get_num() -> int {
     return 42

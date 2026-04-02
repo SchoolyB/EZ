@@ -4,8 +4,6 @@
  */
 
 
-import @std
-using std
 
 do helper() {
     println("helper")

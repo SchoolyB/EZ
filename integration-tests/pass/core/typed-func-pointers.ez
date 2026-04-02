@@ -3,8 +3,6 @@
  * typed arguments (#1324).
  */
 
-import @std
-using std
 
 do double_it(n int) -> int {
     return n * 2

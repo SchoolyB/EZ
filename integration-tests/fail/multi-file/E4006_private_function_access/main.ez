@@ -3,10 +3,8 @@
  * Expected: "not found in module"
  */
 
-import @std
 import "./lib"
 
-using std
 
 do main() {
     // This should fail - secret() is private

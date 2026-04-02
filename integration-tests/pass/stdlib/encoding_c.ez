@@ -2,9 +2,7 @@
  * encoding_c.ez - Integration test for @encoding (compiler)
  */
 
-import @std
 import @encoding
-using std
 
 do main() {
     println("=== Encoding Module Test ===")

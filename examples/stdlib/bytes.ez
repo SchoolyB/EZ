@@ -4,8 +4,7 @@
  * Run with: ez examples/stdlib/bytes.ez
  */
 
-import @std, @bytes
-using std
+import @bytes
 
 do main() {
     // Create bytes from a string

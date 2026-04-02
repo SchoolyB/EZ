@@ -3,8 +3,6 @@
  * Expected: "out of bounds"
  */
 
-import @std
-using std
 
 do main() {
     mut arr [int, 3] = {1, 2, 3}  // Fixed-size array of 3 elements

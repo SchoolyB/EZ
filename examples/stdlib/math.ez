@@ -4,8 +4,7 @@
  * Run with: ez examples/stdlib/math.ez
  */
 
-import @std, @math
-using std
+import @math
 
 do main() {
     println("math.abs(-42) = ${math.abs(-42)}")

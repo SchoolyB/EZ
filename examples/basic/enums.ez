@@ -5,8 +5,6 @@
  * Values are accessed with EnumName.VALUE syntax.
  */
 
-import @std
-using std
 
 // Simple enum
 const Color enum {

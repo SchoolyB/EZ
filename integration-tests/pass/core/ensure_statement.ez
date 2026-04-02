@@ -2,8 +2,7 @@
  * ensure_statement.ez - Test ensure (deferred cleanup) statement
  */
 
-import @std, @io
-using std
+import @io
 
 mut cleanup_ran bool = false
 

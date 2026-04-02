@@ -2,8 +2,6 @@
  * arrays.ez - Test array types and operations
  */
 
-import @std
-using std
 
 const Box struct {
     values [int]

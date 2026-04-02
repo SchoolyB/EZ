@@ -3,10 +3,8 @@
  * Expected: "cannot access private member from outside module"
  */
 
-import @std
 import "./mylib"
 
-using std
 
 do main() {
     // This should fail - private_var is private

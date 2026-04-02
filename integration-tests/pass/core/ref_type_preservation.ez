@@ -5,8 +5,6 @@
  * indexing, len(), and comparison work on the reference variable.
  */
 
-import @std
-using std
 
 const Point struct {
     x int

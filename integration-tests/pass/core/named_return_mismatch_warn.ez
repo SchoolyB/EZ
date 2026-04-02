@@ -4,8 +4,6 @@
  * Expected: all tests pass (W2011 warnings are expected)
  */
 
-import @std
-using std
 
 do get_value() -> (result int) {
     mut other int = 99

@@ -2,8 +2,6 @@
  * Expected: passes with output "0", "", "false", "0.0"
  */
 
-import @std
-using std
 
 do getZeroInt() -> (count int) {
     return count

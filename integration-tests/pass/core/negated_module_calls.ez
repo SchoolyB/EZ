@@ -6,11 +6,9 @@
  * raw module.func() dot-access in C instead of ez_module_func().
  */
 
-import @std
 import @strings
 import @math
 import @regex
-using std
 
 do main() {
     println("=== Negated Module-Qualified Calls ===")

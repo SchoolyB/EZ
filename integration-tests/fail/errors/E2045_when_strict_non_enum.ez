@@ -1,6 +1,4 @@
 // E2045: #strict attribute only allowed on enum when statements
-import @std
-using std
 
 do main() {
     mut x = 1

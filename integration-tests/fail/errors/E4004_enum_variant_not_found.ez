@@ -3,8 +3,6 @@
  * Expected: "not found" or "Yellow"
  */
 
-import @std
-using std
 
 const Color enum {
     Red

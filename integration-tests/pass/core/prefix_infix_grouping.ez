@@ -5,8 +5,6 @@
  * correctly group the entire infix expression, not just the first operand.
  */
 
-import @std
-using std
 
 do main() {
     println("=== Prefix-Infix Grouping Tests ===")

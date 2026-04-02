@@ -3,8 +3,6 @@
  * Expected: "file scope" or "not allowed"
  */
 
-import @std
-using std
 
 mut x = 5
 x += 1  // assignment at file scope

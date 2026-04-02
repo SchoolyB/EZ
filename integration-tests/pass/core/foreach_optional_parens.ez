@@ -5,8 +5,6 @@
  * clause syntax, consistent with all other control flow constructs.
  */
 
-import @std
-using std
 
 do main() {
     println("=== for_each Optional Parentheses Tests ===")

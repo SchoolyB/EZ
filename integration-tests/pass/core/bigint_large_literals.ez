@@ -5,8 +5,6 @@
  * i128/u128/i256/u256 types and parsed via from_decimal() constructors.
  */
 
-import @std
-using std
 
 do main() {
     println("=== BigInt Large Literal Tests ===")

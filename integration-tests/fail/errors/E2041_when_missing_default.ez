@@ -1,6 +1,4 @@
 // E2041: when statement requires a default case
-import @std
-using std
 
 do main() {
     mut x = 1

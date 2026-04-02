@@ -2,8 +2,6 @@
  * short_circuit.ez - Test short-circuit evaluation of && and ||
  */
 
-import @std
-using std
 
 mut side_effect_count int = 0
 

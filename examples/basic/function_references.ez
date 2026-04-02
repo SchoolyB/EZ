@@ -6,8 +6,7 @@
  * stored in variables and passed as arguments to other functions.
  */
 
-import @std, @arrays
-using std
+import @arrays
 
 // ---- Functions to reference ----
 

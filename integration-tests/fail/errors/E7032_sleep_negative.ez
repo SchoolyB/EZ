@@ -3,8 +3,6 @@
  * Expected: "negative" or "sleep"
  */
 
-import @std
-using std
 
 do main() {
     sleep_s(-5)  // negative duration

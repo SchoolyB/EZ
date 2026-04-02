@@ -6,8 +6,6 @@
  * Named return variables use '-> (name type)' syntax.
  */
 
-import @std
-using std
 
 do main() {
     println("=== Functions in EZ ===")

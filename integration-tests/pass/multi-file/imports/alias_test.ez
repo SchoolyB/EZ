@@ -8,7 +8,7 @@
  */
 
 // Use aliased imports for everything
-import and use io@std, a"./libA", b"./libB", m@math
+import and use a"./libA", b"./libB", m@math
 
 const TestResult struct {
     passed int

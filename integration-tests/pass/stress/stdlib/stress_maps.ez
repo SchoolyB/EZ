@@ -2,8 +2,7 @@
  * Expected: all tests pass
  */
 
-import @std, @maps
-using std
+import @maps
 
 do main() {
     println("=== Stress: @maps ===")

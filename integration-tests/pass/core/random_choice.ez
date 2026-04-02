@@ -6,9 +6,7 @@
  * with the concrete element type.
  */
 
-import @std
 import @random
-using std
 
 do main() {
     println("=== random.choice() Tests ===")

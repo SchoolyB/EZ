@@ -2,8 +2,6 @@
  * map_struct_values.ez - Test maps with struct value types
  */
 
-import @std
-using std
 
 const Point struct {
     x int

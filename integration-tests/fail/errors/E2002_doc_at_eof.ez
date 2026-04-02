@@ -1,5 +1,4 @@
 // Test: E2059 - #doc at end of file (orphaned)
-import and use @std
 
 do main() {
     println("hello")

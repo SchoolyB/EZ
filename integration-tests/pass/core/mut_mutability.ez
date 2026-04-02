@@ -2,8 +2,8 @@
  * mut_mutability.ez - Test that mut automatically makes function returns mutable
  */
 
-import @std, @arrays
-using std, arrays
+import @arrays
+using arrays
 
 do get_numbers() -> [int] {
     return {1, 2, 3}

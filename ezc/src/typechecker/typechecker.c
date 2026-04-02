@@ -230,7 +230,7 @@ static bool tc_is_imported_module(TypeChecker *tc, const char *name) {
 
 static bool tc_is_builtin(const char *name) {
     static const char *builtins[] = {
-        "input",
+        "println", "print", "eprintln", "eprint", "input",
         "len", "type_of", "size_of", "copy", "new", "ref", "addr", "error",
         "int", "uint", "float", "string", "char", "byte", "bool",
         "i8", "i16", "i32", "i64", "u8", "u16", "u32", "u64", "f32", "f64",
@@ -1164,16 +1164,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
         }
 
         if (fn_name) {
-            /* If calling a builtin, mark @std as used (including aliases for std) */
             if (tc_is_builtin(fn_name)) {
-                for (int mi = 0; mi < tc->import_count; mi++) {
-                    const char *resolved = tc_resolve_alias(tc, tc->imported_modules[mi]);
-                    if (strcmp(tc->imported_modules[mi], "std") == 0 ||
-                        strcmp(resolved, "std") == 0) {
-                        tc->import_used[mi] = true;
-                        break;
-                    }
-                }
             }
             /* Check built-in functions first */
             if (strcmp(fn_name, "addr") == 0 && node->data.call.arg_count == 1) {
@@ -2981,7 +2972,7 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
 /* Known stdlib module names */
 static bool is_valid_module(const char *name) {
     static const char *modules[] = {
-        "std", "math", "strings", "arrays", "maps", "io", "os", "time",
+        "math", "strings", "arrays", "maps", "io", "os", "time",
         "random", "json", "csv", "encoding", "crypto", "uuid", "bytes",
         "binary", "fmt", "http", "server", "regex", "net", "threads",
         "sync", "channels", "mem", "sqlite", "errors", "db", NULL

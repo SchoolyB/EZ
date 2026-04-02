@@ -3,8 +3,6 @@
  * Expected: "%" and "integer"
  */
 
-import @std
-using std
 
 do main() {
     mut f float = 3.14

@@ -10,8 +10,7 @@
  *   - Decode JSON into typed structs
  */
 
-import @std, @json, @io
-using std
+import @json, @io
 
 // Define a struct for typed JSON decoding
 const Person struct {

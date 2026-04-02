@@ -2,8 +2,6 @@
  * when_range_negative_step.ez - Test when/is with negative step ranges
  */
 
-import @std
-using std
 
 do main() {
     println("=== When Range Negative Step Test ===")

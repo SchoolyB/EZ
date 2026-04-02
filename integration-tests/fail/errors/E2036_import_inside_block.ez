@@ -2,7 +2,6 @@
  * Error Test: E2036 - import-inside-block
  * Expected: "import"
  */
-import and use @std
 
 do main() {
     import and use @math  // imports not allowed inside blocks

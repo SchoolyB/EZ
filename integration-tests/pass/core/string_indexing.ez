@@ -2,8 +2,6 @@
  * string_indexing.ez - Test direct string indexing with s[i] syntax
  */
 
-import @std
-using std
 
 do main() {
     println("=== String Indexing Test ===")

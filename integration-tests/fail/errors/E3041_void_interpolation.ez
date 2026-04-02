@@ -3,8 +3,6 @@
  * Expected: "cannot interpolate void expression"
  */
 
-import @std
-using std
 
 do say_hello() {
     println("hello")

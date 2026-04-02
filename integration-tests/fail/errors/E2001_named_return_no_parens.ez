@@ -2,7 +2,6 @@
  * Expected: E2002 error - named returns must be enclosed in parentheses
  */
 
-import and use @std
 
 do getName() -> name string {
     name = "Alice"

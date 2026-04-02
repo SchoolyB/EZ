@@ -3,8 +3,6 @@
  * Expected: warning about variable shadowing a global
  */
 
-import @std
-using std
 
 const MAX int = 100
 

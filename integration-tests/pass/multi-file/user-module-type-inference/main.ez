@@ -4,7 +4,6 @@
  * Tests issue #807: Type inference fails for user-defined module function return types
  */
 
-import and use @std
 import and use lib"./mylib"
 
 do needs_u64(v u64) {

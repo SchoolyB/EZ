@@ -2,8 +2,6 @@
  * loop_statement.ez - Test the loop (infinite loop) statement
  */
 
-import @std
-using std
 
 do main() {
     println("=== Loop Statement Test ===")

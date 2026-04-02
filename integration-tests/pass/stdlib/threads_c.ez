@@ -2,11 +2,9 @@
  * threads_c.ez - Integration test for @threads (compiler)
  */
 
-import @std
 import @threads
 import @sync
 import @channels
-using std
 
 do worker() {
     // simple worker function

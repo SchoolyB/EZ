@@ -5,8 +5,6 @@
  * references. Modifying the copy should not affect the original.
  */
 
-import @std
-using std
 
 do main() {
     println("=== Array Copy-by-Default Tests ===")

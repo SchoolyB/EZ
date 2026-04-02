@@ -3,8 +3,6 @@
  * Tests parsing and arithmetic for integers beyond int64 range
  */
 
-import @std
-using std
 
 do main() {
     println("=== Large Integers Test ===")

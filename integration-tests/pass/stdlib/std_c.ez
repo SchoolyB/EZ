@@ -2,8 +2,6 @@
  * std_c.ez - Integration test for @std (compiler)
  */
 
-import @std
-using std
 
 do main() {
     println("=== Std Module Test ===")

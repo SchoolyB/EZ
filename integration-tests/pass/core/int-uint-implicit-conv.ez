@@ -4,8 +4,6 @@
  * Verifies fix for #1310.
  */
 
-import @std
-using std
 
 const Pair struct {
     x uint

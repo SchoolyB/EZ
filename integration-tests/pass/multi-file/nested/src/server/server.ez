@@ -4,8 +4,6 @@
  */
 
 
-import @std
-using std
 
 do start_server(port int) {
     println("Server starting on port ${port}...")

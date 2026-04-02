@@ -7,8 +7,6 @@
  * - blank identifier works with const multi-return
  */
 
-import @std
-using std
 
 do get_pair() -> (int, string) {
     return 42, "hello"

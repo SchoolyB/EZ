@@ -4,8 +4,7 @@
  * Run with: ez examples/stdlib/io.ez
  */
 
-import @std, @io
-using std
+import @io
 
 do main() {
     // Write a file

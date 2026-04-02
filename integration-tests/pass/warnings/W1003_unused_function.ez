@@ -3,8 +3,6 @@
  * Expected: warning about function declared but never called
  */
 
-import @std
-using std
 
 do unused_helper() -> int {
     return 42

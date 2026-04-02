@@ -4,8 +4,6 @@
  * Expected: all tests pass
  */
 
-import @std
-using std
 
 const Point struct {
     x int

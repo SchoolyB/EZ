@@ -5,8 +5,6 @@
  * instead of empty struct representations like "Color{}".
  */
 
-import @std
-using std
 
 const Color enum {
     RED

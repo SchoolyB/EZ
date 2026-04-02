@@ -3,8 +3,6 @@
  * Expected: warning about variable shadowing an outer scope variable
  */
 
-import @std
-using std
 
 do main() {
     mut x int = 10

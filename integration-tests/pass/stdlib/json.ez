@@ -2,8 +2,7 @@
  * json.ez - Test @json standard library with PROPER ASSERTIONS
  */
 
-import @std, @json
-using std
+import @json
 
 // Struct definitions for typed decode tests
 const Person struct {

@@ -2,8 +2,6 @@
  * cast_keyword.ez - Test the cast() keyword for type conversions
  */
 
-import @std
-using std
 
 do main() {
     println("=== Cast Keyword Test ===")

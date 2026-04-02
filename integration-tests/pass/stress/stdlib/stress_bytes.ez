@@ -2,8 +2,7 @@
  * Expected: all tests pass
  */
 
-import @std, @bytes
-using std
+import @bytes
 
 do main() {
     println("=== Stress: @bytes ===")

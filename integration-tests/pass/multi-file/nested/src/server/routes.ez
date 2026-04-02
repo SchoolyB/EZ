@@ -4,8 +4,6 @@
  */
 
 
-import @std
-using std
 
 do handle_home(req Request) -> Response {
     println("Handling: ${req.method} ${req.path}")

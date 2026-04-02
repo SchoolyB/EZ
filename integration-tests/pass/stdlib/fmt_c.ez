@@ -3,9 +3,7 @@
  * fmt module ONLY has eprintln(s) and eprint(s) — no sprintf.
  */
 
-import @std
 import @fmt
-using std
 
 do main() {
     println("=== Fmt Module Test ===")

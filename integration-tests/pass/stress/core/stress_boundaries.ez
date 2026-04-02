@@ -2,8 +2,7 @@
  * Expected: all tests pass
  */
 
-import @std, @arrays
-using std
+import @arrays
 
 // Empty function body
 do noop() { }

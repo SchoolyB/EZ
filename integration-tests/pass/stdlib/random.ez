@@ -2,8 +2,7 @@
  * random.ez - Test @random standard library
  */
 
-import @std, @random
-using std
+import @random
 
 do main() {
     println("=== @random Standard Library Test ===")

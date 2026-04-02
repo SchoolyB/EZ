@@ -2,7 +2,6 @@
  * Expected: E3013 error - wrong number of return values
  */
 
-import and use @std
 
 do getValues() -> (age int, name string) {
     return 42

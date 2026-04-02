@@ -2,8 +2,6 @@
  * Expected: compiler error E4002
  */
 
-import @std
-using std
 
 do main() {
     mut fn = ()nonexistent_function

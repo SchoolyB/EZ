@@ -5,8 +5,6 @@
  * Use 'const Name struct' to define, then create instances.
  */
 
-import @std
-using std
 
 // Define a simple struct
 const Person struct {

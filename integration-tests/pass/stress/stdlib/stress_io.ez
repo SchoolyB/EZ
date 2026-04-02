@@ -2,8 +2,7 @@
  * Expected: all tests pass
  */
 
-import @std, @io
-using std
+import @io
 
 do main() {
     println("=== Stress: @io ===")

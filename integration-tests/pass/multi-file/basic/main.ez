@@ -8,11 +8,11 @@
  *   - 'using' directive for unqualified access
  */
 
-import @std, @arrays, @time
+import @arrays, @time
 import "./models"
 import "./utils"
 
-using std, models
+using models
 
 /* Test result tracking */
 const TestResult struct {

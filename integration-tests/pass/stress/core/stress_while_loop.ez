@@ -2,8 +2,6 @@
  * Expected: all tests pass
  */
 
-import @std
-using std
 
 do loop_return() -> int {
     mut i int = 0

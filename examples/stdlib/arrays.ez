@@ -4,8 +4,7 @@
  * Run with: ez examples/stdlib/arrays.ez
  */
 
-import @std, @arrays
-using std
+import @arrays
 
 do main() {
     mut nums [int] = {1, 2, 3, 4, 5}

@@ -1,5 +1,3 @@
-import @std
-using std
 
 do main() {
     mut std = "shadowed"

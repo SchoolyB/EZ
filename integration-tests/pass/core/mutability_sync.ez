@@ -7,8 +7,7 @@
  * - mut/const overrides stdlib return value mutability
  */
 
-import @std, @arrays
-using std
+import @arrays
 
 const Person struct {
     name string

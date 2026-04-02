@@ -2,9 +2,7 @@
  * net_c.ez - Integration test for @net (compiler)
  */
 
-import @std
 import @net
-using std
 
 do main() {
     mut pass int = 0

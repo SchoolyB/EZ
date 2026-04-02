@@ -3,8 +3,6 @@
  * within bounds works correctly (#1317).
  */
 
-import @std
-using std
 
 do main() {
     println("=== Sized Integer Overflow Checks ===")

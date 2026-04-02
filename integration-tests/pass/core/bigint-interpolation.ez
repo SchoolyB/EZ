@@ -5,8 +5,6 @@
  * in string interpolation via their to_string functions.
  */
 
-import @std
-using std
 
 do main() {
     println("=== BigInt String Interpolation ===")

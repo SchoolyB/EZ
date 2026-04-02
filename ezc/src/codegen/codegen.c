@@ -443,7 +443,7 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
                     emit(cg, "%s");
                 } else switch (tk) {
                 case TK_STRING: emit(cg, "%s"); break;
-                case TK_FLOAT:  emit(cg, "%s"); break; /* uses ez_std_format_float */
+                case TK_FLOAT:  emit(cg, "%s"); break; /* uses ez_builtin_format_float */
                 case TK_BOOL:   emit(cg, "%s"); break;
                 case TK_CHAR:   emit(cg, "%c"); break;
                 case TK_ARRAY:  emit(cg, "%s"); break;
@@ -487,7 +487,7 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
                 emit(cg, ") ? \"true\" : \"false\"");
                 break;
             case TK_FLOAT:
-                emit(cg, "ez_std_format_float(ez_default_arena, ");
+                emit(cg, "ez_builtin_format_float(ez_default_arena, ");
                 emit_expression(cg, part);
                 emit(cg, ").data");
                 break;
@@ -505,7 +505,7 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
                     else if (et->kind == TK_STRING) ek = 2;
                     else if (et->kind == TK_BOOL) ek = 3;
                 }
-                emitf(cg, "ez_std_array_to_string(ez_default_arena, &");
+                emitf(cg, "ez_builtin_array_to_string(ez_default_arena, &");
                 emit_expression(cg, part);
                 emitf(cg, ", %d).data", ek);
                 break;
@@ -519,7 +519,7 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
                     else if (vt->kind == TK_STRING) vk = 2;
                     else if (vt->kind == TK_BOOL) vk = 3;
                 }
-                emitf(cg, "ez_std_map_to_string(ez_default_arena, &");
+                emitf(cg, "ez_builtin_map_to_string(ez_default_arena, &");
                 emit_expression(cg, part);
                 emitf(cg, ", %d).data", vk);
                 break;
@@ -1216,12 +1216,12 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
             emit_to_string(cg, val);
         } else if ((strcmp(target, "int") == 0 || strcmp(target, "i64") == 0) && val_kind == TK_STRING) {
             /* string → int */
-            emit(cg, "ez_std_string_to_int(");
+            emit(cg, "ez_builtin_string_to_int(");
             emit_expression(cg, val);
             emit(cg, ")");
         } else if ((strcmp(target, "float") == 0 || strcmp(target, "f64") == 0) && val_kind == TK_STRING) {
             /* string → float */
-            emit(cg, "ez_std_string_to_float(");
+            emit(cg, "ez_builtin_string_to_float(");
             emit_expression(cg, val);
             emit(cg, ")");
         } else if ((strcmp(target, "int") == 0 || strcmp(target, "i64") == 0) && val_kind == TK_FLOAT) {
@@ -1347,11 +1347,11 @@ static void emit_to_string(CodeGen *cg, AstNode *arg) {
     }
     EzType *at = cg->type_table ? typetable_get(cg->type_table, arg) : NULL;
     if (at && at->kind == TK_FLOAT)
-        emit(cg, "ez_std_to_string_float(ez_default_arena, ");
+        emit(cg, "ez_builtin_to_string_float(ez_default_arena, ");
     else if (at && at->kind == TK_BOOL)
-        emit(cg, "ez_std_to_string_bool(ez_default_arena, ");
+        emit(cg, "ez_builtin_to_string_bool(ez_default_arena, ");
     else
-        emit(cg, "ez_std_to_string_int(ez_default_arena, ");
+        emit(cg, "ez_builtin_to_string_int(ez_default_arena, ");
     emit_expression(cg, arg);
     emit(cg, ")");
 }
@@ -1632,11 +1632,11 @@ static bool emit_builtin_call(CodeGen *cg, AstNode *node, const char *func) {
             AstNode *arg = node->data.call.args[0];
             const char *bi_type = resolve_bigint_type(cg, arg);
             if (bi_type) {
-                emitf(cg, "ez_std_println_str(%s_to_string(ez_default_arena, ", bigint_prefix(bi_type));
+                emitf(cg, "ez_builtin_println_str(%s_to_string(ez_default_arena, ", bigint_prefix(bi_type));
                 emit_expression(cg, arg);
                 emit(cg, "))");
             } else {
-                emitf(cg, "ez_std_println%s(", resolve_print_suffix(cg, arg));
+                emitf(cg, "ez_builtin_println%s(", resolve_print_suffix(cg, arg));
                 emit_expression(cg, arg);
                 emit(cg, ")");
             }
@@ -1783,11 +1783,11 @@ static bool emit_builtin_call(CodeGen *cg, AstNode *node, const char *func) {
             AstNode *arg = node->data.call.args[0];
             const char *bi_type = resolve_bigint_type(cg, arg);
             if (bi_type) {
-                emitf(cg, "ez_std_eprintln_str(%s_to_string(ez_default_arena, ", bigint_prefix(bi_type));
+                emitf(cg, "ez_builtin_eprintln_str(%s_to_string(ez_default_arena, ", bigint_prefix(bi_type));
                 emit_expression(cg, arg);
                 emit(cg, "))");
             } else {
-                emitf(cg, "ez_std_eprintln%s(", resolve_print_suffix(cg, arg));
+                emitf(cg, "ez_builtin_eprintln%s(", resolve_print_suffix(cg, arg));
                 emit_expression(cg, arg);
                 emit(cg, ")");
             }
@@ -1797,7 +1797,7 @@ static bool emit_builtin_call(CodeGen *cg, AstNode *node, const char *func) {
 
     if (strcmp(func, "eprint") == 0 && node->data.call.arg_count > 0) {
         if (emit_composite_print(cg, node, "stderr", false)) return true;
-        emit(cg, "ez_std_eprint_str(");
+        emit(cg, "ez_builtin_eprint_str(");
         emit_expression(cg, node->data.call.args[0]);
         emit(cg, ")");
         return true;
@@ -1869,11 +1869,11 @@ static bool emit_builtin_call(CodeGen *cg, AstNode *node, const char *func) {
             bool is_string_src = (carg->kind == NODE_STRING_VALUE || carg->kind == NODE_INTERPOLATED_STRING ||
                                   (carg_t && carg_t->kind == TK_STRING));
             if (is_string_src && (strcmp(func, "int") == 0 || strcmp(func, "uint") == 0)) {
-                emit(cg, "ez_std_string_to_int(");
+                emit(cg, "ez_builtin_string_to_int(");
                 emit_expression(cg, carg);
                 emit(cg, ")");
             } else if (is_string_src && strcmp(func, "float") == 0) {
-                emit(cg, "ez_std_string_to_float(");
+                emit(cg, "ez_builtin_string_to_float(");
                 emit_expression(cg, carg);
                 emit(cg, ")");
             } else if (strcmp(func, "int") == 0 &&
@@ -1914,11 +1914,11 @@ static bool emit_builtin_call(CodeGen *cg, AstNode *node, const char *func) {
         AstNode *arg = node->data.call.args[0];
         const char *bi_type = resolve_bigint_type(cg, arg);
         if (bi_type) {
-            emitf(cg, "ez_std_print_str(%s_to_string(ez_default_arena, ", bigint_prefix(bi_type));
+            emitf(cg, "ez_builtin_print_str(%s_to_string(ez_default_arena, ", bigint_prefix(bi_type));
             emit_expression(cg, arg);
             emit(cg, "))");
         } else {
-            emitf(cg, "ez_std_print%s(", resolve_print_suffix(cg, arg));
+            emitf(cg, "ez_builtin_print%s(", resolve_print_suffix(cg, arg));
             emit_expression(cg, arg);
             emit(cg, ")");
         }
@@ -3014,7 +3014,7 @@ static void emit_call_expression(CodeGen *cg, AstNode *node) {
 
         /* No-module builtins (println, len, type_of, etc.) */
         /* Also handle std.println() — std module functions are builtins */
-        if ((!module || strcmp(module, "std") == 0) && emit_builtin_call(cg, node, func)) return;
+        if (!module && emit_builtin_call(cg, node, func)) return;
 
         /* Module dispatch table */
         typedef bool (*ModuleHandler)(CodeGen *, AstNode *, const char *);
@@ -4348,7 +4348,6 @@ CodeGen codegen_create(const char *file) {
     CodeGen cg;
     cg.output = buf_create(4096);
     cg.indent = 0;
-    cg.has_std = false;
     cg.has_mem = false;
     cg.has_fmt = false;
     cg.file = file;
@@ -4390,7 +4389,6 @@ void codegen_generate(CodeGen *cg, AstNode *program) {
             for (int j = 0; j < stmt->data.import_stmt.count; j++) {
                 ImportItem *item = &stmt->data.import_stmt.items[j];
                 if (item->is_stdlib && item->module) {
-                    if (strcmp(item->module, "std") == 0) cg->has_std = true;
                     if (strcmp(item->module, "mem") == 0) cg->has_mem = true;
                     if (strcmp(item->module, "fmt") == 0) cg->has_fmt = true;
                 }
@@ -4449,9 +4447,6 @@ void codegen_generate(CodeGen *cg, AstNode *program) {
     emit(cg, "#include \"ez_array.h\"\n");
     emit(cg, "#include \"ez_map.h\"\n");
     emit(cg, "#include \"ez_builtins.h\"\n");
-    if (cg->has_std) {
-        emit(cg, "#include \"ez_std.h\"\n");
-    }
     if (cg->has_mem) {
         emit(cg, "#include \"ez_mem.h\"\n");
     }

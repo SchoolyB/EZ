@@ -2,8 +2,6 @@
  * print_composite.ez - Test printing composite types (arrays, maps, structs, pointers)
  */
 
-import @std
-using std
 
 const Point struct {
     x int

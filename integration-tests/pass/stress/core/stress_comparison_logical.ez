@@ -2,8 +2,6 @@
  * Expected: all tests pass
  */
 
-import @std
-using std
 
 mut side_effect_called bool = false
 

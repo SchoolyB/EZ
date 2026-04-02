@@ -2,8 +2,6 @@
  * blank_identifier.ez - Test blank identifier _ for discarding values
  */
 
-import @std
-using std
 
 do get_pair() -> (int, string) {
     return 42, "hello"

@@ -2,8 +2,6 @@
  * Expected: compiler error E4002
  */
 
-import @std
-using std
 
 const MyStruct struct {
     do real_method(n int) -> int {

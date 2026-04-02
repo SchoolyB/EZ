@@ -5,11 +5,9 @@
  */
 
 
-import @std
 import @strings
 import @math
 
-using std
 
 // ==================================================
 // STRING UTILITIES

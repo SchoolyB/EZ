@@ -2,9 +2,7 @@
  * main.ez - Test qualified type names (module.Type) in return types and declarations
  */
 
-import @std
 import "./shapes"
-using std
 
 do main() {
     println("=== Qualified Type Names Test ===")

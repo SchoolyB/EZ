@@ -2,8 +2,7 @@
  * bytes.ez - Test @bytes standard library with PROPER ASSERTIONS
  */
 
-import @std, @bytes
-using std
+import @bytes
 
 do main() {
     println("=== @bytes Standard Library Test ===")

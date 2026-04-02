@@ -3,8 +3,6 @@
  * Expected: "ensure expects a function call"
  */
 
-import @std
-using std
 
 do main() {
     mut x int = 5

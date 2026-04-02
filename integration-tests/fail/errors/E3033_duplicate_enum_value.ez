@@ -1,5 +1,3 @@
-import @std
-using std
 
 // Bug #577: Duplicate enum values should be an error
 const Status enum {

@@ -2,8 +2,6 @@
  * escape_sequences.ez - Test all string and char escape sequences
  */
 
-import @std
-using std
 
 do main() {
     println("=== Escape Sequences Test ===")

@@ -2,9 +2,7 @@
  * bytes_c.ez - Integration test for @bytes (compiler)
  */
 
-import @std
 import @bytes
-using std
 
 do main() {
     println("=== Bytes Module Test ===")

@@ -5,8 +5,6 @@
  * for string/bool/float/int conversions instead of raw C casts.
  */
 
-import @std
-using std
 
 do main() {
     println("=== Cast Conversion Tests ===")

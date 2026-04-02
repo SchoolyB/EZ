@@ -4,12 +4,10 @@
  * Related to issue #900: Internal type representation fix
  */
 
-import @std
 import @random
 import @strings
 import @maps
 
-using std
 
 do main() {
     // Test random module types

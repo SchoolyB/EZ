@@ -3,8 +3,6 @@
  * Expected: warning about named return variable not being used in return
  */
 
-import @std
-using std
 
 do getName() -> (name string) {
     mut other string = "Alice"

@@ -2,7 +2,6 @@
  * Error Test: E5018 - max-recursion-depth
  * Expected: "maximum recursion depth exceeded"
  */
-import and use @std
 
 do recurse(n int) {
     recurse(n + 1)

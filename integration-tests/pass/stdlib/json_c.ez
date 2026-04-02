@@ -2,9 +2,7 @@
  * json_c.ez - Integration test for @json (compiler)
  */
 
-import @std
 import @json
-using std
 
 do main() {
     println("=== JSON Module Test ===")

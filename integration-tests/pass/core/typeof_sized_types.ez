@@ -2,8 +2,6 @@
  * typeof_sized_types.ez - Test type_of() returns sized type names
  */
 
-import @std
-using std
 
 do main() {
     println("=== Typeof Sized Types Test ===")

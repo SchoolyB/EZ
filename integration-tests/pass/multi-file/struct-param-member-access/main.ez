@@ -3,10 +3,8 @@
  * Regression test for issue #851 - struct parameter member access bug
  */
 
-import @std
 import proc"./processor"
 
-using std
 
 do main() {
     println("=== Struct Parameter Member Access Test ===")

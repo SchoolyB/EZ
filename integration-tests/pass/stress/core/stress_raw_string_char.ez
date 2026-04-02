@@ -2,8 +2,7 @@
  * Expected: all tests pass
  */
 
-import @std, @strings
-using std
+import @strings
 
 do main() {
     println("=== Stress: Raw Strings, Chars, Bool/Nil ===")

@@ -2,8 +2,7 @@
  * Expected: all tests pass
  */
 
-import @std, @threads
-using std
+import @threads
 
 mut thread_result int = 0
 

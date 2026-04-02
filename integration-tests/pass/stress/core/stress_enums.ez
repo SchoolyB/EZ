@@ -2,8 +2,6 @@
  * Expected: all tests pass
  */
 
-import @std
-using std
 
 const Color enum {
     RED

@@ -2,8 +2,7 @@
  * io.ez - Test @io standard library with PROPER ASSERTIONS
  */
 
-import @std, @io, @strings
-using std
+import @io, @strings
 
 do main() {
     println("=== @io Standard Library Test ===")

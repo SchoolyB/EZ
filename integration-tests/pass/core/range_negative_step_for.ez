@@ -5,8 +5,6 @@
  * in reverse in for loops, with proper codegen and typechecker support.
  */
 
-import @std
-using std
 
 do main() {
     println("=== Range Negative Step For Loop Tests ===")

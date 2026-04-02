@@ -1,6 +1,4 @@
 // E2050: when condition cannot be an array or map
-import @std
-using std
 
 do main() {
     mut arr [int] = {1, 2, 3}

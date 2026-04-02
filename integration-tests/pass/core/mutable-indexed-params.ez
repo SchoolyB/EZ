@@ -3,7 +3,6 @@
  * Tests fix for issue #797: Mutable parameters silently fail for indexed/member expressions
  */
 
-import and use @std
 
 const Point struct {
     x int

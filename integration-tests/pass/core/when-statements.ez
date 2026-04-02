@@ -1,7 +1,5 @@
 // Test when/is/default statements (issue #179)
 
-import @std
-using std
 
 const Status enum {
     PENDING,

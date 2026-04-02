@@ -3,8 +3,6 @@
  * Expected: "return type mismatch"
  */
 
-import @std
-using std
 
 do get_value() -> uint {
     mut x int = -1

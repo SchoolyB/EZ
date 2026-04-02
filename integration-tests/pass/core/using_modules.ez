@@ -2,8 +2,7 @@
  * using_modules.ez - Test 'using' keyword with non-std modules
  */
 
-import @std, @strings, @math
-using std
+import @strings, @math
 using strings
 using math
 

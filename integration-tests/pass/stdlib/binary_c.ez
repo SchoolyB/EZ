@@ -2,9 +2,7 @@
  * binary_c.ez - Integration test for @binary (compiler)
  */
 
-import @std
 import @binary
-using std
 
 do main() {
     println("=== Binary Module Test ===")

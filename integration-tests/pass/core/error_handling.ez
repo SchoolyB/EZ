@@ -2,8 +2,6 @@
  * error_handling.ez - Test error type with nil returns
  */
 
-import @std
-using std
 
 // Function that can fail - uses Error type
 do parse_int(s string) -> (int, Error) {

@@ -2,8 +2,6 @@
  * Expected: passes with output "Alice"
  */
 
-import @std
-using std
 
 do getUserName() -> (name string) {
     name = "Alice"

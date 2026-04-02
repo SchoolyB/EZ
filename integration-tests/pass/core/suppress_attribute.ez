@@ -2,8 +2,6 @@
  * suppress_attribute.ez - Test #suppress attribute for suppressing warnings
  */
 
-import @std
-using std
 
 // Suppress the unreachable code warning on this function
 #suppress(W2001)

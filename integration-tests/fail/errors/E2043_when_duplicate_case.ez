@@ -1,6 +1,4 @@
 // E2043: duplicate case value in when statement
-import @std
-using std
 
 do main() {
     mut x = 1

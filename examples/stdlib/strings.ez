@@ -4,8 +4,7 @@
  * Run with: ez examples/stdlib/strings.ez
  */
 
-import @std, @strings
-using std
+import @strings
 
 do main() {
     mut text string = "  Hello, World!  "

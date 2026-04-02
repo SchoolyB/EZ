@@ -2,8 +2,7 @@
  * csv.ez - Test @csv standard library
  */
 
-import @std, @csv, @io
-using std
+import @csv, @io
 
 do main() {
     println("=== @csv Standard Library Test ===")

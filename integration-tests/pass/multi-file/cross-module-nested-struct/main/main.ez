@@ -8,10 +8,8 @@
  */
 
 
-import @std
 import lib"../src/lib"
 
-using std
 
 do main() {
     println("=== Cross-Module Nested Struct Init Test ===")

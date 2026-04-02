@@ -3,8 +3,6 @@
  * Expected: warning about implicit type conversion
  */
 
-import @std
-using std
 
 do main() {
     mut x byte = 100

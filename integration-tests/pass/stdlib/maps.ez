@@ -2,8 +2,7 @@
  * maps.ez - Test @maps standard library with PROPER ASSERTIONS
  */
 
-import @std, @maps
-using std
+import @maps
 
 do main() {
     println("=== @maps Standard Library Test ===")

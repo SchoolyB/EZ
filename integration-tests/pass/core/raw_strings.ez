@@ -2,8 +2,7 @@
  * raw_strings.ez - Test raw string literals using backticks
  */
 
-import @std, @strings
-using std
+import @strings
 
 do main() {
     println("=== Raw Strings Test ===")

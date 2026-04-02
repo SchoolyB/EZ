@@ -5,8 +5,6 @@
  * @std module functions (require import): println, print, sleep_*, eprintln, eprint
  */
 
-import @std
-using std
 
 do main() {
     println("=== @std Standard Library Test ===")

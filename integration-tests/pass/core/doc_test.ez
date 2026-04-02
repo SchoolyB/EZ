@@ -2,8 +2,6 @@
  * doc_test.ez - Test #doc attribute
  */
 
-import @std
-using std
 
 #doc("Adds two integers and returns the sum")
 do add(a int, b int) -> int {

@@ -2,8 +2,6 @@
  * Expected: all tests pass
  */
 
-import @std
-using std
 
 do main() {
     println("=== Stress: Arithmetic ===")

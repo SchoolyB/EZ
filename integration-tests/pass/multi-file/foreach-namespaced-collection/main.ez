@@ -5,10 +5,8 @@
  * This tests that for_each correctly parses lib.Items as a collection
  * when an import uses namespace prefix (import lib"..." without and use).
  */
-import @std
 import lib"./testlib"
 
-using std
 
 do main() {
     println("=== For_each Namespaced Collection Test ===")

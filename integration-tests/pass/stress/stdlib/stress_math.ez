@@ -2,8 +2,7 @@
  * Expected: all tests pass
  */
 
-import @std, @math
-using std
+import @math
 
 do main() {
     println("=== Stress: @math Edge Cases ===")

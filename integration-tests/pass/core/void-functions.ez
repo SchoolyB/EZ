@@ -3,8 +3,6 @@
  * Tests void function behavior including early return, ensure, and nesting
  */
 
-import @std
-using std
 
 do main() {
     // Test 1: Basic void function

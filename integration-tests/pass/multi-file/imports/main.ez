@@ -11,7 +11,7 @@
  */
 
 // Test 1: import and use with user module (no alias)
-import and use @std, "./libA"
+import and use "./libA"
 
 // Test result tracking
 const TestResult struct {
