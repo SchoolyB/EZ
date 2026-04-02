@@ -652,7 +652,8 @@ func downloadAndInstall(url string) error {
 // doInstall performs the actual download and installation
 func doInstall(url, execPath string) error {
 	// Download archive to temp file
-	resp, err := http.Get(url)
+	client := &http.Client{Timeout: 5 * time.Minute}
+	resp, err := client.Get(url)
 	if err != nil {
 		return fmt.Errorf("failed to download: %w", err)
 	}
