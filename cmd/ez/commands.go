@@ -12,15 +12,10 @@ import (
 	"github.com/spf13/cobra"
 )
 
-func filterEzFiles(cmd *cobra.Command, args []string, toComplete string) ([]cobra.Completion, cobra.ShellCompDirective) {
-	return []cobra.Completion{"ez"}, cobra.ShellCompDirectiveFilterFileExt
-}
-
 var runCmd = &cobra.Command{
-	Use:               "run [file.ez]",
-	Short:             "Compile and run an EZ source file",
-	Args:              cobra.MinimumNArgs(1),
-	ValidArgsFunction: filterEzFiles,
+	Use:   "run [file.ez]",
+	Short: "Compile and run an EZ source file",
+	Args:  cobra.MinimumNArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
 		var extraArgs []string
 		if len(args) > 1 {
@@ -36,10 +31,9 @@ var runCmd = &cobra.Command{
 }
 
 var checkCmd = &cobra.Command{
-	Use:               "check [file.ez | directory]",
-	Short:             "Type-check a file or project without compiling",
-	Args:              cobra.ExactArgs(1),
-	ValidArgsFunction: filterEzFiles,
+	Use:   "check [file.ez | directory]",
+	Short: "Type-check a file or project without compiling",
+	Args:  cobra.ExactArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
 		code, err := ezc.Check(args[0])
 		if err != nil {
@@ -51,10 +45,9 @@ var checkCmd = &cobra.Command{
 }
 
 var buildCmd = &cobra.Command{
-	Use:               "build [file.ez]",
-	Short:             "Compile an EZ source file to a native binary",
-	Args:              cobra.ExactArgs(1),
-	ValidArgsFunction: filterEzFiles,
+	Use:   "build [file.ez]",
+	Short: "Compile an EZ source file to a native binary",
+	Args:  cobra.ExactArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
 		output, _ := cmd.Flags().GetString("output")
 		verbose, _ := cmd.Flags().GetBool("verbose")
@@ -275,8 +268,8 @@ var rootCmd = &cobra.Command{
 }
 
 func init() {
-	rootCmd.AddCommand(runCmd, replCmd, updateCmd, checkCmd, buildCmd, testCmd, reportCmd, versionCmd, docCmd, pzCmd, watchCmd)
 	rootCmd.CompletionOptions.DisableDefaultCmd = true
+	rootCmd.AddCommand(runCmd, replCmd, updateCmd, checkCmd, buildCmd, testCmd, reportCmd, versionCmd, docCmd, pzCmd, watchCmd)
 	rootCmd.PersistentPreRun = func(cmd *cobra.Command, args []string) {
 		CheckForUpdateAsync()
 	}

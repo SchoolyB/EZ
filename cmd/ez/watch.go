@@ -15,12 +15,11 @@ import (
 )
 
 var watchCmd = &cobra.Command{
-	Use:               "watch [file.ez | directory]",
-	Short:             "Watch files and re-run on changes",
-	Long:              `Watch a file or directory for changes and automatically re-run.`,
-	Args:              cobra.ExactArgs(1),
-	ValidArgsFunction: filterEzFiles,
-	Run:               runWatch,
+	Use:   "watch [file.ez | directory]",
+	Short: "Watch files and re-run on changes",
+	Long:  `Watch a file or directory for changes and automatically re-run.`,
+	Args:  cobra.ExactArgs(1),
+	Run:   runWatch,
 }
 
 func runWatch(cmd *cobra.Command, args []string) {
