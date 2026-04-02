@@ -184,14 +184,20 @@ static const char *read_string(Lexer *l) {
             read_char(l); /* move to escape char */
             /* Validate escape sequence */
             if (l->ch == 'x') {
-                /* Hex escape: \xNN — validate hex digits follow */
+                /* Hex escape: \xNN — exactly two hex digits */
                 read_char(l);
                 if (!isxdigit(l->ch)) {
                     l->error_code = "E1006";
-                    l->error_msg = "invalid hex escape sequence — \\x must be followed by hex digits";
+                    l->error_msg = "invalid hex escape sequence — \\x must be followed by exactly two hex digits";
+                    continue;
                 }
-                /* Skip hex digits */
-                while (isxdigit(l->ch)) read_char(l);
+                read_char(l);
+                if (!isxdigit(l->ch)) {
+                    l->error_code = "E1006";
+                    l->error_msg = "invalid hex escape sequence — \\x must be followed by exactly two hex digits";
+                    continue;
+                }
+                read_char(l);
                 continue;
             } else if (l->ch != 'n' && l->ch != 't' && l->ch != 'r' && l->ch != '\\' &&
                 l->ch != '"' && l->ch != '\'' && l->ch != '0' &&
