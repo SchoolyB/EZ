@@ -98,7 +98,7 @@ go version
 make build
 
 # Verify it works
-./ez examples/hello.ez
+./ez examples/basic/hello.ez
 ```
 
 ### Makefile Commands
