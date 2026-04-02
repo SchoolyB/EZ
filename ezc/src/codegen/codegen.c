@@ -2737,20 +2737,35 @@ static bool emit_io_call(CodeGen *cg, AstNode *node, const char *func) {
         strcmp(func, "write_file") == 0 ||
         strcmp(func, "delete_file") == 0);
     if (is_fallible) {
-        /* Use _result version for multi-var destructuring (assigns to _ez_tmp),
-         * non-result version for single-var assignment */
-        bool use_result = cg->current_var_name &&
-            strncmp(cg->current_var_name, "_ez_tmp", 7) == 0;
-        if (use_result) {
-            emitf(cg, "ez_io_%s_result(ez_default_arena, ", func);
+        /* Use non-result version only when assigned to a variable with an
+         * explicit type annotation (e.g., mut content string = io.read_file(...)).
+         * Otherwise use _result version for multi-var destructuring and
+         * inferred-type assignments. */
+        bool use_non_result = cg->current_var_type != NULL &&
+            (cg->current_var_name == NULL ||
+             strncmp(cg->current_var_name, "_ez_tmp", 7) != 0);
+        if (use_non_result) {
+            /* Non-result: read_file takes arena, write_file/delete_file don't */
+            if (strcmp(func, "read_file") == 0) {
+                emit(cg, "ez_io_read_file(ez_default_arena, ");
+                emit_expression(cg, node->data.call.args[0]);
+                emit(cg, ")");
+            } else {
+                emitf(cg, "ez_io_%s(", func);
+                for (int i = 0; i < node->data.call.arg_count; i++) {
+                    if (i > 0) emit(cg, ", ");
+                    emit_expression(cg, node->data.call.args[i]);
+                }
+                emit(cg, ")");
+            }
         } else {
-            emitf(cg, "ez_io_%s(ez_default_arena, ", func);
+            emitf(cg, "ez_io_%s_result(ez_default_arena, ", func);
+            for (int i = 0; i < node->data.call.arg_count; i++) {
+                if (i > 0) emit(cg, ", ");
+                emit_expression(cg, node->data.call.args[i]);
+            }
+            emit(cg, ")");
         }
-        for (int i = 0; i < node->data.call.arg_count; i++) {
-            if (i > 0) emit(cg, ", ");
-            emit_expression(cg, node->data.call.args[i]);
-        }
-        emit(cg, ")");
         return true;
     }
     /* Non-fallible functions */
@@ -3377,6 +3392,7 @@ static void emit_var_declaration(CodeGen *cg, AstNode *node) {
     if (node->data.var_decl.value) {
         emit(cg, " = ");
         cg->current_var_name = node->data.var_decl.name;
+        cg->current_var_type = node->data.var_decl.type_name;
         /* Bigint literal zero: emit zero constant instead of plain 0 */
         if (type_name && is_bigint_type(type_name) &&
             node->data.var_decl.value->kind == NODE_INT_VALUE &&
@@ -3460,6 +3476,7 @@ static void emit_var_declaration(CodeGen *cg, AstNode *node) {
             emit_expression(cg, node->data.var_decl.value);
         }
         cg->current_var_name = NULL;
+        cg->current_var_type = NULL;
     } else {
         /* Zero-initialize when no value is provided */
         if (strcmp(c_type, "int64_t") == 0) emit(cg, " = 0");
