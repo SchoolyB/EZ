@@ -1,11 +1,15 @@
 package main
 
 import (
+	"bytes"
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"runtime"
+	"strconv"
 	"strings"
 
 	"github.com/marshallburns/ez/internal/ezc"
@@ -191,46 +195,109 @@ compiler integration tests, and CLI integration tests.`,
 			red   = "\033[0;31m"
 			bold  = "\033[1m"
 			reset = "\033[0m"
+			dim   = "\033[2m"
 		)
 
-		failed := false
-		passed := 0
-		total := 0
+		type suiteResult struct {
+			name   string
+			ok     bool
+			passed int
+			failed int
+		}
+
+		// Regex patterns for parsing test counts from output
+		// C unit/e2e tests: "N passed, N failed (N total)" (may contain ANSI codes)
+		cTestRe := regexp.MustCompile(`(\d+)\s+passed.*?(\d+)\s+failed`)
+		// Integration tests (run_tests.sh): "Passed:  N" and "Failed:  N"
+		intPassRe := regexp.MustCompile(`Passed:\s+(\d+)`)
+		intFailRe := regexp.MustCompile(`Failed:\s+(\d+)`)
+		// Go tests: "--- PASS:" and "--- FAIL:" lines
+		goPassRe := regexp.MustCompile(`--- PASS:`)
+		goFailRe := regexp.MustCompile(`--- FAIL:`)
 
 		steps := []struct {
-			name string
-			cmd  string
-			args []string
-			dir  string
+			name  string
+			cmd   string
+			args  []string
+			dir   string
+			parse string // "go", "c", or "integration"
 		}{
-			{"Go tooling tests", "go", []string{"test", "./pkg/errors/...", "./pkg/lineeditor/..."}, root},
-			{"Compiler unit tests", "make", []string{"test-unit"}, filepath.Join(root, "ezc")},
-			{"Compiler e2e tests", "make", []string{"test-e2e"}, filepath.Join(root, "ezc")},
-			{"Integration tests", "bash", []string{filepath.Join(root, "scripts", "run_tests.sh")}, root},
+			{"Go tooling tests", "go", []string{"test", "-v", "./pkg/errors/...", "./pkg/lineeditor/..."}, root, "go"},
+			{"Compiler unit tests", "make", []string{"test-unit"}, filepath.Join(root, "ezc"), "c"},
+			{"Compiler e2e tests", "make", []string{"test-e2e"}, filepath.Join(root, "ezc"), "c"},
+			{"Integration tests", "bash", []string{filepath.Join(root, "scripts", "run_tests.sh")}, root, "integration"},
 		}
+
+		results := make([]suiteResult, 0, len(steps))
 
 		for _, step := range steps {
-			total++
 			fmt.Printf("\n%s=== %s ===%s\n", bold, step.name, reset)
+
+			var buf bytes.Buffer
+			tee := io.MultiWriter(os.Stdout, &buf)
+
 			c := exec.Command(step.cmd, step.args...)
 			c.Dir = step.dir
-			c.Stdout = os.Stdout
-			c.Stderr = os.Stderr
-			if err := c.Run(); err != nil {
-				fmt.Fprintf(os.Stderr, "  %s%sFAIL%s  %s\n", bold, red, reset, step.name)
-				failed = true
-			} else {
-				fmt.Printf("  %s%sPASS%s  %s\n", bold, green, reset, step.name)
-				passed++
+			c.Stdout = tee
+			c.Stderr = tee
+
+			runErr := c.Run()
+			ok := runErr == nil
+			output := buf.String()
+
+			sr := suiteResult{name: step.name, ok: ok}
+
+			// Parse test counts from captured output
+			switch step.parse {
+			case "go":
+				sr.passed = len(goPassRe.FindAllString(output, -1))
+				sr.failed = len(goFailRe.FindAllString(output, -1))
+			case "c":
+				// May have multiple summary lines (one per test binary); sum them
+				for _, m := range cTestRe.FindAllStringSubmatch(output, -1) {
+					p, _ := strconv.Atoi(m[1])
+					f, _ := strconv.Atoi(m[2])
+					sr.passed += p
+					sr.failed += f
+				}
+			case "integration":
+				if m := intPassRe.FindStringSubmatch(output); len(m) > 1 {
+					sr.passed, _ = strconv.Atoi(m[1])
+				}
+				if m := intFailRe.FindStringSubmatch(output); len(m) > 1 {
+					sr.failed, _ = strconv.Atoi(m[1])
+				}
 			}
+
+			results = append(results, sr)
 		}
 
-		fmt.Println()
-		if failed {
-			fmt.Printf("%s%sSOME TEST SUITES FAILED%s (%d/%d passed)\n", bold, red, reset, passed, total)
+		// Print unified summary
+		fmt.Printf("\n%s══════════════════════════════════════%s\n", dim, reset)
+		fmt.Printf("  %sEZ Test Results%s\n", bold, reset)
+		fmt.Printf("%s══════════════════════════════════════%s\n\n", dim, reset)
+
+		totalPassed := 0
+		totalFailed := 0
+		anyFailed := false
+
+		for _, sr := range results {
+			totalPassed += sr.passed
+			totalFailed += sr.failed
+			label := fmt.Sprintf("%s%sPASS%s", bold, green, reset)
+			if !sr.ok {
+				label = fmt.Sprintf("%s%sFAIL%s", bold, red, reset)
+				anyFailed = true
+			}
+			fmt.Printf("  %s  %-24s (%d passed, %d failed)\n", label, sr.name, sr.passed, sr.failed)
+		}
+
+		fmt.Printf("\n  %sTotal: %d passed, %d failed%s\n", bold, totalPassed, totalFailed, reset)
+		fmt.Printf("%s══════════════════════════════════════%s\n", dim, reset)
+
+		if anyFailed {
 			os.Exit(1)
 		}
-		fmt.Printf("%s%sALL TEST SUITES PASSED%s (%d/%d)\n", bold, green, reset, passed, total)
 	},
 }
 
