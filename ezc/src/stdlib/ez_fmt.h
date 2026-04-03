@@ -33,4 +33,19 @@ void ez_fmt_eprint_str(EzString s);
 /* fmt.sprint(arena, values...) — concatenate values into a string */
 /* Handled by codegen via ez_string_format */
 
+/* fmt.format(template, ...) — like sprintf but without explicit arena */
+/* Handled by codegen via ez_string_format with ez_default_arena */
+
+/* fmt.pad_left / pad_right / center — string padding */
+EzString ez_fmt_pad_left(EzArena *arena, EzString s, int64_t width, char ch);
+EzString ez_fmt_pad_right(EzArena *arena, EzString s, int64_t width, char ch);
+EzString ez_fmt_center(EzArena *arena, EzString s, int64_t width, char ch);
+
+/* Number formatting */
+EzString ez_fmt_int_to_hex(EzArena *arena, int64_t n);
+EzString ez_fmt_int_to_binary(EzArena *arena, int64_t n);
+EzString ez_fmt_int_to_octal(EzArena *arena, int64_t n);
+EzString ez_fmt_float_fixed(EzArena *arena, double f, int64_t decimals);
+EzString ez_fmt_float_sci(EzArena *arena, double f);
+
 #endif

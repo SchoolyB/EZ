@@ -2911,6 +2911,91 @@ static bool emit_fmt_call(CodeGen *cg, AstNode *node, const char *func) {
         emit(cg, ")");
         return true;
     }
+
+    if (strcmp(func, "format") == 0 && node->data.call.arg_count >= 1) {
+        emit(cg, "ez_string_format(ez_default_arena, ");
+        AstNode *fmt_arg = node->data.call.args[0];
+        if (fmt_arg->kind == NODE_STRING_VALUE) {
+            emitf(cg, "\"%s\"", fmt_arg->data.string_value.value);
+        } else {
+            emit_expression(cg, fmt_arg);
+            emit(cg, ".data");
+        }
+        emit_fmt_args(cg, node, 1);
+        emit(cg, ")");
+        return true;
+    }
+
+    if (strcmp(func, "pad_left") == 0 && node->data.call.arg_count == 3) {
+        emit(cg, "ez_fmt_pad_left(ez_default_arena, ");
+        emit_expression(cg, node->data.call.args[0]);
+        emit(cg, ", ");
+        emit_expression(cg, node->data.call.args[1]);
+        emit(cg, ", ");
+        emit_expression(cg, node->data.call.args[2]);
+        emit(cg, ")");
+        return true;
+    }
+
+    if (strcmp(func, "pad_right") == 0 && node->data.call.arg_count == 3) {
+        emit(cg, "ez_fmt_pad_right(ez_default_arena, ");
+        emit_expression(cg, node->data.call.args[0]);
+        emit(cg, ", ");
+        emit_expression(cg, node->data.call.args[1]);
+        emit(cg, ", ");
+        emit_expression(cg, node->data.call.args[2]);
+        emit(cg, ")");
+        return true;
+    }
+
+    if (strcmp(func, "center") == 0 && node->data.call.arg_count == 3) {
+        emit(cg, "ez_fmt_center(ez_default_arena, ");
+        emit_expression(cg, node->data.call.args[0]);
+        emit(cg, ", ");
+        emit_expression(cg, node->data.call.args[1]);
+        emit(cg, ", ");
+        emit_expression(cg, node->data.call.args[2]);
+        emit(cg, ")");
+        return true;
+    }
+
+    if (strcmp(func, "int_to_hex") == 0 && node->data.call.arg_count == 1) {
+        emit(cg, "ez_fmt_int_to_hex(ez_default_arena, ");
+        emit_expression(cg, node->data.call.args[0]);
+        emit(cg, ")");
+        return true;
+    }
+
+    if (strcmp(func, "int_to_binary") == 0 && node->data.call.arg_count == 1) {
+        emit(cg, "ez_fmt_int_to_binary(ez_default_arena, ");
+        emit_expression(cg, node->data.call.args[0]);
+        emit(cg, ")");
+        return true;
+    }
+
+    if (strcmp(func, "int_to_octal") == 0 && node->data.call.arg_count == 1) {
+        emit(cg, "ez_fmt_int_to_octal(ez_default_arena, ");
+        emit_expression(cg, node->data.call.args[0]);
+        emit(cg, ")");
+        return true;
+    }
+
+    if (strcmp(func, "float_fixed") == 0 && node->data.call.arg_count == 2) {
+        emit(cg, "ez_fmt_float_fixed(ez_default_arena, ");
+        emit_expression(cg, node->data.call.args[0]);
+        emit(cg, ", ");
+        emit_expression(cg, node->data.call.args[1]);
+        emit(cg, ")");
+        return true;
+    }
+
+    if (strcmp(func, "float_sci") == 0 && node->data.call.arg_count == 1) {
+        emit(cg, "ez_fmt_float_sci(ez_default_arena, ");
+        emit_expression(cg, node->data.call.args[0]);
+        emit(cg, ")");
+        return true;
+    }
+
     return false;
 }
 

@@ -1087,7 +1087,16 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                     result = &TYPE_VOID;
                 }
             } else if (strcmp(mod, "fmt") == 0) {
-                if (strcmp(mfn, "sprintf") == 0) {
+                if (strcmp(mfn, "sprintf") == 0 ||
+                    strcmp(mfn, "format") == 0 ||
+                    strcmp(mfn, "pad_left") == 0 ||
+                    strcmp(mfn, "pad_right") == 0 ||
+                    strcmp(mfn, "center") == 0 ||
+                    strcmp(mfn, "int_to_hex") == 0 ||
+                    strcmp(mfn, "int_to_binary") == 0 ||
+                    strcmp(mfn, "int_to_octal") == 0 ||
+                    strcmp(mfn, "float_fixed") == 0 ||
+                    strcmp(mfn, "float_sci") == 0) {
                     result = &TYPE_STRING;
                 } else {
                     result = &TYPE_VOID;
