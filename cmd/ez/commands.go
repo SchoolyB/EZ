@@ -205,8 +205,11 @@ compiler integration tests, and CLI integration tests.`,
 			failed int
 		}
 
+		// Strip ANSI escape codes before parsing test counts
+		ansiRe := regexp.MustCompile(`\x1b\[[0-9;]*m`)
+
 		// Regex patterns for parsing test counts from output
-		// C unit/e2e tests: "N passed, N failed (N total)" (may contain ANSI codes)
+		// C unit/e2e tests: "N passed, N failed (N total)"
 		cTestRe := regexp.MustCompile(`(\d+)\s+passed.*?(\d+)\s+failed`)
 		// Integration tests (run_tests.sh): "Passed:  N" and "Failed:  N"
 		intPassRe := regexp.MustCompile(`Passed:\s+(\d+)`)
@@ -243,7 +246,7 @@ compiler integration tests, and CLI integration tests.`,
 
 			runErr := c.Run()
 			ok := runErr == nil
-			output := buf.String()
+			output := ansiRe.ReplaceAllString(buf.String(), "")
 
 			sr := suiteResult{name: step.name, ok: ok}
 
