@@ -1,0 +1,13 @@
+/*
+ * Error Test: E2066 - struct field has same name as its struct type
+ * Expected: "struct field 'Foo' cannot have the same name as its struct type 'Foo'" error
+ */
+
+const Foo struct {
+    Foo int
+    bar string
+}
+
+do main() {
+    mut f = new(Foo)
+}
