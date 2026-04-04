@@ -3,7 +3,7 @@
 > Auto-generated from `ezc/src/util/error_codes.h`. Do not edit manually.
 > Run `./scripts/generate_errors.sh` to regenerate.
 
-**Total: 103 codes** (96 errors, 7 warnings)
+**Total: 105 codes** (98 errors, 7 warnings)
 
 ---
 
@@ -32,6 +32,8 @@
 | `E2011` | syntax | constants must have a value — add = followed by a value after the type |
 | `E2012` | syntax | duplicate parameter name — each parameter must have a unique name |
 | `E2013` | syntax | duplicate struct field name — each field must have a unique name |
+| `E2014` | syntax | duplicate enum variant name — each variant must have a unique name |
+| `E2015` | syntax | duplicate field in struct literal — each field can only be initialized once |
 | `E2016` | syntax | empty enum — an enum must have at least one value |
 | `E2017` | syntax | trailing comma — remove the extra comma before the closing bracket or brace |
 | `E2025` | syntax | expected integer for array size — the second value in [type, size] must be a positive integer |
@@ -147,4 +149,4 @@
 
 ---
 
-*Generated on 2026-04-02 16:15:53 UTC*
+*Generated on 2026-04-04 14:26:27 UTC*

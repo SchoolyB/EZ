@@ -43,6 +43,8 @@
     EZ_ERROR("E2011", "syntax", "constants must have a value — add = followed by a value after the type") \
     EZ_ERROR("E2012", "syntax", "duplicate parameter name — each parameter must have a unique name") \
     EZ_ERROR("E2013", "syntax", "duplicate struct field name — each field must have a unique name") \
+    EZ_ERROR("E2014", "syntax", "duplicate enum variant name — each variant must have a unique name") \
+    EZ_ERROR("E2015", "syntax", "duplicate field in struct literal — each field can only be initialized once") \
     EZ_ERROR("E2016", "syntax", "empty enum — an enum must have at least one value") \
     EZ_ERROR("E2017", "syntax", "trailing comma — remove the extra comma before the closing bracket or brace") \
     EZ_ERROR("E2025", "syntax", "expected integer for array size — the second value in [type, size] must be a positive integer") \

@@ -1802,6 +1802,23 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
     case NODE_STRUCT_VALUE: {
         const char *sname = node->data.struct_value.name;
         StructInfo *si = find_struct(tc, sname);
+        /* E2015: check for duplicate field names in struct literal */
+        for (int i = 0; i < node->data.struct_value.count; i++) {
+            if (!node->data.struct_value.field_names[i]) continue;
+            for (int j = 0; j < i; j++) {
+                if (!node->data.struct_value.field_names[j]) continue;
+                if (strcmp(node->data.struct_value.field_names[j],
+                           node->data.struct_value.field_names[i]) == 0) {
+                    char msg[256];
+                    snprintf(msg, sizeof(msg),
+                        "duplicate field '%s' in struct literal — field can only be initialized once",
+                        node->data.struct_value.field_names[i]);
+                    diag_error(tc->diag, "E2015", strdup(msg),
+                        tc->file, node->token.line, node->token.column, 0);
+                    break;
+                }
+            }
+        }
         for (int i = 0; i < node->data.struct_value.count; i++) {
             EzType *val_t = resolve_expr(tc, node->data.struct_value.field_values[i]);
             /* Validate field exists */
@@ -3175,6 +3192,22 @@ static void register_declarations(TypeChecker *tc, AstNode *program) {
                             stmt->data.enum_decl.values[k].name,
                             stmt->data.enum_decl.values[j].name);
                         diag_error(tc->diag, "E3033", strdup(msg),
+                            tc->file, stmt->token.line, stmt->token.column, 0);
+                        break;
+                    }
+                }
+            }
+            /* E2014: check for duplicate enum variant names */
+            for (int j = 0; j < stmt->data.enum_decl.value_count; j++) {
+                for (int k = 0; k < j; k++) {
+                    if (strcmp(stmt->data.enum_decl.values[k].name,
+                              stmt->data.enum_decl.values[j].name) == 0) {
+                        char msg[256];
+                        snprintf(msg, sizeof(msg),
+                            "duplicate variant name '%s' in enum '%s'",
+                            stmt->data.enum_decl.values[j].name,
+                            stmt->data.enum_decl.name);
+                        diag_error(tc->diag, "E2014", strdup(msg),
                             tc->file, stmt->token.line, stmt->token.column, 0);
                         break;
                     }
