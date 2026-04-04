@@ -1137,8 +1137,40 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                 char prefixed[256];
                 snprintf(prefixed, sizeof(prefixed), "%s_%s", mod, mfn);
                 FuncSig *sig = find_func(tc, prefixed);
-                if (sig && sig->return_count > 0) {
-                    result = sig->return_types[0];
+                if (sig) {
+                    sig->used = true;
+                    result = sig->return_count > 0 ? sig->return_types[0] : &TYPE_VOID;
+                    /* E5008: check argument count */
+                    if (node->data.call.arg_count != sig->param_count) {
+                        char msg[256];
+                        snprintf(msg, sizeof(msg),
+                            "function '%s.%s' expects %d argument(s), got %d",
+                            mod, mfn, sig->param_count, node->data.call.arg_count);
+                        diag_error(tc->diag, "E5008", strdup(msg),
+                            tc->file, node->token.line, node->token.column, 0);
+                    }
+                    /* Check argument types */
+                    int check_count = node->data.call.arg_count < sig->param_count
+                        ? node->data.call.arg_count : sig->param_count;
+                    for (int ai = 0; ai < check_count; ai++) {
+                        EzType *arg_t = resolve_expr(tc, node->data.call.args[ai]);
+                        EzType *param_t = sig->param_types[ai];
+                        if (arg_t->kind != TK_UNKNOWN && param_t->kind != TK_UNKNOWN &&
+                            arg_t->kind != param_t->kind &&
+                            !(is_int_kind(param_t->kind) && arg_t->kind == TK_ENUM) &&
+                            !(param_t->kind == TK_ENUM && is_int_kind(arg_t->kind)) &&
+                            !(param_t->kind == TK_STRUCT && is_int_kind(arg_t->kind)) &&
+                            !(is_int_kind(param_t->kind) && arg_t->kind == TK_BOOL) &&
+                            !(param_t->kind == TK_FLOAT && is_int_kind(arg_t->kind))) {
+                            char msg[256];
+                            snprintf(msg, sizeof(msg),
+                                "argument %d of '%s.%s': expected %s, got %s",
+                                ai + 1, mod, mfn, type_name(param_t), type_name(arg_t));
+                            diag_error(tc->diag, "E3001", strdup(msg),
+                                tc->file, node->data.call.args[ai]->token.line,
+                                node->data.call.args[ai]->token.column, 0);
+                        }
+                    }
                 } else {
                     result = &TYPE_VOID;
                 }
@@ -1164,15 +1196,28 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                     /* Check if 'mod' is a variable with a struct type —
                      * user likely wrote instance.func() instead of Type.func() */
                     Symbol *sym = scope_lookup(tc->current_scope, mod_raw);
-                    if (sym && sym->type && sym->type->kind == TK_STRUCT) {
+                    if (sym && sym->type && (sym->type->kind == TK_STRUCT ||
+                        sym->type->kind == TK_POINTER)) {
+                        const char *sname = sym->type->kind == TK_POINTER
+                            ? sym->type->element_type : sym->type->name;
                         char msg[256];
                         snprintf(msg, sizeof(msg),
                             "struct functions must be called on the type — use '%s.%s()' instead of '%s.%s()'",
-                            sym->type->name, mfn, mod_raw, mfn);
+                            sname, mfn, mod_raw, mfn);
                         diag_error(tc->diag, "E3042", strdup(msg),
                             tc->file, fn->token.line, fn->token.column, 0);
+                        /* Resolve return type to avoid cascading errors */
+                        char sfn[256];
+                        snprintf(sfn, sizeof(sfn), "%s_%s", sname, mfn);
+                        FuncSig *ssig = find_func(tc, sfn);
+                        if (ssig && ssig->return_count > 0) {
+                            result = ssig->return_types[0];
+                        } else {
+                            result = &TYPE_VOID;
+                        }
+                    } else {
+                        result = &TYPE_VOID;
                     }
-                    result = &TYPE_VOID;
                 }
             }
             break;
@@ -1752,6 +1797,19 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
             result = type_from_name(left->element_type);
         } else if (left->kind == TK_MAP && left->value_type) {
             result = type_from_name(left->value_type);
+            /* Check map key type matches */
+            if (left->key_type && idx_t->kind != TK_UNKNOWN) {
+                EzType *key_t = type_from_name(left->key_type);
+                if (key_t->kind != TK_UNKNOWN && key_t->kind != idx_t->kind &&
+                    !(is_int_kind(key_t->kind) && is_int_kind(idx_t->kind))) {
+                    char msg[256];
+                    snprintf(msg, sizeof(msg),
+                        "map key type mismatch: expected '%s', got '%s'",
+                        left->key_type, type_name(idx_t));
+                    diag_error(tc->diag, "E3001", strdup(msg),
+                        tc->file, node->token.line, node->token.column, 0);
+                }
+            }
         } else if (left->kind == TK_STRING) {
             result = &TYPE_CHAR;
         } else if (left->kind != TK_UNKNOWN) {
