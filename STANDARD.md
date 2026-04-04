@@ -1658,7 +1658,7 @@ sqrt(16.0)
 
 ## 10. Standard Library
 
-The EZ standard library consists of 26 modules providing core functionality.
+The EZ standard library consists of 27 modules providing core functionality.
 
 ### 10.1 Core Module (`@std`)
 
@@ -2310,10 +2310,10 @@ Synchronization primitives for thread-safe access to shared data. Compiler-only 
 
 | Function | Signature | Description |
 |----------|-----------|-------------|
-| `create_mutex` | `() -> Mutex` | Create a new mutex |
+| `mutex` | `() -> Mutex` | Create a new mutex |
 | `lock` | `(m Mutex)` | Acquire a mutex |
 | `unlock` | `(m Mutex)` | Release a mutex |
-| `destroy_mutex` | `(m Mutex)` | Destroy a mutex |
+| `destroy` | `(m Mutex)` | Destroy a mutex |
 
 ### 10.24 Channels Module (`@channels`)
 
@@ -2321,10 +2321,10 @@ Message passing between threads. Compiler-only feature; requires POSIX threads.
 
 | Function | Signature | Description |
 |----------|-----------|-------------|
-| `open_channel` | `(capacity int) -> Channel` | Create a buffered channel |
+| `open` | `(capacity int) -> Channel` | Create a buffered channel |
 | `send` | `(ch Channel, value)` | Send a value into a channel |
 | `receive` | `(ch Channel) -> any` | Receive a value from a channel |
-| `close_channel` | `(ch Channel)` | Close a channel |
+| `close` | `(ch Channel)` | Close a channel |
 
 ### 10.25 Memory Module (`@mem`)
 
@@ -2342,18 +2342,74 @@ Arena-based memory allocation. Compiler-only feature.
 | `zero` | `(ptr, n int)` | Zero out `n` bytes at `ptr` |
 | `set` | `(ptr, value int, n int)` | Set `n` bytes at `ptr` to `value` |
 
-### 10.26 Fmt Module (`@fmt`)
+### 10.26 Atomic Module (`@atomic`)
 
-Formatted output functions.
+Lock-free atomic operations backed by hand-written assembly (ARM64 and x86_64). Compiler-only feature.
+
+#### 64-bit Atomics
+
+All pointer arguments must be `^int` (pointer to int).
+
+| Function | Signature | Description |
+|----------|-----------|-------------|
+| `load` | `(ptr ^int) -> int` | Atomically load a value |
+| `store` | `(ptr ^int, val int)` | Atomically store a value |
+| `add` | `(ptr ^int, val int) -> int` | Atomic add; returns previous value |
+| `sub` | `(ptr ^int, val int) -> int` | Atomic subtract; returns previous value |
+| `exchange` | `(ptr ^int, val int) -> int` | Atomic swap; returns previous value |
+| `cas` | `(ptr ^int, expected int, desired int) -> bool` | Compare-and-swap; returns true on success |
+| `and` | `(ptr ^int, val int) -> int` | Atomic bitwise AND; returns previous value |
+| `or` | `(ptr ^int, val int) -> int` | Atomic bitwise OR; returns previous value |
+| `xor` | `(ptr ^int, val int) -> int` | Atomic bitwise XOR; returns previous value |
+
+#### Spinlock
+
+| Function | Signature | Description |
+|----------|-----------|-------------|
+| `spinlock` | `() -> SpinLock` | Create a new spinlock |
+| `spin_lock` | `(lk SpinLock)` | Acquire a spinlock (spins until acquired) |
+| `spin_trylock` | `(lk SpinLock) -> bool` | Try to acquire; returns true if acquired |
+| `spin_unlock` | `(lk SpinLock)` | Release a spinlock |
+
+#### Memory Barrier
+
+| Function | Signature | Description |
+|----------|-----------|-------------|
+| `fence` | `()` | Full memory barrier (sequential consistency) |
+
+### 10.27 Fmt Module (`@fmt`)
+
+Formatted output and string formatting functions.
+
+#### Formatted Output
 
 | Function | Signature | Description |
 |----------|-----------|-------------|
 | `printf` | `(format string, ...args)` | Print formatted string to stdout |
-| `sprintf` | `(format string, ...args) -> string` | Return formatted string |
+| `sprintf` | `(format string, ...args) -> string` | Return formatted string (requires arena argument) |
+| `format` | `(format string, ...args) -> string` | Return formatted string |
+| `eprintln` | `(value)` | Print a value to stderr with newline |
+| `eprint` | `(s string)` | Print a string to stderr without newline |
 
-Accepts `string`, `int`, `float`, and `bool` arguments. Composite types (structs, arrays, maps) are not supported and are rejected at compile time (E3017). Use `println` for printing composite types.
+#### Padding
 
-> **Note:** For stderr output, use the builtin `eprintln()` and `eprint()` functions directly — no `@fmt` import needed.
+| Function | Signature | Description |
+|----------|-----------|-------------|
+| `pad_left` | `(s string, width int, ch char) -> string` | Pad string on the left to `width` with `ch` |
+| `pad_right` | `(s string, width int, ch char) -> string` | Pad string on the right to `width` with `ch` |
+| `center` | `(s string, width int, ch char) -> string` | Center string within `width`, padding both sides with `ch` |
+
+#### Number Formatting
+
+| Function | Signature | Description |
+|----------|-----------|-------------|
+| `int_to_hex` | `(n int) -> string` | Format integer as lowercase hexadecimal (no `0x` prefix) |
+| `int_to_binary` | `(n int) -> string` | Format integer as binary |
+| `int_to_octal` | `(n int) -> string` | Format integer as octal |
+| `float_fixed` | `(f float, decimals int) -> string` | Format float with fixed decimal places |
+| `float_sci` | `(f float) -> string` | Format float in scientific notation |
+
+Accepts `string`, `int`, `float`, and `bool` arguments for formatted output functions. Composite types (structs, arrays, maps) are not supported and are rejected at compile time (E3017). Use `println` for printing composite types.
 
 ---
 
