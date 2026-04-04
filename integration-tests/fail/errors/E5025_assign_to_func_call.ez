@@ -1,0 +1,12 @@
+/*
+ * Error Test: E5025 - assignment to function call result
+ * Expected: "cannot assign to this expression" error
+ */
+
+do get_value() -> int {
+    return 5
+}
+
+do main() {
+    get_value() = 10
+}

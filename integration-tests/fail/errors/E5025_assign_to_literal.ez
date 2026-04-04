@@ -1,0 +1,8 @@
+/*
+ * Error Test: E5025 - assignment to a literal
+ * Expected: "cannot assign to this expression" error
+ */
+
+do main() {
+    5 = 10
+}

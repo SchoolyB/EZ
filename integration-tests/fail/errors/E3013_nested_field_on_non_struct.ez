@@ -1,0 +1,14 @@
+/*
+ * Error Test: E3013 - chained field access on non-struct type
+ * Expected: "has no fields" error
+ */
+
+const Point struct {
+    x int
+    y int
+}
+
+do main() {
+    mut p = Point{x: 1, y: 2}
+    mut val = p.x.z
+}

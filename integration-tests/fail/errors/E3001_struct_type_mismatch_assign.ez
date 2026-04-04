@@ -1,0 +1,16 @@
+/*
+ * Error Test: E3001 - assigning wrong struct type
+ * Expected: "cannot assign 'Dog' to 'Cat'" error
+ */
+
+const Cat struct {
+    name string
+}
+
+const Dog struct {
+    name string
+}
+
+do main() {
+    mut c Cat = Dog{name: "Rex"}
+}
