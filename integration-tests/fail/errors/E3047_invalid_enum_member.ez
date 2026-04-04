@@ -1,0 +1,14 @@
+/*
+ * Error Test: E3047 - nonexistent enum member access
+ * Expected: "enum 'Color' has no member 'YELLOW'" error
+ */
+
+const Color enum {
+    RED
+    GREEN
+    BLUE
+}
+
+do main() {
+    mut c = Color.YELLOW
+}

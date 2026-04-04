@@ -1,0 +1,14 @@
+/*
+ * Error Test: E3010 - nonexistent field on pointer auto-deref struct
+ * Expected: "struct 'Point' has no field 'z'" error
+ */
+
+const Point struct {
+    x int
+    y int
+}
+
+do main() {
+    mut p = new(Point)
+    p.z = 10
+}
