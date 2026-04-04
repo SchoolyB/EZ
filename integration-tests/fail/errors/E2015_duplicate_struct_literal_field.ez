@@ -1,0 +1,13 @@
+/*
+ * Error Test: E2015 - duplicate field in struct literal
+ * Expected: "duplicate field" error
+ */
+
+const Point struct {
+    x int
+    y int
+}
+
+do main() {
+    mut p = Point{x: 1, y: 2, x: 3}
+}

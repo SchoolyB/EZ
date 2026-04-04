@@ -1,0 +1,15 @@
+/*
+ * Error Test: E2014 - duplicate enum variant name
+ * Expected: "duplicate variant name" error
+ */
+
+const Direction enum {
+    NORTH
+    SOUTH
+    EAST
+    NORTH
+}
+
+do main() {
+    mut d = Direction.NORTH
+}
