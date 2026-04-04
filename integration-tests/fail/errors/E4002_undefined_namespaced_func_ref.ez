@@ -4,12 +4,12 @@
 
 
 const MyStruct struct {
-    do real_method(n int) -> int {
+    do real_func(n int) -> int {
         return n
     }
 }
 
 do main() {
-    mut fn = ()MyStruct.fake_method
+    mut fn = ()MyStruct.fake_func
     println(fn(5))
 }

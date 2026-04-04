@@ -1180,7 +1180,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                 obj_t->kind != TK_VOID) {
                 char msg[256];
                 snprintf(msg, sizeof(msg),
-                    "type '%s' has no methods — only structs support method calls",
+                    "type '%s' has no functions — only structs support function calls with dot syntax",
                     type_name(obj_t));
                 diag_error(tc->diag, "E3013", strdup(msg),
                     tc->file, fn->token.line, fn->token.column, 0);
@@ -1694,7 +1694,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
             } else if (obj_t && obj_t->kind != TK_UNKNOWN && obj_t->kind != TK_VOID) {
                 char msg[256];
                 snprintf(msg, sizeof(msg),
-                    "type '%s' has no fields or methods — only structs support member access",
+                    "type '%s' has no fields or functions — only structs support member access",
                     type_name(obj_t));
                 diag_error(tc->diag, "E3013", strdup(msg),
                     tc->file, node->token.line, node->token.column, 0);
@@ -1912,7 +1912,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
         if (node->data.func_ref.function->kind == NODE_LABEL) {
             ref_name = node->data.func_ref.function->data.label.value;
         } else if (node->data.func_ref.function->kind == NODE_MEMBER_EXPR) {
-            /* Struct.method → lookup as Struct_method */
+            /* Struct.func → lookup as Struct_func */
             AstNode *obj = node->data.func_ref.function->data.member.object;
             const char *member = node->data.func_ref.function->data.member.member;
             if (obj->kind == NODE_LABEL) {

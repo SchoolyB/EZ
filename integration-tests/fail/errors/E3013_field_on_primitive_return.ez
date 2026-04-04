@@ -1,6 +1,6 @@
 /*
  * Error Test: E3013 - field access on non-struct return value
- * Expected: "has no fields or methods"
+ * Expected: "has no fields or functions"
  */
 
 

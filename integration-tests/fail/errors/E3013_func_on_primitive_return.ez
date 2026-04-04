@@ -1,0 +1,13 @@
+/*
+ * Error Test: E3013 - function call on non-struct return value
+ * Expected: "has no functions" or "has no fields"
+ */
+
+
+do get_num() -> int {
+    return 42
+}
+
+do main() {
+    mut x = get_num().something()
+}
