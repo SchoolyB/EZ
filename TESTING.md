@@ -1,62 +1,32 @@
 # EZ Language Testing Guide
 
+## Quick Start
+
+If you've already run `make build && make install`, you can run the entire test suite with a single command:
+
+```bash
+ez test
+```
+
+This runs all Go tooling tests, compiler unit tests, compiler e2e tests, and integration tests in sequence.
+
+---
+
 ## Compiler Tests
 
 The EZ compiler has a comprehensive test suite written in C, located in `ezc/tests/`.
 
-### Unit Tests (163 tests)
+### Unit Tests (230 tests)
 
 Unit tests validate individual compiler components:
 
-**Lexer Tests** (`ezc/tests/test_lexer.c` — 30 tests):
-- Token scanning (single/multi-char, strings, chars, numbers)
-- Keyword recognition (`mut`, `while`, `or_return`, `as_long_as`)
-- Literal formats (hex, octal, binary, float with underscores)
-- Comment handling (single-line, multi-line)
-- Attribute tokens (`#flags`, `#strict`, `#suppress`, `#doc`)
-- v3 keyword aliases and coexistence
-- `!in` vs `!` disambiguation
+- **Lexer Tests** (`ezc/tests/test_lexer.c` — 55 tests): Token scanning, keyword recognition, literal formats, comment handling, attribute tokens, v3 keyword aliases, operator disambiguation.
+- **Parser Tests** (`ezc/tests/test_parser.c` — 66 tests): Declarations, imports, control flow, structs, enums, function references, attributes, map/array types, visibility, error reporting.
+- **Typechecker Tests** (`ezc/tests/test_typechecker.c` — 109 tests): Scope management, type resolution, expression inference, built-in return types, error detection, enum/map type resolution.
 
-**Parser Tests** (`ezc/tests/test_parser.c` — 33 tests):
-- Variable/constant declarations
-- Function declarations (params, return types, defaults)
-- Import statements (single, multi, aliases)
-- Control flow (if/or/otherwise, for, while, loop, when)
-- Struct and enum declarations
-- Struct-namespaced functions (`do` inside struct blocks)
-- Function references (`()func_name`)
-- `or_return` parsing
-- `#flags` and string enum attributes
-- Map types, fixed-size arrays, nested arrays
-- Private visibility on struct functions
-- `for_each` with index variable
-- Error reporting on invalid syntax
+### End-to-End Tests (81 tests)
 
-**Typechecker Tests** (`ezc/tests/test_typechecker.c` — 35 tests):
-- Scope management (define, lookup, nested, shadow)
-- Type resolution (primitives including signed/unsigned, arrays, structs, maps, pointers)
-- Expression type inference (literals, arithmetic, comparison, logical)
-- Built-in function return types (`len`, `typeof`, `to_float`, `addr`)
-- Error detection (E3001 type mismatch, E5008 wrong arg count, E3016 deref non-pointer)
-- String enum member type resolution
-- Map type from name parsing
-
-**End-to-End Tests** (`ezc/tests/test_codegen.c` — 65 tests):
-
-E2E tests compile EZ programs, run them, and verify output:
-
-- Basic: hello world, variables, arithmetic, strings, booleans
-- Control flow: if/else, for, while, loop/break, when/is
-- Functions: calls, recursion, multi-return, named returns, default params, mutable params
-- Data structures: arrays, fixed-size arrays, nested arrays, maps, structs, enums
-- String features: interpolation, char literals, hex/octal/binary literals
-- Function references: `()func`, `ref(func)`, reassignment
-- Struct-namespaced functions: `Type.func()` calls
-- `or_return` error propagation
-- Enum attributes: `#flags` (powers of 2), string enums
-- Map operations: literal creation, key access, `for_each` iteration
-- Pointers: `addr()`, dereference (`p^`), nil check, write-through, struct pointers
-- Runtime checks: division by zero panic
+E2E tests (`ezc/tests/test_codegen.c`) compile EZ programs, run them, and verify output. Covers variables, control flow, functions, data structures, string features, function references, struct functions, enums, maps, pointers, and runtime checks.
 
 **Running:**
 
@@ -82,14 +52,9 @@ Integration tests compile and run `.ez` programs end-to-end through the full com
 
 **Structure:**
 
-- `integration-tests/pass/core/` — Core language features (arrays, control flow, structs, enums, maps, typeof, named returns, etc.)
-- `integration-tests/pass/stdlib/` — All 26 stdlib module tests (`*_c.ez` files)
-- `integration-tests/fail/errors/` — 305 error detection tests (14 skipped as interpreter-only)
-
-**What's tested:**
-
-- 65 passing programs covering all core language features
-- 26 stdlib modules: strings, math, arrays, maps, io, os, time, encoding, crypto, json, csv, uuid, bytes, binary, mem, fmt, random, regex, http, net, server, sqlite, threads, sync, channels, bigint
+- `integration-tests/pass/core/` — 96 core language feature tests (arrays, control flow, structs, enums, maps, typeof, named returns, etc.)
+- `integration-tests/pass/stdlib/` — 42 stdlib module tests
+- `integration-tests/fail/errors/` — 381 error detection tests
 
 **Running:**
 
@@ -158,7 +123,7 @@ python3 scripts/fuzz.py --clean
 
 ---
 
-## Go Tooling Tests
+## Go Tooling Tests (362 tests)
 
 The Go CLI (`ez`) has unit tests for the packages it uses:
 
@@ -173,8 +138,15 @@ go test ./pkg/errors/... ./pkg/lineeditor/...
 
 ## Running Everything
 
+The simplest way (requires `make build && make install`):
+
 ```bash
-# Full test suite
+ez test
+```
+
+Or manually:
+
+```bash
 cd ezc && make test-unit && make test-e2e && cd ..
 bash scripts/run_tests.sh
 go test ./pkg/errors/... ./pkg/lineeditor/...
