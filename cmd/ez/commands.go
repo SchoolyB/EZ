@@ -312,9 +312,11 @@ var rootCmd = &cobra.Command{
 	Version: getVersionString(),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		if len(args) == 0 {
+			fmt.Print(asciiBanner)
 			return cmd.Help()
 		}
 		if !strings.HasSuffix(args[0], ".ez") {
+			fmt.Print(asciiBanner)
 			return cmd.Help()
 		}
 

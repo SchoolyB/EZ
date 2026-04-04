@@ -15,9 +15,8 @@ import (
 )
 
 const (
-	PROMPT      = ">> "
-	MULTI_LINE  = ".. "
-	REPL_BANNER = "EZ REPL (compiler-backed) — type 'exit' to quit, 'help' for commands"
+	PROMPT     = ">> "
+	MULTI_LINE = ".. "
 )
 
 // replState holds the accumulated source across REPL turns
@@ -56,7 +55,8 @@ func (s *replState) buildSource() string {
 }
 
 func startREPL() {
-	fmt.Println(REPL_BANNER)
+	fmt.Printf("Programming made EZ — %s\n", Version)
+	fmt.Println("Type 'exit' to quit, 'help' for commands")
 	fmt.Println()
 
 	editor := lineeditor.New(100)
