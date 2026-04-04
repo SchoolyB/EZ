@@ -1,0 +1,17 @@
+/*
+ * Error Test: E3001 - wrong argument type on struct function
+ * Expected: "expected int, got string" error
+ */
+
+const Point struct {
+    x int
+    y int
+
+    do scale(factor int) -> int {
+        return 0
+    }
+}
+
+do main() {
+    mut result = Point.scale("hello")
+}

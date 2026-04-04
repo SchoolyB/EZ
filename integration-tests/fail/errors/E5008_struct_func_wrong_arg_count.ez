@@ -1,0 +1,17 @@
+/*
+ * Error Test: E5008 - wrong argument count on struct function
+ * Expected: "expects 1 argument(s), got 2" error
+ */
+
+const Point struct {
+    x int
+    y int
+
+    do scale(factor int) -> int {
+        return 0
+    }
+}
+
+do main() {
+    mut result = Point.scale(1, 2)
+}
