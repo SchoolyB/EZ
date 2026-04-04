@@ -1,0 +1,33 @@
+do main() {
+    mut passed int = 0
+    mut failed int = 0
+
+    // Test 1: cast int to string
+    mut x int = 42
+    mut s = cast(x, string)
+    if s == "42" {
+        println("  [PASS] cast(42, string) == \"42\"")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] cast(42, string): expected \"42\", got ${s}")
+        failed += 1
+    }
+
+    // Test 2: cast float to string
+    mut f float = 3.14
+    mut sf = cast(f, string)
+    if sf == "3.14" {
+        println("  [PASS] cast(3.14, string) produces string")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] cast(3.14, string): got ${sf}")
+        failed += 1
+    }
+
+    println("Results: ${passed} passed, ${failed} failed")
+    if failed > 0 {
+        println("SOME TESTS FAILED")
+    } otherwise {
+        println("ALL TESTS PASSED")
+    }
+}

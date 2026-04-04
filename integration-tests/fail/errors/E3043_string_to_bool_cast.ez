@@ -1,0 +1,9 @@
+/*
+ * Error Test: E3043 - cannot cast string to bool
+ * Expected: E3043 "cannot cast" error
+ */
+
+do main() {
+    mut s string = "true"
+    mut b = cast(s, bool)
+}
