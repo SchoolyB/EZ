@@ -1902,7 +1902,11 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
             bool src_composite = (src_t->kind == TK_STRUCT || src_t->kind == TK_MAP ||
                                   (src_t->kind == TK_ARRAY && dst_t->kind != TK_ARRAY));
             bool dst_composite = (dst_t->kind == TK_STRUCT || dst_t->kind == TK_MAP);
-            if (src_composite || dst_composite) {
+            /* Reject string → non-numeric (string can only cast to int, float, string) */
+            bool bad_string_cast = (src_t->kind == TK_STRING &&
+                dst_t->kind != TK_STRING && dst_t->kind != TK_INT &&
+                dst_t->kind != TK_UINT && dst_t->kind != TK_FLOAT);
+            if (src_composite || dst_composite || bad_string_cast) {
                 char tn[128];
                 if (src_t->kind == TK_ARRAY && src_t->element_type)
                     snprintf(tn, sizeof(tn), "[%s]", src_t->element_type);

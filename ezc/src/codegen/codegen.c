@@ -3586,6 +3586,9 @@ static void emit_var_declaration(CodeGen *cg, AstNode *node) {
         } else if (val->kind == NODE_LABEL) {
             /* Variable reference — use __auto_type to propagate the source type */
             c_type = "__auto_type";
+        } else if (val->kind == NODE_CAST_EXPR) {
+            /* Cast expression — use the target type */
+            c_type = ez_type_to_c_cg(cg, val->data.cast.target_type);
         }
     }
 
