@@ -582,6 +582,24 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
             }
         }
 
+        /* E3049: arithmetic on enum values */
+        if (strcmp(op, "+") == 0 || strcmp(op, "-") == 0 ||
+            strcmp(op, "*") == 0 || strcmp(op, "/") == 0 || strcmp(op, "%") == 0) {
+            bool left_is_enum = node->data.infix.left->kind == NODE_MEMBER_EXPR &&
+                node->data.infix.left->data.member.object->kind == NODE_LABEL &&
+                is_enum_name(tc, node->data.infix.left->data.member.object->data.label.value);
+            bool right_is_enum = node->data.infix.right->kind == NODE_MEMBER_EXPR &&
+                node->data.infix.right->data.member.object->kind == NODE_LABEL &&
+                is_enum_name(tc, node->data.infix.right->data.member.object->data.label.value);
+            if (left_is_enum || right_is_enum) {
+                char msg[256];
+                snprintf(msg, sizeof(msg),
+                    "cannot use '%s' on enum values — enums only support == and != comparisons", op);
+                diag_error(tc->diag, "E3049", strdup(msg),
+                    tc->file, node->token.line, node->token.column, 0);
+            }
+        }
+
         /* Comparison of incompatible types (e.g., int == string) */
         if ((strcmp(op, "==") == 0 || strcmp(op, "!=") == 0) &&
             left->kind != TK_UNKNOWN && right->kind != TK_UNKNOWN &&

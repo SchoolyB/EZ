@@ -3,7 +3,7 @@
 > Auto-generated from `ezc/src/util/error_codes.h`. Do not edit manually.
 > Run `./scripts/generate_errors.sh` to regenerate.
 
-**Total: 115 codes** (108 errors, 7 warnings)
+**Total: 116 codes** (109 errors, 7 warnings)
 
 ---
 
@@ -92,6 +92,7 @@
 | `E3046` | types | integer literal overflows 64-bit integer — max value is 9223372036854775807 |
 | `E3047` | types | this enum does not have a member with that name |
 | `E3048` | types | operator '+' is not defined for strings — use string interpolation or fmt.format() instead |
+| `E3049` | types | arithmetic operators are not valid on enum values — enums only support == and != comparisons |
 | `E4001` | names | this variable does not exist — check the spelling or make sure it is declared above this line |
 | `E4002` | names | this function does not exist — check the spelling or make sure it is defined |
 | `E4003` | names | a variable with this name already exists in this scope — use a different name |
@@ -159,4 +160,4 @@
 
 ---
 
-*Generated on 2026-04-04 16:23:03 UTC*
+*Generated on 2026-04-04 16:24:37 UTC*

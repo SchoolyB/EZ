@@ -105,7 +105,8 @@
     EZ_ERROR("E3045", "types", "or_return requires a function that returns (T, Error) — the called function does not return an error") \
     EZ_ERROR("E3046", "types", "integer literal overflows 64-bit integer — max value is 9223372036854775807") \
     EZ_ERROR("E3047", "types", "this enum does not have a member with that name") \
-    EZ_ERROR("E3048", "types", "operator '+' is not defined for strings — use string interpolation or fmt.format() instead")
+    EZ_ERROR("E3048", "types", "operator '+' is not defined for strings — use string interpolation or fmt.format() instead") \
+    EZ_ERROR("E3049", "types", "arithmetic operators are not valid on enum values — enums only support == and != comparisons")
 
 /* --- E4xxx: Name Problems (References) --- */
 #define EZ_REFERENCE_ERRORS \
