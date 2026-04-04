@@ -1711,6 +1711,13 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
             if (!obj_t) obj_t = resolve_expr(tc, obj);
             if (obj_t && obj_t->kind == TK_STRUCT) {
                 result = struct_field_type(tc, obj_t->name, member);
+            } else if (obj_t && obj_t->kind != TK_UNKNOWN && obj_t->kind != TK_STRUCT) {
+                char msg[256];
+                snprintf(msg, sizeof(msg),
+                    "type '%s' has no fields — only structs support field access",
+                    type_name(obj_t));
+                diag_error(tc->diag, "E3013", strdup(msg),
+                    tc->file, node->token.line, node->token.column, 0);
             }
         } else {
             /* Object is an expression (e.g. foo().bar) — resolve its type */
@@ -2226,6 +2233,17 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
                 diag_error(tc->diag, "E3001", strdup(msg),
                     tc->file, node->token.line, node->token.column, 0);
             }
+            /* Struct-to-struct name mismatch (both TK_STRUCT but different names) */
+            if (declared->kind == TK_STRUCT && value_type->kind == TK_STRUCT &&
+                declared->name && value_type->name &&
+                strcmp(declared->name, value_type->name) != 0) {
+                char msg[256];
+                snprintf(msg, sizeof(msg),
+                    "type mismatch: cannot assign '%s' to '%s'",
+                    value_type->name, declared->name);
+                diag_error(tc->diag, "E3001", strdup(msg),
+                    tc->file, node->token.line, node->token.column, 0);
+            }
             /* E1010: Check for overflowed int literal assigned to non-bigint type */
             if (node->data.var_decl.value &&
                 node->data.var_decl.value->kind == NODE_INT_VALUE &&
@@ -2548,6 +2566,17 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
                 snprintf(msg, sizeof(msg),
                     "return type mismatch: expected %s, got %s",
                     type_name(expected), type_name(ret_t));
+                diag_error(tc->diag, "E3001", strdup(msg),
+                    tc->file, node->token.line, node->token.column, 0);
+            }
+            /* Struct-to-struct return name mismatch */
+            if (ret_t->kind == TK_STRUCT && expected->kind == TK_STRUCT &&
+                ret_t->name && expected->name &&
+                strcmp(ret_t->name, expected->name) != 0) {
+                char msg[256];
+                snprintf(msg, sizeof(msg),
+                    "return type mismatch: expected '%s', got '%s'",
+                    expected->name, ret_t->name);
                 diag_error(tc->diag, "E3001", strdup(msg),
                     tc->file, node->token.line, node->token.column, 0);
             }
