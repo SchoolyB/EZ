@@ -792,6 +792,18 @@ static AstNode *parse_var_declaration(Parser *p) {
         next_token(p);
         node->data.var_decl.type_name = parse_complex_type(p);
         if (!node->data.var_decl.type_name) return NULL;
+        /* E2068: mut <name> struct/enum — should be const */
+        if (node->data.var_decl.mutable &&
+            (strcmp(node->data.var_decl.type_name, "struct") == 0 ||
+             strcmp(node->data.var_decl.type_name, "enum") == 0)) {
+            char msg[256];
+            snprintf(msg, sizeof(msg),
+                "%ss must be declared with 'const', not 'mut' — change 'mut' to 'const'",
+                node->data.var_decl.type_name);
+            diag_error(p->diag, "E2068", arena_strdup(p->arena, msg),
+                p->file, node->token.line, node->token.column, 0);
+            return NULL;
+        }
     }
 
     /* Check for multi-var declaration: temp x int, y int = expr OR temp _, _ = expr */

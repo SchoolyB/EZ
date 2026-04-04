@@ -67,7 +67,8 @@
     EZ_ERROR("E2064", "syntax", "struct function name conflicts with a field name — functions and fields must have distinct names") \
     EZ_ERROR("E2065", "syntax", "enum variant cannot have the same name as its enum type") \
     EZ_ERROR("E2066", "syntax", "struct field cannot have the same name as its struct type") \
-    EZ_ERROR("E2067", "syntax", "empty struct — a struct must have at least one field")
+    EZ_ERROR("E2067", "syntax", "empty struct — a struct must have at least one field") \
+    EZ_ERROR("E2068", "syntax", "structs and enums must be declared with 'const', not 'mut'")
 
 /* --- E3xxx: Type Problems (Typechecker) --- */
 #define EZ_TYPE_ERRORS \
