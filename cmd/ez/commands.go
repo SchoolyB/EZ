@@ -21,6 +21,10 @@ var runCmd = &cobra.Command{
 	Short: "Compile and run an EZ source file",
 	Args:  cobra.MinimumNArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
+		if !strings.HasSuffix(args[0], ".ez") {
+			fmt.Fprintf(os.Stderr, "error: '%s' is not a valid EZ source file — expected a .ez file\n", args[0])
+			os.Exit(1)
+		}
 		var extraArgs []string
 		if len(args) > 1 {
 			extraArgs = args[1:]
@@ -39,6 +43,12 @@ var checkCmd = &cobra.Command{
 	Short: "Type-check a file or project without compiling",
 	Args:  cobra.ExactArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
+		// Allow directories for project-wide check
+		info, statErr := os.Stat(args[0])
+		if statErr == nil && !info.IsDir() && !strings.HasSuffix(args[0], ".ez") {
+			fmt.Fprintf(os.Stderr, "error: '%s' is not a valid EZ source file — expected a .ez file\n", args[0])
+			os.Exit(1)
+		}
 		code, err := ezc.Check(args[0])
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "error: %v\n", err)
@@ -53,6 +63,10 @@ var buildCmd = &cobra.Command{
 	Short: "Compile an EZ source file to a native binary",
 	Args:  cobra.ExactArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
+		if !strings.HasSuffix(args[0], ".ez") {
+			fmt.Fprintf(os.Stderr, "error: '%s' is not a valid EZ source file — expected a .ez file\n", args[0])
+			os.Exit(1)
+		}
 		output, _ := cmd.Flags().GetString("output")
 		verbose, _ := cmd.Flags().GetBool("verbose")
 		emitC, _ := cmd.Flags().GetBool("emit-c")
