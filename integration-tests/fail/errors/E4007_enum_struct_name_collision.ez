@@ -1,0 +1,17 @@
+/*
+ * Error Test: E4007 - enum name collides with existing struct name
+ * Expected: "a type named 'Shape' is already declared" error
+ */
+
+const Shape struct {
+    sides int
+}
+
+const Shape enum {
+    CIRCLE
+    SQUARE
+}
+
+do main() {
+    mut s = new(Shape)
+}

@@ -1,0 +1,18 @@
+/*
+ * Error Test: E4007 - duplicate enum name
+ * Expected: "a type named 'Status' is already declared" error
+ */
+
+const Status enum {
+    ACTIVE
+    INACTIVE
+}
+
+const Status enum {
+    PENDING
+    DONE
+}
+
+do main() {
+    mut s = Status.ACTIVE
+}
