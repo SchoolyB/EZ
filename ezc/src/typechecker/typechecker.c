@@ -3314,6 +3314,16 @@ static void register_declarations(TypeChecker *tc, AstNode *program) {
                 diag_error(tc->diag, "E4004", strdup(msg),
                     tc->file, stmt->token.line, stmt->token.column, 0);
             }
+            /* E4007: function name conflicts with a type */
+            if (is_struct_name(tc, stmt->data.func_decl.name) ||
+                is_enum_name(tc, stmt->data.func_decl.name)) {
+                char msg[256];
+                snprintf(msg, sizeof(msg),
+                    "function '%s' conflicts with a type of the same name",
+                    stmt->data.func_decl.name);
+                diag_error(tc->diag, "E4007", strdup(msg),
+                    tc->file, stmt->token.line, stmt->token.column, 0);
+            }
             register_func(tc, stmt->data.func_decl.name, ptypes, pc, rtypes, rc);
             tc->funcs[tc->func_count - 1].is_private = stmt->data.func_decl.is_private;
             /* Store line for unused function warning */
