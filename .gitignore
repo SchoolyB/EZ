@@ -83,4 +83,6 @@ context/
 !examples/
 !examples/**
 !examples/**/*.ez
-DOCS.mdCLAUDE.md
+DOCS.md
+CLAUDE.md
+.claude/
