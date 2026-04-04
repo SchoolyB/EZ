@@ -1,0 +1,12 @@
+/*
+ * Error Test: E2063 - duplicate named return value
+ * Expected: "duplicate named return value 'result'" error
+ */
+
+do compute(x int) -> (result int, result int) {
+    return x, x * 2
+}
+
+do main() {
+    mut a, b = compute(5)
+}

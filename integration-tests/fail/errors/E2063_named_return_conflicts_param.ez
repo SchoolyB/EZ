@@ -1,0 +1,12 @@
+/*
+ * Error Test: E2063 - named return value conflicts with parameter name
+ * Expected: "named return value 'x' conflicts with parameter 'x'" error
+ */
+
+do double(x int) -> (x int) {
+    return x * 2
+}
+
+do main() {
+    mut r = double(5)
+}
