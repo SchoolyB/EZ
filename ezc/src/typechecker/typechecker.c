@@ -3115,6 +3115,15 @@ static void register_declarations(TypeChecker *tc, AstNode *program) {
                     diag_error(tc->diag, "E3038", strdup(msg),
                         tc->file, stmt->token.line, stmt->token.column, 0);
                 }
+                /* E2066: field name matches struct type name */
+                if (strcmp(fnames[j], stmt->data.struct_decl.name) == 0) {
+                    char msg[256];
+                    snprintf(msg, sizeof(msg),
+                        "struct field '%s' cannot have the same name as its struct type '%s'",
+                        fnames[j], stmt->data.struct_decl.name);
+                    diag_error(tc->diag, "E2066", strdup(msg),
+                        tc->file, stmt->token.line, stmt->token.column, 0);
+                }
                 /* Check for duplicate field names */
                 for (int k = 0; k < j; k++) {
                     if (strcmp(fnames[k], fnames[j]) == 0) {
