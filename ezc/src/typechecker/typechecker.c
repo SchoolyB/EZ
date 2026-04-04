@@ -514,17 +514,6 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
             break;
         }
 
-        /* String + non-string: only string + string is valid for concat */
-        if (strcmp(op, "+") == 0 &&
-            ((left->kind == TK_STRING && right->kind != TK_STRING && right->kind != TK_UNKNOWN) ||
-             (right->kind == TK_STRING && left->kind != TK_STRING && left->kind != TK_UNKNOWN))) {
-            char msg[256];
-            snprintf(msg, sizeof(msg),
-                "cannot add %s and %s — use to_string() to convert", type_name(left), type_name(right));
-            diag_error(tc->diag, "E3002", strdup(msg),
-                tc->file, node->token.line, node->token.column, 0);
-        }
-
         /* E3002: modulo on float */
         if (strcmp(op, "%") == 0 &&
             (left->kind == TK_FLOAT || right->kind == TK_FLOAT)) {
@@ -547,7 +536,14 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                 tc->file, node->token.line, node->token.column, 0);
         }
 
-        /* Arithmetic on strings (other than + for concat) */
+        /* String + string: reject with helpful message */
+        if ((left->kind == TK_STRING || right->kind == TK_STRING) && strcmp(op, "+") == 0) {
+            diag_error(tc->diag, "E3048",
+                strdup("operator '+' is not defined for strings — use string interpolation or fmt.format() instead"),
+                tc->file, node->token.line, node->token.column, 0);
+        }
+
+        /* Arithmetic on strings (-, *, /, %, etc.) */
         if ((left->kind == TK_STRING || right->kind == TK_STRING) &&
             strcmp(op, "+") != 0 && strcmp(op, "==") != 0 && strcmp(op, "!=") != 0 &&
             strcmp(op, "in") != 0 && strcmp(op, "not_in") != 0 && strcmp(op, "!in") != 0) {
@@ -3455,6 +3451,19 @@ static void register_declarations(TypeChecker *tc, AstNode *program) {
                 rtypes[j] = type_from_name(stmt->data.func_decl.return_types[j]);
             }
 
+            /* E4008: main() cannot have parameters or return types */
+            if (strcmp(stmt->data.func_decl.name, "main") == 0) {
+                if (pc > 0) {
+                    diag_error(tc->diag, "E4008",
+                        strdup("'main' function cannot have parameters — main() takes no arguments"),
+                        tc->file, stmt->token.line, stmt->token.column, 0);
+                }
+                if (rc > 0) {
+                    diag_error(tc->diag, "E4008",
+                        strdup("'main' function cannot have a return type — main() always returns void"),
+                        tc->file, stmt->token.line, stmt->token.column, 0);
+                }
+            }
             /* Check for reserved prefix */
             check_reserved_name(tc, stmt->data.func_decl.name,
                 stmt->token.line, stmt->token.column);

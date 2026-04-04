@@ -687,12 +687,8 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
         bool right_is_str = (rt && rt->kind == TK_STRING) || node->data.infix.right->kind == NODE_STRING_VALUE;
 
         if ((left_is_str || right_is_str) && strcmp(op, "+") == 0) {
-            /* String concatenation */
-            emit(cg, "ez_string_concat(ez_default_arena, ");
-            emit_expression(cg, node->data.infix.left);
-            emit(cg, ", ");
-            emit_expression(cg, node->data.infix.right);
-            emit(cg, ")");
+            /* String concatenation is rejected by the typechecker (E3048).
+             * This path is unreachable but kept as a safety net. */
             break;
         }
         if ((left_is_str || right_is_str) && strcmp(op, "==") == 0) {

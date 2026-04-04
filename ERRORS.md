@@ -3,7 +3,7 @@
 > Auto-generated from `ezc/src/util/error_codes.h`. Do not edit manually.
 > Run `./scripts/generate_errors.sh` to regenerate.
 
-**Total: 112 codes** (105 errors, 7 warnings)
+**Total: 114 codes** (107 errors, 7 warnings)
 
 ---
 
@@ -90,6 +90,7 @@
 | `E3045` | types | or_return requires a function that returns (T, Error) — the called function does not return an error |
 | `E3046` | types | integer literal overflows 64-bit integer — max value is 9223372036854775807 |
 | `E3047` | types | this enum does not have a member with that name |
+| `E3048` | types | operator '+' is not defined for strings — use string interpolation or fmt.format() instead |
 | `E4001` | names | this variable does not exist — check the spelling or make sure it is declared above this line |
 | `E4002` | names | this function does not exist — check the spelling or make sure it is defined |
 | `E4003` | names | a variable with this name already exists in this scope — use a different name |
@@ -97,6 +98,7 @@
 | `E4005` | names | no main() function found — every program needs a do main() { } function |
 | `E4006` | names | this name is reserved by the compiler — choose a different name that does not start with ez_ or Ez |
 | `E4007` | names | a type with this name already exists — each struct and enum must have a unique name |
+| `E4008` | names | main() cannot have parameters or a return type — it must be declared as do main() { } |
 | `E4012` | names | variable shadows a type definition with the same name |
 | `E4013` | names | variable shadows a function with the same name |
 | `E4014` | names | variable shadows an imported module name |
@@ -156,4 +158,4 @@
 
 ---
 
-*Generated on 2026-04-04 16:05:51 UTC*
+*Generated on 2026-04-04 16:17:50 UTC*

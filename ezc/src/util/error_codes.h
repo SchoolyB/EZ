@@ -103,7 +103,8 @@
     EZ_ERROR("E3044", "types", "cannot access a field on a struct type — use an instance variable instead") \
     EZ_ERROR("E3045", "types", "or_return requires a function that returns (T, Error) — the called function does not return an error") \
     EZ_ERROR("E3046", "types", "integer literal overflows 64-bit integer — max value is 9223372036854775807") \
-    EZ_ERROR("E3047", "types", "this enum does not have a member with that name")
+    EZ_ERROR("E3047", "types", "this enum does not have a member with that name") \
+    EZ_ERROR("E3048", "types", "operator '+' is not defined for strings — use string interpolation or fmt.format() instead")
 
 /* --- E4xxx: Name Problems (References) --- */
 #define EZ_REFERENCE_ERRORS \
@@ -114,6 +115,7 @@
     EZ_ERROR("E4005", "names", "no main() function found — every program needs a do main() { } function") \
     EZ_ERROR("E4006", "names", "this name is reserved by the compiler — choose a different name that does not start with ez_ or Ez") \
     EZ_ERROR("E4007", "names", "a type with this name already exists — each struct and enum must have a unique name") \
+    EZ_ERROR("E4008", "names", "main() cannot have parameters or a return type — it must be declared as do main() { }") \
     EZ_ERROR("E4012", "names", "variable shadows a type definition with the same name") \
     EZ_ERROR("E4013", "names", "variable shadows a function with the same name") \
     EZ_ERROR("E4014", "names", "variable shadows an imported module name") \

@@ -1083,6 +1083,16 @@ static AstNode *parse_func_declaration(Parser *p) {
         next_token(p); /* skip -> */
         next_token(p);
 
+        /* E2002: missing return type after -> */
+        if (cur_token_is(p, TOK_LBRACE)) {
+            diag_error(p->diag, "E2002",
+                arena_strdup(p->arena, "expected return type after '->', got '{' — either specify a type or remove the '->'"),
+                p->file, p->cur_token.line, p->cur_token.column, 0);
+            /* Parse body to avoid cascading errors */
+            node->data.func_decl.body = parse_block_statement(p);
+            return node;
+        }
+
         int ret_cap = 16;
         node->data.func_decl.return_types = arena_alloc(p->arena, sizeof(const char *) * ret_cap);
         node->data.func_decl.return_names = arena_alloc(p->arena, sizeof(const char *) * ret_cap);
