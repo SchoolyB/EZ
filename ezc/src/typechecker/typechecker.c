@@ -2422,8 +2422,18 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
         EzType *target_t = resolve_expr(tc, node->data.assign.target);
         EzType *value_t = resolve_expr(tc, node->data.assign.value);
 
-        /* Check for assignment to const variable (direct, index, or field) */
+        /* E5025: lvalue validation — reject assignment to non-lvalue targets */
         AstNode *target = node->data.assign.target;
+        if (target->kind != NODE_LABEL &&
+            target->kind != NODE_MEMBER_EXPR &&
+            target->kind != NODE_INDEX_EXPR &&
+            target->kind != NODE_PREFIX_EXPR) {
+            diag_error(tc->diag, "E5025",
+                strdup("cannot assign to this expression — left side of '=' must be a variable, field, or index"),
+                tc->file, node->token.line, node->token.column, 0);
+        }
+
+        /* Check for assignment to const variable (direct, index, or field) */
         const char *const_name = NULL;
         if (target->kind == NODE_LABEL) {
             Symbol *sym = scope_lookup(tc->current_scope, target->data.label.value);

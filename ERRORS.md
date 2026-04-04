@@ -3,7 +3,7 @@
 > Auto-generated from `ezc/src/util/error_codes.h`. Do not edit manually.
 > Run `./scripts/generate_errors.sh` to regenerate.
 
-**Total: 111 codes** (104 errors, 7 warnings)
+**Total: 112 codes** (105 errors, 7 warnings)
 
 ---
 
@@ -107,6 +107,7 @@
 | `E5015` | usage | postfix ++ and -- require a variable, not a literal or expression |
 | `E5023` | usage | ++ and -- only work on integer types, not floats |
 | `E5024` | usage | return type mismatch — cannot return a signed value as an unsigned type |
+| `E5025` | usage | invalid assignment target — left side of '=' must be a variable, field, or index expression |
 | `E6001` | imports | unknown module — this is not a built-in module. Check the spelling or see the docs for available modules |
 | `E7004` | stdlib | function argument must be an integer, not a float |
 | `E7006` | stdlib | threads.spawn() needs a function reference — use ()function_name to pass a function |
@@ -155,4 +156,4 @@
 
 ---
 
-*Generated on 2026-04-04 15:58:05 UTC*
+*Generated on 2026-04-04 16:01:25 UTC*

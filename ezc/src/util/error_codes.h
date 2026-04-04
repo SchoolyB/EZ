@@ -126,7 +126,8 @@
     EZ_ERROR("E5011", "usage", "return value of function is not used — assign it to a variable or use _ to discard") \
     EZ_ERROR("E5015", "usage", "postfix ++ and -- require a variable, not a literal or expression") \
     EZ_ERROR("E5023", "usage", "++ and -- only work on integer types, not floats") \
-    EZ_ERROR("E5024", "usage", "return type mismatch — cannot return a signed value as an unsigned type")
+    EZ_ERROR("E5024", "usage", "return type mismatch — cannot return a signed value as an unsigned type") \
+    EZ_ERROR("E5025", "usage", "invalid assignment target — left side of '=' must be a variable, field, or index expression")
 
 /* --- E6xxx: Import Problems --- */
 #define EZ_IMPORT_ERRORS \
