@@ -3114,6 +3114,16 @@ static void register_declarations(TypeChecker *tc, AstNode *program) {
                 snprintf(msg, sizeof(msg), "'%s' is a reserved type name and cannot be used as a struct name", sn);
                 diag_error(tc->diag, "E2037", strdup(msg), tc->file, stmt->token.line, stmt->token.column, 0);
             }
+            /* E4007: duplicate struct name */
+            if (is_struct_name(tc, stmt->data.struct_decl.name) ||
+                is_enum_name(tc, stmt->data.struct_decl.name)) {
+                char msg[256];
+                snprintf(msg, sizeof(msg),
+                    "a type named '%s' is already declared",
+                    stmt->data.struct_decl.name);
+                diag_error(tc->diag, "E4007", strdup(msg),
+                    tc->file, stmt->token.line, stmt->token.column, 0);
+            }
             register_struct(tc, stmt->data.struct_decl.name, fnames, ftypes, fc);
 
             /* Register struct-namespaced functions as StructName_funcName */

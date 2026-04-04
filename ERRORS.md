@@ -3,7 +3,7 @@
 > Auto-generated from `ezc/src/util/error_codes.h`. Do not edit manually.
 > Run `./scripts/generate_errors.sh` to regenerate.
 
-**Total: 105 codes** (98 errors, 7 warnings)
+**Total: 106 codes** (99 errors, 7 warnings)
 
 ---
 
@@ -91,6 +91,7 @@
 | `E4004` | names | a function with this name already exists — each function must have a unique name |
 | `E4005` | names | no main() function found — every program needs a do main() { } function |
 | `E4006` | names | this name is reserved by the compiler — choose a different name that does not start with ez_ or Ez |
+| `E4007` | names | a type with this name already exists — each struct and enum must have a unique name |
 | `E4012` | names | variable shadows a type definition with the same name |
 | `E4013` | names | variable shadows a function with the same name |
 | `E4014` | names | variable shadows an imported module name |
@@ -149,4 +150,4 @@
 
 ---
 
-*Generated on 2026-04-04 14:26:27 UTC*
+*Generated on 2026-04-04 14:32:18 UTC*

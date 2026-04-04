@@ -108,6 +108,7 @@
     EZ_ERROR("E4004", "names", "a function with this name already exists — each function must have a unique name") \
     EZ_ERROR("E4005", "names", "no main() function found — every program needs a do main() { } function") \
     EZ_ERROR("E4006", "names", "this name is reserved by the compiler — choose a different name that does not start with ez_ or Ez") \
+    EZ_ERROR("E4007", "names", "a type with this name already exists — each struct and enum must have a unique name") \
     EZ_ERROR("E4012", "names", "variable shadows a type definition with the same name") \
     EZ_ERROR("E4013", "names", "variable shadows a function with the same name") \
     EZ_ERROR("E4014", "names", "variable shadows an imported module name") \
