@@ -788,7 +788,8 @@ static AstNode *parse_var_declaration(Parser *p) {
 
     /* Optional type annotation */
     node->data.var_decl.type_name = NULL;
-    if (peek_token_is(p, TOK_IDENT) || peek_token_is(p, TOK_CARET) || peek_token_is(p, TOK_LBRACKET)) {
+    if (peek_token_is(p, TOK_IDENT) || peek_token_is(p, TOK_CARET) || peek_token_is(p, TOK_LBRACKET) ||
+        peek_token_is(p, TOK_STRUCT) || peek_token_is(p, TOK_ENUM)) {
         next_token(p);
         node->data.var_decl.type_name = parse_complex_type(p);
         if (!node->data.var_decl.type_name) return NULL;
