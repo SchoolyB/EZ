@@ -1,0 +1,14 @@
+/*
+ * Error Test: E2065 - enum variant has same name as its enum type
+ * Expected: "enum variant 'Color' cannot have the same name as its enum type 'Color'" error
+ */
+
+const Color enum {
+    Color
+    RED
+    BLUE
+}
+
+do main() {
+    mut c = Color.RED
+}
