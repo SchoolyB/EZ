@@ -1,0 +1,17 @@
+/*
+ * Error Test: E2064 - struct function name conflicts with a field name
+ * Expected: "function 'x' conflicts with field 'x' in struct 'Point'" error
+ */
+
+const Point struct {
+    x int
+    y int
+
+    do x() -> int {
+        return 0
+    }
+}
+
+do main() {
+    mut p = new(Point)
+}
