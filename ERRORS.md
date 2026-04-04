@@ -3,7 +3,7 @@
 > Auto-generated from `ezc/src/util/error_codes.h`. Do not edit manually.
 > Run `./scripts/generate_errors.sh` to regenerate.
 
-**Total: 114 codes** (107 errors, 7 warnings)
+**Total: 115 codes** (108 errors, 7 warnings)
 
 ---
 
@@ -56,6 +56,7 @@
 | `E2064` | syntax | struct function name conflicts with a field name — functions and fields must have distinct names |
 | `E2065` | syntax | enum variant cannot have the same name as its enum type |
 | `E2066` | syntax | struct field cannot have the same name as its struct type |
+| `E2067` | syntax | empty struct — a struct must have at least one field |
 | `E3001` | types | wrong type — you are using a value of one type where a different type is expected |
 | `E3002` | types | this operator does not work on this type — for example, you cannot subtract strings |
 | `E3003` | types | invalid array index type — array indices must be integers |
@@ -158,4 +159,4 @@
 
 ---
 
-*Generated on 2026-04-04 16:17:50 UTC*
+*Generated on 2026-04-04 16:23:03 UTC*

@@ -89,6 +89,15 @@ EzType *typetable_get(TypeTable *tt, AstNode *node) {
     }
 }
 
+/* --- Reserved type name check --- */
+static bool is_reserved_type_name(const char *name) {
+    return strcmp(name, "int") == 0 || strcmp(name, "uint") == 0 ||
+           strcmp(name, "float") == 0 || strcmp(name, "string") == 0 ||
+           strcmp(name, "bool") == 0 || strcmp(name, "char") == 0 ||
+           strcmp(name, "byte") == 0 || strcmp(name, "void") == 0 ||
+           strcmp(name, "Error") == 0 || strcmp(name, "nil") == 0;
+}
+
 /* --- Struct info helpers --- */
 
 static void register_struct(TypeChecker *tc, const char *name,
@@ -1708,6 +1717,21 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                     result = sym->ret_types[idx];
                 } else if (idx == 0) {
                     result = sym->type;
+                } else if (sym->ret_types && idx >= sym->ret_count) {
+                    /* More variables than the function returns */
+                    char msg[256];
+                    snprintf(msg, sizeof(msg),
+                        "too many variables — the function returns %d value(s) but variable %d was requested",
+                        sym->ret_count, idx + 1);
+                    diag_error(tc->diag, "E3006", strdup(msg),
+                        tc->file, node->token.line, node->token.column, 0);
+                    result = &TYPE_UNKNOWN;
+                } else if (!sym->ret_types && idx > 0) {
+                    /* Single-return function used in multi-variable assignment */
+                    diag_error(tc->diag, "E3006",
+                        strdup("too many variables — the function returns only 1 value"),
+                        tc->file, node->token.line, node->token.column, 0);
+                    result = &TYPE_UNKNOWN;
                 } else {
                     result = type_from_name("Error"); /* fallback for (T, Error) pattern */
                 }
@@ -2163,6 +2187,16 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
         if (node->data.var_decl.type_name && strcmp(node->data.var_decl.type_name, "any") == 0) {
             diag_error(tc->diag, "E3034",
                 strdup("'any' type is reserved for internal use and cannot be used in declarations"),
+                tc->file, node->token.line, node->token.column, 0);
+        }
+        /* E2038: reserved type name as variable name */
+        if (node->data.var_decl.name[0] != '_' &&
+            is_reserved_type_name(node->data.var_decl.name)) {
+            char msg[256];
+            snprintf(msg, sizeof(msg),
+                "'%s' is a reserved type name and cannot be used as a variable name",
+                node->data.var_decl.name);
+            diag_error(tc->diag, "E2038", strdup(msg),
                 tc->file, node->token.line, node->token.column, 0);
         }
         /* E3045: or_return on non-error-returning function */
@@ -2867,6 +2901,15 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
         break;
 
     case NODE_FUNC_DECL: {
+        /* E2038: reserved type name as function name */
+        if (is_reserved_type_name(node->data.func_decl.name)) {
+            char msg[256];
+            snprintf(msg, sizeof(msg),
+                "'%s' is a reserved type name and cannot be used as a function name",
+                node->data.func_decl.name);
+            diag_error(tc->diag, "E2038", strdup(msg),
+                tc->file, node->token.line, node->token.column, 0);
+        }
         /* Check for nested function declarations */
         if (tc->func_depth > 0) {
             char msg[256];
@@ -2885,6 +2928,15 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
         /* Define parameters in function scope, check for duplicates */
         for (int i = 0; i < node->data.func_decl.param_count; i++) {
             Param *p = &node->data.func_decl.params[i];
+            /* E2038: reserved type name as parameter name */
+            if (is_reserved_type_name(p->name)) {
+                char msg[256];
+                snprintf(msg, sizeof(msg),
+                    "'%s' is a reserved type name and cannot be used as a parameter name",
+                    p->name);
+                diag_error(tc->diag, "E2038", strdup(msg),
+                    tc->file, node->token.line, node->token.column, 0);
+            }
             /* Check for duplicate parameter name */
             for (int j = 0; j < i; j++) {
                 if (strcmp(node->data.func_decl.params[j].name, p->name) == 0) {
@@ -3221,6 +3273,15 @@ static void register_declarations(TypeChecker *tc, AstNode *program) {
         AstNode *stmt = program->data.program.stmts[i];
 
         if (stmt->kind == NODE_STRUCT_DECL) {
+            /* E2067: empty struct */
+            if (stmt->data.struct_decl.field_count == 0) {
+                char msg[256];
+                snprintf(msg, sizeof(msg),
+                    "struct '%s' has no fields — a struct must have at least one field",
+                    stmt->data.struct_decl.name);
+                diag_error(tc->diag, "E2067", strdup(msg),
+                    tc->file, stmt->token.line, stmt->token.column, 0);
+            }
             int fc = stmt->data.struct_decl.field_count;
             const char **fnames = malloc(sizeof(const char *) * (fc ? fc : 1));
             EzType **ftypes = malloc(sizeof(EzType *) * (fc ? fc : 1));
@@ -3262,11 +3323,7 @@ static void register_declarations(TypeChecker *tc, AstNode *program) {
             }
             /* E2037/E2038: reserved name check for structs */
             const char *sn = stmt->data.struct_decl.name;
-            if (strcmp(sn, "int") == 0 || strcmp(sn, "uint") == 0 ||
-                strcmp(sn, "float") == 0 || strcmp(sn, "string") == 0 ||
-                strcmp(sn, "bool") == 0 || strcmp(sn, "char") == 0 ||
-                strcmp(sn, "byte") == 0 || strcmp(sn, "void") == 0 ||
-                strcmp(sn, "Error") == 0 || strcmp(sn, "nil") == 0) {
+            if (is_reserved_type_name(sn)) {
                 char msg[256];
                 snprintf(msg, sizeof(msg), "'%s' is a reserved type name and cannot be used as a struct name", sn);
                 diag_error(tc->diag, "E2037", strdup(msg), tc->file, stmt->token.line, stmt->token.column, 0);
@@ -3338,11 +3395,7 @@ static void register_declarations(TypeChecker *tc, AstNode *program) {
         if (stmt->kind == NODE_ENUM_DECL) {
             /* E2038: reserved name for enums */
             const char *en = stmt->data.enum_decl.name;
-            if (strcmp(en, "int") == 0 || strcmp(en, "uint") == 0 ||
-                strcmp(en, "float") == 0 || strcmp(en, "string") == 0 ||
-                strcmp(en, "bool") == 0 || strcmp(en, "char") == 0 ||
-                strcmp(en, "byte") == 0 || strcmp(en, "void") == 0 ||
-                strcmp(en, "Error") == 0 || strcmp(en, "nil") == 0) {
+            if (is_reserved_type_name(en)) {
                 char msg[256];
                 snprintf(msg, sizeof(msg), "'%s' is a reserved type name and cannot be used as an enum name", en);
                 diag_error(tc->diag, "E2038", strdup(msg), tc->file, stmt->token.line, stmt->token.column, 0);
