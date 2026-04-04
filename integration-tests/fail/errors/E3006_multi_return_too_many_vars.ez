@@ -1,0 +1,12 @@
+/*
+ * Error Test: E3006 - more variables than function returns
+ * Expected: "too many variables" error
+ */
+
+do pair() -> (int, int) {
+    return 1, 2
+}
+
+do main() {
+    mut a, b, c = pair()
+}

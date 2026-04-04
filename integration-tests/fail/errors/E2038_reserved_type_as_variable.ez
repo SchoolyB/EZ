@@ -1,0 +1,8 @@
+/*
+ * Error Test: E2038 - reserved type name used as variable name
+ * Expected: "'int' is a reserved type name" error
+ */
+
+do main() {
+    mut int = 42
+}

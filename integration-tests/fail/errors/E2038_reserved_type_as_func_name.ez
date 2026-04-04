@@ -1,0 +1,12 @@
+/*
+ * Error Test: E2038 - reserved type name used as function name
+ * Expected: "'string' is a reserved type name" error
+ */
+
+do string() -> int {
+    return 0
+}
+
+do main() {
+    mut x = string()
+}

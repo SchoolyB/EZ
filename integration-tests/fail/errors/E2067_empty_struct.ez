@@ -1,0 +1,11 @@
+/*
+ * Error Test: E2067 - empty struct declaration
+ * Expected: "struct has no fields" error
+ */
+
+const Empty struct {
+}
+
+do main() {
+    mut e = new(Empty)
+}
