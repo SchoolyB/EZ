@@ -3246,7 +3246,18 @@ static void register_declarations(TypeChecker *tc, AstNode *program) {
                 }
             }
             /* E2014: check for duplicate enum variant names */
+            /* E2065: check variant name vs enum type name */
             for (int j = 0; j < stmt->data.enum_decl.value_count; j++) {
+                if (strcmp(stmt->data.enum_decl.values[j].name,
+                           stmt->data.enum_decl.name) == 0) {
+                    char msg[256];
+                    snprintf(msg, sizeof(msg),
+                        "enum variant '%s' cannot have the same name as its enum type '%s'",
+                        stmt->data.enum_decl.values[j].name,
+                        stmt->data.enum_decl.name);
+                    diag_error(tc->diag, "E2065", strdup(msg),
+                        tc->file, stmt->token.line, stmt->token.column, 0);
+                }
                 for (int k = 0; k < j; k++) {
                     if (strcmp(stmt->data.enum_decl.values[k].name,
                               stmt->data.enum_decl.values[j].name) == 0) {
