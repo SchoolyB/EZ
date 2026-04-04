@@ -1,0 +1,8 @@
+/*
+ * Error Test: E4008 - main() with parameters
+ * Expected: "main function cannot have parameters" error
+ */
+
+do main(x int) {
+    println("hello")
+}

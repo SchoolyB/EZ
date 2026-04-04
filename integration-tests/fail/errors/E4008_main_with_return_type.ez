@@ -1,0 +1,8 @@
+/*
+ * Error Test: E4008 - main() with return type
+ * Expected: "main function cannot have a return type" error
+ */
+
+do main() -> int {
+    return 0
+}

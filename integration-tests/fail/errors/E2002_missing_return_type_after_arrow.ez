@@ -1,0 +1,12 @@
+/*
+ * Error Test: E2002 - missing return type after ->
+ * Expected: "expected return type after '->'" error
+ */
+
+do broken() -> {
+    println("hello")
+}
+
+do main() {
+    broken()
+}

@@ -1,0 +1,10 @@
+/*
+ * Error Test: E3048 - string concatenation with +
+ * Expected: "operator '+' is not defined for strings" error
+ */
+
+do main() {
+    mut a string = "hello"
+    mut b string = " world"
+    mut c = a + b
+}
