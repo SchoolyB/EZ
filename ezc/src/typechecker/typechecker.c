@@ -2799,8 +2799,33 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
         if (node->data.func_decl.return_names) {
             for (int i = 0; i < node->data.func_decl.return_type_count; i++) {
                 if (node->data.func_decl.return_names[i]) {
+                    const char *rn = node->data.func_decl.return_names[i];
+                    /* E2063: duplicate named return value */
+                    for (int j = 0; j < i; j++) {
+                        if (node->data.func_decl.return_names[j] &&
+                            strcmp(node->data.func_decl.return_names[j], rn) == 0) {
+                            char msg[256];
+                            snprintf(msg, sizeof(msg),
+                                "duplicate named return value '%s'", rn);
+                            diag_error(tc->diag, "E2063", strdup(msg),
+                                tc->file, node->token.line, node->token.column, 0);
+                            break;
+                        }
+                    }
+                    /* E2063: named return collides with parameter */
+                    for (int j = 0; j < node->data.func_decl.param_count; j++) {
+                        if (strcmp(node->data.func_decl.params[j].name, rn) == 0) {
+                            char msg[256];
+                            snprintf(msg, sizeof(msg),
+                                "named return value '%s' conflicts with parameter '%s'",
+                                rn, rn);
+                            diag_error(tc->diag, "E2063", strdup(msg),
+                                tc->file, node->token.line, node->token.column, 0);
+                            break;
+                        }
+                    }
                     EzType *rt = type_from_name(node->data.func_decl.return_types[i]);
-                    scope_define(func_scope, node->data.func_decl.return_names[i], rt, true);
+                    scope_define(func_scope, rn, rt, true);
                 }
             }
         }
