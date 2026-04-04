@@ -66,6 +66,8 @@ typedef struct {
     /* Registered enum names */
     const char **enum_names;
     bool *enum_is_string; /* parallel array: true if string enum */
+    const char ***enum_values; /* parallel array: variant name arrays */
+    int *enum_value_counts; /* parallel array: variant counts */
     int enum_count;
     int enum_cap;
 

@@ -247,14 +247,19 @@ static bool tc_is_builtin(const char *name) {
 
 /* --- Enum helpers --- */
 
-static void register_enum(TypeChecker *tc, const char *name, bool is_string) {
+static void register_enum(TypeChecker *tc, const char *name, bool is_string,
+    const char **values, int value_count) {
     if (tc->enum_count >= tc->enum_cap) {
         tc->enum_cap = tc->enum_cap ? tc->enum_cap * 2 : 8;
         tc->enum_names = realloc(tc->enum_names, sizeof(const char *) * tc->enum_cap);
         tc->enum_is_string = realloc(tc->enum_is_string, sizeof(bool) * tc->enum_cap);
+        tc->enum_values = realloc(tc->enum_values, sizeof(const char **) * tc->enum_cap);
+        tc->enum_value_counts = realloc(tc->enum_value_counts, sizeof(int) * tc->enum_cap);
     }
     tc->enum_names[tc->enum_count] = name;
     tc->enum_is_string[tc->enum_count] = is_string;
+    tc->enum_values[tc->enum_count] = values;
+    tc->enum_value_counts[tc->enum_count] = value_count;
     tc->enum_count++;
 }
 
@@ -1618,13 +1623,27 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
 
             /* Check if it's an enum access: Color.RED */
             if (is_enum_name(tc, obj_name)) {
-                /* Check if this is a string enum */
+                /* Check if this is a string enum and validate member exists */
                 bool is_str_enum = false;
+                bool member_found = false;
                 for (int ei = 0; ei < tc->enum_count; ei++) {
                     if (strcmp(tc->enum_names[ei], obj_name) == 0) {
                         is_str_enum = tc->enum_is_string[ei];
+                        for (int vi = 0; vi < tc->enum_value_counts[ei]; vi++) {
+                            if (strcmp(tc->enum_values[ei][vi], member) == 0) {
+                                member_found = true;
+                                break;
+                            }
+                        }
                         break;
                     }
+                }
+                if (!member_found) {
+                    char msg[256];
+                    snprintf(msg, sizeof(msg),
+                        "enum '%s' has no member '%s'", obj_name, member);
+                    diag_error(tc->diag, "E3047", strdup(msg),
+                        tc->file, node->token.line, node->token.column, 0);
                 }
                 result = is_str_enum ? &TYPE_STRING : &TYPE_INT;
                 break;
@@ -1654,6 +1673,13 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
             } else if (sym && sym->type->kind == TK_POINTER) {
                 /* Pointer auto-deref field access */
                 result = struct_field_type(tc, sym->type->element_type, member);
+                if (result->kind == TK_UNKNOWN && member[0] != 'v') {
+                    char msg[256];
+                    snprintf(msg, sizeof(msg),
+                        "struct '%s' has no field '%s'", sym->type->element_type, member);
+                    diag_error(tc->diag, "E3010", strdup(msg),
+                        tc->file, node->token.line, node->token.column, 0);
+                }
             } else if (sym && sym->type->kind != TK_UNKNOWN &&
                        sym->type->kind != TK_STRUCT && sym->type->kind != TK_ENUM &&
                        sym->type->kind != TK_POINTER &&
@@ -3305,7 +3331,12 @@ static void register_declarations(TypeChecker *tc, AstNode *program) {
                 diag_error(tc->diag, "E4007", strdup(msg),
                     tc->file, stmt->token.line, stmt->token.column, 0);
             }
-            register_enum(tc, stmt->data.enum_decl.name, is_str);
+            int vc = stmt->data.enum_decl.value_count;
+            const char **vnames = malloc(sizeof(const char *) * (vc ? vc : 1));
+            for (int j = 0; j < vc; j++) {
+                vnames[j] = stmt->data.enum_decl.values[j].name;
+            }
+            register_enum(tc, stmt->data.enum_decl.name, is_str, vnames, vc);
         }
 
         if (stmt->kind == NODE_FUNC_DECL) {
