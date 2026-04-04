@@ -1,0 +1,20 @@
+/*
+ * Error Test: E4007 - struct name collides with existing enum name
+ * Expected: "a type named 'Color' is already declared" error
+ */
+
+const Color enum {
+    RED
+    GREEN
+    BLUE
+}
+
+const Color struct {
+    r int
+    g int
+    b int
+}
+
+do main() {
+    mut c = Color.RED
+}

@@ -1,0 +1,18 @@
+/*
+ * Error Test: E4007 - duplicate struct name
+ * Expected: "a type named 'Point' is already declared" error
+ */
+
+const Point struct {
+    x int
+    y int
+}
+
+const Point struct {
+    a float
+    b float
+}
+
+do main() {
+    mut p = new(Point)
+}
