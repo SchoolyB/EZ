@@ -63,7 +63,8 @@
     EZ_ERROR("E2060", "syntax", "too many return values — a function can return at most 16 values") \
     EZ_ERROR("E2061", "syntax", "'module' declarations are not supported — imported files are identified by their file path") \
     EZ_ERROR("E2062", "syntax", "too many variables in multi-variable declaration — maximum is 16") \
-    EZ_ERROR("E2063", "syntax", "duplicate or conflicting named return value — each name must be unique and not collide with parameters")
+    EZ_ERROR("E2063", "syntax", "duplicate or conflicting named return value — each name must be unique and not collide with parameters") \
+    EZ_ERROR("E2064", "syntax", "struct function name conflicts with a field name — functions and fields must have distinct names")
 
 /* --- E3xxx: Type Problems (Typechecker) --- */
 #define EZ_TYPE_ERRORS \

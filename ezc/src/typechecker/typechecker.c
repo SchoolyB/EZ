@@ -3169,6 +3169,19 @@ static void register_declarations(TypeChecker *tc, AstNode *program) {
                         break;
                     }
                 }
+                /* E2064: function name conflicts with field name */
+                for (int k = 0; k < fc; k++) {
+                    if (strcmp(fnames[k], fn->data.func_decl.name) == 0) {
+                        char msg[256];
+                        snprintf(msg, sizeof(msg),
+                            "function '%s' conflicts with field '%s' in struct '%s'",
+                            fn->data.func_decl.name, fnames[k],
+                            stmt->data.struct_decl.name);
+                        diag_error(tc->diag, "E2064", strdup(msg),
+                            tc->file, fn->token.line, fn->token.column, 0);
+                        break;
+                    }
+                }
                 int pc = fn->data.func_decl.param_count;
                 EzType **ptypes = malloc(sizeof(EzType *) * (pc ? pc : 1));
                 if (!ptypes) continue;

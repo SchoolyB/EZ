@@ -3,7 +3,7 @@
 > Auto-generated from `ezc/src/util/error_codes.h`. Do not edit manually.
 > Run `./scripts/generate_errors.sh` to regenerate.
 
-**Total: 107 codes** (100 errors, 7 warnings)
+**Total: 108 codes** (101 errors, 7 warnings)
 
 ---
 
@@ -53,6 +53,7 @@
 | `E2061` | syntax | 'module' declarations are not supported — imported files are identified by their file path |
 | `E2062` | syntax | too many variables in multi-variable declaration — maximum is 16 |
 | `E2063` | syntax | duplicate or conflicting named return value — each name must be unique and not collide with parameters |
+| `E2064` | syntax | struct function name conflicts with a field name — functions and fields must have distinct names |
 | `E3001` | types | wrong type — you are using a value of one type where a different type is expected |
 | `E3002` | types | this operator does not work on this type — for example, you cannot subtract strings |
 | `E3003` | types | invalid array index type — array indices must be integers |
@@ -151,4 +152,4 @@
 
 ---
 
-*Generated on 2026-04-04 14:41:50 UTC*
+*Generated on 2026-04-04 14:45:22 UTC*
