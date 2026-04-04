@@ -3237,6 +3237,16 @@ static void register_declarations(TypeChecker *tc, AstNode *program) {
                     }
                 }
             }
+            /* E4007: duplicate enum name */
+            if (is_enum_name(tc, stmt->data.enum_decl.name) ||
+                is_struct_name(tc, stmt->data.enum_decl.name)) {
+                char msg[256];
+                snprintf(msg, sizeof(msg),
+                    "a type named '%s' is already declared",
+                    stmt->data.enum_decl.name);
+                diag_error(tc->diag, "E4007", strdup(msg),
+                    tc->file, stmt->token.line, stmt->token.column, 0);
+            }
             register_enum(tc, stmt->data.enum_decl.name, is_str);
         }
 
