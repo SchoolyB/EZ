@@ -1,0 +1,8 @@
+/*
+ * Error Test: E3052 - too many elements in fixed-size array
+ * Expected: "too many elements in array initializer — declared size is 3, got 5" error
+ */
+
+do main() {
+    const a [int, 3] = {1, 2, 3, 4, 5}
+}

@@ -1,0 +1,8 @@
+/*
+ * Error Test: E3053 - wrong element type in array initializer
+ * Expected: "type mismatch in array initializer — expected 'int', got 'string'" error
+ */
+
+do main() {
+    mut a [int] = {"hello", "world"}
+}
