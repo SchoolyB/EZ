@@ -887,20 +887,45 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
             } else if (strcmp(mod, "arrays") == 0) {
                 if (strcmp(mfn, "is_empty") == 0 || strcmp(mfn, "contains") == 0) {
                     result = &TYPE_BOOL;
-                } else if (strcmp(mfn, "index_of") == 0 || strcmp(mfn, "sum") == 0 ||
-                           strcmp(mfn, "min") == 0 || strcmp(mfn, "max") == 0 ||
+                } else if (strcmp(mfn, "index_of") == 0 || strcmp(mfn, "get_sum") == 0 ||
+                           strcmp(mfn, "get_min") == 0 || strcmp(mfn, "get_max") == 0 ||
                            strcmp(mfn, "count") == 0) {
                     result = &TYPE_INT;
                 } else if (strcmp(mfn, "reverse") == 0 || strcmp(mfn, "slice") == 0 ||
-                           strcmp(mfn, "concat") == 0) {
-                    result = type_array("int"); /* approximate */
+                           strcmp(mfn, "concat") == 0 || strcmp(mfn, "deduplicate") == 0) {
+                    /* Preserve input array element type */
+                    if (node->data.call.arg_count > 0) {
+                        EzType *arr_t = resolve_expr(tc, node->data.call.args[0]);
+                        result = (arr_t && arr_t->element_type) ? type_array(arr_t->element_type) : type_array("int");
+                    } else {
+                        result = type_array("int");
+                    }
+                } else if (strcmp(mfn, "split_every") == 0 || strcmp(mfn, "pair") == 0) {
+                    result = type_array("[int]"); /* nested array */
+                } else if (strcmp(mfn, "flatten") == 0) {
+                    if (node->data.call.arg_count > 0) {
+                        EzType *arr_t = resolve_expr(tc, node->data.call.args[0]);
+                        result = (arr_t && arr_t->element_type) ? type_array(arr_t->element_type) : type_array("int");
+                    } else {
+                        result = type_array("int");
+                    }
+                } else if (strcmp(mfn, "get_first") == 0 || strcmp(mfn, "get_last") == 0 ||
+                           strcmp(mfn, "remove_last") == 0 || strcmp(mfn, "remove_first") == 0) {
+                    if (node->data.call.arg_count > 0) {
+                        EzType *arr_t = resolve_expr(tc, node->data.call.args[0]);
+                        result = (arr_t && arr_t->element_type) ? type_from_name(arr_t->element_type) : &TYPE_INT;
+                    } else {
+                        result = &TYPE_INT;
+                    }
                 } else {
                     result = &TYPE_VOID;
                 }
                 /* E5007: arrays.append/insert/remove/pop on const array */
                 if ((strcmp(mfn, "append") == 0 || strcmp(mfn, "insert") == 0 ||
-                     strcmp(mfn, "remove") == 0 || strcmp(mfn, "pop") == 0 ||
-                     strcmp(mfn, "sort") == 0 || strcmp(mfn, "clear") == 0) &&
+                     strcmp(mfn, "remove") == 0 || strcmp(mfn, "remove_last") == 0 ||
+                     strcmp(mfn, "remove_first") == 0 || strcmp(mfn, "prepend") == 0 ||
+                     strcmp(mfn, "fill") == 0 ||
+                     strcmp(mfn, "sort_asc") == 0 || strcmp(mfn, "clear") == 0) &&
                     node->data.call.arg_count > 0) {
                     AstNode *arg0 = node->data.call.args[0];
                     if (arg0->kind == NODE_LABEL) {
@@ -1511,10 +1536,12 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                             {"is_prime","math",TK_BOOL},{"is_even","math",TK_BOOL},
                             {"is_odd","math",TK_BOOL},{"is_infinite","math",TK_BOOL},
                             {"is_nan","math",TK_BOOL},{"is_finite","math",TK_BOOL},
-                            {"append","arrays",TK_VOID},{"insert","arrays",TK_VOID},
-                            {"remove_at","arrays",TK_VOID},{"sort","arrays",TK_VOID},
+                            {"append","arrays",TK_VOID},{"insert_at","arrays",TK_VOID},
+                            {"prepend","arrays",TK_VOID},{"fill","arrays",TK_VOID},
+                            {"remove_at","arrays",TK_VOID},{"sort_asc","arrays",TK_VOID},
                             {"sort_desc","arrays",TK_VOID},{"clear","arrays",TK_VOID},
-                            {"concat","arrays",TK_ARRAY},{"sum","arrays",TK_INT},
+                            {"concat","arrays",TK_ARRAY},{"get_sum","arrays",TK_INT},
+                            {"count","arrays",TK_INT},
                             {"has_key","maps",TK_BOOL},{"remove_key","maps",TK_BOOL},
                             {"rand_float","random",TK_FLOAT},{"rand_int","random",TK_INT},
                             {"rand_bool","random",TK_BOOL},{"random_hex","random",TK_STRING},

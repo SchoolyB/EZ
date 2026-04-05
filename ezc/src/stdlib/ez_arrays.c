@@ -1,5 +1,5 @@
 /*
- * ez_arrays.c - @arrays module implementation
+ * ez_arrays.c - arrays module implementation
  *
  * Copyright (c) 2025-Present Marshall A Burns
  * Licensed under the MIT License. See LICENSE for details.
@@ -8,19 +8,25 @@
 #include "ez_arrays.h"
 #include <string.h>
 #include <stdlib.h>
+#include <stdio.h>
+
+/* === Modification === */
 
 void ez_arrays_append(EzArena *arena, EzArray *arr, const void *value) {
     ez_array_push(arena, arr, value);
 }
 
-void ez_arrays_insert(EzArena *arena, EzArray *arr, int32_t index, const void *value) {
-    /* Make room by pushing a dummy, then shift elements right */
+void ez_arrays_insert_at(EzArena *arena, EzArray *arr, int32_t index, const void *value) {
     char zero[32] = {0};
     ez_array_push(arena, arr, zero);
     char *data = (char *)arr->data;
     size_t es = (size_t)arr->elem_size;
     memmove(data + (index + 1) * es, data + index * es, (arr->len - 1 - index) * es);
     memcpy(data + index * es, value, es);
+}
+
+void ez_arrays_prepend(EzArena *arena, EzArray *arr, const void *value) {
+    ez_arrays_insert_at(arena, arr, 0, value);
 }
 
 void ez_arrays_remove_at(EzArray *arr, int32_t index) {
@@ -34,6 +40,57 @@ void ez_arrays_remove_at(EzArray *arr, int32_t index) {
 void ez_arrays_clear(EzArray *arr) {
     arr->len = 0;
 }
+
+void ez_arrays_fill(EzArena *arena, EzArray *arr, const void *value, int32_t count) {
+    ez_arrays_clear(arr);
+    for (int32_t i = 0; i < count; i++) {
+        ez_array_push(arena, arr, value);
+    }
+}
+
+/* === Access === */
+
+int64_t ez_arrays_get_first(EzArray *arr) {
+    if (arr->len == 0) {
+        fflush(stdout);
+        fprintf(stderr, "panic: arrays.get_first() called on an empty array\n");
+        exit(1);
+    }
+    return *(int64_t *)arr->data;
+}
+
+int64_t ez_arrays_get_last(EzArray *arr) {
+    if (arr->len == 0) {
+        fflush(stdout);
+        fprintf(stderr, "panic: arrays.get_last() called on an empty array\n");
+        exit(1);
+    }
+    return *(int64_t *)((char *)arr->data + (arr->len - 1) * arr->elem_size);
+}
+
+int64_t ez_arrays_remove_last(EzArray *arr) {
+    if (arr->len == 0) {
+        fflush(stdout);
+        fprintf(stderr, "panic: arrays.remove_last() called on an empty array\n");
+        exit(1);
+    }
+    int64_t val = *(int64_t *)((char *)arr->data + (arr->len - 1) * arr->elem_size);
+    arr->len--;
+    return val;
+}
+
+int64_t ez_arrays_remove_first(EzArray *arr) {
+    if (arr->len == 0) {
+        fflush(stdout);
+        fprintf(stderr, "panic: arrays.remove_first() called on an empty array\n");
+        exit(1);
+    }
+    int64_t val = *(int64_t *)arr->data;
+    ez_arrays_remove_at(arr, 0);
+    return val;
+}
+
+/* === Query === */
 
 bool ez_arrays_is_empty(EzArray *arr) {
     return arr->len == 0;
@@ -76,6 +133,16 @@ int64_t ez_arrays_index_of_str(EzArray *arr, EzString value) {
     return -1;
 }
 
+int64_t ez_arrays_count(EzArray *arr, int64_t value) {
+    int64_t c = 0;
+    for (int32_t i = 0; i < arr->len; i++) {
+        if (*(int64_t *)((char *)arr->data + i * arr->elem_size) == value) c++;
+    }
+    return c;
+}
+
+/* === Transformation === */
+
 EzArray ez_arrays_reverse(EzArena *arena, EzArray *arr) {
     EzArray result = ez_array_new(arena, arr->elem_size, arr->len);
     char *src = (char *)arr->data;
@@ -102,7 +169,62 @@ EzArray ez_arrays_concat(EzArena *arena, EzArray *a, EzArray *b) {
     return result;
 }
 
-int64_t ez_arrays_sum(EzArray *arr) {
+EzArray ez_arrays_deduplicate(EzArena *arena, EzArray *arr) {
+    EzArray result = ez_array_new(arena, arr->elem_size, arr->len);
+    char *data = (char *)arr->data;
+    size_t es = (size_t)arr->elem_size;
+    for (int32_t i = 0; i < arr->len; i++) {
+        bool found = false;
+        char *rdata = (char *)result.data;
+        for (int32_t j = 0; j < result.len; j++) {
+            if (memcmp(data + i * es, rdata + j * es, es) == 0) { found = true; break; }
+        }
+        if (!found) ez_array_push(arena, &result, data + i * es);
+    }
+    return result;
+}
+
+EzArray ez_arrays_flatten(EzArena *arena, EzArray *arr) {
+    /* Flatten one level: [[int]] -> [int]. Each element is an EzArray. */
+    EzArray result = ez_array_new(arena, sizeof(int64_t), 8);
+    for (int32_t i = 0; i < arr->len; i++) {
+        EzArray *inner = (EzArray *)((char *)arr->data + i * arr->elem_size);
+        char *idata = (char *)inner->data;
+        for (int32_t j = 0; j < inner->len; j++) {
+            ez_array_push(arena, &result, idata + j * inner->elem_size);
+        }
+    }
+    return result;
+}
+
+EzArray ez_arrays_split_every(EzArena *arena, EzArray *arr, int32_t size) {
+    if (size <= 0) size = 1;
+    EzArray result = ez_array_new(arena, sizeof(EzArray), 4);
+    char *data = (char *)arr->data;
+    size_t es = (size_t)arr->elem_size;
+    for (int32_t i = 0; i < arr->len; i += size) {
+        int32_t chunk_len = (i + size <= arr->len) ? size : (arr->len - i);
+        EzArray chunk = ez_array_from(arena, data + i * es, arr->elem_size, chunk_len);
+        ez_array_push(arena, &result, &chunk);
+    }
+    return result;
+}
+
+EzArray ez_arrays_pair(EzArena *arena, EzArray *a, EzArray *b) {
+    int32_t len = a->len < b->len ? a->len : b->len;
+    EzArray result = ez_array_new(arena, sizeof(EzArray), len);
+    for (int32_t i = 0; i < len; i++) {
+        EzArray pair_arr = ez_array_new(arena, a->elem_size, 2);
+        ez_array_push(arena, &pair_arr, (char *)a->data + i * a->elem_size);
+        ez_array_push(arena, &pair_arr, (char *)b->data + i * b->elem_size);
+        ez_array_push(arena, &result, &pair_arr);
+    }
+    return result;
+}
+
+/* === Computation === */
+
+int64_t ez_arrays_get_sum(EzArray *arr) {
     int64_t total = 0;
     for (int32_t i = 0; i < arr->len; i++) {
         total += *(int64_t *)((char *)arr->data + i * arr->elem_size);
@@ -110,7 +232,7 @@ int64_t ez_arrays_sum(EzArray *arr) {
     return total;
 }
 
-int64_t ez_arrays_min(EzArray *arr) {
+int64_t ez_arrays_get_min(EzArray *arr) {
     if (arr->len == 0) return 0;
     int64_t m = *(int64_t *)arr->data;
     for (int32_t i = 1; i < arr->len; i++) {
@@ -120,7 +242,7 @@ int64_t ez_arrays_min(EzArray *arr) {
     return m;
 }
 
-int64_t ez_arrays_max(EzArray *arr) {
+int64_t ez_arrays_get_max(EzArray *arr) {
     if (arr->len == 0) return 0;
     int64_t m = *(int64_t *)arr->data;
     for (int32_t i = 1; i < arr->len; i++) {
@@ -129,6 +251,8 @@ int64_t ez_arrays_max(EzArray *arr) {
     }
     return m;
 }
+
+/* === Sort === */
 
 static int cmp_i64_asc(const void *a, const void *b) {
     int64_t va = *(const int64_t *)a;
@@ -142,7 +266,7 @@ static int cmp_i64_desc(const void *a, const void *b) {
     return (vb > va) - (vb < va);
 }
 
-void ez_arrays_sort(EzArray *arr) {
+void ez_arrays_sort_asc(EzArray *arr) {
     if (arr->len <= 1) return;
     qsort(arr->data, (size_t)arr->len, (size_t)arr->elem_size, cmp_i64_asc);
 }

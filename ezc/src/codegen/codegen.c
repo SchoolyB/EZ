@@ -2654,7 +2654,7 @@ static bool emit_arrays_call(CodeGen *cg, AstNode *node, const char *func) {
         emit(cg, ", &_av); }");
         return true;
     }
-    if (strcmp(func, "insert") == 0 && node->data.call.arg_count == 3) {
+    if (strcmp(func, "insert_at") == 0 && node->data.call.arg_count == 3) {
         EzType *val_t = cg->type_table ? typetable_get(cg->type_table, node->data.call.args[2]) : NULL;
         const char *c_elem = "__auto_type";
         if (val_t) {
@@ -2672,7 +2672,7 @@ static bool emit_arrays_call(CodeGen *cg, AstNode *node, const char *func) {
         }
         emitf(cg, "{ %s _iv = ", c_elem);
         emit_expression(cg, node->data.call.args[2]);
-        emit(cg, "; ez_arrays_insert(ez_default_arena, &");
+        emit(cg, "; ez_arrays_insert_at(ez_default_arena, &");
         emit_expression(cg, node->data.call.args[0]);
         emit(cg, ", ");
         emit_expression(cg, node->data.call.args[1]);
@@ -2693,8 +2693,8 @@ static bool emit_arrays_call(CodeGen *cg, AstNode *node, const char *func) {
         emit(cg, ")");
         return true;
     }
-    if (strcmp(func, "sort") == 0 && node->data.call.arg_count == 1) {
-        emit(cg, "ez_arrays_sort(&");
+    if (strcmp(func, "sort_asc") == 0 && node->data.call.arg_count == 1) {
+        emit(cg, "ez_arrays_sort_asc(&");
         emit_expression(cg, node->data.call.args[0]);
         emit(cg, ")");
         return true;
@@ -2739,17 +2739,38 @@ static bool emit_arrays_call(CodeGen *cg, AstNode *node, const char *func) {
         emit(cg, ")");
         return true;
     }
-    /* Generic: arrays.func(&arr, ...) */
+    /* prepend/fill need special value wrapping */
+    if (strcmp(func, "prepend") == 0 && node->data.call.arg_count == 2) {
+        emit(cg, "{ __auto_type _pv = ");
+        emit_expression(cg, node->data.call.args[1]);
+        emit(cg, "; ez_arrays_prepend(ez_default_arena, &");
+        emit_expression(cg, node->data.call.args[0]);
+        emit(cg, ", &_pv); }");
+        return true;
+    }
+    if (strcmp(func, "fill") == 0 && node->data.call.arg_count == 3) {
+        emit(cg, "{ __auto_type _fv = ");
+        emit_expression(cg, node->data.call.args[1]);
+        emit(cg, "; ez_arrays_fill(ez_default_arena, &");
+        emit_expression(cg, node->data.call.args[0]);
+        emit(cg, ", &_fv, ");
+        emit_expression(cg, node->data.call.args[2]);
+        emit(cg, "); }");
+        return true;
+    }
+    /* Generic: arrays.func(&arr, ...) or arrays.func(arena, &arr, ...) */
     bool needs_arena = (strcmp(func, "reverse") == 0 || strcmp(func, "slice") == 0 ||
-        strcmp(func, "concat") == 0);
+        strcmp(func, "concat") == 0 || strcmp(func, "deduplicate") == 0 ||
+        strcmp(func, "flatten") == 0 || strcmp(func, "split_every") == 0 ||
+        strcmp(func, "pair") == 0);
+    bool ref_args = (strcmp(func, "concat") == 0 || strcmp(func, "pair") == 0);
     emitf(cg, "ez_arrays_%s(", func);
     if (needs_arena) emit(cg, "ez_default_arena, ");
     emit(cg, "&");
     emit_expression(cg, node->data.call.args[0]);
     for (int i = 1; i < node->data.call.arg_count; i++) {
         emit(cg, ", ");
-        /* concat needs & on all array args */
-        if (strcmp(func, "concat") == 0) emit(cg, "&");
+        if (ref_args) emit(cg, "&");
         emit_expression(cg, node->data.call.args[i]);
     }
     emit(cg, ")");
@@ -2782,6 +2803,70 @@ static bool emit_os_call(CodeGen *cg, AstNode *node, const char *func) {
         emit_expression(cg, node->data.call.args[0]);
         emit(cg, ", ");
         emit_expression(cg, node->data.call.args[1]);
+        emit(cg, ")");
+        return true;
+    }
+    if ((strcmp(func, "get_first") == 0 || strcmp(func, "get_last") == 0 ||
+         strcmp(func, "remove_last") == 0 || strcmp(func, "remove_first") == 0) &&
+        node->data.call.arg_count == 1) {
+        emitf(cg, "ez_arrays_%s(&", func);
+        emit_expression(cg, node->data.call.args[0]);
+        emit(cg, ")");
+        return true;
+    }
+    if (strcmp(func, "prepend") == 0 && node->data.call.arg_count == 2) {
+        emit(cg, "{ __auto_type _pv = ");
+        emit_expression(cg, node->data.call.args[1]);
+        emit(cg, "; ez_arrays_prepend(ez_default_arena, &");
+        emit_expression(cg, node->data.call.args[0]);
+        emit(cg, ", &_pv); }");
+        return true;
+    }
+    if (strcmp(func, "fill") == 0 && node->data.call.arg_count == 3) {
+        emit(cg, "{ __auto_type _fv = ");
+        emit_expression(cg, node->data.call.args[1]);
+        emit(cg, "; ez_arrays_fill(ez_default_arena, &");
+        emit_expression(cg, node->data.call.args[0]);
+        emit(cg, ", &_fv, ");
+        emit_expression(cg, node->data.call.args[2]);
+        emit(cg, "); }");
+        return true;
+    }
+    if (strcmp(func, "count") == 0 && node->data.call.arg_count == 2) {
+        emit(cg, "ez_arrays_count(&");
+        emit_expression(cg, node->data.call.args[0]);
+        emit(cg, ", ");
+        emit_expression(cg, node->data.call.args[1]);
+        emit(cg, ")");
+        return true;
+    }
+    if ((strcmp(func, "deduplicate") == 0 || strcmp(func, "flatten") == 0) &&
+        node->data.call.arg_count == 1) {
+        emitf(cg, "ez_arrays_%s(ez_default_arena, &", func);
+        emit_expression(cg, node->data.call.args[0]);
+        emit(cg, ")");
+        return true;
+    }
+    if (strcmp(func, "split_every") == 0 && node->data.call.arg_count == 2) {
+        emit(cg, "ez_arrays_split_every(ez_default_arena, &");
+        emit_expression(cg, node->data.call.args[0]);
+        emit(cg, ", ");
+        emit_expression(cg, node->data.call.args[1]);
+        emit(cg, ")");
+        return true;
+    }
+    if (strcmp(func, "pair") == 0 && node->data.call.arg_count == 2) {
+        emit(cg, "ez_arrays_pair(ez_default_arena, &");
+        emit_expression(cg, node->data.call.args[0]);
+        emit(cg, ", &");
+        emit_expression(cg, node->data.call.args[1]);
+        emit(cg, ")");
+        return true;
+    }
+    if ((strcmp(func, "get_sum") == 0 || strcmp(func, "get_min") == 0 ||
+         strcmp(func, "get_max") == 0) && node->data.call.arg_count == 1) {
+        emitf(cg, "ez_arrays_%s(&", func);
+        emit_expression(cg, node->data.call.args[0]);
         emit(cg, ")");
         return true;
     }
@@ -3209,8 +3294,13 @@ static void emit_call_expression(CodeGen *cg, AstNode *node) {
                 {"is_infinite","math"},{"is_nan","math"},{"is_finite","math"},{"lerp","math"},
                 {"distance","math"},
                 /* arrays */
-                {"append","arrays"},{"insert","arrays"},{"remove_at","arrays"},{"sort","arrays"},
-                {"sort_desc","arrays"},{"concat","arrays"},{"sum","arrays"},
+                {"append","arrays"},{"insert_at","arrays"},{"prepend","arrays"},
+                {"remove_at","arrays"},{"sort_asc","arrays"},{"sort_desc","arrays"},
+                {"concat","arrays"},{"get_sum","arrays"},{"clear","arrays"},
+                {"get_first","arrays"},{"get_last","arrays"},
+                {"remove_last","arrays"},{"remove_first","arrays"},
+                {"fill","arrays"},{"deduplicate","arrays"},{"flatten","arrays"},
+                {"split_every","arrays"},{"pair","arrays"},{"count","arrays"},
                 /* maps */
                 {"has_key","maps"},{"keys","maps"},{"values","maps"},{"remove_key","maps"},
                 /* random */
