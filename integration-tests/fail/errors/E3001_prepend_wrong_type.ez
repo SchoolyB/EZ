@@ -1,0 +1,11 @@
+/*
+ * Error Test: E3001 - prepend wrong type to array
+ * Expected: type mismatch error
+ */
+
+import @arrays
+
+do main() {
+    mut arr [string] = {"a", "b"}
+    arrays.prepend(arr, 42)
+}

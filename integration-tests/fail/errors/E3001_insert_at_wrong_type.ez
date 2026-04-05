@@ -1,0 +1,11 @@
+/*
+ * Error Test: E3001 - insert_at wrong type into array
+ * Expected: type mismatch error
+ */
+
+import @arrays
+
+do main() {
+    mut arr [int] = {1, 2, 3}
+    arrays.insert_at(arr, 1, "bad")
+}
