@@ -10,7 +10,6 @@ import (
 	"os"
 	"time"
 
-	"github.com/marshallburns/ez/pkg/errors"
 )
 
 // Version information - injected at build time via ldflags
@@ -37,7 +36,7 @@ func main() {
 func getVersionString() string {
 	buf := bytes.Buffer{}
 	buf.WriteString(asciiBanner)
-	fmt.Fprintf(&buf, "\n%sEZ %s%s\n", errors.Bold, Version, errors.Reset)
+	fmt.Fprintf(&buf, "\n\033[1mEZ %s\033[0m\n", Version)
 	fmt.Fprintf(&buf, "Built: %s\n", BuildTime)
 
 	// Always fetch fresh version info when user explicitly runs 'ez version'

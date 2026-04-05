@@ -123,15 +123,14 @@ python3 scripts/fuzz.py --clean
 
 ---
 
-## Go Tooling Tests (362 tests)
+## Go Tooling Tests (126 tests)
 
 The Go CLI (`ez`) has unit tests for the packages it uses:
 
-- `pkg/errors` — Error handling and formatting
 - `pkg/lineeditor` — REPL line editing
 
 ```bash
-go test ./pkg/errors/... ./pkg/lineeditor/...
+go test ./pkg/lineeditor/...
 ```
 
 ---
@@ -149,7 +148,7 @@ Or manually:
 ```bash
 cd ezc && make test-unit && make test-e2e && cd ..
 bash scripts/run_tests.sh
-go test ./pkg/errors/... ./pkg/lineeditor/...
+go test ./pkg/lineeditor/...
 ```
 
 ---
@@ -160,8 +159,8 @@ All tests run automatically on push to `main` and `v3.0.0` via GitHub Actions:
 
 | Platform | Compiler | Sanitizers | Go Tooling |
 |----------|:--------:|:----------:|:----------:|
-| Ubuntu   | unit + e2e + integration | UBSan + ASan | errors + lineeditor |
-| macOS    | unit + e2e + integration | UBSan | errors + lineeditor |
-| Windows  | — | — | errors |
+| Ubuntu   | unit + e2e + integration | UBSan + ASan | lineeditor |
+| macOS    | unit + e2e + integration | UBSan | lineeditor |
+| Windows  | — | — | — |
 
 CI workflow: `.github/workflows/ci.yml`

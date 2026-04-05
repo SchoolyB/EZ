@@ -41,11 +41,7 @@ jobs:
 
       - name: Run Go unit tests
         if: runner.os != 'Windows'
-        run: go test ./pkg/errors/... ./pkg/lineeditor/...
-
-      - name: Run Go unit tests (Windows — skip lineeditor)
-        if: runner.os == 'Windows'
-        run: go test ./pkg/errors/...
+        run: go test ./pkg/lineeditor/...
 
       # ===== EZ Compiler =====
       - name: Build EZ compiler

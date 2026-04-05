@@ -20,7 +20,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/marshallburns/ez/pkg/errors"
 )
 
 // UpdateState stores the last update check info
@@ -411,7 +410,7 @@ func formatChangelog(releases []GitHubRelease, currentVersion, latestVersion str
 			continue
 		}
 
-		sb.WriteString(fmt.Sprintf("\n%s%s%s\n", errors.Bold, release.TagName, errors.Reset))
+		sb.WriteString(fmt.Sprintf("\n\033[1m%s\033[0m\n", release.TagName))
 
 		if len(parsed.Features) > 0 {
 			sb.WriteString("  Features:\n")
@@ -581,7 +580,7 @@ func runUpdate(confirm bool, url string) {
 	}
 
 	fmt.Print(asciiBanner)
-	fmt.Printf("\n%s%s%s\n", errors.Bold, release.TagName, errors.Reset)
+	fmt.Printf("\n\033[1m%s\033[0m\n", release.TagName)
 	fmt.Println("\nSuccessfully updated!")
 	fmt.Println("Restart your terminal or run `ez version` to verify.")
 }
