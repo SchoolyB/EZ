@@ -2189,8 +2189,19 @@ static bool block_has_return(AstNode *node) {
 
 static void check_block(TypeChecker *tc, AstNode *node) {
     if (!node || node->kind != NODE_BLOCK_STMT) return;
+    bool seen_return = false;
     for (int i = 0; i < node->data.block.count; i++) {
-        check_statement(tc, node->data.block.stmts[i]);
+        AstNode *stmt = node->data.block.stmts[i];
+        if (seen_return && stmt) {
+            diag_warning(tc->diag, "W2003",
+                strdup("unreachable code — this statement will never execute because it comes after a return"),
+                tc->file, stmt->token.line, stmt->token.column, 0);
+            break; /* only warn once per block */
+        }
+        check_statement(tc, stmt);
+        if (stmt && stmt->kind == NODE_RETURN_STMT) {
+            seen_return = true;
+        }
     }
 }
 
@@ -2573,17 +2584,33 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
                 diag_error(tc->diag, "E4003", strdup(msg),
                     tc->file, node->token.line, node->token.column, 0);
             }
-            /* W2002: check if variable shadows outer scope */
+            /* W2002/W2007: check if variable shadows outer scope */
             if (!existing && tc->current_scope->parent) {
                 Symbol *outer_sym = scope_lookup(tc->current_scope->parent,
                     node->data.var_decl.name);
                 if (outer_sym && outer_sym->def_line > 0) {
+                    /* Check if it's a global (file-scope) variable */
+                    Scope *outer_scope = tc->current_scope->parent;
+                    while (outer_scope->parent) {
+                        Symbol *s = scope_lookup_local(outer_scope, node->data.var_decl.name);
+                        if (s) break;
+                        outer_scope = outer_scope->parent;
+                    }
+                    bool is_global = (outer_scope->parent == NULL);
                     char msg[256];
-                    snprintf(msg, sizeof(msg),
-                        "variable '%s' shadows a variable declared on line %d",
-                        node->data.var_decl.name, outer_sym->def_line);
-                    diag_warning(tc->diag, "W2002", strdup(msg),
-                        tc->file, node->token.line, node->token.column, 0);
+                    if (is_global) {
+                        snprintf(msg, sizeof(msg),
+                            "variable '%s' shadows a global constant or variable declared on line %d",
+                            node->data.var_decl.name, outer_sym->def_line);
+                        diag_warning(tc->diag, "W2007", strdup(msg),
+                            tc->file, node->token.line, node->token.column, 0);
+                    } else {
+                        snprintf(msg, sizeof(msg),
+                            "variable '%s' shadows a variable declared on line %d",
+                            node->data.var_decl.name, outer_sym->def_line);
+                        diag_warning(tc->diag, "W2002", strdup(msg),
+                            tc->file, node->token.line, node->token.column, 0);
+                    }
                 }
             }
             /* E4012: shadows a type */
@@ -3772,7 +3799,7 @@ void typechecker_check(TypeChecker *tc, AstNode *program) {
             snprintf(msg, sizeof(msg),
                 "module '%s' is imported but never used — remove the import or use the module",
                 tc->imported_modules[i]);
-            diag_warning(tc->diag, "W2001", strdup(msg),
+            diag_warning(tc->diag, "W1002", strdup(msg),
                 tc->file, tc->import_lines[i], 1, 0);
         }
     }

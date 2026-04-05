@@ -3,7 +3,7 @@
 > Auto-generated from `ezc/src/util/error_codes.h`. Do not edit manually.
 > Run `./scripts/generate_errors.sh` to regenerate.
 
-**Total: 123 codes** (116 errors, 7 warnings)
+**Total: 126 codes** (116 errors, 10 warnings)
 
 ---
 
@@ -138,7 +138,10 @@
 | `W1003` | cleanup | function is declared but never called — remove it or call it |
 | `W1005` | cleanup | typed blank identifier — adding a type to _ is unnecessary, use plain _ instead |
 | `W2001` | cleanup | this module is imported but never used — remove the import or use the module |
+| `W1002` | cleanup | this import is never used — remove it or use a function from the module |
 | `W2002` | safety | this variable shadows a variable with the same name in an outer scope |
+| `W2003` | safety | unreachable code — this statement will never execute because it comes after a return |
+| `W2007` | safety | this variable shadows a global constant or variable |
 | `W2011` | safety | named return variable is not used in return — the returned value may not match the named variable |
 | `W3003` | safety | fixed-size array is not fully initialized — remaining elements will be zero-valued |
 
@@ -167,4 +170,4 @@
 
 ---
 
-*Generated on 2026-04-05 03:57:19 UTC*
+*Generated on 2026-04-05 13:27:40 UTC*
