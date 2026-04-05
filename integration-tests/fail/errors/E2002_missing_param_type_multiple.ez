@@ -1,0 +1,12 @@
+/*
+ * Error Test: E2002 - multiple parameters missing types
+ * Expected: error about missing type annotations
+ */
+
+do foo(x, y) {
+    println(x)
+}
+
+do main() {
+    foo(1, 2)
+}
