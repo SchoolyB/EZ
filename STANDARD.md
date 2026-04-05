@@ -1784,7 +1784,7 @@ println(r2[4])        // Prints 6 - r2 sees the change
 
 | Function | Signature | Description |
 |----------|-----------|-------------|
-| `get_sum` | `(arr [number]) -> number` | Sum all elements |
+| `get_sum` | `(arr [T]) -> T` | Sum all elements. Accepts int, float, or any sized integer/float type. |
 | `get_min` | `(arr [T]) -> T` | Minimum element |
 | `get_max` | `(arr [T]) -> T` | Maximum element |
 
@@ -1844,63 +1844,63 @@ println(r2[4])        // Prints 6 - r2 sees the change
 
 | Function | Signature | Description |
 |----------|-----------|-------------|
-| `abs` | `(n number) -> number` | Absolute value |
-| `neg` | `(n number) -> number` | Negation |
-| `sign` | `(n number) -> int` | Sign (-1, 0, 1) |
+| `abs` | `(n int \| float) -> int \| float` | Absolute value. Return type matches input type. |
+| `neg` | `(n int \| float) -> int \| float` | Negation. Return type matches input type. |
+| `sign` | `(n int \| float) -> int` | Sign (-1, 0, 1) |
 
 #### Min/Max/Clamp
 
 | Function | Signature | Description |
 |----------|-----------|-------------|
-| `min` | `(...numbers) -> number` | Minimum value |
-| `max` | `(...numbers) -> number` | Maximum value |
-| `clamp` | `(value number, min number, max number) -> number` | Clamp to range |
+| `min` | `(a int \| float, b int \| float) -> int \| float` | Minimum value. Return type matches input type. |
+| `max` | `(a int \| float, b int \| float) -> int \| float` | Maximum value. Return type matches input type. |
+| `clamp` | `(value int \| float, min int \| float, max int \| float) -> int \| float` | Clamp to range. Return type matches input type. |
 
 #### Rounding
 
 | Function | Signature | Description |
 |----------|-----------|-------------|
-| `floor` | `(n number) -> int` | Floor |
-| `ceil` | `(n number) -> int` | Ceiling |
-| `round` | `(n number) -> int` | Round |
-| `trunc` | `(n number) -> int` | Truncate |
+| `floor` | `(n int \| float) -> int` | Floor |
+| `ceil` | `(n int \| float) -> int` | Ceiling |
+| `round` | `(n int \| float) -> int` | Round |
+| `trunc` | `(n int \| float) -> int` | Truncate |
 
 #### Powers and Roots
 
 | Function | Signature | Description |
 |----------|-----------|-------------|
-| `pow` | `(base number, exp number) -> number` | Power |
-| `sqrt` | `(n number) -> float` | Square root |
-| `cbrt` | `(n number) -> float` | Cube root |
-| `hypot` | `(x number, y number) -> float` | Hypotenuse |
-| `exp` | `(n number) -> float` | e^n |
-| `exp2` | `(n number) -> float` | 2^n |
+| `pow` | `(base int \| float, exp int \| float) -> float` | Power |
+| `sqrt` | `(n int \| float) -> float` | Square root |
+| `cbrt` | `(n int \| float) -> float` | Cube root |
+| `hypot` | `(x int \| float, y int \| float) -> float` | Hypotenuse |
+| `exp` | `(n int \| float) -> float` | e^n |
+| `exp2` | `(n int \| float) -> float` | 2^n |
 
 #### Logarithms
 
 | Function | Signature | Description |
 |----------|-----------|-------------|
-| `log` | `(n number) -> float` | Natural logarithm |
-| `log2` | `(n number) -> float` | Base 2 logarithm |
-| `log10` | `(n number) -> float` | Base 10 logarithm |
-| `log_base` | `(value number, base number) -> float` | Custom base |
+| `log` | `(n int \| float) -> float` | Natural logarithm |
+| `log2` | `(n int \| float) -> float` | Base 2 logarithm |
+| `log10` | `(n int \| float) -> float` | Base 10 logarithm |
+| `log_base` | `(value int \| float, base int \| float) -> float` | Custom base |
 
 #### Trigonometry
 
 | Function | Signature | Description |
 |----------|-----------|-------------|
-| `sin` | `(rad number) -> float` | Sine |
-| `cos` | `(rad number) -> float` | Cosine |
-| `tan` | `(rad number) -> float` | Tangent |
-| `asin` | `(n number) -> float` | Arc sine |
-| `acos` | `(n number) -> float` | Arc cosine |
-| `atan` | `(n number) -> float` | Arc tangent |
-| `atan2` | `(y number, x number) -> float` | Arc tangent of y/x |
-| `sinh` | `(n number) -> float` | Hyperbolic sine |
-| `cosh` | `(n number) -> float` | Hyperbolic cosine |
-| `tanh` | `(n number) -> float` | Hyperbolic tangent |
-| `deg_to_rad` | `(deg number) -> float` | Degrees to radians |
-| `rad_to_deg` | `(rad number) -> float` | Radians to degrees |
+| `sin` | `(rad int \| float) -> float` | Sine |
+| `cos` | `(rad int \| float) -> float` | Cosine |
+| `tan` | `(rad int \| float) -> float` | Tangent |
+| `asin` | `(n int \| float) -> float` | Arc sine |
+| `acos` | `(n int \| float) -> float` | Arc cosine |
+| `atan` | `(n int \| float) -> float` | Arc tangent |
+| `atan2` | `(y int \| float, x int \| float) -> float` | Arc tangent of y/x |
+| `sinh` | `(n int \| float) -> float` | Hyperbolic sine |
+| `cosh` | `(n int \| float) -> float` | Hyperbolic cosine |
+| `tanh` | `(n int \| float) -> float` | Hyperbolic tangent |
+| `deg_to_rad` | `(deg int \| float) -> float` | Degrees to radians |
+| `rad_to_deg` | `(rad int \| float) -> float` | Radians to degrees |
 
 #### Statistical
 
@@ -1917,16 +1917,16 @@ println(r2[4])        // Prints 6 - r2 sees the change
 | `is_prime` | `(n int) -> bool` | Check if prime |
 | `is_even` | `(n int) -> bool` | Check if even |
 | `is_odd` | `(n int) -> bool` | Check if odd |
-| `is_infinite` | `(n number) -> bool` | Check if infinite |
-| `is_nan` | `(n number) -> bool` | Check if NaN |
-| `is_finite` | `(n number) -> bool` | Check if finite (not infinite or NaN) |
+| `is_infinite` | `(n float) -> bool` | Check if infinite |
+| `is_nan` | `(n float) -> bool` | Check if NaN |
+| `is_finite` | `(n float) -> bool` | Check if finite (not infinite or NaN) |
 
 #### Utility
 
 | Function | Signature | Description |
 |----------|-----------|-------------|
-| `lerp` | `(a number, b number, t number) -> float` | Linear interpolation |
-| `distance` | `(x1, y1, x2, y2 number) -> float` | Euclidean distance |
+| `lerp` | `(a int \| float, b int \| float, t int \| float) -> float` | Linear interpolation |
+| `distance` | `(x1 int \| float, y1 int \| float, x2 int \| float, y2 int \| float) -> float` | Euclidean distance |
 
 #### Constants
 
@@ -1984,7 +1984,7 @@ println(r2[4])        // Prints 6 - r2 sees the change
 | Function | Signature | Description |
 |----------|-----------|-------------|
 | `rand_float` | `() -> float` | Random float [0.0, 1.0) |
-| `rand_float` | `(min number, max number) -> float` | Random float [min, max) |
+| `rand_float` | `(min float, max float) -> float` | Random float [min, max) |
 | `rand_int` | `(max int) -> int` | Random int [0, max) |
 | `rand_int` | `(min int, max int) -> int` | Random int [min, max) |
 | `rand_bool` | `() -> bool` | Random boolean |
@@ -2180,9 +2180,9 @@ SQLite database access for persistent storage.
 | `open` | `(path string) -> Database` | Open or create a SQLite database |
 | `close` | `(db Database)` | Close database connection |
 | `exec` | `(db Database, sql string, ...params)` | Execute a SQL statement with optional parameters (no result) |
-| `query` | `(db Database, sql string, ...params) -> [map]` | Execute a parameterized SQL query, returns array of row maps |
+| `query` | `(db Database, sql string, ...params) -> [map[string:string]]` | Execute a parameterized SQL query, returns array of row maps |
 | `prepare` | `(db Database, sql string) -> Statement` | Prepare a SQL statement for repeated execution |
-| `step` | `(stmt Statement, ...params) -> [map]` | Execute a prepared statement with parameters |
+| `step` | `(stmt Statement, ...params) -> [map[string:string]]` | Execute a prepared statement with parameters |
 | `finalize` | `(stmt Statement)` | Release a prepared statement |
 | `begin` | `(db Database)` | Begin a transaction |
 | `commit` | `(db Database)` | Commit the current transaction |
