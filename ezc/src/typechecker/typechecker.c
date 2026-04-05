@@ -726,9 +726,8 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                         result = &TYPE_UNKNOWN;
                     }
                 } else if (strcmp(mfn, "alloc") == 0 && node->data.call.arg_count == 2) {
-                    /* alloc returns a pointer to the type of its second argument */
-                    EzType *val_t = resolve_expr(tc, node->data.call.args[1]);
-                    result = type_pointer(type_name(val_t));
+                    /* alloc returns the same type as its second argument */
+                    result = resolve_expr(tc, node->data.call.args[1]);
                 } else {
                     result = &TYPE_VOID;
                 }
@@ -2646,7 +2645,8 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
         if (target->kind != NODE_LABEL &&
             target->kind != NODE_MEMBER_EXPR &&
             target->kind != NODE_INDEX_EXPR &&
-            target->kind != NODE_PREFIX_EXPR) {
+            target->kind != NODE_PREFIX_EXPR &&
+            target->kind != NODE_POSTFIX_EXPR) {
             diag_error(tc->diag, "E5025",
                 strdup("cannot assign to this expression — left side of '=' must be a variable, field, or index"),
                 tc->file, node->token.line, node->token.column, 0);
