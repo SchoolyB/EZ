@@ -1,0 +1,11 @@
+/*
+ * Error Test: E2002 - #suppress is no longer supported
+ * Expected: error directing to CLI flag
+ */
+
+#suppress(W1001)
+mut x int = 5
+
+do main() {
+    println("hello")
+}
