@@ -3,7 +3,7 @@
 > Auto-generated from `ezc/src/util/error_codes.h`. Do not edit manually.
 > Run `./scripts/generate_errors.sh` to regenerate.
 
-**Total: 121 codes** (114 errors, 7 warnings)
+**Total: 123 codes** (116 errors, 7 warnings)
 
 ---
 
@@ -98,6 +98,8 @@
 | `E3051` | types | map literal requires a type annotation — declare as map[K:V] (e.g., mut x map[string:int] = {\ |
 | `E3052` | types | too many elements in array initializer — declared size is %d, got %d |
 | `E3053` | types | type mismatch in array initializer — expected '%s', got '%s' |
+| `E3054` | types | mutable arrays cannot have a fixed size — remove the size or use 'const' |
+| `E3055` | types | const arrays must have a fixed size — declare as [T, N] |
 | `E4001` | names | this variable does not exist — check the spelling or make sure it is declared above this line |
 | `E4002` | names | this function does not exist — check the spelling or make sure it is defined |
 | `E4003` | names | a variable with this name already exists in this scope — use a different name |
@@ -165,4 +167,4 @@
 
 ---
 
-*Generated on 2026-04-05 03:37:29 UTC*
+*Generated on 2026-04-05 03:57:19 UTC*

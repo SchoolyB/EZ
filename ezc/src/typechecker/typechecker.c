@@ -2292,6 +2292,32 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
             }
         }
 
+        /* E3054: mutable array with fixed size */
+        /* E3055: const array without fixed size */
+        if (node->data.var_decl.type_name && node->data.var_decl.type_name[0] == '[') {
+            const char *tn = node->data.var_decl.type_name;
+            bool has_size = (strchr(tn, ',') != NULL);
+            if (node->data.var_decl.mutable && has_size) {
+                char msg[256];
+                snprintf(msg, sizeof(msg),
+                    "mutable arrays cannot have a fixed size — remove the size or use 'const' (e.g., mut %s %.*s] = ...)",
+                    node->data.var_decl.name,
+                    (int)(strchr(tn, ',') - tn), tn);
+                diag_error(tc->diag, "E3054", strdup(msg),
+                    tc->file, node->token.line, node->token.column, 0);
+            } else if (!node->data.var_decl.mutable && !has_size) {
+                char msg[256];
+                snprintf(msg, sizeof(msg),
+                    "const arrays must have a fixed size — declare as [T, N] (e.g., const %s [%.*s, %d] = ...)",
+                    node->data.var_decl.name,
+                    (int)(strlen(tn) - 2), tn + 1,
+                    node->data.var_decl.value && node->data.var_decl.value->kind == NODE_ARRAY_VALUE
+                        ? node->data.var_decl.value->data.array_value.count : 0);
+                diag_error(tc->diag, "E3055", strdup(msg),
+                    tc->file, node->token.line, node->token.column, 0);
+            }
+        }
+
         EzType *declared = node->data.var_decl.type_name
             ? type_from_name(node->data.var_decl.type_name)
             : &TYPE_UNKNOWN;

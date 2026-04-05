@@ -111,7 +111,9 @@
     EZ_ERROR("E3050", "types", "array literal requires a type annotation — declare as [T] (e.g., mut x [int] = {1, 2, 3})") \
     EZ_ERROR("E3051", "types", "map literal requires a type annotation — declare as map[K:V] (e.g., mut x map[string:int] = {\"a\": 1})") \
     EZ_ERROR("E3052", "types", "too many elements in array initializer — declared size is %d, got %d") \
-    EZ_ERROR("E3053", "types", "type mismatch in array initializer — expected '%s', got '%s'")
+    EZ_ERROR("E3053", "types", "type mismatch in array initializer — expected '%s', got '%s'") \
+    EZ_ERROR("E3054", "types", "mutable arrays cannot have a fixed size — remove the size or use 'const'") \
+    EZ_ERROR("E3055", "types", "const arrays must have a fixed size — declare as [T, N]")
 
 /* --- E4xxx: Name Problems (References) --- */
 #define EZ_REFERENCE_ERRORS \
