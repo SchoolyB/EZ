@@ -156,7 +156,7 @@ EzType *type_from_name(const char *name) {
         return type_pointer(name + 1);
     }
 
-    /* Array type: [int], [string], etc. */
+    /* Array type: [int], [string], [int,3], etc. */
     if (name[0] == '[') {
         size_t len = strlen(name);
         if (len > 2 && name[len - 1] == ']') {
@@ -164,6 +164,9 @@ EzType *type_from_name(const char *name) {
             if (!elem) return &TYPE_UNKNOWN;
             memcpy(elem, name + 1, len - 2);
             elem[len - 2] = '\0';
+            /* Strip ",N" suffix for fixed-size arrays like [string,3] */
+            char *comma = strchr(elem, ',');
+            if (comma) *comma = '\0';
             return type_array(elem);
         }
     }

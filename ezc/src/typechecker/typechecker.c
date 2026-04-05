@@ -2419,10 +2419,48 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
                             }
                         }
                     }
-                    /* W3003: fixed-size array not fully initialized */
+                    /* E3053: element type mismatch in array initializer */
+                    if (elem_type[0]) {
+                        EzType *expected_et = type_from_name(elem_type);
+                        AstNode *arr = node->data.var_decl.value;
+                        for (int ei = 0; ei < arr->data.array_value.count; ei++) {
+                            EzType *actual_et = resolve_expr(tc, arr->data.array_value.elements[ei]);
+                            if (actual_et && actual_et->kind != TK_UNKNOWN &&
+                                expected_et && expected_et->kind != TK_UNKNOWN &&
+                                actual_et->kind != expected_et->kind) {
+                                /* Allow compatible integer kinds */
+                                bool compatible = false;
+                                if ((expected_et->kind == TK_INT || expected_et->kind == TK_UINT ||
+                                     expected_et->kind == TK_BYTE) &&
+                                    (actual_et->kind == TK_INT || actual_et->kind == TK_UINT ||
+                                     actual_et->kind == TK_BYTE)) {
+                                    compatible = true;
+                                }
+                                if (!compatible) {
+                                    char msg[256];
+                                    snprintf(msg, sizeof(msg),
+                                        "type mismatch in array initializer — expected '%s', got '%s'",
+                                        expected_et->name, actual_et->name);
+                                    diag_error(tc->diag, "E3053", strdup(msg),
+                                        tc->file,
+                                        arr->data.array_value.elements[ei]->token.line,
+                                        arr->data.array_value.elements[ei]->token.column, 0);
+                                }
+                            }
+                        }
+                    }
+                    /* W3003/E3052: fixed-size array initialization count checks */
                     if (comma && comma < end) {
                         int fixed_size = atoi(comma + 1);
                         AstNode *arr = node->data.var_decl.value;
+                        if (fixed_size > 0 && arr->data.array_value.count > fixed_size) {
+                            char msg[256];
+                            snprintf(msg, sizeof(msg),
+                                "too many elements in array initializer — declared size is %d, got %d",
+                                fixed_size, arr->data.array_value.count);
+                            diag_error(tc->diag, "E3052", strdup(msg),
+                                tc->file, node->token.line, node->token.column, 0);
+                        }
                         if (fixed_size > 0 && arr->data.array_value.count < fixed_size) {
                             char msg[256];
                             snprintf(msg, sizeof(msg),

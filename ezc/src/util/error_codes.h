@@ -109,7 +109,9 @@
     EZ_ERROR("E3048", "types", "operator '+' is not defined for strings — use string interpolation or fmt.format() instead") \
     EZ_ERROR("E3049", "types", "arithmetic operators are not valid on enum values — enums only support == and != comparisons") \
     EZ_ERROR("E3050", "types", "array literal requires a type annotation — declare as [T] (e.g., mut x [int] = {1, 2, 3})") \
-    EZ_ERROR("E3051", "types", "map literal requires a type annotation — declare as map[K:V] (e.g., mut x map[string:int] = {\"a\": 1})")
+    EZ_ERROR("E3051", "types", "map literal requires a type annotation — declare as map[K:V] (e.g., mut x map[string:int] = {\"a\": 1})") \
+    EZ_ERROR("E3052", "types", "too many elements in array initializer — declared size is %d, got %d") \
+    EZ_ERROR("E3053", "types", "type mismatch in array initializer — expected '%s', got '%s'")
 
 /* --- E4xxx: Name Problems (References) --- */
 #define EZ_REFERENCE_ERRORS \
