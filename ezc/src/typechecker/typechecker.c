@@ -940,22 +940,33 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                         }
                     }
                 }
-                /* E3001: arrays.append element type mismatch */
-                if (strcmp(mfn, "append") == 0 && node->data.call.arg_count >= 2) {
-                    AstNode *arg0 = node->data.call.args[0];
-                    AstNode *arg1 = node->data.call.args[1];
-                    EzType *arr_t = typetable_get(tc->type_table, arg0);
-                    EzType *val_t = typetable_get(tc->type_table, arg1);
-                    if (arr_t && arr_t->kind == TK_ARRAY && arr_t->element_type &&
-                        val_t && val_t->kind != TK_UNKNOWN) {
-                        EzType *elem_t = type_from_name(arr_t->element_type);
-                        if (elem_t->kind != TK_UNKNOWN && elem_t->kind != val_t->kind) {
-                            char msg[256];
-                            snprintf(msg, sizeof(msg),
-                                "type mismatch: cannot append %s to array of %s",
-                                type_name(val_t), arr_t->element_type);
-                            diag_error(tc->diag, "E3001", strdup(msg),
-                                tc->file, arg1->token.line, arg1->token.column, 0);
+                /* E3001: arrays.append/prepend/insert_at element type mismatch */
+                {
+                    AstNode *val_node = NULL;
+                    const char *op_name = NULL;
+                    if ((strcmp(mfn, "append") == 0 || strcmp(mfn, "prepend") == 0) &&
+                        node->data.call.arg_count >= 2) {
+                        val_node = node->data.call.args[1];
+                        op_name = mfn;
+                    } else if (strcmp(mfn, "insert_at") == 0 && node->data.call.arg_count >= 3) {
+                        val_node = node->data.call.args[2];
+                        op_name = "insert_at";
+                    }
+                    if (val_node && op_name) {
+                        EzType *arr_t = typetable_get(tc->type_table, node->data.call.args[0]);
+                        EzType *val_t = resolve_expr(tc, val_node);
+                        if (arr_t && arr_t->kind == TK_ARRAY && arr_t->element_type &&
+                            val_t && val_t->kind != TK_UNKNOWN) {
+                            EzType *elem_t = type_from_name(arr_t->element_type);
+                            if (elem_t->kind != TK_UNKNOWN && elem_t->kind != val_t->kind &&
+                                !(is_int_kind(elem_t->kind) && is_int_kind(val_t->kind))) {
+                                char msg[256];
+                                snprintf(msg, sizeof(msg),
+                                    "type mismatch in arrays.%s() — cannot add %s to array of %s",
+                                    op_name, type_name(val_t), arr_t->element_type);
+                                diag_error(tc->diag, "E3001", strdup(msg),
+                                    tc->file, val_node->token.line, val_node->token.column, 0);
+                            }
                         }
                     }
                 }
