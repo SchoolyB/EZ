@@ -1657,7 +1657,7 @@ sqrt(16.0)
 
 ## 10. Standard Library
 
-The EZ standard library consists of 27 modules providing core functionality.
+The EZ standard library consists of 26 modules plus built-in functions that require no import.
 
 ### 10.1 Built-in Functions
 
