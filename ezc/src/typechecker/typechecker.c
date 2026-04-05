@@ -2283,7 +2283,7 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
             strncmp(node->data.var_decl.name, "_ez_or", 6) != 0) {
             if (node->data.var_decl.value->kind == NODE_ARRAY_VALUE) {
                 diag_error(tc->diag, "E3050",
-                    strdup("array literal requires a type annotation — declare as []T (e.g., mut x []int = {1, 2, 3})"),
+                    strdup("array literal requires a type annotation — declare as [T] (e.g., mut x [int] = {1, 2, 3})"),
                     tc->file, node->token.line, node->token.column, 0);
             } else if (node->data.var_decl.value->kind == NODE_MAP_VALUE) {
                 diag_error(tc->diag, "E3051",
