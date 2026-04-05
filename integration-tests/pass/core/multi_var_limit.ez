@@ -1,0 +1,40 @@
+/*
+ * Test: multi-variable declaration at max limit (16)
+ * Verifies parser allows exactly MAX_MULTI_VARS variables
+ */
+
+do get16() -> (int, int, int, int, int, int, int, int, int, int, int, int, int, int, int, int) {
+    return 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16
+}
+
+do main() {
+    mut passed int = 0
+    mut failed int = 0
+
+    // Test 1: declare exactly 16 variables from multi-return
+    mut a, b, c, d, e, f, g, h, i, j, k, l, m, n, o, p = get16()
+    if a == 1 && p == 16 {
+        println("  [PASS] 16 variables declared from multi-return")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] expected a=1, p=16, got a=${a}, p=${p}")
+        failed += 1
+    }
+
+    // Test 2: verify all values correct
+    mut sum int = a + b + c + d + e + f + g + h + i + j + k + l + m + n + o + p
+    if sum == 136 {
+        println("  [PASS] sum of 1..16 = 136")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] expected sum=136, got ${sum}")
+        failed += 1
+    }
+
+    println("Results: ${passed} passed, ${failed} failed")
+    if failed > 0 {
+        println("SOME TESTS FAILED")
+    } otherwise {
+        println("ALL TESTS PASSED")
+    }
+}
