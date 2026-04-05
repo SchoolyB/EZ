@@ -831,7 +831,6 @@ Point{}  // Zero-initialized
 |----------|-------------|---------------|-------------|
 | `+` | Addition | `int`, `int` | `int` |
 | `+` | Addition | `float`, `float` | `float` |
-| `+` | Concatenation | `string`, `string` | `string` |
 | `-` | Subtraction | `int`, `int` | `int` |
 | `-` | Subtraction | `float`, `float` | `float` |
 | `*` | Multiplication | `int`, `int` | `int` |
@@ -1660,9 +1659,9 @@ sqrt(16.0)
 
 The EZ standard library consists of 27 modules providing core functionality.
 
-### 10.1 Core Module (`@std`)
+### 10.1 Built-in Functions
 
-The core module provides fundamental I/O, type conversion, and utility functions.
+Built-in functions are always available without importing any module.
 
 #### Output Functions
 
@@ -2273,6 +2272,7 @@ Regular expression operations using POSIX extended regex syntax.
 
 | Function | Signature | Description |
 |----------|-----------|-------------|
+| `is_valid` | `(pattern string) -> bool` | Check if pattern is valid regex |
 | `is_match` | `(pattern string, text string) -> bool` | Check if pattern matches text |
 | `find` | `(pattern string, text string) -> string` | First match |
 | `find_all` | `(pattern string, text string) -> [string]` | All matches |
@@ -2404,8 +2404,6 @@ Formatted output and string formatting functions.
 | `printf` | `(format string, ...args T)` | Print formatted string to stdout |
 | `sprintf` | `(format string, ...args T) -> string` | Return formatted string |
 | `format` | `(format string, ...args T) -> string` | Return formatted string |
-| `eprintln` | `(value T)` | Print a value to stderr with newline. Accepts any type. |
-| `eprint` | `(s string)` | Print a string to stderr without newline |
 
 #### Padding
 
@@ -2645,11 +2643,10 @@ RAM:         16 GB
 
 Runs all test suites in sequence:
 
-1. Go tooling tests
-2. Compiler unit tests
-3. Compiler end-to-end tests
-4. Compiler integration tests
-5. CLI integration tests
+1. Compiler unit tests
+2. Compiler end-to-end tests
+3. Compiler integration tests
+4. CLI integration tests
 
 Exits with status 1 if any suite fails.
 

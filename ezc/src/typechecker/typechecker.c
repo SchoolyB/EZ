@@ -2362,6 +2362,13 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
             }
         }
 
+        /* E2002: private not allowed inside functions */
+        if (node->data.var_decl.is_private && tc->func_depth > 0) {
+            diag_error(tc->diag, "E2002",
+                strdup("'private' cannot be used inside a function — it only applies to top-level declarations"),
+                tc->file, node->token.line, node->token.column, 0);
+        }
+
         EzType *declared = node->data.var_decl.type_name
             ? type_from_name(node->data.var_decl.type_name)
             : &TYPE_UNKNOWN;

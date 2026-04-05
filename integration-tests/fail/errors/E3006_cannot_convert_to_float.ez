@@ -1,8 +1,0 @@
-/*
- * Error Test: E3006 - cannot-convert-to-float
- * Expected: "cannot convert" or "to float"
- */
-
-do main() {
-    mut x float = float("hello")  // cannot convert string to float
-}

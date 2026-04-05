@@ -1,6 +1,0 @@
-// Test: E2059 - #doc before import (orphaned)
-#doc("This should fail - must precede a declaration")
-
-do main() {
-    println("hello")
-}

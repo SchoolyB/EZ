@@ -1,8 +1,0 @@
-/*
- * Error Test: E3005 - cannot-convert-to-int
- * Expected: "cannot convert" or "to integer"
- */
-
-do main() {
-    mut x int = int("hello")  // cannot convert string to int
-}

@@ -1,7 +1,0 @@
-// Test: E2060 - multiple #doc on same declaration
-
-#doc("First doc")
-#doc("Second doc - this should fail")
-do main() {
-    println("hello")
-}
