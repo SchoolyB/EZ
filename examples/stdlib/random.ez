@@ -8,9 +8,9 @@ import @random
 
 do main() {
     // Random numbers
-    println("Random int (0-100): " + string(random.rand_int(0, 100)))
-    println("Random float (0-1): " + string(random.rand_float(0.0, 1.0)))
-    println("Random bool: " + string(random.rand_bool()))
+    println("Random int (0-100): ${random.rand_int(0, 100)}")
+    println("Random float (0-1): ${random.rand_float(0.0, 1.0)}")
+    println("Random bool: ${random.rand_bool()}")
 
     // Random selection from an array
     mut colors [string] = {"red", "green", "blue", "yellow"}

@@ -15,7 +15,7 @@ private const SECRET_KEY string = "abc123"
 do get_greeting(name string) -> string {
     // Can call private function internally
     mut prefix string = internal_helper()
-    return prefix + ": Hello, " + name
+    return "${prefix}: Hello, ${name}"
 }
 
 // Public constant - SHOULD be accessible from main.ez

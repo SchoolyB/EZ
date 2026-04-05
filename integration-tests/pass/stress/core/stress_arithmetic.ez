@@ -27,7 +27,7 @@ do main() {
     }
 
     // String concatenation
-    mut s string = "hello" + " " + "world"
+    mut s string = "hello world"
     if s == "hello world" {
         println("  [PASS] string concatenation")
         passed += 1

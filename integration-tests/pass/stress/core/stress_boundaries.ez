@@ -87,7 +87,7 @@ do main() {
     // Long string
     mut long_str string = ""
     for i in range(0, 100) {
-        long_str = long_str + "abcdefghij"
+        long_str = "${long_str}abcdefghij"
     }
     if len(long_str) == 1000 {
         println("  [PASS] string with 1000 characters")

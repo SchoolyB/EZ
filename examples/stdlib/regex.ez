@@ -10,12 +10,12 @@ do main() {
     mut text string = "Contact us at support@example.com or sales@example.com"
 
     // Check if a pattern is valid
-    println("Valid pattern: " + string(regex.is_valid("[a-z]+")))
+    println("Valid pattern: ${regex.is_valid("[a-z]+")}")
 
     // Match: check if a string matches a pattern
     mut matched, match_err = regex.is_match("^Contact", text)
     if match_err == nil {
-        println("Starts with 'Contact': " + string(matched))
+        println("Starts with 'Contact': ${matched}")
     }
 
     // Find: get the first match

@@ -16,9 +16,9 @@ do main() {
     println("Compact: ${compact}")
 
     // Validate UUIDs
-    println("Valid UUID: " + string(uuid.is_valid(id)))
-    println("Valid compact: " + string(uuid.is_valid("not-a-uuid")))
+    println("Valid UUID: ${uuid.is_valid(id)}")
+    println("Valid compact: ${uuid.is_valid("not-a-uuid")}")
 
     // Nil UUID constant
-    println("Nil UUID: " + uuid.NIL)
+    println("Nil UUID: ${uuid.NIL}")
 }

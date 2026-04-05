@@ -235,7 +235,7 @@ do main() {
     // Test 22: String concatenation
     mut str1 string = "Hello"
     mut str2 string = "World"
-    mut concat string = str1 + " " + str2
+    mut concat string = "${str1} ${str2}"
     if concat == "Hello World" {
         println("  [PASS] string concatenation")
         passed += 1
