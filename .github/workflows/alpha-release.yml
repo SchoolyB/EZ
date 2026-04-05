@@ -1,0 +1,82 @@
+name: Alpha Release
+
+on:
+  push:
+    branches:
+      - v3.0.0
+
+permissions:
+  contents: write
+
+jobs:
+  alpha-release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Get next alpha version
+        id: version
+        run: |
+          # Find the latest v3.0.0-alpha.N tag
+          LATEST=$(git tag -l 'v3.0.0-alpha.*' --sort=-v:refname | head -1)
+
+          if [ -z "$LATEST" ]; then
+            NEXT="v3.0.0-alpha.1"
+          else
+            # Extract N and increment
+            N=$(echo "$LATEST" | sed 's/v3.0.0-alpha.//')
+            NEXT="v3.0.0-alpha.$((N + 1))"
+          fi
+
+          echo "version=$NEXT" >> $GITHUB_OUTPUT
+          echo "Next alpha version: $NEXT"
+
+      - name: Generate changelog since last alpha
+        id: changelog
+        run: |
+          LATEST=$(git tag -l 'v3.0.0-alpha.*' --sort=-v:refname | head -1)
+
+          if [ -z "$LATEST" ]; then
+            # First alpha — changelog from all commits on this branch
+            CHANGELOG=$(git log --oneline -20 --pretty=format:"- %s")
+          else
+            CHANGELOG=$(git log "${LATEST}..HEAD" --oneline --pretty=format:"- %s")
+          fi
+
+          # Write to file to avoid escaping issues
+          echo "$CHANGELOG" > /tmp/changelog.txt
+          echo "Generated changelog with $(echo "$CHANGELOG" | wc -l) entries"
+
+      - name: Create tag
+        run: |
+          git tag ${{ steps.version.outputs.version }}
+          git push origin ${{ steps.version.outputs.version }}
+
+      - name: Create pre-release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          CHANGELOG=$(cat /tmp/changelog.txt)
+          gh release create ${{ steps.version.outputs.version }} \
+            --prerelease \
+            --target v3.0.0 \
+            --title "${{ steps.version.outputs.version }}" \
+            --notes "## EZ v3.0.0 Alpha
+
+          **This is a pre-release.** Not recommended for production use.
+
+          ### Changes since last alpha
+
+          ${CHANGELOG}
+
+          ### Install
+
+          \`\`\`
+          git clone https://github.com/SchoolyB/EZ.git
+          cd EZ && git checkout v3.0.0
+          make build && sudo make install
+          \`\`\`
+          "
