@@ -2558,6 +2558,12 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
                     break;
                 }
             }
+            if (declared->kind == TK_UNKNOWN) {
+                /* Don't register variables with unresolved types — an error
+                   (E3050, E3051, etc.) has already been emitted upstream.
+                   Skipping scope_define prevents confusing cascading errors. */
+                break;
+            }
             scope_define(tc->current_scope, node->data.var_decl.name,
                 declared, node->data.var_decl.mutable);
             /* Store definition location and declared type for unused/signedness warnings */
