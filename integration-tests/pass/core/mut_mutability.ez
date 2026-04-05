@@ -62,7 +62,7 @@ do main() {
     }
 
     // Test 5: mut from array literal is mutable
-    mut lit = {1, 2, 3}
+    mut lit [int] = {1, 2, 3}
     lit[0] = 100
     if lit[0] == 100 {
         println("  [PASS] mut array literal: lit[0] = 100 (mutable)")
