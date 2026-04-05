@@ -1,0 +1,10 @@
+/*
+ * Error Test: E2002 - sized type name as parameter name
+ * Expected: "'i32' is a built-in name and cannot be used as a parameter name"
+ */
+
+do test(i32 int) {
+    return
+}
+
+do main() {}

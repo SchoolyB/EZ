@@ -1,0 +1,10 @@
+/*
+ * Error Test: E2002 - 'for' keyword as parameter name
+ * Expected: "'for' is a keyword and cannot be used as a parameter name"
+ */
+
+do test(for int) {
+    return
+}
+
+do main() {}

@@ -1,0 +1,10 @@
+/*
+ * Error Test: E2002 - type name as parameter name
+ * Expected: "'int' is a built-in name and cannot be used as a parameter name"
+ */
+
+do test(int int) {
+    return
+}
+
+do main() {}

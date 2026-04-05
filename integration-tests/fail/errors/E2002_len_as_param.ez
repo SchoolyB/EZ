@@ -1,0 +1,10 @@
+/*
+ * Error Test: E2002 - builtin 'len' as parameter name
+ * Expected: "'len' is a built-in name and cannot be used as a parameter name"
+ */
+
+do test(len int) {
+    return
+}
+
+do main() {}
