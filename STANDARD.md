@@ -190,7 +190,7 @@ true
 - `^` — pointer type prefix and dereference postfix (`^Type`, `ptr^`)
 - `&` — address-of (used internally)
 - `@` — module prefix in imports (`import @math`)
-- `#` — attribute prefix (`#doc`, `#flags`, `#suppress`)
+- `#` — attribute prefix (`#doc`, `#flags`, `#strict`, `#enum`)
 
 ### 3.7 Literals
 
@@ -1461,25 +1461,6 @@ const Point struct {
     y int
 }
 ```
-
-#### 8.5.2 `#suppress` Attribute
-
-The `#suppress` attribute suppresses specific typechecker warnings for a function:
-
-```ez
-#suppress(W1001)
-do helper() {
-    mut unused int = 42  // No unused-variable warning
-}
-
-#suppress(W1001, W2001)
-do another() { ... }      // Suppress multiple warnings
-
-#suppress(ALL)
-do nowarnings() { ... }   // Suppress all warnings
-```
-
-Suppressible warnings include: `W1001` (unused-variable), `W1003` (unused-function), `W1005` (typed-blank-identifier), `W2001` (unused-import), `W2002` (shadowed-variable), `W2011` (named-return-unused), `W3003` (array-size-mismatch), or `ALL` to suppress all warnings.
 
 ### 8.6 Function References
 
@@ -2796,8 +2777,6 @@ block          = "{" { statement } "}" .
 | E2046 | when-strict-missing-case | `#strict when` missing enum case |
 | E2047 | when-type-as-condition | `when` condition must be a value, not a type name |
 | E2050 | when-collection-condition | `when` condition cannot be an array or map |
-| E2051 | suppress-invalid-target | `#suppress` can only be applied at file scope or to functions |
-| E2052 | suppress-invalid-code | Warning code cannot be suppressed |
 | E2053 | type-definition-in-function | Type definitions must be at file level |
 | E2054 | when-strict-non-enum-case | `#strict when` requires explicit enum member values |
 | E2055 | strict-invalid-target | `#strict` can only be applied to `when` statements |
@@ -3113,7 +3092,7 @@ block          = "{" { statement } "}" .
 |---------|------|---------|
 | 1.0-draft | January 2026 | Initial draft |
 | 1.1-draft | January 31, 2026 | Added hex escapes, `!in` operator, blank identifier, `ref()` builtin, negative step `range()`, `mut` mutability; fixed terminology to use check-time instead of compile-time; added `uint` to primitive lists |
-| 1.2-draft | February 12, 2026 | Added `for_each` index variable, named return variables, `cast` keyword, raw string literals, octal literals, `private` visibility, `#doc`/`#suppress` attributes; added `@server`, `@regex`, `@csv` modules; updated `@http`, `@db`, `@math`, `@strings`, `@time`, `@arrays` modules; fixed `remove` → `remove_at` in arrays; expanded Appendix B with comprehensive error code reference (181 errors, 14 warnings) |
+| 1.2-draft | February 12, 2026 | Added `for_each` index variable, named return variables, `cast` keyword, raw string literals, octal literals, `private` visibility, `#doc` attribute; added `@server`, `@regex`, `@csv` modules; updated `@http`, `@db`, `@math`, `@strings`, `@time`, `@arrays` modules; fixed `remove` → `remove_at` in arrays; expanded Appendix B with comprehensive error code reference (181 errors, 14 warnings) |
 | 2.0-draft | March 24, 2026 | **EZ 3.0 release.** Renamed `temp` → `mut`; added `while` alias for `as_long_as`; added `or_return` error propagation; added function references `()func_name` and `ref(func_name)`; added struct-namespaced functions; added map iteration via `for_each`; lifted `when`/`is` restrictions for bools, nil, floats; overhauled module system (filesystem-based identity, no `module` declarations, collision detection E6010, double-import prevention E6011); redesigned `@server` module with FCF handlers, path params, middleware, CORS, JSON parsing, static files; renamed `time.make` → `time.timestamp`, `uuid.create` → `uuid.generate`; added ambiguity detection E4008 for `using` conflicts; added E5025 dangling-reference, W2012 float-when-imprecise; removed E2044, E2048, E2049, E6005, E6006, W4001 |
 | 2.1-draft | March 28, 2026 | **API naming overhaul.** Renamed builtin sleep functions to shorthand (`sleep_s`, `sleep_ms`, `sleep_ns`); removed sized type conversion builtins (`u8()`, `i32()`, etc. — use `cast` instead); removed `read_int`, `EXIT_SUCCESS`/`EXIT_FAILURE`. **@strings:** `upper`→`to_upper`, `lower`→`to_lower`, `index`→`index_of`; removed `to_int`/`to_float`. **@maps:** `remove`→`remove_key`; added `is_empty`. **@time:** `iso`→`to_iso`, `clock`→`to_time`; removed sleep functions (live in `@std` only). **@math:** `is_inf`→`is_infinite`; removed `math.random` (live in `@random` only). **@random:** renamed type-name functions to `rand_int`, `rand_float`, `rand_bool`, `rand_byte`, `rand_char`; absorbed `random_hex` from `@crypto`. **@json:** `pretty`→`pretty_print`. **@io:** `rename`→`rename_file`. **@os:** `cwd`→`current_dir`; removed `exit` (builtin only). **@http:** `Http_Response`→`HttpResponse`; added `patch`. **@uuid:** swapped defaults — `generate` now returns no hyphens, added `generate_hyphenated`. **@binary:** added 128/256-bit encode/decode variants. **@sqlite:** added parameterized queries, prepared statements (`prepare`/`step`/`finalize`), transactions (`begin`/`commit`/`rollback`). **@server:** `route`→`add_route`; `Http_Response`→`HttpResponse`. **@regex:** `match`→`is_match`. **@csv:** `parse`→`decode`, `stringify`→`encode`, `read`→`read_file`, `write`→`write_file`. **@net:** `dial`→`connect`, `recv`→`receive`. **@threads split** into `@threads` (spawn/join/get_id), `@sync` (create_mutex/lock/unlock/destroy_mutex), `@channels` (open_channel/send/receive/close_channel). **@mem:** `make`→`init`, `copy`→`raw_copy`, `set`→`fill`. Removed `sleep_ms` from threads, `exit` from `@os`, `random_hex` from `@crypto`. |
 

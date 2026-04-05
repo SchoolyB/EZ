@@ -1,4 +1,4 @@
-/* Test: Function references suppress false unused warnings
+/* Test: Function references should not trigger false unused warnings
  * Regression test for #1270 — using a function only via ()name
  * or storing a func ref in a variable that is only called should
  * not emit W1001 (unused variable) or W1003 (unused function).
