@@ -33,7 +33,7 @@ do main() {
 
     // insert (void) — insert element at index
     mut ins_arr [int] = {1, 2, 4, 5}
-    arrays.insert(ins_arr, 2, 3)
+    arrays.insert_at(ins_arr, 2, 3)
     if len(ins_arr) == 5 && ins_arr[2] == 3 && ins_arr[3] == 4 {
         println("  [PASS] insert int")
         passed += 1
@@ -44,7 +44,7 @@ do main() {
 
     // insert string
     mut ins_str [string] = {"a", "c"}
-    arrays.insert(ins_str, 1, "b")
+    arrays.insert_at(ins_str, 1, "b")
     if len(ins_str) == 3 && ins_str[1] == "b" && ins_str[2] == "c" {
         println("  [PASS] insert string")
         passed += 1
@@ -55,7 +55,7 @@ do main() {
 
     // insert at beginning
     mut ins_front [int] = {2, 3}
-    arrays.insert(ins_front, 0, 1)
+    arrays.insert_at(ins_front, 0, 1)
     if len(ins_front) == 3 && ins_front[0] == 1 && ins_front[1] == 2 {
         println("  [PASS] insert at beginning")
         passed += 1
@@ -87,7 +87,7 @@ do main() {
 
     // sort (void) — modifies in place
     mut unsorted [int] = {5, 3, 1, 4, 2}
-    arrays.sort(unsorted)
+    arrays.sort_asc(unsorted)
     if unsorted[0] == 1 && unsorted[1] == 2 && unsorted[4] == 5 {
         println("  [PASS] sort")
         passed += 1
@@ -143,7 +143,7 @@ do main() {
 
     // sum
     mut sum_arr [int] = {1, 2, 3, 4, 5}
-    mut total int = arrays.sum(sum_arr)
+    mut total int = arrays.get_sum(sum_arr)
     if total == 15 {
         println("  [PASS] sum")
         passed += 1
@@ -154,7 +154,7 @@ do main() {
 
     // min
     mut min_arr [int] = {5, 2, 8, 1, 9}
-    mut min_val int = arrays.min(min_arr)
+    mut min_val int = arrays.get_min(min_arr)
     if min_val == 1 {
         println("  [PASS] min")
         passed += 1
@@ -165,7 +165,7 @@ do main() {
 
     // max
     mut max_arr [int] = {5, 2, 8, 1, 9}
-    mut max_val int = arrays.max(max_arr)
+    mut max_val int = arrays.get_max(max_arr)
     if max_val == 9 {
         println("  [PASS] max")
         passed += 1
