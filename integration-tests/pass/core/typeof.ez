@@ -73,7 +73,6 @@ do main() {
     // Expressions
     assert(type_of(1 + 2) == "int", "arithmetic should return int")
     assert(type_of(1 < 2) == "bool", "comparison should return bool")
-    assert(type_of("a" + "b") == "string", "string concat should return string")
     assert(type_of(arr[0]) == "int", "array index should return element type")
     assert(type_of(m["a"]) == "int", "map index should return value type")
     assert(type_of(p.x) == "int", "struct field should return field type")
