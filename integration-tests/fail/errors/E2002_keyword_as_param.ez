@@ -1,0 +1,10 @@
+/*
+ * Error Test: E2002 - keyword as parameter name
+ * Expected: "'if' is a keyword and cannot be used as a parameter name"
+ */
+
+do test(if int) {
+    return
+}
+
+do main() {}

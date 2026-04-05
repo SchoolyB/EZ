@@ -1,0 +1,10 @@
+/*
+ * Error Test: E2002 - builtin function name as parameter
+ * Expected: "'println' is a built-in name and cannot be used as a parameter name"
+ */
+
+do test(println int) {
+    return
+}
+
+do main() {}

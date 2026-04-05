@@ -1062,6 +1062,41 @@ static AstNode *parse_func_declaration(Parser *p) {
 
             param->name = p->cur_token.literal;
 
+            /* Check for reserved names as parameters */
+            if (p->cur_token.type != TOK_IDENT && p->cur_token.type != TOK_BLANK) {
+                /* Keyword used as parameter name */
+                char buf[256];
+                snprintf(buf, sizeof(buf),
+                    "'%s' is a keyword and cannot be used as a parameter name",
+                    param->name);
+                diag_error(p->diag, "E2002", arena_strdup(p->arena, buf),
+                    p->file, p->cur_token.line, p->cur_token.column, 0);
+            } else if (p->cur_token.type == TOK_IDENT) {
+                /* Check for builtin function/type names */
+                static const char *reserved[] = {
+                    /* types */
+                    "int", "uint", "float", "string", "bool", "char", "byte", "void",
+                    "i8", "i16", "i32", "i64", "u8", "u16", "u32", "u64",
+                    "f32", "f64", "i128", "u128", "i256", "u256",
+                    /* builtin functions */
+                    "println", "print", "eprintln", "eprint", "input",
+                    "len", "type_of", "size_of", "copy", "ref", "addr", "error",
+                    "exit", "panic", "assert", "sleep_s", "sleep_ms", "sleep_ns",
+                    NULL
+                };
+                for (int ri = 0; reserved[ri]; ri++) {
+                    if (strcmp(param->name, reserved[ri]) == 0) {
+                        char buf[256];
+                        snprintf(buf, sizeof(buf),
+                            "'%s' is a built-in name and cannot be used as a parameter name",
+                            param->name);
+                        diag_error(p->diag, "E2002", arena_strdup(p->arena, buf),
+                            p->file, p->cur_token.line, p->cur_token.column, 0);
+                        break;
+                    }
+                }
+            }
+
             /* Type name follows (unless next param or closing paren) */
             if (peek_token_is(p, TOK_IDENT) || peek_token_is(p, TOK_CARET) || peek_token_is(p, TOK_LBRACKET)) {
                 next_token(p);
