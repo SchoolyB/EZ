@@ -2277,6 +2277,21 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
             }
         }
 
+        /* E3050/E3051: array/map literals require explicit type annotations */
+        if (!node->data.var_decl.type_name && node->data.var_decl.value &&
+            strncmp(node->data.var_decl.name, "_ez_tmp", 7) != 0 &&
+            strncmp(node->data.var_decl.name, "_ez_or", 6) != 0) {
+            if (node->data.var_decl.value->kind == NODE_ARRAY_VALUE) {
+                diag_error(tc->diag, "E3050",
+                    strdup("array literal requires a type annotation — declare as []T (e.g., mut x []int = {1, 2, 3})"),
+                    tc->file, node->token.line, node->token.column, 0);
+            } else if (node->data.var_decl.value->kind == NODE_MAP_VALUE) {
+                diag_error(tc->diag, "E3051",
+                    strdup("map literal requires a type annotation — declare as map[K:V] (e.g., mut x map[string:int] = {\"a\": 1})"),
+                    tc->file, node->token.line, node->token.column, 0);
+            }
+        }
+
         EzType *declared = node->data.var_decl.type_name
             ? type_from_name(node->data.var_decl.type_name)
             : &TYPE_UNKNOWN;

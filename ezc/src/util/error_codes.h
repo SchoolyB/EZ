@@ -107,7 +107,9 @@
     EZ_ERROR("E3046", "types", "integer literal overflows 64-bit integer — max value is 9223372036854775807") \
     EZ_ERROR("E3047", "types", "this enum does not have a member with that name") \
     EZ_ERROR("E3048", "types", "operator '+' is not defined for strings — use string interpolation or fmt.format() instead") \
-    EZ_ERROR("E3049", "types", "arithmetic operators are not valid on enum values — enums only support == and != comparisons")
+    EZ_ERROR("E3049", "types", "arithmetic operators are not valid on enum values — enums only support == and != comparisons") \
+    EZ_ERROR("E3050", "types", "array literal requires a type annotation — declare as []T (e.g., mut x []int = {1, 2, 3})") \
+    EZ_ERROR("E3051", "types", "map literal requires a type annotation — declare as map[K:V] (e.g., mut x map[string:int] = {\"a\": 1})")
 
 /* --- E4xxx: Name Problems (References) --- */
 #define EZ_REFERENCE_ERRORS \

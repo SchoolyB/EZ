@@ -3,7 +3,7 @@
 > Auto-generated from `ezc/src/util/error_codes.h`. Do not edit manually.
 > Run `./scripts/generate_errors.sh` to regenerate.
 
-**Total: 117 codes** (110 errors, 7 warnings)
+**Total: 119 codes** (112 errors, 7 warnings)
 
 ---
 
@@ -94,6 +94,8 @@
 | `E3047` | types | this enum does not have a member with that name |
 | `E3048` | types | operator '+' is not defined for strings — use string interpolation or fmt.format() instead |
 | `E3049` | types | arithmetic operators are not valid on enum values — enums only support == and != comparisons |
+| `E3050` | types | array literal requires a type annotation — declare as []T (e.g., mut x []int = {1, 2, 3}) |
+| `E3051` | types | map literal requires a type annotation — declare as map[K:V] (e.g., mut x map[string:int] = {\ |
 | `E4001` | names | this variable does not exist — check the spelling or make sure it is declared above this line |
 | `E4002` | names | this function does not exist — check the spelling or make sure it is defined |
 | `E4003` | names | a variable with this name already exists in this scope — use a different name |
@@ -161,4 +163,4 @@
 
 ---
 
-*Generated on 2026-04-04 16:25:34 UTC*
+*Generated on 2026-04-05 03:18:59 UTC*
