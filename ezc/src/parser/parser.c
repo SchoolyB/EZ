@@ -1854,10 +1854,22 @@ static AstNode *parse_statement(Parser *p) {
         return stmt;
     }
     case TOK_SUPPRESS:
-    case TOK_DOC:
-        /* Skip attribute tokens — consume args if present */
+        diag_error(p->diag, "E2002",
+            strdup("#suppress is no longer supported — use 'ez run file.ez -q W1001' to suppress warnings from the command line"),
+            p->file, p->cur_token.line, p->cur_token.column, 0);
+        /* Consume the attribute and its args to avoid cascading errors */
         if (peek_token_is(p, TOK_LPAREN)) {
-            next_token(p); /* skip ( */
+            next_token(p);
+            while (!cur_token_is(p, TOK_RPAREN) && !cur_token_is(p, TOK_EOF)) {
+                next_token(p);
+            }
+        }
+        next_token(p);
+        return parse_statement(p);
+    case TOK_DOC:
+        /* Skip #doc attribute tokens — consume args if present */
+        if (peek_token_is(p, TOK_LPAREN)) {
+            next_token(p);
             while (!cur_token_is(p, TOK_RPAREN) && !cur_token_is(p, TOK_EOF)) {
                 next_token(p);
             }
