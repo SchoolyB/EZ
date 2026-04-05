@@ -1744,16 +1744,28 @@ println(r2[4])        // Prints 6 - r2 sees the change
 | `is_empty` | `(arr [T]) -> bool` | Check if array is empty |
 | `contains` | `(arr [T], value T) -> bool` | Check if value exists |
 | `index_of` | `(arr [T], value T) -> int` | First index of value (-1 if not found) |
+| `count` | `(arr [T], value T) -> int` | Count occurrences of value |
+
+#### Access Functions
+
+| Function | Signature | Description |
+|----------|-----------|-------------|
+| `get_first` | `(arr [T]) -> T` | Return first element (panic if empty) |
+| `get_last` | `(arr [T]) -> T` | Return last element (panic if empty) |
 
 #### Modification Functions
 
 | Function | Signature | Description |
 |----------|-----------|-------------|
 | `append` | `(&arr [T], ...values T)` | Append elements |
-| `insert` | `(&arr [T], index int, value T)` | Insert at index |
+| `prepend` | `(&arr [T], value T)` | Insert value at front |
+| `insert_at` | `(&arr [T], index int, value T)` | Insert at index |
 | `remove_at` | `(&arr [T], index int)` | Remove element at index |
+| `remove_first` | `(&arr [T]) -> T` | Remove and return first element (panic if empty) |
+| `remove_last` | `(&arr [T]) -> T` | Remove and return last element (panic if empty) |
 | `clear` | `(&arr [T])` | Remove all elements |
-| `sort` | `(&arr [T])` | Sort ascending in-place |
+| `fill` | `(&arr [T], value T, count int)` | Fill array with N copies of value |
+| `sort_asc` | `(&arr [T])` | Sort ascending in-place |
 | `sort_desc` | `(&arr [T])` | Sort descending in-place |
 
 #### Transformation Functions
@@ -1763,14 +1775,18 @@ println(r2[4])        // Prints 6 - r2 sees the change
 | `reverse` | `(arr [T]) -> [T]` | Return reversed copy |
 | `slice` | `(arr [T], start int, end int) -> [T]` | Return slice |
 | `concat` | `(...arrs [T]) -> [T]` | Concatenate arrays |
+| `deduplicate` | `(arr [T]) -> [T]` | Remove duplicate values |
+| `flatten` | `(arr [[T]]) -> [T]` | Flatten one level of nesting |
+| `split_every` | `(arr [T], size int) -> [[T]]` | Split into sub-arrays of given size |
+| `pair` | `(a [T], b [T]) -> [[T]]` | Pair elements from two arrays |
 
 #### Computation Functions
 
 | Function | Signature | Description |
 |----------|-----------|-------------|
-| `sum` | `(arr [number]) -> number` | Sum all elements |
-| `min` | `(arr [T]) -> T` | Minimum element |
-| `max` | `(arr [T]) -> T` | Maximum element |
+| `get_sum` | `(arr [number]) -> number` | Sum all elements |
+| `get_min` | `(arr [T]) -> T` | Minimum element |
+| `get_max` | `(arr [T]) -> T` | Maximum element |
 
 ### 10.3 Strings Module (`@strings`)
 
