@@ -92,7 +92,7 @@ do main() {
     // Test 7: reverse iteration building a string
     mut s string = ""
     for i in range(3, 0, -1) {
-        s = s + string(i)
+        s = "${s}${i}"
     }
     if s == "321" {
         println("  [PASS] reverse range string build '321'")
