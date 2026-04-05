@@ -1,0 +1,10 @@
+/*
+ * Error Test: E2002 - missing closing parenthesis
+ * Expected: error points at current token where ')' should be
+ * Verifies #1374 fix: expect_peek points at the right spot
+ */
+
+do main() {
+    mut x int = (5 + 3
+    println(x)
+}
