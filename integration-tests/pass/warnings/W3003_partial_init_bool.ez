@@ -1,0 +1,10 @@
+/*
+ * Warning Test: W3003 - partial init with bool type
+ * Expected: warning about fixed-size array not fully initialized
+ */
+
+
+do main() {
+    const flags [bool, 3] = {true}
+    println(flags)
+}

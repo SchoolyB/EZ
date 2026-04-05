@@ -1,0 +1,10 @@
+/*
+ * Warning Test: W3003 - partial init with string type
+ * Expected: warning about fixed-size array not fully initialized
+ */
+
+
+do main() {
+    const names [string, 4] = {"Alice", "Bob"}
+    println(names)
+}

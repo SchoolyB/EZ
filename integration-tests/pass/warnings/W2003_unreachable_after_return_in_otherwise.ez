@@ -1,0 +1,18 @@
+/*
+ * Warning Test: W2003 - unreachable code after return in otherwise block
+ * Expected: warning about unreachable statement after return
+ */
+
+
+do classify(x int) -> string {
+    if x > 0 {
+        return "positive"
+    } otherwise {
+        return "non-positive"
+        println("this never runs")  // unreachable in otherwise block
+    }
+}
+
+do main() {
+    println(classify(-1))
+}

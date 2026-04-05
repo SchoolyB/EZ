@@ -1,0 +1,11 @@
+/*
+ * Warning Test: W2007 - shadows a global mut variable
+ * Expected: warning about variable shadowing a global
+ */
+
+mut counter int = 0
+
+do main() {
+    mut counter int = 10  // shadows the global mut
+    println(counter)
+}

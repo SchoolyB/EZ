@@ -1,0 +1,10 @@
+/*
+ * Warning Test: W3003 - partial init at file scope (global const)
+ * Expected: warning about fixed-size array not fully initialized
+ */
+
+const SCORES [int, 4] = {100, 200}
+
+do main() {
+    println(SCORES)
+}

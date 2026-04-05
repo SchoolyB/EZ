@@ -1,0 +1,14 @@
+/*
+ * Warning Test: W2003 - println after return
+ * Expected: warning about unreachable code
+ */
+
+
+do greet() -> string {
+    return "hello"
+    println("goodbye")  // unreachable
+}
+
+do main() {
+    println(greet())
+}

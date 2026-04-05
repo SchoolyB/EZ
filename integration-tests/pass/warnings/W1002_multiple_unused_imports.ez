@@ -1,0 +1,11 @@
+/*
+ * Warning Test: W1002 - multiple unused imports
+ * Expected: warning about unused imports
+ */
+
+import @math
+import @strings
+
+do main() {
+    println("none of the imports are used")
+}

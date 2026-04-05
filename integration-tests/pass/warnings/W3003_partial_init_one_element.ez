@@ -1,0 +1,10 @@
+/*
+ * Warning Test: W3003 - partial init with 1 of 5 elements
+ * Expected: warning about fixed-size array not fully initialized
+ */
+
+
+do main() {
+    const arr [int, 5] = {42}
+    println(arr)
+}

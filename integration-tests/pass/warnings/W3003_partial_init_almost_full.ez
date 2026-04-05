@@ -1,0 +1,10 @@
+/*
+ * Warning Test: W3003 - partial init missing only 1 element
+ * Expected: warning about fixed-size array not fully initialized
+ */
+
+
+do main() {
+    const arr [int, 5] = {1, 2, 3, 4}
+    println(arr)
+}

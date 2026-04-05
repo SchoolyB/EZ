@@ -1,0 +1,16 @@
+/*
+ * Warning Test: W2003 - multiple unreachable statements after return
+ * Expected: warning about unreachable code (warns once per block)
+ */
+
+
+do example() -> int {
+    return 1
+    mut a int = 2  // unreachable — should warn here
+    mut b int = 3  // also unreachable but only one warning per block
+    println(a + b)
+}
+
+do main() {
+    println(example())
+}

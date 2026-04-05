@@ -1,0 +1,15 @@
+/*
+ * Warning Test: W2007 - shadows a global inside a helper function
+ * Expected: warning about variable shadowing a global
+ */
+
+const LIMIT int = 50
+
+do helper() {
+    mut LIMIT int = 25  // shadows global const in a non-main function
+    println(LIMIT)
+}
+
+do main() {
+    helper()
+}
