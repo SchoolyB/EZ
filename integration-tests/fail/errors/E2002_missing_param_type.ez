@@ -1,0 +1,12 @@
+/*
+ * Error Test: E2002 - missing parameter type
+ * Expected: "parameter is missing a type"
+ */
+
+do foo(x) {
+    println(x)
+}
+
+do main() {
+    foo(42)
+}

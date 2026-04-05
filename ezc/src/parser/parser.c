@@ -1087,6 +1087,22 @@ static AstNode *parse_func_declaration(Parser *p) {
 
     if (!expect_peek(p, TOK_RPAREN)) return NULL;
 
+    /* Backfill grouped param types (a, b int → both get int) and check for missing types */
+    for (int i = node->data.func_decl.param_count - 1; i >= 0; i--) {
+        Param *p_i = &node->data.func_decl.params[i];
+        if (!p_i->type_name && i + 1 < node->data.func_decl.param_count) {
+            p_i->type_name = node->data.func_decl.params[i + 1].type_name;
+        }
+        if (!p_i->type_name) {
+            char buf[256];
+            snprintf(buf, sizeof(buf),
+                "parameter '%s' is missing a type — every parameter must have a type (e.g., %s int)",
+                p_i->name, p_i->name);
+            diag_error(p->diag, "E2002", arena_strdup(p->arena, buf),
+                p->file, node->token.line, node->token.column, 0);
+        }
+    }
+
     /* Return type(s) */
     node->data.func_decl.return_type_count = 0;
     node->data.func_decl.return_types = NULL;
