@@ -9,8 +9,10 @@ permissions:
   contents: write
 
 jobs:
-  alpha-release:
+  alpha-tag:
     runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -20,13 +22,11 @@ jobs:
       - name: Get next alpha version
         id: version
         run: |
-          # Find the latest v3.0.0-alpha.N tag
           LATEST=$(git tag -l 'v3.0.0-alpha.*' --sort=-v:refname | head -1)
 
           if [ -z "$LATEST" ]; then
             NEXT="v3.0.0-alpha.1"
           else
-            # Extract N and increment
             N=$(echo "$LATEST" | sed 's/v3.0.0-alpha.//')
             NEXT="v3.0.0-alpha.$((N + 1))"
           fi
@@ -35,20 +35,14 @@ jobs:
           echo "Next alpha version: $NEXT"
 
       - name: Generate changelog since last alpha
-        id: changelog
         run: |
           LATEST=$(git tag -l 'v3.0.0-alpha.*' --sort=-v:refname | head -1)
 
           if [ -z "$LATEST" ]; then
-            # First alpha — changelog from all commits on this branch
-            CHANGELOG=$(git log --oneline -20 --pretty=format:"- %s")
+            git log --oneline -20 --pretty=format:"- %s" > /tmp/changelog.txt
           else
-            CHANGELOG=$(git log "${LATEST}..HEAD" --oneline --pretty=format:"- %s")
+            git log "${LATEST}..HEAD" --oneline --pretty=format:"- %s" > /tmp/changelog.txt
           fi
-
-          # Write to file to avoid escaping issues
-          echo "$CHANGELOG" > /tmp/changelog.txt
-          echo "Generated changelog with $(echo "$CHANGELOG" | wc -l) entries"
 
       - name: Create tag
         run: |
@@ -71,12 +65,68 @@ jobs:
           ### Changes since last alpha
 
           ${CHANGELOG}
-
-          ### Install
-
-          \`\`\`
-          git clone https://github.com/SchoolyB/EZ.git
-          cd EZ && git checkout v3.0.0
-          make build && sudo make install
-          \`\`\`
           "
+
+  build-binaries:
+    needs: alpha-tag
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-latest
+            goos: linux
+            goarch: amd64
+            name: linux-amd64
+          - os: ubuntu-latest
+            goos: linux
+            goarch: arm64
+            name: linux-arm64
+          - os: macos-latest
+            goos: darwin
+            goarch: arm64
+            name: darwin-arm64
+          - os: macos-latest
+            goos: darwin
+            goarch: amd64
+            name: darwin-amd64
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.23'
+
+      - name: Build EZ CLI
+        env:
+          GOOS: ${{ matrix.goos }}
+          GOARCH: ${{ matrix.goarch }}
+        run: go build -o ez ./cmd/ez
+
+      - name: Build EZC compiler
+        run: |
+          cd ezc
+          make clean
+          make build
+
+      - name: Package release
+        run: |
+          mkdir -p staging
+          cp ez staging/
+          cp ezc/ezc staging/
+          cp ezc/libezrt.a staging/
+
+          # Include runtime and stdlib sources (needed by ezc at compile time)
+          mkdir -p staging/lib/runtime staging/lib/stdlib
+          cp ezc/src/runtime/*.c ezc/src/runtime/*.h staging/lib/runtime/
+          cp ezc/src/stdlib/*.c ezc/src/stdlib/*.h staging/lib/stdlib/
+
+          tar czf "ez-${{ matrix.name }}.tar.gz" -C staging .
+
+      - name: Upload to release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release upload ${{ needs.alpha-tag.outputs.version }} \
+            "ez-${{ matrix.name }}.tar.gz" --clobber
