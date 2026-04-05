@@ -1,0 +1,8 @@
+/*
+ * Error Test: E3051 - map literal without type annotation
+ * Expected: "map literal requires a type annotation" error
+ */
+
+do main() {
+    mut m = {"a": 1, "b": 2}
+}

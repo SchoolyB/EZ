@@ -1,0 +1,8 @@
+/*
+ * Error Test: E3050 - array literal without type annotation
+ * Expected: "array literal requires a type annotation" error
+ */
+
+do main() {
+    mut x = {1, 2, 3}
+}
