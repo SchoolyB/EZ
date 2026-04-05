@@ -752,7 +752,7 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
             /* Map membership: key in map → ez_maps_has_key */
             if (arr_t && arr_t->kind == TK_MAP) {
                 if (negated) emit(cg, "!");
-                emit(cg, "({ __auto_type _ik = ");
+                emitf(cg, "({ %s _ik = ", ez_type_to_c_cg(cg, arr_t->key_type));
                 emit_expression(cg, node->data.infix.left);
                 emit(cg, "; ez_maps_has_key(&");
                 emit_expression(cg, node->data.infix.right);

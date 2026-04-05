@@ -829,7 +829,7 @@ static AstNode *parse_var_declaration(Parser *p) {
                     types[var_count] = NULL;
                 }
                 var_count++;
-                if (var_count >= MAX_MULTI_VARS) {
+                if (var_count > MAX_MULTI_VARS) {
                     char buf[128];
                     snprintf(buf, sizeof(buf),
                              "too many variables in multi-variable declaration — maximum is %d",

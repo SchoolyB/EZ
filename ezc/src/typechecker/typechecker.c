@@ -2671,7 +2671,10 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
                 !(is_int_kind(target_t->kind) && is_int_kind(value_t->kind)) &&
                 !(target_t->kind == TK_ENUM && is_int_kind(value_t->kind)) &&
                 !(is_int_kind(target_t->kind) && value_t->kind == TK_ENUM) &&
-                !(target_t->kind == TK_STRUCT && is_int_kind(value_t->kind))) {
+                !(target_t->kind == TK_STRUCT && is_int_kind(value_t->kind)) &&
+                !(target_t->kind == TK_POINTER && node->data.assign.value->kind == NODE_LABEL &&
+                  scope_lookup(tc->current_scope, node->data.assign.value->data.label.value) &&
+                  scope_lookup(tc->current_scope, node->data.assign.value->data.label.value)->is_ref)) {
                 char msg[256];
                 snprintf(msg, sizeof(msg),
                     "type mismatch: cannot assign %s to %s variable '%s'",

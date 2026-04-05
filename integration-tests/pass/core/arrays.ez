@@ -91,7 +91,7 @@ do main() {
     }
 
     // Test 8: fixed size array indexing
-    mut fixed_mutable [int, 3] = {10, 20, 30}
+    const fixed_mutable [int, 3] = {10, 20, 30}
     mut elem int = fixed_mutable[0]
     mut sum int = fixed_mutable[0] + fixed_mutable[1] + fixed_mutable[2]
     if elem == 10 && sum == 60 {
