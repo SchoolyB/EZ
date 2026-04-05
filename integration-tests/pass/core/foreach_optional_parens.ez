@@ -69,7 +69,7 @@ do main() {
     mut names [string] = {"Alice", "Bob", "Charlie"}
     mut concat string = ""
     for_each (name in names) {
-        concat = concat + name
+        concat = "${concat}${name}"
     }
     if concat == "AliceBobCharlie" {
         println("  [PASS] for_each (name in names) strings")
