@@ -1,0 +1,14 @@
+/*
+ * Error Test: E2068 - enum declared with mut instead of const
+ * Expected: "enums must be declared with 'const', not 'mut'" error
+ */
+
+mut Color enum {
+    RED
+    GREEN
+    BLUE
+}
+
+do main() {
+    mut c = Color.RED
+}

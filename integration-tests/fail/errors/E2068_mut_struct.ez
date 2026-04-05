@@ -1,0 +1,13 @@
+/*
+ * Error Test: E2068 - struct declared with mut instead of const
+ * Expected: "structs must be declared with 'const', not 'mut'" error
+ */
+
+mut Point struct {
+    x int
+    y int
+}
+
+do main() {
+    mut p = new(Point)
+}
