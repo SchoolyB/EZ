@@ -1396,6 +1396,17 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                         strcmp(fn_name, "u256") == 0 || strcmp(fn_name, "uint") == 0 ||
                         strcmp(fn_name, "byte") == 0) &&
                        node->data.call.arg_count == 1) {
+                /* E3043: validate source type is convertible to numeric */
+                EzType *src_t = resolve_expr(tc, node->data.call.args[0]);
+                if (src_t->kind == TK_ARRAY || src_t->kind == TK_MAP ||
+                    src_t->kind == TK_STRUCT || src_t->kind == TK_POINTER) {
+                    char msg[256];
+                    snprintf(msg, sizeof(msg),
+                        "cannot convert %s to %s — only numeric types, strings, and bools can be converted",
+                        type_name(src_t), fn_name);
+                    diag_error(tc->diag, "E3043", strdup(msg),
+                        tc->file, node->token.line, node->token.column, 0);
+                }
                 if (is_unsigned_type(fn_name))
                     result = &TYPE_UINT;
                 else
@@ -1403,11 +1414,21 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
             } else if (strcmp(fn_name, "string") == 0 && node->data.call.arg_count == 1) {
                 result = &TYPE_STRING;
             } else if (strcmp(fn_name, "float") == 0 && node->data.call.arg_count == 1) {
+                /* E3043: validate source type is convertible to float */
+                EzType *src_t = resolve_expr(tc, node->data.call.args[0]);
+                if (src_t->kind == TK_ARRAY || src_t->kind == TK_MAP ||
+                    src_t->kind == TK_STRUCT || src_t->kind == TK_POINTER ||
+                    src_t->kind == TK_BOOL) {
+                    char msg[256];
+                    snprintf(msg, sizeof(msg),
+                        "cannot convert %s to float — only numeric types and strings can be converted",
+                        type_name(src_t));
+                    diag_error(tc->diag, "E3043", strdup(msg),
+                        tc->file, node->token.line, node->token.column, 0);
+                }
                 result = &TYPE_FLOAT;
             } else if (strcmp(fn_name, "bool") == 0 && node->data.call.arg_count == 1) {
                 result = &TYPE_BOOL;
-            } else if (strcmp(fn_name, "byte") == 0 && node->data.call.arg_count == 1) {
-                result = &TYPE_BYTE;
             } else {
                 FuncSig *sig = find_func(tc, fn_name);
                 if (sig) {
