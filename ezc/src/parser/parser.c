@@ -68,8 +68,9 @@ static bool expect_peek(Parser *p, TokenType t) {
     char buf[256];
     snprintf(buf, sizeof(buf), "expected '%s', got '%s'",
         token_type_name(t), token_type_name(p->peek_token.type));
+    /* Point at current token (where the expected token should be), not the peek token */
     diag_error(p->diag, "E2001", arena_strdup(p->arena, buf),
-        p->file, p->peek_token.line, p->peek_token.column, 0);
+        p->file, p->cur_token.line, p->cur_token.column, 0);
     return false;
 }
 

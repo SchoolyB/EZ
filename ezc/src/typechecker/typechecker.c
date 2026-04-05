@@ -1709,14 +1709,18 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                                 char msg[256];
                                 snprintf(msg, sizeof(msg), "undefined function '%s'", fn_name);
                                 const char *suggestion = suggest_name(tc, fn_name);
+                                /* Point at the function name, not the ( */
+                                AstNode *fn_node = node->data.call.function;
+                                int el = fn_node ? fn_node->token.line : node->token.line;
+                                int ec = fn_node ? fn_node->token.column : node->token.column;
                                 if (suggestion) {
                                     char help[256];
                                     snprintf(help, sizeof(help), "did you mean '%s'?", suggestion);
                                     diag_error_help(tc->diag, "E4002", strdup(msg),
-                                        tc->file, node->token.line, node->token.column, 0, strdup(help));
+                                        tc->file, el, ec, 0, strdup(help));
                                 } else {
                                     diag_error(tc->diag, "E4002", strdup(msg),
-                                        tc->file, node->token.line, node->token.column, 0);
+                                        tc->file, el, ec, 0);
                                 }
                             }
                         }
@@ -3841,9 +3845,15 @@ void typechecker_check(TypeChecker *tc, AstNode *program) {
 
     /* Verify main() exists */
     if (!find_func(tc, "main")) {
+        /* Point at the last statement or line 1 if empty */
+        int err_line = 1;
+        if (program->data.program.stmt_count > 0) {
+            AstNode *last = program->data.program.stmts[program->data.program.stmt_count - 1];
+            if (last) err_line = last->token.line;
+        }
         diag_error(tc->diag, "E4005",
             strdup("program has no main() function — every program needs 'do main() { }'"),
-            tc->file, 1, 1, 0);
+            tc->file, err_line, 1, 0);
     }
 
     /* Warn about unused imports */
