@@ -275,7 +275,7 @@ do toggle_bool(&b bool) {
 }
 
 do append_world(&s string) {
-    s = s + ", World!"
+    s = "${s}, World!"
 }
 
 do double_point(&p Point) {

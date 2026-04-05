@@ -1642,17 +1642,24 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                         if (found_in_using) {
                             /* Type already set above */
                         } else {
-                            char msg[256];
-                            snprintf(msg, sizeof(msg), "undefined function '%s'", fn_name);
-                            const char *suggestion = suggest_name(tc, fn_name);
-                            if (suggestion) {
-                                char help[256];
-                                snprintf(help, sizeof(help), "did you mean '%s'?", suggestion);
-                                diag_error_help(tc->diag, "E4002", strdup(msg),
-                                    tc->file, node->token.line, node->token.column, 0, strdup(help));
+                            /* Check if it's a variable holding a function reference */
+                            Symbol *fn_sym = scope_lookup(tc->current_scope, fn_name);
+                            if (fn_sym && fn_sym->type && strcmp(type_name(fn_sym->type), "func") == 0) {
+                                fn_sym->used = true;
+                                result = &TYPE_UNKNOWN;
                             } else {
-                                diag_error(tc->diag, "E4002", strdup(msg),
-                                    tc->file, node->token.line, node->token.column, 0);
+                                char msg[256];
+                                snprintf(msg, sizeof(msg), "undefined function '%s'", fn_name);
+                                const char *suggestion = suggest_name(tc, fn_name);
+                                if (suggestion) {
+                                    char help[256];
+                                    snprintf(help, sizeof(help), "did you mean '%s'?", suggestion);
+                                    diag_error_help(tc->diag, "E4002", strdup(msg),
+                                        tc->file, node->token.line, node->token.column, 0, strdup(help));
+                                } else {
+                                    diag_error(tc->diag, "E4002", strdup(msg),
+                                        tc->file, node->token.line, node->token.column, 0);
+                                }
                             }
                         }
                     }
@@ -2584,10 +2591,13 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
                     break;
                 }
             }
-            if (declared->kind == TK_UNKNOWN) {
+            if (declared->kind == TK_UNKNOWN &&
+                !(declared->name && strcmp(declared->name, "func") == 0) &&
+                !(node->data.var_decl.value && node->data.var_decl.value->kind == NODE_CALL_EXPR)) {
                 /* Don't register variables with unresolved types — an error
                    (E3050, E3051, etc.) has already been emitted upstream.
-                   Skipping scope_define prevents confusing cascading errors. */
+                   Skipping scope_define prevents confusing cascading errors.
+                   Exceptions: func refs and func ref calls (return type unknown). */
                 break;
             }
             scope_define(tc->current_scope, node->data.var_decl.name,

@@ -21,6 +21,7 @@ do add_one(n int) -> int {
 }
 
 const NumUtils struct {
+    _pad int
     do negate(n int) -> int {
         return n * -1
     }
@@ -60,7 +61,7 @@ do main() {
     }
 
     // Test 2: Pass as argument (filter)
-    mut nums = {-3, -1, 0, 1, 2, 5}
+    mut nums [int] = {-3, -1, 0, 1, 2, 5}
     mut positives = filter(nums, ()is_positive)
     if len(positives) == 3 {
         println("  [PASS] filter with ()is_positive")

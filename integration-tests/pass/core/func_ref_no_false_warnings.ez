@@ -13,6 +13,7 @@ do square(n int) -> int {
 
 // This function is ONLY used via ()Helpers.triple — should not trigger W1003
 const Helpers struct {
+    _pad int
     do triple(n int) -> int {
         return n * 3
     }
