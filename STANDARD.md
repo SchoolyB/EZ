@@ -1668,10 +1668,10 @@ The core module provides fundamental I/O, type conversion, and utility functions
 
 | Function | Signature | Description |
 |----------|-----------|-------------|
-| `println` | `(...values) -> nil` | Print values with newline |
-| `print` | `(...values) -> nil` | Print values without newline |
-| `eprintln` | `(...values) -> nil` | Print to stderr with newline |
-| `eprint` | `(...values) -> nil` | Print to stderr without newline |
+| `println` | `(value T)` | Print value with newline. Accepts any type. |
+| `print` | `(value T)` | Print value without newline. Accepts any type. |
+| `eprintln` | `(value T)` | Print to stderr with newline. Accepts any type. |
+| `eprint` | `(value T)` | Print to stderr without newline. Accepts any type. |
 
 All types are printable: `string`, `int`, `float`, `bool`, arrays, maps, structs, and pointers.
 
@@ -1693,18 +1693,18 @@ All types are printable: `string`, `int`, `float`, `bool`, arrays, maps, structs
 | Function | Signature | Description |
 |----------|-----------|-------------|
 | `len` | `(collection) -> int` | Length of array, string, or map |
-| `type_of` | `(value) -> string` | Type name as string (returns sized names, e.g. `"i32"`, `"u8"`) |
+| `type_of` | `(value T) -> string` | Type name as string. Accepts any type. Returns sized names, e.g. `"i32"`, `"u8"`. |
 | `size_of` | `(Type) -> int` | Size of type in bytes |
-| `copy` | `(value) -> T` | Create deep copy |
+| `copy` | `(value T) -> T` | Create deep copy. Accepts any type. |
 | `new` | `(Type) -> ^Type` | Allocate zero-initialized struct on arena |
-| `ref` | `(value) -> T` | Create reference to value |
+| `ref` | `(value T) -> T` | Create reference to value. Accepts any type. |
 | `addr` | `(variable) -> ^T` | Get memory address of a variable |
 | `error` | `(message string) -> Error` | Create error value |
 | `assert` | `(condition bool, message string)` | Assert condition is true |
-| `panic` | `(message string) -> nil` | Terminate with error message |
-| `exit` | `(code int) -> nil` | Exit program with code |
+| `panic` | `(message string)` | Terminate with error message |
+| `exit` | `(code int)` | Exit program with code |
 | `range` | `(start int, end int [, step int]) -> Range` | Create integer range |
-| `cast` | `(value, Type) -> Type` | Explicit type conversion |
+| `cast` | `(value T, Type) -> Type` | Explicit type conversion |
 
 **Reference behavior with `ref()`:**
 
@@ -1731,9 +1731,9 @@ println(r2[4])        // Prints 6 - r2 sees the change
 
 | Function | Signature | Description |
 |----------|-----------|-------------|
-| `sleep_s` | `(seconds int) -> nil` | Sleep for seconds |
-| `sleep_ms` | `(ms int) -> nil` | Sleep for milliseconds |
-| `sleep_ns` | `(ns int) -> nil` | Sleep for nanoseconds |
+| `sleep_s` | `(seconds int)` | Sleep for seconds |
+| `sleep_ms` | `(ms int)` | Sleep for milliseconds |
+| `sleep_ns` | `(ns int)` | Sleep for nanoseconds |
 
 ### 10.2 Arrays Module (`@arrays`)
 
@@ -1757,7 +1757,7 @@ println(r2[4])        // Prints 6 - r2 sees the change
 
 | Function | Signature | Description |
 |----------|-----------|-------------|
-| `append` | `(&arr [T], ...values T)` | Append elements |
+| `append` | `(&arr [T], value T)` | Append element |
 | `prepend` | `(&arr [T], value T)` | Insert value at front |
 | `insert_at` | `(&arr [T], index int, value T)` | Insert at index |
 | `remove_at` | `(&arr [T], index int)` | Remove element at index |
@@ -1774,7 +1774,7 @@ println(r2[4])        // Prints 6 - r2 sees the change
 |----------|-----------|-------------|
 | `reverse` | `(arr [T]) -> [T]` | Return reversed copy |
 | `slice` | `(arr [T], start int, end int) -> [T]` | Return slice |
-| `concat` | `(...arrs [T]) -> [T]` | Concatenate arrays |
+| `concat` | `(a [T], b [T]) -> [T]` | Concatenate two arrays |
 | `deduplicate` | `(arr [T]) -> [T]` | Remove duplicate values |
 | `flatten` | `(arr [[T]]) -> [T]` | Flatten one level of nesting |
 | `split_every` | `(arr [T], size int) -> [[T]]` | Split into sub-arrays of given size |
@@ -1844,63 +1844,63 @@ println(r2[4])        // Prints 6 - r2 sees the change
 
 | Function | Signature | Description |
 |----------|-----------|-------------|
-| `abs` | `(n int \| float) -> int \| float` | Absolute value. Return type matches input type. |
-| `neg` | `(n int \| float) -> int \| float` | Negation. Return type matches input type. |
-| `sign` | `(n int \| float) -> int` | Sign (-1, 0, 1) |
+| `abs` | `(n int \| float) -> int \| float` | Absolute value. Accepts int, float, or sized integer/float types. Return type matches input. |
+| `neg` | `(n int \| float) -> int \| float` | Negation. Accepts int, float, or sized integer/float types. Return type matches input. |
+| `sign` | `(n int \| float) -> int` | Sign (-1, 0, 1). Accepts int, float, or sized integer/float types. |
 
 #### Min/Max/Clamp
 
 | Function | Signature | Description |
 |----------|-----------|-------------|
-| `min` | `(a int \| float, b int \| float) -> int \| float` | Minimum value. Return type matches input type. |
-| `max` | `(a int \| float, b int \| float) -> int \| float` | Maximum value. Return type matches input type. |
-| `clamp` | `(value int \| float, min int \| float, max int \| float) -> int \| float` | Clamp to range. Return type matches input type. |
+| `min` | `(a int \| float, b int \| float) -> int \| float` | Minimum value. Accepts int, float, or sized integer/float types. Return type matches input. |
+| `max` | `(a int \| float, b int \| float) -> int \| float` | Maximum value. Accepts int, float, or sized integer/float types. Return type matches input. |
+| `clamp` | `(value int \| float, min int \| float, max int \| float) -> int \| float` | Clamp to range. Accepts int, float, or sized integer/float types. Return type matches input. |
 
 #### Rounding
 
 | Function | Signature | Description |
 |----------|-----------|-------------|
-| `floor` | `(n int \| float) -> int` | Floor |
-| `ceil` | `(n int \| float) -> int` | Ceiling |
-| `round` | `(n int \| float) -> int` | Round |
-| `trunc` | `(n int \| float) -> int` | Truncate |
+| `floor` | `(n int \| float) -> int` | Floor. Accepts int, float, or sized integer/float types. |
+| `ceil` | `(n int \| float) -> int` | Ceiling. Accepts int, float, or sized integer/float types. |
+| `round` | `(n int \| float) -> int` | Round. Accepts int, float, or sized integer/float types. |
+| `trunc` | `(n int \| float) -> int` | Truncate. Accepts int, float, or sized integer/float types. |
 
 #### Powers and Roots
 
 | Function | Signature | Description |
 |----------|-----------|-------------|
-| `pow` | `(base int \| float, exp int \| float) -> float` | Power |
-| `sqrt` | `(n int \| float) -> float` | Square root |
-| `cbrt` | `(n int \| float) -> float` | Cube root |
-| `hypot` | `(x int \| float, y int \| float) -> float` | Hypotenuse |
-| `exp` | `(n int \| float) -> float` | e^n |
-| `exp2` | `(n int \| float) -> float` | 2^n |
+| `pow` | `(base int \| float, exp int \| float) -> float` | Power. Accepts int, float, or sized integer/float types. |
+| `sqrt` | `(n int \| float) -> float` | Square root. Accepts int, float, or sized integer/float types. |
+| `cbrt` | `(n int \| float) -> float` | Cube root. Accepts int, float, or sized integer/float types. |
+| `hypot` | `(x int \| float, y int \| float) -> float` | Hypotenuse. Accepts int, float, or sized integer/float types. |
+| `exp` | `(n int \| float) -> float` | e^n. Accepts int, float, or sized integer/float types. |
+| `exp2` | `(n int \| float) -> float` | 2^n. Accepts int, float, or sized integer/float types. |
 
 #### Logarithms
 
 | Function | Signature | Description |
 |----------|-----------|-------------|
-| `log` | `(n int \| float) -> float` | Natural logarithm |
-| `log2` | `(n int \| float) -> float` | Base 2 logarithm |
-| `log10` | `(n int \| float) -> float` | Base 10 logarithm |
-| `log_base` | `(value int \| float, base int \| float) -> float` | Custom base |
+| `log` | `(n int \| float) -> float` | Natural logarithm. Accepts int, float, or sized integer/float types. |
+| `log2` | `(n int \| float) -> float` | Base 2 logarithm. Accepts int, float, or sized integer/float types. |
+| `log10` | `(n int \| float) -> float` | Base 10 logarithm. Accepts int, float, or sized integer/float types. |
+| `log_base` | `(value int \| float, base int \| float) -> float` | Custom base logarithm. Accepts int, float, or sized integer/float types. |
 
 #### Trigonometry
 
 | Function | Signature | Description |
 |----------|-----------|-------------|
-| `sin` | `(rad int \| float) -> float` | Sine |
-| `cos` | `(rad int \| float) -> float` | Cosine |
-| `tan` | `(rad int \| float) -> float` | Tangent |
-| `asin` | `(n int \| float) -> float` | Arc sine |
-| `acos` | `(n int \| float) -> float` | Arc cosine |
-| `atan` | `(n int \| float) -> float` | Arc tangent |
-| `atan2` | `(y int \| float, x int \| float) -> float` | Arc tangent of y/x |
-| `sinh` | `(n int \| float) -> float` | Hyperbolic sine |
-| `cosh` | `(n int \| float) -> float` | Hyperbolic cosine |
-| `tanh` | `(n int \| float) -> float` | Hyperbolic tangent |
-| `deg_to_rad` | `(deg int \| float) -> float` | Degrees to radians |
-| `rad_to_deg` | `(rad int \| float) -> float` | Radians to degrees |
+| `sin` | `(rad int \| float) -> float` | Sine. Accepts int, float, or sized integer/float types. |
+| `cos` | `(rad int \| float) -> float` | Cosine. Accepts int, float, or sized integer/float types. |
+| `tan` | `(rad int \| float) -> float` | Tangent. Accepts int, float, or sized integer/float types. |
+| `asin` | `(n int \| float) -> float` | Arc sine. Accepts int, float, or sized integer/float types. |
+| `acos` | `(n int \| float) -> float` | Arc cosine. Accepts int, float, or sized integer/float types. |
+| `atan` | `(n int \| float) -> float` | Arc tangent. Accepts int, float, or sized integer/float types. |
+| `atan2` | `(y int \| float, x int \| float) -> float` | Arc tangent of y/x. Accepts int, float, or sized integer/float types. |
+| `sinh` | `(n int \| float) -> float` | Hyperbolic sine. Accepts int, float, or sized integer/float types. |
+| `cosh` | `(n int \| float) -> float` | Hyperbolic cosine. Accepts int, float, or sized integer/float types. |
+| `tanh` | `(n int \| float) -> float` | Hyperbolic tangent. Accepts int, float, or sized integer/float types. |
+| `deg_to_rad` | `(deg int \| float) -> float` | Degrees to radians. Accepts int, float, or sized integer/float types. |
+| `rad_to_deg` | `(rad int \| float) -> float` | Radians to degrees. Accepts int, float, or sized integer/float types. |
 
 #### Statistical
 
@@ -1925,8 +1925,8 @@ println(r2[4])        // Prints 6 - r2 sees the change
 
 | Function | Signature | Description |
 |----------|-----------|-------------|
-| `lerp` | `(a int \| float, b int \| float, t int \| float) -> float` | Linear interpolation |
-| `distance` | `(x1 int \| float, y1 int \| float, x2 int \| float, y2 int \| float) -> float` | Euclidean distance |
+| `lerp` | `(a int \| float, b int \| float, t int \| float) -> float` | Linear interpolation. Accepts int, float, or sized integer/float types. |
+| `distance` | `(x1 int \| float, y1 int \| float, x2 int \| float, y2 int \| float) -> float` | Euclidean distance. Accepts int, float, or sized integer/float types. |
 
 #### Constants
 
@@ -2000,10 +2000,10 @@ println(r2[4])        // Prints 6 - r2 sees the change
 
 | Function | Signature | Description |
 |----------|-----------|-------------|
-| `encode` | `(value) -> (string, Error)` | Encode to JSON string |
+| `encode` | `(value T) -> (string, Error)` | Encode to JSON string. Accepts any type. |
 | `decode` | `(text string) -> (any, Error)` | Decode to dynamic type |
 | `decode` | `(text string, Type) -> (Type, Error)` | Decode to typed struct |
-| `pretty_print` | `(value, indent int) -> (string, Error)` | Pretty print JSON |
+| `pretty_print` | `(value T, indent int) -> (string, Error)` | Pretty print JSON. Accepts any type. |
 | `is_valid` | `(text string) -> bool` | Check if valid JSON |
 
 ### 10.9 IO Module (`@io`)
@@ -2179,10 +2179,10 @@ SQLite database access for persistent storage.
 |----------|-----------|-------------|
 | `open` | `(path string) -> Database` | Open or create a SQLite database |
 | `close` | `(db Database)` | Close database connection |
-| `exec` | `(db Database, sql string, ...params)` | Execute a SQL statement with optional parameters (no result) |
-| `query` | `(db Database, sql string, ...params) -> [map[string:string]]` | Execute a parameterized SQL query, returns array of row maps |
+| `exec` | `(db Database, sql string, ...params string)` | Execute a SQL statement with optional parameters |
+| `query` | `(db Database, sql string, ...params string) -> [map[string:string]]` | Execute a parameterized SQL query, returns array of row maps |
 | `prepare` | `(db Database, sql string) -> Statement` | Prepare a SQL statement for repeated execution |
-| `step` | `(stmt Statement, ...params) -> [map[string:string]]` | Execute a prepared statement with parameters |
+| `step` | `(stmt Statement, ...params string) -> [map[string:string]]` | Execute prepared statement with parameters |
 | `finalize` | `(stmt Statement)` | Release a prepared statement |
 | `begin` | `(db Database)` | Begin a transaction |
 | `commit` | `(db Database)` | Commit the current transaction |
@@ -2339,7 +2339,7 @@ Message passing between threads. Compiler-only feature; requires POSIX threads.
 |----------|-----------|-------------|
 | `open` | `(capacity int) -> Channel` | Create a buffered channel |
 | `send` | `(ch Channel, value)` | Send a value into a channel |
-| `receive` | `(ch Channel) -> any` | Receive a value from a channel |
+| `receive` | `(ch Channel) -> T` | Receive a value from a channel |
 | `close` | `(ch Channel)` | Close a channel |
 
 ### 10.25 Memory Module (`@mem`)
@@ -2353,7 +2353,7 @@ Arena-based memory allocation. Compiler-only feature.
 | `reset` | `(arena Arena)` | Reset an arena, reclaiming all allocations without freeing |
 | `usage` | `(arena Arena) -> int` | Return the number of bytes currently used |
 | `init` | `(arena Arena, Type) -> ^Type` | Allocate a zero-initialized value of `Type` in the arena |
-| `alloc` | `(arena Arena, value) -> T` | Allocate a copy of `value` in the arena |
+| `alloc` | `(arena Arena, value T) -> ^T` | Allocate a copy of value in the arena |
 | `copy` | `(dest, src, n int)` | Copy `n` bytes from `src` to `dest` |
 | `zero` | `(ptr, n int)` | Zero out `n` bytes at `ptr` |
 | `set` | `(ptr, value int, n int)` | Set `n` bytes at `ptr` to `value` |
@@ -2401,10 +2401,10 @@ Formatted output and string formatting functions.
 
 | Function | Signature | Description |
 |----------|-----------|-------------|
-| `printf` | `(format string, ...args)` | Print formatted string to stdout |
-| `sprintf` | `(format string, ...args) -> string` | Return formatted string (requires arena argument) |
-| `format` | `(format string, ...args) -> string` | Return formatted string |
-| `eprintln` | `(value)` | Print a value to stderr with newline |
+| `printf` | `(format string, ...args T)` | Print formatted string to stdout |
+| `sprintf` | `(format string, ...args T) -> string` | Return formatted string |
+| `format` | `(format string, ...args T) -> string` | Return formatted string |
+| `eprintln` | `(value T)` | Print a value to stderr with newline. Accepts any type. |
 | `eprint` | `(s string)` | Print a string to stderr without newline |
 
 #### Padding
