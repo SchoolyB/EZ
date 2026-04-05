@@ -46,6 +46,13 @@ bool ez_arrays_contains_int(EzArray *arr, int64_t value) {
     return false;
 }
 
+bool ez_arrays_contains_float(EzArray *arr, double value) {
+    for (int32_t i = 0; i < arr->len; i++) {
+        if (*(double *)((char *)arr->data + i * arr->elem_size) == value) return true;
+    }
+    return false;
+}
+
 bool ez_arrays_contains_str(EzArray *arr, EzString value) {
     for (int32_t i = 0; i < arr->len; i++) {
         EzString *s = (EzString *)((char *)arr->data + i * arr->elem_size);

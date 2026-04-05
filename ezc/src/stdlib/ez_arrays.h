@@ -20,6 +20,7 @@ void ez_arrays_clear(EzArray *arr);
 /* Query */
 bool ez_arrays_is_empty(EzArray *arr);
 bool ez_arrays_contains_int(EzArray *arr, int64_t value);
+bool ez_arrays_contains_float(EzArray *arr, double value);
 bool ez_arrays_contains_str(EzArray *arr, EzString value);
 int64_t ez_arrays_index_of_int(EzArray *arr, int64_t value);
 int64_t ez_arrays_index_of_str(EzArray *arr, EzString value);

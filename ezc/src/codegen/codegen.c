@@ -760,15 +760,17 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
                 break;
             }
             if (negated) emit(cg, "!");
-            if (arr_t && arr_t->kind == TK_ARRAY && arr_t->element_type &&
-                strcmp(arr_t->element_type, "string") == 0) {
-                emit(cg, "ez_arrays_contains_str(&");
-                emit_expression(cg, node->data.infix.right);
-                emit(cg, ", ");
-                emit_expression(cg, node->data.infix.left);
-                emit(cg, ")");
-            } else {
-                emit(cg, "ez_arrays_contains_int(&");
+            {
+                const char *contains_fn = "ez_arrays_contains_int";
+                if (arr_t && arr_t->kind == TK_ARRAY && arr_t->element_type) {
+                    if (strcmp(arr_t->element_type, "string") == 0)
+                        contains_fn = "ez_arrays_contains_str";
+                    else if (strcmp(arr_t->element_type, "float") == 0 ||
+                             strcmp(arr_t->element_type, "f32") == 0 ||
+                             strcmp(arr_t->element_type, "f64") == 0)
+                        contains_fn = "ez_arrays_contains_float";
+                }
+                emitf(cg, "%s(&", contains_fn);
                 emit_expression(cg, node->data.infix.right);
                 emit(cg, ", ");
                 emit_expression(cg, node->data.infix.left);
