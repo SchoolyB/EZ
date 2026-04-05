@@ -3144,6 +3144,21 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
                 }
             }
             EzType *ptype = p->type_name ? type_from_name(p->type_name) : &TYPE_UNKNOWN;
+            /* E3001: validate default value type matches parameter type */
+            if (p->default_value && p->type_name) {
+                EzType *def_t = resolve_expr(tc, p->default_value);
+                if (def_t->kind != TK_UNKNOWN && ptype->kind != TK_UNKNOWN &&
+                    def_t->kind != ptype->kind &&
+                    !(is_int_kind(def_t->kind) && is_int_kind(ptype->kind)) &&
+                    !(def_t->kind == TK_NIL)) {
+                    char msg[256];
+                    snprintf(msg, sizeof(msg),
+                        "default value for parameter '%s' has wrong type — expected %s, got %s",
+                        p->name, p->type_name, type_name(def_t));
+                    diag_error(tc->diag, "E3001", strdup(msg),
+                        tc->file, p->default_value->token.line, p->default_value->token.column, 0);
+                }
+            }
             scope_define(func_scope, p->name, ptype, p->mutable);
         }
 
