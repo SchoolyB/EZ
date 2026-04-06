@@ -1,0 +1,4 @@
+mut counter int = 0
+
+do get_count() -> int { return counter }
+do increment() { counter += 1 }

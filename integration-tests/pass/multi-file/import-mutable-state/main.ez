@@ -1,0 +1,12 @@
+import "./state.ez"
+
+do main() {
+    state.increment()
+    state.increment()
+    mut count int = state.get_count()
+    if count == 2 {
+        println("ALL TESTS PASSED")
+    } otherwise {
+        println("SOME TESTS FAILED")
+    }
+}

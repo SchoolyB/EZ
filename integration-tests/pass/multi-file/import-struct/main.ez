@@ -1,0 +1,21 @@
+import "./shapes.ez"
+
+do main() {
+    mut passed int = 0
+
+    mut p shapes.Point = shapes.Point{x: 10, y: 20}
+    if p.x == 10 && p.y == 20 {
+        passed += 1
+    }
+
+    mut p2 = shapes.make_point(5, 15)
+    if p2.x == 5 {
+        passed += 1
+    }
+
+    if passed == 2 {
+        println("ALL TESTS PASSED")
+    } otherwise {
+        println("SOME TESTS FAILED")
+    }
+}
