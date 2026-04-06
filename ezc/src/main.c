@@ -324,16 +324,25 @@ int main(int argc, char **argv) {
 
                 /* Resolve path relative to input file directory */
                 char import_path[PATH_BUF_SIZE];
-                snprintf(import_path, sizeof(import_path), "%s%s", input_dir, item->path);
-                /* Strip leading ./ if present in the import path */
                 const char *rel = item->path;
                 if (rel[0] == '.' && rel[1] == '/') rel += 2;
-                snprintf(import_path, sizeof(import_path), "%s%s.ez", input_dir, rel);
+                /* Path already includes .ez extension from parser */
+                snprintf(import_path, sizeof(import_path), "%s%s", input_dir, rel);
 
                 /* Derive module name from filename (strip directory and .ez) */
-                const char *mod_name = rel;
+                const char *mod_base = rel;
                 const char *slash = strrchr(rel, '/');
-                if (slash) mod_name = slash + 1;
+                if (slash) mod_base = slash + 1;
+                /* Strip .ez extension for module name */
+                char mod_name_buf[256];
+                size_t mod_len = strlen(mod_base);
+                if (mod_len > 3 && strcmp(mod_base + mod_len - 3, ".ez") == 0) {
+                    memcpy(mod_name_buf, mod_base, mod_len - 3);
+                    mod_name_buf[mod_len - 3] = '\0';
+                } else {
+                    snprintf(mod_name_buf, sizeof(mod_name_buf), "%s", mod_base);
+                }
+                const char *mod_name = arena_strdup(arena, mod_name_buf);
 
                 /* Set the alias if not already set */
                 if (!item->alias) item->alias = mod_name;

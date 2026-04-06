@@ -2,7 +2,7 @@
  * Test that no W4001 warning is shown for files in matching directory
  * Regression test for bug #464
  */
-import "./mymod"
+import "./mymod.ez"
 
 
 do main() {

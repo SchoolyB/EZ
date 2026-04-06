@@ -3,7 +3,7 @@
  * Regression test for issue #851 - struct parameter member access bug
  */
 
-import proc"./processor"
+import proc"./processor.ez"
 
 
 do main() {

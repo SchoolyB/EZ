@@ -7,7 +7,7 @@
  *   - Private functions stay private across modules
  */
 
-import "./geometry"
+import "./geometry.ez"
 
 
 do main() {

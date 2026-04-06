@@ -3,7 +3,7 @@
  * Expected: "invalid" or "module" or "format"
  */
 
-import "./badmodule"
+import "./badmodule.ez"
 
 do main() {
     println("test")

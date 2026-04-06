@@ -2,13 +2,13 @@
  * alias_test.ez - Test aliased import and use syntax
  *
  * Tests:
- *   - import and use alias"./path" syntax
+ *   - import and use alias"./path.ez" syntax
  *   - import and use alias@stdlib syntax
  *   - Chained with mixed aliases
  */
 
 // Use aliased imports for everything
-import and use a"./libA", b"./libB", m@math
+import and use a"./libA.ez", b"./libB.ez", m@math
 
 const TestResult struct {
     passed int

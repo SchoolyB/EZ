@@ -1,4 +1,4 @@
-import "./utils"
+import "./utils.ez"
 
 do main() {
     // Bug test: passing strings to function expecting ints

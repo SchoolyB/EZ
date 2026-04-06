@@ -4,7 +4,7 @@
  * Regression test for bug #461 - error message now shows location
  */
 
-import "./nonexistent_module"
+import "./nonexistent_module.ez"
 
 do main() {
     println("test")

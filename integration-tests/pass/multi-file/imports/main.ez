@@ -2,16 +2,16 @@
  * main.ez - Test import and use syntax with user-defined modules
  *
  * Tests:
- *   - import and use "./path" (auto-use user module)
- *   - import and use alias"./path" (aliased auto-use)
+ *   - import and use "./path.ez" (auto-use user module)
+ *   - import and use alias"./path.ez" (aliased auto-use)
  *   - import and use @stdlib (existing behavior)
- *   - Chained imports: import and use @std, lib"./path"
+ *   - Chained imports: import and use @std, lib"./path.ez"
  *   - Mixed aliased and non-aliased in chain
- *   - Regular import with alias"./path" syntax
+ *   - Regular import with alias"./path.ez" syntax
  */
 
 // Test 1: import and use with user module (no alias)
-import and use "./libA"
+import and use "./libA.ez"
 
 // Test result tracking
 const TestResult struct {
@@ -68,7 +68,7 @@ do main() {
     println("========================================")
 }
 
-// Test import and use "./path" (unqualified access via auto-use)
+// Test import and use "./path.ez" (unqualified access via auto-use)
 do test_auto_use_no_alias() -> TestResult {
     println("------------------------------------------")
     println("  Test: import and use (no alias)")
@@ -76,7 +76,7 @@ do test_auto_use_no_alias() -> TestResult {
     mut passed int = 0
     mut failed int = 0
 
-    // libA was imported with 'import and use "./libA"'
+    // libA was imported with 'import and use "./libA.ez"'
     // Should be able to call greet() directly without prefix
     println("  Testing unqualified access to libA...")
     mut greeting string = greet("World")
@@ -104,7 +104,7 @@ do test_auto_use_no_alias() -> TestResult {
     return TestResult{passed: passed, failed: failed}
 }
 
-// Test import and use alias"./path"
+// Test import and use alias"./path.ez"
 do test_auto_use_with_alias() -> TestResult {
     println("------------------------------------------")
     println("  Test: import and use alias\"path\"")
@@ -142,7 +142,7 @@ do test_chained_import_use() -> TestResult {
     mut passed int = 0
     mut failed int = 0
 
-    // The top of file has: import and use @std, "./libA"
+    // The top of file has: import and use @std, "./libA.ez"
     // Both std functions and libA functions should be available
 
     println("  Testing println (from @std via chain)...")
@@ -164,7 +164,7 @@ do test_chained_import_use() -> TestResult {
     return TestResult{passed: passed, failed: failed}
 }
 
-// Test regular import with alias"./path" syntax (not and use)
+// Test regular import with alias"./path.ez" syntax (not and use)
 do test_regular_import_alias() -> TestResult {
     println("------------------------------------------")
     println("  Test: Regular import with alias")

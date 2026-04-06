@@ -2,7 +2,7 @@
  * Test that errors in multi-file modules show correct file location
  * Regression test for bug #466
  */
-import "./utils"
+import "./utils.ez"
 
 
 do main() {

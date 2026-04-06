@@ -2,7 +2,7 @@
  * main.ez - Test module-prefixed types in return annotations
  * Regression test for bug #463
  */
-import "./testmod"
+import "./testmod.ez"
 
 
 do main() {

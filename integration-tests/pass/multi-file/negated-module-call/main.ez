@@ -5,7 +5,7 @@
  * user-defined modules, not just stdlib modules.
  */
 
-import "./checks"
+import "./checks.ez"
 
 do main() {
     println("=== Negated User Module Calls ===")

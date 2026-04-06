@@ -3,7 +3,7 @@
  * Expected: "not found in module"
  */
 
-import "./lib"
+import "./lib.ez"
 
 
 do main() {

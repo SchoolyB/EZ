@@ -9,8 +9,8 @@
  */
 
 import @arrays, @time
-import "./models"
-import "./utils"
+import "./models.ez"
+import "./utils.ez"
 
 using models
 

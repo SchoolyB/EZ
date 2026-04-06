@@ -1304,6 +1304,26 @@ static AstNode *parse_import_statement(Parser *p) {
         } else if (cur_token_is(p, TOK_STRING)) {
             item->is_stdlib = false;
             item->path = p->cur_token.literal;
+            /* Enforce .ez extension */
+            size_t plen = strlen(item->path);
+            if (plen < 3 || strcmp(item->path + plen - 3, ".ez") != 0) {
+                diag_error(p->diag, "E2002",
+                    strdup("import path must end with '.ez'"),
+                    p->file, p->cur_token.line, p->cur_token.column, 0);
+            }
+            /* Derive module name from filename if no alias */
+            if (!item->alias) {
+                const char *slash = strrchr(item->path, '/');
+                const char *base = slash ? slash + 1 : item->path;
+                size_t blen = strlen(base);
+                if (blen > 3) {
+                    char *mod = arena_alloc(p->arena, blen - 2);
+                    memcpy(mod, base, blen - 3);
+                    mod[blen - 3] = '\0';
+                    item->alias = mod;
+                    item->module = mod;
+                }
+            }
         } else if (cur_token_is(p, TOK_IDENT)) {
             char buf[256];
             snprintf(buf, sizeof(buf),
