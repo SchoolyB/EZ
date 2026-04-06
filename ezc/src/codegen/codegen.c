@@ -3396,6 +3396,19 @@ static void emit_call_expression(CodeGen *cg, AstNode *node) {
             char ns_name[256];
             snprintf(ns_name, sizeof(ns_name), "%s_%s", resolved_name, member);
             AstNode *ns_func = find_func(cg, ns_name);
+            if (!ns_func) {
+                /* Try bare function name (for main-file functions in circular imports) */
+                ns_func = find_func(cg, member);
+                if (ns_func) {
+                    emitf(cg, "ez_fn_%s(", member);
+                    for (int i = 0; i < node->data.call.arg_count; i++) {
+                        if (i > 0) emit(cg, ", ");
+                        emit_expression(cg, node->data.call.args[i]);
+                    }
+                    emit(cg, ")");
+                    return;
+                }
+            }
             if (ns_func) {
                 emitf(cg, "ez_fn_%s_%s(", resolved_name, member);
                 for (int i = 0; i < node->data.call.arg_count; i++) {

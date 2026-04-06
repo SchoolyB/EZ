@@ -409,6 +409,22 @@ int main(int argc, char **argv) {
 
     /* Resolve local imports: parse imported .ez files and merge declarations */
     {
+        /* Mark the main file as already imported (prevents circular import loops) */
+        mark_imported(input_file);
+
+        /* Derive main file's module name for circular import resolution */
+        const char *main_base = input_file;
+        const char *main_slash = strrchr(input_file, '/');
+        if (main_slash) main_base = main_slash + 1;
+        char main_mod_buf[256];
+        size_t main_mod_len = strlen(main_base);
+        if (main_mod_len > 3 && strcmp(main_base + main_mod_len - 3, ".ez") == 0) {
+            memcpy(main_mod_buf, main_base, main_mod_len - 3);
+            main_mod_buf[main_mod_len - 3] = '\0';
+        } else {
+            snprintf(main_mod_buf, sizeof(main_mod_buf), "%s", main_base);
+        }
+
         /* Determine the directory of the input file */
         char input_dir[PATH_BUF_SIZE];
         strncpy(input_dir, input_file, sizeof(input_dir) - 1);
