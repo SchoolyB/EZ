@@ -3,7 +3,7 @@
 > Auto-generated from `ezc/src/util/error_codes.h`. Do not edit manually.
 > Run `./scripts/generate_errors.sh` to regenerate.
 
-**Total: 126 codes** (116 errors, 10 warnings)
+**Total: 127 codes** (117 errors, 10 warnings)
 
 ---
 
@@ -29,6 +29,7 @@
 | `E1022` | syntax | unexpected character |
 | `E2001` | syntax | unexpected symbol — the compiler found something it did not expect here |
 | `E2002` | syntax | missing symbol — a bracket, parenthesis, or keyword is missing |
+| `E2010` | syntax | cannot use a module before importing it — add the import statement before using |
 | `E2011` | syntax | constants must have a value — add = followed by a value after the type |
 | `E2012` | syntax | duplicate parameter name — each parameter must have a unique name |
 | `E2013` | syntax | duplicate struct field name — each field must have a unique name |
@@ -170,4 +171,4 @@
 
 ---
 
-*Generated on 2026-04-06 01:16:53 UTC*
+*Generated on 2026-04-06 23:12:21 UTC*

@@ -40,6 +40,7 @@
 #define EZ_PARSER_ERRORS \
     EZ_ERROR("E2001", "syntax", "unexpected symbol — the compiler found something it did not expect here") \
     EZ_ERROR("E2002", "syntax", "missing symbol — a bracket, parenthesis, or keyword is missing") \
+    EZ_ERROR("E2010", "syntax", "cannot use a module before importing it — add the import statement before using") \
     EZ_ERROR("E2011", "syntax", "constants must have a value — add = followed by a value after the type") \
     EZ_ERROR("E2012", "syntax", "duplicate parameter name — each parameter must have a unique name") \
     EZ_ERROR("E2013", "syntax", "duplicate struct field name — each field must have a unique name") \

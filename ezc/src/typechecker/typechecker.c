@@ -230,6 +230,8 @@ static const char *suggest_name(TypeChecker *tc, const char *name) {
 
 /* --- Builtin name check --- */
 
+static bool is_valid_module(const char *name);
+
 static bool tc_is_imported_module(TypeChecker *tc, const char *name) {
     for (int i = 0; i < tc->import_count; i++) {
         if (strcmp(tc->imported_modules[i], name) == 0) return true;
@@ -704,13 +706,23 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
             const char *mod_raw = fn->data.member.object->data.label.value;
             const char *mod = tc_resolve_alias(tc, mod_raw);
             const char *mfn = fn->data.member.member;
-            /* Mark module as used (by alias or original name) */
+            /* Check that module is actually imported */
+            bool mod_imported = false;
             for (int mi = 0; mi < tc->import_count; mi++) {
                 if (strcmp(tc->imported_modules[mi], mod_raw) == 0 ||
                     strcmp(tc->imported_modules[mi], mod) == 0) {
                     tc->import_used[mi] = true;
+                    mod_imported = true;
                     break;
                 }
+            }
+            if (!mod_imported && is_valid_module(mod)) {
+                char msg[256];
+                snprintf(msg, sizeof(msg),
+                    "module '%s' is not imported — add 'import @%s' at the top of the file",
+                    mod, mod);
+                diag_error(tc->diag, "E4001", strdup(msg),
+                    tc->file, node->token.line, node->token.column, 0);
             }
             if (strcmp(mod, "mem") == 0) {
                 if (strcmp(mfn, "arena") == 0) {
@@ -3867,6 +3879,16 @@ void typechecker_check(TypeChecker *tc, AstNode *program) {
         AstNode *stmt = program->data.program.stmts[i];
         if (stmt->kind == NODE_USING_STMT) {
             for (int j = 0; j < stmt->data.using_stmt.count; j++) {
+                /* E2010: check that the module was actually imported */
+                const char *umod = stmt->data.using_stmt.modules[j];
+                if (!tc_is_imported_module(tc, umod)) {
+                    char msg[256];
+                    snprintf(msg, sizeof(msg),
+                        "cannot use module '%s' before importing it — add 'import @%s' before the using statement",
+                        umod, umod);
+                    diag_error(tc->diag, "E2010", strdup(msg),
+                        tc->file, stmt->token.line, stmt->token.column, 0);
+                }
                 if (tc->using_module_count >= tc->using_module_cap) {
                     tc->using_module_cap = tc->using_module_cap ? tc->using_module_cap * 2 : 8;
                     tc->using_modules = realloc(tc->using_modules,
