@@ -1271,6 +1271,254 @@ static void test_e2e_percent_assign(void) {
     ASSERT_STR_EQ(out, "2");
 }
 
+/* ===== Boolean Logic ===== */
+
+static void test_e2e_bool_and_or(void) {
+    char *out = compile_and_run(
+        ""
+        "do main() {\n"
+        "  mut a bool = true\n"
+        "  mut b bool = false\n"
+        "  if a && !b { println(\"and-ok\") }\n"
+        "  if a || b { println(\"or-ok\") }\n"
+        "  if !(a && b) { println(\"not-ok\") }\n"
+        "}");
+    ASSERT_NOT_NULL(out);
+    ASSERT_STR_EQ(out, "and-ok\nor-ok\nnot-ok");
+}
+
+static void test_e2e_short_circuit(void) {
+    char *out = compile_and_run(
+        ""
+        "mut called int = 0\n"
+        "do side() -> bool { called++\n return true }\n"
+        "do main() {\n"
+        "  if false && side() { println(\"bad\") }\n"
+        "  println(called)\n"
+        "  if true || side() { println(\"good\") }\n"
+        "  println(called)\n"
+        "}");
+    ASSERT_NOT_NULL(out);
+    ASSERT_STR_EQ(out, "0\ngood\n0");
+}
+
+/* ===== String Comparison ===== */
+
+static void test_e2e_string_compare(void) {
+    char *out = compile_and_run(
+        ""
+        "do main() {\n"
+        "  mut a string = \"hello\"\n"
+        "  mut b string = \"hello\"\n"
+        "  mut c string = \"world\"\n"
+        "  if a == b { println(\"eq\") }\n"
+        "  if a != c { println(\"neq\") }\n"
+        "}");
+    ASSERT_NOT_NULL(out);
+    ASSERT_STR_EQ(out, "eq\nneq");
+}
+
+/* ===== Negative Arithmetic ===== */
+
+static void test_e2e_negative_arithmetic(void) {
+    char *out = compile_and_run(
+        ""
+        "do main() {\n"
+        "  mut x int = -10\n"
+        "  mut y int = 3\n"
+        "  println(x + y)\n"
+        "  println(x * y)\n"
+        "  println(x / y)\n"
+        "  println(-x)\n"
+        "}");
+    ASSERT_NOT_NULL(out);
+    ASSERT_STR_EQ(out, "-7\n-30\n-3\n10");
+}
+
+/* ===== Variable Shadowing ===== */
+
+static void test_e2e_variable_shadowing(void) {
+    char *out = compile_and_run(
+        ""
+        "do main() {\n"
+        "  mut x int = 1\n"
+        "  println(x)\n"
+        "  if true {\n"
+        "    mut x int = 2\n"
+        "    println(x)\n"
+        "  }\n"
+        "  println(x)\n"
+        "}");
+    ASSERT_NOT_NULL(out);
+    ASSERT_STR_EQ(out, "1\n2\n1");
+}
+
+/* ===== Nested Control Flow ===== */
+
+static void test_e2e_nested_control_flow(void) {
+    char *out = compile_and_run(
+        ""
+        "do main() {\n"
+        "  mut total int = 0\n"
+        "  for i in range(0, 3) {\n"
+        "    when i {\n"
+        "      is 0 { total += 10 }\n"
+        "      is 1 { total += 20 }\n"
+        "      default { total += 30 }\n"
+        "    }\n"
+        "  }\n"
+        "  println(total)\n"
+        "}");
+    ASSERT_NOT_NULL(out);
+    ASSERT_STR_EQ(out, "60");
+}
+
+/* ===== Map Mutation ===== */
+
+static void test_e2e_map_set(void) {
+    char *out = compile_and_run(
+        ""
+        "do main() {\n"
+        "  mut m map[string:int] = {\"a\": 1}\n"
+        "  m[\"a\"] = 99\n"
+        "  m[\"b\"] = 42\n"
+        "  println(m[\"a\"])\n"
+        "  println(m[\"b\"])\n"
+        "}");
+    ASSERT_NOT_NULL(out);
+    ASSERT_STR_EQ(out, "99\n42");
+}
+
+/* ===== For_each with Index ===== */
+
+static void test_e2e_foreach_index(void) {
+    char *out = compile_and_run(
+        ""
+        "do main() {\n"
+        "  mut arr [string] = {\"a\", \"b\", \"c\"}\n"
+        "  for_each i, item in arr {\n"
+        "    println(\"${i}:${item}\")\n"
+        "  }\n"
+        "}");
+    ASSERT_NOT_NULL(out);
+    ASSERT_STR_EQ(out, "0:a\n1:b\n2:c");
+}
+
+/* ===== Const Values ===== */
+
+static void test_e2e_const_values(void) {
+    char *out = compile_and_run(
+        ""
+        "do main() {\n"
+        "  const PI float = 3.14\n"
+        "  const NAME string = \"EZ\"\n"
+        "  const FLAG bool = true\n"
+        "  println(PI)\n"
+        "  println(NAME)\n"
+        "  println(FLAG)\n"
+        "}");
+    ASSERT_NOT_NULL(out);
+    ASSERT_STR_EQ(out, "3.14\nEZ\ntrue");
+}
+
+/* ===== Empty Containers ===== */
+
+static void test_e2e_empty_array(void) {
+    char *out = compile_and_run(
+        ""
+        "do main() {\n"
+        "  mut arr [int] = {}\n"
+        "  println(len(arr))\n"
+        "}");
+    ASSERT_NOT_NULL(out);
+    ASSERT_STR_EQ(out, "0");
+}
+
+static void test_e2e_empty_map(void) {
+    char *out = compile_and_run(
+        ""
+        "do main() {\n"
+        "  mut m map[string:int] = {:}\n"
+        "  println(len(m))\n"
+        "}");
+    ASSERT_NOT_NULL(out);
+    ASSERT_STR_EQ(out, "0");
+}
+
+/* ===== Nested Function Calls ===== */
+
+static void test_e2e_nested_calls(void) {
+    char *out = compile_and_run(
+        ""
+        "do add(a int, b int) -> int { return a + b }\n"
+        "do mul(a int, b int) -> int { return a * b }\n"
+        "do main() {\n"
+        "  println(add(1, mul(2, 3)))\n"
+        "}");
+    ASSERT_NOT_NULL(out);
+    ASSERT_STR_EQ(out, "7");
+}
+
+/* ===== String Indexing ===== */
+
+static void test_e2e_string_index(void) {
+    char *out = compile_and_run(
+        ""
+        "do main() {\n"
+        "  mut s string = \"hello\"\n"
+        "  println(s[0])\n"
+        "  println(s[4])\n"
+        "}");
+    ASSERT_NOT_NULL(out);
+    ASSERT_STR_EQ(out, "h\no");
+}
+
+/* ===== Enum Comparison ===== */
+
+static void test_e2e_enum_compare(void) {
+    char *out = compile_and_run(
+        ""
+        "const Dir enum { UP\n DOWN\n LEFT\n RIGHT }\n"
+        "do main() {\n"
+        "  mut d = Dir.LEFT\n"
+        "  if d == Dir.LEFT { println(\"left\") }\n"
+        "  if d != Dir.UP { println(\"not up\") }\n"
+        "}");
+    ASSERT_NOT_NULL(out);
+    ASSERT_STR_EQ(out, "left\nnot up");
+}
+
+/* ===== Grouped Parameters ===== */
+
+static void test_e2e_grouped_params(void) {
+    char *out = compile_and_run(
+        ""
+        "do add3(a, b, c int) -> int { return a + b + c }\n"
+        "do main() {\n"
+        "  println(add3(10, 20, 30))\n"
+        "}");
+    ASSERT_NOT_NULL(out);
+    ASSERT_STR_EQ(out, "60");
+}
+
+/* ===== Scope Lifetime ===== */
+
+static void test_e2e_loop_scope(void) {
+    char *out = compile_and_run(
+        ""
+        "do main() {\n"
+        "  mut total int = 0\n"
+        "  for i in range(0, 3) {\n"
+        "    mut local int = i * 10\n"
+        "    total += local\n"
+        "  }\n"
+        "  println(total)\n"
+        "}");
+    ASSERT_NOT_NULL(out);
+    /* 0 + 10 + 20 = 30 */
+    ASSERT_STR_EQ(out, "30");
+}
+
 int main(void) {
     /* Must run from the ezc/ directory */
     if (access("./ezc", X_OK) != 0) {
@@ -1402,6 +1650,50 @@ int main(void) {
     /* P5: Range with step, percent assign */
     RUN_TEST(test_e2e_range_with_step);
     RUN_TEST(test_e2e_percent_assign);
+
+    /* Boolean logic */
+    RUN_TEST(test_e2e_bool_and_or);
+    RUN_TEST(test_e2e_short_circuit);
+
+    /* String comparison */
+    RUN_TEST(test_e2e_string_compare);
+
+    /* Negative arithmetic */
+    RUN_TEST(test_e2e_negative_arithmetic);
+
+    /* Variable shadowing */
+    RUN_TEST(test_e2e_variable_shadowing);
+
+    /* Nested control flow */
+    RUN_TEST(test_e2e_nested_control_flow);
+
+    /* Map mutation */
+    RUN_TEST(test_e2e_map_set);
+
+    /* For_each with index */
+    RUN_TEST(test_e2e_foreach_index);
+
+    /* Const values */
+    RUN_TEST(test_e2e_const_values);
+
+    /* Empty containers */
+    RUN_TEST(test_e2e_empty_array);
+    RUN_TEST(test_e2e_empty_map);
+
+    /* Nested function calls */
+    RUN_TEST(test_e2e_nested_calls);
+
+    /* String indexing */
+    RUN_TEST(test_e2e_string_index);
+
+    /* Enum comparison */
+    RUN_TEST(test_e2e_enum_compare);
+
+    /* Grouped parameters */
+    RUN_TEST(test_e2e_grouped_params);
+
+    /* Scope lifetime */
+    RUN_TEST(test_e2e_loop_scope);
 
     PRINT_RESULTS();
     return _test_fail > 0 ? 1 : 0;
