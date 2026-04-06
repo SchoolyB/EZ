@@ -1,0 +1,5 @@
+const Point struct {
+    r int
+    g int
+    b int
+}
