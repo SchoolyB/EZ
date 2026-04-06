@@ -609,6 +609,8 @@ int main(int argc, char **argv) {
                     const char *oname = NULL;
                     if (s->kind == NODE_FUNC_DECL) oname = s->data.func_decl.name;
                     else if (s->kind == NODE_VAR_DECL) oname = s->data.var_decl.name;
+                    else if (s->kind == NODE_STRUCT_DECL) oname = s->data.struct_decl.name;
+                    else if (s->kind == NODE_ENUM_DECL) oname = s->data.enum_decl.name;
                     if (oname && name_count < 256) {
                         orig_names[name_count] = oname;
                         char *pn = arena_alloc(arena, 256);
@@ -627,20 +629,50 @@ int main(int argc, char **argv) {
                         imp_stmt->kind == NODE_USING_STMT ||
                         imp_stmt->kind == NODE_MODULE_DECL) continue;
 
-                    /* Prefix function names and rewrite body references */
+                    /* Prefix function names and rewrite body + type references */
                     if (imp_stmt->kind == NODE_FUNC_DECL) {
                         char *prefixed = arena_alloc(arena, 256);
                         snprintf(prefixed, 256, "%s_%s", mod_name, imp_stmt->data.func_decl.name);
                         imp_stmt->data.func_decl.name = prefixed;
                         /* Rewrite internal references in function body */
                         rewrite_labels(imp_stmt->data.func_decl.body, orig_names, new_names, name_count, arena);
+                        /* Rewrite return type references */
+                        for (int ri = 0; ri < imp_stmt->data.func_decl.return_type_count; ri++) {
+                            const char *rt = imp_stmt->data.func_decl.return_types[ri];
+                            for (int ni = 0; ni < name_count; ni++) {
+                                if (strcmp(rt, orig_names[ni]) == 0) {
+                                    imp_stmt->data.func_decl.return_types[ri] = new_names[ni];
+                                    break;
+                                }
+                            }
+                        }
+                        /* Rewrite parameter type references */
+                        for (int pi = 0; pi < imp_stmt->data.func_decl.param_count; pi++) {
+                            const char *pt = imp_stmt->data.func_decl.params[pi].type_name;
+                            if (!pt) continue;
+                            for (int ni = 0; ni < name_count; ni++) {
+                                if (strcmp(pt, orig_names[ni]) == 0) {
+                                    imp_stmt->data.func_decl.params[pi].type_name = new_names[ni];
+                                    break;
+                                }
+                            }
+                        }
                     }
 
-                    /* Prefix constant names with module name */
+                    /* Prefix constant names with module name + rewrite type refs */
                     if (imp_stmt->kind == NODE_VAR_DECL && !imp_stmt->data.var_decl.mutable) {
                         char *prefixed = arena_alloc(arena, 256);
                         snprintf(prefixed, 256, "%s_%s", mod_name, imp_stmt->data.var_decl.name);
                         imp_stmt->data.var_decl.name = prefixed;
+                        /* Rewrite type annotation if it references an imported type */
+                        if (imp_stmt->data.var_decl.type_name) {
+                            for (int ni = 0; ni < name_count; ni++) {
+                                if (strcmp(imp_stmt->data.var_decl.type_name, orig_names[ni]) == 0) {
+                                    imp_stmt->data.var_decl.type_name = new_names[ni];
+                                    break;
+                                }
+                            }
+                        }
                     }
 
                     /* Prefix mutable variables with module name (for internal use by
@@ -652,11 +684,22 @@ int main(int argc, char **argv) {
                         imp_stmt->data.var_decl.is_private = true;
                     }
 
-                    /* Prefix struct names with module name */
+                    /* Prefix struct names and rewrite field type references */
                     if (imp_stmt->kind == NODE_STRUCT_DECL) {
                         char *prefixed = arena_alloc(arena, 256);
                         snprintf(prefixed, 256, "%s_%s", mod_name, imp_stmt->data.struct_decl.name);
                         imp_stmt->data.struct_decl.name = prefixed;
+                        /* Rewrite field types that reference other imported types */
+                        for (int fi = 0; fi < imp_stmt->data.struct_decl.field_count; fi++) {
+                            const char *ft = imp_stmt->data.struct_decl.fields[fi].type_name;
+                            if (!ft) continue;
+                            for (int ni = 0; ni < name_count; ni++) {
+                                if (strcmp(ft, orig_names[ni]) == 0) {
+                                    imp_stmt->data.struct_decl.fields[fi].type_name = new_names[ni];
+                                    break;
+                                }
+                            }
+                        }
                     }
 
                     /* Prefix enum names with module name */

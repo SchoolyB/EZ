@@ -1086,10 +1086,31 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
                 break;
             }
 
-            /* User-module qualified access: mod.name → mod_name */
+            /* User-module qualified constant/variable access: mod.NAME → mod_NAME
+             * Only apply for known imported module names, not local variables */
             if (mod[0] >= 'a' && mod[0] <= 'z') {
-                emitf(cg, "%s_%s", mod, mem);
-                break;
+                /* Check if mod is an imported module by looking for mod_ prefixed declarations */
+                bool is_module = false;
+                char check_name[256];
+                snprintf(check_name, sizeof(check_name), "%s_%s", mod, mem);
+                /* Check functions, variables via find_func */
+                if (find_func(cg, check_name)) is_module = true;
+                /* Check if any function starts with mod_ prefix */
+                if (!is_module) {
+                    char prefix[128];
+                    snprintf(prefix, sizeof(prefix), "%s_", mod);
+                    size_t plen = strlen(prefix);
+                    for (int fi = 0; fi < cg->func_count; fi++) {
+                        if (strncmp(cg->all_funcs[fi]->data.func_decl.name, prefix, plen) == 0) {
+                            is_module = true;
+                            break;
+                        }
+                    }
+                }
+                if (is_module) {
+                    emitf(cg, "%s_%s", mod, mem);
+                    break;
+                }
             }
         }
         /* Module-qualified enum access: lib.Color.RED → EzEnum_lib_Color_RED */
