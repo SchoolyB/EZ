@@ -113,7 +113,8 @@ static const char *read_type_name(Parser *p) {
         next_token(p); /* qualified part */
         size_t len = strlen(name) + strlen(p->cur_token.literal) + 2;
         char *qualified = arena_alloc(p->arena, len);
-        snprintf(qualified, len, "%s.%s", name, p->cur_token.literal);
+        /* Use underscore for module-qualified types: mod.Type → mod_Type */
+        snprintf(qualified, len, "%s_%s", name, p->cur_token.literal);
         return qualified;
     }
     return name;

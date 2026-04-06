@@ -199,12 +199,19 @@ EzType *type_from_name(const char *name) {
         return t;
     }
 
-    /* Qualified type: module.Type → use the base name */
+    /* Qualified type: module.Type → convert to module_Type */
     const char *dot = strchr(name, '.');
     if (dot) {
         const char *base = dot + 1;
         if (base[0] >= 'A' && base[0] <= 'Z') {
-            return type_struct(base);
+            /* Build prefixed name: mod.Type → mod_Type */
+            size_t prefix_len = (size_t)(dot - name);
+            size_t base_len = strlen(base);
+            char *prefixed = malloc(prefix_len + 1 + base_len + 1);
+            memcpy(prefixed, name, prefix_len);
+            prefixed[prefix_len] = '_';
+            memcpy(prefixed + prefix_len + 1, base, base_len + 1);
+            return type_struct(prefixed);
         }
     }
 
