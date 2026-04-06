@@ -566,7 +566,7 @@ int main(int argc, char **argv) {
                                     tdecl->data.enum_decl.name = tp;
                                 }
 
-                                /* Insert into main program */
+                                /* Insert into main program at the beginning */
                                 if (program->data.program.stmt_count >= program->data.program.stmt_cap) {
                                     int nc = program->data.program.stmt_cap * 2;
                                     AstNode **ns = arena_alloc(arena, sizeof(AstNode *) * nc);
@@ -575,7 +575,10 @@ int main(int argc, char **argv) {
                                     program->data.program.stmts = ns;
                                     program->data.program.stmt_cap = nc;
                                 }
-                                program->data.program.stmts[program->data.program.stmt_count++] = tdecl;
+                                memmove(program->data.program.stmts + 1, program->data.program.stmts,
+                                    sizeof(AstNode *) * program->data.program.stmt_count);
+                                program->data.program.stmts[0] = tdecl;
+                                program->data.program.stmt_count++;
                             }
                         }
                     }
