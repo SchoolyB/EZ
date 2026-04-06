@@ -4,7 +4,8 @@
 # Licensed under the MIT License. See LICENSE for details.
 
 CC ?= cc
-CFLAGS = -std=c11 -Wall -Wextra -Wpedantic -Wno-unused-parameter
+VERSION := $(shell git describe --tags --always --dirty 2>/dev/null || echo "unknown")
+CFLAGS = -std=c11 -Wall -Wextra -Wpedantic -Wno-unused-parameter -DEZ_VERSION=\"$(VERSION)\"
 LDFLAGS = -lm
 
 # Build mode

@@ -24,7 +24,9 @@
 #include "typechecker/typechecker.h"
 #include "codegen/codegen.h"
 
-#define EZ_VERSION "3.0.0"
+#ifndef EZ_VERSION
+#define EZ_VERSION "unknown"
+#endif
 #define PATH_BUF_SIZE 2048
 #define CMD_BUF_SIZE 8192
 
