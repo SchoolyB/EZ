@@ -1,0 +1,10 @@
+import h "./lib.ez"
+
+do main() {
+    mut result string = h.greet("Alias")
+    if result == "Hello, Alias" {
+        println("ALL TESTS PASSED")
+    } otherwise {
+        println("SOME TESTS FAILED")
+    }
+}

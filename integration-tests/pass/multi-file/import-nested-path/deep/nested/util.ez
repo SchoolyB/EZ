@@ -1,0 +1,1 @@
+do deep_func() -> string { return "deep" }

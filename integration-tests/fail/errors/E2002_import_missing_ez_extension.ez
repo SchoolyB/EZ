@@ -1,0 +1,10 @@
+/*
+ * Error Test: E2002 - import path must end with .ez
+ * Expected: error about missing .ez extension
+ */
+
+import "./lib"
+
+do main() {
+    println("should not compile")
+}
