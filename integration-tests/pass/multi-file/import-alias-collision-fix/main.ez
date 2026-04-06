@@ -1,0 +1,12 @@
+import lib_server "./lib/server.ez"
+import util_server "./utils/server.ez"
+
+do main() {
+    mut a string = lib_server.start()
+    mut b string = util_server.connect()
+    if a == "lib server" && b == "utils server" {
+        println("ALL TESTS PASSED")
+    } otherwise {
+        println("SOME TESTS FAILED")
+    }
+}
