@@ -647,6 +647,155 @@ static void test_parse_error_unexpected_token(void) {
     ASSERT(diag_has_errors(diag));
 }
 
+/* --- Additional parser coverage --- */
+
+static void test_parse_for_each_stmt(void) {
+    AstNode *prog = parse("do main() { mut arr [int] = {1,2,3}\n for_each x in arr { } }");
+    AstNode *stmt = body_stmt(prog, 1);
+    ASSERT_NOT_NULL(stmt);
+    ASSERT_EQ(stmt->kind, NODE_FOR_EACH_STMT);
+}
+
+static void test_parse_while_alias(void) {
+    /* while is an alias for as_long_as */
+    AstNode *prog = parse("while true { break }");
+    AstNode *stmt = first_stmt(prog);
+    ASSERT_NOT_NULL(stmt);
+    ASSERT_EQ(stmt->kind, NODE_WHILE_STMT);
+}
+
+static void test_parse_empty_block(void) {
+    AstNode *prog = parse("do main() { }");
+    AstNode *fn = first_stmt(prog);
+    ASSERT_NOT_NULL(fn);
+    ASSERT_EQ(fn->kind, NODE_FUNC_DECL);
+    ASSERT_NOT_NULL(fn->data.func_decl.body);
+    ASSERT_EQ(fn->data.func_decl.body->kind, NODE_BLOCK_STMT);
+    ASSERT_EQ(fn->data.func_decl.body->data.block.count, 0);
+}
+
+static void test_parse_grouped_params(void) {
+    AstNode *prog = parse("do add(a, b int) -> int { return a + b }");
+    AstNode *fn = first_stmt(prog);
+    ASSERT_NOT_NULL(fn);
+    ASSERT_EQ(fn->kind, NODE_FUNC_DECL);
+    ASSERT_EQ(fn->data.func_decl.param_count, 2);
+    ASSERT_STR_EQ(fn->data.func_decl.params[0].type_name, "int");
+    ASSERT_STR_EQ(fn->data.func_decl.params[1].type_name, "int");
+}
+
+static void test_parse_compound_assign_mul(void) {
+    AstNode *prog = parse("do main() { mut x int = 2\n x *= 5 }");
+    AstNode *stmt = body_stmt(prog, 1);
+    ASSERT_NOT_NULL(stmt);
+    ASSERT_EQ(stmt->kind, NODE_ASSIGN_STMT);
+}
+
+static void test_parse_compound_assign_div(void) {
+    AstNode *prog = parse("do main() { mut x int = 10\n x /= 2 }");
+    AstNode *stmt = body_stmt(prog, 1);
+    ASSERT_NOT_NULL(stmt);
+    ASSERT_EQ(stmt->kind, NODE_ASSIGN_STMT);
+}
+
+static void test_parse_compound_assign_mod(void) {
+    AstNode *prog = parse("do main() { mut x int = 10\n x %= 3 }");
+    AstNode *stmt = body_stmt(prog, 1);
+    ASSERT_NOT_NULL(stmt);
+    ASSERT_EQ(stmt->kind, NODE_ASSIGN_STMT);
+}
+
+static void test_parse_multiple_when_cases(void) {
+    AstNode *prog = parse(
+        "when x { is 1 { } is 2 { } is 3 { } is 4 { } default { } }");
+    AstNode *stmt = first_stmt(prog);
+    ASSERT_NOT_NULL(stmt);
+    ASSERT_EQ(stmt->kind, NODE_WHEN_STMT);
+    ASSERT_EQ(stmt->data.when_stmt.case_count, 4);
+}
+
+static void test_parse_nested_if(void) {
+    AstNode *prog = parse(
+        "do main() {\n"
+        "  if true {\n"
+        "    if false { }\n"
+        "  }\n"
+        "}");
+    AstNode *outer_if = body_stmt(prog, 0);
+    ASSERT_NOT_NULL(outer_if);
+    ASSERT_EQ(outer_if->kind, NODE_IF_STMT);
+    /* The inner if is inside the consequence block */
+    AstNode *inner = outer_if->data.if_stmt.consequence->data.block.stmts[0];
+    ASSERT_EQ(inner->kind, NODE_IF_STMT);
+}
+
+static void test_parse_struct_nested_field(void) {
+    AstNode *prog = parse(
+        "const Inner struct { val int }\n"
+        "const Outer struct { inner Inner }");
+    ASSERT_EQ(prog->data.program.stmt_count, 2);
+    AstNode *outer = prog->data.program.stmts[1];
+    ASSERT_EQ(outer->kind, NODE_STRUCT_DECL);
+    ASSERT_STR_EQ(outer->data.struct_decl.fields[0].type_name, "Inner");
+}
+
+static void test_parse_in_operator(void) {
+    AstNode *prog = parse("do main() { mut arr [int] = {1,2,3}\n mut x = 1 in arr }");
+    AstNode *val = body_stmt(prog, 1);
+    ASSERT_NOT_NULL(val);
+    ASSERT_EQ(val->kind, NODE_VAR_DECL);
+    ASSERT_EQ(val->data.var_decl.value->kind, NODE_INFIX_EXPR);
+    ASSERT_STR_EQ(val->data.var_decl.value->data.infix.op, "in");
+}
+
+static void test_parse_precedence_power(void) {
+    /* 2 ** 3 ** 2 — power is right-associative */
+    AstNode *prog = parse("do main() { mut x = 2 ** 3 + 1 }");
+    AstNode *val = var_value(prog);
+    ASSERT_NOT_NULL(val);
+    /* ** has higher precedence than +, so this is (2**3) + 1 */
+    ASSERT_EQ(val->kind, NODE_INFIX_EXPR);
+    ASSERT_STR_EQ(val->data.infix.op, "+");
+    ASSERT_EQ(val->data.infix.left->kind, NODE_INFIX_EXPR);
+    ASSERT_STR_EQ(val->data.infix.left->data.infix.op, "**");
+}
+
+static void test_parse_return_multiple_values(void) {
+    AstNode *prog = parse(
+        "do pair() -> (int, string) {\n"
+        "  return 42, \"hello\"\n"
+        "}");
+    AstNode *fn = first_stmt(prog);
+    ASSERT_NOT_NULL(fn);
+    ASSERT_EQ(fn->kind, NODE_FUNC_DECL);
+    ASSERT_EQ(fn->data.func_decl.return_type_count, 2);
+    ASSERT_STR_EQ(fn->data.func_decl.return_types[0], "int");
+    ASSERT_STR_EQ(fn->data.func_decl.return_types[1], "string");
+}
+
+static void test_parse_import_alias(void) {
+    /* EZ alias syntax: import alias @module */
+    AstNode *prog = parse("import m @math");
+    AstNode *stmt = first_stmt(prog);
+    ASSERT_NOT_NULL(stmt);
+    ASSERT_EQ(stmt->kind, NODE_IMPORT_STMT);
+    ASSERT_STR_EQ(stmt->data.import_stmt.items[0].module, "math");
+    ASSERT_STR_EQ(stmt->data.import_stmt.items[0].alias, "m");
+}
+
+static void test_parse_enum_with_values(void) {
+    AstNode *prog = parse(
+        "const Priority enum {\n"
+        "  LOW = 1\n"
+        "  MED = 2\n"
+        "  HIGH = 3\n"
+        "}");
+    AstNode *stmt = first_stmt(prog);
+    ASSERT_NOT_NULL(stmt);
+    ASSERT_EQ(stmt->kind, NODE_ENUM_DECL);
+    ASSERT_EQ(stmt->data.enum_decl.value_count, 3);
+}
+
 int main(void) {
     arena = arena_create(256 * 1024);
     printf("\n");
@@ -725,6 +874,23 @@ int main(void) {
     RUN_TEST(test_parse_named_return);
     RUN_TEST(test_parse_error_bad_var_decl);
     RUN_TEST(test_parse_error_unexpected_token);
+
+    /* Additional parser coverage */
+    RUN_TEST(test_parse_for_each_stmt);
+    RUN_TEST(test_parse_while_alias);
+    RUN_TEST(test_parse_empty_block);
+    RUN_TEST(test_parse_grouped_params);
+    RUN_TEST(test_parse_compound_assign_mul);
+    RUN_TEST(test_parse_compound_assign_div);
+    RUN_TEST(test_parse_compound_assign_mod);
+    RUN_TEST(test_parse_multiple_when_cases);
+    RUN_TEST(test_parse_nested_if);
+    RUN_TEST(test_parse_struct_nested_field);
+    RUN_TEST(test_parse_in_operator);
+    RUN_TEST(test_parse_precedence_power);
+    RUN_TEST(test_parse_return_multiple_values);
+    RUN_TEST(test_parse_import_alias);
+    RUN_TEST(test_parse_enum_with_values);
 
     PRINT_RESULTS();
     return _test_fail > 0 ? 1 : 0;

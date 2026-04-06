@@ -486,6 +486,128 @@ static void test_char_escape_tab(void) {
     ASSERT_STR_EQ(t.literal, "\\t");
 }
 
+/* --- Additional lexer coverage --- */
+
+static void test_zero_literal(void) {
+    Lexer *l = lex("0");
+    Token t = next(l);
+    ASSERT_EQ(t.type, TOK_INT);
+    ASSERT_STR_EQ(t.literal, "0");
+}
+
+static void test_negative_float_tokens(void) {
+    /* -3.14 should tokenize as MINUS then FLOAT */
+    Lexer *l = lex("-3.14");
+    ASSERT_EQ(next(l).type, TOK_MINUS);
+    Token t = next(l);
+    ASSERT_EQ(t.type, TOK_FLOAT);
+    ASSERT_STR_EQ(t.literal, "3.14");
+}
+
+static void test_adjacent_operators(void) {
+    /* >= should be GT_EQ, not GT + ASSIGN */
+    Lexer *l = lex(">= <= == !=");
+    ASSERT_EQ(next(l).type, TOK_GT_EQ);
+    ASSERT_EQ(next(l).type, TOK_LT_EQ);
+    ASSERT_EQ(next(l).type, TOK_EQ);
+    ASSERT_EQ(next(l).type, TOK_NOT_EQ);
+}
+
+static void test_arrow_vs_minus(void) {
+    /* -> should be ARROW, - > should be MINUS GT */
+    Lexer *l = lex("->");
+    ASSERT_EQ(next(l).type, TOK_ARROW);
+}
+
+static void test_string_with_interpolation_marker(void) {
+    /* String containing ${...} is still a string token */
+    Lexer *l = lex("\"hello ${name} world\"");
+    Token t = next(l);
+    ASSERT_EQ(t.type, TOK_STRING);
+}
+
+static void test_multiline_block_comment(void) {
+    Lexer *l = lex("a /* this is\na multiline\ncomment */ b");
+    Token t1 = next(l);
+    ASSERT_EQ(t1.type, TOK_IDENT);
+    ASSERT_STR_EQ(t1.literal, "a");
+    Token t2 = next(l);
+    ASSERT_EQ(t2.type, TOK_IDENT);
+    ASSERT_STR_EQ(t2.literal, "b");
+}
+
+static void test_empty_string(void) {
+    Lexer *l = lex("\"\"");
+    Token t = next(l);
+    ASSERT_EQ(t.type, TOK_STRING);
+    ASSERT_STR_EQ(t.literal, "");
+}
+
+static void test_multiple_strings(void) {
+    Lexer *l = lex("\"hello\" \"world\"");
+    Token t1 = next(l);
+    ASSERT_EQ(t1.type, TOK_STRING);
+    ASSERT_STR_EQ(t1.literal, "hello");
+    Token t2 = next(l);
+    ASSERT_EQ(t2.type, TOK_STRING);
+    ASSERT_STR_EQ(t2.literal, "world");
+}
+
+static void test_consecutive_operators(void) {
+    /* ++ -- should not be confused */
+    Lexer *l = lex("++ -- **");
+    ASSERT_EQ(next(l).type, TOK_INCREMENT);
+    ASSERT_EQ(next(l).type, TOK_DECREMENT);
+    ASSERT_EQ(next(l).type, TOK_POWER);
+}
+
+static void test_large_integer_literal(void) {
+    Lexer *l = lex("9999999999");
+    Token t = next(l);
+    ASSERT_EQ(t.type, TOK_INT);
+    ASSERT_STR_EQ(t.literal, "9999999999");
+}
+
+static void test_char_single_quote(void) {
+    Lexer *l = lex("'x'");
+    Token t = next(l);
+    ASSERT_EQ(t.type, TOK_CHAR);
+    ASSERT_STR_EQ(t.literal, "x");
+}
+
+static void test_keyword_panic(void) {
+    Lexer *l = lex("panic");
+    ASSERT_EQ(next(l).type, TOK_IDENT); /* panic is a builtin func, not keyword */
+}
+
+static void test_mixed_tokens_line(void) {
+    /* Realistic code line */
+    Lexer *l = lex("mut x int = 42");
+    ASSERT_EQ(next(l).type, TOK_TEMP);      /* mut */
+    ASSERT_EQ(next(l).type, TOK_IDENT);     /* x */
+    ASSERT_EQ(next(l).type, TOK_IDENT);     /* int */
+    ASSERT_EQ(next(l).type, TOK_ASSIGN);    /* = */
+    ASSERT_EQ(next(l).type, TOK_INT);       /* 42 */
+    ASSERT_EQ(next(l).type, TOK_EOF);
+}
+
+static void test_line_tracking_with_comment(void) {
+    /* Comments should not affect line tracking */
+    Lexer *l = lex("a\n// comment\nb");
+    Token t1 = next(l);
+    ASSERT_EQ(t1.line, 1);
+    Token t2 = next(l);
+    ASSERT_EQ(t2.line, 3);
+    ASSERT_STR_EQ(t2.literal, "b");
+}
+
+static void test_hex_upper_lower(void) {
+    Lexer *l = lex("0xABCD");
+    Token t = next(l);
+    ASSERT_EQ(t.type, TOK_INT);
+    ASSERT_STR_EQ(t.literal, "0xABCD");
+}
+
 int main(void) {
     arena = arena_create(64 * 1024);
     printf("\n");
@@ -555,6 +677,23 @@ int main(void) {
     RUN_TEST(test_error_E1017_unclosed_raw_string);
     RUN_TEST(test_error_E1010_bad_octal);
     RUN_TEST(test_error_E1010_bad_binary);
+
+    /* Additional lexer coverage */
+    RUN_TEST(test_zero_literal);
+    RUN_TEST(test_negative_float_tokens);
+    RUN_TEST(test_adjacent_operators);
+    RUN_TEST(test_arrow_vs_minus);
+    RUN_TEST(test_string_with_interpolation_marker);
+    RUN_TEST(test_multiline_block_comment);
+    RUN_TEST(test_empty_string);
+    RUN_TEST(test_multiple_strings);
+    RUN_TEST(test_consecutive_operators);
+    RUN_TEST(test_large_integer_literal);
+    RUN_TEST(test_char_single_quote);
+    RUN_TEST(test_keyword_panic);
+    RUN_TEST(test_mixed_tokens_line);
+    RUN_TEST(test_line_tracking_with_comment);
+    RUN_TEST(test_hex_upper_lower);
 
     PRINT_RESULTS();
     return _test_fail > 0 ? 1 : 0;

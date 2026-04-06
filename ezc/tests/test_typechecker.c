@@ -961,6 +961,244 @@ static void test_warning_W3003_partial_array_init(void) {
     diag_destroy(d);
 }
 
+/* --- Additional typechecker coverage --- */
+
+static void test_resolve_char_literal(void) {
+    EzType *t = expr_type("'A'");
+    ASSERT_NOT_NULL(t);
+    ASSERT_EQ(t->kind, TK_CHAR);
+}
+
+static void test_resolve_modulo(void) {
+    EzType *t = expr_type("10 % 3");
+    ASSERT_NOT_NULL(t);
+    ASSERT_EQ(t->kind, TK_INT);
+}
+
+static void test_resolve_power(void) {
+    EzType *t = expr_type("2 ** 3");
+    ASSERT_NOT_NULL(t);
+    ASSERT_EQ(t->kind, TK_INT);
+}
+
+static void test_resolve_equality(void) {
+    EzType *t = expr_type("1 == 1");
+    ASSERT_NOT_NULL(t);
+    ASSERT_EQ(t->kind, TK_BOOL);
+}
+
+static void test_resolve_inequality(void) {
+    EzType *t = expr_type("1 != 2");
+    ASSERT_NOT_NULL(t);
+    ASSERT_EQ(t->kind, TK_BOOL);
+}
+
+static void test_resolve_or_logic(void) {
+    EzType *t = expr_type("true || false");
+    ASSERT_NOT_NULL(t);
+    ASSERT_EQ(t->kind, TK_BOOL);
+}
+
+static void test_resolve_string_comparison(void) {
+    EzType *t = expr_type("\"a\" == \"b\"");
+    ASSERT_NOT_NULL(t);
+    ASSERT_EQ(t->kind, TK_BOOL);
+}
+
+static void test_resolve_float_negation(void) {
+    EzType *t = expr_type("-3.14");
+    ASSERT_NOT_NULL(t);
+    ASSERT_EQ(t->kind, TK_FLOAT);
+}
+
+static void test_scope_deeply_nested(void) {
+    Scope *s1 = scope_create(NULL);
+    scope_define(s1, "a", &TYPE_INT, true);
+    Scope *s2 = scope_create(s1);
+    scope_define(s2, "b", &TYPE_STRING, true);
+    Scope *s3 = scope_create(s2);
+    scope_define(s3, "c", &TYPE_BOOL, true);
+
+    /* s3 can see all three */
+    ASSERT_NOT_NULL(scope_lookup(s3, "a"));
+    ASSERT_NOT_NULL(scope_lookup(s3, "b"));
+    ASSERT_NOT_NULL(scope_lookup(s3, "c"));
+
+    /* s1 can only see a */
+    ASSERT_NOT_NULL(scope_lookup(s1, "a"));
+    ASSERT(scope_lookup(s1, "b") == NULL);
+    ASSERT(scope_lookup(s1, "c") == NULL);
+}
+
+static void test_scope_local_only(void) {
+    Scope *outer = scope_create(NULL);
+    scope_define(outer, "x", &TYPE_INT, true);
+    Scope *inner = scope_create(outer);
+
+    /* lookup_local should NOT find outer's x */
+    ASSERT(scope_lookup_local(inner, "x") == NULL);
+    /* but regular lookup should */
+    ASSERT_NOT_NULL(scope_lookup(inner, "x"));
+}
+
+static void test_type_from_name_bigint(void) {
+    EzType *t1 = type_from_name("i128");
+    ASSERT_NOT_NULL(t1);
+    EzType *t2 = type_from_name("u128");
+    ASSERT_NOT_NULL(t2);
+    EzType *t3 = type_from_name("i256");
+    ASSERT_NOT_NULL(t3);
+    EzType *t4 = type_from_name("u256");
+    ASSERT_NOT_NULL(t4);
+}
+
+static void test_type_is_numeric_uint(void) {
+    ASSERT(type_is_numeric(&TYPE_UINT));
+}
+
+static void test_error_E3002_bool_arithmetic(void) {
+    DiagnosticList *d = check_diag(
+        "do main() { mut x = true + false }");
+    ASSERT(has_code(d, "E3002"));
+    diag_destroy(d);
+}
+
+static void test_error_E3001_bool_to_int(void) {
+    DiagnosticList *d = check_diag(
+        "do main() { mut x int = true }");
+    ASSERT(has_code(d, "E3001"));
+    diag_destroy(d);
+}
+
+static void test_error_E3001_int_to_string(void) {
+    DiagnosticList *d = check_diag(
+        "do main() { mut x string = 42 }");
+    ASSERT(has_code(d, "E3001"));
+    diag_destroy(d);
+}
+
+static void test_error_E3005_const_array_reassign(void) {
+    DiagnosticList *d = check_diag(
+        "do main() { const arr [int] = {1,2,3}\n arr = {4,5,6} }");
+    ASSERT(has_code(d, "E3005"));
+    diag_destroy(d);
+}
+
+static void test_error_E3009_foreach_int(void) {
+    DiagnosticList *d = check_diag(
+        "do main() { for_each x in 42 { } }");
+    ASSERT(has_code(d, "E3009"));
+    diag_destroy(d);
+}
+
+static void test_error_E4003_duplicate_var_same_scope(void) {
+    DiagnosticList *d = check_diag(
+        "do main() { mut x int = 1\n mut x string = \"hi\" }");
+    ASSERT(has_code(d, "E4003"));
+    diag_destroy(d);
+}
+
+static void test_error_E5008_too_many_args(void) {
+    DiagnosticList *d = check_diag(
+        "do add(a int, b int) -> int { return a + b }\n"
+        "do main() { add(1, 2, 3) }");
+    ASSERT(has_code(d, "E5008"));
+    diag_destroy(d);
+}
+
+static void test_error_E3008_index_string(void) {
+    /* String indexing should work, so this should not error */
+    DiagnosticList *d = check_diag(
+        "do main() { mut s string = \"hello\"\n mut c = s[0] }");
+    ASSERT(!has_code(d, "E3008"));
+    diag_destroy(d);
+}
+
+static void test_valid_nested_struct(void) {
+    /* Nested struct access should typecheck without errors */
+    DiagnosticList *d = check_diag(
+        "const Inner struct { val int }\n"
+        "const Outer struct { inner Inner }\n"
+        "do main() {\n"
+        "    mut o Outer = Outer{inner: Inner{val: 42}}\n"
+        "    mut v int = o.inner.val\n"
+        "    println(\"${v}\")\n"
+        "}");
+    ASSERT(!diag_has_errors(d));
+    diag_destroy(d);
+}
+
+static void test_valid_enum_member_access(void) {
+    DiagnosticList *d = check_diag(
+        "const Color enum { RED\n GREEN\n BLUE }\n"
+        "do main() { mut c = Color.RED\n println(\"${c}\") }");
+    ASSERT(!diag_has_errors(d));
+    diag_destroy(d);
+}
+
+static void test_valid_multi_return(void) {
+    DiagnosticList *d = check_diag(
+        "do swap(a int, b int) -> (int, int) { return b, a }\n"
+        "do main() { mut x int, y int = swap(1, 2)\n println(\"${x} ${y}\") }");
+    ASSERT(!diag_has_errors(d));
+    diag_destroy(d);
+}
+
+static void test_valid_when_stmt(void) {
+    DiagnosticList *d = check_diag(
+        "do main() {\n"
+        "    mut x int = 2\n"
+        "    when x {\n"
+        "        is 1 { println(\"one\") }\n"
+        "        is 2 { println(\"two\") }\n"
+        "        default { println(\"other\") }\n"
+        "    }\n"
+        "}");
+    ASSERT(!diag_has_errors(d));
+    diag_destroy(d);
+}
+
+static void test_valid_struct_function_return(void) {
+    DiagnosticList *d = check_diag(
+        "const Point struct {\n"
+        "    x int\n"
+        "    y int\n"
+        "    do origin() -> Point {\n"
+        "        return Point{x: 0, y: 0}\n"
+        "    }\n"
+        "}\n"
+        "do main() { mut p Point = Point.origin()\n println(\"${p.x}\") }");
+    ASSERT(!diag_has_errors(d));
+    diag_destroy(d);
+}
+
+static void test_error_E2050_continue_outside_loop(void) {
+    DiagnosticList *d = check_diag(
+        "do main() { continue }");
+    ASSERT(has_code(d, "E2050"));
+    diag_destroy(d);
+}
+
+static void test_error_E3024_some_paths_missing_return(void) {
+    DiagnosticList *d = check_diag(
+        "do foo(x int) -> int {\n"
+        "    if x > 0 { return 1 }\n"
+        "    if x < 0 { return -1 }\n"
+        "}\n"
+        "do main() { foo(1) }");
+    ASSERT(has_code(d, "E3035") || has_code(d, "E3024"));
+    diag_destroy(d);
+}
+
+static void test_error_E4007_duplicate_struct(void) {
+    DiagnosticList *d = check_diag(
+        "const Foo struct { x int }\n"
+        "const Foo struct { y int }\n"
+        "do main() { }");
+    ASSERT(has_code(d, "E4007"));
+    diag_destroy(d);
+}
+
 int main(void) {
     arena = arena_create(256 * 1024);
     printf("\n");
@@ -1125,6 +1363,36 @@ int main(void) {
     RUN_TEST(test_warning_W2001_unused_import);
     RUN_TEST(test_warning_W2011_named_return_unused);
     RUN_TEST(test_warning_W3003_partial_array_init);
+
+    /* Additional typechecker coverage */
+    RUN_TEST(test_resolve_char_literal);
+    RUN_TEST(test_resolve_modulo);
+    RUN_TEST(test_resolve_power);
+    RUN_TEST(test_resolve_equality);
+    RUN_TEST(test_resolve_inequality);
+    RUN_TEST(test_resolve_or_logic);
+    RUN_TEST(test_resolve_string_comparison);
+    RUN_TEST(test_resolve_float_negation);
+    RUN_TEST(test_scope_deeply_nested);
+    RUN_TEST(test_scope_local_only);
+    RUN_TEST(test_type_from_name_bigint);
+    RUN_TEST(test_type_is_numeric_uint);
+    RUN_TEST(test_error_E3002_bool_arithmetic);
+    RUN_TEST(test_error_E3001_bool_to_int);
+    RUN_TEST(test_error_E3001_int_to_string);
+    RUN_TEST(test_error_E3005_const_array_reassign);
+    RUN_TEST(test_error_E3009_foreach_int);
+    RUN_TEST(test_error_E4003_duplicate_var_same_scope);
+    RUN_TEST(test_error_E5008_too_many_args);
+    RUN_TEST(test_error_E3008_index_string);
+    RUN_TEST(test_valid_nested_struct);
+    RUN_TEST(test_valid_enum_member_access);
+    RUN_TEST(test_valid_multi_return);
+    RUN_TEST(test_valid_when_stmt);
+    RUN_TEST(test_valid_struct_function_return);
+    RUN_TEST(test_error_E2050_continue_outside_loop);
+    RUN_TEST(test_error_E3024_some_paths_missing_return);
+    RUN_TEST(test_error_E4007_duplicate_struct);
 
     PRINT_RESULTS();
     return _test_fail > 0 ? 1 : 0;
