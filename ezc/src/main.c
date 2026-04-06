@@ -510,7 +510,7 @@ int main(int argc, char **argv) {
                 if (collision) continue;
                 if (seen_count < 256) {
                     seen_modules[seen_count] = mod_name;
-                    seen_paths[seen_count] = import_path;
+                    seen_paths[seen_count] = arena_strdup(arena, import_path);
                     seen_count++;
                 }
 
