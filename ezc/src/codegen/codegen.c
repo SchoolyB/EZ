@@ -1080,6 +1080,22 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
                 break;
             }
         }
+        /* Module-qualified enum access: lib.Color.RED → EzEnum_lib_Color_RED */
+        if (node->data.member.object->kind == NODE_MEMBER_EXPR) {
+            AstNode *inner = node->data.member.object;
+            if (inner->data.member.object->kind == NODE_LABEL) {
+                const char *mod = inner->data.member.object->data.label.value;
+                const char *type_name = inner->data.member.member;
+                const char *value = node->data.member.member;
+                /* Check if it's a module.EnumName.VALUE pattern */
+                if (mod[0] >= 'a' && mod[0] <= 'z' &&
+                    type_name[0] >= 'A' && type_name[0] <= 'Z' &&
+                    value[0] >= 'A' && value[0] <= 'Z') {
+                    emitf(cg, "EzEnum_%s_%s_%s", mod, type_name, value);
+                    break;
+                }
+            }
+        }
         /* Check if object is a pointer type — use -> instead of . */
         {
             EzType *obj_t = cg->type_table

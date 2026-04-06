@@ -196,6 +196,23 @@ static const char *find_runtime_dir(const char *argv0) {
     return NULL;
 }
 
+/* Import cache: track already-imported files to avoid duplicates and cycles */
+static const char *imported_files[256];
+static int imported_file_count = 0;
+
+static bool already_imported(const char *path) {
+    for (int i = 0; i < imported_file_count; i++) {
+        if (strcmp(imported_files[i], path) == 0) return true;
+    }
+    return false;
+}
+
+static void mark_imported(const char *path) {
+    if (imported_file_count < 256) {
+        imported_files[imported_file_count++] = path;
+    }
+}
+
 int main(int argc, char **argv) {
     if (argc < 2) {
         print_usage();
@@ -364,6 +381,10 @@ int main(int argc, char **argv) {
                 if (!item->alias) item->alias = mod_name;
                 if (!item->module) item->module = mod_name;
 
+                /* Skip if already imported (handles cycles and duplicates) */
+                if (already_imported(import_path)) continue;
+                mark_imported(arena_strdup(arena, import_path));
+
                 /* Read and parse the imported file */
                 char *imp_source = read_file(import_path);
                 if (!imp_source) {
@@ -376,6 +397,97 @@ int main(int argc, char **argv) {
                 AstNode *imp_program = parser_parse_program(imp_parser);
 
                 if (!imp_program || diag_has_errors(diag)) continue;
+
+                /* Recursively process imports within the imported file */
+                {
+                    char imp_dir[PATH_BUF_SIZE];
+                    strncpy(imp_dir, import_path, sizeof(imp_dir) - 1);
+                    imp_dir[sizeof(imp_dir) - 1] = '\0';
+                    char *imp_slash = strrchr(imp_dir, '/');
+                    if (imp_slash) *(imp_slash + 1) = '\0';
+                    else strcpy(imp_dir, "./");
+
+                    for (int ti = 0; ti < imp_program->data.program.stmt_count; ti++) {
+                        AstNode *ts = imp_program->data.program.stmts[ti];
+                        if (ts->kind != NODE_IMPORT_STMT) continue;
+                        for (int tj = 0; tj < ts->data.import_stmt.count; tj++) {
+                            ImportItem *titem = &ts->data.import_stmt.items[tj];
+                            if (titem->is_stdlib || !titem->path) continue;
+                            const char *trel = titem->path;
+                            if (trel[0] == '.' && trel[1] == '/') trel += 2;
+                            char trans_path[PATH_BUF_SIZE];
+                            snprintf(trans_path, sizeof(trans_path), "%s%s", imp_dir, trel);
+                            if (already_imported(trans_path)) continue;
+                            mark_imported(arena_strdup(arena, trans_path));
+
+                            char *tsrc = read_file(trans_path);
+                            if (!tsrc) continue;
+                            /* Derive transitive module name */
+                            const char *tbase = trel;
+                            const char *tslash = strrchr(trel, '/');
+                            if (tslash) tbase = tslash + 1;
+                            char tmod_buf[256];
+                            size_t tblen = strlen(tbase);
+                            if (tblen > 3 && strcmp(tbase + tblen - 3, ".ez") == 0) {
+                                memcpy(tmod_buf, tbase, tblen - 3);
+                                tmod_buf[tblen - 3] = '\0';
+                            } else {
+                                snprintf(tmod_buf, sizeof(tmod_buf), "%s", tbase);
+                            }
+                            const char *tmod = titem->alias ? titem->alias : arena_strdup(arena, tmod_buf);
+                            if (!titem->alias) { titem->alias = tmod; titem->module = tmod; }
+
+                            Lexer *tlex = lexer_create(arena, tsrc, trans_path);
+                            Parser *tpar = parser_create(arena, tlex, trans_path, diag);
+                            AstNode *tprog = parser_parse_program(tpar);
+                            if (!tprog || diag_has_errors(diag)) continue;
+
+                            /* Merge transitive declarations — prefix with transitive module name,
+                             * but these are only visible within the importing file, NOT the main file */
+                            for (int tk = 0; tk < tprog->data.program.stmt_count; tk++) {
+                                AstNode *tdecl = tprog->data.program.stmts[tk];
+                                if (tdecl->kind == NODE_IMPORT_STMT ||
+                                    tdecl->kind == NODE_USING_STMT ||
+                                    tdecl->kind == NODE_MODULE_DECL) continue;
+                                if (tdecl->kind == NODE_VAR_DECL && tdecl->data.var_decl.mutable) continue;
+                                if (tdecl->kind == NODE_FUNC_DECL && tdecl->data.func_decl.is_private) continue;
+                                if (tdecl->kind == NODE_VAR_DECL && tdecl->data.var_decl.is_private) continue;
+
+                                if (tdecl->kind == NODE_FUNC_DECL) {
+                                    char *tp = arena_alloc(arena, 256);
+                                    snprintf(tp, 256, "%s_%s", tmod, tdecl->data.func_decl.name);
+                                    tdecl->data.func_decl.name = tp;
+                                }
+                                if (tdecl->kind == NODE_VAR_DECL && !tdecl->data.var_decl.mutable) {
+                                    char *tp = arena_alloc(arena, 256);
+                                    snprintf(tp, 256, "%s_%s", tmod, tdecl->data.var_decl.name);
+                                    tdecl->data.var_decl.name = tp;
+                                }
+                                if (tdecl->kind == NODE_STRUCT_DECL) {
+                                    char *tp = arena_alloc(arena, 256);
+                                    snprintf(tp, 256, "%s_%s", tmod, tdecl->data.struct_decl.name);
+                                    tdecl->data.struct_decl.name = tp;
+                                }
+                                if (tdecl->kind == NODE_ENUM_DECL) {
+                                    char *tp = arena_alloc(arena, 256);
+                                    snprintf(tp, 256, "%s_%s", tmod, tdecl->data.enum_decl.name);
+                                    tdecl->data.enum_decl.name = tp;
+                                }
+
+                                /* Insert into main program */
+                                if (program->data.program.stmt_count >= program->data.program.stmt_cap) {
+                                    int nc = program->data.program.stmt_cap * 2;
+                                    AstNode **ns = arena_alloc(arena, sizeof(AstNode *) * nc);
+                                    memcpy(ns, program->data.program.stmts,
+                                           sizeof(AstNode *) * program->data.program.stmt_count);
+                                    program->data.program.stmts = ns;
+                                    program->data.program.stmt_cap = nc;
+                                }
+                                program->data.program.stmts[program->data.program.stmt_count++] = tdecl;
+                            }
+                        }
+                    }
+                }
 
                 /* Merge imported declarations into main program.
                  * Prefix function names with the module name. */

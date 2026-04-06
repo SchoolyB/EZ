@@ -1877,6 +1877,27 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                 result = &TYPE_UNKNOWN;
             }
         } else if (obj->kind == NODE_MEMBER_EXPR) {
+            /* Check for module-qualified enum: lib.Color.RED */
+            if (obj->data.member.object->kind == NODE_LABEL) {
+                const char *mod = obj->data.member.object->data.label.value;
+                const char *type_n = obj->data.member.member;
+                if (mod[0] >= 'a' && mod[0] <= 'z' &&
+                    type_n[0] >= 'A' && type_n[0] <= 'Z') {
+                    char prefixed[256];
+                    snprintf(prefixed, sizeof(prefixed), "%s_%s", mod, type_n);
+                    if (is_enum_name(tc, prefixed)) {
+                        result = &TYPE_INT;
+                        /* Mark module as used */
+                        for (int mi = 0; mi < tc->import_count; mi++) {
+                            if (strcmp(tc->imported_modules[mi], mod) == 0) {
+                                tc->import_used[mi] = true;
+                                break;
+                            }
+                        }
+                        break;
+                    }
+                }
+            }
             /* Nested member access: a.b.c — resolve a.b first, then look up .c */
             EzType *obj_t = typetable_get(tc->type_table, obj);
             if (!obj_t) obj_t = resolve_expr(tc, obj);
