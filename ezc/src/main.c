@@ -278,6 +278,22 @@ static void rewrite_labels(AstNode *node, const char **orig, const char **prefix
         for (int i = 0; i < node->data.interpolated_string.part_count; i++)
             rewrite_labels(node->data.interpolated_string.parts[i], orig, prefixed, count, arena);
         break;
+    case NODE_STRUCT_VALUE:
+        /* Rewrite struct literal name: Point{...} → shapes_Point{...} */
+        for (int i = 0; i < count; i++) {
+            if (node->data.struct_value.name && strcmp(node->data.struct_value.name, orig[i]) == 0) {
+                node->data.struct_value.name = prefixed[i];
+                break;
+            }
+        }
+        /* Rewrite field value expressions */
+        for (int i = 0; i < node->data.struct_value.count; i++) {
+            rewrite_labels(node->data.struct_value.field_values[i], orig, prefixed, count, arena);
+        }
+        break;
+    case NODE_CAST_EXPR:
+        rewrite_labels(node->data.cast.value, orig, prefixed, count, arena);
+        break;
     default: break;
     }
 }
@@ -463,12 +479,15 @@ int main(int argc, char **argv) {
                 }
                 const char *mod_name = item->alias ? item->alias : arena_strdup(arena, mod_name_buf);
 
-                /* Module name collision detection */
+                /* Module name collision detection — only for DIRECT imports from the same file.
+                 * Don't collide with the main file's own module name. */
                 static const char *seen_modules[256];
+                static const char *seen_paths[256];
                 static int seen_count = 0;
                 bool collision = false;
                 for (int sm = 0; sm < seen_count; sm++) {
-                    if (strcmp(seen_modules[sm], mod_name) == 0) {
+                    if (strcmp(seen_modules[sm], mod_name) == 0 &&
+                        strcmp(seen_paths[sm], import_path) != 0) {
                         char msg[256];
                         snprintf(msg, sizeof(msg),
                             "module name '%s' is already imported — use an alias to distinguish them",
@@ -480,7 +499,11 @@ int main(int argc, char **argv) {
                     }
                 }
                 if (collision) continue;
-                if (seen_count < 256) seen_modules[seen_count++] = mod_name;
+                if (seen_count < 256) {
+                    seen_modules[seen_count] = mod_name;
+                    seen_paths[seen_count] = import_path;
+                    seen_count++;
+                }
 
                 /* Set the alias if not already set */
                 if (!item->alias) item->alias = mod_name;
@@ -621,13 +644,66 @@ int main(int argc, char **argv) {
                 }
 
                 /* Merge imported declarations into main program.
-                 * Prefix names and rewrite internal references. */
+                 * Two passes: var_decls first (so they're in scope for function bodies),
+                 * then everything else. */
+
+                /* Pass 1: variable declarations */
                 for (int mi = 0; mi < imp_program->data.program.stmt_count; mi++) {
                     AstNode *imp_stmt = imp_program->data.program.stmts[mi];
-                    /* Skip import/using/module declarations from imported file */
+                    if (imp_stmt->kind != NODE_VAR_DECL) continue;
+
+                    if (!imp_stmt->data.var_decl.mutable) {
+                        char *prefixed = arena_alloc(arena, 256);
+                        snprintf(prefixed, 256, "%s_%s", mod_name, imp_stmt->data.var_decl.name);
+                        imp_stmt->data.var_decl.name = prefixed;
+                        if (imp_stmt->data.var_decl.type_name) {
+                            for (int ni = 0; ni < name_count; ni++) {
+                                if (strcmp(imp_stmt->data.var_decl.type_name, orig_names[ni]) == 0) {
+                                    imp_stmt->data.var_decl.type_name = new_names[ni];
+                                    break;
+                                }
+                            }
+                        }
+                    } else {
+                        char *prefixed = arena_alloc(arena, 256);
+                        snprintf(prefixed, 256, "%s_%s", mod_name, imp_stmt->data.var_decl.name);
+                        imp_stmt->data.var_decl.name = prefixed;
+                        imp_stmt->data.var_decl.is_private = true;
+                    }
+                    /* Rewrite initializer expressions */
+                    rewrite_labels(imp_stmt->data.var_decl.value, orig_names, new_names, name_count, arena);
+
+                    /* Insert at beginning */
+                    if (program->data.program.stmt_count >= program->data.program.stmt_cap) {
+                        int new_cap = program->data.program.stmt_cap * 2;
+                        AstNode **new_stmts = arena_alloc(arena, sizeof(AstNode *) * new_cap);
+                        memcpy(new_stmts, program->data.program.stmts,
+                               sizeof(AstNode *) * program->data.program.stmt_count);
+                        program->data.program.stmts = new_stmts;
+                        program->data.program.stmt_cap = new_cap;
+                    }
+                    int insert_at = 0;
+                    for (int k = 0; k < program->data.program.stmt_count; k++) {
+                        if (program->data.program.stmts[k]->kind == NODE_IMPORT_STMT ||
+                            program->data.program.stmts[k]->kind == NODE_USING_STMT) {
+                            insert_at = k + 1;
+                        } else break;
+                    }
+                    memmove(&program->data.program.stmts[insert_at + 1],
+                            &program->data.program.stmts[insert_at],
+                            sizeof(AstNode *) * (program->data.program.stmt_count - insert_at));
+                    program->data.program.stmts[insert_at] = imp_stmt;
+                    program->data.program.stmt_count++;
+                }
+
+                /* Pass 2: functions, structs, enums */
+                for (int mi = 0; mi < imp_program->data.program.stmt_count; mi++) {
+                    AstNode *imp_stmt = imp_program->data.program.stmts[mi];
+                    /* Skip import/using/module/var declarations (vars handled in Pass 1) */
                     if (imp_stmt->kind == NODE_IMPORT_STMT ||
                         imp_stmt->kind == NODE_USING_STMT ||
-                        imp_stmt->kind == NODE_MODULE_DECL) continue;
+                        imp_stmt->kind == NODE_MODULE_DECL ||
+                        imp_stmt->kind == NODE_VAR_DECL) continue;
 
                     /* Prefix function names and rewrite body + type references */
                     if (imp_stmt->kind == NODE_FUNC_DECL) {
@@ -657,31 +733,6 @@ int main(int argc, char **argv) {
                                 }
                             }
                         }
-                    }
-
-                    /* Prefix constant names with module name + rewrite type refs */
-                    if (imp_stmt->kind == NODE_VAR_DECL && !imp_stmt->data.var_decl.mutable) {
-                        char *prefixed = arena_alloc(arena, 256);
-                        snprintf(prefixed, 256, "%s_%s", mod_name, imp_stmt->data.var_decl.name);
-                        imp_stmt->data.var_decl.name = prefixed;
-                        /* Rewrite type annotation if it references an imported type */
-                        if (imp_stmt->data.var_decl.type_name) {
-                            for (int ni = 0; ni < name_count; ni++) {
-                                if (strcmp(imp_stmt->data.var_decl.type_name, orig_names[ni]) == 0) {
-                                    imp_stmt->data.var_decl.type_name = new_names[ni];
-                                    break;
-                                }
-                            }
-                        }
-                    }
-
-                    /* Prefix mutable variables with module name (for internal use by
-                     * imported function bodies) but mark private so main can't access */
-                    if (imp_stmt->kind == NODE_VAR_DECL && imp_stmt->data.var_decl.mutable) {
-                        char *prefixed = arena_alloc(arena, 256);
-                        snprintf(prefixed, 256, "%s_%s", mod_name, imp_stmt->data.var_decl.name);
-                        imp_stmt->data.var_decl.name = prefixed;
-                        imp_stmt->data.var_decl.is_private = true;
                     }
 
                     /* Prefix struct names and rewrite field type references */
@@ -719,11 +770,12 @@ int main(int argc, char **argv) {
                         program->data.program.stmts = new_stmts;
                         program->data.program.stmt_cap = new_cap;
                     }
-                    /* Find insertion point: after imports/using, before other declarations */
+                    /* Find insertion point: after imports/using/var_decls */
                     int insert_at = 0;
                     for (int k = 0; k < program->data.program.stmt_count; k++) {
                         if (program->data.program.stmts[k]->kind == NODE_IMPORT_STMT ||
-                            program->data.program.stmts[k]->kind == NODE_USING_STMT) {
+                            program->data.program.stmts[k]->kind == NODE_USING_STMT ||
+                            program->data.program.stmts[k]->kind == NODE_VAR_DECL) {
                             insert_at = k + 1;
                         } else {
                             break;
