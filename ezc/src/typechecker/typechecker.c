@@ -1786,6 +1786,25 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                 break;
             }
 
+            /* Check for user-module constant access: mod.CONST */
+            if (tc_is_imported_module(tc, obj_name)) {
+                char prefixed[256];
+                snprintf(prefixed, sizeof(prefixed), "%s_%s", obj_name, member);
+                Symbol *mod_sym = scope_lookup(tc->current_scope, prefixed);
+                if (mod_sym) {
+                    mod_sym->used = true;
+                    result = mod_sym->type;
+                    /* Mark module as used */
+                    for (int mi = 0; mi < tc->import_count; mi++) {
+                        if (strcmp(tc->imported_modules[mi], obj_name) == 0) {
+                            tc->import_used[mi] = true;
+                            break;
+                        }
+                    }
+                    break;
+                }
+            }
+
             /* Otherwise it's a struct field or multi-return access */
             Symbol *sym = scope_lookup(tc->current_scope, obj_name);
             if (sym && sym->type->kind == TK_STRUCT) {
@@ -3770,6 +3789,25 @@ static void register_declarations(TypeChecker *tc, AstNode *program) {
             tc->funcs[tc->func_count - 1].is_private = stmt->data.func_decl.is_private;
             /* Store line for unused function warning */
             tc->funcs[tc->func_count - 1].def_line = stmt->token.line;
+            /* Also register unprefixed name for internal cross-references.
+             * If name is "lib_foo", also register "foo" so calls within imported
+             * function bodies can resolve unprefixed names. */
+            const char *fn = stmt->data.func_decl.name;
+            const char *underscore = strchr(fn, '_');
+            if (underscore && underscore != fn) {
+                const char *unprefixed = underscore + 1;
+                /* Only register if the prefix matches a known import */
+                for (int ii = 0; ii < tc->import_count; ii++) {
+                    size_t mod_len = strlen(tc->imported_modules[ii]);
+                    if (strncmp(fn, tc->imported_modules[ii], mod_len) == 0 &&
+                        fn[mod_len] == '_') {
+                        register_func(tc, unprefixed, ptypes, pc, rtypes, rc);
+                        tc->funcs[tc->func_count - 1].is_private = stmt->data.func_decl.is_private;
+                        tc->funcs[tc->func_count - 1].def_line = 0; /* suppress unused warning */
+                        break;
+                    }
+                }
+            }
         }
     }
 }
