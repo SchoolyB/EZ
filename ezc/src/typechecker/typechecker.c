@@ -3879,9 +3879,17 @@ void typechecker_check(TypeChecker *tc, AstNode *program) {
         AstNode *stmt = program->data.program.stmts[i];
         if (stmt->kind == NODE_USING_STMT) {
             for (int j = 0; j < stmt->data.using_stmt.count; j++) {
-                /* E2010: check that the module was actually imported */
+                /* E2010: check that the module was imported BEFORE this using statement */
                 const char *umod = stmt->data.using_stmt.modules[j];
-                if (!tc_is_imported_module(tc, umod)) {
+                bool imported_before = false;
+                for (int mi = 0; mi < tc->import_count; mi++) {
+                    if (strcmp(tc->imported_modules[mi], umod) == 0 &&
+                        tc->import_lines[mi] < stmt->token.line) {
+                        imported_before = true;
+                        break;
+                    }
+                }
+                if (!imported_before) {
                     char msg[256];
                     snprintf(msg, sizeof(msg),
                         "cannot use module '%s' before importing it — add 'import @%s' before the using statement",
