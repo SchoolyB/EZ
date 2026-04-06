@@ -1,0 +1,10 @@
+import "./colors.ez"
+
+do main() {
+    mut c int = colors.Color.RED
+    if c == 0 {
+        println("ALL TESTS PASSED")
+    } otherwise {
+        println("SOME TESTS FAILED")
+    }
+}
