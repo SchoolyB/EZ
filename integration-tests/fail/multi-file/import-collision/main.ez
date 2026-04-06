@@ -1,0 +1,6 @@
+import "./lib/server.ez"
+import "./utils/server.ez"
+
+do main() {
+    server.start()
+}

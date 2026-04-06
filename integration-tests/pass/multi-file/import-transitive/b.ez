@@ -1,0 +1,3 @@
+import "./c.ez"
+
+do from_b() -> string { return c.from_c() }

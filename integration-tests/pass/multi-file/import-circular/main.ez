@@ -1,0 +1,10 @@
+import "./ping.ez"
+
+do main() {
+    mut result string = ping.ping_pong()
+    if result == "ping-pong" {
+        println("ALL TESTS PASSED")
+    } otherwise {
+        println("SOME TESTS FAILED")
+    }
+}

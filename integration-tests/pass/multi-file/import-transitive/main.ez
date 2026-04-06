@@ -1,0 +1,10 @@
+import "./a.ez"
+
+do main() {
+    mut result string = a.from_a()
+    if result == "from c" {
+        println("ALL TESTS PASSED")
+    } otherwise {
+        println("SOME TESTS FAILED")
+    }
+}
