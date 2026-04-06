@@ -196,6 +196,92 @@ static const char *find_runtime_dir(const char *argv0) {
     return NULL;
 }
 
+/* Rewrite labels in an AST tree: replace unprefixed names with prefixed versions */
+static void rewrite_labels(AstNode *node, const char **orig, const char **prefixed, int count, Arena *arena) {
+    if (!node) return;
+    if (node->kind == NODE_LABEL) {
+        for (int i = 0; i < count; i++) {
+            if (strcmp(node->data.label.value, orig[i]) == 0) {
+                node->data.label.value = prefixed[i];
+                return;
+            }
+        }
+        return;
+    }
+    /* Recurse into child nodes */
+    switch (node->kind) {
+    case NODE_PREFIX_EXPR: rewrite_labels(node->data.prefix.right, orig, prefixed, count, arena); break;
+    case NODE_INFIX_EXPR:
+        rewrite_labels(node->data.infix.left, orig, prefixed, count, arena);
+        rewrite_labels(node->data.infix.right, orig, prefixed, count, arena);
+        break;
+    case NODE_CALL_EXPR:
+        rewrite_labels(node->data.call.function, orig, prefixed, count, arena);
+        for (int i = 0; i < node->data.call.arg_count; i++)
+            rewrite_labels(node->data.call.args[i], orig, prefixed, count, arena);
+        break;
+    case NODE_RETURN_STMT:
+        for (int i = 0; i < node->data.return_stmt.count; i++)
+            rewrite_labels(node->data.return_stmt.values[i], orig, prefixed, count, arena);
+        break;
+    case NODE_VAR_DECL:
+        rewrite_labels(node->data.var_decl.value, orig, prefixed, count, arena);
+        break;
+    case NODE_ASSIGN_STMT:
+        rewrite_labels(node->data.assign.target, orig, prefixed, count, arena);
+        rewrite_labels(node->data.assign.value, orig, prefixed, count, arena);
+        break;
+    case NODE_IF_STMT:
+        rewrite_labels(node->data.if_stmt.condition, orig, prefixed, count, arena);
+        if (node->data.if_stmt.consequence) {
+            for (int i = 0; i < node->data.if_stmt.consequence->data.block.count; i++)
+                rewrite_labels(node->data.if_stmt.consequence->data.block.stmts[i], orig, prefixed, count, arena);
+        }
+        if (node->data.if_stmt.alternative) {
+            for (int i = 0; i < node->data.if_stmt.alternative->data.block.count; i++)
+                rewrite_labels(node->data.if_stmt.alternative->data.block.stmts[i], orig, prefixed, count, arena);
+        }
+        break;
+    case NODE_BLOCK_STMT:
+        for (int i = 0; i < node->data.block.count; i++)
+            rewrite_labels(node->data.block.stmts[i], orig, prefixed, count, arena);
+        break;
+    case NODE_EXPR_STMT:
+        rewrite_labels(node->data.expr_stmt.expr, orig, prefixed, count, arena);
+        break;
+    case NODE_POSTFIX_EXPR:
+        rewrite_labels(node->data.postfix.left, orig, prefixed, count, arena);
+        break;
+    case NODE_INDEX_EXPR:
+        rewrite_labels(node->data.index_expr.left, orig, prefixed, count, arena);
+        rewrite_labels(node->data.index_expr.index, orig, prefixed, count, arena);
+        break;
+    case NODE_MEMBER_EXPR:
+        rewrite_labels(node->data.member.object, orig, prefixed, count, arena);
+        break;
+    case NODE_FOR_STMT:
+        rewrite_labels(node->data.for_stmt.iterable, orig, prefixed, count, arena);
+        rewrite_labels(node->data.for_stmt.body, orig, prefixed, count, arena);
+        break;
+    case NODE_FOR_EACH_STMT:
+        rewrite_labels(node->data.for_each.collection, orig, prefixed, count, arena);
+        rewrite_labels(node->data.for_each.body, orig, prefixed, count, arena);
+        break;
+    case NODE_WHILE_STMT:
+        rewrite_labels(node->data.while_stmt.condition, orig, prefixed, count, arena);
+        rewrite_labels(node->data.while_stmt.body, orig, prefixed, count, arena);
+        break;
+    case NODE_LOOP_STMT:
+        rewrite_labels(node->data.loop_stmt.body, orig, prefixed, count, arena);
+        break;
+    case NODE_INTERPOLATED_STRING:
+        for (int i = 0; i < node->data.interpolated_string.part_count; i++)
+            rewrite_labels(node->data.interpolated_string.parts[i], orig, prefixed, count, arena);
+        break;
+    default: break;
+    }
+}
+
 /* Import cache: track already-imported files to avoid duplicates and cycles */
 static const char *imported_files[256];
 static int imported_file_count = 0;
@@ -495,8 +581,26 @@ int main(int argc, char **argv) {
                     }
                 }
 
+                /* Collect original names before prefixing */
+                const char *orig_names[256];
+                const char *new_names[256];
+                int name_count = 0;
+                for (int mi = 0; mi < imp_program->data.program.stmt_count; mi++) {
+                    AstNode *s = imp_program->data.program.stmts[mi];
+                    const char *oname = NULL;
+                    if (s->kind == NODE_FUNC_DECL) oname = s->data.func_decl.name;
+                    else if (s->kind == NODE_VAR_DECL) oname = s->data.var_decl.name;
+                    if (oname && name_count < 256) {
+                        orig_names[name_count] = oname;
+                        char *pn = arena_alloc(arena, 256);
+                        snprintf(pn, 256, "%s_%s", mod_name, oname);
+                        new_names[name_count] = pn;
+                        name_count++;
+                    }
+                }
+
                 /* Merge imported declarations into main program.
-                 * Prefix function names with the module name. */
+                 * Prefix names and rewrite internal references. */
                 for (int mi = 0; mi < imp_program->data.program.stmt_count; mi++) {
                     AstNode *imp_stmt = imp_program->data.program.stmts[mi];
                     /* Skip import/using/module declarations from imported file */
@@ -504,11 +608,13 @@ int main(int argc, char **argv) {
                         imp_stmt->kind == NODE_USING_STMT ||
                         imp_stmt->kind == NODE_MODULE_DECL) continue;
 
-                    /* Prefix function names with module name */
+                    /* Prefix function names and rewrite body references */
                     if (imp_stmt->kind == NODE_FUNC_DECL) {
                         char *prefixed = arena_alloc(arena, 256);
                         snprintf(prefixed, 256, "%s_%s", mod_name, imp_stmt->data.func_decl.name);
                         imp_stmt->data.func_decl.name = prefixed;
+                        /* Rewrite internal references in function body */
+                        rewrite_labels(imp_stmt->data.func_decl.body, orig_names, new_names, name_count, arena);
                     }
 
                     /* Prefix constant names with module name */

@@ -1085,6 +1085,12 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
                 emitf(cg, "EzEnum_%s_%s", mod, mem);
                 break;
             }
+
+            /* User-module qualified access: mod.name → mod_name */
+            if (mod[0] >= 'a' && mod[0] <= 'z') {
+                emitf(cg, "%s_%s", mod, mem);
+                break;
+            }
         }
         /* Module-qualified enum access: lib.Color.RED → EzEnum_lib_Color_RED */
         if (node->data.member.object->kind == NODE_MEMBER_EXPR) {
@@ -3411,10 +3417,24 @@ static void emit_call_expression(CodeGen *cg, AstNode *node) {
     /* Look up function to check if it's a known function or a variable (function pointer) */
     AstNode *target_func = fn_name ? find_func(cg, fn_name) : NULL;
 
+    /* If not found, try module-prefixed names (for internal cross-references in imported files) */
+    const char *resolved_fn_name = fn_name;
+    if (!target_func && fn_name) {
+        for (int fi = 0; fi < cg->func_count; fi++) {
+            const char *registered = cg->all_funcs[fi]->data.func_decl.name;
+            const char *us = strchr(registered, '_');
+            if (us && strcmp(us + 1, fn_name) == 0) {
+                target_func = cg->all_funcs[fi];
+                resolved_fn_name = registered;
+                break;
+            }
+        }
+    }
+
     if (fn_name && target_func) {
         /* Known function — use ez_fn_ prefix */
         emit(cg, "ez_fn_");
-        emit(cg, fn_name);
+        emit(cg, resolved_fn_name);
     } else if (fn_name) {
         /* Not a known function — variable holding a function pointer (void *).
          * Cast to appropriate function pointer type based on arg types. */

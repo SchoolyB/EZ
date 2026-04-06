@@ -208,9 +208,15 @@ EzType *type_from_name(const char *name) {
         }
     }
 
-    /* Uppercase = struct type */
+    /* Uppercase = struct type, or module-prefixed: mod_Name */
     if (name[0] >= 'A' && name[0] <= 'Z') {
         return type_struct(name);
+    }
+    {
+        const char *us = strchr(name, '_');
+        if (us && us[1] >= 'A' && us[1] <= 'Z') {
+            return type_struct(name);
+        }
     }
 
     return &TYPE_UNKNOWN;
