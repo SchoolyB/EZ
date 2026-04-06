@@ -16,17 +16,17 @@ This runs all Go tooling tests, compiler unit tests, compiler e2e tests, and int
 
 The EZ compiler has a comprehensive test suite written in C, located in `ezc/tests/`.
 
-### Unit Tests (230 tests)
+### Unit Tests (288 tests)
 
 Unit tests validate individual compiler components:
 
-- **Lexer Tests** (`ezc/tests/test_lexer.c` — 55 tests): Token scanning, keyword recognition, literal formats, comment handling, attribute tokens, v3 keyword aliases, operator disambiguation.
-- **Parser Tests** (`ezc/tests/test_parser.c` — 66 tests): Declarations, imports, control flow, structs, enums, function references, attributes, map/array types, visibility, error reporting.
-- **Typechecker Tests** (`ezc/tests/test_typechecker.c` — 109 tests): Scope management, type resolution, expression inference, built-in return types, error detection, enum/map type resolution.
+- **Lexer Tests** (`ezc/tests/test_lexer.c` — 70 tests): Token scanning, keyword recognition, literal formats, comment handling, attribute tokens, v3 keyword aliases, operator disambiguation, edge cases (empty strings, zero literals, multiline comments, adjacent operators).
+- **Parser Tests** (`ezc/tests/test_parser.c` — 81 tests): Declarations, imports, control flow, structs, enums, function references, attributes, map/array types, visibility, error reporting, grouped params, compound assignments, nested structures, import aliases, precedence.
+- **Typechecker Tests** (`ezc/tests/test_typechecker.c` — 137 tests): Scope management, type resolution, expression inference, built-in return types, error detection, enum/map type resolution, deep scope nesting, bigint types, char/uint numerics, valid program verification (nested structs, enums, multi-return, when, struct functions).
 
-### End-to-End Tests (81 tests)
+### End-to-End Tests (97 tests)
 
-E2E tests (`ezc/tests/test_codegen.c`) compile EZ programs, run them, and verify output. Covers variables, control flow, functions, data structures, string features, function references, struct functions, enums, maps, pointers, and runtime checks.
+E2E tests (`ezc/tests/test_codegen.c`) compile EZ programs, run them, and verify output. Covers variables, control flow, functions, data structures, string features, function references, struct functions, enums, maps, pointers, runtime checks, boolean logic, string comparison, negative arithmetic, variable shadowing, nested control flow, map mutation, for_each with index, const values, empty containers, nested function calls, string indexing, enum comparison, grouped parameters, and scope lifetime.
 
 **Running:**
 
