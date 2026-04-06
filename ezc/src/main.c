@@ -342,7 +342,23 @@ int main(int argc, char **argv) {
                 } else {
                     snprintf(mod_name_buf, sizeof(mod_name_buf), "%s", mod_base);
                 }
-                const char *mod_name = arena_strdup(arena, mod_name_buf);
+                const char *mod_name = item->alias ? item->alias : arena_strdup(arena, mod_name_buf);
+
+                /* Module name collision detection */
+                static const char *seen_modules[256];
+                static int seen_count = 0;
+                for (int sm = 0; sm < seen_count; sm++) {
+                    if (strcmp(seen_modules[sm], mod_name) == 0) {
+                        char msg[256];
+                        snprintf(msg, sizeof(msg),
+                            "module name '%s' is already imported — use an alias to distinguish them",
+                            mod_name);
+                        diag_error(diag, "E6001", strdup(msg),
+                            input_file, stmt->token.line, stmt->token.column, 0);
+                        break;
+                    }
+                }
+                if (seen_count < 256) seen_modules[seen_count++] = mod_name;
 
                 /* Set the alias if not already set */
                 if (!item->alias) item->alias = mod_name;
@@ -382,6 +398,25 @@ int main(int argc, char **argv) {
                         char *prefixed = arena_alloc(arena, 256);
                         snprintf(prefixed, 256, "%s_%s", mod_name, imp_stmt->data.var_decl.name);
                         imp_stmt->data.var_decl.name = prefixed;
+                    }
+
+                    /* Skip mutable variables — shared mutable state across files not allowed */
+                    if (imp_stmt->kind == NODE_VAR_DECL && imp_stmt->data.var_decl.mutable) {
+                        continue;
+                    }
+
+                    /* Prefix struct names with module name */
+                    if (imp_stmt->kind == NODE_STRUCT_DECL) {
+                        char *prefixed = arena_alloc(arena, 256);
+                        snprintf(prefixed, 256, "%s_%s", mod_name, imp_stmt->data.struct_decl.name);
+                        imp_stmt->data.struct_decl.name = prefixed;
+                    }
+
+                    /* Prefix enum names with module name */
+                    if (imp_stmt->kind == NODE_ENUM_DECL) {
+                        char *prefixed = arena_alloc(arena, 256);
+                        snprintf(prefixed, 256, "%s_%s", mod_name, imp_stmt->data.enum_decl.name);
+                        imp_stmt->data.enum_decl.name = prefixed;
                     }
 
                     /* Insert into main program BEFORE existing declarations.
