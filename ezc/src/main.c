@@ -449,9 +449,18 @@ int main(int argc, char **argv) {
         if (last_slash) *(last_slash + 1) = '\0';
         else strcpy(input_dir, "./");
 
+        /* Collect all import statements first (inserting during iteration shifts indices) */
+        AstNode *import_stmts[256];
+        int import_stmt_count = 0;
         for (int si = 0; si < program->data.program.stmt_count; si++) {
-            AstNode *stmt = program->data.program.stmts[si];
-            if (stmt->kind != NODE_IMPORT_STMT) continue;
+            if (program->data.program.stmts[si]->kind == NODE_IMPORT_STMT &&
+                import_stmt_count < 256) {
+                import_stmts[import_stmt_count++] = program->data.program.stmts[si];
+            }
+        }
+
+        for (int si = 0; si < import_stmt_count; si++) {
+            AstNode *stmt = import_stmts[si];
 
             for (int ii = 0; ii < stmt->data.import_stmt.count; ii++) {
                 ImportItem *item = &stmt->data.import_stmt.items[ii];
@@ -787,8 +796,6 @@ int main(int argc, char **argv) {
                             sizeof(AstNode *) * (program->data.program.stmt_count - insert_at));
                     program->data.program.stmts[insert_at] = imp_stmt;
                     program->data.program.stmt_count++;
-                    /* Adjust si since we shifted statements */
-                    si++;
                 }
             }
         }
