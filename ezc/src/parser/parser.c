@@ -445,6 +445,42 @@ static AstNode *parse_grouped_expression(Parser *p) {
 static AstNode *parse_prefix(Parser *p) {
     switch (p->cur_token.type) {
     case TOK_IDENT:
+        /* Check for module-qualified struct literal: mod.Name{ ... } */
+        if (peek_token_is(p, TOK_DOT)) {
+            const char *mod = p->cur_token.literal;
+            if (mod[0] >= 'a' && mod[0] <= 'z') {
+                /* Save state for lookahead */
+                Token saved_cur = p->cur_token;
+                Token saved_peek = p->peek_token;
+                int saved_pos = p->lexer->position;
+                int saved_rpos = p->lexer->read_position;
+                char saved_ch = p->lexer->ch;
+                int saved_line = p->lexer->line;
+                int saved_col = p->lexer->column;
+
+                next_token(p); /* consume . */
+                next_token(p); /* move to potential type name */
+
+                if (p->cur_token.type == TOK_IDENT &&
+                    p->cur_token.literal[0] >= 'A' && p->cur_token.literal[0] <= 'Z' &&
+                    peek_token_is(p, TOK_LBRACE)) {
+                    /* mod.Name{ — module-qualified struct literal */
+                    char *prefixed = arena_alloc(p->arena, 256);
+                    snprintf(prefixed, 256, "%s_%s", mod, p->cur_token.literal);
+                    next_token(p); /* move to { */
+                    return parse_struct_literal(p, prefixed);
+                }
+
+                /* Not a struct literal — restore state */
+                p->cur_token = saved_cur;
+                p->peek_token = saved_peek;
+                p->lexer->position = saved_pos;
+                p->lexer->read_position = saved_rpos;
+                p->lexer->ch = saved_ch;
+                p->lexer->line = saved_line;
+                p->lexer->column = saved_col;
+            }
+        }
         /* Check for struct literal: Name{ ... } */
         if (peek_token_is(p, TOK_LBRACE)) {
             const char *name = p->cur_token.literal;
