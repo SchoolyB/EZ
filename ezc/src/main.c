@@ -364,6 +364,7 @@ int main(int argc, char **argv) {
                 /* Module name collision detection */
                 static const char *seen_modules[256];
                 static int seen_count = 0;
+                bool collision = false;
                 for (int sm = 0; sm < seen_count; sm++) {
                     if (strcmp(seen_modules[sm], mod_name) == 0) {
                         char msg[256];
@@ -372,9 +373,11 @@ int main(int argc, char **argv) {
                             mod_name);
                         diag_error(diag, "E6001", strdup(msg),
                             input_file, stmt->token.line, stmt->token.column, 0);
+                        collision = true;
                         break;
                     }
                 }
+                if (collision) continue;
                 if (seen_count < 256) seen_modules[seen_count++] = mod_name;
 
                 /* Set the alias if not already set */
@@ -388,7 +391,10 @@ int main(int argc, char **argv) {
                 /* Read and parse the imported file */
                 char *imp_source = read_file(import_path);
                 if (!imp_source) {
-                    fprintf(stderr, "ez: cannot open imported file '%s'\n", import_path);
+                    char msg[512];
+                    snprintf(msg, sizeof(msg), "cannot find imported file '%s'", import_path);
+                    diag_error(diag, "E6001", strdup(msg),
+                        input_file, stmt->token.line, stmt->token.column, 0);
                     continue;
                 }
 
@@ -512,9 +518,13 @@ int main(int argc, char **argv) {
                         imp_stmt->data.var_decl.name = prefixed;
                     }
 
-                    /* Skip mutable variables — shared mutable state across files not allowed */
+                    /* Prefix mutable variables with module name (for internal use by
+                     * imported function bodies) but mark private so main can't access */
                     if (imp_stmt->kind == NODE_VAR_DECL && imp_stmt->data.var_decl.mutable) {
-                        continue;
+                        char *prefixed = arena_alloc(arena, 256);
+                        snprintf(prefixed, 256, "%s_%s", mod_name, imp_stmt->data.var_decl.name);
+                        imp_stmt->data.var_decl.name = prefixed;
+                        imp_stmt->data.var_decl.is_private = true;
                     }
 
                     /* Prefix struct names with module name */

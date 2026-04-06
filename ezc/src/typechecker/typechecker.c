@@ -3510,7 +3510,7 @@ static void register_declarations(TypeChecker *tc, AstNode *program) {
                 }
                 /* Record import for unused-import tracking.
                  * Store the ALIAS as the import name (so using/dot notation uses the alias). */
-                if (item->is_stdlib && item->module) {
+                if (item->module || item->alias) {
                     if (tc->import_count >= tc->import_cap) {
                         tc->import_cap = tc->import_cap ? tc->import_cap * 2 : 16;
                         tc->imported_modules = realloc(tc->imported_modules, sizeof(const char *) * tc->import_cap);

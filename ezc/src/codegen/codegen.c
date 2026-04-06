@@ -137,7 +137,13 @@ static const char *ez_type_to_c_cg(CodeGen *cg, const char *type_name) {
     }
 
     /* If starts with uppercase, it's a user-defined type */
-    if (type_name[0] >= 'A' && type_name[0] <= 'Z') {
+    /* Also handle module-prefixed types: lib_Point, mod_Color */
+    bool is_user_type = (type_name[0] >= 'A' && type_name[0] <= 'Z');
+    if (!is_user_type) {
+        const char *us = strchr(type_name, '_');
+        if (us && us[1] >= 'A' && us[1] <= 'Z') is_user_type = true;
+    }
+    if (is_user_type) {
         static char buf[256];
         if (cg && codegen_is_enum(cg, type_name)) {
             snprintf(buf, sizeof(buf), "EzEnum_%s", type_name);
