@@ -227,6 +227,16 @@ static void rewrite_labels(AstNode *node, const char **orig, const char **prefix
             rewrite_labels(node->data.return_stmt.values[i], orig, prefixed, count, arena);
         break;
     case NODE_VAR_DECL:
+        /* Rewrite struct/enum type annotation: mut req Request → mut req mod_Request */
+        if (node->data.var_decl.type_name &&
+            node->data.var_decl.type_name[0] >= 'A' && node->data.var_decl.type_name[0] <= 'Z') {
+            for (int i = 0; i < count; i++) {
+                if (strcmp(node->data.var_decl.type_name, orig[i]) == 0) {
+                    node->data.var_decl.type_name = prefixed[i];
+                    break;
+                }
+            }
+        }
         rewrite_labels(node->data.var_decl.value, orig, prefixed, count, arena);
         break;
     case NODE_ASSIGN_STMT:
@@ -294,6 +304,16 @@ static void rewrite_labels(AstNode *node, const char **orig, const char **prefix
         }
         break;
     case NODE_CAST_EXPR:
+        /* Rewrite cast target type: as(Request, x) → as(mod_Request, x) */
+        if (node->data.cast.target_type &&
+            node->data.cast.target_type[0] >= 'A' && node->data.cast.target_type[0] <= 'Z') {
+            for (int i = 0; i < count; i++) {
+                if (strcmp(node->data.cast.target_type, orig[i]) == 0) {
+                    node->data.cast.target_type = prefixed[i];
+                    break;
+                }
+            }
+        }
         rewrite_labels(node->data.cast.value, orig, prefixed, count, arena);
         break;
     default: break;
