@@ -1,0 +1,10 @@
+
+const VALUE int = 42
+
+do get_value() -> int {
+    return VALUE
+}
+
+do print_value() {
+    println(VALUE)
+}

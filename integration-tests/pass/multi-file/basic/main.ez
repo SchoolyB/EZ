@@ -9,10 +9,8 @@
  */
 
 import @arrays, @time
-import "./models.ez"
+import and use "./models.ez"
 import "./utils.ez"
-
-using models
 
 /* Test result tracking */
 const TestResult struct {
@@ -74,8 +72,8 @@ do test_models_module() -> TestResult {
         id: 1,
         title: "Learn EZ",
         description: "Complete the tutorial",
-        priority: Priority.HIGH,
-        status: Status.TODO,
+        priority: models.Priority.HIGH,
+        status: models.Status.TODO,
         created_at: time.now()
     }
     println("  Task created: #${task.id} - ${task.title}")
@@ -93,7 +91,7 @@ do test_models_module() -> TestResult {
 
     // Test 3: Test with explicit module prefix
     println("  Testing with explicit models. prefix...")
-    mut explicit_priority string = models.get_priority_name(Priority.CRITICAL)
+    mut explicit_priority string = models.get_priority_name(models.Priority.CRITICAL)
     println("  Critical priority: ${explicit_priority}")
     passed += 1
     println("")
@@ -158,8 +156,8 @@ do test_cross_module() -> TestResult {
         id: 1,
         title: "Task One",
         description: "First task",
-        priority: Priority.LOW,
-        status: Status.DONE,
+        priority: models.Priority.LOW,
+        status: models.Status.DONE,
         created_at: time.now()
     })
 
@@ -167,8 +165,8 @@ do test_cross_module() -> TestResult {
         id: 2,
         title: "Task Two",
         description: "Second task",
-        priority: Priority.HIGH,
-        status: Status.IN_PROGRESS,
+        priority: models.Priority.HIGH,
+        status: models.Status.IN_PROGRESS,
         created_at: time.now()
     })
 
@@ -176,8 +174,8 @@ do test_cross_module() -> TestResult {
         id: 3,
         title: "Task Three",
         description: "Third task",
-        priority: Priority.MEDIUM,
-        status: Status.TODO,
+        priority: models.Priority.MEDIUM,
+        status: models.Status.TODO,
         created_at: time.now()
     })
 

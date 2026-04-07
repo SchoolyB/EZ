@@ -1,0 +1,19 @@
+/*
+ * types.ez - Nested struct definitions for cross-module test
+ */
+
+
+const Inner struct {
+    value int
+    name string
+}
+
+const Outer struct {
+    inner Inner
+    count int
+}
+
+const Deep struct {
+    outer Outer
+    label string
+}
