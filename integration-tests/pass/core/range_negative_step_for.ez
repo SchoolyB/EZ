@@ -5,6 +5,7 @@
  * in reverse in for loops, with proper codegen and typechecker support.
  */
 
+import @arrays
 
 do main() {
     println("=== Range Negative Step For Loop Tests ===")
