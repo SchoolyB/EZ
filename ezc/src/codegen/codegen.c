@@ -145,10 +145,34 @@ static const char *ez_type_to_c_cg(CodeGen *cg, const char *type_name) {
     }
     if (is_user_type) {
         static char buf[256];
-        if (cg && codegen_is_enum(cg, type_name)) {
-            snprintf(buf, sizeof(buf), "EzEnum_%s", type_name);
+        const char *resolved = type_name;
+        /* Resolve unprefixed names from 'import and use' */
+        if (cg && type_name[0] >= 'A' && type_name[0] <= 'Z' && !strchr(type_name, '_')) {
+            /* Check if a prefixed version exists in struct declarations */
+            for (int si = 0; si < cg->struct_decl_count; si++) {
+                const char *dn = cg->struct_decls[si]->data.struct_decl.name;
+                const char *us = strrchr(dn, '_');
+                if (us && strcmp(us + 1, type_name) == 0) {
+                    resolved = dn;
+                    break;
+                }
+            }
+            /* Check enums too */
+            if (resolved == type_name) {
+                for (int ei = 0; ei < cg->enum_count; ei++) {
+                    const char *en = cg->enum_names[ei];
+                    const char *us = strrchr(en, '_');
+                    if (us && strcmp(us + 1, type_name) == 0) {
+                        resolved = en;
+                        break;
+                    }
+                }
+            }
+        }
+        if (cg && codegen_is_enum(cg, resolved)) {
+            snprintf(buf, sizeof(buf), "EzEnum_%s", resolved);
         } else {
-            snprintf(buf, sizeof(buf), "EzStruct_%s", type_name);
+            snprintf(buf, sizeof(buf), "EzStruct_%s", resolved);
         }
         return buf;
     }
