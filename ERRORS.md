@@ -3,7 +3,7 @@
 > Auto-generated from `ezc/src/util/error_codes.h`. Do not edit manually.
 > Run `./scripts/generate_errors.sh` to regenerate.
 
-**Total: 127 codes** (117 errors, 10 warnings)
+**Total: 128 codes** (118 errors, 10 warnings)
 
 ---
 
@@ -17,6 +17,7 @@
 | `E1007` | syntax | invalid escape sequence in character literal |
 | `E1010` | syntax | invalid number format — hex (0x), octal (0o), or binary (0b) prefix must be followed by digits |
 | `E1011` | syntax | number cannot have consecutive underscores |
+| `E1012` | syntax | numeric literals cannot start with an underscore |
 | `E1013` | syntax | number cannot end with an underscore |
 | `E1014` | syntax | number cannot have an underscore before the decimal point |
 | `E1015` | syntax | number cannot have an underscore after the decimal point |
@@ -171,4 +172,4 @@
 
 ---
 
-*Generated on 2026-04-06 23:12:21 UTC*
+*Generated on 2026-04-07 16:12:05 UTC*

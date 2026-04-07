@@ -471,17 +471,27 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
         } else if (!is_enum_name(tc, name) && !find_func(tc, name) &&
                    !tc_is_builtin(name) && !is_struct_name(tc, name) &&
                    !tc_is_imported_module(tc, name)) {
-            char msg[256];
-            snprintf(msg, sizeof(msg), "undefined variable '%s'", name);
-            const char *suggestion = suggest_name(tc, name);
-            if (suggestion) {
-                char help[256];
-                snprintf(help, sizeof(help), "did you mean '%s'?", suggestion);
-                diag_error_help(tc->diag, "E4001", strdup(msg),
-                    tc->file, node->token.line, node->token.column, 0, strdup(help));
-            } else {
-                diag_error(tc->diag, "E4001", strdup(msg),
+            /* Check if it looks like a number with a leading underscore */
+            if (name[0] == '_' && name[1] >= '0' && name[1] <= '9') {
+                char msg[256];
+                snprintf(msg, sizeof(msg),
+                    "numeric literals cannot start with an underscore — did you mean '%s'?",
+                    name + 1);
+                diag_error(tc->diag, "E1012", strdup(msg),
                     tc->file, node->token.line, node->token.column, 0);
+            } else {
+                char msg[256];
+                snprintf(msg, sizeof(msg), "undefined variable '%s'", name);
+                const char *suggestion = suggest_name(tc, name);
+                if (suggestion) {
+                    char help[256];
+                    snprintf(help, sizeof(help), "did you mean '%s'?", suggestion);
+                    diag_error_help(tc->diag, "E4001", strdup(msg),
+                        tc->file, node->token.line, node->token.column, 0, strdup(help));
+                } else {
+                    diag_error(tc->diag, "E4001", strdup(msg),
+                        tc->file, node->token.line, node->token.column, 0);
+                }
             }
         }
         break;

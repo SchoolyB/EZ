@@ -25,6 +25,7 @@
     EZ_ERROR("E1007", "syntax", "invalid escape sequence in character literal") \
     EZ_ERROR("E1010", "syntax", "invalid number format — hex (0x), octal (0o), or binary (0b) prefix must be followed by digits") \
     EZ_ERROR("E1011", "syntax", "number cannot have consecutive underscores") \
+    EZ_ERROR("E1012", "syntax", "numeric literals cannot start with an underscore") \
     EZ_ERROR("E1013", "syntax", "number cannot end with an underscore") \
     EZ_ERROR("E1014", "syntax", "number cannot have an underscore before the decimal point") \
     EZ_ERROR("E1015", "syntax", "number cannot have an underscore after the decimal point") \
