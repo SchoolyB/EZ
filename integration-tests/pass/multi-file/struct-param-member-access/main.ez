@@ -2,7 +2,7 @@
  * main.ez - Test struct parameter member access across modules
  */
 
-import proc"./processor.ez"
+import proc "./processor.ez"
 
 
 do main() {

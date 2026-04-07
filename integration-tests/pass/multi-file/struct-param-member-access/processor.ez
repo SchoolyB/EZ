@@ -1,0 +1,17 @@
+const TestStruct struct {
+    Value u8
+    Name string
+}
+
+do create_test_struct(v u8, n string) -> TestStruct {
+    mut ts = TestStruct{Value: v, Name: n}
+    return ts
+}
+
+do process(s TestStruct) -> u8 {
+    return s.Value
+}
+
+do get_name(s TestStruct) -> string {
+    return s.Name
+}
