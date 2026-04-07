@@ -2,7 +2,7 @@
  * main.ez - Entry point that imports a directory module
  */
 
-import "../src/server"
+import "./server.ez"
 
 
 /* Test result tracking */
