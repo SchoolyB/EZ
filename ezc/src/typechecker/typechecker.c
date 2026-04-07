@@ -3937,6 +3937,39 @@ void typechecker_check(TypeChecker *tc, AstNode *program) {
         }
     }
 
+    /* Register unprefixed aliases for struct/enum types from 'import and use' modules */
+    for (int ui = 0; ui < tc->using_module_count; ui++) {
+        const char *umod = tc->using_modules[ui];
+        size_t umod_len = strlen(umod);
+        char prefix[128];
+        snprintf(prefix, sizeof(prefix), "%s_", umod);
+        size_t prefix_len = umod_len + 1;
+        /* Check structs */
+        for (int si = 0; si < tc->struct_count; si++) {
+            const char *sn = tc->structs[si].struct_name;
+            if (strncmp(sn, prefix, prefix_len) == 0) {
+                const char *unprefixed = sn + prefix_len;
+                if (!is_struct_name(tc, unprefixed)) {
+                    register_struct(tc, unprefixed,
+                        tc->structs[si].field_names,
+                        tc->structs[si].field_types,
+                        tc->structs[si].field_count);
+                }
+            }
+        }
+        /* Check enums */
+        for (int ei = 0; ei < tc->enum_count; ei++) {
+            const char *en = tc->enum_names[ei];
+            if (strncmp(en, prefix, prefix_len) == 0) {
+                const char *unprefixed = en + prefix_len;
+                if (!is_enum_name(tc, unprefixed)) {
+                    register_enum(tc, unprefixed, tc->enum_is_string[ei],
+                        tc->enum_values[ei], tc->enum_value_counts[ei]);
+                }
+            }
+        }
+    }
+
     /* Pass 2: check all statements */
     for (int i = 0; i < program->data.program.stmt_count; i++) {
         check_statement(tc, program->data.program.stmts[i]);

@@ -633,9 +633,31 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
         break;
     }
 
-    case NODE_STRUCT_VALUE:
+    case NODE_STRUCT_VALUE: {
         /* Struct literal: (EzStruct_Name){.field = value, ...} */
-        emitf(cg, "(EzStruct_%s){", node->data.struct_value.name);
+        /* Resolve unprefixed struct names from 'import and use' */
+        const char *sname = node->data.struct_value.name;
+        if (sname[0] >= 'A' && sname[0] <= 'Z') {
+            bool found = false;
+            for (int si = 0; si < cg->struct_decl_count; si++) {
+                if (strcmp(cg->struct_decls[si]->data.struct_decl.name, sname) == 0) {
+                    found = true;
+                    break;
+                }
+            }
+            if (!found) {
+                /* Try prefixed names */
+                for (int si = 0; si < cg->struct_decl_count; si++) {
+                    const char *dn = cg->struct_decls[si]->data.struct_decl.name;
+                    const char *us = strrchr(dn, '_');
+                    if (us && strcmp(us + 1, sname) == 0) {
+                        sname = dn;
+                        break;
+                    }
+                }
+            }
+        }
+        emitf(cg, "(EzStruct_%s){", sname);
         for (int i = 0; i < node->data.struct_value.count; i++) {
             if (i > 0) emit(cg, ", ");
             emitf(cg, ".%s = ", safe_name(node->data.struct_value.field_names[i]));
@@ -643,6 +665,7 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
         }
         emit(cg, "}");
         break;
+    }
 
     case NODE_PREFIX_EXPR:
         /* For negation of int literals that are already negative (e.g. parser
@@ -1082,7 +1105,19 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
 
             /* Check if this is an enum access: EnumName.VALUE */
             if (mod[0] >= 'A' && mod[0] <= 'Z') {
-                emitf(cg, "EzEnum_%s_%s", mod, mem);
+                /* Resolve unprefixed enum names from 'import and use' */
+                const char *resolved_enum = mod;
+                if (!codegen_is_enum(cg, mod)) {
+                    for (int ei = 0; ei < cg->enum_count; ei++) {
+                        const char *en = cg->enum_names[ei];
+                        const char *us = strrchr(en, '_');
+                        if (us && strcmp(us + 1, mod) == 0) {
+                            resolved_enum = en;
+                            break;
+                        }
+                    }
+                }
+                emitf(cg, "EzEnum_%s_%s", resolved_enum, mem);
                 break;
             }
 
