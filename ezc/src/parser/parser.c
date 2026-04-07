@@ -1717,12 +1717,23 @@ static AstNode *parse_for_each_statement(Parser *p) {
     if (!expect_peek(p, TOK_IN)) return NULL;
 
     next_token(p);
-    /* If collection is an uppercase identifier followed by {, parse as label only
-     * to prevent the struct literal parser from consuming the block-opening { */
-    if (cur_token_is(p, TOK_IDENT) && p->cur_token.literal[0] >= 'A' &&
-        p->cur_token.literal[0] <= 'Z' && peek_token_is(p, TOK_LBRACE)) {
+    /* Parse collection carefully — prevent struct literal parser from consuming
+     * the block-opening { after identifiers or module.Name expressions */
+    if (cur_token_is(p, TOK_IDENT) && peek_token_is(p, TOK_LBRACE)) {
+        /* Bare identifier followed by { — parse as label only */
         node->data.for_each.collection = ast_alloc(p->arena, NODE_LABEL, p->cur_token);
         node->data.for_each.collection->data.label.value = p->cur_token.literal;
+    } else if (cur_token_is(p, TOK_IDENT) && peek_token_is(p, TOK_DOT)) {
+        /* Module-qualified name: mod.Name — parse as member expr manually,
+         * don't use parse_expression which would trigger struct literal parsing */
+        AstNode *obj = ast_alloc(p->arena, NODE_LABEL, p->cur_token);
+        obj->data.label.value = p->cur_token.literal;
+        next_token(p); /* consume . */
+        next_token(p); /* move to member */
+        AstNode *member = ast_alloc(p->arena, NODE_MEMBER_EXPR, p->cur_token);
+        member->data.member.object = obj;
+        member->data.member.member = p->cur_token.literal;
+        node->data.for_each.collection = member;
     } else {
         node->data.for_each.collection = parse_expression(p, PREC_LOWEST);
     }
