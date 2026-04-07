@@ -79,14 +79,13 @@ do main() {
     println("  [PASS] println enum variable directly")
     passed += 1
 
-    // Test 6: enum variable cast to int
-    mut val Color = Color.GREEN
-    mut next int = int(val)
+    // Test 6: enum member assigned directly to int
+    mut next int = Color.GREEN
     if next == 1 {
-        println("  [PASS] enum variable cast to int")
+        println("  [PASS] enum member assigned to int (GREEN=1)")
         passed += 1
     } otherwise {
-        println("  [FAIL] enum cast: got ${next}, expected 1")
+        println("  [FAIL] enum assign: got ${next}, expected 1")
         failed += 1
     }
 
