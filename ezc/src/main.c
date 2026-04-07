@@ -597,7 +597,8 @@ int main(int argc, char **argv) {
                         char *prefixed = arena_alloc(arena, 256);
                         snprintf(prefixed, 256, "%s_%s", mod_name, imp_stmt->data.var_decl.name);
                         imp_stmt->data.var_decl.name = prefixed;
-                        if (imp_stmt->data.var_decl.type_name) {
+                        if (imp_stmt->data.var_decl.type_name &&
+                            imp_stmt->data.var_decl.type_name[0] >= 'A' && imp_stmt->data.var_decl.type_name[0] <= 'Z') {
                             for (int ni = 0; ni < name_count; ni++) {
                                 if (strcmp(imp_stmt->data.var_decl.type_name, orig_names[ni]) == 0) {
                                     imp_stmt->data.var_decl.type_name = new_names[ni];
@@ -653,9 +654,10 @@ int main(int argc, char **argv) {
                         imp_stmt->data.func_decl.name = prefixed;
                         /* Rewrite internal references in function body */
                         rewrite_labels(imp_stmt->data.func_decl.body, orig_names, new_names, name_count, arena);
-                        /* Rewrite return type references */
+                        /* Rewrite return type references (only struct/enum types) */
                         for (int ri = 0; ri < imp_stmt->data.func_decl.return_type_count; ri++) {
                             const char *rt = imp_stmt->data.func_decl.return_types[ri];
+                            if (rt[0] < 'A' || rt[0] > 'Z') continue;
                             for (int ni = 0; ni < name_count; ni++) {
                                 if (strcmp(rt, orig_names[ni]) == 0) {
                                     imp_stmt->data.func_decl.return_types[ri] = new_names[ni];
@@ -663,10 +665,12 @@ int main(int argc, char **argv) {
                                 }
                             }
                         }
-                        /* Rewrite parameter type references */
+                        /* Rewrite parameter type references (only struct/enum types, not primitives) */
                         for (int pi = 0; pi < imp_stmt->data.func_decl.param_count; pi++) {
                             const char *pt = imp_stmt->data.func_decl.params[pi].type_name;
                             if (!pt) continue;
+                            /* Only rewrite types that start with uppercase (struct/enum names) */
+                            if (pt[0] < 'A' || pt[0] > 'Z') continue;
                             for (int ni = 0; ni < name_count; ni++) {
                                 if (strcmp(pt, orig_names[ni]) == 0) {
                                     imp_stmt->data.func_decl.params[pi].type_name = new_names[ni];
@@ -684,7 +688,7 @@ int main(int argc, char **argv) {
                         /* Rewrite field types that reference other imported types */
                         for (int fi = 0; fi < imp_stmt->data.struct_decl.field_count; fi++) {
                             const char *ft = imp_stmt->data.struct_decl.fields[fi].type_name;
-                            if (!ft) continue;
+                            if (!ft || ft[0] < 'A' || ft[0] > 'Z') continue;
                             for (int ni = 0; ni < name_count; ni++) {
                                 if (strcmp(ft, orig_names[ni]) == 0) {
                                     imp_stmt->data.struct_decl.fields[fi].type_name = new_names[ni];
