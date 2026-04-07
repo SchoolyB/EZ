@@ -1717,7 +1717,15 @@ static AstNode *parse_for_each_statement(Parser *p) {
     if (!expect_peek(p, TOK_IN)) return NULL;
 
     next_token(p);
-    node->data.for_each.collection = parse_expression(p, PREC_LOWEST);
+    /* If collection is an uppercase identifier followed by {, parse as label only
+     * to prevent the struct literal parser from consuming the block-opening { */
+    if (cur_token_is(p, TOK_IDENT) && p->cur_token.literal[0] >= 'A' &&
+        p->cur_token.literal[0] <= 'Z' && peek_token_is(p, TOK_LBRACE)) {
+        node->data.for_each.collection = ast_alloc(p->arena, NODE_LABEL, p->cur_token);
+        node->data.for_each.collection->data.label.value = p->cur_token.literal;
+    } else {
+        node->data.for_each.collection = parse_expression(p, PREC_LOWEST);
+    }
 
     if (has_paren) {
         if (!expect_peek(p, TOK_RPAREN)) return NULL;
