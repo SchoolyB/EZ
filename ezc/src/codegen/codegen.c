@@ -3624,31 +3624,64 @@ static void emit_var_declaration(CodeGen *cg, AstNode *node) {
         int fixed_size = extract_array_size(type_name);
         if (fixed_size > 0) {
             /* Fixed-size array: use EzArray but initialized with exact capacity */
-            emitf(cg, "EzArray %s = ", safe_name(node->data.var_decl.name));
-            if (node->data.var_decl.value) {
-                emit_expression(cg, node->data.var_decl.value);
+            if (cg->indent == 0) {
+                /* File scope: emit uninitialized global, defer init to ez_init_globals */
+                emitf(cg, "EzArray %s;\n", safe_name(node->data.var_decl.name));
+                /* Store deferred init in the init buffer */
+                if (node->data.var_decl.value) {
+                    buf_appendf(&cg->global_init, "    %s = ", safe_name(node->data.var_decl.name));
+                    /* Temporarily redirect output to global_init buffer */
+                    Buf saved = cg->output;
+                    cg->output = cg->global_init;
+                    cg->indent = 1;
+                    emit_expression(cg, node->data.var_decl.value);
+                    emit(cg, ";\n");
+                    cg->global_init = cg->output;
+                    cg->output = saved;
+                    cg->indent = 0;
+                }
             } else {
-                const char *c_elem_type = ez_type_to_c_cg(cg, elem_type);
-                emitf(cg, "ez_array_new(ez_default_arena, sizeof(%s), %d)", c_elem_type, fixed_size);
+                emitf(cg, "EzArray %s = ", safe_name(node->data.var_decl.name));
+                if (node->data.var_decl.value) {
+                    emit_expression(cg, node->data.var_decl.value);
+                } else {
+                    const char *c_elem_type = ez_type_to_c_cg(cg, elem_type);
+                    emitf(cg, "ez_array_new(ez_default_arena, sizeof(%s), %d)", c_elem_type, fixed_size);
+                }
+                emit(cg, ";\n");
             }
-            emit(cg, ";\n");
             return;
         }
 
         if (is_nested_array_type(type_name)) {
-            /* Nested array [[int]]: EzArray of EzArrays */
-            emitf(cg, "EzArray %s = ", safe_name(node->data.var_decl.name));
-            if (node->data.var_decl.value) {
-                emit_expression(cg, node->data.var_decl.value);
+            if (cg->indent == 0) {
+                emitf(cg, "EzArray %s;\n", safe_name(node->data.var_decl.name));
+                Buf saved = cg->output; cg->output = cg->global_init; cg->indent = 1;
+                emitf(cg, "    %s = ", safe_name(node->data.var_decl.name));
+                if (node->data.var_decl.value) emit_expression(cg, node->data.var_decl.value);
+                else emit(cg, "ez_array_new(ez_default_arena, sizeof(EzArray), 4)");
+                emit(cg, ";\n");
+                cg->global_init = cg->output; cg->output = saved; cg->indent = 0;
             } else {
-                emitf(cg, "ez_array_new(ez_default_arena, sizeof(EzArray), 4)");
+                emitf(cg, "EzArray %s = ", safe_name(node->data.var_decl.name));
+                if (node->data.var_decl.value) emit_expression(cg, node->data.var_decl.value);
+                else emitf(cg, "ez_array_new(ez_default_arena, sizeof(EzArray), 4)");
+                emit(cg, ";\n");
             }
-            emit(cg, ";\n");
             return;
         }
 
         /* Dynamic array: use EzArray */
         const char *c_elem_type = ez_type_to_c_cg(cg, elem_type);
+        if (cg->indent == 0) {
+            emitf(cg, "EzArray %s;\n", safe_name(node->data.var_decl.name));
+            Buf saved = cg->output; cg->output = cg->global_init; cg->indent = 1;
+            emitf(cg, "    %s = ", safe_name(node->data.var_decl.name));
+            if (node->data.var_decl.value) emit_expression(cg, node->data.var_decl.value);
+            else emitf(cg, "ez_array_new(ez_default_arena, sizeof(%s), 4)", c_elem_type);
+            emit(cg, ";\n");
+            cg->global_init = cg->output; cg->output = saved; cg->indent = 0;
+        } else {
         emitf(cg, "EzArray %s = ", safe_name(node->data.var_decl.name));
         if (node->data.var_decl.value &&
             node->data.var_decl.value->kind == NODE_ARRAY_VALUE &&
@@ -3667,6 +3700,7 @@ static void emit_var_declaration(CodeGen *cg, AstNode *node) {
             emitf(cg, "ez_array_new(ez_default_arena, sizeof(%s), 4)", c_elem_type);
         }
         emit(cg, ";\n");
+        } /* end else (indent > 0) */
         return;
     }
 
@@ -4649,6 +4683,7 @@ static bool codegen_is_enum(CodeGen *cg, const char *name) {
 CodeGen codegen_create(const char *file) {
     CodeGen cg;
     cg.output = buf_create(4096);
+    cg.global_init = buf_create(256);
     cg.indent = 0;
     cg.has_mem = false;
     cg.has_fmt = false;
@@ -5005,6 +5040,10 @@ void codegen_generate(CodeGen *cg, AstNode *program) {
     emit(cg, "    (void)argc; (void)argv;\n");
     emit(cg, "    ez_runtime_init();\n");
     emit(cg, "    ez_os_init(argc, argv);\n");
+    /* Initialize file-scope arrays that can't use C static initializers */
+    if (cg->global_init.len > 0) {
+        buf_append(&cg->output, cg->global_init.data);
+    }
     emit(cg, "    ez_fn_main();\n");
     emit(cg, "    ez_runtime_shutdown();\n");
     emit(cg, "    return 0;\n");

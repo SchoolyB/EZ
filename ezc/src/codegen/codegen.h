@@ -14,6 +14,7 @@
 
 typedef struct {
     Buf output;
+    Buf global_init;    /* Deferred initialization for file-scope arrays */
     int indent;
     bool has_mem;       /* Whether @mem was imported */
     bool has_fmt;       /* Whether @fmt was imported */
