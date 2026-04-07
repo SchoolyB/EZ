@@ -5,6 +5,7 @@
  * when iterating over [[int]], [[string]], and [[[int]]].
  */
 
+import @arrays
 
 do main() {
     println("=== Nested Array for_each Tests ===")
