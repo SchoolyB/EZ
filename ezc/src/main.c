@@ -753,6 +753,35 @@ int main(int argc, char **argv) {
                                 }
                             }
                         }
+                        /* Rewrite struct-namespaced function bodies, return types, and param types */
+                        for (int si = 0; si < imp_stmt->data.struct_decl.func_count; si++) {
+                            AstNode *fn = imp_stmt->data.struct_decl.funcs[si].func_decl;
+                            if (!fn || fn->kind != NODE_FUNC_DECL) continue;
+                            /* Rewrite function body labels */
+                            rewrite_labels(fn->data.func_decl.body, orig_names, new_names, name_count, arena);
+                            /* Rewrite return types */
+                            for (int ri = 0; ri < fn->data.func_decl.return_type_count; ri++) {
+                                const char *rt = fn->data.func_decl.return_types[ri];
+                                if (rt[0] < 'A' || rt[0] > 'Z') continue;
+                                for (int ni = 0; ni < name_count; ni++) {
+                                    if (strcmp(rt, orig_names[ni]) == 0) {
+                                        fn->data.func_decl.return_types[ri] = new_names[ni];
+                                        break;
+                                    }
+                                }
+                            }
+                            /* Rewrite parameter types */
+                            for (int pi = 0; pi < fn->data.func_decl.param_count; pi++) {
+                                const char *pt = fn->data.func_decl.params[pi].type_name;
+                                if (!pt || pt[0] < 'A' || pt[0] > 'Z') continue;
+                                for (int ni = 0; ni < name_count; ni++) {
+                                    if (strcmp(pt, orig_names[ni]) == 0) {
+                                        fn->data.func_decl.params[pi].type_name = new_names[ni];
+                                        break;
+                                    }
+                                }
+                            }
+                        }
                     }
 
                     /* Prefix enum names with module name */

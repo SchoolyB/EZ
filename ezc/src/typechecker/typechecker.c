@@ -3968,6 +3968,27 @@ void typechecker_check(TypeChecker *tc, AstNode *program) {
                 }
             }
         }
+        /* Register unprefixed aliases for struct-namespaced functions.
+         * e.g., testmod_Hero_attack → Hero_attack so Hero.attack() works unprefixed */
+        int current_func_count = tc->func_count;
+        for (int fi = 0; fi < current_func_count; fi++) {
+            const char *fn = tc->funcs[fi].name;
+            if (strncmp(fn, prefix, prefix_len) == 0) {
+                const char *unprefixed = fn + prefix_len;
+                /* Only register if it's a struct-namespaced function (StructName_func)
+                 * and not already registered */
+                const char *inner_us = strchr(unprefixed, '_');
+                if (inner_us && unprefixed[0] >= 'A' && unprefixed[0] <= 'Z' &&
+                    !find_func(tc, unprefixed)) {
+                    register_func(tc, unprefixed,
+                        tc->funcs[fi].param_types,
+                        tc->funcs[fi].param_count,
+                        tc->funcs[fi].return_types,
+                        tc->funcs[fi].return_count);
+                    tc->funcs[tc->func_count - 1].def_line = 0;
+                }
+            }
+        }
     }
 
     /* Pass 2: check all statements */
