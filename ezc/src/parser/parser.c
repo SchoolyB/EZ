@@ -1431,7 +1431,15 @@ static AstNode *parse_struct_declaration(Parser *p) {
 
     next_token(p); /* skip 'struct' keyword */
     if (!expect_peek(p, TOK_LBRACE)) return NULL;
+    int brace_line = p->cur_token.line;
     next_token(p); /* skip { */
+
+    /* Reject inline struct declarations — fields must be on separate lines */
+    if (p->cur_token.line == brace_line && !cur_token_is(p, TOK_RBRACE)) {
+        diag_error(p->diag, "E2002",
+            strdup("struct fields must be on separate lines — inline struct declarations are not allowed"),
+            p->file, p->cur_token.line, p->cur_token.column, 0);
+    }
 
     int field_cap = 8;
     int func_cap = 4;
@@ -1513,6 +1521,14 @@ static AstNode *parse_struct_declaration(Parser *p) {
         if (!field->type_name) return NULL;
         node->data.struct_decl.field_count++;
         next_token(p);
+
+        /* Reject semicolons */
+        if (cur_token_is(p, TOK_SEMICOLON)) {
+            diag_error(p->diag, "E2002",
+                strdup("semicolons are not used — put each struct field on its own line"),
+                p->file, p->cur_token.line, p->cur_token.column, 0);
+            next_token(p);
+        }
     }
 
     return node;
@@ -1527,7 +1543,15 @@ static AstNode *parse_enum_declaration(Parser *p) {
 
     next_token(p); /* skip 'enum' keyword */
     if (!expect_peek(p, TOK_LBRACE)) return NULL;
+    int enum_brace_line = p->cur_token.line;
     next_token(p); /* skip { */
+
+    /* Reject inline enum declarations — variants must be on separate lines */
+    if (p->cur_token.line == enum_brace_line && !cur_token_is(p, TOK_RBRACE)) {
+        diag_error(p->diag, "E2002",
+            strdup("enum variants must be on separate lines — inline enum declarations are not allowed"),
+            p->file, p->cur_token.line, p->cur_token.column, 0);
+    }
 
     int val_cap = 8;
     node->data.enum_decl.value_count = 0;
@@ -1580,6 +1604,14 @@ static AstNode *parse_enum_declaration(Parser *p) {
             next_token(p);
         }
         next_token(p);
+
+        /* Reject semicolons */
+        if (cur_token_is(p, TOK_SEMICOLON)) {
+            diag_error(p->diag, "E2002",
+                strdup("semicolons are not used — put each enum variant on its own line"),
+                p->file, p->cur_token.line, p->cur_token.column, 0);
+            next_token(p);
+        }
     }
 
     return node;

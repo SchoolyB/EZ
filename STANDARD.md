@@ -532,6 +532,8 @@ const Person struct {
 }
 ```
 
+**Note:** Struct fields must be on separate lines. Inline declarations like `const Point struct { x int; y int }` are not allowed. Semicolons are never used in struct or enum declarations.
+
 Struct instantiation uses named field syntax:
 
 ```ez
@@ -560,6 +562,8 @@ const Direction enum {
     WEST     // 3
 }
 ```
+
+**Note:** Enum variants must be on separate lines. Inline declarations like `const Color enum { RED; GREEN; BLUE }` are not allowed. Semicolons are never used in enum declarations.
 
 **Flags enums** (powers of 2, annotated with `#flags`):
 
