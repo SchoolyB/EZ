@@ -316,6 +316,43 @@ static void rewrite_labels(AstNode *node, const char **orig, const char **prefix
         }
         rewrite_labels(node->data.cast.value, orig, prefixed, count, arena);
         break;
+    case NODE_NEW_EXPR:
+        /* Rewrite new() type: new(Hero) → new(mod_Hero) */
+        if (node->data.new_expr.type_name &&
+            node->data.new_expr.type_name[0] >= 'A' && node->data.new_expr.type_name[0] <= 'Z') {
+            for (int i = 0; i < count; i++) {
+                if (strcmp(node->data.new_expr.type_name, orig[i]) == 0) {
+                    node->data.new_expr.type_name = prefixed[i];
+                    break;
+                }
+            }
+        }
+        break;
+    case NODE_FUNC_DECL:
+        /* Rewrite return types in nested function declarations */
+        for (int i = 0; i < node->data.func_decl.return_type_count; i++) {
+            const char *rt = node->data.func_decl.return_types[i];
+            if (rt[0] < 'A' || rt[0] > 'Z') continue;
+            for (int j = 0; j < count; j++) {
+                if (strcmp(rt, orig[j]) == 0) {
+                    node->data.func_decl.return_types[i] = prefixed[j];
+                    break;
+                }
+            }
+        }
+        /* Rewrite parameter types in nested function declarations */
+        for (int i = 0; i < node->data.func_decl.param_count; i++) {
+            const char *pt = node->data.func_decl.params[i].type_name;
+            if (!pt || pt[0] < 'A' || pt[0] > 'Z') continue;
+            for (int j = 0; j < count; j++) {
+                if (strcmp(pt, orig[j]) == 0) {
+                    node->data.func_decl.params[i].type_name = prefixed[j];
+                    break;
+                }
+            }
+        }
+        rewrite_labels(node->data.func_decl.body, orig, prefixed, count, arena);
+        break;
     default: break;
     }
 }
