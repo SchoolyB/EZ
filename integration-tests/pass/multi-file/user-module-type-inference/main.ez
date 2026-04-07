@@ -1,7 +1,6 @@
 /*
  * main.ez - Test type inference for user-defined module function return types
  *
- * Tests issue #807: Type inference fails for user-defined module function return types
  */
 
 import and use lib"./mylib.ez"

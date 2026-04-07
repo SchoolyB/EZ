@@ -1,6 +1,5 @@
 /*
  * Test for_each with same-module array constants
- * Regression test for bug #465
  */
 import "./testmod.ez"
 

@@ -1,7 +1,6 @@
 /*
  * Error Test: E5016 - postfix on immutable parameter
  * Expected: "cannot modify"
- * Regression test for bug #539
  */
 
 do test_increment(x int) {

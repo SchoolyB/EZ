@@ -1,7 +1,6 @@
 /*
  * Error Test: E5016 - immutable-parameter in module file
  * Expected: "cannot modify" (error in imported module should be caught)
- * Regression test for bug #535
  */
 
 import lib"./mylib.ez"

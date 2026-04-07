@@ -15,7 +15,7 @@ do main() {
     // Test 3: Void with ensure
     withEnsure()
 
-    // Test 4: Void with ensure AND early return (bug #883)
+    // Test 4: Void with ensure AND early return
     ensureWithEarlyReturn(true)
     ensureWithEarlyReturn(false)
 

@@ -1,6 +1,5 @@
 /*
  * main.ez - Test cross-module nested struct initialization
- * Regression test for issue #621/#649
  *
  * Bug: When creating a struct from another module that has nested struct fields,
  * the nested structs were not being initialized (left as NIL), causing

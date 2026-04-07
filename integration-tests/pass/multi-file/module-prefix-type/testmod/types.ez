@@ -1,6 +1,5 @@
 /*
  * types.ez - Type definitions for module prefix test
- * Regression test for bug #463
  */
 
 const Hero struct {

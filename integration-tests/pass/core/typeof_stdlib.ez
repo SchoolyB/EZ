@@ -1,7 +1,6 @@
 /*
  * Test: type_of() for stdlib return types
  * Tests that stdlib functions return correct EZ type names
- * Related to issue #900: Internal type representation fix
  */
 
 import @random

@@ -1,6 +1,5 @@
 /*
  * types.ez - Nested struct definitions for cross-module test
- * Regression test for issue #621/#649 - cross-module nested struct init
  */
 
 

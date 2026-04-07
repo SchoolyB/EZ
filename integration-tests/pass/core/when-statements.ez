@@ -1,4 +1,4 @@
-// Test when/is/default statements (issue #179)
+// Test when/is/default statements
 
 
 const Status enum {

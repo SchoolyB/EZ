@@ -1,5 +1,4 @@
 
-// Bug #577: Duplicate enum values should be an error
 const Status enum {
     ACTIVE = 1
     INACTIVE = 1

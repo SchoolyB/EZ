@@ -1,6 +1,5 @@
 /*
  * constant-comparison.ez - Test constants on right side of comparisons
- * Regression test for bug #462
  */
 
 

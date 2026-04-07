@@ -1,6 +1,5 @@
 /*
  * Test: Mutable parameters with indexed/member expressions
- * Tests fix for issue #797: Mutable parameters silently fail for indexed/member expressions
  */
 
 
