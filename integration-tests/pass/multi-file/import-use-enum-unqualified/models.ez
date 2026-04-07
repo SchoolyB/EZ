@@ -1,0 +1,10 @@
+const Priority enum {
+    LOW
+    MEDIUM
+    HIGH
+}
+
+const Point struct {
+    x int
+    y int
+}

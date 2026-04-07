@@ -1,0 +1,10 @@
+import and use "./models.ez"
+
+do main() {
+    mut p int = Priority.HIGH
+    if p == 2 {
+        println("ALL TESTS PASSED")
+    } otherwise {
+        println("SOME TESTS FAILED")
+    }
+}
