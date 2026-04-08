@@ -3497,6 +3497,25 @@ static void emit_call_expression(CodeGen *cg, AstNode *node) {
     if (node->data.call.function->kind == NODE_MEMBER_EXPR) {
         AstNode *obj = node->data.call.function->data.member.object;
         const char *member = node->data.call.function->data.member.member;
+        /* Handle mod.Struct.func() triple chain: geometry.Vec2.create() */
+        if (obj->kind == NODE_MEMBER_EXPR &&
+            obj->data.member.object->kind == NODE_LABEL) {
+            const char *mod = obj->data.member.object->data.label.value;
+            const char *type_name = obj->data.member.member;
+            /* Build full prefixed name: mod_Struct_func */
+            char full_name[256];
+            snprintf(full_name, sizeof(full_name), "%s_%s_%s", mod, type_name, member);
+            AstNode *ns_func = find_func(cg, full_name);
+            if (ns_func) {
+                emitf(cg, "ez_fn_%s(", full_name);
+                for (int i = 0; i < node->data.call.arg_count; i++) {
+                    if (i > 0) emit(cg, ", ");
+                    emit_expression(cg, node->data.call.args[i]);
+                }
+                emit(cg, ")");
+                return;
+            }
+        }
         if (obj->kind == NODE_LABEL) {
             const char *raw_name = obj->data.label.value;
             const char *resolved_name = resolve_alias(cg, raw_name);
@@ -4213,10 +4232,25 @@ static void emit_return_statement(CodeGen *cg, AstNode *node) {
         emit(cg, "ez_exit_func(); return;\n");
     } else if (node->data.return_stmt.count == 1) {
         /* Single return value: evaluate into temp, then exit and return */
+        /* Check if we need to dereference a pointer return (new() returns pointer,
+         * but function may return struct by value) */
+        bool needs_deref = false;
+        if (cg->current_func && cg->type_table) {
+            EzType *val_t = typetable_get(cg->type_table, node->data.return_stmt.values[0]);
+            if (val_t && val_t->kind == TK_POINTER &&
+                cg->current_func->data.func_decl.return_type_count > 0) {
+                const char *ret_tn = cg->current_func->data.func_decl.return_types[0];
+                EzType *ret_t = type_from_name(ret_tn);
+                if (ret_t->kind == TK_STRUCT) needs_deref = true;
+            }
+        }
         emit_indent(cg);
         emit(cg, "{ __auto_type _ret = ");
         emit_expression(cg, node->data.return_stmt.values[0]);
-        emit(cg, "; ez_exit_func(); return _ret; }\n");
+        if (needs_deref)
+            emit(cg, "; ez_exit_func(); return *_ret; }\n");
+        else
+            emit(cg, "; ez_exit_func(); return _ret; }\n");
     } else if (node->data.return_stmt.count == 0 && cg->current_func &&
                cg->current_func->data.func_decl.return_names &&
                cg->current_func->data.func_decl.return_type_count > 0) {

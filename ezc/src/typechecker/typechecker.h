@@ -84,6 +84,7 @@ typedef struct {
     const char **imported_modules;
     int *import_lines;
     bool *import_used;
+    bool *import_is_stdlib;
     int import_count;
     int import_cap;
 

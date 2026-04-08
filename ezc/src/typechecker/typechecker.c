@@ -239,6 +239,14 @@ static bool tc_is_imported_module(TypeChecker *tc, const char *name) {
     return false;
 }
 
+static bool tc_is_stdlib_import(TypeChecker *tc, const char *name) {
+    for (int i = 0; i < tc->import_count; i++) {
+        if (strcmp(tc->imported_modules[i], name) == 0)
+            return tc->import_is_stdlib[i];
+    }
+    return false;
+}
+
 static bool tc_is_builtin(const char *name) {
     static const char *builtins[] = {
         "println", "print", "eprintln", "eprint", "input",
@@ -712,6 +720,40 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
 
         if (fn->kind == NODE_LABEL) {
             fn_name = fn->data.label.value;
+        } else if (fn->kind == NODE_MEMBER_EXPR &&
+                   fn->data.member.object->kind == NODE_MEMBER_EXPR &&
+                   fn->data.member.object->data.member.object->kind == NODE_LABEL) {
+            /* mod.Struct.func() triple chain: geometry.Vec2.create() */
+            const char *mod_name = fn->data.member.object->data.member.object->data.label.value;
+            const char *struct_name = fn->data.member.object->data.member.member;
+            const char *func_name = fn->data.member.member;
+            /* Mark module as used */
+            for (int mi = 0; mi < tc->import_count; mi++) {
+                if (strcmp(tc->imported_modules[mi], mod_name) == 0) {
+                    tc->import_used[mi] = true;
+                    break;
+                }
+            }
+            /* Look up mod_Struct_func */
+            char prefixed[256];
+            snprintf(prefixed, sizeof(prefixed), "%s_%s_%s", mod_name, struct_name, func_name);
+            FuncSig *sig = find_func(tc, prefixed);
+            if (sig) {
+                sig->used = true;
+                result = sig->return_count > 0 ? sig->return_types[0] : &TYPE_VOID;
+                /* Check argument count */
+                if (node->data.call.arg_count != sig->param_count) {
+                    char msg[256];
+                    snprintf(msg, sizeof(msg),
+                        "function '%s.%s.%s' expects %d argument(s), got %d",
+                        mod_name, struct_name, func_name,
+                        sig->param_count, node->data.call.arg_count);
+                    diag_error(tc->diag, "E5008", strdup(msg),
+                        tc->file, node->token.line, node->token.column, 0);
+                }
+            } else {
+                result = &TYPE_VOID;
+            }
         } else if (fn->kind == NODE_MEMBER_EXPR && fn->data.member.object->kind == NODE_LABEL) {
             const char *mod_raw = fn->data.member.object->data.label.value;
             const char *mod = tc_resolve_alias(tc, mod_raw);
@@ -733,6 +775,12 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                     mod, mod);
                 diag_error(tc->diag, "E4001", strdup(msg),
                     tc->file, node->token.line, node->token.column, 0);
+            }
+            /* Skip stdlib dispatch if this module is a user import, not stdlib.
+             * User modules with the same name (e.g., import "./server.ez") must
+             * fall through to the user-module handler below. */
+            if (!tc_is_stdlib_import(tc, mod_raw)) {
+                goto user_module_dispatch;
             }
             if (strcmp(mod, "mem") == 0) {
                 if (strcmp(mfn, "arena") == 0) {
@@ -1212,7 +1260,9 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                             node->data.call.args[ai]->token.column, 0);
                     }
                 }
-            } else if (is_struct_name(tc, mod)) {
+            } else
+            user_module_dispatch:
+            if (is_struct_name(tc, mod)) {
                 /* Struct-namespaced function call: Type.func() — look up return type */
                 char prefixed[256];
                 snprintf(prefixed, sizeof(prefixed), "%s_%s", mod, mfn);
@@ -1757,6 +1807,36 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
         /* Resolve object type first (sets type table entry for the object) */
         AstNode *obj = node->data.member.object;
         const char *member = node->data.member.member;
+
+        /* Handle mod.Enum.VALUE or mod.Struct.field triple chain */
+        if (obj->kind == NODE_MEMBER_EXPR &&
+            obj->data.member.object->kind == NODE_LABEL) {
+            const char *mod_name = obj->data.member.object->data.label.value;
+            const char *type_name = obj->data.member.member;
+            /* Build prefixed type name: mod_Type */
+            char prefixed_type[256];
+            snprintf(prefixed_type, sizeof(prefixed_type), "%s_%s", mod_name, type_name);
+            /* Check if it's a module-qualified enum access */
+            if (is_enum_name(tc, prefixed_type)) {
+                bool is_str_enum = false;
+                for (int ei = 0; ei < tc->enum_count; ei++) {
+                    if (strcmp(tc->enum_names[ei], prefixed_type) == 0) {
+                        is_str_enum = tc->enum_is_string[ei];
+                        break;
+                    }
+                }
+                /* Mark module as used */
+                for (int mi = 0; mi < tc->import_count; mi++) {
+                    if (strcmp(tc->imported_modules[mi], mod_name) == 0) {
+                        tc->import_used[mi] = true;
+                        break;
+                    }
+                }
+                result = is_str_enum ? &TYPE_STRING : &TYPE_INT;
+                break;
+            }
+        }
+
         resolve_expr(tc, obj);
 
         if (obj->kind == NODE_LABEL) {
@@ -2520,7 +2600,10 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
                        /* Skip mismatch when assigning pointer (addr) to uint */
                        !(is_int_kind(declared->kind) && value_type->kind == TK_POINTER) &&
                        /* Skip mismatch when assigning pointer (addr) to ^T */
-                       !(declared->kind == TK_POINTER && value_type->kind == TK_POINTER)) {
+                       !(declared->kind == TK_POINTER && value_type->kind == TK_POINTER) &&
+                       /* Pointer to struct is compatible with struct (new() returns pointer) */
+                       !(declared->kind == TK_STRUCT && value_type->kind == TK_POINTER) &&
+                       !(declared->kind == TK_POINTER && value_type->kind == TK_STRUCT)) {
                 /* Type mismatch */
                 char msg[256];
                 snprintf(msg, sizeof(msg),
@@ -2924,7 +3007,10 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
                 !(expected->kind == TK_ENUM && is_int_kind(ret_t->kind)) &&
                 !(expected->kind == TK_STRUCT && is_int_kind(ret_t->kind)) &&
                 !(is_int_kind(expected->kind) && ret_t->kind == TK_STRUCT) &&
-                !(expected->kind == TK_FLOAT && is_int_kind(ret_t->kind))) {
+                !(expected->kind == TK_FLOAT && is_int_kind(ret_t->kind)) &&
+                /* Pointer to struct is compatible with struct (new() returns pointer) */
+                !(expected->kind == TK_STRUCT && ret_t->kind == TK_POINTER) &&
+                !(expected->kind == TK_POINTER && ret_t->kind == TK_STRUCT)) {
                 char msg[256];
                 snprintf(msg, sizeof(msg),
                     "return type mismatch: expected %s, got %s",
@@ -3538,10 +3624,12 @@ static void register_declarations(TypeChecker *tc, AstNode *program) {
                         tc->imported_modules = realloc(tc->imported_modules, sizeof(const char *) * tc->import_cap);
                         tc->import_lines = realloc(tc->import_lines, sizeof(int) * tc->import_cap);
                         tc->import_used = realloc(tc->import_used, sizeof(bool) * tc->import_cap);
+                        tc->import_is_stdlib = realloc(tc->import_is_stdlib, sizeof(bool) * tc->import_cap);
                     }
                     tc->imported_modules[tc->import_count] = item->alias ? item->alias : item->module;
                     tc->import_lines[tc->import_count] = stmt->token.line;
                     tc->import_used[tc->import_count] = false;
+                    tc->import_is_stdlib[tc->import_count] = item->is_stdlib;
                     tc->import_count++;
                 }
                 /* Track alias → module mapping */
