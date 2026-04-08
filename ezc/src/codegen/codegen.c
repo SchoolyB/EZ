@@ -1185,6 +1185,11 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
                         }
                     }
                 }
+                /* Uppercase member on lowercase object is always a module reference
+                 * (struct fields are never uppercase in EZ) */
+                if (!is_module && mem[0] >= 'A' && mem[0] <= 'Z') {
+                    is_module = true;
+                }
                 if (is_module) {
                     emitf(cg, "%s_%s", mod, mem);
                     break;
