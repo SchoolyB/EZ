@@ -74,11 +74,38 @@ do main() {
     println("  [PASS] print array (no newline)")
     passed += 1
 
-    // Test 9: empty array
+    // Test 9: empty array prints {}
     mut empty [int] = {}
-    println(empty)
-    println("  [PASS] println empty array")
-    passed += 1
+    mut empty_str string = "${empty}"
+    if empty_str == "{}" {
+        println("  [PASS] empty array prints {}")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] empty array: got '${empty_str}'")
+        failed += 1
+    }
+
+    // Test 10: empty map prints {:}
+    mut empty_map map[string:int] = {:}
+    mut map_str string = "${empty_map}"
+    if map_str == "{:}" {
+        println("  [PASS] empty map prints {:}")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] empty map: got '${map_str}'")
+        failed += 1
+    }
+
+    // Test 11: zero-initialized empty map prints {:}
+    mut zero_map map[int:string]
+    mut zero_str string = "${zero_map}"
+    if zero_str == "{:}" {
+        println("  [PASS] zero-init map prints {:}")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] zero-init map: got '${zero_str}'")
+        failed += 1
+    }
 
     // Summary
     println("")
