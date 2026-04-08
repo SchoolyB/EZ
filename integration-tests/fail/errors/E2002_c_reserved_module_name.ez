@@ -1,0 +1,10 @@
+/*
+ * Error Test: E2002 - 'c' is reserved for C interop
+ * Expected: error about reserved module name
+ */
+
+import "./c.ez"
+
+do main() {
+    println("should not compile")
+}

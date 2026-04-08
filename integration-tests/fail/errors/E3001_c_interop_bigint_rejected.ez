@@ -1,0 +1,11 @@
+/*
+ * Error Test: E3001 - bigint types cannot be passed to C functions
+ * Expected: error about i128 at C boundary
+ */
+
+import c "stdio.h"
+
+do main() {
+    mut x i128 = 42
+    c.printf("%d", x)
+}

@@ -1,0 +1,8 @@
+/*
+ * Error Test: E4001 - c.func() without C header import
+ * Expected: error requiring import c"header.h"
+ */
+
+do main() {
+    c.puts("no import")
+}
