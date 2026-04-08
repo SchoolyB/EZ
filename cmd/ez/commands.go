@@ -29,6 +29,12 @@ var runCmd = &cobra.Command{
 		if len(args) > 1 {
 			extraArgs = args[1:]
 		}
+		quiet, _ := cmd.Flags().GetString("quiet")
+		if quiet == "all" {
+			extraArgs = append(extraArgs, "--quiet")
+		} else if quiet != "" {
+			extraArgs = append(extraArgs, "--quiet", quiet)
+		}
 		code, err := ezc.Run(args[0], extraArgs)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "error: %v\n", err)
@@ -49,7 +55,14 @@ var checkCmd = &cobra.Command{
 			fmt.Fprintf(os.Stderr, "error: '%s' is not a valid EZ source file — expected a .ez file\n", args[0])
 			os.Exit(1)
 		}
-		code, err := ezc.Check(args[0])
+		var extraArgs []string
+		quiet, _ := cmd.Flags().GetString("quiet")
+		if quiet == "all" {
+			extraArgs = append(extraArgs, "--quiet")
+		} else if quiet != "" {
+			extraArgs = append(extraArgs, "--quiet", quiet)
+		}
+		code, err := ezc.Check(args[0], extraArgs)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "error: %v\n", err)
 			os.Exit(1)
@@ -70,11 +83,17 @@ var buildCmd = &cobra.Command{
 		output, _ := cmd.Flags().GetString("output")
 		verbose, _ := cmd.Flags().GetBool("verbose")
 		emitC, _ := cmd.Flags().GetBool("emit-c")
+		quiet, _ := cmd.Flags().GetString("quiet")
 
 		opts := ezc.BuildOpts{
 			Output:  output,
 			Verbose: verbose,
 			EmitC:   emitC,
+		}
+		if quiet == "all" {
+			opts.Quiet = true
+		} else if quiet != "" {
+			opts.QuietCodes = quiet
 		}
 		code, err := ezc.Build(args[0], opts)
 		if err != nil {
@@ -363,6 +382,9 @@ func init() {
 	buildCmd.Flags().StringP("output", "o", "", "Output binary name")
 	buildCmd.Flags().BoolP("verbose", "v", false, "Show compilation commands")
 	buildCmd.Flags().Bool("emit-c", false, "Emit generated C source only")
+	buildCmd.Flags().StringP("quiet", "q", "", "Suppress warnings (use 'all' or comma-separated codes like W1001,W1002)")
+	checkCmd.Flags().StringP("quiet", "q", "", "Suppress warnings (use 'all' or comma-separated codes like W1001,W1002)")
+	runCmd.Flags().StringP("quiet", "q", "", "Suppress warnings (use 'all' or comma-separated codes like W1001,W1002)")
 
 	pzCmd.Flags().StringP("template", "t", "basic", "Template: basic, cli, lib, multi, server, client")
 	pzCmd.Flags().BoolP("comments", "c", false, "Include helpful syntax comments")

@@ -42,6 +42,11 @@ typedef struct {
 
     /* Options */
     bool use_color;
+
+    /* Warning suppression (-q / --quiet) */
+    bool suppress_all_warnings;
+    const char **suppressed_codes;
+    int suppressed_count;
 } DiagnosticList;
 
 /* Create/destroy */

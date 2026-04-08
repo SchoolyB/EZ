@@ -45,6 +45,8 @@ static void print_usage(void) {
     fprintf(stderr, "  -g              Include debug symbols\n");
     fprintf(stderr, "  -v, --verbose   Show compilation commands\n");
     fprintf(stderr, "  --time          Show compilation timing\n");
+    fprintf(stderr, "  --quiet         Suppress all warnings\n");
+    fprintf(stderr, "  --quiet W1001   Suppress specific warnings (comma-separated)\n");
     fprintf(stderr, "  --no-color      Disable colored output\n");
     fprintf(stderr, "  -h, --help      Show this help\n");
 }
@@ -389,6 +391,8 @@ int main(int argc, char **argv) {
     bool show_time = false;
     bool no_color = false;
     bool debug_symbols = false;
+    bool quiet_all = false;
+    const char *quiet_codes_arg = NULL;
     const char *opt_level = "-O2";
 
     /* Parse arguments */
@@ -429,6 +433,18 @@ int main(int argc, char **argv) {
             no_color = true;
             continue;
         }
+        if (strcmp(argv[i], "--quiet") == 0 || strcmp(argv[i], "-q") == 0) {
+            /* --quiet / -q with optional next argument for specific codes */
+            if (i + 1 < argc && argv[i + 1][0] == 'W') {
+                quiet_codes_arg = argv[++i];
+            } else if (i + 1 < argc && argv[i + 1][0] == 'E') {
+                fprintf(stderr, "ez: '-q' only accepts warning codes (W-prefixed), not error code '%s'\n", argv[i + 1]);
+                return 1;
+            } else {
+                quiet_all = true;
+            }
+            continue;
+        }
         /* Subcommands */
         if (strcmp(argv[i], "check") == 0 && !input_file) {
             check_only = true;
@@ -463,6 +479,38 @@ int main(int argc, char **argv) {
     DiagnosticList *diag = diag_create();
     diag_set_source(diag, input_file, source);
     if (no_color) diag->use_color = false;
+
+    /* Configure warning suppression */
+    if (quiet_all) {
+        diag->suppress_all_warnings = true;
+    } else if (quiet_codes_arg) {
+        /* Parse comma-separated warning codes */
+        char *codes_buf = strdup(quiet_codes_arg);
+        int code_cap = 8;
+        diag->suppressed_codes = malloc(sizeof(const char *) * code_cap);
+        diag->suppressed_count = 0;
+        char *tok = strtok(codes_buf, ",");
+        while (tok) {
+            /* Validate: must start with W */
+            if (tok[0] == 'E') {
+                fprintf(stderr, "ez: '-q' only accepts warning codes (W-prefixed), not error code '%s'\n", tok);
+                free(codes_buf);
+                return 1;
+            }
+            if (tok[0] != 'W') {
+                fprintf(stderr, "ez: unknown warning code '%s'\n", tok);
+                free(codes_buf);
+                return 1;
+            }
+            if (diag->suppressed_count >= code_cap) {
+                code_cap *= 2;
+                diag->suppressed_codes = realloc(diag->suppressed_codes, sizeof(const char *) * code_cap);
+            }
+            diag->suppressed_codes[diag->suppressed_count++] = strdup(tok);
+            tok = strtok(NULL, ",");
+        }
+        free(codes_buf);
+    }
 
     clock_t t_start = clock();
 

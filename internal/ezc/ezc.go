@@ -48,12 +48,14 @@ func Find() (string, error) {
 
 // BuildOpts configures a build invocation.
 type BuildOpts struct {
-	Output   string
-	OptLevel string // "O0", "O1", "O2", "O3"
-	Debug    bool
-	Verbose  bool
-	EmitC    bool
-	NoColor  bool
+	Output     string
+	OptLevel   string // "O0", "O1", "O2", "O3"
+	Debug      bool
+	Verbose    bool
+	EmitC      bool
+	NoColor    bool
+	Quiet      bool   // Suppress all warnings
+	QuietCodes string // Suppress specific warning codes (comma-separated)
 }
 
 // Run compiles and executes an EZ source file via ezc run.
@@ -97,18 +99,25 @@ func Build(file string, opts BuildOpts) (int, error) {
 	if opts.NoColor {
 		args = append(args, "--no-color")
 	}
+	if opts.Quiet {
+		args = append(args, "--quiet")
+	} else if opts.QuietCodes != "" {
+		args = append(args, "--quiet", opts.QuietCodes)
+	}
 
 	return execute(ezcPath, args)
 }
 
 // Check type-checks an EZ source file without compiling.
-func Check(file string) (int, error) {
+func Check(file string, extraArgs []string) (int, error) {
 	ezcPath, err := Find()
 	if err != nil {
 		return 1, err
 	}
 
-	return execute(ezcPath, []string{"check", file})
+	args := []string{"check", file}
+	args = append(args, extraArgs...)
+	return execute(ezcPath, args)
 }
 
 // Version returns the ezc compiler version string.

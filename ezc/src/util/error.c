@@ -248,15 +248,32 @@ static void print_diagnostic(DiagnosticList *dl, Diagnostic *d) {
     fprintf(stderr, "\n");
 }
 
+static bool is_warning_suppressed(DiagnosticList *dl, Diagnostic *d) {
+    if (d->severity != SEV_WARNING) return false;
+    if (dl->suppress_all_warnings) return true;
+    if (d->code) {
+        for (int i = 0; i < dl->suppressed_count; i++) {
+            if (strcmp(d->code, dl->suppressed_codes[i]) == 0) return true;
+        }
+    }
+    return false;
+}
+
 void diag_print_all(DiagnosticList *dl) {
     for (int i = 0; i < dl->count; i++) {
+        if (is_warning_suppressed(dl, &dl->items[i])) continue;
         print_diagnostic(dl, &dl->items[i]);
     }
 }
 
 void diag_print_summary(DiagnosticList *dl) {
     int errors = diag_error_count(dl);
-    int warnings = diag_warning_count(dl);
+    int warnings = 0;
+    for (int i = 0; i < dl->count; i++) {
+        if (dl->items[i].severity == SEV_WARNING &&
+            !is_warning_suppressed(dl, &dl->items[i]))
+            warnings++;
+    }
 
     if (errors == 0 && warnings == 0) return;
 
