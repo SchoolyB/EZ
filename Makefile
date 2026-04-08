@@ -30,7 +30,7 @@ build:
 	@echo "  CLI:      ./$(BINARY_NAME)"
 	@echo "  Compiler: ./ezc/ezc"
 	@echo ""
-	@echo "Run with: EZC_PATH=./ezc/ezc ./ez run <file.ez>"
+	@echo "Run with: EZC_PATH=./ezc/ezc ./ez <file.ez>"
 
 install: build
 	@echo "Installing EZ to $(INSTALL_PATH)..."
@@ -50,7 +50,7 @@ install: build
 	fi
 	@echo ""
 	@echo "EZ installed successfully!"
-	@echo "Try: ez run examples/basic/hello.ez"
+	@echo "Try: ez examples/basic/hello.ez"
 
 uninstall:
 	@echo "Uninstalling EZ..."

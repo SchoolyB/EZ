@@ -16,34 +16,6 @@ import (
 	"github.com/spf13/cobra"
 )
 
-var runCmd = &cobra.Command{
-	Use:   "run [file.ez]",
-	Short: "Compile and run an EZ source file",
-	Args:  cobra.MinimumNArgs(1),
-	Run: func(cmd *cobra.Command, args []string) {
-		if !strings.HasSuffix(args[0], ".ez") {
-			fmt.Fprintf(os.Stderr, "error: '%s' is not a valid EZ source file — expected a .ez file\n", args[0])
-			os.Exit(1)
-		}
-		var extraArgs []string
-		if len(args) > 1 {
-			extraArgs = args[1:]
-		}
-		quiet, _ := cmd.Flags().GetString("quiet")
-		if quiet == "all" {
-			extraArgs = append(extraArgs, "--quiet")
-		} else if quiet != "" {
-			extraArgs = append(extraArgs, "--quiet", quiet)
-		}
-		code, err := ezc.Run(args[0], extraArgs)
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "error: %v\n", err)
-			os.Exit(1)
-		}
-		os.Exit(code)
-	},
-}
-
 var checkCmd = &cobra.Command{
 	Use:   "check [file.ez | directory]",
 	Short: "Type-check a file or project without compiling",
@@ -373,7 +345,7 @@ var rootCmd = &cobra.Command{
 
 func init() {
 	rootCmd.CompletionOptions.DisableDefaultCmd = true
-	rootCmd.AddCommand(runCmd, replCmd, updateCmd, checkCmd, buildCmd, testCmd, reportCmd, versionCmd, docCmd, pzCmd, watchCmd)
+	rootCmd.AddCommand(replCmd, updateCmd, checkCmd, buildCmd, testCmd, reportCmd, versionCmd, docCmd, pzCmd, watchCmd)
 	rootCmd.PersistentPreRun = func(cmd *cobra.Command, args []string) {
 		CheckForUpdateAsync()
 	}
@@ -384,7 +356,6 @@ func init() {
 	buildCmd.Flags().Bool("emit-c", false, "Emit generated C source only")
 	buildCmd.Flags().StringP("quiet", "q", "", "Suppress warnings (use 'all' or comma-separated codes like W1001,W1002)")
 	checkCmd.Flags().StringP("quiet", "q", "", "Suppress warnings (use 'all' or comma-separated codes like W1001,W1002)")
-	runCmd.Flags().StringP("quiet", "q", "", "Suppress warnings (use 'all' or comma-separated codes like W1001,W1002)")
 
 	pzCmd.Flags().StringP("template", "t", "basic", "Template: basic, cli, lib, multi, server, client")
 	pzCmd.Flags().BoolP("comments", "c", false, "Include helpful syntax comments")

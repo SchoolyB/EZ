@@ -2599,7 +2599,6 @@ The `ez` command-line tool provides the following commands:
 | Command | Description |
 |---------|-------------|
 | `ez <file.ez>` | Compile and run a source file |
-| `ez run <file.ez>` | Compile and run (explicit) |
 | `ez build <file.ez> -o <name>` | Compile to a distributable binary |
 | `ez check <file.ez>` | Type-check without compiling |
 | `ez repl` | Start interactive REPL mode |

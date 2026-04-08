@@ -148,7 +148,7 @@ The fastest way to iterate on a change:
 make build
 
 # 3. Test with a quick .ez file
-EZC_PATH=./ezc/ezc ./ez run examples/basic/hello.ez
+EZC_PATH=./ezc/ezc ./ez examples/basic/hello.ez
 
 # Or test with the REPL
 EZC_PATH=./ezc/ezc ./ez repl

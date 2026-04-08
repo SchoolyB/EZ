@@ -33,9 +33,8 @@
 static void print_usage(void) {
     fprintf(stderr, "EZ Programming Language v%s\n", EZ_VERSION);
     fprintf(stderr, "\nUsage:\n");
-    fprintf(stderr, "  ez <file.ez> [options]         Compile to binary (default)\n");
+    fprintf(stderr, "  ez <file.ez> [options]         Compile and run\n");
     fprintf(stderr, "  ez build <file.ez> [options]   Compile to binary\n");
-    fprintf(stderr, "  ez run <file.ez> [options]     Compile and run (temp binary)\n");
     fprintf(stderr, "  ez check <file.ez>             Type check only\n");
     fprintf(stderr, "  ez version                     Show version\n");
     fprintf(stderr, "\nOptions:\n");

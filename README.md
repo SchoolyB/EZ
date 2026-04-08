@@ -45,7 +45,6 @@ That's it. EZ compiles your code to a native binary, executes it, and cleans up.
 
 ```
 ez <file.ez>              Compile and run
-ez run <file.ez>          Compile and run (alias)
 ez build <file.ez> -o app Compile to a distributable binary
 ez check <file.ez>        Type check without compiling
 ez repl                   Interactive REPL
