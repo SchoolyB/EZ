@@ -5,7 +5,11 @@
 
 import @mem
 
-const Color enum { RED, GREEN, BLUE }
+const Color enum {
+    RED
+    GREEN
+    BLUE
+}
 const Point struct {
     x int
     y int
