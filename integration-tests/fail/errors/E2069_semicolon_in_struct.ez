@@ -1,0 +1,13 @@
+/*
+ * Error Test: E2069 - semicolons not allowed in struct declarations
+ * Expected: error rejecting semicolons
+ */
+
+const Point struct {
+    x int;
+    y int
+}
+
+do main() {
+    println("should not compile")
+}
