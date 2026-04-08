@@ -1615,6 +1615,8 @@ static void emit_value_print(CodeGen *cg, const char *c_expr, EzType *t, const c
         emit_indent(cg);
         emitf(cg, "fprintf(%s, \"{\");\n", stream);
         emit_indent(cg);
+        emitf(cg, "if ((%s).order_len == 0) fprintf(%s, \":\");\n", c_expr, stream);
+        emit_indent(cg);
         emitf(cg, "for (int32_t %s = 0; %s < (%s).order_len; %s++) {\n",
                mi, mi, c_expr, mi);
         cg->indent++;

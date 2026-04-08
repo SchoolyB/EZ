@@ -309,7 +309,7 @@ EzString ez_builtin_map_to_string(EzArena *arena, EzMap *m, int val_kind) {
             *(bool *)vp ? "true" : "false"); break;
         }
     }
-    if (m->count == 0) { /* empty map */ }
+    if (m->order_len == 0) { buf[pos++] = ':'; }
     buf[pos++] = '}';
     buf[pos] = '\0';
     return ez_string_new(arena, buf, (int32_t)pos);
