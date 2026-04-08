@@ -280,7 +280,11 @@ static void test_e2e_struct(void) {
 static void test_e2e_enum(void) {
     char *out = compile_and_run(
         ""
-        "const Color enum { RED\n GREEN\n BLUE }\n"
+        "const Color enum {\n"
+        "    RED\n"
+        "    GREEN\n"
+        "    BLUE\n"
+        "}\n"
         "do main() {\n"
         "    temp c Color = Color.GREEN\n"
         "    println(c)\n"
@@ -691,7 +695,7 @@ static void test_e2e_arrays_sort(void) {
         "import @arrays\n"
         "do main() {\n"
         "    mut nums [int] = {3, 1, 2}\n"
-        "    arrays.sort(nums)\n"
+        "    arrays.sort_asc(nums)\n"
         "    println(nums[0])\n"
         "    println(nums[1])\n"
         "    println(nums[2])\n"
@@ -885,7 +889,11 @@ static void test_e2e_flags_enum(void) {
     char *out = compile_and_run(
         ""
         "#flags\n"
-        "const Perms enum { READ\n WRITE\n EXEC }\n"
+        "const Perms enum {\n"
+        "    READ\n"
+        "    WRITE\n"
+        "    EXEC\n"
+        "}\n"
         "do main() {\n"
         "  println(Perms.READ)\n"
         "  println(Perms.WRITE)\n"
@@ -946,7 +954,9 @@ static void test_e2e_mutable_indexed_param(void) {
 static void test_e2e_mutable_member_param(void) {
     char *out = compile_and_run(
         ""
-        "const P struct { x int }\n"
+        "const P struct {\n"
+        "    x int\n"
+        "}\n"
         "do inc(&n int) { n = n + 1 }\n"
         "do main() {\n"
         "  mut p = P{x: 5}\n"
@@ -1165,8 +1175,14 @@ static void test_e2e_mod_div_assign(void) {
 static void test_e2e_nested_struct(void) {
     char *out = compile_and_run(
         ""
-        "const Point struct { x int\n y int }\n"
-        "const Rect struct { origin Point\n size Point }\n"
+        "const Point struct {\n"
+        "    x int\n"
+        "    y int\n"
+        "}\n"
+        "const Rect struct {\n"
+        "    origin Point\n"
+        "    size Point\n"
+        "}\n"
         "do main() {\n"
         "  mut r = Rect{origin: Point{x: 1, y: 2}, size: Point{x: 10, y: 20}}\n"
         "  println(r.origin.x)\n"
@@ -1478,7 +1494,12 @@ static void test_e2e_string_index(void) {
 static void test_e2e_enum_compare(void) {
     char *out = compile_and_run(
         ""
-        "const Dir enum { UP\n DOWN\n LEFT\n RIGHT }\n"
+        "const Dir enum {\n"
+        "    UP\n"
+        "    DOWN\n"
+        "    LEFT\n"
+        "    RIGHT\n"
+        "}\n"
         "do main() {\n"
         "  mut d = Dir.LEFT\n"
         "  if d == Dir.LEFT { println(\"left\") }\n"
