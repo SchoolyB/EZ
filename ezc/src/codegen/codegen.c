@@ -2669,9 +2669,39 @@ static bool emit_csv_call(CodeGen *cg, AstNode *node, const char *func) {
 
 static bool emit_json_call(CodeGen *cg, AstNode *node, const char *func) {
     if (strcmp(func, "encode") == 0) {
-        emit(cg, "ez_json_encode_map(ez_default_arena, &");
-        emit_expression(cg, node->data.call.args[0]);
-        emit(cg, ")");
+        AstNode *arg = node->data.call.args[0];
+        EzType *arg_t = cg->type_table ? typetable_get(cg->type_table, arg) : NULL;
+        if (arg_t && arg_t->kind == TK_MAP) {
+            /* Map: pass by address */
+            emit(cg, "ez_json_encode_map(ez_default_arena, &");
+            emit_expression(cg, arg);
+            emit(cg, ")");
+        } else if (arg_t && arg_t->kind == TK_INT) {
+            /* Int: format as JSON number string */
+            emit(cg, "({ char _jbuf[32]; snprintf(_jbuf, sizeof(_jbuf), \"%\" PRId64, (int64_t)");
+            emit_expression(cg, arg);
+            emit(cg, "); ez_string_new(ez_default_arena, _jbuf, (int32_t)strlen(_jbuf)); })");
+        } else if (arg_t && arg_t->kind == TK_FLOAT) {
+            emit(cg, "({ char _jbuf[64]; snprintf(_jbuf, sizeof(_jbuf), \"%g\", (double)");
+            emit_expression(cg, arg);
+            emit(cg, "); ez_string_new(ez_default_arena, _jbuf, (int32_t)strlen(_jbuf)); })");
+        } else if (arg_t && arg_t->kind == TK_BOOL) {
+            emit(cg, "(");
+            emit_expression(cg, arg);
+            emit(cg, " ? ez_string_lit(\"true\") : ez_string_lit(\"false\"))");
+        } else if (arg_t && arg_t->kind == TK_STRING) {
+            /* String: wrap in quotes */
+            emit(cg, "({ EzString _js = ");
+            emit_expression(cg, arg);
+            emit(cg, "; char *_jbuf = ez_arena_alloc(ez_default_arena, _js.len + 3); ");
+            emit(cg, "_jbuf[0] = '\"'; memcpy(_jbuf+1, _js.data, _js.len); _jbuf[_js.len+1] = '\"'; _jbuf[_js.len+2] = '\\0'; ");
+            emit(cg, "ez_string_new(ez_default_arena, _jbuf, _js.len + 2); })");
+        } else {
+            /* Fallback: store in temp to allow & */
+            emit(cg, "({ __auto_type _jtmp = ");
+            emit_expression(cg, arg);
+            emit(cg, "; ez_json_encode_map(ez_default_arena, (EzMap *)&_jtmp); })");
+        }
         return true;
     }
     if (strcmp(func, "decode") == 0) {
