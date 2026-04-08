@@ -776,8 +776,16 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                 diag_error(tc->diag, "E4001", strdup(msg),
                     tc->file, node->token.line, node->token.column, 0);
             }
+            /* c.func() without import c"..." */
+            if (!mod_imported && strcmp(mod, "c") == 0) {
+                diag_error(tc->diag, "E4001",
+                    strdup("C interop requires a C header import — add import c\"header.h\" at the top of the file"),
+                    tc->file, node->token.line, node->token.column, 0);
+                result = &TYPE_UNKNOWN;
+                break;
+            }
             /* C interop: c.func() — skip type checking but reject bigints */
-            if (strcmp(mod, "c") == 0) {
+            if (strcmp(mod, "c") == 0 && mod_imported) {
                 /* Mark all C imports as used */
                 for (int mi = 0; mi < tc->import_count; mi++) {
                     if (strcmp(tc->imported_modules[mi], "c") == 0)
@@ -805,6 +813,17 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                         snprintf(msg, sizeof(msg),
                             "cannot pass %s to a C function — use individual elements instead",
                             arg_t->kind == TK_ARRAY ? "an array" : "a map");
+                        diag_error(tc->diag, "E3001", strdup(msg),
+                            tc->file, node->data.call.args[ai]->token.line,
+                            node->data.call.args[ai]->token.column, 0);
+                    }
+                    /* Reject EZ structs (registered in typechecker) */
+                    if (arg_t->kind == TK_STRUCT && arg_t->name &&
+                        is_struct_name(tc, arg_t->name)) {
+                        char msg[256];
+                        snprintf(msg, sizeof(msg),
+                            "cannot pass struct '%s' to a C function — pass individual fields instead",
+                            arg_t->name);
                         diag_error(tc->diag, "E3001", strdup(msg),
                             tc->file, node->data.call.args[ai]->token.line,
                             node->data.call.args[ai]->token.column, 0);
@@ -1928,7 +1947,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
             }
 
             /* C interop constant access: c.EOF, c.NULL, etc. */
-            if (strcmp(obj_name, "c") == 0) {
+            if (strcmp(obj_name, "c") == 0 && tc_is_imported_module(tc, "c")) {
                 result = &TYPE_UNKNOWN;
                 break;
             }

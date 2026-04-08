@@ -1074,6 +1074,23 @@ int main(int argc, char **argv) {
 
     if (ret != 0) {
         fprintf(stderr, "ez: C compilation failed\n");
+        /* Check if this might be a C interop header issue */
+        bool has_c_import = false;
+        for (int si = 0; si < program->data.program.stmt_count; si++) {
+            AstNode *s = program->data.program.stmts[si];
+            if (s->kind == NODE_IMPORT_STMT) {
+                for (int ii = 0; ii < s->data.import_stmt.count; ii++) {
+                    if (s->data.import_stmt.items[ii].is_c_import) {
+                        has_c_import = true;
+                        break;
+                    }
+                }
+            }
+            if (has_c_import) break;
+        }
+        if (has_c_import) {
+            fprintf(stderr, "ez: hint: check that all C headers in import c\"...\" exist and are installed\n");
+        }
         fprintf(stderr, "ez: generated C source at %s\n", c_file);
     } else {
         unlink(c_file);
