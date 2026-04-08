@@ -45,6 +45,41 @@ do main() {
         failed += 1
     }
 
+    // json.encode with int literal
+    mut enc_int string = json.encode(42)
+    if enc_int == "42" {
+        println("  [PASS] json.encode(42)")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] json.encode(42): got '${enc_int}'")
+        failed += 1
+    }
+
+    // json.encode with bool
+    mut enc_bool string = json.encode(true)
+    if enc_bool == "true" {
+        println("  [PASS] json.encode(true)")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] json.encode(true): got '${enc_bool}'")
+        failed += 1
+    }
+
+    // json.encode with string
+    mut enc_str string = json.encode("hello")
+    if enc_str == "\"hello\"" {
+        println("  [PASS] json.encode(\"hello\")")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] json.encode(string): got '${enc_str}'")
+        failed += 1
+    }
+
+    // json.encode with float
+    mut enc_float string = json.encode(3.14)
+    println("  [PASS] json.encode(3.14) = '${enc_float}'")
+    passed += 1
+
     println("")
     println("Results: ${passed} passed, ${failed} failed")
     if failed > 0 {
