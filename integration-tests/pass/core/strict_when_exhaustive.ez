@@ -1,0 +1,61 @@
+/*
+ * strict_when_exhaustive.ez - Test #strict when with all variants covered
+ *
+ * Covers: exhaustive matching, default branch as catch-all.
+ */
+
+const Direction enum {
+    UP
+    DOWN
+    LEFT
+    RIGHT
+}
+
+do main() {
+    println("=== Strict When Exhaustive Test ===")
+    mut passed int = 0
+    mut failed int = 0
+
+    // Test 1: all variants covered
+    mut d = Direction.LEFT
+    mut label string = ""
+    #strict
+    when d {
+        is Direction.UP { label = "up" }
+        is Direction.DOWN { label = "down" }
+        is Direction.LEFT { label = "left" }
+        is Direction.RIGHT { label = "right" }
+    }
+    if label == "left" {
+        println("  [PASS] all variants covered")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] got '${label}'")
+        failed += 1
+    }
+
+    // Test 2: default branch satisfies #strict
+    mut d2 = Direction.RIGHT
+    mut label2 string = ""
+    #strict
+    when d2 {
+        is Direction.UP { label2 = "up" }
+        default { label2 = "other" }
+    }
+    if label2 == "other" {
+        println("  [PASS] default branch satisfies strict")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] got '${label2}'")
+        failed += 1
+    }
+
+    // Summary
+    println("")
+    println("Results: ${passed} passed, ${failed} failed")
+    if failed > 0 {
+        println("SOME TESTS FAILED")
+    } otherwise {
+        println("ALL TESTS PASSED")
+    }
+}

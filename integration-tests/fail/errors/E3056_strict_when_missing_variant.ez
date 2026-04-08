@@ -1,0 +1,20 @@
+/*
+ * Error Test: E3056 - #strict when missing enum variant
+ * Expected: error about missing variant
+ */
+
+const Color enum {
+    RED
+    GREEN
+    BLUE
+}
+
+do main() {
+    mut c = Color.GREEN
+
+    #strict
+    when c {
+        is Color.RED { println("red") }
+        is Color.GREEN { println("green") }
+    }
+}
