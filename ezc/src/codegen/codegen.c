@@ -1766,15 +1766,25 @@ static bool emit_builtin_call(CodeGen *cg, AstNode *node, const char *func) {
         } else {
             if (emit_composite_print(cg, node, "stdout", true)) return true;
             AstNode *arg = node->data.call.args[0];
-            const char *bi_type = resolve_bigint_type(cg, arg);
-            if (bi_type) {
-                emitf(cg, "ez_builtin_println_str(%s_to_string(ez_default_arena, ", bigint_prefix(bi_type));
+            /* Error type: print message or "nil" */
+            EzType *arg_t = cg->type_table ? typetable_get(cg->type_table, arg) : NULL;
+            if (arg_t && arg_t->kind == TK_ERROR) {
+                emit(cg, "ez_builtin_println_str(");
                 emit_expression(cg, arg);
-                emit(cg, "))");
+                emit(cg, " ? ");
+                emit_expression(cg, arg);
+                emit(cg, "->message : ez_string_lit(\"nil\"))");
             } else {
-                emitf(cg, "ez_builtin_println%s(", resolve_print_suffix(cg, arg));
-                emit_expression(cg, arg);
-                emit(cg, ")");
+                const char *bi_type = resolve_bigint_type(cg, arg);
+                if (bi_type) {
+                    emitf(cg, "ez_builtin_println_str(%s_to_string(ez_default_arena, ", bigint_prefix(bi_type));
+                    emit_expression(cg, arg);
+                    emit(cg, "))");
+                } else {
+                    emitf(cg, "ez_builtin_println%s(", resolve_print_suffix(cg, arg));
+                    emit_expression(cg, arg);
+                    emit(cg, ")");
+                }
             }
         }
         return true;
@@ -1917,15 +1927,24 @@ static bool emit_builtin_call(CodeGen *cg, AstNode *node, const char *func) {
         } else {
             if (emit_composite_print(cg, node, "stderr", true)) return true;
             AstNode *arg = node->data.call.args[0];
-            const char *bi_type = resolve_bigint_type(cg, arg);
-            if (bi_type) {
-                emitf(cg, "ez_builtin_eprintln_str(%s_to_string(ez_default_arena, ", bigint_prefix(bi_type));
+            EzType *arg_t = cg->type_table ? typetable_get(cg->type_table, arg) : NULL;
+            if (arg_t && arg_t->kind == TK_ERROR) {
+                emit(cg, "ez_builtin_eprintln_str(");
                 emit_expression(cg, arg);
-                emit(cg, "))");
+                emit(cg, " ? ");
+                emit_expression(cg, arg);
+                emit(cg, "->message : ez_string_lit(\"nil\"))");
             } else {
-                emitf(cg, "ez_builtin_eprintln%s(", resolve_print_suffix(cg, arg));
-                emit_expression(cg, arg);
-                emit(cg, ")");
+                const char *bi_type = resolve_bigint_type(cg, arg);
+                if (bi_type) {
+                    emitf(cg, "ez_builtin_eprintln_str(%s_to_string(ez_default_arena, ", bigint_prefix(bi_type));
+                    emit_expression(cg, arg);
+                    emit(cg, "))");
+                } else {
+                    emitf(cg, "ez_builtin_eprintln%s(", resolve_print_suffix(cg, arg));
+                    emit_expression(cg, arg);
+                    emit(cg, ")");
+                }
             }
         }
         return true;
@@ -1933,9 +1952,19 @@ static bool emit_builtin_call(CodeGen *cg, AstNode *node, const char *func) {
 
     if (strcmp(func, "eprint") == 0 && node->data.call.arg_count > 0) {
         if (emit_composite_print(cg, node, "stderr", false)) return true;
-        emit(cg, "ez_builtin_eprint_str(");
-        emit_expression(cg, node->data.call.args[0]);
-        emit(cg, ")");
+        AstNode *arg = node->data.call.args[0];
+        EzType *arg_t = cg->type_table ? typetable_get(cg->type_table, arg) : NULL;
+        if (arg_t && arg_t->kind == TK_ERROR) {
+            emit(cg, "ez_builtin_eprint_str(");
+            emit_expression(cg, arg);
+            emit(cg, " ? ");
+            emit_expression(cg, arg);
+            emit(cg, "->message : ez_string_lit(\"nil\"))");
+        } else {
+            emit(cg, "ez_builtin_eprint_str(");
+            emit_expression(cg, arg);
+            emit(cg, ")");
+        }
         return true;
     }
 
@@ -2048,15 +2077,24 @@ static bool emit_builtin_call(CodeGen *cg, AstNode *node, const char *func) {
     if (strcmp(func, "print") == 0 && node->data.call.arg_count > 0) {
         if (emit_composite_print(cg, node, "stdout", false)) return true;
         AstNode *arg = node->data.call.args[0];
-        const char *bi_type = resolve_bigint_type(cg, arg);
-        if (bi_type) {
-            emitf(cg, "ez_builtin_print_str(%s_to_string(ez_default_arena, ", bigint_prefix(bi_type));
+        EzType *arg_t = cg->type_table ? typetable_get(cg->type_table, arg) : NULL;
+        if (arg_t && arg_t->kind == TK_ERROR) {
+            emit(cg, "ez_builtin_print_str(");
             emit_expression(cg, arg);
-            emit(cg, "))");
+            emit(cg, " ? ");
+            emit_expression(cg, arg);
+            emit(cg, "->message : ez_string_lit(\"nil\"))");
         } else {
-            emitf(cg, "ez_builtin_print%s(", resolve_print_suffix(cg, arg));
-            emit_expression(cg, arg);
-            emit(cg, ")");
+            const char *bi_type = resolve_bigint_type(cg, arg);
+            if (bi_type) {
+                emitf(cg, "ez_builtin_print_str(%s_to_string(ez_default_arena, ", bigint_prefix(bi_type));
+                emit_expression(cg, arg);
+                emit(cg, "))");
+            } else {
+                emitf(cg, "ez_builtin_print%s(", resolve_print_suffix(cg, arg));
+                emit_expression(cg, arg);
+                emit(cg, ")");
+            }
         }
         return true;
     }
