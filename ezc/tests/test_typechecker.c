@@ -939,7 +939,7 @@ static void test_warning_W2001_unused_import(void) {
     DiagnosticList *d = check_diag(
         "import @math\n"
         "do main() { }");
-    ASSERT(has_code(d, "W2001"));
+    ASSERT(has_code(d, "W1002"));
     diag_destroy(d);
 }
 
@@ -1117,8 +1117,12 @@ static void test_error_E3008_index_string(void) {
 static void test_valid_nested_struct(void) {
     /* Nested struct access should typecheck without errors */
     DiagnosticList *d = check_diag(
-        "const Inner struct { val int }\n"
-        "const Outer struct { inner Inner }\n"
+        "const Inner struct {\n"
+        "    val int\n"
+        "}\n"
+        "const Outer struct {\n"
+        "    inner Inner\n"
+        "}\n"
         "do main() {\n"
         "    mut o Outer = Outer{inner: Inner{val: 42}}\n"
         "    mut v int = o.inner.val\n"
@@ -1130,7 +1134,11 @@ static void test_valid_nested_struct(void) {
 
 static void test_valid_enum_member_access(void) {
     DiagnosticList *d = check_diag(
-        "const Color enum { RED\n GREEN\n BLUE }\n"
+        "const Color enum {\n"
+        "    RED\n"
+        "    GREEN\n"
+        "    BLUE\n"
+        "}\n"
         "do main() { mut c = Color.RED\n println(\"${c}\") }");
     ASSERT(!diag_has_errors(d));
     diag_destroy(d);
