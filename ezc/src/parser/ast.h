@@ -97,6 +97,7 @@ typedef struct {
     const char *module;
     const char *path;
     bool is_stdlib;
+    bool is_c_import;   /* import c"header.h" — raw C header include */
 } ImportItem;
 
 /* When case */

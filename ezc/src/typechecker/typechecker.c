@@ -776,6 +776,16 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                 diag_error(tc->diag, "E4001", strdup(msg),
                     tc->file, node->token.line, node->token.column, 0);
             }
+            /* C interop: c.func() — skip all type checking */
+            if (strcmp(mod, "c") == 0) {
+                /* Mark all C imports as used */
+                for (int mi = 0; mi < tc->import_count; mi++) {
+                    if (strcmp(tc->imported_modules[mi], "c") == 0)
+                        tc->import_used[mi] = true;
+                }
+                result = &TYPE_UNKNOWN;
+                break;
+            }
             /* Skip stdlib dispatch if this module is a user import, not stdlib.
              * User modules with the same name (e.g., import "./server.ez") must
              * fall through to the user-module handler below. */
@@ -3628,7 +3638,7 @@ static void register_declarations(TypeChecker *tc, AstNode *program) {
                     }
                     tc->imported_modules[tc->import_count] = item->alias ? item->alias : item->module;
                     tc->import_lines[tc->import_count] = stmt->token.line;
-                    tc->import_used[tc->import_count] = false;
+                    tc->import_used[tc->import_count] = item->is_c_import; /* C imports are always "used" */
                     tc->import_is_stdlib[tc->import_count] = item->is_stdlib;
                     tc->import_count++;
                 }

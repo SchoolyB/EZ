@@ -71,6 +71,12 @@ typedef struct {
     const char **imported_modules;
     int imported_module_count;
     int imported_module_cap;
+
+    /* C interop headers from import c"header.h" */
+    const char **c_headers;
+    int c_header_count;
+    int c_header_cap;
+    bool has_c_imports;
 } CodeGen;
 
 CodeGen codegen_create(const char *file);

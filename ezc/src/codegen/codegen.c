@@ -3558,6 +3558,27 @@ static void emit_call_expression(CodeGen *cg, AstNode *node) {
         }
         if (obj->kind == NODE_LABEL) {
             const char *raw_name = obj->data.label.value;
+
+            /* C interop: c.func() — emit raw C function call */
+            if (strcmp(raw_name, "c") == 0 && cg->has_c_imports) {
+                emitf(cg, "%s(", member);
+                for (int i = 0; i < node->data.call.arg_count; i++) {
+                    if (i > 0) emit(cg, ", ");
+                    /* Auto-convert EzString to char* for C functions */
+                    EzType *arg_t = cg->type_table
+                        ? typetable_get(cg->type_table, node->data.call.args[i])
+                        : NULL;
+                    if (arg_t && arg_t->kind == TK_STRING) {
+                        emit_expression(cg, node->data.call.args[i]);
+                        emit(cg, ".data");
+                    } else {
+                        emit_expression(cg, node->data.call.args[i]);
+                    }
+                }
+                emit(cg, ")");
+                return;
+            }
+
             const char *resolved_name = resolve_alias(cg, raw_name);
             /* Try to find as a namespaced function: Name_func or ResolvedAlias_func */
             char ns_name[256];
@@ -4877,6 +4898,10 @@ CodeGen codegen_create(const char *file) {
     cg.imported_modules = NULL;
     cg.imported_module_count = 0;
     cg.imported_module_cap = 0;
+    cg.c_headers = NULL;
+    cg.c_header_count = 0;
+    cg.c_header_cap = 0;
+    cg.has_c_imports = false;
     return cg;
 }
 
@@ -4892,6 +4917,16 @@ void codegen_generate(CodeGen *cg, AstNode *program) {
                 if (item->is_stdlib && item->module) {
                     if (strcmp(item->module, "mem") == 0) cg->has_mem = true;
                     if (strcmp(item->module, "fmt") == 0) cg->has_fmt = true;
+                }
+                /* Collect C interop headers */
+                if (item->is_c_import && item->path) {
+                    cg->has_c_imports = true;
+                    if (cg->c_header_count >= cg->c_header_cap) {
+                        cg->c_header_cap = cg->c_header_cap ? cg->c_header_cap * 2 : 4;
+                        cg->c_headers = realloc(cg->c_headers,
+                            sizeof(const char *) * (size_t)cg->c_header_cap);
+                    }
+                    cg->c_headers[cg->c_header_count++] = item->path;
                 }
                 /* Track all imported module names */
                 if (item->module) {
@@ -4989,6 +5024,19 @@ void codegen_generate(CodeGen *cg, AstNode *program) {
     emit(cg, "#include \"ez_http.h\"\n");
     emit(cg, "#include \"ez_server.h\"\n");
     emit(cg, "#include \"ez_bigint.h\"\n");
+
+    /* Emit user C interop headers (after EZ internals to prevent collisions) */
+    if (cg->c_header_count > 0) {
+        emit(cg, "\n/* C interop headers */\n");
+        for (int i = 0; i < cg->c_header_count; i++) {
+            const char *hdr = cg->c_headers[i];
+            if (strncmp(hdr, "./", 2) == 0 || strncmp(hdr, "../", 3) == 0) {
+                emitf(cg, "#include \"%s\"\n", hdr);
+            } else {
+                emitf(cg, "#include <%s>\n", hdr);
+            }
+        }
+    }
     emit(cg, "\n");
 
     /* Emit enum type definitions FIRST (before structs, since structs may reference enums) */
@@ -5240,4 +5288,5 @@ void codegen_destroy(CodeGen *cg) {
     free(cg->alias_names);
     free(cg->alias_modules);
     free(cg->imported_modules);
+    free(cg->c_headers);
 }

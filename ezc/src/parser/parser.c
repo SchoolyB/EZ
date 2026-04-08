@@ -1324,6 +1324,19 @@ static AstNode *parse_import_statement(Parser *p) {
             next_token(p); /* advance to alias or @module */
         }
 
+        /* Check for C interop import: import c"header.h" */
+        if (cur_token_is(p, TOK_IDENT) &&
+            strcmp(p->cur_token.literal, "c") == 0 &&
+            peek_token_is(p, TOK_STRING)) {
+            next_token(p); /* consume 'c', now on string */
+            item->is_c_import = true;
+            item->is_stdlib = false;
+            item->path = p->cur_token.literal;
+            item->alias = "c";
+            item->module = "c";
+            goto import_item_done;
+        }
+
         /* Check for alias: identifier followed by @ or string */
         if (cur_token_is(p, TOK_IDENT) && peek_token_is(p, TOK_AT)) {
             item->alias = p->cur_token.literal;
@@ -1371,6 +1384,7 @@ static AstNode *parse_import_statement(Parser *p) {
             return node;
         }
 
+        import_item_done:
         node->data.import_stmt.count++;
 
         if (node->data.import_stmt.count >= cap) {

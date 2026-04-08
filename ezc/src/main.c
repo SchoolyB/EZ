@@ -576,7 +576,7 @@ int main(int argc, char **argv) {
 
             for (int ii = 0; ii < stmt->data.import_stmt.count; ii++) {
                 ImportItem *item = &stmt->data.import_stmt.items[ii];
-                if (item->is_stdlib || !item->path) continue;
+                if (item->is_stdlib || item->is_c_import || !item->path) continue;
 
                 /* Resolve path relative to input file directory */
                 char import_path[PATH_BUF_SIZE];
