@@ -47,8 +47,8 @@ func runPz(cmd *cobra.Command, args []string) {
 		// Interactive mode
 		name = promptForInput("Project name: ", "")
 		if name == "" {
-			fmt.Println("Project name is required")
-			return
+			fmt.Fprintln(os.Stderr, "error: project name is required")
+			os.Exit(1)
 		}
 
 		if !cmd.Flags().Changed("template") {

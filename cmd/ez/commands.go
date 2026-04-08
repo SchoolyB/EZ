@@ -23,7 +23,8 @@ var checkCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		// Allow directories for project-wide check
 		info, statErr := os.Stat(args[0])
-		if statErr == nil && !info.IsDir() && !strings.HasSuffix(args[0], ".ez") {
+		isDir := statErr == nil && info.IsDir()
+		if !isDir && !strings.HasSuffix(args[0], ".ez") {
 			fmt.Fprintf(os.Stderr, "error: '%s' is not a valid EZ source file — expected a .ez file\n", args[0])
 			os.Exit(1)
 		}
