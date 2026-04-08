@@ -107,6 +107,28 @@ do main() {
         failed += 1
     }
 
+    // Test 12: println on Error prints message
+    mut err Error = error("something broke")
+    mut err_str string = "${err}"
+    if err_str == "something broke" {
+        println("  [PASS] Error prints message")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] Error print: got '${err_str}'")
+        failed += 1
+    }
+
+    // Test 13: println on nil Error prints nil
+    mut ok Error = nil
+    mut ok_str string = "${ok}"
+    if ok_str == "nil" {
+        println("  [PASS] nil Error prints nil")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] nil Error print: got '${ok_str}'")
+        failed += 1
+    }
+
     // Summary
     println("")
     println("Results: ${passed} passed, ${failed} failed")
