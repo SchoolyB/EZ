@@ -321,8 +321,10 @@ var rootCmd = &cobra.Command{
 			return cmd.Help()
 		}
 		if !strings.HasSuffix(args[0], ".ez") {
-			fmt.Print(asciiBanner)
-			return cmd.Help()
+			fmt.Fprintf(os.Stderr, "error: unknown command or invalid file '%s' — expected a .ez file\n", args[0])
+			fmt.Fprintf(os.Stderr, "  usage: ez <file.ez>\n")
+			fmt.Fprintf(os.Stderr, "  help:  ez --help\n")
+			os.Exit(1)
 		}
 
 		// Pass extra args through to the compiled program
