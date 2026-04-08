@@ -3642,6 +3642,68 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
         if (node->data.when_stmt.default_body) {
             check_block(tc, node->data.when_stmt.default_body);
         }
+        /* #strict exhaustiveness check for enum types */
+        if (node->data.when_stmt.is_strict && !node->data.when_stmt.default_body) {
+            /* Infer the enum name from case values (e.g., Color.RED → "Color") */
+            const char *enum_name = NULL;
+            for (int ci = 0; ci < node->data.when_stmt.case_count && !enum_name; ci++) {
+                for (int cj = 0; cj < node->data.when_stmt.cases[ci].value_count && !enum_name; cj++) {
+                    AstNode *cv = node->data.when_stmt.cases[ci].values[cj];
+                    if (cv->kind == NODE_MEMBER_EXPR &&
+                        cv->data.member.object->kind == NODE_LABEL) {
+                        const char *name = cv->data.member.object->data.label.value;
+                        if (is_enum_name(tc, name)) enum_name = name;
+                    }
+                }
+            }
+            if (enum_name) {
+                /* Find the enum's variants */
+                int enum_idx = -1;
+                for (int ei = 0; ei < tc->enum_count; ei++) {
+                    if (strcmp(tc->enum_names[ei], enum_name) == 0) {
+                        enum_idx = ei;
+                        break;
+                    }
+                }
+                if (enum_idx >= 0) {
+                    int variant_count = tc->enum_value_counts[enum_idx];
+                    const char **variants = tc->enum_values[enum_idx];
+                    /* Collect covered variants from case branches */
+                    for (int vi = 0; vi < variant_count; vi++) {
+                        bool covered = false;
+                        for (int ci = 0; ci < node->data.when_stmt.case_count && !covered; ci++) {
+                            for (int cj = 0; cj < node->data.when_stmt.cases[ci].value_count && !covered; cj++) {
+                                AstNode *cv = node->data.when_stmt.cases[ci].values[cj];
+                                /* Match Enum.VARIANT pattern */
+                                if (cv->kind == NODE_MEMBER_EXPR &&
+                                    cv->data.member.object->kind == NODE_LABEL &&
+                                    strcmp(cv->data.member.member, variants[vi]) == 0) {
+                                    covered = true;
+                                }
+                                /* Match bare integer literal (for auto-increment enums) */
+                                if (cv->kind == NODE_INT_VALUE &&
+                                    cv->data.int_value.value == vi) {
+                                    covered = true;
+                                }
+                            }
+                        }
+                        if (!covered) {
+                            char msg[256];
+                            snprintf(msg, sizeof(msg),
+                                "#strict when is not exhaustive — missing variant '%s.%s'",
+                                enum_name, variants[vi]);
+                            diag_error(tc->diag, "E3056", strdup(msg),
+                                tc->file, node->token.line, node->token.column, 0);
+                        }
+                    }
+                }
+            } else {
+                /* #strict on non-enum: just warn that it has no effect without default */
+                diag_error(tc->diag, "E3056",
+                    strdup("#strict when on a non-enum type requires a default branch to be exhaustive"),
+                    tc->file, node->token.line, node->token.column, 0);
+            }
+        }
         break;
     }
 

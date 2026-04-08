@@ -3,7 +3,7 @@
 > Auto-generated from `ezc/src/util/error_codes.h`. Do not edit manually.
 > Run `./scripts/generate_errors.sh` to regenerate.
 
-**Total: 129 codes** (119 errors, 10 warnings)
+**Total: 130 codes** (120 errors, 10 warnings)
 
 ---
 
@@ -103,6 +103,7 @@
 | `E3053` | types | type mismatch in array initializer — expected '%s', got '%s' |
 | `E3054` | types | mutable arrays cannot have a fixed size — remove the size or use 'const' |
 | `E3055` | types | const arrays must have a fixed size — declare as [T, N] |
+| `E3056` | types | non-exhaustive #strict when — all enum variants must be handled or add a default branch |
 | `E4001` | names | this variable does not exist — check the spelling or make sure it is declared above this line |
 | `E4002` | names | this function does not exist — check the spelling or make sure it is defined |
 | `E4003` | names | a variable with this name already exists in this scope — use a different name |
@@ -173,4 +174,4 @@
 
 ---
 
-*Generated on 2026-04-08 01:05:29 UTC*
+*Generated on 2026-04-08 05:49:21 UTC*
