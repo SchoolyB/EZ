@@ -1339,6 +1339,11 @@ static AstNode *parse_import_statement(Parser *p) {
 
         /* Check for alias: identifier followed by @ or string */
         if (cur_token_is(p, TOK_IDENT) && peek_token_is(p, TOK_AT)) {
+            if (strcmp(p->cur_token.literal, "c") == 0) {
+                diag_error(p->diag, "E2002",
+                    strdup("'c' is reserved for C interop — choose a different alias"),
+                    p->file, p->cur_token.line, p->cur_token.column, 0);
+            }
             item->alias = p->cur_token.literal;
             next_token(p); /* consume alias, now on @ */
         } else if (cur_token_is(p, TOK_IDENT) && peek_token_is(p, TOK_STRING)) {
@@ -1373,6 +1378,12 @@ static AstNode *parse_import_statement(Parser *p) {
                     item->alias = mod;
                     item->module = mod;
                 }
+            }
+            /* Reject 'c' as a module name — reserved for C interop */
+            if (item->alias && strcmp(item->alias, "c") == 0) {
+                diag_error(p->diag, "E2002",
+                    strdup("'c' is reserved for C interop — rename the file or use an alias (e.g., import myc\"./c.ez\")"),
+                    p->file, p->cur_token.line, p->cur_token.column, 0);
             }
         } else if (cur_token_is(p, TOK_IDENT)) {
             char buf[256];
