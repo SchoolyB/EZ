@@ -3070,13 +3070,10 @@ block          = "{" { statement } "}" .
 | W2001 | unreachable-code | Code will never execute |
 | W2002 | shadowed-variable | Variable shadows outer scope |
 | W2003 | missing-return | Function may not return value |
-| W2004 | implicit-type-conversion | Implicit type conversion occurring |
 | W2005 | deprecated-feature | Using deprecated feature |
 | W2006 | byte-overflow-potential | Byte arithmetic may overflow |
 | W2007 | shadows-global | Variable shadows global variable or constant |
 | W2008 | integer-overflow-potential | Integer arithmetic may overflow |
-| W2009 | nil-dereference-potential | Accessing member on potentially nil value |
-| W2010 | chained-nil-access | Chained member access on nullable struct type |
 | W2011 | named-return-unused | Named return variable declared but returns different value |
 | W2012 | float-when-imprecise | Float equality comparison in `when` may be imprecise |
 
