@@ -1524,7 +1524,7 @@ static AstNode *parse_struct_declaration(Parser *p) {
 
         /* Reject semicolons */
         if (cur_token_is(p, TOK_SEMICOLON)) {
-            diag_error(p->diag, "E2002",
+            diag_error(p->diag, "E2069",
                 strdup("semicolons are not used — put each struct field on its own line"),
                 p->file, p->cur_token.line, p->cur_token.column, 0);
             next_token(p);
@@ -1607,7 +1607,7 @@ static AstNode *parse_enum_declaration(Parser *p) {
 
         /* Reject semicolons */
         if (cur_token_is(p, TOK_SEMICOLON)) {
-            diag_error(p->diag, "E2002",
+            diag_error(p->diag, "E2069",
                 strdup("semicolons are not used — put each enum variant on its own line"),
                 p->file, p->cur_token.line, p->cur_token.column, 0);
             next_token(p);
