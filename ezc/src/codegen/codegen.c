@@ -5031,7 +5031,7 @@ void codegen_generate(CodeGen *cg, AstNode *program) {
     emit(cg, "#include \"ez_sqlite.h\"\n");
     emit(cg, "#include \"ez_threads.h\"\n");
     emit(cg, "#include \"ez_sync.h\"\n");
-    emit(cg, "#include \"ez_atomic.h\"\n");
+    emit(cg, "#include \"ez_atomic_mod.h\"\n");
     emit(cg, "#include \"ez_channels.h\"\n");
     emit(cg, "#include \"ez_regex.h\"\n");
     emit(cg, "#include \"ez_net.h\"\n");

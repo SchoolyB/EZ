@@ -7,7 +7,7 @@
  * Licensed under the MIT License. See LICENSE for details.
  */
 
-#include "ez_atomic.h"
+#include "ez_atomic_mod.h"
 #include <stdlib.h>
 
 /* 64-bit atomics */
