@@ -255,7 +255,7 @@ static bool tc_is_builtin(const char *name) {
         "i8", "i16", "i32", "i64", "u8", "u16", "u32", "u64", "f32", "f64",
         "i128", "i256", "u128", "u256",
         "exit", "panic", "assert", "range", "cast",
-        "sleep_s", "sleep_ms", "sleep_ns",
+        "sleep_s", "sleep_ms", "sleep_ns", "c_string",
         NULL
     };
     for (int i = 0; builtins[i]; i++) {
@@ -1430,6 +1430,8 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                 result = &TYPE_STRING;
             } else if (strcmp(fn_name, "size_of") == 0) {
                 result = &TYPE_INT;
+            } else if (strcmp(fn_name, "c_string") == 0) {
+                result = &TYPE_STRING;
             } else if (strcmp(fn_name, "input") == 0) {
                 result = &TYPE_STRING;
             } else if (strcmp(fn_name, "error") == 0) {

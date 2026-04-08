@@ -2099,6 +2099,14 @@ static bool emit_builtin_call(CodeGen *cg, AstNode *node, const char *func) {
         return true;
     }
 
+    /* c_string(ptr) — convert C char* to EZ string */
+    if (strcmp(func, "c_string") == 0 && node->data.call.arg_count == 1) {
+        emit(cg, "ez_string_lit((const char *)");
+        emit_expression(cg, node->data.call.args[0]);
+        emit(cg, ")");
+        return true;
+    }
+
     return false;
 }
 
