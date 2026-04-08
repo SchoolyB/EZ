@@ -66,6 +66,11 @@ typedef struct {
     const char **alias_modules;
     int alias_count;
     int alias_cap;
+
+    /* All imported module names (for module detection in member expressions) */
+    const char **imported_modules;
+    int imported_module_count;
+    int imported_module_cap;
 } CodeGen;
 
 CodeGen codegen_create(const char *file);

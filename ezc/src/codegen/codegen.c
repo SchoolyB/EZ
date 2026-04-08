@@ -1185,10 +1185,14 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
                         }
                     }
                 }
-                /* Uppercase member on lowercase object is always a module reference
-                 * (struct fields are never uppercase in EZ) */
-                if (!is_module && mem[0] >= 'A' && mem[0] <= 'Z') {
-                    is_module = true;
+                /* Check imported module names list */
+                if (!is_module) {
+                    for (int ii = 0; ii < cg->imported_module_count; ii++) {
+                        if (strcmp(cg->imported_modules[ii], mod) == 0) {
+                            is_module = true;
+                            break;
+                        }
+                    }
                 }
                 if (is_module) {
                     emitf(cg, "%s_%s", mod, mem);
@@ -4796,6 +4800,9 @@ CodeGen codegen_create(const char *file) {
     cg.alias_modules = NULL;
     cg.alias_count = 0;
     cg.alias_cap = 0;
+    cg.imported_modules = NULL;
+    cg.imported_module_count = 0;
+    cg.imported_module_cap = 0;
     return cg;
 }
 
@@ -4811,6 +4818,16 @@ void codegen_generate(CodeGen *cg, AstNode *program) {
                 if (item->is_stdlib && item->module) {
                     if (strcmp(item->module, "mem") == 0) cg->has_mem = true;
                     if (strcmp(item->module, "fmt") == 0) cg->has_fmt = true;
+                }
+                /* Track all imported module names */
+                if (item->module) {
+                    const char *mname = item->alias ? item->alias : item->module;
+                    if (cg->imported_module_count >= cg->imported_module_cap) {
+                        cg->imported_module_cap = cg->imported_module_cap ? cg->imported_module_cap * 2 : 8;
+                        cg->imported_modules = realloc(cg->imported_modules,
+                            sizeof(const char *) * (size_t)cg->imported_module_cap);
+                    }
+                    cg->imported_modules[cg->imported_module_count++] = mname;
                 }
                 /* Track alias → module mapping */
                 if (item->alias && item->module && strcmp(item->alias, item->module) != 0) {
@@ -5148,4 +5165,5 @@ void codegen_destroy(CodeGen *cg) {
     free(cg->using_modules);
     free(cg->alias_names);
     free(cg->alias_modules);
+    free(cg->imported_modules);
 }
