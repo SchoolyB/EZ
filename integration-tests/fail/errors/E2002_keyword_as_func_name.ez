@@ -1,0 +1,12 @@
+/*
+ * Error Test: E2002 - reserved keyword as function name
+ * Expected: single clear error
+ */
+
+do return() {
+    println("bad")
+}
+
+do main() {
+    println("should not compile")
+}

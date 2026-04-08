@@ -1,0 +1,9 @@
+/*
+ * Error Test: E2002 - reserved keyword as variable name
+ * Expected: single clear error, no cascading
+ */
+
+do main() {
+    mut for int = 10
+    println(for)
+}

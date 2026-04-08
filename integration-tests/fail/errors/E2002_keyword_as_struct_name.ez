@@ -1,0 +1,12 @@
+/*
+ * Error Test: E2002 - reserved keyword as struct name
+ * Expected: single clear error
+ */
+
+const if struct {
+    x int
+}
+
+do main() {
+    println("should not compile")
+}
