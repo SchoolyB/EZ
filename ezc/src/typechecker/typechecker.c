@@ -776,12 +776,39 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                 diag_error(tc->diag, "E4001", strdup(msg),
                     tc->file, node->token.line, node->token.column, 0);
             }
-            /* C interop: c.func() — skip all type checking */
+            /* C interop: c.func() — skip type checking but reject bigints */
             if (strcmp(mod, "c") == 0) {
                 /* Mark all C imports as used */
                 for (int mi = 0; mi < tc->import_count; mi++) {
                     if (strcmp(tc->imported_modules[mi], "c") == 0)
                         tc->import_used[mi] = true;
+                }
+                /* Validate arguments — reject types that don't translate to C */
+                for (int ai = 0; ai < node->data.call.arg_count; ai++) {
+                    EzType *arg_t = resolve_expr(tc, node->data.call.args[ai]);
+                    if (!arg_t || arg_t->kind == TK_UNKNOWN) continue;
+                    /* Reject bigint types */
+                    if (arg_t->name &&
+                        (strcmp(arg_t->name, "i128") == 0 || strcmp(arg_t->name, "i256") == 0 ||
+                         strcmp(arg_t->name, "u128") == 0 || strcmp(arg_t->name, "u256") == 0)) {
+                        char msg[256];
+                        snprintf(msg, sizeof(msg),
+                            "cannot pass %s to a C function — C has no 128/256-bit integer types",
+                            arg_t->name);
+                        diag_error(tc->diag, "E3001", strdup(msg),
+                            tc->file, node->data.call.args[ai]->token.line,
+                            node->data.call.args[ai]->token.column, 0);
+                    }
+                    /* Reject EZ-specific composite types */
+                    if (arg_t->kind == TK_ARRAY || arg_t->kind == TK_MAP) {
+                        char msg[256];
+                        snprintf(msg, sizeof(msg),
+                            "cannot pass %s to a C function — use individual elements instead",
+                            arg_t->kind == TK_ARRAY ? "an array" : "a map");
+                        diag_error(tc->diag, "E3001", strdup(msg),
+                            tc->file, node->data.call.args[ai]->token.line,
+                            node->data.call.args[ai]->token.column, 0);
+                    }
                 }
                 result = &TYPE_UNKNOWN;
                 break;
@@ -1897,6 +1924,12 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                         tc->file, node->token.line, node->token.column, 0);
                 }
                 result = is_str_enum ? &TYPE_STRING : &TYPE_INT;
+                break;
+            }
+
+            /* C interop constant access: c.EOF, c.NULL, etc. */
+            if (strcmp(obj_name, "c") == 0) {
+                result = &TYPE_UNKNOWN;
                 break;
             }
 

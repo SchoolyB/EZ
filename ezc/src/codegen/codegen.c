@@ -1145,6 +1145,12 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
                 break;
             }
 
+            /* C interop constant access: c.EOF, c.NULL, c.EXIT_SUCCESS */
+            if (strcmp(mod, "c") == 0 && cg->has_c_imports) {
+                emitf(cg, "%s", mem);
+                break;
+            }
+
             /* User-module qualified constant/variable access: mod.NAME → mod_NAME
              * Only apply for known imported module names, not local variables */
             if (mod[0] >= 'a' && mod[0] <= 'z') {
