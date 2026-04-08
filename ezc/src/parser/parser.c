@@ -74,6 +74,49 @@ static bool expect_peek(Parser *p, TokenType t) {
     return false;
 }
 
+/* Check if a token type is a keyword (reserved word) */
+static bool is_keyword_token(TokenType t) {
+    switch (t) {
+    case TOK_TEMP: case TOK_CONST: case TOK_DO: case TOK_RETURN:
+    case TOK_IF: case TOK_OR_KW: case TOK_OTHERWISE:
+    case TOK_FOR: case TOK_FOR_EACH: case TOK_AS_LONG_AS:
+    case TOK_LOOP: case TOK_BREAK: case TOK_CONTINUE:
+    case TOK_IN: case TOK_NOT_IN: case TOK_RANGE:
+    case TOK_IMPORT: case TOK_USING: case TOK_STRUCT: case TOK_ENUM:
+    case TOK_NIL: case TOK_NEW: case TOK_TRUE: case TOK_FALSE:
+    case TOK_ENSURE: case TOK_OR_RETURN: case TOK_WHEN:
+    case TOK_MODULE: case TOK_PRIVATE:
+        return true;
+    default:
+        return false;
+    }
+}
+
+/* Synchronize parser after an error — skip to a safe point.
+ * Advances past the current line and stops at the next statement boundary. */
+static void synchronize(Parser *p) {
+    int error_line = p->cur_token.line;
+    /* First, skip past the current line to avoid re-parsing the same error */
+    while (!cur_token_is(p, TOK_EOF) && p->cur_token.line == error_line) {
+        next_token(p);
+    }
+    /* Then find the next statement-starting token */
+    while (!cur_token_is(p, TOK_EOF)) {
+        switch (p->cur_token.type) {
+        case TOK_DO: case TOK_TEMP: case TOK_CONST:
+        case TOK_RETURN: case TOK_IF: case TOK_FOR:
+        case TOK_FOR_EACH: case TOK_AS_LONG_AS: case TOK_LOOP:
+        case TOK_WHEN: case TOK_IMPORT: case TOK_USING:
+        case TOK_BREAK: case TOK_CONTINUE:
+        case TOK_RBRACE:
+        case TOK_IDENT:
+            return;
+        default:
+            next_token(p);
+        }
+    }
+}
+
 static Precedence token_precedence(TokenType t) {
     switch (t) {
     case TOK_OR:             return PREC_OR;
@@ -818,6 +861,15 @@ static AstNode *parse_var_declaration(Parser *p) {
 
     if (peek_token_is(p, TOK_IDENT) || peek_token_is(p, TOK_BLANK)) {
         next_token(p);
+    } else if (is_keyword_token(p->peek_token.type)) {
+        char msg[256];
+        snprintf(msg, sizeof(msg),
+            "'%s' is a reserved keyword and cannot be used as a variable name",
+            p->peek_token.literal);
+        diag_error(p->diag, "E2002", arena_strdup(p->arena, msg),
+            p->file, p->peek_token.line, p->peek_token.column, 0);
+        synchronize(p);
+        return NULL;
     } else {
         expect_peek(p, TOK_IDENT); /* will error */
         return NULL;
@@ -1058,6 +1110,11 @@ static AstNode *parse_block_statement(Parser *p) {
                 node->data.block.stmts = new_stmts;
             }
             node->data.block.stmts[node->data.block.count++] = stmt;
+        } else {
+            /* Error recovery: skip to next statement boundary */
+            synchronize(p);
+            if (cur_token_is(p, TOK_RBRACE)) break;
+            continue;
         }
         next_token(p);
     }
@@ -1068,6 +1125,16 @@ static AstNode *parse_block_statement(Parser *p) {
 static AstNode *parse_func_declaration(Parser *p) {
     AstNode *node = ast_alloc(p->arena, NODE_FUNC_DECL, p->cur_token);
 
+    if (is_keyword_token(p->peek_token.type)) {
+        char msg[256];
+        snprintf(msg, sizeof(msg),
+            "'%s' is a reserved keyword and cannot be used as a function name",
+            p->peek_token.literal);
+        diag_error(p->diag, "E2002", arena_strdup(p->arena, msg),
+            p->file, p->peek_token.line, p->peek_token.column, 0);
+        synchronize(p);
+        return NULL;
+    }
     if (!expect_peek(p, TOK_IDENT)) return NULL;
     node->data.func_decl.name = p->cur_token.literal;
 
@@ -1894,6 +1961,17 @@ static AstNode *parse_statement(Parser *p) {
     }
     case TOK_TEMP:
     case TOK_CONST:
+        /* Check for keyword used as name: const for struct / mut for int */
+        if (is_keyword_token(p->peek_token.type)) {
+            char msg[256];
+            snprintf(msg, sizeof(msg),
+                "'%s' is a reserved keyword and cannot be used as a name",
+                p->peek_token.literal);
+            diag_error(p->diag, "E2002", arena_strdup(p->arena, msg),
+                p->file, p->peek_token.line, p->peek_token.column, 0);
+            synchronize(p);
+            return NULL;
+        }
         /* Check if this is a struct or enum declaration: const Name struct { */
         if (p->cur_token.type == TOK_CONST && peek_token_is(p, TOK_IDENT)) {
             /* Save full parser state for lookahead */
@@ -2075,6 +2153,10 @@ AstNode *parser_parse_program(Parser *p) {
                 program->data.program.stmts = new_stmts;
             }
             program->data.program.stmts[program->data.program.stmt_count++] = stmt;
+        } else {
+            /* Error recovery: skip to next statement boundary */
+            synchronize(p);
+            continue;
         }
         next_token(p);
     }
