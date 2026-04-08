@@ -1556,7 +1556,7 @@ Directory imports merge all top-level `.ez` files into one namespace. Subdirecto
 
 ```
 import_decl = "import" [ "and" "use" ] import_path { "," import_path } .
-import_path = [ alias ] ( "@" identifier | string_literal ) .
+import_path = [ alias ] ( "@" identifier | string_literal ) | "c" string_literal .
 ```
 
 Standard library modules are prefixed with `@`:
@@ -1636,6 +1636,116 @@ With `using`:
 import @math
 using math
 sqrt(16.0)
+```
+
+### 9.6 C Interop
+
+EZ can import C headers and call C functions directly using the `c` prefix:
+
+```
+c_import = "import" "c" string_literal .
+```
+
+#### Importing C Headers
+
+```ez
+import c"stdio.h"           // system header → #include <stdio.h>
+import c"./mylib.h"         // local header  → #include "./mylib.h"
+```
+
+System headers (no `./` or `../` prefix) emit angle-bracket includes. Local headers emit quoted includes. Multiple C imports can be comma-separated:
+
+```ez
+import c"stdio.h", c"stdlib.h", c"string.h"
+```
+
+C imports can be mixed with EZ imports on separate lines:
+
+```ez
+import @math
+import c"stdio.h"
+```
+
+#### Calling C Functions
+
+All C functions are accessed via the `c.` prefix:
+
+```ez
+import c"stdio.h"
+
+do main() {
+    c.puts("hello from C")
+    c.printf("value: %d\n", 42)
+}
+```
+
+#### Accessing C Constants and Macros
+
+C constants and macros are accessed with the same `c.` prefix:
+
+```ez
+import c"stdio.h"
+
+do main() {
+    println(c.EOF)              // -1
+    println(c.EXIT_SUCCESS)     // 0
+}
+```
+
+#### Type Mapping
+
+| EZ type | C type | Notes |
+|---|---|---|
+| `int` | `int64_t` | Use `i32` for C `int` |
+| `uint` | `uint64_t` | Use `u32` for C `unsigned int` |
+| `i8`, `i16`, `i32`, `i64` | `int8_t`, `int16_t`, `int32_t`, `int64_t` | Exact match |
+| `u8`, `u16`, `u32`, `u64` | `uint8_t`, `uint16_t`, `uint32_t`, `uint64_t` | Exact match |
+| `float` | `double` | Use `f32` for C `float` |
+| `bool` | `bool` | Exact match |
+| `byte` | `uint8_t` | Exact match |
+| `char` | `int32_t` | EZ uses 32-bit for Unicode |
+| `string` | `char*` | Auto-converted when passed to C functions |
+| `^T` | `T*` | Direct pointer mapping |
+
+**String conversion:** EZ strings are automatically converted to `char*` when passed to C functions. To convert a C `char*` return value back to an EZ string, use the `c_string()` builtin:
+
+```ez
+import c"stdlib.h"
+
+do main() {
+    mut home string = c_string(c.getenv("HOME"))
+    println(home)
+}
+```
+
+**Return types:** C function return types are inferred by the C compiler. If EZ needs to know the type (e.g., for `println`), add a type annotation:
+
+```ez
+import c"math.h"
+
+do main() {
+    mut x float = c.sqrt(2.0)    // type annotation needed
+    println(x)                    // prints 1.4142135623730951
+}
+```
+
+#### Restrictions
+
+The following EZ types cannot be passed to C functions:
+
+- `i128`, `i256`, `u128`, `u256` — C has no 128/256-bit integer types
+- Arrays and maps — EZ-specific types with no C equivalent
+- EZ structs — pass individual fields instead
+
+C structs returned from C functions can be passed back to other C functions via `__auto_type` inference.
+
+#### Reserved Name
+
+The module name `c` is reserved for C interop. Files named `c.ez` must use an explicit alias:
+
+```ez
+import myc "./c.ez"    // OK — aliased
+import "./c.ez"         // Error — 'c' is reserved
 ```
 
 ---
