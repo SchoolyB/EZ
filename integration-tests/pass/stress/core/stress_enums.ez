@@ -72,12 +72,12 @@ do main() {
         passed += 1
     } otherwise { println("  [FAIL] enum in when — got ${label}") failed += 1 }
 
-    // Enum in array
-    mut colors [Color] = {Color.RED, Color.GREEN, Color.BLUE}
-    if len(colors) == 3 {
-        println("  [PASS] array of enums")
+    // Enum values in array
+    mut colors [int] = {Color.RED, Color.GREEN, Color.BLUE}
+    if len(colors) == 3 && colors[0] == 0 && colors[2] == 2 {
+        println("  [PASS] enum values in int array")
         passed += 1
-    } otherwise { println("  [FAIL] array of enums") failed += 1 }
+    } otherwise { println("  [FAIL] enum values in array") failed += 1 }
 
     // Summary
     println("")

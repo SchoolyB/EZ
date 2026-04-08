@@ -11,7 +11,7 @@ do main() {
 
     // Multiple stdlib imports work
     mut arr [int] = {3, 1, 2}
-    arrays.sort(arr)
+    arrays.sort_asc(arr)
     if arr[0] == 1 {
         println("  [PASS] @arrays import and use")
         passed += 1

@@ -11,7 +11,7 @@ do main() {
 
     // sort already sorted
     mut sorted [int] = {1, 2, 3, 4, 5}
-    arrays.sort(sorted)
+    arrays.sort_asc(sorted)
     if sorted[0] == 1 && sorted[4] == 5 {
         println("  [PASS] sort already sorted")
         passed += 1
@@ -19,7 +19,7 @@ do main() {
 
     // sort reverse sorted
     mut rev [int] = {5, 4, 3, 2, 1}
-    arrays.sort(rev)
+    arrays.sort_asc(rev)
     if rev[0] == 1 && rev[4] == 5 {
         println("  [PASS] sort reverse sorted")
         passed += 1
@@ -35,14 +35,14 @@ do main() {
 
     // single element operations
     mut single [int] = {42}
-    if arrays.sum(single) == 42 && arrays.min(single) == 42 && arrays.max(single) == 42 {
+    if arrays.get_sum(single) == 42 && arrays.get_min(single) == 42 && arrays.get_max(single) == 42 {
         println("  [PASS] sum/min/max on single element")
         passed += 1
     } otherwise { println("  [FAIL] single element ops") failed += 1 }
 
     // negative values
     mut negs [int] = {-5, -1, -10, -3}
-    if arrays.min(negs) == -10 && arrays.max(negs) == -1 && arrays.sum(negs) == -19 {
+    if arrays.get_min(negs) == -10 && arrays.get_max(negs) == -1 && arrays.get_sum(negs) == -19 {
         println("  [PASS] sum/min/max with negatives")
         passed += 1
     } otherwise { println("  [FAIL] negatives") failed += 1 }
@@ -94,7 +94,7 @@ do main() {
     for i in range(0, 500) {
         arrays.append(stress, 500 - i)
     }
-    arrays.sort(stress)
+    arrays.sort_asc(stress)
     if stress[0] == 1 && stress[499] == 500 && len(stress) == 500 {
         println("  [PASS] stress: append 500 + sort")
         passed += 1

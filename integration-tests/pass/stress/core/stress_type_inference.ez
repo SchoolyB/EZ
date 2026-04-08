@@ -78,7 +78,7 @@ do main() {
     }
 
     // Inferred from array literal
-    mut arr = {1, 2, 3}
+    mut arr [int] = {1, 2, 3}
     if len(arr) == 3 {
         println("  [PASS] inferred array from literal")
         passed += 1

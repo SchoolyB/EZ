@@ -43,7 +43,7 @@ do main() {
     mut concat string = ""
     mut names [string] = {"a", "b", "c"}
     for_each name in names {
-        concat = concat + name
+        concat = "${concat}${name}"
     }
     if concat == "abc" {
         println("  [PASS] for_each string array")

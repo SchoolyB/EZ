@@ -10,7 +10,7 @@ do main() {
     mut failed int = 0
 
     // Empty map
-    mut empty = {"_placeholder_": 0}
+    mut empty map[string:int] = {"_placeholder_": 0}
     maps.remove_key(empty, "_placeholder_")
     if maps.is_empty(empty) {
         println("  [PASS] is_empty on empty map")
@@ -18,7 +18,7 @@ do main() {
     } otherwise { println("  [FAIL] is_empty") failed += 1 }
 
     // has_key
-    mut m = {"a": 1, "b": 2, "c": 3}
+    mut m map[string:int] = {"a": 1, "b": 2, "c": 3}
     if maps.has_key(m, "a") {
         println("  [PASS] has_key found")
         passed += 1

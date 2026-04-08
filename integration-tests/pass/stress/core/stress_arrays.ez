@@ -41,7 +41,7 @@ do main() {
     } otherwise { println("  [FAIL] nested arrays") failed += 1 }
 
     // Fixed-size arrays
-    mut fixed [int, 3] = {10, 20, 30}
+    const fixed [int, 3] = {10, 20, 30}
     if len(fixed) == 3 && fixed[2] == 30 {
         println("  [PASS] fixed-size array [int, 3]")
         passed += 1
@@ -71,18 +71,18 @@ do main() {
 
     // arrays.sort
     mut unsorted [int] = {5, 3, 1, 4, 2}
-    arrays.sort(unsorted)
+    arrays.sort_asc(unsorted)
     if unsorted[0] == 1 && unsorted[4] == 5 {
-        println("  [PASS] arrays.sort")
+        println("  [PASS] arrays.sort_asc")
         passed += 1
-    } otherwise { println("  [FAIL] arrays.sort") failed += 1 }
+    } otherwise { println("  [FAIL] arrays.sort_asc") failed += 1 }
 
     // arrays.sum, min, max
     mut nums [int] = {10, 20, 30}
-    if arrays.sum(nums) == 60 && arrays.min(nums) == 10 && arrays.max(nums) == 30 {
-        println("  [PASS] arrays.sum/min/max")
+    if arrays.get_sum(nums) == 60 && arrays.get_min(nums) == 10 && arrays.get_max(nums) == 30 {
+        println("  [PASS] arrays.get_sum/get_min/get_max")
         passed += 1
-    } otherwise { println("  [FAIL] arrays.sum/min/max") failed += 1 }
+    } otherwise { println("  [FAIL] arrays.get_sum/get_min/get_max") failed += 1 }
 
     // arrays.is_empty
     if arrays.is_empty(empty) && !arrays.is_empty(nums) {
