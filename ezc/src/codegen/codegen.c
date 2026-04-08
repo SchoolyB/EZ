@@ -1166,6 +1166,25 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
                         }
                     }
                 }
+                /* Check using_modules list */
+                if (!is_module) {
+                    for (int ui = 0; ui < cg->using_module_count; ui++) {
+                        if (strcmp(cg->using_modules[ui], mod) == 0) {
+                            is_module = true;
+                            break;
+                        }
+                    }
+                }
+                /* Check alias mappings */
+                if (!is_module) {
+                    for (int ai = 0; ai < cg->alias_count; ai++) {
+                        if (strcmp(cg->alias_names[ai], mod) == 0) {
+                            is_module = true;
+                            mod = cg->alias_modules[ai];
+                            break;
+                        }
+                    }
+                }
                 if (is_module) {
                     emitf(cg, "%s_%s", mod, mem);
                     break;
