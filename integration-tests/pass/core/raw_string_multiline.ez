@@ -1,0 +1,52 @@
+/*
+ * raw_string_multiline.ez - Test raw strings with embedded newlines
+ *
+ * Covers: multi-line raw strings, no escape processing, no interpolation
+ */
+
+do main() {
+    println("=== Raw String Multiline Test ===")
+    mut passed int = 0
+    mut failed int = 0
+
+    // Test 1: raw string with newlines
+    mut raw string = `line1
+line2
+line3`
+    if len(raw) > 10 {
+        println("  [PASS] raw string with newlines")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] raw string len: ${len(raw)}")
+        failed += 1
+    }
+
+    // Test 2: raw string preserves backslashes
+    mut path string = `C:\Users\test\file.txt`
+    if len(path) == 22 {
+        println("  [PASS] raw string preserves backslashes")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] raw path len: ${len(path)}")
+        failed += 1
+    }
+
+    // Test 3: raw string does not interpolate
+    mut nope string = `${not_a_var}`
+    if len(nope) > 5 {
+        println("  [PASS] raw string no interpolation")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] raw interpolation")
+        failed += 1
+    }
+
+    // Summary
+    println("")
+    println("Results: ${passed} passed, ${failed} failed")
+    if failed > 0 {
+        println("SOME TESTS FAILED")
+    } otherwise {
+        println("ALL TESTS PASSED")
+    }
+}

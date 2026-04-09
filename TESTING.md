@@ -52,7 +52,7 @@ Integration tests compile and run `.ez` programs end-to-end through the full com
 
 **Structure:**
 
-- `integration-tests/pass/core/` — 108 core language feature tests (arrays, control flow, structs, enums, maps, typeof, named returns, import variants, C interop, #strict when, or_return, etc.)
+- `integration-tests/pass/core/` — 109 core language feature tests (arrays, control flow, structs, enums, maps, typeof, named returns, import variants, C interop, #strict when, or_return, raw strings, etc.)
 - `integration-tests/pass/stdlib/` — 28 stdlib module tests
 - `integration-tests/pass/warnings/` — 22 warning detection tests
 - `integration-tests/pass/multi-file/` — 30 multi-file import tests (basic, alias, structs, enums, constants, private visibility, transitive, circular, collision, nested, struct functions)
