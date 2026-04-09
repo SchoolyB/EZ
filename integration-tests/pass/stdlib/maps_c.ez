@@ -81,7 +81,7 @@ do main() {
     }
 
     // is_empty (true)
-    mut empty_map map[string:int] = {}
+    mut empty_map map[string:int] = {:}
     if maps.is_empty(empty_map) == true {
         println("  [PASS] is_empty (empty)")
         passed += 1
@@ -98,6 +98,29 @@ do main() {
         passed += 1
     } otherwise {
         println("  [FAIL] keys length: ${len(ks)}")
+        failed += 1
+    }
+
+    // merge
+    mut m1 map[string:int] = {"a": 1, "b": 2}
+    mut m2 map[string:int] = {"c": 3, "d": 4}
+    mut merged map[string:int] = maps.merge(m1, m2)
+    if len(merged) == 4 && merged["a"] == 1 && merged["d"] == 4 {
+        println("  [PASS] merge")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] merge: expected 4 entries, got ${len(merged)}")
+        failed += 1
+    }
+
+    // merge with overlap (second overwrites)
+    mut m3 map[string:int] = {"a": 99}
+    mut merged2 map[string:int] = maps.merge(m1, m3)
+    if merged2["a"] == 99 {
+        println("  [PASS] merge overwrites")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] merge overwrite: got ${merged2["a"]}")
         failed += 1
     }
 
