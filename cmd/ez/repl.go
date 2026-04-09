@@ -73,6 +73,7 @@ func startREPL() {
 	defer os.RemoveAll(tmpDir)
 
 	tmpFile := filepath.Join(tmpDir, "repl.ez")
+	prevOutput := "" // Track previous output for diffing
 
 	for {
 		line, err := editor.ReadLine(PROMPT)
@@ -152,21 +153,30 @@ func startREPL() {
 			return
 		}
 
-		cmd := exec.Command(ezcPath, "run", tmpFile)
+		cmd := exec.Command(ezcPath, "run", tmpFile, "--quiet")
 		output, err := cmd.CombinedOutput()
 		outStr := string(output)
+
+		// Always clean temp file paths from output
+		outStr = strings.ReplaceAll(outStr, tmpFile, "<repl>")
 
 		if err != nil {
 			// Compilation or runtime error — rollback and show error
 			state.imports = prevImports
 			state.declarations = prevDecls
 			state.statements = prevStmts
-
-			// Show a cleaned-up error (strip the temp file path)
-			cleaned := strings.ReplaceAll(outStr, tmpFile, "<repl>")
-			fmt.Print(cleaned)
-		} else if outStr != "" {
 			fmt.Print(outStr)
+		} else if outStr != "" {
+			// Only show new output (diff against previous run)
+			if strings.HasPrefix(outStr, prevOutput) {
+				newOutput := outStr[len(prevOutput):]
+				if newOutput != "" {
+					fmt.Print(newOutput)
+				}
+			} else {
+				fmt.Print(outStr)
+			}
+			prevOutput = outStr
 		}
 	}
 }
