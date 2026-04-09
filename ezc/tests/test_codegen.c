@@ -1540,6 +1540,66 @@ static void test_e2e_loop_scope(void) {
     ASSERT_STR_EQ(out, "30");
 }
 
+/* ===== #strict when ===== */
+
+static void test_e2e_strict_when(void) {
+    char *out = compile_and_run(
+        ""
+        "const Dir enum {\n"
+        "    UP\n"
+        "    DOWN\n"
+        "    LEFT\n"
+        "    RIGHT\n"
+        "}\n"
+        "do main() {\n"
+        "  mut d = Dir.LEFT\n"
+        "  mut label string = \"\"\n"
+        "  #strict\n"
+        "  when d {\n"
+        "    is Dir.UP { label = \"up\" }\n"
+        "    is Dir.DOWN { label = \"down\" }\n"
+        "    is Dir.LEFT { label = \"left\" }\n"
+        "    is Dir.RIGHT { label = \"right\" }\n"
+        "  }\n"
+        "  println(label)\n"
+        "}");
+    ASSERT_NOT_NULL(out);
+    ASSERT_STR_EQ(out, "left");
+}
+
+/* ===== C interop ===== */
+
+static void test_e2e_c_interop(void) {
+    char *out = compile_and_run(
+        ""
+        "import c \"stdlib.h\"\n"
+        "do main() {\n"
+        "  println(c.EXIT_SUCCESS)\n"
+        "  println(c.EXIT_FAILURE)\n"
+        "}");
+    ASSERT_NOT_NULL(out);
+    ASSERT_STR_EQ(out, "0\n1");
+}
+
+/* ===== Atomic ===== */
+
+static void test_e2e_atomic(void) {
+    char *out = compile_and_run(
+        ""
+        "import @atomic\n"
+        "do main() {\n"
+        "  mut val int = 0\n"
+        "  mut ptr ^int = addr(val)\n"
+        "  atomic.store(ptr, 42)\n"
+        "  println(atomic.load(ptr))\n"
+        "  mut old int = atomic.add(ptr, 8)\n"
+        "  println(old)\n"
+        "  println(atomic.load(ptr))\n"
+        "}");
+    ASSERT_NOT_NULL(out);
+    ASSERT_STR_EQ(out, "42\n42\n50");
+}
+
 int main(void) {
     /* Must run from the ezc/ directory */
     if (access("./ezc", X_OK) != 0) {
@@ -1715,6 +1775,15 @@ int main(void) {
 
     /* Scope lifetime */
     RUN_TEST(test_e2e_loop_scope);
+
+    /* #strict when */
+    RUN_TEST(test_e2e_strict_when);
+
+    /* C interop */
+    RUN_TEST(test_e2e_c_interop);
+
+    /* Atomic */
+    RUN_TEST(test_e2e_atomic);
 
     PRINT_RESULTS();
     return _test_fail > 0 ? 1 : 0;
