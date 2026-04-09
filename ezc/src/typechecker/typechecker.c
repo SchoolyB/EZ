@@ -2378,6 +2378,8 @@ static void check_reserved_name(TypeChecker *tc, const char *name, int line, int
 static void check_statement(TypeChecker *tc, AstNode *node);
 
 /* Check if ALL paths through a block end in a return statement */
+static bool block_has_return(AstNode *node); /* forward declaration */
+
 static bool all_paths_return(AstNode *node) {
     if (!node) return false;
     if (node->kind == NODE_RETURN_STMT) return true;
@@ -2404,6 +2406,10 @@ static bool all_paths_return(AstNode *node) {
         }
         return true;
     }
+    /* loop { ... return ... } — an infinite loop with a return always returns */
+    if (node->kind == NODE_LOOP_STMT) {
+        return block_has_return(node->data.loop_stmt.body);
+    }
     return false;
 }
 
@@ -2425,6 +2431,20 @@ static bool block_has_return(AstNode *node) {
             if (block_has_return(node->data.when_stmt.cases[i].body)) return true;
         }
         if (block_has_return(node->data.when_stmt.default_body)) return true;
+    }
+    /* loop { ... return ... } — loop always executes, so a return inside counts */
+    if (node->kind == NODE_LOOP_STMT) {
+        if (block_has_return(node->data.loop_stmt.body)) return true;
+    }
+    /* for/for_each/as_long_as may also contain returns */
+    if (node->kind == NODE_FOR_STMT) {
+        if (block_has_return(node->data.for_stmt.body)) return true;
+    }
+    if (node->kind == NODE_FOR_EACH_STMT) {
+        if (block_has_return(node->data.for_each.body)) return true;
+    }
+    if (node->kind == NODE_WHILE_STMT) {
+        if (block_has_return(node->data.while_stmt.body)) return true;
     }
     return false;
 }
