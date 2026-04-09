@@ -1927,10 +1927,15 @@ println(r2[4])        // Prints 6 - r2 sees the change
 |----------|-----------|-------------|
 | `is_empty` | `(m map[K:V]) -> bool` | Check if map is empty |
 | `has_key` | `(m map[K:V], key K) -> bool` | Check if key exists |
-| `keys` | `(m map[K:V]) -> [K]` | Get all keys |
-| `values` | `(m map[K:V]) -> [V]` | Get all values |
-| `remove_key` | `(&m map[K:V], key K) -> bool` | Remove key |
+| `contains_value` | `(m map[K:V], value V) -> bool` | Check if any entry has the given value |
+| `get_keys` | `(m map[K:V]) -> [K]` | Get all keys as an array |
+| `get_values` | `(m map[K:V]) -> [V]` | Get all values as an array |
+| `get_or_default` | `(m map[K:V], key K, default V) -> V` | Get value or return default if key missing |
+| `remove_key` | `(&m map[K:V], key K) -> bool` | Remove key-value pair |
 | `clear` | `(&m map[K:V])` | Remove all entries |
+| `merge` | `(m1 map[K:V], m2 map[K:V]) -> map[K:V]` | Combine two maps (m2 overwrites on conflict) |
+
+Use `len(m)` to get the number of entries (builtin, no import needed).
 
 ### 10.5 Math Module (`@math`)
 
