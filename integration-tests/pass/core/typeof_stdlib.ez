@@ -51,19 +51,19 @@ do main() {
 
     // Test map types
     mut m map[string:int] = {"a": 1, "b": 2}
-    mut keys = maps.keys(m)
-    assert(type_of(keys) == "[string]", "maps.keys() should return '[string]'")
+    mut keys = maps.get_keys(m)
+    assert(type_of(keys) == "[string]", "maps.get_keys() should return '[string]'")
 
-    mut values = maps.values(m)
-    assert(type_of(values) == "[int]", "maps.values() should return '[int]'")
+    mut values = maps.get_values(m)
+    assert(type_of(values) == "[int]", "maps.get_values() should return '[int]'")
 
     // Test with different map types
     mut m2 map[int:string] = {1: "one", 2: "two"}
-    mut keys2 = maps.keys(m2)
-    assert(type_of(keys2) == "[int]", "maps.keys() should return '[int]' for int keys")
+    mut keys2 = maps.get_keys(m2)
+    assert(type_of(keys2) == "[int]", "maps.get_keys() should return '[int]' for int keys")
 
-    mut values2 = maps.values(m2)
-    assert(type_of(values2) == "[string]", "maps.values() should return '[string]' for string values")
+    mut values2 = maps.get_values(m2)
+    assert(type_of(values2) == "[string]", "maps.get_values() should return '[string]' for string values")
 
     println("PASS: type_of_stdlib")
 }

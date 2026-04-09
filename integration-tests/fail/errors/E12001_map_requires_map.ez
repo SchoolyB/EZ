@@ -7,5 +7,5 @@ import @maps
 
 do main() {
     mut arr [int] = {1, 2, 3}
-    mut keys [int] = maps.keys(arr)  // Passing array to map function
+    mut keys [int] = maps.get_keys(arr)  // Passing array to map function
 }

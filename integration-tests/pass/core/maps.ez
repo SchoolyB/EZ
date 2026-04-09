@@ -82,23 +82,23 @@ do main() {
 
     mut m map[string:int] = {"a": 1, "b": 2, "c": 3}
 
-    // Test 6: maps.keys
-    mut keys [string] = maps.keys(m)
+    // Test 6: maps.get_keys
+    mut keys [string] = maps.get_keys(m)
     if len(keys) == 3 {
-        println("  [PASS] maps.keys() returns 3 keys")
+        println("  [PASS] maps.get_keys() returns 3 keys")
         passed += 1
     } otherwise {
-        println("  [FAIL] maps.keys(): expected 3 keys, got ${len(keys)}")
+        println("  [FAIL] maps.get_keys(): expected 3 keys, got ${len(keys)}")
         failed += 1
     }
 
-    // Test 7: maps.values
-    mut values [int] = maps.values(m)
+    // Test 7: maps.get_values
+    mut values [int] = maps.get_values(m)
     if len(values) == 3 {
-        println("  [PASS] maps.values() returns 3 values")
+        println("  [PASS] maps.get_values() returns 3 values")
         passed += 1
     } otherwise {
-        println("  [FAIL] maps.values(): expected 3 values, got ${len(values)}")
+        println("  [FAIL] maps.get_values(): expected 3 values, got ${len(values)}")
         failed += 1
     }
 

@@ -9,8 +9,8 @@ import @maps
 do main() {
     mut scores map[string:int] = {"alice": 95, "bob": 87, "charlie": 92}
     println("scores = ${scores}")
-    println("maps.keys(scores) = ${maps.keys(scores)}")
-    println("maps.values(scores) = ${maps.values(scores)}")
+    println("maps.get_keys(scores) = ${maps.get_keys(scores)}")
+    println("maps.get_values(scores) = ${maps.get_values(scores)}")
 
     mut alice_key string = "alice"
     mut diana_key string = "diana"

@@ -1,7 +1,7 @@
 /*
  * typeof_stdlib_returns.ez - Test type_of() for stdlib function returns
  *
- * Verifies that random.choice(), maps.keys/values, and range()
+ * Verifies that random.choice(), maps.get_keys/values, and range()
  * return correctly resolved types for type_of().
  */
 
@@ -46,21 +46,21 @@ do main() {
         failed += 1
     }
 
-    // Test 4: maps.keys returns array typed to key type
+    // Test 4: maps.get_keys returns array typed to key type
     mut m map[string:int] = {"a": 1, "b": 2}
-    mut k = maps.keys(m)
+    mut k = maps.get_keys(m)
     if type_of(k) == "[string]" {
-        println("  [PASS] type_of(maps.keys(map[string:int])) == '[string]'")
+        println("  [PASS] type_of(maps.get_keys(map[string:int])) == '[string]'")
         passed += 1
     } otherwise {
         println("  [FAIL] got '${type_of(k)}'")
         failed += 1
     }
 
-    // Test 5: maps.values returns array typed to value type
-    mut v = maps.values(m)
+    // Test 5: maps.get_values returns array typed to value type
+    mut v = maps.get_values(m)
     if type_of(v) == "[int]" {
-        println("  [PASS] type_of(maps.values(map[string:int])) == '[int]'")
+        println("  [PASS] type_of(maps.get_values(map[string:int])) == '[int]'")
         passed += 1
     } otherwise {
         println("  [FAIL] got '${type_of(v)}'")

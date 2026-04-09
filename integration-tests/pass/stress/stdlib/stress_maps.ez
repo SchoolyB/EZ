@@ -32,14 +32,14 @@ do main() {
     } otherwise { println("  [FAIL] has_key not found") failed += 1 }
 
     // keys
-    mut ks [string] = maps.keys(m)
+    mut ks [string] = maps.get_keys(m)
     if len(ks) == 3 {
         println("  [PASS] keys() returns 3 keys")
         passed += 1
     } otherwise { println("  [FAIL] keys — got ${len(ks)}") failed += 1 }
 
     // values
-    mut vs [int] = maps.values(m)
+    mut vs [int] = maps.get_values(m)
     if len(vs) == 3 {
         println("  [PASS] values() returns 3 values")
         passed += 1
@@ -47,7 +47,7 @@ do main() {
 
     // remove_key
     maps.remove_key(m, "b")
-    if len(maps.keys(m)) == 2 {
+    if len(maps.get_keys(m)) == 2 {
         println("  [PASS] remove_key reduces size")
         passed += 1
     } otherwise { println("  [FAIL] remove_key") failed += 1 }
@@ -64,10 +64,10 @@ do main() {
     for i in range(1, 50) {
         big["key_${i}"] = i
     }
-    if len(maps.keys(big)) == 50 {
+    if len(maps.get_keys(big)) == 50 {
         println("  [PASS] map with 50 entries")
         passed += 1
-    } otherwise { println("  [FAIL] 50 entries — got ${len(maps.keys(big))}") failed += 1 }
+    } otherwise { println("  [FAIL] 50 entries — got ${len(maps.get_keys(big))}") failed += 1 }
 
     // Summary
     println("")

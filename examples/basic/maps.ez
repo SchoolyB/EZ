@@ -68,7 +68,7 @@ do main() {
     println("")
     println("-- Iterating over maps --")
     println("All ages:")
-    mut keys [string] = maps.keys(ages)
+    mut keys [string] = maps.get_keys(ages)
     for_each key in keys {
         println("  ${key} is ${ages[key]} years old")
     }

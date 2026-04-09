@@ -12,7 +12,7 @@ do main() {
     mut m map[string:int] = {"a": 1, "b": 2, "c": 3}
 
     // keys
-    mut k [string] = maps.keys(m)
+    mut k [string] = maps.get_keys(m)
     if len(k) == 3 {
         println("  [PASS] keys")
         passed += 1
@@ -22,7 +22,7 @@ do main() {
     }
 
     // values
-    mut v [int] = maps.values(m)
+    mut v [int] = maps.get_values(m)
     if len(v) == 3 {
         println("  [PASS] values")
         passed += 1
@@ -92,7 +92,7 @@ do main() {
 
     // keys returns array
     mut iter_map map[string:int] = {"a": 1, "b": 2, "c": 3}
-    mut ks [string] = maps.keys(iter_map)
+    mut ks [string] = maps.get_keys(iter_map)
     if len(ks) == 3 {
         println("  [PASS] keys length")
         passed += 1

@@ -6,5 +6,5 @@
 import @maps
 
 do main() {
-    mut keys = maps.keys("not a map")
+    mut keys = maps.get_keys("not a map")
 }
