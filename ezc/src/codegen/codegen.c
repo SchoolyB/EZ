@@ -901,11 +901,18 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
             }
         }
 
-        /* Runtime division/modulo by zero check (skip for floats — IEEE 754 Inf) */
+        /* Runtime division/modulo by zero check */
         if (strcmp(op, "/") == 0 || strcmp(op, "%") == 0) {
             bool is_float_div = (lt && lt->kind == TK_FLOAT) || (rt && rt->kind == TK_FLOAT);
             if (is_float_div) {
-                /* Float division: let IEEE 754 handle it (Inf, -Inf, NaN) */
+                /* Float division: check for zero (EZ panics, no IEEE 754 inf) */
+                emit(cg, "({ double _dv = (double)");
+                emit_expression(cg, node->data.infix.right);
+                emitf(cg, "; if (_dv == 0.0) { fflush(stdout); ez_panic(__FILE__, %d, \"division by zero\"); } (double)",
+                    node->token.line);
+                emit_expression(cg, node->data.infix.left);
+                emitf(cg, " %s _dv; })", op);
+                break;
             } else {
                 emit(cg, "({ __auto_type _dv = ");
                 emit_expression(cg, node->data.infix.right);
