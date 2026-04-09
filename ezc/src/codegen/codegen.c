@@ -3978,11 +3978,10 @@ static void emit_var_declaration(CodeGen *cg, AstNode *node) {
         if (mt && mt->value_type) c_vt = ez_map_elem_c_type(cg, mt->value_type);
 
         emitf(cg, "EzMap %s = ", safe_name(node->data.var_decl.name));
-        if (node->data.var_decl.value &&
-            node->data.var_decl.value->kind == NODE_MAP_VALUE) {
+        if (node->data.var_decl.value) {
             emit_expression(cg, node->data.var_decl.value);
         } else {
-            /* Empty map or no initializer */
+            /* No initializer — create empty map */
             emitf(cg, "ez_map_new(ez_default_arena, sizeof(%s), sizeof(%s), 8)", c_kt, c_vt);
         }
         emit(cg, ";\n");
