@@ -2286,14 +2286,14 @@ static bool emit_math_call(CodeGen *cg, AstNode *node, const char *func) {
 /* --- @maps module --- */
 
 static bool emit_maps_call(CodeGen *cg, AstNode *node, const char *func) {
-    if (strcmp(func, "keys") == 0 && node->data.call.arg_count == 1) {
-        emit(cg, "ez_maps_keys(ez_default_arena, &");
+    if (strcmp(func, "get_keys") == 0 && node->data.call.arg_count == 1) {
+        emit(cg, "ez_maps_get_keys(ez_default_arena, &");
         emit_expression(cg, node->data.call.args[0]);
         emit(cg, ")");
         return true;
     }
-    if (strcmp(func, "values") == 0 && node->data.call.arg_count == 1) {
-        emit(cg, "ez_maps_values(ez_default_arena, &");
+    if (strcmp(func, "get_values") == 0 && node->data.call.arg_count == 1) {
+        emit(cg, "ez_maps_get_values(ez_default_arena, &");
         emit_expression(cg, node->data.call.args[0]);
         emit(cg, ")");
         return true;
@@ -2322,12 +2322,6 @@ static bool emit_maps_call(CodeGen *cg, AstNode *node, const char *func) {
     }
     if (strcmp(func, "is_empty") == 0 && node->data.call.arg_count == 1) {
         emit(cg, "ez_maps_is_empty(&");
-        emit_expression(cg, node->data.call.args[0]);
-        emit(cg, ")");
-        return true;
-    }
-    if (strcmp(func, "size") == 0 && node->data.call.arg_count == 1) {
-        emit(cg, "ez_maps_size(&");
         emit_expression(cg, node->data.call.args[0]);
         emit(cg, ")");
         return true;

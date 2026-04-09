@@ -13,19 +13,16 @@
 #include "../runtime/ez_map.h"
 
 /* maps.keys(m) — return array of keys */
-EzArray ez_maps_keys(EzArena *arena, EzMap *m);
+EzArray ez_maps_get_keys(EzArena *arena, EzMap *m);
 
 /* maps.values(m) — return array of values */
-EzArray ez_maps_values(EzArena *arena, EzMap *m);
+EzArray ez_maps_get_values(EzArena *arena, EzMap *m);
 
 /* maps.has_key(m, key) — check if key exists */
 bool ez_maps_has_key(EzMap *m, const void *key);
 
 /* maps.is_empty(m) — true if map has no entries */
 bool ez_maps_is_empty(EzMap *m);
-
-/* maps.size(m) — number of key-value pairs */
-int64_t ez_maps_size(EzMap *m);
 
 /* maps.merge(m1, m2) — combine two maps (m2 overwrites m1 on conflict) */
 EzMap ez_maps_merge(EzArena *arena, EzMap *m1, EzMap *m2);

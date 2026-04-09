@@ -858,12 +858,12 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                     result = &TYPE_VOID;
                 }
             } else if (strcmp(mod, "maps") == 0) {
-                if (strcmp(mfn, "keys") == 0) {
+                if (strcmp(mfn, "get_keys") == 0) {
                     if (node->data.call.arg_count > 0) {
                         EzType *map_t = resolve_expr(tc, node->data.call.args[0]);
                         result = type_array(map_t && map_t->key_type ? map_t->key_type : "string");
                     } else result = type_array("string");
-                } else if (strcmp(mfn, "values") == 0) {
+                } else if (strcmp(mfn, "get_values") == 0) {
                     if (node->data.call.arg_count > 0) {
                         EzType *map_t = resolve_expr(tc, node->data.call.args[0]);
                         result = type_array(map_t && map_t->value_type ? map_t->value_type : "string");
@@ -871,8 +871,6 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                 } else if (strcmp(mfn, "has_key") == 0 || strcmp(mfn, "is_empty") == 0 ||
                            strcmp(mfn, "contains_value") == 0) {
                     result = &TYPE_BOOL;
-                } else if (strcmp(mfn, "size") == 0) {
-                    result = &TYPE_INT;
                 } else if (strcmp(mfn, "merge") == 0) {
                     if (node->data.call.arg_count > 0) {
                         result = resolve_expr(tc, node->data.call.args[0]);
@@ -1766,14 +1764,14 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                             }
                         }
                         /* Maps functions whose return type depends on map key/value types */
-                        if (!found_in_using && (strcmp(fn_name, "keys") == 0 || strcmp(fn_name, "values") == 0)) {
+                        if (!found_in_using && (strcmp(fn_name, "get_keys") == 0 || strcmp(fn_name, "get_values") == 0)) {
                             for (int ui = 0; ui < tc->using_module_count; ui++) {
                                 const char *real_mod = tc_resolve_alias(tc, tc->using_modules[ui]);
                                 if (strcmp(real_mod, "maps") == 0) {
                                     found_in_using = true;
                                     if (node->data.call.arg_count > 0) {
                                         EzType *map_t = resolve_expr(tc, node->data.call.args[0]);
-                                        if (strcmp(fn_name, "keys") == 0)
+                                        if (strcmp(fn_name, "get_keys") == 0)
                                             result = type_array(map_t && map_t->key_type ? map_t->key_type : "string");
                                         else
                                             result = type_array(map_t && map_t->value_type ? map_t->value_type : "string");

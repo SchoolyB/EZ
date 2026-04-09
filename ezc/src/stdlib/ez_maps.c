@@ -8,7 +8,7 @@
 #include "ez_maps.h"
 #include <string.h>
 
-EzArray ez_maps_keys(EzArena *arena, EzMap *m) {
+EzArray ez_maps_get_keys(EzArena *arena, EzMap *m) {
     EzArray arr = ez_array_new(arena, m->key_size, m->count > 0 ? m->count : 4);
     /* Iterate in insertion order */
     for (int32_t oi = 0; oi < m->order_len; oi++) {
@@ -21,7 +21,7 @@ EzArray ez_maps_keys(EzArena *arena, EzMap *m) {
     return arr;
 }
 
-EzArray ez_maps_values(EzArena *arena, EzMap *m) {
+EzArray ez_maps_get_values(EzArena *arena, EzMap *m) {
     EzArray arr = ez_array_new(arena, m->value_size, m->count > 0 ? m->count : 4);
     /* Iterate in insertion order */
     for (int32_t oi = 0; oi < m->order_len; oi++) {
@@ -40,10 +40,6 @@ bool ez_maps_has_key(EzMap *m, const void *key) {
 
 bool ez_maps_is_empty(EzMap *m) {
     return m->count == 0;
-}
-
-int64_t ez_maps_size(EzMap *m) {
-    return (int64_t)m->count;
 }
 
 EzMap ez_maps_merge(EzArena *arena, EzMap *m1, EzMap *m2) {
