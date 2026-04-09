@@ -868,8 +868,21 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                         EzType *map_t = resolve_expr(tc, node->data.call.args[0]);
                         result = type_array(map_t && map_t->value_type ? map_t->value_type : "string");
                     } else result = type_array("string");
-                } else if (strcmp(mfn, "has_key") == 0 || strcmp(mfn, "is_empty") == 0) {
+                } else if (strcmp(mfn, "has_key") == 0 || strcmp(mfn, "is_empty") == 0 ||
+                           strcmp(mfn, "contains_value") == 0) {
                     result = &TYPE_BOOL;
+                } else if (strcmp(mfn, "size") == 0) {
+                    result = &TYPE_INT;
+                } else if (strcmp(mfn, "merge") == 0) {
+                    if (node->data.call.arg_count > 0) {
+                        result = resolve_expr(tc, node->data.call.args[0]);
+                    } else result = &TYPE_UNKNOWN;
+                } else if (strcmp(mfn, "get_or_default") == 0) {
+                    if (node->data.call.arg_count >= 3) {
+                        result = resolve_expr(tc, node->data.call.args[2]);
+                    } else result = &TYPE_UNKNOWN;
+                } else if (strcmp(mfn, "remove_key") == 0 || strcmp(mfn, "clear") == 0) {
+                    result = &TYPE_VOID;
                 } else {
                     result = &TYPE_VOID;
                 }

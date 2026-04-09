@@ -2326,6 +2326,50 @@ static bool emit_maps_call(CodeGen *cg, AstNode *node, const char *func) {
         emit(cg, ")");
         return true;
     }
+    if (strcmp(func, "size") == 0 && node->data.call.arg_count == 1) {
+        emit(cg, "ez_maps_size(&");
+        emit_expression(cg, node->data.call.args[0]);
+        emit(cg, ")");
+        return true;
+    }
+    if (strcmp(func, "merge") == 0 && node->data.call.arg_count == 2) {
+        emit(cg, "ez_maps_merge(ez_default_arena, &");
+        emit_expression(cg, node->data.call.args[0]);
+        emit(cg, ", &");
+        emit_expression(cg, node->data.call.args[1]);
+        emit(cg, ")");
+        return true;
+    }
+    if (strcmp(func, "contains_value") == 0 && node->data.call.arg_count == 2) {
+        /* Determine value type from map to ensure correct size */
+        EzType *map_t = cg->type_table ? typetable_get(cg->type_table, node->data.call.args[0]) : NULL;
+        const char *c_val_type = "int64_t";
+        if (map_t && map_t->value_type) {
+            EzType *vt = type_from_name(map_t->value_type);
+            if (vt->kind == TK_FLOAT) c_val_type = "double";
+            else if (vt->kind == TK_BOOL) c_val_type = "bool";
+            else if (vt->kind == TK_STRING) c_val_type = "EzString";
+        }
+        emitf(cg, "({ %s _cv = ", c_val_type);
+        emit_expression(cg, node->data.call.args[1]);
+        emit(cg, "; ez_maps_contains_value(&");
+        emit_expression(cg, node->data.call.args[0]);
+        emit(cg, ", &_cv); })");
+        return true;
+    }
+    if (strcmp(func, "get_or_default") == 0 && node->data.call.arg_count == 3) {
+        /* get_or_default(m, key, default) — lookup key, return default if missing */
+        emit(cg, "({ __auto_type _gk = ");
+        emit_expression(cg, node->data.call.args[1]);
+        emit(cg, "; void *_gv = ez_map_get(&");
+        emit_expression(cg, node->data.call.args[0]);
+        emit(cg, ", &_gk); _gv ? *(__typeof__(");
+        emit_expression(cg, node->data.call.args[2]);
+        emit(cg, ") *)_gv : ");
+        emit_expression(cg, node->data.call.args[2]);
+        emit(cg, "; })");
+        return true;
+    }
     return false;
 }
 
