@@ -380,13 +380,18 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
             emit(cg, (cg->indent == 0) ? "EZ_STRING_LIT(\"" : "ez_string_lit(\"");
         }
         if (node->data.string_value.is_raw) {
-            /* Raw string — escape backslashes and double quotes for C output
-             * so that \n stays as literal \n, not a newline character */
+            /* Raw string — escape special characters for C output */
             while (*s) {
                 if (*s == '\\') {
                     emit(cg, "\\\\");
                 } else if (*s == '"') {
                     emit(cg, "\\\"");
+                } else if (*s == '\n') {
+                    emit(cg, "\\n");
+                } else if (*s == '\r') {
+                    emit(cg, "\\r");
+                } else if (*s == '\t') {
+                    emit(cg, "\\t");
                 } else {
                     buf_append_char(&cg->output, *s);
                 }
