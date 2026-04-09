@@ -1,0 +1,82 @@
+/*
+ * channels_c.ez - Integration test for the channels module (compiler)
+ *
+ * Covers: open, send, receive, close
+ */
+
+import @channels
+
+do main() {
+    println("=== Channels Module Test ===")
+    mut passed int = 0
+    mut failed int = 0
+
+    // Test 1: open channel
+    mut ch = channels.open(1)
+    println("  [PASS] channels.open(1)")
+    passed += 1
+
+    // Test 2: send and receive single value
+    channels.send(ch, 42)
+    mut val int = channels.receive(ch)
+    if val == 42 {
+        println("  [PASS] send/receive 42")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] send/receive: expected 42, got ${val}")
+        failed += 1
+    }
+
+    // Test 3: send and receive zero
+    channels.send(ch, 0)
+    mut zero int = channels.receive(ch)
+    if zero == 0 {
+        println("  [PASS] send/receive 0")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] send/receive 0: got ${zero}")
+        failed += 1
+    }
+
+    // Test 4: send and receive negative
+    channels.send(ch, -100)
+    mut neg int = channels.receive(ch)
+    if neg == -100 {
+        println("  [PASS] send/receive -100")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] send/receive neg: got ${neg}")
+        failed += 1
+    }
+
+    // Test 5: buffered channel (capacity > 1)
+    mut buf = channels.open(3)
+    channels.send(buf, 10)
+    channels.send(buf, 20)
+    channels.send(buf, 30)
+    mut v1 int = channels.receive(buf)
+    mut v2 int = channels.receive(buf)
+    mut v3 int = channels.receive(buf)
+    if v1 == 10 && v2 == 20 && v3 == 30 {
+        println("  [PASS] buffered channel (capacity 3)")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] buffered: got ${v1}, ${v2}, ${v3}")
+        failed += 1
+    }
+
+    // Test 6: close channel
+    channels.close(ch)
+    channels.close(buf)
+    println("  [PASS] channels.close")
+    passed += 1
+
+    // Summary
+    println("")
+    println("Results: ${passed} passed, ${failed} failed")
+    if failed > 0 {
+        println("SOME TESTS FAILED")
+    } otherwise {
+        println("ALL TESTS PASSED")
+    }
+}
