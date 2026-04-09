@@ -101,6 +101,44 @@ do main() {
         failed += 1
     }
 
+    // contains_value
+    mut cv_map map[string:int] = {"x": 10, "y": 20}
+    if maps.contains_value(cv_map, 10) == true {
+        println("  [PASS] contains_value (found)")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] contains_value found")
+        failed += 1
+    }
+
+    if maps.contains_value(cv_map, 99) == false {
+        println("  [PASS] contains_value (not found)")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] contains_value not found")
+        failed += 1
+    }
+
+    // get_or_default
+    mut gd_map map[string:int] = {"a": 42}
+    mut val1 int = maps.get_or_default(gd_map, "a", 0)
+    if val1 == 42 {
+        println("  [PASS] get_or_default (key exists)")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] get_or_default exists: got ${val1}")
+        failed += 1
+    }
+
+    mut val2 int = maps.get_or_default(gd_map, "z", -1)
+    if val2 == -1 {
+        println("  [PASS] get_or_default (key missing)")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] get_or_default missing: got ${val2}")
+        failed += 1
+    }
+
     println("")
     println("Results: ${passed} passed, ${failed} failed")
     if failed > 0 {
