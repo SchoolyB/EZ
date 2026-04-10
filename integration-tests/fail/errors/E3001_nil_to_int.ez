@@ -1,0 +1,8 @@
+/*
+ * Error Test: E3001 - nil cannot be assigned to int
+ * Expected: error about non-nullable type
+ */
+
+do main() {
+    mut x int = nil
+}

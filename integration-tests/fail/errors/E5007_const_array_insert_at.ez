@@ -1,0 +1,11 @@
+/*
+ * Error Test: E5007 - insert_at on const array
+ * Expected: cannot modify immutable array
+ */
+
+import @arrays
+
+do main() {
+    const arr [int, 3] = {1, 2, 3}
+    arrays.insert_at(arr, 1, 99)
+}

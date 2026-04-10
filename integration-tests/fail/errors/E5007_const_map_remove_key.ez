@@ -1,0 +1,11 @@
+/*
+ * Error Test: E5007 - remove_key on const map
+ * Expected: cannot modify immutable map
+ */
+
+import @maps
+
+do main() {
+    const m map[string:int] = {"a": 1}
+    maps.remove_key(m, "a")
+}

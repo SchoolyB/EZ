@@ -1,0 +1,11 @@
+/*
+ * Error Test: E5007 - clear on const map
+ * Expected: cannot modify immutable map
+ */
+
+import @maps
+
+do main() {
+    const m map[string:int] = {"a": 1}
+    maps.clear(m)
+}
