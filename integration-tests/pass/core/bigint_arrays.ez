@@ -7,28 +7,49 @@
 do main() {
     println("=== Bigint Arrays Test ===")
     mut passed int = 0
+    mut failed int = 0
 
-    // i128 array
     mut a [i128] = {i128(10), i128(20), i128(30)}
-    println(a[1])
-    passed += 1
+    if a[1] == i128(20) {
+        println("  [PASS] [i128] array")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] [i128]")
+        failed += 1
+    }
 
-    // u128 array
     mut b [u128] = {u128(100), u128(200)}
-    println(b[0])
-    passed += 1
+    if b[0] == u128(100) {
+        println("  [PASS] [u128] array")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] [u128]")
+        failed += 1
+    }
 
-    // i256 array
     mut c [i256] = {i256(5), i256(10)}
-    println(c[1])
-    passed += 1
+    if c[1] == i256(10) {
+        println("  [PASS] [i256] array")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] [i256]")
+        failed += 1
+    }
 
-    // u256 array
     mut d [u256] = {u256(42), u256(84)}
-    println(d[0])
-    passed += 1
+    if d[0] == u256(42) {
+        println("  [PASS] [u256] array")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] [u256]")
+        failed += 1
+    }
 
     println("")
-    println("Results: ${passed} passed")
-    println("ALL TESTS PASSED")
+    println("Results: ${passed} passed, ${failed} failed")
+    if failed > 0 {
+        println("SOME TESTS FAILED")
+    } otherwise {
+        println("ALL TESTS PASSED")
+    }
 }
