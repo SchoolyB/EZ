@@ -232,7 +232,14 @@ int64_t ez_builtin_string_to_int(EzString s) {
     int len = s.len < (int32_t)sizeof(buf) - 1 ? s.len : (int32_t)sizeof(buf) - 1;
     memcpy(buf, s.data, (size_t)len);
     buf[len] = '\0';
-    return strtoll(buf, NULL, 10);
+    char *end = NULL;
+    int64_t result = strtoll(buf, &end, 10);
+    if (end == buf || (*end != '\0' && *end != ' ')) {
+        fflush(stdout);
+        fprintf(stderr, "panic: cannot convert \"%s\" to int\n", buf);
+        exit(1);
+    }
+    return result;
 }
 
 double ez_builtin_string_to_float(EzString s) {
@@ -240,7 +247,14 @@ double ez_builtin_string_to_float(EzString s) {
     int len = s.len < (int32_t)sizeof(buf) - 1 ? s.len : (int32_t)sizeof(buf) - 1;
     memcpy(buf, s.data, (size_t)len);
     buf[len] = '\0';
-    return strtod(buf, NULL);
+    char *end = NULL;
+    double result = strtod(buf, &end);
+    if (end == buf || (*end != '\0' && *end != ' ')) {
+        fflush(stdout);
+        fprintf(stderr, "panic: cannot convert \"%s\" to float\n", buf);
+        exit(1);
+    }
+    return result;
 }
 
 /* --- composite to_string --- */
