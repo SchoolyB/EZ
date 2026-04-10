@@ -585,11 +585,16 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
             EzType *arr_t = cg->type_table ? typetable_get(cg->type_table, node) : NULL;
             const char *elem_sz = "int64_t";
             if (arr_t && arr_t->kind == TK_ARRAY && arr_t->element_type) {
-                EzType *et = type_from_name(arr_t->element_type);
+                const char *etype = arr_t->element_type;
+                EzType *et = type_from_name(etype);
                 if (et->kind == TK_FLOAT) elem_sz = "double";
                 else if (et->kind == TK_BOOL) elem_sz = "bool";
                 else if (et->kind == TK_STRING) elem_sz = "EzString";
-                else if (et->kind == TK_STRUCT) elem_sz = ez_type_to_c_cg(cg, arr_t->element_type);
+                else if (et->kind == TK_STRUCT) elem_sz = ez_type_to_c_cg(cg, etype);
+                else if (strcmp(etype, "i128") == 0) elem_sz = "ez_i128";
+                else if (strcmp(etype, "u128") == 0) elem_sz = "ez_u128";
+                else if (strcmp(etype, "i256") == 0) elem_sz = "ez_i256";
+                else if (strcmp(etype, "u256") == 0) elem_sz = "ez_u256";
             }
             emitf(cg, "ez_array_new(ez_default_arena, sizeof(%s), 4)", elem_sz);
             break;
@@ -607,14 +612,23 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
             break;
         }
 
-        /* Determine element type from first element */
+        /* Determine element type — try bigint detection first, then type table */
+        const char *bi_elem = resolve_bigint_type(cg, node->data.array_value.elements[0]);
         EzType *elem_t = cg->type_table
             ? typetable_get(cg->type_table, node->data.array_value.elements[0])
             : NULL;
+        if (!bi_elem && elem_t && elem_t->name && is_bigint_type(elem_t->name))
+            bi_elem = elem_t->name;
+        /* Also check var decl context for bigint element type */
+        if (!bi_elem && cg->current_var_type && is_bigint_type(cg->current_var_type))
+            bi_elem = cg->current_var_type;
         TypeKind tk = elem_t ? elem_t->kind : TK_INT;
 
         const char *c_type;
-        switch (tk) {
+        /* Check for bigint types first */
+        if (bi_elem) {
+            c_type = bigint_prefix(bi_elem);
+        } else switch (tk) {
         case TK_FLOAT:  c_type = "double"; break;
         case TK_BOOL:   c_type = "bool"; break;
         case TK_STRING: c_type = "EzString"; break;
