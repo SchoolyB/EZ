@@ -191,6 +191,15 @@ static const char *parse_complex_type(Parser *p) {
             for (int d = 0; d < depth; d++) type_str[pos++] = ']';
             type_str[pos] = '\0';
             return type_str;
+        } else if (cur_token_is(p, TOK_CARET)) {
+            /* Array of pointers: [^Type] */
+            next_token(p); /* skip ^ to type name */
+            const char *pointee = read_type_name(p);
+            if (!expect_peek(p, TOK_RBRACKET)) return NULL;
+            size_t ts_len = strlen(pointee) + 4;
+            char *type_str = arena_alloc(p->arena, ts_len);
+            snprintf(type_str, ts_len, "[^%s]", pointee);
+            return type_str;
         } else {
             const char *elem = read_type_name(p);
             if (peek_token_is(p, TOK_COMMA)) {
@@ -232,7 +241,17 @@ static const char *parse_complex_type(Parser *p) {
         const char *key_type = p->cur_token.literal;
         if (!expect_peek(p, TOK_COLON)) return NULL;
         next_token(p); /* value type */
-        const char *val_type = p->cur_token.literal;
+        const char *val_type;
+        if (cur_token_is(p, TOK_CARET)) {
+            /* Pointer value type: map[K:^V] */
+            next_token(p); /* skip ^ to type name */
+            size_t vlen = strlen(p->cur_token.literal) + 2;
+            char *vt = arena_alloc(p->arena, vlen);
+            snprintf(vt, vlen, "^%s", p->cur_token.literal);
+            val_type = vt;
+        } else {
+            val_type = p->cur_token.literal;
+        }
         if (!expect_peek(p, TOK_RBRACKET)) return NULL;
         size_t ts_len = strlen(key_type) + strlen(val_type) + 6;
         char *type_str = arena_alloc(p->arena, ts_len);
