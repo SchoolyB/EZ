@@ -2700,6 +2700,23 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
                         tc->file, node->token.line, node->token.column, 0);
                 }
             }
+            /* Reject nil on non-nullable types */
+            if (value_type->kind == TK_NIL && declared->kind != TK_UNKNOWN &&
+                declared->kind != TK_ERROR && declared->kind != TK_POINTER &&
+                declared->kind != TK_NIL) {
+                char msg[256];
+                snprintf(msg, sizeof(msg),
+                    "cannot assign nil to '%s' — only Error and pointer types are nullable",
+                    type_name(declared));
+                diag_error(tc->diag, "E3001", strdup(msg),
+                    tc->file, node->token.line, node->token.column, 0);
+            }
+            /* Reject bare 'mut x = nil' with no type context */
+            if (value_type->kind == TK_NIL && declared->kind == TK_UNKNOWN) {
+                diag_error(tc->diag, "E3001",
+                    strdup("cannot infer type from nil — add a type annotation (e.g., mut x Error = nil)"),
+                    tc->file, node->token.line, node->token.column, 0);
+            }
             /* If no declared type, infer from value */
             if (declared->kind == TK_UNKNOWN) {
                 declared = value_type;
