@@ -896,6 +896,22 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                             tc->file, arg0->token.line, arg0->token.column, 0);
                     }
                 }
+                /* E5007: mutating map functions on const map */
+                if ((strcmp(mfn, "clear") == 0 || strcmp(mfn, "remove_key") == 0) &&
+                    node->data.call.arg_count > 0) {
+                    AstNode *arg0 = node->data.call.args[0];
+                    if (arg0->kind == NODE_LABEL) {
+                        Symbol *sym = scope_lookup(tc->current_scope, arg0->data.label.value);
+                        if (sym && !sym->mutable) {
+                            char msg[256];
+                            snprintf(msg, sizeof(msg),
+                                "cannot modify immutable map '%s' — declare with 'mut' to allow modification",
+                                arg0->data.label.value);
+                            diag_error(tc->diag, "E5007", strdup(msg),
+                                tc->file, node->token.line, node->token.column, 0);
+                        }
+                    }
+                }
             } else if (strcmp(mod, "io") == 0) {
                 /* Fallible I/O: the type checker returns the primary value type.
                  * The codegen emits _result() versions that return (T, Error) tuples.
@@ -1057,12 +1073,15 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                 } else {
                     result = &TYPE_VOID;
                 }
-                /* E5007: arrays.append/insert/remove/pop on const array */
+                /* E5007: mutating array functions on const array */
                 if ((strcmp(mfn, "append") == 0 || strcmp(mfn, "insert") == 0 ||
-                     strcmp(mfn, "remove") == 0 || strcmp(mfn, "remove_last") == 0 ||
+                     strcmp(mfn, "insert_at") == 0 ||
+                     strcmp(mfn, "remove") == 0 || strcmp(mfn, "remove_at") == 0 ||
+                     strcmp(mfn, "remove_last") == 0 ||
                      strcmp(mfn, "remove_first") == 0 || strcmp(mfn, "prepend") == 0 ||
-                     strcmp(mfn, "fill") == 0 ||
-                     strcmp(mfn, "sort_asc") == 0 || strcmp(mfn, "clear") == 0) &&
+                     strcmp(mfn, "fill") == 0 || strcmp(mfn, "set") == 0 ||
+                     strcmp(mfn, "sort_asc") == 0 || strcmp(mfn, "sort_desc") == 0 ||
+                     strcmp(mfn, "clear") == 0) &&
                     node->data.call.arg_count > 0) {
                     AstNode *arg0 = node->data.call.args[0];
                     if (arg0->kind == NODE_LABEL) {
@@ -2116,6 +2135,16 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                 "array index must be an integer, got %s", type_name(idx_t));
             diag_error(tc->diag, "E3003", strdup(msg),
                 tc->file, node->token.line, node->token.column, 0);
+        }
+        /* Reject negative literal index at compile time */
+        if (left->kind == TK_ARRAY &&
+            node->data.index_expr.index->kind == NODE_PREFIX_EXPR &&
+            strcmp(node->data.index_expr.index->data.prefix.op, "-") == 0 &&
+            node->data.index_expr.index->data.prefix.right->kind == NODE_INT_VALUE) {
+            diag_error(tc->diag, "E3003",
+                strdup("array index cannot be negative"),
+                tc->file, node->data.index_expr.index->token.line,
+                node->data.index_expr.index->token.column, 0);
         }
         if (left->kind == TK_ARRAY && left->element_type) {
             result = type_from_name(left->element_type);
