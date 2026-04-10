@@ -633,6 +633,14 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
         case TK_BOOL:   c_type = "bool"; break;
         case TK_STRING: c_type = "EzString"; break;
         case TK_STRUCT: c_type = ez_type_to_c_cg(cg, elem_t->name); break;
+        case TK_POINTER: {
+            const char *pointee = elem_t->element_type ? elem_t->element_type : "void";
+            const char *c_pointee = ez_type_to_c_cg(cg, pointee);
+            static char ptr_buf[256];
+            snprintf(ptr_buf, sizeof(ptr_buf), "%s *", c_pointee);
+            c_type = ptr_buf;
+            break;
+        }
         default:        c_type = "int64_t"; break;
         }
 
@@ -657,7 +665,14 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
             EzType *kt = cg->type_table ? typetable_get(cg->type_table, node->data.map_value.keys[0]) : NULL;
             EzType *vt = cg->type_table ? typetable_get(cg->type_table, node->data.map_value.values[0]) : NULL;
             if (kt && (kt->kind == TK_INT || kt->kind == TK_UINT)) c_key_type = "int64_t";
-            if (vt) c_val_type = ez_map_elem_c_type(cg, type_name(vt));
+            if (vt && vt->kind == TK_POINTER) {
+                static char map_ptr_buf[256];
+                const char *pointee = vt->element_type ? vt->element_type : "void";
+                snprintf(map_ptr_buf, sizeof(map_ptr_buf), "%s *", ez_type_to_c_cg(cg, pointee));
+                c_val_type = map_ptr_buf;
+            } else if (vt) {
+                c_val_type = ez_map_elem_c_type(cg, type_name(vt));
+            }
         }
 
         /* Use GCC statement expression: ({ EzMap m = ...; ez_map_set(...); m; }) */
@@ -1309,6 +1324,16 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
                 else if (et->kind == TK_BYTE) c_elem = "uint8_t";
                 else if (et->kind == TK_ARRAY) c_elem = "EzArray";
                 else if (et->kind == TK_STRUCT) c_elem = ez_type_to_c_cg(cg, left_t->element_type);
+                else if (et->kind == TK_POINTER) {
+                    static char idx_ptr_buf[256];
+                    const char *pointee = et->element_type ? et->element_type : "void";
+                    snprintf(idx_ptr_buf, sizeof(idx_ptr_buf), "%s *", ez_type_to_c_cg(cg, pointee));
+                    c_elem = idx_ptr_buf;
+                }
+            }
+            /* Check for bigint element types */
+            if (left_t->element_type && is_bigint_type(left_t->element_type)) {
+                c_elem = bigint_prefix(left_t->element_type);
             }
             /* If left is an rvalue (function call), store in temp first —
              * EZ_ARRAY_GET takes &arr which requires an lvalue */
