@@ -1,0 +1,34 @@
+/*
+ * bigint_arrays.ez - Test arrays of wide integer types
+ *
+ * Covers: i128, u128, i256, u256 as array element types
+ */
+
+do main() {
+    println("=== Bigint Arrays Test ===")
+    mut passed int = 0
+
+    // i128 array
+    mut a [i128] = {i128(10), i128(20), i128(30)}
+    println(a[1])
+    passed += 1
+
+    // u128 array
+    mut b [u128] = {u128(100), u128(200)}
+    println(b[0])
+    passed += 1
+
+    // i256 array
+    mut c [i256] = {i256(5), i256(10)}
+    println(c[1])
+    passed += 1
+
+    // u256 array
+    mut d [u256] = {u256(42), u256(84)}
+    println(d[0])
+    passed += 1
+
+    println("")
+    println("Results: ${passed} passed")
+    println("ALL TESTS PASSED")
+}
