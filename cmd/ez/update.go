@@ -1092,26 +1092,10 @@ func doInstall(url, execPath string) error {
 	// Remove backup
 	os.Remove(backupPath)
 
-	// Install ezc compiler and runtime if present in the archive
-	installDir := filepath.Dir(execPath)
-	ezcPath := filepath.Join(tmpDir, "ezc")
-	if _, err := os.Stat(ezcPath); err == nil {
-		os.Chmod(ezcPath, 0755)
-		destEzc := filepath.Join(installDir, "ezc")
-		if err := copyFile(ezcPath, destEzc); err != nil {
-			fmt.Printf("Warning: could not install ezc compiler: %v\n", err)
-		} else {
-			os.Chmod(destEzc, 0755)
-			fmt.Println("Updated ezc compiler")
-		}
-	}
-	rtPath := filepath.Join(tmpDir, "libezrt.a")
-	if _, err := os.Stat(rtPath); err == nil {
-		destRt := filepath.Join(installDir, "libezrt.a")
-		if err := copyFile(rtPath, destRt); err != nil {
-			fmt.Printf("Warning: could not install runtime library: %v\n", err)
-		}
-	}
+	// Post-#1461: release archives ship a single binary; the compiler and
+	// runtime are embedded inside `ez`. No side-car files to copy. The
+	// archive extractor still whitelists `ezc`/`libezrt.a` so older
+	// archives stay installable, but they're ignored on the output side.
 
 	return nil
 }

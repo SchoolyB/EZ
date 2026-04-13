@@ -134,7 +134,26 @@ jobs:
         with:
           go-version: '1.23'
 
-      - name: Build EZ CLI (Go tooling wrapper)
+      # #1461: single-binary release. Build ezc first, stage into the
+      # embed directory, then `go build` so the Go CLI bakes the compiler
+      # and runtime in as assets. Windows is not yet supported for the
+      # compiler (#1342) — the embed stays as zero-length stubs and the
+      # shipped ez.exe has no working compile path until that's resolved.
+      - name: Build EZ compiler
+        if: runner.os != 'Windows'
+        run: |
+          cd ezc
+          make clean
+          make build
+
+      - name: Stage embedded runtime assets
+        if: runner.os != 'Windows'
+        shell: bash
+        run: |
+          cp ezc/ezc internal/ezc/runtime/ezc
+          cp ezc/libezrt.a internal/ezc/runtime/libezrt.a
+
+      - name: Build EZ CLI (with embedded runtime)
         env:
           GOOS: ${{ matrix.goos }}
           GOARCH: ${{ matrix.goarch }}
@@ -144,14 +163,7 @@ jobs:
           go build -o ez${EXT} ./cmd/ez
         shell: bash
 
-      - name: Build EZ compiler
-        if: runner.os != 'Windows'
-        run: |
-          cd ezc
-          make clean
-          make build
-
-      - name: Package combined release
+      - name: Package single-binary release
         shell: bash
         run: |
           TAG="${{ needs.release-please.outputs.tag_name }}"
@@ -163,10 +175,6 @@ jobs:
             zip -j "dist/ez-${ARCH}.zip" staging/ez.exe
           else
             cp ez staging/
-            if [ -f ezc/ezc ]; then
-              cp ezc/ezc staging/
-              cp ezc/libezrt.a staging/
-            fi
             tar czf "dist/ez-${ARCH}.tar.gz" -C staging .
           fi
 

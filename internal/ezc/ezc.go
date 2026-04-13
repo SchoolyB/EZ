@@ -10,10 +10,15 @@ import (
 )
 
 // Find locates the ezc binary using priority-ordered lookup:
-// 1. EZC_PATH environment variable
-// 2. Same directory as the running ez binary
-// 3. PATH lookup
-// 4. Known install locations
+// 1. EZC_PATH environment variable (explicit override, always wins)
+// 2. Embedded runtime extracted to ~/.ez/runtime/<hash>/ (release builds)
+// 3. Same directory as the running ez binary (legacy side-by-side install)
+// 4. PATH lookup (legacy)
+// 5. Known install locations (legacy)
+//
+// Release builds should always hit path 2; the legacy search paths are
+// retained so a dev `go build ./cmd/ez` without running `make build`
+// first (which leaves the embedded assets as empty stubs) still works.
 func Find() (string, error) {
 	// 1. Explicit override
 	if p := os.Getenv("EZC_PATH"); p != "" {
@@ -22,7 +27,12 @@ func Find() (string, error) {
 		}
 	}
 
-	// 2. Same directory as ez binary
+	// 2. Embedded runtime (release builds)
+	if p, err := extractEmbedded(); err == nil {
+		return p, nil
+	}
+
+	// 3. Same directory as ez binary
 	if exe, err := os.Executable(); err == nil {
 		dir := filepath.Dir(exe)
 		candidate := filepath.Join(dir, "ezc")
@@ -31,12 +41,12 @@ func Find() (string, error) {
 		}
 	}
 
-	// 3. PATH lookup
+	// 4. PATH lookup
 	if p, err := exec.LookPath("ezc"); err == nil {
 		return p, nil
 	}
 
-	// 4. Known install locations
+	// 5. Known install locations
 	for _, p := range []string{"/usr/local/bin/ezc", "/usr/bin/ezc"} {
 		if _, err := os.Stat(p); err == nil {
 			return p, nil
