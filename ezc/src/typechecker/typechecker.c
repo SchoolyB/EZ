@@ -718,6 +718,14 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
         AstNode *fn = node->data.call.function;
         const char *fn_name = NULL;
 
+        /* For non-LABEL/non-MEMBER callees (e.g. arr[i]() on a [func] array)
+         * the specific branches below won't traverse the function expression,
+         * leaving its subtree untyped and breaking codegen paths that rely on
+         * typetable lookups. Resolve it here so those subtrees get populated. */
+        if (fn && fn->kind != NODE_LABEL && fn->kind != NODE_MEMBER_EXPR) {
+            resolve_expr(tc, fn);
+        }
+
         if (fn->kind == NODE_LABEL) {
             fn_name = fn->data.label.value;
         } else if (fn->kind == NODE_MEMBER_EXPR &&
