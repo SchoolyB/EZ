@@ -6,6 +6,11 @@
 CC ?= cc
 VERSION := $(shell git describe --tags --always --dirty 2>/dev/null || echo "unknown")
 CFLAGS = -std=c11 -Wall -Wextra -Wpedantic -Wno-unused-parameter -DEZ_VERSION=\"$(VERSION)\"
+# Auto-generate header dependencies so incremental builds rebuild every
+# TU whose transitively-included headers changed. Without this, editing
+# a shared header (e.g. scope.h) leaves stale .o files that were built
+# against the old struct layout — classic silent heap corruption.
+DEPFLAGS = -MMD -MP
 LDFLAGS = -lm
 
 # Build mode
@@ -106,20 +111,23 @@ endif
 
 # Runtime objects need different flags (no -Wpedantic for GCC statement expressions)
 src/runtime/%.o: src/runtime/%.c
-	$(CC) -std=c11 -D_POSIX_C_SOURCE=200809L -Wall -Wextra -Wno-unused-parameter -O2 -Isrc -c -o $@ $<
+	$(CC) -std=c11 -D_POSIX_C_SOURCE=200809L -Wall -Wextra -Wno-unused-parameter -O2 -Isrc $(DEPFLAGS) -c -o $@ $<
 
 src/stdlib/%.o: src/stdlib/%.c
-	$(CC) -std=c11 -D_POSIX_C_SOURCE=200809L -Wall -Wextra -Wno-unused-parameter -O2 -Isrc -c -o $@ $<
+	$(CC) -std=c11 -D_POSIX_C_SOURCE=200809L -Wall -Wextra -Wno-unused-parameter -O2 -Isrc $(DEPFLAGS) -c -o $@ $<
 
 # SQLite amalgamation — relaxed warnings, single-threaded mode
 src/vendor/sqlite3.o: src/vendor/sqlite3.c
 	$(CC) -std=c11 -w -O2 -DSQLITE_THREADSAFE=0 -c -o $@ $<
 
 %.o: %.c
-	$(CC) $(CFLAGS) $(INCLUDES) -c -o $@ $<
+	$(CC) $(CFLAGS) $(INCLUDES) $(DEPFLAGS) -c -o $@ $<
+
+# Pull in generated header dependency files
+-include $(OBJ:.o=.d) $(RT_OBJ:.o=.d)
 
 clean:
-	rm -f $(OBJ) $(RT_OBJ) $(ATOMIC_OBJ) $(BIN) $(RT_LIB) tests/test_lexer tests/test_parser tests/test_typechecker tests/test_codegen tests/*_san
+	rm -f $(OBJ) $(RT_OBJ) $(ATOMIC_OBJ) $(BIN) $(RT_LIB) $(OBJ:.o=.d) $(RT_OBJ:.o=.d) tests/test_lexer tests/test_parser tests/test_typechecker tests/test_codegen tests/*_san
 
 install: build
 	install -d /usr/local/bin
