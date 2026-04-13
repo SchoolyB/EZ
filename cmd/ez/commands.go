@@ -154,14 +154,14 @@ var reportCmd = &cobra.Command{
 		fmt.Println("======================")
 
 		vi := GetVersionInfo()
-		channelTag := ""
+		channel := "stable"
 		switch vi.Channel {
 		case "pre-release":
-			channelTag = "  (pre-release)"
+			channel = "pre-release"
 		case "dev":
-			channelTag = "  (dev build)"
+			channel = "dev"
 		}
-		fmt.Printf("EZ Version:  %s%s\n", vi.Display, channelTag)
+		fmt.Printf("EZ Version:  %s  (%s)\n", vi.Display, channel)
 
 		if vi.Commit == "" {
 			fmt.Println("Commit:      (released build)")
@@ -169,10 +169,11 @@ var reportCmd = &cobra.Command{
 			fmt.Printf("Commit:      %s\n", vi.Commit)
 		}
 
-		// OS and architecture
-		fmt.Printf("OS:          %s/%s\n", runtime.GOOS, runtime.GOARCH)
+		fmt.Printf("Install:     %s\n", reportInstallPath())
 
-		// RAM
+		fmt.Printf("OS:          %s/%s  %s\n", runtime.GOOS, runtime.GOARCH, reportKernel())
+		fmt.Printf("CPU:         %s\n", reportCPUModel())
+
 		memCmd := exec.Command("sysctl", "-n", "hw.memsize")
 		if runtime.GOOS == "linux" {
 			memCmd = exec.Command("sh", "-c", "grep MemTotal /proc/meminfo | awk '{print $2 * 1024}'")
@@ -186,7 +187,85 @@ var reportCmd = &cobra.Command{
 		} else {
 			fmt.Printf("RAM:         unknown\n")
 		}
+
+		cc, ccVer, ccTriple := reportCCompiler()
+		fmt.Printf("C compiler:  %s\n", cc)
+		if ccVer != "" {
+			fmt.Printf("             %s\n", ccVer)
+		}
+		if ccTriple != "" {
+			fmt.Printf("             target: %s\n", ccTriple)
+		}
 	},
+}
+
+// reportInstallPath returns the path to the running ez binary with $HOME
+// redacted to ~ so the output is safe to paste into a public bug report.
+func reportInstallPath() string {
+	exe, err := os.Executable()
+	if err != nil {
+		return "unknown"
+	}
+	if home, err := os.UserHomeDir(); err == nil && home != "" && strings.HasPrefix(exe, home) {
+		return "~" + strings.TrimPrefix(exe, home)
+	}
+	return exe
+}
+
+// reportKernel returns `uname -sr` output (e.g. "Darwin 25.5.0").
+func reportKernel() string {
+	out, err := exec.Command("uname", "-sr").Output()
+	if err != nil {
+		return ""
+	}
+	return strings.TrimSpace(string(out))
+}
+
+// reportCPUModel returns the human-readable CPU brand string, or empty.
+func reportCPUModel() string {
+	switch runtime.GOOS {
+	case "darwin":
+		if out, err := exec.Command("sysctl", "-n", "machdep.cpu.brand_string").Output(); err == nil {
+			return strings.TrimSpace(string(out))
+		}
+	case "linux":
+		if out, err := exec.Command("sh", "-c", "grep -m1 'model name' /proc/cpuinfo | cut -d: -f2-").Output(); err == nil {
+			return strings.TrimSpace(string(out))
+		}
+	}
+	return "unknown"
+}
+
+// reportCCompiler resolves the C compiler ezc will actually invoke
+// (honouring $CC, else the first of clang/gcc/cc on PATH) and returns
+// its resolved path, first line of --version output, and target triple.
+func reportCCompiler() (path, version, triple string) {
+	cc := os.Getenv("CC")
+	if cc == "" {
+		for _, candidate := range []string{"clang", "gcc", "cc"} {
+			if p, err := exec.LookPath(candidate); err == nil {
+				cc = p
+				break
+			}
+		}
+	}
+	if cc == "" {
+		return "not found", "", ""
+	}
+	if resolved, err := exec.LookPath(cc); err == nil {
+		path = resolved
+	} else {
+		path = cc
+	}
+	if out, err := exec.Command(cc, "--version").Output(); err == nil {
+		if line := strings.SplitN(strings.TrimSpace(string(out)), "\n", 2)[0]; line != "" {
+			version = line
+		}
+	}
+	if out, err := exec.Command(cc, "-dumpmachine").Output(); err == nil {
+		triple = strings.TrimSpace(string(out))
+	}
+	return
 }
 
 var testCmd = &cobra.Command{
