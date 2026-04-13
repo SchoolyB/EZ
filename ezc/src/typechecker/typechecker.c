@@ -838,6 +838,29 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
             resolve_expr(tc, fn);
         }
 
+        /* [func] array + constant index + literal-of-func-refs origin:
+         * recover the original referenced function's return type so it
+         * survives the trip through void* storage (#1458). */
+        if (fn && fn->kind == NODE_INDEX_EXPR &&
+            fn->data.index_expr.left->kind == NODE_LABEL &&
+            fn->data.index_expr.index->kind == NODE_INT_VALUE) {
+            const char *arr_name = fn->data.index_expr.left->data.label.value;
+            Symbol *arr_sym = scope_lookup(tc->current_scope, arr_name);
+            int64_t idx_v = fn->data.index_expr.index->data.int_value.value;
+            if (arr_sym && arr_sym->func_array_refs &&
+                idx_v >= 0 && idx_v < arr_sym->func_array_ref_count) {
+                const char *ref_name = arr_sym->func_array_refs[idx_v];
+                if (ref_name) {
+                    FuncSig *rsig = find_func(tc, ref_name);
+                    if (rsig && rsig->return_count > 0) {
+                        result = rsig->return_types[0];
+                        typetable_set(tc->type_table, node, result);
+                        return result;
+                    }
+                }
+            }
+        }
+
         if (fn->kind == NODE_LABEL) {
             fn_name = fn->data.label.value;
         } else if (fn->kind == NODE_MEMBER_EXPR &&
@@ -3298,6 +3321,42 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
                     Symbol *sym = scope_lookup_local(tc->current_scope,
                         node->data.var_decl.name);
                     if (sym) sym->func_ref_name = rname;
+                }
+            }
+            /* Per-element tracking for [func] arrays initialised with a
+             * literal of func refs (#1458). Preserves each element's
+             * originating function name so constant-index calls can
+             * recover the real return type (e.g. struct returns) that
+             * would otherwise be erased by the void* storage. */
+            if (node->data.var_decl.value &&
+                node->data.var_decl.value->kind == NODE_ARRAY_VALUE &&
+                node->data.var_decl.type_name &&
+                strcmp(node->data.var_decl.type_name, "[func]") == 0) {
+                AstNode *lit = node->data.var_decl.value;
+                int n = lit->data.array_value.count;
+                Symbol *sym = scope_lookup_local(tc->current_scope,
+                    node->data.var_decl.name);
+                if (sym && n > 0) {
+                    sym->func_array_refs = calloc((size_t)n, sizeof(const char *));
+                    sym->func_array_ref_count = n;
+                    for (int ei = 0; ei < n; ei++) {
+                        AstNode *el = lit->data.array_value.elements[ei];
+                        if (!el || el->kind != NODE_FUNC_REF) continue;
+                        AstNode *fref = el->data.func_ref.function;
+                        if (fref->kind == NODE_LABEL) {
+                            sym->func_array_refs[ei] = fref->data.label.value;
+                        } else if (fref->kind == NODE_MEMBER_EXPR &&
+                                   fref->data.member.object->kind == NODE_LABEL) {
+                            size_t plen =
+                                strlen(fref->data.member.object->data.label.value) +
+                                strlen(fref->data.member.member) + 2;
+                            char *pref = malloc(plen);
+                            snprintf(pref, plen, "%s_%s",
+                                fref->data.member.object->data.label.value,
+                                fref->data.member.member);
+                            sym->func_array_refs[ei] = pref;
+                        }
+                    }
                 }
             }
         }

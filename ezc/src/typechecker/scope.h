@@ -25,6 +25,14 @@ typedef struct {
                                   function, used for call-site arity/type
                                   validation (NULL if not assigned from a
                                   static func ref) */
+    /* For [func] array vars initialised with a literal of func refs
+     * (#1458): per-element referenced function names, length == the
+     * literal's count. NULL entries mark elements that aren't a
+     * static func ref. Used by call-site type inference on
+     * arr[const](...) expressions so struct return types survive the
+     * trip through a type-erased void* array. */
+    const char **func_array_refs;
+    int func_array_ref_count;
 } Symbol;
 
 typedef struct Scope {
