@@ -82,6 +82,9 @@ typedef enum {
     /* Ampersand */
     TOK_AMPERSAND,      /* & */
 
+    /* Question mark — wildcard type placeholder (issue #1443) */
+    TOK_QUESTION,       /* ? */
+
     /* Hash attributes */
     TOK_SUPPRESS,       /* #suppress */
     TOK_STRICT,         /* #strict */

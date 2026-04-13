@@ -455,6 +455,10 @@ Token lexer_next_token(Lexer *l) {
         }
         break;
 
+    case '?':
+        tok = make_token(TOK_QUESTION, "?", tok.line, tok.column);
+        break;
+
     case '|':
         if (peek_char(l) == '|') {
             read_char(l);

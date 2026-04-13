@@ -149,7 +149,23 @@ static Precedence token_precedence(TokenType t) {
 
 /* Read a type name: simple (int, Person) or qualified (models.Task).
  * Assumes current token is the first identifier. Returns arena-allocated string. */
+/* Wildcard type placeholder for generics (issue #1443). Stored as the
+ * string "?" in the same slot as any other type name so the rest of
+ * the compiler can carry it through unchanged until typechecker
+ * instantiation (slice 2) replaces it with a concrete type. */
+static bool type_string_has_wildcard(const char *tn) {
+    if (!tn) return false;
+    for (const char *c = tn; *c; c++) {
+        if (*c == '?') return true;
+    }
+    return false;
+}
+
 static const char *read_type_name(Parser *p) {
+    /* Wildcard type placeholder: `?` in a type position */
+    if (cur_token_is(p, TOK_QUESTION)) {
+        return "?";
+    }
     const char *name = p->cur_token.literal;
     if (peek_token_is(p, TOK_DOT)) {
         next_token(p); /* skip . */
@@ -168,6 +184,10 @@ static const char *read_type_name(Parser *p) {
  * Postcondition: returns the type string, parser on the last token of the type.
  * Returns NULL on parse error (diagnostic already emitted). */
 static const char *parse_complex_type(Parser *p) {
+    if (cur_token_is(p, TOK_QUESTION)) {
+        /* Bare wildcard type: ? */
+        return "?";
+    }
     if (cur_token_is(p, TOK_LBRACKET)) {
         /* Array type: [int], [int,3], [[int]], [[[int]]], etc. */
         next_token(p); /* element type or nested [ */
@@ -710,6 +730,12 @@ static AstNode *parse_prefix(Parser *p) {
         if (!expect_peek(p, TOK_LPAREN)) return NULL;
         next_token(p);
         node->data.new_expr.type_name = read_type_name(p);
+        if (type_string_has_wildcard(node->data.new_expr.type_name)) {
+            diag_error(p->diag, "E2070",
+                arena_strdup(p->arena,
+                    "wildcard type '?' cannot be used with new() — new() requires a concrete type"),
+                p->file, p->cur_token.line, p->cur_token.column, 0);
+        }
         if (!expect_peek(p, TOK_RPAREN)) return NULL;
         return node;
     }
@@ -902,6 +928,13 @@ static AstNode *parse_var_declaration(Parser *p) {
         next_token(p);
         node->data.var_decl.type_name = parse_complex_type(p);
         if (!node->data.var_decl.type_name) return NULL;
+        /* E2070: wildcard `?` only allowed in function signatures */
+        if (type_string_has_wildcard(node->data.var_decl.type_name)) {
+            diag_error(p->diag, "E2070",
+                arena_strdup(p->arena,
+                    "wildcard type '?' is only allowed in function parameter and return types — not in variable declarations"),
+                p->file, p->cur_token.line, p->cur_token.column, 0);
+        }
         /* E2068: mut <name> struct/enum — should be const */
         if (node->data.var_decl.mutable &&
             (strcmp(node->data.var_decl.type_name, "struct") == 0 ||
@@ -1222,7 +1255,8 @@ static AstNode *parse_func_declaration(Parser *p) {
             }
 
             /* Type name follows (unless next param or closing paren) */
-            if (peek_token_is(p, TOK_IDENT) || peek_token_is(p, TOK_CARET) || peek_token_is(p, TOK_LBRACKET)) {
+            if (peek_token_is(p, TOK_IDENT) || peek_token_is(p, TOK_CARET) ||
+                peek_token_is(p, TOK_LBRACKET) || peek_token_is(p, TOK_QUESTION)) {
                 next_token(p);
                 param->type_name = parse_complex_type(p);
                 if (!param->type_name) return NULL;
@@ -1630,6 +1664,13 @@ static AstNode *parse_struct_declaration(Parser *p) {
         next_token(p);
         field->type_name = parse_complex_type(p);
         if (!field->type_name) return NULL;
+        /* E2070: wildcard `?` not allowed in struct field types */
+        if (type_string_has_wildcard(field->type_name)) {
+            diag_error(p->diag, "E2070",
+                arena_strdup(p->arena,
+                    "wildcard type '?' is not allowed in struct fields — only in function parameter and return types"),
+                p->file, p->cur_token.line, p->cur_token.column, 0);
+        }
         node->data.struct_decl.field_count++;
         next_token(p);
 

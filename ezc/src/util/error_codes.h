@@ -71,7 +71,8 @@
     EZ_ERROR("E2066", "syntax", "struct field cannot have the same name as its struct type") \
     EZ_ERROR("E2067", "syntax", "empty struct — a struct must have at least one field") \
     EZ_ERROR("E2068", "syntax", "structs and enums must be declared with 'const', not 'mut'") \
-    EZ_ERROR("E2069", "syntax", "unexpected semicolon — statements and declarations are separated by newlines, not semicolons")
+    EZ_ERROR("E2069", "syntax", "unexpected semicolon — statements and declarations are separated by newlines, not semicolons") \
+    EZ_ERROR("E2070", "syntax", "wildcard type '?' is only allowed in function parameter and return types — not in variable declarations, struct fields, or enum types")
 
 /* --- E3xxx: Type Problems (Typechecker) --- */
 #define EZ_TYPE_ERRORS \
