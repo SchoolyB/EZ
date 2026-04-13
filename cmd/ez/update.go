@@ -651,6 +651,58 @@ func CheckForUpdateAsync() {
 // latest pre-release (alpha/beta/rc) rather than the latest stable.
 // The --confirm/url pair is used by the sudo re-exec path and bypasses
 // all discovery.
+// pickLatestStable scans a release list and returns the non-pre-release
+// with the highest semver ordering, or nil if no stable releases exist.
+func pickLatestStable(releases []GitHubRelease) *GitHubRelease {
+	var best *GitHubRelease
+	for i := range releases {
+		r := &releases[i]
+		if r.Prerelease {
+			continue
+		}
+		if best == nil || compareSemver(r.TagName, best.TagName) > 0 {
+			best = r
+		}
+	}
+	return best
+}
+
+// printUpdateStatus prints the Installed / Latest stable / Latest
+// pre-release block in the same column layout as `ez version`, with a
+// yellow ← marker on whichever channel line is newer than the installed
+// build. Either remote tag may be empty if the fetch was partial.
+func printUpdateStatus(vi VersionInfo, latestStable, latestPre string) {
+	channelTag := ""
+	switch vi.Channel {
+	case "pre-release":
+		channelTag = "  (pre-release)"
+	case "dev":
+		channelTag = "  (dev build)"
+	case "stable":
+		channelTag = "  (stable)"
+	}
+	fmt.Printf("\033[1mInstalled:\033[0m           %s%s\n", vi.Display, channelTag)
+
+	if latestStable != "" {
+		fmt.Printf("Latest stable:       %s", latestStable)
+		if compareSemver(latestStable, Version) > 0 {
+			fmt.Print("  \033[33m← update available\033[0m")
+		} else if compareSemver(latestStable, Version) == 0 {
+			fmt.Print("  \033[33m← up to date\033[0m")
+		}
+		fmt.Println()
+	}
+	if latestPre != "" {
+		fmt.Printf("Latest pre-release:  %s", latestPre)
+		if compareSemver(latestPre, Version) > 0 {
+			fmt.Print("  \033[33m← run 'ez update --pre'\033[0m")
+		} else if compareSemver(latestPre, Version) == 0 {
+			fmt.Print("  \033[33m← up to date\033[0m")
+		}
+		fmt.Println()
+	}
+}
+
 func runUpdate(confirm bool, url string, pre bool) {
 	// Check for --confirm flag (used by sudo re-exec)
 	if confirm {
@@ -666,151 +718,123 @@ func runUpdate(confirm bool, url string, pre bool) {
 		return
 	}
 
-	fmt.Printf("Current version: %s\n", Version)
-	if pre {
-		fmt.Println("Checking for latest pre-release...")
-	} else {
-		fmt.Println("Checking for updates...")
-	}
+	fmt.Println("Checking for updates...")
+	fmt.Println()
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
-	// --pre path: pick the highest-semver pre-release from /releases.
-	if pre {
-		allReleases, err := fetchAllReleases(ctx)
-		if err != nil {
-			fmt.Printf("Error fetching release list: %v\n", err)
-			return
+	allReleases, err := fetchAllReleases(ctx)
+	if err != nil {
+		fmt.Printf("Error fetching release list: %v\n", err)
+		return
+	}
+
+	latestStable := pickLatestStable(allReleases)
+	latestPre := pickLatestPrerelease(allReleases)
+
+	var latestStableTag, latestPreTag string
+	if latestStable != nil {
+		latestStableTag = latestStable.TagName
+	}
+	if latestPre != nil {
+		latestPreTag = latestPre.TagName
+	}
+
+	vi := GetVersionInfo()
+	printUpdateStatus(vi, latestStableTag, latestPreTag)
+
+	// Cache the latest stable so CheckForUpdateAsync can skip a network hop.
+	if latestStableTag != "" {
+		writeUpdateState(&UpdateState{
+			LastCheck:     time.Now().Format("2006-01-02"),
+			LatestVersion: latestStableTag,
+		})
+	}
+
+	// Dev builds aren't upgradeable via ez update — the binary was built
+	// from a local checkout and has no corresponding release artifact.
+	if vi.Channel == "dev" {
+		fmt.Println("\nDev builds aren't managed by 'ez update'. Rebuild from source to advance.")
+		return
+	}
+
+	// Pre-release installs require --pre to advance. Bare `ez update`
+	// refuses rather than silently downgrading to stable or auto-tracking
+	// the pre-release channel — either would surprise the user.
+	if vi.Channel == "pre-release" && !pre {
+		fmt.Println("\nYou're on a pre-release. 'ez update' only advances stable installs.")
+		fmt.Println("  • Newer pre-release:   ez update --pre")
+		if latestStableTag != "" {
+			fmt.Printf("  • Switch to stable:    ez install %s\n", strings.TrimPrefix(latestStableTag, "v"))
 		}
-		target := pickLatestPrerelease(allReleases)
+		return
+	}
+
+	// Resolve target for the channel being advanced.
+	var target *GitHubRelease
+	if pre {
+		target = latestPre
 		if target == nil {
 			fmt.Println("\nNo pre-releases are currently published.")
 			return
 		}
-		fmt.Printf("Latest pre-release: %s\n", target.TagName)
-
-		if !isNewerVersion(Version, target.TagName) && compareSemver(target.TagName, Version) != 0 {
-			fmt.Printf("\nYour version (%s) is already newer than the latest pre-release.\n", Version)
+	} else {
+		target = latestStable
+		if target == nil {
+			fmt.Println("\nNo stable releases are currently published.")
 			return
 		}
-		if compareSemver(target.TagName, Version) == 0 {
-			fmt.Println("\nYou're already on this pre-release.")
-			return
-		}
+	}
 
+	cmp := compareSemver(target.TagName, Version)
+	if cmp == 0 {
+		if pre {
+			fmt.Println("\nYou're on the latest pre-release.")
+		} else {
+			fmt.Println("\nYou're on the latest stable release.")
+		}
+		return
+	}
+	if cmp < 0 {
+		label := "stable"
+		if pre {
+			label = "pre-release"
+		}
+		fmt.Printf("\nYour version (%s) is already newer than the latest %s.\n", Version, label)
+		return
+	}
+
+	if pre {
 		fmt.Printf("\n\033[33mInstalling pre-release %s — may contain breaking changes, not recommended for production.\033[0m\n",
 			target.TagName)
-		fmt.Printf("\nUpgrade to %s? (y/N): ", target.TagName)
-		reader := bufio.NewReader(os.Stdin)
-		response, _ := reader.ReadString('\n')
-		response = strings.TrimSpace(strings.ToLower(response))
-		if response != "y" && response != "yes" {
-			fmt.Println("Update cancelled.")
-			return
-		}
-
-		assetName := getAssetName()
-		var downloadURL string
-		for _, asset := range target.Assets {
-			if asset.Name == assetName {
-				downloadURL = asset.BrowserDownloadURL
-				break
-			}
-		}
-		if downloadURL == "" {
-			fmt.Printf("Error: No binary available for %s/%s\n", runtime.GOOS, runtime.GOARCH)
-			fmt.Println("You may need to build from source: go install github.com/marshallburns/ez/cmd/ez@latest")
-			return
-		}
-		fmt.Printf("Downloading %s...\n", assetName)
-		if err := downloadAndInstall(downloadURL); err != nil {
-			fmt.Printf("Error during update: %v\n", err)
-			return
-		}
-		fmt.Print(asciiBanner)
-		fmt.Printf("\n\033[1m%s\033[0m\n", target.TagName)
-		fmt.Println("\nSuccessfully installed pre-release!")
-		fmt.Println("Restart your terminal or run `ez version` to verify.")
-		return
-	}
-
-	release, err := fetchLatestRelease(ctx)
-	if err != nil {
-		fmt.Printf("Error checking for updates: %v\n", err)
-		return
-	}
-
-	// Update state file so future runs don't re-check today
-	state := &UpdateState{
-		LastCheck:     time.Now().Format("2006-01-02"),
-		LatestVersion: release.TagName,
-	}
-	writeUpdateState(state)
-
-	fmt.Printf("Latest version:  %s\n", release.TagName)
-
-	// Fetch all releases up front so we can reuse the list for both the
-	// changelog range and the "newer pre-release available" nudge.
-	allReleases, allErr := fetchAllReleases(ctx)
-
-	if !isNewerVersion(Version, release.TagName) {
-		fmt.Println("\nYou're already on the latest version!")
-		if allErr == nil {
-			if pr := pickLatestPrerelease(allReleases); pr != nil &&
-				compareSemver(pr.TagName, release.TagName) > 0 &&
-				compareSemver(pr.TagName, Version) > 0 {
-				fmt.Printf("Note: pre-release %s is available via 'ez update --pre'.\n", pr.TagName)
-			}
-		}
-		return
-	}
-
-	// Changelog for versions between current and latest
-	if allErr != nil {
-		// Fall back to old behavior if we can't fetch all releases
-		fmt.Println("\nWhat's new:")
-		fmt.Println(strings.Repeat("-", 40))
-		changelog := release.Body
-		lines := strings.Split(changelog, "\n")
-		if len(lines) > 20 {
-			changelog = strings.Join(lines[:20], "\n") + "\n... (truncated)"
-		}
-		fmt.Println(changelog)
-		fmt.Println(strings.Repeat("-", 40))
 	} else {
-		releasesInRange := getReleasesInRange(allReleases, Version, release.TagName)
-		fmt.Print(formatChangelog(releasesInRange, Version, release.TagName))
+		releasesInRange := getReleasesInRange(allReleases, Version, target.TagName)
+		fmt.Print(formatChangelog(releasesInRange, Version, target.TagName))
 	}
 
-	// Prompt for confirmation
-	fmt.Printf("\nUpgrade to %s? (y/N): ", release.TagName)
+	fmt.Printf("\nUpgrade to %s? (y/N): ", target.TagName)
 	reader := bufio.NewReader(os.Stdin)
 	response, _ := reader.ReadString('\n')
 	response = strings.TrimSpace(strings.ToLower(response))
-
 	if response != "y" && response != "yes" {
 		fmt.Println("Update cancelled.")
 		return
 	}
 
-	// Find the right asset for this OS/arch
 	assetName := getAssetName()
 	var downloadURL string
-	for _, asset := range release.Assets {
+	for _, asset := range target.Assets {
 		if asset.Name == assetName {
 			downloadURL = asset.BrowserDownloadURL
 			break
 		}
 	}
-
 	if downloadURL == "" {
 		fmt.Printf("Error: No binary available for %s/%s\n", runtime.GOOS, runtime.GOARCH)
 		fmt.Println("You may need to build from source: go install github.com/marshallburns/ez/cmd/ez@latest")
 		return
 	}
-
-	// Download and install
 	fmt.Printf("Downloading %s...\n", assetName)
 	if err := downloadAndInstall(downloadURL); err != nil {
 		fmt.Printf("Error during update: %v\n", err)
@@ -818,17 +842,13 @@ func runUpdate(confirm bool, url string, pre bool) {
 	}
 
 	fmt.Print(asciiBanner)
-	fmt.Printf("\n\033[1m%s\033[0m\n", release.TagName)
-	fmt.Println("\nSuccessfully updated!")
-	fmt.Println("Restart your terminal or run `ez version` to verify.")
-
-	// Post-install nudge: if a newer pre-release exists, mention it.
-	if allErr == nil {
-		if pr := pickLatestPrerelease(allReleases); pr != nil &&
-			compareSemver(pr.TagName, release.TagName) > 0 {
-			fmt.Printf("Note: pre-release %s is available via 'ez update --pre'.\n", pr.TagName)
-		}
+	fmt.Printf("\n\033[1m%s\033[0m\n", target.TagName)
+	if pre {
+		fmt.Println("\nSuccessfully installed pre-release!")
+	} else {
+		fmt.Println("\nSuccessfully updated!")
 	}
+	fmt.Println("Restart your terminal or run `ez version` to verify.")
 }
 
 // normalizeTag strips a single leading 'v' so user input and GitHub tag
