@@ -628,6 +628,15 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
         /* Check for bigint types first */
         if (bi_elem) {
             c_type = bigint_prefix(bi_elem);
+        } else if (elem_t && elem_t->name && strcmp(elem_t->name, "func") == 0) {
+            /* Function reference elements: store as generic fn ptrs, cast at
+             * call sites (mirrors ez_type_to_c_cg's handling of "func"). */
+            c_type = "void *";
+        } else if (cg->current_var_type &&
+                   strcmp(cg->current_var_type, "[func]") == 0) {
+            /* Declared as [func] but element inference missed it (e.g. empty
+             * literal or heterogeneous func refs). */
+            c_type = "void *";
         } else switch (tk) {
         case TK_FLOAT:  c_type = "double"; break;
         case TK_BOOL:   c_type = "bool"; break;
