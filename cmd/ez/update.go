@@ -712,8 +712,7 @@ func runUpdate(confirm bool, url string, pre bool) {
 			fmt.Printf("Error during update: %v\n", err)
 			os.Exit(1)
 		}
-		fmt.Print(asciiBanner)
-		fmt.Println("\nSuccessfully updated!")
+		fmt.Println("Successfully updated!")
 		fmt.Println("Restart your terminal or run `ez version` to verify.")
 		return
 	}
@@ -841,7 +840,6 @@ func runUpdate(confirm bool, url string, pre bool) {
 		return
 	}
 
-	fmt.Print(asciiBanner)
 	fmt.Printf("\n\033[1m%s\033[0m\n", target.TagName)
 	if pre {
 		fmt.Println("\nSuccessfully installed pre-release!")
@@ -969,7 +967,6 @@ func runInstall(version string) {
 		os.Exit(1)
 	}
 
-	fmt.Print(asciiBanner)
 	fmt.Printf("\n\033[1m%s\033[0m\n", target.TagName)
 	fmt.Println("\nSuccessfully installed!")
 	fmt.Println("Restart your terminal or run `ez version` to verify.")

@@ -37,8 +37,6 @@ func getVersionString() string {
 	vi := GetVersionInfo()
 
 	buf := bytes.Buffer{}
-	buf.WriteString(asciiBanner)
-	buf.WriteString("\n")
 
 	// Installed line: display version + channel tag
 	channelTag := ""

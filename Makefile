@@ -51,6 +51,13 @@ install: build
 		sudo chmod +x $(INSTALL_PATH)/$(BINARY_NAME); \
 	fi
 	@echo ""
+	@echo ' _____ ____'
+	@echo '| ____|__  |'
+	@echo '|  _|   / /'
+	@echo '| |___ / /_'
+	@echo '|_____/____|'
+	@echo 'Programming made EZ'
+	@echo ""
 	@echo "EZ installed successfully!"
 	@echo "Try: ez examples/basic/hello.ez"
 
