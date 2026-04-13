@@ -181,3 +181,28 @@ void *ez_map_key_at(EzMap *m, int32_t internal_idx) {
 void *ez_map_value_at(EzMap *m, int32_t internal_idx) {
     return val_ptr(m, internal_idx);
 }
+
+EzMap ez_map_copy(EzArena *arena, const EzMap *src) {
+    EzMap m;
+    m.key_size = src->key_size;
+    m.value_size = src->value_size;
+    m.count = src->count;
+    m.capacity = src->capacity;
+    m.order_len = src->order_len;
+
+    size_t keys_bytes = (size_t)src->capacity * (size_t)src->key_size;
+    size_t vals_bytes = (size_t)src->capacity * (size_t)src->value_size;
+    size_t order_bytes = (size_t)src->capacity * sizeof(int32_t);
+
+    m.keys = ez_arena_alloc(arena, keys_bytes);
+    m.values = ez_arena_alloc(arena, vals_bytes);
+    m.states = ez_arena_alloc(arena, (size_t)src->capacity);
+    m.order = ez_arena_alloc(arena, order_bytes);
+
+    if (keys_bytes)  memcpy(m.keys,   src->keys,   keys_bytes);
+    if (vals_bytes)  memcpy(m.values, src->values, vals_bytes);
+    memcpy(m.states, src->states, (size_t)src->capacity);
+    if (order_bytes) memcpy(m.order,  src->order,  order_bytes);
+
+    return m;
+}

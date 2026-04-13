@@ -51,4 +51,9 @@ void ez_map_set_str(EzArena *arena, EzMap *m, EzString key, const void *value);
 void *ez_map_key_at(EzMap *m, int32_t internal_idx);
 void *ez_map_value_at(EzMap *m, int32_t internal_idx);
 
+/* Deep copy: allocate a fresh map with independent backing storage
+ * (keys, values, states, order) so mutations to the copy do not affect
+ * the original. */
+EzMap ez_map_copy(EzArena *arena, const EzMap *src);
+
 #endif

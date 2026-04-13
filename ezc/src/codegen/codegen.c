@@ -2142,6 +2142,10 @@ static bool emit_builtin_call(CodeGen *cg, AstNode *node, const char *func) {
             emit(cg, "ez_array_copy(ez_default_arena, &");
             emit_expression(cg, arg);
             emit(cg, ")");
+        } else if (at && at->kind == TK_MAP) {
+            emit(cg, "ez_map_copy(ez_default_arena, &");
+            emit_expression(cg, arg);
+            emit(cg, ")");
         } else {
             emit_expression(cg, arg);
         }
