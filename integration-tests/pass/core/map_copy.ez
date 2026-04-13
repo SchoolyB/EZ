@@ -1,0 +1,79 @@
+/*
+ * map_copy.ez - copy() builtin on maps is a deep copy
+ *
+ * Regression for #1440 (commit 5cd75ce): copy() on maps fell through to
+ * a plain value-copy of the EzMap struct, sharing keys/values/states/order
+ * pointers with the original — so mutations to the "copy" wrote into the
+ * source. New ez_map_copy allocates fresh backing arrays.
+ */
+
+do main() {
+    println("=== Map copy() Deep Copy Test ===")
+    mut passed int = 0
+    mut failed int = 0
+
+    // -- mutation of copy does not affect original (string→int) --
+    mut orig map[string:int] = {"a": 1, "b": 2, "c": 3}
+    mut dup map[string:int] = copy(orig)
+    dup["a"] = 99
+    dup["d"] = 4
+    if orig["a"] == 1 && "d" !in orig && len(orig) == 3 {
+        println("  [PASS] copy() mutation isolated from original")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] copy() mutation leaked to original")
+        failed += 1
+    }
+
+    // -- contents match at time of copy --
+    if dup["a"] == 99 && dup["b"] == 2 && dup["c"] == 3 && dup["d"] == 4 && len(dup) == 4 {
+        println("  [PASS] copy() preserves all entries")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] copy() contents wrong")
+        failed += 1
+    }
+
+    // -- mutation of original does not affect copy --
+    orig["b"] = 222
+    if dup["b"] == 2 {
+        println("  [PASS] original mutation isolated from copy")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] original mutation leaked to copy")
+        failed += 1
+    }
+
+    // -- different key type (int→string) --
+    mut nums map[int:string] = {1: "one", 2: "two", 3: "three"}
+    mut nums_copy map[int:string] = copy(nums)
+    nums_copy[1] = "uno"
+    if nums[1] == "one" && nums_copy[1] == "uno" {
+        println("  [PASS] int-keyed map copy() independence")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] int-keyed map copy() independence")
+        failed += 1
+    }
+
+    // -- empty map copy --
+    mut empty map[string:int] = {:}
+    mut empty_copy map[string:int] = copy(empty)
+    empty_copy["x"] = 1
+    if len(empty) == 0 && len(empty_copy) == 1 {
+        println("  [PASS] empty map copy() independence")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] empty map copy() independence")
+        failed += 1
+    }
+
+    println("")
+    println("Results: ${passed} passed, ${failed} failed")
+
+    if failed > 0 {
+        println("SOME TESTS FAILED")
+    } otherwise {
+        println("ALL TESTS PASSED")
+    }
+}
