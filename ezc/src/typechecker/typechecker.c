@@ -1699,6 +1699,46 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                     if (fn_sym && fn_sym->type && strcmp(type_name(fn_sym->type), "func") == 0) {
                         fn_sym->used = true;
                         result = &TYPE_UNKNOWN; /* callable func ref — return type unknown */
+                        /* If we know which static function this var holds,
+                         * validate arity + argument types at compile time
+                         * (issue #1437) and propagate the real return type. */
+                        FuncSig *ref_sig = fn_sym->func_ref_name
+                            ? find_func(tc, fn_sym->func_ref_name) : NULL;
+                        if (ref_sig) {
+                            if (node->data.call.arg_count != ref_sig->param_count) {
+                                char msg[256];
+                                snprintf(msg, sizeof(msg),
+                                    "function '%s' expects %d argument(s), got %d",
+                                    ref_sig->name, ref_sig->param_count,
+                                    node->data.call.arg_count);
+                                diag_error(tc->diag, "E5008", strdup(msg),
+                                    tc->file, node->token.line, node->token.column, 0);
+                            } else {
+                                for (int ai = 0; ai < ref_sig->param_count; ai++) {
+                                    EzType *at = resolve_expr(tc, node->data.call.args[ai]);
+                                    EzType *pt = ref_sig->param_types[ai];
+                                    if (at && pt && at->kind != TK_UNKNOWN &&
+                                        pt->kind != TK_UNKNOWN &&
+                                        at->kind != pt->kind &&
+                                        !(is_int_kind(at->kind) && is_int_kind(pt->kind)) &&
+                                        !(pt->kind == TK_FLOAT && is_int_kind(at->kind))) {
+                                        char msg[256];
+                                        snprintf(msg, sizeof(msg),
+                                            "argument %d of '%s': expected %s, got %s",
+                                            ai + 1, ref_sig->name,
+                                            type_name(pt), type_name(at));
+                                        diag_error(tc->diag, "E3001", strdup(msg),
+                                            tc->file,
+                                            node->data.call.args[ai]->token.line,
+                                            node->data.call.args[ai]->token.column, 0);
+                                    }
+                                }
+                            }
+                            if (ref_sig->return_count > 0)
+                                result = ref_sig->return_types[0];
+                            else
+                                result = &TYPE_VOID;
+                        }
                     } else if (fn_sym && fn_sym->type) {
                         /* Variable exists but is not a function */
                         char msg[256];
@@ -1873,6 +1913,9 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                             if (fn_sym && fn_sym->type && strcmp(type_name(fn_sym->type), "func") == 0) {
                                 fn_sym->used = true;
                                 result = &TYPE_UNKNOWN;
+                                /* Arity/type validation for func refs is done
+                                 * at the earlier func-var branch; avoid
+                                 * re-emitting the same diagnostic here. */
                             } else {
                                 char msg[256];
                                 snprintf(msg, sizeof(msg), "undefined function '%s'", fn_name);
@@ -3021,6 +3064,30 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
                             sym->ret_count = sig->return_count;
                         }
                     }
+                }
+            }
+            /* Track referenced function for func-typed vars so calls through
+             * them can be arity/type-checked at compile time. */
+            if (node->data.var_decl.value &&
+                node->data.var_decl.value->kind == NODE_FUNC_REF) {
+                AstNode *fref = node->data.var_decl.value->data.func_ref.function;
+                const char *rname = NULL;
+                if (fref->kind == NODE_LABEL) {
+                    rname = fref->data.label.value;
+                } else if (fref->kind == NODE_MEMBER_EXPR &&
+                           fref->data.member.object->kind == NODE_LABEL) {
+                    char *prefixed = malloc(
+                        strlen(fref->data.member.object->data.label.value) +
+                        strlen(fref->data.member.member) + 2);
+                    sprintf(prefixed, "%s_%s",
+                        fref->data.member.object->data.label.value,
+                        fref->data.member.member);
+                    rname = prefixed;
+                }
+                if (rname) {
+                    Symbol *sym = scope_lookup_local(tc->current_scope,
+                        node->data.var_decl.name);
+                    if (sym) sym->func_ref_name = rname;
                 }
             }
         }
