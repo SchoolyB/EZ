@@ -1,0 +1,121 @@
+/*
+ * wildcard_types.ez - Wildcard (?) types in function signatures
+ *
+ * Regression for #1443 — the 4-slice wildcard-types landing:
+ *   - 0cbcb58 parser accepts ? in fn signatures
+ *   - 3d216da typechecker instantiates wildcards at call sites
+ *   - 79501dd codegen monomorphises a specialized C fn per call site
+ *   - 6da2488 typechecker re-checks generic bodies per instantiation
+ *
+ * Covers the scenarios called out in the issue body: param wildcards,
+ * return wildcards, [?] element wildcards, mixed-type instantiations,
+ * same-function reuse with different concrete types, and inference
+ * through longer expressions.
+ */
+
+do first(arr [?]) -> ? {
+    return arr[0]
+}
+
+do last(arr [?]) -> ? {
+    return arr[len(arr) - 1]
+}
+
+do max(a ?, b ?) -> ? {
+    if a > b { return a }
+    return b
+}
+
+do min(a ?, b ?) -> ? {
+    if a < b { return a }
+    return b
+}
+
+do identity(x ?) -> ? {
+    return x
+}
+
+do main() {
+    println("=== Wildcard Types Test ===")
+    mut passed int = 0
+    mut failed int = 0
+
+    // -- first/last on [int] --
+    mut nums [int] = {10, 20, 30, 40}
+    if first(nums) == 10 && last(nums) == 40 {
+        println("  [PASS] first/last on [int]")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] first/last on [int]")
+        failed += 1
+    }
+
+    // -- first/last on [string] — reuse of same wildcard fn with different concrete type --
+    mut words [string] = {"alpha", "beta", "gamma"}
+    if first(words) == "alpha" && last(words) == "gamma" {
+        println("  [PASS] first/last on [string]")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] first/last on [string]")
+        failed += 1
+    }
+
+    // -- first on [float] --
+    mut floats [float] = {1.5, 2.5, 3.5}
+    if first(floats) == 1.5 {
+        println("  [PASS] first on [float]")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] first on [float]")
+        failed += 1
+    }
+
+    // -- max/min with int --
+    if max(10, 20) == 20 && min(10, 20) == 10 {
+        println("  [PASS] max/min int")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] max/min int")
+        failed += 1
+    }
+
+    // -- max/min with float --
+    if max(1.5, 2.5) == 2.5 && min(1.5, 2.5) == 1.5 {
+        println("  [PASS] max/min float")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] max/min float")
+        failed += 1
+    }
+
+    // -- identity preserves concrete types across distinct instantiations --
+    mut i int = identity(42)
+    mut s string = identity("hi")
+    mut f float = identity(3.14)
+    mut b bool = identity(true)
+    if i == 42 && s == "hi" && f == 3.14 && b {
+        println("  [PASS] identity across int/string/float/bool")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] identity across types")
+        failed += 1
+    }
+
+    // -- inference chains: use a wildcard result inside another wildcard call --
+    if max(first(nums), last(nums)) == 40 {
+        println("  [PASS] nested wildcard calls")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] nested wildcard calls")
+        failed += 1
+    }
+
+    println("")
+    println("Results: ${passed} passed, ${failed} failed")
+
+    if failed > 0 {
+        println("SOME TESTS FAILED")
+    } otherwise {
+        println("ALL TESTS PASSED")
+    }
+}
