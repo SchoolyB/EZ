@@ -85,6 +85,20 @@ var replCmd = &cobra.Command{
 	},
 }
 
+var installCmd = &cobra.Command{
+	Use:   "install <version>",
+	Short: "Install a specific EZ version, replacing the current install",
+	Long: "Install a specific EZ version by exact semver, replacing the current " +
+		"install. Downgrades and pre-release versions are supported.\n\n" +
+		"Examples:\n" +
+		"  ez install 2.5.0\n" +
+		"  ez install 3.0.0-beta.2",
+	Args: cobra.ExactArgs(1),
+	Run: func(cmd *cobra.Command, args []string) {
+		runInstall(args[0])
+	},
+}
+
 var updateCmd = &cobra.Command{
 	Use:   "update [url]",
 	Short: "Check for updates and upgrade EZ",
@@ -352,7 +366,7 @@ var rootCmd = &cobra.Command{
 
 func init() {
 	rootCmd.CompletionOptions.DisableDefaultCmd = true
-	rootCmd.AddCommand(replCmd, updateCmd, checkCmd, buildCmd, testCmd, reportCmd, versionCmd, docCmd, pzCmd, watchCmd)
+	rootCmd.AddCommand(replCmd, updateCmd, installCmd, checkCmd, buildCmd, testCmd, reportCmd, versionCmd, docCmd, pzCmd, watchCmd)
 	rootCmd.PersistentPreRun = func(cmd *cobra.Command, args []string) {
 		CheckForUpdateAsync()
 	}

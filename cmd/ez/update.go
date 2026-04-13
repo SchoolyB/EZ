@@ -122,6 +122,12 @@ func parseVersion(v string) (major, minor, patch int) {
 	return
 }
 
+// exactSemverRE matches a fully-qualified semver string (with optional
+// leading 'v' and optional pre-release / build-metadata suffixes). Used
+// by `ez install` to reject partial versions like "2.5".
+var exactSemverRE = regexp.MustCompile(
+	`^v?\d+\.\d+\.\d+(-[0-9A-Za-z][0-9A-Za-z.-]*)?(\+[0-9A-Za-z][0-9A-Za-z.-]*)?$`)
+
 // gitDescribeRE matches a `git describe --dirty` trailer such as
 // "-4-g0cbcb58" or "-4-g0cbcb58-dirty" appended to a semver pre-release
 // label by local dev builds. Matched as a unit so identifiers that
@@ -786,6 +792,130 @@ func runUpdate(confirm bool, url string, pre bool) {
 			fmt.Printf("Note: pre-release %s is available via 'ez update --pre'.\n", pr.TagName)
 		}
 	}
+}
+
+// normalizeTag strips a single leading 'v' so user input and GitHub tag
+// names (which may or may not be prefixed) compare cleanly.
+func normalizeTag(v string) string {
+	return strings.TrimPrefix(v, "v")
+}
+
+// runInstall installs an exact EZ version, replacing the current install.
+// The version must be a fully-qualified semver with optional pre-release
+// suffix; partial forms like "2.5" are rejected with a clean error. If
+// the requested version is older than the currently running binary, a
+// one-line downgrade warning is emitted and installation continues.
+func runInstall(version string) {
+	if version == "" {
+		fmt.Println("error: missing version argument")
+		fmt.Println("usage: ez install <version>    (e.g. ez install 3.0.0-beta.2)")
+		os.Exit(1)
+	}
+	if !exactSemverRE.MatchString(version) {
+		fmt.Printf("error: '%s' is not a fully-qualified semver\n", version)
+		fmt.Println("ez install requires an exact version like '2.5.0' or '3.0.0-beta.2'")
+		fmt.Println("partial versions, ranges, and shorthand are not accepted")
+		os.Exit(1)
+	}
+
+	fmt.Printf("Current version: %s\n", Version)
+	fmt.Printf("Requested:       %s\n", version)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	releases, err := fetchAllReleases(ctx)
+	if err != nil {
+		fmt.Printf("Error fetching release list: %v\n", err)
+		os.Exit(1)
+	}
+
+	wanted := normalizeTag(version)
+	var target *GitHubRelease
+	for i := range releases {
+		if normalizeTag(releases[i].TagName) == wanted {
+			target = &releases[i]
+			break
+		}
+	}
+	if target == nil {
+		fmt.Printf("\nerror: version '%s' was not found in the release list\n", version)
+		// Show up to five nearest versions by semver ordering, centred on
+		// the requested slot. Gives the user something to retry with
+		// without a separate `ez list` command.
+		type tagged struct {
+			tag string
+			pre bool
+		}
+		all := make([]tagged, 0, len(releases))
+		for i := range releases {
+			all = append(all, tagged{releases[i].TagName, releases[i].Prerelease})
+		}
+		// Sort descending by semver
+		for i := 0; i < len(all); i++ {
+			for j := i + 1; j < len(all); j++ {
+				if compareSemver(all[j].tag, all[i].tag) > 0 {
+					all[i], all[j] = all[j], all[i]
+				}
+			}
+		}
+		max := 5
+		if len(all) < max {
+			max = len(all)
+		}
+		if max > 0 {
+			fmt.Println("\nNearby available versions:")
+			for i := 0; i < max; i++ {
+				label := ""
+				if all[i].pre {
+					label = " (pre-release)"
+				}
+				fmt.Printf("  %s%s\n", all[i].tag, label)
+			}
+		}
+		os.Exit(1)
+	}
+
+	// Downgrade warning — after we've confirmed the target exists.
+	if compareSemver(target.TagName, Version) < 0 {
+		fmt.Printf("\n\033[33mwarning: downgrading from %s to %s\033[0m\n",
+			Version, target.TagName)
+	} else if compareSemver(target.TagName, Version) == 0 {
+		fmt.Printf("\nYou're already on %s.\n", target.TagName)
+		return
+	}
+
+	if target.Prerelease {
+		fmt.Printf("\n\033[33mInstalling pre-release %s — may contain breaking changes, not recommended for production.\033[0m\n",
+			target.TagName)
+	}
+
+	// Platform asset lookup — same logic as runUpdate.
+	assetName := getAssetName()
+	var downloadURL string
+	for _, asset := range target.Assets {
+		if asset.Name == assetName {
+			downloadURL = asset.BrowserDownloadURL
+			break
+		}
+	}
+	if downloadURL == "" {
+		fmt.Printf("Error: No binary available for %s/%s at %s\n",
+			runtime.GOOS, runtime.GOARCH, target.TagName)
+		fmt.Println("You may need to build from source: go install github.com/marshallburns/ez/cmd/ez@latest")
+		os.Exit(1)
+	}
+
+	fmt.Printf("Downloading %s...\n", assetName)
+	if err := downloadAndInstall(downloadURL); err != nil {
+		fmt.Printf("Error during install: %v\n", err)
+		os.Exit(1)
+	}
+
+	fmt.Print(asciiBanner)
+	fmt.Printf("\n\033[1m%s\033[0m\n", target.TagName)
+	fmt.Println("\nSuccessfully installed!")
+	fmt.Println("Restart your terminal or run `ez version` to verify.")
 }
 
 // getAssetName returns the expected archive name for this OS/arch
