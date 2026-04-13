@@ -17,6 +17,10 @@ func TestParseSemver(t *testing.T) {
 		// Build metadata is discarded
 		{"v3.0.0+build.42", 3, 0, 0, ""},
 		{"v3.0.0-beta.2+sha.abcdef", 3, 0, 0, "beta.2"},
+		// Git-describe trailers are stripped
+		{"v3.0.0-beta.2-4-g0cbcb58", 3, 0, 0, "beta.2"},
+		{"v3.0.0-beta.2-4-g0cbcb58-dirty", 3, 0, 0, "beta.2"},
+		{"v3.0.0-rc.1-12-gabcd123", 3, 0, 0, "rc.1"},
 		// Missing components default to 0
 		{"v2.1", 2, 1, 0, ""},
 		{"v2", 2, 0, 0, ""},
@@ -67,6 +71,9 @@ func TestCompareSemver(t *testing.T) {
 		{"v3.0.0-alpha", "v3.0.0-beta", -1},
 		{"v3.0.0-beta", "v3.0.0-alpha", 1},
 
+		// Git-describe trailer must not affect ordering
+		{"v3.0.0-beta.2-4-g0cbcb58-dirty", "v3.0.0-beta.2", 0},
+		{"v3.0.0-beta.2-4-g0cbcb58", "v3.0.0-beta.1", 1},
 	}
 	for _, c := range cases {
 		t.Run(c.a+"_vs_"+c.b, func(t *testing.T) {
@@ -90,6 +97,10 @@ func TestIsNewerVersion(t *testing.T) {
 		{"v3.0.0", "v3.0.0-beta.2", false},     // stable > pre-release
 		{"v3.0.0-beta.1", "v3.0.0-beta.2", true},
 		{"v3.0.0-beta.2", "v3.0.0-beta.1", false},
+		// A local dev build with a git-describe trailer should still be
+		// treated as its underlying pre-release when comparing to upstream.
+		{"v3.0.0-beta.2-4-g0cbcb58-dirty", "v3.0.0-beta.2", false},
+		{"v3.0.0-beta.2-4-g0cbcb58-dirty", "v3.0.0", true},
 	}
 	for _, c := range cases {
 		t.Run(c.local+"_to_"+c.remote, func(t *testing.T) {
