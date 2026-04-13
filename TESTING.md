@@ -131,7 +131,7 @@ python3 scripts/fuzz.py --clean
 The Go CLI (`ez`) has unit tests for the packages it uses:
 
 - `pkg/lineeditor` — REPL line editing
-- `cmd/ez` — updater semver parsing and comparison (parseSemver, compareSemver, isNewerVersion, pickLatestPrerelease)
+- `cmd/ez` — updater semver parsing/comparison (parseSemver, compareSemver, isNewerVersion, pickLatestPrerelease) and exact-version install validation (exactSemverRE, normalizeTag)
 
 ```bash
 go test ./pkg/lineeditor/...

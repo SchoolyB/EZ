@@ -154,3 +154,74 @@ func TestPickLatestPrerelease(t *testing.T) {
 		}
 	})
 }
+
+func TestExactSemverRE(t *testing.T) {
+	cases := []struct {
+		in   string
+		want bool
+	}{
+		// Fully-qualified stable
+		{"3.0.0", true},
+		{"v3.0.0", true},
+		{"0.0.1", true},
+		{"12.34.56", true},
+		// Fully-qualified pre-release
+		{"3.0.0-beta.2", true},
+		{"v3.0.0-beta.2", true},
+		{"3.0.0-rc.1", true},
+		{"3.0.0-alpha", true},
+		// Build metadata
+		{"3.0.0+build.42", true},
+		{"3.0.0-beta.2+sha.abcdef", true},
+		// Partials and shorthand — all rejected
+		{"3.0", false},
+		{"3", false},
+		{"v3", false},
+		{"v3.0", false},
+		// Ranges — all rejected
+		{"^3.0.0", false},
+		{"~3.0.0", false},
+		{">=3.0.0", false},
+		{"3.0.x", false},
+		// Keywords — rejected
+		{"latest", false},
+		{"stable", false},
+		{"pre", false},
+		// Empty / garbage
+		{"", false},
+		{"abc", false},
+		{"3.0.0.0", false},
+		// Leading dash in pre-release is invalid per semver
+		{"3.0.0-", false},
+	}
+	for _, c := range cases {
+		t.Run(c.in, func(t *testing.T) {
+			got := exactSemverRE.MatchString(c.in)
+			if got != c.want {
+				t.Errorf("exactSemverRE.MatchString(%q) = %v, want %v", c.in, got, c.want)
+			}
+		})
+	}
+}
+
+func TestNormalizeTag(t *testing.T) {
+	cases := []struct {
+		in, want string
+	}{
+		{"3.0.0", "3.0.0"},
+		{"v3.0.0", "3.0.0"},
+		{"v3.0.0-beta.2", "3.0.0-beta.2"},
+		{"3.0.0-beta.2", "3.0.0-beta.2"},
+		// Only one leading v is stripped — defensive
+		{"vv3.0.0", "v3.0.0"},
+		{"", ""},
+	}
+	for _, c := range cases {
+		t.Run(c.in, func(t *testing.T) {
+			got := normalizeTag(c.in)
+			if got != c.want {
+				t.Errorf("normalizeTag(%q) = %q, want %q", c.in, got, c.want)
+			}
+		})
+	}
+}
