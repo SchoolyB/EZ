@@ -163,17 +163,10 @@ var reportCmd = &cobra.Command{
 		}
 		fmt.Printf("EZ Version:  %s%s\n", vi.Display, channelTag)
 
-		commit := vi.Commit
-		if commit == "" {
-			commit = "(released build)"
-			fmt.Printf("Commit:      %s\n", commit)
+		if vi.Commit == "" {
+			fmt.Println("Commit:      (released build)")
 		} else {
-			dirty := ""
-			if vi.Dirty {
-				dirty = ", dirty"
-			}
-			fmt.Printf("Commit:      %s (+%d commits%s)\n",
-				commit, vi.CommitsAhead, dirty)
+			fmt.Printf("Commit:      %s\n", vi.Commit)
 		}
 
 		// OS and architecture

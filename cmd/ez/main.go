@@ -52,12 +52,7 @@ func getVersionString() string {
 
 	// Commit line (only meaningful for dev builds)
 	if vi.Commit != "" {
-		dirty := ""
-		if vi.Dirty {
-			dirty = ", dirty"
-		}
-		fmt.Fprintf(&buf, "Commit:              %s (+%d commits%s)\n",
-			vi.Commit, vi.CommitsAhead, dirty)
+		fmt.Fprintf(&buf, "Commit:              %s\n", vi.Commit)
 	}
 
 	// Build time — normalise the CI underscore to a space for human reading
