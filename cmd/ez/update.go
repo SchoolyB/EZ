@@ -16,10 +16,10 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"runtime"
 	"strings"
 	"time"
-
 )
 
 // UpdateState stores the last update check info
@@ -122,12 +122,17 @@ func parseVersion(v string) (major, minor, patch int) {
 	return
 }
 
+// gitDescribeRE matches a `git describe --dirty` trailer such as
+// "-4-g0cbcb58" or "-4-g0cbcb58-dirty" appended to a semver pre-release
+// label by local dev builds. Matched as a unit so identifiers that
+// legitimately contain "-g" (unlikely but possible) aren't over-trimmed.
+var gitDescribeRE = regexp.MustCompile(`-\d+-g[0-9a-f]+(-dirty)?$`)
+
 // parseSemver parses a version string like "v3.0.0-beta.2" or "0.16.10" into
 // its numeric components plus the raw pre-release suffix (empty for stable).
-// Build metadata after '+' is discarded. Git-describe trailers like
-// "-4-g0cbcb58-dirty" appended after a pre-release identifier are stripped
-// back to the real pre-release label so a local dev build still orders
-// correctly against upstream tags.
+// Build metadata after '+' is discarded. A trailing git-describe suffix on
+// the pre-release label is stripped back to the real identifier so a local
+// dev build still orders correctly against upstream tags.
 func parseSemver(v string) (major, minor, patch int, pre string) {
 	v = strings.TrimPrefix(v, "v")
 	// Drop +build metadata
@@ -138,14 +143,7 @@ func parseSemver(v string) (major, minor, patch int, pre string) {
 	base := v
 	if i := strings.Index(v, "-"); i != -1 {
 		base = v[:i]
-		pre = v[i+1:]
-		// Strip git-describe trailer: "beta.2-4-g0cbcb58-dirty" -> "beta.2".
-		// A real semver identifier never contains "-g<hex>", so cut there.
-		if idx := strings.Index(pre, "-g"); idx != -1 {
-			pre = pre[:idx]
-		}
-		// Also strip a trailing "-dirty" that might remain
-		pre = strings.TrimSuffix(pre, "-dirty")
+		pre = gitDescribeRE.ReplaceAllString(v[i+1:], "")
 	}
 	parts := strings.Split(base, ".")
 	if len(parts) >= 1 {
