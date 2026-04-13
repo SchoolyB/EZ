@@ -42,6 +42,18 @@ typedef struct {
     bool used;          /* true if function was called */
     int def_line;       /* line where function was declared */
     bool is_private;    /* true if declared with 'private' keyword */
+
+    /* Wildcard type support (issue #1443).
+     * A function is "generic" if any of its param or return type strings
+     * contain a '?'. Generic functions are instantiated per call site:
+     * at each call the wildcard is bound to a concrete type derived from
+     * the call's arguments, and an entry is appended to `instantiations`.
+     * Codegen emits one specialized C function per unique instantiation. */
+    bool is_generic;
+    AstNode *decl;                /* source NODE_FUNC_DECL for body lookup */
+    const char **instantiations;  /* concrete type each call bound `?` to */
+    int instantiation_count;
+    int instantiation_cap;
 } FuncSig;
 
 typedef struct {

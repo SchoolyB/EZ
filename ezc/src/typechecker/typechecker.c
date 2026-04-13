@@ -148,6 +148,14 @@ static EzType *struct_field_type(TypeChecker *tc, const char *struct_name, const
 
 /* --- Function signature helpers --- */
 
+static bool type_name_has_wildcard(const char *tn) {
+    if (!tn) return false;
+    for (const char *c = tn; *c; c++) {
+        if (*c == '?') return true;
+    }
+    return false;
+}
+
 static void register_func(TypeChecker *tc, const char *name,
     EzType **param_types, int param_count,
     EzType **return_types, int return_count) {
@@ -164,6 +172,92 @@ static void register_func(TypeChecker *tc, const char *name,
     fs->used = false;
     fs->def_line = 0;
     fs->is_private = false;
+    fs->is_generic = false;
+    fs->decl = NULL;
+    fs->instantiations = NULL;
+    fs->instantiation_count = 0;
+    fs->instantiation_cap = 0;
+}
+
+/* Substitute '?' with `concrete` in a type string and return a heap copy.
+ * Returns a strdup of the original if no wildcard is present. */
+static char *substitute_wildcard(const char *src, const char *concrete) {
+    if (!src) return NULL;
+    if (!type_name_has_wildcard(src)) return strdup(src);
+    size_t cl = strlen(concrete);
+    size_t len = 0;
+    for (const char *c = src; *c; c++) len += (*c == '?') ? cl : 1;
+    char *out = malloc(len + 1);
+    char *w = out;
+    for (const char *c = src; *c; c++) {
+        if (*c == '?') { memcpy(w, concrete, cl); w += cl; }
+        else *w++ = *c;
+    }
+    *w = '\0';
+    return out;
+}
+
+/* Derive the "concrete type that a wildcard parameter binds to", given
+ * the parameter's source type string (containing '?') and the argument's
+ * resolved EzType. Examples:
+ *   param "?"   + arg int      -> "int"
+ *   param "[?]" + arg [string] -> "string"
+ * Returns NULL if the shape doesn't match (e.g. param "[?]" with a
+ * non-array arg). Caller owns the returned string. */
+static char *bind_wildcard(const char *param_tn, EzType *arg_t) {
+    if (!param_tn || !arg_t) return NULL;
+    if (strcmp(param_tn, "?") == 0) {
+        return strdup(type_name(arg_t));
+    }
+    if (param_tn[0] == '[' && arg_t->kind == TK_ARRAY && arg_t->element_type) {
+        /* [?] vs concrete array — bind to the element type */
+        const char *inside = param_tn + 1;
+        /* Only handle the simple "[?]" case for this slice. Nested or
+         * sized forms (`[[?]]`, `[?,3]`) fall through to a literal
+         * match below. */
+        if (strncmp(inside, "?]", 2) == 0) {
+            return strdup(arg_t->element_type);
+        }
+    }
+    return NULL;
+}
+
+/* Mark a just-registered FuncSig as generic if any of the declared
+ * parameter or return type strings on `decl` contains a '?'. Stores
+ * `decl` on the sig so later call-site instantiation can walk the
+ * original type_name strings for substitution. */
+static void finalize_generic_sig(FuncSig *fs, AstNode *decl) {
+    fs->decl = decl;
+    if (!decl || decl->kind != NODE_FUNC_DECL) return;
+    for (int i = 0; i < decl->data.func_decl.param_count; i++) {
+        if (type_name_has_wildcard(decl->data.func_decl.params[i].type_name)) {
+            fs->is_generic = true;
+            return;
+        }
+    }
+    for (int i = 0; i < decl->data.func_decl.return_type_count; i++) {
+        if (type_name_has_wildcard(decl->data.func_decl.return_types[i])) {
+            fs->is_generic = true;
+            return;
+        }
+    }
+}
+
+/* Record a concrete instantiation of a generic function. Returns true
+ * if this is a new instantiation (i.e. codegen hasn't seen it yet),
+ * false if the same concrete binding was already recorded. */
+static bool record_instantiation(FuncSig *fs, const char *concrete) {
+    if (!fs || !concrete) return false;
+    for (int i = 0; i < fs->instantiation_count; i++) {
+        if (strcmp(fs->instantiations[i], concrete) == 0) return false;
+    }
+    if (fs->instantiation_count >= fs->instantiation_cap) {
+        fs->instantiation_cap = fs->instantiation_cap ? fs->instantiation_cap * 2 : 4;
+        fs->instantiations = realloc(fs->instantiations,
+            sizeof(const char *) * fs->instantiation_cap);
+    }
+    fs->instantiations[fs->instantiation_count++] = strdup(concrete);
+    return true;
 }
 
 static FuncSig *find_func(TypeChecker *tc, const char *name) {
@@ -1643,12 +1737,76 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                         diag_error(tc->diag, "E5008", strdup(msg),
                             tc->file, node->token.line, node->token.column, 0);
                     }
+                    /* Generic (wildcard) dispatch: unify each '?' parameter
+                     * against the corresponding argument to derive a single
+                     * concrete binding T, record the instantiation, and
+                     * substitute T into the return type. Skip the normal
+                     * per-arg check below since '?' would otherwise collapse
+                     * to TK_UNKNOWN and produce no useful errors. */
+                    char *generic_binding = NULL;
+                    EzType *generic_return_t = NULL;
+                    bool is_generic_call = sig->is_generic && sig->decl &&
+                        sig->decl->kind == NODE_FUNC_DECL;
+                    if (is_generic_call) {
+                        int cc = node->data.call.arg_count < sig->decl->data.func_decl.param_count
+                            ? node->data.call.arg_count : sig->decl->data.func_decl.param_count;
+                        for (int ai = 0; ai < cc; ai++) {
+                            const char *ptn = sig->decl->data.func_decl.params[ai].type_name;
+                            EzType *at = resolve_expr(tc, node->data.call.args[ai]);
+                            if (!type_name_has_wildcard(ptn)) continue;
+                            char *bound = bind_wildcard(ptn, at);
+                            if (!bound) {
+                                char msg[256];
+                                snprintf(msg, sizeof(msg),
+                                    "cannot infer wildcard type '%s' from argument %d of '%s' (got %s)",
+                                    ptn, ai + 1, fn_name, type_name(at));
+                                diag_error(tc->diag, "E3001", strdup(msg),
+                                    tc->file, node->data.call.args[ai]->token.line,
+                                    node->data.call.args[ai]->token.column, 0);
+                                continue;
+                            }
+                            if (!generic_binding) {
+                                generic_binding = bound;
+                            } else if (strcmp(generic_binding, bound) != 0) {
+                                char msg[256];
+                                snprintf(msg, sizeof(msg),
+                                    "wildcard type conflict in '%s': '?' was bound to %s, but argument %d is %s",
+                                    fn_name, generic_binding, ai + 1, bound);
+                                diag_error(tc->diag, "E3001", strdup(msg),
+                                    tc->file, node->data.call.args[ai]->token.line,
+                                    node->data.call.args[ai]->token.column, 0);
+                                free(bound);
+                            } else {
+                                free(bound);
+                            }
+                        }
+                        if (generic_binding) {
+                            record_instantiation(sig, generic_binding);
+                            if (sig->decl->data.func_decl.return_type_count > 0) {
+                                char *rt_str = substitute_wildcard(
+                                    sig->decl->data.func_decl.return_types[0],
+                                    generic_binding);
+                                generic_return_t = type_from_name(rt_str);
+                                /* rt_str is owned by type_from_name on the
+                                 * heap path; leak is fine at compile time. */
+                            } else {
+                                generic_return_t = &TYPE_VOID;
+                            }
+                        }
+                    }
+
                     /* Check argument types */
                     int check_count = node->data.call.arg_count < sig->param_count
                         ? node->data.call.arg_count : sig->param_count;
                     for (int ai = 0; ai < check_count; ai++) {
                         EzType *arg_t = resolve_expr(tc, node->data.call.args[ai]);
                         EzType *param_t = sig->param_types[ai];
+                        if (is_generic_call) {
+                            /* Generic branch already handled unification;
+                             * suppress the scalar param/arg comparison which
+                             * would compare against TK_UNKNOWN. */
+                            continue;
+                        }
                         if (arg_t->kind != TK_UNKNOWN && param_t->kind != TK_UNKNOWN &&
                             arg_t->kind != param_t->kind &&
                             !(is_int_kind(param_t->kind) && arg_t->kind == TK_ENUM) &&
@@ -1688,7 +1846,9 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                             }
                         }
                     }
-                    if (sig->return_count > 0) {
+                    if (is_generic_call && generic_return_t) {
+                        result = generic_return_t;
+                    } else if (sig->return_count > 0) {
                         result = sig->return_types[0];
                     } else {
                         result = &TYPE_VOID;
@@ -4075,6 +4235,7 @@ static void register_declarations(TypeChecker *tc, AstNode *program) {
                 sprintf(prefixed, "%s_%s", stmt->data.struct_decl.name, fn->data.func_decl.name);
                 register_func(tc, prefixed, ptypes, pc, rtypes, rc);
                 tc->funcs[tc->func_count - 1].is_private = fn->data.func_decl.is_private;
+                finalize_generic_sig(&tc->funcs[tc->func_count - 1], fn);
             }
         }
 
@@ -4228,6 +4389,7 @@ static void register_declarations(TypeChecker *tc, AstNode *program) {
             tc->funcs[tc->func_count - 1].is_private = stmt->data.func_decl.is_private;
             /* Store line for unused function warning */
             tc->funcs[tc->func_count - 1].def_line = stmt->token.line;
+            finalize_generic_sig(&tc->funcs[tc->func_count - 1], stmt);
             /* Also register unprefixed name for internal cross-references.
              * If name is "lib_foo", also register "foo" so calls within imported
              * function bodies can resolve unprefixed names. */
@@ -4243,6 +4405,7 @@ static void register_declarations(TypeChecker *tc, AstNode *program) {
                         register_func(tc, unprefixed, ptypes, pc, rtypes, rc);
                         tc->funcs[tc->func_count - 1].is_private = stmt->data.func_decl.is_private;
                         tc->funcs[tc->func_count - 1].def_line = 0; /* suppress unused warning */
+                        finalize_generic_sig(&tc->funcs[tc->func_count - 1], stmt);
                         break;
                     }
                 }
