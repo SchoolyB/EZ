@@ -3,7 +3,7 @@
 > Auto-generated from `ezc/src/util/error_codes.h`. Do not edit manually.
 > Run `./scripts/generate_errors.sh` to regenerate.
 
-**Total: 132 codes** (122 errors, 10 warnings)
+**Total: 133 codes** (123 errors, 10 warnings)
 
 ---
 
@@ -106,6 +106,7 @@
 | `E3055` | types | const arrays must have a fixed size — declare as [T, N] |
 | `E3056` | types | non-exhaustive #strict when — all enum variants must be handled or add a default branch |
 | `E3057` | types | type cannot be used as a map key — only primitive types (int, string, bool, char, byte, float) and enums are hashable |
+| `E3058` | types | generic function instantiation failed — the body operation is not supported for the concrete type at this call site |
 | `E4001` | names | this variable does not exist — check the spelling or make sure it is declared above this line |
 | `E4002` | names | this function does not exist — check the spelling or make sure it is defined |
 | `E4003` | names | a variable with this name already exists in this scope — use a different name |
@@ -176,4 +177,4 @@
 
 ---
 
-*Generated on 2026-04-13 03:38:51 UTC*
+*Generated on 2026-04-13 04:05:00 UTC*

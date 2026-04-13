@@ -52,6 +52,7 @@ typedef struct {
     bool is_generic;
     AstNode *decl;                /* source NODE_FUNC_DECL for body lookup */
     const char **instantiations;  /* concrete type each call bound `?` to */
+    AstNode **instantiation_calls;/* parallel: originating call-site node */
     int instantiation_count;
     int instantiation_cap;
 } FuncSig;
@@ -91,6 +92,13 @@ typedef struct {
     int current_return_count;
     bool current_has_named_returns; /* true if current function uses named return values */
     const char **current_return_names; /* named return variable names (NULL entries for unnamed) */
+
+    /* Pass 3 / #1443 slice 4: when true, resolve_expr must not write
+     * into the type table. Re-checking a generic function body with
+     * concretely-bound parameters would otherwise clobber the main
+     * pass's type_table entries for the shared body AST and break
+     * codegen for other instantiations. */
+    bool suppress_typetable_writes;
 
     /* Import tracking for unused import warnings */
     const char **imported_modules;

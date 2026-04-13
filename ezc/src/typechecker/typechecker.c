@@ -175,6 +175,7 @@ static void register_func(TypeChecker *tc, const char *name,
     fs->is_generic = false;
     fs->decl = NULL;
     fs->instantiations = NULL;
+    fs->instantiation_calls = NULL;
     fs->instantiation_count = 0;
     fs->instantiation_cap = 0;
 }
@@ -248,7 +249,8 @@ static void finalize_generic_sig(FuncSig *fs, AstNode *decl) {
  * false if the same concrete binding was already recorded. Also
  * mirrors the entry onto the source AST func_decl so codegen can
  * enumerate instantiations without needing the FuncSig table. */
-static bool record_instantiation(FuncSig *fs, const char *concrete) {
+static bool record_instantiation(FuncSig *fs, const char *concrete,
+                                  AstNode *call_site) {
     if (!fs || !concrete) return false;
     for (int i = 0; i < fs->instantiation_count; i++) {
         if (strcmp(fs->instantiations[i], concrete) == 0) return false;
@@ -257,9 +259,13 @@ static bool record_instantiation(FuncSig *fs, const char *concrete) {
         fs->instantiation_cap = fs->instantiation_cap ? fs->instantiation_cap * 2 : 4;
         fs->instantiations = realloc(fs->instantiations,
             sizeof(const char *) * fs->instantiation_cap);
+        fs->instantiation_calls = realloc(fs->instantiation_calls,
+            sizeof(AstNode *) * fs->instantiation_cap);
     }
     char *stored = strdup(concrete);
-    fs->instantiations[fs->instantiation_count++] = stored;
+    fs->instantiations[fs->instantiation_count] = stored;
+    fs->instantiation_calls[fs->instantiation_count] = call_site;
+    fs->instantiation_count++;
 
     if (fs->decl && fs->decl->kind == NODE_FUNC_DECL) {
         int n = fs->decl->data.func_decl.instantiation_count;
@@ -1793,7 +1799,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                             }
                         }
                         if (generic_binding) {
-                            record_instantiation(sig, generic_binding);
+                            record_instantiation(sig, generic_binding, node);
                             if (sig->decl->data.func_decl.return_type_count > 0) {
                                 char *rt_str = substitute_wildcard(
                                     sig->decl->data.func_decl.return_types[0],
@@ -2624,7 +2630,9 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
         break;
     }
 
-    typetable_set(tc->type_table, node, result);
+    if (!tc->suppress_typetable_writes) {
+        typetable_set(tc->type_table, node, result);
+    }
     return result;
 }
 
@@ -4565,6 +4573,96 @@ void typechecker_check(TypeChecker *tc, AstNode *program) {
     /* Pass 2: check all statements */
     for (int i = 0; i < program->data.program.stmt_count; i++) {
         check_statement(tc, program->data.program.stmts[i]);
+    }
+
+    /* Pass 3: re-check generic function bodies per instantiation
+     * (#1443 slice 4). The main pass walked bodies with '?' as
+     * TK_UNKNOWN, so operations the concrete type doesn't support
+     * (e.g. `a + b` on strings) slipped through. For every recorded
+     * instantiation, rebind the parameters to concrete types and
+     * re-run check_block on the body. If any new errors fire, emit
+     * a companion diagnostic at the originating call site so the
+     * user sees "I asked for this specialisation, and here's what
+     * broke inside it". */
+    for (int fi = 0; fi < tc->func_count; fi++) {
+        FuncSig *fs = &tc->funcs[fi];
+        if (!fs->is_generic || !fs->decl ||
+            fs->decl->kind != NODE_FUNC_DECL ||
+            fs->instantiation_count == 0) continue;
+
+        AstNode *decl = fs->decl;
+        for (int ii = 0; ii < fs->instantiation_count; ii++) {
+            const char *concrete = fs->instantiations[ii];
+            AstNode *call_site = fs->instantiation_calls[ii];
+
+            Scope *inst_scope = scope_create(tc->current_scope);
+            Scope *outer_scope = tc->current_scope;
+            tc->current_scope = inst_scope;
+            tc->func_depth++;
+
+            for (int pi = 0; pi < decl->data.func_decl.param_count; pi++) {
+                Param *p = &decl->data.func_decl.params[pi];
+                char *sub = substitute_wildcard(p->type_name, concrete);
+                EzType *pt = sub ? type_from_name(sub) : &TYPE_UNKNOWN;
+                scope_define(inst_scope, p->name, pt, p->mutable);
+                /* `sub` leaks on purpose — type_from_name stores the
+                 * name pointer for array/map kinds and we need it
+                 * alive for the duration of the re-check. Compile-
+                 * time allocation; short-lived process. */
+            }
+
+            EzType **prev_ret = tc->current_return_types;
+            const char **prev_ret_names = tc->current_return_type_names;
+            int prev_ret_count = tc->current_return_count;
+            bool prev_named = tc->current_has_named_returns;
+            const char **prev_return_names = tc->current_return_names;
+
+            int rc = decl->data.func_decl.return_type_count;
+            EzType **ret_types = NULL;
+            const char **ret_names = NULL;
+            if (rc > 0) {
+                ret_types = malloc(sizeof(EzType *) * (size_t)rc);
+                ret_names = malloc(sizeof(const char *) * (size_t)rc);
+                for (int ri = 0; ri < rc; ri++) {
+                    char *sub = substitute_wildcard(
+                        decl->data.func_decl.return_types[ri], concrete);
+                    ret_types[ri] = sub ? type_from_name(sub) : &TYPE_UNKNOWN;
+                    ret_names[ri] = decl->data.func_decl.return_types[ri];
+                }
+            }
+            tc->current_return_types = ret_types;
+            tc->current_return_type_names = ret_names;
+            tc->current_return_count = rc;
+            tc->current_has_named_returns = false;
+            tc->current_return_names = decl->data.func_decl.return_names;
+
+            int errs_before = diag_error_count(tc->diag);
+            tc->suppress_typetable_writes = true;
+            if (decl->data.func_decl.body) {
+                check_block(tc, decl->data.func_decl.body);
+            }
+            tc->suppress_typetable_writes = false;
+            int errs_after = diag_error_count(tc->diag);
+
+            tc->current_return_types = prev_ret;
+            tc->current_return_type_names = prev_ret_names;
+            tc->current_return_count = prev_ret_count;
+            tc->current_has_named_returns = prev_named;
+            tc->current_return_names = prev_return_names;
+            tc->current_scope = outer_scope;
+            tc->func_depth--;
+            free(ret_types);
+            free(ret_names);
+
+            if (errs_after > errs_before && call_site) {
+                char msg[256];
+                snprintf(msg, sizeof(msg),
+                    "in instantiation of generic function '%s' with '?' = %s",
+                    fs->name, concrete);
+                diag_error(tc->diag, "E3058", strdup(msg),
+                    tc->file, call_site->token.line, call_site->token.column, 0);
+            }
+        }
     }
 
     /* Verify main() exists */
