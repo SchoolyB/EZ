@@ -848,7 +848,7 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
             /* Map membership: key in map → ez_maps_has_key */
             if (arr_t && arr_t->kind == TK_MAP) {
                 if (negated) emit(cg, "!");
-                emitf(cg, "({ %s _ik = ", ez_type_to_c_cg(cg, arr_t->key_type));
+                emitf(cg, "({ %s _ik = ", ez_map_elem_c_type(cg, arr_t->key_type));
                 emit_expression(cg, node->data.infix.left);
                 emit(cg, "; ez_maps_has_key(&");
                 emit_expression(cg, node->data.infix.right);
@@ -2344,7 +2344,16 @@ static bool emit_maps_call(CodeGen *cg, AstNode *node, const char *func) {
         return true;
     }
     if (strcmp(func, "has_key") == 0) {
-        emit(cg, "({ __auto_type _hk = ");
+        /* Key buffer must match the map's declared key storage type
+         * (ez_map_elem_c_type), not whatever C type the argument expression
+         * happens to have — otherwise the hash/memcmp compares the wrong
+         * number of bytes. Issue #1430 follow-up. */
+        const char *c_key = "int64_t";
+        EzType *map_t = cg->type_table
+            ? typetable_get(cg->type_table, node->data.call.args[0]) : NULL;
+        if (map_t && map_t->kind == TK_MAP && map_t->key_type)
+            c_key = ez_map_elem_c_type(cg, map_t->key_type);
+        emitf(cg, "({ %s _hk = ", c_key);
         emit_expression(cg, node->data.call.args[1]);
         emit(cg, "; ez_maps_has_key(&");
         emit_expression(cg, node->data.call.args[0]);
@@ -2352,7 +2361,12 @@ static bool emit_maps_call(CodeGen *cg, AstNode *node, const char *func) {
         return true;
     }
     if (strcmp(func, "remove_key") == 0 && node->data.call.arg_count == 2) {
-        emit(cg, "({ __auto_type _rk = ");
+        const char *c_key = "int64_t";
+        EzType *map_t = cg->type_table
+            ? typetable_get(cg->type_table, node->data.call.args[0]) : NULL;
+        if (map_t && map_t->kind == TK_MAP && map_t->key_type)
+            c_key = ez_map_elem_c_type(cg, map_t->key_type);
+        emitf(cg, "({ %s _rk = ", c_key);
         emit_expression(cg, node->data.call.args[1]);
         emit(cg, "; ez_map_remove(&");
         emit_expression(cg, node->data.call.args[0]);
