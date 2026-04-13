@@ -1,0 +1,35 @@
+// main.ez - HTTP server with multiple routes and response types.
+//
+// Run:   ez main.ez
+// Test:
+//   curl http://localhost:8080/
+//   curl http://localhost:8080/health
+//   curl http://localhost:8080/api/status
+
+import @server
+
+do home(req Request) -> HttpResponse {
+    return server.html(200, "<h1>Welcome to EZ!</h1>")
+}
+
+do health(req Request) -> HttpResponse {
+    return server.json(200, {"status": "ok"})
+}
+
+do api_status(req Request) -> HttpResponse {
+    return server.json(200, {
+        "version": "1.0.0",
+        "status": "running"
+    })
+}
+
+do main() {
+    mut router = server.add_router()
+
+    server.add_route(router, "GET", "/", ()home)
+    server.add_route(router, "GET", "/health", ()health)
+    server.add_route(router, "GET", "/api/status", ()api_status)
+
+    println("Server running on http://localhost:8080")
+    server.listen(8080, router)
+}

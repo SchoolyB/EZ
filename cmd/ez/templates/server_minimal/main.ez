@@ -1,0 +1,18 @@
+// main.ez - Minimal HTTP server.
+//
+// Run:   ez main.ez
+// Test:  curl http://localhost:8080
+
+import @server
+
+do home(req Request) -> HttpResponse {
+    return server.text(200, "Hello, World!")
+}
+
+do main() {
+    mut router = server.add_router()
+    server.add_route(router, "GET", "/", ()home)
+
+    println("Server running on http://localhost:8080")
+    server.listen(8080, router)
+}

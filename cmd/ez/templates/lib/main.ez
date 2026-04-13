@@ -1,0 +1,11 @@
+// main.ez - Demo entry point that exercises the library.
+//
+// This is a throwaway driver so `ez main.ez` runs something you can
+// see. A real consumer would import ./lib.ez from their own project.
+
+import "./lib.ez"
+
+do main() {
+    println(lib.greet("World"))
+    println("2 + 3 = ${lib.add(2, 3)}")
+}

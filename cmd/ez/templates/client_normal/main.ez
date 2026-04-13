@@ -1,0 +1,27 @@
+// main.ez - HTTP client with GET and POST examples.
+//
+// Demonstrates a simple GET request and a POST with a JSON body.
+// Errors surface as a non-nil Error; check against nil before use.
+
+import @http
+
+do main() {
+    mut resp HttpResponse, err Error = http.get("https://httpbin.org/get")
+    if err != nil {
+        println("GET failed.")
+        return
+    }
+    println("GET Status: ${resp.status}")
+    println("GET Body: ${resp.body}")
+
+    mut post_resp HttpResponse, post_err Error = http.post(
+        "https://httpbin.org/post",
+        http.json_body({"title": "Hello from EZ!", "body": "This is a test post."})
+    )
+    if post_err != nil {
+        println("POST failed.")
+        return
+    }
+    println("POST Status: ${post_resp.status}")
+    println("POST Body: ${post_resp.body}")
+}

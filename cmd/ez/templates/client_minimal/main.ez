@@ -1,0 +1,16 @@
+// main.ez - Minimal HTTP client.
+//
+// http.get(url) returns (HttpResponse, Error).
+// Check err against nil; on success, read .status / .body / .headers.
+
+import @http
+
+do main() {
+    mut resp HttpResponse, err Error = http.get("https://httpbin.org/get")
+    if err != nil {
+        println("Request failed.")
+        return
+    }
+    println("Status: ${resp.status}")
+    println("Body: ${resp.body}")
+}

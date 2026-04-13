@@ -77,13 +77,16 @@ context/
 # Ignore all .ez files by default (for local scratch/testing)
 *.ez
 
-# Keep tests and examples tracked
+# Keep tests, examples, and pz scaffolder templates tracked
 !integration-tests/
 !integration-tests/**
 !integration-tests/**/*.ez
 !examples/
 !examples/**
 !examples/**/*.ez
+!cmd/ez/templates/
+!cmd/ez/templates/**
+!cmd/ez/templates/**/*.ez
 DOCS.md
 CLAUDE.md
 .claude/
