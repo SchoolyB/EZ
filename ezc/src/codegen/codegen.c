@@ -658,19 +658,28 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
          * We need a temp variable, so wrap in a GCC statement expression. */
         int count = node->data.map_value.count;
 
-        /* Determine key/value C types from first pair */
+        /* Determine key/value C types. Prefer the enclosing var/field declared
+         * type when available — byte/char literals are typechecked as int, so
+         * first-pair inference would miss the declared key type. */
         const char *c_key_type = "EzString";
         const char *c_val_type = "int64_t";
+        EzType *decl_mt = (cg->current_var_type &&
+                           strncmp(cg->current_var_type, "map[", 4) == 0)
+            ? type_from_name(cg->current_var_type) : NULL;
+        if (decl_mt && decl_mt->key_type)
+            c_key_type = ez_map_elem_c_type(cg, decl_mt->key_type);
+        if (decl_mt && decl_mt->value_type)
+            c_val_type = ez_map_elem_c_type(cg, decl_mt->value_type);
         if (count > 0) {
             EzType *kt = cg->type_table ? typetable_get(cg->type_table, node->data.map_value.keys[0]) : NULL;
             EzType *vt = cg->type_table ? typetable_get(cg->type_table, node->data.map_value.values[0]) : NULL;
-            if (kt && (kt->kind == TK_INT || kt->kind == TK_UINT)) c_key_type = "int64_t";
-            if (vt && vt->kind == TK_POINTER) {
+            if (!decl_mt && kt) c_key_type = ez_map_elem_c_type(cg, type_name(kt));
+            if (!decl_mt && vt && vt->kind == TK_POINTER) {
                 static char map_ptr_buf[256];
                 const char *pointee = vt->element_type ? vt->element_type : "void";
                 snprintf(map_ptr_buf, sizeof(map_ptr_buf), "%s *", ez_type_to_c_cg(cg, pointee));
                 c_val_type = map_ptr_buf;
-            } else if (vt) {
+            } else if (!decl_mt && vt) {
                 c_val_type = ez_map_elem_c_type(cg, type_name(vt));
             }
         }
@@ -1354,10 +1363,7 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
             /* Map key access — use temp to handle rvalue keys like literals */
             const char *c_key = "EzString";
             const char *c_val = "int64_t";
-            if (left_t->key_type) {
-                EzType *kt = type_from_name(left_t->key_type);
-                if (kt->kind == TK_INT || kt->kind == TK_UINT) c_key = "int64_t";
-            }
+            if (left_t->key_type) c_key = ez_map_elem_c_type(cg, left_t->key_type);
             if (left_t->value_type) c_val = ez_map_elem_c_type(cg, left_t->value_type);
             emitf(cg, "({ %s _mk = ", c_key);
             emit_expression(cg, node->data.index_expr.index);
@@ -3836,10 +3842,7 @@ static void emit_call_expression(CodeGen *cg, AstNode *node) {
                 if (left_t && left_t->kind == TK_MAP) {
                     /* Map: get pointer to value via ez_map_get */
                     const char *c_key = "EzString";
-                    if (left_t->key_type) {
-                        EzType *kt = type_from_name(left_t->key_type);
-                        if (kt->kind == TK_INT || kt->kind == TK_UINT) c_key = "int64_t";
-                    }
+                    if (left_t->key_type) c_key = ez_map_elem_c_type(cg, left_t->key_type);
                     emitf(cg, "({ %s _mk = ", c_key);
                     emit_expression(cg, idx_node->data.index_expr.index);
                     emit(cg, "; void *_mv = ez_map_get(&");
@@ -4010,15 +4013,15 @@ static void emit_var_declaration(CodeGen *cg, AstNode *node) {
         EzType *mt = type_from_name(type_name);
         const char *c_kt = "EzString";
         const char *c_vt = "int64_t";
-        if (mt && mt->key_type) {
-            EzType *kt = type_from_name(mt->key_type);
-            if (kt->kind == TK_INT || kt->kind == TK_UINT) c_kt = "int64_t";
-        }
+        if (mt && mt->key_type) c_kt = ez_map_elem_c_type(cg, mt->key_type);
         if (mt && mt->value_type) c_vt = ez_map_elem_c_type(cg, mt->value_type);
 
         emitf(cg, "EzMap %s = ", safe_name(node->data.var_decl.name));
         if (node->data.var_decl.value) {
+            const char *saved_var_type = cg->current_var_type;
+            cg->current_var_type = type_name;
             emit_expression(cg, node->data.var_decl.value);
+            cg->current_var_type = saved_var_type;
         } else {
             /* No initializer — create empty map */
             emitf(cg, "ez_map_new(ez_default_arena, sizeof(%s), sizeof(%s), 8)", c_kt, c_vt);
@@ -4244,10 +4247,7 @@ static void emit_assign_statement(CodeGen *cg, AstNode *node) {
             const char *c_val = "int64_t";
             if (left_t->value_type) c_val = ez_map_elem_c_type(cg, left_t->value_type);
             const char *c_key = "EzString";
-            if (left_t->key_type) {
-                EzType *kt = type_from_name(left_t->key_type);
-                if (kt->kind == TK_INT || kt->kind == TK_UINT) c_key = "int64_t";
-            }
+            if (left_t->key_type) c_key = ez_map_elem_c_type(cg, left_t->key_type);
             emitf(cg, "{ %s _mk = ", c_key);
             emit_expression(cg, node->data.assign.target->data.index_expr.index);
             emitf(cg, "; %s _mv = ", c_val);
