@@ -21,10 +21,8 @@ import (
 // first (which leaves the embedded assets as empty stubs) still works.
 func Find() (string, error) {
 	// 1. Explicit override
-	if p := os.Getenv("EZC_PATH"); p != "" {
-		if _, err := os.Stat(p); err == nil {
-			return p, nil
-		}
+	if p := os.Getenv("EZC_PATH"); p != "" && statFile(p) {
+		return p, nil
 	}
 
 	// 2. Embedded runtime (release builds)
@@ -34,9 +32,8 @@ func Find() (string, error) {
 
 	// 3. Same directory as ez binary
 	if exe, err := os.Executable(); err == nil {
-		dir := filepath.Dir(exe)
-		candidate := filepath.Join(dir, "ezc")
-		if st, err := os.Stat(candidate); err == nil && st.Mode().IsRegular() {
+		candidate := filepath.Join(filepath.Dir(exe), "ezc")
+		if statFile(candidate) {
 			return candidate, nil
 		}
 	}
@@ -48,12 +45,20 @@ func Find() (string, error) {
 
 	// 5. Known install locations
 	for _, p := range []string{"/usr/local/bin/ezc", "/usr/bin/ezc"} {
-		if _, err := os.Stat(p); err == nil {
+		if statFile(p) {
 			return p, nil
 		}
 	}
 
 	return "", fmt.Errorf("ezc compiler not found. Install it or set EZC_PATH")
+}
+
+// statFile reports whether path exists and points at a regular file.
+// Used by Find() so directory entries like the repo's ezc/ source tree
+// don't get returned as the compiler binary.
+func statFile(path string) bool {
+	st, err := os.Stat(path)
+	return err == nil && st.Mode().IsRegular()
 }
 
 // BuildOpts configures a build invocation.
