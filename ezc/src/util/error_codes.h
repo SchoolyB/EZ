@@ -117,7 +117,8 @@
     EZ_ERROR("E3053", "types", "type mismatch in array initializer — expected '%s', got '%s'") \
     EZ_ERROR("E3054", "types", "mutable arrays cannot have a fixed size — remove the size or use 'const'") \
     EZ_ERROR("E3055", "types", "const arrays must have a fixed size — declare as [T, N]") \
-    EZ_ERROR("E3056", "types", "non-exhaustive #strict when — all enum variants must be handled or add a default branch")
+    EZ_ERROR("E3056", "types", "non-exhaustive #strict when — all enum variants must be handled or add a default branch") \
+    EZ_ERROR("E3057", "types", "type cannot be used as a map key — only primitive types (int, string, bool, char, byte, float) and enums are hashable")
 
 /* --- E4xxx: Name Problems (References) --- */
 #define EZ_REFERENCE_ERRORS \

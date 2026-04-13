@@ -6,6 +6,7 @@
 *.dylib
 *.o
 *.a
+*.d
 /ez
 /ezc/ezc
 /ezc/libezrt.a

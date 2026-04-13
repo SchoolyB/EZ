@@ -2201,11 +2201,18 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
             result = type_from_name(left->element_type);
         } else if (left->kind == TK_MAP && left->value_type) {
             result = type_from_name(left->value_type);
-            /* Check map key type matches */
+            /* Check map key type matches. Enum keys are int-backed, so accept
+             * int expressions (and enum members, which resolve as int) when
+             * the declared key is a user enum name. */
             if (left->key_type && idx_t->kind != TK_UNKNOWN) {
                 EzType *key_t = type_from_name(left->key_type);
-                if (key_t->kind != TK_UNKNOWN && key_t->kind != idx_t->kind &&
-                    !(is_int_kind(key_t->kind) && is_int_kind(idx_t->kind))) {
+                bool declared_is_enum = is_enum_name(tc, left->key_type);
+                bool compatible =
+                    key_t->kind == TK_UNKNOWN ||
+                    key_t->kind == idx_t->kind ||
+                    (is_int_kind(key_t->kind) && is_int_kind(idx_t->kind)) ||
+                    (declared_is_enum && is_int_kind(idx_t->kind));
+                if (!compatible) {
                     char msg[256];
                     snprintf(msg, sizeof(msg),
                         "map key type mismatch: expected '%s', got '%s'",
@@ -2725,6 +2732,29 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
         EzType *declared = node->data.var_decl.type_name
             ? type_from_name(node->data.var_decl.type_name)
             : &TYPE_UNKNOWN;
+
+        /* E3057: reject composite types as map keys before downstream checks
+         * produce misleading cascades (e.g. struct-literal-in-index-position
+         * tripping "no field 'y'"). Enums are allowed — they're int-backed
+         * and hash fine. */
+        if (declared->kind == TK_MAP && declared->key_type) {
+            const char *kt = declared->key_type;
+            EzType *key_resolved = type_from_name(kt);
+            const char *bad = NULL;
+            if (key_resolved->kind == TK_STRUCT && !is_enum_name(tc, kt))
+                bad = "struct";
+            else if (key_resolved->kind == TK_ARRAY) bad = "array";
+            else if (key_resolved->kind == TK_MAP) bad = "map";
+            else if (key_resolved->kind == TK_POINTER) bad = "pointer";
+            if (bad) {
+                char msg[256];
+                snprintf(msg, sizeof(msg),
+                    "type '%s' cannot be used as a map key — only primitive types (int, string, bool, char, byte, float) and enums are hashable",
+                    kt);
+                diag_error(tc->diag, "E3057", strdup(msg),
+                    tc->file, node->token.line, node->token.column, 0);
+            }
+        }
 
         if (node->data.var_decl.value) {
             EzType *value_type = resolve_expr(tc, node->data.var_decl.value);
