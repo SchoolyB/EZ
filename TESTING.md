@@ -132,10 +132,12 @@ The Go CLI (`ez`) has unit tests for the packages it uses:
 
 - `pkg/lineeditor` — REPL line editing
 - `cmd/ez` — updater semver parsing/comparison (parseSemver, compareSemver, isNewerVersion, pickLatestPrerelease) and exact-version install validation (exactSemverRE, normalizeTag)
+- `internal/ezc` — compiler binary lookup (statFile, Find EZC_PATH override behavior)
 
 ```bash
 go test ./pkg/lineeditor/...
 go test ./cmd/ez/...
+go test ./internal/ezc/...
 ```
 
 ---
