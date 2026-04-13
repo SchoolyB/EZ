@@ -1,0 +1,71 @@
+/*
+ * func_var_call.ez - Calls through func-typed variables
+ *
+ * Regression for #1437 (commit 2a35462): func-typed variables now carry
+ * their referenced function, so calls through them are validated for arity
+ * and parameter types AND propagate the real return type instead of
+ * unknown. This test confirms correct calls still work end-to-end and that
+ * the inferred return type is usable in expressions.
+ */
+
+do add(a int, b int) -> int { return a + b }
+do mul(a int, b int) -> int { return a * b }
+do greet(name string) -> string { return name }
+do is_even(n int) -> bool { return n % 2 == 0 }
+
+do main() {
+    println("=== Func Variable Call Test ===")
+    mut passed int = 0
+    mut failed int = 0
+
+    // -- int return --
+    mut f func = ()add
+    mut result int = f(10, 20) + 1
+    if result == 31 {
+        println("  [PASS] int-returning func var call + arithmetic")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] int-returning func var call: got ${result}")
+        failed += 1
+    }
+
+    // -- string return --
+    mut g func = ()greet
+    mut s string = g("hello")
+    if s == "hello" {
+        println("  [PASS] string-returning func var call")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] string-returning func var call")
+        failed += 1
+    }
+
+    // -- bool return used in condition --
+    mut p func = ()is_even
+    if p(4) && !p(5) {
+        println("  [PASS] bool-returning func var call in condition")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] bool-returning func var call in condition")
+        failed += 1
+    }
+
+    // -- reassign func var to different function with same signature --
+    f = ()mul
+    if f(6, 7) == 42 {
+        println("  [PASS] func var reassignment")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] func var reassignment")
+        failed += 1
+    }
+
+    println("")
+    println("Results: ${passed} passed, ${failed} failed")
+
+    if failed > 0 {
+        println("SOME TESTS FAILED")
+    } otherwise {
+        println("ALL TESTS PASSED")
+    }
+}

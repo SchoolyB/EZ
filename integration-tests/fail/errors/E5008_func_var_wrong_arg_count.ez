@@ -1,0 +1,16 @@
+/*
+ * Error Test: E5008 - wrong argument count when calling a func-typed variable
+ * Expected: "wrong number of arguments" error
+ *
+ * Regression for #1437: calls through a func variable previously skipped
+ * arity checks and compiled into a runtime crash.
+ */
+
+do add(a int, b int) -> int {
+    return a + b
+}
+
+do main() {
+    mut f func = ()add
+    mut x int = f(1)  // Missing second argument
+}
