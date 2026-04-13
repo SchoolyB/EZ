@@ -30,9 +30,10 @@ type UpdateState struct {
 
 // GitHubRelease represents the GitHub API response for releases
 type GitHubRelease struct {
-	TagName string `json:"tag_name"`
-	Body    string `json:"body"`
-	Assets  []struct {
+	TagName    string `json:"tag_name"`
+	Body       string `json:"body"`
+	Prerelease bool   `json:"prerelease"`
+	Assets     []struct {
 		Name               string `json:"name"`
 		BrowserDownloadURL string `json:"browser_download_url"`
 	} `json:"assets"`
@@ -114,11 +115,39 @@ func shouldCheckForUpdate() bool {
 	return state.LastCheck != today
 }
 
-// parseVersion extracts major, minor, patch from version string like "v0.16.10" or "0.16.10"
+// parseVersion extracts major, minor, patch from a leading "vX.Y.Z" prefix.
+// Kept for callers that don't care about pre-release suffixes.
 func parseVersion(v string) (major, minor, patch int) {
-	v = strings.TrimPrefix(v, "v")
-	parts := strings.Split(v, ".")
+	major, minor, patch, _ = parseSemver(v)
+	return
+}
 
+// parseSemver parses a version string like "v3.0.0-beta.2" or "0.16.10" into
+// its numeric components plus the raw pre-release suffix (empty for stable).
+// Build metadata after '+' is discarded. Git-describe trailers like
+// "-4-g0cbcb58-dirty" appended after a pre-release identifier are stripped
+// back to the real pre-release label so a local dev build still orders
+// correctly against upstream tags.
+func parseSemver(v string) (major, minor, patch int, pre string) {
+	v = strings.TrimPrefix(v, "v")
+	// Drop +build metadata
+	if i := strings.Index(v, "+"); i != -1 {
+		v = v[:i]
+	}
+	// Split off pre-release suffix
+	base := v
+	if i := strings.Index(v, "-"); i != -1 {
+		base = v[:i]
+		pre = v[i+1:]
+		// Strip git-describe trailer: "beta.2-4-g0cbcb58-dirty" -> "beta.2".
+		// A real semver identifier never contains "-g<hex>", so cut there.
+		if idx := strings.Index(pre, "-g"); idx != -1 {
+			pre = pre[:idx]
+		}
+		// Also strip a trailing "-dirty" that might remain
+		pre = strings.TrimSuffix(pre, "-dirty")
+	}
+	parts := strings.Split(base, ".")
 	if len(parts) >= 1 {
 		fmt.Sscanf(parts[0], "%d", &major)
 	}
@@ -131,21 +160,96 @@ func parseVersion(v string) (major, minor, patch int) {
 	return
 }
 
-// isNewerVersion returns true if remote version is higher than local
-func isNewerVersion(local, remote string) bool {
-	localMajor, localMinor, localPatch := parseVersion(local)
-	remoteMajor, remoteMinor, remotePatch := parseVersion(remote)
+// comparePreIdentifiers compares two dot-separated semver pre-release
+// identifier lists per SemVer 2.0 rule 11.4: numeric identifiers compare
+// numerically, alphanumerics compare ASCII, numeric < alphanumeric, and a
+// shorter list with equal leading fields is lower. Returns -1/0/1.
+func comparePreIdentifiers(a, b string) int {
+	as := strings.Split(a, ".")
+	bs := strings.Split(b, ".")
+	n := len(as)
+	if len(bs) < n {
+		n = len(bs)
+	}
+	for i := 0; i < n; i++ {
+		var ai, bi int
+		an, _ := fmt.Sscanf(as[i], "%d", &ai)
+		bn, _ := fmt.Sscanf(bs[i], "%d", &bi)
+		aIsNum := an == 1 && fmt.Sprint(ai) == as[i]
+		bIsNum := bn == 1 && fmt.Sprint(bi) == bs[i]
+		if aIsNum && bIsNum {
+			if ai != bi {
+				if ai < bi {
+					return -1
+				}
+				return 1
+			}
+			continue
+		}
+		if aIsNum != bIsNum {
+			if aIsNum {
+				return -1
+			}
+			return 1
+		}
+		if as[i] != bs[i] {
+			if as[i] < bs[i] {
+				return -1
+			}
+			return 1
+		}
+	}
+	if len(as) == len(bs) {
+		return 0
+	}
+	if len(as) < len(bs) {
+		return -1
+	}
+	return 1
+}
 
-	if remoteMajor > localMajor {
-		return true
+// compareSemver compares two semver strings. Returns -1 if a < b, 0 if
+// equal, 1 if a > b. Handles pre-release ordering per the SemVer spec:
+// a version without a pre-release suffix is greater than the same version
+// with one, and pre-release identifiers compare field-by-field.
+func compareSemver(a, b string) int {
+	aM, an, ap, apre := parseSemver(a)
+	bM, bn, bp, bpre := parseSemver(b)
+	if aM != bM {
+		if aM < bM {
+			return -1
+		}
+		return 1
 	}
-	if remoteMajor == localMajor && remoteMinor > localMinor {
-		return true
+	if an != bn {
+		if an < bn {
+			return -1
+		}
+		return 1
 	}
-	if remoteMajor == localMajor && remoteMinor == localMinor && remotePatch > localPatch {
-		return true
+	if ap != bp {
+		if ap < bp {
+			return -1
+		}
+		return 1
 	}
-	return false
+	// Base versions equal — stable > pre-release
+	if apre == "" && bpre == "" {
+		return 0
+	}
+	if apre == "" {
+		return 1
+	}
+	if bpre == "" {
+		return -1
+	}
+	return comparePreIdentifiers(apre, bpre)
+}
+
+// isNewerVersion returns true if remote version is higher than local per
+// SemVer precedence rules (including pre-release suffixes).
+func isNewerVersion(local, remote string) bool {
+	return compareSemver(remote, local) > 0
 }
 
 // isVersionInRange returns true if version is between fromVersion (exclusive) and toVersion (inclusive)
@@ -216,6 +320,25 @@ func fetchAllReleases(ctx context.Context) ([]GitHubRelease, error) {
 	}
 
 	return releases, nil
+}
+
+// pickLatestPrerelease scans a release list (as returned by /releases) and
+// returns the pre-release with the highest semver ordering, or nil if no
+// pre-releases are present. Used both by `ez update --pre` to pick a
+// target and by the default `ez update` path to decide whether to print
+// the nudge about a newer pre-release.
+func pickLatestPrerelease(releases []GitHubRelease) *GitHubRelease {
+	var best *GitHubRelease
+	for i := range releases {
+		r := &releases[i]
+		if !r.Prerelease {
+			continue
+		}
+		if best == nil || compareSemver(r.TagName, best.TagName) > 0 {
+			best = r
+		}
+	}
+	return best
 }
 
 // getReleasesInRange filters releases to those between currentVersion (exclusive) and latestVersion (inclusive)
@@ -483,10 +606,11 @@ func CheckForUpdateAsync() {
 	}
 }
 
-// runUpdate runs the interactive update command
-// If args contains "--confirm" followed by a URL, it skips confirmation and installs directly
-// (used when re-executing with sudo)
-func runUpdate(confirm bool, url string) {
+// runUpdate runs the interactive update command. `pre` opts into the
+// latest pre-release (alpha/beta/rc) rather than the latest stable.
+// The --confirm/url pair is used by the sudo re-exec path and bypasses
+// all discovery.
+func runUpdate(confirm bool, url string, pre bool) {
 	// Check for --confirm flag (used by sudo re-exec)
 	if confirm {
 		downloadURL := url
@@ -502,10 +626,73 @@ func runUpdate(confirm bool, url string) {
 	}
 
 	fmt.Printf("Current version: %s\n", Version)
-	fmt.Println("Checking for updates...")
+	if pre {
+		fmt.Println("Checking for latest pre-release...")
+	} else {
+		fmt.Println("Checking for updates...")
+	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
+
+	// --pre path: pick the highest-semver pre-release from /releases.
+	if pre {
+		allReleases, err := fetchAllReleases(ctx)
+		if err != nil {
+			fmt.Printf("Error fetching release list: %v\n", err)
+			return
+		}
+		target := pickLatestPrerelease(allReleases)
+		if target == nil {
+			fmt.Println("\nNo pre-releases are currently published.")
+			return
+		}
+		fmt.Printf("Latest pre-release: %s\n", target.TagName)
+
+		if !isNewerVersion(Version, target.TagName) && compareSemver(target.TagName, Version) != 0 {
+			fmt.Printf("\nYour version (%s) is already newer than the latest pre-release.\n", Version)
+			return
+		}
+		if compareSemver(target.TagName, Version) == 0 {
+			fmt.Println("\nYou're already on this pre-release.")
+			return
+		}
+
+		fmt.Printf("\n\033[33mInstalling pre-release %s — may contain breaking changes, not recommended for production.\033[0m\n",
+			target.TagName)
+		fmt.Printf("\nUpgrade to %s? (y/N): ", target.TagName)
+		reader := bufio.NewReader(os.Stdin)
+		response, _ := reader.ReadString('\n')
+		response = strings.TrimSpace(strings.ToLower(response))
+		if response != "y" && response != "yes" {
+			fmt.Println("Update cancelled.")
+			return
+		}
+
+		assetName := getAssetName()
+		var downloadURL string
+		for _, asset := range target.Assets {
+			if asset.Name == assetName {
+				downloadURL = asset.BrowserDownloadURL
+				break
+			}
+		}
+		if downloadURL == "" {
+			fmt.Printf("Error: No binary available for %s/%s\n", runtime.GOOS, runtime.GOARCH)
+			fmt.Println("You may need to build from source: go install github.com/marshallburns/ez/cmd/ez@latest")
+			return
+		}
+		fmt.Printf("Downloading %s...\n", assetName)
+		if err := downloadAndInstall(downloadURL); err != nil {
+			fmt.Printf("Error during update: %v\n", err)
+			return
+		}
+		fmt.Print(asciiBanner)
+		fmt.Printf("\n\033[1m%s\033[0m\n", target.TagName)
+		fmt.Println("\nSuccessfully installed pre-release!")
+		fmt.Println("Restart your terminal or run `ez version` to verify.")
+		return
+	}
 
 	release, err := fetchLatestRelease(ctx)
 	if err != nil {
@@ -522,14 +709,24 @@ func runUpdate(confirm bool, url string) {
 
 	fmt.Printf("Latest version:  %s\n", release.TagName)
 
+	// Fetch all releases up front so we can reuse the list for both the
+	// changelog range and the "newer pre-release available" nudge.
+	allReleases, allErr := fetchAllReleases(ctx)
+
 	if !isNewerVersion(Version, release.TagName) {
 		fmt.Println("\nYou're already on the latest version!")
+		if allErr == nil {
+			if pr := pickLatestPrerelease(allReleases); pr != nil &&
+				compareSemver(pr.TagName, release.TagName) > 0 &&
+				compareSemver(pr.TagName, Version) > 0 {
+				fmt.Printf("Note: pre-release %s is available via 'ez update --pre'.\n", pr.TagName)
+			}
+		}
 		return
 	}
 
-	// Fetch all releases and show changelog for versions between current and latest
-	allReleases, err := fetchAllReleases(ctx)
-	if err != nil {
+	// Changelog for versions between current and latest
+	if allErr != nil {
 		// Fall back to old behavior if we can't fetch all releases
 		fmt.Println("\nWhat's new:")
 		fmt.Println(strings.Repeat("-", 40))
@@ -583,6 +780,14 @@ func runUpdate(confirm bool, url string) {
 	fmt.Printf("\n\033[1m%s\033[0m\n", release.TagName)
 	fmt.Println("\nSuccessfully updated!")
 	fmt.Println("Restart your terminal or run `ez version` to verify.")
+
+	// Post-install nudge: if a newer pre-release exists, mention it.
+	if allErr == nil {
+		if pr := pickLatestPrerelease(allReleases); pr != nil &&
+			compareSemver(pr.TagName, release.TagName) > 0 {
+			fmt.Printf("Note: pre-release %s is available via 'ez update --pre'.\n", pr.TagName)
+		}
+	}
 }
 
 // getAssetName returns the expected archive name for this OS/arch

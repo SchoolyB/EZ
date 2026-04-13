@@ -88,15 +88,19 @@ var replCmd = &cobra.Command{
 var updateCmd = &cobra.Command{
 	Use:   "update [url]",
 	Short: "Check for updates and upgrade EZ",
-	Long:  "Check for updates and upgrade EZ. Optionally specify a custom URL for the update source.",
-	Args:  cobra.MaximumNArgs(1),
+	Long: "Check for updates and upgrade EZ.\n\n" +
+		"Without flags, installs the latest stable release and prints a note " +
+		"if a newer pre-release is available.\n\n" +
+		"With --pre, installs the latest pre-release (alpha, beta, or rc).",
+	Args: cobra.MaximumNArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
 		confirm, _ := cmd.Flags().GetBool("confirm")
+		pre, _ := cmd.Flags().GetBool("pre")
 		var url string
 		if len(args) > 0 {
 			url = args[0]
 		}
-		runUpdate(confirm, url)
+		runUpdate(confirm, url, pre)
 	},
 }
 
@@ -353,6 +357,7 @@ func init() {
 		CheckForUpdateAsync()
 	}
 	updateCmd.Flags().Bool("confirm", false, "Skip confirmation prompt")
+	updateCmd.Flags().Bool("pre", false, "Install the latest pre-release (alpha/beta/rc) instead of the latest stable")
 
 	buildCmd.Flags().StringP("output", "o", "", "Output binary name")
 	buildCmd.Flags().BoolP("verbose", "v", false, "Show compilation commands")
