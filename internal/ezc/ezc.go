@@ -36,7 +36,7 @@ func Find() (string, error) {
 	if exe, err := os.Executable(); err == nil {
 		dir := filepath.Dir(exe)
 		candidate := filepath.Join(dir, "ezc")
-		if _, err := os.Stat(candidate); err == nil {
+		if st, err := os.Stat(candidate); err == nil && st.Mode().IsRegular() {
 			return candidate, nil
 		}
 	}
