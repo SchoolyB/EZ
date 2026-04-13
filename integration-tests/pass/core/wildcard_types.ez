@@ -35,6 +35,13 @@ do identity(x ?) -> ? {
     return x
 }
 
+do contains(arr [?], target ?) -> bool {
+    for_each item in arr {
+        if item == target { return true }
+    }
+    return false
+}
+
 do main() {
     println("=== Wildcard Types Test ===")
     mut passed int = 0
@@ -98,6 +105,33 @@ do main() {
         passed += 1
     } otherwise {
         println("  [FAIL] identity across types")
+        failed += 1
+    }
+
+    // -- contains over [int]: for_each element type must substitute --
+    if contains(nums, 20) && !contains(nums, 99) {
+        println("  [PASS] contains [int]")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] contains [int]")
+        failed += 1
+    }
+
+    // -- contains over [string]: for_each + string '==' dispatch --
+    if contains(words, "beta") && !contains(words, "zeta") {
+        println("  [PASS] contains [string]")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] contains [string]")
+        failed += 1
+    }
+
+    // -- contains over [float] --
+    if contains(floats, 2.5) && !contains(floats, 9.9) {
+        println("  [PASS] contains [float]")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] contains [float]")
         failed += 1
     }
 
