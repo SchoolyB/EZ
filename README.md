@@ -53,7 +53,9 @@ ez doc ./...              Generate docs from #doc attributes
 ez pz <name>              Scaffold a new project
 ez test                   Run the full test suite
 ez report                 Print system info for bug reports
-ez update                 Update to the latest version
+ez update                 Update to the latest stable version
+ez update --pre           Update to the latest pre-release (alpha/beta/rc)
+ez install <version>      Install a specific version (e.g. 2.5.0, 3.0.0-beta.2)
 ez version                Show version info
 ```
 
@@ -83,10 +85,12 @@ do main() {
 ## Updating
 
 ```bash
-ez update
+ez update              # latest stable
+ez update --pre        # latest pre-release
+ez install 2.5.0       # pin to an exact version
 ```
 
-Checks for new versions, shows the changelog, and upgrades both the `ez` CLI and the compiler.
+`ez update` checks for new versions, shows the changelog, and upgrades both the `ez` CLI and the compiler. Pass `--pre` to pick up the latest alpha, beta, or rc. Use `ez install <version>` to install an exact version by semver — downgrades and pre-release tags (e.g. `3.0.0-beta.2`) are supported.
 
 ---
 

@@ -153,22 +153,28 @@ var reportCmd = &cobra.Command{
 		fmt.Println("EZ Bug Report Info")
 		fmt.Println("======================")
 
-		// EZ version
-		fmt.Printf("EZ Version:  %s\n", Version)
-
-		// Commit
-		// Version string from ldflags contains the commit hash (e.g., v3.0.0-425-gabcdef1)
-		commit := "unknown"
-		// Version format: v3.0.0-NNN-gabcdef1 or v3.0.0-NNN-gabcdef1-dirty
-		cleanVer := strings.TrimSuffix(Version, "-dirty")
-		parts := strings.Split(cleanVer, "-")
-		if len(parts) >= 3 {
-			hash := parts[len(parts)-1]
-			if len(hash) > 1 && hash[0] == 'g' {
-				commit = hash[1:]
-			}
+		vi := GetVersionInfo()
+		channelTag := ""
+		switch vi.Channel {
+		case "pre-release":
+			channelTag = "  (pre-release)"
+		case "dev":
+			channelTag = "  (dev build)"
 		}
-		fmt.Printf("Commit:      %s\n", commit)
+		fmt.Printf("EZ Version:  %s%s\n", vi.Display, channelTag)
+
+		commit := vi.Commit
+		if commit == "" {
+			commit = "(released build)"
+			fmt.Printf("Commit:      %s\n", commit)
+		} else {
+			dirty := ""
+			if vi.Dirty {
+				dirty = ", dirty"
+			}
+			fmt.Printf("Commit:      %s (+%d commits%s)\n",
+				commit, vi.CommitsAhead, dirty)
+		}
 
 		// OS and architecture
 		fmt.Printf("OS:          %s/%s\n", runtime.GOOS, runtime.GOARCH)

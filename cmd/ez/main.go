@@ -8,8 +8,8 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"strings"
 	"time"
-
 )
 
 // Version information - injected at build time via ldflags
@@ -34,42 +34,86 @@ func main() {
 }
 
 func getVersionString() string {
+	vi := GetVersionInfo()
+
 	buf := bytes.Buffer{}
 	buf.WriteString(asciiBanner)
-	fmt.Fprintf(&buf, "\n\033[1mEZ %s\033[0m\n", Version)
-	fmt.Fprintf(&buf, "Built: %s\n", BuildTime)
+	buf.WriteString("\n")
 
-	// Always fetch fresh version info when user explicitly runs 'ez version'
-	var latestVersion string
+	// Installed line: display version + channel tag
+	channelTag := ""
+	switch vi.Channel {
+	case "pre-release":
+		channelTag = "  (pre-release)"
+	case "dev":
+		channelTag = "  (dev build)"
+	}
+	fmt.Fprintf(&buf, "\033[1mInstalled:\033[0m           %s%s\n", vi.Display, channelTag)
 
+	// Commit line (only meaningful for dev builds)
+	if vi.Commit != "" {
+		dirty := ""
+		if vi.Dirty {
+			dirty = ", dirty"
+		}
+		fmt.Fprintf(&buf, "Commit:              %s (+%d commits%s)\n",
+			vi.Commit, vi.CommitsAhead, dirty)
+	}
+
+	// Build time — normalise the CI underscore to a space for human reading
+	fmt.Fprintf(&buf, "Built:               %s\n", strings.ReplaceAll(BuildTime, "_", " "))
+
+	// Fetch remote release info. Use /releases so both channels are
+	// reachable — /releases/latest hides pre-releases entirely and was
+	// the reason `ez version` reported "Latest: v2.0.0" to people on
+	// 3.0.0-alpha dev builds.
 	ctx, cancel := context.WithTimeout(context.Background(), checkTimeout)
 	defer cancel()
 
-	release, err := fetchLatestRelease(ctx)
-	if err != nil {
-		// Network error - fall back to cached state if available
-		state, _ := readUpdateState()
-		if state != nil && state.LatestVersion != "" {
-			latestVersion = state.LatestVersion
+	var latestStable, latestPre string
+	if releases, err := fetchAllReleases(ctx); err == nil {
+		for i := range releases {
+			r := &releases[i]
+			if r.Prerelease {
+				if latestPre == "" || compareSemver(r.TagName, latestPre) > 0 {
+					latestPre = r.TagName
+				}
+			} else {
+				if latestStable == "" || compareSemver(r.TagName, latestStable) > 0 {
+					latestStable = r.TagName
+				}
+			}
+		}
+		// Cache the latest stable for CheckForUpdateAsync
+		if latestStable != "" {
+			writeUpdateState(&UpdateState{
+				LastCheck:     time.Now().Format("2006-01-02"),
+				LatestVersion: latestStable,
+			})
 		}
 	} else {
-		// Update cache with fresh data
-		newState := &UpdateState{
-			LastCheck:     time.Now().Format("2006-01-02"),
-			LatestVersion: release.TagName,
-		}
-		writeUpdateState(newState)
-		latestVersion = release.TagName
-	}
-
-	// Always display latest version if we have it
-	if latestVersion != "" {
-		fmt.Fprintf(&buf, "Latest: %s\n", latestVersion)
-		if isNewerVersion(Version, latestVersion) {
-			fmt.Fprintf(&buf, "\nUpdate available! Run `ez update` to upgrade.\n")
+		// Fall back to the cached stable if the network fetch failed
+		if state, _ := readUpdateState(); state != nil {
+			latestStable = state.LatestVersion
 		}
 	}
 
-	fmt.Fprintf(&buf, "Copyright (c) 2025-Present Marshall A Burns")
+	buf.WriteString("\n")
+	if latestStable != "" {
+		fmt.Fprintf(&buf, "Latest stable:       %s", latestStable)
+		if compareSemver(latestStable, Version) > 0 {
+			fmt.Fprint(&buf, "  \033[33m← run 'ez update'\033[0m")
+		}
+		buf.WriteString("\n")
+	}
+	if latestPre != "" {
+		fmt.Fprintf(&buf, "Latest pre-release:  %s", latestPre)
+		if compareSemver(latestPre, Version) > 0 {
+			fmt.Fprint(&buf, "  \033[33m← run 'ez update --pre'\033[0m")
+		}
+		buf.WriteString("\n")
+	}
+
+	fmt.Fprintf(&buf, "\nCopyright (c) 2025-Present Marshall A Burns\n")
 	return buf.String()
 }

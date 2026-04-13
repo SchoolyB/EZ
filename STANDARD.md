@@ -2722,7 +2722,9 @@ The `ez` command-line tool provides the following commands:
 | `ez pz <name>` | Scaffold a new project |
 | `ez test` | Run the full test suite |
 | `ez report` | Print system info for bug reports |
-| `ez update` | Check for updates and upgrade |
+| `ez update` | Check for updates and upgrade to the latest stable |
+| `ez update --pre` | Upgrade to the latest pre-release (alpha/beta/rc) |
+| `ez install <version>` | Install a specific version by exact semver |
 | `ez version` | Show version information |
 
 ### 14.1 `ez report`

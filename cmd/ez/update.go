@@ -134,6 +134,43 @@ var exactSemverRE = regexp.MustCompile(
 // legitimately contain "-g" (unlikely but possible) aren't over-trimmed.
 var gitDescribeRE = regexp.MustCompile(`-\d+-g[0-9a-f]+(-dirty)?$`)
 
+// gitDescribeCaptureRE captures the components of the trailer so callers
+// can surface commit count / hash / dirty state separately from the
+// display version.
+var gitDescribeCaptureRE = regexp.MustCompile(`-(\d+)-g([0-9a-f]+)(-dirty)?$`)
+
+// VersionInfo holds the derived pieces of the linker-baked version string.
+type VersionInfo struct {
+	Display      string // e.g. "v3.0.0-alpha.6" — trailer stripped
+	Channel      string // "stable", "pre-release", or "dev"
+	Commit       string // git short hash, empty if not a dev build
+	CommitsAhead int    // commits past the base tag
+	Dirty        bool   // working tree was dirty at build time
+}
+
+// GetVersionInfo parses the linker-baked Version string into its parts.
+func GetVersionInfo() VersionInfo {
+	vi := VersionInfo{Display: Version}
+	if m := gitDescribeCaptureRE.FindStringSubmatch(Version); m != nil {
+		fmt.Sscanf(m[1], "%d", &vi.CommitsAhead)
+		vi.Commit = m[2]
+		vi.Dirty = m[3] != ""
+		vi.Display = Version[:len(Version)-len(m[0])]
+	}
+	_, _, _, pre := parseSemver(vi.Display)
+	switch {
+	case Version == "dev":
+		vi.Channel = "dev"
+	case vi.Commit != "":
+		vi.Channel = "dev"
+	case pre != "":
+		vi.Channel = "pre-release"
+	default:
+		vi.Channel = "stable"
+	}
+	return vi
+}
+
 // parseSemver parses a version string like "v3.0.0-beta.2" or "0.16.10" into
 // its numeric components plus the raw pre-release suffix (empty for stable).
 // Build metadata after '+' is discarded. A trailing git-describe suffix on
