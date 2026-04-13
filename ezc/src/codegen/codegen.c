@@ -827,6 +827,17 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
         /* Check if either operand is a string — need special handling */
         EzType *lt = cg->type_table ? typetable_get(cg->type_table, node->data.infix.left) : NULL;
         EzType *rt = cg->type_table ? typetable_get(cg->type_table, node->data.infix.right) : NULL;
+        /* Inside a generic instantiation (#1443), operands that were
+         * typed TK_UNKNOWN in the main pass (because they traced back
+         * to a '?' parameter) should be treated as the active wildcard
+         * binding so string/struct comparisons pick up the right path. */
+        if (cg && cg->wildcard_binding) {
+            static EzType wc_t_static;
+            EzType *wc_t = type_from_name(cg->wildcard_binding);
+            if (wc_t) { wc_t_static = *wc_t; wc_t = &wc_t_static; }
+            if (!lt || lt->kind == TK_UNKNOWN) lt = wc_t;
+            if (!rt || rt->kind == TK_UNKNOWN) rt = wc_t;
+        }
         bool left_is_str = (lt && lt->kind == TK_STRING) || node->data.infix.left->kind == NODE_STRING_VALUE;
         bool right_is_str = (rt && rt->kind == TK_STRING) || node->data.infix.right->kind == NODE_STRING_VALUE;
 
@@ -4976,12 +4987,19 @@ static void emit_statement(CodeGen *cg, AstNode *node) {
             /* for_each item in array → iterate EzArray */
             const char *c_elem = "int64_t";
             if (coll_t && coll_t->kind == TK_ARRAY && coll_t->element_type) {
-                EzType *et = type_from_name(coll_t->element_type);
+                /* Wildcard substitution (#1443): a generic parameter
+                 * typed `[?]` stores "?" as its element_type; swap it
+                 * out for the active instantiation's concrete binding
+                 * before resolving to a C type. */
+                const char *elem_tn = cg_effective_type_str(cg, coll_t->element_type);
+                EzType *et = type_from_name(elem_tn);
                 if (et->kind == TK_FLOAT) c_elem = "double";
                 else if (et->kind == TK_BOOL) c_elem = "bool";
                 else if (et->kind == TK_STRING) c_elem = "EzString";
                 else if (et->kind == TK_ARRAY) c_elem = "EzArray";
-                else if (et->kind == TK_STRUCT) c_elem = ez_type_to_c_cg(cg, coll_t->element_type);
+                else if (et->kind == TK_STRUCT) c_elem = ez_type_to_c_cg(cg, elem_tn);
+                else if (et->kind == TK_CHAR) c_elem = "int32_t";
+                else if (et->kind == TK_BYTE) c_elem = "uint8_t";
             }
 
             emitf(cg, "for (int32_t %s = 0; %s < ", idx_name, idx_name);
