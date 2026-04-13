@@ -1333,7 +1333,9 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
         if (left_t && left_t->kind == TK_ARRAY) {
             /* Determine element C type */
             const char *c_elem = "int64_t";
-            if (left_t->element_type) {
+            if (left_t->element_type && strcmp(left_t->element_type, "func") == 0) {
+                c_elem = "void *";
+            } else if (left_t->element_type) {
                 EzType *et = type_from_name(left_t->element_type);
                 if (et->kind == TK_FLOAT) c_elem = "double";
                 else if (et->kind == TK_BOOL) c_elem = "bool";
@@ -3830,6 +3832,29 @@ static void emit_call_expression(CodeGen *cg, AstNode *node) {
         } else {
             emit_expression(cg, node->data.call.function);
         }
+    } else if (node->data.call.function->kind == NODE_INDEX_EXPR) {
+        /* Indexed callee (e.g. ops[0](x, y)). The index expression yields a
+         * void * for [func] arrays (see NODE_INDEX_EXPR emitter), which isn't
+         * directly callable — wrap with a function-pointer cast derived from
+         * the call site's arg types and return type. */
+        int nargs = node->data.call.arg_count;
+        EzType *ret_t = cg->type_table ? typetable_get(cg->type_table, node) : NULL;
+        const char *c_ret = (ret_t && ret_t->kind != TK_UNKNOWN) ? ez_type_to_c_cg(cg, type_name(ret_t)) : "int64_t";
+        if (ret_t && ret_t->kind == TK_VOID) c_ret = "void";
+        emitf(cg, "((%s (*)(", c_ret);
+        for (int i = 0; i < nargs; i++) {
+            if (i > 0) emit(cg, ", ");
+            EzType *arg_t = cg->type_table ? typetable_get(cg->type_table, node->data.call.args[i]) : NULL;
+            if (arg_t && arg_t->kind != TK_UNKNOWN) {
+                emit(cg, ez_type_to_c_cg(cg, type_name(arg_t)));
+            } else {
+                emit(cg, "int64_t");
+            }
+        }
+        if (nargs == 0) emit(cg, "void");
+        emit(cg, "))");
+        emit_expression(cg, node->data.call.function);
+        emit(cg, ")");
     } else {
         emit_expression(cg, node->data.call.function);
     }
@@ -4251,10 +4276,14 @@ static void emit_assign_statement(CodeGen *cg, AstNode *node) {
         if (left_t && left_t->kind == TK_ARRAY) {
             const char *c_elem = "int64_t";
             if (left_t->element_type) {
-                EzType *et = type_from_name(left_t->element_type);
-                if (et->kind == TK_FLOAT) c_elem = "double";
-                else if (et->kind == TK_BOOL) c_elem = "bool";
-                else if (et->kind == TK_STRING) c_elem = "EzString";
+                if (strcmp(left_t->element_type, "func") == 0) {
+                    c_elem = "void *";
+                } else {
+                    EzType *et = type_from_name(left_t->element_type);
+                    if (et->kind == TK_FLOAT) c_elem = "double";
+                    else if (et->kind == TK_BOOL) c_elem = "bool";
+                    else if (et->kind == TK_STRING) c_elem = "EzString";
+                }
             }
             emitf(cg, "EZ_ARRAY_SET(");
             emit_expression(cg, left);
