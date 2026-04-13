@@ -77,6 +77,13 @@ typedef struct {
     int c_header_count;
     int c_header_cap;
     bool has_c_imports;
+
+    /* Active wildcard binding (#1443). Set while emitting a specialised
+     * instantiation of a generic function so type-string lookups can
+     * substitute "?" with a concrete type name, and so the mangled
+     * function name can be appended at call sites. NULL outside a
+     * generic instantiation. */
+    const char *wildcard_binding;
 } CodeGen;
 
 CodeGen codegen_create(const char *file);

@@ -78,8 +78,47 @@ static const char *safe_name(const char *name) {
 }
 
 /* Map EZ type name to C type */
+/* Return a type string with any '?' replaced by the active wildcard
+ * binding. Returns the original pointer if no binding is active or the
+ * string has no wildcard. The substituted string lives in a small ring
+ * of static buffers so a handful of nested calls can each keep their
+ * result alive simultaneously. */
+static const char *cg_effective_type_str(CodeGen *cg, const char *type_name) {
+    if (!type_name || !cg || !cg->wildcard_binding) return type_name;
+    if (!strchr(type_name, '?')) return type_name;
+    static char bufs[4][256];
+    static int bi = 0;
+    char *out = bufs[bi]; bi = (bi + 1) & 3;
+    size_t cl = strlen(cg->wildcard_binding);
+    char *w = out;
+    size_t rem = sizeof(bufs[0]) - 1;
+    for (const char *q = type_name; *q && rem; q++) {
+        if (*q == '?') {
+            size_t copy = cl < rem ? cl : rem;
+            memcpy(w, cg->wildcard_binding, copy);
+            w += copy; rem -= copy;
+        } else {
+            *w++ = *q; rem--;
+        }
+    }
+    *w = '\0';
+    return out;
+}
+
 static const char *ez_type_to_c_cg(CodeGen *cg, const char *type_name) {
     if (!type_name) return "int64_t";
+
+    /* Wildcard substitution (#1443): if '?' appears in the type
+     * string while a generic instantiation is active, rewrite via
+     * cg_effective_type_str and recurse through the normal mapping. */
+    if (cg && cg->wildcard_binding && strchr(type_name, '?')) {
+        const char *sub = cg_effective_type_str(cg, type_name);
+        const char *saved = cg->wildcard_binding;
+        cg->wildcard_binding = NULL;
+        const char *resolved = ez_type_to_c_cg(cg, sub);
+        cg->wildcard_binding = saved;
+        return resolved;
+    }
 
     if (strcmp(type_name, "int") == 0)    return "int64_t";
     if (strcmp(type_name, "uint") == 0)   return "uint64_t";
@@ -1333,17 +1372,18 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
         if (left_t && left_t->kind == TK_ARRAY) {
             /* Determine element C type */
             const char *c_elem = "int64_t";
-            if (left_t->element_type && strcmp(left_t->element_type, "func") == 0) {
+            const char *elem_tn = cg_effective_type_str(cg, left_t->element_type);
+            if (elem_tn && strcmp(elem_tn, "func") == 0) {
                 c_elem = "void *";
-            } else if (left_t->element_type) {
-                EzType *et = type_from_name(left_t->element_type);
+            } else if (elem_tn) {
+                EzType *et = type_from_name(elem_tn);
                 if (et->kind == TK_FLOAT) c_elem = "double";
                 else if (et->kind == TK_BOOL) c_elem = "bool";
                 else if (et->kind == TK_STRING) c_elem = "EzString";
                 else if (et->kind == TK_CHAR) c_elem = "int32_t";
                 else if (et->kind == TK_BYTE) c_elem = "uint8_t";
                 else if (et->kind == TK_ARRAY) c_elem = "EzArray";
-                else if (et->kind == TK_STRUCT) c_elem = ez_type_to_c_cg(cg, left_t->element_type);
+                else if (et->kind == TK_STRUCT) c_elem = ez_type_to_c_cg(cg, elem_tn);
                 else if (et->kind == TK_POINTER) {
                     static char idx_ptr_buf[256];
                     const char *pointee = et->element_type ? et->element_type : "void";
@@ -3801,9 +3841,52 @@ static void emit_call_expression(CodeGen *cg, AstNode *node) {
     }
 
     if (fn_name && target_func) {
-        /* Known function — use ez_fn_ prefix */
-        emit(cg, "ez_fn_");
-        emit(cg, resolved_fn_name);
+        /* Known function — use ez_fn_ prefix. For generic functions,
+         * rewrite to the mangled instantiation name derived from the
+         * first wildcard parameter's argument type (#1443). */
+        bool tf_generic = false;
+        for (int pi = 0; pi < target_func->data.func_decl.param_count && !tf_generic; pi++) {
+            if (target_func->data.func_decl.params[pi].type_name &&
+                strchr(target_func->data.func_decl.params[pi].type_name, '?')) tf_generic = true;
+        }
+        for (int pi = 0; pi < target_func->data.func_decl.return_type_count && !tf_generic; pi++) {
+            if (target_func->data.func_decl.return_types[pi] &&
+                strchr(target_func->data.func_decl.return_types[pi], '?')) tf_generic = true;
+        }
+        if (tf_generic) {
+            /* Derive the concrete binding by scanning params for the
+             * first '?' slot and reading the matching arg's type. */
+            const char *binding = NULL;
+            int pc = target_func->data.func_decl.param_count;
+            int ac = node->data.call.arg_count;
+            int cc = pc < ac ? pc : ac;
+            for (int pi = 0; pi < cc && !binding; pi++) {
+                const char *ptn = target_func->data.func_decl.params[pi].type_name;
+                if (!ptn || !strchr(ptn, '?')) continue;
+                EzType *at = cg->type_table
+                    ? typetable_get(cg->type_table, node->data.call.args[pi]) : NULL;
+                if (!at) continue;
+                if (strcmp(ptn, "?") == 0) {
+                    binding = type_name(at);
+                } else if (ptn[0] == '[' && strncmp(ptn + 1, "?]", 2) == 0 &&
+                           at->kind == TK_ARRAY && at->element_type) {
+                    binding = at->element_type;
+                }
+            }
+            char mangled[256];
+            size_t pos = snprintf(mangled, sizeof(mangled), "ez_fn_%s__",
+                resolved_fn_name);
+            if (binding) {
+                for (const char *c = binding; *c && pos < sizeof(mangled) - 1; c++) {
+                    mangled[pos++] = (isalnum((unsigned char)*c) || *c == '_') ? *c : '_';
+                }
+            }
+            mangled[pos] = '\0';
+            emit(cg, mangled);
+        } else {
+            emit(cg, "ez_fn_");
+            emit(cg, resolved_fn_name);
+        }
     } else if (fn_name) {
         /* Not a known function — variable holding a function pointer (void *).
          * Cast to appropriate function pointer type based on arg types. */
@@ -5007,10 +5090,49 @@ static void emit_statement(CodeGen *cg, AstNode *node) {
         emit(cg, "}\n");
         break;
     }
-    case NODE_FUNC_DECL:
-        emit_func_declaration(cg, node,
-            strcmp(node->data.func_decl.name, "main") == 0);
+    case NODE_FUNC_DECL: {
+        /* Generic function (#1443): emit one specialised copy per
+         * concrete instantiation the typechecker recorded. If a
+         * generic function was declared but never called, there are
+         * no instantiations and we skip emission entirely — the
+         * un-specialised form has '?' in its signature and can't be
+         * compiled as C. */
+        bool has_wc = false;
+        for (int i = 0; i < node->data.func_decl.param_count && !has_wc; i++) {
+            if (node->data.func_decl.params[i].type_name &&
+                strchr(node->data.func_decl.params[i].type_name, '?')) has_wc = true;
+        }
+        for (int i = 0; i < node->data.func_decl.return_type_count && !has_wc; i++) {
+            if (node->data.func_decl.return_types[i] &&
+                strchr(node->data.func_decl.return_types[i], '?')) has_wc = true;
+        }
+        if (has_wc) {
+            const char *orig_name = node->data.func_decl.name;
+            for (int ii = 0; ii < node->data.func_decl.instantiation_count; ii++) {
+                const char *concrete = node->data.func_decl.instantiations[ii];
+                /* Build the mangled name: `<name>__<concrete>` with
+                 * non-alnum chars replaced by underscores so array/map
+                 * bindings stay legal C identifiers. */
+                char mangled[256];
+                size_t pos = snprintf(mangled, sizeof(mangled), "%s__", orig_name);
+                for (const char *c = concrete; *c && pos < sizeof(mangled) - 1; c++) {
+                    mangled[pos++] = (isalnum((unsigned char)*c) || *c == '_') ? *c : '_';
+                }
+                mangled[pos] = '\0';
+
+                node->data.func_decl.name = mangled;
+                const char *saved = cg->wildcard_binding;
+                cg->wildcard_binding = concrete;
+                emit_func_declaration(cg, node, false);
+                cg->wildcard_binding = saved;
+            }
+            node->data.func_decl.name = orig_name;
+        } else {
+            emit_func_declaration(cg, node,
+                strcmp(node->data.func_decl.name, "main") == 0);
+        }
         break;
+    }
     case NODE_BLOCK_STMT:
         /* Inline block (e.g., from multi-var declaration expansion) */
         emit_block(cg, node);
@@ -5090,6 +5212,7 @@ CodeGen codegen_create(const char *file) {
     cg.c_header_count = 0;
     cg.c_header_cap = 0;
     cg.has_c_imports = false;
+    cg.wildcard_binding = NULL;
     return cg;
 }
 
@@ -5400,26 +5523,56 @@ void codegen_generate(CodeGen *cg, AstNode *program) {
     /* Emit forward declarations for all functions (including struct-namespaced) */
     for (int i = 0; i < cg->func_count; i++) {
         AstNode *stmt = cg->all_funcs[i];
-        if (stmt->kind == NODE_FUNC_DECL) {
-            if (strcmp(stmt->data.func_decl.name, "main") == 0) {
-                emit(cg, "static void ez_fn_main(void);\n");
-            } else {
-                emitf(cg, "static %s ", func_return_type(cg, stmt));
-                emitf(cg, "ez_fn_%s(", stmt->data.func_decl.name);
-                for (int j = 0; j < stmt->data.func_decl.param_count; j++) {
-                    if (j > 0) emit(cg, ", ");
-                    Param *param = &stmt->data.func_decl.params[j];
-                    if (param->mutable) {
-                        emitf(cg, "%s *", ez_type_to_c_cg(cg,param->type_name));
-                    } else {
-                        emit(cg, ez_type_to_c_cg(cg,param->type_name));
-                    }
+        if (stmt->kind != NODE_FUNC_DECL) continue;
+        if (strcmp(stmt->data.func_decl.name, "main") == 0) {
+            emit(cg, "static void ez_fn_main(void);\n");
+            continue;
+        }
+
+        /* Detect wildcard generics (#1443) — emit one forward per
+         * instantiation under a mangled name, skipping the un-specialised
+         * signature which would contain '?' in C. */
+        bool has_wc = false;
+        for (int j = 0; j < stmt->data.func_decl.param_count && !has_wc; j++) {
+            if (stmt->data.func_decl.params[j].type_name &&
+                strchr(stmt->data.func_decl.params[j].type_name, '?')) has_wc = true;
+        }
+        for (int j = 0; j < stmt->data.func_decl.return_type_count && !has_wc; j++) {
+            if (stmt->data.func_decl.return_types[j] &&
+                strchr(stmt->data.func_decl.return_types[j], '?')) has_wc = true;
+        }
+
+        int emit_rounds = has_wc ? stmt->data.func_decl.instantiation_count : 1;
+        const char *orig_name = stmt->data.func_decl.name;
+        for (int r = 0; r < emit_rounds; r++) {
+            const char *saved_binding = cg->wildcard_binding;
+            char mangled[256];
+            if (has_wc) {
+                const char *concrete = stmt->data.func_decl.instantiations[r];
+                cg->wildcard_binding = concrete;
+                size_t pos = snprintf(mangled, sizeof(mangled), "%s__", orig_name);
+                for (const char *c = concrete; *c && pos < sizeof(mangled) - 1; c++) {
+                    mangled[pos++] = (isalnum((unsigned char)*c) || *c == '_') ? *c : '_';
                 }
-                if (stmt->data.func_decl.param_count == 0) {
-                    emit(cg, "void");
-                }
-                emit(cg, ");\n");
+                mangled[pos] = '\0';
             }
+            const char *emit_name = has_wc ? mangled : orig_name;
+            emitf(cg, "static %s ", func_return_type(cg, stmt));
+            emitf(cg, "ez_fn_%s(", emit_name);
+            for (int j = 0; j < stmt->data.func_decl.param_count; j++) {
+                if (j > 0) emit(cg, ", ");
+                Param *param = &stmt->data.func_decl.params[j];
+                if (param->mutable) {
+                    emitf(cg, "%s *", ez_type_to_c_cg(cg,param->type_name));
+                } else {
+                    emit(cg, ez_type_to_c_cg(cg,param->type_name));
+                }
+            }
+            if (stmt->data.func_decl.param_count == 0) {
+                emit(cg, "void");
+            }
+            emit(cg, ");\n");
+            cg->wildcard_binding = saved_binding;
         }
     }
     emit(cg, "\n");

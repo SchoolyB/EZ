@@ -245,7 +245,9 @@ static void finalize_generic_sig(FuncSig *fs, AstNode *decl) {
 
 /* Record a concrete instantiation of a generic function. Returns true
  * if this is a new instantiation (i.e. codegen hasn't seen it yet),
- * false if the same concrete binding was already recorded. */
+ * false if the same concrete binding was already recorded. Also
+ * mirrors the entry onto the source AST func_decl so codegen can
+ * enumerate instantiations without needing the FuncSig table. */
 static bool record_instantiation(FuncSig *fs, const char *concrete) {
     if (!fs || !concrete) return false;
     for (int i = 0; i < fs->instantiation_count; i++) {
@@ -256,7 +258,17 @@ static bool record_instantiation(FuncSig *fs, const char *concrete) {
         fs->instantiations = realloc(fs->instantiations,
             sizeof(const char *) * fs->instantiation_cap);
     }
-    fs->instantiations[fs->instantiation_count++] = strdup(concrete);
+    char *stored = strdup(concrete);
+    fs->instantiations[fs->instantiation_count++] = stored;
+
+    if (fs->decl && fs->decl->kind == NODE_FUNC_DECL) {
+        int n = fs->decl->data.func_decl.instantiation_count;
+        fs->decl->data.func_decl.instantiations = realloc(
+            (void *)fs->decl->data.func_decl.instantiations,
+            sizeof(const char *) * (size_t)(n + 1));
+        fs->decl->data.func_decl.instantiations[n] = stored;
+        fs->decl->data.func_decl.instantiation_count = n + 1;
+    }
     return true;
 }
 

@@ -264,6 +264,12 @@ struct AstNode {
             int return_type_count;
             AstNode *body;
             bool is_private;
+            /* Wildcard generics (#1443): concrete type bindings recorded
+             * by the typechecker per call site. Codegen emits one
+             * specialised C function for each entry. NULL/0 for
+             * non-generic functions. */
+            const char **instantiations;
+            int instantiation_count;
         } func_decl;
 
         /* NODE_IMPORT_STMT */
