@@ -3886,6 +3886,31 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
             scope_define(func_scope, p->name, ptype, p->mutable);
         }
 
+        /* E3060: wildcard in return type but no wildcard in any parameter */
+        {
+            bool ret_has_wc = false;
+            bool param_has_wc = false;
+            for (int i = 0; i < node->data.func_decl.return_type_count; i++) {
+                if (type_name_has_wildcard(node->data.func_decl.return_types[i])) {
+                    ret_has_wc = true;
+                    break;
+                }
+            }
+            if (ret_has_wc) {
+                for (int i = 0; i < node->data.func_decl.param_count; i++) {
+                    if (type_name_has_wildcard(node->data.func_decl.params[i].type_name)) {
+                        param_has_wc = true;
+                        break;
+                    }
+                }
+                if (!param_has_wc) {
+                    diag_error(tc->diag, "E3060",
+                        strdup("wildcard '?' in return type cannot be resolved — at least one parameter must also use '?' to bind the concrete type"),
+                        tc->file, node->token.line, node->token.column, 0);
+                }
+            }
+        }
+
         /* Define named return variables in function scope */
         if (node->data.func_decl.return_names) {
             for (int i = 0; i < node->data.func_decl.return_type_count; i++) {
