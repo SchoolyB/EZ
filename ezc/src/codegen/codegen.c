@@ -241,6 +241,92 @@ static const char *ez_map_elem_c_type(CodeGen *cg, const char *ez_tn) {
     }
 }
 
+/* Deep-copy an array value whose element type may itself be a collection
+ * (#1465). Emits a C statement expression that reads `src_var` (which
+ * must be a named lvalue holding an EzArray) and materialises a fully
+ * independent copy. For leaf element types (primitives, strings, structs)
+ * the shallow ez_array_copy is sufficient and is emitted directly; for
+ * element type [[...]] the function recurses, opening a fresh EzArray
+ * and deep-copying each element slot individually.
+ *
+ * Scope: handles [T], [[T]], [[[T]]], ... for any element that bottoms
+ * out in a non-collection type. Arrays whose elements are maps, or maps
+ * whose values are arrays, are intentionally left to the existing
+ * ez_map_copy / ez_array_copy paths — those are tracked as follow-up
+ * gaps on #1465 and share infrastructure with #1464. */
+static void emit_deep_copy_expr(CodeGen *cg, const char *ez_tn, const char *src_var);
+static void emit_deep_copy_expr(CodeGen *cg, const char *ez_tn, const char *src_var) {
+    if (!ez_tn || ez_tn[0] != '[') {
+        /* Not an array type — the shallow path is already correct. */
+        emitf(cg, "ez_array_copy(ez_default_arena, &%s)", src_var);
+        return;
+    }
+
+    size_t len = strlen(ez_tn);
+    if (len < 3 || ez_tn[len - 1] != ']') {
+        emitf(cg, "ez_array_copy(ez_default_arena, &%s)", src_var);
+        return;
+    }
+
+    /* Extract element type name from "[T]" (dropping any ",N" sized tail). */
+    char elem_tn[256];
+    size_t elen = len - 2;
+    if (elen >= sizeof(elem_tn)) elen = sizeof(elem_tn) - 1;
+    memcpy(elem_tn, ez_tn + 1, elen);
+    elem_tn[elen] = '\0';
+    char *comma = strchr(elem_tn, ',');
+    if (comma) *comma = '\0';
+
+    if (elem_tn[0] != '[') {
+        /* Leaf element type — ez_array_copy is already deep enough. */
+        emitf(cg, "ez_array_copy(ez_default_arena, &%s)", src_var);
+        return;
+    }
+
+    /* Element is itself an array: allocate a fresh outer and deep-copy
+     * each inner EzArray slot. */
+    static int dc_tag = 0;
+    int t = dc_tag++;
+    emitf(cg,
+        "({ EzArray _ds%d = %s; "
+        "EzArray _dd%d = ez_array_new(ez_default_arena, sizeof(EzArray), _ds%d.len); "
+        "_dd%d.len = _ds%d.len; "
+        "for (int32_t _di%d = 0; _di%d < _ds%d.len; _di%d++) { "
+        "EzArray _de%d = ",
+        t, src_var,
+        t, t,
+        t, t,
+        t, t, t, t,
+        t);
+
+    char inner_var[96];
+    snprintf(inner_var, sizeof(inner_var),
+        "((EzArray *)_ds%d.data)[_di%d]", t, t);
+    emit_deep_copy_expr(cg, elem_tn, inner_var);
+
+    emitf(cg,
+        "; ((EzArray *)_dd%d.data)[_di%d] = _de%d; "
+        "} _dd%d; })",
+        t, t, t, t);
+}
+
+/* Wire emit_deep_copy_expr into a site that has an AstNode for the source
+ * and knows the array element type string. Evaluates the source once into
+ * a temp, then invokes the recursive copier. */
+static void emit_deep_array_copy(CodeGen *cg, AstNode *src_node, const char *elem_type_name) {
+    static int dc_top_tag = 0;
+    int t = dc_top_tag++;
+    emitf(cg, "({ EzArray _dtop%d = ", t);
+    emit_expression(cg, src_node);
+    emit(cg, "; ");
+    char src_var[32];
+    snprintf(src_var, sizeof(src_var), "_dtop%d", t);
+    char full_tn[256];
+    snprintf(full_tn, sizeof(full_tn), "[%s]", elem_type_name ? elem_type_name : "");
+    emit_deep_copy_expr(cg, full_tn, src_var);
+    emit(cg, "; })");
+}
+
 /* Resolve an import alias to the actual module name, or return the name itself */
 static const char *resolve_alias(CodeGen *cg, const char *name) {
     for (int i = 0; i < cg->alias_count; i++) {
@@ -2193,9 +2279,9 @@ static bool emit_builtin_call(CodeGen *cg, AstNode *node, const char *func) {
         AstNode *arg = node->data.call.args[0];
         EzType *at = cg->type_table ? typetable_get(cg->type_table, arg) : NULL;
         if (at && at->kind == TK_ARRAY) {
-            emit(cg, "ez_array_copy(ez_default_arena, &");
-            emit_expression(cg, arg);
-            emit(cg, ")");
+            /* Route through the deep-copy emitter so [[T]] and deeper
+             * nestings don't share inner backing storage (#1465). */
+            emit_deep_array_copy(cg, arg, at->element_type);
         } else if (at && at->kind == TK_MAP) {
             emit(cg, "ez_map_copy(ez_default_arena, &");
             emit_expression(cg, arg);
@@ -4172,10 +4258,14 @@ static void emit_var_declaration(CodeGen *cg, AstNode *node) {
             emitf(cg, "ez_array_new(ez_default_arena, sizeof(%s), 4)", c_elem_type);
         } else if (node->data.var_decl.value &&
                    node->data.var_decl.value->kind == NODE_LABEL) {
-            /* Copy-by-default: deep copy when assigning from another variable */
-            emit(cg, "ez_array_copy(ez_default_arena, &");
-            emit_expression(cg, node->data.var_decl.value);
-            emit(cg, ")");
+            /* Copy-by-default: deep copy when assigning from another
+             * variable. Route through emit_deep_array_copy so nested
+             * array elements get independent backing storage (#1465). */
+            EzType *src_t = cg->type_table
+                ? typetable_get(cg->type_table, node->data.var_decl.value) : NULL;
+            const char *elem_tn = (src_t && src_t->kind == TK_ARRAY)
+                ? src_t->element_type : NULL;
+            emit_deep_array_copy(cg, node->data.var_decl.value, elem_tn);
         } else if (node->data.var_decl.value) {
             emit_expression(cg, node->data.var_decl.value);
         } else {
@@ -4516,15 +4606,17 @@ static void emit_assign_statement(CodeGen *cg, AstNode *node) {
         }
     }
 
-    /* Array copy-by-default: arr2 = arr1 deep-copies the array */
+    /* Array copy-by-default: arr2 = arr1 deep-copies the array.
+     * Routes through emit_deep_array_copy so nested inner arrays get
+     * independent backing storage (#1465). */
     if (strcmp(node->data.assign.op, "=") == 0 &&
         node->data.assign.value->kind == NODE_LABEL) {
         EzType *tgt_t = cg->type_table ? typetable_get(cg->type_table, node->data.assign.target) : NULL;
         if (tgt_t && tgt_t->kind == TK_ARRAY) {
             emit_expression(cg, node->data.assign.target);
-            emit(cg, " = ez_array_copy(ez_default_arena, &");
-            emit_expression(cg, node->data.assign.value);
-            emit(cg, ");\n");
+            emit(cg, " = ");
+            emit_deep_array_copy(cg, node->data.assign.value, tgt_t->element_type);
+            emit(cg, ";\n");
             return;
         }
     }
