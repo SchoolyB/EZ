@@ -220,6 +220,16 @@ static const char *parse_complex_type(Parser *p) {
             char *type_str = arena_alloc(p->arena, ts_len);
             snprintf(type_str, ts_len, "[^%s]", pointee);
             return type_str;
+        } else if (cur_token_is(p, TOK_IDENT) && strcmp(p->cur_token.literal, "map") == 0 &&
+                   peek_token_is(p, TOK_LBRACKET)) {
+            /* Array of maps: [map[K:V]] */
+            const char *elem = parse_complex_type(p);
+            if (!elem) return NULL;
+            if (!expect_peek(p, TOK_RBRACKET)) return NULL;
+            size_t ts_len = strlen(elem) + 3;
+            char *type_str = arena_alloc(p->arena, ts_len);
+            snprintf(type_str, ts_len, "[%s]", elem);
+            return type_str;
         } else {
             const char *elem = read_type_name(p);
             if (peek_token_is(p, TOK_COMMA)) {
@@ -255,23 +265,14 @@ static const char *parse_complex_type(Parser *p) {
         return type_str;
     } else if (cur_token_is(p, TOK_IDENT) && strcmp(p->cur_token.literal, "map") == 0 &&
                peek_token_is(p, TOK_LBRACKET)) {
-        /* Map type: map[K:V] */
+        /* Map type: map[K:V] — V is parsed recursively to support nesting */
         next_token(p); /* skip [ */
         next_token(p); /* key type */
         const char *key_type = p->cur_token.literal;
         if (!expect_peek(p, TOK_COLON)) return NULL;
         next_token(p); /* value type */
-        const char *val_type;
-        if (cur_token_is(p, TOK_CARET)) {
-            /* Pointer value type: map[K:^V] */
-            next_token(p); /* skip ^ to type name */
-            size_t vlen = strlen(p->cur_token.literal) + 2;
-            char *vt = arena_alloc(p->arena, vlen);
-            snprintf(vt, vlen, "^%s", p->cur_token.literal);
-            val_type = vt;
-        } else {
-            val_type = p->cur_token.literal;
-        }
+        const char *val_type = parse_complex_type(p);
+        if (!val_type) return NULL;
         if (!expect_peek(p, TOK_RBRACKET)) return NULL;
         /* "map[" + key + ":" + val + "]" + '\0' = klen + vlen + 7 */
         size_t ts_len = strlen(key_type) + strlen(val_type) + 7;
