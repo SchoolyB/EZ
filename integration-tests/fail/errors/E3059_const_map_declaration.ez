@@ -1,0 +1,9 @@
+/*
+ * Error Test: E3059 - maps cannot be declared const
+ * Expected: "maps cannot be declared const" error
+ */
+
+do main() {
+    const m map[string:int] = {"a": 1, "b": 2}
+    println("${m["a"]}")
+}
