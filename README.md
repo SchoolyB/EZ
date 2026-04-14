@@ -29,7 +29,7 @@ make build
 make install
 ```
 
-Drop the snippet below into `hello.ez` and run `ez hello.ez`:
+Create a file called `main.ez`, drop the snippet below into it, and run `ez main.ez`:
 
 ```ez
 do main() {
