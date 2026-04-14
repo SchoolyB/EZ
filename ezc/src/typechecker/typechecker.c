@@ -449,6 +449,13 @@ static bool is_enum_name(TypeChecker *tc, const char *name) {
     return false;
 }
 
+/* Resolve a type name, returning TK_ENUM for known enum names instead of
+ * the default TK_STRUCT that type_from_name() produces for uppercase names. */
+static EzType *tc_type_from_name(TypeChecker *tc, const char *name) {
+    if (name && is_enum_name(tc, name)) return type_enum(name);
+    return type_from_name(name);
+}
+
 /* --- Type signedness helpers --- */
 
 /* Check if a TypeKind is any integer type (signed or unsigned) */
@@ -1577,6 +1584,18 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                                 tc->file, node->data.call.args[ai]->token.line,
                                 node->data.call.args[ai]->token.column, 0);
                         }
+                        /* Enum-to-enum: kinds both TK_ENUM but different names */
+                        if (arg_t->kind == TK_ENUM && param_t->kind == TK_ENUM &&
+                            arg_t->name && param_t->name &&
+                            strcmp(arg_t->name, param_t->name) != 0) {
+                            char msg[256];
+                            snprintf(msg, sizeof(msg),
+                                "argument %d of '%s.%s': expected enum '%s', got enum '%s'",
+                                ai + 1, mod, mfn, param_t->name, arg_t->name);
+                            diag_error(tc->diag, "E3001", strdup(msg),
+                                tc->file, node->data.call.args[ai]->token.line,
+                                node->data.call.args[ai]->token.column, 0);
+                        }
                     }
                 } else {
                     result = &TYPE_VOID;
@@ -1911,6 +1930,18 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                                 tc->file, node->data.call.args[ai]->token.line,
                                 node->data.call.args[ai]->token.column, 0);
                         }
+                        /* Enum-to-enum: kinds both TK_ENUM but different names */
+                        if (arg_t->kind == TK_ENUM && param_t->kind == TK_ENUM &&
+                            arg_t->name && param_t->name &&
+                            strcmp(arg_t->name, param_t->name) != 0) {
+                            char msg[256];
+                            snprintf(msg, sizeof(msg),
+                                "argument %d of '%s': expected enum '%s', got enum '%s'",
+                                ai + 1, fn_name, param_t->name, arg_t->name);
+                            diag_error(tc->diag, "E3001", strdup(msg),
+                                tc->file, node->data.call.args[ai]->token.line,
+                                node->data.call.args[ai]->token.column, 0);
+                        }
                         /* E3027: const variable passed to mutable param */
                         if (node->data.call.args[ai]->kind == NODE_LABEL) {
                             Symbol *arg_sym = scope_lookup(tc->current_scope,
@@ -1976,6 +2007,19 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                                             "argument %d of '%s': expected %s, got %s",
                                             ai + 1, ref_sig->name,
                                             type_name(pt), type_name(at));
+                                        diag_error(tc->diag, "E3001", strdup(msg),
+                                            tc->file,
+                                            node->data.call.args[ai]->token.line,
+                                            node->data.call.args[ai]->token.column, 0);
+                                    }
+                                    /* Enum-to-enum: different enum types */
+                                    if (at && pt && at->kind == TK_ENUM && pt->kind == TK_ENUM &&
+                                        at->name && pt->name &&
+                                        strcmp(at->name, pt->name) != 0) {
+                                        char msg[256];
+                                        snprintf(msg, sizeof(msg),
+                                            "argument %d of '%s': expected enum '%s', got enum '%s'",
+                                            ai + 1, ref_sig->name, pt->name, at->name);
                                         diag_error(tc->diag, "E3001", strdup(msg),
                                             tc->file,
                                             node->data.call.args[ai]->token.line,
@@ -2272,7 +2316,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                     diag_error(tc->diag, "E3047", strdup(msg),
                         tc->file, node->token.line, node->token.column, 0);
                 }
-                result = is_str_enum ? &TYPE_STRING : &TYPE_INT;
+                result = is_str_enum ? &TYPE_STRING : type_enum(obj_name);
                 break;
             }
 
@@ -2454,7 +2498,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
              * int expressions (and enum members, which resolve as int) when
              * the declared key is a user enum name. */
             if (left->key_type && idx_t->kind != TK_UNKNOWN) {
-                EzType *key_t = type_from_name(left->key_type);
+                EzType *key_t = tc_type_from_name(tc, left->key_type);
                 bool declared_is_enum = is_enum_name(tc, left->key_type);
                 bool compatible =
                     key_t->kind == TK_UNKNOWN ||
@@ -2988,7 +3032,7 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
         }
 
         EzType *declared = node->data.var_decl.type_name
-            ? type_from_name(node->data.var_decl.type_name)
+            ? tc_type_from_name(tc, node->data.var_decl.type_name)
             : &TYPE_UNKNOWN;
 
         /* E3057: reject composite types as map keys before downstream checks
@@ -3065,9 +3109,9 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
                        value_type->kind != TK_NIL &&
                        /* Skip mismatch between int/uint (handled by E3019) */
                        !(is_int_kind(declared->kind) && is_int_kind(value_type->kind)) &&
-                       /* Skip mismatch on enum assignment (enum resolves as int) */
-                       !(declared->kind == TK_STRUCT && is_int_kind(value_type->kind) &&
-                         is_enum_name(tc, node->data.var_decl.type_name)) &&
+                       /* Skip mismatch on enum assignment (enum ↔ int) */
+                       !(declared->kind == TK_ENUM && is_int_kind(value_type->kind)) &&
+                       !(is_int_kind(declared->kind) && value_type->kind == TK_ENUM) &&
                        /* Skip mismatch on multi-var expansion (.v0/.v1 access) */
                        !(node->data.var_decl.value &&
                          node->data.var_decl.value->kind == NODE_MEMBER_EXPR &&
@@ -3867,7 +3911,7 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
                         tc->file, node->token.line, node->token.column, 0);
                 }
             }
-            EzType *ptype = p->type_name ? type_from_name(p->type_name) : &TYPE_UNKNOWN;
+            EzType *ptype = p->type_name ? tc_type_from_name(tc, p->type_name) : &TYPE_UNKNOWN;
             /* E3001: validate default value type matches parameter type */
             if (p->default_value && p->type_name) {
                 EzType *def_t = resolve_expr(tc, p->default_value);
@@ -3940,7 +3984,7 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
                             break;
                         }
                     }
-                    EzType *rt = type_from_name(node->data.func_decl.return_types[i]);
+                    EzType *rt = tc_type_from_name(tc, node->data.func_decl.return_types[i]);
                     scope_define(func_scope, rn, rt, true);
                 }
             }
@@ -3970,7 +4014,7 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
             tc->current_return_type_names = malloc(sizeof(const char *) * node->data.func_decl.return_type_count);
             tc->current_return_count = node->data.func_decl.return_type_count;
             for (int i = 0; i < node->data.func_decl.return_type_count; i++) {
-                tc->current_return_types[i] = type_from_name(node->data.func_decl.return_types[i]);
+                tc->current_return_types[i] = tc_type_from_name(tc, node->data.func_decl.return_types[i]);
                 tc->current_return_type_names[i] = node->data.func_decl.return_types[i];
             }
         } else {
@@ -4293,7 +4337,7 @@ static void register_declarations(TypeChecker *tc, AstNode *program) {
             if (!fnames || !ftypes) { free(fnames); free(ftypes); continue; }
             for (int j = 0; j < fc; j++) {
                 fnames[j] = stmt->data.struct_decl.fields[j].name;
-                ftypes[j] = type_from_name(stmt->data.struct_decl.fields[j].type_name);
+                ftypes[j] = tc_type_from_name(tc, stmt->data.struct_decl.fields[j].type_name);
                 /* E3038: void field type */
                 if (stmt->data.struct_decl.fields[j].type_name &&
                     strcmp(stmt->data.struct_decl.fields[j].type_name, "void") == 0) {
@@ -4380,13 +4424,13 @@ static void register_declarations(TypeChecker *tc, AstNode *program) {
                 EzType **ptypes = malloc(sizeof(EzType *) * (pc ? pc : 1));
                 if (!ptypes) continue;
                 for (int k = 0; k < pc; k++) {
-                    ptypes[k] = type_from_name(fn->data.func_decl.params[k].type_name);
+                    ptypes[k] = tc_type_from_name(tc, fn->data.func_decl.params[k].type_name);
                 }
                 int rc = fn->data.func_decl.return_type_count;
                 EzType **rtypes = malloc(sizeof(EzType *) * (rc ? rc : 1));
                 if (!rtypes) { free(ptypes); continue; }
                 for (int k = 0; k < rc; k++) {
-                    rtypes[k] = type_from_name(fn->data.func_decl.return_types[k]);
+                    rtypes[k] = tc_type_from_name(tc, fn->data.func_decl.return_types[k]);
                 }
                 /* Register with prefixed name: StructName_funcName */
                 char *prefixed = malloc(strlen(stmt->data.struct_decl.name) +
@@ -4500,14 +4544,14 @@ static void register_declarations(TypeChecker *tc, AstNode *program) {
             EzType **ptypes = malloc(sizeof(EzType *) * (pc ? pc : 1));
             if (!ptypes) continue;
             for (int j = 0; j < pc; j++) {
-                ptypes[j] = type_from_name(stmt->data.func_decl.params[j].type_name);
+                ptypes[j] = tc_type_from_name(tc, stmt->data.func_decl.params[j].type_name);
             }
 
             int rc = stmt->data.func_decl.return_type_count;
             EzType **rtypes = malloc(sizeof(EzType *) * (rc ? rc : 1));
             if (!rtypes) { free(ptypes); continue; }
             for (int j = 0; j < rc; j++) {
-                rtypes[j] = type_from_name(stmt->data.func_decl.return_types[j]);
+                rtypes[j] = tc_type_from_name(tc, stmt->data.func_decl.return_types[j]);
             }
 
             /* E4008: main() cannot have parameters or return types */
