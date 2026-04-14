@@ -2286,6 +2286,48 @@ static bool emit_builtin_call(CodeGen *cg, AstNode *node, const char *func) {
             emit(cg, "ez_map_copy(ez_default_arena, &");
             emit_expression(cg, arg);
             emit(cg, ")");
+        } else if (at && at->kind == TK_STRUCT) {
+            /* Bitwise struct copy is correct for scalar fields but
+             * leaves any array/map fields sharing backing storage with
+             * the source (#1466). Emit a bitwise copy into a temp, then
+             * overwrite each collection-typed field with a deep copy
+             * of the source's corresponding field. */
+            AstNode *sdecl = find_struct_decl(cg, at->name);
+            if (!sdecl) {
+                /* No decl info available — fall back to the original
+                 * bitwise behavior. */
+                emit_expression(cg, arg);
+                return true;
+            }
+            const char *c_struct = ez_type_to_c_cg(cg, at->name);
+            static int sc_tag = 0;
+            int t = sc_tag++;
+            emitf(cg, "({ %s _scs%d = ", c_struct, t);
+            emit_expression(cg, arg);
+            emitf(cg, "; %s _scd%d = _scs%d; ", c_struct, t, t);
+            for (int i = 0; i < sdecl->data.struct_decl.field_count; i++) {
+                StructField *f = &sdecl->data.struct_decl.fields[i];
+                if (!f->type_name || !f->name) continue;
+                if (f->type_name[0] == '[') {
+                    /* Array field — deep copy via emit_deep_copy_expr,
+                     * which also recurses into [[T]] correctly. */
+                    char src_var[192];
+                    snprintf(src_var, sizeof(src_var), "_scs%d.%s", t, f->name);
+                    emitf(cg, "_scd%d.%s = ", t, f->name);
+                    emit_deep_copy_expr(cg, f->type_name, src_var);
+                    emit(cg, "; ");
+                } else if (strncmp(f->type_name, "map[", 4) == 0) {
+                    /* Map field — re-allocate fresh backing storage. */
+                    emitf(cg,
+                        "_scd%d.%s = ez_map_copy(ez_default_arena, &_scs%d.%s); ",
+                        t, f->name, t, f->name);
+                }
+                /* Scalars, enums, pointers, and nested struct fields
+                 * inherit the bitwise copy. Pointers and
+                 * structs-containing-collections are listed on #1466 as
+                 * follow-up gaps and stay as-is for this pass. */
+            }
+            emitf(cg, "_scd%d; })", t);
         } else {
             emit_expression(cg, arg);
         }
