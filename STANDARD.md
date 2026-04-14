@@ -504,7 +504,17 @@ mut ages map[string:int] = {
     "alice": 30,
     "bob": 25
 }
+mut empty map[string:int] = {:}  // Empty map
 ```
+
+**Note:** Empty maps use `{:}`, not `{}`. The `{}` literal is an empty array. The colon distinguishes the two:
+
+```ez
+mut arr [int] = {}       // Empty array
+mut m map[string:int] = {:}  // Empty map
+```
+
+Maps must be declared with `mut`. Declaring a map with `const` is a compile-time error — if the keys are known at compile time, use a struct instead.
 
 Keys must be of a hashable type: `int`, `uint`, `float`, `string`, `bool`, `char`, or `byte`.
 
@@ -596,16 +606,27 @@ mut status string = Status.TODO
 
 ### 4.3 Type Inference
 
-EZ is a statically-typed language that generally requires explicit type annotations. However, **partial type inference** is supported in specific contexts where the type can be unambiguously determined from the initializer.
+EZ is a statically-typed language with full type inference. The type of every variable is known at compile time, but explicit type annotations are optional when the compiler can determine the type from the initializer.
 
-Type inference is permitted when assigning from:
+Type inference works with:
 
-1. **Function return values** - The variable's type is inferred from the function's return type
-2. **Struct literals** - The type is known from the struct name
-3. **Built-in constructors** - `new(Type)` (returns `^Type`) and `copy(value)`
-4. **Array literals** - When element types are consistent
+1. **Standalone literals** - The type is inferred from the literal value
+2. **Function return values** - The variable's type is inferred from the function's return type
+3. **Struct literals** - The type is known from the struct name
+4. **Built-in constructors** - `new(Type)` (returns `^Type`) and `copy(value)`
+5. **Array literals** - When element types are consistent
+6. **Multiple return values** - Each variable's type is inferred from the corresponding return type
 
 ```ez
+// Inferred from literals
+mut x = 42                    // Inferred: int
+mut name = "Alice"            // Inferred: string
+mut pi = 3.14                 // Inferred: float
+mut flag = true               // Inferred: bool
+
+// Explicit annotations are always accepted
+mut y int = 42                // Explicit: int
+
 // Inferred from function return type
 do sum(a int, b int) -> int {
     return a + b
@@ -630,12 +651,7 @@ do divide(a, b int) -> (int, int) {
 mut quotient, remainder = divide(10, 3)  // Both inferred: int
 ```
 
-**Note:** Type inference does not apply to standalone literals without context. Explicit types are required when the type cannot be determined:
-
-```ez
-mut x int = 42                // Explicit type required for standalone literal
-mut name string = "Alice"     // Explicit type required
-```
+Explicit type annotations are never required but can be used for clarity or documentation.
 
 ### 4.4 Type Conversions
 
@@ -803,7 +819,7 @@ primary_expr = identifier
 ```ez
 {1, 2, 3}
 {"a", "b", "c"}
-{}  // Empty array
+{}   // Empty array (not to be confused with {:} which is an empty map)
 ```
 
 All elements in an array literal must be the same type. Mixed-type literals are rejected at compile time (E3001):
@@ -814,10 +830,7 @@ All elements in an array literal must be the same type. Mixed-type literals are 
 
 #### 6.1.2 Map Literals
 
-```ez
-{"key": "value", "another": "pair"}
-{1: "one", 2: "two"}
-```
+See [Section 4.2.2](#422-maps) for map literal syntax, including the `{:}` empty map literal.
 
 #### 6.1.3 Struct Literals
 
@@ -1532,6 +1545,61 @@ Rules:
 ### 8.8 Function Scope
 
 All functions in EZ are declared at the top level or inside struct blocks. Nested function declarations inside other functions are not permitted. Anonymous functions (lambdas/closures) are not supported.
+
+### 8.9 Wildcard Types (`?`)
+
+The `?` type is a wildcard placeholder that enables generic-style functions. When used in a function's parameter types, `?` is bound to the concrete type of the argument at each call site. The return type can also use `?` to propagate the bound type.
+
+```ez
+do identity(x ?) -> ? {
+    return x
+}
+
+mut a = identity(42)        // ? binds to int, returns int
+mut b = identity("hello")   // ? binds to string, returns string
+```
+
+All `?` placeholders in a function signature bind to the same concrete type:
+
+```ez
+do pick_first(a ?, b ?) -> ? {
+    return a
+}
+
+pick_first(1, 2)          // OK — both args are int, ? binds to int
+pick_first(1, "hello")    // Error — conflicting bindings for ?
+```
+
+Wildcard types also work with composite types in parameters and returns:
+
+```ez
+do first(arr [?]) -> ? {
+    return arr[0]
+}
+
+mut x = first({1, 2, 3})      // ? binds to int
+mut y = first({"a", "b"})     // ? binds to string
+```
+
+#### Where `?` is allowed
+
+`?` is **only** valid in function parameter types and return types. It is rejected everywhere else:
+
+| Usage | Result |
+|-------|--------|
+| Function parameter type | Allowed |
+| Function return type | Allowed (must have at least one `?` parameter) |
+| Variable declaration (`mut x ?`) | Rejected (E2002) |
+| Struct field type | Rejected (E2070) |
+| Array type in variable (`[?]`) | Rejected (E2070) |
+| Map type in variable (`map[string:?]`) | Rejected (E2070) |
+| `new(?)` | Rejected |
+
+#### Binding rules
+
+- The concrete type is inferred from the first argument that corresponds to a `?` parameter
+- All subsequent `?` parameters and the return type must be consistent with that binding
+- If the return type uses `?`, at least one parameter must also use `?` to provide the binding
 
 ---
 
@@ -2751,51 +2819,7 @@ Runs all test suites in sequence:
 
 Exits with status 1 if any suite fails.
 
----
-
-## Appendix A: Grammar Summary
-
-```ebnf
-program        = { declaration } .
-declaration    = import_decl | using_decl | func_decl
-               | struct_decl | enum_decl | const_decl .
-
-import_decl    = "import" [ "&" "use" ] import_path { "," import_path } .
-import_path    = [ identifier ] ( "@" identifier | string_literal ) .
-using_decl     = "using" identifier { "," identifier } .
-
-func_decl      = [ "private" ] "do" identifier "(" [ param_list ] ")" [ "->" return_type ] block .
-struct_decl    = "const" identifier "struct" "{" { field_decl } "}" .
-enum_decl      = [ "#flags" | "#enum" "(" "int" ")" ] "const" identifier "enum"
-               "{" enum_member { enum_member } "}" .
-const_decl     = [ "private" ] "const" identifier [ type ] "=" expression .
-var_decl       = "mut" identifier [ type ] "=" expression [ "or_return" ] .
-
-statement      = var_decl | const_decl | if_stmt | for_stmt | for_each_stmt
-               | while_stmt | loop_stmt | when_stmt | return_stmt | break_stmt
-               | continue_stmt | ensure_stmt | expr_stmt .
-
-if_stmt        = "if" expression block { "or" expression block } [ "otherwise" block ] .
-for_stmt       = "for" [ "(" ] identifier [ type ] "in" range_expr [ ")" ] block .
-for_each_stmt  = "for_each" [ "(" ] [ identifier "," ] identifier "in" expression [ ")" ] block .
-while_stmt     = ( "as_long_as" | "while" ) expression block .
-loop_stmt      = "loop" block .
-when_stmt      = [ "#strict" ] "when" expression "{" { when_case } [ default_case ] "}" .
-when_case      = "is" pattern { "," pattern } block .
-default_case   = "default" block .
-return_stmt    = "return" [ expression { "," expression } ] .
-break_stmt     = "break" .
-continue_stmt  = "continue" .
-ensure_stmt    = "ensure" call_expr .
-func_ref       = "()" identifier { "." identifier } .
-
-expression     = /* standard expression grammar with operators */ .
-block          = "{" { statement } "}" .
-```
-
----
-
-## Appendix B: Error Codes
+## Appendix A: Error Codes
 
 ### Overview
 
@@ -3200,18 +3224,6 @@ block          = "{" { statement } "}" .
 | W3001 | empty-block | Block statement is empty |
 | W3002 | redundant-condition | Condition is always true/false |
 | W3003 | array-size-mismatch | Fixed-size array not fully initialized |
-
----
-
-## Appendix C: Revision History
-
-| Version | Date | Changes |
-|---------|------|---------|
-| 1.0-draft | January 2026 | Initial draft |
-| 1.1-draft | January 31, 2026 | Added hex escapes, `!in` operator, blank identifier, `ref()` builtin, negative step `range()`, `mut` mutability; fixed terminology to use check-time instead of compile-time; added `uint` to primitive lists |
-| 1.2-draft | February 12, 2026 | Added `for_each` index variable, named return variables, `cast` keyword, raw string literals, octal literals, `private` visibility, `#doc` attribute; added `@server`, `@regex`, `@csv` modules; updated `@http`, `@db`, `@math`, `@strings`, `@time`, `@arrays` modules; fixed `remove` → `remove_at` in arrays; expanded Appendix B with comprehensive error code reference (181 errors, 14 warnings) |
-| 2.0-draft | March 24, 2026 | **EZ 3.0 release.** Renamed `temp` → `mut`; added `while` alias for `as_long_as`; added `or_return` error propagation; added function references `()func_name` and `ref(func_name)`; added struct-namespaced functions; added map iteration via `for_each`; lifted `when`/`is` restrictions for bools, nil, floats; overhauled module system (filesystem-based identity, no `module` declarations, collision detection E6010, double-import prevention E6011); redesigned `@server` module with FCF handlers, path params, middleware, CORS, JSON parsing, static files; renamed `time.make` → `time.timestamp`, `uuid.create` → `uuid.generate`; added ambiguity detection E4008 for `using` conflicts; added E5025 dangling-reference, W2012 float-when-imprecise; removed E2044, E2048, E2049, E6005, E6006, W4001 |
-| 2.1-draft | March 28, 2026 | **API naming overhaul.** Renamed builtin sleep functions to shorthand (`sleep_s`, `sleep_ms`, `sleep_ns`); removed sized type conversion builtins (`u8()`, `i32()`, etc. — use `cast` instead); removed `read_int`, `EXIT_SUCCESS`/`EXIT_FAILURE`. **@strings:** `upper`→`to_upper`, `lower`→`to_lower`, `index`→`index_of`; removed `to_int`/`to_float`. **@maps:** `remove`→`remove_key`; added `is_empty`. **@time:** `iso`→`to_iso`, `clock`→`to_time`; removed sleep functions (live in `@std` only). **@math:** `is_inf`→`is_infinite`; removed `math.random` (live in `@random` only). **@random:** renamed type-name functions to `rand_int`, `rand_float`, `rand_bool`, `rand_byte`, `rand_char`; absorbed `random_hex` from `@crypto`. **@json:** `pretty`→`pretty_print`. **@io:** `rename`→`rename_file`. **@os:** `cwd`→`current_dir`; removed `exit` (builtin only). **@http:** `Http_Response`→`HttpResponse`; added `patch`. **@uuid:** swapped defaults — `generate` now returns no hyphens, added `generate_hyphenated`. **@binary:** added 128/256-bit encode/decode variants. **@sqlite:** added parameterized queries, prepared statements (`prepare`/`step`/`finalize`), transactions (`begin`/`commit`/`rollback`). **@server:** `route`→`add_route`; `Http_Response`→`HttpResponse`. **@regex:** `match`→`is_match`. **@csv:** `parse`→`decode`, `stringify`→`encode`, `read`→`read_file`, `write`→`write_file`. **@net:** `dial`→`connect`, `recv`→`receive`. **@threads split** into `@threads` (spawn/join/get_id), `@sync` (create_mutex/lock/unlock/destroy_mutex), `@channels` (open_channel/send/receive/close_channel). **@mem:** `make`→`init`, `copy`→`raw_copy`, `set`→`fill`. Removed `sleep_ms` from threads, `exit` from `@os`, `random_hex` from `@crypto`. |
 
 ---
 
