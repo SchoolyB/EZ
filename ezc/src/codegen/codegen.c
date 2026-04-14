@@ -241,29 +241,47 @@ static const char *ez_map_elem_c_type(CodeGen *cg, const char *ez_tn) {
     }
 }
 
-/* Deep-copy an array value whose element type may itself be a collection
- * (#1465). Emits a C statement expression that reads `src_var` (which
- * must be a named lvalue holding an EzArray) and materialises a fully
- * independent copy. For leaf element types (primitives, strings, structs)
- * the shallow ez_array_copy is sufficient and is emitted directly; for
- * element type [[...]] the function recurses, opening a fresh EzArray
- * and deep-copying each element slot individually.
+/* --- Deep copy machinery (#1465, #1466) ---
  *
- * Scope: handles [T], [[T]], [[[T]]], ... for any element that bottoms
- * out in a non-collection type. Arrays whose elements are maps, or maps
- * whose values are arrays, are intentionally left to the existing
- * ez_map_copy / ez_array_copy paths — those are tracked as follow-up
- * gaps on #1465 and share infrastructure with #1464. */
-static void emit_deep_copy_expr(CodeGen *cg, const char *ez_tn, const char *src_var);
-static void emit_deep_copy_expr(CodeGen *cg, const char *ez_tn, const char *src_var) {
-    if (!ez_tn || ez_tn[0] != '[') {
-        /* Not an array type — the shallow path is already correct. */
-        emitf(cg, "ez_array_copy(ez_default_arena, &%s)", src_var);
-        return;
-    }
+ * A value is "needs-deep-copy" iff reading one C-level copy of it
+ * would share mutable backing storage with the source. That covers
+ * arrays (EzArray header aliases data), maps (EzMap header aliases
+ * keys/values/states/order), and any struct that transitively holds a
+ * field of either. Pointers are deliberately left to alias — following
+ * the pointee would surprise users, loop on cycles, and doesn't match
+ * how any real language treats pointer copy.
+ *
+ * Three mutually-recursive emitters handle each collection kind, and
+ * emit_value_deep_copy dispatches based on the EZ type string. All of
+ * them take a `src_var` naming a C lvalue holding the source value,
+ * and emit a single C expression (usually a GCC statement expression)
+ * that evaluates to a fully independent copy. */
 
-    size_t len = strlen(ez_tn);
-    if (len < 3 || ez_tn[len - 1] != ']') {
+static AstNode *find_struct_decl(CodeGen *cg, const char *name);
+
+static bool type_needs_deep_copy(CodeGen *cg, const char *ez_tn) {
+    if (!ez_tn || !*ez_tn) return false;
+    if (ez_tn[0] == '[') return true;
+    if (strncmp(ez_tn, "map[", 4) == 0) return true;
+    if (ez_tn[0] == '^') return false; /* pointers alias — see header comment */
+    AstNode *sdecl = find_struct_decl(cg, ez_tn);
+    if (!sdecl) return false;
+    for (int i = 0; i < sdecl->data.struct_decl.field_count; i++) {
+        const char *ft = sdecl->data.struct_decl.fields[i].type_name;
+        if (type_needs_deep_copy(cg, ft)) return true;
+    }
+    return false;
+}
+
+/* Shared counter for unique temp names across all deep-copy emitters. */
+static int deep_copy_tag_counter = 0;
+static int next_dc_tag(void) { return deep_copy_tag_counter++; }
+
+static void emit_value_deep_copy(CodeGen *cg, const char *ez_tn, const char *src_var);
+
+static void emit_array_deep_copy(CodeGen *cg, const char *ez_tn, const char *src_var) {
+    size_t len = ez_tn ? strlen(ez_tn) : 0;
+    if (len < 3 || ez_tn[0] != '[' || ez_tn[len - 1] != ']') {
         emitf(cg, "ez_array_copy(ez_default_arena, &%s)", src_var);
         return;
     }
@@ -277,45 +295,157 @@ static void emit_deep_copy_expr(CodeGen *cg, const char *ez_tn, const char *src_
     char *comma = strchr(elem_tn, ',');
     if (comma) *comma = '\0';
 
-    if (elem_tn[0] != '[') {
-        /* Leaf element type — ez_array_copy is already deep enough. */
+    if (!type_needs_deep_copy(cg, elem_tn)) {
+        /* Flat element type — the shallow bulk memcpy in ez_array_copy
+         * is already correct. */
         emitf(cg, "ez_array_copy(ez_default_arena, &%s)", src_var);
         return;
     }
 
-    /* Element is itself an array: allocate a fresh outer and deep-copy
-     * each inner EzArray slot. */
-    static int dc_tag = 0;
-    int t = dc_tag++;
+    /* Element needs its own deep copy. Allocate a fresh outer and walk
+     * each slot, recursively deep-copying the element in place. */
+    const char *c_elem = ez_type_to_c_cg(cg, elem_tn);
+    int t = next_dc_tag();
     emitf(cg,
         "({ EzArray _ds%d = %s; "
-        "EzArray _dd%d = ez_array_new(ez_default_arena, sizeof(EzArray), _ds%d.len); "
+        "EzArray _dd%d = ez_array_new(ez_default_arena, sizeof(%s), _ds%d.len); "
         "_dd%d.len = _ds%d.len; "
         "for (int32_t _di%d = 0; _di%d < _ds%d.len; _di%d++) { "
-        "EzArray _de%d = ",
+        "%s _de%d = ",
         t, src_var,
-        t, t,
+        t, c_elem, t,
         t, t,
         t, t, t, t,
-        t);
+        c_elem, t);
 
-    char inner_var[96];
+    char inner_var[192];
     snprintf(inner_var, sizeof(inner_var),
-        "((EzArray *)_ds%d.data)[_di%d]", t, t);
-    emit_deep_copy_expr(cg, elem_tn, inner_var);
+        "((%s *)_ds%d.data)[_di%d]", c_elem, t, t);
+    emit_value_deep_copy(cg, elem_tn, inner_var);
 
     emitf(cg,
-        "; ((EzArray *)_dd%d.data)[_di%d] = _de%d; "
+        "; ((%s *)_dd%d.data)[_di%d] = _de%d; "
         "} _dd%d; })",
+        c_elem, t, t, t, t);
+}
+
+static void emit_map_deep_copy(CodeGen *cg, const char *ez_tn, const char *src_var) {
+    /* Parse "map[K:V]" into its two slots. */
+    if (!ez_tn || strncmp(ez_tn, "map[", 4) != 0) {
+        emitf(cg, "ez_map_copy(ez_default_arena, &%s)", src_var);
+        return;
+    }
+    size_t len = strlen(ez_tn);
+    if (len < 7 || ez_tn[len - 1] != ']') {
+        emitf(cg, "ez_map_copy(ez_default_arena, &%s)", src_var);
+        return;
+    }
+    const char *start = ez_tn + 4;
+    const char *colon = strchr(start, ':');
+    if (!colon) {
+        emitf(cg, "ez_map_copy(ez_default_arena, &%s)", src_var);
+        return;
+    }
+    char key_tn[128];
+    char val_tn[256];
+    size_t klen = (size_t)(colon - start);
+    if (klen >= sizeof(key_tn)) klen = sizeof(key_tn) - 1;
+    memcpy(key_tn, start, klen);
+    key_tn[klen] = '\0';
+    size_t vlen = len - 4 - klen - 1 - 1; /* drop "map[", K, ":", "]" */
+    if (vlen >= sizeof(val_tn)) vlen = sizeof(val_tn) - 1;
+    memcpy(val_tn, colon + 1, vlen);
+    val_tn[vlen] = '\0';
+
+    if (!type_needs_deep_copy(cg, val_tn)) {
+        /* Value type is flat — the existing runtime helper is correct.
+         * Keys never need deep copying in our model. */
+        emitf(cg, "ez_map_copy(ez_default_arena, &%s)", src_var);
+        return;
+    }
+
+    /* Value type needs recursion. Iterate the source in insertion order,
+     * deep-copy each value, and insert into a fresh map. */
+    const char *c_key = ez_map_elem_c_type(cg, key_tn);
+    const char *c_val = ez_map_elem_c_type(cg, val_tn);
+    int t = next_dc_tag();
+    emitf(cg,
+        "({ EzMap _ms%d = %s; "
+        "EzMap _md%d = ez_map_new(ez_default_arena, _ms%d.key_size, _ms%d.value_size, "
+        "_ms%d.order_len > 4 ? _ms%d.order_len * 2 : 8); "
+        "for (int32_t _mi%d = 0; _mi%d < _ms%d.order_len; _mi%d++) { "
+        "int32_t _mslot%d = _ms%d.order[_mi%d]; "
+        "%s _mk%d = *(%s *)ez_map_key_at(&_ms%d, _mslot%d); "
+        "%s _mvs%d = *(%s *)ez_map_value_at(&_ms%d, _mslot%d); "
+        "%s _mvd%d = ",
+        t, src_var,
+        t, t, t, t, t,
+        t, t, t, t,
+        t, t, t,
+        c_key, t, c_key, t, t,
+        c_val, t, c_val, t, t,
+        c_val, t);
+
+    char src_val_var[64];
+    snprintf(src_val_var, sizeof(src_val_var), "_mvs%d", t);
+    emit_value_deep_copy(cg, val_tn, src_val_var);
+
+    emitf(cg,
+        "; ez_map_set(ez_default_arena, &_md%d, &_mk%d, &_mvd%d); "
+        "} _md%d; })",
         t, t, t, t);
 }
 
-/* Wire emit_deep_copy_expr into a site that has an AstNode for the source
- * and knows the array element type string. Evaluates the source once into
- * a temp, then invokes the recursive copier. */
+static void emit_struct_deep_copy(CodeGen *cg, const char *struct_tn, const char *src_var) {
+    AstNode *sdecl = find_struct_decl(cg, struct_tn);
+    if (!sdecl) {
+        /* No decl info — bitwise copy is the best we can do. */
+        emitf(cg, "%s", src_var);
+        return;
+    }
+    const char *c_struct = ez_type_to_c_cg(cg, struct_tn);
+    int t = next_dc_tag();
+    emitf(cg,
+        "({ %s _ss%d = %s; %s _sd%d = _ss%d; ",
+        c_struct, t, src_var, c_struct, t, t);
+    for (int i = 0; i < sdecl->data.struct_decl.field_count; i++) {
+        StructField *f = &sdecl->data.struct_decl.fields[i];
+        if (!f->type_name || !f->name) continue;
+        if (!type_needs_deep_copy(cg, f->type_name)) continue;
+        char src_field[192];
+        snprintf(src_field, sizeof(src_field), "_ss%d.%s", t, f->name);
+        emitf(cg, "_sd%d.%s = ", t, f->name);
+        emit_value_deep_copy(cg, f->type_name, src_field);
+        emit(cg, "; ");
+    }
+    emitf(cg, "_sd%d; })", t);
+}
+
+static void emit_value_deep_copy(CodeGen *cg, const char *ez_tn, const char *src_var) {
+    if (!type_needs_deep_copy(cg, ez_tn)) {
+        /* Primitive / pointer / scalar struct — C value copy is correct. */
+        emitf(cg, "%s", src_var);
+        return;
+    }
+    if (ez_tn[0] == '[') {
+        emit_array_deep_copy(cg, ez_tn, src_var);
+        return;
+    }
+    if (strncmp(ez_tn, "map[", 4) == 0) {
+        emit_map_deep_copy(cg, ez_tn, src_var);
+        return;
+    }
+    /* Must be a struct that needs recursion. */
+    emit_struct_deep_copy(cg, ez_tn, src_var);
+}
+
+/* Entry point used by the three sites that hold an AstNode for the
+ * source array (copy() builtin, var_decl copy-on-assign, assignment
+ * copy-on-assign). Evaluates the AstNode once into a temp, then hands
+ * the temp name to emit_value_deep_copy with a reconstructed "[elem]"
+ * type string. */
 static void emit_deep_array_copy(CodeGen *cg, AstNode *src_node, const char *elem_type_name) {
-    static int dc_top_tag = 0;
-    int t = dc_top_tag++;
+    int t = next_dc_tag();
     emitf(cg, "({ EzArray _dtop%d = ", t);
     emit_expression(cg, src_node);
     emit(cg, "; ");
@@ -323,7 +453,7 @@ static void emit_deep_array_copy(CodeGen *cg, AstNode *src_node, const char *ele
     snprintf(src_var, sizeof(src_var), "_dtop%d", t);
     char full_tn[256];
     snprintf(full_tn, sizeof(full_tn), "[%s]", elem_type_name ? elem_type_name : "");
-    emit_deep_copy_expr(cg, full_tn, src_var);
+    emit_value_deep_copy(cg, full_tn, src_var);
     emit(cg, "; })");
 }
 
@@ -2278,56 +2408,34 @@ static bool emit_builtin_call(CodeGen *cg, AstNode *node, const char *func) {
     if (strcmp(func, "copy") == 0 && node->data.call.arg_count == 1) {
         AstNode *arg = node->data.call.args[0];
         EzType *at = cg->type_table ? typetable_get(cg->type_table, arg) : NULL;
-        if (at && at->kind == TK_ARRAY) {
-            /* Route through the deep-copy emitter so [[T]] and deeper
-             * nestings don't share inner backing storage (#1465). */
-            emit_deep_array_copy(cg, arg, at->element_type);
-        } else if (at && at->kind == TK_MAP) {
-            emit(cg, "ez_map_copy(ez_default_arena, &");
+        if (at && (at->kind == TK_ARRAY || at->kind == TK_MAP || at->kind == TK_STRUCT)) {
+            /* Route every container kind through the unified deep-copy
+             * emitter so nested collections, structs containing
+             * collections, collections containing such structs, and any
+             * transitive mix of those all come out fully independent
+             * of the source (#1465, #1466). */
+            int t = next_dc_tag();
+            const char *c_type = (at->kind == TK_ARRAY) ? "EzArray"
+                               : (at->kind == TK_MAP) ? "EzMap"
+                               : ez_type_to_c_cg(cg, at->name);
+            emitf(cg, "({ %s _cpy%d = ", c_type, t);
             emit_expression(cg, arg);
-            emit(cg, ")");
-        } else if (at && at->kind == TK_STRUCT) {
-            /* Bitwise struct copy is correct for scalar fields but
-             * leaves any array/map fields sharing backing storage with
-             * the source (#1466). Emit a bitwise copy into a temp, then
-             * overwrite each collection-typed field with a deep copy
-             * of the source's corresponding field. */
-            AstNode *sdecl = find_struct_decl(cg, at->name);
-            if (!sdecl) {
-                /* No decl info available — fall back to the original
-                 * bitwise behavior. */
-                emit_expression(cg, arg);
-                return true;
+            emit(cg, "; ");
+            char src_var[32];
+            snprintf(src_var, sizeof(src_var), "_cpy%d", t);
+            char full_tn[256];
+            if (at->kind == TK_ARRAY) {
+                snprintf(full_tn, sizeof(full_tn), "[%s]",
+                    at->element_type ? at->element_type : "");
+            } else if (at->kind == TK_MAP) {
+                snprintf(full_tn, sizeof(full_tn), "map[%s:%s]",
+                    at->key_type ? at->key_type : "",
+                    at->value_type ? at->value_type : "");
+            } else {
+                snprintf(full_tn, sizeof(full_tn), "%s", at->name ? at->name : "");
             }
-            const char *c_struct = ez_type_to_c_cg(cg, at->name);
-            static int sc_tag = 0;
-            int t = sc_tag++;
-            emitf(cg, "({ %s _scs%d = ", c_struct, t);
-            emit_expression(cg, arg);
-            emitf(cg, "; %s _scd%d = _scs%d; ", c_struct, t, t);
-            for (int i = 0; i < sdecl->data.struct_decl.field_count; i++) {
-                StructField *f = &sdecl->data.struct_decl.fields[i];
-                if (!f->type_name || !f->name) continue;
-                if (f->type_name[0] == '[') {
-                    /* Array field — deep copy via emit_deep_copy_expr,
-                     * which also recurses into [[T]] correctly. */
-                    char src_var[192];
-                    snprintf(src_var, sizeof(src_var), "_scs%d.%s", t, f->name);
-                    emitf(cg, "_scd%d.%s = ", t, f->name);
-                    emit_deep_copy_expr(cg, f->type_name, src_var);
-                    emit(cg, "; ");
-                } else if (strncmp(f->type_name, "map[", 4) == 0) {
-                    /* Map field — re-allocate fresh backing storage. */
-                    emitf(cg,
-                        "_scd%d.%s = ez_map_copy(ez_default_arena, &_scs%d.%s); ",
-                        t, f->name, t, f->name);
-                }
-                /* Scalars, enums, pointers, and nested struct fields
-                 * inherit the bitwise copy. Pointers and
-                 * structs-containing-collections are listed on #1466 as
-                 * follow-up gaps and stay as-is for this pass. */
-            }
-            emitf(cg, "_scd%d; })", t);
+            emit_value_deep_copy(cg, full_tn, src_var);
+            emit(cg, "; })");
         } else {
             emit_expression(cg, arg);
         }
