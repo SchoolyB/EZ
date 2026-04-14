@@ -2906,6 +2906,13 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
                 }
             }
         }
+        /* E3059: maps cannot be declared const */
+        if (!node->data.var_decl.mutable && node->data.var_decl.type_name &&
+            strncmp(node->data.var_decl.type_name, "map[", 4) == 0) {
+            diag_error(tc->diag, "E3059",
+                strdup("maps cannot be declared const — use 'mut' for maps or a struct for fixed data"),
+                tc->file, node->token.line, node->token.column, 0);
+        }
         /* const must have a value */
         if (!node->data.var_decl.mutable && !node->data.var_decl.value) {
             char msg[256];
