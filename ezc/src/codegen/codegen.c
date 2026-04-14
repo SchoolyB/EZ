@@ -220,9 +220,12 @@ static const char *ez_type_to_c_cg(CodeGen *cg, const char *type_name) {
 }
 
 /* Resolve an EZ type to its C type for map key/value storage.
- * Uses ez_type_to_c_cg for struct/array/map types, hardcoded for primitives. */
+ * Uses ez_type_to_c_cg for struct/array/map types, hardcoded for primitives.
+ * Routes the input through cg_effective_type_str so '?' inside a generic
+ * instantiation resolves to the active wildcard binding (#1463). */
 static const char *ez_map_elem_c_type(CodeGen *cg, const char *ez_tn) {
     if (!ez_tn) return "int64_t";
+    ez_tn = cg_effective_type_str(cg, ez_tn);
     EzType *t = type_from_name(ez_tn);
     switch (t->kind) {
     case TK_FLOAT:   return "double";
@@ -3882,6 +3885,36 @@ static void emit_call_expression(CodeGen *cg, AstNode *node) {
                 } else if (ptn[0] == '[' && strncmp(ptn + 1, "?]", 2) == 0 &&
                            at->kind == TK_ARRAY && at->element_type) {
                     binding = at->element_type;
+                } else if (strncmp(ptn, "map[", 4) == 0 && at->kind == TK_MAP &&
+                           at->key_type && at->value_type) {
+                    /* map[K:V] with '?' in the key, value, or both slots
+                     * (#1463). Mirror bind_wildcard() in the typechecker:
+                     * the concrete side (if any) must match the arg's
+                     * corresponding slot; the wildcard side binds to the
+                     * arg's slot. */
+                    const char *start = ptn + 4;
+                    const char *colon = strchr(start, ':');
+                    if (!colon) continue;
+                    size_t klen = (size_t)(colon - start);
+                    const char *vstart = colon + 1;
+                    size_t vlen = strlen(vstart);
+                    if (vlen == 0 || vstart[vlen - 1] != ']') continue;
+                    vlen--;
+                    bool k_wild = (klen == 1 && start[0] == '?');
+                    bool v_wild = (vlen == 1 && vstart[0] == '?');
+                    if (!k_wild && (strlen(at->key_type) != klen ||
+                                    memcmp(at->key_type, start, klen) != 0)) continue;
+                    if (!v_wild && (strlen(at->value_type) != vlen ||
+                                    memcmp(at->value_type, vstart, vlen) != 0)) continue;
+                    if (k_wild && v_wild) {
+                        if (strcmp(at->key_type, at->value_type) == 0) {
+                            binding = at->key_type;
+                        }
+                    } else if (k_wild) {
+                        binding = at->key_type;
+                    } else {
+                        binding = at->value_type;
+                    }
                 }
             }
             char mangled[256];

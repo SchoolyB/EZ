@@ -42,6 +42,17 @@ do contains(arr [?], target ?) -> bool {
     return false
 }
 
+// --- map wildcard helpers (#1463) ---
+
+do get_or(m map[string:?], k string, fallback ?) -> ? {
+    if k in m { return m[k] }
+    return fallback
+}
+
+do has_key(m map[?:int], k ?) -> bool {
+    return k in m
+}
+
 do main() {
     println("=== Wildcard Types Test ===")
     mut passed int = 0
@@ -141,6 +152,38 @@ do main() {
         passed += 1
     } otherwise {
         println("  [FAIL] nested wildcard calls")
+        failed += 1
+    }
+
+    // -- map[K:?] with concrete key and wildcard value — #1463 --
+    mut ages map[string:int] = {"alice": 30, "bob": 25}
+    if get_or(ages, "alice", 0) == 30 && get_or(ages, "zoe", 99) == 99 {
+        println("  [PASS] get_or on map[string:int]")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] get_or on map[string:int]")
+        failed += 1
+    }
+
+    // -- same generic reused against a different concrete value type --
+    mut titles map[string:string] = {"a": "Admin"}
+    if get_or(titles, "a", "Guest") == "Admin" && get_or(titles, "b", "Guest") == "Guest" {
+        println("  [PASS] get_or on map[string:string]")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] get_or on map[string:string]")
+        failed += 1
+    }
+
+    // -- map[?:V] with wildcard key and concrete value — #1463 comment --
+    mut prices map[string:int] = {"apple": 5}
+    mut weights map[int:int] = {42: 7}
+    if has_key(prices, "apple") && !has_key(prices, "pear") &&
+       has_key(weights, 42) && !has_key(weights, 99) {
+        println("  [PASS] has_key across map[string:int] and map[int:int]")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] has_key across map[string:int] and map[int:int]")
         failed += 1
     }
 

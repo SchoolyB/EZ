@@ -201,10 +201,13 @@ static char *substitute_wildcard(const char *src, const char *concrete) {
 /* Derive the "concrete type that a wildcard parameter binds to", given
  * the parameter's source type string (containing '?') and the argument's
  * resolved EzType. Examples:
- *   param "?"   + arg int      -> "int"
- *   param "[?]" + arg [string] -> "string"
+ *   param "?"             + arg int                -> "int"
+ *   param "[?]"            + arg [string]           -> "string"
+ *   param "map[string:?]"  + arg map[string:int]    -> "int"
+ *   param "map[?:int]"     + arg map[string:int]    -> "string"
  * Returns NULL if the shape doesn't match (e.g. param "[?]" with a
- * non-array arg). Caller owns the returned string. */
+ * non-array arg, or param "map[int:?]" with a map whose key type is
+ * not int). Caller owns the returned string. */
 static char *bind_wildcard(const char *param_tn, EzType *arg_t) {
     if (!param_tn || !arg_t) return NULL;
     if (strcmp(param_tn, "?") == 0) {
@@ -219,6 +222,51 @@ static char *bind_wildcard(const char *param_tn, EzType *arg_t) {
         if (strncmp(inside, "?]", 2) == 0) {
             return strdup(arg_t->element_type);
         }
+    }
+    /* map[K:V] with '?' in either slot (#1463). The array path above
+     * only handles "[?]"; the equivalent TK_MAP path here was missing,
+     * so every generic map helper silently fell through to NULL. */
+    if (strncmp(param_tn, "map[", 4) == 0 && arg_t->kind == TK_MAP &&
+        arg_t->key_type && arg_t->value_type) {
+        /* Split the param's key/value slots at the top-level ':'. */
+        const char *start = param_tn + 4;
+        const char *colon = strchr(start, ':');
+        if (!colon) return NULL;
+        size_t klen = (size_t)(colon - start);
+        const char *vstart = colon + 1;
+        size_t vlen = strlen(vstart);
+        if (vlen == 0 || vstart[vlen - 1] != ']') return NULL;
+        vlen--; /* drop trailing ']' */
+
+        bool k_wild = (klen == 1 && start[0] == '?');
+        bool v_wild = (vlen == 1 && vstart[0] == '?');
+
+        /* If the key slot is concrete, it must match the argument's key
+         * type exactly — otherwise the map types genuinely disagree and
+         * unification should fail. Same for the value slot. */
+        if (!k_wild) {
+            if (strlen(arg_t->key_type) != klen ||
+                memcmp(arg_t->key_type, start, klen) != 0) {
+                return NULL;
+            }
+        }
+        if (!v_wild) {
+            if (strlen(arg_t->value_type) != vlen ||
+                memcmp(arg_t->value_type, vstart, vlen) != 0) {
+                return NULL;
+            }
+        }
+
+        if (k_wild && v_wild) {
+            /* Both slots are '?'. The generic sig carries a single
+             * wildcard binding, so we can only accept this when the
+             * argument's key and value types agree (the one binding
+             * satisfies both slots). */
+            if (strcmp(arg_t->key_type, arg_t->value_type) != 0) return NULL;
+            return strdup(arg_t->key_type);
+        }
+        if (k_wild) return strdup(arg_t->key_type);
+        if (v_wild) return strdup(arg_t->value_type);
     }
     return NULL;
 }

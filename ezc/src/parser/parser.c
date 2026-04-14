@@ -273,7 +273,8 @@ static const char *parse_complex_type(Parser *p) {
             val_type = p->cur_token.literal;
         }
         if (!expect_peek(p, TOK_RBRACKET)) return NULL;
-        size_t ts_len = strlen(key_type) + strlen(val_type) + 6;
+        /* "map[" + key + ":" + val + "]" + '\0' = klen + vlen + 7 */
+        size_t ts_len = strlen(key_type) + strlen(val_type) + 7;
         char *type_str = arena_alloc(p->arena, ts_len);
         snprintf(type_str, ts_len, "map[%s:%s]", key_type, val_type);
         return type_str;
