@@ -1645,6 +1645,7 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
                 else if (et->kind == TK_CHAR) c_elem = "int32_t";
                 else if (et->kind == TK_BYTE) c_elem = "uint8_t";
                 else if (et->kind == TK_ARRAY) c_elem = "EzArray";
+                else if (et->kind == TK_MAP) c_elem = "EzMap";
                 else if (et->kind == TK_STRUCT) c_elem = ez_type_to_c_cg(cg, elem_tn);
                 else if (et->kind == TK_POINTER) {
                     static char idx_ptr_buf[256];
@@ -1678,13 +1679,26 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
             const char *c_val = "int64_t";
             if (left_t->key_type) c_key = ez_map_elem_c_type(cg, left_t->key_type);
             if (left_t->value_type) c_val = ez_map_elem_c_type(cg, left_t->value_type);
-            emitf(cg, "({ %s _mk = ", c_key);
-            emit_expression(cg, node->data.index_expr.index);
-            emitf(cg, "; void *_mv = ez_map_get(&");
-            emit_expression(cg, node->data.index_expr.left);
-            emitf(cg, ", &_mk); if (!_mv) { fflush(stdout); ez_panic(__FILE__, %d, \"key not found in map\"); } ",
-                node->token.line);
-            emitf(cg, "*(%s *)_mv; })", c_val);
+            /* When the left side is an rvalue (e.g. chained map access
+             * like m["a"]["x"]), store it in a temp to make it addressable. */
+            if (node->data.index_expr.left->kind == NODE_INDEX_EXPR ||
+                node->data.index_expr.left->kind == NODE_CALL_EXPR) {
+                emitf(cg, "({ EzMap _mt = ");
+                emit_expression(cg, node->data.index_expr.left);
+                emitf(cg, "; %s _mk = ", c_key);
+                emit_expression(cg, node->data.index_expr.index);
+                emitf(cg, "; void *_mv = ez_map_get(&_mt, &_mk); if (!_mv) { fflush(stdout); ez_panic(__FILE__, %d, \"key not found in map\"); } ",
+                    node->token.line);
+                emitf(cg, "*(%s *)_mv; })", c_val);
+            } else {
+                emitf(cg, "({ %s _mk = ", c_key);
+                emit_expression(cg, node->data.index_expr.index);
+                emitf(cg, "; void *_mv = ez_map_get(&");
+                emit_expression(cg, node->data.index_expr.left);
+                emitf(cg, ", &_mk); if (!_mv) { fflush(stdout); ez_panic(__FILE__, %d, \"key not found in map\"); } ",
+                    node->token.line);
+                emitf(cg, "*(%s *)_mv; })", c_val);
+            }
         } else if (left_t && left_t->kind == TK_STRING) {
             /* String indexing with bounds check: s.data[i] */
             emitf(cg, "({ EzString _es = ");
@@ -5322,6 +5336,7 @@ static void emit_statement(CodeGen *cg, AstNode *node) {
                 else if (et->kind == TK_BOOL) c_elem = "bool";
                 else if (et->kind == TK_STRING) c_elem = "EzString";
                 else if (et->kind == TK_ARRAY) c_elem = "EzArray";
+                else if (et->kind == TK_MAP) c_elem = "EzMap";
                 else if (et->kind == TK_STRUCT) c_elem = ez_type_to_c_cg(cg, elem_tn);
                 else if (et->kind == TK_CHAR) c_elem = "int32_t";
                 else if (et->kind == TK_BYTE) c_elem = "uint8_t";
