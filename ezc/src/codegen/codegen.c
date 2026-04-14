@@ -4222,17 +4222,35 @@ static void emit_var_declaration(CodeGen *cg, AstNode *node) {
         }
 
         if (is_nested_array_type(type_name)) {
+            /* For `mut x [[T]] = y` where y is another variable,
+             * emit_expression would just repeat the variable name and
+             * leave x sharing inner backing storage with y. Route the
+             * label-initializer case through emit_deep_array_copy so
+             * nested copy-on-assign at declaration is as deep as the
+             * explicit copy() builtin (#1465). */
+            AstNode *init = node->data.var_decl.value;
+            bool label_init = init && init->kind == NODE_LABEL;
+            const char *label_elem_tn = NULL;
+            if (label_init) {
+                EzType *src_t = cg->type_table
+                    ? typetable_get(cg->type_table, init) : NULL;
+                if (src_t && src_t->kind == TK_ARRAY) {
+                    label_elem_tn = src_t->element_type;
+                }
+            }
             if (cg->indent == 0) {
                 emitf(cg, "EzArray %s;\n", safe_name(node->data.var_decl.name));
                 Buf saved = cg->output; cg->output = cg->global_init; cg->indent = 1;
                 emitf(cg, "    %s = ", safe_name(node->data.var_decl.name));
-                if (node->data.var_decl.value) emit_expression(cg, node->data.var_decl.value);
+                if (label_init) emit_deep_array_copy(cg, init, label_elem_tn);
+                else if (init) emit_expression(cg, init);
                 else emit(cg, "ez_array_new(ez_default_arena, sizeof(EzArray), 4)");
                 emit(cg, ";\n");
                 cg->global_init = cg->output; cg->output = saved; cg->indent = 0;
             } else {
                 emitf(cg, "EzArray %s = ", safe_name(node->data.var_decl.name));
-                if (node->data.var_decl.value) emit_expression(cg, node->data.var_decl.value);
+                if (label_init) emit_deep_array_copy(cg, init, label_elem_tn);
+                else if (init) emit_expression(cg, init);
                 else emitf(cg, "ez_array_new(ez_default_arena, sizeof(EzArray), 4)");
                 emit(cg, ";\n");
             }
