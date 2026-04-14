@@ -70,20 +70,16 @@ context/
 *.txt
 *.ezdb
 
-# Ignore JSON files except examples/json/data.json
+# Ignore JSON files
 *.json
-!examples/json/data.json
 
 # Ignore all .ez files by default (for local scratch/testing)
 *.ez
 
-# Keep tests, examples, and pz scaffolder templates tracked
+# Keep integration tests and pz scaffolder templates tracked
 !integration-tests/
 !integration-tests/**
 !integration-tests/**/*.ez
-!examples/
-!examples/**
-!examples/**/*.ez
 !cmd/ez/templates/
 !cmd/ez/templates/**
 !cmd/ez/templates/**/*.ez

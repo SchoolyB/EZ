@@ -29,8 +29,20 @@ make build
 make install
 ```
 
+Scaffold a project and run it:
+
 ```bash
-ez examples/basic/hello.ez
+ez pz hello
+cd hello
+ez main.ez
+```
+
+Or drop the snippet below into `hello.ez` and run `ez hello.ez`:
+
+```ez
+do main() {
+    println("Hello, World!")
+}
 ```
 
 That's it. EZ compiles your code to a native binary, executes it, and cleans up.

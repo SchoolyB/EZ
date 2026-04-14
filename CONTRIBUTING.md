@@ -97,8 +97,8 @@ go version
 # Build the binary
 make build
 
-# Verify it works
-./ez examples/basic/hello.ez
+# Verify it works — scaffold a throwaway project and run it
+./ez pz /tmp/hello-ez && ./ez /tmp/hello-ez/main.ez
 ```
 
 ### Makefile Commands
@@ -147,8 +147,9 @@ The fastest way to iterate on a change:
 # 2. Rebuild
 make build
 
-# 3. Test with a quick .ez file
-EZC_PATH=./ezc/ezc ./ez examples/basic/hello.ez
+# 3. Test with a quick .ez file (scaffolded via the project templates)
+./ez pz /tmp/hello-ez
+EZC_PATH=./ezc/ezc ./ez /tmp/hello-ez/main.ez
 
 # Or test with the REPL
 EZC_PATH=./ezc/ezc ./ez repl
@@ -182,7 +183,6 @@ EZ/
 │   ├── src/runtime/     # Runtime (strings, arrays, maps, arenas)
 │   ├── src/stdlib/      # Standard library (26 modules)
 │   └── tests/           # Unit, e2e, integration tests
-├── examples/            # Example EZ programs
 ├── integration-tests/   # End-to-end test suite
 ├── STANDARD.md          # Language specification
 └── Makefile             # Build commands (builds both ez + ezc)
@@ -414,7 +414,6 @@ Looking for something to work on? Check out issues labeled **"good first issue"*
 Some ideas:
 - Add documentation comments to stdlib functions
 - Improve error messages
-- Add new examples
 - Fix typos in docs
 
 ---

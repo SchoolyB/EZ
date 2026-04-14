@@ -59,7 +59,7 @@ install: build
 	@echo 'Programming made EZ'
 	@echo ""
 	@echo "EZ installed successfully!"
-	@echo "Try: ez examples/basic/hello.ez"
+	@echo "Try: ez pz hello && cd hello && ez main.ez"
 
 uninstall:
 	@echo "Uninstalling EZ..."
