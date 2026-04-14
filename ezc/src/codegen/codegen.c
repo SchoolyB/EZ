@@ -870,6 +870,17 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
             break;
         }
 
+        /* Array of maps: elements are map literals */
+        if (node->data.array_value.elements[0]->kind == NODE_MAP_VALUE) {
+            emitf(cg, "ez_array_from(ez_default_arena, (EzMap[]){");
+            for (int i = 0; i < count; i++) {
+                if (i > 0) emit(cg, ", ");
+                emit_expression(cg, node->data.array_value.elements[i]);
+            }
+            emitf(cg, "}, sizeof(EzMap), %d)", count);
+            break;
+        }
+
         /* Determine element type — try bigint detection first, then type table */
         const char *bi_elem = resolve_bigint_type(cg, node->data.array_value.elements[0]);
         EzType *elem_t = cg->type_table
@@ -908,6 +919,8 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
             c_type = ptr_buf;
             break;
         }
+        case TK_MAP:    c_type = "EzMap"; break;
+        case TK_ARRAY:  c_type = "EzArray"; break;
         default:        c_type = "int64_t"; break;
         }
 
@@ -951,19 +964,38 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
             }
         }
 
-        /* Use GCC statement expression: ({ EzMap m = ...; ez_map_set(...); m; }) */
+        /* Use GCC statement expression: ({ EzMap m = ...; ez_map_set(...); m; })
+         * Capture counter before emitting values — nested map literals will
+         * re-enter this case and increment the counter, so each level gets
+         * a unique temp name. */
         static int map_lit_counter = 0;
+        int my_counter = map_lit_counter++;
         emitf(cg, "({ EzMap _ml%d = ez_map_new(ez_default_arena, sizeof(%s), sizeof(%s), %d); ",
-            map_lit_counter, c_key_type, c_val_type, count > 4 ? count * 2 : 8);
+            my_counter, c_key_type, c_val_type, count > 4 ? count * 2 : 8);
+
+        /* For nested map values, propagate the inner type so inner literals
+         * resolve their key/value C types correctly. */
+        const char *inner_var_type = NULL;
+        if (decl_mt && decl_mt->value_type &&
+            strncmp(decl_mt->value_type, "map[", 4) == 0) {
+            inner_var_type = decl_mt->value_type;
+        }
+
         for (int i = 0; i < count; i++) {
             emitf(cg, "{ %s _mk = ", c_key_type);
             emit_expression(cg, node->data.map_value.keys[i]);
             emitf(cg, "; %s _mv = ", c_val_type);
-            emit_expression(cg, node->data.map_value.values[i]);
-            emitf(cg, "; ez_map_set(ez_default_arena, &_ml%d, &_mk, &_mv); } ", map_lit_counter);
+            if (inner_var_type) {
+                const char *saved = cg->current_var_type;
+                cg->current_var_type = inner_var_type;
+                emit_expression(cg, node->data.map_value.values[i]);
+                cg->current_var_type = saved;
+            } else {
+                emit_expression(cg, node->data.map_value.values[i]);
+            }
+            emitf(cg, "; ez_map_set(ez_default_arena, &_ml%d, &_mk, &_mv); } ", my_counter);
         }
-        emitf(cg, "_ml%d; })", map_lit_counter);
-        map_lit_counter++;
+        emitf(cg, "_ml%d; })", my_counter);
         break;
     }
 
