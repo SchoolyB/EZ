@@ -29,15 +29,7 @@ make build
 make install
 ```
 
-Scaffold a project and run it:
-
-```bash
-ez pz hello
-cd hello
-ez main.ez
-```
-
-Or drop the snippet below into `hello.ez` and run `ez hello.ez`:
+Drop the snippet below into `hello.ez` and run `ez hello.ez`:
 
 ```ez
 do main() {

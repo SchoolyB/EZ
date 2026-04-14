@@ -1,5 +1,5 @@
 # EZ Language Build System
-.PHONY: build install uninstall clean test help
+.PHONY: build stubs install uninstall clean test help
 
 BINARY_NAME=ez
 INSTALL_PATH=/usr/local/bin
@@ -17,16 +17,28 @@ help:
 	@echo ""
 	@echo "Available targets:"
 	@echo "  make build     - Build the ez binary (compiler embedded)"
+	@echo "  make stubs     - Create empty embed stubs (for dev go build)"
 	@echo "  make install   - Install ez to $(INSTALL_PATH)"
 	@echo "  make uninstall - Remove ez from $(INSTALL_PATH)"
 	@echo "  make clean     - Remove built binaries"
 	@echo "  make test      - Run all tests"
 
+# Create zero-length embed stubs. go:embed directives in
+# internal/ezc/embedded.go require these files to exist at `go build`
+# time; the extractor detects empty stubs and falls back to the legacy
+# path search so dev builds still work. Both the runtime binaries
+# themselves are gitignored — `make build` overwrites the stubs with
+# real content before invoking `go build`.
+stubs:
+	@mkdir -p $(EMBED_DIR)
+	@test -f $(EMBED_DIR)/ezc || : > $(EMBED_DIR)/ezc
+	@test -f $(EMBED_DIR)/libezrt.a || : > $(EMBED_DIR)/libezrt.a
+
 # Single-binary build (#1461): compile the C compiler first, stage the
 # artifacts into internal/ezc/runtime/ so go:embed picks them up, then
 # build the Go CLI. The final `ez` binary contains `ezc` + `libezrt.a`
 # as embedded assets and extracts them on first use to ~/.ez/runtime/.
-build:
+build: stubs
 	@echo "Building compiler..."
 	@$(MAKE) -C ezc build
 	@echo "Staging embedded runtime assets..."
@@ -59,7 +71,6 @@ install: build
 	@echo 'Programming made EZ'
 	@echo ""
 	@echo "EZ installed successfully!"
-	@echo "Try: ez pz hello && cd hello && ez main.ez"
 
 uninstall:
 	@echo "Uninstalling EZ..."
@@ -72,9 +83,8 @@ clean:
 	@echo "Cleaning build artifacts..."
 	@rm -f $(BINARY_NAME)
 	@rm -rf dist/
-	@# Truncate staged embed assets back to empty stubs
-	@: > $(EMBED_DIR)/ezc
-	@: > $(EMBED_DIR)/libezrt.a
+	@# Embed assets are gitignored — delete entirely, not truncate
+	@rm -f $(EMBED_DIR)/ezc $(EMBED_DIR)/libezrt.a
 	@$(MAKE) -C ezc clean
 	@echo "Clean complete"
 
