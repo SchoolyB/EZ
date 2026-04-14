@@ -149,10 +149,10 @@ make build
 
 # 3. Test with a quick .ez file (scaffolded via the project templates)
 ./ez pz /tmp/hello-ez
-EZC_PATH=./ezc/ezc ./ez /tmp/hello-ez/main.ez
+EZ_COMPILER_PATH=./ezc/ezc ./ez /tmp/hello-ez/main.ez
 
 # Or test with the REPL
-EZC_PATH=./ezc/ezc ./ez repl
+EZ_COMPILER_PATH=./ezc/ezc ./ez repl
 ```
 
 This is a great way to quickly validate your change while developing. When your feature is working, make sure to add proper tests before submitting your PR (see [Writing Tests](#writing-tests)).

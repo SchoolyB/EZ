@@ -46,7 +46,7 @@ func TestStatFile(t *testing.T) {
 	}
 }
 
-func TestFindEZCPathOverride(t *testing.T) {
+func TestFindCompilerPathOverride(t *testing.T) {
 	dir := t.TempDir()
 
 	regular := filepath.Join(dir, "ezc")
@@ -59,7 +59,7 @@ func TestFindEZCPathOverride(t *testing.T) {
 	}
 
 	t.Run("regular file is returned", func(t *testing.T) {
-		t.Setenv("EZC_PATH", regular)
+		t.Setenv("EZ_COMPILER_PATH", regular)
 		got, err := Find()
 		if err != nil {
 			t.Fatalf("Find: %v", err)
@@ -70,25 +70,25 @@ func TestFindEZCPathOverride(t *testing.T) {
 	})
 
 	t.Run("directory is not returned", func(t *testing.T) {
-		// Regression for #1461 follow-up: EZC_PATH pointing at a
+		// Regression for #1461 follow-up: EZ_COMPILER_PATH pointing at a
 		// directory must not be returned verbatim. Either another
 		// fallback path succeeds (in which case Find returns that),
 		// or Find returns the not-found error — both outcomes mean
 		// path 1 rejected the directory. We only care that the
 		// returned path is NOT the directory itself.
-		t.Setenv("EZC_PATH", subdir)
+		t.Setenv("EZ_COMPILER_PATH", subdir)
 		got, _ := Find()
 		if got == subdir {
-			t.Errorf("Find() returned EZC_PATH directory %q; expected fall-through", subdir)
+			t.Errorf("Find() returned EZ_COMPILER_PATH directory %q; expected fall-through", subdir)
 		}
 	})
 
 	t.Run("nonexistent path is not returned", func(t *testing.T) {
 		nonexistent := filepath.Join(dir, "does_not_exist")
-		t.Setenv("EZC_PATH", nonexistent)
+		t.Setenv("EZ_COMPILER_PATH", nonexistent)
 		got, _ := Find()
 		if got == nonexistent {
-			t.Errorf("Find() returned nonexistent EZC_PATH %q; expected fall-through", nonexistent)
+			t.Errorf("Find() returned nonexistent EZ_COMPILER_PATH %q; expected fall-through", nonexistent)
 		}
 	})
 }

@@ -1,7 +1,7 @@
 /*
- * main.c - EZC compiler entry point
+ * main.c - EZ compiler entry point
  *
- * Usage: ezc <file.ez> [-o output]
+ * Usage: ez <file.ez> [-o output]
  *
  * Copyright (c) 2025-Present Marshall A Burns
  * Licensed under the MIT License. See LICENSE for details.
@@ -152,7 +152,7 @@ static char *output_name_from_input(const char *input) {
  * Find the runtime directory containing ez_runtime.h and ez_std.h.
  *
  * Search order:
- *   1. EZC_RUNTIME env var (explicit override)
+ *   1. EZ_RUNTIME env var (explicit override)
  *   2. Relative to binary: ../lib/ezc (installed layout)
  *   3. Relative to binary: src (development layout — binary is in ezc/)
  *   4. Relative to CWD: ezc/src (running from project root)
@@ -162,7 +162,7 @@ static const char *find_runtime_dir(const char *argv0) {
     static char path[PATH_BUF_SIZE];
 
     /* 1. Environment variable override */
-    const char *env = getenv("EZC_RUNTIME");
+    const char *env = getenv("EZ_RUNTIME");
     if (env && access(env, R_OK) == 0) {
         snprintf(path, sizeof(path), "%s/runtime/ez_runtime.h", env);
         if (access(path, R_OK) == 0) return env;
@@ -914,7 +914,7 @@ int main(int argc, char **argv) {
     if (run_mode && !output_file) {
         /* Run mode: use temp file */
         default_output = malloc(PATH_BUF_SIZE);
-        snprintf(default_output, PATH_BUF_SIZE, "/tmp/ezc_run_%d", (int)getpid());
+        snprintf(default_output, PATH_BUF_SIZE, "/tmp/ez_run_%d", (int)getpid());
         output_file = default_output;
     } else if (!output_file) {
         default_output = output_name_from_input(input_file);
@@ -925,7 +925,7 @@ int main(int argc, char **argv) {
     const char *out_base = strrchr(output_file, '/');
     out_base = out_base ? out_base + 1 : output_file;
     char c_file[1024];
-    snprintf(c_file, sizeof(c_file), "/tmp/ezc_%s.c", out_base);
+    snprintf(c_file, sizeof(c_file), "/tmp/ez_%s.c", out_base);
 
     if (!write_file(c_file, c_code)) {
         codegen_destroy(&cg);
@@ -965,7 +965,7 @@ int main(int argc, char **argv) {
     if (!runtime_dir) {
         fprintf(stderr, "ez: cannot find runtime headers.\n");
         fprintf(stderr, "  Searched:\n");
-        fprintf(stderr, "    - $EZC_RUNTIME environment variable\n");
+        fprintf(stderr, "    - $EZ_RUNTIME environment variable\n");
         fprintf(stderr, "    - relative to ez binary\n");
         fprintf(stderr, "    - ./ezc/src/ (project root)\n");
         fprintf(stderr, "    - /usr/local/lib/ezc/\n");

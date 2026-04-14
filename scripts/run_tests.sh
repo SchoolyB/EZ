@@ -26,7 +26,7 @@ echo "Building ez CLI..."
 (cd "$PROJECT_ROOT" && go build -o ez ./cmd/ez) || { echo "ez build failed"; exit 1; }
 
 # Point ez at the local ezc binary
-export EZC_PATH="$PROJECT_ROOT/ezc/ezc"
+export EZ_COMPILER_PATH="$PROJECT_ROOT/ezc/ezc"
 
 echo ""
 

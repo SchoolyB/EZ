@@ -10,7 +10,7 @@ import (
 )
 
 // Find locates the ezc binary using priority-ordered lookup:
-// 1. EZC_PATH environment variable (explicit override, always wins)
+// 1. EZ_COMPILER_PATH environment variable (explicit override, always wins)
 // 2. Embedded runtime extracted to ~/.ez/runtime/<hash>/ (release builds)
 // 3. Same directory as the running ez binary (legacy side-by-side install)
 // 4. PATH lookup (legacy)
@@ -21,7 +21,7 @@ import (
 // first (which leaves the embedded assets as empty stubs) still works.
 func Find() (string, error) {
 	// 1. Explicit override
-	if p := os.Getenv("EZC_PATH"); p != "" && statFile(p) {
+	if p := os.Getenv("EZ_COMPILER_PATH"); p != "" && statFile(p) {
 		return p, nil
 	}
 
@@ -50,7 +50,7 @@ func Find() (string, error) {
 		}
 	}
 
-	return "", fmt.Errorf("ezc compiler not found. Install it or set EZC_PATH")
+	return "", fmt.Errorf("EZ compiler not found. Install it or set EZ_COMPILER_PATH")
 }
 
 // statFile reports whether path exists and points at a regular file.
