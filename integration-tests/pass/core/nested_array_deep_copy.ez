@@ -1,0 +1,95 @@
+/*
+ * nested_array_deep_copy.ez - copy() and copy-on-assign are deep for
+ * nested array types.
+ *
+ * Regression for #1465 (commits fcf957a + e041dbe): ez_array_copy is a
+ * flat memcpy of element slots, so an outer [[T]] copy shared every
+ * inner EzArray's backing storage with the source. The fix routes
+ * three sites through emit_deep_copy_expr:
+ *   1. copy(arr) builtin
+ *   2. mut x [T] = y var_decl with a label initializer
+ *   3. x = y assignment into an existing array target
+ *
+ * The var_decl branch was missed in the first fix (fcf957a) and landed
+ * in e041dbe after QA caught it. This test locks in all three sites at
+ * both 2-level and 3-level nesting, plus a string-leaf case for the
+ * "leaf element is already deep enough" fall-through.
+ */
+
+do main() {
+    println("=== Nested Array Deep Copy Test ===")
+    mut passed int = 0
+    mut failed int = 0
+
+    // -- site 1: copy() builtin, 2-level --
+    mut a2 [[int]] = {{1, 2}, {3, 4}}
+    mut a2_copy [[int]] = copy(a2)
+    a2_copy[0][0] = 999
+    if a2[0][0] == 1 && a2_copy[0][0] == 999 {
+        println("  [PASS] copy([[int]]) 2-level")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] copy([[int]]) 2-level")
+        failed += 1
+    }
+
+    // -- site 1: copy() builtin, 3-level recursion --
+    mut a3 [[[int]]] = {{{1, 2}, {3}}, {{4, 5, 6}}}
+    mut a3_copy [[[int]]] = copy(a3)
+    a3_copy[0][0][0] = 888
+    a3_copy[1][0][1] = 777
+    if a3[0][0][0] == 1 && a3[1][0][1] == 5 &&
+       a3_copy[0][0][0] == 888 && a3_copy[1][0][1] == 777 {
+        println("  [PASS] copy([[[int]]]) 3-level")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] copy([[[int]]]) 3-level")
+        failed += 1
+    }
+
+    // -- site 2: var_decl copy-on-assign, mut b [[int]] = a --
+    mut src [[int]] = {{10, 20}, {30, 40}}
+    mut dst [[int]] = src
+    dst[0][0] = 555
+    if src[0][0] == 10 && dst[0][0] == 555 {
+        println("  [PASS] var_decl copy-on-assign [[int]]")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] var_decl copy-on-assign [[int]]")
+        failed += 1
+    }
+
+    // -- site 3: assignment copy-on-assign, b = a --
+    mut lhs [[int]] = {{0}, {0}}
+    mut rhs [[int]] = {{100, 200}, {300, 400}}
+    lhs = rhs
+    lhs[0][0] = 444
+    if rhs[0][0] == 100 && lhs[0][0] == 444 {
+        println("  [PASS] assignment copy-on-assign [[int]]")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] assignment copy-on-assign [[int]]")
+        failed += 1
+    }
+
+    // -- leaf element is a string: ez_array_copy is already deep enough --
+    mut strs [[string]] = {{"a", "b"}, {"c"}}
+    mut strs_copy [[string]] = copy(strs)
+    strs_copy[0][0] = "X"
+    if strs[0][0] == "a" && strs_copy[0][0] == "X" {
+        println("  [PASS] copy([[string]]) leaf fall-through")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] copy([[string]]) leaf fall-through")
+        failed += 1
+    }
+
+    println("")
+    println("Results: ${passed} passed, ${failed} failed")
+
+    if failed > 0 {
+        println("SOME TESTS FAILED")
+    } otherwise {
+        println("ALL TESTS PASSED")
+    }
+}
