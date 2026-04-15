@@ -65,24 +65,9 @@ ez version                Show version info
 
 ---
 
-## What EZ Looks Like
+## Learn the Language
 
-```ez
-
-const Person struct {
-    name string
-    age int
-}
-
-do greet(p Person) -> string {
-    return "Hello, ${p.name}! You are ${p.age} years old."
-}
-
-do main() {
-    mut p = Person{name: "Alice", age: 30}
-    println(greet(p))
-}
-```
+See the official EZ documentation at [schoolyb.github.io/EZ-Language-Webapp/docs](https://schoolyb.github.io/EZ-Language-Webapp/docs).
 
 ---
 
@@ -108,11 +93,16 @@ ez report
 
 ```
 EZ Bug Report Info
-==================
-EZ Version:  v3.0.0
-Commit:      abc1234
-OS:          darwin/arm64
-RAM:         16 GB
+======================
+EZ Version:  v3.0.0-alpha.13  (pre-release)
+Commit:      (released build)
+Install:     /usr/local/bin/ez
+OS:          darwin/arm64  Darwin 24.5.0
+CPU:         Apple M2
+RAM:         8 GB
+C compiler:  /usr/bin/clang
+             Apple clang version 17.0.0 (clang-1700.0.13.5)
+             target: arm64-apple-darwin24.5.0
 ```
 
 Include this output along with a description of the bug, the EZ code that triggers it, and what you expected to happen.
