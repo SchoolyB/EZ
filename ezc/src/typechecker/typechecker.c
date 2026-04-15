@@ -4519,6 +4519,59 @@ static bool is_valid_module(const char *name) {
     return false;
 }
 
+/* #1489: look up a struct declaration in the program by name. Returns
+ * NULL if no struct with the given name exists. Used by the by-value
+ * recursion detector below. */
+static AstNode *find_struct_in_program(AstNode *program, const char *name) {
+    if (!program || !name) return NULL;
+    for (int i = 0; i < program->data.program.stmt_count; i++) {
+        AstNode *s = program->data.program.stmts[i];
+        if (s && s->kind == NODE_STRUCT_DECL && s->data.struct_decl.name &&
+            strcmp(s->data.struct_decl.name, name) == 0) {
+            return s;
+        }
+    }
+    return NULL;
+}
+
+/* #1489: depth-first walk of a struct's by-value field graph, testing
+ * whether `target` appears transitively. Pointer fields (^T), arrays
+ * ([T]), and maps (map[K:V]) are treated as heap-indirected — they
+ * break the chain since the inner type lives behind a fat-pointer
+ * header, not inline. `visited` is a stack of struct names on the
+ * current DFS path used to short-circuit cycles that don't touch
+ * `target` directly. */
+static bool struct_contains_by_value(AstNode *program, AstNode *decl,
+                                      const char *target,
+                                      const char **visited, int *visited_count,
+                                      int visited_cap) {
+    if (!decl || decl->kind != NODE_STRUCT_DECL) return false;
+    for (int i = 0; i < *visited_count; i++) {
+        if (strcmp(visited[i], decl->data.struct_decl.name) == 0) return false;
+    }
+    if (*visited_count >= visited_cap) return false;
+    visited[(*visited_count)++] = decl->data.struct_decl.name;
+
+    for (int i = 0; i < decl->data.struct_decl.field_count; i++) {
+        const char *ftn = decl->data.struct_decl.fields[i].type_name;
+        if (!ftn || !*ftn) continue;
+        /* Pointer, array, map — heap-indirected, size doesn't propagate. */
+        if (ftn[0] == '^' || ftn[0] == '[' || strncmp(ftn, "map[", 4) == 0) continue;
+        if (strcmp(ftn, target) == 0) {
+            (*visited_count)--;
+            return true;
+        }
+        AstNode *child = find_struct_in_program(program, ftn);
+        if (child && struct_contains_by_value(program, child, target,
+                                               visited, visited_count, visited_cap)) {
+            (*visited_count)--;
+            return true;
+        }
+    }
+    (*visited_count)--;
+    return false;
+}
+
 static void register_declarations(TypeChecker *tc, AstNode *program) {
     /* Validate and record imports */
     for (int i = 0; i < program->data.program.stmt_count; i++) {
@@ -4602,6 +4655,43 @@ static void register_declarations(TypeChecker *tc, AstNode *program) {
                         fnames[j], stmt->data.struct_decl.name);
                     diag_error(tc->diag, "E2066", strdup(msg),
                         tc->file, stmt->token.line, stmt->token.column, 0);
+                }
+                /* E3061 (#1489): struct field cannot be the enclosing
+                 * struct by value — that produces an infinite-size
+                 * type. Direct self-reference or transitive cycles
+                 * through other by-value struct fields both count.
+                 * Pointer/array/map fields are fine because they're
+                 * heap-indirected and have a finite header size. */
+                const char *ftn = stmt->data.struct_decl.fields[j].type_name;
+                if (ftn && *ftn && ftn[0] != '^' && ftn[0] != '[' &&
+                    strncmp(ftn, "map[", 4) != 0) {
+                    bool is_cycle = false;
+                    const char *self_name = stmt->data.struct_decl.name;
+                    if (strcmp(ftn, self_name) == 0) {
+                        is_cycle = true;
+                    } else {
+                        AstNode *child = find_struct_in_program(program, ftn);
+                        if (child) {
+                            const char *visited[32];
+                            int vc = 0;
+                            is_cycle = struct_contains_by_value(
+                                program, child, self_name, visited, &vc, 32);
+                        }
+                    }
+                    if (is_cycle) {
+                        char msg[256];
+                        if (strcmp(ftn, self_name) == 0) {
+                            snprintf(msg, sizeof(msg),
+                                "struct '%s' cannot contain itself by value — use a pointer field '^%s' for recursive types",
+                                self_name, self_name);
+                        } else {
+                            snprintf(msg, sizeof(msg),
+                                "struct '%s' cannot contain itself by value through '%s' — break the cycle with a pointer field '^%s'",
+                                self_name, ftn, ftn);
+                        }
+                        diag_error(tc->diag, "E3061", strdup(msg),
+                            tc->file, stmt->token.line, stmt->token.column, 0);
+                    }
                 }
                 /* Check for duplicate field names */
                 for (int k = 0; k < j; k++) {

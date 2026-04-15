@@ -124,7 +124,8 @@
     EZ_ERROR("E3057", "types", "type cannot be used as a map key — only primitive types (int, string, bool, char, byte, float) and enums are hashable") \
     EZ_ERROR("E3058", "types", "generic function instantiation failed — the body operation is not supported for the concrete type at this call site") \
     EZ_ERROR("E3059", "types", "maps cannot be declared const — use 'mut' for maps or a struct for fixed data") \
-    EZ_ERROR("E3060", "types", "wildcard '?' in return type cannot be resolved — at least one parameter must also use '?' to bind the concrete type")
+    EZ_ERROR("E3060", "types", "wildcard '?' in return type cannot be resolved — at least one parameter must also use '?' to bind the concrete type") \
+    EZ_ERROR("E3061", "types", "struct cannot contain itself by value — use a pointer field '^T' for recursive types")
 
 /* --- E4xxx: Name Problems (References) --- */
 #define EZ_REFERENCE_ERRORS \

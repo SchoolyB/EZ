@@ -3,7 +3,7 @@
 > Auto-generated from `ezc/src/util/error_codes.h`. Do not edit manually.
 > Run `./scripts/generate_errors.sh` to regenerate.
 
-**Total: 138 codes** (128 errors, 10 warnings)
+**Total: 139 codes** (129 errors, 10 warnings)
 
 ---
 
@@ -111,6 +111,7 @@
 | `E3058` | types | generic function instantiation failed — the body operation is not supported for the concrete type at this call site |
 | `E3059` | types | maps cannot be declared const — use 'mut' for maps or a struct for fixed data |
 | `E3060` | types | wildcard '?' in return type cannot be resolved — at least one parameter must also use '?' to bind the concrete type |
+| `E3061` | types | struct cannot contain itself by value — use a pointer field '^T' for recursive types |
 | `E4001` | names | this variable does not exist — check the spelling or make sure it is declared above this line |
 | `E4002` | names | this function does not exist — check the spelling or make sure it is defined |
 | `E4003` | names | a variable with this name already exists in this scope — use a different name |
@@ -182,4 +183,4 @@
 
 ---
 
-*Generated on 2026-04-15 03:24:53 UTC*
+*Generated on 2026-04-15 03:29:27 UTC*
