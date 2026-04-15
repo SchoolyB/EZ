@@ -4054,7 +4054,17 @@ static void emit_call_expression(CodeGen *cg, AstNode *node) {
                 emitf(cg, "ez_fn_%s(", full_name);
                 for (int i = 0; i < node->data.call.arg_count; i++) {
                     if (i > 0) emit(cg, ", ");
-                    emit_expression(cg, node->data.call.args[i]);
+                    bool mut_param = i < ns_func->data.func_decl.param_count &&
+                        ns_func->data.func_decl.params[i].mutable;
+                    if (mut_param && node->data.call.args[i]->kind == NODE_LABEL) {
+                        const char *vn = node->data.call.args[i]->data.label.value;
+                        if (is_mutable_param(cg, vn)) emit(cg, vn);
+                        else emitf(cg, "&%s", vn);
+                    } else if (mut_param && node->data.call.args[i]->kind == NODE_MEMBER_EXPR) {
+                        emit(cg, "&"); emit_expression(cg, node->data.call.args[i]);
+                    } else {
+                        emit_expression(cg, node->data.call.args[i]);
+                    }
                 }
                 emit(cg, ")");
                 return;
@@ -4095,7 +4105,17 @@ static void emit_call_expression(CodeGen *cg, AstNode *node) {
                     emitf(cg, "ez_fn_%s(", member);
                     for (int i = 0; i < node->data.call.arg_count; i++) {
                         if (i > 0) emit(cg, ", ");
-                        emit_expression(cg, node->data.call.args[i]);
+                        bool mut_param = i < ns_func->data.func_decl.param_count &&
+                            ns_func->data.func_decl.params[i].mutable;
+                        if (mut_param && node->data.call.args[i]->kind == NODE_LABEL) {
+                            const char *vn = node->data.call.args[i]->data.label.value;
+                            if (is_mutable_param(cg, vn)) emit(cg, vn);
+                            else emitf(cg, "&%s", vn);
+                        } else if (mut_param && node->data.call.args[i]->kind == NODE_MEMBER_EXPR) {
+                            emit(cg, "&"); emit_expression(cg, node->data.call.args[i]);
+                        } else {
+                            emit_expression(cg, node->data.call.args[i]);
+                        }
                     }
                     emit(cg, ")");
                     return;
@@ -4105,7 +4125,17 @@ static void emit_call_expression(CodeGen *cg, AstNode *node) {
                 emitf(cg, "ez_fn_%s_%s(", resolved_name, member);
                 for (int i = 0; i < node->data.call.arg_count; i++) {
                     if (i > 0) emit(cg, ", ");
-                    emit_expression(cg, node->data.call.args[i]);
+                    bool mut_param = i < ns_func->data.func_decl.param_count &&
+                        ns_func->data.func_decl.params[i].mutable;
+                    if (mut_param && node->data.call.args[i]->kind == NODE_LABEL) {
+                        const char *vn = node->data.call.args[i]->data.label.value;
+                        if (is_mutable_param(cg, vn)) emit(cg, vn);
+                        else emitf(cg, "&%s", vn);
+                    } else if (mut_param && node->data.call.args[i]->kind == NODE_MEMBER_EXPR) {
+                        emit(cg, "&"); emit_expression(cg, node->data.call.args[i]);
+                    } else {
+                        emit_expression(cg, node->data.call.args[i]);
+                    }
                 }
                 emit(cg, ")");
                 return;
@@ -4217,6 +4247,34 @@ static void emit_call_expression(CodeGen *cg, AstNode *node) {
         /* Not a known function — variable holding a function pointer (void *).
          * Cast to appropriate function pointer type based on arg types. */
         int nargs = node->data.call.arg_count;
+        /* Try to find the referenced function declaration for mutable param info.
+         * Scan var_decls for this variable, check if its init is NODE_FUNC_REF,
+         * and look up the referenced function. */
+        AstNode *ref_func = NULL;
+        for (int si = 0; si < cg->func_count && !ref_func; si++) {
+            AstNode *fn_decl = cg->all_funcs[si];
+            if (!fn_decl->data.func_decl.body) continue;
+            for (int bi = 0; bi < fn_decl->data.func_decl.body->data.block.count && !ref_func; bi++) {
+                AstNode *st = fn_decl->data.func_decl.body->data.block.stmts[bi];
+                if (st->kind == NODE_VAR_DECL &&
+                    strcmp(st->data.var_decl.name, fn_name) == 0 &&
+                    st->data.var_decl.value &&
+                    st->data.var_decl.value->kind == NODE_FUNC_REF) {
+                    AstNode *fref = st->data.var_decl.value->data.func_ref.function;
+                    if (fref->kind == NODE_LABEL) {
+                        ref_func = find_func(cg, fref->data.label.value);
+                    } else if (fref->kind == NODE_MEMBER_EXPR &&
+                               fref->data.member.object->kind == NODE_LABEL) {
+                        char rn[256];
+                        snprintf(rn, sizeof(rn), "%s_%s",
+                            fref->data.member.object->data.label.value,
+                            fref->data.member.member);
+                        ref_func = find_func(cg, rn);
+                    }
+                }
+            }
+        }
+        if (ref_func) target_func = ref_func;
         /* Determine return type from the call expression's type table entry */
         EzType *ret_t = cg->type_table ? typetable_get(cg->type_table, node) : NULL;
         const char *c_ret = (ret_t && ret_t->kind != TK_UNKNOWN) ? ez_type_to_c_cg(cg, type_name(ret_t)) : "int64_t";
@@ -4225,10 +4283,14 @@ static void emit_call_expression(CodeGen *cg, AstNode *node) {
         for (int i = 0; i < nargs; i++) {
             if (i > 0) emit(cg, ", ");
             EzType *arg_t = cg->type_table ? typetable_get(cg->type_table, node->data.call.args[i]) : NULL;
+            bool mut_p = ref_func && i < ref_func->data.func_decl.param_count &&
+                ref_func->data.func_decl.params[i].mutable;
             if (arg_t && arg_t->kind != TK_UNKNOWN) {
                 emit(cg, ez_type_to_c_cg(cg, type_name(arg_t)));
+                if (mut_p) emit(cg, " *");
             } else {
                 emit(cg, "int64_t");
+                if (mut_p) emit(cg, " *");
             }
         }
         if (nargs == 0) emit(cg, "void");
