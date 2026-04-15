@@ -1,0 +1,16 @@
+/*
+ * Error Test: E3001 - non-func call result assigned to a func-typed variable
+ *
+ * Regression for #1479: `mut f func = something()` where `something()`
+ * returns string used to slip through (declared type "func" resolved to
+ * TK_UNKNOWN and var_decl adopted whatever the call returned). Now
+ * rejected at compile time with a hint pointing at `()something`.
+ */
+
+do something() -> string {
+    return ""
+}
+
+do main() {
+    mut f func = something()
+}
