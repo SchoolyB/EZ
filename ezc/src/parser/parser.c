@@ -923,10 +923,16 @@ static AstNode *parse_var_declaration(Parser *p) {
     }
     node->data.var_decl.name = p->cur_token.literal;
 
-    /* Optional type annotation */
+    /* Optional type annotation. TOK_QUESTION is included so a bare
+     * wildcard `?` in a var_decl flows through parse_complex_type and
+     * lands on the existing E2070 diagnostic below — without it, the
+     * token falls through to the generic "unexpected token" fallback
+     * and the user gets no hint about why `?` isn't allowed here
+     * (#1481). */
     node->data.var_decl.type_name = NULL;
     if (peek_token_is(p, TOK_IDENT) || peek_token_is(p, TOK_CARET) || peek_token_is(p, TOK_LBRACKET) ||
-        peek_token_is(p, TOK_STRUCT) || peek_token_is(p, TOK_ENUM)) {
+        peek_token_is(p, TOK_STRUCT) || peek_token_is(p, TOK_ENUM) ||
+        peek_token_is(p, TOK_QUESTION)) {
         next_token(p);
         node->data.var_decl.type_name = parse_complex_type(p);
         if (!node->data.var_decl.type_name) return NULL;
