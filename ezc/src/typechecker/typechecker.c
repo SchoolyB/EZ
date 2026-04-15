@@ -577,6 +577,22 @@ static void reject_void_in_context(TypeChecker *tc, AstNode *expr,
         NODE_FILE(tc, expr), expr->token.line, expr->token.column, 0);
 }
 
+/* #1497: emit E4005 at a stdlib call site where the function name
+ * isn't recognized. Shared between every module dispatch branch that
+ * has a fallthrough "unknown function" else. Without this, typing
+ * `strings.totally_fake_function()` silently types as `string` (or
+ * whatever the module's default-else set) and cascades into a
+ * misleading downstream "cannot assign string to int" diagnostic,
+ * hiding the real bug. */
+static void emit_unknown_stdlib_fn(TypeChecker *tc, const char *mod,
+                                    const char *mfn, AstNode *node) {
+    char msg[256];
+    snprintf(msg, sizeof(msg),
+        "module '%s' has no function named '%s'", mod, mfn);
+    diag_error(tc->diag, "E4005", strdup(msg),
+        NODE_FILE(tc, node), node->token.line, node->token.column, 0);
+}
+
 static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
     if (!node) return &TYPE_UNKNOWN;
 
@@ -1234,8 +1250,14 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                 } else if (strcmp(mfn, "alloc") == 0 && node->data.call.arg_count == 2) {
                     /* alloc returns the same type as its second argument */
                     result = resolve_expr(tc, node->data.call.args[1]);
-                } else {
+                } else if (strcmp(mfn, "make") == 0) {
+                    result = &TYPE_UNKNOWN;
+                } else if (strcmp(mfn, "free") == 0 || strcmp(mfn, "reset") == 0 ||
+                           strcmp(mfn, "destroy") == 0) {
                     result = &TYPE_VOID;
+                } else {
+                    emit_unknown_stdlib_fn(tc, mod, mfn, node);
+                    result = &TYPE_UNKNOWN;
                 }
             } else if (strcmp(mod, "maps") == 0) {
                 if (strcmp(mfn, "get_keys") == 0) {
@@ -1262,7 +1284,8 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                 } else if (strcmp(mfn, "remove_key") == 0 || strcmp(mfn, "clear") == 0) {
                     result = &TYPE_VOID;
                 } else {
-                    result = &TYPE_VOID;
+                    emit_unknown_stdlib_fn(tc, mod, mfn, node);
+                    result = &TYPE_UNKNOWN;
                 }
                 /* E12001: maps functions require map argument */
                 if (node->data.call.arg_count > 0) {
@@ -1309,7 +1332,8 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                 } else if (strcmp(mfn, "file_size") == 0) {
                     result = &TYPE_INT;
                 } else {
-                    result = &TYPE_VOID;
+                    emit_unknown_stdlib_fn(tc, mod, mfn, node);
+                    result = &TYPE_UNKNOWN;
                 }
             } else if (strcmp(mod, "strings") == 0) {
                 if (strcmp(mfn, "contains") == 0 || strcmp(mfn, "starts_with") == 0 ||
@@ -1320,8 +1344,17 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                     result = &TYPE_INT;
                 } else if (strcmp(mfn, "split") == 0) {
                     result = type_array("string");
-                } else {
+                } else if (strcmp(mfn, "to_upper") == 0 || strcmp(mfn, "to_lower") == 0 ||
+                           strcmp(mfn, "trim") == 0 || strcmp(mfn, "trim_left") == 0 ||
+                           strcmp(mfn, "trim_right") == 0 || strcmp(mfn, "replace") == 0 ||
+                           strcmp(mfn, "repeat") == 0 || strcmp(mfn, "reverse") == 0 ||
+                           strcmp(mfn, "slice") == 0 || strcmp(mfn, "join") == 0 ||
+                           strcmp(mfn, "pad_left") == 0 || strcmp(mfn, "pad_right") == 0 ||
+                           strcmp(mfn, "center") == 0) {
                     result = &TYPE_STRING;
+                } else {
+                    emit_unknown_stdlib_fn(tc, mod, mfn, node);
+                    result = &TYPE_UNKNOWN;
                 }
                 /* E7004: strings.repeat() second arg must be integer */
                 if (strcmp(mfn, "repeat") == 0 && node->data.call.arg_count >= 2) {
@@ -1349,12 +1382,27 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                 if (strcmp(mfn, "format") == 0 || strcmp(mfn, "to_iso") == 0 ||
                     strcmp(mfn, "date") == 0 || strcmp(mfn, "to_time") == 0) {
                     result = &TYPE_STRING;
-                } else {
+                } else if (strcmp(mfn, "now") == 0 || strcmp(mfn, "now_ms") == 0 ||
+                           strcmp(mfn, "now_ns") == 0 || strcmp(mfn, "tick") == 0 ||
+                           strcmp(mfn, "elapsed_ms") == 0 ||
+                           strcmp(mfn, "year") == 0 || strcmp(mfn, "month") == 0 ||
+                           strcmp(mfn, "day") == 0 || strcmp(mfn, "hour") == 0 ||
+                           strcmp(mfn, "minute") == 0 || strcmp(mfn, "second") == 0 ||
+                           strcmp(mfn, "weekday") == 0) {
                     result = &TYPE_INT;
+                } else {
+                    emit_unknown_stdlib_fn(tc, mod, mfn, node);
+                    result = &TYPE_UNKNOWN;
                 }
             } else if (strcmp(mod, "uuid") == 0) {
                 if (strcmp(mfn, "is_valid") == 0) result = &TYPE_BOOL;
-                else result = &TYPE_STRING;
+                else if (strcmp(mfn, "generate") == 0 || strcmp(mfn, "v4") == 0 ||
+                         strcmp(mfn, "v7") == 0 || strcmp(mfn, "to_string") == 0) {
+                    result = &TYPE_STRING;
+                } else {
+                    emit_unknown_stdlib_fn(tc, mod, mfn, node);
+                    result = &TYPE_UNKNOWN;
+                }
             } else if (strcmp(mod, "encoding") == 0) {
                 result = &TYPE_STRING;
             } else if (strcmp(mod, "crypto") == 0) {
@@ -1363,30 +1411,48 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                 if (strcmp(mfn, "from_string") == 0 || strcmp(mfn, "from_hex") == 0 ||
                     strcmp(mfn, "from_base64") == 0) {
                     result = type_array("byte");
-                } else {
+                } else if (strcmp(mfn, "to_string") == 0 || strcmp(mfn, "to_hex") == 0 ||
+                           strcmp(mfn, "to_base64") == 0) {
                     result = &TYPE_STRING;
+                } else {
+                    emit_unknown_stdlib_fn(tc, mod, mfn, node);
+                    result = &TYPE_UNKNOWN;
                 }
             } else if (strcmp(mod, "binary") == 0) {
                 if (strncmp(mfn, "encode", 6) == 0) result = type_array("byte");
                 else if (strncmp(mfn, "decode_f", 8) == 0) result = &TYPE_FLOAT;
                 else result = &TYPE_INT;
             } else if (strcmp(mod, "csv") == 0) {
-                if (strcmp(mfn, "parse") == 0 || strcmp(mfn, "read") == 0) {
+                if (strcmp(mfn, "parse") == 0 || strcmp(mfn, "read") == 0 ||
+                    strcmp(mfn, "read_file") == 0 || strcmp(mfn, "headers") == 0) {
                     result = type_array("array");
-                } else if (strcmp(mfn, "write") == 0) {
+                } else if (strcmp(mfn, "write") == 0 || strcmp(mfn, "write_file") == 0) {
                     result = &TYPE_BOOL;
-                } else {
+                } else if (strcmp(mfn, "format") == 0 || strcmp(mfn, "encode") == 0) {
                     result = &TYPE_STRING;
+                } else {
+                    emit_unknown_stdlib_fn(tc, mod, mfn, node);
+                    result = &TYPE_UNKNOWN;
                 }
             } else if (strcmp(mod, "json") == 0) {
                 if (strcmp(mfn, "decode") == 0) result = type_from_name("map[string:string]");
                 else if (strcmp(mfn, "is_valid") == 0) result = &TYPE_BOOL;
-                else result = &TYPE_STRING;
+                else if (strcmp(mfn, "encode") == 0 || strcmp(mfn, "stringify") == 0 ||
+                         strcmp(mfn, "format") == 0 || strcmp(mfn, "parse") == 0) {
+                    result = &TYPE_STRING;
+                } else {
+                    emit_unknown_stdlib_fn(tc, mod, mfn, node);
+                    result = &TYPE_UNKNOWN;
+                }
             } else if (strcmp(mod, "sqlite") == 0) {
                 if (strcmp(mfn, "open") == 0) result = &TYPE_UNKNOWN; /* opaque handle */
                 else if (strcmp(mfn, "exec") == 0) result = &TYPE_BOOL;
                 else if (strcmp(mfn, "query") == 0) result = type_array("map");
-                else result = &TYPE_VOID;
+                else if (strcmp(mfn, "close") == 0) result = &TYPE_VOID;
+                else {
+                    emit_unknown_stdlib_fn(tc, mod, mfn, node);
+                    result = &TYPE_UNKNOWN;
+                }
             } else if (strcmp(mod, "random") == 0) {
                 if (strcmp(mfn, "rand_float") == 0) result = &TYPE_FLOAT;
                 else if (strcmp(mfn, "rand_int") == 0) result = &TYPE_INT;
@@ -1416,7 +1482,11 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                         result = &TYPE_INT;
                     }
                 } else if (strcmp(mfn, "random_hex") == 0) result = &TYPE_STRING;
-                else result = &TYPE_UNKNOWN;
+                else if (strcmp(mfn, "seed") == 0) result = &TYPE_VOID;
+                else {
+                    emit_unknown_stdlib_fn(tc, mod, mfn, node);
+                    result = &TYPE_UNKNOWN;
+                }
             } else if (strcmp(mod, "arrays") == 0) {
                 if (strcmp(mfn, "is_empty") == 0 || strcmp(mfn, "contains") == 0) {
                     result = &TYPE_BOOL;
@@ -1450,8 +1520,16 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                     } else {
                         result = &TYPE_INT;
                     }
-                } else {
+                } else if (strcmp(mfn, "append") == 0 || strcmp(mfn, "prepend") == 0 ||
+                           strcmp(mfn, "insert") == 0 || strcmp(mfn, "insert_at") == 0 ||
+                           strcmp(mfn, "remove") == 0 || strcmp(mfn, "remove_at") == 0 ||
+                           strcmp(mfn, "fill") == 0 || strcmp(mfn, "set") == 0 ||
+                           strcmp(mfn, "sort_asc") == 0 || strcmp(mfn, "sort_desc") == 0 ||
+                           strcmp(mfn, "clear") == 0 || strcmp(mfn, "sum") == 0) {
                     result = &TYPE_VOID;
+                } else {
+                    emit_unknown_stdlib_fn(tc, mod, mfn, node);
+                    result = &TYPE_UNKNOWN;
                 }
                 /* E5007: mutating array functions on const array */
                 if ((strcmp(mfn, "append") == 0 || strcmp(mfn, "insert") == 0 ||
@@ -1549,8 +1627,12 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                     result = &TYPE_STRING;
                 } else if (strcmp(mfn, "current_os") == 0 || strcmp(mfn, "pid") == 0) {
                     result = &TYPE_INT;
-                } else {
+                } else if (strcmp(mfn, "exec") == 0 || strcmp(mfn, "set_env") == 0 ||
+                           strcmp(mfn, "exit") == 0) {
                     result = &TYPE_VOID;
+                } else {
+                    emit_unknown_stdlib_fn(tc, mod, mfn, node);
+                    result = &TYPE_UNKNOWN;
                 }
             } else if (strcmp(mod, "math") == 0) {
                 /* Math functions return types */
@@ -1572,8 +1654,22 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                 } else if (strcmp(mfn, "sign") == 0 || strcmp(mfn, "factorial") == 0 ||
                            strcmp(mfn, "gcd") == 0 || strcmp(mfn, "lcm") == 0) {
                     result = &TYPE_INT;
-                } else {
+                } else if (strcmp(mfn, "sqrt") == 0 || strcmp(mfn, "pow") == 0 ||
+                           strcmp(mfn, "exp") == 0 || strcmp(mfn, "log") == 0 ||
+                           strcmp(mfn, "log2") == 0 || strcmp(mfn, "log10") == 0 ||
+                           strcmp(mfn, "sin") == 0 || strcmp(mfn, "cos") == 0 ||
+                           strcmp(mfn, "tan") == 0 || strcmp(mfn, "asin") == 0 ||
+                           strcmp(mfn, "acos") == 0 || strcmp(mfn, "atan") == 0 ||
+                           strcmp(mfn, "atan2") == 0 || strcmp(mfn, "sinh") == 0 ||
+                           strcmp(mfn, "cosh") == 0 || strcmp(mfn, "tanh") == 0 ||
+                           strcmp(mfn, "floor") == 0 || strcmp(mfn, "ceil") == 0 ||
+                           strcmp(mfn, "round") == 0 || strcmp(mfn, "trunc") == 0 ||
+                           strcmp(mfn, "mod") == 0 || strcmp(mfn, "pi") == 0 ||
+                           strcmp(mfn, "e") == 0 || strcmp(mfn, "tau") == 0) {
                     result = &TYPE_FLOAT;
+                } else {
+                    emit_unknown_stdlib_fn(tc, mod, mfn, node);
+                    result = &TYPE_UNKNOWN;
                 }
             } else if (strcmp(mod, "threads") == 0) {
                 if (strcmp(mfn, "spawn") == 0) {
@@ -1592,14 +1688,22 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                     result = type_struct("Thread"); /* EzThread — opaque */
                 } else if (strcmp(mfn, "get_id") == 0) {
                     result = &TYPE_INT;
-                } else {
+                } else if (strcmp(mfn, "join") == 0 || strcmp(mfn, "sleep_s") == 0 ||
+                           strcmp(mfn, "sleep_ms") == 0 || strcmp(mfn, "sleep_ns") == 0) {
                     result = &TYPE_VOID;
+                } else {
+                    emit_unknown_stdlib_fn(tc, mod, mfn, node);
+                    result = &TYPE_UNKNOWN;
                 }
             } else if (strcmp(mod, "sync") == 0) {
                 if (strcmp(mfn, "mutex") == 0) {
                     result = type_struct("Mutex"); /* EzMutex — opaque */
-                } else {
+                } else if (strcmp(mfn, "lock") == 0 || strcmp(mfn, "unlock") == 0 ||
+                           strcmp(mfn, "try_lock") == 0) {
                     result = &TYPE_VOID;
+                } else {
+                    emit_unknown_stdlib_fn(tc, mod, mfn, node);
+                    result = &TYPE_UNKNOWN;
                 }
             } else if (strcmp(mod, "atomic") == 0) {
                 if (strcmp(mfn, "load") == 0 || strcmp(mfn, "add") == 0 ||
@@ -1611,16 +1715,23 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                     result = &TYPE_BOOL;
                 } else if (strcmp(mfn, "spinlock") == 0) {
                     result = type_struct("SpinLock"); /* EzSpinLock — opaque */
-                } else {
+                } else if (strcmp(mfn, "store") == 0 || strcmp(mfn, "spin_lock") == 0 ||
+                           strcmp(mfn, "spin_unlock") == 0) {
                     result = &TYPE_VOID;
+                } else {
+                    emit_unknown_stdlib_fn(tc, mod, mfn, node);
+                    result = &TYPE_UNKNOWN;
                 }
             } else if (strcmp(mod, "channels") == 0) {
                 if (strcmp(mfn, "open") == 0) {
                     result = type_struct("Channel"); /* EzChannel — opaque */
                 } else if (strcmp(mfn, "receive") == 0) {
                     result = &TYPE_INT;
-                } else {
+                } else if (strcmp(mfn, "send") == 0 || strcmp(mfn, "close") == 0) {
                     result = &TYPE_VOID;
+                } else {
+                    emit_unknown_stdlib_fn(tc, mod, mfn, node);
+                    result = &TYPE_UNKNOWN;
                 }
             } else if (strcmp(mod, "server") == 0) {
                 if (strcmp(mfn, "add_router") == 0) {
@@ -1628,8 +1739,12 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                 } else if (strcmp(mfn, "text") == 0 || strcmp(mfn, "json") == 0 ||
                            strcmp(mfn, "html") == 0 || strcmp(mfn, "redirect") == 0) {
                     result = type_struct("HttpResponse"); /* EzResponse */
-                } else {
+                } else if (strcmp(mfn, "add_route") == 0 || strcmp(mfn, "listen") == 0 ||
+                           strcmp(mfn, "cors") == 0 || strcmp(mfn, "use") == 0) {
                     result = &TYPE_VOID;
+                } else {
+                    emit_unknown_stdlib_fn(tc, mod, mfn, node);
+                    result = &TYPE_UNKNOWN;
                 }
             } else if (strcmp(mod, "http") == 0) {
                 /* All http methods return EzHttpResponse struct
@@ -1644,8 +1759,11 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                     result = &TYPE_INT;
                 } else if (strcmp(mfn, "receive") == 0 || strcmp(mfn, "resolve") == 0) {
                     result = &TYPE_STRING;
-                } else {
+                } else if (strcmp(mfn, "close") == 0) {
                     result = &TYPE_VOID;
+                } else {
+                    emit_unknown_stdlib_fn(tc, mod, mfn, node);
+                    result = &TYPE_UNKNOWN;
                 }
             } else if (strcmp(mod, "regex") == 0) {
                 if (strcmp(mfn, "is_match") == 0) {
@@ -1655,6 +1773,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                 } else if (strcmp(mfn, "find_all") == 0 || strcmp(mfn, "split") == 0) {
                     result = type_array("string");
                 } else {
+                    emit_unknown_stdlib_fn(tc, mod, mfn, node);
                     result = &TYPE_UNKNOWN;
                 }
             } else if (strcmp(mod, "mem") == 0) {
@@ -1672,8 +1791,12 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                     result = type_struct("Arena");
                 } else if (strcmp(mfn, "usage") == 0) {
                     result = &TYPE_INT;
-                } else {
+                } else if (strcmp(mfn, "free") == 0 || strcmp(mfn, "reset") == 0 ||
+                           strcmp(mfn, "destroy") == 0) {
                     result = &TYPE_VOID;
+                } else {
+                    emit_unknown_stdlib_fn(tc, mod, mfn, node);
+                    result = &TYPE_UNKNOWN;
                 }
             } else if (strcmp(mod, "sqlite") == 0) {
                 if (strcmp(mfn, "open") == 0) {
@@ -1682,8 +1805,11 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                     result = &TYPE_BOOL;
                 } else if (strcmp(mfn, "query") == 0) {
                     result = type_array("map");
-                } else {
+                } else if (strcmp(mfn, "close") == 0) {
                     result = &TYPE_VOID;
+                } else {
+                    emit_unknown_stdlib_fn(tc, mod, mfn, node);
+                    result = &TYPE_UNKNOWN;
                 }
             } else if (strcmp(mod, "fmt") == 0) {
                 if (strcmp(mfn, "sprintf") == 0 ||
@@ -1697,8 +1823,12 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                     strcmp(mfn, "float_fixed") == 0 ||
                     strcmp(mfn, "float_sci") == 0) {
                     result = &TYPE_STRING;
-                } else {
+                } else if (strcmp(mfn, "printf") == 0 || strcmp(mfn, "println") == 0 ||
+                           strcmp(mfn, "eprintln") == 0 || strcmp(mfn, "eprint") == 0) {
                     result = &TYPE_VOID;
+                } else {
+                    emit_unknown_stdlib_fn(tc, mod, mfn, node);
+                    result = &TYPE_UNKNOWN;
                 }
                 /* Validate that non-format args are primitive types */
                 for (int ai = 1; ai < node->data.call.arg_count; ai++) {
