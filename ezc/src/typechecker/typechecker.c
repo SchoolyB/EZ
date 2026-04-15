@@ -3821,7 +3821,27 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
         break;
 
     case NODE_IF_STMT: {
-        resolve_expr(tc, node->data.if_stmt.condition);
+        EzType *cond_t = resolve_expr(tc, node->data.if_stmt.condition);
+        /* E3038 (#1476): void function call as condition. The same check
+         * already exists for variable assignment and arithmetic — wire
+         * it up for control-flow conditions too. The 'or' branch of an
+         * if chain is parsed as a nested NODE_IF_STMT, so this one spot
+         * covers 'if' and every subsequent 'or'. */
+        if (cond_t && cond_t->kind == TK_VOID) {
+            AstNode *c = node->data.if_stmt.condition;
+            char msg[256];
+            if (c && c->kind == NODE_CALL_EXPR && c->data.call.function &&
+                c->data.call.function->kind == NODE_LABEL) {
+                snprintf(msg, sizeof(msg),
+                    "cannot use void function '%s' as condition — 'if' requires a bool expression",
+                    c->data.call.function->data.label.value);
+            } else {
+                snprintf(msg, sizeof(msg),
+                    "cannot use void expression as condition — 'if' requires a bool expression");
+            }
+            diag_error(tc->diag, "E3038", strdup(msg),
+                tc->file, c->token.line, c->token.column, 0);
+        }
         Scope *if_outer = tc->current_scope;
         tc->current_scope = scope_create(if_outer);
         check_block(tc, node->data.if_stmt.consequence);
@@ -3932,12 +3952,29 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
         break;
     }
 
-    case NODE_WHILE_STMT:
-        resolve_expr(tc, node->data.while_stmt.condition);
+    case NODE_WHILE_STMT: {
+        EzType *wh_cond_t = resolve_expr(tc, node->data.while_stmt.condition);
+        /* E3038 (#1476): void function call as 'as_long_as' condition. */
+        if (wh_cond_t && wh_cond_t->kind == TK_VOID) {
+            AstNode *c = node->data.while_stmt.condition;
+            char msg[256];
+            if (c && c->kind == NODE_CALL_EXPR && c->data.call.function &&
+                c->data.call.function->kind == NODE_LABEL) {
+                snprintf(msg, sizeof(msg),
+                    "cannot use void function '%s' as condition — 'as_long_as' requires a bool expression",
+                    c->data.call.function->data.label.value);
+            } else {
+                snprintf(msg, sizeof(msg),
+                    "cannot use void expression as condition — 'as_long_as' requires a bool expression");
+            }
+            diag_error(tc->diag, "E3038", strdup(msg),
+                tc->file, c->token.line, c->token.column, 0);
+        }
         tc->loop_depth++;
         check_block(tc, node->data.while_stmt.body);
         tc->loop_depth--;
         break;
+    }
 
     case NODE_LOOP_STMT:
         tc->loop_depth++;
