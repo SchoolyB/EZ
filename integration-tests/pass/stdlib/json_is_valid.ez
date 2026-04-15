@@ -1,0 +1,140 @@
+/*
+ * json_is_valid.ez - Regression test for #1498.
+ *
+ * json.is_valid used to peek at the first non-whitespace character
+ * and dispatch on its category — anything starting with a
+ * structural opener was silently accepted. Replaced with a real
+ * recursive-descent validator that walks the full grammar and
+ * requires every non-whitespace byte to be consumed by a complete
+ * JSON value.
+ *
+ * This test exercises two axes:
+ *   1. Malformed inputs that used to false-positive → must return false.
+ *   2. Well-formed inputs (including non-trivial nesting, escapes,
+ *      numeric formats) → must return true.
+ */
+
+import @json
+
+do main() {
+    println("=== JSON is_valid Regression (#1498) ===")
+    mut passed int = 0
+    mut failed int = 0
+
+    // --- malformed: every one of these used to return true ---
+
+    if !json.is_valid("{broken") {
+        println("  [PASS] rejects {broken")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] {broken")
+        failed += 1
+    }
+
+    if !json.is_valid("{") {
+        println("  [PASS] rejects bare {")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] bare {")
+        failed += 1
+    }
+
+    if !json.is_valid("[") {
+        println("  [PASS] rejects bare [")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] bare [")
+        failed += 1
+    }
+
+    if !json.is_valid("{\"k\":") {
+        println("  [PASS] rejects {\"k\":")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] {\"k\":")
+        failed += 1
+    }
+
+    if !json.is_valid("{\"k\":1,}") {
+        println("  [PASS] rejects trailing comma in object")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] trailing comma in object")
+        failed += 1
+    }
+
+    if !json.is_valid("[1,2,3,") {
+        println("  [PASS] rejects unterminated array")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] unterminated array")
+        failed += 1
+    }
+
+    if !json.is_valid("null garbage") {
+        println("  [PASS] rejects null + trailing garbage")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] null + trailing garbage")
+        failed += 1
+    }
+
+    if !json.is_valid("true false") {
+        println("  [PASS] rejects two values no separator")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] two values no separator")
+        failed += 1
+    }
+
+    if !json.is_valid("{\"a\":1} extra") {
+        println("  [PASS] rejects object + trailing text")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] object + trailing text")
+        failed += 1
+    }
+
+    // --- well-formed: previously passed, must still pass ---
+
+    if json.is_valid("1.5e10") {
+        println("  [PASS] accepts scientific notation")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] scientific notation")
+        failed += 1
+    }
+
+    if json.is_valid("-3.14") {
+        println("  [PASS] accepts negative float")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] negative float")
+        failed += 1
+    }
+
+    if json.is_valid("null") {
+        println("  [PASS] accepts null")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] null")
+        failed += 1
+    }
+
+    if json.is_valid("{\"a\":[1,{\"b\":null}]}") {
+        println("  [PASS] accepts deeply nested object")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] deeply nested object")
+        failed += 1
+    }
+
+    println("")
+    println("Results: ${passed} passed, ${failed} failed")
+
+    if failed > 0 {
+        println("SOME TESTS FAILED")
+    } otherwise {
+        println("ALL TESTS PASSED")
+    }
+}
