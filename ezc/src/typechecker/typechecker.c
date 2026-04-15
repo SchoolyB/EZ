@@ -580,6 +580,13 @@ static void reject_void_in_context(TypeChecker *tc, AstNode *expr,
 static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
     if (!node) return &TYPE_UNKNOWN;
 
+    /* Memoize: if we already resolved this node, return the cached type.
+     * This prevents duplicate diagnostics when the same subtree is walked
+     * multiple times (e.g. builtin call args resolved by both the general
+     * call path and the builtin-specific path). */
+    EzType *cached = typetable_get(tc->type_table, node);
+    if (cached) return cached;
+
     EzType *result = &TYPE_UNKNOWN;
 
     switch (node->kind) {
