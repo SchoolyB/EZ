@@ -418,10 +418,29 @@ static AstNode *parse_interpolated_string(Parser *p, const char *raw) {
             }
 
             char *expr_text = arena_strndup(p->arena, expr_start, s - expr_start);
-            Lexer *expr_lexer = lexer_create(p->arena, expr_text, p->file);
-            Parser *expr_parser = parser_create(p->arena, expr_lexer, p->file, p->diag);
-            AstNode *expr = parse_expression(expr_parser, PREC_LOWEST);
-            if (expr) parts[count++] = expr;
+            /* #1484: reject '${}' (and whitespace-only '${ }') before
+             * spinning up a sub-parser. Otherwise the sub-parser hits
+             * EOF on an empty input and reports E2002 with the stale
+             * file-start position it was initialized to, which is
+             * actively misleading. */
+            bool is_empty = true;
+            for (const char *c = expr_text; *c; c++) {
+                if (*c != ' ' && *c != '\t' && *c != '\n' && *c != '\r') {
+                    is_empty = false;
+                    break;
+                }
+            }
+            if (is_empty) {
+                diag_error(p->diag, "E2071",
+                    arena_strdup(p->arena,
+                        "empty string interpolation '${}' — interpolation requires an expression between the braces"),
+                    p->file, p->cur_token.line, p->cur_token.column, 0);
+            } else {
+                Lexer *expr_lexer = lexer_create(p->arena, expr_text, p->file);
+                Parser *expr_parser = parser_create(p->arena, expr_lexer, p->file, p->diag);
+                AstNode *expr = parse_expression(expr_parser, PREC_LOWEST);
+                if (expr) parts[count++] = expr;
+            }
 
             if (*s == '}') s++;
             seg_start = s;

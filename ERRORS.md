@@ -3,7 +3,7 @@
 > Auto-generated from `ezc/src/util/error_codes.h`. Do not edit manually.
 > Run `./scripts/generate_errors.sh` to regenerate.
 
-**Total: 136 codes** (126 errors, 10 warnings)
+**Total: 137 codes** (127 errors, 10 warnings)
 
 ---
 
@@ -62,6 +62,7 @@
 | `E2068` | syntax | structs and enums must be declared with 'const', not 'mut' |
 | `E2069` | syntax | unexpected semicolon — statements and declarations are separated by newlines, not semicolons |
 | `E2070` | syntax | wildcard type '?' is only allowed in function parameter and return types — not in variable declarations, struct fields, or enum types |
+| `E2071` | syntax | empty string interpolation '${}' — interpolation requires an expression between the braces |
 | `E3001` | types | wrong type — you are using a value of one type where a different type is expected |
 | `E3002` | types | this operator does not work on this type — for example, you cannot subtract strings |
 | `E3003` | types | invalid array index type — array indices must be integers |
@@ -180,4 +181,4 @@
 
 ---
 
-*Generated on 2026-04-15 01:57:01 UTC*
+*Generated on 2026-04-15 03:20:23 UTC*
