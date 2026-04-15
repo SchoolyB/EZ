@@ -1,0 +1,15 @@
+/*
+ * Error Test: E3027 - const passed to mutable (&) param via function reference
+ * Expected: "cannot pass immutable variable to mutable parameter" error
+ * Regression for #1494
+ */
+
+do modify(&x int) {
+    x = 99
+}
+
+do main() {
+    mut fn_ref [func] = ()modify
+    const val int = 10
+    fn_ref(val)
+}

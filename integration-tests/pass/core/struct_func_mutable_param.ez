@@ -1,0 +1,89 @@
+/*
+ * Tests struct function with mutable (&) parameter
+ * Verifies that struct functions can mutate arguments passed by reference
+ * Regression for #1494
+ */
+
+const Util struct {
+    _pad int
+
+    do double(&x int) {
+        x = x * 2
+    }
+
+    do add_ten(&val int) {
+        val = val + 10
+    }
+
+    do swap(&a int, &b int) {
+        mut t int = a
+        a = b
+        b = t
+    }
+}
+
+do main() {
+    mut passed int = 0
+    mut failed int = 0
+
+    // Test 1: basic struct function mutation
+    mut val int = 5
+    Util.double(val)
+    if val == 10 {
+        println("  [PASS] Util.double(5) mutated val to 10")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] Util.double(5): expected 10, got ${val}")
+        failed += 1
+    }
+
+    // Test 2: different struct function mutation
+    mut num int = 7
+    Util.add_ten(num)
+    if num == 17 {
+        println("  [PASS] Util.add_ten(7) mutated num to 17")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] Util.add_ten(7): expected 17, got ${num}")
+        failed += 1
+    }
+
+    // Test 3: multiple mutable params in struct function
+    mut a int = 1
+    mut b int = 2
+    Util.swap(a, b)
+    if a == 2 {
+        println("  [PASS] Util.swap: a is now 2")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] Util.swap: expected a=2, got ${a}")
+        failed += 1
+    }
+
+    if b == 1 {
+        println("  [PASS] Util.swap: b is now 1")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] Util.swap: expected b=1, got ${b}")
+        failed += 1
+    }
+
+    // Test 4: chained mutations
+    mut x int = 3
+    Util.double(x)
+    Util.add_ten(x)
+    if x == 16 {
+        println("  [PASS] double(3) then add_ten: got 16")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] double(3) then add_ten: expected 16, got ${x}")
+        failed += 1
+    }
+
+    println("Results: ${passed} passed, ${failed} failed")
+    if failed > 0 {
+        println("SOME TESTS FAILED")
+    } otherwise {
+        println("ALL TESTS PASSED")
+    }
+}
