@@ -160,6 +160,7 @@
     EZ_ERROR("E7004", "stdlib", "function argument must be an integer, not a float") \
     EZ_ERROR("E7006", "stdlib", "threads.spawn() needs a function reference — use ()function_name to pass a function") \
     EZ_ERROR("E7014", "stdlib", "cannot convert negative value to char — must be a valid Unicode code point") \
+    EZ_ERROR("E7015", "stdlib", "len() only works on string, array, and map types — other types have no meaningful length") \
     EZ_ERROR("E9002", "stdlib", "array operation requires a numeric array — cannot use sum/min/max on string or bool arrays") \
     EZ_ERROR("E9005", "stdlib", "range bounds must be valid — start must be less than end") \
     EZ_ERROR("E12001", "stdlib", "maps function requires a map argument, not an array") \

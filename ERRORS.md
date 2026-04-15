@@ -3,7 +3,7 @@
 > Auto-generated from `ezc/src/util/error_codes.h`. Do not edit manually.
 > Run `./scripts/generate_errors.sh` to regenerate.
 
-**Total: 137 codes** (127 errors, 10 warnings)
+**Total: 138 codes** (128 errors, 10 warnings)
 
 ---
 
@@ -134,6 +134,7 @@
 | `E7004` | stdlib | function argument must be an integer, not a float |
 | `E7006` | stdlib | threads.spawn() needs a function reference — use ()function_name to pass a function |
 | `E7014` | stdlib | cannot convert negative value to char — must be a valid Unicode code point |
+| `E7015` | stdlib | len() only works on string, array, and map types — other types have no meaningful length |
 | `E9002` | stdlib | array operation requires a numeric array — cannot use sum/min/max on string or bool arrays |
 | `E9005` | stdlib | range bounds must be valid — start must be less than end |
 | `E12001` | stdlib | maps function requires a map argument, not an array |
@@ -181,4 +182,4 @@
 
 ---
 
-*Generated on 2026-04-15 03:20:23 UTC*
+*Generated on 2026-04-15 03:24:53 UTC*

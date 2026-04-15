@@ -1782,6 +1782,36 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                     result = type_pointer(pointee_name);
                 }
             } else if (strcmp(fn_name, "len") == 0) {
+                /* E7015 (#1490): len() only works on string / array / map.
+                 * Codegen blindly emits '.len' on the receiver, which
+                 * works for the runtime's EzArray / EzMap / EzString
+                 * structs but bombs with a raw clang "no member 'len'"
+                 * on anything else — structs, enums, primitives,
+                 * pointers, func refs, errors. Validate the argument
+                 * type here instead of letting it leak. */
+                if (node->data.call.arg_count != 1) {
+                    char msg[256];
+                    snprintf(msg, sizeof(msg),
+                        "len() expects 1 argument, got %d",
+                        node->data.call.arg_count);
+                    diag_error(tc->diag, "E5008", strdup(msg),
+                        tc->file, node->token.line, node->token.column, 0);
+                } else {
+                    EzType *at = resolve_expr(tc, node->data.call.args[0]);
+                    reject_void_in_context(tc, node->data.call.args[0], at,
+                        "len() argument");
+                    if (at && at->kind != TK_UNKNOWN && at->kind != TK_VOID &&
+                        at->kind != TK_STRING && at->kind != TK_ARRAY &&
+                        at->kind != TK_MAP) {
+                        char msg[256];
+                        snprintf(msg, sizeof(msg),
+                            "len() is not supported for type '%s' — len() works on string, array, and map types",
+                            type_name(at));
+                        diag_error(tc->diag, "E7015", strdup(msg),
+                            tc->file, node->data.call.args[0]->token.line,
+                            node->data.call.args[0]->token.column, 0);
+                    }
+                }
                 result = &TYPE_INT;
             } else if (strcmp(fn_name, "type_of") == 0) {
                 /* E3038: type_of() on void function result */
