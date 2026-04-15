@@ -718,6 +718,36 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                 tc->file, node->token.line, node->token.column, 0);
         }
 
+        /* E3002: literal divide/modulo by zero (#1474). Catches the
+         * statically-detectable case where the RHS is an integer or
+         * float literal zero (including a prefix -0). Runtime checks
+         * still cover the dynamic case. */
+        if (strcmp(op, "/") == 0 || strcmp(op, "%") == 0) {
+            AstNode *r = node->data.infix.right;
+            bool is_zero = false;
+            int64_t iv;
+            if (try_get_literal_int(r, &iv) && iv == 0) {
+                is_zero = true;
+            } else if (r && r->kind == NODE_FLOAT_VALUE &&
+                       r->data.float_value.value == 0.0) {
+                is_zero = true;
+            } else if (r && r->kind == NODE_PREFIX_EXPR &&
+                       strcmp(r->data.prefix.op, "-") == 0 &&
+                       r->data.prefix.right &&
+                       r->data.prefix.right->kind == NODE_FLOAT_VALUE &&
+                       r->data.prefix.right->data.float_value.value == 0.0) {
+                is_zero = true;
+            }
+            if (is_zero) {
+                char msg[128];
+                snprintf(msg, sizeof(msg),
+                    "%s by zero — dividing by a literal zero is always invalid",
+                    strcmp(op, "%") == 0 ? "modulo" : "division");
+                diag_error(tc->diag, "E3002", strdup(msg),
+                    tc->file, r->token.line, r->token.column, 0);
+            }
+        }
+
         /* E3002: bool used in arithmetic (e.g., 1 + true) */
         if ((left->kind == TK_BOOL || right->kind == TK_BOOL) &&
             (strcmp(op, "+") == 0 || strcmp(op, "-") == 0 ||
