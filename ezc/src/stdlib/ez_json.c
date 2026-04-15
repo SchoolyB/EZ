@@ -121,13 +121,154 @@ EzMap ez_json_decode(EzArena *arena, EzString text) {
     return m;
 }
 
+/* --- Validator (#1498) ---
+ *
+ * Proper recursive descent validator. The old implementation just
+ * peeked at the first non-whitespace character and dispatched on it,
+ * which meant anything starting with '{', '[', '"', a digit, '-',
+ * 't', 'f', or 'n' was silently accepted (so `{broken` was "valid").
+ * The new one walks the full grammar and requires the consumed
+ * region to end at text.len with only trailing whitespace.
+ *
+ * Mutually recursive with v_array / v_object because a JSON value
+ * can be an object or array of values. Parameters are (const char **s,
+ * const char *end) so each helper advances `*s` on success and leaves
+ * it unspecified on failure. */
+
+static bool v_value(const char **s, const char *end);
+
+static void v_skip_ws(const char **s, const char *end) {
+    while (*s < end && isspace((unsigned char)**s)) (*s)++;
+}
+
+static bool v_string_lit(const char **s, const char *end) {
+    if (*s >= end || **s != '"') return false;
+    (*s)++;
+    while (*s < end && **s != '"') {
+        unsigned char c = (unsigned char)**s;
+        if (c == '\\') {
+            (*s)++;
+            if (*s >= end) return false;
+            char esc = **s;
+            if (esc == '"' || esc == '\\' || esc == '/' || esc == 'b' ||
+                esc == 'f' || esc == 'n' || esc == 'r' || esc == 't') {
+                (*s)++;
+            } else if (esc == 'u') {
+                (*s)++;
+                for (int i = 0; i < 4; i++) {
+                    if (*s >= end || !isxdigit((unsigned char)**s)) return false;
+                    (*s)++;
+                }
+            } else {
+                return false;
+            }
+        } else if (c < 0x20) {
+            /* Control characters must be escaped per RFC 8259. */
+            return false;
+        } else {
+            (*s)++;
+        }
+    }
+    if (*s >= end) return false;
+    (*s)++; /* skip closing " */
+    return true;
+}
+
+static bool v_number(const char **s, const char *end) {
+    if (*s >= end) return false;
+    if (**s == '-') (*s)++;
+    if (*s >= end) return false;
+    if (**s == '0') {
+        (*s)++;
+    } else if (**s >= '1' && **s <= '9') {
+        while (*s < end && isdigit((unsigned char)**s)) (*s)++;
+    } else {
+        return false;
+    }
+    /* Fractional part */
+    if (*s < end && **s == '.') {
+        (*s)++;
+        if (*s >= end || !isdigit((unsigned char)**s)) return false;
+        while (*s < end && isdigit((unsigned char)**s)) (*s)++;
+    }
+    /* Exponent */
+    if (*s < end && (**s == 'e' || **s == 'E')) {
+        (*s)++;
+        if (*s < end && (**s == '+' || **s == '-')) (*s)++;
+        if (*s >= end || !isdigit((unsigned char)**s)) return false;
+        while (*s < end && isdigit((unsigned char)**s)) (*s)++;
+    }
+    return true;
+}
+
+static bool v_literal(const char **s, const char *end, const char *lit) {
+    size_t n = strlen(lit);
+    if ((size_t)(end - *s) < n) return false;
+    if (memcmp(*s, lit, n) != 0) return false;
+    *s += n;
+    return true;
+}
+
+static bool v_array(const char **s, const char *end) {
+    if (*s >= end || **s != '[') return false;
+    (*s)++;
+    v_skip_ws(s, end);
+    if (*s < end && **s == ']') { (*s)++; return true; }
+    for (;;) {
+        v_skip_ws(s, end);
+        if (!v_value(s, end)) return false;
+        v_skip_ws(s, end);
+        if (*s >= end) return false;
+        if (**s == ',') { (*s)++; continue; }
+        if (**s == ']') { (*s)++; return true; }
+        return false;
+    }
+}
+
+static bool v_object(const char **s, const char *end) {
+    if (*s >= end || **s != '{') return false;
+    (*s)++;
+    v_skip_ws(s, end);
+    if (*s < end && **s == '}') { (*s)++; return true; }
+    for (;;) {
+        v_skip_ws(s, end);
+        if (!v_string_lit(s, end)) return false;
+        v_skip_ws(s, end);
+        if (*s >= end || **s != ':') return false;
+        (*s)++;
+        v_skip_ws(s, end);
+        if (!v_value(s, end)) return false;
+        v_skip_ws(s, end);
+        if (*s >= end) return false;
+        if (**s == ',') { (*s)++; continue; }
+        if (**s == '}') { (*s)++; return true; }
+        return false;
+    }
+}
+
+static bool v_value(const char **s, const char *end) {
+    v_skip_ws(s, end);
+    if (*s >= end) return false;
+    char c = **s;
+    if (c == '{') return v_object(s, end);
+    if (c == '[') return v_array(s, end);
+    if (c == '"') return v_string_lit(s, end);
+    if (c == '-' || (c >= '0' && c <= '9')) return v_number(s, end);
+    if (c == 't') return v_literal(s, end, "true");
+    if (c == 'f') return v_literal(s, end, "false");
+    if (c == 'n') return v_literal(s, end, "null");
+    return false;
+}
+
 bool ez_json_is_valid(EzString text) {
+    if (text.len <= 0 || !text.data) return false;
     const char *s = text.data;
     const char *end = s + text.len;
-    while (s < end && isspace(*s)) s++;
+    v_skip_ws(&s, end);
     if (s >= end) return false;
-    return (*s == '{' || *s == '[' || *s == '"' ||
-            isdigit(*s) || *s == '-' || *s == 't' || *s == 'f' || *s == 'n');
+    if (!v_value(&s, end)) return false;
+    v_skip_ws(&s, end);
+    return s == end;
 }
 
 EzString ez_json_pretty_map(EzArena *arena, EzMap *m, int64_t indent_size) {
