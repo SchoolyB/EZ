@@ -1,0 +1,13 @@
+/*
+ * Error Test: E3027 - literal passed to mutable (&) parameter
+ * Expected: "cannot pass a literal or expression to mutable parameter" error
+ * Regression for #1493
+ */
+
+do modify(&x int) {
+    x = 99
+}
+
+do main() {
+    modify(42)
+}
