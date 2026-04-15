@@ -1,0 +1,14 @@
+const Color enum {
+    RED
+    GREEN
+    BLUE
+}
+
+const Swatch struct {
+    name string
+    color Color
+}
+
+do make_swatch(name string, color Color) -> Swatch {
+    return Swatch{name: name, color: color}
+}
