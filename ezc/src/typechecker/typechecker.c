@@ -3452,6 +3452,64 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
                         }
                     }
                 }
+                /* #1486: map literal key/value type mismatch. Parallel
+                 * to the array E3053 check above — walks NODE_MAP_VALUE
+                 * pairs and rejects entries whose key or value type
+                 * doesn't match the declared map's K/V. The void case is
+                 * already caught in NODE_MAP_VALUE's
+                 * reject_void_in_context path (#1483); this block
+                 * covers the non-void-but-wrong-type leak. */
+                if (strncmp(tn, "map[", 4) == 0 &&
+                    node->data.var_decl.value->kind == NODE_MAP_VALUE) {
+                    const char *mstart = tn + 4;
+                    const char *mcolon = strchr(mstart, ':');
+                    const char *mend = strrchr(tn, ']');
+                    if (mcolon && mend && mend > mcolon) {
+                        char key_tn[96] = {0};
+                        char val_tn[96] = {0};
+                        size_t klen = (size_t)(mcolon - mstart);
+                        size_t vlen = (size_t)(mend - mcolon - 1);
+                        if (klen > 0 && klen < sizeof(key_tn) &&
+                            vlen > 0 && vlen < sizeof(val_tn)) {
+                            memcpy(key_tn, mstart, klen);
+                            key_tn[klen] = '\0';
+                            memcpy(val_tn, mcolon + 1, vlen);
+                            val_tn[vlen] = '\0';
+                            EzType *expected_k = type_from_name(key_tn);
+                            EzType *expected_v = type_from_name(val_tn);
+                            AstNode *mv = node->data.var_decl.value;
+                            for (int mi = 0; mi < mv->data.map_value.count; mi++) {
+                                AstNode *kn = mv->data.map_value.keys[mi];
+                                AstNode *vn = mv->data.map_value.values[mi];
+                                EzType *kt = resolve_expr(tc, kn);
+                                EzType *vt = resolve_expr(tc, vn);
+                                if (kt && kt->kind != TK_UNKNOWN && kt->kind != TK_VOID &&
+                                    expected_k && expected_k->kind != TK_UNKNOWN &&
+                                    kt->kind != expected_k->kind &&
+                                    !(is_int_kind(expected_k->kind) && is_int_kind(kt->kind))) {
+                                    char msg[256];
+                                    snprintf(msg, sizeof(msg),
+                                        "type mismatch in map literal key — expected '%s', got '%s'",
+                                        expected_k->name, kt->name);
+                                    diag_error(tc->diag, "E3053", strdup(msg),
+                                        tc->file, kn->token.line, kn->token.column, 0);
+                                }
+                                if (vt && vt->kind != TK_UNKNOWN && vt->kind != TK_VOID &&
+                                    expected_v && expected_v->kind != TK_UNKNOWN &&
+                                    vt->kind != expected_v->kind &&
+                                    !(is_int_kind(expected_v->kind) && is_int_kind(vt->kind)) &&
+                                    !(expected_v->kind == TK_POINTER && vt->kind == TK_POINTER)) {
+                                    char msg[256];
+                                    snprintf(msg, sizeof(msg),
+                                        "type mismatch in map literal value — expected '%s', got '%s'",
+                                        expected_v->name, vt->name);
+                                    diag_error(tc->diag, "E3053", strdup(msg),
+                                        tc->file, vn->token.line, vn->token.column, 0);
+                                }
+                            }
+                        }
+                    }
+                }
             }
             /* E3019: signed-to-unsigned assignment from variable */
             if (node->data.var_decl.type_name &&
