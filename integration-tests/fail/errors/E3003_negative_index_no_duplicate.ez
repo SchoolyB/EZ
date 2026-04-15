@@ -1,0 +1,10 @@
+/*
+ * Error Test: E3003 - negative array index emits exactly once
+ * Expected: single "array index cannot be negative" error (no duplicate)
+ * Regression for #1485
+ */
+
+do main() {
+    mut a [int] = {10, 20, 30}
+    println("${a[-1]}")
+}
