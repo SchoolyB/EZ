@@ -3172,8 +3172,31 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
                         node->token.line, node->token.column,
                         node->data.var_decl.type_name, lit_val);
                 }
-                /* E3026/E3036: Check array literal elements fit in sized element type */
+                /* E3001 (#1477): assigning an array literal `{}` to a map
+                 * variable falls through the normal type check because the
+                 * literal has no elements to derive a concrete element type
+                 * from, and codegen then emits ez_array_new which the C
+                 * compiler rejects. Point the user at the empty-map form
+                 * `{:}` before the rest of the var_decl check runs. */
                 const char *tn = node->data.var_decl.type_name;
+                if (strncmp(tn, "map[", 4) == 0 &&
+                    node->data.var_decl.value->kind == NODE_ARRAY_VALUE) {
+                    char msg[256];
+                    if (node->data.var_decl.value->data.array_value.count == 0) {
+                        snprintf(msg, sizeof(msg),
+                            "cannot assign array literal '{}' to '%s' — use '{:}' for an empty map",
+                            tn);
+                    } else {
+                        snprintf(msg, sizeof(msg),
+                            "cannot assign array literal to '%s' — map literals use '{key: value, ...}' syntax",
+                            tn);
+                    }
+                    diag_error(tc->diag, "E3001", strdup(msg),
+                        tc->file,
+                        node->data.var_decl.value->token.line,
+                        node->data.var_decl.value->token.column, 0);
+                }
+                /* E3026/E3036: Check array literal elements fit in sized element type */
                 if (tn[0] == '[' && node->data.var_decl.value->kind == NODE_ARRAY_VALUE) {
                     /* Extract element type name from "[byte]", "[i8]", "[u8, 3]", etc. */
                     char elem_type[64] = {0};
