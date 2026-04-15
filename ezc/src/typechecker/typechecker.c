@@ -1078,19 +1078,32 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                     diag_error(tc->diag, "E5008", strdup(msg),
                         NODE_FILE(tc, node), node->token.line, node->token.column, 0);
                 }
-                /* E3027: mutable param checks for triple-namespaced calls */
+                /* E3027: mutable param checks for triple-namespaced calls.
+                 * Struct functions live inside NODE_STRUCT_DECL, so scan
+                 * struct declarations in imported modules. */
                 int check_count = node->data.call.arg_count < sig->param_count
                     ? node->data.call.arg_count : sig->param_count;
                 for (int ai = 0; ai < check_count; ai++) {
                     resolve_expr(tc, node->data.call.args[ai]);
                     AstNode *arg = node->data.call.args[ai];
-                    for (int fi = 0; fi < tc->program->data.program.stmt_count; fi++) {
+                    AstNode *found_decl = NULL;
+                    for (int fi = 0; fi < tc->program->data.program.stmt_count && !found_decl; fi++) {
                         AstNode *s = tc->program->data.program.stmts[fi];
-                        if (s->kind != NODE_FUNC_DECL ||
-                            strcmp(s->data.func_decl.name, prefixed) != 0 ||
-                            ai >= s->data.func_decl.param_count ||
-                            !s->data.func_decl.params[ai].mutable)
-                            continue;
+                        if (s->kind == NODE_STRUCT_DECL &&
+                            strcmp(s->data.struct_decl.name, struct_name) == 0) {
+                            for (int sfi = 0; sfi < s->data.struct_decl.func_count; sfi++) {
+                                AstNode *sf = s->data.struct_decl.funcs[sfi].func_decl;
+                                if (sf && sf->kind == NODE_FUNC_DECL &&
+                                    strcmp(sf->data.func_decl.name, func_name) == 0 &&
+                                    ai < sf->data.func_decl.param_count &&
+                                    sf->data.func_decl.params[ai].mutable) {
+                                    found_decl = sf;
+                                    break;
+                                }
+                            }
+                        }
+                    }
+                    if (found_decl) {
                         if (arg->kind == NODE_LABEL) {
                             Symbol *arg_sym = scope_lookup(tc->current_scope,
                                 arg->data.label.value);
@@ -1098,7 +1111,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                                 char emsg[256];
                                 snprintf(emsg, sizeof(emsg),
                                     "cannot pass constant '%s' to mutable parameter '%s' of '%s.%s.%s'",
-                                    arg_sym->name, s->data.func_decl.params[ai].name,
+                                    arg_sym->name, found_decl->data.func_decl.params[ai].name,
                                     mod_name, struct_name, func_name);
                                 diag_error(tc->diag, "E3027", strdup(emsg),
                                     NODE_FILE(tc, arg), arg->token.line,
@@ -1110,13 +1123,12 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                             char emsg[256];
                             snprintf(emsg, sizeof(emsg),
                                 "cannot pass a literal or expression to mutable parameter '%s' of '%s.%s.%s' — expected a mutable variable",
-                                s->data.func_decl.params[ai].name,
+                                found_decl->data.func_decl.params[ai].name,
                                 mod_name, struct_name, func_name);
                             diag_error(tc->diag, "E3027", strdup(emsg),
                                 NODE_FILE(tc, arg), arg->token.line,
                                 arg->token.column, 0);
                         }
-                        break;
                     }
                 }
             } else {
@@ -1766,16 +1778,29 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                                 NODE_FILE(tc, node->data.call.args[ai]), node->data.call.args[ai]->token.line,
                                 node->data.call.args[ai]->token.column, 0);
                         }
-                        /* E3027: non-lvalue or const passed to mutable (&) param */
+                        /* E3027: non-lvalue or const passed to mutable (&) param.
+                         * Struct functions live inside NODE_STRUCT_DECL, not as
+                         * top-level stmts, so scan struct declarations. */
                         {
                             AstNode *arg = node->data.call.args[ai];
-                            for (int fi = 0; fi < tc->program->data.program.stmt_count; fi++) {
+                            AstNode *found_decl = NULL;
+                            for (int fi = 0; fi < tc->program->data.program.stmt_count && !found_decl; fi++) {
                                 AstNode *s = tc->program->data.program.stmts[fi];
-                                if (s->kind != NODE_FUNC_DECL ||
-                                    strcmp(s->data.func_decl.name, prefixed) != 0 ||
-                                    ai >= s->data.func_decl.param_count ||
-                                    !s->data.func_decl.params[ai].mutable)
-                                    continue;
+                                if (s->kind == NODE_STRUCT_DECL &&
+                                    strcmp(s->data.struct_decl.name, mod) == 0) {
+                                    for (int sfi = 0; sfi < s->data.struct_decl.func_count; sfi++) {
+                                        AstNode *sf = s->data.struct_decl.funcs[sfi].func_decl;
+                                        if (sf && sf->kind == NODE_FUNC_DECL &&
+                                            strcmp(sf->data.func_decl.name, mfn) == 0 &&
+                                            ai < sf->data.func_decl.param_count &&
+                                            sf->data.func_decl.params[ai].mutable) {
+                                            found_decl = sf;
+                                            break;
+                                        }
+                                    }
+                                }
+                            }
+                            if (found_decl) {
                                 if (arg->kind == NODE_LABEL) {
                                     Symbol *arg_sym = scope_lookup(tc->current_scope,
                                         arg->data.label.value);
@@ -1783,7 +1808,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                                         char emsg[256];
                                         snprintf(emsg, sizeof(emsg),
                                             "cannot pass constant '%s' to mutable parameter '%s' of '%s.%s'",
-                                            arg_sym->name, s->data.func_decl.params[ai].name, mod, mfn);
+                                            arg_sym->name, found_decl->data.func_decl.params[ai].name, mod, mfn);
                                         diag_error(tc->diag, "E3027", strdup(emsg),
                                             NODE_FILE(tc, arg), arg->token.line,
                                             arg->token.column, 0);
@@ -1794,12 +1819,11 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                                     char emsg[256];
                                     snprintf(emsg, sizeof(emsg),
                                         "cannot pass a literal or expression to mutable parameter '%s' of '%s.%s' — expected a mutable variable",
-                                        s->data.func_decl.params[ai].name, mod, mfn);
+                                        found_decl->data.func_decl.params[ai].name, mod, mfn);
                                     diag_error(tc->diag, "E3027", strdup(emsg),
                                         NODE_FILE(tc, arg), arg->token.line,
                                         arg->token.column, 0);
                                 }
-                                break;
                             }
                         }
                     }

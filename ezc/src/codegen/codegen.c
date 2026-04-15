@@ -4447,6 +4447,16 @@ static void emit_var_declaration(CodeGen *cg, AstNode *node) {
     const char *elem_type = extract_array_elem_type(type_name);
 
     if (elem_type) {
+        /* [func] with a single func ref init: emit as void* (function pointer),
+         * not EzArray. Array-literal inits still use EzArray. */
+        if (strcmp(elem_type, "func") == 0 &&
+            node->data.var_decl.value &&
+            node->data.var_decl.value->kind == NODE_FUNC_REF) {
+            emitf(cg, "void *%s = ", safe_name(node->data.var_decl.name));
+            emit_expression(cg, node->data.var_decl.value);
+            emit(cg, ";\n");
+            return;
+        }
         int fixed_size = extract_array_size(type_name);
         if (fixed_size > 0) {
             /* Fixed-size array: use EzArray but initialized with exact capacity */
