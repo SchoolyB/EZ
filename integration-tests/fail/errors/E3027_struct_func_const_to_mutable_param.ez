@@ -1,0 +1,18 @@
+/*
+ * Error Test: E3027 - const passed to mutable (&) param of struct function
+ * Expected: "cannot pass constant to mutable parameter" error
+ * Regression for #1494
+ */
+
+const Util struct {
+    _pad int
+
+    do double(&x int) {
+        x = x * 2
+    }
+}
+
+do main() {
+    const val int = 5
+    Util.double(val)
+}
