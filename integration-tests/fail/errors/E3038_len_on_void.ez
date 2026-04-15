@@ -1,0 +1,13 @@
+/*
+ * Error Test: E3038 - len() called on a void function result
+ *
+ * Regression for #1490: the len() check routes void arguments
+ * through reject_void_in_context so len(nothing()) catches with
+ * the same E3038 the broader void-rejection framework uses.
+ */
+
+do nothing() {}
+
+do main() {
+    println(len(nothing()))
+}
