@@ -3155,8 +3155,9 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
                        value_type->kind != TK_NIL &&
                        /* Skip mismatch between int/uint (handled by E3019) */
                        !(is_int_kind(declared->kind) && is_int_kind(value_type->kind)) &&
-                       /* Skip mismatch on enum assignment (enum ↔ int) */
-                       !(declared->kind == TK_ENUM && is_int_kind(value_type->kind)) &&
+                       /* Allow enum → int (enums are int-backed) but not
+                        * the reverse — int literals / variables can't be
+                        * assigned to enum variables (#1472). */
                        !(is_int_kind(declared->kind) && value_type->kind == TK_ENUM) &&
                        /* Skip mismatch on multi-var expansion (.v0/.v1 access) */
                        !(node->data.var_decl.value &&
@@ -3656,8 +3657,10 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
                 ret_t->kind != expected->kind && ret_t->kind != TK_NIL &&
                 /* int/uint are compatible at kind level (E5024 checks signedness) */
                 !(is_int_kind(expected->kind) && is_int_kind(ret_t->kind)) &&
+                /* Allow enum → int return (enums are int-backed) but not
+                 * the reverse — returning an int from a function declared
+                 * to return an enum is a type error (#1472). */
                 !(is_int_kind(expected->kind) && ret_t->kind == TK_ENUM) &&
-                !(expected->kind == TK_ENUM && is_int_kind(ret_t->kind)) &&
                 !(expected->kind == TK_STRUCT && is_int_kind(ret_t->kind)) &&
                 !(is_int_kind(expected->kind) && ret_t->kind == TK_STRUCT) &&
                 !(expected->kind == TK_FLOAT && is_int_kind(ret_t->kind)) &&
