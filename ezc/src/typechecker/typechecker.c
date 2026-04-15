@@ -2107,27 +2107,43 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                                 NODE_FILE(tc, node->data.call.args[ai]), node->data.call.args[ai]->token.line,
                                 node->data.call.args[ai]->token.column, 0);
                         }
-                        /* E3027: const variable passed to mutable param */
-                        if (node->data.call.args[ai]->kind == NODE_LABEL) {
-                            Symbol *arg_sym = scope_lookup(tc->current_scope,
-                                node->data.call.args[ai]->data.label.value);
-                            /* Find the func decl to check param mutability */
+                        /* E3027: non-lvalue or const passed to mutable (&) param */
+                        {
+                            AstNode *arg = node->data.call.args[ai];
+                            /* Find the func decl to check if this param is mutable */
                             for (int fi = 0; fi < tc->program->data.program.stmt_count; fi++) {
                                 AstNode *s = tc->program->data.program.stmts[fi];
-                                if (s->kind == NODE_FUNC_DECL &&
-                                    strcmp(s->data.func_decl.name, fn_name) == 0 &&
-                                    ai < s->data.func_decl.param_count &&
-                                    s->data.func_decl.params[ai].mutable &&
-                                    arg_sym && !arg_sym->mutable) {
+                                if (s->kind != NODE_FUNC_DECL ||
+                                    strcmp(s->data.func_decl.name, fn_name) != 0 ||
+                                    ai >= s->data.func_decl.param_count ||
+                                    !s->data.func_decl.params[ai].mutable)
+                                    continue;
+                                /* Param is mutable — check argument is a valid lvalue */
+                                if (arg->kind == NODE_LABEL) {
+                                    Symbol *arg_sym = scope_lookup(tc->current_scope,
+                                        arg->data.label.value);
+                                    if (arg_sym && !arg_sym->mutable) {
+                                        char msg[256];
+                                        snprintf(msg, sizeof(msg),
+                                            "cannot pass constant '%s' to mutable parameter '%s' of '%s'",
+                                            arg_sym->name, s->data.func_decl.params[ai].name, fn_name);
+                                        diag_error(tc->diag, "E3027", strdup(msg),
+                                            NODE_FILE(tc, arg), arg->token.line,
+                                            arg->token.column, 0);
+                                    }
+                                } else if (arg->kind != NODE_MEMBER_EXPR &&
+                                           arg->kind != NODE_INDEX_EXPR &&
+                                           arg->kind != NODE_PREFIX_EXPR) {
+                                    /* Literal, call result, or other non-lvalue expression */
                                     char msg[256];
                                     snprintf(msg, sizeof(msg),
-                                        "cannot pass constant '%s' to mutable parameter '%s' of '%s'",
-                                        arg_sym->name, s->data.func_decl.params[ai].name, fn_name);
+                                        "cannot pass a literal or expression to mutable parameter '%s' of '%s' — expected a mutable variable",
+                                        s->data.func_decl.params[ai].name, fn_name);
                                     diag_error(tc->diag, "E3027", strdup(msg),
-                                        NODE_FILE(tc, node->data.call.args[ai]), node->data.call.args[ai]->token.line,
-                                        node->data.call.args[ai]->token.column, 0);
-                                    break;
+                                        NODE_FILE(tc, arg), arg->token.line,
+                                        arg->token.column, 0);
                                 }
+                                break;
                             }
                         }
                     }
