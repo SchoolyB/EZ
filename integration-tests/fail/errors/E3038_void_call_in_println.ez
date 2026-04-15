@@ -1,0 +1,13 @@
+/*
+ * Error Test: E3038 - void function call passed to println
+ *
+ * Regression for #1483: `println(nothing())` used to leak to clang
+ * with a raw "incompatible type 'void'" error. Typechecker now
+ * rejects void expressions at builtin print-family call sites.
+ */
+
+do nothing() {}
+
+do main() {
+    println(nothing())
+}
