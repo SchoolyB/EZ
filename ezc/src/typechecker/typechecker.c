@@ -643,7 +643,23 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
             if (sym->is_ref && result->kind == TK_POINTER && result->element_type) {
                 result = type_from_name(result->element_type);
             }
-        } else if (!is_enum_name(tc, name) && !find_func(tc, name) &&
+        } else if (find_func(tc, name)) {
+            /* Bare function name used as a value (#1475). Call sites
+             * inspect node->data.call.function directly and never
+             * recurse through resolve_expr for a LABEL callee, and
+             * NODE_FUNC_REF reads its inner label without going
+             * through here either — so any NODE_LABEL that resolves
+             * to a function at this point is an unwrapped reference
+             * in a value position and should be rejected. */
+            FuncSig *fs = find_func(tc, name);
+            if (fs) fs->used = true;
+            char msg[256];
+            snprintf(msg, sizeof(msg),
+                "function '%s' cannot be used as a value — did you mean '%s()' or '()%s'?",
+                name, name, name);
+            diag_error(tc->diag, "E3031", strdup(msg),
+                tc->file, node->token.line, node->token.column, 0);
+        } else if (!is_enum_name(tc, name) &&
                    !tc_is_builtin(name) && !is_struct_name(tc, name) &&
                    !tc_is_imported_module(tc, name)) {
             /* Check if it looks like a number with a leading underscore */

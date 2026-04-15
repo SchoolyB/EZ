@@ -95,6 +95,7 @@
     EZ_ERROR("E3019", "types", "cannot assign a signed integer to an unsigned type — the value may be negative") \
     EZ_ERROR("E3024", "types", "this function must return a value but the body has no return statement") \
     EZ_ERROR("E3027", "types", "cannot pass a constant to a mutable parameter — the function wants to modify this value") \
+    EZ_ERROR("E3031", "types", "function name cannot be used as a value — call it with '()' or take a reference with '()name'") \
     EZ_ERROR("E3032", "types", "cannot compare different enum types — they are never equal") \
     EZ_ERROR("E3033", "types", "duplicate value in enum — each enum member must have a unique value") \
     EZ_ERROR("E3034", "types", "'any' type is reserved for internal use and cannot be used in declarations") \

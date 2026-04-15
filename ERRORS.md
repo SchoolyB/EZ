@@ -3,7 +3,7 @@
 > Auto-generated from `ezc/src/util/error_codes.h`. Do not edit manually.
 > Run `./scripts/generate_errors.sh` to regenerate.
 
-**Total: 135 codes** (125 errors, 10 warnings)
+**Total: 136 codes** (126 errors, 10 warnings)
 
 ---
 
@@ -81,6 +81,7 @@
 | `E3019` | types | cannot assign a signed integer to an unsigned type — the value may be negative |
 | `E3024` | types | this function must return a value but the body has no return statement |
 | `E3027` | types | cannot pass a constant to a mutable parameter — the function wants to modify this value |
+| `E3031` | types | function name cannot be used as a value — call it with '()' or take a reference with '()name' |
 | `E3032` | types | cannot compare different enum types — they are never equal |
 | `E3033` | types | duplicate value in enum — each enum member must have a unique value |
 | `E3034` | types | 'any' type is reserved for internal use and cannot be used in declarations |
@@ -179,4 +180,4 @@
 
 ---
 
-*Generated on 2026-04-14 20:49:54 UTC*
+*Generated on 2026-04-15 01:57:01 UTC*
