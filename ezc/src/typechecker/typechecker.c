@@ -825,6 +825,24 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
             infix_errored = true;
         }
 
+        /* E3002 (#1487): nil in any operator other than equality. `nil
+         * == x` and `nil != x` are valid against nullable types (the
+         * existing comparison path already validates that); every
+         * other operator on nil is nonsense. Catches both
+         * `println(nil + 1)` (which leaked straight to clang) and
+         * `mut x int = nil + 1` (which was caught by the downstream
+         * nil-assignment check with a confusing message). */
+        if ((left->kind == TK_NIL || right->kind == TK_NIL) &&
+            strcmp(op, "==") != 0 && strcmp(op, "!=") != 0) {
+            char msg[256];
+            snprintf(msg, sizeof(msg),
+                "cannot use nil with operator '%s' — nil is only valid for == / != against nullable types (Error, pointers)",
+                op);
+            diag_error(tc->diag, "E3002", strdup(msg),
+                tc->file, node->token.line, node->token.column, 0);
+            infix_errored = true;
+        }
+
         /* String + string: reject with helpful message */
         if ((left->kind == TK_STRING || right->kind == TK_STRING) && strcmp(op, "+") == 0) {
             diag_error(tc->diag, "E3048",
