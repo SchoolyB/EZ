@@ -3146,6 +3146,41 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
                     strdup("cannot infer type from nil — add a type annotation (e.g., mut x Error = nil)"),
                     tc->file, node->token.line, node->token.column, 0);
             }
+            /* E3001 (#1479): \`mut f func = expr\` requires expr to be a
+             * function reference. The declared type "func" round-trips as
+             * TK_UNKNOWN via type_from_name, so the generic mismatch check
+             * below can't see it — it would fall through to "declared is
+             * unknown, infer from value" and silently adopt whatever type
+             * the call site returned. Catch it explicitly here. */
+            if (node->data.var_decl.type_name &&
+                strcmp(node->data.var_decl.type_name, "func") == 0 &&
+                node->data.var_decl.value) {
+                AstNode *v = node->data.var_decl.value;
+                bool value_is_func =
+                    v->kind == NODE_FUNC_REF ||
+                    value_type->kind == TK_NIL ||
+                    (value_type->name && strcmp(value_type->name, "func") == 0);
+                if (!value_is_func) {
+                    char msg[256];
+                    /* If the initializer is a direct call, point the user
+                     * at the reference form of the same name — that's
+                     * overwhelmingly what they meant. */
+                    if (v->kind == NODE_CALL_EXPR &&
+                        v->data.call.function &&
+                        v->data.call.function->kind == NODE_LABEL) {
+                        const char *called = v->data.call.function->data.label.value;
+                        snprintf(msg, sizeof(msg),
+                            "cannot assign %s to 'func' — to store a reference to '%s', use '()%s' (not '%s()')",
+                            type_name(value_type), called, called, called);
+                    } else {
+                        snprintf(msg, sizeof(msg),
+                            "cannot assign %s to 'func' — func variables hold function references (e.g. '()name')",
+                            type_name(value_type));
+                    }
+                    diag_error(tc->diag, "E3001", strdup(msg),
+                        tc->file, node->token.line, node->token.column, 0);
+                }
+            }
             /* If no declared type, infer from value */
             if (declared->kind == TK_UNKNOWN) {
                 declared = value_type;
