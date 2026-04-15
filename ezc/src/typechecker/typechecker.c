@@ -4724,6 +4724,112 @@ static void register_declarations(TypeChecker *tc, AstNode *program) {
         }
     }
 
+    /* Pass 2a: Register enums BEFORE structs so that struct field types
+     * referencing enums resolve correctly via tc_type_from_name(). Without
+     * this ordering guarantee, a struct field typed as an enum (e.g. `color
+     * Color`) resolves as TK_STRUCT instead of TK_ENUM when the struct
+     * appears before the enum in the merged AST (common with imports). */
+    for (int i = 0; i < program->data.program.stmt_count; i++) {
+        AstNode *stmt = program->data.program.stmts[i];
+        if (stmt->kind != NODE_ENUM_DECL) continue;
+
+        /* E2038: reserved name for enums */
+        const char *en = stmt->data.enum_decl.name;
+        if (is_reserved_type_name(en)) {
+            char msg[256];
+            snprintf(msg, sizeof(msg), "'%s' is a reserved type name and cannot be used as an enum name", en);
+            diag_error(tc->diag, "E2038", strdup(msg), NODE_FILE(tc, stmt), stmt->token.line, stmt->token.column, 0);
+        }
+        /* E2016: empty enum */
+        if (stmt->data.enum_decl.value_count == 0) {
+            char msg[256];
+            snprintf(msg, sizeof(msg),
+                "enum '%s' has no values — an enum must have at least one value",
+                stmt->data.enum_decl.name);
+            diag_error(tc->diag, "E2016", strdup(msg),
+                NODE_FILE(tc, stmt), stmt->token.line, stmt->token.column, 0);
+        }
+        /* E3033: check for duplicate enum values */
+        for (int j = 0; j < stmt->data.enum_decl.value_count; j++) {
+            if (!stmt->data.enum_decl.values[j].value) continue;
+            for (int k = 0; k < j; k++) {
+                if (!stmt->data.enum_decl.values[k].value) continue;
+                if (stmt->data.enum_decl.values[j].value->kind == NODE_INT_VALUE &&
+                    stmt->data.enum_decl.values[k].value->kind == NODE_INT_VALUE &&
+                    stmt->data.enum_decl.values[j].value->data.int_value.value ==
+                    stmt->data.enum_decl.values[k].value->data.int_value.value) {
+                    char msg[256];
+                    snprintf(msg, sizeof(msg),
+                        "duplicate value in enum '%s': '%s' and '%s' both have the same value",
+                        stmt->data.enum_decl.name,
+                        stmt->data.enum_decl.values[k].name,
+                        stmt->data.enum_decl.values[j].name);
+                    diag_error(tc->diag, "E3033", strdup(msg),
+                        NODE_FILE(tc, stmt), stmt->token.line, stmt->token.column, 0);
+                    break;
+                }
+            }
+        }
+        /* E2014: check for duplicate enum variant names */
+        /* E2065: check variant name vs enum type name */
+        for (int j = 0; j < stmt->data.enum_decl.value_count; j++) {
+            if (strcmp(stmt->data.enum_decl.values[j].name,
+                       stmt->data.enum_decl.name) == 0) {
+                char msg[256];
+                snprintf(msg, sizeof(msg),
+                    "enum variant '%s' cannot have the same name as its enum type '%s'",
+                    stmt->data.enum_decl.values[j].name,
+                    stmt->data.enum_decl.name);
+                diag_error(tc->diag, "E2065", strdup(msg),
+                    NODE_FILE(tc, stmt), stmt->token.line, stmt->token.column, 0);
+            }
+            for (int k = 0; k < j; k++) {
+                if (strcmp(stmt->data.enum_decl.values[k].name,
+                          stmt->data.enum_decl.values[j].name) == 0) {
+                    char msg[256];
+                    snprintf(msg, sizeof(msg),
+                        "duplicate variant name '%s' in enum '%s'",
+                        stmt->data.enum_decl.values[j].name,
+                        stmt->data.enum_decl.name);
+                    diag_error(tc->diag, "E2014", strdup(msg),
+                        NODE_FILE(tc, stmt), stmt->token.line, stmt->token.column, 0);
+                    break;
+                }
+            }
+        }
+        /* Detect string enum */
+        bool is_str = false;
+        if (stmt->data.enum_decl.base_type &&
+            strcmp(stmt->data.enum_decl.base_type, "string") == 0) {
+            is_str = true;
+        } else {
+            for (int j = 0; j < stmt->data.enum_decl.value_count; j++) {
+                if (stmt->data.enum_decl.values[j].value &&
+                    stmt->data.enum_decl.values[j].value->kind == NODE_STRING_VALUE) {
+                    is_str = true;
+                    break;
+                }
+            }
+        }
+        /* E4007: duplicate enum name */
+        if (is_enum_name(tc, stmt->data.enum_decl.name) ||
+            is_struct_name(tc, stmt->data.enum_decl.name)) {
+            char msg[256];
+            snprintf(msg, sizeof(msg),
+                "a type named '%s' is already declared",
+                stmt->data.enum_decl.name);
+            diag_error(tc->diag, "E4007", strdup(msg),
+                NODE_FILE(tc, stmt), stmt->token.line, stmt->token.column, 0);
+        }
+        int vc = stmt->data.enum_decl.value_count;
+        const char **vnames = malloc(sizeof(const char *) * (vc ? vc : 1));
+        for (int j = 0; j < vc; j++) {
+            vnames[j] = stmt->data.enum_decl.values[j].name;
+        }
+        register_enum(tc, stmt->data.enum_decl.name, is_str, vnames, vc);
+    }
+
+    /* Pass 2b: Register structs and functions (enums already registered above) */
     for (int i = 0; i < program->data.program.stmt_count; i++) {
         AstNode *stmt = program->data.program.stmts[i];
 
@@ -4885,102 +4991,7 @@ static void register_declarations(TypeChecker *tc, AstNode *program) {
             }
         }
 
-        if (stmt->kind == NODE_ENUM_DECL) {
-            /* E2038: reserved name for enums */
-            const char *en = stmt->data.enum_decl.name;
-            if (is_reserved_type_name(en)) {
-                char msg[256];
-                snprintf(msg, sizeof(msg), "'%s' is a reserved type name and cannot be used as an enum name", en);
-                diag_error(tc->diag, "E2038", strdup(msg), NODE_FILE(tc, stmt), stmt->token.line, stmt->token.column, 0);
-            }
-            /* E2016: empty enum */
-            if (stmt->data.enum_decl.value_count == 0) {
-                char msg[256];
-                snprintf(msg, sizeof(msg),
-                    "enum '%s' has no values — an enum must have at least one value",
-                    stmt->data.enum_decl.name);
-                diag_error(tc->diag, "E2016", strdup(msg),
-                    NODE_FILE(tc, stmt), stmt->token.line, stmt->token.column, 0);
-            }
-            /* E3033: check for duplicate enum values */
-            for (int j = 0; j < stmt->data.enum_decl.value_count; j++) {
-                if (!stmt->data.enum_decl.values[j].value) continue;
-                for (int k = 0; k < j; k++) {
-                    if (!stmt->data.enum_decl.values[k].value) continue;
-                    if (stmt->data.enum_decl.values[j].value->kind == NODE_INT_VALUE &&
-                        stmt->data.enum_decl.values[k].value->kind == NODE_INT_VALUE &&
-                        stmt->data.enum_decl.values[j].value->data.int_value.value ==
-                        stmt->data.enum_decl.values[k].value->data.int_value.value) {
-                        char msg[256];
-                        snprintf(msg, sizeof(msg),
-                            "duplicate value in enum '%s': '%s' and '%s' both have the same value",
-                            stmt->data.enum_decl.name,
-                            stmt->data.enum_decl.values[k].name,
-                            stmt->data.enum_decl.values[j].name);
-                        diag_error(tc->diag, "E3033", strdup(msg),
-                            NODE_FILE(tc, stmt), stmt->token.line, stmt->token.column, 0);
-                        break;
-                    }
-                }
-            }
-            /* E2014: check for duplicate enum variant names */
-            /* E2065: check variant name vs enum type name */
-            for (int j = 0; j < stmt->data.enum_decl.value_count; j++) {
-                if (strcmp(stmt->data.enum_decl.values[j].name,
-                           stmt->data.enum_decl.name) == 0) {
-                    char msg[256];
-                    snprintf(msg, sizeof(msg),
-                        "enum variant '%s' cannot have the same name as its enum type '%s'",
-                        stmt->data.enum_decl.values[j].name,
-                        stmt->data.enum_decl.name);
-                    diag_error(tc->diag, "E2065", strdup(msg),
-                        NODE_FILE(tc, stmt), stmt->token.line, stmt->token.column, 0);
-                }
-                for (int k = 0; k < j; k++) {
-                    if (strcmp(stmt->data.enum_decl.values[k].name,
-                              stmt->data.enum_decl.values[j].name) == 0) {
-                        char msg[256];
-                        snprintf(msg, sizeof(msg),
-                            "duplicate variant name '%s' in enum '%s'",
-                            stmt->data.enum_decl.values[j].name,
-                            stmt->data.enum_decl.name);
-                        diag_error(tc->diag, "E2014", strdup(msg),
-                            NODE_FILE(tc, stmt), stmt->token.line, stmt->token.column, 0);
-                        break;
-                    }
-                }
-            }
-            /* Detect string enum: has explicit base_type "string" or string literal values */
-            bool is_str = false;
-            if (stmt->data.enum_decl.base_type &&
-                strcmp(stmt->data.enum_decl.base_type, "string") == 0) {
-                is_str = true;
-            } else {
-                for (int j = 0; j < stmt->data.enum_decl.value_count; j++) {
-                    if (stmt->data.enum_decl.values[j].value &&
-                        stmt->data.enum_decl.values[j].value->kind == NODE_STRING_VALUE) {
-                        is_str = true;
-                        break;
-                    }
-                }
-            }
-            /* E4007: duplicate enum name */
-            if (is_enum_name(tc, stmt->data.enum_decl.name) ||
-                is_struct_name(tc, stmt->data.enum_decl.name)) {
-                char msg[256];
-                snprintf(msg, sizeof(msg),
-                    "a type named '%s' is already declared",
-                    stmt->data.enum_decl.name);
-                diag_error(tc->diag, "E4007", strdup(msg),
-                    NODE_FILE(tc, stmt), stmt->token.line, stmt->token.column, 0);
-            }
-            int vc = stmt->data.enum_decl.value_count;
-            const char **vnames = malloc(sizeof(const char *) * (vc ? vc : 1));
-            for (int j = 0; j < vc; j++) {
-                vnames[j] = stmt->data.enum_decl.values[j].name;
-            }
-            register_enum(tc, stmt->data.enum_decl.name, is_str, vnames, vc);
-        }
+        /* Enums already processed in pass 2a above */
 
         if (stmt->kind == NODE_FUNC_DECL) {
             int pc = stmt->data.func_decl.param_count;
