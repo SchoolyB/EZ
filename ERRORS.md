@@ -91,7 +91,7 @@
 | `E3038` | types | 'void' cannot be used as a variable type or in expressions like typeof() |
 | `E3039` | types | ensure expects a function call — for example: ensure close(file) |
 | `E3040` | types | this function returns multiple values but you are assigning to a single variable — use mut a, b = func() |
-| `E3041` | types | cannot interpolate void expression — the function does not return a value |
+| `E3041` | types | cannot interpolate expression — interpolation supports primitives, strings, arrays, and maps |
 | `E3042` | types | struct functions must be called on the type, not an instance — use Type.func() instead of variable.func() |
 | `E3043` | types | cannot cast between incompatible types — structs and maps cannot be cast to primitives |
 | `E3044` | types | cannot access a field on a struct type — use an instance variable instead |
@@ -183,4 +183,4 @@
 
 ---
 
-*Generated on 2026-04-15 23:39:59 UTC*
+*Generated on 2026-04-15 23:56:42 UTC*

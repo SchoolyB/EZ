@@ -624,21 +624,43 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
             AstNode *part = node->data.interpolated_string.parts[i];
             EzType *pt = resolve_expr(tc, part);
             /* Only check non-literal parts (the ${expr} expressions) */
-            if (part->kind != NODE_STRING_VALUE && pt && pt->kind == TK_VOID) {
-                /* Try to get a meaningful source location from the expression */
-                int line = node->token.line;
-                int col = node->token.column;
-                if (part->kind == NODE_CALL_EXPR && part->data.call.function &&
-                    part->data.call.function->token.line > 0) {
-                    line = part->data.call.function->token.line;
-                    col = part->data.call.function->token.column;
-                } else if (part->token.line > 0) {
-                    line = part->token.line;
-                    col = part->token.column;
-                }
+            if (part->kind == NODE_STRING_VALUE || !pt) continue;
+            /* Interpolation expressions are re-lexed by a sub-lexer on
+             * the extracted ${...} text, so part tokens have positions
+             * relative to that sub-stream — not the original file.
+             * Always anchor diagnostics at the outer string literal's
+             * location instead. */
+            int line = node->token.line;
+            int col = node->token.column;
+            bool is_func_type = (pt->name && strcmp(pt->name, "func") == 0);
+            if (pt->kind == TK_VOID) {
                 diag_error(tc->diag, "E3041",
                     strdup("cannot interpolate void expression — the function does not return a value"),
-                    NODE_FILE(tc, part), line, col, 0);
+                    NODE_FILE(tc, node), line, col, 0);
+            } else if (pt->kind == TK_STRUCT ||
+                       pt->kind == TK_POINTER ||
+                       is_func_type) {
+                /* #1499: interpolation codegen only handles scalars,
+                 * strings, arrays, and maps. Structs, pointers, and
+                 * func references fall through to a `%lld` + long-long
+                 * cast in the generated C, which clang rejects. Catch
+                 * it here with a targeted E3041 instead of leaking a
+                 * raw C error, and nudge the user at the workaround
+                 * (interpolate individual fields for structs). */
+                char msg[256];
+                if (pt->kind == TK_STRUCT && pt->name) {
+                    snprintf(msg, sizeof(msg),
+                        "cannot interpolate struct value of type '%s' — format fields individually (e.g. \"${v.field}\")",
+                        pt->name);
+                } else if (pt->kind == TK_POINTER) {
+                    snprintf(msg, sizeof(msg),
+                        "cannot interpolate pointer value — dereference with ^ or format the pointee explicitly");
+                } else {
+                    snprintf(msg, sizeof(msg),
+                        "cannot interpolate function reference — call the function or format its result");
+                }
+                diag_error(tc->diag, "E3041", strdup(msg),
+                    NODE_FILE(tc, node), line, col, 0);
             }
         }
         result = &TYPE_STRING;

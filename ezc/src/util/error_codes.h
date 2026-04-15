@@ -105,7 +105,7 @@
     EZ_ERROR("E3038", "types", "'void' cannot be used as a variable type or in expressions like typeof()") \
     EZ_ERROR("E3039", "types", "ensure expects a function call — for example: ensure close(file)") \
     EZ_ERROR("E3040", "types", "this function returns multiple values but you are assigning to a single variable — use mut a, b = func()") \
-    EZ_ERROR("E3041", "types", "cannot interpolate void expression — the function does not return a value") \
+    EZ_ERROR("E3041", "types", "cannot interpolate expression — interpolation supports primitives, strings, arrays, and maps") \
     EZ_ERROR("E3042", "types", "struct functions must be called on the type, not an instance — use Type.func() instead of variable.func()") \
     EZ_ERROR("E3043", "types", "cannot cast between incompatible types — structs and maps cannot be cast to primitives") \
     EZ_ERROR("E3044", "types", "cannot access a field on a struct type — use an instance variable instead") \
