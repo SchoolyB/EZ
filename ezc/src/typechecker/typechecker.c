@@ -2930,13 +2930,18 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
             diag_error(tc->diag, "E3003", strdup(msg),
                 NODE_FILE(tc, node), node->token.line, node->token.column, 0);
         }
-        /* Reject negative literal index at compile time */
-        if (left->kind == TK_ARRAY &&
+        /* Reject negative literal index at compile time. Applies to
+         * arrays and strings (#1500) — the analogous runtime panic
+         * fires for both, and there's no reason to wait until then
+         * when the index is a literal '-N'. */
+        if ((left->kind == TK_ARRAY || left->kind == TK_STRING) &&
             node->data.index_expr.index->kind == NODE_PREFIX_EXPR &&
             strcmp(node->data.index_expr.index->data.prefix.op, "-") == 0 &&
             node->data.index_expr.index->data.prefix.right->kind == NODE_INT_VALUE) {
-            diag_error(tc->diag, "E3003",
-                strdup("array index cannot be negative"),
+            const char *what = left->kind == TK_STRING ? "string" : "array";
+            char msg[64];
+            snprintf(msg, sizeof(msg), "%s index cannot be negative", what);
+            diag_error(tc->diag, "E3003", strdup(msg),
                 NODE_FILE(tc, node->data.index_expr.index), node->data.index_expr.index->token.line,
                 node->data.index_expr.index->token.column, 0);
         }
