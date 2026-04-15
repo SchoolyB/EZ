@@ -1,0 +1,10 @@
+/*
+ * Error Test: E3002 - division by literal float zero
+ *
+ * Regression for #1474: float literal 0.0 divisor is also statically
+ * caught, matching the integer shape.
+ */
+
+do main() {
+    mut x float = 3.14 / 0.0
+}
