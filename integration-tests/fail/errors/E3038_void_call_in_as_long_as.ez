@@ -1,0 +1,16 @@
+/*
+ * Error Test: E3038 - void function call used as an as_long_as condition
+ *
+ * Regression for #1476: the while-loop condition slot got the same
+ * treatment as if/or. for and for_each are intentionally not touched
+ * because they walk ranges/iterables, not boolean conditions.
+ */
+
+do nothing() {
+}
+
+do main() {
+    as_long_as nothing() {
+        println("unreachable")
+    }
+}
