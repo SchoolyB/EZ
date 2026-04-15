@@ -1705,19 +1705,42 @@ static AstNode *parse_struct_declaration(Parser *p) {
             continue;
         }
 
-        StructField *field = &node->data.struct_decl.fields[node->data.struct_decl.field_count];
-        field->name = p->cur_token.literal;
-        next_token(p);
-        field->type_name = parse_complex_type(p);
-        if (!field->type_name) return NULL;
+        /* Collect one or more comma-separated field names, then read the
+         * shared type and backfill (mirrors the parameter grouping logic).
+         * Example: `x, y, z float` → three fields, all typed float.       */
+        int group_start = node->data.struct_decl.field_count;
+        for (;;) {
+            if (node->data.struct_decl.field_count >= field_cap) {
+                field_cap *= 2;
+                StructField *new_f = arena_alloc(p->arena, sizeof(StructField) * field_cap);
+                memcpy(new_f, node->data.struct_decl.fields,
+                    sizeof(StructField) * node->data.struct_decl.field_count);
+                node->data.struct_decl.fields = new_f;
+            }
+            StructField *field = &node->data.struct_decl.fields[node->data.struct_decl.field_count];
+            field->name = p->cur_token.literal;
+            field->type_name = NULL;
+            node->data.struct_decl.field_count++;
+            next_token(p);
+            if (cur_token_is(p, TOK_COMMA)) {
+                next_token(p); /* skip comma, loop for next name */
+            } else {
+                break;
+            }
+        }
+        /* Current token is now the type — parse it and backfill all names in this group */
+        const char *type_name = parse_complex_type(p);
+        if (!type_name) return NULL;
         /* E2070: wildcard `?` not allowed in struct field types */
-        if (type_string_has_wildcard(field->type_name)) {
+        if (type_string_has_wildcard(type_name)) {
             diag_error(p->diag, "E2070",
                 arena_strdup(p->arena,
                     "wildcard type '?' is not allowed in struct fields — only in function parameter and return types"),
                 p->file, p->cur_token.line, p->cur_token.column, 0);
         }
-        node->data.struct_decl.field_count++;
+        for (int i = group_start; i < node->data.struct_decl.field_count; i++) {
+            node->data.struct_decl.fields[i].type_name = type_name;
+        }
         next_token(p);
 
         /* Reject semicolons */
