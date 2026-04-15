@@ -142,6 +142,7 @@ typedef struct {
     const char *literal;    /* Points into arena or static string */
     int line;
     int column;
+    const char *file;       /* Source file this token came from (NULL = main file) */
 } Token;
 
 /* Look up an identifier - returns keyword token type or TOK_IDENT */

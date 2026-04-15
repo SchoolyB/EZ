@@ -14,6 +14,10 @@
 #include <string.h>
 #include <stdint.h>
 
+/* Helper: get the source file from an AST node's token, falling back to tc->file.
+ * Imported nodes carry their original file path in token.file; main-file nodes have NULL. */
+#define NODE_FILE(tc, n) ((n)->token.file ? (n)->token.file : (tc)->file)
+
 /* --- Type Table (open-addressing hash, pointer keys) --- */
 
 static uint32_t hash_ptr(const void *ptr) {
@@ -570,7 +574,7 @@ static void reject_void_in_context(TypeChecker *tc, AstNode *expr,
             context);
     }
     diag_error(tc->diag, "E3038", strdup(msg),
-        tc->file, expr->token.line, expr->token.column, 0);
+        NODE_FILE(tc, expr), expr->token.line, expr->token.column, 0);
 }
 
 static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
@@ -611,7 +615,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                 }
                 diag_error(tc->diag, "E3041",
                     strdup("cannot interpolate void expression — the function does not return a value"),
-                    tc->file, line, col, 0);
+                    NODE_FILE(tc, part), line, col, 0);
             }
         }
         result = &TYPE_STRING;
@@ -683,7 +687,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                 "function '%s' cannot be used as a value — did you mean '%s()' or '()%s'?",
                 name, name, name);
             diag_error(tc->diag, "E3031", strdup(msg),
-                tc->file, node->token.line, node->token.column, 0);
+                NODE_FILE(tc, node), node->token.line, node->token.column, 0);
         } else if (!is_enum_name(tc, name) &&
                    !tc_is_builtin(name) && !is_struct_name(tc, name) &&
                    !tc_is_imported_module(tc, name)) {
@@ -694,7 +698,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                     "numeric literals cannot start with an underscore — did you mean '%s'?",
                     name + 1);
                 diag_error(tc->diag, "E1012", strdup(msg),
-                    tc->file, node->token.line, node->token.column, 0);
+                    NODE_FILE(tc, node), node->token.line, node->token.column, 0);
             } else {
                 char msg[256];
                 snprintf(msg, sizeof(msg), "undefined variable '%s'", name);
@@ -703,10 +707,10 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                     char help[256];
                     snprintf(help, sizeof(help), "did you mean '%s'?", suggestion);
                     diag_error_help(tc->diag, "E4001", strdup(msg),
-                        tc->file, node->token.line, node->token.column, 0, strdup(help));
+                        NODE_FILE(tc, node), node->token.line, node->token.column, 0, strdup(help));
                 } else {
                     diag_error(tc->diag, "E4001", strdup(msg),
-                        tc->file, node->token.line, node->token.column, 0);
+                        NODE_FILE(tc, node), node->token.line, node->token.column, 0);
                 }
             }
         }
@@ -724,7 +728,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                     "cannot negate type '%s' — only numeric types support negation",
                     type_name(right));
                 diag_error(tc->diag, "E3007", strdup(msg),
-                    tc->file, node->token.line, node->token.column, 0);
+                    NODE_FILE(tc, node), node->token.line, node->token.column, 0);
             }
             result = right;
         } else {
@@ -765,7 +769,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
             snprintf(msg, sizeof(msg),
                 "cannot use '%s' on strings; use strings.compare() instead", op);
             diag_error(tc->diag, "E3002", strdup(msg),
-                tc->file, node->token.line, node->token.column, 0);
+                NODE_FILE(tc, node), node->token.line, node->token.column, 0);
             result = &TYPE_BOOL;
             break;
         }
@@ -775,7 +779,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
             (left->kind == TK_FLOAT || right->kind == TK_FLOAT)) {
             diag_error(tc->diag, "E3002",
                 strdup("modulo (%) only works on integers, not floats"),
-                tc->file, node->token.line, node->token.column, 0);
+                NODE_FILE(tc, node), node->token.line, node->token.column, 0);
             infix_errored = true;
         }
 
@@ -805,7 +809,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                     "%s by zero — dividing by a literal zero is always invalid",
                     strcmp(op, "%") == 0 ? "modulo" : "division");
                 diag_error(tc->diag, "E3002", strdup(msg),
-                    tc->file, r->token.line, r->token.column, 0);
+                    NODE_FILE(tc, r), r->token.line, r->token.column, 0);
                 infix_errored = true;
             }
         }
@@ -821,7 +825,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                 "invalid operands: cannot use '%s' with %s and %s",
                 op, type_name(left), type_name(right));
             diag_error(tc->diag, "E3002", strdup(msg),
-                tc->file, node->token.line, node->token.column, 0);
+                NODE_FILE(tc, node), node->token.line, node->token.column, 0);
             infix_errored = true;
         }
 
@@ -839,7 +843,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                 "cannot use nil with operator '%s' — nil is only valid for == / != against nullable types (Error, pointers)",
                 op);
             diag_error(tc->diag, "E3002", strdup(msg),
-                tc->file, node->token.line, node->token.column, 0);
+                NODE_FILE(tc, node), node->token.line, node->token.column, 0);
             infix_errored = true;
         }
 
@@ -847,7 +851,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
         if ((left->kind == TK_STRING || right->kind == TK_STRING) && strcmp(op, "+") == 0) {
             diag_error(tc->diag, "E3048",
                 strdup("operator '+' is not defined for strings — use string interpolation or fmt.format() instead"),
-                tc->file, node->token.line, node->token.column, 0);
+                NODE_FILE(tc, node), node->token.line, node->token.column, 0);
             infix_errored = true;
         }
 
@@ -859,7 +863,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
             snprintf(msg, sizeof(msg),
                 "cannot use '%s' on string type", op);
             diag_error(tc->diag, "E3002", strdup(msg),
-                tc->file, node->token.line, node->token.column, 0);
+                NODE_FILE(tc, node), node->token.line, node->token.column, 0);
             infix_errored = true;
         }
 
@@ -878,7 +882,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                     "cannot compare enum '%s' with enum '%s' — different enum types are never equal",
                     lname, rname);
                 diag_error(tc->diag, "E3032", strdup(msg),
-                    tc->file, node->token.line, node->token.column, 0);
+                    NODE_FILE(tc, node), node->token.line, node->token.column, 0);
             }
         }
 
@@ -896,7 +900,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                 snprintf(msg, sizeof(msg),
                     "cannot use '%s' on enum values — enums only support == and != comparisons", op);
                 diag_error(tc->diag, "E3049", strdup(msg),
-                    tc->file, node->token.line, node->token.column, 0);
+                    NODE_FILE(tc, node), node->token.line, node->token.column, 0);
             }
         }
 
@@ -915,7 +919,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
             snprintf(msg, sizeof(msg),
                 "cannot compare %s with %s", type_name(left), type_name(right));
             diag_error(tc->diag, "E3001", strdup(msg),
-                tc->file, node->token.line, node->token.column, 0);
+                NODE_FILE(tc, node), node->token.line, node->token.column, 0);
         }
 
         if (strcmp(op, "==") == 0 || strcmp(op, "!=") == 0 ||
@@ -951,7 +955,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                     "cannot dereference non-pointer type '%s' — only ^T types can use ^",
                     type_name(left_t));
                 diag_error(tc->diag, "E3016", strdup(msg),
-                    tc->file, node->token.line, node->token.column, 0);
+                    NODE_FILE(tc, node), node->token.line, node->token.column, 0);
                 result = left_t;
             } else {
                 result = left_t;
@@ -964,7 +968,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                 node->data.postfix.left->kind != NODE_MEMBER_EXPR) {
                 diag_error(tc->diag, "E5015",
                     strdup("++ and -- require a variable — you cannot increment a literal or expression"),
-                    tc->file, node->token.line, node->token.column, 0);
+                    NODE_FILE(tc, node), node->token.line, node->token.column, 0);
             }
             /* ++ and -- only valid on mutable numeric types */
             if (node->data.postfix.left->kind == NODE_LABEL) {
@@ -975,7 +979,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                         "cannot modify constant '%s' — declare with 'mut' to make it mutable",
                         node->data.postfix.left->data.label.value);
                     diag_error(tc->diag, "E3005", strdup(msg),
-                        tc->file, node->token.line, node->token.column, 0);
+                        NODE_FILE(tc, node), node->token.line, node->token.column, 0);
                 }
             }
             if (left_t->kind != TK_UNKNOWN && !type_is_integer(left_t)) {
@@ -984,7 +988,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                     "cannot use '%s' on type '%s' — only integer types support increment/decrement",
                     node->data.postfix.op, type_name(left_t));
                 diag_error(tc->diag, "E5023", strdup(msg),
-                    tc->file, node->token.line, node->token.column, 0);
+                    NODE_FILE(tc, node), node->token.line, node->token.column, 0);
             }
             result = left_t;
         } else {
@@ -1065,7 +1069,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                         mod_name, struct_name, func_name,
                         sig->param_count, node->data.call.arg_count);
                     diag_error(tc->diag, "E5008", strdup(msg),
-                        tc->file, node->token.line, node->token.column, 0);
+                        NODE_FILE(tc, node), node->token.line, node->token.column, 0);
                 }
             } else {
                 result = &TYPE_VOID;
@@ -1090,13 +1094,13 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                     "module '%s' is not imported — add 'import @%s' at the top of the file",
                     mod, mod);
                 diag_error(tc->diag, "E4001", strdup(msg),
-                    tc->file, node->token.line, node->token.column, 0);
+                    NODE_FILE(tc, node), node->token.line, node->token.column, 0);
             }
             /* c.func() without import c"..." */
             if (!mod_imported && strcmp(mod, "c") == 0) {
                 diag_error(tc->diag, "E4001",
                     strdup("C interop requires a C header import — add import c\"header.h\" at the top of the file"),
-                    tc->file, node->token.line, node->token.column, 0);
+                    NODE_FILE(tc, node), node->token.line, node->token.column, 0);
                 result = &TYPE_UNKNOWN;
                 break;
             }
@@ -1120,7 +1124,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                             "cannot pass %s to a C function — C has no 128/256-bit integer types",
                             arg_t->name);
                         diag_error(tc->diag, "E3001", strdup(msg),
-                            tc->file, node->data.call.args[ai]->token.line,
+                            NODE_FILE(tc, node->data.call.args[ai]), node->data.call.args[ai]->token.line,
                             node->data.call.args[ai]->token.column, 0);
                     }
                     /* Reject EZ-specific composite types */
@@ -1130,7 +1134,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                             "cannot pass %s to a C function — use individual elements instead",
                             arg_t->kind == TK_ARRAY ? "an array" : "a map");
                         diag_error(tc->diag, "E3001", strdup(msg),
-                            tc->file, node->data.call.args[ai]->token.line,
+                            NODE_FILE(tc, node->data.call.args[ai]), node->data.call.args[ai]->token.line,
                             node->data.call.args[ai]->token.column, 0);
                     }
                     /* Reject EZ structs (registered in typechecker) */
@@ -1141,7 +1145,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                             "cannot pass struct '%s' to a C function — pass individual fields instead",
                             arg_t->name);
                         diag_error(tc->diag, "E3001", strdup(msg),
-                            tc->file, node->data.call.args[ai]->token.line,
+                            NODE_FILE(tc, node->data.call.args[ai]), node->data.call.args[ai]->token.line,
                             node->data.call.args[ai]->token.column, 0);
                     }
                 }
@@ -1209,7 +1213,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                         snprintf(msg, sizeof(msg),
                             "maps.%s() requires a map argument, got an array", mfn);
                         diag_error(tc->diag, "E12001", strdup(msg),
-                            tc->file, arg0->token.line, arg0->token.column, 0);
+                            NODE_FILE(tc, arg0), arg0->token.line, arg0->token.column, 0);
                     }
                 }
                 /* E5007: mutating map functions on const map */
@@ -1224,7 +1228,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                                 "cannot modify immutable map '%s' — declare with 'mut' to allow modification",
                                 arg0->data.label.value);
                             diag_error(tc->diag, "E5007", strdup(msg),
-                                tc->file, node->token.line, node->token.column, 0);
+                                NODE_FILE(tc, node), node->token.line, node->token.column, 0);
                         }
                     }
                 }
@@ -1265,7 +1269,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                     if (count_t && count_t->kind == TK_FLOAT) {
                         diag_error(tc->diag, "E7004",
                             strdup("strings.repeat() count must be an integer, not a float"),
-                            tc->file, node->data.call.args[1]->token.line,
+                            NODE_FILE(tc, node->data.call.args[1]), node->data.call.args[1]->token.line,
                             node->data.call.args[1]->token.column, 0);
                     }
                 }
@@ -1276,7 +1280,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                         if (bt && bt->kind == TK_FLOAT) {
                             diag_error(tc->diag, "E7004",
                                 strdup("strings.slice() bounds must be integers, not floats"),
-                                tc->file, node->data.call.args[si]->token.line,
+                                NODE_FILE(tc, node->data.call.args[si]), node->data.call.args[si]->token.line,
                                 node->data.call.args[si]->token.column, 0);
                         }
                     }
@@ -1408,7 +1412,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                                 "cannot modify immutable array '%s' — declare with 'mut' to allow modification",
                                 arg0->data.label.value);
                             diag_error(tc->diag, "E5007", strdup(msg),
-                                tc->file, node->token.line, node->token.column, 0);
+                                NODE_FILE(tc, node), node->token.line, node->token.column, 0);
                         }
                     }
                 }
@@ -1437,7 +1441,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                                     "type mismatch in arrays.%s() — cannot add %s to array of %s",
                                     op_name, type_name(val_t), arr_t->element_type);
                                 diag_error(tc->diag, "E3001", strdup(msg),
-                                    tc->file, val_node->token.line, val_node->token.column, 0);
+                                    NODE_FILE(tc, val_node), val_node->token.line, val_node->token.column, 0);
                             }
                         }
                     }
@@ -1455,7 +1459,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                                 "arrays.%s() requires a numeric array, got array of %s",
                                 mfn, arr_t->element_type);
                             diag_error(tc->diag, "E9002", strdup(msg),
-                                tc->file, arg0->token.line, arg0->token.column, 0);
+                                NODE_FILE(tc, arg0), arg0->token.line, arg0->token.column, 0);
                         }
                     }
                 }
@@ -1473,7 +1477,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                             "type mismatch: cannot concat array of %s with array of %s",
                             t0->element_type, t1->element_type);
                         diag_error(tc->diag, "E3001", strdup(msg),
-                            tc->file, a1->token.line, a1->token.column, 0);
+                            NODE_FILE(tc, a1), a1->token.line, a1->token.column, 0);
                     }
                 }
             } else if (strcmp(mod, "os") == 0) {
@@ -1522,7 +1526,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                               strcmp(arg0->data.call.function->data.label.value, "ref") == 0)) {
                             diag_error(tc->diag, "E7006",
                                 strdup("threads.spawn() requires a function reference — use ()func_name or ref(func_name)"),
-                                tc->file, node->token.line, node->token.column, 0);
+                                NODE_FILE(tc, node), node->token.line, node->token.column, 0);
                         }
                     }
                     result = type_struct("Thread"); /* EzThread — opaque */
@@ -1658,7 +1662,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                             "fmt.%s() cannot format value of type '%s' — use println() for composite types, or access individual fields",
                             mfn, tn);
                         diag_error(tc->diag, "E3017", strdup(msg),
-                            tc->file, node->data.call.args[ai]->token.line,
+                            NODE_FILE(tc, node->data.call.args[ai]), node->data.call.args[ai]->token.line,
                             node->data.call.args[ai]->token.column, 0);
                     }
                 }
@@ -1679,7 +1683,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                             "function '%s.%s' expects %d argument(s), got %d",
                             mod, mfn, sig->param_count, node->data.call.arg_count);
                         diag_error(tc->diag, "E5008", strdup(msg),
-                            tc->file, node->token.line, node->token.column, 0);
+                            NODE_FILE(tc, node), node->token.line, node->token.column, 0);
                     }
                     /* Check argument types */
                     int check_count = node->data.call.arg_count < sig->param_count
@@ -1699,7 +1703,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                                 "argument %d of '%s.%s': expected %s, got %s",
                                 ai + 1, mod, mfn, type_name(param_t), type_name(arg_t));
                             diag_error(tc->diag, "E3001", strdup(msg),
-                                tc->file, node->data.call.args[ai]->token.line,
+                                NODE_FILE(tc, node->data.call.args[ai]), node->data.call.args[ai]->token.line,
                                 node->data.call.args[ai]->token.column, 0);
                         }
                         /* Enum-to-enum: kinds both TK_ENUM but different names */
@@ -1711,7 +1715,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                                 "argument %d of '%s.%s': expected enum '%s', got enum '%s'",
                                 ai + 1, mod, mfn, param_t->name, arg_t->name);
                             diag_error(tc->diag, "E3001", strdup(msg),
-                                tc->file, node->data.call.args[ai]->token.line,
+                                NODE_FILE(tc, node->data.call.args[ai]), node->data.call.args[ai]->token.line,
                                 node->data.call.args[ai]->token.column, 0);
                         }
                     }
@@ -1728,7 +1732,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                     snprintf(pmsg, sizeof(pmsg),
                         "'%s' is private and cannot be accessed from outside its file", mfn);
                     diag_error(tc->diag, "E4015", strdup(pmsg),
-                        tc->file, node->token.line, node->token.column, 0);
+                        NODE_FILE(tc, node), node->token.line, node->token.column, 0);
                 } else if (sig) {
                     sig->used = true;
                     if (sig->return_count > 0) {
@@ -1749,7 +1753,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                             "struct functions must be called on the type — use '%s.%s()' instead of '%s.%s()'",
                             sname, mfn, mod_raw, mfn);
                         diag_error(tc->diag, "E3042", strdup(msg),
-                            tc->file, fn->token.line, fn->token.column, 0);
+                            NODE_FILE(tc, fn), fn->token.line, fn->token.column, 0);
                         /* Resolve return type to avoid cascading errors */
                         char sfn[256];
                         snprintf(sfn, sizeof(sfn), "%s_%s", sname, mfn);
@@ -1777,7 +1781,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                     "type '%s' has no functions — only structs support function calls with dot syntax",
                     type_name(obj_t));
                 diag_error(tc->diag, "E3013", strdup(msg),
-                    tc->file, fn->token.line, fn->token.column, 0);
+                    NODE_FILE(tc, fn), fn->token.line, fn->token.column, 0);
             }
             result = &TYPE_UNKNOWN;
             break;
@@ -1794,7 +1798,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                     arg->kind != NODE_INDEX_EXPR) {
                     diag_error(tc->diag, "E3012",
                         strdup("addr() requires a variable, field, or index expression — cannot take address of a literal or expression"),
-                        tc->file, node->token.line, node->token.column, 0);
+                        NODE_FILE(tc, node), node->token.line, node->token.column, 0);
                 }
                 EzType *arg_t = resolve_expr(tc, arg);
                 result = type_pointer(type_name(arg_t));
@@ -1833,7 +1837,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                         "len() expects 1 argument, got %d",
                         node->data.call.arg_count);
                     diag_error(tc->diag, "E5008", strdup(msg),
-                        tc->file, node->token.line, node->token.column, 0);
+                        NODE_FILE(tc, node), node->token.line, node->token.column, 0);
                 } else {
                     EzType *at = resolve_expr(tc, node->data.call.args[0]);
                     reject_void_in_context(tc, node->data.call.args[0], at,
@@ -1846,7 +1850,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                             "len() is not supported for type '%s' — len() works on string, array, and map types",
                             type_name(at));
                         diag_error(tc->diag, "E7015", strdup(msg),
-                            tc->file, node->data.call.args[0]->token.line,
+                            NODE_FILE(tc, node->data.call.args[0]), node->data.call.args[0]->token.line,
                             node->data.call.args[0]->token.column, 0);
                     }
                 }
@@ -1858,7 +1862,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                     if (arg_t->kind == TK_VOID) {
                         diag_error(tc->diag, "E3038",
                             strdup("cannot use type_of() on a void function — the function does not return a value"),
-                            tc->file, node->token.line, node->token.column, 0);
+                            NODE_FILE(tc, node), node->token.line, node->token.column, 0);
                     }
                 }
                 result = &TYPE_STRING;
@@ -1878,7 +1882,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                         "%s() expects 0 or 1 argument(s), got %d",
                         fn_name, node->data.call.arg_count);
                     diag_error(tc->diag, "E5008", strdup(msg),
-                        tc->file, node->token.line, node->token.column, 0);
+                        NODE_FILE(tc, node), node->token.line, node->token.column, 0);
                 }
                 if (node->data.call.arg_count >= 1) {
                     EzType *at = resolve_expr(tc, node->data.call.args[0]);
@@ -1895,7 +1899,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                         "%s() expects 1 argument, got %d",
                         fn_name, node->data.call.arg_count);
                     diag_error(tc->diag, "E5008", strdup(msg),
-                        tc->file, node->token.line, node->token.column, 0);
+                        NODE_FILE(tc, node), node->token.line, node->token.column, 0);
                 }
                 if (node->data.call.arg_count >= 1) {
                     EzType *at = resolve_expr(tc, node->data.call.args[0]);
@@ -1921,7 +1925,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                         "cannot convert %lld to char — value must be a valid Unicode code point (0 or greater)",
                         (long long)lit_val);
                     diag_error(tc->diag, "E7014", strdup(msg),
-                        tc->file, node->token.line, node->token.column, 0);
+                        NODE_FILE(tc, node), node->token.line, node->token.column, 0);
                 }
                 result = &TYPE_CHAR;
             } else if ((strcmp(fn_name, "int") == 0 ||
@@ -1940,7 +1944,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                         "cannot convert %s to %s — only numeric types, strings, and bools can be converted",
                         type_name(src_t), fn_name);
                     diag_error(tc->diag, "E3043", strdup(msg),
-                        tc->file, node->token.line, node->token.column, 0);
+                        NODE_FILE(tc, node), node->token.line, node->token.column, 0);
                 }
                 if (is_unsigned_type(fn_name))
                     result = &TYPE_UINT;
@@ -1959,7 +1963,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                         "cannot convert %s to float — only numeric types and strings can be converted",
                         type_name(src_t));
                     diag_error(tc->diag, "E3043", strdup(msg),
-                        tc->file, node->token.line, node->token.column, 0);
+                        NODE_FILE(tc, node), node->token.line, node->token.column, 0);
                 }
                 result = &TYPE_FLOAT;
             } else if (strcmp(fn_name, "bool") == 0 && node->data.call.arg_count == 1) {
@@ -1997,7 +2001,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                                 fn_name, min_args, sig->param_count, node->data.call.arg_count);
                         }
                         diag_error(tc->diag, "E5008", strdup(msg),
-                            tc->file, node->token.line, node->token.column, 0);
+                            NODE_FILE(tc, node), node->token.line, node->token.column, 0);
                     }
                     /* Generic (wildcard) dispatch: unify each '?' parameter
                      * against the corresponding argument to derive a single
@@ -2023,7 +2027,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                                     "cannot infer wildcard type '%s' from argument %d of '%s' (got %s)",
                                     ptn, ai + 1, fn_name, type_name(at));
                                 diag_error(tc->diag, "E3001", strdup(msg),
-                                    tc->file, node->data.call.args[ai]->token.line,
+                                    NODE_FILE(tc, node->data.call.args[ai]), node->data.call.args[ai]->token.line,
                                     node->data.call.args[ai]->token.column, 0);
                                 continue;
                             }
@@ -2035,7 +2039,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                                     "wildcard type conflict in '%s': '?' was bound to %s, but argument %d is %s",
                                     fn_name, generic_binding, ai + 1, bound);
                                 diag_error(tc->diag, "E3001", strdup(msg),
-                                    tc->file, node->data.call.args[ai]->token.line,
+                                    NODE_FILE(tc, node->data.call.args[ai]), node->data.call.args[ai]->token.line,
                                     node->data.call.args[ai]->token.column, 0);
                                 free(bound);
                             } else {
@@ -2081,7 +2085,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                                 "argument %d of '%s': expected %s, got %s",
                                 ai + 1, fn_name, type_name(param_t), type_name(arg_t));
                             diag_error(tc->diag, "E3001", strdup(msg),
-                                tc->file, node->data.call.args[ai]->token.line,
+                                NODE_FILE(tc, node->data.call.args[ai]), node->data.call.args[ai]->token.line,
                                 node->data.call.args[ai]->token.column, 0);
                         }
                         /* Enum-to-enum: kinds both TK_ENUM but different names */
@@ -2093,7 +2097,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                                 "argument %d of '%s': expected enum '%s', got enum '%s'",
                                 ai + 1, fn_name, param_t->name, arg_t->name);
                             diag_error(tc->diag, "E3001", strdup(msg),
-                                tc->file, node->data.call.args[ai]->token.line,
+                                NODE_FILE(tc, node->data.call.args[ai]), node->data.call.args[ai]->token.line,
                                 node->data.call.args[ai]->token.column, 0);
                         }
                         /* E3027: const variable passed to mutable param */
@@ -2113,7 +2117,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                                         "cannot pass constant '%s' to mutable parameter '%s' of '%s'",
                                         arg_sym->name, s->data.func_decl.params[ai].name, fn_name);
                                     diag_error(tc->diag, "E3027", strdup(msg),
-                                        tc->file, node->data.call.args[ai]->token.line,
+                                        NODE_FILE(tc, node->data.call.args[ai]), node->data.call.args[ai]->token.line,
                                         node->data.call.args[ai]->token.column, 0);
                                     break;
                                 }
@@ -2146,7 +2150,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                                     ref_sig->name, ref_sig->param_count,
                                     node->data.call.arg_count);
                                 diag_error(tc->diag, "E5008", strdup(msg),
-                                    tc->file, node->token.line, node->token.column, 0);
+                                    NODE_FILE(tc, node), node->token.line, node->token.column, 0);
                             } else {
                                 for (int ai = 0; ai < ref_sig->param_count; ai++) {
                                     EzType *at = resolve_expr(tc, node->data.call.args[ai]);
@@ -2162,7 +2166,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                                             ai + 1, ref_sig->name,
                                             type_name(pt), type_name(at));
                                         diag_error(tc->diag, "E3001", strdup(msg),
-                                            tc->file,
+                                            NODE_FILE(tc, node->data.call.args[ai]),
                                             node->data.call.args[ai]->token.line,
                                             node->data.call.args[ai]->token.column, 0);
                                     }
@@ -2175,7 +2179,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                                             "argument %d of '%s': expected enum '%s', got enum '%s'",
                                             ai + 1, ref_sig->name, pt->name, at->name);
                                         diag_error(tc->diag, "E3001", strdup(msg),
-                                            tc->file,
+                                            NODE_FILE(tc, node->data.call.args[ai]),
                                             node->data.call.args[ai]->token.line,
                                             node->data.call.args[ai]->token.column, 0);
                                     }
@@ -2193,7 +2197,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                             "'%s' is a %s, not a function — it cannot be called",
                             fn_name, type_name(fn_sym->type));
                         diag_error(tc->diag, "E3015", strdup(msg),
-                            tc->file, node->token.line, node->token.column, 0);
+                            NODE_FILE(tc, node), node->token.line, node->token.column, 0);
                     } else if (!tc_is_builtin(fn_name)) {
                         /* Check if it's a function from a 'using' module */
                         bool found_in_using = false;
@@ -2328,7 +2332,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                                             "'%s' is private and cannot be accessed from outside its file",
                                             fn_name);
                                         diag_error(tc->diag, "E4015", strdup(pmsg),
-                                            tc->file, node->token.line, node->token.column, 0);
+                                            NODE_FILE(tc, node), node->token.line, node->token.column, 0);
                                         found_in_using = true;
                                     } else {
                                         found_in_using = true;
@@ -2375,10 +2379,10 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                                     char help[256];
                                     snprintf(help, sizeof(help), "did you mean '%s'?", suggestion);
                                     diag_error_help(tc->diag, "E4002", strdup(msg),
-                                        tc->file, el, ec, 0, strdup(help));
+                                        NODE_FILE(tc, node), el, ec, 0, strdup(help));
                                 } else {
                                     diag_error(tc->diag, "E4002", strdup(msg),
-                                        tc->file, el, ec, 0);
+                                        NODE_FILE(tc, node), el, ec, 0);
                                 }
                             }
                         }
@@ -2468,7 +2472,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                     snprintf(msg, sizeof(msg),
                         "enum '%s' has no member '%s'", obj_name, member);
                     diag_error(tc->diag, "E3047", strdup(msg),
-                        tc->file, node->token.line, node->token.column, 0);
+                        NODE_FILE(tc, node), node->token.line, node->token.column, 0);
                 }
                 result = is_str_enum ? &TYPE_STRING : type_enum(obj_name);
                 break;
@@ -2508,7 +2512,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                     snprintf(msg, sizeof(msg),
                         "struct '%s' has no field '%s'", sym->type->name, member);
                     diag_error(tc->diag, "E3010", strdup(msg),
-                        tc->file, node->token.line, node->token.column, 0);
+                        NODE_FILE(tc, node), node->token.line, node->token.column, 0);
                 }
             } else if (sym && member[0] == 'v' && member[1] >= '0' && member[1] <= '9') {
                 /* Multi-return .v0/.v1/.v2 access — use stored return types */
@@ -2524,13 +2528,13 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                         "too many variables — the function returns %d value(s) but variable %d was requested",
                         sym->ret_count, idx + 1);
                     diag_error(tc->diag, "E3006", strdup(msg),
-                        tc->file, node->token.line, node->token.column, 0);
+                        NODE_FILE(tc, node), node->token.line, node->token.column, 0);
                     result = &TYPE_UNKNOWN;
                 } else if (!sym->ret_types && idx > 0) {
                     /* Single-return function used in multi-variable assignment */
                     diag_error(tc->diag, "E3006",
                         strdup("too many variables — the function returns only 1 value"),
-                        tc->file, node->token.line, node->token.column, 0);
+                        NODE_FILE(tc, node), node->token.line, node->token.column, 0);
                     result = &TYPE_UNKNOWN;
                 } else {
                     result = type_from_name("Error"); /* fallback for (T, Error) pattern */
@@ -2543,7 +2547,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                     snprintf(msg, sizeof(msg),
                         "struct '%s' has no field '%s'", sym->type->element_type, member);
                     diag_error(tc->diag, "E3010", strdup(msg),
-                        tc->file, node->token.line, node->token.column, 0);
+                        NODE_FILE(tc, node), node->token.line, node->token.column, 0);
                 }
             } else if (sym && sym->type->kind != TK_UNKNOWN &&
                        sym->type->kind != TK_STRUCT && sym->type->kind != TK_ENUM &&
@@ -2554,7 +2558,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                     "type '%s' has no fields — only structs support field access",
                     type_name(sym->type));
                 diag_error(tc->diag, "E3013", strdup(msg),
-                    tc->file, node->token.line, node->token.column, 0);
+                    NODE_FILE(tc, node), node->token.line, node->token.column, 0);
             }
             /* Struct-namespaced function or enum access: Type.func() / Type.MEMBER */
             if (!sym && is_struct_name(tc, obj_name)) {
@@ -2566,7 +2570,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                         "cannot access field '%s' on type '%s' — use an instance variable instead",
                         member, obj_name);
                     diag_error(tc->diag, "E3044", strdup(msg),
-                        tc->file, node->token.line, node->token.column, 0);
+                        NODE_FILE(tc, node), node->token.line, node->token.column, 0);
                 }
                 result = &TYPE_UNKNOWN;
             }
@@ -2603,7 +2607,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                     "type '%s' has no fields — only structs support field access",
                     type_name(obj_t));
                 diag_error(tc->diag, "E3013", strdup(msg),
-                    tc->file, node->token.line, node->token.column, 0);
+                    NODE_FILE(tc, node), node->token.line, node->token.column, 0);
             }
         } else {
             /* Object is an expression (e.g. foo().bar) — resolve its type */
@@ -2616,7 +2620,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                     "type '%s' has no fields or functions — only structs support member access",
                     type_name(obj_t));
                 diag_error(tc->diag, "E3013", strdup(msg),
-                    tc->file, node->token.line, node->token.column, 0);
+                    NODE_FILE(tc, node), node->token.line, node->token.column, 0);
             }
         }
         break;
@@ -2632,7 +2636,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
             snprintf(msg, sizeof(msg),
                 "array index must be an integer, got %s", type_name(idx_t));
             diag_error(tc->diag, "E3003", strdup(msg),
-                tc->file, node->token.line, node->token.column, 0);
+                NODE_FILE(tc, node), node->token.line, node->token.column, 0);
         }
         /* Reject negative literal index at compile time */
         if (left->kind == TK_ARRAY &&
@@ -2641,7 +2645,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
             node->data.index_expr.index->data.prefix.right->kind == NODE_INT_VALUE) {
             diag_error(tc->diag, "E3003",
                 strdup("array index cannot be negative"),
-                tc->file, node->data.index_expr.index->token.line,
+                NODE_FILE(tc, node->data.index_expr.index), node->data.index_expr.index->token.line,
                 node->data.index_expr.index->token.column, 0);
         }
         if (left->kind == TK_ARRAY && left->element_type) {
@@ -2665,7 +2669,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                         "map key type mismatch: expected '%s', got '%s'",
                         left->key_type, type_name(idx_t));
                     diag_error(tc->diag, "E3001", strdup(msg),
-                        tc->file, node->token.line, node->token.column, 0);
+                        NODE_FILE(tc, node), node->token.line, node->token.column, 0);
                 }
             }
         } else if (left->kind == TK_STRING) {
@@ -2676,7 +2680,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                 "type '%s' does not support indexing — only arrays, maps, and strings can be indexed",
                 type_name(left));
             diag_error(tc->diag, "E3008", strdup(msg),
-                tc->file, node->token.line, node->token.column, 0);
+                NODE_FILE(tc, node), node->token.line, node->token.column, 0);
         }
         break;
     }
@@ -2700,7 +2704,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                         "array elements must all be the same type — element %d is '%s' but the array is '%s'",
                         i, type_name(ei), type_name(first));
                     diag_error(tc->diag, "E3001", strdup(msg),
-                        tc->file, node->data.array_value.elements[i]->token.line,
+                        NODE_FILE(tc, node->data.array_value.elements[i]), node->data.array_value.elements[i]->token.line,
                         node->data.array_value.elements[i]->token.column, 0);
                     break;
                 }
@@ -2734,7 +2738,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                     char msg[256];
                     snprintf(msg, sizeof(msg), "duplicate key in map literal");
                     diag_error(tc->diag, "E12006", strdup(msg),
-                        tc->file, kj->token.line, kj->token.column, 0);
+                        NODE_FILE(tc, kj), kj->token.line, kj->token.column, 0);
                 }
             }
         }
@@ -2766,7 +2770,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                         "duplicate field '%s' in struct literal — field can only be initialized once",
                         node->data.struct_value.field_names[i]);
                     diag_error(tc->diag, "E2015", strdup(msg),
-                        tc->file, node->token.line, node->token.column, 0);
+                        NODE_FILE(tc, node), node->token.line, node->token.column, 0);
                     break;
                 }
             }
@@ -2790,7 +2794,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                     snprintf(msg, sizeof(msg),
                         "struct '%s' has no field '%s'", sname, fname);
                     diag_error(tc->diag, "E3010", strdup(msg),
-                        tc->file, node->token.line, node->token.column, 0);
+                        NODE_FILE(tc, node), node->token.line, node->token.column, 0);
                 } else if (expected_t && val_t->kind != TK_UNKNOWN &&
                            expected_t->kind != TK_UNKNOWN &&
                            expected_t->kind != val_t->kind &&
@@ -2804,7 +2808,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                         "field '%s' of struct '%s': expected %s, got %s",
                         fname, sname, type_name(expected_t), type_name(val_t));
                     diag_error(tc->diag, "E3001", strdup(msg),
-                        tc->file, node->token.line, node->token.column, 0);
+                        NODE_FILE(tc, node), node->token.line, node->token.column, 0);
                 }
             }
         }
@@ -2843,7 +2847,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                     "cannot cast '%s' to '%s'",
                     tn, node->data.cast.target_type);
                 diag_error(tc->diag, "E3043", strdup(msg),
-                    tc->file, node->token.line, node->token.column, 0);
+                    NODE_FILE(tc, node), node->token.line, node->token.column, 0);
             }
         }
         result = dst_t;
@@ -2857,7 +2861,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                 "new() requires a struct type, but '%s' is not a struct",
                 node->data.new_expr.type_name);
             diag_error(tc->diag, "E3041", strdup(msg),
-                tc->file, node->token.line, node->token.column, 0);
+                NODE_FILE(tc, node), node->token.line, node->token.column, 0);
         }
         result = type_pointer(node->data.new_expr.type_name);
         break;
@@ -2888,10 +2892,10 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                 char help[256];
                 snprintf(help, sizeof(help), "did you mean '%s'?", suggestion);
                 diag_error_help(tc->diag, "E4002", strdup(msg),
-                    tc->file, node->token.line, node->token.column, 0, strdup(help));
+                    NODE_FILE(tc, node), node->token.line, node->token.column, 0, strdup(help));
             } else {
                 diag_error(tc->diag, "E4002", strdup(msg),
-                    tc->file, node->token.line, node->token.column, 0);
+                    NODE_FILE(tc, node), node->token.line, node->token.column, 0);
             }
         }
         result = type_from_name("func");
@@ -2910,7 +2914,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
 
 /* Check if a name uses a reserved prefix that would collide with generated C.
  * Skip names starting with _ez_ as those are compiler-generated temporaries. */
-static void check_reserved_name(TypeChecker *tc, const char *name, int line, int col) {
+static void check_reserved_name(TypeChecker *tc, const char *name, const char *file, int line, int col) {
     if (!name) return;
     /* Skip compiler-generated temps (_ez_tmp, _ez_or, _ez_idx, etc.) */
     if (strncmp(name, "_ez_", 4) == 0) return;
@@ -2919,7 +2923,7 @@ static void check_reserved_name(TypeChecker *tc, const char *name, int line, int
         snprintf(msg, sizeof(msg),
             "name '%s' uses reserved prefix (ez_, _ez_, Ez) — these are reserved for the compiler",
             name);
-        diag_error(tc->diag, "E4006", strdup(msg), tc->file, line, col, 0);
+        diag_error(tc->diag, "E4006", strdup(msg), file, line, col, 0);
     }
 }
 
@@ -3007,7 +3011,7 @@ static void check_block(TypeChecker *tc, AstNode *node) {
         if (seen_return && stmt) {
             diag_warning(tc->diag, "W2003",
                 strdup("unreachable code — this statement will never execute because it comes after a return"),
-                tc->file, stmt->token.line, stmt->token.column, 0);
+                NODE_FILE(tc, stmt), stmt->token.line, stmt->token.column, 0);
             break; /* only warn once per block */
         }
         check_statement(tc, stmt);
@@ -3036,7 +3040,7 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
         if (is_executable) {
             diag_error(tc->diag, "E2056",
                 strdup("executable statements are not allowed at file scope — put this inside a function"),
-                tc->file, node->token.line, node->token.column, 0);
+                NODE_FILE(tc, node), node->token.line, node->token.column, 0);
         }
     }
 
@@ -3046,7 +3050,7 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
         if (node->data.var_decl.type_name && strcmp(node->data.var_decl.type_name, "void") == 0) {
             diag_error(tc->diag, "E3038",
                 strdup("'void' cannot be used as a variable type"),
-                tc->file, node->token.line, node->token.column, 0);
+                NODE_FILE(tc, node), node->token.line, node->token.column, 0);
         }
         /* E3038: void in array/map types */
         if (node->data.var_decl.type_name) {
@@ -3054,14 +3058,14 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
             if (strstr(tn, "void") != NULL && strcmp(tn, "void") != 0) {
                 diag_error(tc->diag, "E3038",
                     strdup("'void' cannot be used as an element type in arrays or maps"),
-                    tc->file, node->token.line, node->token.column, 0);
+                    NODE_FILE(tc, node), node->token.line, node->token.column, 0);
             }
         }
         /* E3034: 'any' type is reserved */
         if (node->data.var_decl.type_name && strcmp(node->data.var_decl.type_name, "any") == 0) {
             diag_error(tc->diag, "E3034",
                 strdup("'any' type is reserved for internal use and cannot be used in declarations"),
-                tc->file, node->token.line, node->token.column, 0);
+                NODE_FILE(tc, node), node->token.line, node->token.column, 0);
         }
         /* E2038: reserved type name as variable name */
         if (node->data.var_decl.name[0] != '_' &&
@@ -3071,7 +3075,7 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
                 "'%s' is a reserved type name and cannot be used as a variable name",
                 node->data.var_decl.name);
             diag_error(tc->diag, "E2038", strdup(msg),
-                tc->file, node->token.line, node->token.column, 0);
+                NODE_FILE(tc, node), node->token.line, node->token.column, 0);
         }
         /* E3045: or_return on non-error-returning function */
         if (strncmp(node->data.var_decl.name, "_ez_or", 6) == 0 &&
@@ -3102,7 +3106,7 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
                         "'or_return' requires a function that returns (T, Error) — '%s()' does not return an error",
                         display);
                     diag_error(tc->diag, "E3045", strdup(msg),
-                        tc->file, node->data.var_decl.value->token.line,
+                        NODE_FILE(tc, node->data.var_decl.value), node->data.var_decl.value->token.line,
                         node->data.var_decl.value->token.column, 0);
                 }
             }
@@ -3112,7 +3116,7 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
             strncmp(node->data.var_decl.type_name, "map[", 4) == 0) {
             diag_error(tc->diag, "E3059",
                 strdup("maps cannot be declared const — use 'mut' for maps or a struct for fixed data"),
-                tc->file, node->token.line, node->token.column, 0);
+                NODE_FILE(tc, node), node->token.line, node->token.column, 0);
         }
         /* const must have a value */
         if (!node->data.var_decl.mutable && !node->data.var_decl.value) {
@@ -3121,7 +3125,7 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
                 "constant '%s' must have a value — add = followed by a value",
                 node->data.var_decl.name);
             diag_error(tc->diag, "E2011", strdup(msg),
-                tc->file, node->token.line, node->token.column, 0);
+                NODE_FILE(tc, node), node->token.line, node->token.column, 0);
         }
         /* Check for type keyword used as value: mut x = int */
         if (node->data.var_decl.value && node->data.var_decl.value->kind == NODE_LABEL) {
@@ -3135,7 +3139,7 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
                     "'%s' is a type, not a value — did you mean to declare a type? (e.g., mut x %s = ...)",
                     vname, vname);
                 diag_error(tc->diag, "E3011", strdup(msg),
-                    tc->file, node->data.var_decl.value->token.line,
+                    NODE_FILE(tc, node->data.var_decl.value), node->data.var_decl.value->token.line,
                     node->data.var_decl.value->token.column, 0);
             }
         }
@@ -3147,11 +3151,11 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
             if (node->data.var_decl.value->kind == NODE_ARRAY_VALUE) {
                 diag_error(tc->diag, "E3050",
                     strdup("array literal requires a type annotation — declare as [T] (e.g., mut x [int] = {1, 2, 3})"),
-                    tc->file, node->token.line, node->token.column, 0);
+                    NODE_FILE(tc, node), node->token.line, node->token.column, 0);
             } else if (node->data.var_decl.value->kind == NODE_MAP_VALUE) {
                 diag_error(tc->diag, "E3051",
                     strdup("map literal requires a type annotation — declare as map[K:V] (e.g., mut x map[string:int] = {\"a\": 1})"),
-                    tc->file, node->token.line, node->token.column, 0);
+                    NODE_FILE(tc, node), node->token.line, node->token.column, 0);
             }
         }
 
@@ -3167,7 +3171,7 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
                     node->data.var_decl.name,
                     (int)(strchr(tn, ',') - tn), tn);
                 diag_error(tc->diag, "E3054", strdup(msg),
-                    tc->file, node->token.line, node->token.column, 0);
+                    NODE_FILE(tc, node), node->token.line, node->token.column, 0);
             } else if (!node->data.var_decl.mutable && !has_size) {
                 char msg[256];
                 snprintf(msg, sizeof(msg),
@@ -3177,7 +3181,7 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
                     node->data.var_decl.value && node->data.var_decl.value->kind == NODE_ARRAY_VALUE
                         ? node->data.var_decl.value->data.array_value.count : 0);
                 diag_error(tc->diag, "E3055", strdup(msg),
-                    tc->file, node->token.line, node->token.column, 0);
+                    NODE_FILE(tc, node), node->token.line, node->token.column, 0);
             }
         }
 
@@ -3185,7 +3189,7 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
         if (node->data.var_decl.is_private && tc->func_depth > 0) {
             diag_error(tc->diag, "E2002",
                 strdup("'private' cannot be used inside a function — it only applies to top-level declarations"),
-                tc->file, node->token.line, node->token.column, 0);
+                NODE_FILE(tc, node), node->token.line, node->token.column, 0);
         }
 
         EzType *declared = node->data.var_decl.type_name
@@ -3211,7 +3215,7 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
                     "type '%s' cannot be used as a map key — only primitive types (int, string, bool, char, byte, float) and enums are hashable",
                     kt);
                 diag_error(tc->diag, "E3057", strdup(msg),
-                    tc->file, node->token.line, node->token.column, 0);
+                    NODE_FILE(tc, node), node->token.line, node->token.column, 0);
             }
         }
 
@@ -3221,7 +3225,7 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
             if (value_type->kind == TK_VOID) {
                 diag_error(tc->diag, "E3038",
                     strdup("cannot assign the result of a void function to a variable"),
-                    tc->file, node->token.line, node->token.column, 0);
+                    NODE_FILE(tc, node), node->token.line, node->token.column, 0);
             }
             /* Check for multi-return to single variable
              * (skip if this is part of a multi-var expansion — the value will be a .v0 access) */
@@ -3237,7 +3241,7 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
                         "'%s' returns %d values — use mut a, b = %s() to capture all of them",
                         call_name, sig->return_count, call_name);
                     diag_error(tc->diag, "E3040", strdup(msg),
-                        tc->file, node->token.line, node->token.column, 0);
+                        NODE_FILE(tc, node), node->token.line, node->token.column, 0);
                 }
             }
             /* Reject nil on non-nullable types */
@@ -3249,13 +3253,13 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
                     "cannot assign nil to '%s' — only Error and pointer types are nullable",
                     type_name(declared));
                 diag_error(tc->diag, "E3001", strdup(msg),
-                    tc->file, node->token.line, node->token.column, 0);
+                    NODE_FILE(tc, node), node->token.line, node->token.column, 0);
             }
             /* Reject bare 'mut x = nil' with no type context */
             if (value_type->kind == TK_NIL && declared->kind == TK_UNKNOWN) {
                 diag_error(tc->diag, "E3001",
                     strdup("cannot infer type from nil — add a type annotation (e.g., mut x Error = nil)"),
-                    tc->file, node->token.line, node->token.column, 0);
+                    NODE_FILE(tc, node), node->token.line, node->token.column, 0);
             }
             /* E3001 (#1479): \`mut f func = expr\` requires expr to be a
              * function reference. The declared type "func" round-trips as
@@ -3289,7 +3293,7 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
                             type_name(value_type));
                     }
                     diag_error(tc->diag, "E3001", strdup(msg),
-                        tc->file, node->token.line, node->token.column, 0);
+                        NODE_FILE(tc, node), node->token.line, node->token.column, 0);
                 }
             }
             /* If no declared type, infer from value */
@@ -3327,7 +3331,7 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
                     "type mismatch: cannot assign %s to %s",
                     type_name(value_type), type_name(declared));
                 diag_error(tc->diag, "E3001", strdup(msg),
-                    tc->file, node->token.line, node->token.column, 0);
+                    NODE_FILE(tc, node), node->token.line, node->token.column, 0);
             }
             /* Struct-to-struct name mismatch (both TK_STRUCT but different names) */
             if (declared->kind == TK_STRUCT && value_type->kind == TK_STRUCT &&
@@ -3338,7 +3342,7 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
                     "type mismatch: cannot assign '%s' to '%s'",
                     value_type->name, declared->name);
                 diag_error(tc->diag, "E3001", strdup(msg),
-                    tc->file, node->token.line, node->token.column, 0);
+                    NODE_FILE(tc, node), node->token.line, node->token.column, 0);
             }
             /* E1010: Check for overflowed int literal assigned to non-bigint type */
             if (node->data.var_decl.value &&
@@ -3351,7 +3355,7 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
                 if (!is_bigint) {
                     diag_error(tc->diag, "E3046",
                         strdup("integer literal overflows 64-bit integer — max value is 9223372036854775807"),
-                        tc->file, node->data.var_decl.value->token.line,
+                        NODE_FILE(tc, node->data.var_decl.value), node->data.var_decl.value->token.line,
                         node->data.var_decl.value->token.column, 0);
                 }
             }
@@ -3361,7 +3365,7 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
                     node->data.var_decl.value->data.int_value.overflow);
                 int64_t lit_val;
                 if (!val_overflowed && try_get_literal_int(node->data.var_decl.value, &lit_val)) {
-                    check_integer_range(tc->diag, tc->file,
+                    check_integer_range(tc->diag, NODE_FILE(tc, node),
                         node->token.line, node->token.column,
                         node->data.var_decl.type_name, lit_val);
                 }
@@ -3385,7 +3389,7 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
                             tn);
                     }
                     diag_error(tc->diag, "E3001", strdup(msg),
-                        tc->file,
+                        NODE_FILE(tc, node->data.var_decl.value),
                         node->data.var_decl.value->token.line,
                         node->data.var_decl.value->token.column, 0);
                 }
@@ -3410,7 +3414,7 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
                         for (int ei = 0; ei < arr->data.array_value.count; ei++) {
                             int64_t ev;
                             if (try_get_literal_int(arr->data.array_value.elements[ei], &ev)) {
-                                check_integer_range(tc->diag, tc->file,
+                                check_integer_range(tc->diag, NODE_FILE(tc, arr->data.array_value.elements[ei]),
                                     arr->data.array_value.elements[ei]->token.line,
                                     arr->data.array_value.elements[ei]->token.column,
                                     elem_type, ev);
@@ -3440,7 +3444,7 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
                                         "type mismatch in array initializer — expected '%s', got '%s'",
                                         expected_et->name, actual_et->name);
                                     diag_error(tc->diag, "E3053", strdup(msg),
-                                        tc->file,
+                                        NODE_FILE(tc, arr->data.array_value.elements[ei]),
                                         arr->data.array_value.elements[ei]->token.line,
                                         arr->data.array_value.elements[ei]->token.column, 0);
                                 }
@@ -3457,7 +3461,7 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
                                 "too many elements in array initializer — declared size is %d, got %d",
                                 fixed_size, arr->data.array_value.count);
                             diag_error(tc->diag, "E3052", strdup(msg),
-                                tc->file, node->token.line, node->token.column, 0);
+                                NODE_FILE(tc, node), node->token.line, node->token.column, 0);
                         }
                         if (fixed_size > 0 && arr->data.array_value.count < fixed_size) {
                             char msg[256];
@@ -3466,7 +3470,7 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
                                 elem_type[0] ? elem_type : "?", fixed_size,
                                 arr->data.array_value.count, fixed_size);
                             diag_warning(tc->diag, "W3003", strdup(msg),
-                                tc->file, node->token.line, node->token.column, 0);
+                                NODE_FILE(tc, node), node->token.line, node->token.column, 0);
                         }
                     }
                 }
@@ -3510,7 +3514,7 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
                                         "type mismatch in map literal key — expected '%s', got '%s'",
                                         expected_k->name, kt->name);
                                     diag_error(tc->diag, "E3053", strdup(msg),
-                                        tc->file, kn->token.line, kn->token.column, 0);
+                                        NODE_FILE(tc, kn), kn->token.line, kn->token.column, 0);
                                 }
                                 if (vt && vt->kind != TK_UNKNOWN && vt->kind != TK_VOID &&
                                     expected_v && expected_v->kind != TK_UNKNOWN &&
@@ -3522,7 +3526,7 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
                                         "type mismatch in map literal value — expected '%s', got '%s'",
                                         expected_v->name, vt->name);
                                     diag_error(tc->diag, "E3053", strdup(msg),
-                                        tc->file, vn->token.line, vn->token.column, 0);
+                                        NODE_FILE(tc, vn), vn->token.line, vn->token.column, 0);
                                 }
                             }
                         }
@@ -3543,7 +3547,7 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
                         "cannot assign signed type '%s' to unsigned type '%s' — value may be negative",
                         src_sym->declared_type, node->data.var_decl.type_name);
                     diag_error(tc->diag, "E3019", strdup(msg),
-                        tc->file, node->token.line, node->token.column, 0);
+                        NODE_FILE(tc, node), node->token.line, node->token.column, 0);
                 }
             }
         }
@@ -3552,13 +3556,13 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
         if (strcmp(node->data.var_decl.name, "_") == 0 && node->data.var_decl.type_name) {
             diag_warning(tc->diag, "W1005",
                 strdup("typed blank identifier — adding a type to '_' is unnecessary, use plain '_' instead"),
-                tc->file, node->token.line, node->token.column, 0);
+                NODE_FILE(tc, node), node->token.line, node->token.column, 0);
         }
 
         if (strcmp(node->data.var_decl.name, "_") != 0) {
             /* Check for reserved prefix */
             check_reserved_name(tc, node->data.var_decl.name,
-                node->token.line, node->token.column);
+                NODE_FILE(tc, node), node->token.line, node->token.column);
             /* Check for redeclaration in same scope */
             Symbol *existing = scope_lookup_local(tc->current_scope,
                 node->data.var_decl.name);
@@ -3568,7 +3572,7 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
                     "variable '%s' already declared in this scope (line %d)",
                     node->data.var_decl.name, existing->def_line);
                 diag_error(tc->diag, "E4003", strdup(msg),
-                    tc->file, node->token.line, node->token.column, 0);
+                    NODE_FILE(tc, node), node->token.line, node->token.column, 0);
             }
             /* W2002/W2007: check if variable shadows outer scope */
             if (!existing && tc->current_scope->parent) {
@@ -3589,13 +3593,13 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
                             "variable '%s' shadows a global constant or variable declared on line %d",
                             node->data.var_decl.name, outer_sym->def_line);
                         diag_warning(tc->diag, "W2007", strdup(msg),
-                            tc->file, node->token.line, node->token.column, 0);
+                            NODE_FILE(tc, node), node->token.line, node->token.column, 0);
                     } else {
                         snprintf(msg, sizeof(msg),
                             "variable '%s' shadows a variable declared on line %d",
                             node->data.var_decl.name, outer_sym->def_line);
                         diag_warning(tc->diag, "W2002", strdup(msg),
-                            tc->file, node->token.line, node->token.column, 0);
+                            NODE_FILE(tc, node), node->token.line, node->token.column, 0);
                     }
                 }
             }
@@ -3607,7 +3611,7 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
                     "variable '%s' shadows a type definition with the same name",
                     node->data.var_decl.name);
                 diag_error(tc->diag, "E4012", strdup(msg),
-                    tc->file, node->token.line, node->token.column, 0);
+                    NODE_FILE(tc, node), node->token.line, node->token.column, 0);
             }
             /* E4013: shadows a function */
             if (find_func(tc, node->data.var_decl.name)) {
@@ -3616,7 +3620,7 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
                     "variable '%s' shadows a function with the same name",
                     node->data.var_decl.name);
                 diag_error(tc->diag, "E4013", strdup(msg),
-                    tc->file, node->token.line, node->token.column, 0);
+                    NODE_FILE(tc, node), node->token.line, node->token.column, 0);
             }
             /* E4014: shadows an imported module */
             for (int mi = 0; mi < tc->import_count; mi++) {
@@ -3626,7 +3630,7 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
                         "variable '%s' shadows an imported module with the same name",
                         node->data.var_decl.name);
                     diag_error(tc->diag, "E4014", strdup(msg),
-                        tc->file, node->token.line, node->token.column, 0);
+                        NODE_FILE(tc, node), node->token.line, node->token.column, 0);
                     break;
                 }
             }
@@ -3749,7 +3753,7 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
             target->kind != NODE_POSTFIX_EXPR) {
             diag_error(tc->diag, "E5025",
                 strdup("cannot assign to this expression — left side of '=' must be a variable, field, or index"),
-                tc->file, node->token.line, node->token.column, 0);
+                NODE_FILE(tc, node), node->token.line, node->token.column, 0);
         }
 
         /* Check for assignment to const variable (direct, index, or field) */
@@ -3770,7 +3774,7 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
                 "cannot modify constant '%s' — declare with 'mut' to make it mutable",
                 const_name);
             diag_error(tc->diag, "E3005", strdup(msg),
-                tc->file, node->token.line, node->token.column, 0);
+                NODE_FILE(tc, node), node->token.line, node->token.column, 0);
         }
         /* Check type mismatch on assignment (only for direct variable targets) */
         if (target->kind == NODE_LABEL) {
@@ -3790,7 +3794,7 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
                     "type mismatch: cannot assign %s to %s variable '%s'",
                     type_name(value_t), type_name(target_t), target->data.label.value);
                 diag_error(tc->diag, "E3001", strdup(msg),
-                    tc->file, node->token.line, node->token.column, 0);
+                    NODE_FILE(tc, node), node->token.line, node->token.column, 0);
             }
         }
         /* Check type mismatch on struct field assignment */
@@ -3808,7 +3812,7 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
                         "type mismatch: cannot assign %s to %s field '%s'",
                         type_name(value_t), type_name(field_t), target->data.member.member);
                     diag_error(tc->diag, "E3001", strdup(msg),
-                        tc->file, node->token.line, node->token.column, 0);
+                        NODE_FILE(tc, node), node->token.line, node->token.column, 0);
                 }
             }
         }
@@ -3826,14 +3830,14 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
              * after E4008 (#1482). */
             if (!tc->current_main_return_suppressed) {
                 diag_error(tc->diag, "E3006", strdup("cannot return a value from a void function"),
-                    tc->file, node->token.line, node->token.column, 0);
+                    NODE_FILE(tc, node), node->token.line, node->token.column, 0);
             }
         } else if (tc->current_return_count > 0 && node->data.return_stmt.count == 0 &&
                    !tc->current_has_named_returns) {
             /* Bare return in non-void function (without named returns) */
             diag_error(tc->diag, "E3006",
                 strdup("missing return value — function expects a return value"),
-                tc->file, node->token.line, node->token.column, 0);
+                NODE_FILE(tc, node), node->token.line, node->token.column, 0);
         } else if (tc->current_return_count > 0 && node->data.return_stmt.count > 0 &&
                    node->data.return_stmt.count != tc->current_return_count &&
                    node->data.return_stmt.count < tc->current_return_count) {
@@ -3854,7 +3858,7 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
                     "function expects %d return value(s), got %d",
                     tc->current_return_count, node->data.return_stmt.count);
                 diag_error(tc->diag, "E3013", strdup(msg),
-                    tc->file, node->token.line, node->token.column, 0);
+                    NODE_FILE(tc, node), node->token.line, node->token.column, 0);
             }
         } else if (tc->current_return_count > 0 && node->data.return_stmt.count > 0 &&
                    node->data.return_stmt.count == tc->current_return_count) {
@@ -3880,7 +3884,7 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
                     "return type mismatch: expected %s, got %s",
                     type_name(expected), type_name(ret_t));
                 diag_error(tc->diag, "E3001", strdup(msg),
-                    tc->file, node->token.line, node->token.column, 0);
+                    NODE_FILE(tc, node), node->token.line, node->token.column, 0);
             }
             /* Struct-to-struct return name mismatch */
             if (ret_t->kind == TK_STRUCT && expected->kind == TK_STRUCT &&
@@ -3891,7 +3895,7 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
                     "return type mismatch: expected '%s', got '%s'",
                     expected->name, ret_t->name);
                 diag_error(tc->diag, "E3001", strdup(msg),
-                    tc->file, node->token.line, node->token.column, 0);
+                    NODE_FILE(tc, node), node->token.line, node->token.column, 0);
             }
             /* E5024: signed-to-unsigned return type mismatch */
             if (tc->current_return_type_names && tc->current_return_type_names[0] &&
@@ -3906,7 +3910,7 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
                         "return type mismatch: cannot return signed '%s' as unsigned '%s'",
                         src_sym->declared_type, tc->current_return_type_names[0]);
                     diag_error(tc->diag, "E5024", strdup(msg),
-                        tc->file, node->token.line, node->token.column, 0);
+                        NODE_FILE(tc, node), node->token.line, node->token.column, 0);
                 }
             }
             /* W2011: named return variable not used in explicit return */
@@ -3921,7 +3925,7 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
                             "returning '%s' instead of named return variable '%s'",
                             rv->data.label.value, tc->current_return_names[i]);
                         diag_warning(tc->diag, "W2011", strdup(msg),
-                            tc->file, rv->token.line, rv->token.column, 0);
+                            NODE_FILE(tc, rv), rv->token.line, rv->token.column, 0);
                     }
                 }
             }
@@ -3965,7 +3969,7 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
                             "return value of '%s.%s()' is not used — assign it to a variable or use '_' to discard",
                             obj_name, mem_name);
                         diag_error(tc->diag, "E5011", strdup(msg),
-                            tc->file, node->token.line, node->token.column, 0);
+                            NODE_FILE(tc, node), node->token.line, node->token.column, 0);
                     }
                     is_side_effect = true; /* already handled */
                 }
@@ -3976,7 +3980,7 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
                     "return value of '%s()' is not used — assign it to a variable or use '_' to discard",
                     fn_name);
                 diag_error(tc->diag, "E5011", strdup(msg),
-                    tc->file, node->token.line, node->token.column, 0);
+                    NODE_FILE(tc, node), node->token.line, node->token.column, 0);
             }
         }
         break;
@@ -4009,7 +4013,7 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
                     "cannot use void expression as condition — 'if' requires a bool expression");
             }
             diag_error(tc->diag, "E3038", strdup(msg),
-                tc->file, c->token.line, c->token.column, 0);
+                NODE_FILE(tc, c), c->token.line, c->token.column, 0);
         }
         Scope *if_outer = tc->current_scope;
         tc->current_scope = scope_create(if_outer);
@@ -4058,7 +4062,7 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
                             (long long)start_val, (long long)end_val);
                     }
                     diag_error(tc->diag, "E9005", strdup(msg),
-                        tc->file, node->token.line, node->token.column, 0);
+                        NODE_FILE(tc, node), node->token.line, node->token.column, 0);
                 }
             }
         }
@@ -4085,7 +4089,7 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
                 "cannot iterate over type '%s' — for_each requires an array, map, or string",
                 type_name(coll_t));
             diag_error(tc->diag, "E3009", strdup(msg),
-                tc->file, node->token.line, node->token.column, 0);
+                NODE_FILE(tc, node), node->token.line, node->token.column, 0);
         }
 
         if (coll_t->kind == TK_MAP) {
@@ -4137,7 +4141,7 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
                     "cannot use void expression as condition — 'as_long_as' requires a bool expression");
             }
             diag_error(tc->diag, "E3038", strdup(msg),
-                tc->file, c->token.line, c->token.column, 0);
+                NODE_FILE(tc, c), c->token.line, c->token.column, 0);
         }
         tc->loop_depth++;
         check_block(tc, node->data.while_stmt.body);
@@ -4158,7 +4162,7 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
             char msg[128];
             snprintf(msg, sizeof(msg), "'%s' can only be used inside a loop", kw);
             diag_error(tc->diag, "E2050", strdup(msg),
-                tc->file, node->token.line, node->token.column, 0);
+                NODE_FILE(tc, node), node->token.line, node->token.column, 0);
         }
         break;
 
@@ -4170,7 +4174,7 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
                 "'%s' is a reserved type name and cannot be used as a function name",
                 node->data.func_decl.name);
             diag_error(tc->diag, "E2038", strdup(msg),
-                tc->file, node->token.line, node->token.column, 0);
+                NODE_FILE(tc, node), node->token.line, node->token.column, 0);
         }
         /* Check for nested function declarations */
         if (tc->func_depth > 0) {
@@ -4179,7 +4183,7 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
                 "nested function declarations are not allowed — define '%s' at the top level",
                 node->data.func_decl.name);
             diag_error(tc->diag, "E2051", strdup(msg),
-                tc->file, node->token.line, node->token.column, 0);
+                NODE_FILE(tc, node), node->token.line, node->token.column, 0);
         }
 
         Scope *func_scope = scope_create(tc->current_scope);
@@ -4197,7 +4201,7 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
                     "'%s' is a reserved type name and cannot be used as a parameter name",
                     p->name);
                 diag_error(tc->diag, "E2038", strdup(msg),
-                    tc->file, node->token.line, node->token.column, 0);
+                    NODE_FILE(tc, node), node->token.line, node->token.column, 0);
             }
             /* Check for duplicate parameter name */
             for (int j = 0; j < i; j++) {
@@ -4206,7 +4210,7 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
                     snprintf(msg, sizeof(msg),
                         "duplicate parameter name '%s'", p->name);
                     diag_error(tc->diag, "E2012", strdup(msg),
-                        tc->file, node->token.line, node->token.column, 0);
+                        NODE_FILE(tc, node), node->token.line, node->token.column, 0);
                     break;
                 }
             }
@@ -4225,7 +4229,7 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
                         "required parameter '%s' cannot come after a parameter with a default value",
                         p->name);
                     diag_error(tc->diag, "E2039", strdup(msg),
-                        tc->file, node->token.line, node->token.column, 0);
+                        NODE_FILE(tc, node), node->token.line, node->token.column, 0);
                 }
             }
             EzType *ptype = p->type_name ? tc_type_from_name(tc, p->type_name) : &TYPE_UNKNOWN;
@@ -4241,7 +4245,7 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
                         "default value for parameter '%s' has wrong type — expected %s, got %s",
                         p->name, p->type_name, type_name(def_t));
                     diag_error(tc->diag, "E3001", strdup(msg),
-                        tc->file, p->default_value->token.line, p->default_value->token.column, 0);
+                        NODE_FILE(tc, p->default_value), p->default_value->token.line, p->default_value->token.column, 0);
                 }
             }
             scope_define(func_scope, p->name, ptype, p->mutable);
@@ -4267,7 +4271,7 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
                 if (!param_has_wc) {
                     diag_error(tc->diag, "E3060",
                         strdup("wildcard '?' in return type cannot be resolved — at least one parameter must also use '?' to bind the concrete type"),
-                        tc->file, node->token.line, node->token.column, 0);
+                        NODE_FILE(tc, node), node->token.line, node->token.column, 0);
                 }
             }
         }
@@ -4285,7 +4289,7 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
                             snprintf(msg, sizeof(msg),
                                 "duplicate named return value '%s'", rn);
                             diag_error(tc->diag, "E2063", strdup(msg),
-                                tc->file, node->token.line, node->token.column, 0);
+                                NODE_FILE(tc, node), node->token.line, node->token.column, 0);
                             break;
                         }
                     }
@@ -4297,7 +4301,7 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
                                 "named return value '%s' conflicts with parameter '%s'",
                                 rn, rn);
                             diag_error(tc->diag, "E2063", strdup(msg),
-                                tc->file, node->token.line, node->token.column, 0);
+                                NODE_FILE(tc, node), node->token.line, node->token.column, 0);
                             break;
                         }
                     }
@@ -4394,7 +4398,7 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
                     "function '%s' must return a value but has no return statement",
                     node->data.func_decl.name);
                 diag_error(tc->diag, "E3024", strdup(msg),
-                    tc->file, node->token.line, node->token.column, 0);
+                    NODE_FILE(tc, node), node->token.line, node->token.column, 0);
             } else if (has_return && !has_named_returns &&
                        !all_paths_return(node->data.func_decl.body)) {
                 char msg[256];
@@ -4402,7 +4406,7 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
                     "not all code paths in '%s' return a value",
                     node->data.func_decl.name);
                 diag_error(tc->diag, "E3035", strdup(msg),
-                    tc->file, node->token.line, node->token.column, 0);
+                    NODE_FILE(tc, node), node->token.line, node->token.column, 0);
             }
         }
 
@@ -4445,7 +4449,7 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
         if (tc->func_depth > 0) {
             diag_error(tc->diag, "E2036",
                 strdup("imports must be at the top of the file, not inside a function"),
-                tc->file, node->token.line, node->token.column, 0);
+                NODE_FILE(tc, node), node->token.line, node->token.column, 0);
         }
         break;
 
@@ -4455,7 +4459,7 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
             node->data.ensure_stmt.expr->kind != NODE_CALL_EXPR) {
             diag_error(tc->diag, "E3039",
                 strdup("ensure expects a function call — for example: ensure close(file)"),
-                tc->file, node->token.line, node->token.column, 0);
+                NODE_FILE(tc, node), node->token.line, node->token.column, 0);
         }
         break;
 
@@ -4467,7 +4471,7 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
                 "struct '%s' must be defined at the file scope, not inside a function",
                 node->data.struct_decl.name);
             diag_error(tc->diag, "E2053", strdup(msg),
-                tc->file, node->token.line, node->token.column, 0);
+                NODE_FILE(tc, node), node->token.line, node->token.column, 0);
         }
         /* Type-check struct-namespaced function bodies */
         for (int i = 0; i < node->data.struct_decl.func_count; i++) {
@@ -4503,7 +4507,7 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
                             "type mismatch in 'when' — comparing '%s' with '%s'",
                             type_name(when_t), type_name(case_t));
                         diag_error(tc->diag, "E3018", strdup(msg),
-                            tc->file, val_i->token.line, val_i->token.column, 0);
+                            NODE_FILE(tc, val_i), val_i->token.line, val_i->token.column, 0);
                     }
                 }
                 /* Compare against all previous case values */
@@ -4519,7 +4523,7 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
                             char msg[256];
                             snprintf(msg, sizeof(msg), "duplicate case value in when statement");
                             diag_error(tc->diag, "E2043", strdup(msg),
-                                tc->file, val_i->token.line, val_i->token.column, 0);
+                                NODE_FILE(tc, val_i), val_i->token.line, val_i->token.column, 0);
                         }
                     }
                 }
@@ -4580,7 +4584,7 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
                                 "#strict when is not exhaustive — missing variant '%s.%s'",
                                 enum_name, variants[vi]);
                             diag_error(tc->diag, "E3056", strdup(msg),
-                                tc->file, node->token.line, node->token.column, 0);
+                                NODE_FILE(tc, node), node->token.line, node->token.column, 0);
                         }
                     }
                 }
@@ -4588,7 +4592,7 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
                 /* #strict on non-enum: just warn that it has no effect without default */
                 diag_error(tc->diag, "E3056",
                     strdup("#strict when on a non-enum type requires a default branch to be exhaustive"),
-                    tc->file, node->token.line, node->token.column, 0);
+                    NODE_FILE(tc, node), node->token.line, node->token.column, 0);
             }
         }
         break;
@@ -4680,7 +4684,7 @@ static void register_declarations(TypeChecker *tc, AstNode *program) {
                     snprintf(msg, sizeof(msg),
                         "unknown module '@%s'", item->module);
                     diag_error(tc->diag, "E6001", strdup(msg),
-                        tc->file, stmt->token.line, stmt->token.column, 0);
+                        NODE_FILE(tc, stmt), stmt->token.line, stmt->token.column, 0);
                 }
                 /* Record import for unused-import tracking.
                  * Store the ALIAS as the import name (so using/dot notation uses the alias). */
@@ -4724,7 +4728,7 @@ static void register_declarations(TypeChecker *tc, AstNode *program) {
                     "struct '%s' has no fields — a struct must have at least one field",
                     stmt->data.struct_decl.name);
                 diag_error(tc->diag, "E2067", strdup(msg),
-                    tc->file, stmt->token.line, stmt->token.column, 0);
+                    NODE_FILE(tc, stmt), stmt->token.line, stmt->token.column, 0);
             }
             int fc = stmt->data.struct_decl.field_count;
             const char **fnames = malloc(sizeof(const char *) * (fc ? fc : 1));
@@ -4741,7 +4745,7 @@ static void register_declarations(TypeChecker *tc, AstNode *program) {
                         "'void' cannot be used as a struct field type (field '%s')",
                         fnames[j]);
                     diag_error(tc->diag, "E3038", strdup(msg),
-                        tc->file, stmt->token.line, stmt->token.column, 0);
+                        NODE_FILE(tc, stmt), stmt->token.line, stmt->token.column, 0);
                 }
                 /* E2066: field name matches struct type name */
                 if (strcmp(fnames[j], stmt->data.struct_decl.name) == 0) {
@@ -4750,7 +4754,7 @@ static void register_declarations(TypeChecker *tc, AstNode *program) {
                         "struct field '%s' cannot have the same name as its struct type '%s'",
                         fnames[j], stmt->data.struct_decl.name);
                     diag_error(tc->diag, "E2066", strdup(msg),
-                        tc->file, stmt->token.line, stmt->token.column, 0);
+                        NODE_FILE(tc, stmt), stmt->token.line, stmt->token.column, 0);
                 }
                 /* E3061 (#1489): struct field cannot be the enclosing
                  * struct by value — that produces an infinite-size
@@ -4786,7 +4790,7 @@ static void register_declarations(TypeChecker *tc, AstNode *program) {
                                 self_name, ftn, ftn);
                         }
                         diag_error(tc->diag, "E3061", strdup(msg),
-                            tc->file, stmt->token.line, stmt->token.column, 0);
+                            NODE_FILE(tc, stmt), stmt->token.line, stmt->token.column, 0);
                     }
                 }
                 /* Check for duplicate field names */
@@ -4797,7 +4801,7 @@ static void register_declarations(TypeChecker *tc, AstNode *program) {
                             "duplicate field name '%s' in struct '%s'",
                             fnames[j], stmt->data.struct_decl.name);
                         diag_error(tc->diag, "E2013", strdup(msg),
-                            tc->file, stmt->token.line, stmt->token.column, 0);
+                            NODE_FILE(tc, stmt), stmt->token.line, stmt->token.column, 0);
                         break;
                     }
                 }
@@ -4807,7 +4811,7 @@ static void register_declarations(TypeChecker *tc, AstNode *program) {
             if (is_reserved_type_name(sn)) {
                 char msg[256];
                 snprintf(msg, sizeof(msg), "'%s' is a reserved type name and cannot be used as a struct name", sn);
-                diag_error(tc->diag, "E2037", strdup(msg), tc->file, stmt->token.line, stmt->token.column, 0);
+                diag_error(tc->diag, "E2037", strdup(msg), NODE_FILE(tc, stmt), stmt->token.line, stmt->token.column, 0);
             }
             /* E4007: duplicate struct name */
             if (is_struct_name(tc, stmt->data.struct_decl.name) ||
@@ -4817,7 +4821,7 @@ static void register_declarations(TypeChecker *tc, AstNode *program) {
                     "a type named '%s' is already declared",
                     stmt->data.struct_decl.name);
                 diag_error(tc->diag, "E4007", strdup(msg),
-                    tc->file, stmt->token.line, stmt->token.column, 0);
+                    NODE_FILE(tc, stmt), stmt->token.line, stmt->token.column, 0);
             }
             register_struct(tc, stmt->data.struct_decl.name, fnames, ftypes, fc);
 
@@ -4835,7 +4839,7 @@ static void register_declarations(TypeChecker *tc, AstNode *program) {
                             "duplicate function '%s' in struct '%s'",
                             fn->data.func_decl.name, stmt->data.struct_decl.name);
                         diag_error(tc->diag, "E2037", strdup(msg),
-                            tc->file, fn->token.line, fn->token.column, 0);
+                            NODE_FILE(tc, fn), fn->token.line, fn->token.column, 0);
                         break;
                     }
                 }
@@ -4848,7 +4852,7 @@ static void register_declarations(TypeChecker *tc, AstNode *program) {
                             fn->data.func_decl.name, fnames[k],
                             stmt->data.struct_decl.name);
                         diag_error(tc->diag, "E2064", strdup(msg),
-                            tc->file, fn->token.line, fn->token.column, 0);
+                            NODE_FILE(tc, fn), fn->token.line, fn->token.column, 0);
                         break;
                     }
                 }
@@ -4880,7 +4884,7 @@ static void register_declarations(TypeChecker *tc, AstNode *program) {
             if (is_reserved_type_name(en)) {
                 char msg[256];
                 snprintf(msg, sizeof(msg), "'%s' is a reserved type name and cannot be used as an enum name", en);
-                diag_error(tc->diag, "E2038", strdup(msg), tc->file, stmt->token.line, stmt->token.column, 0);
+                diag_error(tc->diag, "E2038", strdup(msg), NODE_FILE(tc, stmt), stmt->token.line, stmt->token.column, 0);
             }
             /* E2016: empty enum */
             if (stmt->data.enum_decl.value_count == 0) {
@@ -4889,7 +4893,7 @@ static void register_declarations(TypeChecker *tc, AstNode *program) {
                     "enum '%s' has no values — an enum must have at least one value",
                     stmt->data.enum_decl.name);
                 diag_error(tc->diag, "E2016", strdup(msg),
-                    tc->file, stmt->token.line, stmt->token.column, 0);
+                    NODE_FILE(tc, stmt), stmt->token.line, stmt->token.column, 0);
             }
             /* E3033: check for duplicate enum values */
             for (int j = 0; j < stmt->data.enum_decl.value_count; j++) {
@@ -4907,7 +4911,7 @@ static void register_declarations(TypeChecker *tc, AstNode *program) {
                             stmt->data.enum_decl.values[k].name,
                             stmt->data.enum_decl.values[j].name);
                         diag_error(tc->diag, "E3033", strdup(msg),
-                            tc->file, stmt->token.line, stmt->token.column, 0);
+                            NODE_FILE(tc, stmt), stmt->token.line, stmt->token.column, 0);
                         break;
                     }
                 }
@@ -4923,7 +4927,7 @@ static void register_declarations(TypeChecker *tc, AstNode *program) {
                         stmt->data.enum_decl.values[j].name,
                         stmt->data.enum_decl.name);
                     diag_error(tc->diag, "E2065", strdup(msg),
-                        tc->file, stmt->token.line, stmt->token.column, 0);
+                        NODE_FILE(tc, stmt), stmt->token.line, stmt->token.column, 0);
                 }
                 for (int k = 0; k < j; k++) {
                     if (strcmp(stmt->data.enum_decl.values[k].name,
@@ -4934,7 +4938,7 @@ static void register_declarations(TypeChecker *tc, AstNode *program) {
                             stmt->data.enum_decl.values[j].name,
                             stmt->data.enum_decl.name);
                         diag_error(tc->diag, "E2014", strdup(msg),
-                            tc->file, stmt->token.line, stmt->token.column, 0);
+                            NODE_FILE(tc, stmt), stmt->token.line, stmt->token.column, 0);
                         break;
                     }
                 }
@@ -4961,7 +4965,7 @@ static void register_declarations(TypeChecker *tc, AstNode *program) {
                     "a type named '%s' is already declared",
                     stmt->data.enum_decl.name);
                 diag_error(tc->diag, "E4007", strdup(msg),
-                    tc->file, stmt->token.line, stmt->token.column, 0);
+                    NODE_FILE(tc, stmt), stmt->token.line, stmt->token.column, 0);
             }
             int vc = stmt->data.enum_decl.value_count;
             const char **vnames = malloc(sizeof(const char *) * (vc ? vc : 1));
@@ -4991,24 +4995,24 @@ static void register_declarations(TypeChecker *tc, AstNode *program) {
                 if (pc > 0) {
                     diag_error(tc->diag, "E4008",
                         strdup("'main' function cannot have parameters — main() takes no arguments"),
-                        tc->file, stmt->token.line, stmt->token.column, 0);
+                        NODE_FILE(tc, stmt), stmt->token.line, stmt->token.column, 0);
                 }
                 if (rc > 0) {
                     diag_error(tc->diag, "E4008",
                         strdup("'main' function cannot have a return type — main() always returns void"),
-                        tc->file, stmt->token.line, stmt->token.column, 0);
+                        NODE_FILE(tc, stmt), stmt->token.line, stmt->token.column, 0);
                 }
             }
             /* Check for reserved prefix */
             check_reserved_name(tc, stmt->data.func_decl.name,
-                stmt->token.line, stmt->token.column);
+                NODE_FILE(tc, stmt), stmt->token.line, stmt->token.column);
             /* Check for duplicate function names */
             if (find_func(tc, stmt->data.func_decl.name)) {
                 char msg[256];
                 snprintf(msg, sizeof(msg),
                     "function '%s' already declared", stmt->data.func_decl.name);
                 diag_error(tc->diag, "E4004", strdup(msg),
-                    tc->file, stmt->token.line, stmt->token.column, 0);
+                    NODE_FILE(tc, stmt), stmt->token.line, stmt->token.column, 0);
             }
             /* E4007: function name conflicts with a type */
             if (is_struct_name(tc, stmt->data.func_decl.name) ||
@@ -5018,7 +5022,7 @@ static void register_declarations(TypeChecker *tc, AstNode *program) {
                     "function '%s' conflicts with a type of the same name",
                     stmt->data.func_decl.name);
                 diag_error(tc->diag, "E4007", strdup(msg),
-                    tc->file, stmt->token.line, stmt->token.column, 0);
+                    NODE_FILE(tc, stmt), stmt->token.line, stmt->token.column, 0);
             }
             register_func(tc, stmt->data.func_decl.name, ptypes, pc, rtypes, rc);
             tc->funcs[tc->func_count - 1].is_private = stmt->data.func_decl.is_private;
@@ -5099,7 +5103,7 @@ void typechecker_check(TypeChecker *tc, AstNode *program) {
                         "cannot use module '%s' before importing it — add 'import @%s' before the using statement",
                         umod, umod);
                     diag_error(tc->diag, "E2010", strdup(msg),
-                        tc->file, stmt->token.line, stmt->token.column, 0);
+                        NODE_FILE(tc, stmt), stmt->token.line, stmt->token.column, 0);
                 }
                 if (tc->using_module_count >= tc->using_module_cap) {
                     tc->using_module_cap = tc->using_module_cap ? tc->using_module_cap * 2 : 8;
@@ -5275,7 +5279,7 @@ void typechecker_check(TypeChecker *tc, AstNode *program) {
                     "in instantiation of generic function '%s' with '?' = %s",
                     fs->name, concrete);
                 diag_error(tc->diag, "E3058", strdup(msg),
-                    tc->file, call_site->token.line, call_site->token.column, 0);
+                    NODE_FILE(tc, call_site), call_site->token.line, call_site->token.column, 0);
             }
         }
     }

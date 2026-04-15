@@ -2253,7 +2253,7 @@ Parser *parser_create(Arena *arena, Lexer *lexer, const char *file, DiagnosticLi
 }
 
 AstNode *parser_parse_program(Parser *p) {
-    Token tok = {TOK_EOF, "", 0, 0};
+    Token tok = {TOK_EOF, "", 0, 0, NULL};
     AstNode *program = ast_alloc(p->arena, NODE_PROGRAM, tok);
     program->data.program.module_decl = NULL;
     program->data.program.using_stmts = NULL;

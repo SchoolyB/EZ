@@ -301,6 +301,7 @@ static Token make_token(TokenType type, const char *literal, int line, int col) 
     t.literal = literal;
     t.line = line;
     t.column = col;
+    t.file = NULL;
     return t;
 }
 
@@ -334,7 +335,7 @@ Token lexer_next_token(Lexer *l) {
     /* Check for lexer errors from comment/whitespace skipping */
     if (l->error_code) {
         tok = make_token(TOK_ILLEGAL, l->error_msg, l->line, l->column);
-        return tok;
+        goto done;
     }
 
     tok.line = l->line;
@@ -343,7 +344,7 @@ Token lexer_next_token(Lexer *l) {
     switch (l->ch) {
     case 0:
         tok = make_token(TOK_EOF, "", l->line, l->column);
-        return tok;
+        goto done;
 
     case '=':
         if (peek_char(l) == '=') {
@@ -520,26 +521,26 @@ Token lexer_next_token(Lexer *l) {
         } else {
             tok.type = TOK_STRING;
         }
-        return tok;
+        goto done;
 
     case '`':
         tok.literal = read_raw_string(l);
         tok.type = l->error_code ? TOK_ILLEGAL : TOK_RAW_STRING;
         if (l->error_code) tok.literal = l->error_msg;
-        return tok;
+        goto done;
 
     case '\'':
         l->error_code = NULL;
         tok.literal = read_char_literal(l);
         tok.type = l->error_code ? TOK_ILLEGAL : TOK_CHAR;
         if (l->error_code) tok.literal = l->error_msg;
-        return tok;
+        goto done;
 
     default:
         if (isalpha(l->ch) || l->ch == '_') {
             tok.literal = read_identifier(l);
             tok.type = token_lookup_ident(tok.literal);
-            return tok;
+            goto done;
         } else if (isdigit(l->ch)) {
             TokenType num_type;
             tok.literal = read_number(l, &num_type);
@@ -549,7 +550,7 @@ Token lexer_next_token(Lexer *l) {
             } else {
                 tok.type = num_type;
             }
-            return tok;
+            goto done;
         } else {
             char msg[64];
             snprintf(msg, sizeof(msg), "unexpected character '%c'", l->ch);
@@ -561,5 +562,7 @@ Token lexer_next_token(Lexer *l) {
     }
 
     read_char(l);
+done:
+    tok.file = l->file;
     return tok;
 }
