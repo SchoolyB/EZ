@@ -738,12 +738,22 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
         EzType *right = resolve_expr(tc, node->data.infix.right);
         const char *op = node->data.infix.op;
 
+        /* #1488: track whether any op-specific check has rejected the
+         * expression so the final result can be collapsed to TK_UNKNOWN
+         * instead of one operand's type. Otherwise `mut x int = true +
+         * 1` fires E3002 at the '+' and then cascades into E3001 "can't
+         * assign bool to int" at the var_decl, where the bool came from
+         * the left operand rather than a real result type. */
+        bool infix_errored = false;
+
         /* #1483: void operands never make sense in any binary
          * operator. Check both sides at the kind level before any
          * op-specific diagnostic runs, so `1 + nothing()` and
          * `nothing() == x` report a clean E3038 instead of
          * cascading through the op-specific type checks or leaking
          * to clang. */
+        if (left && left->kind == TK_VOID) infix_errored = true;
+        if (right && right->kind == TK_VOID) infix_errored = true;
         reject_void_in_context(tc, node->data.infix.left, left, "binary operand");
         reject_void_in_context(tc, node->data.infix.right, right, "binary operand");
 
@@ -766,6 +776,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
             diag_error(tc->diag, "E3002",
                 strdup("modulo (%) only works on integers, not floats"),
                 tc->file, node->token.line, node->token.column, 0);
+            infix_errored = true;
         }
 
         /* E3002: literal divide/modulo by zero (#1474). Catches the
@@ -795,6 +806,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                     strcmp(op, "%") == 0 ? "modulo" : "division");
                 diag_error(tc->diag, "E3002", strdup(msg),
                     tc->file, r->token.line, r->token.column, 0);
+                infix_errored = true;
             }
         }
 
@@ -810,6 +822,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                 op, type_name(left), type_name(right));
             diag_error(tc->diag, "E3002", strdup(msg),
                 tc->file, node->token.line, node->token.column, 0);
+            infix_errored = true;
         }
 
         /* String + string: reject with helpful message */
@@ -817,6 +830,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
             diag_error(tc->diag, "E3048",
                 strdup("operator '+' is not defined for strings — use string interpolation or fmt.format() instead"),
                 tc->file, node->token.line, node->token.column, 0);
+            infix_errored = true;
         }
 
         /* Arithmetic on strings (-, *, /, %, etc.) */
@@ -828,6 +842,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                 "cannot use '%s' on string type", op);
             diag_error(tc->diag, "E3002", strdup(msg),
                 tc->file, node->token.line, node->token.column, 0);
+            infix_errored = true;
         }
 
         /* E3032: different enum types in comparison */
@@ -898,6 +913,11 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
         } else {
             result = left;
         }
+        /* #1488: if any op-level check rejected the expression, drop
+         * result to TK_UNKNOWN so downstream var_decl / return / etc.
+         * checks that already skip TK_UNKNOWN don't cascade a second
+         * diagnostic off one of the (invalid) operand types. */
+        if (infix_errored) result = &TYPE_UNKNOWN;
         break;
     }
 
