@@ -600,8 +600,8 @@ const Status enum {
 Enum values are accessed using dot notation:
 
 ```ez
-mut dir int = Direction.NORTH
-mut status string = Status.TODO
+mut dir = Direction.NORTH
+mut status = Status.TODO
 ```
 
 ### 4.3 Type Inference
@@ -1867,6 +1867,7 @@ All types are printable: `string`, `int`, `float`, `bool`, arrays, maps, structs
 | `exit` | `(code int)` | Exit program with code |
 | `range` | `(start int, end int [, step int]) -> Range` | Create integer range |
 | `cast` | `(value T, Type) -> Type` | Explicit type conversion |
+| `c_string` | `(ptr ^u8) -> string` | Convert a C `char*` return value to an EZ string (for C interop) |
 
 **Reference behavior with `ref()`:**
 
@@ -2228,7 +2229,7 @@ Use `len(m)` to get the number of entries (builtin, no import needed).
 
 ### 10.11 HTTP Module (`@http`)
 
-HTTP client for making requests. Currently supports HTTP only; TLS (HTTPS) is planned.
+HTTP client for making requests. Currently supports HTTP only.
 
 #### Request Functions
 
@@ -2390,7 +2391,7 @@ An HTTP server module with dynamic handlers and path parameters.
 |----------|-----------|-------------|
 | `router` | `() -> Router` | Create a new router |
 | `add_route` | `(router Router, method string, path string, ()handler)` | Add a route with handler function |
-| `listen` | `(port int, router Router) -> Error` | Start HTTP server on port |
+| `listen` | `(port int, router Router)` | Start HTTP server on port (blocks until killed) |
 
 #### Response Builders
 
@@ -2882,8 +2883,6 @@ Exits with status 1 if any suite fails.
 | E2006 | unclosed-bracket | Missing closing bracket |
 | E2007 | unclosed-interpolation | String interpolation not closed |
 | E2008 | invalid-assignment-target | Cannot assign to this expression |
-| E2009 | using-after-declarations | `using` statement must come before declarations | *(planned)* |
-| E2010 | using-before-import | Cannot use module before importing | *(planned)* |
 | E2011 | const-requires-value | `const` must be initialized |
 | E2012 | duplicate-parameter | Parameter name already used |
 | E2013 | duplicate-field | Field name already used |
@@ -2994,7 +2993,6 @@ Exits with status 1 if any suite fails.
 | E4012 | shadows-type | Variable shadows a type definition |
 | E4013 | shadows-function | Variable shadows a function |
 | E4014 | shadows-module | Variable shadows an imported module |
-| E4015 | shadows-used-module-function | Variable shadows a function from a `using` module | *(planned)* |
 | E4016 | loop-variable-shadows-loop-variable | Loop variable shadows outer loop variable |
 
 ### E5xxx — Runtime Errors
