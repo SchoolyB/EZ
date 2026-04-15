@@ -3351,6 +3351,17 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
                 diag_error(tc->diag, "E3001", strdup(msg),
                     NODE_FILE(tc, node), node->token.line, node->token.column, 0);
             }
+            /* Enum-to-enum name mismatch (both TK_ENUM but different enum types) */
+            if (declared->kind == TK_ENUM && value_type->kind == TK_ENUM &&
+                declared->name && value_type->name &&
+                strcmp(declared->name, value_type->name) != 0) {
+                char msg[256];
+                snprintf(msg, sizeof(msg),
+                    "type mismatch: cannot assign enum '%s' to enum '%s'",
+                    value_type->name, declared->name);
+                diag_error(tc->diag, "E3001", strdup(msg),
+                    NODE_FILE(tc, node), node->token.line, node->token.column, 0);
+            }
             /* E1010: Check for overflowed int literal assigned to non-bigint type */
             if (node->data.var_decl.value &&
                 node->data.var_decl.value->kind == NODE_INT_VALUE &&
