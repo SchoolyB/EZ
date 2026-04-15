@@ -91,6 +91,11 @@ typedef struct {
     const char **current_return_type_names; /* raw declared return type names */
     int current_return_count;
     bool current_has_named_returns; /* true if current function uses named return values */
+    bool current_main_return_suppressed; /* #1482: main() had a declared return
+                                          * type, E4008 already fired, we zeroed
+                                          * current_return_count so downstream
+                                          * "must return" / "return from void"
+                                          * checks should also stay quiet */
     const char **current_return_names; /* named return variable names (NULL entries for unnamed) */
 
     /* Pass 3 / #1443 slice 4: when true, resolve_expr must not write

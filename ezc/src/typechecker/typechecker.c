@@ -3652,9 +3652,13 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
         }
         /* Check return type matches function signature */
         if (tc->current_return_count == 0 && node->data.return_stmt.count > 0) {
-            /* Returning a value from a void function */
-            diag_error(tc->diag, "E3006", strdup("cannot return a value from a void function"),
-                tc->file, node->token.line, node->token.column, 0);
+            /* Returning a value from a void function — suppress when
+             * we've rewritten main()'s declared return type to void
+             * after E4008 (#1482). */
+            if (!tc->current_main_return_suppressed) {
+                diag_error(tc->diag, "E3006", strdup("cannot return a value from a void function"),
+                    tc->file, node->token.line, node->token.column, 0);
+            }
         } else if (tc->current_return_count > 0 && node->data.return_stmt.count == 0 &&
                    !tc->current_has_named_returns) {
             /* Bare return in non-void function (without named returns) */
@@ -4130,6 +4134,30 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
             tc->current_return_count = 0;
         }
 
+        /* #1482: main() is always void, and E4008 was already emitted
+         * by register_declarations when the user attached a return
+         * type. Treat main's effective return type as void for the
+         * body walk so downstream "must return a value" (E3024),
+         * "cannot return a value from a void function" (E3006), and
+         * return-type-mismatch cascades don't fire on top of the
+         * E4008 the user is already going to fix. The suppression
+         * flag lets individual checks distinguish "real void
+         * function" from "main that tried to declare a return type
+         * but got rewritten to void" — for the latter, we want
+         * silence, not a different cascade. */
+        bool main_return_coerced = false;
+        if (strcmp(node->data.func_decl.name, "main") == 0 &&
+            tc->current_return_count > 0) {
+            free(tc->current_return_types);
+            free((void *)tc->current_return_type_names);
+            tc->current_return_types = NULL;
+            tc->current_return_type_names = NULL;
+            tc->current_return_count = 0;
+            main_return_coerced = true;
+        }
+        bool saved_main_suppressed = tc->current_main_return_suppressed;
+        tc->current_main_return_suppressed = main_return_coerced;
+
         check_block(tc, node->data.func_decl.body);
 
         /* Check for missing return in non-void function (simple: check last statement) */
@@ -4201,6 +4229,7 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
         tc->current_return_count = prev_ret_count;
         tc->current_has_named_returns = prev_named;
         tc->current_return_names = prev_return_names;
+        tc->current_main_return_suppressed = saved_main_suppressed;
         tc->func_depth--;
         tc->current_scope = outer;
         break;
