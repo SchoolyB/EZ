@@ -1,0 +1,12 @@
+/*
+ * Error Test: E4005 - typo'd call on the @maps stdlib module
+ *
+ * Regression for #1497.
+ */
+
+import @maps
+
+do main() {
+    mut m map[string:int] = {"a": 1}
+    maps.bogus(m)
+}
