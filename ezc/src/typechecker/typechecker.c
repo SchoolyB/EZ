@@ -548,6 +548,31 @@ static bool check_integer_range(DiagnosticList *diag, const char *file,
 
 static EzType *resolve_expr(TypeChecker *tc, AstNode *node);
 
+/* #1483: shared void-expression guard. Emits E3038 at `expr` when `t`
+ * is TK_VOID. `context` is a short phrase describing what the
+ * position wants ("println argument", "map value", "binary operand",
+ * etc.). If `expr` is a direct call to a named function, the error
+ * quotes the function name — otherwise it falls back to a generic
+ * "void expression" wording. Caller-suppliable context keeps each
+ * diagnostic site self-describing without a zillion format strings. */
+static void reject_void_in_context(TypeChecker *tc, AstNode *expr,
+                                    EzType *t, const char *context) {
+    if (!t || t->kind != TK_VOID || !expr) return;
+    char msg[256];
+    if (expr->kind == NODE_CALL_EXPR && expr->data.call.function &&
+        expr->data.call.function->kind == NODE_LABEL) {
+        snprintf(msg, sizeof(msg),
+            "cannot use void function '%s' as %s — the function does not return a value",
+            expr->data.call.function->data.label.value, context);
+    } else {
+        snprintf(msg, sizeof(msg),
+            "cannot use void expression as %s — the expression does not produce a value",
+            context);
+    }
+    diag_error(tc->diag, "E3038", strdup(msg),
+        tc->file, expr->token.line, expr->token.column, 0);
+}
+
 static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
     if (!node) return &TYPE_UNKNOWN;
 
@@ -712,6 +737,15 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
         EzType *left = resolve_expr(tc, node->data.infix.left);
         EzType *right = resolve_expr(tc, node->data.infix.right);
         const char *op = node->data.infix.op;
+
+        /* #1483: void operands never make sense in any binary
+         * operator. Check both sides at the kind level before any
+         * op-specific diagnostic runs, so `1 + nothing()` and
+         * `nothing() == x` report a clean E3038 instead of
+         * cascading through the op-specific type checks or leaking
+         * to clang. */
+        reject_void_in_context(tc, node->data.infix.left, left, "binary operand");
+        reject_void_in_context(tc, node->data.infix.right, right, "binary operand");
 
         /* String ordering operators not supported — use strings.compare() */
         if ((left->kind == TK_STRING || right->kind == TK_STRING) &&
@@ -1779,7 +1813,10 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                         tc->file, node->token.line, node->token.column, 0);
                 }
                 if (node->data.call.arg_count >= 1) {
-                    resolve_expr(tc, node->data.call.args[0]);
+                    EzType *at = resolve_expr(tc, node->data.call.args[0]);
+                    char ctx[64];
+                    snprintf(ctx, sizeof(ctx), "%s() argument", fn_name);
+                    reject_void_in_context(tc, node->data.call.args[0], at, ctx);
                 }
                 result = &TYPE_VOID;
             } else if (strcmp(fn_name, "print") == 0 || strcmp(fn_name, "eprint") == 0) {
@@ -1793,7 +1830,10 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                         tc->file, node->token.line, node->token.column, 0);
                 }
                 if (node->data.call.arg_count >= 1) {
-                    resolve_expr(tc, node->data.call.args[0]);
+                    EzType *at = resolve_expr(tc, node->data.call.args[0]);
+                    char ctx[64];
+                    snprintf(ctx, sizeof(ctx), "%s() argument", fn_name);
+                    reject_void_in_context(tc, node->data.call.args[0], at, ctx);
                 }
                 result = &TYPE_VOID;
             } else if (strcmp(fn_name, "exit") == 0 || strcmp(fn_name, "panic") == 0 ||
@@ -2603,8 +2643,11 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
     case NODE_MAP_VALUE: {
         /* Resolve key and value types */
         for (int i = 0; i < node->data.map_value.count; i++) {
-            resolve_expr(tc, node->data.map_value.keys[i]);
-            resolve_expr(tc, node->data.map_value.values[i]);
+            EzType *kt = resolve_expr(tc, node->data.map_value.keys[i]);
+            EzType *vt = resolve_expr(tc, node->data.map_value.values[i]);
+            /* #1483: void can't be a map key or value. */
+            reject_void_in_context(tc, node->data.map_value.keys[i], kt, "map key");
+            reject_void_in_context(tc, node->data.map_value.values[i], vt, "map value");
         }
         /* E12006: Check for duplicate keys in map literal */
         for (int i = 0; i < node->data.map_value.count; i++) {
