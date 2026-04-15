@@ -149,7 +149,7 @@
 |------|----------|-------------|
 | `W1001` | cleanup | variable is declared but never used — remove it or use it |
 | `W1003` | cleanup | function is declared but never called — remove it or call it |
-| `W1005` | cleanup | typed blank identifier — adding a type to _ is unnecessary, use plain _ instead |
+| `W1005` | cleanup | typed blank identifier — '_' doesn't need a type annotation, use 'mut _ = <expr>' instead |
 | `W2001` | cleanup | this module is imported but never used — remove the import or use the module |
 | `W1002` | cleanup | this import is never used — remove it or use a function from the module |
 | `W2002` | safety | this variable shadows a variable with the same name in an outer scope |
@@ -183,4 +183,4 @@
 
 ---
 
-*Generated on 2026-04-15 03:29:27 UTC*
+*Generated on 2026-04-15 23:39:59 UTC*

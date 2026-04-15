@@ -3858,7 +3858,7 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
         /* W1005: typed blank identifier — _ with explicit type annotation */
         if (strcmp(node->data.var_decl.name, "_") == 0 && node->data.var_decl.type_name) {
             diag_warning(tc->diag, "W1005",
-                strdup("typed blank identifier — adding a type to '_' is unnecessary, use plain '_' instead"),
+                strdup("typed blank identifier — '_' doesn't need a type annotation, use 'mut _ = <expr>' instead"),
                 NODE_FILE(tc, node), node->token.line, node->token.column, 0);
         }
 
