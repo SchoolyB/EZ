@@ -1667,6 +1667,25 @@ static AstNode *parse_struct_declaration(Parser *p) {
             node->data.struct_decl.fields = new_fields;
         }
 
+        /* E2070 (#1481 follow-up): wildcard `?` in field-name position
+         * used to slip past the struct-field guard — the existing check
+         * further down only inspects the type slot — and embed '?' in
+         * the generated C struct identifier, where clang rejected it
+         * with a raw C error. Catch it here before reading the name. */
+        if (cur_token_is(p, TOK_QUESTION)) {
+            diag_error(p->diag, "E2070",
+                arena_strdup(p->arena,
+                    "wildcard type '?' is not allowed as a struct field name — only in function parameter and return types"),
+                p->file, p->cur_token.line, p->cur_token.column, 0);
+            next_token(p); /* skip the '?' */
+            /* Skip the trailing type token (if any) so we don't cascade. */
+            if (!cur_token_is(p, TOK_RBRACE) && !cur_token_is(p, TOK_EOF)) {
+                parse_complex_type(p);
+                next_token(p);
+            }
+            continue;
+        }
+
         StructField *field = &node->data.struct_decl.fields[node->data.struct_decl.field_count];
         field->name = p->cur_token.literal;
         next_token(p);
@@ -1744,6 +1763,22 @@ static AstNode *parse_enum_declaration(Parser *p) {
                 }
                 next_token(p);
             }
+            continue;
+        }
+
+        /* E2070 (#1481 follow-up): wildcard `?` in variant-name position
+         * used to slip past the parser and embed '?' in the generated C
+         * enum identifier, where clang rejected it with a raw C error.
+         * Catch it here before reading the variant name. */
+        if (cur_token_is(p, TOK_QUESTION)) {
+            diag_error(p->diag, "E2070",
+                arena_strdup(p->arena,
+                    "wildcard type '?' is not allowed in enum declarations — only in function parameter and return types"),
+                p->file, p->cur_token.line, p->cur_token.column, 0);
+            next_token(p); /* skip the '?' */
+            /* Skip an optional trailing ',' so we don't cascade into the
+             * next variant with a stale cur_token. */
+            if (cur_token_is(p, TOK_COMMA)) next_token(p);
             continue;
         }
 
