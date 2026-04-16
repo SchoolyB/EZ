@@ -20,18 +20,17 @@
 ## Table of Contents
 
 1. [Introduction](#1-introduction)
-2. [Notation](#2-notation)
-3. [Lexical Structure](#3-lexical-structure)
-4. [Types](#4-types)
-5. [Variables and Constants](#5-variables-and-constants)
-6. [Expressions](#6-expressions)
-7. [Statements](#7-statements)
-8. [Functions](#8-functions)
-9. [Modules](#9-modules)
-10. [Standard Library](#10-standard-library)
-11. [Error Handling](#11-error-handling)
-12. [Memory Model](#12-memory-model)
-13. [Program Execution](#13-program-execution)
+2. [Lexical Structure](#2-lexical-structure)
+3. [Types](#3-types)
+4. [Variables and Constants](#4-variables-and-constants)
+5. [Expressions](#5-expressions)
+6. [Statements](#6-statements)
+7. [Functions](#7-functions)
+8. [Modules](#8-modules)
+9. [Standard Library](#9-standard-library)
+10. [Error Handling](#10-error-handling)
+11. [Memory Model](#11-memory-model)
+12. [Program Execution](#12-program-execution)
 
 ---
 
@@ -49,55 +48,19 @@ EZ is a statically-typed programming language that compiles to native binaries v
 - **Clarity**: Explicit syntax that reads naturally
 - **Safety**: Static type checking and runtime bounds checking
 
-### 1.3 Conformance
-
-A conforming EZ implementation must:
-
-1. Accept all programs that conform to this specification
-2. Reject all programs that violate this specification with appropriate error messages
-3. Execute conforming programs with the semantics defined herein
-
 ---
 
-## 2. Notation
+## 2. Lexical Structure
 
-### 2.1 Grammar Notation
-
-This specification uses Extended Backus-Naur Form (EBNF) to describe syntax:
-
-```
-production  = name "=" expression "." ;
-expression  = term { "|" term } ;
-term        = factor { factor } ;
-factor      = name | literal | "[" expression "]" | "(" expression ")" | "{" expression "}" ;
-```
-
-Where:
-- `[ x ]` denotes zero or one occurrence of x
-- `{ x }` denotes zero or more occurrences of x
-- `( x | y )` denotes grouping with alternation
-- `"text"` denotes literal text
-
-### 2.2 Terminology
-
-- **Must**: Indicates an absolute requirement
-- **Must not**: Indicates an absolute prohibition
-- **Should**: Indicates a recommendation
-- **May**: Indicates optional behavior
-
----
-
-## 3. Lexical Structure
-
-### 3.1 Source Encoding
+### 2.1 Source Encoding
 
 EZ source files must be encoded in UTF-8. However, identifiers are restricted to ASCII characters.
 
-### 3.2 Line Terminators
+### 2.2 Line Terminators
 
 Line terminators are the ASCII line feed character (LF, U+000A) or the ASCII carriage return character (CR, U+000D) optionally followed by a line feed.
 
-### 3.3 Comments
+### 2.3 Comments
 
 EZ supports two forms of comments:
 
@@ -117,7 +80,7 @@ mut x int = 42  // inline comment
 
 Multi-line comments do not nest. A `/*` inside a multi-line comment has no special meaning.
 
-### 3.4 Identifiers
+### 2.4 Identifiers
 
 Identifiers name program entities such as variables, functions, types, and modules.
 
@@ -136,13 +99,13 @@ Valid identifiers: `x`, `count`, `myVariable`, `point_2d`, `MAX_SIZE`
 
 Invalid identifiers: `2fast`, `my-var`, `café`, `_private`
 
-### 3.5 Keywords
+### 2.5 Keywords
 
 The following words are reserved and may not be used as identifiers:
 
 **Control flow:**
 ```
-as_long_as   break       continue    default     do
+as_long_as   break       continue    default
 ensure       for         for_each    if          is
 loop         or          or_return   otherwise   return
 when         while
@@ -150,9 +113,11 @@ when         while
 
 **Declarations:**
 ```
-const        enum        import      mut         new
-private      struct      use         using
+const        do          enum        import      mut
+new          private     struct      use*        using
 ```
+
+> `*use` is reserved exclusively for the `import and use` statement. It has no other syntactic role.
 
 **Types (reserved names):**
 ```
@@ -174,7 +139,7 @@ cast         false       in          not_in      range
 true
 ```
 
-### 3.6 Operators and Punctuation
+### 2.6 Operators and Punctuation
 
 ```
 +    -    *    /    %
@@ -190,11 +155,11 @@ true
 - `^` — pointer type prefix and dereference postfix (`^Type`, `ptr^`)
 - `&` — address-of (used internally)
 - `@` — module prefix in imports (`import @math`)
-- `#` — attribute prefix (`#doc`, `#flags`, `#strict`, `#enum`)
+- `#` — attribute prefix (`#doc`, `#flags`, `#strict`)
 
-### 3.7 Literals
+### 2.7 Literals
 
-#### 3.7.1 Integer Literals
+#### 2.7.1 Integer Literals
 
 Integer literals represent integer values.
 
@@ -214,7 +179,7 @@ Underscores may be used for readability but:
 
 Examples: `42`, `1_000_000`, `0xFF`, `0xDEAD_BEEF`, `0o777`, `0o1_2_3`
 
-#### 3.7.2 Floating-Point Literals
+#### 2.7.2 Floating-Point Literals
 
 Floating-point literals represent floating-point values.
 
@@ -224,7 +189,7 @@ float_literal = digit { digit } "." digit { digit } .
 
 Examples: `3.14159`, `0.5`, `100.0`
 
-#### 3.7.3 String Literals
+#### 2.7.3 String Literals
 
 String literals represent string values.
 
@@ -250,7 +215,7 @@ mut name string = "World"
 mut greeting string = "Hello, ${name}!"  // "Hello, World!"
 ```
 
-#### 3.7.4 Raw String Literals
+#### 2.7.4 Raw String Literals
 
 Raw string literals are enclosed in backticks and do not process escape sequences or string interpolation:
 
@@ -273,7 +238,7 @@ line2
 line3`
 ```
 
-#### 3.7.5 Character Literals
+#### 2.7.5 Character Literals
 
 Character literals represent single character values.
 
@@ -286,13 +251,13 @@ Examples: `'A'`, `'\n'`, `'\t'`
 
 Character literals must contain exactly one character (or escape sequence).
 
-#### 3.7.6 Boolean Literals
+#### 2.7.6 Boolean Literals
 
 ```
 bool_literal = "true" | "false" .
 ```
 
-#### 3.7.7 Nil Literal
+#### 2.7.7 Nil Literal
 
 ```
 nil_literal = "nil" .
@@ -302,53 +267,63 @@ The literal `nil` represents the absence of a value.
 
 ---
 
-## 4. Types
+## 3. Types
 
 EZ is statically typed. Every variable and expression has a type known at check time.
 
-### 4.1 Primitive Types
+### 3.1 Primitive Types
 
-#### 4.1.1 Integer Type (`int`)
+#### 3.1.1 Integer Type (`int`)
 
-The `int` type represents arbitrary-precision signed integers. There is no overflow or underflow; integers grow as needed to accommodate any value.
+The `int` type represents a 64-bit signed integer (`int64_t` in C). Arithmetic operations use checked arithmetic — overflow or underflow produces a runtime panic rather than silent wrapping.
 
 ```ez
 mut small int = 42
-mut large int = 9223372036854775808  // Exceeds 64-bit, still valid
+mut large int = 9223372036854775807  // Max 64-bit signed value
 ```
 
-#### 4.1.2 Unsigned Integer Type (`uint`)
+#### 3.1.2 Unsigned Integer Type (`uint`)
 
-The `uint` type represents arbitrary-precision unsigned (non-negative) integers. Like `int`, there is no overflow; values grow as needed.
+The `uint` type represents a 64-bit unsigned integer (`uint64_t` in C). Like `int`, arithmetic is overflow-checked with a runtime panic on overflow.
 
 ```ez
 mut count uint = 100
-mut big uint = 18446744073709551615  // Max 64-bit unsigned, still valid
+mut big uint = 18446744073709551615  // Max 64-bit unsigned value
 ```
 
 Assigning a negative value to a `uint` produces a check-time error.
 
-#### 4.1.3 Floating-Point Type (`float`)
+#### 3.1.3 Floating-Point Type (`float`)
 
 The `float` type represents 64-bit IEEE 754 double-precision floating-point numbers.
 
-Division by zero with floating-point operands produces a runtime error (not IEEE 754 infinity or NaN).
+Division by zero with floating-point operands produces a runtime panic. However, special IEEE 754 values (`NaN`, `Infinity`, `-Infinity`) can appear through C interop or stdlib math functions (e.g., edge cases in trigonometric or logarithmic functions). Use `math.is_nan()`, `math.is_infinite()`, and `math.is_finite()` to check for these values.
 
 ```ez
 mut pi float = 3.14159
 mut negative float = -2.5
 ```
 
-#### 4.1.4 String Type (`string`)
+#### 3.1.4 String Type (`string`)
 
-The `string` type represents a sequence of characters. Strings are UTF-8 encoded and are treated as arrays of `char` values.
+The `string` type represents a UTF-8 encoded byte sequence. String indexing (`str[i]`) returns the byte at byte position `i`, not a Unicode codepoint. `len()` returns the byte length, not the character count.
+
+For ASCII strings, one byte equals one character, so indexing works as expected:
 
 ```ez
 mut greeting string = "Hello, World!"
 mut first_char char = greeting[0]  // 'H'
 ```
 
-#### 4.1.5 Boolean Type (`bool`)
+For multi-byte UTF-8 strings, individual bytes may not form complete characters:
+
+```ez
+mut s string = "日本語"
+println(len(s))    // 9 (byte length, not 3 characters)
+// s[0] returns an incomplete byte of '日', not the full character
+```
+
+#### 3.1.5 Boolean Type (`bool`)
 
 The `bool` type has exactly two values: `true` and `false`.
 
@@ -357,7 +332,7 @@ mut flag bool = true
 mut result bool = 10 > 5  // true
 ```
 
-#### 4.1.6 Character Type (`char`)
+#### 3.1.6 Character Type (`char`)
 
 The `char` type represents a single character.
 
@@ -368,7 +343,7 @@ mut newline char = '\n'
 
 Characters can be converted to their integer code point using `int()`.
 
-#### 4.1.7 Byte Type (`byte`)
+#### 3.1.7 Byte Type (`byte`)
 
 The `byte` type represents an 8-bit unsigned integer with values from 0 to 255.
 
@@ -379,7 +354,7 @@ mut c byte = 128   // decimal also works
 
 Assigning a value outside the range 0-255 to a `byte` is a check-time error.
 
-#### 4.1.8 Sized Integer Types
+#### 3.1.8 Sized Integer Types
 
 EZ provides fixed-width integer types for precise control over integer size:
 
@@ -396,7 +371,7 @@ EZ provides fixed-width integer types for precise control over integer size:
 
 Use `cast` for sized type conversions: `cast(value, i32)`, `cast(value, u16)`.
 
-#### 4.1.9 Wide Integer Types (`i128`, `u128`, `i256`, `u256`)
+#### 3.1.9 Wide Integer Types (`i128`, `u128`, `i256`, `u256`)
 
 EZ provides portable wide integer types backed by struct-based arithmetic (no compiler extensions required):
 
@@ -421,13 +396,13 @@ mut x int = int(c)           // cast back to int
 mut s string = string(c)     // convert to string
 ```
 
-Wide integers do not use overflow-checked arithmetic — they wrap on overflow like C unsigned types.
+Wide integers use the same overflow-checked arithmetic as `int` and `uint` — overflow produces a runtime panic.
 
-#### 4.1.10 Nil Type (`nil`)
+#### 3.1.10 Nil Type (`nil`)
 
 The `nil` type has a single value, also written `nil`. It represents the absence of a value and is used in error handling.
 
-#### 4.1.11 Pointer Type (`^Type`)
+#### 3.1.11 Pointer Type (`^Type`)
 
 The pointer type `^Type` represents a memory address pointing to a value of `Type`.
 
@@ -448,9 +423,9 @@ println(x)   // 100
 
 Dereferencing a `nil` pointer causes a runtime panic.
 
-### 4.2 Composite Types
+### 3.2 Composite Types
 
-#### 4.2.1 Arrays
+#### 3.2.1 Arrays
 
 Arrays are ordered collections of elements of the same type.
 
@@ -491,7 +466,7 @@ mut cube [[[int]]] = {{{1, 2}, {3, 4}}, {{5, 6}, {7, 8}}}
 
 Array indexing is zero-based. Accessing an index outside the valid range produces a runtime error.
 
-#### 4.2.2 Maps
+#### 3.2.2 Maps
 
 Maps are unordered collections of key-value pairs.
 
@@ -520,7 +495,7 @@ Keys must be of a hashable type: `int`, `uint`, `float`, `string`, `bool`, `char
 
 Accessing a key that does not exist produces a runtime error.
 
-#### 4.2.3 Structs
+#### 3.2.3 Structs
 
 Structs are user-defined composite types with named fields.
 
@@ -558,7 +533,7 @@ mut x_value int = origin.x
 origin.x = 10  // Modification (if variable is mut)
 ```
 
-#### 4.2.4 Enums
+#### 3.2.4 Enums
 
 Enums define a type with a fixed set of named values.
 
@@ -604,7 +579,7 @@ mut dir = Direction.NORTH
 mut status = Status.TODO
 ```
 
-### 4.3 Type Inference
+### 3.3 Type Inference
 
 EZ is a statically-typed language with full type inference. The type of every variable is known at compile time, but explicit type annotations are optional when the compiler can determine the type from the initializer.
 
@@ -653,7 +628,7 @@ mut quotient, remainder = divide(10, 3)  // Both inferred: int
 
 Explicit type annotations are never required but can be used for clarity or documentation.
 
-### 4.4 Type Conversions
+### 3.4 Type Conversions
 
 Explicit type conversions are performed using type constructors:
 
@@ -666,7 +641,7 @@ mut c char = char(65)      // 'A' - int to char
 
 Conversions that would lose information or are invalid produce check-time or runtime errors.
 
-#### 4.4.1 The `cast` Keyword
+#### 3.4.1 The `cast` Keyword
 
 The `cast` keyword provides explicit type conversion for values and arrays:
 
@@ -691,9 +666,9 @@ Range constraints are enforced at runtime (e.g., `u8` values must be 0-255).
 
 ---
 
-## 5. Variables and Constants
+## 4. Variables and Constants
 
-### 5.1 Variable Declarations
+### 4.1 Variable Declarations
 
 Variables are declared using the `mut` keyword:
 
@@ -712,7 +687,7 @@ Variables declared with `mut`:
 - Can be reassigned after declaration
 - Are scoped to their containing block
 
-### 5.2 Constant Declarations
+### 4.2 Constant Declarations
 
 Constants are declared using the `const` keyword:
 
@@ -732,7 +707,7 @@ Constants declared with `const`:
 - Cannot have their contents modified (for composite types)
 - Are scoped to their containing block (or module, if at top level)
 
-### 5.3 Mutability
+### 4.3 Mutability
 
 The `const` keyword indicates complete immutability:
 
@@ -764,7 +739,7 @@ const fixed = get_data()  // fixed is immutable
 arrays.append(fixed, 4)   // ERROR - cannot modify const
 ```
 
-### 5.4 Scope
+### 4.4 Scope
 
 Variables and constants are block-scoped. A block is delimited by braces `{}`.
 
@@ -779,7 +754,7 @@ if true {
 // x is 10 here
 ```
 
-### 5.5 Blank Identifier
+### 4.5 Blank Identifier
 
 The blank identifier `_` can be used to discard values that are not needed. This is particularly useful with multiple return values:
 
@@ -801,9 +776,9 @@ The blank identifier:
 
 ---
 
-## 6. Expressions
+## 5. Expressions
 
-### 6.1 Primary Expressions
+### 5.1 Primary Expressions
 
 ```
 primary_expr = identifier
@@ -814,7 +789,7 @@ primary_expr = identifier
              | struct_literal .
 ```
 
-#### 6.1.1 Array Literals
+#### 5.1.1 Array Literals
 
 ```ez
 {1, 2, 3}
@@ -828,11 +803,11 @@ All elements in an array literal must be the same type. Mixed-type literals are 
 {1, "two", 3}   // error[E3001]: mixed types in array literal
 ```
 
-#### 6.1.2 Map Literals
+#### 5.1.2 Map Literals
 
-See [Section 4.2.2](#422-maps) for map literal syntax, including the `{:}` empty map literal.
+See [Section 3.2.2](#322-maps) for map literal syntax, including the `{:}` empty map literal.
 
-#### 6.1.3 Struct Literals
+#### 5.1.3 Struct Literals
 
 ```ez
 Point{x: 10, y: 20}
@@ -840,9 +815,9 @@ Person{name: "Alice", age: 30, active: true}
 Point{}  // Zero-initialized
 ```
 
-### 6.2 Operators
+### 5.2 Operators
 
-#### 6.2.1 Arithmetic Operators
+#### 5.2.1 Arithmetic Operators
 
 | Operator | Description | Operand Types | Result Type |
 |----------|-------------|---------------|-------------|
@@ -858,7 +833,7 @@ Point{}  // Zero-initialized
 
 Division by zero produces a runtime error.
 
-#### 6.2.2 Comparison Operators
+#### 5.2.2 Comparison Operators
 
 | Operator | Description |
 |----------|-------------|
@@ -871,7 +846,7 @@ Division by zero produces a runtime error.
 
 Comparison operators return `bool`.
 
-#### 6.2.3 Logical Operators
+#### 5.2.3 Logical Operators
 
 | Operator | Description |
 |----------|-------------|
@@ -881,7 +856,7 @@ Comparison operators return `bool`.
 
 Logical AND and OR use short-circuit evaluation: the right operand is not evaluated if the result can be determined from the left operand alone.
 
-#### 6.2.4 Membership Operators
+#### 5.2.4 Membership Operators
 
 | Operator | Description |
 |----------|-------------|
@@ -896,7 +871,7 @@ if x in range(0, 10) { ... }
 if 10 !in range(0, 10) { ... }  // Shorthand for not_in
 ```
 
-#### 6.2.5 Assignment Operators
+#### 5.2.5 Assignment Operators
 
 | Operator | Description |
 |----------|-------------|
@@ -906,7 +881,7 @@ if 10 !in range(0, 10) { ... }  // Shorthand for not_in
 | `*=` | Multiplication assignment |
 | `/=` | Division assignment |
 
-#### 6.2.6 Increment and Decrement
+#### 5.2.6 Increment and Decrement
 
 | Operator | Description |
 |----------|-------------|
@@ -919,7 +894,7 @@ x++  // x is now 6
 x--  // x is now 5
 ```
 
-### 6.3 Operator Precedence
+### 5.3 Operator Precedence
 
 From highest to lowest precedence:
 
@@ -933,7 +908,7 @@ From highest to lowest precedence:
 8. Logical OR: `||`
 9. Membership: `in`, `not_in`
 
-### 6.4 Index Expressions
+### 5.4 Index Expressions
 
 ```ez
 mut arr [int] = {10, 20, 30}
@@ -947,7 +922,7 @@ mut m map[string:int] = {"a": 1}
 mut v int = m["a"]  // 1
 ```
 
-### 6.5 Member Expressions
+### 5.5 Member Expressions
 
 ```ez
 mut p Point = Point{x: 10, y: 20}
@@ -957,7 +932,7 @@ p.y = 30  // Modification
 mut status int = Direction.NORTH  // Enum access
 ```
 
-### 6.6 Call Expressions
+### 5.6 Call Expressions
 
 ```ez
 mut sum int = add(1, 2)
@@ -965,7 +940,7 @@ mut greeting string = greet("World")
 println("Hello!")
 ```
 
-### 6.7 Range Expressions
+### 5.7 Range Expressions
 
 ```
 range_expr = "range" "(" start "," end [ "," step ] ")" .
@@ -988,9 +963,9 @@ Ranges are inclusive of the start value and exclusive of the end value.
 
 ---
 
-## 7. Statements
+## 6. Statements
 
-### 7.1 Expression Statements
+### 6.1 Expression Statements
 
 Any expression can be used as a statement:
 
@@ -1000,9 +975,9 @@ counter++
 do_something()
 ```
 
-### 7.2 Conditional Statements
+### 6.2 Conditional Statements
 
-#### 7.2.1 If Statements
+#### 6.2.1 If Statements
 
 ```
 if_stmt = "if" expression block { "or" expression block } [ "otherwise" block ] .
@@ -1022,9 +997,9 @@ The `or` keyword introduces additional conditions (similar to `else if` in other
 
 The `otherwise` keyword introduces the default case (similar to `else`).
 
-### 7.3 Loop Statements
+### 6.3 Loop Statements
 
-#### 7.3.1 For Loops
+#### 6.3.1 For Loops
 
 ```
 for_stmt = "for" [ "(" ] identifier [ type ] "in" range_expr [ ")" ] block .
@@ -1044,7 +1019,7 @@ for (i in range(0, 10)) {
 }
 ```
 
-#### 7.3.2 For-Each Loops
+#### 6.3.2 For-Each Loops
 
 ```
 for_each_stmt = "for_each" [ "(" ] [ identifier "," ] identifier "in" expression [ ")" ] block .
@@ -1097,7 +1072,7 @@ for_each key in ages {
 
 Map iteration order is undefined (maps are unordered).
 
-#### 7.3.3 While Loops
+#### 6.3.3 While Loops
 
 ```
 while_stmt = ( "as_long_as" | "while" ) expression block .
@@ -1117,7 +1092,7 @@ while count < 10 {
 }
 ```
 
-#### 7.3.4 Infinite Loops
+#### 6.3.4 Infinite Loops
 
 ```
 loop_stmt = "loop" block .
@@ -1135,9 +1110,9 @@ loop {
 }
 ```
 
-### 7.4 Control Flow Statements
+### 6.4 Control Flow Statements
 
-#### 7.4.1 Break
+#### 6.4.1 Break
 
 The `break` statement terminates the innermost enclosing loop:
 
@@ -1149,7 +1124,7 @@ for i in range(0, 100) {
 }
 ```
 
-#### 7.4.2 Continue
+#### 6.4.2 Continue
 
 The `continue` statement skips to the next iteration of the innermost enclosing loop:
 
@@ -1162,7 +1137,7 @@ for i in range(0, 10) {
 }
 ```
 
-#### 7.4.3 Return
+#### 6.4.3 Return
 
 The `return` statement exits the current function, optionally returning a value:
 
@@ -1177,7 +1152,7 @@ do greet() {
 }
 ```
 
-### 7.5 When Statements (Pattern Matching)
+### 6.5 When Statements (Pattern Matching)
 
 ```
 when_stmt = [ "#strict" ] "when" expression "{" { when_case } [ default_case ] "}" .
@@ -1209,7 +1184,7 @@ when direction {
 }
 ```
 
-### 7.6 Ensure Statement
+### 6.6 Ensure Statement
 
 The `ensure` statement specifies a function to call when the enclosing function exits (whether normally or via early return):
 
@@ -1224,7 +1199,7 @@ do process_file() {
 }
 ```
 
-### 7.7 Or-Return Statement
+### 6.7 Or-Return Statement
 
 The `or_return` keyword provides error propagation shorthand for functions that return `(T, Error)` tuples:
 
@@ -1248,9 +1223,9 @@ When the call returns a non-nil error, `or_return` immediately returns from the 
 
 ---
 
-## 8. Functions
+## 7. Functions
 
-### 8.1 Function Declarations
+### 7.1 Function Declarations
 
 ```
 func_decl = "do" identifier "(" [ param_list ] ")" [ "->" return_type ] block .
@@ -1275,9 +1250,9 @@ do process() {
 }
 ```
 
-### 8.2 Parameters
+### 7.2 Parameters
 
-#### 8.2.1 Immutable Parameters
+#### 7.2.1 Immutable Parameters
 
 By default, parameters are passed by value and cannot modify the caller's variables:
 
@@ -1287,7 +1262,7 @@ do double(x int) -> int {
 }
 ```
 
-#### 8.2.2 Mutable Parameters
+#### 7.2.2 Mutable Parameters
 
 Parameters prefixed with `&` can modify the caller's variables:
 
@@ -1306,7 +1281,7 @@ Mutable parameters work with:
 - Array elements: `increment(arr[0])`
 - Map values: `increment(map["key"])`
 
-#### 8.2.3 Grouped Parameters
+#### 7.2.3 Grouped Parameters
 
 Multiple parameters of the same type can be grouped:
 
@@ -1322,7 +1297,7 @@ do swap(&a, &b int) {
 }
 ```
 
-#### 8.2.4 Default Parameters
+#### 7.2.4 Default Parameters
 
 Parameters can have default values. Default values are supported for all primitive types (`int`, `uint`, `float`, `string`, `bool`, `char`):
 
@@ -1356,9 +1331,9 @@ do foo(a int = 10, b int) {}   // Error E2039: required parameter after default
 do bar(a int, b int = 10) {}   // OK: required first, then default
 ```
 
-### 8.3 Return Types
+### 7.3 Return Types
 
-#### 8.3.1 Single Return Value
+#### 7.3.1 Single Return Value
 
 ```ez
 do square(x int) -> int {
@@ -1366,7 +1341,7 @@ do square(x int) -> int {
 }
 ```
 
-#### 8.3.2 Multiple Return Values
+#### 7.3.2 Multiple Return Values
 
 ```ez
 do divide(a, b int) -> (int, int) {
@@ -1376,7 +1351,7 @@ do divide(a, b int) -> (int, int) {
 mut quotient, remainder = divide(17, 5)
 ```
 
-#### 8.3.3 Error Returns
+#### 7.3.3 Error Returns
 
 ```ez
 do parse(s string) -> (int, Error) {
@@ -1392,7 +1367,7 @@ if err != nil {
 }
 ```
 
-#### 8.3.4 Named Return Variables
+#### 7.3.4 Named Return Variables
 
 Return values can be given names, which declares them as variables within the function body:
 
@@ -1417,9 +1392,28 @@ do get_info() -> (name, city string, age int) {
 }
 ```
 
-Named return variables must be enclosed in parentheses. They are regular variables within the function scope and must be explicitly returned.
+Named return variables must be enclosed in parentheses. They are regular variables within the function scope. Named returns support two implicit return patterns:
 
-#### 8.3.5 Void Functions
+1. **Bare `return`** — returns the named variables in declaration order:
+```ez
+do divide(a, b int) -> (quotient int, remainder int) {
+    quotient = a / b
+    remainder = a % b
+    return  // implicitly returns quotient, remainder
+}
+```
+
+2. **No `return` statement** — falling off the end of the function returns the named variables:
+```ez
+do divide(a, b int) -> (quotient int, remainder int) {
+    quotient = a / b
+    remainder = a % b
+}  // implicitly returns quotient, remainder
+```
+
+Explicit `return quotient, remainder` also works. All three forms are equivalent.
+
+#### 7.3.5 Void Functions
 
 Functions without a return type return no value:
 
@@ -1429,7 +1423,7 @@ do print_greeting() {
 }
 ```
 
-### 8.4 Visibility
+### 7.4 Visibility
 
 By default, all functions and constants are public. The `private` keyword restricts access to the declaring module:
 
@@ -1458,11 +1452,11 @@ mathlib.factorial(5)          // OK - public
 // mathlib.MAX_ITERATIONS     // ERROR E6009 - private constant
 ```
 
-### 8.5 Attributes
+### 7.5 Attributes
 
 Attributes are annotations prefixed with `#` that modify declaration behavior.
 
-#### 8.5.1 `#doc` Attribute
+#### 7.5.1 `#doc` Attribute
 
 The `#doc` attribute adds documentation metadata to functions, structs, and enums. Used by the `ez doc` command to generate documentation.
 
@@ -1479,7 +1473,7 @@ const Point struct {
 }
 ```
 
-### 8.6 Function References
+### 7.6 Function References
 
 Functions can be passed as values using the `()` prefix syntax or the `ref()` builtin:
 
@@ -1508,7 +1502,7 @@ Function references:
 - The `func` type is used for parameters that accept function references
 - References work with top-level and struct-namespaced functions
 
-### 8.7 Struct-Namespaced Functions
+### 7.7 Struct-Namespaced Functions
 
 Functions can be declared inside struct blocks as namespaced free functions:
 
@@ -1542,11 +1536,11 @@ Rules:
 - Cross-module: `module.StructName.func_name(args...)`
 - Module-qualified types can be used in variable declarations, parameters, and return types: `mut p module.Point`
 
-### 8.8 Function Scope
+### 7.8 Function Scope
 
 All functions in EZ are declared at the top level or inside struct blocks. Nested function declarations inside other functions are not permitted. Anonymous functions (lambdas/closures) are not supported.
 
-### 8.9 Wildcard Types (`?`)
+### 7.9 Wildcard Types (`?`)
 
 The `?` type is a wildcard placeholder that enables generic-style functions. When used in a function's parameter types, `?` is bound to the concrete type of the argument at each call site. The return type can also use `?` to propagate the bound type.
 
@@ -1603,9 +1597,9 @@ mut y = first({"a", "b"})     // ? binds to string
 
 ---
 
-## 9. Modules
+## 8. Modules
 
-### 9.1 Module Identity
+### 8.1 Module Identity
 
 Module identity is determined by the filesystem — there are no `module` declarations. A file's module name is its filename (minus `.ez`). A directory's module name is its directory name.
 
@@ -1620,7 +1614,7 @@ project/
 
 Directory imports merge all top-level `.ez` files into one namespace. Subdirectories are separate modules.
 
-### 9.2 Imports
+### 8.2 Imports
 
 ```
 import_decl = "import" [ "and" "use" ] import_path { "," import_path } .
@@ -1651,7 +1645,7 @@ import mymod "./server"     // alias "mymod" for local module
 
 **Double-import prevention:** Importing a file that is already included via a parent directory import is an error (E6011).
 
-### 9.3 Combined Import and Use
+### 8.3 Combined Import and Use
 
 The `import and use` syntax combines importing and using in a single statement:
 
@@ -1672,7 +1666,7 @@ Multiple modules can be combined:
 import and use @arrays, @strings
 ```
 
-### 9.4 Using Declaration
+### 8.4 Using Declaration
 
 The `using` declaration brings module members into scope for unqualified access:
 
@@ -1689,7 +1683,7 @@ Multiple modules can be listed:
 using arrays, strings
 ```
 
-### 9.5 Module Member Access
+### 8.5 Module Member Access
 
 Without `using`, module members are accessed with dot notation:
 
@@ -1706,7 +1700,7 @@ using math
 sqrt(16.0)
 ```
 
-### 9.6 C Interop
+### 8.6 C Interop
 
 EZ can import C headers and call C functions directly using the `c` prefix:
 
@@ -1818,11 +1812,11 @@ import "./c.ez"         // Error — 'c' is reserved
 
 ---
 
-## 10. Standard Library
+## 9. Standard Library
 
 The EZ standard library consists of 26 modules plus built-in functions that require no import.
 
-### 10.1 Built-in Functions
+### 9.1 Built-in Functions
 
 Built-in functions are always available without importing any module.
 
@@ -1854,8 +1848,8 @@ All types are printable: `string`, `int`, `float`, `bool`, arrays, maps, structs
 
 | Function | Signature | Description |
 |----------|-----------|-------------|
-| `len` | `(collection) -> int` | Length of array, string, or map |
-| `type_of` | `(value T) -> string` | Type name as string. Accepts any type. Returns sized names, e.g. `"i32"`, `"u8"`. |
+| `len` | `(collection) -> int` | Length of array, map, or string (byte length for strings, not character count) |
+| `type_of` | `(value T) -> string` | Returns the EZ type name as a string (e.g. `"int"`, `"uint"`, `"float"`, `"string"`, `"i128"`, `"u256"`). Accepts any type. |
 | `size_of` | `(Type) -> int` | Size of type in bytes |
 | `copy` | `(value T) -> T` | Create deep copy. Accepts any type. |
 | `new` | `(Type) -> ^Type` | Allocate zero-initialized struct on arena |
@@ -1898,7 +1892,7 @@ println(r2[4])        // Prints 6 - r2 sees the change
 | `sleep_ms` | `(ms int)` | Sleep for milliseconds |
 | `sleep_ns` | `(ns int)` | Sleep for nanoseconds |
 
-### 10.2 Arrays Module (`@arrays`)
+### 9.2 Arrays Module (`@arrays`)
 
 #### Query Functions
 
@@ -1951,7 +1945,7 @@ println(r2[4])        // Prints 6 - r2 sees the change
 | `get_min` | `(arr [T]) -> T` | Minimum element |
 | `get_max` | `(arr [T]) -> T` | Maximum element |
 
-### 10.3 Strings Module (`@strings`)
+### 9.3 Strings Module (`@strings`)
 
 #### Case Functions
 
@@ -1990,7 +1984,7 @@ println(r2[4])        // Prints 6 - r2 sees the change
 | `join` | `(arr [string], sep string) -> string` | Join array |
 | `slice` | `(s string, start int, end int) -> string` | Extract substring |
 
-### 10.4 Maps Module (`@maps`)
+### 9.4 Maps Module (`@maps`)
 
 | Function | Signature | Description |
 |----------|-----------|-------------|
@@ -2006,75 +2000,77 @@ println(r2[4])        // Prints 6 - r2 sees the change
 
 Use `len(m)` to get the number of entries (builtin, no import needed).
 
-### 10.5 Math Module (`@math`)
+### 9.5 Math Module (`@math`)
+
+Unless noted otherwise, all math functions accept `int`, `float`, and sized numeric types (`i8`–`i64`, `u8`–`u64`, `f32`, `f64`). Functions that return the same type as their input are marked with `-> T` below; others specify their return type explicitly.
 
 #### Basic Arithmetic
 
 | Function | Signature | Description |
 |----------|-----------|-------------|
-| `abs` | `(n int \| float) -> int \| float` | Absolute value. Accepts int, float, or sized integer/float types. Return type matches input. |
-| `neg` | `(n int \| float) -> int \| float` | Negation. Accepts int, float, or sized integer/float types. Return type matches input. |
-| `sign` | `(n int \| float) -> int` | Sign (-1, 0, 1). Accepts int, float, or sized integer/float types. |
+| `abs` | `(n T) -> T` | Absolute value |
+| `neg` | `(n T) -> T` | Negation |
+| `sign` | `(n T) -> int` | Sign (-1, 0, or 1) |
 
 #### Min/Max/Clamp
 
 | Function | Signature | Description |
 |----------|-----------|-------------|
-| `min` | `(a int \| float, b int \| float) -> int \| float` | Minimum value. Accepts int, float, or sized integer/float types. Return type matches input. |
-| `max` | `(a int \| float, b int \| float) -> int \| float` | Maximum value. Accepts int, float, or sized integer/float types. Return type matches input. |
-| `clamp` | `(value int \| float, min int \| float, max int \| float) -> int \| float` | Clamp to range. Accepts int, float, or sized integer/float types. Return type matches input. |
+| `min` | `(a T, b T) -> T` | Minimum of two values |
+| `max` | `(a T, b T) -> T` | Maximum of two values |
+| `clamp` | `(value T, min T, max T) -> T` | Clamp value to range [min, max] |
 
 #### Rounding
 
 | Function | Signature | Description |
 |----------|-----------|-------------|
-| `floor` | `(n int \| float) -> int` | Floor. Accepts int, float, or sized integer/float types. |
-| `ceil` | `(n int \| float) -> int` | Ceiling. Accepts int, float, or sized integer/float types. |
-| `round` | `(n int \| float) -> int` | Round. Accepts int, float, or sized integer/float types. |
-| `trunc` | `(n int \| float) -> int` | Truncate. Accepts int, float, or sized integer/float types. |
+| `floor` | `(n T) -> int` | Round down to nearest integer |
+| `ceil` | `(n T) -> int` | Round up to nearest integer |
+| `round` | `(n T) -> int` | Round to nearest integer |
+| `trunc` | `(n T) -> int` | Truncate toward zero |
 
 #### Powers and Roots
 
 | Function | Signature | Description |
 |----------|-----------|-------------|
-| `pow` | `(base int \| float, exp int \| float) -> float` | Power. Accepts int, float, or sized integer/float types. |
-| `sqrt` | `(n int \| float) -> float` | Square root. Accepts int, float, or sized integer/float types. |
-| `cbrt` | `(n int \| float) -> float` | Cube root. Accepts int, float, or sized integer/float types. |
-| `hypot` | `(x int \| float, y int \| float) -> float` | Hypotenuse. Accepts int, float, or sized integer/float types. |
-| `exp` | `(n int \| float) -> float` | e^n. Accepts int, float, or sized integer/float types. |
-| `exp2` | `(n int \| float) -> float` | 2^n. Accepts int, float, or sized integer/float types. |
+| `pow` | `(base T, exp T) -> float` | Raise base to exponent |
+| `sqrt` | `(n T) -> float` | Square root |
+| `cbrt` | `(n T) -> float` | Cube root |
+| `hypot` | `(x T, y T) -> float` | Hypotenuse (sqrt(x^2 + y^2)) |
+| `exp` | `(n T) -> float` | e raised to the power n |
+| `exp2` | `(n T) -> float` | 2 raised to the power n |
 
 #### Logarithms
 
 | Function | Signature | Description |
 |----------|-----------|-------------|
-| `log` | `(n int \| float) -> float` | Natural logarithm. Accepts int, float, or sized integer/float types. |
-| `log2` | `(n int \| float) -> float` | Base 2 logarithm. Accepts int, float, or sized integer/float types. |
-| `log10` | `(n int \| float) -> float` | Base 10 logarithm. Accepts int, float, or sized integer/float types. |
-| `log_base` | `(value int \| float, base int \| float) -> float` | Custom base logarithm. Accepts int, float, or sized integer/float types. |
+| `log` | `(n T) -> float` | Natural logarithm |
+| `log2` | `(n T) -> float` | Base 2 logarithm |
+| `log10` | `(n T) -> float` | Base 10 logarithm |
+| `log_base` | `(value T, base T) -> float` | Logarithm with custom base |
 
 #### Trigonometry
 
 | Function | Signature | Description |
 |----------|-----------|-------------|
-| `sin` | `(rad int \| float) -> float` | Sine. Accepts int, float, or sized integer/float types. |
-| `cos` | `(rad int \| float) -> float` | Cosine. Accepts int, float, or sized integer/float types. |
-| `tan` | `(rad int \| float) -> float` | Tangent. Accepts int, float, or sized integer/float types. |
-| `asin` | `(n int \| float) -> float` | Arc sine. Accepts int, float, or sized integer/float types. |
-| `acos` | `(n int \| float) -> float` | Arc cosine. Accepts int, float, or sized integer/float types. |
-| `atan` | `(n int \| float) -> float` | Arc tangent. Accepts int, float, or sized integer/float types. |
-| `atan2` | `(y int \| float, x int \| float) -> float` | Arc tangent of y/x. Accepts int, float, or sized integer/float types. |
-| `sinh` | `(n int \| float) -> float` | Hyperbolic sine. Accepts int, float, or sized integer/float types. |
-| `cosh` | `(n int \| float) -> float` | Hyperbolic cosine. Accepts int, float, or sized integer/float types. |
-| `tanh` | `(n int \| float) -> float` | Hyperbolic tangent. Accepts int, float, or sized integer/float types. |
-| `deg_to_rad` | `(deg int \| float) -> float` | Degrees to radians. Accepts int, float, or sized integer/float types. |
-| `rad_to_deg` | `(rad int \| float) -> float` | Radians to degrees. Accepts int, float, or sized integer/float types. |
+| `sin` | `(rad T) -> float` | Sine |
+| `cos` | `(rad T) -> float` | Cosine |
+| `tan` | `(rad T) -> float` | Tangent |
+| `asin` | `(n T) -> float` | Arc sine |
+| `acos` | `(n T) -> float` | Arc cosine |
+| `atan` | `(n T) -> float` | Arc tangent |
+| `atan2` | `(y T, x T) -> float` | Arc tangent of y/x |
+| `sinh` | `(n T) -> float` | Hyperbolic sine |
+| `cosh` | `(n T) -> float` | Hyperbolic cosine |
+| `tanh` | `(n T) -> float` | Hyperbolic tangent |
+| `deg_to_rad` | `(deg T) -> float` | Degrees to radians |
+| `rad_to_deg` | `(rad T) -> float` | Radians to degrees |
 
 #### Statistical
 
 | Function | Signature | Description |
 |----------|-----------|-------------|
-| `factorial` | `(n int) -> int` | Factorial |
+| `factorial` | `(n int) -> int` | Factorial (n must be non-negative) |
 | `gcd` | `(a int, b int) -> int` | Greatest common divisor |
 | `lcm` | `(a int, b int) -> int` | Least common multiple |
 
@@ -2093,8 +2089,8 @@ Use `len(m)` to get the number of entries (builtin, no import needed).
 
 | Function | Signature | Description |
 |----------|-----------|-------------|
-| `lerp` | `(a int \| float, b int \| float, t int \| float) -> float` | Linear interpolation. Accepts int, float, or sized integer/float types. |
-| `distance` | `(x1 int \| float, y1 int \| float, x2 int \| float, y2 int \| float) -> float` | Euclidean distance. Accepts int, float, or sized integer/float types. |
+| `lerp` | `(a T, b T, t T) -> float` | Linear interpolation between a and b by factor t |
+| `distance` | `(x1 T, y1 T, x2 T, y2 T) -> float` | Euclidean distance between two 2D points |
 
 #### Constants
 
@@ -2109,7 +2105,7 @@ Use `len(m)` to get the number of entries (builtin, no import needed).
 - `NEG_INF` - Negative infinity
 - `EPSILON` - Smallest representable float difference
 
-### 10.6 Time Module (`@time`)
+### 9.6 Time Module (`@time`)
 
 #### Current Time
 
@@ -2147,7 +2143,9 @@ Use `len(m)` to get the number of entries (builtin, no import needed).
 | `tick` | `() -> int` | High-resolution timestamp in nanoseconds |
 | `elapsed_ms` | `(start_tick int) -> float` | Milliseconds elapsed since a tick |
 
-### 10.7 Random Module (`@random`)
+### 9.7 Random Module (`@random`)
+
+Some random functions accept a variable number of arguments (e.g., `rand_int` with 1 or 2 args). This is not general function overloading — it is special-case codegen dispatching within the stdlib only.
 
 | Function | Signature | Description |
 |----------|-----------|-------------|
@@ -2158,13 +2156,13 @@ Use `len(m)` to get the number of entries (builtin, no import needed).
 | `rand_bool` | `() -> bool` | Random boolean |
 | `rand_byte` | `() -> byte` | Random byte [0, 255] |
 | `rand_char` | `() -> char` | Random printable char |
-| `rand_char` | `(min, max) -> char` | Random char in range |
+| `rand_char` | `(min char, max char) -> char` | Random char in range |
 | `random_hex` | `(length int) -> string` | Cryptographically secure random hex |
 | `choice` | `(arr [T]) -> T` | Random element from array |
 | `shuffle` | `(arr [T]) -> [T]` | Return shuffled copy |
 | `sample` | `(arr [T], n int) -> [T]` | Return n unique random elements |
 
-### 10.8 JSON Module (`@json`)
+### 9.8 JSON Module (`@json`)
 
 | Function | Signature | Description |
 |----------|-----------|-------------|
@@ -2174,7 +2172,7 @@ Use `len(m)` to get the number of entries (builtin, no import needed).
 | `pretty_print` | `(value T, indent int) -> (string, Error)` | Pretty print JSON. Accepts any type. |
 | `is_valid` | `(text string) -> bool` | Check if valid JSON |
 
-### 10.9 IO Module (`@io`)
+### 9.9 IO Module (`@io`)
 
 #### File Reading
 
@@ -2200,7 +2198,7 @@ Use `len(m)` to get the number of entries (builtin, no import needed).
 | `delete_file` | `(path string) -> (bool, Error)` | Delete file |
 | `rename_file` | `(old_path string, new_path string) -> (bool, Error)` | Rename file |
 
-### 10.10 OS Module (`@os`)
+### 9.10 OS Module (`@os`)
 
 #### Environment Variables
 
@@ -2227,7 +2225,7 @@ Use `len(m)` to get the number of entries (builtin, no import needed).
 - `WINDOWS` = 2
 - `OTHER` = 3
 
-### 10.11 HTTP Module (`@http`)
+### 9.11 HTTP Module (`@http`)
 
 HTTP client for making requests. Currently supports HTTP only.
 
@@ -2249,14 +2247,14 @@ The `HttpResponse` struct contains:
 - `body string` - Response body
 - `headers map` - Response headers
 
-### 10.12 Crypto Module (`@crypto`)
+### 9.12 Crypto Module (`@crypto`)
 
 | Function | Signature | Description |
 |----------|-----------|-------------|
 | `sha256` | `(data string) -> string` | SHA-256 hash (hex) |
 | `md5` | `(data string) -> string` | MD5 hash (hex) |
 
-### 10.13 Encoding Module (`@encoding`)
+### 9.13 Encoding Module (`@encoding`)
 
 | Function | Signature | Description |
 |----------|-----------|-------------|
@@ -2267,7 +2265,7 @@ The `HttpResponse` struct contains:
 | `url_encode` | `(s string) -> string` | URL percent-encode |
 | `url_decode` | `(s string) -> (string, Error)` | URL percent-decode |
 
-### 10.14 UUID Module (`@uuid`)
+### 9.14 UUID Module (`@uuid`)
 
 | Function | Signature | Description |
 |----------|-----------|-------------|
@@ -2275,7 +2273,7 @@ The `HttpResponse` struct contains:
 | `generate_hyphenated` | `() -> string` | Generate UUID v4 with hyphens |
 | `is_valid` | `(s string) -> bool` | Validate UUID format |
 
-### 10.15 Bytes Module (`@bytes`)
+### 9.15 Bytes Module (`@bytes`)
 
 | Function | Signature | Description |
 |----------|-----------|-------------|
@@ -2286,7 +2284,7 @@ The `HttpResponse` struct contains:
 | `to_hex` | `(bytes [byte]) -> string` | Encode to hex string |
 | `to_base64` | `(bytes [byte]) -> string` | Encode to base64 string |
 
-### 10.16 Binary Module (`@binary`)
+### 9.16 Binary Module (`@binary`)
 
 Binary encoding/decoding for integers and floats in little-endian (le) and big-endian (be) formats.
 
@@ -2339,7 +2337,7 @@ Binary encoding/decoding for integers and floats in little-endian (le) and big-e
 | `encode_f32_le`, `encode_f32_be`, `decode_f32_le`, `decode_f32_be` | 32-bit float |
 | `encode_f64_le`, `encode_f64_be`, `decode_f64_le`, `decode_f64_be` | 64-bit float |
 
-### 10.17 SQLite Module (`@sqlite`)
+### 9.17 SQLite Module (`@sqlite`)
 
 SQLite database access for persistent storage.
 
@@ -2381,7 +2379,7 @@ sqlite.exec(db, "INSERT INTO users VALUES (?, ?)", "Bob", 25)
 sqlite.commit(db)
 ```
 
-### 10.18 Server Module (`@server`)
+### 9.18 Server Module (`@server`)
 
 An HTTP server module with dynamic handlers and path parameters.
 
@@ -2435,7 +2433,7 @@ do main() {
 }
 ```
 
-### 10.19 Regex Module (`@regex`)
+### 9.19 Regex Module (`@regex`)
 
 Regular expression operations using POSIX extended regex syntax.
 
@@ -2448,7 +2446,7 @@ Regular expression operations using POSIX extended regex syntax.
 | `replace` | `(pattern string, text string, replacement string) -> string` | Replace matches |
 | `split` | `(pattern string, text string) -> [string]` | Split by pattern |
 
-### 10.20 CSV Module (`@csv`)
+### 9.20 CSV Module (`@csv`)
 
 Reading and writing CSV (Comma-Separated Values) data.
 
@@ -2464,7 +2462,7 @@ The `read_file` and `write_file` functions accept an optional options map with k
 - `skip_empty` (bool) — skip empty rows (default: `false`, read only)
 - `quote_all` (bool) — quote all fields (default: `false`, write only)
 
-### 10.21 Net Module (`@net`)
+### 9.21 Net Module (`@net`)
 
 TCP sockets and DNS resolution.
 
@@ -2479,7 +2477,7 @@ TCP sockets and DNS resolution.
 | `set_timeout` | `(sock Socket, ms int)` | Set read/write timeout in milliseconds |
 | `resolve` | `(hostname string) -> string` | Resolve a hostname to an IP address |
 
-### 10.22 Threads Module (`@threads`)
+### 9.22 Threads Module (`@threads`)
 
 Thread lifecycle management. Compiler-only feature; requires POSIX threads.
 
@@ -2489,7 +2487,7 @@ Thread lifecycle management. Compiler-only feature; requires POSIX threads.
 | `join` | `(t Thread)` | Wait for a thread to finish |
 | `get_id` | `() -> int` | Get the current thread's ID |
 
-### 10.23 Sync Module (`@sync`)
+### 9.23 Sync Module (`@sync`)
 
 Synchronization primitives for thread-safe access to shared data. Compiler-only feature; requires POSIX threads.
 
@@ -2500,7 +2498,7 @@ Synchronization primitives for thread-safe access to shared data. Compiler-only 
 | `unlock` | `(m Mutex)` | Release a mutex |
 | `destroy` | `(m Mutex)` | Destroy a mutex |
 
-### 10.24 Channels Module (`@channels`)
+### 9.24 Channels Module (`@channels`)
 
 Message passing between threads. Compiler-only feature; requires POSIX threads.
 
@@ -2511,7 +2509,7 @@ Message passing between threads. Compiler-only feature; requires POSIX threads.
 | `receive` | `(ch Channel) -> T` | Receive a value from a channel |
 | `close` | `(ch Channel)` | Close a channel |
 
-### 10.25 Memory Module (`@mem`)
+### 9.25 Memory Module (`@mem`)
 
 Arena-based memory allocation. Compiler-only feature.
 
@@ -2527,7 +2525,7 @@ Arena-based memory allocation. Compiler-only feature.
 | `zero` | `(ptr, n int)` | Zero out `n` bytes at `ptr` |
 | `set` | `(ptr, value int, n int)` | Set `n` bytes at `ptr` to `value` |
 
-### 10.26 Atomic Module (`@atomic`)
+### 9.26 Atomic Module (`@atomic`)
 
 Lock-free atomic operations backed by hand-written assembly (ARM64 and x86_64). Compiler-only feature.
 
@@ -2562,7 +2560,7 @@ All pointer arguments must be `^int` (pointer to int).
 |----------|-----------|-------------|
 | `fence` | `()` | Full memory barrier (sequential consistency) |
 
-### 10.27 Fmt Module (`@fmt`)
+### 9.27 Fmt Module (`@fmt`)
 
 Formatted output and string formatting functions.
 
@@ -2596,9 +2594,9 @@ Accepts `string`, `int`, `float`, and `bool` arguments for formatted output func
 
 ---
 
-## 11. Error Handling
+## 10. Error Handling
 
-### 11.1 Error Type
+### 10.1 Error Type
 
 The `Error` type represents an error condition. Errors are created with the `error()` function:
 
@@ -2606,7 +2604,7 @@ The `Error` type represents an error condition. Errors are created with the `err
 mut err Error = error("something went wrong")
 ```
 
-### 11.2 Error Returns
+### 10.2 Error Returns
 
 Functions that may fail conventionally return a tuple with the result and an Error:
 
@@ -2619,7 +2617,7 @@ do read_file(path string) -> (string, Error) {
 }
 ```
 
-### 11.3 Error Checking
+### 10.3 Error Checking
 
 Errors are checked by comparing to `nil`:
 
@@ -2632,7 +2630,7 @@ if err != nil {
 // Use content
 ```
 
-### 11.4 Runtime Errors
+### 10.4 Runtime Errors
 
 Certain operations produce runtime errors that terminate program execution:
 
@@ -2645,9 +2643,9 @@ Runtime errors include location information (file, line, column).
 
 ---
 
-## 12. Memory Model
+## 11. Memory Model
 
-### 12.1 Memory Management
+### 11.1 Memory Management
 
 EZ compiles to native code and uses arena-based memory management by default. Memory allocated within an arena is released automatically when the arena is destroyed or reset. For most programs, this provides automatic cleanup without manual `free` calls.
 
@@ -2665,7 +2663,11 @@ For fine-grained control, the `@mem` module exposes arena operations directly:
 | `mem.zero(ptr, n)` | Zero out `n` bytes at `ptr` |
 | `mem.set(ptr, val, n)` | Set `n` bytes at `ptr` to `val` |
 
-### 12.2 Value Semantics
+### 11.2 Allocation Strategy
+
+Primitive types (`int`, `uint`, `float`, `bool`, `char`, `byte`) are stack-allocated. Compound types (`string`, arrays, maps, structs created with `new()`) are arena-allocated. The compiler manages a default arena per program; explicit arenas can be created via the `@mem` module.
+
+### 11.3 Value Semantics
 
 Primitive types (`int`, `uint`, `float`, `string`, `bool`, `char`, `byte`) have value semantics. Assignment creates a copy:
 
@@ -2675,11 +2677,11 @@ mut b int = a  // b is a copy of a
 b = 100         // a is still 42
 ```
 
-### 12.3 Reference Semantics
+### 11.4 Reference Semantics
 
 Composite types (arrays, maps) have reference semantics for assignment but value semantics for function parameters (unless the parameter is declared mutable).
 
-### 12.4 Deep Copy
+### 11.5 Deep Copy
 
 The `copy()` function creates a deep copy of any value, including nested structures:
 
@@ -2689,7 +2691,7 @@ mut duplicate = copy(original)
 duplicate.age = 31  // original.age is still 30
 ```
 
-### 12.5 Zero Values
+### 11.6 Zero Values
 
 The `new()` function allocates a zero-initialized struct on the default arena and returns a pointer to it:
 
@@ -2704,7 +2706,7 @@ The `new()` function allocates a zero-initialized struct on the default arena an
 | `map[K:V]` | `{}` |
 | struct | All fields zero-initialized |
 
-### 12.6 Memory Safety
+### 11.7 Memory Safety
 
 EZ compiles to C and is **not memory safe** in the way that Rust or similar languages are. However, the language provides runtime safety checks that prevent the most common classes of memory errors:
 
@@ -2731,9 +2733,9 @@ For most EZ programs — those that don't use `@mem` arenas, raw pointers, or `@
 
 ---
 
-## 13. Program Execution
+## 12. Program Execution
 
-### 13.1 Program Structure
+### 12.1 Program Structure
 
 An EZ program consists of one or more source files that are compiled to a native binary by the EZ compiler. Each file may contain:
 
@@ -2741,7 +2743,7 @@ An EZ program consists of one or more source files that are compiled to a native
 2. Using declarations
 3. Top-level declarations (functions, structs, enums, constants)
 
-### 13.2 Entry Point
+### 12.2 Entry Point
 
 Every EZ program must define a `main` function with no parameters and no return value:
 
@@ -2753,7 +2755,7 @@ do main() {
 
 The `main` function is not called explicitly; it is invoked automatically when the program runs.
 
-### 13.3 Evaluation Order
+### 12.3 Evaluation Order
 
 Expressions are evaluated left-to-right. Function arguments are evaluated before the function is called.
 
@@ -2767,7 +2769,7 @@ if a && b() { ... }
 if a || b() { ... }
 ```
 
-### 13.4 Program Termination
+### 12.4 Program Termination
 
 A program terminates when:
 
@@ -2776,7 +2778,7 @@ A program terminates when:
 
 ---
 
-## 14. CLI Commands
+## 13. CLI Commands
 
 The `ez` command-line tool provides the following commands:
 
@@ -2796,7 +2798,7 @@ The `ez` command-line tool provides the following commands:
 | `ez install <version>` | Install a specific version by exact semver |
 | `ez version` | Show version information |
 
-### 14.1 `ez report`
+### 13.1 `ez report`
 
 Prints system information for filing bug reports:
 
@@ -2809,7 +2811,7 @@ OS:          darwin/arm64
 RAM:         16 GB
 ```
 
-### 14.2 `ez test`
+### 13.2 `ez test`
 
 Runs all test suites in sequence:
 
@@ -2820,408 +2822,6 @@ Runs all test suites in sequence:
 
 Exits with status 1 if any suite fails.
 
-## Appendix A: Error Codes
-
-### Overview
-
-| Range | Category | Description |
-|-------|----------|-------------|
-| E1xxx | Lexer | Tokenization and lexical analysis errors |
-| E2xxx | Parser | Syntax and parsing errors |
-| E3xxx | Type Checker | Type system errors |
-| E4xxx | Resolver | Name resolution and reference errors |
-| E5xxx | Runtime | General runtime errors |
-| E6xxx | Import | Module import and loading errors |
-| E7xxx | Stdlib | Standard library argument validation errors |
-| E8xxx | Math | Math module domain errors |
-| E9xxx | Arrays | Array operation errors |
-| E10xxx | Strings | String operation errors |
-| E11xxx | Time | Time module errors |
-| E12xxx | Maps | Map operation errors |
-| E13xxx | JSON | JSON encoding/decoding errors |
-| E14xxx | HTTP | HTTP client errors |
-| E15xxx | Crypto | Cryptography errors |
-| E16xxx | Encoding | Encoding/decoding errors |
-| E17xxx | DB | Database errors |
-| E18xxx | Server | HTTP server errors |
-| W1xxx | Warning | Code style warnings |
-| W2xxx | Warning | Potential bug warnings |
-| W3xxx | Warning | Code quality warnings |
-| W4xxx | Warning | Module warnings |
-
-### E1xxx — Lexer Errors
-
-| Code | Name | Description |
-|------|------|-------------|
-| E1001 | illegal-character | Illegal character in source |
-| E1002 | illegal-or-character | Illegal OR character in source |
-| E1003 | unclosed-comment | Multi-line comment not closed |
-| E1004 | unclosed-string | String literal not closed |
-| E1005 | unclosed-char | Character literal not closed |
-| E1006 | invalid-escape-string | Invalid escape sequence in string |
-| E1007 | invalid-escape-char | Invalid escape sequence in character |
-| E1008 | empty-char-literal | Character literal is empty |
-| E1009 | multi-char-literal | Character literal contains multiple characters |
-| E1010 | invalid-number-format | Invalid numeric literal format |
-| E1011 | number-consecutive-underscores | Consecutive underscores in number |
-| E1012 | number-leading-underscore | Number starts with underscore |
-| E1013 | number-trailing-underscore | Number ends with underscore |
-| E1014 | number-underscore-before-decimal | Underscore before decimal point |
-| E1015 | number-underscore-after-decimal | Underscore after decimal point |
-| E1016 | number-trailing-decimal | Decimal point without digits |
-| E1017 | unclosed-raw-string | Raw string literal not closed |
-
-### E2xxx — Parser Errors
-
-| Code | Name | Description |
-|------|------|-------------|
-| E2001 | unexpected-token | Unexpected token encountered |
-| E2002 | missing-token | Expected token not found |
-| E2003 | missing-expression | Expected expression |
-| E2004 | unclosed-brace | Missing closing brace |
-| E2005 | unclosed-paren | Missing closing parenthesis |
-| E2006 | unclosed-bracket | Missing closing bracket |
-| E2007 | unclosed-interpolation | String interpolation not closed |
-| E2008 | invalid-assignment-target | Cannot assign to this expression |
-| E2011 | const-requires-value | `const` must be initialized |
-| E2012 | duplicate-parameter | Parameter name already used |
-| E2013 | duplicate-field | Field name already used |
-| E2014 | missing-parameter-type | Parameter missing type annotation |
-| E2015 | missing-return-type | Expected return type after arrow |
-| E2016 | empty-enum | Enum must have at least one value |
-| E2017 | trailing-comma-array | Trailing comma in array literal |
-| E2018 | trailing-comma-call | Trailing comma in function call |
-| E2019 | nested-function | Function inside function not allowed |
-| E2020 | reserved-variable-name | Variable name is reserved |
-| E2021 | reserved-function-name | Function name is reserved |
-| E2022 | reserved-type-name | Type name is reserved |
-| E2023 | duplicate-declaration | Name already declared in scope |
-| E2024 | invalid-type-name | Expected valid type name |
-| E2025 | invalid-array-size | Array size must be integer |
-| E2026 | invalid-enum-type | Enum type must be primitive |
-| E2027 | integer-parse-error | Cannot parse integer literal |
-| E2028 | float-parse-error | Cannot parse float literal |
-| E2029 | expected-identifier | Expected identifier |
-| E2030 | expected-block | Expected block statement |
-| E2031 | string-enum-requires-values | String enum needs explicit values |
-| E2032 | const-array-requires-size | Const array must have fixed size |
-| E2033 | reserved-param-name | Parameter name is reserved |
-| E2034 | invalid-struct-field | Invalid struct field name |
-| E2035 | invalid-enum-value | Invalid enum value name |
-| E2036 | import-inside-block | Import must be at file level |
-| E2037 | reserved-struct-name | Struct name is reserved |
-| E2038 | reserved-enum-name | Enum name is reserved |
-| E2039 | required-after-default | Required parameter after parameter with default |
-| E2040 | mutable-with-default | Mutable parameter cannot have default value |
-| E2041 | when-missing-default | `when` statement requires a `default` case |
-| E2042 | when-strict-has-default | `#strict when` cannot have a `default` case |
-| E2043 | when-duplicate-case | Duplicate case value in `when` statement |
-| E2045 | when-strict-non-enum | `#strict` only allowed on enum `when` statements |
-| E2046 | when-strict-missing-case | `#strict when` missing enum case |
-| E2047 | when-type-as-condition | `when` condition must be a value, not a type name |
-| E2050 | when-collection-condition | `when` condition cannot be an array or map |
-| E2053 | type-definition-in-function | Type definitions must be at file level |
-| E2054 | when-strict-non-enum-case | `#strict when` requires explicit enum member values |
-| E2055 | strict-invalid-target | `#strict` can only be applied to `when` statements |
-| E2056 | executable-at-file-scope | Executable statement not allowed at file scope |
-| E2057 | invalid-interpolation-syntax | Invalid string interpolation syntax |
-| E2058 | doc-invalid-target | `#doc` can only be applied to functions, structs, or enums |
-| E2059 | doc-orphaned | `#doc` must be followed by a declaration |
-| E2060 | doc-duplicate | Only one `#doc` attribute allowed per declaration |
-
-### E3xxx — Type Errors
-
-| Code | Name | Description |
-|------|------|-------------|
-| E3001 | type-mismatch | Types do not match |
-| E3002 | invalid-operator-for-type | Operator not valid for type |
-| E3003 | invalid-index-type | Index must be integer |
-| E3004 | invalid-index-assignment-type | Invalid type for index assignment |
-| E3005 | cannot-convert-to-int | Cannot convert value to integer |
-| E3006 | cannot-convert-to-float | Cannot convert value to float |
-| E3007 | cannot-convert-array | Cannot convert array to scalar |
-| E3008 | undefined-type | Type is not defined |
-| E3009 | undefined-type-in-struct | Field type not defined |
-| E3010 | undefined-param-type | Parameter type not defined |
-| E3011 | undefined-return-type | Return type not defined |
-| E3012 | return-type-mismatch | Return type does not match declaration |
-| E3013 | return-count-mismatch | Wrong number of return values |
-| E3014 | incompatible-binary-types | Incompatible types for binary operator |
-| E3015 | not-callable | Value is not callable |
-| E3016 | not-indexable | Value is not indexable |
-| E3017 | not-iterable | Value is not iterable |
-| E3018 | array-literal-required | Array type requires array literal |
-| E3019 | signed-to-unsigned | Cannot assign signed type to unsigned |
-| E3020 | negative-to-unsigned | Cannot assign negative value to unsigned type |
-| E3021 | type-change-not-allowed | Cannot change type of variable after declaration |
-| E3022 | undefined-struct-field | Struct field not found |
-| E3023 | enum-value-not-found | Enum value not found |
-| E3024 | missing-return-statement | Function must return a value |
-| E3025 | byte-value-out-of-range | Byte value must be between 0 and 255 |
-| E3026 | byte-array-element-out-of-range | Byte array element must be between 0 and 255 |
-| E3027 | const-to-mutable-param | Cannot pass immutable variable to mutable parameter |
-| E3028 | enum-mixed-types | Enum members must all have the same type |
-| E3029 | float-enum-map-key | Float-based enum cannot be used as map key |
-| E3030 | type-as-value | Type definition cannot be used as a runtime value |
-| E3031 | function-as-value | Function cannot be used as a value without calling it |
-| E3032 | enum-type-mismatch | Cannot compare values from different enum types |
-| E3033 | duplicate-enum-value | Enum contains duplicate values |
-| E3034 | any-type-not-allowed | `any` type is reserved for internal use |
-| E3035 | not-all-paths-return | Not all code paths return a value |
-| E3036 | integer-out-of-range | Integer literal exceeds type range |
-| E3037 | invalid-private-usage | `private` modifier cannot be used here |
-| E3038 | void-type-not-allowed | `void` is not a valid type |
-| E3039 | ensure-expects-call | `ensure` expects a function call |
-| E3040 | multi-return-to-single-var | Cannot assign multiple return values to single variable |
-| E3041 | new-requires-struct | `new()` argument must be a defined struct type |
-
-### E4xxx — Reference Errors
-
-| Code | Name | Description |
-|------|------|-------------|
-| E4001 | undefined-variable | Variable not found in scope |
-| E4002 | undefined-function | Function not defined |
-| E4003 | undefined-field | Field does not exist on type |
-| E4004 | undefined-enum-value | Enum value does not exist |
-| E4005 | undefined-module-member | Member not found in module |
-| E4006 | undefined-type-new | Type not found for `new` expression |
-| E4007 | module-not-imported | Module has not been imported |
-| E4008 | ambiguous-function | Function exists in multiple modules |
-| E4009 | no-main-function | Program has no entry point |
-| E4010 | nil-member-access | Cannot access member of nil |
-| E4011 | member-access-invalid-type | Type does not support member access |
-| E4012 | shadows-type | Variable shadows a type definition |
-| E4013 | shadows-function | Variable shadows a function |
-| E4014 | shadows-module | Variable shadows an imported module |
-| E4016 | loop-variable-shadows-loop-variable | Loop variable shadows outer loop variable |
-
-### E5xxx — Runtime Errors
-
-| Code | Name | Description |
-|------|------|-------------|
-| E5001 | division-by-zero | Cannot divide by zero |
-| E5002 | modulo-by-zero | Cannot modulo by zero |
-| E5003 | index-out-of-bounds | Index outside valid range |
-| E5004 | index-empty-collection | Cannot index empty collection |
-| E5005 | nil-operation | Cannot perform operation on nil |
-| E5006 | immutable-variable | Cannot modify `const` variable |
-| E5007 | immutable-array | Cannot modify `const` array |
-| E5008 | wrong-argument-count | Incorrect number of arguments |
-| E5009 | break-outside-loop | `break` not inside loop |
-| E5010 | continue-outside-loop | `continue` not inside loop |
-| E5011 | return-value-unused | Function return value not used |
-| E5012 | multi-assign-count-mismatch | Assignment value count mismatch |
-| E5013 | range-start-not-integer | Range start must be integer |
-| E5014 | range-end-not-integer | Range end must be integer |
-| E5015 | postfix-requires-identifier | Postfix operator needs variable |
-| E5016 | immutable-parameter | Cannot modify read-only parameter |
-| E5017 | immutable-struct | Cannot modify field of `const` struct |
-| E5018 | max-recursion-depth | Maximum recursion depth exceeded |
-| E5019 | range-step-not-integer | Range step must be integer |
-| E5020 | range-in-operand-not-integer | Value checked against range must be integer |
-| E5021 | panic | Explicit `panic()` called |
-| E5022 | assertion-failed | Assertion condition was false |
-| E5023 | postfix-requires-integer | Postfix operator needs integer operand |
-| E5024 | return-type-mismatch | Return type mismatch at runtime |
-| E5025 | dangling-reference | Reference target no longer exists |
-
-### E6xxx — Import Errors
-
-| Code | Name | Description |
-|------|------|-------------|
-| E6001 | circular-import | Circular import detected |
-| E6002 | module-not-found | Module file not found |
-| E6003 | invalid-module-format | Module has invalid format |
-| E6004 | module-load-error | Failed to load module |
-| E6005 | module-name-mismatch | Module name does not match directory |
-| E6006 | module-name-conflict | Files in directory declare different module names |
-| E6007 | internal-import-denied | Cannot import from `internal/` directory outside package |
-| E6008 | module-member-readonly | Cannot assign to module member |
-| E6009 | private-access-denied | Cannot access private member from outside module |
-| E6010 | import-alias-collision | Import alias conflicts with an existing import |
-| E6011 | double-import | File is already included via a directory import |
-
-### E7xxx — Stdlib Validation Errors
-
-| Code | Name | Description |
-|------|------|-------------|
-| E7001 | stdlib-argument-mismatch | Wrong number of arguments |
-| E7002 | requires-array | Argument must be an array |
-| E7003 | requires-string | Argument must be a string |
-| E7004 | requires-integer | Argument must be an integer |
-| E7005 | requires-number | Argument must be a number |
-| E7006 | requires-function | Argument must be a function |
-| E7007 | requires-map | Argument must be a map |
-| E7008 | requires-boolean | Argument must be a boolean |
-| E7009 | requires-char | Argument must be a char |
-| E7010 | invalid-argument-value | Argument value is invalid |
-| E7011 | negative-not-allowed | Argument cannot be negative |
-| E7012 | zero-not-allowed | Argument cannot be zero |
-| E7013 | empty-not-allowed | Argument cannot be empty |
-| E7014 | type-conversion-failed | Type conversion failed |
-| E7015 | len-unsupported-type | `len()` not supported for type |
-| E7016 | file-not-found | File or directory not found |
-| E7017 | permission-denied | Permission denied |
-| E7018 | cannot-remove-directory | `io.remove()` cannot remove directories |
-| E7019 | cannot-remove-file | `io.remove_dir()` can only remove directories |
-| E7020 | safety-check-failed | Cannot remove root or home directory |
-| E7021 | cannot-copy-directory | `io.copy()` cannot copy directories |
-| E7022 | file-already-exists | File or directory already exists |
-| E7023 | directory-not-empty | Directory not empty |
-| E7024 | env-var-operation-failed | Environment variable operation failed |
-| E7025 | get-cwd-failed | Failed to get current directory |
-| E7026 | chdir-failed | Failed to change directory |
-| E7027 | get-hostname-failed | Failed to get hostname |
-| E7028 | get-username-failed | Failed to get username |
-| E7029 | get-homedir-failed | Failed to get home directory |
-| E7030 | command-not-found | Command or executable not found |
-| E7031 | command-failed | Command execution failed |
-| E7032 | sleep-negative | Sleep duration cannot be negative |
-| E7033 | conversion-overflow | Value exceeds target type range |
-| E7035 | env-var-not-set | Environment variable is not set |
-| E7040 | empty-path | Path cannot be empty |
-| E7041 | path-null-byte | Path contains null byte |
-| E7042 | read-directory-as-file | Cannot read directory as file |
-| E7043 | invalid-glob-pattern | Invalid glob pattern syntax |
-| E7050 | file-handle-closed | File handle is closed |
-| E7099 | io-error | General I/O error |
-
-### E8xxx — Math Errors
-
-| Code | Name | Description |
-|------|------|-------------|
-| E8001 | sqrt-negative | Cannot take square root of negative number |
-| E8002 | log-non-positive | Logarithm requires positive number |
-| E8003 | trig-out-of-range | Trigonometric function input out of valid range |
-| E8004 | factorial-negative | Factorial requires non-negative integer |
-| E8005 | factorial-overflow | Factorial result exceeds maximum value |
-| E8006 | random-invalid-range | Random range is invalid |
-| E8007 | map-range-div-zero | `map_range()` requires `in_min != in_max` |
-
-### E9xxx — Array Errors
-
-| Code | Name | Description |
-|------|------|-------------|
-| E9001 | array-is-empty | Operation requires non-empty array |
-| E9002 | array-non-numeric | Operation requires numeric array |
-| E9003 | range-step-zero | Range step cannot be zero |
-| E9004 | chunk-size-invalid | Chunk size must be greater than zero |
-| E9005 | range-invalid-bounds | Range start must be less than or equal to end |
-| E9006 | array-modified-during-iteration | Cannot modify array during `for_each` iteration |
-| E9007 | empty-array-selection | Cannot select from empty array |
-| E9008 | sample-count-exceeds-length | Sample count exceeds array length |
-
-### E10xxx — String Errors
-
-| Code | Name | Description |
-|------|------|-------------|
-| E10001 | repeat-count-negative | Repeat count cannot be negative |
-| E10003 | string-index-out-of-bounds | String index out of bounds |
-| E10004 | string-empty-index | Cannot index empty string |
-
-### E11xxx — Time Errors
-
-| Code | Name | Description |
-|------|------|-------------|
-| E11001 | time-parse-failed | Failed to parse time string |
-
-### E12xxx — Map Errors
-
-| Code | Name | Description |
-|------|------|-------------|
-| E12001 | map-key-not-hashable | Map key must be a hashable type |
-| E12002 | map-immutable | Cannot modify immutable map |
-| E12003 | map-key-not-found | Key not found in map |
-| E12004 | map-invalid-pair | Map entry must be a `[key, value]` pair |
-| E12005 | map-value-not-hashable | Map value is not hashable and cannot become a key |
-| E12006 | map-duplicate-key | Map literal contains duplicate key |
-
-### E13xxx — JSON Errors
-
-| Code | Name | Description |
-|------|------|-------------|
-| E13001 | json-syntax-error | Invalid JSON syntax |
-| E13002 | json-unsupported-type | Type cannot be converted to JSON |
-| E13003 | json-invalid-map-key | JSON object keys must be strings |
-| E13004 | json-decode-requires-type | `json.decode()` requires a type argument |
-
-### E14xxx — HTTP Errors
-
-| Code | Name | Description |
-|------|------|-------------|
-| E14001 | http-invalid-url | Invalid URL |
-| E14002 | http-failed-request | Request failed (network error) |
-| E14003 | http-timeout | Timeout exceeded |
-| E14004 | http-invalid-method | Invalid HTTP method |
-| E14005 | http-failed-url-decode | URL decode failed |
-| E14006 | http-failed-json-encoding | JSON encoding failed |
-
-### E15xxx — Crypto Errors
-
-| Code | Name | Description |
-|------|------|-------------|
-| E15001 | crypto-random-failed | Cryptographic random generation failed |
-
-### E16xxx — Encoding Errors
-
-| Code | Name | Description |
-|------|------|-------------|
-| E16001 | invalid-base64 | Invalid base64 encoded input |
-| E16002 | invalid-hex | Invalid hexadecimal encoded input |
-| E16003 | invalid-url-encoding | Invalid URL encoded input |
-
-### E17xxx — Database Errors
-
-| Code | Name | Description |
-|------|------|-------------|
-| E17001 | db-open-failed | Failed to open database |
-| E17002 | db-read-failed | Failed to read database file |
-| E17003 | db-write-failed | Failed to write database file |
-| E17004 | db-corrupted | Database file is corrupted |
-| E17005 | db-closed | Operation on closed database |
-
-### E18xxx — Server Errors
-
-| Code | Name | Description |
-|------|------|-------------|
-| E18001 | server-listen-failed | Server failed to start |
-| E18002 | server-invalid-port | Invalid port number |
-| E18003 | server-internal-error | Internal server error |
-| E18004 | server-handler-error | Handler returned an error |
-
-### Warnings
-
-#### W1xxx — Code Style Warnings
-
-| Code | Name | Description |
-|------|------|-------------|
-| W1001 | unused-variable | Variable declared but not used |
-| W1002 | unused-import | Module imported but not used |
-| W1003 | unused-function | Function declared but not called |
-| W1004 | unused-parameter | Parameter declared but not used |
-| W1005 | typed-blank-identifier | Blank identifier does not require type annotation |
-
-#### W2xxx — Potential Bug Warnings
-
-| Code | Name | Description |
-|------|------|-------------|
-| W2001 | unreachable-code | Code will never execute |
-| W2002 | shadowed-variable | Variable shadows outer scope |
-| W2003 | missing-return | Function may not return value |
-| W2005 | deprecated-feature | Using deprecated feature |
-| W2006 | byte-overflow-potential | Byte arithmetic may overflow |
-| W2007 | shadows-global | Variable shadows global variable or constant |
-| W2008 | integer-overflow-potential | Integer arithmetic may overflow |
-| W2011 | named-return-unused | Named return variable declared but returns different value |
-| W2012 | float-when-imprecise | Float equality comparison in `when` may be imprecise |
-
-#### W3xxx — Code Quality Warnings
-
-| Code | Name | Description |
-|------|------|-------------|
-| W3001 | empty-block | Block statement is empty |
-| W3002 | redundant-condition | Condition is always true/false |
-| W3003 | array-size-mismatch | Fixed-size array not fully initialized |
 
 ---
 
