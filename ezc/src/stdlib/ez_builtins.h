@@ -74,4 +74,8 @@ EzString ez_builtin_format_float(EzArena *arena, double v);
 EzString ez_builtin_array_to_string(EzArena *arena, EzArray *arr, int elem_kind);
 EzString ez_builtin_map_to_string(EzArena *arena, EzMap *m, int val_kind);
 
+/* to_char / char_count — Unicode codepoint access */
+int32_t ez_builtin_to_char(EzString s, int64_t index, const char *file, int line);
+int64_t ez_builtin_char_count(EzString s);
+
 #endif

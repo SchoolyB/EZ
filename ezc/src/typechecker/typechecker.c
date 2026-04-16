@@ -420,6 +420,7 @@ static bool tc_is_builtin(const char *name) {
         "i128", "i256", "u128", "u256",
         "exit", "panic", "assert", "range", "cast",
         "sleep_s", "sleep_ms", "sleep_ns", "c_string",
+        "to_char", "char_count",
         NULL
     };
     for (int i = 0; builtins[i]; i++) {
@@ -2145,6 +2146,55 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                 }
                 result = &TYPE_STRING;
             } else if (strcmp(fn_name, "size_of") == 0) {
+                result = &TYPE_INT;
+            } else if (strcmp(fn_name, "to_char") == 0) {
+                if (node->data.call.arg_count != 2) {
+                    char msg[256];
+                    snprintf(msg, sizeof(msg),
+                        "to_char() expects 2 arguments (string, index), got %d",
+                        node->data.call.arg_count);
+                    diag_error(tc->diag, "E5008", strdup(msg),
+                        NODE_FILE(tc, node), node->token.line, node->token.column, 0);
+                } else {
+                    EzType *arg0 = resolve_expr(tc, node->data.call.args[0]);
+                    EzType *arg1 = resolve_expr(tc, node->data.call.args[1]);
+                    if (arg0->kind != TK_STRING) {
+                        char msg[256];
+                        snprintf(msg, sizeof(msg),
+                            "to_char() first argument must be a string, got %s",
+                            type_name(arg0));
+                        diag_error(tc->diag, "E3043", strdup(msg),
+                            NODE_FILE(tc, node), node->token.line, node->token.column, 0);
+                    }
+                    if (arg1->kind != TK_INT && arg1->kind != TK_UINT) {
+                        char msg[256];
+                        snprintf(msg, sizeof(msg),
+                            "to_char() second argument must be int or uint, got %s",
+                            type_name(arg1));
+                        diag_error(tc->diag, "E3043", strdup(msg),
+                            NODE_FILE(tc, node), node->token.line, node->token.column, 0);
+                    }
+                }
+                result = &TYPE_CHAR;
+            } else if (strcmp(fn_name, "char_count") == 0) {
+                if (node->data.call.arg_count != 1) {
+                    char msg[256];
+                    snprintf(msg, sizeof(msg),
+                        "char_count() expects 1 argument (string), got %d",
+                        node->data.call.arg_count);
+                    diag_error(tc->diag, "E5008", strdup(msg),
+                        NODE_FILE(tc, node), node->token.line, node->token.column, 0);
+                } else {
+                    EzType *arg0 = resolve_expr(tc, node->data.call.args[0]);
+                    if (arg0->kind != TK_STRING) {
+                        char msg[256];
+                        snprintf(msg, sizeof(msg),
+                            "char_count() argument must be a string, got %s",
+                            type_name(arg0));
+                        diag_error(tc->diag, "E3043", strdup(msg),
+                            NODE_FILE(tc, node), node->token.line, node->token.column, 0);
+                    }
+                }
                 result = &TYPE_INT;
             } else if (strcmp(fn_name, "c_string") == 0) {
                 result = &TYPE_STRING;

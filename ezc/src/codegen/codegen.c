@@ -2515,6 +2515,24 @@ static bool emit_builtin_call(CodeGen *cg, AstNode *node, const char *func) {
         return true;
     }
 
+    /* to_char(str, index) — extract Nth Unicode codepoint */
+    if (strcmp(func, "to_char") == 0 && node->data.call.arg_count == 2) {
+        emit(cg, "ez_builtin_to_char(");
+        emit_expression(cg, node->data.call.args[0]);
+        emit(cg, ", ");
+        emit_expression(cg, node->data.call.args[1]);
+        emitf(cg, ", \"%s\", %d)", cg->file, node->token.line);
+        return true;
+    }
+
+    /* char_count(str) — return Unicode codepoint count */
+    if (strcmp(func, "char_count") == 0 && node->data.call.arg_count == 1) {
+        emit(cg, "ez_builtin_char_count(");
+        emit_expression(cg, node->data.call.args[0]);
+        emit(cg, ")");
+        return true;
+    }
+
     /* c_string(ptr) — convert C char* to EZ string */
     if (strcmp(func, "c_string") == 0 && node->data.call.arg_count == 1) {
         emit(cg, "ez_string_lit((const char *)");

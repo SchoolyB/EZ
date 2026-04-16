@@ -293,6 +293,68 @@ EzString ez_builtin_array_to_string(EzArena *arena, EzArray *arr, int elem_kind)
     return ez_string_new(arena, buf, (int32_t)pos);
 }
 
+/* --- to_char / char_count — Unicode codepoint access --- */
+
+int32_t ez_builtin_to_char(EzString s, int64_t index, const char *file, int line) {
+    if (index < 0) {
+        ez_panic(file, line, "to_char() index out of bounds — index %lld is negative", (long long)index);
+    }
+    const uint8_t *p = (const uint8_t *)s.data;
+    const uint8_t *end = p + s.len;
+    int64_t cp_idx = 0;
+    while (p < end) {
+        int32_t cp;
+        int bytes;
+        uint8_t b = *p;
+        if (b < 0x80) {
+            cp = b; bytes = 1;
+        } else if ((b & 0xE0) == 0xC0) {
+            cp = b & 0x1F; bytes = 2;
+        } else if ((b & 0xF0) == 0xE0) {
+            cp = b & 0x0F; bytes = 3;
+        } else if ((b & 0xF8) == 0xF0) {
+            cp = b & 0x07; bytes = 4;
+        } else {
+            cp = 0xFFFD; bytes = 1; /* replacement character for invalid lead byte */
+        }
+        /* Validate we have enough continuation bytes */
+        if (p + bytes > end) {
+            cp = 0xFFFD; bytes = 1;
+        } else {
+            for (int i = 1; i < bytes; i++) {
+                if ((p[i] & 0xC0) != 0x80) {
+                    cp = 0xFFFD; bytes = 1;
+                    break;
+                }
+                cp = (cp << 6) | (p[i] & 0x3F);
+            }
+        }
+        if (cp_idx == index) return cp;
+        p += bytes;
+        cp_idx++;
+    }
+    ez_panic(file, line, "to_char() index out of bounds — index %lld but string has %lld characters",
+        (long long)index, (long long)cp_idx);
+    return 0; /* unreachable */
+}
+
+int64_t ez_builtin_char_count(EzString s) {
+    const uint8_t *p = (const uint8_t *)s.data;
+    const uint8_t *end = p + s.len;
+    int64_t count = 0;
+    while (p < end) {
+        uint8_t b = *p;
+        if (b < 0x80) p += 1;
+        else if ((b & 0xE0) == 0xC0) p += 2;
+        else if ((b & 0xF0) == 0xE0) p += 3;
+        else if ((b & 0xF8) == 0xF0) p += 4;
+        else p += 1; /* invalid lead byte, skip one */
+        if (p > end) p = end; /* clamp if truncated */
+        count++;
+    }
+    return count;
+}
+
 EzString ez_builtin_map_to_string(EzArena *arena, EzMap *m, int val_kind) {
     char buf[4096];
     int pos = 0;
