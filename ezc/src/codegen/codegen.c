@@ -144,12 +144,14 @@ static const char *ez_type_to_c_cg(CodeGen *cg, const char *type_name) {
     if (strcmp(type_name, "Error") == 0 || strcmp(type_name, "error") == 0) return "EzError *";
     if (strcmp(type_name, "func") == 0)  return "void *"; /* generic fn ptr — cast at call site */
 
-    /* Pointer type: ^T — use C pointer */
+    /* Pointer type: ^T — use C pointer (ring buffer avoids aliasing on recursion) */
     if (type_name[0] == '^') {
-        static char ptrbuf[256];
+        static char ptrbufs[4][256];
+        static int ptridx = 0;
+        char *buf = ptrbufs[ptridx++ & 3];
         const char *pointee = ez_type_to_c_cg(cg, type_name + 1);
-        snprintf(ptrbuf, sizeof(ptrbuf), "%s *", pointee);
-        return ptrbuf;
+        snprintf(buf, 256, "%s *", pointee);
+        return buf;
     }
 
     /* Array type: [T] — use EzArray */
