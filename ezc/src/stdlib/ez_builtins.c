@@ -355,6 +355,34 @@ int64_t ez_builtin_char_count(EzString s) {
     return count;
 }
 
+EzString ez_builtin_char_to_utf8(EzArena *arena, int32_t cp) {
+    char buf[4];
+    int len = 0;
+    if (cp < 0x80) {
+        buf[0] = (char)cp; len = 1;
+    } else if (cp < 0x800) {
+        buf[0] = (char)(0xC0 | (cp >> 6));
+        buf[1] = (char)(0x80 | (cp & 0x3F));
+        len = 2;
+    } else if (cp < 0x10000) {
+        buf[0] = (char)(0xE0 | (cp >> 12));
+        buf[1] = (char)(0x80 | ((cp >> 6) & 0x3F));
+        buf[2] = (char)(0x80 | (cp & 0x3F));
+        len = 3;
+    } else if (cp < 0x110000) {
+        buf[0] = (char)(0xF0 | (cp >> 18));
+        buf[1] = (char)(0x80 | ((cp >> 12) & 0x3F));
+        buf[2] = (char)(0x80 | ((cp >> 6) & 0x3F));
+        buf[3] = (char)(0x80 | (cp & 0x3F));
+        len = 4;
+    } else {
+        /* Invalid codepoint — replacement character U+FFFD */
+        buf[0] = (char)0xEF; buf[1] = (char)0xBF; buf[2] = (char)0xBD;
+        len = 3;
+    }
+    return ez_string_new(arena, buf, (int32_t)len);
+}
+
 EzString ez_builtin_map_to_string(EzArena *arena, EzMap *m, int val_kind) {
     char buf[4096];
     int pos = 0;

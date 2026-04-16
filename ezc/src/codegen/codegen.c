@@ -740,7 +740,7 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
                 case TK_STRING: emit(cg, "%s"); break;
                 case TK_FLOAT:  emit(cg, "%s"); break; /* uses ez_builtin_format_float */
                 case TK_BOOL:   emit(cg, "%s"); break;
-                case TK_CHAR:   emit(cg, "%c"); break;
+                case TK_CHAR:   emit(cg, "%s"); break;
                 case TK_ARRAY:  emit(cg, "%s"); break;
                 case TK_MAP:    emit(cg, "%s"); break;
                 case TK_ERROR:  emit(cg, "%s"); break;
@@ -787,9 +787,9 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
                 emit(cg, ").data");
                 break;
             case TK_CHAR:
-                emit(cg, "(char)(");
+                emit(cg, "ez_builtin_char_to_utf8(ez_default_arena, ");
                 emit_expression(cg, part);
-                emit(cg, ")");
+                emit(cg, ").data");
                 break;
             case TK_ARRAY: {
                 /* Determine element kind: 0=int, 1=float, 2=string, 3=bool */
@@ -1945,7 +1945,7 @@ static void emit_value_print(CodeGen *cg, const char *c_expr, EzType *t, const c
         break;
     case TK_CHAR:
         emit_indent(cg);
-        emitf(cg, "fprintf(%s, \"%%c\", (char)(%s));\n", stream, c_expr);
+        emitf(cg, "{ EzString _cs = ez_builtin_char_to_utf8(ez_default_arena, %s); fwrite(_cs.data, 1, (size_t)_cs.len, %s); }\n", c_expr, stream);
         break;
     case TK_NIL:
         emit_indent(cg);

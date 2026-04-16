@@ -78,4 +78,7 @@ EzString ez_builtin_map_to_string(EzArena *arena, EzMap *m, int val_kind);
 int32_t ez_builtin_to_char(EzString s, int64_t index, const char *file, int line);
 int64_t ez_builtin_char_count(EzString s);
 
+/* char_to_utf8 — encode a codepoint to an EzString (for interpolation) */
+EzString ez_builtin_char_to_utf8(EzArena *arena, int32_t cp);
+
 #endif
