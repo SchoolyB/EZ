@@ -1,0 +1,81 @@
+/*
+ * Tests for_each iteration over arrays of pointers [^T]
+ * Verifies correct element type dispatch in codegen
+ * Regression for #1510
+ */
+
+const Node struct {
+    value int
+}
+
+const Point struct {
+    x int
+    y int
+}
+
+do main() {
+    mut passed int = 0
+    mut failed int = 0
+
+    // Test 1: for_each over [^Node], sum values
+    mut n1 = new(Node)
+    mut n2 = new(Node)
+    mut n3 = new(Node)
+    n1^.value = 10
+    n2^.value = 20
+    n3^.value = 30
+
+    mut nodes [^Node] = {n1, n2, n3}
+    mut sum int = 0
+    for_each node in nodes {
+        sum = sum + node^.value
+    }
+    if sum == 60 {
+        println("  [PASS] for_each over [^Node] summed to 60")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] for_each over [^Node]: expected 60, got ${sum}")
+        failed += 1
+    }
+
+    // Test 2: for_each over [^Point], access multiple fields
+    mut p1 = new(Point)
+    mut p2 = new(Point)
+    p1^.x = 1
+    p1^.y = 2
+    p2^.x = 3
+    p2^.y = 4
+
+    mut points [^Point] = {p1, p2}
+    mut total int = 0
+    for_each pt in points {
+        total = total + pt^.x + pt^.y
+    }
+    if total == 10 {
+        println("  [PASS] for_each over [^Point] summed to 10")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] for_each over [^Point]: expected 10, got ${total}")
+        failed += 1
+    }
+
+    // Test 3: for_each with index over pointer array
+    mut idx_sum int = 0
+    for_each i, node in nodes {
+        idx_sum = idx_sum + i
+    }
+    if idx_sum == 3 {
+        println("  [PASS] for_each with index over [^Node] indices sum to 3")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] for_each with index: expected 3, got ${idx_sum}")
+        failed += 1
+    }
+
+    println("Results: ${passed} passed, ${failed} failed")
+    if failed > 0 {
+        println("SOME TESTS FAILED")
+    } otherwise {
+        println("ALL TESTS PASSED")
+    }
+}
