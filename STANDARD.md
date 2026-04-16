@@ -319,9 +319,12 @@ For multi-byte UTF-8 strings, individual bytes may not form complete characters:
 
 ```ez
 mut s string = "日本語"
-println(len(s))    // 9 (byte length, not 3 characters)
-// s[0] returns an incomplete byte of '日', not the full character
+println(len(s))         // 9 (byte length, not 3 characters)
+println(char_count(s))  // 3 (Unicode character count)
+println(to_char(s, 0))  // 26085 (codepoint for '日')
 ```
+
+Use `to_char()` to access characters by codepoint index and `char_count()` to get the true character count.
 
 #### 3.1.5 Boolean Type (`bool`)
 
@@ -1861,6 +1864,8 @@ All types are printable: `string`, `int`, `float`, `bool`, arrays, maps, structs
 | `exit` | `(code int)` | Exit program with code |
 | `range` | `(start int, end int [, step int]) -> Range` | Create integer range |
 | `cast` | `(value T, Type) -> Type` | Explicit type conversion |
+| `to_char` | `(s string, index int) -> int` | Return the Unicode codepoint at character position `index` (not byte position). Panics if index is out of bounds. |
+| `char_count` | `(s string) -> int` | Return the number of Unicode characters (codepoints) in a string. Unlike `len()`, which returns byte count, `char_count()` counts decoded UTF-8 characters. |
 | `c_string` | `(ptr ^u8) -> string` | Convert a C `char*` return value to an EZ string (for C interop) |
 
 **Reference behavior with `ref()`:**
