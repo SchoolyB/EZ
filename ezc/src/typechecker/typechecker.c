@@ -1043,8 +1043,18 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
     }
 
     case NODE_CALL_EXPR: {
-        /* Resolve argument types first */
+        /* Resolve argument types first. Skip the argument of ref()
+         * when it's a bare function name — the ref() builtin handler
+         * below resolves it specially, and the general resolve_expr
+         * path would fire E3031 on the bare name (#1475 follow-up). */
+        bool is_ref_call = (node->data.call.function &&
+            node->data.call.function->kind == NODE_LABEL &&
+            strcmp(node->data.call.function->data.label.value, "ref") == 0);
         for (int i = 0; i < node->data.call.arg_count; i++) {
+            if (is_ref_call && node->data.call.args[i]->kind == NODE_LABEL &&
+                find_func(tc, node->data.call.args[i]->data.label.value)) {
+                continue;
+            }
             resolve_expr(tc, node->data.call.args[i]);
         }
 
@@ -2066,15 +2076,21 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                 result = type_pointer(type_name(arg_t));
             } else if (strcmp(fn_name, "ref") == 0 && node->data.call.arg_count == 1) {
                 AstNode *arg = node->data.call.args[0];
-                EzType *arg_t = resolve_expr(tc, arg);
-                /* ref(func_name) returns func type, ref(var) returns pointer */
+                /* ref(func_name) returns func type — resolve the
+                 * function lookup BEFORE calling resolve_expr on the
+                 * label, otherwise the E3031 "bare function name as
+                 * value" check fires and rejects a legitimate
+                 * use (#1475 follow-up). */
                 if (arg->kind == NODE_LABEL &&
                     find_func(tc, arg->data.label.value)) {
+                    FuncSig *rfs = find_func(tc, arg->data.label.value);
+                    if (rfs) rfs->used = true;
                     result = type_from_name("func");
                 } else {
                     /* Build a pointer type that preserves the full source type.
                      * For arrays, type_name returns the element type ("int"),
                      * so reconstruct the full name ("[int]"). */
+                    EzType *arg_t = resolve_expr(tc, arg);
                     const char *pointee_name = type_name(arg_t);
                     if (arg_t->kind == TK_ARRAY) {
                         char buf[256];
@@ -3835,8 +3851,8 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
                             key_tn[klen] = '\0';
                             memcpy(val_tn, mcolon + 1, vlen);
                             val_tn[vlen] = '\0';
-                            EzType *expected_k = type_from_name(key_tn);
-                            EzType *expected_v = type_from_name(val_tn);
+                            EzType *expected_k = tc_type_from_name(tc, key_tn);
+                            EzType *expected_v = tc_type_from_name(tc, val_tn);
                             AstNode *mv = node->data.var_decl.value;
                             for (int mi = 0; mi < mv->data.map_value.count; mi++) {
                                 AstNode *kn = mv->data.map_value.keys[mi];
