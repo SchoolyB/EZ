@@ -1418,8 +1418,9 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                 }
             } else if (strcmp(mod, "uuid") == 0) {
                 if (strcmp(mfn, "is_valid") == 0) result = &TYPE_BOOL;
-                else if (strcmp(mfn, "generate") == 0 || strcmp(mfn, "v4") == 0 ||
-                         strcmp(mfn, "v7") == 0 || strcmp(mfn, "to_string") == 0) {
+                else if (strcmp(mfn, "generate") == 0 || strcmp(mfn, "generate_hyphenated") == 0 ||
+                         strcmp(mfn, "v4") == 0 || strcmp(mfn, "v7") == 0 ||
+                         strcmp(mfn, "to_string") == 0) {
                     result = &TYPE_STRING;
                 } else {
                     emit_unknown_stdlib_fn(tc, mod, mfn, node);
@@ -1721,7 +1722,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                 if (strcmp(mfn, "mutex") == 0) {
                     result = type_struct("Mutex"); /* EzMutex — opaque */
                 } else if (strcmp(mfn, "lock") == 0 || strcmp(mfn, "unlock") == 0 ||
-                           strcmp(mfn, "try_lock") == 0) {
+                           strcmp(mfn, "try_lock") == 0 || strcmp(mfn, "destroy") == 0) {
                     result = &TYPE_VOID;
                 } else {
                     emit_unknown_stdlib_fn(tc, mod, mfn, node);
@@ -1737,7 +1738,8 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                     result = &TYPE_BOOL;
                 } else if (strcmp(mfn, "spinlock") == 0) {
                     result = type_struct("SpinLock"); /* EzSpinLock — opaque */
-                } else if (strcmp(mfn, "store") == 0 || strcmp(mfn, "spin_lock") == 0 ||
+                } else if (strcmp(mfn, "store") == 0 || strcmp(mfn, "fence") == 0 ||
+                           strcmp(mfn, "spin_lock") == 0 ||
                            strcmp(mfn, "spin_unlock") == 0) {
                     result = &TYPE_VOID;
                 } else {
@@ -1788,7 +1790,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                     result = &TYPE_UNKNOWN;
                 }
             } else if (strcmp(mod, "regex") == 0) {
-                if (strcmp(mfn, "is_match") == 0) {
+                if (strcmp(mfn, "is_match") == 0 || strcmp(mfn, "is_valid") == 0) {
                     result = &TYPE_BOOL;
                 } else if (strcmp(mfn, "find") == 0 || strcmp(mfn, "replace") == 0) {
                     result = &TYPE_STRING;
@@ -3760,7 +3762,7 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
                             if (actual_et && actual_et->kind != TK_UNKNOWN &&
                                 expected_et && expected_et->kind != TK_UNKNOWN &&
                                 actual_et->kind != expected_et->kind) {
-                                /* Allow compatible integer kinds */
+                                /* Allow compatible integer kinds + enum↔int */
                                 bool compatible = false;
                                 if ((expected_et->kind == TK_INT || expected_et->kind == TK_UINT ||
                                      expected_et->kind == TK_BYTE) &&
@@ -3768,6 +3770,12 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
                                      actual_et->kind == TK_BYTE)) {
                                     compatible = true;
                                 }
+                                if (is_int_kind(expected_et->kind) && actual_et->kind == TK_ENUM)
+                                    compatible = true;
+                                if (expected_et->kind == TK_ENUM && is_int_kind(actual_et->kind))
+                                    compatible = true;
+                                if (expected_et->kind == TK_ENUM && actual_et->kind == TK_ENUM)
+                                    compatible = true;
                                 if (!compatible) {
                                     char msg[256];
                                     snprintf(msg, sizeof(msg),
@@ -3838,7 +3846,10 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
                                 if (kt && kt->kind != TK_UNKNOWN && kt->kind != TK_VOID &&
                                     expected_k && expected_k->kind != TK_UNKNOWN &&
                                     kt->kind != expected_k->kind &&
-                                    !(is_int_kind(expected_k->kind) && is_int_kind(kt->kind))) {
+                                    !(is_int_kind(expected_k->kind) && is_int_kind(kt->kind)) &&
+                                    !(is_int_kind(expected_k->kind) && kt->kind == TK_ENUM) &&
+                                    !(expected_k->kind == TK_ENUM && is_int_kind(kt->kind)) &&
+                                    !(expected_k->kind == TK_ENUM && kt->kind == TK_ENUM)) {
                                     char msg[256];
                                     snprintf(msg, sizeof(msg),
                                         "type mismatch in map literal key — expected '%s', got '%s'",
@@ -3850,6 +3861,9 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
                                     expected_v && expected_v->kind != TK_UNKNOWN &&
                                     vt->kind != expected_v->kind &&
                                     !(is_int_kind(expected_v->kind) && is_int_kind(vt->kind)) &&
+                                    !(is_int_kind(expected_v->kind) && vt->kind == TK_ENUM) &&
+                                    !(expected_v->kind == TK_ENUM && is_int_kind(vt->kind)) &&
+                                    !(expected_v->kind == TK_ENUM && vt->kind == TK_ENUM) &&
                                     !(expected_v->kind == TK_POINTER && vt->kind == TK_POINTER)) {
                                     char msg[256];
                                     snprintf(msg, sizeof(msg),
