@@ -4082,6 +4082,26 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
             }
         }
 
+        /* E3062 (#1480): handle types (channels, mutexes, threads)
+         * cannot be declared const — every meaningful operation on
+         * them mutates internal state, so const is a semantic lie.
+         * Same class as the E3059 map check above. */
+        if (!node->data.var_decl.mutable && declared->kind == TK_STRUCT && declared->name) {
+            const char *dn = declared->name;
+            const char *handle_label = NULL;
+            if (strcmp(dn, "Channel") == 0) handle_label = "channel";
+            else if (strcmp(dn, "Mutex") == 0) handle_label = "mutex";
+            else if (strcmp(dn, "Thread") == 0) handle_label = "thread handle";
+            if (handle_label) {
+                char msg[128];
+                snprintf(msg, sizeof(msg),
+                    "%s cannot be declared const — use 'mut' (every operation on a %s mutates its state)",
+                    handle_label, handle_label);
+                diag_error(tc->diag, "E3062", strdup(msg),
+                    NODE_FILE(tc, node), node->token.line, node->token.column, 0);
+            }
+        }
+
         /* W1005: typed blank identifier — _ with explicit type annotation */
         if (strcmp(node->data.var_decl.name, "_") == 0 && node->data.var_decl.type_name) {
             diag_warning(tc->diag, "W1005",

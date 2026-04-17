@@ -3,7 +3,7 @@
 > Auto-generated from `ezc/src/util/error_codes.h`. Do not edit manually.
 > Run `./scripts/generate_errors.sh` to regenerate.
 
-**Total: 139 codes** (129 errors, 10 warnings)
+**Total: 140 codes** (130 errors, 10 warnings)
 
 ---
 
@@ -112,6 +112,7 @@
 | `E3059` | types | maps cannot be declared const — use 'mut' for maps or a struct for fixed data |
 | `E3060` | types | wildcard '?' in return type cannot be resolved — at least one parameter must also use '?' to bind the concrete type |
 | `E3061` | types | struct cannot contain itself by value — use a pointer field '^T' for recursive types |
+| `E3062` | types | handle types (channels, mutexes, threads) cannot be declared const — use 'mut' |
 | `E4001` | names | this variable does not exist — check the spelling or make sure it is declared above this line |
 | `E4002` | names | this function does not exist — check the spelling or make sure it is defined |
 | `E4003` | names | a variable with this name already exists in this scope — use a different name |
@@ -183,4 +184,4 @@
 
 ---
 
-*Generated on 2026-04-15 23:56:42 UTC*
+*Generated on 2026-04-17 02:27:48 UTC*
