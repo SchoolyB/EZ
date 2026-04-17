@@ -2454,6 +2454,26 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                 FuncSig *sig = find_func(tc, fn_name);
                 if (sig) {
                     sig->used = true;
+                    /* #1519: if this bare name is a using-module alias,
+                     * also mark the prefixed sig + import as used so
+                     * W1002/W1003 don't fire on the source. */
+                    for (int ui = 0; ui < tc->using_module_count; ui++) {
+                        const char *real_mod = tc_resolve_alias(tc, tc->using_modules[ui]);
+                        char pfx[256];
+                        snprintf(pfx, sizeof(pfx), "%s_%s", real_mod, fn_name);
+                        FuncSig *psig = find_func(tc, pfx);
+                        if (psig) {
+                            psig->used = true;
+                            for (int mi = 0; mi < tc->import_count; mi++) {
+                                if (strcmp(tc->imported_modules[mi], tc->using_modules[ui]) == 0 ||
+                                    strcmp(tc->imported_modules[mi], real_mod) == 0) {
+                                    tc->import_used[mi] = true;
+                                    break;
+                                }
+                            }
+                            break;
+                        }
+                    }
                     /* Check argument count — account for default parameters */
                     int min_args = sig->param_count;
                     /* Find the AST func decl to count defaults */
@@ -5292,6 +5312,19 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
         }
         break;
 
+    case NODE_USING_STMT:
+        /* Function-scoped using: add modules to the using list so
+         * bare-name resolution works for the rest of this scope. */
+        for (int j = 0; j < node->data.using_stmt.count; j++) {
+            if (tc->using_module_count >= tc->using_module_cap) {
+                tc->using_module_cap = tc->using_module_cap ? tc->using_module_cap * 2 : 8;
+                tc->using_modules = realloc(tc->using_modules,
+                    sizeof(const char *) * (size_t)tc->using_module_cap);
+            }
+            tc->using_modules[tc->using_module_count++] = node->data.using_stmt.modules[j];
+        }
+        break;
+
     case NODE_ENSURE_STMT:
         resolve_expr(tc, node->data.ensure_stmt.expr);
         if (node->data.ensure_stmt.expr &&
@@ -5980,21 +6013,6 @@ void typechecker_check(TypeChecker *tc, AstNode *program) {
         }
     }
 
-    /* #1519: mark all using-module imports as "used" to suppress
-     * false W1002. If the user wrote `import and use` or `using`,
-     * they explicitly intend to use the module via bare names — the
-     * W1002 "module is imported but never used" warning is wrong. */
-    for (int ui = 0; ui < tc->using_module_count; ui++) {
-        for (int mi = 0; mi < tc->import_count; mi++) {
-            if (strcmp(tc->imported_modules[mi], tc->using_modules[ui]) == 0 ||
-                strcmp(tc->imported_modules[mi],
-                    tc_resolve_alias(tc, tc->using_modules[ui])) == 0) {
-                tc->import_used[mi] = true;
-                break;
-            }
-        }
-    }
-
     /* Register unprefixed aliases for struct/enum types from 'import and use' modules */
     for (int ui = 0; ui < tc->using_module_count; ui++) {
         const char *umod = tc->using_modules[ui];
@@ -6024,15 +6042,6 @@ void typechecker_check(TypeChecker *tc, AstNode *program) {
                     register_enum(tc, unprefixed, tc->enum_is_string[ei],
                         tc->enum_values[ei], tc->enum_value_counts[ei]);
                 }
-            }
-        }
-        /* #1519: suppress W1003 on prefixed function sigs from
-         * using-modules — they have bare aliases so usage is tracked
-         * through those, and the prefixed sigs would fire false W1003. */
-        for (int fi = 0; fi < tc->func_count; fi++) {
-            if (tc->funcs[fi].name &&
-                strncmp(tc->funcs[fi].name, prefix, prefix_len) == 0) {
-                tc->funcs[fi].def_line = 0;
             }
         }
         /* Register unprefixed aliases for struct-namespaced functions.

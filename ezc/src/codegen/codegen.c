@@ -5887,7 +5887,16 @@ static void emit_statement(CodeGen *cg, AstNode *node) {
         /* Imports are handled during the preamble scan */
         break;
     case NODE_USING_STMT:
-        /* Using is handled during the preamble scan */
+        /* Function-scoped using: add to using_modules so bare-name
+         * dispatch works for the rest of this function body. */
+        for (int j = 0; j < node->data.using_stmt.count; j++) {
+            if (cg->using_module_count >= cg->using_module_cap) {
+                cg->using_module_cap = cg->using_module_cap ? cg->using_module_cap * 2 : 8;
+                cg->using_modules = realloc(cg->using_modules,
+                    sizeof(const char *) * (size_t)cg->using_module_cap);
+            }
+            cg->using_modules[cg->using_module_count++] = node->data.using_stmt.modules[j];
+        }
         break;
     default:
         emit_indent(cg);
