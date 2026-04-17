@@ -435,6 +435,56 @@ static bool tc_is_builtin(const char *name) {
     return false;
 }
 
+/* #1519: stdlib constants reachable via `import and use` / `using`. */
+typedef struct { const char *name; const char *mod; TypeKind ret; } UsingConst;
+static const UsingConst _using_consts[] = {
+    {"PI","math",TK_FLOAT},{"E","math",TK_FLOAT},{"TAU","math",TK_FLOAT},
+    {"PHI","math",TK_FLOAT},{"SQRT2","math",TK_FLOAT},{"LN2","math",TK_FLOAT},
+    {"LN10","math",TK_FLOAT},{"INF","math",TK_FLOAT},{"NEG_INF","math",TK_FLOAT},
+    {"EPSILON","math",TK_FLOAT},
+    {"MAC_OS","os",TK_INT},{"LINUX","os",TK_INT},{"WINDOWS","os",TK_INT},{"OTHER","os",TK_INT},
+    {"READ_ONLY","io",TK_INT},{"WRITE_ONLY","io",TK_INT},{"READ_WRITE","io",TK_INT},
+    {NULL,NULL,TK_UNKNOWN}
+};
+
+static bool tc_is_using_constant(TypeChecker *tc, const char *name) {
+    for (int ui = 0; ui < tc->using_module_count; ui++) {
+        const char *real_mod = tc_resolve_alias(tc, tc->using_modules[ui]);
+        for (int ci = 0; _using_consts[ci].name; ci++) {
+            if (strcmp(name, _using_consts[ci].name) == 0 &&
+                strcmp(real_mod, _using_consts[ci].mod) == 0) {
+                for (int mi = 0; mi < tc->import_count; mi++) {
+                    if (strcmp(tc->imported_modules[mi], tc->using_modules[ui]) == 0 ||
+                        strcmp(tc->imported_modules[mi], real_mod) == 0) {
+                        tc->import_used[mi] = true;
+                        break;
+                    }
+                }
+                return true;
+            }
+        }
+    }
+    return false;
+}
+
+static EzType *tc_resolve_using_constant_type(TypeChecker *tc, const char *name) {
+    for (int ui = 0; ui < tc->using_module_count; ui++) {
+        const char *real_mod = tc_resolve_alias(tc, tc->using_modules[ui]);
+        for (int ci = 0; _using_consts[ci].name; ci++) {
+            if (strcmp(name, _using_consts[ci].name) == 0 &&
+                strcmp(real_mod, _using_consts[ci].mod) == 0) {
+                switch (_using_consts[ci].ret) {
+                case TK_FLOAT: return &TYPE_FLOAT;
+                case TK_INT:   return &TYPE_INT;
+                case TK_STRING: return &TYPE_STRING;
+                default:       return &TYPE_UNKNOWN;
+                }
+            }
+        }
+    }
+    return &TYPE_UNKNOWN;
+}
+
 /* --- Enum helpers --- */
 
 static void register_enum(TypeChecker *tc, const char *name, bool is_string,
@@ -464,7 +514,23 @@ static bool is_enum_name(TypeChecker *tc, const char *name) {
  * the default TK_STRUCT that type_from_name() produces for uppercase names. */
 static EzType *tc_type_from_name(TypeChecker *tc, const char *name) {
     if (name && is_enum_name(tc, name)) return type_enum(name);
-    return type_from_name(name);
+    EzType *t = type_from_name(name);
+    /* #1519: try prefixed type names from using-modules so bare
+     * "Point" resolves to "shapes_Point" when shapes is using'd.
+     * type_from_name returns TK_STRUCT for any capitalized name
+     * even if the struct isn't registered, so check is_struct_name
+     * to see if the bare name actually exists before giving up. */
+    if (name && name[0] >= 'A' && name[0] <= 'Z' &&
+        !is_struct_name(tc, name) && !is_enum_name(tc, name)) {
+        for (int ui = 0; ui < tc->using_module_count; ui++) {
+            const char *real_mod = tc_resolve_alias(tc, tc->using_modules[ui]);
+            char prefixed[256];
+            snprintf(prefixed, sizeof(prefixed), "%s_%s", real_mod, name);
+            if (is_enum_name(tc, prefixed)) return type_enum(prefixed);
+            if (is_struct_name(tc, prefixed)) return type_struct(prefixed);
+        }
+    }
+    return t;
 }
 
 /* --- Type signedness helpers --- */
@@ -754,6 +820,8 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                 name, name, name);
             diag_error(tc->diag, "E3031", strdup(msg),
                 NODE_FILE(tc, node), node->token.line, node->token.column, 0);
+        } else if (tc_is_using_constant(tc, name)) {
+            result = tc_resolve_using_constant_type(tc, name);
         } else if (!is_enum_name(tc, name) &&
                    !tc_is_builtin(name) && !is_struct_name(tc, name) &&
                    !tc_is_imported_module(tc, name)) {
@@ -3960,10 +4028,23 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
                 diag_error(tc->diag, "E3001", strdup(msg),
                     NODE_FILE(tc, node), node->token.line, node->token.column, 0);
             }
-            /* Struct-to-struct name mismatch (both TK_STRUCT but different names) */
+            /* Struct-to-struct name mismatch (both TK_STRUCT but different names).
+             * #1519: skip when one name is a module-prefixed alias of the
+             * other (e.g. "Point" vs "shapes_Point" via import and use). */
+            bool struct_alias_match = false;
+            if (declared->kind == TK_STRUCT && value_type->kind == TK_STRUCT &&
+                declared->name && value_type->name) {
+                const char *d = declared->name;
+                const char *v = value_type->name;
+                const char *d_us = strrchr(d, '_');
+                const char *v_us = strrchr(v, '_');
+                if (d_us && strcmp(d_us + 1, v) == 0) struct_alias_match = true;
+                if (v_us && strcmp(v_us + 1, d) == 0) struct_alias_match = true;
+            }
             if (declared->kind == TK_STRUCT && value_type->kind == TK_STRUCT &&
                 declared->name && value_type->name &&
-                strcmp(declared->name, value_type->name) != 0) {
+                strcmp(declared->name, value_type->name) != 0 &&
+                !struct_alias_match) {
                 char msg[256];
                 snprintf(msg, sizeof(msg),
                     "type mismatch: cannot assign '%s' to '%s'",
@@ -5899,6 +5980,21 @@ void typechecker_check(TypeChecker *tc, AstNode *program) {
         }
     }
 
+    /* #1519: mark all using-module imports as "used" to suppress
+     * false W1002. If the user wrote `import and use` or `using`,
+     * they explicitly intend to use the module via bare names — the
+     * W1002 "module is imported but never used" warning is wrong. */
+    for (int ui = 0; ui < tc->using_module_count; ui++) {
+        for (int mi = 0; mi < tc->import_count; mi++) {
+            if (strcmp(tc->imported_modules[mi], tc->using_modules[ui]) == 0 ||
+                strcmp(tc->imported_modules[mi],
+                    tc_resolve_alias(tc, tc->using_modules[ui])) == 0) {
+                tc->import_used[mi] = true;
+                break;
+            }
+        }
+    }
+
     /* Register unprefixed aliases for struct/enum types from 'import and use' modules */
     for (int ui = 0; ui < tc->using_module_count; ui++) {
         const char *umod = tc->using_modules[ui];
@@ -5928,6 +6024,15 @@ void typechecker_check(TypeChecker *tc, AstNode *program) {
                     register_enum(tc, unprefixed, tc->enum_is_string[ei],
                         tc->enum_values[ei], tc->enum_value_counts[ei]);
                 }
+            }
+        }
+        /* #1519: suppress W1003 on prefixed function sigs from
+         * using-modules — they have bare aliases so usage is tracked
+         * through those, and the prefixed sigs would fire false W1003. */
+        for (int fi = 0; fi < tc->func_count; fi++) {
+            if (tc->funcs[fi].name &&
+                strncmp(tc->funcs[fi].name, prefix, prefix_len) == 0) {
+                tc->funcs[fi].def_line = 0;
             }
         }
         /* Register unprefixed aliases for struct-namespaced functions.

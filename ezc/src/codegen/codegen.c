@@ -568,10 +568,33 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
     switch (node->kind) {
     case NODE_LABEL: {
         const char *name = safe_name(node->data.label.value);
-        /* Check for known stdlib constants (unambiguous names) */
-        if (is_mutable_param(cg, node->data.label.value)) {
+        const char *raw = node->data.label.value;
+        /* #1519: bare stdlib constants from using-modules */
+        static const struct { const char *n; const char *mod; const char *val; } _cg_consts[] = {
+            {"PI","math","3.14159265358979323846"},{"E","math","2.71828182845904523536"},
+            {"TAU","math","6.28318530717958647692"},{"PHI","math","1.61803398874989484820"},
+            {"SQRT2","math","1.41421356237309504880"},{"LN2","math","0.69314718055994530942"},
+            {"LN10","math","2.30258509299404568402"},{"INF","math","(1.0/0.0)"},
+            {"NEG_INF","math","(-1.0/0.0)"},{"EPSILON","math","2.2204460492503131e-16"},
+            {"MAC_OS","os","0"},{"LINUX","os","1"},{"WINDOWS","os","2"},{"OTHER","os","3"},
+            {NULL,NULL,NULL}
+        };
+        bool emitted_const = false;
+        for (int ui = 0; ui < cg->using_module_count && !emitted_const; ui++) {
+            const char *real_mod = resolve_alias(cg, cg->using_modules[ui]);
+            for (int ci = 0; _cg_consts[ci].n; ci++) {
+                if (strcmp(raw, _cg_consts[ci].n) == 0 &&
+                    strcmp(real_mod, _cg_consts[ci].mod) == 0) {
+                    emit(cg, _cg_consts[ci].val);
+                    emitted_const = true;
+                    break;
+                }
+            }
+        }
+        if (emitted_const) break;
+        if (is_mutable_param(cg, raw)) {
             emitf(cg, "(*%s)", name);
-        } else if (is_ref_var(cg, node->data.label.value)) {
+        } else if (is_ref_var(cg, raw)) {
             emitf(cg, "(*%s)", name);
         } else {
             emit(cg, name);
