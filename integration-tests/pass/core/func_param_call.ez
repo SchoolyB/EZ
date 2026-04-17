@@ -1,0 +1,81 @@
+/*
+ * func_param_call.ez - Calling a func-typed parameter with correct
+ * return type propagation for struct, int, and string returns.
+ *
+ * Regression for #1507 (bug reported during hunt): calling a func
+ * parameter that returned a struct emitted (int64_t (*)(...))f
+ * instead of (StructType (*)(...))f. The typechecker now pushes
+ * the declared target type onto the call node's typetable entry so
+ * codegen reads the concrete return type.
+ */
+
+const Pair struct {
+    a int
+    b int
+}
+
+do swap(p Pair) -> Pair {
+    return Pair{a: p.b, b: p.a}
+}
+
+do apply_twice(f func, p Pair) -> Pair {
+    mut r Pair = f(p)
+    return f(r)
+}
+
+do double_it(n int) -> int {
+    return n * 2
+}
+
+do apply_int(f func, x int) -> int {
+    return f(x)
+}
+
+do main() {
+    println("=== Func Param Call Test ===")
+    mut passed int = 0
+    mut failed int = 0
+
+    // -- struct return through func param --
+    mut p Pair = Pair{a: 1, b: 2}
+    mut result Pair = apply_twice(()swap, p)
+    if result.a == 1 && result.b == 2 {
+        println("  [PASS] apply_twice(swap, {1,2}) = {1,2}")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] got {${result.a}, ${result.b}}")
+        failed += 1
+    }
+
+    // -- int return through func param --
+    if apply_int(()double_it, 21) == 42 {
+        println("  [PASS] apply_int(double_it, 21) = 42")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] apply_int(double_it, 21)")
+        failed += 1
+    }
+
+    // -- single swap gives flipped result --
+    mut p2 Pair = Pair{a: 10, b: 20}
+    mut swapped Pair = apply_int_pair(()swap, p2)
+    if swapped.a == 20 && swapped.b == 10 {
+        println("  [PASS] single swap = {20, 10}")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] single swap: {${swapped.a}, ${swapped.b}}")
+        failed += 1
+    }
+
+    println("")
+    println("Results: ${passed} passed, ${failed} failed")
+    if failed > 0 {
+        println("SOME TESTS FAILED")
+    } otherwise {
+        println("ALL TESTS PASSED")
+    }
+}
+
+do apply_int_pair(f func, p Pair) -> Pair {
+    return f(p)
+}
