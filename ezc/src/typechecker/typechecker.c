@@ -5200,18 +5200,13 @@ static void register_declarations(TypeChecker *tc, AstNode *program) {
                 }
             }
         }
-        /* Detect string enum */
+        /* Detect string enum (auto-detect from values) */
         bool is_str = false;
-        if (stmt->data.enum_decl.base_type &&
-            strcmp(stmt->data.enum_decl.base_type, "string") == 0) {
-            is_str = true;
-        } else {
-            for (int j = 0; j < stmt->data.enum_decl.value_count; j++) {
-                if (stmt->data.enum_decl.values[j].value &&
-                    stmt->data.enum_decl.values[j].value->kind == NODE_STRING_VALUE) {
-                    is_str = true;
-                    break;
-                }
+        for (int j = 0; j < stmt->data.enum_decl.value_count; j++) {
+            if (stmt->data.enum_decl.values[j].value &&
+                stmt->data.enum_decl.values[j].value->kind == NODE_STRING_VALUE) {
+                is_str = true;
+                break;
             }
         }
         /* E4007: duplicate enum name */

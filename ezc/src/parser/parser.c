@@ -1761,7 +1761,6 @@ static AstNode *parse_enum_declaration(Parser *p) {
     /* cur_token is the enum name (IDENT), already consumed by caller */
     AstNode *node = ast_alloc(p->arena, NODE_ENUM_DECL, p->cur_token);
     node->data.enum_decl.name = p->cur_token.literal;
-    node->data.enum_decl.base_type = "int";
     node->data.enum_decl.is_flags = false;
 
     next_token(p); /* skip 'enum' keyword */
@@ -2193,22 +2192,6 @@ static AstNode *parse_statement(Parser *p) {
         AstNode *stmt = parse_statement(p);
         if (stmt && stmt->kind == NODE_ENUM_DECL) {
             stmt->data.enum_decl.is_flags = true;
-        }
-        return stmt;
-    }
-    case TOK_ENUM_ATTR: {
-        /* #enum(type) — applies to the next enum declaration */
-        const char *base_type = NULL;
-        if (peek_token_is(p, TOK_LPAREN)) {
-            next_token(p); /* skip ( */
-            next_token(p); /* type name */
-            base_type = p->cur_token.literal;
-            if (!expect_peek(p, TOK_RPAREN)) return NULL;
-        }
-        next_token(p);
-        AstNode *stmt = parse_statement(p);
-        if (stmt && stmt->kind == NODE_ENUM_DECL && base_type) {
-            stmt->data.enum_decl.base_type = base_type;
         }
         return stmt;
     }

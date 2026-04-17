@@ -299,7 +299,6 @@ struct AstNode {
             const char *name;
             EnumVal *values;
             int value_count;
-            const char *base_type; /* "int", "string", etc. */
             bool is_flags;
         } enum_decl;
 

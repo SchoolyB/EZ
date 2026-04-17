@@ -120,7 +120,6 @@ const char *token_type_name(TokenType type) {
     case TOK_SUPPRESS:       return "#suppress";
     case TOK_STRICT:         return "#strict";
     case TOK_FLAGS:          return "#flags";
-    case TOK_ENUM_ATTR:      return "#enum";
     case TOK_DOC:            return "#doc";
     case TOK_TEMP:           return "temp";
     case TOK_CONST:          return "const";

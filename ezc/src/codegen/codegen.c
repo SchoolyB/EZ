@@ -5812,18 +5812,13 @@ void codegen_generate(CodeGen *cg, AstNode *program) {
             }
             cg->enum_names[cg->enum_count++] = stmt->data.enum_decl.name;
 
-            /* Check if this is a string enum */
+            /* Check if this is a string enum (auto-detect from values) */
             bool is_string_enum = false;
-            if (stmt->data.enum_decl.base_type &&
-                strcmp(stmt->data.enum_decl.base_type, "string") == 0) {
-                is_string_enum = true;
-            } else {
-                for (int j = 0; j < stmt->data.enum_decl.value_count; j++) {
-                    if (stmt->data.enum_decl.values[j].value &&
-                        stmt->data.enum_decl.values[j].value->kind == NODE_STRING_VALUE) {
-                        is_string_enum = true;
-                        break;
-                    }
+            for (int j = 0; j < stmt->data.enum_decl.value_count; j++) {
+                if (stmt->data.enum_decl.values[j].value &&
+                    stmt->data.enum_decl.values[j].value->kind == NODE_STRING_VALUE) {
+                    is_string_enum = true;
+                    break;
                 }
             }
 

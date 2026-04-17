@@ -89,7 +89,6 @@ typedef enum {
     TOK_SUPPRESS,       /* #suppress */
     TOK_STRICT,         /* #strict */
     TOK_FLAGS,          /* #flags */
-    TOK_ENUM_ATTR,      /* #enum */
     TOK_DOC,            /* #doc */
 
     /* Keywords */
