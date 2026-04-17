@@ -1,0 +1,55 @@
+/*
+ * enum_implicit_values.ez - Enum implicit values continue from
+ * the last explicit value.
+ *
+ * Regression for #1511: implicit entries used the 0-based position
+ * index (`= j`) instead of continuing from the previous explicit
+ * value. `PENDING = 10, ACTIVE` gave ACTIVE = 1 instead of 11.
+ */
+
+const Status enum {
+    PENDING = 10,
+    ACTIVE,
+    DONE = 20
+}
+
+const Mixed enum {
+    A,
+    B,
+    C = 100,
+    D,
+    E = 200,
+    F,
+    G
+}
+
+do main() {
+    println("=== Enum Implicit Values Test ===")
+    mut passed int = 0
+    mut failed int = 0
+
+    if Status.PENDING == 10 && Status.ACTIVE == 11 && Status.DONE == 20 {
+        println("  [PASS] PENDING=10, ACTIVE=11, DONE=20")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] Status: ${Status.PENDING}, ${Status.ACTIVE}, ${Status.DONE}")
+        failed += 1
+    }
+
+    if Mixed.A == 0 && Mixed.B == 1 && Mixed.C == 100 && Mixed.D == 101 &&
+       Mixed.E == 200 && Mixed.F == 201 && Mixed.G == 202 {
+        println("  [PASS] A=0, B=1, C=100, D=101, E=200, F=201, G=202")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] Mixed: A=${Mixed.A} B=${Mixed.B} C=${Mixed.C} D=${Mixed.D} E=${Mixed.E} F=${Mixed.F} G=${Mixed.G}")
+        failed += 1
+    }
+
+    println("")
+    println("Results: ${passed} passed, ${failed} failed")
+    if failed > 0 {
+        println("SOME TESTS FAILED")
+    } otherwise {
+        println("ALL TESTS PASSED")
+    }
+}
