@@ -2,11 +2,11 @@
   <img src="images/EZ_LOGO.jpeg" alt="EZ Logo" width="400">
 </p>
 
-<h3 align="center">Programming Made EZ</h3>
-
 <p align="center">
-  A statically-typed programming language that compiles to fast native binaries.
+  A statically typed, compiled programming language.
 </p>
+
+<h3 align="center">Programming made EZ.</h3>
 
 <p align="center">
   <a href="https://schoolyb.github.io/EZ-Language-Webapp/playground/">Try EZ Online</a> •
