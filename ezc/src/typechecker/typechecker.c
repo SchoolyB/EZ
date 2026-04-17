@@ -4360,6 +4360,24 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
                 diag_error(tc->diag, "E3001", strdup(msg),
                     NODE_FILE(tc, node), node->token.line, node->token.column, 0);
             }
+            /* #1514: pointer depth mismatch (e.g. returning ^^int
+             * from a function declared -> ^int). Both sides are
+             * TK_POINTER so the kind check above passes, but the
+             * element_type strings differ ("int" vs "^int"). */
+            if (ret_t->kind == TK_POINTER && expected->kind == TK_POINTER &&
+                ret_t->element_type && expected->element_type &&
+                strcmp(ret_t->element_type, expected->element_type) != 0) {
+                /* Build human-readable pointer type strings */
+                char exp_str[128], got_str[128];
+                snprintf(exp_str, sizeof(exp_str), "^%s", expected->element_type);
+                snprintf(got_str, sizeof(got_str), "^%s", ret_t->element_type);
+                char msg[256];
+                snprintf(msg, sizeof(msg),
+                    "return type mismatch: expected '%s', got '%s'",
+                    exp_str, got_str);
+                diag_error(tc->diag, "E3001", strdup(msg),
+                    NODE_FILE(tc, node), node->token.line, node->token.column, 0);
+            }
             /* E5024: signed-to-unsigned return type mismatch */
             if (tc->current_return_type_names && tc->current_return_type_names[0] &&
                 is_unsigned_type(tc->current_return_type_names[0]) &&
