@@ -3757,9 +3757,9 @@ static bool emit_fmt_call(CodeGen *cg, AstNode *node, const char *func) {
         emit_expression(cg, node->data.call.args[0]);
         emit(cg, ", ");
         emit_expression(cg, node->data.call.args[1]);
-        emit(cg, ", ");
+        emit(cg, ", (");
         emit_expression(cg, node->data.call.args[2]);
-        emit(cg, ")");
+        emit(cg, ").data[0])");
         return true;
     }
 
@@ -3768,9 +3768,9 @@ static bool emit_fmt_call(CodeGen *cg, AstNode *node, const char *func) {
         emit_expression(cg, node->data.call.args[0]);
         emit(cg, ", ");
         emit_expression(cg, node->data.call.args[1]);
-        emit(cg, ", ");
+        emit(cg, ", (");
         emit_expression(cg, node->data.call.args[2]);
-        emit(cg, ")");
+        emit(cg, ").data[0])");
         return true;
     }
 
@@ -3779,9 +3779,9 @@ static bool emit_fmt_call(CodeGen *cg, AstNode *node, const char *func) {
         emit_expression(cg, node->data.call.args[0]);
         emit(cg, ", ");
         emit_expression(cg, node->data.call.args[1]);
-        emit(cg, ", ");
+        emit(cg, ", (");
         emit_expression(cg, node->data.call.args[2]);
-        emit(cg, ")");
+        emit(cg, ").data[0])");
         return true;
     }
 
