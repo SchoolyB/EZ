@@ -4119,6 +4119,61 @@ static void emit_call_expression(CodeGen *cg, AstNode *node) {
             snprintf(ns_name, sizeof(ns_name), "%s_%s", resolved_name, member);
             AstNode *ns_func = find_func(cg, ns_name);
             if (!ns_func) {
+                /* #1505: check if `member` is a func-typed data field
+                 * on the struct. If so, emit as a function-pointer call
+                 * through the field access. We get here when the variable
+                 * has a struct type but neither <struct>_<member> nor
+                 * bare <member> is a registered function. */
+                EzType *inst_t = cg->type_table ? typetable_get(cg->type_table, obj) : NULL;
+                /* Fall back to scanning struct decls if the type_table
+                 * doesn't have a hit for the label. */
+                if (!inst_t || inst_t->kind == TK_UNKNOWN) {
+                    for (int si = 0; si < cg->struct_decl_count; si++) {
+                        const char *sn = cg->struct_decls[si]->data.struct_decl.name;
+                        for (int fi = 0; fi < cg->struct_decls[si]->data.struct_decl.field_count; fi++) {
+                            StructField *sf = &cg->struct_decls[si]->data.struct_decl.fields[fi];
+                            if (strcmp(sf->name, member) == 0 && sf->type_name &&
+                                strcmp(sf->type_name, "func") == 0) {
+                                inst_t = type_struct(sn);
+                                break;
+                            }
+                        }
+                        if (inst_t && inst_t->kind == TK_STRUCT) break;
+                    }
+                }
+                if (inst_t && (inst_t->kind == TK_STRUCT || inst_t->kind == TK_POINTER)) {
+                    const char *sn = (inst_t->kind == TK_POINTER && inst_t->element_type)
+                        ? inst_t->element_type : inst_t->name;
+                    AstNode *sdecl = sn ? find_struct_decl(cg, sn) : NULL;
+                    if (sdecl) {
+                        for (int fi = 0; fi < sdecl->data.struct_decl.field_count; fi++) {
+                            if (strcmp(sdecl->data.struct_decl.fields[fi].name, member) == 0 &&
+                                sdecl->data.struct_decl.fields[fi].type_name &&
+                                strcmp(sdecl->data.struct_decl.fields[fi].type_name, "func") == 0) {
+                                int nargs = node->data.call.arg_count;
+                                EzType *ret_t = cg->type_table ? typetable_get(cg->type_table, node) : NULL;
+                                const char *c_ret = (ret_t && ret_t->kind != TK_UNKNOWN && ret_t->kind != TK_VOID)
+                                    ? ez_type_to_c_cg(cg, type_name(ret_t)) : "int64_t";
+                                if (ret_t && ret_t->kind == TK_VOID) c_ret = "void";
+                                emitf(cg, "((%s (*)(", c_ret);
+                                for (int ai = 0; ai < nargs; ai++) {
+                                    if (ai > 0) emit(cg, ", ");
+                                    EzType *at = cg->type_table ? typetable_get(cg->type_table, node->data.call.args[ai]) : NULL;
+                                    emit(cg, at ? ez_type_to_c_cg(cg, type_name(at)) : "int64_t");
+                                }
+                                emit(cg, "))");
+                                emit_expression(cg, obj);
+                                emitf(cg, ".%s)(", member);
+                                for (int ai = 0; ai < nargs; ai++) {
+                                    if (ai > 0) emit(cg, ", ");
+                                    emit_expression(cg, node->data.call.args[ai]);
+                                }
+                                emit(cg, ")");
+                                return;
+                            }
+                        }
+                    }
+                }
                 /* Try bare function name (for main-file functions in circular imports) */
                 ns_func = find_func(cg, member);
                 if (ns_func) {

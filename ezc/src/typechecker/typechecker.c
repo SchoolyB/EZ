@@ -2025,6 +2025,20 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                         sym->type->kind == TK_POINTER)) {
                         const char *sname = sym->type->kind == TK_POINTER
                             ? sym->type->element_type : sym->type->name;
+                        /* #1505: check if `mfn` is a data field of type func
+                         * before trying struct-function dispatch. A func-typed
+                         * field should be called as a function pointer, not
+                         * mistaken for a struct method. */
+                        EzType *field_t = struct_field_type(tc, sname, mfn);
+                        if (field_t && field_t->name && strcmp(field_t->name, "func") == 0) {
+                            /* This is a func-typed data field. Accept the call
+                             * — codegen will emit it as a function-pointer
+                             * call through the field access. Return type is
+                             * unknown (func ptrs are type-erased). */
+                            sym->used = true;
+                            result = &TYPE_UNKNOWN;
+                            break;
+                        }
                         char sfn[256];
                         snprintf(sfn, sizeof(sfn), "%s_%s", sname, mfn);
                         FuncSig *ssig = find_func(tc, sfn);
@@ -2935,7 +2949,13 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
             Symbol *sym = scope_lookup(tc->current_scope, obj_name);
             if (sym && sym->type->kind == TK_STRUCT) {
                 result = struct_field_type(tc, sym->type->name, member);
-                if (result->kind == TK_UNKNOWN && member[0] != 'v') {
+                /* #1505: func-typed fields resolve as TK_UNKNOWN (name="func")
+                 * via type_from_name because "func" maps to TK_UNKNOWN. Don't
+                 * emit E3010 "no field" when the field genuinely exists — it's
+                 * just a func field. */
+                bool is_func_field = (result->kind == TK_UNKNOWN && result->name &&
+                                      strcmp(result->name, "func") == 0);
+                if (result->kind == TK_UNKNOWN && !is_func_field && member[0] != 'v') {
                     char msg[256];
                     snprintf(msg, sizeof(msg),
                         "struct '%s' has no field '%s'", sym->type->name, member);
