@@ -2567,12 +2567,28 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                         FuncSig *ref_sig = fn_sym->func_ref_name
                             ? find_func(tc, fn_sym->func_ref_name) : NULL;
                         if (ref_sig) {
-                            if (node->data.call.arg_count != ref_sig->param_count) {
+                            /* #1503: compute min arity by counting
+                             * params without default values. */
+                            int min_arity = ref_sig->param_count;
+                            if (ref_sig->decl && ref_sig->decl->kind == NODE_FUNC_DECL) {
+                                min_arity = 0;
+                                for (int pi = 0; pi < ref_sig->decl->data.func_decl.param_count; pi++) {
+                                    if (!ref_sig->decl->data.func_decl.params[pi].default_value)
+                                        min_arity++;
+                                }
+                            }
+                            int ac = node->data.call.arg_count;
+                            if (ac < min_arity || ac > ref_sig->param_count) {
                                 char msg[256];
-                                snprintf(msg, sizeof(msg),
-                                    "function '%s' expects %d argument(s), got %d",
-                                    ref_sig->name, ref_sig->param_count,
-                                    node->data.call.arg_count);
+                                if (min_arity == ref_sig->param_count) {
+                                    snprintf(msg, sizeof(msg),
+                                        "function '%s' expects %d argument(s), got %d",
+                                        ref_sig->name, ref_sig->param_count, ac);
+                                } else {
+                                    snprintf(msg, sizeof(msg),
+                                        "function '%s' expects %d to %d argument(s), got %d",
+                                        ref_sig->name, min_arity, ref_sig->param_count, ac);
+                                }
                                 diag_error(tc->diag, "E5008", strdup(msg),
                                     NODE_FILE(tc, node), node->token.line, node->token.column, 0);
                             } else {

@@ -4367,21 +4367,39 @@ static void emit_call_expression(CodeGen *cg, AstNode *node) {
         EzType *ret_t = cg->type_table ? typetable_get(cg->type_table, node) : NULL;
         const char *c_ret = (ret_t && ret_t->kind != TK_UNKNOWN) ? ez_type_to_c_cg(cg, type_name(ret_t)) : "int64_t";
         if (ret_t && ret_t->kind == TK_VOID) c_ret = "void";
+        /* #1503: the cast must include param types for ALL parameters
+         * (including default-valued ones), not just the provided args.
+         * When defaults fill the gap, nargs < param_count and the
+         * default values are emitted as explicit args below. The cast
+         * must match the FULL arity. */
+        int cast_count = nargs;
+        if (ref_func && ref_func->data.func_decl.param_count > nargs) {
+            cast_count = ref_func->data.func_decl.param_count;
+        }
         emitf(cg, "((%s (*)(", c_ret);
-        for (int i = 0; i < nargs; i++) {
+        for (int i = 0; i < cast_count; i++) {
             if (i > 0) emit(cg, ", ");
-            EzType *arg_t = cg->type_table ? typetable_get(cg->type_table, node->data.call.args[i]) : NULL;
             bool mut_p = ref_func && i < ref_func->data.func_decl.param_count &&
                 ref_func->data.func_decl.params[i].mutable;
-            if (arg_t && arg_t->kind != TK_UNKNOWN) {
-                emit(cg, ez_type_to_c_cg(cg, type_name(arg_t)));
+            if (i < nargs) {
+                EzType *arg_t = cg->type_table ? typetable_get(cg->type_table, node->data.call.args[i]) : NULL;
+                if (arg_t && arg_t->kind != TK_UNKNOWN) {
+                    emit(cg, ez_type_to_c_cg(cg, type_name(arg_t)));
+                    if (mut_p) emit(cg, " *");
+                } else {
+                    emit(cg, "int64_t");
+                    if (mut_p) emit(cg, " *");
+                }
+            } else if (ref_func && i < ref_func->data.func_decl.param_count) {
+                /* Default-value position — use the declared param type */
+                const char *ptn = ref_func->data.func_decl.params[i].type_name;
+                emit(cg, ptn ? ez_type_to_c_cg(cg, ptn) : "int64_t");
                 if (mut_p) emit(cg, " *");
             } else {
                 emit(cg, "int64_t");
-                if (mut_p) emit(cg, " *");
             }
         }
-        if (nargs == 0) emit(cg, "void");
+        if (cast_count == 0) emit(cg, "void");
         emit(cg, "))");
         emit(cg, safe_name(fn_name));
         emit(cg, ")");
