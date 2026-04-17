@@ -4021,11 +4021,14 @@ static void emit_call_expression(CodeGen *cg, AstNode *node) {
             /* Map function names to their module. Only includes functions that
              * differ from builtins (std builtins are already handled above). */
             static const struct { const char *func; const char *mod; } func_to_mod[] = {
-                /* strings */
+                /* @strings */
                 {"to_upper","strings"},{"to_lower","strings"},{"trim","strings"},
                 {"trim_left","strings"},{"trim_right","strings"},{"replace","strings"},
-                {"repeat","strings"},{"starts_with","strings"},{"ends_with","strings"},
-                /* math */
+                {"repeat","strings"},{"reverse","strings"},{"slice","strings"},
+                {"join","strings"},{"contains","strings"},{"starts_with","strings"},
+                {"ends_with","strings"},{"is_empty","strings"},{"index_of","strings"},
+                {"count","strings"},{"split","strings"},
+                /* @math */
                 {"abs","math"},{"neg","math"},{"sign","math"},{"min","math"},{"max","math"},
                 {"clamp","math"},{"floor","math"},{"ceil","math"},{"round","math"},{"trunc","math"},
                 {"pow","math"},{"sqrt","math"},{"cbrt","math"},{"hypot","math"},{"exp","math"},
@@ -4036,28 +4039,99 @@ static void emit_call_expression(CodeGen *cg, AstNode *node) {
                 {"lcm","math"},{"is_prime","math"},{"is_even","math"},{"is_odd","math"},
                 {"is_infinite","math"},{"is_nan","math"},{"is_finite","math"},{"lerp","math"},
                 {"distance","math"},
-                /* arrays */
+                /* @arrays */
                 {"append","arrays"},{"insert_at","arrays"},{"prepend","arrays"},
                 {"remove_at","arrays"},{"sort_asc","arrays"},{"sort_desc","arrays"},
-                {"concat","arrays"},{"get_sum","arrays"},{"clear","arrays"},
-                {"get_first","arrays"},{"get_last","arrays"},
+                {"concat","arrays"},{"get_sum","arrays"},{"get_min","arrays"},{"get_max","arrays"},
+                {"clear","arrays"},{"get_first","arrays"},{"get_last","arrays"},
                 {"remove_last","arrays"},{"remove_first","arrays"},
                 {"fill","arrays"},{"deduplicate","arrays"},{"flatten","arrays"},
+                {"reverse","arrays"},{"slice","arrays"},
                 {"split_every","arrays"},{"pair","arrays"},{"count","arrays"},
-                /* maps */
-                {"has_key","maps"},{"keys","maps"},{"values","maps"},{"remove_key","maps"},
-                /* random */
+                {"index_of","arrays"},{"is_empty","arrays"},{"contains","arrays"},
+                /* @maps */
+                {"has_key","maps"},{"keys","maps"},{"values","maps"},{"get_keys","maps"},
+                {"get_values","maps"},{"remove_key","maps"},{"clear","maps"},
+                {"is_empty","maps"},{"merge","maps"},{"contains_value","maps"},
+                {"get_or_default","maps"},
+                /* @random */
                 {"rand_float","random"},{"rand_int","random"},{"rand_bool","random"},
                 {"rand_byte","random"},{"rand_char","random"},{"random_hex","random"},
-                {"choice","random"},{"shuffle","random"},{"sample","random"},
-                /* encoding */
+                {"choice","random"},{"shuffle","random"},{"sample","random"},{"seed","random"},
+                /* @encoding */
                 {"base64_encode","encoding"},{"base64_decode","encoding"},
                 {"hex_encode","encoding"},{"hex_decode","encoding"},
                 {"url_encode","encoding"},{"url_decode","encoding"},
-                /* crypto */
-                {"sha256","crypto"},{"md5","crypto"},
-                /* regex */
-                {"is_valid","regex"},{"is_match","regex"},{"find_all","regex"},
+                /* @crypto */
+                {"sha256","crypto"},{"md5","crypto"},{"random_hex","crypto"},
+                /* @regex */
+                {"is_valid","regex"},{"is_match","regex"},{"find","regex"},
+                {"find_all","regex"},{"replace","regex"},{"split","regex"},
+                /* @json */
+                {"parse","json"},{"stringify","json"},{"encode","json"},
+                {"decode","json"},{"is_valid","json"},{"pretty","json"},
+                /* @io */
+                {"read_file","io"},{"write_file","io"},{"append_file","io"},
+                {"delete_file","io"},{"rename_file","io"},{"file_exists","io"},
+                {"is_file","io"},{"is_directory","io"},{"file_size","io"},{"glob","io"},
+                /* @os */
+                {"args","os"},{"get_env","os"},{"set_env","os"},{"current_dir","os"},
+                {"hostname","os"},{"arch","os"},{"current_os","os"},{"pid","os"},
+                {"exec","os"},{"exit","os"},
+                /* @time */
+                {"now","time"},{"now_ms","time"},{"now_ns","time"},{"tick","time"},
+                {"elapsed_ms","time"},{"year","time"},{"month","time"},{"day","time"},
+                {"hour","time"},{"minute","time"},{"second","time"},{"weekday","time"},
+                {"format","time"},{"to_iso","time"},{"date","time"},{"to_time","time"},
+                /* @uuid */
+                {"generate_hyphenated","uuid"},{"generate","uuid"},{"is_valid","uuid"},
+                /* @bytes */
+                {"from_string","bytes"},{"from_hex","bytes"},{"from_base64","bytes"},
+                {"to_string","bytes"},{"to_hex","bytes"},{"to_base64","bytes"},
+                /* @binary */
+                {"encode_u8","binary"},{"encode_i16_le","binary"},{"encode_i16_be","binary"},
+                {"encode_i32_le","binary"},{"encode_i32_be","binary"},
+                {"encode_i64_le","binary"},{"encode_i64_be","binary"},
+                {"encode_f32_le","binary"},{"encode_f64_le","binary"},
+                {"decode_u8","binary"},{"decode_i16_le","binary"},{"decode_i16_be","binary"},
+                {"decode_i32_le","binary"},{"decode_i32_be","binary"},
+                {"decode_i64_le","binary"},{"decode_i64_be","binary"},
+                {"decode_f32_le","binary"},{"decode_f64_le","binary"},
+                /* @csv */
+                {"parse","csv"},{"read_file","csv"},{"headers","csv"},
+                {"write","csv"},{"write_file","csv"},{"format","csv"},{"encode","csv"},
+                /* @sqlite */
+                {"open","sqlite"},{"close","sqlite"},{"exec","sqlite"},{"query","sqlite"},
+                /* @threads */
+                {"spawn","threads"},{"join","threads"},{"get_id","threads"},
+                /* @sync */
+                {"mutex","sync"},{"lock","sync"},{"unlock","sync"},
+                {"try_lock","sync"},{"destroy","sync"},
+                /* @atomic */
+                {"load","atomic"},{"store","atomic"},{"add","atomic"},{"sub","atomic"},
+                {"exchange","atomic"},{"cas","atomic"},{"and","atomic"},{"or","atomic"},
+                {"xor","atomic"},{"spinlock","atomic"},{"spin_lock","atomic"},
+                {"spin_trylock","atomic"},{"spin_unlock","atomic"},{"fence","atomic"},
+                /* @channels */
+                {"open","channels"},{"send","channels"},{"receive","channels"},{"close","channels"},
+                /* @server */
+                {"add_router","server"},{"add_route","server"},{"listen","server"},
+                {"cors","server"},{"use","server"},{"text","server"},{"json","server"},
+                {"html","server"},{"redirect","server"},{"parse_json","server"},
+                /* @http */
+                {"get","http"},{"post","http"},{"put","http"},{"delete","http"},
+                {"head","http"},{"patch","http"},{"request","http"},{"json_body","http"},
+                /* @net */
+                {"listen","net"},{"connect","net"},{"accept","net"},{"send","net"},
+                {"receive","net"},{"resolve","net"},{"close","net"},
+                /* @fmt */
+                {"sprintf","fmt"},{"format","fmt"},{"printf","fmt"},
+                {"pad_left","fmt"},{"pad_right","fmt"},{"center","fmt"},
+                {"int_to_hex","fmt"},{"int_to_binary","fmt"},{"int_to_octal","fmt"},
+                {"float_fixed","fmt"},{"float_sci","fmt"},
+                /* @mem */
+                {"arena","mem"},{"usage","mem"},{"make","mem"},{"alloc","mem"},
+                {"init","mem"},{"free","mem"},{"reset","mem"},{"destroy","mem"},
                 {NULL,NULL}
             };
             for (int ui = 0; ui < cg->using_module_count; ui++) {

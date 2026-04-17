@@ -1467,7 +1467,33 @@ mathlib.factorial(5)          // OK - public
 
 ### 7.5 Attributes
 
-Attributes are annotations prefixed with `#` that modify declaration behavior.
+Attributes are annotations prefixed with `#` that modify declaration behavior. Attributes are placed on the line(s) immediately before a declaration, one attribute per line:
+
+```ez
+#doc("A person with a name and age")
+#json
+const Person struct {
+    name string
+    age int
+}
+```
+
+**Rules:**
+
+- One attribute per line, stacked before the declaration. Same-line multi-attribute (`#doc("x") #json`) is not supported.
+- Order is irrelevant. `#doc` then `#json` and `#json` then `#doc` produce identical results.
+- Blank lines between attributes and the declaration are allowed.
+- Each attribute applies to the immediately following declaration only. It does not skip ahead to find a compatible declaration further down the file.
+- Misapplied attributes are rejected. For example, `#json` on a function produces an error — `#json` can only be applied to struct declarations.
+
+#### Available Attributes
+
+| Attribute | Applies To | Description |
+|-----------|------------|-------------|
+| `#doc("...")` | functions, structs, enums | Documentation metadata, used by `ez doc` |
+| `#json` | structs | Enables JSON serialization for the struct |
+| `#flags` | enums | Marks enum as a bitflag set (values are powers of 2) |
+| `#strict` | `when` blocks | Requires all enum variants to be handled |
 
 #### 7.5.1 `#doc` Attribute
 
@@ -1485,6 +1511,29 @@ const Point struct {
     y int
 }
 ```
+
+#### 7.5.2 `#json` Attribute
+
+The `#json` attribute marks a struct for JSON serialization and deserialization. It enables `json.parse()` to decode JSON strings into the struct type and `json.stringify()` to encode struct values as JSON.
+
+```ez
+import @json
+
+#json
+const User struct {
+    name string
+    age int
+    active bool
+}
+
+do main() {
+    mut u User = json.parse("{\"name\": \"Alice\", \"age\": 25, \"active\": true}")
+    println(u.name)            // Alice
+    println(json.stringify(u)) // {"name":"Alice","age":25,"active":true}
+}
+```
+
+Field names in the JSON must match the struct field names exactly. Without `#json`, the struct has no serialization machinery and `json.parse()` into it will fail.
 
 ### 7.6 Function References
 
