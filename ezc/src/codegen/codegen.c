@@ -3192,6 +3192,47 @@ static bool emit_json_call(CodeGen *cg, AstNode *node, const char *func) {
         emit(cg, ")");
         return true;
     }
+    /* #1496: json.parse() — dispatch to per-struct helper when the
+     * call node's typetable entry is a #json struct (pushed by the
+     * var_decl handler via #1507). Falls back to ez_json_decode for
+     * the map-based path. */
+    if (strcmp(func, "parse") == 0 && node->data.call.arg_count >= 1) {
+        EzType *target_t = cg->type_table ? typetable_get(cg->type_table, node) : NULL;
+        if (target_t && target_t->kind == TK_STRUCT && target_t->name) {
+            AstNode *sdecl = find_struct_decl(cg, target_t->name);
+            if (sdecl && sdecl->data.struct_decl.is_json) {
+                emitf(cg, "ez_json_parse_%s(ez_default_arena, ", target_t->name);
+                emit_expression(cg, node->data.call.args[0]);
+                emit(cg, ")");
+                return true;
+            }
+        }
+        /* Fallback: map-based decode */
+        emit(cg, "ez_json_decode(ez_default_arena, ");
+        emit_expression(cg, node->data.call.args[0]);
+        emit(cg, ")");
+        return true;
+    }
+    /* #1496: json.stringify() — dispatch to per-struct helper when
+     * the argument is a #json struct. */
+    if (strcmp(func, "stringify") == 0 && node->data.call.arg_count >= 1) {
+        AstNode *arg = node->data.call.args[0];
+        EzType *arg_t = cg->type_table ? typetable_get(cg->type_table, arg) : NULL;
+        if (arg_t && arg_t->kind == TK_STRUCT && arg_t->name) {
+            AstNode *sdecl = find_struct_decl(cg, arg_t->name);
+            if (sdecl && sdecl->data.struct_decl.is_json) {
+                emitf(cg, "ez_json_stringify_%s(ez_default_arena, ", arg_t->name);
+                emit_expression(cg, arg);
+                emit(cg, ")");
+                return true;
+            }
+        }
+        /* Fallback: encode as map */
+        emit(cg, "({ __auto_type _jtmp = ");
+        emit_expression(cg, arg);
+        emit(cg, "; ez_json_encode_map(ez_default_arena, (EzMap *)&_jtmp); })");
+        return true;
+    }
     if (strcmp(func, "is_valid") == 0) {
         emit(cg, "ez_json_is_valid(");
         emit_expression(cg, node->data.call.args[0]);
@@ -6069,6 +6110,79 @@ void codegen_generate(CodeGen *cg, AstNode *program) {
                 emit(cg, "};\n\n");
             }
         }
+    }
+
+    /* #1496: emit JSON parse/stringify helpers for #json structs. Each
+     * #json struct gets two static functions:
+     *   - ez_json_parse_<Name>(arena, json_string) → EzStruct_<Name>
+     *   - ez_json_stringify_<Name>(arena, struct_value) → EzString
+     * These are called by json.parse() / json.stringify() which the
+     * typechecker dispatches based on the target/argument struct type. */
+    for (int i = 0; i < program->data.program.stmt_count; i++) {
+        AstNode *stmt = program->data.program.stmts[i];
+        if (stmt->kind != NODE_STRUCT_DECL || !stmt->data.struct_decl.is_json) continue;
+        const char *sn = stmt->data.struct_decl.name;
+        int fc = stmt->data.struct_decl.field_count;
+
+        /* --- parse: JSON string → struct --- */
+        emitf(cg, "static EzStruct_%s ez_json_parse_%s(EzArena *arena, EzString text) {\n", sn, sn);
+        emitf(cg, "    EzStruct_%s _r = {0};\n", sn);
+        emitf(cg, "    EzMap _m = ez_json_decode(arena, text);\n");
+        for (int j = 0; j < fc; j++) {
+            StructField *f = &stmt->data.struct_decl.fields[j];
+            const char *ct = ez_type_to_c_cg(cg, f->type_name);
+            if (strcmp(f->type_name, "string") == 0) {
+                emitf(cg, "    { EzString _k = ez_string_lit(\"%s\"); void *_v = ez_map_get(&_m, &_k);\n", f->name);
+                emitf(cg, "      if (_v) _r.%s = *(EzString *)_v; }\n", safe_name(f->name));
+            } else if (strcmp(f->type_name, "int") == 0 || strcmp(f->type_name, "i64") == 0) {
+                emitf(cg, "    { EzString _k = ez_string_lit(\"%s\"); void *_v = ez_map_get(&_m, &_k);\n", f->name);
+                emitf(cg, "      if (_v) { EzString _sv = *(EzString *)_v; _r.%s = ez_builtin_string_to_int(_sv); } }\n", safe_name(f->name));
+            } else if (strcmp(f->type_name, "float") == 0 || strcmp(f->type_name, "f64") == 0) {
+                emitf(cg, "    { EzString _k = ez_string_lit(\"%s\"); void *_v = ez_map_get(&_m, &_k);\n", f->name);
+                emitf(cg, "      if (_v) { EzString _sv = *(EzString *)_v; _r.%s = ez_builtin_string_to_float(_sv); } }\n", safe_name(f->name));
+            } else if (strcmp(f->type_name, "bool") == 0) {
+                emitf(cg, "    { EzString _k = ez_string_lit(\"%s\"); void *_v = ez_map_get(&_m, &_k);\n", f->name);
+                emitf(cg, "      if (_v) { EzString _sv = *(EzString *)_v; _r.%s = (_sv.len == 4 && memcmp(_sv.data, \"true\", 4) == 0); } }\n", safe_name(f->name));
+            }
+        }
+        emitf(cg, "    return _r;\n}\n\n");
+
+        /* --- stringify: struct → JSON string --- */
+        emitf(cg, "static EzString ez_json_stringify_%s(EzArena *arena, EzStruct_%s _s) {\n", sn, sn);
+        emitf(cg, "    int _est = %d;\n", fc * 128 + 4);
+        emitf(cg, "    char *_buf = ez_arena_alloc(arena, (size_t)_est);\n");
+        emitf(cg, "    int _pos = 0;\n");
+        emitf(cg, "    _buf[_pos++] = '{';\n");
+        for (int j = 0; j < fc; j++) {
+            StructField *f = &stmt->data.struct_decl.fields[j];
+            if (j > 0) emitf(cg, "    _buf[_pos++] = ','; _buf[_pos++] = ' ';\n");
+            /* Key */
+            emitf(cg, "    _buf[_pos++] = '\"';\n");
+            emitf(cg, "    memcpy(_buf + _pos, \"%s\", %d); _pos += %d;\n",
+                f->name, (int)strlen(f->name), (int)strlen(f->name));
+            emitf(cg, "    _buf[_pos++] = '\"'; _buf[_pos++] = ':'; _buf[_pos++] = ' ';\n");
+            /* Value */
+            if (strcmp(f->type_name, "string") == 0) {
+                emitf(cg, "    _buf[_pos++] = '\"';\n");
+                emitf(cg, "    memcpy(_buf + _pos, _s.%s.data, (size_t)_s.%s.len); _pos += _s.%s.len;\n",
+                    safe_name(f->name), safe_name(f->name), safe_name(f->name));
+                emitf(cg, "    _buf[_pos++] = '\"';\n");
+            } else if (strcmp(f->type_name, "int") == 0 || strcmp(f->type_name, "i64") == 0) {
+                emitf(cg, "    _pos += snprintf(_buf + _pos, (size_t)(_est - _pos), \"%%lld\", (long long)_s.%s);\n",
+                    safe_name(f->name));
+            } else if (strcmp(f->type_name, "float") == 0 || strcmp(f->type_name, "f64") == 0) {
+                emitf(cg, "    _pos += snprintf(_buf + _pos, (size_t)(_est - _pos), \"%%g\", _s.%s);\n",
+                    safe_name(f->name));
+            } else if (strcmp(f->type_name, "bool") == 0) {
+                emitf(cg, "    { const char *_bv = _s.%s ? \"true\" : \"false\"; int _bl = _s.%s ? 4 : 5;\n",
+                    safe_name(f->name), safe_name(f->name));
+                emitf(cg, "      memcpy(_buf + _pos, _bv, (size_t)_bl); _pos += _bl; }\n");
+            }
+        }
+        emitf(cg, "    _buf[_pos++] = '}';\n");
+        emitf(cg, "    _buf[_pos] = '\\0';\n");
+        emitf(cg, "    return (EzString){_buf, (int32_t)_pos};\n");
+        emitf(cg, "}\n\n");
     }
 
     /* (Enum typedefs already emitted above, before struct definitions) */

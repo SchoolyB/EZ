@@ -121,6 +121,7 @@ const char *token_type_name(TokenType type) {
     case TOK_STRICT:         return "#strict";
     case TOK_FLAGS:          return "#flags";
     case TOK_DOC:            return "#doc";
+    case TOK_JSON_ATTR:      return "#json";
     case TOK_TEMP:           return "temp";
     case TOK_CONST:          return "const";
     case TOK_DO:             return "do";

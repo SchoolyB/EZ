@@ -2200,6 +2200,19 @@ static AstNode *parse_statement(Parser *p) {
         }
         return stmt;
     }
+    case TOK_JSON_ATTR: {
+        /* #json — applies to the next struct declaration (#1496) */
+        next_token(p);
+        AstNode *stmt = parse_statement(p);
+        if (stmt && stmt->kind == NODE_STRUCT_DECL) {
+            stmt->data.struct_decl.is_json = true;
+        } else {
+            diag_error(p->diag, "E2002",
+                strdup("#json attribute can only be applied to struct declarations"),
+                p->file, p->cur_token.line, p->cur_token.column, 0);
+        }
+        return stmt;
+    }
     case TOK_SUPPRESS:
         diag_error(p->diag, "E2002",
             strdup("#suppress is no longer supported — use 'ez file.ez -q W1001' to suppress warnings from the command line"),

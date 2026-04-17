@@ -90,6 +90,7 @@ typedef enum {
     TOK_STRICT,         /* #strict */
     TOK_FLAGS,          /* #flags */
     TOK_DOC,            /* #doc */
+    TOK_JSON_ATTR,      /* #json */
 
     /* Keywords */
     TOK_TEMP,

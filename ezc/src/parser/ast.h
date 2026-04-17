@@ -292,6 +292,7 @@ struct AstNode {
             int field_count;
             StructFunc *funcs;
             int func_count;
+            bool is_json; /* #json attribute — enables JSON ser/deser */
         } struct_decl;
 
         /* NODE_ENUM_DECL */

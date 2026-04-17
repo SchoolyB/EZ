@@ -1495,8 +1495,14 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
             } else if (strcmp(mod, "json") == 0) {
                 if (strcmp(mfn, "decode") == 0) result = type_from_name("map[string:string]");
                 else if (strcmp(mfn, "is_valid") == 0) result = &TYPE_BOOL;
-                else if (strcmp(mfn, "encode") == 0 || strcmp(mfn, "stringify") == 0 ||
-                         strcmp(mfn, "format") == 0 || strcmp(mfn, "parse") == 0) {
+                else if (strcmp(mfn, "parse") == 0) {
+                    /* #1496: json.parse() return type depends on
+                     * assignment context. Start as UNKNOWN; the
+                     * var_decl handler pushes the declared struct
+                     * type onto the call node via #1507's mechanism. */
+                    result = &TYPE_UNKNOWN;
+                } else if (strcmp(mfn, "encode") == 0 || strcmp(mfn, "stringify") == 0 ||
+                           strcmp(mfn, "format") == 0 || strcmp(mfn, "pretty") == 0) {
                     result = &TYPE_STRING;
                 } else {
                     emit_unknown_stdlib_fn(tc, mod, mfn, node);
