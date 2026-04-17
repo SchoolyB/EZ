@@ -4270,7 +4270,18 @@ static void emit_call_expression(CodeGen *cg, AstNode *node) {
                     ? typetable_get(cg->type_table, node->data.call.args[pi]) : NULL;
                 if (!at) continue;
                 if (strcmp(ptn, "?") == 0) {
-                    binding = type_name(at);
+                    /* #1506: inside a generic body, the arg's typetable
+                     * entry is still TK_UNKNOWN ("unknown") from the
+                     * main-pass walk. If the outer wildcard_binding is
+                     * active, use it as the binding — that's the
+                     * concrete type this instantiation was stamped with. */
+                    const char *tn = type_name(at);
+                    if ((at->kind == TK_UNKNOWN || strcmp(tn, "unknown") == 0) &&
+                        cg->wildcard_binding) {
+                        binding = cg->wildcard_binding;
+                    } else {
+                        binding = tn;
+                    }
                 } else if (ptn[0] == '[' && strncmp(ptn + 1, "?]", 2) == 0 &&
                            at->kind == TK_ARRAY && at->element_type) {
                     binding = at->element_type;

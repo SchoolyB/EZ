@@ -304,6 +304,12 @@ static void finalize_generic_sig(FuncSig *fs, AstNode *decl) {
 static bool record_instantiation(FuncSig *fs, const char *concrete,
                                   AstNode *call_site) {
     if (!fs || !concrete) return false;
+    /* #1506: reject "unknown" as a concrete binding. This comes from
+     * the main-pass walk of a generic body where the inner call's
+     * arguments are still `?` (TK_UNKNOWN). The real bindings are
+     * recorded during the slice-4 re-check pass once the outer
+     * function's parameters are rebound to concrete types. */
+    if (strcmp(concrete, "unknown") == 0) return false;
     for (int i = 0; i < fs->instantiation_count; i++) {
         if (strcmp(fs->instantiations[i], concrete) == 0) return false;
     }
@@ -600,9 +606,23 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
     /* Memoize: if we already resolved this node, return the cached type.
      * This prevents duplicate diagnostics when the same subtree is walked
      * multiple times (e.g. builtin call args resolved by both the general
-     * call path and the builtin-specific path). */
+     * call path and the builtin-specific path).
+     *
+     * #1506: skip the cache for call expressions during the re-check
+     * pass (suppress_typetable_writes is true). The re-check walks
+     * generic bodies with concrete parameter bindings; inner calls to
+     * other generic functions need to re-run the dispatch to record
+     * their concrete instantiations. Without this bypass, the cached
+     * TK_UNKNOWN from the main pass short-circuits the resolution and
+     * the inner function's binding never gets recorded. */
     EzType *cached = typetable_get(tc->type_table, node);
-    if (cached) return cached;
+    /* #1506: bypass the cache entirely during the re-check pass
+     * (suppress_typetable_writes). The re-check walks generic bodies
+     * with concrete param bindings; stale TK_UNKNOWN entries from the
+     * main pass prevent inner generic calls from resolving their
+     * concrete bindings. */
+    if (cached && !tc->suppress_typetable_writes)
+        return cached;
 
     EzType *result = &TYPE_UNKNOWN;
 
