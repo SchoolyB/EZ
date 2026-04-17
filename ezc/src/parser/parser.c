@@ -1378,8 +1378,13 @@ static AstNode *parse_func_declaration(Parser *p) {
                         (lit[0] >= 'A' && lit[0] <= 'Z')); /* struct/enum types */
                 }
 
-                if (cur_token_is(p, TOK_IDENT) && peek_token_is(p, TOK_IDENT) && !is_type) {
-                    /* Named return: name type — store both */
+                if (cur_token_is(p, TOK_IDENT) &&
+                    (peek_token_is(p, TOK_IDENT) || peek_token_is(p, TOK_QUESTION) ||
+                     peek_token_is(p, TOK_LBRACKET) || peek_token_is(p, TOK_CARET)) &&
+                    !is_type) {
+                    /* Named return: name type — store both (#1502: accept
+                     * TOK_QUESTION, TOK_LBRACKET, TOK_CARET as type-start
+                     * tokens so `(first ?, items [int], ptr ^T)` work) */
                     const char *ret_name = p->cur_token.literal;
                     next_token(p);
                     int idx = node->data.func_decl.return_type_count;
@@ -1390,7 +1395,7 @@ static AstNode *parse_func_declaration(Parser *p) {
                         return NULL;
                     }
                     node->data.func_decl.return_names[idx] = ret_name;
-                    node->data.func_decl.return_types[idx] = read_type_name(p);
+                    node->data.func_decl.return_types[idx] = parse_complex_type(p);
                     node->data.func_decl.return_type_count++;
                 } else if (cur_token_is(p, TOK_IDENT) && peek_token_is(p, TOK_COMMA) && !is_type) {
                     /* Shared type: (x, y int) — collect names, assign same type */
