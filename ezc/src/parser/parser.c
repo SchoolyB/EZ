@@ -1628,6 +1628,18 @@ static AstNode *parse_struct_declaration(Parser *p) {
     node->data.struct_decl.funcs = arena_alloc(p->arena, sizeof(StructFunc) * func_cap);
 
     while (!cur_token_is(p, TOK_RBRACE) && !cur_token_is(p, TOK_EOF)) {
+        /* #1518: skip #doc attributes on struct functions. Consume
+         * the attribute + any parenthesised args, then continue so
+         * the next token (do/private do) is handled normally. */
+        if (cur_token_is(p, TOK_DOC)) {
+            if (peek_token_is(p, TOK_LPAREN)) {
+                next_token(p);
+                while (!cur_token_is(p, TOK_RPAREN) && !cur_token_is(p, TOK_EOF))
+                    next_token(p);
+            }
+            next_token(p);
+            continue;
+        }
         /* Check for struct-namespaced function: do func() or private do func() */
         if (cur_token_is(p, TOK_DO)) {
             AstNode *fn = parse_func_declaration(p);
