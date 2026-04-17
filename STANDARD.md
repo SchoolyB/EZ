@@ -1730,13 +1730,36 @@ import and use @arrays, @strings
 
 ### 8.4 Using Declaration
 
-The `using` declaration brings module members into scope for unqualified access:
+The `using` declaration brings module members into scope for unqualified access. It can be placed at file scope or function scope:
+
+**File scope** — all functions in the file can use unqualified access:
 
 ```ez
 import @strings
 using strings
 
-to_upper("hello")  // Instead of strings.to_upper
+do main() {
+    println(to_upper("hello"))  // OK — strings is in file scope
+}
+
+do shout(s string) -> string {
+    return to_upper(s)          // OK — same file scope
+}
+```
+
+**Function scope** — only that function can use unqualified access:
+
+```ez
+import @strings
+
+do main() {
+    using strings
+    println(to_upper("hello"))  // OK — strings is in scope here
+}
+
+do shout(s string) -> string {
+    return strings.to_upper(s)  // must qualify — using is not in scope here
+}
 ```
 
 Multiple modules can be listed:
