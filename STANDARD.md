@@ -78,6 +78,12 @@ mut x int = 42  // inline comment
    multi-line comment */
 ```
 
+Multi-line comments can also be used inline within a statement:
+
+```ez
+mut x int = /* default value */ 10
+```
+
 Multi-line comments do not nest. A `/*` inside a multi-line comment has no special meaning.
 
 ### 2.4 Identifiers
