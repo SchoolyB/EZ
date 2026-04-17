@@ -3674,6 +3674,17 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
 
         if (node->data.var_decl.value) {
             EzType *value_type = resolve_expr(tc, node->data.var_decl.value);
+            /* #1507: when a func-pointer call returns TK_UNKNOWN but
+             * the assignment target has a concrete declared type,
+             * push the declared type onto the call node's typetable
+             * entry so codegen can derive the correct function-pointer
+             * return cast instead of defaulting to int64_t. */
+            if (value_type->kind == TK_UNKNOWN && declared->kind != TK_UNKNOWN &&
+                declared->kind != TK_VOID &&
+                node->data.var_decl.value->kind == NODE_CALL_EXPR) {
+                typetable_set(tc->type_table, node->data.var_decl.value, declared);
+                value_type = declared;
+            }
             /* E3038: cannot assign void function result */
             if (value_type->kind == TK_VOID) {
                 diag_error(tc->diag, "E3038",
@@ -4394,6 +4405,16 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
             /* Check first return value type (skip for or_return synthetic returns) */
             EzType *ret_t = resolve_expr(tc, node->data.return_stmt.values[0]);
             EzType *expected = tc->current_return_types[0];
+            /* #1507: same push as var_decl — when a func-pointer call
+             * is the return value and the function's declared return
+             * type is concrete, push it onto the call node so codegen
+             * uses the right function-pointer return cast. */
+            if (ret_t->kind == TK_UNKNOWN && expected->kind != TK_UNKNOWN &&
+                expected->kind != TK_VOID &&
+                node->data.return_stmt.values[0]->kind == NODE_CALL_EXPR) {
+                typetable_set(tc->type_table, node->data.return_stmt.values[0], expected);
+                ret_t = expected;
+            }
             if (ret_t->kind != TK_UNKNOWN && expected->kind != TK_UNKNOWN &&
                 ret_t->kind != expected->kind && ret_t->kind != TK_NIL &&
                 /* int/uint are compatible at kind level (E5024 checks signedness) */
