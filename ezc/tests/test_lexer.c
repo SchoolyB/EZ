@@ -439,10 +439,8 @@ static void test_keyword_blank(void) {
     ASSERT_EQ(next(l).type, TOK_BLANK);
 }
 
-static void test_hash_enum_attr(void) {
-    Lexer *l = lex("#enum");
-    ASSERT_EQ(next(l).type, TOK_ENUM_ATTR);
-}
+/* test_hash_enum_attr removed — #enum attribute was dead code,
+ * stripped entirely in #1513. TOK_ENUM_ATTR no longer exists. */
 
 /* --- Column tracking --- */
 
@@ -654,7 +652,7 @@ int main(void) {
     RUN_TEST(test_keyword_range);
     RUN_TEST(test_keyword_use);
     RUN_TEST(test_keyword_blank);
-    RUN_TEST(test_hash_enum_attr);
+    /* test_hash_enum_attr removed (#1513) */
 
     /* Column tracking */
     RUN_TEST(test_column_tracking);
