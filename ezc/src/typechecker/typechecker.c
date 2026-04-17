@@ -3824,7 +3824,9 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
                        !(declared->kind == TK_POINTER && value_type->kind == TK_POINTER) &&
                        /* Pointer to struct is compatible with struct (new() returns pointer) */
                        !(declared->kind == TK_STRUCT && value_type->kind == TK_POINTER) &&
-                       !(declared->kind == TK_POINTER && value_type->kind == TK_STRUCT)) {
+                       !(declared->kind == TK_POINTER && value_type->kind == TK_STRUCT) &&
+                       /* #1433: implicit int→float coercion when target is float */
+                       !(declared->kind == TK_FLOAT && is_int_kind(value_type->kind))) {
                 /* Type mismatch */
                 char msg[256];
                 snprintf(msg, sizeof(msg),
@@ -3955,6 +3957,9 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
                                     compatible = true;
                                 if (expected_et->kind == TK_ENUM && actual_et->kind == TK_ENUM)
                                     compatible = true;
+                                /* #1433: int→float coercion in array initializer */
+                                if (expected_et->kind == TK_FLOAT && is_int_kind(actual_et->kind))
+                                    compatible = true;
                                 if (!compatible) {
                                     char msg[256];
                                     snprintf(msg, sizeof(msg),
@@ -4028,7 +4033,8 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
                                     !(is_int_kind(expected_k->kind) && is_int_kind(kt->kind)) &&
                                     !(is_int_kind(expected_k->kind) && kt->kind == TK_ENUM) &&
                                     !(expected_k->kind == TK_ENUM && is_int_kind(kt->kind)) &&
-                                    !(expected_k->kind == TK_ENUM && kt->kind == TK_ENUM)) {
+                                    !(expected_k->kind == TK_ENUM && kt->kind == TK_ENUM) &&
+                                    !(expected_k->kind == TK_FLOAT && is_int_kind(kt->kind))) {
                                     char msg[256];
                                     snprintf(msg, sizeof(msg),
                                         "type mismatch in map literal key — expected '%s', got '%s'",
@@ -4043,7 +4049,8 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
                                     !(is_int_kind(expected_v->kind) && vt->kind == TK_ENUM) &&
                                     !(expected_v->kind == TK_ENUM && is_int_kind(vt->kind)) &&
                                     !(expected_v->kind == TK_ENUM && vt->kind == TK_ENUM) &&
-                                    !(expected_v->kind == TK_POINTER && vt->kind == TK_POINTER)) {
+                                    !(expected_v->kind == TK_POINTER && vt->kind == TK_POINTER) &&
+                                    !(expected_v->kind == TK_FLOAT && is_int_kind(vt->kind))) {
                                     char msg[256];
                                     snprintf(msg, sizeof(msg),
                                         "type mismatch in map literal value — expected '%s', got '%s'",
@@ -4364,7 +4371,9 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
                 !(target_t->kind == TK_STRUCT && is_int_kind(value_t->kind)) &&
                 !(target_t->kind == TK_POINTER && node->data.assign.value->kind == NODE_LABEL &&
                   scope_lookup(tc->current_scope, node->data.assign.value->data.label.value) &&
-                  scope_lookup(tc->current_scope, node->data.assign.value->data.label.value)->is_ref)) {
+                  scope_lookup(tc->current_scope, node->data.assign.value->data.label.value)->is_ref) &&
+                /* #1433: implicit int→float coercion */
+                !(target_t->kind == TK_FLOAT && is_int_kind(value_t->kind))) {
                 char msg[256];
                 snprintf(msg, sizeof(msg),
                     "type mismatch: cannot assign %s to %s variable '%s'",
