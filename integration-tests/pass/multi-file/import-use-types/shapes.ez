@@ -1,0 +1,8 @@
+const Point struct {
+    x int
+    y int
+}
+
+do make_point(x int, y int) -> Point {
+    return Point{x: x, y: y}
+}
