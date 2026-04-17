@@ -1,0 +1,12 @@
+/*
+ * Error Test: E3036 - integer range overflow on variable reassignment
+ *
+ * Regression for #1515: E3036 used to fire only at var_decl time.
+ * Reassigning `x = 300` where x is u8 leaked a C truncation
+ * warning instead of a clean EZ diagnostic.
+ */
+
+do main() {
+    mut x u8 = 5
+    x = 300
+}
