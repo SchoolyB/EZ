@@ -4186,6 +4186,59 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
             diag_error(tc->diag, "E3005", strdup(msg),
                 NODE_FILE(tc, node), node->token.line, node->token.column, 0);
         }
+        /* E3036 (#1515): range check on reassignment — the var_decl path
+         * already catches out-of-range literals at declaration, but
+         * reassignment (`x = 300` where x is u8) was unchecked. */
+        if (target->kind == NODE_LABEL && node->data.assign.value) {
+            Symbol *sym = scope_lookup(tc->current_scope, target->data.label.value);
+            if (sym && sym->declared_type) {
+                int64_t lit_val;
+                if (try_get_literal_int(node->data.assign.value, &lit_val)) {
+                    check_integer_range(tc->diag, NODE_FILE(tc, node),
+                        node->data.assign.value->token.line,
+                        node->data.assign.value->token.column,
+                        sym->declared_type, lit_val);
+                }
+            }
+        }
+        /* E3036 (#1515): range check on struct field assignment. */
+        if (target->kind == NODE_MEMBER_EXPR &&
+            target->data.member.object->kind == NODE_LABEL &&
+            node->data.assign.value) {
+            Symbol *sym = scope_lookup(tc->current_scope, target->data.member.object->data.label.value);
+            if (sym && sym->type && sym->type->kind == TK_STRUCT) {
+                EzType *field_t = struct_field_type(tc, sym->type->name, target->data.member.member);
+                if (field_t && field_t->name) {
+                    int64_t lit_val;
+                    if (try_get_literal_int(node->data.assign.value, &lit_val)) {
+                        check_integer_range(tc->diag, NODE_FILE(tc, node),
+                            node->data.assign.value->token.line,
+                            node->data.assign.value->token.column,
+                            field_t->name, lit_val);
+                    }
+                }
+            }
+        }
+        /* Also handle dereferenced pointer field: p^.field = value */
+        if (target->kind == NODE_MEMBER_EXPR &&
+            target->data.member.object->kind == NODE_POSTFIX_EXPR &&
+            target->data.member.object->data.postfix.left->kind == NODE_LABEL &&
+            node->data.assign.value) {
+            Symbol *sym = scope_lookup(tc->current_scope,
+                target->data.member.object->data.postfix.left->data.label.value);
+            if (sym && sym->type && sym->type->kind == TK_POINTER && sym->type->element_type) {
+                EzType *field_t = struct_field_type(tc, sym->type->element_type, target->data.member.member);
+                if (field_t && field_t->name) {
+                    int64_t lit_val;
+                    if (try_get_literal_int(node->data.assign.value, &lit_val)) {
+                        check_integer_range(tc->diag, NODE_FILE(tc, node),
+                            node->data.assign.value->token.line,
+                            node->data.assign.value->token.column,
+                            field_t->name, lit_val);
+                    }
+                }
+            }
+        }
         /* Check type mismatch on assignment (only for direct variable targets) */
         if (target->kind == NODE_LABEL) {
             Symbol *sym = scope_lookup(tc->current_scope, target->data.label.value);
