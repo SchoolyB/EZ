@@ -5846,9 +5846,12 @@ void codegen_generate(CodeGen *cg, AstNode *program) {
                         emit_expression(cg, ev->value);
                     } else if (is_flags) {
                         emitf(cg, " = %d", 1 << j);
-                    } else {
-                        emitf(cg, " = %d", j);
                     }
+                    /* Non-flags without explicit value: omit `= N` and
+                     * let C's enum auto-increment continue from the
+                     * last explicit value (#1511). The old code emitted
+                     * `= j` (0-based position) which ignored preceding
+                     * explicit values entirely. */
                     emit(cg, ",\n");
                 }
                 emitf(cg, "} EzEnum_%s;\n\n", stmt->data.enum_decl.name);
