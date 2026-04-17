@@ -1,0 +1,12 @@
+/*
+ * Error Test: E3062 - const on a mutex handle
+ *
+ * Regression for #1480: mutexes are inherently stateful (lock/unlock
+ * mutate internal state).
+ */
+
+import @sync
+
+do main() {
+    const m = sync.mutex()
+}
