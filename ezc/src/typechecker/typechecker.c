@@ -5170,6 +5170,10 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
             }
         }
 
+        /* Save using-module count so function-scoped `using` doesn't
+         * leak to subsequent functions (#1519). */
+        int prev_using_count = tc->using_module_count;
+
         /* Track current function return types for return statement checking */
         EzType **prev_ret = tc->current_return_types;
         const char **prev_ret_names = tc->current_return_type_names;
@@ -5299,6 +5303,7 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
         tc->current_has_named_returns = prev_named;
         tc->current_return_names = prev_return_names;
         tc->current_main_return_suppressed = saved_main_suppressed;
+        tc->using_module_count = prev_using_count;
         tc->func_depth--;
         tc->current_scope = outer;
         break;

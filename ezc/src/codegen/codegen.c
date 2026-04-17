@@ -5527,6 +5527,7 @@ static void emit_func_declaration(CodeGen *cg, AstNode *node, bool is_main) {
     emit(cg, " {\n");
     cg->indent++;
     AstNode *prev_func = cg->current_func;
+    int prev_using_count = cg->using_module_count;
     cg->current_func = node;
 
     /* Register bigint parameters for type tracking */
@@ -5595,6 +5596,7 @@ static void emit_func_declaration(CodeGen *cg, AstNode *node, bool is_main) {
         }
     }
     cg->current_func = prev_func;
+    cg->using_module_count = prev_using_count;
     cg->indent--;
     emit(cg, "}\n\n");
 }
