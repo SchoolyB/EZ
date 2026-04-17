@@ -1205,8 +1205,12 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                 diag_error(tc->diag, "E4001", strdup(msg),
                     NODE_FILE(tc, node), node->token.line, node->token.column, 0);
             }
-            /* c.func() without import c"..." */
-            if (!mod_imported && strcmp(mod, "c") == 0) {
+            /* c.func() without import c"..." — but only if "c" isn't a
+             * local variable. A variable named `c` with a struct type
+             * should fall through to the struct-method dispatch, not
+             * be treated as the C interop module (#1509). */
+            if (!mod_imported && strcmp(mod, "c") == 0 &&
+                !scope_lookup(tc->current_scope, "c")) {
                 diag_error(tc->diag, "E4001",
                     strdup("C interop requires a C header import — add import c\"header.h\" at the top of the file"),
                     NODE_FILE(tc, node), node->token.line, node->token.column, 0);
@@ -2015,26 +2019,68 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                     }
                 } else {
                     /* Check if 'mod' is a variable with a struct type —
-                     * user likely wrote instance.func() instead of Type.func() */
+                     * user wrote instance.func() instead of Type.func(). */
                     Symbol *sym = scope_lookup(tc->current_scope, mod_raw);
                     if (sym && sym->type && (sym->type->kind == TK_STRUCT ||
                         sym->type->kind == TK_POINTER)) {
                         const char *sname = sym->type->kind == TK_POINTER
                             ? sym->type->element_type : sym->type->name;
-                        char msg[256];
-                        snprintf(msg, sizeof(msg),
-                            "struct functions must be called on the type — use '%s.%s()' instead of '%s.%s()'",
-                            sname, mfn, mod_raw, mfn);
-                        diag_error(tc->diag, "E3042", strdup(msg),
-                            NODE_FILE(tc, fn), fn->token.line, fn->token.column, 0);
-                        /* Resolve return type to avoid cascading errors */
                         char sfn[256];
                         snprintf(sfn, sizeof(sfn), "%s_%s", sname, mfn);
                         FuncSig *ssig = find_func(tc, sfn);
-                        if (ssig && ssig->return_count > 0) {
-                            result = ssig->return_types[0];
+                        /* #1509: if the struct function's first param is
+                         * mutable (&self), auto-dispatch instance.method()
+                         * → Type.method(instance) by rewriting the AST.
+                         * This lets codegen's existing static-dispatch path
+                         * handle it, including the &-prefixing for mutable
+                         * params. Without this, users have to manually write
+                         * Counter.increment(c) which is unintuitive. */
+                        bool is_self_method = false;
+                        if (ssig && ssig->decl && ssig->decl->kind == NODE_FUNC_DECL &&
+                            ssig->decl->data.func_decl.param_count > 0 &&
+                            ssig->decl->data.func_decl.params[0].mutable) {
+                            const char *p0_tn = ssig->decl->data.func_decl.params[0].type_name;
+                            if (p0_tn && strcmp(p0_tn, sname) == 0) {
+                                is_self_method = true;
+                            }
+                        }
+                        if (is_self_method) {
+                            /* Rewrite the call AST: change the member-expr
+                             * object from the instance label to the type
+                             * name, and prepend the instance as arg[0]. */
+                            fn->data.member.object->data.label.value = strdup(sname);
+                            int orig_count = node->data.call.arg_count;
+                            AstNode **new_args = malloc(sizeof(AstNode *) * (orig_count + 1));
+                            AstNode *self_arg = calloc(1, sizeof(AstNode));
+                            self_arg->kind = NODE_LABEL;
+                            self_arg->token = node->token;
+                            self_arg->data.label.value = strdup(mod_raw);
+                            new_args[0] = self_arg;
+                            for (int ai = 0; ai < orig_count; ai++) {
+                                new_args[ai + 1] = node->data.call.args[ai];
+                            }
+                            node->data.call.args = new_args;
+                            node->data.call.arg_count = orig_count + 1;
+                            /* Mark the function used and resolve return type */
+                            ssig->used = true;
+                            sym->used = true;
+                            if (ssig->return_count > 0) {
+                                result = ssig->return_types[0];
+                            } else {
+                                result = &TYPE_VOID;
+                            }
                         } else {
-                            result = &TYPE_VOID;
+                            char msg[256];
+                            snprintf(msg, sizeof(msg),
+                                "struct functions must be called on the type — use '%s.%s()' instead of '%s.%s()'",
+                                sname, mfn, mod_raw, mfn);
+                            diag_error(tc->diag, "E3042", strdup(msg),
+                                NODE_FILE(tc, fn), fn->token.line, fn->token.column, 0);
+                            if (ssig && ssig->return_count > 0) {
+                                result = ssig->return_types[0];
+                            } else {
+                                result = &TYPE_VOID;
+                            }
                         }
                     } else {
                         result = &TYPE_VOID;
