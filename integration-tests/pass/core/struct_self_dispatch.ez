@@ -1,0 +1,73 @@
+/*
+ * struct_self_dispatch.ez - Instance dispatch for &self struct methods.
+ *
+ * Regression for #1509 (bug reported during hunt):
+ *   - `c.increment()` fired E4001 "C interop requires header" because
+ *     the variable was named "c", colliding with the C-interop check.
+ *   - `counter.increment()` fired E3042 "struct functions must be
+ *     called on the type" for any other variable name.
+ *   Both are now auto-dispatched: `instance.method()` where the struct
+ *   function's first param is `&self StructType` rewrites to
+ *   `StructType.method(instance)` and flows through static dispatch.
+ */
+
+const Counter struct {
+    val int
+
+    do increment(&self Counter) {
+        self.val += 1
+    }
+
+    do get_val(&self Counter) -> int {
+        return self.val
+    }
+}
+
+do main() {
+    println("=== Struct &self Dispatch Test ===")
+    mut passed int = 0
+    mut failed int = 0
+
+    // -- instance dispatch with variable named "c" (was E4001) --
+    mut c Counter = Counter{val: 0}
+    c.increment()
+    c.increment()
+    c.increment()
+    if c.get_val() == 3 {
+        println("  [PASS] c.increment() x3 via &self dispatch")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] c.get_val() = ${c.get_val()}")
+        failed += 1
+    }
+
+    // -- instance dispatch with longer variable name (was E3042) --
+    mut counter Counter = Counter{val: 10}
+    counter.increment()
+    if counter.get_val() == 11 {
+        println("  [PASS] counter.increment() via &self dispatch")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] counter.get_val() = ${counter.get_val()}")
+        failed += 1
+    }
+
+    // -- static dispatch still works --
+    mut s Counter = Counter{val: 100}
+    Counter.increment(s)
+    if s.val == 101 {
+        println("  [PASS] Counter.increment(s) static dispatch")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] s.val = ${s.val}")
+        failed += 1
+    }
+
+    println("")
+    println("Results: ${passed} passed, ${failed} failed")
+    if failed > 0 {
+        println("SOME TESTS FAILED")
+    } otherwise {
+        println("ALL TESTS PASSED")
+    }
+}
