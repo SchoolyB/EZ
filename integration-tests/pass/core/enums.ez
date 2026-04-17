@@ -27,8 +27,7 @@ const Status enum {
     DONE = "done"
 }
 
-/* Explicit int enum (same as default) */
-#enum(int)
+/* Int enum without explicit attribute (auto-detected) */
 const Priority enum {
     LOW       // 0
     MEDIUM    // 1
@@ -132,15 +131,15 @@ do main() {
         failed += 1
     }
 
-    // ==================== EXPLICIT INT ENUM ====================
-    println("  -- Explicit #enum(int) --")
+    // ==================== INT ENUM (auto-detected) ====================
+    println("  -- Int Enum (auto-detected) --")
 
-    // Test 10: #enum(int) works like default
+    // Test 10: int enum auto-increment works without any attribute
     if Priority.LOW == 0 && Priority.MEDIUM == 1 && Priority.HIGH == 2 {
-        println("  [PASS] #enum(int) auto-increment (0, 1, 2)")
+        println("  [PASS] int enum auto-increment (0, 1, 2)")
         passed += 1
     } otherwise {
-        println("  [FAIL] #enum(int): LOW=${Priority.LOW}, MEDIUM=${Priority.MEDIUM}, HIGH=${Priority.HIGH}")
+        println("  [FAIL] int enum: LOW=${Priority.LOW}, MEDIUM=${Priority.MEDIUM}, HIGH=${Priority.HIGH}")
         failed += 1
     }
 
