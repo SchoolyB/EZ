@@ -304,6 +304,16 @@ mut pi float = 3.14159
 mut negative float = -2.5
 ```
 
+Integer values are implicitly promoted to `float` when the target type is `float`, `f32`, or `f64`. This applies to variable declarations, assignments, function arguments, map literal values, and return statements:
+
+```ez
+mut x float = 5       // 5.0
+mut y f64 = 1          // 1.0
+x = 42                 // 42.0
+```
+
+No explicit `float()` cast is needed. The promotion is lossless for values within the floating-point range.
+
 #### 3.1.4 String Type (`string`)
 
 The `string` type represents a UTF-8 encoded byte sequence. String indexing (`str[i]`) returns the byte at byte position `i`, not a Unicode codepoint. `len()` returns the byte length, not the character count.
