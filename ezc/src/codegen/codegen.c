@@ -83,6 +83,7 @@ static const char *safe_name(const char *name) {
  * string has no wildcard. The substituted string lives in a small ring
  * of static buffers so a handful of nested calls can each keep their
  * result alive simultaneously. */
+static const char *multi_base_name(const char *fn_name);
 static const char *cg_effective_type_str(CodeGen *cg, const char *type_name) {
     if (!type_name || !cg || !cg->wildcard_binding) return type_name;
     if (!strchr(type_name, '?')) return type_name;
@@ -5033,9 +5034,8 @@ static void emit_return_statement(CodeGen *cg, AstNode *node) {
     if (node->data.return_stmt.count > 1 && cg->current_func) {
         /* Multi-return: evaluate into temp, then exit and return */
         emit_indent(cg);
-        emitf(cg, "{ EzMulti_%s _ret = (EzMulti_%s){",
-            cg->current_func->data.func_decl.name,
-            cg->current_func->data.func_decl.name);
+        const char *mbn = multi_base_name(cg->current_func->data.func_decl.name);
+        emitf(cg, "{ EzMulti_%s _ret = (EzMulti_%s){", mbn, mbn);
         for (int i = 0; i < node->data.return_stmt.count; i++) {
             if (i > 0) emit(cg, ", ");
             emit_expression(cg, node->data.return_stmt.values[i]);
@@ -5046,9 +5046,8 @@ static void emit_return_statement(CodeGen *cg, AstNode *node) {
         /* Single value returned from multi-return function (or_return propagation) */
         int rc = cg->current_func->data.func_decl.return_type_count;
         emit_indent(cg);
-        emitf(cg, "{ EzMulti_%s _ret = (EzMulti_%s){",
-            cg->current_func->data.func_decl.name,
-            cg->current_func->data.func_decl.name);
+        const char *mbn2 = multi_base_name(cg->current_func->data.func_decl.name);
+        emitf(cg, "{ EzMulti_%s _ret = (EzMulti_%s){", mbn2, mbn2);
         for (int i = 0; i < rc - 1; i++) {
             emit(cg, "{0}, ");
         }
@@ -5091,9 +5090,8 @@ static void emit_return_statement(CodeGen *cg, AstNode *node) {
                 safe_name(cg->current_func->data.func_decl.return_names[0]));
         } else {
             emit_indent(cg);
-            emitf(cg, "{ EzMulti_%s _ret = (EzMulti_%s){",
-                cg->current_func->data.func_decl.name,
-                cg->current_func->data.func_decl.name);
+            const char *mbn3 = multi_base_name(cg->current_func->data.func_decl.name);
+            emitf(cg, "{ EzMulti_%s _ret = (EzMulti_%s){", mbn3, mbn3);
             for (int i = 0; i < rc; i++) {
                 if (i > 0) emit(cg, ", ");
                 if (cg->current_func->data.func_decl.return_names[i]) {
@@ -5253,6 +5251,27 @@ static void emit_loop_statement(CodeGen *cg, AstNode *node) {
     emit(cg, "}\n");
 }
 
+/* #1508: extract the base (unmangled) function name for multi-return
+ * struct references. The monomorphiser temporarily renames functions
+ * to `<name>__<binding>`, but the EzMulti typedef is emitted once
+ * under the original name. Returns a pointer to a small ring of
+ * static buffers so a few concurrent uses stay alive. */
+static const char *multi_base_name(const char *fn_name) {
+    static char bufs[4][256];
+    static int bi = 0;
+    char *out = bufs[bi]; bi = (bi + 1) & 3;
+    const char *dunder = strstr(fn_name, "__");
+    if (dunder) {
+        size_t n = (size_t)(dunder - fn_name);
+        if (n >= sizeof(bufs[0])) n = sizeof(bufs[0]) - 1;
+        memcpy(out, fn_name, n);
+        out[n] = '\0';
+    } else {
+        snprintf(out, sizeof(bufs[0]), "%s", fn_name);
+    }
+    return out;
+}
+
 /* Build a multi-return type name like EzMulti_add */
 static void emit_multi_return_typedef(CodeGen *cg, AstNode *node) {
     emitf(cg, "typedef struct {\n");
@@ -5268,8 +5287,21 @@ static const char *func_return_type(CodeGen *cg, AstNode *node) {
     if (node->data.func_decl.return_type_count == 1) {
         return ez_type_to_c_cg(cg, node->data.func_decl.return_types[0]);
     }
+    /* #1508: use the base (unmangled) function name for the multi-return
+     * struct. The monomorphiser temporarily renames the func to
+     * `<name>__<binding>`, but the EzMulti typedef is emitted once
+     * under the original name. Strip any `__` suffix so all
+     * instantiations share the same return struct. */
     static char buf[256];
-    snprintf(buf, sizeof(buf), "EzMulti_%s", node->data.func_decl.name);
+    const char *fn_name = node->data.func_decl.name;
+    const char *dunder = strstr(fn_name, "__");
+    if (dunder) {
+        size_t base_len = (size_t)(dunder - fn_name);
+        if (base_len >= sizeof(buf) - 10) base_len = sizeof(buf) - 10;
+        snprintf(buf, sizeof(buf), "EzMulti_%.*s", (int)base_len, fn_name);
+    } else {
+        snprintf(buf, sizeof(buf), "EzMulti_%s", fn_name);
+    }
     return buf;
 }
 
@@ -5354,7 +5386,7 @@ static void emit_func_declaration(CodeGen *cg, AstNode *node, bool is_main) {
                 if (rc == 1 && node->data.func_decl.return_names[0]) {
                     emitf(cg, "return %s;\n", safe_name(node->data.func_decl.return_names[0]));
                 } else {
-                    emitf(cg, "return (EzMulti_%s){", node->data.func_decl.name);
+                    emitf(cg, "return (EzMulti_%s){", multi_base_name(node->data.func_decl.name));
                     for (int i = 0; i < rc; i++) {
                         if (i > 0) emit(cg, ", ");
                         if (node->data.func_decl.return_names[i]) {
