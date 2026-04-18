@@ -5249,7 +5249,7 @@ static void emit_return_statement(CodeGen *cg, AstNode *node) {
                cg->current_func->data.func_decl.return_type_count == 0) {
         /* Void function */
         emit_indent(cg);
-        emit(cg, "ez_exit_func(); return;\n");
+        emit(cg, "ez_scope_restore(ez_default_arena, _scope_mark); ez_exit_func(); return;\n");
     } else if (node->data.return_stmt.count == 1) {
         /* Single return value: evaluate into temp, then exit and return */
         /* Check if we need to dereference a pointer return (new() returns pointer,
@@ -5297,7 +5297,7 @@ static void emit_return_statement(CodeGen *cg, AstNode *node) {
     } else {
         /* Bare return (no value, non-void — shouldn't happen but handle gracefully) */
         emit_indent(cg);
-        emit(cg, "ez_exit_func(); return;\n");
+        emit(cg, "ez_scope_restore(ez_default_arena, _scope_mark); ez_exit_func(); return;\n");
     }
 }
 
@@ -5437,6 +5437,8 @@ static void emit_loop_statement(CodeGen *cg, AstNode *node) {
     emit(cg, "for (;;) {\n");
 
     cg->indent++;
+    /* #1521 phase 2: scope each loop iteration */
+    emit_indent(cg);
     emit_block(cg, node->data.loop_stmt.body);
     cg->indent--;
     emit_indent(cg);
@@ -5550,6 +5552,16 @@ static void emit_func_declaration(CodeGen *cg, AstNode *node, bool is_main) {
 
     emit(cg, " {\n");
     cg->indent++;
+
+    /* #1521: scope-based memory — save arena watermark on entry.
+     * For void functions, restore on exit to free all temporaries.
+     * For non-void functions, skip restore (return value must survive). */
+    bool is_void_fn = (node->data.func_decl.return_type_count == 0);
+    if (is_void_fn && !is_main) {
+        emit_indent(cg);
+        emit(cg, "EzScopeMark _scope_mark = ez_scope_save(ez_default_arena);\n");
+    }
+
     AstNode *prev_func = cg->current_func;
     int prev_using_count = cg->using_module_count;
     cg->current_func = node;
@@ -5589,6 +5601,11 @@ static void emit_func_declaration(CodeGen *cg, AstNode *node, bool is_main) {
         emit_block(cg, node->data.func_decl.body);
         /* Emit ensure cleanup at end of function (for implicit returns) */
         emit_ensure_cleanup(cg);
+        /* #1521: restore arena to watermark for void functions */
+        if (is_void_fn && !is_main) {
+            emit_indent(cg);
+            emit(cg, "ez_scope_restore(ez_default_arena, _scope_mark);\n");
+        }
         emit_indent(cg);
         emit(cg, "ez_exit_func();\n");
 

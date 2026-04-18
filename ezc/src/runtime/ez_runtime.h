@@ -98,6 +98,23 @@ EzString ez_string_concat(EzArena *arena, EzString a, EzString b);
 void ez_runtime_init(void);
 void ez_runtime_shutdown(void);
 
+/* --- Scope-based memory management (#1521) --- */
+
+/* Watermark for mark-and-reset scoping. Save the arena's usage at
+ * scope entry; on scope exit, reset to the watermark to free all
+ * allocations made during the scope. */
+typedef struct {
+    EzArenaBlock *block;
+    size_t used;
+} EzScopeMark;
+
+/* Save current arena state */
+EzScopeMark ez_scope_save(EzArena *arena);
+
+/* Restore arena to a saved state — frees everything allocated after
+ * the mark. Only called for void scopes (no return value to preserve). */
+void ez_scope_restore(EzArena *arena, EzScopeMark mark);
+
 /* --- Stack depth guard --- */
 
 #define EZ_MAX_CALL_DEPTH 10000

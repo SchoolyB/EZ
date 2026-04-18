@@ -153,6 +153,28 @@ EzString ez_string_concat(EzArena *arena, EzString a, EzString b) {
     return s;
 }
 
+/* --- Scope-based memory management (#1521) --- */
+
+EzScopeMark ez_scope_save(EzArena *arena) {
+    EzScopeMark m;
+    m.block = arena->current;
+    m.used = arena->current ? arena->current->used : 0;
+    return m;
+}
+
+void ez_scope_restore(EzArena *arena, EzScopeMark mark) {
+    /* Reset all blocks AFTER the marked block */
+    if (!mark.block) return;
+    EzArenaBlock *block = mark.block->next;
+    while (block) {
+        block->used = 0;
+        block = block->next;
+    }
+    /* Reset the marked block to the saved position */
+    mark.block->used = mark.used;
+    arena->current = mark.block;
+}
+
 /* --- Stack depth guard --- */
 int ez_call_depth = 0;
 
