@@ -1,0 +1,16 @@
+/*
+ * Error Test: E3001 - conflicting wildcard bindings in struct literal
+ *
+ * Feature #1520: all ? fields bind to the same concrete type per
+ * instantiation. first=int and second=string is a conflict and must
+ * be rejected.
+ */
+
+const Pair struct {
+    first ?
+    second ?
+}
+
+do main() {
+    mut p = Pair{first: 1, second: "x"}
+}
