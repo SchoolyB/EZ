@@ -151,6 +151,7 @@ struct AstNode {
             const char **field_names;
             AstNode **field_values;
             int count;
+            const char *wildcard_binding; /* #1520: concrete type for ? fields */
         } struct_value;
 
         /* NODE_PREFIX_EXPR */
@@ -293,6 +294,9 @@ struct AstNode {
             StructFunc *funcs;
             int func_count;
             bool is_json; /* #json attribute — enables JSON ser/deser */
+            bool is_generic; /* has ? in at least one field type */
+            const char **instantiations; /* concrete bindings (#1520) */
+            int instantiation_count;
         } struct_decl;
 
         /* NODE_ENUM_DECL */

@@ -13,6 +13,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdint.h>
+#include <ctype.h>
 
 /* Helper: get the source file from an AST node's token, falling back to tc->file.
  * Imported nodes carry their original file path in token.file; main-file nodes have NULL. */
@@ -125,6 +126,8 @@ static const char *tc_resolve_alias(TypeChecker *tc, const char *name) {
     return name;
 }
 
+static AstNode *find_struct_in_program(AstNode *program, const char *name);
+
 static bool is_struct_name(TypeChecker *tc, const char *name) {
     for (int i = 0; i < tc->struct_count; i++) {
         if (strcmp(tc->structs[i].struct_name, name) == 0) return true;
@@ -142,10 +145,62 @@ static StructInfo *find_struct(TypeChecker *tc, const char *name) {
 
 static EzType *struct_field_type(TypeChecker *tc, const char *struct_name, const char *field) {
     StructInfo *si = find_struct(tc, struct_name);
+    /* #1520: for mangled generic struct names (Pair__int), fall back
+     * to the base name (Pair) since fields are registered there.
+     * When the field type is "?", substitute the concrete binding
+     * extracted from the mangled suffix. */
+    const char *generic_binding = NULL;
+    if (!si && struct_name) {
+        const char *dunder = strstr(struct_name, "__");
+        if (dunder) {
+            char base[256];
+            size_t n = (size_t)(dunder - struct_name);
+            if (n < sizeof(base)) {
+                memcpy(base, struct_name, n);
+                base[n] = '\0';
+                si = find_struct(tc, base);
+                generic_binding = dunder + 2;
+            }
+        }
+    }
     if (!si) return &TYPE_UNKNOWN;
     for (int i = 0; i < si->field_count; i++) {
-        if (strcmp(si->field_names[i], field) == 0)
+        if (strcmp(si->field_names[i], field) == 0) {
+            /* #1520: if the field type is ? (registered as TK_UNKNOWN)
+             * and we have a generic binding from the mangled name,
+             * substitute to the concrete type. Check the raw decl
+             * type_name since the resolved EzType lost the "?" marker. */
+            if (generic_binding && si->field_types[i]->kind == TK_UNKNOWN) {
+                /* Find the raw struct decl to check the field type_name */
+                if (tc->program) {
+                    AstNode *decl = find_struct_in_program(tc->program,
+                        struct_name); /* try mangled first */
+                    if (!decl) {
+                        /* Extract base name and try again */
+                        const char *dd = strstr(struct_name, "__");
+                        if (dd) {
+                            char bname[256];
+                            size_t bn = (size_t)(dd - struct_name);
+                            if (bn < sizeof(bname)) {
+                                memcpy(bname, struct_name, bn);
+                                bname[bn] = '\0';
+                                decl = find_struct_in_program(tc->program, bname);
+                            }
+                        }
+                    }
+                    if (decl) {
+                        for (int fi = 0; fi < decl->data.struct_decl.field_count; fi++) {
+                            if (strcmp(decl->data.struct_decl.fields[fi].name, field) == 0 &&
+                                decl->data.struct_decl.fields[fi].type_name &&
+                                strchr(decl->data.struct_decl.fields[fi].type_name, '?')) {
+                                return type_from_name(generic_binding);
+                            }
+                        }
+                    }
+                }
+            }
             return si->field_types[i];
+        }
     }
     return &TYPE_UNKNOWN;
 }
@@ -632,6 +687,8 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node);
  * quotes the function name — otherwise it falls back to a generic
  * "void expression" wording. Caller-suppliable context keeps each
  * diagnostic site self-describing without a zillion format strings. */
+static AstNode *find_struct_in_program(AstNode *program, const char *name);
+
 static void reject_void_in_context(TypeChecker *tc, AstNode *expr,
                                     EzType *t, const char *context) {
     if (!t || t->kind != TK_VOID || !expr) return;
@@ -3514,7 +3571,72 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                 }
             }
         }
-        result = type_struct(sname);
+        /* #1520: for generic structs, infer the wildcard binding from
+         * the field values and record the instantiation on the struct
+         * decl so codegen can emit per-binding typedefs. */
+        AstNode *sdecl = find_struct_in_program(tc->program, sname);
+        if (sdecl && sdecl->data.struct_decl.is_generic) {
+            const char *binding = NULL;
+            for (int i = 0; i < node->data.struct_value.count; i++) {
+                const char *fname = node->data.struct_value.field_names[i];
+                if (!fname) continue;
+                /* Find the field's declared type in the struct decl */
+                for (int j = 0; j < sdecl->data.struct_decl.field_count; j++) {
+                    if (strcmp(sdecl->data.struct_decl.fields[j].name, fname) == 0 &&
+                        sdecl->data.struct_decl.fields[j].type_name &&
+                        strcmp(sdecl->data.struct_decl.fields[j].type_name, "?") == 0) {
+                        EzType *val_t = typetable_get(tc->type_table,
+                            node->data.struct_value.field_values[i]);
+                        if (!val_t) val_t = resolve_expr(tc, node->data.struct_value.field_values[i]);
+                        if (val_t && val_t->kind != TK_UNKNOWN) {
+                            const char *concrete = type_name(val_t);
+                            if (!binding) {
+                                binding = concrete;
+                            } else if (strcmp(binding, concrete) != 0) {
+                                char msg[256];
+                                snprintf(msg, sizeof(msg),
+                                    "wildcard type conflict in struct '%s': '?' was bound to %s, but field '%s' is %s",
+                                    sname, binding, fname, concrete);
+                                diag_error(tc->diag, "E3001", strdup(msg),
+                                    NODE_FILE(tc, node), node->token.line, node->token.column, 0);
+                            }
+                        }
+                        break;
+                    }
+                }
+            }
+            if (binding) {
+                node->data.struct_value.wildcard_binding = strdup(binding);
+                /* Record instantiation on the struct decl */
+                bool already = false;
+                for (int ii = 0; ii < sdecl->data.struct_decl.instantiation_count; ii++) {
+                    if (strcmp(sdecl->data.struct_decl.instantiations[ii], binding) == 0) {
+                        already = true;
+                        break;
+                    }
+                }
+                if (!already) {
+                    int n = sdecl->data.struct_decl.instantiation_count;
+                    sdecl->data.struct_decl.instantiations = realloc(
+                        (void *)sdecl->data.struct_decl.instantiations,
+                        sizeof(const char *) * (size_t)(n + 1));
+                    sdecl->data.struct_decl.instantiations[n] = strdup(binding);
+                    sdecl->data.struct_decl.instantiation_count = n + 1;
+                }
+                /* Return mangled struct type */
+                char mangled[256];
+                size_t pos = snprintf(mangled, sizeof(mangled), "%s__", sname);
+                for (const char *c = binding; *c && pos < sizeof(mangled) - 1; c++) {
+                    mangled[pos++] = (isalnum((unsigned char)*c) || *c == '_') ? *c : '_';
+                }
+                mangled[pos] = '\0';
+                result = type_struct(strdup(mangled));
+            } else {
+                result = type_struct(sname);
+            }
+        } else {
+            result = type_struct(sname);
+        }
         break;
     }
 
@@ -5802,6 +5924,18 @@ static void register_declarations(TypeChecker *tc, AstNode *program) {
                     NODE_FILE(tc, stmt), stmt->token.line, stmt->token.column, 0);
             }
             register_struct(tc, stmt->data.struct_decl.name, fnames, ftypes, fc);
+
+            /* #1520: detect generic structs (any field with ? in type) */
+            stmt->data.struct_decl.is_generic = false;
+            stmt->data.struct_decl.instantiations = NULL;
+            stmt->data.struct_decl.instantiation_count = 0;
+            for (int j = 0; j < fc; j++) {
+                if (stmt->data.struct_decl.fields[j].type_name &&
+                    strchr(stmt->data.struct_decl.fields[j].type_name, '?')) {
+                    stmt->data.struct_decl.is_generic = true;
+                    break;
+                }
+            }
 
             /* Register struct-namespaced functions as StructName_funcName */
             for (int j = 0; j < stmt->data.struct_decl.func_count; j++) {

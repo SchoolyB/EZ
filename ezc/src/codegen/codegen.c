@@ -1050,7 +1050,19 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
                 }
             }
         }
-        emitf(cg, "(EzStruct_%s){", sname);
+        /* #1520: use mangled name for generic struct instantiations */
+        if (node->data.struct_value.wildcard_binding) {
+            const char *binding = node->data.struct_value.wildcard_binding;
+            char mangled[256];
+            size_t mpos = snprintf(mangled, sizeof(mangled), "%s__", sname);
+            for (const char *c = binding; *c && mpos < sizeof(mangled) - 1; c++) {
+                mangled[mpos++] = (isalnum((unsigned char)*c) || *c == '_') ? *c : '_';
+            }
+            mangled[mpos] = '\0';
+            emitf(cg, "(EzStruct_%s){", mangled);
+        } else {
+            emitf(cg, "(EzStruct_%s){", sname);
+        }
         for (int i = 0; i < node->data.struct_value.count; i++) {
             if (i > 0) emit(cg, ", ");
             emitf(cg, ".%s = ", safe_name(node->data.struct_value.field_names[i]));
@@ -4861,7 +4873,19 @@ static void emit_var_declaration(CodeGen *cg, AstNode *node) {
         } else if (val->kind == NODE_MAP_VALUE) {
             c_type = "EzMap";
         } else if (val->kind == NODE_STRUCT_VALUE) {
-            c_type = ez_type_to_c_cg(cg, val->data.struct_value.name);
+            /* #1520: use mangled name for generic struct instantiations */
+            if (val->data.struct_value.wildcard_binding) {
+                const char *binding = val->data.struct_value.wildcard_binding;
+                const char *base = val->data.struct_value.name;
+                static char sv_buf[256];
+                size_t sp = snprintf(sv_buf, sizeof(sv_buf), "%s__", base);
+                for (const char *c = binding; *c && sp < sizeof(sv_buf) - 1; c++)
+                    sv_buf[sp++] = (isalnum((unsigned char)*c) || *c == '_') ? *c : '_';
+                sv_buf[sp] = '\0';
+                c_type = ez_type_to_c_cg(cg, sv_buf);
+            } else {
+                c_type = ez_type_to_c_cg(cg, val->data.struct_value.name);
+            }
         } else if (val->kind == NODE_INFIX_EXPR) {
             /* Check type table for infix result type */
             EzType *infix_t = cg->type_table ? typetable_get(cg->type_table, val) : NULL;
@@ -6165,8 +6189,10 @@ void codegen_generate(CodeGen *cg, AstNode *program) {
             }
         }
 
-        /* Emit forward declarations so pointer fields can reference any struct */
+        /* Emit forward declarations so pointer fields can reference any struct.
+         * Skip generic structs — their forward decls are per-instantiation. */
         for (int i = 0; i < struct_count; i++) {
+            if (structs[i]->data.struct_decl.is_generic) continue;
             emitf(cg, "typedef struct EzStruct_%s EzStruct_%s;\n",
                 structs[i]->data.struct_decl.name,
                 structs[i]->data.struct_decl.name);
@@ -6197,6 +6223,9 @@ void codegen_generate(CodeGen *cg, AstNode *program) {
                 if (deps_met) {
                     emitted[i] = true;
                     emit_count++;
+                    /* #1520: skip generic structs here — they're
+                     * emitted per-instantiation below. */
+                    if (s->data.struct_decl.is_generic) continue;
                     emitf(cg, "struct EzStruct_%s {\n", s->data.struct_decl.name);
                     for (int j = 0; j < s->data.struct_decl.field_count; j++) {
                         StructField *f = &s->data.struct_decl.fields[j];
@@ -6217,6 +6246,34 @@ void codegen_generate(CodeGen *cg, AstNode *program) {
                 }
                 emit(cg, "};\n\n");
             }
+        }
+    }
+
+    /* #1520: emit per-instantiation typedefs for generic (wildcard) structs.
+     * For each recorded binding, substitute ? → concrete in field types
+     * and emit under a mangled name (e.g. EzStruct_Pair__int). */
+    for (int i = 0; i < program->data.program.stmt_count; i++) {
+        AstNode *stmt = program->data.program.stmts[i];
+        if (stmt->kind != NODE_STRUCT_DECL || !stmt->data.struct_decl.is_generic) continue;
+        for (int ii = 0; ii < stmt->data.struct_decl.instantiation_count; ii++) {
+            const char *concrete = stmt->data.struct_decl.instantiations[ii];
+            char mangled[256];
+            size_t pos = snprintf(mangled, sizeof(mangled), "%s__", stmt->data.struct_decl.name);
+            for (const char *c = concrete; *c && pos < sizeof(mangled) - 1; c++) {
+                mangled[pos++] = (isalnum((unsigned char)*c) || *c == '_') ? *c : '_';
+            }
+            mangled[pos] = '\0';
+            /* Forward declaration */
+            emitf(cg, "typedef struct EzStruct_%s EzStruct_%s;\n", mangled, mangled);
+            emitf(cg, "struct EzStruct_%s {\n", mangled);
+            const char *saved = cg->wildcard_binding;
+            cg->wildcard_binding = concrete;
+            for (int j = 0; j < stmt->data.struct_decl.field_count; j++) {
+                StructField *f = &stmt->data.struct_decl.fields[j];
+                emitf(cg, "    %s %s;\n", ez_type_to_c_cg(cg, f->type_name), safe_name(f->name));
+            }
+            cg->wildcard_binding = saved;
+            emit(cg, "};\n\n");
         }
     }
 

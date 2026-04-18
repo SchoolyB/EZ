@@ -1750,13 +1750,9 @@ static AstNode *parse_struct_declaration(Parser *p) {
         /* Current token is now the type — parse it and backfill all names in this group */
         const char *type_name = parse_complex_type(p);
         if (!type_name) return NULL;
-        /* E2070: wildcard `?` not allowed in struct field types */
-        if (type_string_has_wildcard(type_name)) {
-            diag_error(p->diag, "E2070",
-                arena_strdup(p->arena,
-                    "wildcard type '?' is not allowed in struct fields — only in function parameter and return types"),
-                p->file, p->cur_token.line, p->cur_token.column, 0);
-        }
+        /* #1520: `?` is now allowed in struct fields for generic structs.
+         * The E2070 rejection was removed — the typechecker validates
+         * binding consistency at each struct literal usage site. */
         for (int i = group_start; i < node->data.struct_decl.field_count; i++) {
             node->data.struct_decl.fields[i].type_name = type_name;
         }
