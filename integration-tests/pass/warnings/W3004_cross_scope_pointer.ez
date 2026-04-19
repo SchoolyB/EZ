@@ -1,0 +1,22 @@
+/*
+ * Warning Test: W3004 - cross-scope pointer assignment
+ *
+ * Feature #1521: when a pointer in outer scope is assigned from
+ * addr() of a value in an inner scope, warn that the pointer may
+ * dangle after the inner scope ends.
+ *
+ * Expected: W3004 warning, program still compiles.
+ */
+
+const Node struct {
+    val int
+}
+
+do main() {
+    mut p ?^Node = nil
+    if true {
+        mut n = new(Node)
+        p = addr(n)
+    }
+    println("compiled with warning")
+}

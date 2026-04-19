@@ -1,0 +1,14 @@
+/*
+ * Error Test: E3001 - non-nullable ^T rejects nil assignment
+ *
+ * Feature #1521: ^T is non-nullable by default. Use ?^T for
+ * nullable pointers.
+ */
+
+const Node struct {
+    val int
+}
+
+do main() {
+    mut p ^Node = nil
+}
