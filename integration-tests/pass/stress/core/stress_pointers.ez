@@ -52,7 +52,7 @@ do main() {
     }
 
     // Pointer comparison with nil
-    mut n ^Point = nil
+    mut n ?^Point = nil
     if n == nil {
         println("  [PASS] pointer nil comparison")
         passed += 1

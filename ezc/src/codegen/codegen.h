@@ -28,6 +28,10 @@ typedef struct {
     /* Current function context (for multi-return, ensure) */
     AstNode *current_func;
 
+    /* #1521: loop scoping depth — when > 0, codegen is inside a
+     * scoped loop and container mutations need escape-copy logic. */
+    int loop_scope_depth;
+
     /* All function declarations (for mutable param lookup at call sites) */
     AstNode **all_funcs;
     int func_count;

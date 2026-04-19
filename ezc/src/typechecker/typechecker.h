@@ -123,6 +123,11 @@ typedef struct {
     const char **alias_modules;
     int alias_count;
     int alias_cap;
+
+    /* #1521: track mem.destroy() calls for double-free detection */
+    const char **destroyed_arenas;
+    int destroyed_arena_count;
+    int destroyed_arena_cap;
 } TypeChecker;
 
 /* Create and run the type checker */

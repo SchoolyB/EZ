@@ -36,6 +36,7 @@ typedef struct EzType {
     const char *element_type;   /* For arrays: element type name */
     const char *key_type;       /* For maps: key type name */
     const char *value_type;     /* For maps: value type name */
+    bool nullable;              /* For pointers: true if ?^T (nullable) */
 } EzType;
 
 /* Built-in type singletons */

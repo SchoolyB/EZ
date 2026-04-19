@@ -156,7 +156,7 @@ static Precedence token_precedence(TokenType t) {
 static bool type_string_has_wildcard(const char *tn) {
     if (!tn) return false;
     for (const char *c = tn; *c; c++) {
-        if (*c == '?') return true;
+        if (*c == '?' && c[1] != '^') return true;
     }
     return false;
 }
@@ -185,6 +185,17 @@ static const char *read_type_name(Parser *p) {
  * Returns NULL on parse error (diagnostic already emitted). */
 static const char *parse_complex_type(Parser *p) {
     if (cur_token_is(p, TOK_QUESTION)) {
+        /* ?^T: nullable pointer type */
+        if (peek_token_is(p, TOK_CARET)) {
+            next_token(p); /* consume ? */
+            next_token(p); /* consume ^ */
+            const char *pointee = parse_complex_type(p);
+            if (!pointee) return NULL;
+            size_t ts_len = strlen(pointee) + 3;
+            char *type_str = arena_alloc(p->arena, ts_len);
+            snprintf(type_str, ts_len, "?^%s", pointee);
+            return type_str;
+        }
         /* Bare wildcard type: ? */
         return "?";
     }

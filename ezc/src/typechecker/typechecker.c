@@ -4081,14 +4081,24 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
             }
             /* Reject nil on non-nullable types */
             if (value_type->kind == TK_NIL && declared->kind != TK_UNKNOWN &&
-                declared->kind != TK_ERROR && declared->kind != TK_POINTER &&
+                declared->kind != TK_ERROR &&
                 declared->kind != TK_NIL) {
-                char msg[256];
-                snprintf(msg, sizeof(msg),
-                    "cannot assign nil to '%s' — only Error and pointer types are nullable",
-                    type_name(declared));
-                diag_error(tc->diag, "E3001", strdup(msg),
-                    NODE_FILE(tc, node), node->token.line, node->token.column, 0);
+                bool is_nullable_ptr = (declared->kind == TK_POINTER && declared->nullable);
+                if (!is_nullable_ptr) {
+                    char msg[256];
+                    if (declared->kind == TK_POINTER) {
+                        snprintf(msg, sizeof(msg),
+                            "cannot assign nil to '^%s' — use '?^%s' for a nullable pointer",
+                            declared->element_type ? declared->element_type : "T",
+                            declared->element_type ? declared->element_type : "T");
+                    } else {
+                        snprintf(msg, sizeof(msg),
+                            "cannot assign nil to '%s' — only Error and nullable pointer (?^T) types accept nil",
+                            type_name(declared));
+                    }
+                    diag_error(tc->diag, "E3001", strdup(msg),
+                        NODE_FILE(tc, node), node->token.line, node->token.column, 0);
+                }
             }
             /* Reject bare 'mut x = nil' with no type context */
             if (value_type->kind == TK_NIL && declared->kind == TK_UNKNOWN) {
@@ -4769,12 +4779,56 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
                 }
             }
         }
+        /* #1521: reject addr() of local assigned to outer-scope variable,
+         * and warn on cross-scope pointer assignments. */
+        if (target->kind == NODE_LABEL && node->data.assign.value &&
+            node->data.assign.value->kind == NODE_CALL_EXPR &&
+            node->data.assign.value->data.call.function->kind == NODE_LABEL &&
+            strcmp(node->data.assign.value->data.call.function->data.label.value, "addr") == 0 &&
+            node->data.assign.value->data.call.arg_count == 1 &&
+            node->data.assign.value->data.call.args[0]->kind == NODE_LABEL) {
+            const char *ptr_name = target->data.label.value;
+            const char *addr_var = node->data.assign.value->data.call.args[0]->data.label.value;
+            Symbol *ptr_sym_local = scope_lookup_local(tc->current_scope, ptr_name);
+            Symbol *addr_sym_local = scope_lookup_local(tc->current_scope, addr_var);
+            if (!ptr_sym_local && scope_lookup(tc->current_scope, ptr_name) &&
+                addr_sym_local) {
+                char msg[256];
+                snprintf(msg, sizeof(msg),
+                    "pointer '%s' may reference memory from a scope that has ended — "
+                    "'%s' is a local variable in an inner scope",
+                    ptr_name, addr_var);
+                diag_warning(tc->diag, "W3004", strdup(msg),
+                    NODE_FILE(tc, node), node->token.line, node->token.column, 0);
+            }
+        }
         break;
     }
 
     case NODE_RETURN_STMT:
         for (int i = 0; i < node->data.return_stmt.count; i++) {
             resolve_expr(tc, node->data.return_stmt.values[i]);
+        }
+        /* #1521: reject addr() of local variable in return — the
+         * local's memory is freed when the function returns. */
+        for (int i = 0; i < node->data.return_stmt.count; i++) {
+            AstNode *rv = node->data.return_stmt.values[i];
+            if (rv->kind == NODE_CALL_EXPR &&
+                rv->data.call.function->kind == NODE_LABEL &&
+                strcmp(rv->data.call.function->data.label.value, "addr") == 0 &&
+                rv->data.call.arg_count == 1 &&
+                rv->data.call.args[0]->kind == NODE_LABEL) {
+                const char *var_name = rv->data.call.args[0]->data.label.value;
+                Symbol *sym = scope_lookup(tc->current_scope, var_name);
+                if (sym) {
+                    char msg[256];
+                    snprintf(msg, sizeof(msg),
+                        "cannot return addr(%s) — '%s' is a local variable whose memory is freed when this function returns",
+                        var_name, var_name);
+                    diag_error(tc->diag, "E3063", strdup(msg),
+                        NODE_FILE(tc, node), rv->token.line, rv->token.column, 0);
+                }
+            }
         }
         /* Check return type matches function signature */
         if (tc->current_return_count == 0 && node->data.return_stmt.count > 0) {
@@ -4962,6 +5016,76 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
                     fn_name);
                 diag_error(tc->diag, "E5011", strdup(msg),
                     NODE_FILE(tc, node), node->token.line, node->token.column, 0);
+            }
+        }
+        /* #1521: double-free detection for mem.destroy() */
+        if (expr && expr->kind == NODE_CALL_EXPR &&
+            expr->data.call.function->kind == NODE_MEMBER_EXPR) {
+            AstNode *obj = expr->data.call.function->data.member.object;
+            const char *mem_fn = expr->data.call.function->data.member.member;
+            if (obj->kind == NODE_LABEL && strcmp(mem_fn, "destroy") == 0 &&
+                strcmp(obj->data.label.value, "mem") == 0 &&
+                expr->data.call.arg_count == 1 &&
+                expr->data.call.args[0]->kind == NODE_LABEL) {
+                const char *arena_name = expr->data.call.args[0]->data.label.value;
+                bool already_destroyed = false;
+                for (int di = 0; di < tc->destroyed_arena_count; di++) {
+                    if (strcmp(tc->destroyed_arenas[di], arena_name) == 0) {
+                        already_destroyed = true;
+                        break;
+                    }
+                }
+                if (already_destroyed) {
+                    char msg[256];
+                    snprintf(msg, sizeof(msg),
+                        "mem.destroy(%s) called again — '%s' was already destroyed",
+                        arena_name, arena_name);
+                    diag_error(tc->diag, "E3064", strdup(msg),
+                        NODE_FILE(tc, node), node->token.line, node->token.column, 0);
+                } else {
+                    if (tc->destroyed_arena_count >= tc->destroyed_arena_cap) {
+                        tc->destroyed_arena_cap = tc->destroyed_arena_cap ? tc->destroyed_arena_cap * 2 : 8;
+                        tc->destroyed_arenas = realloc(tc->destroyed_arenas,
+                            (size_t)tc->destroyed_arena_cap * sizeof(const char *));
+                    }
+                    tc->destroyed_arenas[tc->destroyed_arena_count++] = arena_name;
+                }
+            }
+        }
+        /* Also catch bare destroy() via 'using mem' */
+        if (expr && expr->kind == NODE_CALL_EXPR &&
+            expr->data.call.function->kind == NODE_LABEL &&
+            strcmp(expr->data.call.function->data.label.value, "destroy") == 0 &&
+            expr->data.call.arg_count == 1 &&
+            expr->data.call.args[0]->kind == NODE_LABEL) {
+            bool is_mem_using = false;
+            for (int ui = 0; ui < tc->using_module_count; ui++) {
+                if (strcmp(tc->using_modules[ui], "mem") == 0) { is_mem_using = true; break; }
+            }
+            if (is_mem_using) {
+                const char *arena_name = expr->data.call.args[0]->data.label.value;
+                bool already_destroyed = false;
+                for (int di = 0; di < tc->destroyed_arena_count; di++) {
+                    if (strcmp(tc->destroyed_arenas[di], arena_name) == 0) {
+                        already_destroyed = true;
+                        break;
+                    }
+                }
+                if (already_destroyed) {
+                    char msg[256];
+                    snprintf(msg, sizeof(msg),
+                        "destroy(%s) called again — '%s' was already destroyed",
+                        arena_name, arena_name);
+                    diag_error(tc->diag, "E3064", strdup(msg),
+                        NODE_FILE(tc, node), node->token.line, node->token.column, 0);
+                } else {
+                    if (tc->destroyed_arena_count >= tc->destroyed_arena_cap) {
+                        tc->destroyed_arena_cap = tc->destroyed_arena_cap ? tc->destroyed_arena_cap * 2 : 8;
+                        tc->destroyed_arenas = realloc(tc->destroyed_arenas,
+                            (size_t)tc->destroyed_arena_cap * sizeof(const char *));
+                    }
+                    tc->destroyed_arenas[tc->destroyed_arena_count++] = arena_name;
+                }
             }
         }
         break;
@@ -5171,6 +5295,7 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
         Scope *outer = tc->current_scope;
         tc->current_scope = func_scope;
         tc->func_depth++;
+        tc->destroyed_arena_count = 0;
 
         /* Define parameters in function scope, check for duplicates */
         for (int i = 0; i < node->data.func_decl.param_count; i++) {

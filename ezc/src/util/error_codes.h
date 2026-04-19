@@ -126,7 +126,9 @@
     EZ_ERROR("E3059", "types", "maps cannot be declared const — use 'mut' for maps or a struct for fixed data") \
     EZ_ERROR("E3060", "types", "wildcard '?' in return type cannot be resolved — at least one parameter must also use '?' to bind the concrete type") \
     EZ_ERROR("E3061", "types", "struct cannot contain itself by value — use a pointer field '^T' for recursive types") \
-    EZ_ERROR("E3062", "types", "handle types (channels, mutexes, threads) cannot be declared const — use 'mut'")
+    EZ_ERROR("E3062", "types", "handle types (channels, mutexes, threads) cannot be declared const — use 'mut'") \
+    EZ_ERROR("E3063", "types", "cannot return address of local variable — the variable's memory is freed when the function returns") \
+    EZ_ERROR("E3064", "types", "mem.destroy() called twice on the same arena — each arena can only be destroyed once")
 
 /* --- E4xxx: Name Problems (References) --- */
 #define EZ_REFERENCE_ERRORS \
@@ -179,6 +181,7 @@
     EZ_WARNING("W2003", "safety", "unreachable code — this statement will never execute because it comes after a return") \
     EZ_WARNING("W2007", "safety", "this variable shadows a global constant or variable") \
     EZ_WARNING("W2011", "safety", "named return variable is not used in return — the returned value may not match the named variable") \
-    EZ_WARNING("W3003", "safety", "fixed-size array is not fully initialized — remaining elements will be zero-valued")
+    EZ_WARNING("W3003", "safety", "fixed-size array is not fully initialized — remaining elements will be zero-valued") \
+    EZ_WARNING("W3004", "safety", "pointer may reference memory from a scope that has ended — assigning addr() of an inner-scope variable to an outer-scope pointer")
 
 #endif
