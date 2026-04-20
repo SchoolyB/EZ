@@ -118,7 +118,6 @@ make build
 |---------|-------------|
 | `make build` | Build the `ez` binary |
 | `make install` | Install to `/usr/local/bin` |
-| `make test` | Run Go unit tests |
 | `make clean` | Remove build artifacts |
 
 Integration tests run via a shell script rather than a Makefile target — see [Running Tests](#running-tests).
@@ -219,16 +218,13 @@ EZ/
 ### Unit Tests
 
 ```bash
-# Run all tests (CLI + compiler)
-make test
+# Run all tests via the ez CLI
+ez test
 
 # Compiler tests only
 cd ezc
 make test-unit     # unit tests
 make test-e2e      # end-to-end tests
-
-# CLI/tooling tests only
-go test ./pkg/lineeditor/...
 ```
 
 ### Integration Tests
@@ -409,7 +405,7 @@ Keep the description short (under ~72 characters), lowercase, no period at the e
 
 - Keep changes focused and small when possible
 - Include a clear description of what changed and why
-- Make sure all tests pass (`make test` for unit, `bash scripts/run_tests.sh` for integration)
+- Make sure all tests pass (`ez test` or `cd ezc && make test-unit && make test-e2e`)
 - Include unit and/or integration tests for new features and bug fixes
 
 ---

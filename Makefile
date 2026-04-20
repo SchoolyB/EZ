@@ -1,5 +1,5 @@
 # EZ Language Build System
-.PHONY: build stubs install uninstall clean test help
+.PHONY: build stubs install uninstall clean help
 
 BINARY_NAME=ez
 INSTALL_PATH=/usr/local/bin
@@ -21,7 +21,6 @@ help:
 	@echo "  make install   - Install ez to $(INSTALL_PATH)"
 	@echo "  make uninstall - Remove ez from $(INSTALL_PATH)"
 	@echo "  make clean     - Remove built binaries"
-	@echo "  make test      - Run all tests"
 
 # Create zero-length embed stubs. go:embed directives in
 # internal/ezc/embedded.go require these files to exist at `go build`
@@ -88,12 +87,3 @@ clean:
 	@$(MAKE) -C ezc clean
 	@echo "Clean complete"
 
-test:
-	@echo "=== CLI/tooling tests ==="
-	$(GO) test ./pkg/errors/... ./pkg/lineeditor/...
-	@echo ""
-	@echo "=== Compiler unit tests ==="
-	@$(MAKE) -C ezc test-unit
-	@echo ""
-	@echo "=== Compiler e2e tests ==="
-	@$(MAKE) -C ezc test-e2e
