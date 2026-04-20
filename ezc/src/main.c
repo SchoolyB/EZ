@@ -247,12 +247,10 @@ static void rewrite_labels(AstNode *node, const char **orig, const char **prefix
     case NODE_IF_STMT:
         rewrite_labels(node->data.if_stmt.condition, orig, prefixed, count, arena);
         if (node->data.if_stmt.consequence) {
-            for (int i = 0; i < node->data.if_stmt.consequence->data.block.count; i++)
-                rewrite_labels(node->data.if_stmt.consequence->data.block.stmts[i], orig, prefixed, count, arena);
+            rewrite_labels(node->data.if_stmt.consequence, orig, prefixed, count, arena);
         }
         if (node->data.if_stmt.alternative) {
-            for (int i = 0; i < node->data.if_stmt.alternative->data.block.count; i++)
-                rewrite_labels(node->data.if_stmt.alternative->data.block.stmts[i], orig, prefixed, count, arena);
+            rewrite_labels(node->data.if_stmt.alternative, orig, prefixed, count, arena);
         }
         break;
     case NODE_BLOCK_STMT:

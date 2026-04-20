@@ -6402,8 +6402,20 @@ void typechecker_check(TypeChecker *tc, AstNode *program) {
             tc->current_return_types = ret_types;
             tc->current_return_type_names = ret_names;
             tc->current_return_count = rc;
-            tc->current_has_named_returns = false;
             tc->current_return_names = decl->data.func_decl.return_names;
+
+            /* Detect and define named return variables in instantiation scope */
+            tc->current_has_named_returns = false;
+            if (decl->data.func_decl.return_names) {
+                for (int ri = 0; ri < rc; ri++) {
+                    if (decl->data.func_decl.return_names[ri]) {
+                        tc->current_has_named_returns = true;
+                        const char *rn = decl->data.func_decl.return_names[ri];
+                        EzType *rt = ret_types[ri];
+                        scope_define(inst_scope, rn, rt, true);
+                    }
+                }
+            }
 
             int errs_before = diag_error_count(tc->diag);
             tc->suppress_typetable_writes = true;

@@ -13,6 +13,7 @@
 #include <string.h>
 #include <stdio.h>
 #include <ctype.h>
+#include <inttypes.h>
 
 /* --- Encoder --- */
 
@@ -62,6 +63,135 @@ EzString ez_json_encode_map(EzArena *arena, EzMap *m) {
     buf[pos] = '\0';
     EzString r = { buf, (int32_t)pos };
     return r;
+}
+
+/* --- Array Encoders --- */
+
+EzString ez_json_encode_array_int(EzArena *arena, EzArray *arr) {
+    int est = arr->len * 24 + 2;
+    char *buf = ez_arena_alloc(arena, (size_t)est);
+    int pos = 0;
+    buf[pos++] = '[';
+    for (int32_t i = 0; i < arr->len; i++) {
+        if (i > 0) { buf[pos++] = ','; }
+        int64_t val = *(int64_t *)((char *)arr->data + (size_t)i * (size_t)arr->elem_size);
+        pos += snprintf(buf + pos, (size_t)(est - pos), "%" PRId64, val);
+    }
+    buf[pos++] = ']';
+    buf[pos] = '\0';
+    return (EzString){ buf, (int32_t)pos };
+}
+
+EzString ez_json_encode_array_float(EzArena *arena, EzArray *arr) {
+    int est = arr->len * 32 + 2;
+    char *buf = ez_arena_alloc(arena, (size_t)est);
+    int pos = 0;
+    buf[pos++] = '[';
+    for (int32_t i = 0; i < arr->len; i++) {
+        if (i > 0) { buf[pos++] = ','; }
+        double val = *(double *)((char *)arr->data + (size_t)i * (size_t)arr->elem_size);
+        pos += snprintf(buf + pos, (size_t)(est - pos), "%g", val);
+    }
+    buf[pos++] = ']';
+    buf[pos] = '\0';
+    return (EzString){ buf, (int32_t)pos };
+}
+
+EzString ez_json_encode_array_string(EzArena *arena, EzArray *arr) {
+    int est = arr->len * 64 + 2;
+    char *buf = ez_arena_alloc(arena, (size_t)est);
+    int pos = 0;
+    buf[pos++] = '[';
+    for (int32_t i = 0; i < arr->len; i++) {
+        if (i > 0) { buf[pos++] = ','; }
+        EzString *val = (EzString *)((char *)arr->data + (size_t)i * (size_t)arr->elem_size);
+        json_append_escaped(buf, &pos, *val);
+    }
+    buf[pos++] = ']';
+    buf[pos] = '\0';
+    return (EzString){ buf, (int32_t)pos };
+}
+
+EzString ez_json_encode_array_bool(EzArena *arena, EzArray *arr) {
+    int est = arr->len * 8 + 2;
+    char *buf = ez_arena_alloc(arena, (size_t)est);
+    int pos = 0;
+    buf[pos++] = '[';
+    for (int32_t i = 0; i < arr->len; i++) {
+        if (i > 0) { buf[pos++] = ','; }
+        bool val = *(bool *)((char *)arr->data + (size_t)i * (size_t)arr->elem_size);
+        if (val) { memcpy(buf + pos, "true", 4); pos += 4; }
+        else { memcpy(buf + pos, "false", 5); pos += 5; }
+    }
+    buf[pos++] = ']';
+    buf[pos] = '\0';
+    return (EzString){ buf, (int32_t)pos };
+}
+
+/* --- Typed Map Encoders --- */
+
+EzString ez_json_encode_map_int(EzArena *arena, EzMap *m) {
+    int est = m->count * 64 + 2;
+    char *buf = ez_arena_alloc(arena, (size_t)est);
+    int pos = 0;
+    buf[pos++] = '{';
+    int entry = 0;
+    for (int32_t i = 0; i < m->capacity; i++) {
+        if (m->states[i] != 1) continue;
+        if (entry > 0) { buf[pos++] = ','; }
+        EzString *key = (EzString *)((char *)m->keys + (size_t)i * (size_t)m->key_size);
+        int64_t *val = (int64_t *)((char *)m->values + (size_t)i * (size_t)m->value_size);
+        json_append_escaped(buf, &pos, *key);
+        buf[pos++] = ':';
+        pos += snprintf(buf + pos, (size_t)(est - pos), "%" PRId64, *val);
+        entry++;
+    }
+    buf[pos++] = '}';
+    buf[pos] = '\0';
+    return (EzString){ buf, (int32_t)pos };
+}
+
+EzString ez_json_encode_map_float(EzArena *arena, EzMap *m) {
+    int est = m->count * 64 + 2;
+    char *buf = ez_arena_alloc(arena, (size_t)est);
+    int pos = 0;
+    buf[pos++] = '{';
+    int entry = 0;
+    for (int32_t i = 0; i < m->capacity; i++) {
+        if (m->states[i] != 1) continue;
+        if (entry > 0) { buf[pos++] = ','; }
+        EzString *key = (EzString *)((char *)m->keys + (size_t)i * (size_t)m->key_size);
+        double *val = (double *)((char *)m->values + (size_t)i * (size_t)m->value_size);
+        json_append_escaped(buf, &pos, *key);
+        buf[pos++] = ':';
+        pos += snprintf(buf + pos, (size_t)(est - pos), "%g", *val);
+        entry++;
+    }
+    buf[pos++] = '}';
+    buf[pos] = '\0';
+    return (EzString){ buf, (int32_t)pos };
+}
+
+EzString ez_json_encode_map_bool(EzArena *arena, EzMap *m) {
+    int est = m->count * 64 + 2;
+    char *buf = ez_arena_alloc(arena, (size_t)est);
+    int pos = 0;
+    buf[pos++] = '{';
+    int entry = 0;
+    for (int32_t i = 0; i < m->capacity; i++) {
+        if (m->states[i] != 1) continue;
+        if (entry > 0) { buf[pos++] = ','; }
+        EzString *key = (EzString *)((char *)m->keys + (size_t)i * (size_t)m->key_size);
+        bool *val = (bool *)((char *)m->values + (size_t)i * (size_t)m->value_size);
+        json_append_escaped(buf, &pos, *key);
+        buf[pos++] = ':';
+        if (*val) { memcpy(buf + pos, "true", 4); pos += 4; }
+        else { memcpy(buf + pos, "false", 5); pos += 5; }
+        entry++;
+    }
+    buf[pos++] = '}';
+    buf[pos] = '\0';
+    return (EzString){ buf, (int32_t)pos };
 }
 
 /* --- Decoder --- */
