@@ -2259,10 +2259,7 @@ Some random functions accept a variable number of arguments (e.g., `rand_int` wi
 
 | Function | Signature | Description |
 |----------|-----------|-------------|
-| `encode` | `(value T) -> (string, Error)` | Encode to JSON string. Accepts any type. |
-| `decode` | `(text string) -> (any, Error)` | Decode to dynamic type |
-| `decode` | `(text string, Type) -> (Type, Error)` | Decode to typed struct |
-| `pretty_print` | `(value T, indent int) -> (string, Error)` | Pretty print JSON. Accepts any type. |
+| `encode` | `(value T) -> string` | Encode to JSON string. Accepts int, float, bool, string. |
 | `is_valid` | `(text string) -> bool` | Check if valid JSON |
 
 ### 9.9 IO Module (`@io`)
@@ -2440,36 +2437,12 @@ SQLite database access for persistent storage.
 | `close` | `(db Database)` | Close database connection |
 | `exec` | `(db Database, sql string, ...params string)` | Execute a SQL statement with optional parameters |
 | `query` | `(db Database, sql string, ...params string) -> [map[string:string]]` | Execute a parameterized SQL query, returns array of row maps |
-| `prepare` | `(db Database, sql string) -> Statement` | Prepare a SQL statement for repeated execution |
-| `step` | `(stmt Statement, ...params string) -> [map[string:string]]` | Execute prepared statement with parameters |
-| `finalize` | `(stmt Statement)` | Release a prepared statement |
-| `begin` | `(db Database)` | Begin a transaction |
-| `commit` | `(db Database)` | Commit the current transaction |
-| `rollback` | `(db Database)` | Roll back the current transaction |
 
 Parameterized queries use `?` placeholders to prevent SQL injection:
 
 ```ez
 sqlite.exec(db, "INSERT INTO users VALUES (?, ?)", name, age)
 mut rows = sqlite.query(db, "SELECT * FROM users WHERE age > ?", 18)
-```
-
-Prepared statements allow reuse for repeated execution:
-
-```ez
-mut stmt = sqlite.prepare(db, "INSERT INTO users VALUES (?, ?)")
-sqlite.step(stmt, "Alice", 30)
-sqlite.step(stmt, "Bob", 25)
-sqlite.finalize(stmt)
-```
-
-Transactions group operations atomically:
-
-```ez
-sqlite.begin(db)
-sqlite.exec(db, "INSERT INTO users VALUES (?, ?)", "Alice", 30)
-sqlite.exec(db, "INSERT INTO users VALUES (?, ?)", "Bob", 25)
-sqlite.commit(db)
 ```
 
 ### 9.18 Server Module (`@server`)
