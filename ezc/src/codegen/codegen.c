@@ -3579,7 +3579,17 @@ static bool emit_arrays_call(CodeGen *cg, AstNode *node, const char *func) {
         EzType *pp_arr_t = cg->type_table ? typetable_get(cg->type_table, node->data.call.args[0]) : NULL;
         const char *pp_elem_tn = (pp_arr_t && pp_arr_t->kind == TK_ARRAY) ? pp_arr_t->element_type : NULL;
         bool pp_str = pp_elem_tn && strcmp(pp_elem_tn, "string") == 0;
-        emitf(cg, "{ %s _pv = ", pp_str ? "EzString" : "__auto_type");
+        const char *pp_c_elem = "int64_t";
+        if (pp_elem_tn) {
+            EzType *pet = type_from_name(pp_elem_tn);
+            if (pet->kind == TK_FLOAT) pp_c_elem = "double";
+            else if (pet->kind == TK_BOOL) pp_c_elem = "bool";
+            else if (pet->kind == TK_STRING) pp_c_elem = "EzString";
+            else if (pet->kind == TK_ARRAY) pp_c_elem = "EzArray";
+            else if (pet->kind == TK_MAP) pp_c_elem = "EzMap";
+            else if (pet->kind == TK_STRUCT) pp_c_elem = ez_type_to_c_cg(cg, pp_elem_tn);
+        }
+        emitf(cg, "{ %s _pv = ", pp_c_elem);
         emit_expression(cg, node->data.call.args[1]);
         emit(cg, "; ");
         if (cg->loop_scope_depth > 0) {
@@ -3597,7 +3607,15 @@ static bool emit_arrays_call(CodeGen *cg, AstNode *node, const char *func) {
         return true;
     }
     if (strcmp(func, "fill") == 0 && node->data.call.arg_count == 3) {
-        emit(cg, "{ __auto_type _fv = ");
+        EzType *fl_arr_t = cg->type_table ? typetable_get(cg->type_table, node->data.call.args[0]) : NULL;
+        const char *fl_c_elem = "int64_t";
+        if (fl_arr_t && fl_arr_t->kind == TK_ARRAY && fl_arr_t->element_type) {
+            EzType *fet = type_from_name(fl_arr_t->element_type);
+            if (fet->kind == TK_FLOAT) fl_c_elem = "double";
+            else if (fet->kind == TK_BOOL) fl_c_elem = "bool";
+            else if (fet->kind == TK_STRING) fl_c_elem = "EzString";
+        }
+        emitf(cg, "{ %s _fv = ", fl_c_elem);
         emit_expression(cg, node->data.call.args[1]);
         emit(cg, "; ez_arrays_fill(ez_default_arena, &");
         emit_expression(cg, node->data.call.args[0]);
@@ -3667,7 +3685,17 @@ static bool emit_os_call(CodeGen *cg, AstNode *node, const char *func) {
         EzType *pp2_arr_t = cg->type_table ? typetable_get(cg->type_table, node->data.call.args[0]) : NULL;
         const char *pp2_elem_tn = (pp2_arr_t && pp2_arr_t->kind == TK_ARRAY) ? pp2_arr_t->element_type : NULL;
         bool pp2_str = pp2_elem_tn && strcmp(pp2_elem_tn, "string") == 0;
-        emitf(cg, "{ %s _pv = ", pp2_str ? "EzString" : "__auto_type");
+        const char *pp2_c_elem = "int64_t";
+        if (pp2_elem_tn) {
+            EzType *pet2 = type_from_name(pp2_elem_tn);
+            if (pet2->kind == TK_FLOAT) pp2_c_elem = "double";
+            else if (pet2->kind == TK_BOOL) pp2_c_elem = "bool";
+            else if (pet2->kind == TK_STRING) pp2_c_elem = "EzString";
+            else if (pet2->kind == TK_ARRAY) pp2_c_elem = "EzArray";
+            else if (pet2->kind == TK_MAP) pp2_c_elem = "EzMap";
+            else if (pet2->kind == TK_STRUCT) pp2_c_elem = ez_type_to_c_cg(cg, pp2_elem_tn);
+        }
+        emitf(cg, "{ %s _pv = ", pp2_c_elem);
         emit_expression(cg, node->data.call.args[1]);
         emit(cg, "; ");
         if (cg->loop_scope_depth > 0) {
@@ -3685,7 +3713,15 @@ static bool emit_os_call(CodeGen *cg, AstNode *node, const char *func) {
         return true;
     }
     if (strcmp(func, "fill") == 0 && node->data.call.arg_count == 3) {
-        emit(cg, "{ __auto_type _fv = ");
+        EzType *fl_arr_t = cg->type_table ? typetable_get(cg->type_table, node->data.call.args[0]) : NULL;
+        const char *fl_c_elem = "int64_t";
+        if (fl_arr_t && fl_arr_t->kind == TK_ARRAY && fl_arr_t->element_type) {
+            EzType *fet = type_from_name(fl_arr_t->element_type);
+            if (fet->kind == TK_FLOAT) fl_c_elem = "double";
+            else if (fet->kind == TK_BOOL) fl_c_elem = "bool";
+            else if (fet->kind == TK_STRING) fl_c_elem = "EzString";
+        }
+        emitf(cg, "{ %s _fv = ", fl_c_elem);
         emit_expression(cg, node->data.call.args[1]);
         emit(cg, "; ez_arrays_fill(ez_default_arena, &");
         emit_expression(cg, node->data.call.args[0]);
@@ -5466,6 +5502,20 @@ static void emit_block(CodeGen *cg, AstNode *node) {
 }
 
 static void emit_if_statement(CodeGen *cg, AstNode *node) {
+    /* #1521: per-block arena for if/otherwise so temporaries are freed */
+    static int if_scope_counter = 0;
+    int isc = if_scope_counter++;
+    emit_indent(cg);
+    emitf(cg, "{ ");
+    if (cg->loop_scope_depth == 0) {
+        emit(cg, "EzArena *_ez_outer_arena = ez_default_arena; ");
+    }
+    int if_depth = cg->loop_scope_depth;
+    emitf(cg, "EzArena *_if_arena_%d = ez_arena_create(4096); ", isc);
+    emitf(cg, "EzArena *_if_saved_%d = ez_default_arena; ", isc);
+    emitf(cg, "ez_default_arena = _if_arena_%d;\n", isc);
+    cg->loop_scope_depth++;
+
     emit_indent(cg);
     emit(cg, "if (");
     emit_expression(cg, node->data.if_stmt.condition);
@@ -5477,7 +5527,6 @@ static void emit_if_statement(CodeGen *cg, AstNode *node) {
 
     if (node->data.if_stmt.alternative) {
         if (node->data.if_stmt.alternative->kind == NODE_IF_STMT) {
-            /* or (else if) - emit inline */
             emit_indent(cg);
             emit(cg, "} else if (");
             emit_expression(cg, node->data.if_stmt.alternative->data.if_stmt.condition);
@@ -5485,7 +5534,6 @@ static void emit_if_statement(CodeGen *cg, AstNode *node) {
             cg->indent++;
             emit_block(cg, node->data.if_stmt.alternative->data.if_stmt.consequence);
             cg->indent--;
-            /* Recurse for further chains */
             AstNode *alt = node->data.if_stmt.alternative->data.if_stmt.alternative;
             while (alt) {
                 if (alt->kind == NODE_IF_STMT) {
@@ -5498,7 +5546,6 @@ static void emit_if_statement(CodeGen *cg, AstNode *node) {
                     cg->indent--;
                     alt = alt->data.if_stmt.alternative;
                 } else {
-                    /* otherwise (else) block */
                     emit_indent(cg);
                     emit(cg, "} else {\n");
                     cg->indent++;
@@ -5510,7 +5557,6 @@ static void emit_if_statement(CodeGen *cg, AstNode *node) {
             emit_indent(cg);
             emit(cg, "}\n");
         } else {
-            /* otherwise (else) block */
             emit_indent(cg);
             emit(cg, "} else {\n");
             cg->indent++;
@@ -5523,6 +5569,11 @@ static void emit_if_statement(CodeGen *cg, AstNode *node) {
         emit_indent(cg);
         emit(cg, "}\n");
     }
+
+    cg->loop_scope_depth--;
+    emit_indent(cg);
+    emitf(cg, "ez_default_arena = _if_saved_%d; ", isc);
+    emitf(cg, "ez_arena_destroy(_if_arena_%d, __FILE__, __LINE__); free(_if_arena_%d); }\n", isc, isc);
 }
 
 static void emit_for_statement(CodeGen *cg, AstNode *node) {
