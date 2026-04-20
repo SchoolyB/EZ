@@ -3145,7 +3145,8 @@ static bool emit_binary_call(CodeGen *cg, AstNode *node, const char *func) {
     bool is_decode = (strncmp(func, "decode", 6) == 0);
     /* Append _le for default little-endian if no endian suffix present */
     bool has_endian = strstr(func, "_le") || strstr(func, "_be");
-    if (has_endian || strcmp(func, "encode_u8") == 0 || strcmp(func, "decode_u8") == 0) {
+    if (has_endian || strcmp(func, "encode_u8") == 0 || strcmp(func, "decode_u8") == 0 ||
+        strcmp(func, "encode_i8") == 0 || strcmp(func, "decode_i8") == 0) {
         emitf(cg, "ez_binary_%s(", func);
     } else if (is_encode || is_decode) {
         emitf(cg, "ez_binary_%s_le(", func);
