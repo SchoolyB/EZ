@@ -1,5 +1,8 @@
 /*
- * binary_c.ez - Integration test for @binary (compiler)
+ * binary_c.ez - Comprehensive integration test for @binary (compiler)
+ * Tests: encode/decode round-trips for 8/16/32/64-bit signed+unsigned,
+ *        little-endian and big-endian, floats LE+BE
+ * NOT TESTED: 128/256-bit (requires bigint literal support)
  */
 
 import @binary
@@ -9,7 +12,20 @@ do main() {
     mut passed int = 0
     mut failed int = 0
 
-    // u8 round-trip (encode returns byte_array, decode returns int)
+    // --- 8-bit ---
+
+    // i8 round-trip
+    mut i8_bytes [byte] = binary.encode_i8(-42)
+    mut i8_val int = binary.decode_i8(i8_bytes)
+    if i8_val == -42 {
+        println("  [PASS] i8 round-trip")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] i8 round-trip: expected -42, got ${i8_val}")
+        failed += 1
+    }
+
+    // u8 round-trip
     mut u8_bytes [byte] = binary.encode_u8(255)
     mut u8_val int = binary.decode_u8(u8_bytes)
     if u8_val == 255 {
@@ -29,60 +45,279 @@ do main() {
         failed += 1
     }
 
-    // i16 little-endian round-trip
-    mut i16_bytes [byte] = binary.encode_i16_le(-500)
-    mut i16_val int = binary.decode_i16_le(i16_bytes)
-    if i16_val == -500 {
+    // --- 16-bit signed ---
+
+    // i16_le round-trip
+    mut i16le_bytes [byte] = binary.encode_i16_le(-500)
+    mut i16le_val int = binary.decode_i16_le(i16le_bytes)
+    if i16le_val == -500 {
         println("  [PASS] i16_le round-trip")
         passed += 1
     } otherwise {
-        println("  [FAIL] i16_le round-trip: expected -500, got ${i16_val}")
+        println("  [FAIL] i16_le round-trip: expected -500, got ${i16le_val}")
+        failed += 1
+    }
+
+    // i16_be round-trip
+    mut i16be_bytes [byte] = binary.encode_i16_be(-500)
+    mut i16be_val int = binary.decode_i16_be(i16be_bytes)
+    if i16be_val == -500 {
+        println("  [PASS] i16_be round-trip")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] i16_be round-trip: expected -500, got ${i16be_val}")
         failed += 1
     }
 
     // i16 byte length
-    if len(i16_bytes) == 2 {
+    if len(i16le_bytes) == 2 {
         println("  [PASS] i16 byte length")
         passed += 1
     } otherwise {
-        println("  [FAIL] i16 byte length: expected 2, got ${len(i16_bytes)}")
+        println("  [FAIL] i16 byte length: expected 2, got ${len(i16le_bytes)}")
         failed += 1
     }
 
-    // i32 little-endian round-trip
-    mut i32_bytes [byte] = binary.encode_i32_le(-100000)
-    mut i32_val int = binary.decode_i32_le(i32_bytes)
-    if i32_val == -100000 {
+    // --- 16-bit unsigned ---
+
+    // u16_le round-trip
+    mut u16le_bytes [byte] = binary.encode_u16_le(60000)
+    mut u16le_val int = binary.decode_u16_le(u16le_bytes)
+    if u16le_val == 60000 {
+        println("  [PASS] u16_le round-trip")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] u16_le round-trip: expected 60000, got ${u16le_val}")
+        failed += 1
+    }
+
+    // u16_be round-trip
+    mut u16be_bytes [byte] = binary.encode_u16_be(60000)
+    mut u16be_val int = binary.decode_u16_be(u16be_bytes)
+    if u16be_val == 60000 {
+        println("  [PASS] u16_be round-trip")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] u16_be round-trip: expected 60000, got ${u16be_val}")
+        failed += 1
+    }
+
+    // --- 32-bit signed ---
+
+    // i32_le round-trip
+    mut i32le_bytes [byte] = binary.encode_i32_le(-100000)
+    mut i32le_val int = binary.decode_i32_le(i32le_bytes)
+    if i32le_val == -100000 {
         println("  [PASS] i32_le round-trip")
         passed += 1
     } otherwise {
-        println("  [FAIL] i32_le round-trip: expected -100000, got ${i32_val}")
+        println("  [FAIL] i32_le round-trip: expected -100000, got ${i32le_val}")
+        failed += 1
+    }
+
+    // i32_be round-trip
+    mut i32be_bytes [byte] = binary.encode_i32_be(-100000)
+    mut i32be_val int = binary.decode_i32_be(i32be_bytes)
+    if i32be_val == -100000 {
+        println("  [PASS] i32_be round-trip")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] i32_be round-trip: expected -100000, got ${i32be_val}")
         failed += 1
     }
 
     // i32 byte length
-    if len(i32_bytes) == 4 {
+    if len(i32le_bytes) == 4 {
         println("  [PASS] i32 byte length")
         passed += 1
     } otherwise {
-        println("  [FAIL] i32 byte length: expected 4, got ${len(i32_bytes)}")
+        println("  [FAIL] i32 byte length: expected 4, got ${len(i32le_bytes)}")
         failed += 1
     }
 
-    // u8 encode 0 round-trip
-    mut zero_bytes [byte] = binary.encode_u8(0)
-    mut zero_val int = binary.decode_u8(zero_bytes)
-    if zero_val == 0 {
-        println("  [PASS] u8 zero round-trip")
+    // --- 32-bit unsigned ---
+
+    // u32_le round-trip
+    mut u32le_bytes [byte] = binary.encode_u32_le(3000000000)
+    mut u32le_val int = binary.decode_u32_le(u32le_bytes)
+    if u32le_val == 3000000000 {
+        println("  [PASS] u32_le round-trip")
         passed += 1
     } otherwise {
-        println("  [FAIL] u8 zero round-trip: expected 0, got ${zero_val}")
+        println("  [FAIL] u32_le round-trip: expected 3000000000, got ${u32le_val}")
+        failed += 1
+    }
+
+    // u32_be round-trip
+    mut u32be_bytes [byte] = binary.encode_u32_be(3000000000)
+    mut u32be_val int = binary.decode_u32_be(u32be_bytes)
+    if u32be_val == 3000000000 {
+        println("  [PASS] u32_be round-trip")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] u32_be round-trip: expected 3000000000, got ${u32be_val}")
+        failed += 1
+    }
+
+    // --- 64-bit signed ---
+
+    // i64_le round-trip
+    mut i64le_bytes [byte] = binary.encode_i64_le(-9876543210)
+    mut i64le_val int = binary.decode_i64_le(i64le_bytes)
+    if i64le_val == -9876543210 {
+        println("  [PASS] i64_le round-trip")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] i64_le round-trip: expected -9876543210, got ${i64le_val}")
+        failed += 1
+    }
+
+    // i64_be round-trip
+    mut i64be_bytes [byte] = binary.encode_i64_be(-9876543210)
+    mut i64be_val int = binary.decode_i64_be(i64be_bytes)
+    if i64be_val == -9876543210 {
+        println("  [PASS] i64_be round-trip")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] i64_be round-trip: expected -9876543210, got ${i64be_val}")
+        failed += 1
+    }
+
+    // i64 byte length
+    if len(i64le_bytes) == 8 {
+        println("  [PASS] i64 byte length")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] i64 byte length: expected 8, got ${len(i64le_bytes)}")
+        failed += 1
+    }
+
+    // --- 64-bit unsigned ---
+
+    // u64_le round-trip
+    mut u64le_bytes [byte] = binary.encode_u64_le(12345678901234)
+    mut u64le_val int = binary.decode_u64_le(u64le_bytes)
+    if u64le_val == 12345678901234 {
+        println("  [PASS] u64_le round-trip")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] u64_le round-trip: expected 12345678901234, got ${u64le_val}")
+        failed += 1
+    }
+
+    // u64_be round-trip
+    mut u64be_bytes [byte] = binary.encode_u64_be(12345678901234)
+    mut u64be_val int = binary.decode_u64_be(u64be_bytes)
+    if u64be_val == 12345678901234 {
+        println("  [PASS] u64_be round-trip")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] u64_be round-trip: expected 12345678901234, got ${u64be_val}")
+        failed += 1
+    }
+
+    // --- Float 32-bit ---
+
+    // f32_le round-trip
+    mut f32le_bytes [byte] = binary.encode_f32_le(3.14)
+    mut f32le_val float = binary.decode_f32_le(f32le_bytes)
+    if f32le_val > 3.13 && f32le_val < 3.15 {
+        println("  [PASS] f32_le round-trip")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] f32_le round-trip: got ${f32le_val}")
+        failed += 1
+    }
+
+    // f32_be round-trip
+    mut f32be_bytes [byte] = binary.encode_f32_be(3.14)
+    mut f32be_val float = binary.decode_f32_be(f32be_bytes)
+    if f32be_val > 3.13 && f32be_val < 3.15 {
+        println("  [PASS] f32_be round-trip")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] f32_be round-trip: got ${f32be_val}")
+        failed += 1
+    }
+
+    // f32 byte length
+    if len(f32le_bytes) == 4 {
+        println("  [PASS] f32 byte length")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] f32 byte length: expected 4, got ${len(f32le_bytes)}")
+        failed += 1
+    }
+
+    // --- Float 64-bit ---
+
+    // f64_le round-trip
+    mut f64le_bytes [byte] = binary.encode_f64_le(2.718281828)
+    mut f64le_val float = binary.decode_f64_le(f64le_bytes)
+    if f64le_val > 2.718281 && f64le_val < 2.718282 {
+        println("  [PASS] f64_le round-trip")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] f64_le round-trip: got ${f64le_val}")
+        failed += 1
+    }
+
+    // f64_be round-trip
+    mut f64be_bytes [byte] = binary.encode_f64_be(2.718281828)
+    mut f64be_val float = binary.decode_f64_be(f64be_bytes)
+    if f64be_val > 2.718281 && f64be_val < 2.718282 {
+        println("  [PASS] f64_be round-trip")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] f64_be round-trip: got ${f64be_val}")
+        failed += 1
+    }
+
+    // f64 byte length
+    if len(f64le_bytes) == 8 {
+        println("  [PASS] f64 byte length")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] f64 byte length: expected 8, got ${len(f64le_bytes)}")
+        failed += 1
+    }
+
+    // --- Endianness verification ---
+
+    // LE and BE produce different byte orderings for the same value
+    mut le_check [byte] = binary.encode_i32_le(1)
+    mut be_check [byte] = binary.encode_i32_be(1)
+    // For value 1: LE = [01,00,00,00], BE = [00,00,00,01]
+    // First byte should differ
+    mut le_first int = binary.decode_u8(le_check)
+    mut be_first int = binary.decode_u8(be_check)
+    if le_first == 1 && be_first == 0 {
+        println("  [PASS] endianness differs")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] endianness: LE first=${le_first}, BE first=${be_first}")
+        failed += 1
+    }
+
+    // --- Zero values ---
+
+    // i64 zero round-trip
+    mut zero_bytes [byte] = binary.encode_i64_le(0)
+    mut zero_val int = binary.decode_i64_le(zero_bytes)
+    if zero_val == 0 {
+        println("  [PASS] i64 zero round-trip")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] i64 zero round-trip: got ${zero_val}")
         failed += 1
     }
 
     println("")
     println("Results: ${passed} passed, ${failed} failed")
     if failed > 0 {
-        panic("Some tests failed!")
+        println("SOME TESTS FAILED")
+        exit(1)
+    } otherwise {
+        println("ALL TESTS PASSED")
     }
 }
