@@ -34,7 +34,7 @@ static const KeywordEntry keywords[] = {
     {"is",          TOK_IS},
     {"loop",        TOK_LOOP},
     {"module",      TOK_MODULE},
-    {"mut",         TOK_TEMP},
+    {"mut",         TOK_MUT},
     {"new",         TOK_NEW},
     {"nil",         TOK_NIL},
     {"not_in",      TOK_NOT_IN},
@@ -45,7 +45,6 @@ static const KeywordEntry keywords[] = {
     {"range",       TOK_RANGE},
     {"return",      TOK_RETURN},
     {"struct",      TOK_STRUCT},
-    {"temp",        TOK_TEMP},
     {"true",        TOK_TRUE},
     {"use",         TOK_USE},
     {"using",       TOK_USING},
@@ -85,7 +84,6 @@ const char *token_type_name(TokenType type) {
     case TOK_ASTERISK:       return "*";
     case TOK_SLASH:          return "/";
     case TOK_PERCENT:        return "%";
-    case TOK_POWER:          return "**";
     case TOK_LT:             return "<";
     case TOK_GT:             return ">";
     case TOK_EQ:             return "==";
@@ -122,7 +120,7 @@ const char *token_type_name(TokenType type) {
     case TOK_FLAGS:          return "#flags";
     case TOK_DOC:            return "#doc";
     case TOK_JSON_ATTR:      return "#json";
-    case TOK_TEMP:           return "temp";
+    case TOK_MUT:            return "mut";
     case TOK_CONST:          return "const";
     case TOK_DO:             return "do";
     case TOK_RETURN:         return "return";

@@ -107,8 +107,8 @@ static void test_raw_string(void) {
 }
 
 static void test_keywords(void) {
-    Lexer *l = lex("temp const do return if or otherwise for for_each as_long_as loop break continue");
-    ASSERT_EQ(next(l).type, TOK_TEMP);
+    Lexer *l = lex("mut const do return if or otherwise for for_each as_long_as loop break continue");
+    ASSERT_EQ(next(l).type, TOK_MUT);
     ASSERT_EQ(next(l).type, TOK_CONST);
     ASSERT_EQ(next(l).type, TOK_DO);
     ASSERT_EQ(next(l).type, TOK_RETURN);
@@ -207,21 +207,18 @@ static void test_hello_world_tokens(void) {
 }
 
 static void test_v3_keyword_aliases(void) {
-    /* mut maps to TOK_TEMP, while maps to TOK_AS_LONG_AS */
+    /* mut maps to TOK_MUT, while maps to TOK_AS_LONG_AS */
     Lexer *l = lex("mut while");
-    ASSERT_EQ(next(l).type, TOK_TEMP);
+    ASSERT_EQ(next(l).type, TOK_MUT);
     ASSERT_EQ(next(l).type, TOK_AS_LONG_AS);
 }
 
 static void test_v3_keywords_coexist(void) {
-    /* old and new keywords produce the same tokens */
-    Lexer *l = lex("temp mut as_long_as while");
+    /* as_long_as and while produce the same token */
+    Lexer *l = lex("as_long_as while");
     Token t1 = next(l);
     Token t2 = next(l);
     ASSERT_EQ(t1.type, t2.type);
-    Token t3 = next(l);
-    Token t4 = next(l);
-    ASSERT_EQ(t3.type, t4.type);
 }
 
 static void test_not_in_operator(void) {
@@ -396,9 +393,10 @@ static void test_single_operators(void) {
     ASSERT_EQ(next(l).type, TOK_ASSIGN);
 }
 
-static void test_power_operator(void) {
+static void test_double_asterisk(void) {
     Lexer *l = lex("**");
-    ASSERT_EQ(next(l).type, TOK_POWER);
+    ASSERT_EQ(next(l).type, TOK_ASTERISK);
+    ASSERT_EQ(next(l).type, TOK_ASTERISK);
 }
 
 static void test_percent_assign(void) {
@@ -553,10 +551,9 @@ static void test_multiple_strings(void) {
 
 static void test_consecutive_operators(void) {
     /* ++ -- should not be confused */
-    Lexer *l = lex("++ -- **");
+    Lexer *l = lex("++ --");
     ASSERT_EQ(next(l).type, TOK_INCREMENT);
     ASSERT_EQ(next(l).type, TOK_DECREMENT);
-    ASSERT_EQ(next(l).type, TOK_POWER);
 }
 
 static void test_large_integer_literal(void) {
@@ -581,7 +578,7 @@ static void test_keyword_panic(void) {
 static void test_mixed_tokens_line(void) {
     /* Realistic code line */
     Lexer *l = lex("mut x int = 42");
-    ASSERT_EQ(next(l).type, TOK_TEMP);      /* mut */
+    ASSERT_EQ(next(l).type, TOK_MUT);      /* mut */
     ASSERT_EQ(next(l).type, TOK_IDENT);     /* x */
     ASSERT_EQ(next(l).type, TOK_IDENT);     /* int */
     ASSERT_EQ(next(l).type, TOK_ASSIGN);    /* = */
@@ -642,7 +639,7 @@ int main(void) {
 
     /* Single-character operators */
     RUN_TEST(test_single_operators);
-    RUN_TEST(test_power_operator);
+    RUN_TEST(test_double_asterisk);
     RUN_TEST(test_percent_assign);
     RUN_TEST(test_ampersand);
     RUN_TEST(test_semicolon);

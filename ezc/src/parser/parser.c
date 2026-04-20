@@ -25,7 +25,6 @@ typedef enum {
     PREC_MEMBERSHIP,    /* in, not_in */
     PREC_SUM,           /* + - */
     PREC_PRODUCT,       /* * / % */
-    PREC_POWER,         /* ** */
     PREC_PREFIX,        /* -x !x &x */
     PREC_CALL,          /* f(x) */
     PREC_INDEX,         /* a[i] a.b */
@@ -77,7 +76,7 @@ static bool expect_peek(Parser *p, TokenType t) {
 /* Check if a token type is a keyword (reserved word) */
 static bool is_keyword_token(TokenType t) {
     switch (t) {
-    case TOK_TEMP: case TOK_CONST: case TOK_DO: case TOK_RETURN:
+    case TOK_MUT: case TOK_CONST: case TOK_DO: case TOK_RETURN:
     case TOK_IF: case TOK_OR_KW: case TOK_OTHERWISE:
     case TOK_FOR: case TOK_FOR_EACH: case TOK_AS_LONG_AS:
     case TOK_LOOP: case TOK_BREAK: case TOK_CONTINUE:
@@ -103,7 +102,7 @@ static void synchronize(Parser *p) {
     /* Then find the next statement-starting token */
     while (!cur_token_is(p, TOK_EOF)) {
         switch (p->cur_token.type) {
-        case TOK_DO: case TOK_TEMP: case TOK_CONST:
+        case TOK_DO: case TOK_MUT: case TOK_CONST:
         case TOK_RETURN: case TOK_IF: case TOK_FOR:
         case TOK_FOR_EACH: case TOK_AS_LONG_AS: case TOK_LOOP:
         case TOK_WHEN: case TOK_IMPORT: case TOK_USING:
@@ -134,7 +133,6 @@ static Precedence token_precedence(TokenType t) {
     case TOK_ASTERISK:
     case TOK_SLASH:
     case TOK_PERCENT:        return PREC_PRODUCT;
-    case TOK_POWER:          return PREC_POWER;
     case TOK_LPAREN:         return PREC_CALL;
     case TOK_LBRACKET:       return PREC_INDEX;
     case TOK_DOT:            return PREC_INDEX;
@@ -877,7 +875,7 @@ static AstNode *parse_postfix_expression(Parser *p, AstNode *left) {
 static AstNode *parse_infix(Parser *p, AstNode *left) {
     switch (p->cur_token.type) {
     case TOK_PLUS: case TOK_MINUS: case TOK_ASTERISK: case TOK_SLASH:
-    case TOK_PERCENT: case TOK_POWER:
+    case TOK_PERCENT:
     case TOK_EQ: case TOK_NOT_EQ: case TOK_LT: case TOK_GT:
     case TOK_LT_EQ: case TOK_GT_EQ:
     case TOK_AND: case TOK_OR:
@@ -925,7 +923,7 @@ static AstNode *parse_expression(Parser *p, Precedence prec) {
 
 static AstNode *parse_var_declaration(Parser *p) {
     AstNode *node = ast_alloc(p->arena, NODE_VAR_DECL, p->cur_token);
-    node->data.var_decl.mutable = (p->cur_token.type == TOK_TEMP);
+    node->data.var_decl.mutable = (p->cur_token.type == TOK_MUT);
 
     if (peek_token_is(p, TOK_IDENT) || peek_token_is(p, TOK_BLANK)) {
         next_token(p);
@@ -2118,7 +2116,7 @@ static AstNode *parse_statement(Parser *p) {
         }
         return stmt;
     }
-    case TOK_TEMP:
+    case TOK_MUT:
     case TOK_CONST:
         /* Check for keyword used as name: const for struct / mut for int */
         if (is_keyword_token(p->peek_token.type)) {

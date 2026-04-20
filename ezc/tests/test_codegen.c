@@ -99,8 +99,8 @@ static void test_e2e_variables(void) {
     char *out = compile_and_run(
         ""
         "do main() {\n"
-        "    temp x int = 10\n"
-        "    temp y int = 20\n"
+        "    mut x int = 10\n"
+        "    mut y int = 20\n"
         "    println(x + y)\n"
         "}");
     ASSERT_NOT_NULL(out);
@@ -113,8 +113,8 @@ static void test_e2e_interpolation(void) {
     char *out = compile_and_run(
         ""
         "do main() {\n"
-        "    temp name string = \"Alice\"\n"
-        "    temp age int = 30\n"
+        "    mut name string = \"Alice\"\n"
+        "    mut age int = 30\n"
         "    println(\"${name} is ${age}\")\n"
         "}");
     ASSERT_NOT_NULL(out);
@@ -127,7 +127,7 @@ static void test_e2e_if_else(void) {
     char *out = compile_and_run(
         ""
         "do main() {\n"
-        "    temp x int = 5\n"
+        "    mut x int = 5\n"
         "    if x > 10 {\n"
         "        println(\"big\")\n"
         "    } or x > 3 {\n"
@@ -160,7 +160,7 @@ static void test_e2e_while(void) {
     char *out = compile_and_run(
         ""
         "do main() {\n"
-        "    temp i int = 0\n"
+        "    mut i int = 0\n"
         "    as_long_as i < 3 {\n"
         "        println(i)\n"
         "        i++\n"
@@ -176,7 +176,7 @@ static void test_e2e_loop_break(void) {
     char *out = compile_and_run(
         ""
         "do main() {\n"
-        "    temp i int = 0\n"
+        "    mut i int = 0\n"
         "    loop {\n"
         "        if i >= 3 { break }\n"
         "        println(i)\n"
@@ -219,7 +219,7 @@ static void test_e2e_multi_return(void) {
         ""
         "do swap(a int, b int) -> (int, int) { return b, a }\n"
         "do main() {\n"
-        "    temp x int, y int = swap(10, 20)\n"
+        "    mut x int, y int = swap(10, 20)\n"
         "    println(x)\n"
         "    println(y)\n"
         "}");
@@ -234,7 +234,7 @@ static void test_e2e_mutable_param(void) {
         ""
         "do inc(&n int) { n = n + 1 }\n"
         "do main() {\n"
-        "    temp x int = 5\n"
+        "    mut x int = 5\n"
         "    inc(x)\n"
         "    println(x)\n"
         "}");
@@ -267,7 +267,7 @@ static void test_e2e_struct(void) {
         "    y int\n"
         "}\n"
         "do main() {\n"
-        "    temp p Point = Point{x: 3, y: 4}\n"
+        "    mut p Point = Point{x: 3, y: 4}\n"
         "    println(p.x)\n"
         "    println(p.y)\n"
         "}");
@@ -286,7 +286,7 @@ static void test_e2e_enum(void) {
         "    BLUE\n"
         "}\n"
         "do main() {\n"
-        "    temp c Color = Color.GREEN\n"
+        "    mut c Color = Color.GREEN\n"
         "    println(c)\n"
         "}");
     ASSERT_NOT_NULL(out);
@@ -299,7 +299,7 @@ static void test_e2e_array(void) {
     char *out = compile_and_run(
         ""
         "do main() {\n"
-        "    temp nums [int] = {10, 20, 30}\n"
+        "    mut nums [int] = {10, 20, 30}\n"
         "    println(nums[0])\n"
         "    println(nums[2])\n"
         "    println(len(nums))\n"
@@ -314,7 +314,7 @@ static void test_e2e_array_set(void) {
     char *out = compile_and_run(
         ""
         "do main() {\n"
-        "    temp nums [int] = {1, 2, 3}\n"
+        "    mut nums [int] = {1, 2, 3}\n"
         "    nums[1] = 99\n"
         "    println(nums[1])\n"
         "}");
@@ -328,7 +328,7 @@ static void test_e2e_for_each(void) {
     char *out = compile_and_run(
         ""
         "do main() {\n"
-        "    temp names [string] = {\"a\", \"b\", \"c\"}\n"
+        "    mut names [string] = {\"a\", \"b\", \"c\"}\n"
         "    for_each name in names {\n"
         "        println(name)\n"
         "    }\n"
@@ -343,7 +343,7 @@ static void test_e2e_when(void) {
     char *out = compile_and_run(
         ""
         "do main() {\n"
-        "    temp x int = 2\n"
+        "    mut x int = 2\n"
         "    when x {\n"
         "        is 1 { println(\"one\") }\n"
         "        is 2 { println(\"two\") }\n"
@@ -384,7 +384,7 @@ static void test_e2e_compound_assign(void) {
     char *out = compile_and_run(
         ""
         "do main() {\n"
-        "    temp x int = 10\n"
+        "    mut x int = 10\n"
         "    x += 5\n"
         "    x -= 3\n"
         "    x *= 2\n"
@@ -400,7 +400,7 @@ static void test_e2e_char(void) {
     char *out = compile_and_run(
         ""
         "do main() {\n"
-        "    temp c char = 'A'\n"
+        "    mut c char = 'A'\n"
         "    println(c)\n"
         "}");
     ASSERT_NOT_NULL(out);
@@ -414,7 +414,7 @@ static void test_e2e_blank_ident(void) {
         ""
         "do pair() -> (int, int) { return 42, 99 }\n"
         "do main() {\n"
-        "    temp _, b int = pair()\n"
+        "    mut _, b int = pair()\n"
         "    println(b)\n"
         "}");
     ASSERT_NOT_NULL(out);
@@ -427,7 +427,7 @@ static void test_e2e_mem_arena_create_destroy(void) {
     char *out = compile_and_run(
         "import @mem\n"
         "do main() {\n"
-        "    temp a = mem.arena(4096)\n"
+        "    mut a = mem.arena(4096)\n"
         "    println(\"created\")\n"
         "    mem.destroy(a)\n"
         "    println(\"destroyed\")\n"
@@ -440,10 +440,10 @@ static void test_e2e_mem_usage(void) {
     char *out = compile_and_run(
         "import @mem\n"
         "do main() {\n"
-        "    temp a = mem.arena(1024)\n"
+        "    mut a = mem.arena(1024)\n"
         "    println(mem.usage(a))\n"
-        "    temp s string = mem.alloc(a, \"hello\")\n"
-        "    temp used int = mem.usage(a)\n"
+        "    mut s string = mem.alloc(a, \"hello\")\n"
+        "    mut used int = mem.usage(a)\n"
         "    if used > 0 { println(\"allocated\") }\n"
         "    mem.destroy(a)\n"
         "}");
@@ -455,8 +455,8 @@ static void test_e2e_mem_reset(void) {
     char *out = compile_and_run(
         "import @mem\n"
         "do main() {\n"
-        "    temp a = mem.arena(1024)\n"
-        "    temp s string = mem.alloc(a, \"hello\")\n"
+        "    mut a = mem.arena(1024)\n"
+        "    mut s string = mem.alloc(a, \"hello\")\n"
         "    if mem.usage(a) > 0 { println(\"used\") }\n"
         "    mem.reset(a)\n"
         "    println(mem.usage(a))\n"
@@ -470,9 +470,9 @@ static void test_e2e_mem_alloc_string(void) {
     char *out = compile_and_run(
         "import @mem\n"
         "do main() {\n"
-        "    temp a = mem.arena(4096)\n"
+        "    mut a = mem.arena(4096)\n"
         "    ensure mem.destroy(a)\n"
-        "    temp s string = mem.alloc(a, \"arena string\")\n"
+        "    mut s string = mem.alloc(a, \"arena string\")\n"
         "    println(s)\n"
         "}");
     ASSERT_NOT_NULL(out);
@@ -483,9 +483,9 @@ static void test_e2e_mem_alloc_array(void) {
     char *out = compile_and_run(
         "import @mem\n"
         "do main() {\n"
-        "    temp a = mem.arena(4096)\n"
+        "    mut a = mem.arena(4096)\n"
         "    ensure mem.destroy(a)\n"
-        "    temp nums [int] = mem.alloc(a, {10, 20, 30})\n"
+        "    mut nums [int] = mem.alloc(a, {10, 20, 30})\n"
         "    println(nums[0])\n"
         "    println(nums[1])\n"
         "    println(nums[2])\n"
@@ -499,9 +499,9 @@ static void test_e2e_mem_ensure_cleanup(void) {
     char *out = compile_and_run(
         "import @mem\n"
         "do work() {\n"
-        "    temp a = mem.arena(1024)\n"
+        "    mut a = mem.arena(1024)\n"
         "    ensure mem.destroy(a)\n"
-        "    temp s string = mem.alloc(a, \"working\")\n"
+        "    mut s string = mem.alloc(a, \"working\")\n"
         "    println(s)\n"
         "}\n"
         "do main() {\n"
@@ -518,9 +518,9 @@ static void test_e2e_ptr_new_deref(void) {
     char *out = compile_and_run(
         "import @mem\n"
         "do main() {\n"
-        "    temp a = mem.arena(4096)\n"
+        "    mut a = mem.arena(4096)\n"
         "    ensure mem.destroy(a)\n"
-        "    temp p ^int = mem.init(a, int)\n"
+        "    mut p ^int = mem.init(a, int)\n"
         "    p^ = 42\n"
         "    println(p^)\n"
         "}");
@@ -536,9 +536,9 @@ static void test_e2e_ptr_struct(void) {
         "    y int\n"
         "}\n"
         "do main() {\n"
-        "    temp a = mem.arena(4096)\n"
+        "    mut a = mem.arena(4096)\n"
         "    ensure mem.destroy(a)\n"
-        "    temp p ^Point = mem.init(a, Point)\n"
+        "    mut p ^Point = mem.init(a, Point)\n"
         "    p^.x = 3\n"
         "    p^.y = 4\n"
         "    println(p^.x)\n"
@@ -564,7 +564,7 @@ static void test_e2e_ptr_nil(void) {
     char *out = compile_and_run(
         ""
         "do main() {\n"
-        "    temp p ^int = nil\n"
+        "    mut p ^int = nil\n"
         "    if p == nil {\n"
         "        println(\"null\")\n"
         "    }\n"
@@ -580,9 +580,9 @@ static void test_e2e_ptr_write_through(void) {
         "    p^ = val\n"
         "}\n"
         "do main() {\n"
-        "    temp a = mem.arena(4096)\n"
+        "    mut a = mem.arena(4096)\n"
         "    ensure mem.destroy(a)\n"
-        "    temp p ^int = mem.init(a, int)\n"
+        "    mut p ^int = mem.init(a, int)\n"
         "    set_value(p, 777)\n"
         "    println(p^)\n"
         "}");

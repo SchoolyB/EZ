@@ -29,7 +29,6 @@ typedef enum {
     TOK_ASTERISK,       /* * */
     TOK_SLASH,          /* / */
     TOK_PERCENT,        /* % */
-    TOK_POWER,          /* ** */
 
     /* Comparison */
     TOK_LT,             /* < */
@@ -93,7 +92,7 @@ typedef enum {
     TOK_JSON_ATTR,      /* #json */
 
     /* Keywords */
-    TOK_TEMP,
+    TOK_MUT,
     TOK_CONST,
     TOK_DO,
     TOK_RETURN,

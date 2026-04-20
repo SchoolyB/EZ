@@ -29,7 +29,7 @@ static TypeTable *check(const char *input) {
 static EzType *expr_type(const char *expr_code) {
     char buf[512];
     snprintf(buf, sizeof(buf),
-        "do main() { temp _result = %s }", expr_code);
+        "do main() { mut _result = %s }", expr_code);
     DiagnosticList *diag = diag_create();
     diag->use_color = false;
     Lexer *l = lexer_create(arena, buf, "test.ez");
@@ -215,8 +215,8 @@ static void test_resolve_array_literal(void) {
 static void test_resolve_typed_var(void) {
     TypeTable *tt = check(
         "do main() {\n"
-        "    temp x int = 42\n"
-        "    temp y string = \"hello\"\n"
+        "    mut x int = 42\n"
+        "    mut y string = \"hello\"\n"
         "}");
     (void)tt;
     /* If it doesn't crash, the scope correctly handled the declarations */
@@ -252,8 +252,8 @@ static void test_resolve_struct_field(void) {
         "    age int\n"
         "}\n"
         "do main() {\n"
-        "    temp p Person = Person{name: \"Alice\", age: 30}\n"
-        "    temp n = p.name\n"
+        "    mut p Person = Person{name: \"Alice\", age: 30}\n"
+        "    mut n = p.name\n"
         "}");
     (void)tt;
     ASSERT_NOT_NULL(tt);
@@ -265,7 +265,7 @@ static void test_resolve_func_return(void) {
     TypeTable *tt = check(
         "do add(a int, b int) -> int { return a + b }\n"
         "do main() {\n"
-        "    temp result = add(1, 2)\n"
+        "    mut result = add(1, 2)\n"
         "}");
     (void)tt;
     ASSERT_NOT_NULL(tt);
@@ -975,11 +975,6 @@ static void test_resolve_modulo(void) {
     ASSERT_EQ(t->kind, TK_INT);
 }
 
-static void test_resolve_power(void) {
-    EzType *t = expr_type("2 ** 3");
-    ASSERT_NOT_NULL(t);
-    ASSERT_EQ(t->kind, TK_INT);
-}
 
 static void test_resolve_equality(void) {
     EzType *t = expr_type("1 == 1");
@@ -1375,7 +1370,6 @@ int main(void) {
     /* Additional typechecker coverage */
     RUN_TEST(test_resolve_char_literal);
     RUN_TEST(test_resolve_modulo);
-    RUN_TEST(test_resolve_power);
     RUN_TEST(test_resolve_equality);
     RUN_TEST(test_resolve_inequality);
     RUN_TEST(test_resolve_or_logic);

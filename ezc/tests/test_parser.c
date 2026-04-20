@@ -29,7 +29,7 @@ static AstNode *first_stmt(AstNode *prog) {
 }
 
 static void test_parse_var_decl(void) {
-    AstNode *prog = parse("temp x int = 42");
+    AstNode *prog = parse("mut x int = 42");
     AstNode *stmt = first_stmt(prog);
     ASSERT_NOT_NULL(stmt);
     ASSERT_EQ(stmt->kind, NODE_VAR_DECL);
@@ -143,7 +143,7 @@ static void test_parse_enum_decl(void) {
 }
 
 static void test_parse_struct_literal(void) {
-    AstNode *prog = parse("temp p = Person{name: \"Alice\", age: 30}");
+    AstNode *prog = parse("mut p = Person{name: \"Alice\", age: 30}");
     AstNode *stmt = first_stmt(prog);
     ASSERT_NOT_NULL(stmt);
     ASSERT_EQ(stmt->kind, NODE_VAR_DECL);
@@ -153,7 +153,7 @@ static void test_parse_struct_literal(void) {
 }
 
 static void test_parse_array_literal(void) {
-    AstNode *prog = parse("temp nums [int] = {1, 2, 3}");
+    AstNode *prog = parse("mut nums [int] = {1, 2, 3}");
     AstNode *stmt = first_stmt(prog);
     ASSERT_NOT_NULL(stmt);
     ASSERT_EQ(stmt->kind, NODE_VAR_DECL);
@@ -189,7 +189,7 @@ static void test_parse_default_params(void) {
 }
 
 static void test_parse_hex_int(void) {
-    AstNode *prog = parse("temp x int = 0xFF");
+    AstNode *prog = parse("mut x int = 0xFF");
     AstNode *stmt = first_stmt(prog);
     ASSERT_NOT_NULL(stmt);
     ASSERT_EQ(stmt->data.var_decl.value->kind, NODE_INT_VALUE);
@@ -197,14 +197,14 @@ static void test_parse_hex_int(void) {
 }
 
 static void test_parse_octal_int(void) {
-    AstNode *prog = parse("temp x int = 0o10");
+    AstNode *prog = parse("mut x int = 0o10");
     AstNode *stmt = first_stmt(prog);
     ASSERT_NOT_NULL(stmt);
     ASSERT_EQ(stmt->data.var_decl.value->data.int_value.value, 8);
 }
 
 static void test_parse_binary_int(void) {
-    AstNode *prog = parse("temp x int = 0b1010");
+    AstNode *prog = parse("mut x int = 0b1010");
     AstNode *stmt = first_stmt(prog);
     ASSERT_NOT_NULL(stmt);
     ASSERT_EQ(stmt->data.var_decl.value->data.int_value.value, 10);
@@ -228,7 +228,7 @@ static void test_parse_array_return_type(void) {
 }
 
 static void test_parse_error_reports(void) {
-    AstNode *prog = parse("temp x int =");
+    AstNode *prog = parse("mut x int =");
     (void)prog;
     ASSERT(diag_has_errors(diag));
 }
@@ -591,13 +591,6 @@ static void test_parse_local_import(void) {
     ASSERT_STR_EQ(stmt->data.import_stmt.items[0].path, "./mylib");
 }
 
-static void test_parse_power_expr(void) {
-    AstNode *prog = parse("do main() { mut x = 2 ** 3 }");
-    AstNode *val = var_value(prog);
-    ASSERT_NOT_NULL(val);
-    ASSERT_EQ(val->kind, NODE_INFIX_EXPR);
-    ASSERT_STR_EQ(val->data.infix.op, "**");
-}
 
 static void test_parse_precedence_add_mul(void) {
     /* 1 + 2 * 3 should parse as 1 + (2 * 3) */
@@ -748,17 +741,6 @@ static void test_parse_in_operator(void) {
     ASSERT_STR_EQ(val->data.var_decl.value->data.infix.op, "in");
 }
 
-static void test_parse_precedence_power(void) {
-    /* 2 ** 3 ** 2 — power is right-associative */
-    AstNode *prog = parse("do main() { mut x = 2 ** 3 + 1 }");
-    AstNode *val = var_value(prog);
-    ASSERT_NOT_NULL(val);
-    /* ** has higher precedence than +, so this is (2**3) + 1 */
-    ASSERT_EQ(val->kind, NODE_INFIX_EXPR);
-    ASSERT_STR_EQ(val->data.infix.op, "+");
-    ASSERT_EQ(val->data.infix.left->kind, NODE_INFIX_EXPR);
-    ASSERT_STR_EQ(val->data.infix.left->data.infix.op, "**");
-}
 
 static void test_parse_return_multiple_values(void) {
     AstNode *prog = parse(
@@ -868,7 +850,6 @@ int main(void) {
     RUN_TEST(test_parse_pointer_deref);
     /* test_parse_module_decl removed — module keyword removed in v3.0 */
     RUN_TEST(test_parse_local_import);
-    RUN_TEST(test_parse_power_expr);
     RUN_TEST(test_parse_precedence_add_mul);
     RUN_TEST(test_parse_precedence_comparison_logical);
     RUN_TEST(test_parse_named_return);
@@ -887,7 +868,6 @@ int main(void) {
     RUN_TEST(test_parse_nested_if);
     RUN_TEST(test_parse_struct_nested_field);
     RUN_TEST(test_parse_in_operator);
-    RUN_TEST(test_parse_precedence_power);
     RUN_TEST(test_parse_return_multiple_values);
     RUN_TEST(test_parse_import_alias);
     RUN_TEST(test_parse_enum_with_values);

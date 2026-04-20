@@ -403,9 +403,6 @@ Token lexer_next_token(Lexer *l) {
         if (peek_char(l) == '=') {
             read_char(l);
             tok = make_token(TOK_ASTERISK_ASSIGN, "*=", tok.line, tok.column);
-        } else if (peek_char(l) == '*') {
-            read_char(l);
-            tok = make_token(TOK_POWER, "**", tok.line, tok.column);
         } else {
             tok = make_token(TOK_ASTERISK, "*", tok.line, tok.column);
         }

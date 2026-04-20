@@ -1576,9 +1576,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                 }
             } else if (strcmp(mod, "uuid") == 0) {
                 if (strcmp(mfn, "is_valid") == 0) result = &TYPE_BOOL;
-                else if (strcmp(mfn, "generate") == 0 || strcmp(mfn, "generate_hyphenated") == 0 ||
-                         strcmp(mfn, "v4") == 0 || strcmp(mfn, "v7") == 0 ||
-                         strcmp(mfn, "to_string") == 0) {
+                else if (strcmp(mfn, "generate") == 0 || strcmp(mfn, "generate_hyphenated") == 0) {
                     result = &TYPE_STRING;
                 } else {
                     emit_unknown_stdlib_fn(tc, mod, mfn, node);
@@ -1815,7 +1813,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                     result = &TYPE_STRING;
                 } else if (strcmp(mfn, "current_os") == 0 || strcmp(mfn, "pid") == 0) {
                     result = &TYPE_INT;
-                } else if (strcmp(mfn, "exec") == 0 || strcmp(mfn, "set_env") == 0 ||
+                } else if (strcmp(mfn, "set_env") == 0 ||
                            strcmp(mfn, "exit") == 0) {
                     result = &TYPE_VOID;
                 } else {
@@ -2911,7 +2909,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                             {"set_env","os",TK_VOID},{"current_dir","os",TK_STRING},
                             {"hostname","os",TK_STRING},{"arch","os",TK_STRING},
                             {"current_os","os",TK_INT},{"pid","os",TK_INT},
-                            {"exec","os",TK_VOID},{"exit","os",TK_VOID},
+                            {"exit","os",TK_VOID},
                             /* @time */
                             {"now","time",TK_INT},{"now_ms","time",TK_INT},{"now_ns","time",TK_INT},
                             {"tick","time",TK_INT},{"elapsed_ms","time",TK_INT},

@@ -127,7 +127,7 @@ new          private     struct      use*        using
 
 **Types (reserved names):**
 ```
-bool         byte        char        error       float
+bool         byte        char        Error       float
 func         int         map         nil         string
 uint
 ```
@@ -151,7 +151,7 @@ true
 +    -    *    /    %
 ==   !=   <    >    <=   >=
 &&   ||   !
-=    +=   -=   *=   /=
+=    +=   -=   *=   /=   %=
 ++   --
 ^    &    @    #
 (    )    {    }    [    ]
@@ -170,12 +170,14 @@ true
 Integer literals represent integer values.
 
 ```
-int_literal    = decimal_lit | hex_lit | octal_lit .
+int_literal    = decimal_lit | hex_lit | octal_lit | binary_lit .
 decimal_lit    = digit { [ "_" ] digit } .
 hex_lit        = "0" ( "x" | "X" ) hex_digit { [ "_" ] hex_digit } .
 hex_digit      = digit | "A" ... "F" | "a" ... "f" .
 octal_lit      = "0" ( "o" | "O" ) octal_digit { [ "_" ] octal_digit } .
 octal_digit    = "0" ... "7" .
+binary_lit     = "0" ( "b" | "B" ) bin_digit { [ "_" ] bin_digit } .
+bin_digit      = "0" | "1" .
 ```
 
 Underscores may be used for readability but:
@@ -183,7 +185,7 @@ Underscores may be used for readability but:
 - Must not appear consecutively
 - Must not appear adjacent to the decimal point
 
-Examples: `42`, `1_000_000`, `0xFF`, `0xDEAD_BEEF`, `0o777`, `0o1_2_3`
+Examples: `42`, `1_000_000`, `0xFF`, `0xDEAD_BEEF`, `0o777`, `0o1_2_3`, `0b1010`, `0b1111_0000`
 
 #### 2.7.2 Floating-Point Literals
 
@@ -899,6 +901,7 @@ if 10 !in range(0, 10) { ... }  // Shorthand for not_in
 | `-=` | Subtraction assignment |
 | `*=` | Multiplication assignment |
 | `/=` | Division assignment |
+| `%=` | Modulo assignment |
 
 #### 5.2.6 Increment and Decrement
 
@@ -977,7 +980,7 @@ Ranges are inclusive of the start value and exclusive of the end value.
 **Step validation rules:**
 - Positive step (or omitted): start must be ≤ end
 - Negative step: start must be ≥ end (for backwards iteration)
-- Zero step: always produces an error (E9003)
+- Zero step: always produces a runtime panic
 - Mismatched direction (e.g., `range(0, 10, -1)`) produces an error (E9005)
 
 ---
@@ -2234,7 +2237,7 @@ Unless noted otherwise, all math functions accept `int`, `float`, and sized nume
 | Function | Signature | Description |
 |----------|-----------|-------------|
 | `tick` | `() -> int` | High-resolution timestamp in nanoseconds |
-| `elapsed_ms` | `(start_tick int) -> float` | Milliseconds elapsed since a tick |
+| `elapsed_ms` | `(start_tick int) -> int` | Milliseconds elapsed since a tick |
 
 ### 9.7 Random Module (`@random`)
 
@@ -2349,11 +2352,11 @@ The `HttpResponse` struct contains:
 | Function | Signature | Description |
 |----------|-----------|-------------|
 | `base64_encode` | `(s string) -> string` | Encode to base64 |
-| `base64_decode` | `(s string) -> (string, Error)` | Decode from base64 |
+| `base64_decode` | `(s string) -> string` | Decode from base64 |
 | `hex_encode` | `(s string) -> string` | Encode to hex |
-| `hex_decode` | `(s string) -> (string, Error)` | Decode from hex |
+| `hex_decode` | `(s string) -> string` | Decode from hex |
 | `url_encode` | `(s string) -> string` | URL percent-encode |
-| `url_decode` | `(s string) -> (string, Error)` | URL percent-decode |
+| `url_decode` | `(s string) -> string` | URL percent-decode |
 
 ### 9.14 UUID Module (`@uuid`)
 
@@ -2368,8 +2371,8 @@ The `HttpResponse` struct contains:
 | Function | Signature | Description |
 |----------|-----------|-------------|
 | `from_string` | `(s string) -> [byte]` | Create from UTF-8 string |
-| `from_hex` | `(hex string) -> ([byte], Error)` | Decode hex string |
-| `from_base64` | `(b64 string) -> ([byte], Error)` | Decode base64 string |
+| `from_hex` | `(hex string) -> [byte]` | Decode hex string |
+| `from_base64` | `(b64 string) -> [byte]` | Decode base64 string |
 | `to_string` | `(bytes [byte]) -> string` | Convert to UTF-8 string |
 | `to_hex` | `(bytes [byte]) -> string` | Encode to hex string |
 | `to_base64` | `(bytes [byte]) -> string` | Encode to base64 string |
