@@ -1,38 +1,129 @@
 /*
- * csv_c.ez - Integration test for @csv (compiler)
+ * csv_c.ez - Comprehensive integration test for @csv (compiler)
+ * Tests: decode, encode, write_file, read_file
  */
 
 import @csv
 import @strings
+import @io
 
 do main() {
     println("=== CSV Module Test ===")
     mut passed int = 0
     mut failed int = 0
 
-    // stringify a simple string array
-    mut row [string] = {"Alice", "30", "NYC"}
-    mut csv_str string = csv.encode(row)
-    if len(csv_str) > 0 {
-        println("  [PASS] stringify")
+    // decode
+    mut csv_data string = "name,age,city\nAlice,30,NYC\nBob,25,LA"
+    mut rows [[string]] = csv.decode(csv_data)
+    if len(rows) == 3 {
+        println("  [PASS] decode row count")
         passed += 1
     } otherwise {
-        println("  [FAIL] stringify: empty result")
+        println("  [FAIL] decode row count: expected 3, got ${len(rows)}")
         failed += 1
     }
 
-    // stringify contains expected values
-    if strings.contains(csv_str, "Alice") {
-        println("  [PASS] stringify contains data")
+    // decode - verify header
+    if len(rows) >= 1 && rows[0][0] == "name" && rows[0][1] == "age" && rows[0][2] == "city" {
+        println("  [PASS] decode header")
         passed += 1
     } otherwise {
-        println("  [FAIL] stringify missing data")
+        println("  [FAIL] decode header")
         failed += 1
     }
+
+    // decode - verify data
+    if len(rows) >= 3 && rows[1][0] == "Alice" && rows[2][0] == "Bob" {
+        println("  [PASS] decode data")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] decode data")
+        failed += 1
+    }
+
+    // encode - single row
+    mut row [string] = {"Alice", "30", "NYC"}
+    mut csv_str string = csv.encode(row)
+    if strings.contains(csv_str, "Alice") && strings.contains(csv_str, "30") && strings.contains(csv_str, "NYC") {
+        println("  [PASS] encode contains all values")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] encode: got '${csv_str}'")
+        failed += 1
+    }
+
+    // encode - verify it produces newline-separated rows (one element = one row)
+    if strings.contains(csv_str, "\n") {
+        println("  [PASS] encode uses newlines")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] encode not newline-separated: '${csv_str}'")
+        failed += 1
+    }
+
+    // write_file + read_file round trip
+    mut test_path string = "/tmp/ez_csv_test.csv"
+    mut write_content string = "id,name,score\n1,Alice,95\n2,Bob,87\n3,Charlie,92"
+    mut _ = io.write_file(test_path, write_content)
+
+    mut read_rows [[string]] = csv.read_file(test_path)
+    if len(read_rows) == 4 {
+        println("  [PASS] read_file row count")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] read_file row count: expected 4, got ${len(read_rows)}")
+        failed += 1
+    }
+
+    // verify header row
+    if len(read_rows) >= 1 && read_rows[0][0] == "id" && read_rows[0][1] == "name" && read_rows[0][2] == "score" {
+        println("  [PASS] read_file header")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] read_file header")
+        failed += 1
+    }
+
+    // verify data rows
+    if len(read_rows) >= 4 && read_rows[1][0] == "1" && read_rows[1][1] == "Alice" && read_rows[3][1] == "Charlie" {
+        println("  [PASS] read_file data")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] read_file data")
+        failed += 1
+    }
+
+    // write_file test
+    mut out_path string = "/tmp/ez_csv_write_test.csv"
+    mut data [string] = {"hello", "world", "test"}
+    mut write_ok bool = csv.write_file(out_path, data)
+    if write_ok == true {
+        println("  [PASS] write_file")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] write_file returned false")
+        failed += 1
+    }
+
+    // verify written file exists
+    if io.file_exists(out_path) == true {
+        println("  [PASS] write_file creates file")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] write_file did not create file")
+        failed += 1
+    }
+
+    // cleanup
+    mut _ = io.delete_file(test_path)
+    mut _ = io.delete_file(out_path)
 
     println("")
     println("Results: ${passed} passed, ${failed} failed")
     if failed > 0 {
-        panic("Some tests failed!")
+        println("SOME TESTS FAILED")
+        exit(1)
+    } otherwise {
+        println("ALL TESTS PASSED")
     }
 }

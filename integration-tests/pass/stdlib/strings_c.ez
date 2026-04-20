@@ -54,6 +54,15 @@ do main() {
         failed += 1
     }
 
+    // is_empty
+    if strings.is_empty("") == true && strings.is_empty("hi") == false {
+        println("  [PASS] is_empty")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] is_empty")
+        failed += 1
+    }
+
     // contains
     if strings.contains("hello world", "world") == true {
         println("  [PASS] contains")
@@ -170,6 +179,12 @@ do main() {
         failed += 1
     }
 
+    println("")
     println("Results: ${passed} passed, ${failed} failed")
-    if failed > 0 { exit(1) }
+    if failed > 0 {
+        println("SOME TESTS FAILED")
+        exit(1)
+    } otherwise {
+        println("ALL TESTS PASSED")
+    }
 }

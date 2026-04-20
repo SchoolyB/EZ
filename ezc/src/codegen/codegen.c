@@ -3907,9 +3907,9 @@ static bool emit_fmt_call(CodeGen *cg, AstNode *node, const char *func) {
         emit_expression(cg, node->data.call.args[0]);
         emit(cg, ", ");
         emit_expression(cg, node->data.call.args[1]);
-        emit(cg, ", (");
+        emit(cg, ", (char)(");
         emit_expression(cg, node->data.call.args[2]);
-        emit(cg, ").data[0])");
+        emit(cg, "))");
         return true;
     }
 
@@ -3918,9 +3918,9 @@ static bool emit_fmt_call(CodeGen *cg, AstNode *node, const char *func) {
         emit_expression(cg, node->data.call.args[0]);
         emit(cg, ", ");
         emit_expression(cg, node->data.call.args[1]);
-        emit(cg, ", (");
+        emit(cg, ", (char)(");
         emit_expression(cg, node->data.call.args[2]);
-        emit(cg, ").data[0])");
+        emit(cg, "))");
         return true;
     }
 
@@ -3929,9 +3929,9 @@ static bool emit_fmt_call(CodeGen *cg, AstNode *node, const char *func) {
         emit_expression(cg, node->data.call.args[0]);
         emit(cg, ", ");
         emit_expression(cg, node->data.call.args[1]);
-        emit(cg, ", (");
+        emit(cg, ", (char)(");
         emit_expression(cg, node->data.call.args[2]);
-        emit(cg, ").data[0])");
+        emit(cg, "))");
         return true;
     }
 
@@ -4219,7 +4219,7 @@ static void emit_call_expression(CodeGen *cg, AstNode *node) {
                 {"find_all","regex"},{"replace","regex"},{"split","regex"},
                 /* @json */
                 {"parse","json"},{"stringify","json"},{"encode","json"},
-                {"decode","json"},{"is_valid","json"},{"pretty","json"},
+                {"decode","json"},{"is_valid","json"},{"pretty_print","json"},
                 /* @io */
                 {"read_file","io"},{"write_file","io"},{"append_file","io"},
                 {"delete_file","io"},{"rename_file","io"},{"file_exists","io"},

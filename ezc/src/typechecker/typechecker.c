@@ -1530,9 +1530,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                            strcmp(mfn, "trim") == 0 || strcmp(mfn, "trim_left") == 0 ||
                            strcmp(mfn, "trim_right") == 0 || strcmp(mfn, "replace") == 0 ||
                            strcmp(mfn, "repeat") == 0 || strcmp(mfn, "reverse") == 0 ||
-                           strcmp(mfn, "slice") == 0 || strcmp(mfn, "join") == 0 ||
-                           strcmp(mfn, "pad_left") == 0 || strcmp(mfn, "pad_right") == 0 ||
-                           strcmp(mfn, "center") == 0) {
+                           strcmp(mfn, "slice") == 0 || strcmp(mfn, "join") == 0) {
                     result = &TYPE_STRING;
                 } else {
                     emit_unknown_stdlib_fn(tc, mod, mfn, node);
@@ -1606,7 +1604,8 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                 else if (strncmp(mfn, "decode_f", 8) == 0) result = &TYPE_FLOAT;
                 else result = &TYPE_INT;
             } else if (strcmp(mod, "csv") == 0) {
-                if (strcmp(mfn, "parse") == 0 || strcmp(mfn, "read") == 0 ||
+                if (strcmp(mfn, "decode") == 0 || strcmp(mfn, "parse") == 0 ||
+                    strcmp(mfn, "read") == 0 ||
                     strcmp(mfn, "read_file") == 0 || strcmp(mfn, "headers") == 0) {
                     result = type_array("array");
                 } else if (strcmp(mfn, "write") == 0 || strcmp(mfn, "write_file") == 0) {
@@ -1627,7 +1626,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                      * type onto the call node via #1507's mechanism. */
                     result = &TYPE_UNKNOWN;
                 } else if (strcmp(mfn, "encode") == 0 || strcmp(mfn, "stringify") == 0 ||
-                           strcmp(mfn, "format") == 0 || strcmp(mfn, "pretty") == 0) {
+                           strcmp(mfn, "format") == 0 || strcmp(mfn, "pretty_print") == 0) {
                     result = &TYPE_STRING;
                 } else {
                     emit_unknown_stdlib_fn(tc, mod, mfn, node);
@@ -1844,8 +1843,10 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                            strcmp(mfn, "gcd") == 0 || strcmp(mfn, "lcm") == 0) {
                     result = &TYPE_INT;
                 } else if (strcmp(mfn, "sqrt") == 0 || strcmp(mfn, "pow") == 0 ||
-                           strcmp(mfn, "exp") == 0 || strcmp(mfn, "log") == 0 ||
+                           strcmp(mfn, "exp") == 0 || strcmp(mfn, "exp2") == 0 ||
+                           strcmp(mfn, "log") == 0 ||
                            strcmp(mfn, "log2") == 0 || strcmp(mfn, "log10") == 0 ||
+                           strcmp(mfn, "log_base") == 0 ||
                            strcmp(mfn, "sin") == 0 || strcmp(mfn, "cos") == 0 ||
                            strcmp(mfn, "tan") == 0 || strcmp(mfn, "asin") == 0 ||
                            strcmp(mfn, "acos") == 0 || strcmp(mfn, "atan") == 0 ||
@@ -1853,6 +1854,9 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                            strcmp(mfn, "cosh") == 0 || strcmp(mfn, "tanh") == 0 ||
                            strcmp(mfn, "floor") == 0 || strcmp(mfn, "ceil") == 0 ||
                            strcmp(mfn, "round") == 0 || strcmp(mfn, "trunc") == 0 ||
+                           strcmp(mfn, "cbrt") == 0 || strcmp(mfn, "hypot") == 0 ||
+                           strcmp(mfn, "deg_to_rad") == 0 || strcmp(mfn, "rad_to_deg") == 0 ||
+                           strcmp(mfn, "lerp") == 0 || strcmp(mfn, "distance") == 0 ||
                            strcmp(mfn, "mod") == 0 || strcmp(mfn, "pi") == 0 ||
                            strcmp(mfn, "e") == 0 || strcmp(mfn, "tau") == 0) {
                     result = &TYPE_FLOAT;
@@ -1949,7 +1953,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                     result = &TYPE_INT;
                 } else if (strcmp(mfn, "receive") == 0 || strcmp(mfn, "resolve") == 0) {
                     result = &TYPE_STRING;
-                } else if (strcmp(mfn, "close") == 0) {
+                } else if (strcmp(mfn, "close") == 0 || strcmp(mfn, "set_timeout") == 0) {
                     result = &TYPE_VOID;
                 } else {
                     emit_unknown_stdlib_fn(tc, mod, mfn, node);

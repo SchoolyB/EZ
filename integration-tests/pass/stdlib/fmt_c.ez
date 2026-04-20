@@ -1,6 +1,7 @@
 /*
- * fmt_c.ez - Integration test for @fmt (compiler)
- * fmt module ONLY has eprintln(s) and eprint(s) — no sprintf.
+ * fmt_c.ez - Comprehensive integration test for @fmt (compiler)
+ * Tests all implemented fmt module functions.
+ * NOT IMPLEMENTED: printf, sprintf, format
  */
 
 import @fmt
@@ -10,24 +11,155 @@ do main() {
     mut passed int = 0
     mut failed int = 0
 
-    // eprintln doesn't crash (writes to stderr)
-    fmt.eprintln("test message to stderr")
+    // pad_left
+    mut zero_ch char = '0'
+    mut pl string = fmt.pad_left("hi", 5, zero_ch)
+    if pl == "000hi" {
+        println("  [PASS] pad_left")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] pad_left: expected '000hi', got '${pl}'")
+        failed += 1
+    }
+
+    // pad_right
+    mut dot_ch char = '.'
+    mut pr string = fmt.pad_right("hi", 5, dot_ch)
+    if pr == "hi..." {
+        println("  [PASS] pad_right")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] pad_right: expected 'hi...', got '${pr}'")
+        failed += 1
+    }
+
+    // center
+    mut dash_ch char = '-'
+    mut ct string = fmt.center("hi", 6, dash_ch)
+    if ct == "--hi--" {
+        println("  [PASS] center")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] center: expected '--hi--', got '${ct}'")
+        failed += 1
+    }
+
+    // int_to_hex
+    mut hex_val string = fmt.int_to_hex(255)
+    if hex_val == "ff" {
+        println("  [PASS] int_to_hex")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] int_to_hex: expected 'ff', got '${hex_val}'")
+        failed += 1
+    }
+
+    // int_to_hex - zero
+    mut hex_zero string = fmt.int_to_hex(0)
+    if hex_zero == "0" {
+        println("  [PASS] int_to_hex (zero)")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] int_to_hex (zero): expected '0', got '${hex_zero}'")
+        failed += 1
+    }
+
+    // int_to_hex - large number
+    mut hex_large string = fmt.int_to_hex(256)
+    if hex_large == "100" {
+        println("  [PASS] int_to_hex (256)")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] int_to_hex (256): expected '100', got '${hex_large}'")
+        failed += 1
+    }
+
+    // int_to_binary
+    mut bin_val string = fmt.int_to_binary(10)
+    if bin_val == "1010" {
+        println("  [PASS] int_to_binary")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] int_to_binary: expected '1010', got '${bin_val}'")
+        failed += 1
+    }
+
+    // int_to_binary - 1
+    mut bin_one string = fmt.int_to_binary(1)
+    if bin_one == "1" {
+        println("  [PASS] int_to_binary (1)")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] int_to_binary (1): expected '1', got '${bin_one}'")
+        failed += 1
+    }
+
+    // int_to_octal
+    mut oct_val string = fmt.int_to_octal(8)
+    if oct_val == "10" {
+        println("  [PASS] int_to_octal")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] int_to_octal: expected '10', got '${oct_val}'")
+        failed += 1
+    }
+
+    // int_to_octal - 7
+    mut oct_seven string = fmt.int_to_octal(7)
+    if oct_seven == "7" {
+        println("  [PASS] int_to_octal (7)")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] int_to_octal (7): expected '7', got '${oct_seven}'")
+        failed += 1
+    }
+
+    // float_fixed
+    mut ff_val string = fmt.float_fixed(3.14159, 2)
+    if ff_val == "3.14" {
+        println("  [PASS] float_fixed")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] float_fixed: expected '3.14', got '${ff_val}'")
+        failed += 1
+    }
+
+    // float_fixed - zero decimals
+    mut ff_zero string = fmt.float_fixed(3.14159, 0)
+    if ff_zero == "3" {
+        println("  [PASS] float_fixed (0 decimals)")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] float_fixed (0 decimals): expected '3', got '${ff_zero}'")
+        failed += 1
+    }
+
+    // float_sci
+    mut fs_val string = fmt.float_sci(1234.5)
+    if len(fs_val) > 0 {
+        println("  [PASS] float_sci (output: ${fs_val})")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] float_sci: empty result")
+        failed += 1
+    }
+
+    // eprintln doesn't crash
+    fmt.eprintln("test stderr")
     println("  [PASS] eprintln")
     passed += 1
 
-    // eprint doesn't crash (writes to stderr, no newline)
-    fmt.eprint("test stderr no newline")
+    // eprint doesn't crash
+    fmt.eprint("test no newline\n")
     println("  [PASS] eprint")
-    passed += 1
-
-    // eprintln with empty string
-    fmt.eprintln("")
-    println("  [PASS] eprintln empty")
     passed += 1
 
     println("")
     println("Results: ${passed} passed, ${failed} failed")
     if failed > 0 {
-        panic("Some tests failed!")
+        println("SOME TESTS FAILED")
+        exit(1)
+    } otherwise {
+        println("ALL TESTS PASSED")
     }
 }
