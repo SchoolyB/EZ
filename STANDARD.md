@@ -2740,25 +2740,43 @@ Runtime errors include location information (file, line, column).
 
 ### 11.1 Memory Management
 
-EZ compiles to native code and uses arena-based memory management by default. Memory allocated within an arena is released automatically when the arena is destroyed or reset. For most programs, this provides automatic cleanup without manual `free` calls.
+EZ uses **scope-based automatic memory management**. When a block of code ends — a function body, a loop iteration, or a conditional block — any memory it created is freed. If a value needs to survive because it escapes the scope, EZ handles it automatically.
 
-For fine-grained control, the `@mem` module exposes arena operations directly:
+```ez
+do process(name string) {
+    mut upper = strings.to_upper(name)    // allocated in this scope
+    mut parts = strings.split(upper, ",") // allocated in this scope
+    println(parts[0])
+}
+// function ends -> upper and parts are freed
+```
 
-| Function | Description |
-|----------|-------------|
-| `mem.arena(size)` | Create an arena with the given byte capacity |
-| `mem.destroy(a)` | Destroy arena `a` and free all its memory |
-| `mem.reset(a)` | Reset arena `a`, reclaiming allocations without freeing |
-| `mem.usage(a)` | Return bytes currently used in arena `a` |
-| `mem.init(a, Type)` | Allocate a zero-initialized `Type` in arena `a` |
-| `mem.alloc(a, value)` | Allocate a copy of `value` in arena `a` |
-| `mem.copy(dest, src, n)` | Copy `n` bytes from `src` to `dest` |
-| `mem.zero(ptr, n)` | Zero out `n` bytes at `ptr` |
-| `mem.set(ptr, val, n)` | Set `n` bytes at `ptr` to `val` |
+No imports, no annotations, no cleanup calls.
+
+When a value is stored somewhere that outlives the current scope, EZ copies it to the outer scope:
+
+```ez
+mut results [string] = {}
+
+for_each line in lines {
+    mut upper = strings.to_upper(line)
+    arrays.append(results, upper)         // upper escapes into results
+}
+// results lives until its scope ends
+// each iteration's other temporaries are freed
+```
+
+Three cases where EZ keeps values alive:
+
+1. **Returning a value** — the return value is copied to the caller's scope
+2. **Storing into an outer-scope container** — array append, map insert, struct field assignment
+3. **Assigning to a variable declared in an outer scope**
+
+Everything else is freed when the block ends.
 
 ### 11.2 Allocation Strategy
 
-Primitive types (`int`, `uint`, `float`, `bool`, `char`, `byte`) are stack-allocated. Compound types (`string`, arrays, maps, structs created with `new()`) are arena-allocated. The compiler manages a default arena per program; explicit arenas can be created via the `@mem` module.
+Primitive types (`int`, `uint`, `float`, `bool`, `char`, `byte`) are stack-allocated. Compound types (`string`, arrays, maps, structs created with `new()`) are allocated in the current scope's memory region and freed when that scope ends.
 
 ### 11.3 Value Semantics
 
@@ -2786,7 +2804,7 @@ duplicate.age = 31  // original.age is still 30
 
 ### 11.6 Zero Values
 
-The `new()` function allocates a zero-initialized struct on the default arena and returns a pointer to it:
+The `new()` function allocates a zero-initialized struct in the current scope and returns a pointer to it:
 
 | Type | Zero Value |
 |------|------------|
@@ -2799,9 +2817,52 @@ The `new()` function allocates a zero-initialized struct on the default arena an
 | `map[K:V]` | `{}` |
 | struct | All fields zero-initialized |
 
-### 11.7 Memory Safety
+### 11.7 Scoped Blocks
 
-EZ compiles to C and is **not memory safe** in the way that Rust or similar languages are. However, the language provides runtime safety checks that prevent the most common classes of memory errors:
+Three block types create memory scopes:
+
+- **Function bodies** — temporaries freed on return, return values survive by copying to the caller's scope
+- **Loop iterations** (`for`, `for_each`, `as_long_as`) — each iteration's temporaries freed, values that escape into outer-scope containers survive
+- **Conditional blocks** (`if`, `or`, `otherwise`) — temporaries freed on block exit, values assigned to outer-scope variables survive
+
+Nested scopes work correctly — a loop inside an if inside a function creates three scope levels, each cleaning up independently.
+
+### 11.8 Manual Control
+
+The `@mem` module provides explicit arena control for power users who need it:
+
+```ez
+import @mem
+
+mut scratch = mem.arena(4096)
+mut node = mem.init(scratch, Node)
+// ... use node ...
+mem.reset(scratch)
+mem.destroy(scratch)
+```
+
+Most users never import the `@mem` module. The automatic scope model handles their allocations.
+
+### 11.9 Memory Safety
+
+EZ compiles to C and is **not memory safe** in the way that Rust or similar languages are. However, the scope-based memory model prevents many common memory errors automatically, and the compiler catches several more at compile time.
+
+**Compile-time checked:**
+
+| Hazard | EZ Behavior |
+|--------|-------------|
+| Returning address of local variable | `E3063` — `addr()` of a local cannot appear in a return statement |
+| Cross-scope pointer assignment | `W3004` — warning when a pointer in an outer scope is assigned from `addr()` of a value in an inner scope |
+| Double-free on `@mem` arenas | `E3064` — straight-line double `mem.destroy()` on the same variable is rejected |
+
+**Prevented by the scope model:**
+
+| Hazard | How |
+|--------|-----|
+| Memory leaks in long-running programs | Scopes free allocations on exit |
+| Use-after-free (common case) | Out-of-scope values can't be named — if you can't reach it, it's freed |
+| Dangling returns (common case) | Return values are copied to the caller's scope — the data moves, the pointer stays valid |
+| Loop memory accumulation | Each iteration is a scope; temporaries cleaned up on iteration end |
 
 **Runtime-checked (safe by default):**
 
@@ -2811,18 +2872,19 @@ EZ compiles to C and is **not memory safe** in the way that Rust or similar lang
 | Array out-of-bounds | Runtime panic |
 | Map key not found | Runtime panic |
 | Division by zero | Runtime panic |
+| Integer overflow | Runtime panic (checked arithmetic) |
 | Stack overflow (deep recursion) | Detected and reported |
+| Double-free on `@mem` arenas (conditional/cross-function) | Runtime panic |
 
 **Not checked (programmer responsibility):**
 
 | Hazard | When It Can Happen |
 |--------|-------------------|
-| Use-after-free | Holding a pointer to arena memory after `mem.destroy()` |
-| Dangling pointer | Returning `addr()` of a local variable |
+| Use-after-free (`@mem` only) | Holding a pointer to `@mem` arena memory after `mem.destroy()` |
 | Data races | Multiple threads accessing shared data without `sync.lock()` |
 | Pointer arithmetic | Not supported in the language (disallowed by design) |
 
-For most EZ programs — those that don't use `@mem` arenas, raw pointers, or `@threads`/`@sync`/`@channels` — the runtime checks provide practical safety. Programs using low-level features should follow the same discipline as C: don't hold pointers past their lifetime, and protect shared state with mutexes.
+For most EZ programs — those that don't use the `@mem` module, raw pointers, or threading — the combination of scope-based cleanup, compile-time checks, and runtime panics provides practical safety without annotations or manual memory management.
 
 ---
 
