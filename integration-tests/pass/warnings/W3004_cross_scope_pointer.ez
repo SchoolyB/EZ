@@ -13,7 +13,7 @@ const Node struct {
 }
 
 do main() {
-    mut p ?^Node = nil
+    mut p ^Node = nil
     if true {
         mut n = new(Node)
         p = addr(n)

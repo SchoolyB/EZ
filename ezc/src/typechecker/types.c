@@ -151,13 +151,6 @@ EzType *type_from_name(const char *name) {
         return t;
     }
 
-    /* Nullable pointer type: ?^int, ?^Person, etc. */
-    if (name[0] == '?' && name[1] == '^') {
-        EzType *t = type_pointer(name + 2);
-        t->nullable = true;
-        return t;
-    }
-
     /* Pointer type: ^int, ^Person, etc. */
     if (name[0] == '^') {
         return type_pointer(name + 1);

@@ -3,10 +3,8 @@
  *
  * Feature #1521 phase 1: void functions save/restore the arena
  * watermark so temporaries are freed on exit. Non-void functions
- * skip restore so return values survive. Nullable pointers (?^T),
- * non-nullable pointers (^T rejects nil), null-check narrowing,
- * and addr()-of-local-in-return rejection are all part of the
- * safety checks.
+ * use per-function arenas with return-value escape so temporaries
+ * are freed but the return value survives.
  */
 
 import @strings
@@ -44,40 +42,24 @@ do main() {
         failed += 1
     }
 
-    // -- non-nullable ^T works with new() --
+    // -- ^T works with new() --
     mut p ^Node = new(Node)
     p^.val = 42
     if p^.val == 42 {
-        println("  [PASS] non-nullable ^T with new()")
+        println("  [PASS] ^T with new()")
         passed += 1
     } otherwise {
-        println("  [FAIL] non-nullable ^T")
+        println("  [FAIL] ^T with new()")
         failed += 1
     }
 
-    // -- nullable ?^T with nil --
-    mut q ?^Node = nil
+    // -- ^T with nil --
+    mut q ^Node = nil
     if q == nil {
-        println("  [PASS] nullable ?^T accepts nil")
+        println("  [PASS] ^T accepts nil")
         passed += 1
     } otherwise {
-        println("  [FAIL] nullable ?^T")
-        failed += 1
-    }
-
-    // -- null-check narrowing: access inside if != nil --
-    mut r ?^Node = new(Node)
-    r^.val = 99
-    if r != nil {
-        if r^.val == 99 {
-            println("  [PASS] null-check narrowing")
-            passed += 1
-        } otherwise {
-            println("  [FAIL] narrowing value")
-            failed += 1
-        }
-    } otherwise {
-        println("  [FAIL] r should not be nil")
+        println("  [FAIL] ^T nil")
         failed += 1
     }
 

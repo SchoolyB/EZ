@@ -1,18 +1,13 @@
 /*
- * scope_memory_if_blocks.ez - if/otherwise block scoping + null narrowing
+ * scope_memory_if_blocks.ez - if/otherwise block scoping
  *
- * Feature #1521 phase 3: per-block arenas for if/otherwise/or chains
+ * Feature #1521: per-block arenas for if/otherwise/or chains
  * so temporaries inside conditional blocks are freed on block exit.
  * Values escaping to outer-scope variables are copied via the
- * existing escape machinery. Null-check narrowing allows ?^T deref
- * inside an `if ptr != nil` guard without warnings.
+ * existing escape machinery.
  */
 
 import @strings
-
-const Node struct {
-    val int
-}
 
 do main() {
     println("=== Scope Memory If Blocks Test ===")
@@ -65,32 +60,6 @@ do main() {
         passed += 1
     } otherwise {
         println("  [FAIL] or block: got ${label}")
-        failed += 1
-    }
-
-    // -- null-check narrowing: ?^T deref inside != nil guard --
-    mut p ?^Node = new(Node)
-    p^.val = 77
-    if p != nil {
-        if p^.val == 77 {
-            println("  [PASS] null-check narrowing (?^T deref)")
-            passed += 1
-        } otherwise {
-            println("  [FAIL] narrowed value wrong")
-            failed += 1
-        }
-    } otherwise {
-        println("  [FAIL] p should not be nil")
-        failed += 1
-    }
-
-    // -- null-check narrowing on == nil path --
-    mut q ?^Node = nil
-    if q == nil {
-        println("  [PASS] null path: q is nil")
-        passed += 1
-    } otherwise {
-        println("  [FAIL] q should be nil")
         failed += 1
     }
 

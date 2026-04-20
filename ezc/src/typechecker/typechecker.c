@@ -1140,27 +1140,6 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
             if (left_t->kind == TK_POINTER) {
                 /* Dereference: ^T^ → T */
                 result = type_from_name(left_t->element_type);
-                /* #1521: warn if dereferencing a nullable pointer
-                 * without a nil check (not in the non_nil_vars list) */
-                if (left_t->nullable && node->data.postfix.left->kind == NODE_LABEL) {
-                    const char *vn = node->data.postfix.left->data.label.value;
-                    bool known_non_nil = false;
-                    for (int ni = 0; ni < tc->non_nil_count; ni++) {
-                        if (strcmp(tc->non_nil_vars[ni], vn) == 0) {
-                            known_non_nil = true;
-                            break;
-                        }
-                    }
-                    if (!known_non_nil) {
-                        char msg[256];
-                        snprintf(msg, sizeof(msg),
-                            "dereferencing nullable pointer '%s' without a nil check — "
-                            "use 'if %s != nil { ... }' to verify it is not nil first",
-                            vn, vn);
-                        diag_warning(tc->diag, "W3005", strdup(msg),
-                            NODE_FILE(tc, node), node->token.line, node->token.column, 0);
-                    }
-                }
             } else if (left_t->kind != TK_UNKNOWN) {
                 char msg[256];
                 snprintf(msg, sizeof(msg),
@@ -4102,24 +4081,14 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
             }
             /* Reject nil on non-nullable types */
             if (value_type->kind == TK_NIL && declared->kind != TK_UNKNOWN &&
-                declared->kind != TK_ERROR &&
+                declared->kind != TK_ERROR && declared->kind != TK_POINTER &&
                 declared->kind != TK_NIL) {
-                bool is_nullable_ptr = (declared->kind == TK_POINTER && declared->nullable);
-                if (!is_nullable_ptr) {
-                    char msg[256];
-                    if (declared->kind == TK_POINTER) {
-                        snprintf(msg, sizeof(msg),
-                            "cannot assign nil to '^%s' — use '?^%s' for a nullable pointer",
-                            declared->element_type ? declared->element_type : "T",
-                            declared->element_type ? declared->element_type : "T");
-                    } else {
-                        snprintf(msg, sizeof(msg),
-                            "cannot assign nil to '%s' — only Error and nullable pointer (?^T) types accept nil",
-                            type_name(declared));
-                    }
-                    diag_error(tc->diag, "E3001", strdup(msg),
-                        NODE_FILE(tc, node), node->token.line, node->token.column, 0);
-                }
+                char msg[256];
+                snprintf(msg, sizeof(msg),
+                    "cannot assign nil to '%s' — only Error and pointer types are nullable",
+                    type_name(declared));
+                diag_error(tc->diag, "E3001", strdup(msg),
+                    NODE_FILE(tc, node), node->token.line, node->token.column, 0);
             }
             /* Reject bare 'mut x = nil' with no type context */
             if (value_type->kind == TK_NIL && declared->kind == TK_UNKNOWN) {
@@ -5141,60 +5110,14 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
             diag_error(tc->diag, "E3038", strdup(msg),
                 NODE_FILE(tc, c), c->token.line, c->token.column, 0);
         }
-        /* #1521: null-check narrowing — detect `ptr != nil` and mark
-         * the variable as non-nil inside the consequence block. */
-        int saved_non_nil = tc->non_nil_count;
-        AstNode *cond = node->data.if_stmt.condition;
-        const char *narrowed_var = NULL;
-        if (cond && cond->kind == NODE_INFIX_EXPR &&
-            strcmp(cond->data.infix.op, "!=") == 0) {
-            AstNode *lhs = cond->data.infix.left;
-            AstNode *rhs = cond->data.infix.right;
-            if (lhs->kind == NODE_LABEL && rhs->kind == NODE_NIL_VALUE) {
-                narrowed_var = lhs->data.label.value;
-            } else if (rhs->kind == NODE_LABEL && lhs->kind == NODE_NIL_VALUE) {
-                narrowed_var = rhs->data.label.value;
-            }
-        }
-        if (narrowed_var) {
-            if (tc->non_nil_count >= tc->non_nil_cap) {
-                tc->non_nil_cap = tc->non_nil_cap ? tc->non_nil_cap * 2 : 8;
-                tc->non_nil_vars = realloc(tc->non_nil_vars,
-                    (size_t)tc->non_nil_cap * sizeof(const char *));
-            }
-            tc->non_nil_vars[tc->non_nil_count++] = narrowed_var;
-        }
-
         Scope *if_outer = tc->current_scope;
         tc->current_scope = scope_create(if_outer);
         check_block(tc, node->data.if_stmt.consequence);
         tc->current_scope = if_outer;
-        tc->non_nil_count = saved_non_nil;
         if (node->data.if_stmt.alternative) {
-            /* For `if ptr == nil { ... } otherwise { ... }`, the
-             * otherwise block knows ptr is non-nil. */
-            if (cond && cond->kind == NODE_INFIX_EXPR &&
-                strcmp(cond->data.infix.op, "==") == 0) {
-                AstNode *lhs = cond->data.infix.left;
-                AstNode *rhs = cond->data.infix.right;
-                const char *eq_var = NULL;
-                if (lhs->kind == NODE_LABEL && rhs->kind == NODE_NIL_VALUE)
-                    eq_var = lhs->data.label.value;
-                else if (rhs->kind == NODE_LABEL && lhs->kind == NODE_NIL_VALUE)
-                    eq_var = rhs->data.label.value;
-                if (eq_var) {
-                    if (tc->non_nil_count >= tc->non_nil_cap) {
-                        tc->non_nil_cap = tc->non_nil_cap ? tc->non_nil_cap * 2 : 8;
-                        tc->non_nil_vars = realloc(tc->non_nil_vars,
-                            (size_t)tc->non_nil_cap * sizeof(const char *));
-                    }
-                    tc->non_nil_vars[tc->non_nil_count++] = eq_var;
-                }
-            }
             tc->current_scope = scope_create(if_outer);
             check_statement(tc, node->data.if_stmt.alternative);
             tc->current_scope = if_outer;
-            tc->non_nil_count = saved_non_nil;
         }
         break;
     }

@@ -146,11 +146,6 @@ static const char *ez_type_to_c_cg(CodeGen *cg, const char *type_name) {
     if (strcmp(type_name, "Error") == 0 || strcmp(type_name, "error") == 0) return "EzError *";
     if (strcmp(type_name, "func") == 0)  return "void *"; /* generic fn ptr — cast at call site */
 
-    /* Nullable pointer type: ?^T — same as ^T in C */
-    if (type_name[0] == '?' && type_name[1] == '^') {
-        return ez_type_to_c_cg(cg, type_name + 1);
-    }
-
     /* Pointer type: ^T — use C pointer (ring buffer avoids aliasing on recursion) */
     if (type_name[0] == '^') {
         static char ptrbufs[4][256];

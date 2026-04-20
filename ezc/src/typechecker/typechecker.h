@@ -129,10 +129,6 @@ typedef struct {
     int destroyed_arena_count;
     int destroyed_arena_cap;
 
-    /* #1521: null-check narrowing — variables known non-nil in current scope */
-    const char **non_nil_vars;
-    int non_nil_count;
-    int non_nil_cap;
 } TypeChecker;
 
 /* Create and run the type checker */
