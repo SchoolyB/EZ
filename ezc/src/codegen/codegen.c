@@ -1662,13 +1662,21 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
                 }
             }
 
-            emit_expression(cg, node->data.member.object);
             /* Ref vars are already dereferenced by label emission — use . not -> */
             bool obj_is_ref = (node->data.member.object->kind == NODE_LABEL &&
                 is_ref_var(cg, node->data.member.object->data.label.value));
-            if (!obj_is_ref && obj_t && (obj_t->kind == TK_POINTER || obj_t->kind == TK_ERROR)) {
+            if (!obj_is_ref && obj_t && obj_t->kind == TK_POINTER) {
+                /* Nil-guarded pointer field access */
+                emit(cg, "({ __auto_type _dp = ");
+                emit_expression(cg, node->data.member.object);
+                emitf(cg, "; if (!_dp) { fflush(stdout); ez_panic(__FILE__, %d, "
+                    "\"nil pointer dereference\"); } _dp->%s; })",
+                    node->token.line, safe_name(node->data.member.member));
+            } else if (!obj_is_ref && obj_t && obj_t->kind == TK_ERROR) {
+                emit_expression(cg, node->data.member.object);
                 emitf(cg, "->%s", safe_name(node->data.member.member));
             } else {
+                emit_expression(cg, node->data.member.object);
                 emitf(cg, ".%s", safe_name(node->data.member.member));
             }
         }
