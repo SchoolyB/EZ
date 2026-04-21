@@ -99,19 +99,21 @@ static const char *multi_ret_name(AstNode *func);
 static const char *cg_effective_type_str(CodeGen *cg, const char *type_name) {
     if (!type_name || !cg || !cg->wildcard_binding) return type_name;
     if (!strchr(type_name, '?')) return type_name;
-    static char bufs[4][256];
-    static int bi = 0;
-    char *out = bufs[bi]; bi = (bi + 1) & 3;
     size_t cl = strlen(cg->wildcard_binding);
+    /* Count wildcards to compute exact output size */
+    size_t need = 0;
+    for (const char *q = type_name; *q; q++) {
+        if (*q == '?') need += cl;
+        else need += 1;
+    }
+    char *out = malloc(need + 1);
     char *w = out;
-    size_t rem = sizeof(bufs[0]) - 1;
-    for (const char *q = type_name; *q && rem; q++) {
+    for (const char *q = type_name; *q; q++) {
         if (*q == '?') {
-            size_t copy = cl < rem ? cl : rem;
-            memcpy(w, cg->wildcard_binding, copy);
-            w += copy; rem -= copy;
+            memcpy(w, cg->wildcard_binding, cl);
+            w += cl;
         } else {
-            *w++ = *q; rem--;
+            *w++ = *q;
         }
     }
     *w = '\0';
@@ -1581,14 +1583,16 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
             if (mod[0] >= 'a' && mod[0] <= 'z') {
                 /* Check if mod is an imported module by looking for mod_ prefixed declarations */
                 bool is_module = false;
-                char check_name[256];
-                snprintf(check_name, sizeof(check_name), "%s_%s", mod, mem);
+                size_t cn_len = strlen(mod) + 1 + strlen(mem) + 1;
+                char *check_name = malloc(cn_len);
+                snprintf(check_name, cn_len, "%s_%s", mod, mem);
                 /* Check functions, variables via find_func */
                 if (find_func(cg, check_name)) is_module = true;
                 /* Check if any function starts with mod_ prefix */
                 if (!is_module) {
-                    char prefix[128];
-                    snprintf(prefix, sizeof(prefix), "%s_", mod);
+                    size_t pfx_len = strlen(mod) + 2;
+                    char *prefix = malloc(pfx_len);
+                    snprintf(prefix, pfx_len, "%s_", mod);
                     size_t plen = strlen(prefix);
                     for (int fi = 0; fi < cg->func_count; fi++) {
                         if (strncmp(cg->all_funcs[fi]->data.func_decl.name, prefix, plen) == 0) {
@@ -4372,8 +4376,9 @@ static void emit_call_expression(CodeGen *cg, AstNode *node) {
                 }
                 /* 2) Try user-defined module: <module>_<func> */
                 if (!found) {
-                    char prefixed[256];
-                    snprintf(prefixed, sizeof(prefixed), "%s_%s", real_mod, func);
+                    size_t pf_len = strlen(real_mod) + 1 + strlen(func) + 1;
+                    char *prefixed = malloc(pf_len);
+                    snprintf(prefixed, pf_len, "%s_%s", real_mod, func);
                     AstNode *uf = find_func(cg, prefixed);
                     if (uf) {
                         emitf(cg, "ez_fn_%s_%s(", real_mod, func);
@@ -4447,8 +4452,9 @@ static void emit_call_expression(CodeGen *cg, AstNode *node) {
 
             const char *resolved_name = resolve_alias(cg, raw_name);
             /* Try to find as a namespaced function: Name_func or ResolvedAlias_func */
-            char ns_name[256];
-            snprintf(ns_name, sizeof(ns_name), "%s_%s", resolved_name, member);
+            size_t ns_len = strlen(resolved_name) + 1 + strlen(member) + 1;
+            char *ns_name = malloc(ns_len);
+            snprintf(ns_name, ns_len, "%s_%s", resolved_name, member);
             AstNode *ns_func = find_func(cg, ns_name);
             if (!ns_func) {
                 /* #1505: check if `member` is a func-typed data field
@@ -4648,12 +4654,13 @@ static void emit_call_expression(CodeGen *cg, AstNode *node) {
                     }
                 }
             }
-            char mangled[256];
-            size_t pos = snprintf(mangled, sizeof(mangled), "ez_fn_%s__",
+            size_t mn_need = strlen("ez_fn_") + strlen(resolved_fn_name) + 2
+                + (binding ? strlen(binding) : 0) + 1;
+            char *mangled = malloc(mn_need);
+            size_t pos = (size_t)snprintf(mangled, mn_need, "ez_fn_%s__",
                 resolved_fn_name);
-            if (pos >= sizeof(mangled)) pos = sizeof(mangled) - 1;
             if (binding) {
-                for (const char *c = binding; *c && pos < sizeof(mangled) - 1; c++) {
+                for (const char *c = binding; *c && pos < mn_need - 1; c++) {
                     mangled[pos++] = (isalnum((unsigned char)*c) || *c == '_') ? *c : '_';
                 }
             }
@@ -4686,10 +4693,11 @@ static void emit_call_expression(CodeGen *cg, AstNode *node) {
                     } else if (fref->kind == NODE_MEMBER_EXPR &&
                                fref->data.member.object &&
                                fref->data.member.object->kind == NODE_LABEL) {
-                        char rn[256];
-                        snprintf(rn, sizeof(rn), "%s_%s",
-                            fref->data.member.object->data.label.value,
-                            fref->data.member.member);
+                        const char *rn_a = fref->data.member.object->data.label.value;
+                        const char *rn_b = fref->data.member.member;
+                        size_t rn_len = strlen(rn_a) + 1 + strlen(rn_b) + 1;
+                        char *rn = malloc(rn_len);
+                        snprintf(rn, rn_len, "%s_%s", rn_a, rn_b);
                         ref_func = find_func(cg, rn);
                     }
                 }
