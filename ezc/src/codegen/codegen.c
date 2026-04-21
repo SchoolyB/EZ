@@ -5240,14 +5240,14 @@ static void emit_assign_statement(CodeGen *cg, AstNode *node) {
                         else if (strcmp(aop, "*=") == 0) fn = "ez_sized_mul_check";
                     }
                     if (fn) {
-                        /* EZ_ARRAY_SET(arr, T, idx, check_fn(EZ_ARRAY_GET(arr, T, idx), val, ...)) */
+                        /* EZ_ARRAY_SET/GET use int64_t (internal storage width) */
                         emitf(cg, "EZ_ARRAY_SET(");
                         emit_expression(cg, left);
-                        emitf(cg, ", %s, ", c_elem);
+                        emit(cg, ", int64_t, ");
                         emit_expression(cg, node->data.assign.target->data.index_expr.index);
                         emitf(cg, ", %s(EZ_ARRAY_GET(", fn);
                         emit_expression(cg, left);
-                        emitf(cg, ", %s, ", c_elem);
+                        emit(cg, ", int64_t, ");
                         emit_expression(cg, node->data.assign.target->data.index_expr.index);
                         emit(cg, "), ");
                         emit_expression(cg, node->data.assign.value);
