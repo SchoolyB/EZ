@@ -5614,6 +5614,18 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
         }
         break;
 
+    case NODE_ENUM_DECL:
+        /* E2053: enum inside function */
+        if (tc->func_depth > 0) {
+            char msg[256];
+            snprintf(msg, sizeof(msg),
+                "enum '%s' must be defined at the file scope, not inside a function",
+                node->data.enum_decl.name);
+            diag_error(tc->diag, "E2053", strdup(msg),
+                NODE_FILE(tc, node), node->token.line, node->token.column, 0);
+        }
+        break;
+
     case NODE_WHEN_STMT: {
         EzType *when_t = resolve_expr(tc, node->data.when_stmt.value);
         /* E2043: check for duplicate case values, E3001: check type match */
