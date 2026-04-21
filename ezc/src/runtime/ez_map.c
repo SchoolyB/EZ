@@ -55,6 +55,7 @@ EzMap ez_map_new(EzArena *arena, int32_t key_size, int32_t value_size, int32_t i
     m.count = 0;
     m.capacity = initial_cap;
     m.order_len = 0;
+    m.iterating = 0;
     m.keys = ez_arena_alloc(arena, (size_t)initial_cap * (size_t)key_size);
     m.values = ez_arena_alloc(arena, (size_t)initial_cap * (size_t)value_size);
     m.states = ez_arena_alloc(arena, (size_t)initial_cap);
@@ -199,6 +200,7 @@ EzMap ez_map_copy(EzArena *arena, const EzMap *src) {
     m.count = src->count;
     m.capacity = src->capacity;
     m.order_len = src->order_len;
+    m.iterating = 0;
 
     size_t keys_bytes = (size_t)src->capacity * (size_t)src->key_size;
     size_t vals_bytes = (size_t)src->capacity * (size_t)src->value_size;
