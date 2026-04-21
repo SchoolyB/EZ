@@ -1,0 +1,71 @@
+/*
+ * Test: compound assignment on array elements (#1529)
+ * Verifies that +=, -=, *= on array-indexed elements produce
+ * correct read-modify-write behavior.
+ */
+
+do main() {
+    mut passed int = 0
+    mut failed int = 0
+
+    mut arr [int] = {10, 20, 30}
+
+    // Test 1: += on array element
+    arr[0] += 5
+    if arr[0] == 15 {
+        println("  [PASS] arr[0] += 5 produces 15")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] arr[0] += 5: expected 15, got ${arr[0]}")
+        failed += 1
+    }
+
+    // Test 2: -= on array element
+    arr[1] -= 3
+    if arr[1] == 17 {
+        println("  [PASS] arr[1] -= 3 produces 17")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] arr[1] -= 3: expected 17, got ${arr[1]}")
+        failed += 1
+    }
+
+    // Test 3: *= on array element
+    arr[2] *= 2
+    if arr[2] == 60 {
+        println("  [PASS] arr[2] *= 2 produces 60")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] arr[2] *= 2: expected 60, got ${arr[2]}")
+        failed += 1
+    }
+
+    // Test 4: multiple compound assigns accumulate
+    arr[0] += 10
+    arr[0] += 10
+    if arr[0] == 35 {
+        println("  [PASS] repeated += accumulates to 35")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] repeated +=: expected 35, got ${arr[0]}")
+        failed += 1
+    }
+
+    // Test 5: compound assign with computed index
+    mut idx int = 1
+    arr[idx] += 100
+    if arr[1] == 117 {
+        println("  [PASS] arr[idx] += 100 produces 117")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] arr[idx] += 100: expected 117, got ${arr[1]}")
+        failed += 1
+    }
+
+    println("Results: ${passed} passed, ${failed} failed")
+    if failed > 0 {
+        println("SOME TESTS FAILED")
+    } otherwise {
+        println("ALL TESTS PASSED")
+    }
+}
