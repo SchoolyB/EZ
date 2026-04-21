@@ -16,13 +16,13 @@ This runs all Go tooling tests, compiler unit tests, compiler e2e tests, and int
 
 The EZ compiler has a comprehensive test suite written in C, located in `ezc/tests/`.
 
-### Unit Tests (287 tests)
+### Unit Tests (284 tests)
 
 Unit tests validate individual compiler components:
 
 - **Lexer Tests** (`ezc/tests/test_lexer.c` — 69 tests): Token scanning, keyword recognition, literal formats, comment handling, attribute tokens, v3 keyword aliases, operator disambiguation, edge cases (empty strings, zero literals, multiline comments, adjacent operators).
-- **Parser Tests** (`ezc/tests/test_parser.c` — 81 tests): Declarations, imports, control flow, structs, enums, function references, attributes, map/array types, visibility, error reporting, grouped params, compound assignments, nested structures, import aliases, precedence.
-- **Typechecker Tests** (`ezc/tests/test_typechecker.c` — 137 tests): Scope management, type resolution, expression inference, built-in return types, error detection, enum/map type resolution, deep scope nesting, bigint types, char/uint numerics, valid program verification (nested structs, enums, multi-return, when, struct functions).
+- **Parser Tests** (`ezc/tests/test_parser.c` — 79 tests): Declarations, imports, control flow, structs, enums, function references, attributes, map/array types, visibility, error reporting, grouped params, compound assignments, nested structures, import aliases, precedence.
+- **Typechecker Tests** (`ezc/tests/test_typechecker.c` — 136 tests): Scope management, type resolution, expression inference, built-in return types, error detection, enum/map type resolution, deep scope nesting, bigint types, char/uint numerics, valid program verification (nested structs, enums, multi-return, when, struct functions).
 
 ### End-to-End Tests (101 tests)
 
@@ -54,11 +54,11 @@ Integration tests compile and run `.ez` programs end-to-end through the full com
 
 - `integration-tests/pass/core/` — 145 core language feature tests (arrays, control flow, structs, enums, maps, typeof, named returns, import variants, C interop, #strict when, or_return, raw strings, bigint arrays, pointer collections, non-standard map key ops, wide numeric map keys, [func] arrays, func var calls, enum map keys, map deep copy, wildcard types, [func] arrays of struct-namespaced refs, nested array deep copy, struct deep copy, nested map types, container compound assign, grouped struct fields, struct func mutable params, func ref mutable params, for_each pointer arrays, pointer-to-pointer types, struct self dispatch, struct func fields, wildcard nested calls, wildcard named returns, wildcard multi-return, func param calls, func ref default params, enum implicit values, int-to-float coercion, etc.)
 - `integration-tests/pass/stdlib/` — 29 stdlib module tests
-- `integration-tests/pass/warnings/` — 22 warning detection tests
-- `integration-tests/pass/multi-file/` — 30 multi-file import tests (basic, alias, structs, enums, constants, private visibility, transitive, circular, collision, nested, struct functions, imported struct with enum field, import-use-types)
+- `integration-tests/pass/warnings/` — 23 warning detection tests
+- `integration-tests/pass/multi-file/` — 32 multi-file import tests (basic, alias, structs, enums, constants, private visibility, transitive, circular, collision, nested, struct functions, imported struct with enum field, import-use-types)
 - `integration-tests/pass/stress/` — 42 stress tests (29 core + 13 stdlib)
 - `integration-tests/fail/errors/` — 509 error detection tests
-- `integration-tests/fail/multi-file/` — 16 multi-file error detection tests (collision, private access, type mismatch, undefined module, cross-file error attribution)
+- `integration-tests/fail/multi-file/` — 20 multi-file error detection tests (collision, private access, type mismatch, undefined module, cross-file error attribution)
 
 **Running:**
 
@@ -85,7 +85,7 @@ make test-asan
 
 ---
 
-## Go Tooling Tests (271 tests)
+## Go Tooling Tests (271 tests total)
 
 The Go CLI (`ez`) has unit tests for the packages it uses:
 

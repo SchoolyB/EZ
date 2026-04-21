@@ -327,7 +327,7 @@ compiler integration tests, and CLI integration tests.`,
 			dir   string
 			parse string // "go", "c", or "integration"
 		}{
-			{"Go tooling tests", "go", []string{"test", "-v", "./pkg/lineeditor/..."}, root, "go"},
+			{"Go tooling tests", "go", []string{"test", "-v", "./pkg/lineeditor/...", "./cmd/ez/...", "./internal/ezc/..."}, root, "go"},
 			{"Compiler unit tests", "make", []string{"test-unit"}, filepath.Join(root, "ezc"), "c"},
 			{"Compiler e2e tests", "make", []string{"test-e2e"}, filepath.Join(root, "ezc"), "c"},
 			{"Integration tests", "bash", []string{filepath.Join(root, "scripts", "run_tests.sh")}, root, "integration"},
