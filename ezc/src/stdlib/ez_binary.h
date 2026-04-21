@@ -13,7 +13,7 @@
 
 #include "../runtime/ez_runtime.h"
 #include "../runtime/ez_array.h"
-#include "ez_bigint.h"
+#include "../runtime/ez_bigint.h"
 
 /* --- 8-bit --- */
 EzArray ez_binary_encode_i8(EzArena *arena, int8_t val);
