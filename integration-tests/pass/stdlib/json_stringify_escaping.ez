@@ -1,0 +1,96 @@
+/*
+ * Test: #json struct stringify with escaping and exact sizing (#1522)
+ * Verifies that json.stringify() properly escapes special characters
+ * in string fields and handles various field types correctly.
+ */
+
+import @json
+import @strings
+
+#json
+const Basic struct {
+    name string
+    age int
+    active bool
+}
+
+#json
+const WithSpecialChars struct {
+    text string
+    value int
+}
+
+do main() {
+    mut passed int = 0
+    mut failed int = 0
+
+    // Test 1: basic stringify contains name
+    mut b Basic = Basic{name: "Alice", age: 30, active: true}
+    mut s string = json.stringify(b)
+    if strings.contains(s, "Alice") {
+        println("  [PASS] stringify contains name")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] stringify missing name: ${s}")
+        failed += 1
+    }
+
+    // Test 2: int field in output
+    if strings.contains(s, "30") {
+        println("  [PASS] stringify contains age")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] stringify missing age: ${s}")
+        failed += 1
+    }
+
+    // Test 3: bool field in output
+    if strings.contains(s, "true") {
+        println("  [PASS] stringify contains bool")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] stringify missing bool: ${s}")
+        failed += 1
+    }
+
+    // Test 4: string with quotes is escaped
+    mut w WithSpecialChars = WithSpecialChars{text: "say \"hello\"", value: 1}
+    mut qs string = json.stringify(w)
+    if strings.contains(qs, "\\\"") {
+        println("  [PASS] quotes are escaped in output")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] quotes not escaped: ${qs}")
+        failed += 1
+    }
+
+    // Test 5: string with backslash is escaped
+    mut w2 WithSpecialChars = WithSpecialChars{text: "path\\to\\file", value: 2}
+    mut bs string = json.stringify(w2)
+    if strings.contains(bs, "\\\\") {
+        println("  [PASS] backslashes are escaped in output")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] backslashes not escaped: ${bs}")
+        failed += 1
+    }
+
+    // Test 6: long string doesn't overflow buffer
+    mut long_name string = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789abcdefghijklmnop"
+    mut lb Basic = Basic{name: long_name, age: 99, active: false}
+    mut ls string = json.stringify(lb)
+    if strings.contains(ls, long_name) {
+        println("  [PASS] long string preserved without overflow")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] long string corrupted: ${ls}")
+        failed += 1
+    }
+
+    println("Results: ${passed} passed, ${failed} failed")
+    if failed > 0 {
+        println("SOME TESTS FAILED")
+    } otherwise {
+        println("ALL TESTS PASSED")
+    }
+}
