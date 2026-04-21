@@ -5212,10 +5212,52 @@ static void emit_assign_statement(CodeGen *cg, AstNode *node) {
                 if (strcmp(left_t->element_type, "func") == 0) {
                     c_elem = "void *";
                 } else {
-                    EzType *et = type_from_name(left_t->element_type);
-                    if (et->kind == TK_FLOAT) c_elem = "double";
-                    else if (et->kind == TK_BOOL) c_elem = "bool";
-                    else if (et->kind == TK_STRING) c_elem = "EzString";
+                    c_elem = ez_type_to_c_cg(cg, left_t->element_type);
+                }
+            }
+            /* Compound assignment on array element with sized-type overflow check */
+            const char *aop = node->data.assign.op;
+            bool is_compound = (strcmp(aop, "+=") == 0 || strcmp(aop, "-=") == 0 || strcmp(aop, "*=") == 0);
+            if (is_compound && left_t->element_type) {
+                const char *sn = left_t->element_type;
+                const char *smin = NULL, *smax = NULL;
+                bool su = false;
+                if (strcmp(sn, "i8") == 0) { smin = "-128"; smax = "127"; }
+                else if (strcmp(sn, "i16") == 0) { smin = "-32768"; smax = "32767"; }
+                else if (strcmp(sn, "i32") == 0) { smin = "-2147483648LL"; smax = "2147483647LL"; }
+                else if (strcmp(sn, "u8") == 0 || strcmp(sn, "byte") == 0) { su = true; smax = "255"; }
+                else if (strcmp(sn, "u16") == 0) { su = true; smax = "65535"; }
+                else if (strcmp(sn, "u32") == 0) { su = true; smax = "4294967295ULL"; }
+                if (smax) {
+                    const char *fn = NULL;
+                    if (su) {
+                        if (strcmp(aop, "+=") == 0) fn = "ez_usized_add_check";
+                        else if (strcmp(aop, "-=") == 0) fn = "ez_usized_sub_check";
+                        else if (strcmp(aop, "*=") == 0) fn = "ez_usized_mul_check";
+                    } else {
+                        if (strcmp(aop, "+=") == 0) fn = "ez_sized_add_check";
+                        else if (strcmp(aop, "-=") == 0) fn = "ez_sized_sub_check";
+                        else if (strcmp(aop, "*=") == 0) fn = "ez_sized_mul_check";
+                    }
+                    if (fn) {
+                        /* EZ_ARRAY_SET(arr, T, idx, check_fn(EZ_ARRAY_GET(arr, T, idx), val, ...)) */
+                        emitf(cg, "EZ_ARRAY_SET(");
+                        emit_expression(cg, left);
+                        emitf(cg, ", %s, ", c_elem);
+                        emit_expression(cg, node->data.assign.target->data.index_expr.index);
+                        emitf(cg, ", %s(EZ_ARRAY_GET(", fn);
+                        emit_expression(cg, left);
+                        emitf(cg, ", %s, ", c_elem);
+                        emit_expression(cg, node->data.assign.target->data.index_expr.index);
+                        emit(cg, "), ");
+                        emit_expression(cg, node->data.assign.value);
+                        if (su) {
+                            emitf(cg, ", %s, \"%s\", __FILE__, %d));\n", smax, sn, node->token.line);
+                        } else {
+                            emitf(cg, ", %s, %s, \"%s\", __FILE__, %d));\n", smin, smax, sn, node->token.line);
+                        }
+                        return;
+                    }
                 }
             }
             emitf(cg, "EZ_ARRAY_SET(");
@@ -5223,7 +5265,21 @@ static void emit_assign_statement(CodeGen *cg, AstNode *node) {
             emitf(cg, ", %s, ", c_elem);
             emit_expression(cg, node->data.assign.target->data.index_expr.index);
             emit(cg, ", ");
-            emit_expression(cg, node->data.assign.value);
+            /* Non-sized compound assignment on array element: read-modify-write */
+            if (is_compound) {
+                const char *binop = "+";
+                if (strcmp(aop, "-=") == 0) binop = "-";
+                else if (strcmp(aop, "*=") == 0) binop = "*";
+                emitf(cg, "EZ_ARRAY_GET(");
+                emit_expression(cg, left);
+                emitf(cg, ", %s, ", c_elem);
+                emit_expression(cg, node->data.assign.target->data.index_expr.index);
+                emitf(cg, ") %s (", binop);
+                emit_expression(cg, node->data.assign.value);
+                emit(cg, ")");
+            } else {
+                emit_expression(cg, node->data.assign.value);
+            }
             emit(cg, ");\n");
             return;
         }
