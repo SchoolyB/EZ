@@ -1,0 +1,17 @@
+/*
+ * Error Test: E3001 - wrong argument type in instance-dispatched struct function call
+ * Expected: E3001 type mismatch error
+ */
+
+const Calculator struct {
+    value int
+
+    do add(&self Calculator, n int) -> int {
+        return self.value + n
+    }
+}
+
+do main() {
+    mut c Calculator = Calculator{value: 10}
+    mut result int = c.add("not an int")
+}
