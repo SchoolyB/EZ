@@ -1,4 +1,4 @@
-name: Alpha Release
+name: Beta Release
 
 on:
   push:
@@ -9,7 +9,7 @@ permissions:
   contents: write
 
 jobs:
-  alpha-tag:
+  beta-tag:
     runs-on: ubuntu-latest
     outputs:
       version: ${{ steps.version.outputs.version }}
@@ -19,24 +19,28 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Get next alpha version
+      - name: Get next beta version
         id: version
         run: |
-          LATEST=$(git tag -l 'v3.0.0-alpha.*' --sort=-v:refname | head -1)
+          LATEST=$(git tag -l 'v3.0.0-beta.*' --sort=-v:refname | head -1)
 
           if [ -z "$LATEST" ]; then
-            NEXT="v3.0.0-alpha.1"
+            NEXT="v3.0.0-beta.1"
           else
-            N=$(echo "$LATEST" | sed 's/v3.0.0-alpha.//')
-            NEXT="v3.0.0-alpha.$((N + 1))"
+            N=$(echo "$LATEST" | sed 's/v3.0.0-beta.//')
+            NEXT="v3.0.0-beta.$((N + 1))"
           fi
 
           echo "version=$NEXT" >> $GITHUB_OUTPUT
-          echo "Next alpha version: $NEXT"
+          echo "Next beta version: $NEXT"
 
-      - name: Generate changelog since last alpha
+      - name: Generate changelog since last beta
         run: |
-          LATEST=$(git tag -l 'v3.0.0-alpha.*' --sort=-v:refname | head -1)
+          LATEST=$(git tag -l 'v3.0.0-beta.*' --sort=-v:refname | head -1)
+
+          if [ -z "$LATEST" ]; then
+            LATEST=$(git tag -l 'v3.0.0-alpha.*' --sort=-v:refname | head -1)
+          fi
 
           if [ -z "$LATEST" ]; then
             git log --oneline -20 --pretty=format:"- %s" > /tmp/changelog.txt
@@ -58,17 +62,17 @@ jobs:
             --prerelease \
             --target v3.0.0 \
             --title "${{ steps.version.outputs.version }}" \
-            --notes "## EZ v3.0.0 Alpha
+            --notes "## EZ v3.0.0 Beta
 
           **This is a pre-release.** Not recommended for production use.
 
-          ### Changes since last alpha
+          ### Changes since last release
 
           ${CHANGELOG}
           "
 
   build-binaries:
-    needs: alpha-tag
+    needs: beta-tag
     strategy:
       matrix:
         include:
@@ -128,5 +132,5 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          gh release upload ${{ needs.alpha-tag.outputs.version }} \
+          gh release upload ${{ needs.beta-tag.outputs.version }} \
             "ez-${{ matrix.name }}.tar.gz" --clobber
