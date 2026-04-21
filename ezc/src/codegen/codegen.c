@@ -5378,6 +5378,40 @@ static void emit_assign_statement(CodeGen *cg, AstNode *node) {
         emit(cg, "; }\n");
         return;
     }
+    /* Nested pointer field assignment: o.inner.val = value (where some ancestor is ptr<T>)
+     * Walk the member chain to find the pointer root, then emit nil-check + chain. */
+    if (node->data.assign.target->kind == NODE_MEMBER_EXPR) {
+        const char *chain[32];
+        int depth = 0;
+        AstNode *cur = node->data.assign.target;
+        AstNode *ptr_root = NULL;
+        while (cur->kind == NODE_MEMBER_EXPR && depth < 32) {
+            chain[depth++] = cur->data.member.member;
+            AstNode *obj = cur->data.member.object;
+            EzType *obj_t = cg->type_table ? typetable_get(cg->type_table, obj) : NULL;
+            if (obj_t && obj_t->kind == TK_POINTER &&
+                !(obj->kind == NODE_LABEL && is_ref_var(cg, obj->data.label.value))) {
+                ptr_root = obj;
+                break;
+            }
+            cur = obj;
+        }
+        if (ptr_root && depth > 1) {
+            emit(cg, "{ __auto_type _dp = ");
+            emit_expression(cg, ptr_root);
+            emitf(cg, "; if (!_dp) { fflush(stdout); ez_panic(__FILE__, %d, "
+                "\"nil pointer dereference\"); } _dp->", node->token.line);
+            /* Emit chain in reverse: chain[depth-1] is closest to root */
+            for (int i = depth - 1; i >= 0; i--) {
+                emit(cg, safe_name(chain[i]));
+                if (i > 0) emit(cg, ".");
+            }
+            emitf(cg, " %s ", node->data.assign.op);
+            emit_expression(cg, node->data.assign.value);
+            emit(cg, "; }\n");
+            return;
+        }
+    }
     /* Pointer field assignment: p.field = value (where p is ptr<T>) → nil check + p->field = value */
     if (node->data.assign.target->kind == NODE_MEMBER_EXPR) {
         AstNode *obj = node->data.assign.target->data.member.object;
@@ -5427,9 +5461,7 @@ static void emit_assign_statement(CodeGen *cg, AstNode *node) {
                 }
                 if (fn) {
                     /* Cache target address to avoid double-evaluation of side effects */
-                    emit(cg, "{ typeof(&(");
-                    emit_expression(cg, node->data.assign.target);
-                    emit(cg, ")) _tgt = &(");
+                    emitf(cg, "{ %s *_tgt = &(", ez_type_to_c_cg(cg, sn));
                     emit_expression(cg, node->data.assign.target);
                     emitf(cg, "); *_tgt = %s(*_tgt, ", fn);
                     emit_expression(cg, node->data.assign.value);
