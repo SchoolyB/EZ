@@ -57,6 +57,7 @@ void *ez_arena_alloc(EzArena *arena, size_t size) {
     }
     void *ptr = arena->current->data + arena->current->used;
     arena->current->used += size;
+    memset(ptr, 0, size);
     return ptr;
 }
 
