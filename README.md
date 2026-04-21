@@ -27,8 +27,8 @@ EZ is a statically typed, compiled programming language that produces native bin
 - Static type system with type inference
 - Structs with scoped functions
 - Multi-return values and error handling
-- String interpolation, enums, pattern matching
-- 27 standard library modules (HTTP, JSON, crypto, SQLite, threads, and more)
+- String interpolation, enums, when/is expressions
+- 26 standard library modules (HTTP, JSON, crypto, SQLite, threads, and more)
 - Compiles in milliseconds
 
 ```ez

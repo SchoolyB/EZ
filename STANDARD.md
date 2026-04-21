@@ -31,6 +31,7 @@
 10. [Error Handling](#10-error-handling)
 11. [Memory Model](#11-memory-model)
 12. [Program Execution](#12-program-execution)
+13. [CLI Commands](#13-cli-commands)
 
 ---
 
