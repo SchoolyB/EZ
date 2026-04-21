@@ -18,7 +18,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, macos-latest, windows-latest]
+        os: [ubuntu-latest, macos-latest]
         go-version: ['1.23']
 
     steps:
@@ -33,44 +33,33 @@ jobs:
       # ===== Go CLI =====
       - name: Build ez CLI
         run: go build -o ez ./cmd/ez
-        if: runner.os != 'Windows'
-
-      - name: Build ez CLI (Windows)
-        run: go build -o ez.exe ./cmd/ez
-        if: runner.os == 'Windows'
 
       - name: Run Go unit tests
-        if: runner.os != 'Windows'
         run: go test ./pkg/lineeditor/...
 
       # ===== EZ Compiler =====
       - name: Build EZ compiler
-        if: runner.os != 'Windows'
         run: |
           cd ezc
           make clean
           make build
 
       - name: Run EZ unit tests (lexer + parser + typechecker)
-        if: runner.os != 'Windows'
         run: |
           cd ezc
           make test-unit
 
       - name: Run EZ end-to-end tests
-        if: runner.os != 'Windows'
         run: |
           cd ezc
           make test-e2e
 
       - name: Run EZ integration tests (core + stdlib + named returns)
-        if: runner.os != 'Windows'
         run: |
           cd ezc
           make test-integration
 
       - name: Run EZ UBSan tests
-        if: runner.os != 'Windows'
         run: |
           cd ezc
           make test-ubsan
@@ -84,7 +73,6 @@ jobs:
           make test-asan
 
       - name: Type-check scaffolded pz templates
-        if: runner.os != 'Windows'
         run: |
           # Smoke-test every `ez pz` template against the freshly
           # built compiler. Catches drift between the language and
