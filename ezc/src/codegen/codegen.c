@@ -4483,6 +4483,7 @@ static void emit_call_expression(CodeGen *cg, AstNode *node) {
                                 sdecl->data.struct_decl.fields[fi].type_name &&
                                 strcmp(sdecl->data.struct_decl.fields[fi].type_name, "func") == 0) {
                                 int nargs = node->data.call.arg_count;
+                                if (nargs > 0 && !node->data.call.args) nargs = 0;
                                 EzType *ret_t = cg->type_table ? typetable_get(cg->type_table, node) : NULL;
                                 const char *c_ret = (ret_t && ret_t->kind != TK_UNKNOWN && ret_t->kind != TK_VOID)
                                     ? ez_type_to_c_cg(cg, type_name(ret_t)) : "int64_t";
@@ -4650,6 +4651,7 @@ static void emit_call_expression(CodeGen *cg, AstNode *node) {
             char mangled[256];
             size_t pos = snprintf(mangled, sizeof(mangled), "ez_fn_%s__",
                 resolved_fn_name);
+            if (pos >= sizeof(mangled)) pos = sizeof(mangled) - 1;
             if (binding) {
                 for (const char *c = binding; *c && pos < sizeof(mangled) - 1; c++) {
                     mangled[pos++] = (isalnum((unsigned char)*c) || *c == '_') ? *c : '_';
@@ -4682,6 +4684,7 @@ static void emit_call_expression(CodeGen *cg, AstNode *node) {
                     if (fref->kind == NODE_LABEL) {
                         ref_func = find_func(cg, fref->data.label.value);
                     } else if (fref->kind == NODE_MEMBER_EXPR &&
+                               fref->data.member.object &&
                                fref->data.member.object->kind == NODE_LABEL) {
                         char rn[256];
                         snprintf(rn, sizeof(rn), "%s_%s",
@@ -5540,6 +5543,13 @@ static void emit_func_return_escape(CodeGen *cg, const char *ret_type_name) {
 static void emit_return_statement(CodeGen *cg, AstNode *node) {
     /* Emit ensure cleanup before return */
     emit_ensure_cleanup(cg);
+
+    /* Guard against malformed AST: count > 0 but NULL values array */
+    if (node->data.return_stmt.count > 0 && !node->data.return_stmt.values) {
+        emit_indent(cg);
+        emit(cg, "ez_scope_restore(ez_default_arena, _scope_mark); ez_exit_func(); return;\n");
+        return;
+    }
 
     if (node->data.return_stmt.count > 1 && cg->current_func) {
         /* Multi-return: evaluate into temp, then exit and return */
