@@ -111,6 +111,11 @@ void *ez_map_get(EzMap *m, const void *key) {
 }
 
 void ez_map_set(EzArena *arena, EzMap *m, const void *key, const void *value) {
+    if (m->iterating > 0) {
+        fflush(stdout);
+        fprintf(stderr, "panic: cannot modify map during for_each iteration\n");
+        exit(1);
+    }
     /* Check load factor */
     if (m->count * 4 >= m->capacity * 3) {
         rehash(arena, m);
@@ -142,6 +147,11 @@ bool ez_map_has(EzMap *m, const void *key) {
 }
 
 bool ez_map_remove(EzMap *m, const void *key) {
+    if (m->iterating > 0) {
+        fflush(stdout);
+        fprintf(stderr, "panic: cannot modify map during for_each iteration\n");
+        exit(1);
+    }
     int32_t idx = find_slot(m, key);
     if (idx < 0) return false;
     m->states[idx] = 2; /* tombstone */

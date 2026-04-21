@@ -6108,8 +6108,9 @@ static void emit_statement(CodeGen *cg, AstNode *node) {
 
         const char *idx_name = node->data.for_each.index_name;
         if (!idx_name) idx_name = "_ez_idx";
+        bool is_map_iter = (coll_t && coll_t->kind == TK_MAP);
 
-        if (coll_t && coll_t->kind == TK_MAP) {
+        if (is_map_iter) {
             /* for_each on map — iterate occupied slots with internal counter */
             static int map_iter_counter = 0;
             char mi_name[32];
@@ -6126,6 +6127,10 @@ static void emit_statement(CodeGen *cg, AstNode *node) {
             /* Iterate in insertion order using the order array */
             char slot_name[32];
             snprintf(slot_name, sizeof(slot_name), "_ez_sl%d", map_iter_counter - 1);
+            /* Guard against mutation during iteration */
+            emit_expression(cg, coll);
+            emit(cg, ".iterating++;\n");
+            emit_indent(cg);
             emitf(cg, "for (int32_t %s = 0; %s < ", mi_name, mi_name);
             emit_expression(cg, coll);
             emitf(cg, ".order_len; %s++) {\n", mi_name);
@@ -6222,6 +6227,12 @@ static void emit_statement(CodeGen *cg, AstNode *node) {
         cg->indent--;
         emit_indent(cg);
         emit(cg, "}\n");
+        /* Decrement map iteration guard */
+        if (is_map_iter) {
+            emit_indent(cg);
+            emit_expression(cg, coll);
+            emit(cg, ".iterating--;\n");
+        }
         /* Close extra scope for string iteration */
         if (coll_t && coll_t->kind == TK_STRING) {
             emit_indent(cg);

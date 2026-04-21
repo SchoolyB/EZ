@@ -23,6 +23,7 @@ typedef struct {
     int32_t key_size;
     int32_t value_size;
     int32_t order_len;      /* number of entries in order array */
+    int32_t iterating;      /* >0 while a for_each is active */
 } EzMap;
 
 /* Create an empty map */
