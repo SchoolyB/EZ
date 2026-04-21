@@ -302,6 +302,20 @@ static void rewrite_labels(AstNode *node, const char **orig, const char **prefix
             rewrite_labels(node->data.struct_value.field_values[i], orig, prefixed, count, arena);
         }
         break;
+    case NODE_WHEN_STMT:
+        rewrite_labels(node->data.when_stmt.value, orig, prefixed, count, arena);
+        for (int i = 0; i < node->data.when_stmt.case_count; i++) {
+            WhenCase *wc = &node->data.when_stmt.cases[i];
+            for (int j = 0; j < wc->value_count; j++)
+                rewrite_labels(wc->values[j], orig, prefixed, count, arena);
+            rewrite_labels(wc->body, orig, prefixed, count, arena);
+        }
+        if (node->data.when_stmt.default_body)
+            rewrite_labels(node->data.when_stmt.default_body, orig, prefixed, count, arena);
+        break;
+    case NODE_ENSURE_STMT:
+        rewrite_labels(node->data.ensure_stmt.expr, orig, prefixed, count, arena);
+        break;
     case NODE_CAST_EXPR:
         /* Rewrite cast target type: as(Request, x) → as(mod_Request, x) */
         if (node->data.cast.target_type &&
