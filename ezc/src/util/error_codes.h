@@ -107,7 +107,7 @@
     EZ_ERROR("E3040", "types", "this function returns multiple values but you are assigning to a single variable — use mut a, b = func()") \
     EZ_ERROR("E3041", "types", "cannot interpolate expression — interpolation supports primitives, strings, arrays, and maps") \
     EZ_ERROR("E3042", "types", "struct functions must be called on the type, not an instance — use Type.func() instead of variable.func()") \
-    EZ_ERROR("E3043", "types", "cannot cast between incompatible types — structs and maps cannot be cast to primitives") \
+    EZ_ERROR("E3043", "types", "cannot cast between incompatible types — only numeric, enum, and string conversions are allowed") \
     EZ_ERROR("E3044", "types", "cannot access a field on a struct type — use an instance variable instead") \
     EZ_ERROR("E3045", "types", "or_return requires a function that returns (T, Error) — the called function does not return an error") \
     EZ_ERROR("E3046", "types", "integer literal overflows 64-bit integer — max value is 9223372036854775807") \

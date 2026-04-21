@@ -3,7 +3,7 @@
 > Auto-generated from `ezc/src/util/error_codes.h`. Do not edit manually.
 > Run `./scripts/generate_errors.sh` to regenerate.
 
-**Total: 140 codes** (130 errors, 10 warnings)
+**Total: 143 codes** (132 errors, 11 warnings)
 
 ---
 
@@ -93,7 +93,7 @@
 | `E3040` | types | this function returns multiple values but you are assigning to a single variable — use mut a, b = func() |
 | `E3041` | types | cannot interpolate expression — interpolation supports primitives, strings, arrays, and maps |
 | `E3042` | types | struct functions must be called on the type, not an instance — use Type.func() instead of variable.func() |
-| `E3043` | types | cannot cast between incompatible types — structs and maps cannot be cast to primitives |
+| `E3043` | types | cannot cast between incompatible types — only numeric, enum, and string conversions are allowed |
 | `E3044` | types | cannot access a field on a struct type — use an instance variable instead |
 | `E3045` | types | or_return requires a function that returns (T, Error) — the called function does not return an error |
 | `E3046` | types | integer literal overflows 64-bit integer — max value is 9223372036854775807 |
@@ -113,6 +113,8 @@
 | `E3060` | types | wildcard '?' in return type cannot be resolved — at least one parameter must also use '?' to bind the concrete type |
 | `E3061` | types | struct cannot contain itself by value — use a pointer field '^T' for recursive types |
 | `E3062` | types | handle types (channels, mutexes, threads) cannot be declared const — use 'mut' |
+| `E3063` | types | cannot return address of local variable — the variable's memory is freed when the function returns |
+| `E3064` | types | mem.destroy() called twice on the same arena — each arena can only be destroyed once |
 | `E4001` | names | this variable does not exist — check the spelling or make sure it is declared above this line |
 | `E4002` | names | this function does not exist — check the spelling or make sure it is defined |
 | `E4003` | names | a variable with this name already exists in this scope — use a different name |
@@ -158,6 +160,7 @@
 | `W2007` | safety | this variable shadows a global constant or variable |
 | `W2011` | safety | named return variable is not used in return — the returned value may not match the named variable |
 | `W3003` | safety | fixed-size array is not fully initialized — remaining elements will be zero-valued |
+| `W3004` | safety | pointer may reference memory from a scope that has ended — assigning addr() of an inner-scope variable to an outer-scope pointer |
 
 ---
 
@@ -184,4 +187,4 @@
 
 ---
 
-*Generated on 2026-04-17 02:27:48 UTC*
+*Generated on 2026-04-21 01:33:02 UTC*

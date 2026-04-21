@@ -3669,16 +3669,50 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
     case NODE_CAST_EXPR: {
         EzType *src_t = resolve_expr(tc, node->data.cast.value);
         EzType *dst_t = type_from_name(node->data.cast.target_type);
-        /* Reject casting composite types to/from incompatible types */
+        /* Allowlist-based cast validation */
         if (src_t && src_t->kind != TK_UNKNOWN && dst_t && dst_t->kind != TK_UNKNOWN) {
-            bool src_composite = (src_t->kind == TK_STRUCT || src_t->kind == TK_MAP ||
-                                  (src_t->kind == TK_ARRAY && dst_t->kind != TK_ARRAY));
-            bool dst_composite = (dst_t->kind == TK_STRUCT || dst_t->kind == TK_MAP);
-            /* Reject string → non-numeric (string can only cast to int, float, string) */
-            bool bad_string_cast = (src_t->kind == TK_STRING &&
-                dst_t->kind != TK_STRING && dst_t->kind != TK_INT &&
-                dst_t->kind != TK_UINT && dst_t->kind != TK_FLOAT);
-            if (src_composite || dst_composite || bad_string_cast) {
+            bool allowed = false;
+            /* Same kind is always allowed (identity cast) */
+            if (src_t->kind == dst_t->kind && src_t->kind != TK_ARRAY &&
+                src_t->kind != TK_MAP && src_t->kind != TK_STRUCT)
+                allowed = true;
+            /* Numeric <-> Numeric (int, uint, float, char, byte, sized types) */
+            if (type_is_numeric(src_t) && type_is_numeric(dst_t))
+                allowed = true;
+            /* Bool <-> Numeric */
+            if ((src_t->kind == TK_BOOL && type_is_numeric(dst_t)) ||
+                (type_is_numeric(src_t) && dst_t->kind == TK_BOOL))
+                allowed = true;
+            /* String -> int, uint, float (parsing) */
+            if (src_t->kind == TK_STRING &&
+                (dst_t->kind == TK_INT || dst_t->kind == TK_UINT || dst_t->kind == TK_FLOAT))
+                allowed = true;
+            /* Numeric/Bool -> String (stringification) */
+            if ((type_is_numeric(src_t) || src_t->kind == TK_BOOL) && dst_t->kind == TK_STRING)
+                allowed = true;
+            /* String -> String (identity) */
+            if (src_t->kind == TK_STRING && dst_t->kind == TK_STRING)
+                allowed = true;
+            /* Enum -> int/uint (enums are int-backed) */
+            if (src_t->kind == TK_ENUM &&
+                (dst_t->kind == TK_INT || dst_t->kind == TK_UINT))
+                allowed = true;
+            /* int/uint -> Enum (explicit reinterpretation) */
+            if ((src_t->kind == TK_INT || src_t->kind == TK_UINT) &&
+                dst_t->kind == TK_ENUM)
+                allowed = true;
+            /* Array -> Array: only when both element types are numeric */
+            if (src_t->kind == TK_ARRAY && dst_t->kind == TK_ARRAY) {
+                if (src_t->element_type && dst_t->element_type) {
+                    EzType *src_elem = type_from_name(src_t->element_type);
+                    EzType *dst_elem = type_from_name(dst_t->element_type);
+                    if (type_is_numeric(src_elem) && type_is_numeric(dst_elem))
+                        allowed = true;
+                } else {
+                    allowed = true;
+                }
+            }
+            if (!allowed) {
                 char tn[128];
                 if (src_t->kind == TK_ARRAY && src_t->element_type)
                     snprintf(tn, sizeof(tn), "[%s]", src_t->element_type);
