@@ -1,0 +1,74 @@
+/*
+ * Test: when/ensure in imported module after label rewriting (#1523)
+ * Verifies that imported functions containing when statements and
+ * ensure statements work correctly after multi-file label rewriting.
+ */
+
+import "./defs.ez"
+
+do with_ensure() -> string {
+    ensure defs.do_cleanup()
+    return "done"
+}
+
+do main() {
+    mut passed int = 0
+    mut failed int = 0
+
+    // Test 1: imported function with when - match first branch
+    mut r1 string = defs.classify(1)
+    if r1 == "one" {
+        println("  [PASS] imported when function: one")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] imported when function: expected one, got ${r1}")
+        failed += 1
+    }
+
+    // Test 2: match second branch
+    mut r2 string = defs.classify(2)
+    if r2 == "two" {
+        println("  [PASS] imported when function: two")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] imported when function: expected two, got ${r2}")
+        failed += 1
+    }
+
+    // Test 3: match third branch
+    mut r3 string = defs.classify(3)
+    if r3 == "three" {
+        println("  [PASS] imported when function: three")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] imported when function: expected three, got ${r3}")
+        failed += 1
+    }
+
+    // Test 4: default branch
+    mut r4 string = defs.classify(99)
+    if r4 == "other" {
+        println("  [PASS] imported when function: default")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] imported when function: expected other, got ${r4}")
+        failed += 1
+    }
+
+    // Test 5: ensure with imported function runs
+    mut r5 string = with_ensure()
+    if r5 == "done" {
+        println("  [PASS] ensure with imported function")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] ensure: expected done, got ${r5}")
+        failed += 1
+    }
+
+    println("Results: ${passed} passed, ${failed} failed")
+    if failed > 0 {
+        println("SOME TESTS FAILED")
+    } otherwise {
+        println("ALL TESTS PASSED")
+    }
+}

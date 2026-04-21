@@ -1,0 +1,15 @@
+mut cleanup_count int = 0
+
+do do_cleanup() {
+    cleanup_count += 1
+}
+
+do classify(n int) -> string {
+    when n {
+        is 1 { return "one" }
+        is 2 { return "two" }
+        is 3 { return "three" }
+        default { return "other" }
+    }
+    return "other"
+}
