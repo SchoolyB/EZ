@@ -20,7 +20,56 @@
 
 ---
 
-## Quick Start
+## What is EZ
+
+EZ is a statically typed, compiled programming language that produces native binaries. Source files (`.ez`) are compiled to C, then to machine code. The result is a single binary with no runtime dependencies.
+
+- Static type system with type inference
+- Structs with scoped functions
+- Multi-return values and error handling
+- String interpolation, enums, pattern matching
+- 27 standard library modules (HTTP, JSON, crypto, SQLite, threads, and more)
+- Compiles in milliseconds
+
+```ez
+const Circle struct {
+    radius float
+
+    do area(c Circle) -> float {
+        return 3.14159 * c.radius * c.radius
+    }
+}
+```
+
+```ez
+do divide(a float, b float) -> (float, Error) {
+    if b == 0.0 {
+        return 0.0, error("division by zero")
+    }
+    return a / b, nil
+}
+```
+
+```ez
+do main() {
+    mut names [string] = {"Alice", "Bob", "Charlie"}
+    for_each name in names {
+        println("Hello, ${name}!")
+    }
+}
+```
+
+---
+
+## Install
+
+### Binary download (recommended)
+
+Download the latest release for your platform from the [Releases page](https://github.com/SchoolyB/EZ/releases). No dependencies required.
+
+### Build from source
+
+Requires Go 1.23+ and a C compiler (gcc or clang).
 
 ```bash
 git clone https://github.com/SchoolyB/EZ.git
@@ -29,7 +78,13 @@ make build
 make install
 ```
 
-Create a file called `main.ez`, drop the snippet below into it, and run `ez main.ez`:
+> **Note:** EZ currently supports **macOS** and **Linux** only.
+
+---
+
+## Quick Start
+
+Create a file called `main.ez`:
 
 ```ez
 do main() {
@@ -37,11 +92,13 @@ do main() {
 }
 ```
 
-That's it. EZ compiles your code to a native binary, executes it, and cleans up.
+Run it:
 
-**Requirements:** Go 1.23+ and a C compiler (gcc or clang)
+```bash
+ez main.ez
+```
 
-> **Note:** EZ currently supports **macOS** and **Linux** only. Windows is not supported in v3.0.0.
+EZ compiles your code to a native binary, executes it, and cleans up.
 
 ---
 
@@ -54,7 +111,7 @@ ez check <file.ez>        Type check without compiling
 ez repl                   Interactive REPL
 ez watch <file.ez>        Watch for changes, re-run on save
 ez doc ./...              Generate docs from #doc attributes
-ez pz <name>              Scaffold a new project
+ez pz <name>             Scaffold a new project
 ez test                   Run the full test suite
 ez report                 Print system info for bug reports
 ez update                 Update to the latest stable version
@@ -62,12 +119,6 @@ ez update --pre           Update to the latest pre-release (alpha/beta/rc)
 ez install <version>      Install a specific version (e.g. 2.5.0, 3.0.0-beta.2)
 ez version                Show version info
 ```
-
----
-
-## Learn the Language
-
-See the official EZ documentation at [schoolyb.github.io/EZ-Language-Webapp/docs](https://schoolyb.github.io/EZ-Language-Webapp/docs).
 
 ---
 
@@ -106,6 +157,13 @@ C compiler:  /usr/bin/clang
 ```
 
 Include this output along with a description of the bug, the EZ code that triggers it, and what you expected to happen.
+
+---
+
+## Learn More
+
+- [Official documentation](https://schoolyb.github.io/EZ-Language-Webapp/docs)
+- [Contributing guide](CONTRIBUTING.md)
 
 ---
 
