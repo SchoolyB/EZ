@@ -18,7 +18,7 @@
 /* --- Encoder --- */
 
 /* Exact byte count that json_append_escaped would write (includes quotes). */
-static size_t json_escaped_len(EzString s) {
+size_t json_escaped_len(EzString s) {
     size_t n = 2; /* opening + closing quote */
     for (int32_t i = 0; i < s.len; i++) {
         char c = s.data[i];
@@ -28,7 +28,7 @@ static size_t json_escaped_len(EzString s) {
     return n;
 }
 
-static void json_append_escaped(char *buf, int *pos, EzString s) {
+void json_append_escaped(char *buf, int *pos, EzString s) {
     buf[(*pos)++] = '"';
     for (int32_t i = 0; i < s.len; i++) {
         char c = s.data[i];

@@ -6758,8 +6758,40 @@ void codegen_generate(CodeGen *cg, AstNode *program) {
 
         /* --- stringify: struct → JSON string --- */
         emitf(cg, "static EzString ez_json_stringify_%s(EzArena *arena, EzStruct_%s _s) {\n", sn, sn);
-        emitf(cg, "    int _est = %d;\n", fc * 128 + 4);
-        emitf(cg, "    char *_buf = ez_arena_alloc(arena, (size_t)_est);\n");
+
+        /* Pass 1: compute exact buffer size at runtime.
+         * Field names are identifiers (no escaping), so their contribution
+         * is compile-time constant.  String values need json_escaped_len().
+         * Numeric types use safe upper bounds (21 for int64, 24 for double). */
+        {
+            /* Compile-time constant part: braces + separators + all key literals */
+            int fixed = 2; /* { } */
+            for (int j = 0; j < fc; j++) {
+                StructField *f = &stmt->data.struct_decl.fields[j];
+                if (j > 0) fixed += 2; /* ", " */
+                fixed += 2 + (int)strlen(f->name) + 2; /* "key": */
+                /* Value upper bound for non-string types */
+                if (strcmp(f->type_name, "int") == 0 || strcmp(f->type_name, "i64") == 0) {
+                    fixed += 21;
+                } else if (strcmp(f->type_name, "float") == 0 || strcmp(f->type_name, "f64") == 0) {
+                    fixed += 24;
+                } else if (strcmp(f->type_name, "bool") == 0) {
+                    fixed += 5;
+                }
+                /* string fields are added at runtime below */
+            }
+            emitf(cg, "    size_t _need = %d;\n", fixed);
+        }
+        /* Add runtime string field sizes */
+        for (int j = 0; j < fc; j++) {
+            StructField *f = &stmt->data.struct_decl.fields[j];
+            if (strcmp(f->type_name, "string") == 0) {
+                emitf(cg, "    _need += json_escaped_len(_s.%s);\n", safe_name(f->name));
+            }
+        }
+
+        /* Pass 2: allocate and write */
+        emitf(cg, "    char *_buf = ez_arena_alloc(arena, _need + 1);\n");
         emitf(cg, "    int _pos = 0;\n");
         emitf(cg, "    _buf[_pos++] = '{';\n");
         for (int j = 0; j < fc; j++) {
@@ -6772,15 +6804,12 @@ void codegen_generate(CodeGen *cg, AstNode *program) {
             emitf(cg, "    _buf[_pos++] = '\"'; _buf[_pos++] = ':'; _buf[_pos++] = ' ';\n");
             /* Value */
             if (strcmp(f->type_name, "string") == 0) {
-                emitf(cg, "    _buf[_pos++] = '\"';\n");
-                emitf(cg, "    memcpy(_buf + _pos, _s.%s.data, (size_t)_s.%s.len); _pos += _s.%s.len;\n",
-                    safe_name(f->name), safe_name(f->name), safe_name(f->name));
-                emitf(cg, "    _buf[_pos++] = '\"';\n");
+                emitf(cg, "    json_append_escaped(_buf, &_pos, _s.%s);\n", safe_name(f->name));
             } else if (strcmp(f->type_name, "int") == 0 || strcmp(f->type_name, "i64") == 0) {
-                emitf(cg, "    _pos += snprintf(_buf + _pos, (size_t)(_est - _pos), \"%%lld\", (long long)_s.%s);\n",
+                emitf(cg, "    _pos += snprintf(_buf + _pos, _need + 1 - (size_t)_pos, \"%%lld\", (long long)_s.%s);\n",
                     safe_name(f->name));
             } else if (strcmp(f->type_name, "float") == 0 || strcmp(f->type_name, "f64") == 0) {
-                emitf(cg, "    _pos += snprintf(_buf + _pos, (size_t)(_est - _pos), \"%%g\", _s.%s);\n",
+                emitf(cg, "    _pos += snprintf(_buf + _pos, _need + 1 - (size_t)_pos, \"%%g\", _s.%s);\n",
                     safe_name(f->name));
             } else if (strcmp(f->type_name, "bool") == 0) {
                 emitf(cg, "    { const char *_bv = _s.%s ? \"true\" : \"false\"; int _bl = _s.%s ? 4 : 5;\n",

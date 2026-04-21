@@ -14,6 +14,10 @@
 #include "../runtime/ez_array.h"
 #include "../runtime/ez_map.h"
 
+/* JSON string escaping helpers (used by generated #json struct code) */
+size_t json_escaped_len(EzString s);
+void json_append_escaped(char *buf, int *pos, EzString s);
+
 /* json.encode(value) — convert map to JSON string */
 EzString ez_json_encode_map(EzArena *arena, EzMap *m);
 
