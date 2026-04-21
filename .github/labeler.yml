@@ -59,11 +59,11 @@ CI/CD:
           - ".github/labeler.yml"
           - "Makefile"
 
-# Module system
+# Module system (imports, multi-file resolution, name rewriting)
 module-system:
   - changed-files:
       - any-glob-to-any-file:
-          - "ezc/src/stdlib/**"
+          - "ezc/src/main.c"
 
 # Dependencies
 dependencies:

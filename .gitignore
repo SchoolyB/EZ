@@ -64,6 +64,12 @@ tmp/
 /threads_c
 /time_c
 /test_*
+/main
+
+# Block any Mach-O / ELF binaries accidentally placed at repo root
+# (catch-all for stray compiled outputs)
+*_c
+!/ezc/src/**
 
 # Project specific
 context/
