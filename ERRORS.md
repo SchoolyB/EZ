@@ -3,7 +3,7 @@
 > Auto-generated from `ezc/src/util/error_codes.h`. Do not edit manually.
 > Run `./scripts/generate_errors.sh` to regenerate.
 
-**Total: 143 codes** (132 errors, 11 warnings)
+**Total: 144 codes** (133 errors, 11 warnings)
 
 ---
 
@@ -63,6 +63,7 @@
 | `E2069` | syntax | unexpected semicolon — statements and declarations are separated by newlines, not semicolons |
 | `E2070` | syntax | wildcard type '?' is only allowed in function parameter and return types — not in variable declarations, struct fields, or enum types |
 | `E2071` | syntax | empty string interpolation '${}' — interpolation requires an expression between the braces |
+| `E2072` | syntax | '&' is not a valid operator — use 'addr(x)' to take the address of a variable |
 | `E3001` | types | wrong type — you are using a value of one type where a different type is expected |
 | `E3002` | types | this operator does not work on this type — for example, you cannot subtract strings |
 | `E3003` | types | invalid array index type — array indices must be integers |
@@ -187,4 +188,4 @@
 
 ---
 
-*Generated on 2026-04-21 01:33:02 UTC*
+*Generated on 2026-04-21 21:08:38 UTC*

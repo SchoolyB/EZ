@@ -619,8 +619,14 @@ static AstNode *parse_prefix(Parser *p) {
         return node;
     }
     case TOK_MINUS:
-    case TOK_BANG:
-    case TOK_AMPERSAND: return parse_prefix_expression(p);
+    case TOK_BANG: return parse_prefix_expression(p);
+    case TOK_AMPERSAND: {
+        char buf[128];
+        snprintf(buf, sizeof(buf), "'&' is not a valid operator — use 'addr(x)' to take the address of a variable");
+        diag_error(p->diag, "E2072", arena_strdup(p->arena, buf),
+            p->file, p->cur_token.line, p->cur_token.column, 0);
+        return parse_prefix_expression(p);
+    }
     case TOK_LPAREN:    return parse_grouped_expression(p);
     case TOK_LBRACE: {
         /* Could be array literal {1, 2, 3} or map literal {"k": v, ...}

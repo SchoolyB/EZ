@@ -73,7 +73,8 @@
     EZ_ERROR("E2068", "syntax", "structs and enums must be declared with 'const', not 'mut'") \
     EZ_ERROR("E2069", "syntax", "unexpected semicolon — statements and declarations are separated by newlines, not semicolons") \
     EZ_ERROR("E2070", "syntax", "wildcard type '?' is only allowed in function parameter and return types — not in variable declarations, struct fields, or enum types") \
-    EZ_ERROR("E2071", "syntax", "empty string interpolation '${}' — interpolation requires an expression between the braces")
+    EZ_ERROR("E2071", "syntax", "empty string interpolation '${}' — interpolation requires an expression between the braces") \
+    EZ_ERROR("E2072", "syntax", "'&' is not a valid operator — use 'addr(x)' to take the address of a variable")
 
 /* --- E3xxx: Type Problems (Typechecker) --- */
 #define EZ_TYPE_ERRORS \
