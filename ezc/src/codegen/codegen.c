@@ -5342,15 +5342,15 @@ static void emit_assign_statement(CodeGen *cg, AstNode *node) {
                     else if (strcmp(aop, "*=") == 0) fn = "ez_sized_mul_check";
                 }
                 if (fn) {
+                    /* Cache target address to avoid double-evaluation of side effects */
+                    emit(cg, "{ __auto_type *_tgt = &(");
                     emit_expression(cg, node->data.assign.target);
-                    emitf(cg, " = %s(", fn);
-                    emit_expression(cg, node->data.assign.target);
-                    emit(cg, ", ");
+                    emitf(cg, "); *_tgt = %s(*_tgt, ", fn);
                     emit_expression(cg, node->data.assign.value);
                     if (su) {
-                        emitf(cg, ", %s, \"%s\", __FILE__, %d);\n", smax, sn, node->token.line);
+                        emitf(cg, ", %s, \"%s\", __FILE__, %d); }\n", smax, sn, node->token.line);
                     } else {
-                        emitf(cg, ", %s, %s, \"%s\", __FILE__, %d);\n", smin, smax, sn, node->token.line);
+                        emitf(cg, ", %s, %s, \"%s\", __FILE__, %d); }\n", smin, smax, sn, node->token.line);
                     }
                     return;
                 }
