@@ -17,6 +17,17 @@
 
 /* --- Encoder --- */
 
+/* Exact byte count that json_append_escaped would write (includes quotes). */
+static size_t json_escaped_len(EzString s) {
+    size_t n = 2; /* opening + closing quote */
+    for (int32_t i = 0; i < s.len; i++) {
+        char c = s.data[i];
+        if (c == '"' || c == '\\' || c == '\n' || c == '\t') n += 2;
+        else n += 1;
+    }
+    return n;
+}
+
 static void json_append_escaped(char *buf, int *pos, EzString s) {
     buf[(*pos)++] = '"';
     for (int32_t i = 0; i < s.len; i++) {
@@ -30,10 +41,30 @@ static void json_append_escaped(char *buf, int *pos, EzString s) {
     buf[(*pos)++] = '"';
 }
 
+/* Helper: byte length of a map[string:string] value in JSON output. */
+static size_t json_map_val_len(EzString *val) {
+    if (val->len > 0 && (isdigit(val->data[0]) || val->data[0] == '-'))
+        return (size_t)val->len;
+    if (val->len == 4 && memcmp(val->data, "true", 4) == 0) return 4;
+    if (val->len == 5 && memcmp(val->data, "false", 5) == 0) return 5;
+    if (val->len == 4 && memcmp(val->data, "null", 4) == 0) return 4;
+    return json_escaped_len(*val);
+}
+
 EzString ez_json_encode_map(EzArena *arena, EzMap *m) {
-    /* Estimate size */
-    int est = m->count * 128 + 2;
-    char *buf = ez_arena_alloc(arena, (size_t)est);
+    /* Pass 1: compute exact size */
+    size_t need = 2; /* { } */
+    int counted = 0;
+    for (int32_t i = 0; i < m->capacity; i++) {
+        if (m->states[i] != 1) continue;
+        if (counted > 0) need += 1; /* comma */
+        EzString *key = (EzString *)((char *)m->keys + (size_t)i * (size_t)m->key_size);
+        EzString *val = (EzString *)((char *)m->values + (size_t)i * (size_t)m->value_size);
+        need += json_escaped_len(*key) + 1 /* colon */ + json_map_val_len(val);
+        counted++;
+    }
+    /* Pass 2: write */
+    char *buf = ez_arena_alloc(arena, need + 1);
     int pos = 0;
     buf[pos++] = '{';
     int entry = 0;
@@ -44,7 +75,6 @@ EzString ez_json_encode_map(EzArena *arena, EzMap *m) {
         EzString *val = (EzString *)((char *)m->values + (size_t)i * (size_t)m->value_size);
         json_append_escaped(buf, &pos, *key);
         buf[pos++] = ':';
-        /* Try to detect if value is a number or bool */
         if (val->len > 0 && (isdigit(val->data[0]) || val->data[0] == '-')) {
             memcpy(buf + pos, val->data, (size_t)val->len);
             pos += val->len;
@@ -68,14 +98,15 @@ EzString ez_json_encode_map(EzArena *arena, EzMap *m) {
 /* --- Array Encoders --- */
 
 EzString ez_json_encode_array_int(EzArena *arena, EzArray *arr) {
-    int est = arr->len * 24 + 2;
-    char *buf = ez_arena_alloc(arena, (size_t)est);
+    /* 21 chars max per int64 + comma, plus brackets + nul */
+    size_t need = 2 + (arr->len > 0 ? (size_t)arr->len * 22 - 1 : 0);
+    char *buf = ez_arena_alloc(arena, need + 1);
     int pos = 0;
     buf[pos++] = '[';
     for (int32_t i = 0; i < arr->len; i++) {
         if (i > 0) { buf[pos++] = ','; }
         int64_t val = *(int64_t *)((char *)arr->data + (size_t)i * (size_t)arr->elem_size);
-        pos += snprintf(buf + pos, (size_t)(est - pos), "%" PRId64, val);
+        pos += snprintf(buf + pos, need + 1 - (size_t)pos, "%" PRId64, val);
     }
     buf[pos++] = ']';
     buf[pos] = '\0';
@@ -83,14 +114,15 @@ EzString ez_json_encode_array_int(EzArena *arena, EzArray *arr) {
 }
 
 EzString ez_json_encode_array_float(EzArena *arena, EzArray *arr) {
-    int est = arr->len * 32 + 2;
-    char *buf = ez_arena_alloc(arena, (size_t)est);
+    /* 24 chars max per %g double + comma, plus brackets + nul */
+    size_t need = 2 + (arr->len > 0 ? (size_t)arr->len * 25 - 1 : 0);
+    char *buf = ez_arena_alloc(arena, need + 1);
     int pos = 0;
     buf[pos++] = '[';
     for (int32_t i = 0; i < arr->len; i++) {
         if (i > 0) { buf[pos++] = ','; }
         double val = *(double *)((char *)arr->data + (size_t)i * (size_t)arr->elem_size);
-        pos += snprintf(buf + pos, (size_t)(est - pos), "%g", val);
+        pos += snprintf(buf + pos, need + 1 - (size_t)pos, "%g", val);
     }
     buf[pos++] = ']';
     buf[pos] = '\0';
@@ -98,8 +130,15 @@ EzString ez_json_encode_array_float(EzArena *arena, EzArray *arr) {
 }
 
 EzString ez_json_encode_array_string(EzArena *arena, EzArray *arr) {
-    int est = arr->len * 64 + 2;
-    char *buf = ez_arena_alloc(arena, (size_t)est);
+    /* Pass 1: exact size */
+    size_t need = 2; /* [ ] */
+    for (int32_t i = 0; i < arr->len; i++) {
+        if (i > 0) need += 1; /* comma */
+        EzString *val = (EzString *)((char *)arr->data + (size_t)i * (size_t)arr->elem_size);
+        need += json_escaped_len(*val);
+    }
+    /* Pass 2: write */
+    char *buf = ez_arena_alloc(arena, need + 1);
     int pos = 0;
     buf[pos++] = '[';
     for (int32_t i = 0; i < arr->len; i++) {
@@ -113,8 +152,15 @@ EzString ez_json_encode_array_string(EzArena *arena, EzArray *arr) {
 }
 
 EzString ez_json_encode_array_bool(EzArena *arena, EzArray *arr) {
-    int est = arr->len * 8 + 2;
-    char *buf = ez_arena_alloc(arena, (size_t)est);
+    /* Pass 1: exact size */
+    size_t need = 2; /* [ ] */
+    for (int32_t i = 0; i < arr->len; i++) {
+        if (i > 0) need += 1;
+        bool val = *(bool *)((char *)arr->data + (size_t)i * (size_t)arr->elem_size);
+        need += val ? 4 : 5;
+    }
+    /* Pass 2: write */
+    char *buf = ez_arena_alloc(arena, need + 1);
     int pos = 0;
     buf[pos++] = '[';
     for (int32_t i = 0; i < arr->len; i++) {
@@ -131,8 +177,18 @@ EzString ez_json_encode_array_bool(EzArena *arena, EzArray *arr) {
 /* --- Typed Map Encoders --- */
 
 EzString ez_json_encode_map_int(EzArena *arena, EzMap *m) {
-    int est = m->count * 64 + 2;
-    char *buf = ez_arena_alloc(arena, (size_t)est);
+    /* Pass 1: exact size — key (escaped) + colon + int (max 21) */
+    size_t need = 2;
+    int counted = 0;
+    for (int32_t i = 0; i < m->capacity; i++) {
+        if (m->states[i] != 1) continue;
+        if (counted > 0) need += 1;
+        EzString *key = (EzString *)((char *)m->keys + (size_t)i * (size_t)m->key_size);
+        need += json_escaped_len(*key) + 1 + 21;
+        counted++;
+    }
+    /* Pass 2: write */
+    char *buf = ez_arena_alloc(arena, need + 1);
     int pos = 0;
     buf[pos++] = '{';
     int entry = 0;
@@ -143,7 +199,7 @@ EzString ez_json_encode_map_int(EzArena *arena, EzMap *m) {
         int64_t *val = (int64_t *)((char *)m->values + (size_t)i * (size_t)m->value_size);
         json_append_escaped(buf, &pos, *key);
         buf[pos++] = ':';
-        pos += snprintf(buf + pos, (size_t)(est - pos), "%" PRId64, *val);
+        pos += snprintf(buf + pos, need + 1 - (size_t)pos, "%" PRId64, *val);
         entry++;
     }
     buf[pos++] = '}';
@@ -152,8 +208,18 @@ EzString ez_json_encode_map_int(EzArena *arena, EzMap *m) {
 }
 
 EzString ez_json_encode_map_float(EzArena *arena, EzMap *m) {
-    int est = m->count * 64 + 2;
-    char *buf = ez_arena_alloc(arena, (size_t)est);
+    /* Pass 1: exact size — key (escaped) + colon + float (max 24) */
+    size_t need = 2;
+    int counted = 0;
+    for (int32_t i = 0; i < m->capacity; i++) {
+        if (m->states[i] != 1) continue;
+        if (counted > 0) need += 1;
+        EzString *key = (EzString *)((char *)m->keys + (size_t)i * (size_t)m->key_size);
+        need += json_escaped_len(*key) + 1 + 24;
+        counted++;
+    }
+    /* Pass 2: write */
+    char *buf = ez_arena_alloc(arena, need + 1);
     int pos = 0;
     buf[pos++] = '{';
     int entry = 0;
@@ -164,7 +230,7 @@ EzString ez_json_encode_map_float(EzArena *arena, EzMap *m) {
         double *val = (double *)((char *)m->values + (size_t)i * (size_t)m->value_size);
         json_append_escaped(buf, &pos, *key);
         buf[pos++] = ':';
-        pos += snprintf(buf + pos, (size_t)(est - pos), "%g", *val);
+        pos += snprintf(buf + pos, need + 1 - (size_t)pos, "%g", *val);
         entry++;
     }
     buf[pos++] = '}';
@@ -173,8 +239,19 @@ EzString ez_json_encode_map_float(EzArena *arena, EzMap *m) {
 }
 
 EzString ez_json_encode_map_bool(EzArena *arena, EzMap *m) {
-    int est = m->count * 64 + 2;
-    char *buf = ez_arena_alloc(arena, (size_t)est);
+    /* Pass 1: exact size */
+    size_t need = 2;
+    int counted = 0;
+    for (int32_t i = 0; i < m->capacity; i++) {
+        if (m->states[i] != 1) continue;
+        if (counted > 0) need += 1;
+        EzString *key = (EzString *)((char *)m->keys + (size_t)i * (size_t)m->key_size);
+        bool *val = (bool *)((char *)m->values + (size_t)i * (size_t)m->value_size);
+        need += json_escaped_len(*key) + 1 + (*val ? 4 : 5);
+        counted++;
+    }
+    /* Pass 2: write */
+    char *buf = ez_arena_alloc(arena, need + 1);
     int pos = 0;
     buf[pos++] = '{';
     int entry = 0;
@@ -402,8 +479,21 @@ bool ez_json_is_valid(EzString text) {
 }
 
 EzString ez_json_pretty_map(EzArena *arena, EzMap *m, int64_t indent_size) {
-    int est = m->count * 128 + 64;
-    char *buf = ez_arena_alloc(arena, (size_t)est);
+    /* Pass 1: exact size */
+    size_t ind = indent_size > 0 ? (size_t)indent_size : 0;
+    size_t need = 3; /* { \n } */
+    int counted = 0;
+    for (int32_t i = 0; i < m->capacity; i++) {
+        if (m->states[i] != 1) continue;
+        if (counted > 0) need += 2; /* ,\n */
+        EzString *key = (EzString *)((char *)m->keys + (size_t)i * (size_t)m->key_size);
+        EzString *val = (EzString *)((char *)m->values + (size_t)i * (size_t)m->value_size);
+        need += ind + json_escaped_len(*key) + 2 /* ": " */ + json_escaped_len(*val);
+        counted++;
+    }
+    if (counted > 0) need += 1; /* trailing \n before } */
+    /* Pass 2: write */
+    char *buf = ez_arena_alloc(arena, need + 1);
     int pos = 0;
     buf[pos++] = '{';
     buf[pos++] = '\n';
@@ -411,7 +501,7 @@ EzString ez_json_pretty_map(EzArena *arena, EzMap *m, int64_t indent_size) {
     for (int32_t i = 0; i < m->capacity; i++) {
         if (m->states[i] != 1) continue;
         if (entry > 0) { buf[pos++] = ','; buf[pos++] = '\n'; }
-        for (int64_t j = 0; j < indent_size; j++) buf[pos++] = ' ';
+        for (size_t j = 0; j < ind; j++) buf[pos++] = ' ';
         EzString *key = (EzString *)((char *)m->keys + (size_t)i * (size_t)m->key_size);
         EzString *val = (EzString *)((char *)m->values + (size_t)i * (size_t)m->value_size);
         json_append_escaped(buf, &pos, *key);
