@@ -1547,7 +1547,7 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
                 if (strcmp(mem, "OTHER") == 0)   { emit(cg, "3"); break; }
             }
 
-            /* Check if this is an enum access: EnumName.VALUE */
+            /* Check if this is an enum access: EnumName.VALUE or prefix_EnumName.VALUE */
             if (mod[0] >= 'A' && mod[0] <= 'Z') {
                 /* Resolve unprefixed enum names from 'import and use' */
                 const char *resolved_enum = mod;
@@ -1562,6 +1562,11 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
                     }
                 }
                 emitf(cg, "EzEnum_%s_%s", resolved_enum, mem);
+                break;
+            }
+            /* Rewritten enum name from import: defs_Color.RED → EzEnum_defs_Color_RED */
+            if (codegen_is_enum(cg, mod) && mem[0] >= 'A' && mem[0] <= 'Z') {
+                emitf(cg, "EzEnum_%s_%s", mod, mem);
                 break;
             }
 
