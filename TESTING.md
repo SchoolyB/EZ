@@ -129,6 +129,5 @@ All tests run automatically on push to `main` and `v3.0.0` via GitHub Actions:
 |----------|:--------:|:----------:|:----------:|
 | Ubuntu   | unit + e2e + integration | UBSan + ASan | lineeditor |
 | macOS    | unit + e2e + integration | UBSan | lineeditor |
-| Windows  | — | — | — |
 
 CI workflow: `.github/workflows/ci.yml`
