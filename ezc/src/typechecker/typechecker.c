@@ -2236,6 +2236,32 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                             } else {
                                 result = &TYPE_VOID;
                             }
+                            /* Validate argument types (after AST rewrite) */
+                            {
+                                int check_count = node->data.call.arg_count < ssig->param_count
+                                    ? node->data.call.arg_count : ssig->param_count;
+                                for (int ai = 0; ai < check_count; ai++) {
+                                    EzType *arg_t = resolve_expr(tc, node->data.call.args[ai]);
+                                    EzType *param_t = ssig->param_types[ai];
+                                    if (arg_t && param_t &&
+                                        arg_t->kind != TK_UNKNOWN && param_t->kind != TK_UNKNOWN &&
+                                        arg_t->kind != param_t->kind &&
+                                        !(is_int_kind(param_t->kind) && arg_t->kind == TK_ENUM) &&
+                                        !(param_t->kind == TK_ENUM && is_int_kind(arg_t->kind)) &&
+                                        !(param_t->kind == TK_STRUCT && is_int_kind(arg_t->kind)) &&
+                                        !(is_int_kind(param_t->kind) && arg_t->kind == TK_BOOL) &&
+                                        !(param_t->kind == TK_FLOAT && is_int_kind(arg_t->kind))) {
+                                        char amsg[256];
+                                        snprintf(amsg, sizeof(amsg),
+                                            "argument %d of '%s.%s': expected %s, got %s",
+                                            ai + 1, sname, mfn, type_name(param_t), type_name(arg_t));
+                                        diag_error(tc->diag, "E3001", strdup(amsg),
+                                            NODE_FILE(tc, node->data.call.args[ai]),
+                                            node->data.call.args[ai]->token.line,
+                                            node->data.call.args[ai]->token.column, 0);
+                                    }
+                                }
+                            }
                         } else {
                             char msg[256];
                             snprintf(msg, sizeof(msg),
