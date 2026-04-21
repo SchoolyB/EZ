@@ -1,0 +1,13 @@
+/*
+ * Error Test: E2072 - '&' used as unary address-of on struct
+ * Expected: E2072 error directing user to use addr()
+ */
+
+const Thing struct {
+    val int
+}
+
+do main() {
+    mut t Thing = Thing{val: 5}
+    mut p ^Thing = &t
+}

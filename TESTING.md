@@ -57,7 +57,7 @@ Integration tests compile and run `.ez` programs end-to-end through the full com
 - `integration-tests/pass/warnings/` — 23 warning detection tests
 - `integration-tests/pass/multi-file/` — 34 multi-file import tests (basic, alias, structs, enums, constants, private visibility, transitive, circular, collision, nested, struct functions, imported struct with enum field, import-use-types)
 - `integration-tests/pass/stress/` — 42 stress tests (29 core + 13 stdlib)
-- `integration-tests/fail/errors/` — 515 error detection tests
+- `integration-tests/fail/errors/` — 517 error detection tests
 - `integration-tests/fail/multi-file/` — 20 multi-file error detection tests (collision, private access, type mismatch, undefined module, cross-file error attribution)
 
 **Running:**
