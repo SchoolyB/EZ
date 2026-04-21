@@ -1,0 +1,11 @@
+const Color enum {
+    RED
+    GREEN
+    BLUE
+}
+
+const Priority enum {
+    LOW
+    MEDIUM
+    HIGH
+}
