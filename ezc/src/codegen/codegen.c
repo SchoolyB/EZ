@@ -5343,7 +5343,9 @@ static void emit_assign_statement(CodeGen *cg, AstNode *node) {
                 }
                 if (fn) {
                     /* Cache target address to avoid double-evaluation of side effects */
-                    emit(cg, "{ __auto_type *_tgt = &(");
+                    emit(cg, "{ typeof(&(");
+                    emit_expression(cg, node->data.assign.target);
+                    emit(cg, ")) _tgt = &(");
                     emit_expression(cg, node->data.assign.target);
                     emitf(cg, "); *_tgt = %s(*_tgt, ", fn);
                     emit_expression(cg, node->data.assign.value);
