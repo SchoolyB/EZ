@@ -5294,6 +5294,23 @@ static void emit_assign_statement(CodeGen *cg, AstNode *node) {
         emit(cg, "; }\n");
         return;
     }
+    /* Pointer field assignment: p.field = value (where p is ptr<T>) → nil check + p->field = value */
+    if (node->data.assign.target->kind == NODE_MEMBER_EXPR) {
+        AstNode *obj = node->data.assign.target->data.member.object;
+        EzType *obj_t = cg->type_table ? typetable_get(cg->type_table, obj) : NULL;
+        bool is_ref = (obj->kind == NODE_LABEL && is_ref_var(cg, obj->data.label.value));
+        if (!is_ref && obj_t && obj_t->kind == TK_POINTER) {
+            const char *field = node->data.assign.target->data.member.member;
+            emit(cg, "{ __auto_type _dp = ");
+            emit_expression(cg, obj);
+            emitf(cg, "; if (!_dp) { fflush(stdout); ez_panic(__FILE__, %d, "
+                "\"nil pointer dereference\"); } _dp->%s", node->token.line, safe_name(field));
+            emitf(cg, " %s ", node->data.assign.op);
+            emit_expression(cg, node->data.assign.value);
+            emit(cg, "; }\n");
+            return;
+        }
+    }
 
     /* Compound assignment with sized-type overflow check */
     {
