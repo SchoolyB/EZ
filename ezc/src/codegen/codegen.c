@@ -3188,7 +3188,7 @@ static bool emit_binary_call(CodeGen *cg, AstNode *node, const char *func) {
 /* --- @csv module --- */
 
 static bool emit_csv_call(CodeGen *cg, AstNode *node, const char *func) {
-    if (strcmp(func, "decode") == 0) {
+    if (strcmp(func, "decode") == 0 || strcmp(func, "parse") == 0) {
         emit(cg, "ez_csv_parse(ez_default_arena, ");
         emit_expression(cg, node->data.call.args[0]);
         emit(cg, ")");
