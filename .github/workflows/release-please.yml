@@ -120,10 +120,6 @@ jobs:
             goos: darwin
             goarch: amd64
             ezc_arch: darwin-amd64
-          - os: windows-latest
-            goos: windows
-            goarch: amd64
-            ezc_arch: windows-amd64
     runs-on: ${{ matrix.os }}
     steps:
       - name: Checkout
@@ -136,18 +132,14 @@ jobs:
 
       # #1461: single-binary release. Build ezc first, stage into the
       # embed directory, then `go build` so the Go CLI bakes the compiler
-      # and runtime in as assets. Windows is not yet supported for the
-      # compiler (#1342) — the embed stays as zero-length stubs and the
-      # shipped ez.exe has no working compile path until that's resolved.
+      # and runtime in as assets.
       - name: Build EZ compiler
-        if: runner.os != 'Windows'
         run: |
           cd ezc
           make clean
           make build
 
       - name: Stage embedded runtime assets
-        if: runner.os != 'Windows'
         shell: bash
         run: |
           cp ezc/ezc internal/ezc/runtime/ezc
@@ -157,10 +149,7 @@ jobs:
         env:
           GOOS: ${{ matrix.goos }}
           GOARCH: ${{ matrix.goarch }}
-        run: |
-          EXT=""
-          if [ "${{ matrix.goos }}" = "windows" ]; then EXT=".exe"; fi
-          go build -o ez${EXT} ./cmd/ez
+        run: go build -o ez ./cmd/ez
         shell: bash
 
       - name: Package single-binary release
@@ -169,14 +158,8 @@ jobs:
           TAG="${{ needs.release-please.outputs.tag_name }}"
           ARCH="${{ matrix.ezc_arch }}"
           mkdir -p staging dist
-
-          if [ "${{ matrix.goos }}" = "windows" ]; then
-            cp ez.exe staging/
-            zip -j "dist/ez-${ARCH}.zip" staging/ez.exe
-          else
-            cp ez staging/
-            tar czf "dist/ez-${ARCH}.tar.gz" -C staging .
-          fi
+          cp ez staging/
+          tar czf "dist/ez-${ARCH}.tar.gz" -C staging .
 
       - name: Upload release assets
         env:
@@ -184,7 +167,7 @@ jobs:
           TAG_NAME: ${{ needs.release-please.outputs.tag_name }}
         shell: bash
         run: |
-          for f in dist/*.tar.gz dist/*.zip; do
+          for f in dist/*.tar.gz; do
             [ -f "$f" ] && gh release upload "$TAG_NAME" "$f" --clobber
           done
 
