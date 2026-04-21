@@ -1,0 +1,89 @@
+/*
+ * Test: pointer field assignment with nil-guard (#1531)
+ * Verifies that writing to pointer fields (p.x = val) works correctly
+ * with the nil-guarded codegen path.
+ */
+
+const Point struct {
+    x int
+    y int
+}
+
+const Person struct {
+    name string
+    age int
+}
+
+do main() {
+    mut passed int = 0
+    mut failed int = 0
+
+    // Test 1: basic pointer field write
+    mut p = new(Point)
+    p.x = 10
+    p.y = 20
+    if p.x == 10 {
+        println("  [PASS] pointer field write p.x = 10")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] pointer field write p.x: expected 10")
+        failed += 1
+    }
+
+    // Test 2: second field write
+    if p.y == 20 {
+        println("  [PASS] pointer field write p.y = 20")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] pointer field write p.y: expected 20")
+        failed += 1
+    }
+
+    // Test 3: overwrite pointer field
+    p.x = 99
+    if p.x == 99 {
+        println("  [PASS] pointer field overwrite p.x = 99")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] pointer field overwrite: expected 99")
+        failed += 1
+    }
+
+    // Test 4: pointer field compound assignment
+    p.y += 5
+    if p.y == 25 {
+        println("  [PASS] pointer field compound assign p.y += 5")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] pointer field compound assign: expected 25, got ${p.y}")
+        failed += 1
+    }
+
+    // Test 5: string pointer field write
+    mut person = new(Person)
+    person.name = "Alice"
+    person.age = 30
+    if person.name == "Alice" {
+        println("  [PASS] pointer string field write")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] pointer string field write: expected Alice")
+        failed += 1
+    }
+
+    // Test 6: read after write round-trip
+    if person.age == 30 {
+        println("  [PASS] pointer int field read-after-write")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] pointer int field read-after-write: expected 30")
+        failed += 1
+    }
+
+    println("Results: ${passed} passed, ${failed} failed")
+    if failed > 0 {
+        println("SOME TESTS FAILED")
+    } otherwise {
+        println("ALL TESTS PASSED")
+    }
+}
