@@ -1,0 +1,69 @@
+/*
+ * Test: sized-type compound assignment on struct pointer fields (#1529)
+ * Verifies that +=, -=, *= work correctly on struct pointer fields
+ * with the typeof-based double-evaluation prevention.
+ */
+
+const Counters struct {
+    a i32
+    b u16
+    c i64
+}
+
+do main() {
+    mut passed int = 0
+    mut failed int = 0
+
+    mut ctr = new(Counters)
+    ctr.a = cast(10, i32)
+    ctr.b = cast(100, u16)
+    ctr.c = cast(1000, i64)
+
+    // Test 1: i32 field +=
+    ctr.a += cast(5, i32)
+    if cast(ctr.a, int) == 15 {
+        println("  [PASS] struct field i32 += produces 15")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] struct field i32 +=: expected 15, got ${cast(ctr.a, int)}")
+        failed += 1
+    }
+
+    // Test 2: u16 field -=
+    ctr.b -= cast(30, u16)
+    if cast(ctr.b, int) == 70 {
+        println("  [PASS] struct field u16 -= produces 70")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] struct field u16 -=: expected 70, got ${cast(ctr.b, int)}")
+        failed += 1
+    }
+
+    // Test 3: i64 field *=
+    ctr.c *= cast(3, i64)
+    if cast(ctr.c, int) == 3000 {
+        println("  [PASS] struct field i64 *= produces 3000")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] struct field i64 *=: expected 3000, got ${cast(ctr.c, int)}")
+        failed += 1
+    }
+
+    // Test 4: multiple compound assigns accumulate
+    ctr.a += cast(5, i32)
+    ctr.a += cast(5, i32)
+    if cast(ctr.a, int) == 25 {
+        println("  [PASS] repeated += accumulates to 25")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] repeated +=: expected 25, got ${cast(ctr.a, int)}")
+        failed += 1
+    }
+
+    println("Results: ${passed} passed, ${failed} failed")
+    if failed > 0 {
+        println("SOME TESTS FAILED")
+    } otherwise {
+        println("ALL TESTS PASSED")
+    }
+}
