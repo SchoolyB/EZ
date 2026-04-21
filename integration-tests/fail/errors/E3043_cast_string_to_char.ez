@@ -1,0 +1,9 @@
+/*
+ * Error Test: E3043 - cannot cast string to char
+ * Expected: E3043 "cannot cast" error
+ */
+
+do main() {
+    mut s string = "hello"
+    mut c char = cast(s, char)
+}

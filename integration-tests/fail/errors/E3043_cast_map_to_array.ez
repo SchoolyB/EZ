@@ -1,0 +1,9 @@
+/*
+ * Error Test: E3043 - cannot cast map to array
+ * Expected: E3043 "cannot cast" error
+ */
+
+do main() {
+    mut m map[string:int] = {"a": 1, "b": 2}
+    mut arr [int] = cast(m, [int])
+}
