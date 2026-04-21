@@ -49,6 +49,17 @@ static void emit_indent(CodeGen *cg) {
     buf_append_indent(&cg->output, cg->indent);
 }
 
+/* Internal compiler error — emit a clear message instead of segfaulting.
+ * Used when a type lookup unexpectedly returns NULL. */
+__attribute__((unused))
+static void codegen_ice(const char *context, const char *file, int line) {
+    fflush(stdout);
+    fprintf(stderr, "internal compiler error: %s (at %s:%d)\n"
+        "This is a bug in the EZ compiler. Please report it.\n",
+        context, file ? file : "<unknown>", line);
+    exit(1);
+}
+
 /* Check if a name collides with a C keyword and mangle it if so.
  * Uses a rotating pool of static buffers so multiple calls can appear
  * in one format string (up to 4 simultaneous uses). */
@@ -231,6 +242,7 @@ static const char *ez_map_elem_c_type(CodeGen *cg, const char *ez_tn) {
     if (!ez_tn) return "int64_t";
     ez_tn = cg_effective_type_str(cg, ez_tn);
     EzType *t = type_from_name(ez_tn);
+    if (!t) return "int64_t";
     switch (t->kind) {
     case TK_FLOAT:   return "double";
     case TK_STRING:  return "EzString";
@@ -5557,7 +5569,7 @@ static void emit_return_statement(CodeGen *cg, AstNode *node) {
          * but function may return struct by value) */
         bool needs_deref = false;
         if (cg->current_func && cg->type_table) {
-            EzType *val_t = typetable_get(cg->type_table, node->data.return_stmt.values[0]);
+            EzType *val_t = cg->type_table ? typetable_get(cg->type_table, node->data.return_stmt.values[0]) : NULL;
             if (val_t && val_t->kind == TK_POINTER &&
                 cg->current_func->data.func_decl.return_type_count > 0) {
                 const char *ret_tn = cg->current_func->data.func_decl.return_types[0];
