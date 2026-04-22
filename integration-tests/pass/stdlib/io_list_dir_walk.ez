@@ -1,0 +1,57 @@
+/*
+ * Test: io.list_dir and io.walk return arrays (#1446)
+ * Verifies fallible array-returning io functions work with typed assignment.
+ */
+
+import @io
+
+do main() {
+    mut passed int = 0
+    mut failed int = 0
+
+    // Setup: create a directory with some files
+    mut _ = io.make_dir_all("/tmp/ez_test_listdir/sub")
+    mut _ = io.write_file("/tmp/ez_test_listdir/a.txt", "a")
+    mut _ = io.write_file("/tmp/ez_test_listdir/b.txt", "b")
+    mut _ = io.write_file("/tmp/ez_test_listdir/sub/c.txt", "c")
+
+    // Test 1: list_dir returns entries in directory
+    mut entries [string] = io.list_dir("/tmp/ez_test_listdir")
+    if len(entries) >= 3 {
+        println("  [PASS] list_dir returns >= 3 entries")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] list_dir: expected >= 3 entries, got ${len(entries)}")
+        failed += 1
+    }
+
+    // Test 2: walk returns all files recursively
+    mut all [string] = io.walk("/tmp/ez_test_listdir")
+    if len(all) >= 4 {
+        println("  [PASS] walk returns >= 4 entries recursively")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] walk: expected >= 4 entries, got ${len(all)}")
+        failed += 1
+    }
+
+    // Test 3: list_dir with inferred type
+    mut entries2 = io.list_dir("/tmp/ez_test_listdir")
+    if len(entries2) >= 3 {
+        println("  [PASS] list_dir with inferred type works")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] list_dir inferred: expected >= 3, got ${len(entries2)}")
+        failed += 1
+    }
+
+    // Cleanup
+    mut _ = io.remove_dir_all("/tmp/ez_test_listdir")
+
+    println("Results: ${passed} passed, ${failed} failed")
+    if failed > 0 {
+        println("SOME TESTS FAILED")
+    } otherwise {
+        println("ALL TESTS PASSED")
+    }
+}
