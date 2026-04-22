@@ -2061,6 +2061,26 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                     emit_unknown_stdlib_fn(tc, mod, mfn, node);
                     result = &TYPE_UNKNOWN;
                 }
+                /* E5026: functions that take a socket/listener as first arg */
+                if (strcmp(mfn, "send") == 0 || strcmp(mfn, "receive") == 0 ||
+                    strcmp(mfn, "close") == 0 || strcmp(mfn, "set_timeout") == 0 ||
+                    strcmp(mfn, "accept") == 0) {
+                    if (node->data.call.arg_count >= 1) {
+                        EzType *arg1_type = resolve_expr(tc, node->data.call.args[0]);
+                        if (arg1_type && arg1_type->kind != TK_STRUCT) {
+                            const char *expected = strcmp(mfn, "accept") == 0
+                                ? "Listener" : "Socket";
+                            char msg[256];
+                            snprintf(msg, sizeof(msg),
+                                "net.%s() expects a %s as the first argument, got %s",
+                                mfn, expected,
+                                arg1_type->name ? arg1_type->name : "non-struct type");
+                            diag_error(tc->diag, "E5026", strdup(msg),
+                                NODE_FILE(tc, node), node->data.call.args[0]->token.line,
+                                node->data.call.args[0]->token.column, 0);
+                        }
+                    }
+                }
             } else if (strcmp(mod, "regex") == 0) {
                 if (strcmp(mfn, "is_match") == 0 || strcmp(mfn, "is_valid") == 0) {
                     result = &TYPE_BOOL;
