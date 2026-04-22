@@ -399,6 +399,20 @@ static FuncSig *find_func(TypeChecker *tc, const char *name) {
     return NULL;
 }
 
+/* Check whether a stdlib module.function has a _result variant.
+ * Only functions listed here support multi-var (value, Error) destructuring. */
+static bool tc_is_fallible_stdlib(const char *mod, const char *fn) {
+    if (strcmp(mod, "io") == 0) {
+        return (strcmp(fn, "read_file") == 0 || strcmp(fn, "write_file") == 0 ||
+                strcmp(fn, "delete_file") == 0 || strcmp(fn, "copy_file") == 0 ||
+                strcmp(fn, "move_file") == 0 || strcmp(fn, "list_dir") == 0 ||
+                strcmp(fn, "make_dir") == 0 || strcmp(fn, "make_dir_all") == 0 ||
+                strcmp(fn, "remove_dir") == 0 || strcmp(fn, "remove_dir_all") == 0 ||
+                strcmp(fn, "walk") == 0);
+    }
+    return false;
+}
+
 /* --- "Did you mean?" suggestion helper --- */
 
 static int levenshtein(const char *a, const char *b) {
@@ -4668,6 +4682,24 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
                         if (sym) {
                             sym->ret_types = sig->return_types;
                             sym->ret_count = sig->return_count;
+                        }
+                    }
+                }
+                /* Stdlib module calls (mod.func) — synthesize (T, Error) return
+                 * types for fallible functions so multi-var destructuring works. */
+                if (fn->kind == NODE_MEMBER_EXPR &&
+                    fn->data.member.object->kind == NODE_LABEL) {
+                    const char *mod = fn->data.member.object->data.label.value;
+                    const char *mfn = fn->data.member.member;
+                    if (tc_is_fallible_stdlib(mod, mfn)) {
+                        Symbol *sym = scope_lookup_local(tc->current_scope,
+                            node->data.var_decl.name);
+                        if (sym && sym->type) {
+                            EzType **rt = malloc(sizeof(EzType *) * 2);
+                            rt[0] = sym->type;
+                            rt[1] = type_from_name("Error");
+                            sym->ret_types = rt;
+                            sym->ret_count = 2;
                         }
                     }
                 }
