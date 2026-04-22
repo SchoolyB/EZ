@@ -3822,7 +3822,24 @@ static bool emit_os_call(CodeGen *cg, AstNode *node, const char *func) {
 static bool emit_io_call(CodeGen *cg, AstNode *node, const char *func) {
     bool is_fallible = (strcmp(func, "read_file") == 0 ||
         strcmp(func, "write_file") == 0 ||
-        strcmp(func, "delete_file") == 0);
+        strcmp(func, "delete_file") == 0 ||
+        strcmp(func, "copy_file") == 0 ||
+        strcmp(func, "move_file") == 0 ||
+        strcmp(func, "list_dir") == 0 ||
+        strcmp(func, "make_dir") == 0 ||
+        strcmp(func, "make_dir_all") == 0 ||
+        strcmp(func, "remove_dir") == 0 ||
+        strcmp(func, "remove_dir_all") == 0 ||
+        strcmp(func, "walk") == 0);
+    bool needs_arena = (strcmp(func, "read_file") == 0 ||
+        strcmp(func, "list_dir") == 0 ||
+        strcmp(func, "walk") == 0 ||
+        strcmp(func, "glob") == 0 ||
+        strcmp(func, "path_join") == 0 ||
+        strcmp(func, "dirname") == 0 ||
+        strcmp(func, "basename") == 0 ||
+        strcmp(func, "extension") == 0 ||
+        strcmp(func, "normalize") == 0);
     if (is_fallible) {
         /* Use non-result version only when assigned to a variable with an
          * explicit type annotation (e.g., mut content string = io.read_file(...)).
@@ -3832,19 +3849,16 @@ static bool emit_io_call(CodeGen *cg, AstNode *node, const char *func) {
             (cg->current_var_name == NULL ||
              strncmp(cg->current_var_name, "_ez_tmp", 7) != 0);
         if (use_non_result) {
-            /* Non-result: read_file takes arena, write_file/delete_file don't */
-            if (strcmp(func, "read_file") == 0) {
-                emit(cg, "ez_io_read_file(ez_default_arena, ");
-                emit_expression(cg, node->data.call.args[0]);
-                emit(cg, ")");
+            if (needs_arena) {
+                emitf(cg, "ez_io_%s(ez_default_arena, ", func);
             } else {
                 emitf(cg, "ez_io_%s(", func);
-                for (int i = 0; i < node->data.call.arg_count; i++) {
-                    if (i > 0) emit(cg, ", ");
-                    emit_expression(cg, node->data.call.args[i]);
-                }
-                emit(cg, ")");
             }
+            for (int i = 0; i < node->data.call.arg_count; i++) {
+                if (i > 0) emit(cg, ", ");
+                emit_expression(cg, node->data.call.args[i]);
+            }
+            emit(cg, ")");
         } else {
             emitf(cg, "ez_io_%s_result(ez_default_arena, ", func);
             for (int i = 0; i < node->data.call.arg_count; i++) {
@@ -3856,7 +3870,11 @@ static bool emit_io_call(CodeGen *cg, AstNode *node, const char *func) {
         return true;
     }
     /* Non-fallible functions */
-    emitf(cg, "ez_io_%s(", func);
+    if (needs_arena) {
+        emitf(cg, "ez_io_%s(ez_default_arena, ", func);
+    } else {
+        emitf(cg, "ez_io_%s(", func);
+    }
     for (int i = 0; i < node->data.call.arg_count; i++) {
         if (i > 0) emit(cg, ", ");
         emit_expression(cg, node->data.call.args[i]);

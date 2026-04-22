@@ -1513,6 +1513,18 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                     result = &TYPE_BOOL;
                 } else if (strcmp(mfn, "file_size") == 0) {
                     result = &TYPE_INT;
+                } else if (strcmp(mfn, "list_dir") == 0 || strcmp(mfn, "walk") == 0 ||
+                           strcmp(mfn, "glob") == 0) {
+                    result = type_array("string");
+                } else if (strcmp(mfn, "make_dir") == 0 || strcmp(mfn, "make_dir_all") == 0 ||
+                           strcmp(mfn, "remove_dir") == 0 || strcmp(mfn, "remove_dir_all") == 0 ||
+                           strcmp(mfn, "copy_file") == 0 || strcmp(mfn, "move_file") == 0 ||
+                           strcmp(mfn, "is_absolute") == 0) {
+                    result = &TYPE_BOOL;
+                } else if (strcmp(mfn, "path_join") == 0 || strcmp(mfn, "dirname") == 0 ||
+                           strcmp(mfn, "basename") == 0 || strcmp(mfn, "extension") == 0 ||
+                           strcmp(mfn, "normalize") == 0) {
+                    result = &TYPE_STRING;
                 } else {
                     emit_unknown_stdlib_fn(tc, mod, mfn, node);
                     result = &TYPE_UNKNOWN;
@@ -2930,6 +2942,14 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                             {"rename_file","io",TK_BOOL},{"file_exists","io",TK_BOOL},
                             {"is_file","io",TK_BOOL},{"is_directory","io",TK_BOOL},
                             {"file_size","io",TK_INT},{"glob","io",TK_ARRAY},
+                            {"list_dir","io",TK_ARRAY},{"walk","io",TK_ARRAY},
+                            {"make_dir","io",TK_BOOL},{"make_dir_all","io",TK_BOOL},
+                            {"remove_dir","io",TK_BOOL},{"remove_dir_all","io",TK_BOOL},
+                            {"copy_file","io",TK_BOOL},{"move_file","io",TK_BOOL},
+                            {"is_absolute","io",TK_BOOL},
+                            {"path_join","io",TK_STRING},{"dirname","io",TK_STRING},
+                            {"basename","io",TK_STRING},{"extension","io",TK_STRING},
+                            {"normalize","io",TK_STRING},
                             /* @os */
                             {"args","os",TK_ARRAY},{"get_env","os",TK_STRING},
                             {"set_env","os",TK_VOID},{"current_dir","os",TK_STRING},
