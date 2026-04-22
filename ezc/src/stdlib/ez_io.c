@@ -19,6 +19,8 @@
 EzString ez_io_path_join(EzArena *arena, EzString a, EzString b) {
     if (a.len == 0) return b;
     if (b.len == 0) return a;
+    /* Absolute second argument replaces the first (Python/Rust convention) */
+    if (b.data[0] == '/' || b.data[0] == '\\') return b;
     bool a_has_sep = (a.data[a.len - 1] == '/' || a.data[a.len - 1] == '\\');
     bool b_has_sep = (b.data[0] == '/' || b.data[0] == '\\');
     if (a_has_sep && b_has_sep) {
@@ -32,14 +34,19 @@ EzString ez_io_path_join(EzArena *arena, EzString a, EzString b) {
 
 EzString ez_io_dirname(EzArena *arena, EzString path) {
     if (path.len == 0) return ez_string_lit(".");
+    /* Strip trailing slashes (keep at least 1 char so "/" stays "/") */
+    int eff = path.len;
+    while (eff > 1 && (path.data[eff - 1] == '/' || path.data[eff - 1] == '\\')) eff--;
+    /* Find last separator in the stripped range */
     int last_sep = -1;
-    for (int i = path.len - 1; i >= 0; i--) {
+    for (int i = eff - 1; i >= 0; i--) {
         if (path.data[i] == '/' || path.data[i] == '\\') {
             last_sep = i;
             break;
         }
     }
     if (last_sep < 0) return ez_string_lit(".");
+    /* Collapse leading separator: dirname("/foo") -> "/" */
     if (last_sep == 0) return ez_string_lit("/");
     char *buf = ez_arena_alloc(arena, (size_t)last_sep + 1);
     memcpy(buf, path.data, (size_t)last_sep);
@@ -74,6 +81,8 @@ EzString ez_io_extension(EzArena *arena, EzString path) {
         if (path.data[i] == '.') { dot_pos = i; break; }
     }
     if (dot_pos < 0 || dot_pos == path.len - 1) return ez_string_lit("");
+    /* Dotfiles: leading dot with no other dot is part of the name, not an extension */
+    if (dot_pos == search_start) return ez_string_lit("");
     int32_t len = (int32_t)(path.len - dot_pos);
     char *buf = ez_arena_alloc(arena, (size_t)len + 1);
     memcpy(buf, path.data + dot_pos, (size_t)len);
