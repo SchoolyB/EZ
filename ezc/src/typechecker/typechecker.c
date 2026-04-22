@@ -1699,6 +1699,19 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                     result = type_array("array");
                 } else if (strcmp(mfn, "write") == 0 || strcmp(mfn, "write_file") == 0) {
                     result = &TYPE_BOOL;
+                    /* E5026: second arg must be an array, not a string */
+                    if (node->data.call.arg_count >= 2) {
+                        EzType *arg2_type = resolve_expr(tc, node->data.call.args[1]);
+                        if (arg2_type && arg2_type->kind == TK_STRING) {
+                            char msg[256];
+                            snprintf(msg, sizeof(msg),
+                                "csv.%s() expects an array as the second argument, got string",
+                                mfn);
+                            diag_error(tc->diag, "E5026", strdup(msg),
+                                NODE_FILE(tc, node), node->data.call.args[1]->token.line,
+                                node->data.call.args[1]->token.column, 0);
+                        }
+                    }
                 } else if (strcmp(mfn, "format") == 0 || strcmp(mfn, "encode") == 0) {
                     result = &TYPE_STRING;
                 } else {
