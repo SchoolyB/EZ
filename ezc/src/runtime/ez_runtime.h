@@ -308,4 +308,13 @@ static inline int64_t ez_float_to_int(double v, const char *file, int line) {
     return (int64_t)v;
 }
 
+/* --- Result types for (value, Error) destructuring --- */
+
+/* Forward declarations for types defined in other headers */
+struct EzArray_tag;
+struct EzMap_tag;
+
+typedef struct { int64_t v0; EzError *v1; } EzResult_int;
+typedef struct { void *v0; EzError *v1; } EzResult_ptr;
+
 #endif

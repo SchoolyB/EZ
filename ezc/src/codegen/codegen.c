@@ -2922,7 +2922,9 @@ static bool emit_regex_call(CodeGen *cg, AstNode *node, const char *func) {
         return true;
     }
     if (strcmp(func, "find") == 0 && node->data.call.arg_count == 2) {
-        emit(cg, "ez_regex_find(ez_default_arena, ");
+        bool is_multi_var = cg->current_var_name != NULL &&
+            strncmp(cg->current_var_name, "_ez_tmp", 7) == 0;
+        emitf(cg, "ez_regex_find%s(ez_default_arena, ", is_multi_var ? "_result" : "");
         emit_expression(cg, node->data.call.args[0]);
         emit(cg, ", ");
         emit_expression(cg, node->data.call.args[1]);
@@ -2930,7 +2932,9 @@ static bool emit_regex_call(CodeGen *cg, AstNode *node, const char *func) {
         return true;
     }
     if (strcmp(func, "find_all") == 0 && node->data.call.arg_count == 2) {
-        emit(cg, "ez_regex_find_all(ez_default_arena, ");
+        bool is_multi_var = cg->current_var_name != NULL &&
+            strncmp(cg->current_var_name, "_ez_tmp", 7) == 0;
+        emitf(cg, "ez_regex_find_all%s(ez_default_arena, ", is_multi_var ? "_result" : "");
         emit_expression(cg, node->data.call.args[0]);
         emit(cg, ", ");
         emit_expression(cg, node->data.call.args[1]);
@@ -2938,7 +2942,9 @@ static bool emit_regex_call(CodeGen *cg, AstNode *node, const char *func) {
         return true;
     }
     if (strcmp(func, "replace") == 0 && node->data.call.arg_count == 3) {
-        emit(cg, "ez_regex_replace(ez_default_arena, ");
+        bool is_multi_var = cg->current_var_name != NULL &&
+            strncmp(cg->current_var_name, "_ez_tmp", 7) == 0;
+        emitf(cg, "ez_regex_replace%s(ez_default_arena, ", is_multi_var ? "_result" : "");
         emit_expression(cg, node->data.call.args[0]);
         emit(cg, ", ");
         emit_expression(cg, node->data.call.args[1]);
@@ -2948,7 +2954,9 @@ static bool emit_regex_call(CodeGen *cg, AstNode *node, const char *func) {
         return true;
     }
     if (strcmp(func, "split") == 0 && node->data.call.arg_count == 2) {
-        emit(cg, "ez_regex_split(ez_default_arena, ");
+        bool is_multi_var = cg->current_var_name != NULL &&
+            strncmp(cg->current_var_name, "_ez_tmp", 7) == 0;
+        emitf(cg, "ez_regex_split%s(ez_default_arena, ", is_multi_var ? "_result" : "");
         emit_expression(cg, node->data.call.args[0]);
         emit(cg, ", ");
         emit_expression(cg, node->data.call.args[1]);
@@ -3023,14 +3031,17 @@ static bool emit_server_call(CodeGen *cg, AstNode *node, const char *func) {
 /* --- @http module --- */
 
 static bool emit_http_call(CodeGen *cg, AstNode *node, const char *func) {
+    bool is_multi_var = cg->current_var_name != NULL &&
+        strncmp(cg->current_var_name, "_ez_tmp", 7) == 0;
+    const char *sfx = is_multi_var ? "_result" : "";
     if (strcmp(func, "get") == 0 && node->data.call.arg_count == 1) {
-        emit(cg, "ez_http_get(ez_default_arena, ");
+        emitf(cg, "ez_http_get%s(ez_default_arena, ", sfx);
         emit_expression(cg, node->data.call.args[0]);
         emit(cg, ")");
         return true;
     }
     if (strcmp(func, "post") == 0 && node->data.call.arg_count == 2) {
-        emit(cg, "ez_http_post(ez_default_arena, ");
+        emitf(cg, "ez_http_post%s(ez_default_arena, ", sfx);
         emit_expression(cg, node->data.call.args[0]);
         emit(cg, ", ");
         emit_expression(cg, node->data.call.args[1]);
@@ -3038,7 +3049,7 @@ static bool emit_http_call(CodeGen *cg, AstNode *node, const char *func) {
         return true;
     }
     if (strcmp(func, "put") == 0 && node->data.call.arg_count == 2) {
-        emit(cg, "ez_http_put(ez_default_arena, ");
+        emitf(cg, "ez_http_put%s(ez_default_arena, ", sfx);
         emit_expression(cg, node->data.call.args[0]);
         emit(cg, ", ");
         emit_expression(cg, node->data.call.args[1]);
@@ -3046,19 +3057,19 @@ static bool emit_http_call(CodeGen *cg, AstNode *node, const char *func) {
         return true;
     }
     if (strcmp(func, "delete") == 0 && node->data.call.arg_count == 1) {
-        emit(cg, "ez_http_delete(ez_default_arena, ");
+        emitf(cg, "ez_http_delete%s(ez_default_arena, ", sfx);
         emit_expression(cg, node->data.call.args[0]);
         emit(cg, ")");
         return true;
     }
     if (strcmp(func, "head") == 0 && node->data.call.arg_count == 1) {
-        emit(cg, "ez_http_head(ez_default_arena, ");
+        emitf(cg, "ez_http_head%s(ez_default_arena, ", sfx);
         emit_expression(cg, node->data.call.args[0]);
         emit(cg, ")");
         return true;
     }
     if (strcmp(func, "patch") == 0 && node->data.call.arg_count == 2) {
-        emit(cg, "ez_http_patch(ez_default_arena, ");
+        emitf(cg, "ez_http_patch%s(ez_default_arena, ", sfx);
         emit_expression(cg, node->data.call.args[0]);
         emit(cg, ", ");
         emit_expression(cg, node->data.call.args[1]);
@@ -3071,8 +3082,10 @@ static bool emit_http_call(CodeGen *cg, AstNode *node, const char *func) {
 /* --- @net module --- */
 
 static bool emit_net_call(CodeGen *cg, AstNode *node, const char *func) {
+    bool is_multi_var = cg->current_var_name != NULL &&
+        strncmp(cg->current_var_name, "_ez_tmp", 7) == 0;
     if (strcmp(func, "connect") == 0 && node->data.call.arg_count == 2) {
-        emit(cg, "ez_net_dial(ez_default_arena, ");
+        emitf(cg, "ez_net_dial%s(ez_default_arena, ", is_multi_var ? "_result" : "");
         emit_expression(cg, node->data.call.args[0]);
         emit(cg, ", ");
         emit_expression(cg, node->data.call.args[1]);
@@ -3086,7 +3099,11 @@ static bool emit_net_call(CodeGen *cg, AstNode *node, const char *func) {
         return true;
     }
     if (strcmp(func, "send") == 0 && node->data.call.arg_count == 2) {
-        emit(cg, "ez_net_send(");
+        if (is_multi_var) {
+            emit(cg, "ez_net_send_result(ez_default_arena, ");
+        } else {
+            emit(cg, "ez_net_send(");
+        }
         emit_expression(cg, node->data.call.args[0]);
         emit(cg, ", ");
         emit_expression(cg, node->data.call.args[1]);
@@ -3094,7 +3111,7 @@ static bool emit_net_call(CodeGen *cg, AstNode *node, const char *func) {
         return true;
     }
     if (strcmp(func, "receive") == 0 && node->data.call.arg_count == 2) {
-        emit(cg, "ez_net_recv(ez_default_arena, ");
+        emitf(cg, "ez_net_recv%s(ez_default_arena, ", is_multi_var ? "_result" : "");
         emit_expression(cg, node->data.call.args[0]);
         emit(cg, ", ");
         emit_expression(cg, node->data.call.args[1]);
@@ -3102,13 +3119,13 @@ static bool emit_net_call(CodeGen *cg, AstNode *node, const char *func) {
         return true;
     }
     if (strcmp(func, "listen") == 0 && node->data.call.arg_count == 1) {
-        emit(cg, "ez_net_listen(ez_default_arena, ");
+        emitf(cg, "ez_net_listen%s(ez_default_arena, ", is_multi_var ? "_result" : "");
         emit_expression(cg, node->data.call.args[0]);
         emit(cg, ")");
         return true;
     }
     if (strcmp(func, "accept") == 0 && node->data.call.arg_count == 1) {
-        emit(cg, "ez_net_accept(ez_default_arena, ");
+        emitf(cg, "ez_net_accept%s(ez_default_arena, ", is_multi_var ? "_result" : "");
         emit_expression(cg, node->data.call.args[0]);
         emit(cg, ")");
         return true;
@@ -3122,7 +3139,7 @@ static bool emit_net_call(CodeGen *cg, AstNode *node, const char *func) {
         return true;
     }
     if (strcmp(func, "resolve") == 0 && node->data.call.arg_count == 1) {
-        emit(cg, "ez_net_resolve(ez_default_arena, ");
+        emitf(cg, "ez_net_resolve%s(ez_default_arena, ", is_multi_var ? "_result" : "");
         emit_expression(cg, node->data.call.args[0]);
         emit(cg, ")");
         return true;
@@ -3192,14 +3209,16 @@ static bool emit_binary_call(CodeGen *cg, AstNode *node, const char *func) {
 /* --- @csv module --- */
 
 static bool emit_csv_call(CodeGen *cg, AstNode *node, const char *func) {
+    bool is_multi_var = cg->current_var_name != NULL &&
+        strncmp(cg->current_var_name, "_ez_tmp", 7) == 0;
     if (strcmp(func, "decode") == 0 || strcmp(func, "parse") == 0) {
         emit(cg, "ez_csv_parse(ez_default_arena, ");
         emit_expression(cg, node->data.call.args[0]);
         emit(cg, ")");
         return true;
     }
-    if (strcmp(func, "read_file") == 0) {
-        emit(cg, "ez_csv_read(ez_default_arena, ");
+    if (strcmp(func, "read_file") == 0 || strcmp(func, "read") == 0) {
+        emitf(cg, "ez_csv_read%s(ez_default_arena, ", is_multi_var ? "_result" : "");
         emit_expression(cg, node->data.call.args[0]);
         emit(cg, ")");
         return true;
@@ -3210,12 +3229,20 @@ static bool emit_csv_call(CodeGen *cg, AstNode *node, const char *func) {
         emit(cg, "; ez_csv_stringify(ez_default_arena, &_csv_a); })");
         return true;
     }
-    if (strcmp(func, "write_file") == 0) {
-        emit(cg, "({ EzArray _csv_a = ");
-        emit_expression(cg, node->data.call.args[1]);
-        emit(cg, "; ez_csv_write(ez_default_arena, ");
-        emit_expression(cg, node->data.call.args[0]);
-        emit(cg, ", &_csv_a); })");
+    if (strcmp(func, "write_file") == 0 || strcmp(func, "write") == 0) {
+        if (is_multi_var) {
+            emit(cg, "({ EzArray _csv_a = ");
+            emit_expression(cg, node->data.call.args[1]);
+            emit(cg, "; ez_csv_write_result(ez_default_arena, ");
+            emit_expression(cg, node->data.call.args[0]);
+            emit(cg, ", &_csv_a); })");
+        } else {
+            emit(cg, "({ EzArray _csv_a = ");
+            emit_expression(cg, node->data.call.args[1]);
+            emit(cg, "; ez_csv_write(ez_default_arena, ");
+            emit_expression(cg, node->data.call.args[0]);
+            emit(cg, ", &_csv_a); })");
+        }
         return true;
     }
     return false;
@@ -3282,7 +3309,9 @@ static bool emit_json_call(CodeGen *cg, AstNode *node, const char *func) {
         return true;
     }
     if (strcmp(func, "decode") == 0) {
-        emit(cg, "ez_json_decode(ez_default_arena, ");
+        bool is_multi_var = cg->current_var_name != NULL &&
+            strncmp(cg->current_var_name, "_ez_tmp", 7) == 0;
+        emitf(cg, "ez_json_decode%s(ez_default_arena, ", is_multi_var ? "_result" : "");
         emit_expression(cg, node->data.call.args[0]);
         emit(cg, ")");
         return true;
@@ -3348,8 +3377,12 @@ static bool emit_json_call(CodeGen *cg, AstNode *node, const char *func) {
 /* --- @sqlite module --- */
 
 static bool emit_sqlite_call(CodeGen *cg, AstNode *node, const char *func) {
+    bool is_fallible = (strcmp(func, "open") == 0 || strcmp(func, "exec") == 0 ||
+        strcmp(func, "query") == 0);
+    bool is_multi_var = cg->current_var_name != NULL &&
+        strncmp(cg->current_var_name, "_ez_tmp", 7) == 0;
     if (strcmp(func, "open") == 0) {
-        emit(cg, "ez_sqlite_open(ez_default_arena, ");
+        emitf(cg, "ez_sqlite_open%s(ez_default_arena, ", (is_fallible && is_multi_var) ? "_result" : "");
         emit_expression(cg, node->data.call.args[0]);
         emit(cg, ")");
         return true;
@@ -3361,7 +3394,11 @@ static bool emit_sqlite_call(CodeGen *cg, AstNode *node, const char *func) {
         return true;
     }
     if (strcmp(func, "exec") == 0) {
-        emit(cg, "ez_sqlite_exec(");
+        if (is_multi_var) {
+            emit(cg, "ez_sqlite_exec_result(ez_default_arena, ");
+        } else {
+            emit(cg, "ez_sqlite_exec(");
+        }
         emit_expression(cg, node->data.call.args[0]);
         emit(cg, ", ");
         emit_expression(cg, node->data.call.args[1]);
@@ -3369,7 +3406,7 @@ static bool emit_sqlite_call(CodeGen *cg, AstNode *node, const char *func) {
         return true;
     }
     if (strcmp(func, "query") == 0) {
-        emit(cg, "ez_sqlite_query(ez_default_arena, ");
+        emitf(cg, "ez_sqlite_query%s(ez_default_arena, ", is_multi_var ? "_result" : "");
         emit_expression(cg, node->data.call.args[0]);
         emit(cg, ", ");
         emit_expression(cg, node->data.call.args[1]);
@@ -3823,6 +3860,8 @@ static bool emit_io_call(CodeGen *cg, AstNode *node, const char *func) {
     bool is_fallible = (strcmp(func, "read_file") == 0 ||
         strcmp(func, "write_file") == 0 ||
         strcmp(func, "delete_file") == 0 ||
+        strcmp(func, "append_file") == 0 ||
+        strcmp(func, "rename_file") == 0 ||
         strcmp(func, "copy_file") == 0 ||
         strcmp(func, "move_file") == 0 ||
         strcmp(func, "list_dir") == 0 ||

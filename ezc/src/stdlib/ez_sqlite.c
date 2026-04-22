@@ -69,3 +69,62 @@ EzArray ez_sqlite_query(EzArena *arena, EzSqlite *db, EzString sql) {
     sqlite3_finalize(stmt);
     return rows;
 }
+
+/* _result variants */
+
+EzResult_sqlite ez_sqlite_open_result(EzArena *arena, EzString path) {
+    EzResult_sqlite r;
+    r.v0 = ez_sqlite_open(arena, path);
+    if (!r.v0 || !r.v0->handle) {
+        if (!r.v0) r.v0 = (EzSqlite *)ez_arena_alloc(arena, sizeof(EzSqlite));
+        r.v0->handle = NULL;
+        r.v1 = ez_error_new(arena, ez_string_format(arena, "cannot open database '%s'", path.data));
+    } else {
+        r.v1 = NULL;
+    }
+    return r;
+}
+
+EzResult_bool ez_sqlite_exec_result(EzArena *arena, EzSqlite *db, EzString sql) {
+    EzResult_bool r;
+    if (!db || !db->handle) {
+        r.v0 = false;
+        r.v1 = ez_error_new(arena, ez_string_format(arena, "database handle is nil"));
+        return r;
+    }
+    char *err = NULL;
+    int rc = sqlite3_exec((sqlite3 *)db->handle, sql.data, NULL, NULL, &err);
+    if (rc != SQLITE_OK) {
+        EzString msg = err ? ez_string_format(arena, "exec failed: %s", err)
+                           : ez_string_format(arena, "exec failed (code %d)", rc);
+        if (err) sqlite3_free(err);
+        r.v0 = false;
+        r.v1 = ez_error_new(arena, msg);
+    } else {
+        if (err) sqlite3_free(err);
+        r.v0 = true;
+        r.v1 = NULL;
+    }
+    return r;
+}
+
+EzResult_array ez_sqlite_query_result(EzArena *arena, EzSqlite *db, EzString sql) {
+    EzResult_array r;
+    if (!db || !db->handle) {
+        r.v0 = ez_array_new(arena, sizeof(EzMap), 0);
+        r.v1 = ez_error_new(arena, ez_string_format(arena, "database handle is nil"));
+        return r;
+    }
+    sqlite3_stmt *stmt = NULL;
+    int rc = sqlite3_prepare_v2((sqlite3 *)db->handle, sql.data, sql.len, &stmt, NULL);
+    if (rc != SQLITE_OK || !stmt) {
+        r.v0 = ez_array_new(arena, sizeof(EzMap), 0);
+        const char *errmsg = sqlite3_errmsg((sqlite3 *)db->handle);
+        r.v1 = ez_error_new(arena, ez_string_format(arena, "query failed: %s", errmsg ? errmsg : "unknown error"));
+        return r;
+    }
+    sqlite3_finalize(stmt);
+    r.v0 = ez_sqlite_query(arena, db, sql);
+    r.v1 = NULL;
+    return r;
+}

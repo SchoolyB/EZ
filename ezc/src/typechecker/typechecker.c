@@ -408,7 +408,33 @@ static bool tc_is_fallible_stdlib(const char *mod, const char *fn) {
                 strcmp(fn, "move_file") == 0 || strcmp(fn, "list_dir") == 0 ||
                 strcmp(fn, "make_dir") == 0 || strcmp(fn, "make_dir_all") == 0 ||
                 strcmp(fn, "remove_dir") == 0 || strcmp(fn, "remove_dir_all") == 0 ||
-                strcmp(fn, "walk") == 0);
+                strcmp(fn, "walk") == 0 || strcmp(fn, "append_file") == 0 ||
+                strcmp(fn, "rename_file") == 0);
+    }
+    if (strcmp(mod, "sqlite") == 0) {
+        return (strcmp(fn, "open") == 0 || strcmp(fn, "exec") == 0 ||
+                strcmp(fn, "query") == 0);
+    }
+    if (strcmp(mod, "net") == 0) {
+        return (strcmp(fn, "connect") == 0 || strcmp(fn, "listen") == 0 ||
+                strcmp(fn, "accept") == 0 || strcmp(fn, "send") == 0 ||
+                strcmp(fn, "receive") == 0 || strcmp(fn, "resolve") == 0);
+    }
+    if (strcmp(mod, "http") == 0) {
+        return (strcmp(fn, "get") == 0 || strcmp(fn, "post") == 0 ||
+                strcmp(fn, "put") == 0 || strcmp(fn, "delete") == 0 ||
+                strcmp(fn, "head") == 0 || strcmp(fn, "patch") == 0);
+    }
+    if (strcmp(mod, "csv") == 0) {
+        return (strcmp(fn, "read") == 0 || strcmp(fn, "read_file") == 0 ||
+                strcmp(fn, "write") == 0 || strcmp(fn, "write_file") == 0);
+    }
+    if (strcmp(mod, "json") == 0) {
+        return (strcmp(fn, "decode") == 0);
+    }
+    if (strcmp(mod, "regex") == 0) {
+        return (strcmp(fn, "find") == 0 || strcmp(fn, "find_all") == 0 ||
+                strcmp(fn, "replace") == 0 || strcmp(fn, "split") == 0);
     }
     return false;
 }

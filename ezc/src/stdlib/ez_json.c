@@ -515,3 +515,22 @@ EzString ez_json_pretty_map(EzArena *arena, EzMap *m, int64_t indent_size) {
     EzString r = { buf, (int32_t)pos };
     return r;
 }
+
+/* _result variant */
+
+EzResult_map ez_json_decode_result(EzArena *arena, EzString text) {
+    EzResult_map r;
+    if (text.len <= 0 || !text.data) {
+        r.v0 = ez_map_new(arena, sizeof(EzString), sizeof(EzString), 0);
+        r.v1 = ez_error_new(arena, ez_string_format(arena, "empty JSON input"));
+        return r;
+    }
+    if (!ez_json_is_valid(text)) {
+        r.v0 = ez_map_new(arena, sizeof(EzString), sizeof(EzString), 0);
+        r.v1 = ez_error_new(arena, ez_string_format(arena, "invalid JSON"));
+        return r;
+    }
+    r.v0 = ez_json_decode(arena, text);
+    r.v1 = NULL;
+    return r;
+}

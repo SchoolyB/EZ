@@ -41,4 +41,9 @@ bool ez_json_is_valid(EzString text);
 /* json.pretty(value, indent) — pretty-print JSON */
 EzString ez_json_pretty_map(EzArena *arena, EzMap *m, int64_t indent);
 
+/* _result variant */
+typedef struct { EzMap v0; EzError *v1; } EzResult_map;
+
+EzResult_map ez_json_decode_result(EzArena *arena, EzString text);
+
 #endif

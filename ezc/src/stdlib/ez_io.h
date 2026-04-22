@@ -53,6 +53,8 @@ typedef struct { EzArray v0; EzError *v1; } EzResult_array;
 EzResult_string ez_io_read_file_result(EzArena *arena, EzString path);
 EzResult_bool ez_io_write_file_result(EzArena *arena, EzString path, EzString content);
 EzResult_bool ez_io_delete_file_result(EzArena *arena, EzString path);
+EzResult_bool ez_io_append_file_result(EzArena *arena, EzString path, EzString content);
+EzResult_bool ez_io_rename_file_result(EzArena *arena, EzString old_path, EzString new_path);
 EzResult_bool ez_io_copy_file_result(EzArena *arena, EzString src, EzString dst);
 EzResult_bool ez_io_move_file_result(EzArena *arena, EzString src, EzString dst);
 EzResult_array ez_io_list_dir_result(EzArena *arena, EzString path);

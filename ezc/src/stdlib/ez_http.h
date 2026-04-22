@@ -28,4 +28,14 @@ EzHttpResponse ez_http_delete(EzArena *arena, EzString url);
 EzHttpResponse ez_http_head(EzArena *arena, EzString url);
 EzHttpResponse ez_http_patch(EzArena *arena, EzString url, EzString body);
 
+/* _result variants */
+typedef struct { EzHttpResponse v0; EzError *v1; } EzResult_http;
+
+EzResult_http ez_http_get_result(EzArena *arena, EzString url);
+EzResult_http ez_http_post_result(EzArena *arena, EzString url, EzString body);
+EzResult_http ez_http_put_result(EzArena *arena, EzString url, EzString body);
+EzResult_http ez_http_delete_result(EzArena *arena, EzString url);
+EzResult_http ez_http_head_result(EzArena *arena, EzString url);
+EzResult_http ez_http_patch_result(EzArena *arena, EzString url, EzString body);
+
 #endif
