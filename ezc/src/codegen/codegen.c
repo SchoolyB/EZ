@@ -3841,13 +3841,12 @@ static bool emit_io_call(CodeGen *cg, AstNode *node, const char *func) {
         strcmp(func, "extension") == 0 ||
         strcmp(func, "normalize") == 0);
     if (is_fallible) {
-        /* Use non-result version only when assigned to a variable with an
-         * explicit type annotation (e.g., mut content string = io.read_file(...)).
-         * Otherwise use _result version for multi-var destructuring and
-         * inferred-type assignments. */
-        bool use_non_result = cg->current_var_type != NULL &&
-            (cg->current_var_name == NULL ||
-             strncmp(cg->current_var_name, "_ez_tmp", 7) != 0);
+        /* Use non-result version when assigned to a single variable (typed or
+         * inferred).  Use _result version only for multi-var destructuring
+         * (temp vars prefixed with _ez_tmp). */
+        bool is_multi_var = cg->current_var_name != NULL &&
+            strncmp(cg->current_var_name, "_ez_tmp", 7) == 0;
+        bool use_non_result = !is_multi_var;
         if (use_non_result) {
             if (needs_arena) {
                 emitf(cg, "ez_io_%s(ez_default_arena, ", func);
