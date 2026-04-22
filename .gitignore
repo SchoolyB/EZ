@@ -69,7 +69,8 @@ tmp/
 # Block any Mach-O / ELF binaries accidentally placed at repo root
 # (catch-all for stray compiled outputs)
 *_c
-!/ezc/src/**
+!/ezc/src/**/*.c
+!/ezc/src/**/*.h
 
 # Project specific
 context/
