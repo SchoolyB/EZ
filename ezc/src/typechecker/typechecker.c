@@ -439,6 +439,45 @@ static bool tc_is_fallible_stdlib(const char *mod, const char *fn) {
     return false;
 }
 
+/* Return the primary (non-error) type for a fallible stdlib function.
+ * This mirrors the type registration blocks so that multi-var synthesis
+ * doesn't depend on sym->type being resolved first. */
+static EzType *tc_get_fallible_stdlib_type(const char *mod, const char *fn) {
+    if (strcmp(mod, "io") == 0) {
+        if (strcmp(fn, "read_file") == 0) return &TYPE_STRING;
+        if (strcmp(fn, "list_dir") == 0 || strcmp(fn, "walk") == 0) return type_array("string");
+        /* write_file, delete_file, copy_file, move_file, make_dir, make_dir_all,
+         * remove_dir, remove_dir_all, append_file, rename_file */
+        return &TYPE_BOOL;
+    }
+    if (strcmp(mod, "sqlite") == 0) {
+        if (strcmp(fn, "open") == 0) return type_struct("Database");
+        if (strcmp(fn, "query") == 0) return type_array("map");
+        return &TYPE_BOOL; /* exec */
+    }
+    if (strcmp(mod, "net") == 0) {
+        if (strcmp(fn, "connect") == 0 || strcmp(fn, "accept") == 0) return type_struct("Socket");
+        if (strcmp(fn, "listen") == 0) return type_struct("Listener");
+        if (strcmp(fn, "send") == 0) return &TYPE_INT;
+        return &TYPE_STRING; /* receive, resolve */
+    }
+    if (strcmp(mod, "http") == 0) {
+        return type_struct("HttpResponse"); /* all methods */
+    }
+    if (strcmp(mod, "csv") == 0) {
+        if (strcmp(fn, "read") == 0 || strcmp(fn, "read_file") == 0) return type_array("string");
+        return &TYPE_BOOL; /* write, write_file */
+    }
+    if (strcmp(mod, "json") == 0) {
+        return type_struct("Map"); /* decode */
+    }
+    if (strcmp(mod, "regex") == 0) {
+        if (strcmp(fn, "find") == 0 || strcmp(fn, "replace") == 0) return &TYPE_STRING;
+        return type_array("string"); /* find_all, split */
+    }
+    return NULL;
+}
+
 /* --- "Did you mean?" suggestion helper --- */
 
 static int levenshtein(const char *a, const char *b) {
@@ -4718,11 +4757,12 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
                     const char *mod = fn->data.member.object->data.label.value;
                     const char *mfn = fn->data.member.member;
                     if (tc_is_fallible_stdlib(mod, mfn)) {
+                        EzType *primary = tc_get_fallible_stdlib_type(mod, mfn);
                         Symbol *sym = scope_lookup_local(tc->current_scope,
                             node->data.var_decl.name);
-                        if (sym && sym->type) {
+                        if (sym && primary) {
                             EzType **rt = malloc(sizeof(EzType *) * 2);
-                            rt[0] = sym->type;
+                            rt[0] = primary;
                             rt[1] = type_from_name("Error");
                             sym->ret_types = rt;
                             sym->ret_count = 2;
