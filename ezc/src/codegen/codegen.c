@@ -3217,7 +3217,7 @@ static bool emit_csv_call(CodeGen *cg, AstNode *node, const char *func) {
         emit(cg, ")");
         return true;
     }
-    if (strcmp(func, "read_file") == 0 || strcmp(func, "read") == 0) {
+    if (strcmp(func, "read_file") == 0) {
         emitf(cg, "ez_csv_read%s(ez_default_arena, ", is_multi_var ? "_result" : "");
         emit_expression(cg, node->data.call.args[0]);
         emit(cg, ")");
@@ -3229,7 +3229,7 @@ static bool emit_csv_call(CodeGen *cg, AstNode *node, const char *func) {
         emit(cg, "; ez_csv_stringify(ez_default_arena, &_csv_a); })");
         return true;
     }
-    if (strcmp(func, "write_file") == 0 || strcmp(func, "write") == 0) {
+    if (strcmp(func, "write_file") == 0) {
         if (is_multi_var) {
             emit(cg, "({ EzArray _csv_a = ");
             emit_expression(cg, node->data.call.args[1]);
@@ -4374,7 +4374,7 @@ static void emit_call_expression(CodeGen *cg, AstNode *node) {
                 {"decode_f64_le","binary"},{"decode_f64_be","binary"},
                 /* @csv */
                 {"parse","csv"},{"read_file","csv"},{"headers","csv"},
-                {"write","csv"},{"write_file","csv"},{"format","csv"},{"encode","csv"},
+                {"write_file","csv"},{"format","csv"},{"encode","csv"},
                 /* @sqlite */
                 {"open","sqlite"},{"close","sqlite"},{"exec","sqlite"},{"query","sqlite"},
                 /* @threads */

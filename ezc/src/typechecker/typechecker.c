@@ -426,8 +426,7 @@ static bool tc_is_fallible_stdlib(const char *mod, const char *fn) {
                 strcmp(fn, "head") == 0 || strcmp(fn, "patch") == 0);
     }
     if (strcmp(mod, "csv") == 0) {
-        return (strcmp(fn, "read") == 0 || strcmp(fn, "read_file") == 0 ||
-                strcmp(fn, "write") == 0 || strcmp(fn, "write_file") == 0);
+        return (strcmp(fn, "read_file") == 0 || strcmp(fn, "write_file") == 0);
     }
     if (strcmp(mod, "json") == 0) {
         return (strcmp(fn, "decode") == 0);
@@ -465,8 +464,8 @@ static EzType *tc_get_fallible_stdlib_type(const char *mod, const char *fn) {
         return type_struct("HttpResponse"); /* all methods */
     }
     if (strcmp(mod, "csv") == 0) {
-        if (strcmp(fn, "read") == 0 || strcmp(fn, "read_file") == 0) return type_array("string");
-        return &TYPE_BOOL; /* write, write_file */
+        if (strcmp(fn, "read_file") == 0) return type_array("string");
+        return &TYPE_BOOL; /* write_file */
     }
     if (strcmp(mod, "json") == 0) {
         return type_struct("Map"); /* decode */
@@ -1694,10 +1693,9 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                 else result = &TYPE_INT;
             } else if (strcmp(mod, "csv") == 0) {
                 if (strcmp(mfn, "decode") == 0 || strcmp(mfn, "parse") == 0 ||
-                    strcmp(mfn, "read") == 0 ||
                     strcmp(mfn, "read_file") == 0 || strcmp(mfn, "headers") == 0) {
                     result = type_array("array");
-                } else if (strcmp(mfn, "write") == 0 || strcmp(mfn, "write_file") == 0) {
+                } else if (strcmp(mfn, "write_file") == 0) {
                     result = &TYPE_BOOL;
                     /* E5026: second arg must be an array, not a string */
                     if (node->data.call.arg_count >= 2) {
