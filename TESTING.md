@@ -52,12 +52,12 @@ Integration tests compile and run `.ez` programs end-to-end through the full com
 
 **Structure:**
 
-- `integration-tests/pass/core/` — 156 core language feature tests (arrays, control flow, structs, enums, maps, typeof, named returns, import variants, C interop, #strict when, or_return, raw strings, bigint arrays, pointer collections, non-standard map key ops, wide numeric map keys, [func] arrays, func var calls, enum map keys, map deep copy, wildcard types, [func] arrays of struct-namespaced refs, nested array deep copy, struct deep copy, nested map types, container compound assign, grouped struct fields, struct func mutable params, func ref mutable params, for_each pointer arrays, pointer-to-pointer types, struct self dispatch, struct func fields, wildcard nested calls, wildcard named returns, wildcard multi-return, func param calls, func ref default params, enum implicit values, int-to-float coercion, etc.)
+- `integration-tests/pass/core/` — 157 core language feature tests (arrays, control flow, structs, enums, maps, typeof, named returns, import variants, C interop, #strict when, or_return, raw strings, bigint arrays, pointer collections, non-standard map key ops, wide numeric map keys, [func] arrays, func var calls, enum map keys, map deep copy, wildcard types, [func] arrays of struct-namespaced refs, nested array deep copy, struct deep copy, nested map types, container compound assign, grouped struct fields, struct func mutable params, func ref mutable params, for_each pointer arrays, pointer-to-pointer types, struct self dispatch, struct func fields, wildcard nested calls, wildcard named returns, wildcard multi-return, func param calls, func ref default params, enum implicit values, int-to-float coercion, uint precision at UINT64_MAX, etc.)
 - `integration-tests/pass/stdlib/` — 40 stdlib module tests
 - `integration-tests/pass/warnings/` — 24 warning detection tests (includes W2012 float-when)
 - `integration-tests/pass/multi-file/` — 34 multi-file import tests (basic, alias, structs, enums, constants, private visibility, transitive, circular, collision, nested, struct functions, imported struct with enum field, import-use-types)
 - `integration-tests/pass/stress/` — 42 stress tests (29 core + 13 stdlib)
-- `integration-tests/fail/errors/` — 534 error detection tests (includes negation-overflow and TYPE_MIN/-1 div/mod panics for int/i64/i32/i16/i8)
+- `integration-tests/fail/errors/` — 536 error detection tests (includes negation-overflow and TYPE_MIN/-1 div/mod panics for int/i64/i32/i16/i8, plus E3046 hex-top-bit-to-int and above-UINT64_MAX)
 - `integration-tests/fail/multi-file/` — 20 multi-file error detection tests (collision, private access, type mismatch, undefined module, cross-file error attribution)
 
 **Running:**
