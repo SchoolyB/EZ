@@ -169,6 +169,16 @@ static inline int64_t ez_mul_check(int64_t a, int64_t b, const char *file, int l
     return result;
 }
 
+static inline int64_t ez_neg_check(int64_t a, const char *file, int line) {
+    int64_t result;
+    if (__builtin_sub_overflow((int64_t)0, a, &result)) {
+        fflush(stdout);
+        fprintf(stderr, "panic at %s:%d: negation result is too large — value exceeds the range of this type\n", file, line);
+        exit(1);
+    }
+    return result;
+}
+
 static inline int64_t ez_inc_check(int64_t a, const char *file, int line) {
     return ez_add_check(a, 1, file, line);
 }
@@ -236,6 +246,17 @@ static inline int64_t ez_sized_mul_check(int64_t a, int64_t b, int64_t min_val, 
     if (result < min_val || result > max_val) {
         fflush(stdout);
         fprintf(stderr, "panic at %s:%d: %s multiplication result is too large — value exceeds the range of this type\n", file, line, type_name);
+        exit(1);
+    }
+    return result;
+}
+
+static inline int64_t ez_sized_neg_check(int64_t a, int64_t min_val, int64_t max_val,
+    const char *type_name, const char *file, int line) {
+    int64_t result = -a;
+    if (result < min_val || result > max_val) {
+        fflush(stdout);
+        fprintf(stderr, "panic at %s:%d: %s negation result is too large — value exceeds the range of this type\n", file, line, type_name);
         exit(1);
     }
     return result;

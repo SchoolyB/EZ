@@ -1120,6 +1120,30 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
                 break;
             }
         }
+        /* Overflow-checked negation for signed integer types — STANDARD §3.1.1
+         * promises arithmetic panics rather than silent wrap on overflow. */
+        if (strcmp(node->data.prefix.op, "-") == 0) {
+            EzType *ot = cg->type_table ? typetable_get(cg->type_table, node->data.prefix.right) : NULL;
+            if (ot && ot->kind == TK_INT) {
+                const char *sn = ot->name;
+                const char *smin = NULL, *smax = NULL;
+                if (sn) {
+                    if (strcmp(sn, "i8") == 0) { smin = "-128"; smax = "127"; }
+                    else if (strcmp(sn, "i16") == 0) { smin = "-32768"; smax = "32767"; }
+                    else if (strcmp(sn, "i32") == 0) { smin = "-2147483648LL"; smax = "2147483647LL"; }
+                }
+                if (smax) {
+                    emit(cg, "ez_sized_neg_check(");
+                    emit_expression(cg, node->data.prefix.right);
+                    emitf(cg, ", %s, %s, \"%s\", __FILE__, %d)", smin, smax, sn, node->token.line);
+                } else {
+                    emit(cg, "ez_neg_check(");
+                    emit_expression(cg, node->data.prefix.right);
+                    emitf(cg, ", __FILE__, %d)", node->token.line);
+                }
+                break;
+            }
+        }
         emit(cg, "(");
         emit(cg, node->data.prefix.op);
         if (strcmp(node->data.prefix.op, "-") == 0 &&
