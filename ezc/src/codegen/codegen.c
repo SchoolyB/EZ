@@ -1348,12 +1348,32 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
                 emitf(cg, " %s _dv; })", op);
                 break;
             } else {
+                /* For signed integer division, also guard the TYPE_MIN / -1
+                 * case — that quotient overflows (it's |TYPE_MIN| which has
+                 * no positive representation), and in C it's UB. */
+                bool is_signed = (lt && lt->kind == TK_INT) || (rt && rt->kind == TK_INT);
+                const char *signed_min = NULL;
+                if (is_signed) {
+                    const char *sn = (lt && lt->name) ? lt->name : ((rt && rt->name) ? rt->name : NULL);
+                    if (sn && strcmp(sn, "i8") == 0)       signed_min = "-128";
+                    else if (sn && strcmp(sn, "i16") == 0) signed_min = "-32768";
+                    else if (sn && strcmp(sn, "i32") == 0) signed_min = "-2147483648LL";
+                    else                                   signed_min = "(-9223372036854775807LL - 1)";
+                }
                 emit(cg, "({ __auto_type _dv = ");
                 emit_expression(cg, node->data.infix.right);
                 emitf(cg, "; if (!_dv) { fflush(stdout); ez_panic(__FILE__, %d, \"division by zero\"); } ",
                     node->token.line);
-                emit_expression(cg, node->data.infix.left);
-                emitf(cg, " %s _dv; })", op);
+                if (is_signed) {
+                    const char *opname = (strcmp(op, "/") == 0) ? "division" : "modulo";
+                    emit(cg, "__auto_type _dn = ");
+                    emit_expression(cg, node->data.infix.left);
+                    emitf(cg, "; if (_dn == %s && _dv == -1) { fflush(stdout); ez_panic(__FILE__, %d, \"%s result is too large — value exceeds the range of this type\"); } _dn %s _dv; })",
+                        signed_min, node->token.line, opname, op);
+                } else {
+                    emit_expression(cg, node->data.infix.left);
+                    emitf(cg, " %s _dv; })", op);
+                }
                 break;
             }
         }
