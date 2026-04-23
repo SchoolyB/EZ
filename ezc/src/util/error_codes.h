@@ -129,7 +129,10 @@
     EZ_ERROR("E3061", "types", "struct cannot contain itself by value — use a pointer field '^T' for recursive types") \
     EZ_ERROR("E3062", "types", "handle types (channels, mutexes, threads) cannot be declared const — use 'mut'") \
     EZ_ERROR("E3063", "types", "cannot return address of local variable — the variable's memory is freed when the function returns") \
-    EZ_ERROR("E3064", "types", "mem.destroy() called twice on the same arena — each arena can only be destroyed once")
+    EZ_ERROR("E3064", "types", "mem.destroy() called twice on the same arena — each arena can only be destroyed once") \
+    EZ_ERROR("E3065", "types", "bare 'func' is not a valid type — use func(<params>) -> <return> with an explicit signature") \
+    EZ_ERROR("E3066", "types", "function reference signature mismatch — expected and actual function types differ") \
+    EZ_ERROR("E3067", "types", "argument passed by value to a '&' parameter — pass an lvalue (variable) instead")
 
 /* --- E4xxx: Name Problems (References) --- */
 #define EZ_REFERENCE_ERRORS \

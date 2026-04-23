@@ -12,5 +12,5 @@ do something() -> string {
 }
 
 do main() {
-    mut f func = something()
+    mut f func() -> string = something()
 }

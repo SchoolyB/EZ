@@ -6,7 +6,7 @@
 
 const Widget struct {
     name string
-    handler func
+    handler func(string) -> string
 
     do create(name string) -> Widget {
         return Widget{name: name}

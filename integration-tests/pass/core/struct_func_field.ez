@@ -16,7 +16,7 @@ do mul(a int, b int) -> int { return a * b }
 
 const Op struct {
     name string
-    callback func
+    callback func(int, int) -> int
 }
 
 do main() {
@@ -46,7 +46,7 @@ do main() {
     }
 
     // -- read func field into a local, then call --
-    mut f func = op.callback
+    mut f func(int, int) -> int = op.callback
     if f(20, 5) == 15 {
         println("  [PASS] mut f = op.callback; f(20, 5) = 15")
         passed += 1

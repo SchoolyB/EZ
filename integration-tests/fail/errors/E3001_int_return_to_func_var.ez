@@ -12,5 +12,5 @@ do answer() -> int {
 }
 
 do main() {
-    mut f func = answer()
+    mut f func() -> int = answer()
 }

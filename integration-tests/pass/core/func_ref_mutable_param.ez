@@ -17,7 +17,7 @@ do main() {
     mut failed int = 0
 
     // Test 1: basic func ref mutation
-    mut fn_ref [func] = ()modify
+    mut fn_ref func(&int) = ()modify
     mut a int = 10
     fn_ref(a)
     if a == 99 {
@@ -29,7 +29,7 @@ do main() {
     }
 
     // Test 2: different func ref mutation
-    mut fn_ref2 [func] = ()triple
+    mut fn_ref2 func(&int) = ()triple
     mut b int = 7
     fn_ref2(b)
     if b == 21 {

@@ -228,6 +228,16 @@ static const char *parse_complex_type(Parser *p) {
             char *type_str = arena_alloc(p->arena, ts_len);
             snprintf(type_str, ts_len, "[%s]", elem);
             return type_str;
+        } else if (cur_token_is(p, TOK_IDENT) && strcmp(p->cur_token.literal, "func") == 0 &&
+                   peek_token_is(p, TOK_LPAREN)) {
+            /* Array of typed funcs: [func(...)->R] */
+            const char *elem = parse_complex_type(p);
+            if (!elem) return NULL;
+            if (!expect_peek(p, TOK_RBRACKET)) return NULL;
+            size_t ts_len = strlen(elem) + 3;
+            char *type_str = arena_alloc(p->arena, ts_len);
+            snprintf(type_str, ts_len, "[%s]", elem);
+            return type_str;
         } else {
             const char *elem = read_type_name(p);
             if (peek_token_is(p, TOK_COMMA)) {
@@ -278,6 +288,75 @@ static const char *parse_complex_type(Parser *p) {
         size_t ts_len = strlen(key_type) + strlen(val_type) + 7;
         char *type_str = arena_alloc(p->arena, ts_len);
         snprintf(type_str, ts_len, "map[%s:%s]", key_type, val_type);
+        return type_str;
+    } else if (cur_token_is(p, TOK_IDENT) && strcmp(p->cur_token.literal, "func") == 0) {
+        /* Typed function reference: func(P1, P2, ...) [-> R | -> (R1, R2, ...)]
+         * Encoded as a flat string: "func(p1,p2,...)->ret" so the existing
+         * type-string plumbing can carry it. `&` on a param is preserved. */
+        if (!peek_token_is(p, TOK_LPAREN)) {
+            diag_error(p->diag, "E3065",
+                arena_strdup(p->arena,
+                    "bare 'func' is not a valid type \xe2\x80\x94 use func(<params>) -> <return> with an explicit signature"),
+                p->file, p->cur_token.line, p->cur_token.column, 0);
+            return NULL;
+        }
+        next_token(p); /* consume ( */
+        /* Build params buffer */
+        char params[512] = {0};
+        size_t plen = 0;
+        if (!peek_token_is(p, TOK_RPAREN)) {
+            next_token(p); /* first param */
+            for (;;) {
+                bool mut_p = false;
+                if (cur_token_is(p, TOK_AMPERSAND)) {
+                    mut_p = true;
+                    next_token(p);
+                }
+                const char *pt = parse_complex_type(p);
+                if (!pt) return NULL;
+                int n = snprintf(params + plen, sizeof(params) - plen,
+                    "%s%s%s", plen ? "," : "", mut_p ? "&" : "", pt);
+                if (n < 0 || (size_t)n >= sizeof(params) - plen) return NULL;
+                plen += (size_t)n;
+                if (!peek_token_is(p, TOK_COMMA)) break;
+                next_token(p); /* , */
+                next_token(p); /* next param */
+            }
+        }
+        if (!expect_peek(p, TOK_RPAREN)) return NULL;
+        /* Optional -> R | -> (R1, R2, ...) */
+        char ret[256] = "void";
+        if (peek_token_is(p, TOK_ARROW)) {
+            next_token(p); /* -> */
+            next_token(p); /* first return type or ( */
+            if (cur_token_is(p, TOK_LPAREN)) {
+                size_t rlen = 0;
+                ret[rlen++] = '(';
+                next_token(p); /* first return type */
+                for (;;) {
+                    const char *rt = parse_complex_type(p);
+                    if (!rt) return NULL;
+                    int n = snprintf(ret + rlen, sizeof(ret) - rlen, "%s%s",
+                        rlen > 1 ? "," : "", rt);
+                    if (n < 0 || (size_t)n >= sizeof(ret) - rlen) return NULL;
+                    rlen += (size_t)n;
+                    if (!peek_token_is(p, TOK_COMMA)) break;
+                    next_token(p); /* , */
+                    next_token(p); /* next return type */
+                }
+                if (!expect_peek(p, TOK_RPAREN)) return NULL;
+                if (rlen + 2 >= sizeof(ret)) return NULL;
+                ret[rlen++] = ')';
+                ret[rlen] = '\0';
+            } else {
+                const char *rt = parse_complex_type(p);
+                if (!rt) return NULL;
+                snprintf(ret, sizeof(ret), "%s", rt);
+            }
+        }
+        size_t ts_len = 5 /* "func(" */ + plen + 5 /* ")->\0" + slack */ + strlen(ret) + 1;
+        char *type_str = arena_alloc(p->arena, ts_len);
+        snprintf(type_str, ts_len, "func(%s)->%s", params, ret);
         return type_str;
     } else {
         /* Plain type name (possibly qualified: module.Type) */

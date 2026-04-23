@@ -30,12 +30,25 @@ typedef enum {
     TK_UNKNOWN,
 } TypeKind;
 
+/* Signature payload for TK_FUNCTION (typed function references).
+ * param_types[i] is the EZ type-name string for parameter i (no `&` prefix);
+ * param_mutable[i] tracks the `&` flag separately. return_count==0 means
+ * void. The strings are owned elsewhere (parser arena). */
+typedef struct {
+    int param_count;
+    const char **param_types;
+    bool *param_mutable;
+    int return_count;
+    const char **return_types;
+} EzFuncSig;
+
 typedef struct EzType {
     TypeKind kind;
     const char *name;           /* "int", "string", "Person", "[int]", etc. */
     const char *element_type;   /* For arrays: element type name */
     const char *key_type;       /* For maps: key type name */
     const char *value_type;     /* For maps: value type name */
+    EzFuncSig *func_sig;        /* For TK_FUNCTION: parsed signature */
 } EzType;
 
 /* Built-in type singletons */

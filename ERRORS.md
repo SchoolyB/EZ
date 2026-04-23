@@ -3,7 +3,7 @@
 > Auto-generated from `ezc/src/util/error_codes.h`. Do not edit manually.
 > Run `./scripts/generate_errors.sh` to regenerate.
 
-**Total: 146 codes** (134 errors, 12 warnings)
+**Total: 149 codes** (137 errors, 12 warnings)
 
 ---
 
@@ -116,6 +116,9 @@
 | `E3062` | types | handle types (channels, mutexes, threads) cannot be declared const — use 'mut' |
 | `E3063` | types | cannot return address of local variable — the variable's memory is freed when the function returns |
 | `E3064` | types | mem.destroy() called twice on the same arena — each arena can only be destroyed once |
+| `E3065` | types | bare 'func' is not a valid type — use func(<params>) -> <return> with an explicit signature |
+| `E3066` | types | function reference signature mismatch — expected and actual function types differ |
+| `E3067` | types | argument passed by value to a '&' parameter — pass an lvalue (variable) instead |
 | `E4001` | names | this variable does not exist — check the spelling or make sure it is declared above this line |
 | `E4002` | names | this function does not exist — check the spelling or make sure it is defined |
 | `E4003` | names | a variable with this name already exists in this scope — use a different name |
@@ -190,4 +193,4 @@
 
 ---
 
-*Generated on 2026-04-23 04:20:10 UTC*
+*Generated on 2026-04-23 19:21:00 UTC*

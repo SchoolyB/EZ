@@ -2830,6 +2830,18 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                                 NODE_FILE(tc, node->data.call.args[ai]), node->data.call.args[ai]->token.line,
                                 node->data.call.args[ai]->token.column, 0);
                         }
+                        /* E3066: typed-func signatures must match exactly */
+                        if (arg_t->kind == TK_FUNCTION && param_t->kind == TK_FUNCTION &&
+                            arg_t->name && param_t->name &&
+                            strcmp(arg_t->name, param_t->name) != 0) {
+                            char msg[256];
+                            snprintf(msg, sizeof(msg),
+                                "argument %d of '%s': expected %s, got %s",
+                                ai + 1, fn_name, param_t->name, arg_t->name);
+                            diag_error(tc->diag, "E3066", strdup(msg),
+                                NODE_FILE(tc, node->data.call.args[ai]), node->data.call.args[ai]->token.line,
+                                node->data.call.args[ai]->token.column, 0);
+                        }
                         /* E3027: non-lvalue or const passed to mutable (&) param */
                         {
                             AstNode *arg = node->data.call.args[ai];
@@ -2880,8 +2892,17 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                 } else {
                     /* Check if it's a variable holding a function reference */
                     Symbol *fn_sym = scope_lookup(tc->current_scope, fn_name);
-                    if (fn_sym && fn_sym->type && strcmp(type_name(fn_sym->type), "func") == 0) {
+                    bool is_typed_func = fn_sym && fn_sym->type && fn_sym->type->kind == TK_FUNCTION;
+                    bool is_bare_func = fn_sym && fn_sym->type && type_name(fn_sym->type) &&
+                                        strcmp(type_name(fn_sym->type), "func") == 0;
+                    if (is_typed_func || is_bare_func) {
                         fn_sym->used = true;
+                        /* Record the variable's type on the call.function
+                         * label node so codegen can pick up the typed-func
+                         * signature for cast emission. */
+                        if (!tc->suppress_typetable_writes) {
+                            typetable_set(tc->type_table, node->data.call.function, fn_sym->type);
+                        }
                         result = &TYPE_UNKNOWN; /* callable func ref — return type unknown */
                         /* If we know which static function this var holds,
                          * validate arity + argument types at compile time
@@ -2989,6 +3010,67 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                                 result = ref_sig->return_types[0];
                             else
                                 result = &TYPE_VOID;
+                        } else if (is_typed_func && fn_sym->type->func_sig) {
+                            /* No source FuncSig — validate against the typed-
+                             * func signature from the variable's annotated type
+                             * (e.g. callback parameters: do f(g func(int)->int)). */
+                            EzFuncSig *sig = fn_sym->type->func_sig;
+                            int ac = node->data.call.arg_count;
+                            if (ac != sig->param_count) {
+                                char msg[256];
+                                snprintf(msg, sizeof(msg),
+                                    "function reference '%s' expects %d argument(s), got %d",
+                                    fn_name, sig->param_count, ac);
+                                diag_error(tc->diag, "E5008", strdup(msg),
+                                    NODE_FILE(tc, node), node->token.line, node->token.column, 0);
+                            } else {
+                                for (int ai = 0; ai < sig->param_count; ai++) {
+                                    AstNode *arg = node->data.call.args[ai];
+                                    EzType *at = resolve_expr(tc, arg);
+                                    EzType *pt = sig->param_types[ai] ? type_from_name(sig->param_types[ai]) : NULL;
+                                    if (at && pt && at->kind != TK_UNKNOWN && pt->kind != TK_UNKNOWN &&
+                                        at->kind != pt->kind &&
+                                        !(is_int_kind(at->kind) && is_int_kind(pt->kind)) &&
+                                        !(pt->kind == TK_FLOAT && is_int_kind(at->kind))) {
+                                        char msg[256];
+                                        snprintf(msg, sizeof(msg),
+                                            "argument %d of '%s': expected %s, got %s",
+                                            ai + 1, fn_name,
+                                            type_name(pt), type_name(at));
+                                        diag_error(tc->diag, "E3001", strdup(msg),
+                                            NODE_FILE(tc, arg), arg->token.line, arg->token.column, 0);
+                                    }
+                                    /* E3027/E3067: `&` param requires an lvalue */
+                                    if (sig->param_mutable[ai]) {
+                                        bool is_lvalue = (arg->kind == NODE_LABEL ||
+                                                          arg->kind == NODE_MEMBER_EXPR ||
+                                                          arg->kind == NODE_INDEX_EXPR);
+                                        if (!is_lvalue) {
+                                            char emsg[256];
+                                            snprintf(emsg, sizeof(emsg),
+                                                "argument %d of '%s' is passed to a '&' parameter — pass a mutable variable, not a literal or expression",
+                                                ai + 1, fn_name);
+                                            diag_error(tc->diag, "E3067", strdup(emsg),
+                                                NODE_FILE(tc, arg), arg->token.line, arg->token.column, 0);
+                                        } else if (arg->kind == NODE_LABEL) {
+                                            Symbol *as = scope_lookup(tc->current_scope, arg->data.label.value);
+                                            if (as && !as->mutable) {
+                                                char emsg[256];
+                                                snprintf(emsg, sizeof(emsg),
+                                                    "cannot pass constant '%s' to '&' parameter %d of '%s'",
+                                                    as->name, ai + 1, fn_name);
+                                                diag_error(tc->diag, "E3027", strdup(emsg),
+                                                    NODE_FILE(tc, arg), arg->token.line, arg->token.column, 0);
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                            if (sig->return_count > 0 && sig->return_types[0]) {
+                                result = type_from_name(sig->return_types[0]);
+                            } else {
+                                result = &TYPE_VOID;
+                            }
                         }
                     } else if (fn_sym && fn_sym->type) {
                         /* Variable exists but is not a function */
@@ -3968,7 +4050,47 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                     NODE_FILE(tc, node), node->token.line, node->token.column, 0);
             }
         }
-        result = type_from_name("func");
+        /* Build a typed-func type from the referenced function's signature.
+         * Encoded as "func(p1,&p2,...)->R" so the type system carries the
+         * shape end-to-end (no more bare-func opacity). */
+        if (ref_sig) {
+            char buf[512];
+            int n = snprintf(buf, sizeof(buf), "func(");
+            for (int i = 0; i < ref_sig->param_count; i++) {
+                bool mut_p = (ref_sig->decl && ref_sig->decl->kind == NODE_FUNC_DECL &&
+                              i < ref_sig->decl->data.func_decl.param_count &&
+                              ref_sig->decl->data.func_decl.params[i].mutable);
+                const char *ptn = (ref_sig->param_types[i] && ref_sig->param_types[i]->name)
+                    ? ref_sig->param_types[i]->name : "int";
+                n += snprintf(buf + n, sizeof(buf) - (size_t)n, "%s%s%s",
+                    i ? "," : "", mut_p ? "&" : "", ptn);
+            }
+            const char *ret_name = "void";
+            if (ref_sig->return_count == 1 && ref_sig->return_types[0] && ref_sig->return_types[0]->name) {
+                ret_name = ref_sig->return_types[0]->name;
+            }
+            n += snprintf(buf + n, sizeof(buf) - (size_t)n, ")->%s", ret_name);
+            /* Multi-return: encode as ")->(R1,R2)" instead. */
+            if (ref_sig->return_count > 1) {
+                /* Rewind the prior ")->void" suffix and rebuild. */
+                int rewind = (int)strlen(")->void");
+                n -= rewind;
+                n += snprintf(buf + n, sizeof(buf) - (size_t)n, ")->(");
+                for (int i = 0; i < ref_sig->return_count; i++) {
+                    const char *rn = (ref_sig->return_types[i] && ref_sig->return_types[i]->name)
+                        ? ref_sig->return_types[i]->name : "int";
+                    n += snprintf(buf + n, sizeof(buf) - (size_t)n, "%s%s",
+                        i ? "," : "", rn);
+                }
+                n += snprintf(buf + n, sizeof(buf) - (size_t)n, ")");
+            }
+            char *encoded = strdup(buf);
+            result = type_from_name(encoded);
+        } else {
+            /* Unknown function: fall back to the legacy bare-func type
+             * so downstream "is this callable" checks don't crash. */
+            result = type_from_name("func");
+        }
         break;
     }
 
@@ -4122,10 +4244,14 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
                 strdup("'void' cannot be used as a variable type"),
                 NODE_FILE(tc, node), node->token.line, node->token.column, 0);
         }
-        /* E3038: void in array/map types */
+        /* E3038: void in array/map types.
+         * "void" is legal as a typed-func return type (encoded as
+         * "func(...)->void"), so skip the strstr check for those. */
         if (node->data.var_decl.type_name) {
             const char *tn = node->data.var_decl.type_name;
-            if (strstr(tn, "void") != NULL && strcmp(tn, "void") != 0) {
+            bool is_typed_func = strncmp(tn, "func(", 5) == 0 ||
+                                 strncmp(tn, "[func(", 6) == 0;
+            if (!is_typed_func && strstr(tn, "void") != NULL && strcmp(tn, "void") != 0) {
                 diag_error(tc->diag, "E3038",
                     strdup("'void' cannot be used as an element type in arrays or maps"),
                     NODE_FILE(tc, node), node->token.line, node->token.column, 0);
@@ -4233,13 +4359,22 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
         /* E3055: const array without fixed size */
         if (node->data.var_decl.type_name && node->data.var_decl.type_name[0] == '[') {
             const char *tn = node->data.var_decl.type_name;
-            bool has_size = (strchr(tn, ',') != NULL);
+            /* Top-level comma only — commas inside (), [], or func sigs are
+             * part of the element type, not the [T,N] size separator. */
+            const char *size_comma = NULL;
+            int depth = 0;
+            for (const char *c = tn; *c; c++) {
+                if (*c == '(' || *c == '[') depth++;
+                else if (*c == ')' || *c == ']') depth--;
+                else if (*c == ',' && depth == 1) { size_comma = c; break; }
+            }
+            bool has_size = size_comma != NULL;
             if (node->data.var_decl.mutable && has_size) {
                 char msg[256];
                 snprintf(msg, sizeof(msg),
                     "mutable arrays cannot have a fixed size — remove the size or use 'const' (e.g., mut %s %.*s] = ...)",
                     node->data.var_decl.name,
-                    (int)(strchr(tn, ',') - tn), tn);
+                    (int)(size_comma - tn), tn);
                 diag_error(tc->diag, "E3054", strdup(msg),
                     NODE_FILE(tc, node), node->token.line, node->token.column, 0);
             } else if (!node->data.var_decl.mutable && !has_size) {
@@ -4341,6 +4476,21 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
                 diag_error(tc->diag, "E3001",
                     strdup("cannot infer type from nil — add a type annotation (e.g., mut x Error = nil)"),
                     NODE_FILE(tc, node), node->token.line, node->token.column, 0);
+            }
+            /* E3066: typed-func variable assigned a function reference with a
+             * different signature. Both sides are TK_FUNCTION; the canonical
+             * encoded names (e.g. "func(int)->int") must match exactly. */
+            if (declared->kind == TK_FUNCTION && value_type->kind == TK_FUNCTION &&
+                declared->name && value_type->name &&
+                strcmp(declared->name, value_type->name) != 0) {
+                char msg[256];
+                snprintf(msg, sizeof(msg),
+                    "cannot assign %s to variable of type %s",
+                    value_type->name, declared->name);
+                diag_error(tc->diag, "E3066", strdup(msg),
+                    NODE_FILE(tc, node->data.var_decl.value),
+                    node->data.var_decl.value->token.line,
+                    node->data.var_decl.value->token.column, 0);
             }
             /* E3001 (#1479): \`mut f func = expr\` requires expr to be a
              * function reference. The declared type "func" round-trips as

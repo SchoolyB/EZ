@@ -18,7 +18,7 @@ do swap(p Pair) -> Pair {
     return Pair{a: p.b, b: p.a}
 }
 
-do apply_twice(f func, p Pair) -> Pair {
+do apply_twice(f func(Pair) -> Pair, p Pair) -> Pair {
     mut r Pair = f(p)
     return f(r)
 }
@@ -27,7 +27,7 @@ do double_it(n int) -> int {
     return n * 2
 }
 
-do apply_int(f func, x int) -> int {
+do apply_int(f func(int) -> int, x int) -> int {
     return f(x)
 }
 
@@ -76,6 +76,6 @@ do main() {
     }
 }
 
-do apply_int_pair(f func, p Pair) -> Pair {
+do apply_int_pair(f func(Pair) -> Pair, p Pair) -> Pair {
     return f(p)
 }

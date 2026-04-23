@@ -157,7 +157,9 @@ static const char *ez_type_to_c_cg(CodeGen *cg, const char *type_name) {
     if (strcmp(type_name, "byte") == 0)   return "uint8_t";
     if (strcmp(type_name, "string") == 0) return "EzString";
     if (strcmp(type_name, "Error") == 0 || strcmp(type_name, "error") == 0) return "EzError *";
-    if (strcmp(type_name, "func") == 0)  return "void *"; /* generic fn ptr — cast at call site */
+    if (strcmp(type_name, "func") == 0)  return "void *"; /* legacy bare func — cast at call site */
+    if (strncmp(type_name, "func(", 5) == 0) return "void *"; /* typed func — same C storage, signature lives in casts */
+
 
     /* Pointer type: ^T — use C pointer (ring buffer avoids aliasing on recursion) */
     if (type_name[0] == '^') {
@@ -953,12 +955,12 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
         /* Check for bigint types first */
         if (bi_elem) {
             c_type = bigint_prefix(bi_elem);
-        } else if (elem_t && elem_t->name && strcmp(elem_t->name, "func") == 0) {
+        } else if (elem_t && elem_t->name && (strcmp(elem_t->name, "func") == 0 || strncmp(elem_t->name, "func(", 5) == 0)) {
             /* Function reference elements: store as generic fn ptrs, cast at
              * call sites (mirrors ez_type_to_c_cg's handling of "func"). */
             c_type = "void *";
         } else if (cg->current_var_type &&
-                   strcmp(cg->current_var_type, "[func]") == 0) {
+                   (cg->current_var_type && (strcmp(cg->current_var_type, "[func]") == 0 || strncmp(cg->current_var_type, "[func(", 6) == 0))) {
             /* Declared as [func] but element inference missed it (e.g. empty
              * literal or heterogeneous func refs). */
             c_type = "void *";
@@ -1762,7 +1764,7 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
             /* Determine element C type */
             const char *c_elem = "int64_t";
             const char *elem_tn = cg_effective_type_str(cg, left_t->element_type);
-            if (elem_tn && strcmp(elem_tn, "func") == 0) {
+            if (elem_tn && (strcmp(elem_tn, "func") == 0 || strncmp(elem_tn, "func(", 5) == 0)) {
                 c_elem = "void *";
             } else if (elem_tn) {
                 EzType *et = type_from_name(elem_tn);
@@ -4584,7 +4586,7 @@ static void emit_call_expression(CodeGen *cg, AstNode *node) {
                         for (int fi = 0; fi < cg->struct_decls[si]->data.struct_decl.field_count; fi++) {
                             StructField *sf = &cg->struct_decls[si]->data.struct_decl.fields[fi];
                             if (strcmp(sf->name, member) == 0 && sf->type_name &&
-                                strcmp(sf->type_name, "func") == 0) {
+                                (strcmp(sf->type_name, "func") == 0 || strncmp(sf->type_name, "func(", 5) == 0)) {
                                 inst_t = type_struct(sn);
                                 break;
                             }
@@ -4600,7 +4602,7 @@ static void emit_call_expression(CodeGen *cg, AstNode *node) {
                         for (int fi = 0; fi < sdecl->data.struct_decl.field_count; fi++) {
                             if (strcmp(sdecl->data.struct_decl.fields[fi].name, member) == 0 &&
                                 sdecl->data.struct_decl.fields[fi].type_name &&
-                                strcmp(sdecl->data.struct_decl.fields[fi].type_name, "func") == 0) {
+                                (strcmp(sdecl->data.struct_decl.fields[fi].type_name, "func") == 0 || strncmp(sdecl->data.struct_decl.fields[fi].type_name, "func(", 5) == 0)) {
                                 int nargs = node->data.call.arg_count;
                                 if (nargs > 0 && !node->data.call.args) nargs = 0;
                                 EzType *ret_t = cg->type_table ? typetable_get(cg->type_table, node) : NULL;
@@ -4785,57 +4787,75 @@ static void emit_call_expression(CodeGen *cg, AstNode *node) {
         }
     } else if (fn_name) {
         /* Not a known function — variable holding a function pointer (void *).
-         * Cast to appropriate function pointer type based on arg types. */
+         * Cast to appropriate function pointer type based on the variable's
+         * typed-func signature, falling back to a brittle var_decl scan only
+         * when no signature is available (legacy bare-func paths). */
         int nargs = node->data.call.arg_count;
-        /* Try to find the referenced function declaration for mutable param info.
-         * Scan var_decls for this variable, check if its init is NODE_FUNC_REF,
-         * and look up the referenced function. */
+        EzFuncSig *typed_sig = NULL;
+        EzType *callee_t = cg->type_table
+            ? typetable_get(cg->type_table, node->data.call.function) : NULL;
+        if (callee_t && callee_t->kind == TK_FUNCTION) {
+            typed_sig = callee_t->func_sig;
+        }
         AstNode *ref_func = NULL;
-        for (int si = 0; si < cg->func_count && !ref_func; si++) {
-            AstNode *fn_decl = cg->all_funcs[si];
-            if (!fn_decl->data.func_decl.body) continue;
-            for (int bi = 0; bi < fn_decl->data.func_decl.body->data.block.count && !ref_func; bi++) {
-                AstNode *st = fn_decl->data.func_decl.body->data.block.stmts[bi];
-                if (st->kind == NODE_VAR_DECL &&
-                    strcmp(st->data.var_decl.name, fn_name) == 0 &&
-                    st->data.var_decl.value &&
-                    st->data.var_decl.value->kind == NODE_FUNC_REF) {
-                    AstNode *fref = st->data.var_decl.value->data.func_ref.function;
-                    if (fref->kind == NODE_LABEL) {
-                        ref_func = find_func(cg, fref->data.label.value);
-                    } else if (fref->kind == NODE_MEMBER_EXPR &&
-                               fref->data.member.object &&
-                               fref->data.member.object->kind == NODE_LABEL) {
-                        const char *rn_a = fref->data.member.object->data.label.value;
-                        const char *rn_b = fref->data.member.member;
-                        size_t rn_len = strlen(rn_a) + 1 + strlen(rn_b) + 1;
-                        char *rn = malloc(rn_len);
-                        snprintf(rn, rn_len, "%s_%s", rn_a, rn_b);
-                        ref_func = find_func(cg, rn);
+        if (!typed_sig) {
+            /* Fallback: scan var_decls for var = ()foo (bare-func path) */
+            for (int si = 0; si < cg->func_count && !ref_func; si++) {
+                AstNode *fn_decl = cg->all_funcs[si];
+                if (!fn_decl->data.func_decl.body) continue;
+                for (int bi = 0; bi < fn_decl->data.func_decl.body->data.block.count && !ref_func; bi++) {
+                    AstNode *st = fn_decl->data.func_decl.body->data.block.stmts[bi];
+                    if (st->kind == NODE_VAR_DECL &&
+                        strcmp(st->data.var_decl.name, fn_name) == 0 &&
+                        st->data.var_decl.value &&
+                        st->data.var_decl.value->kind == NODE_FUNC_REF) {
+                        AstNode *fref = st->data.var_decl.value->data.func_ref.function;
+                        if (fref->kind == NODE_LABEL) {
+                            ref_func = find_func(cg, fref->data.label.value);
+                        } else if (fref->kind == NODE_MEMBER_EXPR &&
+                                   fref->data.member.object &&
+                                   fref->data.member.object->kind == NODE_LABEL) {
+                            const char *rn_a = fref->data.member.object->data.label.value;
+                            const char *rn_b = fref->data.member.member;
+                            size_t rn_len = strlen(rn_a) + 1 + strlen(rn_b) + 1;
+                            char *rn = malloc(rn_len);
+                            snprintf(rn, rn_len, "%s_%s", rn_a, rn_b);
+                            ref_func = find_func(cg, rn);
+                        }
                     }
                 }
             }
+            if (ref_func) target_func = ref_func;
         }
-        if (ref_func) target_func = ref_func;
-        /* Determine return type from the call expression's type table entry */
-        EzType *ret_t = cg->type_table ? typetable_get(cg->type_table, node) : NULL;
-        const char *c_ret = (ret_t && ret_t->kind != TK_UNKNOWN) ? ez_type_to_c_cg(cg, type_name(ret_t)) : "int64_t";
-        if (ret_t && ret_t->kind == TK_VOID) c_ret = "void";
-        /* #1503: the cast must include param types for ALL parameters
-         * (including default-valued ones), not just the provided args.
-         * When defaults fill the gap, nargs < param_count and the
-         * default values are emitted as explicit args below. The cast
-         * must match the FULL arity. */
+        /* Return type: typed_sig wins, else fall back to call-node type table */
+        const char *c_ret = "int64_t";
+        if (typed_sig) {
+            if (typed_sig->return_count == 0) c_ret = "void";
+            else c_ret = ez_type_to_c_cg(cg, typed_sig->return_types[0]);
+        } else {
+            EzType *ret_t = cg->type_table ? typetable_get(cg->type_table, node) : NULL;
+            if (ret_t && ret_t->kind != TK_UNKNOWN) c_ret = ez_type_to_c_cg(cg, type_name(ret_t));
+            if (ret_t && ret_t->kind == TK_VOID) c_ret = "void";
+        }
         int cast_count = nargs;
+        if (typed_sig && typed_sig->param_count > nargs) cast_count = typed_sig->param_count;
         if (ref_func && ref_func->data.func_decl.param_count > nargs) {
             cast_count = ref_func->data.func_decl.param_count;
         }
         emitf(cg, "((%s (*)(", c_ret);
         for (int i = 0; i < cast_count; i++) {
             if (i > 0) emit(cg, ", ");
-            bool mut_p = ref_func && i < ref_func->data.func_decl.param_count &&
-                ref_func->data.func_decl.params[i].mutable;
-            if (i < nargs) {
+            bool mut_p = false;
+            if (typed_sig && i < typed_sig->param_count) {
+                mut_p = typed_sig->param_mutable[i];
+            } else if (ref_func && i < ref_func->data.func_decl.param_count) {
+                mut_p = ref_func->data.func_decl.params[i].mutable;
+            }
+            if (typed_sig && i < typed_sig->param_count) {
+                /* Param type comes straight from the signature — authoritative */
+                emit(cg, ez_type_to_c_cg(cg, typed_sig->param_types[i]));
+                if (mut_p) emit(cg, " *");
+            } else if (i < nargs) {
                 EzType *arg_t = cg->type_table ? typetable_get(cg->type_table, node->data.call.args[i]) : NULL;
                 if (arg_t && arg_t->kind != TK_UNKNOWN) {
                     emit(cg, ez_type_to_c_cg(cg, type_name(arg_t)));
@@ -4845,7 +4865,6 @@ static void emit_call_expression(CodeGen *cg, AstNode *node) {
                     if (mut_p) emit(cg, " *");
                 }
             } else if (ref_func && i < ref_func->data.func_decl.param_count) {
-                /* Default-value position — use the declared param type */
                 const char *ptn = ref_func->data.func_decl.params[i].type_name;
                 emit(cg, ptn ? ez_type_to_c_cg(cg, ptn) : "int64_t");
                 if (mut_p) emit(cg, " *");
@@ -4857,6 +4876,9 @@ static void emit_call_expression(CodeGen *cg, AstNode *node) {
         emit(cg, "))");
         emit(cg, safe_name(fn_name));
         emit(cg, ")");
+        /* Stash the typed_sig in a side channel so the arg emission below
+         * can pick up param mutability when target_func is NULL. */
+        cg->pending_call_typed_sig = typed_sig;
     } else if (node->data.call.function->kind == NODE_MEMBER_EXPR) {
         /* Module-qualified call fallback: module.func() → ez_module_func() */
         AstNode *obj = node->data.call.function->data.member.object;
@@ -4895,8 +4917,11 @@ static void emit_call_expression(CodeGen *cg, AstNode *node) {
     }
 
     /* Determine total args: provided + defaults */
+    EzFuncSig *call_typed_sig = (EzFuncSig *)cg->pending_call_typed_sig;
+    cg->pending_call_typed_sig = NULL; /* one-shot — clear before recursion */
     int total_args = node->data.call.arg_count;
-    int param_count = target_func ? target_func->data.func_decl.param_count : 0;
+    int param_count = target_func ? target_func->data.func_decl.param_count
+                                  : (call_typed_sig ? call_typed_sig->param_count : 0);
     if (total_args < param_count) total_args = param_count;
 
     emit(cg, "(");
@@ -4906,8 +4931,10 @@ static void emit_call_expression(CodeGen *cg, AstNode *node) {
         if (i < node->data.call.arg_count) {
             /* Provided argument */
             bool needs_addr = false;
-            if (target_func && i < param_count) {
+            if (target_func && i < target_func->data.func_decl.param_count) {
                 needs_addr = target_func->data.func_decl.params[i].mutable;
+            } else if (call_typed_sig && i < call_typed_sig->param_count) {
+                needs_addr = call_typed_sig->param_mutable[i];
             }
             if (needs_addr && node->data.call.args[i]->kind == NODE_LABEL) {
                 const char *var_name = node->data.call.args[i]->data.label.value;
@@ -5009,7 +5036,7 @@ static void emit_var_declaration(CodeGen *cg, AstNode *node) {
     if (elem_type) {
         /* [func] with a single func ref init: emit as void* (function pointer),
          * not EzArray. Array-literal inits still use EzArray. */
-        if (strcmp(elem_type, "func") == 0 &&
+        if ((strcmp(elem_type, "func") == 0 || strncmp(elem_type, "func(", 5) == 0) &&
             node->data.var_decl.value &&
             node->data.var_decl.value->kind == NODE_FUNC_REF) {
             emitf(cg, "void *%s = ", safe_name(node->data.var_decl.name));
@@ -5350,7 +5377,7 @@ static void emit_assign_statement(CodeGen *cg, AstNode *node) {
         if (left_t && left_t->kind == TK_ARRAY) {
             const char *c_elem = "int64_t";
             if (left_t->element_type) {
-                if (strcmp(left_t->element_type, "func") == 0) {
+                if (strcmp(left_t->element_type, "func") == 0 || strncmp(left_t->element_type, "func(", 5) == 0) {
                     c_elem = "void *";
                 } else {
                     c_elem = ez_type_to_c_cg(cg, left_t->element_type);
@@ -6605,6 +6632,7 @@ CodeGen codegen_create(const char *file) {
     cg.c_header_cap = 0;
     cg.has_c_imports = false;
     cg.wildcard_binding = NULL;
+    cg.pending_call_typed_sig = NULL;
     return cg;
 }
 

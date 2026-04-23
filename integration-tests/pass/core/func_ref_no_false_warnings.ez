@@ -19,7 +19,7 @@ const Helpers struct {
     }
 }
 
-do apply(n int, fn func) -> int {
+do apply(n int, fn func(int) -> int) -> int {
     return fn(n)
 }
 

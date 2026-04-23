@@ -88,6 +88,13 @@ typedef struct {
      * function name can be appended at call sites. NULL outside a
      * generic instantiation. */
     const char *wildcard_binding;
+
+    /* Side channel for typed-func call-through: when the callee is a
+     * variable typed func(...), the cast emitter stashes the parsed
+     * signature here so the arg-emission loop can pick up &-mutability
+     * even when target_func (the AST decl) is unknown. Reset to NULL
+     * after each call. */
+    void *pending_call_typed_sig;
 } CodeGen;
 
 CodeGen codegen_create(const char *file);

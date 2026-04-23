@@ -19,7 +19,7 @@ do main() {
     mut failed int = 0
 
     // -- int return --
-    mut f func = ()add
+    mut f func(int, int) -> int = ()add
     mut result int = f(10, 20) + 1
     if result == 31 {
         println("  [PASS] int-returning func var call + arithmetic")
@@ -30,7 +30,7 @@ do main() {
     }
 
     // -- string return --
-    mut g func = ()greet
+    mut g func(string) -> string = ()greet
     mut s string = g("hello")
     if s == "hello" {
         println("  [PASS] string-returning func var call")
@@ -41,7 +41,7 @@ do main() {
     }
 
     // -- bool return used in condition --
-    mut p func = ()is_even
+    mut p func(int) -> bool = ()is_even
     if p(4) && !p(5) {
         println("  [PASS] bool-returning func var call in condition")
         passed += 1

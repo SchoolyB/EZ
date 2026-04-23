@@ -9,6 +9,6 @@ do modify(&x int) {
 }
 
 do main() {
-    mut fn_ref [func] = ()modify
+    mut fn_ref func(&int) = ()modify
     fn_ref(42)
 }

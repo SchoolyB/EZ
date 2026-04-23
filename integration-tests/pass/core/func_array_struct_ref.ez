@@ -17,7 +17,7 @@ const Vec struct {
         return Vec{x: val, y: val * 2}
     }
 
-    do origin() -> Vec {
+    do origin(_unused int) -> Vec {
         return Vec{x: 0, y: 0}
     }
 }
@@ -38,7 +38,7 @@ do main() {
     mut failed int = 0
 
     // -- single-element [func] array of struct-namespaced ref --
-    mut ctors [func] = {()Vec.create}
+    mut ctors [func(int) -> Vec] = {()Vec.create}
     mut v = ctors[0](42)
     if v.x == 42 && v.y == 84 {
         println("  [PASS] single struct-namespaced ref, const index 0")
@@ -49,9 +49,9 @@ do main() {
     }
 
     // -- multi-element [func] array, different indices --
-    mut vec_ops [func] = {()Vec.create, ()Vec.origin}
+    mut vec_ops [func(int) -> Vec] = {()Vec.create, ()Vec.origin}
     mut v1 = vec_ops[0](7)
-    mut v2 = vec_ops[1]()
+    mut v2 = vec_ops[1](0)
     if v1.x == 7 && v1.y == 14 && v2.x == 0 && v2.y == 0 {
         println("  [PASS] multi-element struct-namespaced refs, const indices")
         passed += 1
@@ -61,7 +61,7 @@ do main() {
     }
 
     // -- different struct type in same pattern --
-    mut color_ops [func] = {()Color.rgb}
+    mut color_ops [func(int, int, int) -> Color] = {()Color.rgb}
     mut c = color_ops[0](255, 128, 64)
     if c.r == 255 && c.g == 128 && c.b == 64 {
         println("  [PASS] different struct type via [func] array")
