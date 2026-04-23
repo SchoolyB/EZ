@@ -1,0 +1,9 @@
+/*
+ * Error Test: integer-overflow (i8 negation)
+ * Expected: "i8 negation result is too large"
+ */
+
+do main() {
+    mut min i8 = -128  // min i8
+    mut result i8 = -min  // Overflow
+}

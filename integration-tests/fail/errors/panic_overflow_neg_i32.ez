@@ -1,0 +1,9 @@
+/*
+ * Error Test: integer-overflow (i32 negation)
+ * Expected: "i32 negation result is too large"
+ */
+
+do main() {
+    mut min i32 = -2147483648  // min i32
+    mut result i32 = -min  // Overflow
+}

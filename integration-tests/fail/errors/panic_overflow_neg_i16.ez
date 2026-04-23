@@ -1,0 +1,9 @@
+/*
+ * Error Test: integer-overflow (i16 negation)
+ * Expected: "i16 negation result is too large"
+ */
+
+do main() {
+    mut min i16 = -32768  // min i16
+    mut result i16 = -min  // Overflow
+}

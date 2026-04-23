@@ -1,0 +1,9 @@
+/*
+ * Error Test: integer-overflow (i64 negation)
+ * Expected: "negation result is too large"
+ */
+
+do main() {
+    mut min i64 = -9223372036854775808  // min i64
+    mut result i64 = -min  // Overflow
+}
