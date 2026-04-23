@@ -618,12 +618,12 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
 
     case NODE_INT_VALUE:
         if (node->data.int_value.overflow) {
-            /* Overflowed literal — check if we're in a bigint context */
+            /* Literal exceeds INT64_MAX — for u64/uint contexts emit as a
+             * decimal ULL so it works for any base (0o, 0b, 0x literals). */
             const char *bi_ctx = resolve_bigint_type(cg, node);
             if (!bi_ctx) {
-                /* Check parent context: look for bigint var assignment */
-                /* For non-bigint contexts, emit as ULL (valid for u64/uint) */
-                emitf(cg, "%sULL", node->data.int_value.literal);
+                emitf(cg, "%lluULL",
+                    (unsigned long long)(uint64_t)node->data.int_value.value);
             } else {
                 emitf(cg, "%s_from_decimal(\"%s\")", bigint_prefix(bi_ctx),
                     node->data.int_value.literal);
@@ -784,6 +784,7 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
                 case TK_MAP:    emit(cg, "%s"); break;
                 case TK_ERROR:  emit(cg, "%s"); break;
                 case TK_ENUM:   emit(cg, "%lld"); break;
+                case TK_UINT:   emit(cg, "%llu"); break;
                 default:        emit(cg, "%lld"); break;
                 }
             }
@@ -864,6 +865,11 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
                 emit(cg, " ? ");
                 emit_expression(cg, part);
                 emit(cg, "->message.data : \"nil\"");
+                break;
+            case TK_UINT:
+                emit(cg, "(unsigned long long)(");
+                emit_expression(cg, part);
+                emit(cg, ")");
                 break;
             default:
                 emit(cg, "(long long)(");
@@ -1947,6 +1953,7 @@ static const char *resolve_print_suffix(CodeGen *cg, AstNode *arg) {
         case TK_FLOAT:  return "_float";
         case TK_BOOL:   return "_bool";
         case TK_CHAR:   return "_char";
+        case TK_UINT:   return "_uint";
         default:        return "_int";
         }
     }
@@ -1995,6 +2002,8 @@ static void emit_to_string(CodeGen *cg, AstNode *arg) {
         emit(cg, "ez_builtin_to_string_float(ez_default_arena, ");
     else if (at && at->kind == TK_BOOL)
         emit(cg, "ez_builtin_to_string_bool(ez_default_arena, ");
+    else if (at && at->kind == TK_UINT)
+        emit(cg, "ez_builtin_to_string_uint(ez_default_arena, ");
     else
         emit(cg, "ez_builtin_to_string_int(ez_default_arena, ");
     emit_expression(cg, arg);
@@ -2044,9 +2053,13 @@ static void emit_value_print(CodeGen *cg, const char *c_expr, EzType *t, const c
     }
 
     switch (t->kind) {
-    case TK_INT: case TK_UINT: case TK_BYTE: case TK_ENUM:
+    case TK_INT: case TK_BYTE: case TK_ENUM:
         emit_indent(cg);
         emitf(cg, "fprintf(%s, \"%%lld\", (long long)(%s));\n", stream, c_expr);
+        break;
+    case TK_UINT:
+        emit_indent(cg);
+        emitf(cg, "fprintf(%s, \"%%llu\", (unsigned long long)(%s));\n", stream, c_expr);
         break;
     case TK_FLOAT:
         emit_indent(cg);

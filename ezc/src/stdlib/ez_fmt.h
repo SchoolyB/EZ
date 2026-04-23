@@ -24,6 +24,7 @@
 /* fmt.eprintln(value) — print to stderr with newline */
 void ez_fmt_eprintln_str(EzString s);
 void ez_fmt_eprintln_int(int64_t v);
+void ez_fmt_eprintln_uint(uint64_t v);
 void ez_fmt_eprintln_float(double v);
 void ez_fmt_eprintln_bool(bool v);
 

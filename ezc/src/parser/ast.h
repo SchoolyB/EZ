@@ -117,8 +117,18 @@ struct AstNode {
         /* NODE_LABEL */
         struct { const char *value; } label;
 
-        /* NODE_INT_VALUE */
-        struct { int64_t value; const char *literal; bool overflow; } int_value;
+        /* NODE_INT_VALUE
+         * value: low 64 bits of the literal as a signed bit pattern
+         *        (cast to uint64_t to recover the original positive value
+         *         when overflow=true)
+         * overflow:     literal exceeds INT64_MAX (still ≤ UINT64_MAX)
+         * overflow_u64: literal exceeds UINT64_MAX entirely */
+        struct {
+            int64_t value;
+            const char *literal;
+            bool overflow;
+            bool overflow_u64;
+        } int_value;
 
         /* NODE_FLOAT_VALUE */
         struct { double value; } float_value;

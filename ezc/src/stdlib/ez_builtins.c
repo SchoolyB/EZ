@@ -60,6 +60,10 @@ void ez_builtin_println_int(int64_t v) {
     printf("%" PRId64 "\n", v);
 }
 
+void ez_builtin_println_uint(uint64_t v) {
+    printf("%" PRIu64 "\n", v);
+}
+
 void ez_builtin_println_float(double v) {
     char buf[64];
     fmt_shortest_float(buf, sizeof(buf), v);
@@ -89,6 +93,10 @@ void ez_builtin_print_int(int64_t v) {
     printf("%" PRId64, v);
 }
 
+void ez_builtin_print_uint(uint64_t v) {
+    printf("%" PRIu64, v);
+}
+
 void ez_builtin_print_float(double v) {
     char buf[64];
     fmt_shortest_float(buf, sizeof(buf), v);
@@ -116,6 +124,10 @@ void ez_builtin_eprintln_str(EzString s) {
 
 void ez_builtin_eprintln_int(int64_t v) {
     fprintf(stderr, "%" PRId64 "\n", v);
+}
+
+void ez_builtin_eprintln_uint(uint64_t v) {
+    fprintf(stderr, "%" PRIu64 "\n", v);
 }
 
 void ez_builtin_eprintln_char(int32_t c) {
@@ -208,6 +220,12 @@ void ez_builtin_sleep_ns(int64_t ns) {
 EzString ez_builtin_to_string_int(EzArena *arena, int64_t v) {
     char buf[32];
     int len = snprintf(buf, sizeof(buf), "%" PRId64, v);
+    return ez_string_new(arena, buf, (int32_t)len);
+}
+
+EzString ez_builtin_to_string_uint(EzArena *arena, uint64_t v) {
+    char buf[32];
+    int len = snprintf(buf, sizeof(buf), "%" PRIu64, v);
     return ez_string_new(arena, buf, (int32_t)len);
 }
 

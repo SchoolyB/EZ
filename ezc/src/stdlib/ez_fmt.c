@@ -17,6 +17,10 @@ void ez_fmt_eprintln_int(int64_t v) {
     fprintf(stderr, "%" PRId64 "\n", v);
 }
 
+void ez_fmt_eprintln_uint(uint64_t v) {
+    fprintf(stderr, "%" PRIu64 "\n", v);
+}
+
 void ez_fmt_eprintln_float(double v) {
     fprintf(stderr, "%g\n", v);
 }

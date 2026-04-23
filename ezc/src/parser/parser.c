@@ -294,53 +294,56 @@ static AstNode *parse_identifier(Parser *p) {
 static AstNode *parse_int_literal(Parser *p) {
     AstNode *node = ast_alloc(p->arena, NODE_INT_VALUE, p->cur_token);
     const char *s = p->cur_token.literal;
-    int64_t val = 0;
-    bool overflow = false;
+    /* Accumulate as uint64_t so the full UINT64_MAX range is representable
+     * and overflow detection works the same for every base. */
+    uint64_t uval = 0;
+    bool overflow_u64 = false;
 
     if (s[0] == '0' && (s[1] == 'x' || s[1] == 'X')) {
-        /* Hex: 0xFF */
         s += 2;
         while (*s) {
             if (*s == '_') { s++; continue; }
-            val = val * 16;
-            if (*s >= '0' && *s <= '9') val += *s - '0';
-            else if (*s >= 'a' && *s <= 'f') val += *s - 'a' + 10;
-            else if (*s >= 'A' && *s <= 'F') val += *s - 'A' + 10;
+            unsigned d = 0;
+            if (*s >= '0' && *s <= '9') d = (unsigned)(*s - '0');
+            else if (*s >= 'a' && *s <= 'f') d = (unsigned)(*s - 'a' + 10);
+            else if (*s >= 'A' && *s <= 'F') d = (unsigned)(*s - 'A' + 10);
+            if (uval > (UINT64_MAX >> 4)) overflow_u64 = true;
+            uval = uval * 16 + d;
             s++;
         }
     } else if (s[0] == '0' && (s[1] == 'o' || s[1] == 'O')) {
-        /* Octal: 0o77 */
         s += 2;
         while (*s) {
             if (*s == '_') { s++; continue; }
-            val = val * 8 + (*s - '0');
+            unsigned d = (unsigned)(*s - '0');
+            if (uval > (UINT64_MAX >> 3)) overflow_u64 = true;
+            uval = uval * 8 + d;
             s++;
         }
     } else if (s[0] == '0' && (s[1] == 'b' || s[1] == 'B')) {
-        /* Binary: 0b1010 */
         s += 2;
         while (*s) {
             if (*s == '_') { s++; continue; }
-            val = val * 2 + (*s - '0');
+            unsigned d = (unsigned)(*s - '0');
+            if (uval > (UINT64_MAX >> 1)) overflow_u64 = true;
+            uval = uval * 2 + d;
             s++;
         }
     } else {
-        /* Decimal — use manual parsing with overflow detection */
         while (*s) {
             if (*s != '_') {
-                int64_t digit = *s - '0';
-                if (val > (INT64_MAX - digit) / 10) {
-                    overflow = true;
-                }
-                val = val * 10 + digit;
+                unsigned d = (unsigned)(*s - '0');
+                if (uval > (UINT64_MAX - d) / 10) overflow_u64 = true;
+                uval = uval * 10 + d;
             }
             s++;
         }
     }
 
-    node->data.int_value.value = val;
+    node->data.int_value.value = (int64_t)uval;
     node->data.int_value.literal = p->cur_token.literal;
-    node->data.int_value.overflow = overflow;
+    node->data.int_value.overflow = overflow_u64 || uval > (uint64_t)INT64_MAX;
+    node->data.int_value.overflow_u64 = overflow_u64;
     return node;
 }
 

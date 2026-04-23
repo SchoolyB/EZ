@@ -720,11 +720,17 @@ static bool try_get_literal_int(AstNode *node, int64_t *out) {
 }
 
 /* Check if a literal integer value fits in the declared sized type.
- * Returns true if an error was emitted. */
+ * Returns true if an error was emitted.
+ *
+ * value carries the signed bit pattern as parsed. For u64/uint, max_val is
+ * UINT64_MAX which doesn't fit in int64_t — we compare via the unsigned
+ * bit pattern in that case. */
 static bool check_integer_range(DiagnosticList *diag, const char *file,
     int line, int col, const char *type_name_str, int64_t value) {
     int64_t min_val = 0, max_val = 0;
+    uint64_t umax_val = 0;
     bool is_unsigned = false;
+    bool is_u64 = false;
 
     if (strcmp(type_name_str, "i8") == 0)        { min_val = -128; max_val = 127; }
     else if (strcmp(type_name_str, "i16") == 0)   { min_val = -32768; max_val = 32767; }
@@ -732,17 +738,32 @@ static bool check_integer_range(DiagnosticList *diag, const char *file,
     else if (strcmp(type_name_str, "u8") == 0)    { min_val = 0; max_val = 255; is_unsigned = true; }
     else if (strcmp(type_name_str, "u16") == 0)   { min_val = 0; max_val = 65535; is_unsigned = true; }
     else if (strcmp(type_name_str, "u32") == 0)   { min_val = 0; max_val = 4294967295LL; is_unsigned = true; }
-    else if (strcmp(type_name_str, "u64") == 0)   { min_val = 0; max_val = INT64_MAX; is_unsigned = true; }
-    else if (strcmp(type_name_str, "uint") == 0)  { min_val = 0; max_val = INT64_MAX; is_unsigned = true; }
+    else if (strcmp(type_name_str, "u64") == 0)   { umax_val = UINT64_MAX; is_unsigned = true; is_u64 = true; }
+    else if (strcmp(type_name_str, "uint") == 0)  { umax_val = UINT64_MAX; is_unsigned = true; is_u64 = true; }
     else if (strcmp(type_name_str, "byte") == 0)  { min_val = 0; max_val = 255; is_unsigned = true; }
     else return false; /* not a range-checked type */
 
-    if (value < min_val || value > max_val) {
+    bool out_of_range;
+    if (is_u64) {
+        /* u64/uint: any non-negative bit pattern fits (0..UINT64_MAX).
+         * value < 0 means the literal carried a `-` sign. */
+        out_of_range = value < 0;
+    } else {
+        out_of_range = value < min_val || value > max_val;
+    }
+
+    if (out_of_range) {
         char msg[256];
         if (is_unsigned && value < 0) {
-            snprintf(msg, sizeof(msg),
-                "value %lld is out of range for type '%s' — unsigned types cannot hold negative values (valid range: %lld to %lld)",
-                (long long)value, type_name_str, (long long)min_val, (long long)max_val);
+            if (is_u64) {
+                snprintf(msg, sizeof(msg),
+                    "value %lld is out of range for type '%s' — unsigned types cannot hold negative values (valid range: 0 to %llu)",
+                    (long long)value, type_name_str, (unsigned long long)umax_val);
+            } else {
+                snprintf(msg, sizeof(msg),
+                    "value %lld is out of range for type '%s' — unsigned types cannot hold negative values (valid range: %lld to %lld)",
+                    (long long)value, type_name_str, (long long)min_val, (long long)max_val);
+            }
         } else {
             snprintf(msg, sizeof(msg),
                 "value %lld is out of range for type '%s' (valid range: %lld to %lld)",
@@ -4430,15 +4451,24 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
                 diag_error(tc->diag, "E3001", strdup(msg),
                     NODE_FILE(tc, node), node->token.line, node->token.column, 0);
             }
-            /* E1010: Check for overflowed int literal assigned to non-bigint type */
+            /* E3046: literal that exceeds the destination type's range.
+             *   overflow_u64 = true  : exceeds UINT64_MAX, never fits a non-bigint
+             *   overflow     = true  : exceeds INT64_MAX but fits in UINT64_MAX,
+             *                         OK for uint/u64/bigint, error otherwise */
             if (node->data.var_decl.value &&
                 node->data.var_decl.value->kind == NODE_INT_VALUE &&
                 node->data.var_decl.value->data.int_value.overflow) {
                 const char *tn = node->data.var_decl.type_name;
                 bool is_bigint = tn && (strcmp(tn, "i128") == 0 || strcmp(tn, "u128") == 0 ||
-                                        strcmp(tn, "i256") == 0 || strcmp(tn, "u256") == 0 ||
-                                        strcmp(tn, "u64") == 0 || strcmp(tn, "uint") == 0);
-                if (!is_bigint) {
+                                        strcmp(tn, "i256") == 0 || strcmp(tn, "u256") == 0);
+                bool is_u64_like = tn && (strcmp(tn, "u64") == 0 || strcmp(tn, "uint") == 0);
+                bool exceeds_u64 = node->data.var_decl.value->data.int_value.overflow_u64;
+                if (exceeds_u64 && !is_bigint) {
+                    diag_error(tc->diag, "E3046",
+                        strdup("integer literal overflows 64-bit integer — max value is 18446744073709551615"),
+                        NODE_FILE(tc, node->data.var_decl.value), node->data.var_decl.value->token.line,
+                        node->data.var_decl.value->token.column, 0);
+                } else if (!exceeds_u64 && !is_bigint && !is_u64_like) {
                     diag_error(tc->diag, "E3046",
                         strdup("integer literal overflows 64-bit integer — max value is 9223372036854775807"),
                         NODE_FILE(tc, node->data.var_decl.value), node->data.var_decl.value->token.line,
@@ -4497,12 +4527,33 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
                     }
                     if (elem_type[0]) {
                         AstNode *arr = node->data.var_decl.value;
+                        bool elem_is_u64_like = (strcmp(elem_type, "uint") == 0 || strcmp(elem_type, "u64") == 0);
                         for (int ei = 0; ei < arr->data.array_value.count; ei++) {
+                            AstNode *el = arr->data.array_value.elements[ei];
+                            bool el_overflowed = (el->kind == NODE_INT_VALUE && el->data.int_value.overflow);
+                            bool el_overflowed_u64 = (el->kind == NODE_INT_VALUE && el->data.int_value.overflow_u64);
+                            /* Element exceeds UINT64_MAX entirely — always an error. */
+                            if (el_overflowed_u64) {
+                                diag_error(tc->diag, "E3046",
+                                    strdup("integer literal overflows 64-bit integer — max value is 18446744073709551615"),
+                                    NODE_FILE(tc, el), el->token.line, el->token.column, 0);
+                                continue;
+                            }
+                            /* Element exceeds INT64_MAX but fits UINT64_MAX —
+                             * fine for u64/uint elements, error for narrower
+                             * signed/unsigned and for int. */
+                            if (el_overflowed) {
+                                if (!elem_is_u64_like) {
+                                    diag_error(tc->diag, "E3046",
+                                        strdup("integer literal overflows 64-bit integer — max value is 9223372036854775807"),
+                                        NODE_FILE(tc, el), el->token.line, el->token.column, 0);
+                                }
+                                continue;
+                            }
                             int64_t ev;
-                            if (try_get_literal_int(arr->data.array_value.elements[ei], &ev)) {
-                                check_integer_range(tc->diag, NODE_FILE(tc, arr->data.array_value.elements[ei]),
-                                    arr->data.array_value.elements[ei]->token.line,
-                                    arr->data.array_value.elements[ei]->token.column,
+                            if (try_get_literal_int(el, &ev)) {
+                                check_integer_range(tc->diag, NODE_FILE(tc, el),
+                                    el->token.line, el->token.column,
                                     elem_type, ev);
                             }
                         }
