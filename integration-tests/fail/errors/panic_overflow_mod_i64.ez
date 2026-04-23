@@ -1,0 +1,10 @@
+/*
+ * Error Test: integer-overflow (i64_min % -1)
+ * Expected: "modulo result is too large"
+ */
+
+do main() {
+    mut x i64 = -9223372036854775808
+    mut y i64 = -1
+    mut r i64 = x % y  // Overflow
+}

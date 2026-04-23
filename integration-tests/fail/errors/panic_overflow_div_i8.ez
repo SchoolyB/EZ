@@ -1,0 +1,10 @@
+/*
+ * Error Test: integer-overflow (i8_min / -1)
+ * Expected: "division result is too large"
+ */
+
+do main() {
+    mut x i8 = -128
+    mut y i8 = -1
+    mut r i8 = x / y  // Overflow
+}

@@ -1,0 +1,10 @@
+/*
+ * Error Test: integer-overflow (i16_min / -1)
+ * Expected: "division result is too large"
+ */
+
+do main() {
+    mut x i16 = -32768
+    mut y i16 = -1
+    mut r i16 = x / y  // Overflow
+}
