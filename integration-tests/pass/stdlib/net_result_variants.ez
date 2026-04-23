@@ -1,7 +1,6 @@
 /*
  * Test: net module _result variants for error handling (#1547)
- * Tests resolve (success + error paths). connect/listen/accept
- * destructuring is blocked by a typechecker bug with struct returns.
+ * Tests resolve, connect, and listen with multi-var destructuring.
  */
 
 import @net
@@ -27,6 +26,28 @@ do main() {
         passed += 1
     } otherwise {
         println("  [FAIL] net.resolve no error, addr='${addr2}'")
+        failed += 1
+    }
+
+    // Test 3: net.connect error on refused port
+    mut fd, err3 = net.connect("127.0.0.1", 59999)
+    if err3 != nil {
+        println("  [PASS] net.connect error caught on refused port")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] net.connect no error")
+        net.close(fd)
+        failed += 1
+    }
+
+    // Test 4: net.listen success on ephemeral port
+    mut sock, err4 = net.listen(0)
+    if err4 == nil {
+        println("  [PASS] net.listen success on ephemeral port")
+        net.close(sock)
+        passed += 1
+    } otherwise {
+        println("  [FAIL] net.listen error on ephemeral port")
         failed += 1
     }
 
