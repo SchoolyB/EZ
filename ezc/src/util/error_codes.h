@@ -183,6 +183,7 @@
     EZ_WARNING("W2003", "safety", "unreachable code — this statement will never execute because it comes after a return") \
     EZ_WARNING("W2007", "safety", "this variable shadows a global constant or variable") \
     EZ_WARNING("W2011", "safety", "named return variable is not used in return — the returned value may not match the named variable") \
+    EZ_WARNING("W2012", "safety", "when condition is a float — equality checks on floats are imprecise; prefer math.abs(x - y) < epsilon") \
     EZ_WARNING("W3003", "safety", "fixed-size array is not fully initialized — remaining elements will be zero-valued") \
     EZ_WARNING("W3004", "safety", "pointer may reference memory from a scope that has ended — assigning addr() of an inner-scope variable to an outer-scope pointer")
 

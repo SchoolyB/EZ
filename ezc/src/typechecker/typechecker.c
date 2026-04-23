@@ -5854,6 +5854,14 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
 
     case NODE_WHEN_STMT: {
         EzType *when_t = resolve_expr(tc, node->data.when_stmt.value);
+        /* W2012: float subjects use bit-equality, which is rarely what the
+         * user wants given 0.1 + 0.2 != 0.3. */
+        if (when_t && when_t->kind == TK_FLOAT) {
+            AstNode *subj = node->data.when_stmt.value;
+            diag_warning(tc->diag, "W2012",
+                strdup("when condition is a float — equality checks on floats are imprecise; prefer math.abs(x - y) < epsilon"),
+                NODE_FILE(tc, subj), subj->token.line, subj->token.column, 0);
+        }
         /* E2043: check for duplicate case values, E3001: check type match */
         for (int i = 0; i < node->data.when_stmt.case_count; i++) {
             for (int j = 0; j < node->data.when_stmt.cases[i].value_count; j++) {

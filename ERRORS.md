@@ -3,7 +3,7 @@
 > Auto-generated from `ezc/src/util/error_codes.h`. Do not edit manually.
 > Run `./scripts/generate_errors.sh` to regenerate.
 
-**Total: 145 codes** (134 errors, 11 warnings)
+**Total: 146 codes** (134 errors, 12 warnings)
 
 ---
 
@@ -161,6 +161,7 @@
 | `W2003` | safety | unreachable code — this statement will never execute because it comes after a return |
 | `W2007` | safety | this variable shadows a global constant or variable |
 | `W2011` | safety | named return variable is not used in return — the returned value may not match the named variable |
+| `W2012` | safety | when condition is a float — equality checks on floats are imprecise; prefer math.abs(x - y) < epsilon |
 | `W3003` | safety | fixed-size array is not fully initialized — remaining elements will be zero-valued |
 | `W3004` | safety | pointer may reference memory from a scope that has ended — assigning addr() of an inner-scope variable to an outer-scope pointer |
 
@@ -189,4 +190,4 @@
 
 ---
 
-*Generated on 2026-04-23 01:36:30 UTC*
+*Generated on 2026-04-23 04:20:10 UTC*
