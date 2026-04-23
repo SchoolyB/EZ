@@ -1,0 +1,39 @@
+/*
+ * Test: net module _result variants for error handling (#1547)
+ * Tests resolve (success + error paths). connect/listen/accept
+ * destructuring is blocked by a typechecker bug with struct returns.
+ */
+
+import @net
+
+do main() {
+    mut passed int = 0
+    mut failed int = 0
+
+    // Test 1: net.resolve success
+    mut addr, err = net.resolve("localhost")
+    if err == nil {
+        println("  [PASS] net.resolve success, addr='${addr}'")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] net.resolve error on localhost")
+        failed += 1
+    }
+
+    // Test 2: net.resolve error on invalid hostname
+    mut addr2, err2 = net.resolve("this.host.definitely.does.not.exist.invalid")
+    if err2 != nil {
+        println("  [PASS] net.resolve error caught on invalid hostname")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] net.resolve no error, addr='${addr2}'")
+        failed += 1
+    }
+
+    println("Results: ${passed} passed, ${failed} failed")
+    if failed > 0 {
+        println("SOME TESTS FAILED")
+    } otherwise {
+        println("ALL TESTS PASSED")
+    }
+}

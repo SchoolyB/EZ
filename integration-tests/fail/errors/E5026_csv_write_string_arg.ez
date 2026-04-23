@@ -1,0 +1,10 @@
+/*
+ * Error Test: E5026 - csv.write_file passed string instead of array
+ * Expected: E5026 type mismatch error
+ */
+
+import @csv
+
+do main() {
+    mut ok bool = csv.write_file("/tmp/out.csv", "a,b,c")
+}
