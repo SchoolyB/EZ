@@ -221,3 +221,41 @@ EzHttpResponse ez_http_head(EzArena *arena, EzString url) {
 EzHttpResponse ez_http_patch(EzArena *arena, EzString url, EzString body) {
     return do_request(arena, "PATCH", url, body);
 }
+
+/* _result variants — status==0 indicates connection/request failure */
+
+static EzResult_http http_result(EzArena *arena, EzHttpResponse resp, const char *method, EzString url) {
+    EzResult_http r;
+    r.v0 = resp;
+    if (resp.status == 0) {
+        r.v1 = ez_error_new(arena, ez_string_format(arena, "HTTP %s failed: %.*s",
+            method, resp.body.len, resp.body.data));
+    } else {
+        r.v1 = NULL;
+    }
+    return r;
+}
+
+EzResult_http ez_http_get_result(EzArena *arena, EzString url) {
+    return http_result(arena, ez_http_get(arena, url), "GET", url);
+}
+
+EzResult_http ez_http_post_result(EzArena *arena, EzString url, EzString body) {
+    return http_result(arena, ez_http_post(arena, url, body), "POST", url);
+}
+
+EzResult_http ez_http_put_result(EzArena *arena, EzString url, EzString body) {
+    return http_result(arena, ez_http_put(arena, url, body), "PUT", url);
+}
+
+EzResult_http ez_http_delete_result(EzArena *arena, EzString url) {
+    return http_result(arena, ez_http_delete(arena, url), "DELETE", url);
+}
+
+EzResult_http ez_http_head_result(EzArena *arena, EzString url) {
+    return http_result(arena, ez_http_head(arena, url), "HEAD", url);
+}
+
+EzResult_http ez_http_patch_result(EzArena *arena, EzString url, EzString body) {
+    return http_result(arena, ez_http_patch(arena, url, body), "PATCH", url);
+}

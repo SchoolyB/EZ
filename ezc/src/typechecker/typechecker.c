@@ -399,6 +399,84 @@ static FuncSig *find_func(TypeChecker *tc, const char *name) {
     return NULL;
 }
 
+/* Check whether a stdlib module.function has a _result variant.
+ * Only functions listed here support multi-var (value, Error) destructuring. */
+static bool tc_is_fallible_stdlib(const char *mod, const char *fn) {
+    if (strcmp(mod, "io") == 0) {
+        return (strcmp(fn, "read_file") == 0 || strcmp(fn, "write_file") == 0 ||
+                strcmp(fn, "delete_file") == 0 || strcmp(fn, "copy_file") == 0 ||
+                strcmp(fn, "move_file") == 0 || strcmp(fn, "list_dir") == 0 ||
+                strcmp(fn, "make_dir") == 0 || strcmp(fn, "make_dir_all") == 0 ||
+                strcmp(fn, "remove_dir") == 0 || strcmp(fn, "remove_dir_all") == 0 ||
+                strcmp(fn, "walk") == 0 || strcmp(fn, "append_file") == 0 ||
+                strcmp(fn, "rename_file") == 0);
+    }
+    if (strcmp(mod, "sqlite") == 0) {
+        return (strcmp(fn, "open") == 0 || strcmp(fn, "exec") == 0 ||
+                strcmp(fn, "query") == 0);
+    }
+    if (strcmp(mod, "net") == 0) {
+        return (strcmp(fn, "connect") == 0 || strcmp(fn, "listen") == 0 ||
+                strcmp(fn, "accept") == 0 || strcmp(fn, "send") == 0 ||
+                strcmp(fn, "receive") == 0 || strcmp(fn, "resolve") == 0);
+    }
+    if (strcmp(mod, "http") == 0) {
+        return (strcmp(fn, "get") == 0 || strcmp(fn, "post") == 0 ||
+                strcmp(fn, "put") == 0 || strcmp(fn, "delete") == 0 ||
+                strcmp(fn, "head") == 0 || strcmp(fn, "patch") == 0);
+    }
+    if (strcmp(mod, "csv") == 0) {
+        return (strcmp(fn, "read_file") == 0 || strcmp(fn, "write_file") == 0);
+    }
+    if (strcmp(mod, "json") == 0) {
+        return (strcmp(fn, "decode") == 0);
+    }
+    if (strcmp(mod, "regex") == 0) {
+        return (strcmp(fn, "find") == 0 || strcmp(fn, "find_all") == 0 ||
+                strcmp(fn, "replace") == 0 || strcmp(fn, "split") == 0);
+    }
+    return false;
+}
+
+/* Return the primary (non-error) type for a fallible stdlib function.
+ * This mirrors the type registration blocks so that multi-var synthesis
+ * doesn't depend on sym->type being resolved first. */
+static EzType *tc_get_fallible_stdlib_type(const char *mod, const char *fn) {
+    if (strcmp(mod, "io") == 0) {
+        if (strcmp(fn, "read_file") == 0) return &TYPE_STRING;
+        if (strcmp(fn, "list_dir") == 0 || strcmp(fn, "walk") == 0) return type_array("string");
+        /* write_file, delete_file, copy_file, move_file, make_dir, make_dir_all,
+         * remove_dir, remove_dir_all, append_file, rename_file */
+        return &TYPE_BOOL;
+    }
+    if (strcmp(mod, "sqlite") == 0) {
+        if (strcmp(fn, "open") == 0) return type_struct("Database");
+        if (strcmp(fn, "query") == 0) return type_array("map");
+        return &TYPE_BOOL; /* exec */
+    }
+    if (strcmp(mod, "net") == 0) {
+        if (strcmp(fn, "connect") == 0 || strcmp(fn, "accept") == 0) return type_struct("Socket");
+        if (strcmp(fn, "listen") == 0) return type_struct("Listener");
+        if (strcmp(fn, "send") == 0) return &TYPE_INT;
+        return &TYPE_STRING; /* receive, resolve */
+    }
+    if (strcmp(mod, "http") == 0) {
+        return type_struct("HttpResponse"); /* all methods */
+    }
+    if (strcmp(mod, "csv") == 0) {
+        if (strcmp(fn, "read_file") == 0) return type_array("string");
+        return &TYPE_BOOL; /* write_file */
+    }
+    if (strcmp(mod, "json") == 0) {
+        return type_struct("Map"); /* decode */
+    }
+    if (strcmp(mod, "regex") == 0) {
+        if (strcmp(fn, "find") == 0 || strcmp(fn, "replace") == 0) return &TYPE_STRING;
+        return type_array("string"); /* find_all, split */
+    }
+    return NULL;
+}
+
 /* --- "Did you mean?" suggestion helper --- */
 
 static int levenshtein(const char *a, const char *b) {
@@ -1513,6 +1591,18 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                     result = &TYPE_BOOL;
                 } else if (strcmp(mfn, "file_size") == 0) {
                     result = &TYPE_INT;
+                } else if (strcmp(mfn, "list_dir") == 0 || strcmp(mfn, "walk") == 0 ||
+                           strcmp(mfn, "glob") == 0) {
+                    result = type_array("string");
+                } else if (strcmp(mfn, "make_dir") == 0 || strcmp(mfn, "make_dir_all") == 0 ||
+                           strcmp(mfn, "remove_dir") == 0 || strcmp(mfn, "remove_dir_all") == 0 ||
+                           strcmp(mfn, "copy_file") == 0 || strcmp(mfn, "move_file") == 0 ||
+                           strcmp(mfn, "is_absolute") == 0) {
+                    result = &TYPE_BOOL;
+                } else if (strcmp(mfn, "path_join") == 0 || strcmp(mfn, "dirname") == 0 ||
+                           strcmp(mfn, "basename") == 0 || strcmp(mfn, "extension") == 0 ||
+                           strcmp(mfn, "normalize") == 0) {
+                    result = &TYPE_STRING;
                 } else {
                     emit_unknown_stdlib_fn(tc, mod, mfn, node);
                     result = &TYPE_UNKNOWN;
@@ -1603,11 +1693,23 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                 else result = &TYPE_INT;
             } else if (strcmp(mod, "csv") == 0) {
                 if (strcmp(mfn, "decode") == 0 || strcmp(mfn, "parse") == 0 ||
-                    strcmp(mfn, "read") == 0 ||
                     strcmp(mfn, "read_file") == 0 || strcmp(mfn, "headers") == 0) {
                     result = type_array("array");
-                } else if (strcmp(mfn, "write") == 0 || strcmp(mfn, "write_file") == 0) {
+                } else if (strcmp(mfn, "write_file") == 0) {
                     result = &TYPE_BOOL;
+                    /* E5026: second arg must be an array, not a string */
+                    if (node->data.call.arg_count >= 2) {
+                        EzType *arg2_type = resolve_expr(tc, node->data.call.args[1]);
+                        if (arg2_type && arg2_type->kind == TK_STRING) {
+                            char msg[256];
+                            snprintf(msg, sizeof(msg),
+                                "csv.%s() expects an array as the second argument, got string",
+                                mfn);
+                            diag_error(tc->diag, "E5026", strdup(msg),
+                                NODE_FILE(tc, node), node->data.call.args[1]->token.line,
+                                node->data.call.args[1]->token.column, 0);
+                        }
+                    }
                 } else if (strcmp(mfn, "format") == 0 || strcmp(mfn, "encode") == 0) {
                     result = &TYPE_STRING;
                 } else {
@@ -1956,6 +2058,26 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                 } else {
                     emit_unknown_stdlib_fn(tc, mod, mfn, node);
                     result = &TYPE_UNKNOWN;
+                }
+                /* E5026: functions that take a socket/listener as first arg */
+                if (strcmp(mfn, "send") == 0 || strcmp(mfn, "receive") == 0 ||
+                    strcmp(mfn, "close") == 0 || strcmp(mfn, "set_timeout") == 0 ||
+                    strcmp(mfn, "accept") == 0) {
+                    if (node->data.call.arg_count >= 1) {
+                        EzType *arg1_type = resolve_expr(tc, node->data.call.args[0]);
+                        if (arg1_type && arg1_type->kind != TK_STRUCT) {
+                            const char *expected = strcmp(mfn, "accept") == 0
+                                ? "Listener" : "Socket";
+                            char msg[256];
+                            snprintf(msg, sizeof(msg),
+                                "net.%s() expects a %s as the first argument, got %s",
+                                mfn, expected,
+                                arg1_type->name ? arg1_type->name : "non-struct type");
+                            diag_error(tc->diag, "E5026", strdup(msg),
+                                NODE_FILE(tc, node), node->data.call.args[0]->token.line,
+                                node->data.call.args[0]->token.column, 0);
+                        }
+                    }
                 }
             } else if (strcmp(mod, "regex") == 0) {
                 if (strcmp(mfn, "is_match") == 0 || strcmp(mfn, "is_valid") == 0) {
@@ -2930,6 +3052,14 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                             {"rename_file","io",TK_BOOL},{"file_exists","io",TK_BOOL},
                             {"is_file","io",TK_BOOL},{"is_directory","io",TK_BOOL},
                             {"file_size","io",TK_INT},{"glob","io",TK_ARRAY},
+                            {"list_dir","io",TK_ARRAY},{"walk","io",TK_ARRAY},
+                            {"make_dir","io",TK_BOOL},{"make_dir_all","io",TK_BOOL},
+                            {"remove_dir","io",TK_BOOL},{"remove_dir_all","io",TK_BOOL},
+                            {"copy_file","io",TK_BOOL},{"move_file","io",TK_BOOL},
+                            {"is_absolute","io",TK_BOOL},
+                            {"path_join","io",TK_STRING},{"dirname","io",TK_STRING},
+                            {"basename","io",TK_STRING},{"extension","io",TK_STRING},
+                            {"normalize","io",TK_STRING},
                             /* @os */
                             {"args","os",TK_ARRAY},{"get_env","os",TK_STRING},
                             {"set_env","os",TK_VOID},{"current_dir","os",TK_STRING},
@@ -3297,7 +3427,24 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
 
             /* Otherwise it's a struct field or multi-return access */
             Symbol *sym = scope_lookup(tc->current_scope, obj_name);
-            if (sym && sym->type->kind == TK_STRUCT) {
+            /* Multi-return .v0/.v1 access takes priority over struct field
+             * lookup when the symbol has ret_types set. Without this, stdlib
+             * functions returning struct types (Socket, HttpResponse, etc.)
+             * would enter struct_field_type() which fails on .v0/.v1. */
+            if (sym && sym->ret_types && member[0] == 'v' && member[1] >= '0' && member[1] <= '9') {
+                int idx = member[1] - '0';
+                if (idx < sym->ret_count) {
+                    result = sym->ret_types[idx];
+                } else {
+                    char msg[256];
+                    snprintf(msg, sizeof(msg),
+                        "too many variables — the function returns %d value(s) but variable %d was requested",
+                        sym->ret_count, idx + 1);
+                    diag_error(tc->diag, "E3006", strdup(msg),
+                        NODE_FILE(tc, node), node->token.line, node->token.column, 0);
+                    result = &TYPE_UNKNOWN;
+                }
+            } else if (sym && sym->type->kind == TK_STRUCT) {
                 result = struct_field_type(tc, sym->type->name, member);
                 /* #1505: func-typed fields resolve as TK_UNKNOWN (name="func")
                  * via type_from_name because "func" maps to TK_UNKNOWN. Don't
@@ -4648,6 +4795,25 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
                         if (sym) {
                             sym->ret_types = sig->return_types;
                             sym->ret_count = sig->return_count;
+                        }
+                    }
+                }
+                /* Stdlib module calls (mod.func) — synthesize (T, Error) return
+                 * types for fallible functions so multi-var destructuring works. */
+                if (fn->kind == NODE_MEMBER_EXPR &&
+                    fn->data.member.object->kind == NODE_LABEL) {
+                    const char *mod = fn->data.member.object->data.label.value;
+                    const char *mfn = fn->data.member.member;
+                    if (tc_is_fallible_stdlib(mod, mfn)) {
+                        EzType *primary = tc_get_fallible_stdlib_type(mod, mfn);
+                        Symbol *sym = scope_lookup_local(tc->current_scope,
+                            node->data.var_decl.name);
+                        if (sym && primary) {
+                            EzType **rt = malloc(sizeof(EzType *) * 2);
+                            rt[0] = primary;
+                            rt[1] = type_from_name("Error");
+                            sym->ret_types = rt;
+                            sym->ret_count = 2;
                         }
                     }
                 }

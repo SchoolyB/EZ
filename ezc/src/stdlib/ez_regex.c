@@ -180,3 +180,65 @@ EzArray ez_regex_split(EzArena *arena, EzString pattern, EzString text) {
     regfree(&re);
     return arr;
 }
+
+/* _result variants */
+
+EzResult_string ez_regex_find_result(EzArena *arena, EzString pattern, EzString text) {
+    EzResult_string r;
+    regex_t re;
+    if (compile_pattern(pattern, &re, 0) != 0) {
+        r.v0 = (EzString){"", 0};
+        r.v1 = ez_error_new(arena, ez_string_format(arena, "invalid regex pattern '%.*s'",
+            pattern.len, pattern.data));
+        return r;
+    }
+    regfree(&re);
+    r.v0 = ez_regex_find(arena, pattern, text);
+    r.v1 = NULL;
+    return r;
+}
+
+EzResult_array ez_regex_find_all_result(EzArena *arena, EzString pattern, EzString text) {
+    EzResult_array r;
+    regex_t re;
+    if (compile_pattern(pattern, &re, 0) != 0) {
+        r.v0 = ez_array_new(arena, sizeof(EzString), 0);
+        r.v1 = ez_error_new(arena, ez_string_format(arena, "invalid regex pattern '%.*s'",
+            pattern.len, pattern.data));
+        return r;
+    }
+    regfree(&re);
+    r.v0 = ez_regex_find_all(arena, pattern, text);
+    r.v1 = NULL;
+    return r;
+}
+
+EzResult_string ez_regex_replace_result(EzArena *arena, EzString pattern, EzString text, EzString replacement) {
+    EzResult_string r;
+    regex_t re;
+    if (compile_pattern(pattern, &re, 0) != 0) {
+        r.v0 = text;
+        r.v1 = ez_error_new(arena, ez_string_format(arena, "invalid regex pattern '%.*s'",
+            pattern.len, pattern.data));
+        return r;
+    }
+    regfree(&re);
+    r.v0 = ez_regex_replace(arena, pattern, text, replacement);
+    r.v1 = NULL;
+    return r;
+}
+
+EzResult_array ez_regex_split_result(EzArena *arena, EzString pattern, EzString text) {
+    EzResult_array r;
+    regex_t re;
+    if (compile_pattern(pattern, &re, 0) != 0) {
+        r.v0 = ez_array_new(arena, sizeof(EzString), 0);
+        r.v1 = ez_error_new(arena, ez_string_format(arena, "invalid regex pattern '%.*s'",
+            pattern.len, pattern.data));
+        return r;
+    }
+    regfree(&re);
+    r.v0 = ez_regex_split(arena, pattern, text);
+    r.v1 = NULL;
+    return r;
+}

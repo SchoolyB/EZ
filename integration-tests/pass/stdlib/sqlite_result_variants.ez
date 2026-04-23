@@ -1,0 +1,73 @@
+/*
+ * Test: sqlite module _result variants for error handling (#1547)
+ * Verifies multi-var destructuring works for sqlite.open, exec, query.
+ */
+
+import @sqlite
+import @io
+
+do main() {
+    mut passed int = 0
+    mut failed int = 0
+
+    // Test 1: sqlite.open success
+    mut db, err = sqlite.open("/tmp/ez_sqlite_result_1547.db")
+    if err == nil {
+        println("  [PASS] sqlite.open success with destructuring")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] sqlite.open error on valid path")
+        failed += 1
+    }
+
+    // Test 2: sqlite.exec success
+    mut ok, err2 = sqlite.exec(db, "CREATE TABLE IF NOT EXISTS test_t(id INTEGER, name TEXT)")
+    if err2 == nil {
+        println("  [PASS] sqlite.exec success on valid SQL")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] sqlite.exec error on valid SQL, ok=${ok}")
+        failed += 1
+    }
+
+    // Test 3: sqlite.exec error on invalid SQL
+    mut ok2, err3 = sqlite.exec(db, "INVALID SQL GARBAGE")
+    if err3 != nil {
+        println("  [PASS] sqlite.exec error caught on invalid SQL")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] sqlite.exec no error on invalid SQL, ok=${ok2}")
+        failed += 1
+    }
+
+    // Test 4: sqlite.query error on nonexistent table
+    mut rows, err4 = sqlite.query(db, "SELECT * FROM nonexistent_table_99999")
+    if err4 != nil {
+        println("  [PASS] sqlite.query error caught on nonexistent table")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] sqlite.query no error, len=${len(rows)}")
+        failed += 1
+    }
+
+    // Test 5: sqlite.query success
+    mut _ = sqlite.exec(db, "INSERT INTO test_t VALUES (1, 'alice')")
+    mut rows2, err5 = sqlite.query(db, "SELECT * FROM test_t")
+    if err5 == nil {
+        println("  [PASS] sqlite.query success on valid table")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] sqlite.query error on valid table")
+        failed += 1
+    }
+
+    // Cleanup
+    mut _ = io.delete_file("/tmp/ez_sqlite_result_1547.db")
+
+    println("Results: ${passed} passed, ${failed} failed")
+    if failed > 0 {
+        println("SOME TESTS FAILED")
+    } otherwise {
+        println("ALL TESTS PASSED")
+    }
+}

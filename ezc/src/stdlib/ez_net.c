@@ -162,3 +162,74 @@ EzString ez_net_resolve(EzArena *arena, EzString hostname) {
     freeaddrinfo(res);
     return result;
 }
+
+/* _result variants */
+
+EzResult_socket ez_net_dial_result(EzArena *arena, EzString host, int64_t port) {
+    EzResult_socket r;
+    r.v0 = ez_net_dial(arena, host, port);
+    if (r.v0.fd < 0) {
+        r.v1 = ez_error_new(arena, ez_string_format(arena, "cannot connect to '%.*s:%lld'",
+            host.len, host.data, (long long)port));
+    } else {
+        r.v1 = NULL;
+    }
+    return r;
+}
+
+EzResult_socket ez_net_listen_result(EzArena *arena, int64_t port) {
+    EzResult_socket r;
+    r.v0 = ez_net_listen(arena, port);
+    if (r.v0.fd < 0) {
+        r.v1 = ez_error_new(arena, ez_string_format(arena, "cannot listen on port %lld",
+            (long long)port));
+    } else {
+        r.v1 = NULL;
+    }
+    return r;
+}
+
+EzResult_socket ez_net_accept_result(EzArena *arena, EzSocket listener) {
+    EzResult_socket r;
+    r.v0 = ez_net_accept(arena, listener);
+    if (r.v0.fd < 0) {
+        r.v1 = ez_error_new(arena, ez_string_format(arena, "accept failed on fd %d", listener.fd));
+    } else {
+        r.v1 = NULL;
+    }
+    return r;
+}
+
+EzResult_int ez_net_send_result(EzArena *arena, EzSocket sock, EzString data) {
+    EzResult_int r;
+    r.v0 = ez_net_send(sock, data);
+    if (r.v0 < 0) {
+        r.v1 = ez_error_new(arena, ez_string_format(arena, "send failed on fd %d", sock.fd));
+    } else {
+        r.v1 = NULL;
+    }
+    return r;
+}
+
+EzResult_string ez_net_recv_result(EzArena *arena, EzSocket sock, int64_t max_bytes) {
+    EzResult_string r;
+    r.v0 = ez_net_recv(arena, sock, max_bytes);
+    if (r.v0.len == 0 && sock.fd >= 0) {
+        r.v1 = ez_error_new(arena, ez_string_format(arena, "recv returned no data on fd %d", sock.fd));
+    } else {
+        r.v1 = NULL;
+    }
+    return r;
+}
+
+EzResult_string ez_net_resolve_result(EzArena *arena, EzString hostname) {
+    EzResult_string r;
+    r.v0 = ez_net_resolve(arena, hostname);
+    if (r.v0.len == 0) {
+        r.v1 = ez_error_new(arena, ez_string_format(arena, "cannot resolve '%.*s'",
+            hostname.len, hostname.data));
+    } else {
+        r.v1 = NULL;
+    }
+    return r;
+}

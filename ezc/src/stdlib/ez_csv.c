@@ -114,3 +114,31 @@ bool ez_csv_write(EzArena *arena, EzString path, EzArray *data) {
     fclose(f);
     return true;
 }
+
+/* _result variants */
+
+EzResult_array ez_csv_read_result(EzArena *arena, EzString path) {
+    EzResult_array r;
+    FILE *f = fopen(path.data, "rb");
+    if (!f) {
+        r.v0 = ez_array_new(arena, sizeof(EzArray), 0);
+        r.v1 = ez_error_new(arena, ez_string_format(arena, "cannot read CSV file '%s'", path.data));
+        return r;
+    }
+    fclose(f);
+    r.v0 = ez_csv_read(arena, path);
+    r.v1 = NULL;
+    return r;
+}
+
+EzResult_bool ez_csv_write_result(EzArena *arena, EzString path, EzArray *data) {
+    EzResult_bool r;
+    if (ez_csv_write(arena, path, data)) {
+        r.v0 = true;
+        r.v1 = NULL;
+    } else {
+        r.v0 = false;
+        r.v1 = ez_error_new(arena, ez_string_format(arena, "cannot write CSV file '%s'", path.data));
+    }
+    return r;
+}

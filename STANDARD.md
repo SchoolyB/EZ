@@ -2258,13 +2258,21 @@ Some random functions accept a variable number of arguments (e.g., `rand_int` wi
 | `choice` | `(arr [T]) -> T` | Random element from array |
 | `shuffle` | `(arr [T]) -> [T]` | Return shuffled copy |
 | `sample` | `(arr [T], n int) -> [T]` | Return n unique random elements |
+| `seed` | `(value int)` | Seed the random number generator |
 
 ### 9.8 JSON Module (`@json`)
 
 | Function | Signature | Description |
 |----------|-----------|-------------|
-| `encode` | `(value T) -> string` | Encode to JSON string. Accepts int, float, bool, string. |
+| `decode` | `(text string) -> map[string:string]` | Decode JSON string to map |
+| `parse` | `(text string) -> T` | Parse JSON into a `#json` struct (context-dependent) |
+| `encode` | `(value T) -> string` | Encode to JSON string. Accepts int, float, bool, string, map, array. |
+| `stringify` | `(value T) -> string` | Encode to JSON string (alias for encode, supports `#json` structs) |
+| `format` | `(value T) -> string` | Format value as JSON string |
+| `pretty_print` | `(m map, indent int) -> string` | Pretty-print a map as indented JSON |
 | `is_valid` | `(text string) -> bool` | Check if valid JSON |
+
+Error-returning variant: `decode`
 
 ### 9.9 IO Module (`@io`)
 
@@ -2272,14 +2280,14 @@ Some random functions accept a variable number of arguments (e.g., `rand_int` wi
 
 | Function | Signature | Description |
 |----------|-----------|-------------|
-| `read_file` | `(path string) -> (string, Error)` | Read file as string |
+| `read_file` | `(path string) -> string` | Read file as string |
 
 #### File Writing
 
 | Function | Signature | Description |
 |----------|-----------|-------------|
-| `write_file` | `(path string, content string) -> (bool, Error)` | Write file |
-| `append_file` | `(path string, content string) -> (bool, Error)` | Append to file |
+| `write_file` | `(path string, content string) -> bool` | Write file |
+| `append_file` | `(path string, content string) -> bool` | Append to file |
 
 #### File Operations
 
@@ -2288,9 +2296,36 @@ Some random functions accept a variable number of arguments (e.g., `rand_int` wi
 | `file_exists` | `(path string) -> bool` | Check if file exists |
 | `is_file` | `(path string) -> bool` | Check if path is file |
 | `is_directory` | `(path string) -> bool` | Check if path is directory |
-| `file_size` | `(path string) -> (int, Error)` | Get file size |
-| `delete_file` | `(path string) -> (bool, Error)` | Delete file |
-| `rename_file` | `(old_path string, new_path string) -> (bool, Error)` | Rename file |
+| `file_size` | `(path string) -> int` | Get file size in bytes |
+| `delete_file` | `(path string) -> bool` | Delete file |
+| `rename_file` | `(old_path string, new_path string) -> bool` | Rename file |
+| `copy_file` | `(src string, dst string) -> bool` | Copy file |
+| `move_file` | `(src string, dst string) -> bool` | Move file |
+
+#### Directory Operations
+
+| Function | Signature | Description |
+|----------|-----------|-------------|
+| `list_dir` | `(path string) -> [string]` | List directory entries |
+| `make_dir` | `(path string) -> bool` | Create directory |
+| `make_dir_all` | `(path string) -> bool` | Create directory and all parents |
+| `remove_dir` | `(path string) -> bool` | Remove empty directory |
+| `remove_dir_all` | `(path string) -> bool` | Remove directory and all contents |
+| `walk` | `(path string) -> [string]` | Recursively list all files |
+| `glob` | `(pattern string) -> [string]` | Match files by glob pattern |
+
+#### Path Manipulation
+
+| Function | Signature | Description |
+|----------|-----------|-------------|
+| `path_join` | `(a string, b string) -> string` | Join two path components |
+| `dirname` | `(path string) -> string` | Parent directory of path |
+| `basename` | `(path string) -> string` | Filename component of path |
+| `extension` | `(path string) -> string` | File extension (including dot) |
+| `is_absolute` | `(path string) -> bool` | Check if path is absolute |
+| `normalize` | `(path string) -> string` | Clean and normalize path |
+
+Error-returning variants: `read_file`, `write_file`, `delete_file`, `append_file`, `rename_file`, `copy_file`, `move_file`, `list_dir`, `make_dir`, `make_dir_all`, `remove_dir`, `remove_dir_all`, `walk`
 
 ### 9.10 OS Module (`@os`)
 
@@ -2298,16 +2333,16 @@ Some random functions accept a variable number of arguments (e.g., `rand_int` wi
 
 | Function | Signature | Description |
 |----------|-----------|-------------|
-| `get_env` | `(name string) -> (string, Error)` | Get environment variable |
-| `set_env` | `(name string, value string) -> (bool, Error)` | Set environment variable |
+| `get_env` | `(name string) -> string` | Get environment variable |
+| `set_env` | `(name string, value string)` | Set environment variable |
 
 #### System Information
 
 | Function | Signature | Description |
 |----------|-----------|-------------|
 | `args` | `() -> [string]` | Get command-line arguments |
-| `current_dir` | `() -> (string, Error)` | Get current working directory |
-| `hostname` | `() -> (string, Error)` | Get machine hostname |
+| `current_dir` | `() -> string` | Get current working directory |
+| `hostname` | `() -> string` | Get machine hostname |
 | `pid` | `() -> int` | Get process ID |
 | `current_os` | `() -> int` | Get current OS as an int matching the constants below (`MAC_OS`, `LINUX`, `WINDOWS`, `OTHER`) |
 | `arch` | `() -> string` | Get CPU architecture |
@@ -2334,6 +2369,8 @@ HTTP client for making requests. Currently supports HTTP only.
 | `delete` | `(url string) -> HttpResponse` | DELETE request |
 | `head` | `(url string) -> HttpResponse` | HEAD request |
 
+Error-returning variants: `get`, `post`, `put`, `delete`, `head`, `patch`
+
 #### HttpResponse Type
 
 The `HttpResponse` struct contains:
@@ -2347,6 +2384,7 @@ The `HttpResponse` struct contains:
 |----------|-----------|-------------|
 | `sha256` | `(data string) -> string` | SHA-256 hash (hex) |
 | `md5` | `(data string) -> string` | MD5 hash (hex) |
+| `random_hex` | `(length int) -> string` | Cryptographically secure random hex string |
 
 ### 9.13 Encoding Module (`@encoding`)
 
@@ -2442,6 +2480,8 @@ SQLite database access for persistent storage.
 | `exec` | `(db Database, sql string, ...params string)` | Execute a SQL statement with optional parameters |
 | `query` | `(db Database, sql string, ...params string) -> [map[string:string]]` | Execute a parameterized SQL query, returns array of row maps |
 
+Error-returning variants: `open`, `exec`, `query`
+
 Parameterized queries use `?` placeholders to prevent SQL injection:
 
 ```ez
@@ -2457,7 +2497,7 @@ An HTTP server module with dynamic handlers and path parameters.
 
 | Function | Signature | Description |
 |----------|-----------|-------------|
-| `router` | `() -> Router` | Create a new router |
+| `add_router` | `() -> Router` | Create a new router |
 | `add_route` | `(router Router, method string, path string, ()handler)` | Add a route with handler function |
 | `listen` | `(port int, router Router)` | Start HTTP server on port (blocks until killed) |
 
@@ -2496,7 +2536,7 @@ do get_user(req Request) -> HttpResponse {
 }
 
 do main() {
-    mut r = server.router()
+    mut r = server.add_router()
     server.add_route(r, "GET", "/", ()home)
     server.add_route(r, "GET", "/users/:id", ()get_user)
     server.listen(8080, r)
@@ -2516,21 +2556,23 @@ Regular expression operations using POSIX extended regex syntax.
 | `replace` | `(pattern string, text string, replacement string) -> string` | Replace matches |
 | `split` | `(pattern string, text string) -> [string]` | Split by pattern |
 
+Error-returning variants: `find`, `find_all`, `replace`, `split`
+
 ### 9.20 CSV Module (`@csv`)
 
 Reading and writing CSV (Comma-Separated Values) data.
 
 | Function | Signature | Description |
 |----------|-----------|-------------|
-| `decode` | `(csv_string string) -> ([[string]], Error)` | Decode CSV string to 2D array |
-| `encode` | `(data [[string]]) -> (string, Error)` | Encode 2D array to CSV string |
-| `read_file` | `(path string, options map) -> ([[string]], Error)` | Read CSV file |
-| `write_file` | `(path string, data [[string]], options map) -> (bool, Error)` | Write CSV file |
+| `parse` | `(csv_string string) -> [[string]]` | Parse CSV string to 2D array |
+| `decode` | `(csv_string string) -> [[string]]` | Parse CSV string to 2D array (alias for parse) |
+| `encode` | `(data [[string]]) -> string` | Encode 2D array to CSV string |
+| `format` | `(data [[string]]) -> string` | Format 2D array as CSV string (alias for encode) |
+| `read_file` | `(path string) -> [[string]]` | Read and parse CSV file |
+| `write_file` | `(path string, data [[string]]) -> bool` | Write 2D array to CSV file |
+| `headers` | `(data [[string]]) -> [string]` | Extract header row from parsed CSV data |
 
-The `read_file` and `write_file` functions accept an optional options map with keys:
-- `delimiter` (string) — field delimiter (default: `","`)
-- `skip_empty` (bool) — skip empty rows (default: `false`, read only)
-- `quote_all` (bool) — quote all fields (default: `false`, write only)
+Error-returning variants: `read_file`, `write_file`
 
 ### 9.21 Net Module (`@net`)
 
@@ -2541,11 +2583,13 @@ TCP sockets and DNS resolution.
 | `connect` | `(host string, port int) -> Socket` | Connect to a remote host |
 | `listen` | `(port int) -> Listener` | Listen for incoming connections on a port |
 | `accept` | `(listener Listener) -> Socket` | Accept an incoming connection |
-| `send` | `(sock Socket, data string)` | Send data over a socket |
-| `receive` | `(sock Socket, max int) -> string` | Receive up to `max` bytes from a socket |
+| `send` | `(sock Socket, data string) -> int` | Send data over a socket, returns bytes sent |
+| `receive` | `(sock Socket, max_bytes int) -> string` | Receive up to `max_bytes` bytes from a socket |
 | `close` | `(sock Socket)` | Close a socket or listener |
 | `set_timeout` | `(sock Socket, ms int)` | Set read/write timeout in milliseconds |
 | `resolve` | `(hostname string) -> string` | Resolve a hostname to an IP address |
+
+Error-returning variants: `connect`, `listen`, `accept`, `send`, `receive`, `resolve`
 
 ### 9.22 Threads Module (`@threads`)
 
@@ -2554,6 +2598,7 @@ Thread lifecycle management. Compiler-only feature; requires POSIX threads.
 | Function | Signature | Description |
 |----------|-----------|-------------|
 | `spawn` | `(()func) -> Thread` | Spawn a new thread running `func` |
+| `spawn` | `(()func, arg int) -> Thread` | Spawn a new thread running `func` with an int argument |
 | `join` | `(t Thread)` | Wait for a thread to finish |
 | `get_id` | `() -> int` | Get the current thread's ID |
 
@@ -2566,6 +2611,7 @@ Synchronization primitives for thread-safe access to shared data. Compiler-only 
 | `mutex` | `() -> Mutex` | Create a new mutex |
 | `lock` | `(m Mutex)` | Acquire a mutex |
 | `unlock` | `(m Mutex)` | Release a mutex |
+| `try_lock` | `(m Mutex)` | Try to acquire a mutex (non-blocking) |
 | `destroy` | `(m Mutex)` | Destroy a mutex |
 
 ### 9.24 Channels Module (`@channels`)
@@ -2591,9 +2637,12 @@ Arena-based memory allocation. Compiler-only feature.
 | `usage` | `(arena Arena) -> int` | Return the number of bytes currently used |
 | `init` | `(arena Arena, Type) -> ^Type` | Allocate a zero-initialized value of `Type` in the arena |
 | `alloc` | `(arena Arena, value T) -> ^T` | Allocate a copy of value in the arena |
-| `copy` | `(dest, src, n int)` | Copy `n` bytes from `src` to `dest` |
-| `zero` | `(ptr, n int)` | Zero out `n` bytes at `ptr` |
-| `set` | `(ptr, value int, n int)` | Set `n` bytes at `ptr` to `value` |
+| `make` | `(arena Arena, Type) -> ^Type` | Allocate zero-initialized value of Type in arena |
+| `free` | `(arena Arena)` | Free an arena (alias for destroy) |
+| `size_of` | `(Type) -> int` | Size of type in bytes |
+| `raw_copy` | `(dest ptr, src ptr, n int)` | Copy `n` bytes from `src` to `dest` |
+| `zero` | `(p ptr, n int)` | Zero out `n` bytes at `p` |
+| `fill` | `(p ptr, value int, n int)` | Set `n` bytes at `p` to `value` |
 
 ### 9.26 Atomic Module (`@atomic`)
 
@@ -2641,6 +2690,8 @@ Formatted output and string formatting functions.
 | `printf` | `(format string, ...args T)` | Print formatted string to stdout |
 | `sprintf` | `(format string, ...args T) -> string` | Return formatted string |
 | `format` | `(format string, ...args T) -> string` | Return formatted string |
+| `eprintln` | `(value T)` | Print value followed by newline to stderr |
+| `eprint` | `(s string)` | Print string to stderr (no newline) |
 
 #### Padding
 

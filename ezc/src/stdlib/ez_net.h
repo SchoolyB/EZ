@@ -11,6 +11,7 @@
 #define EZ_NET_H
 
 #include "../runtime/ez_runtime.h"
+#include "ez_io.h" /* EzResult_string */
 
 /* Opaque socket handle */
 typedef struct {
@@ -34,5 +35,15 @@ void ez_net_set_timeout(EzSocket sock, int64_t milliseconds);
 
 /* DNS resolution */
 EzString ez_net_resolve(EzArena *arena, EzString hostname);
+
+/* _result variants */
+typedef struct { EzSocket v0; EzError *v1; } EzResult_socket;
+
+EzResult_socket ez_net_dial_result(EzArena *arena, EzString host, int64_t port);
+EzResult_socket ez_net_listen_result(EzArena *arena, int64_t port);
+EzResult_socket ez_net_accept_result(EzArena *arena, EzSocket listener);
+EzResult_int ez_net_send_result(EzArena *arena, EzSocket sock, EzString data);
+EzResult_string ez_net_recv_result(EzArena *arena, EzSocket sock, int64_t max_bytes);
+EzResult_string ez_net_resolve_result(EzArena *arena, EzString hostname);
 
 #endif

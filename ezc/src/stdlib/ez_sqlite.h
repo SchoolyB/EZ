@@ -13,6 +13,7 @@
 #include "../runtime/ez_runtime.h"
 #include "../runtime/ez_array.h"
 #include "../runtime/ez_map.h"
+#include "ez_io.h" /* EzResult_bool, EzResult_array */
 
 typedef struct {
     void *handle; /* sqlite3* */
@@ -29,5 +30,12 @@ bool ez_sqlite_exec(EzSqlite *db, EzString sql);
 
 /* sqlite.query(db, sql) — execute query, return array of maps */
 EzArray ez_sqlite_query(EzArena *arena, EzSqlite *db, EzString sql);
+
+/* _result variants */
+typedef struct { EzSqlite *v0; EzError *v1; } EzResult_sqlite;
+
+EzResult_sqlite ez_sqlite_open_result(EzArena *arena, EzString path);
+EzResult_bool ez_sqlite_exec_result(EzArena *arena, EzSqlite *db, EzString sql);
+EzResult_array ez_sqlite_query_result(EzArena *arena, EzSqlite *db, EzString sql);
 
 #endif

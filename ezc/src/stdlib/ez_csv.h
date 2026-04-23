@@ -10,6 +10,7 @@
 
 #include "../runtime/ez_runtime.h"
 #include "../runtime/ez_array.h"
+#include "ez_io.h" /* EzResult_bool, EzResult_array */
 
 /* Parse CSV string into array of arrays of strings */
 EzArray ez_csv_parse(EzArena *arena, EzString csv_string);
@@ -22,5 +23,9 @@ EzArray ez_csv_read(EzArena *arena, EzString path);
 
 /* Write CSV to file */
 bool ez_csv_write(EzArena *arena, EzString path, EzArray *data);
+
+/* _result variants */
+EzResult_array ez_csv_read_result(EzArena *arena, EzString path);
+EzResult_bool ez_csv_write_result(EzArena *arena, EzString path, EzArray *data);
 
 #endif

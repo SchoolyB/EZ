@@ -12,6 +12,7 @@
 
 #include "../runtime/ez_runtime.h"
 #include "../runtime/ez_array.h"
+#include "ez_io.h" /* EzResult_string, EzResult_array */
 
 /* regex.is_valid(pattern) -> bool */
 bool ez_regex_is_valid(EzString pattern);
@@ -30,5 +31,11 @@ EzString ez_regex_replace(EzArena *arena, EzString pattern, EzString text, EzStr
 
 /* regex.split(pattern, text) -> [string] */
 EzArray ez_regex_split(EzArena *arena, EzString pattern, EzString text);
+
+/* _result variants */
+EzResult_string ez_regex_find_result(EzArena *arena, EzString pattern, EzString text);
+EzResult_array ez_regex_find_all_result(EzArena *arena, EzString pattern, EzString text);
+EzResult_string ez_regex_replace_result(EzArena *arena, EzString pattern, EzString text, EzString replacement);
+EzResult_array ez_regex_split_result(EzArena *arena, EzString pattern, EzString text);
 
 #endif
