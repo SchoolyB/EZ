@@ -3429,7 +3429,24 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
 
             /* Otherwise it's a struct field or multi-return access */
             Symbol *sym = scope_lookup(tc->current_scope, obj_name);
-            if (sym && sym->type->kind == TK_STRUCT) {
+            /* Multi-return .v0/.v1 access takes priority over struct field
+             * lookup when the symbol has ret_types set. Without this, stdlib
+             * functions returning struct types (Socket, HttpResponse, etc.)
+             * would enter struct_field_type() which fails on .v0/.v1. */
+            if (sym && sym->ret_types && member[0] == 'v' && member[1] >= '0' && member[1] <= '9') {
+                int idx = member[1] - '0';
+                if (idx < sym->ret_count) {
+                    result = sym->ret_types[idx];
+                } else {
+                    char msg[256];
+                    snprintf(msg, sizeof(msg),
+                        "too many variables — the function returns %d value(s) but variable %d was requested",
+                        sym->ret_count, idx + 1);
+                    diag_error(tc->diag, "E3006", strdup(msg),
+                        NODE_FILE(tc, node), node->token.line, node->token.column, 0);
+                    result = &TYPE_UNKNOWN;
+                }
+            } else if (sym && sym->type->kind == TK_STRUCT) {
                 result = struct_field_type(tc, sym->type->name, member);
                 /* #1505: func-typed fields resolve as TK_UNKNOWN (name="func")
                  * via type_from_name because "func" maps to TK_UNKNOWN. Don't
