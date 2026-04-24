@@ -805,6 +805,16 @@ func runUpdate(confirm bool, url string, pre bool) {
 		fmt.Print(formatChangelog(releasesInRange, Version, target.TagName))
 	}
 
+	if vi.Channel == "dev" && vi.CommitsAhead > 0 {
+		noun := "commits"
+		if vi.CommitsAhead == 1 {
+			noun = "commit"
+		}
+		fmt.Printf("\n\033[33mWarning: your dev build is %d %s past %s (commit %s).\n",
+			vi.CommitsAhead, noun, vi.Display, vi.Commit)
+		fmt.Printf("Those %s may not be present in %s.\033[0m\n", noun, target.TagName)
+	}
+
 	fmt.Printf("\nUpgrade to %s? (y/N): ", target.TagName)
 	reader := bufio.NewReader(os.Stdin)
 	response, _ := reader.ReadString('\n')
