@@ -5570,13 +5570,17 @@ static void emit_assign_statement(CodeGen *cg, AstNode *node) {
         }
     }
 
-    /* Compound assignment with sized-type overflow check */
+    /* Compound assignment overflow checks. The direct form (x = x OP y)
+     * routes through the checked helpers; the compound form must do the
+     * same so a OP= b never wraps where a = a OP b would panic. */
     {
         const char *aop = node->data.assign.op;
-        bool is_compound = (strcmp(aop, "+=") == 0 || strcmp(aop, "-=") == 0 || strcmp(aop, "*=") == 0);
-        if (is_compound) {
+        bool is_arith_compound = (strcmp(aop, "+=") == 0 || strcmp(aop, "-=") == 0 || strcmp(aop, "*=") == 0);
+        bool is_div_compound = (strcmp(aop, "/=") == 0 || strcmp(aop, "%=") == 0);
+        if (is_arith_compound || is_div_compound) {
             EzType *tgt_t = cg->type_table ? typetable_get(cg->type_table, node->data.assign.target) : NULL;
             const char *sn = (tgt_t && tgt_t->name) ? tgt_t->name : NULL;
+            bool tgt_is_int = (tgt_t && (tgt_t->kind == TK_INT || tgt_t->kind == TK_UINT || tgt_t->kind == TK_BYTE));
             const char *smin = NULL, *smax = NULL;
             bool su = false;
             if (sn) {
@@ -5587,8 +5591,8 @@ static void emit_assign_statement(CodeGen *cg, AstNode *node) {
                 else if (strcmp(sn, "u16") == 0) { su = true; smax = "65535"; }
                 else if (strcmp(sn, "u32") == 0) { su = true; smax = "4294967295ULL"; }
             }
-            if (smax) {
-                /* Rewrite x += y as x = ez_sized_add_check(x, y, ...) */
+            /* Sized arith: ez_(u)sized_*_check */
+            if (is_arith_compound && smax) {
                 const char *fn = NULL;
                 if (su) {
                     if (strcmp(aop, "+=") == 0) fn = "ez_usized_add_check";
@@ -5600,7 +5604,6 @@ static void emit_assign_statement(CodeGen *cg, AstNode *node) {
                     else if (strcmp(aop, "*=") == 0) fn = "ez_sized_mul_check";
                 }
                 if (fn) {
-                    /* Cache target address to avoid double-evaluation of side effects */
                     emitf(cg, "{ %s *_tgt = &(", ez_type_to_c_cg(cg, sn));
                     emit_expression(cg, node->data.assign.target);
                     emitf(cg, "); *_tgt = %s(*_tgt, ", fn);
@@ -5612,6 +5615,55 @@ static void emit_assign_statement(CodeGen *cg, AstNode *node) {
                     }
                     return;
                 }
+            }
+            /* Plain int/uint (i64/u64) arith: ez_(u)*_check */
+            if (is_arith_compound && tgt_is_int && !smax) {
+                bool unsigned_op = (tgt_t->kind == TK_UINT || tgt_t->kind == TK_BYTE);
+                const char *fn = NULL;
+                if (unsigned_op) {
+                    if (strcmp(aop, "+=") == 0) fn = "ez_uadd_check";
+                    else if (strcmp(aop, "-=") == 0) fn = "ez_usub_check";
+                    else if (strcmp(aop, "*=") == 0) fn = "ez_umul_check";
+                } else {
+                    if (strcmp(aop, "+=") == 0) fn = "ez_add_check";
+                    else if (strcmp(aop, "-=") == 0) fn = "ez_sub_check";
+                    else if (strcmp(aop, "*=") == 0) fn = "ez_mul_check";
+                }
+                if (fn) {
+                    const char *c_ty = unsigned_op ? "uint64_t" : "int64_t";
+                    emitf(cg, "{ %s *_tgt = &(", c_ty);
+                    emit_expression(cg, node->data.assign.target);
+                    emitf(cg, "); *_tgt = %s(*_tgt, ", fn);
+                    emit_expression(cg, node->data.assign.value);
+                    emitf(cg, ", __FILE__, %d); }\n", node->token.line);
+                    return;
+                }
+            }
+            /* /= and %=: divide-by-zero check + (signed only) TYPE_MIN/-1
+             * overflow check, mirroring the direct-form codegen. */
+            if (is_div_compound && tgt_is_int) {
+                bool unsigned_op = (tgt_t->kind == TK_UINT || tgt_t->kind == TK_BYTE);
+                const char *signed_min = NULL;
+                if (!unsigned_op) {
+                    if (sn && strcmp(sn, "i8") == 0)       signed_min = "-128";
+                    else if (sn && strcmp(sn, "i16") == 0) signed_min = "-32768";
+                    else if (sn && strcmp(sn, "i32") == 0) signed_min = "-2147483648LL";
+                    else                                   signed_min = "(-9223372036854775807LL - 1)";
+                }
+                const char *opname = (strcmp(aop, "/=") == 0) ? "division" : "modulo";
+                const char *binop = (strcmp(aop, "/=") == 0) ? "/" : "%";
+                emit(cg, "{ __auto_type _tgt_ref = &(");
+                emit_expression(cg, node->data.assign.target);
+                emit(cg, "); __auto_type _dv = ");
+                emit_expression(cg, node->data.assign.value);
+                emitf(cg, "; if (!_dv) { fflush(stdout); ez_panic(__FILE__, %d, \"division by zero\"); } ",
+                    node->token.line);
+                if (!unsigned_op) {
+                    emitf(cg, "if (*_tgt_ref == %s && _dv == -1) { fflush(stdout); ez_panic(__FILE__, %d, \"%s result is too large \xe2\x80\x94 value exceeds the range of this type\"); } ",
+                        signed_min, node->token.line, opname);
+                }
+                emitf(cg, "*_tgt_ref %s= _dv; }\n", binop);
+                return;
             }
         }
     }
