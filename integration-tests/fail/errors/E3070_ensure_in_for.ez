@@ -1,0 +1,12 @@
+/*
+ * Error Test: E3070 - ensure-not-top-level (in for)
+ * Expected: "'ensure' may only appear at the top level"
+ */
+
+do cleanup() { println("cleanup") }
+
+do main() {
+    for i in range(0, 3) {
+        ensure cleanup()
+    }
+}

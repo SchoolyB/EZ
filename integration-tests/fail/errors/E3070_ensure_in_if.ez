@@ -1,0 +1,14 @@
+/*
+ * Error Test: E3070 - ensure-not-top-level (in if)
+ * Expected: "'ensure' may only appear at the top level"
+ * ensure inside a branch body would silently never run; must be rejected.
+ */
+
+do cleanup() { println("cleanup") }
+
+do main() {
+    mut x int = 1
+    if x > 0 {
+        ensure cleanup()
+    }
+}

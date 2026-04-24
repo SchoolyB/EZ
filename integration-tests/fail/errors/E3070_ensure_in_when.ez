@@ -1,0 +1,14 @@
+/*
+ * Error Test: E3070 - ensure-not-top-level (in when case)
+ * Expected: "'ensure' may only appear at the top level"
+ */
+
+do cleanup() { println("cleanup") }
+
+do main() {
+    mut x int = 1
+    when x {
+        is 1 { ensure cleanup() }
+        default { }
+    }
+}
