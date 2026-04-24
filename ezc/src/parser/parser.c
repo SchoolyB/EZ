@@ -1081,7 +1081,6 @@ static AstNode *parse_var_declaration(Parser *p) {
         if (node->data.var_decl.mutable &&
             (strcmp(node->data.var_decl.type_name, "struct") == 0 ||
              strcmp(node->data.var_decl.type_name, "enum") == 0)) {
-            char msg[256];
             diag_error_codef(p->diag, "E2068", p->file, node->token.line, node->token.column, 0, node->data.var_decl.type_name);
             return NULL;
         }
@@ -1110,7 +1109,6 @@ static AstNode *parse_var_declaration(Parser *p) {
                 }
                 var_count++;
                 if (var_count > MAX_MULTI_VARS) {
-                    char buf[128];
                     diag_error_codef(p->diag, "E2062", p->file, p->cur_token.line, p->cur_token.column, 0, MAX_MULTI_VARS);
                     return NULL;
                 }
@@ -1398,7 +1396,6 @@ static AstNode *parse_func_declaration(Parser *p) {
                 /* Common mistake: `name &type` instead of `&name type`.
                  * Without this, the loop has no token to consume and
                  * spins until killed externally (#bug-report). */
-                char buf[256];
                 diag_error_codef(p->diag, "E3069", p->file, p->peek_token.line, p->peek_token.column, 0, param->name, "<type>");
                 return NULL;
             }
