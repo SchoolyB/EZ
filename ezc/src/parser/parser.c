@@ -1527,7 +1527,7 @@ static AstNode *parse_func_declaration(Parser *p) {
                 if (cur_token_is(p, TOK_IDENT) &&
                     (peek_token_is(p, TOK_IDENT) || peek_token_is(p, TOK_QUESTION) ||
                      peek_token_is(p, TOK_LBRACKET) || peek_token_is(p, TOK_CARET)) &&
-                    !is_type) {
+                    (!is_type || peek_token_is(p, TOK_IDENT))) {
                     /* Named return: name type; store both (#1502: accept
                      * TOK_QUESTION, TOK_LBRACKET, TOK_CARET as type-start
                      * tokens so `(first ?, items [int], ptr ^T)` work) */
