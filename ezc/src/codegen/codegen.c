@@ -283,6 +283,7 @@ static bool type_needs_deep_copy(CodeGen *cg, const char *ez_tn) {
     if (!ez_tn || !*ez_tn) return false;
     if (ez_tn[0] == '[') return true;
     if (strncmp(ez_tn, "map[", 4) == 0) return true;
+    if (strcmp(ez_tn, "string") == 0) return true;
     if (ez_tn[0] == '^') return false; /* pointers alias; see header comment */
     AstNode *sdecl = find_struct_decl(cg, ez_tn);
     if (!sdecl) return false;
@@ -445,6 +446,10 @@ static void emit_value_deep_copy(CodeGen *cg, const char *ez_tn, const char *src
     if (!type_needs_deep_copy(cg, ez_tn)) {
         /* Primitive / pointer / scalar struct; C value copy is correct. */
         emitf(cg, "%s", src_var);
+        return;
+    }
+    if (strcmp(ez_tn, "string") == 0) {
+        emitf(cg, "ez_string_new(ez_default_arena, %s.data, %s.len)", src_var, src_var);
         return;
     }
     if (ez_tn[0] == '[') {
@@ -5639,6 +5644,38 @@ static void emit_assign_statement(CodeGen *cg, AstNode *node) {
         bool is_ref = (obj->kind == NODE_LABEL && is_ref_var(cg, obj->data.label.value));
         if (!is_ref && obj_t && obj_t->kind == TK_POINTER) {
             const char *field = node->data.assign.target->data.member.member;
+            /* When assigning an array/string to a struct field inside a
+             * scoped block (if/loop), deep-copy to the outer arena so the
+             * data survives the block's arena destruction. */
+            if (strcmp(node->data.assign.op, "=") == 0 && cg->loop_scope_depth > 0) {
+                EzType *field_t = cg->type_table ? typetable_get(cg->type_table, node->data.assign.target) : NULL;
+                if (field_t && field_t->kind == TK_ARRAY) {
+                    char tn[256];
+                    snprintf(tn, sizeof(tn), "[%s]", field_t->element_type ? field_t->element_type : "");
+                    emit(cg, "{ __auto_type _dp = ");
+                    emit_expression(cg, obj);
+                    emitf(cg, "; if (!_dp) { fflush(stdout); ez_panic(__FILE__, %d, "
+                        "\"nil pointer dereference\"); } ", node->token.line);
+                    emitf(cg, "{ EzArray _esc_v = ");
+                    emit_expression(cg, node->data.assign.value);
+                    emit(cg, "; EzArena *_esc_a = ez_default_arena; ez_default_arena = _ez_outer_arena; ");
+                    emitf(cg, "_dp->%s = ", safe_name(field));
+                    emit_array_deep_copy(cg, tn, "_esc_v");
+                    emit(cg, "; ez_default_arena = _esc_a; } }\n");
+                    return;
+                }
+                if (field_t && field_t->kind == TK_STRING) {
+                    emit(cg, "{ __auto_type _dp = ");
+                    emit_expression(cg, obj);
+                    emitf(cg, "; if (!_dp) { fflush(stdout); ez_panic(__FILE__, %d, "
+                        "\"nil pointer dereference\"); } ", node->token.line);
+                    emitf(cg, "{ EzString _esc_v = ");
+                    emit_expression(cg, node->data.assign.value);
+                    emitf(cg, "; _dp->%s = ez_string_new(_ez_outer_arena, _esc_v.data, _esc_v.len); } }\n",
+                        safe_name(field));
+                    return;
+                }
+            }
             emit(cg, "{ __auto_type _dp = ");
             emit_expression(cg, obj);
             emitf(cg, "; if (!_dp) { fflush(stdout); ez_panic(__FILE__, %d, "
