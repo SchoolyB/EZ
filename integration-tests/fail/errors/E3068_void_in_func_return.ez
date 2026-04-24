@@ -1,0 +1,12 @@
+/*
+ * Error Test: E3068 - void-in-func-return
+ * Expected: "'void' is not a user-facing type"
+ * A typed-func return position must not spell 'void'; omit the '-> R' clause.
+ */
+
+do work() -> (int, int) { return 1, 2 }
+
+do main() {
+    mut f func() -> (void, int) = ()work
+    f
+}
