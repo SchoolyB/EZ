@@ -1397,6 +1397,17 @@ static AstNode *parse_func_declaration(Parser *p) {
                 next_token(p);
                 param->type_name = parse_complex_type(p);
                 if (!param->type_name) return NULL;
+            } else if (peek_token_is(p, TOK_AMPERSAND)) {
+                /* Common mistake: `name &type` instead of `&name type`.
+                 * Without this, the loop has no token to consume and
+                 * spins until killed externally (#bug-report). */
+                char buf[256];
+                snprintf(buf, sizeof(buf),
+                    "'&' on a parameter must come before the name, not the type \xe2\x80\x94 write '&%s %s' to mark this parameter mutable",
+                    param->name, "<type>");
+                diag_error(p->diag, "E3069", arena_strdup(p->arena, buf),
+                    p->file, p->peek_token.line, p->peek_token.column, 0);
+                return NULL;
             }
 
             /* Check for default value: param type = expr */
@@ -1411,6 +1422,18 @@ static AstNode *parse_func_declaration(Parser *p) {
             if (peek_token_is(p, TOK_COMMA)) {
                 next_token(p); /* skip comma */
                 next_token(p);
+            } else if (!peek_token_is(p, TOK_RPAREN) && !cur_token_is(p, TOK_RPAREN) &&
+                       !cur_token_is(p, TOK_EOF)) {
+                /* Forward-progress guard: any unexpected token between
+                 * params that isn't ',' or ')' would otherwise loop
+                 * forever. Surface it as a parse error and bail. */
+                char buf[256];
+                snprintf(buf, sizeof(buf),
+                    "unexpected token '%s' in parameter list \xe2\x80\x94 expected ',' or ')'",
+                    p->peek_token.literal ? p->peek_token.literal : "?");
+                diag_error(p->diag, "E2001", arena_strdup(p->arena, buf),
+                    p->file, p->peek_token.line, p->peek_token.column, 0);
+                return NULL;
             }
         } while (!cur_token_is(p, TOK_RPAREN) && !peek_token_is(p, TOK_RPAREN) && !cur_token_is(p, TOK_EOF));
     }

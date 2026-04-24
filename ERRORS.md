@@ -3,7 +3,7 @@
 > Auto-generated from `ezc/src/util/error_codes.h`. Do not edit manually.
 > Run `./scripts/generate_errors.sh` to regenerate.
 
-**Total: 150 codes** (138 errors, 12 warnings)
+**Total: 151 codes** (139 errors, 12 warnings)
 
 ---
 
@@ -120,6 +120,7 @@
 | `E3066` | types | function reference signature mismatch — expected and actual function types differ |
 | `E3067` | types | argument passed by value to a '&' parameter — pass an lvalue (variable) instead |
 | `E3068` | types | 'void' is not a user-facing type — omit the '-> R' clause to declare a function with no return value |
+| `E3069` | types | '&' on a parameter must come before the name, not the type — write '&name type' to mark a parameter mutable |
 | `E4001` | names | this variable does not exist — check the spelling or make sure it is declared above this line |
 | `E4002` | names | this function does not exist — check the spelling or make sure it is defined |
 | `E4003` | names | a variable with this name already exists in this scope — use a different name |
@@ -194,4 +195,4 @@
 
 ---
 
-*Generated on 2026-04-24 00:07:02 UTC*
+*Generated on 2026-04-24 00:38:29 UTC*

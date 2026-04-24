@@ -133,7 +133,8 @@
     EZ_ERROR("E3065", "types", "bare 'func' is not a valid type — use func(<params>) -> <return> with an explicit signature") \
     EZ_ERROR("E3066", "types", "function reference signature mismatch — expected and actual function types differ") \
     EZ_ERROR("E3067", "types", "argument passed by value to a '&' parameter — pass an lvalue (variable) instead") \
-    EZ_ERROR("E3068", "types", "'void' is not a user-facing type — omit the '-> R' clause to declare a function with no return value")
+    EZ_ERROR("E3068", "types", "'void' is not a user-facing type — omit the '-> R' clause to declare a function with no return value") \
+    EZ_ERROR("E3069", "types", "'&' on a parameter must come before the name, not the type — write '&name type' to mark a parameter mutable")
 
 /* --- E4xxx: Name Problems (References) --- */
 #define EZ_REFERENCE_ERRORS \
