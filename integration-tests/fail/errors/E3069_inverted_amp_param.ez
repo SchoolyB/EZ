@@ -1,0 +1,10 @@
+/*
+ * Error Test: E3069 - inverted-amp-param
+ * Expected: "'&' on a parameter must come before the name"
+ * The inverted `name &type` form previously spun the parser loop forever;
+ * it must now diagnose cleanly. The correct form is `&name type`.
+ */
+
+do bump(x &int) { x = x + 1 }
+
+do main() {}

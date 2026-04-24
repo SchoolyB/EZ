@@ -1,0 +1,10 @@
+/*
+ * Error Test: E2001 - missing-param-comma
+ * Expected: "unexpected token 'b' in parameter list — expected ',' or ')'"
+ * Missing comma between parameters previously had no forward-progress guard
+ * and could spin the parser loop. Must now diagnose cleanly.
+ */
+
+do foo(a int b int) {}
+
+do main() {}
