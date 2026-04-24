@@ -75,7 +75,11 @@
     EZ_ERROR("E2070", "syntax", "wildcard type '?' is only allowed in function parameter and return types — not in variable declarations, struct fields, or enum types") \
     EZ_ERROR("E2071", "syntax", "empty string interpolation '${}' — interpolation requires an expression between the braces") \
     EZ_ERROR("E2072", "syntax", "'&' is not a valid operator — use 'addr(x)' to take the address of a variable") \
-    EZ_ERROR("E2073", "syntax", "function calls cannot have whitespace between the name and the opening parenthesis — write 'name(...)' with no space or newline")
+    EZ_ERROR("E2073", "syntax", "function calls cannot have whitespace between the name and the opening parenthesis — write 'name(...)' with no space or newline") \
+    EZ_ERROR("E2074", "syntax", "member access cannot have whitespace before the dot — write 'obj.field' or 'Enum.VARIANT' with no space or newline") \
+    EZ_ERROR("E2075", "syntax", "index expressions cannot have whitespace before the opening bracket — write 'arr[i]' with no space or newline") \
+    EZ_ERROR("E2076", "syntax", "postfix operators ('++', '--', '^') cannot have whitespace before them — write 'x++', 'x--', or 'p^' with no space or newline") \
+    EZ_ERROR("E2077", "syntax", "struct literals cannot have whitespace between the type name and the opening brace — write 'Name{...}' with no space or newline")
 
 /* --- E3xxx: Type Problems (Typechecker) --- */
 #define EZ_TYPE_ERRORS \

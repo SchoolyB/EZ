@@ -966,6 +966,14 @@ static AstNode *parse_call_expression(Parser *p, AstNode *function) {
 }
 
 static AstNode *parse_member_expression(Parser *p, AstNode *object) {
+    if (p->cur_token.preceded_by_ws) {
+        diag_error(p->diag, "E2074",
+            arena_strdup(p->arena,
+                "member access cannot have whitespace before the dot — write 'obj.field' or 'Enum.VARIANT' with no space or newline"),
+            p->file, p->cur_token.line, p->cur_token.column, 0);
+        /* Continue parsing the member so we swallow the identifier after '.'
+         * and don't cascade into unrelated diagnostics. */
+    }
     next_token(p); /* skip the identifier after dot */
     AstNode *node = ast_alloc(p->arena, NODE_MEMBER_EXPR, p->cur_token);
     node->data.member.object = object;
@@ -974,6 +982,13 @@ static AstNode *parse_member_expression(Parser *p, AstNode *object) {
 }
 
 static AstNode *parse_index_expression(Parser *p, AstNode *left) {
+    if (p->cur_token.preceded_by_ws) {
+        diag_error(p->diag, "E2075",
+            arena_strdup(p->arena,
+                "index expressions cannot have whitespace before the opening bracket — write 'arr[i]' with no space or newline"),
+            p->file, p->cur_token.line, p->cur_token.column, 0);
+        /* Continue parsing so we consume the closing ']'. */
+    }
     AstNode *node = ast_alloc(p->arena, NODE_INDEX_EXPR, p->cur_token);
     node->data.index_expr.left = left;
     next_token(p);
@@ -983,6 +998,12 @@ static AstNode *parse_index_expression(Parser *p, AstNode *left) {
 }
 
 static AstNode *parse_postfix_expression(Parser *p, AstNode *left) {
+    if (p->cur_token.preceded_by_ws) {
+        diag_error(p->diag, "E2076",
+            arena_strdup(p->arena,
+                "postfix operators ('++', '--', '^') cannot have whitespace before them — write 'x++', 'x--', or 'p^' with no space or newline"),
+            p->file, p->cur_token.line, p->cur_token.column, 0);
+    }
     AstNode *node = ast_alloc(p->arena, NODE_POSTFIX_EXPR, p->cur_token);
     node->data.postfix.left = left;
     node->data.postfix.op = p->cur_token.literal;
@@ -2009,6 +2030,13 @@ static AstNode *parse_enum_declaration(Parser *p) {
 
 /* Parse struct literal: StructName{field: value, ...} */
 static AstNode *parse_struct_literal(Parser *p, const char *name) {
+    if (p->cur_token.preceded_by_ws) {
+        diag_error(p->diag, "E2077",
+            arena_strdup(p->arena,
+                "struct literals cannot have whitespace between the type name and the opening brace — write 'Name{...}' with no space or newline"),
+            p->file, p->cur_token.line, p->cur_token.column, 0);
+        /* Continue parsing so we consume the closing '}'. */
+    }
     AstNode *node = ast_alloc(p->arena, NODE_STRUCT_VALUE, p->cur_token);
     node->data.struct_value.name = name;
 

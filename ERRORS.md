@@ -3,7 +3,7 @@
 > Auto-generated from `ezc/src/util/error_codes.h`. Do not edit manually.
 > Run `./scripts/generate_errors.sh` to regenerate.
 
-**Total: 154 codes** (142 errors, 12 warnings)
+**Total: 158 codes** (146 errors, 12 warnings)
 
 ---
 
@@ -65,6 +65,10 @@
 | `E2071` | syntax | empty string interpolation '${}' — interpolation requires an expression between the braces |
 | `E2072` | syntax | '&' is not a valid operator — use 'addr(x)' to take the address of a variable |
 | `E2073` | syntax | function calls cannot have whitespace between the name and the opening parenthesis — write 'name(...)' with no space or newline |
+| `E2074` | syntax | member access cannot have whitespace before the dot — write 'obj.field' or 'Enum.VARIANT' with no space or newline |
+| `E2075` | syntax | index expressions cannot have whitespace before the opening bracket — write 'arr[i]' with no space or newline |
+| `E2076` | syntax | postfix operators ('++', '--', '^') cannot have whitespace before them — write 'x++', 'x--', or 'p^' with no space or newline |
+| `E2077` | syntax | struct literals cannot have whitespace between the type name and the opening brace — write 'Name{...}' with no space or newline |
 | `E3001` | types | wrong type — you are using a value of one type where a different type is expected |
 | `E3002` | types | this operator does not work on this type — for example, you cannot subtract strings |
 | `E3003` | types | invalid array index type — array indices must be integers |
@@ -198,4 +202,4 @@
 
 ---
 
-*Generated on 2026-04-24 04:31:22 UTC*
+*Generated on 2026-04-24 04:42:30 UTC*
