@@ -186,9 +186,24 @@ static const char *find_runtime_dir(const char *argv0) {
         }
     }
 
-    /* 4. Relative to CWD (running from project root) */
-    if (access("ezc/src/runtime/ez_runtime.h", R_OK) == 0) {
-        return "ezc/src";
+    /* 4. Walk up from CWD looking for the project root */
+    {
+        char cwd[PATH_BUF_SIZE];
+        if (getcwd(cwd, sizeof(cwd))) {
+            char probe[PATH_BUF_SIZE];
+            char *dir = cwd;
+            while (*dir) {
+                snprintf(probe, sizeof(probe), "%s/ezc/src/runtime/ez_runtime.h", dir);
+                if (access(probe, R_OK) == 0) {
+                    snprintf(path, sizeof(path), "%s/ezc/src", dir);
+                    return path;
+                }
+                /* Move to parent */
+                char *slash = strrchr(dir, '/');
+                if (!slash || slash == dir) break;
+                *slash = '\0';
+            }
+        }
     }
 
     /* 5. System install location */
