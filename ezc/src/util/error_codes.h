@@ -134,7 +134,8 @@
     EZ_ERROR("E3066", "types", "function reference signature mismatch — expected and actual function types differ") \
     EZ_ERROR("E3067", "types", "argument passed by value to a '&' parameter — pass an lvalue (variable) instead") \
     EZ_ERROR("E3068", "types", "'void' is not a user-facing type — omit the '-> R' clause to declare a function with no return value") \
-    EZ_ERROR("E3069", "types", "'&' on a parameter must come before the name, not the type — write '&name type' to mark a parameter mutable")
+    EZ_ERROR("E3069", "types", "'&' on a parameter must come before the name, not the type — write '&name type' to mark a parameter mutable") \
+    EZ_ERROR("E3070", "types", "'ensure' may only appear at the top level of a function body — lift it out of the enclosing block")
 
 /* --- E4xxx: Name Problems (References) --- */
 #define EZ_REFERENCE_ERRORS \

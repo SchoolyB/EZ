@@ -4193,6 +4193,53 @@ static bool block_has_return(AstNode *node) {
     return false;
 }
 
+/* E3070: ensure must appear at the top level of a function body. The
+ * codegen ensure-cleanup pass only walks the function-body block, so
+ * an ensure inside a for/while/if/etc. body would silently never fire.
+ * Rather than introducing closure-capture semantics for nested ensures,
+ * reject them at the type-check stage with a clear error. */
+static void check_no_nested_ensure(TypeChecker *tc, AstNode *node, bool nested) {
+    if (!node) return;
+    if (node->kind == NODE_ENSURE_STMT && nested) {
+        diag_error(tc->diag, "E3070",
+            strdup("'ensure' may only appear at the top level of a function body — lift it out of the enclosing block"),
+            NODE_FILE(tc, node), node->token.line, node->token.column, 0);
+        return;
+    }
+    if (node->kind == NODE_BLOCK_STMT) {
+        for (int i = 0; i < node->data.block.count; i++) {
+            check_no_nested_ensure(tc, node->data.block.stmts[i], nested);
+        }
+        return;
+    }
+    switch (node->kind) {
+    case NODE_IF_STMT:
+        check_no_nested_ensure(tc, node->data.if_stmt.consequence, true);
+        check_no_nested_ensure(tc, node->data.if_stmt.alternative, true);
+        break;
+    case NODE_FOR_STMT:
+        check_no_nested_ensure(tc, node->data.for_stmt.body, true);
+        break;
+    case NODE_FOR_EACH_STMT:
+        check_no_nested_ensure(tc, node->data.for_each.body, true);
+        break;
+    case NODE_WHILE_STMT:
+        check_no_nested_ensure(tc, node->data.while_stmt.body, true);
+        break;
+    case NODE_LOOP_STMT:
+        check_no_nested_ensure(tc, node->data.loop_stmt.body, true);
+        break;
+    case NODE_WHEN_STMT:
+        for (int i = 0; i < node->data.when_stmt.case_count; i++) {
+            check_no_nested_ensure(tc, node->data.when_stmt.cases[i].body, true);
+        }
+        check_no_nested_ensure(tc, node->data.when_stmt.default_body, true);
+        break;
+    default:
+        break;
+    }
+}
+
 static void check_block(TypeChecker *tc, AstNode *node) {
     if (!node || node->kind != NODE_BLOCK_STMT) return;
     bool seen_return = false;
@@ -5912,6 +5959,9 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
         tc->current_main_return_suppressed = main_return_coerced;
 
         check_block(tc, node->data.func_decl.body);
+
+        /* E3070: ensure must be at the function body's top level. */
+        check_no_nested_ensure(tc, node->data.func_decl.body, false);
 
         /* Check for missing return in non-void function (simple: check last statement) */
         if (tc->current_return_count > 0 && node->data.func_decl.body &&

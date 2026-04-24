@@ -3,7 +3,7 @@
 > Auto-generated from `ezc/src/util/error_codes.h`. Do not edit manually.
 > Run `./scripts/generate_errors.sh` to regenerate.
 
-**Total: 151 codes** (139 errors, 12 warnings)
+**Total: 152 codes** (140 errors, 12 warnings)
 
 ---
 
@@ -121,6 +121,7 @@
 | `E3067` | types | argument passed by value to a '&' parameter — pass an lvalue (variable) instead |
 | `E3068` | types | 'void' is not a user-facing type — omit the '-> R' clause to declare a function with no return value |
 | `E3069` | types | '&' on a parameter must come before the name, not the type — write '&name type' to mark a parameter mutable |
+| `E3070` | types | 'ensure' may only appear at the top level of a function body — lift it out of the enclosing block |
 | `E4001` | names | this variable does not exist — check the spelling or make sure it is declared above this line |
 | `E4002` | names | this function does not exist — check the spelling or make sure it is defined |
 | `E4003` | names | a variable with this name already exists in this scope — use a different name |
@@ -195,4 +196,4 @@
 
 ---
 
-*Generated on 2026-04-24 00:38:29 UTC*
+*Generated on 2026-04-24 00:53:21 UTC*
