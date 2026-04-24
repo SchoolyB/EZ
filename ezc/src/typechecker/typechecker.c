@@ -5126,6 +5126,26 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
             }
         }
 
+        /* E3072: `return nil` from a function returning a non-nullable type
+         * (struct, int, string, array, etc.). nil is only valid for pointer
+         * and error return types. */
+        if (tc->current_return_count > 0 && node->data.return_stmt.count > 0) {
+            AstNode *rv = node->data.return_stmt.values[0];
+            if (rv->kind == NODE_NIL_VALUE) {
+                EzType *expected = tc->current_return_types[0];
+                if (expected && expected->kind != TK_POINTER &&
+                    expected->kind != TK_ERROR && expected->kind != TK_UNKNOWN &&
+                    expected->kind != TK_NIL && expected->kind != TK_VOID) {
+                    char msg[256];
+                    snprintf(msg, sizeof(msg),
+                        "cannot return 'nil' from a function that returns '%s'; nil is only valid for pointer and error types",
+                        type_name(expected));
+                    diag_error_msg(tc->diag, "E3072", strdup(msg),
+                        NODE_FILE(tc, rv), rv->token.line, rv->token.column, 0);
+                }
+            }
+        }
+
         /* Check return type matches function signature */
         if (tc->current_return_count == 0 && node->data.return_stmt.count > 0) {
             /* Returning a value from a void function; suppress when

@@ -3,7 +3,7 @@
 > Auto-generated from `ezc/src/util/error_codes.h`. Do not edit manually.
 > Run `./scripts/generate_errors.sh` to regenerate.
 
-**Total: 160 codes** (148 errors, 12 warnings)
+**Total: 161 codes** (149 errors, 12 warnings)
 
 ---
 
@@ -130,6 +130,7 @@
 | `E3069` | types | '&' on a parameter must come before the name, not the type; write '&%s %s' to mark this parameter mutable |
 | `E3070` | types | 'ensure' may only appear at the top level of a function body; lift it out of the enclosing block |
 | `E3071` | types | cannot 'return nil' from a function whose return type contains '?'; 'nil' is not a valid value for every binding (e.g. int, string) |
+| `E3072` | types | cannot return 'nil' from a function that returns '%s'; nil is only valid for pointer and error types |
 | `E4001` | names | this variable does not exist; check the spelling or make sure it is declared above this line |
 | `E4002` | names | this function does not exist; check the spelling or make sure it is defined |
 | `E4003` | names | variable '%s' already declared in this scope (line %d) |
@@ -204,4 +205,4 @@
 
 ---
 
-*Generated on 2026-04-24 14:43:11 UTC*
+*Generated on 2026-04-24 15:50:11 UTC*
