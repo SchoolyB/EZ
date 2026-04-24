@@ -3,7 +3,7 @@
 > Auto-generated from `ezc/src/util/error_codes.h`. Do not edit manually.
 > Run `./scripts/generate_errors.sh` to regenerate.
 
-**Total: 152 codes** (140 errors, 12 warnings)
+**Total: 153 codes** (141 errors, 12 warnings)
 
 ---
 
@@ -122,6 +122,7 @@
 | `E3068` | types | 'void' is not a user-facing type — omit the '-> R' clause to declare a function with no return value |
 | `E3069` | types | '&' on a parameter must come before the name, not the type — write '&name type' to mark a parameter mutable |
 | `E3070` | types | 'ensure' may only appear at the top level of a function body — lift it out of the enclosing block |
+| `E3071` | types | cannot 'return nil' from a function whose return type contains '?' — 'nil' is not a valid value for every binding |
 | `E4001` | names | this variable does not exist — check the spelling or make sure it is declared above this line |
 | `E4002` | names | this function does not exist — check the spelling or make sure it is defined |
 | `E4003` | names | a variable with this name already exists in this scope — use a different name |
@@ -196,4 +197,4 @@
 
 ---
 
-*Generated on 2026-04-24 00:53:21 UTC*
+*Generated on 2026-04-24 01:43:18 UTC*

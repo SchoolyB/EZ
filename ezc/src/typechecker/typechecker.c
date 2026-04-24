@@ -5310,6 +5310,31 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
                 }
             }
         }
+        /* E3071: `return nil` from a function whose return type contains
+         * '?' is unsound — nil isn't a value for every binding (int,
+         * string, etc.). The codegen would otherwise emit `NULL` and let
+         * clang reject the result as an int/struct conversion error.
+         * Allow nil in non-primary return slots (e.g. (?, Error)).
+         * Skip during the per-instantiation re-check so we only emit once. */
+        if (!tc->suppress_typetable_writes &&
+            tc->current_return_count > 0 && node->data.return_stmt.count > 0) {
+            int n = node->data.return_stmt.count;
+            int slots = n < tc->current_return_count ? n : tc->current_return_count;
+            for (int i = 0; i < slots; i++) {
+                AstNode *rv = node->data.return_stmt.values[i];
+                if (rv->kind != NODE_NIL_VALUE) continue;
+                const char *tn = (i == 0 && tc->current_return_type_names)
+                    ? tc->current_return_type_names[i] : NULL;
+                if (tn && type_name_has_wildcard(tn)) {
+                    char msg[256];
+                    snprintf(msg, sizeof(msg),
+                        "cannot 'return nil' from a function whose return type contains '?' \xe2\x80\x94 'nil' is not a valid value for every binding (e.g. int, string)");
+                    diag_error(tc->diag, "E3071", strdup(msg),
+                        NODE_FILE(tc, rv), rv->token.line, rv->token.column, 0);
+                }
+            }
+        }
+
         /* Check return type matches function signature */
         if (tc->current_return_count == 0 && node->data.return_stmt.count > 0) {
             /* Returning a value from a void function — suppress when
