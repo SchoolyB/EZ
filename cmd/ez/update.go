@@ -751,13 +751,6 @@ func runUpdate(confirm bool, url string, pre bool) {
 		})
 	}
 
-	// Dev builds aren't upgradeable via ez update — the binary was built
-	// from a local checkout and has no corresponding release artifact.
-	if vi.Channel == "dev" {
-		fmt.Println("\nDev builds aren't managed by 'ez update'. Rebuild from source to advance.")
-		return
-	}
-
 	// Pre-release installs require --pre to advance. Bare `ez update`
 	// refuses rather than silently downgrading to stable or auto-tracking
 	// the pre-release channel — either would surprise the user.
