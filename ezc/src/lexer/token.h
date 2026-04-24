@@ -8,6 +8,8 @@
 #ifndef EZC_TOKEN_H
 #define EZC_TOKEN_H
 
+#include <stdbool.h>
+
 typedef enum {
     /* Special tokens */
     TOK_ILLEGAL,
@@ -142,6 +144,7 @@ typedef struct {
     int line;
     int column;
     const char *file;       /* Source file this token came from (NULL = main file) */
+    bool preceded_by_ws;    /* True if whitespace/comments were skipped before this token */
 } Token;
 
 /* Look up an identifier - returns keyword token type or TOK_IDENT */

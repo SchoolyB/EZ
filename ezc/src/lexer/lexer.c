@@ -330,7 +330,9 @@ Lexer *lexer_create(Arena *arena, const char *input, const char *file) {
 Token lexer_next_token(Lexer *l) {
     Token tok;
     l->error_code = NULL;
+    int pre_skip_position = l->position;
     skip_whitespace_and_comments(l);
+    bool had_leading_gap = l->position != pre_skip_position;
 
     /* Check for lexer errors from comment/whitespace skipping */
     if (l->error_code) {
@@ -561,5 +563,6 @@ Token lexer_next_token(Lexer *l) {
     read_char(l);
 done:
     tok.file = l->file;
+    tok.preceded_by_ws = had_leading_gap;
     return tok;
 }

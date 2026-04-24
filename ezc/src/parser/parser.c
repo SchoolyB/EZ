@@ -951,6 +951,14 @@ static AstNode **parse_expression_list(Parser *p, TokenType end, int *count) {
 }
 
 static AstNode *parse_call_expression(Parser *p, AstNode *function) {
+    if (p->cur_token.preceded_by_ws) {
+        diag_error(p->diag, "E2073",
+            arena_strdup(p->arena,
+                "function calls cannot have whitespace between the name and the opening parenthesis — write 'name(...)' with no space or newline"),
+            p->file, p->cur_token.line, p->cur_token.column, 0);
+        /* Still parse the argument list so we consume the closing ')'
+         * and don't cascade into E2001/E2002 on the unrelated tokens. */
+    }
     AstNode *node = ast_alloc(p->arena, NODE_CALL_EXPR, p->cur_token);
     node->data.call.function = function;
     node->data.call.args = parse_expression_list(p, TOK_RPAREN, &node->data.call.arg_count);
@@ -2418,7 +2426,7 @@ Parser *parser_create(Arena *arena, Lexer *lexer, const char *file, DiagnosticLi
 }
 
 AstNode *parser_parse_program(Parser *p) {
-    Token tok = {TOK_EOF, "", 0, 0, NULL};
+    Token tok = {TOK_EOF, "", 0, 0, NULL, false};
     AstNode *program = ast_alloc(p->arena, NODE_PROGRAM, tok);
     program->data.program.module_decl = NULL;
     program->data.program.using_stmts = NULL;

@@ -74,7 +74,8 @@
     EZ_ERROR("E2069", "syntax", "unexpected semicolon — statements and declarations are separated by newlines, not semicolons") \
     EZ_ERROR("E2070", "syntax", "wildcard type '?' is only allowed in function parameter and return types — not in variable declarations, struct fields, or enum types") \
     EZ_ERROR("E2071", "syntax", "empty string interpolation '${}' — interpolation requires an expression between the braces") \
-    EZ_ERROR("E2072", "syntax", "'&' is not a valid operator — use 'addr(x)' to take the address of a variable")
+    EZ_ERROR("E2072", "syntax", "'&' is not a valid operator — use 'addr(x)' to take the address of a variable") \
+    EZ_ERROR("E2073", "syntax", "function calls cannot have whitespace between the name and the opening parenthesis — write 'name(...)' with no space or newline")
 
 /* --- E3xxx: Type Problems (Typechecker) --- */
 #define EZ_TYPE_ERRORS \
