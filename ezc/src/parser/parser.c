@@ -2359,6 +2359,18 @@ static AstNode *parse_statement(Parser *p) {
     case TOK_ENSURE:
         return parse_ensure_statement(p);
     default: {
+        /* IDENT IDENT at statement position means the user tried to
+         * declare a variable but typed the wrong leading keyword
+         * (e.g. `cont myVar = 10`). No valid EZ statement has this
+         * shape, so we can confidently redirect them at 'const' or
+         * 'mut'. Consume the botched header and keep parsing. */
+        if (cur_token_is(p, TOK_IDENT) && peek_token_is(p, TOK_IDENT)) {
+            diag_error_codef(p->diag, "E2078",
+                p->file, p->cur_token.line, p->cur_token.column, 0,
+                p->peek_token.literal, p->peek_token.literal);
+            synchronize(p);
+            return NULL;
+        }
         /* Could be assignment or expression statement */
         AstNode *expr = parse_expression(p, PREC_LOWEST);
         if (!expr) return NULL;

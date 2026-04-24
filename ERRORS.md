@@ -3,7 +3,7 @@
 > Auto-generated from `ezc/src/util/error_codes.h`. Do not edit manually.
 > Run `./scripts/generate_errors.sh` to regenerate.
 
-**Total: 158 codes** (146 errors, 12 warnings)
+**Total: 159 codes** (147 errors, 12 warnings)
 
 ---
 
@@ -69,6 +69,7 @@
 | `E2075` | syntax | index expressions cannot have whitespace before the opening bracket; write 'arr[i]' with no space or newline |
 | `E2076` | syntax | postfix operators ('++', '--', '^') cannot have whitespace before them; write 'x++', 'x--', or 'p^' with no space or newline |
 | `E2077` | syntax | cannot have whitespace between a struct name and its opening brace; write 'Name{...}' with no space or newline |
+| `E2078` | syntax | variable declarations must start with 'const' or 'mut'; did you mean 'const %s' or 'mut %s'? |
 | `E3001` | types | type mismatch; a value of one type is used where a different type is expected |
 | `E3002` | types | this operator does not work on this type; for example, strings cannot be subtracted |
 | `E3003` | types | invalid array index type; array indices must be integers |
@@ -202,4 +203,4 @@
 
 ---
 
-*Generated on 2026-04-24 14:07:56 UTC*
+*Generated on 2026-04-24 14:12:32 UTC*
