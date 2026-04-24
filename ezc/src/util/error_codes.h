@@ -80,7 +80,8 @@
     EZ_ERROR("E2075", "syntax", "index expressions cannot have whitespace before the opening bracket; write 'arr[i]' with no space or newline") \
     EZ_ERROR("E2076", "syntax", "postfix operators ('++', '--', '^') cannot have whitespace before them; write 'x++', 'x--', or 'p^' with no space or newline") \
     EZ_ERROR("E2077", "syntax", "cannot have whitespace between a struct name and its opening brace; write 'Name{...}' with no space or newline") \
-    EZ_ERROR("E2078", "syntax", "variable declarations must start with 'const' or 'mut'; did you mean 'const %s' or 'mut %s'?")
+    EZ_ERROR("E2078", "syntax", "variable declarations must start with 'const' or 'mut'; did you mean 'const %s' or 'mut %s'?") \
+    EZ_ERROR("E2079", "syntax", "'nil' is a value, not a type; for a function that returns nothing, omit the '-> ...' clause")
 
 /* --- E3xxx: Type Problems (Typechecker) --- */
 #define EZ_TYPE_ERRORS \
@@ -142,8 +143,7 @@
     EZ_ERROR("E3068", "types", "'void' is not a user-facing type; omit the '-> R' clause to declare a function with no return value") \
     EZ_ERROR("E3069", "types", "'&' on a parameter must come before the name, not the type; write '&%s %s' to mark this parameter mutable") \
     EZ_ERROR("E3070", "types", "'ensure' may only appear at the top level of a function body; lift it out of the enclosing block") \
-    EZ_ERROR("E3071", "types", "cannot 'return nil' from a function whose return type contains '?'; 'nil' is not a valid value for every binding (e.g. int, string)") \
-    EZ_ERROR("E3072", "types", "'nil' is a value, not a type; variables cannot be declared with type 'nil'")
+    EZ_ERROR("E3071", "types", "cannot 'return nil' from a function whose return type contains '?'; 'nil' is not a valid value for every binding (e.g. int, string)")
 
 /* --- E4xxx: Name Problems (References) --- */
 #define EZ_REFERENCE_ERRORS \

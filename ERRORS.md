@@ -70,6 +70,7 @@
 | `E2076` | syntax | postfix operators ('++', '--', '^') cannot have whitespace before them; write 'x++', 'x--', or 'p^' with no space or newline |
 | `E2077` | syntax | cannot have whitespace between a struct name and its opening brace; write 'Name{...}' with no space or newline |
 | `E2078` | syntax | variable declarations must start with 'const' or 'mut'; did you mean 'const %s' or 'mut %s'? |
+| `E2079` | syntax | 'nil' is a value, not a type; for a function that returns nothing, omit the '-> ...' clause |
 | `E3001` | types | type mismatch; a value of one type is used where a different type is expected |
 | `E3002` | types | this operator does not work on this type; for example, strings cannot be subtracted |
 | `E3003` | types | invalid array index type; array indices must be integers |
@@ -129,7 +130,6 @@
 | `E3069` | types | '&' on a parameter must come before the name, not the type; write '&%s %s' to mark this parameter mutable |
 | `E3070` | types | 'ensure' may only appear at the top level of a function body; lift it out of the enclosing block |
 | `E3071` | types | cannot 'return nil' from a function whose return type contains '?'; 'nil' is not a valid value for every binding (e.g. int, string) |
-| `E3072` | types | 'nil' is a value, not a type; variables cannot be declared with type 'nil' |
 | `E4001` | names | this variable does not exist; check the spelling or make sure it is declared above this line |
 | `E4002` | names | this function does not exist; check the spelling or make sure it is defined |
 | `E4003` | names | variable '%s' already declared in this scope (line %d) |
@@ -204,4 +204,4 @@
 
 ---
 
-*Generated on 2026-04-24 14:23:49 UTC*
+*Generated on 2026-04-24 14:43:11 UTC*

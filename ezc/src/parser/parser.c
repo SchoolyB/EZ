@@ -1063,10 +1063,19 @@ static AstNode *parse_var_declaration(Parser *p) {
      * token falls through to the generic "unexpected token" fallback
      * and the user gets no hint about why `?` isn't allowed here
      * (#1481). */
+    /* E2079: reject 'nil' as a type annotation. nil is a value per the
+     * language, not a type; consume the token to avoid a cascading
+     * "nil is an unexpected expression statement" diagnostic. */
+    if (peek_token_is(p, TOK_NIL)) {
+        next_token(p); /* consume nil */
+        diag_error_code(p->diag, "E2079",
+            p->file, p->cur_token.line, p->cur_token.column, 0);
+    }
+
     node->data.var_decl.type_name = NULL;
     if (peek_token_is(p, TOK_IDENT) || peek_token_is(p, TOK_CARET) || peek_token_is(p, TOK_LBRACKET) ||
         peek_token_is(p, TOK_STRUCT) || peek_token_is(p, TOK_ENUM) ||
-        peek_token_is(p, TOK_QUESTION) || peek_token_is(p, TOK_NIL)) {
+        peek_token_is(p, TOK_QUESTION)) {
         next_token(p);
         node->data.var_decl.type_name = parse_complex_type(p);
         if (!node->data.var_decl.type_name) return NULL;
@@ -1461,6 +1470,22 @@ static AstNode *parse_func_declaration(Parser *p) {
                 arena_strdup(p->arena, "expected return type after '->', got '{'; either specify a type or remove the '->'"),
                 p->file, p->cur_token.line, p->cur_token.column, 0);
             /* Parse body to avoid cascading errors */
+            node->data.func_decl.body = parse_block_statement(p);
+            return node;
+        }
+
+        /* E2079: reject 'nil' as a return type. For a function that
+         * returns nothing, the user should omit the '-> ...' clause. */
+        if (cur_token_is(p, TOK_NIL)) {
+            diag_error_code(p->diag, "E2079",
+                p->file, p->cur_token.line, p->cur_token.column, 0);
+            /* Skip the nil and parse the body so the error doesn't
+             * cascade into a codegen crash on an unknown C type. */
+            next_token(p);
+            if (!cur_token_is(p, TOK_LBRACE)) {
+                /* Malformed; bail with what we have. */
+                return node;
+            }
             node->data.func_decl.body = parse_block_statement(p);
             return node;
         }

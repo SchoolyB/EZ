@@ -420,11 +420,7 @@ mut s string = string(c)     // convert to string
 
 Wide integers use the same overflow-checked arithmetic as `int` and `uint` — overflow produces a runtime panic.
 
-#### 3.1.10 Nil Type (`nil`)
-
-The `nil` type has a single value, also written `nil`. It represents the absence of a value and is used in error handling.
-
-#### 3.1.11 Pointer Type (`^Type`)
+#### 3.1.10 Pointer Type (`^Type`)
 
 The pointer type `^Type` represents a memory address pointing to a value of `Type`.
 
@@ -1193,7 +1189,7 @@ when x {
 }
 ```
 
-**Allowed condition types:** `int`, `uint`, `string`, `char`, `byte`, `bool`, `float`, `nil`, and enum types. Float conditions emit a W2012 warning about imprecision. Collection types (arrays, maps) are not allowed.
+**Allowed condition types:** `int`, `uint`, `string`, `char`, `byte`, `bool`, `float`, and enum types. Float conditions emit a W2012 warning about imprecision. Collection types (arrays, maps) are not allowed.
 
 **Strict mode** requires all possible values to be handled:
 
@@ -1254,7 +1250,7 @@ When the call returns a non-nil error, `or_return` immediately returns from the 
 func_decl = "do" identifier "(" [ param_list ] ")" [ "->" return_type ] block .
 param_list = param { "," param } .
 param = [ "&" ] identifier [ "," identifier ]... type [ "=" default_value ] .
-return_type = type | "(" type { "," type } ")" | "nil" | "(" type "," "nil" ")"
+return_type = type | "(" type { "," type } ")"
             | "(" named_return { "," named_return } ")" .
 named_return = identifier [ "," identifier ]... type .
 ```
