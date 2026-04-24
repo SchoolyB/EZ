@@ -4138,6 +4138,14 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
                 strdup("'void' cannot be used as a variable type"),
                 NODE_FILE(tc, node), node->token.line, node->token.column, 0);
         }
+        /* E3072: nil is a value, not a type. Early return because
+         * continuing would emit a cascading E3001 comparing the RHS
+         * against a non-existent "nil" type, which is redundant. */
+        if (node->data.var_decl.type_name && strcmp(node->data.var_decl.type_name, "nil") == 0) {
+            diag_error_code(tc->diag, "E3072",
+                NODE_FILE(tc, node), node->token.line, node->token.column, 0);
+            break;
+        }
         /* E3038: void in array/map types.
          * "void" is legal as a typed-func return type (encoded as
          * "func(...)->void"), so skip the strstr check for those. */
