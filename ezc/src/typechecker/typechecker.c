@@ -4051,8 +4051,9 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
             }
         }
         /* Build a typed-func type from the referenced function's signature.
-         * Encoded as "func(p1,&p2,...)->R" so the type system carries the
-         * shape end-to-end (no more bare-func opacity). */
+         * Canonical encoding: "func(p1,&p2,...)" with no "->R" suffix when
+         * the function returns nothing; "func(...)->R" for a single return;
+         * "func(...)->(R1,R2)" for multi-return. */
         if (ref_sig) {
             char buf[512];
             int n = snprintf(buf, sizeof(buf), "func(");
@@ -4065,17 +4066,14 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                 n += snprintf(buf + n, sizeof(buf) - (size_t)n, "%s%s%s",
                     i ? "," : "", mut_p ? "&" : "", ptn);
             }
-            const char *ret_name = "void";
-            if (ref_sig->return_count == 1 && ref_sig->return_types[0] && ref_sig->return_types[0]->name) {
-                ret_name = ref_sig->return_types[0]->name;
-            }
-            n += snprintf(buf + n, sizeof(buf) - (size_t)n, ")->%s", ret_name);
-            /* Multi-return: encode as ")->(R1,R2)" instead. */
-            if (ref_sig->return_count > 1) {
-                /* Rewind the prior ")->void" suffix and rebuild. */
-                int rewind = (int)strlen(")->void");
-                n -= rewind;
-                n += snprintf(buf + n, sizeof(buf) - (size_t)n, ")->(");
+            n += snprintf(buf + n, sizeof(buf) - (size_t)n, ")");
+            if (ref_sig->return_count == 1 && ref_sig->return_types[0] &&
+                ref_sig->return_types[0]->name &&
+                strcmp(ref_sig->return_types[0]->name, "void") != 0) {
+                n += snprintf(buf + n, sizeof(buf) - (size_t)n, "->%s",
+                    ref_sig->return_types[0]->name);
+            } else if (ref_sig->return_count > 1) {
+                n += snprintf(buf + n, sizeof(buf) - (size_t)n, "->(");
                 for (int i = 0; i < ref_sig->return_count; i++) {
                     const char *rn = (ref_sig->return_types[i] && ref_sig->return_types[i]->name)
                         ? ref_sig->return_types[i]->name : "int";

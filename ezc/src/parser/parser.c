@@ -324,11 +324,15 @@ static const char *parse_complex_type(Parser *p) {
             }
         }
         if (!expect_peek(p, TOK_RPAREN)) return NULL;
-        /* Optional -> R | -> (R1, R2, ...) */
-        char ret[256] = "void";
+        /* Optional -> R | -> (R1, R2, ...).
+         * Absence of -> means "no return value" (the canonical encoding
+         * just omits the suffix — there is no user-facing 'void' type). */
+        char ret[256] = {0};
+        bool has_return = false;
         if (peek_token_is(p, TOK_ARROW)) {
             next_token(p); /* -> */
             next_token(p); /* first return type or ( */
+            has_return = true;
             if (cur_token_is(p, TOK_LPAREN)) {
                 size_t rlen = 0;
                 ret[rlen++] = '(';
@@ -336,6 +340,13 @@ static const char *parse_complex_type(Parser *p) {
                 for (;;) {
                     const char *rt = parse_complex_type(p);
                     if (!rt) return NULL;
+                    if (rt && strcmp(rt, "void") == 0) {
+                        diag_error(p->diag, "E3068",
+                            arena_strdup(p->arena,
+                                "'void' is not a user-facing type \xe2\x80\x94 omit the '-> R' clause to declare a function with no return value"),
+                            p->file, p->cur_token.line, p->cur_token.column, 0);
+                        return NULL;
+                    }
                     int n = snprintf(ret + rlen, sizeof(ret) - rlen, "%s%s",
                         rlen > 1 ? "," : "", rt);
                     if (n < 0 || (size_t)n >= sizeof(ret) - rlen) return NULL;
@@ -351,12 +362,23 @@ static const char *parse_complex_type(Parser *p) {
             } else {
                 const char *rt = parse_complex_type(p);
                 if (!rt) return NULL;
+                if (strcmp(rt, "void") == 0) {
+                    diag_error(p->diag, "E3068",
+                        arena_strdup(p->arena,
+                            "'void' is not a user-facing type \xe2\x80\x94 omit the '-> R' clause to declare a function with no return value"),
+                        p->file, p->cur_token.line, p->cur_token.column, 0);
+                    return NULL;
+                }
                 snprintf(ret, sizeof(ret), "%s", rt);
             }
         }
         size_t ts_len = 5 /* "func(" */ + plen + 5 /* ")->\0" + slack */ + strlen(ret) + 1;
         char *type_str = arena_alloc(p->arena, ts_len);
-        snprintf(type_str, ts_len, "func(%s)->%s", params, ret);
+        if (has_return) {
+            snprintf(type_str, ts_len, "func(%s)->%s", params, ret);
+        } else {
+            snprintf(type_str, ts_len, "func(%s)", params);
+        }
         return type_str;
     } else {
         /* Plain type name (possibly qualified: module.Type) */
