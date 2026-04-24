@@ -738,6 +738,13 @@ static AstNode *parse_prefix(Parser *p) {
             return node;
         }
 
+        /* Leading comma: {, 1, 2} — reuse the trailing-comma diagnostic. */
+        if (cur_token_is(p, TOK_COMMA)) {
+            diag_error_code(p->diag, "E2017",
+                p->file, p->cur_token.line, p->cur_token.column, 0);
+            next_token(p); /* skip the stray , and keep parsing */
+        }
+
         /* Parse first expression */
         AstNode *first = parse_expression(p, PREC_LOWEST);
 

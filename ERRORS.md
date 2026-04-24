@@ -37,7 +37,7 @@
 | `E2014` | syntax | duplicate variant name '%s' in enum '%s' |
 | `E2015` | syntax | duplicate field '%s' in struct literal; field can only be initialized once |
 | `E2016` | syntax | enum '%s' has no values; an enum must have at least one value |
-| `E2017` | syntax | trailing comma; remove it before the closing bracket or brace |
+| `E2017` | syntax | stray comma; remove the extra ',' |
 | `E2025` | syntax | expected integer for array size; the second value in [type, size] must be a positive integer |
 | `E2036` | syntax | imports must be at the top of the file, not inside a function |
 | `E2037` | syntax | duplicate function name in struct; each function must have a unique name |
@@ -202,4 +202,4 @@
 
 ---
 
-*Generated on 2026-04-24 14:05:24 UTC*
+*Generated on 2026-04-24 14:07:56 UTC*
