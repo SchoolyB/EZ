@@ -5032,15 +5032,54 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
                         node->data.var_decl.name);
                     if (sym) sym->is_ref = true;
                 }
-                /* Store multi-return types for temp variables from calls */
+                /* Store multi-return types for temp variables from calls.
+                 * For generic functions, substitute the wildcard binding
+                 * so destructured slots get concrete types instead of
+                 * TK_UNKNOWN — without this, `mut a, b = pair(42)` where
+                 * pair returns (?, ?) leaves the temp's slot types
+                 * unknown, the unannotated LHS vars never declare, and
+                 * subsequent uses error as undefined. */
                 if (fn->kind == NODE_LABEL) {
                     FuncSig *sig = find_func(tc, fn->data.label.value);
                     if (sig && sig->return_count > 1) {
                         Symbol *sym = scope_lookup_local(tc->current_scope,
                             node->data.var_decl.name);
                         if (sym) {
-                            sym->ret_types = sig->return_types;
-                            sym->ret_count = sig->return_count;
+                            EzType **slots = sig->return_types;
+                            int slot_count = sig->return_count;
+                            if (sig->is_generic && sig->decl &&
+                                sig->decl->kind == NODE_FUNC_DECL) {
+                                /* Bind '?' from the call's args, then
+                                 * substitute into each return slot. */
+                                AstNode *call = node->data.var_decl.value;
+                                AstNode *decl = sig->decl;
+                                char *binding = NULL;
+                                int cc = call->data.call.arg_count <
+                                         decl->data.func_decl.param_count
+                                    ? call->data.call.arg_count
+                                    : decl->data.func_decl.param_count;
+                                for (int ai = 0; ai < cc && !binding; ai++) {
+                                    const char *ptn =
+                                        decl->data.func_decl.params[ai].type_name;
+                                    if (!ptn || !type_name_has_wildcard(ptn)) continue;
+                                    EzType *at = resolve_expr(tc, call->data.call.args[ai]);
+                                    binding = bind_wildcard(ptn, at);
+                                }
+                                if (binding) {
+                                    int rc = decl->data.func_decl.return_type_count;
+                                    EzType **subbed = malloc(sizeof(EzType *) * (size_t)rc);
+                                    for (int ri = 0; ri < rc; ri++) {
+                                        char *sub = substitute_wildcard(
+                                            decl->data.func_decl.return_types[ri], binding);
+                                        subbed[ri] = sub ? type_from_name(sub) : &TYPE_UNKNOWN;
+                                    }
+                                    free(binding);
+                                    slots = subbed;
+                                    slot_count = rc;
+                                }
+                            }
+                            sym->ret_types = slots;
+                            sym->ret_count = slot_count;
                         }
                     }
                 }
