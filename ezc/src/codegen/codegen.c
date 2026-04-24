@@ -4695,6 +4695,7 @@ static void emit_call_expression(CodeGen *cg, AstNode *node) {
         }
     }
 
+    bool direct_known_call = (fn_name && target_func);
     if (fn_name && target_func) {
         /* Known function — use ez_fn_ prefix. For generic functions,
          * rewrite to the mangled instantiation name derived from the
@@ -4798,8 +4799,10 @@ static void emit_call_expression(CodeGen *cg, AstNode *node) {
             typed_sig = callee_t->func_sig;
         }
         AstNode *ref_func = NULL;
-        if (!typed_sig) {
-            /* Fallback: scan var_decls for var = ()foo (bare-func path) */
+        /* Always scan, even when typed_sig is set: the FuncSig in the
+         * AST decl carries default values that the typed-func sig does
+         * not, so the scan is needed for the defaults-fill path below. */
+        {
             for (int si = 0; si < cg->func_count && !ref_func; si++) {
                 AstNode *fn_decl = cg->all_funcs[si];
                 if (!fn_decl->data.func_decl.body) continue;
@@ -4923,6 +4926,79 @@ static void emit_call_expression(CodeGen *cg, AstNode *node) {
     int param_count = target_func ? target_func->data.func_decl.param_count
                                   : (call_typed_sig ? call_typed_sig->param_count : 0);
     if (total_args < param_count) total_args = param_count;
+
+    /* If any default-fill positions reference a parameter name, the default
+     * expression has to evaluate with those names in scope. Inline-paste
+     * into the caller would emit `ez_fn_f(10, a + 1)` and clang errors on
+     * `a`. Detect "defaults will fire AND none of the affected params are
+     * &-mut" and rewrite as a statement expression that binds the earlier
+     * provided args to local copies named after the parameters. */
+    bool uses_defaults = false;
+    bool any_mut_param = false;
+    if (target_func) {
+        for (int i = node->data.call.arg_count; i < param_count; i++) {
+            if (target_func->data.func_decl.params[i].default_value) {
+                uses_defaults = true;
+                break;
+            }
+        }
+        for (int i = 0; i < target_func->data.func_decl.param_count; i++) {
+            if (target_func->data.func_decl.params[i].mutable) {
+                any_mut_param = true;
+                break;
+            }
+        }
+    }
+    /* Mut params would need address aliasing rather than value-copy bindings;
+     * those edge cases keep the legacy inline-paste path. The wrap also
+     * only works for the direct-call branch — call-through-variable paths
+     * have a cast prefix (e.g. ((T (*)(...))g)) that this code can't safely
+     * reconstruct. */
+    if (uses_defaults && !any_mut_param && direct_known_call) {
+        /* Re-emit: ({ T0 a0 = arg0; T1 a1 = arg1; ...; ez_fn_X(a0, a1, default_for_n, ...); }) */
+        size_t out_len = cg->output.len;
+        size_t fn_emit_len = 0;
+        /* Pull off the just-emitted "ez_fn_<name>" so we can prepend the
+         * statement-expression bindings. */
+        char saved_fn[128] = {0};
+        if (out_len > 0) {
+            /* Walk back to start of the most recent identifier */
+            size_t scan = out_len;
+            while (scan > 0) {
+                char c = cg->output.data[scan - 1];
+                if (!(isalnum((unsigned char)c) || c == '_')) break;
+                scan--;
+            }
+            fn_emit_len = out_len - scan;
+            if (fn_emit_len > 0 && fn_emit_len < sizeof(saved_fn)) {
+                memcpy(saved_fn, cg->output.data + scan, fn_emit_len);
+                saved_fn[fn_emit_len] = '\0';
+                cg->output.len = scan;
+            }
+        }
+        emit(cg, "({ ");
+        for (int i = 0; i < node->data.call.arg_count; i++) {
+            const char *pname = target_func->data.func_decl.params[i].name;
+            const char *ptn = target_func->data.func_decl.params[i].type_name;
+            const char *c_ty = ptn ? ez_type_to_c_cg(cg, ptn) : "int64_t";
+            emitf(cg, "%s %s = ", c_ty, pname ? pname : "_arg");
+            emit_expression(cg, node->data.call.args[i]);
+            emit(cg, "; ");
+        }
+        emit(cg, saved_fn);
+        emit(cg, "(");
+        for (int i = 0; i < total_args; i++) {
+            if (i > 0) emit(cg, ", ");
+            if (i < node->data.call.arg_count) {
+                const char *pname = target_func->data.func_decl.params[i].name;
+                emit(cg, pname ? pname : "_arg");
+            } else {
+                emit_expression(cg, target_func->data.func_decl.params[i].default_value);
+            }
+        }
+        emit(cg, "); })");
+        return;
+    }
 
     emit(cg, "(");
     for (int i = 0; i < total_args; i++) {
