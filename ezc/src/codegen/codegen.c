@@ -49,7 +49,7 @@ static void emit_indent(CodeGen *cg) {
     buf_append_indent(&cg->output, cg->indent);
 }
 
-/* Internal compiler error — emit a clear message instead of segfaulting.
+/* Internal compiler error; emit a clear message instead of segfaulting.
  * Used when a type lookup unexpectedly returns NULL. */
 __attribute__((unused))
 static void codegen_ice(const char *context, const char *file, int line) {
@@ -157,11 +157,11 @@ static const char *ez_type_to_c_cg(CodeGen *cg, const char *type_name) {
     if (strcmp(type_name, "byte") == 0)   return "uint8_t";
     if (strcmp(type_name, "string") == 0) return "EzString";
     if (strcmp(type_name, "Error") == 0 || strcmp(type_name, "error") == 0) return "EzError *";
-    if (strcmp(type_name, "func") == 0)  return "void *"; /* legacy bare func — cast at call site */
-    if (strncmp(type_name, "func(", 5) == 0) return "void *"; /* typed func — same C storage, signature lives in casts */
+    if (strcmp(type_name, "func") == 0)  return "void *"; /* legacy bare func; cast at call site */
+    if (strncmp(type_name, "func(", 5) == 0) return "void *"; /* typed func; same C storage, signature lives in casts */
 
 
-    /* Pointer type: ^T — use C pointer (ring buffer avoids aliasing on recursion) */
+    /* Pointer type: ^T; use C pointer (ring buffer avoids aliasing on recursion) */
     if (type_name[0] == '^') {
         static char ptrbufs[4][256];
         static int ptridx = 0;
@@ -171,12 +171,12 @@ static const char *ez_type_to_c_cg(CodeGen *cg, const char *type_name) {
         return buf;
     }
 
-    /* Array type: [T] — use EzArray */
+    /* Array type: [T]; use EzArray */
     if (type_name[0] == '[') {
         return "EzArray";
     }
 
-    /* Map type: map[K:V] — use EzMap */
+    /* Map type: map[K:V]; use EzMap */
     if (strncmp(type_name, "map[", 4) == 0) {
         return "EzMap";
     }
@@ -267,7 +267,7 @@ static const char *ez_map_elem_c_type(CodeGen *cg, const char *ez_tn) {
  * would share mutable backing storage with the source. That covers
  * arrays (EzArray header aliases data), maps (EzMap header aliases
  * keys/values/states/order), and any struct that transitively holds a
- * field of either. Pointers are deliberately left to alias — following
+ * field of either. Pointers are deliberately left to alias; following
  * the pointee would surprise users, loop on cycles, and doesn't match
  * how any real language treats pointer copy.
  *
@@ -283,7 +283,7 @@ static bool type_needs_deep_copy(CodeGen *cg, const char *ez_tn) {
     if (!ez_tn || !*ez_tn) return false;
     if (ez_tn[0] == '[') return true;
     if (strncmp(ez_tn, "map[", 4) == 0) return true;
-    if (ez_tn[0] == '^') return false; /* pointers alias — see header comment */
+    if (ez_tn[0] == '^') return false; /* pointers alias; see header comment */
     AstNode *sdecl = find_struct_decl(cg, ez_tn);
     if (!sdecl) return false;
     for (int i = 0; i < sdecl->data.struct_decl.field_count; i++) {
@@ -316,7 +316,7 @@ static void emit_array_deep_copy(CodeGen *cg, const char *ez_tn, const char *src
     if (comma) *comma = '\0';
 
     if (!type_needs_deep_copy(cg, elem_tn)) {
-        /* Flat element type — the shallow bulk memcpy in ez_array_copy
+        /* Flat element type; the shallow bulk memcpy in ez_array_copy
          * is already correct. */
         emitf(cg, "ez_array_copy(ez_default_arena, &%s)", src_var);
         return;
@@ -378,7 +378,7 @@ static void emit_map_deep_copy(CodeGen *cg, const char *ez_tn, const char *src_v
     val_tn[vlen] = '\0';
 
     if (!type_needs_deep_copy(cg, val_tn)) {
-        /* Value type is flat — the existing runtime helper is correct.
+        /* Value type is flat; the existing runtime helper is correct.
          * Keys never need deep copying in our model. */
         emitf(cg, "ez_map_copy(ez_default_arena, &%s)", src_var);
         return;
@@ -419,7 +419,7 @@ static void emit_map_deep_copy(CodeGen *cg, const char *ez_tn, const char *src_v
 static void emit_struct_deep_copy(CodeGen *cg, const char *struct_tn, const char *src_var) {
     AstNode *sdecl = find_struct_decl(cg, struct_tn);
     if (!sdecl) {
-        /* No decl info — bitwise copy is the best we can do. */
+        /* No decl info; bitwise copy is the best we can do. */
         emitf(cg, "%s", src_var);
         return;
     }
@@ -443,7 +443,7 @@ static void emit_struct_deep_copy(CodeGen *cg, const char *struct_tn, const char
 
 static void emit_value_deep_copy(CodeGen *cg, const char *ez_tn, const char *src_var) {
     if (!type_needs_deep_copy(cg, ez_tn)) {
-        /* Primitive / pointer / scalar struct — C value copy is correct. */
+        /* Primitive / pointer / scalar struct; C value copy is correct. */
         emitf(cg, "%s", src_var);
         return;
     }
@@ -620,7 +620,7 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
 
     case NODE_INT_VALUE:
         if (node->data.int_value.overflow) {
-            /* Literal exceeds INT64_MAX — for u64/uint contexts emit as a
+            /* Literal exceeds INT64_MAX; for u64/uint contexts emit as a
              * decimal ULL so it works for any base (0o, 0b, 0x literals). */
             const char *bi_ctx = resolve_bigint_type(cg, node);
             if (!bi_ctx) {
@@ -654,7 +654,7 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
         /* Emit string literal, breaking hex escapes to prevent C's greedy \x parsing.
          * "A\x42C" → "A\x42" "C" (C string concatenation) */
         const char *s = node->data.string_value.value;
-        /* Check for null bytes — if present, use ez_string_lit_len with explicit length
+        /* Check for null bytes; if present, use ez_string_lit_len with explicit length
          * since strlen() would truncate at the null */
         bool has_null = false;
         int str_len = 0;
@@ -681,7 +681,7 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
             emit(cg, (cg->indent == 0) ? "EZ_STRING_LIT(\"" : "ez_string_lit(\"");
         }
         if (node->data.string_value.is_raw) {
-            /* Raw string — escape special characters for C output */
+            /* Raw string; escape special characters for C output */
             while (*s) {
                 if (*s == '\\') {
                     emit(cg, "\\\\");
@@ -711,7 +711,7 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
                         s++;
                     }
                     if (isxdigit(*s)) {
-                        /* Next char is also hex — break the string */
+                        /* Next char is also hex; break the string */
                         emit(cg, "\" \"");
                     }
                 } else {
@@ -773,7 +773,7 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
                     else tk = TK_INT; /* default integer kind */
                 }
 
-                /* Check for bigint types — format as %s (use to_string) */
+                /* Check for bigint types; format as %s (use to_string) */
                 const char *bi_interp = resolve_bigint_type(cg, part);
                 if (bi_interp) {
                     emit(cg, "%s");
@@ -807,7 +807,7 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
                 else tk = TK_INT; /* default integer kind */
             }
 
-            /* Check for bigint types — use to_string */
+            /* Check for bigint types; use to_string */
             const char *bi_arg = resolve_bigint_type(cg, part);
             if (bi_arg) {
                 emitf(cg, "%s_to_string(ez_default_arena, ", bigint_prefix(bi_arg));
@@ -888,7 +888,7 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
         /* Array literal: emit as EzArray using ez_array_from */
         int count = node->data.array_value.count;
         if (count == 0) {
-            /* Empty array — check type table for element type, falling
+            /* Empty array; check type table for element type, falling
              * back to the var-decl context type if the node has none. */
             EzType *arr_t = cg->type_table ? typetable_get(cg->type_table, node) : NULL;
             if ((!arr_t || arr_t->kind == TK_UNKNOWN) && cg->current_var_type && cg->current_var_type[0]) {
@@ -939,7 +939,7 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
             break;
         }
 
-        /* Determine element type — try bigint detection first, then type table */
+        /* Determine element type; try bigint detection first, then type table */
         const char *bi_elem = resolve_bigint_type(cg, node->data.array_value.elements[0]);
         EzType *elem_t = cg->type_table
             ? typetable_get(cg->type_table, node->data.array_value.elements[0])
@@ -997,7 +997,7 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
         int count = node->data.map_value.count;
 
         /* Determine key/value C types. Prefer the enclosing var/field declared
-         * type when available — byte/char literals are typechecked as int, so
+         * type when available; byte/char literals are typechecked as int, so
          * first-pair inference would miss the declared key type. */
         const char *c_key_type = "EzString";
         const char *c_val_type = "int64_t";
@@ -1023,7 +1023,7 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
         }
 
         /* Use GCC statement expression: ({ EzMap m = ...; ez_map_set(...); m; })
-         * Capture counter before emitting values — nested map literals will
+         * Capture counter before emitting values; nested map literals will
          * re-enter this case and increment the counter, so each level gets
          * a unique temp name. */
         static int map_lit_counter = 0;
@@ -1128,7 +1128,7 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
                 break;
             }
         }
-        /* Overflow-checked negation for signed integer types — STANDARD §3.1.1
+        /* Overflow-checked negation for signed integer types; STANDARD §3.1.1
          * promises arithmetic panics rather than silent wrap on overflow. */
         if (strcmp(node->data.prefix.op, "-") == 0) {
             EzType *ot = cg->type_table ? typetable_get(cg->type_table, node->data.prefix.right) : NULL;
@@ -1169,7 +1169,7 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
     case NODE_INFIX_EXPR: {
         const char *op = node->data.infix.op;
 
-        /* Check if either operand is a string — need special handling */
+        /* Check if either operand is a string; need special handling */
         EzType *lt = cg->type_table ? typetable_get(cg->type_table, node->data.infix.left) : NULL;
         EzType *rt = cg->type_table ? typetable_get(cg->type_table, node->data.infix.right) : NULL;
         /* Inside a generic instantiation (#1443), operands that were
@@ -1208,7 +1208,7 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
             break;
         }
 
-        /* in / not_in — array or range membership check */
+        /* in / not_in; array or range membership check */
         if (strcmp(op, "in") == 0 || strcmp(op, "not_in") == 0 || strcmp(op, "!in") == 0) {
             bool negated = (op[0] == 'n' || op[0] == '!');
 
@@ -1303,7 +1303,7 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
             } \
         } while(0)
 
-        /* Bigint infix — emit function calls instead of C operators.
+        /* Bigint infix; emit function calls instead of C operators.
          * Must come before overflow-check and div-by-zero handlers since
          * bigint types share TK_INT/TK_UINT kind. */
         {
@@ -1357,7 +1357,7 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
                 break;
             } else {
                 /* For signed integer division, also guard the TYPE_MIN / -1
-                 * case — that quotient overflows (it's |TYPE_MIN| which has
+                 * case; that quotient overflows (it's |TYPE_MIN| which has
                  * no positive representation), and in C it's UB. */
                 bool is_signed = (lt && lt->kind == TK_INT) || (rt && rt->kind == TK_INT);
                 const char *signed_min = NULL;
@@ -1376,7 +1376,7 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
                     const char *opname = (strcmp(op, "/") == 0) ? "division" : "modulo";
                     emit(cg, "__auto_type _dn = ");
                     emit_expression(cg, node->data.infix.left);
-                    emitf(cg, "; if (_dn == %s && _dv == -1) { fflush(stdout); ez_panic(__FILE__, %d, \"%s result is too large — value exceeds the range of this type\"); } _dn %s _dv; })",
+                    emitf(cg, "; if (_dn == %s && _dv == -1) { fflush(stdout); ez_panic(__FILE__, %d, \"%s result is too large; value exceeds the range of this type\"); } _dn %s _dv; })",
                         signed_min, node->token.line, opname, op);
                 } else {
                     emit_expression(cg, node->data.infix.left);
@@ -1409,7 +1409,7 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
                 }
 
                 if (sized_max) {
-                    /* Sized type — use bounds-checked arithmetic */
+                    /* Sized type; use bounds-checked arithmetic */
                     const char *op_fn = NULL;
                     if (sized_unsigned) {
                         if (strcmp(op, "+") == 0) op_fn = "ez_usized_add_check";
@@ -1457,7 +1457,7 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
             }
         }
 
-        /* Normal infix — always wrap sub-infix expressions in parens to
+        /* Normal infix; always wrap sub-infix expressions in parens to
          * preserve the precedence the parser established via the AST shape.
          * Without this, (x + y) * z would emit as x + y * z. */
         bool l_infix = (node->data.infix.left->kind == NODE_INFIX_EXPR);
@@ -1480,7 +1480,7 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
             emitf(cg, "; if (!_dp) { fflush(stdout); ez_panic(__FILE__, %d, "
                 "\"nil pointer dereference\"); } *_dp; })", node->token.line);
         } else if (strcmp(node->data.postfix.op, "++") == 0) {
-            /* Overflow-checked increment — sized types need bounds check */
+            /* Overflow-checked increment; sized types need bounds check */
             EzType *pt = cg->type_table ? typetable_get(cg->type_table, node->data.postfix.left) : NULL;
             const char *sn = (pt && pt->name) ? pt->name : NULL;
             const char *smin = NULL, *smax = NULL;
@@ -1511,7 +1511,7 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
                 emitf(cg, ", 1, __FILE__, %d))", node->token.line);
             }
         } else if (strcmp(node->data.postfix.op, "--") == 0) {
-            /* Overflow-checked decrement — sized types need bounds check */
+            /* Overflow-checked decrement; sized types need bounds check */
             EzType *pt = cg->type_table ? typetable_get(cg->type_table, node->data.postfix.left) : NULL;
             const char *sn = (pt && pt->name) ? pt->name : NULL;
             const char *smin = NULL, *smax = NULL;
@@ -1548,7 +1548,7 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
         break;
 
     case NODE_FUNC_REF:
-        /* ()func_name or ()Type.func — emit as C function pointer */
+        /* ()func_name or ()Type.func; emit as C function pointer */
         if (node->data.func_ref.function->kind == NODE_LABEL) {
             emit(cg, "ez_fn_");
             emit(cg, node->data.func_ref.function->data.label.value);
@@ -1703,7 +1703,7 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
                 }
             }
         }
-        /* Check if object is a pointer type — use -> instead of . */
+        /* Check if object is a pointer type; use -> instead of . */
         {
             EzType *obj_t = cg->type_table
                 ? typetable_get(cg->type_table, node->data.member.object)
@@ -1735,7 +1735,7 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
                 }
             }
 
-            /* Ref vars are already dereferenced by label emission — use . not -> */
+            /* Ref vars are already dereferenced by label emission; use . not -> */
             bool obj_is_ref = (node->data.member.object->kind == NODE_LABEL &&
                 is_ref_var(cg, node->data.member.object->data.label.value));
             if (!obj_is_ref && obj_t && obj_t->kind == TK_POINTER) {
@@ -1803,7 +1803,7 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
                 emit(cg, ")");
             }
         } else if (left_t && left_t->kind == TK_MAP) {
-            /* Map key access — use temp to handle rvalue keys like literals */
+            /* Map key access; use temp to handle rvalue keys like literals */
             const char *c_key = "EzString";
             const char *c_val = "int64_t";
             if (left_t->key_type) c_key = ez_map_elem_c_type(cg, left_t->key_type);
@@ -1849,7 +1849,7 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
     }
 
     case NODE_CAST_EXPR: {
-        /* cast(value, type) — dispatch to conversion functions for non-trivial casts */
+        /* cast(value, type); dispatch to conversion functions for non-trivial casts */
         const char *target = node->data.cast.target_type;
         AstNode *val = node->data.cast.value;
         EzType *val_t = cg->type_table ? typetable_get(cg->type_table, val) : NULL;
@@ -2391,7 +2391,7 @@ static bool emit_builtin_call(CodeGen *cg, AstNode *node, const char *func) {
     }
 
     if (strcmp(func, "ref") == 0 && node->data.call.arg_count == 1) {
-        /* Check if argument is a function name — emit as function pointer */
+        /* Check if argument is a function name; emit as function pointer */
         if (node->data.call.args[0]->kind == NODE_LABEL) {
             const char *arg_name = node->data.call.args[0]->data.label.value;
             AstNode *target = find_func(cg, arg_name);
@@ -2649,7 +2649,7 @@ static bool emit_builtin_call(CodeGen *cg, AstNode *node, const char *func) {
         return true;
     }
 
-    /* to_char(str, index) — extract Nth Unicode codepoint */
+    /* to_char(str, index); extract Nth Unicode codepoint */
     if (strcmp(func, "to_char") == 0 && node->data.call.arg_count == 2) {
         emit(cg, "ez_builtin_to_char(");
         emit_expression(cg, node->data.call.args[0]);
@@ -2659,7 +2659,7 @@ static bool emit_builtin_call(CodeGen *cg, AstNode *node, const char *func) {
         return true;
     }
 
-    /* char_count(str) — return Unicode codepoint count */
+    /* char_count(str); return Unicode codepoint count */
     if (strcmp(func, "char_count") == 0 && node->data.call.arg_count == 1) {
         emit(cg, "ez_builtin_char_count(");
         emit_expression(cg, node->data.call.args[0]);
@@ -2667,7 +2667,7 @@ static bool emit_builtin_call(CodeGen *cg, AstNode *node, const char *func) {
         return true;
     }
 
-    /* c_string(ptr) — convert C char* to EZ string */
+    /* c_string(ptr); convert C char* to EZ string */
     if (strcmp(func, "c_string") == 0 && node->data.call.arg_count == 1) {
         emit(cg, "ez_string_lit((const char *)");
         emit_expression(cg, node->data.call.args[0]);
@@ -2851,7 +2851,7 @@ static bool emit_maps_call(CodeGen *cg, AstNode *node, const char *func) {
     if (strcmp(func, "has_key") == 0) {
         /* Key buffer must match the map's declared key storage type
          * (ez_map_elem_c_type), not whatever C type the argument expression
-         * happens to have — otherwise the hash/memcmp compares the wrong
+         * happens to have; otherwise the hash/memcmp compares the wrong
          * number of bytes. Issue #1430 follow-up. */
         const char *c_key = "int64_t";
         EzType *map_t = cg->type_table
@@ -2916,7 +2916,7 @@ static bool emit_maps_call(CodeGen *cg, AstNode *node, const char *func) {
         return true;
     }
     if (strcmp(func, "get_or_default") == 0 && node->data.call.arg_count == 3) {
-        /* get_or_default(m, key, default) — lookup key, return default if missing */
+        /* get_or_default(m, key, default); lookup key, return default if missing */
         emit(cg, "({ __auto_type _gk = ");
         emit_expression(cg, node->data.call.args[1]);
         emit(cg, "; void *_gv = ez_map_get(&");
@@ -3375,7 +3375,7 @@ static bool emit_json_call(CodeGen *cg, AstNode *node, const char *func) {
         emit(cg, ")");
         return true;
     }
-    /* #1496: json.parse() — dispatch to per-struct helper when the
+    /* #1496: json.parse(); dispatch to per-struct helper when the
      * call node's typetable entry is a #json struct (pushed by the
      * var_decl handler via #1507). Falls back to ez_json_decode for
      * the map-based path. */
@@ -3396,7 +3396,7 @@ static bool emit_json_call(CodeGen *cg, AstNode *node, const char *func) {
         emit(cg, ")");
         return true;
     }
-    /* #1496: json.stringify() — dispatch to per-struct helper when
+    /* #1496: json.stringify(); dispatch to per-struct helper when
      * the argument is a #json struct. */
     if (strcmp(func, "stringify") == 0 && node->data.call.arg_count >= 1) {
         AstNode *arg = node->data.call.args[0];
@@ -4289,7 +4289,7 @@ static void emit_call_expression(CodeGen *cg, AstNode *node) {
         if (module) module = resolve_alias(cg, module);
 
         /* No-module builtins (println, len, type_of, etc.) */
-        /* Also handle std.println() — std module functions are builtins */
+        /* Also handle std.println(); std module functions are builtins */
         if (!module && emit_builtin_call(cg, node, func)) return;
 
         /* Module dispatch table */
@@ -4330,7 +4330,7 @@ static void emit_call_expression(CodeGen *cg, AstNode *node) {
                 }
             }
         }
-        /* Unqualified call not handled by builtins — try 'using' modules.
+        /* Unqualified call not handled by builtins; try 'using' modules.
          * We must verify the function name belongs to the module before calling
          * the handler, since some handlers emit code for any function name. */
         if (!module) {
@@ -4545,7 +4545,7 @@ static void emit_call_expression(CodeGen *cg, AstNode *node) {
         if (obj->kind == NODE_LABEL) {
             const char *raw_name = obj->data.label.value;
 
-            /* C interop: c.func() — emit raw C function call */
+            /* C interop: c.func(); emit raw C function call */
             if (strcmp(raw_name, "c") == 0 && cg->has_c_imports) {
                 emitf(cg, "%s(", member);
                 for (int i = 0; i < node->data.call.arg_count; i++) {
@@ -4697,7 +4697,7 @@ static void emit_call_expression(CodeGen *cg, AstNode *node) {
 
     bool direct_known_call = (fn_name && target_func);
     if (fn_name && target_func) {
-        /* Known function — use ez_fn_ prefix. For generic functions,
+        /* Known function; use ez_fn_ prefix. For generic functions,
          * rewrite to the mangled instantiation name derived from the
          * first wildcard parameter's argument type (#1443). */
         bool tf_generic = false;
@@ -4726,7 +4726,7 @@ static void emit_call_expression(CodeGen *cg, AstNode *node) {
                     /* #1506: inside a generic body, the arg's typetable
                      * entry is still TK_UNKNOWN ("unknown") from the
                      * main-pass walk. If the outer wildcard_binding is
-                     * active, use it as the binding — that's the
+                     * active, use it as the binding; that's the
                      * concrete type this instantiation was stamped with. */
                     const char *tn = type_name(at);
                     if ((at->kind == TK_UNKNOWN || strcmp(tn, "unknown") == 0) &&
@@ -4787,7 +4787,7 @@ static void emit_call_expression(CodeGen *cg, AstNode *node) {
             emit(cg, resolved_fn_name);
         }
     } else if (fn_name) {
-        /* Not a known function — variable holding a function pointer (void *).
+        /* Not a known function; variable holding a function pointer (void *).
          * Cast to appropriate function pointer type based on the variable's
          * typed-func signature, falling back to a brittle var_decl scan only
          * when no signature is available (legacy bare-func paths). */
@@ -4855,7 +4855,7 @@ static void emit_call_expression(CodeGen *cg, AstNode *node) {
                 mut_p = ref_func->data.func_decl.params[i].mutable;
             }
             if (typed_sig && i < typed_sig->param_count) {
-                /* Param type comes straight from the signature — authoritative */
+                /* Param type comes straight from the signature; authoritative */
                 emit(cg, ez_type_to_c_cg(cg, typed_sig->param_types[i]));
                 if (mut_p) emit(cg, " *");
             } else if (i < nargs) {
@@ -4895,7 +4895,7 @@ static void emit_call_expression(CodeGen *cg, AstNode *node) {
     } else if (node->data.call.function->kind == NODE_INDEX_EXPR) {
         /* Indexed callee (e.g. ops[0](x, y)). The index expression yields a
          * void * for [func] arrays (see NODE_INDEX_EXPR emitter), which isn't
-         * directly callable — wrap with a function-pointer cast derived from
+         * directly callable; wrap with a function-pointer cast derived from
          * the call site's arg types and return type. */
         int nargs = node->data.call.arg_count;
         EzType *ret_t = cg->type_table ? typetable_get(cg->type_table, node) : NULL;
@@ -4921,7 +4921,7 @@ static void emit_call_expression(CodeGen *cg, AstNode *node) {
 
     /* Determine total args: provided + defaults */
     EzFuncSig *call_typed_sig = (EzFuncSig *)cg->pending_call_typed_sig;
-    cg->pending_call_typed_sig = NULL; /* one-shot — clear before recursion */
+    cg->pending_call_typed_sig = NULL; /* one-shot; clear before recursion */
     int total_args = node->data.call.arg_count;
     int param_count = target_func ? target_func->data.func_decl.param_count
                                   : (call_typed_sig ? call_typed_sig->param_count : 0);
@@ -4951,7 +4951,7 @@ static void emit_call_expression(CodeGen *cg, AstNode *node) {
     }
     /* Mut params would need address aliasing rather than value-copy bindings;
      * those edge cases keep the legacy inline-paste path. The wrap also
-     * only works for the direct-call branch — call-through-variable paths
+     * only works for the direct-call branch; call-through-variable paths
      * have a cast prefix (e.g. ((T (*)(...))g)) that this code can't safely
      * reconstruct. */
     if (uses_defaults && !any_mut_param && direct_known_call) {
@@ -5015,7 +5015,7 @@ static void emit_call_expression(CodeGen *cg, AstNode *node) {
             if (needs_addr && node->data.call.args[i]->kind == NODE_LABEL) {
                 const char *var_name = node->data.call.args[i]->data.label.value;
                 if (is_mutable_param(cg, var_name)) {
-                    /* Already a pointer — pass through */
+                    /* Already a pointer; pass through */
                     emit(cg, var_name);
                 } else {
                     emitf(cg, "&%s", var_name);
@@ -5056,7 +5056,7 @@ static void emit_call_expression(CodeGen *cg, AstNode *node) {
             /* Default value */
             emit_expression(cg, target_func->data.func_decl.params[i].default_value);
         } else {
-            /* No arg and no default — emit zero */
+            /* No arg and no default; emit zero */
             emit(cg, "0");
         }
     }
@@ -5198,7 +5198,7 @@ static void emit_var_declaration(CodeGen *cg, AstNode *node) {
         if (node->data.var_decl.value &&
             node->data.var_decl.value->kind == NODE_ARRAY_VALUE &&
             node->data.var_decl.value->data.array_value.count == 0) {
-            /* Empty array literal with type annotation — use correct elem size */
+            /* Empty array literal with type annotation; use correct elem size */
             emitf(cg, "ez_array_new(ez_default_arena, sizeof(%s), 4)", c_elem_type);
         } else if (node->data.var_decl.value &&
                    node->data.var_decl.value->kind == NODE_LABEL) {
@@ -5236,7 +5236,7 @@ static void emit_var_declaration(CodeGen *cg, AstNode *node) {
             emit_expression(cg, node->data.var_decl.value);
             cg->current_var_type = saved_var_type;
         } else {
-            /* No initializer — create empty map */
+            /* No initializer; create empty map */
             emitf(cg, "ez_map_new(ez_default_arena, sizeof(%s), sizeof(%s), 8)", c_kt, c_vt);
         }
         emit(cg, ";\n");
@@ -5306,18 +5306,18 @@ static void emit_var_declaration(CodeGen *cg, AstNode *node) {
              * (needed for multi-var unpacking and nested array element extraction) */
             c_type = "__auto_type";
         } else if (val->kind == NODE_FUNC_REF) {
-            /* Function reference — use __auto_type to capture the pointer type */
+            /* Function reference; use __auto_type to capture the pointer type */
             c_type = "__auto_type";
         } else if (val->kind == NODE_LABEL) {
-            /* Variable reference — use __auto_type to propagate the source type */
+            /* Variable reference; use __auto_type to propagate the source type */
             c_type = "__auto_type";
         } else if (val->kind == NODE_CAST_EXPR) {
-            /* Cast expression — use the target type */
+            /* Cast expression; use the target type */
             c_type = ez_type_to_c_cg(cg, val->data.cast.target_type);
         }
     }
 
-    /* Detect ref() assignment — register as transparent reference (but not for function refs) */
+    /* Detect ref() assignment; register as transparent reference (but not for function refs) */
     if (node->data.var_decl.value && node->data.var_decl.value->kind == NODE_CALL_EXPR) {
         AstNode *fn = node->data.var_decl.value->data.call.function;
         if (fn->kind == NODE_LABEL && strcmp(fn->data.label.value, "ref") == 0) {
@@ -5378,7 +5378,7 @@ static void emit_var_declaration(CodeGen *cg, AstNode *node) {
             }
         } else if (type_name && is_bigint_type(type_name) &&
                    node->data.var_decl.value->kind == NODE_INFIX_EXPR) {
-            /* Infix expression assigned to bigint — use bigint operations.
+            /* Infix expression assigned to bigint; use bigint operations.
              * Emit the infix manually with bigint operand wrapping since
              * resolve_bigint_type won't detect raw literals as bigint. */
             AstNode *infix = node->data.var_decl.value;
@@ -5409,7 +5409,7 @@ static void emit_var_declaration(CodeGen *cg, AstNode *node) {
         } else if (type_name && type_name[0] == '^' &&
                    node->data.var_decl.value->kind == NODE_LABEL &&
                    is_ref_var(cg, node->data.var_decl.value->data.label.value)) {
-            /* Assigning a ref variable to a ^T pointer — pass the pointer through
+            /* Assigning a ref variable to a ^T pointer; pass the pointer through
              * without auto-dereferencing */
             emit(cg, node->data.var_decl.value->data.label.value);
         } else if (node->data.var_decl.value->kind == NODE_CALL_EXPR &&
@@ -5417,7 +5417,7 @@ static void emit_var_declaration(CodeGen *cg, AstNode *node) {
                    strcmp(node->data.var_decl.value->data.call.function->data.label.value, "addr") == 0 &&
                    type_name && (strcmp(type_name, "uint") == 0 || strcmp(type_name, "int") == 0 ||
                                  strcmp(type_name, "u64") == 0 || strcmp(type_name, "i64") == 0)) {
-            /* addr() assigned to integer type — cast pointer to uintptr_t */
+            /* addr() assigned to integer type; cast pointer to uintptr_t */
             emit(cg, "(uintptr_t)");
             emit_expression(cg, node->data.var_decl.value);
         } else {
@@ -5735,7 +5735,7 @@ static void emit_assign_statement(CodeGen *cg, AstNode *node) {
                 emitf(cg, "; if (!_dv) { fflush(stdout); ez_panic(__FILE__, %d, \"division by zero\"); } ",
                     node->token.line);
                 if (!unsigned_op) {
-                    emitf(cg, "if (*_tgt_ref == %s && _dv == -1) { fflush(stdout); ez_panic(__FILE__, %d, \"%s result is too large \xe2\x80\x94 value exceeds the range of this type\"); } ",
+                    emitf(cg, "if (*_tgt_ref == %s && _dv == -1) { fflush(stdout); ez_panic(__FILE__, %d, \"%s result is too large; value exceeds the range of this type\"); } ",
                         signed_min, node->token.line, opname);
                 }
                 emitf(cg, "*_tgt_ref %s= _dv; }\n", binop);
@@ -5759,7 +5759,7 @@ static void emit_assign_statement(CodeGen *cg, AstNode *node) {
         }
     }
 
-    /* Default assignment — suppress ref auto-deref when assigning to a pointer target */
+    /* Default assignment; suppress ref auto-deref when assigning to a pointer target */
 
     /* #1521: when inside a loop scope and assigning a string/container
      * value to a plain variable with =, escape the value to the outer
@@ -5921,7 +5921,7 @@ static void emit_return_statement(CodeGen *cg, AstNode *node) {
     } else if (node->data.return_stmt.count == 0 && cg->current_func &&
                cg->current_func->data.func_decl.return_names &&
                cg->current_func->data.func_decl.return_type_count > 0) {
-        /* Bare return in function with named return values — collect named vars */
+        /* Bare return in function with named return values; collect named vars */
         int rc = cg->current_func->data.func_decl.return_type_count;
         if (rc == 1 && cg->current_func->data.func_decl.return_names[0]) {
             emit_indent(cg);
@@ -5942,7 +5942,7 @@ static void emit_return_statement(CodeGen *cg, AstNode *node) {
             emit(cg, "}; ez_exit_func(); return _ret; }\n");
         }
     } else {
-        /* Bare return (no value, non-void — shouldn't happen but handle gracefully) */
+        /* Bare return (no value, non-void; shouldn't happen but handle gracefully) */
         emit_indent(cg);
         emit(cg, "ez_scope_restore(ez_default_arena, _scope_mark); ez_exit_func(); return;\n");
     }
@@ -6228,10 +6228,10 @@ static const char *func_return_type(CodeGen *cg, AstNode *node) {
         }
     }
     if (!has_wc_ret) {
-        /* #1508: strip __<binding> suffix — shared struct. */
+        /* #1508: strip __<binding> suffix; shared struct. */
         snprintf(buf, sizeof(buf), "EzMulti_%s", multi_base_name(fn_name));
     } else {
-        /* #1502: use the full (possibly mangled) name — per-instantiation
+        /* #1502: use the full (possibly mangled) name; per-instantiation
          * struct. The wildcard_binding is active so ez_type_to_c_cg will
          * substitute '?' in the struct fields. */
         snprintf(buf, sizeof(buf), "EzMulti_%s", fn_name);
@@ -6411,7 +6411,7 @@ static void emit_statement(CodeGen *cg, AstNode *node) {
         bool is_map_iter = (coll_t && coll_t->kind == TK_MAP);
 
         if (is_map_iter) {
-            /* for_each on map — iterate occupied slots with internal counter */
+            /* for_each on map; iterate occupied slots with internal counter */
             static int map_iter_counter = 0;
             char mi_name[32];
             snprintf(mi_name, sizeof(mi_name), "_ez_mi%d", map_iter_counter++);
@@ -6629,7 +6629,7 @@ static void emit_statement(CodeGen *cg, AstNode *node) {
         /* Generic function (#1443): emit one specialised copy per
          * concrete instantiation the typechecker recorded. If a
          * generic function was declared but never called, there are
-         * no instantiations and we skip emission entirely — the
+         * no instantiations and we skip emission entirely; the
          * un-specialised form has '?' in its signature and can't be
          * compiled as C. */
         bool has_wc = false;
@@ -6811,7 +6811,7 @@ void codegen_generate(CodeGen *cg, AstNode *program) {
                     cg->alias_count++;
                 }
             }
-            /* import and use — register all modules for using */
+            /* import and use; register all modules for using */
             if (stmt->data.import_stmt.auto_use) {
                 for (int j = 0; j < stmt->data.import_stmt.count; j++) {
                     ImportItem *item = &stmt->data.import_stmt.items[j];
@@ -6969,7 +6969,7 @@ void codegen_generate(CodeGen *cg, AstNode *program) {
         }
 
         /* Emit forward declarations so pointer fields can reference any struct.
-         * Skip generic structs — their forward decls are per-instantiation. */
+         * Skip generic structs; their forward decls are per-instantiation. */
         for (int i = 0; i < struct_count; i++) {
             if (structs[i]->data.struct_decl.is_generic) continue;
             emitf(cg, "typedef struct EzStruct_%s EzStruct_%s;\n",
@@ -7002,7 +7002,7 @@ void codegen_generate(CodeGen *cg, AstNode *program) {
                 if (deps_met) {
                     emitted[i] = true;
                     emit_count++;
-                    /* #1520: skip generic structs here — they're
+                    /* #1520: skip generic structs here; they're
                      * emitted per-instantiation below. */
                     if (s->data.struct_decl.is_generic) continue;
                     emitf(cg, "struct EzStruct_%s {\n", s->data.struct_decl.name);
@@ -7193,7 +7193,7 @@ void codegen_generate(CodeGen *cg, AstNode *program) {
     }
 
     /* Emit multi-return type definitions. Skip generic functions whose
-     * return types contain '?' — those need per-instantiation typedefs
+     * return types contain '?'; those need per-instantiation typedefs
      * emitted during monomorphisation (#1502). */
     for (int i = 0; i < program->data.program.stmt_count; i++) {
         AstNode *stmt = program->data.program.stmts[i];
@@ -7220,7 +7220,7 @@ void codegen_generate(CodeGen *cg, AstNode *program) {
             continue;
         }
 
-        /* Detect wildcard generics (#1443) — emit one forward per
+        /* Detect wildcard generics (#1443); emit one forward per
          * instantiation under a mangled name, skipping the un-specialised
          * signature which would contain '?' in C. */
         bool has_wc = false;

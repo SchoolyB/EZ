@@ -25,6 +25,7 @@ SRC = src/main.c \
       src/util/arena.c \
       src/util/buf.c \
       src/util/error.c \
+      src/util/error_codes.c \
       src/lexer/token.c \
       src/lexer/lexer.c \
       src/parser/ast.c \

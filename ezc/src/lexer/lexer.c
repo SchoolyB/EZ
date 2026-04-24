@@ -56,7 +56,7 @@ static void skip_block_comment(Lexer *l) {
         }
         read_char(l);
     }
-    /* EOF reached — unclosed comment */
+    /* EOF reached; unclosed comment */
     l->error_code = "E1003";
     l->error_msg = "unclosed multi-line comment";
 }
@@ -133,7 +133,7 @@ static const char *read_number(Lexer *l, TokenType *type) {
         if (isdigit(next) || next == '_' || next == 0 || next == '\n' ||
             next == ' ' || next == ')' || next == '}' || next == ',' ||
             next == ';') {
-            /* Consume decimal point — validation below will catch errors */
+            /* Consume decimal point; validation below will catch errors */
             *type = TOK_FLOAT;
             read_char(l);
             while (isdigit(l->ch) || l->ch == '_') {
@@ -184,17 +184,17 @@ static const char *read_string(Lexer *l) {
             read_char(l); /* move to escape char */
             /* Validate escape sequence */
             if (l->ch == 'x') {
-                /* Hex escape: \xNN — exactly two hex digits */
+                /* Hex escape: \xNN; exactly two hex digits */
                 read_char(l);
                 if (!isxdigit(l->ch)) {
                     l->error_code = "E1006";
-                    l->error_msg = "invalid hex escape sequence — \\x must be followed by exactly two hex digits";
+                    l->error_msg = "invalid hex escape sequence; \\x must be followed by exactly two hex digits";
                     continue;
                 }
                 read_char(l);
                 if (!isxdigit(l->ch)) {
                     l->error_code = "E1006";
-                    l->error_msg = "invalid hex escape sequence — \\x must be followed by exactly two hex digits";
+                    l->error_msg = "invalid hex escape sequence; \\x must be followed by exactly two hex digits";
                     continue;
                 }
                 read_char(l);
@@ -282,7 +282,7 @@ static const char *read_char_literal(Lexer *l) {
             read_char(l);
         }
         l->error_code = "E1018";
-        l->error_msg = "char literal must contain exactly one character — use a string for multiple characters";
+        l->error_msg = "char literal must contain exactly one character; use a string for multiple characters";
     }
 
     const char *str = arena_strndup(l->arena, l->input + start, l->position - start);
@@ -465,7 +465,7 @@ Token lexer_next_token(Lexer *l) {
             tok = make_token(TOK_OR, "||", tok.line, tok.column);
         } else {
             l->error_code = "E1020";
-            l->error_msg = "unexpected character '|' — use '||' for logical OR";
+            l->error_msg = "unexpected character '|'; use '||' for logical OR";
             tok = make_token(TOK_ILLEGAL, l->error_msg, tok.line, tok.column);
         }
         break;
@@ -501,7 +501,7 @@ Token lexer_next_token(Lexer *l) {
             for (int i = 0; i < 4; i++) read_char(l);
         } else {
             l->error_code = "E1019";
-            l->error_msg = "unexpected character '#' — use '//' for comments, or '#strict', '#flags', '#json', '#doc' for attributes";
+            l->error_msg = "unexpected character '#'; use '//' for comments, or '#strict', '#flags', '#json', '#doc' for attributes";
             tok = make_token(TOK_ILLEGAL, l->error_msg, tok.line, tok.column);
         }
         break;
@@ -511,7 +511,7 @@ Token lexer_next_token(Lexer *l) {
         tok.literal = read_string(l);
         if (l->unterminated_string) {
             l->error_code = "E1021";
-            l->error_msg = "string literal was never closed — add a closing double quote";
+            l->error_msg = "string literal was never closed; add a closing double quote";
             tok.type = TOK_ILLEGAL;
             tok.literal = l->error_msg;
         } else if (l->error_code) {

@@ -66,6 +66,35 @@ void diag_warning(DiagnosticList *dl, const char *code, const char *message,
 void diag_warning_help(DiagnosticList *dl, const char *code, const char *message,
     const char *file, int line, int col, int end_col, const char *help);
 
+/* Code-aware emission. Every new emission site should pick one of:
+ *
+ *   diag_error_code   / diag_warning_code   — registry message, no args.
+ *   diag_error_codef  / diag_warning_codef  — registry template + args.
+ *   diag_error_msg    / diag_warning_msg    — intentional custom message
+ *                                             (same shape as the old
+ *                                             diag_error; used when the
+ *                                             code is categorical and
+ *                                             the site adds context,
+ *                                             e.g. most parser syntax
+ *                                             errors). */
+void diag_error_code(DiagnosticList *dl, const char *code,
+    const char *file, int line, int col, int end_col);
+
+void diag_error_codef(DiagnosticList *dl, const char *code,
+    const char *file, int line, int col, int end_col, ...);
+
+void diag_error_msg(DiagnosticList *dl, const char *code, const char *message,
+    const char *file, int line, int col, int end_col);
+
+void diag_warning_code(DiagnosticList *dl, const char *code,
+    const char *file, int line, int col, int end_col);
+
+void diag_warning_codef(DiagnosticList *dl, const char *code,
+    const char *file, int line, int col, int end_col, ...);
+
+void diag_warning_msg(DiagnosticList *dl, const char *code, const char *message,
+    const char *file, int line, int col, int end_col);
+
 void diag_note(DiagnosticList *dl, const char *message,
     const char *file, int line, int col, int end_col);
 

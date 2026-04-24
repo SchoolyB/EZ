@@ -6,6 +6,8 @@
  */
 
 #include "error.h"
+#include "error_codes.h"
+#include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -131,6 +133,60 @@ void diag_warning_help(DiagnosticList *dl, const char *code, const char *message
 void diag_note(DiagnosticList *dl, const char *message,
     const char *file, int line, int col_start, int end_col) {
     diag_add(dl, SEV_NOTE, NULL, message, file, line, col_start, end_col, NULL);
+}
+
+static const char *lookup_or_placeholder(const char *code) {
+    const char *msg = ez_error_message(code);
+    return msg ? msg : "<unknown error code>";
+}
+
+void diag_error_code(DiagnosticList *dl, const char *code,
+    const char *file, int line, int col_start, int end_col) {
+    diag_add(dl, SEV_ERROR, code, lookup_or_placeholder(code),
+        file, line, col_start, end_col, NULL);
+}
+
+void diag_warning_code(DiagnosticList *dl, const char *code,
+    const char *file, int line, int col_start, int end_col) {
+    diag_add(dl, SEV_WARNING, code, lookup_or_placeholder(code),
+        file, line, col_start, end_col, NULL);
+}
+
+void diag_error_msg(DiagnosticList *dl, const char *code, const char *message,
+    const char *file, int line, int col_start, int end_col) {
+    diag_add(dl, SEV_ERROR, code, message, file, line, col_start, end_col, NULL);
+}
+
+void diag_warning_msg(DiagnosticList *dl, const char *code, const char *message,
+    const char *file, int line, int col_start, int end_col) {
+    diag_add(dl, SEV_WARNING, code, message, file, line, col_start, end_col, NULL);
+}
+
+/* strdup is used so the formatted buffer outlives this stack frame;
+ * the diagnostic list stores the pointer by reference. The tiny leak
+ * per error is acceptable for a short-lived compiler invocation. */
+static void emit_codef(DiagnosticList *dl, Severity sev, const char *code,
+    const char *file, int line, int col_start, int end_col, va_list ap) {
+    const char *tmpl = lookup_or_placeholder(code);
+    char buf[1024];
+    vsnprintf(buf, sizeof(buf), tmpl, ap);
+    diag_add(dl, sev, code, strdup(buf), file, line, col_start, end_col, NULL);
+}
+
+void diag_error_codef(DiagnosticList *dl, const char *code,
+    const char *file, int line, int col_start, int end_col, ...) {
+    va_list ap;
+    va_start(ap, end_col);
+    emit_codef(dl, SEV_ERROR, code, file, line, col_start, end_col, ap);
+    va_end(ap);
+}
+
+void diag_warning_codef(DiagnosticList *dl, const char *code,
+    const char *file, int line, int col_start, int end_col, ...) {
+    va_list ap;
+    va_start(ap, end_col);
+    emit_codef(dl, SEV_WARNING, code, file, line, col_start, end_col, ap);
+    va_end(ap);
 }
 
 void diag_set_source(DiagnosticList *dl, const char *file, const char *source) {
