@@ -57,7 +57,7 @@ Integration tests compile and run `.ez` programs end-to-end through the full com
 - `integration-tests/pass/warnings/` — 24 warning detection tests (includes W2012 float-when)
 - `integration-tests/pass/multi-file/` — 34 multi-file import tests (basic, alias, structs, enums, constants, private visibility, transitive, circular, collision, nested, struct functions, imported struct with enum field, import-use-types)
 - `integration-tests/pass/stress/` — 42 stress tests (29 core + 13 stdlib)
-- `integration-tests/fail/errors/` — 550 error detection tests (includes negation-overflow and TYPE_MIN/-1 div/mod panics for int/i64/i32/i16/i8, E3046 hex-top-bit-to-int and above-UINT64_MAX, E3068 void in typed-func return, compound-assign overflow panics for int/uint across +=/-=/*=//=/%=, E3069 inverted &-on-param, E2001 missing param comma, E3070 nested ensure in if/for/when)
+- `integration-tests/fail/errors/` — 551 error detection tests (includes negation-overflow and TYPE_MIN/-1 div/mod panics for int/i64/i32/i16/i8, E3046 hex-top-bit-to-int and above-UINT64_MAX, E3068 void in typed-func return, compound-assign overflow panics for int/uint across +=/-=/*=//=/%=, E3069 inverted &-on-param, E2001 missing param comma, E3070 nested ensure in if/for/when, E3071 return nil from wildcard-return)
 - `integration-tests/fail/multi-file/` — 20 multi-file error detection tests (collision, private access, type mismatch, undefined module, cross-file error attribution)
 
 **Running:**
