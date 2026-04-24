@@ -5750,9 +5750,10 @@ static void emit_assign_statement(CodeGen *cg, AstNode *node) {
 
     /* Array copy-by-default: arr2 = arr1 deep-copies the array.
      * Routes through emit_deep_array_copy so nested inner arrays get
-     * independent backing storage (#1465). */
-    if (strcmp(node->data.assign.op, "=") == 0 &&
-        node->data.assign.value->kind == NODE_LABEL) {
+     * independent backing storage (#1465). Applies to any RHS expression
+     * (variables, call results, etc.) to prevent use-after-free when the
+     * source array lives on a function-local arena. */
+    if (strcmp(node->data.assign.op, "=") == 0) {
         EzType *tgt_t = cg->type_table ? typetable_get(cg->type_table, node->data.assign.target) : NULL;
         if (tgt_t && tgt_t->kind == TK_ARRAY) {
             emit_expression(cg, node->data.assign.target);

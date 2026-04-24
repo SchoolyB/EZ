@@ -1040,7 +1040,7 @@ int main(int argc, char **argv) {
 
     if (has_archive) {
         snprintf(cmd, sizeof(cmd),
-            "cc -std=c11 %s -Wall -Wno-unused-function -Wno-unused-variable "
+            "cc -std=c11 %s -Wall -Wno-unused-function -Wno-unused-variable -Wno-unused-but-set-variable "
             "-I%s/runtime -I%s/stdlib "
             "-o %s %s %s "
             "-lm -lpthread 2>&1",
@@ -1072,7 +1072,7 @@ int main(int argc, char **argv) {
             off += snprintf(srcs + off, sizeof(srcs) - (size_t)off, "%s/%s ", runtime_dir, stdlib_srcs[i]);
 
         snprintf(cmd, sizeof(cmd),
-            "cc -std=c11 %s -Wall -Wno-unused-function -Wno-unused-variable "
+            "cc -std=c11 %s -Wall -Wno-unused-function -Wno-unused-variable -Wno-unused-but-set-variable "
             "-I%s/runtime -I%s/stdlib "
             "-o %s %s %s"
             "-lm -lpthread 2>&1",
