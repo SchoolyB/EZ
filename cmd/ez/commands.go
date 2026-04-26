@@ -432,7 +432,17 @@ var rootCmd = &cobra.Command{
 			extraArgs = args[1:]
 		}
 
-		code, err := ezc.Run(args[0], extraArgs)
+		// Prepend --quiet flag for the compiler (before program args)
+		var compilerArgs []string
+		quiet, _ := cmd.Flags().GetString("quiet")
+		if quiet == "all" {
+			compilerArgs = append(compilerArgs, "--quiet")
+		} else if quiet != "" {
+			compilerArgs = append(compilerArgs, "--quiet", quiet)
+		}
+		compilerArgs = append(compilerArgs, extraArgs...)
+
+		code, err := ezc.Run(args[0], compilerArgs)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "error: %v\n", err)
 			os.Exit(1)
@@ -454,6 +464,7 @@ func init() {
 	buildCmd.Flags().StringP("output", "o", "", "Output binary name")
 	buildCmd.Flags().BoolP("verbose", "v", false, "Show compilation commands")
 	buildCmd.Flags().Bool("emit-c", false, "Emit generated C source only")
+	rootCmd.Flags().StringP("quiet", "q", "", "Suppress warnings (use 'all' or comma-separated codes like W1001,W1002)")
 	buildCmd.Flags().StringP("quiet", "q", "", "Suppress warnings (use 'all' or comma-separated codes like W1001,W1002)")
 	checkCmd.Flags().StringP("quiet", "q", "", "Suppress warnings (use 'all' or comma-separated codes like W1001,W1002)")
 
