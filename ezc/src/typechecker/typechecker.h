@@ -96,6 +96,10 @@ typedef struct {
                                           * current_return_count so downstream
                                           * "must return" / "return from void"
                                           * checks should also stay quiet */
+    bool current_func_is_main;            /* true while typechecking the body of
+                                           * main(); used to reject `return` —
+                                           * main exits when control reaches
+                                           * the closing brace */
     const char **current_return_names; /* named return variable names (NULL entries for unnamed) */
 
     /* Pass 3 / #1443 slice 4: when true, resolve_expr must not write

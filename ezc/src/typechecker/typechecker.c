@@ -5034,7 +5034,10 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
                   scope_lookup(tc->current_scope, node->data.assign.value->data.label.value) &&
                   scope_lookup(tc->current_scope, node->data.assign.value->data.label.value)->is_ref) &&
                 /* #1433: implicit int→float coercion */
-                !(target_t->kind == TK_FLOAT && is_int_kind(value_t->kind))) {
+                !(target_t->kind == TK_FLOAT && is_int_kind(value_t->kind)) &&
+                /* nil is a valid value for pointer and Error variables */
+                !(value_t->kind == TK_NIL &&
+                  (target_t->kind == TK_POINTER || target_t->kind == TK_ERROR))) {
                 char msg[256];
                 snprintf(msg, sizeof(msg),
                     "type mismatch: cannot assign %s to %s variable '%s'",
@@ -5094,6 +5097,16 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
     case NODE_RETURN_STMT:
         for (int i = 0; i < node->data.return_stmt.count; i++) {
             resolve_expr(tc, node->data.return_stmt.values[i]);
+        }
+        /* main() exits when control reaches the closing brace; an
+         * explicit `return` is not allowed. Without this check, codegen
+         * emits `ez_scope_restore(_, _scope_mark)` referencing a
+         * variable that main never declares, and the C compile fails. */
+        if (tc->current_func_is_main) {
+            diag_error_msg(tc->diag, "E3073",
+                strdup("'return' is not allowed in main(); main exits when control reaches the closing brace"),
+                NODE_FILE(tc, node), node->token.line, node->token.column, 0);
+            break;
         }
         /* #1521: reject addr() of local variable in return; the
          * local's memory is freed when the function returns. */
@@ -5762,6 +5775,9 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
         }
         bool saved_main_suppressed = tc->current_main_return_suppressed;
         tc->current_main_return_suppressed = main_return_coerced;
+        bool saved_is_main = tc->current_func_is_main;
+        tc->current_func_is_main =
+            (strcmp(node->data.func_decl.name, "main") == 0);
 
         check_block(tc, node->data.func_decl.body);
 
@@ -5828,6 +5844,7 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
         tc->current_has_named_returns = prev_named;
         tc->current_return_names = prev_return_names;
         tc->current_main_return_suppressed = saved_main_suppressed;
+        tc->current_func_is_main = saved_is_main;
         tc->using_module_count = prev_using_count;
         tc->func_depth--;
         tc->current_scope = outer;
