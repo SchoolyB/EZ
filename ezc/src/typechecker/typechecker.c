@@ -5917,8 +5917,6 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
                             break;
                         }
                     }
-                    EzType *rt = tc_type_from_name(tc, node->data.func_decl.return_types[i]);
-                    scope_define(func_scope, rn, rt, true);
                 }
             }
         }
@@ -6847,9 +6845,6 @@ void typechecker_check(TypeChecker *tc, AstNode *program) {
                 for (int ri = 0; ri < rc; ri++) {
                     if (decl->data.func_decl.return_names[ri]) {
                         tc->current_has_named_returns = true;
-                        const char *rn = decl->data.func_decl.return_names[ri];
-                        EzType *rt = ret_types[ri];
-                        scope_define(inst_scope, rn, rt, true);
                     }
                 }
             }

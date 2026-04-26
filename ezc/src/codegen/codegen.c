@@ -6385,25 +6385,8 @@ static void emit_func_declaration(CodeGen *cg, AstNode *node, bool is_main) {
         }
     }
 
-    /* Emit named return variable declarations (zero-initialized) */
-    if (node->data.func_decl.return_names) {
-        for (int i = 0; i < node->data.func_decl.return_type_count; i++) {
-            if (node->data.func_decl.return_names[i]) {
-                const char *c_t = ez_type_to_c_cg(cg, node->data.func_decl.return_types[i]);
-                emit_indent(cg);
-                if (strcmp(c_t, "EzString") == 0) {
-                    emitf(cg, "EzString %s = ez_string_lit(\"\");\n",
-                        safe_name(node->data.func_decl.return_names[i]));
-                } else if (strncmp(c_t, "EzStruct_", 9) == 0 || strncmp(c_t, "EzEnum_", 7) == 0) {
-                    emitf(cg, "%s %s = {0};\n", c_t,
-                        safe_name(node->data.func_decl.return_names[i]));
-                } else {
-                    emitf(cg, "%s %s = 0;\n", c_t,
-                        safe_name(node->data.func_decl.return_names[i]));
-                }
-            }
-        }
-    }
+    /* Named return variables are declared by the user in the function body,
+     * not auto-generated. E3080 enforces the correct variable is returned. */
 
     if (node->data.func_decl.body) {
         /* Stack depth guard */
@@ -6427,32 +6410,8 @@ static void emit_func_declaration(CodeGen *cg, AstNode *node, bool is_main) {
         emit_indent(cg);
         emit(cg, "ez_exit_func();\n");
 
-        /* Implicit return for named return values (fall-through without explicit return) */
-        if (node->data.func_decl.return_names &&
-            node->data.func_decl.return_type_count > 0) {
-            bool has_named = false;
-            for (int i = 0; i < node->data.func_decl.return_type_count; i++) {
-                if (node->data.func_decl.return_names[i]) { has_named = true; break; }
-            }
-            if (has_named) {
-                int rc = node->data.func_decl.return_type_count;
-                emit_indent(cg);
-                if (rc == 1 && node->data.func_decl.return_names[0]) {
-                    emitf(cg, "return %s;\n", safe_name(node->data.func_decl.return_names[0]));
-                } else {
-                    emitf(cg, "return (EzMulti_%s){", multi_ret_name(node));
-                    for (int i = 0; i < rc; i++) {
-                        if (i > 0) emit(cg, ", ");
-                        if (node->data.func_decl.return_names[i]) {
-                            emitf(cg, "%s", safe_name(node->data.func_decl.return_names[i]));
-                        } else {
-                            emit(cg, "0");
-                        }
-                    }
-                    emit(cg, "};\n");
-                }
-            }
-        }
+        /* Named return variables: E3080 enforces the user must explicitly
+         * return the named variable, so no implicit fall-through is needed. */
     }
     cg->current_func = prev_func;
     cg->using_module_count = prev_using_count;
