@@ -3653,9 +3653,12 @@ static bool emit_arrays_call(CodeGen *cg, AstNode *node, const char *func) {
                 emit(cg, "; ez_default_arena = _esc; } ");
             }
         }
-        emitf(cg, "ez_arrays_append(%s, ", alloc_arena);
+        /* Ensure elem_size is set on the target array before appending;
+         * struct fields may be zero-initialized with no elem_size. */
+        emit(cg, "{ EzArray *_tgt = ");
         emit_array_arg_addr(cg, node->data.call.args[0]);
-        emit(cg, ", &_av); }");
+        emitf(cg, "; if (_tgt->elem_size == 0) _tgt->elem_size = sizeof(%s); ", c_elem);
+        emitf(cg, "ez_arrays_append(%s, _tgt, &_av); } }", alloc_arena);
         return true;
     }
     if (strcmp(func, "insert_at") == 0 && node->data.call.arg_count == 3) {

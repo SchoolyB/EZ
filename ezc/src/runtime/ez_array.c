@@ -46,13 +46,15 @@ void ez_array_set(EzArray *arr, int32_t index, const void *value, const char *fi
 
 void ez_array_push(EzArena *arena, EzArray *arr, const void *value) {
     if (arr->len >= arr->cap) {
-        int32_t new_cap = arr->cap * 2;
+        int32_t new_cap = arr->cap < 4 ? 4 : arr->cap * 2;
         if (new_cap < arr->cap) {
             fprintf(stderr, "EZ runtime: array capacity overflow\n");
             exit(1);
         }
         void *new_data = ez_arena_alloc(arena, (size_t)new_cap * (size_t)arr->elem_size);
-        memcpy(new_data, arr->data, (size_t)arr->len * (size_t)arr->elem_size);
+        if (arr->data && arr->len > 0) {
+            memcpy(new_data, arr->data, (size_t)arr->len * (size_t)arr->elem_size);
+        }
         arr->data = new_data;
         arr->cap = new_cap;
     }
