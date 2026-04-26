@@ -132,9 +132,9 @@
 | `E3071` | types | cannot 'return nil' from a function whose return type contains '?'; 'nil' is not a valid value for every binding (e.g. int, string) |
 | `E3072` | types | cannot return 'nil' from a function that returns '%s'; nil is only valid for pointer and error types |
 | `E3073` | types | 'return' is not allowed in main(); main exits when control reaches the closing brace |
-| `E3074` | types | arrays cannot be compared with '==' or '!='; use arrays.is_equal(a, b) for structural equality |
+| `E3074` | types | arrays cannot be compared with comparison operators; use arrays.is_equal(a, b) for equality, or compare elements individually for ordering |
 | `E3075` | types | chained struct function calls are not supported; assign the intermediate result to a variable, then call the next struct function on it |
-| `E3076` | types | maps cannot be compared with '==' or '!='; use maps.is_equal(a, b) for structural equality |
+| `E3076` | types | maps cannot be compared with comparison operators; use maps.is_equal(a, b) for equality (maps have no defined ordering) |
 | `E3077` | types | structs cannot be compared with comparison operators; compare individual fields instead (e.g., a.x == b.x, a.x < b.x) |
 | `E4001` | names | this variable does not exist; check the spelling or make sure it is declared above this line |
 | `E4002` | names | this function does not exist; check the spelling or make sure it is defined |
@@ -210,4 +210,4 @@
 
 ---
 
-*Generated on 2026-04-26 05:38:19 UTC*
+*Generated on 2026-04-26 05:40:09 UTC*

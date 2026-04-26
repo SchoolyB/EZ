@@ -146,9 +146,9 @@
     EZ_ERROR("E3071", "types", "cannot 'return nil' from a function whose return type contains '?'; 'nil' is not a valid value for every binding (e.g. int, string)") \
     EZ_ERROR("E3072", "types", "cannot return 'nil' from a function that returns '%s'; nil is only valid for pointer and error types") \
     EZ_ERROR("E3073", "types", "'return' is not allowed in main(); main exits when control reaches the closing brace") \
-    EZ_ERROR("E3074", "types", "arrays cannot be compared with '==' or '!='; use arrays.is_equal(a, b) for structural equality") \
+    EZ_ERROR("E3074", "types", "arrays cannot be compared with comparison operators; use arrays.is_equal(a, b) for equality, or compare elements individually for ordering") \
     EZ_ERROR("E3075", "types", "chained struct function calls are not supported; assign the intermediate result to a variable, then call the next struct function on it") \
-    EZ_ERROR("E3076", "types", "maps cannot be compared with '==' or '!='; use maps.is_equal(a, b) for structural equality") \
+    EZ_ERROR("E3076", "types", "maps cannot be compared with comparison operators; use maps.is_equal(a, b) for equality (maps have no defined ordering)") \
     EZ_ERROR("E3077", "types", "structs cannot be compared with comparison operators; compare individual fields instead (e.g., a.x == b.x, a.x < b.x)")
 
 /* --- E4xxx: Name Problems (References) --- */

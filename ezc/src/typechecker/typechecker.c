@@ -1186,13 +1186,17 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
          * backend has no structural-equality operator on aggregate types,
          * so this used to slip through to clang. Point users at
          * arrays.is_equal. */
-        if ((strcmp(op, "==") == 0 || strcmp(op, "!=") == 0) &&
+        if ((strcmp(op, "==") == 0 || strcmp(op, "!=") == 0 ||
+             strcmp(op, "<") == 0 || strcmp(op, "<=") == 0 ||
+             strcmp(op, ">") == 0 || strcmp(op, ">=") == 0) &&
             left->kind == TK_ARRAY && right->kind == TK_ARRAY) {
             diag_error_code(tc->diag, "E3074",
                 NODE_FILE(tc, node), node->token.line, node->token.column, 0);
             infix_errored = true;
         }
-        if ((strcmp(op, "==") == 0 || strcmp(op, "!=") == 0) &&
+        if ((strcmp(op, "==") == 0 || strcmp(op, "!=") == 0 ||
+             strcmp(op, "<") == 0 || strcmp(op, "<=") == 0 ||
+             strcmp(op, ">") == 0 || strcmp(op, ">=") == 0) &&
             left->kind == TK_MAP && right->kind == TK_MAP) {
             diag_error_code(tc->diag, "E3076",
                 NODE_FILE(tc, node), node->token.line, node->token.column, 0);
