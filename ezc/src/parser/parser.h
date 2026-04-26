@@ -23,6 +23,7 @@ typedef struct {
     const char *file;
     DiagnosticList *diag;
     int depth;
+    bool no_struct_literal; /* suppress struct literal parsing (RHS of in/not_in) */
 } Parser;
 
 Parser *parser_create(Arena *arena, Lexer *lexer, const char *file, DiagnosticList *diag);

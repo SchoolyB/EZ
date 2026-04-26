@@ -655,7 +655,7 @@ static AstNode *parse_prefix(Parser *p) {
 
                 if (p->cur_token.type == TOK_IDENT &&
                     p->cur_token.literal[0] >= 'A' && p->cur_token.literal[0] <= 'Z' &&
-                    peek_token_is(p, TOK_LBRACE)) {
+                    peek_token_is(p, TOK_LBRACE) && !p->no_struct_literal) {
                     /* mod.Name{; module-qualified struct literal */
                     char *prefixed = arena_alloc(p->arena, 256);
                     snprintf(prefixed, 256, "%s_%s", mod, p->cur_token.literal);
@@ -674,7 +674,7 @@ static AstNode *parse_prefix(Parser *p) {
             }
         }
         /* Check for struct literal: Name{ ... } */
-        if (peek_token_is(p, TOK_LBRACE)) {
+        if (peek_token_is(p, TOK_LBRACE) && !p->no_struct_literal) {
             const char *name = p->cur_token.literal;
             /* Only treat as struct literal if name starts with uppercase */
             if (name[0] >= 'A' && name[0] <= 'Z') {
@@ -904,8 +904,11 @@ static AstNode *parse_infix_expression(Parser *p, AstNode *left) {
     node->data.infix.left = left;
     node->data.infix.op = p->cur_token.literal;
     Precedence prec = token_precedence(p->cur_token.type);
+    bool is_membership = (p->cur_token.type == TOK_IN || p->cur_token.type == TOK_NOT_IN);
     next_token(p);
+    if (is_membership) p->no_struct_literal = true;
     node->data.infix.right = parse_expression(p, prec);
+    if (is_membership) p->no_struct_literal = false;
     return node;
 }
 
