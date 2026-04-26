@@ -3,7 +3,7 @@
 > Auto-generated from `ezc/src/util/error_codes.h`. Do not edit manually.
 > Run `./scripts/generate_errors.sh` to regenerate.
 
-**Total: 166 codes** (154 errors, 12 warnings)
+**Total: 167 codes** (155 errors, 12 warnings)
 
 ---
 
@@ -136,6 +136,7 @@
 | `E3075` | types | chained struct function calls are not supported; assign the intermediate result to a variable, then call the next struct function on it |
 | `E3076` | types | maps cannot be compared with comparison operators; use maps.is_equal(a, b) for equality (maps have no defined ordering) |
 | `E3077` | types | structs cannot be compared with comparison operators; compare individual fields instead (e.g., a.x == b.x, a.x < b.x) |
+| `E3078` | types | pointer arithmetic is not supported; '^T' is the address of one value, not a buffer |
 | `E4001` | names | this variable does not exist; check the spelling or make sure it is declared above this line |
 | `E4002` | names | this function does not exist; check the spelling or make sure it is defined |
 | `E4003` | names | variable '%s' already declared in this scope (line %d) |
@@ -210,4 +211,4 @@
 
 ---
 
-*Generated on 2026-04-26 05:40:09 UTC*
+*Generated on 2026-04-26 05:43:59 UTC*

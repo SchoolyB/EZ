@@ -1136,6 +1136,19 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
             infix_errored = true;
         }
 
+        /* E3078: pointer arithmetic is not supported. The spec disallows
+         * it (no contiguous-buffer guarantee on '^T'), and without this
+         * check 'p + 1' silently emitted C pointer math and produced
+         * garbage. Equality (== / !=) against nil or another pointer is
+         * still allowed. */
+        if ((left->kind == TK_POINTER || right->kind == TK_POINTER) &&
+            (strcmp(op, "+") == 0 || strcmp(op, "-") == 0 ||
+             strcmp(op, "*") == 0 || strcmp(op, "/") == 0 || strcmp(op, "%") == 0)) {
+            diag_error_code(tc->diag, "E3078",
+                NODE_FILE(tc, node), node->token.line, node->token.column, 0);
+            infix_errored = true;
+        }
+
         /* E3032: different enum types in comparison */
         if ((strcmp(op, "==") == 0 || strcmp(op, "!=") == 0) &&
             node->data.infix.left->kind == NODE_MEMBER_EXPR &&
@@ -5063,6 +5076,19 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
     case NODE_ASSIGN_STMT: {
         EzType *target_t = resolve_expr(tc, node->data.assign.target);
         EzType *value_t = resolve_expr(tc, node->data.assign.value);
+
+        /* E3078: compound arithmetic assigns on pointer variables
+         * (p += 1, p -= 2, etc.) are pointer arithmetic and not
+         * supported. Plain `=` (and the existing `p = nil` /
+         * `p = addr(...)` paths) stay valid. */
+        const char *aop = node->data.assign.op;
+        if (aop && (strcmp(aop, "+=") == 0 || strcmp(aop, "-=") == 0 ||
+                    strcmp(aop, "*=") == 0 || strcmp(aop, "/=") == 0 ||
+                    strcmp(aop, "%=") == 0) &&
+            target_t && target_t->kind == TK_POINTER) {
+            diag_error_code(tc->diag, "E3078",
+                NODE_FILE(tc, node), node->token.line, node->token.column, 0);
+        }
 
         /* E5025: lvalue validation; reject assignment to non-lvalue targets */
         AstNode *target = node->data.assign.target;

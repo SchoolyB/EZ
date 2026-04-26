@@ -149,7 +149,8 @@
     EZ_ERROR("E3074", "types", "arrays cannot be compared with comparison operators; use arrays.is_equal(a, b) for equality, or compare elements individually for ordering") \
     EZ_ERROR("E3075", "types", "chained struct function calls are not supported; assign the intermediate result to a variable, then call the next struct function on it") \
     EZ_ERROR("E3076", "types", "maps cannot be compared with comparison operators; use maps.is_equal(a, b) for equality (maps have no defined ordering)") \
-    EZ_ERROR("E3077", "types", "structs cannot be compared with comparison operators; compare individual fields instead (e.g., a.x == b.x, a.x < b.x)")
+    EZ_ERROR("E3077", "types", "structs cannot be compared with comparison operators; compare individual fields instead (e.g., a.x == b.x, a.x < b.x)") \
+    EZ_ERROR("E3078", "types", "pointer arithmetic is not supported; '^T' is the address of one value, not a buffer")
 
 /* --- E4xxx: Name Problems (References) --- */
 #define EZ_REFERENCE_ERRORS \
