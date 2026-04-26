@@ -407,11 +407,10 @@ compiler integration tests, and CLI integration tests.`,
 }
 
 var rootCmd = &cobra.Command{
-	Use:     "ez [file.ez]",
-	Short:   "EZ Programming Language",
-	Long:    "A statically-typed programming language that compiles to native binaries.",
-	Args:    cobra.ArbitraryArgs,
-	Version: getVersionString(),
+	Use:   "ez [file.ez]",
+	Short: "EZ Programming Language",
+	Long:  "A statically-typed programming language that compiles to native binaries.",
+	Args:  cobra.ArbitraryArgs,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		if len(args) == 0 {
 			fmt.Print(asciiBanner)
@@ -458,6 +457,33 @@ func init() {
 	rootCmd.PersistentPreRun = func(cmd *cobra.Command, args []string) {
 		CheckForUpdateAsync()
 	}
+	// Custom help for root only: hide -h (users have `ez help`) and -v (use `ez version`)
+	defaultHelp := rootCmd.HelpFunc()
+	rootCmd.SetHelpFunc(func(cmd *cobra.Command, args []string) {
+		if cmd != rootCmd {
+			defaultHelp(cmd, args)
+			return
+		}
+		fmt.Fprintf(cmd.OutOrStdout(), `%s
+
+Usage:
+  ez [file.ez] [flags]
+  ez [command]
+
+Available Commands:
+`, cmd.Long)
+		for _, c := range cmd.Commands() {
+			if c.IsAvailableCommand() || c.Name() == "help" {
+				fmt.Fprintf(cmd.OutOrStdout(), "  %-12s%s\n", c.Name(), c.Short)
+			}
+		}
+		fmt.Fprintf(cmd.OutOrStdout(), `
+Flags:
+  -q, --quiet string   Suppress warnings (use 'all' or comma-separated codes like W1001,W1002)
+
+Use "ez [command] --help" for more information about a command.
+`)
+	})
 	updateCmd.Flags().Bool("confirm", false, "Skip confirmation prompt")
 	updateCmd.Flags().Bool("pre", false, "Install the latest pre-release (alpha/beta/rc) instead of the latest stable")
 
