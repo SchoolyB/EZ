@@ -7332,10 +7332,20 @@ void codegen_generate(CodeGen *cg, AstNode *program) {
     }
     emit(cg, "\n");
 
-    /* Emit function definitions (top-level statements) */
+    /* Emit global constants/variables first so they're visible to all functions
+     * (e.g. when used as default parameter values at a call site). */
     for (int i = 0; i < program->data.program.stmt_count; i++) {
         AstNode *stmt = program->data.program.stmts[i];
-        if (stmt->kind != NODE_IMPORT_STMT && stmt->kind != NODE_USING_STMT) {
+        if (stmt->kind == NODE_VAR_DECL) {
+            emit_statement(cg, stmt);
+        }
+    }
+
+    /* Emit remaining top-level statements (functions, etc.) */
+    for (int i = 0; i < program->data.program.stmt_count; i++) {
+        AstNode *stmt = program->data.program.stmts[i];
+        if (stmt->kind != NODE_IMPORT_STMT && stmt->kind != NODE_USING_STMT &&
+            stmt->kind != NODE_VAR_DECL) {
             emit_statement(cg, stmt);
         }
     }
