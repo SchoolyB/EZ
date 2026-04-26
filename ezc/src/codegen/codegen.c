@@ -3710,6 +3710,20 @@ static bool emit_arrays_call(CodeGen *cg, AstNode *node, const char *func) {
         emit(cg, ")");
         return true;
     }
+    if (strcmp(func, "is_equal") == 0 && node->data.call.arg_count == 2) {
+        EzType *arr_t = cg->type_table ? typetable_get(cg->type_table, node->data.call.args[0]) : NULL;
+        if (arr_t && arr_t->kind == TK_ARRAY && arr_t->element_type &&
+            strcmp(arr_t->element_type, "string") == 0) {
+            emit(cg, "ez_arrays_is_equal_str(&");
+        } else {
+            emit(cg, "ez_arrays_is_equal_prim(&");
+        }
+        emit_expression(cg, node->data.call.args[0]);
+        emit(cg, ", &");
+        emit_expression(cg, node->data.call.args[1]);
+        emit(cg, ")");
+        return true;
+    }
     if (strcmp(func, "index_of") == 0 && node->data.call.arg_count == 2) {
         EzType *arr_t = cg->type_table ? typetable_get(cg->type_table, node->data.call.args[0]) : NULL;
         if (arr_t && arr_t->kind == TK_ARRAY && arr_t->element_type &&
@@ -4374,6 +4388,7 @@ static void emit_call_expression(CodeGen *cg, AstNode *node) {
                 {"reverse","arrays"},{"slice","arrays"},
                 {"split_every","arrays"},{"pair","arrays"},{"count","arrays"},
                 {"index_of","arrays"},{"is_empty","arrays"},{"contains","arrays"},
+                {"is_equal","arrays"},
                 /* @maps */
                 {"has_key","maps"},{"keys","maps"},{"values","maps"},{"get_keys","maps"},
                 {"get_values","maps"},{"remove_key","maps"},{"clear","maps"},

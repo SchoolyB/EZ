@@ -33,6 +33,8 @@ bool ez_arrays_contains_str(EzArray *arr, EzString value);
 int64_t ez_arrays_index_of_int(EzArray *arr, int64_t value);
 int64_t ez_arrays_index_of_str(EzArray *arr, EzString value);
 int64_t ez_arrays_count(EzArray *arr, int64_t value);
+bool ez_arrays_is_equal_prim(EzArray *a, EzArray *b);
+bool ez_arrays_is_equal_str(EzArray *a, EzArray *b);
 
 /* Transformation */
 EzArray ez_arrays_reverse(EzArena *arena, EzArray *arr);

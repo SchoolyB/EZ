@@ -3,7 +3,7 @@
 > Auto-generated from `ezc/src/util/error_codes.h`. Do not edit manually.
 > Run `./scripts/generate_errors.sh` to regenerate.
 
-**Total: 162 codes** (150 errors, 12 warnings)
+**Total: 163 codes** (151 errors, 12 warnings)
 
 ---
 
@@ -132,6 +132,7 @@
 | `E3071` | types | cannot 'return nil' from a function whose return type contains '?'; 'nil' is not a valid value for every binding (e.g. int, string) |
 | `E3072` | types | cannot return 'nil' from a function that returns '%s'; nil is only valid for pointer and error types |
 | `E3073` | types | 'return' is not allowed in main(); main exits when control reaches the closing brace |
+| `E3074` | types | arrays cannot be compared with '==' or '!='; use arrays.is_equal(a, b) for structural equality |
 | `E4001` | names | this variable does not exist; check the spelling or make sure it is declared above this line |
 | `E4002` | names | this function does not exist; check the spelling or make sure it is defined |
 | `E4003` | names | variable '%s' already declared in this scope (line %d) |
@@ -206,4 +207,4 @@
 
 ---
 
-*Generated on 2026-04-26 04:41:23 UTC*
+*Generated on 2026-04-26 04:58:54 UTC*

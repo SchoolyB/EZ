@@ -145,7 +145,8 @@
     EZ_ERROR("E3070", "types", "'ensure' may only appear at the top level of a function body; lift it out of the enclosing block") \
     EZ_ERROR("E3071", "types", "cannot 'return nil' from a function whose return type contains '?'; 'nil' is not a valid value for every binding (e.g. int, string)") \
     EZ_ERROR("E3072", "types", "cannot return 'nil' from a function that returns '%s'; nil is only valid for pointer and error types") \
-    EZ_ERROR("E3073", "types", "'return' is not allowed in main(); main exits when control reaches the closing brace")
+    EZ_ERROR("E3073", "types", "'return' is not allowed in main(); main exits when control reaches the closing brace") \
+    EZ_ERROR("E3074", "types", "arrays cannot be compared with '==' or '!='; use arrays.is_equal(a, b) for structural equality")
 
 /* --- E4xxx: Name Problems (References) --- */
 #define EZ_REFERENCE_ERRORS \

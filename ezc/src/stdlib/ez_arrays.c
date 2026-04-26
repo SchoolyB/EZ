@@ -141,6 +141,24 @@ int64_t ez_arrays_count(EzArray *arr, int64_t value) {
     return c;
 }
 
+bool ez_arrays_is_equal_prim(EzArray *a, EzArray *b) {
+    if (a->len != b->len) return false;
+    if (a->elem_size != b->elem_size) return false;
+    if (a->len == 0) return true;
+    return memcmp(a->data, b->data, (size_t)a->len * (size_t)a->elem_size) == 0;
+}
+
+bool ez_arrays_is_equal_str(EzArray *a, EzArray *b) {
+    if (a->len != b->len) return false;
+    for (int32_t i = 0; i < a->len; i++) {
+        EzString *sa = (EzString *)((char *)a->data + i * a->elem_size);
+        EzString *sb = (EzString *)((char *)b->data + i * b->elem_size);
+        if (sa->len != sb->len) return false;
+        if (sa->len > 0 && memcmp(sa->data, sb->data, sa->len) != 0) return false;
+    }
+    return true;
+}
+
 /* === Transformation === */
 
 EzArray ez_arrays_reverse(EzArena *arena, EzArray *arr) {

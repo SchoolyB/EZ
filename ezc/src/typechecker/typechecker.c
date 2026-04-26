@@ -1182,6 +1182,17 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                 NODE_FILE(tc, node), node->token.line, node->token.column, 0);
         }
 
+        /* E3074: arrays cannot be compared with == / != directly. The C
+         * backend has no structural-equality operator on aggregate types,
+         * so this used to slip through to clang. Point users at
+         * arrays.is_equal. */
+        if ((strcmp(op, "==") == 0 || strcmp(op, "!=") == 0) &&
+            left->kind == TK_ARRAY && right->kind == TK_ARRAY) {
+            diag_error_code(tc->diag, "E3074",
+                NODE_FILE(tc, node), node->token.line, node->token.column, 0);
+            infix_errored = true;
+        }
+
         if (strcmp(op, "==") == 0 || strcmp(op, "!=") == 0 ||
             strcmp(op, "<") == 0 || strcmp(op, ">") == 0 ||
             strcmp(op, "<=") == 0 || strcmp(op, ">=") == 0 ||
@@ -1745,7 +1756,8 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                     result = &TYPE_UNKNOWN;
                 }
             } else if (strcmp(mod, "arrays") == 0) {
-                if (strcmp(mfn, "is_empty") == 0 || strcmp(mfn, "contains") == 0) {
+                if (strcmp(mfn, "is_empty") == 0 || strcmp(mfn, "contains") == 0 ||
+                    strcmp(mfn, "is_equal") == 0) {
                     result = &TYPE_BOOL;
                 } else if (strcmp(mfn, "index_of") == 0 || strcmp(mfn, "get_sum") == 0 ||
                            strcmp(mfn, "get_min") == 0 || strcmp(mfn, "get_max") == 0 ||
@@ -1865,6 +1877,35 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                             t0->element_type, t1->element_type);
                         diag_error_msg(tc->diag, "E3001", strdup(msg),
                             NODE_FILE(tc, a1), a1->token.line, a1->token.column, 0);
+                    }
+                }
+                if (strcmp(mfn, "is_equal") == 0 && node->data.call.arg_count >= 2) {
+                    AstNode *a0 = node->data.call.args[0];
+                    AstNode *a1 = node->data.call.args[1];
+                    EzType *t0 = typetable_get(tc->type_table, a0);
+                    EzType *t1 = typetable_get(tc->type_table, a1);
+                    if (t0 && t1 && t0->kind == TK_ARRAY && t1->kind == TK_ARRAY &&
+                        t0->element_type && t1->element_type &&
+                        strcmp(t0->element_type, t1->element_type) != 0) {
+                        char msg[256];
+                        snprintf(msg, sizeof(msg),
+                            "type mismatch: cannot compare array of %s with array of %s",
+                            t0->element_type, t1->element_type);
+                        diag_error_msg(tc->diag, "E3001", strdup(msg),
+                            NODE_FILE(tc, a1), a1->token.line, a1->token.column, 0);
+                    }
+                    /* Composite element types (nested arrays, maps, structs) cannot be
+                     * compared with the primitive memcmp path; reject for now. */
+                    if (t0 && t0->kind == TK_ARRAY && t0->element_type) {
+                        EzType *et = type_from_name(t0->element_type);
+                        if (et->kind == TK_ARRAY || et->kind == TK_MAP || et->kind == TK_STRUCT) {
+                            char msg[256];
+                            snprintf(msg, sizeof(msg),
+                                "arrays.is_equal does not support arrays of %s; only primitive and string element types are supported",
+                                t0->element_type);
+                            diag_error_msg(tc->diag, "E3001", strdup(msg),
+                                NODE_FILE(tc, a0), a0->token.line, a0->token.column, 0);
+                        }
                     }
                 }
             } else if (strcmp(mod, "os") == 0) {
@@ -3031,6 +3072,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                             {"get_max","arrays",TK_INT},{"count","arrays",TK_INT},
                             {"index_of","arrays",TK_INT},
                             {"is_empty","arrays",TK_BOOL},{"contains","arrays",TK_BOOL},
+                            {"is_equal","arrays",TK_BOOL},
                             /* @maps (arg-dependent get_keys/get_values handled by special case below) */
                             {"has_key","maps",TK_BOOL},{"is_empty","maps",TK_BOOL},
                             {"contains_value","maps",TK_BOOL},{"remove_key","maps",TK_VOID},
