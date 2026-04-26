@@ -1960,12 +1960,13 @@ static const char *resolve_print_suffix(CodeGen *cg, AstNode *arg) {
     EzType *t = cg->type_table ? typetable_get(cg->type_table, arg) : NULL;
     if (t && t->kind != TK_UNKNOWN) {
         switch (t->kind) {
-        case TK_STRING: return "_str";
-        case TK_FLOAT:  return "_float";
-        case TK_BOOL:   return "_bool";
-        case TK_CHAR:   return "_char";
-        case TK_UINT:   return "_uint";
-        default:        return "_int";
+        case TK_STRING:  return "_str";
+        case TK_FLOAT:   return "_float";
+        case TK_BOOL:    return "_bool";
+        case TK_CHAR:    return "_char";
+        case TK_UINT:    return "_uint";
+        case TK_POINTER: return "_addr";
+        default:         return "_int";
         }
     }
     if (arg->kind == NODE_STRING_VALUE || arg->kind == NODE_INTERPOLATED_STRING) return "_str";
@@ -2211,9 +2212,9 @@ static void emit_value_print(CodeGen *cg, const char *c_expr, EzType *t, const c
         break;
     }
     case TK_POINTER: {
-        const char *pointee_tn = t->element_type ? t->element_type : "int";
-        EzType *pointee_t = type_from_name(pointee_tn);
-
+        /* Print the address as hex (0x...). Pointers are addresses; printing
+         * the pointee instead would be surprising and lose the only thing
+         * a pointer carries. Use 'p^' if you actually want the pointee. */
         emit_indent(cg);
         emitf(cg, "if ((%s) == NULL) {\n", c_expr);
         cg->indent++;
@@ -2223,11 +2224,8 @@ static void emit_value_print(CodeGen *cg, const char *c_expr, EzType *t, const c
         emit_indent(cg);
         emit(cg, "} else {\n");
         cg->indent++;
-
-        char deref_expr[256];
-        snprintf(deref_expr, sizeof(deref_expr), "*(%s)", c_expr);
-        emit_value_print(cg, deref_expr, pointee_t, stream);
-
+        emit_indent(cg);
+        emitf(cg, "fprintf(%s, \"0x%%\" PRIxPTR, (uintptr_t)(%s));\n", stream, c_expr);
         cg->indent--;
         emit_indent(cg);
         emit(cg, "}\n");
