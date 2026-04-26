@@ -3582,6 +3582,31 @@ static bool emit_random_call(CodeGen *cg, AstNode *node, const char *func) {
 
 /* --- @arrays module --- */
 
+/* Emit &arr for arrays.append/prepend/insert_at. When the array argument is
+ * a pointer field access (e.g. Q.Parameters where Q is ^Struct), the normal
+ * emit_expression produces a GNU statement expression rvalue that cannot have
+ * its address taken. In that case, emit the nil-check separately and use
+ * &_dp->field directly. */
+static void emit_array_arg_addr(CodeGen *cg, AstNode *arg) {
+    if (arg->kind == NODE_MEMBER_EXPR && arg->data.member.object->kind == NODE_LABEL) {
+        const char *obj_name = arg->data.member.object->data.label.value;
+        bool obj_is_ref = is_ref_var(cg, obj_name);
+        EzType *obj_t = cg->type_table ? typetable_get(cg->type_table, arg->data.member.object) : NULL;
+        if (!obj_is_ref && obj_t && obj_t->kind == TK_POINTER) {
+            /* Pointer field: nil-check then take address of the field */
+            emit(cg, "({ __auto_type _dp = ");
+            emit_expression(cg, arg->data.member.object);
+            emitf(cg, "; if (!_dp) { fflush(stdout); ez_panic(__FILE__, %d, "
+                "\"nil pointer dereference\"); } &_dp->%s; })",
+                arg->token.line, safe_name(arg->data.member.member));
+            return;
+        }
+    }
+    /* Default: take address of the expression directly */
+    emit(cg, "&");
+    emit_expression(cg, arg);
+}
+
 static bool emit_arrays_call(CodeGen *cg, AstNode *node, const char *func) {
     if (strcmp(func, "append") == 0 && node->data.call.arg_count == 2) {
         EzType *val_t = cg->type_table ? typetable_get(cg->type_table, node->data.call.args[1]) : NULL;
@@ -3628,8 +3653,8 @@ static bool emit_arrays_call(CodeGen *cg, AstNode *node, const char *func) {
                 emit(cg, "; ez_default_arena = _esc; } ");
             }
         }
-        emitf(cg, "ez_arrays_append(%s, &", alloc_arena);
-        emit_expression(cg, node->data.call.args[0]);
+        emitf(cg, "ez_arrays_append(%s, ", alloc_arena);
+        emit_array_arg_addr(cg, node->data.call.args[0]);
         emit(cg, ", &_av); }");
         return true;
     }
@@ -3666,42 +3691,42 @@ static bool emit_arrays_call(CodeGen *cg, AstNode *node, const char *func) {
                 emit(cg, "; ez_default_arena = _esc; } ");
             }
         }
-        emitf(cg, "ez_arrays_insert_at(%s, &", ia_arena);
-        emit_expression(cg, node->data.call.args[0]);
+        emitf(cg, "ez_arrays_insert_at(%s, ", ia_arena);
+        emit_array_arg_addr(cg, node->data.call.args[0]);
         emit(cg, ", ");
         emit_expression(cg, node->data.call.args[1]);
         emit(cg, ", &_iv); }");
         return true;
     }
     if (strcmp(func, "remove_at") == 0 && node->data.call.arg_count == 2) {
-        emit(cg, "ez_arrays_remove_at(&");
-        emit_expression(cg, node->data.call.args[0]);
+        emit(cg, "ez_arrays_remove_at(");
+        emit_array_arg_addr(cg, node->data.call.args[0]);
         emit(cg, ", ");
         emit_expression(cg, node->data.call.args[1]);
         emit(cg, ")");
         return true;
     }
     if (strcmp(func, "clear") == 0 && node->data.call.arg_count == 1) {
-        emit(cg, "ez_arrays_clear(&");
-        emit_expression(cg, node->data.call.args[0]);
+        emit(cg, "ez_arrays_clear(");
+        emit_array_arg_addr(cg, node->data.call.args[0]);
         emit(cg, ")");
         return true;
     }
     if (strcmp(func, "sort_asc") == 0 && node->data.call.arg_count == 1) {
-        emit(cg, "ez_arrays_sort_asc(&");
-        emit_expression(cg, node->data.call.args[0]);
+        emit(cg, "ez_arrays_sort_asc(");
+        emit_array_arg_addr(cg, node->data.call.args[0]);
         emit(cg, ")");
         return true;
     }
     if (strcmp(func, "sort_desc") == 0 && node->data.call.arg_count == 1) {
-        emit(cg, "ez_arrays_sort_desc(&");
-        emit_expression(cg, node->data.call.args[0]);
+        emit(cg, "ez_arrays_sort_desc(");
+        emit_array_arg_addr(cg, node->data.call.args[0]);
         emit(cg, ")");
         return true;
     }
     if (strcmp(func, "is_empty") == 0 && node->data.call.arg_count == 1) {
-        emit(cg, "ez_arrays_is_empty(&");
-        emit_expression(cg, node->data.call.args[0]);
+        emit(cg, "ez_arrays_is_empty(");
+        emit_array_arg_addr(cg, node->data.call.args[0]);
         emit(cg, ")");
         return true;
     }
@@ -3709,11 +3734,11 @@ static bool emit_arrays_call(CodeGen *cg, AstNode *node, const char *func) {
         EzType *arr_t = cg->type_table ? typetable_get(cg->type_table, node->data.call.args[0]) : NULL;
         if (arr_t && arr_t->kind == TK_ARRAY && arr_t->element_type &&
             strcmp(arr_t->element_type, "string") == 0) {
-            emit(cg, "ez_arrays_contains_str(&");
+            emit(cg, "ez_arrays_contains_str(");
         } else {
-            emit(cg, "ez_arrays_contains_int(&");
+            emit(cg, "ez_arrays_contains_int(");
         }
-        emit_expression(cg, node->data.call.args[0]);
+        emit_array_arg_addr(cg, node->data.call.args[0]);
         emit(cg, ", ");
         emit_expression(cg, node->data.call.args[1]);
         emit(cg, ")");
@@ -3723,11 +3748,11 @@ static bool emit_arrays_call(CodeGen *cg, AstNode *node, const char *func) {
         EzType *arr_t = cg->type_table ? typetable_get(cg->type_table, node->data.call.args[0]) : NULL;
         if (arr_t && arr_t->kind == TK_ARRAY && arr_t->element_type &&
             strcmp(arr_t->element_type, "string") == 0) {
-            emit(cg, "ez_arrays_is_equal_str(&");
+            emit(cg, "ez_arrays_is_equal_str(");
         } else {
-            emit(cg, "ez_arrays_is_equal_prim(&");
+            emit(cg, "ez_arrays_is_equal_prim(");
         }
-        emit_expression(cg, node->data.call.args[0]);
+        emit_array_arg_addr(cg, node->data.call.args[0]);
         emit(cg, ", &");
         emit_expression(cg, node->data.call.args[1]);
         emit(cg, ")");
@@ -3737,11 +3762,11 @@ static bool emit_arrays_call(CodeGen *cg, AstNode *node, const char *func) {
         EzType *arr_t = cg->type_table ? typetable_get(cg->type_table, node->data.call.args[0]) : NULL;
         if (arr_t && arr_t->kind == TK_ARRAY && arr_t->element_type &&
             strcmp(arr_t->element_type, "string") == 0) {
-            emit(cg, "ez_arrays_index_of_str(&");
+            emit(cg, "ez_arrays_index_of_str(");
         } else {
-            emit(cg, "ez_arrays_index_of_int(&");
+            emit(cg, "ez_arrays_index_of_int(");
         }
-        emit_expression(cg, node->data.call.args[0]);
+        emit_array_arg_addr(cg, node->data.call.args[0]);
         emit(cg, ", ");
         emit_expression(cg, node->data.call.args[1]);
         emit(cg, ")");
@@ -3775,8 +3800,8 @@ static bool emit_arrays_call(CodeGen *cg, AstNode *node, const char *func) {
                 emit(cg, "; ez_default_arena = _esc; } ");
             }
         }
-        emitf(cg, "ez_arrays_prepend(%s, &", pp_arena);
-        emit_expression(cg, node->data.call.args[0]);
+        emitf(cg, "ez_arrays_prepend(%s, ", pp_arena);
+        emit_array_arg_addr(cg, node->data.call.args[0]);
         emit(cg, ", &_pv); }");
         return true;
     }
@@ -3791,8 +3816,8 @@ static bool emit_arrays_call(CodeGen *cg, AstNode *node, const char *func) {
         }
         emitf(cg, "{ %s _fv = ", fl_c_elem);
         emit_expression(cg, node->data.call.args[1]);
-        emit(cg, "; ez_arrays_fill(ez_default_arena, &");
-        emit_expression(cg, node->data.call.args[0]);
+        emit(cg, "; ez_arrays_fill(ez_default_arena, ");
+        emit_array_arg_addr(cg, node->data.call.args[0]);
         emit(cg, ", &_fv, ");
         emit_expression(cg, node->data.call.args[2]);
         emit(cg, "); }");
@@ -3806,8 +3831,7 @@ static bool emit_arrays_call(CodeGen *cg, AstNode *node, const char *func) {
     bool ref_args = (strcmp(func, "concat") == 0 || strcmp(func, "pair") == 0);
     emitf(cg, "ez_arrays_%s(", func);
     if (needs_arena) emit(cg, "ez_default_arena, ");
-    emit(cg, "&");
-    emit_expression(cg, node->data.call.args[0]);
+    emit_array_arg_addr(cg, node->data.call.args[0]);
     for (int i = 1; i < node->data.call.arg_count; i++) {
         emit(cg, ", ");
         if (ref_args) emit(cg, "&");
@@ -3849,8 +3873,8 @@ static bool emit_os_call(CodeGen *cg, AstNode *node, const char *func) {
     if ((strcmp(func, "get_first") == 0 || strcmp(func, "get_last") == 0 ||
          strcmp(func, "remove_last") == 0 || strcmp(func, "remove_first") == 0) &&
         node->data.call.arg_count == 1) {
-        emitf(cg, "ez_arrays_%s(&", func);
-        emit_expression(cg, node->data.call.args[0]);
+        emitf(cg, "ez_arrays_%s(", func);
+        emit_array_arg_addr(cg, node->data.call.args[0]);
         emit(cg, ")");
         return true;
     }
@@ -3881,8 +3905,8 @@ static bool emit_os_call(CodeGen *cg, AstNode *node, const char *func) {
                 emit(cg, "; ez_default_arena = _esc; } ");
             }
         }
-        emitf(cg, "ez_arrays_prepend(%s, &", pp2_arena);
-        emit_expression(cg, node->data.call.args[0]);
+        emitf(cg, "ez_arrays_prepend(%s, ", pp2_arena);
+        emit_array_arg_addr(cg, node->data.call.args[0]);
         emit(cg, ", &_pv); }");
         return true;
     }
@@ -3897,16 +3921,16 @@ static bool emit_os_call(CodeGen *cg, AstNode *node, const char *func) {
         }
         emitf(cg, "{ %s _fv = ", fl_c_elem);
         emit_expression(cg, node->data.call.args[1]);
-        emit(cg, "; ez_arrays_fill(ez_default_arena, &");
-        emit_expression(cg, node->data.call.args[0]);
+        emit(cg, "; ez_arrays_fill(ez_default_arena, ");
+        emit_array_arg_addr(cg, node->data.call.args[0]);
         emit(cg, ", &_fv, ");
         emit_expression(cg, node->data.call.args[2]);
         emit(cg, "); }");
         return true;
     }
     if (strcmp(func, "count") == 0 && node->data.call.arg_count == 2) {
-        emit(cg, "ez_arrays_count(&");
-        emit_expression(cg, node->data.call.args[0]);
+        emit(cg, "ez_arrays_count(");
+        emit_array_arg_addr(cg, node->data.call.args[0]);
         emit(cg, ", ");
         emit_expression(cg, node->data.call.args[1]);
         emit(cg, ")");
@@ -3937,8 +3961,8 @@ static bool emit_os_call(CodeGen *cg, AstNode *node, const char *func) {
     }
     if ((strcmp(func, "get_sum") == 0 || strcmp(func, "get_min") == 0 ||
          strcmp(func, "get_max") == 0) && node->data.call.arg_count == 1) {
-        emitf(cg, "ez_arrays_%s(&", func);
-        emit_expression(cg, node->data.call.args[0]);
+        emitf(cg, "ez_arrays_%s(", func);
+        emit_array_arg_addr(cg, node->data.call.args[0]);
         emit(cg, ")");
         return true;
     }
