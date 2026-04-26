@@ -69,6 +69,7 @@ type BuildOpts struct {
 	Verbose    bool
 	EmitC      bool
 	NoColor    bool
+	Time       bool
 	Quiet      bool   // Suppress all warnings
 	QuietCodes string // Suppress specific warning codes (comma-separated)
 }
@@ -113,6 +114,9 @@ func Build(file string, opts BuildOpts) (int, error) {
 	}
 	if opts.NoColor {
 		args = append(args, "--no-color")
+	}
+	if opts.Time {
+		args = append(args, "--time")
 	}
 	if opts.Quiet {
 		args = append(args, "--quiet")

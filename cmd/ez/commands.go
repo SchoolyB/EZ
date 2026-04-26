@@ -57,11 +57,15 @@ var buildCmd = &cobra.Command{
 		verbose, _ := cmd.Flags().GetBool("verbose")
 		emitC, _ := cmd.Flags().GetBool("emit-c")
 		quiet, _ := cmd.Flags().GetString("quiet")
+		showTime, _ := cmd.Flags().GetBool("time")
+		noColor, _ := cmd.Flags().GetBool("no-color")
 
 		opts := ezc.BuildOpts{
 			Output:  output,
 			Verbose: verbose,
 			EmitC:   emitC,
+			Time:    showTime,
+			NoColor: noColor,
 		}
 		if quiet == "all" {
 			opts.Quiet = true
@@ -431,13 +435,16 @@ var rootCmd = &cobra.Command{
 			extraArgs = args[1:]
 		}
 
-		// Prepend --quiet flag for the compiler (before program args)
+		// Prepend compiler flags (before program args)
 		var compilerArgs []string
 		quiet, _ := cmd.Flags().GetString("quiet")
 		if quiet == "all" {
 			compilerArgs = append(compilerArgs, "--quiet")
 		} else if quiet != "" {
 			compilerArgs = append(compilerArgs, "--quiet", quiet)
+		}
+		if noColor, _ := cmd.Flags().GetBool("no-color"); noColor {
+			compilerArgs = append(compilerArgs, "--no-color")
 		}
 		compilerArgs = append(compilerArgs, extraArgs...)
 
@@ -479,7 +486,8 @@ Available Commands:
 		}
 		fmt.Fprintf(cmd.OutOrStdout(), `
 Flags:
-  -q, --quiet string   Suppress warnings (use 'all' or comma-separated codes like W1001,W1002)
+  -q, --quiet string   Suppress warnings ('all' or comma-separated codes like W1001,W1002)
+      --no-color       Disable colored output
 
 Use "ez [command] --help" for more information about a command.
 `)
@@ -489,8 +497,12 @@ Use "ez [command] --help" for more information about a command.
 
 	buildCmd.Flags().StringP("output", "o", "", "Output binary name")
 	buildCmd.Flags().BoolP("verbose", "v", false, "Show compilation commands")
+	buildCmd.Flags().MarkHidden("verbose")
 	buildCmd.Flags().Bool("emit-c", false, "Emit generated C source only")
+	buildCmd.Flags().Bool("time", false, "Show compilation timing")
+	buildCmd.Flags().Bool("no-color", false, "Disable colored output")
 	rootCmd.Flags().StringP("quiet", "q", "", "Suppress warnings (use 'all' or comma-separated codes like W1001,W1002)")
+	rootCmd.Flags().Bool("no-color", false, "Disable colored output")
 	buildCmd.Flags().StringP("quiet", "q", "", "Suppress warnings (use 'all' or comma-separated codes like W1001,W1002)")
 	checkCmd.Flags().StringP("quiet", "q", "", "Suppress warnings (use 'all' or comma-separated codes like W1001,W1002)")
 
