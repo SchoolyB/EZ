@@ -2410,13 +2410,21 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
         /* Member call on expression result: foo().bar() */
         if (fn->kind == NODE_MEMBER_EXPR && fn->data.member.object->kind != NODE_LABEL) {
             EzType *obj_t = resolve_expr(tc, fn->data.member.object);
-            if (obj_t && obj_t->kind != TK_STRUCT && obj_t->kind != TK_UNKNOWN &&
-                obj_t->kind != TK_VOID) {
+            if (obj_t && obj_t->kind != TK_STRUCT && obj_t->kind != TK_POINTER &&
+                obj_t->kind != TK_UNKNOWN && obj_t->kind != TK_VOID) {
                 char msg[256];
                 snprintf(msg, sizeof(msg),
                     "type '%s' has no functions; only structs support function calls with dot syntax",
                     type_name(obj_t));
                 diag_error_msg(tc->diag, "E3013", strdup(msg),
+                    NODE_FILE(tc, fn), fn->token.line, fn->token.column, 0);
+            } else if (obj_t && (obj_t->kind == TK_STRUCT || obj_t->kind == TK_POINTER)) {
+                /* E3075: chaining struct function calls (calling one struct
+                 * function on the result of another) isn't supported.
+                 * Assigning the intermediate result to a variable keeps
+                 * each call site readable and avoids the AST-rewrite
+                 * gymnastics that fluent-interface chaining would require. */
+                diag_error_code(tc->diag, "E3075",
                     NODE_FILE(tc, fn), fn->token.line, fn->token.column, 0);
             }
             result = &TYPE_UNKNOWN;
