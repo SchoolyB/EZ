@@ -1986,7 +1986,7 @@ All types are printable: `string`, `int`, `float`, `bool`, arrays, maps, structs
 | `size_of` | `(Type) -> int` | Size of type in bytes |
 | `copy` | `(value T) -> T` | Create deep copy. Accepts any type. |
 | `new` | `(Type) -> ^Type` | Allocate zero-initialized struct on arena |
-| `ref` | `(value T) -> T` | Create reference to value. Accepts any type. |
+| `ref` | `(variable T) -> ref<T>` | Create a transparent reference (alias) to a variable. Reads and writes through the reference affect the original. Mutability is determined by the declaration (`mut` or `const`). |
 | `addr` | `(variable) -> ^T` | Get memory address of a variable |
 | `error` | `(message string) -> Error` | Create error value |
 | `assert` | `(condition bool, message string)` | Assert condition is true |
