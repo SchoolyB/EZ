@@ -5366,10 +5366,19 @@ static void emit_var_declaration(CodeGen *cg, AstNode *node) {
     if (node->data.var_decl.value && node->data.var_decl.value->kind == NODE_CALL_EXPR) {
         AstNode *fn = node->data.var_decl.value->data.call.function;
         if (fn->kind == NODE_LABEL && strcmp(fn->data.label.value, "ref") == 0) {
-            /* Only register as ref if the argument is a variable, not a function */
+            /* Register as a transparent reference for any lvalue source —
+             * variable, struct field, or index expression. Without this,
+             * ref(struct.field) was registered as a plain value var and
+             * later EZ_ARRAY_SET(&(r), ...) produced EzArray ** instead of
+             * EzArray *. The auto-deref path in NODE_LABEL emission
+             * handles field/index sources the same as variable sources. */
             if (node->data.var_decl.value->data.call.arg_count == 1) {
                 AstNode *arg = node->data.var_decl.value->data.call.args[0];
-                if (arg->kind == NODE_LABEL && !find_func(cg, arg->data.label.value)) {
+                bool is_lvalue =
+                    (arg->kind == NODE_LABEL && !find_func(cg, arg->data.label.value)) ||
+                    arg->kind == NODE_MEMBER_EXPR ||
+                    arg->kind == NODE_INDEX_EXPR;
+                if (is_lvalue) {
                     register_ref_var(cg, node->data.var_decl.name);
                 }
             }
