@@ -5510,8 +5510,19 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
 
     case NODE_EXPR_STMT: {
         EzType *expr_t = resolve_expr(tc, node->data.expr_stmt.expr);
-        /* E5011: warn about unused return value from function call */
+        /* E3081: bare function name used as statement without call */
         AstNode *expr = node->data.expr_stmt.expr;
+        if (expr && expr->kind == NODE_LABEL) {
+            const char *name = expr->data.label.value;
+            if (tc_is_builtin(name) || find_func(tc, name)) {
+                char msg[256];
+                snprintf(msg, sizeof(msg),
+                    "function '%s' used as a statement without being called; did you mean '%s()'?",
+                    name, name);
+                diag_error_msg(tc->diag, "E3081", strdup(msg),
+                    NODE_FILE(tc, expr), expr->token.line, expr->token.column, 0);
+            }
+        }
         if (expr && expr->kind == NODE_CALL_EXPR && expr_t &&
             expr_t->kind != TK_VOID && expr_t->kind != TK_UNKNOWN) {
             AstNode *fn = expr->data.call.function;

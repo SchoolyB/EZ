@@ -152,7 +152,8 @@
     EZ_ERROR("E3077", "types", "structs cannot be compared with comparison operators; compare individual fields instead (e.g., a.x == b.x, a.x < b.x)") \
     EZ_ERROR("E3078", "types", "pointer arithmetic is not supported; '^T' is the address of one value, not a buffer") \
     EZ_ERROR("E3079", "types", "cannot take a mutable reference to a const variable; declare the reference as 'const', or copy() the value to get an independent mutable instance") \
-    EZ_ERROR("E3080", "types", "function must return named variable '%s', not a different expression")
+    EZ_ERROR("E3080", "types", "function must return named variable '%s', not a different expression") \
+    EZ_ERROR("E3081", "types", "function '%s' used as a statement without being called; did you mean '%s()'?")
 
 /* --- E4xxx: Name Problems (References) --- */
 #define EZ_REFERENCE_ERRORS \
