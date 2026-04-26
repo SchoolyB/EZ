@@ -3712,7 +3712,10 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                            !(expected_t->kind == TK_ENUM && is_int_kind(val_t->kind)) &&
                            !(expected_t->kind == TK_STRUCT && is_int_kind(val_t->kind)) &&
                            !(is_int_kind(expected_t->kind) && val_t->kind == TK_STRUCT) &&
-                           !(expected_t->kind == TK_FLOAT && is_int_kind(val_t->kind))) {
+                           !(expected_t->kind == TK_FLOAT && is_int_kind(val_t->kind)) &&
+                           /* nil is a valid value for pointer and Error fields */
+                           !(val_t->kind == TK_NIL &&
+                             (expected_t->kind == TK_POINTER || expected_t->kind == TK_ERROR))) {
                     char msg[256];
                     snprintf(msg, sizeof(msg),
                         "field '%s' of struct '%s': expected %s, got %s",
@@ -5049,7 +5052,10 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
                     field_t->kind != value_t->kind &&
                     !(is_int_kind(field_t->kind) && is_int_kind(value_t->kind)) &&
                     !(is_int_kind(field_t->kind) && value_t->kind == TK_ENUM) &&
-                    !(field_t->kind == TK_FLOAT && is_int_kind(value_t->kind))) {
+                    !(field_t->kind == TK_FLOAT && is_int_kind(value_t->kind)) &&
+                    /* nil is a valid value for pointer and Error fields */
+                    !(value_t->kind == TK_NIL &&
+                      (field_t->kind == TK_POINTER || field_t->kind == TK_ERROR))) {
                     char msg[256];
                     snprintf(msg, sizeof(msg),
                         "type mismatch: cannot assign %s to %s field '%s'",

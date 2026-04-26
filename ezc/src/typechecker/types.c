@@ -205,6 +205,18 @@ bool type_eq(EzType *a, EzType *b) {
 
 const char *type_name(EzType *t) {
     if (!t) return "unknown";
+    /* Pointer types store the bare pointee in t->name (and t->element_type).
+     * Render them with the leading '^' so error messages match source syntax.
+     * A small ring of static buffers lets callers chain type_name() calls
+     * inside one snprintf() without clobbering the previous result. */
+    if (t->kind == TK_POINTER && t->name) {
+        static char bufs[4][128];
+        static int slot = 0;
+        char *out = bufs[slot];
+        slot = (slot + 1) & 3;
+        snprintf(out, sizeof(bufs[0]), "^%s", t->name);
+        return out;
+    }
     return t->name;
 }
 
