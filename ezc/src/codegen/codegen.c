@@ -5975,34 +5975,13 @@ static void emit_return_statement(CodeGen *cg, AstNode *node) {
         emit(cg, "ez_scope_restore(ez_default_arena, _scope_mark); ez_exit_func(); return;\n");
     } else if (node->data.return_stmt.count == 1) {
         /* Single return value: evaluate into temp, then exit and return */
-        /* Check if we need to dereference a pointer return (new() returns pointer,
-         * but function may return struct by value) */
-        bool needs_deref = false;
-        if (cg->current_func && cg->type_table) {
-            EzType *val_t = cg->type_table ? typetable_get(cg->type_table, node->data.return_stmt.values[0]) : NULL;
-            if (val_t && val_t->kind == TK_POINTER &&
-                cg->current_func->data.func_decl.return_type_count > 0) {
-                const char *ret_tn = cg->current_func->data.func_decl.return_types[0];
-                EzType *ret_t = type_from_name(ret_tn);
-                if (ret_t->kind == TK_STRUCT) needs_deref = true;
-            }
-        }
         emit_indent(cg);
-        if (needs_deref && cg->current_func) {
+        emit(cg, "{ __auto_type _ret = ");
+        emit_expression(cg, node->data.return_stmt.values[0]);
+        emit(cg, "; ");
+        if (cg->current_func && cg->current_func->data.func_decl.return_type_count > 0) {
             const char *ret_tn = cg->current_func->data.func_decl.return_types[0];
-            const char *c_ret = ez_type_to_c_cg(cg, ret_tn);
-            emitf(cg, "{ %s _ret = *(", c_ret);
-            emit_expression(cg, node->data.return_stmt.values[0]);
-            emit(cg, "); ");
             emit_func_return_escape(cg, ret_tn);
-        } else {
-            emit(cg, "{ __auto_type _ret = ");
-            emit_expression(cg, node->data.return_stmt.values[0]);
-            emit(cg, "; ");
-            if (cg->current_func && cg->current_func->data.func_decl.return_type_count > 0) {
-                const char *ret_tn = cg->current_func->data.func_decl.return_types[0];
-                emit_func_return_escape(cg, ret_tn);
-            }
         }
         emit(cg, "ez_exit_func(); return _ret; }\n");
     } else if (node->data.return_stmt.count == 0 && cg->current_func &&

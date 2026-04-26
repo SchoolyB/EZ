@@ -4585,9 +4585,6 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
                        !(is_int_kind(declared->kind) && value_type->kind == TK_POINTER) &&
                        /* Skip mismatch when assigning pointer (addr) to ^T */
                        !(declared->kind == TK_POINTER && value_type->kind == TK_POINTER) &&
-                       /* Pointer to struct is compatible with struct (new() returns pointer) */
-                       !(declared->kind == TK_STRUCT && value_type->kind == TK_POINTER) &&
-                       !(declared->kind == TK_POINTER && value_type->kind == TK_STRUCT) &&
                        /* #1433: implicit int→float coercion when target is float */
                        !(declared->kind == TK_FLOAT && is_int_kind(value_type->kind))) {
                 /* Type mismatch */
@@ -5443,10 +5440,7 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
                 !(is_int_kind(expected->kind) && ret_t->kind == TK_ENUM) &&
                 !(expected->kind == TK_STRUCT && is_int_kind(ret_t->kind)) &&
                 !(is_int_kind(expected->kind) && ret_t->kind == TK_STRUCT) &&
-                !(expected->kind == TK_FLOAT && is_int_kind(ret_t->kind)) &&
-                /* Pointer to struct is compatible with struct (new() returns pointer) */
-                !(expected->kind == TK_STRUCT && ret_t->kind == TK_POINTER) &&
-                !(expected->kind == TK_POINTER && ret_t->kind == TK_STRUCT)) {
+                !(expected->kind == TK_FLOAT && is_int_kind(ret_t->kind))) {
                 char msg[256];
                 snprintf(msg, sizeof(msg),
                     "return type mismatch: expected %s, got %s",
