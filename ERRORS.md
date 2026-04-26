@@ -135,7 +135,7 @@
 | `E3074` | types | arrays cannot be compared with '==' or '!='; use arrays.is_equal(a, b) for structural equality |
 | `E3075` | types | chained struct function calls are not supported; assign the intermediate result to a variable, then call the next struct function on it |
 | `E3076` | types | maps cannot be compared with '==' or '!='; use maps.is_equal(a, b) for structural equality |
-| `E3077` | types | structs cannot be compared with '==' or '!='; compare fields individually (e.g., a.x == b.x && a.y == b.y) |
+| `E3077` | types | structs cannot be compared with comparison operators; compare individual fields instead (e.g., a.x == b.x, a.x < b.x) |
 | `E4001` | names | this variable does not exist; check the spelling or make sure it is declared above this line |
 | `E4002` | names | this function does not exist; check the spelling or make sure it is defined |
 | `E4003` | names | variable '%s' already declared in this scope (line %d) |
@@ -210,4 +210,4 @@
 
 ---
 
-*Generated on 2026-04-26 05:36:45 UTC*
+*Generated on 2026-04-26 05:38:19 UTC*

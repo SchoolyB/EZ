@@ -149,7 +149,7 @@
     EZ_ERROR("E3074", "types", "arrays cannot be compared with '==' or '!='; use arrays.is_equal(a, b) for structural equality") \
     EZ_ERROR("E3075", "types", "chained struct function calls are not supported; assign the intermediate result to a variable, then call the next struct function on it") \
     EZ_ERROR("E3076", "types", "maps cannot be compared with '==' or '!='; use maps.is_equal(a, b) for structural equality") \
-    EZ_ERROR("E3077", "types", "structs cannot be compared with '==' or '!='; compare fields individually (e.g., a.x == b.x && a.y == b.y)")
+    EZ_ERROR("E3077", "types", "structs cannot be compared with comparison operators; compare individual fields instead (e.g., a.x == b.x, a.x < b.x)")
 
 /* --- E4xxx: Name Problems (References) --- */
 #define EZ_REFERENCE_ERRORS \
