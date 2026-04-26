@@ -4937,6 +4937,33 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
                     Symbol *sym = scope_lookup_local(tc->current_scope,
                         node->data.var_decl.name);
                     if (sym) sym->is_ref = true;
+                    /* E3079: a mutable reference to a const source is a
+                     * contradiction — the source promised immutability and
+                     * the reference would let writes through. Allow:
+                     *   const r = ref(const_var)   (read-only view)
+                     *   const r = ref(mut_var)     (read-only view of mutable)
+                     *   mut r   = ref(mut_var)     (full mutable alias)
+                     * Reject:
+                     *   mut r   = ref(const_var)
+                     */
+                    if (node->data.var_decl.mutable &&
+                        node->data.var_decl.value->data.call.arg_count == 1) {
+                        AstNode *src = node->data.var_decl.value->data.call.args[0];
+                        if (src->kind == NODE_LABEL) {
+                            Symbol *src_sym = scope_lookup(tc->current_scope,
+                                src->data.label.value);
+                            if (src_sym && !src_sym->mutable &&
+                                !find_func(tc, src->data.label.value)) {
+                                char msg[256];
+                                snprintf(msg, sizeof(msg),
+                                    "cannot take a mutable reference to const variable '%s'; declare '%s' as const, or copy() the value to get an independent mutable instance",
+                                    src->data.label.value,
+                                    node->data.var_decl.name);
+                                diag_error_msg(tc->diag, "E3079", strdup(msg),
+                                    NODE_FILE(tc, node), node->token.line, node->token.column, 0);
+                            }
+                        }
+                    }
                 }
                 /* Store multi-return types for temp variables from calls.
                  * For generic functions, substitute the wildcard binding
