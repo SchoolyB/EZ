@@ -103,6 +103,24 @@ static bool is_reserved_type_name(const char *name) {
            strcmp(name, "Error") == 0 || strcmp(name, "nil") == 0;
 }
 
+/* True if expr is an lvalue (something with a stable address): a variable,
+ * a field of an lvalue, an index into an lvalue, or a pointer dereference.
+ * Used by addr() and ref() to reject literals, call results, arithmetic
+ * expressions, etc. — none of which have an address to take. */
+static bool is_lvalue_expr(AstNode *e) {
+    if (!e) return false;
+    switch (e->kind) {
+    case NODE_LABEL:        return true;
+    case NODE_MEMBER_EXPR:  return is_lvalue_expr(e->data.member.object);
+    case NODE_INDEX_EXPR:   return is_lvalue_expr(e->data.index_expr.left);
+    case NODE_POSTFIX_EXPR:
+        /* p^ (dereference) is an lvalue */
+        return e->data.postfix.op &&
+               strcmp(e->data.postfix.op, "^") == 0;
+    default:                return false;
+    }
+}
+
 /* --- Struct info helpers --- */
 
 static void register_struct(TypeChecker *tc, const char *name,
@@ -2510,9 +2528,11 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
             /* Check built-in functions first */
             if (strcmp(fn_name, "addr") == 0 && node->data.call.arg_count == 1) {
                 AstNode *arg = node->data.call.args[0];
-                /* addr() requires an lvalue (variable, field, index) */
-                if (arg->kind != NODE_LABEL && arg->kind != NODE_MEMBER_EXPR &&
-                    arg->kind != NODE_INDEX_EXPR) {
+                /* addr() requires an lvalue. is_lvalue_expr recurses into
+                 * member/index chains so 'addr(some_call().field)' is
+                 * rejected at typecheck instead of leaking an
+                 * '&(rvalue)' to clang. */
+                if (!is_lvalue_expr(arg)) {
                     diag_error_msg(tc->diag, "E3012",
                         strdup("addr() requires a variable, field, or index expression; cannot take address of a literal or expression"),
                         NODE_FILE(tc, node), node->token.line, node->token.column, 0);
@@ -2532,6 +2552,16 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                     if (rfs) rfs->used = true;
                     result = type_from_name("func");
                 } else {
+                    /* Same lvalue requirement as addr(): reject literals,
+                     * call results, arithmetic expressions — anything
+                     * without a stable address. Without this, ref(42) and
+                     * ref(some_call()) leaked '&42' / '&(rvalue)' to clang
+                     * and produced opaque generated-C errors. */
+                    if (!is_lvalue_expr(arg)) {
+                        diag_error_msg(tc->diag, "E3012",
+                            strdup("ref() requires a variable, field, or index expression; cannot take a reference to a literal, call result, or expression"),
+                            NODE_FILE(tc, node), node->token.line, node->token.column, 0);
+                    }
                     /* Build a pointer type that preserves the full source type.
                      * For arrays, type_name returns the element type ("int"),
                      * so reconstruct the full name ("[int]"). */
