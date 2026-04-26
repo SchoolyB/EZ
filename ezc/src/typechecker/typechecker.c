@@ -1924,9 +1924,18 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                         op_name = "insert_at";
                     }
                     if (val_node && op_name) {
-                        EzType *arr_t = typetable_get(tc->type_table, node->data.call.args[0]);
+                        AstNode *arr_arg = node->data.call.args[0];
+                        EzType *arr_t = typetable_get(tc->type_table, arr_arg);
+                        if (!arr_t) arr_t = resolve_expr(tc, arr_arg);
                         EzType *val_t = resolve_expr(tc, val_node);
-                        if (arr_t && arr_t->kind == TK_ARRAY && arr_t->element_type &&
+                        if (arr_t && arr_t->kind != TK_ARRAY && arr_t->kind != TK_UNKNOWN) {
+                            char msg[256];
+                            snprintf(msg, sizeof(msg),
+                                "arrays.%s() expects an array as the first argument, got %s",
+                                op_name, type_name(arr_t));
+                            diag_error_msg(tc->diag, "E3001", strdup(msg),
+                                NODE_FILE(tc, arr_arg), arr_arg->token.line, arr_arg->token.column, 0);
+                        } else if (arr_t && arr_t->kind == TK_ARRAY && arr_t->element_type &&
                             val_t && val_t->kind != TK_UNKNOWN) {
                             EzType *elem_t = type_from_name(arr_t->element_type);
                             if (elem_t->kind != TK_UNKNOWN && elem_t->kind != val_t->kind &&
