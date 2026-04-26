@@ -434,10 +434,13 @@ The pointer type `^Type` represents a memory address pointing to a value of `Typ
 ```ez
 mut x int = 42
 mut p ^int = addr(x)
-println(p^)  // 42
+println(p)   // 0x16d1ab9f8 — prints the address as hex
+println(p^)  // 42 — explicit dereference reads the pointee
 p^ = 100
 println(x)   // 100
 ```
+
+Printing a pointer value (`println(p)`, `print(p)`, etc.) outputs the address in hex (`0x...`) when non-nil and `nil` when null. Use `p^` to access the pointee.
 
 Dereferencing a `nil` pointer causes a runtime panic.
 
@@ -863,6 +866,13 @@ Division by zero produces a runtime error.
 | `>=` | Greater than or equal |
 
 Comparison operators return `bool`.
+
+Comparison operators only work on primitive types (numeric kinds, `bool`, `char`, `byte`, `string` for equality, enums) and pointer equality (`==` / `!=` against `nil` or another pointer of the same pointee type). They are not defined on aggregate types:
+
+- Arrays — use `arrays.is_equal(a, b)` for equality (E3074).
+- Maps — use `maps.is_equal(a, b)` for equality; ordering is not defined on maps (E3076).
+- Structs — compare individual fields (`a.x == b.x`); E3077.
+- Pointer arithmetic and ordering are not supported (E3078); equality (`==` / `!=`) on pointers is allowed.
 
 #### 5.2.3 Logical Operators
 
@@ -1604,6 +1614,38 @@ Rules:
 - Cross-module: `module.StructName.func_name(args...)`
 - Module-qualified types can be used in variable declarations, parameters, and return types: `mut p module.Point`
 
+#### Instance Dispatch
+
+When a struct function takes the struct (or a pointer to it) as its first parameter, callers can use the instance form `instance.func(...)` instead of writing the type name. The compiler rewrites the call as `Type.func(instance, ...)`:
+
+```ez
+const Vec struct {
+    x int
+    y int
+
+    do len_sq(v Vec) -> int {
+        return v.x * v.x + v.y * v.y
+    }
+
+    do bump(&v Vec) {
+        v.x = v.x + 1
+        v.y = v.y + 1
+    }
+}
+
+mut a Vec = Vec{x: 3, y: 4}
+a.len_sq()         // sugar for Vec.len_sq(a)
+Vec.len_sq(a)      // still valid
+
+a.bump()           // sugar for Vec.bump(a); '&v' makes it a mutable alias
+```
+
+Both `do f(v Vec)` and `do f(&v Vec)` (mutable receiver) and `do f(v ^Vec)` (pointer receiver) participate in instance dispatch. The mutable-receiver form (`&v`) takes the instance by reference and may modify the caller's variable.
+
+Factory-style functions whose first parameter isn't the struct (e.g. `do make(x int) -> Vec`) keep requiring the type-namespaced form (`Vec.make(...)`) — there is no instance to bind.
+
+Chained struct function calls (`a.f().g()`) are not supported (E3075). Assign each intermediate result to a variable.
+
 ### 7.8 Function Scope
 
 All functions in EZ are declared at the top level or inside struct blocks. Nested function declarations inside other functions are not permitted. Anonymous functions (lambdas/closures) are not supported.
@@ -1977,6 +2019,17 @@ arrays.append(arr, 6)
 println(r2[4])        // Prints 6 - r2 sees the change
 ```
 
+**Mutability rules:**
+
+| Reference declaration | Source | Allowed? |
+|-----------------------|--------|----------|
+| `mut r = ref(x)`      | `mut`   | yes |
+| `const r = ref(x)`    | `mut`   | yes — read-only view of a mutable source |
+| `const r = ref(x)`    | `const` | yes |
+| `mut r = ref(x)`      | `const` | **no** — E3079; you cannot get a mutable reference to a const source. Use `copy(x)` to obtain an independent mutable instance. |
+
+**Argument requirement:** `ref()` requires a variable, struct field, array index, or pointer dereference — anything with a stable address. Literals, call results, and arithmetic expressions are rejected (E3012). The same rule applies to `addr()`, and the check recurses through member/index chains, so `ref(some_call().field)` and `addr(arr[0])` are validated end-to-end.
+
 #### Sleep Functions
 
 | Function | Signature | Description |
@@ -1995,6 +2048,9 @@ println(r2[4])        // Prints 6 - r2 sees the change
 | `contains` | `(arr [T], value T) -> bool` | Check if value exists |
 | `index_of` | `(arr [T], value T) -> int` | First index of value (-1 if not found) |
 | `count` | `(arr [T], value T) -> int` | Count occurrences of value |
+| `is_equal` | `(a [T], b [T]) -> bool` | Structural equality. Compares length first, then elements. `T` must be a primitive (`int`, `uint`, `float`, `bool`, `char`, `byte`, sized variants) or `string`; arrays of nested composites are rejected at compile time. |
+
+The `==` and `!=` operators on arrays are not allowed (E3074); use `arrays.is_equal(a, b)` for equality.
 
 #### Access Functions
 
@@ -2090,6 +2146,9 @@ println(r2[4])        // Prints 6 - r2 sees the change
 | `remove_key` | `(&m map[K:V], key K) -> bool` | Remove key-value pair |
 | `clear` | `(&m map[K:V])` | Remove all entries |
 | `merge` | `(m1 map[K:V], m2 map[K:V]) -> map[K:V]` | Combine two maps (m2 overwrites on conflict) |
+| `is_equal` | `(a map[K:V], b map[K:V]) -> bool` | Structural equality. Compares counts, then iterates the first map's entries in insertion order looking each key up in the second. `K` and `V` must each be a primitive (`int`, `uint`, `float`, `bool`, `char`, `byte`, sized variants) or `string`; maps with nested-composite values are rejected at compile time. |
+
+The `==` and `!=` operators on maps are not allowed (E3076); use `maps.is_equal(a, b)` for equality. Maps have no defined ordering, so `<` / `<=` / `>` / `>=` on maps is also rejected.
 
 Use `len(m)` to get the number of entries (builtin, no import needed).
 
@@ -2933,6 +2992,8 @@ do main() {
 ```
 
 The `main` function is not called explicitly; it is invoked automatically when the program runs.
+
+`main()` exits when control reaches its closing brace. An explicit `return` statement inside `main()` is not allowed (E3073) — to terminate early, branch the remaining work behind an `if`/`otherwise`, or call `exit(code)` to end the program with a specific status.
 
 ### 12.3 Evaluation Order
 
