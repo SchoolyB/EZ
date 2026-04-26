@@ -2296,34 +2296,48 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                         /* #1505: check if `mfn` is a data field of type func
                          * before trying struct-function dispatch. A func-typed
                          * field should be called as a function pointer, not
-                         * mistaken for a struct method. */
+                         * mistaken for a struct method. The bare "func" type
+                         * was deprecated; modern typed function refs are
+                         * encoded as "func(...)->R" with kind TK_FUNCTION. */
                         EzType *field_t = struct_field_type(tc, sname, mfn);
-                        if (field_t && field_t->name && strcmp(field_t->name, "func") == 0) {
+                        if (field_t && field_t->kind == TK_FUNCTION) {
                             /* This is a func-typed data field. Accept the call
                              *; codegen will emit it as a function-pointer
-                             * call through the field access. Return type is
-                             * unknown (func ptrs are type-erased). */
+                             * call through the field access. Resolve the
+                             * return type from the encoded signature so
+                             * downstream uses get a typed value. */
                             sym->used = true;
-                            result = &TYPE_UNKNOWN;
+                            result = (field_t->func_sig &&
+                                      field_t->func_sig->return_count > 0 &&
+                                      field_t->func_sig->return_types &&
+                                      field_t->func_sig->return_types[0])
+                                ? type_from_name(field_t->func_sig->return_types[0])
+                                : &TYPE_UNKNOWN;
                             break;
                         }
                         char sfn[256];
                         snprintf(sfn, sizeof(sfn), "%s_%s", sname, mfn);
                         FuncSig *ssig = find_func(tc, sfn);
-                        /* #1509: if the struct function's first param is
-                         * mutable (&self), auto-dispatch instance.method()
-                         * → Type.method(instance) by rewriting the AST.
-                         * This lets codegen's existing static-dispatch path
-                         * handle it, including the &-prefixing for mutable
-                         * params. Without this, users have to manually write
-                         * Counter.increment(c) which is unintuitive. */
+                        /* Auto-dispatch instance.method() → Type.method(instance)
+                         * whenever the struct function takes the struct (or a
+                         * pointer to it) as its first parameter. This covers
+                         * both `do bar(self Foo)` and `do bar(&self Foo)`, and
+                         * lets users call methods on instances without
+                         * having to write the type name at every call site.
+                         * Factory-style functions (e.g. `do make(x int) -> Foo`)
+                         * whose first param isn't a Foo continue to require
+                         * explicit `Foo.make(...)` since there's no instance
+                         * to bind. */
                         bool is_self_method = false;
                         if (ssig && ssig->decl && ssig->decl->kind == NODE_FUNC_DECL &&
-                            ssig->decl->data.func_decl.param_count > 0 &&
-                            ssig->decl->data.func_decl.params[0].mutable) {
+                            ssig->decl->data.func_decl.param_count > 0) {
                             const char *p0_tn = ssig->decl->data.func_decl.params[0].type_name;
-                            if (p0_tn && strcmp(p0_tn, sname) == 0) {
-                                is_self_method = true;
+                            if (p0_tn) {
+                                if (strcmp(p0_tn, sname) == 0) {
+                                    is_self_method = true;
+                                } else if (p0_tn[0] == '^' && strcmp(p0_tn + 1, sname) == 0) {
+                                    is_self_method = true;
+                                }
                             }
                         }
                         if (is_self_method) {
