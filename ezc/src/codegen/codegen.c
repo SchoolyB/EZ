@@ -5281,6 +5281,18 @@ static void emit_var_declaration(CodeGen *cg, AstNode *node) {
     /* Register bigint variable for type tracking */
     if (type_name && is_bigint_type(type_name)) {
         register_bigint_var(cg, node->data.var_decl.name, type_name);
+    } else if (!type_name && node->data.var_decl.value) {
+        /* Inferred-type var (e.g. `mut b = copy(a)`): consult the typetable
+         * so wide-integer types propagate through copy(), function calls,
+         * member access, etc. Without this the var is silently treated as
+         * int and downstream uses (println, arithmetic) emit the wrong
+         * runtime calls. */
+        EzType *vt = cg->type_table
+            ? typetable_get(cg->type_table, node->data.var_decl.value)
+            : NULL;
+        if (vt && vt->name && is_bigint_type(vt->name)) {
+            register_bigint_var(cg, node->data.var_decl.name, vt->name);
+        }
     }
 
     /* Skip blank identifiers (_) */
