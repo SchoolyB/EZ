@@ -3,7 +3,7 @@
 > Auto-generated from `ezc/src/util/error_codes.h`. Do not edit manually.
 > Run `./scripts/generate_errors.sh` to regenerate.
 
-**Total: 164 codes** (152 errors, 12 warnings)
+**Total: 165 codes** (153 errors, 12 warnings)
 
 ---
 
@@ -134,6 +134,7 @@
 | `E3073` | types | 'return' is not allowed in main(); main exits when control reaches the closing brace |
 | `E3074` | types | arrays cannot be compared with '==' or '!='; use arrays.is_equal(a, b) for structural equality |
 | `E3075` | types | chained struct function calls are not supported; assign the intermediate result to a variable, then call the next struct function on it |
+| `E3076` | types | maps cannot be compared with '==' or '!='; use maps.is_equal(a, b) for structural equality |
 | `E4001` | names | this variable does not exist; check the spelling or make sure it is declared above this line |
 | `E4002` | names | this function does not exist; check the spelling or make sure it is defined |
 | `E4003` | names | variable '%s' already declared in this scope (line %d) |
@@ -208,4 +209,4 @@
 
 ---
 
-*Generated on 2026-04-26 05:19:59 UTC*
+*Generated on 2026-04-26 05:34:53 UTC*

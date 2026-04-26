@@ -30,6 +30,13 @@ EzMap ez_maps_merge(EzArena *arena, EzMap *m1, EzMap *m2);
 /* maps.contains_value(m, value) — check if any entry has the given value */
 bool ez_maps_contains_value(EzMap *m, const void *value);
 
+/* maps.is_equal(a, b) — structural equality.
+ * str_keys: true if keys are EzString (look up via ez_map_get_str)
+ * str_values: true if values are EzString (compare contents, not blob)
+ * Composite key/value types (nested arrays, maps, structs) are rejected
+ * at typecheck and never reach this function. */
+bool ez_maps_is_equal(EzMap *a, EzMap *b, bool str_keys, bool str_values);
+
 /* maps.get_or_default(m, key, default) — return value or fallback */
 /* NOTE: implemented inline in codegen due to type-generic return */
 

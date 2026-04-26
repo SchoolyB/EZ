@@ -76,3 +76,28 @@ bool ez_maps_contains_value(EzMap *m, const void *value) {
     }
     return false;
 }
+
+bool ez_maps_is_equal(EzMap *a, EzMap *b, bool str_keys, bool str_values) {
+    if (a->count != b->count) return false;
+    if (a->key_size != b->key_size) return false;
+    if (a->value_size != b->value_size) return false;
+    for (int32_t oi = 0; oi < a->order_len; oi++) {
+        int32_t slot = a->order[oi];
+        if (a->states[slot] != 1) continue;
+        void *ka = (char *)a->keys + (size_t)slot * (size_t)a->key_size;
+        void *va = (char *)a->values + (size_t)slot * (size_t)a->value_size;
+        void *vb = str_keys
+            ? ez_map_get_str(b, *(EzString *)ka)
+            : ez_map_get(b, ka);
+        if (!vb) return false;
+        if (str_values) {
+            EzString *sa = (EzString *)va;
+            EzString *sb = (EzString *)vb;
+            if (sa->len != sb->len) return false;
+            if (sa->len > 0 && memcmp(sa->data, sb->data, (size_t)sa->len) != 0) return false;
+        } else {
+            if (memcmp(va, vb, (size_t)a->value_size) != 0) return false;
+        }
+    }
+    return true;
+}

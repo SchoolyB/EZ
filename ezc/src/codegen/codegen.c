@@ -2907,6 +2907,17 @@ static bool emit_maps_call(CodeGen *cg, AstNode *node, const char *func) {
         emit(cg, ")");
         return true;
     }
+    if (strcmp(func, "is_equal") == 0 && node->data.call.arg_count == 2) {
+        EzType *map_t = cg->type_table ? typetable_get(cg->type_table, node->data.call.args[0]) : NULL;
+        bool str_keys = map_t && map_t->key_type && strcmp(map_t->key_type, "string") == 0;
+        bool str_values = map_t && map_t->value_type && strcmp(map_t->value_type, "string") == 0;
+        emit(cg, "ez_maps_is_equal(&");
+        emit_expression(cg, node->data.call.args[0]);
+        emit(cg, ", &");
+        emit_expression(cg, node->data.call.args[1]);
+        emitf(cg, ", %s, %s)", str_keys ? "true" : "false", str_values ? "true" : "false");
+        return true;
+    }
     if (strcmp(func, "contains_value") == 0 && node->data.call.arg_count == 2) {
         /* Determine value type from map to ensure correct size */
         EzType *map_t = cg->type_table ? typetable_get(cg->type_table, node->data.call.args[0]) : NULL;
@@ -4393,7 +4404,7 @@ static void emit_call_expression(CodeGen *cg, AstNode *node) {
                 {"has_key","maps"},{"keys","maps"},{"values","maps"},{"get_keys","maps"},
                 {"get_values","maps"},{"remove_key","maps"},{"clear","maps"},
                 {"is_empty","maps"},{"merge","maps"},{"contains_value","maps"},
-                {"get_or_default","maps"},
+                {"get_or_default","maps"},{"is_equal","maps"},
                 /* @random */
                 {"rand_float","random"},{"rand_int","random"},{"rand_bool","random"},
                 {"rand_byte","random"},{"rand_char","random"},{"random_hex","random"},

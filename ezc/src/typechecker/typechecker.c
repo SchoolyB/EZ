@@ -1192,6 +1192,12 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                 NODE_FILE(tc, node), node->token.line, node->token.column, 0);
             infix_errored = true;
         }
+        if ((strcmp(op, "==") == 0 || strcmp(op, "!=") == 0) &&
+            left->kind == TK_MAP && right->kind == TK_MAP) {
+            diag_error_code(tc->diag, "E3076",
+                NODE_FILE(tc, node), node->token.line, node->token.column, 0);
+            infix_errored = true;
+        }
 
         if (strcmp(op, "==") == 0 || strcmp(op, "!=") == 0 ||
             strcmp(op, "<") == 0 || strcmp(op, ">") == 0 ||
@@ -1518,7 +1524,8 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                         result = type_array(map_t && map_t->value_type ? map_t->value_type : "string");
                     } else result = type_array("string");
                 } else if (strcmp(mfn, "has_key") == 0 || strcmp(mfn, "is_empty") == 0 ||
-                           strcmp(mfn, "contains_value") == 0) {
+                           strcmp(mfn, "contains_value") == 0 ||
+                           strcmp(mfn, "is_equal") == 0) {
                     result = &TYPE_BOOL;
                 } else if (strcmp(mfn, "merge") == 0) {
                     if (node->data.call.arg_count > 0) {
@@ -1540,6 +1547,47 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                     EzType *arg0_t = typetable_get(tc->type_table, arg0);
                     if (arg0_t && arg0_t->kind == TK_ARRAY) {
                         diag_error_codef(tc->diag, "E12001", NODE_FILE(tc, arg0), arg0->token.line, arg0->token.column, 0, mfn);
+                    }
+                }
+                /* maps.is_equal(a, b): both args must be maps with the same
+                 * key/value types, and key/value types must be primitive or
+                 * string. Composite element types would require recursive
+                 * deep-equality which is out of scope here. */
+                if (strcmp(mfn, "is_equal") == 0 && node->data.call.arg_count >= 2) {
+                    AstNode *a0 = node->data.call.args[0];
+                    AstNode *a1 = node->data.call.args[1];
+                    EzType *t0 = typetable_get(tc->type_table, a0);
+                    EzType *t1 = typetable_get(tc->type_table, a1);
+                    if (t0 && t1 && t0->kind == TK_MAP && t1->kind == TK_MAP) {
+                        bool key_match = t0->key_type && t1->key_type &&
+                            strcmp(t0->key_type, t1->key_type) == 0;
+                        bool val_match = t0->value_type && t1->value_type &&
+                            strcmp(t0->value_type, t1->value_type) == 0;
+                        if (!key_match || !val_match) {
+                            char msg[256];
+                            snprintf(msg, sizeof(msg),
+                                "type mismatch: cannot compare map[%s:%s] with map[%s:%s]",
+                                t0->key_type ? t0->key_type : "?",
+                                t0->value_type ? t0->value_type : "?",
+                                t1->key_type ? t1->key_type : "?",
+                                t1->value_type ? t1->value_type : "?");
+                            diag_error_msg(tc->diag, "E3001", strdup(msg),
+                                NODE_FILE(tc, a1), a1->token.line, a1->token.column, 0);
+                        }
+                        const char *bad_member = NULL;
+                        if (t0->value_type) {
+                            EzType *vt = type_from_name(t0->value_type);
+                            if (vt->kind == TK_ARRAY || vt->kind == TK_MAP || vt->kind == TK_STRUCT)
+                                bad_member = t0->value_type;
+                        }
+                        if (bad_member) {
+                            char msg[256];
+                            snprintf(msg, sizeof(msg),
+                                "maps.is_equal does not support maps with %s values; only primitive and string element types are supported",
+                                bad_member);
+                            diag_error_msg(tc->diag, "E3001", strdup(msg),
+                                NODE_FILE(tc, a0), a0->token.line, a0->token.column, 0);
+                        }
                     }
                 }
                 /* E5007: mutating map functions on const map */
@@ -3098,7 +3146,7 @@ static EzType *resolve_expr(TypeChecker *tc, AstNode *node) {
                             /* @maps (arg-dependent get_keys/get_values handled by special case below) */
                             {"has_key","maps",TK_BOOL},{"is_empty","maps",TK_BOOL},
                             {"contains_value","maps",TK_BOOL},{"remove_key","maps",TK_VOID},
-                            {"clear","maps",TK_VOID},
+                            {"clear","maps",TK_VOID},{"is_equal","maps",TK_BOOL},
                             /* @random (arg-dependent choice/shuffle/sample handled by special case below) */
                             {"rand_float","random",TK_FLOAT},{"rand_int","random",TK_INT},
                             {"rand_bool","random",TK_BOOL},{"rand_byte","random",TK_INT},
