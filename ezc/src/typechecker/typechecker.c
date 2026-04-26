@@ -5485,18 +5485,19 @@ static void check_statement(TypeChecker *tc, AstNode *node) {
                     diag_error_codef(tc->diag, "E5024", NODE_FILE(tc, node), node->token.line, node->token.column, 0, src_sym->declared_type, tc->current_return_type_names[0]);
                 }
             }
-            /* W2011: named return variable not used in explicit return */
+            /* E3073: named return variable must be the value returned */
             if (tc->current_has_named_returns && tc->current_return_names) {
                 for (int i = 0; i < node->data.return_stmt.count && i < tc->current_return_count; i++) {
                     if (!tc->current_return_names[i]) continue;
                     AstNode *rv = node->data.return_stmt.values[i];
-                    if (rv->kind == NODE_LABEL &&
-                        strcmp(rv->data.label.value, tc->current_return_names[i]) != 0) {
+                    bool is_named_var = (rv->kind == NODE_LABEL &&
+                        strcmp(rv->data.label.value, tc->current_return_names[i]) == 0);
+                    if (!is_named_var) {
                         char msg[256];
                         snprintf(msg, sizeof(msg),
-                            "returning '%s' instead of named return variable '%s'",
-                            rv->data.label.value, tc->current_return_names[i]);
-                        diag_warning_msg(tc->diag, "W2011", strdup(msg),
+                            "function must return named variable '%s', not a different expression",
+                            tc->current_return_names[i]);
+                        diag_error_msg(tc->diag, "E3080", strdup(msg),
                             NODE_FILE(tc, rv), rv->token.line, rv->token.column, 0);
                     }
                 }

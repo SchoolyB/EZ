@@ -3,7 +3,7 @@
 > Auto-generated from `ezc/src/util/error_codes.h`. Do not edit manually.
 > Run `./scripts/generate_errors.sh` to regenerate.
 
-**Total: 168 codes** (156 errors, 12 warnings)
+**Total: 168 codes** (157 errors, 11 warnings)
 
 ---
 
@@ -138,6 +138,7 @@
 | `E3077` | types | structs cannot be compared with comparison operators; compare individual fields instead (e.g., a.x == b.x, a.x < b.x) |
 | `E3078` | types | pointer arithmetic is not supported; '^T' is the address of one value, not a buffer |
 | `E3079` | types | cannot take a mutable reference to a const variable; declare the reference as 'const', or copy() the value to get an independent mutable instance |
+| `E3080` | types | function must return named variable '%s', not a different expression |
 | `E4001` | names | this variable does not exist; check the spelling or make sure it is declared above this line |
 | `E4002` | names | this function does not exist; check the spelling or make sure it is defined |
 | `E4003` | names | variable '%s' already declared in this scope (line %d) |
@@ -182,7 +183,6 @@
 | `W2002` | safety | this variable shadows a variable with the same name in an outer scope |
 | `W2003` | safety | unreachable code; this statement will never execute because it comes after a return |
 | `W2007` | safety | this variable shadows a global constant or variable |
-| `W2011` | safety | named return variable is not used in return; the returned value may not match the named variable |
 | `W2012` | safety | when condition is a float; equality checks on floats are imprecise; prefer math.abs(x - y) < epsilon |
 | `W3003` | safety | fixed-size array is not fully initialized; remaining elements will be zero-valued |
 | `W3004` | safety | pointer may reference memory from a scope that has ended; assigning addr() of an inner-scope variable to an outer-scope pointer |
@@ -212,4 +212,4 @@
 
 ---
 
-*Generated on 2026-04-26 06:02:12 UTC*
+*Generated on 2026-04-26 14:45:46 UTC*
