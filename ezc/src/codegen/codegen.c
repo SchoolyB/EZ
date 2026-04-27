@@ -5300,7 +5300,19 @@ static void emit_var_declaration(CodeGen *cg, AstNode *node) {
         if (mt && mt->value_type) c_vt = ez_map_elem_c_type(cg, mt->value_type);
 
         emitf(cg, "EzMap %s = ", safe_name(node->data.var_decl.name));
-        if (node->data.var_decl.value) {
+        if (node->data.var_decl.value &&
+            node->data.var_decl.value->kind == NODE_LABEL) {
+            /* Copy-by-default: deep copy when assigning a map from another
+             * variable so mutations to the copy don't alias the original. */
+            int t = next_dc_tag();
+            char src_var[64];
+            snprintf(src_var, sizeof(src_var), "_ms%d", t);
+            emitf(cg, "({ EzMap %s = ", src_var);
+            emit_expression(cg, node->data.var_decl.value);
+            emit(cg, "; ");
+            emit_value_deep_copy(cg, type_name, src_var);
+            emit(cg, "; })");
+        } else if (node->data.var_decl.value) {
             const char *saved_var_type = cg->current_var_type;
             cg->current_var_type = type_name;
             emit_expression(cg, node->data.var_decl.value);
@@ -5511,6 +5523,18 @@ static void emit_var_declaration(CodeGen *cg, AstNode *node) {
             /* addr() assigned to integer type; cast pointer to uintptr_t */
             emit(cg, "(uintptr_t)");
             emit_expression(cg, node->data.var_decl.value);
+        } else if (node->data.var_decl.value->kind == NODE_LABEL &&
+                   type_name && type_needs_deep_copy(cg, type_name)) {
+            /* Copy-by-default: deep copy structs (and maps) that contain
+             * arrays/maps/strings so the copy is fully independent. */
+            int t = next_dc_tag();
+            char src_var[64];
+            snprintf(src_var, sizeof(src_var), "_vdc%d", t);
+            emitf(cg, "({ %s %s = ", c_type, src_var);
+            emit_expression(cg, node->data.var_decl.value);
+            emit(cg, "; ");
+            emit_value_deep_copy(cg, type_name, src_var);
+            emit(cg, "; })");
         } else {
             emit_expression(cg, node->data.var_decl.value);
         }
@@ -5879,6 +5903,37 @@ static void emit_assign_statement(CodeGen *cg, AstNode *node) {
             emit(cg, " = ");
             emit_deep_array_copy(cg, node->data.assign.value, tgt_t->element_type);
             emit(cg, ";\n");
+            return;
+        }
+        /* Map copy-by-default: map2 = map1 deep-copies the map. */
+        if (tgt_t && tgt_t->kind == TK_MAP) {
+            int t = next_dc_tag();
+            char src_var[64];
+            snprintf(src_var, sizeof(src_var), "_ma%d", t);
+            emit(cg, "{ EzMap ");
+            emitf(cg, "%s = ", src_var);
+            emit_expression(cg, node->data.assign.value);
+            emit(cg, "; ");
+            emit_expression(cg, node->data.assign.target);
+            emit(cg, " = ");
+            emit_value_deep_copy(cg, tgt_t->name, src_var);
+            emit(cg, "; }\n");
+            return;
+        }
+        /* Struct copy-by-default: deep copy structs with container fields. */
+        if (tgt_t && tgt_t->kind == TK_STRUCT && tgt_t->name &&
+            type_needs_deep_copy(cg, tgt_t->name)) {
+            int t = next_dc_tag();
+            const char *ct = ez_type_to_c_cg(cg, tgt_t->name);
+            char src_var[64];
+            snprintf(src_var, sizeof(src_var), "_sa%d", t);
+            emitf(cg, "{ %s %s = ", ct, src_var);
+            emit_expression(cg, node->data.assign.value);
+            emit(cg, "; ");
+            emit_expression(cg, node->data.assign.target);
+            emit(cg, " = ");
+            emit_value_deep_copy(cg, tgt_t->name, src_var);
+            emit(cg, "; }\n");
             return;
         }
     }
