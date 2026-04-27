@@ -1927,9 +1927,52 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
     }
 
     case NODE_NEW_EXPR: {
-        /* new(Type) → zeroed allocation on default arena, returns pointer */
-        const char *c_type = ez_type_to_c_cg(cg, node->data.new_expr.type_name);
-        emitf(cg, "((%s *)ez_arena_alloc(ez_default_arena, sizeof(%s)))", c_type, c_type);
+        /* new(Type) → zeroed allocation on default arena, returns pointer.
+         * Map and array fields need explicit initialization because a
+         * zero-filled EzMap/EzArray has key_size/value_size/elem_size = 0
+         * and operations on them silently fail. */
+        const char *sname = node->data.new_expr.type_name;
+        const char *c_type = ez_type_to_c_cg(cg, sname);
+        AstNode *sdecl = find_struct_decl(cg, sname);
+        bool needs_init = false;
+        if (sdecl) {
+            for (int fi = 0; fi < sdecl->data.struct_decl.field_count; fi++) {
+                const char *ft = sdecl->data.struct_decl.fields[fi].type_name;
+                if ((ft && strncmp(ft, "map[", 4) == 0) ||
+                    (ft && ft[0] == '[')) {
+                    needs_init = true;
+                    break;
+                }
+            }
+        }
+        if (needs_init) {
+            emitf(cg, "({ %s *_np = (%s *)ez_arena_alloc(ez_default_arena, sizeof(%s)); ",
+                c_type, c_type, c_type);
+            for (int fi = 0; fi < sdecl->data.struct_decl.field_count; fi++) {
+                const char *fn = sdecl->data.struct_decl.fields[fi].name;
+                const char *ft = sdecl->data.struct_decl.fields[fi].type_name;
+                if (ft && strncmp(ft, "map[", 4) == 0) {
+                    EzType *mt = type_from_name(ft);
+                    const char *c_kt = "EzString";
+                    const char *c_vt = "int64_t";
+                    if (mt && mt->key_type) c_kt = ez_map_elem_c_type(cg, mt->key_type);
+                    if (mt && mt->value_type) c_vt = ez_map_elem_c_type(cg, mt->value_type);
+                    emitf(cg, "_np->%s = ez_map_new(ez_default_arena, sizeof(%s), sizeof(%s), 8); ",
+                        safe_name(fn), c_kt, c_vt);
+                } else if (ft && ft[0] == '[') {
+                    /* Array field — determine element C type */
+                    EzType *at = type_from_name(ft);
+                    const char *c_elem = "int64_t";
+                    if (at && at->element_type)
+                        c_elem = ez_map_elem_c_type(cg, at->element_type);
+                    emitf(cg, "_np->%s = ez_array_new(ez_default_arena, sizeof(%s), 4); ",
+                        safe_name(fn), c_elem);
+                }
+            }
+            emit(cg, "_np; })");
+        } else {
+            emitf(cg, "((%s *)ez_arena_alloc(ez_default_arena, sizeof(%s)))", c_type, c_type);
+        }
         break;
     }
 
