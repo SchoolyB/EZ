@@ -4088,18 +4088,16 @@ static bool emit_fmt_call(CodeGen *cg, AstNode *node, const char *func) {
         return true;
     }
 
-    if (strcmp(func, "sprintf") == 0 && node->data.call.arg_count >= 2) {
-        emit(cg, "ez_string_format(");
-        emit_expression(cg, node->data.call.args[0]); /* arena */
-        emit(cg, ", ");
-        AstNode *fmt_arg = node->data.call.args[1];
+    if (strcmp(func, "sprintf") == 0 && node->data.call.arg_count >= 1) {
+        emit(cg, "ez_string_format(ez_default_arena, ");
+        AstNode *fmt_arg = node->data.call.args[0];
         if (fmt_arg->kind == NODE_STRING_VALUE) {
             emitf(cg, "\"%s\"", fmt_arg->data.string_value.value);
         } else {
             emit_expression(cg, fmt_arg);
             emit(cg, ".data");
         }
-        emit_fmt_args(cg, node, 2);
+        emit_fmt_args(cg, node, 1);
         emit(cg, ")");
         return true;
     }
