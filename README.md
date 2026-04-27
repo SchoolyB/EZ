@@ -9,8 +9,7 @@
 <h3 align="center">Programming made EZ.</h3>
 
 <p align="center">
-  <a href="https://schoolyb.github.io/EZ-Language-Webapp/playground/">Try EZ Online</a> •
-  <a href="https://schoolyb.github.io/EZ-Language-Webapp/docs">Learn About EZ</a>
+  <a href="https://schoolyb.github.io/EZ-Language-Webapp/docs">Learn More About EZ</a>
 </p>
 
 <p align="center">
@@ -31,30 +30,54 @@ EZ is a statically typed, compiled programming language that produces native bin
 - 26 standard library modules (HTTP, JSON, crypto, SQLite, threads, and more)
 - Compiles in milliseconds
 
-```ez
-const Circle struct {
-    radius float
 
-    do area(c Circle) -> float {
-        return 3.14159 * c.radius * c.radius
-    }
+```ez
+import @json, @arrays
+
+#json
+const Task struct {
+    title string
+    priority int
+    done bool
 }
-```
 
-```ez
-do divide(a float, b float) -> (float, Error) {
-    if b == 0.0 {
-        return 0.0, error("division by zero")
+do urgent(tasks [Task]) -> (result [Task], count int) {
+    mut result [Task] = {}
+    mut count int = 0
+
+    for_each t in tasks {
+        when t.priority {
+            is 1, 2 {
+                if !t.done {
+                    arrays.append(result, t)
+                    count += 1
+                }
+            }
+        }
     }
-    return a / b, nil
-}
-```
 
-```ez
+    return result, count
+}
+
 do main() {
-    mut names [string] = {"Alice", "Bob", "Charlie"}
-    for_each name in names {
-        println("Hello, ${name}!")
+    mut tasks [Task] = {
+        Task{title: "Fix login bug", priority: 1, done: false},
+        Task{title: "Write tests", priority: 2, done: false},
+        Task{title: "Update docs", priority: 3, done: true},
+        Task{title: "Deploy v3", priority: 1, done: true},
+        Task{title: "Review PRs", priority: 2, done: false}
+    }
+
+    mut pending, total = urgent(tasks)
+
+    println("${total} urgent tasks:")
+    for_each t in pending {
+        println("  [!] ${t.title}")
+    }
+
+    println("\nExported as JSON:")
+    for_each t in pending {
+        println(json.stringify(t))
     }
 }
 ```

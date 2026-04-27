@@ -1530,7 +1530,7 @@ const Point struct {
 
 #### 7.5.2 `#json` Attribute
 
-The `#json` attribute marks a struct for JSON serialization and deserialization. It enables `json.parse()` to decode JSON strings into the struct type and `json.stringify()` to encode struct values as JSON.
+The `#json` attribute marks a struct for JSON serialization and deserialization. The compiler generates all marshaling and unmarshaling code automatically — no field tags, no manual encoding/decoding calls, and no error juggling at every step. Just annotate the struct and use `json.parse()` / `json.stringify()`.
 
 ```ez
 import @json
@@ -1543,13 +1543,22 @@ const User struct {
 }
 
 do main() {
+    // Parse a JSON string directly into a typed struct
     mut u User = json.parse("{\"name\": \"Alice\", \"age\": 25, \"active\": true}")
     println(u.name)            // Alice
+
+    // Serialize back to JSON — fields are mapped automatically
     println(json.stringify(u)) // {"name":"Alice","age":25,"active":true}
 }
 ```
 
-Field names in the JSON must match the struct field names exactly. Without `#json`, the struct has no serialization machinery and `json.parse()` into it will fail.
+`json.parse()` returns a fully typed struct (or array of structs), and `json.stringify()` accepts any `#json` struct and returns a string. The compiler knows the struct layout at compile time, so it generates field-by-field serialization code directly — there is no reflection, no runtime schema lookup, and no intermediate map step.
+
+**Rules:**
+
+- Field names in the JSON must match the struct field names exactly.
+- Without `#json`, the struct has no serialization machinery and `json.parse()` / `json.stringify()` will fail.
+- Supported field types: `int`, `uint`, `float`, `string`, `bool`. Nested `#json` structs and arrays of `#json` structs are also supported.
 
 ### 7.6 Function References
 
