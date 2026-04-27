@@ -6612,9 +6612,17 @@ static void emit_statement(CodeGen *cg, AstNode *node) {
                 else if (et->kind == TK_BYTE) c_elem = "uint8_t";
             }
 
-            emitf(cg, "for (int32_t %s = 0; %s < ", idx_name, idx_name);
+            /* Snapshot the array length at loop start so appending during
+             * iteration doesn't cause an infinite loop. The loop visits
+             * only the elements that existed when for_each began. */
+            static int arr_iter_counter = 0;
+            char len_name[32];
+            snprintf(len_name, sizeof(len_name), "_ez_alen%d", arr_iter_counter++);
+            emitf(cg, "{ int32_t %s = ", len_name);
             emit_expression(cg, coll);
-            emitf(cg, ".len; %s++) {\n", idx_name);
+            emit(cg, ".len;\n");
+            emit_indent(cg);
+            emitf(cg, "for (int32_t %s = 0; %s < %s; %s++) {\n", idx_name, idx_name, len_name, idx_name);
             cg->indent++;
             emit_indent(cg);
             emitf(cg, "%s %s = EZ_ARRAY_GET(", c_elem, safe_name(node->data.for_each.var_name));
@@ -6652,6 +6660,11 @@ static void emit_statement(CodeGen *cg, AstNode *node) {
         }
         /* Close extra scope for string iteration */
         if (coll_t && coll_t->kind == TK_STRING) {
+            emit_indent(cg);
+            emit(cg, "}\n");
+        }
+        /* Close extra scope for array length snapshot */
+        if (coll_t && coll_t->kind != TK_MAP && coll_t->kind != TK_STRING) {
             emit_indent(cg);
             emit(cg, "}\n");
         }

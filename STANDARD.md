@@ -1101,6 +1101,11 @@ for_each key in ages {
 
 Map iteration order is undefined (maps are unordered).
 
+**Mutation during iteration:**
+
+- **Arrays:** The loop length is captured when `for_each` begins. Appending to the array during iteration is safe — new elements are added to the array but are not visited by the current loop. The full array (including appended elements) is available after the loop ends.
+- **Maps:** Modifying a map during `for_each` (inserting or deleting keys) is not allowed and will panic at runtime. Read the map freely, but do not mutate it until the loop completes.
+
 #### 6.3.3 While Loops
 
 ```
