@@ -96,5 +96,6 @@ context/
 # never committed. Fresh clones get empty stubs from `make stubs`.
 /internal/ezc/runtime/ezc
 /internal/ezc/runtime/libezrt.a
+/internal/ezc/runtime/src/
 *.md
 .claude/

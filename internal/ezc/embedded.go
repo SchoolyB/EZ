@@ -1,17 +1,17 @@
 // Embedded runtime assets — staged into runtime/ by `make build`.
 //
 // At build time the root Makefile compiles ezc and libezrt.a, copies them
-// into internal/ezc/runtime/, then runs `go build` so the directives below
-// bake the platform-specific artifacts into the final `ez` binary. Dev
-// builds without `make build` still compile because committed stub files
-// keep the go:embed directives satisfied; the extractor detects the stubs
-// by their zero length and returns ErrNoEmbed so Find() falls back to the
-// legacy path search.
+// into internal/ezc/runtime/, and copies the runtime/stdlib source files
+// into internal/ezc/runtime/src/{runtime,stdlib}/. Then `go build` bakes
+// everything into the final `ez` binary. Dev builds without `make build`
+// still compile because committed stub files keep the go:embed directives
+// satisfied; the extractor detects the stubs by their zero length and
+// returns ErrNoEmbed so Find() falls back to the legacy path search.
 package ezc
 
 import (
 	"crypto/sha256"
-	_ "embed"
+	"embed"
 	"encoding/hex"
 	"errors"
 	"fmt"
@@ -28,21 +28,25 @@ var embeddedEzc []byte
 //go:embed runtime/libezrt.a
 var embeddedLibezrt []byte
 
+//go:embed runtime/src
+var embeddedSrc embed.FS
+
 // ErrNoEmbed indicates the embedded runtime assets are empty stubs (a
 // `go build ./cmd/ez` without a prior `make build` stage), so callers
 // should fall back to a path search.
 var ErrNoEmbed = errors.New("embedded ezc runtime is empty (dev build)")
 
 var (
-	extractOnce sync.Once
+	extractOnce      sync.Once
 	extractedEzcPath string
 	extractErr       error
 )
 
-// extractEmbedded materialises the embedded ezc binary and libezrt.a into
-// a per-content-hash subdirectory of ~/.ez/runtime so multiple installs
-// don't collide and a version bump forces a clean extraction. Safe to
-// call repeatedly; the work runs once per process via sync.Once.
+// extractEmbedded materialises the embedded ezc binary, libezrt.a, and
+// runtime/stdlib source files into a per-content-hash subdirectory of
+// ~/.ez/runtime so multiple installs don't collide and a version bump
+// forces a clean extraction. Safe to call repeatedly; the work runs
+// once per process via sync.Once.
 func extractEmbedded() (string, error) {
 	extractOnce.Do(func() {
 		if len(embeddedEzc) == 0 || len(embeddedLibezrt) == 0 {
@@ -85,9 +89,42 @@ func extractEmbedded() (string, error) {
 			return
 		}
 
+		// Extract runtime and stdlib source files so ezc can find its
+		// headers via the "development layout" search (src/ relative to
+		// binary).
+		if err := extractSourceTree(dir); err != nil {
+			extractErr = err
+			return
+		}
+
 		extractedEzcPath = ezcDest
 	})
 	return extractedEzcPath, extractErr
+}
+
+// extractSourceTree walks the embedded src/ tree and writes each file
+// into dir/src/{runtime,stdlib}/. Skips files that already exist with
+// the correct size (same logic as writeIfMissing).
+func extractSourceTree(dir string) error {
+	return fs.WalkDir(embeddedSrc, "runtime/src", func(path string, d fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		// path is like "runtime/src/runtime/ez_runtime.h" or "runtime/src/stdlib/ez_fmt.c"
+		// Strip the leading "runtime/" prefix to get "src/runtime/..." on disk.
+		rel := path[len("runtime/"):]
+		dest := filepath.Join(dir, rel)
+
+		if d.IsDir() {
+			return os.MkdirAll(dest, 0o755)
+		}
+
+		data, err := embeddedSrc.ReadFile(path)
+		if err != nil {
+			return fmt.Errorf("read embedded %s: %w", path, err)
+		}
+		return writeIfMissing(dest, data, 0o644)
+	})
 }
 
 // writeIfMissing writes data to path with the given mode unless a file of

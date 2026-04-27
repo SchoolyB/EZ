@@ -29,7 +29,7 @@ help:
 # themselves are gitignored — `make build` overwrites the stubs with
 # real content before invoking `go build`.
 stubs:
-	@mkdir -p $(EMBED_DIR)
+	@mkdir -p $(EMBED_DIR)/src/runtime $(EMBED_DIR)/src/stdlib
 	@test -f $(EMBED_DIR)/ezc || : > $(EMBED_DIR)/ezc
 	@test -f $(EMBED_DIR)/libezrt.a || : > $(EMBED_DIR)/libezrt.a
 
@@ -43,6 +43,8 @@ build: stubs
 	@echo "Staging embedded runtime assets..."
 	@cp ezc/ezc $(EMBED_DIR)/ezc
 	@cp ezc/libezrt.a $(EMBED_DIR)/libezrt.a
+	@cp ezc/src/runtime/*.h ezc/src/runtime/*.c $(EMBED_DIR)/src/runtime/
+	@cp ezc/src/stdlib/*.h ezc/src/stdlib/*.c $(EMBED_DIR)/src/stdlib/
 	@echo "Building ez CLI (with embedded runtime)..."
 	$(GO) build $(LDFLAGS) -o $(BINARY_NAME) ./cmd/ez
 	@echo ""
@@ -84,6 +86,7 @@ clean:
 	@rm -rf dist/
 	@# Embed assets are gitignored — delete entirely, not truncate
 	@rm -f $(EMBED_DIR)/ezc $(EMBED_DIR)/libezrt.a
+	@rm -rf $(EMBED_DIR)/src
 	@$(MAKE) -C ezc clean
 	@echo "Clean complete"
 

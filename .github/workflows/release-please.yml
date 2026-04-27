@@ -144,6 +144,9 @@ jobs:
         run: |
           cp ezc/ezc internal/ezc/runtime/ezc
           cp ezc/libezrt.a internal/ezc/runtime/libezrt.a
+          mkdir -p internal/ezc/runtime/src/runtime internal/ezc/runtime/src/stdlib
+          cp ezc/src/runtime/*.h ezc/src/runtime/*.c internal/ezc/runtime/src/runtime/
+          cp ezc/src/stdlib/*.h ezc/src/stdlib/*.c internal/ezc/runtime/src/stdlib/
 
       - name: Build EZ CLI (with embedded runtime)
         env:
