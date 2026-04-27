@@ -1,0 +1,11 @@
+const MAX_SIZE int = 100
+
+do greet(name string) -> string {
+    return "Hello, ${name}!"
+}
+
+const Color enum {
+    RED
+    GREEN
+    BLUE
+}

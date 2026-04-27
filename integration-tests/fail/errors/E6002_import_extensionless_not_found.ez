@@ -1,0 +1,10 @@
+/*
+ * Error Test: E6002 - extensionless import resolves to nothing
+ * Expected: "cannot find file or directory" error
+ */
+
+import "./nonexistent_module"
+
+do main() {
+    println("should not compile")
+}

@@ -1,0 +1,5 @@
+import @strings
+
+do shout(msg string) -> string {
+    return strings.to_upper(msg)
+}

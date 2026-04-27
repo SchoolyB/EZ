@@ -1,0 +1,36 @@
+/*
+ * Test: directory-imported files use stdlib modules
+ * Stdlib imports inside directory files must propagate correctly
+ */
+import "./lib"
+
+do main() {
+    mut passed int = 0
+    mut failed int = 0
+
+    // Test 1: strings stdlib in directory file
+    if lib.shout("hello") == "HELLO" {
+        println("  [PASS] stdlib strings in directory import")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] stdlib strings in directory import")
+        failed += 1
+    }
+
+    // Test 2: math stdlib in directory file
+    mut area float = lib.circle_area(1.0)
+    if area > 3.14 && area < 3.15 {
+        println("  [PASS] stdlib math in directory import")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] stdlib math in directory import")
+        failed += 1
+    }
+
+    println("Results: ${passed} passed, ${failed} failed")
+    if failed > 0 {
+        println("SOME TESTS FAILED")
+    } otherwise {
+        println("ALL TESTS PASSED")
+    }
+}

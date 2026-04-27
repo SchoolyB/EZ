@@ -1,0 +1,12 @@
+/*
+ * Error Test: E6003 - directory import with no .ez files
+ * Expected: "directory contains no .ez files" error
+ *
+ * Uses the empty_dir/ directory which has no .ez files
+ */
+
+import "./empty_dir"
+
+do main() {
+    println("should not compile")
+}

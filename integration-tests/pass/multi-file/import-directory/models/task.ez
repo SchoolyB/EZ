@@ -1,0 +1,10 @@
+const Task struct {
+    title string
+    done bool
+}
+
+do create_task(title string) -> Task {
+    return Task{title: title, done: false}
+}
+
+const MAX_TASKS int = 50

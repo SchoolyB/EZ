@@ -1,0 +1,25 @@
+/*
+ * Test: transitive imports through directory
+ * A file inside a directory imports another file outside it
+ */
+import "./core"
+
+do main() {
+    mut passed int = 0
+    mut failed int = 0
+
+    if core.get_token() == "abc123" {
+        println("  [PASS] transitive import through directory")
+        passed += 1
+    } otherwise {
+        println("  [FAIL] transitive import through directory")
+        failed += 1
+    }
+
+    println("Results: ${passed} passed, ${failed} failed")
+    if failed > 0 {
+        println("SOME TESTS FAILED")
+    } otherwise {
+        println("ALL TESTS PASSED")
+    }
+}
