@@ -102,30 +102,27 @@ jobs:
         with:
           go-version: '1.23'
 
-      - name: Build EZ CLI
-        env:
-          GOOS: ${{ matrix.goos }}
-          GOARCH: ${{ matrix.goarch }}
-        run: go build -o ez ./cmd/ez
-
-      - name: Build EZC compiler
+      - name: Build EZ compiler
         run: |
           cd ezc
           make clean
           make build
 
-      - name: Package release
+      - name: Stage embedded runtime assets
+        run: |
+          cp ezc/ezc internal/ezc/runtime/ezc
+          cp ezc/libezrt.a internal/ezc/runtime/libezrt.a
+
+      - name: Build EZ CLI (with embedded runtime)
+        env:
+          GOOS: ${{ matrix.goos }}
+          GOARCH: ${{ matrix.goarch }}
+        run: go build -o ez ./cmd/ez
+
+      - name: Package single-binary release
         run: |
           mkdir -p staging
           cp ez staging/
-          cp ezc/ezc staging/
-          cp ezc/libezrt.a staging/
-
-          # Include runtime and stdlib sources (needed by ezc at compile time)
-          mkdir -p staging/lib/runtime staging/lib/stdlib
-          cp ezc/src/runtime/*.c ezc/src/runtime/*.h staging/lib/runtime/
-          cp ezc/src/stdlib/*.c ezc/src/stdlib/*.h staging/lib/stdlib/
-
           tar czf "ez-${{ matrix.name }}.tar.gz" -C staging .
 
       - name: Upload to release
