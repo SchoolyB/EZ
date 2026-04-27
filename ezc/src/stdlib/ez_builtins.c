@@ -52,7 +52,9 @@ static void fput_utf8(int32_t c, FILE *f) {
 /* --- println --- */
 
 void ez_builtin_println_str(EzString s) {
+    putchar('"');
     fwrite(s.data, 1, (size_t)s.len, stdout);
+    putchar('"');
     putchar('\n');
 }
 
@@ -75,7 +77,9 @@ void ez_builtin_println_bool(bool v) {
 }
 
 void ez_builtin_println_char(int32_t c) {
+    putchar('\'');
     fput_utf8(c, stdout);
+    putchar('\'');
     putchar('\n');
 }
 
@@ -86,7 +90,9 @@ void ez_builtin_println_addr(uintptr_t v) {
 /* --- print --- */
 
 void ez_builtin_print_str(EzString s) {
+    putchar('"');
     fwrite(s.data, 1, (size_t)s.len, stdout);
+    putchar('"');
 }
 
 void ez_builtin_print_int(int64_t v) {
@@ -108,7 +114,9 @@ void ez_builtin_print_bool(bool v) {
 }
 
 void ez_builtin_print_char(int32_t c) {
+    putchar('\'');
     fput_utf8(c, stdout);
+    putchar('\'');
 }
 
 void ez_builtin_print_addr(uintptr_t v) {
@@ -118,7 +126,9 @@ void ez_builtin_print_addr(uintptr_t v) {
 /* --- eprintln / eprint --- */
 
 void ez_builtin_eprintln_str(EzString s) {
+    fputc('"', stderr);
     fwrite(s.data, 1, (size_t)s.len, stderr);
+    fputc('"', stderr);
     fputc('\n', stderr);
 }
 
@@ -131,7 +141,9 @@ void ez_builtin_eprintln_uint(uint64_t v) {
 }
 
 void ez_builtin_eprintln_char(int32_t c) {
+    fputc('\'', stderr);
     fput_utf8(c, stderr);
+    fputc('\'', stderr);
     fputc('\n', stderr);
 }
 
@@ -140,11 +152,15 @@ void ez_builtin_eprintln_addr(uintptr_t v) {
 }
 
 void ez_builtin_eprint_str(EzString s) {
+    fputc('"', stderr);
     fwrite(s.data, 1, (size_t)s.len, stderr);
+    fputc('"', stderr);
 }
 
 void ez_builtin_eprint_char(int32_t c) {
+    fputc('\'', stderr);
     fput_utf8(c, stderr);
+    fputc('\'', stderr);
 }
 
 void ez_builtin_eprint_addr(uintptr_t v) {
