@@ -3,7 +3,7 @@
 > Auto-generated from `ezc/src/util/error_codes.h`. Do not edit manually.
 > Run `./scripts/generate_errors.sh` to regenerate.
 
-**Total: 169 codes** (158 errors, 11 warnings)
+**Total: 168 codes** (157 errors, 11 warnings)
 
 ---
 
@@ -68,7 +68,6 @@
 | `E2074` | syntax | member access cannot have whitespace before the dot; write 'obj.field' or 'Enum.VARIANT' with no space or newline |
 | `E2075` | syntax | index expressions cannot have whitespace before the opening bracket; write 'arr[i]' with no space or newline |
 | `E2076` | syntax | postfix operators ('++', '--', '^') cannot have whitespace before them; write 'x++', 'x--', or 'p^' with no space or newline |
-| `E2077` | syntax | cannot have whitespace between a struct name and its opening brace; write 'Name{...}' with no space or newline |
 | `E2078` | syntax | variable declarations must start with 'const' or 'mut'; did you mean 'const %s' or 'mut %s'? |
 | `E2079` | syntax | 'nil' is a value, not a type; for a function that returns nothing, omit the '-> ...' clause |
 | `E3001` | types | type mismatch; a value of one type is used where a different type is expected |
@@ -213,4 +212,4 @@
 
 ---
 
-*Generated on 2026-04-26 19:34:35 UTC*
+*Generated on 2026-04-27 02:06:37 UTC*

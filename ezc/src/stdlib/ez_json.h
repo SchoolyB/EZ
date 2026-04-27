@@ -41,6 +41,10 @@ bool ez_json_is_valid(EzString text);
 /* json.pretty(value, indent) — pretty-print JSON */
 EzString ez_json_pretty_map(EzArena *arena, EzMap *m, int64_t indent);
 
+/* json array splitting: returns an EzArray of EzString, each being one
+ * top-level JSON element from a JSON array string like "[{...},{...}]". */
+EzArray ez_json_split_array(EzArena *arena, EzString text);
+
 /* _result variant */
 typedef struct { EzMap v0; EzError *v1; } EzResult_map;
 

@@ -516,6 +516,63 @@ EzString ez_json_pretty_map(EzArena *arena, EzMap *m, int64_t indent_size) {
     return r;
 }
 
+/* --- Array splitter ---
+ * Splits a JSON array "[{...},{...},...]" into an EzArray of EzString,
+ * where each element is the raw JSON text of one top-level element.
+ * Handles nested braces, brackets, and quoted strings correctly. */
+
+EzArray ez_json_split_array(EzArena *arena, EzString text) {
+    EzArray arr = ez_array_new(arena, sizeof(EzString), 4);
+    const char *s = text.data;
+    const char *end = s + text.len;
+    skip_ws(&s, end);
+    if (s >= end || *s != '[') return arr;
+    s++; /* skip [ */
+
+    while (s < end) {
+        skip_ws(&s, end);
+        if (s >= end || *s == ']') break;
+
+        /* Mark start of this element */
+        const char *elem_start = s;
+        int depth_brace = 0, depth_bracket = 0;
+        bool in_string = false;
+
+        /* Scan to end of element (respecting nesting and strings) */
+        while (s < end) {
+            char c = *s;
+            if (in_string) {
+                if (c == '\\') { s++; if (s < end) s++; continue; }
+                if (c == '"') in_string = false;
+                s++;
+                continue;
+            }
+            if (c == '"') { in_string = true; s++; continue; }
+            if (c == '{') { depth_brace++; s++; continue; }
+            if (c == '}') { depth_brace--; s++; continue; }
+            if (c == '[') { depth_bracket++; s++; continue; }
+            if (c == ']') {
+                if (depth_bracket == 0) break; /* end of outer array */
+                depth_bracket--;
+                s++;
+                continue;
+            }
+            if (c == ',' && depth_brace == 0 && depth_bracket == 0) break;
+            s++;
+        }
+
+        int32_t elem_len = (int32_t)(s - elem_start);
+        if (elem_len > 0) {
+            EzString elem = ez_string_new(arena, elem_start, elem_len);
+            ez_array_push(arena, &arr, &elem);
+        }
+
+        skip_ws(&s, end);
+        if (s < end && *s == ',') s++;
+    }
+    return arr;
+}
+
 /* _result variant */
 
 EzResult_map ez_json_decode_result(EzArena *arena, EzString text) {

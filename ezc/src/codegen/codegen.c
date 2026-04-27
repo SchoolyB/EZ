@@ -3408,6 +3408,16 @@ static bool emit_json_call(CodeGen *cg, AstNode *node, const char *func) {
                 return true;
             }
         }
+        /* Array of #json structs: [StructName] */
+        if (target_t && target_t->kind == TK_ARRAY && target_t->element_type) {
+            AstNode *sdecl = find_struct_decl(cg, target_t->element_type);
+            if (sdecl && sdecl->data.struct_decl.is_json) {
+                emitf(cg, "ez_json_parse_array_%s(ez_default_arena, ", target_t->element_type);
+                emit_expression(cg, node->data.call.args[0]);
+                emit(cg, ")");
+                return true;
+            }
+        }
         /* Fallback: map-based decode */
         emit(cg, "ez_json_decode(ez_default_arena, ");
         emit_expression(cg, node->data.call.args[0]);
@@ -7207,6 +7217,18 @@ void codegen_generate(CodeGen *cg, AstNode *program) {
         emitf(cg, "    _buf[_pos++] = '}';\n");
         emitf(cg, "    _buf[_pos] = '\\0';\n");
         emitf(cg, "    return (EzString){_buf, (int32_t)_pos};\n");
+        emitf(cg, "}\n\n");
+
+        /* --- parse array: JSON array string → EzArray of structs --- */
+        emitf(cg, "static EzArray ez_json_parse_array_%s(EzArena *arena, EzString text) {\n", sn);
+        emitf(cg, "    EzArray _elems = ez_json_split_array(arena, text);\n");
+        emitf(cg, "    EzArray _result = ez_array_new(arena, sizeof(EzStruct_%s), _elems.len > 0 ? _elems.len : 4);\n", sn);
+        emitf(cg, "    for (int32_t _i = 0; _i < _elems.len; _i++) {\n");
+        emitf(cg, "        EzString _elem_str = *(EzString *)((char *)_elems.data + (size_t)_i * (size_t)_elems.elem_size);\n");
+        emitf(cg, "        EzStruct_%s _item = ez_json_parse_%s(arena, _elem_str);\n", sn, sn);
+        emitf(cg, "        ez_array_push(arena, &_result, &_item);\n");
+        emitf(cg, "    }\n");
+        emitf(cg, "    return _result;\n");
         emitf(cg, "}\n\n");
     }
 

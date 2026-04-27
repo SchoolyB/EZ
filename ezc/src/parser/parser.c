@@ -2009,10 +2009,6 @@ static AstNode *parse_enum_declaration(Parser *p) {
 
 /* Parse struct literal: StructName{field: value, ...} */
 static AstNode *parse_struct_literal(Parser *p, const char *name) {
-    if (p->cur_token.preceded_by_ws) {
-        diag_error_code(p->diag, "E2077", p->file, p->cur_token.line, p->cur_token.column, 0);
-        /* Continue parsing so we consume the closing '}'. */
-    }
     AstNode *node = ast_alloc(p->arena, NODE_STRUCT_VALUE, p->cur_token);
     node->data.struct_value.name = name;
 
