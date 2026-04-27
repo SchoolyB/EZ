@@ -1818,9 +1818,16 @@ static void emit_expression(CodeGen *cg, AstNode *node) {
             if (left_t->key_type) c_key = ez_map_elem_c_type(cg, left_t->key_type);
             if (left_t->value_type) c_val = ez_map_elem_c_type(cg, left_t->value_type);
             /* When the left side is an rvalue (e.g. chained map access
-             * like m["a"]["x"]), store it in a temp to make it addressable. */
-            if (node->data.index_expr.left->kind == NODE_INDEX_EXPR ||
-                node->data.index_expr.left->kind == NODE_CALL_EXPR) {
+             * like m["a"]["x"], or pointer field access like p.map_field),
+             * store it in a temp to make it addressable. */
+            bool map_is_rvalue = (node->data.index_expr.left->kind == NODE_INDEX_EXPR ||
+                node->data.index_expr.left->kind == NODE_CALL_EXPR);
+            if (!map_is_rvalue && node->data.index_expr.left->kind == NODE_MEMBER_EXPR) {
+                EzType *obj_t = cg->type_table
+                    ? typetable_get(cg->type_table, node->data.index_expr.left->data.member.object) : NULL;
+                if (obj_t && obj_t->kind == TK_POINTER) map_is_rvalue = true;
+            }
+            if (map_is_rvalue) {
                 emitf(cg, "({ EzMap _mt = ");
                 emit_expression(cg, node->data.index_expr.left);
                 emitf(cg, "; %s _mk = ", c_key);
@@ -5641,7 +5648,12 @@ static void emit_assign_statement(CodeGen *cg, AstNode *node) {
             return;
         }
         if (left_t && left_t->kind == TK_MAP) {
-            /* Map key assignment: ez_map_set(arena, &m, &key, &value) */
+            /* Map key assignment: ez_map_set(arena, &m, &key, &value)
+             * We need &m (address of the map), but the map expression may
+             * be an rvalue (e.g. pointer-deref field access via GCC statement
+             * expression). Check whether the map lives behind a pointer and
+             * use arrow syntax to get an lvalue if so, otherwise emit
+             * directly. */
             const char *c_val = "int64_t";
             if (left_t->value_type) c_val = ez_map_elem_c_type(cg, left_t->value_type);
             const char *c_key = "EzString";
@@ -5649,6 +5661,17 @@ static void emit_assign_statement(CodeGen *cg, AstNode *node) {
             const char *ms_arena = cg->loop_scope_depth > 0 ? "_ez_outer_arena" : "ez_default_arena";
             bool ms_str_key = left_t->key_type && strcmp(left_t->key_type, "string") == 0;
             bool ms_str_val = left_t->value_type && strcmp(left_t->value_type, "string") == 0;
+
+            /* Detect pointer-to-struct field access: left is a MEMBER_EXPR
+             * whose object is a pointer type. In that case the GCC statement
+             * expression for nil-checked deref yields an rvalue and &(rvalue)
+             * is illegal. Instead, nil-check then use -> to get an lvalue. */
+            bool map_via_ptr = false;
+            if (left->kind == NODE_MEMBER_EXPR) {
+                EzType *obj_t = cg->type_table ? typetable_get(cg->type_table, left->data.member.object) : NULL;
+                if (obj_t && obj_t->kind == TK_POINTER) map_via_ptr = true;
+            }
+
             emitf(cg, "{ %s _mk = ", c_key);
             emit_expression(cg, node->data.assign.target->data.index_expr.index);
             emit(cg, "; ");
@@ -5673,9 +5696,19 @@ static void emit_assign_statement(CodeGen *cg, AstNode *node) {
                     emit(cg, "; ez_default_arena = _esc; } ");
                 }
             }
-            emitf(cg, "ez_map_set(%s, &", ms_arena);
-            emit_expression(cg, left);
-            emit(cg, ", &_mk, &_mv); }\n");
+            if (map_via_ptr) {
+                /* Nil-check the pointer, then use -> to yield an lvalue */
+                emitf(cg, "{ __auto_type _mp = ");
+                emit_expression(cg, left->data.member.object);
+                emitf(cg, "; if (!_mp) { fflush(stdout); ez_panic(__FILE__, %d, "
+                    "\"nil pointer dereference\"); } "
+                    "ez_map_set(%s, &_mp->%s, &_mk, &_mv); } }\n",
+                    node->token.line, ms_arena, safe_name(left->data.member.member));
+            } else {
+                emitf(cg, "ez_map_set(%s, &", ms_arena);
+                emit_expression(cg, left);
+                emit(cg, ", &_mk, &_mv); }\n");
+            }
             return;
         }
     }
