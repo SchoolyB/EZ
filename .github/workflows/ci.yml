@@ -30,6 +30,9 @@ jobs:
           go-version: ${{ matrix.go-version }}
 
       # ===== Go CLI =====
+      - name: Create embed stubs
+        run: make stubs
+
       - name: Build ez CLI
         run: go build -o ez ./cmd/ez
 

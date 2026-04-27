@@ -28,7 +28,7 @@ var embeddedEzc []byte
 //go:embed runtime/libezrt.a
 var embeddedLibezrt []byte
 
-//go:embed runtime/src
+//go:embed all:runtime/src
 var embeddedSrc embed.FS
 
 // ErrNoEmbed indicates the embedded runtime assets are empty stubs (a

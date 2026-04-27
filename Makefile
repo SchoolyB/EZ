@@ -32,6 +32,8 @@ stubs:
 	@mkdir -p $(EMBED_DIR)/src/runtime $(EMBED_DIR)/src/stdlib
 	@test -f $(EMBED_DIR)/ezc || : > $(EMBED_DIR)/ezc
 	@test -f $(EMBED_DIR)/libezrt.a || : > $(EMBED_DIR)/libezrt.a
+	@test -f $(EMBED_DIR)/src/runtime/.stub || : > $(EMBED_DIR)/src/runtime/.stub
+	@test -f $(EMBED_DIR)/src/stdlib/.stub || : > $(EMBED_DIR)/src/stdlib/.stub
 
 # Single-binary build (#1461): compile the C compiler first, stage the
 # artifacts into internal/ezc/runtime/ so go:embed picks them up, then
