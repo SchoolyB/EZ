@@ -3,7 +3,7 @@
 > Auto-generated from `ezc/src/util/error_codes.h`. Do not edit manually.
 > Run `./scripts/generate_errors.sh` to regenerate.
 
-**Total: 168 codes** (157 errors, 11 warnings)
+**Total: 170 codes** (159 errors, 11 warnings)
 
 ---
 
@@ -160,6 +160,8 @@
 | `E5025` | usage | invalid assignment target; left side of '=' must be a variable, field, or index expression |
 | `E5026` | arguments | argument type mismatch; the function expects a different type than what was provided |
 | `E6001` | imports | unknown module '@%s' |
+| `E6002` | imports | cannot find file or directory '%s' |
+| `E6003` | imports | directory '%s' contains no .ez files |
 | `E7004` | stdlib | function argument must be an integer, not a float |
 | `E7006` | stdlib | threads.spawn() needs a function reference; use ()function_name to pass a function |
 | `E7014` | stdlib | cannot convert %lld to char; value must be a valid Unicode code point (0 or greater) |
@@ -212,4 +214,4 @@
 
 ---
 
-*Generated on 2026-04-27 02:06:37 UTC*
+*Generated on 2026-04-27 03:24:39 UTC*

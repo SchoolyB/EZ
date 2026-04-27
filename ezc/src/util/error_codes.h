@@ -182,7 +182,9 @@
 
 /* --- E6xxx: Import Problems --- */
 #define EZ_IMPORT_ERRORS \
-    EZ_ERROR("E6001", "imports", "unknown module '@%s'")
+    EZ_ERROR("E6001", "imports", "unknown module '@%s'") \
+    EZ_ERROR("E6002", "imports", "cannot find file or directory '%s'") \
+    EZ_ERROR("E6003", "imports", "directory '%s' contains no .ez files")
 
 /* --- E7xxx+: Standard Library --- */
 #define EZ_STDLIB_ERRORS \

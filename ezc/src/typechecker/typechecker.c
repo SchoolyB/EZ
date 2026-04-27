@@ -6635,21 +6635,24 @@ static void register_declarations(TypeChecker *tc, AstNode *program) {
             finalize_generic_sig(&tc->funcs[tc->func_count - 1], stmt);
             /* Also register unprefixed name for internal cross-references.
              * If name is "lib_foo", also register "foo" so calls within imported
-             * function bodies can resolve unprefixed names. */
+             * function bodies can resolve unprefixed names.
+             * Skip "main" — it's the entry point and must not collide. */
             const char *fn = stmt->data.func_decl.name;
             const char *underscore = strchr(fn, '_');
             if (underscore && underscore != fn) {
                 const char *unprefixed = underscore + 1;
-                /* Only register if the prefix matches a known import */
-                for (int ii = 0; ii < tc->import_count; ii++) {
-                    size_t mod_len = strlen(tc->imported_modules[ii]);
-                    if (strncmp(fn, tc->imported_modules[ii], mod_len) == 0 &&
-                        fn[mod_len] == '_') {
-                        register_func(tc, unprefixed, ptypes, pc, rtypes, rc);
-                        tc->funcs[tc->func_count - 1].is_private = stmt->data.func_decl.is_private;
-                        tc->funcs[tc->func_count - 1].def_line = 0; /* suppress unused warning */
-                        finalize_generic_sig(&tc->funcs[tc->func_count - 1], stmt);
-                        break;
+                if (strcmp(unprefixed, "main") != 0) {
+                    /* Only register if the prefix matches a known import */
+                    for (int ii = 0; ii < tc->import_count; ii++) {
+                        size_t mod_len = strlen(tc->imported_modules[ii]);
+                        if (strncmp(fn, tc->imported_modules[ii], mod_len) == 0 &&
+                            fn[mod_len] == '_') {
+                            register_func(tc, unprefixed, ptypes, pc, rtypes, rc);
+                            tc->funcs[tc->func_count - 1].is_private = stmt->data.func_decl.is_private;
+                            tc->funcs[tc->func_count - 1].def_line = 0; /* suppress unused warning */
+                            finalize_generic_sig(&tc->funcs[tc->func_count - 1], stmt);
+                            break;
+                        }
                     }
                 }
             }

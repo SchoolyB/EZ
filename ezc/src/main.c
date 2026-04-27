@@ -12,6 +12,7 @@
 #include <string.h>
 #include <unistd.h>
 #include <sys/stat.h>
+#include <dirent.h>
 #include <time.h>
 #ifdef __APPLE__
 #include <mach-o/dyld.h>
@@ -402,6 +403,39 @@ static void mark_imported(const char *path) {
     }
 }
 
+/* Scan a directory for .ez files. Returns count of files found.
+ * Fills paths[] with full file paths (dir_path + "/" + filename). */
+#define MAX_DIR_FILES 256
+static int scan_ez_files(const char *dir_path, char paths[][PATH_BUF_SIZE], int max_files) {
+    DIR *d = opendir(dir_path);
+    if (!d) return -1;
+
+    int count = 0;
+    struct dirent *ent;
+    while ((ent = readdir(d)) != NULL && count < max_files) {
+        const char *name = ent->d_name;
+        if (name[0] == '.') continue; /* skip hidden files and . / .. */
+        size_t nlen = strlen(name);
+        if (nlen < 4 || strcmp(name + nlen - 3, ".ez") != 0) continue;
+        snprintf(paths[count], PATH_BUF_SIZE, "%s/%s", dir_path, name);
+        count++;
+    }
+    closedir(d);
+
+    /* Sort alphabetically for deterministic import order */
+    for (int i = 0; i < count - 1; i++) {
+        for (int j = i + 1; j < count; j++) {
+            if (strcmp(paths[i], paths[j]) > 0) {
+                char tmp[PATH_BUF_SIZE];
+                memcpy(tmp, paths[i], PATH_BUF_SIZE);
+                memcpy(paths[i], paths[j], PATH_BUF_SIZE);
+                memcpy(paths[j], tmp, PATH_BUF_SIZE);
+            }
+        }
+    }
+    return count;
+}
+
 int main(int argc, char **argv) {
     if (argc < 2) {
         print_usage();
@@ -609,14 +643,58 @@ int main(int argc, char **argv) {
                 char import_path[PATH_BUF_SIZE];
                 const char *rel = item->path;
                 if (rel[0] == '.' && rel[1] == '/') rel += 2;
-                /* Path already includes .ez extension from parser */
                 snprintf(import_path, sizeof(import_path), "%s%s", input_dir, rel);
 
-                /* Derive module name from filename (strip directory and .ez) */
+                /* Determine import kind: direct .ez file, extensionless file, or directory.
+                 * Build a list of actual .ez file paths to import. */
+                char (*file_list)[PATH_BUF_SIZE] = NULL;
+                int file_count = 0;
+
+                size_t iplen = strlen(import_path);
+                if (iplen >= 3 && strcmp(import_path + iplen - 3, ".ez") == 0) {
+                    /* Case 1: explicit .ez path — direct file import */
+                    file_list = arena_alloc(arena, sizeof(char[PATH_BUF_SIZE]));
+                    strncpy(file_list[0], import_path, PATH_BUF_SIZE - 1);
+                    file_list[0][PATH_BUF_SIZE - 1] = '\0';
+                    file_count = 1;
+                } else {
+                    /* Case 2: try appending .ez (extensionless file import) */
+                    char try_file[PATH_BUF_SIZE];
+                    snprintf(try_file, sizeof(try_file), "%s.ez", import_path);
+                    struct stat st;
+                    if (stat(try_file, &st) == 0 && S_ISREG(st.st_mode)) {
+                        file_list = arena_alloc(arena, sizeof(char[PATH_BUF_SIZE]));
+                        strncpy(file_list[0], try_file, PATH_BUF_SIZE - 1);
+                        file_list[0][PATH_BUF_SIZE - 1] = '\0';
+                        file_count = 1;
+                        /* Update import_path so collision detection uses the resolved path */
+                        strncpy(import_path, try_file, sizeof(import_path) - 1);
+                        import_path[sizeof(import_path) - 1] = '\0';
+                    } else if (stat(import_path, &st) == 0 && S_ISDIR(st.st_mode)) {
+                        /* Case 3: directory import — scan for .ez files */
+                        file_list = arena_alloc(arena, sizeof(char[PATH_BUF_SIZE]) * MAX_DIR_FILES);
+                        file_count = scan_ez_files(import_path, file_list, MAX_DIR_FILES);
+                        if (file_count == 0) {
+                            char msg[512];
+                            snprintf(msg, sizeof(msg), "directory '%s' contains no .ez files", item->path);
+                            diag_error(diag, "E6003", strdup(msg),
+                                input_file, stmt->token.line, stmt->token.column, 0);
+                            continue;
+                        }
+                    } else {
+                        /* Nothing found */
+                        char msg[512];
+                        snprintf(msg, sizeof(msg), "cannot find file or directory '%s'", item->path);
+                        diag_error(diag, "E6002", strdup(msg),
+                            input_file, stmt->token.line, stmt->token.column, 0);
+                        continue;
+                    }
+                }
+
+                /* Derive module name from filename/directory (strip directory and .ez) */
                 const char *mod_base = rel;
                 const char *slash = strrchr(rel, '/');
                 if (slash) mod_base = slash + 1;
-                /* Strip .ez extension for module name */
                 char mod_name_buf[256];
                 size_t mod_len = strlen(mod_base);
                 if (mod_len > 3 && strcmp(mod_base + mod_len - 3, ".ez") == 0) {
@@ -657,26 +735,30 @@ int main(int argc, char **argv) {
                 if (!item->alias) item->alias = mod_name;
                 if (!item->module) item->module = mod_name;
 
-                /* Skip if already imported (handles cycles and duplicates) */
-                if (already_imported(import_path)) continue;
-                mark_imported(arena_strdup(arena, import_path));
-                found_new_import = true;
+                /* Process each file in the import (1 for single file, N for directory) */
+                for (int fi = 0; fi < file_count; fi++) {
+                    const char *cur_file_path = file_list[fi];
 
-                /* Read and parse the imported file */
-                char *imp_source = read_file(import_path);
-                if (!imp_source) {
-                    char msg[512];
-                    snprintf(msg, sizeof(msg), "cannot find imported file '%s'", import_path);
-                    diag_error(diag, "E6001", strdup(msg),
-                        input_file, stmt->token.line, stmt->token.column, 0);
-                    continue;
-                }
+                    /* Skip if already imported (handles cycles and duplicates) */
+                    if (already_imported(cur_file_path)) continue;
+                    mark_imported(arena_strdup(arena, cur_file_path));
+                    found_new_import = true;
 
-                Lexer *imp_lexer = lexer_create(arena, imp_source, import_path);
-                Parser *imp_parser = parser_create(arena, imp_lexer, import_path, diag);
-                AstNode *imp_program = parser_parse_program(imp_parser);
+                    /* Read and parse the imported file */
+                    char *imp_source = read_file(cur_file_path);
+                    if (!imp_source) {
+                        char msg[512];
+                        snprintf(msg, sizeof(msg), "cannot find file or directory '%s'", cur_file_path);
+                        diag_error(diag, "E6002", strdup(msg),
+                            input_file, stmt->token.line, stmt->token.column, 0);
+                        continue;
+                    }
 
-                if (!imp_program || diag_has_errors(diag)) continue;
+                    Lexer *imp_lexer = lexer_create(arena, imp_source, cur_file_path);
+                    Parser *imp_parser = parser_create(arena, imp_lexer, cur_file_path, diag);
+                    AstNode *imp_program = parser_parse_program(imp_parser);
+
+                    if (!imp_program || diag_has_errors(diag)) continue;
 
                 /* Import statements from the imported file are also merged into the
                  * main program so the while loop picks them up on the next iteration. */
@@ -893,6 +975,7 @@ int main(int argc, char **argv) {
                     program->data.program.stmts[insert_at] = imp_stmt;
                     program->data.program.stmt_count++;
                 }
+                } /* end for (fi: each file in import) */
             }
         }
         } /* end while (found_new_import) */

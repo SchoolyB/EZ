@@ -1658,22 +1658,23 @@ static AstNode *parse_import_statement(Parser *p) {
         } else if (cur_token_is(p, TOK_STRING)) {
             item->is_stdlib = false;
             item->path = p->cur_token.literal;
-            /* Enforce .ez extension */
-            size_t plen = strlen(item->path);
-            if (plen < 3 || strcmp(item->path + plen - 3, ".ez") != 0) {
-                diag_error_msg(p->diag, "E2002",
-                    strdup("import path must end with '.ez'"),
-                    p->file, p->cur_token.line, p->cur_token.column, 0);
-            }
-            /* Derive module name from filename if no alias */
+            /* Derive module name from filename/directory if no alias */
             if (!item->alias) {
                 const char *slash = strrchr(item->path, '/');
                 const char *base = slash ? slash + 1 : item->path;
                 size_t blen = strlen(base);
-                if (blen > 3) {
+                if (blen > 3 && strcmp(base + blen - 3, ".ez") == 0) {
+                    /* Strip .ez extension: "helpers.ez" → "helpers" */
                     char *mod = arena_alloc(p->arena, blen - 2);
                     memcpy(mod, base, blen - 3);
                     mod[blen - 3] = '\0';
+                    item->alias = mod;
+                    item->module = mod;
+                } else if (blen > 0) {
+                    /* No .ez extension: use last path component as module name */
+                    char *mod = arena_alloc(p->arena, blen + 1);
+                    memcpy(mod, base, blen);
+                    mod[blen] = '\0';
                     item->alias = mod;
                     item->module = mod;
                 }
