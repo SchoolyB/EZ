@@ -1725,18 +1725,23 @@ mut y = first({"a", "b"})     // ? binds to string
 
 ### 8.1 Module Identity
 
-Module identity is determined by the filesystem — there are no `module` declarations. A file's module name is its filename (minus `.ez`). A directory's module name is its directory name.
+Module identity is determined by the filesystem — there are no `module` declarations. A file's module name is its filename minus the `.ez` extension. A directory's module name is its directory name.
 
 ```
 project/
   main.ez              ← entry point
-  helpers.ez           ← module "helpers" (import "./helpers")
+  helpers.ez           ← module "helpers"
+  utils.ez             ← module "utils"
   models/
-    types.ez           ← these merge into module "models"
-    functions.ez       ← (import "./models")
+    user.ez            ← ┐
+    task.ez            ← ┘ merge into module "models"
+    internal/
+      cache.ez         ← separate module "internal"
 ```
 
-Directory imports merge all top-level `.ez` files into one namespace. Subdirectories are separate modules.
+Directory imports merge all top-level `.ez` files in that directory into a single namespace under the directory's name. Subdirectories are **not** included — they are separate modules that must be imported independently. Hidden files (names starting with `.`) are excluded from directory scans.
+
+All relative import paths are resolved relative to the **entry point file's directory**, not the importing file's directory. This means a file inside `models/` that uses `import "./shared.ez"` resolves relative to the project root (where `main.ez` lives), not relative to `models/`.
 
 ### 8.2 Imports
 
@@ -1745,29 +1750,53 @@ import_decl = "import" [ "and" "use" ] import_path { "," import_path } .
 import_path = [ alias ] ( "@" identifier | string_literal ) | "c" string_literal .
 ```
 
-Standard library modules are prefixed with `@`:
+**Standard library imports** are prefixed with `@`:
 
 ```ez
 import @arrays, @maps, @strings
 ```
 
-Local modules use relative paths. A `.ez` extension imports a single file; no extension imports a directory:
+**Local imports** use relative string paths. The compiler resolves them in order:
+
+1. If the path ends in `.ez`, import that file directly.
+2. If the path has no extension, try appending `.ez` — if a file exists, import it.
+3. If the path (without extension) is a directory, scan it for all `.ez` files and merge them into one module.
+4. If none of the above match, emit E6002.
 
 ```ez
-import "./helpers"          // helpers.ez (file) or helpers/ (directory)
+import "./helpers.ez"      // explicit file import
+import "./helpers"          // resolves to helpers.ez (file) or helpers/ (directory)
 import "./models"           // models/ directory — all .ez files merge
 ```
 
-Import aliasing:
+When both `helpers.ez` and a `helpers/` directory exist, the file takes priority.
+
+If a directory contains no `.ez` files, it is an error (E6003).
+
+**Import aliasing:**
 
 ```ez
-import m @math              // alias "m" for @math
-import mymod "./server"     // alias "mymod" for local module
+import m @math              // use m.sqrt() instead of math.sqrt()
+import mymod "./server"     // use mymod.handle() instead of server.handle()
 ```
 
-**Collision detection:** If two imports resolve to the same alias without explicit aliasing, it is an error (E6010). The user must alias one.
+**Multiple imports** can be comma-separated:
 
-**Double-import prevention:** Importing a file that is already included via a parent directory import is an error (E6011).
+```ez
+import @math, "./helpers", "./models"
+```
+
+**Collision detection:** If two different imports resolve to the same module name, it is an error (E6001). The user must alias one to disambiguate:
+
+```ez
+// Error: both resolve to module name "utils"
+import "./utils", "./lib/utils"
+
+// Fix: alias one
+import "./utils", lib_utils "./lib/utils"
+```
+
+**Deduplication:** If the same file is imported multiple times (e.g., directly by main and transitively through another import), it is only processed once. No error is emitted.
 
 ### 8.3 Combined Import and Use
 
