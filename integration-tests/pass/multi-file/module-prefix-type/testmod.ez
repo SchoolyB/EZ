@@ -7,12 +7,12 @@ do make_hero() -> Hero {
     mut h = new(Hero)
     h.name = "Test Hero"
     h.lvl = 1
-    return h
+    return h^
 }
 
 do make_hero_direct() -> Hero {
     mut h = new(Hero)
     h.name = "Direct Hero"
     h.lvl = 2
-    return h
+    return h^
 }
