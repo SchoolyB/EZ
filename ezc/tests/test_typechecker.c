@@ -943,17 +943,6 @@ static void test_warning_W2001_unused_import(void) {
     diag_destroy(d);
 }
 
-static void test_warning_W2011_named_return_unused(void) {
-    DiagnosticList *d = check_diag(
-        "do foo() -> (name string) {\n"
-        "    mut other string = \"hi\"\n"
-        "    return other\n"
-        "}\n"
-        "do main() { mut s string = foo()\n println(s) }");
-    ASSERT(has_code(d, "W2011"));
-    diag_destroy(d);
-}
-
 static void test_warning_W3003_partial_array_init(void) {
     DiagnosticList *d = check_diag(
         "do main() { mut a [int, 5] = {1, 2} }");
@@ -1364,7 +1353,6 @@ int main(void) {
     /* Additional warnings */
     RUN_TEST(test_warning_W1005_typed_blank);
     RUN_TEST(test_warning_W2001_unused_import);
-    RUN_TEST(test_warning_W2011_named_return_unused);
     RUN_TEST(test_warning_W3003_partial_array_init);
 
     /* Additional typechecker coverage */

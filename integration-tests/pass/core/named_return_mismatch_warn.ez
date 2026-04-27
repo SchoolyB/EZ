@@ -1,7 +1,7 @@
 /* Test: Named return variable with different variable returned
- * Related to #1238 (W2011) — verifies that returning a different
+ * Related to #1238 — verifies that returning a different
  * variable than the named return still produces correct output.
- * Expected: all tests pass (W2011 warnings are expected)
+ * Note: W2011 warning not yet implemented (#1552)
  */
 
 
